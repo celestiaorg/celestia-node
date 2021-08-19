@@ -47,7 +47,7 @@
 >
 > - Will these changes require a breaking (major) release?
 >
-> - Does this change require coordination with the Celestia fork of the SDK or celestia-app?
+> - Does this change require coordination with the Celestia fork of the SDK, celestia-app/-core, or any other celestiaorg repository?
 
 ## Status
 
