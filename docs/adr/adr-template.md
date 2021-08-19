@@ -47,7 +47,11 @@
 >
 > - Will these changes require a breaking (major) release?
 >
+<<<<<<< HEAD
 > - Does this change require coordination with the Celestia fork of the SDK, celestia-app/-core, or any other celestiaorg repository?
+=======
+> - Does this change require coordination with the Celestia fork of the SDK or celestia-app?
+>>>>>>> 45ba75a (add adr dir)
 
 ## Status
 
