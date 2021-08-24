@@ -33,54 +33,55 @@ For devnet, we require two modes for the Celestia Node: `light` and `full`, wher
 * receive "raw" (un-erasure coded) blocks from a "Celestia Core" node by subscribing to `NewBlockEvents` using the `/block` RPC endpoint of "Celestia Core" node
 * erasure code the block / verify erasure coding
 * create an `ExtendedHeader` with the raw block header, the generated `DataAvailabilityHeader` (DAH), as well as the `ValidatorSet` and serve this `ExtendedHeader` to the Celestia network
-* request "raw" blocks from other `full` Celestia Nodes on the network
+* request "raw" blocks from other `full` Celestia Nodes on the network *(optional for devnet)*
 
 ![predevnet flow](./img/predevnetnode.png)
 
 ## Detailed Design
 
-The Celestia Node will have a central `Node` data structure around which all services will be focused. A user will be able to initialise a Celestia Node as either a `full` or `light` node. Upon start, the `Node` gets created, configured and will also configure services to register on the `Node` based on the node type (`light` or `full`).
+The Celestia Node will have a central `Node` data structure around which all services will be focused. A "service" is any kind of data retrieval/sharing/storage process that can be started and stopped on the core node. For example, everything related to retrieving blocks, erasure coding them, verifying them, and storing them will be contained in a `BlockService` which can be configured, registered, and started on the node.
+
+A user will be able to initialise a Celestia Node as either a `full` or `light` node. Upon start, the `Node` gets created, configured and will also configure services to register on the `Node` based on the node type (`light` or `full`).
 
 A `full` node encompasses the functionality of a `light` node along with additional services that allow it to interact with a Celestia Core node.
 
 A `light` node will provide the following services: 
-* `ExtendedHeaderService`
-    * `ExtendedHeaderExchange`
-    * `ExtendedHeaderSub`
+* `ExtendedHeaderService` -- a service that can be registered on the node, and started/stopped that contains every process related to retrieving `ExtendedHeader`s (actively or passively), as well as storing them.
+    * `ExtendedHeaderExchange` (request/response)
+    * `ExtendedHeaderSub` (broadcast)
     * `ExtendedHeaderStore`
-* `FraudProofService` *(optional for devnet)*
-    * `FraudProofSub`
+* `FraudProofService` *(optional for devnet)* -- a service that can be registered on the node, and started/stopped that contains every process related to retrieving `ErasureCodingFraudProof`s and `StateFraudProof`s. 
+    * `FraudProofSub` (broadcast)
     * `FraudProofStore`
-* `ShareService`
-    * `ShareExchange`
+* `ShareService` -- a service that can be registered on the node, and started/stopped that contains every process related to retrieving shares randomly (sampling) or by namespace from the network, as well as storage for those shares.
+    * `ShareExchange` (request/response)
     * `ShareStore`
-* `StateService` *(optional for devnet)*
-    * `StateExchange`
-* `TransactionService` *(dependent on `StateService` implementation, but optional for devnet)*
-    * `SubmitTx`
+* `StateService` *(optional for devnet)* -- a service that can be registered on the node, and started/stopped that contains every process related to retrieving state for a given block height or account.
+    * `StateExchange` (request/response)
+* `TransactionService` *(dependent on `StateService` implementation, but optional for devnet)* -- a simple server that can be registered on the node, and started and stopped that handles for endpoints like `/submit_tx`
+    * `SubmitTx` (request/response)
 
 A `full ` node will provide the following services: 
-* `ExtendedHeaderService`
-    * `ExtendedHeaderExchange`
-    * `ExtendedHeaderVerification` (`light` nodes only)
-    * `ExtendedHeaderSub`
+* `ExtendedHeaderService` -- a service that can be registered on the node, and started/stopped that contains every process related to **generating**, propagating/retrieving `ExtendedHeader`s (actively or passively), as well as storing them.
+    * `ExtendedHeaderExchange` (request/response)
+    * `ExtendedHeaderVerification` (`full` nodes only)
+    * `ExtendedHeaderSub` (broadcast)
     * `ExtendedHeaderStore`
-* `FraudProofService` *(optional for devnet)*
+* `FraudProofService` *(optional for devnet)* -- a service that can be registered on the node, and started/stopped that contains every process related to generating, broadcasting, and storing both `ErasureCodingFraudProof`s and `StateFraudProof`s.
     * **`FraudProofGeneration`**
-    * `FraudProofSub`
+    * `FraudProofSub` (broadcast)
     * `FraudProofStore`
-* `ShareService`
-    * `ShareExchange`
-    * `ShareStore`
+* `ShareService` -- a service that can be registered on the node, and started/stopped that contains every process related to requesting and providing shares. Note, `full` nodes will not have a separate `ShareStore` as they store the full blocks.
+    * `ShareExchange` (request/response)
 * `BlockService`
     * `BlockErasureCoding` 
-    * `NewBlockEventSubscription` (`full` node <> `Celestia Core` node)
-    * `BlockExchange` (`full` node <> `full` node)
+    * `NewBlockEventSubscription` (`full` node <> `Celestia Core` node request)
+    * `BlockExchange` *(optional for devnet)* (`full` node <> `full` node request/response) 
     * `BlockStore`
 * `StateService` *(optional for devnet)*
-    * `StateExchange`
+    * `StateExchange` (`full` node <> Celestia Core request/response)
 * `TransactionService` *(dependent on `StateService` implementation, but optional for devnet)*
-    * `SubmitTx`\
+    * `SubmitTx`
 
 
 For devnet, it should be possible for Celestia `full` Nodes to receive information directly from Celestia Core nodes or from each other. 
@@ -108,6 +109,11 @@ For devnet, the Celestia Node will not be able to generate state fraud proofs as
 ### Light nodes serving shares and samples
 
 At the moment, we will be using [bitswap](https://github.com/ipfs/go-bitswap) to retrieve samples and shares from the network. The way Bitswap works requires nodes that have the requested data to serve it. This is not necessarily ideal for a "light node" to do as supporting serving samples/shares would expand the resource requirements for a light node.
+
+Other negatives of bitswap include: 
+* it somewhat couples storage with networking (e.g. it will be difficult to just compute the inner proof nodes on demand instead of storing them) by default
+* it requires multiple roundtrips for what could be a single (or at least fewer) roundtrip(s) if we wrote our own protocol; this is particularly relevant in the case where Celestia nodes will run on their own and download the whole block via the p2p network from other Celestia nodes (instead of from tendermint via RPC): the [current implementation](https://github.com/celestiaorg/celestia-core/blob/052d1269e0ec1de029e1cf3fc02d2585d7f9df10/p2p/ipld/read.go#L23-L30) using bitswap and ipfs is quite inefficient compared to a protocol that was not bitswap on a share-level
+* more code we do not directly have control over and more dependencies
 
 In the future, we should consider moving away from bitswap to either [GraphSync](https://github.com/ipfs/go-graphsync) or a custom protocol. 
 
