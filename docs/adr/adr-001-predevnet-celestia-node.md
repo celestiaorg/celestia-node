@@ -20,7 +20,7 @@ After basic interoperability on devnet, there will be an effort to merge consens
 
 A "Celestia Node" will be distinctly different than a "Celestia Core" node in the initial implementation for devnet, with plans to merge consensus core functionality into the general design of a "Celestia Node", just added as an additional `ConsensusService` on the node.
 
-For devnet, we require two modes for the Celestia Node: `light` and `full`, where the `light` node performs data availability sampling and the `full` node processes, stores, and serves new blocks from Celestia Core consensus nodes.
+For devnet, we require two modes for the Celestia Node: `light` and `full`, where the `light` node performs data availability sampling and the `full` node processes, stores, and serves new blocks from either Celestia Core consensus nodes *(required for devnet)* or from other Celestia `full` nodes *(optional for devnet)*.
  
 **For devnet, a `light` Celestia Node must be able to do the following:**
 * propagate relevant block information (in the form of `ExtendedHeader`s and `ErasureCodingFraudProof`s to its "Celestia Node" peers
@@ -71,7 +71,7 @@ A `full ` node will provide the following services:
     * **`FraudProofGeneration`**
     * `FraudProofSub` (broadcast)
     * `FraudProofStore`
-* `ShareService` -- a service that can be registered on the node, and started/stopped that contains every process related to requesting and providing shares. Note, `full` nodes will not have a separate `ShareStore` as they store the full blocks.
+* `ShareService` -- a service that can be registered on the node, and started/stopped that contains every process related to requesting and providing shares. Note, `full` nodes will not have a separate `ShareStore` as the store the full blocks.
     * `ShareExchange` (request/response)
 * `BlockService`
     * `BlockErasureCoding` 
