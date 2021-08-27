@@ -6,7 +6,13 @@
 
 ## Changelog
 
-* 2021-19-08: initial draft
+* 2021-08-19: initial draft
+
+## Legend
+
+**Celestia Core** = tendermint consensus node that lives in [the celestia-core repository](https://github.com/celestiaorg/celestia-core).
+
+**Celestia Node** = celestia `full` or `light` nodes that live in [this repository](https://github.com/celestiaorg/celestia-node).
 
 ## Context
 
@@ -23,10 +29,10 @@ A "Celestia Node" will be distinctly different than a "Celestia Core" node in th
 For devnet, we require two modes for the Celestia Node: `light` and `full`, where the `light` node performs data availability sampling and the `full` node processes, stores, and serves new blocks from either Celestia Core consensus nodes *(required for devnet)* or from other Celestia `full` nodes *(optional for devnet)*.
  
 **For devnet, a `light` Celestia Node must be able to do the following:**
-* propagate relevant block information (in the form of `ExtendedHeader`s and `ErasureCodingFraudProof`s to its "Celestia Node" peers
+* propagate relevant block information (in the form of `ExtendedHeader`s and `BadEncodingFraudProof`s to its "Celestia Node" peers
 * verify `ExtendedHeader`s
-* perform and serve sampling and `SharesByNamespace` requests
-* request and serve `State` to get `AccountBalance` in order to submit transactions
+* perform and serve sampling and `SharesByNamespace` requests *(note: light nodes serve the `Shares` that they've already requested and stored by default as a result of the way bitswap works -- with bitswap, if a node has something another node wants, it will serve it)*
+* request `State` to get `AccountBalance` in order to submit transactions
 
 
 **For devnet, a `full` Celestia Node must be able to do everything a `light` Celestia Node does, in addition to the following:**
@@ -50,7 +56,7 @@ A `light` node will provide the following services:
     * `ExtendedHeaderExchange` (request/response)
     * `ExtendedHeaderSub` (broadcast)
     * `ExtendedHeaderStore`
-* `FraudProofService` *(optional for devnet)* -- a service that can be registered on the node, and started/stopped that contains every process related to retrieving `ErasureCodingFraudProof`s and `StateFraudProof`s. 
+* `FraudProofService` *(optional for devnet)* -- a service that can be registered on the node, and started/stopped that contains every process related to retrieving `BadEncodingFraudProof`s and `StateFraudProof`s. 
     * `FraudProofSub` (broadcast)
     * `FraudProofStore`
 * `ShareService` -- a service that can be registered on the node, and started/stopped that contains every process related to retrieving shares randomly (sampling) or by namespace from the network, as well as storage for those shares.
@@ -67,7 +73,7 @@ A `full ` node will provide the following services:
     * `ExtendedHeaderVerification` (`full` nodes only)
     * `ExtendedHeaderSub` (broadcast)
     * `ExtendedHeaderStore`
-* `FraudProofService` *(optional for devnet)* -- a service that can be registered on the node, and started/stopped that contains every process related to generating, broadcasting, and storing both `ErasureCodingFraudProof`s and `StateFraudProof`s.
+* `FraudProofService` *(optional for devnet)* -- a service that can be registered on the node, and started/stopped that contains every process related to generating, broadcasting, and storing both `BadEncodingFraudProof`s and `StateFraudProof`s.
     * **`FraudProofGeneration`**
     * `FraudProofSub` (broadcast)
     * `FraudProofStore`
@@ -95,7 +101,7 @@ This feature is not necessarily required for devnet (so state exection functiona
 
 A roadmap to implementation could look like the following: 
 
-The Celestia Full Node would adhere to the ABCI interface in order to communicate with the Celestia App (similar to the way Optimint does it). The Celestia Full Node would send State requests to the Celestia App in order for the Celestia app to replay the transactions in the block and verify the state. 
+The Celestia Full Node would adhere to the ABCI interface in order to communicate with the Celestia App (similar to the way Optimint does it). The Celestia Full Node would send State requests to the Celestia App in order for the Celestia app to replay the transactions in the block and verify the state. Alternatively, Celestia Full Nodes would also be able to replay the transactions in order to verify state / generate state fraud proofs on its own.
 
 For devnet, it is okay to stub out state verification functionality. For example, a Celestia Full Node would download reserve transactions, but not replay them. 
 
@@ -131,7 +137,12 @@ Iterative process will allow us to test out non-p2p-related functionality much s
 * The current design requires erasure coding to be done twice and stores data twice (raw block in Celestia Core and erasure coded block in Celestia Node) which is redundant and should be consolidated in the future.
 
 
+## Open Questions
+
+Should Celestia Core nodes also generate and serve fraud proofs? Or only serve the invalid blocks to Celestia Full Nodes?
+
 ## Status
 
 Proposed
+
 
