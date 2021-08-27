@@ -1,0 +1,64 @@
+linters:
+  enable:
+    - bodyclose
+    - deadcode
+    - depguard
+    - dogsled
+    - dupl
+    - errcheck
+    # - funlen
+    # - gochecknoglobals
+    # - gochecknoinits
+    - goconst
+    - gocritic
+    # - gocyclo
+    # - godox
+    - gofmt
+    - goimports
+    # - golint - deprecated since v1.41. revive will be used instead
+    - revive
+    - gosec
+    - gosimple
+    - govet
+    - ineffassign
+    # - interfacer
+    - lll
+    - misspell
+    # - maligned
+    - nakedret
+    - prealloc
+    # - scopelint - deprecated since v1.39. exportloopref will be used instead
+    - exportloopref
+    - staticcheck
+    - structcheck
+    - stylecheck
+    - typecheck
+    - unconvert
+    # - unparam
+    - unused
+    - varcheck
+    # - whitespace
+    # - wsl
+    # - gocognit
+    - nolintlint
+    - asciicheck
+
+issues:
+  exclude-rules:
+    - path: _test\.go
+      linters:
+        - gosec
+    - linters:
+        - lll
+      source: "https://"
+  max-same-issues: 50
+
+linters-settings:
+  dogsled:
+    max-blank-identifiers: 3
+  golint:
+    min-confidence: 0
+  maligned:
+    suggest-new: true
+  misspell:
+    locale: US
