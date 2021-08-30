@@ -9,7 +9,7 @@ import (
 	"github.com/celestiaorg/celestia-node/node/p2p"
 )
 
-func NewFull(ctx context.Context, cfg *config.Config) (StopFunc, error) {
+func NewFull(ctx context.Context, cfg *config.Config) (*Node, error) {
 	node, err := New(cfg, Full(cfg))
 	if err != nil {
 		return nil, err
@@ -20,7 +20,7 @@ func NewFull(ctx context.Context, cfg *config.Config) (StopFunc, error) {
 		return nil, err
 	}
 
-	return node.Stop, nil
+	return node, nil
 }
 
 func Full(cfg *config.Config) fx.Option {

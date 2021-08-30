@@ -12,8 +12,6 @@ import (
 
 var log = logging.Logger("node")
 
-type StopFunc func(context.Context) error
-
 // TODO
 //  * Repo
 //  * Bootstrapper
