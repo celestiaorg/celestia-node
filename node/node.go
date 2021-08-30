@@ -51,7 +51,7 @@ func (n *Node) Type() Type {
 }
 
 // Start launches the Node and all the referenced Components/Services.
-// Cancelling given context aborts the start.
+// Canceling given context aborts the start.
 func (n *Node) Start(ctx context.Context) error {
 	log.Debugf("Starting %s Node...", n.Type())
 	err := n.app.Start(ctx)
@@ -65,7 +65,7 @@ func (n *Node) Start(ctx context.Context) error {
 }
 
 // Stop shutdowns the Node and all the referenced Components/Services.
-// Cancelling given context unblocks Stop and aborts graceful shutdown while forcing remaining Components/Services to
+// Canceling given context unblocks Stop and aborts graceful shutdown while forcing remaining Components/Services to
 // close immediately.
 func (n *Node) Stop(ctx context.Context) error {
 	log.Debugf("Stopping %s Node...", n.Type())

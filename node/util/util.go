@@ -6,7 +6,7 @@ import (
 	"go.uber.org/fx"
 )
 
-// LifecycleCtx creates a context which will be cancelled when lifecycle stops
+// LifecycleCtx creates a context which will be canceled when lifecycle stops
 //
 func LifecycleCtx(lc fx.Lifecycle) context.Context {
 	ctx, cancel := context.WithCancel(context.Background())
