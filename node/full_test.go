@@ -14,13 +14,13 @@ func TestNewFull(t *testing.T) {
 	startCtx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	stop, err := NewFull(startCtx, &config.Config{})
+	nd, err := NewFull(startCtx, &config.Config{})
 	assert.NoError(t, err)
-	require.NotNil(t, stop)
+	require.NotNil(t, nd)
 
 	stopCtx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	err = stop(stopCtx)
+	err = nd.Start(stopCtx)
 	assert.NoError(t, err)
 }
