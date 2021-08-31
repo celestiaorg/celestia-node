@@ -12,7 +12,7 @@ import (
 // NewFull creates and runs a new ready-to-go Full Node.
 // To gracefully stop it the Stop method must be used.
 func NewFull(ctx context.Context, cfg *config.Config) (*Node, error) {
-	node, err := newNode(cfg, full(cfg))
+	node, err := newNode(full(cfg))
 	if err != nil {
 		return nil, err
 	}
@@ -23,14 +23,18 @@ func NewFull(ctx context.Context, cfg *config.Config) (*Node, error) {
 	}
 
 	// TODO: Add bootstrapping
-
-	node.tp = Full
 	return node, nil
 }
 
 // full keeps all the DI options required to built a Full Node.
 func full(cfg *config.Config) fx.Option {
 	return fx.Options(
+		fx.Provide(func() Type {
+			return Full
+		}),
+		fx.Provide(func() *config.Config {
+			return cfg
+		}),
 		fx.Provide(p2p.Host),
 	)
 }

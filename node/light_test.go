@@ -17,6 +17,9 @@ func TestNewLight(t *testing.T) {
 	nd, err := NewLight(startCtx, &config.Config{})
 	assert.NoError(t, err)
 	require.NotNil(t, nd)
+	require.NotNil(t, nd)
+	require.NotNil(t, nd.Config)
+	require.NotZero(t, nd.Type)
 
 	stopCtx, cancel := context.WithCancel(context.Background())
 	defer cancel()
