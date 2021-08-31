@@ -5,6 +5,7 @@ PROJECTNAME=$(shell basename "$(PWD)")
 help: Makefile
 	@echo " Choose a command run in "$(PROJECTNAME)":"
 	@sed -n 's/^##//p' $< | column -t -s ':' |  sed -e 's/^/ /'
+.PHONY: help
 
 ## format: Formats only *.go (excluding *.pb.go *pb_test.go). Runs `gofmt & goimports` internally.
 format:
