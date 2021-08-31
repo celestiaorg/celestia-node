@@ -1,1 +1,59 @@
 package p2p
+
+import (
+	"fmt"
+
+	"github.com/libp2p/go-libp2p-core/host"
+	p2pconfig "github.com/libp2p/go-libp2p/config"
+	ma "github.com/multiformats/go-multiaddr"
+)
+
+func Listen(listen []string) interface{} {
+	return func(host host.Host) (err error) {
+		maListen := make([]ma.Multiaddr, len(listen))
+		for i, addr := range listen {
+			maListen[i], err = ma.NewMultiaddr(addr)
+			if err != nil {
+				return fmt.Errorf("failure to parse config.P2P.ListenAddresses: %s", err)
+			}
+		}
+		return host.Network().Listen(maListen...)
+	}
+}
+
+func AddrsFactory(announce []string, noAnnounce []string) interface{} {
+	return func() (_ p2pconfig.AddrsFactory, err error) {
+		// Convert maAnnounce strings to Multiaddresses
+		maAnnounce := make([]ma.Multiaddr, len(announce))
+		for i, addr := range announce {
+			maAnnounce[i], err = ma.NewMultiaddr(addr)
+			if err != nil {
+				return nil, fmt.Errorf("failure to parse config.P2P.AnnounceAddresses: %s", err)
+			}
+		}
+
+		// TODO: Support filtering with network masks for noAnnounce, e.g. 255.255.255.0
+		// Collect all addresses that should not be announced
+		maNoAnnounce := make(map[string]bool, len(noAnnounce))
+		for _, addr := range noAnnounce {
+			maddr, err := ma.NewMultiaddr(addr)
+			if err != nil {
+				return nil, fmt.Errorf("failure to parse config.P2P.NoAnnounceAddresses: %s", err)
+			}
+			maNoAnnounce[string(maddr.Bytes())] = true
+		}
+
+		return func(maListen []ma.Multiaddr) (out []ma.Multiaddr) {
+			// combine maListen and maAnnounce addresses
+			maAnnounce = append(maAnnounce, maListen...)
+			// filter out unneeded
+			for _, maddr := range maListen {
+				ok := maNoAnnounce[string(maddr.Bytes())]
+				if !ok {
+					out = append(out, maddr)
+				}
+			}
+			return
+		}, nil
+	}
+}

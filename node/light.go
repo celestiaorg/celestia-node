@@ -35,6 +35,7 @@ func light(cfg *config.Config) fx.Option {
 		fx.Provide(func() *config.Config {
 			return cfg
 		}),
-		fx.Provide(p2p.Host),
+
+		p2p.P2P(cfg),
 	)
 }
