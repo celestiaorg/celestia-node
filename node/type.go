@@ -20,7 +20,7 @@ func (t Type) String() string {
 	return typeToString[t]
 }
 
-// IsValid reports whenever the Type is valid.
+// IsValid reports whether the Type is valid.
 func (t Type) IsValid() bool {
 	_, ok := typeToString[t]
 	return ok

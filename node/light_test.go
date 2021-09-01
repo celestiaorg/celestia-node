@@ -26,8 +26,11 @@ func TestLightLifecycle(t *testing.T) {
 	err = nd.Start(startCtx)
 	require.NoError(t, err)
 
-	stopCtx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	stopCtx, stopCtxCancel := context.WithCancel(context.Background())
+	t.Cleanup(func() {
+		cancel()
+		stopCtxCancel()
+	})
 
 	err = nd.Stop(stopCtx)
 	require.NoError(t, err)

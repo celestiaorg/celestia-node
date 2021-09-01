@@ -3,6 +3,8 @@ package node
 import (
 	"context"
 
+	"github.com/celestiaorg/celestia-node/node/config"
+	"github.com/celestiaorg/celestia-node/rpc"
 	logging "github.com/ipfs/go-log/v2"
 	"github.com/libp2p/go-libp2p-core/host"
 	"go.uber.org/fx"
@@ -10,9 +12,9 @@ import (
 
 var log = logging.Logger("node")
 
-// Node is a central structure in Celestia Node git repository. It keeps references to all Celestia specific
-// Components/Service in one place and provides flexibility to create custom celestia node types from it.
-// Currently supported Node types:
+// Node represents the core structure of a Celestia node. It keeps references to all Celestia-specific
+// components and services in one place and provides flexibility to run a Celestia node in different modes.
+// Currently supported modes:
 // * Full
 // * Light
 type Node struct {
@@ -22,12 +24,15 @@ type Node struct {
 
 	// the Node keeps a reference to the DI App that controls the lifecycles of services registered on the Node.
 	app *fx.App
+
+	// the RPC client is only necessary for full nodes
+	RPCClient *rpc.Client `optional:"true"`
 }
 
 // newNode creates a new Node from given DI options.
-// DI options allow filling the Node with a customized set of Components/Services.
-// NOTE: It's meant to be used privately to create various custom Node types e.g. full / light, unless we eventually
-//  decide to give package users the ability to create custom node types themselves.
+// DI options allow initializing the Node with a customized set of components and services.
+// NOTE: newNode is currently meant to be used privately to create various custom Node types e.g. full, unless we
+// decide to give package users the ability to create custom node types themselves.
 func newNode(opts ...fx.Option) (*Node, error) {
 	node := new(Node)
 	node.app = fx.New(
@@ -38,8 +43,8 @@ func newNode(opts ...fx.Option) (*Node, error) {
 	return node, node.app.Err()
 }
 
-// Start launches the Node and all the referenced Components/Services.
-// Canceling given context aborts the start.
+// Start launches the Node and all the referenced components and services.
+// Canceling the given context aborts the start.
 func (n *Node) Start(ctx context.Context) error {
 	log.Debugf("Starting %s Node...", n.Type)
 	err := n.app.Start(ctx)
