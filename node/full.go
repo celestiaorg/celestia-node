@@ -7,7 +7,7 @@ import (
 	"github.com/celestiaorg/celestia-node/node/p2p"
 )
 
-// node.NewFull assembles a new Full Node from required components.
+// NewFull assembles a new Full Node from required components.
 func NewFull(cfg *config.Config) (*Node, error) {
 	return newNode(fullComponents(cfg))
 }
