@@ -12,7 +12,7 @@ func NewFull(cfg *config.Config) (*Node, error) {
 	return newNode(fullComponents(cfg))
 }
 
-// fullComponents keeps all the components as DI options required to built a Light Node.
+// fullComponents keeps all the components as DI options required to built a Full Node.
 func fullComponents(cfg *config.Config) fx.Option {
 	return fx.Options(
 		fx.Provide(func() Type {
