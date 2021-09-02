@@ -15,13 +15,14 @@ func NewLight(cfg *config.Config) (*Node, error) {
 // lightComponents keeps all the components as DI options required to built a Light Node.
 func lightComponents(cfg *config.Config) fx.Option {
 	return fx.Options(
+		// manual providing
 		fx.Provide(func() Type {
 			return Light
 		}),
 		fx.Provide(func() *config.Config {
 			return cfg
 		}),
-
-		p2p.P2P(cfg),
+		// components
+		p2p.Components(cfg),
 	)
 }

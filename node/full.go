@@ -15,13 +15,14 @@ func NewFull(cfg *config.Config) (*Node, error) {
 // fullComponents keeps all the components as DI options required to built a Full Node.
 func fullComponents(cfg *config.Config) fx.Option {
 	return fx.Options(
+		// manual providing
 		fx.Provide(func() Type {
 			return Full
 		}),
 		fx.Provide(func() *config.Config {
 			return cfg
 		}),
-
-		p2p.P2P(cfg),
+		// components
+		p2p.Components(cfg),
 	)
 }

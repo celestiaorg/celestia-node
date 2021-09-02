@@ -11,7 +11,8 @@ import (
 	"github.com/celestiaorg/celestia-node/node/util"
 )
 
-func Host() interface{} {
+// Host returns constructor for p2p.Host.
+func Host() func(lc fx.Lifecycle, addrf p2pconfig.AddrsFactory) (host.Host, error) {
 	return func(lc fx.Lifecycle, addrf p2pconfig.AddrsFactory) (host.Host, error) {
 		ctx := util.LifecycleCtx(lc)
 		host, err := libp2p.New(ctx,

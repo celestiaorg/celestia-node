@@ -6,7 +6,8 @@ import (
 	"github.com/celestiaorg/celestia-node/node/config"
 )
 
-func P2P(cfg *config.Config) fx.Option {
+// Components collects all the components and services related to p2p.
+func Components(cfg *config.Config) fx.Option {
 	return fx.Options(
 		fx.Provide(Host()),
 		fx.Provide(AddrsFactory(cfg.P2P.AnnounceAddresses, cfg.P2P.NoAnnounceAddresses)),

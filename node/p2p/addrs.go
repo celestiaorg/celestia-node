@@ -8,27 +8,29 @@ import (
 	ma "github.com/multiformats/go-multiaddr"
 )
 
-func Listen(listen []string) interface{} {
+// Listen returns invoke function that starts listening for inbound connections with libp2p.Host.
+func Listen(listen []string) func(host host.Host) (err error) {
 	return func(host host.Host) (err error) {
 		maListen := make([]ma.Multiaddr, len(listen))
 		for i, addr := range listen {
 			maListen[i], err = ma.NewMultiaddr(addr)
 			if err != nil {
-				return fmt.Errorf("failure to parse config.P2P.ListenAddresses: %s", err)
+				return fmt.Errorf("failure to parse config.Components.ListenAddresses: %s", err)
 			}
 		}
 		return host.Network().Listen(maListen...)
 	}
 }
 
-func AddrsFactory(announce []string, noAnnounce []string) interface{} {
+// AddrsFactory returns a constructor for AddrsFactory.
+func AddrsFactory(announce []string, noAnnounce []string) func() (_ p2pconfig.AddrsFactory, err error) {
 	return func() (_ p2pconfig.AddrsFactory, err error) {
 		// Convert maAnnounce strings to Multiaddresses
 		maAnnounce := make([]ma.Multiaddr, len(announce))
 		for i, addr := range announce {
 			maAnnounce[i], err = ma.NewMultiaddr(addr)
 			if err != nil {
-				return nil, fmt.Errorf("failure to parse config.P2P.AnnounceAddresses: %s", err)
+				return nil, fmt.Errorf("failure to parse config.Components.AnnounceAddresses: %s", err)
 			}
 		}
 
@@ -38,7 +40,7 @@ func AddrsFactory(announce []string, noAnnounce []string) interface{} {
 		for _, addr := range noAnnounce {
 			maddr, err := ma.NewMultiaddr(addr)
 			if err != nil {
-				return nil, fmt.Errorf("failure to parse config.P2P.NoAnnounceAddresses: %s", err)
+				return nil, fmt.Errorf("failure to parse config.Components.NoAnnounceAddresses: %s", err)
 			}
 			maNoAnnounce[string(maddr.Bytes())] = true
 		}
