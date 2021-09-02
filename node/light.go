@@ -7,7 +7,7 @@ import (
 	"github.com/celestiaorg/celestia-node/node/p2p"
 )
 
-// node.NewLight assembles a new Light Node from required components.
+// NewLight assembles a new Light Node from required components.
 func NewLight(cfg *config.Config) (*Node, error) {
 	return newNode(lightComponents(cfg))
 }
