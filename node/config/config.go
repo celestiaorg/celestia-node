@@ -5,7 +5,7 @@ type Config struct {
 }
 
 type P2P struct {
-	// ListenAddresses - Addressed to listen to on local NIC.
+	// ListenAddresses - Addresses to listen to on local NIC.
 	ListenAddresses []string
 	// AnnounceAddresses - Addresses to be announced/advertised for peers to connect to
 	AnnounceAddresses []string
