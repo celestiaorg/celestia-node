@@ -11,18 +11,26 @@ import (
 )
 
 func TestNewFull(t *testing.T) {
+	nd, err := NewFull(&config.Config{})
+	assert.NoError(t, err)
+	assert.NotNil(t, nd)
+	assert.NotNil(t, nd.Config)
+	assert.NotZero(t, nd.Type)
+}
+
+func TestFullLifecycle(t *testing.T) {
+	nd, err := NewFull(&config.Config{})
+	require.NoError(t, err)
+
 	startCtx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	nd, err := NewFull(startCtx, &config.Config{})
-	assert.NoError(t, err)
-	require.NotNil(t, nd)
-	require.NotNil(t, nd.Config)
-	require.NotZero(t, nd.Type)
+	err = nd.Start(startCtx)
+	require.NoError(t, err)
 
 	stopCtx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	err = nd.Start(stopCtx)
-	assert.NoError(t, err)
+	err = nd.Stop(stopCtx)
+	require.NoError(t, err)
 }

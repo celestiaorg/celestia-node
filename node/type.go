@@ -1,6 +1,7 @@
 package node
 
 // node.Type defines a type for Nodes to be differentiated.
+// The zero value for Type is invalid.
 type Type uint8
 
 const (

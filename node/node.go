@@ -51,6 +51,8 @@ func (n *Node) Start(ctx context.Context) error {
 	}
 
 	log.Infof("%s Node is started", n.Type)
+
+	// TODO: Add bootstrapping
 	return nil
 }
 

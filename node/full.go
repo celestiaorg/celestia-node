@@ -1,33 +1,19 @@
 package node
 
 import (
-	"context"
-
 	"go.uber.org/fx"
 
 	"github.com/celestiaorg/celestia-node/node/config"
 	"github.com/celestiaorg/celestia-node/node/p2p"
 )
 
-// NewFull creates and runs a new ready-to-go Full Node.
-// To gracefully stop it the Stop method must be used.
-func NewFull(ctx context.Context, cfg *config.Config) (*Node, error) {
-	node, err := newNode(full(cfg))
-	if err != nil {
-		return nil, err
-	}
-
-	err = node.Start(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	// TODO: Add bootstrapping
-	return node, nil
+// node.NewFull assembles a new Full Node from required components.
+func NewFull(cfg *config.Config) (*Node, error) {
+	return newNode(fullComponents(cfg))
 }
 
-// full keeps all the DI options required to built a Full Node.
-func full(cfg *config.Config) fx.Option {
+// fullComponents keeps all the components as DI options required to built a Light Node.
+func fullComponents(cfg *config.Config) fx.Option {
 	return fx.Options(
 		fx.Provide(func() Type {
 			return Full

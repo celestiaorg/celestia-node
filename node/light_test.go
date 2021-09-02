@@ -11,19 +11,26 @@ import (
 )
 
 func TestNewLight(t *testing.T) {
+	nd, err := NewLight(&config.Config{})
+	assert.NoError(t, err)
+	assert.NotNil(t, nd)
+	assert.NotNil(t, nd.Config)
+	assert.NotZero(t, nd.Type)
+}
+
+func TestLightLifecycle(t *testing.T) {
+	nd, err := NewLight(&config.Config{})
+	require.NoError(t, err)
+
 	startCtx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	nd, err := NewLight(startCtx, &config.Config{})
-	assert.NoError(t, err)
-	require.NotNil(t, nd)
-	require.NotNil(t, nd)
-	require.NotNil(t, nd.Config)
-	require.NotZero(t, nd.Type)
+	err = nd.Start(startCtx)
+	require.NoError(t, err)
 
 	stopCtx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
 	err = nd.Stop(stopCtx)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 }
