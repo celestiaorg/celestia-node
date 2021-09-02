@@ -1,6 +1,6 @@
 package node
 
-// node.Type defines a type for Nodes to be differentiated.
+// Type defines the Node type (e.g. `light`, `full`) for identity purposes.
 // The zero value for Type is invalid.
 type Type uint8
 
