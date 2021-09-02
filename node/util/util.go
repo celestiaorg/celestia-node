@@ -7,7 +7,6 @@ import (
 )
 
 // LifecycleCtx creates a context which will be canceled when lifecycle stops
-//
 func LifecycleCtx(lc fx.Lifecycle) context.Context {
 	ctx, cancel := context.WithCancel(context.Background())
 	lc.Append(fx.Hook{
