@@ -5,7 +5,7 @@ package node
 type Type uint8
 
 const (
-	// node.Full is a full-featured Celestia Node.
+	// Full is a full-featured Celestia Node.
 	Full Type = iota + 1
 	// node.Light is a stripped-down Celestia Node which aims to be lightweight while preserving highest possible
 	// security guarantees.
