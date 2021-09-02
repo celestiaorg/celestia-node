@@ -27,9 +27,9 @@ type Node struct {
 }
 
 // newNode creates a new Node from given DI options.
-// DI options allow filling the Node with customized set of Components/Services in the node.
-// NOTE: It's meant to be used privately to create various custom Node types e.g. full/LightNode, unless we don't
-//  decide to give package users an ability to create custom node types themselves.
+// DI options allow filling the Node with a customized set of Components/Services.
+// NOTE: It's meant to be used privately to create various custom Node types e.g. full / light, unless we eventually
+//  decide to give package users the ability to create custom node types themselves.
 func newNode(opts ...fx.Option) (*Node, error) {
 	node := new(Node)
 	node.app = fx.New(
