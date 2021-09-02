@@ -56,7 +56,7 @@ func (n *Node) Start(ctx context.Context) error {
 	return nil
 }
 
-// Stop shutdowns the Node and all the referenced Components/Services.
+// Stop shuts down the Node and all its running Components/Services.
 // Canceling given context unblocks Stop and aborts graceful shutdown while forcing remaining Components/Services to
 // close immediately.
 func (n *Node) Stop(ctx context.Context) error {
