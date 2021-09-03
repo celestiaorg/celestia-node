@@ -2,7 +2,6 @@ package node
 
 import (
 	"context"
-	"github.com/celestiaorg/celestia-node/node/p2p"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -11,6 +10,7 @@ import (
 	"github.com/celestiaorg/celestia-core/abci/example/kvstore"
 	core_node "github.com/celestiaorg/celestia-core/node"
 	rpctest "github.com/celestiaorg/celestia-core/rpc/test"
+	"github.com/celestiaorg/celestia-node/node/p2p"
 	"github.com/celestiaorg/celestia-node/rpc"
 )
 
@@ -19,13 +19,14 @@ func TestNewFull(t *testing.T) {
 	endpoint := coreNode.Config().RPC.ListenAddress
 	protocol, ip := endpoint[:3], endpoint[6:]
 	t.Cleanup(func() {
+		//nolint:errcheck
 		coreNode.Stop()
 	})
 
 	nd, err := NewFull(&Config{
 		P2P: &p2p.Config{},
 		RPC: &rpc.Config{
-			Protocol: protocol,
+			Protocol:   protocol,
 			RemoteAddr: ip,
 		},
 	})
