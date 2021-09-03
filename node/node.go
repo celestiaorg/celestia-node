@@ -2,8 +2,8 @@ package node
 
 import (
 	"context"
-	rpc2 "github.com/celestiaorg/celestia-node/node/rpc"
 
+	"github.com/celestiaorg/celestia-node/node/rpc"
 	logging "github.com/ipfs/go-log/v2"
 	"github.com/libp2p/go-libp2p-core/host"
 	"go.uber.org/fx"
@@ -25,7 +25,7 @@ type Node struct {
 	app *fx.App
 
 	// the RPC client is only necessary for full nodes
-	RPCClient *rpc2.Client `optional:"true"`
+	RPCClient *rpc.Client `optional:"true"`
 }
 
 // newNode creates a new Node from given DI options.

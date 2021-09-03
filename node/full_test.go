@@ -2,7 +2,6 @@ package node
 
 import (
 	"context"
-	rpc2 "github.com/celestiaorg/celestia-node/node/rpc"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -12,6 +11,7 @@ import (
 	core_node "github.com/celestiaorg/celestia-core/node"
 	rpctest "github.com/celestiaorg/celestia-core/rpc/test"
 	"github.com/celestiaorg/celestia-node/node/p2p"
+	"github.com/celestiaorg/celestia-node/node/rpc"
 )
 
 func TestNewFull(t *testing.T) {
@@ -25,7 +25,7 @@ func TestNewFull(t *testing.T) {
 
 	nd, err := NewFull(&Config{
 		P2P: &p2p.Config{},
-		RPC: &rpc2.Config{
+		RPC: &rpc.Config{
 			Protocol:   protocol,
 			RemoteAddr: ip,
 		},
@@ -45,7 +45,7 @@ func TestFullLifecycle(t *testing.T) {
 
 	node, err := NewFull(&Config{
 		P2P: &p2p.Config{},
-		RPC: &rpc2.Config{
+		RPC: &rpc.Config{
 			Protocol:   protocol,
 			RemoteAddr: ip,
 		},
