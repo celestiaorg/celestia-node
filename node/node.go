@@ -6,8 +6,6 @@ import (
 	logging "github.com/ipfs/go-log/v2"
 	"github.com/libp2p/go-libp2p-core/host"
 	"go.uber.org/fx"
-
-	"github.com/celestiaorg/celestia-node/node/config"
 )
 
 var log = logging.Logger("node")
@@ -19,7 +17,7 @@ var log = logging.Logger("node")
 // * Light
 type Node struct {
 	Type   Type
-	Config *config.Config
+	Config *Config
 	Host   host.Host
 
 	// the Node keeps a reference to the DI App that controls the lifecycles of services registered on the Node.

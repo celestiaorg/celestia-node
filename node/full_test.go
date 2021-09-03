@@ -6,12 +6,10 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	"github.com/celestiaorg/celestia-node/node/config"
 )
 
 func TestNewFull(t *testing.T) {
-	nd, err := NewFull(&config.Config{})
+	nd, err := NewFull(EmptyConfig())
 	assert.NoError(t, err)
 	assert.NotNil(t, nd)
 	assert.NotNil(t, nd.Config)
@@ -19,7 +17,7 @@ func TestNewFull(t *testing.T) {
 }
 
 func TestFullLifecycle(t *testing.T) {
-	nd, err := NewFull(&config.Config{})
+	nd, err := NewFull(EmptyConfig())
 	require.NoError(t, err)
 
 	startCtx, cancel := context.WithCancel(context.Background())
