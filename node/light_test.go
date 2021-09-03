@@ -9,7 +9,7 @@ import (
 )
 
 func TestNewLight(t *testing.T) {
-	nd, err := NewLight(EmptyConfig())
+	nd, err := NewLight(DefaultConfig())
 	assert.NoError(t, err)
 	assert.NotNil(t, nd)
 	assert.NotNil(t, nd.Config)
@@ -17,7 +17,7 @@ func TestNewLight(t *testing.T) {
 }
 
 func TestLightLifecycle(t *testing.T) {
-	nd, err := NewLight(EmptyConfig())
+	nd, err := NewLight(DefaultConfig())
 	require.NoError(t, err)
 
 	startCtx, cancel := context.WithCancel(context.Background())

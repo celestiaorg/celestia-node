@@ -8,10 +8,9 @@ type Config struct {
 	P2P *p2p.Config
 }
 
-// EmptyConfig creates an empty Node Config.
-// Its main purpose is to fill out pointers not to run into nil pointer dereference.
-func EmptyConfig() *Config {
+// DefaultConfig provides a default Node Config.
+func DefaultConfig() *Config {
 	return &Config{
-		P2P: &p2p.Config{},
+		P2P: p2p.DefaultConfig(),
 	}
 }

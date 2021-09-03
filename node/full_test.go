@@ -9,7 +9,7 @@ import (
 )
 
 func TestNewFull(t *testing.T) {
-	nd, err := NewFull(EmptyConfig())
+	nd, err := NewFull(DefaultConfig())
 	assert.NoError(t, err)
 	assert.NotNil(t, nd)
 	assert.NotNil(t, nd.Config)
@@ -17,7 +17,7 @@ func TestNewFull(t *testing.T) {
 }
 
 func TestFullLifecycle(t *testing.T) {
-	nd, err := NewFull(EmptyConfig())
+	nd, err := NewFull(DefaultConfig())
 	require.NoError(t, err)
 
 	startCtx, cancel := context.WithCancel(context.Background())
