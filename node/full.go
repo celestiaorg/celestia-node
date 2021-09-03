@@ -1,10 +1,10 @@
 package node
 
 import (
+	rpc2 "github.com/celestiaorg/celestia-node/node/rpc"
 	"go.uber.org/fx"
 
 	"github.com/celestiaorg/celestia-node/node/p2p"
-	"github.com/celestiaorg/celestia-node/rpc"
 )
 
 // NewFull assembles a new Full Node from required components.
@@ -29,7 +29,7 @@ func fullComponents(cfg *Config) fx.Option {
 }
 
 func RPCClientConstructor(cfg *Config) interface{} {
-	return func() (*rpc.Client, error) {
-		return rpc.NewClient(cfg.RPC.Protocol, cfg.RPC.RemoteAddr)
+	return func() (*rpc2.Client, error) {
+		return rpc2.NewClient(cfg.RPC.Protocol, cfg.RPC.RemoteAddr)
 	}
 }

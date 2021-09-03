@@ -12,6 +12,8 @@ import (
 const subscriber = "NewBlockEvents" // TODO @renaynay: do we want to enable other types of ws subscriptions for the
 // TODO  client? We only need blocks for now.
 
+// Client represents an RPC client designed to communicate
+// with Celestia Core.
 type Client struct {
 	http       *http.HTTP
 	remoteAddr string
