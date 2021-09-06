@@ -2,6 +2,7 @@ package rpc
 
 import (
 	"context"
+	"github.com/stretchr/testify/require"
 	"testing"
 
 	"github.com/celestiaorg/celestia-core/abci/example/kvstore"
@@ -26,9 +27,7 @@ func TestClient_GetStatus(t *testing.T) {
 	})
 
 	status, err := client.GetStatus(ctx)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.Nil(t, err)
 	t.Log(status.NodeInfo)
 }
 
@@ -43,29 +42,23 @@ func TestClient_StartBlockSubscription_And_GetBlock(t *testing.T) {
 	})
 
 	// make 3 blocks
-	if err := client.Start(); err != nil {
-		t.Fatal(err)
-	}
+	err := client.Start()
+	require.Nil(t, err)
+
 	eventChan, err := client.StartBlockSubscription(ctx)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.Nil(t, err)
+
 	for i := 0; i < 3; i++ {
 		<-eventChan
 	}
 	// unsubscribe to event channel
-	if err := client.StopBlockSubscription(ctx); err != nil {
-		t.Fatal(err)
-	}
+	err = client.StopBlockSubscription(ctx)
+	require.Nil(t, err)
 	// check that `GetBlock` works as intended
 	height := int64(2)
 	block, err := client.GetBlock(ctx, &height)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if block.Block.Height != height {
-		t.Fatalf("mismatched block heights: expected %v, got %v", height, block.Block.Height)
-	}
+	require.Nil(t, err)
+	require.Equal(t, height, block.Block.Height)
 }
 
 func newClient(t *testing.T) (*Client, *node.Node) {
@@ -76,9 +69,7 @@ func newClient(t *testing.T) (*Client, *node.Node) {
 	protocol, ip := endpoint[:3], endpoint[6:]
 
 	client, err := NewClient(protocol, ip)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.Nil(t, err)
 	return client, backgroundNode
 }
 
