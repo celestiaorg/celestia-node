@@ -7,17 +7,13 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/celestiaorg/celestia-core/abci/example/kvstore"
-	core_node "github.com/celestiaorg/celestia-core/node"
-	rpctest "github.com/celestiaorg/celestia-core/rpc/test"
 	"github.com/celestiaorg/celestia-node/node/p2p"
 	"github.com/celestiaorg/celestia-node/node/rpc"
+	"github.com/celestiaorg/celestia-node/testutils"
 )
 
 func TestNewFull(t *testing.T) {
-	coreNode := startCoreNode()
-	endpoint := coreNode.Config().RPC.ListenAddress
-	protocol, ip := endpoint[:3], endpoint[6:]
+	coreNode, protocol, ip := testutils.StartMockCoreNode()
 	t.Cleanup(func() {
 		//nolint:errcheck
 		coreNode.Stop()
@@ -39,9 +35,7 @@ func TestNewFull(t *testing.T) {
 func TestFullLifecycle(t *testing.T) {
 	startCtx, startCtxCancel := context.WithCancel(context.Background())
 
-	coreNode := startCoreNode()
-	endpoint := coreNode.Config().RPC.ListenAddress
-	protocol, ip := endpoint[:3], endpoint[6:]
+	coreNode, protocol, ip := testutils.StartMockCoreNode()
 
 	node, err := NewFull(&Config{
 		P2P: &p2p.Config{},
@@ -69,10 +63,4 @@ func TestFullLifecycle(t *testing.T) {
 
 	err = node.Stop(stopCtx)
 	assert.NoError(t, err)
-}
-
-func startCoreNode() *core_node.Node {
-	app := kvstore.NewApplication()
-	app.RetainBlocks = 10
-	return rpctest.StartTendermint(app, rpctest.SuppressStdout)
 }

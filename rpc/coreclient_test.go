@@ -4,9 +4,8 @@ import (
 	"context"
 	"testing"
 
-	"github.com/celestiaorg/celestia-core/abci/example/kvstore"
 	"github.com/celestiaorg/celestia-core/node"
-	rpctest "github.com/celestiaorg/celestia-core/rpc/test"
+	"github.com/celestiaorg/celestia-node/testutils"
 	"github.com/stretchr/testify/require"
 )
 
@@ -62,19 +61,13 @@ func TestClient_StartBlockSubscription_And_GetBlock(t *testing.T) {
 }
 
 func newClient(t *testing.T) (*Client, *node.Node) {
-	backgroundNode := startCoreNode()
-
-	endpoint := backgroundNode.Config().RPC.ListenAddress
-	// separate the protocol from the endpoint
-	protocol, ip := endpoint[:3], endpoint[6:]
+	backgroundNode, protocol, ip := testutils.StartMockCoreNode()
+	t.Cleanup(func() {
+		//nolint:errcheck
+		backgroundNode.Stop()
+	})
 
 	client, err := NewClient(protocol, ip)
 	require.Nil(t, err)
 	return client, backgroundNode
-}
-
-func startCoreNode() *node.Node {
-	app := kvstore.NewApplication()
-	app.RetainBlocks = 10
-	return rpctest.StartTendermint(app, rpctest.SuppressStdout)
 }
