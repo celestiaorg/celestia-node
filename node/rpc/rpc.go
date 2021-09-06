@@ -1,6 +1,8 @@
 package rpc
 
 import (
+	"go.uber.org/fx"
+
 	"github.com/celestiaorg/celestia-node/rpc"
 )
 
@@ -12,8 +14,8 @@ type Config struct {
 }
 
 // Components collects all the components and services related to the RPC client.
-func Components(cfg *Config) interface{} {
-	return func() (*rpc.Client, error) {
+func Components(cfg *Config) fx.Option {
+	return fx.Provide(func() (*rpc.Client, error) {
 		return rpc.NewClient(cfg.Protocol, cfg.RemoteAddr)
-	}
+	})
 }

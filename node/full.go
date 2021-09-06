@@ -24,6 +24,6 @@ func fullComponents(cfg *Config) fx.Option {
 		}),
 		// components
 		p2p.Components(cfg.P2P),
-		fx.Provide(rpc.Components(cfg.RPC)),
+		rpc.Components(cfg.RPC),
 	)
 }
