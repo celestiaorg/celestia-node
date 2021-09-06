@@ -2,12 +2,12 @@ package rpc
 
 import (
 	"context"
-	"github.com/stretchr/testify/require"
 	"testing"
 
 	"github.com/celestiaorg/celestia-core/abci/example/kvstore"
 	"github.com/celestiaorg/celestia-core/node"
 	rpctest "github.com/celestiaorg/celestia-core/rpc/test"
+	"github.com/stretchr/testify/require"
 )
 
 func TestNewClient(t *testing.T) {
