@@ -24,12 +24,6 @@ func fullComponents(cfg *Config) fx.Option {
 		}),
 		// components
 		p2p.Components(cfg.P2P),
-		fx.Provide(RPCClientConstructor(cfg)),
+		fx.Provide(rpc.Components(cfg)),
 	)
-}
-
-func RPCClientConstructor(cfg *Config) interface{} {
-	return func() (*rpc.Client, error) {
-		return rpc.NewClient(cfg.RPC.Protocol, cfg.RPC.RemoteAddr)
-	}
 }
