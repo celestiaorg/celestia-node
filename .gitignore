@@ -32,7 +32,6 @@ index.html.md
 libs/pubsub/query/fuzz_test/output
 profile\.out
 remote_dump
-node/rpc/test/.tendermint
 scripts/cutWALUntil/cutWALUntil
 scripts/wal2json/wal2json
 shunit2
