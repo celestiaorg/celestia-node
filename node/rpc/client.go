@@ -9,8 +9,7 @@ import (
 	"github.com/celestiaorg/celestia-core/types"
 )
 
-const subscriber = "NewBlockEvents" // TODO @renaynay: do we want to enable other types of ws subscriptions for the
-// TODO  client? We only need blocks for now.
+const NewBlockSubscriber = "NewBlock/Events"
 
 // Client represents an RPC client designed to communicate
 // with Celestia Core.
@@ -59,11 +58,11 @@ func (c *Client) Start() error {
 // StartBlockSubscription subscribes to new block events from the remote address, returning
 // an event channel on success.
 func (c *Client) StartBlockSubscription(ctx context.Context) (<-chan ctypes.ResultEvent, error) {
-	return c.http.Subscribe(ctx, subscriber, types.QueryForEvent(types.EventNewBlock).String())
+	return c.http.Subscribe(ctx, NewBlockSubscriber, types.QueryForEvent(types.EventNewBlock).String())
 }
 
-// StopBlockSubscription stops the subscription to new block events from the remote address and
-// closes the event channel. // TODO @renaynay: does it actually close the channel?
+// StopBlockSubscription stops the subscription to new block events from the remote address.
+// TODO @renaynay: does it actually close the channel?
 func (c *Client) StopBlockSubscription(ctx context.Context) error {
-	return c.http.Unsubscribe(ctx, subscriber, types.QueryForEvent(types.EventNewBlockHeader).String())
+	return c.http.Unsubscribe(ctx, NewBlockSubscriber, types.QueryForEvent(types.EventNewBlockHeader).String())
 }

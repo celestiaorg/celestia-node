@@ -53,16 +53,16 @@ func TestClient_StartBlockSubscription_And_GetBlock(t *testing.T) {
 	for i := 0; i < 3; i++ {
 		<-eventChan
 	}
+	// unsubscribe to event channel
 	if err := client.StopBlockSubscription(ctx); err != nil {
 		t.Fatal(err)
 	}
-
+	// check that `GetBlock` works as intended
 	height := int64(2)
 	block, err := client.GetBlock(ctx, &height)
 	if err != nil {
 		t.Fatal(err)
 	}
-
 	if block.Block.Height != height {
 		t.Fatalf("mismatched block heights: expected %v, got %v", height, block.Block.Height)
 	}
