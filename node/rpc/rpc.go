@@ -1,7 +1,6 @@
 package rpc
 
 import (
-	"github.com/celestiaorg/celestia-node/node"
 	"github.com/celestiaorg/celestia-node/rpc"
 )
 
@@ -13,8 +12,8 @@ type Config struct {
 }
 
 // Components collects all the components and services related to the RPC client.
-func Components(cfg *node.Config) interface{} {
+func Components(cfg *Config) interface{} {
 	return func() (*rpc.Client, error) {
-		return rpc.NewClient(cfg.RPC.Protocol, cfg.RPC.RemoteAddr)
+		return rpc.NewClient(cfg.Protocol, cfg.RemoteAddr)
 	}
 }

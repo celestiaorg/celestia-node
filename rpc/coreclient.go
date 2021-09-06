@@ -3,6 +3,7 @@ package rpc
 import (
 	"context"
 	"fmt"
+
 	"github.com/celestiaorg/celestia-core/rpc/client/http"
 	ctypes "github.com/celestiaorg/celestia-core/rpc/core/types"
 	"github.com/celestiaorg/celestia-core/types"
