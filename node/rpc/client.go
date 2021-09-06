@@ -48,6 +48,8 @@ func (c *Client) GetBlock(ctx context.Context, height *int64) (*ctypes.ResultBlo
 	return c.http.Block(ctx, height)
 }
 
+// Start will start the http.HTTP service which is required for starting subscriptions
+// on the Client.
 func (c *Client) Start() error {
 	if c.http.IsRunning() {
 		return nil
@@ -56,7 +58,8 @@ func (c *Client) Start() error {
 }
 
 // StartBlockSubscription subscribes to new block events from the remote address, returning
-// an event channel on success.
+// an event channel on success. The Client must already be started in order to start the
+// subscription.
 func (c *Client) StartBlockSubscription(ctx context.Context) (<-chan ctypes.ResultEvent, error) {
 	return c.http.Subscribe(ctx, NewBlockSubscriber, types.QueryForEvent(types.EventNewBlock).String())
 }
