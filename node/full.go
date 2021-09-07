@@ -3,8 +3,8 @@ package node
 import (
 	"go.uber.org/fx"
 
+	"github.com/celestiaorg/celestia-node/node/core"
 	"github.com/celestiaorg/celestia-node/node/p2p"
-	"github.com/celestiaorg/celestia-node/node/rpc"
 )
 
 // NewFull assembles a new Full Node from required components.
@@ -24,6 +24,6 @@ func fullComponents(cfg *Config) fx.Option {
 		}),
 		// components
 		p2p.Components(cfg.P2P),
-		rpc.Components(cfg.RPC),
+		core.Components(cfg.Core),
 	)
 }
