@@ -58,6 +58,7 @@ linters-settings:
     max-blank-identifiers: 3
   golint:
     min-confidence: 0
+    timeout: 2m
   maligned:
     suggest-new: true
   misspell:
