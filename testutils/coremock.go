@@ -15,6 +15,7 @@ func StartMockCoreNode() (*node.Node, string, string) {
 	mockNode := rpctest.StartTendermint(app, rpctest.SuppressStdout)
 
 	endpoint := mockNode.Config().RPC.ListenAddress
+	// protocol = "tcp"
 	protocol, ip := endpoint[:3], endpoint[6:]
 
 	return mockNode, protocol, ip
