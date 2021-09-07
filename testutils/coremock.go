@@ -4,19 +4,19 @@ import (
 	"github.com/celestiaorg/celestia-core/abci/example/kvstore"
 	"github.com/celestiaorg/celestia-core/node"
 	rpctest "github.com/celestiaorg/celestia-core/rpc/test"
+
+	"github.com/celestiaorg/celestia-node/core"
 )
 
 // StartMockCoreNode starts a mock core node background process and returns
 // it, as well as the protocol and remote address of the node, in that order.
-func StartMockCoreNode() (*node.Node, string, string) {
+func StartMockCoreNode() *node.Node {
 	app := kvstore.NewApplication()
 	app.RetainBlocks = 10
+	return rpctest.StartTendermint(app, rpctest.SuppressStdout)
+}
 
-	mockNode := rpctest.StartTendermint(app, rpctest.SuppressStdout)
-
-	endpoint := mockNode.Config().RPC.ListenAddress
-	// protocol = "tcp"
-	protocol, ip := endpoint[:3], endpoint[6:]
-
-	return mockNode, protocol, ip
+// MockCoreClient returns started Mock Core Client.
+func MockCoreClient() core.Client {
+	return core.NewEmbeddedFromNode(StartMockCoreNode())
 }
