@@ -8,7 +8,6 @@ import (
 	"go.uber.org/fx"
 
 	"github.com/celestiaorg/celestia-node/core"
-	"github.com/celestiaorg/celestia-node/rpc"
 )
 
 var log = logging.Logger("node")
@@ -27,8 +26,7 @@ type Node struct {
 	app *fx.App
 
 	// CoreClient provides access to Core Node
-	CoreClient    core.Client `optional:"true"`
-	CoreRPCClient *rpc.Client `optional:"true"`
+	CoreClient core.Client `optional:"true"`
 }
 
 // newNode creates a new Node from given DI options.

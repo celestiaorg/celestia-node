@@ -4,6 +4,7 @@ import (
 	"context"
 	"testing"
 
+	"github.com/celestiaorg/celestia-core/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -34,19 +35,19 @@ func TestClient_StartBlockSubscription_And_GetBlock(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
 
-	eventChan, err := client.Subscribe(ctx, )
+	eventChan, err := client.Subscribe(ctx, "NewBlock/Events", types.QueryForEvent(types.EventNewBlock).String())
 	require.Nil(t, err)
 
 	for i := 1; i <= 3; i++ {
 		<-eventChan
-		// check that `GetBlock` works as intended (passing nil to get block at latest height)
-		block, err := client.GetBlock(ctx, nil)
+		// check that `Block` works as intended (passing nil to get block at latest height)
+		block, err := client.Block(ctx, nil)
 		require.Nil(t, err)
 		require.Equal(t, int64(i), block.Block.Height)
 	}
 
 	// TODO(@Wondertan): For some reason, local client errors with no subscription found, when it exists.
-	//  This might be a downstream bug.
+	//  This might be a downstream bug of local.Client
 	// unsubscribe to event channel
 	// err = client.StopBlockSubscription(ctx)
 	// require.Nil(t, err)

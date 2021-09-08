@@ -4,7 +4,6 @@ import (
 	"go.uber.org/fx"
 
 	"github.com/celestiaorg/celestia-node/core"
-	"github.com/celestiaorg/celestia-node/rpc"
 )
 
 // Config combines all configuration fields for Core subsystem.
@@ -28,7 +27,6 @@ func DefaultConfig() *Config {
 // Components collects all the components and services related to the Core node.
 func Components(cfg *Config) fx.Option {
 	return fx.Options(
-		fx.Provide(rpc.NewClient),
 		fx.Provide(func() (core.Client, error) {
 			if cfg.EnableRemote {
 				return core.NewRemote(cfg.Remote.Protocol, cfg.Remote.RemoteAddr)
