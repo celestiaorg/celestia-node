@@ -1,51 +1,40 @@
-package rpc
+package core
 
 import (
 	"context"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	"github.com/celestiaorg/celestia-node/testutils"
 )
 
-func TestNewClient(t *testing.T) {
-	client, err := NewClient(testutils.MockCoreClient())
-	require.Nil(t, err)
-	t.Cleanup(func() {
-		//nolint:errcheck
-		client.Stop()
-	})
+func TestClientLifecycle(t *testing.T) {
+	client := MockClient()
+	err := client.Stop()
+	require.NoError(t, err)
 }
 
-func TestClient_GetStatus(t *testing.T) {
-	client, err := NewClient(testutils.MockCoreClient())
-	require.Nil(t, err)
-	t.Cleanup(func() {
-		//nolint:errcheck
-		client.Stop()
-	})
+func TestClient_Status(t *testing.T) {
+	client := MockClient()
 
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
 
-	status, err := client.GetStatus(ctx)
+	status, err := client.Status(ctx)
 	require.Nil(t, err)
-	t.Log(status.NodeInfo)
+	assert.NotNil(t, status)
+
+	err = client.Stop()
+	require.NoError(t, err)
 }
 
 func TestClient_StartBlockSubscription_And_GetBlock(t *testing.T) {
-	client, err := NewClient(testutils.MockCoreClient())
-	require.Nil(t, err)
-	t.Cleanup(func() {
-		//nolint:errcheck
-		client.Stop()
-	})
+	client := MockClient()
 
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
 
-	eventChan, err := client.StartBlockSubscription(ctx)
+	eventChan, err := client.Subscribe(ctx, )
 	require.Nil(t, err)
 
 	for i := 1; i <= 3; i++ {
