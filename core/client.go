@@ -31,7 +31,7 @@ func NewEmbedded(cfg *config.Config) (Client, error) {
 	return &embeddedWrapper{local.New(node), node}, nil
 }
 
-// NewEmbeddedFromNode wraps embeds a given Core Node to control its lifecycle.
+// NewEmbeddedFromNode wraps a given Core node process to be able to control its lifecycle.
 func NewEmbeddedFromNode(node *corenode.Node) Client {
 	return &embeddedWrapper{local.New(node), node}
 }
