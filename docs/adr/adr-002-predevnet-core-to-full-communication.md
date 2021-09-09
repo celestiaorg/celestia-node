@@ -33,7 +33,17 @@ It is also important to note that for devnet, it should also be possible to run 
 
 It is preferable that a devnet-ready Celestia Full node is *agnostic* to the method by which it receives new block information. Therefore, we will abstract the interface related to "fetching blocks" so that in the view of the Celestia Full node, it does not care *how* it is receiving blocks, only that it *is* receiving new blocks. 
 
-# Status
+
+## Consequences of embedding Celestia Core process into Celestia Full node
+
+### Positive
+* Better UX for average devnet users who do not want to deal with spinning up a Celestia Core node and passing the endpoint to the Celestia Full node.
+* Makes it easier to guarantee that there will be *some* Full nodes in the devnet that will be fetching blocks from Celestia Core nodes.
+
+### Negative
+* Eventually this work will be rendered useless as communicating with Celestia Core over RPC is a crutch we decided to use in order to streamline interoperability between Core and Full nodes. All communication beyond devnet will be over the P2P layer.
+
+## Status
 
 Proposed
 
