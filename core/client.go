@@ -36,7 +36,8 @@ func NewEmbeddedFromNode(node *corenode.Node) Client {
 	return &embeddedWrapper{local.New(node), node}
 }
 
-// embeddedWrapper is a small wrapper around local Client which ensures the embedded Core node is started/stopped.
+// embeddedWrapper is a small wrapper around local Client which ensures the embedded Core node
+// can be started/stopped.
 type embeddedWrapper struct {
 	*local.Local
 	node *corenode.Node
