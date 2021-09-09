@@ -46,9 +46,7 @@ func TestClient_StartBlockSubscription_And_GetBlock(t *testing.T) {
 		require.Equal(t, int64(i), block.Block.Height)
 	}
 
-	// TODO(@Wondertan): For some reason, local client errors with no subscription found, when it exists.
-	//  This might be a downstream bug of local.Client
 	// unsubscribe to event channel
-	// err = client.StopBlockSubscription(ctx)
-	// require.NoError(t, err)
+	err = client.Unsubscribe(ctx, "NewBlock/Events", types.QueryForEvent(types.EventNewBlock).String())
+	require.NoError(t, err)
 }

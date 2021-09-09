@@ -8,8 +8,8 @@ import (
 
 // Config combines all configuration fields for Core subsystem.
 type Config struct {
-	EnableRemote bool
-	Remote       struct {
+	Remote       bool
+	RemoteConfig struct {
 		Protocol   string
 		RemoteAddr string
 	}
@@ -20,7 +20,7 @@ type Config struct {
 func DefaultConfig() *Config {
 	return &Config{
 		EmbeddedConfig: core.DefaultConfig(),
-		EnableRemote:   false,
+		Remote:         false,
 	}
 }
 
@@ -28,8 +28,8 @@ func DefaultConfig() *Config {
 func Components(cfg *Config) fx.Option {
 	return fx.Options(
 		fx.Provide(func() (core.Client, error) {
-			if cfg.EnableRemote {
-				return core.NewRemote(cfg.Remote.Protocol, cfg.Remote.RemoteAddr)
+			if cfg.Remote {
+				return core.NewRemote(cfg.RemoteConfig.Protocol, cfg.RemoteConfig.RemoteAddr)
 			}
 
 			return core.NewEmbedded(cfg.EmbeddedConfig)
