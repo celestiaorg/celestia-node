@@ -22,7 +22,7 @@ func TestClient_Status(t *testing.T) {
 	t.Cleanup(cancel)
 
 	status, err := client.Status(ctx)
-	require.Nil(t, err)
+	require.NoError(t, err)
 	assert.NotNil(t, status)
 
 	err = client.Stop()
@@ -36,13 +36,13 @@ func TestClient_StartBlockSubscription_And_GetBlock(t *testing.T) {
 	t.Cleanup(cancel)
 
 	eventChan, err := client.Subscribe(ctx, "NewBlock/Events", types.QueryForEvent(types.EventNewBlock).String())
-	require.Nil(t, err)
+	require.NoError(t, err)
 
 	for i := 1; i <= 3; i++ {
 		<-eventChan
 		// check that `Block` works as intended (passing nil to get block at latest height)
 		block, err := client.Block(ctx, nil)
-		require.Nil(t, err)
+		require.NoError(t, err)
 		require.Equal(t, int64(i), block.Block.Height)
 	}
 
@@ -50,5 +50,5 @@ func TestClient_StartBlockSubscription_And_GetBlock(t *testing.T) {
 	//  This might be a downstream bug of local.Client
 	// unsubscribe to event channel
 	// err = client.StopBlockSubscription(ctx)
-	// require.Nil(t, err)
+	// require.NoError(t, err)
 }
