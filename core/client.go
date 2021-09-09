@@ -13,7 +13,7 @@ import (
 // Client is an alias to Core Client.
 type Client = client.Client
 
-// NewRemote creates a new Client that talks to remote Core over HTTP.
+// NewRemote creates a new Client that communicates with a remote Core endpoint over HTTP.
 func NewRemote(protocol, remoteAddr string) (Client, error) {
 	return http.New(
 		fmt.Sprintf("%s://%s", protocol, remoteAddr),
