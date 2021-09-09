@@ -13,7 +13,7 @@ func StartMockNode() *node.Node {
 	return rpctest.StartTendermint(app, rpctest.SuppressStdout)
 }
 
-// MockClient returns started Mock Core Client.
+// MockClient returns a started Mock Core Client.
 func MockClient() Client {
 	return NewEmbeddedFromNode(StartMockNode())
 }
