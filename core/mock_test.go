@@ -6,8 +6,7 @@ import (
 	rpctest "github.com/celestiaorg/celestia-core/rpc/test"
 )
 
-// StartMockNode starts a mock core node background process and returns
-// it, as well as the protocol and remote address of the node, in that order.
+// StartMockNode starts a mock core node background process and returns it.
 func StartMockNode() *node.Node {
 	app := kvstore.NewApplication()
 	app.RetainBlocks = 10
