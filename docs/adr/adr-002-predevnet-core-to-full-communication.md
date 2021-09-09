@@ -22,13 +22,13 @@ After the offsite, there was a bit of confusion on what the default behaviour fo
 
 Since the flow of information in devnet is unidirectional, where Core nodes provide block information to Celestia Full nodes, the default behaviour for running a Celestia Full node is to have an embedded Core node process running within the Full node itself. Not only will this ensure that at least some Celestia Full nodes in the network will be communicating with Core nodes, it also makes it easier for end users to spin up a Celestia Full node without having to worry about feeding the Celestia Full node a remote Core endpoint from which it would fetch information. 
 
-It is also important to note that for devnet, it should also be possible to run Celestia Full nodes as `standalone` processes (without a trusted Core node endpoint) as Celestia Full nodes should also be capable of learning of block information on a P2P-level from other Celestia Full nodes.
+It is also important to note that for devnet, it should also be possible to run Celestia Full nodes as `standalone` processes (without a trusted remote or embedded Core node) as Celestia Full nodes should also be capable of learning of block information on a P2P-level from other Celestia Full nodes.
 
 ## Detailed Design
 
 * Celestia Full node should be able to run in a `default` mode where Celestia Full node embeds a Core node process
-* Celestia Full node should also be able to be started with a `--standalone` flag to indicate that the Celestia Full node will be running *without* a Core node process
-* Celestia Full node should be able to take in a `--remote.core` endpoint that would indicate to the Full node that it should *not* embed the Core node process, but rather dial the provided remote Core node endpoint.
+* Celestia Full node should also be able to be started with a `--core.disable` flag to indicate that the Celestia Full node will be running *without* a Core node process
+* Celestia Full node should be able to take in a `--core.remote` endpoint that would indicate to the Full node that it should *not* embed the Core node process, but rather dial the provided remote Core node endpoint.
 * Celestia Full nodes that rely on Core node processes (whether embedded or remote) should also communicate with other Celestia Full nodes on a P2P-level, broadcasting new blocks that they've fetched from the Core nodes *and* being able to handle broadcasted block-related messages from other Full nodes on the network.
 
 It is preferable that a devnet-ready Celestia Full node is *agnostic* to the method by which it receives new block information. Therefore, we will abstract the interface related to "fetching blocks" so that in the view of the Celestia Full node, it does not care *how* it is receiving blocks, only that it *is* receiving new blocks. 
