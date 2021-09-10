@@ -2,7 +2,7 @@
 
 ## Authors
 
-@renaynay @wondertan
+@renaynay @Wondertan
  
 ## Changelog
 
