@@ -4,13 +4,9 @@ import (
 	"context"
 	"testing"
 
-	"github.com/celestiaorg/celestia-core/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
-
-var newBlockSubscriber = "NewBlock/Events"
-var newBlockEventQuery = types.QueryForEvent(types.EventNewBlock).String()
 
 func TestEmbeddedClientLifecycle(t *testing.T) {
 	client := MockEmbeddedClient()

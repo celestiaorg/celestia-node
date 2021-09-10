@@ -7,6 +7,7 @@ import (
 
 	"github.com/celestiaorg/celestia-node/node/core"
 	"github.com/celestiaorg/celestia-node/node/p2p"
+	"github.com/celestiaorg/celestia-node/service/block"
 )
 
 // NewFull assembles a new Full Node from required components.
@@ -29,5 +30,6 @@ func fullComponents(cfg *Config) fx.Option {
 		// components
 		p2p.Components(cfg.P2P),
 		core.Components(cfg.Core),
+		fx.Provide(block.NewBlockService),
 	)
 }
