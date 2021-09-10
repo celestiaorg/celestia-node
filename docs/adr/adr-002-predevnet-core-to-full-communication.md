@@ -29,7 +29,7 @@ It is also important to note that for devnet, it should also be possible to run 
 * Celestia Full node should be able to run in a `default` mode where Celestia Full node embeds a Core node process
 * Celestia Full node should also be able to be started with a `--core.disable` flag to indicate that the Celestia Full node will be running *without* a Core node process
 * Celestia Full node should be able to take in a `--core.remote` endpoint that would indicate to the Full node that it should *not* embed the Core node process, but rather dial the provided remote Core node endpoint.
-* Celestia Full nodes that rely on Core node processes (whether embedded or remote) should also communicate with other Celestia Full nodes on a P2P-level, broadcasting new blocks that they've fetched from the Core nodes *and* being able to handle broadcasted block-related messages from other Full nodes on the network.
+* Celestia Full nodes that rely on Core node processes (whether embedded or remote) should also communicate with other Celestia Full nodes on a P2P-level, broadcasting new headers from blocks that they've fetched from the Core nodes *and* being able to handle broadcasted block-related messages from other Full nodes on the network.
 
 It is preferable that a devnet-ready Celestia Full node is *agnostic* to the method by which it receives new block information. Therefore, we will abstract the interface related to "fetching blocks" so that in the view of the Celestia Full node, it does not care *how* it is receiving blocks, only that it *is* receiving new blocks. 
 
