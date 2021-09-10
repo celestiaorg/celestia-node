@@ -1,6 +1,8 @@
 package node
 
 import (
+	"context"
+
 	"go.uber.org/fx"
 
 	"github.com/celestiaorg/celestia-node/node/core"
@@ -16,12 +18,14 @@ func NewFull(cfg *Config) (*Node, error) {
 func fullComponents(cfg *Config) fx.Option {
 	return fx.Options(
 		// manual providing
+		fx.Provide(context.Background),
 		fx.Provide(func() Type {
 			return Full
 		}),
 		fx.Provide(func() *Config {
 			return cfg
 		}),
+
 		// components
 		p2p.Components(cfg.P2P),
 		core.Components(cfg.Core),

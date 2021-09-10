@@ -1,6 +1,8 @@
 package node
 
 import (
+	"context"
+
 	"go.uber.org/fx"
 
 	"github.com/celestiaorg/celestia-node/node/p2p"
@@ -15,6 +17,7 @@ func NewLight(cfg *Config) (*Node, error) {
 func lightComponents(cfg *Config) fx.Option {
 	return fx.Options(
 		// manual providing
+		fx.Provide(context.Background),
 		fx.Provide(func() Type {
 			return Light
 		}),
