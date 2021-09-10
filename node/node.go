@@ -4,7 +4,12 @@ import (
 	"context"
 
 	logging "github.com/ipfs/go-log/v2"
+	"github.com/libp2p/go-libp2p-core/connmgr"
 	"github.com/libp2p/go-libp2p-core/host"
+	"github.com/libp2p/go-libp2p-core/peer"
+	"github.com/libp2p/go-libp2p-core/peerstore"
+	"github.com/libp2p/go-libp2p-core/routing"
+	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	"go.uber.org/fx"
 
 	"github.com/celestiaorg/celestia-node/core"
@@ -20,13 +25,22 @@ var log = logging.Logger("node")
 type Node struct {
 	Type   Type
 	Config *Config
-	Host   host.Host
 
 	// the Node keeps a reference to the DI App that controls the lifecycles of services registered on the Node.
 	app *fx.App
 
 	// CoreClient provides access to Core Node
 	CoreClient core.Client `optional:"true"`
+
+	// p2p components
+	ID          peer.ID
+	Host        host.Host
+	PeerStore   peerstore.Peerstore
+	ConnManager connmgr.ConnManager
+	ConnGater   connmgr.ConnectionGater
+	Routing     routing.PeerRouting
+	// p2p protocols
+	PubSub *pubsub.PubSub
 }
 
 // newNode creates a new Node from given DI options.
