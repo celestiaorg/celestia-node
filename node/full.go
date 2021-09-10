@@ -35,5 +35,6 @@ func fullComponents(cfg *Config) fx.Option {
 		// components
 		p2p.Components(cfg.P2P),
 		core.Components(cfg.Core),
+		fx.Provide(block.NewBlockService),
 	)
 }
