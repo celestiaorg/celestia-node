@@ -10,7 +10,7 @@ import (
 func StartMockNode() *node.Node {
 	app := kvstore.NewApplication()
 	app.RetainBlocks = 10
-	return rpctest.StartTendermint(app, rpctest.SuppressStdout)
+	return rpctest.StartTendermint(app, rpctest.SuppressStdout, rpctest.RecreateConfig)
 }
 
 // MockClient returns a started Mock Core Client.
