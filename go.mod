@@ -6,7 +6,7 @@ require (
 	github.com/celestiaorg/celestia-core v0.0.1-mvp-das-lightclient.0.20210831102741-321cdc4f8dc4
 	github.com/ipfs/go-datastore v0.4.6
 	github.com/ipfs/go-log/v2 v2.3.0
-	github.com/libp2p/go-libp2p v0.15.0-rc.1
+	github.com/libp2p/go-libp2p v0.15.0
 	github.com/libp2p/go-libp2p-connmgr v0.2.4
 	github.com/libp2p/go-libp2p-core v0.9.0
 	github.com/libp2p/go-libp2p-kad-dht v0.13.1
