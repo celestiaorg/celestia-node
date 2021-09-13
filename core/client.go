@@ -21,7 +21,7 @@ func NewRemote(protocol, remoteAddr string) (Client, error) {
 	)
 }
 
-// NewEmbedded creates a new Client which works over embedded Core in the same proc.
+// NewEmbedded returns a new Client from an embedded Core node process.
 func NewEmbedded(cfg *config.Config) (Client, error) {
 	node, err := corenode.DefaultNewNode(cfg, adaptedLogger())
 	if err != nil {
