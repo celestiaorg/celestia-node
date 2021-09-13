@@ -25,7 +25,7 @@ type Node struct {
 	// the Node keeps a reference to the DI App that controls the lifecycles of services registered on the Node.
 	app *fx.App
 
-	// CoreClient provides access to Core Node
+	// CoreClient provides access to a Core node process.
 	CoreClient core.Client `optional:"true"`
 }
 
