@@ -18,8 +18,8 @@ func MockEmbeddedClient() Client {
 	return NewEmbeddedFromNode(StartMockNode())
 }
 
-// StartRemoteClient returns a started mock Core Client
-// from the remote Core node process.
+// StartRemoteClient returns a started remote Core node process, as well its
+// mock Core Client.
 func StartRemoteClient() (*node.Node, Client, error) {
 	remote := StartMockNode()
 	protocol, ip := getRemoteEndpoint(remote)
