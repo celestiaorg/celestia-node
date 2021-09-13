@@ -6,7 +6,7 @@ import (
 	"github.com/celestiaorg/celestia-node/core"
 )
 
-// Config combines all configuration fields for communicating with a Core node.
+// Config combines all configuration fields for managing the relationship with a Core node.
 type Config struct {
 	Remote       bool
 	RemoteConfig struct {
