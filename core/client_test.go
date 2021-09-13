@@ -10,6 +10,7 @@ import (
 )
 
 var newBlockSubscriber = "NewBlock/Events"
+var newBlockEventQuery = types.QueryForEvent(types.EventNewBlock).String()
 
 func TestEmbeddedClientLifecycle(t *testing.T) {
 	client := MockEmbeddedClient()
@@ -35,7 +36,7 @@ func TestEmbeddedClient_StartBlockSubscription_And_GetBlock(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
 
-	eventChan, err := client.Subscribe(ctx, newBlockSubscriber, types.QueryForEvent(types.EventNewBlock).String())
+	eventChan, err := client.Subscribe(ctx, newBlockSubscriber, newBlockEventQuery)
 	require.NoError(t, err)
 
 	for i := 1; i <= 3; i++ {
@@ -47,7 +48,7 @@ func TestEmbeddedClient_StartBlockSubscription_And_GetBlock(t *testing.T) {
 	}
 
 	// unsubscribe to event channel
-	require.NoError(t, client.Unsubscribe(ctx, newBlockSubscriber, types.QueryForEvent(types.EventNewBlock).String()))
+	require.NoError(t, client.Unsubscribe(ctx, newBlockSubscriber, newBlockEventQuery))
 	require.NoError(t, client.Stop())
 }
 
@@ -90,7 +91,7 @@ func TestRemoteClient_StartBlockSubscription_And_GetBlock(t *testing.T) {
 	err = client.Start()
 	require.NoError(t, err)
 
-	eventChan, err := client.Subscribe(ctx, newBlockSubscriber, types.QueryForEvent(types.EventNewBlock).String())
+	eventChan, err := client.Subscribe(ctx, newBlockSubscriber, newBlockEventQuery)
 	require.NoError(t, err)
 
 	for i := 1; i <= 3; i++ {
@@ -102,7 +103,7 @@ func TestRemoteClient_StartBlockSubscription_And_GetBlock(t *testing.T) {
 	}
 
 	// unsubscribe to event channel
-	require.NoError(t, client.Unsubscribe(ctx, newBlockSubscriber, types.QueryForEvent(types.EventNewBlock).String()))
+	require.NoError(t, client.Unsubscribe(ctx, newBlockSubscriber, newBlockEventQuery))
 	require.NoError(t, client.Stop())
 	require.NoError(t, remote.Stop())
 }
