@@ -2,30 +2,23 @@ package node
 
 import (
 	"context"
+	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/celestiaorg/celestia-node/node/p2p"
-	"github.com/celestiaorg/celestia-node/node/rpc"
-	"github.com/celestiaorg/celestia-node/testutils"
+	"github.com/celestiaorg/celestia-node/core"
 )
 
 func TestNewFull(t *testing.T) {
-	coreNode, protocol, ip := testutils.StartMockCoreNode()
+	cfg := DefaultConfig()
+	cfg.Core.EmbeddedConfig = core.TestConfig(t.Name())
 	t.Cleanup(func() {
-		//nolint:errcheck
-		coreNode.Stop()
+		os.RemoveAll(cfg.Core.EmbeddedConfig.RootDir)
 	})
 
-	nd, err := NewFull(&Config{
-		P2P: &p2p.Config{},
-		RPC: &rpc.Config{
-			Protocol:   protocol,
-			RemoteAddr: ip,
-		},
-	})
+	nd, err := NewFull(cfg)
 	assert.NoError(t, err)
 	assert.NotNil(t, nd)
 	assert.NotNil(t, nd.Config)
@@ -33,34 +26,28 @@ func TestNewFull(t *testing.T) {
 }
 
 func TestFullLifecycle(t *testing.T) {
-	startCtx, startCtxCancel := context.WithCancel(context.Background())
-
-	coreNode, protocol, ip := testutils.StartMockCoreNode()
-
-	node, err := NewFull(&Config{
-		P2P: &p2p.Config{},
-		RPC: &rpc.Config{
-			Protocol:   protocol,
-			RemoteAddr: ip,
-		},
+	cfg := DefaultConfig()
+	cfg.Core.EmbeddedConfig = core.TestConfig(t.Name())
+	t.Cleanup(func() {
+		os.RemoveAll(cfg.Core.EmbeddedConfig.RootDir)
 	})
+
+	node, err := NewFull(cfg)
 	assert.NoError(t, err)
 	require.NotNil(t, node)
 	require.NotNil(t, node.Config)
 	require.NotZero(t, node.Type)
-	require.NotNil(t, node.RPCClient)
+	require.NotNil(t, node.CoreClient)
 
-	err = node.Start(startCtx)
+	ctx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(cancel)
+
+	err = node.Start(ctx)
 	require.NoError(t, err)
 
-	stopCtx, stopCtxCancel := context.WithCancel(context.Background())
-	//nolint:errcheck
-	t.Cleanup(func() {
-		coreNode.Stop()
-		startCtxCancel()
-		stopCtxCancel()
-	})
+	ctx, cancel = context.WithCancel(context.Background())
+	t.Cleanup(cancel)
 
-	err = node.Stop(stopCtx)
+	err = node.Stop(ctx)
 	assert.NoError(t, err)
 }

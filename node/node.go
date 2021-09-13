@@ -3,10 +3,11 @@ package node
 import (
 	"context"
 
-	"github.com/celestiaorg/celestia-node/rpc"
 	logging "github.com/ipfs/go-log/v2"
 	"github.com/libp2p/go-libp2p-core/host"
 	"go.uber.org/fx"
+
+	"github.com/celestiaorg/celestia-node/core"
 )
 
 var log = logging.Logger("node")
@@ -24,8 +25,8 @@ type Node struct {
 	// the Node keeps a reference to the DI App that controls the lifecycles of services registered on the Node.
 	app *fx.App
 
-	// the RPC client is only necessary for full nodes
-	RPCClient *rpc.Client `optional:"true"`
+	// CoreClient provides access to a Core node process.
+	CoreClient core.Client `optional:"true"`
 }
 
 // newNode creates a new Node from given DI options.

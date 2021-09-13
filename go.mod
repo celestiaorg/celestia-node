@@ -11,4 +11,5 @@ require (
 	github.com/sasha-s/go-deadlock v0.2.1-0.20190427202633-1595213edefa // indirect
 	github.com/stretchr/testify v1.7.0
 	go.uber.org/fx v1.14.2
+	go.uber.org/zap v1.19.0 // indirect
 )
