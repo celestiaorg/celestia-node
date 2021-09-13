@@ -24,7 +24,7 @@ func DefaultConfig() *Config {
 	}
 }
 
-// Components collects all the components and services related to the Core node.
+// Components collects all the components and services related to managing the relationship with the Core node.
 func Components(cfg *Config) fx.Option {
 	return fx.Options(
 		fx.Provide(func() (core.Client, error) {
