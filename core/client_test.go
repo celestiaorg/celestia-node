@@ -4,7 +4,6 @@ import (
 	"context"
 	"testing"
 
-	"github.com/celestiaorg/celestia-core/node"
 	"github.com/celestiaorg/celestia-core/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -13,12 +12,12 @@ import (
 var newBlockSubscriber = "NewBlock/Events"
 
 func TestEmbeddedClientLifecycle(t *testing.T) {
-	client := MockClient()
+	client := MockEmbeddedClient()
 	require.NoError(t, client.Stop())
 }
 
 func TestEmbeddedClient_Status(t *testing.T) {
-	client := MockClient()
+	client := MockEmbeddedClient()
 
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
@@ -31,7 +30,7 @@ func TestEmbeddedClient_Status(t *testing.T) {
 }
 
 func TestEmbeddedClient_StartBlockSubscription_And_GetBlock(t *testing.T) {
-	client := MockClient()
+	client := MockEmbeddedClient()
 
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
@@ -53,11 +52,7 @@ func TestEmbeddedClient_StartBlockSubscription_And_GetBlock(t *testing.T) {
 }
 
 func TestRemoteClientLifecycle(t *testing.T) {
-	remote := StartMockNode()
-
-	protocol, ip := getRemoteEndpoint(remote)
-
-	client, err := NewRemote(protocol, ip)
+	remote, client, err := StartRemoteClient()
 	require.NoError(t, err)
 
 	require.NoError(t, client.Start())
@@ -66,9 +61,7 @@ func TestRemoteClientLifecycle(t *testing.T) {
 }
 
 func TestRemoteClient_Status(t *testing.T) {
-	remote := StartMockNode()
-	protocol, ip := getRemoteEndpoint(remote)
-	client, err := NewRemote(protocol, ip)
+	remote, client, err := StartRemoteClient()
 	require.NoError(t, err)
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -87,9 +80,7 @@ func TestRemoteClient_Status(t *testing.T) {
 }
 
 func TestRemoteClient_StartBlockSubscription_And_GetBlock(t *testing.T) {
-	remote := StartMockNode()
-	protocol, ip := getRemoteEndpoint(remote)
-	client, err := NewRemote(protocol, ip)
+	remote, client, err := StartRemoteClient()
 	require.NoError(t, err)
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -114,12 +105,4 @@ func TestRemoteClient_StartBlockSubscription_And_GetBlock(t *testing.T) {
 	require.NoError(t, client.Unsubscribe(ctx, newBlockSubscriber, types.QueryForEvent(types.EventNewBlock).String()))
 	require.NoError(t, client.Stop())
 	require.NoError(t, remote.Stop())
-}
-
-// getRemoteEndpoint returns the protocol and ip of the remote node.
-func getRemoteEndpoint(remote *node.Node) (string, string) {
-	endpoint := remote.Config().RPC.ListenAddress
-	// protocol = "tcp"
-	protocol, ip := endpoint[:3], endpoint[6:]
-	return protocol, ip
 }
