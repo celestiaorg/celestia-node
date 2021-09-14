@@ -34,6 +34,5 @@ func Components(cfg *Config) fx.Option {
 
 			return core.NewEmbedded(cfg.EmbeddedConfig)
 		}),
-		fx.Provide(core.NewBlockFetcher),
 	)
 }
