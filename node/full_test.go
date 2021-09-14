@@ -57,7 +57,9 @@ func TestFullLifecycle(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-func TestFull_P2P(t *testing.T) {
+// TestFull_P2P_Streams tests the ability for Full nodes to communicate
+// directly with each other via libp2p streams.
+func TestFull_P2P_Streams(t *testing.T) {
 	// create two embedded configs
 	nodeEmbeddedConfig, peerEmbeddedConfig := core.TestConfig(t.Name()), core.TestConfig(t.Name())
 	t.Cleanup(func() {
@@ -95,7 +97,6 @@ func TestFull_P2P(t *testing.T) {
 	peerAddrID := host.InfoFromHost(peer.Host)
 	err = node.Host.Connect(nodeCtx, *peerAddrID)
 	require.NoError(t, err)
-
 	// create handler to read from conn on peer side
 	protocolID := protocol.ID("test")
 	peer.Host.SetStreamHandler(protocolID, func(stream network.Stream) {
@@ -104,7 +105,6 @@ func TestFull_P2P(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, "hello", string(buf))
 	})
-
 	// open a stream between node and peer
 	stream, err := node.Host.NewStream(nodeCtx, peer.Host.ID(), protocolID)
 	require.NoError(t, err)
@@ -112,6 +112,8 @@ func TestFull_P2P(t *testing.T) {
 	_, err = stream.Write([]byte("hello"))
 	require.NoError(t, err)
 
+	// stop the connection
+	require.NoError(t, stream.Close())
 	// stop both nodes
 	require.NoError(t, node.Stop(nodeCtx))
 	require.NoError(t, peer.Stop(peerCtx))
