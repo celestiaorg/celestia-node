@@ -35,7 +35,7 @@ type Node struct {
 	Host         host.Host
 	ConnGater    connmgr.ConnectionGater
 	Routing      routing.PeerRouting
-	DataExchange exchange.Interface // TODO(@Wondertan): Better name?
+	DataExchange exchange.Interface
 	// p2p protocols
 	PubSub *pubsub.PubSub
 }
