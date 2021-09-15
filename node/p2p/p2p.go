@@ -20,21 +20,21 @@ type Config struct {
 	NoAnnounceAddresses []string
 	// TODO: This should be a built-time parameter. See https://github.com/celestiaorg/celestia-node/issues/62
 	// Networks stands for network name, e.g. celestia-devnet.
-	Network        string
+	Network string
 	// TODO: This should be a built-time parameter. See https://github.com/celestiaorg/celestia-node/issues/63
 	// Bootstrapper is flag telling this node is a bootstrapper.
-	Bootstrapper   bool
+	Bootstrapper bool
 	// BootstrapPeers is a list of network specific peers that help with network bootstrapping.
 	BootstrapPeers []string
 	// MutualPeers are peers which have a bidirectional peering agreement with the configured node.
 	// Connections with those peers are protected from being trimmed, dropped or negatively scored.
 	// NOTE: Any two peers must bidirectionally configure each other on their MutualPeers field.
-	MutualPeers  []string
+	MutualPeers []string
 	// PeerExchange configures the node, whether it should share some peers to a pruned peer.
 	// This is enabled by default for Bootstrappers.
 	PeerExchange bool
 	// ConnManager is a configuration tuple for ConnectionManager.
-	ConnManager  *ConnManagerConfig
+	ConnManager *ConnManagerConfig
 }
 
 // DefaultConfig returns default configuration for P2P subsystem.
@@ -49,7 +49,7 @@ func DefaultConfig() *Config {
 			"/ip4/127.0.0.1/tcp/2121",
 			"/ip6/::/tcp/2121",
 		},
-		Network: "devnet",
+		Network:        "devnet",
 		BootstrapPeers: nil,
 		Bootstrapper:   false,
 		PeerExchange:   false,

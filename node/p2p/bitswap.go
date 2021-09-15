@@ -18,7 +18,7 @@ import (
 )
 
 // Exchange provides a constructor for IPFS block's Exchange over BitSwap.
-func Exchange(cfg *Config) func (bitSwapParams) (exchange.Interface, error) {
+func Exchange(cfg *Config) func(bitSwapParams) (exchange.Interface, error) {
 	return func(params bitSwapParams) (exchange.Interface, error) {
 		prefix := protocol.ID(fmt.Sprintf("/celestia/%s", cfg.Network))
 		return bitswap.New(
@@ -26,7 +26,6 @@ func Exchange(cfg *Config) func (bitSwapParams) (exchange.Interface, error) {
 			network.NewFromIpfsHost(params.Host, params.Cr, network.Prefix(prefix)),
 			blockstore.NewBlockstore(params.Ds),
 			bitswap.ProvideEnabled(false),
-
 		), nil
 	}
 }
@@ -34,9 +33,9 @@ func Exchange(cfg *Config) func (bitSwapParams) (exchange.Interface, error) {
 type bitSwapParams struct {
 	fx.In
 
-	Ctx context.Context
-	Lc fx.Lifecycle
+	Ctx  context.Context
+	Lc   fx.Lifecycle
 	Host host.Host
-	Cr routing.ContentRouting
-	Ds datastore.Batching
+	Cr   routing.ContentRouting
+	Ds   datastore.Batching
 }

@@ -14,7 +14,7 @@ import (
 // ConnManagerConfig configures connection manager.
 type ConnManagerConfig struct {
 	// Low and High are watermarks governing the number of connections that'll be maintained.
-	Low, High   int
+	Low, High int
 	// GracePeriod is the amount of time a newly opened connection is given before it becomes subject to pruning.
 	GracePeriod time.Duration
 }

@@ -42,7 +42,7 @@ func PubSub(cfg *Config) func(pubSubParams) (*pubsub.PubSub, error) {
 type pubSubParams struct {
 	fx.In
 
-	Ctx       context.Context
-	Lc        fx.Lifecycle
+	Ctx  context.Context
+	Lc   fx.Lifecycle
 	Host host.Host
 }
