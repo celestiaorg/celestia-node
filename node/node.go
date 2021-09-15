@@ -32,10 +32,10 @@ type Node struct {
 	CoreClient core.Client `optional:"true"`
 
 	// p2p components
-	Host      host.Host
-	ConnGater connmgr.ConnectionGater
-	Routing   routing.PeerRouting
-	DataExchange  exchange.Interface // TODO(@Wondertan): Better name?
+	Host         host.Host
+	ConnGater    connmgr.ConnectionGater
+	Routing      routing.PeerRouting
+	DataExchange exchange.Interface // TODO(@Wondertan): Better name?
 	// p2p protocols
 	PubSub *pubsub.PubSub
 }
