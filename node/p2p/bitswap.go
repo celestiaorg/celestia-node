@@ -17,8 +17,8 @@ import (
 	"github.com/celestiaorg/celestia-node/node/fxutil"
 )
 
-// Exchange provides a constructor for IPFS block's Exchange over BitSwap.
-func Exchange(cfg *Config) func(bitSwapParams) (exchange.Interface, error) {
+// DataExchange provides a constructor for IPFS block's DataExchange over BitSwap.
+func DataExchange(cfg *Config) func(bitSwapParams) (exchange.Interface, error) {
 	return func(params bitSwapParams) (exchange.Interface, error) {
 		prefix := protocol.ID(fmt.Sprintf("/celestia/%s", cfg.Network))
 		return bitswap.New(
