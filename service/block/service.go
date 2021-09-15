@@ -28,6 +28,14 @@ func (s *Service) Start(ctx context.Context) (<-chan *Raw, error) {
 	return s.fetcher.SubscribeNewBlockEvent(ctx)
 }
 
+// go listen() {
+// 		select {
+// 		case <- ctx.Done():
+// 			return
+//		case <- newBlock:
+// 			handle(newBlock)
+//}
+
 // Stop stops the block Service.
 func (s *Service) Stop(ctx context.Context) error {
 	return s.fetcher.UnsubscribeNewBlockEvent(ctx)
