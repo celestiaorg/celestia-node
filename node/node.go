@@ -6,8 +6,6 @@ import (
 	logging "github.com/ipfs/go-log/v2"
 	"github.com/libp2p/go-libp2p-core/connmgr"
 	"github.com/libp2p/go-libp2p-core/host"
-	"github.com/libp2p/go-libp2p-core/peer"
-	"github.com/libp2p/go-libp2p-core/peerstore"
 	"github.com/libp2p/go-libp2p-core/routing"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	"go.uber.org/fx"
@@ -33,10 +31,7 @@ type Node struct {
 	CoreClient core.Client `optional:"true"`
 
 	// p2p components
-	ID          peer.ID
 	Host        host.Host
-	PeerStore   peerstore.Peerstore
-	ConnManager connmgr.ConnManager
 	ConnGater   connmgr.ConnectionGater
 	Routing     routing.PeerRouting
 	// p2p protocols

@@ -10,9 +10,10 @@ import (
 	"github.com/celestiaorg/celestia-node/node/fxutil"
 )
 
-func PubSub(cfg *Config) func(ctx context.Context, lc fx.Lifecycle, host host.Host) (*pubsub.PubSub, error) {
-	return func(ctx context.Context, lc fx.Lifecycle, host host.Host) (*pubsub.PubSub, error) {
-		fpeers, err := cfg.friendPeers()
+// PubSub provides a constructor for PubSub protocol with GossipSub routing.
+func PubSub(cfg *Config) func(pubSubParams) (*pubsub.PubSub, error) {
+	return func(params pubSubParams) (*pubsub.PubSub, error) {
+		fpeers, err := cfg.mutualPeers()
 		if err != nil {
 			return nil, err
 		}
@@ -30,6 +31,18 @@ func PubSub(cfg *Config) func(ctx context.Context, lc fx.Lifecycle, host host.Ho
 			pubsub.WithDirectPeers(fpeers),
 		}
 
-		return pubsub.NewGossipSub(fxutil.WithLifecycle(ctx, lc), host, opts...)
+		return pubsub.NewGossipSub(
+			fxutil.WithLifecycle(params.Ctx, params.Lc),
+			params.Host,
+			opts...,
+		)
 	}
+}
+
+type pubSubParams struct {
+	fx.In
+
+	Ctx       context.Context
+	Lc        fx.Lifecycle
+	Host host.Host
 }

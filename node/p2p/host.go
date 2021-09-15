@@ -18,11 +18,15 @@ import (
 	"github.com/celestiaorg/celestia-node/node/fxutil"
 )
 
-type HostBase host.Host
+// RoutedHost constructs a wrapped Host that may fallback to address discovery,
+// if any top-level operation on the Host is provided with PeerID(Hash(PbK)) only.
+func RoutedHost(base hostBase, r routing.PeerRouting) host.Host {
+	return routedhost.Wrap(base, r)
+}
 
-// Host returns constructor for p2p.Host.
-func Host(cfg *Config) func(hostParams) (HostBase, error) {
-	return func(params hostParams) (HostBase, error) {
+// Host returns constructor for Host.
+func Host(cfg *Config) func(hostParams) (hostBase, error) {
+	return func(params hostParams) (hostBase, error) {
 		opts := []libp2p.Option{
 			libp2p.NoListenAddrs, // do not listen automatically
 			libp2p.AddrsFactory(params.AddrF),
@@ -31,7 +35,7 @@ func Host(cfg *Config) func(hostParams) (HostBase, error) {
 			libp2p.ConnectionManager(params.ConnMngr),
 			libp2p.ConnectionGater(params.ConnGater),
 			libp2p.UserAgent(fmt.Sprintf("celestia-%s", cfg.Network)),
-			libp2p.NATPortMap(),
+			libp2p.NATPortMap(), // enables upnp
 			libp2p.DisableRelay(),
 			// to clearly define what defaults we rely upon
 			libp2p.DefaultSecurity,
@@ -39,6 +43,7 @@ func Host(cfg *Config) func(hostParams) (HostBase, error) {
 			libp2p.DefaultMuxers,
 		}
 
+		// TODO(Wondertan): Other, non Celestia bootstrapper may also enable NATService to contribute the network.
 		if cfg.Bootstrapper {
 			opts = append(opts, libp2p.EnableNATService())
 		}
@@ -56,9 +61,7 @@ func Host(cfg *Config) func(hostParams) (HostBase, error) {
 	}
 }
 
-func RoutedHost(base HostBase, r routing.PeerRouting) host.Host {
-	return routedhost.Wrap(base, r)
-}
+type hostBase host.Host
 
 type hostParams struct {
 	fx.In

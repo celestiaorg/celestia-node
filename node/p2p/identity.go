@@ -9,6 +9,7 @@ import (
 )
 
 // TODO: Should also receive a KeyStore to save generated key and reuse if exists.
+// Identity provides a networking private key and PeerID of the node.
 func Identity(pstore peerstore.Peerstore) (crypto.PrivKey, peer.ID, error) {
 	priv, pub, err := crypto.GenerateEd25519Key(rand.Reader)
 	if err != nil {

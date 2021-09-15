@@ -9,8 +9,6 @@ import (
 	"go.uber.org/fx"
 )
 
-// TODO(Wondertan): Some of the fields should not be configurable,
-//  but rather be built-in into the binary, like Network and Bootstrapper
 // Config combines all configuration fields for P2P subsystem.
 type Config struct {
 	// ListenAddresses - Addresses to listen to on local NIC.
@@ -20,19 +18,27 @@ type Config struct {
 	// NoAnnounceAddresses - Addresses the P2P subsystem may know about, but that should not be announced/advertised,
 	// as undialable from WAN
 	NoAnnounceAddresses []string
-
+	// TODO: This should be a built-time parameter. See https://github.com/celestiaorg/celestia-node/issues/62
+	// Networks stands for network name, e.g. celestia-devnet.
 	Network        string
+	// TODO: This should be a built-time parameter. See https://github.com/celestiaorg/celestia-node/issues/63
+	// Bootstrapper is flag telling this node is a bootstrapper.
 	Bootstrapper   bool
+	// BootstrapPeers is a list of network specific peers that help with network bootstrapping.
 	BootstrapPeers []string
-	FriendPeers    []string
-	PeerExchange   bool
-	ConnManager    *ConnManagerConfig
+	// MutualPeers are peers which have a bidirectional peering agreement with the configured node.
+	// Connections with those peers are protected from being trimmed, dropped or negatively scored.
+	// NOTE: Any two peers must bidirectionally configure each other on their MutualPeers field.
+	MutualPeers  []string
+	// PeerExchange configures the node, whether it should share some peers to a pruned peer.
+	// This is enabled by default for Bootstrappers.
+	PeerExchange bool
+	ConnManager  *ConnManagerConfig
 }
 
 // DefaultConfig returns default configuration for P2P subsystem.
 func DefaultConfig() *Config {
 	return &Config{
-		Network: "devnet",
 		ListenAddresses: []string{
 			"/ip4/0.0.0.0/tcp/2121",
 			"/ip6/::/tcp/2121",
@@ -42,6 +48,7 @@ func DefaultConfig() *Config {
 			"/ip4/127.0.0.1/tcp/2121",
 			"/ip6/::/tcp/2121",
 		},
+		Network: "devnet",
 		BootstrapPeers: nil,
 		Bootstrapper:   false,
 		PeerExchange:   false,
@@ -82,12 +89,12 @@ func (cfg *Config) bootstrapPeers() (_ []peer.AddrInfo, err error) {
 	return peer.AddrInfosFromP2pAddrs(maddrs...)
 }
 
-func (cfg *Config) friendPeers() (_ []peer.AddrInfo, err error) {
-	maddrs := make([]ma.Multiaddr, len(cfg.FriendPeers))
+func (cfg *Config) mutualPeers() (_ []peer.AddrInfo, err error) {
+	maddrs := make([]ma.Multiaddr, len(cfg.MutualPeers))
 	for i, addr := range cfg.BootstrapPeers {
 		maddrs[i], err = ma.NewMultiaddr(addr)
 		if err != nil {
-			return nil, fmt.Errorf("failure to parse config.P2P.FriendPeers: %s", err)
+			return nil, fmt.Errorf("failure to parse config.P2P.MutualPeers: %s", err)
 		}
 	}
 
