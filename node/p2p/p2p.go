@@ -33,6 +33,7 @@ type Config struct {
 	// PeerExchange configures the node, whether it should share some peers to a pruned peer.
 	// This is enabled by default for Bootstrappers.
 	PeerExchange bool
+	// ConnManager is a configuration tuple for ConnectionManager.
 	ConnManager  *ConnManagerConfig
 }
 
@@ -71,7 +72,9 @@ func Components(cfg *Config) fx.Option {
 		fx.Provide(Host(cfg)),
 		fx.Provide(RoutedHost),
 		fx.Provide(PubSub(cfg)),
-		fx.Provide(Routing(cfg)),
+		fx.Provide(Exchange(cfg)),
+		fx.Provide(PeerRouting(cfg)),
+		fx.Provide(ContentRouting),
 		fx.Provide(AddrsFactory(cfg.AnnounceAddresses, cfg.NoAnnounceAddresses)),
 		fx.Invoke(Listen(cfg.ListenAddresses)),
 	)

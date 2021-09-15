@@ -3,6 +3,7 @@ package node
 import (
 	"context"
 
+	exchange "github.com/ipfs/go-ipfs-exchange-interface"
 	logging "github.com/ipfs/go-log/v2"
 	"github.com/libp2p/go-libp2p-core/connmgr"
 	"github.com/libp2p/go-libp2p-core/host"
@@ -34,6 +35,7 @@ type Node struct {
 	Host        host.Host
 	ConnGater   connmgr.ConnectionGater
 	Routing     routing.PeerRouting
+	Exchange    exchange.Interface // TODO: Better name?
 	// p2p protocols
 	PubSub *pubsub.PubSub
 }
