@@ -34,7 +34,7 @@ func AddrsFactory(announce []string, noAnnounce []string) func() (_ p2pconfig.Ad
 			}
 		}
 
-		// TODO: Support filtering with network masks for noAnnounce, e.g. 255.255.255.0
+		// TODO(@Wondertan): Support filtering with network masks for noAnnounce, e.g. 255.255.255.0
 		// Collect all addresses that should not be announced
 		maNoAnnounce := make(map[string]bool, len(noAnnounce))
 		for _, addr := range noAnnounce {

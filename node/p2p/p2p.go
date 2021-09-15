@@ -18,10 +18,10 @@ type Config struct {
 	// NoAnnounceAddresses - Addresses the P2P subsystem may know about, but that should not be announced/advertised,
 	// as undialable from WAN
 	NoAnnounceAddresses []string
-	// TODO: This should be a built-time parameter. See https://github.com/celestiaorg/celestia-node/issues/62
+	// TODO(@Wondertan): This should be a built-time parameter. See https://github.com/celestiaorg/celestia-node/issues/62
 	// Networks stands for network name, e.g. celestia-devnet.
 	Network string
-	// TODO: This should be a built-time parameter. See https://github.com/celestiaorg/celestia-node/issues/63
+	// TODO(@Wondertan): This should be a built-time parameter. See https://github.com/celestiaorg/celestia-node/issues/63
 	// Bootstrapper is flag telling this node is a bootstrapper.
 	Bootstrapper bool
 	// BootstrapPeers is a list of network specific peers that help with network bootstrapping.
@@ -60,7 +60,7 @@ func DefaultConfig() *Config {
 // Components collects all the components and services related to p2p.
 func Components(cfg *Config) fx.Option {
 	return fx.Options(
-		// TODO(Wondertan): This shouldn't be here, but it is required until we start using real datastore
+		// TODO(@Wondertan): This shouldn't be here, but it is required until we start using real datastore
 		fx.Provide(func() datastore.Batching {
 			return datastore.NewMapDatastore()
 		}),

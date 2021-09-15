@@ -43,7 +43,7 @@ func Host(cfg *Config) func(hostParams) (hostBase, error) {
 			libp2p.DefaultMuxers,
 		}
 
-		// TODO(Wondertan): Other, non Celestia bootstrapper may also enable NATService to contribute the network.
+		// TODO(@Wondertan): Other, non Celestia bootstrapper may also enable NATService to contribute the network.
 		if cfg.Bootstrapper {
 			opts = append(opts, libp2p.EnableNATService())
 		}

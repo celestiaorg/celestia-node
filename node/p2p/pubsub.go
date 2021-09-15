@@ -18,7 +18,7 @@ func PubSub(cfg *Config) func(pubSubParams) (*pubsub.PubSub, error) {
 			return nil, err
 		}
 
-		// TODO for PubSub options:
+		// TODO(@Wondertan) for PubSub options:
 		//  * Hash-based MsgId function.
 		//  * Validate default peer scoring params for our use-case.
 		//  * Strict subscription filter
