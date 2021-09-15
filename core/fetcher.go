@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	rpctypes "github.com/celestiaorg/celestia-core/rpc/core/types"
 	"github.com/celestiaorg/celestia-core/types"
 	"github.com/celestiaorg/celestia-node/service/block"
 )
@@ -14,7 +13,7 @@ const newBlockSubscriber = "NewBlock/Events"
 var newBlockEventQuery = types.QueryForEvent(types.EventNewBlock).String()
 
 type BlockFetcher struct {
-	Client
+	client Client
 
 	newBlockCh chan *block.Raw
 }
@@ -22,26 +21,27 @@ type BlockFetcher struct {
 // NewBlockFetcher returns a new `BlockFetcher`.
 func NewBlockFetcher(client Client) *BlockFetcher {
 	return &BlockFetcher{
-		Client: client,
+		client: client,
 	}
 }
 
 // GetBlock queries Core for a `Block` at the given height.
 func (f *BlockFetcher) GetBlock(ctx context.Context, height *int64) (*block.Raw, error) {
-	raw, err := f.Block(ctx, height)
-	return raw.Block, err
+	raw, err := f.client.Block(ctx, height)
+	if err != nil {
+		return nil, err
+	}
+	return raw.Block, nil
 }
 
 // SubscribeNewBlockEvent subscribes to new block events from Core, returning
 // a new block event channel on success.
 func (f *BlockFetcher) SubscribeNewBlockEvent(ctx context.Context) (<-chan *block.Raw, error) {
 	// start the client if not started yet
-	if !f.IsRunning() {
-		if err := f.Start(); err != nil {
-			return nil, err
-		}
+	if !f.client.IsRunning() {
+		return nil, fmt.Errorf("client not running")
 	}
-	eventChan, err := f.Subscribe(ctx, newBlockSubscriber, newBlockEventQuery)
+	eventChan, err := f.client.Subscribe(ctx, newBlockSubscriber, newBlockEventQuery)
 	if err != nil {
 		return nil, err
 	}
@@ -50,28 +50,30 @@ func (f *BlockFetcher) SubscribeNewBlockEvent(ctx context.Context) (<-chan *bloc
 	if f.newBlockCh != nil {
 		return nil, fmt.Errorf("new block event channel exists")
 	}
-	newBlockChan := make(chan *block.Raw)
-	f.newBlockCh = newBlockChan
 
-	go func(eventChan <-chan rpctypes.ResultEvent, newBlockChan chan *block.Raw) {
+	f.newBlockCh = make(chan *block.Raw)
+
+	go func() {
 		for {
-			newEvent := <-eventChan
-			rawBlock, ok := newEvent.Data.(types.EventDataNewBlock)
-			if !ok {
-				// TODO log & ignore
-				continue
+			select {
+			case <-ctx.Done():
+				return
+			case newEvent := <-eventChan:
+				newBlock, ok := newEvent.Data.(types.EventDataNewBlock)
+				if !ok {
+					log.Warnf("unexpected event: %v", newEvent)
+					continue
+				}
+				f.newBlockCh <- newBlock.Block
 			}
-			newBlockChan <- rawBlock.Block
 		}
-	}(eventChan, newBlockChan)
+	}()
 
-	return newBlockChan, nil
+	return f.newBlockCh, nil
 }
 
 // UnsubscribeNewBlockEvent stops the subscription to new block events from Core.
 func (f *BlockFetcher) UnsubscribeNewBlockEvent(ctx context.Context) error {
-	// send done signal
-	ctx.Done()
 	// close the new block channel
 	if f.newBlockCh == nil {
 		return fmt.Errorf("no new block event channel found")
@@ -79,5 +81,5 @@ func (f *BlockFetcher) UnsubscribeNewBlockEvent(ctx context.Context) error {
 	close(f.newBlockCh)
 	f.newBlockCh = nil
 
-	return f.Unsubscribe(ctx, newBlockSubscriber, newBlockEventQuery)
+	return f.client.Unsubscribe(ctx, newBlockSubscriber, newBlockEventQuery)
 }
