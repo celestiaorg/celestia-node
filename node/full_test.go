@@ -34,11 +34,11 @@ func TestFullLifecycle(t *testing.T) {
 	})
 
 	node, err := NewFull(cfg)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	require.NotNil(t, node)
 	require.NotNil(t, node.Config)
 	require.NotZero(t, node.Type)
-	assert.NotNil(t, node.Host)
+	require.NotNil(t, node.Host)
 	require.NotNil(t, node.CoreClient)
 
 	ctx, cancel := context.WithCancel(context.Background())
