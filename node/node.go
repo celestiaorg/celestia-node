@@ -3,8 +3,12 @@ package node
 import (
 	"context"
 
+	exchange "github.com/ipfs/go-ipfs-exchange-interface"
 	logging "github.com/ipfs/go-log/v2"
+	"github.com/libp2p/go-libp2p-core/connmgr"
 	"github.com/libp2p/go-libp2p-core/host"
+	"github.com/libp2p/go-libp2p-core/routing"
+	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	"go.uber.org/fx"
 
 	"github.com/celestiaorg/celestia-node/core"
@@ -20,13 +24,20 @@ var log = logging.Logger("node")
 type Node struct {
 	Type   Type
 	Config *Config
-	Host   host.Host
 
 	// the Node keeps a reference to the DI App that controls the lifecycles of services registered on the Node.
 	app *fx.App
 
 	// CoreClient provides access to a Core node process.
 	CoreClient core.Client `optional:"true"`
+
+	// p2p components
+	Host         host.Host
+	ConnGater    connmgr.ConnectionGater
+	Routing      routing.PeerRouting
+	DataExchange exchange.Interface
+	// p2p protocols
+	PubSub *pubsub.PubSub
 }
 
 // newNode creates a new Node from given DI options.
@@ -55,7 +66,7 @@ func (n *Node) Start(ctx context.Context) error {
 
 	log.Infof("%s Node is started", n.Type)
 
-	// TODO: Add bootstrapping
+	// TODO(@Wondertan): Add bootstrapping
 	return nil
 }
 

@@ -15,7 +15,7 @@ func Listen(listen []string) func(host host.Host) (err error) {
 		for i, addr := range listen {
 			maListen[i], err = ma.NewMultiaddr(addr)
 			if err != nil {
-				return fmt.Errorf("failure to parse config.Components.ListenAddresses: %s", err)
+				return fmt.Errorf("failure to parse config.P2P.ListenAddresses: %s", err)
 			}
 		}
 		return host.Network().Listen(maListen...)
@@ -30,17 +30,17 @@ func AddrsFactory(announce []string, noAnnounce []string) func() (_ p2pconfig.Ad
 		for i, addr := range announce {
 			maAnnounce[i], err = ma.NewMultiaddr(addr)
 			if err != nil {
-				return nil, fmt.Errorf("failure to parse config.Components.AnnounceAddresses: %s", err)
+				return nil, fmt.Errorf("failure to parse config.P2P.AnnounceAddresses: %s", err)
 			}
 		}
 
-		// TODO: Support filtering with network masks for noAnnounce, e.g. 255.255.255.0
+		// TODO(@Wondertan): Support filtering with network masks for noAnnounce, e.g. 255.255.255.0
 		// Collect all addresses that should not be announced
 		maNoAnnounce := make(map[string]bool, len(noAnnounce))
 		for _, addr := range noAnnounce {
 			maddr, err := ma.NewMultiaddr(addr)
 			if err != nil {
-				return nil, fmt.Errorf("failure to parse config.Components.NoAnnounceAddresses: %s", err)
+				return nil, fmt.Errorf("failure to parse config.P2P.NoAnnounceAddresses: %s", err)
 			}
 			maNoAnnounce[string(maddr.Bytes())] = true
 		}

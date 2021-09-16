@@ -18,11 +18,12 @@ func TestNewFull(t *testing.T) {
 		os.RemoveAll(cfg.Core.EmbeddedConfig.RootDir)
 	})
 
-	nd, err := NewFull(cfg)
+	node, err := NewFull(cfg)
 	assert.NoError(t, err)
-	assert.NotNil(t, nd)
-	assert.NotNil(t, nd.Config)
-	assert.NotZero(t, nd.Type)
+	assert.NotNil(t, node)
+	assert.NotNil(t, node.Config)
+	assert.NotNil(t, node.Host)
+	assert.NotZero(t, node.Type)
 }
 
 func TestFullLifecycle(t *testing.T) {
@@ -33,10 +34,11 @@ func TestFullLifecycle(t *testing.T) {
 	})
 
 	node, err := NewFull(cfg)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	require.NotNil(t, node)
 	require.NotNil(t, node.Config)
 	require.NotZero(t, node.Type)
+	require.NotNil(t, node.Host)
 	require.NotNil(t, node.CoreClient)
 
 	ctx, cancel := context.WithCancel(context.Background())
