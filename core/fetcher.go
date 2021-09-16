@@ -3,7 +3,6 @@ package core
 import (
 	"context"
 	"fmt"
-	"sync"
 
 	"github.com/celestiaorg/celestia-core/types"
 	"github.com/celestiaorg/celestia-node/service/block"
@@ -16,7 +15,6 @@ var newBlockEventQuery = types.QueryForEvent(types.EventNewBlock).String()
 type BlockFetcher struct {
 	client Client
 
-	mux        sync.Mutex
 	newBlockCh chan *block.Raw
 }
 
