@@ -43,10 +43,10 @@ func ConnectionManager(cfg *Config) func() (coreconnmgr.ConnManager, error) {
 
 		cm := connmgr.NewConnManager(cfg.ConnManager.Low, cfg.ConnManager.High, cfg.ConnManager.GracePeriod)
 		for _, info := range fpeers {
-			cm.Protect(info.ID, "69protected69_config")
+			cm.Protect(info.ID, "protected-mutual")
 		}
 		for _, info := range bpeers {
-			cm.Protect(info.ID, "69protected69_bootstrap")
+			cm.Protect(info.ID, "protected-bootstrap")
 		}
 
 		return cm, nil
