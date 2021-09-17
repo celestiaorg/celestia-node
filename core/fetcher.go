@@ -58,13 +58,20 @@ func (f *BlockFetcher) SubscribeNewBlockEvent(ctx context.Context) (<-chan *bloc
 			select {
 			case <-ctx.Done():
 				return
-			case newEvent := <-eventChan:
+			case newEvent, ok := <-eventChan:
+			if !ok {
+				return
+			}
 				newBlock, ok := newEvent.Data.(types.EventDataNewBlock)
 				if !ok {
 					log.Warnf("unexpected event: %v", newEvent)
 					continue
 				}
-				f.newBlockCh <- newBlock.Block
+				select {
+				case f.newBlockCh <- newBlock.Block:
+				case <-ctx.Done():
+					return
+				}
 			}
 		}
 	}()
@@ -78,8 +85,10 @@ func (f *BlockFetcher) UnsubscribeNewBlockEvent(ctx context.Context) error {
 	if f.newBlockCh == nil {
 		return fmt.Errorf("no new block event channel found")
 	}
-	close(f.newBlockCh)
-	f.newBlockCh = nil
+	defer func() {
+		  close(f.newBlockCh)
+		  f.newBlockCh = nil
+	}
 
 	return f.client.Unsubscribe(ctx, newBlockSubscriber, newBlockEventQuery)
 }
