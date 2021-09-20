@@ -6,25 +6,26 @@ import (
 	"go.uber.org/fx"
 
 	coreclient "github.com/celestiaorg/celestia-node/core"
+	"github.com/celestiaorg/celestia-node/node/config"
 	"github.com/celestiaorg/celestia-node/node/core"
 	"github.com/celestiaorg/celestia-node/node/p2p"
 	"github.com/celestiaorg/celestia-node/service/block"
 )
 
 // NewFull assembles a new Full Node from required components.
-func NewFull(cfg *Config) (*Node, error) {
+func NewFull(cfg *config.Config) (*Node, error) {
 	return newNode(fullComponents(cfg))
 }
 
 // fullComponents keeps all the components as DI options required to built a Full Node.
-func fullComponents(cfg *Config) fx.Option {
+func fullComponents(cfg *config.Config) fx.Option {
 	return fx.Options(
 		// manual providing
 		fx.Provide(context.Background),
 		fx.Provide(func() Type {
 			return Full
 		}),
-		fx.Provide(func() *Config {
+		fx.Provide(func() *config.Config {
 			return cfg
 		}),
 		// provide the block Fetcher

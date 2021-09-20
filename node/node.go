@@ -12,6 +12,7 @@ import (
 	"go.uber.org/fx"
 
 	"github.com/celestiaorg/celestia-node/core"
+	"github.com/celestiaorg/celestia-node/node/config"
 	"github.com/celestiaorg/celestia-node/service/block"
 )
 
@@ -24,7 +25,7 @@ var log = logging.Logger("node")
 // * Light
 type Node struct {
 	Type   Type
-	Config *Config
+	Config *config.Config
 
 	// the Node keeps a reference to the DI App that controls the lifecycles of services registered on the Node.
 	app *fx.App

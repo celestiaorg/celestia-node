@@ -3,7 +3,6 @@ package core
 import (
 	"fmt"
 
-	"github.com/celestiaorg/celestia-core/config"
 	corenode "github.com/celestiaorg/celestia-core/node"
 	"github.com/celestiaorg/celestia-core/rpc/client"
 	"github.com/celestiaorg/celestia-core/rpc/client/http"
@@ -22,7 +21,7 @@ func NewRemote(protocol, remoteAddr string) (Client, error) {
 }
 
 // NewEmbedded returns a new Client from an embedded Core node process.
-func NewEmbedded(cfg *config.Config) (Client, error) {
+func NewEmbedded(cfg *Config) (Client, error) {
 	node, err := corenode.DefaultNewNode(cfg, adaptedLogger())
 	if err != nil {
 		return nil, err

@@ -8,15 +8,17 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/celestiaorg/celestia-node/core"
-	"github.com/celestiaorg/celestia-node/node/p2p"
 	"github.com/libp2p/go-libp2p-core/host"
 	"github.com/libp2p/go-libp2p-core/network"
 	"github.com/libp2p/go-libp2p-core/protocol"
+
+	"github.com/celestiaorg/celestia-node/core"
+	"github.com/celestiaorg/celestia-node/node/config"
+	"github.com/celestiaorg/celestia-node/node/p2p"
 )
 
 func TestNewFull(t *testing.T) {
-	cfg := DefaultConfig()
+	cfg := config.DefaultConfig()
 	cfg.Core.EmbeddedConfig = core.TestConfig(t.Name())
 	t.Cleanup(func() {
 		os.RemoveAll(cfg.Core.EmbeddedConfig.RootDir)
@@ -31,7 +33,7 @@ func TestNewFull(t *testing.T) {
 }
 
 func TestFullLifecycle(t *testing.T) {
-	cfg := DefaultConfig()
+	cfg := config.DefaultConfig()
 	cfg.Core.EmbeddedConfig = core.TestConfig(t.Name())
 	t.Cleanup(func() {
 		os.RemoveAll(cfg.Core.EmbeddedConfig.RootDir)
@@ -70,7 +72,7 @@ func TestFull_P2P_Streams(t *testing.T) {
 	})
 
 	// make first node
-	nodeConf := DefaultConfig()
+	nodeConf := config.DefaultConfig()
 	nodeConf.Core.EmbeddedConfig = nodeEmbeddedConfig
 	nodeConf.P2P = p2p.DefaultConfig()
 	node, err := NewFull(nodeConf)
@@ -78,7 +80,7 @@ func TestFull_P2P_Streams(t *testing.T) {
 	require.NotNil(t, node)
 	require.NotNil(t, node.Host)
 	// make peer node
-	peerConf := DefaultConfig()
+	peerConf := config.DefaultConfig()
 	peerConf.Core.EmbeddedConfig = peerEmbeddedConfig
 	peerConf.P2P = p2p.DefaultConfig()
 	peerConf.P2P.ListenAddresses = []string{

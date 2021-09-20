@@ -1,4 +1,4 @@
-package node
+package config
 
 import (
 	"github.com/celestiaorg/celestia-node/node/core"
