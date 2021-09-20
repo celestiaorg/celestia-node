@@ -2,8 +2,9 @@ package block
 
 import (
 	"context"
-	"github.com/stretchr/testify/require"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 func Test_listenForNewBlocks(t *testing.T) {

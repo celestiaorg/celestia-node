@@ -3,6 +3,7 @@ package block
 import (
 	"context"
 	"fmt"
+
 	logging "github.com/ipfs/go-log/v2"
 )
 

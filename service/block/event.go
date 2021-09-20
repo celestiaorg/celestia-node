@@ -17,15 +17,18 @@ func (s *Service) listenForNewBlocks(ctx context.Context) error {
 	go func() {
 		for {
 			select {
-			case <- ctx.Done():
+			case <-ctx.Done():
 				return
 			case <-s.cancelListen:
 				return
-			case newRawBlock, ok := <- newBlockEventChan:
+			case newRawBlock, ok := <-newBlockEventChan:
 				if !ok {
 					return
 				}
-				s.handleRawBlock(newRawBlock) // TODO @renaynay: how to handle errors here ?
+				err = s.handleRawBlock(newRawBlock)
+				if err != nil {
+					panic(err) // TODO @renaynay: how to handle errors here ?
+				}
 
 				continue
 			}
@@ -49,7 +52,7 @@ func (s *Service) handleRawBlock(raw *Raw) error {
 	// TODO @renaynay:
 	// generate DAH using extended block
 	// verify generated DAH against raw block data root
-		// if fraud, generate fraud proof
+	// if fraud, generate fraud proof
 	// store extended block
 
 	return nil
