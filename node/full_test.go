@@ -23,10 +23,10 @@ func TestNewFull(t *testing.T) {
 	})
 
 	node, err := NewFull(cfg)
-	assert.NoError(t, err)
-	assert.NotNil(t, node)
-	assert.NotNil(t, node.Config)
-	assert.NotNil(t, node.Host)
+	require.NoError(t, err)
+	require.NotNil(t, node)
+	require.NotNil(t, node.Config)
+	require.NotNil(t, node.Host)
 	assert.NotZero(t, node.Type)
 }
 
@@ -56,7 +56,7 @@ func TestFullLifecycle(t *testing.T) {
 	t.Cleanup(cancel)
 
 	err = node.Stop(ctx)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 }
 
 // TestFull_P2P_Streams tests the ability for Full nodes to communicate
@@ -74,7 +74,7 @@ func TestFull_P2P_Streams(t *testing.T) {
 	nodeConf.Core.EmbeddedConfig = nodeEmbeddedConfig
 	nodeConf.P2P = p2p.DefaultConfig()
 	node, err := NewFull(nodeConf)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	require.NotNil(t, node)
 	require.NotNil(t, node.Host)
 	// make peer node
@@ -86,7 +86,7 @@ func TestFull_P2P_Streams(t *testing.T) {
 		"/ip6/::/tcp/2124",
 	}
 	peer, err := NewFull(peerConf)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	require.NotNil(t, peer)
 	require.NotNil(t, node.Host)
 

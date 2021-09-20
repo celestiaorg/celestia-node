@@ -10,9 +10,9 @@ import (
 
 func TestNewLight(t *testing.T) {
 	nd, err := NewLight(DefaultConfig())
-	assert.NoError(t, err)
-	assert.NotNil(t, nd)
-	assert.NotNil(t, nd.Config)
+	require.NoError(t, err)
+	require.NotNil(t, nd)
+	require.NotNil(t, nd.Config)
 	assert.NotZero(t, nd.Type)
 }
 

@@ -4,7 +4,6 @@ import (
 	"context"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -21,7 +20,7 @@ func TestEmbeddedClient_Status(t *testing.T) {
 
 	status, err := client.Status(ctx)
 	require.NoError(t, err)
-	assert.NotNil(t, status)
+	require.NotNil(t, status)
 
 	require.NoError(t, client.Stop())
 }
@@ -70,7 +69,7 @@ func TestRemoteClient_Status(t *testing.T) {
 
 	status, err := client.Status(ctx)
 	require.NoError(t, err)
-	assert.NotNil(t, status)
+	require.NotNil(t, status)
 
 	require.NoError(t, client.Stop())
 	require.NoError(t, remote.Stop())
