@@ -18,7 +18,8 @@ require (
 	github.com/libp2p/go-libp2p-routing-helpers v0.2.3
 	github.com/multiformats/go-base32 v0.0.4
 	github.com/multiformats/go-multiaddr v0.4.0
-	github.com/stretchr/testify v1.7.0
+	github.com/pelletier/go-toml/v2 v2.0.0-beta.3
+	github.com/stretchr/testify v1.7.1-0.20210427113832-6241f9ab9942
 	go.uber.org/fx v1.14.2
 	go.uber.org/zap v1.19.0
 )
