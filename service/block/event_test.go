@@ -17,13 +17,13 @@ func Test_listenForNewBlocks(t *testing.T) {
 
 	err := serv.Start(ctx)
 	require.NoError(t, err)
-	require.NotNil(t, serv.stopListen)
+	require.NotNil(t, serv.cancelListen)
 
 	mockFetcher.generateBlocks(3)
 
 	err = serv.Stop(ctx)
 	require.NoError(t, err)
-	require.Nil(t, serv.stopListen)
+	require.Nil(t, serv.cancelListen)
 }
 
 // mockFetcher

@@ -3,8 +3,6 @@ package block
 import (
 	"context"
 	"fmt"
-	"sync"
-
 	logging "github.com/ipfs/go-log/v2"
 )
 
@@ -17,8 +15,7 @@ import (
 type Service struct {
 	fetcher Fetcher
 
-	mux        sync.Mutex
-	stopListen chan bool
+	cancelListen chan bool
 }
 
 var log = logging.Logger("block-service")
@@ -33,28 +30,26 @@ func NewBlockService(fetcher Fetcher) *Service {
 // Start starts the block Service.
 // TODO @renaynay: make sure `Start` eventually has the same signature as `Stop`
 func (s *Service) Start(ctx context.Context) error {
-	if s.stopListen	!= nil {
+	if s.cancelListen != nil {
 		return fmt.Errorf("service was already started / not shut down properly") // TODO @renaynay: better err?
 	}
-	s.mux.Lock()
-	s.stopListen = make(chan bool)
-	s.mux.Unlock()
+	s.cancelListen = make(chan bool)
 
 	return s.listenForNewBlocks(ctx)
 }
 
 // Stop stops the block Service.
 func (s *Service) Stop(ctx context.Context) error {
-	// send stop signal to listener and shut down
-	if s.stopListen == nil {
+	// send stop signal to listener
+	if s.cancelListen == nil {
 		return fmt.Errorf("service already stopped / not shut down properly") // TODO @renaynay: better err?
 	}
-	s.stopListen <- true
-	close(s.stopListen)
+	s.cancelListen <- true
 
-	s.mux.Lock()
-	s.stopListen = nil
-	s.mux.Unlock()
+	defer func() {
+		close(s.cancelListen)
+		s.cancelListen = nil
+	}()
 
 	return s.fetcher.UnsubscribeNewBlockEvent(ctx)
 }

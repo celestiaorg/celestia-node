@@ -10,11 +10,11 @@ import (
 // extendBlock erasure codes the given raw block and returns the
 // erasure coded block upon success.
 func (s *Service) extendBlock(raw *Raw) (*ExtendedBlock, error) {
-	namespacedShares, dataSharesLen := raw.Data.ComputeShares()
+	namespacedShares, _ := raw.Data.ComputeShares()
 	shares := namespacedShares.RawShares()
 
 	// create the nmt wrapper to generate row and col commitments
-	squareSize := squareSize64(dataSharesLen)
+	squareSize := squareSize64(len(namespacedShares))
 	tree := wrapper.NewErasuredNamespacedMerkleTree(squareSize)
 
 	// compute extended square

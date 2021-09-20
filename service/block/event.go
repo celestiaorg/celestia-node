@@ -17,9 +17,14 @@ func (s *Service) listenForNewBlocks(ctx context.Context) error {
 	go func() {
 		for {
 			select {
-			case <-s.stopListen:
+			case <- ctx.Done():
 				return
-			case newRawBlock := <- newBlockEventChan:
+			case <-s.cancelListen:
+				return
+			case newRawBlock, ok := <- newBlockEventChan:
+				if !ok {
+					return
+				}
 				s.handleRawBlock(newRawBlock) // TODO @renaynay: how to handle errors here ?
 
 				continue
