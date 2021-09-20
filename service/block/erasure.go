@@ -9,7 +9,7 @@ import (
 
 // extendBlock erasure codes the given raw block and returns the
 // erasure coded block upon success.
-func (s *Service) extendBlock(raw *Raw) (*ExtendedBlock, error) {
+func (s *Service) extendBlock(raw *Raw) (*ExtendedBlockData, error) {
 	namespacedShares, _ := raw.Data.ComputeShares()
 	shares := namespacedShares.RawShares()
 
