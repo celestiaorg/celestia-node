@@ -29,7 +29,7 @@ A "Celestia Node" will be distinctly different than a "Celestia Core" node in th
 For devnet, we require two modes for the Celestia Node: `light` and `full`, where the `light` node performs data availability sampling and the `full` node processes, stores, and serves new blocks from either Celestia Core consensus nodes *(required for devnet)* or from other Celestia `full` nodes *(optional for devnet)*.
  
 **For devnet, a `light` Celestia Node must be able to do the following:**
-* propagate relevant block information (in the form of `ExtendedHeader`s and `BadEncodingFraudProof`s to its "Celestia Node" peers
+* propagate relevant block information (in the form of `ExtendedHeader`s and `BadEncodingFraudProof`s) to its "Celestia Node" peers
 * verify `ExtendedHeader`s
 * perform and serve sampling and `SharesByNamespace` requests *(note: light nodes serve the `Shares` that they've already requested and stored by default as a result of the way bitswap works -- with bitswap, if a node has something another node wants, it will serve it)*
 * request `State` to get `AccountBalance` in order to submit transactions
