@@ -16,6 +16,7 @@ require (
 	github.com/libp2p/go-libp2p-peerstore v0.2.8
 	github.com/libp2p/go-libp2p-pubsub v0.5.4
 	github.com/libp2p/go-libp2p-routing-helpers v0.2.3
+	github.com/multiformats/go-base32 v0.0.4
 	github.com/multiformats/go-multiaddr v0.4.0
 	github.com/stretchr/testify v1.7.0
 	go.uber.org/fx v1.14.2
