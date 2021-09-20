@@ -4,6 +4,7 @@ import (
 	"go.uber.org/fx"
 
 	"github.com/celestiaorg/celestia-node/core"
+	"github.com/celestiaorg/celestia-node/node/fxutil"
 )
 
 // Config combines all configuration fields for managing the relationship with a Core node.
@@ -13,26 +14,24 @@ type Config struct {
 		Protocol   string
 		RemoteAddr string
 	}
-	EmbeddedConfig *core.Config
 }
 
 // DefaultConfig returns default configuration for Core subsystem.
 func DefaultConfig() *Config {
 	return &Config{
-		EmbeddedConfig: core.DefaultConfig(),
-		Remote:         false,
+		Remote: false,
 	}
 }
 
 // Components collects all the components and services related to managing the relationship with the Core node.
 func Components(cfg *Config) fx.Option {
 	return fx.Options(
-		fx.Provide(func() (core.Client, error) {
-			if cfg.Remote {
-				return core.NewRemote(cfg.RemoteConfig.Protocol, cfg.RemoteConfig.RemoteAddr)
-			}
-
-			return core.NewEmbedded(cfg.EmbeddedConfig)
-		}),
+		fxutil.ProvideIf(cfg.Remote, RemoteClient),
+		fxutil.ProvideIf(!cfg.Remote, core.NewEmbedded),
 	)
+}
+
+// RemoteClient provides a constructor for core.Client over RPC.
+func RemoteClient(cfg *Config) (core.Client, error) {
+	return core.NewRemote(cfg.RemoteConfig.Protocol, cfg.RemoteConfig.RemoteAddr)
 }
