@@ -17,14 +17,14 @@ type Config struct {
 }
 
 // DefaultConfig returns default configuration for Core subsystem.
-func DefaultConfig() *Config {
-	return &Config{
+func DefaultConfig() Config {
+	return Config{
 		Remote: false,
 	}
 }
 
 // Components collects all the components and services related to managing the relationship with the Core node.
-func Components(cfg *Config) fx.Option {
+func Components(cfg Config) fx.Option {
 	return fx.Options(
 		fxutil.ProvideIf(cfg.Remote, RemoteClient),
 		fxutil.ProvideIf(!cfg.Remote, core.NewEmbedded),
@@ -32,6 +32,6 @@ func Components(cfg *Config) fx.Option {
 }
 
 // RemoteClient provides a constructor for core.Client over RPC.
-func RemoteClient(cfg *Config) (core.Client, error) {
+func RemoteClient(cfg Config) (core.Client, error) {
 	return core.NewRemote(cfg.RemoteConfig.Protocol, cfg.RemoteConfig.RemoteAddr)
 }

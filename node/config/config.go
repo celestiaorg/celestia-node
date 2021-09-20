@@ -8,8 +8,8 @@ import (
 // Config is main configuration structure for a Node.
 // It combines configuration units for all Node subsystems.
 type Config struct {
-	P2P  *p2p.Config
-	Core *core.Config
+	P2P  p2p.Config
+	Core core.Config
 }
 
 // DefaultConfig provides a default Node Config.

@@ -20,8 +20,8 @@ type ConnManagerConfig struct {
 }
 
 // DefaultConnManagerConfig returns defaults for ConnManagerConfig.
-func DefaultConnManagerConfig() *ConnManagerConfig {
-	return &ConnManagerConfig{
+func DefaultConnManagerConfig() ConnManagerConfig {
+	return ConnManagerConfig{
 		Low:         50,
 		High:        100,
 		GracePeriod: time.Minute,
@@ -29,7 +29,7 @@ func DefaultConnManagerConfig() *ConnManagerConfig {
 }
 
 // ConnectionManager provides a constructor for ConnectionManager.
-func ConnectionManager(cfg *Config) func() (coreconnmgr.ConnManager, error) {
+func ConnectionManager(cfg Config) func() (coreconnmgr.ConnManager, error) {
 	return func() (coreconnmgr.ConnManager, error) {
 		fpeers, err := cfg.mutualPeers()
 		if err != nil {
