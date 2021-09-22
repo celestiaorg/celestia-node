@@ -45,7 +45,7 @@ body:
       value: | 
         Example: We can start with wrapping existing N code snippet to make implementation easier for feature ABC. 
         Still the other option is re-writing this code snippet to achieve neater code design.
-  - type: textarea
+  - type: dropdown
     id: urgency
     attributes:
       label: Urgency
@@ -56,5 +56,5 @@ body:
         - Medium
         - High
         - Critical
-      validations:
-        required: true
+    validations:
+      required: true
