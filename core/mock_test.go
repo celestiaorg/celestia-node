@@ -10,7 +10,7 @@ import (
 
 func MockRepo(t *testing.T) Repository {
 	repo := NewMemRepository()
-	repo.PutConfig(TestConfig(t))
+	repo.PutConfig(TestConfig(t)) //nolint: errcheck
 	return repo
 }
 

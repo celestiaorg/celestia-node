@@ -30,7 +30,8 @@ func Init(path string) (err error) {
 		}
 	}
 	// 2 - ensure private validator key
-	keyPath, pv := cfg.PrivValidatorKeyFile(), new(privval.FilePV)
+	var pv *privval.FilePV
+	keyPath := cfg.PrivValidatorKeyFile()
 	if utils.Exists(keyPath) {
 		pv = privval.LoadFilePV(keyPath, cfg.PrivValidatorStateFile())
 	} else {
@@ -67,13 +68,10 @@ func Init(path string) (err error) {
 			}},
 		}
 
-		err = genDoc.SaveAs(genPath)
-		if err != nil {
-			return err
-		}
+		return genDoc.SaveAs(genPath)
 	}
 
-	return
+	return nil
 }
 
 func IsInit(path string) bool {
@@ -83,7 +81,7 @@ func IsInit(path string) bool {
 	}
 
 	cfg, err := LoadConfig(cfgPath)
-	if err != nil{
+	if err != nil {
 		log.Errorf("loading config: %s", err)
 		return false
 	}

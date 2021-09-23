@@ -8,7 +8,7 @@ func NewMemRepository() Repository {
 }
 
 type memRepository struct {
-	cfg *Config
+	cfg  *Config
 	lock sync.Mutex
 }
 
