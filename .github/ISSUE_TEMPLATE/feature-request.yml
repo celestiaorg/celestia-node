@@ -1,0 +1,60 @@
+name: Feature Request
+description: Request a new feature to inform the community on what will be benenificial for the project!
+title: "[Feature Request]: "
+labels: ["enhancement",]
+assignees:
+  - Bidon15
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for taking your time and creating a new feature request!
+  - type: input
+    id: summary
+    attributes: 
+      label: Summary
+      description: Keep it simple and short. This helps with further deep dive into the feature
+      value: "Example: Users have pain-points without ABC feature"
+    validations:
+      required: true
+  - type: textarea
+    id: impact
+    attributes:
+      label: Impact on users
+      description: Suggestions on how this impact users
+      value: "Example: This wonderful ABC feature impacts X that matters to users that need Y"
+    validations:
+      required: true
+  - type: textarea
+    id: undone
+    attributes:
+      label: Cost of not doing
+      description: What can go wrong if this is not implemented
+      value: "Example: The risk of losing Z% of future users is high due to no ABC feature"
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Evidence
+      description: What are the evidences that are validating this feature?
+      value: "Example: The W post/implementation in other projects has validated this ABC feature to be very useful for the majority of users"
+  - type: textarea
+    id: ideas
+    attributes:
+      label: Implementation ideas
+      description: What ideas do you have on how to implement this?
+      value: | 
+        Example: We can start with wrapping existing N code snippet to make implementation easier for feature ABC. 
+        Still the other option is re-writing this code snippet to achieve neater code design.
+  - type: dropdown
+    id: urgency
+    attributes:
+      label: Urgency
+      description: How urgent this request is? 
+      options:
+        - Don't Know
+        - Low
+        - Medium
+        - High
+        - Critical
+    validations:
+      required: true
