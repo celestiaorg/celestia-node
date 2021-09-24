@@ -17,6 +17,7 @@ require (
 	github.com/libp2p/go-libp2p-peerstore v0.2.8
 	github.com/libp2p/go-libp2p-pubsub v0.5.4
 	github.com/libp2p/go-libp2p-routing-helpers v0.2.3
+	github.com/mitchellh/go-homedir v1.1.0
 	github.com/multiformats/go-base32 v0.0.4
 	github.com/multiformats/go-multiaddr v0.4.0
 	github.com/stretchr/testify v1.7.1-0.20210427113832-6241f9ab9942
