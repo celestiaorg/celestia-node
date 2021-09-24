@@ -17,7 +17,6 @@ func Lock(path string) (*Locker, error) {
 	return l, nil
 }
 
-// TODO Add windows support
 type Locker struct {
 	file *os.File
 	path string
