@@ -11,7 +11,7 @@ import (
 )
 
 // PubSub provides a constructor for PubSub protocol with GossipSub routing.
-func PubSub(cfg *Config) func(pubSubParams) (*pubsub.PubSub, error) {
+func PubSub(cfg Config) func(pubSubParams) (*pubsub.PubSub, error) {
 	return func(params pubSubParams) (*pubsub.PubSub, error) {
 		fpeers, err := cfg.mutualPeers()
 		if err != nil {

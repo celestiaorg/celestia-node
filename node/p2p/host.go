@@ -25,7 +25,7 @@ func RoutedHost(base hostBase, r routing.PeerRouting) host.Host {
 }
 
 // Host returns constructor for Host.
-func Host(cfg *Config) func(hostParams) (hostBase, error) {
+func Host(cfg Config) func(hostParams) (hostBase, error) {
 	return func(params hostParams) (hostBase, error) {
 		opts := []libp2p.Option{
 			libp2p.NoListenAddrs, // do not listen automatically

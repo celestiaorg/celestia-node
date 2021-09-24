@@ -22,7 +22,7 @@ func ContentRouting() routing.ContentRouting {
 
 // PeerRouting provides constructor for PeerRouting over DHT.
 // Basically, this provides a way to discover peer addresses by respecting public keys.
-func PeerRouting(cfg *Config) func(routingParams) (routing.PeerRouting, error) {
+func PeerRouting(cfg Config) func(routingParams) (routing.PeerRouting, error) {
 	return func(params routingParams) (routing.PeerRouting, error) {
 		bpeers, err := cfg.bootstrapPeers()
 		if err != nil {

@@ -34,23 +34,25 @@ type Config struct {
 	// This is enabled by default for Bootstrappers.
 	PeerExchange bool
 	// ConnManager is a configuration tuple for ConnectionManager.
-	ConnManager *ConnManagerConfig
+	ConnManager ConnManagerConfig
 }
 
 // DefaultConfig returns default configuration for P2P subsystem.
-func DefaultConfig() *Config {
-	return &Config{
+func DefaultConfig() Config {
+	return Config{
 		ListenAddresses: []string{
 			"/ip4/0.0.0.0/tcp/2121",
 			"/ip6/::/tcp/2121",
 		},
+		AnnounceAddresses: []string{},
 		NoAnnounceAddresses: []string{
 			"/ip4/0.0.0.0/tcp/2121",
 			"/ip4/127.0.0.1/tcp/2121",
 			"/ip6/::/tcp/2121",
 		},
 		Network:        "devnet",
-		BootstrapPeers: nil,
+		BootstrapPeers: []string{},
+		MutualPeers:    []string{},
 		Bootstrapper:   false,
 		PeerExchange:   false,
 		ConnManager:    DefaultConnManagerConfig(),
@@ -58,7 +60,7 @@ func DefaultConfig() *Config {
 }
 
 // Components collects all the components and services related to p2p.
-func Components(cfg *Config) fx.Option {
+func Components(cfg Config) fx.Option {
 	return fx.Options(
 		// TODO(@Wondertan): This shouldn't be here, but it is required until we start using real datastore
 		fx.Provide(func() datastore.Batching {

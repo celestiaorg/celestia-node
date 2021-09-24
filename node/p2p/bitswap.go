@@ -18,7 +18,7 @@ import (
 )
 
 // DataExchange provides a constructor for IPFS block's DataExchange over BitSwap.
-func DataExchange(cfg *Config) func(bitSwapParams) (exchange.Interface, error) {
+func DataExchange(cfg Config) func(bitSwapParams) (exchange.Interface, error) {
 	return func(params bitSwapParams) (exchange.Interface, error) {
 		prefix := protocol.ID(fmt.Sprintf("/celestia/%s", cfg.Network))
 		return bitswap.New(

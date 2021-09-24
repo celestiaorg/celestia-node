@@ -2,27 +2,20 @@ package node
 
 import (
 	"context"
-	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/celestiaorg/celestia-node/core"
-	"github.com/celestiaorg/celestia-node/node/p2p"
 	"github.com/libp2p/go-libp2p-core/host"
 	"github.com/libp2p/go-libp2p-core/network"
 	"github.com/libp2p/go-libp2p-core/protocol"
+
+	"github.com/celestiaorg/celestia-node/core"
 )
 
 func TestNewFull(t *testing.T) {
-	cfg := DefaultConfig()
-	cfg.Core.EmbeddedConfig = core.TestConfig(t.Name())
-	t.Cleanup(func() {
-		os.RemoveAll(cfg.Core.EmbeddedConfig.RootDir)
-	})
-
-	node, err := NewFull(cfg)
+	node, err := NewFull(DefaultConfig(), core.TestConfig(t))
 	require.NoError(t, err)
 	require.NotNil(t, node)
 	require.NotNil(t, node.Config)
@@ -31,13 +24,7 @@ func TestNewFull(t *testing.T) {
 }
 
 func TestFullLifecycle(t *testing.T) {
-	cfg := DefaultConfig()
-	cfg.Core.EmbeddedConfig = core.TestConfig(t.Name())
-	t.Cleanup(func() {
-		os.RemoveAll(cfg.Core.EmbeddedConfig.RootDir)
-	})
-
-	node, err := NewFull(cfg)
+	node, err := NewFull(DefaultConfig(), core.TestConfig(t))
 	require.NoError(t, err)
 	require.NotNil(t, node)
 	require.NotNil(t, node.Config)
@@ -62,30 +49,18 @@ func TestFullLifecycle(t *testing.T) {
 // TestFull_P2P_Streams tests the ability for Full nodes to communicate
 // directly with each other via libp2p streams.
 func TestFull_P2P_Streams(t *testing.T) {
-	// create two embedded configs
-	nodeEmbeddedConfig, peerEmbeddedConfig := core.TestConfig(t.Name()), core.TestConfig(t.Name())
-	t.Cleanup(func() {
-		os.RemoveAll(nodeEmbeddedConfig.RootDir)
-		os.RemoveAll(peerEmbeddedConfig.RootDir)
-	})
-
-	// make first node
-	nodeConf := DefaultConfig()
-	nodeConf.Core.EmbeddedConfig = nodeEmbeddedConfig
-	nodeConf.P2P = p2p.DefaultConfig()
-	node, err := NewFull(nodeConf)
+	node, err := NewFull(DefaultConfig(), core.TestConfig(t))
 	require.NoError(t, err)
 	require.NotNil(t, node)
 	require.NotNil(t, node.Host)
-	// make peer node
+
 	peerConf := DefaultConfig()
-	peerConf.Core.EmbeddedConfig = peerEmbeddedConfig
-	peerConf.P2P = p2p.DefaultConfig()
+	// modify address to be different
 	peerConf.P2P.ListenAddresses = []string{
 		"/ip4/0.0.0.0/tcp/2124",
 		"/ip6/::/tcp/2124",
 	}
-	peer, err := NewFull(peerConf)
+	peer, err := NewFull(peerConf, core.TestConfig(t))
 	require.NoError(t, err)
 	require.NotNil(t, peer)
 	require.NotNil(t, node.Host)
