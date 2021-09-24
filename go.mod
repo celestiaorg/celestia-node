@@ -7,6 +7,7 @@ require (
 	github.com/celestiaorg/celestia-core v0.0.1-mvp-das-lightclient.0.20210831102741-321cdc4f8dc4
 	github.com/ipfs/go-bitswap v0.4.0
 	github.com/ipfs/go-datastore v0.4.6
+	github.com/ipfs/go-ds-badger2 v0.1.1
 	github.com/ipfs/go-ipfs-blockstore v0.1.6
 	github.com/ipfs/go-ipfs-exchange-interface v0.0.1
 	github.com/ipfs/go-log/v2 v2.3.0

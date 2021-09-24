@@ -2,7 +2,6 @@ package node
 
 import (
 	"errors"
-	"os"
 	"path/filepath"
 	"sync"
 
@@ -16,9 +15,12 @@ import (
 )
 
 var (
-	ErrOpened   = errors.New("node: repository is in use")
-	ErrNotInited = errors.New("node: repository is not set up")
+	ErrOpened    = errors.New("node: repository is in use")
+	ErrNotInited = errors.New("node: repository is not initialized")
 )
+
+// TODO: Nice error wrappings
+// TODO: Memory repo
 
 type Repository interface {
 	Keystore() (keystore.Keystore, error)
@@ -30,26 +32,12 @@ type Repository interface {
 
 	Path() string
 	Close() error
-
-	DiskUsage() (uint64, error)
-}
-
-// TODO: Nice error wrappings
-// TODO: Repo for light node
-// TODO: Memory repo
-type fsRepository struct {
-	path string
-
-	data    datastore.Batching
-	keys    keystore.Keystore
-	core    core.Repository
-
-	lock sync.RWMutex // protects all the fields
-	dirLock *fslock.Locker // protects directory
 }
 
 // Open creates new FS Repository under the given 'path'.
-// The Repository must be initialized first.
+// To be opened the Repository must be initialized first, otherwise ErrNotInited is thrown.
+// Open takes a file Lock on directory, hence only one Repository can be opened at a time under the given 'path',
+// otherwise ErrOpened is thrown.
 func Open(path string) (Repository, error) {
 	path, err := repoPath(path)
 	if err != nil {
@@ -66,9 +54,11 @@ func Open(path string) (Repository, error) {
 
 	ok, err := IsInit(path)
 	if err != nil {
+		flock.Unlock() //nolint: errcheck
 		return nil, err
 	}
 	if !ok {
+		flock.Unlock() //nolint: errcheck
 		return nil, ErrNotInited
 	}
 
@@ -83,11 +73,11 @@ func (f *fsRepository) Path() string {
 }
 
 func (f *fsRepository) Config() (*Config, error) {
-	return readConfig(f.path)
+	return LoadConfig(f.path)
 }
 
-func (f *fsRepository) PutConfig(config *Config) error {
-	return writeConfig(f.path, config, true)
+func (f *fsRepository) PutConfig(cfg *Config) error {
+	return SaveConfig(f.path, cfg)
 }
 
 func (f *fsRepository) Keystore() (_ keystore.Keystore, err error) {
@@ -150,77 +140,19 @@ func (f *fsRepository) Core() (_ core.Repository, err error) {
 }
 
 func (f *fsRepository) Close() error {
-	defer f.dirLock.Unlock()
+	defer f.dirLock.Unlock() //nolint: errcheck
 	return f.data.Close()
 }
 
-func (f *fsRepository) DiskUsage() (uint64, error) {
-	panic("implement me")
-}
+type fsRepository struct {
+	path string
 
-func writeConfig(path string, cfg *Config, force bool) error {
-	exist, err := isSetUp(configPath(path))
-	if err != nil {
-		return err
-	}
-	if exist && !force {
-		return nil
-	}
+	data datastore.Batching
+	keys keystore.Keystore
+	core core.Repository
 
-	f, err := os.Create(configPath(path))
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-
-	return config.WriteTo(cfg, f)
-}
-
-func readConfig(path string) (*Config, error) {
-	f, err := os.Open(configPath(path))
-	if err != nil {
-		return nil, err
-	}
-	defer f.Close()
-
-	return config.ReadFrom(f)
-}
-
-
-func setUpRepo(path string) error {
-	err := os.MkdirAll(path, 0755)
-	if err != nil && !os.IsExist(err) {
-		return err
-	}
-	// check permissions to write into it
-	f, err := os.Create(filepath.Join(path, ".check"))
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-
-	return os.Remove(f.Name())
-}
-
-func setUpSubDir(path string) error {
-	err := os.Mkdir(path, 0755)
-	if err != nil && !os.IsExist(err) {
-		return err
-	}
-	return nil
-}
-
-func isSetUp(path string) (bool, error) {
-	_, err := os.Stat(path)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return false, nil
-		} else {
-			return false, err
-		}
-	}
-
-	return true, nil
+	lock    sync.RWMutex   // protects all the fields
+	dirLock *fslock.Locker // protects directory
 }
 
 func repoPath(path string) (string, error) {
