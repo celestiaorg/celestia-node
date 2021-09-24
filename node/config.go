@@ -3,7 +3,7 @@ package node
 import (
 	"io"
 
-	"github.com/pelletier/go-toml/v2"
+	"github.com/BurntSushi/toml"
 
 	"github.com/celestiaorg/celestia-node/node/core"
 	"github.com/celestiaorg/celestia-node/node/p2p"
@@ -35,5 +35,6 @@ func WriteTo(cfg *Config, w io.Writer) error {
 // ReadFrom pulls a Config from a given reader r.
 func ReadFrom(r io.Reader) (*Config, error) {
 	var cfg Config
-	return &cfg, toml.NewDecoder(r).Decode(&cfg)
+	_, err := toml.DecodeReader(r, &cfg)
+	return &cfg, err
 }
