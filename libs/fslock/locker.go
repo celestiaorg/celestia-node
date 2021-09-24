@@ -5,9 +5,7 @@ import (
 	"os"
 )
 
-var (
-	ErrLocked = errors.New("fslock: directory is locked")
-)
+var ErrLocked = errors.New("fslock: directory is locked")
 
 func Lock(path string) (*Locker, error) {
 	l := New(path)
