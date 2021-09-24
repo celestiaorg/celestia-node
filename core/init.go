@@ -17,6 +17,12 @@ import (
 // TODO(@Wondertan): Should we make this configurable
 const defaultValKeyType = types.ABCIPubKeyTypeSecp256k1
 
+// Init initializes the Core repository under the given 'path'.
+// It checks and creates the default if not exist:
+// * Config
+// * Private validator key
+// * P2P comms private key
+// * Stub genesis doc file
 func Init(path string) (err error) {
 	log.Info("Initializing repository over '%s'", path)
 	// 1 - ensure config
@@ -74,6 +80,8 @@ func Init(path string) (err error) {
 	return nil
 }
 
+// IsInit checks whether the Core is initialized under the given 'path'.
+// It requires Config, Private Validator Key, Private P2P Key and genesis doc.
 func IsInit(path string) bool {
 	cfgPath := configPath(path)
 	if !utils.Exists(cfgPath) {
