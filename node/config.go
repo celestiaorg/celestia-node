@@ -2,6 +2,7 @@ package node
 
 import (
 	"io"
+	"os"
 
 	"github.com/BurntSushi/toml"
 
@@ -24,17 +25,37 @@ func DefaultConfig() *Config {
 	}
 }
 
+func SaveConfig(path string, cfg *Config) error {
+	f, err := os.Create(path)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	return cfg.Encode(f)
+}
+
+func LoadConfig(path string) (*Config, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+
+	var cfg Config
+	return &cfg, cfg.Decode(f)
+}
+
 // TODO(@Wondertan): We should have a description for each field written into w,
 //  so users can instantly understand purpose of each field. Ideally, we should have a utility program to parse comments
 //  from actual sources(*.go files) and generate docs from comments. Hint: use 'ast' package.
 // WriteTo flushes a given Config into w.
-func WriteTo(cfg *Config, w io.Writer) error {
+func (cfg *Config) Encode(w io.Writer) error {
 	return toml.NewEncoder(w).Encode(cfg)
 }
 
 // ReadFrom pulls a Config from a given reader r.
-func ReadFrom(r io.Reader) (*Config, error) {
-	var cfg Config
-	_, err := toml.DecodeReader(r, &cfg)
-	return &cfg, err
+func (cfg *Config) Decode(r io.Reader) error {
+	_, err := toml.DecodeReader(r, cfg)
+	return err
 }

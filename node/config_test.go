@@ -12,10 +12,11 @@ func TestConfigWriteRead(t *testing.T) {
 	buf := bytes.NewBuffer(nil)
 	in := DefaultConfig()
 
-	err := WriteTo(in, buf)
+	err := in.Encode(buf)
 	require.NoError(t, err)
 
-	out, err := ReadFrom(buf)
+	var out Config
+	err = out.Decode(buf)
 	require.NoError(t, err)
-	assert.EqualValues(t, in, out)
+	assert.EqualValues(t, in, &out)
 }
