@@ -47,7 +47,7 @@ func (s *Service) listenForNewBlocks(ctx context.Context) error {
 // 4. The ExtendedBlock gets stored.
 func (s *Service) handleRawBlock(raw *Raw) error {
 	// extend the raw block
-	extendedBlockData, err := s.extendBlockData(raw)
+	extendedBlockData, err := extendBlockData(raw)
 	if err != nil {
 		log.Errorw("computing extended data square", "err msg", err, "block height", raw.Height,
 			"block hash", raw.Hash().String())
@@ -65,7 +65,7 @@ func (s *Service) handleRawBlock(raw *Raw) error {
 		data: extendedBlockData,
 	}
 	// check for bad encoding fraud
-	err = s.badEncodingCheck(extendedBlock, raw)
+	err = s.validateEncoding(extendedBlock, raw.Header)
 	if err != nil {
 		log.Errorw("checking for bad encoding", "err msg", err, "block height", raw.Height,
 			"block hash", raw.Hash().String())
