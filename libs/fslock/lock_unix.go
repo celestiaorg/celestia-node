@@ -22,7 +22,7 @@ func (l *Locker) lock() (err error) {
 
 	err = syscall.Flock(int(l.file.Fd()), syscall.LOCK_EX|syscall.LOCK_NB)
 	if err != nil && err.Error() == "resource temporarily unavailable" {
-		return ErrLocked
+		return ErrLocked // we have to check here for a string in err, as there is no error types defined for this case.
 	}
 	if err != nil {
 		return fmt.Errorf("fslock: flocking error: %w", err)
