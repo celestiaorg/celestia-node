@@ -12,12 +12,12 @@ import (
 func (l *Locker) lock() (err error) {
 	l.file, err = os.OpenFile(l.path, os.O_CREATE|os.O_RDWR, 0666)
 	if err != nil {
-		return fmt.Errorf("fslock: error opening file: %v", err)
+		return fmt.Errorf("fslock: error opening file: %w", err)
 	}
 
 	_, err = l.file.WriteString(strconv.Itoa(os.Getpid()))
 	if err != nil {
-		return fmt.Errorf("fslock: error writing process id: %v", err)
+		return fmt.Errorf("fslock: error writing process id: %w", err)
 	}
 
 	err = syscall.Flock(int(l.file.Fd()), syscall.LOCK_EX|syscall.LOCK_NB)
@@ -25,23 +25,23 @@ func (l *Locker) lock() (err error) {
 		return ErrLocked
 	}
 	if err != nil {
-		return fmt.Errorf("fslock: flocking error: %v", err)
+		return fmt.Errorf("fslock: flocking error: %w", err)
 	}
 
-	return nil
+	return
 }
 
 func (l *Locker) unlock() error {
 	err := syscall.Flock(int(l.file.Fd()), syscall.LOCK_UN|syscall.LOCK_NB)
 	if err != nil {
-		return fmt.Errorf("fslock: unflocking error: %v", err)
+		return fmt.Errorf("fslock: unflocking error: %w", err)
 	}
 
 	file := l.file
 	l.file = nil
 	err = file.Close()
 	if err != nil {
-		return fmt.Errorf("fslock: while closing file: %v", err)
+		return fmt.Errorf("fslock: while closing file: %w", err)
 	}
 
 	return os.Remove(l.path)
