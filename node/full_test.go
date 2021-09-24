@@ -12,11 +12,10 @@ import (
 	"github.com/libp2p/go-libp2p-core/protocol"
 
 	"github.com/celestiaorg/celestia-node/core"
-	"github.com/celestiaorg/celestia-node/node/config"
 )
 
 func TestNewFull(t *testing.T) {
-	node, err := NewFull(config.DefaultConfig(), core.TestConfig(t))
+	node, err := NewFull(DefaultConfig(), core.TestConfig(t))
 	require.NoError(t, err)
 	require.NotNil(t, node)
 	require.NotNil(t, node.Config)
@@ -25,7 +24,7 @@ func TestNewFull(t *testing.T) {
 }
 
 func TestFullLifecycle(t *testing.T) {
-	node, err := NewFull(config.DefaultConfig(), core.TestConfig(t))
+	node, err := NewFull(DefaultConfig(), core.TestConfig(t))
 	require.NoError(t, err)
 	require.NotNil(t, node)
 	require.NotNil(t, node.Config)
@@ -50,12 +49,12 @@ func TestFullLifecycle(t *testing.T) {
 // TestFull_P2P_Streams tests the ability for Full nodes to communicate
 // directly with each other via libp2p streams.
 func TestFull_P2P_Streams(t *testing.T) {
-	node, err := NewFull(config.DefaultConfig(), core.TestConfig(t))
+	node, err := NewFull(DefaultConfig(), core.TestConfig(t))
 	require.NoError(t, err)
 	require.NotNil(t, node)
 	require.NotNil(t, node.Host)
 
-	peerConf := config.DefaultConfig()
+	peerConf := DefaultConfig()
 	// modify address to be different
 	peerConf.P2P.ListenAddresses = []string{
 		"/ip4/0.0.0.0/tcp/2124",
