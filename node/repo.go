@@ -2,6 +2,7 @@ package node
 
 import (
 	"errors"
+	"fmt"
 	"path/filepath"
 	"sync"
 
@@ -81,11 +82,21 @@ func (f *fsRepository) Path() string {
 }
 
 func (f *fsRepository) Config() (*Config, error) {
-	return LoadConfig(f.path)
+	cfg, err := LoadConfig(f.path)
+	if err != nil {
+		return nil, fmt.Errorf("node: can't load Config: %w", err)
+	}
+
+	return cfg, nil
 }
 
 func (f *fsRepository) PutConfig(cfg *Config) error {
-	return SaveConfig(f.path, cfg)
+	err := SaveConfig(f.path, cfg)
+	if err != nil {
+		return fmt.Errorf("node: can't save Config: %w", err)
+	}
+
+	return nil
 }
 
 func (f *fsRepository) Keystore() (_ keystore.Keystore, err error) {
@@ -101,7 +112,7 @@ func (f *fsRepository) Keystore() (_ keystore.Keystore, err error) {
 
 	f.keys, err = keystore.NewFSKeystore(keysPath(f.path))
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("node: can't open Keystore: %w", err)
 	}
 
 	return f.keys, nil
@@ -122,7 +133,7 @@ func (f *fsRepository) Datastore() (_ datastore.Batching, err error) {
 	opts := dsbadger.DefaultOptions // this should be copied
 	f.data, err = dsbadger.NewDatastore(dataPath(f.path), &opts)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("node: can't open Badger Datastore: %w", err)
 	}
 
 	return f.data, nil
@@ -141,7 +152,7 @@ func (f *fsRepository) Core() (_ core.Repository, err error) {
 
 	f.core, err = core.Open(corePath(f.path))
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("node: can't open Core Repository: %w", err)
 	}
 
 	return f.core, nil
