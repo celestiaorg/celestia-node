@@ -17,7 +17,7 @@ import (
 
 var (
 	// ErrOpened is thrown on attempt to open already open/in-use Repository.
-	ErrOpened    = errors.New("node: repository is in use")
+	ErrOpened = errors.New("node: repository is in use")
 	// ErrNotInited is thrown on attempt to open Repository without initialization.
 	ErrNotInited = errors.New("node: repository is not initialized")
 )

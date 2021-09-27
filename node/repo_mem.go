@@ -24,7 +24,7 @@ func NewMemRepository(cfg *Config) Repository {
 		keys: keystore.NewMapKeystore(),
 		data: datastore.NewMapDatastore(),
 		core: core.NewMemRepository(),
-		cfg: cfg,
+		cfg:  cfg,
 	}
 }
 
@@ -60,4 +60,3 @@ func (m *memRepository) Path() string {
 func (m *memRepository) Close() error {
 	return nil
 }
-
