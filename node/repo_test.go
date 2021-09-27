@@ -5,8 +5,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	"github.com/celestiaorg/celestia-node/core"
 )
 
 func TestRepo(t *testing.T) {
@@ -33,13 +31,6 @@ func TestRepo(t *testing.T) {
 	assert.NotNil(t, data)
 
 	crepo, err := repo.Core()
-	assert.ErrorIs(t, err, core.ErrNotInited)
-	assert.Nil(t, crepo)
-
-	err = core.Init(corePath(dir))
-	require.NoError(t, err)
-
-	crepo, err = repo.Core()
 	assert.NoError(t, err)
 	assert.NotNil(t, crepo)
 }
