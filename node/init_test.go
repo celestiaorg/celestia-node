@@ -11,7 +11,6 @@ func TestInit(t *testing.T) {
 	dir := t.TempDir()
 	err := Init(dir, DefaultConfig())
 	require.NoError(t, err)
-	ok, err := IsInit(dir)
-	require.NoError(t, err)
+	ok := IsInit(dir)
 	assert.True(t, ok)
 }

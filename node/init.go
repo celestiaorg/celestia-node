@@ -40,35 +40,42 @@ func Init(path string, cfg *Config) error {
 		return err
 	}
 
-	err = initSub(corePath(path))
+	cfgPath := configPath(path)
+	if !utils.Exists(cfgPath) {
+		err = SaveConfig(cfgPath, cfg)
+		if err != nil {
+			return err
+		}
+	}
+
+	corePath := corePath(path)
+	err = initSub(corePath)
 	if err != nil {
 		return err
 	}
 
-	cfgPath := configPath(path)
-	if !utils.Exists(cfgPath) {
-		return SaveConfig(cfgPath, cfg)
-	}
-
-	return nil
+	// TODO(@Wondertan): This is a lazy hack which causes Core Repository to be generated for all case,
+	//  even when its not needed. Ideally, we should a have global map Node Type/Mode -> Custom Init Func, so Init would
+	//  run initialization for specific Mode/Type, but there are some caveats with such approach.
+	return core.Init(corePath)
 }
 
 // IsInit checks whether FS Repository was setup under given 'path'.
 // If any required file/subdirectory does not exist, then false is reported.
-func IsInit(path string) (bool, error) {
+func IsInit(path string) bool {
 	path, err := repoPath(path)
 	if err != nil {
-		return false, err
+		return false
 	}
 
 	if utils.Exists(corePath(path)) &&
 		utils.Exists(keysPath(path)) &&
 		utils.Exists(dataPath(path)) &&
 		utils.Exists(configPath(path)) {
-		return true, nil
+		return true
 	}
 
-	return false, nil
+	return false
 }
 
 const perms = 0755

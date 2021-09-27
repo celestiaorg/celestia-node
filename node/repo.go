@@ -52,11 +52,7 @@ func Open(path string) (Repository, error) {
 		return nil, err
 	}
 
-	ok, err := IsInit(path)
-	if err != nil {
-		flock.Unlock() //nolint: errcheck
-		return nil, err
-	}
+	ok := IsInit(path)
 	if !ok {
 		flock.Unlock() //nolint: errcheck
 		return nil, ErrNotInited
