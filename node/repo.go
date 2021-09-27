@@ -15,22 +15,34 @@ import (
 )
 
 var (
+	// ErrOpened is thrown on attempt to open already open/in-use Repository.
 	ErrOpened    = errors.New("node: repository is in use")
+	// ErrNotInited is thrown on attempt to open Repository without initialization.
 	ErrNotInited = errors.New("node: repository is not initialized")
 )
 
-// TODO: Nice error wrappings
-// TODO: Memory repo
-
+// Repository encapsulates storage for the Node.
+// Tt provides access and manages for the Node data stored in root directory e.g. '~/.celestia'.
 type Repository interface {
+	// Path reports the FileSystem path of Repository.
+	Path() string
+
+	// Keystore provides a Keystore to access keys.
 	Keystore() (keystore.Keystore, error)
+
+	// Datastore provides a Datastore - a KV store for arbitrary data to be stored on disk
 	Datastore() (datastore.Batching, error)
+
+	// Core provides an access to Core's Repository.
 	Core() (core.Repository, error)
 
+	// Config loads the stored Node config.
 	Config() (*Config, error)
+
+	// PutConfig alters the stored Node config.
 	PutConfig(*Config) error
 
-	Path() string
+	// Close closes the Repository freeing up acquired resources and locks.
 	Close() error
 }
 
