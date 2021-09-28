@@ -42,7 +42,7 @@ func (s *Service) listenForNewBlocks(ctx context.Context) error {
 // 2. A DataAvailabilityHeader is created from the erasure coded block data.
 // 3. A fraud proof is generated based on whether the generated DataAvailabilityHeader's
 //   root matches the one in the header of the raw block.
-// 4. The ExtendedBlock gets stored.
+// 4. The Block gets stored.
 func (s *Service) handleRawBlock(raw *Raw) error {
 	// extend the raw block
 	extendedBlockData, err := extendBlockData(raw)
@@ -58,8 +58,8 @@ func (s *Service) handleRawBlock(raw *Raw) error {
 			"block hash", raw.Hash().String())
 		return err
 	}
-	// create ExtendedBlock
-	extendedBlock := &ExtendedBlock{
+	// create Block
+	extendedBlock := &Block{
 		data: extendedBlockData,
 	}
 	// check for bad encoding fraud

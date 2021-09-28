@@ -1,10 +1,12 @@
 package block
 
-import core "github.com/celestiaorg/celestia-core/types"
+import (
+	"github.com/celestiaorg/celestia-node/service/header"
+)
 
 // validateEncoding validates the erasure coding DataRoot in the raw block header against the
 // hash of the generated DataAvailabilityHeader, generating a fraud proof if there is a mismatch.
 // TODO @renaynay: this method is stubbed out for now.
-func (s *Service) validateEncoding(extendedBlock *ExtendedBlock, rawHeader core.Header) error {
+func (s *Service) validateEncoding(extendedBlock *Block, rawHeader header.RawHeader) error {
 	return nil
 }
