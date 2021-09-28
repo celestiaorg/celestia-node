@@ -13,7 +13,7 @@ import (
 // It has to be used throughout celestia-node codebase to simplify future config changes and etc.
 type Config = config.Config
 
-// DefaultConfig gives slightly update default config of Core node.
+// DefaultConfig returns a modified default config of Core node.
 func DefaultConfig() *Config {
 	cfg := config.DefaultConfig()
 	updateDefaults(cfg)
