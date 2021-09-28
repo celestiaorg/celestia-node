@@ -10,7 +10,7 @@ import (
 )
 
 // Config is an alias for Core config.
-// It have to be used throughout celestia-node codebase to simplify future config changes and etc.
+// It has to be used throughout celestia-node codebase to simplify future config changes and etc.
 type Config = config.Config
 
 // DefaultConfig gives slightly update default config of Core node.
