@@ -7,6 +7,9 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// TODO: We need more test coverage for Init and IsInit part
+// Tests could include valid/invalid paths and mocks for files
+// For more info visit #90
 func TestIsInit(t *testing.T) {
 	dir := t.TempDir()
 	err := Init(dir)

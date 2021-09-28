@@ -19,7 +19,7 @@ type Repository interface {
 	PutConfig(*Config) error
 }
 
-// Open instantiates FS Repository from a given 'path'.
+// Open instantiates FileSystem(FS) Repository from a given 'path'.
 func Open(path string) (Repository, error) {
 	if !IsInit(path) {
 		return nil, ErrNotInited
