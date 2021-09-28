@@ -28,7 +28,7 @@ func TestConfig(t *testing.T) *Config {
 	return cfg
 }
 
-// LoadConfig config from the file under the given 'path'.
+// LoadConfig loads the config from the file under the given 'path'.
 // NOTE: Unfortunately, Core(Tendermint) does not provide us with convenient function to load the Config,
 // so we have to do our own. Furthermore, we have to make own SaveConfig, as the one the Core provides has
 // incompatibility issues with our toml parser version.
