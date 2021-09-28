@@ -9,7 +9,7 @@ import (
 	"github.com/celestiaorg/celestia-node/libs/utils"
 )
 
-// Init initializes the Node FS Repository in the dir under 'path' with given Config 'cfg'.
+// Init initializes the Node FS Repository in the directory under 'path' with the given Config.
 func Init(path string, cfg *Config) error {
 	path, err := repoPath(path)
 	if err != nil {
