@@ -2,6 +2,8 @@ package block
 
 import (
 	"context"
+
+	logging "github.com/ipfs/go-log/v2"
 )
 
 // Service represents the Block service that can be started / stopped on a `Full` node.
@@ -14,6 +16,8 @@ type Service struct {
 	fetcher Fetcher
 }
 
+var log = logging.Logger("block-service")
+
 // NewBlockService creates a new instance of block Service.
 func NewBlockService(fetcher Fetcher) *Service {
 	return &Service{
@@ -22,13 +26,15 @@ func NewBlockService(fetcher Fetcher) *Service {
 }
 
 // Start starts the block Service.
-// TODO @renaynay: make sure `Start` eventually has the same signature as `Stop`
-func (s *Service) Start(ctx context.Context) (<-chan *Raw, error) {
-	// TODO @renaynay: this will eventually be self contained within the block package
-	return s.fetcher.SubscribeNewBlockEvent(ctx)
+func (s *Service) Start(ctx context.Context) error {
+	log.Info("starting block service")
+	return s.listenForNewBlocks(ctx)
 }
 
 // Stop stops the block Service.
 func (s *Service) Stop(ctx context.Context) error {
+	log.Info("stopping block service")
+	// calling unsubscribe will close the newBlockEventCh channel,
+	// stopping the listener.
 	return s.fetcher.UnsubscribeNewBlockEvent(ctx)
 }
