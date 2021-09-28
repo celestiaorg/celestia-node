@@ -7,11 +7,14 @@ require (
 	github.com/celestiaorg/celestia-core v0.0.2-0.20210924001615-488ac31b4b3c
 	github.com/celestiaorg/rsmt2d v0.3.0
 	github.com/ipfs/go-bitswap v0.4.0
+	github.com/ipfs/go-blockservice v0.1.7 // indirect
 	github.com/ipfs/go-datastore v0.4.6
 	github.com/ipfs/go-ds-badger2 v0.1.1
 	github.com/ipfs/go-ipfs-blockstore v0.1.6
 	github.com/ipfs/go-ipfs-exchange-interface v0.0.1
+	github.com/ipfs/go-ipld-format v0.2.0 // indirect
 	github.com/ipfs/go-log/v2 v2.3.0
+	github.com/ipfs/go-merkledag v0.4.0 // indirect
 	github.com/libp2p/go-libp2p v0.15.0
 	github.com/libp2p/go-libp2p-connmgr v0.2.4
 	github.com/libp2p/go-libp2p-core v0.9.0
