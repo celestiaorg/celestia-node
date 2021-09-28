@@ -19,12 +19,11 @@ type memRepository struct {
 
 // NewMemRepository creates an in-memory Repository for Node.
 // Useful for testing.
-func NewMemRepository(cfg *Config) Repository {
+func NewMemRepository() Repository {
 	return &memRepository{
 		keys: keystore.NewMapKeystore(),
 		data: datastore.NewMapDatastore(),
 		core: core.NewMemRepository(),
-		cfg:  cfg,
 	}
 }
 
