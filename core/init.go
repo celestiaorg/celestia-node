@@ -16,7 +16,8 @@ import (
 // defaultValKeyType is a default crypto algo for consensus in core
 const defaultValKeyType = types.ABCIPubKeyTypeSecp256k1
 
-// It(func Init) checks each item of the list(below) for existence in the path. If latter(item) is not existing, then it(func Init) creates them by default settings
+// It(func Init) checks each item of the list(below) for existence in the path.
+// If latter(item) is not existing, then it(func Init) creates them by default settings
 // List of items:
 // * Config
 // * Private validator key
