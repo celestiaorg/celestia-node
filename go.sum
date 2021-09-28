@@ -119,6 +119,8 @@ github.com/buger/jsonparser v0.0.0-20181115193947-bf1c66bbce23/go.mod h1:bbYlZJ7
 github.com/casbin/casbin/v2 v2.1.2/go.mod h1:YcPU1XXisHhLzuxH9coDNf2FbKpjGlbCg3n9yuLkIJQ=
 github.com/celestiaorg/celestia-core v0.0.1-mvp-das-lightclient.0.20210922162040-a9b7b4818e8d h1:q5dSnE3K5a6DT1yG3Y8vh7ZAe0ecfQVbMZMij/tyrho=
 github.com/celestiaorg/celestia-core v0.0.1-mvp-das-lightclient.0.20210922162040-a9b7b4818e8d/go.mod h1:i1ECol3kZLZFIkWUJ+/zW5adfvSA8CCl4w/j2FwPOuc=
+github.com/celestiaorg/celestia-core v0.0.2-0.20210924001615-488ac31b4b3c h1:5HeBfG6wh8WJZFFrCaumNDrsC2F5KdAaifjmf1N7NIY=
+github.com/celestiaorg/celestia-core v0.0.2-0.20210924001615-488ac31b4b3c/go.mod h1:i1ECol3kZLZFIkWUJ+/zW5adfvSA8CCl4w/j2FwPOuc=
 github.com/celestiaorg/go-leopard v0.1.0 h1:28z2EkvKJIez5J9CEaiiUEC+OxalRLtTGJJ1oScfE1g=
 github.com/celestiaorg/go-leopard v0.1.0/go.mod h1:NtO/rjlB8dw2aq7jr06vZFKGvryQcTDXaNHelmPNOAM=
 github.com/celestiaorg/merkletree v0.0.0-20210714075610-a84dc3ddbbe4 h1:CJdIpo8n5MFP2MwK0gSRcOVlDlFdQJO1p+FqdxYzmvc=
