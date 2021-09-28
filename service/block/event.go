@@ -30,8 +30,6 @@ func (s *Service) listenForNewBlocks(ctx context.Context) error {
 				log.Errorw("handling raw block", "err msg", err, "block height",
 					newRawBlock.Height, "block hash", newRawBlock.Hash())
 			}
-
-			continue
 		}
 	}()
 

@@ -18,12 +18,7 @@ func extendBlockData(raw *Raw) (*ExtendedBlockData, error) {
 	tree := wrapper.NewErasuredNamespacedMerkleTree(squareSize)
 
 	// compute extended square
-	extendedDataSquare, err := rsmt2d.ComputeExtendedDataSquare(shares, rsmt2d.NewRSGF8Codec(), tree.Constructor)
-	if err != nil {
-		return nil, err
-	}
-
-	return extendedDataSquare, nil
+	return rsmt2d.ComputeExtendedDataSquare(shares, rsmt2d.NewRSGF8Codec(), tree.Constructor)
 }
 
 // squareSize64 computes the square size as a uint64 from
