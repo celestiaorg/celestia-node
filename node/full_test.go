@@ -10,12 +10,11 @@ import (
 	"github.com/libp2p/go-libp2p-core/host"
 	"github.com/libp2p/go-libp2p-core/network"
 	"github.com/libp2p/go-libp2p-core/protocol"
-
-	"github.com/celestiaorg/celestia-node/core"
 )
 
 func TestNewFull(t *testing.T) {
-	node, err := NewFull(DefaultConfig(), core.TestConfig(t))
+	repo := MockRepository(t, DefaultFullConfig())
+	node, err := NewFull(repo)
 	require.NoError(t, err)
 	require.NotNil(t, node)
 	require.NotNil(t, node.Config)
@@ -24,7 +23,8 @@ func TestNewFull(t *testing.T) {
 }
 
 func TestFullLifecycle(t *testing.T) {
-	node, err := NewFull(DefaultConfig(), core.TestConfig(t))
+	repo := MockRepository(t, DefaultFullConfig())
+	node, err := NewFull(repo)
 	require.NoError(t, err)
 	require.NotNil(t, node)
 	require.NotNil(t, node.Config)
@@ -49,18 +49,20 @@ func TestFullLifecycle(t *testing.T) {
 // TestFull_P2P_Streams tests the ability for Full nodes to communicate
 // directly with each other via libp2p streams.
 func TestFull_P2P_Streams(t *testing.T) {
-	node, err := NewFull(DefaultConfig(), core.TestConfig(t))
+	repo := MockRepository(t, DefaultFullConfig())
+	node, err := NewFull(repo)
 	require.NoError(t, err)
 	require.NotNil(t, node)
 	require.NotNil(t, node.Host)
 
-	peerConf := DefaultConfig()
+	peerConf := DefaultFullConfig()
 	// modify address to be different
 	peerConf.P2P.ListenAddresses = []string{
 		"/ip4/0.0.0.0/tcp/2124",
 		"/ip6/::/tcp/2124",
 	}
-	peer, err := NewFull(peerConf, core.TestConfig(t))
+	repo = MockRepository(t, peerConf)
+	peer, err := NewFull(repo)
 	require.NoError(t, err)
 	require.NotNil(t, peer)
 	require.NotNil(t, node.Host)

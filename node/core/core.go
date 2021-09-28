@@ -27,7 +27,14 @@ func DefaultConfig() Config {
 func Components(cfg Config) fx.Option {
 	return fx.Options(
 		fxutil.ProvideIf(cfg.Remote, RemoteClient),
-		fxutil.ProvideIf(!cfg.Remote, core.NewEmbedded),
+		fxutil.ProvideIf(!cfg.Remote, func(repo core.Repository) (core.Client, error) {
+			cfg, err := repo.Config()
+			if err != nil {
+				return nil, err
+			}
+
+			return core.NewEmbedded(cfg)
+		}),
 	)
 }
 

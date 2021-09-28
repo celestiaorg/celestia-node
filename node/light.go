@@ -9,21 +9,28 @@ import (
 )
 
 // NewLight assembles a new Light Node from required components.
-func NewLight(cfg *Config) (*Node, error) {
-	return newNode(lightComponents(cfg))
+func NewLight(repo Repository) (*Node, error) {
+	cfg, err := repo.Config()
+	if err != nil {
+		return nil, err
+	}
+
+	return newNode(lightComponents(cfg, repo))
 }
 
 // lightComponents keeps all the components as DI options required to built a Light Node.
-func lightComponents(cfg *Config) fx.Option {
+func lightComponents(cfg *Config, repo Repository) fx.Option {
 	return fx.Options(
 		// manual providing
 		fx.Provide(context.Background),
 		fx.Provide(func() Type {
 			return Light
 		}),
-		fx.Provide(func() *Config {
-			return cfg
+		fx.Provide(func() ConfigLoader {
+			return repo.Config
 		}),
+		fx.Provide(repo.Datastore),
+		fx.Provide(repo.Keystore),
 		// components
 		p2p.Components(cfg.P2P),
 	)
