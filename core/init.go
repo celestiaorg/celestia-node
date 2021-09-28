@@ -14,7 +14,6 @@ import (
 )
 
 // defaultValKeyType is default crypto algo for consensus in core
-// TODO(@Wondertan): Should we make this configurable
 const defaultValKeyType = types.ABCIPubKeyTypeSecp256k1
 
 // Init initializes the Core repository under the given 'path'.
