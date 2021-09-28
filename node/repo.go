@@ -23,7 +23,7 @@ var (
 )
 
 // Repository encapsulates storage for the Node.
-// Tt provides access and manages for the Node data stored in root directory e.g. '~/.celestia'.
+// It provides access for the Node data stored in root directory e.g. '~/.celestia'.
 type Repository interface {
 	// Path reports the FileSystem path of Repository.
 	Path() string
