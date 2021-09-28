@@ -1,10 +1,18 @@
 package core
 
 import (
+	"testing"
+
 	"github.com/celestiaorg/celestia-core/abci/example/kvstore"
 	"github.com/celestiaorg/celestia-core/node"
 	rpctest "github.com/celestiaorg/celestia-core/rpc/test"
 )
+
+func MockRepo(t *testing.T) Repository {
+	repo := NewMemRepository()
+	repo.PutConfig(TestConfig(t)) //nolint: errcheck
+	return repo
+}
 
 // StartMockNode starts a mock Core node background process and returns it.
 func StartMockNode() *node.Node {
