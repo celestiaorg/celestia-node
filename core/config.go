@@ -38,7 +38,7 @@ func LoadConfig(path string) (*Config, error) {
 		return nil, err
 	}
 	defer f.Close()
-	var cfg config.Config
+	var cfg Config
 	_, err = toml.DecodeReader(f, &cfg)
 	return &cfg, err
 }

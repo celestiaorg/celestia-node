@@ -15,6 +15,8 @@ func Init(path string, cfg *Config) error {
 	if err != nil {
 		return err
 	}
+	log.Info("Initializing Repository for the Node over '%s'", path)
+	defer log.Info("Repository initialized")
 
 	flock, err := fslock.Lock(lockPath(path))
 	if err != nil {
