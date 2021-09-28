@@ -32,12 +32,12 @@ func Init(path string, cfg *Config) error {
 		return err
 	}
 
-	err = initSub(keysPath(path))
+	err = initDir(keysPath(path))
 	if err != nil {
 		return err
 	}
 
-	err = initSub(dataPath(path))
+	err = initDir(dataPath(path))
 	if err != nil {
 		return err
 	}
@@ -48,10 +48,13 @@ func Init(path string, cfg *Config) error {
 		if err != nil {
 			return err
 		}
+		log.Info("New config is generated")
+	} else {
+		log.Info("Config already exists")
 	}
 
 	corePath := corePath(path)
-	err = initSub(corePath)
+	err = initDir(corePath)
 	if err != nil {
 		return err
 	}
@@ -82,12 +85,11 @@ func IsInit(path string) bool {
 
 const perms = 0755
 
+// initRoot initializes(creates) directory if not created and check if it is writable
 func initRoot(path string) error {
-	if !utils.Exists(path) {
-		err := os.MkdirAll(path, perms)
-		if err != nil {
-			return err
-		}
+	err := initDir(path)
+	if err != nil {
+		return err
 	}
 
 	// check for writing permissions
@@ -104,9 +106,10 @@ func initRoot(path string) error {
 	return os.Remove(f.Name())
 }
 
-func initSub(path string) error {
-	if !utils.Exists(path) {
-		return os.Mkdir(path, perms)
+// initDir creates a dir if not exist
+func initDir(path string) error {
+	if utils.Exists(path) {
+		return nil
 	}
-	return nil
+	return os.Mkdir(path, perms)
 }
