@@ -31,7 +31,7 @@ type Repository interface {
 	// Keystore provides a Keystore to access keys.
 	Keystore() (keystore.Keystore, error)
 
-	// Datastore provides a Datastore - a KV store for arbitrary data to be stored on disk
+	// Datastore provides a Datastore - a KV store for arbitrary data to be stored on disk.
 	Datastore() (datastore.Batching, error)
 
 	// Core provides an access to Core's Repository.
