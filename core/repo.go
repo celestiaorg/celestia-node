@@ -10,7 +10,7 @@ import (
 var ErrNotInited = errors.New("core: repository is not initialized")
 
 // TODO(@Wondertan):
-//  * This should expose GenesisDoc and others. We can add ad-hoc
+//  * This should expose GenesisDoc and others. We can add them ad-hoc.
 //  * Ideally, add private keys to Keystore to unify access pattern.
 type Repository interface {
 	// Config loads a Config.
