@@ -52,7 +52,7 @@ func (s *Service) handleRawBlock(raw *RawBlock) error {
 		return err
 	}
 	// generate DAH using extended block
-	_, err = header.DataAvailabilityHeaderFromExtendedData(extendedBlockData)
+	dah, err := header.DataAvailabilityHeaderFromExtendedData(extendedBlockData)
 	if err != nil {
 		log.Errorw("computing DataAvailabilityHeader", "err msg", err, "block height", raw.Height,
 			"block hash", raw.Hash().String())
@@ -60,10 +60,13 @@ func (s *Service) handleRawBlock(raw *RawBlock) error {
 	}
 	// create Block
 	extendedBlock := &Block{
+		header: &header.ExtendedHeader{
+			DAH: &dah,
+		},
 		data: extendedBlockData,
 	}
 	// check for bad encoding fraud
-	err = s.validateEncoding(extendedBlock, raw.Header)
+	err = validateEncoding(extendedBlock, raw.Header)
 	if err != nil {
 		log.Errorw("checking for bad encoding", "err msg", err, "block height", raw.Height,
 			"block hash", raw.Hash().String())
