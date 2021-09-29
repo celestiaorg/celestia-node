@@ -9,7 +9,7 @@ import (
 
 // extendBlockData erasure codes the given raw block's data and returns the
 // erasure coded block data upon success.
-func extendBlockData(raw *Raw) (*ExtendedBlockData, error) {
+func extendBlockData(raw *RawBlock) (*ExtendedBlockData, error) {
 	namespacedShares, _ := raw.Data.ComputeShares()
 	shares := namespacedShares.RawShares()
 

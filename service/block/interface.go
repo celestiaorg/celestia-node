@@ -6,7 +6,7 @@ import (
 
 // Fetcher encompasses the behavior necessary to fetch new "raw" blocks.
 type Fetcher interface {
-	GetBlock(ctx context.Context, height *int64) (*Raw, error)
-	SubscribeNewBlockEvent(ctx context.Context) (<-chan *Raw, error)
+	GetBlock(ctx context.Context, height *int64) (*RawBlock, error)
+	SubscribeNewBlockEvent(ctx context.Context) (<-chan *RawBlock, error)
 	UnsubscribeNewBlockEvent(ctx context.Context) error
 }

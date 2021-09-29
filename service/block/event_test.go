@@ -11,7 +11,7 @@ import (
 
 func Test_listenForNewBlocks(t *testing.T) {
 	mockFetcher := &mockFetcher{
-		mockNewBlockCh: make(chan *Raw),
+		mockNewBlockCh: make(chan *RawBlock),
 	}
 	serv := NewBlockService(mockFetcher)
 
@@ -29,14 +29,14 @@ func Test_listenForNewBlocks(t *testing.T) {
 
 // mockFetcher mocks away the `Fetcher` interface.
 type mockFetcher struct {
-	mockNewBlockCh chan *Raw
+	mockNewBlockCh chan *RawBlock
 }
 
-func (m *mockFetcher) GetBlock(ctx context.Context, height *int64) (*Raw, error) {
+func (m *mockFetcher) GetBlock(ctx context.Context, height *int64) (*RawBlock, error) {
 	return nil, nil
 }
 
-func (m *mockFetcher) SubscribeNewBlockEvent(ctx context.Context) (<-chan *Raw, error) {
+func (m *mockFetcher) SubscribeNewBlockEvent(ctx context.Context) (<-chan *RawBlock, error) {
 	return m.mockNewBlockCh, nil
 }
 
@@ -51,7 +51,7 @@ func (m *mockFetcher) generateBlocks(t *testing.T, num int) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		m.mockNewBlockCh <- &Raw{
+		m.mockNewBlockCh <- &RawBlock{
 			Data: data,
 		}
 	}
