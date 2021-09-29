@@ -1,6 +1,9 @@
 package main
 
 import (
+	"fmt"
+	"os"
+
 	logging "github.com/ipfs/go-log/v2"
 	"github.com/spf13/cobra"
 )
@@ -12,7 +15,8 @@ func init() {
 func main() {
  	err := run()
  	if err != nil {
-		return
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
 	}
 }
 
