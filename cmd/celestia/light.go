@@ -3,13 +3,19 @@ package main
 import (
 	"github.com/spf13/cobra"
 
+	"github.com/celestiaorg/celestia-node/cmd"
 	"github.com/celestiaorg/celestia-node/node"
 )
 
 func init()  {
-	lightCmd.AddCommand(lightCmd)
-	lightCmd.Annotations[tp] = node.Light.String()
-	lightCmd.PersistentFlags().String("repository", "~/.celestia-light", "The root/home directory for your Celestial Light Node")
+	const repoName = "repository"
+	lightCmd.AddCommand(cmd.Init(repoName, node.Light))
+	lightCmd.PersistentFlags().StringP(
+		repoName,
+		"r",
+		"~/.celestia-light",
+		"The root/home directory of your Celestial Light Node",
+	)
 }
 
 var lightCmd = &cobra.Command{
