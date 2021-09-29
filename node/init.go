@@ -79,7 +79,7 @@ func IsInit(path string, tp Type) bool {
 		return false
 	}
 
-cfg, err := LoadConfig(configPath(path)) // load the Config and implicitly check for its existence
+	cfg, err := LoadConfig(configPath(path)) // load the Config and implicitly check for its existence
 	if err != nil {
 		return false
 	}
