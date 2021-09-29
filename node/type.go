@@ -26,8 +26,24 @@ func (t Type) IsValid() bool {
 	return ok
 }
 
+// ParseType converts string in a type if possible.
+func ParseType(str string) Type {
+	tp, ok := stringToType[str]
+	if !ok {
+		return 0
+	}
+
+	return tp
+}
+
 // typeToString keeps string representations of all valid Types.
 var typeToString = map[Type]string{
 	Full:  "Full",
 	Light: "Light",
+}
+
+// typeToString maps strings representations of all valid Types.
+var stringToType = map[string]Type{
+	"Full": Full,
+	"Light": Light,
 }
