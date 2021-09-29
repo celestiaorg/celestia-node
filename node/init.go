@@ -9,8 +9,9 @@ import (
 	"github.com/celestiaorg/celestia-node/libs/utils"
 )
 
-// Init initializes the Node FileSystem(FS) Repository in the directory under 'path' with the given Config.
-func Init(path string, cfg *Config) error {
+// Init initializes the Node FileSystem(FS) Repository for th given Node Type 'tp' in the directory under 'path' with
+// the given Config.
+func Init(path string, cfg *Config, tp Type) error {
 	path, err := repoPath(path)
 	if err != nil {
 		return err
@@ -56,7 +57,7 @@ func Init(path string, cfg *Config) error {
 	// TODO(@Wondertan): This is a lazy hack which prevents Core Repository to be generated for all case, and generates
 	//  only for a Full Node with embedded Core Node. Ideally, we should a have global map Node Type/Mode -> Custom
 	//  Init Func, so Init would run initialization for specific Mode/Type.
-	if !cfg.Core.Remote {
+	if !cfg.Core.Remote && tp == Full {
 		corePath := corePath(path)
 		err = initDir(corePath)
 		if err != nil {
