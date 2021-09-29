@@ -10,7 +10,7 @@ import (
 )
 
 // Config is an alias for Core config.
-// It has to be used throughout celestia-node codebase to simplify future config changes and etc.
+// For the simplicity of future config changes, the alias should be used throughout celestia-node codebase/repo
 type Config = config.Config
 
 // DefaultConfig returns a modified default config of Core node.
@@ -38,7 +38,7 @@ func LoadConfig(path string) (*Config, error) {
 		return nil, err
 	}
 	defer f.Close()
-	var cfg config.Config
+	var cfg Config
 	_, err = toml.DecodeReader(f, &cfg)
 	return &cfg, err
 }
