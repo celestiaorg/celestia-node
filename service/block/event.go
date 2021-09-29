@@ -43,7 +43,7 @@ func (s *Service) listenForNewBlocks(ctx context.Context) error {
 // 3. A fraud proof is generated based on whether the generated DataAvailabilityHeader's
 //   root matches the one in the header of the raw block.
 // 4. The Block gets stored.
-func (s *Service) handleRawBlock(raw *Raw) error {
+func (s *Service) handleRawBlock(raw *RawBlock) error {
 	// extend the raw block
 	extendedBlockData, err := extendBlockData(raw)
 	if err != nil {

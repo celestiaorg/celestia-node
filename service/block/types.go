@@ -7,9 +7,9 @@ import (
 	core "github.com/celestiaorg/celestia-core/types"
 )
 
-// Raw is an alias to a "raw" Core block. It is "raw" because
+// RawBlock is an alias to a "raw" Core block. It is "raw" because
 // it is still awaiting erasure coding.
-type Raw = core.Block
+type RawBlock = core.Block
 
 // Block represents the entirety of a Block in the Celestia network.
 // It contains the erasure coded block data as well as its

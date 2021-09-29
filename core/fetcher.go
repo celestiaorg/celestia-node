@@ -16,7 +16,7 @@ var newBlockEventQuery = types.QueryForEvent(types.EventNewBlock).String()
 type BlockFetcher struct {
 	client Client
 
-	newBlockCh chan *block.Raw
+	newBlockCh chan *block.RawBlock
 }
 
 // NewBlockFetcher returns a new `BlockFetcher`.
@@ -27,7 +27,7 @@ func NewBlockFetcher(client Client) *BlockFetcher {
 }
 
 // GetBlock queries Core for a `Block` at the given height.
-func (f *BlockFetcher) GetBlock(ctx context.Context, height *int64) (*block.Raw, error) {
+func (f *BlockFetcher) GetBlock(ctx context.Context, height *int64) (*block.RawBlock, error) {
 	raw, err := f.client.Block(ctx, height)
 	if err != nil {
 		return nil, err
@@ -37,7 +37,7 @@ func (f *BlockFetcher) GetBlock(ctx context.Context, height *int64) (*block.Raw,
 
 // SubscribeNewBlockEvent subscribes to new block events from Core, returning
 // a new block event channel on success.
-func (f *BlockFetcher) SubscribeNewBlockEvent(ctx context.Context) (<-chan *block.Raw, error) {
+func (f *BlockFetcher) SubscribeNewBlockEvent(ctx context.Context) (<-chan *block.RawBlock, error) {
 	// start the client if not started yet
 	if !f.client.IsRunning() {
 		return nil, fmt.Errorf("client not running")
@@ -52,7 +52,7 @@ func (f *BlockFetcher) SubscribeNewBlockEvent(ctx context.Context) (<-chan *bloc
 		return nil, fmt.Errorf("new block event channel exists")
 	}
 
-	f.newBlockCh = make(chan *block.Raw)
+	f.newBlockCh = make(chan *block.RawBlock)
 
 	go func() {
 		for {
