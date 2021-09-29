@@ -9,11 +9,11 @@ import (
 // information necessary for Celestia Nodes to be notified of new
 // block headers and perform Data Availability Sampling.
 type ExtendedHeader struct {
-	*RawHeader
+	*Raw
 	DAH *da.DataAvailabilityHeader
 }
 
-// RawHeader is an alias to core.Header. It is
+// Raw is an alias to core.Header. It is
 // "raw" because it is not yet wrapped to include
 // the DataAvailabilityHeader.
-type RawHeader = core.Header
+type Raw = core.Header
