@@ -22,8 +22,13 @@ func InitWith(path string, tp Type, cfg *Config) error {
 	if err != nil {
 		return err
 	}
-	log.Info("Initializing Repository for the Node over '%s'", path)
-	defer log.Info("Repository initialized")
+	log.Infof("Initializing %s Node Repository over '%s'", tp, path)
+	defer log.Info("Node Repository initialized")
+
+	err = initRoot(path)
+	if err != nil {
+		return err
+	}
 
 	flock, err := fslock.Lock(lockPath(path))
 	if err != nil {
@@ -33,11 +38,6 @@ func InitWith(path string, tp Type, cfg *Config) error {
 		return err
 	}
 	defer flock.Unlock() //nolint: errcheck
-
-	err = initRoot(path)
-	if err != nil {
-		return err
-	}
 
 	err = initDir(keysPath(path))
 	if err != nil {
@@ -49,14 +49,13 @@ func InitWith(path string, tp Type, cfg *Config) error {
 		return err
 	}
 
-	cfg := DefaultConfig(tp)
 	cfgPath := configPath(path)
 	if !utils.Exists(cfgPath) {
 		err = SaveConfig(cfgPath, cfg)
 		if err != nil {
 			return err
 		}
-		log.Info("New config is generated")
+		log.Info("Saving config")
 	} else {
 		log.Info("Config already exists")
 	}
