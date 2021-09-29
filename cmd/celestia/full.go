@@ -19,4 +19,5 @@ func init() {
 
 var fullCmd = &cobra.Command{
 	Use: "full [subcommand]",
+	Args: cobra.NoArgs,
 }

@@ -20,4 +20,5 @@ func init()  {
 
 var lightCmd = &cobra.Command{
 	Use: "light [subcommand]",
+	Args: cobra.NoArgs,
 }

@@ -18,7 +18,8 @@ func Init(repoName string, tp node.Type) *cobra.Command {
 
 	const cfgName = "config"
 	cmd := &cobra.Command{
-		Use: "init [subcommand]",
+		Use: "init",
+		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cfgF := cmd.Flag(cfgName).Value
 			repo := cmd.Flag(repoName).Value.String()
