@@ -13,7 +13,7 @@ func TestRepo(t *testing.T) {
 	_, err := Open(dir)
 	assert.ErrorIs(t, err, ErrNotInited)
 
-	err = Init(dir, DefaultConfig())
+	err = Init(dir, DefaultFullConfig())
 	require.NoError(t, err)
 
 	repo, err := Open(dir)

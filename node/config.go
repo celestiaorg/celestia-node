@@ -10,6 +10,9 @@ import (
 	"github.com/celestiaorg/celestia-node/node/p2p"
 )
 
+// ConfigLoader defines a function that loads a config from any source.
+type ConfigLoader func() (*Config, error)
+
 // Config is main configuration structure for a Node.
 // It combines configuration units for all Node subsystems.
 type Config struct {
@@ -17,14 +20,23 @@ type Config struct {
 	Core core.Config
 }
 
-// DefaultConfig provides a default Node Config.
-func DefaultConfig() *Config {
+// DefaultFullConfig provides a default Full Node Config.
+func DefaultFullConfig() *Config {
 	return &Config{
 		P2P:  p2p.DefaultConfig(),
 		Core: core.DefaultConfig(),
 	}
 }
 
+// DefaultLightConfig provides a default Light Node Config.
+func DefaultLightConfig() *Config {
+	return &Config{
+		P2P:  p2p.DefaultConfig(),
+		Core: core.DefaultConfig(),
+	}
+}
+
+// SaveConfig saves Config 'cfg' under the given 'path'.
 func SaveConfig(path string, cfg *Config) error {
 	f, err := os.Create(path)
 	if err != nil {
@@ -35,6 +47,7 @@ func SaveConfig(path string, cfg *Config) error {
 	return cfg.Encode(f)
 }
 
+// LoadConfig loads Config from the given 'path'.
 func LoadConfig(path string) (*Config, error) {
 	f, err := os.Open(path)
 	if err != nil {

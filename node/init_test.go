@@ -9,7 +9,7 @@ import (
 
 func TestInit(t *testing.T) {
 	dir := t.TempDir()
-	err := Init(dir, DefaultConfig())
+	err := Init(dir, DefaultFullConfig())
 	require.NoError(t, err)
 	ok := IsInit(dir)
 	assert.True(t, ok)

@@ -9,7 +9,8 @@ import (
 )
 
 func TestNewLight(t *testing.T) {
-	nd, err := NewLight(DefaultConfig())
+	repo := MockRepository(t, DefaultLightConfig())
+	nd, err := NewLight(repo)
 	require.NoError(t, err)
 	require.NotNil(t, nd)
 	require.NotNil(t, nd.Config)
@@ -17,7 +18,8 @@ func TestNewLight(t *testing.T) {
 }
 
 func TestLightLifecycle(t *testing.T) {
-	nd, err := NewLight(DefaultConfig())
+	repo := MockRepository(t, DefaultLightConfig())
+	nd, err := NewLight(repo)
 	require.NoError(t, err)
 
 	startCtx, cancel := context.WithCancel(context.Background())
