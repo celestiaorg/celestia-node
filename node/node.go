@@ -24,7 +24,7 @@ var log = logging.Logger("node")
 // * Light
 type Node struct {
 	Type   Type
-	Config ConfigLoader
+	Config *Config
 
 	// the Node keeps a reference to the DI App that controls the lifecycles of services registered on the Node.
 	app *fx.App

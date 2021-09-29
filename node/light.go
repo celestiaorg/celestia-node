@@ -26,6 +26,9 @@ func lightComponents(cfg *Config, repo Repository) fx.Option {
 		fx.Provide(func() Type {
 			return Light
 		}),
+		fx.Provide(func() *Config {
+			return cfg
+		}),
 		fx.Provide(func() ConfigLoader {
 			return repo.Config
 		}),
