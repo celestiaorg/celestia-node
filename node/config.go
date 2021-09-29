@@ -32,7 +32,7 @@ func DefaultConfig(tp Type) *Config {
 	}
 }
 
-// DefaultFullConfig provides DefaultConfig
+// DefaultFullConfig provides DefaultConfig for Full Node
 func DefaultFullConfig() *Config {
 	return &Config{
 		P2P:  p2p.DefaultConfig(),
