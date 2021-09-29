@@ -9,9 +9,15 @@ import (
 	"github.com/celestiaorg/celestia-node/libs/utils"
 )
 
-// Init initializes the Node FileSystem(FS) Repository for th given Node Type 'tp' in the directory under 'path' with
-// the given Config.
+// Init initializes the Node FileSystem Repository for the given Node Type 'tp' in the directory under 'path' with
+// default Config.
 func Init(path string, tp Type) error {
+	return InitWith(path, tp, DefaultConfig(tp))
+}
+
+// InitWith initializes the Node FileSystem Repository for the given Node Type 'tp' in the directory under 'path'
+// with the given Config 'cfg'.
+func InitWith(path string, tp Type, cfg *Config) error {
 	path, err := repoPath(path)
 	if err != nil {
 		return err
@@ -71,7 +77,7 @@ func Init(path string, tp Type) error {
 	return nil
 }
 
-// IsInit checks whether FS Repository was setup under given 'path'.
+// IsInit checks whether FileSystem Repository was setup under given 'path'.
 // If any required file/subdirectory does not exist, then false is reported.
 func IsInit(path string, tp Type) bool {
 	path, err := repoPath(path)
