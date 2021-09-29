@@ -20,7 +20,19 @@ type Config struct {
 	Core core.Config
 }
 
-// DefaultFullConfig provides a default Full Node Config.
+// DefaultConfig provides a default Config for a given Node Type 'tp'.
+func DefaultConfig(tp Type) *Config {
+	switch tp {
+	case Full:
+		return DefaultFullConfig()
+	case Light:
+		return DefaultLightConfig()
+	default:
+		panic("node: unknown Node Type")
+	}
+}
+
+// DefaultFullConfig provides DefaultConfig
 func DefaultFullConfig() *Config {
 	return &Config{
 		P2P:  p2p.DefaultConfig(),

@@ -51,7 +51,7 @@ type Repository interface {
 // To be opened the Repository must be initialized first, otherwise ErrNotInited is thrown.
 // Open takes a file Lock on directory, hence only one Repository can be opened at a time under the given 'path',
 // otherwise ErrOpened is thrown.
-func Open(path string) (Repository, error) {
+func Open(path string, tp Type) (Repository, error) {
 	path, err := repoPath(path)
 	if err != nil {
 		return nil, err
@@ -65,7 +65,7 @@ func Open(path string) (Repository, error) {
 		return nil, err
 	}
 
-	ok := IsInit(path)
+	ok := IsInit(path, tp)
 	if !ok {
 		flock.Unlock() //nolint: errcheck
 		return nil, ErrNotInited

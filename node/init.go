@@ -11,7 +11,7 @@ import (
 
 // Init initializes the Node FileSystem(FS) Repository for th given Node Type 'tp' in the directory under 'path' with
 // the given Config.
-func Init(path string, cfg *Config, tp Type) error {
+func Init(path string, tp Type) error {
 	path, err := repoPath(path)
 	if err != nil {
 		return err
@@ -43,6 +43,7 @@ func Init(path string, cfg *Config, tp Type) error {
 		return err
 	}
 
+	cfg := DefaultConfig(tp)
 	cfgPath := configPath(path)
 	if !utils.Exists(cfgPath) {
 		err = SaveConfig(cfgPath, cfg)
@@ -72,16 +73,25 @@ func Init(path string, cfg *Config, tp Type) error {
 
 // IsInit checks whether FS Repository was setup under given 'path'.
 // If any required file/subdirectory does not exist, then false is reported.
-func IsInit(path string) bool {
+func IsInit(path string, tp Type) bool {
 	path, err := repoPath(path)
 	if err != nil {
 		return false
 	}
 
-	if utils.Exists(corePath(path)) &&
-		utils.Exists(keysPath(path)) &&
-		utils.Exists(dataPath(path)) &&
-		utils.Exists(configPath(path)) {
+	cfg, err := LoadConfig(configPath(path)) // this way we load Config  andimplicitly check it existence
+	if err != nil {
+		return false
+	}
+
+	// TODO(@Wondertan): this is undesirable hack related to the TODO above.
+	//  They should be resolved together.
+	if !cfg.Core.Remote && tp == Full && !core.IsInit(corePath(path)) {
+		return false
+	}
+
+	if utils.Exists(keysPath(path)) &&
+		utils.Exists(dataPath(path)) {
 		return true
 	}
 
