@@ -8,6 +8,7 @@ require (
 	github.com/celestiaorg/rsmt2d v0.3.0
 	github.com/ipfs/go-bitswap v0.4.0
 	github.com/ipfs/go-datastore v0.4.6
+	github.com/ipfs/go-ds-badger2 v0.1.1
 	github.com/ipfs/go-ipfs-blockstore v0.1.6
 	github.com/ipfs/go-ipfs-exchange-interface v0.0.1
 	github.com/ipfs/go-log/v2 v2.3.0
@@ -18,6 +19,7 @@ require (
 	github.com/libp2p/go-libp2p-peerstore v0.2.8
 	github.com/libp2p/go-libp2p-pubsub v0.5.4
 	github.com/libp2p/go-libp2p-routing-helpers v0.2.3
+	github.com/mitchellh/go-homedir v1.1.0
 	github.com/multiformats/go-base32 v0.0.4
 	github.com/multiformats/go-multiaddr v0.4.0
 	github.com/stretchr/testify v1.7.1-0.20210427113832-6241f9ab9942

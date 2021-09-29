@@ -3,7 +3,6 @@ package p2p
 import (
 	"fmt"
 
-	"github.com/ipfs/go-datastore"
 	"github.com/libp2p/go-libp2p-core/peer"
 	ma "github.com/multiformats/go-multiaddr"
 	"go.uber.org/fx"
@@ -62,11 +61,6 @@ func DefaultConfig() Config {
 // Components collects all the components and services related to p2p.
 func Components(cfg Config) fx.Option {
 	return fx.Options(
-		// TODO(@Wondertan): This shouldn't be here, but it is required until we start using real datastore
-		fx.Provide(func() datastore.Batching {
-			return datastore.NewMapDatastore()
-		}),
-
 		fx.Provide(Identity),
 		fx.Provide(PeerStore),
 		fx.Provide(ConnectionManager(cfg)),

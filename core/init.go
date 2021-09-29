@@ -24,7 +24,9 @@ const defaultValKeyType = types.ABCIPubKeyTypeSecp256k1
 // * P2P comms private key
 // * Stub genesis doc file
 func Init(path string) (err error) {
-	log.Info("Initializing repository over '%s'", path)
+	log.Info("Initializing Repository over '%s'", path)
+	defer log.Info("Repository initialized")
+
 	// 1 - ensure config
 	cfg := DefaultConfig()
 	cfg.SetRoot(path)
@@ -34,18 +36,23 @@ func Init(path string) (err error) {
 		if err != nil {
 			return fmt.Errorf("core: can't write config: %w", err)
 		}
+		log.Info("New config is generated")
+	} else {
+		log.Info("Config already exists")
 	}
 	// 2 - ensure private validator key
 	var pv *privval.FilePV
 	keyPath := cfg.PrivValidatorKeyFile()
-	if utils.Exists(keyPath) {
-		pv = privval.LoadFilePV(keyPath, cfg.PrivValidatorStateFile())
-	} else {
+	if !utils.Exists(keyPath) {
 		pv, err = privval.GenFilePV(keyPath, cfg.PrivValidatorStateFile(), defaultValKeyType)
 		if err != nil {
 			return
 		}
 		pv.Save()
+		log.Info("New consensus private key is generated")
+	} else {
+		pv = privval.LoadFilePV(keyPath, cfg.PrivValidatorStateFile())
+		log.Info("Consensus private key already exists")
 	}
 	// 3 - ensure private p2p key
 	_, err = p2p.LoadOrGenNodeKey(cfg.NodeKeyFile())
@@ -55,7 +62,8 @@ func Init(path string) (err error) {
 	// 4 - ensure genesis
 	genPath := cfg.GenesisFile()
 	if !utils.Exists(genPath) {
-		log.Warn("Genesis file is not found - generating a stub")
+		log.Info("New stub genesis document is generated")
+		log.Warn("Stub genesis document must not be used in production environment!")
 		pubKey, err := pv.GetPubKey()
 		if err != nil {
 			return fmt.Errorf("can't get pubkey: %w", err)
@@ -74,7 +82,12 @@ func Init(path string) (err error) {
 			}},
 		}
 
-		return genDoc.SaveAs(genPath)
+		err = genDoc.SaveAs(genPath)
+		if err != nil {
+			return err
+		}
+	} else {
+		log.Info("Genesis document already exists")
 	}
 
 	return nil

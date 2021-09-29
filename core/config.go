@@ -2,7 +2,6 @@ package core
 
 import (
 	"os"
-	"testing"
 
 	"github.com/BurntSushi/toml"
 
@@ -17,14 +16,6 @@ type Config = config.Config
 func DefaultConfig() *Config {
 	cfg := config.DefaultConfig()
 	updateDefaults(cfg)
-	return cfg
-}
-
-func TestConfig(t *testing.T) *Config {
-	cfg := config.ResetTestRoot(t.Name())
-	t.Cleanup(func() {
-		os.RemoveAll(cfg.RootDir)
-	})
 	return cfg
 }
 
