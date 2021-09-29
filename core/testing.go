@@ -10,7 +10,7 @@ import (
 	rpctest "github.com/celestiaorg/celestia-core/rpc/test"
 )
 
-// MockRepo provides a testing Repository.
+// MockRepo provides a mock Repository that is intended for use in test scenarios.
 func MockRepo(t *testing.T) Repository {
 	repo := NewMemRepository()
 	repo.PutConfig(MockConfig(t)) //nolint: errcheck
