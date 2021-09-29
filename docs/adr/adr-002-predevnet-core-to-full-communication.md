@@ -1,4 +1,4 @@
-# ADR for Devnet Celestia Core <> Celestia Node Communication 
+# ADR #002: Devnet Celestia Core <> Celestia Node Communication 
 
 ## Authors
 

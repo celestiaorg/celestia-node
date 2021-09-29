@@ -1,4 +1,4 @@
-# ADR for Devnet Celestia Node
+# ADR #001: Devnet Celestia Node
 
 ## Authors
 
