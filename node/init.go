@@ -53,16 +53,20 @@ func Init(path string, cfg *Config) error {
 		log.Info("Config already exists")
 	}
 
-	corePath := corePath(path)
-	err = initDir(corePath)
-	if err != nil {
-		return err
+	// TODO(@Wondertan): This is a lazy hack which prevents Core Repository to be generated for all case, and generates
+	//  only for a Full Node with embedded Core Node. Ideally, we should a have global map Node Type/Mode -> Custom
+	//  Init Func, so Init would run initialization for specific Mode/Type.
+	if !cfg.Core.Remote {
+		corePath := corePath(path)
+		err = initDir(corePath)
+		if err != nil {
+			return err
+		}
+
+		return core.Init(corePath)
 	}
 
-	// TODO(@Wondertan): This is a lazy hack which causes Core Repository to be generated for all case,
-	//  even when its not needed. Ideally, we should a have global map Node Type/Mode -> Custom Init Func, so Init would
-	//  run initialization for specific Mode/Type, but there are some caveats with such approach.
-	return core.Init(corePath)
+	return nil
 }
 
 // IsInit checks whether FS Repository was setup under given 'path'.
