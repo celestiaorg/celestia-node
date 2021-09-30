@@ -8,16 +8,6 @@ import (
 	"github.com/celestiaorg/celestia-node/node/p2p"
 )
 
-// NewLight assembles a new Light Node from required components.
-func NewLight(repo Repository) (*Node, error) {
-	cfg, err := repo.Config()
-	if err != nil {
-		return nil, err
-	}
-
-	return newNode(lightComponents(cfg, repo))
-}
-
 // lightComponents keeps all the components as DI options required to built a Light Node.
 func lightComponents(cfg *Config, repo Repository) fx.Option {
 	return fx.Options(

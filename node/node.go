@@ -51,11 +51,16 @@ type Node struct {
 
 // New assembles a new Node with the given type 'tp' over Repository 'repo'.
 func New(tp Type, repo Repository) (*Node, error) {
+	cfg, err := repo.Config()
+	if err != nil {
+		return nil, err
+	}
+
 	switch tp {
 	case Full:
-		return NewFull(repo)
+		return newNode(fullComponents(cfg, repo))
 	case Light:
-		return NewLight(repo)
+		return newNode(lightComponents(cfg, repo))
 	default:
 		panic("node: unknown Node Type")
 	}

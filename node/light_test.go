@@ -9,7 +9,7 @@ import (
 )
 
 func TestNewLight(t *testing.T) {
-	repo := MockRepository(t, DefaultLightConfig())
+	repo := MockRepository(t, DefaultConfig(Light))
 	nd, err := New(Light, repo)
 	require.NoError(t, err)
 	require.NotNil(t, nd)
@@ -18,7 +18,7 @@ func TestNewLight(t *testing.T) {
 }
 
 func TestLightLifecycle(t *testing.T) {
-	repo := MockRepository(t, DefaultLightConfig())
+	repo := MockRepository(t, DefaultConfig(Light))
 	nd, err := New(Light, repo)
 	require.NoError(t, err)
 

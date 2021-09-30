@@ -13,7 +13,7 @@ import (
 )
 
 func TestNewFull(t *testing.T) {
-	repo := MockRepository(t, DefaultFullConfig())
+	repo := MockRepository(t, DefaultConfig(Full))
 	node, err := New(Full, repo)
 	require.NoError(t, err)
 	require.NotNil(t, node)
@@ -23,7 +23,7 @@ func TestNewFull(t *testing.T) {
 }
 
 func TestFullLifecycle(t *testing.T) {
-	repo := MockRepository(t, DefaultFullConfig())
+	repo := MockRepository(t, DefaultConfig(Full))
 	node, err := New(Full, repo)
 	require.NoError(t, err)
 	require.NotNil(t, node)
@@ -49,13 +49,13 @@ func TestFullLifecycle(t *testing.T) {
 // TestFull_P2P_Streams tests the ability for Full nodes to communicate
 // directly with each other via libp2p streams.
 func TestFull_P2P_Streams(t *testing.T) {
-	repo := MockRepository(t, DefaultFullConfig())
+	repo := MockRepository(t, DefaultConfig(Full))
 	node, err := New(Full, repo)
 	require.NoError(t, err)
 	require.NotNil(t, node)
 	require.NotNil(t, node.Host)
 
-	peerConf := DefaultFullConfig()
+	peerConf := DefaultConfig(Full)
 	// modify address to be different
 	peerConf.P2P.ListenAddresses = []string{
 		"/ip4/0.0.0.0/tcp/2124",

@@ -9,16 +9,6 @@ import (
 	"github.com/celestiaorg/celestia-node/service/block"
 )
 
-// NewFull assembles a new Full Node from required components.
-func NewFull(repo Repository) (*Node, error) {
-	cfg, err := repo.Config()
-	if err != nil {
-		return nil, err
-	}
-
-	return newNode(fullComponents(cfg, repo))
-}
-
 // fullComponents keeps all the components as DI options required to built a Full Node.
 func fullComponents(cfg *Config, repo Repository) fx.Option {
 	return fx.Options(
