@@ -61,9 +61,13 @@ func New(tp Type, repo Repository) (*Node, error) {
 	}
 }
 
-// Start launches the Node and all the referenced components and services.
-// Canceling the given context aborts the start.
+// Start launches the Node and all its components and services.
+// It blocks until the given context 'ctx' is canceled. If canceled, the Node is still in the running state
+// and should be gracefully stopped via Stop.
 func (n *Node) Start(ctx context.Context) error {
+	ctx, cancel := context.WithTimeout(ctx, n.app.StartTimeout())
+	defer cancel()
+
 	log.Debugf("Starting %s Node...", n.Type)
 	err := n.app.Start(ctx)
 	if err != nil {
@@ -73,14 +77,22 @@ func (n *Node) Start(ctx context.Context) error {
 
 	log.Infof("%s Node is started", n.Type)
 
-	// TODO(@Wondertan): Add bootstrapping
-	return nil
+	// TODO(@Wondertan): Print useful information about the node:
+	//  * API address
+	//  * Pubkey/PeerID
+	//  * Host listening address
+
+	<-ctx.Done()
+	return ctx.Err()
 }
 
-// Stop shuts down the Node and all its running Components/Services.
-// Canceling given context unblocks Stop and aborts graceful shutdown while forcing remaining Components/Services to
-// close immediately.
+// Stop shuts down the Node, all its running Components/Services and returns.
+// Canceling the given context earlier 'ctx' unblocks the Stop and aborts graceful shutdown forcing remaining
+// Components/Services to close immediately.
 func (n *Node) Stop(ctx context.Context) error {
+	ctx, cancel := context.WithTimeout(context.Background(), n.app.StopTimeout())
+	defer cancel()
+
 	log.Debugf("Stopping %s Node...", n.Type)
 	err := n.app.Stop(ctx)
 	if err != nil {
