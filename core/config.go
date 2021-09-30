@@ -15,6 +15,8 @@ type Config = config.Config
 // DefaultConfig returns a modified default config of Core node.
 func DefaultConfig() *Config {
 	cfg := config.DefaultConfig()
+	// TODO(@Wondertan): Instead, we should have celestia-app here or even allow customizing it
+	cfg.ProxyApp = "kvstore"
 	updateDefaults(cfg)
 	return cfg
 }
