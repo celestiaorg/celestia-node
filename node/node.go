@@ -49,18 +49,16 @@ type Node struct {
 	BlockServ *block.Service `optional:"true"`
 }
 
-// newNode creates a new Node from given DI options.
-// DI options allow initializing the Node with a customized set of components and services.
-// NOTE: newNode is currently meant to be used privately to create various custom Node types e.g. full, unless we
-// decide to give package users the ability to create custom node types themselves.
-func newNode(opts ...fx.Option) (*Node, error) {
-	node := new(Node)
-	node.app = fx.New(
-		fx.NopLogger,
-		fx.Extract(node),
-		fx.Options(opts...),
-	)
-	return node, node.app.Err()
+// New assembles a new Node with the given type 'tp' over Repository 'repo'.
+func New(tp Type, repo Repository) (*Node, error) {
+	switch tp {
+	case Full:
+		return NewFull(repo)
+	case Light:
+		return NewLight(repo)
+	default:
+		panic("node: unknown Node Type")
+	}
 }
 
 // Start launches the Node and all the referenced components and services.
@@ -92,4 +90,18 @@ func (n *Node) Stop(ctx context.Context) error {
 
 	log.Infof("%s Node is stopped", n.Type)
 	return nil
+}
+
+// newNode creates a new Node from given DI options.
+// DI options allow initializing the Node with a customized set of components and services.
+// NOTE: newNode is currently meant to be used privately to create various custom Node types e.g. full, unless we
+// decide to give package users the ability to create custom node types themselves.
+func newNode(opts ...fx.Option) (*Node, error) {
+	node := new(Node)
+	node.app = fx.New(
+		fx.NopLogger,
+		fx.Extract(node),
+		fx.Options(opts...),
+	)
+	return node, node.app.Err()
 }
