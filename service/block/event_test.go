@@ -4,9 +4,10 @@ import (
 	"context"
 	"testing"
 
+	"github.com/celestiaorg/celestia-core/testutils"
+	md "github.com/ipfs/go-merkledag/test"
 	"github.com/stretchr/testify/require"
 
-	"github.com/celestiaorg/celestia-core/testutils"
 	"github.com/celestiaorg/celestia-node/service/header"
 )
 
@@ -14,7 +15,7 @@ func Test_listenForNewBlocks(t *testing.T) {
 	mockFetcher := &mockFetcher{
 		mockNewBlockCh: make(chan *RawBlock),
 	}
-	serv := NewBlockService(mockFetcher)
+	serv := NewBlockService(mockFetcher, md.Mock()) // TODO @renaynay: add mock dag service
 
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
@@ -47,26 +48,40 @@ func (m *mockFetcher) UnsubscribeNewBlockEvent(ctx context.Context) error {
 }
 
 func (m *mockFetcher) generateBlocks(t *testing.T, num int) {
+	t.Helper()
+
 	for i := 0; i < num; i++ {
-		data, err := testutils.GenerateRandomBlockData(1, 1, 1, 1, 40)
-		if err != nil {
-			t.Fatal(err)
-		}
-		rawBlock := &RawBlock{
-			Data: data,
-		}
-		// extend the data to get the data hash
-		extendedData, err := extendBlockData(rawBlock)
-		if err != nil {
-			t.Fatal(err)
-		}
-		dah, err := header.DataAvailabilityHeaderFromExtendedData(extendedData)
-		if err != nil {
-			t.Fatal(err)
-		}
-		rawBlock.Header = header.RawHeader{
-			DataHash: dah.Hash(),
-		}
+		rawBlock, _ := generateRawAndExtendedBlock(t)
 		m.mockNewBlockCh <- rawBlock
+	}
+}
+
+func generateRawAndExtendedBlock(t *testing.T) (*RawBlock, *Block) {
+	t.Helper()
+
+	data, err := testutils.GenerateRandomBlockData(1, 1, 1, 1, 40)
+	if err != nil {
+		t.Fatal(err)
+	}
+	rawBlock := &RawBlock{
+		Data: data,
+	}
+	// extend the data to get the data hash
+	extendedData, err := extendBlockData(rawBlock)
+	if err != nil {
+		t.Fatal(err)
+	}
+	dah, err := header.DataAvailabilityHeaderFromExtendedData(extendedData)
+	if err != nil {
+		t.Fatal(err)
+	}
+	rawBlock.Header = header.RawHeader{
+		DataHash: dah.Hash(),
+	}
+	return rawBlock, &Block{
+		header: &header.ExtendedHeader{
+			DAH: &dah,
+		},
+		data: extendedData,
 	}
 }

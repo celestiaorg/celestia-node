@@ -73,5 +73,6 @@ func (s *Service) handleRawBlock(raw *RawBlock) error {
 		return err
 	}
 	// TODO @renaynay: store extended block
+
 	return nil
 }
