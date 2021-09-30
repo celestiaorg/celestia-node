@@ -10,7 +10,7 @@ import (
 // It is meant to be used a subcommand and also receive persistent flag name for repository path.
 func Init(repoName string, tp node.Type) *cobra.Command {
 	if !tp.IsValid() {
-		panic("Init: invalid Node Type")
+		panic("cmd: Init: invalid Node Type")
 	}
 	if len(repoName) == 0 {
 		panic("parent command must specify a persistent flag name for repository path")
@@ -18,7 +18,7 @@ func Init(repoName string, tp node.Type) *cobra.Command {
 
 	const cfgName = "config"
 	cmd := &cobra.Command{
-		Use: "init",
+		Use:  "init",
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cfgF := cmd.Flag(cfgName).Value
