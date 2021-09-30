@@ -9,7 +9,10 @@ import (
 
 func init() {
 	const repoName = "repository"
-	fullCmd.AddCommand(cmd.Init(repoName, node.Full))
+	fullCmd.AddCommand(
+		cmd.Init(repoName, node.Full),
+		cmd.Start(repoName, node.Full),
+	)
 	fullCmd.PersistentFlags().StringP(repoName,
 		"r",
 		"~/.celestia-full",
@@ -18,6 +21,6 @@ func init() {
 }
 
 var fullCmd = &cobra.Command{
-	Use: "full [subcommand]",
+	Use:  "full [subcommand]",
 	Args: cobra.NoArgs,
 }

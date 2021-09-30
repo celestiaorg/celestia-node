@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"os"
 
 	logging "github.com/ipfs/go-log/v2"
@@ -13,14 +12,15 @@ func init() {
 }
 
 func main() {
- 	err := run()
- 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
+	err := run()
+	if err != nil {
 		os.Exit(1)
 	}
 }
 
 func run() error {
+	// TODO(@Wondertan): In practise we won't need all INFO loggers from IPFS/libp2p side
+	//  so we would need to turn off them somewhere in `logs` package.
 	logging.SetAllLoggers(logging.LevelInfo)
 	return rootCmd.Execute()
 }

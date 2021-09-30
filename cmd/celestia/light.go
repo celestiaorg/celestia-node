@@ -7,9 +7,12 @@ import (
 	"github.com/celestiaorg/celestia-node/node"
 )
 
-func init()  {
+func init() {
 	const repoName = "repository"
-	lightCmd.AddCommand(cmd.Init(repoName, node.Light))
+	lightCmd.AddCommand(
+		cmd.Init(repoName, node.Light),
+		cmd.Start(repoName, node.Light),
+	)
 	lightCmd.PersistentFlags().StringP(
 		repoName,
 		"r",
@@ -19,6 +22,6 @@ func init()  {
 }
 
 var lightCmd = &cobra.Command{
-	Use: "light [subcommand]",
+	Use:  "light [subcommand]",
 	Args: cobra.NoArgs,
 }
