@@ -67,8 +67,6 @@ func New(tp Type, repo Repository) (*Node, error) {
 }
 
 // Start launches the Node and all its components and services.
-// It blocks until the given context 'ctx' is canceled. If canceled, the Node is still in the running state
-// and should be gracefully stopped via Stop.
 func (n *Node) Start(ctx context.Context) error {
 	ctx, cancel := context.WithTimeout(ctx, n.app.StartTimeout())
 	defer cancel()
@@ -86,6 +84,17 @@ func (n *Node) Start(ctx context.Context) error {
 	//  * API address
 	//  * Pubkey/PeerID
 	//  * Host listening address
+
+	return nil
+}
+
+// Run is a Start which blocks on the given context 'ctx' until it is canceled.
+// If canceled, the Node is still in the running state and should be gracefully stopped via Stop.
+func (n *Node) Run(ctx context.Context) error {
+	err := n.Start(ctx)
+	if err != nil {
+		return err
+	}
 
 	<-ctx.Done()
 	return ctx.Err()
