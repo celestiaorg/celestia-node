@@ -13,9 +13,6 @@ func lightComponents(cfg *Config, repo Repository) fx.Option {
 	return fx.Options(
 		// manual providing
 		fx.Provide(context.Background),
-		fx.Provide(func() Type {
-			return Light
-		}),
 		fx.Provide(func() *Config {
 			return cfg
 		}),

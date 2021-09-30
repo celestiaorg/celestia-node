@@ -44,6 +44,6 @@ var typeToString = map[Type]string{
 
 // typeToString maps strings representations of all valid Types.
 var stringToType = map[string]Type{
-	"Full": Full,
+	"Full":  Full,
 	"Light": Light,
 }

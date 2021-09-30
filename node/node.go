@@ -58,9 +58,9 @@ func New(tp Type, repo Repository) (*Node, error) {
 
 	switch tp {
 	case Full:
-		return newNode(fullComponents(cfg, repo))
+		return newNode(tp, fullComponents(cfg, repo))
 	case Light:
-		return newNode(lightComponents(cfg, repo))
+		return newNode(tp, lightComponents(cfg, repo))
 	default:
 		panic("node: unknown Node Type")
 	}
@@ -122,12 +122,15 @@ func (n *Node) Stop(ctx context.Context) error {
 // DI options allow initializing the Node with a customized set of components and services.
 // NOTE: newNode is currently meant to be used privately to create various custom Node types e.g. full, unless we
 // decide to give package users the ability to create custom node types themselves.
-func newNode(opts ...fx.Option) (*Node, error) {
+func newNode(tp Type, opts ...fx.Option) (*Node, error) {
 	node := new(Node)
 	node.app = fx.New(
 		fx.NopLogger,
 		fx.Extract(node),
 		fx.Options(opts...),
+		fx.Provide(func() Type {
+			return tp
+		}),
 	)
 	return node, node.app.Err()
 }
