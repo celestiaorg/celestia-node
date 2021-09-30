@@ -19,10 +19,10 @@ func Start(repoName string, tp node.Type) *cobra.Command {
 		panic("parent command must specify a persistent flag name for repository path")
 	}
 	return &cobra.Command{
-		Use:     "start",
-		Short:   "Starts Node daemon. First stopping signal gracefully stops the Node and second terminates it.",
-		Aliases: []string{"run", "daemon"},
-		Args:    cobra.NoArgs,
+		Use:          "start",
+		Short:        "Starts Node daemon. First stopping signal gracefully stops the Node and second terminates it.",
+		Aliases:      []string{"run", "daemon"},
+		Args:         cobra.NoArgs,
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			repoPath := cmd.Flag(repoName).Value.String()

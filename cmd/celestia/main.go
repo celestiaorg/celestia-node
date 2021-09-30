@@ -19,7 +19,7 @@ func main() {
 }
 
 func run() error {
-	// TODO(@Wondertan): In practise we won't need all INFO loggers from IPFS/libp2p side
+	// TODO(@Wondertan): In practice we won't need all INFO loggers from IPFS/libp2p side
 	//  so we would need to turn off them somewhere in `logs` package.
 	logging.SetAllLoggers(logging.LevelInfo)
 	return rootCmd.Execute()
