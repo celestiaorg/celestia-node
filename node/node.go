@@ -104,7 +104,7 @@ func (n *Node) Run(ctx context.Context) error {
 // Canceling the given context earlier 'ctx' unblocks the Stop and aborts graceful shutdown forcing remaining
 // Components/Services to close immediately.
 func (n *Node) Stop(ctx context.Context) error {
-	ctx, cancel := context.WithTimeout(context.Background(), n.app.StopTimeout())
+	ctx, cancel := context.WithTimeout(ctx, n.app.StopTimeout())
 	defer cancel()
 
 	log.Debugf("Stopping %s Node...", n.Type)
