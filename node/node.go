@@ -49,6 +49,75 @@ type Node struct {
 	BlockServ *block.Service `optional:"true"`
 }
 
+// New assembles a new Node with the given type 'tp' over Repository 'repo'.
+func New(tp Type, repo Repository) (*Node, error) {
+	cfg, err := repo.Config()
+	if err != nil {
+		return nil, err
+	}
+
+	switch tp {
+	case Full:
+		return newNode(fullComponents(cfg, repo))
+	case Light:
+		return newNode(lightComponents(cfg, repo))
+	default:
+		panic("node: unknown Node Type")
+	}
+}
+
+// Start launches the Node and all its components and services.
+func (n *Node) Start(ctx context.Context) error {
+	ctx, cancel := context.WithTimeout(ctx, n.app.StartTimeout())
+	defer cancel()
+
+	log.Debugf("Starting %s Node...", n.Type)
+	err := n.app.Start(ctx)
+	if err != nil {
+		log.Errorf("Error starting %s Node: %s", n.Type, err)
+		return err
+	}
+
+	log.Infof("%s Node is started", n.Type)
+
+	// TODO(@Wondertan): Print useful information about the node:
+	//  * API address
+	//  * Pubkey/PeerID
+	//  * Host listening address
+
+	return nil
+}
+
+// Run is a Start which blocks on the given context 'ctx' until it is canceled.
+// If canceled, the Node is still in the running state and should be gracefully stopped via Stop.
+func (n *Node) Run(ctx context.Context) error {
+	err := n.Start(ctx)
+	if err != nil {
+		return err
+	}
+
+	<-ctx.Done()
+	return ctx.Err()
+}
+
+// Stop shuts down the Node, all its running Components/Services and returns.
+// Canceling the given context earlier 'ctx' unblocks the Stop and aborts graceful shutdown forcing remaining
+// Components/Services to close immediately.
+func (n *Node) Stop(ctx context.Context) error {
+	ctx, cancel := context.WithTimeout(ctx, n.app.StopTimeout())
+	defer cancel()
+
+	log.Debugf("Stopping %s Node...", n.Type)
+	err := n.app.Stop(ctx)
+	if err != nil {
+		log.Errorf("Error stopping %s Node: %s", n.Type, err)
+		return err
+	}
+
+	log.Infof("%s Node is stopped", n.Type)
+	return nil
+}
+
 // newNode creates a new Node from given DI options.
 // DI options allow initializing the Node with a customized set of components and services.
 // NOTE: newNode is currently meant to be used privately to create various custom Node types e.g. full, unless we
@@ -61,35 +130,4 @@ func newNode(opts ...fx.Option) (*Node, error) {
 		fx.Options(opts...),
 	)
 	return node, node.app.Err()
-}
-
-// Start launches the Node and all the referenced components and services.
-// Canceling the given context aborts the start.
-func (n *Node) Start(ctx context.Context) error {
-	log.Debugf("Starting %s Node...", n.Type)
-	err := n.app.Start(ctx)
-	if err != nil {
-		log.Errorf("Error starting %s Node: %s", n.Type, err)
-		return err
-	}
-
-	log.Infof("%s Node is started", n.Type)
-
-	// TODO(@Wondertan): Add bootstrapping
-	return nil
-}
-
-// Stop shuts down the Node and all its running Components/Services.
-// Canceling given context unblocks Stop and aborts graceful shutdown while forcing remaining Components/Services to
-// close immediately.
-func (n *Node) Stop(ctx context.Context) error {
-	log.Debugf("Stopping %s Node...", n.Type)
-	err := n.app.Stop(ctx)
-	if err != nil {
-		log.Errorf("Error stopping %s Node: %s", n.Type, err)
-		return err
-	}
-
-	log.Infof("%s Node is stopped", n.Type)
-	return nil
 }
