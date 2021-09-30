@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/celestiaorg/celestia-core/testutils"
-
+	"github.com/celestiaorg/celestia-node/service/header"
 	"github.com/stretchr/testify/require"
 )
 
@@ -51,8 +51,21 @@ func (m *mockFetcher) generateBlocks(t *testing.T, num int) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		m.mockNewBlockCh <- &RawBlock{
+		rawBlock := &RawBlock{
 			Data: data,
 		}
+		// extend the data to get the data hash
+		extendedData, err := extendBlockData(rawBlock)
+		if err != nil {
+			t.Fatal(err)
+		}
+		dah, err := header.DataAvailabilityHeaderFromExtendedData(extendedData)
+		if err != nil {
+			t.Fatal(err)
+		}
+		rawBlock.Header = header.RawHeader{
+			DataHash: dah.Hash(),
+		}
+		m.mockNewBlockCh <- rawBlock
 	}
 }
