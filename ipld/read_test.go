@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/sha256"
+	"fmt"
 	"math"
 	"math/rand"
 	"testing"
@@ -121,20 +122,12 @@ func TestRetrieveBlockData(t *testing.T) {
 		{"128x128(max)", MaxSquareSize},
 	}
 	for _, tc := range tests {
-		// TODO(Wondertan): remove this
-		if tc.squareSize > 8 {
-			continue
-		}
 
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			// generate EDS
-			namespacedShares := RandNamespacedShares(t, tc.squareSize*tc.squareSize)
-			shares := namespacedShares.Raw()
-			extSquareSize := uint64(math.Sqrt(float64(len(namespacedShares))))
-			tree := wrapper.NewErasuredNamespacedMerkleTree(extSquareSize)
-			eds, err := rsmt2d.ComputeExtendedDataSquare(shares, rsmt2d.NewRSGF8Codec(), tree.Constructor)
-			require.NoError(t, err)
+			eds := generateRandEDS(t, tc.squareSize)
+			fmt.Println(eds.Width())
 
 			in, err := PutData(ctx, eds, dag)
 			require.NoError(t, err)
@@ -153,14 +146,16 @@ func TestRetrieveBlockData(t *testing.T) {
 	}
 }
 
-func generateRandEDS(t *testing.T, squareSize int) *rsmt2d.ExtendedDataSquare {
-	namespacedShares := RandNamespacedShares(t, squareSize*squareSize)
+func generateRandEDS(t *testing.T, originalSquareWidth int) *rsmt2d.ExtendedDataSquare {
+	shareCount := originalSquareWidth * originalSquareWidth
 
-	shares := namespacedShares.Raw()
+	// generate test data
+	nsshares := RandNamespacedShares(t, shareCount)
+
+	shares := nsshares.Raw()
 
 	// create the nmt wrapper to generate row and col commitments
-	extendedSquareSize := uint64(math.Sqrt(float64(len(shares))))
-	tree := wrapper.NewErasuredNamespacedMerkleTree(extendedSquareSize)
+	tree := wrapper.NewErasuredNamespacedMerkleTree(uint64(originalSquareWidth))
 
 	// compute extended square
 	eds, err := rsmt2d.ComputeExtendedDataSquare(shares, rsmt2d.NewRSGF8Codec(), tree.Constructor)
