@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"crypto/sha256"
-	"fmt"
 	"math"
 	"math/rand"
 	"testing"
@@ -125,11 +124,12 @@ func TestRetrieveBlockData(t *testing.T) {
 
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
-			// generate EDS
+			// // generate EDS
 			eds := generateRandEDS(t, tc.squareSize)
-			fmt.Println(eds.Width())
 
-			in, err := PutData(ctx, eds, dag)
+			shares := convertEDStoShares(eds)
+
+			in, err := PutData(ctx, shares, dag)
 			require.NoError(t, err)
 
 			// limit with deadline, specifically retrieval
@@ -144,6 +144,22 @@ func TestRetrieveBlockData(t *testing.T) {
 			assert.True(t, EqualEDS(in, out))
 		})
 	}
+}
+
+func Test_ConvertEDStoShares(t *testing.T) {
+	squareWidth := 16
+	origShares := RandNamespacedShares(t, squareWidth*squareWidth)
+	rawshares := origShares.Raw()
+
+	// create the nmt wrapper to generate row and col commitments
+	tree := wrapper.NewErasuredNamespacedMerkleTree(uint64(squareWidth))
+
+	// compute extended square
+	eds, err := rsmt2d.ComputeExtendedDataSquare(rawshares, rsmt2d.NewRSGF8Codec(), tree.Constructor)
+	require.NoError(t, err)
+
+	resshares := convertEDStoShares(eds)
+	require.Equal(t, rawshares, resshares)
 }
 
 func generateRandEDS(t *testing.T, originalSquareWidth int) *rsmt2d.ExtendedDataSquare {

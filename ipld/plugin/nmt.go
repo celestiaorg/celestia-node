@@ -6,14 +6,16 @@ import (
 	"crypto/sha256"
 	"errors"
 	"fmt"
+	"hash"
 	"io"
 
 	blocks "github.com/ipfs/go-block-format"
 	cid "github.com/ipfs/go-cid"
 	ipld "github.com/ipfs/go-ipld-format"
+	mh "github.com/multiformats/go-multihash"
+	mhcore "github.com/multiformats/go-multihash/core"
 
 	"github.com/celestiaorg/nmt"
-	mh "github.com/multiformats/go-multihash"
 )
 
 const (
@@ -47,7 +49,11 @@ func init() {
 		Sha256Namespace8Flagged,
 		"sha2-256-namespace8-flagged",
 		nmtHashSize,
-		sumSha256Namespace8Flagged,
+		func() hash.Hash {
+			return &namespaceHasher{
+				nmt.NewNmtHasher(sha256.New(), nmt.DefaultNamespaceIDLen, true),
+			}
+		},
 	)
 	// this should already happen when the plugin is injected but it doesn't for some CI tests
 	ipld.DefaultBlockDecoder.Register(NmtCodec, NmtNodeParser)
@@ -60,7 +66,7 @@ func mustRegisterNamespacedCodec(
 	codec uint64,
 	name string,
 	defaultLength int,
-	hashFunc mh.HashFunc,
+	hashFunc func() hash.Hash,
 ) {
 	if _, ok := mh.Codes[codec]; !ok {
 		// make sure that the Codec wasn't registered from somewhere different than this plugin already:
@@ -72,20 +78,20 @@ func mustRegisterNamespacedCodec(
 		mh.Names[name] = codec
 		mh.DefaultLengths[codec] = defaultLength
 
-		if err := mh.RegisterHashFunc(codec, hashFunc); err != nil {
-			panic(fmt.Sprintf("could not register hash function: %v", mh.Codes[codec]))
-		}
+		mhcore.Register(codec, hashFunc)
 	}
 }
 
-// sumSha256Namespace8Flagged is the mh.HashFunc used to hash leaf and inner nodes.
-// It is registered as a mh.HashFunc in the go-multihash module.
-func sumSha256Namespace8Flagged(data []byte, _length int) ([]byte, error) {
+type namespaceHasher struct {
+	hash.Hash
+}
+
+func (n namespaceHasher) Sum(data []byte) []byte {
 	isLeafData := data[0] == nmt.LeafPrefix
 	if isLeafData {
-		return nmt.Sha256Namespace8FlaggedLeaf(data[1:]), nil
+		return nmt.Sha256Namespace8FlaggedLeaf(data[1:])
 	}
-	return nmt.Sha256Namespace8FlaggedInner(data[1:]), nil
+	return nmt.Sha256Namespace8FlaggedInner(data[1:])
 }
 
 // DataSquareRowOrColumnRawInputParser reads the raw shares and extract the IPLD nodes from the NMT tree.
@@ -382,7 +388,7 @@ func CidFromNamespacedSha256(namespacedHash []byte) (cid.Cid, error) {
 	if err != nil {
 		return cid.Undef, err
 	}
-	return cid.NewCidV1(NmtCodec, buf), nil
+	return cid.NewCidV1(NmtCodec, mh.Multihash(buf)), nil
 }
 
 // MustCidFromNamespacedSha256 is a wrapper around cidFromNamespacedSha256 that panics

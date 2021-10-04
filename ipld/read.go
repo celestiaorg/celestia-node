@@ -4,13 +4,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/celestiaorg/celestia-core/pkg/da"
 	"math/rand"
 
 	"github.com/celestiaorg/rsmt2d"
 	"github.com/ipfs/go-cid"
 	ipld "github.com/ipfs/go-ipld-format"
 
+	"github.com/celestiaorg/celestia-core/pkg/da"
 	"github.com/celestiaorg/celestia-core/pkg/wrapper"
 	"github.com/celestiaorg/celestia-node/ipld/plugin"
 )
@@ -198,7 +198,7 @@ func (sc *shareCounter) flatten() [][]byte {
 }
 
 // GetLeafData fetches and returns the data for leaf leafIndex of root rootCid.
-// It stops and returns an error if the provided context is cancelled before
+// It stops and returns an error if the provided context is canceled before
 // finishing
 func GetLeafData(
 	ctx context.Context,

@@ -17,7 +17,7 @@ import (
 )
 
 // TODO(Wondertan): Move to rsmt2d
-// TODO(Wondertan): Propose use of int by default instead of uint for the sake convenience and Golang practises
+// TODO(Wondertan): Propose use of int by default instead of uint for the sake convenience and Golang practices
 func EqualEDS(a *rsmt2d.ExtendedDataSquare, b *rsmt2d.ExtendedDataSquare) bool {
 	if a.Width() != b.Width() {
 		return false
