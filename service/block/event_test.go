@@ -6,16 +6,20 @@ import (
 
 	"github.com/celestiaorg/celestia-core/testutils"
 	md "github.com/ipfs/go-merkledag/test"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/celestiaorg/celestia-node/service/header"
 )
 
-func Test_listenForNewBlocks(t *testing.T) {
+// TestEventLoop tests that the Service event loop spawned by calling
+// `Start` on the Service properly listens for new blocks from its Fetcher
+// and handles them accordingly.
+func TestEventLoop(t *testing.T) {
 	mockFetcher := &mockFetcher{
 		mockNewBlockCh: make(chan *RawBlock),
 	}
-	serv := NewBlockService(mockFetcher, md.Mock()) // TODO @renaynay: add mock dag service
+	serv := NewBlockService(mockFetcher, md.Mock())
 
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
@@ -23,7 +27,19 @@ func Test_listenForNewBlocks(t *testing.T) {
 	err := serv.Start(ctx)
 	require.NoError(t, err)
 
-	mockFetcher.generateBlocks(t, 3)
+	numBlocks := 3
+	expectedBlocks := mockFetcher.generateBlocks(t, numBlocks)
+
+	ctx, cancel = context.WithCancel(context.Background())
+	t.Cleanup(cancel)
+
+	for i := 0; i < numBlocks; i++ {
+		block, err := serv.GetBlockData(ctx, expectedBlocks[i].Header().DAH)
+		require.NoError(t, err)
+		assert.Equal(t, expectedBlocks[i].data.Width(), block.Width())
+		assert.Equal(t, expectedBlocks[i].data.RowRoots(), block.RowRoots())
+		assert.Equal(t, expectedBlocks[i].data.ColRoots(), block.ColRoots())
+	}
 
 	err = serv.Stop(ctx)
 	require.NoError(t, err)
@@ -47,13 +63,20 @@ func (m *mockFetcher) UnsubscribeNewBlockEvent(ctx context.Context) error {
 	return nil
 }
 
-func (m *mockFetcher) generateBlocks(t *testing.T, num int) {
+// generateBlocks generates new raw blocks and sends them to the mock fetcher,
+// returning the extended blocks generated from the process to compare against.
+func (m *mockFetcher) generateBlocks(t *testing.T, num int) []Block {
 	t.Helper()
 
+	extendedBlocks := make([]Block, num)
+
 	for i := 0; i < num; i++ {
-		rawBlock, _ := generateRawAndExtendedBlock(t)
+		rawBlock, block := generateRawAndExtendedBlock(t)
+		extendedBlocks[i] = *block
 		m.mockNewBlockCh <- rawBlock
 	}
+
+	return extendedBlocks
 }
 
 func generateRawAndExtendedBlock(t *testing.T) (*RawBlock, *Block) {
