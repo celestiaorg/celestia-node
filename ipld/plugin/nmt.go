@@ -35,11 +35,13 @@ const (
 	// DagParserFormatName can be used when putting into the IPLD Dag
 	DagParserFormatName = "extended-square-row-or-col"
 
+	// ShareSize system wide default size for data shares.
+	ShareSize = 256
+
 	// Repeated here to avoid a dependency to the wrapping repo as this makes
 	// it hard to compile and use the plugin against a local ipfs version.
 	// TODO: plugins have config options; make this configurable instead
 	namespaceSize = 8
-	shareSize     = 256
 	// nmtHashSize is the size of a digest created by an NMT in bytes.
 	nmtHashSize = 2*namespaceSize + sha256.Size
 )
@@ -113,7 +115,7 @@ func DataSquareRowOrColumnRawInputParser(r io.Reader, _mhType uint64, _mhLen int
 	)
 
 	for {
-		namespacedLeaf := make([]byte, shareSize+namespaceSize)
+		namespacedLeaf := make([]byte, ShareSize+namespaceSize)
 		if _, err := io.ReadFull(br, namespacedLeaf); err != nil {
 			if err == io.EOF {
 				break
@@ -137,7 +139,7 @@ type nmtNodeCollector struct {
 
 func newNodeCollector() *nmtNodeCollector {
 	// extendedRowOrColumnSize is hardcoded here to avoid importing
-	const extendedRowOrColumnSize = 2 * 128
+	extendedRowOrColumnSize := 2 * 128
 	return &nmtNodeCollector{nodes: make([]ipld.Node, 0, extendedRowOrColumnSize)}
 }
 
@@ -165,10 +167,10 @@ func (n *nmtNodeCollector) visit(hash []byte, children ...[]byte) {
 }
 
 func prependNode(newNode ipld.Node, nodes []ipld.Node) []ipld.Node {
-	nodes = append(nodes, ipld.Node(nil))
-	copy(nodes[1:], nodes)
-	nodes[0] = newNode
-	return nodes
+	prepended := make([]ipld.Node, len(nodes)+1)
+	prepended[0] = newNode
+	copy(prepended[1:], nodes)
+	return prepended
 }
 
 func NmtNodeParser(block blocks.Block) (ipld.Node, error) {

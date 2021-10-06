@@ -20,8 +20,8 @@ func PutData(ctx context.Context, shares [][]byte, adder ipld.NodeAdder) (*rsmt2
 	// create nmt adder wrapping batch adder
 	batchAdder := NewNmtNodeAdder(ctx, ipld.NewBatch(ctx, adder))
 	// create the nmt wrapper to generate row and col commitments
-	squareSize := uint32(math.Sqrt(float64(len(shares))))
-	tree := wrapper.NewErasuredNamespacedMerkleTree(uint64(squareSize), nmt.NodeVisitor(batchAdder.Visit))
+	squareSize := uint64(math.Sqrt(float64(len(shares))))
+	tree := wrapper.NewErasuredNamespacedMerkleTree(squareSize, nmt.NodeVisitor(batchAdder.Visit))
 	// recompute the eds
 	eds, err := rsmt2d.ComputeExtendedDataSquare(shares, rsmt2d.NewRSGF8Codec(), tree.Constructor)
 	if err != nil {
@@ -33,6 +33,7 @@ func PutData(ctx context.Context, shares [][]byte, adder ipld.NodeAdder) (*rsmt2
 	return eds, batchAdder.Commit()
 }
 
+// convertEDStoShares returns the original shares of the given ExtendedDataSquare.
 func convertEDStoShares(eds *rsmt2d.ExtendedDataSquare) [][]byte {
 	origWidth := eds.Width() / 2
 	origShares := make([][]byte, origWidth*origWidth)

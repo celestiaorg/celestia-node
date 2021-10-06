@@ -5,8 +5,6 @@ import "github.com/celestiaorg/nmt/namespace"
 const (
 	// MaxSquareSize is currently the maximum size supported for unerasured data in rsmt2d.ExtendedDataSquare.
 	MaxSquareSize = 128
-	// ShareSize system wide default size for data shares.
-	ShareSize = 256
 	// NamespaceSize is a system wide size for NMT namespaces.
 	// TODO(Wondertan): Should be part of IPLD/NMT plugin
 	NamespaceSize = 8

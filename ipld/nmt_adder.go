@@ -29,7 +29,8 @@ func NewNmtNodeAdder(ctx context.Context, batch *ipld.Batch) *NmtNodeAdder {
 	}
 }
 
-// Visit can be inserted into an nmt tree to create ipld.Nodes while computing the root
+// Visit is a NodeVisitor that can be used during the creation of a new NMT to
+// create and add ipld.Nodes to the Batch while computing the root of the NMT.
 func (n *NmtNodeAdder) Visit(hash []byte, children ...[]byte) {
 	if n.err != nil {
 		return // protect from further visits if there is an error

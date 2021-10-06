@@ -73,7 +73,7 @@ func RandNamespacedShares(t *testing.T, total int) NamespacedShares {
 	shares := make(NamespacedShares, total)
 	for i := 0; i < total; i++ {
 		shares[i].ID = data[i]
-		shares[i].Share = make([]byte, NamespaceSize+ShareSize)
+		shares[i].Share = make([]byte, NamespaceSize+plugin.ShareSize)
 		copy(shares[i].Share[:NamespaceSize], data[i])
 		_, err := mrand.Read(shares[i].Share[NamespaceSize:]) // nolint:gosec // G404: Use of weak random number generator
 		require.NoError(t, err)

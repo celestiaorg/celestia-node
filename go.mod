@@ -2,7 +2,7 @@ module github.com/celestiaorg/celestia-node
 
 go 1.16
 
-replace github.com/ipfs/go-verifcid => github.com/lazyledger/go-verifcid v0.0.1-lazypatch
+replace github.com/ipfs/go-verifcid => github.com/celestiaorg/go-verifcid v0.0.1-lazypatch
 
 require (
 	github.com/BurntSushi/toml v0.4.1

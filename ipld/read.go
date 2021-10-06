@@ -140,7 +140,7 @@ func (sc *shareCounter) retrieveShare(
 		}
 	}
 
-	if len(data) < ShareSize {
+	if len(data) < plugin.ShareSize {
 		return
 	}
 
