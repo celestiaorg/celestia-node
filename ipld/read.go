@@ -31,7 +31,11 @@ func RetrieveData(
 	rowRoots := dah.RowsRoots
 	colRoots := dah.ColumnRoots
 	// sample 1/4 of the total extended square by sampling half of the leaves in
-	// half of the rows
+	// half of the rows.
+	// Sampling is done randomly here in an effort to increase
+	// resilience when the downloading node is also serving the shares back to
+	// the network. // TODO @renaynay: this should probably eventually change to
+	// just downloading the first half.
 	for _, row := range uniqueRandNumbers(edsWidth/2, edsWidth) {
 		for _, col := range uniqueRandNumbers(edsWidth/2, edsWidth) {
 			rootCid, err := plugin.CidFromNamespacedSha256(rowRoots[row])
