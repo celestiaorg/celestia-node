@@ -65,3 +65,6 @@ linters-settings:
     suggest-new: true
   misspell:
     locale: US
+
+goimports:
+  local-prefixes: github.com/celestiaorg/celestia-node
