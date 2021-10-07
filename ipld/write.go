@@ -5,9 +5,10 @@ import (
 	"fmt"
 	"math"
 
+	ipld "github.com/ipfs/go-ipld-format"
+
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/rsmt2d"
-	ipld "github.com/ipfs/go-ipld-format"
 
 	"github.com/celestiaorg/celestia-core/pkg/wrapper"
 )

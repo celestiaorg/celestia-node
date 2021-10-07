@@ -8,9 +8,10 @@ import (
 	"sort"
 	"testing"
 
-	"github.com/celestiaorg/rsmt2d"
 	"github.com/ipfs/go-cid"
 	"github.com/stretchr/testify/require"
+
+	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-core/pkg/wrapper"
 	"github.com/celestiaorg/celestia-node/ipld/plugin"

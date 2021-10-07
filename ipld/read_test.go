@@ -9,13 +9,14 @@ import (
 	"testing"
 	"time"
 
-	"github.com/celestiaorg/nmt"
-	"github.com/celestiaorg/rsmt2d"
 	"github.com/ipfs/go-cid"
 	format "github.com/ipfs/go-ipld-format"
 	mdutils "github.com/ipfs/go-merkledag/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/celestiaorg/nmt"
+	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-core/pkg/wrapper"
 	"github.com/celestiaorg/celestia-node/ipld/plugin"
