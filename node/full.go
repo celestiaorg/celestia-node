@@ -6,6 +6,7 @@ import (
 	"github.com/celestiaorg/celestia-node/core"
 	nodecore "github.com/celestiaorg/celestia-node/node/core"
 	"github.com/celestiaorg/celestia-node/node/fxutil"
+	"github.com/celestiaorg/celestia-node/node/rpc"
 	"github.com/celestiaorg/celestia-node/service/block"
 )
 
@@ -18,6 +19,7 @@ func fullComponents(cfg *Config, repo Repository) fx.Option {
 		fx.Provide(func(client core.Client) block.Fetcher {
 			return core.NewBlockFetcher(client)
 		}),
+		fx.Provide(rpc.NewServer),
 		fx.Provide(block.NewBlockService),
 	)
 }

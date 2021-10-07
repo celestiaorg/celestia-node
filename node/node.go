@@ -3,6 +3,7 @@ package node
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"time"
 
 	exchange "github.com/ipfs/go-ipfs-exchange-interface"
@@ -15,6 +16,7 @@ import (
 	"go.uber.org/fx"
 
 	"github.com/celestiaorg/celestia-node/core"
+	"github.com/celestiaorg/celestia-node/node/rpc"
 	"github.com/celestiaorg/celestia-node/service/block"
 )
 
@@ -36,6 +38,9 @@ type Node struct {
 
 	// CoreClient provides access to a Core node process.
 	CoreClient core.Client `optional:"true"`
+
+	// RPCServer provides access to Node's exposed APIs.
+	RPCServer *rpc.Server `optional:"true"`
 
 	// p2p components
 	Host         host.Host
@@ -80,12 +85,22 @@ func (n *Node) Start(ctx context.Context) error {
 		log.Errorf("starting %s Node: %s", n.Type, err)
 		return fmt.Errorf("node: failed to start: %w", err)
 	}
-	log.Infof("started %s Node", n.Type)
+
+	// start server if it exists // TODO @renaynay: eventually we'll add the RPC server to the light node
+	if n.RPCServer != nil {
+		log.Debugf("Starting RPC server...")
+		err = n.RPCServer.Start(n.Config.RPC.ListenAddr)
+		if err != nil {
+			log.Errorf("Error starting RPC server: %s", err)
+			return err
+		}
+	}
 
 	// TODO(@Wondertan): Print useful information about the node:
 	//  * API address
 	//  * Pubkey/PeerID
 	//  * Host listening address
+	log.Infof("%s Node is started", n.Type)
 	return nil
 }
 
@@ -101,6 +116,14 @@ func (n *Node) Run(ctx context.Context) error {
 	return ctx.Err()
 }
 
+func (n *Node) RegisterAPI(endpoint string, api http.Handler) error {
+	if n.RPCServer == nil {
+		return fmt.Errorf("RPC server does not exist")
+	}
+	n.RPCServer.RegisterHandler(endpoint, api)
+	return nil
+}
+
 // Stop shuts down the Node, all its running Components/Services and returns.
 // Canceling the given context earlier 'ctx' unblocks the Stop and aborts graceful shutdown forcing remaining
 // Components/Services to close immediately.
@@ -110,10 +133,20 @@ func (n *Node) Stop(ctx context.Context) error {
 
 	err := n.app.Stop(ctx)
 	if err != nil {
-		log.Errorf("stopping %s Node: %s", n.Type, err)
-		return fmt.Errorf("node: faild to stop: %w", err)
+		log.Errorf("Stopping %s Node: %s", n.Type, err)
+		return err
 	}
-	log.Infof("stopped %s Node", n.Type)
+
+	// stop server only if it exists  // TODO @renaynay: eventually we'll add the RPC server to the light node
+	if n.RPCServer != nil {
+		err = n.RPCServer.Stop()
+		if err != nil {
+			log.Errorf("Stopping server: %s", err)
+			return err
+		}
+	}
+
+	log.Infof("%s Node is stopped", n.Type)
 	return nil
 }
 
