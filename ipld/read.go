@@ -6,9 +6,10 @@ import (
 	"fmt"
 	"math/rand"
 
-	"github.com/celestiaorg/rsmt2d"
 	"github.com/ipfs/go-cid"
 	ipld "github.com/ipfs/go-ipld-format"
+
+	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-core/pkg/da"
 	"github.com/celestiaorg/celestia-core/pkg/wrapper"

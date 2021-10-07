@@ -4,9 +4,9 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/celestiaorg/celestia-core/testutils"
 	"github.com/stretchr/testify/assert"
 
+	"github.com/celestiaorg/celestia-core/testutils"
 	"github.com/celestiaorg/celestia-node/service/header"
 )
 

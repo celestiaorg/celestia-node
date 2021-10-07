@@ -1,10 +1,11 @@
 package core
 
 import (
-	tmlog "github.com/celestiaorg/celestia-core/libs/log"
 	"go.uber.org/zap"
 
 	logging "github.com/ipfs/go-log/v2"
+
+	tmlog "github.com/celestiaorg/celestia-core/libs/log"
 )
 
 var log = logging.Logger("core")

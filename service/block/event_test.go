@@ -4,9 +4,10 @@ import (
 	"context"
 	"testing"
 
+	"github.com/stretchr/testify/require"
+
 	"github.com/celestiaorg/celestia-core/testutils"
 	"github.com/celestiaorg/celestia-node/service/header"
-	"github.com/stretchr/testify/require"
 )
 
 func Test_listenForNewBlocks(t *testing.T) {
