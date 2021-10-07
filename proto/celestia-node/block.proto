@@ -1,0 +1,11 @@
+syntax = "proto3";
+package celestia.block;
+
+option go_package = "github.com/celestiaorg/celestia-node/proto/celestia-node";
+
+import "tendermint/types/types.proto";
+
+message BlockMeta {
+  int64 height = 1;
+  .tendermint.types.Commit last_commit = 2;
+}

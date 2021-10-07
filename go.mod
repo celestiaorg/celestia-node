@@ -9,6 +9,8 @@ require (
 	github.com/celestiaorg/celestia-core v0.0.2-0.20210924001615-488ac31b4b3c
 	github.com/celestiaorg/nmt v0.7.0
 	github.com/celestiaorg/rsmt2d v0.3.0
+	github.com/gogo/protobuf v1.3.2
+	github.com/golang/protobuf v1.5.2
 	github.com/ipfs/go-bitswap v0.3.4
 	github.com/ipfs/go-block-format v0.0.3
 	github.com/ipfs/go-blockservice v0.1.7
@@ -36,6 +38,8 @@ require (
 	github.com/multiformats/go-multihash v0.0.15
 	github.com/spf13/cobra v1.2.1
 	github.com/stretchr/testify v1.7.1-0.20210427113832-6241f9ab9942
+	github.com/tendermint/tendermint v0.34.13
 	go.uber.org/fx v1.14.2
 	go.uber.org/zap v1.19.0
+	google.golang.org/protobuf v1.27.1
 )

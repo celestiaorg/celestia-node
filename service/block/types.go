@@ -16,13 +16,24 @@ type RawBlock = core.Block
 // It contains the erasure coded block data as well as its
 // ExtendedHeader.
 type Block struct {
-	header     *header.ExtendedHeader
-	data       *ExtendedBlockData
+	header *header.ExtendedHeader
+	data   *ExtendedBlockData
+	meta   *BlockMeta
+}
+
+//nolint:revive
+// BlockMeta contains the metadata for the Block.
+type BlockMeta struct {
+	height     int64
 	lastCommit *core.Commit
 }
 
 // ExtendedBlockData is an alias to rsmt2d's ExtendedDataSquare type.
 type ExtendedBlockData = rsmt2d.ExtendedDataSquare
+
+func (b *Block) Height() int64 {
+	return b.meta.height
+}
 
 // Header returns the ExtendedHeader of the Block.
 func (b *Block) Header() *header.ExtendedHeader {
@@ -36,7 +47,7 @@ func (b *Block) Data() *ExtendedBlockData {
 
 // LastCommit returns the last commit of the Block.
 func (b *Block) LastCommit() *core.Commit {
-	return b.lastCommit
+	return b.meta.lastCommit
 }
 
 // DataSize returns the width of the ExtendedBlockData.

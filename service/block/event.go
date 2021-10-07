@@ -66,6 +66,10 @@ func (s *Service) handleRawBlock(raw *RawBlock) error {
 			DAH: &dah,
 		},
 		data: extendedBlockData,
+		meta: &BlockMeta{
+			height:     raw.Height,
+			lastCommit: raw.LastCommit,
+		},
 	}
 	// check for bad encoding fraud
 	err = validateEncoding(extendedBlock, raw.Header)
@@ -76,10 +80,10 @@ func (s *Service) handleRawBlock(raw *RawBlock) error {
 	}
 	err = s.StoreBlockData(context.Background(), extendedBlockData)
 	if err != nil {
-		log.Errorw("storing block", "err msg", err, "block height", raw.Height, "block hash",
+		log.Errorw("storing block data", "err msg", err, "block height", raw.Height, "block hash",
 			raw.Hash().String())
 		return err
 	}
-	log.Infow("stored block", "block height", raw.Height, "block hash", raw.Hash().String())
+	log.Infow("inserted block into chain", "block height", raw.Height, "block hash", raw.Hash().String())
 	return nil
 }
