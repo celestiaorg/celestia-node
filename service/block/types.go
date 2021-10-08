@@ -38,7 +38,7 @@ func (b *Block) LastCommit() *core.Commit {
 	return b.lastCommit
 }
 
-// DataSize returns the size of the ExtendedBlockData.
+// DataSize returns the width of the ExtendedBlockData.
 func (b *Block) DataSize() uint {
 	return b.data.Width()
 }

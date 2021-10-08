@@ -11,7 +11,8 @@ import (
 
 func (s *Service) StoreBlockData(ctx context.Context, data *ExtendedBlockData) error {
 	shares := ipld.ConvertEDStoShares(data)
-	// TODO @renaynay: it's inefficient that we generate the EDS twice
+	// TODO @renaynay: it's inefficient that we generate the EDS twice: once in event loop
+	// once in the IPLD plugin.
 	_, err := ipld.PutData(ctx, shares, s.store)
 	return err
 }
