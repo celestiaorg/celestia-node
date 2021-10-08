@@ -78,6 +78,6 @@ func (s *Service) handleRawBlock(raw *RawBlock) error {
 			raw.Hash().String())
 		return err
 	}
-	log.Infow("storing block", "block height", raw.Height, "block hash", raw.Hash().String())
+	log.Infow("stored block", "block height", raw.Height, "block hash", raw.Hash().String())
 	return nil
 }
