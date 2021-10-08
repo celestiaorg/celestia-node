@@ -86,8 +86,8 @@ func (n *Node) Start(ctx context.Context) error {
 		return fmt.Errorf("node: failed to start: %w", err)
 	}
 
-	// start server if it exists // TODO @renaynay: eventually we'll add the RPC server to the light node
-	if n.RPCServer != nil {
+	// start server only if Full node // TODO @renaynay: eventually we'll add the RPC server to the light node
+	if n.Type == Full {
 		log.Debugf("Starting RPC server...")
 		err = n.RPCServer.Start(n.Config.RPC.ListenAddr)
 		if err != nil {
@@ -137,8 +137,8 @@ func (n *Node) Stop(ctx context.Context) error {
 		return err
 	}
 
-	// stop server only if it exists  // TODO @renaynay: eventually we'll add the RPC server to the light node
-	if n.RPCServer != nil {
+	// stop server only if Full node  // TODO @renaynay: eventually we'll add the RPC server to the light node
+	if n.Type == Full {
 		err = n.RPCServer.Stop()
 		if err != nil {
 			log.Errorf("Stopping server: %s", err)
