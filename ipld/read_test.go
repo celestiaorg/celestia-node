@@ -128,7 +128,7 @@ func TestRetrieveBlockData(t *testing.T) {
 			// // generate EDS
 			eds := generateRandEDS(t, tc.squareSize)
 
-			shares := ConvertEDStoShares(eds)
+			shares := ExtractODSShares(eds)
 
 			in, err := PutData(ctx, shares, dag)
 			require.NoError(t, err)
@@ -159,7 +159,7 @@ func Test_ConvertEDStoShares(t *testing.T) {
 	eds, err := rsmt2d.ComputeExtendedDataSquare(rawshares, rsmt2d.NewRSGF8Codec(), tree.Constructor)
 	require.NoError(t, err)
 
-	resshares := ConvertEDStoShares(eds)
+	resshares := ExtractODSShares(eds)
 	require.Equal(t, rawshares, resshares)
 }
 
