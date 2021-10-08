@@ -10,8 +10,3 @@ type Fetcher interface {
 	SubscribeNewBlockEvent(ctx context.Context) (<-chan *RawBlock, error)
 	UnsubscribeNewBlockEvent(ctx context.Context) error
 }
-
-type Store interface {
-	GetBlockByHash(hash []byte) (*Block, error)
-	Store(block *Block) error
-}
