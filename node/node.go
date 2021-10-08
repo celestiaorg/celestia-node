@@ -60,7 +60,15 @@ func New(tp Type, repo Repository) (*Node, error) {
 	case Full:
 		return newNode(fullComponents(cfg, repo))
 	case Light:
-		return newNode(lightComponents(cfg, repo))
+		// TODO @renaynay @wondertan: hacky, but fx.Provide does not allow two values to be written,
+		// therefore Full node always has Light type since it's provided in lightComponents
+		components := []fx.Option{
+			lightComponents(cfg, repo),
+			fx.Provide(func() Type {
+				return Light
+			}),
+		}
+		return newNode(components...)
 	default:
 		panic("node: unknown Node Type")
 	}

@@ -14,7 +14,7 @@ func TestNewLight(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, nd)
 	require.NotNil(t, nd.Config)
-	assert.NotZero(t, nd.Type)
+	assert.Equal(t, Light, nd.Type)
 }
 
 func TestLightLifecycle(t *testing.T) {

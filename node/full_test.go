@@ -19,7 +19,7 @@ func TestNewFull(t *testing.T) {
 	require.NotNil(t, node)
 	require.NotNil(t, node.Config)
 	require.NotNil(t, node.Host)
-	assert.NotZero(t, node.Type)
+	assert.Equal(t, Full, node.Type)
 }
 
 func TestFullLifecycle(t *testing.T) {

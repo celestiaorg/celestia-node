@@ -13,6 +13,9 @@ import (
 func fullComponents(cfg *Config, repo Repository) fx.Option {
 	return fx.Options(
 		lightComponents(cfg, repo),
+		fx.Provide(func() Type {
+			return Full
+		}),
 		fxutil.ProvideIf(!cfg.Core.Remote, repo.Core), // provide core repo constructor only in embedded mode.
 		nodecore.Components(cfg.Core),
 		fx.Provide(func(client core.Client) block.Fetcher {
