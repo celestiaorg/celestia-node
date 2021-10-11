@@ -78,7 +78,7 @@ func (n *Node) Start(ctx context.Context) error {
 	err := n.app.Start(ctx)
 	if err != nil {
 		log.Errorf("starting %s Node: %s", n.Type, err)
-		return fmt.Errorf("node: faild to start: %w", err)
+		return fmt.Errorf("node: failed to start: %w", err)
 	}
 	log.Infof("started %s Node", n.Type)
 

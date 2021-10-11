@@ -23,7 +23,6 @@ func InitWith(path string, tp Type, cfg *Config) error {
 		return err
 	}
 	log.Infof("Initializing %s Node Repository over '%s'", tp, path)
-	defer log.Info("Node Repository initialized")
 
 	err = initRoot(path)
 	if err != nil {
@@ -55,9 +54,9 @@ func InitWith(path string, tp Type, cfg *Config) error {
 		if err != nil {
 			return err
 		}
-		log.Info("Saving config")
+		log.Infow("Saving config", "path", cfgPath)
 	} else {
-		log.Info("Config already exists")
+		log.Infow("Config already exists", "path", cfgPath)
 	}
 
 	// TODO(@Wondertan): This is a lazy hack which prevents Core Repository to be generated for all case, and generates
@@ -73,6 +72,7 @@ func InitWith(path string, tp Type, cfg *Config) error {
 		return core.Init(corePath)
 	}
 
+	log.Info("Node Repository initialized")
 	return nil
 }
 
