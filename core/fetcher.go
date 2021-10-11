@@ -17,6 +17,7 @@ type BlockFetcher struct {
 	client Client
 
 	newBlockCh chan *block.RawBlock
+	doneCh     chan struct{}
 }
 
 // NewBlockFetcher returns a new `BlockFetcher`.
@@ -53,11 +54,12 @@ func (f *BlockFetcher) SubscribeNewBlockEvent(ctx context.Context) (<-chan *bloc
 	}
 
 	f.newBlockCh = make(chan *block.RawBlock)
+	f.doneCh = make(chan struct{})
 
 	go func() {
 		for {
 			select {
-			case <-ctx.Done():
+			case <-f.doneCh:
 				return
 			case newEvent, ok := <-eventChan:
 				if !ok {
@@ -70,7 +72,7 @@ func (f *BlockFetcher) SubscribeNewBlockEvent(ctx context.Context) (<-chan *bloc
 				}
 				select {
 				case f.newBlockCh <- newBlock.Block:
-				case <-ctx.Done():
+				case <-f.doneCh:
 					return
 				}
 			}
@@ -86,9 +88,16 @@ func (f *BlockFetcher) UnsubscribeNewBlockEvent(ctx context.Context) error {
 	if f.newBlockCh == nil {
 		return fmt.Errorf("no new block event channel found")
 	}
+	if f.doneCh == nil {
+		return fmt.Errorf("no done channel found in fetcher") // TODO @renaynay: better err message
+	}
 	defer func() {
+		// send stop signal
+		f.doneCh <- struct{}{}
 		close(f.newBlockCh)
+		close(f.doneCh)
 		f.newBlockCh = nil
+		f.doneCh = nil
 	}()
 
 	return f.client.Unsubscribe(ctx, newBlockSubscriber, newBlockEventQuery)

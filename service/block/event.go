@@ -2,7 +2,6 @@ package block
 
 import (
 	"context"
-
 	"github.com/celestiaorg/celestia-node/service/header"
 )
 
@@ -21,6 +20,7 @@ func (s *Service) listenForNewBlocks(ctx context.Context) error {
 		for {
 			newRawBlock, ok := <-newBlockEventChan
 			if !ok {
+				log.Debug("new block event channel closed")
 				return
 			}
 			log.Infow("received new block", "block height", newRawBlock.Height, "block hash",

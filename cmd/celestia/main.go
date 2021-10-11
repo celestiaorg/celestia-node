@@ -8,7 +8,10 @@ import (
 )
 
 func init() {
-	rootCmd.AddCommand(fullCmd, lightCmd)
+	rootCmd.AddCommand(
+		fullCmd,
+		lightCmd,
+		devCmd)
 }
 
 func main() {

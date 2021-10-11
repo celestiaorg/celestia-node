@@ -70,6 +70,8 @@ func New(tp Type, repo Repository) (*Node, error) {
 		return newNode(tp, fullComponents(cfg, repo))
 	case Light:
 		return newNode(tp, lightComponents(cfg, repo))
+	case Dev:
+		return newNode(tp, mockFullComponents(cfg, repo))
 	default:
 		panic("node: unknown Node Type")
 	}
@@ -85,7 +87,6 @@ func (n *Node) Start(ctx context.Context) error {
 		log.Errorf("starting %s Node: %s", n.Type, err)
 		return fmt.Errorf("node: failed to start: %w", err)
 	}
-
 	// start server only if Full node // TODO @renaynay: eventually we'll add the RPC server to the light node
 	if n.Type == Full {
 		log.Debugf("Starting RPC server...")
@@ -95,12 +96,20 @@ func (n *Node) Start(ctx context.Context) error {
 			return err
 		}
 	}
+	// start block service if not Light node
+	if n.Type != Light {
+		err = n.BlockServ.Start(ctx)
+		if err != nil {
+			log.Errorw("starting block service", "err", err)
+			return fmt.Errorf("node: failed to start block service: %w", err)
+		}
+	}
 
 	// TODO(@Wondertan): Print useful information about the node:
 	//  * API address
 	//  * Pubkey/PeerID
 	//  * Host listening address
-	log.Infof("%s Node is started", n.Type)
+	log.Infof("started %s Node", n.Type)
 	return nil
 }
 
@@ -131,22 +140,31 @@ func (n *Node) Stop(ctx context.Context) error {
 	ctx, cancel := context.WithTimeout(ctx, Timeout)
 	defer cancel()
 
-	err := n.app.Stop(ctx)
-	if err != nil {
-		log.Errorf("Stopping %s Node: %s", n.Type, err)
-		return err
-	}
-
 	// stop server only if Full node  // TODO @renaynay: eventually we'll add the RPC server to the light node
 	if n.Type == Full {
-		err = n.RPCServer.Stop()
+		err := n.RPCServer.Stop()
 		if err != nil {
 			log.Errorf("Stopping server: %s", err)
 			return err
 		}
 	}
 
-	log.Infof("%s Node is stopped", n.Type)
+	err := n.app.Stop(ctx)
+	if err != nil {
+		log.Errorf("Stopping %s Node: %s", n.Type, err)
+		return err
+	}
+
+	// stop block service if not Light node
+	if n.Type != Light {
+		err = n.BlockServ.Stop(ctx)
+		if err != nil {
+			log.Errorw("stopping block service", "err", err)
+			return fmt.Errorf("node: failed to stop block service: %w", err)
+		}
+	}
+
+	log.Infof("stopped %s Node", n.Type)
 	return nil
 }
 
