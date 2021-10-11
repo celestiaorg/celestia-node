@@ -39,6 +39,11 @@ func (b *Block) LastCommit() *core.Commit {
 	return b.lastCommit
 }
 
+// DataSize returns the width of the ExtendedBlockData.
+func (b *Block) DataSize() uint {
+	return b.data.Width()
+}
+
 // BadEncodingError contains all relevant information to
 // generate a BadEncodingFraudProof.
 type BadEncodingError struct{}

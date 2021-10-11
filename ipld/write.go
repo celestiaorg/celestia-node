@@ -34,8 +34,10 @@ func PutData(ctx context.Context, shares [][]byte, adder ipld.NodeAdder) (*rsmt2
 	return eds, batchAdder.Commit()
 }
 
-// convertEDStoShares returns the original shares of the given ExtendedDataSquare.
-func convertEDStoShares(eds *rsmt2d.ExtendedDataSquare) [][]byte {
+// ExtractODSShares returns the original shares of the given ExtendedDataSquare. This
+// is a helper function for circumstances where PutData must be used after the EDS has already
+// been generated.
+func ExtractODSShares(eds *rsmt2d.ExtendedDataSquare) [][]byte {
 	origWidth := eds.Width() / 2
 	origShares := make([][]byte, origWidth*origWidth)
 	for i := uint(0); i < origWidth; i++ {

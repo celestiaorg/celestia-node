@@ -72,6 +72,12 @@ func (s *Service) handleRawBlock(raw *RawBlock) error {
 			"block hash", raw.Hash().String())
 		return err
 	}
-	// TODO @renaynay: store extended block
+	err = s.StoreBlockData(context.Background(), extendedBlockData)
+	if err != nil {
+		log.Errorw("storing block", "err msg", err, "block height", raw.Height, "block hash",
+			raw.Hash().String())
+		return err
+	}
+	log.Infow("stored block", "block height", raw.Height, "block hash", raw.Hash().String())
 	return nil
 }

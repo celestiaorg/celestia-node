@@ -3,6 +3,7 @@ package block
 import (
 	"context"
 
+	ipld "github.com/ipfs/go-ipld-format"
 	logging "github.com/ipfs/go-log/v2"
 )
 
@@ -14,14 +15,16 @@ import (
 // 		4. Serving erasure coded blocks to other `Full` node peers.
 type Service struct {
 	fetcher Fetcher
+	store   ipld.DAGService
 }
 
 var log = logging.Logger("block-service")
 
 // NewBlockService creates a new instance of block Service.
-func NewBlockService(fetcher Fetcher) *Service {
+func NewBlockService(fetcher Fetcher, store ipld.DAGService) *Service {
 	return &Service{
 		fetcher: fetcher,
+		store:   store,
 	}
 }
 
