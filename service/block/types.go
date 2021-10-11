@@ -1,8 +1,9 @@
 package block
 
 import (
-	"github.com/celestiaorg/celestia-node/service/header"
 	"github.com/celestiaorg/rsmt2d"
+
+	"github.com/celestiaorg/celestia-node/service/header"
 
 	core "github.com/celestiaorg/celestia-core/types"
 )

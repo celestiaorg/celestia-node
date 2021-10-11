@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+//nolint:dupl
 func TestRepoFull(t *testing.T) {
 	dir := t.TempDir()
 
@@ -33,8 +34,13 @@ func TestRepoFull(t *testing.T) {
 	crepo, err := repo.Core()
 	assert.NoError(t, err)
 	assert.NotNil(t, crepo)
+
+	cfg, err := repo.Config()
+	assert.NoError(t, err)
+	assert.NotNil(t, cfg)
 }
 
+//nolint:dupl
 func TestRepoLight(t *testing.T) {
 	dir := t.TempDir()
 
@@ -61,4 +67,8 @@ func TestRepoLight(t *testing.T) {
 	crepo, err := repo.Core()
 	assert.Error(t, err)
 	assert.Nil(t, crepo)
+
+	cfg, err := repo.Config()
+	assert.NoError(t, err)
+	assert.NotNil(t, cfg)
 }

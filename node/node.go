@@ -2,6 +2,8 @@ package node
 
 import (
 	"context"
+	"fmt"
+	"time"
 
 	exchange "github.com/ipfs/go-ipfs-exchange-interface"
 	format "github.com/ipfs/go-ipld-format"
@@ -15,6 +17,8 @@ import (
 	"github.com/celestiaorg/celestia-node/core"
 	"github.com/celestiaorg/celestia-node/service/block"
 )
+
+const Timeout = time.Second * 15
 
 var log = logging.Logger("node")
 
@@ -58,9 +62,9 @@ func New(tp Type, repo Repository) (*Node, error) {
 
 	switch tp {
 	case Full:
-		return newNode(fullComponents(cfg, repo))
+		return newNode(tp, fullComponents(cfg, repo))
 	case Light:
-		return newNode(lightComponents(cfg, repo))
+		return newNode(tp, lightComponents(cfg, repo))
 	default:
 		panic("node: unknown Node Type")
 	}
@@ -68,23 +72,20 @@ func New(tp Type, repo Repository) (*Node, error) {
 
 // Start launches the Node and all its components and services.
 func (n *Node) Start(ctx context.Context) error {
-	ctx, cancel := context.WithTimeout(ctx, n.app.StartTimeout())
+	ctx, cancel := context.WithTimeout(ctx, Timeout)
 	defer cancel()
 
-	log.Debugf("Starting %s Node...", n.Type)
 	err := n.app.Start(ctx)
 	if err != nil {
-		log.Errorf("Error starting %s Node: %s", n.Type, err)
-		return err
+		log.Errorf("starting %s Node: %s", n.Type, err)
+		return fmt.Errorf("node: failed to start: %w", err)
 	}
-
-	log.Infof("%s Node is started", n.Type)
+	log.Infof("started %s Node", n.Type)
 
 	// TODO(@Wondertan): Print useful information about the node:
 	//  * API address
 	//  * Pubkey/PeerID
 	//  * Host listening address
-
 	return nil
 }
 
@@ -104,17 +105,15 @@ func (n *Node) Run(ctx context.Context) error {
 // Canceling the given context earlier 'ctx' unblocks the Stop and aborts graceful shutdown forcing remaining
 // Components/Services to close immediately.
 func (n *Node) Stop(ctx context.Context) error {
-	ctx, cancel := context.WithTimeout(ctx, n.app.StopTimeout())
+	ctx, cancel := context.WithTimeout(ctx, Timeout)
 	defer cancel()
 
-	log.Debugf("Stopping %s Node...", n.Type)
 	err := n.app.Stop(ctx)
 	if err != nil {
-		log.Errorf("Error stopping %s Node: %s", n.Type, err)
-		return err
+		log.Errorf("stopping %s Node: %s", n.Type, err)
+		return fmt.Errorf("node: faild to stop: %w", err)
 	}
-
-	log.Infof("%s Node is stopped", n.Type)
+	log.Infof("stopped %s Node", n.Type)
 	return nil
 }
 
@@ -122,12 +121,15 @@ func (n *Node) Stop(ctx context.Context) error {
 // DI options allow initializing the Node with a customized set of components and services.
 // NOTE: newNode is currently meant to be used privately to create various custom Node types e.g. full, unless we
 // decide to give package users the ability to create custom node types themselves.
-func newNode(opts ...fx.Option) (*Node, error) {
+func newNode(tp Type, opts ...fx.Option) (*Node, error) {
 	node := new(Node)
 	node.app = fx.New(
 		fx.NopLogger,
 		fx.Extract(node),
 		fx.Options(opts...),
+		fx.Provide(func() Type {
+			return tp
+		}),
 	)
 	return node, node.app.Err()
 }

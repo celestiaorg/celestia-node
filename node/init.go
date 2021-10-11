@@ -9,15 +9,25 @@ import (
 	"github.com/celestiaorg/celestia-node/libs/utils"
 )
 
-// Init initializes the Node FileSystem(FS) Repository for th given Node Type 'tp' in the directory under 'path' with
-// the given Config.
+// Init initializes the Node FileSystem Repository for the given Node Type 'tp' in the directory under 'path' with
+// default Config.
 func Init(path string, tp Type) error {
+	return InitWith(path, tp, DefaultConfig(tp))
+}
+
+// InitWith initializes the Node FileSystem Repository for the given Node Type 'tp' in the directory under 'path'
+// with the given Config 'cfg'.
+func InitWith(path string, tp Type, cfg *Config) error {
 	path, err := repoPath(path)
 	if err != nil {
 		return err
 	}
-	log.Info("Initializing Repository for the Node over '%s'", path)
-	defer log.Info("Repository initialized")
+	log.Infof("Initializing %s Node Repository over '%s'", tp, path)
+
+	err = initRoot(path)
+	if err != nil {
+		return err
+	}
 
 	flock, err := fslock.Lock(lockPath(path))
 	if err != nil {
@@ -27,11 +37,6 @@ func Init(path string, tp Type) error {
 		return err
 	}
 	defer flock.Unlock() //nolint: errcheck
-
-	err = initRoot(path)
-	if err != nil {
-		return err
-	}
 
 	err = initDir(keysPath(path))
 	if err != nil {
@@ -43,16 +48,15 @@ func Init(path string, tp Type) error {
 		return err
 	}
 
-	cfg := DefaultConfig(tp)
 	cfgPath := configPath(path)
 	if !utils.Exists(cfgPath) {
 		err = SaveConfig(cfgPath, cfg)
 		if err != nil {
 			return err
 		}
-		log.Info("New config is generated")
+		log.Infow("Saving config", "path", cfgPath)
 	} else {
-		log.Info("Config already exists")
+		log.Infow("Config already exists", "path", cfgPath)
 	}
 
 	// TODO(@Wondertan): This is a lazy hack which prevents Core Repository to be generated for all case, and generates
@@ -68,10 +72,11 @@ func Init(path string, tp Type) error {
 		return core.Init(corePath)
 	}
 
+	log.Info("Node Repository initialized")
 	return nil
 }
 
-// IsInit checks whether FS Repository was setup under given 'path'.
+// IsInit checks whether FileSystem Repository was setup under given 'path'.
 // If any required file/subdirectory does not exist, then false is reported.
 func IsInit(path string, tp Type) bool {
 	path, err := repoPath(path)

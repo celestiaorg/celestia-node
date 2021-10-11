@@ -82,7 +82,7 @@ func (f *fsRepository) Path() string {
 }
 
 func (f *fsRepository) Config() (*Config, error) {
-	cfg, err := LoadConfig(f.path)
+	cfg, err := LoadConfig(configPath(f.path))
 	if err != nil {
 		return nil, fmt.Errorf("node: can't load Config: %w", err)
 	}
@@ -91,7 +91,7 @@ func (f *fsRepository) Config() (*Config, error) {
 }
 
 func (f *fsRepository) PutConfig(cfg *Config) error {
-	err := SaveConfig(f.path, cfg)
+	err := SaveConfig(configPath(f.path), cfg)
 	if err != nil {
 		return fmt.Errorf("node: can't save Config: %w", err)
 	}
