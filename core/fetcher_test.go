@@ -9,7 +9,7 @@ import (
 )
 
 func TestBlockFetcher_GetBlock_and_SubscribeNewBlockEvent(t *testing.T) {
-	client := MockEmbeddedClient()
+	client := MockEmbeddedClient(true)
 	fetcher := NewBlockFetcher(client)
 
 	ctx, cancel := context.WithCancel(context.Background())

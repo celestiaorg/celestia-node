@@ -34,8 +34,8 @@ func StartMockNode(suppressStdout bool) *node.Node {
 }
 
 // MockEmbeddedClient returns a started mock Core Client.
-func MockEmbeddedClient() Client {
-	return NewEmbeddedFromNode(StartMockNode(false))
+func MockEmbeddedClient(suppressStdout bool) Client {
+	return NewEmbeddedFromNode(StartMockNode(suppressStdout))
 }
 
 // StartRemoteClient returns a started remote Core node process, as well its

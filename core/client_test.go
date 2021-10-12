@@ -8,12 +8,12 @@ import (
 )
 
 func TestEmbeddedClientLifecycle(t *testing.T) {
-	client := MockEmbeddedClient()
+	client := MockEmbeddedClient(true)
 	require.NoError(t, client.Stop())
 }
 
 func TestEmbeddedClient_Status(t *testing.T) {
-	client := MockEmbeddedClient()
+	client := MockEmbeddedClient(true)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
@@ -26,7 +26,7 @@ func TestEmbeddedClient_Status(t *testing.T) {
 }
 
 func TestEmbeddedClient_StartBlockSubscription_And_GetBlock(t *testing.T) {
-	client := MockEmbeddedClient()
+	client := MockEmbeddedClient(true)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)

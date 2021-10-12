@@ -31,7 +31,9 @@ func mockFullComponents(cfg *Config, repo Repository) fx.Option {
 	return fx.Options(
 		lightComponents(cfg, repo),
 		fx.Provide(repo.Core),
-		fx.Provide(core.MockEmbeddedClient),
+		fx.Provide(func() core.Client {
+			return core.MockEmbeddedClient(false)
+		}),
 		fx.Provide(func(client core.Client) block.Fetcher {
 			return core.NewBlockFetcher(client)
 		}),
