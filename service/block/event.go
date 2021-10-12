@@ -2,6 +2,7 @@ package block
 
 import (
 	"context"
+
 	"github.com/celestiaorg/celestia-node/service/header"
 )
 
@@ -58,6 +59,7 @@ func (s *Service) handleRawBlock(raw *RawBlock) error {
 			"block hash", raw.Hash().String())
 		return err
 	}
+	log.Debugw("generated DataAvailabilityHeader", "data root", dah.Hash())
 	// create Block
 	extendedBlock := &Block{
 		header: &header.ExtendedHeader{

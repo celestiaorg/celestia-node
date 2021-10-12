@@ -1,12 +1,13 @@
 package core
 
 import (
+	"os"
+	"testing"
+
 	"github.com/celestiaorg/celestia-core/abci/example/kvstore"
 	"github.com/celestiaorg/celestia-core/config"
 	"github.com/celestiaorg/celestia-core/node"
 	rpctest "github.com/celestiaorg/celestia-core/rpc/test"
-	"os"
-	"testing"
 )
 
 func MockConfigDevMode() *Config {
@@ -36,7 +37,6 @@ func StartMockNode(suppressStdout bool) *node.Node {
 func MockEmbeddedClient() Client {
 	return NewEmbeddedFromNode(StartMockNode(false))
 }
-
 
 // StartRemoteClient returns a started remote Core node process, as well its
 // mock Core Client.
