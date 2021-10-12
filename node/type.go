@@ -11,7 +11,7 @@ const (
 	// security guarantees.
 	Light
 	// Dev is a full-featured Celestia Node running alongside a mock embedded Core node process,
-	// designed to simulate block production (for testing/dev purposes only).A
+	// designed to simulate block production (for testing/dev purposes only).
 	Dev
 )
 

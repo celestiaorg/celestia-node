@@ -84,16 +84,16 @@ func (f *BlockFetcher) SubscribeNewBlockEvent(ctx context.Context) (<-chan *bloc
 
 // UnsubscribeNewBlockEvent stops the subscription to new block events from Core.
 func (f *BlockFetcher) UnsubscribeNewBlockEvent(ctx context.Context) error {
-	// close the new block channel
 	if f.newBlockCh == nil {
 		return fmt.Errorf("no new block event channel found")
 	}
 	if f.doneCh == nil {
-		return fmt.Errorf("no done channel found in fetcher") // TODO @renaynay: better err message
+		return fmt.Errorf("no stop signal chan found in fetcher")
 	}
 	defer func() {
 		// send stop signal
 		f.doneCh <- struct{}{}
+		// close out fetcher channels
 		close(f.newBlockCh)
 		close(f.doneCh)
 		f.newBlockCh = nil

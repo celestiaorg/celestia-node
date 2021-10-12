@@ -10,10 +10,6 @@ import (
 	rpctest "github.com/celestiaorg/celestia-core/rpc/test"
 )
 
-func MockConfigDevMode() *Config {
-	return config.ResetTestRoot("dev")
-}
-
 // MockConfig provides a testing configuration for embedded Core Client.
 func MockConfig(t *testing.T) *Config {
 	cfg := config.ResetTestRoot(t.Name())
