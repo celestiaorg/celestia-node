@@ -17,6 +17,7 @@ import (
 
 	"github.com/celestiaorg/celestia-node/core"
 	"github.com/celestiaorg/celestia-node/node/rpc"
+	handlers "github.com/celestiaorg/celestia-node/node/rpc/handlers"
 	"github.com/celestiaorg/celestia-node/service/block"
 )
 
@@ -94,6 +95,13 @@ func (n *Node) Start(ctx context.Context) error {
 			log.Errorf("Error starting RPC server: %s", err)
 			return err
 		}
+
+		log.Debugf("Registering RPC handlers...")
+		err = n.RegisterHandlers()
+		if err != nil {
+			log.Errorf("Error registering RPC handlers: %s", err)
+			return err
+		}
 	}
 
 	// TODO(@Wondertan): Print useful information about the node:
@@ -122,6 +130,13 @@ func (n *Node) RegisterAPI(endpoint string, api http.Handler) error {
 	}
 	n.RPCServer.RegisterHandler(endpoint, api)
 	return nil
+}
+
+func (n *Node) RegisterHandlers() error {
+	return n.RegisterAPI("/status", handlers.StatusHandler{
+		Address: n.Config.P2P.ListenAddresses,
+		Network: n.Config.P2P.Network,
+	})
 }
 
 // Stop shuts down the Node, all its running Components/Services and returns.
