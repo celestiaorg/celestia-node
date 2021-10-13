@@ -8,7 +8,7 @@ import (
 	"net/http"
 	"testing"
 
-	handlers "github.com/celestiaorg/celestia-node/node/rpc/handlers"
+	"github.com/celestiaorg/celestia-node/node/rpc/handlers"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 

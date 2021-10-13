@@ -17,7 +17,7 @@ import (
 
 	"github.com/celestiaorg/celestia-node/core"
 	"github.com/celestiaorg/celestia-node/node/rpc"
-	handlers "github.com/celestiaorg/celestia-node/node/rpc/handlers"
+	"github.com/celestiaorg/celestia-node/node/rpc/handlers"
 	"github.com/celestiaorg/celestia-node/service/block"
 )
 
