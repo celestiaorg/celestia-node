@@ -20,24 +20,21 @@ func MockConfig(t *testing.T) *Config {
 }
 
 // StartMockNode starts a mock Core node background process and returns it.
-func StartMockNode(suppressStdout bool) *node.Node {
+func StartMockNode() *node.Node {
 	app := kvstore.NewApplication()
 	app.RetainBlocks = 10
-	if suppressStdout {
-		return rpctest.StartTendermint(app, rpctest.SuppressStdout, rpctest.RecreateConfig)
-	}
-	return rpctest.StartTendermint(app, rpctest.RecreateConfig)
+	return rpctest.StartTendermint(app, rpctest.SuppressStdout, rpctest.RecreateConfig)
 }
 
 // MockEmbeddedClient returns a started mock Core Client.
-func MockEmbeddedClient(suppressStdout bool) Client {
-	return NewEmbeddedFromNode(StartMockNode(suppressStdout))
+func MockEmbeddedClient() Client {
+	return NewEmbeddedFromNode(StartMockNode())
 }
 
 // StartRemoteClient returns a started remote Core node process, as well its
 // mock Core Client.
 func StartRemoteClient() (*node.Node, Client, error) {
-	remote := StartMockNode(true)
+	remote := StartMockNode()
 	protocol, ip := getRemoteEndpoint(remote)
 	client, err := NewRemote(protocol, ip)
 	return remote, client, err

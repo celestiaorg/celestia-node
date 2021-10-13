@@ -8,13 +8,16 @@ import (
 )
 
 func init() {
-	const repoName = "dev"
 	devCmd.AddCommand(
-		cmd.Start(repoName, node.Dev),
+		cmd.Start("", node.Dev),
 	)
 }
 
 var devCmd = &cobra.Command{
-	Use:  "dev start",
+	Use:   "dev start",
+	Short: "Run a full node in dev mode",
+	Long: `Dev mode starts a full-featured Celestia Node alongside a mock embedded Core node process
+to simulate block production for testing/development purposes only. Dev mode disables p2p and manages node/chain data 
+in memory.`,
 	Args: cobra.NoArgs,
 }

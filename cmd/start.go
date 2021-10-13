@@ -15,7 +15,7 @@ func Start(repoName string, tp node.Type) *cobra.Command {
 	if !tp.IsValid() {
 		panic("cmd: Start: invalid Node Type")
 	}
-	if len(repoName) == 0 {
+	if len(repoName) == 0 && tp != node.Dev { // repository path not necessary for **DEV MODE**
 		panic("parent command must specify a persistent flag name for repository path")
 	}
 	return &cobra.Command{
