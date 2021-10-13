@@ -15,7 +15,6 @@ type StatusHandler struct {
 }
 
 func (s StatusHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	//nolint:errcheck
 	jsonStatus, err := json.Marshal(s)
 	if err != nil {
 		errorMessage := "Could not marshal the status. " + err.Error()
