@@ -144,6 +144,7 @@ func (p ping) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("pong"))
 }
 
+// Should be moved to a specific handlers tests file
 func TestFull_RPCStatus(t *testing.T) {
 	repo := MockRepository(t, DefaultConfig(Full))
 	node, err := New(Full, repo)
