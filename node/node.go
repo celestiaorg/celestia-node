@@ -132,6 +132,8 @@ func (n *Node) RegisterAPI(endpoint string, api http.Handler) error {
 	return nil
 }
 
+// Registers RPC handlers.
+// Other handlers will be added later.
 func (n *Node) RegisterHandlers() error {
 	return n.RegisterAPI("/status", handlers.StatusHandler{
 		Address: n.Config.P2P.ListenAddresses,
