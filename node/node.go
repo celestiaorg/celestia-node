@@ -132,7 +132,7 @@ func (n *Node) RegisterAPI(endpoint string, api http.Handler) error {
 	return nil
 }
 
-// Registers RPC handlers.
+// RegisterHandlers registers the node's RPC handlers on the node's RPC server.
 // Other handlers will be added later.
 func (n *Node) RegisterHandlers() error {
 	return n.RegisterAPI("/status", handlers.StatusMessage{
