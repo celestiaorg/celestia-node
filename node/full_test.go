@@ -69,12 +69,10 @@ func TestFull_P2P_Streams(t *testing.T) {
 	peer, err := New(Full, repo)
 	require.NoError(t, err)
 	require.NotNil(t, peer)
-	require.NotNil(t, node.Host)
+	require.NotNil(t, peer.Host)
 
 	nodeCtx, nodeCtxCancel := context.WithCancel(context.Background())
-	peerCtx, peerCtxCancel := context.WithCancel(context.Background())
 	t.Cleanup(nodeCtxCancel)
-	t.Cleanup(peerCtxCancel)
 
 	// connect node to peer
 	peerAddrID := host.InfoFromHost(peer.Host)
@@ -97,9 +95,6 @@ func TestFull_P2P_Streams(t *testing.T) {
 
 	// stop the connection
 	require.NoError(t, stream.Close())
-	// stop both nodes
-	require.NoError(t, node.Stop(nodeCtx))
-	require.NoError(t, peer.Stop(peerCtx))
 }
 
 func TestFull_RPCServer(t *testing.T) {

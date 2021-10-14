@@ -10,6 +10,10 @@ const (
 	// Light is a stripped-down Celestia Node which aims to be lightweight while preserving highest possible
 	// security guarantees.
 	Light
+	// Dev is a full-featured Celestia Node running alongside a mock embedded Core node process,
+	// designed to simulate block production (for testing/dev purposes only). Dev uses an in-memory
+	// Repository to manage node/chain data and disables p2p functionality.
+	Dev
 )
 
 // String converts Type to its string representation.
@@ -40,10 +44,12 @@ func ParseType(str string) Type {
 var typeToString = map[Type]string{
 	Full:  "Full",
 	Light: "Light",
+	Dev:   "Dev",
 }
 
 // typeToString maps strings representations of all valid Types.
 var stringToType = map[string]Type{
 	"Full":  Full,
 	"Light": Light,
+	"Dev":   Dev,
 }

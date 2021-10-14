@@ -15,7 +15,7 @@ func Start(repoName string, tp node.Type) *cobra.Command {
 	if !tp.IsValid() {
 		panic("cmd: Start: invalid Node Type")
 	}
-	if len(repoName) == 0 {
+	if len(repoName) == 0 && tp != node.Dev { // repository path not necessary for **DEV MODE**
 		panic("parent command must specify a persistent flag name for repository path")
 	}
 	return &cobra.Command{
@@ -25,6 +25,17 @@ func Start(repoName string, tp node.Type) *cobra.Command {
 		Args:         cobra.NoArgs,
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// **DEV MODE** needs separate configuration
+			if tp == node.Dev {
+				repo := node.NewMemRepository()
+				cfg := node.DefaultConfig(tp)
+				if err := repo.PutConfig(cfg); err != nil {
+					return err
+				}
+
+				return start(cmd, tp, repo)
+			}
+
 			repoPath := cmd.Flag(repoName).Value.String()
 
 			repo, err := node.Open(repoPath, tp)
@@ -32,29 +43,33 @@ func Start(repoName string, tp node.Type) *cobra.Command {
 				return err
 			}
 
-			nd, err := node.New(tp, repo)
-			if err != nil {
-				return err
-			}
-
-			ctx, cancel := signal.NotifyContext(cmd.Context(), syscall.SIGINT, syscall.SIGTERM)
-			defer cancel()
-			err = nd.Start(ctx)
-			if err != nil {
-				return err
-			}
-
-			<-ctx.Done()
-			cancel() // ensure we stop reading more signals for start context
-
-			ctx, cancel = signal.NotifyContext(cmd.Context(), syscall.SIGINT, syscall.SIGTERM)
-			defer cancel()
-			err = nd.Stop(ctx)
-			if err != nil {
-				return err
-			}
-
-			return repo.Close()
+			return start(cmd, tp, repo)
 		},
 	}
+}
+
+func start(cmd *cobra.Command, tp node.Type, repo node.Repository) error {
+	nd, err := node.New(tp, repo)
+	if err != nil {
+		return err
+	}
+
+	ctx, cancel := signal.NotifyContext(cmd.Context(), syscall.SIGINT, syscall.SIGTERM)
+	defer cancel()
+	err = nd.Start(ctx)
+	if err != nil {
+		return err
+	}
+
+	<-ctx.Done()
+	cancel() // ensure we stop reading more signals for start context
+
+	ctx, cancel = signal.NotifyContext(cmd.Context(), syscall.SIGINT, syscall.SIGTERM)
+	defer cancel()
+	err = nd.Stop(ctx)
+	if err != nil {
+		return err
+	}
+
+	return repo.Close()
 }

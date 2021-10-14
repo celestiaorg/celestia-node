@@ -21,6 +21,7 @@ func (s *Service) listenForNewBlocks(ctx context.Context) error {
 		for {
 			newRawBlock, ok := <-newBlockEventChan
 			if !ok {
+				log.Debug("new block event channel closed")
 				return
 			}
 			log.Infow("received new block", "block height", newRawBlock.Height, "block hash",
@@ -58,6 +59,7 @@ func (s *Service) handleRawBlock(raw *RawBlock) error {
 			"block hash", raw.Hash().String())
 		return err
 	}
+	log.Debugw("generated DataAvailabilityHeader", "data root", dah.Hash())
 	// create Block
 	extendedBlock := &Block{
 		header: &header.ExtendedHeader{

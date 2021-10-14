@@ -37,6 +37,12 @@ func DefaultConfig(tp Type) *Config {
 			P2P:  p2p.DefaultConfig(),
 			Core: core.DefaultConfig(),
 		}
+	case Dev:
+		return &Config{
+			// disable p2p for **DEV MODE**
+			P2P:  p2p.Config{},
+			Core: core.DefaultConfig(),
+		}
 	default:
 		panic("node: unknown Node Type")
 	}
