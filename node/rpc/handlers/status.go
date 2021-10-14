@@ -14,6 +14,13 @@ type StatusMessage struct {
 	Network         string
 }
 
+func NewStatusMessage(listenAddrs []string, network string) *StatusMessage {
+	return &StatusMessage{
+		ListenAddresses: listenAddrs,
+		Network:         network,
+	}
+}
+
 func (s StatusMessage) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	jsonStatus, err := json.Marshal(s)
 	if err != nil {

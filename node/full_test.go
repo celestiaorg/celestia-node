@@ -159,10 +159,7 @@ func TestFull_RPCStatus(t *testing.T) {
 	require.NoError(t, err)
 
 	// expected result
-	expectedStatus, err := json.Marshal(handlers.StatusMessage{
-		ListenAddresses: node.Config.P2P.ListenAddresses,
-		Network:         node.Config.P2P.Network,
-	})
+	expectedStatus, err := json.Marshal(handlers.NewStatusMessage(node.Config.P2P.ListenAddresses, node.Config.P2P.Network))
 	require.NoError(t, err)
 
 	// get status
