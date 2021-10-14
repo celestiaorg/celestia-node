@@ -1,5 +1,6 @@
 #!/usr/bin/make -f
 PROJECTNAME=$(shell basename "$(PWD)")
+DOCKER := $(shell which docker)
 
 ## help: Get more info on make commands.
 help: Makefile
@@ -11,6 +12,10 @@ help: Makefile
 build:
 	@echo "--> Building Celestia"
 	@go build ./cmd/celestia
+
+proto-gen:
+	$(DOCKER) run --rm -v $(CURDIR):/workspace --workdir /workspace tendermintdev/sdk-proto-gen sh ./scripts/protocgen.sh
+
 
 ## fmt: Formats only *.go (excluding *.pb.go *pb_test.go). Runs `gofmt & goimports` internally.
 fmt:
