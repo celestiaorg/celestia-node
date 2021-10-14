@@ -20,7 +20,14 @@ import (
 // DataExchange provides a constructor for IPFS block's DataExchange over BitSwap.
 func DataExchange(cfg Config) func(bitSwapParams) (exchange.Interface, blockstore.Blockstore, error) {
 	return func(params bitSwapParams) (exchange.Interface, blockstore.Blockstore, error) {
-		bs := blockstore.NewBlockstore(params.Ds)
+		bs, err := blockstore.CachedBlockstore(
+			fxutil.WithLifecycle(params.Ctx, params.Lc),
+			blockstore.NewBlockstore(params.Ds),
+			blockstore.DefaultCacheOpts(),
+		)
+		if err != nil {
+			return nil, nil, err
+		}
 		prefix := protocol.ID(fmt.Sprintf("/celestia/%s", cfg.Network))
 		return bitswap.New(
 			fxutil.WithLifecycle(params.Ctx, params.Lc),
