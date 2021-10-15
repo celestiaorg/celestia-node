@@ -17,20 +17,34 @@ import (
 	"github.com/celestiaorg/celestia-node/node/fxutil"
 )
 
+const (
+	// default size of bloom filter in blockStore
+	defaultBloomFilterSize = 512 << 10
+	// default amount of hash functions defined for bloom filter
+	defaultBloomFilterHashes = 7
+	// default size of arc cache in blockStore
+	defaultARCCacheSize = 64 << 10
+)
+
 // DataExchange provides a constructor for IPFS block's DataExchange over BitSwap.
 func DataExchange(cfg Config) func(bitSwapParams) (exchange.Interface, blockstore.Blockstore, error) {
 	return func(params bitSwapParams) (exchange.Interface, blockstore.Blockstore, error) {
+		ctx := fxutil.WithLifecycle(params.Ctx, params.Lc)
 		bs, err := blockstore.CachedBlockstore(
-			fxutil.WithLifecycle(params.Ctx, params.Lc),
+			ctx,
 			blockstore.NewBlockstore(params.Ds),
-			blockstore.DefaultCacheOpts(),
+			blockstore.CacheOpts{
+				HasBloomFilterSize:   defaultBloomFilterSize,
+				HasBloomFilterHashes: defaultBloomFilterHashes,
+				HasARCCacheSize:      defaultARCCacheSize,
+			},
 		)
 		if err != nil {
 			return nil, nil, err
 		}
 		prefix := protocol.ID(fmt.Sprintf("/celestia/%s", cfg.Network))
 		return bitswap.New(
-			fxutil.WithLifecycle(params.Ctx, params.Lc),
+			ctx,
 			network.NewFromIpfsHost(params.Host, params.Cr, network.Prefix(prefix)),
 			bs,
 			bitswap.ProvideEnabled(false),
