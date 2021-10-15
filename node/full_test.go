@@ -8,13 +8,14 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/celestiaorg/celestia-node/node/rpc/handlers"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/libp2p/go-libp2p-core/host"
 	"github.com/libp2p/go-libp2p-core/network"
 	"github.com/libp2p/go-libp2p-core/protocol"
+
+	"github.com/celestiaorg/celestia-node/node/rpc/handlers"
 )
 
 func TestNewFull(t *testing.T) {
@@ -159,7 +160,12 @@ func TestFull_RPCStatus(t *testing.T) {
 	require.NoError(t, err)
 
 	// expected result
-	expectedStatus, err := json.Marshal(handlers.NewStatusMessage(node.Config.P2P.ListenAddresses, node.Config.P2P.Network))
+	expectedStatus, err := json.Marshal(
+		handlers.NewStatusMessage(
+			node.Config.P2P.ListenAddresses,
+			node.Config.P2P.Network,
+		),
+	)
 	require.NoError(t, err)
 
 	// get status
