@@ -96,10 +96,10 @@ func (n *Node) Start(ctx context.Context) error {
 			return err
 		}
 
-		log.Debugf("Registering RPC handlers...")
+		log.Debugf("registering RPC handlers...")
 		err = n.RegisterHandlers()
 		if err != nil {
-			log.Errorf("Error registering RPC handlers: %s", err)
+			log.Errorf("error registering RPC handlers: %s", err)
 			return err
 		}
 	}

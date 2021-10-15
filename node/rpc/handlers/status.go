@@ -24,12 +24,12 @@ func NewStatusMessage(listenAddrs []string, network string) *StatusMessage {
 func (s StatusMessage) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	jsonStatus, err := json.Marshal(s)
 	if err != nil {
-		log.Error("Could not marshal the status: " + err.Error())
+		log.Errorf("could not marshal the status: %s", err)
 		w.WriteHeader(http.StatusInternalServerError)
 	} else {
 		_, err = w.Write(jsonStatus)
 		if err != nil {
-			log.Error("Could not write status response: " + err.Error())
+			log.Errorf("could not write status response: %s", err)
 			w.WriteHeader(http.StatusInternalServerError)
 		}
 	}
