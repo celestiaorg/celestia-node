@@ -7,5 +7,5 @@ import "tendermint/types/types.proto";
 
 message BlockMeta {
   int64 height = 1;
-  .tendermint.types.Commit last_commit = 2;
+  tendermint.types.Commit last_commit = 2;
 }
