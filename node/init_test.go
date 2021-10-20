@@ -10,9 +10,6 @@ import (
 	"github.com/celestiaorg/celestia-node/libs/fslock"
 )
 
-// TODO(@Bidon15): We need more test coverage for Init part
-// Tests could include invalid paths/configs and custom ones
-// For more info visit #89
 func TestInitFull(t *testing.T) {
 	dir := t.TempDir()
 	err := Init(dir, Full)
