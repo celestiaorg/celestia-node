@@ -1,6 +1,7 @@
 package node
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 
@@ -46,6 +47,10 @@ func InitWith(path string, tp Type, cfg *Config) error {
 	err = initDir(dataPath(path))
 	if err != nil {
 		return err
+	}
+
+	if cfg == nil {
+		return errors.New("nil config provided")
 	}
 
 	cfgPath := configPath(path)
