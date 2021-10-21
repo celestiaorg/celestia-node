@@ -10,42 +10,32 @@ import (
 	"github.com/celestiaorg/celestia-node/libs/fslock"
 )
 
-func TestInitFull(t *testing.T) {
+func TestInit(t *testing.T) {
 	dir := t.TempDir()
-	err := Init(dir, Full)
-	require.NoError(t, err)
-	ok := IsInit(dir, Full)
-	assert.True(t, ok)
-}
+	nodes := []Type{Light, Full}
 
-func TestInitLight(t *testing.T) {
-	dir := t.TempDir()
-	err := Init(dir, Light)
-	require.NoError(t, err)
-	ok := IsInit(dir, Light)
-	assert.True(t, ok)
+	for _, node := range nodes {
+		require.NoError(t, Init(dir, node))
+		assert.True(t, IsInit(dir, node))
+	}
 }
 
 func TestInitErrForInvalidPath(t *testing.T) {
 	path := "/invalid_path"
-	errLight := Init(path, Light)
-	errFull := Init(path, Full)
+	nodes := []Type{Light, Full}
 
-	require.Error(t, errLight)
-	require.Error(t, errFull)
+	for _, node := range nodes {
+		require.Error(t, Init(path, node))
+	}
 }
 
-func TestInitErrForLockedDir(t *testing.T) {
+func TestInitWithNilConfig(t *testing.T) {
 	dir := t.TempDir()
-	flock, err := fslock.Lock(lockPath(dir))
-	require.NoError(t, err)
-	defer flock.Unlock() //nolint:errcheck
+	nodes := []Type{Light, Full}
 
-	errLight := Init(dir, Light)
-	errFull := Init(dir, Full)
-
-	require.Error(t, errLight)
-	require.Error(t, errFull)
+	for _, node := range nodes {
+		require.Error(t, InitWith(dir, node, nil))
+	}
 }
 
 func TestIsInitWithBrokenConfig(t *testing.T) {
@@ -53,31 +43,35 @@ func TestIsInitWithBrokenConfig(t *testing.T) {
 	f, err := os.Create(configPath(dir))
 	require.NoError(t, err)
 	defer f.Close()
-
 	//nolint:errcheck
 	f.Write([]byte(`
 		[P2P]
 		  ListenAddresses = [/ip4/0.0.0.0/tcp/2121]
     `))
+	nodes := []Type{Light, Full}
 
-	okLight := IsInit(dir, Light)
-	okFull := IsInit(dir, Full)
-
-	assert.False(t, okLight)
-	assert.False(t, okFull)
+	for _, node := range nodes {
+		assert.False(t, IsInit(dir, node))
+	}
 }
 
 func TestIsInitForNonExistDir(t *testing.T) {
-	okLight := IsInit("/invalid_path", Light)
-	okFull := IsInit("/invalid_path", Full)
+	path := "/invalid_path"
+	nodes := []Type{Light, Full}
 
-	assert.False(t, okLight)
-	assert.False(t, okFull)
+	for _, node := range nodes {
+		assert.False(t, IsInit(path, node))
+	}
 }
 
-func TestInitWithNilCfg(t *testing.T) {
+func TestInitErrForLockedDir(t *testing.T) {
 	dir := t.TempDir()
-	err := InitWith(dir, Light, nil)
+	flock, err := fslock.Lock(lockPath(dir))
+	require.NoError(t, err)
+	defer flock.Unlock() //nolint:errcheck
+	nodes := []Type{Light, Full}
 
-	require.Error(t, err)
+	for _, node := range nodes {
+		require.Error(t, Init(dir, node))
+	}
 }

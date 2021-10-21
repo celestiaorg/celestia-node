@@ -50,7 +50,7 @@ func InitWith(path string, tp Type, cfg *Config) error {
 	}
 
 	if cfg == nil {
-		return errors.New("Configuration is missing for the node's initialisation")
+		return errors.New("configuration is missing for the node's initialisation")
 	}
 
 	cfgPath := configPath(path)
