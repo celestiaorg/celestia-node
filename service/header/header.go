@@ -3,6 +3,7 @@ package header
 import (
 	"fmt"
 
+	tmbytes "github.com/celestiaorg/celestia-core/libs/bytes"
 	"github.com/celestiaorg/celestia-core/pkg/da"
 	core "github.com/celestiaorg/celestia-core/types"
 )
@@ -41,3 +42,14 @@ func (eh *ExtendedHeader) UnmarshalBinary(data []byte) error {
 	*eh = *out
 	return nil
 }
+
+// ExtendedHeaderRequest represents a request for one or more
+// ExtendedHeaders from the Celestia network.
+type ExtendedHeaderRequest struct {
+	Origin int64 // block height from which to begin retrieving headers (in descending order)
+	Amount int   // quantity of headers to be requested
+}
+
+// Hash is an alias to HexBytes which enables HEX-encoding for
+// json/encoding.
+type Hash = tmbytes.HexBytes
