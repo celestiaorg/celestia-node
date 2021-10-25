@@ -64,6 +64,6 @@ linters-settings:
   maligned:
     suggest-new: true
   misspell:
-    locale: US
+    locale: US, UK
   goimports:
     local-prefixes: github.com/celestiaorg
