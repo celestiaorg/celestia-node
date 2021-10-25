@@ -6,8 +6,8 @@ import (
 )
 
 type StatusMessage struct {
-	ListenAddresses []string
-	Network         string
+	ListenAddresses []string `json:"listenAddresses"`
+	Network         string   `json:"network"`
 }
 
 func NewStatusMessage(listenAddrs []string, network string) *StatusMessage {

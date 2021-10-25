@@ -17,7 +17,6 @@ import (
 
 	"github.com/celestiaorg/celestia-node/core"
 	"github.com/celestiaorg/celestia-node/node/rpc"
-	"github.com/celestiaorg/celestia-node/node/rpc/handlers"
 	"github.com/celestiaorg/celestia-node/service/block"
 )
 
@@ -135,7 +134,7 @@ func (n *Node) RegisterAPI(endpoint string, api http.Handler) error {
 // RegisterHandlers registers the node's RPC handlers on the node's RPC server.
 // Other handlers will be added later.
 func (n *Node) RegisterHandlers() error {
-	return n.RegisterAPI("/status", handlers.NewStatusMessage(n.Config.P2P.ListenAddresses, n.Config.P2P.Network))
+	return n.RegisterAPI("/status", NewStatusMessage(n.Config.P2P.ListenAddresses, n.Config.P2P.Network))
 }
 
 // Stop shuts down the Node, all its running Components/Services and returns.
