@@ -5,4 +5,4 @@ Celestia storage and light node
 
 | Requirement | Notes            |
 |-------------|------------------|
-| Go version  | 1.17 or higher   |
+| Go version  | 1.16 or higher   |
