@@ -1,0 +1,15 @@
+syntax = "proto3";
+
+package header.pb;
+
+import "tendermint/types/types.proto";
+import "tendermint/types/validator.proto";
+
+message ExtendedHeader {
+  tendermint.types.Header header = 1;
+  tendermint.types.Commit commit = 2;
+  tendermint.types.ValidatorSet validator_set = 3;
+//  tendermint.types.DataAvailabilityHeader dah = 4;
+}
+
+
