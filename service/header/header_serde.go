@@ -1,6 +1,7 @@
 package header
 
 import (
+	"github.com/celestiaorg/celestia-core/pkg/da"
 	core "github.com/celestiaorg/celestia-core/types"
 
 	header_pb "github.com/celestiaorg/celestia-node/service/header/pb"
@@ -13,6 +14,11 @@ func MarshalExtendedHeader(in *ExtendedHeader) (_ []byte, err error) {
 	}
 
 	out.ValidatorSet, err = in.ValidatorSet.ToProto()
+	if err != nil {
+		return nil, err
+	}
+
+	out.Dah, err = in.DAH.ToProto()
 	if err != nil {
 		return nil, err
 	}
@@ -39,6 +45,11 @@ func UnmarshalExtendedHeader(data []byte) (*ExtendedHeader, error) {
 	}
 
 	out.ValidatorSet, err = core.ValidatorSetFromProto(in.ValidatorSet)
+	if err != nil {
+		return nil, err
+	}
+
+	out.DAH, err = da.DataAvailabilityHeaderFromProto(in.Dah)
 	if err != nil {
 		return nil, err
 	}
