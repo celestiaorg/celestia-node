@@ -7,6 +7,8 @@ import (
 	header_pb "github.com/celestiaorg/celestia-node/service/header/pb"
 )
 
+// MarshalExtendedHeader serializes given ExtendedHeader to bytes using protobuf.
+// Paired with UnmarshalExtendedHeader.
 func MarshalExtendedHeader(in *ExtendedHeader) (_ []byte, err error) {
 	out := &header_pb.ExtendedHeader{
 		Header: in.RawHeader.ToProto(),
@@ -26,6 +28,8 @@ func MarshalExtendedHeader(in *ExtendedHeader) (_ []byte, err error) {
 	return out.Marshal()
 }
 
+// MarshalExtendedHeader deserializes given data into a new ExtendedHeader using protobuf.
+// Paired with MarshalExtendedHeader.
 func UnmarshalExtendedHeader(data []byte) (*ExtendedHeader, error) {
 	in := &header_pb.ExtendedHeader{}
 	err := in.Unmarshal(data)

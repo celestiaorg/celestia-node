@@ -22,10 +22,12 @@ type ExtendedHeader struct {
 	DAH          *da.DataAvailabilityHeader `json:"dah"`
 }
 
+// MarshalBinary marshals ExtendedHeader to binary.
 func (eh *ExtendedHeader) MarshalBinary() ([]byte, error) {
 	return MarshalExtendedHeader(eh)
 }
 
+// MarshalBinary unmarshals ExtendedHeader from binary.
 func (eh *ExtendedHeader) UnmarshalBinary(data []byte) error {
 	if eh == nil {
 		return fmt.Errorf("header: cannot UnmarshalBinary - nil ExtendedHeader")

@@ -13,4 +13,5 @@ message ExtendedHeader {
   tendermint.da.DataAvailabilityHeader dah = 4;
 }
 
-
+// Generated with:
+// protoc -I=. -I=(go list -f {{.Dir}} -m github.com/celestiaorg/celestia-core)/proto/ -I=(go list -f {{.Dir}} -m github.com/gogo/protobuf)  --gogofaster_out . ./extended_header.proto

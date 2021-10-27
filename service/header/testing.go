@@ -15,6 +15,7 @@ import (
 	core "github.com/celestiaorg/celestia-core/types"
 )
 
+// RandExtendedHeader provides an ExtendedHeader fixture.
 func RandExtendedHeader(t *testing.T) *ExtendedHeader {
 	rh := RandRawHeader(t)
 	valSet, vals := core.RandValidatorSet(5, 1)
@@ -30,6 +31,7 @@ func RandExtendedHeader(t *testing.T) *ExtendedHeader {
 	}
 }
 
+// RandRawHeader provides a RawHeader fixture.
 func RandRawHeader(t *testing.T) *RawHeader {
 	return &RawHeader{
 		Version:            version.Consensus{Block: 11, App: 1},
@@ -49,6 +51,7 @@ func RandRawHeader(t *testing.T) *RawHeader {
 	}
 }
 
+// RandBlockID provides a BlockID fixture.
 func RandBlockID(t *testing.T) core.BlockID {
 	bid := core.BlockID{
 		Hash: make([]byte, 32),
