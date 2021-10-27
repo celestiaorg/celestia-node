@@ -31,21 +31,20 @@ func RandExtendedHeader(t *testing.T) *ExtendedHeader {
 }
 
 func RandRawHeader(t *testing.T) *RawHeader {
-	randHash := tmrand.Bytes(32)
 	return &RawHeader{
 		Version:            version.Consensus{Block: 11, App: 1},
 		ChainID:            "test",
 		Height:             mrand.Int63(), //nolint:gosec
 		Time:               time.Now(),
 		LastBlockID:        RandBlockID(t),
-		LastCommitHash:     randHash,
-		DataHash:           randHash,
-		ValidatorsHash:     randHash,
-		NextValidatorsHash: randHash,
-		ConsensusHash:      randHash,
-		AppHash:            randHash,
-		LastResultsHash:    randHash,
-		EvidenceHash:       randHash,
+		LastCommitHash:     tmrand.Bytes(32),
+		DataHash:           tmrand.Bytes(32),
+		ValidatorsHash:     tmrand.Bytes(32),
+		NextValidatorsHash: tmrand.Bytes(32),
+		ConsensusHash:      tmrand.Bytes(32),
+		AppHash:            tmrand.Bytes(32),
+		LastResultsHash:    tmrand.Bytes(32),
+		EvidenceHash:       tmrand.Bytes(32),
 		ProposerAddress:    tmrand.Bytes(20),
 	}
 }
