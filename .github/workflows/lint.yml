@@ -7,8 +7,11 @@ on:
   pull_request:
 
 jobs:
-
   golangci:
+    strategy:
+      matrix:
+        go-version: [1.16.x, 1.17.x]
+        os: [ubuntu-latest]
     name: lint
     runs-on: ubuntu-latest
 
