@@ -1,4 +1,4 @@
-#!/usr/bin/make -f
+SHELL=/usr/bin/env bash
 PROJECTNAME=$(shell basename "$(PWD)")
 
 ## help: Get more info on make commands.
@@ -30,3 +30,16 @@ test:
 	@echo "--> Running tests"
 	@go test -v ./...
 .PHONY: test
+
+PB_PKGS=$(shell find . -name 'pb' -type d)
+PB_CORE=$(shell go list -f {{.Dir}} -m github.com/celestiaorg/celestia-core)
+PB_GOGO=$(shell go list -f {{.Dir}} -m github.com/gogo/protobuf)
+
+## pb-gen: Generate protobuf code for all /pb/*.proto files in the project.
+pb-gen:
+	for dir in $(PB_PKGS); \
+		do for file in `find $$dir -type f -name "*.proto"`; \
+			do protoc -I=. -I=${PB_CORE}/proto/ -I=${PB_GOGO}  --gogofaster_out . $$file; \
+		done; \
+	done;
+.PHONY: pb-gen
