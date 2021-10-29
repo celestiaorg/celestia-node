@@ -7,10 +7,15 @@ help: Makefile
 	@sed -n 's/^##//p' $< | column -t -s ':' |  sed -e 's/^/ /'
 .PHONY: help
 
-## build: Build celesita-node binary.
+## build: Build celestia-node binary.
 build:
 	@echo "--> Building Celestia"
 	@go build ./cmd/celestia
+
+## install: Builds and installs the celestia-node binary into the GOBIN directory
+install:
+	@echo "--> Installing Celestia"
+	@go build ./cmd/celestia -o $GOBIN
 
 ## fmt: Formats only *.go (excluding *.pb.go *pb_test.go). Runs `gofmt & goimports` internally.
 fmt:
