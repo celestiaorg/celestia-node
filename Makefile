@@ -2,7 +2,7 @@
 PROJECTNAME=$(shell basename "$(PWD)")
 BUILD_DATE=$(shell date)
 LAST_COMMIT=$(shell git rev-parse HEAD)
-# Replace with the current version
+# TODO (@OrlandoRomo) get version from git tags
 CELESTIA_VERSION="0.1.0"
 
 ## help: Get more info on make commands.
