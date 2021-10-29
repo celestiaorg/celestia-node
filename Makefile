@@ -15,7 +15,7 @@ build:
 ## install: Builds and installs the celestia-node binary into the GOBIN directory
 install:
 	@echo "--> Installing Celestia"
-	@go build ./cmd/celestia -o $GOBIN
+	@go install ./cmd/celestia -o $GOBIN
 
 ## fmt: Formats only *.go (excluding *.pb.go *pb_test.go). Runs `gofmt & goimports` internally.
 fmt:
