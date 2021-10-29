@@ -9,6 +9,7 @@ require (
 	github.com/celestiaorg/celestia-core v0.0.2-0.20210924001615-488ac31b4b3c
 	github.com/celestiaorg/nmt v0.7.0
 	github.com/celestiaorg/rsmt2d v0.3.0
+	github.com/gogo/protobuf v1.3.2
 	github.com/ipfs/go-bitswap v0.3.4
 	github.com/ipfs/go-block-format v0.0.3
 	github.com/ipfs/go-blockservice v0.1.7
