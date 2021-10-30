@@ -13,10 +13,6 @@ var (
 	semanticVersion string
 )
 
-func init() {
-	versionCmd.AddCommand()
-}
-
 var versionCmd = &cobra.Command{
 	Use:   "version",
 	Short: "Show information about the current binary build",
