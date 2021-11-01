@@ -21,10 +21,10 @@ type Subscription interface {
 }
 
 // Exchange encompasses the behavior necessary to request ExtendedHeaders
-// and respond to ExtendedHeader requests from the network.
+// from the network.
 type Exchange interface {
-	RequestHeaders(ctx context.Context, request *ExtendedHeaderRequest) ([]*ExtendedHeader, error)
-	RespondToHeadersRequest(ctx context.Context, request *ExtendedHeaderRequest) error
+	RequestHeader(ctx context.Context, height int64) (*ExtendedHeader, error)
+	RequestBatchedHeaders(ctx context.Context, from, to int64) ([]*ExtendedHeader, error)
 }
 
 // Store encompasses the behavior necessary to store and retrieve ExtendedHeaders
