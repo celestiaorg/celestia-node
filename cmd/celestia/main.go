@@ -12,6 +12,7 @@ func init() {
 		fullCmd,
 		lightCmd,
 		devCmd,
+		versionCmd,
 	)
 }
 
