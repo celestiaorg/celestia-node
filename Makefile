@@ -12,11 +12,11 @@ build:
 	@echo "--> Building Celestia"
 	@go build ./cmd/celestia
 
-## install: Builds and installs the celestia-node binary into the GOBIN directory
+## install: Builds and installs the celestia-node binary into the GOBIN directory.
 install:
 	@echo "--> Installing Celestia"
 	@go install ./cmd/celestia
-
+.PHONY: install
 ## fmt: Formats only *.go (excluding *.pb.go *pb_test.go). Runs `gofmt & goimports` internally.
 fmt:
 	@find . -name '*.go' -type f -not -path "*.git*" -not -name '*.pb.go' -not -name '*pb_test.go' | xargs gofmt -w -s
