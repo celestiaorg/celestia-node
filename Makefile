@@ -1,5 +1,9 @@
 SHELL=/usr/bin/env bash
 PROJECTNAME=$(shell basename "$(PWD)")
+BUILD_DATE=$(shell date)
+LAST_COMMIT=$(shell git rev-parse HEAD)
+# TODO (@OrlandoRomo) get version from git tags
+CELESTIA_VERSION="0.1.0"
 
 ## help: Get more info on make commands.
 help: Makefile
@@ -10,7 +14,7 @@ help: Makefile
 ## build: Build celestia-node binary.
 build:
 	@echo "--> Building Celestia"
-	@go build ./cmd/celestia
+	@go build -ldflags "-X 'main.buildTime=$(BUILD_DATE)' -X 'main.lastCommit=$(LAST_COMMIT)' -X 'main.semanticVersion=$(CELESTIA_VERSION)'" ./cmd/celestia 
 
 ## install: Builds and installs the celestia-node binary into the GOBIN directory.
 install:
