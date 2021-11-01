@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"math"
 	"math/rand"
+	"strconv"
 	"testing"
 	"time"
 
@@ -15,12 +16,13 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/celestiaorg/nmt"
-	"github.com/celestiaorg/rsmt2d"
-
+	"github.com/celestiaorg/celestia-core/pkg/da"
 	"github.com/celestiaorg/celestia-core/pkg/wrapper"
+	"github.com/celestiaorg/celestia-core/testutils"
 	"github.com/celestiaorg/celestia-node/ipld/plugin"
 	"github.com/celestiaorg/celestia-node/service/header"
+	"github.com/celestiaorg/nmt"
+	"github.com/celestiaorg/rsmt2d"
 )
 
 func TestGetLeafData(t *testing.T) {
@@ -125,7 +127,7 @@ func TestRetrieveBlockData(t *testing.T) {
 
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
-			// // generate EDS
+			// generate EDS
 			eds := generateRandEDS(t, tc.squareSize)
 
 			shares := ExtractODSShares(eds)
@@ -230,4 +232,93 @@ func removeRandShares(data [][]byte, d int) [][]byte {
 		i++
 	}
 	return data
+}
+
+func Test_findStartingCID(t *testing.T) {
+	var tests = []struct {
+		rawData [][]byte
+	}{
+		{rawData: testutils.GenerateRandNamespacedRawData(16, NamespaceSize, plugin.ShareSize)},
+		{rawData: testutils.GenerateRandNamespacedRawData(16, NamespaceSize, 8)},
+		{rawData: testutils.GenerateRandNamespacedRawData(4, NamespaceSize, plugin.ShareSize)},
+		{rawData: testutils.GenerateRandNamespacedRawData(16, NamespaceSize, 8)},
+	}
+
+	for i, tt := range tests {
+		t.Run(strconv.Itoa(i), func(t *testing.T) {
+			// generate EDS
+			squareSize := uint64(math.Sqrt(float64(len(tt.rawData))))
+
+			nID := tt.rawData[len(tt.rawData)/2][:8]
+			nIDData := tt.rawData[len(tt.rawData)/2][8:]
+			dah, err := da.NewDataAvailabilityHeader(squareSize, tt.rawData)
+			require.NoError(t, err)
+
+			indices, err := RowRootsFromNamespaceID(nID, &dah)
+			require.NoError(t, err)
+
+			// put raw data in DAG
+			dag := mdutils.Mock()
+			_, err = PutData(context.Background(), tt.rawData, dag)
+			require.NoError(t, err)
+
+			for _, index := range indices {
+				rootCid, err := plugin.CidFromNamespacedSha256(dah.RowsRoots[index])
+				require.NoError(t, err)
+
+				startIndex, err := findStartingIndex(context.Background(), nID, &dah, rootCid, dag, make([]string, 0))
+				require.NoError(t, err)
+
+				leafData, err := GetLeafData(context.Background(), rootCid, startIndex, uint32(len(dah.RowsRoots)), dag)
+				require.NoError(t, err)
+
+				// TODO @renaynay: nID is prepended twice for some reason.
+				assert.Equal(t, nIDData, leafData[16:])
+			}
+		})
+	}
+}
+
+func TestGetSharesByNamespace(t *testing.T) {
+	var tests = []struct {
+		rawData [][]byte
+	}{
+		{rawData: testutils.GenerateRandNamespacedRawData(16, NamespaceSize, plugin.ShareSize)},
+		{rawData: testutils.GenerateRandNamespacedRawData(16, NamespaceSize, 8)},
+		{rawData: testutils.GenerateRandNamespacedRawData(4, NamespaceSize, plugin.ShareSize)},
+		{rawData: testutils.GenerateRandNamespacedRawData(16, NamespaceSize, 8)},
+	}
+
+	for i, tt := range tests {
+		t.Run(strconv.Itoa(i), func(t *testing.T) {
+			squareSize := uint64(math.Sqrt(float64(len(tt.rawData))))
+
+			// choose random nID from rand shares
+			expected := tt.rawData[len(tt.rawData)/2]
+			nID := expected[:8]
+
+			// change rawData to contain several shares with same nID
+			tt.rawData[(len(tt.rawData)/2)+1] = expected
+
+			// generate DAH
+			dah, err := da.NewDataAvailabilityHeader(squareSize, tt.rawData)
+			require.NoError(t, err)
+
+			// put raw data in DAG
+			dag := mdutils.Mock()
+			_, err = PutData(context.Background(), tt.rawData, dag)
+			require.NoError(t, err)
+
+			rowIndices, err := RowRootsFromNamespaceID(nID, &dah)
+			require.NoError(t, err)
+
+			shares, err := GetSharesByNamespace(context.Background(), nID, &dah, rowIndices, dag)
+			require.NoError(t, err)
+
+			for _, share := range shares {
+				// TODO @renaynay: nID is prepended twice for some reason.
+				assert.Equal(t, expected, share[8:])
+			}
+		})
+	}
 }

@@ -4,16 +4,17 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"math/rand"
 
 	"github.com/ipfs/go-cid"
 	ipld "github.com/ipfs/go-ipld-format"
 
-	"github.com/celestiaorg/rsmt2d"
-
 	"github.com/celestiaorg/celestia-core/pkg/da"
 	"github.com/celestiaorg/celestia-core/pkg/wrapper"
 	"github.com/celestiaorg/celestia-node/ipld/plugin"
+	"github.com/celestiaorg/nmt/namespace"
+	"github.com/celestiaorg/rsmt2d"
 )
 
 var ErrRetrieveTimeout = errors.New("retrieve data timeout")
@@ -220,7 +221,7 @@ func GetLeafData(
 	return nd.RawData()[1:], nil
 }
 
-// GetLeafData fetches and returns the raw leaf.
+// GetLeaf fetches and returns the raw leaf.
 // It walks down the IPLD NMT tree until it finds the requested one.
 func GetLeaf(ctx context.Context, dag ipld.NodeGetter, root cid.Cid, leaf, total int) (ipld.Node, error) {
 	// request the node
@@ -246,4 +247,162 @@ func GetLeaf(ctx context.Context, dag ipld.NodeGetter, root cid.Cid, leaf, total
 
 	// recursively walk down through selected children
 	return GetLeaf(ctx, dag, root, leaf, total)
+}
+
+// RowRootsFromNamespaceID finds the row root(s) that contain the given namespace ID.
+func RowRootsFromNamespaceID(nID namespace.ID, dah *da.DataAvailabilityHeader) ([]int, error) {
+	roots := make([]int, 0)
+	for i, row := range dah.RowsRoots {
+		// if nID exists within range of min -> max of row, return the row
+		if !nID.Less(plugin.RowMin(row)) && nID.LessOrEqual(plugin.RowMax(row)) {
+			roots = append(roots, i)
+		}
+	}
+	if len(roots) > 0 {
+		return roots, nil
+	}
+	// return min or max index depending on if nID is below the minimum namespace ID or exceeds the maximum
+	// namespace ID of the given DataAvailabilityHeader
+	if nID.Less(plugin.RowMin(dah.RowsRoots[0])) {
+		return []int{0}, ErrBelowRange
+	} else if !nID.LessOrEqual(plugin.RowMax(dah.RowsRoots[len(dah.RowsRoots)-1])) {
+		max := len(dah.RowsRoots) - 1
+		// TODO @renaynay: still need to figure out what kind of info to return as a part of the err
+		return []int{max}, ErrExceedsRange
+	}
+	return roots, ErrNotFoundInRange
+}
+
+func GetSharesByNamespace(
+	ctx context.Context,
+	nID namespace.ID,
+	dah *da.DataAvailabilityHeader,
+	rowIndices []int,
+	dagServ ipld.DAGService) ([][]byte, error) {
+	shares := make([][]byte, 0)
+
+	for i, index := range rowIndices {
+		isLastRow := i == len(rowIndices)-1
+		// compute the root CID from the DAH
+		rootCid, err := plugin.CidFromNamespacedSha256(dah.RowsRoots[index])
+		if err != nil {
+			return shares, err
+		}
+
+		startingIndex, err := findStartingIndex(ctx, nID, dah, rootCid, dagServ, make([]string, 0))
+		if err != nil {
+			if isLastRow {
+				if len(shares) > 0 {
+					return shares, nil
+				}
+				return shares, err
+			}
+			continue
+		}
+		for {
+			leaf, err := GetLeafData(ctx, rootCid, startingIndex, uint32(len(dah.RowsRoots)), dagServ)
+			if err != nil {
+				return shares, err
+			}
+			if nID.Equal(leaf[:8]) {
+				shares = append(shares, leaf)
+				startingIndex++
+			} else {
+				break
+			}
+		}
+	}
+	return shares, nil
+}
+
+// findStartingIndex returns the CID of the first leaf that contains the given nID
+// in the tree corresponding to the given root CID.
+// TODO @renaynay: wrap errors for this function
+func findStartingIndex(
+	ctx context.Context,
+	nID namespace.ID,
+	dah *da.DataAvailabilityHeader,
+	rootCid cid.Cid,
+	dag ipld.DAGService,
+	currentPath []string) (uint32, error) {
+	treeDepth := int(math.Log2(float64(len(dah.RowsRoots))))
+
+	if isLeafLevel(treeDepth, len(currentPath)) {
+		return startIndexFromPath(currentPath), nil
+	}
+
+	left := "0"
+	right := "1"
+
+	rootNode, err := dag.Get(ctx, rootCid)
+	if err != nil {
+		return 0, err
+	}
+
+	children := rootNode.Links()
+	leftCID := children[0].Cid
+	rightCID := children[1].Cid
+
+	leftDigest := intervalDigestFromNamespaceHash(plugin.NamespacedSha256FromCID(leftCID))
+	rightDigest := intervalDigestFromNamespaceHash(plugin.NamespacedSha256FromCID(rightCID))
+
+	switch {
+	case intervalContains(nID, leftDigest):
+		// keep going left
+		return findStartingIndex(ctx, nID, dah, leftCID, dag, append(currentPath, left))
+	case intervalContains(nID, rightDigest):
+		// keep going right
+		return findStartingIndex(ctx, nID, dah, rightCID, dag, append(currentPath, right))
+	default:
+		return 0, fmt.Errorf("namespace ID %x within range of namespace IDs in tree, "+
+			"but does not exist", nID.String()) // TODO @renaynay: better err
+	}
+}
+
+// startIndexFromPath gets the starting leaf index from the given
+// path
+func startIndexFromPath(path []string) uint32 {
+	start := 0
+	indices := make([]int, 0)
+	totalLeaves := math.Pow(2, float64(len(path)))
+	for i := 0; i < int(totalLeaves); i++ {
+		indices = append(indices, i)
+	}
+
+	for _, pos := range path {
+		if pos == "0" {
+			if len(indices) == 2 {
+				return uint32(indices[0])
+			}
+			indices = indices[0 : len(indices)/2]
+		} else {
+			if len(indices) == 2 {
+				return uint32(indices[1])
+			}
+			indices = indices[len(indices)/2:]
+		}
+	}
+	return uint32(start)
+}
+
+func isLeafLevel(treeDepth, currentDepth int) bool {
+	return treeDepth == currentDepth
+}
+
+// digest is a format for storing a node's minimum and
+// maximum namespaceID
+type digest struct {
+	min namespace.ID
+	max namespace.ID
+}
+
+func intervalDigestFromNamespaceHash(hash []byte) digest {
+	return digest{
+		min: plugin.RowMin(hash),
+		max: plugin.RowMax(hash),
+	}
+}
+
+func intervalContains(nID namespace.ID, digest digest) bool {
+	return !nID.Less(digest.min) && nID.LessOrEqual(digest.max)
 }
