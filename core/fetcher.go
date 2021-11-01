@@ -36,6 +36,14 @@ func (f *BlockFetcher) GetBlock(ctx context.Context, height *int64) (*block.RawB
 	return raw.Block, nil
 }
 
+func (f *BlockFetcher) CommitAtHeight(ctx context.Context, height *int64) (*types.Commit, error) {
+	commit, err := f.client.Commit(ctx, height)
+	if err != nil {
+		return nil, err
+	}
+	return commit.Commit, nil
+}
+
 // SubscribeNewBlockEvent subscribes to new block events from Core, returning
 // a new block event channel on success.
 func (f *BlockFetcher) SubscribeNewBlockEvent(ctx context.Context) (<-chan *block.RawBlock, error) {
