@@ -96,14 +96,6 @@ func (n *Node) Start(ctx context.Context) error {
 			return err
 		}
 	}
-	// start block service if not Light node
-	if n.Type != Light {
-		err = n.BlockServ.Start(ctx)
-		if err != nil {
-			log.Errorw("starting block service", "err", err)
-			return fmt.Errorf("node: failed to start block service: %w", err)
-		}
-	}
 
 	// TODO(@Wondertan): Print useful information about the node:
 	//  * API address
@@ -153,15 +145,6 @@ func (n *Node) Stop(ctx context.Context) error {
 	if err != nil {
 		log.Errorf("Stopping %s Node: %s", n.Type, err)
 		return err
-	}
-
-	// stop block service if not Light node
-	if n.Type != Light {
-		err = n.BlockServ.Stop(ctx)
-		if err != nil {
-			log.Errorw("stopping block service", "err", err)
-			return fmt.Errorf("node: failed to stop block service: %w", err)
-		}
 	}
 
 	log.Infof("stopped %s Node", n.Type)
