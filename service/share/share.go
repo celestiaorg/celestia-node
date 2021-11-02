@@ -48,7 +48,10 @@ type Service interface {
 	// GetSharesByNamespace loads all the Shares committed to the given DataAvailabilityHeader as a 1D array/slice.
 	GetSharesByNamespace(context.Context, header.DataAvailabilityHeader, namespace.ID) ([]Share, error)
 
+	// Starts the Service.
 	Start(context.Context) error
+
+	// Stops the Service.
 	Stop(context.Context) error
 }
 
@@ -61,7 +64,6 @@ func NewService(dag format.DAGService) Service {
 
 type service struct {
 	dag format.DAGService
-
 	// session is dag sub-session that applies optimization for fetching/loading related nodes, like shares
 	// prefer session over dag for fetching nodes.
 	session format.NodeGetter
@@ -108,7 +110,7 @@ func (s *service) GetShare(ctx context.Context, dah header.DataAvailabilityHeade
 
 	// we exclude one byte, as it is not part of the share, but encoding of IPLD NMT Node type.
 	// TODO(@Wondertan): There is way to understand node type indirectly,
-	//  without overhead of appending it to share(storing/fetching).
+	//  without overhead(storing/fetching) of appending it to share.
 	return nd.RawData()[1:], nil
 }
 
