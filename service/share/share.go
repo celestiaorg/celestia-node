@@ -12,11 +12,16 @@ import (
 	"github.com/celestiaorg/celestia-node/service/header"
 )
 
-const NamespaceSize = 8
-
 // TODO(@Wondertan): We prefix real data of shares with namespaces to be able to recover them during erasure coding
 //  recovery. However, that is storage and bandwidth overhead(8 bytes per each share) which we can avoid by getting
 //  namespaces from CIDs stored in IPLD NMT Nodes, instead of encoding namespaces in erasure coding.
+//
+// TODO(@Wondertan): Ideally, Shares structure should be defined in a separate repository with
+//  rsmt2d/nmt/celestia-core/celestia-node importing it. rsmt2d and nmt are already dependent on the notion of "share",
+//  so why shouldn't we have a separated and global type for it to avoid the type mess with defining own share type in
+//  each package.
+//
+// Share is
 type Share = namespace.PrefixedData8
 
 // Service provides as simple interface to access any DataSquare/Block Share on the network.
