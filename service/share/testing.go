@@ -5,12 +5,13 @@ import (
 	"math"
 	"testing"
 
-	"github.com/celestiaorg/celestia-core/pkg/wrapper"
-	"github.com/celestiaorg/nmt"
-	"github.com/celestiaorg/rsmt2d"
 	format "github.com/ipfs/go-ipld-format"
 	mdutils "github.com/ipfs/go-merkledag/test"
 	"github.com/stretchr/testify/require"
+
+	"github.com/celestiaorg/celestia-core/pkg/wrapper"
+	"github.com/celestiaorg/nmt"
+	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/ipld"
 	"github.com/celestiaorg/celestia-node/service/header"

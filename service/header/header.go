@@ -19,8 +19,8 @@ type RawHeader = core.Header
 // block headers and perform Data Availability Sampling.
 type ExtendedHeader struct {
 	RawHeader    `json:"header"`
-	Commit       *core.Commit               `json:"commit"`
-	ValidatorSet *core.ValidatorSet         `json:"validator_set"`
+	Commit       *core.Commit            `json:"commit"`
+	ValidatorSet *core.ValidatorSet      `json:"validator_set"`
 	DAH          *DataAvailabilityHeader `json:"dah"`
 }
 

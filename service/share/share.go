@@ -3,9 +3,10 @@ package share
 import (
 	"context"
 
-	"github.com/celestiaorg/nmt/namespace"
 	format "github.com/ipfs/go-ipld-format"
 	"github.com/ipfs/go-merkledag"
+
+	"github.com/celestiaorg/nmt/namespace"
 
 	"github.com/celestiaorg/celestia-node/ipld"
 	"github.com/celestiaorg/celestia-node/ipld/plugin"
@@ -118,6 +119,6 @@ func (s *service) GetShares(ctx context.Context, dah header.DataAvailabilityHead
 	panic("implement me")
 }
 
-func (s *service) GetSharesByNamespace(ctx context.Context, dah header.DataAvailabilityHeader, nid namespace.ID) ([]Share, error) {
+func (s *service) GetSharesByNamespace(context.Context, header.DataAvailabilityHeader, namespace.ID) ([]Share, error) {
 	panic("implement me")
 }
