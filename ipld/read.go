@@ -212,7 +212,7 @@ func GetLeafData(
 	totalLeafs uint32, // this corresponds to the extended square width
 	dag ipld.NodeGetter,
 ) ([]byte, error) {
-	nd, err := GetLeaf(ctx, dag, rootCid, leafIndex, totalLeafs)
+	nd, err := GetLeaf(ctx, dag, rootCid, int(leafIndex), int(totalLeafs))
 	if err != nil {
 		return nil, err
 	}
@@ -222,7 +222,7 @@ func GetLeafData(
 
 // GetLeafData fetches and returns the raw leaf.
 // It walks down the IPLD NMT tree until it finds the requested one.
-func GetLeaf(ctx context.Context, dag ipld.NodeGetter, root cid.Cid, leaf, total uint32) (ipld.Node, error) {
+func GetLeaf(ctx context.Context, dag ipld.NodeGetter, root cid.Cid, leaf, total int) (ipld.Node, error) {
 	// request the node
 	nd, err := dag.Get(ctx, root)
 	if err != nil {
