@@ -7,6 +7,8 @@ import (
 	core "github.com/celestiaorg/celestia-core/types"
 )
 
+type DataAvailabilityHeader = da.DataAvailabilityHeader
+
 // RawHeader is an alias to core.Header. It is
 // "raw" because it is not yet wrapped to include
 // the DataAvailabilityHeader.
@@ -19,7 +21,7 @@ type ExtendedHeader struct {
 	RawHeader    `json:"header"`
 	Commit       *core.Commit               `json:"commit"`
 	ValidatorSet *core.ValidatorSet         `json:"validator_set"`
-	DAH          *da.DataAvailabilityHeader `json:"dah"`
+	DAH          *DataAvailabilityHeader `json:"dah"`
 }
 
 // MarshalBinary marshals ExtendedHeader to binary.
