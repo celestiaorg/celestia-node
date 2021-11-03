@@ -55,7 +55,11 @@ func (m *mockFetcher) GetBlock(ctx context.Context, height *int64) (*RawBlock, e
 	return nil, nil
 }
 
-func (m *mockFetcher) CommitAtHeight(ctx context.Context, height *int64) (*core.Commit, error) {
+func (m *mockFetcher) Commit(ctx context.Context, height *int64) (*core.Commit, error) {
+	return nil, nil
+}
+
+func (m *mockFetcher) ValidatorSet(ctx context.Context, height *int64) (*core.ValidatorSet, error) {
 	return nil, nil
 }
 
