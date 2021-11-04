@@ -2,6 +2,7 @@ package share
 
 import (
 	"context"
+	"fmt"
 
 	format "github.com/ipfs/go-ipld-format"
 	"github.com/ipfs/go-merkledag"
@@ -63,6 +64,7 @@ func NewService(dag format.DAGService) Service {
 	}
 }
 
+// TODO(@Wondertan): Simple thread safety for Start and Stop would not hurt.
 type service struct {
 	dag format.DAGService
 	// session is dag sub-session that applies optimization for fetching/loading related nodes, like shares
@@ -74,7 +76,7 @@ type service struct {
 
 func (s *service) Start(context.Context) error {
 	if s.session != nil || s.cancel != nil {
-		return nil
+		return fmt.Errorf("share: Service already started")
 	}
 
 	// NOTE: The ctx given as param is used to control Start flow and only needed when Start is blocking,
@@ -89,7 +91,7 @@ func (s *service) Start(context.Context) error {
 
 func (s *service) Stop(context.Context) error {
 	if s.session == nil || s.cancel == nil {
-		return nil
+		return fmt.Errorf("share: Service already stopped")
 	}
 
 	s.cancel()
