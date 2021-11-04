@@ -18,6 +18,7 @@ import (
 	"github.com/celestiaorg/celestia-node/core"
 	"github.com/celestiaorg/celestia-node/node/rpc"
 	"github.com/celestiaorg/celestia-node/service/block"
+	"github.com/celestiaorg/celestia-node/service/share"
 )
 
 const Timeout = time.Second * 15
@@ -56,6 +57,7 @@ type Node struct {
 	// TODO full node) and in light, same thing `LightServices` (all expected services to be running in a light node.
 	// TODO `FullServices` can include `LightServices` + other services.
 	BlockServ *block.Service `optional:"true"`
+	ShareServ share.Service  // not optional
 }
 
 // New assembles a new Node with the given type 'tp' over Repository 'repo'.

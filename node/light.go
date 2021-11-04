@@ -6,6 +6,7 @@ import (
 	"go.uber.org/fx"
 
 	"github.com/celestiaorg/celestia-node/node/p2p"
+	"github.com/celestiaorg/celestia-node/node/services"
 )
 
 // lightComponents keeps all the components as DI options required to built a Light Node.
@@ -23,5 +24,6 @@ func lightComponents(cfg *Config, repo Repository) fx.Option {
 		fx.Provide(repo.Keystore),
 		// components
 		p2p.Components(cfg.P2P),
+		fx.Provide(services.Share),
 	)
 }
