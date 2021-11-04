@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/celestiaorg/celestia-core/testutils"
+	core "github.com/celestiaorg/celestia-core/types"
 	"github.com/celestiaorg/celestia-node/service/header"
 )
 
@@ -51,6 +52,14 @@ type mockFetcher struct {
 }
 
 func (m *mockFetcher) GetBlock(ctx context.Context, height *int64) (*RawBlock, error) {
+	return nil, nil
+}
+
+func (m *mockFetcher) Commit(ctx context.Context, height *int64) (*core.Commit, error) {
+	return nil, nil
+}
+
+func (m *mockFetcher) ValidatorSet(ctx context.Context, height *int64) (*core.ValidatorSet, error) {
 	return nil, nil
 }
 

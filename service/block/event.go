@@ -60,12 +60,27 @@ func (s *Service) handleRawBlock(raw *RawBlock) error {
 		return err
 	}
 	log.Debugw("generated DataAvailabilityHeader", "data root", dah.Hash())
+	// create ExtendedHeader
+	commit, err := s.fetcher.Commit(context.Background(), &raw.Height)
+	if err != nil {
+		log.Errorw("fetching commit", "err", err.Error(), "height", raw.Height)
+		return err
+	}
+	valSet, err := s.fetcher.ValidatorSet(context.Background(), &raw.Height)
+	if err != nil {
+		log.Errorw("fetching validator set", "err", err.Error(), "height", raw.Height)
+		return err
+	}
+	extendedHeader := &header.ExtendedHeader{
+		RawHeader:    raw.Header,
+		DAH:          &dah,
+		Commit:       commit,
+		ValidatorSet: valSet,
+	}
 	// create Block
 	extendedBlock := &Block{
-		header: &header.ExtendedHeader{
-			DAH: &dah,
-		},
-		data: extendedBlockData,
+		header: extendedHeader,
+		data:   extendedBlockData,
 	}
 	// check for bad encoding fraud
 	err = validateEncoding(extendedBlock, raw.Header)

@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	"github.com/celestiaorg/celestia-core/types"
-
 	"github.com/celestiaorg/celestia-node/service/block"
 )
 
@@ -34,6 +33,26 @@ func (f *BlockFetcher) GetBlock(ctx context.Context, height *int64) (*block.RawB
 		return nil, err
 	}
 	return raw.Block, nil
+}
+
+// Commit queries Core for a `Commit` from the block at
+// the given height.
+func (f *BlockFetcher) Commit(ctx context.Context, height *int64) (*types.Commit, error) {
+	commit, err := f.client.Commit(ctx, height)
+	if err != nil {
+		return nil, err
+	}
+	return commit.Commit, nil
+}
+
+// ValidatorSet queries Core for the ValidatorSet from the
+// block at the given height.
+func (f *BlockFetcher) ValidatorSet(ctx context.Context, height *int64) (*types.ValidatorSet, error) {
+	vals, err := f.client.Validators(ctx, height, nil, nil)
+	if err != nil {
+		return nil, err
+	}
+	return types.NewValidatorSet(vals.Validators), nil
 }
 
 // SubscribeNewBlockEvent subscribes to new block events from Core, returning

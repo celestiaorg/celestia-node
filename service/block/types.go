@@ -1,11 +1,9 @@
 package block
 
 import (
-	"github.com/celestiaorg/rsmt2d"
-
-	"github.com/celestiaorg/celestia-node/service/header"
-
 	core "github.com/celestiaorg/celestia-core/types"
+	"github.com/celestiaorg/celestia-node/service/header"
+	"github.com/celestiaorg/rsmt2d"
 )
 
 // RawBlock is an alias to a "raw" Core block. It is "raw" because
@@ -16,9 +14,8 @@ type RawBlock = core.Block
 // It contains the erasure coded block data as well as its
 // ExtendedHeader.
 type Block struct {
-	header     *header.ExtendedHeader
-	data       *ExtendedBlockData
-	lastCommit *core.Commit
+	header *header.ExtendedHeader
+	data   *ExtendedBlockData
 }
 
 // ExtendedBlockData is an alias to rsmt2d's ExtendedDataSquare type.
@@ -34,9 +31,9 @@ func (b *Block) Data() *ExtendedBlockData {
 	return b.data
 }
 
-// LastCommit returns the last commit of the Block.
-func (b *Block) LastCommit() *core.Commit {
-	return b.lastCommit
+// Commit returns the commit of the Block.
+func (b *Block) Commit() *core.Commit {
+	return b.header.Commit
 }
 
 // DataSize returns the width of the ExtendedBlockData.
