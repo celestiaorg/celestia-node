@@ -25,11 +25,11 @@ import (
 // Share is
 type Share = namespace.PrefixedData8
 
-// Service provides as simple interface to access any DataSquare/Block Share on the network.
+// Service provides a simple interface to access any data square or block share on the network.
 //
 // All Get methods follow the following flow:
 // 	* Check local storage for the requested Share.
-// 		* If exist
+// 		* If exists
 // 			* Load from disk
 //			* Return
 //  	* If not
