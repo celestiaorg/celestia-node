@@ -38,8 +38,8 @@ type Share = namespace.PrefixedData8
 //			* Store the Share
 //			* Return
 type Service interface {
-	// GetShare loads a Share committed to the given DataAvailabilityHeader by its Row anc Col coordinates in the
-	// erasures data square or block.
+	// GetShare loads a Share committed to the given DataAvailabilityHeader by its Row and Column coordinates in the
+	// erasure coded data square or block.
 	GetShare(ctx context.Context, dah header.DataAvailabilityHeader, row, col int) (Share, error)
 
 	// GetShares loads all the Shares committed to the given DataAvailabilityHeader as a 2D array/slice.
