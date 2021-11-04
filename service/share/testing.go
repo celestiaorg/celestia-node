@@ -19,7 +19,7 @@ import (
 
 // RandServiceWithTree provides a share.Service filled with 'n' NMT trees of 'n' random shares, essentially storing a
 // whole square.
-func RandServiceWithTree(t *testing.T, n int) (Service, header.DataAvailabilityHeader) {
+func RandServiceWithTree(t *testing.T, n int) (Service, *header.DataAvailabilityHeader) {
 	shares := RandShares(t, n*n)
 	sharesSlices := make([][]byte, n*n)
 	for i, share := range shares {
@@ -39,7 +39,7 @@ func RandServiceWithTree(t *testing.T, n int) (Service, header.DataAvailabilityH
 	dah, err := header.DataAvailabilityHeaderFromExtendedData(eds)
 	require.NoError(t, err)
 
-	return NewService(dag), dah
+	return NewService(dag), &dah
 }
 
 // RandShares provides 'n' randomized shares prefixed with random namespaces.
