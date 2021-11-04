@@ -19,7 +19,8 @@ func TestEventLoop(t *testing.T) {
 	mockFetcher := &mockFetcher{
 		mockNewBlockCh: make(chan *RawBlock),
 	}
-	serv := NewBlockService(mockFetcher, md.Mock())
+	mockDAG := md.Mock()
+	serv := NewBlockService(mockFetcher, mockDAG)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
