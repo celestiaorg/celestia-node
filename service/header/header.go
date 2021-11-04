@@ -9,6 +9,9 @@ import (
 
 type DataAvailabilityHeader = da.DataAvailabilityHeader
 
+// EmptyDAH provides DAH of the empty block.
+var EmptyDAH = da.MinDataAvailabilityHeader
+
 // RawHeader is an alias to core.Header. It is
 // "raw" because it is not yet wrapped to include
 // the DataAvailabilityHeader.

@@ -7,8 +7,6 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/celestiaorg/celestia-core/pkg/da"
-
 	tmrand "github.com/celestiaorg/celestia-core/libs/rand"
 	tmproto "github.com/celestiaorg/celestia-core/proto/tendermint/types"
 	"github.com/celestiaorg/celestia-core/proto/tendermint/version"
@@ -22,7 +20,7 @@ func RandExtendedHeader(t *testing.T) *ExtendedHeader {
 	voteSet := core.NewVoteSet(rh.ChainID, rh.Height, 0, tmproto.PrecommitType, valSet)
 	commit, err := core.MakeCommit(RandBlockID(t), rh.Height, 0, voteSet, vals, time.Now())
 	require.NoError(t, err)
-	dah := da.MinDataAvailabilityHeader()
+	dah := EmptyDAH()
 	return &ExtendedHeader{
 		RawHeader:    *rh,
 		Commit:       commit,
