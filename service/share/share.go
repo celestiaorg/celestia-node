@@ -3,7 +3,9 @@ package share
 import (
 	"context"
 	"fmt"
+	"math/rand"
 
+	"github.com/ipfs/go-cid"
 	format "github.com/ipfs/go-ipld-format"
 	"github.com/ipfs/go-merkledag"
 
@@ -106,13 +108,9 @@ func (s *service) Stop(context.Context) error {
 	return nil
 }
 
-func (s *service) GetShare(ctx context.Context, r *Root, row, col int) (Share, error) {
-	rootCid, err := plugin.CidFromNamespacedSha256(r.RowsRoots[row])
-	if err != nil {
-		return nil, err
-	}
-
-	nd, err := ipld.GetLeaf(ctx, s.dag, rootCid, col, len(r.ColumnRoots))
+func (s *service) GetShare(ctx context.Context, dah *Root, row, col int) (Share, error) {
+	root, leaf := translate(dah, row, col)
+	nd, err := ipld.GetLeaf(ctx, s.dag, root, leaf, len(dah.RowsRoots))
 	if err != nil {
 		return nil, err
 	}
@@ -129,4 +127,14 @@ func (s *service) GetShares(context.Context, *Root) ([][]Share, error) {
 
 func (s *service) GetSharesByNamespace(context.Context, *Root, namespace.ID) ([]Share, error) {
 	panic("implement me")
+}
+
+// translate transforms square coordinates into IPLD NMT tree path to a leaf node.
+// It also adds randomization to evenly spread fetching from Rows and Columns.
+func translate(dah *Root, row, col int) (cid.Cid, int) {
+	if rand.Intn(2) == 0 {
+		return plugin.MustCidFromNamespacedSha256(dah.ColumnRoots[col]), row
+	}
+
+	return plugin.MustCidFromNamespacedSha256(dah.RowsRoots[row]), col
 }

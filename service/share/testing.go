@@ -17,16 +17,20 @@ import (
 	"github.com/celestiaorg/celestia-node/service/header"
 )
 
-// RandServiceWithTree provides a share.Service filled with 'n' NMT trees of 'n' random shares, essentially storing a
+// RandServiceWithSquare provides a share.Service filled with 'n' NMT trees of 'n' random shares, essentially storing a
 // whole square.
-func RandServiceWithTree(t *testing.T, n int) (Service, *Root) {
+func RandServiceWithSquare(t *testing.T, n int) (Service, *Root) {
 	shares := RandShares(t, n*n)
 	sharesSlices := make([][]byte, n*n)
 	for i, share := range shares {
 		sharesSlices[i] = share
 	}
 	dag, ctx := mdutils.Mock(), context.Background()
-	na := ipld.NewNmtNodeAdder(ctx, format.NewBatch(ctx, dag))
+	na := ipld.NewNmtNodeAdder(ctx, format.NewBatch(
+		ctx,
+		dag,
+		format.MaxNodesBatchOption(16), // lower max value than default(128) cures flakiness.
+	))
 
 	squareSize := uint32(math.Sqrt(float64(len(shares))))
 	tree := wrapper.NewErasuredNamespacedMerkleTree(uint64(squareSize), nmt.NodeVisitor(na.Visit))

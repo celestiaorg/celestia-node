@@ -13,7 +13,7 @@ func TestGetShare(t *testing.T) {
 	defer cancel()
 
 	n := 16
-	serv, dah := RandServiceWithTree(t, n)
+	serv, dah := RandServiceWithSquare(t, n)
 	err := serv.Start(ctx)
 	require.NoError(t, err)
 
