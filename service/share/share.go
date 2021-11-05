@@ -132,7 +132,7 @@ func (s *service) GetSharesByNamespace(context.Context, *Root, namespace.ID) ([]
 // translate transforms square coordinates into IPLD NMT tree path to a leaf node.
 // It also adds randomization to evenly spread fetching from Rows and Columns.
 func translate(dah *Root, row, col int) (cid.Cid, int) {
-	if rand.Intn(2) == 0 {
+	if rand.Intn(2) == 0 { //nolint:gosec
 		return plugin.MustCidFromNamespacedSha256(dah.ColumnRoots[col]), row
 	}
 

@@ -34,4 +34,3 @@ func TestSampleSquare(t *testing.T) {
 		}
 	}
 }
-

@@ -33,4 +33,3 @@ func TestDASFailed(t *testing.T) {
 	err := das.DAS(ctx, &empty)
 	assert.Error(t, err)
 }
-
