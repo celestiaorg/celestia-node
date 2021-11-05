@@ -7,11 +7,12 @@ import (
 	format "github.com/ipfs/go-ipld-format"
 	"github.com/ipfs/go-merkledag"
 
+	"github.com/celestiaorg/celestia-core/pkg/da"
+
 	"github.com/celestiaorg/nmt/namespace"
 
 	"github.com/celestiaorg/celestia-node/ipld"
 	"github.com/celestiaorg/celestia-node/ipld/plugin"
-	"github.com/celestiaorg/celestia-node/service/header"
 )
 
 // TODO(@Wondertan): We prefix real data of shares with namespaces to be able to recover them during erasure coding
@@ -25,6 +26,10 @@ import (
 //
 // Share is
 type Share = namespace.PrefixedData8
+
+// Root represents root commitment to multiple Shares.
+// In practice, it is a commitment to all the Data in the Block in a sq
+type Root = *da.DataAvailabilityHeader
 
 // Service provides a simple interface to access any data square or block share on the network.
 //
@@ -41,14 +46,14 @@ type Share = namespace.PrefixedData8
 type Service interface {
 	// GetShare loads a Share committed to the given DataAvailabilityHeader by its Row and Column coordinates in the
 	// erasure coded data square or block.
-	GetShare(ctx context.Context, dah *header.DataAvailabilityHeader, row, col int) (Share, error)
+	GetShare(ctx context.Context, root Root, row, col int) (Share, error)
 
 	// GetShares loads all the Shares committed to the given DataAvailabilityHeader as a 2D array/slice.
 	// It also optimistically executes erasure coding recovery.
-	GetShares(context.Context, *header.DataAvailabilityHeader) ([][]Share, error)
+	GetShares(context.Context, Root) ([][]Share, error)
 
 	// GetSharesByNamespace loads all the Shares committed to the given DataAvailabilityHeader as a 1D array/slice.
-	GetSharesByNamespace(context.Context, *header.DataAvailabilityHeader, namespace.ID) ([]Share, error)
+	GetSharesByNamespace(context.Context, Root, namespace.ID) ([]Share, error)
 
 	// Starts the Service.
 	Start(context.Context) error
@@ -100,13 +105,13 @@ func (s *service) Stop(context.Context) error {
 	return nil
 }
 
-func (s *service) GetShare(ctx context.Context, dah *header.DataAvailabilityHeader, row, col int) (Share, error) {
-	rootCid, err := plugin.CidFromNamespacedSha256(dah.RowsRoots[row])
+func (s *service) GetShare(ctx context.Context, r Root, row, col int) (Share, error) {
+	rootCid, err := plugin.CidFromNamespacedSha256(r.RowsRoots[row])
 	if err != nil {
 		return nil, err
 	}
 
-	nd, err := ipld.GetLeaf(ctx, s.dag, rootCid, col, len(dah.ColumnRoots))
+	nd, err := ipld.GetLeaf(ctx, s.dag, rootCid, col, len(r.ColumnRoots))
 	if err != nil {
 		return nil, err
 	}
@@ -117,10 +122,10 @@ func (s *service) GetShare(ctx context.Context, dah *header.DataAvailabilityHead
 	return nd.RawData()[1:], nil
 }
 
-func (s *service) GetShares(ctx context.Context, dah *header.DataAvailabilityHeader) ([][]Share, error) {
+func (s *service) GetShares(context.Context, Root) ([][]Share, error) {
 	panic("implement me")
 }
 
-func (s *service) GetSharesByNamespace(context.Context, *header.DataAvailabilityHeader, namespace.ID) ([]Share, error) {
+func (s *service) GetSharesByNamespace(context.Context, Root, namespace.ID) ([]Share, error) {
 	panic("implement me")
 }
