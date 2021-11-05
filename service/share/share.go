@@ -29,8 +29,8 @@ import (
 type Share = namespace.PrefixedData8
 
 // Root represents root commitment to multiple Shares.
-// In practice, it is a commitment to all the Data in the Block in a sq
-type Root = *da.DataAvailabilityHeader
+// In practice, it is a commitment to all the Data in a square.
+type Root = da.DataAvailabilityHeader
 
 // Service provides a simple interface to access any data square or block share on the network.
 //
@@ -47,14 +47,14 @@ type Root = *da.DataAvailabilityHeader
 type Service interface {
 	// GetShare loads a Share committed to the given DataAvailabilityHeader by its Row and Column coordinates in the
 	// erasure coded data square or block.
-	GetShare(ctx context.Context, root Root, row, col int) (Share, error)
+	GetShare(ctx context.Context, root *Root, row, col int) (Share, error)
 
 	// GetShares loads all the Shares committed to the given DataAvailabilityHeader as a 2D array/slice.
 	// It also optimistically executes erasure coding recovery.
-	GetShares(context.Context, Root) ([][]Share, error)
+	GetShares(context.Context, *Root) ([][]Share, error)
 
 	// GetSharesByNamespace loads all the Shares committed to the given DataAvailabilityHeader as a 1D array/slice.
-	GetSharesByNamespace(context.Context, Root, namespace.ID) ([]Share, error)
+	GetSharesByNamespace(context.Context, *Root, namespace.ID) ([]Share, error)
 
 	// Starts the Service.
 	Start(context.Context) error
@@ -106,7 +106,7 @@ func (s *service) Stop(context.Context) error {
 	return nil
 }
 
-func (s *service) GetShare(ctx context.Context, r Root, row, col int) (Share, error) {
+func (s *service) GetShare(ctx context.Context, r *Root, row, col int) (Share, error) {
 	rootCid, err := plugin.CidFromNamespacedSha256(r.RowsRoots[row])
 	if err != nil {
 		return nil, err
@@ -123,10 +123,10 @@ func (s *service) GetShare(ctx context.Context, r Root, row, col int) (Share, er
 	return nd.RawData()[1:], nil
 }
 
-func (s *service) GetShares(context.Context, Root) ([][]Share, error) {
+func (s *service) GetShares(context.Context, *Root) ([][]Share, error) {
 	panic("implement me")
 }
 
-func (s *service) GetSharesByNamespace(context.Context, Root, namespace.ID) ([]Share, error) {
+func (s *service) GetSharesByNamespace(context.Context, *Root, namespace.ID) ([]Share, error) {
 	panic("implement me")
 }
