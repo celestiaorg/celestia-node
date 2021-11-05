@@ -21,6 +21,6 @@ func fullComponents(cfg *Config, repo Repository) fx.Option {
 			return core.NewBlockFetcher(client)
 		}),
 		fx.Provide(rpc.NewServer),
-		services.Components(),
+		fx.Provide(services.Block),
 	)
 }

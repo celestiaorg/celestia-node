@@ -1,0 +1,132 @@
+package share
+
+import (
+	"context"
+	"fmt"
+
+	format "github.com/ipfs/go-ipld-format"
+	"github.com/ipfs/go-merkledag"
+
+	"github.com/celestiaorg/celestia-core/pkg/da"
+
+	"github.com/celestiaorg/nmt/namespace"
+
+	"github.com/celestiaorg/celestia-node/ipld"
+	"github.com/celestiaorg/celestia-node/ipld/plugin"
+)
+
+// TODO(@Wondertan): We prefix real data of shares with namespaces to be able to recover them during erasure coding
+//  recovery. However, that is storage and bandwidth overhead(8 bytes per each share) which we can avoid by getting
+//  namespaces from CIDs stored in IPLD NMT Nodes, instead of encoding namespaces in erasure coding.
+//
+// TODO(@Wondertan): Ideally, Shares structure should be defined in a separate repository with
+//  rsmt2d/nmt/celestia-core/celestia-node importing it. rsmt2d and nmt are already dependent on the notion of "share",
+//  so why shouldn't we have a separated and global type for it to avoid the type mess with defining own share type in
+//  each package.
+//
+// Share is a fixed-size data chunk associated with a namespace ID, whose data will be erasure-coded and committed
+// to in Namespace Merkle trees.
+type Share = namespace.PrefixedData8
+
+// Root represents root commitment to multiple Shares.
+// In practice, it is a commitment to all the Data in a square.
+type Root = da.DataAvailabilityHeader
+
+// Service provides a simple interface to access any data square or block share on the network.
+//
+// All Get methods follow the following flow:
+// 	* Check local storage for the requested Share.
+// 		* If exists
+// 			* Load from disk
+//			* Return
+//  	* If not
+//  		* Find provider on the network
+//      	* Fetch the Share from the provider
+//			* Store the Share
+//			* Return
+type Service interface {
+	// GetShare loads a Share committed to the given DataAvailabilityHeader by its Row and Column coordinates in the
+	// erasure coded data square or block.
+	GetShare(ctx context.Context, root *Root, row, col int) (Share, error)
+
+	// GetShares loads all the Shares committed to the given DataAvailabilityHeader as a 2D array/slice.
+	// It also optimistically executes erasure coding recovery.
+	GetShares(context.Context, *Root) ([][]Share, error)
+
+	// GetSharesByNamespace loads all the Shares committed to the given DataAvailabilityHeader as a 1D array/slice.
+	GetSharesByNamespace(context.Context, *Root, namespace.ID) ([]Share, error)
+
+	// Starts the Service.
+	Start(context.Context) error
+
+	// Stops the Service.
+	Stop(context.Context) error
+}
+
+// NewService creates new basic share.Service.
+func NewService(dag format.DAGService) Service {
+	return &service{
+		dag: dag,
+	}
+}
+
+// TODO(@Wondertan): Simple thread safety for Start and Stop would not hurt.
+type service struct {
+	dag format.DAGService
+	// session is dag sub-session that applies optimization for fetching/loading related nodes, like shares
+	// prefer session over dag for fetching nodes.
+	session format.NodeGetter
+	// cancel controls lifecycle of the session
+	cancel context.CancelFunc
+}
+
+func (s *service) Start(context.Context) error {
+	if s.session != nil || s.cancel != nil {
+		return fmt.Errorf("share: Service already started")
+	}
+
+	// NOTE: The ctx given as param is used to control Start flow and only needed when Start is blocking,
+	// but this one is not.
+	//
+	// The newer context here is created to control lifecycle of the session.
+	ctx, cancel := context.WithCancel(context.Background())
+	s.cancel = cancel
+	s.session = merkledag.NewSession(ctx, s.dag)
+	return nil
+}
+
+func (s *service) Stop(context.Context) error {
+	if s.session == nil || s.cancel == nil {
+		return fmt.Errorf("share: Service already stopped")
+	}
+
+	s.cancel()
+	s.cancel = nil
+	s.session = nil
+	return nil
+}
+
+func (s *service) GetShare(ctx context.Context, r *Root, row, col int) (Share, error) {
+	rootCid, err := plugin.CidFromNamespacedSha256(r.RowsRoots[row])
+	if err != nil {
+		return nil, err
+	}
+
+	nd, err := ipld.GetLeaf(ctx, s.dag, rootCid, col, len(r.ColumnRoots))
+	if err != nil {
+		return nil, err
+	}
+
+	// we exclude one byte, as it is not part of the share, but encoding of IPLD NMT Node type.
+	// TODO(@Wondertan): There is way to understand node type indirectly,
+	//  without overhead(storing/fetching) of appending it to share.
+	return nd.RawData()[1:], nil
+}
+
+func (s *service) GetShares(context.Context, *Root) ([][]Share, error) {
+	panic("implement me")
+}
+
+func (s *service) GetSharesByNamespace(context.Context, *Root, namespace.ID) ([]Share, error) {
+	panic("implement me")
+}
