@@ -8,7 +8,6 @@ import (
 	ipld "github.com/ipfs/go-ipld-format"
 	logging "github.com/ipfs/go-log/v2"
 
-	"github.com/celestiaorg/celestia-node/service/header"
 	"github.com/celestiaorg/celestia-node/service/share"
 )
 
@@ -29,7 +28,7 @@ type DASer interface {
 	// DAS executes Data Availability Sampling over given DataAvailabilityHeader.
 	// It randomly picks DefaultSamples amount of Block Shares and requests them from the network.
 	// It fails with ErrDASFailed if didn't receive them for the Timeout.
-	DAS(context.Context, *header.DataAvailabilityHeader) error
+	DAS(context.Context, *share.Root) error
 }
 
 // NewDASer creates a new DASer.
@@ -43,7 +42,7 @@ type daser struct {
 	shares share.Service
 }
 
-func (das *daser) DAS(ctx context.Context, dah *header.DataAvailabilityHeader) error {
+func (das *daser) DAS(ctx context.Context, dah *share.Root) error {
 	log.Debugw("DAS", "dah", dah.Hash())
 	samples, err := SampleSquare(len(dah.ColumnRoots), DefaultSamples)
 	if err != nil {
