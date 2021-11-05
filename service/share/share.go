@@ -24,7 +24,8 @@ import (
 //  so why shouldn't we have a separated and global type for it to avoid the type mess with defining own share type in
 //  each package.
 //
-// Share is
+// Share is a fixed-size data chunk associated with a namespace ID, whose data will be erasure-coded and committed
+// to in Namespace Merkle trees.
 type Share = namespace.PrefixedData8
 
 // Root represents root commitment to multiple Shares.
