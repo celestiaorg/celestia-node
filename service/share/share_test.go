@@ -2,6 +2,7 @@ package share
 
 import (
 	"context"
+	"strconv"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -29,13 +30,22 @@ func TestGetShare(t *testing.T) {
 	require.NoError(t, err)
 }
 
-// TODO @renaynay: make this table test w/ overflowing shares
 func TestService_GetSharesByNamespace(t *testing.T) {
-	serv, root := RandServiceWithTree(t, 4)
-	randNID := root.RowsRoots[(len(root.RowsRoots)-1)/2][:8]
+	var tests = []struct {
+		amountShares int
+	}{
+		{amountShares: 4}, {amountShares: 16}, {amountShares: 128},
+	}
 
-	shares, err := serv.GetSharesByNamespace(context.Background(), root, randNID)
-	require.NoError(t, err)
-	assert.Len(t, shares, 1)
-	assert.Equal(t, randNID, []byte(shares[0].NamespaceID()))
+	for i, tt := range tests {
+		t.Run(strconv.Itoa(i), func(t *testing.T) {
+			serv, root := RandServiceWithTree(t, tt.amountShares)
+			randNID := root.RowsRoots[(len(root.RowsRoots)-1)/2][:8]
+
+			shares, err := serv.GetSharesByNamespace(context.Background(), root, randNID)
+			require.NoError(t, err)
+			assert.Len(t, shares, 1)
+			assert.Equal(t, randNID, []byte(shares[0].NamespaceID()))
+		})
+	}
 }
