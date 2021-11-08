@@ -262,7 +262,7 @@ func GetLeavesByNamespace(ctx context.Context, dag ipld.NodeGetter, root cid.Cid
 	// check links
 	lnks := nd.Links()
 	if len(lnks) == 1 {
-		// if there is no links, then this is a leaf node, so just return it
+		// if there is one link, then this is a leaf node, so just return it
 		out = append(out, nd)
 		return
 	}
