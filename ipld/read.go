@@ -251,7 +251,7 @@ func GetLeaf(ctx context.Context, dag ipld.NodeGetter, root cid.Cid, leaf, total
 
 func GetLeavesByNamespace(ctx context.Context, dag ipld.NodeGetter, root cid.Cid, nID namespace.ID) (out []ipld.Node, err error) {
 	rootH := plugin.NamespacedSha256FromCID(root)
-	if !nID.Less(plugin.RowMin(rootH)) && nID.LessOrEqual(plugin.RowMax(rootH)) {
+	if nID.Less(plugin.RowMin(rootH)) || !nID.LessOrEqual(plugin.RowMax(rootH)) {
 		return nil, errNotFoundInRange
 	}
 	// request the node

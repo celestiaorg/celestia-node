@@ -312,12 +312,16 @@ func TestGetSharesByNamespace(t *testing.T) {
 			rowRoots, err := RowRootsByNamespaceID(nID, &dah)
 			require.NoError(t, err)
 
-			shares, err := GetSharesByNamespace(context.Background(), nID, &dah, rowRoots, dag)
-			require.NoError(t, err)
+			for _, rowRoot := range rowRoots {
+				rootCID := plugin.MustCidFromNamespacedSha256(rowRoot)
+				nodes, err := GetLeavesByNamespace(context.Background(), dag, rootCID, nID)
+				require.NoError(t, err)
 
-			for _, share := range shares {
-				// TODO @renaynay: nID is prepended twice for some reason.
-				assert.Equal(t, expected, share[8:])
+				for _, node := range nodes {
+					// TODO @renaynay: nID is prepended twice for some reason.
+					share := node.RawData()[1:]
+					assert.Equal(t, expected, share[8:])
+				}
 			}
 		})
 	}
