@@ -44,10 +44,7 @@ func Init(path string) (err error) {
 	var pv *privval.FilePV
 	keyPath := cfg.PrivValidatorKeyFile()
 	if !utils.Exists(keyPath) {
-		pv, err = privval.GenFilePV(keyPath, cfg.PrivValidatorStateFile(), defaultValKeyType)
-		if err != nil {
-			return
-		}
+		pv = privval.GenFilePV(keyPath, cfg.PrivValidatorStateFile())
 		pv.Save()
 		log.Info("New consensus private key is generated")
 	} else {
