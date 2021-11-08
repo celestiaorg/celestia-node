@@ -11,9 +11,9 @@ import (
 
 	"github.com/celestiaorg/rsmt2d"
 
-	"github.com/celestiaorg/celestia-core/pkg/da"
-	"github.com/celestiaorg/celestia-core/pkg/wrapper"
 	"github.com/celestiaorg/celestia-node/ipld/plugin"
+	"github.com/tendermint/tendermint/pkg/da"
+	"github.com/tendermint/tendermint/pkg/wrapper"
 )
 
 var ErrRetrieveTimeout = errors.New("retrieve data timeout")

@@ -9,9 +9,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	core "github.com/celestiaorg/celestia-core/types"
 	"github.com/celestiaorg/celestia-node/service/header"
 	"github.com/celestiaorg/celestia-node/testutils"
+	core "github.com/tendermint/tendermint/types"
 )
 
 // TestEventLoop tests that the Service event loop spawned by calling

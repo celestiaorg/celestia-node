@@ -5,8 +5,8 @@ import (
 
 	"github.com/celestiaorg/rsmt2d"
 
-	"github.com/celestiaorg/celestia-core/pkg/da"
 	"github.com/celestiaorg/celestia-node/ipld"
+	"github.com/tendermint/tendermint/pkg/da"
 )
 
 func (s *Service) StoreBlockData(ctx context.Context, data *ExtendedBlockData) error {

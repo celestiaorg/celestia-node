@@ -1,8 +1,8 @@
 package header
 
 import (
-	"github.com/celestiaorg/celestia-core/pkg/da"
-	core "github.com/celestiaorg/celestia-core/types"
+	"github.com/tendermint/tendermint/pkg/da"
+	core "github.com/tendermint/tendermint/types"
 
 	header_pb "github.com/celestiaorg/celestia-node/service/header/pb"
 )

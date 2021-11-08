@@ -5,7 +5,7 @@ import (
 
 	"github.com/BurntSushi/toml"
 
-	"github.com/celestiaorg/celestia-core/config"
+	"github.com/tendermint/tendermint/config"
 )
 
 // Config is an alias for Core config.

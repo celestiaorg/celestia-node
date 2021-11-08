@@ -10,7 +10,7 @@ import (
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/rsmt2d"
 
-	"github.com/celestiaorg/celestia-core/pkg/wrapper"
+	"github.com/tendermint/tendermint/pkg/wrapper"
 )
 
 // PutData posts erasured block data to IPFS using the provided ipld.NodeAdder.

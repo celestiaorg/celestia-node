@@ -13,8 +13,8 @@ import (
 
 	"github.com/celestiaorg/rsmt2d"
 
-	"github.com/celestiaorg/celestia-core/pkg/wrapper"
 	"github.com/celestiaorg/celestia-node/ipld/plugin"
+	"github.com/tendermint/tendermint/pkg/wrapper"
 )
 
 // TODO(Wondertan): Move to rsmt2d

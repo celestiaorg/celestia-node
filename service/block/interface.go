@@ -3,7 +3,7 @@ package block
 import (
 	"context"
 
-	core "github.com/celestiaorg/celestia-core/types"
+	core "github.com/tendermint/tendermint/types"
 )
 
 // Fetcher encompasses the behavior necessary to fetch new "raw" blocks.

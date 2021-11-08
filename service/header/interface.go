@@ -3,7 +3,7 @@ package header
 import (
 	"context"
 
-	tmbytes "github.com/celestiaorg/celestia-core/libs/bytes"
+	tmbytes "github.com/tendermint/tendermint/libs/bytes"
 )
 
 // Subscriber encompasses the behavior necessary to
