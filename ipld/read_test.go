@@ -234,51 +234,6 @@ func removeRandShares(data [][]byte, d int) [][]byte {
 	return data
 }
 
-func Test_findStartingCID(t *testing.T) {
-	var tests = []struct {
-		rawData [][]byte
-	}{
-		{rawData: testutils.GenerateRandNamespacedRawData(16, NamespaceSize, plugin.ShareSize)},
-		{rawData: testutils.GenerateRandNamespacedRawData(16, NamespaceSize, 8)},
-		{rawData: testutils.GenerateRandNamespacedRawData(4, NamespaceSize, plugin.ShareSize)},
-		{rawData: testutils.GenerateRandNamespacedRawData(16, NamespaceSize, 8)},
-	}
-
-	for i, tt := range tests {
-		t.Run(strconv.Itoa(i), func(t *testing.T) {
-			// generate EDS
-			squareSize := uint64(math.Sqrt(float64(len(tt.rawData))))
-
-			nID := tt.rawData[len(tt.rawData)/2][:8]
-			nIDData := tt.rawData[len(tt.rawData)/2][8:]
-			dah, err := da.NewDataAvailabilityHeader(squareSize, tt.rawData)
-			require.NoError(t, err)
-
-			rowRoots, err := RowRootsByNamespaceID(nID, &dah)
-			require.NoError(t, err)
-
-			// put raw data in DAG
-			dag := mdutils.Mock()
-			_, err = PutData(context.Background(), tt.rawData, dag)
-			require.NoError(t, err)
-
-			for _, rowRoot := range rowRoots {
-				rootCid, err := plugin.CidFromNamespacedSha256(rowRoot)
-				require.NoError(t, err)
-
-				startIndex, err := findStartingIndex(context.Background(), nID, &dah, rootCid, dag, make([]string, 0))
-				require.NoError(t, err)
-
-				leafData, err := GetLeafData(context.Background(), rootCid, startIndex, uint32(len(dah.RowsRoots)), dag)
-				require.NoError(t, err)
-
-				// TODO @renaynay: nID is prepended twice for some reason.
-				assert.Equal(t, nIDData, leafData[16:])
-			}
-		})
-	}
-}
-
 func TestGetSharesByNamespace(t *testing.T) {
 	var tests = []struct {
 		rawData [][]byte
