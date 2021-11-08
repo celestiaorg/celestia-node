@@ -7,9 +7,9 @@ import (
 	"sort"
 	"time"
 
-	tmbytes "github.com/celestiaorg/celestia-core/libs/bytes"
-	"github.com/celestiaorg/celestia-core/pkg/consts"
-	"github.com/celestiaorg/celestia-core/types"
+	tmbytes "github.com/tendermint/tendermint/libs/bytes"
+	"github.com/tendermint/tendermint/pkg/consts"
+	"github.com/tendermint/tendermint/types"
 )
 
 // GenerateRandomBlockData returns randomly generated block data for testing purposes.
