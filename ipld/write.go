@@ -13,13 +13,20 @@ import (
 	"github.com/celestiaorg/celestia-core/pkg/wrapper"
 )
 
+// BatchSize defines an amount of IPLD Nodes to be buffered and written at once.
+// This configuration is very database backend specific and the current default(128) does not optimized for
+// Badger we use. We set it to one to avoid test flakiness, as some test may read for data, that was not written yet.
+// TODO(@Wondertan): Find out the perfect value for Badger(e.g. ask PL folks) or migrate to go-car IPLD
+//  storage(preferred).
+const BatchSize = 1
+
 // PutData posts erasured block data to IPFS using the provided ipld.NodeAdder.
 func PutData(ctx context.Context, shares [][]byte, adder ipld.NodeAdder) (*rsmt2d.ExtendedDataSquare, error) {
 	if len(shares) == 0 {
 		return nil, fmt.Errorf("empty data") // empty block is not an empty Data
 	}
 	// create nmt adder wrapping batch adder
-	batchAdder := NewNmtNodeAdder(ctx, ipld.NewBatch(ctx, adder))
+	batchAdder := NewNmtNodeAdder(ctx, ipld.NewBatch(ctx, adder, ipld.MaxSizeBatchOption(BatchSize)))
 	// create the nmt wrapper to generate row and col commitments
 	squareSize := uint64(math.Sqrt(float64(len(shares))))
 	tree := wrapper.NewErasuredNamespacedMerkleTree(squareSize, nmt.NodeVisitor(batchAdder.Visit))
