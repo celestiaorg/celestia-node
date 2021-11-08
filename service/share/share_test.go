@@ -28,3 +28,16 @@ func TestGetShare(t *testing.T) {
 	err = serv.Stop(ctx)
 	require.NoError(t, err)
 }
+
+// TODO @renaynay: make this table test w/ overflowing shares
+func TestService_GetSharesByNamespace(t *testing.T) {
+	serv, root := RandServiceWithTree(t, 16)
+	randRow := root.RowsRoots[len(root.RowsRoots)/2]
+	randNID := randRow[:8]
+
+	shares, err := serv.GetSharesByNamespace(context.Background(), root, randNID)
+	require.NoError(t, err)
+
+	assert.True(t, len(shares) == 1)
+	assert.Equal(t, randRow[8:], shares[0][8:])
+}

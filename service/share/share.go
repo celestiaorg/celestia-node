@@ -132,8 +132,16 @@ func (s *service) GetShares(context.Context, *Root) ([][]Share, error) {
 	panic("implement me")
 }
 
-func (s *service) GetSharesByNamespace(context.Context, *Root, namespace.ID) ([]Share, error) {
-	panic("implement me")
+func (s *service) GetSharesByNamespace(ctx context.Context, root *Root, nID namespace.ID) ([]Share, error) {
+	shares, err := RetrieveShares(ctx, nID, root, s.dag)
+	if err != nil {
+		return nil, err
+	}
+	namespacedShares := make([]Share, len(shares))
+	for i, share := range shares {
+		namespacedShares[i] = share
+	}
+	return namespacedShares, nil
 }
 
 // translate transforms square coordinates into IPLD NMT tree path to a leaf node.

@@ -1,15 +1,14 @@
 package ipld
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
-	"math"
-	"math/rand"
-	"reflect"
-
 	"github.com/ipfs/go-cid"
 	ipld "github.com/ipfs/go-ipld-format"
+	"math"
+	"math/rand"
 
 	"github.com/celestiaorg/celestia-core/pkg/da"
 	"github.com/celestiaorg/celestia-core/pkg/wrapper"
@@ -271,7 +270,8 @@ func RowRootsByNamespaceID(nID namespace.ID, dah *da.DataAvailabilityHeader) ([]
 		// TODO @renaynay: still need to figure out what kind of info to return as a part of the err
 		return [][]byte{max}, ErrExceedsRange
 	}
-	return roots, ErrNotFoundInRange
+	// technically, this error case is impossible, but we return error just in case.
+	return roots, errNotFoundInRange
 }
 
 func GetSharesByNamespace(
@@ -283,7 +283,7 @@ func GetSharesByNamespace(
 	shares := make([][]byte, 0)
 
 	for _, rowRoot := range rowRoots {
-		isLastRow := reflect.DeepEqual(dah.RowsRoots[len(dah.RowsRoots)-1], rowRoot)
+		isLastRow := bytes.Equal(dah.RowsRoots[len(dah.RowsRoots)-1], rowRoot)
 		// compute the root CID from the DAH
 		rootCid, err := plugin.CidFromNamespacedSha256(rowRoot)
 		if err != nil {
