@@ -374,7 +374,7 @@ func (l nmtLeafNode) Copy() ipld.Node {
 }
 
 func (l nmtLeafNode) Links() []*ipld.Link {
-	return nil
+	return []*ipld.Link{{Cid: l.Cid()}}
 }
 
 func (l nmtLeafNode) Stat() (*ipld.NodeStat, error) {
