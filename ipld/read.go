@@ -249,6 +249,37 @@ func GetLeaf(ctx context.Context, dag ipld.NodeGetter, root cid.Cid, leaf, total
 	return GetLeaf(ctx, dag, root, leaf, total)
 }
 
+func GetLeavesByNamespace(ctx context.Context, dag ipld.NodeGetter, root cid.Cid, nID namespace.ID) (out []ipld.Node, err error) {
+	rootH := plugin.NamespacedSha256FromCID(root)
+	if !nID.Less(plugin.RowMin(rootH)) && nID.LessOrEqual(plugin.RowMax(rootH)) {
+		return nil, errNotFoundInRange
+	}
+	// request the node
+	nd, err := dag.Get(ctx, root)
+	if err != nil {
+		return
+	}
+	// check links
+	lnks := nd.Links()
+	if len(lnks) == 0 {
+		// if there is no links, then this is a leaf node, so just return it
+		out = append(out, nd)
+		return
+	}
+	// if there are some links, then traverse them
+	for _, lnk := range nd.Links() {
+		nds, err := GetLeavesByNamespace(ctx, dag, lnk.Cid, nID)
+		if err != nil {
+			if err == errNotFoundInRange {
+				// There is always right and left child and it is ok if one of them does not have a required nID.
+				continue
+			}
+		}
+		out = append(nds, out...)
+	}
+	return
+}
+
 // RowRootsByNamespaceID finds the row root(s) that contain the given namespace ID.
 func RowRootsByNamespaceID(nID namespace.ID, dah *da.DataAvailabilityHeader) ([][]byte, error) {
 	roots := make([][]byte, 0)
