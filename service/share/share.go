@@ -136,7 +136,7 @@ func (s *service) GetShares(context.Context, *Root) ([][]Share, error) {
 func (s *service) GetSharesByNamespace(ctx context.Context, root *Root, nID namespace.ID) ([]Share, error) {
 	rowRoots, err := ipld.RowRootsByNamespaceID(nID, root)
 	if err != nil {
-		return nil, err // TODO @renaynay: should we wrap error here?
+		return nil, err
 	}
 
 	namespacedShares := make([]Share, 0)
