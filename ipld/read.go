@@ -248,6 +248,8 @@ func GetLeaf(ctx context.Context, dag ipld.NodeGetter, root cid.Cid, leaf, total
 	return GetLeaf(ctx, dag, root, leaf, total)
 }
 
+// GetLeavesByNamespace returns all the shares from the given DataAvailabilityHeader root
+// with the given namespace.ID.
 func GetLeavesByNamespace(
 	ctx context.Context,
 	dag ipld.NodeGetter,
