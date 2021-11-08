@@ -60,13 +60,14 @@ type Service interface {
 	// It also optimistically executes erasure coding recovery.
 	GetShares(context.Context, *Root) ([][]Share, error)
 
-	// GetSharesByNamespace loads all the Shares committed to the given DataAvailabilityHeader as a 1D array/slice.
+	// GetSharesByNamespace loads all the Shares of the given namespace.ID committed to the given
+	// DataAvailabilityHeader as a 1D array/slice.
 	GetSharesByNamespace(context.Context, *Root, namespace.ID) ([]Share, error)
 
-	// Starts the Service.
+	// Start starts the Service.
 	Start(context.Context) error
 
-	// Stops the Service.
+	// Stop stops the Service.
 	Stop(context.Context) error
 }
 
@@ -133,13 +134,23 @@ func (s *service) GetShares(context.Context, *Root) ([][]Share, error) {
 }
 
 func (s *service) GetSharesByNamespace(ctx context.Context, root *Root, nID namespace.ID) ([]Share, error) {
-	shares, err := RetrieveShares(ctx, nID, root, s.dag)
+	rowRoots, err := ipld.RowRootsByNamespaceID(nID, root)
 	if err != nil {
-		return nil, err
+		return nil, err // TODO @renaynay: should we wrap error here?
 	}
-	namespacedShares := make([]Share, len(shares))
-	for i, share := range shares {
-		namespacedShares[i] = share
+
+	namespacedShares := make([]Share, 0)
+
+	for _, row := range rowRoots {
+		rootCID := plugin.MustCidFromNamespacedSha256(row)
+		nodes, err := ipld.GetLeavesByNamespace(ctx, s.dag, rootCID, nID)
+		if err != nil {
+			return nil, err
+		}
+
+		for _, node := range nodes {
+			namespacedShares = append(namespacedShares, node.RawData()[1:])
+		}
 	}
 	return namespacedShares, nil
 }
