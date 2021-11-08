@@ -32,18 +32,10 @@ func TestGetShare(t *testing.T) {
 // TODO @renaynay: make this table test w/ overflowing shares
 func TestService_GetSharesByNamespace(t *testing.T) {
 	serv, root := RandServiceWithTree(t, 4)
-	randNID := root.RowsRoots[len(root.RowsRoots)/2][8:16]
-	t.Log("RAND NID: ", randNID)
+	randNID := root.RowsRoots[(len(root.RowsRoots)-1)/2][:8]
 
 	shares, err := serv.GetSharesByNamespace(context.Background(), root, randNID)
 	require.NoError(t, err)
-
-	t.Log("len shares: ", len(shares))
-
-	for _, share := range shares {
-		t.Log("len of share: ", len(share))
-		t.Log("share: ", share)
-	}
-
+	assert.Len(t, shares, 1)
 	assert.Equal(t, randNID, []byte(shares[0].NamespaceID()))
 }
