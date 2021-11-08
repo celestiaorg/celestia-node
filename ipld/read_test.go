@@ -254,7 +254,7 @@ func Test_findStartingCID(t *testing.T) {
 			dah, err := da.NewDataAvailabilityHeader(squareSize, tt.rawData)
 			require.NoError(t, err)
 
-			indices, err := RowRootsFromNamespaceID(nID, &dah)
+			rowRoots, err := RowRootsByNamespaceID(nID, &dah)
 			require.NoError(t, err)
 
 			// put raw data in DAG
@@ -262,8 +262,8 @@ func Test_findStartingCID(t *testing.T) {
 			_, err = PutData(context.Background(), tt.rawData, dag)
 			require.NoError(t, err)
 
-			for _, index := range indices {
-				rootCid, err := plugin.CidFromNamespacedSha256(dah.RowsRoots[index])
+			for _, rowRoot := range rowRoots {
+				rootCid, err := plugin.CidFromNamespacedSha256(rowRoot)
 				require.NoError(t, err)
 
 				startIndex, err := findStartingIndex(context.Background(), nID, &dah, rootCid, dag, make([]string, 0))
@@ -309,10 +309,10 @@ func TestGetSharesByNamespace(t *testing.T) {
 			_, err = PutData(context.Background(), tt.rawData, dag)
 			require.NoError(t, err)
 
-			rowIndices, err := RowRootsFromNamespaceID(nID, &dah)
+			rowRoots, err := RowRootsByNamespaceID(nID, &dah)
 			require.NoError(t, err)
 
-			shares, err := GetSharesByNamespace(context.Background(), nID, &dah, rowIndices, dag)
+			shares, err := GetSharesByNamespace(context.Background(), nID, &dah, rowRoots, dag)
 			require.NoError(t, err)
 
 			for _, share := range shares {

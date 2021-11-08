@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"math"
 	"math/rand"
+	"reflect"
 
 	"github.com/ipfs/go-cid"
 	ipld "github.com/ipfs/go-ipld-format"
@@ -249,13 +250,13 @@ func GetLeaf(ctx context.Context, dag ipld.NodeGetter, root cid.Cid, leaf, total
 	return GetLeaf(ctx, dag, root, leaf, total)
 }
 
-// RowRootsFromNamespaceID finds the row root(s) that contain the given namespace ID.
-func RowRootsFromNamespaceID(nID namespace.ID, dah *da.DataAvailabilityHeader) ([]int, error) {
-	roots := make([]int, 0)
-	for i, row := range dah.RowsRoots {
+// RowRootsByNamespaceID finds the row root(s) that contain the given namespace ID.
+func RowRootsByNamespaceID(nID namespace.ID, dah *da.DataAvailabilityHeader) ([][]byte, error) {
+	roots := make([][]byte, 0)
+	for _, row := range dah.RowsRoots {
 		// if nID exists within range of min -> max of row, return the row
 		if !nID.Less(plugin.RowMin(row)) && nID.LessOrEqual(plugin.RowMax(row)) {
-			roots = append(roots, i)
+			roots = append(roots, row)
 		}
 	}
 	if len(roots) > 0 {
@@ -264,11 +265,11 @@ func RowRootsFromNamespaceID(nID namespace.ID, dah *da.DataAvailabilityHeader) (
 	// return min or max index depending on if nID is below the minimum namespace ID or exceeds the maximum
 	// namespace ID of the given DataAvailabilityHeader
 	if nID.Less(plugin.RowMin(dah.RowsRoots[0])) {
-		return []int{0}, ErrBelowRange
+		return [][]byte{}, ErrBelowRange
 	} else if !nID.LessOrEqual(plugin.RowMax(dah.RowsRoots[len(dah.RowsRoots)-1])) {
-		max := len(dah.RowsRoots) - 1
+		max := dah.RowsRoots[len(dah.RowsRoots)-1]
 		// TODO @renaynay: still need to figure out what kind of info to return as a part of the err
-		return []int{max}, ErrExceedsRange
+		return [][]byte{max}, ErrExceedsRange
 	}
 	return roots, ErrNotFoundInRange
 }
@@ -277,14 +278,14 @@ func GetSharesByNamespace(
 	ctx context.Context,
 	nID namespace.ID,
 	dah *da.DataAvailabilityHeader,
-	rowIndices []int,
+	rowRoots [][]byte,
 	dagServ ipld.DAGService) ([][]byte, error) {
 	shares := make([][]byte, 0)
 
-	for i, index := range rowIndices {
-		isLastRow := i == len(rowIndices)-1
+	for _, rowRoot := range rowRoots {
+		isLastRow := reflect.DeepEqual(dah.RowsRoots[len(dah.RowsRoots)-1], rowRoot)
 		// compute the root CID from the DAH
-		rootCid, err := plugin.CidFromNamespacedSha256(dah.RowsRoots[index])
+		rootCid, err := plugin.CidFromNamespacedSha256(rowRoot)
 		if err != nil {
 			return shares, err
 		}
