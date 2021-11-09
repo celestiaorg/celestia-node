@@ -7,6 +7,7 @@ import (
 
 	"github.com/ipfs/go-cid"
 	format "github.com/ipfs/go-ipld-format"
+	logging "github.com/ipfs/go-log/v2"
 	"github.com/ipfs/go-merkledag"
 
 	"github.com/celestiaorg/celestia-core/pkg/da"
@@ -16,6 +17,8 @@ import (
 	"github.com/celestiaorg/celestia-node/ipld"
 	"github.com/celestiaorg/celestia-node/ipld/plugin"
 )
+
+var log = logging.Logger("share")
 
 // TODO(@Wondertan): We prefix real data of shares with namespaces to be able to recover them during erasure coding
 //  recovery. However, that is storage and bandwidth overhead(8 bytes per each share) which we can avoid by getting
