@@ -14,10 +14,8 @@ var ErrNotAvailable = errors.New("da: data not available")
 // TODO: https://github.com/celestiaorg/celestia-node/issues/10
 const AvailabilityTimeout = 10 * time.Minute
 
-// TODO: Implement BlockSync as Full Availability which downloads all the shares.
-// TODO: Implement Cache Availability to store results of wrapped Validate execution in KVStore, so
-//  (1) we don't re-execute successful DASes
-// 	(2) we can retry failed DASes after some long period or somehow debug them
+// share.Availability defines interface for validation of Shares availability.
 type Availability interface {
+	// SharesAvailable subjectively validates if Shares committed to the given Root are available on the Network.
 	SharesAvailable(context.Context, *Root) error
 }

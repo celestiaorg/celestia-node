@@ -12,6 +12,7 @@ import (
 // DefaultSamples sets the default amount of samples to be DASed by light Availability.
 var DefaultSamples = 16
 
+// lightAvailability implements Availability using Data Availability Sampling technic.
 type lightAvailability struct {
 	getter format.NodeGetter
 }
@@ -23,6 +24,8 @@ func NewLightAvailability(get format.NodeGetter) Availability {
 	}
 }
 
+// SharesAvailable randomly samples DefaultSamples amount of Share committed to given Root.
+// This way SharesAvailable subjectively verifies that Shares are available.
 func (la *lightAvailability) SharesAvailable(ctx context.Context, dah *Root) error {
 	log.Debugw("Validate availability", "root", dah.Hash())
 	samples, err := SampleSquare(len(dah.ColumnRoots), DefaultSamples)
