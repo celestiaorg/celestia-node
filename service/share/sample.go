@@ -37,7 +37,7 @@ func newSquareSampler(squareWidth int, expectedSamples int) *squareSampler {
 
 func (ss *squareSampler) sample(num int) error {
 	if num > ss.squareWidth*ss.squareWidth {
-		return fmt.Errorf("number of samples must be less than square width")
+		return fmt.Errorf("number of samples %d exceeds square width %d", num, ss.squareWidth)
 	}
 
 	done := 0
