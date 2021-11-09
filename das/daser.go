@@ -14,6 +14,7 @@ var log = logging.Logger("das")
 
 // TODO(@Wondertan): Initialization and warm-up.
 // TODO(@Wondertan): Start and Stop is better be thread-safe.
+// TODO(@Wondertan): Add some testing
 // DASer continuously validates availability of data committed to headers.
 type DASer struct {
 	da   share.Availability
