@@ -2,11 +2,20 @@ package core
 
 import (
 	"fmt"
+	"path/filepath"
 
+	"github.com/celestiaorg/celestia-app/app"
+	sdk "github.com/cosmos/cosmos-sdk/types"
+	"github.com/cosmos/ibc-go/testing/simapp"
+	"github.com/tendermint/spm/cosmoscmd"
 	corenode "github.com/tendermint/tendermint/node"
+	"github.com/tendermint/tendermint/p2p"
+	"github.com/tendermint/tendermint/privval"
+	"github.com/tendermint/tendermint/proxy"
 	"github.com/tendermint/tendermint/rpc/client"
 	"github.com/tendermint/tendermint/rpc/client/http"
 	"github.com/tendermint/tendermint/rpc/client/local"
+	dbm "github.com/tendermint/tm-db"
 )
 
 // Client is an alias to Core Client.
@@ -22,7 +31,51 @@ func NewRemote(protocol, remoteAddr string) (Client, error) {
 
 // NewEmbedded returns a new Client from an embedded Core node process.
 func NewEmbedded(cfg *Config) (Client, error) {
-	node, err := corenode.DefaultNewNode(cfg, adaptedLogger())
+	logger := adaptedLogger()
+
+	if cfg.ProxyApp == "kvstore" {
+		node, err := corenode.DefaultNewNode(cfg, logger)
+		if err != nil {
+			return nil, err
+		}
+
+		return &embeddedWrapper{local.New(node), node}, nil
+	}
+
+	nodeKey, err := p2p.LoadOrGenNodeKey(cfg.NodeKeyFile())
+	if err != nil {
+		return nil, fmt.Errorf("failed to load or gen node key %s: %w", cfg.NodeKeyFile(), err)
+	}
+
+	db, err := openDB(cfg.RootDir)
+	if err != nil {
+		return nil, err
+	}
+
+	skipHeights := make(map[int64]bool)
+
+	tiaApp := app.New(
+		logger,
+		db,
+		nil,
+		true,
+		skipHeights,
+		cfg.RootDir,
+		0,
+		cosmoscmd.MakeEncodingConfig(app.ModuleBasics),
+		simapp.EmptyAppOptions{},
+	)
+
+	node, err := corenode.NewNode(
+		cfg,
+		privval.LoadOrGenFilePV(cfg.PrivValidatorKeyFile(), cfg.PrivValidatorStateFile()),
+		nodeKey,
+		proxy.NewLocalClientCreator(tiaApp),
+		corenode.DefaultGenesisDocProviderFunc(cfg),
+		corenode.DefaultDBProvider,
+		corenode.DefaultMetricsProvider(cfg.Instrumentation),
+		logger,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -48,4 +101,9 @@ func (e *embeddedWrapper) Start() error {
 
 func (e *embeddedWrapper) Stop() error {
 	return e.node.Stop()
+}
+
+func openDB(rootDir string) (dbm.DB, error) {
+	dataDir := filepath.Join(rootDir, "data")
+	return sdk.NewLevelDB("application", dataDir)
 }
