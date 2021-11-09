@@ -257,7 +257,7 @@ func GetLeavesByNamespace(
 	nID namespace.ID) (out []ipld.Node, err error) {
 	rootH := plugin.NamespacedSha256FromCID(root)
 	if nID.Less(plugin.RowMin(rootH)) || !nID.LessOrEqual(plugin.RowMax(rootH)) {
-		return nil, errNotFoundInRange
+		return nil, ErrNotFoundInRange
 	}
 	// request the node
 	nd, err := dag.Get(ctx, root)
@@ -275,7 +275,7 @@ func GetLeavesByNamespace(
 	for _, lnk := range nd.Links() {
 		nds, err := GetLeavesByNamespace(ctx, dag, lnk.Cid, nID)
 		if err != nil {
-			if err == errNotFoundInRange {
+			if err == ErrNotFoundInRange {
 				// There is always right and left child and it is ok if one of them does not have a required nID.
 				continue
 			}
@@ -283,29 +283,4 @@ func GetLeavesByNamespace(
 		out = append(nds, out...)
 	}
 	return out, err
-}
-
-// RowRootsByNamespaceID finds the row root(s) that contain the given namespace ID.
-func RowRootsByNamespaceID(nID namespace.ID, dah *da.DataAvailabilityHeader) ([][]byte, error) {
-	roots := make([][]byte, 0)
-	for _, row := range dah.RowsRoots {
-		// if nID exists within range of min -> max of row, return the row
-		if !nID.Less(plugin.RowMin(row)) && nID.LessOrEqual(plugin.RowMax(row)) {
-			roots = append(roots, row)
-		}
-	}
-	if len(roots) > 0 {
-		return roots, nil
-	}
-	// return min or max index depending on if nID is below the minimum namespace ID or exceeds the maximum
-	// namespace ID of the given DataAvailabilityHeader
-	if nID.Less(plugin.RowMin(dah.RowsRoots[0])) {
-		return [][]byte{}, ErrBelowRange
-	} else if !nID.LessOrEqual(plugin.RowMax(dah.RowsRoots[len(dah.RowsRoots)-1])) {
-		max := dah.RowsRoots[len(dah.RowsRoots)-1]
-		// TODO @renaynay: still need to figure out what kind of info to return as a part of the err
-		return [][]byte{max}, ErrExceedsRange
-	}
-	// technically, this error case is impossible, but we return error just in case.
-	return roots, errNotFoundInRange
 }

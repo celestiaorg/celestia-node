@@ -22,6 +22,7 @@ import (
 	"github.com/celestiaorg/celestia-node/ipld/plugin"
 	"github.com/celestiaorg/celestia-node/service/header"
 	"github.com/celestiaorg/nmt"
+	"github.com/celestiaorg/nmt/namespace"
 	"github.com/celestiaorg/rsmt2d"
 )
 
@@ -264,12 +265,11 @@ func TestGetSharesByNamespace(t *testing.T) {
 			_, err = PutData(context.Background(), tt.rawData, dag)
 			require.NoError(t, err)
 
-			rowRoots, err := RowRootsByNamespaceID(nID, &dah)
+			rowRootCIDs, err := rowRootsByNamespaceID(nID, &dah)
 			require.NoError(t, err)
 
-			for _, rowRoot := range rowRoots {
-				rootCID := plugin.MustCidFromNamespacedSha256(rowRoot)
-				nodes, err := GetLeavesByNamespace(context.Background(), dag, rootCID, nID)
+			for _, rowCID := range rowRootCIDs {
+				nodes, err := GetLeavesByNamespace(context.Background(), dag, rowCID, nID)
 				require.NoError(t, err)
 
 				for _, node := range nodes {
@@ -280,4 +280,20 @@ func TestGetSharesByNamespace(t *testing.T) {
 			}
 		})
 	}
+}
+
+// rowRootsByNamespaceID is a convenience method that finds the row root(s)
+// that contain the given namespace ID.
+func rowRootsByNamespaceID(nID namespace.ID, dah *da.DataAvailabilityHeader) ([]cid.Cid, error) {
+	roots := make([]cid.Cid, 0)
+	for _, row := range dah.RowsRoots {
+		// if nID exists within range of min -> max of row, return the row
+		if !nID.Less(plugin.RowMin(row)) && nID.LessOrEqual(plugin.RowMax(row)) {
+			roots = append(roots, plugin.MustCidFromNamespacedSha256(row))
+		}
+	}
+	if len(roots) == 0 {
+		return nil, ErrNotFoundInRange
+	}
+	return roots, nil
 }

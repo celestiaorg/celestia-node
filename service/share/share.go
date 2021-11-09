@@ -11,11 +11,9 @@ import (
 	"github.com/ipfs/go-merkledag"
 
 	"github.com/celestiaorg/celestia-core/pkg/da"
-
-	"github.com/celestiaorg/nmt/namespace"
-
 	"github.com/celestiaorg/celestia-node/ipld"
 	"github.com/celestiaorg/celestia-node/ipld/plugin"
+	"github.com/celestiaorg/nmt/namespace"
 )
 
 var log = logging.Logger("share")
@@ -134,15 +132,18 @@ func (s *service) GetShares(context.Context, *Root) ([][]Share, error) {
 }
 
 func (s *service) GetSharesByNamespace(ctx context.Context, root *Root, nID namespace.ID) ([]Share, error) {
-	rowRoots, err := ipld.RowRootsByNamespaceID(nID, root)
-	if err != nil {
-		return nil, err
+	rowRootCIDs := make([]cid.Cid, 0)
+	for _, row := range root.RowsRoots {
+		if !nID.Less(plugin.RowMin(row)) && nID.LessOrEqual(plugin.RowMax(row)) {
+			rowRootCIDs = append(rowRootCIDs, plugin.MustCidFromNamespacedSha256(row))
+		}
+	}
+	if len(rowRootCIDs) == 0 {
+		return nil, ipld.ErrNotFoundInRange
 	}
 
 	namespacedShares := make([]Share, 0)
-
-	for _, row := range rowRoots {
-		rootCID := plugin.MustCidFromNamespacedSha256(row)
+	for _, rootCID := range rowRootCIDs {
 		nodes, err := ipld.GetLeavesByNamespace(ctx, s.dag, rootCID, nID)
 		if err != nil {
 			return nil, err
