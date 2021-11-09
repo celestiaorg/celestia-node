@@ -1,4 +1,5 @@
-package das
+// TODO(@Wondertan): Instead of doing sampling over the coordinates do a random walk over NMT trees.
+package share
 
 import (
 	crand "crypto/rand"
