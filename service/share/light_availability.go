@@ -31,7 +31,7 @@ func NewLightAvailability(get format.NodeGetter) Availability {
 // This way SharesAvailable subjectively verifies that Shares are available.
 func (la *lightAvailability) SharesAvailable(ctx context.Context, dah *Root) error {
 	log.Debugw("Validate availability", "root", dah.Hash())
-	samples, err := SampleSquare(len(dah.ColumnRoots), DefaultSampleAmount)
+	samples, err := SampleSquare(len(dah.RowsRoots), DefaultSampleAmount)
 	if err != nil {
 		return err
 	}
