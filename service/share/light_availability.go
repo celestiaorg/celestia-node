@@ -9,10 +9,13 @@ import (
 	"github.com/celestiaorg/celestia-node/ipld"
 )
 
-// DefaultSamples sets the default amount of samples to be sampled from the network by lightAvailability.
-var DefaultSamples = 16
+// DefaultSampleAmount sets the default amount of samples to be sampled from the network by lightAvailability.
+var DefaultSampleAmount = 16
 
-// lightAvailability implements Availability using Data Availability Sampling technic.
+// lightAvailability implements Availability using Data Availability Sampling technique.
+// It is light because it does not require to download all the data to verify it availability.
+// It is assumed that there are lots of lightAvailability instances on the network doing sampling over the same Root
+// to collectively verify its availability.
 type lightAvailability struct {
 	getter format.NodeGetter
 }
@@ -28,7 +31,7 @@ func NewLightAvailability(get format.NodeGetter) Availability {
 // This way SharesAvailable subjectively verifies that Shares are available.
 func (la *lightAvailability) SharesAvailable(ctx context.Context, dah *Root) error {
 	log.Debugw("Validate availability", "root", dah.Hash())
-	samples, err := SampleSquare(len(dah.ColumnRoots), DefaultSamples)
+	samples, err := SampleSquare(len(dah.ColumnRoots), DefaultSampleAmount)
 	if err != nil {
 		return err
 	}

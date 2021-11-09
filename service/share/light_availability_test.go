@@ -20,7 +20,7 @@ func TestSharesAvailability(t *testing.T) {
 }
 
 func TestSharesAvailabilityFailed(t *testing.T) {
-	DefaultSamples = 2
+	DefaultSampleAmount = 2
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()

@@ -16,7 +16,7 @@ type Sample struct {
 // and returns them as samples.
 func SampleSquare(squareWidth int, num int) ([]Sample, error) {
 	ss := newSquareSampler(squareWidth, num)
-	err := ss.sample(num)
+	err := ss.generateSample(num)
 	if err != nil {
 		return nil, err
 	}
@@ -35,7 +35,8 @@ func newSquareSampler(squareWidth int, expectedSamples int) *squareSampler {
 	}
 }
 
-func (ss *squareSampler) sample(num int) error {
+// generateSample randomly picks unique point on a 2D spaces.
+func (ss *squareSampler) generateSample(num int) error {
 	if num > ss.squareWidth*ss.squareWidth {
 		return fmt.Errorf("number of samples %d exceeds square width %d", num, ss.squareWidth)
 	}
