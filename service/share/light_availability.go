@@ -9,7 +9,7 @@ import (
 	"github.com/celestiaorg/celestia-node/ipld"
 )
 
-// DefaultSamples sets the default amount of samples to be DASed by light Availability.
+// DefaultSamples sets the default amount of samples to be sampled from the network by lightAvailability.
 var DefaultSamples = 16
 
 // lightAvailability implements Availability using Data Availability Sampling technic.
