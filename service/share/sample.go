@@ -12,7 +12,7 @@ type Sample struct {
 	Row, Col int
 }
 
-// SampleSquare randomly picks *num* unique points from arbitrary *width* square
+// SampleSquare randomly picks *num* unique points from the given *width* square
 // and returns them as samples.
 func SampleSquare(squareWidth int, num int) ([]Sample, error) {
 	ss := newSquareSampler(squareWidth, num)
