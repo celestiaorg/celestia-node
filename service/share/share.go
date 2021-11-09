@@ -50,6 +50,8 @@ type Root = da.DataAvailabilityHeader
 //			* Store the Share
 //			* Return
 type Service interface {
+	Availability
+
 	// GetShare loads a Share committed to the given DataAvailabilityHeader by its Row and Column coordinates in the
 	// erasure coded data square or block.
 	GetShare(ctx context.Context, root *Root, row, col int) (Share, error)
@@ -69,14 +71,16 @@ type Service interface {
 }
 
 // NewService creates new basic share.Service.
-func NewService(dag format.DAGService) Service {
+func NewService(dag format.DAGService, avail Availability) Service {
 	return &service{
+		Availability: avail,
 		dag: dag,
 	}
 }
 
 // TODO(@Wondertan): Simple thread safety for Start and Stop would not hurt.
 type service struct {
+	Availability
 	dag format.DAGService
 	// session is dag sub-session that applies optimization for fetching/loading related nodes, like shares
 	// prefer session over dag for fetching nodes.

@@ -43,7 +43,7 @@ func RandServiceWithSquare(t *testing.T, n int) (Service, *Root) {
 	dah, err := header.DataAvailabilityHeaderFromExtendedData(eds)
 	require.NoError(t, err)
 
-	return NewService(dag), &dah
+	return NewService(dag, NewLightAvailability(dag)), &dah
 }
 
 // RandShares provides 'n' randomized shares prefixed with random namespaces.

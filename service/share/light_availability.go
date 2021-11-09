@@ -4,24 +4,26 @@ import (
 	"context"
 	"errors"
 
-	ipld "github.com/ipfs/go-ipld-format"
+	"github.com/ipfs/go-ipld-format"
+
+	"github.com/celestiaorg/celestia-node/ipld"
 )
 
 // DefaultSamples sets the default amount of samples to be DASed by light Availability.
 var DefaultSamples = 16
 
 type lightAvailability struct {
-	shares Service
+	getter format.NodeGetter
 }
 
 // NewLightAvailability creates a new Light DataAvailability.
-func NewLightAvailability(shares Service) Availability {
+func NewLightAvailability(get format.NodeGetter) Availability {
 	return &lightAvailability{
-		shares: shares,
+		getter: get,
 	}
 }
 
-func (das *lightAvailability) SharesAvailable(ctx context.Context, dah *Root) error {
+func (la *lightAvailability) SharesAvailable(ctx context.Context, dah *Root) error {
 	log.Debugw("Validate availability", "root", dah.Hash())
 	samples, err := SampleSquare(len(dah.ColumnRoots), DefaultSamples)
 	if err != nil {
@@ -34,7 +36,8 @@ func (das *lightAvailability) SharesAvailable(ctx context.Context, dah *Root) er
 	errs := make(chan error, len(samples))
 	for _, s := range samples {
 		go func(s Sample) {
-			_, err := das.shares.GetShare(ctx, dah, s.Row, s.Col)
+			root, leaf := translate(dah, s.Row, s.Col)
+			_, err := ipld.GetLeaf(ctx, la.getter, root, leaf, len(dah.RowsRoots))
 			// we don't really care about Share bodies at this point
 			// it also means we now saved the Share in local storage
 			select {
@@ -54,7 +57,7 @@ func (das *lightAvailability) SharesAvailable(ctx context.Context, dah *Root) er
 
 		if err != nil {
 			log.Errorw("availability validation failed", "root", dah.Hash(), "err", err)
-			if errors.Is(err, ipld.ErrNotFound) || errors.Is(err, context.DeadlineExceeded) {
+			if errors.Is(err, format.ErrNotFound) || errors.Is(err, context.DeadlineExceeded) {
 				return ErrNotAvailable
 			}
 
