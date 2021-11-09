@@ -45,6 +45,7 @@ func Share(lc fx.Lifecycle, dag ipld.DAGService, avail share.Availability) share
 	return service
 }
 
+// DASer constructs a new Data Availability Sampler.
 func DASer(avail share.Availability, service *header.Service) *das.DASer {
 	return das.NewDASer(avail, service)
 }
