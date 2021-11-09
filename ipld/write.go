@@ -14,8 +14,8 @@ import (
 )
 
 // BatchSize defines an amount of IPLD Nodes to be buffered and written at once.
-// This configuration is very database backend specific and the current default(128) does not optimized for
-// Badger we use. We set it to one to avoid test flakiness, as some test may read for data, that was not written yet.
+// This configuration is very database backend specific and the current default(128) is not optimized for the version of
+// Badger we use. We set it to one to avoid test flakiness, as some tests may read for data that was not written yet.
 // TODO(@Wondertan): Find out the perfect value for Badger(e.g. ask PL folks) or migrate to go-car IPLD
 //  storage(preferred).
 const BatchSize = 1
