@@ -24,7 +24,7 @@ func NewLightAvailability(get format.NodeGetter) Availability {
 	}
 }
 
-// SharesAvailable randomly samples DefaultSamples amount of Share committed to given Root.
+// SharesAvailable randomly samples DefaultSamples amount of Shares committed to the given Root.
 // This way SharesAvailable subjectively verifies that Shares are available.
 func (la *lightAvailability) SharesAvailable(ctx context.Context, dah *Root) error {
 	log.Debugw("Validate availability", "root", dah.Hash())
