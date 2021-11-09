@@ -8,9 +8,9 @@ import (
 
 // ExtendedHeaderSubTopic hardcodes the name of the ExtendedHeader
 // gossipsub topic.
-const ExtendedHeaderSubTopic = "header-sub"
+const ExtendedHeaderSubTopic = "expected-sub"
 
-// subscription handles retrieving ExtendedHeaders from the header pubsub topic.
+// subscription handles retrieving ExtendedHeaders from the expected pubsub topic.
 type subscription struct {
 	topic        *pubsub.Topic
 	subscription *pubsub.Subscription

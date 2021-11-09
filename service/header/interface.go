@@ -31,10 +31,10 @@ type Exchange interface {
 	// RequestHeader performs a request for the ExtendedHeader at the given
 	// height to the network. Note that the ExtendedHeader must be verified
 	// thereafter.
-	RequestHeader(ctx context.Context, height int64) (*ExtendedHeader, error)
+	RequestHeader(ctx context.Context, height uint64) (*ExtendedHeader, error)
 	// RequestHeaders performs a request for the given range of ExtendedHeaders
 	// to the network. Note that the ExtendedHeaders must be verified thereafter.
-	RequestHeaders(ctx context.Context, from, to int64) ([]*ExtendedHeader, error)
+	RequestHeaders(ctx context.Context, origin, amount uint64) ([]*ExtendedHeader, error)
 }
 
 var (
@@ -58,10 +58,10 @@ type Store interface {
 	Get(context.Context, tmbytes.HexBytes) (*ExtendedHeader, error)
 
 	// GetByHeight returns the ExtendedHeader corresponding to the given block height.
-	GetByHeight(context.Context, int64) (*ExtendedHeader, error)
+	GetByHeight(context.Context, uint64) (*ExtendedHeader, error)
 
 	// GetRangeByHeight returns the given range [from:to) of ExtendedHeaders.
-	GetRangeByHeight(ctx context.Context, from, to int64) ([]*ExtendedHeader, error)
+	GetRangeByHeight(ctx context.Context, from, to uint64) ([]*ExtendedHeader, error)
 
 	// Has checks whether ExtendedHeader is already stored.
 	Has(context.Context, tmbytes.HexBytes) (bool, error)

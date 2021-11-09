@@ -28,7 +28,7 @@ func MarshalExtendedHeader(in *ExtendedHeader) (_ []byte, err error) {
 	return out.Marshal()
 }
 
-// MarshalExtendedHeader deserializes given data into a new ExtendedHeader using protobuf.
+// UnmarshalExtendedHeader deserializes given data into a new ExtendedHeader using protobuf.
 // Paired with MarshalExtendedHeader.
 func UnmarshalExtendedHeader(data []byte) (*ExtendedHeader, error) {
 	in := &header_pb.ExtendedHeader{}
@@ -59,4 +59,28 @@ func UnmarshalExtendedHeader(data []byte) (*ExtendedHeader, error) {
 	}
 
 	return out, nil
+}
+
+// MarshalExtendedHeaderRequest serializes the given ExtendedHeaderRequest to bytes using protobuf.
+// Paired with UnmarshalExtendedHeaderRequest.
+func MarshalExtendedHeaderRequest(in *ExtendedHeaderRequest) ([]byte, error) {
+	out := &header_pb.ExtendedHeaderRequest{
+		Origin: in.Origin,
+		Amount: in.Amount,
+	}
+	return out.Marshal()
+}
+
+// UnmarshalExtendedHeaderRequest deserializes given data into a new ExtendedHeader using protobuf.
+// Paired with MarshalExtendedHeaderRequest.
+func UnmarshalExtendedHeaderRequest(data []byte) (*ExtendedHeaderRequest, error) {
+	in := &header_pb.ExtendedHeaderRequest{}
+	err := in.Unmarshal(data)
+	if err != nil {
+		return nil, err
+	}
+	return &ExtendedHeaderRequest{
+		Origin: in.Origin,
+		Amount: in.Amount,
+	}, nil
 }

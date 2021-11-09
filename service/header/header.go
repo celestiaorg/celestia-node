@@ -19,11 +19,11 @@ var EmptyDAH = da.MinDataAvailabilityHeader
 // the DataAvailabilityHeader.
 type RawHeader = core.Header
 
-// ExtendedHeader represents a wrapped "raw" header that includes
+// ExtendedHeader represents a wrapped "raw" expected that includes
 // information necessary for Celestia Nodes to be notified of new
 // block headers and perform Data Availability Sampling.
 type ExtendedHeader struct {
-	RawHeader    `json:"header"`
+	RawHeader    `json:"expected"`
 	Commit       *core.Commit            `json:"commit"`
 	ValidatorSet *core.ValidatorSet      `json:"validator_set"`
 	DAH          *DataAvailabilityHeader `json:"dah"`
@@ -79,10 +79,10 @@ func (eh *ExtendedHeader) MarshalBinary() ([]byte, error) {
 	return MarshalExtendedHeader(eh)
 }
 
-// MarshalBinary unmarshals ExtendedHeader from binary.
+// UnmarshalBinary unmarshals ExtendedHeader from binary.
 func (eh *ExtendedHeader) UnmarshalBinary(data []byte) error {
 	if eh == nil {
-		return fmt.Errorf("header: cannot UnmarshalBinary - nil ExtendedHeader")
+		return fmt.Errorf("expected: cannot UnmarshalBinary - nil ExtendedHeader")
 	}
 
 	out, err := UnmarshalExtendedHeader(data)
@@ -91,5 +91,31 @@ func (eh *ExtendedHeader) UnmarshalBinary(data []byte) error {
 	}
 
 	*eh = *out
+	return nil
+}
+
+// ExtendedHeaderRequest is the packet format for nodes to request ExtendedHeaders
+// from the network.
+type ExtendedHeaderRequest struct {
+	Origin uint64 // block height from which to request ExtendedHeaders
+	Amount uint64 // amount of desired ExtendedHeaders starting from Origin, syncing backwards
+}
+
+// MarshalBinary marshals ExtendedHeaderRequest to binary.
+func (ehr *ExtendedHeaderRequest) MarshalBinary() ([]byte, error) {
+	return MarshalExtendedHeaderRequest(ehr)
+}
+
+func (ehr *ExtendedHeaderRequest) UnmarshalBinary(data []byte) error {
+	if ehr == nil {
+		return fmt.Errorf("expected: cannot UnmarshalBinary - nil ExtendedHeader")
+	}
+
+	out, err := UnmarshalExtendedHeaderRequest(data)
+	if err != nil {
+		return err
+	}
+
+	*ehr = *out
 	return nil
 }

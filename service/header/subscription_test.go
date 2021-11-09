@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TestSubscriber tests the header Service's implementation of Subscriber.
+// TestSubscriber tests the expected Service's implementation of Subscriber.
 func TestSubscriber(t *testing.T) {
 	// create mock network
 	net, err := mocknet.FullMeshConnected(context.Background(), 2)
