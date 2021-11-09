@@ -74,7 +74,7 @@ type Service interface {
 func NewService(dag format.DAGService, avail Availability) Service {
 	return &service{
 		Availability: avail,
-		dag: dag,
+		dag:          dag,
 	}
 }
 

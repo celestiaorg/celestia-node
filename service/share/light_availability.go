@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 
-	"github.com/ipfs/go-ipld-format"
+	format "github.com/ipfs/go-ipld-format"
 
 	"github.com/celestiaorg/celestia-node/ipld"
 )
