@@ -14,7 +14,7 @@ var ErrNotAvailable = errors.New("da: data not available")
 // TODO: https://github.com/celestiaorg/celestia-node/issues/10
 const AvailabilityTimeout = 10 * time.Minute
 
-// share.Availability defines interface for validation of Shares availability.
+// Availability defines interface for validation of Shares' availability.
 type Availability interface {
 	// SharesAvailable subjectively validates if Shares committed to the given Root are available on the Network.
 	SharesAvailable(context.Context, *Root) error
