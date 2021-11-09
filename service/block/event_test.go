@@ -3,6 +3,7 @@ package block
 import (
 	"context"
 	"testing"
+	"time"
 
 	md "github.com/ipfs/go-merkledag/test"
 	"github.com/stretchr/testify/assert"
@@ -31,9 +32,9 @@ func TestEventLoop(t *testing.T) {
 	numBlocks := 3
 	expectedBlocks := mockFetcher.generateBlocks(t, numBlocks)
 
-	ctx, cancel = context.WithCancel(context.Background())
-	t.Cleanup(cancel)
-
+	// as we calculate extended square twice, this may take a lot of time, causing the main thread expect the result
+	// earlier than its ready.
+	time.Sleep(100 * time.Millisecond)
 	for i := 0; i < numBlocks; i++ {
 		block, err := serv.GetBlockData(ctx, expectedBlocks[i].Header().DAH)
 		require.NoError(t, err)
