@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"path/filepath"
 
-	"github.com/celestiaorg/celestia-app/app"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/ibc-go/testing/simapp"
 	"github.com/tendermint/spm/cosmoscmd"
@@ -16,6 +15,8 @@ import (
 	"github.com/tendermint/tendermint/rpc/client/http"
 	"github.com/tendermint/tendermint/rpc/client/local"
 	dbm "github.com/tendermint/tm-db"
+
+	"github.com/celestiaorg/celestia-app/app"
 )
 
 // Client is an alias to Core Client.
