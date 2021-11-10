@@ -1,9 +1,10 @@
 package block
 
 import (
+	core "github.com/tendermint/tendermint/types"
+
 	"github.com/celestiaorg/celestia-node/service/header"
 	"github.com/celestiaorg/rsmt2d"
-	core "github.com/tendermint/tendermint/types"
 )
 
 // RawBlock is an alias to a "raw" Core block. It is "raw" because

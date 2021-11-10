@@ -18,9 +18,10 @@ import (
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/rsmt2d"
 
+	"github.com/tendermint/tendermint/pkg/wrapper"
+
 	"github.com/celestiaorg/celestia-node/ipld/plugin"
 	"github.com/celestiaorg/celestia-node/service/header"
-	"github.com/tendermint/tendermint/pkg/wrapper"
 )
 
 func TestGetLeafData(t *testing.T) {

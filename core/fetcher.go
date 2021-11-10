@@ -4,8 +4,9 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/celestiaorg/celestia-node/service/block"
 	"github.com/tendermint/tendermint/types"
+
+	"github.com/celestiaorg/celestia-node/service/block"
 )
 
 const newBlockSubscriber = "NewBlock/Events"

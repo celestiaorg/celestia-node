@@ -11,10 +11,11 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/celestiaorg/celestia-node/service/header"
 	tmbytes "github.com/tendermint/tendermint/libs/bytes"
 	"github.com/tendermint/tendermint/pkg/consts"
 	"github.com/tendermint/tendermint/types"
+
+	"github.com/celestiaorg/celestia-node/service/header"
 )
 
 func Test_validateEncoding(t *testing.T) {
@@ -108,7 +109,7 @@ func GenerateRandomBlockData(txCount, isrCount, evdCount, msgCount, maxSize int)
 func generateRandomlySizedContiguousShares(count, max int) (types.Txs, error) {
 	txs := make(types.Txs, count)
 	for i := 0; i < count; i++ {
-		//nolint
+		
 		size := rand.Intn(max)
 		// ensure that no transactions are 0 bytes, as no valid transaction has only 0 bytes
 		if size == 0 {
@@ -127,7 +128,7 @@ func generateRandomContiguousShares(count, size int) (types.Txs, error) {
 	txs := make(types.Txs, count)
 	for i := 0; i < count; i++ {
 		tx := make([]byte, size)
-		//nolint
+		
 		_, err := rand.Read(tx)
 		if err != nil {
 			return nil, err
@@ -167,7 +168,7 @@ func generateIdenticalEvidence(count int) types.EvidenceData {
 func GenerateRandomlySizedMessages(count, maxMsgSize int) types.Messages {
 	msgs := make([]types.Message, count)
 	for i := 0; i < count; i++ {
-		//nolint
+		
 		msgs[i] = generateRandomMessage(rand.Intn(maxMsgSize))
 	}
 
@@ -205,14 +206,14 @@ func generateRandNamespacedRawData(total, nidSize, leafSize uint32) [][]byte {
 	data := make([][]byte, total)
 	for i := uint32(0); i < total; i++ {
 		nid := make([]byte, nidSize)
-		//nolint
+		
 		rand.Read(nid)
 		data[i] = nid
 	}
 	sortByteArrays(data)
 	for i := uint32(0); i < total; i++ {
 		d := make([]byte, leafSize)
-		//nolint
+		
 		rand.Read(d)
 		data[i] = append(data[i], d...)
 	}

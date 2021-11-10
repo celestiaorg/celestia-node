@@ -3,8 +3,9 @@ package block
 import (
 	"math"
 
-	"github.com/celestiaorg/rsmt2d"
 	"github.com/tendermint/tendermint/pkg/wrapper"
+
+	"github.com/celestiaorg/rsmt2d"
 )
 
 // extendBlockData erasure codes the given raw block's data and returns the
