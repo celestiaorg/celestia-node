@@ -288,7 +288,7 @@ func rowRootsByNamespaceID(nID namespace.ID, dah *da.DataAvailabilityHeader) ([]
 	roots := make([]cid.Cid, 0)
 	for _, row := range dah.RowsRoots {
 		// if nID exists within range of min -> max of row, return the row
-		if !nID.Less(plugin.RowMin(row)) && nID.LessOrEqual(plugin.RowMax(row)) {
+		if !nID.Less(nmt.MinNamespace(row, nID.Size())) && nID.LessOrEqual(nmt.MaxNamespace(row, nID.Size())) {
 			roots = append(roots, plugin.MustCidFromNamespacedSha256(row))
 		}
 	}

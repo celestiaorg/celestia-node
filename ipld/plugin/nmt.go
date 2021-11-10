@@ -415,21 +415,3 @@ func MustCidFromNamespacedSha256(hash []byte) cid.Cid {
 func NamespacedSha256FromCID(cid cid.Cid) []byte {
 	return cid.Hash()[mhOverhead:]
 }
-
-// RowMin returns the minimum NamespaceID in the given row.
-func RowMin(row []byte) []byte {
-	if len(row) < (2 * namespaceSize) {
-		panic(fmt.Sprintf("invalid digest: %x, expected length >= %v, got: %v",
-			row, 2*namespaceSize, len(row)))
-	}
-	return row[:namespaceSize]
-}
-
-// RowMax returns the maximum NamespaceID in the given row.
-func RowMax(row []byte) []byte {
-	if len(row) < (2 * namespaceSize) {
-		panic(fmt.Sprintf("invalid digest: %x, expected length >= %v, got: %v",
-			row, 2*namespaceSize, len(row)))
-	}
-	return row[namespaceSize : 2*namespaceSize]
-}

@@ -12,6 +12,7 @@ import (
 	"github.com/celestiaorg/celestia-core/pkg/da"
 	"github.com/celestiaorg/celestia-core/pkg/wrapper"
 	"github.com/celestiaorg/celestia-node/ipld/plugin"
+	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/nmt/namespace"
 	"github.com/celestiaorg/rsmt2d"
 )
@@ -256,7 +257,7 @@ func GetLeavesByNamespace(
 	root cid.Cid,
 	nID namespace.ID) (out []ipld.Node, err error) {
 	rootH := plugin.NamespacedSha256FromCID(root)
-	if nID.Less(plugin.RowMin(rootH)) || !nID.LessOrEqual(plugin.RowMax(rootH)) {
+	if nID.Less(nmt.MinNamespace(rootH, nID.Size())) || !nID.LessOrEqual(nmt.MaxNamespace(rootH, nID.Size())) {
 		return nil, ErrNotFoundInRange
 	}
 	// request the node

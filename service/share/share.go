@@ -13,6 +13,7 @@ import (
 	"github.com/celestiaorg/celestia-core/pkg/da"
 	"github.com/celestiaorg/celestia-node/ipld"
 	"github.com/celestiaorg/celestia-node/ipld/plugin"
+	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/nmt/namespace"
 )
 
@@ -134,7 +135,7 @@ func (s *service) GetShares(context.Context, *Root) ([][]Share, error) {
 func (s *service) GetSharesByNamespace(ctx context.Context, root *Root, nID namespace.ID) ([]Share, error) {
 	rowRootCIDs := make([]cid.Cid, 0)
 	for _, row := range root.RowsRoots {
-		if !nID.Less(plugin.RowMin(row)) && nID.LessOrEqual(plugin.RowMax(row)) {
+		if !nID.Less(nmt.MinNamespace(row, nID.Size())) && nID.LessOrEqual(nmt.MaxNamespace(row, nID.Size())) {
 			rowRootCIDs = append(rowRootCIDs, plugin.MustCidFromNamespacedSha256(row))
 		}
 	}
