@@ -3,6 +3,7 @@ package header
 import (
 	"context"
 	"testing"
+	"time"
 
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	mocknet "github.com/libp2p/go-libp2p/p2p/net/mock"
@@ -17,33 +18,36 @@ func TestSubscriber(t *testing.T) {
 	require.NoError(t, err)
 
 	// get mock host and create new gossipsub on it
-	peer1 := net.Hosts()[0]
-	gossub1, err := pubsub.NewGossipSub(context.Background(), peer1,
+	pubsub1, err := pubsub.NewGossipSub(context.Background(), net.Hosts()[0],
 		pubsub.WithMessageSignaturePolicy(pubsub.StrictNoSign))
 	require.NoError(t, err)
 
 	// create header Service
-	headerServ := NewHeaderService(nil, nil, gossub1)
-	err = headerServ.Start(context.Background())
+	headerServ1 := NewHeaderService(nil, nil, pubsub1)
+	err = headerServ1.Start(context.Background())
 	require.NoError(t, err)
 
 	// subscribe
-	subscription, err := headerServ.Subscribe()
+	subscription, err := headerServ1.Subscribe()
 	require.NoError(t, err)
 
-	// publish ExtendedHeader to topic
-	peer2 := net.Hosts()[1]
-	gossub2, err := pubsub.NewGossipSub(context.Background(), peer2,
+	// get mock host and create new gossipsub on it
+	pubsub2, err := pubsub.NewGossipSub(context.Background(), net.Hosts()[1],
 		pubsub.WithMessageSignaturePolicy(pubsub.StrictNoSign))
 	require.NoError(t, err)
-	topic, err := gossub2.Join(ExtendedHeaderSubTopic)
+
+	// create header Service
+	headerServ2 := NewHeaderService(nil, nil, pubsub2)
+	err = headerServ2.Start(context.Background())
 	require.NoError(t, err)
+
+	time.Sleep(2 * time.Second)
 
 	expectedHeader := RandExtendedHeader(t)
 	bin, err := expectedHeader.MarshalBinary()
 	require.NoError(t, err)
 
-	err = topic.Publish(context.Background(), bin)
+	err = headerServ2.topic.Publish(context.Background(), bin)
 	require.NoError(t, err)
 
 	// get next ExtendedHeader from network
