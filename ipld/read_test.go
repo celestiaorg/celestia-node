@@ -199,7 +199,7 @@ func getNmtRoot(
 	dag format.NodeAdder,
 	namespacedData [][]byte,
 ) (cid.Cid, error) {
-	na := NewNmtNodeAdder(ctx, format.NewBatch(ctx, dag))
+	na := NewNmtNodeAdder(ctx, dag)
 	tree := nmt.New(sha256.New(), nmt.NamespaceIDSize(NamespaceSize), nmt.NodeVisitor(na.Visit))
 	for _, leaf := range namespacedData {
 		err := tree.Push(leaf)

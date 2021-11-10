@@ -13,7 +13,7 @@ import (
 // into an nmt tree
 type NmtNodeAdder struct {
 	ctx    context.Context
-	batch  *ipld.Batch
+	add    ipld.NodeAdder
 	leaves *cid.Set
 	err    error
 }
@@ -21,9 +21,9 @@ type NmtNodeAdder struct {
 // NewNmtNodeAdder returns a new NmtNodeAdder with the provided context and
 // batch. Note that the context provided should have a timeout
 // It is not thread-safe.
-func NewNmtNodeAdder(ctx context.Context, batch *ipld.Batch) *NmtNodeAdder {
+func NewNmtNodeAdder(ctx context.Context, add ipld.NodeAdder) *NmtNodeAdder {
 	return &NmtNodeAdder{
-		batch:  batch,
+		add:    add,
 		ctx:    ctx,
 		leaves: cid.NewSet(),
 	}
@@ -40,18 +40,18 @@ func (n *NmtNodeAdder) Visit(hash []byte, children ...[]byte) {
 	switch len(children) {
 	case 1:
 		if n.leaves.Visit(id) {
-			n.err = n.batch.Add(n.ctx, plugin.NewNMTLeafNode(id, children[0]))
+			n.err = n.add.Add(n.ctx, plugin.NewNMTLeafNode(id, children[0]))
 		}
 	case 2:
-		n.err = n.batch.Add(n.ctx, plugin.NewNMTNode(id, children[0], children[1]))
+		n.err = n.add.Add(n.ctx, plugin.NewNMTNode(id, children[0], children[1]))
 	default:
 		panic("expected a binary tree")
 	}
 }
 
-// Batch return the ipld.Batch originally provided to the NmtNodeAdder
-func (n *NmtNodeAdder) Batch() *ipld.Batch {
-	return n.batch
+// Adder return the ipld.NodeAdder originally provided to the NmtNodeAdder.
+func (n *NmtNodeAdder) NodeAdder() ipld.NodeAdder {
+	return n.add
 }
 
 // Commit checks for errors happened during Visit and if absent commits data to inner Batch.
@@ -60,5 +60,8 @@ func (n *NmtNodeAdder) Commit() error {
 		return n.err
 	}
 
-	return n.batch.Commit()
+	if b, ok := n.add.(*ipld.Batch); ok {
+		return b.Commit()
+	}
+	return nil
 }

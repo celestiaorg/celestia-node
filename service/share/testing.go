@@ -5,7 +5,6 @@ import (
 	"math"
 	"testing"
 
-	format "github.com/ipfs/go-ipld-format"
 	mdutils "github.com/ipfs/go-merkledag/test"
 	"github.com/stretchr/testify/require"
 
@@ -26,11 +25,7 @@ func RandServiceWithSquare(t *testing.T, n int) (Service, *Root) {
 		sharesSlices[i] = share
 	}
 	dag, ctx := mdutils.Mock(), context.Background()
-	na := ipld.NewNmtNodeAdder(ctx, format.NewBatch(
-		ctx,
-		dag,
-		format.MaxNodesBatchOption(16), // lower max value than default(128) cures flakiness.
-	))
+	na := ipld.NewNmtNodeAdder(ctx, dag)
 
 	squareSize := uint32(math.Sqrt(float64(len(shares))))
 	tree := wrapper.NewErasuredNamespacedMerkleTree(uint64(squareSize), nmt.NodeVisitor(na.Visit))
