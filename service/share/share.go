@@ -3,8 +3,11 @@ package share
 import (
 	"context"
 	"fmt"
+	"math/rand"
 
+	"github.com/ipfs/go-cid"
 	format "github.com/ipfs/go-ipld-format"
+	logging "github.com/ipfs/go-log/v2"
 	"github.com/ipfs/go-merkledag"
 
 	"github.com/celestiaorg/celestia-core/pkg/da"
@@ -14,6 +17,8 @@ import (
 	"github.com/celestiaorg/celestia-node/ipld"
 	"github.com/celestiaorg/celestia-node/ipld/plugin"
 )
+
+var log = logging.Logger("share")
 
 // TODO(@Wondertan): We prefix real data of shares with namespaces to be able to recover them during erasure coding
 //  recovery. However, that is storage and bandwidth overhead(8 bytes per each share) which we can avoid by getting
@@ -45,6 +50,8 @@ type Root = da.DataAvailabilityHeader
 //			* Store the Share
 //			* Return
 type Service interface {
+	Availability
+
 	// GetShare loads a Share committed to the given DataAvailabilityHeader by its Row and Column coordinates in the
 	// erasure coded data square or block.
 	GetShare(ctx context.Context, root *Root, row, col int) (Share, error)
@@ -64,14 +71,16 @@ type Service interface {
 }
 
 // NewService creates new basic share.Service.
-func NewService(dag format.DAGService) Service {
+func NewService(dag format.DAGService, avail Availability) Service {
 	return &service{
-		dag: dag,
+		Availability: avail,
+		dag:          dag,
 	}
 }
 
 // TODO(@Wondertan): Simple thread safety for Start and Stop would not hurt.
 type service struct {
+	Availability
 	dag format.DAGService
 	// session is dag sub-session that applies optimization for fetching/loading related nodes, like shares
 	// prefer session over dag for fetching nodes.
@@ -106,13 +115,9 @@ func (s *service) Stop(context.Context) error {
 	return nil
 }
 
-func (s *service) GetShare(ctx context.Context, r *Root, row, col int) (Share, error) {
-	rootCid, err := plugin.CidFromNamespacedSha256(r.RowsRoots[row])
-	if err != nil {
-		return nil, err
-	}
-
-	nd, err := ipld.GetLeaf(ctx, s.dag, rootCid, col, len(r.ColumnRoots))
+func (s *service) GetShare(ctx context.Context, dah *Root, row, col int) (Share, error) {
+	root, leaf := translate(dah, row, col)
+	nd, err := ipld.GetLeaf(ctx, s.dag, root, leaf, len(dah.RowsRoots))
 	if err != nil {
 		return nil, err
 	}
@@ -129,4 +134,14 @@ func (s *service) GetShares(context.Context, *Root) ([][]Share, error) {
 
 func (s *service) GetSharesByNamespace(context.Context, *Root, namespace.ID) ([]Share, error) {
 	panic("implement me")
+}
+
+// translate transforms square coordinates into IPLD NMT tree path to a leaf node.
+// It also adds randomization to evenly spread fetching from Rows and Columns.
+func translate(dah *Root, row, col int) (cid.Cid, int) {
+	if rand.Intn(2) == 0 { //nolint:gosec
+		return plugin.MustCidFromNamespacedSha256(dah.ColumnRoots[col]), row
+	}
+
+	return plugin.MustCidFromNamespacedSha256(dah.RowsRoots[row]), col
 }
