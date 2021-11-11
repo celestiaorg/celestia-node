@@ -255,7 +255,8 @@ func GetLeavesByNamespace(
 	ctx context.Context,
 	dag ipld.NodeGetter,
 	root cid.Cid,
-	nID namespace.ID) (out []ipld.Node, err error) {
+	nID namespace.ID,
+) (out []ipld.Node, err error) {
 	rootH := plugin.NamespacedSha256FromCID(root)
 	if nID.Less(nmt.MinNamespace(rootH, nID.Size())) || !nID.LessOrEqual(nmt.MaxNamespace(rootH, nID.Size())) {
 		return nil, ErrNotFoundInRange

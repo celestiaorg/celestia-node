@@ -132,6 +132,8 @@ github.com/celestiaorg/nmt v0.7.0 h1:XRYh7F7TH6ewD3Gybk1L1zjyvgkWPt1iGqWtbMtB2Lk
 github.com/celestiaorg/nmt v0.7.0/go.mod h1:3bqzTj8xKj0DgQUpOgZzoxvtNkC3MS/hTbQ6dn8SIa0=
 github.com/celestiaorg/nmt v0.7.1-0.20211110104120-56a05aec365f h1:JCeyLSRzpcQhamii9wPNtsKO6/3KYMPNhLYczLIevqk=
 github.com/celestiaorg/nmt v0.7.1-0.20211110104120-56a05aec365f/go.mod h1:3bqzTj8xKj0DgQUpOgZzoxvtNkC3MS/hTbQ6dn8SIa0=
+github.com/celestiaorg/nmt v0.8.0 h1:wtX7GRouLbmBe+ffnc8+cOg2UbWteM+Y1imZuZ/EeqU=
+github.com/celestiaorg/nmt v0.8.0/go.mod h1:3bqzTj8xKj0DgQUpOgZzoxvtNkC3MS/hTbQ6dn8SIa0=
 github.com/celestiaorg/rsmt2d v0.3.0 h1:c82dh9J3DBcIQu9OND+5HViUKb5NmpKYVvf8z3zjlfA=
 github.com/celestiaorg/rsmt2d v0.3.0/go.mod h1:2Frw4GEYUnVu6Mvlo+CUzuC2/8wn+zLwVVtp+muN6vg=
 github.com/cenkalti/backoff v2.2.1+incompatible/go.mod h1:90ReRw6GdpyfrHakVjL/QHaoyV4aDUVVkXQJJJ3NXXM=

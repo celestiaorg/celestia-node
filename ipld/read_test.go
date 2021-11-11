@@ -235,7 +235,7 @@ func removeRandShares(data [][]byte, d int) [][]byte {
 	return data
 }
 
-func TestGetSharesByNamespace(t *testing.T) {
+func TestGetLeavesByNamespace(t *testing.T) {
 	var tests = []struct {
 		rawData [][]byte
 	}{

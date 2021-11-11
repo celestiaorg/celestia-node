@@ -46,7 +46,8 @@ const (
 	nmtHashSize = 2*namespaceSize + sha256.Size
 
 	// mhOverhead is the size of the prepended buffer of the CID encoding
-	// for NamespacedSha256.
+	// for NamespacedSha256. For more information, see:
+	// https://multiformats.io/multihash/#the-multihash-format
 	mhOverhead = 4
 )
 
