@@ -42,7 +42,7 @@ func TestService_GetSharesByNamespace(t *testing.T) {
 
 	for i, tt := range tests {
 		t.Run(strconv.Itoa(i), func(t *testing.T) {
-			serv, root := RandServiceWithTree(t, tt.amountShares)
+			serv, root := RandServiceWithSquare(t, tt.amountShares)
 			randNID := root.RowsRoots[(len(root.RowsRoots)-1)/2][:8]
 			if tt.expectedShareCount > 1 {
 				// make it so that two rows have the same namespace ID
