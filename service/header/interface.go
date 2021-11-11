@@ -28,6 +28,9 @@ type Subscription interface {
 // Exchange encompasses the behavior necessary to request ExtendedHeaders
 // from the network.
 type Exchange interface {
+	// RequestHead requests the latest ExtendedHeader. Note that the ExtendedHeader
+	// must be verified thereafter.
+	RequestHead(ctx context.Context) (*ExtendedHeader, error)
 	// RequestHeader performs a request for the ExtendedHeader at the given
 	// height to the network. Note that the ExtendedHeader must be verified
 	// thereafter.

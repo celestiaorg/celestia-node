@@ -13,6 +13,25 @@ import (
 	tmbytes "github.com/celestiaorg/celestia-core/libs/bytes"
 )
 
+func TestExchange_RequestHead(t *testing.T) {
+	net, err := mocknet.FullMeshConnected(context.Background(), 2)
+	require.NoError(t, err)
+	// get host and peer
+	host, peer := net.Hosts()[0], net.Hosts()[1]
+	// set expected value
+	expected = RandExtendedHeader(t)
+	expected.Height = 8
+	// create stream + stream handler
+	peer.SetStreamHandler(headerExchangeProtocolID, testHeaderHandler)
+	// create new exchange
+	exchg := newExchange(host, libhost.InfoFromHost(peer), new(mockStore))
+	// perform expected request
+	header, err := exchg.RequestHead(context.Background())
+	require.NoError(t, err)
+	assert.Equal(t, expected.Height, header.Height)
+	assert.Equal(t, expected.Hash(), header.Hash())
+}
+
 func TestExchange_RequestHeader(t *testing.T) {
 	net, err := mocknet.FullMeshConnected(context.Background(), 2)
 	require.NoError(t, err)
@@ -38,7 +57,7 @@ func TestExchange_RequestHeaders(t *testing.T) {
 	// get host and peer
 	host, peer := net.Hosts()[0], net.Hosts()[1]
 	// set multipleExpected value
-	for i := 4; i >= 0; i-- {
+	for i := 0; i <= 4; i++ {
 		multipleExpected[i] = RandExtendedHeader(t)
 		multipleExpected[i].Height = int64(i + 1)
 	}
@@ -82,6 +101,47 @@ func testMultipleHeadersHandler(stream network.Stream) {
 	}
 }
 
+// TestExchange_Response_Head tests that the exchange instance can respond
+// to an ExtendedHeaderRequest for the chain head.
+func TestExchange_Response_Head(t *testing.T) {
+	net, err := mocknet.FullMeshConnected(context.Background(), 2)
+	require.NoError(t, err)
+	// get host and peer
+	host, peer := net.Hosts()[0], net.Hosts()[1]
+	// fill out mockstore
+	store := new(mockStore)
+	store.headers = make(map[int]*ExtendedHeader)
+	for i := 1; i <= 5; i++ {
+		store.headers[i] = RandExtendedHeader(t)
+		store.headers[i].Height = int64(i)
+	}
+	// create exchange just to register the stream handler
+	_ = newExchange(host, libhost.InfoFromHost(peer), store)
+	// start a new stream via Peer to see if Host can handle inbound requests
+	stream, err := peer.NewStream(context.Background(), libhost.InfoFromHost(host).ID, headerExchangeProtocolID)
+	require.NoError(t, err)
+	// create request
+	req := &ExtendedHeaderRequest{
+		Origin: uint64(0),
+		Amount: 1,
+	}
+	bin, err := req.MarshalBinary()
+	require.NoError(t, err)
+	// send request
+	_, err = stream.Write(bin)
+	require.NoError(t, err)
+	// read resp
+	buf := make([]byte, 2000)
+	respSize, err := stream.Read(buf)
+	require.NoError(t, err)
+	resp := new(ExtendedHeader)
+	err = resp.UnmarshalBinary(buf[:respSize])
+	require.NoError(t, err)
+	// compare
+	assert.Equal(t, store.headers[5].Height, resp.Height)
+	assert.Equal(t, store.headers[5].Hash(), resp.Hash())
+}
+
 // TestExchange_Response_Single tests that the exchange instance can respond
 // to a ExtendedHeaderRequest for one ExtendedHeader accurately.
 func TestExchange_Response_Single(t *testing.T) {
@@ -92,7 +152,7 @@ func TestExchange_Response_Single(t *testing.T) {
 	// fill out mockstore
 	store := new(mockStore)
 	store.headers = make(map[int]*ExtendedHeader)
-	for i := 0; i < 5; i++ {
+	for i := 1; i <= 5; i++ {
 		store.headers[i] = RandExtendedHeader(t)
 		store.headers[i].Height = int64(i)
 	}
@@ -134,7 +194,7 @@ func TestExchange_Response_Multiple(t *testing.T) {
 	// fill out mockstore
 	store := new(mockStore)
 	store.headers = make(map[int]*ExtendedHeader)
-	for i := 0; i < 5; i++ {
+	for i := 1; i <= 5; i++ {
 		store.headers[i] = RandExtendedHeader(t)
 		store.headers[i].Height = int64(i)
 	}
@@ -147,7 +207,7 @@ func TestExchange_Response_Multiple(t *testing.T) {
 	origin := uint64(3)
 	req := &ExtendedHeaderRequest{
 		Origin: origin,
-		Amount: 3,
+		Amount: 2,
 	}
 	bin, err := req.MarshalBinary()
 	require.NoError(t, err)
@@ -155,7 +215,7 @@ func TestExchange_Response_Multiple(t *testing.T) {
 	_, err = stream.Write(bin)
 	require.NoError(t, err)
 	// read responses
-	for i := origin; i > origin-req.Amount; i-- {
+	for i := origin; i < (origin + req.Amount); i++ {
 		buf := make([]byte, 2000)
 		respSize, err := stream.Read(buf)
 		require.NoError(t, err)
@@ -173,7 +233,7 @@ type mockStore struct {
 }
 
 func (m *mockStore) Head() (*ExtendedHeader, error) {
-	return nil, nil
+	return m.headers[len(m.headers)], nil
 }
 
 func (m *mockStore) Get(ctx context.Context, hash tmbytes.HexBytes) (*ExtendedHeader, error) {

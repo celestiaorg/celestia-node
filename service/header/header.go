@@ -98,7 +98,7 @@ func (eh *ExtendedHeader) UnmarshalBinary(data []byte) error {
 // from the network.
 type ExtendedHeaderRequest struct {
 	Origin uint64 // block height from which to request ExtendedHeaders
-	Amount uint64 // amount of desired ExtendedHeaders starting from Origin, syncing backwards
+	Amount uint64 // amount of desired ExtendedHeaders starting from Origin, syncing in ascending order
 }
 
 // MarshalBinary marshals ExtendedHeaderRequest to binary.
