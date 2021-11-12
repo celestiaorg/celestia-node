@@ -2,6 +2,7 @@ package header
 
 import (
 	"context"
+	"errors"
 
 	tmbytes "github.com/tendermint/tendermint/libs/bytes"
 )
@@ -35,24 +36,22 @@ type Exchange interface {
 	RequestHeaders(ctx context.Context, from, to int64) ([]*ExtendedHeader, error)
 }
 
+// ErrNotFound is returned when there is no requested header.
+var ErrNotFound = errors.New("header: not found")
+
 // Store encompasses the behavior necessary to store and retrieve ExtendedHeaders
 // from a node's local storage.
 type Store interface {
 	// Head returns the ExtendedHeader of the chain head.
-	Head() (*ExtendedHeader, error)
-
+	Head(context.Context) (*ExtendedHeader, error)
 	// Get returns the ExtendedHeader corresponding to the given hash.
-	Get(ctx context.Context, hash tmbytes.HexBytes) (*ExtendedHeader, error)
-	// GetMany returns the ExtendedHeaders corresponding to the given hashes.
-	GetMany(ctx context.Context, hashes []tmbytes.HexBytes) ([]*ExtendedHeader, error)
-
+	Get(context.Context, tmbytes.HexBytes) (*ExtendedHeader, error)
 	// GetByHeight returns the ExtendedHeader corresponding to the given block height.
-	GetByHeight(ctx context.Context, height int64) (*ExtendedHeader, error)
+	GetByHeight(context.Context, int64) (*ExtendedHeader, error)
 	// GetRangeByHeight returns the given range of ExtendedHeaders.
 	GetRangeByHeight(ctx context.Context, from, to int64) ([]*ExtendedHeader, error)
-
-	// Put stores the given ExtendedHeader.
-	Put(ctx context.Context, header *ExtendedHeader) error
-	// PutMany stores the given ExtendedHeaders.
-	PutMany(ctx context.Context, headers []*ExtendedHeader) error
+	// Has check whether Header is stored.
+	Has(context.Context, tmbytes.HexBytes) (bool, error)
+	// Append verifies and stores the given ExtendedHeaders.
+	Append(context.Context, ...*ExtendedHeader) error
 }
