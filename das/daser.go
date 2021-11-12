@@ -12,10 +12,10 @@ import (
 
 var log = logging.Logger("das")
 
+// DASer continuously validates availability of data committed to headers.
 // TODO(@Wondertan): Initialization and warm-up.
 // TODO(@Wondertan): Start and Stop is better be thread-safe.
 // TODO(@Wondertan): Add some testing
-// DASer continuously validates availability of data committed to headers.
 type DASer struct {
 	da   share.Availability
 	hsub header.Subscriber
@@ -31,7 +31,7 @@ func NewDASer(da share.Availability, hsub header.Subscriber) *DASer {
 	}
 }
 
-// Start initiates subscription for new Headers and spawns a sampling routine.
+// Start initiates subscription for new ExtendedHeaders and spawns a sampling routine.
 func (d *DASer) Start() error {
 	if d.cancel != nil {
 		return fmt.Errorf("da: DASer already started")
@@ -65,13 +65,11 @@ func (d *DASer) sampling(ctx context.Context, sub header.Subscription) {
 	for {
 		h, err := sub.NextHeader(ctx)
 		if err != nil {
-			if err == context.Canceled {
-				return
+			if err != context.Canceled {
+				log.Errorw("DASer failed to get next header", "err", err)
 			}
-			log.Errorw("DASer failed to get next header", "err", err)
 			return
 		}
-
 		err = d.da.SharesAvailable(ctx, h.DAH)
 		if err != nil {
 			if err == context.Canceled {
