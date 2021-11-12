@@ -7,6 +7,8 @@ import (
 	bts "github.com/tendermint/tendermint/libs/bytes"
 	"github.com/tendermint/tendermint/pkg/da"
 	core "github.com/tendermint/tendermint/types"
+
+	header_pb "github.com/celestiaorg/celestia-node/service/header/pb"
 )
 
 type DataAvailabilityHeader = da.DataAvailabilityHeader
@@ -19,11 +21,11 @@ var EmptyDAH = da.MinDataAvailabilityHeader
 // the DataAvailabilityHeader.
 type RawHeader = core.Header
 
-// ExtendedHeader represents a wrapped "raw" expected that includes
+// ExtendedHeader represents a wrapped "raw" header that includes
 // information necessary for Celestia Nodes to be notified of new
 // block headers and perform Data Availability Sampling.
 type ExtendedHeader struct {
-	RawHeader    `json:"expected"`
+	RawHeader    `json:"header"`
 	Commit       *core.Commit            `json:"commit"`
 	ValidatorSet *core.ValidatorSet      `json:"validator_set"`
 	DAH          *DataAvailabilityHeader `json:"dah"`
@@ -82,7 +84,7 @@ func (eh *ExtendedHeader) MarshalBinary() ([]byte, error) {
 // UnmarshalBinary unmarshals ExtendedHeader from binary.
 func (eh *ExtendedHeader) UnmarshalBinary(data []byte) error {
 	if eh == nil {
-		return fmt.Errorf("expected: cannot UnmarshalBinary - nil ExtendedHeader")
+		return fmt.Errorf("header: cannot UnmarshalBinary - nil ExtendedHeader")
 	}
 
 	out, err := UnmarshalExtendedHeader(data)
@@ -108,7 +110,7 @@ func (ehr *ExtendedHeaderRequest) MarshalBinary() ([]byte, error) {
 
 func (ehr *ExtendedHeaderRequest) UnmarshalBinary(data []byte) error {
 	if ehr == nil {
-		return fmt.Errorf("expected: cannot UnmarshalBinary - nil ExtendedHeader")
+		return fmt.Errorf("header: cannot UnmarshalBinary - nil ExtendedHeader")
 	}
 
 	out, err := UnmarshalExtendedHeaderRequest(data)
@@ -118,4 +120,11 @@ func (ehr *ExtendedHeaderRequest) UnmarshalBinary(data []byte) error {
 
 	*ehr = *out
 	return nil
+}
+
+func (ehr *ExtendedHeaderRequest) ToProto() *header_pb.ExtendedHeaderRequest {
+	return &header_pb.ExtendedHeaderRequest{
+		Origin: ehr.Origin,
+		Amount: ehr.Amount,
+	}
 }

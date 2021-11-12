@@ -17,13 +17,13 @@ type Service struct {
 	exchange Exchange
 	store    Store
 
-	topic  *pubsub.Topic // instantiated expected-sub topic
+	topic  *pubsub.Topic // instantiated header-sub topic
 	pubsub *pubsub.PubSub
 }
 
-var log = logging.Logger("expected-service")
+var log = logging.Logger("header-service")
 
-// NewHeaderService creates a new instance of expected Service.
+// NewHeaderService creates a new instance of header Service.
 func NewHeaderService(exchange Exchange, store Store, pubsub *pubsub.PubSub) *Service {
 	return &Service{
 		exchange: exchange,
@@ -32,9 +32,9 @@ func NewHeaderService(exchange Exchange, store Store, pubsub *pubsub.PubSub) *Se
 	}
 }
 
-// Start starts the expected Service.
+// Start starts the header Service.
 func (s *Service) Start(ctx context.Context) error {
-	log.Info("starting expected service")
+	log.Info("starting header service")
 
 	topic, err := s.pubsub.Join(ExtendedHeaderSubTopic)
 	if err != nil {
@@ -42,22 +42,22 @@ func (s *Service) Start(ctx context.Context) error {
 	}
 	s.topic = topic
 
-	// TODO @renaynay: start internal expected service processes
+	// TODO @renaynay: start internal header service processes
 	return nil
 }
 
-// Subscribe returns a new subscription to the expected pubsub topic
+// Subscribe returns a new subscription to the header pubsub topic
 func (s *Service) Subscribe() (Subscription, error) {
 	if s.topic == nil {
-		return nil, fmt.Errorf("expected topic is not instantiated, service must be started before subscribing")
+		return nil, fmt.Errorf("header topic is not instantiated, service must be started before subscribing")
 	}
 
 	return newSubscription(s.topic)
 }
 
-// Stop stops the expected Service.
+// Stop stops the header Service.
 func (s *Service) Stop(ctx context.Context) error {
-	log.Info("stopping expected service")
+	log.Info("stopping header service")
 
 	return s.topic.Close()
 }

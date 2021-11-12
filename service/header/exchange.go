@@ -4,13 +4,16 @@ import (
 	"context"
 	"fmt"
 
+	pb "github.com/celestiaorg/celestia-node/service/header/pb"
+	"github.com/celestiaorg/go-libp2p-messenger/serde"
+
 	"github.com/libp2p/go-libp2p-core/host"
 	"github.com/libp2p/go-libp2p-core/network"
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/libp2p/go-libp2p-core/protocol"
 )
 
-var headerExchangeProtocolID = protocol.ID("expected-exchange")
+var headerExchangeProtocolID = protocol.ID("header-exchange")
 
 // exchange enables sending outbound ExtendedHeaderRequests as well as
 // handling inbound ExtendedHeaderRequests.
@@ -35,33 +38,28 @@ func newExchange(host host.Host, peer *peer.AddrInfo, store Store) *exchange {
 // requestHandler handles inbound ExtendedHeaderRequests.
 func (e *exchange) requestHandler(stream network.Stream) {
 	// unmarshal request
-	buf := make([]byte, 100) // TODO @renaynay: use Messenger lib to determine size of packet before reading. https://github.com/celestiaorg/go-libp2p-messenger/tree/main/serde
-	reqSize, err := stream.Read(buf)
+	pbreq := new(pb.ExtendedHeaderRequest)
+	_, err := serde.Read(stream, pbreq)
 	if err != nil {
-		log.Errorw("reading header request from stream", "err", err.Error())
+		log.Errorw("reading header request from stream", "err", err)
 		//nolint:errcheck
 		stream.Reset()
 		return
 	}
-	request := new(ExtendedHeaderRequest)
-	err = request.UnmarshalBinary(buf[:reqSize])
-	if err != nil {
-		log.Errorw("unmarshaling inbound header request", "err", err.Error())
-		//nolint:errcheck
-		stream.Reset()
-		return
+	// retrieve and write ExtendedHeaders
+	height := pbreq.Origin
+	amount := uint64(0)
+	for amount < pbreq.Amount {
+		e.handleRequest(height, stream)
+		height++
+		amount++
 	}
-	// route depending on amount of headers requested
-	if request.Amount > 1 {
-		e.handleMultipleHeaderRequest(request, stream)
-	} else {
-		e.handleSingleHeaderRequest(request.Origin, stream) // TODO @renaynay: should we parallelise this?
-	}
+	stream.Close()
 }
 
-// handleSingleHeaderRequest handles an ExtendedHeaderRequest for a single header and writes
-// the header to the given stream.
-func (e *exchange) handleSingleHeaderRequest(origin uint64, stream network.Stream) {
+// handleRequest fetches the ExtendedHeader at the given origin and
+// writes it to the stream.
+func (e *exchange) handleRequest(origin uint64, stream network.Stream) {
 	var (
 		header *ExtendedHeader
 		err    error
@@ -77,62 +75,30 @@ func (e *exchange) handleSingleHeaderRequest(origin uint64, stream network.Strea
 		stream.Reset()
 		return
 	}
-	bin, err := header.MarshalBinary()
+	resp, err := ExtendedHeaderToProto(header)
 	if err != nil {
-		log.Errorw("marshaling header", "height", origin, "err", err.Error())
+		log.Errorw("marshaling header to proto", "height", origin, "err", err.Error())
 		//nolint:errcheck
 		stream.Reset()
 		return
 	}
-	_, err = stream.Write(bin) // TODO @renaynay: use serde.Write from the golibp2p-messenger lib
+	_, err = serde.Write(stream, resp)
 	if err != nil {
 		log.Errorw("writing header to stream", "height", origin, "err", err.Error())
 	}
 }
 
-// handleMultipleHeaderRequest handles responding to an ExtendedHeaderRequest for
-// multiple headers.
-func (e *exchange) handleMultipleHeaderRequest(request *ExtendedHeaderRequest, stream network.Stream) {
-	height := request.Origin
-	amount := uint64(0)
-	for amount < request.Amount {
-		e.handleSingleHeaderRequest(height, stream)
-		height++
-		amount++
-	}
-}
-
 func (e *exchange) RequestHead(ctx context.Context) (*ExtendedHeader, error) {
-	stream, err := e.host.NewStream(ctx, e.peer.ID, headerExchangeProtocolID)
-	if err != nil {
-		return nil, err
-	}
 	// create request
-	req := &ExtendedHeaderRequest{
+	req := &pb.ExtendedHeaderRequest{
 		Origin: uint64(0),
 		Amount: 1,
 	}
-	bin, err := req.MarshalBinary()
+	headers, err := e.performRequest(ctx, req)
 	if err != nil {
 		return nil, err
 	}
-	// send request
-	_, err = stream.Write(bin)
-	if err != nil {
-		return nil, err
-	}
-	buf := make([]byte, 2000) // TODO @renaynay: how big do we expect ExtendedHeader to be?
-	msgSize, err := stream.Read(buf)
-	if err != nil {
-		return nil, err
-	}
-	// unmarshal response
-	resp := new(ExtendedHeader)
-	err = resp.UnmarshalBinary(buf[:msgSize])
-	if err != nil {
-		return nil, err
-	}
-	return resp, nil
+	return headers[0], nil
 }
 
 func (e *exchange) RequestHeader(ctx context.Context, height uint64) (*ExtendedHeader, error) {
@@ -140,72 +106,60 @@ func (e *exchange) RequestHeader(ctx context.Context, height uint64) (*ExtendedH
 	if height == 0 {
 		return nil, fmt.Errorf("specified request height must be greater than 0")
 	}
-	stream, err := e.host.NewStream(ctx, e.peer.ID, headerExchangeProtocolID)
-	if err != nil {
-		return nil, err
-	}
 	// create request
-	req := &ExtendedHeaderRequest{
+	req := &pb.ExtendedHeaderRequest{
 		Origin: height,
 		Amount: 1,
 	}
-	bin, err := req.MarshalBinary()
+	headers, err := e.performRequest(ctx, req)
 	if err != nil {
 		return nil, err
 	}
-	// send request
-	_, err = stream.Write(bin)
-	if err != nil {
-		return nil, err
-	}
-	buf := make([]byte, 2000) // TODO @renaynay: how big do we expect ExtendedHeader to be?
-	msgSize, err := stream.Read(buf)
-	if err != nil {
-		return nil, err
-	}
-	// unmarshal response
-	resp := new(ExtendedHeader)
-	err = resp.UnmarshalBinary(buf[:msgSize])
-	if err != nil {
-		return nil, err
-	}
-	return resp, nil
+	return headers[0], nil
 }
 
 func (e *exchange) RequestHeaders(ctx context.Context, origin, amount uint64) ([]*ExtendedHeader, error) {
+	// create request
+	req := &pb.ExtendedHeaderRequest{
+		Origin: origin,
+		Amount: amount,
+	}
+	return e.performRequest(ctx, req)
+}
+
+func (e *exchange) performRequest(ctx context.Context, req *pb.ExtendedHeaderRequest) ([]*ExtendedHeader, error) {
 	stream, err := e.host.NewStream(ctx, e.peer.ID, headerExchangeProtocolID)
 	if err != nil {
 		return nil, err
 	}
-	// create request
-	req := &ExtendedHeaderRequest{
-		Origin: origin,
-		Amount: amount,
-	}
-	bin, err := req.MarshalBinary()
-	if err != nil {
-		return nil, err
-	}
 	// send request
-	_, err = stream.Write(bin)
+	_, err = serde.Write(stream, req)
 	if err != nil {
+		//nolint:errcheck
+		stream.Reset()
 		return nil, err
 	}
 	// read responses
-	resp := make([]*ExtendedHeader, amount)
-	for i := 0; i < int(amount); i++ {
-		buf := make([]byte, 2000) // TODO @renaynay: use serde
-		msgSize, err := stream.Read(buf)
+	headers := make([]*ExtendedHeader, req.Amount)
+	for i := 0; i < int(req.Amount); i++ {
+		resp := new(pb.ExtendedHeader)
+		_, err := serde.Read(stream, resp)
 		if err != nil {
+			//nolint:errcheck
+			stream.Reset()
 			return nil, err
 		}
-		// unmarshal response
-		eh := new(ExtendedHeader)
-		err = eh.UnmarshalBinary(buf[:msgSize])
+		header, err := ProtoToExtendedHeader(resp)
 		if err != nil {
+			//nolint:errcheck
+			stream.Reset()
 			return nil, err
 		}
-		resp[i] = eh
+		headers[i] = header
 	}
-	return resp, nil
+	// ensure at least one header was retrieved
+	if len(headers) == 0 {
+		return nil, fmt.Errorf("no headers found")
+	}
+	return headers, stream.Close()
 }
