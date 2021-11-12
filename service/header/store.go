@@ -6,10 +6,11 @@ import (
 	"strconv"
 	"sync"
 
-	"github.com/celestiaorg/celestia-core/libs/bytes"
 	lru "github.com/hashicorp/golang-lru"
 	"github.com/ipfs/go-datastore"
 	"github.com/ipfs/go-datastore/namespace"
+
+	"github.com/celestiaorg/celestia-core/libs/bytes"
 )
 
 // TODO(@Wondertan): Those values must be configurable and proper defaults should be set for specific node type.
@@ -22,16 +23,16 @@ const (
 
 var (
 	storePrefix = datastore.NewKey("headers")
-	headKey = datastore.NewKey("head")
+	headKey     = datastore.NewKey("head")
 )
 
 type store struct {
-	ds datastore.Batching
+	ds    datastore.Batching
 	cache *lru.ARCCache
 	index *heightIndexer
 
 	headLk sync.RWMutex
-	head bytes.HexBytes
+	head   bytes.HexBytes
 }
 
 func NewStore(ds datastore.Batching) (Store, error) {
@@ -65,7 +66,7 @@ func newStore(ds datastore.Batching) (*store, error) {
 	}
 
 	return &store{
-		ds: ds,
+		ds:    ds,
 		cache: cache,
 		index: index,
 	}, nil
@@ -123,9 +124,9 @@ func (s *store) GetRangeByHeight(ctx context.Context, from, to int64) ([]*Extend
 		return nil, err
 	}
 
-	ln := to-from
+	ln := to - from
 	headers := make([]*ExtendedHeader, ln)
-	for i := ln-1; i > 0; i-- {
+	for i := ln - 1; i > 0; i-- {
 		headers[i] = h
 		h, err = s.Get(ctx, h.LastHeader())
 		if err != nil {
@@ -243,7 +244,7 @@ func (s *store) newHead(head bytes.HexBytes) error {
 
 // TODO(@Wondertan): There should be a more clever way to index heights, than just storing HeightToHash pair...
 type heightIndexer struct {
-	ds datastore.Batching
+	ds    datastore.Batching
 	cache *lru.ARCCache
 }
 
@@ -254,7 +255,7 @@ func newHeightIndexer(ds datastore.Batching) (*heightIndexer, error) {
 	}
 
 	return &heightIndexer{
-		ds: ds,
+		ds:    ds,
 		cache: cache,
 	}, nil
 }

@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"fmt"
 	"time"
-
 )
 
 func VerifyAdjacent(trusted, untrusted *ExtendedHeader) error {
