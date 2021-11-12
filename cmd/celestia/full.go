@@ -12,6 +12,7 @@ func init() {
 	fullCmd.AddCommand(
 		cmd.Init(repoName, node.Full),
 		cmd.Start(repoName, node.Full),
+		cmd.App(),
 	)
 	fullCmd.PersistentFlags().StringP(repoName,
 		"r",
