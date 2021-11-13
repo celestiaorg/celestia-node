@@ -14,6 +14,9 @@ import (
 // ConfigLoader defines a function that loads a config from any source.
 type ConfigLoader func() (*Config, error)
 
+// Options defines how to setup config
+type Options func(*Config)
+
 // Config is main configuration structure for a Node.
 // It combines configuration units for all Node subsystems.
 type Config struct {
@@ -45,6 +48,15 @@ func DefaultConfig(tp Type) *Config {
 		}
 	default:
 		panic("node: unknown Node Type")
+	}
+}
+
+// WithRemoteClient configures node to start on remote address
+func WithRemoteClient(protocol string, address string) Options {
+	return func(args *Config) {
+		args.Core.Remote = true
+		args.Core.RemoteConfig.Protocol = protocol
+		args.Core.RemoteConfig.RemoteAddr = address
 	}
 }
 
