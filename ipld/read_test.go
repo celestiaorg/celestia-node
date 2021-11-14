@@ -15,10 +15,7 @@ import (
 	mdutils "github.com/ipfs/go-merkledag/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	"github.com/celestiaorg/nmt"
-	"github.com/celestiaorg/rsmt2d"
-
+	"github.com/tendermint/tendermint/pkg/da"
 	"github.com/tendermint/tendermint/pkg/wrapper"
 
 	"github.com/celestiaorg/celestia-node/ipld/plugin"
@@ -241,10 +238,10 @@ func TestGetLeavesByNamespace(t *testing.T) {
 	var tests = []struct {
 		rawData [][]byte
 	}{
-		{rawData: testutils.GenerateRandNamespacedRawData(16, NamespaceSize, plugin.ShareSize)},
-		{rawData: testutils.GenerateRandNamespacedRawData(16, NamespaceSize, 8)},
-		{rawData: testutils.GenerateRandNamespacedRawData(4, NamespaceSize, plugin.ShareSize)},
-		{rawData: testutils.GenerateRandNamespacedRawData(16, NamespaceSize, 8)},
+		{rawData: generateRandNamespacedRawData(16, NamespaceSize, plugin.ShareSize)},
+		{rawData: generateRandNamespacedRawData(16, NamespaceSize, 8)},
+		{rawData: generateRandNamespacedRawData(4, NamespaceSize, plugin.ShareSize)},
+		{rawData: generateRandNamespacedRawData(16, NamespaceSize, 8)},
 	}
 
 	for i, tt := range tests {
@@ -259,8 +256,9 @@ func TestGetLeavesByNamespace(t *testing.T) {
 			tt.rawData[(len(tt.rawData)/2)+1] = expected
 
 			// generate DAH
-			dah, err := da.NewDataAvailabilityHeader(squareSize, tt.rawData)
+			eds, err := da.ExtendShares(squareSize, tt.rawData)
 			require.NoError(t, err)
+			dah := da.NewDataAvailabilityHeader(eds)
 
 			// put raw data in DAG
 			dag := mdutils.Mock()
@@ -298,4 +296,24 @@ func rowRootsByNamespaceID(nID namespace.ID, dah *da.DataAvailabilityHeader) ([]
 		return nil, ErrNotFoundInRange
 	}
 	return roots, nil
+}
+
+// generateRandNamespacedRawData returns random namespaced raw data for testing purposes.
+func generateRandNamespacedRawData(total, nidSize, leafSize uint32) [][]byte {
+	data := make([][]byte, total)
+	for i := uint32(0); i < total; i++ {
+		nid := make([]byte, nidSize)
+
+		rand.Read(nid)
+		data[i] = nid
+	}
+	sortByteArrays(data)
+	for i := uint32(0); i < total; i++ {
+		d := make([]byte, leafSize)
+
+		rand.Read(d)
+		data[i] = append(data[i], d...)
+	}
+
+	return data
 }

@@ -12,8 +12,6 @@ import (
 
 	"github.com/tendermint/tendermint/pkg/da"
 
-	"github.com/celestiaorg/nmt/namespace"
-
 	"github.com/celestiaorg/celestia-node/ipld"
 	"github.com/celestiaorg/celestia-node/ipld/plugin"
 	"github.com/celestiaorg/nmt"
