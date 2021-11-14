@@ -15,6 +15,9 @@ import (
 	"github.com/tendermint/tendermint/pkg/wrapper"
 
 	"github.com/celestiaorg/celestia-node/ipld/plugin"
+	"github.com/celestiaorg/nmt"
+	"github.com/celestiaorg/nmt/namespace"
+	"github.com/celestiaorg/rsmt2d"
 )
 
 var ErrRetrieveTimeout = errors.New("retrieve data timeout")
@@ -221,7 +224,7 @@ func GetLeafData(
 	return nd.RawData()[1:], nil
 }
 
-// GetLeafData fetches and returns the raw leaf.
+// GetLeaf fetches and returns the raw leaf.
 // It walks down the IPLD NMT tree until it finds the requested one.
 func GetLeaf(ctx context.Context, dag ipld.NodeGetter, root cid.Cid, leaf, total int) (ipld.Node, error) {
 	// request the node
@@ -247,4 +250,42 @@ func GetLeaf(ctx context.Context, dag ipld.NodeGetter, root cid.Cid, leaf, total
 
 	// recursively walk down through selected children
 	return GetLeaf(ctx, dag, root, leaf, total)
+}
+
+// GetLeavesByNamespace returns all the shares from the given DataAvailabilityHeader root
+// with the given namespace.ID.
+func GetLeavesByNamespace(
+	ctx context.Context,
+	dag ipld.NodeGetter,
+	root cid.Cid,
+	nID namespace.ID,
+) (out []ipld.Node, err error) {
+	rootH := plugin.NamespacedSha256FromCID(root)
+	if nID.Less(nmt.MinNamespace(rootH, nID.Size())) || !nID.LessOrEqual(nmt.MaxNamespace(rootH, nID.Size())) {
+		return nil, ErrNotFoundInRange
+	}
+	// request the node
+	nd, err := dag.Get(ctx, root)
+	if err != nil {
+		return
+	}
+	// check links
+	lnks := nd.Links()
+	if len(lnks) == 1 {
+		// if there is one link, then this is a leaf node, so just return it
+		out = append(out, nd)
+		return
+	}
+	// if there are some links, then traverse them
+	for _, lnk := range nd.Links() {
+		nds, err := GetLeavesByNamespace(ctx, dag, lnk.Cid, nID)
+		if err != nil {
+			if err == ErrNotFoundInRange {
+				// There is always right and left child and it is ok if one of them does not have a required nID.
+				continue
+			}
+		}
+		out = append(nds, out...)
+	}
+	return out, err
 }

@@ -16,6 +16,8 @@ import (
 
 	"github.com/celestiaorg/celestia-node/ipld"
 	"github.com/celestiaorg/celestia-node/ipld/plugin"
+	"github.com/celestiaorg/nmt"
+	"github.com/celestiaorg/nmt/namespace"
 )
 
 var log = logging.Logger("share")
@@ -60,13 +62,14 @@ type Service interface {
 	// It also optimistically executes erasure coding recovery.
 	GetShares(context.Context, *Root) ([][]Share, error)
 
-	// GetSharesByNamespace loads all the Shares committed to the given DataAvailabilityHeader as a 1D array/slice.
+	// GetSharesByNamespace loads all the Shares of the given namespace.ID committed to the given
+	// DataAvailabilityHeader as a 1D array/slice.
 	GetSharesByNamespace(context.Context, *Root, namespace.ID) ([]Share, error)
 
-	// Starts the Service.
+	// Start starts the Service.
 	Start(context.Context) error
 
-	// Stops the Service.
+	// Stop stops the Service.
 	Stop(context.Context) error
 }
 
@@ -132,8 +135,29 @@ func (s *service) GetShares(context.Context, *Root) ([][]Share, error) {
 	panic("implement me")
 }
 
-func (s *service) GetSharesByNamespace(context.Context, *Root, namespace.ID) ([]Share, error) {
-	panic("implement me")
+func (s *service) GetSharesByNamespace(ctx context.Context, root *Root, nID namespace.ID) ([]Share, error) {
+	rowRootCIDs := make([]cid.Cid, 0)
+	for _, row := range root.RowsRoots {
+		if !nID.Less(nmt.MinNamespace(row, nID.Size())) && nID.LessOrEqual(nmt.MaxNamespace(row, nID.Size())) {
+			rowRootCIDs = append(rowRootCIDs, plugin.MustCidFromNamespacedSha256(row))
+		}
+	}
+	if len(rowRootCIDs) == 0 {
+		return nil, ipld.ErrNotFoundInRange
+	}
+
+	namespacedShares := make([]Share, 0)
+	for _, rootCID := range rowRootCIDs {
+		nodes, err := ipld.GetLeavesByNamespace(ctx, s.dag, rootCID, nID)
+		if err != nil {
+			return nil, err
+		}
+
+		for _, node := range nodes {
+			namespacedShares = append(namespacedShares, node.RawData()[1:])
+		}
+	}
+	return namespacedShares, nil
 }
 
 // translate transforms square coordinates into IPLD NMT tree path to a leaf node.

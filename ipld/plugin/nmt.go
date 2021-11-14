@@ -44,6 +44,11 @@ const (
 	namespaceSize = 8
 	// nmtHashSize is the size of a digest created by an NMT in bytes.
 	nmtHashSize = 2*namespaceSize + sha256.Size
+
+	// mhOverhead is the size of the prepended buffer of the CID encoding
+	// for NamespacedSha256. For more information, see:
+	// https://multiformats.io/multihash/#the-multihash-format
+	mhOverhead = 4
 )
 
 func init() {
@@ -405,4 +410,9 @@ func MustCidFromNamespacedSha256(hash []byte) cid.Cid {
 		)
 	}
 	return cidFromHash
+}
+
+// NamespacedSha256FromCID derives the Namespaced hash from the given CID.
+func NamespacedSha256FromCID(cid cid.Cid) []byte {
+	return cid.Hash()[mhOverhead:]
 }

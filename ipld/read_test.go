@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"math"
 	"math/rand"
+	"strconv"
 	"testing"
 	"time"
 
@@ -22,6 +23,9 @@ import (
 
 	"github.com/celestiaorg/celestia-node/ipld/plugin"
 	"github.com/celestiaorg/celestia-node/service/header"
+	"github.com/celestiaorg/nmt"
+	"github.com/celestiaorg/nmt/namespace"
+	"github.com/celestiaorg/rsmt2d"
 )
 
 func TestGetLeafData(t *testing.T) {
@@ -126,7 +130,7 @@ func TestRetrieveBlockData(t *testing.T) {
 
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
-			// // generate EDS
+			// generate EDS
 			eds := generateRandEDS(t, tc.squareSize)
 
 			shares := ExtractODSShares(eds)
@@ -231,4 +235,67 @@ func removeRandShares(data [][]byte, d int) [][]byte {
 		i++
 	}
 	return data
+}
+
+func TestGetLeavesByNamespace(t *testing.T) {
+	var tests = []struct {
+		rawData [][]byte
+	}{
+		{rawData: testutils.GenerateRandNamespacedRawData(16, NamespaceSize, plugin.ShareSize)},
+		{rawData: testutils.GenerateRandNamespacedRawData(16, NamespaceSize, 8)},
+		{rawData: testutils.GenerateRandNamespacedRawData(4, NamespaceSize, plugin.ShareSize)},
+		{rawData: testutils.GenerateRandNamespacedRawData(16, NamespaceSize, 8)},
+	}
+
+	for i, tt := range tests {
+		t.Run(strconv.Itoa(i), func(t *testing.T) {
+			squareSize := uint64(math.Sqrt(float64(len(tt.rawData))))
+
+			// choose random nID from rand shares
+			expected := tt.rawData[len(tt.rawData)/2]
+			nID := expected[:8]
+
+			// change rawData to contain several shares with same nID
+			tt.rawData[(len(tt.rawData)/2)+1] = expected
+
+			// generate DAH
+			dah, err := da.NewDataAvailabilityHeader(squareSize, tt.rawData)
+			require.NoError(t, err)
+
+			// put raw data in DAG
+			dag := mdutils.Mock()
+			_, err = PutData(context.Background(), tt.rawData, dag)
+			require.NoError(t, err)
+
+			rowRootCIDs, err := rowRootsByNamespaceID(nID, &dah)
+			require.NoError(t, err)
+
+			for _, rowCID := range rowRootCIDs {
+				nodes, err := GetLeavesByNamespace(context.Background(), dag, rowCID, nID)
+				require.NoError(t, err)
+
+				for _, node := range nodes {
+					// TODO @renaynay: nID is prepended twice for some reason.
+					share := node.RawData()[1:]
+					assert.Equal(t, expected, share[8:])
+				}
+			}
+		})
+	}
+}
+
+// rowRootsByNamespaceID is a convenience method that finds the row root(s)
+// that contain the given namespace ID.
+func rowRootsByNamespaceID(nID namespace.ID, dah *da.DataAvailabilityHeader) ([]cid.Cid, error) {
+	roots := make([]cid.Cid, 0)
+	for _, row := range dah.RowsRoots {
+		// if nID exists within range of min -> max of row, return the row
+		if !nID.Less(nmt.MinNamespace(row, nID.Size())) && nID.LessOrEqual(nmt.MaxNamespace(row, nID.Size())) {
+			roots = append(roots, plugin.MustCidFromNamespacedSha256(row))
+		}
+	}
+	if len(roots) == 0 {
+		return nil, ErrNotFoundInRange
+	}
+	return roots, nil
 }
