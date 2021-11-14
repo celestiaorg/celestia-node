@@ -18,7 +18,7 @@ func Init(repoName string, tp node.Type) *cobra.Command {
 		panic("parent command must specify a persistent flag name for repository path")
 	}
 
-	const cfgAddress = "address"
+	const cfgAddress = "core.remote"
 	const cfgName = "config"
 	cmd := &cobra.Command{
 		Use:  "init",
@@ -47,6 +47,6 @@ func Init(repoName string, tp node.Type) *cobra.Command {
 		},
 	}
 	cmd.Flags().StringP(cfgName, "c", "", "Path to a customized Config")
-	cmd.Flags().String(cfgAddress, "", "Address of a remote core to connect with")
+	cmd.Flags().String(cfgAddress, "", "Indicates node to connect to the remote core")
 	return cmd
 }
