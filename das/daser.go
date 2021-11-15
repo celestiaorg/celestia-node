@@ -70,6 +70,7 @@ func (d *DASer) sampling(ctx context.Context, sub header.Subscription) {
 			}
 			return
 		}
+		
 		err = d.da.SharesAvailable(ctx, h.DAH)
 		if err != nil {
 			if err == context.Canceled {
