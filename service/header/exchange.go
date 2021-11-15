@@ -47,44 +47,48 @@ func (e *exchange) requestHandler(stream network.Stream) {
 		return
 	}
 	// retrieve and write ExtendedHeaders
-	height := pbreq.Origin
-	amount := uint64(0)
-	for amount < pbreq.Amount {
-		e.handleRequest(height, stream)
-		height++
-		amount++
-	}
+	e.handleRequest(pbreq.Origin, pbreq.Origin+pbreq.Amount, stream)
 	stream.Close()
 }
 
 // handleRequest fetches the ExtendedHeader at the given origin and
 // writes it to the stream.
-func (e *exchange) handleRequest(origin uint64, stream network.Stream) {
-	var (
-		header *ExtendedHeader
-		err    error
-	)
+func (e *exchange) handleRequest(origin, to uint64, stream network.Stream) {
+	var headers []*ExtendedHeader
 	if origin == uint64(0) {
-		header, err = e.store.Head()
+		head, err := e.store.Head()
+		if err != nil {
+			log.Errorw("getting header by height", "height", origin, "err", err.Error())
+			//nolint:errcheck
+			stream.Reset()
+			return
+		}
+		headers = make([]*ExtendedHeader, 1)
+		headers[0] = head
 	} else {
-		header, err = e.store.GetByHeight(context.Background(), origin)
+		headersByRange, err := e.store.GetRangeByHeight(context.Background(), origin, to)
+		if err != nil {
+			log.Errorw("getting headers by height", "height", origin, "amount", to-origin,
+				"err", err.Error())
+			//nolint:errcheck
+			stream.Reset()
+			return
+		}
+		headers = headersByRange
 	}
-	if err != nil {
-		log.Errorw("getting header by height", "height", origin, "err", err.Error())
-		//nolint:errcheck
-		stream.Reset()
-		return
-	}
-	resp, err := ExtendedHeaderToProto(header)
-	if err != nil {
-		log.Errorw("marshaling header to proto", "height", origin, "err", err.Error())
-		//nolint:errcheck
-		stream.Reset()
-		return
-	}
-	_, err = serde.Write(stream, resp)
-	if err != nil {
-		log.Errorw("writing header to stream", "height", origin, "err", err.Error())
+	// write all headers to stream
+	for _, header := range headers {
+		resp, err := ExtendedHeaderToProto(header)
+		if err != nil {
+			log.Errorw("marshaling header to proto", "height", origin, "err", err.Error())
+			//nolint:errcheck
+			stream.Reset()
+			return
+		}
+		_, err = serde.Write(stream, resp)
+		if err != nil {
+			log.Errorw("writing header to stream", "height", origin, "err", err.Error())
+		}
 	}
 }
 

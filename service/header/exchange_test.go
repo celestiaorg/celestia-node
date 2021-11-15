@@ -202,7 +202,12 @@ func (m *mockStore) GetByHeight(ctx context.Context, height uint64) (*ExtendedHe
 }
 
 func (m *mockStore) GetRangeByHeight(ctx context.Context, from, to uint64) ([]*ExtendedHeader, error) {
-	return nil, nil
+	headers := make([]*ExtendedHeader, to-from)
+	for i, _ := range headers {
+		headers[i] = m.headers[int(from)]
+		from++
+	}
+	return headers, nil
 }
 
 func (m *mockStore) Put(ctx context.Context, header *ExtendedHeader) error {
