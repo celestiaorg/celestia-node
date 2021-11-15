@@ -15,7 +15,8 @@ message ExtendedHeader {
 
 message ExtendedHeaderRequest {
   uint64 origin = 1;
-  uint64 amount = 2;
+  bytes hash = 2;
+  uint64 amount = 3;
 }
 
 // Generated with:

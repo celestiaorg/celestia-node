@@ -1,6 +1,7 @@
 package header
 
 import (
+	"bytes"
 	"context"
 	"testing"
 
@@ -15,15 +16,7 @@ import (
 )
 
 func TestExchange_RequestHead(t *testing.T) {
-	net, err := mocknet.FullMeshConnected(context.Background(), 2)
-	require.NoError(t, err)
-	// get host and peer
-	host, peer := net.Hosts()[0], net.Hosts()[1]
-	// create exchange on peer side to handle requests
-	store := createStore(t, 5)
-	_ = newExchange(peer, libhost.InfoFromHost(host), store)
-	// create new exchange
-	exchg := newExchange(host, libhost.InfoFromHost(peer), nil) // we don't need the store on the requesting side
+	exchg, store := createMockExchangeAndStore(t)
 	// perform header request
 	header, err := exchg.RequestHead(context.Background())
 	require.NoError(t, err)
@@ -32,15 +25,7 @@ func TestExchange_RequestHead(t *testing.T) {
 }
 
 func TestExchange_RequestHeader(t *testing.T) {
-	net, err := mocknet.FullMeshConnected(context.Background(), 2)
-	require.NoError(t, err)
-	// get host and peer
-	host, peer := net.Hosts()[0], net.Hosts()[1]
-	// create exchange on peer side to handle requests
-	store := createStore(t, 5)
-	_ = newExchange(peer, libhost.InfoFromHost(host), store)
-	// create new exchange
-	exchg := newExchange(host, libhost.InfoFromHost(peer), new(mockStore))
+	exchg, store := createMockExchangeAndStore(t)
 	// perform expected request
 	header, err := exchg.RequestHeader(context.Background(), 5)
 	require.NoError(t, err)
@@ -49,15 +34,7 @@ func TestExchange_RequestHeader(t *testing.T) {
 }
 
 func TestExchange_RequestHeaders(t *testing.T) {
-	net, err := mocknet.FullMeshConnected(context.Background(), 2)
-	require.NoError(t, err)
-	// get host and peer
-	host, peer := net.Hosts()[0], net.Hosts()[1]
-	// create exchange just to register the stream handler
-	store := createStore(t, 5)
-	_ = newExchange(peer, libhost.InfoFromHost(host), store)
-	// create new exchange
-	exchg := newExchange(host, libhost.InfoFromHost(peer), nil)
+	exchg, store := createMockExchangeAndStore(t)
 	// perform expected request
 	gotHeaders, err := exchg.RequestHeaders(context.Background(), 1, 5)
 	require.NoError(t, err)
@@ -98,6 +75,39 @@ func TestExchange_Response_Head(t *testing.T) {
 
 	assert.Equal(t, store.headers[5].Height, eh.Height)
 	assert.Equal(t, store.headers[5].Hash(), eh.Hash())
+}
+
+// TestExchange_RequestByHash tests that the exchange instance can
+// respond to an ExtendedHeaderRequest for a hash instead of a height.
+func TestExchange_RequestByHash(t *testing.T) {
+	net, err := mocknet.FullMeshConnected(context.Background(), 2)
+	require.NoError(t, err)
+	// get host and peer
+	host, peer := net.Hosts()[0], net.Hosts()[1]
+	// create exchange just to register the stream handler
+	store := createStore(t, 5)
+	_ = newExchange(host, libhost.InfoFromHost(peer), store)
+	// start a new stream via Peer to see if Host can handle inbound requests
+	stream, err := peer.NewStream(context.Background(), libhost.InfoFromHost(host).ID, headerExchangeProtocolID)
+	require.NoError(t, err)
+	// create request
+	req := &header_pb.ExtendedHeaderRequest{
+		Hash:   store.headers[3].Hash(),
+		Amount: 1,
+	}
+	// send request
+	_, err = serde.Write(stream, req)
+	require.NoError(t, err)
+	// read resp
+	resp := new(header_pb.ExtendedHeader)
+	_, err = serde.Read(stream, resp)
+	require.NoError(t, err)
+	// compare
+	eh, err := ProtoToExtendedHeader(resp)
+	require.NoError(t, err)
+
+	assert.Equal(t, store.headers[3].Height, eh.Height)
+	assert.Equal(t, store.headers[3].Hash(), eh.Hash())
 }
 
 // TestExchange_Response_Single tests that the exchange instance can respond
@@ -168,6 +178,19 @@ func TestExchange_Response_Multiple(t *testing.T) {
 	}
 }
 
+func createMockExchangeAndStore(t *testing.T) (*exchange, *mockStore) {
+	net, err := mocknet.FullMeshConnected(context.Background(), 2)
+	require.NoError(t, err)
+	// get host and peer
+	host, peer := net.Hosts()[0], net.Hosts()[1]
+	// create exchange on peer side to handle requests
+	store := createStore(t, 5)
+	_ = newExchange(peer, libhost.InfoFromHost(host), store)
+	// create new exchange
+	exchg := newExchange(host, libhost.InfoFromHost(peer), nil) // we don't need the store on the requesting side
+	return exchg, store
+}
+
 type mockStore struct {
 	headers map[int]*ExtendedHeader
 }
@@ -190,6 +213,11 @@ func (m *mockStore) Head() (*ExtendedHeader, error) {
 }
 
 func (m *mockStore) Get(ctx context.Context, hash tmbytes.HexBytes) (*ExtendedHeader, error) {
+	for _, header := range m.headers {
+		if bytes.Equal(header.Hash(), hash) {
+			return header, nil
+		}
+	}
 	return nil, nil
 }
 
@@ -203,7 +231,7 @@ func (m *mockStore) GetByHeight(ctx context.Context, height uint64) (*ExtendedHe
 
 func (m *mockStore) GetRangeByHeight(ctx context.Context, from, to uint64) ([]*ExtendedHeader, error) {
 	headers := make([]*ExtendedHeader, to-from)
-	for i, _ := range headers {
+	for i := range headers {
 		headers[i] = m.headers[int(from)]
 		from++
 	}

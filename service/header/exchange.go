@@ -4,13 +4,14 @@ import (
 	"context"
 	"fmt"
 
-	pb "github.com/celestiaorg/celestia-node/service/header/pb"
-	"github.com/celestiaorg/go-libp2p-messenger/serde"
-
 	"github.com/libp2p/go-libp2p-core/host"
 	"github.com/libp2p/go-libp2p-core/network"
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/libp2p/go-libp2p-core/protocol"
+
+	tmbytes "github.com/celestiaorg/celestia-core/libs/bytes"
+	pb "github.com/celestiaorg/celestia-node/service/header/pb"
+	"github.com/celestiaorg/go-libp2p-messenger/serde"
 )
 
 var headerExchangeProtocolID = protocol.ID("header-exchange")
@@ -47,8 +48,33 @@ func (e *exchange) requestHandler(stream network.Stream) {
 		return
 	}
 	// retrieve and write ExtendedHeaders
-	e.handleRequest(pbreq.Origin, pbreq.Origin+pbreq.Amount, stream)
+	if pbreq.Hash != nil {
+		e.handleRequestByHash(pbreq.Hash, stream)
+	} else {
+		e.handleRequest(pbreq.Origin, pbreq.Origin+pbreq.Amount, stream)
+	}
 	stream.Close()
+}
+
+func (e *exchange) handleRequestByHash(hash []byte, stream network.Stream) {
+	header, err := e.store.Get(context.Background(), hash)
+	if err != nil {
+		log.Errorw("getting header by hash", "hash", tmbytes.HexBytes(hash).String(), "err", err.Error())
+		//nolint:errcheck
+		stream.Reset()
+		return
+	}
+	resp, err := ExtendedHeaderToProto(header)
+	if err != nil {
+		log.Errorw("marshaling header to proto", "hash", tmbytes.HexBytes(hash).String(), "err", err.Error())
+		//nolint:errcheck
+		stream.Reset()
+		return
+	}
+	_, err = serde.Write(stream, resp)
+	if err != nil {
+		log.Errorw("writing header to stream", "hash", tmbytes.HexBytes(hash).String(), "err", err.Error())
+	}
 }
 
 // handleRequest fetches the ExtendedHeader at the given origin and
@@ -129,6 +155,19 @@ func (e *exchange) RequestHeaders(ctx context.Context, origin, amount uint64) ([
 		Amount: amount,
 	}
 	return e.performRequest(ctx, req)
+}
+
+func (e *exchange) RequestByHash(ctx context.Context, hash []byte) (*ExtendedHeader, error) {
+	// create request
+	req := &pb.ExtendedHeaderRequest{
+		Hash:   hash,
+		Amount: 1,
+	}
+	headers, err := e.performRequest(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+	return headers[0], nil
 }
 
 func (e *exchange) performRequest(ctx context.Context, req *pb.ExtendedHeaderRequest) ([]*ExtendedHeader, error) {

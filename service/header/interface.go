@@ -38,6 +38,9 @@ type Exchange interface {
 	// RequestHeaders performs a request for the given range of ExtendedHeaders
 	// to the network. Note that the ExtendedHeaders must be verified thereafter.
 	RequestHeaders(ctx context.Context, origin, amount uint64) ([]*ExtendedHeader, error)
+	// RequestByHash performs a request for the ExtendedHeader by the given hash corresponding
+	// to the RawHeader. Note that the ExtendedHeader must be verified thereafter.
+	RequestByHash(ctx context.Context, hash []byte) (*ExtendedHeader, error)
 }
 
 var (
