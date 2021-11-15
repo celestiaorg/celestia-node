@@ -77,6 +77,11 @@ func (s *Service) handleRawBlock(raw *RawBlock) error {
 		Commit:       commit,
 		ValidatorSet: valSet,
 	}
+	// broadcast ExtendedHeader
+	if err := s.broadcaster.Broadcast(context.Background(), extendedHeader); err != nil {
+		log.Errorw("broadcasting new ExtendedHeader to network", "err", err)
+		return err
+	}
 	// create Block
 	extendedBlock := &Block{
 		header: extendedHeader,

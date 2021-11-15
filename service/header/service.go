@@ -92,3 +92,12 @@ func (s *Service) Subscribe() (Subscription, error) {
 
 	return newSubscription(s.topic)
 }
+
+func (s *Service) Broadcast(ctx context.Context, header *ExtendedHeader) error {
+	bin, err := header.MarshalBinary()
+	if err != nil {
+		return err
+	}
+
+	return s.topic.Publish(ctx, bin)
+}

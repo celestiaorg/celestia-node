@@ -5,6 +5,8 @@ import (
 	"sync"
 	"testing"
 
+	pubsub "github.com/libp2p/go-libp2p-pubsub"
+
 	"github.com/celestiaorg/celestia-node/service/header"
 	"github.com/celestiaorg/celestia-node/service/share"
 )
@@ -50,3 +52,5 @@ func (mhs *mockHeaderSub) NextHeader(ctx context.Context) (*header.ExtendedHeade
 }
 
 func (mhs *mockHeaderSub) Cancel() {}
+
+func (mhs *mockHeaderSub) Topic() *pubsub.Topic { return nil }
