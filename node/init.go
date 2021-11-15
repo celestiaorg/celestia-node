@@ -12,14 +12,8 @@ import (
 
 // Init initializes the Node FileSystem Repository for the given Node Type 'tp' in the directory under 'path' with
 // default Config.
-func Init(path string, tp Type, options ...Options) error {
-	config := DefaultConfig(tp)
-
-	for _, option := range options {
-		option(config)
-	}
-
-	return InitWith(path, tp, config)
+func Init(path string, tp Type) error {
+	return InitWith(path, tp, DefaultConfig(tp))
 }
 
 // InitWith initializes the Node FileSystem Repository for the given Node Type 'tp' in the directory under 'path'

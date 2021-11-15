@@ -1,8 +1,6 @@
 package cmd
 
 import (
-	"net/url"
-
 	"github.com/spf13/cobra"
 
 	"github.com/celestiaorg/celestia-node/node"
@@ -18,7 +16,6 @@ func Init(repoName string, tp node.Type) *cobra.Command {
 		panic("parent command must specify a persistent flag name for repository path")
 	}
 
-	const cfgAddress = "core.remote"
 	const cfgName = "config"
 	cmd := &cobra.Command{
 		Use:  "init",
@@ -35,18 +32,9 @@ func Init(repoName string, tp node.Type) *cobra.Command {
 
 				return node.InitWith(repo, tp, cfg)
 			}
-
-			u, err := url.Parse(cmd.Flag(cfgAddress).Value.String())
-			opts := make([]node.Options, 0)
-
-			if err == nil && u.Scheme != "" && u.Host != "" {
-				opts = append(opts, node.WithRemoteClient(u.Scheme, u.Host))
-			}
-
-			return node.Init(repo, tp, opts...)
+			return node.Init(repo, tp)
 		},
 	}
 	cmd.Flags().StringP(cfgName, "c", "", "Path to a customized Config")
-	cmd.Flags().String(cfgAddress, "", "Indicates node to connect to the remote core")
 	return cmd
 }
