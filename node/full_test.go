@@ -141,9 +141,6 @@ func TestFull_WithRemoteCore(t *testing.T) {
 	node, err := New(Full, repo, WithRemoteClient(protocol, ip))
 	require.NoError(t, err)
 	require.NotNil(t, node)
-
-	err = node.CoreClient.Start()
-	assert.NoError(t, err)
 	assert.True(t, node.CoreClient.IsRunning())
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -173,6 +170,9 @@ func TestFull_WithRemoteCoreFailed(t *testing.T) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
+
+	err = node.CoreClient.Stop()
+	require.NoError(t, err)
 
 	err = node.Start(ctx)
 	require.Error(t, err, "node: failed to start: client not running")

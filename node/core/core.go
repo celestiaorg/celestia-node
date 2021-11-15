@@ -29,6 +29,9 @@ func Components(cfg Config) fx.Option {
 		fxutil.ProvideIf(cfg.Remote, func() (core.Client, error) {
 			return RemoteClient(cfg)
 		}),
+		fxutil.InvokeIf(cfg.Remote, func(c core.Client) error {
+			return c.Start()
+		}),
 		fxutil.ProvideIf(!cfg.Remote, func(repo core.Repository) (core.Client, error) {
 			cfg, err := repo.Config()
 			if err != nil {
