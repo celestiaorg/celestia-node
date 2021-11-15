@@ -50,7 +50,7 @@ type Store interface {
 	GetByHeight(context.Context, int64) (*ExtendedHeader, error)
 	// GetRangeByHeight returns the given range of ExtendedHeaders.
 	GetRangeByHeight(ctx context.Context, from, to int64) ([]*ExtendedHeader, error)
-	// Has check whether Header is stored.
+	// Has checks whether ExtendedHeader is already stored.
 	Has(context.Context, tmbytes.HexBytes) (bool, error)
 	// Append verifies and stores the given ExtendedHeaders.
 	Append(context.Context, ...*ExtendedHeader) error
