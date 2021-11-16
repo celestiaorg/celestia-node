@@ -7,16 +7,17 @@ import (
 	"testing"
 	"time"
 
-	"github.com/celestiaorg/celestia-core/crypto/tmhash"
-	"github.com/celestiaorg/celestia-core/libs/bytes"
-	"github.com/celestiaorg/celestia-core/types"
-	tmtime "github.com/celestiaorg/celestia-core/types/time"
 	"github.com/stretchr/testify/require"
+
+	"github.com/tendermint/tendermint/crypto/tmhash"
+	"github.com/tendermint/tendermint/libs/bytes"
+	"github.com/tendermint/tendermint/pkg/da"
+	"github.com/tendermint/tendermint/types"
+	tmtime "github.com/tendermint/tendermint/types/time"
 
 	tmrand "github.com/tendermint/tendermint/libs/rand"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	"github.com/tendermint/tendermint/proto/tendermint/version"
-	core "github.com/tendermint/tendermint/types"
 )
 
 // TestSuite provides everything you need to test chain of Headers.
@@ -24,25 +25,25 @@ import (
 type TestSuite struct {
 	t *testing.T
 
-	vals []core.PrivValidator
-	valSet *types.ValidatorSet
+	vals    []types.PrivValidator
+	valSet  *types.ValidatorSet
 	valPntr int
 
 	height int64
-	head *ExtendedHeader
+	head   *ExtendedHeader
 }
 
 // NewTestSuite setups a new test suite with a given number of validators.
 func NewTestSuite(t *testing.T, num int) *TestSuite {
-	valSet, vals := core.RandValidatorSet(num, 10)
+	valSet, vals := types.RandValidatorSet(num, 10)
 	head := RandExtendedHeader(t)
 	head.NextValidatorsHash = valSet.Hash()
 	head.Height = 0
 	return &TestSuite{
-		t: t,
-		vals: vals,
+		t:      t,
+		vals:   vals,
 		valSet: valSet,
-		head: head,
+		head:   head,
 	}
 }
 
@@ -63,10 +64,10 @@ func (s *TestSuite) GenExtendedHeader() *ExtendedHeader {
 	dah := da.MinDataAvailabilityHeader()
 	rh := s.GenRawHeader(s.height, s.Head().Hash(), s.Head().Commit.Hash(), dah.Hash())
 	s.head = &ExtendedHeader{
-		RawHeader: *rh,
-		Commit: s.Commit(rh),
+		RawHeader:    *rh,
+		Commit:       s.Commit(rh),
 		ValidatorSet: s.valSet,
-		DAH: &dah,
+		DAH:          &dah,
 	}
 	return s.head
 }
@@ -103,7 +104,7 @@ func (s *TestSuite) Commit(h *RawHeader) *types.Commit {
 			Type:             tmproto.PrecommitType,
 			BlockID:          bid,
 		}
-		sgntr, err := val.(core.MockPV).PrivKey.Sign(types.VoteSignBytes(h.ChainID, v.ToProto()))
+		sgntr, err := val.(types.MockPV).PrivKey.Sign(types.VoteSignBytes(h.ChainID, v.ToProto()))
 		require.Nil(s.t, err)
 		v.Signature = sgntr
 		comms[i] = v.CommitSig()
@@ -122,13 +123,12 @@ func (s *TestSuite) nextProposer() *types.Validator {
 	return val
 }
 
-
 // RandExtendedHeader provides an ExtendedHeader fixture.
 func RandExtendedHeader(t *testing.T) *ExtendedHeader {
 	rh := RandRawHeader(t)
-	valSet, vals := core.RandValidatorSet(5, 1)
-	voteSet := core.NewVoteSet(rh.ChainID, rh.Height, 0, tmproto.PrecommitType, valSet)
-	commit, err := core.MakeCommit(RandBlockID(t), rh.Height, 0, voteSet, vals, time.Now())
+	valSet, vals := types.RandValidatorSet(5, 1)
+	voteSet := types.NewVoteSet(rh.ChainID, rh.Height, 0, tmproto.PrecommitType, valSet)
+	commit, err := types.MakeCommit(RandBlockID(t), rh.Height, 0, voteSet, vals, time.Now())
 	require.NoError(t, err)
 	dah := EmptyDAH()
 	return &ExtendedHeader{
@@ -160,10 +160,10 @@ func RandRawHeader(t *testing.T) *RawHeader {
 }
 
 // RandBlockID provides a BlockID fixture.
-func RandBlockID(t *testing.T) core.BlockID {
-	bid := core.BlockID{
+func RandBlockID(t *testing.T) types.BlockID {
+	bid := types.BlockID{
 		Hash: make([]byte, 32),
-		PartSetHeader: core.PartSetHeader{
+		PartSetHeader: types.PartSetHeader{
 			Total: 123,
 			Hash:  make([]byte, 32),
 		},

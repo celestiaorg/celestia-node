@@ -10,7 +10,7 @@ import (
 	"github.com/ipfs/go-datastore"
 	"github.com/ipfs/go-datastore/namespace"
 
-	"github.com/celestiaorg/celestia-core/libs/bytes"
+	"github.com/tendermint/tendermint/libs/bytes"
 )
 
 // TODO(@Wondertan): Those values must be configurable and proper defaults should be set for specific node type.

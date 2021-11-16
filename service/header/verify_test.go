@@ -5,8 +5,9 @@ import (
 	"testing"
 	"time"
 
-	tmrand "github.com/celestiaorg/celestia-core/libs/rand"
 	"github.com/stretchr/testify/assert"
+
+	tmrand "github.com/tendermint/tendermint/libs/rand"
 )
 
 func TestVerifyAdjacent(t *testing.T) {
@@ -17,8 +18,8 @@ func TestVerifyAdjacent(t *testing.T) {
 		err     bool
 	}{
 		{
-			prepare: func(){},
-			err: false,
+			prepare: func() {},
+			err:     false,
 		},
 		{
 			prepare: func() {

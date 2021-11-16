@@ -4,11 +4,12 @@ import (
 	"context"
 	"testing"
 
-	tmrand "github.com/celestiaorg/celestia-core/libs/rand"
 	"github.com/ipfs/go-datastore"
 	"github.com/ipfs/go-datastore/sync"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	tmrand "github.com/tendermint/tendermint/libs/rand"
 )
 
 func TestStore(t *testing.T) {
