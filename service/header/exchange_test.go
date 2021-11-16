@@ -10,9 +10,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	tmbytes "github.com/celestiaorg/celestia-core/libs/bytes"
 	header_pb "github.com/celestiaorg/celestia-node/service/header/pb"
 	"github.com/celestiaorg/go-libp2p-messenger/serde"
+	tmbytes "github.com/tendermint/tendermint/libs/bytes"
 )
 
 func TestExchange_RequestHead(t *testing.T) {

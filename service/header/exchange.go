@@ -9,9 +9,9 @@ import (
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/libp2p/go-libp2p-core/protocol"
 
-	tmbytes "github.com/celestiaorg/celestia-core/libs/bytes"
 	pb "github.com/celestiaorg/celestia-node/service/header/pb"
 	"github.com/celestiaorg/go-libp2p-messenger/serde"
+	tmbytes "github.com/tendermint/tendermint/libs/bytes"
 )
 
 var headerExchangeProtocolID = protocol.ID("header-exchange")
