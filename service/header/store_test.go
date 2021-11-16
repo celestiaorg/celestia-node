@@ -13,7 +13,7 @@ import (
 
 func TestStore(t *testing.T) {
 	// Alter Cache sizes to read some values from datastore instead of only cache.
-	DefaultStoreCache, DefaultIndexCache = 5, 5
+	DefaultStoreCacheSize, DefaultStoreCacheSize = 5, 5
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()

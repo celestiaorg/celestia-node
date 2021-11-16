@@ -16,14 +16,9 @@ import (
 // TODO(@Wondertan): Those values must be configurable and proper defaults should be set for specific node type.
 var (
 	// DefaultStoreCache defines the amount of max entries allowed in the Header Store cache.
-	DefaultStoreCache = 1024
+	DefaultStoreCacheSize = 1024
 	// DefaultIndexCache defines the amount of max entries allowed in the Height to Hash index cache.
-	DefaultIndexCache = 256
-)
-
-var (
-	storePrefix = datastore.NewKey("headers")
-	headKey     = datastore.NewKey("head")
+	DefaultIndexCacheSize = 256
 )
 
 type store struct {
@@ -59,7 +54,7 @@ func NewStoreWithHead(ds datastore.Batching, head *ExtendedHeader) (Store, error
 
 func newStore(ds datastore.Batching) (*store, error) {
 	ds = namespace.Wrap(ds, storePrefix)
-	cache, err := lru.NewARC(DefaultStoreCache)
+	cache, err := lru.NewARC(DefaultStoreCacheSize)
 	if err != nil {
 		return nil, err
 	}
@@ -182,6 +177,7 @@ func (s *store) Append(ctx context.Context, headers ...*ExtendedHeader) error {
 	return s.newHead(head.Hash())
 }
 
+// put saves the given headers on disk and into cache.
 func (s *store) put(headers ...*ExtendedHeader) error {
 	batch, err := s.ds.Batch()
 	if err != nil {
@@ -213,6 +209,7 @@ func (s *store) put(headers ...*ExtendedHeader) error {
 	return s.index.Index(headers...)
 }
 
+// loadHead load the head hash from the disk.
 func (s *store) loadHead() error {
 	s.headLk.Lock()
 	defer s.headLk.Unlock()
@@ -235,10 +232,11 @@ func (s *store) loadHead() error {
 	return nil
 }
 
+// newHead sets a new 'head' and saves it on disk.
+// At this point Header body of the given 'head' must be already written with put.
 func (s *store) newHead(head bytes.HexBytes) error {
 	log.Infow("new head", "hash", head)
 
-	// at this point Header body of the given 'head' must be already written with put
 	s.headLk.Lock()
 	s.head = head
 	s.headLk.Unlock()
@@ -252,13 +250,15 @@ func (s *store) newHead(head bytes.HexBytes) error {
 }
 
 // TODO(@Wondertan): There should be a more clever way to index heights, than just storing HeightToHash pair...
+// heightIndexer simply stores and cashes mappings between header Height and Hash.
 type heightIndexer struct {
 	ds    datastore.Batching
 	cache *lru.ARCCache
 }
 
+// newHeightIndexer creates new heightIndexer.
 func newHeightIndexer(ds datastore.Batching) (*heightIndexer, error) {
-	cache, err := lru.NewARC(DefaultIndexCache)
+	cache, err := lru.NewARC(DefaultIndexCacheSize)
 	if err != nil {
 		return nil, err
 	}
@@ -269,6 +269,7 @@ func newHeightIndexer(ds datastore.Batching) (*heightIndexer, error) {
 	}, nil
 }
 
+// HashByHeight loads a header by the given height.
 func (hi *heightIndexer) HashByHeight(h int64) (bytes.HexBytes, error) {
 	if v, ok := hi.cache.Get(h); ok {
 		return v.(bytes.HexBytes), nil
@@ -277,6 +278,7 @@ func (hi *heightIndexer) HashByHeight(h int64) (bytes.HexBytes, error) {
 	return hi.ds.Get(heightKey(h))
 }
 
+// Index saves mapping between header Height and Hash.
 func (hi *heightIndexer) Index(headers ...*ExtendedHeader) error {
 	batch, err := hi.ds.Batch()
 	if err != nil {
@@ -301,6 +303,11 @@ func (hi *heightIndexer) Index(headers ...*ExtendedHeader) error {
 	}
 	return nil
 }
+
+var (
+	storePrefix = datastore.NewKey("headers")
+	headKey     = datastore.NewKey("head")
+)
 
 func heightKey(h int64) datastore.Key {
 	return datastore.NewKey(strconv.Itoa(int(h)))
