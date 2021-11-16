@@ -35,10 +35,14 @@ type store struct {
 	head   bytes.HexBytes
 }
 
+// NewStore constructs a Store over datastore.
+// The datastore must have a head there otherwise Start will error.
+// For first initialization of Store use NewStoreWithHead.
 func NewStore(ds datastore.Batching) (Store, error) {
 	return newStore(ds)
 }
 
+// NewStoreWithHead initiates a new Store and forcefully sets a given trusted header as head.
 func NewStoreWithHead(ds datastore.Batching, head *ExtendedHeader) (Store, error) {
 	store, err := newStore(ds)
 	if err != nil {

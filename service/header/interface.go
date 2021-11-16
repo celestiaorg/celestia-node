@@ -50,16 +50,23 @@ var (
 type Store interface {
 	// Open opens and initializes Store.
 	Open(context.Context) error
+
 	// Head returns the ExtendedHeader of the chain head.
 	Head(context.Context) (*ExtendedHeader, error)
+
 	// Get returns the ExtendedHeader corresponding to the given hash.
 	Get(context.Context, tmbytes.HexBytes) (*ExtendedHeader, error)
+
 	// GetByHeight returns the ExtendedHeader corresponding to the given block height.
 	GetByHeight(context.Context, int64) (*ExtendedHeader, error)
-	// GetRangeByHeight returns the given range of ExtendedHeaders.
+
+	// GetRangeByHeight returns the given range [from:to) of ExtendedHeaders.
 	GetRangeByHeight(ctx context.Context, from, to int64) ([]*ExtendedHeader, error)
+
 	// Has checks whether ExtendedHeader is already stored.
 	Has(context.Context, tmbytes.HexBytes) (bool, error)
-	// Append verifies and stores the given ExtendedHeaders.
+
+	// Append stores and verifies given ExtendedHeader.
+	// It requires them to be adjacent and in ascending order.
 	Append(context.Context, ...*ExtendedHeader) error
 }
