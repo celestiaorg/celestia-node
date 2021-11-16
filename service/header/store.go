@@ -72,7 +72,7 @@ func newStore(ds datastore.Batching) (*store, error) {
 	}, nil
 }
 
-func (s *store) Start(context.Context) error {
+func (s *store) Open(context.Context) error {
 	err := s.loadHead()
 	if err == datastore.ErrNotFound {
 		return fmt.Errorf("header/store: no chain head")

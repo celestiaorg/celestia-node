@@ -42,6 +42,8 @@ var ErrNotFound = errors.New("header: not found")
 // Store encompasses the behavior necessary to store and retrieve ExtendedHeaders
 // from a node's local storage.
 type Store interface {
+	// Open opens and initializes Store.
+	Open(context.Context) error
 	// Head returns the ExtendedHeader of the chain head.
 	Head(context.Context) (*ExtendedHeader, error)
 	// Get returns the ExtendedHeader corresponding to the given hash.
