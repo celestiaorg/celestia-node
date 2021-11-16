@@ -66,7 +66,7 @@ type Store interface {
 	// Has checks whether ExtendedHeader is already stored.
 	Has(context.Context, tmbytes.HexBytes) (bool, error)
 
-	// Append stores and verifies given ExtendedHeader.
+	// Append stores and verifies the given ExtendedHeader(s).
 	// It requires them to be adjacent and in ascending order.
 	Append(context.Context, ...*ExtendedHeader) error
 }
