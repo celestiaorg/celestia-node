@@ -1,3 +1,5 @@
+// TODO(@Wondertan): Ideally, we should move that into subpackage, so this does not get included into binary of
+//  production code, but that does not matter at the moment.
 package header
 
 import (
@@ -5,6 +7,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/celestiaorg/celestia-core/libs/bytes"
+	"github.com/celestiaorg/celestia-core/types"
+	tmtime "github.com/celestiaorg/celestia-core/types/time"
 	"github.com/stretchr/testify/require"
 
 	tmrand "github.com/tendermint/tendermint/libs/rand"
@@ -12,6 +17,108 @@ import (
 	"github.com/tendermint/tendermint/proto/tendermint/version"
 	core "github.com/tendermint/tendermint/types"
 )
+
+// TestSuite provides everything you need to test chain of Headers.
+// If not, pls don't hesitate to extended it for your case.
+type TestSuite struct {
+	t *testing.T
+
+	vals []core.PrivValidator
+	valSet *types.ValidatorSet
+	valPntr int
+
+	height int64
+	head *ExtendedHeader
+}
+
+// NewTestSuite setups a new test suite with a given number of validators.
+func NewTestSuite(t *testing.T, num int) *TestSuite {
+	valSet, vals := core.RandValidatorSet(num, 10)
+	head := RandExtendedHeader(t)
+	head.NextValidatorsHash = valSet.Hash()
+	return &TestSuite{
+		t: t,
+		vals: vals,
+		valSet: valSet,
+		head: head,
+	}
+}
+
+func (s *TestSuite) Head() *ExtendedHeader {
+	return s.head
+}
+
+func (s *TestSuite) GenExtendedHeaders(num int) []*ExtendedHeader {
+	headers := make([]*ExtendedHeader, num)
+	for i := range headers {
+		headers[i] = s.GenExtendedHeader()
+	}
+	return headers
+}
+
+func (s *TestSuite) GenExtendedHeader() *ExtendedHeader {
+	s.height++
+	dah := da.MinDataAvailabilityHeader()
+	rh := s.GenRawHeader(s.height, s.Head().Hash(), s.Head().Commit.Hash(), dah.Hash())
+	return &ExtendedHeader{
+		RawHeader: *rh,
+		Commit: s.Commit(rh),
+		ValidatorSet: s.valSet,
+		DAH: &dah,
+	}
+}
+
+func (s *TestSuite) GenRawHeader(
+	height int64, lastHeader, lastCommit, dataHash bytes.HexBytes) *RawHeader {
+	rh := RandRawHeader(s.t)
+	rh.Height = height
+	rh.Time = time.Now()
+	rh.LastBlockID = types.BlockID{Hash: lastHeader}
+	rh.LastCommitHash = lastCommit
+	rh.DataHash = dataHash
+	rh.ValidatorsHash = s.valSet.Hash()
+	rh.NextValidatorsHash = s.valSet.Hash()
+	rh.ProposerAddress = s.nextProposer().Address
+	return rh
+}
+
+func (s *TestSuite) Commit(h *RawHeader) *types.Commit {
+	bid := types.BlockID{
+		Hash: h.Hash(),
+		// Unfortunately, we still have to commit PartSetHeader even we don't need it in Celestia
+		PartSetHeader: types.PartSetHeader{Total: 1, Hash: tmrand.Bytes(32)},
+	}
+	round := int32(0)
+	comms := make([]types.CommitSig, len(s.vals))
+	for i, val := range s.vals {
+		v := &types.Vote{
+			ValidatorAddress: s.valSet.Validators[i].Address,
+			ValidatorIndex:   int32(i),
+			Height:           h.Height,
+			Round:            round,
+			Timestamp:        tmtime.Now(),
+			Type:             tmproto.PrecommitType,
+			BlockID:          bid,
+		}
+		sgntr, err := val.(core.MockPV).PrivKey.Sign(types.VoteSignBytes(h.ChainID, v.ToProto()))
+		require.Nil(s.t, err)
+		v.Signature = sgntr
+		comms[i] = v.CommitSig()
+	}
+
+	return types.NewCommit(h.Height, round, bid, comms)
+}
+
+func (s *TestSuite) nextProposer() *types.Validator {
+	if s.valPntr == len(s.valSet.Validators)-1 {
+		s.valPntr = 0
+	} else {
+		s.valPntr++
+	}
+	val := s.valSet.Validators[s.valPntr]
+	return val
+}
+
 
 // RandExtendedHeader provides an ExtendedHeader fixture.
 func RandExtendedHeader(t *testing.T) *ExtendedHeader {
