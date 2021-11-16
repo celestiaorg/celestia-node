@@ -15,12 +15,6 @@ func VerifyAdjacent(trusted, untrusted *ExtendedHeader) error {
 		return fmt.Errorf("header belongs to another chain %q, not %q", untrusted.ChainID, trusted.ChainID)
 	}
 
-	if untrusted.Height <= trusted.Height {
-		return fmt.Errorf("expected new header height %d to be greater than one of old header %d",
-			untrusted.Height,
-			trusted.Height)
-	}
-
 	if !untrusted.Time.After(trusted.Time) {
 		return fmt.Errorf("expected new header time %v to be after old header time %v",
 			untrusted.Time,
