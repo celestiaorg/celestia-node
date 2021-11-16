@@ -3,6 +3,7 @@ package header
 import (
 	"context"
 	"errors"
+	"fmt"
 
 	tmbytes "github.com/tendermint/tendermint/libs/bytes"
 )
@@ -36,8 +37,13 @@ type Exchange interface {
 	RequestHeaders(ctx context.Context, from, to int64) ([]*ExtendedHeader, error)
 }
 
-// ErrNotFound is returned when there is no requested header.
-var ErrNotFound = errors.New("header: not found")
+var (
+	// ErrNotFound is returned when there is no requested header.
+	ErrNotFound = errors.New("header: not found")
+
+	// ErrNoHead is returned when Store does not contain Head of the chain,
+	ErrNoHead = fmt.Errorf("header/store: no chain head")
+)
 
 // Store encompasses the behavior necessary to store and retrieve ExtendedHeaders
 // from a node's local storage.
