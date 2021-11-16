@@ -36,6 +36,7 @@ func NewTestSuite(t *testing.T, num int) *TestSuite {
 	valSet, vals := core.RandValidatorSet(num, 10)
 	head := RandExtendedHeader(t)
 	head.NextValidatorsHash = valSet.Hash()
+	head.Height = 0
 	return &TestSuite{
 		t: t,
 		vals: vals,
@@ -60,12 +61,13 @@ func (s *TestSuite) GenExtendedHeader() *ExtendedHeader {
 	s.height++
 	dah := da.MinDataAvailabilityHeader()
 	rh := s.GenRawHeader(s.height, s.Head().Hash(), s.Head().Commit.Hash(), dah.Hash())
-	return &ExtendedHeader{
+	s.head = &ExtendedHeader{
 		RawHeader: *rh,
 		Commit: s.Commit(rh),
 		ValidatorSet: s.valSet,
 		DAH: &dah,
 	}
+	return s.head
 }
 
 func (s *TestSuite) GenRawHeader(
