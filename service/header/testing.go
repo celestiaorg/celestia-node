@@ -21,7 +21,7 @@ import (
 )
 
 // TestSuite provides everything you need to test chain of Headers.
-// If not, pls don't hesitate to extended it for your case.
+// If not, please don't hesitate to extend it for your case.
 type TestSuite struct {
 	t *testing.T
 
