@@ -175,11 +175,6 @@ func (s *store) Append(ctx context.Context, headers ...*ExtendedHeader) error {
 		return err
 	}
 
-	// consistency is important, so change the cache and the head only after the data is on disk
-	for _, h := range verified {
-		s.cache.Add(h.Hash(), h)
-	}
-
 	return s.newHead(head.Hash())
 }
 
@@ -206,17 +201,27 @@ func (s *store) put(headers ...*ExtendedHeader) error {
 		return err
 	}
 
+	// consistency is important, so change the cache and the head only after the data is on disk
+	for _, h := range headers {
+		s.cache.Add(h.Hash(), h)
+	}
+
 	return s.index.Index(headers...)
 }
 
 func (s *store) loadHead() error {
+	s.headLk.Lock()
+	defer s.headLk.Unlock()
+
+	if s.head != nil {
+		return nil
+	}
+
 	b, err := s.ds.Get(headKey)
 	if err != nil {
 		return err
 	}
 
-	s.headLk.Lock()
-	defer s.headLk.Unlock()
 	err = s.head.UnmarshalJSON(b)
 	if err != nil {
 		return err
