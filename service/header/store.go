@@ -89,7 +89,7 @@ func (s *store) Head(ctx context.Context) (*ExtendedHeader, error) {
 }
 
 func (s *store) Get(_ context.Context, hash bytes.HexBytes) (*ExtendedHeader, error) {
-	if v, ok := s.cache.Get(hash); ok {
+	if v, ok := s.cache.Get(hash.String()); ok {
 		return v.(*ExtendedHeader), nil
 	}
 
@@ -203,7 +203,7 @@ func (s *store) put(headers ...*ExtendedHeader) error {
 
 	// consistency is important, so change the cache and the head only after the data is on disk
 	for _, h := range headers {
-		s.cache.Add(h.Hash(), h)
+		s.cache.Add(h.Hash().String(), h)
 	}
 
 	return s.index.Index(headers...)
