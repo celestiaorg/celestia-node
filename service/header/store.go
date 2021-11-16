@@ -14,7 +14,7 @@ import (
 )
 
 // TODO(@Wondertan): Those values must be configurable and proper defaults should be set for specific node type.
-const (
+var (
 	// DefaultStoreCache defines the amount of max entries allowed in the Header Store cache.
 	DefaultStoreCache = 1024
 	// DefaultIndexCache defines the amount of max entries allowed in the Height to Hash index cache.
@@ -119,7 +119,7 @@ func (s *store) GetByHeight(ctx context.Context, height int64) (*ExtendedHeader,
 }
 
 func (s *store) GetRangeByHeight(ctx context.Context, from, to int64) ([]*ExtendedHeader, error) {
-	h, err := s.GetByHeight(ctx, to)
+	h, err := s.GetByHeight(ctx, to-1)
 	if err != nil {
 		return nil, err
 	}
@@ -139,7 +139,7 @@ func (s *store) GetRangeByHeight(ctx context.Context, from, to int64) ([]*Extend
 }
 
 func (s *store) Has(_ context.Context, hash bytes.HexBytes) (bool, error) {
-	if ok := s.cache.Contains(hash); ok {
+	if ok := s.cache.Contains(hash.String()); ok {
 		return ok, nil
 	}
 
