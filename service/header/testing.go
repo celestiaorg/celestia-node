@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/celestiaorg/celestia-core/crypto/tmhash"
 	"github.com/celestiaorg/celestia-core/libs/bytes"
 	"github.com/celestiaorg/celestia-core/types"
 	tmtime "github.com/celestiaorg/celestia-core/types/time"
@@ -153,7 +154,7 @@ func RandRawHeader(t *testing.T) *RawHeader {
 		ConsensusHash:      tmrand.Bytes(32),
 		AppHash:            tmrand.Bytes(32),
 		LastResultsHash:    tmrand.Bytes(32),
-		EvidenceHash:       tmrand.Bytes(32),
+		EvidenceHash:       tmhash.Sum([]byte{}),
 		ProposerAddress:    tmrand.Bytes(20),
 	}
 }
