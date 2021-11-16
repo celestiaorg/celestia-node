@@ -3,7 +3,8 @@ package block
 import (
 	"math"
 
-	"github.com/celestiaorg/celestia-core/pkg/wrapper"
+	"github.com/tendermint/tendermint/pkg/wrapper"
+
 	"github.com/celestiaorg/rsmt2d"
 )
 

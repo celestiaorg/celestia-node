@@ -7,10 +7,10 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	tmrand "github.com/celestiaorg/celestia-core/libs/rand"
-	tmproto "github.com/celestiaorg/celestia-core/proto/tendermint/types"
-	"github.com/celestiaorg/celestia-core/proto/tendermint/version"
-	core "github.com/celestiaorg/celestia-core/types"
+	tmrand "github.com/tendermint/tendermint/libs/rand"
+	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
+	"github.com/tendermint/tendermint/proto/tendermint/version"
+	core "github.com/tendermint/tendermint/types"
 )
 
 // RandExtendedHeader provides an ExtendedHeader fixture.

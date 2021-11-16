@@ -3,8 +3,8 @@ package header
 import (
 	"fmt"
 
-	"github.com/celestiaorg/celestia-core/pkg/da"
-	core "github.com/celestiaorg/celestia-core/types"
+	"github.com/tendermint/tendermint/pkg/da"
+	core "github.com/tendermint/tendermint/types"
 )
 
 type DataAvailabilityHeader = da.DataAvailabilityHeader

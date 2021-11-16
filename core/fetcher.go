@@ -4,7 +4,8 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/celestiaorg/celestia-core/types"
+	"github.com/tendermint/tendermint/types"
+
 	"github.com/celestiaorg/celestia-node/service/block"
 )
 

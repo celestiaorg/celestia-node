@@ -4,11 +4,11 @@ import (
 	"fmt"
 	"path/filepath"
 
-	tmrand "github.com/celestiaorg/celestia-core/libs/rand"
-	"github.com/celestiaorg/celestia-core/p2p"
-	"github.com/celestiaorg/celestia-core/privval"
-	"github.com/celestiaorg/celestia-core/types"
-	tmtime "github.com/celestiaorg/celestia-core/types/time"
+	tmrand "github.com/tendermint/tendermint/libs/rand"
+	"github.com/tendermint/tendermint/p2p"
+	"github.com/tendermint/tendermint/privval"
+	"github.com/tendermint/tendermint/types"
+	tmtime "github.com/tendermint/tendermint/types/time"
 
 	"github.com/celestiaorg/celestia-node/libs/utils"
 )
@@ -44,10 +44,7 @@ func Init(path string) (err error) {
 	var pv *privval.FilePV
 	keyPath := cfg.PrivValidatorKeyFile()
 	if !utils.Exists(keyPath) {
-		pv, err = privval.GenFilePV(keyPath, cfg.PrivValidatorStateFile(), defaultValKeyType)
-		if err != nil {
-			return
-		}
+		pv = privval.GenFilePV(keyPath, cfg.PrivValidatorStateFile())
 		pv.Save()
 		log.Info("New consensus private key is generated")
 	} else {

@@ -9,8 +9,9 @@ import (
 	"github.com/ipfs/go-cid"
 	ipld "github.com/ipfs/go-ipld-format"
 
-	"github.com/celestiaorg/celestia-core/pkg/da"
-	"github.com/celestiaorg/celestia-core/pkg/wrapper"
+	"github.com/tendermint/tendermint/pkg/da"
+	"github.com/tendermint/tendermint/pkg/wrapper"
+
 	"github.com/celestiaorg/celestia-node/ipld/plugin"
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/nmt/namespace"

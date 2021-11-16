@@ -3,7 +3,7 @@ package core
 import (
 	"errors"
 
-	"github.com/celestiaorg/celestia-core/config"
+	"github.com/tendermint/tendermint/config"
 )
 
 // ErrNotInited is used to signal when core is intended to be started without being initialized.

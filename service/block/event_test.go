@@ -9,8 +9,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/celestiaorg/celestia-core/testutils"
-	core "github.com/celestiaorg/celestia-core/types"
+	core "github.com/tendermint/tendermint/types"
+
 	"github.com/celestiaorg/celestia-node/service/header"
 )
 
@@ -92,7 +92,7 @@ func (m *mockFetcher) generateBlocks(t *testing.T, num int) []Block {
 func generateRawAndExtendedBlock(t *testing.T) (*RawBlock, *Block) {
 	t.Helper()
 
-	data, err := testutils.GenerateRandomBlockData(1, 1, 1, 1, 40)
+	data, err := GenerateRandomBlockData(1, 1, 1, 1, 40)
 	if err != nil {
 		t.Fatal(err)
 	}

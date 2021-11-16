@@ -4,10 +4,10 @@ import (
 	"os"
 	"testing"
 
-	"github.com/celestiaorg/celestia-core/abci/example/kvstore"
-	"github.com/celestiaorg/celestia-core/config"
-	"github.com/celestiaorg/celestia-core/node"
-	rpctest "github.com/celestiaorg/celestia-core/rpc/test"
+	"github.com/tendermint/tendermint/abci/example/kvstore"
+	"github.com/tendermint/tendermint/config"
+	"github.com/tendermint/tendermint/node"
+	rpctest "github.com/tendermint/tendermint/rpc/test"
 )
 
 // MockConfig provides a testing configuration for embedded Core Client.

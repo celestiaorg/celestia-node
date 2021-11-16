@@ -3,10 +3,10 @@ package core
 import (
 	"fmt"
 
-	corenode "github.com/celestiaorg/celestia-core/node"
-	"github.com/celestiaorg/celestia-core/rpc/client"
-	"github.com/celestiaorg/celestia-core/rpc/client/http"
-	"github.com/celestiaorg/celestia-core/rpc/client/local"
+	corenode "github.com/tendermint/tendermint/node"
+	"github.com/tendermint/tendermint/rpc/client"
+	"github.com/tendermint/tendermint/rpc/client/http"
+	"github.com/tendermint/tendermint/rpc/client/local"
 )
 
 // Client is an alias to Core Client.

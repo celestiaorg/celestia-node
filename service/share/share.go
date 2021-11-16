@@ -10,7 +10,8 @@ import (
 	logging "github.com/ipfs/go-log/v2"
 	"github.com/ipfs/go-merkledag"
 
-	"github.com/celestiaorg/celestia-core/pkg/da"
+	"github.com/tendermint/tendermint/pkg/da"
+
 	"github.com/celestiaorg/celestia-node/ipld"
 	"github.com/celestiaorg/celestia-node/ipld/plugin"
 	"github.com/celestiaorg/nmt"

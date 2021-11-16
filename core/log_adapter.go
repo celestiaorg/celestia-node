@@ -5,7 +5,7 @@ import (
 
 	logging "github.com/ipfs/go-log/v2"
 
-	tmlog "github.com/celestiaorg/celestia-core/libs/log"
+	tmlog "github.com/tendermint/tendermint/libs/log"
 )
 
 var log = logging.Logger("core")

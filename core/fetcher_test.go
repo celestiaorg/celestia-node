@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/celestiaorg/celestia-core/libs/bytes"
+	"github.com/tendermint/tendermint/libs/bytes"
 )
 
 func TestBlockFetcher_GetBlock_and_SubscribeNewBlockEvent(t *testing.T) {

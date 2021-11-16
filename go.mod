@@ -6,7 +6,6 @@ replace github.com/ipfs/go-verifcid => github.com/celestiaorg/go-verifcid v0.0.1
 
 require (
 	github.com/BurntSushi/toml v0.4.1
-	github.com/celestiaorg/celestia-core v0.0.2-0.20210924001615-488ac31b4b3c
 	github.com/celestiaorg/nmt v0.8.0
 	github.com/celestiaorg/rsmt2d v0.3.0
 	github.com/gogo/protobuf v1.3.2
@@ -37,6 +36,9 @@ require (
 	github.com/multiformats/go-multihash v0.0.15
 	github.com/spf13/cobra v1.2.1
 	github.com/stretchr/testify v1.7.1-0.20210427113832-6241f9ab9942
+	github.com/tendermint/tendermint v0.34.14
 	go.uber.org/fx v1.14.2
 	go.uber.org/zap v1.19.0
 )
+
+replace github.com/tendermint/tendermint v0.34.14 => github.com/celestiaorg/celestia-core v0.34.14-celestia

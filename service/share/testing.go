@@ -8,7 +8,8 @@ import (
 	mdutils "github.com/ipfs/go-merkledag/test"
 	"github.com/stretchr/testify/require"
 
-	"github.com/celestiaorg/celestia-core/pkg/wrapper"
+	"github.com/tendermint/tendermint/pkg/wrapper"
+
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/rsmt2d"
 

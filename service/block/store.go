@@ -5,7 +5,8 @@ import (
 
 	"github.com/celestiaorg/rsmt2d"
 
-	"github.com/celestiaorg/celestia-core/pkg/da"
+	"github.com/tendermint/tendermint/pkg/da"
+
 	"github.com/celestiaorg/celestia-node/ipld"
 )
 

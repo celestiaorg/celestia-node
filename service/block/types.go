@@ -1,7 +1,8 @@
 package block
 
 import (
-	core "github.com/celestiaorg/celestia-core/types"
+	core "github.com/tendermint/tendermint/types"
+
 	"github.com/celestiaorg/celestia-node/service/header"
 	"github.com/celestiaorg/rsmt2d"
 )
