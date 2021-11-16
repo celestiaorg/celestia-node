@@ -111,7 +111,7 @@ func (n *Node) Start(ctx context.Context) error {
 		return err
 	}
 	for _, addr := range addrs {
-		log.Infof("P2P multiaddress - %s", addr.String())
+		log.Infow("node P2P info", "multiaddress", addr.String())
 	}
 	return nil
 }
