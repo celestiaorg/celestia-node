@@ -63,10 +63,10 @@ func (d *DASer) sampling(ctx context.Context, sub header.Subscription) {
 	for {
 		h, err := sub.NextHeader(ctx)
 		if err != nil {
-			if err != context.Canceled {
-				log.Errorw("DASer failed to get next header", "err", err)
+			if err == context.Canceled {
+				return
 			}
-			return
+			log.Errorw("DASer failed to get next header", "err", err)
 		}
 
 		err = d.da.SharesAvailable(ctx, h.DAH)
