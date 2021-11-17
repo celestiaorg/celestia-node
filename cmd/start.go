@@ -12,10 +12,6 @@ import (
 	"github.com/celestiaorg/celestia-node/node"
 )
 
-var (
-	errIncorrectAddress = errors.New("incorrect address provided")
-)
-
 // Start constructs a CLI command to start Celestia Node daemon of the given type 'tp'.
 // It is meant to be used a subcommand and also receive persistent flag name for repository path.
 func Start(repoName string, tp node.Type) *cobra.Command {
@@ -105,7 +101,7 @@ func parseAddress(address string) (string, string, error) {
 	}
 
 	if _, port, err := net.SplitHostPort(u.Host); err != nil || port == "" {
-		return "", "", errIncorrectAddress
+		return "", "", errors.New("incorrect address provided for Remote Core")
 	}
 
 	return u.Scheme, u.Host, nil
