@@ -56,7 +56,7 @@ func Start(repoName string, tp node.Type) *cobra.Command {
 		},
 	}
 
-	cmd.Flags().String(cfgAddress, "", "Indicates node to connect to the remote core")
+	cmd.Flags().String(cfgAddress, "", "Indicates node to connect to the given remote core node")
 	return cmd
 }
 

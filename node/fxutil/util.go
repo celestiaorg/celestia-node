@@ -27,7 +27,7 @@ func ProvideIf(cond bool, ctor interface{}) fx.Option {
 	return fx.Options()
 }
 
-// ProvideIf invokes a given function if a condition is met.
+// InvokeIf invokes a given function if a condition is met.
 func InvokeIf(cond bool, function interface{}) fx.Option {
 	if cond {
 		return fx.Invoke(function)

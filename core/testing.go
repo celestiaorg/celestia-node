@@ -40,7 +40,7 @@ func StartRemoteClient() (*node.Node, Client, error) {
 	return remote, client, err
 }
 
-// StartRemoteCore starting a remote core and returns it's protocol and address
+// StartRemoteCore starts a remote core and returns it's protocol and address
 func StartRemoteCore() (*node.Node, string, string) {
 	remote := StartMockNode()
 	protocol, ip := getRemoteEndpoint(remote)
