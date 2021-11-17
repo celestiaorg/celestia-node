@@ -1,6 +1,9 @@
 package cmd
 
 import (
+	"errors"
+	"net"
+	"net/url"
 	"os/signal"
 	"syscall"
 
@@ -18,7 +21,9 @@ func Start(repoName string, tp node.Type) *cobra.Command {
 	if len(repoName) == 0 && tp != node.Dev { // repository path not necessary for **DEV MODE**
 		panic("parent command must specify a persistent flag name for repository path")
 	}
-	return &cobra.Command{
+
+	const cfgAddress = "core.remote"
+	cmd := &cobra.Command{
 		Use:          "start",
 		Short:        "Starts Node daemon. First stopping signal gracefully stops the Node and second terminates it.",
 		Aliases:      []string{"run", "daemon"},
@@ -43,13 +48,26 @@ func Start(repoName string, tp node.Type) *cobra.Command {
 				return err
 			}
 
-			return start(cmd, tp, repo)
+			address := cmd.Flag(cfgAddress).Value.String()
+			opts := make([]node.Options, 0)
+			if address != "" {
+				protocol, ip, err := parseAddress(address)
+				if err != nil {
+					return err
+				}
+				opts = append(opts, node.WithRemoteClient(protocol, ip))
+			}
+
+			return start(cmd, tp, repo, opts...)
 		},
 	}
+
+	cmd.Flags().String(cfgAddress, "", "Indicates node to connect to the given remote core node")
+	return cmd
 }
 
-func start(cmd *cobra.Command, tp node.Type, repo node.Repository) error {
-	nd, err := node.New(tp, repo)
+func start(cmd *cobra.Command, tp node.Type, repo node.Repository, opts ...node.Options) error {
+	nd, err := node.New(tp, repo, opts...)
 	if err != nil {
 		return err
 	}
@@ -72,4 +90,19 @@ func start(cmd *cobra.Command, tp node.Type, repo node.Repository) error {
 	}
 
 	return repo.Close()
+}
+
+// parseAddress parses the given address of the remote core node
+// and checks if it configures correctly
+func parseAddress(address string) (string, string, error) {
+	u, err := url.Parse(address)
+	if err != nil || u.Scheme == "" || u.Host == "" {
+		return "", "", err
+	}
+
+	if _, port, err := net.SplitHostPort(u.Host); err != nil || port == "" {
+		return "", "", errors.New("incorrect address provided for Remote Core")
+	}
+
+	return u.Scheme, u.Host, nil
 }

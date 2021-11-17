@@ -26,7 +26,12 @@ func DefaultConfig() Config {
 // Components collects all the components and services related to managing the relationship with the Core node.
 func Components(cfg Config) fx.Option {
 	return fx.Options(
-		fxutil.ProvideIf(cfg.Remote, RemoteClient),
+		fxutil.ProvideIf(cfg.Remote, func() (core.Client, error) {
+			return RemoteClient(cfg)
+		}),
+		fxutil.InvokeIf(cfg.Remote, func(c core.Client) error {
+			return c.Start()
+		}),
 		fxutil.ProvideIf(!cfg.Remote, func(repo core.Repository) (core.Client, error) {
 			cfg, err := repo.Config()
 			if err != nil {

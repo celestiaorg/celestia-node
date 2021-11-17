@@ -7,6 +7,8 @@ import (
 	"net/http"
 	"testing"
 
+	"github.com/celestiaorg/celestia-node/core"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -128,6 +130,59 @@ func TestFull_RPCServer(t *testing.T) {
 	t.Cleanup(cancel)
 
 	require.NoError(t, node.Stop(ctx))
+}
+
+func TestFull_WithRemoteCore(t *testing.T) {
+	repo := MockRepository(t, DefaultConfig(Full))
+	remoteCore, protocol, ip := core.StartRemoteCore()
+	require.NotNil(t, remoteCore)
+	assert.True(t, remoteCore.IsRunning())
+
+	node, err := New(Full, repo, WithRemoteClient(protocol, ip))
+	require.NoError(t, err)
+	require.NotNil(t, node)
+	assert.True(t, node.CoreClient.IsRunning())
+
+	ctx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(cancel)
+
+	err = node.Start(ctx)
+	require.NoError(t, err)
+
+	ctx, cancel = context.WithCancel(context.Background())
+	t.Cleanup(cancel)
+
+	err = node.Stop(ctx)
+	require.NoError(t, err)
+	err = remoteCore.Stop()
+	require.NoError(t, err)
+}
+
+func TestFull_WithRemoteCoreFailed(t *testing.T) {
+	repo := MockRepository(t, DefaultConfig(Full))
+	remoteCore, protocol, ip := core.StartRemoteCore()
+	require.NotNil(t, remoteCore)
+	assert.True(t, remoteCore.IsRunning())
+
+	node, err := New(Full, repo, WithRemoteClient(protocol, ip))
+	require.NoError(t, err)
+	require.NotNil(t, node)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(cancel)
+
+	err = node.CoreClient.Stop()
+	require.NoError(t, err)
+
+	err = node.Start(ctx)
+	require.Error(t, err, "node: failed to start: client not running")
+}
+
+func TestFull_NotPanicWithNilOpts(t *testing.T) {
+	repo := MockRepository(t, DefaultConfig(Full))
+	node, err := New(Full, repo, nil)
+	require.NoError(t, err)
+	require.NotNil(t, node)
 }
 
 type ping struct{}

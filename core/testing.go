@@ -40,6 +40,13 @@ func StartRemoteClient() (*node.Node, Client, error) {
 	return remote, client, err
 }
 
+// StartRemoteCore starts a remote core and returns it's protocol and address
+func StartRemoteCore() (*node.Node, string, string) {
+	remote := StartMockNode()
+	protocol, ip := getRemoteEndpoint(remote)
+	return remote, protocol, ip
+}
+
 // getRemoteEndpoint returns the protocol and ip of the remote node.
 func getRemoteEndpoint(remote *node.Node) (string, string) {
 	endpoint := remote.Config().RPC.ListenAddress

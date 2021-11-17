@@ -32,7 +32,6 @@ func Init(repoName string, tp node.Type) *cobra.Command {
 
 				return node.InitWith(repo, tp, cfg)
 			}
-
 			return node.Init(repo, tp)
 		},
 	}
