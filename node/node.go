@@ -11,13 +11,16 @@ import (
 	logging "github.com/ipfs/go-log/v2"
 	"github.com/libp2p/go-libp2p-core/connmgr"
 	"github.com/libp2p/go-libp2p-core/host"
+	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/libp2p/go-libp2p-core/routing"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	"go.uber.org/fx"
 
 	"github.com/celestiaorg/celestia-node/core"
+	"github.com/celestiaorg/celestia-node/das"
 	"github.com/celestiaorg/celestia-node/node/rpc"
 	"github.com/celestiaorg/celestia-node/service/block"
+	"github.com/celestiaorg/celestia-node/service/header"
 	"github.com/celestiaorg/celestia-node/service/share"
 )
 
@@ -56,8 +59,11 @@ type Node struct {
 	// TODO maybe create a struct in full.go that contains `FullServices` (all expected services to be running on a
 	// TODO full node) and in light, same thing `LightServices` (all expected services to be running in a light node.
 	// TODO `FullServices` can include `LightServices` + other services.
-	BlockServ *block.Service `optional:"true"`
-	ShareServ share.Service  // not optional
+	BlockServ  *block.Service  `optional:"true"`
+	ShareServ  share.Service   // not optional
+	HeaderServ *header.Service // not optional
+
+	DASer *das.DASer
 }
 
 // New assembles a new Node with the given type 'tp' over Repository 'repo'.
@@ -101,9 +107,17 @@ func (n *Node) Start(ctx context.Context) error {
 
 	// TODO(@Wondertan): Print useful information about the node:
 	//  * API address
-	//  * Pubkey/PeerID
-	//  * Host listening address
 	log.Infof("started %s Node", n.Type)
+
+	addrs, err := peer.AddrInfoToP2pAddrs(host.InfoFromHost(n.Host))
+	if err != nil {
+		log.Errorw("Retrieving multiaddress information", "err", err)
+		return err
+	}
+	fmt.Println("The p2p host is listening on:")
+	for _, addr := range addrs {
+		fmt.Println("* ", addr.String())
+	}
 	return nil
 }
 

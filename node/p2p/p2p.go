@@ -91,7 +91,7 @@ func (cfg *Config) bootstrapPeers() (_ []peer.AddrInfo, err error) {
 
 func (cfg *Config) mutualPeers() (_ []peer.AddrInfo, err error) {
 	maddrs := make([]ma.Multiaddr, len(cfg.MutualPeers))
-	for i, addr := range cfg.BootstrapPeers {
+	for i, addr := range cfg.MutualPeers {
 		maddrs[i], err = ma.NewMultiaddr(addr)
 		if err != nil {
 			return nil, fmt.Errorf("failure to parse config.P2P.MutualPeers: %s", err)
