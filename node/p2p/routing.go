@@ -51,9 +51,14 @@ func PeerRouting(cfg Config) func(routingParams) (routing.PeerRouting, error) {
 		if err != nil {
 			return nil, err
 		}
-		params.Lc.Append(fx.Hook{OnStop: func(context.Context) error {
-			return d.Close()
-		}})
+		params.Lc.Append(fx.Hook{
+			OnStart: func(ctx context.Context) error {
+				return d.Bootstrap(ctx)
+			},
+			OnStop: func(context.Context) error {
+				return d.Close()
+			},
+		})
 
 		return d, nil
 	}
