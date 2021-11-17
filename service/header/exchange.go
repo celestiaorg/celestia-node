@@ -26,17 +26,16 @@ type exchange struct {
 	peer  peer.ID
 	store Store
 
-	ctx context.Context
+	ctx    context.Context
 	cancel context.CancelFunc
 }
 
 func newExchange(host host.Host, peer peer.ID, store Store) *exchange {
-	ex := &exchange{
+	return &exchange{
 		host:  host,
 		peer:  peer,
 		store: store,
 	}
-	return ex
 }
 
 func (ex *exchange) Start() {
@@ -66,7 +65,11 @@ func (ex *exchange) requestHandler(stream network.Stream) {
 	} else {
 		ex.handleRequest(pbreq.Origin, pbreq.Origin+pbreq.Amount, stream)
 	}
-	stream.Close()
+
+	err = stream.Close()
+	if err != nil {
+		log.Errorw("while closing inbound stream", "err", err)
+	}
 }
 
 func (ex *exchange) handleRequestByHash(hash []byte, stream network.Stream) {
@@ -215,7 +218,7 @@ func (ex *exchange) performRequest(ctx context.Context, req *pb.ExtendedHeaderRe
 	}
 	// ensure at least one header was retrieved
 	if len(headers) == 0 {
-		return nil, fmt.Errorf("no headers found")
+		return nil, ErrNotFound
 	}
 	return headers, stream.Close()
 }
