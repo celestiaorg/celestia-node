@@ -54,9 +54,12 @@ func TestExchange_Response_Head(t *testing.T) {
 	host, peer := net.Hosts()[0], net.Hosts()[1]
 	// create exchange just to register the stream handler
 	store := createStore(t, 5)
-	_ = newExchange(host, libhost.InfoFromHost(peer), store)
+	ex := newExchange(host, peer.ID(), store)
+	ex.Start()
+	t.Cleanup(ex.Stop)
+
 	// start a new stream via Peer to see if Host can handle inbound requests
-	stream, err := peer.NewStream(context.Background(), libhost.InfoFromHost(host).ID, headerExchangeProtocolID)
+	stream, err := peer.NewStream(context.Background(), libhost.InfoFromHost(host).ID, exchangeProtocolID)
 	require.NoError(t, err)
 	// create request
 	req := &header_pb.ExtendedHeaderRequest{
@@ -87,9 +90,12 @@ func TestExchange_RequestByHash(t *testing.T) {
 	host, peer := net.Hosts()[0], net.Hosts()[1]
 	// create exchange just to register the stream handler
 	store := createStore(t, 5)
-	_ = newExchange(host, libhost.InfoFromHost(peer), store)
+	ex := newExchange(host, peer.ID(), store)
+	ex.Start()
+	t.Cleanup(ex.Stop)
+
 	// start a new stream via Peer to see if Host can handle inbound requests
-	stream, err := peer.NewStream(context.Background(), libhost.InfoFromHost(host).ID, headerExchangeProtocolID)
+	stream, err := peer.NewStream(context.Background(), libhost.InfoFromHost(host).ID, exchangeProtocolID)
 	require.NoError(t, err)
 	// create request
 	req := &header_pb.ExtendedHeaderRequest{
@@ -120,9 +126,12 @@ func TestExchange_Response_Single(t *testing.T) {
 	host, peer := net.Hosts()[0], net.Hosts()[1]
 	// create exchange just to register the stream handler
 	store := createStore(t, 5)
-	_ = newExchange(host, libhost.InfoFromHost(peer), store)
+	ex := newExchange(host, peer.ID(), store)
+	ex.Start()
+	t.Cleanup(ex.Stop)
+
 	// start a new stream via Peer to see if Host can handle inbound requests
-	stream, err := peer.NewStream(context.Background(), libhost.InfoFromHost(host).ID, headerExchangeProtocolID)
+	stream, err := peer.NewStream(context.Background(), host.ID(), exchangeProtocolID)
 	require.NoError(t, err)
 	// create request
 	origin := uint64(3)
@@ -153,9 +162,12 @@ func TestExchange_Response_Multiple(t *testing.T) {
 	host, peer := net.Hosts()[0], net.Hosts()[1]
 	// create exchange just to register the stream handler
 	store := createStore(t, 5)
-	_ = newExchange(host, libhost.InfoFromHost(peer), store)
+	ex := newExchange(host, peer.ID(), store)
+	ex.Start()
+	t.Cleanup(ex.Stop)
+
 	// start a new stream via Peer to see if Host can handle inbound requests
-	stream, err := peer.NewStream(context.Background(), libhost.InfoFromHost(host).ID, headerExchangeProtocolID)
+	stream, err := peer.NewStream(context.Background(), libhost.InfoFromHost(host).ID, exchangeProtocolID)
 	require.NoError(t, err)
 	// create request
 	origin := uint64(3)
@@ -186,9 +198,14 @@ func createMockExchangeAndStore(t *testing.T) (*exchange, *mockStore) {
 	host, peer := net.Hosts()[0], net.Hosts()[1]
 	// create exchange on peer side to handle requests
 	store := createStore(t, 5)
-	_ = newExchange(peer, libhost.InfoFromHost(host), store)
+	ex := newExchange(peer, host.ID(), store)
+	ex.Start()
+	t.Cleanup(ex.Stop)
+
 	// create new exchange
-	exchg := newExchange(host, libhost.InfoFromHost(peer), nil) // we don't need the store on the requesting side
+	exchg := newExchange(host, peer.ID(), nil) // we don't need the store on the requesting side
+	exchg.Start()
+	t.Cleanup(exchg.Stop)
 	return exchg, store
 }
 
