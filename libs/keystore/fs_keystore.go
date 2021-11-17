@@ -2,6 +2,7 @@ package keystore
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/fs"
 	"os"
@@ -12,6 +13,8 @@ import (
 type fsKeystore struct {
 	path string
 }
+
+var ErrNotFound = errors.New("keystore: key not found")
 
 // NewFSKeystore creates a new Keystore over OS filesystem.
 // The path must point to a directory. It is created automatically if necessary.
@@ -51,7 +54,7 @@ func (f *fsKeystore) Get(n KeyName) (PrivKey, error) {
 	st, err := os.Stat(path)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return PrivKey{}, fmt.Errorf("keystore: key '%s' not found", n)
+			return PrivKey{}, fmt.Errorf("%w: %s", ErrNotFound, n)
 		}
 
 		return PrivKey{}, fmt.Errorf("keystore: check before reading key '%s' failed: %w", n, err)

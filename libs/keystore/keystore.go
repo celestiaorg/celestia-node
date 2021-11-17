@@ -10,6 +10,7 @@ type (
 	// KeyName represents private key name.
 	KeyName string
 
+	// TODO(Josh): Should this match libp2ps PrivKey type?
 	// PrivKey represents private key with arbitrary body.
 	PrivKey struct {
 		Body []byte `json:"body"`
