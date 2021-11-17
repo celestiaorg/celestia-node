@@ -104,7 +104,7 @@ func (s *store) Get(_ context.Context, hash bytes.HexBytes) (*ExtendedHeader, er
 	return UnmarshalExtendedHeader(b)
 }
 
-func (s *store) GetByHeight(ctx context.Context, height int64) (*ExtendedHeader, error) {
+func (s *store) GetByHeight(ctx context.Context, height uint64) (*ExtendedHeader, error) {
 	hash, err := s.index.HashByHeight(height)
 	if err != nil {
 		if err == datastore.ErrNotFound {
@@ -117,7 +117,7 @@ func (s *store) GetByHeight(ctx context.Context, height int64) (*ExtendedHeader,
 	return s.Get(ctx, hash)
 }
 
-func (s *store) GetRangeByHeight(ctx context.Context, from, to int64) ([]*ExtendedHeader, error) {
+func (s *store) GetRangeByHeight(ctx context.Context, from, to uint64) ([]*ExtendedHeader, error) {
 	h, err := s.GetByHeight(ctx, to-1)
 	if err != nil {
 		return nil, err
@@ -270,7 +270,7 @@ func newHeightIndexer(ds datastore.Batching) (*heightIndexer, error) {
 }
 
 // HashByHeight loads a header by the given height.
-func (hi *heightIndexer) HashByHeight(h int64) (bytes.HexBytes, error) {
+func (hi *heightIndexer) HashByHeight(h uint64) (bytes.HexBytes, error) {
 	if v, ok := hi.cache.Get(h); ok {
 		return v.(bytes.HexBytes), nil
 	}
@@ -286,7 +286,7 @@ func (hi *heightIndexer) Index(headers ...*ExtendedHeader) error {
 	}
 
 	for _, h := range headers {
-		err := batch.Put(heightKey(h.Height), h.Hash())
+		err := batch.Put(heightKey(uint64(h.Height)), h.Hash())
 		if err != nil {
 			return err
 		}
@@ -309,7 +309,7 @@ var (
 	headKey     = datastore.NewKey("head")
 )
 
-func heightKey(h int64) datastore.Key {
+func heightKey(h uint64) datastore.Key {
 	return datastore.NewKey(strconv.Itoa(int(h)))
 }
 
