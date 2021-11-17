@@ -11,6 +11,7 @@ import (
 	logging "github.com/ipfs/go-log/v2"
 	"github.com/libp2p/go-libp2p-core/connmgr"
 	"github.com/libp2p/go-libp2p-core/host"
+	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/libp2p/go-libp2p-core/routing"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	"go.uber.org/fx"
@@ -106,9 +107,17 @@ func (n *Node) Start(ctx context.Context) error {
 
 	// TODO(@Wondertan): Print useful information about the node:
 	//  * API address
-	//  * Pubkey/PeerID
-	//  * Host listening address
 	log.Infof("started %s Node", n.Type)
+
+	addrs, err := peer.AddrInfoToP2pAddrs(host.InfoFromHost(n.Host))
+	if err != nil {
+		log.Errorw("Retrieving multiaddress information", "err", err)
+		return err
+	}
+	fmt.Println("The p2p host is listening on:")
+	for _, addr := range addrs {
+		fmt.Println("* ", addr.String())
+	}
 	return nil
 }
 
