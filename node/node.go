@@ -102,16 +102,15 @@ func (n *Node) Start(ctx context.Context) error {
 
 	// TODO(@Wondertan): Print useful information about the node:
 	//  * API address
-	//  * Host listening address
 	log.Infof("started %s Node", n.Type)
 
 	addrs, err := peer.AddrInfoToP2pAddrs(host.InfoFromHost(n.Host))
 	if err != nil {
-		log.Errorf("Error while retreiving multiaddress information: %s", err)
+		log.Errorw("Retrieving multiaddress information", "err", err)
 		return err
 	}
 	for _, addr := range addrs {
-		log.Infow("node P2P info", "multiaddress", addr.String())
+		fmt.Println("node P2P info", "multiaddress", addr.String())
 	}
 	return nil
 }
