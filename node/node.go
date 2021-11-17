@@ -109,8 +109,9 @@ func (n *Node) Start(ctx context.Context) error {
 		log.Errorw("Retrieving multiaddress information", "err", err)
 		return err
 	}
+	fmt.Println("The p2p host is listening on:")
 	for _, addr := range addrs {
-		fmt.Println("node P2P info", "multiaddress", addr.String())
+		fmt.Println("* ", addr.String())
 	}
 	return nil
 }
