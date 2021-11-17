@@ -33,6 +33,7 @@ func Identity(pstore peerstore.Peerstore, ks keystore.Keystore) (crypto.PrivKey,
 			if err != nil {
 				return nil, "", err
 			}
+			ksPriv = keystore.PrivKey{Body: tempPriv}
 		} else {
 			return nil, "", err
 		}
