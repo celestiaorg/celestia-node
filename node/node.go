@@ -16,8 +16,10 @@ import (
 	"go.uber.org/fx"
 
 	"github.com/celestiaorg/celestia-node/core"
+	"github.com/celestiaorg/celestia-node/das"
 	"github.com/celestiaorg/celestia-node/node/rpc"
 	"github.com/celestiaorg/celestia-node/service/block"
+	"github.com/celestiaorg/celestia-node/service/header"
 	"github.com/celestiaorg/celestia-node/service/share"
 )
 
@@ -56,8 +58,11 @@ type Node struct {
 	// TODO maybe create a struct in full.go that contains `FullServices` (all expected services to be running on a
 	// TODO full node) and in light, same thing `LightServices` (all expected services to be running in a light node.
 	// TODO `FullServices` can include `LightServices` + other services.
-	BlockServ *block.Service `optional:"true"`
-	ShareServ share.Service  // not optional
+	BlockServ  *block.Service  `optional:"true"`
+	ShareServ  share.Service   // not optional
+	HeaderServ *header.Service // not optional
+
+	DASer *das.DASer
 }
 
 // New assembles a new Node with the given type 'tp' over Repository 'repo'.
