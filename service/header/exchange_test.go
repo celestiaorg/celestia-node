@@ -226,7 +226,11 @@ func createStore(t *testing.T, numHeaders int) *mockStore {
 	return store
 }
 
-func (m *mockStore) Head() (*ExtendedHeader, error) {
+func (m *mockStore) Open(context.Context) error {
+	return nil
+}
+
+func (m *mockStore) Head(context.Context) (*ExtendedHeader, error) {
 	return m.headers[len(m.headers)], nil
 }
 
@@ -236,10 +240,6 @@ func (m *mockStore) Get(ctx context.Context, hash tmbytes.HexBytes) (*ExtendedHe
 			return header, nil
 		}
 	}
-	return nil, nil
-}
-
-func (m *mockStore) GetMany(ctx context.Context, hashes []tmbytes.HexBytes) ([]*ExtendedHeader, error) {
 	return nil, nil
 }
 
@@ -256,9 +256,10 @@ func (m *mockStore) GetRangeByHeight(ctx context.Context, from, to uint64) ([]*E
 	return headers, nil
 }
 
-func (m *mockStore) Put(ctx context.Context, header *ExtendedHeader) error {
-	return nil
+func (m *mockStore) Has(context.Context, tmbytes.HexBytes) (bool, error) {
+	return false, nil
 }
-func (m *mockStore) PutMany(ctx context.Context, headers []*ExtendedHeader) error {
+
+func (m *mockStore) Append(context.Context, ...*ExtendedHeader) error {
 	return nil
 }
