@@ -2,6 +2,7 @@ package node
 
 import (
 	"context"
+	tmbytes "github.com/tendermint/tendermint/libs/bytes"
 
 	"go.uber.org/fx"
 
@@ -25,6 +26,9 @@ func lightComponents(cfg *Config, repo Repository) fx.Option {
 		// components
 		p2p.Components(cfg.P2P),
 		fx.Provide(services.Share),
+		fx.Provide(func() tmbytes.HexBytes {
+			return cfg.HeadHash
+		}),
 		fx.Provide(services.Header),
 		fx.Provide(services.LightAvailability), // TODO(@Wondertan): For FULL node this should be full availability
 		fx.Provide(services.DASer),
