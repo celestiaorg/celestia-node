@@ -73,9 +73,23 @@ func Components(cfg Config) fx.Option {
 		fx.Provide(PeerRouting(cfg)),
 		fx.Provide(ContentRouting),
 		fx.Provide(AddrsFactory(cfg.AnnounceAddresses, cfg.NoAnnounceAddresses)),
+		fx.Provide(BootstrapPeer(cfg)),
 		fx.Invoke(Listen(cfg.ListenAddresses)),
 	)
 }
+
+type Bootstrap peer.ID
+
+func BootstrapPeer(cfg Config) func() (Bootstrap, error) {
+	return func() (Bootstrap, error) {
+		peers, err := cfg.bootstrapPeers()
+		if err != nil {
+			return "", err
+		}
+		return Bootstrap(peers[0].ID), nil
+	}
+}
+
 
 func (cfg *Config) bootstrapPeers() (_ []peer.AddrInfo, err error) {
 	maddrs := make([]ma.Multiaddr, len(cfg.BootstrapPeers))

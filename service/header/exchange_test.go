@@ -57,7 +57,7 @@ func TestExchange_Response_Head(t *testing.T) {
 	host, peer := net.Hosts()[0], net.Hosts()[1]
 	// create exchange just to register the stream handler
 	store := createStore(t, 5)
-	ex := newExchange(host, peer.ID(), store)
+	ex := NewExchange(host, peer.ID(), store)
 	ex.Start()
 	t.Cleanup(ex.Stop)
 
@@ -93,7 +93,7 @@ func TestExchange_RequestByHash(t *testing.T) {
 	host, peer := net.Hosts()[0], net.Hosts()[1]
 	// create exchange just to register the stream handler
 	store := createStore(t, 5)
-	ex := newExchange(host, peer.ID(), store)
+	ex := NewExchange(host, peer.ID(), store)
 	ex.Start()
 	t.Cleanup(ex.Stop)
 
@@ -129,7 +129,7 @@ func TestExchange_Response_Single(t *testing.T) {
 	host, peer := net.Hosts()[0], net.Hosts()[1]
 	// create exchange just to register the stream handler
 	store := createStore(t, 5)
-	ex := newExchange(host, peer.ID(), store)
+	ex := NewExchange(host, peer.ID(), store)
 	ex.Start()
 	t.Cleanup(ex.Stop)
 
@@ -165,7 +165,7 @@ func TestExchange_Response_Multiple(t *testing.T) {
 	host, peer := net.Hosts()[0], net.Hosts()[1]
 	// create exchange just to register the stream handler
 	store := createStore(t, 5)
-	ex := newExchange(host, peer.ID(), store)
+	ex := NewExchange(host, peer.ID(), store)
 	ex.Start()
 	t.Cleanup(ex.Stop)
 
@@ -204,12 +204,12 @@ func createMocknet(t *testing.T) (libhost.Host, libhost.Host) {
 func createExchangeWithMockStore(t *testing.T, host, peer libhost.Host) (*exchange, *mockStore) {
 	store := createStore(t, 5)
 	// create exchange on peer side to handle requests
-	ex := newExchange(peer, host.ID(), store)
+	ex := NewExchange(peer, host.ID(), store)
 	ex.Start()
 	t.Cleanup(ex.Stop)
 
 	// create new exchange
-	exchg := newExchange(host, peer.ID(), nil) // we don't need the store on the requesting side
+	exchg := NewExchange(host, peer.ID(), nil) // we don't need the store on the requesting side
 	exchg.Start()
 	t.Cleanup(exchg.Stop)
 	return exchg, store

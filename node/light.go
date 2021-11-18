@@ -29,6 +29,8 @@ func lightComponents(cfg *Config, repo Repository) fx.Option {
 		fx.Provide(func() tmbytes.HexBytes {
 			return cfg.HeadHash
 		}),
+		fx.Provide(services.HeaderExchange),
+		fx.Provide(services.HeaderStore),
 		fx.Provide(services.Header),
 		fx.Provide(services.LightAvailability), // TODO(@Wondertan): For FULL node this should be full availability
 		fx.Provide(services.DASer),
