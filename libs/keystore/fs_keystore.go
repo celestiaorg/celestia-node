@@ -2,11 +2,15 @@ package keystore
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/fs"
 	"os"
 	"path/filepath"
 )
+
+// ErrNotFound is returned when the key does not exist.
+var ErrNotFound = errors.New("keystore: key not found")
 
 // fsKeystore implements persistent Keystore over OS filesystem.
 type fsKeystore struct {
@@ -51,7 +55,7 @@ func (f *fsKeystore) Get(n KeyName) (PrivKey, error) {
 	st, err := os.Stat(path)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return PrivKey{}, fmt.Errorf("keystore: key '%s' not found", n)
+			return PrivKey{}, fmt.Errorf("%w: %s", ErrNotFound, n)
 		}
 
 		return PrivKey{}, fmt.Errorf("keystore: check before reading key '%s' failed: %w", n, err)

@@ -35,7 +35,7 @@ func (m *mapKeystore) Get(n KeyName) (PrivKey, error) {
 
 	k, ok := m.keys[n]
 	if !ok {
-		return PrivKey{}, fmt.Errorf("keystore: key '%s' not found", n)
+		return PrivKey{}, fmt.Errorf("%w: %s", ErrNotFound, n)
 	}
 
 	return k, nil
