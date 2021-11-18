@@ -53,6 +53,9 @@ func TestSubscriber(t *testing.T) {
 	err = headerServ2.Start(ctx)
 	require.NoError(t, err)
 
+	_, err = headerServ2.Subscribe()
+	require.NoError(t, err)
+
 	time.Sleep(2 * time.Second)
 
 	expectedHeader := suite.GenExtendedHeaders(1)[0]

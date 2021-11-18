@@ -5,6 +5,8 @@ import (
 
 	ipld "github.com/ipfs/go-ipld-format"
 	logging "github.com/ipfs/go-log/v2"
+
+	"github.com/celestiaorg/celestia-node/service/header"
 )
 
 // Service represents the Block service that can be started / stopped on a `Full` node.
@@ -13,18 +15,21 @@ import (
 // 		2. Erasure coding the "raw" blocks and producing a DataAvailabilityHeader + verifying the Data root.
 // 		3. Storing erasure coded blocks.
 // 		4. Serving erasure coded blocks to other `Full` node peers.
+// TODO @renaynay: add docs about broadcaster
 type Service struct {
-	fetcher Fetcher
-	store   ipld.DAGService
+	fetcher     Fetcher
+	store       ipld.DAGService
+	broadcaster header.Broadcaster
 }
 
 var log = logging.Logger("block-service")
 
 // NewBlockService creates a new instance of block Service.
-func NewBlockService(fetcher Fetcher, store ipld.DAGService) *Service {
+func NewBlockService(fetcher Fetcher, store ipld.DAGService, broadcaster header.Broadcaster) *Service {
 	return &Service{
-		fetcher: fetcher,
-		store:   store,
+		fetcher:     fetcher,
+		store:       store,
+		broadcaster: broadcaster,
 	}
 }
 

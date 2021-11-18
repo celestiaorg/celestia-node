@@ -3,31 +3,36 @@ package services
 import (
 	"context"
 
+	ipld "github.com/ipfs/go-ipld-format"
 	"github.com/ipfs/go-merkledag"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
+	"go.uber.org/fx"
 
 	"github.com/celestiaorg/celestia-node/das"
 	"github.com/celestiaorg/celestia-node/node/fxutil"
 	"github.com/celestiaorg/celestia-node/service/block"
 	"github.com/celestiaorg/celestia-node/service/header"
 	"github.com/celestiaorg/celestia-node/service/share"
-
-	ipld "github.com/ipfs/go-ipld-format"
-	"go.uber.org/fx"
 )
 
-func Header(lc fx.Lifecycle, ps *pubsub.PubSub) *header.Service {
+// Header constructs a new header.Service.
+func Header(lc fx.Lifecycle, ps *pubsub.PubSub) (*header.Service, header.Broadcaster) {
 	service := header.NewHeaderService(nil, nil, ps)
 	lc.Append(fx.Hook{
 		OnStart: service.Start,
 		OnStop:  service.Stop,
 	})
-	return service
+	return service, service
 }
 
 // Block constructs new block.Service.
-func Block(lc fx.Lifecycle, fetcher block.Fetcher, store ipld.DAGService) *block.Service {
-	service := block.NewBlockService(fetcher, store)
+func Block(
+	lc fx.Lifecycle,
+	fetcher block.Fetcher,
+	store ipld.DAGService,
+	broadcaster header.Broadcaster,
+) *block.Service {
+	service := block.NewBlockService(fetcher, store, broadcaster)
 	lc.Append(fx.Hook{
 		OnStart: service.Start,
 		OnStop:  service.Stop,

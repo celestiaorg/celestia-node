@@ -12,7 +12,7 @@ import (
 func TestService_BlockStore(t *testing.T) {
 	// create mock block service (fetcher is not necessary here)
 	mockStore := md.Mock()
-	serv := NewBlockService(nil, mockStore)
+	serv := NewBlockService(nil, mockStore, new(mockBroadcaster))
 
 	_, block := generateRawAndExtendedBlock(t)
 

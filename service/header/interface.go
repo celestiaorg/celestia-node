@@ -25,6 +25,11 @@ type Subscription interface {
 	Cancel()
 }
 
+// Broadcaster broadcasts an ExtendedHeader to the network.
+type Broadcaster interface {
+	Broadcast(ctx context.Context, header *ExtendedHeader) error
+}
+
 // Exchange encompasses the behavior necessary to request ExtendedHeaders
 // from the network.
 type Exchange interface {
