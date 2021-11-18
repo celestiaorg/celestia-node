@@ -14,7 +14,7 @@ import (
 // inject it as the Head of the header chain upon initialization.
 func TestHeaderInjection(t *testing.T) {
 	host, peer := createMocknet(t)
-	ex, store := createMockExchangeAndStore(t, host, peer)
+	ex, store := createExchangeWithMockStore(t, host, peer)
 
 	// get mock host and create new gossipsub on it
 	ps, err := pubsub.NewGossipSub(context.Background(), ex.host,
