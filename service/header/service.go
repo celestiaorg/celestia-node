@@ -41,7 +41,7 @@ func NewHeaderService(
 }
 
 // Start starts the header Service.
-func (s *Service) Start(context.Context) error {
+func (s *Service) Start(ctx context.Context) error {
 	if s.cancel != nil {
 		return fmt.Errorf("header: Service already started")
 	}
