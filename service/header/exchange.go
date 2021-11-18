@@ -180,11 +180,11 @@ func (ex *exchange) RequestHeaders(ctx context.Context, from, amount uint64) ([]
 	return ex.performRequest(ctx, req)
 }
 
-func (ex *exchange) RequestByHash(ctx context.Context, hash []byte) (*ExtendedHeader, error) {
-	log.Debugw("requesting header", "hash", tmbytes.HexBytes(hash).String())
+func (ex *exchange) RequestByHash(ctx context.Context, hash tmbytes.HexBytes) (*ExtendedHeader, error) {
+	log.Debugw("requesting header", "hash", hash.String())
 	// create request
 	req := &pb.ExtendedHeaderRequest{
-		Hash:   hash,
+		Hash:   hash.Bytes(),
 		Amount: 1,
 	}
 	headers, err := ex.performRequest(ctx, req)

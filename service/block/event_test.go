@@ -75,7 +75,7 @@ func TestExtendedHeaderBroadcast(t *testing.T) {
 	require.NoError(t, err)
 
 	// also create subscription to topic to listen on the other side
-	headerServ := header.NewHeaderService(header.NewLocalExchange(store1), store1, pub)
+	headerServ := header.NewHeaderService(header.NewLocalExchange(store1), store1, pub, suite.Head().Hash())
 	require.NoError(t, err)
 	err = headerServ.Start(ctx)
 	require.NoError(t, err)

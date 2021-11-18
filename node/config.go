@@ -6,6 +6,8 @@ import (
 
 	"github.com/BurntSushi/toml"
 
+	tmbytes "github.com/tendermint/tendermint/libs/bytes"
+
 	"github.com/celestiaorg/celestia-node/node/core"
 	"github.com/celestiaorg/celestia-node/node/p2p"
 	"github.com/celestiaorg/celestia-node/node/rpc"
@@ -20,6 +22,13 @@ type Config struct {
 	Core core.Config
 	P2P  p2p.Config
 	RPC  rpc.Config
+	// hash of the ExtendedHeader of the first block,
+	// this is necessary to begin the header.Service as
+	// it requires a header to already be injected in the store
+	// before it can begin syncing, for verification purposes.
+	// TODO @renaynay + @Wondertan: this is a solution for Devnet
+	// and should be modified in the future.
+	HeadHash tmbytes.HexBytes
 }
 
 // DefaultConfig provides a default Config for a given Node Type 'tp'.

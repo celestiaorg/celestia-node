@@ -1,6 +1,10 @@
 package header
 
-import "context"
+import (
+	"context"
+
+	"github.com/tendermint/tendermint/libs/bytes"
+)
 
 // LocalExchange is a simple Exchange that reads Headers from Store without any networking.
 type LocalExchange struct {
@@ -26,6 +30,6 @@ func (l *LocalExchange) RequestHeaders(ctx context.Context, origin, amount uint6
 	return l.store.GetRangeByHeight(ctx, origin, origin+amount)
 }
 
-func (l *LocalExchange) RequestByHash(ctx context.Context, hash []byte) (*ExtendedHeader, error) {
+func (l *LocalExchange) RequestByHash(ctx context.Context, hash bytes.HexBytes) (*ExtendedHeader, error) {
 	return l.store.Get(ctx, hash)
 }

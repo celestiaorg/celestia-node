@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 
+	tmbytes "github.com/tendermint/tendermint/libs/bytes"
+
 	logging "github.com/ipfs/go-log/v2"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 )
@@ -20,6 +22,7 @@ const PubSubTopic = "header-sub"
 type Service struct {
 	exchange Exchange
 	store    Store
+	head     tmbytes.HexBytes // given header hash for subjective initialization
 
 	topic  *pubsub.Topic // instantiated header-sub topic
 	pubsub *pubsub.PubSub
@@ -32,30 +35,49 @@ type Service struct {
 var log = logging.Logger("header-service")
 
 // NewHeaderService creates a new instance of header Service.
-func NewHeaderService(exchange Exchange, store Store, pubsub *pubsub.PubSub) *Service {
+func NewHeaderService(
+	exchange Exchange,
+	store Store,
+	pubsub *pubsub.PubSub,
+	head tmbytes.HexBytes,
+) *Service {
 	return &Service{
 		exchange: exchange,
 		store:    store,
+		head:     head,
 		pubsub:   pubsub,
 		syncer:   newSyncer(exchange, store),
 	}
 }
 
 // Start starts the header Service.
-func (s *Service) Start(context.Context) error {
+func (s *Service) Start(ctx context.Context) error {
 	if s.cancel != nil {
 		return fmt.Errorf("header: Service already started")
 	}
 	log.Info("starting header service")
 
-	s.ctx, s.cancel = context.WithCancel(context.Background())
-
-	// TODO(@Wondertan): This is temporary
-	if s.store != nil {
-		go s.syncer.Sync(s.ctx)
+	// if Service does not already have a head, request it by hash
+	_, err := s.store.Head(ctx)
+	switch err {
+	default:
+		return err
+	case ErrNoHead:
+		head, err := s.exchange.RequestByHash(ctx, s.head)
+		if err != nil {
+			return err
+		}
+		err = s.store.Append(ctx, head)
+		if err != nil {
+			return err
+		}
+	case nil:
 	}
 
-	err := s.pubsub.RegisterTopicValidator(PubSubTopic, s.syncer.validator)
+	s.ctx, s.cancel = context.WithCancel(context.Background())
+	go s.syncer.Sync(s.ctx)
+
+	err = s.pubsub.RegisterTopicValidator(PubSubTopic, s.syncer.validator)
 	if err != nil {
 		return err
 	}

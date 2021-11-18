@@ -8,6 +8,8 @@ import (
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	"go.uber.org/fx"
 
+	tmbytes "github.com/tendermint/tendermint/libs/bytes"
+
 	"github.com/celestiaorg/celestia-node/das"
 	"github.com/celestiaorg/celestia-node/node/fxutil"
 	"github.com/celestiaorg/celestia-node/service/block"
@@ -16,8 +18,8 @@ import (
 )
 
 // Header constructs a new header.Service.
-func Header(lc fx.Lifecycle, ps *pubsub.PubSub) (*header.Service, header.Broadcaster) {
-	service := header.NewHeaderService(nil, nil, ps)
+func Header(lc fx.Lifecycle, ps *pubsub.PubSub, head tmbytes.HexBytes) (*header.Service, header.Broadcaster) {
+	service := header.NewHeaderService(nil, nil, ps, head)
 	lc.Append(fx.Hook{
 		OnStart: service.Start,
 		OnStop:  service.Stop,
