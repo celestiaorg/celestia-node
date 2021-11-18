@@ -11,8 +11,7 @@ import (
 	"github.com/celestiaorg/celestia-node/libs/keystore"
 )
 
-// TODO(Josh): What should the real name for this be?
-const keyName = "test-key"
+const keyName = "p2p-key"
 
 // TODO(@Wondertan): Should also receive a KeyStore to save generated key and reuse if exists.
 // Identity provides a networking private key and PeerID of the node.

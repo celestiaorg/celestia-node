@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 )
 
+// ErrNotFound is returned when the key does not exist.
 var ErrNotFound = errors.New("keystore: key not found")
 
 // fsKeystore implements persistent Keystore over OS filesystem.
