@@ -13,11 +13,14 @@ import (
 // will perform a request for the ExtendedHeader at the given head hash, and
 // inject it as the Head of the header chain upon initialization.
 func TestHeaderInjection(t *testing.T) {
-	host, peer := createMocknet(t)
-	ex, store := createExchangeWithMockStore(t, host, peer)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	host, peer := createMocknet(ctx, t)
+	ex, store := createExchangeWithMockStore(ctx, t, host, peer)
 
 	// get mock host and create new gossipsub on it
-	ps, err := pubsub.NewGossipSub(context.Background(), ex.host,
+	ps, err := pubsub.NewGossipSub(ctx, host,
 		pubsub.WithMessageSignaturePolicy(pubsub.StrictNoSign))
 	require.NoError(t, err)
 

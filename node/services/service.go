@@ -3,6 +3,12 @@ package services
 import (
 	"context"
 
+	"github.com/ipfs/go-datastore"
+	"github.com/libp2p/go-libp2p-core/host"
+	"github.com/libp2p/go-libp2p-core/peer"
+
+	"github.com/celestiaorg/celestia-node/node/p2p"
+
 	ipld "github.com/ipfs/go-ipld-format"
 	"github.com/ipfs/go-merkledag"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
@@ -18,13 +24,39 @@ import (
 )
 
 // Header constructs a new header.Service.
-func Header(lc fx.Lifecycle, ps *pubsub.PubSub, head tmbytes.HexBytes) (*header.Service, header.Broadcaster) {
-	service := header.NewHeaderService(nil, nil, ps, head)
+func Header(
+	lc fx.Lifecycle,
+	ex header.Exchange,
+	store header.Store,
+	ps *pubsub.PubSub,
+	head tmbytes.HexBytes,
+) (*header.Service, header.Broadcaster) {
+	service := header.NewHeaderService(ex, store, ps, head)
 	lc.Append(fx.Hook{
 		OnStart: service.Start,
 		OnStop:  service.Stop,
 	})
 	return service, service
+}
+
+func HeaderExchange(lc fx.Lifecycle, host host.Host, boot p2p.Bootstrap, store header.Store) header.Exchange {
+	ex := header.NewExchange(host, peer.ID(boot), store)
+	lc.Append(fx.Hook{
+		OnStart: ex.Start,
+		OnStop:  ex.Stop,
+	})
+	return ex
+}
+
+func HeaderStore(lc fx.Lifecycle, ds datastore.Batching) (header.Store, error) {
+	store, err := header.NewStore(ds)
+	if err != nil {
+		return nil, err
+	}
+	lc.Append(fx.Hook{
+		OnStart: store.Open,
+	})
+	return store, nil
 }
 
 // Block constructs new block.Service.

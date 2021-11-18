@@ -17,8 +17,11 @@ import (
 )
 
 func TestExchange_RequestHead(t *testing.T) {
-	host, peer := createMocknet(t)
-	exchg, store := createExchangeWithMockStore(t, host, peer)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	host, peer := createMocknet(ctx, t)
+	exchg, store := createExchangeWithMockStore(ctx, t, host, peer)
 	// perform header request
 	header, err := exchg.RequestHead(context.Background())
 	require.NoError(t, err)
@@ -27,8 +30,11 @@ func TestExchange_RequestHead(t *testing.T) {
 }
 
 func TestExchange_RequestHeader(t *testing.T) {
-	host, peer := createMocknet(t)
-	exchg, store := createExchangeWithMockStore(t, host, peer)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	host, peer := createMocknet(ctx, t)
+	exchg, store := createExchangeWithMockStore(ctx, t, host, peer)
 	// perform expected request
 	header, err := exchg.RequestHeader(context.Background(), 5)
 	require.NoError(t, err)
@@ -37,8 +43,11 @@ func TestExchange_RequestHeader(t *testing.T) {
 }
 
 func TestExchange_RequestHeaders(t *testing.T) {
-	host, peer := createMocknet(t)
-	exchg, store := createExchangeWithMockStore(t, host, peer)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	host, peer := createMocknet(ctx, t)
+	exchg, store := createExchangeWithMockStore(ctx, t, host, peer)
 	// perform expected request
 	gotHeaders, err := exchg.RequestHeaders(context.Background(), 1, 5)
 	require.NoError(t, err)
@@ -51,15 +60,18 @@ func TestExchange_RequestHeaders(t *testing.T) {
 // TestExchange_Response_Head tests that the exchange instance can respond
 // to an ExtendedHeaderRequest for the chain head.
 func TestExchange_Response_Head(t *testing.T) {
-	net, err := mocknet.FullMeshConnected(context.Background(), 2)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	net, err := mocknet.FullMeshConnected(ctx, 2)
 	require.NoError(t, err)
 	// get host and peer
 	host, peer := net.Hosts()[0], net.Hosts()[1]
 	// create exchange just to register the stream handler
 	store := createStore(t, 5)
-	ex := newExchange(host, peer.ID(), store)
-	ex.Start()
-	t.Cleanup(ex.Stop)
+	ex := NewExchange(host, peer.ID(), store)
+	err = ex.Start(ctx)
+	require.NoError(t, err)
 
 	// start a new stream via Peer to see if Host can handle inbound requests
 	stream, err := peer.NewStream(context.Background(), libhost.InfoFromHost(host).ID, exchangeProtocolID)
@@ -87,15 +99,18 @@ func TestExchange_Response_Head(t *testing.T) {
 // TestExchange_RequestByHash tests that the exchange instance can
 // respond to an ExtendedHeaderRequest for a hash instead of a height.
 func TestExchange_RequestByHash(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
 	net, err := mocknet.FullMeshConnected(context.Background(), 2)
 	require.NoError(t, err)
 	// get host and peer
 	host, peer := net.Hosts()[0], net.Hosts()[1]
 	// create exchange just to register the stream handler
 	store := createStore(t, 5)
-	ex := newExchange(host, peer.ID(), store)
-	ex.Start()
-	t.Cleanup(ex.Stop)
+	ex := NewExchange(host, peer.ID(), store)
+	err = ex.Start(ctx)
+	require.NoError(t, err)
 
 	// start a new stream via Peer to see if Host can handle inbound requests
 	stream, err := peer.NewStream(context.Background(), libhost.InfoFromHost(host).ID, exchangeProtocolID)
@@ -123,15 +138,18 @@ func TestExchange_RequestByHash(t *testing.T) {
 // TestExchange_Response_Single tests that the exchange instance can respond
 // to a ExtendedHeaderRequest for one ExtendedHeader accurately.
 func TestExchange_Response_Single(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
 	net, err := mocknet.FullMeshConnected(context.Background(), 2)
 	require.NoError(t, err)
 	// get host and peer
 	host, peer := net.Hosts()[0], net.Hosts()[1]
 	// create exchange just to register the stream handler
 	store := createStore(t, 5)
-	ex := newExchange(host, peer.ID(), store)
-	ex.Start()
-	t.Cleanup(ex.Stop)
+	ex := NewExchange(host, peer.ID(), store)
+	err = ex.Start(ctx)
+	require.NoError(t, err)
 
 	// start a new stream via Peer to see if Host can handle inbound requests
 	stream, err := peer.NewStream(context.Background(), host.ID(), exchangeProtocolID)
@@ -159,15 +177,18 @@ func TestExchange_Response_Single(t *testing.T) {
 // TestExchange_Response_Multiple tests that the exchange instance can respond
 // to a ExtendedHeaderRequest for multiple ExtendedHeaders accurately.
 func TestExchange_Response_Multiple(t *testing.T) {
-	net, err := mocknet.FullMeshConnected(context.Background(), 2)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	net, err := mocknet.FullMeshConnected(ctx, 2)
 	require.NoError(t, err)
 	// get host and peer
 	host, peer := net.Hosts()[0], net.Hosts()[1]
 	// create exchange just to register the stream handler
 	store := createStore(t, 5)
-	ex := newExchange(host, peer.ID(), store)
-	ex.Start()
-	t.Cleanup(ex.Stop)
+	ex := NewExchange(host, peer.ID(), store)
+	err = ex.Start(ctx)
+	require.NoError(t, err)
 
 	// start a new stream via Peer to see if Host can handle inbound requests
 	stream, err := peer.NewStream(context.Background(), libhost.InfoFromHost(host).ID, exchangeProtocolID)
@@ -194,24 +215,24 @@ func TestExchange_Response_Multiple(t *testing.T) {
 	}
 }
 
-func createMocknet(t *testing.T) (libhost.Host, libhost.Host) {
-	net, err := mocknet.FullMeshConnected(context.Background(), 2)
+func createMocknet(ctx context.Context, t *testing.T) (libhost.Host, libhost.Host) {
+	net, err := mocknet.FullMeshConnected(ctx, 2)
 	require.NoError(t, err)
 	// get host and peer
 	return net.Hosts()[0], net.Hosts()[1]
 }
 
-func createExchangeWithMockStore(t *testing.T, host, peer libhost.Host) (*exchange, *mockStore) {
+func createExchangeWithMockStore(ctx context.Context, t *testing.T, host, peer libhost.Host) (Exchange, *mockStore) {
 	store := createStore(t, 5)
 	// create exchange on peer side to handle requests
-	ex := newExchange(peer, host.ID(), store)
-	ex.Start()
-	t.Cleanup(ex.Stop)
+	ex := NewExchange(peer, host.ID(), store)
+	err := ex.Start(ctx)
+	require.NoError(t, err)
 
 	// create new exchange
-	exchg := newExchange(host, peer.ID(), nil) // we don't need the store on the requesting side
-	exchg.Start()
-	t.Cleanup(exchg.Stop)
+	exchg := NewExchange(host, peer.ID(), nil) // we don't need the store on the requesting side
+	err = ex.Start(ctx)
+	require.NoError(t, err)
 	return exchg, store
 }
 

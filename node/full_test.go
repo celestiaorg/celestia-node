@@ -28,7 +28,13 @@ func TestNewFull(t *testing.T) {
 }
 
 func TestFullLifecycle(t *testing.T) {
-	repo := MockRepository(t, DefaultConfig(Full))
+	cfg := DefaultConfig(Full)
+	cfg.P2P.BootstrapPeers = []string{
+		"/ip4/10.99.1.67/tcp/2121/p2p/12D3KooWPBwpZzwnnhBxDN3jnoEtHvcAaU7e9m77Qfg79DGhqLoC",
+	}
+
+	repo := MockRepository(t, cfg)
+
 	node, err := New(Full, repo)
 	require.NoError(t, err)
 	require.NotNil(t, node)

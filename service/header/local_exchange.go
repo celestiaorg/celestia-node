@@ -18,6 +18,14 @@ func NewLocalExchange(store Store) Exchange {
 	}
 }
 
+func (l *LocalExchange) Start(context.Context) error {
+	return nil
+}
+
+func (l *LocalExchange) Stop(context.Context) error {
+	return nil
+}
+
 func (l *LocalExchange) RequestHead(ctx context.Context) (*ExtendedHeader, error) {
 	return l.store.Head(ctx)
 }

@@ -30,7 +30,7 @@ type exchange struct {
 	cancel context.CancelFunc
 }
 
-func newExchange(host host.Host, peer peer.ID, store Store) *exchange {
+func NewExchange(host host.Host, peer peer.ID, store Store) Exchange {
 	return &exchange{
 		host:  host,
 		peer:  peer,
@@ -38,14 +38,16 @@ func newExchange(host host.Host, peer peer.ID, store Store) *exchange {
 	}
 }
 
-func (ex *exchange) Start() {
+func (ex *exchange) Start(context.Context) error {
 	ex.ctx, ex.cancel = context.WithCancel(context.Background())
 	ex.host.SetStreamHandler(exchangeProtocolID, ex.requestHandler)
+	return nil
 }
 
-func (ex *exchange) Stop() {
+func (ex *exchange) Stop(context.Context) error {
 	ex.cancel()
 	ex.host.RemoveStreamHandler(exchangeProtocolID)
+	return nil
 }
 
 // requestHandler handles inbound ExtendedHeaderRequests.
