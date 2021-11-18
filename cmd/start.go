@@ -73,7 +73,7 @@ func Start(repoName string, tp node.Type) *cobra.Command {
 	}
 
 	cmd.Flags().String(cfgAddress, "", "Indicates node to connect to the given remote core node")
-	cmd.Flags().String(headHash, "", "genesis block header hash with which to initialize the node")
+	cmd.Flags().String(headHash, "", "known header hash with which to initialize the node")
 	return cmd
 }
 

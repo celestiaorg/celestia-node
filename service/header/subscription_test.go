@@ -22,7 +22,7 @@ func TestSubscriber(t *testing.T) {
 		pubsub.WithMessageSignaturePolicy(pubsub.StrictNoSign))
 	require.NoError(t, err)
 
-	ex, mockStore := createMockExchangeAndStore(t, net.Hosts()[0], net.Hosts()[1])
+	ex, mockStore := createExchangeWithMockStore(t, net.Hosts()[0], net.Hosts()[1])
 
 	// create header Service
 	headerServ := NewHeaderService(ex, mockStore, ps, mockStore.head.Hash())

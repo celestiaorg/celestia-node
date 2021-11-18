@@ -18,7 +18,7 @@ import (
 
 func TestExchange_RequestHead(t *testing.T) {
 	host, peer := createMocknet(t)
-	exchg, store := createMockExchangeAndStore(t, host, peer)
+	exchg, store := createExchangeWithMockStore(t, host, peer)
 	// perform header request
 	header, err := exchg.RequestHead(context.Background())
 	require.NoError(t, err)
@@ -28,7 +28,7 @@ func TestExchange_RequestHead(t *testing.T) {
 
 func TestExchange_RequestHeader(t *testing.T) {
 	host, peer := createMocknet(t)
-	exchg, store := createMockExchangeAndStore(t, host, peer)
+	exchg, store := createExchangeWithMockStore(t, host, peer)
 	// perform expected request
 	header, err := exchg.RequestHeader(context.Background(), 5)
 	require.NoError(t, err)
@@ -38,7 +38,7 @@ func TestExchange_RequestHeader(t *testing.T) {
 
 func TestExchange_RequestHeaders(t *testing.T) {
 	host, peer := createMocknet(t)
-	exchg, store := createMockExchangeAndStore(t, host, peer)
+	exchg, store := createExchangeWithMockStore(t, host, peer)
 	// perform expected request
 	gotHeaders, err := exchg.RequestHeaders(context.Background(), 1, 5)
 	require.NoError(t, err)
@@ -201,9 +201,9 @@ func createMocknet(t *testing.T) (libhost.Host, libhost.Host) {
 	return net.Hosts()[0], net.Hosts()[1]
 }
 
-func createMockExchangeAndStore(t *testing.T, host, peer libhost.Host) (*exchange, *mockStore) {
-	// create exchange on peer side to handle requests
+func createExchangeWithMockStore(t *testing.T, host, peer libhost.Host) (*exchange, *mockStore) {
 	store := createStore(t, 5)
+	// create exchange on peer side to handle requests
 	ex := newExchange(peer, host.ID(), store)
 	ex.Start()
 	t.Cleanup(ex.Stop)
