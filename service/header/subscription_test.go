@@ -14,7 +14,7 @@ import (
 
 // TestSubscriber tests the header Service's implementation of Subscriber.
 func TestSubscriber(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second * 15)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*15)
 	defer cancel()
 
 	// create mock network

@@ -87,10 +87,11 @@ func (s *syncer) syncDiff(ctx context.Context, knownHead, newHead *ExtendedHeade
 }
 
 // validator implements validation of incoming Headers and stores them if they are good.
-func (s *syncer) validator(ctx context.Context, _ peer.ID, msg *pubsub.Message) pubsub.ValidationResult {
+func (s *syncer) validator(ctx context.Context, p peer.ID, msg *pubsub.Message) pubsub.ValidationResult {
 	header, err := UnmarshalExtendedHeader(msg.Data)
 	if err != nil {
-		log.Errorw("unmarshalling ExtendedHeader received from the PubSub", "err", err)
+		log.Errorw("unmarshalling ExtendedHeader received from the PubSub",
+			"err", err, "peer", p.ShortString())
 		return pubsub.ValidationReject
 	}
 
@@ -100,6 +101,8 @@ func (s *syncer) validator(ctx context.Context, _ peer.ID, msg *pubsub.Message) 
 	case <-s.done:
 		err := s.store.Append(ctx, header)
 		if err != nil {
+			log.Errorw("appending store with header from PubSub",
+				"hash", header.Hash().String(), "height", header.Height, "peer", p.ShortString())
 			// TODO(@Wondertan): We need to be sure that the error is actually validation error.
 			//  Rejecting msgs due to storage error is not good, but for now that's fine.
 			return pubsub.ValidationReject

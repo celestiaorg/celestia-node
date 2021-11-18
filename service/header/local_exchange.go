@@ -2,10 +2,12 @@ package header
 
 import "context"
 
+// LocalExchange is a simple Exchange that reads Headers from Store without any networking.
 type LocalExchange struct {
 	store Store
 }
 
+// NewLocalExchange creates new Exchange.
 func NewLocalExchange(store Store) Exchange {
 	return &LocalExchange{
 		store: store,
