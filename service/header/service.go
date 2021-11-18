@@ -8,6 +8,10 @@ import (
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 )
 
+// PubSubTopic hardcodes the name of the ExtendedHeader
+// gossipsub topic.
+const PubSubTopic = "header-sub"
+
 // Service represents the Header service that can be started / stopped on a node.
 // Service contains 3 main functionalities:
 // 		1. Listening for/requesting new ExtendedHeaders from the network.
@@ -19,6 +23,10 @@ type Service struct {
 
 	topic  *pubsub.Topic // instantiated header-sub topic
 	pubsub *pubsub.PubSub
+
+	syncer *syncer
+	ctx    context.Context
+	cancel context.CancelFunc
 }
 
 var log = logging.Logger("header-service")
@@ -29,21 +37,51 @@ func NewHeaderService(exchange Exchange, store Store, pubsub *pubsub.PubSub) *Se
 		exchange: exchange,
 		store:    store,
 		pubsub:   pubsub,
+		syncer:   newSyncer(exchange, store),
 	}
 }
 
 // Start starts the header Service.
-func (s *Service) Start(ctx context.Context) error {
+func (s *Service) Start(context.Context) error {
+	if s.cancel != nil {
+		return fmt.Errorf("header: Service already started")
+	}
 	log.Info("starting header service")
 
-	topic, err := s.pubsub.Join(ExtendedHeaderSubTopic)
+	s.ctx, s.cancel = context.WithCancel(context.Background())
+
+	// TODO(@Wondertan): This is temporary
+	if s.store != nil {
+		go s.syncer.Sync(s.ctx)
+	}
+
+	err := s.pubsub.RegisterTopicValidator(PubSubTopic, s.syncer.validator)
 	if err != nil {
 		return err
 	}
-	s.topic = topic
 
-	// TODO @renaynay: start internal header service processes
+	s.topic, err = s.pubsub.Join(PubSubTopic)
+	if err != nil {
+		return err
+	}
+
 	return nil
+}
+
+// Stop stops the header Service.
+func (s *Service) Stop(context.Context) error {
+	if s.cancel == nil {
+		return fmt.Errorf("header: Service already stopped")
+	}
+	log.Info("stopping header service")
+
+	s.cancel()
+	err := s.pubsub.UnregisterTopicValidator(PubSubTopic)
+	if err != nil {
+		return err
+	}
+
+	return s.topic.Close()
 }
 
 // Subscribe returns a new subscription to the header pubsub topic
@@ -53,11 +91,4 @@ func (s *Service) Subscribe() (Subscription, error) {
 	}
 
 	return newSubscription(s.topic)
-}
-
-// Stop stops the header Service.
-func (s *Service) Stop(ctx context.Context) error {
-	log.Info("stopping header service")
-
-	return s.topic.Close()
 }

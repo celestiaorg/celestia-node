@@ -55,8 +55,7 @@ func (ex *exchange) requestHandler(stream network.Stream) {
 	_, err := serde.Read(stream, pbreq)
 	if err != nil {
 		log.Errorw("reading header request from stream", "err", err)
-		//nolint:errcheck
-		stream.Reset()
+		stream.Reset() //nolint:errcheck
 		return
 	}
 	// retrieve and write ExtendedHeaders
@@ -73,47 +72,50 @@ func (ex *exchange) requestHandler(stream network.Stream) {
 }
 
 func (ex *exchange) handleRequestByHash(hash []byte, stream network.Stream) {
+	log.Debugw("handling header request", "hash", tmbytes.HexBytes(hash).String())
+
 	header, err := ex.store.Get(ex.ctx, hash)
 	if err != nil {
-		log.Errorw("getting header by hash", "hash", tmbytes.HexBytes(hash).String(), "err", err.Error())
-		//nolint:errcheck
-		stream.Reset()
+		log.Errorw("getting header by hash", "hash", tmbytes.HexBytes(hash).String(), "err")
+		stream.Reset() //nolint:errcheck
 		return
 	}
 	resp, err := ExtendedHeaderToProto(header)
 	if err != nil {
-		log.Errorw("marshaling header to proto", "hash", tmbytes.HexBytes(hash).String(), "err", err.Error())
-		//nolint:errcheck
-		stream.Reset()
+		log.Errorw("marshaling header to proto", "hash", tmbytes.HexBytes(hash).String(), "err")
+		stream.Reset() //nolint:errcheck
 		return
 	}
 	_, err = serde.Write(stream, resp)
 	if err != nil {
-		log.Errorw("writing header to stream", "hash", tmbytes.HexBytes(hash).String(), "err", err.Error())
+		log.Errorw("writing header to stream", "hash", tmbytes.HexBytes(hash).String(), "err")
+		stream.Reset() //nolint:errcheck
+		return
 	}
 }
 
 // handleRequest fetches the ExtendedHeader at the given origin and
 // writes it to the stream.
-func (ex *exchange) handleRequest(origin, to uint64, stream network.Stream) {
+func (ex *exchange) handleRequest(from, to uint64, stream network.Stream) {
 	var headers []*ExtendedHeader
-	if origin == uint64(0) {
+	if from == uint64(0) {
+		log.Debug("handling head request")
+
 		head, err := ex.store.Head(ex.ctx)
 		if err != nil {
-			log.Errorw("getting header by height", "height", origin, "err", err.Error())
-			//nolint:errcheck
-			stream.Reset()
+			log.Errorw("getting head", "err", err)
+			stream.Reset() //nolint:errcheck
 			return
 		}
 		headers = make([]*ExtendedHeader, 1)
 		headers[0] = head
 	} else {
-		headersByRange, err := ex.store.GetRangeByHeight(ex.ctx, origin, to)
+		log.Debugw("handling headers request", "from", from, "to", to)
+
+		headersByRange, err := ex.store.GetRangeByHeight(ex.ctx, from, to)
 		if err != nil {
-			log.Errorw("getting headers by height", "height", origin, "amount", to-origin,
-				"err", err.Error())
-			//nolint:errcheck
-			stream.Reset()
+			log.Errorw("getting headers", "from", from, "to", to, "err", err)
+			stream.Reset() //nolint:errcheck
 			return
 		}
 		headers = headersByRange
@@ -122,19 +124,22 @@ func (ex *exchange) handleRequest(origin, to uint64, stream network.Stream) {
 	for _, header := range headers {
 		resp, err := ExtendedHeaderToProto(header)
 		if err != nil {
-			log.Errorw("marshaling header to proto", "height", origin, "err", err.Error())
-			//nolint:errcheck
-			stream.Reset()
+			log.Errorw("marshaling header to proto", "height", header.Height, "err", err)
+			stream.Reset() //nolint:errcheck
 			return
 		}
+
 		_, err = serde.Write(stream, resp)
 		if err != nil {
-			log.Errorw("writing header to stream", "height", origin, "err", err.Error())
+			log.Errorw("writing header to stream", "height", header.Height, "err", err)
+			stream.Reset() //nolint:errcheck
+			return
 		}
 	}
 }
 
 func (ex *exchange) RequestHead(ctx context.Context) (*ExtendedHeader, error) {
+	log.Debug("requesting head")
 	// create request
 	req := &pb.ExtendedHeaderRequest{
 		Origin: uint64(0),
@@ -148,6 +153,7 @@ func (ex *exchange) RequestHead(ctx context.Context) (*ExtendedHeader, error) {
 }
 
 func (ex *exchange) RequestHeader(ctx context.Context, height uint64) (*ExtendedHeader, error) {
+	log.Debugw("requesting header", "height", height)
 	// sanity check height
 	if height == 0 {
 		return nil, fmt.Errorf("specified request height must be greater than 0")
@@ -164,16 +170,18 @@ func (ex *exchange) RequestHeader(ctx context.Context, height uint64) (*Extended
 	return headers[0], nil
 }
 
-func (ex *exchange) RequestHeaders(ctx context.Context, origin, amount uint64) ([]*ExtendedHeader, error) {
+func (ex *exchange) RequestHeaders(ctx context.Context, from, amount uint64) ([]*ExtendedHeader, error) {
+	log.Debugw("requesting headers", "from", from, "to", from+amount)
 	// create request
 	req := &pb.ExtendedHeaderRequest{
-		Origin: origin,
+		Origin: from,
 		Amount: amount,
 	}
 	return ex.performRequest(ctx, req)
 }
 
 func (ex *exchange) RequestByHash(ctx context.Context, hash []byte) (*ExtendedHeader, error) {
+	log.Debugw("requesting header", "hash", tmbytes.HexBytes(hash).String())
 	// create request
 	req := &pb.ExtendedHeaderRequest{
 		Hash:   hash,
@@ -194,8 +202,7 @@ func (ex *exchange) performRequest(ctx context.Context, req *pb.ExtendedHeaderRe
 	// send request
 	_, err = serde.Write(stream, req)
 	if err != nil {
-		//nolint:errcheck
-		stream.Reset()
+		stream.Reset() //nolint:errcheck
 		return nil, err
 	}
 	// read responses
@@ -204,16 +211,16 @@ func (ex *exchange) performRequest(ctx context.Context, req *pb.ExtendedHeaderRe
 		resp := new(pb.ExtendedHeader)
 		_, err := serde.Read(stream, resp)
 		if err != nil {
-			//nolint:errcheck
-			stream.Reset()
+			stream.Reset() //nolint:errcheck
 			return nil, err
 		}
+
 		header, err := ProtoToExtendedHeader(resp)
 		if err != nil {
-			//nolint:errcheck
-			stream.Reset()
+			stream.Reset() //nolint:errcheck
 			return nil, err
 		}
+
 		headers[i] = header
 	}
 	// ensure at least one header was retrieved
