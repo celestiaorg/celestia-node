@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ipfs/go-datastore"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	mocknet "github.com/libp2p/go-libp2p/p2p/net/mock"
 	"github.com/stretchr/testify/assert"
@@ -13,18 +14,26 @@ import (
 
 // TestSubscriber tests the header Service's implementation of Subscriber.
 func TestSubscriber(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second * 15)
+	defer cancel()
+
 	// create mock network
-	net, err := mocknet.FullMeshConnected(context.Background(), 2)
+	net, err := mocknet.FullMeshConnected(ctx, 2)
 	require.NoError(t, err)
 
+	suite := NewTestSuite(t, 3)
+
 	// get mock host and create new gossipsub on it
-	pubsub1, err := pubsub.NewGossipSub(context.Background(), net.Hosts()[0],
+	pubsub1, err := pubsub.NewGossipSub(ctx, net.Hosts()[0],
 		pubsub.WithMessageSignaturePolicy(pubsub.StrictNoSign))
 	require.NoError(t, err)
 
+	store1, err := NewStoreWithHead(datastore.NewMapDatastore(), suite.Head())
+	require.NoError(t, err)
+
 	// create header Service
-	headerServ1 := NewHeaderService(nil, nil, pubsub1)
-	err = headerServ1.Start(context.Background())
+	headerServ1 := NewHeaderService(NewLocalExchange(store1), store1, pubsub1)
+	err = headerServ1.Start(ctx)
 	require.NoError(t, err)
 
 	// subscribe
@@ -32,26 +41,29 @@ func TestSubscriber(t *testing.T) {
 	require.NoError(t, err)
 
 	// get mock host and create new gossipsub on it
-	pubsub2, err := pubsub.NewGossipSub(context.Background(), net.Hosts()[1],
+	pubsub2, err := pubsub.NewGossipSub(ctx, net.Hosts()[1],
 		pubsub.WithMessageSignaturePolicy(pubsub.StrictNoSign))
 	require.NoError(t, err)
 
+	store2, err := NewStoreWithHead(datastore.NewMapDatastore(), suite.Head())
+	require.NoError(t, err)
+
 	// create header Service
-	headerServ2 := NewHeaderService(nil, nil, pubsub2)
-	err = headerServ2.Start(context.Background())
+	headerServ2 := NewHeaderService(NewLocalExchange(store2), store2, pubsub2)
+	err = headerServ2.Start(ctx)
 	require.NoError(t, err)
 
 	time.Sleep(2 * time.Second)
 
-	expectedHeader := RandExtendedHeader(t)
+	expectedHeader := suite.GenExtendedHeaders(1)[0]
 	bin, err := expectedHeader.MarshalBinary()
 	require.NoError(t, err)
 
-	err = headerServ2.topic.Publish(context.Background(), bin)
+	err = headerServ2.topic.Publish(ctx, bin)
 	require.NoError(t, err)
 
 	// get next ExtendedHeader from network
-	header, err := subscription.NextHeader(context.Background())
+	header, err := subscription.NextHeader(ctx)
 	require.NoError(t, err)
 
 	assert.Equal(t, expectedHeader.Height, header.Height)

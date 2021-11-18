@@ -25,7 +25,7 @@ type Service struct {
 	pubsub *pubsub.PubSub
 
 	syncer *syncer
-	ctx context.Context
+	ctx    context.Context
 	cancel context.CancelFunc
 }
 
@@ -37,7 +37,7 @@ func NewHeaderService(exchange Exchange, store Store, pubsub *pubsub.PubSub) *Se
 		exchange: exchange,
 		store:    store,
 		pubsub:   pubsub,
-		syncer: newSyncer(exchange, store),
+		syncer:   newSyncer(exchange, store),
 	}
 }
 
@@ -56,7 +56,7 @@ func (s *Service) Start(context.Context) error {
 		return err
 	}
 
-	s.topic , err = s.pubsub.Join(PubSubTopic)
+	s.topic, err = s.pubsub.Join(PubSubTopic)
 	if err != nil {
 		return err
 	}
