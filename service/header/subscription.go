@@ -47,6 +47,7 @@ func (s *subscription) NextHeader(ctx context.Context) (*ExtendedHeader, error) 
 }
 
 // Cancel cancels the subscription to new ExtendedHeaders from the network.
-func (s *subscription) Cancel() {
+func (s *subscription) Cancel() error {
 	s.subscription.Cancel()
+	return nil
 }
