@@ -6,10 +6,6 @@ import (
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 )
 
-// ExtendedHeaderSubTopic hardcodes the name of the ExtendedHeader
-// gossipsub topic.
-const ExtendedHeaderSubTopic = "header-sub"
-
 // subscription handles retrieving ExtendedHeaders from the header pubsub topic.
 type subscription struct {
 	topic        *pubsub.Topic
