@@ -9,6 +9,8 @@ import (
 
 	"github.com/spf13/cobra"
 
+	tmbytes "github.com/tendermint/tendermint/libs/bytes"
+
 	"github.com/celestiaorg/celestia-node/node"
 )
 
@@ -22,7 +24,10 @@ func Start(repoName string, tp node.Type) *cobra.Command {
 		panic("parent command must specify a persistent flag name for repository path")
 	}
 
-	const cfgAddress = "core.remote"
+	const (
+		cfgAddress = "core.remote"
+		headHash   = "head"
+	)
 	cmd := &cobra.Command{
 		Use:          "start",
 		Short:        "Starts Node daemon. First stopping signal gracefully stops the Node and second terminates it.",
@@ -58,11 +63,17 @@ func Start(repoName string, tp node.Type) *cobra.Command {
 				opts = append(opts, node.WithRemoteClient(protocol, ip))
 			}
 
+			headHash := cmd.Flag(headHash).Value.String()
+			if headHash != "" {
+				opts = append(opts, node.WithHead(tmbytes.HexBytes(headHash)))
+			}
+
 			return start(cmd, tp, repo, opts...)
 		},
 	}
 
 	cmd.Flags().String(cfgAddress, "", "Indicates node to connect to the given remote core node")
+	cmd.Flags().String(headHash, "", "genesis block header hash with which to initialize the node")
 	return cmd
 }
 

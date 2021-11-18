@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 
+	tmbytes "github.com/tendermint/tendermint/libs/bytes"
+
 	logging "github.com/ipfs/go-log/v2"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 )
@@ -19,22 +21,48 @@ type Service struct {
 
 	topic  *pubsub.Topic // instantiated header-sub topic
 	pubsub *pubsub.PubSub
+
+	head tmbytes.HexBytes // given header hash for subjective initialization
 }
 
 var log = logging.Logger("header-service")
 
 // NewHeaderService creates a new instance of header Service.
-func NewHeaderService(exchange Exchange, store Store, pubsub *pubsub.PubSub) *Service {
+func NewHeaderService(
+	exchange Exchange,
+	store Store,
+	pubsub *pubsub.PubSub,
+	head tmbytes.HexBytes,
+) *Service {
+
 	return &Service{
 		exchange: exchange,
 		store:    store,
 		pubsub:   pubsub,
+		head:     head,
 	}
 }
 
 // Start starts the header Service.
 func (s *Service) Start(ctx context.Context) error {
 	log.Info("starting header service")
+
+	// if Service does not already have a head, request it by hash
+	_, err := s.store.Head(ctx)
+	switch err {
+	default:
+		return err
+	case ErrNoHead:
+		head, err := s.exchange.RequestByHash(ctx, s.head)
+		if err != nil {
+			return err
+		}
+		err = s.store.Append(ctx, head)
+		if err != nil {
+			return err
+		}
+	case nil:
+	}
 
 	topic, err := s.pubsub.Join(ExtendedHeaderSubTopic)
 	if err != nil {

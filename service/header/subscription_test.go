@@ -22,8 +22,10 @@ func TestSubscriber(t *testing.T) {
 		pubsub.WithMessageSignaturePolicy(pubsub.StrictNoSign))
 	require.NoError(t, err)
 
+	ex, mockStore := createMockExchangeAndStore(t, net.Hosts()[0], net.Hosts()[1])
+
 	// create header Service
-	headerServ1 := NewHeaderService(nil, nil, pubsub1)
+	headerServ1 := NewHeaderService(ex, mockStore, pubsub1, mockStore.head.Hash())
 	err = headerServ1.Start(context.Background())
 	require.NoError(t, err)
 
@@ -37,7 +39,7 @@ func TestSubscriber(t *testing.T) {
 	require.NoError(t, err)
 
 	// create header Service
-	headerServ2 := NewHeaderService(nil, nil, pubsub2)
+	headerServ2 := NewHeaderService(ex, mockStore, pubsub2, mockStore.head.Hash())
 	err = headerServ2.Start(context.Background())
 	require.NoError(t, err)
 

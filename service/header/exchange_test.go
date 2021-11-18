@@ -17,7 +17,8 @@ import (
 )
 
 func TestExchange_RequestHead(t *testing.T) {
-	exchg, store := createMockExchangeAndStore(t)
+	host, peer := createMocknet(t)
+	exchg, store := createMockExchangeAndStore(t, host, peer)
 	// perform header request
 	header, err := exchg.RequestHead(context.Background())
 	require.NoError(t, err)
@@ -26,7 +27,8 @@ func TestExchange_RequestHead(t *testing.T) {
 }
 
 func TestExchange_RequestHeader(t *testing.T) {
-	exchg, store := createMockExchangeAndStore(t)
+	host, peer := createMocknet(t)
+	exchg, store := createMockExchangeAndStore(t, host, peer)
 	// perform expected request
 	header, err := exchg.RequestHeader(context.Background(), 5)
 	require.NoError(t, err)
@@ -35,7 +37,8 @@ func TestExchange_RequestHeader(t *testing.T) {
 }
 
 func TestExchange_RequestHeaders(t *testing.T) {
-	exchg, store := createMockExchangeAndStore(t)
+	host, peer := createMocknet(t)
+	exchg, store := createMockExchangeAndStore(t, host, peer)
 	// perform expected request
 	gotHeaders, err := exchg.RequestHeaders(context.Background(), 1, 5)
 	require.NoError(t, err)
@@ -191,11 +194,14 @@ func TestExchange_Response_Multiple(t *testing.T) {
 	}
 }
 
-func createMockExchangeAndStore(t *testing.T) (*exchange, *mockStore) {
+func createMocknet(t *testing.T) (libhost.Host, libhost.Host) {
 	net, err := mocknet.FullMeshConnected(context.Background(), 2)
 	require.NoError(t, err)
 	// get host and peer
-	host, peer := net.Hosts()[0], net.Hosts()[1]
+	return net.Hosts()[0], net.Hosts()[1]
+}
+
+func createMockExchangeAndStore(t *testing.T, host, peer libhost.Host) (*exchange, *mockStore) {
 	// create exchange on peer side to handle requests
 	store := createStore(t, 5)
 	ex := newExchange(peer, host.ID(), store)
@@ -211,6 +217,7 @@ func createMockExchangeAndStore(t *testing.T) (*exchange, *mockStore) {
 
 type mockStore struct {
 	headers map[int]*ExtendedHeader
+	head    *ExtendedHeader
 }
 
 // createStore creates a mock store and adds several random
@@ -223,6 +230,7 @@ func createStore(t *testing.T, numHeaders int) *mockStore {
 		store.headers[i] = RandExtendedHeader(t)
 		store.headers[i].Height = int64(i)
 	}
+	store.head = store.headers[numHeaders]
 	return store
 }
 
@@ -231,7 +239,10 @@ func (m *mockStore) Open(context.Context) error {
 }
 
 func (m *mockStore) Head(context.Context) (*ExtendedHeader, error) {
-	return m.headers[len(m.headers)], nil
+	if m.head == nil {
+		return nil, ErrNoHead
+	}
+	return m.head, nil
 }
 
 func (m *mockStore) Get(ctx context.Context, hash tmbytes.HexBytes) (*ExtendedHeader, error) {
@@ -260,6 +271,13 @@ func (m *mockStore) Has(context.Context, tmbytes.HexBytes) (bool, error) {
 	return false, nil
 }
 
-func (m *mockStore) Append(context.Context, ...*ExtendedHeader) error {
+func (m *mockStore) Append(ctx context.Context, headers ...*ExtendedHeader) error {
+	for i, header := range headers {
+		m.headers[int(header.Height)] = header
+		// set head
+		if i == len(headers)-1 {
+			m.head = header
+		}
+	}
 	return nil
 }

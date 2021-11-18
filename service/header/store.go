@@ -84,6 +84,11 @@ func (s *store) Head(ctx context.Context) (*ExtendedHeader, error) {
 	s.headLk.RLock()
 	head := s.head
 	s.headLk.RUnlock()
+
+	if head == nil {
+		return nil, ErrNoHead
+	}
+
 	return s.Get(ctx, head)
 }
 
@@ -152,8 +157,20 @@ func (s *store) Append(ctx context.Context, headers ...*ExtendedHeader) error {
 	}
 
 	head, err := s.Head(ctx)
-	if err != nil {
+	switch err {
+	default:
 		return err
+	case ErrNoHead:
+		// trust the given header as the initial head
+		err = s.put(headers...)
+		if err != nil {
+			return err
+		}
+		err = s.newHead(headers[len(headers)-1].Hash())
+		if err != nil {
+			return err
+		}
+	case nil:
 	}
 
 	verified := make([]*ExtendedHeader, 0, lh)
