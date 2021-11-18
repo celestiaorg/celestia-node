@@ -49,7 +49,11 @@ func (s *Service) Start(context.Context) error {
 	log.Info("starting header service")
 
 	s.ctx, s.cancel = context.WithCancel(context.Background())
-	go s.syncer.Sync(s.ctx)
+
+	// TODO(@Wondertan): This is temporary
+	if s.store != nil {
+		go s.syncer.Sync(s.ctx)
+	}
 
 	err := s.pubsub.RegisterTopicValidator(PubSubTopic, s.syncer.validator)
 	if err != nil {
