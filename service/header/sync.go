@@ -25,7 +25,7 @@ func newSyncer(exchange Exchange, store Store) *syncer {
 	}
 }
 
-// Sync catches up with headers to latest known Head in the network.
+// Sync syncs all headers up to the latest known header in the network.
 func (s *syncer) Sync(ctx context.Context) {
 	log.Info("syncing headers")
 	// TODO(@Wondertan): Retry logic
