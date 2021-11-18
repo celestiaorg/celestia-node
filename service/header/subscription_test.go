@@ -18,29 +18,21 @@ func TestSubscriber(t *testing.T) {
 	require.NoError(t, err)
 
 	// get mock host and create new gossipsub on it
-	pubsub1, err := pubsub.NewGossipSub(context.Background(), net.Hosts()[0],
+	ps, err := pubsub.NewGossipSub(context.Background(), net.Hosts()[0],
 		pubsub.WithMessageSignaturePolicy(pubsub.StrictNoSign))
 	require.NoError(t, err)
 
 	ex, mockStore := createMockExchangeAndStore(t, net.Hosts()[0], net.Hosts()[1])
 
 	// create header Service
-	headerServ1 := NewHeaderService(ex, mockStore, pubsub1, mockStore.head.Hash())
-	err = headerServ1.Start(context.Background())
+	headerServ := NewHeaderService(ex, mockStore, ps, mockStore.head.Hash())
+	err = headerServ.Start(context.Background())
 	require.NoError(t, err)
+
+	topic := headerServ.topic
 
 	// subscribe
-	subscription, err := headerServ1.Subscribe()
-	require.NoError(t, err)
-
-	// get mock host and create new gossipsub on it
-	pubsub2, err := pubsub.NewGossipSub(context.Background(), net.Hosts()[1],
-		pubsub.WithMessageSignaturePolicy(pubsub.StrictNoSign))
-	require.NoError(t, err)
-
-	// create header Service
-	headerServ2 := NewHeaderService(ex, mockStore, pubsub2, mockStore.head.Hash())
-	err = headerServ2.Start(context.Background())
+	subscription, err := headerServ.Subscribe()
 	require.NoError(t, err)
 
 	time.Sleep(2 * time.Second)
@@ -49,7 +41,7 @@ func TestSubscriber(t *testing.T) {
 	bin, err := expectedHeader.MarshalBinary()
 	require.NoError(t, err)
 
-	err = headerServ2.topic.Publish(context.Background(), bin)
+	err = topic.Publish(context.Background(), bin)
 	require.NoError(t, err)
 
 	// get next ExtendedHeader from network
