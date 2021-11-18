@@ -90,7 +90,7 @@ func (s *syncer) syncDiff(ctx context.Context, knownHead, newHead *ExtendedHeade
 func (s *syncer) validator(ctx context.Context, _ peer.ID, msg *pubsub.Message) pubsub.ValidationResult {
 	header, err := UnmarshalExtendedHeader(msg.Data)
 	if err != nil {
-		log.Errorw("unmarshalling ExtendedHeader received from the PubSub")
+		log.Errorw("unmarshalling ExtendedHeader received from the PubSub", "err", err)
 		return pubsub.ValidationReject
 	}
 
