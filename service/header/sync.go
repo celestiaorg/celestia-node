@@ -57,9 +57,9 @@ func (s *syncer) Sync(ctx context.Context) {
 	}
 }
 
-// TODO(@Wondertan): This is totally random number that I feel like should work for splitting big requests
-//  into smaller
-var requestSize uint64 = 100
+// TODO(@Wondertan): Number of headers that can be requested at once. Either make this configurable or,
+// find a proper rationale for constant.
+var requestSize uint64 = 128
 
 // syncDiff requests headers from knownHead up to new head.
 func (s *syncer) syncDiff(ctx context.Context, knownHead, newHead *ExtendedHeader) error {
