@@ -31,7 +31,7 @@ func NewCoreExchange(fetcher *core.BlockFetcher, dag format.DAGService) *CoreExc
 
 func (ce *CoreExchange) RequestHeader(ctx context.Context, height uint64) (*ExtendedHeader, error) {
 	log.Debugw("core: requesting header", "height", height)
-	intHeight := int64(height) + 1
+	intHeight := int64(height)
 	block, err := ce.fetcher.GetBlock(ctx, &intHeight)
 	if err != nil {
 		return nil, err
