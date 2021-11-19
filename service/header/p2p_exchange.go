@@ -17,8 +17,8 @@ import (
 
 var exchangeProtocolID = protocol.ID("/header-exchange/v0.0.1")
 
-// P2PExchange enables sending outbound ExtendedHeaderRequests as well as
-// handling inbound ExtendedHeaderRequests.
+// P2PExchange enables sending outbound ExtendedHeaderRequests to the network as well as
+// handling inbound ExtendedHeaderRequests from the network.
 type P2PExchange struct {
 	host host.Host
 	// TODO @renaynay: post-Devnet, we need to remove reliance of Exchange on one bootstrap peer
