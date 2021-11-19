@@ -17,9 +17,9 @@ import (
 
 var exchangeProtocolID = protocol.ID("/header-exchange/v0.0.1")
 
-// exchange enables sending outbound ExtendedHeaderRequests as well as
+// P2PExchange enables sending outbound ExtendedHeaderRequests as well as
 // handling inbound ExtendedHeaderRequests.
-type exchange struct {
+type P2PExchange struct {
 	host host.Host
 	// TODO @renaynay: post-Devnet, we need to remove reliance of Exchange on one bootstrap peer
 	// Ref https://github.com/celestiaorg/celestia-node/issues/172#issuecomment-964306823.
@@ -30,28 +30,28 @@ type exchange struct {
 	cancel context.CancelFunc
 }
 
-func NewExchange(host host.Host, peer peer.ID, store Store) Exchange {
-	return &exchange{
+func NewP2PExchange(host host.Host, peer peer.ID, store Store) *P2PExchange {
+	return &P2PExchange{
 		host:  host,
 		peer:  peer,
 		store: store,
 	}
 }
 
-func (ex *exchange) Start(context.Context) error {
+func (ex *P2PExchange) Start(context.Context) error {
 	ex.ctx, ex.cancel = context.WithCancel(context.Background())
 	ex.host.SetStreamHandler(exchangeProtocolID, ex.requestHandler)
 	return nil
 }
 
-func (ex *exchange) Stop(context.Context) error {
+func (ex *P2PExchange) Stop(context.Context) error {
 	ex.cancel()
 	ex.host.RemoveStreamHandler(exchangeProtocolID)
 	return nil
 }
 
 // requestHandler handles inbound ExtendedHeaderRequests.
-func (ex *exchange) requestHandler(stream network.Stream) {
+func (ex *P2PExchange) requestHandler(stream network.Stream) {
 	// unmarshal request
 	pbreq := new(pb.ExtendedHeaderRequest)
 	_, err := serde.Read(stream, pbreq)
@@ -73,7 +73,7 @@ func (ex *exchange) requestHandler(stream network.Stream) {
 	}
 }
 
-func (ex *exchange) handleRequestByHash(hash []byte, stream network.Stream) {
+func (ex *P2PExchange) handleRequestByHash(hash []byte, stream network.Stream) {
 	log.Debugw("handling header request", "hash", tmbytes.HexBytes(hash).String())
 
 	header, err := ex.store.Get(ex.ctx, hash)
@@ -98,7 +98,7 @@ func (ex *exchange) handleRequestByHash(hash []byte, stream network.Stream) {
 
 // handleRequest fetches the ExtendedHeader at the given origin and
 // writes it to the stream.
-func (ex *exchange) handleRequest(from, to uint64, stream network.Stream) {
+func (ex *P2PExchange) handleRequest(from, to uint64, stream network.Stream) {
 	var headers []*ExtendedHeader
 	if from == uint64(0) {
 		log.Debug("handling head request")
@@ -140,7 +140,7 @@ func (ex *exchange) handleRequest(from, to uint64, stream network.Stream) {
 	}
 }
 
-func (ex *exchange) RequestHead(ctx context.Context) (*ExtendedHeader, error) {
+func (ex *P2PExchange) RequestHead(ctx context.Context) (*ExtendedHeader, error) {
 	log.Debug("requesting head")
 	// create request
 	req := &pb.ExtendedHeaderRequest{
@@ -154,7 +154,7 @@ func (ex *exchange) RequestHead(ctx context.Context) (*ExtendedHeader, error) {
 	return headers[0], nil
 }
 
-func (ex *exchange) RequestHeader(ctx context.Context, height uint64) (*ExtendedHeader, error) {
+func (ex *P2PExchange) RequestHeader(ctx context.Context, height uint64) (*ExtendedHeader, error) {
 	log.Debugw("requesting header", "height", height)
 	// sanity check height
 	if height == 0 {
@@ -172,7 +172,7 @@ func (ex *exchange) RequestHeader(ctx context.Context, height uint64) (*Extended
 	return headers[0], nil
 }
 
-func (ex *exchange) RequestHeaders(ctx context.Context, from, amount uint64) ([]*ExtendedHeader, error) {
+func (ex *P2PExchange) RequestHeaders(ctx context.Context, from, amount uint64) ([]*ExtendedHeader, error) {
 	log.Debugw("requesting headers", "from", from, "to", from+amount)
 	// create request
 	req := &pb.ExtendedHeaderRequest{
@@ -182,7 +182,7 @@ func (ex *exchange) RequestHeaders(ctx context.Context, from, amount uint64) ([]
 	return ex.performRequest(ctx, req)
 }
 
-func (ex *exchange) RequestByHash(ctx context.Context, hash tmbytes.HexBytes) (*ExtendedHeader, error) {
+func (ex *P2PExchange) RequestByHash(ctx context.Context, hash tmbytes.HexBytes) (*ExtendedHeader, error) {
 	log.Debugw("requesting header", "hash", hash.String())
 	// create request
 	req := &pb.ExtendedHeaderRequest{
@@ -196,7 +196,7 @@ func (ex *exchange) RequestByHash(ctx context.Context, hash tmbytes.HexBytes) (*
 	return headers[0], nil
 }
 
-func (ex *exchange) performRequest(ctx context.Context, req *pb.ExtendedHeaderRequest) ([]*ExtendedHeader, error) {
+func (ex *P2PExchange) performRequest(ctx context.Context, req *pb.ExtendedHeaderRequest) ([]*ExtendedHeader, error) {
 	stream, err := ex.host.NewStream(ctx, ex.peer, exchangeProtocolID)
 	if err != nil {
 		return nil, err

@@ -16,7 +16,7 @@ import (
 	"github.com/celestiaorg/go-libp2p-messenger/serde"
 )
 
-func TestExchange_RequestHead(t *testing.T) {
+func TestP2PExchange_RequestHead(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -29,7 +29,7 @@ func TestExchange_RequestHead(t *testing.T) {
 	assert.Equal(t, store.headers[len(store.headers)].Hash(), header.Hash())
 }
 
-func TestExchange_RequestHeader(t *testing.T) {
+func TestP2PExchange_RequestHeader(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -42,7 +42,7 @@ func TestExchange_RequestHeader(t *testing.T) {
 	assert.Equal(t, store.headers[5].Hash(), header.Hash())
 }
 
-func TestExchange_RequestHeaders(t *testing.T) {
+func TestP2PExchange_RequestHeaders(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -57,9 +57,9 @@ func TestExchange_RequestHeaders(t *testing.T) {
 	}
 }
 
-// TestExchange_Response_Head tests that the exchange instance can respond
+// TestP2PExchange_Response_Head tests that the P2PExchange instance can respond
 // to an ExtendedHeaderRequest for the chain head.
-func TestExchange_Response_Head(t *testing.T) {
+func TestP2PExchange_Response_Head(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -67,9 +67,9 @@ func TestExchange_Response_Head(t *testing.T) {
 	require.NoError(t, err)
 	// get host and peer
 	host, peer := net.Hosts()[0], net.Hosts()[1]
-	// create exchange just to register the stream handler
+	// create P2PExchange just to register the stream handler
 	store := createStore(t, 5)
-	ex := NewExchange(host, peer.ID(), store)
+	ex := NewP2PExchange(host, peer.ID(), store)
 	err = ex.Start(ctx)
 	require.NoError(t, err)
 
@@ -96,9 +96,9 @@ func TestExchange_Response_Head(t *testing.T) {
 	assert.Equal(t, store.headers[5].Hash(), eh.Hash())
 }
 
-// TestExchange_RequestByHash tests that the exchange instance can
+// TestP2PExchange_RequestByHash tests that the P2PExchange instance can
 // respond to an ExtendedHeaderRequest for a hash instead of a height.
-func TestExchange_RequestByHash(t *testing.T) {
+func TestP2PExchange_RequestByHash(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -106,9 +106,9 @@ func TestExchange_RequestByHash(t *testing.T) {
 	require.NoError(t, err)
 	// get host and peer
 	host, peer := net.Hosts()[0], net.Hosts()[1]
-	// create exchange just to register the stream handler
+	// create P2PExchange just to register the stream handler
 	store := createStore(t, 5)
-	ex := NewExchange(host, peer.ID(), store)
+	ex := NewP2PExchange(host, peer.ID(), store)
 	err = ex.Start(ctx)
 	require.NoError(t, err)
 
@@ -135,7 +135,7 @@ func TestExchange_RequestByHash(t *testing.T) {
 	assert.Equal(t, store.headers[3].Hash(), eh.Hash())
 }
 
-// TestExchange_Response_Single tests that the exchange instance can respond
+// TestP2PExchange_Response_Single tests that the P2PExchange instance can respond
 // to a ExtendedHeaderRequest for one ExtendedHeader accurately.
 func TestExchange_Response_Single(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
@@ -145,9 +145,9 @@ func TestExchange_Response_Single(t *testing.T) {
 	require.NoError(t, err)
 	// get host and peer
 	host, peer := net.Hosts()[0], net.Hosts()[1]
-	// create exchange just to register the stream handler
+	// create P2PExchange just to register the stream handler
 	store := createStore(t, 5)
-	ex := NewExchange(host, peer.ID(), store)
+	ex := NewP2PExchange(host, peer.ID(), store)
 	err = ex.Start(ctx)
 	require.NoError(t, err)
 
@@ -174,7 +174,7 @@ func TestExchange_Response_Single(t *testing.T) {
 	assert.Equal(t, store.headers[int(origin)].Hash(), got.Hash())
 }
 
-// TestExchange_Response_Multiple tests that the exchange instance can respond
+// TestP2PExchange_Response_Multiple tests that the P2PExchange instance can respond
 // to a ExtendedHeaderRequest for multiple ExtendedHeaders accurately.
 func TestExchange_Response_Multiple(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
@@ -184,9 +184,9 @@ func TestExchange_Response_Multiple(t *testing.T) {
 	require.NoError(t, err)
 	// get host and peer
 	host, peer := net.Hosts()[0], net.Hosts()[1]
-	// create exchange just to register the stream handler
+	// create P2PExchange just to register the stream handler
 	store := createStore(t, 5)
-	ex := NewExchange(host, peer.ID(), store)
+	ex := NewP2PExchange(host, peer.ID(), store)
 	err = ex.Start(ctx)
 	require.NoError(t, err)
 
@@ -224,13 +224,13 @@ func createMocknet(ctx context.Context, t *testing.T) (libhost.Host, libhost.Hos
 
 func createExchangeWithMockStore(ctx context.Context, t *testing.T, host, peer libhost.Host) (Exchange, *mockStore) {
 	store := createStore(t, 5)
-	// create exchange on peer side to handle requests
-	ex := NewExchange(peer, host.ID(), store)
+	// create P2PExchange on peer side to handle requests
+	ex := NewP2PExchange(peer, host.ID(), store)
 	err := ex.Start(ctx)
 	require.NoError(t, err)
 
-	// create new exchange
-	exchg := NewExchange(host, peer.ID(), nil) // we don't need the store on the requesting side
+	// create new P2PExchange
+	exchg := NewP2PExchange(host, peer.ID(), nil) // we don't need the store on the requesting side
 	err = ex.Start(ctx)
 	require.NoError(t, err)
 	return exchg, store
