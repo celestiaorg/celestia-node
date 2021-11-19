@@ -1,7 +1,9 @@
 package header
 
 import (
+	"bytes"
 	"context"
+	"fmt"
 	"math"
 
 	format "github.com/ipfs/go-ipld-format"
@@ -60,7 +62,19 @@ func (ce *CoreExchange) RequestByHash(ctx context.Context, hash tmbytes.HexBytes
 	if err != nil {
 		return nil, err
 	}
-	return ce.generateExtendedHeaderFromBlock(block)
+	extHeader, err := ce.generateExtendedHeaderFromBlock(block)
+	if err != nil {
+		return nil, err
+	}
+	// verify hashes match
+	if !hashMatch(hash, extHeader.Hash().Bytes()) {
+		return nil, fmt.Errorf("incorrect hash in header: expected %x, got %x", hash, extHeader.Hash().Bytes())
+	}
+	return extHeader, nil
+}
+
+func hashMatch(expected, got []byte) bool {
+	return bytes.Equal(expected, got)
 }
 
 func (ce *CoreExchange) RequestHead(ctx context.Context) (*ExtendedHeader, error) {
@@ -73,6 +87,7 @@ func (ce *CoreExchange) RequestHead(ctx context.Context) (*ExtendedHeader, error
 }
 
 func (ce *CoreExchange) generateExtendedHeaderFromBlock(block *types.Block) (*ExtendedHeader, error) {
+	// erasure code the block
 	extended, err := ce.extendBlockData(block)
 	if err != nil {
 		log.Errorw("computing extended data square", "err msg", err, "block height",
@@ -94,13 +109,18 @@ func (ce *CoreExchange) generateExtendedHeaderFromBlock(block *types.Block) (*Ex
 		log.Errorw("fetching validator set", "err", err, "height", block.Height)
 		return nil, err
 	}
-
-	return &ExtendedHeader{
+	extHeader := &ExtendedHeader{
 		RawHeader:    block.Header,
 		DAH:          &dah,
 		Commit:       commit,
 		ValidatorSet: valSet,
-	}, nil
+	}
+	// sanity check generated ExtendedHeader
+	err = extHeader.ValidateBasic()
+	if err != nil {
+		return nil, err
+	}
+	return extHeader, nil
 }
 
 // extendBlockData erasure codes the given raw block's data and returns the

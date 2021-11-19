@@ -25,8 +25,9 @@ func TestP2PExchange_RequestHead(t *testing.T) {
 	// perform header request
 	header, err := exchg.RequestHead(context.Background())
 	require.NoError(t, err)
-	assert.Equal(t, store.headers[len(store.headers)].Height, header.Height)
-	assert.Equal(t, store.headers[len(store.headers)].Hash(), header.Hash())
+
+	assert.Equal(t, store.headers[store.headHeight].Height, header.Height)
+	assert.Equal(t, store.headers[store.headHeight].Hash(), header.Hash())
 }
 
 func TestP2PExchange_RequestHeader(t *testing.T) {
@@ -52,8 +53,8 @@ func TestP2PExchange_RequestHeaders(t *testing.T) {
 	gotHeaders, err := exchg.RequestHeaders(context.Background(), 1, 5)
 	require.NoError(t, err)
 	for _, got := range gotHeaders {
-		assert.Equal(t, store.headers[int(got.Height)].Height, got.Height)
-		assert.Equal(t, store.headers[int(got.Height)].Hash(), got.Hash())
+		assert.Equal(t, store.headers[got.Height].Height, got.Height)
+		assert.Equal(t, store.headers[got.Height].Hash(), got.Hash())
 	}
 }
 
@@ -92,8 +93,8 @@ func TestP2PExchange_Response_Head(t *testing.T) {
 	eh, err := ProtoToExtendedHeader(resp)
 	require.NoError(t, err)
 
-	assert.Equal(t, store.headers[5].Height, eh.Height)
-	assert.Equal(t, store.headers[5].Hash(), eh.Hash())
+	assert.Equal(t, store.headers[store.headHeight].Height, eh.Height)
+	assert.Equal(t, store.headers[store.headHeight].Hash(), eh.Hash())
 }
 
 // TestP2PExchange_RequestByHash tests that the P2PExchange instance can
@@ -115,9 +116,10 @@ func TestP2PExchange_RequestByHash(t *testing.T) {
 	// start a new stream via Peer to see if Host can handle inbound requests
 	stream, err := peer.NewStream(context.Background(), libhost.InfoFromHost(host).ID, exchangeProtocolID)
 	require.NoError(t, err)
-	// create request
+	// create request for a header at a random height
+	reqHeight := store.headHeight - 2
 	req := &header_pb.ExtendedHeaderRequest{
-		Hash:   store.headers[3].Hash(),
+		Hash:   store.headers[reqHeight].Hash(),
 		Amount: 1,
 	}
 	// send request
@@ -131,8 +133,8 @@ func TestP2PExchange_RequestByHash(t *testing.T) {
 	eh, err := ProtoToExtendedHeader(resp)
 	require.NoError(t, err)
 
-	assert.Equal(t, store.headers[3].Height, eh.Height)
-	assert.Equal(t, store.headers[3].Hash(), eh.Hash())
+	assert.Equal(t, store.headers[reqHeight].Height, eh.Height)
+	assert.Equal(t, store.headers[reqHeight].Hash(), eh.Hash())
 }
 
 // TestP2PExchange_Response_Single tests that the P2PExchange instance can respond
@@ -155,7 +157,7 @@ func TestExchange_Response_Single(t *testing.T) {
 	stream, err := peer.NewStream(context.Background(), host.ID(), exchangeProtocolID)
 	require.NoError(t, err)
 	// create request
-	origin := uint64(3)
+	origin := uint64(store.headHeight - 3)
 	req := &ExtendedHeaderRequest{
 		Origin: origin,
 		Amount: 1,
@@ -170,8 +172,8 @@ func TestExchange_Response_Single(t *testing.T) {
 	// compare
 	got, err := ProtoToExtendedHeader(resp)
 	require.NoError(t, err)
-	assert.Equal(t, store.headers[int(origin)].Height, got.Height)
-	assert.Equal(t, store.headers[int(origin)].Hash(), got.Hash())
+	assert.Equal(t, store.headers[int64(origin)].Height, got.Height)
+	assert.Equal(t, store.headers[int64(origin)].Hash(), got.Hash())
 }
 
 // TestP2PExchange_Response_Multiple tests that the P2PExchange instance can respond
@@ -210,8 +212,8 @@ func TestExchange_Response_Multiple(t *testing.T) {
 		eh, err := ProtoToExtendedHeader(resp)
 		require.NoError(t, err)
 		// compare
-		assert.Equal(t, store.headers[int(i)].Height, eh.Height)
-		assert.Equal(t, store.headers[int(i)].Hash(), eh.Hash())
+		assert.Equal(t, store.headers[int64(i)].Height, eh.Height)
+		assert.Equal(t, store.headers[int64(i)].Hash(), eh.Hash())
 	}
 }
 
@@ -224,42 +226,46 @@ func createMocknet(ctx context.Context, t *testing.T) (libhost.Host, libhost.Hos
 
 func createExchangeWithMockStore(ctx context.Context, t *testing.T, host, peer libhost.Host) (Exchange, *mockStore) {
 	store := createStore(t, 5)
-	// create P2PExchange on peer side to handle requests
-	ex := NewP2PExchange(peer, libhost.InfoFromHost(host), store)
-	err := ex.Start(ctx)
-	require.NoError(t, err)
+	serverSideEx := newExchange(peer, host.ID(), store)
+	serverSideEx.Start()
+	t.Cleanup(serverSideEx.Stop)
 
-	// create new P2PExchange
-	exchg := NewP2PExchange(host, libhost.InfoFromHost(peer), nil) // we don't need the store on the requesting side
-	err = exchg.Start(ctx)
-	require.NoError(t, err)
-	return exchg, store
+	// create new exchange
+	clientSideEx := newExchange(host, peer.ID(), nil) // we don't need the store on the requesting side
+	clientSideEx.Start()
+	t.Cleanup(clientSideEx.Stop)
+	return clientSideEx, store
 }
 
 type mockStore struct {
-	headers map[int]*ExtendedHeader
-	head    *ExtendedHeader
+	headers    map[int64]*ExtendedHeader
+	headHeight int64
 }
 
 // createStore creates a mock store and adds several random
 // headers
 func createStore(t *testing.T, numHeaders int) *mockStore {
 	store := &mockStore{
-		headers: make(map[int]*ExtendedHeader, 4),
+		headers:    make(map[int64]*ExtendedHeader),
+		headHeight: 0,
 	}
-	for i := 1; i <= numHeaders; i++ {
-		store.headers[i] = RandExtendedHeader(t)
-		store.headers[i].Height = int64(i)
+
+	suite := NewTestSuite(t, numHeaders)
+
+	for i := 0; i < numHeaders; i++ {
+		header := suite.GenExtendedHeader()
+		store.headers[header.Height] = header
+
+		if header.Height > store.headHeight {
+			store.headHeight = header.Height
+		}
 	}
 	store.head = store.headers[numHeaders]
 	return store
 }
 
 func (m *mockStore) Head(context.Context) (*ExtendedHeader, error) {
-	if m.head == nil {
-		return nil, ErrNoHead
-	}
-	return m.head, nil
+	return m.headers[m.headHeight], nil
 }
 
 func (m *mockStore) Get(ctx context.Context, hash tmbytes.HexBytes) (*ExtendedHeader, error) {
@@ -272,13 +278,13 @@ func (m *mockStore) Get(ctx context.Context, hash tmbytes.HexBytes) (*ExtendedHe
 }
 
 func (m *mockStore) GetByHeight(ctx context.Context, height uint64) (*ExtendedHeader, error) {
-	return m.headers[int(height)], nil
+	return m.headers[int64(height)], nil
 }
 
 func (m *mockStore) GetRangeByHeight(ctx context.Context, from, to uint64) ([]*ExtendedHeader, error) {
 	headers := make([]*ExtendedHeader, to-from)
 	for i := range headers {
-		headers[i] = m.headers[int(from)]
+		headers[i] = m.headers[int64(from)]
 		from++
 	}
 	return headers, nil
