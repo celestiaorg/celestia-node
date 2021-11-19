@@ -19,7 +19,7 @@ func TestCoreExchange_RequestHeaders(t *testing.T) {
 	generateBlocks(t, fetcher)
 
 	ce := NewCoreExchange(fetcher, store)
-	headers, err := ce.RequestHeaders(context.Background(), 0, 10)
+	headers, err := ce.RequestHeaders(context.Background(), 1, 10)
 	require.NoError(t, err)
 
 	fmt.Println(len(headers))
