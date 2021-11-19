@@ -26,7 +26,7 @@ func Start(repoName string, tp node.Type) *cobra.Command {
 
 	const (
 		cfgAddress = "core.remote"
-		loglevel = "log.level"
+		loglevel   = "log.level"
 		genesis    = "genesis"
 	)
 	cmd := &cobra.Command{
