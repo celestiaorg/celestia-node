@@ -39,7 +39,7 @@ require (
 	github.com/spf13/cobra v1.2.1
 	github.com/stretchr/testify v1.7.1-0.20210427113832-6241f9ab9942
 	github.com/tendermint/tendermint v0.34.14
-	go.uber.org/fx v1.14.2
+	go.uber.org/fx v1.15.0
 	go.uber.org/zap v1.19.0
 )
 

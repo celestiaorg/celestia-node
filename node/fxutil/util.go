@@ -18,10 +18,23 @@ func WithLifecycle(ctx context.Context, lc fx.Lifecycle) context.Context {
 	return ctx
 }
 
-// ProvideIf provides a given constructor if a condition is met.
-func ProvideIf(cond bool, ctor interface{}) fx.Option {
+// ProvideAs provides the first argument as types of the second.
+func ProvideAs(prv interface{}, as ...interface{}) fx.Option {
+	return fx.Provide(fx.Annotate(prv, fx.As(as...)))
+}
+
+// SupplyIf supplies DI if a condition is met.
+func SupplyIf(cond bool, val ...interface{}) fx.Option {
 	if cond {
-		return fx.Provide(ctor)
+		return fx.Supply(val...)
+	}
+	return fx.Options()
+}
+
+// ProvideIf provides a given constructor if a condition is met.
+func ProvideIf(cond bool, ctor ...interface{}) fx.Option {
+	if cond {
+		return fx.Provide(ctor...)
 	}
 
 	return fx.Options()
