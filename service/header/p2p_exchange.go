@@ -3,6 +3,7 @@ package header
 import (
 	"context"
 	"fmt"
+	"sync"
 
 	"github.com/libp2p/go-libp2p-core/host"
 	"github.com/libp2p/go-libp2p-core/network"
@@ -26,24 +27,34 @@ type P2PExchange struct {
 	// TODO @renaynay: post-Devnet, we need to remove reliance of Exchange on one bootstrap peer
 	// Ref https://github.com/celestiaorg/celestia-node/issues/172#issuecomment-964306823.
 	trustedPeer *peer.AddrInfo
+	lk          sync.Mutex
+	connected   chan struct{}
 
 	ctx    context.Context
 	cancel context.CancelFunc
 }
 
 func NewP2PExchange(host host.Host, peer *peer.AddrInfo, store Store) *P2PExchange {
-	return &P2PExchange{
+	ex := &P2PExchange{
 		host:        host,
 		store:       store,
 		trustedPeer: peer,
+		connected:   make(chan struct{}),
 	}
+	host.SetStreamHandler(exchangeProtocolID, ex.requestHandler)
+	ex.host.Network().Notify(&network.NotifyBundle{ConnectedF: ex.Connected})
+	return ex
 }
 
 func (ex *P2PExchange) Start(ctx context.Context) error {
-	ex.host.SetStreamHandler(exchangeProtocolID, ex.requestHandler)
 	ex.ctx, ex.cancel = context.WithCancel(context.Background())
 
 	if ex.trustedPeer.ID != "" {
+		if ex.host.Network().Connectedness(ex.trustedPeer.ID) == network.Connected {
+			close(ex.connected)
+			return nil
+		}
+
 		err := ex.host.Connect(ctx, *ex.trustedPeer)
 		if err != nil {
 			log.Errorw("connecting to trusted peer", "err", err)
@@ -207,6 +218,12 @@ func (ex *P2PExchange) RequestByHash(ctx context.Context, hash tmbytes.HexBytes)
 }
 
 func (ex *P2PExchange) performRequest(ctx context.Context, req *pb.ExtendedHeaderRequest) ([]*ExtendedHeader, error) {
+	select {
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	case <-ex.connected:
+	}
+
 	stream, err := ex.host.NewStream(ctx, ex.trustedPeer.ID, exchangeProtocolID)
 	if err != nil {
 		return nil, err
@@ -240,4 +257,13 @@ func (ex *P2PExchange) performRequest(ctx context.Context, req *pb.ExtendedHeade
 		return nil, ErrNotFound
 	}
 	return headers, stream.Close()
+}
+
+func (ex *P2PExchange) Connected(_ network.Network, conn network.Conn) {
+	ex.lk.Lock()
+	defer ex.lk.Unlock()
+
+	if conn.RemotePeer() == ex.trustedPeer.ID {
+		close(ex.connected)
+	}
 }
