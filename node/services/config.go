@@ -18,7 +18,7 @@ type Config struct {
 	TrustedPeer string
 }
 
-// TODO(@Wondertan): We need to hardcore genesis hash and one bootstrap peer as trusted.
+// TODO(@Wondertan): We need to hardcode genesis hash and one bootstrap peer as trusted.
 func DefaultConfig() Config {
 	return Config{
 		GenesisHash: "",
