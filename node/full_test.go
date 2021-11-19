@@ -2,9 +2,6 @@ package node
 
 import (
 	"context"
-	"fmt"
-	"io/ioutil"
-	"net/http"
 	"testing"
 
 	"github.com/celestiaorg/celestia-node/core"
@@ -29,16 +26,11 @@ func TestNewFull(t *testing.T) {
 
 func TestFullLifecycle(t *testing.T) {
 	cfg := DefaultConfig(Full)
-	cfg.P2P.BootstrapPeers = []string{
-		"/ip4/10.99.1.67/tcp/2121/p2p/12D3KooWPBwpZzwnnhBxDN3jnoEtHvcAaU7e9m77Qfg79DGhqLoC",
-	}
-
 	repo := MockRepository(t, cfg)
 
 	node, err := New(Full, repo)
 	require.NoError(t, err)
 	require.NotNil(t, node)
-	require.NotNil(t, node.RPCServer)
 	require.NotNil(t, node.Config)
 	require.NotZero(t, node.Type)
 	require.NotNil(t, node.Host)
@@ -105,39 +97,6 @@ func TestFull_P2P_Streams(t *testing.T) {
 	require.NoError(t, stream.Close())
 }
 
-func TestFull_RPCServer(t *testing.T) {
-	repo := MockRepository(t, DefaultConfig(Full))
-	node, err := New(Full, repo)
-	require.NoError(t, err)
-	require.NotNil(t, node)
-	require.NotNil(t, node.Host)
-
-	ctx, cancel := context.WithCancel(context.Background())
-	t.Cleanup(cancel)
-
-	err = node.Start(ctx)
-	require.NoError(t, err)
-
-	// register simple ping handler on node's server
-	err = node.RegisterAPI("/ping", ping{})
-	require.NoError(t, err)
-	// send ping
-	resp, err := http.Get(fmt.Sprintf("http://%s/ping", node.Config.RPC.ListenAddr))
-	require.NoError(t, err)
-	// read pong
-	pong, err := ioutil.ReadAll(resp.Body)
-	require.NoError(t, err)
-	t.Cleanup(func() {
-		resp.Body.Close()
-	})
-	assert.Equal(t, "pong", string(pong))
-
-	ctx, cancel = context.WithCancel(context.Background())
-	t.Cleanup(cancel)
-
-	require.NoError(t, node.Stop(ctx))
-}
-
 func TestFull_WithRemoteCore(t *testing.T) {
 	// TODO(@Wondertan): Fix core
 	t.Skip("Skip until we fix core")
@@ -192,11 +151,4 @@ func TestFull_NotPanicWithNilOpts(t *testing.T) {
 	node, err := New(Full, repo, nil)
 	require.NoError(t, err)
 	require.NotNil(t, node)
-}
-
-type ping struct{}
-
-func (p ping) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	//nolint:errcheck
-	w.Write([]byte("pong"))
 }

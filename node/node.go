@@ -63,7 +63,7 @@ type Node struct {
 	ShareServ  share.Service   // not optional
 	HeaderServ *header.Service // not optional
 
-	DASer *das.DASer
+	DASer *das.DASer `optional:"true"`
 }
 
 // New assembles a new Node with the given type 'tp' over Repository 'repo'.
@@ -100,18 +100,9 @@ func (n *Node) Start(ctx context.Context) error {
 		log.Errorf("starting %s Node: %s", n.Type, err)
 		return fmt.Errorf("node: failed to start: %w", err)
 	}
-	// start server only if Full node // TODO @renaynay: eventually we'll add the RPC server to the light node
-	if n.Type == Full {
-		log.Debugf("Starting RPC server...")
-		err = n.RPCServer.Start(n.Config.RPC.ListenAddr)
-		if err != nil {
-			log.Errorf("Error starting RPC server: %s", err)
-			return err
-		}
-	}
 
 	// TODO(@Wondertan): Print useful information about the node:
-	//  * API address
+	//  * API/RPC address
 	log.Infof("started %s Node", n.Type)
 
 	addrs, err := peer.AddrInfoToP2pAddrs(host.InfoFromHost(n.Host))
@@ -153,15 +144,6 @@ func (n *Node) Stop(ctx context.Context) error {
 	ctx, cancel := context.WithTimeout(ctx, Timeout)
 	defer cancel()
 
-	// stop server only if Full node  // TODO @renaynay: eventually we'll add the RPC server to the light node
-	if n.Type == Full {
-		err := n.RPCServer.Stop()
-		if err != nil {
-			log.Errorf("Stopping server: %s", err)
-			return err
-		}
-	}
-
 	err := n.app.Stop(ctx)
 	if err != nil {
 		log.Errorf("Stopping %s Node: %s", n.Type, err)
@@ -182,9 +164,7 @@ func newNode(tp Type, opts ...fx.Option) (*Node, error) {
 		fx.NopLogger,
 		fx.Extract(node),
 		fx.Options(opts...),
-		fx.Provide(func() Type {
-			return tp
-		}),
+		fx.Supply(tp),
 	)
 	return node, node.app.Err()
 }
