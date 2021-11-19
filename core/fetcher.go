@@ -4,9 +4,8 @@ import (
 	"context"
 	"fmt"
 
+	tmbytes "github.com/tendermint/tendermint/libs/bytes"
 	"github.com/tendermint/tendermint/types"
-
-	"github.com/celestiaorg/celestia-node/service/block"
 )
 
 const newBlockSubscriber = "NewBlock/Events"
@@ -16,7 +15,7 @@ var newBlockEventQuery = types.QueryForEvent(types.EventNewBlock).String()
 type BlockFetcher struct {
 	client Client
 
-	newBlockCh chan *block.RawBlock
+	newBlockCh chan *types.Block
 	doneCh     chan struct{}
 }
 
@@ -28,8 +27,16 @@ func NewBlockFetcher(client Client) *BlockFetcher {
 }
 
 // GetBlock queries Core for a `Block` at the given height.
-func (f *BlockFetcher) GetBlock(ctx context.Context, height *int64) (*block.RawBlock, error) {
+func (f *BlockFetcher) GetBlock(ctx context.Context, height *int64) (*types.Block, error) {
 	raw, err := f.client.Block(ctx, height)
+	if err != nil {
+		return nil, err
+	}
+	return raw.Block, nil
+}
+
+func (f *BlockFetcher) GetBlockByHash(ctx context.Context, hash tmbytes.HexBytes) (*types.Block, error) {
+	raw, err := f.client.BlockByHash(ctx, hash)
 	if err != nil {
 		return nil, err
 	}
@@ -58,7 +65,7 @@ func (f *BlockFetcher) ValidatorSet(ctx context.Context, height *int64) (*types.
 
 // SubscribeNewBlockEvent subscribes to new block events from Core, returning
 // a new block event channel on success.
-func (f *BlockFetcher) SubscribeNewBlockEvent(ctx context.Context) (<-chan *block.RawBlock, error) {
+func (f *BlockFetcher) SubscribeNewBlockEvent(ctx context.Context) (<-chan *types.Block, error) {
 	// start the client if not started yet
 	if !f.client.IsRunning() {
 		return nil, fmt.Errorf("client not running")
@@ -73,7 +80,7 @@ func (f *BlockFetcher) SubscribeNewBlockEvent(ctx context.Context) (<-chan *bloc
 		return nil, fmt.Errorf("new block event channel exists")
 	}
 
-	f.newBlockCh = make(chan *block.RawBlock)
+	f.newBlockCh = make(chan *types.Block)
 	f.doneCh = make(chan struct{})
 
 	go func() {

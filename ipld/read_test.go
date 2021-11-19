@@ -19,7 +19,6 @@ import (
 	"github.com/tendermint/tendermint/pkg/wrapper"
 
 	"github.com/celestiaorg/celestia-node/ipld/plugin"
-	"github.com/celestiaorg/celestia-node/service/header"
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/nmt/namespace"
 	"github.com/celestiaorg/rsmt2d"
@@ -139,8 +138,7 @@ func TestRetrieveBlockData(t *testing.T) {
 			ctx, cancel := context.WithTimeout(ctx, time.Second*2)
 			defer cancel()
 
-			dah, err := header.DataAvailabilityHeaderFromExtendedData(in)
-			require.NoError(t, err)
+			dah := da.NewDataAvailabilityHeader(in)
 
 			out, err := RetrieveData(ctx, &dah, dag, rsmt2d.NewRSGF8Codec())
 			require.NoError(t, err)
