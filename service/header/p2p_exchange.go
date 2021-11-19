@@ -41,11 +41,11 @@ func NewP2PExchange(host host.Host, peer *peer.AddrInfo, store Store) *P2PExchan
 	}
 }
 
-func (ex *P2PExchange) Start(ctx context.Context) error {
+func (ex *P2PExchange) Start(context.Context) error {
 	ex.host.SetStreamHandler(exchangeProtocolID, ex.requestHandler)
 	ex.ctx, ex.cancel = context.WithCancel(context.Background())
 	ex.connected = make(chan struct{})
-	go ex.connect(ctx)
+	go ex.connect(ex.ctx)
 	return nil
 }
 
