@@ -99,7 +99,7 @@ func (s *Syncer) getHead(ctx context.Context) (*ExtendedHeader, error) {
 	head, err := s.store.Head(ctx)
 	switch err {
 	case nil:
-		return head, err
+		return head, nil
 	case ErrNoHead:
 		// if there is no head - setup genesis.
 		genesis, err := s.exchange.RequestByHash(ctx, s.genesis)
@@ -113,9 +113,11 @@ func (s *Syncer) getHead(ctx context.Context) (*ExtendedHeader, error) {
 			log.Errorw("appending genesis to store", "err", err)
 			return nil, err
 		}
+
+		return genesis, nil
 	}
 
-	return head, err
+	return nil, err
 }
 
 // TODO(@Wondertan): Number of headers that can be requested at once. Either make this configurable or,
