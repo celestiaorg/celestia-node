@@ -8,11 +8,11 @@ import (
 	"github.com/libp2p/go-libp2p-core/network"
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/libp2p/go-libp2p-core/protocol"
-
 	tmbytes "github.com/tendermint/tendermint/libs/bytes"
 
-	pb "github.com/celestiaorg/celestia-node/service/header/pb"
 	"github.com/celestiaorg/go-libp2p-messenger/serde"
+
+	pb "github.com/celestiaorg/celestia-node/service/header/pb"
 )
 
 var exchangeProtocolID = protocol.ID("/header-exchange/v0.0.1")
@@ -23,22 +23,30 @@ type P2PExchange struct {
 	host host.Host
 	// TODO @renaynay: post-Devnet, we need to remove reliance of Exchange on one bootstrap peer
 	// Ref https://github.com/celestiaorg/celestia-node/issues/172#issuecomment-964306823.
-	peer  peer.ID
-	store Store
+	trustedPeer *peer.AddrInfo
+	store       Store
 
 	ctx    context.Context
 	cancel context.CancelFunc
 }
 
-func NewP2PExchange(host host.Host, peer peer.ID, store Store) *P2PExchange {
+func NewP2PExchange(host host.Host, peer *peer.AddrInfo, store Store) *P2PExchange {
 	return &P2PExchange{
-		host:  host,
-		peer:  peer,
-		store: store,
+		host:        host,
+		trustedPeer: peer,
+		store:       store,
 	}
 }
 
-func (ex *P2PExchange) Start(context.Context) error {
+func (ex *P2PExchange) Start(ctx context.Context) error {
+	if ex.trustedPeer != nil {
+		err := ex.host.Connect(ctx, *ex.trustedPeer)
+		if err != nil {
+			log.Errorw("connecting to trusted peer", "err", err)
+			log.Warn("HEADERS WONT BE SYNCHRONIZED - PLEASE RESTART WITH TRUSTED PEER BEING ONLINE")
+		}
+	}
+
 	ex.ctx, ex.cancel = context.WithCancel(context.Background())
 	ex.host.SetStreamHandler(exchangeProtocolID, ex.requestHandler)
 	return nil
@@ -197,7 +205,7 @@ func (ex *P2PExchange) RequestByHash(ctx context.Context, hash tmbytes.HexBytes)
 }
 
 func (ex *P2PExchange) performRequest(ctx context.Context, req *pb.ExtendedHeaderRequest) ([]*ExtendedHeader, error) {
-	stream, err := ex.host.NewStream(ctx, ex.peer, exchangeProtocolID)
+	stream, err := ex.host.NewStream(ctx, ex.trustedPeer.ID, exchangeProtocolID)
 	if err != nil {
 		return nil, err
 	}

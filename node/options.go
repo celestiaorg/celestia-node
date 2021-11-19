@@ -1,7 +1,5 @@
 package node
 
-import tmbytes "github.com/tendermint/tendermint/libs/bytes"
-
 // Options defines how to setup config
 type Options func(*Config)
 
@@ -14,8 +12,8 @@ func WithRemoteClient(protocol string, address string) Options {
 	}
 }
 
-func WithHead(hash tmbytes.HexBytes) Options {
+func WithGenesis(hash string) Options {
 	return func(args *Config) {
-		args.HeadHash = hash
+		args.Services.GenesisHash = hash
 	}
 }

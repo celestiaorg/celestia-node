@@ -69,7 +69,7 @@ func TestP2PExchange_Response_Head(t *testing.T) {
 	host, peer := net.Hosts()[0], net.Hosts()[1]
 	// create P2PExchange just to register the stream handler
 	store := createStore(t, 5)
-	ex := NewP2PExchange(host, peer.ID(), store)
+	ex := NewP2PExchange(host, libhost.InfoFromHost(peer), store)
 	err = ex.Start(ctx)
 	require.NoError(t, err)
 
@@ -108,7 +108,7 @@ func TestP2PExchange_RequestByHash(t *testing.T) {
 	host, peer := net.Hosts()[0], net.Hosts()[1]
 	// create P2PExchange just to register the stream handler
 	store := createStore(t, 5)
-	ex := NewP2PExchange(host, peer.ID(), store)
+	ex := NewP2PExchange(host, libhost.InfoFromHost(peer), store)
 	err = ex.Start(ctx)
 	require.NoError(t, err)
 
@@ -147,7 +147,7 @@ func TestExchange_Response_Single(t *testing.T) {
 	host, peer := net.Hosts()[0], net.Hosts()[1]
 	// create P2PExchange just to register the stream handler
 	store := createStore(t, 5)
-	ex := NewP2PExchange(host, peer.ID(), store)
+	ex := NewP2PExchange(host, libhost.InfoFromHost(peer), store)
 	err = ex.Start(ctx)
 	require.NoError(t, err)
 
@@ -186,7 +186,7 @@ func TestExchange_Response_Multiple(t *testing.T) {
 	host, peer := net.Hosts()[0], net.Hosts()[1]
 	// create P2PExchange just to register the stream handler
 	store := createStore(t, 5)
-	ex := NewP2PExchange(host, peer.ID(), store)
+	ex := NewP2PExchange(host, libhost.InfoFromHost(peer), store)
 	err = ex.Start(ctx)
 	require.NoError(t, err)
 
@@ -225,12 +225,12 @@ func createMocknet(ctx context.Context, t *testing.T) (libhost.Host, libhost.Hos
 func createExchangeWithMockStore(ctx context.Context, t *testing.T, host, peer libhost.Host) (Exchange, *mockStore) {
 	store := createStore(t, 5)
 	// create P2PExchange on peer side to handle requests
-	ex := NewP2PExchange(peer, host.ID(), store)
+	ex := NewP2PExchange(peer, libhost.InfoFromHost(host), store)
 	err := ex.Start(ctx)
 	require.NoError(t, err)
 
 	// create new P2PExchange
-	exchg := NewP2PExchange(host, peer.ID(), nil) // we don't need the store on the requesting side
+	exchg := NewP2PExchange(host, libhost.InfoFromHost(peer), nil) // we don't need the store on the requesting side
 	err = ex.Start(ctx)
 	require.NoError(t, err)
 	return exchg, store
