@@ -164,10 +164,8 @@ func (s *store) Append(ctx context.Context, headers ...*ExtendedHeader) error {
 		if err != nil {
 			return err
 		}
-		err = s.newHead(headers[len(headers)-1].Hash())
-		if err != nil {
-			return err
-		}
+
+		return s.newHead(headers[len(headers)-1].Hash())
 	case nil:
 	}
 
