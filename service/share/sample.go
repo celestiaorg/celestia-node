@@ -3,7 +3,6 @@ package share
 
 import (
 	crand "crypto/rand"
-	"fmt"
 	"math/big"
 )
 
@@ -38,7 +37,7 @@ func newSquareSampler(squareWidth int, expectedSamples int) *squareSampler {
 // generateSample randomly picks unique point on a 2D spaces.
 func (ss *squareSampler) generateSample(num int) error {
 	if num > ss.squareWidth*ss.squareWidth {
-		return fmt.Errorf("number of samples %d exceeds square width %d", num, ss.squareWidth)
+		num = ss.squareWidth
 	}
 
 	done := 0
