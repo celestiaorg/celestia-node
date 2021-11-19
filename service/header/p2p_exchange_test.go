@@ -231,7 +231,7 @@ func createExchangeWithMockStore(ctx context.Context, t *testing.T, host, peer l
 
 	// create new P2PExchange
 	exchg := NewP2PExchange(host, libhost.InfoFromHost(peer), nil) // we don't need the store on the requesting side
-	err = ex.Start(ctx)
+	err = exchg.Start(ctx)
 	require.NoError(t, err)
 	return exchg, store
 }

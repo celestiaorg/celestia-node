@@ -21,11 +21,13 @@ var exchangeProtocolID = protocol.ID("/header-ex/v0.0.1")
 // P2PExchange enables sending outbound ExtendedHeaderRequests to the network as well as
 // handling inbound ExtendedHeaderRequests from the network.
 type P2PExchange struct {
-	host host.Host
+	host  host.Host
+	store Store
+
 	// TODO @renaynay: post-Devnet, we need to remove reliance of Exchange on one bootstrap peer
 	// Ref https://github.com/celestiaorg/celestia-node/issues/172#issuecomment-964306823.
 	trustedPeer *peer.AddrInfo
-	store       Store
+	connected   chan struct{}
 
 	ctx    context.Context
 	cancel context.CancelFunc
@@ -34,15 +36,17 @@ type P2PExchange struct {
 func NewP2PExchange(host host.Host, peer *peer.AddrInfo, store Store) *P2PExchange {
 	return &P2PExchange{
 		host:        host,
-		trustedPeer: peer,
 		store:       store,
+		trustedPeer: peer,
 	}
 }
 
 func (ex *P2PExchange) Start(ctx context.Context) error {
-	ex.ctx, ex.cancel = context.WithCancel(context.Background())
 	ex.host.SetStreamHandler(exchangeProtocolID, ex.requestHandler)
-	return ex.connect(ctx)
+	ex.ctx, ex.cancel = context.WithCancel(context.Background())
+	ex.connected = make(chan struct{})
+	go ex.connect(ctx)
+	return nil
 }
 
 func (ex *P2PExchange) Stop(context.Context) error {
@@ -51,21 +55,27 @@ func (ex *P2PExchange) Stop(context.Context) error {
 	return nil
 }
 
-func (ex *P2PExchange) connect(ctx context.Context) error {
-	if ex.trustedPeer.ID == "" || ex.host.Network().Connectedness(ex.trustedPeer.ID) == network.Connected {
-		return nil
+func (ex *P2PExchange) connect(ctx context.Context) {
+	if ex.trustedPeer.ID == "" {
+		return
+	}
+
+	if ex.host.Network().Connectedness(ex.trustedPeer.ID) == network.Connected {
+		close(ex.connected)
+		return
 	}
 
 	err := ex.host.Connect(ctx, *ex.trustedPeer)
 	if err != nil {
 		log.Errorw("connecting to trusted peer", "err", err)
 		log.Warn("HEADERS WONT BE SYNCHRONIZED - PLEASE RESTART WITH TRUSTED PEER BEING ONLINE")
-		return err
+		return
 	}
 
 	sub, err := ex.host.EventBus().Subscribe(new(event.EvtPeerIdentificationCompleted))
 	if err != nil {
-		return err
+		log.Error("subscribing for EvtPeerIdentificationCompleted")
+		return
 	}
 	defer sub.Close()
 
@@ -73,10 +83,11 @@ func (ex *P2PExchange) connect(ctx context.Context) error {
 		select {
 		case evt := <-sub.Out():
 			if evt.(*event.EvtPeerIdentificationCompleted).Peer == ex.trustedPeer.ID {
-				return nil
+				close(ex.connected)
+				return
 			}
 		case <-ctx.Done():
-			return ctx.Err()
+			return
 		}
 	}
 }
@@ -228,6 +239,12 @@ func (ex *P2PExchange) RequestByHash(ctx context.Context, hash tmbytes.HexBytes)
 }
 
 func (ex *P2PExchange) performRequest(ctx context.Context, req *pb.ExtendedHeaderRequest) ([]*ExtendedHeader, error) {
+	select {
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	case <-ex.connected:
+	}
+
 	stream, err := ex.host.NewStream(ctx, ex.trustedPeer.ID, exchangeProtocolID)
 	if err != nil {
 		return nil, err
