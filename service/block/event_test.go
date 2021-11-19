@@ -51,7 +51,7 @@ func TestEventLoop(t *testing.T) {
 }
 
 func TestExtendedHeaderBroadcast(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second * 15)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*15)
 	defer cancel()
 
 	suite := header.NewTestSuite(t, 3)
