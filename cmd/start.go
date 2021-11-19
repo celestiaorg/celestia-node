@@ -2,11 +2,13 @@ package cmd
 
 import (
 	"errors"
+	"fmt"
 	"net"
 	"net/url"
 	"os/signal"
 	"syscall"
 
+	logging "github.com/ipfs/go-log/v2"
 	"github.com/spf13/cobra"
 
 	"github.com/celestiaorg/celestia-node/node"
@@ -23,6 +25,7 @@ func Start(repoName string, tp node.Type) *cobra.Command {
 	}
 
 	const cfgAddress = "core.remote"
+	const loglevel = "log.level"
 	cmd := &cobra.Command{
 		Use:          "start",
 		Short:        "Starts Node daemon. First stopping signal gracefully stops the Node and second terminates it.",
@@ -30,6 +33,12 @@ func Start(repoName string, tp node.Type) *cobra.Command {
 		Args:         cobra.NoArgs,
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			level, err := logging.LevelFromString(cmd.Flag(loglevel).Value.String())
+			if err != nil {
+				return fmt.Errorf("while setting log level: %w", err)
+			}
+			logging.SetAllLoggers(level)
+
 			// **DEV MODE** needs separate configuration
 			if tp == node.Dev {
 				repo := node.NewMemRepository()
@@ -63,6 +72,11 @@ func Start(repoName string, tp node.Type) *cobra.Command {
 	}
 
 	cmd.Flags().String(cfgAddress, "", "Indicates node to connect to the given remote core node")
+	cmd.Flags().String(
+		loglevel,
+		"info",
+		"DEBUG, INFO, WARN, ERROR, DPANIC, PANIC, FATAL, and\n// their lower-case forms.",
+	)
 	return cmd
 }
 
