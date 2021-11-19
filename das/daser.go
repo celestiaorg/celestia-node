@@ -30,7 +30,7 @@ func NewDASer(da share.Availability, hsub header.Subscriber) *DASer {
 }
 
 // Start initiates subscription for new ExtendedHeaders and spawns a sampling routine.
-func (d *DASer) Start() error {
+func (d *DASer) Start(context.Context) error {
 	if d.cancel != nil {
 		return fmt.Errorf("da: DASer already started")
 	}
@@ -47,7 +47,7 @@ func (d *DASer) Start() error {
 }
 
 // Stop stops sampling.
-func (d *DASer) Stop() error {
+func (d *DASer) Stop(context.Context) error {
 	if d.cancel == nil {
 		return fmt.Errorf("da: DASer already stopped")
 	}

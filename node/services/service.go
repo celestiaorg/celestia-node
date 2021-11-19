@@ -102,8 +102,13 @@ func ShareService(lc fx.Lifecycle, dag ipld.DAGService, avail share.Availability
 }
 
 // DASer constructs a new Data Availability Sampler.
-func DASer(avail share.Availability, service *header.Service) *das.DASer {
-	return das.NewDASer(avail, service)
+func DASer(lc fx.Lifecycle, avail share.Availability, service *header.Service) *das.DASer {
+	das := das.NewDASer(avail, service)
+	lc.Append(fx.Hook{
+		OnStart: das.Start,
+		OnStop:  das.Stop,
+	})
+	return das
 }
 
 // LightAvailability constructs light share availability.
