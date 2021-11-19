@@ -28,39 +28,59 @@ func NewBlockFetcher(client Client) *BlockFetcher {
 
 // GetBlock queries Core for a `Block` at the given height.
 func (f *BlockFetcher) GetBlock(ctx context.Context, height *int64) (*types.Block, error) {
-	raw, err := f.client.Block(ctx, height)
+	res, err := f.client.Block(ctx, height)
 	if err != nil {
 		return nil, err
 	}
-	return raw.Block, nil
+
+	if res != nil && res.Block == nil  {
+		return nil, fmt.Errorf("core/fetcher: block not found")
+	}
+
+	return res.Block, nil
 }
 
 func (f *BlockFetcher) GetBlockByHash(ctx context.Context, hash tmbytes.HexBytes) (*types.Block, error) {
-	raw, err := f.client.BlockByHash(ctx, hash)
+	res, err := f.client.BlockByHash(ctx, hash)
 	if err != nil {
 		return nil, err
 	}
-	return raw.Block, nil
+
+	if res != nil && res.Block == nil  {
+		return nil, fmt.Errorf("core/fetcher: block not found")
+	}
+
+	return res.Block, nil
 }
 
 // Commit queries Core for a `Commit` from the block at
 // the given height.
 func (f *BlockFetcher) Commit(ctx context.Context, height *int64) (*types.Commit, error) {
-	commit, err := f.client.Commit(ctx, height)
+	res, err := f.client.Commit(ctx, height)
 	if err != nil {
 		return nil, err
 	}
-	return commit.Commit, nil
+
+	if res != nil && res.Commit == nil  {
+		return nil, fmt.Errorf("core/fetcher: commit not found")
+	}
+
+	return res.Commit, nil
 }
 
 // ValidatorSet queries Core for the ValidatorSet from the
 // block at the given height.
 func (f *BlockFetcher) ValidatorSet(ctx context.Context, height *int64) (*types.ValidatorSet, error) {
-	vals, err := f.client.Validators(ctx, height, nil, nil)
+	res, err := f.client.Validators(ctx, height, nil, nil)
 	if err != nil {
 		return nil, err
 	}
-	return types.NewValidatorSet(vals.Validators), nil
+
+	if res != nil && res.Validators == nil  {
+		return nil, fmt.Errorf("core/fetcher: validators not found")
+	}
+
+	return types.NewValidatorSet(res.Validators), nil
 }
 
 // SubscribeNewBlockEvent subscribes to new block events from Core, returning
