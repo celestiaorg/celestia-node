@@ -149,7 +149,7 @@ func (ex *P2PExchange) handleRequest(from, to uint64, stream network.Stream) {
 }
 
 func (ex *P2PExchange) RequestHead(ctx context.Context) (*ExtendedHeader, error) {
-	log.Debug("requesting head")
+	log.Debug("p2p: requesting head")
 	// create request
 	req := &pb.ExtendedHeaderRequest{
 		Origin: uint64(0),
@@ -163,7 +163,7 @@ func (ex *P2PExchange) RequestHead(ctx context.Context) (*ExtendedHeader, error)
 }
 
 func (ex *P2PExchange) RequestHeader(ctx context.Context, height uint64) (*ExtendedHeader, error) {
-	log.Debugw("requesting header", "height", height)
+	log.Debugw("p2p: requesting header", "height", height)
 	// sanity check height
 	if height == 0 {
 		return nil, fmt.Errorf("specified request height must be greater than 0")
@@ -181,7 +181,7 @@ func (ex *P2PExchange) RequestHeader(ctx context.Context, height uint64) (*Exten
 }
 
 func (ex *P2PExchange) RequestHeaders(ctx context.Context, from, amount uint64) ([]*ExtendedHeader, error) {
-	log.Debugw("requesting headers", "from", from, "to", from+amount)
+	log.Debugw("p2p: requesting headers", "from", from, "to", from+amount)
 	// create request
 	req := &pb.ExtendedHeaderRequest{
 		Origin: from,
@@ -191,7 +191,7 @@ func (ex *P2PExchange) RequestHeaders(ctx context.Context, from, amount uint64) 
 }
 
 func (ex *P2PExchange) RequestByHash(ctx context.Context, hash tmbytes.HexBytes) (*ExtendedHeader, error) {
-	log.Debugw("requesting header", "hash", hash.String())
+	log.Debugw("p2p: requesting header", "hash", hash.String())
 	// create request
 	req := &pb.ExtendedHeaderRequest{
 		Hash:   hash.Bytes(),

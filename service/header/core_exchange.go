@@ -30,6 +30,7 @@ func NewCoreExchange(fetcher *core.BlockFetcher, dag format.DAGService) *CoreExc
 }
 
 func (ce *CoreExchange) RequestHeader(ctx context.Context, height uint64) (*ExtendedHeader, error) {
+	log.Debugw("core: requesting header", "height", height)
 	intHeight := int64(height) + 1
 	block, err := ce.fetcher.GetBlock(ctx, &intHeight)
 	if err != nil {
@@ -38,10 +39,11 @@ func (ce *CoreExchange) RequestHeader(ctx context.Context, height uint64) (*Exte
 	return ce.generateExtendedHeaderFromBlock(block)
 }
 
-func (ce *CoreExchange) RequestHeaders(ctx context.Context, origin, amount uint64) ([]*ExtendedHeader, error) {
+func (ce *CoreExchange) RequestHeaders(ctx context.Context, from, amount uint64) ([]*ExtendedHeader, error) {
+	log.Debugw("core: requesting headers", "from", from, "to", from+amount)
 	headers := make([]*ExtendedHeader, amount)
 	for i := range headers {
-		extHeader, err := ce.RequestHeader(ctx, origin+uint64(i))
+		extHeader, err := ce.RequestHeader(ctx, from+uint64(i))
 		if err != nil {
 			return nil, err
 		}
@@ -53,6 +55,7 @@ func (ce *CoreExchange) RequestHeaders(ctx context.Context, origin, amount uint6
 }
 
 func (ce *CoreExchange) RequestByHash(ctx context.Context, hash tmbytes.HexBytes) (*ExtendedHeader, error) {
+	log.Debugw("core: requesting header", "hash", hash.String())
 	block, err := ce.fetcher.GetBlockByHash(ctx, hash)
 	if err != nil {
 		return nil, err
@@ -61,6 +64,7 @@ func (ce *CoreExchange) RequestByHash(ctx context.Context, hash tmbytes.HexBytes
 }
 
 func (ce *CoreExchange) RequestHead(ctx context.Context) (*ExtendedHeader, error) {
+	log.Debug("core: requesting head")
 	chainHead, err := ce.fetcher.GetBlock(ctx, nil)
 	if err != nil {
 		return nil, err
