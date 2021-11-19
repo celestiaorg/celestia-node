@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/libp2p/go-libp2p-core/event"
 	"github.com/libp2p/go-libp2p-core/host"
 	"github.com/libp2p/go-libp2p-core/network"
 	"github.com/libp2p/go-libp2p-core/peer"
@@ -15,7 +16,7 @@ import (
 	pb "github.com/celestiaorg/celestia-node/service/header/pb"
 )
 
-var exchangeProtocolID = protocol.ID("/header-exchange/v0.0.1")
+var exchangeProtocolID = protocol.ID("/header-ex/v0.0.1")
 
 // P2PExchange enables sending outbound ExtendedHeaderRequests to the network as well as
 // handling inbound ExtendedHeaderRequests from the network.
@@ -41,22 +42,43 @@ func NewP2PExchange(host host.Host, peer *peer.AddrInfo, store Store) *P2PExchan
 func (ex *P2PExchange) Start(ctx context.Context) error {
 	ex.ctx, ex.cancel = context.WithCancel(context.Background())
 	ex.host.SetStreamHandler(exchangeProtocolID, ex.requestHandler)
-
-	if ex.trustedPeer != nil {
-		err := ex.host.Connect(ctx, *ex.trustedPeer)
-		if err != nil {
-			log.Errorw("connecting to trusted peer", "err", err)
-			log.Warn("HEADERS WONT BE SYNCHRONIZED - PLEASE RESTART WITH TRUSTED PEER BEING ONLINE")
-		}
-	}
-
-	return nil
+	return ex.connect(ctx)
 }
 
 func (ex *P2PExchange) Stop(context.Context) error {
 	ex.cancel()
 	ex.host.RemoveStreamHandler(exchangeProtocolID)
 	return nil
+}
+
+func (ex *P2PExchange) connect(ctx context.Context) error {
+	if ex.trustedPeer.ID == "" || ex.host.Network().Connectedness(ex.trustedPeer.ID) == network.Connected {
+		return nil
+	}
+
+	err := ex.host.Connect(ctx, *ex.trustedPeer)
+	if err != nil {
+		log.Errorw("connecting to trusted peer", "err", err)
+		log.Warn("HEADERS WONT BE SYNCHRONIZED - PLEASE RESTART WITH TRUSTED PEER BEING ONLINE")
+		return err
+	}
+
+	sub, err := ex.host.EventBus().Subscribe(new(event.EvtPeerIdentificationCompleted))
+	if err != nil {
+		return err
+	}
+	defer sub.Close()
+
+	for {
+		select {
+		case evt := <-sub.Out():
+			if evt.(*event.EvtPeerIdentificationCompleted).Peer == ex.trustedPeer.ID {
+				return nil
+			}
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+	}
 }
 
 // requestHandler handles inbound ExtendedHeaderRequests.
