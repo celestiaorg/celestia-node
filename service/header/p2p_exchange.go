@@ -39,6 +39,9 @@ func NewP2PExchange(host host.Host, peer *peer.AddrInfo, store Store) *P2PExchan
 }
 
 func (ex *P2PExchange) Start(ctx context.Context) error {
+	ex.ctx, ex.cancel = context.WithCancel(context.Background())
+	ex.host.SetStreamHandler(exchangeProtocolID, ex.requestHandler)
+
 	if ex.trustedPeer != nil {
 		err := ex.host.Connect(ctx, *ex.trustedPeer)
 		if err != nil {
@@ -47,8 +50,6 @@ func (ex *P2PExchange) Start(ctx context.Context) error {
 		}
 	}
 
-	ex.ctx, ex.cancel = context.WithCancel(context.Background())
-	ex.host.SetStreamHandler(exchangeProtocolID, ex.requestHandler)
 	return nil
 }
 
