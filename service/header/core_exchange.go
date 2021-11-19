@@ -5,15 +5,16 @@ import (
 	"math"
 
 	format "github.com/ipfs/go-ipld-format"
-
+	tmbytes "github.com/tendermint/tendermint/libs/bytes"
 	"github.com/tendermint/tendermint/pkg/da"
 	"github.com/tendermint/tendermint/pkg/wrapper"
 	"github.com/tendermint/tendermint/types"
 
-	"github.com/celestiaorg/celestia-node/core"
-	"github.com/celestiaorg/celestia-node/ipld"
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/rsmt2d"
+
+	"github.com/celestiaorg/celestia-node/core"
+	"github.com/celestiaorg/celestia-node/ipld"
 )
 
 type CoreExchange struct {
@@ -51,7 +52,7 @@ func (ce *CoreExchange) RequestHeaders(ctx context.Context, origin, amount uint6
 	return headers, nil
 }
 
-func (ce *CoreExchange) RequestByHash(ctx context.Context, hash []byte) (*ExtendedHeader, error) {
+func (ce *CoreExchange) RequestByHash(ctx context.Context, hash tmbytes.HexBytes) (*ExtendedHeader, error) {
 	block, err := ce.fetcher.GetBlockByHash(ctx, hash)
 	if err != nil {
 		return nil, err
@@ -80,14 +81,16 @@ func (ce *CoreExchange) generateExtendedHeaderFromBlock(block *types.Block) (*Ex
 	// create ExtendedHeader
 	commit, err := ce.fetcher.Commit(context.Background(), &block.Height)
 	if err != nil {
-		log.Errorw("fetching commit", "err", err.Error(), "height", block.Height)
+		log.Errorw("fetching commit", "err", err, "height", block.Height)
 		return nil, err
 	}
+
 	valSet, err := ce.fetcher.ValidatorSet(context.Background(), &block.Height)
 	if err != nil {
-		log.Errorw("fetching validator set", "err", err.Error(), "height", block.Height)
+		log.Errorw("fetching validator set", "err", err, "height", block.Height)
 		return nil, err
 	}
+
 	return &ExtendedHeader{
 		RawHeader:    block.Header,
 		DAH:          &dah,
