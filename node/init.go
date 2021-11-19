@@ -11,9 +11,16 @@ import (
 )
 
 // Init initializes the Node FileSystem Repository for the given Node Type 'tp' in the directory under 'path' with
-// default Config.
-func Init(path string, tp Type) error {
-	return InitWith(path, tp, DefaultConfig(tp))
+// default Config. Options are applied over default Config and persisted on disk.
+func Init(path string, tp Type, options ...Option) error {
+	cfg := DefaultConfig(tp)
+	for _, option := range options {
+		if option != nil {
+			option(cfg)
+		}
+	}
+
+	return InitWith(path, tp, cfg)
 }
 
 // InitWith initializes the Node FileSystem Repository for the given Node Type 'tp' in the directory under 'path'
