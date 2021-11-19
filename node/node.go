@@ -62,6 +62,7 @@ type Node struct {
 	BlockServ  *block.Service  `optional:"true"`
 	ShareServ  share.Service   // not optional
 	HeaderServ *header.Service // not optional
+	P2PExchange *header.P2PExchange `optional:"true"`
 
 	DASer *das.DASer `optional:"true"`
 }

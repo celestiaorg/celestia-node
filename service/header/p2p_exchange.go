@@ -47,6 +47,7 @@ func NewP2PExchange(host host.Host, peer *peer.AddrInfo, store Store) *P2PExchan
 }
 
 func (ex *P2PExchange) Start(ctx context.Context) error {
+	log.Info("starting p2p exchange")
 	ex.ctx, ex.cancel = context.WithCancel(context.Background())
 
 	if ex.trustedPeer.ID != "" {
@@ -66,6 +67,7 @@ func (ex *P2PExchange) Start(ctx context.Context) error {
 }
 
 func (ex *P2PExchange) Stop(context.Context) error {
+	log.Info("stopping p2p exchange")
 	ex.cancel()
 	ex.host.RemoveStreamHandler(exchangeProtocolID)
 	return nil
