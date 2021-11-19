@@ -25,13 +25,24 @@ func Start(repoName string, tp node.Type) *cobra.Command {
 	}
 
 	const (
+<<<<<<< HEAD
 		cfgAddress = "core.remote"
 		loglevel   = "log.level"
 		genesis    = "genesis"
+=======
+		loglevel    = "log.level"
+		nodeConfig  = "node.config"
+		genesis     = "headers.genesis-hash"
+		trustedPeer = "headers.trusted-peer"
+		coreRemote  = "core.remote"
+>>>>>>> 688248b (feat(cmd): add flags to start)
 	)
 	cmd := &cobra.Command{
-		Use:          "start",
-		Short:        "Starts Node daemon. First stopping signal gracefully stops the Node and second terminates it.",
+		Use: "start",
+		Short: `
+			Starts Node daemon. First stopping signal gracefully stops the Node and second terminates it.
+			Passed actions have effect only ont this start and not persisted. 
+		`,
 		Aliases:      []string{"run", "daemon"},
 		Args:         cobra.NoArgs,
 		SilenceUsage: true,
@@ -54,42 +65,55 @@ func Start(repoName string, tp node.Type) *cobra.Command {
 			}
 
 			repoPath := cmd.Flag(repoName).Value.String()
+			nodeConfig := cmd.Flag(nodeConfig).Value.String()
+			coreRemote := cmd.Flag(coreRemote).Value.String()
+			genesis := cmd.Flag(genesis).Value.String()
+			trustedPeer := cmd.Flag(trustedPeer).Value.String()
+
+			var opts []node.Option
+			if genesis != "" {
+				opts = append(opts, node.WithGenesis(genesis))
+			}
+			if trustedPeer != "" {
+				opts = append(opts, node.WithTrustedPeer(trustedPeer))
+			}
+			if coreRemote != "" {
+				protocol, ip, err := parseAddress(coreRemote)
+				if err != nil {
+					return err
+				}
+				opts = append(opts, node.WithRemoteCore(protocol, ip))
+			}
+			if nodeConfig != "" {
+				cfg, err := node.LoadConfig(nodeConfig)
+				if err != nil {
+					return err
+				}
+				opts = append(opts, node.WithConfig(cfg))
+			}
 
 			repo, err := node.Open(repoPath, tp)
 			if err != nil {
 				return err
 			}
 
-			address := cmd.Flag(cfgAddress).Value.String()
-			opts := make([]node.Options, 0)
-			if address != "" {
-				protocol, ip, err := parseAddress(address)
-				if err != nil {
-					return err
-				}
-				opts = append(opts, node.WithRemoteClient(protocol, ip))
-			}
-
-			genesisHash := cmd.Flag(genesis).Value.String()
-			if genesisHash != "" {
-				opts = append(opts, node.WithGenesis(genesisHash))
-			}
-
 			return start(cmd, tp, repo, opts...)
 		},
 	}
 
-	cmd.Flags().String(cfgAddress, "", "Indicates node to connect to the given remote core node")
 	cmd.Flags().String(
 		loglevel,
 		"info",
 		"DEBUG, INFO, WARN, ERROR, DPANIC, PANIC, FATAL, and\n// their lower-case forms.",
 	)
+	cmd.Flags().StringP(nodeConfig, "c", "", "Path to a customized Config.")
 	cmd.Flags().String(genesis, "", "Hex encoded block hash. Starting point for header synchronization.")
+	cmd.Flags().String(trustedPeer, "", "Multiaddr of a reliable peer to fetch headers from.")
+	cmd.Flags().String(coreRemote, "", "Indicates node to connect to the given remote core node.")
 	return cmd
 }
 
-func start(cmd *cobra.Command, tp node.Type, repo node.Repository, opts ...node.Options) error {
+func start(cmd *cobra.Command, tp node.Type, repo node.Repository, opts ...node.Option) error {
 	nd, err := node.New(tp, repo, opts...)
 	if err != nil {
 		return err
