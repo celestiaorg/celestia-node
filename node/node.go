@@ -67,7 +67,7 @@ type Node struct {
 }
 
 // New assembles a new Node with the given type 'tp' over Repository 'repo'.
-func New(tp Type, repo Repository, options ...Options) (*Node, error) {
+func New(tp Type, repo Repository, options ...Option) (*Node, error) {
 	cfg, err := repo.Config()
 	if err != nil {
 		return nil, err

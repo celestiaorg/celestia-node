@@ -106,7 +106,7 @@ func TestFull_WithRemoteCore(t *testing.T) {
 	require.NotNil(t, remoteCore)
 	assert.True(t, remoteCore.IsRunning())
 
-	node, err := New(Full, repo, WithRemoteClient(protocol, ip))
+	node, err := New(Full, repo, WithRemoteCore(protocol, ip))
 	require.NoError(t, err)
 	require.NotNil(t, node)
 	assert.True(t, node.CoreClient.IsRunning())
@@ -132,7 +132,7 @@ func TestFull_WithRemoteCoreFailed(t *testing.T) {
 	require.NotNil(t, remoteCore)
 	assert.True(t, remoteCore.IsRunning())
 
-	node, err := New(Full, repo, WithRemoteClient(protocol, ip))
+	node, err := New(Full, repo, WithRemoteCore(protocol, ip))
 	require.NoError(t, err)
 	require.NotNil(t, node)
 
