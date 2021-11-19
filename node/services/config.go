@@ -40,5 +40,5 @@ func (cfg *Config) trustedPeer() (*peer.AddrInfo, error) {
 }
 
 func (cfg *Config) genesis() (tmbytes.HexBytes, error) {
-	return hex.DecodeString(cfg.TrustedPeer)
+	return hex.DecodeString(cfg.GenesisHash)
 }
