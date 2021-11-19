@@ -7,6 +7,7 @@ import (
 	ipld "github.com/ipfs/go-ipld-format"
 	"github.com/ipfs/go-merkledag"
 	"github.com/libp2p/go-libp2p-core/host"
+	"github.com/libp2p/go-libp2p-core/peer"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	"go.uber.org/fx"
 
@@ -59,6 +60,15 @@ func HeaderExchangeP2P(cfg Config) func(
 		})
 		return ex, nil
 	}
+}
+
+func HeaderExchangeP2PServer(lc fx.Lifecycle, host host.Host, store header.Store) *header.P2PExchange {
+	ex := header.NewP2PExchange(host, &peer.AddrInfo{}, store)
+	lc.Append(fx.Hook{
+		OnStart: ex.Start,
+		OnStop:  ex.Stop,
+	})
+	return ex
 }
 
 // HeaderStore creates new header.Store.

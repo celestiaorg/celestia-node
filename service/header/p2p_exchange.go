@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/libp2p/go-libp2p-core/event"
 	"github.com/libp2p/go-libp2p-core/host"
 	"github.com/libp2p/go-libp2p-core/network"
 	"github.com/libp2p/go-libp2p-core/peer"
@@ -27,7 +26,6 @@ type P2PExchange struct {
 	// TODO @renaynay: post-Devnet, we need to remove reliance of Exchange on one bootstrap peer
 	// Ref https://github.com/celestiaorg/celestia-node/issues/172#issuecomment-964306823.
 	trustedPeer *peer.AddrInfo
-	connected   chan struct{}
 
 	ctx    context.Context
 	cancel context.CancelFunc
@@ -41,11 +39,18 @@ func NewP2PExchange(host host.Host, peer *peer.AddrInfo, store Store) *P2PExchan
 	}
 }
 
-func (ex *P2PExchange) Start(context.Context) error {
+func (ex *P2PExchange) Start(ctx context.Context) error {
 	ex.host.SetStreamHandler(exchangeProtocolID, ex.requestHandler)
 	ex.ctx, ex.cancel = context.WithCancel(context.Background())
-	ex.connected = make(chan struct{})
-	go ex.connect(ex.ctx)
+
+	if ex.trustedPeer.ID != "" {
+		err := ex.host.Connect(ctx, *ex.trustedPeer)
+		if err != nil {
+			log.Errorw("connecting to trusted peer", "err", err)
+			log.Warn("HEADERS WONT BE SYNCHRONIZED - PLEASE RESTART WITH TRUSTED PEER BEING ONLINE")
+		}
+	}
+
 	return nil
 }
 
@@ -53,43 +58,6 @@ func (ex *P2PExchange) Stop(context.Context) error {
 	ex.cancel()
 	ex.host.RemoveStreamHandler(exchangeProtocolID)
 	return nil
-}
-
-func (ex *P2PExchange) connect(ctx context.Context) {
-	if ex.trustedPeer.ID == "" {
-		return
-	}
-
-	if ex.host.Network().Connectedness(ex.trustedPeer.ID) == network.Connected {
-		close(ex.connected)
-		return
-	}
-
-	err := ex.host.Connect(ctx, *ex.trustedPeer)
-	if err != nil {
-		log.Errorw("connecting to trusted peer", "err", err)
-		log.Warn("HEADERS WONT BE SYNCHRONIZED - PLEASE RESTART WITH TRUSTED PEER BEING ONLINE")
-		return
-	}
-
-	sub, err := ex.host.EventBus().Subscribe(new(event.EvtPeerIdentificationCompleted))
-	if err != nil {
-		log.Error("subscribing for EvtPeerIdentificationCompleted")
-		return
-	}
-	defer sub.Close()
-
-	for {
-		select {
-		case evt := <-sub.Out():
-			if evt.(*event.EvtPeerIdentificationCompleted).Peer == ex.trustedPeer.ID {
-				close(ex.connected)
-				return
-			}
-		case <-ctx.Done():
-			return
-		}
-	}
 }
 
 // requestHandler handles inbound ExtendedHeaderRequests.
@@ -239,12 +207,6 @@ func (ex *P2PExchange) RequestByHash(ctx context.Context, hash tmbytes.HexBytes)
 }
 
 func (ex *P2PExchange) performRequest(ctx context.Context, req *pb.ExtendedHeaderRequest) ([]*ExtendedHeader, error) {
-	select {
-	case <-ctx.Done():
-		return nil, ctx.Err()
-	case <-ex.connected:
-	}
-
 	stream, err := ex.host.NewStream(ctx, ex.trustedPeer.ID, exchangeProtocolID)
 	if err != nil {
 		return nil, err
