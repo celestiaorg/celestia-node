@@ -33,7 +33,7 @@ func (f *BlockFetcher) GetBlock(ctx context.Context, height *int64) (*types.Bloc
 		return nil, err
 	}
 
-	if res != nil && res.Block == nil  {
+	if res != nil && res.Block == nil {
 		return nil, fmt.Errorf("core/fetcher: block not found")
 	}
 
@@ -46,7 +46,7 @@ func (f *BlockFetcher) GetBlockByHash(ctx context.Context, hash tmbytes.HexBytes
 		return nil, err
 	}
 
-	if res != nil && res.Block == nil  {
+	if res != nil && res.Block == nil {
 		return nil, fmt.Errorf("core/fetcher: block not found")
 	}
 
@@ -61,7 +61,7 @@ func (f *BlockFetcher) Commit(ctx context.Context, height *int64) (*types.Commit
 		return nil, err
 	}
 
-	if res != nil && res.Commit == nil  {
+	if res != nil && res.Commit == nil {
 		return nil, fmt.Errorf("core/fetcher: commit not found")
 	}
 
@@ -76,7 +76,7 @@ func (f *BlockFetcher) ValidatorSet(ctx context.Context, height *int64) (*types.
 		return nil, err
 	}
 
-	if res != nil && res.Validators == nil  {
+	if res != nil && res.Validators == nil {
 		return nil, fmt.Errorf("core/fetcher: validators not found")
 	}
 
