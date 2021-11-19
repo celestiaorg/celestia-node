@@ -11,6 +11,7 @@ import (
 	logging "github.com/ipfs/go-log/v2"
 	"github.com/spf13/cobra"
 
+	"github.com/celestiaorg/celestia-node/logs"
 	"github.com/celestiaorg/celestia-node/node"
 )
 
@@ -45,7 +46,7 @@ func Start(repoName string, tp node.Type) *cobra.Command {
 			if err != nil {
 				return fmt.Errorf("while setting log level: %w", err)
 			}
-			logging.SetAllLoggers(level)
+			logs.SetAllLoggers(level)
 
 			// **DEV MODE** needs separate configuration
 			if tp == node.Dev {
