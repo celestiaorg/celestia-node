@@ -25,17 +25,11 @@ func Start(repoName string, tp node.Type) *cobra.Command {
 	}
 
 	const (
-<<<<<<< HEAD
-		cfgAddress = "core.remote"
-		loglevel   = "log.level"
-		genesis    = "genesis"
-=======
 		loglevel    = "log.level"
 		nodeConfig  = "node.config"
 		genesis     = "headers.genesis-hash"
 		trustedPeer = "headers.trusted-peer"
 		coreRemote  = "core.remote"
->>>>>>> 688248b (feat(cmd): add flags to start)
 	)
 	cmd := &cobra.Command{
 		Use: "start",
