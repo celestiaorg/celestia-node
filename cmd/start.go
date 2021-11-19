@@ -11,8 +11,6 @@ import (
 	logging "github.com/ipfs/go-log/v2"
 	"github.com/spf13/cobra"
 
-	tmbytes "github.com/tendermint/tendermint/libs/bytes"
-
 	"github.com/celestiaorg/celestia-node/node"
 )
 
@@ -28,8 +26,8 @@ func Start(repoName string, tp node.Type) *cobra.Command {
 
 	const (
 		cfgAddress = "core.remote"
-		headHash   = "head"
 		loglevel = "log.level"
+		genesis    = "genesis"
 	)
 	cmd := &cobra.Command{
 		Use:          "start",
@@ -72,9 +70,9 @@ func Start(repoName string, tp node.Type) *cobra.Command {
 				opts = append(opts, node.WithRemoteClient(protocol, ip))
 			}
 
-			headHash := cmd.Flag(headHash).Value.String()
-			if headHash != "" {
-				opts = append(opts, node.WithHead(tmbytes.HexBytes(headHash)))
+			genesisHash := cmd.Flag(genesis).Value.String()
+			if genesisHash != "" {
+				opts = append(opts, node.WithGenesis(genesisHash))
 			}
 
 			return start(cmd, tp, repo, opts...)
@@ -87,7 +85,7 @@ func Start(repoName string, tp node.Type) *cobra.Command {
 		"info",
 		"DEBUG, INFO, WARN, ERROR, DPANIC, PANIC, FATAL, and\n// their lower-case forms.",
 	)
-	cmd.Flags().String(headHash, "", "genesis block header hash with which to initialize the node")
+	cmd.Flags().String(genesis, "", "Hex encoded block hash. Starting point for header synchronization.")
 	return cmd
 }
 
