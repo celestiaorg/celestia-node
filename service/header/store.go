@@ -71,25 +71,23 @@ func newStore(ds datastore.Batching) (*store, error) {
 	}, nil
 }
 
-func (s *store) Open(context.Context) error {
-	err := s.loadHead()
-	if err == datastore.ErrNotFound {
-		return ErrNoHead
-	}
-
-	return err
-}
-
 func (s *store) Head(ctx context.Context) (*ExtendedHeader, error) {
 	s.headLk.RLock()
 	head := s.head
 	s.headLk.RUnlock()
-
-	if head == nil {
-		return nil, ErrNoHead
+	if head != nil {
+		return s.Get(ctx, head)
 	}
 
-	return s.Get(ctx, head)
+	err := s.loadHead()
+	switch err {
+	default:
+		return nil, err
+	case datastore.ErrNotFound:
+		return nil, ErrNoHead
+	case nil:
+		return s.Get(ctx, s.head)
+	}
 }
 
 func (s *store) Get(_ context.Context, hash bytes.HexBytes) (*ExtendedHeader, error) {
@@ -230,10 +228,6 @@ func (s *store) put(headers ...*ExtendedHeader) error {
 func (s *store) loadHead() error {
 	s.headLk.Lock()
 	defer s.headLk.Unlock()
-
-	if s.head != nil {
-		return nil
-	}
 
 	b, err := s.ds.Get(headKey)
 	if err != nil {

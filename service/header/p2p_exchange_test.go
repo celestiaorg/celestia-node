@@ -255,10 +255,6 @@ func createStore(t *testing.T, numHeaders int) *mockStore {
 	return store
 }
 
-func (m *mockStore) Open(context.Context) error {
-	return nil
-}
-
 func (m *mockStore) Head(context.Context) (*ExtendedHeader, error) {
 	if m.head == nil {
 		return nil, ErrNoHead
