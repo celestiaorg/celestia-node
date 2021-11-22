@@ -218,7 +218,7 @@ func TestExchange_Response_Multiple(t *testing.T) {
 }
 
 func createMocknet(ctx context.Context, t *testing.T) (libhost.Host, libhost.Host) {
-	net, err := mocknet.FullMeshConnected(ctx, 2)
+	net, err := mocknet.FullMeshLinked(ctx, 2)
 	require.NoError(t, err)
 	// get host and peer
 	return net.Hosts()[0], net.Hosts()[1]
