@@ -18,10 +18,10 @@ import (
 
 func TestP2PExchange_RequestHead(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	t.Cleanup(cancel)
 
 	host, peer := createMocknet(ctx, t)
-	exchg, store := createExchangeWithMockStore(ctx, t, host, peer)
+	exchg, store := createExchangeWithMockStore(t, host, peer)
 	// perform header request
 	header, err := exchg.RequestHead(context.Background())
 	require.NoError(t, err)
@@ -35,7 +35,7 @@ func TestP2PExchange_RequestHeader(t *testing.T) {
 	defer cancel()
 
 	host, peer := createMocknet(ctx, t)
-	exchg, store := createExchangeWithMockStore(ctx, t, host, peer)
+	exchg, store := createExchangeWithMockStore(t, host, peer)
 	// perform expected request
 	header, err := exchg.RequestHeader(context.Background(), 5)
 	require.NoError(t, err)
@@ -48,7 +48,7 @@ func TestP2PExchange_RequestHeaders(t *testing.T) {
 	defer cancel()
 
 	host, peer := createMocknet(ctx, t)
-	exchg, store := createExchangeWithMockStore(ctx, t, host, peer)
+	exchg, store := createExchangeWithMockStore(t, host, peer)
 	// perform expected request
 	gotHeaders, err := exchg.RequestHeaders(context.Background(), 1, 5)
 	require.NoError(t, err)
@@ -224,16 +224,22 @@ func createMocknet(ctx context.Context, t *testing.T) (libhost.Host, libhost.Hos
 	return net.Hosts()[0], net.Hosts()[1]
 }
 
-func createExchangeWithMockStore(ctx context.Context, t *testing.T, host, peer libhost.Host) (Exchange, *mockStore) {
+func createExchangeWithMockStore(t *testing.T, host, peer libhost.Host) (Exchange, *mockStore) {
 	store := createStore(t, 5)
-	serverSideEx := newExchange(peer, host.ID(), store)
-	serverSideEx.Start()
-	t.Cleanup(serverSideEx.Stop)
+	serverSideEx := NewP2PExchange(peer, libhost.InfoFromHost(host), store)
+	err := serverSideEx.Start(context.Background())
+	require.NoError(t, err)
 
 	// create new exchange
-	clientSideEx := newExchange(host, peer.ID(), nil) // we don't need the store on the requesting side
-	clientSideEx.Start()
-	t.Cleanup(clientSideEx.Stop)
+	clientSideEx := NewP2PExchange(host, libhost.InfoFromHost(peer), nil) // we don't need the store on the requesting side
+	err = clientSideEx.Start(context.Background())
+	require.NoError(t, err)
+
+	t.Cleanup(func() {
+		serverSideEx.Stop(context.Background()) //nolint:errcheck
+		clientSideEx.Stop(context.Background()) //nolint:errcheck
+	})
+
 	return clientSideEx, store
 }
 
@@ -260,7 +266,6 @@ func createStore(t *testing.T, numHeaders int) *mockStore {
 			store.headHeight = header.Height
 		}
 	}
-	store.head = store.headers[numHeaders]
 	return store
 }
 
@@ -295,11 +300,11 @@ func (m *mockStore) Has(context.Context, tmbytes.HexBytes) (bool, error) {
 }
 
 func (m *mockStore) Append(ctx context.Context, headers ...*ExtendedHeader) error {
-	for i, header := range headers {
-		m.headers[int(header.Height)] = header
+	for _, header := range headers {
+		m.headers[header.Height] = header
 		// set head
-		if i == len(headers)-1 {
-			m.head = header
+		if header.Height > m.headHeight {
+			m.headHeight = header.Height
 		}
 	}
 	return nil
