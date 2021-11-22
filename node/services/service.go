@@ -62,13 +62,12 @@ func HeaderExchangeP2P(cfg Config) func(
 	}
 }
 
-func HeaderExchangeP2PServer(lc fx.Lifecycle, host host.Host, store header.Store) *header.P2PExchange {
+func StartHeaderExchangeP2PServer(lc fx.Lifecycle, host host.Host, store header.Store) {
 	ex := header.NewP2PExchange(host, &peer.AddrInfo{}, store)
 	lc.Append(fx.Hook{
 		OnStart: ex.Start,
 		OnStop:  ex.Stop,
 	})
-	return ex
 }
 
 // HeaderStore creates new header.Store.

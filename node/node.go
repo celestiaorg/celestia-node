@@ -59,10 +59,9 @@ type Node struct {
 	// TODO maybe create a struct in full.go that contains `FullServices` (all expected services to be running on a
 	// TODO full node) and in light, same thing `LightServices` (all expected services to be running in a light node.
 	// TODO `FullServices` can include `LightServices` + other services.
-	BlockServ   *block.Service      `optional:"true"`
-	ShareServ   share.Service       // not optional
-	HeaderServ  *header.Service     // not optional
-	P2PExchange *header.P2PExchange `optional:"true"`
+	BlockServ  *block.Service  `optional:"true"`
+	ShareServ  share.Service   // not optional
+	HeaderServ *header.Service // not optional
 
 	DASer *das.DASer `optional:"true"`
 }

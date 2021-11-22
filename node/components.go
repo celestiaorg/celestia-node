@@ -25,7 +25,7 @@ func fullComponents(cfg *Config, repo Repository) fx.Option {
 		baseComponents(cfg, repo),
 		nodecore.Components(cfg.Core, repo.Core),
 		fx.Provide(services.BlockService),
-		fx.Provide(services.HeaderExchangeP2PServer),
+		fx.Invoke(services.StartHeaderExchangeP2PServer),
 	)
 }
 
