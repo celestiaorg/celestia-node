@@ -77,5 +77,7 @@ func (d *DASer) sampling(ctx context.Context, sub header.Subscription) {
 			log.Errorw("validation failed", "root", h.DAH.Hash(), "err", err)
 			// continue sampling
 		}
+
+		log.Infow("sampling successful", "height", h.Height, "hash", h.Hash())
 	}
 }
