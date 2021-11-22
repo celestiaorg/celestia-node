@@ -22,12 +22,12 @@ import (
 // HeaderSyncer creates a new header.Syncer.
 func HeaderSyncer(cfg Config) func(ex header.Exchange, store header.Store) (*header.Syncer, error) {
 	return func(ex header.Exchange, store header.Store) (*header.Syncer, error) {
-		genesis, err := cfg.genesis()
+		trustedHash, err := cfg.trustedHash()
 		if err != nil {
 			return nil, err
 		}
 
-		return header.NewSyncer(ex, store, genesis), nil
+		return header.NewSyncer(ex, store, trustedHash), nil
 	}
 }
 
