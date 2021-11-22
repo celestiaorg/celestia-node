@@ -67,14 +67,14 @@ func RandShares(t *testing.T, n int) []Share {
 
 type DAGNet struct {
 	ctx context.Context
-	t *testing.T
+	t   *testing.T
 	net mocknet.Mocknet
 }
 
-func NewDAGNet(ctx context.Context, t *testing.T,) *DAGNet {
+func NewDAGNet(ctx context.Context, t *testing.T) *DAGNet {
 	return &DAGNet{
 		ctx: ctx,
-		t: t,
+		t:   t,
 		net: mocknet.New(ctx),
 	}
 }
