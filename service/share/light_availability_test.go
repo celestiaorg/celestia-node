@@ -9,7 +9,7 @@ import (
 	"github.com/celestiaorg/celestia-node/service/header"
 )
 
-func TestSharesAvailability(t *testing.T) {
+func TestSharesAvailable(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -19,9 +19,7 @@ func TestSharesAvailability(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-func TestSharesAvailabilityFailed(t *testing.T) {
-	DefaultSampleAmount = 2
-
+func TestSharesAvailableFailed(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -30,4 +28,17 @@ func TestSharesAvailabilityFailed(t *testing.T) {
 	empty := header.EmptyDAH()
 	err := s.SharesAvailable(ctx, &empty)
 	assert.Error(t, err)
+}
+
+func TestShareAvailableOverMocknet(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	net := NewDAGNet(ctx, t)
+	_, root := net.RandService(16)
+	serv := net.CleanService()
+	net.ConnectAll()
+
+	err := serv.SharesAvailable(ctx, root)
+	assert.NoError(t, err)
 }

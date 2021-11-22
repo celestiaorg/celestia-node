@@ -20,9 +20,6 @@ func TestSync(t *testing.T) {
 	remoteStore, err := NewStoreWithHead(sync.MutexWrap(datastore.NewMapDatastore()), genesis)
 	require.Nil(t, err)
 
-	err = remoteStore.Open(ctx)
-	require.Nil(t, err)
-
 	err = remoteStore.Append(ctx, suite.GenExtendedHeaders(100)...)
 	require.Nil(t, err)
 
@@ -31,11 +28,8 @@ func TestSync(t *testing.T) {
 	localStore, err := NewStoreWithHead(sync.MutexWrap(datastore.NewMapDatastore()), genesis)
 	require.Nil(t, err)
 
-	err = localStore.Open(ctx)
-	require.Nil(t, err)
-
 	requestSize = 13 // just some random number
-	syncer := newSyncer(fakeExchange, localStore)
+	syncer := NewSyncer(fakeExchange, localStore, genesis.Hash())
 	syncer.Sync(ctx)
 
 	exp, err := remoteStore.Head(ctx)

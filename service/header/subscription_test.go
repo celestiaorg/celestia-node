@@ -24,15 +24,14 @@ func TestSubscriber(t *testing.T) {
 	suite := NewTestSuite(t, 3)
 
 	// get mock host and create new gossipsub on it
-	pubsub1, err := pubsub.NewGossipSub(ctx, net.Hosts()[0],
-		pubsub.WithMessageSignaturePolicy(pubsub.StrictNoSign))
+	pubsub1, err := pubsub.NewGossipSub(ctx, net.Hosts()[0], pubsub.WithMessageSignaturePolicy(pubsub.StrictNoSign))
 	require.NoError(t, err)
 
 	store1, err := NewStoreWithHead(datastore.NewMapDatastore(), suite.Head())
 	require.NoError(t, err)
 
 	// create header Service
-	headerServ1 := NewHeaderService(NewLocalExchange(store1), store1, pubsub1)
+	headerServ1 := NewHeaderService(NewSyncer(NewLocalExchange(store1), store1, suite.Head().Hash()), pubsub1)
 	err = headerServ1.Start(ctx)
 	require.NoError(t, err)
 
@@ -49,7 +48,7 @@ func TestSubscriber(t *testing.T) {
 	require.NoError(t, err)
 
 	// create header Service
-	headerServ2 := NewHeaderService(NewLocalExchange(store2), store2, pubsub2)
+	headerServ2 := NewHeaderService(NewSyncer(NewLocalExchange(store2), store2, suite.Head().Hash()), pubsub2)
 	err = headerServ2.Start(ctx)
 	require.NoError(t, err)
 

@@ -19,6 +19,7 @@ type DASer struct {
 	hsub header.Subscriber
 
 	cancel context.CancelFunc
+	done   chan struct{}
 }
 
 // NewDASer creates a new DASer.
@@ -26,11 +27,12 @@ func NewDASer(da share.Availability, hsub header.Subscriber) *DASer {
 	return &DASer{
 		da:   da,
 		hsub: hsub,
+		done: make(chan struct{}),
 	}
 }
 
 // Start initiates subscription for new ExtendedHeaders and spawns a sampling routine.
-func (d *DASer) Start() error {
+func (d *DASer) Start(context.Context) error {
 	if d.cancel != nil {
 		return fmt.Errorf("da: DASer already started")
 	}
@@ -47,19 +49,25 @@ func (d *DASer) Start() error {
 }
 
 // Stop stops sampling.
-func (d *DASer) Stop() error {
+func (d *DASer) Stop(ctx context.Context) error {
 	if d.cancel == nil {
 		return fmt.Errorf("da: DASer already stopped")
 	}
 
 	d.cancel()
-	d.cancel = nil
-	return nil
+	select {
+	case <-d.done:
+		d.cancel = nil
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	}
 }
 
 // sampling validates availability for each Header received from header subscription.
 func (d *DASer) sampling(ctx context.Context, sub header.Subscription) {
 	defer sub.Cancel()
+	defer close(d.done)
 	for {
 		h, err := sub.NextHeader(ctx)
 		if err != nil {
@@ -77,5 +85,7 @@ func (d *DASer) sampling(ctx context.Context, sub header.Subscription) {
 			log.Errorw("validation failed", "root", h.DAH.Hash(), "err", err)
 			// continue sampling
 		}
+
+		log.Infow("sampling successful", "height", h.Height, "hash", h.Hash())
 	}
 }

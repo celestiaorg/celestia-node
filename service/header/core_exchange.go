@@ -5,15 +5,16 @@ import (
 	"math"
 
 	format "github.com/ipfs/go-ipld-format"
-
+	tmbytes "github.com/tendermint/tendermint/libs/bytes"
 	"github.com/tendermint/tendermint/pkg/da"
 	"github.com/tendermint/tendermint/pkg/wrapper"
 	"github.com/tendermint/tendermint/types"
 
-	"github.com/celestiaorg/celestia-node/core"
-	"github.com/celestiaorg/celestia-node/ipld"
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/rsmt2d"
+
+	"github.com/celestiaorg/celestia-node/core"
+	"github.com/celestiaorg/celestia-node/ipld"
 )
 
 type CoreExchange struct {
@@ -29,7 +30,8 @@ func NewCoreExchange(fetcher *core.BlockFetcher, dag format.DAGService) *CoreExc
 }
 
 func (ce *CoreExchange) RequestHeader(ctx context.Context, height uint64) (*ExtendedHeader, error) {
-	intHeight := int64(height) + 1
+	log.Debugw("core: requesting header", "height", height)
+	intHeight := int64(height)
 	block, err := ce.fetcher.GetBlock(ctx, &intHeight)
 	if err != nil {
 		return nil, err
@@ -37,10 +39,11 @@ func (ce *CoreExchange) RequestHeader(ctx context.Context, height uint64) (*Exte
 	return ce.generateExtendedHeaderFromBlock(block)
 }
 
-func (ce *CoreExchange) RequestHeaders(ctx context.Context, origin, amount uint64) ([]*ExtendedHeader, error) {
+func (ce *CoreExchange) RequestHeaders(ctx context.Context, from, amount uint64) ([]*ExtendedHeader, error) {
+	log.Debugw("core: requesting headers", "from", from, "to", from+amount)
 	headers := make([]*ExtendedHeader, amount)
 	for i := range headers {
-		extHeader, err := ce.RequestHeader(ctx, origin+uint64(i))
+		extHeader, err := ce.RequestHeader(ctx, from+uint64(i))
 		if err != nil {
 			return nil, err
 		}
@@ -51,7 +54,8 @@ func (ce *CoreExchange) RequestHeaders(ctx context.Context, origin, amount uint6
 	return headers, nil
 }
 
-func (ce *CoreExchange) RequestByHash(ctx context.Context, hash []byte) (*ExtendedHeader, error) {
+func (ce *CoreExchange) RequestByHash(ctx context.Context, hash tmbytes.HexBytes) (*ExtendedHeader, error) {
+	log.Debugw("core: requesting header", "hash", hash.String())
 	block, err := ce.fetcher.GetBlockByHash(ctx, hash)
 	if err != nil {
 		return nil, err
@@ -60,6 +64,7 @@ func (ce *CoreExchange) RequestByHash(ctx context.Context, hash []byte) (*Extend
 }
 
 func (ce *CoreExchange) RequestHead(ctx context.Context) (*ExtendedHeader, error) {
+	log.Debug("core: requesting head")
 	chainHead, err := ce.fetcher.GetBlock(ctx, nil)
 	if err != nil {
 		return nil, err
@@ -80,14 +85,16 @@ func (ce *CoreExchange) generateExtendedHeaderFromBlock(block *types.Block) (*Ex
 	// create ExtendedHeader
 	commit, err := ce.fetcher.Commit(context.Background(), &block.Height)
 	if err != nil {
-		log.Errorw("fetching commit", "err", err.Error(), "height", block.Height)
+		log.Errorw("fetching commit", "err", err, "height", block.Height)
 		return nil, err
 	}
+
 	valSet, err := ce.fetcher.ValidatorSet(context.Background(), &block.Height)
 	if err != nil {
-		log.Errorw("fetching validator set", "err", err.Error(), "height", block.Height)
+		log.Errorw("fetching validator set", "err", err, "height", block.Height)
 		return nil, err
 	}
+
 	return &ExtendedHeader{
 		RawHeader:    block.Header,
 		DAH:          &dah,

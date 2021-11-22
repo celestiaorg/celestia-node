@@ -5,6 +5,7 @@ import (
 
 	"github.com/celestiaorg/celestia-node/core"
 	"github.com/celestiaorg/celestia-node/node/fxutil"
+	"github.com/celestiaorg/celestia-node/service/header"
 )
 
 // Config combines all configuration fields for managing the relationship with a Core node.
@@ -24,15 +25,22 @@ func DefaultConfig() Config {
 }
 
 // Components collects all the components and services related to managing the relationship with the Core node.
-func Components(cfg Config) fx.Option {
+func Components(cfg Config, loader core.RepoLoader) fx.Option {
 	return fx.Options(
+		fx.Provide(core.NewBlockFetcher),
+		fxutil.ProvideAs(header.NewCoreExchange, new(header.Exchange)),
 		fxutil.ProvideIf(cfg.Remote, func() (core.Client, error) {
 			return RemoteClient(cfg)
 		}),
 		fxutil.InvokeIf(cfg.Remote, func(c core.Client) error {
 			return c.Start()
 		}),
-		fxutil.ProvideIf(!cfg.Remote, func(repo core.Repository) (core.Client, error) {
+		fxutil.ProvideIf(!cfg.Remote, func() (core.Client, error) {
+			repo, err := loader()
+			if err != nil {
+				return nil, err
+			}
+
 			cfg, err := repo.Config()
 			if err != nil {
 				return nil, err

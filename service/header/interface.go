@@ -45,7 +45,7 @@ type Exchange interface {
 	RequestHeaders(ctx context.Context, origin, amount uint64) ([]*ExtendedHeader, error)
 	// RequestByHash performs a request for the ExtendedHeader by the given hash corresponding
 	// to the RawHeader. Note that the ExtendedHeader must be verified thereafter.
-	RequestByHash(ctx context.Context, hash []byte) (*ExtendedHeader, error)
+	RequestByHash(ctx context.Context, hash tmbytes.HexBytes) (*ExtendedHeader, error)
 }
 
 var (
@@ -59,9 +59,6 @@ var (
 // Store encompasses the behavior necessary to store and retrieve ExtendedHeaders
 // from a node's local storage.
 type Store interface {
-	// Open opens and initializes Store.
-	Open(context.Context) error
-
 	// Head returns the ExtendedHeader of the chain head.
 	Head(context.Context) (*ExtendedHeader, error)
 

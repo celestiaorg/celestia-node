@@ -3,53 +3,78 @@ package header
 import (
 	"context"
 	"fmt"
+	"sync"
 
 	"github.com/libp2p/go-libp2p-core/host"
 	"github.com/libp2p/go-libp2p-core/network"
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/libp2p/go-libp2p-core/protocol"
-
 	tmbytes "github.com/tendermint/tendermint/libs/bytes"
 
-	pb "github.com/celestiaorg/celestia-node/service/header/pb"
 	"github.com/celestiaorg/go-libp2p-messenger/serde"
+
+	pb "github.com/celestiaorg/celestia-node/service/header/pb"
 )
 
-var exchangeProtocolID = protocol.ID("/header-exchange/v0.0.1")
+var exchangeProtocolID = protocol.ID("/header-ex/v0.0.1")
 
-// exchange enables sending outbound ExtendedHeaderRequests as well as
-// handling inbound ExtendedHeaderRequests.
-type exchange struct {
-	host host.Host
+// P2PExchange enables sending outbound ExtendedHeaderRequests to the network as well as
+// handling inbound ExtendedHeaderRequests from the network.
+type P2PExchange struct {
+	host  host.Host
+	store Store
+
 	// TODO @renaynay: post-Devnet, we need to remove reliance of Exchange on one bootstrap peer
 	// Ref https://github.com/celestiaorg/celestia-node/issues/172#issuecomment-964306823.
-	peer  peer.ID
-	store Store
+	trustedPeer *peer.AddrInfo
+	lk          sync.Mutex
+	connected   chan struct{}
 
 	ctx    context.Context
 	cancel context.CancelFunc
 }
 
-func newExchange(host host.Host, peer peer.ID, store Store) *exchange {
-	return &exchange{
-		host:  host,
-		peer:  peer,
-		store: store,
+func NewP2PExchange(host host.Host, peer *peer.AddrInfo, store Store) *P2PExchange {
+	ex := &P2PExchange{
+		host:        host,
+		store:       store,
+		trustedPeer: peer,
+		connected:   make(chan struct{}),
 	}
+	host.SetStreamHandler(exchangeProtocolID, ex.requestHandler)
+	ex.host.Network().Notify(&network.NotifyBundle{ConnectedF: ex.Connected})
+	return ex
 }
 
-func (ex *exchange) Start() {
+func (ex *P2PExchange) Start(ctx context.Context) error {
+	log.Info("starting p2p exchange")
 	ex.ctx, ex.cancel = context.WithCancel(context.Background())
-	ex.host.SetStreamHandler(exchangeProtocolID, ex.requestHandler)
+
+	if ex.trustedPeer.ID != "" {
+		if ex.host.Network().Connectedness(ex.trustedPeer.ID) == network.Connected {
+			close(ex.connected)
+			return nil
+		}
+
+		err := ex.host.Connect(ctx, *ex.trustedPeer)
+		if err != nil {
+			log.Errorw("connecting to trusted peer", "err", err)
+			log.Warn("HEADERS WONT BE SYNCHRONIZED - PLEASE RESTART WITH TRUSTED PEER BEING ONLINE")
+		}
+	}
+
+	return nil
 }
 
-func (ex *exchange) Stop() {
+func (ex *P2PExchange) Stop(context.Context) error {
+	log.Info("stopping p2p exchange")
 	ex.cancel()
 	ex.host.RemoveStreamHandler(exchangeProtocolID)
+	return nil
 }
 
 // requestHandler handles inbound ExtendedHeaderRequests.
-func (ex *exchange) requestHandler(stream network.Stream) {
+func (ex *P2PExchange) requestHandler(stream network.Stream) {
 	// unmarshal request
 	pbreq := new(pb.ExtendedHeaderRequest)
 	_, err := serde.Read(stream, pbreq)
@@ -71,7 +96,7 @@ func (ex *exchange) requestHandler(stream network.Stream) {
 	}
 }
 
-func (ex *exchange) handleRequestByHash(hash []byte, stream network.Stream) {
+func (ex *P2PExchange) handleRequestByHash(hash []byte, stream network.Stream) {
 	log.Debugw("handling header request", "hash", tmbytes.HexBytes(hash).String())
 
 	header, err := ex.store.Get(ex.ctx, hash)
@@ -96,7 +121,7 @@ func (ex *exchange) handleRequestByHash(hash []byte, stream network.Stream) {
 
 // handleRequest fetches the ExtendedHeader at the given origin and
 // writes it to the stream.
-func (ex *exchange) handleRequest(from, to uint64, stream network.Stream) {
+func (ex *P2PExchange) handleRequest(from, to uint64, stream network.Stream) {
 	var headers []*ExtendedHeader
 	if from == uint64(0) {
 		log.Debug("handling head request")
@@ -138,8 +163,8 @@ func (ex *exchange) handleRequest(from, to uint64, stream network.Stream) {
 	}
 }
 
-func (ex *exchange) RequestHead(ctx context.Context) (*ExtendedHeader, error) {
-	log.Debug("requesting head")
+func (ex *P2PExchange) RequestHead(ctx context.Context) (*ExtendedHeader, error) {
+	log.Debug("p2p: requesting head")
 	// create request
 	req := &pb.ExtendedHeaderRequest{
 		Origin: uint64(0),
@@ -152,8 +177,8 @@ func (ex *exchange) RequestHead(ctx context.Context) (*ExtendedHeader, error) {
 	return headers[0], nil
 }
 
-func (ex *exchange) RequestHeader(ctx context.Context, height uint64) (*ExtendedHeader, error) {
-	log.Debugw("requesting header", "height", height)
+func (ex *P2PExchange) RequestHeader(ctx context.Context, height uint64) (*ExtendedHeader, error) {
+	log.Debugw("p2p: requesting header", "height", height)
 	// sanity check height
 	if height == 0 {
 		return nil, fmt.Errorf("specified request height must be greater than 0")
@@ -170,8 +195,8 @@ func (ex *exchange) RequestHeader(ctx context.Context, height uint64) (*Extended
 	return headers[0], nil
 }
 
-func (ex *exchange) RequestHeaders(ctx context.Context, from, amount uint64) ([]*ExtendedHeader, error) {
-	log.Debugw("requesting headers", "from", from, "to", from+amount)
+func (ex *P2PExchange) RequestHeaders(ctx context.Context, from, amount uint64) ([]*ExtendedHeader, error) {
+	log.Debugw("p2p: requesting headers", "from", from, "to", from+amount)
 	// create request
 	req := &pb.ExtendedHeaderRequest{
 		Origin: from,
@@ -180,11 +205,11 @@ func (ex *exchange) RequestHeaders(ctx context.Context, from, amount uint64) ([]
 	return ex.performRequest(ctx, req)
 }
 
-func (ex *exchange) RequestByHash(ctx context.Context, hash []byte) (*ExtendedHeader, error) {
-	log.Debugw("requesting header", "hash", tmbytes.HexBytes(hash).String())
+func (ex *P2PExchange) RequestByHash(ctx context.Context, hash tmbytes.HexBytes) (*ExtendedHeader, error) {
+	log.Debugw("p2p: requesting header", "hash", hash.String())
 	// create request
 	req := &pb.ExtendedHeaderRequest{
-		Hash:   hash,
+		Hash:   hash.Bytes(),
 		Amount: 1,
 	}
 	headers, err := ex.performRequest(ctx, req)
@@ -194,8 +219,14 @@ func (ex *exchange) RequestByHash(ctx context.Context, hash []byte) (*ExtendedHe
 	return headers[0], nil
 }
 
-func (ex *exchange) performRequest(ctx context.Context, req *pb.ExtendedHeaderRequest) ([]*ExtendedHeader, error) {
-	stream, err := ex.host.NewStream(ctx, ex.peer, exchangeProtocolID)
+func (ex *P2PExchange) performRequest(ctx context.Context, req *pb.ExtendedHeaderRequest) ([]*ExtendedHeader, error) {
+	select {
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	case <-ex.connected:
+	}
+
+	stream, err := ex.host.NewStream(ctx, ex.trustedPeer.ID, exchangeProtocolID)
 	if err != nil {
 		return nil, err
 	}
@@ -228,4 +259,13 @@ func (ex *exchange) performRequest(ctx context.Context, req *pb.ExtendedHeaderRe
 		return nil, ErrNotFound
 	}
 	return headers, stream.Close()
+}
+
+func (ex *P2PExchange) Connected(_ network.Network, conn network.Conn) {
+	ex.lk.Lock()
+	defer ex.lk.Unlock()
+
+	if conn.RemotePeer() == ex.trustedPeer.ID {
+		close(ex.connected)
+	}
 }

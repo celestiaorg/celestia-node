@@ -51,7 +51,7 @@ func TestEventLoop(t *testing.T) {
 }
 
 func TestExtendedHeaderBroadcast(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*15)
 	defer cancel()
 
 	suite := header.NewTestSuite(t, 3)
@@ -75,7 +75,10 @@ func TestExtendedHeaderBroadcast(t *testing.T) {
 	require.NoError(t, err)
 
 	// also create subscription to topic to listen on the other side
-	headerServ := header.NewHeaderService(header.NewLocalExchange(store1), store1, pub)
+	headerServ := header.NewHeaderService(
+		header.NewSyncer(header.NewLocalExchange(store1), store1, suite.Head().Hash()),
+		pub,
+	)
 	require.NoError(t, err)
 	err = headerServ.Start(ctx)
 	require.NoError(t, err)

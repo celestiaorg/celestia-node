@@ -21,16 +21,7 @@ func TestStore(t *testing.T) {
 
 	suite := NewTestSuite(t, 3)
 
-	ds := sync.MutexWrap(datastore.NewMapDatastore())
-	store, err := NewStore(ds)
-	require.Nil(t, err)
-
-	err = store.Open(ctx)
-	assert.Equal(t, ErrNoHead, err) // check that we can't open a Store without Head.
-
-	store, err = NewStoreWithHead(ds, suite.Head())
-	require.NoError(t, err)
-	err = store.Open(ctx)
+	store, err := NewStoreWithHead(sync.MutexWrap(datastore.NewMapDatastore()), suite.Head())
 	require.NoError(t, err)
 
 	head, err := store.Head(ctx)

@@ -49,7 +49,13 @@ func NewStoreWithHead(ds datastore.Batching, head *ExtendedHeader) (Store, error
 		return nil, err
 	}
 
-	return store, store.newHead(head.Hash())
+	err = store.newHead(head.Hash())
+	if err != nil {
+		return nil, err
+	}
+
+	log.Infow("new head", "height", head.Height, "hash", head.Hash())
+	return store, nil
 }
 
 func newStore(ds datastore.Batching) (*store, error) {
@@ -71,20 +77,23 @@ func newStore(ds datastore.Batching) (*store, error) {
 	}, nil
 }
 
-func (s *store) Open(context.Context) error {
-	err := s.loadHead()
-	if err == datastore.ErrNotFound {
-		return ErrNoHead
-	}
-
-	return err
-}
-
 func (s *store) Head(ctx context.Context) (*ExtendedHeader, error) {
 	s.headLk.RLock()
 	head := s.head
 	s.headLk.RUnlock()
-	return s.Get(ctx, head)
+	if head != nil {
+		return s.Get(ctx, head)
+	}
+
+	err := s.loadHead()
+	switch err {
+	default:
+		return nil, err
+	case datastore.ErrNotFound:
+		return nil, ErrNoHead
+	case nil:
+		return s.Get(ctx, s.head)
+	}
 }
 
 func (s *store) Get(_ context.Context, hash bytes.HexBytes) (*ExtendedHeader, error) {
@@ -152,8 +161,25 @@ func (s *store) Append(ctx context.Context, headers ...*ExtendedHeader) error {
 	}
 
 	head, err := s.Head(ctx)
-	if err != nil {
+	switch err {
+	default:
 		return err
+	case ErrNoHead:
+		// trust the given header as the initial head
+		err = s.put(headers...)
+		if err != nil {
+			return err
+		}
+
+		head = headers[len(headers)-1]
+		err = s.newHead(head.Hash())
+		if err != nil {
+			return err
+		}
+
+		log.Infow("new head", "height", head.Height, "hash", head.Hash())
+		return nil
+	case nil:
 	}
 
 	verified := make([]*ExtendedHeader, 0, lh)
@@ -174,7 +200,13 @@ func (s *store) Append(ctx context.Context, headers ...*ExtendedHeader) error {
 		return err
 	}
 
-	return s.newHead(head.Hash())
+	err = s.newHead(head.Hash())
+	if err != nil {
+		return err
+	}
+
+	log.Infow("new head", "height", head.Height, "hash", head.Hash())
+	return nil
 }
 
 // put saves the given headers on disk and into cache.
@@ -214,10 +246,6 @@ func (s *store) loadHead() error {
 	s.headLk.Lock()
 	defer s.headLk.Unlock()
 
-	if s.head != nil {
-		return nil
-	}
-
 	b, err := s.ds.Get(headKey)
 	if err != nil {
 		return err
@@ -235,8 +263,6 @@ func (s *store) loadHead() error {
 // newHead sets a new 'head' and saves it on disk.
 // At this point Header body of the given 'head' must be already written with put.
 func (s *store) newHead(head bytes.HexBytes) error {
-	log.Infow("new head", "hash", head)
-
 	s.headLk.Lock()
 	s.head = head
 	s.headLk.Unlock()

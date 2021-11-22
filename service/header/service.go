@@ -8,6 +8,8 @@ import (
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 )
 
+var log = logging.Logger("header-service")
+
 // PubSubTopic hardcodes the name of the ExtendedHeader
 // gossipsub topic.
 const PubSubTopic = "header-sub"
@@ -18,26 +20,23 @@ const PubSubTopic = "header-sub"
 // 		2. Verifying and serving ExtendedHeaders to the network.
 // 		3. Storing/caching ExtendedHeaders.
 type Service struct {
-	exchange Exchange
-	store    Store
+	syncer *Syncer
 
 	topic  *pubsub.Topic // instantiated header-sub topic
 	pubsub *pubsub.PubSub
 
-	syncer *syncer
 	ctx    context.Context
 	cancel context.CancelFunc
 }
 
-var log = logging.Logger("header-service")
-
 // NewHeaderService creates a new instance of header Service.
-func NewHeaderService(exchange Exchange, store Store, pubsub *pubsub.PubSub) *Service {
+func NewHeaderService(
+	syncer *Syncer,
+	pubsub *pubsub.PubSub,
+) *Service {
 	return &Service{
-		exchange: exchange,
-		store:    store,
-		pubsub:   pubsub,
-		syncer:   newSyncer(exchange, store),
+		syncer: syncer,
+		pubsub: pubsub,
 	}
 }
 
@@ -49,23 +48,15 @@ func (s *Service) Start(context.Context) error {
 	log.Info("starting header service")
 
 	s.ctx, s.cancel = context.WithCancel(context.Background())
+	go s.syncer.Sync(s.ctx)
 
-	// TODO(@Wondertan): This is temporary
-	if s.store != nil {
-		go s.syncer.Sync(s.ctx)
-	}
-
-	err := s.pubsub.RegisterTopicValidator(PubSubTopic, s.syncer.validator)
+	err := s.pubsub.RegisterTopicValidator(PubSubTopic, s.syncer.Validate)
 	if err != nil {
 		return err
 	}
 
 	s.topic, err = s.pubsub.Join(PubSubTopic)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return err
 }
 
 // Stop stops the header Service.

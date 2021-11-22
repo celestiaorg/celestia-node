@@ -9,6 +9,9 @@ import (
 // ErrNotInited is used to signal when core is intended to be started without being initialized.
 var ErrNotInited = errors.New("core: repository is not initialized")
 
+// RepoLoader loads the Repository.
+type RepoLoader func() (Repository, error)
+
 // TODO(@Wondertan):
 //  * This should expose GenesisDoc and others. We can add them ad-hoc.
 //  * Ideally, add private keys to Keystore to unify access pattern.

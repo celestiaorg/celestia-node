@@ -57,9 +57,7 @@ func init() {
 		"sha2-256-namespace8-flagged",
 		nmtHashSize,
 		func() hash.Hash {
-			return &namespaceHasher{
-				nmt.NewNmtHasher(sha256.New(), nmt.DefaultNamespaceIDLen, true),
-			}
+			return NewNamespaceHasher(nmt.NewNmtHasher(sha256.New(), nmt.DefaultNamespaceIDLen, true))
 		},
 	)
 	// this should already happen when the plugin is injected but it doesn't for some CI tests
@@ -90,15 +88,32 @@ func mustRegisterNamespacedCodec(
 }
 
 type namespaceHasher struct {
-	hash.Hash
+	*nmt.Hasher
+	tp   byte
+	data []byte
 }
 
-func (n namespaceHasher) Sum(data []byte) []byte {
-	isLeafData := data[0] == nmt.LeafPrefix
-	if isLeafData {
-		return nmt.Sha256Namespace8FlaggedLeaf(data[1:])
+func NewNamespaceHasher(hasher *nmt.Hasher) hash.Hash {
+	return &namespaceHasher{
+		Hasher: hasher,
 	}
-	return nmt.Sha256Namespace8FlaggedInner(data[1:])
+}
+
+func (n *namespaceHasher) Write(data []byte) (int, error) {
+	n.tp = data[0]
+	n.data = data[1:]
+	return len(data), nil
+}
+
+func (n *namespaceHasher) Sum([]byte) []byte {
+	isLeafData := n.tp == nmt.LeafPrefix
+	if isLeafData {
+		return n.Hasher.HashLeaf(n.data)
+	}
+
+	flagLen := int(n.NamespaceLen * 2)
+	sha256Len := n.Hasher.Size()
+	return n.Hasher.HashNode(n.data[:flagLen+sha256Len], n.data[flagLen+sha256Len:])
 }
 
 // DataSquareRowOrColumnRawInputParser reads the raw shares and extract the IPLD nodes from the NMT tree.
