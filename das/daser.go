@@ -3,6 +3,7 @@ package das
 import (
 	"context"
 	"fmt"
+	"time"
 
 	logging "github.com/ipfs/go-log/v2"
 
@@ -77,6 +78,8 @@ func (d *DASer) sampling(ctx context.Context, sub header.Subscription) {
 			log.Errorw("DASer failed to get next header", "err", err)
 		}
 
+		startTime := time.Now()
+
 		err = d.da.SharesAvailable(ctx, h.DAH)
 		if err != nil {
 			if err == context.Canceled {
@@ -86,6 +89,8 @@ func (d *DASer) sampling(ctx context.Context, sub header.Subscription) {
 			// continue sampling
 		}
 
-		log.Infow("sampling successful", "height", h.Height, "hash", h.Hash())
+		sampleTime := time.Since(startTime)
+		log.Infow("sampling successful", "height", h.Height, "hash", h.Hash(),
+			"finished (s)", sampleTime.Seconds())
 	}
 }
