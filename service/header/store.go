@@ -186,7 +186,8 @@ func (s *store) Append(ctx context.Context, headers ...*ExtendedHeader) error {
 	for _, h := range headers {
 		err = VerifyAdjacent(head, h)
 		if err != nil {
-			log.Errorw("invalid header", "head", head.Hash(), "header", h.Hash(), "err", err)
+			log.Errorw("invalid header", "current head hash", head.Hash(), "current head height",
+				head.Height, "header hash", h.Hash(), "header height", h.Height, "err", err)
 			break // if some headers are cryptographically valid, why not include them? Exactly, so let's include
 		}
 		verified, head = append(verified, h), h
