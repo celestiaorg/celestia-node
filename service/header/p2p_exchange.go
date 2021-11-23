@@ -28,7 +28,7 @@ type P2PExchange struct {
 	// Ref https://github.com/celestiaorg/celestia-node/issues/172#issuecomment-964306823.
 	trustedPeer *peer.AddrInfo
 	lk          sync.Mutex
-	connected   chan struct{}
+	connected   chan struct{} // if connected is closed, exchange is connected to peer
 
 	ctx    context.Context
 	cancel context.CancelFunc
@@ -216,6 +216,9 @@ func (ex *P2PExchange) RequestByHash(ctx context.Context, hash tmbytes.HexBytes)
 	if err != nil {
 		return nil, err
 	}
+	if !hashMatch(headers[0].Hash().Bytes(), hash) {
+		return nil, fmt.Errorf("incorrect hash in header: expected %x, got %x", hash, headers[0].Hash().Bytes())
+	}
 	return headers[0], nil
 }
 
@@ -251,6 +254,12 @@ func (ex *P2PExchange) performRequest(ctx context.Context, req *pb.ExtendedHeade
 			stream.Reset() //nolint:errcheck
 			return nil, err
 		}
+		// sanity check the header
+		err = header.ValidateBasic()
+		if err != nil {
+			stream.Reset() //nolint:errcheck
+			return nil, err
+		}
 
 		headers[i] = header
 	}
@@ -262,6 +271,13 @@ func (ex *P2PExchange) performRequest(ctx context.Context, req *pb.ExtendedHeade
 }
 
 func (ex *P2PExchange) Connected(_ network.Network, conn network.Conn) {
+	select {
+	// don't connect if already connected
+	case <-ex.connected:
+		return
+	default:
+	}
+
 	ex.lk.Lock()
 	defer ex.lk.Unlock()
 
