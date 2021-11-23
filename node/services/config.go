@@ -9,7 +9,7 @@ import (
 )
 
 type Config struct {
-	// TrustedHash isg the Block/Header hash that Nodes use as starting point for header synchronization.
+	// TrustedHash is the Block/Header hash that Nodes use as starting point for header synchronization.
 	// Only affects the node once on initial sync.
 	TrustedHash string
 	// TrustedPeer is the peer we trust to fetch headers from.
