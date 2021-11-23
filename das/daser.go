@@ -91,6 +91,6 @@ func (d *DASer) sampling(ctx context.Context, sub header.Subscription) {
 
 		sampleTime := time.Since(startTime)
 		log.Infow("sampling successful", "height", h.Height, "hash", h.Hash(),
-			"finished after (ms)", sampleTime.Milliseconds())
+			"finished (s)", sampleTime.Seconds())
 	}
 }
