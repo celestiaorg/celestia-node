@@ -37,7 +37,7 @@ func (s *subscription) NextHeader(ctx context.Context) (*ExtendedHeader, error) 
 	var header ExtendedHeader
 	err = header.UnmarshalBinary(msg.Data)
 	if err != nil {
-		log.Errorw("unmarshalling data from message", "err")
+		log.Errorw("unmarshalling data from message", "err", err)
 		return nil, err
 	}
 
