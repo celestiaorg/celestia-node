@@ -70,8 +70,6 @@ func (d *DASer) sampling(ctx context.Context, sub header.Subscription) {
 	defer sub.Cancel()
 	defer close(d.done)
 	for {
-		startTime := time.Now()
-
 		h, err := sub.NextHeader(ctx)
 		if err != nil {
 			if err == context.Canceled {
@@ -79,6 +77,8 @@ func (d *DASer) sampling(ctx context.Context, sub header.Subscription) {
 			}
 			log.Errorw("DASer failed to get next header", "err", err)
 		}
+
+		startTime := time.Now()
 
 		err = d.da.SharesAvailable(ctx, h.DAH)
 		if err != nil {
