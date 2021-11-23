@@ -5,6 +5,8 @@ import (
 
 	"github.com/libp2p/go-libp2p-core/host"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
+	pubsub_pb "github.com/libp2p/go-libp2p-pubsub/pb"
+	"github.com/minio/blake2b-simd"
 	"go.uber.org/fx"
 
 	"github.com/celestiaorg/celestia-node/node/fxutil"
@@ -29,6 +31,7 @@ func PubSub(cfg Config) func(pubSubParams) (*pubsub.PubSub, error) {
 		opts := []pubsub.Option{
 			pubsub.WithPeerExchange(cfg.PeerExchange || cfg.Bootstrapper),
 			pubsub.WithDirectPeers(fpeers),
+			pubsub.WithMessageIdFn(hashMsgID),
 		}
 
 		return pubsub.NewGossipSub(
@@ -37,6 +40,11 @@ func PubSub(cfg Config) func(pubSubParams) (*pubsub.PubSub, error) {
 			opts...,
 		)
 	}
+}
+
+func hashMsgID(m *pubsub_pb.Message) string {
+	hash := blake2b.Sum256(m.Data)
+	return string(hash[:])
 }
 
 type pubSubParams struct {
