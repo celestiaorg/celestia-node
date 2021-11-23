@@ -195,6 +195,7 @@ func (s *store) Append(ctx context.Context, headers ...*ExtendedHeader) error {
 		verified, head = append(verified, h), h
 	}
 	if len(verified) == 0 {
+		log.Warn("header/store: no valid headers were given")
 		return nil
 	}
 
