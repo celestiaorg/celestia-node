@@ -2,7 +2,6 @@ package header
 
 import (
 	"context"
-	"fmt"
 	"strconv"
 	"sync"
 
@@ -184,6 +183,10 @@ func (s *store) Append(ctx context.Context, headers ...*ExtendedHeader) error {
 
 	verified := make([]*ExtendedHeader, 0, lh)
 	for _, h := range headers {
+		if head.Height == h.Height {
+			continue
+		}
+
 		err = VerifyAdjacent(head, h)
 		if err != nil {
 			log.Errorw("invalid header", "head", head.Hash(), "header", h.Hash(), "err", err)
@@ -192,7 +195,7 @@ func (s *store) Append(ctx context.Context, headers ...*ExtendedHeader) error {
 		verified, head = append(verified, h), h
 	}
 	if len(verified) == 0 {
-		return fmt.Errorf("header/store: no valid headers were given")
+		return nil
 	}
 
 	err = s.put(verified...)
