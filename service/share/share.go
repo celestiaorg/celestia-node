@@ -135,37 +135,49 @@ func (s *service) GetShares(context.Context, *Root) ([][]Share, error) {
 }
 
 func (s *service) GetSharesByNamespace(ctx context.Context, root *Root, nID namespace.ID) ([]Share, error) {
-	rowRootCIDs := make(chan cid.Cid, len(root.RowsRoots))
-	wg := sync.WaitGroup{}
+	rowRootCIDs := make([]cid.Cid, 0)
 	for _, row := range root.RowsRoots {
 		if !nID.Less(nmt.MinNamespace(row, nID.Size())) && nID.LessOrEqual(nmt.MaxNamespace(row, nID.Size())) {
-			wg.Add(1)
-			go func(row []byte) {
-				rowRootCIDs <- plugin.MustCidFromNamespacedSha256(row)
-			}(row)
+			rowRootCIDs = append(rowRootCIDs, plugin.MustCidFromNamespacedSha256(row))
 		}
+	}
+	if len(rowRootCIDs) == 0 {
+		return nil, ipld.ErrNotFoundInRange
+	}
+
+	namespacedShares := make([]Share, 0)
+	nodeCh := make(chan []format.Node)
+	errCh := make(chan error)
+	wg := sync.WaitGroup{}
+
+	for _, rootCID := range rowRootCIDs {
+		wg.Add(1)
+		go func(rootCID cid.Cid) {
+			nodes, err := ipld.GetLeavesByNamespace(ctx, s.dag, rootCID, nID)
+			if err != nil {
+				errCh <- err
+			}
+			nodeCh <- nodes
+		}(rootCID)
 	}
 
 	go func() {
 		wg.Wait()
-		close(rowRootCIDs)
+		close(nodeCh)
+		close(errCh)
 	}()
 
-	namespacedShares := make([]Share, 0)
-	for rootCID := range rowRootCIDs {
-		nodes, err := ipld.GetLeavesByNamespace(ctx, s.dag, rootCID, nID)
-		if err != nil {
-			return nil, err
+	go func() {
+		for nodes := range nodeCh {
+			for _, node := range nodes {
+				namespacedShares = append(namespacedShares, node.RawData()[1:])
+			}
+			wg.Done()
 		}
+	}()
 
-		for _, node := range nodes {
-			namespacedShares = append(namespacedShares, node.RawData()[1:])
-		}
-		wg.Done()
-	}
-
-	if len(namespacedShares) == 0 {
-		return nil, ipld.ErrNotFoundInRange
+	for err := range errCh {
+		return nil, err
 	}
 
 	return namespacedShares, nil
