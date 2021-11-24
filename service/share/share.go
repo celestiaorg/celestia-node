@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"math/rand"
+	"sync"
 
 	"github.com/ipfs/go-cid"
 	format "github.com/ipfs/go-ipld-format"
@@ -134,18 +135,24 @@ func (s *service) GetShares(context.Context, *Root) ([][]Share, error) {
 }
 
 func (s *service) GetSharesByNamespace(ctx context.Context, root *Root, nID namespace.ID) ([]Share, error) {
-	rowRootCIDs := make([]cid.Cid, 0)
+	rowRootCIDs := make(chan cid.Cid, len(root.RowsRoots))
+	wg := sync.WaitGroup{}
 	for _, row := range root.RowsRoots {
 		if !nID.Less(nmt.MinNamespace(row, nID.Size())) && nID.LessOrEqual(nmt.MaxNamespace(row, nID.Size())) {
-			rowRootCIDs = append(rowRootCIDs, plugin.MustCidFromNamespacedSha256(row))
+			wg.Add(1)
+			go func(row []byte) {
+				rowRootCIDs <- plugin.MustCidFromNamespacedSha256(row)
+			}(row)
 		}
 	}
-	if len(rowRootCIDs) == 0 {
-		return nil, ipld.ErrNotFoundInRange
-	}
+
+	go func() {
+		wg.Wait()
+		close(rowRootCIDs)
+	}()
 
 	namespacedShares := make([]Share, 0)
-	for _, rootCID := range rowRootCIDs {
+	for rootCID := range rowRootCIDs {
 		nodes, err := ipld.GetLeavesByNamespace(ctx, s.dag, rootCID, nID)
 		if err != nil {
 			return nil, err
@@ -154,7 +161,13 @@ func (s *service) GetSharesByNamespace(ctx context.Context, root *Root, nID name
 		for _, node := range nodes {
 			namespacedShares = append(namespacedShares, node.RawData()[1:])
 		}
+		wg.Done()
 	}
+
+	if len(namespacedShares) == 0 {
+		return nil, ipld.ErrNotFoundInRange
+	}
+
 	return namespacedShares, nil
 }
 
