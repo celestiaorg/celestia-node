@@ -75,7 +75,9 @@ func (d *DASer) sampling(ctx context.Context, sub header.Subscription) {
 			if err == context.Canceled {
 				return
 			}
+
 			log.Errorw("DASer failed to get next header", "err", err)
+			continue
 		}
 
 		startTime := time.Now()

@@ -30,7 +30,6 @@ func newSubscription(topic *pubsub.Topic) (*subscription, error) {
 func (s *subscription) NextHeader(ctx context.Context) (*ExtendedHeader, error) {
 	msg, err := s.subscription.Next(ctx)
 	if err != nil {
-		log.Errorw("reading next message from subscription", "err", err.Error())
 		return nil, err
 	}
 	log.Debugw("received message", "topic", msg.Message.GetTopic(), "sender", msg.ReceivedFrom)
@@ -38,7 +37,7 @@ func (s *subscription) NextHeader(ctx context.Context) (*ExtendedHeader, error) 
 	var header ExtendedHeader
 	err = header.UnmarshalBinary(msg.Data)
 	if err != nil {
-		log.Errorw("unmarshaling data from message", "err", err.Error())
+		log.Errorw("unmarshalling data from message", "err", err)
 		return nil, err
 	}
 
