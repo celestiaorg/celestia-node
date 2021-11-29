@@ -17,5 +17,6 @@ jobs:
         with:
           fileName: CHANGELOG-PENDING.md
           checkNotification: Simple
+          noChangeLogLabel: no_changelog
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
