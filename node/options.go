@@ -12,10 +12,10 @@ func WithRemoteCore(protocol string, address string) Option {
 	}
 }
 
-// WithGenesis sets GenesisHash to the Config.
-func WithGenesis(hash string) Option {
+// WithTrustedHash sets TrustedHash to the Config.
+func WithTrustedHash(hash string) Option {
 	return func(cfg *Config) {
-		cfg.Services.GenesisHash = hash
+		cfg.Services.TrustedHash = hash
 	}
 }
 

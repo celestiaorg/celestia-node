@@ -12,7 +12,7 @@ import (
 type Syncer struct {
 	exchange Exchange
 	store    Store
-	genesis  tmbytes.HexBytes
+	trusted  tmbytes.HexBytes
 
 	// done is triggered when syncing is finished
 	// it assumes that Syncer is only used once
@@ -20,11 +20,11 @@ type Syncer struct {
 }
 
 // NewSyncer creates a new instance of Syncer.
-func NewSyncer(exchange Exchange, store Store, genesis tmbytes.HexBytes) *Syncer {
+func NewSyncer(exchange Exchange, store Store, trusted tmbytes.HexBytes) *Syncer {
 	return &Syncer{
 		exchange: exchange,
 		store:    store,
-		genesis:  genesis,
+		trusted:  trusted,
 		done:     make(chan struct{}),
 	}
 }
@@ -94,27 +94,27 @@ func (s *Syncer) Validate(ctx context.Context, p peer.ID, msg *pubsub.Message) p
 	return pubsub.ValidationIgnore
 }
 
-// getHead tries to get head locally and if not exists requests genesis.
+// getHead tries to get head locally and if not exists requests trusted hash.
 func (s *Syncer) getHead(ctx context.Context) (*ExtendedHeader, error) {
 	head, err := s.store.Head(ctx)
 	switch err {
 	case nil:
 		return head, nil
 	case ErrNoHead:
-		// if there is no head - setup genesis.
-		genesis, err := s.exchange.RequestByHash(ctx, s.genesis)
+		// if there is no head - request header at trusted hash.
+		trusted, err := s.exchange.RequestByHash(ctx, s.trusted)
 		if err != nil {
-			log.Errorw("requesting genesis", "err", err)
+			log.Errorw("requesting header at trusted hash", "err", err)
 			return nil, err
 		}
 
-		err = s.store.Append(ctx, genesis)
+		err = s.store.Append(ctx, trusted)
 		if err != nil {
-			log.Errorw("appending genesis to store", "err", err)
+			log.Errorw("appending header at trusted hash to store", "err", err)
 			return nil, err
 		}
 
-		return genesis, nil
+		return trusted, nil
 	}
 
 	return nil, err
