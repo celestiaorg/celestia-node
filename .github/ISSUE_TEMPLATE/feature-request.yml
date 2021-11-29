@@ -2,8 +2,6 @@ name: Feature Request
 description: Request a new feature to inform the community on what will be benenificial for the project!
 title: "[Feature Request]: "
 labels: ["enhancement",]
-assignees:
-  - Bidon15
 body:
   - type: markdown
     attributes:
