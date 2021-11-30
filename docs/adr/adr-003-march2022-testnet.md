@@ -96,7 +96,7 @@ Implement scaffolding for RPC on all node types, such that a user can access the
 balance, preparing the transaction, and propagating it via `TxSub`. **Bridge** nodes will be responsible for listening
 to `TxSub` and relaying the transactions into the Core mempool.
 
-**@TODO NEEDS MORE RESEARCH**
+Celestia-node's state interaction will be detailed further in a subsequent ADR.
 
 ### Data Availability Sampling during `HeaderSync`
 
