@@ -156,6 +156,7 @@ func (s *service) GetSharesByNamespace(ctx context.Context, root *Root, nID name
 			nodes, err := ipld.GetLeavesByNamespace(ctx, s.dag, rootCID, nID)
 			if err != nil {
 				errCh <- err
+				return
 			}
 			nodeCh <- nodes
 		}(rootCID)
@@ -176,8 +177,16 @@ func (s *service) GetSharesByNamespace(ctx context.Context, root *Root, nID name
 		}
 	}()
 
+	var fetchErr error
 	for err := range errCh {
-		return nil, err
+		if fetchErr != nil {
+			fetchErr = err
+		}
+		wg.Done()
+	}
+
+	if fetchErr != nil {
+		return nil, fetchErr
 	}
 
 	return namespacedShares, nil
