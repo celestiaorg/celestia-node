@@ -2,8 +2,6 @@ name: Change Request
 description: Request a change to inform the community on what existing part of the project can be improved!
 title: "[Change Request]: "
 labels: ["change request",]
-assignees:
-  - Bidon15
 body:
   - type: markdown
     attributes:
