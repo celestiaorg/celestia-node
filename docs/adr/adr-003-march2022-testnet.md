@@ -50,7 +50,7 @@ refactoring and improving this structure to include more features (defined later
 
 ## New Features
 
-### New node type definitions
+### [New node type definitions](https://github.com/celestiaorg/celestia-node/issues/250)
 * Introduce a standalone **full** node and rename current full node implementation to **bridge** node. 
 * Remove **dev** as a node type and make it a flag on every available node type.
 
@@ -71,7 +71,7 @@ operations as usual.
 Eventually, we may implement a reputation tracking system for nodes who broadcast invalid fraud proofs to the network, 
 but that is for later iterations.
 
-### Introduce an RPC structure and some basic APIs
+### [Introduce an RPC structure and some basic APIs](https://github.com/celestiaorg/celestia-node/issues/169)
 Implement scaffolding for RPC on all node types, such that a user can access the following methods: 
 
 `HeaderAPI`
@@ -98,7 +98,7 @@ to `TxSub` and relaying the transactions into the Core mempool.
 
 Celestia-node's state interaction will be detailed further in a subsequent ADR.
 
-### Data Availability Sampling during `HeaderSync`
+### [Data Availability Sampling during `HeaderSync`](https://github.com/celestiaorg/celestia-node/issues/181)
 
 Currently, both **light** and **full* nodes are unable to perform data availability sampling (DAS) while syncing.
 They only begin sampling once the node is synced up to head of chain. 
@@ -128,7 +128,7 @@ a header from the already-running chain so that it can sync up to that point and
 
 **Proposed new architecture**:
 
-### `BlockService` is only responsible for reconstructing the block from Shares handed to it by the `ShareService`
+### [`BlockService` is only responsible for reconstructing the block from Shares handed to it by the `ShareService`](https://github.com/celestiaorg/celestia-node/issues/251).
 Right now, the `BlockService` is in charge of fetching new blocks from the core node, erasure coding them, generating 
 DAH, generating `ExtendedHeader`, broadcasting `ExtendedHeader` to `HeaderSub` network, and storing the block data 
 (after some validation checks).
@@ -152,7 +152,7 @@ Instead, we should rely on ShareService sampling to fetch us *enough* shares to 
 
 ## Nice to have
 
-### Move IPLD from celetia-node repo into its own repo
+### [Move IPLD from celetia-node repo into its own repo](https://github.com/celestiaorg/celestia-node/issues/111)
 Since the IPLD package is pretty much entirely separate from the celestia-node implementation, it makes sense that it
 is removed from the celestia-node repository and maintained separately. The extraction of IPLD should also include a 
 review and refactoring as there are still some legacy components that are either no longer necessary and the 
