@@ -96,7 +96,7 @@ func TestExtendedHeaderBroadcast(t *testing.T) {
 
 	i := 0
 	for i < numBlocks {
-		got, err := sub.NextHeader(context.Background())
+		got, err := sub.NextHeader(ctx)
 		require.NoError(t, err)
 		assert.Equal(t, validRawBlocks[i].Header.Height, got.Height)
 		assert.Equal(t, validRawBlocks[i].Header.DataHash.Bytes(), got.DAH.Hash())

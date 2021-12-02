@@ -76,7 +76,7 @@ func (d *DASer) sampling(ctx context.Context, sub header.Subscription) {
 				return
 			}
 
-			log.Errorw("DASer failed to get next header", "err", err)
+			log.Errorw("failed to get next header", "err", err)
 			continue
 		}
 
@@ -87,12 +87,13 @@ func (d *DASer) sampling(ctx context.Context, sub header.Subscription) {
 			if err == context.Canceled {
 				return
 			}
-			log.Errorw("validation failed", "root", h.DAH.Hash(), "err", err)
+			log.Errorw("sampling failed", "height", h.Height, "hash", h.Hash(),
+				"square width", len(h.DAH.RowsRoots), "data root", h.DAH.Hash(), "err", err)
 			// continue sampling
 		}
 
 		sampleTime := time.Since(startTime)
 		log.Infow("sampling successful", "height", h.Height, "hash", h.Hash(),
-			"finished (s)", sampleTime.Seconds())
+			"square width", len(h.DAH.RowsRoots), "finished (s)", sampleTime.Seconds())
 	}
 }
