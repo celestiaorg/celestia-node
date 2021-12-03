@@ -37,7 +37,7 @@ func Start(repoFlagName string, tp node.Type) *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			repoPath := cmd.Flag(repoFlagName).Value.String()
 			if repoPath == "" {
-				return fmt.Errorf("repository path must be speficied")
+				return fmt.Errorf("repository path must be specified")
 			}
 
 			level, err := logging.LevelFromString(cmd.Flag(loglevelFlag.Name).Value.String())
