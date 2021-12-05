@@ -149,11 +149,12 @@ func (s *service) GetSharesByNamespace(ctx context.Context, root *Root, nID name
 	nodeCh := make(chan []format.Node)
 	errCh := make(chan error)
 	wg := sync.WaitGroup{}
+	newCtx, cancel := context.WithCancel(ctx)
 
 	for _, rootCID := range rowRootCIDs {
 		wg.Add(1)
 		go func(rootCID cid.Cid) {
-			nodes, err := ipld.GetLeavesByNamespace(ctx, s.dag, rootCID, nID)
+			nodes, err := ipld.GetLeavesByNamespace(newCtx, s.dag, rootCID, nID)
 			if err != nil {
 				errCh <- err
 				return
@@ -166,6 +167,7 @@ func (s *service) GetSharesByNamespace(ctx context.Context, root *Root, nID name
 		wg.Wait()
 		close(nodeCh)
 		close(errCh)
+		_ = cancel
 	}()
 
 	go func() {
@@ -179,8 +181,9 @@ func (s *service) GetSharesByNamespace(ctx context.Context, root *Root, nID name
 
 	var fetchErr error
 	for err := range errCh {
-		if fetchErr != nil {
+		if fetchErr == nil {
 			fetchErr = err
+			cancel()
 		}
 		wg.Done()
 	}
