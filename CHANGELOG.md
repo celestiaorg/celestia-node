@@ -4,9 +4,9 @@
 This is the first `celestia-node` release. The release constitutes the foundation for the data availability "halo" network that will complement the core consensus network.
 
 Mainly, we introduce 3 packages:
-* `service/header` - defines everything related to headers Data Structures, synchronization logic and p2p exchange logic
-* `service/share` - defines everything related to Shares(pieces of shared Block data), the p2p networking logic and sampling
-* `node` - keeps central Node singleton with its assembly, essentially glueing all the bits together.
+* `service/header` - defines everything related to syncing, exchanging, and storing chain headers. 
+* `service/share` - defines everything related to sampling and requesting `Shares` (chunks of erasure-coded block data) from the network
+* `node` - defines the Node singleton with its assembly, essentially gluing all the bits together.
 
 For further information regarding the architecture and features introduced in this release, refer to the [devnet ADR](https://github.com/celestiaorg/celestia-node/blob/main/docs/adr/adr-001-predevnet-celestia-node.md).
 
