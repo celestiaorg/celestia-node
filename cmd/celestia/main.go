@@ -15,7 +15,6 @@ func init() {
 	rootCmd.AddCommand(
 		fullCmd,
 		lightCmd,
-		devCmd,
 		versionCmd,
 	)
 }

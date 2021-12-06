@@ -21,7 +21,7 @@ func Start(repoFlagName string, tp node.Type) *cobra.Command {
 	if !tp.IsValid() {
 		panic("cmd: Start: invalid Node Type")
 	}
-	if len(repoFlagName) == 0 && tp != node.Dev { // repository path not necessary for **DEV MODE**
+	if len(repoFlagName) == 0 {
 		panic("parent command must specify a persistent flag name for repository path")
 	}
 
@@ -45,17 +45,6 @@ func Start(repoFlagName string, tp node.Type) *cobra.Command {
 				return fmt.Errorf("while setting log level: %w", err)
 			}
 			logs.SetAllLoggers(level)
-
-			// **DEV MODE** needs separate configuration
-			if tp == node.Dev {
-				repo := node.NewMemRepository()
-				cfg := node.DefaultConfig(tp)
-				if err := repo.PutConfig(cfg); err != nil {
-					return err
-				}
-
-				return start(cmd, tp, repo)
-			}
 
 			var opts []node.Option
 

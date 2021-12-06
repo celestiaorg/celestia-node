@@ -83,8 +83,6 @@ func New(tp Type, repo Repository, options ...Option) (*Node, error) {
 		return newNode(tp, fullComponents(cfg, repo))
 	case Light:
 		return newNode(tp, lightComponents(cfg, repo))
-	case Dev:
-		return newNode(tp, mockFullComponents(cfg, repo))
 	default:
 		panic("node: unknown Node Type")
 	}
