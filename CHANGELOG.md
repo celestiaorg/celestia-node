@@ -1,8 +1,7 @@
 # CHANGELOG
 
 ## v0.1.0 | 2021-11-3
-This is the first `celestia-node` release. The release gives a birth to "halo" data availability p2p network with 
-respective features and lays down a foundation for future Celestia network.
+This is the first `celestia-node` release. The release constitutes the foundation for the data availability "halo" network that will complement the core consensus network.
 
 Mainly, we introduce 3 packages:
 * `service/header` - defines everything related to headers Data Structures, synchronization logic and p2p exchange logic
