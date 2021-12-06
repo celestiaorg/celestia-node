@@ -10,7 +10,7 @@ Mainly, we introduce 3 packages:
 * `node` - keeps central Node singleton with its assembly, essentially glueing all the bits together.
 
 ### FEATURES
-- [das: das: Log out square width after sampling #254](https://github.com/celestiaorg/celestia-node/pull/254) [@Wondertan](https://github.com/Wondertan)
+- [das: Log out square width after sampling #254](https://github.com/celestiaorg/celestia-node/pull/254) [@Wondertan](https://github.com/Wondertan)
 - [das: log time it takes to complete as sampling routine for a header #238](https://github.com/celestiaorg/celestia-node/pull/238) [@renaynay](https://github.com/renaynay)
 - [node/p2p: Deduplicate PubSub msgs #239](https://github.com/celestiaorg/celestia-node/pull/239) [@Wondertan](https://github.com/Wondertan)
 - [service/header: more descriptive err log for append in store.go #231](https://github.com/celestiaorg/celestia-node/pull/231) [@renaynay](https://github.com/renaynay)
