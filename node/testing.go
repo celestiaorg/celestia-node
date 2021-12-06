@@ -3,8 +3,9 @@ package node
 import (
 	"testing"
 
-	"github.com/celestiaorg/celestia-node/core"
 	"github.com/stretchr/testify/require"
+
+	"github.com/celestiaorg/celestia-node/core"
 )
 
 // MockRepository provides mock in memory Repository for testing purposes.
