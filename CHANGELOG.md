@@ -9,6 +9,8 @@ Mainly, we introduce 3 packages:
 * `service/share` - defines everything related to Shares(pieces of shared Block data), the p2p networking logic and sampling
 * `node` - keeps central Node singleton with its assembly, essentially glueing all the bits together.
 
+For further information regarding the architecture and features introduced in this release, refer to the [devnet ADR](https://github.com/celestiaorg/celestia-node/blob/main/docs/adr/adr-001-predevnet-celestia-node.md).
+
 ### FEATURES
 - [das: Log out square width after sampling #254](https://github.com/celestiaorg/celestia-node/pull/254) [@Wondertan](https://github.com/Wondertan)
 - [das: log time it takes to complete as sampling routine for a header #238](https://github.com/celestiaorg/celestia-node/pull/238) [@renaynay](https://github.com/renaynay)
