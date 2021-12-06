@@ -125,9 +125,10 @@ together at the same time as a core node).
 
 This led us to an issue where eventually we needed to connect to an already-running core node and sync from it. We were
 missing a component to do that, so we implemented `HeaderExchange` over the core client (wrapping another interface we 
-had previously created for BlockService called `BlockFetcher`), and we had to do this last minute b/c it wouldn’t work 
-otherwise, leading to a bunch of hacks and other issues (like having to hand the celestia full node a “trusted” hash of
-a header from the already-running chain so that it can sync up to that point and start listening for new headers.
+had previously created for `BlockService` called `BlockFetcher`), and we had to do this last minute because it wouldn’t 
+work otherwise, leading to last-minute solutions, like having to hand both the celestia **light** and **full** node a 
+“trusted” hash of a header from the already-running chain so that it can sync from that point and start listening for 
+new headers.
 
 #### Proposed new architecture: [`BlockService` is only responsible for reconstructing the block from Shares handed to it by the `ShareService`](https://github.com/celestiaorg/celestia-node/issues/251).
 Right now, the `BlockService` is in charge of fetching new blocks from the core node, erasure coding them, generating 
