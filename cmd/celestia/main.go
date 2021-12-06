@@ -6,6 +6,11 @@ import (
 	"github.com/spf13/cobra"
 )
 
+const (
+	repoFlagName  = "repo.path"
+	repoFlagShort = "r"
+)
+
 func init() {
 	rootCmd.AddCommand(
 		fullCmd,

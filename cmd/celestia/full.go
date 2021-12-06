@@ -8,13 +8,13 @@ import (
 )
 
 func init() {
-	const repoName = "repository"
 	fullCmd.AddCommand(
-		cmd.Init(repoName, node.Full),
-		cmd.Start(repoName, node.Full),
+		cmd.Init(repoFlagName, node.Full),
+		cmd.Start(repoFlagName, node.Full),
 	)
-	fullCmd.PersistentFlags().StringP(repoName,
-		"r",
+	fullCmd.PersistentFlags().StringP(
+		repoFlagName,
+		repoFlagShort,
 		"~/.celestia-full",
 		"The root/home directory of your Celestial Full Node",
 	)

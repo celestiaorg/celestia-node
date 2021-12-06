@@ -17,11 +17,11 @@ import (
 
 // Start constructs a CLI command to start Celestia Node daemon of the given type 'tp'.
 // It is meant to be used a subcommand and also receive persistent flag name for repository path.
-func Start(repoName string, tp node.Type) *cobra.Command {
+func Start(repoFlagName string, tp node.Type) *cobra.Command {
 	if !tp.IsValid() {
 		panic("cmd: Start: invalid Node Type")
 	}
-	if len(repoName) == 0 && tp != node.Dev { // repository path not necessary for **DEV MODE**
+	if len(repoFlagName) == 0 && tp != node.Dev { // repository path not necessary for **DEV MODE**
 		panic("parent command must specify a persistent flag name for repository path")
 	}
 
@@ -35,6 +35,11 @@ func Start(repoName string, tp node.Type) *cobra.Command {
 		Args:         cobra.NoArgs,
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			repoPath := cmd.Flag(repoFlagName).Value.String()
+			if repoPath == "" {
+				return fmt.Errorf("repository path must be specified")
+			}
+
 			level, err := logging.LevelFromString(cmd.Flag(loglevelFlag.Name).Value.String())
 			if err != nil {
 				return fmt.Errorf("while setting log level: %w", err)
@@ -79,7 +84,7 @@ func Start(repoName string, tp node.Type) *cobra.Command {
 				opts = append(opts, node.WithConfig(cfg))
 			}
 
-			repo, err := node.Open(repoName, tp)
+			repo, err := node.Open(repoPath, tp)
 			if err != nil {
 				return err
 			}
