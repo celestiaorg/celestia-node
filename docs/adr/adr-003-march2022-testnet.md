@@ -134,8 +134,11 @@ Right now, the `BlockService` is in charge of fetching new blocks from the core 
 DAH, generating `ExtendedHeader`, broadcasting `ExtendedHeader` to `HeaderSub` network, and storing the block data 
 (after some validation checks).
 
-Instead, we should rely on ShareService sampling to fetch us *enough* shares to reconstruct the block inside of 
-`BlockService`.
+Instead, a **full** node will rely on `ShareService` sampling to fetch us *enough* shares to reconstruct the block 
+inside of `BlockService`. Contrastingly, a **bridge** node will not do block reconstruction via sampling, but rather 
+rely on the `header.CoreSubscriber` implementation of `header.Subscriber` for blocks. `header.CoreSubscriber` will 
+handle listening for new block events from the core node via RPC, erasure code the new block, generate the 
+`ExtendedHeader` and pipe the erasure coded block through to `BlockService` via an internal subscription.
 
 ### `HeaderSync` optimizations
 * Implement disconnect toleration 
