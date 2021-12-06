@@ -23,7 +23,8 @@ Refers to the data availability "halo" network created around the Core network.
 A **bridge** node is a **full** node that is connected to a Celestia Core node via RPC. It receives either a remote
 address from a running Core node or it can run a Core node as an embedded process, but the critical difference is that
 instead of constructing blocks via sampling the network for shares, it receives headers and blocks directly from its 
-trusted Core node, validating blocks and producing `ExtendedHeader`s to broadcast to the Celestia DA network.
+trusted Core node, validating blocks, erasure coding them, and producing `ExtendedHeader`s to broadcast to the Celestia 
+DA network.
 
 ### **Full Node**
 
@@ -42,7 +43,6 @@ A **light** node listens for `ExtendedHeader`s from the DA network and performs 
 This ADR describes a design for the March 2022 Celestia Testnet that we decided at the Berlin 2021 offsite. Now that
 we have a basic scaffolding and structure for a celestia node, the focus of the next engineering sprint is to continue 
 refactoring and improving this structure to include more features (defined later in this document).
-
 
 <hr style="border:2px solid gray"> </hr>
 
@@ -68,8 +68,8 @@ fraud proofs against the relevant header hash to ensure that the fraud proof is 
 If the fraud proof is valid, the node should immediately halt all operations. If it is invalid, the node proceeds 
 operations as usual. 
 
-Eventually, we may implement a reputation tracking system for nodes who broadcast invalid fraud proofs to the network, 
-but that is for later iterations.
+Eventually, we may choose to use the reputation tracking system provided by libp2p for nodes who broadcast invalid fraud 
+proofs to the network, but that is not a requirement for this iteration.
 
 ### [Introduce an RPC structure and some basic APIs](https://github.com/celestiaorg/celestia-node/issues/169)
 Implement scaffolding for RPC on all node types, such that a user can access the following methods: 
@@ -91,10 +91,13 @@ Implement scaffolding for RPC on all node types, such that a user can access the
 * `AccountBalance(_acct_)` -> returns balance for given account
 * `SubmitTx(_txdata_)` -> submits a transaction to the network
 
+*Note: it is likely more methods will be added, but the above listed are the essential ones for this iteration.*
+
 ### Introduce `StateService`
 `StateService` is responsible for fetching state relevant to a user being able to submit a transaction, such as account
 balance, preparing the transaction, and propagating it via `TxSub`. **Bridge** nodes will be responsible for listening
-to `TxSub` and relaying the transactions into the Core mempool.
+to `TxSub` and relaying the transactions into the Core mempool. **Light** and **full** nodes will be able to publish
+transactions to `TxSub`, but do not need to listen for them.
 
 Celestia-node's state interaction will be detailed further in a subsequent ADR.
 
@@ -118,7 +121,7 @@ checkpoint on any new headers.
 ### `HeaderService` becomes main component around which most other services are focused
 Initially, we started with BlockService being the more “important” component during devnet architecture, but overlooked
 some problems with regards to sync (we initially made the decision that a celestia full node would have to be started 
-together at the same time as a core node -- which is the reason for embedding the core node).
+together at the same time as a core node).
 
 This led us to an issue where eventually we needed to connect to an already-running core node and sync from it. We were
 missing a component to do that, so we implemented `HeaderExchange` over the core client (wrapping another interface we 
@@ -126,9 +129,7 @@ had previously created for BlockService called `BlockFetcher`), and we had to do
 otherwise, leading to a bunch of hacks and other issues (like having to hand the celestia full node a “trusted” hash of
 a header from the already-running chain so that it can sync up to that point and start listening for new headers.
 
-**Proposed new architecture**:
-
-### [`BlockService` is only responsible for reconstructing the block from Shares handed to it by the `ShareService`](https://github.com/celestiaorg/celestia-node/issues/251).
+#### Proposed new architecture: [`BlockService` is only responsible for reconstructing the block from Shares handed to it by the `ShareService`](https://github.com/celestiaorg/celestia-node/issues/251).
 Right now, the `BlockService` is in charge of fetching new blocks from the core node, erasure coding them, generating 
 DAH, generating `ExtendedHeader`, broadcasting `ExtendedHeader` to `HeaderSub` network, and storing the block data 
 (after some validation checks).
@@ -136,21 +137,31 @@ DAH, generating `ExtendedHeader`, broadcasting `ExtendedHeader` to `HeaderSub` n
 Instead, we should rely on ShareService sampling to fetch us *enough* shares to reconstruct the block inside of 
 `BlockService`.
 
-### `ShareService` optimizations
-* Implement parallelization for retrieving shares by namespace. This
-[issue](https://github.com/celestiaorg/celestia-node/issues/184) is already being worked on.
-* NMT/Shares/Namespace storage optimizations (**TODO @WONDERTAN**)
-* Pruning/GC for shares.(**TODO @WONDERTAN**)
-
 ### `HeaderSync` optimizations
 * Implement disconnect toleration 
 
-### Bonding period handling
-(**TODO @WONDERTAN**)
+### Unbonding period handling
+The **light** node is prone to the highly theoretical but still possible long-range attack. To mitigate it, we should 
+introduce an additional `trustPeriod` variable (equal to unbonding period) which applies to headers. Suppose a node 
+starts with the period between subjective head and objective head being higher than the unbonding period - 
+in that case, the **light** node must not trust the subjective head anymore, specifically its `ValidatorSet`. Therefore, 
+instead of syncing subsequent headers on top of the untrusted subjective head, the Node should request a new objective 
+head from the `trustedPeer` and set it as a new trusted subjective head.
 
 <hr style="border:1px solid gray"> </hr>
 
 ## Nice to have
+
+### `ShareService` optimizations
+* Implement parallelization for retrieving shares by namespace. This
+  [issue](https://github.com/celestiaorg/celestia-node/issues/184) is already being worked on.
+* NMT/Shares/Namespace storage optimizations:
+  * Right now we prepend to each Share 17 additional bytes, Luckily, for each reason why the prepended bytes were added, 
+  there is an alternative solution: It is possible to get NMT Node type indirectly, without serializing the type itself
+  by looking at the amount of links. To recover the namespace of the erasured data, we should not encode namespaces into 
+  the data itself. It is possible to get the namespace for each share encoded in inner non-leaf nodes of the NMT tree. 
+* Pruning for shares. 
+
 
 ### [Move IPLD from celetia-node repo into its own repo](https://github.com/celestiaorg/celestia-node/issues/111)
 Since the IPLD package is pretty much entirely separate from the celestia-node implementation, it makes sense that it
