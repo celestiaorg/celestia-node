@@ -1,9 +1,6 @@
 SHELL=/usr/bin/env bash
 PROJECTNAME=$(shell basename "$(PWD)")
-BUILD_DATE=$(shell date)
-LAST_COMMIT=$(shell git rev-parse HEAD)
-# TODO (@OrlandoRomo) get version from git tags
-CELESTIA_VERSION="0.1.0"
+LDFLAGS="-X 'main.buildTime=$(shell date)' -X 'main.lastCommit=$(shell git rev-parse HEAD)' -X 'main.semanticVersion=$(shell git describe --tags --dirty=-dev)'"
 
 ## help: Get more info on make commands.
 help: Makefile
@@ -14,13 +11,13 @@ help: Makefile
 ## build: Build celestia-node binary.
 build:
 	@echo "--> Building Celestia"
-	@go build -ldflags "-X 'main.buildTime=$(BUILD_DATE)' -X 'main.lastCommit=$(LAST_COMMIT)' -X 'main.semanticVersion=$(CELESTIA_VERSION)'" ./cmd/celestia 
+	@go build -ldflags ${LDFLAGS} ./cmd/celestia
 .PHONY: build
 
 ## install: Builds and installs the celestia-node binary into the GOBIN directory.
 install:
 	@echo "--> Installing Celestia"
-	@go install -ldflags "-X 'main.buildTime=$(BUILD_DATE)' -X 'main.lastCommit=$(LAST_COMMIT)' -X 'main.semanticVersion=$(CELESTIA_VERSION)'" ./cmd/celestia
+	@go install -ldflags ${LDFLAGS}  ./cmd/celestia
 .PHONY: install
 
 ## fmt: Formats only *.go (excluding *.pb.go *pb_test.go). Runs `gofmt & goimports` internally.
