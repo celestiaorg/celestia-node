@@ -145,7 +145,7 @@ handle listening for new block events from the core node via RPC, erasure code t
 * Implement disconnect toleration 
 
 ### Unbonding period handling
-The **light** node currently is prone to long-range attacks. To mitigate it, we should 
+The **light** and **full**  nodes currently are prone to long-range attacks. To mitigate it, we should 
 introduce an additional `trustPeriod` variable (equal to unbonding period) which applies to headers. Suppose a node 
 starts with the period between subjective head and objective head being higher than the unbonding period - 
 in that case, the **light** node must not trust the subjective head anymore, specifically its `ValidatorSet`. Therefore, 
