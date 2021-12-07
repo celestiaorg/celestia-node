@@ -19,7 +19,7 @@ func lightComponents(cfg *Config, repo Repository) fx.Option {
 	)
 }
 
-// fullComponents keeps all the components as DI options required to built a Full Node.
+// fullComponents keeps all the components as DI options required to build a Full Node.
 func fullComponents(cfg *Config, repo Repository) fx.Option {
 	return fx.Options(
 		baseComponents(cfg, repo),
