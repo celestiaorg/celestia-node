@@ -68,7 +68,7 @@ fraud proofs against the relevant header hash to ensure that the fraud proof is 
 If the fraud proof is valid, the node should immediately halt all operations. If it is invalid, the node proceeds 
 operations as usual. 
 
-Eventually, we may choose to use the reputation tracking system provided by libp2p for nodes who broadcast invalid fraud 
+Eventually, we may choose to use the reputation tracking system provided by [gossipsub](https://github.com/libp2p/specs/blob/master/pubsub/gossipsub/gossipsub-v1.1.md#peer-scoring) for nodes who broadcast invalid fraud 
 proofs to the network, but that is not a requirement for this iteration.
 
 ### [Introduce an RPC structure and some basic APIs](https://github.com/celestiaorg/celestia-node/issues/169)
