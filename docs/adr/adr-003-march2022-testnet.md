@@ -29,7 +29,7 @@ DA network.
 ### **Full Node**
 
 A **full** node is the same thing as a **light** node, but instead of performing `LightAvailability` (the process of 
-DASing to verify a header is legitimate), it performs `FullAvailability` which samples the network for shares in order 
+DASing to verify a header is legitimate), it performs `FullAvailability` which downloads enough shares from the network in order 
 to fully reconstruct the block and store it, serving shares to the rest of the network.
 
 ### **Light Node**
