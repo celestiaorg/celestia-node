@@ -22,14 +22,14 @@ Refers to the data availability "halo" network created around the Core network.
 
 A **bridge** node is a **full** node that is connected to a Celestia Core node via RPC. It receives either a remote
 address from a running Core node or it can run a Core node as an embedded process, but the critical difference is that
-instead of constructing blocks via sampling the network for shares, it receives headers and blocks directly from its 
+instead of reconstructing blocks via downloading enough shares from the network, it receives headers and blocks directly from its 
 trusted Core node, validating blocks, erasure coding them, and producing `ExtendedHeader`s to broadcast to the Celestia 
 DA network.
 
 ### **Full Node**
 
 A **full** node is the same thing as a **light** node, but instead of performing `LightAvailability` (the process of 
-DASing to verify a header is legitimate), it performs `FullAvailability` which samples the network for shares in order 
+DASing to verify a header is legitimate), it performs `FullAvailability` which downloads enough shares from the network in order 
 to fully reconstruct the block and store it, serving shares to the rest of the network.
 
 ### **Light Node**
@@ -68,7 +68,7 @@ fraud proofs against the relevant header hash to ensure that the fraud proof is 
 If the fraud proof is valid, the node should immediately halt all operations. If it is invalid, the node proceeds 
 operations as usual. 
 
-Eventually, we may choose to use the reputation tracking system provided by libp2p for nodes who broadcast invalid fraud 
+Eventually, we may choose to use the reputation tracking system provided by [gossipsub](https://github.com/libp2p/specs/blob/master/pubsub/gossipsub/gossipsub-v1.1.md#peer-scoring) for nodes who broadcast invalid fraud 
 proofs to the network, but that is not a requirement for this iteration.
 
 ### [Introduce an RPC structure and some basic APIs](https://github.com/celestiaorg/celestia-node/issues/169)
@@ -145,7 +145,7 @@ handle listening for new block events from the core node via RPC, erasure code t
 * Implement disconnect toleration 
 
 ### Unbonding period handling
-The **light** node is prone to the highly theoretical but still possible long-range attack. To mitigate it, we should 
+The **light** node currently is prone to long-range attacks. To mitigate it, we should 
 introduce an additional `trustPeriod` variable (equal to unbonding period) which applies to headers. Suppose a node 
 starts with the period between subjective head and objective head being higher than the unbonding period - 
 in that case, the **light** node must not trust the subjective head anymore, specifically its `ValidatorSet`. Therefore, 
