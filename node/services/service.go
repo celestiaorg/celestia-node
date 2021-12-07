@@ -11,7 +11,6 @@ import (
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	"go.uber.org/fx"
 
-	"github.com/celestiaorg/celestia-node/core"
 	"github.com/celestiaorg/celestia-node/das"
 	"github.com/celestiaorg/celestia-node/node/fxutil"
 	"github.com/celestiaorg/celestia-node/service/block"
@@ -78,11 +77,9 @@ func HeaderStore(ds datastore.Batching) (header.Store, error) {
 // BlockService constructs new block.Service.
 func BlockService(
 	lc fx.Lifecycle,
-	fetcher *core.BlockFetcher,
 	store ipld.DAGService,
-	broadcaster header.Broadcaster,
 ) *block.Service {
-	service := block.NewBlockService(fetcher, store, broadcaster)
+	service := block.NewBlockService(store)
 	lc.Append(fx.Hook{
 		OnStart: service.Start,
 		OnStop:  service.Stop,
