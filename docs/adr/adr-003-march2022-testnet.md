@@ -107,8 +107,8 @@ Currently, both **light** and **full* nodes are unable to perform data availabil
 They only begin sampling once the node is synced up to head of chain. 
 
 `HeaderSync` and the `DASer` will be refactored such that the `DASer` will be able to perform sampling on past headers
-as the node is syncing. To do this, the syncing algorithms in both the `DASer` and `HeaderSync` should align so that
-headers received during sync will be propagated to the `DASer` for sampling via an internal pubsub.
+as the node is syncing. A possible approach would be to for the syncing algorithms in both the `DASer` and `HeaderSync` 
+to align such that headers received during sync will be propagated to the `DASer` for sampling via an internal pubsub.
 
 The `DASer` will maintain a checkpoint to the last sampled header so that it can continue sampling from the last 
 checkpoint on any new headers.
