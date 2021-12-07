@@ -22,7 +22,7 @@ Refers to the data availability "halo" network created around the Core network.
 
 A **bridge** node is a **full** node that is connected to a Celestia Core node via RPC. It receives either a remote
 address from a running Core node or it can run a Core node as an embedded process, but the critical difference is that
-instead of constructing blocks via sampling the network for shares, it receives headers and blocks directly from its 
+instead of reconstructing blocks via downloading enough shares from the network, it receives headers and blocks directly from its 
 trusted Core node, validating blocks, erasure coding them, and producing `ExtendedHeader`s to broadcast to the Celestia 
 DA network.
 
