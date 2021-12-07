@@ -149,8 +149,10 @@ The **light** node is prone to the highly theoretical but still possible long-ra
 introduce an additional `trustPeriod` variable (equal to unbonding period) which applies to headers. Suppose a node 
 starts with the period between subjective head and objective head being higher than the unbonding period - 
 in that case, the **light** node must not trust the subjective head anymore, specifically its `ValidatorSet`. Therefore, 
-instead of syncing subsequent headers on top of the untrusted subjective head, the Node should request a new objective 
-head from the `trustedPeer` and set it as a new trusted subjective head.
+instead of syncing subsequent headers on top of the untrusted subjective head, the node should request a new objective 
+head from the `trustedPeer` and set it as a new trusted subjective head. This approach will follow the Tendermint model
+for 
+[light client attack detection](https://github.com/tendermint/spec/blob/master/spec/light-client/detection/detection_003_reviewed.md#light-client-attack-detector).
 
 <hr style="border:1px solid gray"> </hr>
 
@@ -172,3 +174,11 @@ Since the IPLD package is pretty much entirely separate from the celestia-node i
 is removed from the celestia-node repository and maintained separately. The extraction of IPLD should also include a 
 review and refactoring as there are still some legacy components that are either no longer necessary and the 
 documentation also needs updating.
+
+### Implement additional light node verification logic similar to the Tendermint Light Client Model
+At the moment, the syncing logic for a **light** nodes is simple in that it syncs each header from a single peer. 
+Instead, the **light** node should double-check headers with another randomly chosen 
+["witness"](https://github.com/tendermint/tendermint/blob/02d456b8b8274088e8d3c6e1714263a47ffe13ac/light/client.go#L154-L161) 
+peer than the primary peer from which it received the header, as described in the 
+[light client attack detector](https://github.com/tendermint/spec/blob/master/spec/light-client/detection/detection_003_reviewed.md#light-client-attack-detector)
+model from Tendermint.
