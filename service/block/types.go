@@ -7,10 +7,6 @@ import (
 	"github.com/celestiaorg/rsmt2d"
 )
 
-// RawBlock is an alias to a "raw" Core block. It is "raw" because
-// it is still awaiting erasure coding.
-type RawBlock = core.Block
-
 // Block represents the entirety of a Block in the Celestia network.
 // It contains the erasure coded block data as well as its
 // ExtendedHeader.
@@ -41,7 +37,3 @@ func (b *Block) Commit() *core.Commit {
 func (b *Block) DataSize() uint {
 	return b.data.Width()
 }
-
-// BadEncodingError contains all relevant information to
-// generate a BadEncodingFraudProof.
-type BadEncodingError struct{}
