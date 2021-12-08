@@ -14,11 +14,23 @@ build:
 	@go build -ldflags ${LDFLAGS} ./cmd/celestia
 .PHONY: build
 
-## install: Builds and installs the celestia-node binary into the GOBIN directory.
+## install: Build and install the celestia-node binary into the GOBIN directory.
 install:
 	@echo "--> Installing Celestia"
 	@go install -ldflags ${LDFLAGS}  ./cmd/celestia
 .PHONY: install
+
+## shed: Build cel-shed binary.
+shed:
+	@echo "--> Building cel-shed"
+	@go build ./cmd/cel-shed
+.PHONY: shed
+
+## install-shed: Build and install the cel-shed binary into the GOBIN directory.
+install-shed:
+	@echo "--> Installing cel-shed"
+	@go install ./cmd/cel-shed
+.PHONY: install-shed
 
 ## fmt: Formats only *.go (excluding *.pb.go *pb_test.go). Runs `gofmt & goimports` internally.
 fmt:
