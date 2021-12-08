@@ -47,16 +47,33 @@ func (s *Service) Start(context.Context) error {
 	}
 	log.Info("starting header service")
 
-	s.ctx, s.cancel = context.WithCancel(context.Background())
-	go s.syncer.Sync(s.ctx)
-
 	err := s.pubsub.RegisterTopicValidator(PubSubTopic, s.syncer.Validate)
 	if err != nil {
 		return err
 	}
-
 	s.topic, err = s.pubsub.Join(PubSubTopic)
-	return err
+	if err != nil {
+		return err
+	}
+
+	s.ctx, s.cancel = context.WithCancel(context.Background())
+
+	// if core exchange is used, enable core listener
+	if coreEx, ok := s.syncer.exchange.(*CoreExchange); ok {
+		coreListener, err := NewCoreListener(coreEx, s.topic)
+		if err != nil {
+			return err
+		}
+		go func() {
+			// syncing must finish before listener starts up
+			s.syncer.Sync(s.ctx)
+			coreListener.listen(s.ctx)
+		}()
+		return nil
+	}
+
+	go s.syncer.Sync(s.ctx)
+	return nil
 }
 
 // Stop stops the header Service.

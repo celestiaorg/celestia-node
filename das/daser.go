@@ -67,7 +67,7 @@ func (d *DASer) Stop(ctx context.Context) error {
 
 // sampling validates availability for each Header received from header subscription.
 func (d *DASer) sampling(ctx context.Context, sub header.Subscription) {
-	defer sub.Cancel()
+	defer sub.Cancel() //nolint:errcheck
 	defer close(d.done)
 	for {
 		h, err := sub.NextHeader(ctx)

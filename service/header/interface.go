@@ -22,12 +22,7 @@ type Subscription interface {
 	// in the network.
 	NextHeader(ctx context.Context) (*ExtendedHeader, error)
 	// Cancel cancels the subscription.
-	Cancel()
-}
-
-// Broadcaster broadcasts an ExtendedHeader to the network.
-type Broadcaster interface {
-	Broadcast(ctx context.Context, header *ExtendedHeader) error
+	Cancel() error
 }
 
 // Exchange encompasses the behavior necessary to request ExtendedHeaders

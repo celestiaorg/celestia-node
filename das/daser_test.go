@@ -51,6 +51,6 @@ func (mhs *mockHeaderSub) NextHeader(ctx context.Context) (*header.ExtendedHeade
 	return mhs.headers[0], nil
 }
 
-func (mhs *mockHeaderSub) Cancel() {}
+func (mhs *mockHeaderSub) Cancel() error { return nil }
 
 func (mhs *mockHeaderSub) Topic() *pubsub.Topic { return nil }

@@ -31,13 +31,13 @@ func HeaderSyncer(cfg Config) func(ex header.Exchange, store header.Store) (*hea
 }
 
 // HeaderService creates a new header.Service.
-func HeaderService(lc fx.Lifecycle, syncer *header.Syncer, sub *pubsub.PubSub) (*header.Service, header.Broadcaster) {
+func HeaderService(lc fx.Lifecycle, syncer *header.Syncer, sub *pubsub.PubSub) *header.Service {
 	service := header.NewHeaderService(syncer, sub)
 	lc.Append(fx.Hook{
 		OnStart: service.Start,
 		OnStop:  service.Stop,
 	})
-	return service, service
+	return service
 }
 
 // HeaderExchangeP2P constructs new P2PExchange for headers.
