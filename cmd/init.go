@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/spf13/cobra"
 
@@ -57,6 +58,16 @@ func Init(repoFlagName string, tp node.Type) *cobra.Command {
 					return err
 				}
 				opts = append(opts, node.WithRemoteCore(protocol, ip))
+			}
+
+			mutualPeersStr := cmd.Flag(mutualPeersFlag.Name).Value.String()
+			if mutualPeersStr != "" {
+				mutualPeers := strings.Split(mutualPeersStr, ",")
+				if len(mutualPeers) == 0 {
+					return fmt.Errorf("%s flag is passed but no address were given", mutualPeersFlag.Name)
+				}
+
+				opts = append(opts, node.WithMutualPeers(mutualPeers))
 			}
 
 			return node.Init(repoPath, tp, opts...)

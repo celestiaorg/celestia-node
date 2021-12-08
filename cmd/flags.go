@@ -8,6 +8,7 @@ var configFlags = []*flag.Flag{
 	trustedHashFlag,
 	trustedPeerFlag,
 	coreRemoteFlag,
+	mutualPeersFlag,
 }
 
 var (
@@ -35,6 +36,12 @@ var (
 		Name: "core.remote",
 		Usage: "Indicates node to connect to the given remote core node. " +
 			"Example: <protocol>://<ip>:<port>, tcp://127.0.0.1:26657",
+		DefValue: "",
+	}
+	mutualPeersFlag = &flag.Flag{
+		Name: "p2p.mutual",
+		Usage: "Comma-Multiaddresses of mutual peers to keep unbreakable connection with. " +
+			"Peers must bidirectionally point to each other.",
 		DefValue: "",
 	}
 )
