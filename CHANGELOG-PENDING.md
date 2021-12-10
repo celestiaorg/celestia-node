@@ -15,6 +15,7 @@ Month, DD, YYYY
 ### IMPROVEMENTS
 
 - [go package] (Link to PR) Description @username
+- [services/block: Remove block fetching capability from `BlockService`](https://github.com/celestiaorg/celestia-node/pull/277) [@renaynay](https://github.com/renaynay) 
 
 ### BUG FIXES
 
