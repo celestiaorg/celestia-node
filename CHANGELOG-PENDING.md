@@ -19,3 +19,5 @@ Month, DD, YYYY
 ### BUG FIXES
 
 - [go package] (Link to PR) Description @username
+
+- [header] Added missing `err` value in ErrorW logging calls. @jbowen93

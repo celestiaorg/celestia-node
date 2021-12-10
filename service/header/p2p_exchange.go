@@ -101,19 +101,19 @@ func (ex *P2PExchange) handleRequestByHash(hash []byte, stream network.Stream) {
 
 	header, err := ex.store.Get(ex.ctx, hash)
 	if err != nil {
-		log.Errorw("getting header by hash", "hash", tmbytes.HexBytes(hash).String(), "err")
+		log.Errorw("getting header by hash", "hash", tmbytes.HexBytes(hash).String(), "err", err)
 		stream.Reset() //nolint:errcheck
 		return
 	}
 	resp, err := ExtendedHeaderToProto(header)
 	if err != nil {
-		log.Errorw("marshaling header to proto", "hash", tmbytes.HexBytes(hash).String(), "err")
+		log.Errorw("marshaling header to proto", "hash", tmbytes.HexBytes(hash).String(), "err", err)
 		stream.Reset() //nolint:errcheck
 		return
 	}
 	_, err = serde.Write(stream, resp)
 	if err != nil {
-		log.Errorw("writing header to stream", "hash", tmbytes.HexBytes(hash).String(), "err")
+		log.Errorw("writing header to stream", "hash", tmbytes.HexBytes(hash).String(), "err", err)
 		stream.Reset() //nolint:errcheck
 		return
 	}
