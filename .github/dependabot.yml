@@ -13,7 +13,8 @@ updates:
       time: "11:00"
     open-pull-requests-limit: 10
     reviewers:
-      - fadeev
+      - Wondertan
+      - renaynay
   - package-ecosystem: gomod
     directory: "/"
     schedule:
