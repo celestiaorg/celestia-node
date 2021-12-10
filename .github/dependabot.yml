@@ -21,7 +21,7 @@ updates:
       time: "11:00"
     open-pull-requests-limit: 10
     reviewers:
-      - melekes
-      - tessr
+      - Wondertan
+      - renaynay
     labels:
       - T:dependencies
