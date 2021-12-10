@@ -3,13 +3,15 @@ updates:
   - package-ecosystem: github-actions
     directory: "/"
     schedule:
-      interval: daily
+      interval: weekly
+      day: monday
       time: "11:00"
     open-pull-requests-limit: 10
   - package-ecosystem: npm
     directory: "/docs"
     schedule:
-      interval: daily
+      interval: weekly
+      day: monday
       time: "11:00"
     open-pull-requests-limit: 10
     reviewers:
@@ -18,7 +20,8 @@ updates:
   - package-ecosystem: gomod
     directory: "/"
     schedule:
-      interval: daily
+      interval: weekly
+      day: monday
       time: "11:00"
     open-pull-requests-limit: 10
     reviewers:
