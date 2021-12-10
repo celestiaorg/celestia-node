@@ -21,10 +21,10 @@ install:
 .PHONY: install
 
 ## shed: Build cel-shed binary.
-shed:
+cel-shed:
 	@echo "--> Building cel-shed"
 	@go build ./cmd/cel-shed
-.PHONY: shed
+.PHONY: cel-shed
 
 ## install-shed: Build and install the cel-shed binary into the GOBIN directory.
 install-shed:
