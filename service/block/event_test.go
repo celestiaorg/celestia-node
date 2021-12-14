@@ -59,7 +59,9 @@ func TestExtendedHeaderBroadcast(t *testing.T) {
 
 	mockFetcher := &mockFetcher{
 		suite:          suite,
+		commitsLock:    sync.Mutex{},
 		commits:        make(map[int64]*core.Commit),
+		valSetsLock:    sync.Mutex{},
 		valSets:        make(map[int64]*core.ValidatorSet),
 		mockNewBlockCh: make(chan *RawBlock),
 	}

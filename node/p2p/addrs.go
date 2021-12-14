@@ -48,7 +48,7 @@ func AddrsFactory(announce []string, noAnnounce []string) func() (_ p2pconfig.Ad
 		return func(maListen []ma.Multiaddr) (out []ma.Multiaddr) {
 			// combine maListen and maAnnounce addresses
 			out = make([]ma.Multiaddr, len(maAnnounce), len(maAnnounce)+len(maListen))
-			copy(out[:len(maAnnounce)], maAnnounce[:])
+			copy(out[:len(maAnnounce)], maAnnounce)
 
 			// filter out unneeded
 			for _, maddr := range maListen {
