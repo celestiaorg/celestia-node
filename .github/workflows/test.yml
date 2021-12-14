@@ -7,17 +7,29 @@ on:
   pull_request:
 
 jobs:
-  build:
+  test:
+    name: Run Tests
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        go: ['1.16', '1.17']
+        go: ["1.16", "1.17"]
     steps:
       - uses: actions/checkout@v2
       - name: set up go
         uses: actions/setup-go@v2
         with:
           go-version: ${{ matrix.go }}
-
-      - name: test
-        run: go test -v ./...
+      - run: go test -v ./...
+  race:
+    name: Run Tests with Data Race Detector
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        go: ["1.16", "1.17"]
+    steps:
+      - uses: actions/checkout@v2
+      - name: set up go
+        uses: actions/setup-go@v2
+        with:
+          go-version: ${{ matrix.go }}
+      - run: go test -v --race ./...
