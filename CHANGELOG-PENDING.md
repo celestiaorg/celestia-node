@@ -25,3 +25,4 @@ Month, DD, YYYY
 - [go package] (Link to PR) Description @username
 
 - [header] Added missing `err` value in ErrorW logging calls. @jbowen93
+- [service/block, node/p2p] [Fix race conditions in TestExtendedHeaderBroadcast and TestFull_P2P_Streams.](https://github.com/celestiaorg/celestia-node/pull/288) @jenyasd209
