@@ -1,14 +1,12 @@
-name: Go Test
+name: Go Test Data Race
 
 on:
-  push:
-    branches:
-      - main
-  pull_request:
+  schedule:
+  - cron: '0 12 * * 1'
 
 jobs:
-  test:
-    name: Run Tests
+  race:
+    name: Run Tests with Data Race Detector
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -19,4 +17,4 @@ jobs:
         uses: actions/setup-go@v2
         with:
           go-version: ${{ matrix.go }}
-      - run: go test -v ./...
+      - run: go test -v --race ./...
