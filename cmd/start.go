@@ -48,7 +48,14 @@ func Start(storeFlagName string, tp node.Type) *cobra.Command {
 			logs.SetAllLoggers(level)
 
 			var opts []node.Option
-
+			nodeConfig := cmd.Flag(nodeConfigFlag.Name).Value.String()
+			if nodeConfig != "" {
+				cfg, err := node.LoadConfig(nodeConfig)
+				if err != nil {
+					return err
+				}
+				opts = append(opts, node.WithConfig(cfg))
+			}
 			trustedHash := cmd.Flag(trustedHashFlag.Name).Value.String()
 			if trustedHash != "" {
 				opts = append(opts, node.WithTrustedHash(trustedHash))
@@ -65,15 +72,6 @@ func Start(storeFlagName string, tp node.Type) *cobra.Command {
 				}
 				opts = append(opts, node.WithRemoteCore(protocol, ip))
 			}
-			nodeConfig := cmd.Flag(nodeConfigFlag.Name).Value.String()
-			if nodeConfig != "" {
-				cfg, err := node.LoadConfig(nodeConfig)
-				if err != nil {
-					return err
-				}
-				opts = append(opts, node.WithConfig(cfg))
-			}
-
 			mutualPeersStr := cmd.Flag(mutualPeersFlag.Name).Value.String()
 			if mutualPeersStr != "" {
 				mutualPeers := strings.Split(mutualPeersStr, ",")
