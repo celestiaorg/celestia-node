@@ -16,7 +16,10 @@ func Init(path string, tp Type, options ...Option) error {
 	cfg := DefaultConfig(tp)
 	for _, option := range options {
 		if option != nil {
-			option(cfg)
+			err := option(cfg)
+			if err != nil {
+				return err
+			}
 		}
 	}
 
@@ -44,7 +47,7 @@ func InitWith(path string, tp Type, cfg *Config) error {
 		}
 		return err
 	}
-	defer flock.Unlock() //nolint: errcheck
+	defer flock.Unlock() // nolint: errcheck
 
 	err = initDir(keysPath(path))
 	if err != nil {
