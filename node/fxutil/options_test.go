@@ -45,3 +45,23 @@ func TestOverride(t *testing.T) {
 	assert.Equal(t, ovr, tt.R)
 	assert.Equal(t, ovrS, tt.S)
 }
+
+func TestProvideAs(t *testing.T) {
+	tt := struct {
+		fx.In
+		R io.Reader
+	}{}
+
+	fopt, err := ParseOptions(
+		ProvideAs(
+			func() *bytes.Buffer {
+				return bytes.NewBuffer([]byte("xyz"))
+			},
+			new(io.Reader),
+		),
+	)
+	require.NoError(t, err)
+
+	fxtest.New(t, fopt, fx.Populate(&tt), fx.NopLogger)
+	assert.NotNil(t, tt.R)
+}

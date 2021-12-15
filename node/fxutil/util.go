@@ -18,12 +18,6 @@ func WithLifecycle(ctx context.Context, lc fx.Lifecycle) context.Context {
 	return ctx
 }
 
-// ProvideAs provides the first argument as types of the second.
-// TODO(@Wondertan): Support overriding
-func ProvideAs(prv interface{}, as ...interface{}) Option {
-	return Provide(fx.Annotate(prv, fx.As(as...)))
-}
-
 // SupplyIf supplies DI if a condition is met.
 func SupplyIf(cond bool, val ...interface{}) Option {
 	if cond {
