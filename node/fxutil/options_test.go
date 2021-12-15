@@ -65,3 +65,18 @@ func TestProvideAs(t *testing.T) {
 	fxtest.New(t, fopt, fx.Populate(&tt), fx.NopLogger)
 	assert.NotNil(t, tt.R)
 }
+
+func TestSupplyAs(t *testing.T) {
+	tt := struct {
+		fx.In
+		R io.Reader
+	}{}
+
+	fopt, err := ParseOptions(
+		SupplyAs(bytes.NewBuffer([]byte("xyz")), new(io.Reader)),
+	)
+	require.NoError(t, err)
+
+	fxtest.New(t, fopt, fx.Populate(&tt), fx.NopLogger)
+	assert.NotNil(t, tt.R)
+}

@@ -60,7 +60,16 @@ out:
 			continue
 		}
 
-		parsed = append(parsed, fx.Supply(val))
+		switch tp.Kind() {
+		case reflect.Interface:
+			// if type is an interface - we have to say FX to build the `val` as the interface
+			parsed = append(parsed, fx.Supply(fx.Annotate(
+				val,
+				fx.As(reflect.New(tp).Interface()),
+			)))
+		default:
+			parsed = append(parsed, fx.Supply(val))
+		}
 	}
 
 	for _, val := range fopts.invokes {
@@ -150,6 +159,25 @@ func Supply(vals ...interface{}) Option {
 	}
 }
 
+// SupplyAs mimics fx.Supply(fx.Annotate(fx.As())).
+func SupplyAs(val interface{}, as interface{}) Option {
+	return func(o *fxOptions) error {
+		tp := reflect.TypeOf(as)
+		if tp.Kind() != reflect.Ptr && tp.Elem().Kind() != reflect.Interface {
+			return fmt.Errorf("fxutil: As values must be ptr to an interface")
+		}
+		tp = tp.Elem()
+
+		_, ok := o.supplies[tp]
+		if ok {
+			return fmt.Errorf("fxutil: already supplied")
+		}
+
+		o.supplies[tp] = val
+		return nil
+	}
+}
+
 // Provide mimics fx.Provide.
 // Provided ctors can be overridden by OverrideSupply.
 func Provide(vals ...interface{}) Option {
@@ -160,8 +188,7 @@ func Provide(vals ...interface{}) Option {
 	return Options(opts...)
 }
 
-// ProvideAs provides the first argument as types of the second.
-// TODO(@Wondertan): Support overriding
+// ProvideAs mimics fx.Provide(fx.Annotate(fx.As())).
 func ProvideAs(val interface{}, as ...interface{}) Option {
 	return func(o *fxOptions) error {
 		tp := reflect.TypeOf(val)
