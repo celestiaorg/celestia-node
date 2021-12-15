@@ -1,8 +1,10 @@
 package cmd
 
-import "flag"
+import (
+	"github.com/spf13/pflag"
+)
 
-var configFlags = []*flag.Flag{
+var configFlags = []*pflag.Flag{
 	loglevelFlag,
 	nodeConfigFlag,
 	trustedHashFlag,
@@ -11,27 +13,27 @@ var configFlags = []*flag.Flag{
 }
 
 var (
-	loglevelFlag = &flag.Flag{
+	loglevelFlag = &pflag.Flag{
 		Name:     "log.level",
 		Usage:    "DEBUG, INFO, WARN, ERROR, DPANIC, PANIC, FATAL, and\n// their lower-case forms",
 		DefValue: "info",
 	}
-	nodeConfigFlag = &flag.Flag{
+	nodeConfigFlag = &pflag.Flag{
 		Name:     "node.config",
 		Usage:    "Path to a customized Config",
 		DefValue: "",
 	}
-	trustedHashFlag = &flag.Flag{
+	trustedHashFlag = &pflag.Flag{
 		Name:     "headers.trusted-hash",
 		Usage:    "Hex encoded block hash. Starting point for header synchronization",
 		DefValue: "",
 	}
-	trustedPeerFlag = &flag.Flag{
+	trustedPeerFlag = &pflag.Flag{
 		Name:     "headers.trusted-peer",
 		Usage:    "Multiaddr of a reliable peer to fetch headers from",
 		DefValue: "",
 	}
-	coreRemoteFlag = &flag.Flag{
+	coreRemoteFlag = &pflag.Flag{
 		Name: "core.remote",
 		Usage: "Indicates node to connect to the given remote core node. " +
 			"Example: <protocol>://<ip>:<port>, tcp://127.0.0.1:26657",
