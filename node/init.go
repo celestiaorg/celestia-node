@@ -16,7 +16,10 @@ func Init(path string, tp Type, options ...Option) error {
 	cfg := DefaultConfig(tp)
 	for _, option := range options {
 		if option != nil {
-			option(cfg)
+			err := option(cfg)
+			if err != nil {
+				return err
+			}
 		}
 	}
 
