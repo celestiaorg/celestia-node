@@ -12,7 +12,7 @@ import (
 
 func TestInit(t *testing.T) {
 	dir := t.TempDir()
-	nodes := []Type{Light, Full}
+	nodes := []Type{Light, Bridge}
 
 	for _, node := range nodes {
 		require.NoError(t, Init(dir, node))
@@ -22,7 +22,7 @@ func TestInit(t *testing.T) {
 
 func TestInitErrForInvalidPath(t *testing.T) {
 	path := "/invalid_path"
-	nodes := []Type{Light, Full}
+	nodes := []Type{Light, Bridge}
 
 	for _, node := range nodes {
 		require.Error(t, Init(path, node))
@@ -31,7 +31,7 @@ func TestInitErrForInvalidPath(t *testing.T) {
 
 func TestInitWithNilConfig(t *testing.T) {
 	dir := t.TempDir()
-	nodes := []Type{Light, Full}
+	nodes := []Type{Light, Bridge}
 
 	for _, node := range nodes {
 		require.Error(t, InitWith(dir, node, nil))
@@ -48,7 +48,7 @@ func TestIsInitWithBrokenConfig(t *testing.T) {
 		[P2P]
 		  ListenAddresses = [/ip4/0.0.0.0/tcp/2121]
     `))
-	nodes := []Type{Light, Full}
+	nodes := []Type{Light, Bridge}
 
 	for _, node := range nodes {
 		assert.False(t, IsInit(dir, node))
@@ -57,7 +57,7 @@ func TestIsInitWithBrokenConfig(t *testing.T) {
 
 func TestIsInitForNonExistDir(t *testing.T) {
 	path := "/invalid_path"
-	nodes := []Type{Light, Full}
+	nodes := []Type{Light, Bridge}
 
 	for _, node := range nodes {
 		assert.False(t, IsInit(path, node))
@@ -69,7 +69,7 @@ func TestInitErrForLockedDir(t *testing.T) {
 	flock, err := fslock.Lock(lockPath(dir))
 	require.NoError(t, err)
 	defer flock.Unlock() //nolint:errcheck
-	nodes := []Type{Light, Full}
+	nodes := []Type{Light, Bridge}
 
 	for _, node := range nodes {
 		require.Error(t, Init(dir, node))

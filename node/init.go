@@ -44,7 +44,7 @@ func InitWith(path string, tp Type, cfg *Config) error {
 		}
 		return err
 	}
-	defer flock.Unlock() //nolint: errcheck
+	defer flock.Unlock() // nolint: errcheck
 
 	err = initDir(keysPath(path))
 	if err != nil {
@@ -72,9 +72,9 @@ func InitWith(path string, tp Type, cfg *Config) error {
 	}
 
 	// TODO(@Wondertan): This is a lazy hack which prevents Core Repository to be generated for all case, and generates
-	//  only for a Full Node with embedded Core Node. Ideally, we should a have global map Node Type/Mode -> Custom
+	//  only for a Bridge Node with embedded Core Node. Ideally, we should a have global map Node Type/Mode -> Custom
 	//  Init Func, so Init would run initialization for specific Mode/Type.
-	if !cfg.Core.Remote && tp == Full {
+	if !cfg.Core.Remote && tp == Bridge {
 		corePath := corePath(path)
 		err = initDir(corePath)
 		if err != nil {
@@ -103,7 +103,7 @@ func IsInit(path string, tp Type) bool {
 
 	// TODO(@Wondertan): this is undesirable hack related to the TODO above.
 	//  They should be resolved together.
-	if !cfg.Core.Remote && tp == Full && !core.IsInit(corePath(path)) {
+	if !cfg.Core.Remote && tp == Bridge && !core.IsInit(corePath(path)) {
 		return false
 	}
 

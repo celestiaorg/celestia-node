@@ -10,7 +10,7 @@ import (
 	"github.com/celestiaorg/celestia-node/node/services"
 )
 
-// lightComponents keeps all the components as DI options required to built a Light Node.
+// lightComponents keeps all the components as DI options required to build a Light Node.
 func lightComponents(cfg *Config, repo Repository) fx.Option {
 	return fx.Options(
 		baseComponents(cfg, repo),
@@ -19,8 +19,8 @@ func lightComponents(cfg *Config, repo Repository) fx.Option {
 	)
 }
 
-// fullComponents keeps all the components as DI options required to built a Full Node.
-func fullComponents(cfg *Config, repo Repository) fx.Option {
+// bridgeComponents keeps all the components as DI options required to build a Bridge Node.
+func bridgeComponents(cfg *Config, repo Repository) fx.Option {
 	return fx.Options(
 		baseComponents(cfg, repo),
 		nodecore.Components(cfg.Core, repo.Core),

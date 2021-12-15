@@ -28,7 +28,7 @@ type Config struct {
 // NOTE: Currently, configs are identical, but this will change.
 func DefaultConfig(tp Type) *Config {
 	switch tp {
-	case Full:
+	case Bridge:
 		return &Config{
 			Core:     core.DefaultConfig(),
 			P2P:      p2p.DefaultConfig(),
