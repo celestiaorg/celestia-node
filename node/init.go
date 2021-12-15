@@ -13,10 +13,10 @@ import (
 // Init initializes the Node FileSystem Store for the given Node Type 'tp' in the directory under 'path' with
 // default Config. Options are applied over default Config and persisted on disk.
 func Init(path string, tp Type, options ...Option) error {
-	cfg := DefaultConfig(tp)
+	cfg, sets := DefaultConfig(tp), new(settings)
 	for _, option := range options {
 		if option != nil {
-			err := option(cfg)
+			err := option(cfg, sets)
 			if err != nil {
 				return err
 			}

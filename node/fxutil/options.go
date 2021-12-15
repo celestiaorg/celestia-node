@@ -134,6 +134,11 @@ func OverrideSupply(vals ...interface{}) Option {
 				refVal, tp = refVal.Elem(), tp.Elem()
 			}
 
+			if !refVal.IsValid() {
+				// if there was nil - ignore
+				continue
+			}
+
 			_, ok := o.overrideSupplies[tp]
 			if ok {
 				return fmt.Errorf("fxutil: already overridden")

@@ -70,9 +70,10 @@ func New(tp Type, store Store, options ...Option) (*Node, error) {
 		return nil, err
 	}
 
+	sets := new(settings)
 	for _, option := range options {
 		if option != nil {
-			err := option(cfg)
+			err := option(cfg, sets)
 			if err != nil {
 				return nil, err
 			}
