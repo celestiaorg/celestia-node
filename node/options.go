@@ -70,10 +70,3 @@ func WithP2PKeyStr(key string) Option {
 		return
 	}
 }
-
-func WithMutualPeers(addrs []string) Option {
-	return func(cfg *Config) (_ error) {
-		cfg.P2P.MutualPeers = addrs
-		return nil
-	}
-}
