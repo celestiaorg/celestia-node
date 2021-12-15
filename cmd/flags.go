@@ -29,7 +29,7 @@ var (
 	}
 	trustedPeerFlag = &flag.Flag{
 		Name:     "headers.trusted-peer",
-		Usage:    "Multiaddr of a reliable peer to fetch headers from",
+		Usage:    "Multiaddr of a reliable peer to fetch headers from. (Format: multiformats.io/multiaddr)",
 		DefValue: "",
 	}
 	coreRemoteFlag = &flag.Flag{
@@ -41,7 +41,7 @@ var (
 	mutualPeersFlag = &flag.Flag{
 		Name: "p2p.mutual",
 		Usage: "Comma-separated multiaddresses of mutual peers to keep an unbreakable connection with. " +
-			"Peers must bidirectionally point to each other.",
+			"Peers must bidirectionally point to each other. (Format: multiformats.io/multiaddr)",
 		DefValue: "",
 	}
 )
