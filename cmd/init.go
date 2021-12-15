@@ -64,7 +64,7 @@ func Init(repoFlagName string, tp node.Type) *cobra.Command {
 			if mutualPeersStr != "" {
 				mutualPeers := strings.Split(mutualPeersStr, ",")
 				if len(mutualPeers) == 0 {
-					return fmt.Errorf("%s flag is passed but no address were given", mutualPeersFlag.Name)
+					return fmt.Errorf("%s flag is passed but no addresses were given", mutualPeersFlag.Name)
 				}
 
 				opts = append(opts, node.WithMutualPeers(mutualPeers))
