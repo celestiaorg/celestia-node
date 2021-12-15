@@ -24,7 +24,7 @@ func ParseOptions(opts ...Option) (fx.Option, error) {
 		}
 	}
 
-	var parsed []fx.Option
+	parsed := make([]fx.Option, 0)
 out:
 	for tp, val := range fopts.provides {
 		allAs := make([]interface{}, len(val.as))
@@ -195,10 +195,7 @@ func ProvideAs(val interface{}, as ...interface{}) Option {
 // Invoke mimics fx.Invoke.
 func Invoke(vals ...interface{}) Option {
 	return func(o *fxOptions) error {
-		for _, val := range vals {
-			o.invokes = append(o.invokes, val)
-		}
-
+		o.invokes = append(o.invokes, vals...)
 		return nil
 	}
 }
