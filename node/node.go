@@ -31,7 +31,7 @@ var log = logging.Logger("node")
 // Node represents the core structure of a Celestia node. It keeps references to all Celestia-specific
 // components and services in one place and provides flexibility to run a Celestia node in different modes.
 // Currently supported modes:
-// * Full
+// * Bridge
 // * Light
 type Node struct {
 	Type   Type
@@ -55,10 +55,6 @@ type Node struct {
 	// p2p protocols
 	PubSub *pubsub.PubSub
 	// BlockService provides access to the node's Block Service
-	// TODO @renaynay: I don't like the concept of storing individual services on the node,
-	// TODO maybe create a struct in full.go that contains `FullServices` (all expected services to be running on a
-	// TODO full node) and in light, same thing `LightServices` (all expected services to be running in a light node.
-	// TODO `FullServices` can include `LightServices` + other services.
 	BlockServ  *block.Service  `optional:"true"`
 	ShareServ  share.Service   // not optional
 	HeaderServ *header.Service // not optional
@@ -79,8 +75,8 @@ func New(tp Type, repo Repository, options ...Option) (*Node, error) {
 	}
 
 	switch tp {
-	case Full:
-		return newNode(tp, fullComponents(cfg, repo))
+	case Bridge:
+		return newNode(tp, bridgeComponents(cfg, repo))
 	case Light:
 		return newNode(tp, lightComponents(cfg, repo))
 	default:
@@ -154,7 +150,7 @@ func (n *Node) Stop(ctx context.Context) error {
 
 // newNode creates a new Node from given DI options.
 // DI options allow initializing the Node with a customized set of components and services.
-// NOTE: newNode is currently meant to be used privately to create various custom Node types e.g. full, unless we
+// NOTE: newNode is currently meant to be used privately to create various custom Node types e.g. Light, unless we
 // decide to give package users the ability to create custom node types themselves.
 func newNode(tp Type, opts ...fx.Option) (*Node, error) {
 	node := new(Node)

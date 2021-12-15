@@ -1,12 +1,13 @@
 package node
 
-// Type defines the Node type (e.g. `light`, `full`) for identity purposes.
+// Type defines the Node type (e.g. `light`, `bridge`) for identity purposes.
 // The zero value for Type is invalid.
 type Type uint8
 
 const (
-	// Full is a full-featured Celestia Node.
-	Full Type = iota + 1
+	// Bridge is a Celestia Node that bridges Celestia consensus network and DA network.
+	// It maintains trusted channel/connection to Celestia Core Node using core.Client.
+	Bridge Type = iota + 1
 	// Light is a stripped-down Celestia Node which aims to be lightweight while preserving highest possible
 	// security guarantees.
 	Light
@@ -38,12 +39,12 @@ func ParseType(str string) Type {
 
 // typeToString keeps string representations of all valid Types.
 var typeToString = map[Type]string{
-	Full:  "Full",
-	Light: "Light",
+	Bridge: "Bridge",
+	Light:  "Light",
 }
 
 // typeToString maps strings representations of all valid Types.
 var stringToType = map[string]Type{
-	"Full":  Full,
-	"Light": Light,
+	"Bridge": Bridge,
+	"Light":  Light,
 }

@@ -8,19 +8,19 @@ import (
 )
 
 //nolint:dupl
-func TestRepoFull(t *testing.T) {
+func TestRepoBridge(t *testing.T) {
 	dir := t.TempDir()
 
-	_, err := Open(dir, Full)
+	_, err := Open(dir, Bridge)
 	assert.ErrorIs(t, err, ErrNotInited)
 
-	err = Init(dir, Full)
+	err = Init(dir, Bridge)
 	require.NoError(t, err)
 
-	repo, err := Open(dir, Full)
+	repo, err := Open(dir, Bridge)
 	require.NoError(t, err)
 
-	_, err = Open(dir, Full)
+	_, err = Open(dir, Bridge)
 	assert.ErrorIs(t, err, ErrOpened)
 
 	ks, err := repo.Keystore()

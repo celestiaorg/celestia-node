@@ -10,7 +10,7 @@ import (
 
 func TestConfigWriteRead(t *testing.T) {
 	buf := bytes.NewBuffer(nil)
-	in := DefaultConfig(Full)
+	in := DefaultConfig(Bridge)
 
 	err := in.Encode(buf)
 	require.NoError(t, err)
