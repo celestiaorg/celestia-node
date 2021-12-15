@@ -40,7 +40,7 @@ var (
 	}
 	mutualPeersFlag = &flag.Flag{
 		Name: "p2p.mutual",
-		Usage: "Comma-separated Multiaddresses of mutual peers to keep unbreakable connection with. " +
+		Usage: "Comma-separated multiaddresses of mutual peers to keep an unbreakable connection with. " +
 			"Peers must bidirectionally point to each other.",
 		DefValue: "",
 	}
