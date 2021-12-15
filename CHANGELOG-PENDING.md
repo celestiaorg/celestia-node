@@ -11,7 +11,7 @@ Month, DD, YYYY
 
 ### FEATURES
 
-- [go package] (Link to PR) Description @username
+- [node: enhance DI allowing overriding of dependencies](https://github.com/celestiaorg/celestia-node/pull/290) [@Wondertan](https://github.com/Wondertan)
 
 ### IMPROVEMENTS
 
