@@ -13,45 +13,45 @@ import (
 
 const keyName = "p2p-key"
 
-// TODO(@Wondertan): Should also receive a KeyStore to save generated key and reuse if exists.
-// Identity provides a networking private key and PeerID of the node.
-func Identity(pstore peerstore.Peerstore, ks keystore.Keystore) (priv crypto.PrivKey, id peer.ID, err error) {
-	ksPriv, err := ks.Get(keyName)
+// Key provides a networking private key and PeerID of the node.
+func Key(kstore keystore.Keystore) (crypto.PrivKey, error) {
+	ksPriv, err := kstore.Get(keyName)
 	if err != nil {
 		if errors.Is(err, keystore.ErrNotFound) {
 			// No existing private key in the keystore so generate a new one
-			priv, _, err = crypto.GenerateEd25519Key(rand.Reader)
+			priv, _, err := crypto.GenerateEd25519Key(rand.Reader)
 			if err != nil {
-				return nil, "", err
+				return nil, err
 			}
+
 			bytes, err := crypto.MarshalPrivateKey(priv)
 			if err != nil {
-				return nil, "", err
+				return nil, err
 			}
-			// Store the new private key in the keystore
-			err = ks.Put(keyName, keystore.PrivKey{Body: bytes})
+
+			ksPriv = keystore.PrivKey{Body: bytes}
+			err = kstore.Put(keyName, ksPriv)
 			if err != nil {
-				return nil, "", err
+				return nil, err
 			}
 		} else {
-			return nil, "", err
-		}
-	} else {
-		priv, err = crypto.UnmarshalPrivateKey(ksPriv.Body)
-		if err != nil {
-			return nil, "", err
+			return nil, err
 		}
 	}
 
-	id, err = peer.IDFromPrivateKey(priv)
+	return crypto.UnmarshalPrivateKey(ksPriv.Body)
+}
+
+func ID(key crypto.PrivKey, pstore peerstore.Peerstore) (peer.ID, error) {
+	id, err := peer.IDFromPrivateKey(key)
 	if err != nil {
-		return nil, "", err
+		return "", err
 	}
 
-	err = pstore.AddPrivKey(id, priv)
+	err = pstore.AddPrivKey(id, key)
 	if err != nil {
-		return nil, "", err
+		return "", err
 	}
 
-	return priv, id, pstore.AddPubKey(id, priv.GetPublic())
+	return id, pstore.AddPubKey(id, key.GetPublic())
 }
