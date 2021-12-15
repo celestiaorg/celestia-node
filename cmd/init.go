@@ -29,6 +29,8 @@ func Init(storeFlagName string, tp node.Type) *cobra.Command {
 				return fmt.Errorf("store path must be specified")
 			}
 
+			var opts []node.Option
+
 			nodeConfig := cmd.Flag(nodeConfigFlag.Name).Value.String()
 			if nodeConfig != "" {
 				cfg, err := node.LoadConfig(nodeConfig)
@@ -36,10 +38,8 @@ func Init(storeFlagName string, tp node.Type) *cobra.Command {
 					return err
 				}
 
-				return node.InitWith(storePath, tp, cfg)
+				opts = append(opts, node.WithConfig(cfg))
 			}
-
-			var opts []node.Option
 
 			trustedHash := cmd.Flag(trustedHashFlag.Name).Value.String()
 			if trustedHash != "" {
