@@ -14,7 +14,7 @@ type Option func(*fxOptions) error
 func ParseOptions(opts ...Option) (fx.Option, error) {
 	fopts := &fxOptions{
 		overrideSupplies: map[reflect.Type]*override{},
-		provides:         map[reflect.Type]interface{}{},
+		provides:         map[reflect.Type]*provide{},
 		supplies:         map[reflect.Type]interface{}{},
 	}
 	for _, opt := range opts {
@@ -27,17 +27,30 @@ func ParseOptions(opts ...Option) (fx.Option, error) {
 	var parsed []fx.Option
 out:
 	for tp, val := range fopts.provides {
-		// exclude provides that are overridden
-		// this has a potentially negative effect for provides with more than one return parameters
-		for i := 0; i < tp.NumOut(); i++ {
-			ovr, ok := fopts.overrideSupplies[tp.Out(i)]
+		allAs := make([]interface{}, len(val.as))
+		for i, as := range val.as {
+			ovr, ok := fopts.overrideSupplies[as]
 			if ok && !ovr.used {
 				ovr.used = true
 				continue out
 			}
+
+			allAs[i] = reflect.New(as).Interface()
 		}
 
-		parsed = append(parsed, fx.Provide(val))
+		if len(allAs) == 0 {
+			// exclude provides that are overridden
+			// this has a potentially negative effect for provides with more than one return parameters
+			for i := 0; i < tp.NumOut(); i++ {
+				ovr, ok := fopts.overrideSupplies[tp.Out(i)]
+				if ok && !ovr.used {
+					ovr.used = true
+					continue out
+				}
+			}
+		}
+
+		parsed = append(parsed, fx.Provide(fx.Annotate(val.target, fx.As(allAs...))))
 	}
 
 	for tp, val := range fopts.supplies {
@@ -140,21 +153,41 @@ func Supply(vals ...interface{}) Option {
 // Provide mimics fx.Provide.
 // Provided ctors can be overridden by OverrideSupply.
 func Provide(vals ...interface{}) Option {
+	opts := make([]Option, len(vals))
+	for i, val := range vals {
+		opts[i] = ProvideAs(val)
+	}
+	return Options(opts...)
+}
+
+// ProvideAs provides the first argument as types of the second.
+// TODO(@Wondertan): Support overriding
+func ProvideAs(val interface{}, as ...interface{}) Option {
 	return func(o *fxOptions) error {
-		for _, val := range vals {
-			tp := reflect.TypeOf(val)
-			if tp.Kind() != reflect.Func || tp.NumOut() == 0 {
-				return fmt.Errorf("fxutil: ctor functions passed to Provide must have return params")
-			}
-
-			_, ok := o.provides[tp]
-			if ok {
-				return fmt.Errorf("fxutil: already provided")
-			}
-
-			o.provides[tp] = val
+		tp := reflect.TypeOf(val)
+		if tp.Kind() != reflect.Func || tp.NumOut() == 0 {
+			return fmt.Errorf("fxutil: ctor functions must be passed to Provide and have return params")
 		}
 
+		defAs := make([]reflect.Type, len(as))
+		for i, as := range as {
+			tp := reflect.TypeOf(as)
+			if tp.Kind() != reflect.Ptr && tp.Elem().Kind() != reflect.Interface {
+				return fmt.Errorf("fxutil: As values must be ptr to an interface")
+			}
+
+			defAs[i] = tp.Elem()
+		}
+
+		_, ok := o.provides[tp]
+		if ok {
+			return fmt.Errorf("fxutil: already provided")
+		}
+
+		o.provides[tp] = &provide{
+			target: val,
+			as:     defAs,
+		}
 		return nil
 	}
 }
@@ -185,7 +218,7 @@ func Options(opts ...Option) Option {
 
 type fxOptions struct {
 	overrideSupplies map[reflect.Type]*override
-	provides         map[reflect.Type]interface{}
+	provides         map[reflect.Type]*provide
 	supplies         map[reflect.Type]interface{}
 	invokes          []interface{}
 }
@@ -193,4 +226,9 @@ type fxOptions struct {
 type override struct {
 	target interface{}
 	used   bool
+}
+
+type provide struct {
+	target interface{}
+	as     []reflect.Type
 }
