@@ -40,6 +40,10 @@ func Init(repoFlagName string, tp node.Type) *cobra.Command {
 
 			var opts []node.Option
 
+			p2pKey := cmd.Flag(p2pKeyFlag.Name).Value.String()
+			if p2pKey != "" {
+				opts = append(opts, node.WithP2PKeyStr(p2pKey))
+			}
 			trustedHash := cmd.Flag(trustedHashFlag.Name).Value.String()
 			if trustedHash != "" {
 				opts = append(opts, node.WithTrustedHash(trustedHash))

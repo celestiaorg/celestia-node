@@ -10,6 +10,7 @@ var configFlags = []*pflag.Flag{
 	trustedHashFlag,
 	trustedPeerFlag,
 	coreRemoteFlag,
+	p2pKeyFlag,
 }
 
 var (
@@ -37,6 +38,11 @@ var (
 		Name: "core.remote",
 		Usage: "Indicates node to connect to the given remote core node. " +
 			"Example: <protocol>://<ip>:<port>, tcp://127.0.0.1:26657",
+		DefValue: "",
+	}
+	p2pKeyFlag = &pflag.Flag{
+		Name:     "p2p.key",
+		Usage:    "Custom p2p Ed25519 private key",
 		DefValue: "",
 	}
 )
