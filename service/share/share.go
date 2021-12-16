@@ -24,7 +24,7 @@ var log = logging.Logger("share")
 //  recovery. However, that is storage and bandwidth overhead(8 bytes per each share) which we can avoid by getting
 //  namespaces from CIDs stored in IPLD NMT Nodes, instead of encoding namespaces in erasure coding.
 //
-// TODO(@Wondertan): Ideally, Shares structure should be defined in a separate repository with
+// TODO(@Wondertan): Ideally, Shares structure should be defined in a separate store with
 //  rsmt2d/nmt/celestia-core/celestia-node importing it. rsmt2d and nmt are already dependent on the notion of "share",
 //  so why shouldn't we have a separated and global type for it to avoid the type mess with defining own share type in
 //  each package.
