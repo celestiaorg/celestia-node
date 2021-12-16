@@ -16,6 +16,8 @@ Month, DD, YYYY
 - [chore: bump deps #297](https://github.com/celestiaorg/celestia-node/pull/297) [@Wondertan](https://github.com/Wondertan)
 - [workflows/lint: update golangci-lint to v1.43 #308](https://github.com/celestiaorg/celestia-node/pull/308) [@Wondertan](https://github.com/Wondertan)
 
+- [docker] Created `docker/` dir with `Dockerfile` and `entrypoint.sh` script. 
+
 ### BUG FIXES
 
 - [go package] (Link to PR) Description @username
