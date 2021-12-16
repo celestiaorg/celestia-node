@@ -9,12 +9,12 @@ import (
 
 func init() {
 	lightCmd.AddCommand(
-		cmd.Init(repoFlagName, node.Light),
-		cmd.Start(repoFlagName, node.Light),
+		cmd.Init(storeFlagName, node.Light),
+		cmd.Start(storeFlagName, node.Light),
 	)
 	lightCmd.PersistentFlags().StringP(
-		repoFlagName,
-		repoFlagShort,
+		storeFlagName,
+		storeFlagShort,
 		"~/.celestia-light",
 		"The root/home directory of your Celestial Light Node",
 	)

@@ -36,12 +36,12 @@ func Components(cfg Config, loader core.RepoLoader) fx.Option {
 			return c.Start()
 		}),
 		fxutil.ProvideIf(!cfg.Remote, func() (core.Client, error) {
-			repo, err := loader()
+			store, err := loader()
 			if err != nil {
 				return nil, err
 			}
 
-			cfg, err := repo.Config()
+			cfg, err := store.Config()
 			if err != nil {
 				return nil, err
 			}
