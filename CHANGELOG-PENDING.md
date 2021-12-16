@@ -17,6 +17,8 @@ Month, DD, YYYY
 
 - [go package] (Link to PR) Description @username
 
+- [docker] Created `docker/` dir with `Dockerfile` and `entrypoint.sh` script. 
+
 ### BUG FIXES
 
 - [go package] (Link to PR) Description @username
