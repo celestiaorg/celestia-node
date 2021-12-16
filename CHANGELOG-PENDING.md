@@ -13,7 +13,7 @@ Month, DD, YYYY
 
 ### IMPROVEMENTS
 
-- [go package] (Link to PR) Description @username
+- [chore: bump deps #297](https://github.com/celestiaorg/celestia-node/pull/297) [@Wondertan](https://github.com/Wondertan)
 
 ### BUG FIXES
 
