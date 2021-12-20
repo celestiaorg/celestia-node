@@ -20,13 +20,13 @@ import (
 
 // RoutedHost constructs a wrapped Host that may fallback to address discovery,
 // if any top-level operation on the Host is provided with PeerID(Hash(PbK)) only.
-func RoutedHost(base hostBase, r routing.PeerRouting) host.Host {
+func RoutedHost(base HostBase, r routing.PeerRouting) host.Host {
 	return routedhost.Wrap(base, r)
 }
 
 // Host returns constructor for Host.
-func Host(cfg Config) func(hostParams) (hostBase, error) {
-	return func(params hostParams) (hostBase, error) {
+func Host(cfg Config) func(hostParams) (HostBase, error) {
+	return func(params hostParams) (HostBase, error) {
 		opts := []libp2p.Option{
 			libp2p.NoListenAddrs, // do not listen automatically
 			libp2p.AddrsFactory(params.AddrF),
@@ -61,7 +61,7 @@ func Host(cfg Config) func(hostParams) (hostBase, error) {
 	}
 }
 
-type hostBase host.Host
+type HostBase host.Host
 
 type hostParams struct {
 	fx.In
