@@ -5,8 +5,8 @@ package node
 type Type uint8
 
 const (
-	// Bridge is a Celestia Node that bridges Celestia consensus network and DA network.
-	// It maintains trusted channel/connection to Celestia Core Node using core.Client.
+	// Bridge is a Celestia Node that bridges the Celestia consensus network and data availability network.
+	// It maintains a trusted channel/connection to a Celestia Core node via the core.Client API.
 	Bridge Type = iota + 1
 	// Light is a stripped-down Celestia Node which aims to be lightweight while preserving highest possible
 	// security guarantees.
