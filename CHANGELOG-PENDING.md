@@ -14,6 +14,7 @@ Month, DD, YYYY
 ### IMPROVEMENTS
 
 - [chore: bump deps #297](https://github.com/celestiaorg/celestia-node/pull/297) [@Wondertan](https://github.com/Wondertan)
+- [workflows/lint: update golangci-lint to v1.43 #308](https://github.com/celestiaorg/celestia-node/pull/308) [@Wondertan](https://github.com/Wondertan)
 
 ### BUG FIXES
 
