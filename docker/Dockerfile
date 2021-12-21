@@ -8,6 +8,7 @@ RUN make build
 
 FROM ubuntu
 ENV NODE_TYPE full
+# Issue/bug #279 
 ENV SLEEP 0s
 
 WORKDIR $APP
