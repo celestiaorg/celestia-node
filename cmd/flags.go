@@ -8,6 +8,7 @@ var configFlags = []*flag.Flag{
 	trustedHashFlag,
 	trustedPeerFlag,
 	coreRemoteFlag,
+	mutualPeersFlag,
 }
 
 var (
@@ -28,13 +29,20 @@ var (
 	}
 	trustedPeerFlag = &flag.Flag{
 		Name:     "headers.trusted-peer",
-		Usage:    "Multiaddr of a reliable peer to fetch headers from",
+		Usage:    "Multiaddr of a reliable peer to fetch headers from. (Format: multiformats.io/multiaddr)",
 		DefValue: "",
 	}
 	coreRemoteFlag = &flag.Flag{
 		Name: "core.remote",
 		Usage: "Indicates node to connect to the given remote core node. " +
 			"Example: <protocol>://<ip>:<port>, tcp://127.0.0.1:26657",
+		DefValue: "",
+	}
+	mutualPeersFlag = &flag.Flag{
+		Name: "p2p.mutual",
+		Usage: `Comma-separated multiaddresses of mutual peers to keep a prioritized connection with.
+Such connection is immune to peer scoring slashing and connection manager trimming.
+Peers must bidirectionally point to each other. (Format: multiformats.io/multiaddr)`,
 		DefValue: "",
 	}
 )
