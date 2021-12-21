@@ -152,3 +152,23 @@ func TestBridge_NotPanicWithNilOpts(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, node)
 }
+
+func TestFull_WithMockedCoreClient(t *testing.T) {
+	repo := MockRepository(t, DefaultConfig(Full))
+	node, err := New(Full, repo, WithCoreClient(core.MockEmbeddedClient()))
+	require.NoError(t, err)
+	require.NotNil(t, node)
+	assert.True(t, node.CoreClient.IsRunning())
+
+	ctx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(cancel)
+
+	err = node.Start(ctx)
+	require.NoError(t, err)
+
+	ctx, cancel = context.WithCancel(context.Background())
+	t.Cleanup(cancel)
+
+	err = node.Stop(ctx)
+	require.NoError(t, err)
+}
