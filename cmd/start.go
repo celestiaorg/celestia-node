@@ -6,6 +6,7 @@ import (
 	"net"
 	"net/url"
 	"os/signal"
+	"strings"
 	"syscall"
 
 	logging "github.com/ipfs/go-log/v2"
@@ -71,6 +72,16 @@ func Start(repoFlagName string, tp node.Type) *cobra.Command {
 					return err
 				}
 				opts = append(opts, node.WithConfig(cfg))
+			}
+
+			mutualPeersStr := cmd.Flag(mutualPeersFlag.Name).Value.String()
+			if mutualPeersStr != "" {
+				mutualPeers := strings.Split(mutualPeersStr, ",")
+				if len(mutualPeers) == 0 {
+					return fmt.Errorf("%s flag is passed but no addresses were given", mutualPeersFlag.Name)
+				}
+
+				opts = append(opts, node.WithMutualPeers(mutualPeers))
 			}
 
 			repo, err := node.Open(repoPath, tp)
