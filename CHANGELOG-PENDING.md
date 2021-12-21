@@ -8,6 +8,7 @@ Month, DD, YYYY
 
 - [chore: rename Repository to Store #296](https://github.com/celestiaorg/celestia-node/pull/296) [@Wondertan](https://github.com/Wondertan)
 - [chore: rename Full node to Bridge node #294](https://github.com/celestiaorg/celestia-node/pull/294) [@Wondertan](https://github.com/Wondertan)
+- [node: remove InitWith #291](https://github.com/celestiaorg/celestia-node/pull/291) [@Wondertan](https://github.com/Wondertan)
 
 ### FEATURES
 
