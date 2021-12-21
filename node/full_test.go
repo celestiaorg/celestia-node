@@ -102,6 +102,9 @@ func TestFull_WithRemoteCore(t *testing.T) {
 
 	repo := MockRepository(t, DefaultConfig(Full))
 	remoteCore, protocol, ip := core.StartRemoteCore()
+	t.Cleanup(func() {
+		remoteCore.Stop() // nolint:errcheck
+	})
 	require.NotNil(t, remoteCore)
 	assert.True(t, remoteCore.IsRunning())
 
@@ -123,6 +126,26 @@ func TestFull_WithRemoteCore(t *testing.T) {
 	require.NoError(t, err)
 	err = remoteCore.Stop()
 	require.NoError(t, err)
+}
+
+func TestFull_WithRemoteCoreFailed(t *testing.T) {
+	repo := MockRepository(t, DefaultConfig(Full))
+	remoteCore, protocol, ip := core.StartRemoteCore()
+	require.NotNil(t, remoteCore)
+	assert.True(t, remoteCore.IsRunning())
+
+	node, err := New(Full, repo, WithRemoteCore(protocol, ip))
+	require.NoError(t, err)
+	require.NotNil(t, node)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(cancel)
+
+	err = node.CoreClient.Stop()
+	require.NoError(t, err)
+
+	err = node.Start(ctx)
+	require.Error(t, err, "node: failed to start: client not running")
 }
 
 func TestFull_NotPanicWithNilOpts(t *testing.T) {

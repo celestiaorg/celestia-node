@@ -38,6 +38,9 @@ func TestService_BlockStore(t *testing.T) {
 
 func generateRawAndExtendedBlock(t *testing.T, store format.DAGService) *Block {
 	mockCore := core.MockEmbeddedClient()
+	t.Cleanup(func() {
+		mockCore.Stop() // nolint:errcheck
+	})
 	fetcher := core.NewBlockFetcher(mockCore)
 	sub, err := fetcher.SubscribeNewBlockEvent(context.Background())
 	require.NoError(t, err)

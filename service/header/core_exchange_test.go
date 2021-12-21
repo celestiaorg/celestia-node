@@ -12,7 +12,11 @@ import (
 )
 
 func TestCoreExchange_RequestHeaders(t *testing.T) {
-	fetcher := createCoreFetcher()
+	mockClient, fetcher := createCoreFetcher()
+	t.Cleanup(func() {
+		mockClient.Stop() // nolint:errcheck
+	})
+
 	store := mdutils.Mock()
 
 	// generate 10 blocks
@@ -32,9 +36,9 @@ func Test_hashMatch(t *testing.T) {
 	assert.False(t, hashMatch(expected, mismatch))
 }
 
-func createCoreFetcher() *core.BlockFetcher {
+func createCoreFetcher() (core.Client, *core.BlockFetcher) {
 	mock := core.MockEmbeddedClient()
-	return core.NewBlockFetcher(mock)
+	return mock, core.NewBlockFetcher(mock)
 }
 
 func generateBlocks(t *testing.T, fetcher *core.BlockFetcher) {

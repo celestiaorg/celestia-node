@@ -60,6 +60,11 @@ func (s *Service) Start(context.Context) error {
 
 	// if core exchange is used, enable core listener
 	if coreEx, ok := s.syncer.exchange.(*CoreExchange); ok {
+		// ensure core is running
+		if !coreEx.fetcher.IsRunning() {
+			return fmt.Errorf("core client must be running")
+		}
+
 		coreListener, err := NewCoreListener(coreEx, s.topic)
 		if err != nil {
 			return err

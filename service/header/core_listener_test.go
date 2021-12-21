@@ -35,7 +35,10 @@ func TestCoreListener(t *testing.T) {
 	require.NoError(t, err)
 
 	md := mdutils.Mock()
-	fetcher := createCoreFetcher()
+	mockClient, fetcher := createCoreFetcher()
+	t.Cleanup(func() {
+		mockClient.Stop() // nolint:errcheck
+	})
 	ex := NewCoreExchange(fetcher, md)
 
 	cl, err := NewCoreListener(ex, topic1)
@@ -67,6 +70,10 @@ func TestCoreHeaderService(t *testing.T) {
 	// create a mockCore client that we can use later to generate fake blocks
 	coreNode := core.StartMockNode()
 	coreClient := core.NewEmbeddedFromNode(coreNode)
+	t.Cleanup(func() {
+		coreNode.Stop()   // nolint:errcheck
+		coreClient.Stop() // nolint:errcheck
+	})
 
 	fetcher := core.NewBlockFetcher(coreClient)
 	ex := NewCoreExchange(fetcher, md)
@@ -112,25 +119,32 @@ func TestCoreHeaderService(t *testing.T) {
 	// wait til syncing is finished to generate new blocks for the
 	// listener to catch and broadcast as ExtendedHeaders
 	<-syncer.done
+
 	// create a new subscription to generate another new block
 	blockGen := core.NewEmbeddedFromNode(coreNode)
 	blockSub, err := blockGen.Subscribe(context.Background(), "TEST",
 		types.QueryForEvent(types.EventNewBlock).String())
 	require.NoError(t, err)
-
-	<-blockSub
+	// get expected block details
+	rawExpected := <-blockSub
+	expected, ok := rawExpected.Data.(types.EventDataNewBlock)
+	if !ok {
+		t.Fatalf("unexpected: %v", rawExpected)
+	}
 	err = blockGen.Unsubscribe(context.Background(), "TEST",
 		types.QueryForEvent(types.EventNewBlock).String())
 	require.NoError(t, err)
 
-	// ensure block number 2 is broadcasted to gossipsub network
+	// ensure expected block is broadcasted to gossipsub network
 	msg, err := peerSub.Next(context.Background())
 	require.NoError(t, err)
 
+	// unmarshal gossipsub message into ExtendedHeader
 	var nextHeader ExtendedHeader
 	err = nextHeader.UnmarshalBinary(msg.Data)
 	require.NoError(t, err)
-	require.Equal(t, int64(2), nextHeader.Height)
+	require.Equal(t, expected.Block.Height, nextHeader.Height)
 
+	// stop header service
 	require.NoError(t, headerServ.Stop(context.Background()))
 }
