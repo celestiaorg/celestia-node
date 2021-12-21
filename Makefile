@@ -51,6 +51,12 @@ test:
 	@go test -v ./...
 .PHONY: test
 
+## test-race: Running all *_test.go with data race detector
+test-race:
+	@echo "--> Running tests with data race detector"
+	@go test -v -race ./...
+.PHONY: test-race
+
 PB_PKGS=$(shell find . -name 'pb' -type d)
 PB_CORE=$(shell go list -f {{.Dir}} -m github.com/tendermint/tendermint)
 PB_GOGO=$(shell go list -f {{.Dir}} -m github.com/gogo/protobuf)

@@ -12,6 +12,7 @@ Month, DD, YYYY
 ### FEATURES
 
 - [go package] (Link to PR) Description @username
+- [test_race.yml](https://github.com/celestiaorg/celestia-node/pull/289) ci: adding data race detector action @Bidon15
 
 ### IMPROVEMENTS
 
