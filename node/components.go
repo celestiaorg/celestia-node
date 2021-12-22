@@ -11,32 +11,32 @@ import (
 )
 
 // lightComponents keeps all the components as DI options required to build a Light Node.
-func lightComponents(cfg *Config, repo Repository) fx.Option {
+func lightComponents(cfg *Config, store Store) fx.Option {
 	return fx.Options(
-		baseComponents(cfg, repo),
+		baseComponents(cfg, store),
 		fx.Provide(services.DASer),
 		fx.Provide(services.HeaderExchangeP2P(cfg.Services)),
 	)
 }
 
 // bridgeComponents keeps all the components as DI options required to build a Bridge Node.
-func bridgeComponents(cfg *Config, repo Repository) fx.Option {
+func bridgeComponents(cfg *Config, store Store) fx.Option {
 	return fx.Options(
-		baseComponents(cfg, repo),
-		nodecore.Components(cfg.Core, repo.Core),
+		baseComponents(cfg, store),
+		nodecore.Components(cfg.Core, store.Core),
 		fx.Provide(services.BlockService),
 		fx.Invoke(services.StartHeaderExchangeP2PServer),
 	)
 }
 
 // baseComponents keeps all the common components shared between different Node types.
-func baseComponents(cfg *Config, repo Repository) fx.Option {
+func baseComponents(cfg *Config, store Store) fx.Option {
 	return fx.Options(
 		fx.Provide(context.Background),
 		fx.Supply(cfg),
-		fx.Supply(repo.Config),
-		fx.Provide(repo.Datastore),
-		fx.Provide(repo.Keystore),
+		fx.Supply(store.Config),
+		fx.Provide(store.Datastore),
+		fx.Provide(store.Keystore),
 		fx.Provide(services.ShareService),
 		fx.Provide(services.HeaderService),
 		fx.Provide(services.HeaderStore),

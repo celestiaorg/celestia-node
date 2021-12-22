@@ -7,8 +7,8 @@ import (
 )
 
 const (
-	repoFlagName  = "repo.path"
-	repoFlagShort = "r"
+	storeFlagName  = "store.path"
+	storeFlagShort = "s"
 )
 
 func init() {

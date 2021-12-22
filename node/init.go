@@ -10,7 +10,7 @@ import (
 	"github.com/celestiaorg/celestia-node/libs/utils"
 )
 
-// Init initializes the Node FileSystem Repository for the given Node Type 'tp' in the directory under 'path' with
+// Init initializes the Node FileSystem Store for the given Node Type 'tp' in the directory under 'path' with
 // default Config. Options are applied over default Config and persisted on disk.
 func Init(path string, tp Type, options ...Option) error {
 	cfg := DefaultConfig(tp)
@@ -23,14 +23,14 @@ func Init(path string, tp Type, options ...Option) error {
 	return InitWith(path, tp, cfg)
 }
 
-// InitWith initializes the Node FileSystem Repository for the given Node Type 'tp' in the directory under 'path'
+// InitWith initializes the Node FileSystem Store for the given Node Type 'tp' in the directory under 'path'
 // with the given Config 'cfg'.
 func InitWith(path string, tp Type, cfg *Config) error {
-	path, err := repoPath(path)
+	path, err := storePath(path)
 	if err != nil {
 		return err
 	}
-	log.Infof("Initializing %s Node Repository over '%s'", tp, path)
+	log.Infof("Initializing %s Node Store over '%s'", tp, path)
 
 	err = initRoot(path)
 	if err != nil {
@@ -71,7 +71,7 @@ func InitWith(path string, tp Type, cfg *Config) error {
 		log.Infow("Config already exists", "path", cfgPath)
 	}
 
-	// TODO(@Wondertan): This is a lazy hack which prevents Core Repository to be generated for all case, and generates
+	// TODO(@Wondertan): This is a lazy hack which prevents Core Store to be generated for all case, and generates
 	//  only for a Bridge Node with embedded Core Node. Ideally, we should a have global map Node Type/Mode -> Custom
 	//  Init Func, so Init would run initialization for specific Mode/Type.
 	if !cfg.Core.Remote && tp == Bridge {
@@ -84,14 +84,14 @@ func InitWith(path string, tp Type, cfg *Config) error {
 		return core.Init(corePath)
 	}
 
-	log.Info("Node Repository initialized")
+	log.Info("Node Store initialized")
 	return nil
 }
 
-// IsInit checks whether FileSystem Repository was setup under given 'path'.
+// IsInit checks whether FileSystem Store was setup under given 'path'.
 // If any required file/subdirectory does not exist, then false is reported.
 func IsInit(path string, tp Type) bool {
-	path, err := repoPath(path)
+	path, err := storePath(path)
 	if err != nil {
 		return false
 	}

@@ -16,16 +16,16 @@ import (
 )
 
 var (
-	// ErrOpened is thrown on attempt to open already open/in-use Repository.
-	ErrOpened = errors.New("node: repository is in use")
-	// ErrNotInited is thrown on attempt to open Repository without initialization.
-	ErrNotInited = errors.New("node: repository is not initialized")
+	// ErrOpened is thrown on attempt to open already open/in-use Store.
+	ErrOpened = errors.New("node: store is in use")
+	// ErrNotInited is thrown on attempt to open Store without initialization.
+	ErrNotInited = errors.New("node: store is not initialized")
 )
 
-// Repository encapsulates storage for the Node.
+// Store encapsulates storage for the Node. Basically, it is the Store of all Stores.
 // It provides access for the Node data stored in root directory e.g. '~/.celestia'.
-type Repository interface {
-	// Path reports the FileSystem path of Repository.
+type Store interface {
+	// Path reports the FileSystem path of Store.
 	Path() string
 
 	// Keystore provides a Keystore to access keys.
@@ -34,8 +34,8 @@ type Repository interface {
 	// Datastore provides a Datastore - a KV store for arbitrary data to be stored on disk.
 	Datastore() (datastore.Batching, error)
 
-	// Core provides an access to Core's Repository.
-	Core() (core.Repository, error)
+	// Core provides an access to Core's Store.
+	Core() (core.Store, error)
 
 	// Config loads the stored Node config.
 	Config() (*Config, error)
@@ -43,16 +43,16 @@ type Repository interface {
 	// PutConfig alters the stored Node config.
 	PutConfig(*Config) error
 
-	// Close closes the Repository freeing up acquired resources and locks.
+	// Close closes the Store freeing up acquired resources and locks.
 	Close() error
 }
 
-// Open creates new FS Repository under the given 'path'.
-// To be opened the Repository must be initialized first, otherwise ErrNotInited is thrown.
-// Open takes a file Lock on directory, hence only one Repository can be opened at a time under the given 'path',
+// OpenStore creates new FS Store under the given 'path'.
+// To be opened the Store must be initialized first, otherwise ErrNotInited is thrown.
+// OpenStore takes a file Lock on directory, hence only one Store can be opened at a time under the given 'path',
 // otherwise ErrOpened is thrown.
-func Open(path string, tp Type) (Repository, error) {
-	path, err := repoPath(path)
+func OpenStore(path string, tp Type) (Store, error) {
+	path, err := storePath(path)
 	if err != nil {
 		return nil, err
 	}
@@ -67,21 +67,21 @@ func Open(path string, tp Type) (Repository, error) {
 
 	ok := IsInit(path, tp)
 	if !ok {
-		flock.Unlock() //nolint: errcheck
+		flock.Unlock() // nolint: errcheck
 		return nil, ErrNotInited
 	}
 
-	return &fsRepository{
+	return &fsStore{
 		path:    path,
 		dirLock: flock,
 	}, nil
 }
 
-func (f *fsRepository) Path() string {
+func (f *fsStore) Path() string {
 	return f.path
 }
 
-func (f *fsRepository) Config() (*Config, error) {
+func (f *fsStore) Config() (*Config, error) {
 	cfg, err := LoadConfig(configPath(f.path))
 	if err != nil {
 		return nil, fmt.Errorf("node: can't load Config: %w", err)
@@ -90,7 +90,7 @@ func (f *fsRepository) Config() (*Config, error) {
 	return cfg, nil
 }
 
-func (f *fsRepository) PutConfig(cfg *Config) error {
+func (f *fsStore) PutConfig(cfg *Config) error {
 	err := SaveConfig(configPath(f.path), cfg)
 	if err != nil {
 		return fmt.Errorf("node: can't save Config: %w", err)
@@ -99,7 +99,7 @@ func (f *fsRepository) PutConfig(cfg *Config) error {
 	return nil
 }
 
-func (f *fsRepository) Keystore() (_ keystore.Keystore, err error) {
+func (f *fsStore) Keystore() (_ keystore.Keystore, err error) {
 	f.lock.RLock()
 	if f.keys != nil {
 		f.lock.RUnlock()
@@ -118,7 +118,7 @@ func (f *fsRepository) Keystore() (_ keystore.Keystore, err error) {
 	return f.keys, nil
 }
 
-func (f *fsRepository) Datastore() (_ datastore.Batching, err error) {
+func (f *fsStore) Datastore() (_ datastore.Batching, err error) {
 	f.lock.RLock()
 	if f.data != nil {
 		f.lock.RUnlock()
@@ -139,7 +139,7 @@ func (f *fsRepository) Datastore() (_ datastore.Batching, err error) {
 	return f.data, nil
 }
 
-func (f *fsRepository) Core() (_ core.Repository, err error) {
+func (f *fsStore) Core() (_ core.Store, err error) {
 	f.lock.RLock()
 	if f.core != nil {
 		f.lock.RUnlock()
@@ -150,31 +150,31 @@ func (f *fsRepository) Core() (_ core.Repository, err error) {
 	f.lock.Lock()
 	defer f.lock.Unlock()
 
-	f.core, err = core.Open(corePath(f.path))
+	f.core, err = core.OpenStore(corePath(f.path))
 	if err != nil {
-		return nil, fmt.Errorf("node: can't open Core Repository: %w", err)
+		return nil, fmt.Errorf("node: can't open Core Store: %w", err)
 	}
 
 	return f.core, nil
 }
 
-func (f *fsRepository) Close() error {
-	defer f.dirLock.Unlock() //nolint: errcheck
+func (f *fsStore) Close() error {
+	defer f.dirLock.Unlock() // nolint: errcheck
 	return f.data.Close()
 }
 
-type fsRepository struct {
+type fsStore struct {
 	path string
 
 	data datastore.Batching
 	keys keystore.Keystore
-	core core.Repository
+	core core.Store
 
 	lock    sync.RWMutex   // protects all the fields
 	dirLock *fslock.Locker // protects directory
 }
 
-func repoPath(path string) (string, error) {
+func storePath(path string) (string, error) {
 	return homedir.Expand(filepath.Clean(path))
 }
 

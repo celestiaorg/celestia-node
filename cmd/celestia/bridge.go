@@ -9,12 +9,12 @@ import (
 
 func init() {
 	bridgeCmd.AddCommand(
-		cmd.Init(repoFlagName, node.Bridge),
-		cmd.Start(repoFlagName, node.Bridge),
+		cmd.Init(storeFlagName, node.Bridge),
+		cmd.Start(storeFlagName, node.Bridge),
 	)
 	bridgeCmd.PersistentFlags().StringP(
-		repoFlagName,
-		repoFlagShort,
+		storeFlagName,
+		storeFlagShort,
 		"~/.celestia-bridge",
 		"The root/home directory of your Celestial Bridge Node",
 	)

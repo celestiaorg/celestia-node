@@ -15,8 +15,8 @@ import (
 )
 
 func TestNewBridge(t *testing.T) {
-	repo := MockRepository(t, DefaultConfig(Bridge))
-	node, err := New(Bridge, repo)
+	store := MockStore(t, DefaultConfig(Bridge))
+	node, err := New(Bridge, store)
 	require.NoError(t, err)
 	require.NotNil(t, node)
 	require.NotNil(t, node.Config)
@@ -26,9 +26,9 @@ func TestNewBridge(t *testing.T) {
 
 func TestBridgeLifecycle(t *testing.T) {
 	cfg := DefaultConfig(Bridge)
-	repo := MockRepository(t, cfg)
+	store := MockStore(t, cfg)
 
-	node, err := New(Bridge, repo)
+	node, err := New(Bridge, store)
 	require.NoError(t, err)
 	require.NotNil(t, node)
 	require.NotNil(t, node.Config)
@@ -53,8 +53,8 @@ func TestBridgeLifecycle(t *testing.T) {
 // TestBridge_P2P_Streams tests the ability for Bridge nodes to communicate
 // directly with each other via libp2p streams.
 func TestBridge_P2P_Streams(t *testing.T) {
-	repo := MockRepository(t, DefaultConfig(Bridge))
-	node, err := New(Bridge, repo)
+	store := MockStore(t, DefaultConfig(Bridge))
+	node, err := New(Bridge, store)
 	require.NoError(t, err)
 	require.NotNil(t, node)
 	require.NotNil(t, node.Host)
@@ -65,8 +65,8 @@ func TestBridge_P2P_Streams(t *testing.T) {
 		"/ip4/0.0.0.0/tcp/2124",
 		"/ip6/::/tcp/2124",
 	}
-	repo = MockRepository(t, peerConf)
-	peer, err := New(Bridge, repo)
+	store = MockStore(t, peerConf)
+	peer, err := New(Bridge, store)
 	require.NoError(t, err)
 	require.NotNil(t, peer)
 	require.NotNil(t, peer.Host)
@@ -101,12 +101,12 @@ func TestBridge_WithRemoteCore(t *testing.T) {
 	// TODO(@Wondertan): Fix core
 	t.Skip("Skip until we fix core")
 
-	repo := MockRepository(t, DefaultConfig(Bridge))
+	store := MockStore(t, DefaultConfig(Bridge))
 	remoteCore, protocol, ip := core.StartRemoteCore()
 	require.NotNil(t, remoteCore)
 	assert.True(t, remoteCore.IsRunning())
 
-	node, err := New(Bridge, repo, WithRemoteCore(protocol, ip))
+	node, err := New(Bridge, store, WithRemoteCore(protocol, ip))
 	require.NoError(t, err)
 	require.NotNil(t, node)
 	assert.True(t, node.CoreClient.IsRunning())
@@ -127,12 +127,12 @@ func TestBridge_WithRemoteCore(t *testing.T) {
 }
 
 func TestBridge_WithRemoteCoreFailed(t *testing.T) {
-	repo := MockRepository(t, DefaultConfig(Bridge))
+	store := MockStore(t, DefaultConfig(Bridge))
 	remoteCore, protocol, ip := core.StartRemoteCore()
 	require.NotNil(t, remoteCore)
 	assert.True(t, remoteCore.IsRunning())
 
-	node, err := New(Bridge, repo, WithRemoteCore(protocol, ip))
+	node, err := New(Bridge, store, WithRemoteCore(protocol, ip))
 	require.NoError(t, err)
 	require.NotNil(t, node)
 
@@ -147,8 +147,8 @@ func TestBridge_WithRemoteCoreFailed(t *testing.T) {
 }
 
 func TestBridge_NotPanicWithNilOpts(t *testing.T) {
-	repo := MockRepository(t, DefaultConfig(Bridge))
-	node, err := New(Bridge, repo, nil)
+	store := MockStore(t, DefaultConfig(Bridge))
+	node, err := New(Bridge, store, nil)
 	require.NoError(t, err)
 	require.NotNil(t, node)
 }

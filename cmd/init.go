@@ -10,13 +10,13 @@ import (
 )
 
 // Init constructs a CLI command to initialize Celestia Node of the given type 'tp'.
-// It is meant to be used a subcommand and also receive persistent flag name for repository path.
-func Init(repoFlagName string, tp node.Type) *cobra.Command {
+// It is meant to be used a subcommand and also receive persistent flag name for store path.
+func Init(storeFlagName string, tp node.Type) *cobra.Command {
 	if !tp.IsValid() {
 		panic("cmd: Init: invalid Node Type")
 	}
-	if len(repoFlagName) == 0 {
-		panic("parent command must specify a persistent flag name for repository path")
+	if len(storeFlagName) == 0 {
+		panic("parent command must specify a persistent flag name for store path")
 	}
 
 	cmd := &cobra.Command{
@@ -24,9 +24,9 @@ func Init(repoFlagName string, tp node.Type) *cobra.Command {
 		Short: "Initialization for Celestia Node. Passed flags have persisted effect.",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			repoPath := cmd.Flag(repoFlagName).Value.String()
-			if repoPath == "" {
-				return fmt.Errorf("repository path must be specified")
+			storePath := cmd.Flag(storeFlagName).Value.String()
+			if storePath == "" {
+				return fmt.Errorf("store path must be specified")
 			}
 
 			nodeConfig := cmd.Flag(nodeConfigFlag.Name).Value.String()
@@ -36,7 +36,7 @@ func Init(repoFlagName string, tp node.Type) *cobra.Command {
 					return err
 				}
 
-				return node.InitWith(repoPath, tp, cfg)
+				return node.InitWith(storePath, tp, cfg)
 			}
 
 			var opts []node.Option
@@ -70,7 +70,7 @@ func Init(repoFlagName string, tp node.Type) *cobra.Command {
 				opts = append(opts, node.WithMutualPeers(mutualPeers))
 			}
 
-			return node.Init(repoPath, tp, opts...)
+			return node.Init(storePath, tp, opts...)
 		},
 	}
 	for _, flag := range configFlags {

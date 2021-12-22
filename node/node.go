@@ -62,9 +62,9 @@ type Node struct {
 	DASer *das.DASer `optional:"true"`
 }
 
-// New assembles a new Node with the given type 'tp' over Repository 'repo'.
-func New(tp Type, repo Repository, options ...Option) (*Node, error) {
-	cfg, err := repo.Config()
+// New assembles a new Node with the given type 'tp' over Store 'store'.
+func New(tp Type, store Store, options ...Option) (*Node, error) {
+	cfg, err := store.Config()
 	if err != nil {
 		return nil, err
 	}
@@ -76,9 +76,9 @@ func New(tp Type, repo Repository, options ...Option) (*Node, error) {
 
 	switch tp {
 	case Bridge:
-		return newNode(tp, bridgeComponents(cfg, repo))
+		return newNode(tp, bridgeComponents(cfg, store))
 	case Light:
-		return newNode(tp, lightComponents(cfg, repo))
+		return newNode(tp, lightComponents(cfg, store))
 	default:
 		panic("node: unknown Node Type")
 	}
