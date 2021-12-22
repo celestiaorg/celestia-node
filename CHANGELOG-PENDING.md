@@ -21,3 +21,7 @@ Month, DD, YYYY
 - [go package] (Link to PR) Description @username
 
 - [header] Added missing `err` value in ErrorW logging calls. @jbowen93
+
+### MISC
+
+- [github] Add new GH action to automatically generate pre-releases w/ `latest` tag on pushes to `main`
