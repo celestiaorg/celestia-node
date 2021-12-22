@@ -16,6 +16,7 @@ import (
 	"github.com/celestiaorg/celestia-node/core"
 )
 
+// TestCoreListener tests the lifecycle of the core listener.
 func TestCoreListener(t *testing.T) {
 	net, err := mocknet.FullMeshConnected(context.Background(), 2)
 	require.NoError(t, err)

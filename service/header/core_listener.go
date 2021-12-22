@@ -33,6 +33,10 @@ func (cl *CoreListener) listen(ctx context.Context) {
 		select {
 		// TODO @renaynay: should it listen for context done signal or have its own done channel?
 		case <-ctx.Done():
+			err := cl.sub.Cancel()
+			if err != nil {
+				log.Errorw("core-listener: canceling subscription to core", "err", err)
+			}
 			return
 		default:
 			// get next header from core
@@ -54,7 +58,6 @@ func (cl *CoreListener) listen(ctx context.Context) {
 			}
 		}
 	}
-	// kill loop when done signal sent
 	// TODO make sure to call sub.Cancel() when done is sent
 }
 

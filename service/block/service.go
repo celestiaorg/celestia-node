@@ -7,8 +7,8 @@ import (
 	logging "github.com/ipfs/go-log/v2"
 )
 
-// Service represents the Block service that can be started / stopped on a `Full` node.
-// TODO @renaynay: document what block service does now
+// Service is responsible for reconstructing blocks from shares and storing them.
+// Service is only available for *full* nodes.
 type Service struct {
 	store ipld.DAGService
 }

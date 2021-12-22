@@ -122,7 +122,6 @@ func (ce *CoreExchange) generateExtendedHeaderFromBlock(block *types.Block) (*Ex
 
 // extendBlockData erasure codes the given raw block's data and returns the
 // erasure coded block data upon success.
-// TODO @renaynay: this code is needed several places in the codebase and would be good to extract into a utility pkg
 func (ce *CoreExchange) extendBlockData(raw *types.Block) (*rsmt2d.ExtendedDataSquare, error) {
 	return utils.ExtendBlock(raw, ce.shareStore)
 }
