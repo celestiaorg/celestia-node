@@ -18,8 +18,6 @@ Month, DD, YYYY
 
 - [docker] Created `docker/` dir with `Dockerfile` and `entrypoint.sh` script. 
 
-- [docker] Created `docker/` dir with `Dockerfile` and `entrypoint.sh` script. 
-
 ### BUG FIXES
 
 - [go package] (Link to PR) Description @username

@@ -4,16 +4,11 @@ RUN apt update && \
 ENV HOME /celestia-node
 COPY / ${HOME}
 WORKDIR ${HOME}
-RUN make build 
+RUN env GOOS=linux GOARCH=amd64 make build
 
 FROM ubuntu
 ENV NODE_TYPE full
-# Issue/bug #279 
-ENV SLEEP 0s
 
-WORKDIR $APP
-
-# COPY docker/entrypoint.sh script/entrypoint.sh
 COPY docker/entrypoint.sh /
 
 # Copy in the binary
