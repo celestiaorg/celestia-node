@@ -17,10 +17,10 @@ var versionCmd = &cobra.Command{
 	Use:   "version",
 	Short: "Show information about the current binary build",
 	Args:  cobra.NoArgs,
-	Run:   getBuildInfo,
+	Run:   printBuildInfo,
 }
 
-func getBuildInfo(cmd *cobra.Command, args []string) {
+func printBuildInfo(_ *cobra.Command, _ []string) {
 	fmt.Printf("Semantic version: %s\n", semanticVersion)
 	fmt.Printf("Commit: %s\n", lastCommit)
 	fmt.Printf("Build Date: %s\n", buildTime)
