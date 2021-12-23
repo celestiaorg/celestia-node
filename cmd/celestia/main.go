@@ -15,6 +15,7 @@ func init() {
 		lightCmd,
 		versionCmd,
 	)
+	rootCmd.SetHelpCommand(&cobra.Command{})
 }
 
 func main() {
@@ -37,4 +38,7 @@ var rootCmd = &cobra.Command{
 	\____/\___/_/\___/____/\__/_/\__,_/
 	`,
 	Args: cobra.NoArgs,
+	CompletionOptions: cobra.CompletionOptions{
+		DisableDefaultCmd: true,
+	},
 }
