@@ -2,6 +2,7 @@ package block
 
 import (
 	"context"
+	"sync"
 	"testing"
 	"time"
 
@@ -58,7 +59,9 @@ func TestExtendedHeaderBroadcast(t *testing.T) {
 
 	mockFetcher := &mockFetcher{
 		suite:          suite,
+		commitsLock:    sync.Mutex{},
 		commits:        make(map[int64]*core.Commit),
+		valSetsLock:    sync.Mutex{},
 		valSets:        make(map[int64]*core.ValidatorSet),
 		mockNewBlockCh: make(chan *RawBlock),
 	}
@@ -106,9 +109,14 @@ func TestExtendedHeaderBroadcast(t *testing.T) {
 
 // mockFetcher mocks away the `Fetcher` interface.
 type mockFetcher struct {
-	suite          *header.TestSuite
-	valSets        map[int64]*core.ValidatorSet
-	commits        map[int64]*core.Commit
+	suite *header.TestSuite
+
+	valSetsLock sync.Mutex
+	valSets     map[int64]*core.ValidatorSet
+
+	commitsLock sync.Mutex
+	commits     map[int64]*core.Commit
+
 	mockNewBlockCh chan *RawBlock
 }
 
@@ -117,10 +125,16 @@ func (m *mockFetcher) GetBlock(ctx context.Context, height *int64) (*RawBlock, e
 }
 
 func (m *mockFetcher) Commit(ctx context.Context, height *int64) (*core.Commit, error) {
+	m.commitsLock.Lock()
+	defer m.commitsLock.Unlock()
+
 	return m.commits[*height], nil
 }
 
 func (m *mockFetcher) ValidatorSet(ctx context.Context, height *int64) (*core.ValidatorSet, error) {
+	m.valSetsLock.Lock()
+	defer m.valSetsLock.Unlock()
+
 	return m.valSets[*height], nil
 }
 
@@ -149,8 +163,13 @@ func (m *mockFetcher) generateBlocksWithValidHeaders(t *testing.T, num int) []*R
 
 		rawBlocks[i] = b
 		// store commit and valset at height
+		m.commitsLock.Lock()
 		m.commits[b.Height] = eh.Commit
+		m.commitsLock.Unlock()
+
+		m.valSetsLock.Lock()
 		m.valSets[b.Height] = eh.ValidatorSet
+		m.valSetsLock.Unlock()
 
 		m.mockNewBlockCh <- b
 		prevEH = eh
