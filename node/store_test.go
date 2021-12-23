@@ -7,7 +7,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-//nolint:dupl
 func TestRepoBridge(t *testing.T) {
 	dir := t.TempDir()
 
@@ -40,7 +39,6 @@ func TestRepoBridge(t *testing.T) {
 	assert.NotNil(t, cfg)
 }
 
-//nolint:dupl
 func TestRepoLight(t *testing.T) {
 	dir := t.TempDir()
 

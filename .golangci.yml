@@ -67,3 +67,5 @@ linters-settings:
     locale: US
   goimports:
     local-prefixes: github.com/celestiaorg
+  dupl:
+    threshold: 200
