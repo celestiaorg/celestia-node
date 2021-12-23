@@ -2,7 +2,6 @@ package services
 
 import (
 	"context"
-
 	"github.com/ipfs/go-datastore"
 	ipld "github.com/ipfs/go-ipld-format"
 	"github.com/ipfs/go-merkledag"
@@ -31,14 +30,36 @@ func HeaderSyncer(cfg Config) func(ex header.Exchange, store header.Store) (*hea
 	}
 }
 
+// PubsubManager creates a new header.PubsubManager.
+func PubsubManager(sub *pubsub.PubSub, syncer *header.Syncer) *header.PubsubManager {
+	return header.NewPubsubManager(sub, syncer.Validate)
+}
+
 // HeaderService creates a new header.Service.
-func HeaderService(lc fx.Lifecycle, syncer *header.Syncer, sub *pubsub.PubSub) (*header.Service, header.Broadcaster) {
-	service := header.NewHeaderService(syncer, sub)
+func HeaderService(lc fx.Lifecycle,
+	syncer *header.Syncer,
+	psManager *header.PubsubManager,
+	p2pEx *header.P2PExchange,
+	coreEx *header.CoreExchange,
+	) *header.Service {
+
+	headerLifecycles := []header.Lifecycle{
+		syncer,
+		psManager,
+		p2pEx,
+	}
+	// if core is enabled, add core listener
+	if coreEx != nil {
+		// TODO @renaynay: do this
+	}
+
+	headerServ := header.NewHeaderService(headerLifecycles)
 	lc.Append(fx.Hook{
-		OnStart: service.Start,
-		OnStop:  service.Stop,
+		OnStart: headerServ.Start,
+		OnStop:  headerServ.Stop,
 	})
-	return service, service
+
+	return headerServ
 }
 
 // HeaderExchangeP2P constructs new P2PExchange for headers.
@@ -62,12 +83,8 @@ func HeaderExchangeP2P(cfg Config) func(
 	}
 }
 
-func StartHeaderExchangeP2PServer(lc fx.Lifecycle, host host.Host, store header.Store) {
-	ex := header.NewP2PExchange(host, &peer.AddrInfo{}, store)
-	lc.Append(fx.Hook{
-		OnStart: ex.Start,
-		OnStop:  ex.Stop,
-	})
+func StartHeaderExchangeP2PServer(host host.Host, store header.Store) *header.P2PExchange {
+	return header.NewP2PExchange(host, &peer.AddrInfo{}, store)
 }
 
 // HeaderStore creates new header.Store.
@@ -101,8 +118,8 @@ func ShareService(lc fx.Lifecycle, dag ipld.DAGService, avail share.Availability
 }
 
 // DASer constructs a new Data Availability Sampler.
-func DASer(lc fx.Lifecycle, avail share.Availability, service *header.Service) *das.DASer {
-	das := das.NewDASer(avail, service)
+func DASer(lc fx.Lifecycle, avail share.Availability, sub header.Subscriber) *das.DASer {
+	das := das.NewDASer(avail, sub)
 	lc.Append(fx.Hook{
 		OnStart: das.Start,
 		OnStop:  das.Stop,

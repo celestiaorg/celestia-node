@@ -3,63 +3,58 @@ package header
 import (
 	"context"
 	"fmt"
+	"reflect"
 
 	logging "github.com/ipfs/go-log/v2"
-	pubsub "github.com/libp2p/go-libp2p-pubsub"
 )
 
 var log = logging.Logger("header-service")
 
-// PubSubTopic hardcodes the name of the ExtendedHeader
-// gossipsub topic.
-const PubSubTopic = "header-sub"
-
+// TODO @renaynay: DOCUMENT
 // Service represents the Header service that can be started / stopped on a node.
 // Service contains 3 main functionalities:
 // 		1. Listening for/requesting new ExtendedHeaders from the network.
 // 		2. Verifying and serving ExtendedHeaders to the network.
 // 		3. Storing/caching ExtendedHeaders.
 type Service struct {
-	syncer *Syncer
-
-	topic  *pubsub.Topic // instantiated header-sub topic
-	pubsub *pubsub.PubSub
+	lifecycles []Lifecycle // TODO @renaynay: how to manage which lifecycles are "started" / which ones can be stopped just with context cancellation?
+	active     []Lifecycle // keeps track of active lifecycles
 
 	ctx    context.Context
 	cancel context.CancelFunc
 }
 
 // NewHeaderService creates a new instance of header Service.
-func NewHeaderService(
-	syncer *Syncer,
-	pubsub *pubsub.PubSub,
-) *Service {
+func NewHeaderService(lifecycles []Lifecycle) *Service {
 	return &Service{
-		syncer: syncer,
-		pubsub: pubsub,
+		lifecycles: lifecycles,
 	}
 }
 
 // Start starts the header Service.
-func (s *Service) Start(context.Context) error {
+func (s *Service) Start(ctx context.Context) error {
 	if s.cancel != nil {
 		return fmt.Errorf("header: Service already started")
 	}
 	log.Info("starting header service")
 
 	s.ctx, s.cancel = context.WithCancel(context.Background())
-	go s.syncer.Sync(s.ctx)
 
-	err := s.pubsub.RegisterTopicValidator(PubSubTopic, s.syncer.Validate)
-	if err != nil {
-		return err
+	// start all lifecycles and keep track of those already started
+	for _, lifecycle := range s.lifecycles {
+		if err := lifecycle.Start(s.ctx); err != nil {
+			// stop all started services
+			if stopErr := s.Stop(ctx); stopErr != nil {
+				log.Errorw("header-services: stopping service", "err", err)
+			}
+			return err
+		}
+		s.active = append(s.active, lifecycle)
 	}
-
-	s.topic, err = s.pubsub.Join(PubSubTopic)
-	return err
+	return nil
 }
 
-// Stop stops the header Service.
+// Stop stops the header Service and stops all of its active lifecycles.
 func (s *Service) Stop(context.Context) error {
 	if s.cancel == nil {
 		return fmt.Errorf("header: Service already stopped")
@@ -67,28 +62,18 @@ func (s *Service) Stop(context.Context) error {
 	log.Info("stopping header service")
 
 	s.cancel()
-	err := s.pubsub.UnregisterTopicValidator(PubSubTopic)
-	if err != nil {
-		return err
-	}
 
-	return s.topic.Close()
+	return stopLifecycles(s.active)
 }
 
-// Subscribe returns a new subscription to the header pubsub topic
-func (s *Service) Subscribe() (Subscription, error) {
-	if s.topic == nil {
-		return nil, fmt.Errorf("header topic is not instantiated, service must be started before subscribing")
+// stopLifecycles stops all given lifecycles. // TODO @renaynay: figure out error handling for this
+func stopLifecycles(lifecycles []Lifecycle) error {
+	for _, lifecycle := range lifecycles {
+		if err := lifecycle.Stop(context.Background()); err != nil {
+			log.Errorw("header-service: stopping lifecycle", "lifecycle",
+				reflect.TypeOf(lifecycle).String(), "err", err)
+			return err
+		}
 	}
-
-	return newSubscription(s.topic)
-}
-
-func (s *Service) Broadcast(ctx context.Context, header *ExtendedHeader) error {
-	bin, err := header.MarshalBinary()
-	if err != nil {
-		return err
-	}
-
-	return s.topic.Publish(ctx, bin)
+	return nil
 }

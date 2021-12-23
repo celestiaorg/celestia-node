@@ -29,6 +29,16 @@ func NewSyncer(exchange Exchange, store Store, trusted tmbytes.HexBytes) *Syncer
 	}
 }
 
+func (s *Syncer) Start(ctx context.Context) error {
+	s.Sync(ctx)
+	return nil
+}
+
+// TODO @renaynay: stubbed out as header service's context cancellation trigers syncer cancelation
+func (s *Syncer) Stop(ctx context.Context) error {
+	return nil
+}
+
 // Sync syncs all headers up to the latest known header in the network.
 func (s *Syncer) Sync(ctx context.Context) {
 	log.Info("syncing headers")
