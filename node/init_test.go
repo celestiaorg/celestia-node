@@ -29,15 +29,6 @@ func TestInitErrForInvalidPath(t *testing.T) {
 	}
 }
 
-func TestInitWithNilConfig(t *testing.T) {
-	dir := t.TempDir()
-	nodes := []Type{Light, Bridge}
-
-	for _, node := range nodes {
-		require.Error(t, InitWith(dir, node, nil))
-	}
-}
-
 func TestIsInitWithBrokenConfig(t *testing.T) {
 	dir := t.TempDir()
 	f, err := os.Create(configPath(dir))
