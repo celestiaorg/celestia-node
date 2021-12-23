@@ -1,9 +1,12 @@
 package main
 
 import (
+	"context"
 	"os"
 
 	"github.com/spf13/cobra"
+
+	"github.com/celestiaorg/celestia-node/cmd"
 )
 
 func init() {
@@ -25,5 +28,5 @@ func main() {
 }
 
 func run() error {
-	return rootCmd.Execute()
+	return rootCmd.ExecuteContext(cmd.WithEnv(context.Background()))
 }
