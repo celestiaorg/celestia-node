@@ -25,8 +25,9 @@ func init() {
 }
 
 var lightCmd = &cobra.Command{
-	Use:  "light [subcommand]",
-	Args: cobra.NoArgs,
+	Use:   "light [subcommand]",
+	Args:  cobra.NoArgs,
+	Short: "Manage your Light node",
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 		env, err := cmdnode.GetEnv(cmd.Context())
 		if err != nil {
