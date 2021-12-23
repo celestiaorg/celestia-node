@@ -26,3 +26,4 @@ Month, DD, YYYY
 
 - [header] Added missing `err` value in ErrorW logging calls. @jbowen93
 - [service/block, node/p2p] [Fix race conditions in TestExtendedHeaderBroadcast and TestFull_P2P_Streams.](https://github.com/celestiaorg/celestia-node/pull/288) @jenyasd209
+- [ci: increase tokens ratio for dupl to fix false positive scenarios](https://github.com/celestiaorg/celestia-node/pull/314) @Bidon15
