@@ -70,10 +70,10 @@ func New(tp Type, store Store, options ...Option) (*Node, error) {
 		return nil, err
 	}
 
-	sets := new(settings)
+	s := new(settings)
 	for _, option := range options {
 		if option != nil {
-			err := option(cfg, sets)
+			err := option(cfg, s)
 			if err != nil {
 				return nil, err
 			}
@@ -82,9 +82,9 @@ func New(tp Type, store Store, options ...Option) (*Node, error) {
 
 	switch tp {
 	case Bridge:
-		return newNode(bridgeComponents(cfg, store), fxutil.Options(sets.overrides()...))
+		return newNode(bridgeComponents(cfg, store), fxutil.Options(s.overrides()...))
 	case Light:
-		return newNode(lightComponents(cfg, store), fxutil.Options(sets.overrides()...))
+		return newNode(lightComponents(cfg, store), fxutil.Options(s.overrides()...))
 	default:
 		panic("node: unknown Node Type")
 	}
