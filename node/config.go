@@ -6,8 +6,6 @@ import (
 
 	"github.com/BurntSushi/toml"
 
-	"github.com/celestiaorg/celestia-node/node/fxutil"
-
 	"github.com/celestiaorg/celestia-node/node/core"
 	"github.com/celestiaorg/celestia-node/node/p2p"
 	"github.com/celestiaorg/celestia-node/node/rpc"
@@ -24,8 +22,6 @@ type Config struct {
 	P2P      p2p.Config
 	RPC      rpc.Config
 	Services services.Config
-
-	overrides []fxutil.Option
 }
 
 // DefaultConfig provides a default Config for a given Node Type 'tp'.

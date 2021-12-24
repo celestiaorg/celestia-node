@@ -134,6 +134,14 @@ func OverrideSupply(vals ...interface{}) Option {
 				refVal, tp = refVal.Elem(), tp.Elem()
 			}
 
+			if !refVal.IsValid() {
+				// All the really invalid cases are checked and errors for them are thrown above the line.
+				// Regarding this case, it is basically nil or zero value, and it is usually fine to allow zeros to be
+				// passed in the optional pattern, e.g WithSomething(nil), so you don't need to check for
+				// if something != nil { WithSomething(something) }.
+				continue
+			}
+
 			_, ok := o.overrideSupplies[tp]
 			if ok {
 				return fmt.Errorf("fxutil: already overridden")
