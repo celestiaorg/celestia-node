@@ -35,7 +35,7 @@ func WithConfig(custom *Config) Option {
 }
 
 func WithMutualPeers(addrs []string) Option {
-	return func(cfg *Config) (_ error) {
+	return func(cfg *Config, _ *settings) (_ error) {
 		cfg.P2P.MutualPeers = addrs
 		return nil
 	}
