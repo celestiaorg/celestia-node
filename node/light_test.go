@@ -56,7 +56,7 @@ func TestNewLightWithHost(t *testing.T) {
 	t.Cleanup(cancel)
 
 	nw, _ := mocknet.WithNPeers(ctx, 1)
-	repo := MockRepository(t, DefaultConfig(Light))
+	repo := MockStore(t, DefaultConfig(Light))
 	node, err := New(Light, repo, WithHost(nw.Host(nw.Peers()[0])))
 	require.NoError(t, err)
 	assert.Equal(t, node.Host.ID(), nw.Peers()[0])
