@@ -2,8 +2,10 @@ package node
 
 import (
 	"context"
+	"crypto/rand"
 	"testing"
 
+	"github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -36,4 +38,14 @@ func TestLightLifecycle(t *testing.T) {
 
 	err = nd.Stop(stopCtx)
 	require.NoError(t, err)
+}
+
+func TestNewLightWithP2PKey(t *testing.T) {
+	key, _, err := crypto.GenerateEd25519Key(rand.Reader)
+	require.NoError(t, err)
+
+	repo := MockStore(t, DefaultConfig(Light))
+	node, err := New(Light, repo, WithP2PKey(key))
+	require.NoError(t, err)
+	assert.True(t, node.Host.ID().MatchesPrivateKey(key))
 }
