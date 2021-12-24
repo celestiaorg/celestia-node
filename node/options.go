@@ -72,7 +72,8 @@ func WithP2PKeyStr(key string) Option {
 }
 
 func WithMutualPeers(addrs []string) Option {
-	return func(cfg *Config) {
+	return func(cfg *Config) (_ error) {
 		cfg.P2P.MutualPeers = addrs
+		return nil
 	}
 }

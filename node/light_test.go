@@ -44,7 +44,7 @@ func TestNewLightWithP2PKey(t *testing.T) {
 	key, _, err := crypto.GenerateEd25519Key(rand.Reader)
 	require.NoError(t, err)
 
-	repo := MockRepository(t, DefaultConfig(Light))
+	repo := MockStore(t, DefaultConfig(Light))
 	node, err := New(Light, repo, WithP2PKey(key))
 	require.NoError(t, err)
 	assert.True(t, node.Host.ID().MatchesPrivateKey(key))
