@@ -7,6 +7,9 @@ import (
 	"go.uber.org/fx"
 )
 
+// FIXME: This file is intended to be removed once the upstream issue https://github.com/uber-go/fx/issues/825
+//  is resolved
+
 // Option mimics fx.Option but provides one more OverrideSupply feature.
 type Option func(*fxOptions) error
 
