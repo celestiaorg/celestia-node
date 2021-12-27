@@ -55,13 +55,11 @@ func TestSubscriber(t *testing.T) {
 	_, err = headerServ2.Subscribe()
 	require.NoError(t, err)
 
-	time.Sleep(2 * time.Second)
-
 	expectedHeader := suite.GenExtendedHeaders(1)[0]
 	bin, err := expectedHeader.MarshalBinary()
 	require.NoError(t, err)
 
-	err = headerServ2.topic.Publish(ctx, bin)
+	err = headerServ2.topic.Publish(ctx, bin, pubsub.WithReadiness(pubsub.MinTopicSize(1)))
 	require.NoError(t, err)
 
 	// get next ExtendedHeader from network
