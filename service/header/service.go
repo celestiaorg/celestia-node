@@ -17,7 +17,9 @@ var log = logging.Logger("header-service")
 // 		2. Verifying and serving ExtendedHeaders to the network.
 // 		3. Storing/caching ExtendedHeaders.
 type Service struct {
-	lifecycles []Lifecycle // TODO @renaynay: how to manage which lifecycles are "started" / which ones can be stopped just with context cancellation?
+	// TODO @renaynay: how to manage which lifecycles are "started" / which ones can be stopped just with context
+	//  cancellation?
+	lifecycles []Lifecycle
 	active     []Lifecycle // keeps track of active lifecycles
 
 	ctx    context.Context

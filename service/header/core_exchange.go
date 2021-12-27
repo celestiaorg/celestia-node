@@ -28,8 +28,13 @@ func NewCoreExchange(fetcher *core.BlockFetcher, dag format.DAGService) *CoreExc
 	}
 }
 
-// TODO @renaynay: stubbed out methods.. ?
+// Start starts the CoreExchange by ensuring its core client
+// is running.
 func (ce *CoreExchange) Start(_ context.Context) error {
+	// ensure the core client is running
+	if !ce.fetcher.IsRunning() {
+		return fmt.Errorf("client not running")
+	}
 	return nil
 }
 

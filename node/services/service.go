@@ -2,6 +2,7 @@ package services
 
 import (
 	"context"
+
 	"github.com/ipfs/go-datastore"
 	ipld "github.com/ipfs/go-ipld-format"
 	"github.com/ipfs/go-merkledag"
@@ -28,27 +29,24 @@ func HeaderSyncer(cfg Config) func(ex header.Exchange, store header.Store) (*hea
 	}
 }
 
-// PubsubManager creates a new header.PubsubManager.
-func PubsubManager(sub *pubsub.PubSub, syncer *header.Syncer) *header.PubsubManager {
-	return header.NewPubsubManager(sub, syncer.Validate)
+// P2PSubscriber creates a new header.P2PSubscriber.
+func P2PSubscriber(sub *pubsub.PubSub, syncer *header.Syncer) *header.P2PSubscriber {
+	return header.NewP2PSubscriber(sub, syncer.Validate)
 }
 
 // HeaderService creates a new header.Service.
 func HeaderService(lc fx.Lifecycle,
 	syncer *header.Syncer,
-	psManager *header.PubsubManager,
+	psManager *header.P2PSubscriber,
 	ex header.Exchange,
-	) *header.Service {
+) *header.Service {
 
 	headerLifecycles := []header.Lifecycle{
 		syncer,
 		psManager,
 		ex,
 	}
-	// if core is enabled, add core listener
-	if _, ok := ex.(*header.CoreExchange); ok {
-		// TODO @renaynay: implement this
-	}
+	// TODO @renaynay: implement adding listener to headerLifecycles if core is enabled
 
 	headerServ := header.NewHeaderService(headerLifecycles)
 	lc.Append(fx.Hook{

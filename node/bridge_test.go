@@ -133,6 +133,7 @@ func TestBridge_WithRemoteCoreFailed(t *testing.T) {
 	node, err := New(Bridge, store, WithRemoteCore(protocol, ip))
 	require.NoError(t, err)
 	require.NotNil(t, node)
+	require.NotNil(t, node.HeaderServ)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)

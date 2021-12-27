@@ -2,10 +2,12 @@ package header
 
 import (
 	"context"
+	"sync/atomic"
+
 	"github.com/libp2p/go-libp2p-core/peer"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
+
 	tmbytes "github.com/tendermint/tendermint/libs/bytes"
-	"sync/atomic"
 )
 
 // Syncer implements simplest possible synchronization for headers.
@@ -33,7 +35,7 @@ func NewSyncer(exchange Exchange, store Store, trusted tmbytes.HexBytes) *Syncer
 func (s *Syncer) Start(ctx context.Context) error {
 	// indicate syncing
 	atomic.AddUint64(s.inProgress, 1)
-	s.Sync(ctx)
+	go s.Sync(ctx)
 	return nil
 }
 

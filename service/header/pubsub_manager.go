@@ -11,52 +11,52 @@ import (
 // gossipsub topic.
 const PubSubTopic = "header-sub"
 
-// PubsubManager manages the lifecycle and relationship of header Service
+// P2PSubscriber manages the lifecycle and relationship of header Service
 // with the "header-sub" gossipsub topic.
-type PubsubManager struct {
+type P2PSubscriber struct {
 	pubsub *pubsub.PubSub
 	topic  *pubsub.Topic
 
 	validator pubsub.ValidatorEx
 }
 
-// NewPubsubManager returns a PubsubManager that manages the header Service's
+// NewP2PSubscriber returns a P2PSubscriber that manages the header Service's
 // relationship with the "header-sub" gossipsub topic.
-func NewPubsubManager(ps *pubsub.PubSub, validator pubsub.ValidatorEx) *PubsubManager {
-	return &PubsubManager{
+func NewP2PSubscriber(ps *pubsub.PubSub, validator pubsub.ValidatorEx) *P2PSubscriber {
+	return &P2PSubscriber{
 		pubsub:    ps,
 		validator: validator,
 	}
 }
 
-// Start starts the pubsub manager, registering a topic validator for the "header-sub"
+// Start starts the P2PSubscriber, registering a topic validator for the "header-sub"
 // topic and joining it.
-func (pm *PubsubManager) Start(context.Context) error {
-	err := pm.pubsub.RegisterTopicValidator(PubSubTopic, pm.validator)
+func (p *P2PSubscriber) Start(context.Context) error {
+	err := p.pubsub.RegisterTopicValidator(PubSubTopic, p.validator)
 	if err != nil {
 		return err
 	}
 
-	pm.topic, err = pm.pubsub.Join(PubSubTopic)
+	p.topic, err = p.pubsub.Join(PubSubTopic)
 	return err
 }
 
 // Stop closes the topic and unregisters its validator.
-func (pm *PubsubManager) Stop(context.Context) error {
-	err := pm.pubsub.UnregisterTopicValidator(PubSubTopic)
+func (p *P2PSubscriber) Stop(context.Context) error {
+	err := p.pubsub.UnregisterTopicValidator(PubSubTopic)
 	if err != nil {
 		return err
 	}
 
-	return pm.topic.Close()
+	return p.topic.Close()
 }
 
-// Subscribe returns a new subscription to the PubsubManager's
+// Subscribe returns a new subscription to the P2PSubscriber's
 // topic.
-func (pm *PubsubManager) Subscribe() (Subscription, error) {
-	if pm.topic == nil {
+func (p *P2PSubscriber) Subscribe() (Subscription, error) {
+	if p.topic == nil {
 		return nil, fmt.Errorf("header topic is not instantiated, service must be started before subscribing")
 	}
 
-	return newSubscription(pm.topic)
+	return newSubscription(p.topic)
 }

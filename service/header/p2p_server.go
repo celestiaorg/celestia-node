@@ -2,11 +2,14 @@ package header
 
 import (
 	"context"
-	pb "github.com/celestiaorg/celestia-node/service/header/pb"
-	"github.com/celestiaorg/go-libp2p-messenger/serde"
+
 	"github.com/libp2p/go-libp2p-core/host"
 	"github.com/libp2p/go-libp2p-core/network"
+
 	tmbytes "github.com/tendermint/tendermint/libs/bytes"
+
+	pb "github.com/celestiaorg/celestia-node/service/header/pb"
+	"github.com/celestiaorg/go-libp2p-messenger/serde"
 )
 
 type P2PServer struct {

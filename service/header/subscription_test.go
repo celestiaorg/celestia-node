@@ -33,12 +33,12 @@ func TestSubscriber(t *testing.T) {
 
 	// create sub-service lifecycles for header service 1
 	syncer1 := NewSyncer(NewLocalExchange(store1), store1, suite.Head().Hash())
-	psManager1 := NewPubsubManager(pubsub1, syncer1.Validate)
-	err = psManager1.Start(context.Background())
+	p2pSub1 := NewP2PSubscriber(pubsub1, syncer1.Validate)
+	err = p2pSub1.Start(context.Background())
 	require.NoError(t, err)
 
 	// subscribe
-	subscription, err := psManager1.Subscribe()
+	subscription, err := p2pSub1.Subscribe()
 	require.NoError(t, err)
 
 	// get mock host and create new gossipsub on it
@@ -51,11 +51,11 @@ func TestSubscriber(t *testing.T) {
 
 	// create sub-service lifecycles for header service 2
 	syncer2 := NewSyncer(NewLocalExchange(store2), store2, suite.Head().Hash())
-	psManager2 := NewPubsubManager(pubsub2, syncer2.Validate)
-	err = psManager2.Start(context.Background())
+	p2pSub2 := NewP2PSubscriber(pubsub2, syncer2.Validate)
+	err = p2pSub2.Start(context.Background())
 	require.NoError(t, err)
 
-	_, err = psManager2.Subscribe()
+	_, err = p2pSub2.Subscribe()
 	require.NoError(t, err)
 
 	expectedHeader := suite.GenExtendedHeaders(1)[0]
@@ -67,7 +67,7 @@ func TestSubscriber(t *testing.T) {
 	// ref https://github.com/celestiaorg/celestia-node/issues/318
 	atomic.StoreUint64(syncer1.inProgress, 0)
 
-	err = psManager2.topic.Publish(ctx, bin, pubsub.WithReadiness(pubsub.MinTopicSize(1)))
+	err = p2pSub2.topic.Publish(ctx, bin, pubsub.WithReadiness(pubsub.MinTopicSize(1)))
 	require.NoError(t, err)
 
 	// get next ExtendedHeader from network
