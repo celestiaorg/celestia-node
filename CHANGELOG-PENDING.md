@@ -23,6 +23,7 @@ Month, DD, YYYY
 - [feat(node): extract overrides from Config into Settings #292](https://github.com/celestiaorg/celestia-node/pull/292) [@Wondertan](https://github.com/Wondertan)
 
 - [docker] Created `docker/` dir with `Dockerfile` and `entrypoint.sh` script. 
+- [chore(share): handle rows concurrently in GetSharesByNamespace #241](https://github.com/celestiaorg/celestia-node/pull/241) [@vgonkivs](https://github.com/vgonkivs)
 
 ### BUG FIXES
 
