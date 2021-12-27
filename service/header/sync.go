@@ -2,10 +2,10 @@ package header
 
 import (
 	"context"
-
 	"github.com/libp2p/go-libp2p-core/peer"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	tmbytes "github.com/tendermint/tendermint/libs/bytes"
+	"sync/atomic"
 )
 
 // Syncer implements simplest possible synchronization for headers.
@@ -14,22 +14,25 @@ type Syncer struct {
 	store    Store
 	trusted  tmbytes.HexBytes
 
-	// done is triggered when syncing is finished
-	// it assumes that Syncer is only used once
-	done chan struct{}
+	// inProgress is set to 1 once syncing commences and
+	// is set to 0 once syncing is either finished or
+	// not currently in progress
+	inProgress *uint64
 }
 
 // NewSyncer creates a new instance of Syncer.
 func NewSyncer(exchange Exchange, store Store, trusted tmbytes.HexBytes) *Syncer {
 	return &Syncer{
-		exchange: exchange,
-		store:    store,
-		trusted:  trusted,
-		done:     make(chan struct{}),
+		exchange:   exchange,
+		store:      store,
+		trusted:    trusted,
+		inProgress: new(uint64), // syncing is not currently in progress
 	}
 }
 
 func (s *Syncer) Start(ctx context.Context) error {
+	// indicate syncing
+	atomic.AddUint64(s.inProgress, 1)
 	s.Sync(ctx)
 	return nil
 }
@@ -57,8 +60,8 @@ func (s *Syncer) Sync(ctx context.Context) {
 		}
 
 		if localHead.Height >= netHead.Height {
-			// we are now synced
-			close(s.done)
+			// we are now synced, toggle inProgress off
+			atomic.StoreUint64(s.inProgress, 0)
 			log.Info("synced headers")
 			return
 		}
@@ -80,10 +83,10 @@ func (s *Syncer) Validate(ctx context.Context, p peer.ID, msg *pubsub.Message) p
 		return pubsub.ValidationReject
 	}
 
-	// if syncing is still in progress - just ignore the new Header
-	// Syncer will fetch it after anyway
-	select {
-	case <-s.done:
+	// if syncing is still in progress - just ignore the new header as
+	// Syncer will fetch it after anyway, but if syncer is done, append
+	// the header.
+	if atomic.LoadUint64(s.inProgress) == 0 {
 		err := s.store.Append(ctx, header)
 		if err != nil {
 			log.Errorw("appending store with header from PubSub",
@@ -95,7 +98,6 @@ func (s *Syncer) Validate(ctx context.Context, p peer.ID, msg *pubsub.Message) p
 
 		// we are good to go
 		return pubsub.ValidationAccept
-	default:
 	}
 
 	// TODO(@Wondertan): For now we just reject incoming headers if we are not yet synced.

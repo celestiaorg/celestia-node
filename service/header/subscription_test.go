@@ -2,6 +2,7 @@ package header
 
 import (
 	"context"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -61,7 +62,10 @@ func TestSubscriber(t *testing.T) {
 	bin, err := expectedHeader.MarshalBinary()
 	require.NoError(t, err)
 
-	syncer1.Sync(context.Background()) // TODO @renaynay: doesn't work, REMOVE
+	// TODO @renaynay: this is a hack meant to simulate syncing being finished
+	// Topic validation logic should be extracted from the syncer,
+	// ref https://github.com/celestiaorg/celestia-node/issues/318
+	atomic.StoreUint64(syncer1.inProgress, 0)
 
 	err = psManager2.topic.Publish(ctx, bin, pubsub.WithReadiness(pubsub.MinTopicSize(1)))
 	require.NoError(t, err)
