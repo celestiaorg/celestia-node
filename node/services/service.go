@@ -6,7 +6,6 @@ import (
 	ipld "github.com/ipfs/go-ipld-format"
 	"github.com/ipfs/go-merkledag"
 	"github.com/libp2p/go-libp2p-core/host"
-	"github.com/libp2p/go-libp2p-core/peer"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	"go.uber.org/fx"
 
@@ -38,18 +37,17 @@ func PubsubManager(sub *pubsub.PubSub, syncer *header.Syncer) *header.PubsubMana
 func HeaderService(lc fx.Lifecycle,
 	syncer *header.Syncer,
 	psManager *header.PubsubManager,
-	p2pEx *header.P2PExchange,
-	coreEx *header.CoreExchange,
+	ex header.Exchange,
 	) *header.Service {
 
 	headerLifecycles := []header.Lifecycle{
 		syncer,
 		psManager,
-		p2pEx,
+		ex,
 	}
 	// if core is enabled, add core listener
-	if coreEx != nil {
-		// TODO @renaynay: do this
+	if _, ok := ex.(*header.CoreExchange); ok {
+		// TODO @renaynay: implement this
 	}
 
 	headerServ := header.NewHeaderService(headerLifecycles)
@@ -82,8 +80,8 @@ func HeaderExchangeP2P(cfg Config) func(
 	}
 }
 
-func StartHeaderExchangeP2PServer(host host.Host, store header.Store) *header.P2PExchange {
-	return header.NewP2PExchange(host, &peer.AddrInfo{}, store)
+func StartHeaderExchangeP2PServer(host host.Host, store header.Store) *header.P2PServer {
+	return header.NewP2PServer(host, store)
 }
 
 // HeaderStore creates new header.Store.

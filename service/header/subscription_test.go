@@ -61,6 +61,8 @@ func TestSubscriber(t *testing.T) {
 	bin, err := expectedHeader.MarshalBinary()
 	require.NoError(t, err)
 
+	syncer1.Sync(context.Background()) // TODO @renaynay: doesn't work, REMOVE
+
 	err = psManager2.topic.Publish(ctx, bin, pubsub.WithReadiness(pubsub.MinTopicSize(1)))
 	require.NoError(t, err)
 

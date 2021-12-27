@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/libp2p/go-libp2p-core/peer"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 )
 
@@ -12,21 +11,18 @@ import (
 // gossipsub topic.
 const PubSubTopic = "header-sub"
 
-// topicValidator represents a topic validator function for a pubsub topic.
-type topicValidator func(ctx context.Context, p peer.ID, msg *pubsub.Message) pubsub.ValidationResult
-
 // PubsubManager manages the lifecycle and relationship of header Service
 // with the "header-sub" gossipsub topic.
 type PubsubManager struct {
 	pubsub *pubsub.PubSub
 	topic  *pubsub.Topic
 
-	validator topicValidator
+	validator pubsub.ValidatorEx
 }
 
 // NewPubsubManager returns a PubsubManager that manages the header Service's
 // relationship with the "header-sub" gossipsub topic.
-func NewPubsubManager(ps *pubsub.PubSub, validator topicValidator) *PubsubManager {
+func NewPubsubManager(ps *pubsub.PubSub, validator pubsub.ValidatorEx) *PubsubManager {
 	return &PubsubManager{
 		pubsub:    ps,
 		validator: validator,
