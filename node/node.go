@@ -82,9 +82,9 @@ func New(tp Type, store Store, options ...Option) (*Node, error) {
 
 	switch tp {
 	case Bridge:
-		return newNode(bridgeComponents(cfg, store), fxutil.Options(s.overrides()...))
+		return newNode(bridgeComponents(cfg, store), s.overrides())
 	case Light:
-		return newNode(lightComponents(cfg, store), fxutil.Options(s.overrides()...))
+		return newNode(lightComponents(cfg, store), s.overrides())
 	default:
 		panic("node: unknown Node Type")
 	}

@@ -4,8 +4,10 @@ import (
 	"encoding/hex"
 
 	"github.com/libp2p/go-libp2p-core/crypto"
+	"github.com/libp2p/go-libp2p-core/host"
 
 	"github.com/celestiaorg/celestia-node/node/fxutil"
+	"github.com/celestiaorg/celestia-node/node/p2p"
 )
 
 // Option for Node's Config.
@@ -35,15 +37,28 @@ func WithP2PKeyStr(key string) Option {
 		sets.P2PKey = key
 		return
 	}
+
+}
+
+// WithHost sets custom Host's data for p2p networking.
+func WithHost(host host.Host) Option {
+	return func(cfg *Config, sets *settings) (_ error) {
+		sets.Host = host
+		return
+	}
 }
 
 // settings store all the non Config values that can be altered for Node with Options.
 type settings struct {
 	P2PKey crypto.PrivKey
+	Host   p2p.HostBase
 }
 
 // overrides collects all the custom Modules and Components set to be overridden for the Node.
-func (sets *settings) overrides() (opts []fxutil.Option) {
-	opts = append(opts, fxutil.OverrideSupply(&sets.P2PKey))
-	return
+// TODO(@Bidon15): Pass settings instead of overrides func. Issue #300
+func (sets *settings) overrides() fxutil.Option {
+	return fxutil.OverrideSupply(
+		&sets.P2PKey,
+		&sets.Host,
+	)
 }
