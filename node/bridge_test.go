@@ -21,6 +21,7 @@ func TestNewBridge(t *testing.T) {
 	require.NotNil(t, node)
 	require.NotNil(t, node.Config)
 	require.NotNil(t, node.Host)
+	require.Nil(t, node.BlockServ)
 	assert.NotZero(t, node.Type)
 }
 
@@ -35,6 +36,7 @@ func TestBridgeLifecycle(t *testing.T) {
 	require.NotZero(t, node.Type)
 	require.NotNil(t, node.Host)
 	require.NotNil(t, node.CoreClient)
+	require.NotNil(t, node.HeaderServ)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)

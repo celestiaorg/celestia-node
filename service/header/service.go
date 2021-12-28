@@ -10,17 +10,15 @@ import (
 
 var log = logging.Logger("header-service")
 
-// TODO @renaynay: DOCUMENT
-// Service represents the Header service that can be started / stopped on a node.
-// Service contains 3 main functionalities:
-// 		1. Listening for/requesting new ExtendedHeaders from the network.
-// 		2. Verifying and serving ExtendedHeaders to the network.
-// 		3. Storing/caching ExtendedHeaders.
+// Service represents the header service that can be started / stopped on a node.
+// Service's main function is to manage its sub-services' lifecycles. Service can
+// contain several sub-services, such as Exchange, P2PServer, Syncer, and so forth.
 type Service struct {
 	// TODO @renaynay: how to manage which lifecycles are "started" / which ones can be stopped just with context
 	//  cancellation?
 	lifecycles []Lifecycle
-	active     []Lifecycle // keeps track of active lifecycles
+	// TODO @renaynay: how does this keep track of lifecycles that stop themselves, such as Syncer?
+	active []Lifecycle // keeps track of active lifecycles
 
 	ctx    context.Context
 	cancel context.CancelFunc
@@ -33,7 +31,7 @@ func NewHeaderService(lifecycles []Lifecycle) *Service {
 	}
 }
 
-// Start starts the header Service.
+// Start starts the header Service and all of its lifecycles.
 func (s *Service) Start(ctx context.Context) error {
 	if s.cancel != nil {
 		return fmt.Errorf("header: Service already started")

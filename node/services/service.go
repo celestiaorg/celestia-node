@@ -37,13 +37,14 @@ func P2PSubscriber(sub *pubsub.PubSub, syncer *header.Syncer) *header.P2PSubscri
 // HeaderService creates a new header.Service.
 func HeaderService(lc fx.Lifecycle,
 	syncer *header.Syncer,
-	psManager *header.P2PSubscriber,
+	p2pSub *header.P2PSubscriber,
+	p2pServer *header.P2PServer,
 	ex header.Exchange,
 ) *header.Service {
-
 	headerLifecycles := []header.Lifecycle{
 		syncer,
-		psManager,
+		p2pSub,
+		p2pServer,
 		ex,
 	}
 	// TODO @renaynay: implement adding listener to headerLifecycles if core is enabled
@@ -78,7 +79,8 @@ func HeaderExchangeP2P(cfg Config) func(
 	}
 }
 
-func StartHeaderExchangeP2PServer(host host.Host, store header.Store) *header.P2PServer {
+// P2PServer creates a new header.P2PServer.
+func P2PServer(host host.Host, store header.Store) *header.P2PServer {
 	return header.NewP2PServer(host, store)
 }
 

@@ -32,6 +32,7 @@ func NewSyncer(exchange Exchange, store Store, trusted tmbytes.HexBytes) *Syncer
 	}
 }
 
+// Start starts the syncing routine.
 func (s *Syncer) Start(ctx context.Context) error {
 	// indicate syncing
 	atomic.AddUint64(s.inProgress, 1)
@@ -39,8 +40,9 @@ func (s *Syncer) Start(ctx context.Context) error {
 	return nil
 }
 
-// TODO @renaynay: stubbed out as header service's context cancellation trigers syncer cancelation
-func (s *Syncer) Stop(ctx context.Context) error {
+// Stop is stubbed out as syncing cancels itself once
+// it realizes it is up-to-date with the network head.
+func (s *Syncer) Stop(_ context.Context) error {
 	return nil
 }
 

@@ -8,6 +8,7 @@ import (
 	mdutils "github.com/ipfs/go-merkledag/test"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	mocknet "github.com/libp2p/go-libp2p/p2p/net/mock"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	tmbytes "github.com/tendermint/tendermint/libs/bytes"
@@ -34,16 +35,22 @@ func TestServiceLifecycleManagement(t *testing.T) {
 	ex := NewLocalExchange(store)
 	syncer := NewSyncer(ex, store, tmbytes.HexBytes{})
 	p2pSub := NewP2PSubscriber(pub, syncer.Validate)
+	fake := new(fakeLifecycle)
 	lifecycles := []Lifecycle{
 		ex,
 		syncer,
 		p2pSub,
+		fake,
 	}
 
 	serv := NewHeaderService(lifecycles)
 
 	err = serv.Start(ctx)
 	require.NoError(t, err)
+
+	// check to ensure fake lifecycle is `started`
+	assert.True(t, fake.started)
+
 	err = serv.Stop(ctx)
 	require.NoError(t, err)
 }
@@ -84,4 +91,18 @@ func TestServiceFailedStart(t *testing.T) {
 	// ensure there is a failure when header Service is started
 	err = serv.Start(ctx)
 	require.Error(t, err)
+}
+
+type fakeLifecycle struct {
+	started bool
+}
+
+func (f *fakeLifecycle) Start(_ context.Context) error {
+	f.started = true
+	return nil
+}
+
+func (f *fakeLifecycle) Stop(_ context.Context) error {
+	f.started = false
+	return nil
 }

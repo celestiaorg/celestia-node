@@ -12,6 +12,8 @@ import (
 	"github.com/celestiaorg/go-libp2p-messenger/serde"
 )
 
+// P2PServer represents the server-side component for
+// responding to inbound header-related requests.
 type P2PServer struct {
 	host  host.Host
 	store Store
@@ -70,6 +72,8 @@ func (serv *P2PServer) requestHandler(stream network.Stream) {
 	}
 }
 
+// handleRequestByHash returns the ExtendedHeader at the given hash
+// if it exists.
 func (serv *P2PServer) handleRequestByHash(hash []byte, stream network.Stream) {
 	log.Debugw("p2p-server: handling header request", "hash", tmbytes.HexBytes(hash).String())
 
