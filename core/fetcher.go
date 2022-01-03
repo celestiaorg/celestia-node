@@ -149,8 +149,3 @@ func (f *BlockFetcher) UnsubscribeNewBlockEvent(ctx context.Context) error {
 
 	return f.client.Unsubscribe(ctx, newBlockSubscriber, newBlockEventQuery)
 }
-
-// IsRunning returns whether the Core client is running.
-func (f *BlockFetcher) IsRunning() bool {
-	return f.client.IsRunning()
-}

@@ -127,27 +127,6 @@ func TestBridge_WithRemoteCore(t *testing.T) {
 	require.NoError(t, err)
 }
 
-func TestBridge_WithRemoteCoreFailed(t *testing.T) {
-	store := MockStore(t, DefaultConfig(Bridge))
-	remoteCore, protocol, ip := core.StartRemoteCore()
-	require.NotNil(t, remoteCore)
-	assert.True(t, remoteCore.IsRunning())
-
-	node, err := New(Bridge, store, WithRemoteCore(protocol, ip))
-	require.NoError(t, err)
-	require.NotNil(t, node)
-	require.NotNil(t, node.HeaderServ)
-
-	ctx, cancel := context.WithCancel(context.Background())
-	t.Cleanup(cancel)
-
-	err = node.CoreClient.Stop()
-	require.NoError(t, err)
-
-	err = node.Start(ctx)
-	require.Error(t, err, "node: failed to start: client not running")
-}
-
 func TestBridge_NotPanicWithNilOpts(t *testing.T) {
 	store := MockStore(t, DefaultConfig(Bridge))
 	node, err := New(Bridge, store, nil)
