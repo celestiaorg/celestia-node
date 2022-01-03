@@ -17,13 +17,13 @@ import (
 )
 
 // Start constructs a CLI command to start Celestia Node daemon of the given type 'tp'.
-// It is meant to be used a subcommand and also receive persistent flag name for repository path.
-func Start(repoFlagName string, tp node.Type) *cobra.Command {
+// It is meant to be used a subcommand and also receive persistent flag name for store path.
+func Start(storeFlagName string, tp node.Type) *cobra.Command {
 	if !tp.IsValid() {
 		panic("cmd: Start: invalid Node Type")
 	}
-	if len(repoFlagName) == 0 {
-		panic("parent command must specify a persistent flag name for repository path")
+	if len(storeFlagName) == 0 {
+		panic("parent command must specify a persistent flag name for store path")
 	}
 
 	cmd := &cobra.Command{
@@ -36,9 +36,9 @@ func Start(repoFlagName string, tp node.Type) *cobra.Command {
 		Args:         cobra.NoArgs,
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			repoPath := cmd.Flag(repoFlagName).Value.String()
-			if repoPath == "" {
-				return fmt.Errorf("repository path must be specified")
+			storePath := cmd.Flag(storeFlagName).Value.String()
+			if storePath == "" {
+				return fmt.Errorf("store path must be specified")
 			}
 
 			level, err := logging.LevelFromString(cmd.Flag(loglevelFlag.Name).Value.String())
@@ -48,7 +48,14 @@ func Start(repoFlagName string, tp node.Type) *cobra.Command {
 			logs.SetAllLoggers(level)
 
 			var opts []node.Option
-
+			nodeConfig := cmd.Flag(nodeConfigFlag.Name).Value.String()
+			if nodeConfig != "" {
+				cfg, err := node.LoadConfig(nodeConfig)
+				if err != nil {
+					return err
+				}
+				opts = append(opts, node.WithConfig(cfg))
+			}
 			trustedHash := cmd.Flag(trustedHashFlag.Name).Value.String()
 			if trustedHash != "" {
 				opts = append(opts, node.WithTrustedHash(trustedHash))
@@ -65,15 +72,6 @@ func Start(repoFlagName string, tp node.Type) *cobra.Command {
 				}
 				opts = append(opts, node.WithRemoteCore(protocol, ip))
 			}
-			nodeConfig := cmd.Flag(nodeConfigFlag.Name).Value.String()
-			if nodeConfig != "" {
-				cfg, err := node.LoadConfig(nodeConfig)
-				if err != nil {
-					return err
-				}
-				opts = append(opts, node.WithConfig(cfg))
-			}
-
 			mutualPeersStr := cmd.Flag(mutualPeersFlag.Name).Value.String()
 			if mutualPeersStr != "" {
 				mutualPeers := strings.Split(mutualPeersStr, ",")
@@ -84,12 +82,12 @@ func Start(repoFlagName string, tp node.Type) *cobra.Command {
 				opts = append(opts, node.WithMutualPeers(mutualPeers))
 			}
 
-			repo, err := node.Open(repoPath, tp)
+			store, err := node.OpenStore(storePath, tp)
 			if err != nil {
 				return err
 			}
 
-			return start(cmd, tp, repo, opts...)
+			return start(cmd, tp, store, opts...)
 		},
 	}
 	for _, flag := range configFlags {
@@ -98,8 +96,8 @@ func Start(repoFlagName string, tp node.Type) *cobra.Command {
 	return cmd
 }
 
-func start(cmd *cobra.Command, tp node.Type, repo node.Repository, opts ...node.Option) error {
-	nd, err := node.New(tp, repo, opts...)
+func start(cmd *cobra.Command, tp node.Type, store node.Store, opts ...node.Option) error {
+	nd, err := node.New(tp, store, opts...)
 	if err != nil {
 		return err
 	}
@@ -121,7 +119,7 @@ func start(cmd *cobra.Command, tp node.Type, repo node.Repository, opts ...node.
 		return err
 	}
 
-	return repo.Close()
+	return store.Close()
 }
 
 // parseAddress parses the given address of the remote core node

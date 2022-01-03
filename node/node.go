@@ -18,6 +18,7 @@ import (
 
 	"github.com/celestiaorg/celestia-node/core"
 	"github.com/celestiaorg/celestia-node/das"
+	"github.com/celestiaorg/celestia-node/node/fxutil"
 	"github.com/celestiaorg/celestia-node/node/rpc"
 	"github.com/celestiaorg/celestia-node/service/block"
 	"github.com/celestiaorg/celestia-node/service/header"
@@ -31,14 +32,11 @@ var log = logging.Logger("node")
 // Node represents the core structure of a Celestia node. It keeps references to all Celestia-specific
 // components and services in one place and provides flexibility to run a Celestia node in different modes.
 // Currently supported modes:
-// * Full
+// * Bridge
 // * Light
 type Node struct {
 	Type   Type
 	Config *Config
-
-	// the Node keeps a reference to the DI App that controls the lifecycles of services registered on the Node.
-	app *fx.App
 
 	// CoreClient provides access to a Core node process.
 	CoreClient core.Client `optional:"true"`
@@ -55,34 +53,38 @@ type Node struct {
 	// p2p protocols
 	PubSub *pubsub.PubSub
 	// BlockService provides access to the node's Block Service
-	// TODO @renaynay: I don't like the concept of storing individual services on the node,
-	// TODO maybe create a struct in full.go that contains `FullServices` (all expected services to be running on a
-	// TODO full node) and in light, same thing `LightServices` (all expected services to be running in a light node.
-	// TODO `FullServices` can include `LightServices` + other services.
 	BlockServ  *block.Service  `optional:"true"`
 	ShareServ  share.Service   // not optional
 	HeaderServ *header.Service // not optional
 
 	DASer *das.DASer `optional:"true"`
+
+	// start and stop control ref internal fx.App lifecycle funcs to be called from Start and Stop
+	start, stop lifecycleFunc
 }
 
-// New assembles a new Node with the given type 'tp' over Repository 'repo'.
-func New(tp Type, repo Repository, options ...Option) (*Node, error) {
-	cfg, err := repo.Config()
+// New assembles a new Node with the given type 'tp' over Store 'store'.
+func New(tp Type, store Store, options ...Option) (*Node, error) {
+	cfg, err := store.Config()
 	if err != nil {
 		return nil, err
 	}
+
+	s := new(settings)
 	for _, option := range options {
 		if option != nil {
-			option(cfg)
+			err := option(cfg, s)
+			if err != nil {
+				return nil, err
+			}
 		}
 	}
 
 	switch tp {
-	case Full:
-		return newNode(tp, fullComponents(cfg, repo))
+	case Bridge:
+		return newNode(bridgeComponents(cfg, store), s.overrides())
 	case Light:
-		return newNode(tp, lightComponents(cfg, repo))
+		return newNode(lightComponents(cfg, store), s.overrides())
 	default:
 		panic("node: unknown Node Type")
 	}
@@ -93,7 +95,7 @@ func (n *Node) Start(ctx context.Context) error {
 	ctx, cancel := context.WithTimeout(ctx, Timeout)
 	defer cancel()
 
-	err := n.app.Start(ctx)
+	err := n.start(ctx)
 	if err != nil {
 		log.Errorf("starting %s Node: %s", n.Type, err)
 		return fmt.Errorf("node: failed to start: %w", err)
@@ -142,7 +144,7 @@ func (n *Node) Stop(ctx context.Context) error {
 	ctx, cancel := context.WithTimeout(ctx, Timeout)
 	defer cancel()
 
-	err := n.app.Stop(ctx)
+	err := n.stop(ctx)
 	if err != nil {
 		log.Errorf("Stopping %s Node: %s", n.Type, err)
 		return err
@@ -154,15 +156,27 @@ func (n *Node) Stop(ctx context.Context) error {
 
 // newNode creates a new Node from given DI options.
 // DI options allow initializing the Node with a customized set of components and services.
-// NOTE: newNode is currently meant to be used privately to create various custom Node types e.g. full, unless we
+// NOTE: newNode is currently meant to be used privately to create various custom Node types e.g. Light, unless we
 // decide to give package users the ability to create custom node types themselves.
-func newNode(tp Type, opts ...fx.Option) (*Node, error) {
+func newNode(opts ...fxutil.Option) (*Node, error) {
+	fopt, err := fxutil.ParseOptions(opts...)
+	if err != nil {
+		return nil, err
+	}
+
 	node := new(Node)
-	node.app = fx.New(
+	app := fx.New(
 		fx.NopLogger,
 		fx.Extract(node),
-		fx.Options(opts...),
-		fx.Supply(tp),
+		fopt,
 	)
-	return node, node.app.Err()
+	if err := app.Err(); err != nil {
+		return nil, err
+	}
+
+	node.start, node.stop = app.Start, app.Stop
+	return node, nil
 }
+
+// lifecycleFunc defines a type for common lifecycle funcs.
+type lifecycleFunc func(context.Context) error

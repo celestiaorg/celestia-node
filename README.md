@@ -1,5 +1,5 @@
 # Celestia Node
-Celestia full node and light client
+Celestia Bridge and Light node.
 
 ### Minimum requirements
 

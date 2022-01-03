@@ -24,8 +24,8 @@ const defaultValKeyType = types.ABCIPubKeyTypeSecp256k1
 // * P2P comms private key
 // * Stub genesis doc file
 func Init(path string) (err error) {
-	log.Infof("Initializing Core Repository over '%s'", path)
-	defer log.Info("Core Repository initialized")
+	log.Infof("Initializing Core Store over '%s'", path)
+	defer log.Info("Core Store initialized")
 
 	// 1 - ensure config
 	cfg := DefaultConfig()
