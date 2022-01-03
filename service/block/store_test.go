@@ -12,8 +12,8 @@ import (
 	"github.com/tendermint/tendermint/pkg/da"
 
 	"github.com/celestiaorg/celestia-node/core"
+	"github.com/celestiaorg/celestia-node/service"
 	"github.com/celestiaorg/celestia-node/service/header"
-	"github.com/celestiaorg/celestia-node/utils"
 )
 
 func TestService_BlockStore(t *testing.T) {
@@ -47,7 +47,7 @@ func generateRawAndExtendedBlock(t *testing.T, store format.DAGService) *Block {
 	rawBlock, err := fetcher.GetBlock(context.Background(), nil)
 	require.NoError(t, err)
 	// extend block
-	extended, err := utils.ExtendBlock(rawBlock, store)
+	extended, err := service.ExtendBlock(rawBlock, store)
 	require.NoError(t, err)
 	// generate dah
 	dah := da.NewDataAvailabilityHeader(extended)

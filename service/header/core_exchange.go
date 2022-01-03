@@ -12,7 +12,7 @@ import (
 	"github.com/tendermint/tendermint/types"
 
 	"github.com/celestiaorg/celestia-node/core"
-	"github.com/celestiaorg/celestia-node/utils"
+	"github.com/celestiaorg/celestia-node/service"
 	"github.com/celestiaorg/rsmt2d"
 )
 
@@ -137,5 +137,5 @@ func (ce *CoreExchange) generateExtendedHeaderFromBlock(block *types.Block) (*Ex
 // extendBlockData erasure codes the given raw block's data and returns the
 // erasure coded block data upon success.
 func (ce *CoreExchange) extendBlockData(raw *types.Block) (*rsmt2d.ExtendedDataSquare, error) {
-	return utils.ExtendBlock(raw, ce.shareStore)
+	return service.ExtendBlock(raw, ce.shareStore)
 }
