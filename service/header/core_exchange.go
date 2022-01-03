@@ -38,10 +38,6 @@ func (ce *CoreExchange) Start(_ context.Context) error {
 	return nil
 }
 
-func (ce *CoreExchange) Stop(_ context.Context) error {
-	return nil
-}
-
 func (ce *CoreExchange) RequestHeader(ctx context.Context, height uint64) (*ExtendedHeader, error) {
 	log.Debugw("core: requesting header", "height", height)
 	intHeight := int64(height)

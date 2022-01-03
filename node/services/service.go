@@ -18,44 +18,40 @@ import (
 )
 
 // HeaderSyncer creates a new header.Syncer.
-func HeaderSyncer(cfg Config) func(ex header.Exchange, store header.Store) (*header.Syncer, error) {
-	return func(ex header.Exchange, store header.Store) (*header.Syncer, error) {
+func HeaderSyncer(cfg Config) func(lc fx.Lifecycle, ex header.Exchange, store header.Store) (*header.Syncer, error) {
+	return func(lc fx.Lifecycle, ex header.Exchange, store header.Store) (*header.Syncer, error) {
 		trustedHash, err := cfg.trustedHash()
 		if err != nil {
 			return nil, err
 		}
 
-		return header.NewSyncer(ex, store, trustedHash), nil
+		syncer := header.NewSyncer(ex, store, trustedHash)
+		lc.Append(fx.Hook{
+			OnStart: syncer.Start,
+		})
+
+		return syncer, nil
 	}
 }
 
 // P2PSubscriber creates a new header.P2PSubscriber.
-func P2PSubscriber(sub *pubsub.PubSub, syncer *header.Syncer) *header.P2PSubscriber {
-	return header.NewP2PSubscriber(sub, syncer.Validate)
+func P2PSubscriber(lc fx.Lifecycle, sub *pubsub.PubSub, syncer *header.Syncer) *header.P2PSubscriber {
+	p2pSub := header.NewP2PSubscriber(sub, syncer.Validate)
+	lc.Append(fx.Hook{
+		OnStart: p2pSub.Start,
+		OnStop:  p2pSub.Stop,
+	})
+	return p2pSub
 }
 
 // HeaderService creates a new header.Service.
-func HeaderService(lc fx.Lifecycle,
+func HeaderService(
 	syncer *header.Syncer,
 	p2pSub *header.P2PSubscriber,
 	p2pServer *header.P2PServer,
 	ex header.Exchange,
 ) *header.Service {
-	headerLifecycles := []header.Lifecycle{
-		syncer,
-		p2pSub,
-		p2pServer,
-		ex,
-	}
-	// TODO @renaynay: implement adding listener to headerLifecycles if core is enabled
-
-	headerServ := header.NewHeaderService(headerLifecycles)
-	lc.Append(fx.Hook{
-		OnStart: headerServ.Start,
-		OnStop:  headerServ.Stop,
-	})
-
-	return headerServ
+	return header.NewHeaderService(syncer, p2pSub, p2pServer, ex)
 }
 
 // HeaderExchangeP2P constructs new P2PExchange for headers.
@@ -80,8 +76,14 @@ func HeaderExchangeP2P(cfg Config) func(
 }
 
 // P2PServer creates a new header.P2PServer.
-func P2PServer(host host.Host, store header.Store) *header.P2PServer {
-	return header.NewP2PServer(host, store)
+func P2PServer(lc fx.Lifecycle, host host.Host, store header.Store) *header.P2PServer {
+	p2pServ := header.NewP2PServer(host, store)
+	lc.Append(fx.Hook{
+		OnStart: p2pServ.Start,
+		OnStop:  p2pServ.Stop,
+	})
+
+	return p2pServ
 }
 
 // HeaderStore creates new header.Store.

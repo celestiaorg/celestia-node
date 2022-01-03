@@ -32,7 +32,7 @@ func NewP2PServer(host host.Host, store Store) *P2PServer {
 }
 
 // Start sets the stream handler for inbound header-related requests.
-func (serv *P2PServer) Start(_ context.Context) error {
+func (serv *P2PServer) Start(context.Context) error {
 	serv.ctx, serv.cancel = context.WithCancel(context.Background())
 	log.Info("p2p-server: listening for inbound header requests")
 
@@ -42,7 +42,7 @@ func (serv *P2PServer) Start(_ context.Context) error {
 }
 
 // Stop removes the stream handler for serving header-related requests.
-func (serv *P2PServer) Stop(_ context.Context) error {
+func (serv *P2PServer) Stop(context.Context) error {
 	log.Info("p2p-server: stopping server")
 	serv.cancel()
 	serv.host.RemoveStreamHandler(exchangeProtocolID)

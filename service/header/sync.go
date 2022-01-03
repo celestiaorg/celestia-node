@@ -33,16 +33,10 @@ func NewSyncer(exchange Exchange, store Store, trusted tmbytes.HexBytes) *Syncer
 }
 
 // Start starts the syncing routine.
-func (s *Syncer) Start(ctx context.Context) error {
+func (s *Syncer) Start(context.Context) error {
 	// indicate syncing
 	atomic.AddUint64(s.inProgress, 1)
-	go s.Sync(ctx)
-	return nil
-}
-
-// Stop is stubbed out as syncing cancels itself once
-// it realizes it is up-to-date with the network head.
-func (s *Syncer) Stop(_ context.Context) error {
+	go s.Sync(context.TODO()) // TODO @Wondertan: leaving this to you to implement in disconnection toleration PR.
 	return nil
 }
 
