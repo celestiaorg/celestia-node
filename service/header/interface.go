@@ -33,11 +33,6 @@ type Broadcaster interface {
 // Exchange encompasses the behavior necessary to request ExtendedHeaders
 // from the network.
 type Exchange interface {
-	// Start starts the Exchange lifecycle.
-	Start(ctx context.Context) error
-	// Stop stops the Exchange lifecycle.
-	Stop(ctx context.Context) error
-
 	// RequestHead requests the latest ExtendedHeader. Note that the ExtendedHeader
 	// must be verified thereafter.
 	RequestHead(ctx context.Context) (*ExtendedHeader, error)
