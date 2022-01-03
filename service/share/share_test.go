@@ -52,7 +52,9 @@ func TestService_GetSharesByNamespace(t *testing.T) {
 			shares, err := serv.GetSharesByNamespace(context.Background(), root, randNID)
 			require.NoError(t, err)
 			assert.Len(t, shares, tt.expectedShareCount)
-			assert.Equal(t, randNID, []byte(shares[0].NamespaceID()))
+			for _, value := range shares {
+				assert.Equal(t, randNID, []byte(value.NamespaceID()))
+			}
 		})
 	}
 }
