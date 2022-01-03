@@ -21,7 +21,7 @@ Month, DD, YYYY
 - [chore: bump deps #297](https://github.com/celestiaorg/celestia-node/pull/297) [@Wondertan](https://github.com/Wondertan)
 - [workflows/lint: update golangci-lint to v1.43 #308](https://github.com/celestiaorg/celestia-node/pull/308) [@Wondertan](https://github.com/Wondertan)
 - [feat(node): extract overrides from Config into Settings #292](https://github.com/celestiaorg/celestia-node/pull/292) [@Wondertan](https://github.com/Wondertan)
-- [node: Adding WithHost options to settings section #301](https://github.com/celestiaorg/celestia-node/pull/301) @Bidon15
+- [node: Adding WithHost options to settings section #301](https://github.com/celestiaorg/celestia-node/pull/301) [@Bidon15](https://github.com/Bidon15)
 
 - [docker] Created `docker/` dir with `Dockerfile` and `entrypoint.sh` script. 
 
@@ -30,5 +30,5 @@ Month, DD, YYYY
 - [go package] (Link to PR) Description @username
 
 - [header] Added missing `err` value in ErrorW logging calls. @jbowen93
-- [service/block, node/p2p] [Fix race conditions in TestExtendedHeaderBroadcast and TestFull_P2P_Streams.](https://github.com/celestiaorg/celestia-node/pull/288) @jenyasd209
-- [ci: increase tokens ratio for dupl to fix false positive scenarios](https://github.com/celestiaorg/celestia-node/pull/314) @Bidon15
+- [service/block, node/p2p] [Fix race conditions in TestExtendedHeaderBroadcast and TestFull_P2P_Streams.](https://github.com/celestiaorg/celestia-node/pull/288) [@jenyasd209](https://github.com/jenyasd209)
+- [ci: increase tokens ratio for dupl to fix false positive scenarios](https://github.com/celestiaorg/celestia-node/pull/314) [@Bidon15](https://github.com/Bidon15)
