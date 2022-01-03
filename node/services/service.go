@@ -48,7 +48,7 @@ func P2PSubscriber(lc fx.Lifecycle, sub *pubsub.PubSub, syncer *header.Syncer) *
 func HeaderService(
 	syncer *header.Syncer,
 	p2pSub *header.P2PSubscriber,
-	p2pServer *header.P2PServer,
+	p2pServer *header.P2PExchangeServer,
 	ex header.Exchange,
 ) *header.Service {
 	return header.NewHeaderService(syncer, p2pSub, p2pServer, ex)
@@ -75,9 +75,9 @@ func HeaderExchangeP2P(cfg Config) func(
 	}
 }
 
-// P2PServer creates a new header.P2PServer.
-func P2PServer(lc fx.Lifecycle, host host.Host, store header.Store) *header.P2PServer {
-	p2pServ := header.NewP2PServer(host, store)
+// HeaderP2PExchangeServer creates a new header.P2PExchangeServer.
+func HeaderP2PExchangeServer(lc fx.Lifecycle, host host.Host, store header.Store) *header.P2PExchangeServer {
+	p2pServ := header.NewP2PExchangeServer(host, store)
 	lc.Append(fx.Hook{
 		OnStart: p2pServ.Start,
 		OnStop:  p2pServ.Stop,

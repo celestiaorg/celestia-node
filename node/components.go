@@ -41,7 +41,7 @@ func baseComponents(cfg *Config, store Store) fxutil.Option {
 		fxutil.Provide(services.HeaderStore),
 		fxutil.Provide(services.HeaderSyncer(cfg.Services)),
 		fxutil.Provide(services.P2PSubscriber),
-		fxutil.Provide(services.P2PServer),
+		fxutil.Provide(services.HeaderP2PExchangeServer),
 		fxutil.Provide(services.LightAvailability), // TODO(@Wondertan): Move to light once FullAvailability is implemented
 		p2p.Components(cfg.P2P),
 	)

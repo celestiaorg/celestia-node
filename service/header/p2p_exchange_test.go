@@ -68,9 +68,9 @@ func TestP2PExchange_RequestByHash(t *testing.T) {
 	require.NoError(t, err)
 	// get host and peer
 	host, peer := net.Hosts()[0], net.Hosts()[1]
-	// create and start the P2PServer
+	// create and start the P2PExchangeServer
 	store := createStore(t, 5)
-	serv := NewP2PServer(host, store)
+	serv := NewP2PExchangeServer(host, store)
 	err = serv.Start(ctx)
 	require.NoError(t, err)
 	t.Cleanup(func() {
@@ -111,7 +111,7 @@ func createMocknet(ctx context.Context, t *testing.T) (libhost.Host, libhost.Hos
 // createP2PExAndServer creates a P2PExchange with 5 headers already in its store.
 func createP2PExAndServer(t *testing.T, host, peer libhost.Host) (Exchange, *mockStore) {
 	store := createStore(t, 5)
-	serverSideEx := NewP2PServer(peer, store)
+	serverSideEx := NewP2PExchangeServer(peer, store)
 	err := serverSideEx.Start(context.Background())
 	require.NoError(t, err)
 
