@@ -28,16 +28,6 @@ func NewCoreExchange(fetcher *core.BlockFetcher, dag format.DAGService) *CoreExc
 	}
 }
 
-// Start starts the CoreExchange.
-func (ce *CoreExchange) Start(context.Context) error {
-	return nil
-}
-
-// Stop stops the CoreExchange.
-func (ce *CoreExchange) Stop(context.Context) error {
-	return nil
-}
-
 func (ce *CoreExchange) RequestHeader(ctx context.Context, height uint64) (*ExtendedHeader, error) {
 	log.Debugw("core: requesting header", "height", height)
 	intHeight := int64(height)
