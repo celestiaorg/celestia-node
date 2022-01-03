@@ -8,15 +8,15 @@ import (
 	"github.com/celestiaorg/celestia-node/core"
 )
 
-// MockRepository provides mock in memory Repository for testing purposes.
-func MockRepository(t *testing.T, cfg *Config) Repository {
+// MockStore provides mock in memory Store for testing purposes.
+func MockStore(t *testing.T, cfg *Config) Store {
 	t.Helper()
-	repo := NewMemRepository()
-	err := repo.PutConfig(cfg)
+	store := NewMemStore()
+	err := store.PutConfig(cfg)
 	require.NoError(t, err)
-	crepo, err := repo.Core()
+	cstore, err := store.Core()
 	require.NoError(t, err)
-	err = crepo.PutConfig(core.MockConfig(t))
+	err = cstore.PutConfig(core.MockConfig(t))
 	require.NoError(t, err)
-	return repo
+	return store
 }

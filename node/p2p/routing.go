@@ -69,6 +69,6 @@ type routingParams struct {
 
 	Ctx       context.Context
 	Lc        fx.Lifecycle
-	Host      hostBase
+	Host      HostBase
 	DataStore datastore.Batching
 }

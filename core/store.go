@@ -7,41 +7,41 @@ import (
 )
 
 // ErrNotInited is used to signal when core is intended to be started without being initialized.
-var ErrNotInited = errors.New("core: repository is not initialized")
+var ErrNotInited = errors.New("core: store is not initialized")
 
-// RepoLoader loads the Repository.
-type RepoLoader func() (Repository, error)
+// RepoLoader loads the Store.
+type RepoLoader func() (Store, error)
 
 // TODO(@Wondertan):
 //  * This should expose GenesisDoc and others. We can add them ad-hoc.
 //  * Ideally, add private keys to Keystore to unify access pattern.
-type Repository interface {
+type Store interface {
 	// Config loads a Config.
 	Config() (*Config, error)
 	// PutConfig saves given config.
 	PutConfig(*Config) error
 }
 
-// Open instantiates FileSystem(FS) Repository from a given 'path'.
-func Open(path string) (Repository, error) {
+// OpenStore instantiates FileSystem(FS) Store from a given 'path'.
+func OpenStore(path string) (Store, error) {
 	if !IsInit(path) {
 		return nil, ErrNotInited
 	}
 
-	return &fsRepository{path}, nil
+	return &fsStore{path}, nil
 }
 
-func (f *fsRepository) Config() (*Config, error) {
+func (f *fsStore) Config() (*Config, error) {
 	return LoadConfig(configPath(f.path))
 }
 
-func (f *fsRepository) PutConfig(cfg *Config) error {
-	cfg.SetRoot(f.path) // not allowed to change root in runtime
+func (f *fsStore) PutConfig(cfg *Config) error {
+	cfg.SetRoot(f.path) // not allowed changing root in runtime
 	updateDefaults(cfg) // ensure stability over path fields
 	config.WriteConfigFile(configPath(f.path), cfg)
 	return nil
 }
 
-type fsRepository struct {
+type fsStore struct {
 	path string
 }

@@ -10,27 +10,24 @@ import (
 	"github.com/celestiaorg/celestia-node/libs/utils"
 )
 
-// Init initializes the Node FileSystem Repository for the given Node Type 'tp' in the directory under 'path' with
+// Init initializes the Node FileSystem Store for the given Node Type 'tp' in the directory under 'path' with
 // default Config. Options are applied over default Config and persisted on disk.
 func Init(path string, tp Type, options ...Option) error {
-	cfg := DefaultConfig(tp)
+	cfg, sets := DefaultConfig(tp), new(settings)
 	for _, option := range options {
 		if option != nil {
-			option(cfg)
+			err := option(cfg, sets)
+			if err != nil {
+				return err
+			}
 		}
 	}
 
-	return InitWith(path, tp, cfg)
-}
-
-// InitWith initializes the Node FileSystem Repository for the given Node Type 'tp' in the directory under 'path'
-// with the given Config 'cfg'.
-func InitWith(path string, tp Type, cfg *Config) error {
-	path, err := repoPath(path)
+	path, err := storePath(path)
 	if err != nil {
 		return err
 	}
-	log.Infof("Initializing %s Node Repository over '%s'", tp, path)
+	log.Infof("Initializing %s Node Store over '%s'", tp, path)
 
 	err = initRoot(path)
 	if err != nil {
@@ -44,7 +41,7 @@ func InitWith(path string, tp Type, cfg *Config) error {
 		}
 		return err
 	}
-	defer flock.Unlock() //nolint: errcheck
+	defer flock.Unlock() // nolint: errcheck
 
 	err = initDir(keysPath(path))
 	if err != nil {
@@ -71,10 +68,10 @@ func InitWith(path string, tp Type, cfg *Config) error {
 		log.Infow("Config already exists", "path", cfgPath)
 	}
 
-	// TODO(@Wondertan): This is a lazy hack which prevents Core Repository to be generated for all case, and generates
-	//  only for a Full Node with embedded Core Node. Ideally, we should a have global map Node Type/Mode -> Custom
+	// TODO(@Wondertan): This is a lazy hack which prevents Core Store to be generated for all case, and generates
+	//  only for a Bridge Node with embedded Core Node. Ideally, we should a have global map Node Type/Mode -> Custom
 	//  Init Func, so Init would run initialization for specific Mode/Type.
-	if !cfg.Core.Remote && tp == Full {
+	if !cfg.Core.Remote && tp == Bridge {
 		corePath := corePath(path)
 		err = initDir(corePath)
 		if err != nil {
@@ -84,14 +81,14 @@ func InitWith(path string, tp Type, cfg *Config) error {
 		return core.Init(corePath)
 	}
 
-	log.Info("Node Repository initialized")
+	log.Info("Node Store initialized")
 	return nil
 }
 
-// IsInit checks whether FileSystem Repository was setup under given 'path'.
+// IsInit checks whether FileSystem Store was setup under given 'path'.
 // If any required file/subdirectory does not exist, then false is reported.
 func IsInit(path string, tp Type) bool {
-	path, err := repoPath(path)
+	path, err := storePath(path)
 	if err != nil {
 		return false
 	}
@@ -103,7 +100,7 @@ func IsInit(path string, tp Type) bool {
 
 	// TODO(@Wondertan): this is undesirable hack related to the TODO above.
 	//  They should be resolved together.
-	if !cfg.Core.Remote && tp == Full && !core.IsInit(corePath(path)) {
+	if !cfg.Core.Remote && tp == Bridge && !core.IsInit(corePath(path)) {
 		return false
 	}
 

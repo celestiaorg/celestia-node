@@ -7,13 +7,13 @@ import (
 )
 
 const (
-	repoFlagName  = "repo.path"
-	repoFlagShort = "r"
+	storeFlagName  = "store.path"
+	storeFlagShort = "s"
 )
 
 func init() {
 	rootCmd.AddCommand(
-		fullCmd,
+		bridgeCmd,
 		lightCmd,
 		versionCmd,
 	)
@@ -31,7 +31,7 @@ func run() error {
 }
 
 var rootCmd = &cobra.Command{
-	Use: "celestia [  full  ||  light  ] [subcommand]",
+	Use: "celestia [  bridge  ||  light  ] [subcommand]",
 	Short: `
 	  / ____/__  / /__  _____/ /_(_)___ _
 	 / /   / _ \/ / _ \/ ___/ __/ / __  /

@@ -1,8 +1,6 @@
 package core
 
 import (
-	"go.uber.org/fx"
-
 	"github.com/celestiaorg/celestia-node/core"
 	"github.com/celestiaorg/celestia-node/node/fxutil"
 	"github.com/celestiaorg/celestia-node/service/header"
@@ -25,9 +23,9 @@ func DefaultConfig() Config {
 }
 
 // Components collects all the components and services related to managing the relationship with the Core node.
-func Components(cfg Config, loader core.RepoLoader) fx.Option {
-	return fx.Options(
-		fx.Provide(core.NewBlockFetcher),
+func Components(cfg Config, loader core.RepoLoader) fxutil.Option {
+	return fxutil.Options(
+		fxutil.Provide(core.NewBlockFetcher),
 		fxutil.ProvideAs(header.NewCoreExchange, new(header.Exchange)),
 		fxutil.ProvideIf(cfg.Remote, func() (core.Client, error) {
 			return RemoteClient(cfg)
@@ -36,12 +34,12 @@ func Components(cfg Config, loader core.RepoLoader) fx.Option {
 			return c.Start()
 		}),
 		fxutil.ProvideIf(!cfg.Remote, func() (core.Client, error) {
-			repo, err := loader()
+			store, err := loader()
 			if err != nil {
 				return nil, err
 			}
 
-			cfg, err := repo.Config()
+			cfg, err := store.Config()
 			if err != nil {
 				return nil, err
 			}

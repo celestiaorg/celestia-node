@@ -9,12 +9,12 @@ import (
 	"github.com/celestiaorg/celestia-node/service/header"
 )
 
-// Service represents the Block service that can be started / stopped on a `Full` node.
+// Service represents the Block service that can be started / stopped on a `Bridge` node.
 // Service contains 4 main functionalities:
-//		1. Fetching "raw" blocks from either Celestia Core or other Celestia Full nodes.
+//		1. Fetching "raw" blocks from either Celestia Core or other Celestia Bridge nodes.
 // 		2. Erasure coding the "raw" blocks and producing a DataAvailabilityHeader + verifying the Data root.
 // 		3. Storing erasure coded blocks.
-// 		4. Serving erasure coded blocks to other `Full` node peers.
+// 		4. Serving erasure coded blocks to other nodes.
 // TODO @renaynay: add docs about broadcaster
 type Service struct {
 	fetcher     Fetcher
