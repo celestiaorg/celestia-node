@@ -34,8 +34,6 @@ func NewSyncer(exchange Exchange, store Store, trusted tmbytes.HexBytes) *Syncer
 
 // Start starts the syncing routine.
 func (s *Syncer) Start(context.Context) error {
-	// indicate syncing
-	atomic.AddUint64(s.inProgress, 1)
 	go s.Sync(context.TODO()) // TODO @Wondertan: leaving this to you to implement in disconnection toleration PR.
 	return nil
 }
@@ -43,6 +41,10 @@ func (s *Syncer) Start(context.Context) error {
 // Sync syncs all headers up to the latest known header in the network.
 func (s *Syncer) Sync(ctx context.Context) {
 	log.Info("syncing headers")
+	// indicate syncing
+	atomic.StoreUint64(s.inProgress, 1)
+	// when method returns, toggle inProgress off
+	defer s.finish()
 	// TODO(@Wondertan): Retry logic
 	for {
 		localHead, err := s.getHead(ctx)
@@ -58,8 +60,7 @@ func (s *Syncer) Sync(ctx context.Context) {
 		}
 
 		if localHead.Height >= netHead.Height {
-			// we are now synced, toggle inProgress off
-			atomic.StoreUint64(s.inProgress, 0)
+			// we are now synced
 			log.Info("synced headers")
 			return
 		}
@@ -70,6 +71,11 @@ func (s *Syncer) Sync(ctx context.Context) {
 			return
 		}
 	}
+}
+
+// finish indicates Syncer's sync status as no longer in progress.
+func (s *Syncer) finish() {
+	atomic.StoreUint64(s.inProgress, 0)
 }
 
 // Validate implements validation of incoming Headers and stores them if they are good.
