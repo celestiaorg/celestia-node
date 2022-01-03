@@ -19,18 +19,16 @@ type Syncer struct {
 	// inProgress is set to 1 once syncing commences and
 	// is set to 0 once syncing is either finished or
 	// not currently in progress
-	inProgress atomic.Value
+	inProgress uint64
 }
 
 // NewSyncer creates a new instance of Syncer.
 func NewSyncer(exchange Exchange, store Store, trusted tmbytes.HexBytes) *Syncer {
-	inProg := atomic.Value{}
-	inProg.Store(0)
 	return &Syncer{
 		exchange:   exchange,
 		store:      store,
 		trusted:    trusted,
-		inProgress: inProg, // syncing is not currently in progress
+		inProgress: 0, // syncing is not currently in progress
 	}
 }
 
@@ -77,17 +75,17 @@ func (s *Syncer) Sync(ctx context.Context) {
 
 // IsSyncing returns the current sync status of the Syncer.
 func (s *Syncer) IsSyncing() bool {
-	return s.inProgress.Load() == 1
+	return atomic.LoadUint64(&s.inProgress) == 1
 }
 
 // syncInProgress indicates Syncer's sync status is in progress.
 func (s *Syncer) syncInProgress() {
-	s.inProgress.Store(1)
+	atomic.StoreUint64(&s.inProgress, 1)
 }
 
 // finishSync indicates Syncer's sync status as no longer in progress.
 func (s *Syncer) finishSync() {
-	s.inProgress.Store(0)
+	atomic.StoreUint64(&s.inProgress, 0)
 }
 
 // Validate implements validation of incoming Headers and stores them if they are good.
@@ -102,7 +100,7 @@ func (s *Syncer) Validate(ctx context.Context, p peer.ID, msg *pubsub.Message) p
 	// if syncing is still in progress - just ignore the new header as
 	// Syncer will fetch it after anyway, but if syncer is done, append
 	// the header.
-	if s.inProgress.Load() == 0 {
+	if !s.IsSyncing() {
 		err := s.store.Append(ctx, header)
 		if err != nil {
 			log.Errorw("appending store with header from PubSub",
