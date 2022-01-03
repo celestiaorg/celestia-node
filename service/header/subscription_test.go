@@ -2,7 +2,6 @@ package header
 
 import (
 	"context"
-	"sync/atomic"
 	"testing"
 	"time"
 
@@ -65,7 +64,7 @@ func TestSubscriber(t *testing.T) {
 	// TODO @renaynay: this is a hack meant to simulate syncing being finished
 	// Topic validation logic should be extracted from the syncer,
 	// ref https://github.com/celestiaorg/celestia-node/issues/318
-	atomic.StoreUint64(syncer1.inProgress, 0)
+	syncer1.finishSync()
 
 	err = p2pSub2.topic.Publish(ctx, bin, pubsub.WithReadiness(pubsub.MinTopicSize(1)))
 	require.NoError(t, err)

@@ -8,8 +8,7 @@ import (
 )
 
 // Service represents the Block service that can be started / stopped on a `Full` node.
-// Its main function is to reconstruct full blocks from shares via the `FullAvailability`
-// service.
+// Its main function is to reconstruct full blocks from shares.
 type Service struct {
 	store ipld.DAGService
 }

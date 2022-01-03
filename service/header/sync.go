@@ -19,16 +19,18 @@ type Syncer struct {
 	// inProgress is set to 1 once syncing commences and
 	// is set to 0 once syncing is either finished or
 	// not currently in progress
-	inProgress *uint64
+	inProgress atomic.Value
 }
 
 // NewSyncer creates a new instance of Syncer.
 func NewSyncer(exchange Exchange, store Store, trusted tmbytes.HexBytes) *Syncer {
+	inProg := atomic.Value{}
+	inProg.Store(0)
 	return &Syncer{
 		exchange:   exchange,
 		store:      store,
 		trusted:    trusted,
-		inProgress: new(uint64), // syncing is not currently in progress
+		inProgress: inProg, // syncing is not currently in progress
 	}
 }
 
@@ -42,9 +44,9 @@ func (s *Syncer) Start(context.Context) error {
 func (s *Syncer) Sync(ctx context.Context) {
 	log.Info("syncing headers")
 	// indicate syncing
-	atomic.StoreUint64(s.inProgress, 1)
+	s.syncInProgress()
 	// when method returns, toggle inProgress off
-	defer s.finish()
+	defer s.finishSync()
 	// TODO(@Wondertan): Retry logic
 	for {
 		localHead, err := s.getHead(ctx)
@@ -73,9 +75,19 @@ func (s *Syncer) Sync(ctx context.Context) {
 	}
 }
 
-// finish indicates Syncer's sync status as no longer in progress.
-func (s *Syncer) finish() {
-	atomic.StoreUint64(s.inProgress, 0)
+// IsSyncing returns the current sync status of the Syncer.
+func (s *Syncer) IsSyncing() bool {
+	return s.inProgress.Load() == 1
+}
+
+// syncInProgress indicates Syncer's sync status is in progress.
+func (s *Syncer) syncInProgress() {
+	s.inProgress.Store(1)
+}
+
+// finishSync indicates Syncer's sync status as no longer in progress.
+func (s *Syncer) finishSync() {
+	s.inProgress.Store(0)
 }
 
 // Validate implements validation of incoming Headers and stores them if they are good.
@@ -90,7 +102,7 @@ func (s *Syncer) Validate(ctx context.Context, p peer.ID, msg *pubsub.Message) p
 	// if syncing is still in progress - just ignore the new header as
 	// Syncer will fetch it after anyway, but if syncer is done, append
 	// the header.
-	if atomic.LoadUint64(s.inProgress) == 0 {
+	if s.inProgress.Load() == 0 {
 		err := s.store.Append(ctx, header)
 		if err != nil {
 			log.Errorw("appending store with header from PubSub",
