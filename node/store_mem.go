@@ -4,6 +4,7 @@ import (
 	"sync"
 
 	"github.com/ipfs/go-datastore"
+	ds_sync "github.com/ipfs/go-datastore/sync"
 
 	"github.com/celestiaorg/celestia-node/core"
 	"github.com/celestiaorg/celestia-node/libs/keystore"
@@ -22,7 +23,7 @@ type memStore struct {
 func NewMemStore() Store {
 	return &memStore{
 		keys: keystore.NewMapKeystore(),
-		data: datastore.NewMapDatastore(),
+		data: ds_sync.MutexWrap(datastore.NewMapDatastore()),
 		core: core.NewMemStore(),
 	}
 }
