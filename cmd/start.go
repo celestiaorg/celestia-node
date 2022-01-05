@@ -15,7 +15,7 @@ func Start(fsets ...*flag.FlagSet) *cobra.Command {
 	cmd := &cobra.Command{
 		Use: "start",
 		Short: `Starts Node daemon. First stopping signal gracefully stops the Node and second terminates it.
-Passed actions have effect only ont this start and not persisted.`,
+Options passed on start override configuration options only on start and are not persisted in config.`,
 		Aliases:      []string{"run", "daemon"},
 		Args:         cobra.NoArgs,
 		SilenceUsage: true,
