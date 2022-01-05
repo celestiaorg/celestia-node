@@ -25,8 +25,6 @@ func bridgeComponents(cfg *Config, store Store) fxutil.Option {
 		fxutil.Supply(Bridge),
 		baseComponents(cfg, store),
 		nodecore.Components(cfg.Core, store.Core),
-		fxutil.Provide(services.BlockService),
-		fxutil.Invoke(services.StartHeaderExchangeP2PServer),
 	)
 }
 
@@ -42,6 +40,8 @@ func baseComponents(cfg *Config, store Store) fxutil.Option {
 		fxutil.Provide(services.HeaderService),
 		fxutil.Provide(services.HeaderStore),
 		fxutil.Provide(services.HeaderSyncer(cfg.Services)),
+		fxutil.Provide(services.P2PSubscriber),
+		fxutil.Provide(services.HeaderP2PExchangeServer),
 		fxutil.Provide(services.LightAvailability), // TODO(@Wondertan): Move to light once FullAvailability is implemented
 		p2p.Components(cfg.P2P),
 	)

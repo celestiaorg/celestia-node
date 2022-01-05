@@ -21,7 +21,7 @@ func TestP2PExchange_RequestHead(t *testing.T) {
 	t.Cleanup(cancel)
 
 	host, peer := createMocknet(ctx, t)
-	exchg, store := createExchangeWithMockStore(t, host, peer)
+	exchg, store := createP2PExAndServer(t, host, peer)
 	// perform header request
 	header, err := exchg.RequestHead(context.Background())
 	require.NoError(t, err)
@@ -35,7 +35,7 @@ func TestP2PExchange_RequestHeader(t *testing.T) {
 	defer cancel()
 
 	host, peer := createMocknet(ctx, t)
-	exchg, store := createExchangeWithMockStore(t, host, peer)
+	exchg, store := createP2PExAndServer(t, host, peer)
 	// perform expected request
 	header, err := exchg.RequestHeader(context.Background(), 5)
 	require.NoError(t, err)
@@ -48,7 +48,7 @@ func TestP2PExchange_RequestHeaders(t *testing.T) {
 	defer cancel()
 
 	host, peer := createMocknet(ctx, t)
-	exchg, store := createExchangeWithMockStore(t, host, peer)
+	exchg, store := createP2PExAndServer(t, host, peer)
 	// perform expected request
 	gotHeaders, err := exchg.RequestHeaders(context.Background(), 1, 5)
 	require.NoError(t, err)
@@ -56,45 +56,6 @@ func TestP2PExchange_RequestHeaders(t *testing.T) {
 		assert.Equal(t, store.headers[got.Height].Height, got.Height)
 		assert.Equal(t, store.headers[got.Height].Hash(), got.Hash())
 	}
-}
-
-// TestP2PExchange_Response_Head tests that the P2PExchange instance can respond
-// to an ExtendedHeaderRequest for the chain head.
-func TestP2PExchange_Response_Head(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	net, err := mocknet.FullMeshConnected(ctx, 2)
-	require.NoError(t, err)
-	// get host and peer
-	host, peer := net.Hosts()[0], net.Hosts()[1]
-	// create P2PExchange just to register the stream handler
-	store := createStore(t, 5)
-	ex := NewP2PExchange(host, libhost.InfoFromHost(peer), store)
-	err = ex.Start(ctx)
-	require.NoError(t, err)
-
-	// start a new stream via Peer to see if Host can handle inbound requests
-	stream, err := peer.NewStream(context.Background(), libhost.InfoFromHost(host).ID, exchangeProtocolID)
-	require.NoError(t, err)
-	// create request
-	req := &header_pb.ExtendedHeaderRequest{
-		Origin: uint64(0),
-		Amount: 1,
-	}
-	// send request
-	_, err = serde.Write(stream, req)
-	require.NoError(t, err)
-	// read resp
-	resp := new(header_pb.ExtendedHeader)
-	_, err = serde.Read(stream, resp)
-	require.NoError(t, err)
-	// compare
-	eh, err := ProtoToExtendedHeader(resp)
-	require.NoError(t, err)
-
-	assert.Equal(t, store.headers[store.headHeight].Height, eh.Height)
-	assert.Equal(t, store.headers[store.headHeight].Hash(), eh.Hash())
 }
 
 // TestP2PExchange_RequestByHash tests that the P2PExchange instance can
@@ -107,11 +68,14 @@ func TestP2PExchange_RequestByHash(t *testing.T) {
 	require.NoError(t, err)
 	// get host and peer
 	host, peer := net.Hosts()[0], net.Hosts()[1]
-	// create P2PExchange just to register the stream handler
+	// create and start the P2PExchangeServer
 	store := createStore(t, 5)
-	ex := NewP2PExchange(host, libhost.InfoFromHost(peer), store)
-	err = ex.Start(ctx)
+	serv := NewP2PExchangeServer(host, store)
+	err = serv.Start(ctx)
 	require.NoError(t, err)
+	t.Cleanup(func() {
+		serv.Stop(context.Background()) //nolint:errcheck
+	})
 
 	// start a new stream via Peer to see if Host can handle inbound requests
 	stream, err := peer.NewStream(context.Background(), libhost.InfoFromHost(host).ID, exchangeProtocolID)
@@ -137,86 +101,6 @@ func TestP2PExchange_RequestByHash(t *testing.T) {
 	assert.Equal(t, store.headers[reqHeight].Hash(), eh.Hash())
 }
 
-// TestP2PExchange_Response_Single tests that the P2PExchange instance can respond
-// to a ExtendedHeaderRequest for one ExtendedHeader accurately.
-func TestExchange_Response_Single(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	net, err := mocknet.FullMeshConnected(context.Background(), 2)
-	require.NoError(t, err)
-	// get host and peer
-	host, peer := net.Hosts()[0], net.Hosts()[1]
-	// create P2PExchange just to register the stream handler
-	store := createStore(t, 5)
-	ex := NewP2PExchange(host, libhost.InfoFromHost(peer), store)
-	err = ex.Start(ctx)
-	require.NoError(t, err)
-
-	// start a new stream via Peer to see if Host can handle inbound requests
-	stream, err := peer.NewStream(context.Background(), host.ID(), exchangeProtocolID)
-	require.NoError(t, err)
-	// create request
-	origin := uint64(store.headHeight - 3)
-	req := &ExtendedHeaderRequest{
-		Origin: origin,
-		Amount: 1,
-	}
-	// send request
-	_, err = serde.Write(stream, req.ToProto())
-	require.NoError(t, err)
-	// read resp
-	resp := new(header_pb.ExtendedHeader)
-	_, err = serde.Read(stream, resp)
-	require.NoError(t, err)
-	// compare
-	got, err := ProtoToExtendedHeader(resp)
-	require.NoError(t, err)
-	assert.Equal(t, store.headers[int64(origin)].Height, got.Height)
-	assert.Equal(t, store.headers[int64(origin)].Hash(), got.Hash())
-}
-
-// TestP2PExchange_Response_Multiple tests that the P2PExchange instance can respond
-// to a ExtendedHeaderRequest for multiple ExtendedHeaders accurately.
-func TestExchange_Response_Multiple(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	net, err := mocknet.FullMeshConnected(ctx, 2)
-	require.NoError(t, err)
-	// get host and peer
-	host, peer := net.Hosts()[0], net.Hosts()[1]
-	// create P2PExchange just to register the stream handler
-	store := createStore(t, 5)
-	ex := NewP2PExchange(host, libhost.InfoFromHost(peer), store)
-	err = ex.Start(ctx)
-	require.NoError(t, err)
-
-	// start a new stream via Peer to see if Host can handle inbound requests
-	stream, err := peer.NewStream(context.Background(), libhost.InfoFromHost(host).ID, exchangeProtocolID)
-	require.NoError(t, err)
-	// create request
-	origin := uint64(3)
-	req := &header_pb.ExtendedHeaderRequest{
-		Origin: origin,
-		Amount: 2,
-	}
-	// send request
-	_, err = serde.Write(stream, req)
-	require.NoError(t, err)
-	// read responses
-	for i := origin; i < (origin + req.Amount); i++ {
-		resp := new(header_pb.ExtendedHeader)
-		_, err := serde.Read(stream, resp)
-		require.NoError(t, err)
-		eh, err := ProtoToExtendedHeader(resp)
-		require.NoError(t, err)
-		// compare
-		assert.Equal(t, store.headers[int64(i)].Height, eh.Height)
-		assert.Equal(t, store.headers[int64(i)].Hash(), eh.Hash())
-	}
-}
-
 func createMocknet(ctx context.Context, t *testing.T) (libhost.Host, libhost.Host) {
 	net, err := mocknet.FullMeshLinked(ctx, 2)
 	require.NoError(t, err)
@@ -224,9 +108,10 @@ func createMocknet(ctx context.Context, t *testing.T) (libhost.Host, libhost.Hos
 	return net.Hosts()[0], net.Hosts()[1]
 }
 
-func createExchangeWithMockStore(t *testing.T, host, peer libhost.Host) (Exchange, *mockStore) {
+// createP2PExAndServer creates a P2PExchange with 5 headers already in its store.
+func createP2PExAndServer(t *testing.T, host, peer libhost.Host) (Exchange, *mockStore) {
 	store := createStore(t, 5)
-	serverSideEx := NewP2PExchange(peer, libhost.InfoFromHost(host), store)
+	serverSideEx := NewP2PExchangeServer(peer, store)
 	err := serverSideEx.Start(context.Background())
 	require.NoError(t, err)
 
