@@ -21,6 +21,7 @@ func TestNewBridge(t *testing.T) {
 	require.NotNil(t, node)
 	require.NotNil(t, node.Config)
 	require.NotNil(t, node.Host)
+	require.NotNil(t, node.HeaderServ)
 	require.Nil(t, node.BlockServ)
 	assert.NotZero(t, node.Type)
 }
@@ -104,6 +105,9 @@ func TestBridge_WithRemoteCore(t *testing.T) {
 
 	store := MockStore(t, DefaultConfig(Bridge))
 	remoteCore, protocol, ip := core.StartRemoteCore()
+	t.Cleanup(func() {
+		remoteCore.Stop() // nolint:errcheck
+	})
 	require.NotNil(t, remoteCore)
 	assert.True(t, remoteCore.IsRunning())
 
