@@ -11,14 +11,14 @@ import (
 )
 
 var (
-	logLevelF = "log.level"
+	logLevelFlag = "log.level"
 )
 
 func MiscFlags() *flag.FlagSet {
 	flags := &flag.FlagSet{}
 
 	flags.String(
-		logLevelF,
+		logLevelFlag,
 		"INFO",
 		`DEBUG, INFO, WARN, ERROR, DPANIC, PANIC, FATAL
 and their lower-case forms`,
@@ -28,11 +28,11 @@ and their lower-case forms`,
 }
 
 func ParseMiscFlags(cmd *cobra.Command) error {
-	logLevel := cmd.Flag(logLevelF).Value.String()
+	logLevel := cmd.Flag(logLevelFlag).Value.String()
 	if logLevel != "" {
 		level, err := logging.LevelFromString(logLevel)
 		if err != nil {
-			return fmt.Errorf("cmd: while parsing '%s': %w", logLevelF, err)
+			return fmt.Errorf("cmd: while parsing '%s': %w", logLevelFlag, err)
 		}
 
 		logs.SetAllLoggers(level)
