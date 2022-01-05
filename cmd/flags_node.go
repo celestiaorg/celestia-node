@@ -39,7 +39,7 @@ func ParseNodeFlags(cmd *cobra.Command, env *Env) error {
 	if nodeConfig != "" {
 		cfg, err := node.LoadConfig(nodeConfig)
 		if err != nil {
-			return fmt.Errorf("cmd: while parsing '%s': %w", nodeStoreF, err)
+			return fmt.Errorf("cmd: while parsing '%s': %w", nodeConfigF, err)
 		}
 
 		env.addOption(node.WithConfig(cfg))
