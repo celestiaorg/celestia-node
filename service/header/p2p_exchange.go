@@ -41,13 +41,12 @@ func NewP2PExchange(host host.Host, peer *peer.AddrInfo, store Store) *P2PExchan
 		trustedPeer: peer,
 		connected:   make(chan struct{}),
 	}
-	host.SetStreamHandler(exchangeProtocolID, ex.requestHandler)
 	ex.host.Network().Notify(&network.NotifyBundle{ConnectedF: ex.Connected})
 	return ex
 }
 
 func (ex *P2PExchange) Start(ctx context.Context) error {
-	log.Info("starting p2p exchange")
+	log.Info("p2p: starting p2p exchange")
 	ex.ctx, ex.cancel = context.WithCancel(context.Background())
 
 	if ex.trustedPeer.ID != "" {
@@ -58,8 +57,8 @@ func (ex *P2PExchange) Start(ctx context.Context) error {
 
 		err := ex.host.Connect(ctx, *ex.trustedPeer)
 		if err != nil {
-			log.Errorw("connecting to trusted peer", "err", err)
-			log.Warn("HEADERS WONT BE SYNCHRONIZED - PLEASE RESTART WITH TRUSTED PEER BEING ONLINE")
+			log.Errorw("p2p: connecting to trusted peer", "err", err)
+			log.Warn("p2p: HEADERS WONT BE SYNCHRONIZED - PLEASE RESTART WITH TRUSTED PEER BEING ONLINE")
 		}
 	}
 
@@ -67,100 +66,9 @@ func (ex *P2PExchange) Start(ctx context.Context) error {
 }
 
 func (ex *P2PExchange) Stop(context.Context) error {
-	log.Info("stopping p2p exchange")
+	log.Info("p2p: stopping p2p exchange")
 	ex.cancel()
-	ex.host.RemoveStreamHandler(exchangeProtocolID)
 	return nil
-}
-
-// requestHandler handles inbound ExtendedHeaderRequests.
-func (ex *P2PExchange) requestHandler(stream network.Stream) {
-	// unmarshal request
-	pbreq := new(pb.ExtendedHeaderRequest)
-	_, err := serde.Read(stream, pbreq)
-	if err != nil {
-		log.Errorw("reading header request from stream", "err", err)
-		stream.Reset() //nolint:errcheck
-		return
-	}
-	// retrieve and write ExtendedHeaders
-	if pbreq.Hash != nil {
-		ex.handleRequestByHash(pbreq.Hash, stream)
-	} else {
-		ex.handleRequest(pbreq.Origin, pbreq.Origin+pbreq.Amount, stream)
-	}
-
-	err = stream.Close()
-	if err != nil {
-		log.Errorw("while closing inbound stream", "err", err)
-	}
-}
-
-func (ex *P2PExchange) handleRequestByHash(hash []byte, stream network.Stream) {
-	log.Debugw("handling header request", "hash", tmbytes.HexBytes(hash).String())
-
-	header, err := ex.store.Get(ex.ctx, hash)
-	if err != nil {
-		log.Errorw("getting header by hash", "hash", tmbytes.HexBytes(hash).String(), "err", err)
-		stream.Reset() //nolint:errcheck
-		return
-	}
-	resp, err := ExtendedHeaderToProto(header)
-	if err != nil {
-		log.Errorw("marshaling header to proto", "hash", tmbytes.HexBytes(hash).String(), "err", err)
-		stream.Reset() //nolint:errcheck
-		return
-	}
-	_, err = serde.Write(stream, resp)
-	if err != nil {
-		log.Errorw("writing header to stream", "hash", tmbytes.HexBytes(hash).String(), "err", err)
-		stream.Reset() //nolint:errcheck
-		return
-	}
-}
-
-// handleRequest fetches the ExtendedHeader at the given origin and
-// writes it to the stream.
-func (ex *P2PExchange) handleRequest(from, to uint64, stream network.Stream) {
-	var headers []*ExtendedHeader
-	if from == uint64(0) {
-		log.Debug("handling head request")
-
-		head, err := ex.store.Head(ex.ctx)
-		if err != nil {
-			log.Errorw("getting head", "err", err)
-			stream.Reset() //nolint:errcheck
-			return
-		}
-		headers = make([]*ExtendedHeader, 1)
-		headers[0] = head
-	} else {
-		log.Debugw("handling headers request", "from", from, "to", to)
-
-		headersByRange, err := ex.store.GetRangeByHeight(ex.ctx, from, to)
-		if err != nil {
-			log.Errorw("getting headers", "from", from, "to", to, "err", err)
-			stream.Reset() //nolint:errcheck
-			return
-		}
-		headers = headersByRange
-	}
-	// write all headers to stream
-	for _, header := range headers {
-		resp, err := ExtendedHeaderToProto(header)
-		if err != nil {
-			log.Errorw("marshaling header to proto", "height", header.Height, "err", err)
-			stream.Reset() //nolint:errcheck
-			return
-		}
-
-		_, err = serde.Write(stream, resp)
-		if err != nil {
-			log.Errorw("writing header to stream", "height", header.Height, "err", err)
-			stream.Reset() //nolint:errcheck
-			return
-		}
-	}
 }
 
 func (ex *P2PExchange) RequestHead(ctx context.Context) (*ExtendedHeader, error) {

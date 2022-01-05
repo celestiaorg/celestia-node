@@ -30,13 +30,14 @@ func TestSubscriber(t *testing.T) {
 	store1, err := NewStoreWithHead(datastore.NewMapDatastore(), suite.Head())
 	require.NoError(t, err)
 
-	// create header Service
-	headerServ1 := NewHeaderService(NewSyncer(NewLocalExchange(store1), store1, suite.Head().Hash()), pubsub1)
-	err = headerServ1.Start(ctx)
+	// create sub-service lifecycles for header service 1
+	syncer1 := NewSyncer(NewLocalExchange(store1), store1, suite.Head().Hash())
+	p2pSub1 := NewP2PSubscriber(pubsub1, syncer1.Validate)
+	err = p2pSub1.Start(context.Background())
 	require.NoError(t, err)
 
 	// subscribe
-	subscription, err := headerServ1.Subscribe()
+	subscription, err := p2pSub1.Subscribe()
 	require.NoError(t, err)
 
 	// get mock host and create new gossipsub on it
@@ -47,19 +48,25 @@ func TestSubscriber(t *testing.T) {
 	store2, err := NewStoreWithHead(datastore.NewMapDatastore(), suite.Head())
 	require.NoError(t, err)
 
-	// create header Service
-	headerServ2 := NewHeaderService(NewSyncer(NewLocalExchange(store2), store2, suite.Head().Hash()), pubsub2)
-	err = headerServ2.Start(ctx)
+	// create sub-service lifecycles for header service 2
+	syncer2 := NewSyncer(NewLocalExchange(store2), store2, suite.Head().Hash())
+	p2pSub2 := NewP2PSubscriber(pubsub2, syncer2.Validate)
+	err = p2pSub2.Start(context.Background())
 	require.NoError(t, err)
 
-	_, err = headerServ2.Subscribe()
+	_, err = p2pSub2.Subscribe()
 	require.NoError(t, err)
 
 	expectedHeader := suite.GenExtendedHeaders(1)[0]
 	bin, err := expectedHeader.MarshalBinary()
 	require.NoError(t, err)
 
-	err = headerServ2.topic.Publish(ctx, bin, pubsub.WithReadiness(pubsub.MinTopicSize(1)))
+	// TODO @renaynay: this is a hack meant to simulate syncing being finished
+	// Topic validation logic should be extracted from the syncer,
+	// ref https://github.com/celestiaorg/celestia-node/issues/318
+	syncer1.finishSync()
+
+	err = p2pSub2.topic.Publish(ctx, bin, pubsub.WithReadiness(pubsub.MinTopicSize(1)))
 	require.NoError(t, err)
 
 	// get next ExtendedHeader from network
