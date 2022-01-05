@@ -12,21 +12,21 @@ import (
 )
 
 var (
-	headersTrustedHashF = "headers.trusted-hash"
-	headersTrustedPeerF = "headers.trusted-peer"
+	headersTrustedHashFlag = "headers.trusted-hash"
+	headersTrustedPeerFlag = "headers.trusted-peer"
 )
 
 func HeadersFlags() *flag.FlagSet {
 	flags := &flag.FlagSet{}
 
 	flags.String(
-		headersTrustedHashF,
+		headersTrustedHashFlag,
 		"",
 		"Hex encoded block hash. Starting point for header synchronization",
 	)
 
 	flags.String(
-		headersTrustedPeerF,
+		headersTrustedPeerFlag,
 		"",
 		"Multiaddr of a reliable peer to fetch headers from. (Format: multiformats.io/multiaddr)",
 	)
@@ -35,21 +35,21 @@ func HeadersFlags() *flag.FlagSet {
 }
 
 func ParseHeadersFlags(cmd *cobra.Command, env *Env) error {
-	hash := cmd.Flag(headersTrustedHashF).Value.String()
+	hash := cmd.Flag(headersTrustedHashFlag).Value.String()
 	if hash != "" {
 		_, err := hex.DecodeString(hash)
 		if err != nil {
-			return fmt.Errorf("cmd: while parsing '%s': %w", headersTrustedHashF, err)
+			return fmt.Errorf("cmd: while parsing '%s': %w", headersTrustedHashFlag, err)
 		}
 
 		env.addOption(node.WithTrustedHash(hash))
 	}
 
-	tpeer := cmd.Flag(headersTrustedPeerF).Value.String()
+	tpeer := cmd.Flag(headersTrustedPeerFlag).Value.String()
 	if tpeer != "" {
 		_, err := multiaddr.NewMultiaddr(tpeer)
 		if err != nil {
-			return fmt.Errorf("cmd: while parsing '%s': %w", headersTrustedPeerF, err)
+			return fmt.Errorf("cmd: while parsing '%s': %w", headersTrustedPeerFlag, err)
 		}
 
 		env.addOption(node.WithTrustedPeer(tpeer))

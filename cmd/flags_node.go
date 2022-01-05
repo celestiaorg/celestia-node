@@ -11,20 +11,20 @@ import (
 )
 
 var (
-	nodeStoreF  = "node.store"
-	nodeConfigF = "node.config"
+	nodeStoreFlag  = "node.store"
+	nodeConfigFlag = "node.config"
 )
 
 func NodeFlags(tp node.Type) *flag.FlagSet {
 	flags := &flag.FlagSet{}
 
 	flags.String(
-		nodeStoreF,
+		nodeStoreFlag,
 		fmt.Sprintf("~/.celestia-%s", strings.ToLower(tp.String())),
 		"The path to root/home directory of your Celestia Node Store",
 	)
 	flags.String(
-		nodeConfigF,
+		nodeConfigFlag,
 		"",
 		"Path to a customized node config TOML file",
 	)
@@ -33,13 +33,13 @@ func NodeFlags(tp node.Type) *flag.FlagSet {
 }
 
 func ParseNodeFlags(cmd *cobra.Command, env *Env) error {
-	env.storePath = cmd.Flag(nodeStoreF).Value.String()
+	env.storePath = cmd.Flag(nodeStoreFlag).Value.String()
 
-	nodeConfig := cmd.Flag(nodeConfigF).Value.String()
+	nodeConfig := cmd.Flag(nodeConfigFlag).Value.String()
 	if nodeConfig != "" {
 		cfg, err := node.LoadConfig(nodeConfig)
 		if err != nil {
-			return fmt.Errorf("cmd: while parsing '%s': %w", nodeConfigF, err)
+			return fmt.Errorf("cmd: while parsing '%s': %w", nodeConfigFlag, err)
 		}
 
 		env.addOption(node.WithConfig(cfg))

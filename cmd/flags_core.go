@@ -12,14 +12,14 @@ import (
 )
 
 var (
-	coreRemoteF = "core.remote"
+	coreRemoteFlag = "core.remote"
 )
 
 func CoreFlags() *flag.FlagSet {
 	flags := &flag.FlagSet{}
 
 	flags.String(
-		coreRemoteF,
+		coreRemoteFlag,
 		"",
 		"Indicates node to connect to the given remote core node. "+
 			"Example: <protocol>://<ip>:<port>, tcp://127.0.0.1:26657",
@@ -29,11 +29,11 @@ func CoreFlags() *flag.FlagSet {
 }
 
 func ParseCoreFlags(cmd *cobra.Command, env *Env) error {
-	coreRemote := cmd.Flag(coreRemoteF).Value.String()
+	coreRemote := cmd.Flag(coreRemoteFlag).Value.String()
 	if coreRemote != "" {
 		proto, addr, err := parseAddress(coreRemote)
 		if err != nil {
-			return fmt.Errorf("cmd: while parsing '%s': %w", coreRemoteF, err)
+			return fmt.Errorf("cmd: while parsing '%s': %w", coreRemoteFlag, err)
 		}
 
 		env.addOption(node.WithRemoteCore(proto, addr))
