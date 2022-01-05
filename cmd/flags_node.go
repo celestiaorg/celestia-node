@@ -26,7 +26,7 @@ func NodeFlags(tp node.Type) *flag.FlagSet {
 	flags.String(
 		nodeConfigF,
 		"",
-		"Path to a customized Node Config",
+		"Path to a customized node config TOML file",
 	)
 
 	return flags
