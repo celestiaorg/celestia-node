@@ -36,6 +36,7 @@ func (cl *CoreListener) Start(ctx context.Context) error {
 // Stop stops the CoreListener listener loop.
 func (cl *CoreListener) Stop(context.Context) error {
 	cl.cancel()
+	cl.ctx, cl.cancel = nil, nil
 	return nil
 }
 

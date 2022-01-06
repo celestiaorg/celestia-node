@@ -34,15 +34,19 @@ func TestCoreListener(t *testing.T) {
 	require.NoError(t, err)
 
 	// ensure headers are getting broadcasted to the gossipsub topic
-	msg, err := sub.Next(context.Background())
-	require.NoError(t, err)
+	for i := 1; i < 6; i++ {
+		msg, err := sub.Next(context.Background())
+		require.NoError(t, err)
 
-	var resp ExtendedHeader
-	err = resp.UnmarshalBinary(msg.Data)
-	require.NoError(t, err)
-	require.Equal(t, 1, int(resp.Height))
+		var resp ExtendedHeader
+		err = resp.UnmarshalBinary(msg.Data)
+		require.NoError(t, err)
+		require.Equal(t, i, int(resp.Height))
+	}
 
-	require.NoError(t, cl.cancelBlockSubscription(context.Background()))
+	err = cl.Stop(ctx)
+	require.NoError(t, err)
+	require.Nil(t, cl.ctx)
 }
 
 func createMocknetWithTwoPubsubEndpoints(t *testing.T) (*pubsub.PubSub, *pubsub.PubSub) {

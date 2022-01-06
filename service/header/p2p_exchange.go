@@ -68,6 +68,7 @@ func (ex *P2PExchange) Start(ctx context.Context) error {
 func (ex *P2PExchange) Stop(context.Context) error {
 	log.Info("p2p: stopping p2p exchange")
 	ex.cancel()
+	ex.ctx, ex.cancel = nil, nil
 	return nil
 }
 
