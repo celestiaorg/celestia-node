@@ -31,7 +31,7 @@ func CoreFlags() *flag.FlagSet {
 func ParseCoreFlags(cmd *cobra.Command, env *Env) error {
 	coreRemote := cmd.Flag(coreRemoteFlag).Value.String()
 	if coreRemote != "" {
-		proto, addr, err := parseAddress(coreRemote)
+		proto, addr, err := validateAddress(coreRemote)
 		if err != nil {
 			return fmt.Errorf("cmd: while parsing '%s': %w", coreRemoteFlag, err)
 		}
@@ -42,12 +42,16 @@ func ParseCoreFlags(cmd *cobra.Command, env *Env) error {
 	return nil
 }
 
-// parseAddress parses the given address of the remote core node
+// validateAddress parses the given address of the remote core node
 // and checks if it configures correctly
-func parseAddress(address string) (string, string, error) {
+func validateAddress(address string) (string, string, error) {
 	u, err := url.Parse(address)
-	if err != nil || u.Scheme == "" || u.Host == "" {
+	if err != nil {
 		return "", "", err
+	}
+
+	if u.Scheme == "" || u.Host == "" {
+		return "", "", fmt.Errorf("both protocol and host must present in the address")
 	}
 
 	if _, port, err := net.SplitHostPort(u.Host); err != nil || port == "" {
