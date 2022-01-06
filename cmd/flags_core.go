@@ -38,7 +38,7 @@ func ParseCoreFlags(cmd *cobra.Command, env *Env) error {
 			return fmt.Errorf("cmd: while parsing '%s': %w", coreRemoteFlag, err)
 		}
 
-		env.addOption(node.WithRemoteCore(proto, addr))
+		env.AddOptions(node.WithRemoteCore(proto, addr))
 	}
 
 	return nil

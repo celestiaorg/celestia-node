@@ -13,8 +13,8 @@ import (
 // 2. To group common logic that multiple commands rely on.
 // Usage can be extended.
 type Env struct {
-	ndType    node.Type
-	storePath string
+	NodeType  node.Type
+	StorePath string
 
 	opts []node.Option
 }
@@ -41,7 +41,7 @@ func GetEnv(ctx context.Context) (*Env, error) {
 
 // SetNodeType sets Node Type to the Env.
 func (env *Env) SetNodeType(tp node.Type) {
-	env.ndType = tp
+	env.NodeType = tp
 }
 
 // Options returns Node Options parsed from Environment(Flags, ENV vars, etc)
@@ -49,9 +49,9 @@ func (env *Env) Options() []node.Option {
 	return env.opts
 }
 
-// addOption add new option to Env.
-func (env *Env) addOption(opt node.Option) {
-	env.opts = append(env.opts, opt)
+// AddOptions add new options to Env.
+func (env *Env) AddOptions(opts ...node.Option) {
+	env.opts = append(env.opts, opts...)
 }
 
 // envCtxKey is a key used to identify Env on a ctx.Context.
