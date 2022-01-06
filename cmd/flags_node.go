@@ -15,6 +15,7 @@ var (
 	nodeConfigFlag = "node.config"
 )
 
+// NodeFlags gives a set of hardcoded Node package flags.
 func NodeFlags(tp node.Type) *flag.FlagSet {
 	flags := &flag.FlagSet{}
 
@@ -32,6 +33,7 @@ func NodeFlags(tp node.Type) *flag.FlagSet {
 	return flags
 }
 
+// ParseNodeFlags parses Node flags from the given cmd and applies values to Env.
 func ParseNodeFlags(cmd *cobra.Command, env *Env) error {
 	env.storePath = cmd.Flag(nodeStoreFlag).Value.String()
 

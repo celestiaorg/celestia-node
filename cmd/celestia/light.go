@@ -7,6 +7,9 @@ import (
 	"github.com/celestiaorg/celestia-node/node"
 )
 
+// NOTE: We should always ensure that the added Flags below are parsed somewhere, like in the PersistenPreRun func on
+// parent command.
+
 func init() {
 	lightCmd.AddCommand(
 		cmdnode.Init(

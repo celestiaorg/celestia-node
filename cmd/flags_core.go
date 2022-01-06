@@ -15,6 +15,7 @@ var (
 	coreRemoteFlag = "core.remote"
 )
 
+// CoreFlags gives a set of hardcoded Core flags.
 func CoreFlags() *flag.FlagSet {
 	flags := &flag.FlagSet{}
 
@@ -28,6 +29,7 @@ func CoreFlags() *flag.FlagSet {
 	return flags
 }
 
+// ParseCoreFlags parses Core flags from the given cmd and applies values to Env.
 func ParseCoreFlags(cmd *cobra.Command, env *Env) error {
 	coreRemote := cmd.Flag(coreRemoteFlag).Value.String()
 	if coreRemote != "" {

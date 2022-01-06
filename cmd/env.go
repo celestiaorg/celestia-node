@@ -7,6 +7,11 @@ import (
 	"github.com/celestiaorg/celestia-node/node"
 )
 
+// Env is an environment for CLI commands.
+// It can be used to:
+// 1. Propagate values from parent to child commands.
+// 2. To group common logic that multiple commands rely on.
+// Usage can be extended.
 type Env struct {
 	ndType    node.Type
 	storePath string
@@ -14,6 +19,7 @@ type Env struct {
 	opts []node.Option
 }
 
+// WithEnv wraps given ctx with Env.
 func WithEnv(ctx context.Context) context.Context {
 	_, err := GetEnv(ctx)
 	if err == nil {
@@ -23,6 +29,7 @@ func WithEnv(ctx context.Context) context.Context {
 	return context.WithValue(ctx, envKey, &Env{})
 }
 
+// GetEnv takes Env from the given ctx, if any.
 func GetEnv(ctx context.Context) (*Env, error) {
 	env, ok := ctx.Value(envKey).(*Env)
 	if !ok {
@@ -32,18 +39,23 @@ func GetEnv(ctx context.Context) (*Env, error) {
 	return env, nil
 }
 
+// SetNodeType sets Node Type to the Env.
 func (env *Env) SetNodeType(tp node.Type) {
 	env.ndType = tp
 }
 
+// Options returns Node Options parsed from Environment(Flags, ENV vars, etc)
 func (env *Env) Options() []node.Option {
 	return env.opts
 }
 
+// addOption add new option to Env.
 func (env *Env) addOption(opt node.Option) {
 	env.opts = append(env.opts, opt)
 }
 
+// envCtxKey is a key used to identify Env on a ctx.Context.
 type envCtxKey struct{}
 
+// envKey is a preallocated envCtxKey.
 var envKey = envCtxKey{}
