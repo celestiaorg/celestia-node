@@ -22,7 +22,7 @@ func HeadersFlags() *flag.FlagSet {
 	flags.String(
 		headersTrustedHashFlag,
 		"",
-		"Hex encoded block hash. Starting point for header synchronization",
+		"Hex encoded header hash. Used to subjectively initialize header synchronization",
 	)
 
 	flags.String(
