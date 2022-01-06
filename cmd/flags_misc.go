@@ -14,6 +14,7 @@ var (
 	logLevelFlag = "log.level"
 )
 
+// MiscFlags gives a set of hardcoded miscellaneous flags.
 func MiscFlags() *flag.FlagSet {
 	flags := &flag.FlagSet{}
 
@@ -27,6 +28,7 @@ and their lower-case forms`,
 	return flags
 }
 
+// ParseMiscFlags parses miscellaneous flags from the given cmd and applies values to Env.
 func ParseMiscFlags(cmd *cobra.Command) error {
 	logLevel := cmd.Flag(logLevelFlag).Value.String()
 	if logLevel != "" {

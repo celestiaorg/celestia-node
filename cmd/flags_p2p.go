@@ -14,6 +14,7 @@ var (
 	p2pMutualFlag = "p2p.mutual"
 )
 
+// P2PFlags gives a set of p2p flags.
 func P2PFlags() *flag.FlagSet {
 	flags := &flag.FlagSet{}
 
@@ -29,6 +30,7 @@ Peers must bidirectionally point to each other. (Format: multiformats.io/multiad
 	return flags
 }
 
+// ParseP2PFlags parses P2P flags from the given cmd and applies values to Env.
 func ParseP2PFlags(cmd *cobra.Command, env *Env) error {
 	mutualPeers, err := cmd.Flags().GetStringSlice(p2pMutualFlag)
 	if err != nil {

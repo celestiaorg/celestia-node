@@ -11,11 +11,13 @@ import (
 	"github.com/celestiaorg/celestia-node/node"
 )
 
+
 var (
 	headersTrustedHashFlag = "headers.trusted-hash"
 	headersTrustedPeerFlag = "headers.trusted-peer"
 )
 
+// HeadersFlags gives a set of hardcoded Header package flags.
 func HeadersFlags() *flag.FlagSet {
 	flags := &flag.FlagSet{}
 
@@ -34,6 +36,7 @@ func HeadersFlags() *flag.FlagSet {
 	return flags
 }
 
+// ParseHeadersFlags parses Header package flags from the given cmd and applies values to Env.
 func ParseHeadersFlags(cmd *cobra.Command, env *Env) error {
 	hash := cmd.Flag(headersTrustedHashFlag).Value.String()
 	if hash != "" {
