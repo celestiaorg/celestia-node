@@ -35,7 +35,7 @@ func NodeFlags(tp node.Type) *flag.FlagSet {
 
 // ParseNodeFlags parses Node flags from the given cmd and applies values to Env.
 func ParseNodeFlags(cmd *cobra.Command, env *Env) error {
-	env.storePath = cmd.Flag(nodeStoreFlag).Value.String()
+	env.StorePath = cmd.Flag(nodeStoreFlag).Value.String()
 
 	nodeConfig := cmd.Flag(nodeConfigFlag).Value.String()
 	if nodeConfig != "" {
@@ -44,7 +44,7 @@ func ParseNodeFlags(cmd *cobra.Command, env *Env) error {
 			return fmt.Errorf("cmd: while parsing '%s': %w", nodeConfigFlag, err)
 		}
 
-		env.addOption(node.WithConfig(cfg))
+		env.AddOptions(node.WithConfig(cfg))
 	}
 
 	return nil

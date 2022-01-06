@@ -19,7 +19,7 @@ func Init(fsets ...*flag.FlagSet) *cobra.Command {
 				return err
 			}
 
-			return node.Init(env.storePath, env.ndType, env.Options()...)
+			return node.Init(env.StorePath, env.NodeType, env.Options()...)
 		},
 	}
 	for _, set := range fsets {

@@ -11,7 +11,6 @@ import (
 	"github.com/celestiaorg/celestia-node/node"
 )
 
-
 var (
 	headersTrustedHashFlag = "headers.trusted-hash"
 	headersTrustedPeerFlag = "headers.trusted-peer"
@@ -45,7 +44,7 @@ func ParseHeadersFlags(cmd *cobra.Command, env *Env) error {
 			return fmt.Errorf("cmd: while parsing '%s': %w", headersTrustedHashFlag, err)
 		}
 
-		env.addOption(node.WithTrustedHash(hash))
+		env.AddOptions(node.WithTrustedHash(hash))
 	}
 
 	tpeer := cmd.Flag(headersTrustedPeerFlag).Value.String()
@@ -55,7 +54,7 @@ func ParseHeadersFlags(cmd *cobra.Command, env *Env) error {
 			return fmt.Errorf("cmd: while parsing '%s': %w", headersTrustedPeerFlag, err)
 		}
 
-		env.addOption(node.WithTrustedPeer(tpeer))
+		env.AddOptions(node.WithTrustedPeer(tpeer))
 	}
 
 	return nil
