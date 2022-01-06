@@ -18,4 +18,4 @@ Month, DD, YYYY
 
 ### BUG FIXES
 
-- [go package] (Link to PR) Description @username
+- [Properly fetch Validators from Core and two more fixes #328](https://github.com/celestiaorg/celestia-node/pull/328) [@Wondertan](https://github.com/Wondertan)
