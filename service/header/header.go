@@ -59,18 +59,15 @@ func (eh *ExtendedHeader) ValidateBasic() error {
 		return err
 	}
 
-	if eh.Commit.Height != eh.Height {
-		return fmt.Errorf("header and commit height mismatch: %d vs %d", eh.Height, eh.Commit.Height)
-	}
-	if hhash, chash := eh.Hash(), eh.Commit.BlockID.Hash; !bytes.Equal(hhash, chash) {
-		return fmt.Errorf("commit signs block %X, header is block %X", chash, hhash)
-	}
-
 	// make sure the validator set is consistent with the header
 	if valSetHash := eh.ValidatorSet.Hash(); !bytes.Equal(eh.ValidatorsHash, valSetHash) {
 		return fmt.Errorf("expected validator hash of header to match validator set hash (%X != %X)",
 			eh.ValidatorsHash, valSetHash,
 		)
+	}
+
+	if err := eh.ValidatorSet.VerifyCommitLight(eh.ChainID, eh.Commit.BlockID, eh.Height, eh.Commit); err != nil {
+		return err
 	}
 
 	return eh.DAH.ValidateBasic()
