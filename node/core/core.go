@@ -3,10 +3,11 @@ package core
 import (
 	"context"
 
+	"go.uber.org/fx"
+
 	"github.com/celestiaorg/celestia-node/core"
 	"github.com/celestiaorg/celestia-node/node/fxutil"
 	"github.com/celestiaorg/celestia-node/service/header"
-	"go.uber.org/fx"
 )
 
 // Config combines all configuration fields for managing the relationship with a Core node.
