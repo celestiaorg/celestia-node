@@ -144,17 +144,37 @@ func (s *service) GetSharesByNamespace(ctx context.Context, root *Root, nID name
 		return nil, ipld.ErrNotFoundInRange
 	}
 
-	namespacedShares := make([]Share, 0)
-	for _, rootCID := range rowRootCIDs {
-		nodes, err := ipld.GetLeavesByNamespace(ctx, s.dag, rootCID, nID)
-		if err != nil {
-			return nil, err
-		}
+	type res struct {
+		nodes []format.Node
+		err   error
+	}
+	resultCh := make(chan *res)
 
-		for _, node := range nodes {
-			namespacedShares = append(namespacedShares, node.RawData()[1:])
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	for _, rootCID := range rowRootCIDs {
+		go func(rootCID cid.Cid) {
+			nodes, err := ipld.GetLeavesByNamespace(ctx, s.dag, rootCID, nID)
+			resultCh <- &res{nodes: nodes, err: err}
+		}(rootCID)
+	}
+
+	namespacedShares := make([]Share, 0)
+	for i := 0; i < len(rowRootCIDs); i++ {
+		select {
+		case result := <-resultCh:
+			if result.err != nil {
+				return nil, result.err
+			}
+			for _, node := range result.nodes {
+				namespacedShares = append(namespacedShares, node.RawData()[1:])
+			}
+		case <-ctx.Done():
+			return nil, ctx.Err()
 		}
 	}
+
 	return namespacedShares, nil
 }
 

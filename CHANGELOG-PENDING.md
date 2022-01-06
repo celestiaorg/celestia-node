@@ -25,6 +25,7 @@ Month, DD, YYYY
 - [node: Adding WithCoreClient option #305](https://github.com/celestiaorg/celestia-node/pull/305) [@Bidon15](https://github.com/Bidon15)
 - [refactor(services/header): Refactor `HeaderService` to only manage its sub-services' lifecycles #317](https://github.com/celestiaorg/celestia-node/pull/317) [@renaynay](https://github.com/renaynay)
 - [docker] Created `docker/` dir with `Dockerfile` and `entrypoint.sh` script. 
+- [chore(share): handle rows concurrently in GetSharesByNamespace #241](https://github.com/celestiaorg/celestia-node/pull/241) [@vgonkivs](https://github.com/vgonkivs)
 
 ### BUG FIXES
 

@@ -52,7 +52,42 @@ func TestService_GetSharesByNamespace(t *testing.T) {
 			shares, err := serv.GetSharesByNamespace(context.Background(), root, randNID)
 			require.NoError(t, err)
 			assert.Len(t, shares, tt.expectedShareCount)
-			assert.Equal(t, randNID, []byte(shares[0].NamespaceID()))
+			for _, value := range shares {
+				assert.Equal(t, randNID, []byte(value.NamespaceID()))
+			}
+		})
+	}
+}
+
+func TestService_GetSharesByNamespaceNotFoundInRange(t *testing.T) {
+	serv, root := RandServiceWithSquare(t, 1)
+	root.RowsRoots = nil
+
+	shares, err := serv.GetSharesByNamespace(context.Background(), root, []byte(""))
+	assert.Len(t, shares, 0)
+	require.Error(t, err, "namespaceID not found in range")
+}
+
+func BenchmarkService_GetSharesByNamespace(b *testing.B) {
+	var tests = []struct {
+		amountShares int
+	}{
+		{amountShares: 4},
+		{amountShares: 16},
+		{amountShares: 128},
+	}
+
+	for _, tt := range tests {
+		b.Run(strconv.Itoa(tt.amountShares), func(b *testing.B) {
+			t := &testing.T{}
+			serv, root := RandServiceWithSquare(t, tt.amountShares)
+			randNID := root.RowsRoots[(len(root.RowsRoots)-1)/2][:8]
+			root.RowsRoots[(len(root.RowsRoots) / 2)] = root.RowsRoots[(len(root.RowsRoots)-1)/2]
+			b.ResetTimer()
+			for i := 0; i < b.N; i++ {
+				_, err := serv.GetSharesByNamespace(context.Background(), root, randNID)
+				require.NoError(t, err)
+			}
 		})
 	}
 }
