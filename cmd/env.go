@@ -20,11 +20,11 @@ func WithEnv(ctx context.Context) context.Context {
 		panic("cmd: only one Env is allowed to be set in a ctx")
 	}
 
-	return context.WithValue(ctx, env, &Env{})
+	return context.WithValue(ctx, envKey, &Env{})
 }
 
 func GetEnv(ctx context.Context) (*Env, error) {
-	env, ok := ctx.Value(env).(*Env)
+	env, ok := ctx.Value(envKey).(*Env)
 	if !ok {
 		return nil, fmt.Errorf("cmd: Env is not set in ctx.Context")
 	}
@@ -44,6 +44,6 @@ func (env *Env) addOption(opt node.Option) {
 	env.opts = append(env.opts, opt)
 }
 
-type envKey struct{}
+type envCtxKey struct{}
 
-var env = envKey{}
+var envKey = envCtxKey{}
