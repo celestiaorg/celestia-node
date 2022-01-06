@@ -1,9 +1,12 @@
 package core
 
 import (
+	"context"
+
 	"github.com/celestiaorg/celestia-node/core"
 	"github.com/celestiaorg/celestia-node/node/fxutil"
 	"github.com/celestiaorg/celestia-node/service/header"
+	"go.uber.org/fx"
 )
 
 // Config combines all configuration fields for managing the relationship with a Core node.
@@ -27,13 +30,24 @@ func Components(cfg Config, loader core.RepoLoader) fxutil.Option {
 	return fxutil.Options(
 		fxutil.Provide(core.NewBlockFetcher),
 		fxutil.ProvideAs(header.NewCoreExchange, new(header.Exchange)),
-		fxutil.ProvideIf(cfg.Remote, func() (core.Client, error) {
-			return RemoteClient(cfg)
+		fxutil.ProvideIf(cfg.Remote, func(lc fx.Lifecycle) (core.Client, error) {
+			client, err := RemoteClient(cfg)
+			if err != nil {
+				return nil, err
+			}
+
+			lc.Append(fx.Hook{
+				OnStart: func(_ context.Context) error {
+					return client.Start()
+				},
+				OnStop: func(_ context.Context) error {
+					return client.Stop()
+				},
+			})
+
+			return client, nil
 		}),
-		fxutil.InvokeIf(cfg.Remote, func(c core.Client) error {
-			return c.Start()
-		}),
-		fxutil.ProvideIf(!cfg.Remote, func() (core.Client, error) {
+		fxutil.ProvideIf(!cfg.Remote, func(lc fx.Lifecycle) (core.Client, error) {
 			store, err := loader()
 			if err != nil {
 				return nil, err
@@ -44,7 +58,21 @@ func Components(cfg Config, loader core.RepoLoader) fxutil.Option {
 				return nil, err
 			}
 
-			return core.NewEmbedded(cfg)
+			client, err := core.NewEmbedded(cfg)
+			if err != nil {
+				return nil, err
+			}
+
+			lc.Append(fx.Hook{
+				OnStart: func(_ context.Context) error {
+					return client.Start()
+				},
+				OnStop: func(_ context.Context) error {
+					return client.Stop()
+				},
+			})
+
+			return client, nil
 		}),
 	)
 }
