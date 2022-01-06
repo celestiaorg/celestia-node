@@ -68,10 +68,16 @@ func (f *BlockFetcher) Commit(ctx context.Context, height *int64) (*types.Commit
 	return res.Commit, nil
 }
 
+// maxValidators is a maximum amount of validators
+// Should be in sync with network params and paging provided by Client
+const maxValidators = 100
+
 // ValidatorSet queries Core for the ValidatorSet from the
 // block at the given height.
 func (f *BlockFetcher) ValidatorSet(ctx context.Context, height *int64) (*types.ValidatorSet, error) {
-	res, err := f.client.Validators(ctx, height, nil, nil)
+	// FIXME: The ugliness of passing pointers for integers in this case can't be explained with words
+	maxVals := maxValidators
+	res, err := f.client.Validators(ctx, height, nil, &maxVals)
 	if err != nil {
 		return nil, err
 	}
