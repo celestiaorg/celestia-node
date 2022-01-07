@@ -71,16 +71,24 @@ func (f *BlockFetcher) Commit(ctx context.Context, height *int64) (*types.Commit
 // ValidatorSet queries Core for the ValidatorSet from the
 // block at the given height.
 func (f *BlockFetcher) ValidatorSet(ctx context.Context, height *int64) (*types.ValidatorSet, error) {
-	res, err := f.client.Validators(ctx, height, nil, nil)
-	if err != nil {
-		return nil, err
+	var perPage = 100
+
+	vals, total := make([]*types.Validator, 0), -1
+	for page := 1; len(vals) != total; page++ {
+		res, err := f.client.Validators(ctx, height, &page, &perPage)
+		if err != nil {
+			return nil, err
+		}
+
+		if res != nil && len(res.Validators) == 0 {
+			return nil, fmt.Errorf("core/fetcher: validators not found")
+		}
+
+		total = res.Total
+		vals = append(vals, res.Validators...)
 	}
 
-	if res != nil && res.Validators == nil {
-		return nil, fmt.Errorf("core/fetcher: validators not found")
-	}
-
-	return types.NewValidatorSet(res.Validators), nil
+	return types.NewValidatorSet(vals), nil
 }
 
 // SubscribeNewBlockEvent subscribes to new block events from Core, returning

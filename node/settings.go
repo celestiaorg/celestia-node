@@ -6,6 +6,7 @@ import (
 	"github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/libp2p/go-libp2p-core/host"
 
+	"github.com/celestiaorg/celestia-node/core"
 	"github.com/celestiaorg/celestia-node/node/fxutil"
 	"github.com/celestiaorg/celestia-node/node/p2p"
 )
@@ -48,10 +49,19 @@ func WithHost(host host.Host) Option {
 	}
 }
 
+// WithCoreClient sets custom client for core process
+func WithCoreClient(client core.Client) Option {
+	return func(cfg *Config, sets *settings) (_ error) {
+		sets.CoreClient = client
+		return
+	}
+}
+
 // settings store all the non Config values that can be altered for Node with Options.
 type settings struct {
-	P2PKey crypto.PrivKey
-	Host   p2p.HostBase
+	P2PKey     crypto.PrivKey
+	Host       p2p.HostBase
+	CoreClient core.Client
 }
 
 // overrides collects all the custom Modules and Components set to be overridden for the Node.
@@ -60,5 +70,6 @@ func (sets *settings) overrides() fxutil.Option {
 	return fxutil.OverrideSupply(
 		&sets.P2PKey,
 		&sets.Host,
+		&sets.CoreClient,
 	)
 }

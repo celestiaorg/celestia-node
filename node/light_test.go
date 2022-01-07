@@ -17,6 +17,7 @@ func TestNewLight(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, nd)
 	require.NotNil(t, nd.Config)
+	require.NotNil(t, nd.HeaderServ)
 	assert.NotZero(t, nd.Type)
 }
 
