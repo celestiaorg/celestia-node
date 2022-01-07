@@ -26,6 +26,23 @@ func NewBlockFetcher(client Client) *BlockFetcher {
 	}
 }
 
+// GetBlockInfo queries Core for additional block information, like Commit and ValidatorSet.
+func (f *BlockFetcher) GetBlockInfo(ctx context.Context, height *int64) (*types.Commit, *types.ValidatorSet, error) {
+	commit, err := f.Commit(ctx, height)
+	if err != nil {
+		log.Errorw("fetching commit", "err", err, "height", height)
+		return nil, nil, err
+	}
+
+	valSet, err := f.ValidatorSet(ctx, height)
+	if err != nil {
+		log.Errorw("fetching validator set", "err", err, "height", height)
+		return nil, nil, err
+	}
+
+	return commit, valSet, nil
+}
+
 // GetBlock queries Core for a `Block` at the given height.
 func (f *BlockFetcher) GetBlock(ctx context.Context, height *int64) (*types.Block, error) {
 	res, err := f.client.Block(ctx, height)

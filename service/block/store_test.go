@@ -9,10 +9,11 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/celestiaorg/celestia-node/ipld"
+
 	"github.com/tendermint/tendermint/pkg/da"
 
 	"github.com/celestiaorg/celestia-node/core"
-	"github.com/celestiaorg/celestia-node/service"
 	"github.com/celestiaorg/celestia-node/service/header"
 )
 
@@ -47,7 +48,8 @@ func generateRawAndExtendedBlock(t *testing.T, store format.DAGService) *Block {
 	rawBlock, err := fetcher.GetBlock(context.Background(), nil)
 	require.NoError(t, err)
 	// extend block
-	extended, err := service.ExtendBlock(rawBlock, store)
+	shares, _ := rawBlock.ComputeShares()
+	extended, err := ipld.PutData(context.Background(), shares.RawShares(), store)
 	require.NoError(t, err)
 	// generate dah
 	dah := da.NewDataAvailabilityHeader(extended)

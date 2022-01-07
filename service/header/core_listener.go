@@ -4,7 +4,10 @@ import (
 	"context"
 	"fmt"
 
+	format "github.com/ipfs/go-ipld-format"
 	"github.com/tendermint/tendermint/types"
+
+	"github.com/celestiaorg/celestia-node/core"
 )
 
 // CoreListener is responsible for listening to Core for
@@ -15,8 +18,9 @@ import (
 // broadcasts the new `ExtendedHeader` to the header-sub gossipsub
 // network.
 type CoreListener struct {
-	ex     *CoreExchange
-	p2pSub *P2PSubscriber
+	p2pSub  *P2PSubscriber
+	fetcher *core.BlockFetcher
+	dag     format.DAGService
 
 	blockSub <-chan *types.Block
 
@@ -24,10 +28,11 @@ type CoreListener struct {
 	cancel context.CancelFunc
 }
 
-func NewCoreListener(ex *CoreExchange, p2pSub *P2PSubscriber) *CoreListener {
+func NewCoreListener(p2pSub *P2PSubscriber, fetcher *core.BlockFetcher, dag format.DAGService) *CoreListener {
 	return &CoreListener{
-		ex:     ex,
-		p2pSub: p2pSub,
+		p2pSub:  p2pSub,
+		fetcher: fetcher,
+		dag:     dag,
 	}
 }
 
@@ -94,7 +99,7 @@ func (cl *CoreListener) startBlockSubscription(ctx context.Context) error {
 	}
 
 	var err error
-	cl.blockSub, err = cl.ex.fetcher.SubscribeNewBlockEvent(ctx)
+	cl.blockSub, err = cl.fetcher.SubscribeNewBlockEvent(ctx)
 
 	return err
 }
@@ -102,18 +107,24 @@ func (cl *CoreListener) startBlockSubscription(ctx context.Context) error {
 // cancelBlockSubscription stops the CoreListener's subscription to new block events
 // from Core.
 func (cl *CoreListener) cancelBlockSubscription(ctx context.Context) error {
-	return cl.ex.fetcher.UnsubscribeNewBlockEvent(ctx)
+	return cl.fetcher.UnsubscribeNewBlockEvent(ctx)
 }
 
 // nextHeader returns the next latest header from Core.
 func (cl *CoreListener) nextHeader(ctx context.Context) (*ExtendedHeader, error) {
 	select {
-	case <-ctx.Done():
-		return nil, nil
 	case newBlock, ok := <-cl.blockSub:
 		if !ok {
 			return nil, fmt.Errorf("subscription closed")
 		}
-		return cl.ex.generateExtendedHeaderFromBlock(newBlock)
+
+		comm, vals, err := cl.fetcher.GetBlockInfo(ctx, &newBlock.Height)
+		if err != nil {
+			return nil, err
+		}
+
+		return MakeExtendedHeader(ctx, newBlock, comm, vals, cl.dag)
+	case <-ctx.Done():
+		return nil, ctx.Err()
 	}
 }

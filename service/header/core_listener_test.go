@@ -67,9 +67,6 @@ func createCoreListener(
 	fetcher *core.BlockFetcher,
 	ps *pubsub.PubSub,
 ) *CoreListener {
-	// create all sub-services necessary for CoreListener
-	ex := NewCoreExchange(fetcher, mdutils.Mock())
-
 	p2pSub := NewP2PSubscriber(ps, nil)
 	err := p2pSub.Start(context.Background())
 	require.NoError(t, err)
@@ -77,5 +74,5 @@ func createCoreListener(
 		p2pSub.Stop(context.Background()) //nolint:errcheck
 	})
 
-	return NewCoreListener(ex, p2pSub)
+	return NewCoreListener(p2pSub, fetcher, mdutils.Mock())
 }
