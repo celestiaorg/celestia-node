@@ -1,6 +1,12 @@
 # CHANGELOG
 
-## v0.1.0 | 2021-11-3
+## v0.1.1 | 2022-01-07
+A quick hot-fix release to enable Full Node sync reliably with validator set bigger than 30.
+
+### Bug Fixes
+- [Properly fetch Validators from Core and two more fixes #328](https://github.com/celestiaorg/celestia-node/pull/328) [@Wondertan](https://github.com/Wondertan)
+
+## v0.1.0 | 2021-11-03
 This is the first `celestia-node` release. The release constitutes the foundation for the data availability "halo" network that will complement the core consensus network.
 
 Mainly, we introduce 3 packages:
