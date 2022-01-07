@@ -19,10 +19,6 @@ type Service struct {
 	p2pServer     *P2PExchangeServer
 }
 
-// TODO @renaynay: how will we register core listener on the header Service? It's a part of header service but
-// 	we can't pass it directly to constructor b/c only Bridge nodes provide CoreListener, otherwise it'll always be nil
-// 	maybe we can make it an interface? Still hacky.
-
 // NewHeaderService creates a new instance of header Service.
 func NewHeaderService(
 	syncer *Syncer,

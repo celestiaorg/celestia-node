@@ -7,7 +7,13 @@ import (
 	"github.com/tendermint/tendermint/types"
 )
 
-// CoreListener TODO @renaynay: document
+// CoreListener is responsible for listening to Core for
+// new block events and converting new Core blocks into
+// the main data structure used in the Celestia DA network:
+// `ExtendedHeader`. After digesting the Core block, extending
+// it, and generating the `ExtendedHeader`, the CoreListener
+// broadcasts the new `ExtendedHeader` to the header-sub gossipsub
+// network.
 type CoreListener struct {
 	ex     *CoreExchange
 	p2pSub *P2PSubscriber
