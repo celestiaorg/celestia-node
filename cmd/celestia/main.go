@@ -1,14 +1,12 @@
 package main
 
 import (
+	"context"
 	"os"
 
 	"github.com/spf13/cobra"
-)
 
-const (
-	storeFlagName  = "store.path"
-	storeFlagShort = "s"
+	"github.com/celestiaorg/celestia-node/cmd"
 )
 
 func init() {
@@ -17,6 +15,7 @@ func init() {
 		lightCmd,
 		versionCmd,
 	)
+	rootCmd.SetHelpCommand(&cobra.Command{})
 }
 
 func main() {
@@ -27,7 +26,7 @@ func main() {
 }
 
 func run() error {
-	return rootCmd.Execute()
+	return rootCmd.ExecuteContext(cmd.WithEnv(context.Background()))
 }
 
 var rootCmd = &cobra.Command{
@@ -39,4 +38,7 @@ var rootCmd = &cobra.Command{
 	\____/\___/_/\___/____/\__/_/\__,_/
 	`,
 	Args: cobra.NoArgs,
+	CompletionOptions: cobra.CompletionOptions{
+		DisableDefaultCmd: true,
+	},
 }
