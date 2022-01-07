@@ -26,12 +26,12 @@ func WithEnv(ctx context.Context) context.Context {
 		panic("cmd: only one Env is allowed to be set in a ctx")
 	}
 
-	return context.WithValue(ctx, envKey, &Env{})
+	return context.WithValue(ctx, envCtxKey{}, &Env{})
 }
 
 // GetEnv takes Env from the given ctx, if any.
 func GetEnv(ctx context.Context) (*Env, error) {
-	env, ok := ctx.Value(envKey).(*Env)
+	env, ok := ctx.Value(envCtxKey{}).(*Env)
 	if !ok {
 		return nil, fmt.Errorf("cmd: Env is not set in ctx.Context")
 	}
@@ -56,6 +56,3 @@ func (env *Env) AddOptions(opts ...node.Option) {
 
 // envCtxKey is a key used to identify Env on a ctx.Context.
 type envCtxKey struct{}
-
-// envKey is a preallocated envCtxKey.
-var envKey = envCtxKey{}
