@@ -30,14 +30,12 @@ func NewBlockFetcher(client Client) *BlockFetcher {
 func (f *BlockFetcher) GetBlockInfo(ctx context.Context, height *int64) (*types.Commit, *types.ValidatorSet, error) {
 	commit, err := f.Commit(ctx, height)
 	if err != nil {
-		log.Errorw("fetching commit", "err", err, "height", height)
-		return nil, nil, err
+		return nil, nil, fmt.Errorf("core/fetcher: getting commit: %w", err)
 	}
 
 	valSet, err := f.ValidatorSet(ctx, height)
 	if err != nil {
-		log.Errorw("fetching validator set", "err", err, "height", height)
-		return nil, nil, err
+		return nil, nil, fmt.Errorf("core/fetcher: getting validator set: %w", err)
 	}
 
 	return commit, valSet, nil
