@@ -19,14 +19,14 @@ import (
 )
 
 // HeaderSyncer creates a new header.Syncer.
-func HeaderSyncer(cfg Config) func(lc fx.Lifecycle, ex header.Exchange, store header.Store) (*header.Syncer, error) {
-	return func(lc fx.Lifecycle, ex header.Exchange, store header.Store) (*header.Syncer, error) {
+func HeaderSyncer(cfg Config) func(lc fx.Lifecycle, ex header.Exchange, store header.Store, sub *header.P2PSubscriber) (*header.Syncer, error) {
+	return func(lc fx.Lifecycle, ex header.Exchange, store header.Store, sub *header.P2PSubscriber) (*header.Syncer, error) {
 		trustedHash, err := cfg.trustedHash()
 		if err != nil {
 			return nil, err
 		}
 
-		syncer := header.NewSyncer(ex, store, trustedHash)
+		syncer := header.NewSyncer(ex, store, sub, trustedHash)
 		lc.Append(fx.Hook{
 			OnStart: syncer.Start,
 		})
@@ -36,8 +36,8 @@ func HeaderSyncer(cfg Config) func(lc fx.Lifecycle, ex header.Exchange, store he
 }
 
 // P2PSubscriber creates a new header.P2PSubscriber.
-func P2PSubscriber(lc fx.Lifecycle, sub *pubsub.PubSub, syncer *header.Syncer) *header.P2PSubscriber {
-	p2pSub := header.NewP2PSubscriber(sub, syncer.Validate)
+func P2PSubscriber(lc fx.Lifecycle, sub *pubsub.PubSub) *header.P2PSubscriber {
+	p2pSub := header.NewP2PSubscriber(sub)
 	lc.Append(fx.Hook{
 		OnStart: p2pSub.Start,
 		OnStop:  p2pSub.Stop,
