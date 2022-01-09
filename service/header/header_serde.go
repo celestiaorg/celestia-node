@@ -58,7 +58,7 @@ func UnmarshalExtendedHeader(data []byte) (*ExtendedHeader, error) {
 		return nil, err
 	}
 
-	return out, nil
+	return out, out.ValidateBasic()
 }
 
 func ExtendedHeaderToProto(eh *ExtendedHeader) (*header_pb.ExtendedHeader, error) {

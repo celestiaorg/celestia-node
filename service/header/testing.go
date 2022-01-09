@@ -126,6 +126,7 @@ func (s *TestSuite) nextProposer() *types.Validator {
 func RandExtendedHeader(t *testing.T) *ExtendedHeader {
 	rh := RandRawHeader(t)
 	valSet, vals := types.RandValidatorSet(5, 1)
+	rh.ValidatorsHash = valSet.Hash()
 	voteSet := types.NewVoteSet(rh.ChainID, rh.Height, 0, tmproto.PrecommitType, valSet)
 	commit, err := types.MakeCommit(RandBlockID(t), rh.Height, 0, voteSet, vals, time.Now())
 	require.NoError(t, err)
