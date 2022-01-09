@@ -32,8 +32,8 @@ func TestSubscriber(t *testing.T) {
 	require.NoError(t, err)
 
 	// create sub-service lifecycles for header service 1
-	syncer1 := NewSyncer(NewLocalExchange(store1), store1, suite.Head().Hash())
-	p2pSub1 := NewP2PSubscriber(pubsub1, syncer1.Validate)
+	p2pSub1 := NewP2PSubscriber(pubsub1)
+	syncer1 := NewSyncer(NewLocalExchange(store1), store1, p2pSub1, suite.Head().Hash())
 	err = p2pSub1.Start(context.Background())
 	require.NoError(t, err)
 
@@ -42,12 +42,8 @@ func TestSubscriber(t *testing.T) {
 		pubsub.WithMessageSignaturePolicy(pubsub.StrictNoSign))
 	require.NoError(t, err)
 
-	store2, err := NewStoreWithHead(datastore.NewMapDatastore(), suite.Head())
-	require.NoError(t, err)
-
 	// create sub-service lifecycles for header service 2
-	syncer2 := NewSyncer(NewLocalExchange(store2), store2, suite.Head().Hash())
-	p2pSub2 := NewP2PSubscriber(pubsub2, syncer2.Validate)
+	p2pSub2 := NewP2PSubscriber(pubsub2)
 	err = p2pSub2.Start(context.Background())
 	require.NoError(t, err)
 

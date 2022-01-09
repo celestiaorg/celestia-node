@@ -12,6 +12,7 @@ import (
 
 // Syncer implements simplest possible synchronization for headers.
 type Syncer struct {
+	sub *P2PSubscriber
 	exchange Exchange
 	store    Store
 	trusted  tmbytes.HexBytes
@@ -23,8 +24,9 @@ type Syncer struct {
 }
 
 // NewSyncer creates a new instance of Syncer.
-func NewSyncer(exchange Exchange, store Store, trusted tmbytes.HexBytes) *Syncer {
+func NewSyncer(exchange Exchange, store Store, sub *P2PSubscriber, trusted tmbytes.HexBytes) *Syncer {
 	return &Syncer{
+		sub: sub,
 		exchange:   exchange,
 		store:      store,
 		trusted:    trusted,
@@ -34,6 +36,13 @@ func NewSyncer(exchange Exchange, store Store, trusted tmbytes.HexBytes) *Syncer
 
 // Start starts the syncing routine.
 func (s *Syncer) Start(context.Context) error {
+	if s.sub != nil {
+		err := s.sub.AddValidator(s.Validate)
+		if err != nil {
+			return err
+		}
+	}
+
 	go s.Sync(context.TODO()) // TODO @Wondertan: leaving this to you to implement in disconnection toleration PR.
 	return nil
 }

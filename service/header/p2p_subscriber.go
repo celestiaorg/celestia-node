@@ -16,29 +16,19 @@ const PubSubTopic = "header-sub"
 type P2PSubscriber struct {
 	pubsub *pubsub.PubSub
 	topic  *pubsub.Topic
-
-	validator pubsub.ValidatorEx
 }
 
 // NewP2PSubscriber returns a P2PSubscriber that manages the header Service's
 // relationship with the "header-sub" gossipsub topic.
-func NewP2PSubscriber(ps *pubsub.PubSub, validator pubsub.ValidatorEx) *P2PSubscriber {
+func NewP2PSubscriber(ps *pubsub.PubSub) *P2PSubscriber {
 	return &P2PSubscriber{
 		pubsub:    ps,
-		validator: validator,
 	}
 }
 
 // Start starts the P2PSubscriber, registering a topic validator for the "header-sub"
 // topic and joining it.
 func (p *P2PSubscriber) Start(context.Context) (err error) {
-	if p.validator != nil {
-		err = p.pubsub.RegisterTopicValidator(PubSubTopic, p.validator)
-		if err != nil {
-			return err
-		}
-	}
-
 	p.topic, err = p.pubsub.Join(PubSubTopic)
 	return err
 }
@@ -51,6 +41,12 @@ func (p *P2PSubscriber) Stop(context.Context) error {
 	}
 
 	return p.topic.Close()
+}
+
+// AddValidator applies basic pubsub validator for a topic.
+// Multiple validators can be registered.
+func (p *P2PSubscriber) AddValidator(val pubsub.ValidatorEx) error {
+	return p.pubsub.RegisterTopicValidator(PubSubTopic, val)
 }
 
 // Subscribe returns a new subscription to the P2PSubscriber's
