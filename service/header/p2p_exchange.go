@@ -124,12 +124,6 @@ func (ex *P2PExchange) performRequest(ctx context.Context, req *pb.ExtendedHeade
 			stream.Reset() //nolint:errcheck
 			return nil, err
 		}
-		// sanity check the header
-		err = header.ValidateBasic()
-		if err != nil {
-			stream.Reset() //nolint:errcheck
-			return nil, err
-		}
 
 		headers[i] = header
 	}
