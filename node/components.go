@@ -19,7 +19,7 @@ func lightComponents(cfg *Config, store Store) fxutil.Option {
 	)
 }
 
-// fullComponents keeps all the components as DI options required to build a Full Node.
+// bridgeComponents keeps all the components as DI options required to built a Full Node.
 func bridgeComponents(cfg *Config, store Store) fxutil.Option {
 	return fxutil.Options(
 		fxutil.Supply(Bridge),
@@ -37,12 +37,15 @@ func baseComponents(cfg *Config, store Store) fxutil.Option {
 		fxutil.Provide(store.Datastore),
 		fxutil.Provide(store.Keystore),
 		fxutil.Provide(services.ShareService),
+		// TODO @renaynay: once full node type is defined, add FullAvailability
+		//  to full node and LightAvailability to light node. Bridge node does
+		//  need Availability.
+		fxutil.Provide(services.LightAvailability),
 		fxutil.Provide(services.HeaderService),
 		fxutil.Provide(services.HeaderStore),
 		fxutil.Provide(services.HeaderSyncer(cfg.Services)),
 		fxutil.Provide(services.P2PSubscriber),
 		fxutil.Provide(services.HeaderP2PExchangeServer),
-		fxutil.Provide(services.LightAvailability), // TODO(@Wondertan): Move to light once FullAvailability is implemented
 		p2p.Components(cfg.P2P),
 	)
 }

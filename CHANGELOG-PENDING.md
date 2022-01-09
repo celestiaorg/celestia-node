@@ -18,6 +18,7 @@ Month, DD, YYYY
 
 ### IMPROVEMENTS
 
+- [service/share: Implement `FullAvailability`](https://github.com/celestiaorg/celestia-node/pull/333) [@renaynay](https://github.com/renaynay)
 - [services/header: Refactor `HeaderService` to be responsible for broadcasting new `ExtendedHeader`s to the gossipsub network](https://github.com/celestiaorg/celestia-node/pull/327) [@renaynay](https://github.com/renaynay)
 - [cmd: introduce Env - an Environment for CLI commands #313](https://github.com/celestiaorg/celestia-node/pull/313) [@Wondertan](https://github.com/Wondertan)
 - [chore: bump deps #297](https://github.com/celestiaorg/celestia-node/pull/297) [@Wondertan](https://github.com/Wondertan)
