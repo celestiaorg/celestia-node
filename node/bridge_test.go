@@ -21,6 +21,8 @@ func TestNewBridge(t *testing.T) {
 	require.NotNil(t, node)
 	require.NotNil(t, node.Config)
 	require.NotNil(t, node.Host)
+	require.NotNil(t, node.HeaderServ)
+	require.Nil(t, node.BlockServ)
 	assert.NotZero(t, node.Type)
 }
 
@@ -35,7 +37,7 @@ func TestBridgeLifecycle(t *testing.T) {
 	require.NotZero(t, node.Type)
 	require.NotNil(t, node.Host)
 	require.NotNil(t, node.CoreClient)
-	require.NotNil(t, node.BlockServ)
+	require.NotNil(t, node.HeaderServ)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
@@ -103,6 +105,9 @@ func TestBridge_WithRemoteCore(t *testing.T) {
 
 	store := MockStore(t, DefaultConfig(Bridge))
 	remoteCore, protocol, ip := core.StartRemoteCore()
+	t.Cleanup(func() {
+		remoteCore.Stop() // nolint:errcheck
+	})
 	require.NotNil(t, remoteCore)
 	assert.True(t, remoteCore.IsRunning())
 
@@ -126,29 +131,29 @@ func TestBridge_WithRemoteCore(t *testing.T) {
 	require.NoError(t, err)
 }
 
-func TestBridge_WithRemoteCoreFailed(t *testing.T) {
-	store := MockStore(t, DefaultConfig(Bridge))
-	remoteCore, protocol, ip := core.StartRemoteCore()
-	require.NotNil(t, remoteCore)
-	assert.True(t, remoteCore.IsRunning())
-
-	node, err := New(Bridge, store, WithRemoteCore(protocol, ip))
-	require.NoError(t, err)
-	require.NotNil(t, node)
-
-	ctx, cancel := context.WithCancel(context.Background())
-	t.Cleanup(cancel)
-
-	err = node.CoreClient.Stop()
-	require.NoError(t, err)
-
-	err = node.Start(ctx)
-	require.Error(t, err, "node: failed to start: client not running")
-}
-
 func TestBridge_NotPanicWithNilOpts(t *testing.T) {
 	store := MockStore(t, DefaultConfig(Bridge))
 	node, err := New(Bridge, store, nil)
 	require.NoError(t, err)
 	require.NotNil(t, node)
+}
+
+func TestFull_WithMockedCoreClient(t *testing.T) {
+	repo := MockStore(t, DefaultConfig(Bridge))
+	node, err := New(Bridge, repo, WithCoreClient(core.MockEmbeddedClient()))
+	require.NoError(t, err)
+	require.NotNil(t, node)
+	assert.True(t, node.CoreClient.IsRunning())
+
+	ctx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(cancel)
+
+	err = node.Start(ctx)
+	require.NoError(t, err)
+
+	ctx, cancel = context.WithCancel(context.Background())
+	t.Cleanup(cancel)
+
+	err = node.Stop(ctx)
+	require.NoError(t, err)
 }

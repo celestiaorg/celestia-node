@@ -51,6 +51,12 @@ test:
 	@go test -v ./...
 .PHONY: test
 
+## benchmark: Running all benchmarks
+benchmark:
+	@echo "--> Running benchmarks"
+	@go test -run="none" -bench=. -benchtime=100x -benchmem ./...
+.PHONY: benchmark
+
 PB_PKGS=$(shell find . -name 'pb' -type d)
 PB_CORE=$(shell go list -f {{.Dir}} -m github.com/tendermint/tendermint)
 PB_GOGO=$(shell go list -f {{.Dir}} -m github.com/gogo/protobuf)

@@ -1,6 +1,7 @@
 package header
 
 import (
+	"bytes"
 	"context"
 	"testing"
 
@@ -12,7 +13,7 @@ import (
 )
 
 func TestCoreExchange_RequestHeaders(t *testing.T) {
-	fetcher := createCoreFetcher()
+	fetcher := createCoreFetcher(t)
 	store := mdutils.Mock()
 
 	// generate 10 blocks
@@ -29,11 +30,11 @@ func Test_hashMatch(t *testing.T) {
 	expected := []byte("AE0F153556A4FA5C0B7C3BFE0BAF0EC780C031933B281A8D759BB34C1DA31C56")
 	mismatch := []byte("57A0D7FE69FE88B3D277C824B3ACB9B60E5E65837A802485DE5CBB278C43576A")
 
-	assert.False(t, hashMatch(expected, mismatch))
+	assert.False(t, bytes.Equal(expected, mismatch))
 }
 
-func createCoreFetcher() *core.BlockFetcher {
-	mock := core.MockEmbeddedClient()
+func createCoreFetcher(t *testing.T) *core.BlockFetcher {
+	mock := core.EphemeralMockEmbeddedClient(t)
 	return core.NewBlockFetcher(mock)
 }
 

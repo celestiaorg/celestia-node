@@ -26,6 +26,26 @@ func NewBlockFetcher(client Client) *BlockFetcher {
 	}
 }
 
+// GetBlockInfo queries Core for additional block information, like Commit and ValidatorSet.
+func (f *BlockFetcher) GetBlockInfo(ctx context.Context, height *int64) (*types.Commit, *types.ValidatorSet, error) {
+	commit, err := f.Commit(ctx, height)
+	if err != nil {
+		return nil, nil, fmt.Errorf("core/fetcher: getting commit: %w", err)
+	}
+
+	// If a nil `height` is given as a parameter, there is a chance
+	// that a new block could be produced between getting the latest
+	// commit and getting the latest validator set. Therefore, it is
+	// best to get the validator set at the latest commit's height to
+	// prevent this potential inconsistency.
+	valSet, err := f.ValidatorSet(ctx, &commit.Height)
+	if err != nil {
+		return nil, nil, fmt.Errorf("core/fetcher: getting validator set: %w", err)
+	}
+
+	return commit, valSet, nil
+}
+
 // GetBlock queries Core for a `Block` at the given height.
 func (f *BlockFetcher) GetBlock(ctx context.Context, height *int64) (*types.Block, error) {
 	res, err := f.client.Block(ctx, height)
@@ -71,16 +91,24 @@ func (f *BlockFetcher) Commit(ctx context.Context, height *int64) (*types.Commit
 // ValidatorSet queries Core for the ValidatorSet from the
 // block at the given height.
 func (f *BlockFetcher) ValidatorSet(ctx context.Context, height *int64) (*types.ValidatorSet, error) {
-	res, err := f.client.Validators(ctx, height, nil, nil)
-	if err != nil {
-		return nil, err
+	var perPage = 100
+
+	vals, total := make([]*types.Validator, 0), -1
+	for page := 1; len(vals) != total; page++ {
+		res, err := f.client.Validators(ctx, height, &page, &perPage)
+		if err != nil {
+			return nil, err
+		}
+
+		if res != nil && len(res.Validators) == 0 {
+			return nil, fmt.Errorf("core/fetcher: validators not found")
+		}
+
+		total = res.Total
+		vals = append(vals, res.Validators...)
 	}
 
-	if res != nil && res.Validators == nil {
-		return nil, fmt.Errorf("core/fetcher: validators not found")
-	}
-
-	return types.NewValidatorSet(res.Validators), nil
+	return types.NewValidatorSet(vals), nil
 }
 
 // SubscribeNewBlockEvent subscribes to new block events from Core, returning

@@ -26,6 +26,15 @@ func StartMockNode() *node.Node {
 	return rpctest.StartTendermint(app, rpctest.SuppressStdout, rpctest.RecreateConfig)
 }
 
+func EphemeralMockEmbeddedClient(t *testing.T) Client {
+	nd := StartMockNode()
+	t.Cleanup(func() {
+		nd.Stop() //nolint:errcheck
+		rpctest.StopTendermint(nd)
+	})
+	return NewEmbeddedFromNode(nd)
+}
+
 // MockEmbeddedClient returns a started mock Core Client.
 func MockEmbeddedClient() Client {
 	return NewEmbeddedFromNode(StartMockNode())
