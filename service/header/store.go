@@ -1,6 +1,7 @@
 package header
 
 import (
+	"bytes"
 	"context"
 	"strconv"
 	"sync"
@@ -9,7 +10,7 @@ import (
 	"github.com/ipfs/go-datastore"
 	"github.com/ipfs/go-datastore/namespace"
 
-	"github.com/tendermint/tendermint/libs/bytes"
+	tmbytes "github.com/tendermint/tendermint/libs/bytes"
 )
 
 // TODO(@Wondertan): Those values must be configurable and proper defaults should be set for specific node type.
@@ -26,7 +27,7 @@ type store struct {
 	index *heightIndexer
 
 	headLk sync.RWMutex
-	head   bytes.HexBytes
+	head   tmbytes.HexBytes
 }
 
 // NewStore constructs a Store over datastore.
@@ -95,7 +96,7 @@ func (s *store) Head(ctx context.Context) (*ExtendedHeader, error) {
 	}
 }
 
-func (s *store) Get(_ context.Context, hash bytes.HexBytes) (*ExtendedHeader, error) {
+func (s *store) Get(_ context.Context, hash tmbytes.HexBytes) (*ExtendedHeader, error) {
 	if v, ok := s.cache.Get(hash.String()); ok {
 		return v.(*ExtendedHeader), nil
 	}
@@ -145,7 +146,7 @@ func (s *store) GetRangeByHeight(ctx context.Context, from, to uint64) ([]*Exten
 	return headers, nil
 }
 
-func (s *store) Has(_ context.Context, hash bytes.HexBytes) (bool, error) {
+func (s *store) Has(_ context.Context, hash tmbytes.HexBytes) (bool, error) {
 	if ok := s.cache.Contains(hash.String()); ok {
 		return ok, nil
 	}
@@ -183,9 +184,13 @@ func (s *store) Append(ctx context.Context, headers ...*ExtendedHeader) error {
 
 	verified := make([]*ExtendedHeader, 0, lh)
 	for _, h := range headers {
-		if head.Height == h.Height {
+		if head.Height == h.Height && bytes.Equal(head.Hash(), h.Hash()) {
+			log.Warnw("duplicate header", "hash", head.Hash())
 			continue
 		}
+		// TODO(@Wondertan): Fork choice rule - if two headers are on the same height, but have different hashes
+		//  choose one who has more consensus(power) over it.
+		//  It is not critical to implement this rn, because we can reliably apply the last header who has +2/3.
 
 		err = VerifyAdjacent(head, h)
 		if err != nil {
@@ -267,7 +272,7 @@ func (s *store) loadHead() error {
 
 // newHead sets a new 'head' and saves it on disk.
 // At this point Header body of the given 'head' must be already written with put.
-func (s *store) newHead(head bytes.HexBytes) error {
+func (s *store) newHead(head tmbytes.HexBytes) error {
 	s.headLk.Lock()
 	s.head = head
 	s.headLk.Unlock()
@@ -301,9 +306,9 @@ func newHeightIndexer(ds datastore.Batching) (*heightIndexer, error) {
 }
 
 // HashByHeight loads a header by the given height.
-func (hi *heightIndexer) HashByHeight(h uint64) (bytes.HexBytes, error) {
+func (hi *heightIndexer) HashByHeight(h uint64) (tmbytes.HexBytes, error) {
 	if v, ok := hi.cache.Get(h); ok {
-		return v.(bytes.HexBytes), nil
+		return v.(tmbytes.HexBytes), nil
 	}
 
 	return hi.ds.Get(heightKey(h))
