@@ -22,7 +22,7 @@ type P2PSubscriber struct {
 // relationship with the "header-sub" gossipsub topic.
 func NewP2PSubscriber(ps *pubsub.PubSub) *P2PSubscriber {
 	return &P2PSubscriber{
-		pubsub:    ps,
+		pubsub: ps,
 	}
 }
 

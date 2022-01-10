@@ -13,7 +13,7 @@ import (
 
 // Syncer implements simplest possible synchronization for headers.
 type Syncer struct {
-	sub *P2PSubscriber
+	sub      *P2PSubscriber
 	exchange Exchange
 	store    Store
 	trusted  tmbytes.HexBytes
@@ -21,26 +21,26 @@ type Syncer struct {
 	// inProgress is set to 1 once syncing commences and
 	// is set to 0 once syncing is either finished or
 	// not currently in progress
-	inProgress uint64
+	inProgress  uint64
 	triggerSync chan struct{}
 
 	// pending keeps valid headers rcvd from the network awaiting to be appended to store
-	pending map[uint64]*ExtendedHeader
+	pending   map[uint64]*ExtendedHeader
 	pendingLk sync.Mutex
 
-	ctx context.Context
+	ctx    context.Context
 	cancel context.CancelFunc
 }
 
 // NewSyncer creates a new instance of Syncer.
 func NewSyncer(exchange Exchange, store Store, sub *P2PSubscriber, trusted tmbytes.HexBytes) *Syncer {
 	return &Syncer{
-		sub: sub,
-		exchange:   exchange,
-		store:      store,
-		trusted:    trusted,
+		sub:         sub,
+		exchange:    exchange,
+		store:       store,
+		trusted:     trusted,
 		triggerSync: make(chan struct{}), // no buffer needed
-		pending: make(map[uint64]*ExtendedHeader),
+		pending:     make(map[uint64]*ExtendedHeader),
 	}
 }
 

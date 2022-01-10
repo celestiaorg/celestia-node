@@ -19,8 +19,18 @@ import (
 )
 
 // HeaderSyncer creates a new header.Syncer.
-func HeaderSyncer(cfg Config) func(lc fx.Lifecycle, ex header.Exchange, store header.Store, sub *header.P2PSubscriber) (*header.Syncer, error) {
-	return func(lc fx.Lifecycle, ex header.Exchange, store header.Store, sub *header.P2PSubscriber) (*header.Syncer, error) {
+func HeaderSyncer(cfg Config) func(
+	lc fx.Lifecycle,
+	ex header.Exchange,
+	store header.Store,
+	sub *header.P2PSubscriber,
+) (*header.Syncer, error) {
+	return func(
+		lc fx.Lifecycle,
+		ex header.Exchange,
+		store header.Store,
+		sub *header.P2PSubscriber,
+	) (*header.Syncer, error) {
 		trustedHash, err := cfg.trustedHash()
 		if err != nil {
 			return nil, err
