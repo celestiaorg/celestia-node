@@ -6,6 +6,35 @@ import (
 	"time"
 )
 
+// Verify validates trusted header against untrusted.
+// TODO(@Wondertan): Unbonding period!!!
+func Verify(trusted, untrusted *ExtendedHeader) error {
+	if !untrusted.Time.After(trusted.Time) {
+		return fmt.Errorf("expected new header time %v to be after old header time %v",
+			untrusted.Time,
+			trusted.Time)
+	}
+
+	now := time.Now()
+	if !untrusted.Time.Before(now) {
+		return fmt.Errorf("new header has a time from the future %v (now: %v)",
+			untrusted.Time,
+			now)
+	}
+
+	// Ensure that +2/3 of new validators signed correctly.
+	if err := trusted.ValidatorSet.VerifyCommitLight(
+		trusted.ChainID,
+		untrusted.Commit.BlockID,
+		untrusted.Height,
+		untrusted.Commit,
+	); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func VerifyAdjacent(trusted, untrusted *ExtendedHeader) error {
 	if untrusted.Height != trusted.Height+1 {
 		return fmt.Errorf("headers must be adjacent in height")
@@ -37,8 +66,12 @@ func VerifyAdjacent(trusted, untrusted *ExtendedHeader) error {
 	}
 
 	// Ensure that +2/3 of new validators signed correctly.
-	if err := untrusted.ValidatorSet.VerifyCommitLight(trusted.ChainID, untrusted.Commit.BlockID,
-		untrusted.Height, untrusted.Commit); err != nil {
+	if err := untrusted.ValidatorSet.VerifyCommitLight(
+		trusted.ChainID,
+		untrusted.Commit.BlockID,
+		untrusted.Height,
+		untrusted.Commit,
+	); err != nil {
 		return err
 	}
 
