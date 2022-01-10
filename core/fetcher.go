@@ -33,7 +33,12 @@ func (f *BlockFetcher) GetBlockInfo(ctx context.Context, height *int64) (*types.
 		return nil, nil, fmt.Errorf("core/fetcher: getting commit: %w", err)
 	}
 
-	valSet, err := f.ValidatorSet(ctx, height)
+	// If a nil `height` is given as a parameter, there is a chance
+	// that a new block could be produced between getting the latest
+	// commit and getting the latest validator set. Therefore, it is
+	// best to get the validator set at the latest commit's height to
+	// prevent this potential inconsistency.
+	valSet, err := f.ValidatorSet(ctx, &commit.Height)
 	if err != nil {
 		return nil, nil, fmt.Errorf("core/fetcher: getting validator set: %w", err)
 	}
