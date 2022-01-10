@@ -30,7 +30,7 @@ func TestSync(t *testing.T) {
 
 	requestSize = 13 // just some random number
 	syncer := NewSyncer(fakeExchange, localStore, nil, head.Hash())
-	syncer.Sync(ctx)
+	syncer.sync(ctx)
 
 	exp, err := remoteStore.Head(ctx)
 	require.Nil(t, err)
