@@ -38,11 +38,3 @@ jobs:
           tags: ghcr.io/jbowen93/celestia-node:latest
           # tags: ghcr.io/celestiaorg/celestia-node:latest
           file: docker/Dockerfile
-      - uses: "marvinpinto/action-automatic-releases@latest"
-        with:
-          repo_token: "${{ secrets.GITHUB_TOKEN }}"
-          automatic_release_tag: "latest"
-          prerelease: true
-          title: "Development Build"
-          files: |
-            celestia
