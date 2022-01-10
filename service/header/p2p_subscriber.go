@@ -31,10 +31,12 @@ func NewP2PSubscriber(ps *pubsub.PubSub, validator pubsub.ValidatorEx) *P2PSubsc
 
 // Start starts the P2PSubscriber, registering a topic validator for the "header-sub"
 // topic and joining it.
-func (p *P2PSubscriber) Start(context.Context) error {
-	err := p.pubsub.RegisterTopicValidator(PubSubTopic, p.validator)
-	if err != nil {
-		return err
+func (p *P2PSubscriber) Start(context.Context) (err error) {
+	if p.validator != nil {
+		err = p.pubsub.RegisterTopicValidator(PubSubTopic, p.validator)
+		if err != nil {
+			return err
+		}
 	}
 
 	p.topic, err = p.pubsub.Join(PubSubTopic)
@@ -59,4 +61,13 @@ func (p *P2PSubscriber) Subscribe() (Subscription, error) {
 	}
 
 	return newSubscription(p.topic)
+}
+
+// Broadcast broadcasts the given ExtendedHeader to the topic.
+func (p *P2PSubscriber) Broadcast(ctx context.Context, header *ExtendedHeader) error {
+	bin, err := header.MarshalBinary()
+	if err != nil {
+		return err
+	}
+	return p.topic.Publish(ctx, bin)
 }
