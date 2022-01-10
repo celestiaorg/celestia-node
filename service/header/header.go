@@ -2,11 +2,15 @@ package header
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 
+	format "github.com/ipfs/go-ipld-format"
 	bts "github.com/tendermint/tendermint/libs/bytes"
 	"github.com/tendermint/tendermint/pkg/da"
 	core "github.com/tendermint/tendermint/types"
+
+	"github.com/celestiaorg/celestia-node/ipld"
 
 	header_pb "github.com/celestiaorg/celestia-node/service/header/pb"
 )
@@ -29,6 +33,30 @@ type ExtendedHeader struct {
 	Commit       *core.Commit            `json:"commit"`
 	ValidatorSet *core.ValidatorSet      `json:"validator_set"`
 	DAH          *DataAvailabilityHeader `json:"dah"`
+}
+
+// MakeExtendedHeader assembles new ExtendedHeader.
+func MakeExtendedHeader(
+	ctx context.Context,
+	b *core.Block,
+	comm *core.Commit,
+	vals *core.ValidatorSet,
+	dag format.NodeAdder,
+) (*ExtendedHeader, error) {
+	namespacedShares, _ := b.Data.ComputeShares()
+	extended, err := ipld.PutData(ctx, namespacedShares.RawShares(), dag)
+	if err != nil {
+		return nil, err
+	}
+
+	dah := da.NewDataAvailabilityHeader(extended)
+	eh := &ExtendedHeader{
+		RawHeader:    b.Header,
+		DAH:          &dah,
+		Commit:       comm,
+		ValidatorSet: vals,
+	}
+	return eh, eh.ValidateBasic()
 }
 
 // Hash returns Hash of the wrapped RawHeader.

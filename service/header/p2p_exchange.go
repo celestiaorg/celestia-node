@@ -1,6 +1,7 @@
 package header
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"sync"
@@ -68,6 +69,7 @@ func (ex *P2PExchange) Start(ctx context.Context) error {
 func (ex *P2PExchange) Stop(context.Context) error {
 	log.Info("p2p: stopping p2p exchange")
 	ex.cancel()
+	ex.ctx, ex.cancel = nil, nil
 	return nil
 }
 
@@ -124,7 +126,8 @@ func (ex *P2PExchange) RequestByHash(ctx context.Context, hash tmbytes.HexBytes)
 	if err != nil {
 		return nil, err
 	}
-	if !hashMatch(headers[0].Hash().Bytes(), hash) {
+
+	if !bytes.Equal(headers[0].Hash().Bytes(), hash) {
 		return nil, fmt.Errorf("incorrect hash in header: expected %x, got %x", hash, headers[0].Hash().Bytes())
 	}
 	return headers[0], nil
