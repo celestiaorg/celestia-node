@@ -1,4 +1,4 @@
-name: "pre-release"
+name: "docker-build"
 
 on:
   push:
@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  pre-release:
+  docker-build:
     runs-on: "ubuntu-latest"
     permissions:
       contents: write 
