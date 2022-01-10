@@ -2,6 +2,7 @@ package header
 
 import (
 	"context"
+	"sync"
 	"sync/atomic"
 
 	"github.com/libp2p/go-libp2p-core/peer"
@@ -21,6 +22,14 @@ type Syncer struct {
 	// is set to 0 once syncing is either finished or
 	// not currently in progress
 	inProgress uint64
+	triggerSync chan struct{}
+
+	// pending keeps valid headers rcvd from the network awaiting to be appended to store
+	pending map[uint64]*ExtendedHeader
+	pendingLk sync.Mutex
+
+	ctx context.Context
+	cancel context.CancelFunc
 }
 
 // NewSyncer creates a new instance of Syncer.
@@ -30,25 +39,45 @@ func NewSyncer(exchange Exchange, store Store, sub *P2PSubscriber, trusted tmbyt
 		exchange:   exchange,
 		store:      store,
 		trusted:    trusted,
-		inProgress: 0, // syncing is not currently in progress
+		triggerSync: make(chan struct{}), // no buffer needed
+		pending: make(map[uint64]*ExtendedHeader),
 	}
 }
 
 // Start starts the syncing routine.
 func (s *Syncer) Start(context.Context) error {
 	if s.sub != nil {
-		err := s.sub.AddValidator(s.Validate)
+		err := s.sub.AddValidator(s.validate)
 		if err != nil {
 			return err
 		}
 	}
 
-	go s.Sync(context.TODO()) // TODO @Wondertan: leaving this to you to implement in disconnection toleration PR.
+	s.ctx, s.cancel = context.WithCancel(context.Background())
+	go s.syncLoop()
+	s.wantSync()
 	return nil
 }
 
+func (s *Syncer) wantSync() {
+	select {
+	case s.triggerSync <- struct{}{}:
+	}
+}
+
+func (s *Syncer) syncLoop() {
+	for {
+		select {
+		case <-s.triggerSync:
+			s.sync(s.ctx)
+		case <-s.ctx.Done():
+			return
+		}
+	}
+}
+
 // Sync syncs all headers up to the latest known header in the network.
-func (s *Syncer) Sync(ctx context.Context) {
+func (s *Syncer) sync(ctx context.Context) {
 	log.Info("syncing headers")
 	// indicate syncing
 	s.syncInProgress()
@@ -56,6 +85,10 @@ func (s *Syncer) Sync(ctx context.Context) {
 	defer s.finishSync()
 	// TODO(@Wondertan): Retry logic
 	for {
+		if ctx.Err() != nil {
+			return
+		}
+
 		localHead, err := s.getHead(ctx)
 		if err != nil {
 			log.Errorw("getting head", "err", err)
@@ -97,36 +130,61 @@ func (s *Syncer) finishSync() {
 	atomic.StoreUint64(&s.inProgress, 0)
 }
 
-// Validate implements validation of incoming Headers and stores them if they are good.
-func (s *Syncer) Validate(ctx context.Context, p peer.ID, msg *pubsub.Message) pubsub.ValidationResult {
-	header, err := UnmarshalExtendedHeader(msg.Data)
+// validate implements validation of incoming Headers and stores them if they are good.
+func (s *Syncer) validate(ctx context.Context, p peer.ID, msg *pubsub.Message) pubsub.ValidationResult {
+	maybeHead, err := UnmarshalExtendedHeader(msg.Data)
 	if err != nil {
-		log.Errorw("unmarshalling ExtendedHeader received from the PubSub",
+		log.Errorw("unmarshalling header received from the PubSub",
 			"err", err, "peer", p.ShortString())
 		return pubsub.ValidationReject
 	}
 
-	// if syncing is still in progress - just ignore the new header as
-	// Syncer will fetch it after anyway, but if syncer is done, append
-	// the header.
-	if !s.IsSyncing() {
-		err := s.store.Append(ctx, header)
-		if err != nil {
-			log.Errorw("appending store with header from PubSub",
-				"hash", header.Hash().String(), "height", header.Height, "peer", p.ShortString())
-			// TODO(@Wondertan): We need to be sure that the error is actually validation error.
-			//  Rejecting msgs due to storage error is not good, but for now that's fine.
-			return pubsub.ValidationReject
-		}
+	localHead, err := s.store.Head(ctx)
+	if err != nil {
+		log.Errorw("getting local head", "err", err)
+		return pubsub.ValidationIgnore // we don't know if header is invalid so ignore
+	}
 
-		// we are good to go
+	if maybeHead.Height <= localHead.Height {
+		log.Warnw("rcvd known header", "from", p.ShortString())
+		return pubsub.ValidationIgnore // we don't know if header is invalid so ignore
+	}
+
+	// validate that +2/3 of subjective validator set signed the commit and if not - reject
+	err = Verify(localHead, maybeHead)
+	if err != nil {
+		// our subjective view can be far from objective network head(during sync), so we cannot be sure if header is
+		// 100% invalid due to outdated validator set, thus ValidationIgnore and thus 'possibly malicious'
+		log.Warnw("rcvd possibly malicious header",
+			"hash", maybeHead.Hash(), "height", maybeHead.Height, "from", p.ShortString())
+		return pubsub.ValidationIgnore
+	}
+
+	if maybeHead.Height > localHead.Height+1 {
+		// we might be missing some headers, so trigger sync to catch-up
+		s.wantSync()
+		// and save verified header for later
+		// TODO(@Wondertan): If we sync from scratch a year of headers, this may blow up memory
+		s.pendingLk.Lock()
+		s.pending[uint64(maybeHead.Height)] = maybeHead
+		s.pendingLk.Unlock()
+		// accepted
 		return pubsub.ValidationAccept
 	}
 
-	// TODO(@Wondertan): For now we just reject incoming headers if we are not yet synced.
-	//  Ideally, we should keep them optimistically and verify after Sync to avoid unnecessary requests.
-	//  This introduces additional complexity for which we don't have time at the given moment.
-	return pubsub.ValidationIgnore
+	// at this point we reliably know 'maybeHead' is adjacent to 'localHead' so append
+	err = s.store.Append(ctx, maybeHead)
+	if err != nil {
+		log.Errorw("appending store with header from PubSub",
+			"hash", maybeHead.Hash().String(), "height", maybeHead.Height, "peer", p.ShortString())
+
+		// TODO(@Wondertan): We need to be sure that the error is actually validation error.
+		//  Rejecting msgs due to storage error is not good, but for now that's fine.
+		return pubsub.ValidationReject
+	}
+
+	// we are good to go
+	return pubsub.ValidationAccept
 }
 
 // getHead tries to get head locally and if not exists requests trusted hash.
