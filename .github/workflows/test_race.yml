@@ -1,9 +1,5 @@
 name: Go Test Data Race
 
-on:
-  schedule:
-  - cron: '0 12 * * 1'
-
 jobs:
   race:
     name: Run Tests with Data Race Detector
