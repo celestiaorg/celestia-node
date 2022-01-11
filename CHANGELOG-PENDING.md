@@ -28,6 +28,7 @@ Month, DD, YYYY
 - [service/header: Refactor `HeaderService` to only manage its sub-services' lifecycles #317](https://github.com/celestiaorg/celestia-node/pull/317) [@renaynay](https://github.com/renaynay)
 - [docker] Created `docker/` dir with `Dockerfile` and `entrypoint.sh` script. 
 - [chore(share): handle rows concurrently in GetSharesByNamespace #241](https://github.com/celestiaorg/celestia-node/pull/241) [@vgonkivs](https://github.com/vgonkivs)
+- [test.yml](https://github.com/celestiaorg/celestia-node/pull/289) ci: adding data race detector action [@Bidon15](https://github.com/Bidon15)
 
 ### BUG FIXES
 

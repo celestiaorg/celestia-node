@@ -19,5 +19,7 @@ jobs:
         uses: actions/setup-go@v2
         with:
           go-version: ${{ matrix.go }}
-      - run: go test -v ./...
-      - run: go test -v -race ./...
+      - name: Tests
+        run: make test
+      - name: Tests with Race Detector
+        run: make test-race
