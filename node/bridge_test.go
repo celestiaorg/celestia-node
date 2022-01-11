@@ -138,7 +138,7 @@ func TestBridge_NotPanicWithNilOpts(t *testing.T) {
 	require.NotNil(t, node)
 }
 
-func TestFull_WithMockedCoreClient(t *testing.T) {
+func TestBridge_WithMockedCoreClient(t *testing.T) {
 	repo := MockStore(t, DefaultConfig(Bridge))
 	node, err := New(Bridge, repo, WithCoreClient(core.MockEmbeddedClient()))
 	require.NoError(t, err)
