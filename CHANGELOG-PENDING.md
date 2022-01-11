@@ -15,7 +15,7 @@ Month, DD, YYYY
 - [feat(cmd): give a birth to cel-shed and p2p key utilities #281](https://github.com/celestiaorg/celestia-node/pull/281) [@Wondertan](https://github.com/Wondertan)
 - [feat(cmd|node): MutualPeers Node option and CLI flag #280](https://github.com/celestiaorg/celestia-node/pull/280) [@Wondertan](https://github.com/Wondertan)
 - [node: enhance DI allowing overriding of dependencies](https://github.com/celestiaorg/celestia-node/pull/290) [@Wondertan](https://github.com/Wondertan)
-- [GH Action] Create docker build GH action
+- [GH Action] Create docker build GH action [@jbowen93](https://github.com/jbowen93)
 
 ### IMPROVEMENTS
 
