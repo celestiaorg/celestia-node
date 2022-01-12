@@ -31,6 +31,7 @@ Month, DD, YYYY
 
 ### BUG FIXES
 
+- [fix(header/service): #339 race](https://github.com/celestiaorg/celestia-node/pull/343) [@Wondertan](https://github.com/Wondertan)
 - [Properly fetch Validators from Core and two more fixes #328](https://github.com/celestiaorg/celestia-node/pull/328) [@Wondertan](https://github.com/Wondertan)
 - [header] Added missing `err` value in ErrorW logging calls. @jbowen93
 - [service/block, node/p2p] [Fix race conditions in TestExtendedHeaderBroadcast and TestFull_P2P_Streams.](https://github.com/celestiaorg/celestia-node/pull/288) [@jenyasd209](https://github.com/jenyasd209)
