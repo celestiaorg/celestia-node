@@ -18,7 +18,7 @@ func TestSubscriber(t *testing.T) {
 	defer cancel()
 
 	// create mock network
-	net, err := mocknet.FullMeshConnected(ctx, 2)
+	net, err := mocknet.FullMeshLinked(ctx, 2)
 	require.NoError(t, err)
 
 	suite := NewTestSuite(t, 3)
@@ -36,9 +36,6 @@ func TestSubscriber(t *testing.T) {
 	err = p2pSub1.Start(context.Background())
 	require.NoError(t, err)
 
-	// subscribe
-	subscription, err := p2pSub1.Subscribe()
-	require.NoError(t, err)
 
 	// get mock host and create new gossipsub on it
 	pubsub2, err := pubsub.NewGossipSub(ctx, net.Hosts()[1],
@@ -54,7 +51,14 @@ func TestSubscriber(t *testing.T) {
 	err = p2pSub2.Start(context.Background())
 	require.NoError(t, err)
 
+	err = net.ConnectAllButSelf()
+	time.Sleep(400 * time.Millisecond) // wait for peers to finish their connection.
+
+	// subscribe
 	_, err = p2pSub2.Subscribe()
+	require.NoError(t, err)
+
+	subscription, err := p2pSub1.Subscribe()
 	require.NoError(t, err)
 
 	expectedHeader := suite.GenExtendedHeaders(1)[0]
