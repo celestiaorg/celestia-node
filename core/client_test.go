@@ -102,3 +102,12 @@ func TestRemoteClient_StartBlockSubscription_And_GetBlock(t *testing.T) {
 	require.NoError(t, client.Stop())
 	require.NoError(t, remote.Stop())
 }
+
+func TestRemoteClient_RetryDial(t *testing.T) {
+	remote := StartMockNode()
+	protocol, ip := getRemoteEndpoint(remote)
+
+	// deliberately stop remote
+
+	_, cli, err := NewRemote(protocol, ip)
+}

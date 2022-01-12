@@ -3,6 +3,8 @@ package core
 import (
 	"fmt"
 
+	retryhttp "github.com/hashicorp/go-retryablehttp"
+
 	corenode "github.com/tendermint/tendermint/node"
 	"github.com/tendermint/tendermint/rpc/client"
 	"github.com/tendermint/tendermint/rpc/client/http"
@@ -14,9 +16,13 @@ type Client = client.Client
 
 // NewRemote creates a new Client that communicates with a remote Core endpoint over HTTP.
 func NewRemote(protocol, remoteAddr string) (Client, error) {
-	return http.New(
+	httpClient := retryhttp.NewClient()
+	httpClient.RetryMax = 3
+
+	return http.NewWithClient(
 		fmt.Sprintf("%s://%s", protocol, remoteAddr),
 		"/websocket",
+		httpClient.StandardClient(),
 	)
 }
 
