@@ -250,7 +250,7 @@ func TestGetLeavesByNamespace(t *testing.T) {
 
 			// choose random nID from rand shares
 			expected := tt.rawData[len(tt.rawData)/2]
-			nID := expected[:8]
+			nID := expected[:NamespaceSize]
 
 			// change rawData to contain several shares with same nID
 			tt.rawData[(len(tt.rawData)/2)+1] = expected
@@ -275,7 +275,7 @@ func TestGetLeavesByNamespace(t *testing.T) {
 				for _, node := range nodes {
 					// TODO @renaynay: nID is prepended twice for some reason.
 					share := node.RawData()[1:]
-					assert.Equal(t, expected, share[8:])
+					assert.Equal(t, expected, share[NamespaceSize:])
 				}
 			}
 		})
