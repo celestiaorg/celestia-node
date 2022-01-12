@@ -119,5 +119,5 @@ func TestRemoteClient_RetryDial(t *testing.T) {
 
 	_, err = client.Block(context.Background(), nil)
 	require.Error(t, err)
-	assert.ErrorContains(t, err, "giving up after 4 attempt(s)")
+	assert.ErrorContains(t, err, "giving up after 3 attempt(s)")
 }
