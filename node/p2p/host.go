@@ -15,6 +15,8 @@ import (
 	routedhost "github.com/libp2p/go-libp2p/p2p/host/routed"
 	"go.uber.org/fx"
 
+	"github.com/celestiaorg/celestia-node/build"
+
 	"github.com/celestiaorg/celestia-node/node/fxutil"
 )
 
@@ -34,7 +36,7 @@ func Host(cfg Config) func(hostParams) (HostBase, error) {
 			libp2p.Peerstore(params.PStore),
 			libp2p.ConnectionManager(params.ConnMngr),
 			libp2p.ConnectionGater(params.ConnGater),
-			libp2p.UserAgent(fmt.Sprintf("celestia-%s", cfg.Network)),
+			libp2p.UserAgent(fmt.Sprintf("celestia-%s", build.GetNetwork())),
 			libp2p.NATPortMap(), // enables upnp
 			libp2p.DisableRelay(),
 			// to clearly define what defaults we rely upon

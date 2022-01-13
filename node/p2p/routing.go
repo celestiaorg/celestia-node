@@ -11,6 +11,8 @@ import (
 	routinghelpers "github.com/libp2p/go-libp2p-routing-helpers"
 	"go.uber.org/fx"
 
+	"github.com/celestiaorg/celestia-node/build"
+
 	"github.com/celestiaorg/celestia-node/node/fxutil"
 )
 
@@ -29,7 +31,7 @@ func PeerRouting(cfg Config) func(routingParams) (routing.PeerRouting, error) {
 			return nil, err
 		}
 
-		prefix := fmt.Sprintf("/celestia/%s", cfg.Network)
+		prefix := fmt.Sprintf("/celestia/%s", build.GetNetwork())
 		mode := dht.ModeAuto
 		if cfg.Bootstrapper {
 			mode = dht.ModeServer

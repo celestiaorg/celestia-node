@@ -14,6 +14,8 @@ import (
 	"github.com/libp2p/go-libp2p-core/routing"
 	"go.uber.org/fx"
 
+	"github.com/celestiaorg/celestia-node/build"
+
 	"github.com/celestiaorg/celestia-node/node/fxutil"
 )
 
@@ -42,7 +44,7 @@ func DataExchange(cfg Config) func(bitSwapParams) (exchange.Interface, blockstor
 		if err != nil {
 			return nil, nil, err
 		}
-		prefix := protocol.ID(fmt.Sprintf("/celestia/%s", cfg.Network))
+		prefix := protocol.ID(fmt.Sprintf("/celestia/%s", build.GetNetwork()))
 		return bitswap.New(
 			ctx,
 			network.NewFromIpfsHost(params.Host, params.Cr, network.Prefix(prefix)),

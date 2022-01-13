@@ -2,6 +2,11 @@ package build
 
 import "errors"
 
+// GetNetwork returns the network of a current build.
+func GetNetwork() Network {
+	return network
+}
+
 // DefaultNetwork sets a default network for Celestia Node.
 var DefaultNetwork = DevNet
 
@@ -28,4 +33,19 @@ func (n Network) Validate() error {
 // A strict list of networks.
 var networksList = map[Network]struct{}{
 	DevNet: {},
+}
+
+// A used network within a build.
+// Can be set with 'ldflags'
+var network Network
+
+// this init ensures `network` is always set and correct
+func init() {
+	if network == "" {
+		network = DefaultNetwork
+	}
+
+	if err := network.Validate(); err != nil {
+		panic(err)
+	}
 }
