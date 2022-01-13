@@ -20,7 +20,6 @@ import (
 //  5. Sync status and till sync is done.
 //  6. Cache even unverifiable headers from the future, but don't resend them with ignore.
 //  7. Retry requesting headers
-//  8. Hardcode genesisHash
 
 // Syncer implements simplest possible synchronization for headers.
 type Syncer struct {
@@ -57,7 +56,7 @@ func NewSyncer(exchange Exchange, store Store, sub *P2PSubscriber, trusted tmbyt
 // Start starts the syncing routine.
 func (s *Syncer) Start(context.Context) error {
 	if s.sub != nil {
-		err := s.sub.AddValidator(s.validate)
+		err := s.sub.AddValidator(s.validateMsg)
 		if err != nil {
 			return err
 		}
@@ -147,8 +146,7 @@ func (s *Syncer) finishSync() {
 	atomic.StoreUint64(&s.inProgress, 0)
 }
 
-// validate implements validation of incoming Headers and stores them if they are good.
-func (s *Syncer) validate(ctx context.Context, p peer.ID, msg *pubsub.Message) pubsub.ValidationResult {
+func (s *Syncer) validateMsg(ctx context.Context, p peer.ID, msg *pubsub.Message) pubsub.ValidationResult {
 	maybeHead, err := UnmarshalExtendedHeader(msg.Data)
 	if err != nil {
 		log.Errorw("unmarshalling header received from the PubSub",
@@ -156,6 +154,11 @@ func (s *Syncer) validate(ctx context.Context, p peer.ID, msg *pubsub.Message) p
 		return pubsub.ValidationReject
 	}
 
+	return s.validate(ctx, p, maybeHead)
+}
+
+// validate implements validation of incoming Headers and stores them if they are good.
+func (s *Syncer) validate(ctx context.Context, p peer.ID, maybeHead *ExtendedHeader) pubsub.ValidationResult {
 	localHead, err := s.store.Head(ctx)
 	if err != nil {
 		log.Errorw("getting local head", "err", err)
@@ -173,7 +176,7 @@ func (s *Syncer) validate(ctx context.Context, p peer.ID, msg *pubsub.Message) p
 		// our subjective view can be far from objective network head(during sync), so we cannot be sure if header is
 		// 100% invalid due to outdated validator set, thus ValidationIgnore and thus 'possibly malicious'
 		log.Warnw("rcvd possibly malicious header",
-			"hash", maybeHead.Hash(), "height", maybeHead.Height, "from", p.ShortString())
+			"err", err, "hash", maybeHead.Hash(), "height", maybeHead.Height, "from", p.ShortString())
 		return pubsub.ValidationIgnore
 	}
 
@@ -290,7 +293,7 @@ func (s *Syncer) getHeaders(ctx context.Context, start, amount uint64) ([]*Exten
 			out = append(out, cached...)
 			start += uint64(len(cached))
 
-			// repeat, as there might be multiple caches
+			// repeat, as there might be multiple cache ranges
 			continue
 		}
 
@@ -327,7 +330,7 @@ func (rs *ranges) Add(h *ExtendedHeader) {
 	defer rs.lk.Unlock()
 
 	// short-circuit if header is from the past
-	if rs.head.Height >= h.Height {
+	if rs.head != nil && rs.head.Height >= h.Height {
 		// TODO(@Wondertan): Technically, we can still apply the header:
 		//  * Headers here are verified, so we can trust them
 		//  * PubSub does not guarantee the ordering of msgs
@@ -340,7 +343,7 @@ func (rs *ranges) Add(h *ExtendedHeader) {
 	}
 
 	// if the new header is adjacent to head
-	if h.Height == rs.head.Height+1 {
+	if rs.head != nil && h.Height == rs.head.Height+1 {
 		// append it to the last known range
 		rs.ranges[len(rs.ranges)-1].Append(h)
 	} else {
