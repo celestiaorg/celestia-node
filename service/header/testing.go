@@ -28,7 +28,7 @@ type TestSuite struct {
 	valSet  *types.ValidatorSet
 	valPntr int
 
-	head   *ExtendedHeader
+	head *ExtendedHeader
 }
 
 // NewTestSuite setups a new test suite with a given number of validators.
@@ -51,8 +51,8 @@ func genesis(t *testing.T, valSet *types.ValidatorSet, vals []types.PrivValidato
 	require.NoError(t, err)
 	dah := EmptyDAH()
 	return &ExtendedHeader{
-		RawHeader: *gen,
-		Commit: commit,
+		RawHeader:    *gen,
+		Commit:       commit,
 		ValidatorSet: valSet,
 		DAH:          &dah,
 	}
@@ -72,7 +72,7 @@ func (s *TestSuite) GenExtendedHeaders(num int) []*ExtendedHeader {
 
 func (s *TestSuite) GenExtendedHeader() *ExtendedHeader {
 	dah := da.MinDataAvailabilityHeader()
-	height := s.Head().Height+1
+	height := s.Head().Height + 1
 	rh := s.GenRawHeader(height, s.Head().Hash(), s.Head().Commit.Hash(), dah.Hash())
 	s.head = &ExtendedHeader{
 		RawHeader:    *rh,
