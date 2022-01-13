@@ -24,6 +24,7 @@ jobs:
       - name: Tests with Race Detector
         run: make test-race
   integration_test:
+    name: Run Integration Tests
     runs-on: ubuntu-latest
     strategy:
       matrix:
