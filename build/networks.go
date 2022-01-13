@@ -19,11 +19,10 @@ var ErrInvalidNetwork = errors.New("build: invalid network")
 
 // Validate the network.
 func (n Network) Validate() error {
-	if _, ok := networksList[n]; ok {
-		return nil
-	} else {
+	if _, ok := networksList[n]; !ok {
 		return ErrInvalidNetwork
 	}
+	return nil
 }
 
 // A strict list of networks.
