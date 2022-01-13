@@ -21,12 +21,7 @@ import (
 
 var blackholeIP6 = net.ParseIP("100::")
 
-// TODO(@Bidon15):
-// in case ConnectPeers from Swamp.Network is utilized to connect nodes between each other
-// then p2p_exchange.go line 55 close() will panic due to being closed from dial_sync.go(go-libp2p-swarm lib)
-// in func DialLock, which is calling ad.decref() that closes the channel
-// _, err = sw.Network.ConnectPeers(bridge.Host.ID(), light.Host.ID())
-// require.NoError(t, err)
+// TODO(@Bidon15): Issue #350
 
 // Swamp represents the main functionality that is needed for the test-case:
 // - Network to link the nodes
