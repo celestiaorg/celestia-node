@@ -7,8 +7,8 @@ on:
   pull_request:
 
 jobs:
-  test:
-    name: Run Tests
+  unit_test:
+    name: Run Unit Tests
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -23,3 +23,16 @@ jobs:
         run: make test
       - name: Tests with Race Detector
         run: make test-race
+  integration_test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        go: ["1.17"]
+    steps:
+      - uses: actions/checkout@v2
+      - name: set up go
+        uses: actions/setup-go@v2
+        with:
+          go-version: ${{ matrix.go }}
+      - name: Swamp Tests
+        run: make test-swamp
