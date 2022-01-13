@@ -36,7 +36,6 @@ func TestSubscriber(t *testing.T) {
 	err = p2pSub1.Start(context.Background())
 	require.NoError(t, err)
 
-
 	// get mock host and create new gossipsub on it
 	pubsub2, err := pubsub.NewGossipSub(ctx, net.Hosts()[1],
 		pubsub.WithMessageSignaturePolicy(pubsub.StrictNoSign))
@@ -51,8 +50,25 @@ func TestSubscriber(t *testing.T) {
 	err = p2pSub2.Start(context.Background())
 	require.NoError(t, err)
 
+	done := make(chan bool, 1)
+	go func() {
+		for {
+			if net.Hosts()[1].Peerstore().Peers().Len() == 2 && net.Hosts()[0].Peerstore().Peers().Len() == 2 {
+				close(done)
+				break
+			}
+			time.Sleep(100 * time.Millisecond)
+		}
+	}()
+	ticker := time.NewTicker(2 * time.Second)
 	err = net.ConnectAllButSelf()
-	time.Sleep(400 * time.Millisecond) // wait for peers to finish their connection.
+	require.NoError(t, err)
+
+	select {
+	case <-done:
+	case <-ticker.C:
+		assert.Fail(t, "timeout waiting for peers to connect")
+	}
 
 	// subscribe
 	_, err = p2pSub2.Subscribe()
