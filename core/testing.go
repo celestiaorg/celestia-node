@@ -5,10 +5,13 @@ import (
 	"testing"
 
 	"github.com/tendermint/tendermint/abci/example/kvstore"
+	"github.com/tendermint/tendermint/abci/types"
 	"github.com/tendermint/tendermint/config"
 	"github.com/tendermint/tendermint/node"
 	rpctest "github.com/tendermint/tendermint/rpc/test"
 )
+
+var defaultRetainBlocks int64 = 10
 
 // MockConfig provides a testing configuration for embedded Core Client.
 func MockConfig(t *testing.T) *Config {
@@ -20,14 +23,12 @@ func MockConfig(t *testing.T) *Config {
 }
 
 // StartMockNode starts a mock Core node background process and returns it.
-func StartMockNode() *node.Node {
-	app := kvstore.NewApplication()
-	app.RetainBlocks = 10
+func StartMockNode(app types.Application) *node.Node {
 	return rpctest.StartTendermint(app, rpctest.SuppressStdout, rpctest.RecreateConfig)
 }
 
 func EphemeralMockEmbeddedClient(t *testing.T) Client {
-	nd := StartMockNode()
+	nd := StartMockNode(CreateKvStore(defaultRetainBlocks))
 	t.Cleanup(func() {
 		nd.Stop() //nolint:errcheck
 		rpctest.StopTendermint(nd)
@@ -35,15 +36,23 @@ func EphemeralMockEmbeddedClient(t *testing.T) Client {
 	return NewEmbeddedFromNode(nd)
 }
 
+// CreateKvStore creates a simple kv store app and gives the user
+// ability to set desired amount of blocks to be retained.
+func CreateKvStore(retainBlocks int64) *kvstore.Application {
+	app := kvstore.NewApplication()
+	app.RetainBlocks = retainBlocks
+	return app
+}
+
 // MockEmbeddedClient returns a started mock Core Client.
 func MockEmbeddedClient() Client {
-	return NewEmbeddedFromNode(StartMockNode())
+	return NewEmbeddedFromNode(StartMockNode(CreateKvStore(defaultRetainBlocks)))
 }
 
 // StartRemoteClient returns a started remote Core node process, as well its
 // mock Core Client.
 func StartRemoteClient() (*node.Node, Client, error) {
-	remote := StartMockNode()
+	remote := StartMockNode(CreateKvStore(defaultRetainBlocks))
 	protocol, ip := getRemoteEndpoint(remote)
 	client, err := NewRemote(protocol, ip)
 	return remote, client, err
@@ -51,7 +60,7 @@ func StartRemoteClient() (*node.Node, Client, error) {
 
 // StartRemoteCore starts a remote core and returns it's protocol and address
 func StartRemoteCore() (*node.Node, string, string) {
-	remote := StartMockNode()
+	remote := StartMockNode(CreateKvStore(defaultRetainBlocks))
 	protocol, ip := getRemoteEndpoint(remote)
 	return remote, protocol, ip
 }
