@@ -39,7 +39,7 @@ func baseComponents(cfg *Config, store Store) fxutil.Option {
 		fxutil.Provide(services.ShareService),
 		// TODO @renaynay: once full node type is defined, add FullAvailability
 		//  to full node and LightAvailability to light node. Bridge node does
-		//  need Availability.
+		//  not need Availability.
 		fxutil.Provide(services.LightAvailability),
 		fxutil.Provide(services.HeaderService),
 		fxutil.Provide(services.HeaderStore),
