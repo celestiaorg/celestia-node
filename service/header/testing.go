@@ -28,21 +28,33 @@ type TestSuite struct {
 	valSet  *types.ValidatorSet
 	valPntr int
 
-	height int64
 	head   *ExtendedHeader
 }
 
 // NewTestSuite setups a new test suite with a given number of validators.
 func NewTestSuite(t *testing.T, num int) *TestSuite {
 	valSet, vals := types.RandValidatorSet(num, 10)
-	head := RandExtendedHeader(t)
-	head.NextValidatorsHash = valSet.Hash()
-	head.Height = 0
 	return &TestSuite{
 		t:      t,
 		vals:   vals,
 		valSet: valSet,
-		head:   head,
+		head:   genesis(t, valSet, vals),
+	}
+}
+
+func genesis(t *testing.T, valSet *types.ValidatorSet, vals []types.PrivValidator) *ExtendedHeader {
+	gen := RandRawHeader(t)
+	gen.NextValidatorsHash = valSet.Hash()
+	gen.Height = 1
+	voteSet := types.NewVoteSet(gen.ChainID, gen.Height, 0, tmproto.PrecommitType, valSet)
+	commit, err := types.MakeCommit(RandBlockID(t), gen.Height, 0, voteSet, vals, time.Now())
+	require.NoError(t, err)
+	dah := EmptyDAH()
+	return &ExtendedHeader{
+		RawHeader: *gen,
+		Commit: commit,
+		ValidatorSet: valSet,
+		DAH:          &dah,
 	}
 }
 
@@ -59,9 +71,9 @@ func (s *TestSuite) GenExtendedHeaders(num int) []*ExtendedHeader {
 }
 
 func (s *TestSuite) GenExtendedHeader() *ExtendedHeader {
-	s.height++
 	dah := da.MinDataAvailabilityHeader()
-	rh := s.GenRawHeader(s.height, s.Head().Hash(), s.Head().Commit.Hash(), dah.Hash())
+	height := s.Head().Height+1
+	rh := s.GenRawHeader(height, s.Head().Hash(), s.Head().Commit.Hash(), dah.Hash())
 	s.head = &ExtendedHeader{
 		RawHeader:    *rh,
 		Commit:       s.Commit(rh),
@@ -125,7 +137,7 @@ func (s *TestSuite) nextProposer() *types.Validator {
 // RandExtendedHeader provides an ExtendedHeader fixture.
 func RandExtendedHeader(t *testing.T) *ExtendedHeader {
 	rh := RandRawHeader(t)
-	valSet, vals := types.RandValidatorSet(5, 1)
+	valSet, vals := types.RandValidatorSet(3, 1)
 	rh.ValidatorsHash = valSet.Hash()
 	voteSet := types.NewVoteSet(rh.ChainID, rh.Height, 0, tmproto.PrecommitType, valSet)
 	commit, err := types.MakeCommit(RandBlockID(t), rh.Height, 0, voteSet, vals, time.Now())
