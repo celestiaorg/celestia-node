@@ -1,7 +1,12 @@
 package build
 
-// BootstrapFor reports multiaddress of bootstrap peers for a given network.
-func BootstrapFor(net Network) ([]string, error) {
+// Bootstrappers reports multiaddress of bootstrap peers for a current network.
+func Bootstrappers() []string {
+	return bootstrapList[network] // network is guarantee to be valid
+}
+
+// BootstrappersFor reports multiaddress of bootstrap peers for a given network.
+func BootstrappersFor(net Network) ([]string, error) {
 	if err := net.Validate(); err != nil {
 		return nil, err
 	}
