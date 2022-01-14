@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/ipfs/go-datastore"
+	"github.com/libp2p/go-libp2p-core/event"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	mocknet "github.com/libp2p/go-libp2p/p2p/net/mock"
 	"github.com/stretchr/testify/assert"
@@ -51,23 +52,34 @@ func TestSubscriber(t *testing.T) {
 	require.NoError(t, err)
 
 	done := make(chan bool, 1)
+	sub0, err := net.Hosts()[0].EventBus().Subscribe(&event.EvtPeerIdentificationCompleted{})
+	require.NoError(t, err)
+	sub1, err := net.Hosts()[1].EventBus().Subscribe(&event.EvtPeerIdentificationCompleted{})
+	require.NoError(t, err)
+
 	go func() {
+		foundSub0 := false
+		foundSub1 := false
 		for {
-			if net.Hosts()[1].Peerstore().Peers().Len() == 2 && net.Hosts()[0].Peerstore().Peers().Len() == 2 {
-				close(done)
-				break
+			select {
+			case <-sub0.Out():
+				foundSub0 = true
+			case <-sub1.Out():
+				foundSub1 = true
 			}
-			time.Sleep(100 * time.Millisecond)
+			if foundSub0 && foundSub1 {
+				close(done)
+				return
+			}
 		}
 	}()
-	ticker := time.NewTicker(2 * time.Second)
 	err = net.ConnectAllButSelf()
 	require.NoError(t, err)
 
 	select {
 	case <-done:
-	case <-ticker.C:
-		assert.Fail(t, "timeout waiting for peers to connect")
+	case <-ctx.Done():
+		assert.FailNow(t, "timeout waiting for peers to connect")
 	}
 
 	// subscribe
