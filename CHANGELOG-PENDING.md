@@ -29,6 +29,7 @@ Month, DD, YYYY
 - [docker] Created `docker/` dir with `Dockerfile` and `entrypoint.sh` script. 
 - [chore(share): handle rows concurrently in GetSharesByNamespace #241](https://github.com/celestiaorg/celestia-node/pull/241) [@vgonkivs](https://github.com/vgonkivs)
 - [ci: adding data race detector action](https://github.com/celestiaorg/celestia-node/pull/289) [@Bidon15](https://github.com/Bidon15)
+- [services/header: Fix order of mocknet start](https://github.com/celestiaorg/celestia-node/pull/342) [@atoulme](https://github.com/atoulme)
 
 ### BUG FIXES
 
