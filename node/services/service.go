@@ -128,3 +128,7 @@ func DASer(lc fx.Lifecycle, avail share.Availability, sub header.Subscriber) *da
 func LightAvailability(ctx context.Context, lc fx.Lifecycle, dag ipld.DAGService) share.Availability {
 	return share.NewLightAvailability(merkledag.NewSession(fxutil.WithLifecycle(ctx, lc), dag))
 }
+
+func FullAvailability(ctx context.Context, lc fx.Lifecycle, dag ipld.DAGService) share.Availability {
+	return share.NewFullAvailability(merkledag.NewSession(fxutil.WithLifecycle(ctx, lc), dag))
+}
