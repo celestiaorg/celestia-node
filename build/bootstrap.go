@@ -5,7 +5,7 @@ func Bootstrappers() []string {
 	return bootstrapList[network] // network is guaranteed to be valid
 }
 
-// BootstrappersFor reports multiaddress of bootstrap peers for a given network.
+// BootstrappersFor reports multiaddresses of bootstrap peers for a given network.
 func BootstrappersFor(net Network) ([]string, error) {
 	if err := net.Validate(); err != nil {
 		return nil, err
