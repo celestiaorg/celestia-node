@@ -30,7 +30,7 @@ func (n Network) Validate() error {
 	return nil
 }
 
-// A strict list of networks.
+// networksList is a strict list of all known long-standing networks.
 var networksList = map[Network]struct{}{
 	DevNet: {},
 }
