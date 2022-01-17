@@ -2,7 +2,7 @@ package build
 
 import "errors"
 
-// GetNetwork returns the network of a current build.
+// GetNetwork returns the network of the current build.
 func GetNetwork() Network {
 	return network
 }
