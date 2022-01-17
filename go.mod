@@ -15,7 +15,7 @@ require (
 	github.com/ipfs/go-block-format v0.0.3
 	github.com/ipfs/go-blockservice v0.1.7
 	github.com/ipfs/go-cid v0.1.0
-	github.com/ipfs/go-datastore v0.4.6
+	github.com/ipfs/go-datastore v0.5.0
 	github.com/ipfs/go-ds-badger2 v0.1.1
 	github.com/ipfs/go-ipfs-blockstore v0.1.6
 	github.com/ipfs/go-ipfs-exchange-interface v0.0.1
@@ -25,9 +25,9 @@ require (
 	github.com/ipfs/go-merkledag v0.3.2
 	github.com/libp2p/go-libp2p v0.15.1
 	github.com/libp2p/go-libp2p-connmgr v0.2.4
-	github.com/libp2p/go-libp2p-core v0.9.0
+	github.com/libp2p/go-libp2p-core v0.12.0
 	github.com/libp2p/go-libp2p-kad-dht v0.14.0
-	github.com/libp2p/go-libp2p-peerstore v0.3.0
+	github.com/libp2p/go-libp2p-peerstore v0.6.0
 	github.com/libp2p/go-libp2p-pubsub v0.5.7-0.20211029175501-5c90105738cf
 	github.com/libp2p/go-libp2p-record v0.1.3
 	github.com/libp2p/go-libp2p-routing-helpers v0.2.3
