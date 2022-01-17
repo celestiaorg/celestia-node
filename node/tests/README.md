@@ -15,7 +15,7 @@ The first parameter of the swarm constructor is the `testing.T`
 ### Constructing Celestia nodes
 You can construct any Celestia `bridge/full/light` nodes using swamp and be rest assured that they will be linked between each other.
 <i>Note: Linking nodes does not mean that you have connected them. Linking only enables further connection between nodes.
-Think of Linking as a fibre cable being plugged between 2 PCs. Connecing is the actual process from the OS level in communicating between them.</i>
+Think of linking as a fibre cable between 2 PCs. Connecting is the actual process from the OS level in communicating between them.</i>
 
 ```go
 // you can add any options during initialization in the signature
@@ -35,7 +35,7 @@ light := sw.NewLightClient(node.WithTrustedPeer(addrs[0].String()))
 
 ## Concenptual overview
 Each of the test scenario requires flexibility in network topology. 
-The user can define the neccessary amount of each types of nodes and be able to control each of them. 
+The user can define the necessary amount of each type of node and be able to control each of them. 
 The below diagram provides more visual clarity of what can be done
 ![test swamp overview](./swamp/img/test_swamp.svg)
 
