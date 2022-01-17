@@ -1,6 +1,6 @@
 package build
 
-// Genesis reports a hash of a genesis block for a current network.
+// Genesis reports a hash of a genesis block for the current network.
 func Genesis() string {
 	return genesisList[network] // network is guarantee to be valid
 }
