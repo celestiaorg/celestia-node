@@ -60,8 +60,8 @@ func NewSwamp(t *testing.T) *Swamp {
 	return swp
 }
 
-// WaitTillHeight is stopping execution of the test until the certain amount
-// of blocks have been produced by the CoreClient.
+// WaitTillHeight holds the test execution until the given amount of blocks
+// have been produced by the CoreClient.
 func (s *Swamp) WaitTillHeight(height int64) {
 	require.Greater(s.t, height, int64(0))
 
