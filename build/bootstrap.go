@@ -2,7 +2,7 @@ package build
 
 // Bootstrappers reports multiaddress of bootstrap peers for a current network.
 func Bootstrappers() []string {
-	return bootstrapList[network] // network is guarantee to be valid
+	return bootstrapList[network] // network is guaranteed to be valid
 }
 
 // BootstrappersFor reports multiaddress of bootstrap peers for a given network.
