@@ -10,7 +10,7 @@ func GetNetwork() Network {
 // DefaultNetwork sets a default network for Celestia Node.
 var DefaultNetwork = DevNet
 
-// NOTE: Everytime we add a new long-running network, it has to be added it here.
+// NOTE: Every time we add a new long-running network, it has to be added here.
 const (
 	// DevNet or devnet-2 according to celestiaorg/networks
 	DevNet Network = "devnet-2"
