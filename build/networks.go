@@ -39,7 +39,7 @@ var networksList = map[Network]struct{}{
 // Can be set with 'ldflags'
 var network Network
 
-// this init ensures `network` is always set and correct
+// init ensures `network` is always set and correct
 func init() {
 	if network == "" {
 		network = DefaultNetwork
