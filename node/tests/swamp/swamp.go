@@ -6,6 +6,7 @@ import (
 	"math/rand"
 	"net"
 	"testing"
+	"time"
 
 	"github.com/ipfs/go-log/v2"
 	"github.com/libp2p/go-libp2p-core/host"
@@ -46,7 +47,13 @@ func NewSwamp(t *testing.T) *Swamp {
 	ctx := context.Background()
 	// TODO(@Bidon15): Rework this to be configurable by the swamp's test
 	// case, not here.
-	core := core.NewEmbeddedFromNode(core.StartMockNode(core.CreateKvStore(60)))
+	kvStore := core.CreateKvStore(200)
+	coreNode := core.StartMockNode(kvStore)
+
+	coreNode.Config().Consensus.CreateEmptyBlocksInterval = 200 * time.Millisecond
+
+	core := core.NewEmbeddedFromNode(coreNode)
+
 	swp := &Swamp{t: t, Network: mocknet.New(ctx), CoreClient: core}
 	swp.trustedHash = swp.getTrustedHash(ctx)
 
@@ -86,6 +93,7 @@ func (s *Swamp) createPeer(ks keystore.Keystore) host.Host {
 	copy(ip[net.IPv6len-len(token):], token)
 
 	// reference to GenPeer func in libp2p/p2p/net/mock/mock_net.go
+	// on how we generate new multiaddr for new peer
 	a, err := ma.NewMultiaddr(fmt.Sprintf("/ip6/%s/tcp/4242", ip))
 	require.NoError(s.t, err)
 

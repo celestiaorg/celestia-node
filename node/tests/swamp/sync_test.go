@@ -31,7 +31,7 @@ func TestSyncLightWithBridge(t *testing.T) {
 
 	state := bridge.CoreClient.IsRunning()
 	require.True(t, state)
-	sw.WaitTillHeight(30)
+	sw.WaitTillHeight(20)
 
 	err := bridge.Start(ctx)
 	require.NoError(t, err)

@@ -45,8 +45,7 @@ func (s *Service) Stop(context.Context) error {
 	return nil
 }
 
-// TODO(@Bidon15): We need a sync subscription
-// for better handling of sync status
+// TODO(@Bidon15): Issue #351
 
 // IsSyncing returns the status of sync
 func (s *Service) IsSyncing() bool {
