@@ -14,7 +14,7 @@ func BootstrappersFor(net Network) ([]string, error) {
 	return bootstrapList[net], nil
 }
 
-// NOTE: Everytime we add a new long-running network, it's genesis hash has to be added it here.
+// NOTE: Every time we add a new long-running network, its bootstrap peers have to be added here.
 var bootstrapList = map[Network][]string{
 	DevNet: {}, // TODO(@Wondertan): Set multiaddress once bootstrap peers are set up.
 }
