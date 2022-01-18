@@ -12,7 +12,7 @@ import (
 )
 
 func TestDASer(t *testing.T) {
-	shareServ, dah := share.RandServiceWithSquare(t, 16)
+	shareServ, dah := share.RandLightServiceWithSquare(t, 16)
 
 	randHeader := header.RandExtendedHeader(t)
 	randHeader.DataHash = dah.Hash()

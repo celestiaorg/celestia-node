@@ -16,6 +16,7 @@ import (
 	"github.com/celestiaorg/celestia-node/ipld/plugin"
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/nmt/namespace"
+	"github.com/celestiaorg/rsmt2d"
 )
 
 var log = logging.Logger("share")
@@ -129,8 +130,24 @@ func (s *service) GetShare(ctx context.Context, dah *Root, row, col int) (Share,
 	return nd.RawData()[1:], nil
 }
 
-func (s *service) GetShares(context.Context, *Root) ([][]Share, error) {
-	panic("implement me")
+func (s *service) GetShares(ctx context.Context, root *Root) ([][]Share, error) {
+	eds, err := ipld.RetrieveData(ctx, root, s.dag, rsmt2d.NewRSGF8Codec())
+	if err != nil {
+		return nil, err
+	}
+
+	origWidth := int(eds.Width() / 2)
+	shares := make([][]Share, origWidth)
+
+	for i := 0; i < origWidth; i++ {
+		row := eds.Row(uint(i))
+		shares[i] = make([]Share, origWidth)
+		for j := 0; j < origWidth; j++ {
+			shares[i][j] = row[j]
+		}
+	}
+
+	return shares, nil
 }
 
 func (s *service) GetSharesByNamespace(ctx context.Context, root *Root, nID namespace.ID) ([]Share, error) {
