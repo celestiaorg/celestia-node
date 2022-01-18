@@ -204,7 +204,7 @@ func (s *Syncer) validate(ctx context.Context, p peer.ID, maybeHead *ExtendedHea
 	return pubsub.ValidationAccept
 }
 
-// subjectiveHead tries to get head locally and if not exists requests by trusted hash.
+// subjectiveHead tries to get head locally and if it does not exist, requests it by trusted hash.
 func (s *Syncer) subjectiveHead(ctx context.Context) (*ExtendedHeader, error) {
 	head, err := s.store.Head(ctx)
 	switch err {
