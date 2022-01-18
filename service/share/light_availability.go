@@ -13,14 +13,14 @@ import (
 var DefaultSampleAmount = 16
 
 // lightAvailability implements Availability using Data Availability Sampling technique.
-// It is light because it does not require to download all the data to verify it availability.
-// It is assumed that there are lots of lightAvailability instances on the network doing sampling over the same Root
-// to collectively verify its availability.
+// It is light because it does not require the downloading of all the data to verify
+// its availability. It is assumed that there are lots of lightAvailability instances
+// on the network doing sampling over the same Root to collectively verify its availability.
 type lightAvailability struct {
 	getter format.NodeGetter
 }
 
-// NewLightAvailability creates a new Light DataAvailability.
+// NewLightAvailability creates a new light Availability.
 func NewLightAvailability(get format.NodeGetter) Availability {
 	return &lightAvailability{
 		getter: get,

@@ -67,9 +67,10 @@ func (cl *CoreListener) Stop(ctx context.Context) error {
 // gossipsub network.
 func (cl *CoreListener) listen() {
 	defer log.Info("core-listener: listening stopped")
+	sub := cl.blockSub
 	for {
 		select {
-		case b, ok := <-cl.blockSub:
+		case b, ok := <-sub:
 			if !ok {
 				return
 			}

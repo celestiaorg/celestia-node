@@ -51,6 +51,12 @@ test:
 	@go test -v ./...
 .PHONY: test
 
+## test-race: Running all *_test.go with data race detector
+test-race:
+	@echo "--> Running tests with data race detector"
+	@go test -v -race ./...
+.PHONY: test-race
+
 ## benchmark: Running all benchmarks
 benchmark:
 	@echo "--> Running benchmarks"
