@@ -38,27 +38,32 @@ func NewTestSuite(t *testing.T, num int) *TestSuite {
 		t:      t,
 		vals:   vals,
 		valSet: valSet,
-		head:   genesis(t, valSet, vals),
 	}
 }
 
-func genesis(t *testing.T, valSet *types.ValidatorSet, vals []types.PrivValidator) *ExtendedHeader {
-	gen := RandRawHeader(t)
-	gen.NextValidatorsHash = valSet.Hash()
+func (s *TestSuite) genesis() *ExtendedHeader {
+	gen := RandRawHeader(s.t)
+	gen.ValidatorsHash = s.valSet.Hash()
+	gen.NextValidatorsHash = s.valSet.Hash()
 	gen.Height = 1
-	voteSet := types.NewVoteSet(gen.ChainID, gen.Height, 0, tmproto.PrecommitType, valSet)
-	commit, err := types.MakeCommit(RandBlockID(t), gen.Height, 0, voteSet, vals, time.Now())
-	require.NoError(t, err)
+	voteSet := types.NewVoteSet(gen.ChainID, gen.Height, 0, tmproto.PrecommitType, s.valSet)
+	commit, err := types.MakeCommit(RandBlockID(s.t), gen.Height, 0, voteSet, s.vals, time.Now())
+	require.NoError(s.t, err)
 	dah := EmptyDAH()
-	return &ExtendedHeader{
+	eh := &ExtendedHeader{
 		RawHeader:    *gen,
 		Commit:       commit,
-		ValidatorSet: valSet,
+		ValidatorSet: s.valSet,
 		DAH:          &dah,
 	}
+	require.NoError(s.t, eh.ValidateBasic())
+	return eh
 }
 
 func (s *TestSuite) Head() *ExtendedHeader {
+	if s.head == nil {
+		s.head = s.genesis()
+	}
 	return s.head
 }
 
@@ -71,6 +76,11 @@ func (s *TestSuite) GenExtendedHeaders(num int) []*ExtendedHeader {
 }
 
 func (s *TestSuite) GenExtendedHeader() *ExtendedHeader {
+	if s.head == nil {
+		s.head = s.genesis()
+		return s.head
+	}
+
 	dah := da.MinDataAvailabilityHeader()
 	height := s.Head().Height + 1
 	rh := s.GenRawHeader(height, s.Head().Hash(), s.Head().Commit.Hash(), dah.Hash())
@@ -80,6 +90,7 @@ func (s *TestSuite) GenExtendedHeader() *ExtendedHeader {
 		ValidatorSet: s.valSet,
 		DAH:          &dah,
 	}
+	require.NoError(s.t, s.head.ValidateBasic())
 	return s.head
 }
 
