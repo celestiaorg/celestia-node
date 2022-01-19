@@ -4,10 +4,8 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"sync"
 
 	"github.com/libp2p/go-libp2p-core/host"
-	"github.com/libp2p/go-libp2p-core/network"
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/libp2p/go-libp2p-core/protocol"
 	tmbytes "github.com/tendermint/tendermint/libs/bytes"
@@ -22,55 +20,18 @@ var exchangeProtocolID = protocol.ID("/header-ex/v0.0.1")
 // P2PExchange enables sending outbound ExtendedHeaderRequests to the network as well as
 // handling inbound ExtendedHeaderRequests from the network.
 type P2PExchange struct {
-	host  host.Host
-	store Store
+	host host.Host
 
 	// TODO @renaynay: post-Devnet, we need to remove reliance of Exchange on one bootstrap peer
 	// Ref https://github.com/celestiaorg/celestia-node/issues/172#issuecomment-964306823.
-	trustedPeer *peer.AddrInfo
-	lk          sync.Mutex
-	connected   chan struct{} // if connected is closed, exchange is connected to peer
-
-	ctx    context.Context
-	cancel context.CancelFunc
+	trustedPeer peer.ID
 }
 
-func NewP2PExchange(host host.Host, peer *peer.AddrInfo, store Store) *P2PExchange {
-	ex := &P2PExchange{
+func NewP2PExchange(host host.Host, peer peer.ID) *P2PExchange {
+	return &P2PExchange{
 		host:        host,
-		store:       store,
 		trustedPeer: peer,
-		connected:   make(chan struct{}),
 	}
-	ex.host.Network().Notify(&network.NotifyBundle{ConnectedF: ex.Connected})
-	return ex
-}
-
-func (ex *P2PExchange) Start(ctx context.Context) error {
-	log.Info("p2p: starting p2p exchange")
-	ex.ctx, ex.cancel = context.WithCancel(context.Background())
-
-	if ex.trustedPeer.ID != "" {
-		if ex.host.Network().Connectedness(ex.trustedPeer.ID) == network.Connected {
-			close(ex.connected)
-			return nil
-		}
-
-		err := ex.host.Connect(ctx, *ex.trustedPeer)
-		if err != nil {
-			log.Errorw("p2p: connecting to trusted peer", "err", err)
-			log.Warn("p2p: HEADERS WONT BE SYNCHRONIZED - PLEASE RESTART WITH TRUSTED PEER BEING ONLINE")
-		}
-	}
-
-	return nil
-}
-
-func (ex *P2PExchange) Stop(context.Context) error {
-	log.Info("p2p: stopping p2p exchange")
-	ex.cancel()
-	ex.ctx, ex.cancel = nil, nil
-	return nil
 }
 
 func (ex *P2PExchange) RequestHead(ctx context.Context) (*ExtendedHeader, error) {
@@ -134,13 +95,11 @@ func (ex *P2PExchange) RequestByHash(ctx context.Context, hash tmbytes.HexBytes)
 }
 
 func (ex *P2PExchange) performRequest(ctx context.Context, req *pb.ExtendedHeaderRequest) ([]*ExtendedHeader, error) {
-	select {
-	case <-ctx.Done():
-		return nil, ctx.Err()
-	case <-ex.connected:
+	if ex.trustedPeer == "" {
+		return nil, fmt.Errorf("no trusted peer")
 	}
 
-	stream, err := ex.host.NewStream(ctx, ex.trustedPeer.ID, exchangeProtocolID)
+	stream, err := ex.host.NewStream(ctx, ex.trustedPeer, exchangeProtocolID)
 	if err != nil {
 		return nil, err
 	}
@@ -179,20 +138,4 @@ func (ex *P2PExchange) performRequest(ctx context.Context, req *pb.ExtendedHeade
 		return nil, ErrNotFound
 	}
 	return headers, stream.Close()
-}
-
-func (ex *P2PExchange) Connected(_ network.Network, conn network.Conn) {
-	select {
-	// don't connect if already connected
-	case <-ex.connected:
-		return
-	default:
-	}
-
-	ex.lk.Lock()
-	defer ex.lk.Unlock()
-
-	if conn.RemotePeer() == ex.trustedPeer.ID {
-		close(ex.connected)
-	}
 }

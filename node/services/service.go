@@ -7,6 +7,7 @@ import (
 	ipld "github.com/ipfs/go-ipld-format"
 	"github.com/ipfs/go-merkledag"
 	"github.com/libp2p/go-libp2p-core/host"
+	"github.com/libp2p/go-libp2p-core/peerstore"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	"go.uber.org/fx"
 
@@ -55,23 +56,15 @@ func HeaderService(
 }
 
 // HeaderExchangeP2P constructs new P2PExchange for headers.
-func HeaderExchangeP2P(cfg Config) func(
-	lc fx.Lifecycle,
-	host host.Host,
-	store header.Store,
-) (header.Exchange, error) {
-	return func(lc fx.Lifecycle, host host.Host, store header.Store) (header.Exchange, error) {
+func HeaderExchangeP2P(cfg Config) func(host host.Host) (header.Exchange, error) {
+	return func(host host.Host) (header.Exchange, error) {
 		peer, err := cfg.trustedPeer()
 		if err != nil {
 			return nil, err
 		}
 
-		ex := header.NewP2PExchange(host, peer, store)
-		lc.Append(fx.Hook{
-			OnStart: ex.Start,
-			OnStop:  ex.Stop,
-		})
-		return ex, nil
+		host.Peerstore().AddAddrs(peer.ID, peer.Addrs, peerstore.PermanentAddrTTL)
+		return header.NewP2PExchange(host, peer.ID), nil
 	}
 }
 
