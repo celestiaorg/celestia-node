@@ -10,15 +10,6 @@ import (
 	tmbytes "github.com/tendermint/tendermint/libs/bytes"
 )
 
-// TODO:
-//  1. Sync protocol for peers to exchange their local heads on connect
-//  2. If we are far from peers but within an unbonding period - trigger sync automatically
-//  3. If we are beyond the unbonding period - request Local Head + 1 header from trusted and hardcoded peer
-//  automatically and continue sync until know head.
-//  4. Limit amount of requests on server side
-//  5. Sync status and till sync is done.
-//  7. Retry requesting headers
-
 // Syncer implements simplest possible synchronization for headers.
 type Syncer struct {
 	sub      *P2PSubscriber

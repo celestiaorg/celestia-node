@@ -195,8 +195,7 @@ func (s *store) Append(ctx context.Context, headers ...*ExtendedHeader) error {
 			continue
 		}
 		// TODO(@Wondertan): Fork choice rule - if two headers are on the same height, but have different hashes
-		//  choose one who has more consensus(power) over it.
-		//  It is not critical to implement this rn, because we can reliably apply the last header who has +2/3.
+		//  halt the node(https://github.com/celestiaorg/celestia-node/issues/365)
 
 		err = VerifyAdjacent(head, h)
 		if err != nil {
