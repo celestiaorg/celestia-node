@@ -58,7 +58,7 @@ func TestSyncerInitializeSubjectiveHead(t *testing.T) {
 
 	fakeExchange := NewLocalExchange(remoteStore)
 
-	// we don't the head here and expect syncer to load it himself
+	// we don't load the head here and expect syncer to load it himself
 	localStore, err := NewStore(sync.MutexWrap(datastore.NewMapDatastore()))
 	require.Nil(t, err)
 
