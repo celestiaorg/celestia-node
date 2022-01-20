@@ -79,6 +79,7 @@ func (s *Syncer) wantSync() {
 	}
 }
 
+// mustSync will trigger the syncing loop (blocking).
 func (s *Syncer) mustSync() {
 	select {
 	case s.triggerSync <- struct{}{}:
