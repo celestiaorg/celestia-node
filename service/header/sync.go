@@ -71,6 +71,7 @@ func (s *Syncer) Stop(context.Context) error {
 	return nil
 }
 
+// wantSync will trigger the syncing loop (non-blocking).
 func (s *Syncer) wantSync() {
 	select {
 	case s.triggerSync <- struct{}{}:
