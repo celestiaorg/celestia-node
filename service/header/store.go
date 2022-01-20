@@ -15,9 +15,9 @@ import (
 
 // TODO(@Wondertan): Those values must be configurable and proper defaults should be set for specific node type.
 var (
-	// DefaultStoreCache defines the amount of max entries allowed in the Header Store cache.
+	// DefaultStoreCacheSize defines the amount of max entries allowed in the Header Store cache.
 	DefaultStoreCacheSize = 1024
-	// DefaultIndexCache defines the amount of max entries allowed in the Height to Hash index cache.
+	// DefaultIndexCacheSize defines the amount of max entries allowed in the Height to Hash index cache.
 	DefaultIndexCacheSize = 256
 )
 
@@ -92,7 +92,13 @@ func (s *store) Head(ctx context.Context) (*ExtendedHeader, error) {
 	case datastore.ErrNotFound:
 		return nil, ErrNoHead
 	case nil:
-		return s.Get(ctx, s.head)
+		head, err := s.Get(ctx, s.head)
+		if err != nil {
+			return nil, err
+		}
+
+		log.Infow("loaded head", "height", head.Height, "hash", head.Hash())
+		return head, nil
 	}
 }
 
@@ -261,13 +267,7 @@ func (s *store) loadHead() error {
 		return err
 	}
 
-	err = s.head.UnmarshalJSON(b)
-	if err != nil {
-		return err
-	}
-
-	log.Infow("loaded head", "hash", s.head)
-	return nil
+	return s.head.UnmarshalJSON(b)
 }
 
 // newHead sets a new 'head' and saves it on disk.
