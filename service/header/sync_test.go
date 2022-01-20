@@ -174,7 +174,7 @@ type delayedExchange struct {
 
 func (d *delayedExchange) delay(ctx context.Context) {
 	select {
-	case <-time.After(time.Millisecond*100):
+	case <-time.After(time.Millisecond * 100):
 	case <-ctx.Done():
 	}
 }
@@ -198,4 +198,3 @@ func (d *delayedExchange) RequestByHash(ctx context.Context, hash bytes.HexBytes
 	d.delay(ctx)
 	return d.innner.RequestByHash(ctx, hash)
 }
-

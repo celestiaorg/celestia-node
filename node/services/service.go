@@ -39,6 +39,7 @@ func HeaderSyncer(cfg Config) func(
 		syncer := header.NewSyncer(ex, store, sub, trustedHash)
 		lc.Append(fx.Hook{
 			OnStart: syncer.Start,
+			OnStop:  syncer.Stop,
 		})
 
 		return syncer, nil
