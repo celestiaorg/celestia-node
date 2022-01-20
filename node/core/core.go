@@ -30,7 +30,7 @@ func Components(cfg Config, loader core.RepoLoader) fxutil.Option {
 	return fxutil.Options(
 		fxutil.Provide(core.NewBlockFetcher),
 		fxutil.ProvideAs(header.NewCoreExchange, new(header.Exchange)),
-		fxutil.Provide(HeaderCoreListener),
+		fxutil.Invoke(HeaderCoreListener),
 		fxutil.ProvideIf(cfg.Remote, func() (core.Client, error) {
 			return RemoteClient(cfg)
 		}),
