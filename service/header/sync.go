@@ -18,7 +18,6 @@ import (
 //  automatically and continue sync until know head.
 //  4. Limit amount of requests on server side
 //  5. Sync status and till sync is done.
-//  6. Cache even unverifiable headers from the future, but don't resend them with ignore.
 //  7. Retry requesting headers
 
 // Syncer implements simplest possible synchronization for headers.
@@ -146,6 +145,7 @@ func (s *Syncer) finishSync() {
 	atomic.StoreUint64(&s.inProgress, 0)
 }
 
+// validateMsg implements validation of incoming Headers as PubSub msg validator.
 func (s *Syncer) validateMsg(ctx context.Context, p peer.ID, msg *pubsub.Message) pubsub.ValidationResult {
 	maybeHead, err := UnmarshalExtendedHeader(msg.Data)
 	if err != nil {
@@ -154,11 +154,11 @@ func (s *Syncer) validateMsg(ctx context.Context, p peer.ID, msg *pubsub.Message
 		return pubsub.ValidationReject
 	}
 
-	return s.validate(ctx, p, maybeHead)
+	return s.incoming(ctx, p, maybeHead)
 }
 
-// validate implements validation of incoming Headers and stores them if they are good.
-func (s *Syncer) validate(ctx context.Context, p peer.ID, maybeHead *ExtendedHeader) pubsub.ValidationResult {
+// incoming process new incoming Headers, validates them and applies/caches if applicable.
+func (s *Syncer) incoming(ctx context.Context, p peer.ID, maybeHead *ExtendedHeader) pubsub.ValidationResult {
 	localHead, err := s.store.Head(ctx)
 	if err != nil {
 		log.Errorw("getting local head", "err", err)
@@ -166,16 +166,17 @@ func (s *Syncer) validate(ctx context.Context, p peer.ID, maybeHead *ExtendedHea
 	}
 
 	if maybeHead.Height <= localHead.Height {
-		log.Warnw("rcvd known header", "from", p.ShortString())
+		log.Warnw("known header", "height", maybeHead.Height, "from", p.ShortString())
 		return pubsub.ValidationIgnore // we don't know if header is invalid so ignore
 	}
 
-	// validate that +2/3 of subjective validator set signed the commit and if not - reject
+	// incoming that +2/3 of subjective validator set signed the commit and if not - reject
 	err = Verify(localHead, maybeHead)
 	if err != nil {
 		// our subjective view can be far from objective network head(during sync), so we cannot be sure if header is
-		// 100% invalid due to outdated validator set, thus ValidationIgnore and thus 'possibly malicious'
-		log.Warnw("rcvd possibly malicious header",
+		// 100% invalid due to outdated validator set, thus ValidationIgnore
+		// Potentially, we miss
+		log.Warnw("ignoring header",
 			"err", err, "hash", maybeHead.Hash(), "height", maybeHead.Height, "from", p.ShortString())
 		return pubsub.ValidationIgnore
 	}
@@ -186,6 +187,7 @@ func (s *Syncer) validate(ctx context.Context, p peer.ID, maybeHead *ExtendedHea
 		// and trigger sync to catch-up
 		s.wantSync()
 		// accepted
+		log.Info("new pending header")
 		return pubsub.ValidationAccept
 	}
 
@@ -232,7 +234,7 @@ func (s *Syncer) subjectiveHead(ctx context.Context) (*ExtendedHeader, error) {
 
 // objectiveHead gets the objective network head.
 func (s *Syncer) objectiveHead(ctx context.Context, sbj *ExtendedHeader) (*ExtendedHeader, error) {
-	phead := s.pending.Head()
+	phead := s.pending.PopHead()
 	if phead != nil && phead.Height >= sbj.Height {
 		return phead, nil
 	}
@@ -254,7 +256,7 @@ func (s *Syncer) syncDiff(ctx context.Context, knownHead, newHead *ExtendedHeade
 		}
 
 		headers, err := s.getHeaders(ctx, start, amount)
-		if err != nil {
+		if err != nil && len(headers) == 0 {
 			return err
 		}
 
@@ -263,7 +265,7 @@ func (s *Syncer) syncDiff(ctx context.Context, knownHead, newHead *ExtendedHeade
 			return err
 		}
 
-		start += amount
+		start += uint64(len(headers))
 	}
 
 	return s.store.Append(ctx, newHead)
@@ -298,9 +300,10 @@ func (s *Syncer) getHeaders(ctx context.Context, start, amount uint64) ([]*Exten
 		}
 
 		// fetch the leftovers
-		hs, err := s.exchange.RequestHeaders(ctx, start, start-end)
+		hs, err := s.exchange.RequestHeaders(ctx, start, end-start)
 		if err != nil {
-			return nil, err
+			// still return what was successfully gotten
+			return out, err
 		}
 
 		return append(out, hs...), nil
@@ -319,18 +322,36 @@ func newRanges() *ranges {
 	return new(ranges)
 }
 
+func (rs *ranges) PopHead() *ExtendedHeader {
+	rs.lk.Lock()
+	defer rs.lk.Unlock()
+
+	ln := len(rs.ranges)
+	if ln == 0 {
+		return nil
+	}
+
+	return rs.ranges[ln-1].PopHead()
+}
+
 func (rs *ranges) Head() *ExtendedHeader {
 	rs.lk.Lock()
 	defer rs.lk.Unlock()
-	return rs.head
+
+	ln := len(rs.ranges)
+	if ln == 0 {
+		return nil
+	}
+
+	head := rs.ranges[ln-1]
+	return head.Head()
 }
 
 func (rs *ranges) Add(h *ExtendedHeader) {
-	rs.lk.Lock()
-	defer rs.lk.Unlock()
+	head := rs.Head()
 
 	// short-circuit if header is from the past
-	if rs.head != nil && rs.head.Height >= h.Height {
+	if head != nil && head.Height >= h.Height {
 		// TODO(@Wondertan): Technically, we can still apply the header:
 		//  * Headers here are verified, so we can trust them
 		//  * PubSub does not guarantee the ordering of msgs
@@ -342,8 +363,11 @@ func (rs *ranges) Add(h *ExtendedHeader) {
 		return
 	}
 
+	rs.lk.Lock()
+	defer rs.lk.Unlock()
+
 	// if the new header is adjacent to head
-	if rs.head != nil && h.Height == rs.head.Height+1 {
+	if head != nil && h.Height == head.Height+1 {
 		// append it to the last known range
 		rs.ranges[len(rs.ranges)-1].Append(h)
 	} else {
@@ -354,9 +378,6 @@ func (rs *ranges) Add(h *ExtendedHeader) {
 		// once we start rcving them again we save those in new range
 		// so 'Syncer.getHeaders' can fetch what was missed
 	}
-
-	// we know the new header is higher than head, so it as a new head
-	rs.head = h
 }
 
 func (rs *ranges) NextWithin(start, end uint64) (*_range, bool) {
@@ -411,13 +432,35 @@ func (r *_range) Empty() bool {
 	return len(r.headers) == 0
 }
 
+func (r *_range) Head() *ExtendedHeader {
+	if r.Empty() {
+		return nil
+	}
+	return r.headers[len(r.headers)-1]
+}
+
+func (r *_range) PopHead() *ExtendedHeader {
+	ln := len(r.headers)
+	if ln == 0 {
+		return nil
+	}
+
+	out := r.headers[ln-1]
+	r.headers = r.headers[:ln-1]
+	return out
+}
+
 func (r *_range) Before(end uint64) []*ExtendedHeader {
 	amnt := uint64(len(r.headers))
 	if r.Start+amnt > end {
 		amnt = end - r.Start
 	}
 
-	out := r.headers[:amnt-1]
+	out := r.headers[:amnt]
 	r.headers = r.headers[amnt:]
+	if len(r.headers) != 0 {
+		r.Start = uint64(r.headers[0].Height)
+	}
+
 	return out
 }
