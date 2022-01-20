@@ -2,7 +2,6 @@ package header
 
 import (
 	"context"
-	"sync"
 	"sync/atomic"
 
 	"github.com/libp2p/go-libp2p-core/peer"
@@ -34,7 +33,7 @@ type Syncer struct {
 	triggerSync chan struct{}
 
 	// pending keeps ranges of valid headers rcvd from the network awaiting to be appended to store
-	pending *ranges
+	pending ranges
 
 	ctx    context.Context
 	cancel context.CancelFunc
@@ -48,7 +47,6 @@ func NewSyncer(exchange Exchange, store Store, sub *P2PSubscriber, trusted tmbyt
 		store:       store,
 		trusted:     trusted,
 		triggerSync: make(chan struct{}),
-		pending:     newRanges(),
 	}
 }
 
@@ -64,6 +62,12 @@ func (s *Syncer) Start(context.Context) error {
 	s.ctx, s.cancel = context.WithCancel(context.Background())
 	go s.syncLoop()
 	s.mustSync()
+	return nil
+}
+
+// Stop stops Syncer.
+func (s *Syncer) Stop(context.Context) error {
+	s.cancel()
 	return nil
 }
 
@@ -100,6 +104,7 @@ func (s *Syncer) sync(ctx context.Context) {
 	// when method returns, toggle inProgress off
 	defer s.finishSync()
 	for {
+		// TODO: We need this until https://github.com/celestiaorg/celestia-node/issues/366 is implemented
 		if ctx.Err() != nil {
 			return
 		}
@@ -274,14 +279,14 @@ func (s *Syncer) syncDiff(ctx context.Context, knownHead, newHead *ExtendedHeade
 // getHeaders gets headers from either remote peers or from local cached of headers rcvd by PubSub
 func (s *Syncer) getHeaders(ctx context.Context, start, amount uint64) ([]*ExtendedHeader, error) {
 	// short-circuit if nothing in pending cache to avoid unnecessary allocation below
-	if _, ok := s.pending.NextWithin(start, start+amount); !ok {
+	if _, ok := s.pending.BackWithin(start, start+amount); !ok {
 		return s.exchange.RequestHeaders(ctx, start, amount)
 	}
 
 	end, out := start+amount, make([]*ExtendedHeader, 0, amount)
 	for start < end {
 		// if we have some range cached - use it
-		if r, ok := s.pending.NextWithin(start, end); ok {
+		if r, ok := s.pending.BackWithin(start, end); ok {
 			// first, request everything between start and found range
 			hs, err := s.exchange.RequestHeaders(ctx, start, r.Start-start)
 			if err != nil {
@@ -310,157 +315,4 @@ func (s *Syncer) getHeaders(ctx context.Context, start, amount uint64) ([]*Exten
 	}
 
 	return out, nil
-}
-
-type ranges struct {
-	head   *ExtendedHeader
-	ranges []*_range
-	lk     sync.Mutex // no need for RWMutex as there is only one reader
-}
-
-func newRanges() *ranges {
-	return new(ranges)
-}
-
-func (rs *ranges) PopHead() *ExtendedHeader {
-	rs.lk.Lock()
-	defer rs.lk.Unlock()
-
-	ln := len(rs.ranges)
-	if ln == 0 {
-		return nil
-	}
-
-	return rs.ranges[ln-1].PopHead()
-}
-
-func (rs *ranges) Head() *ExtendedHeader {
-	rs.lk.Lock()
-	defer rs.lk.Unlock()
-
-	ln := len(rs.ranges)
-	if ln == 0 {
-		return nil
-	}
-
-	head := rs.ranges[ln-1]
-	return head.Head()
-}
-
-func (rs *ranges) Add(h *ExtendedHeader) {
-	head := rs.Head()
-
-	// short-circuit if header is from the past
-	if head != nil && head.Height >= h.Height {
-		// TODO(@Wondertan): Technically, we can still apply the header:
-		//  * Headers here are verified, so we can trust them
-		//  * PubSub does not guarantee the ordering of msgs
-		//    * So there might be a case where ordering is broken
-		//    * Even considering the delay(block time) with which new headers are generated
-		//    * But rarely
-		//  Would be still nice to implement
-		log.Warnf("rcvd headers in wrong order")
-		return
-	}
-
-	rs.lk.Lock()
-	defer rs.lk.Unlock()
-
-	// if the new header is adjacent to head
-	if head != nil && h.Height == head.Height+1 {
-		// append it to the last known range
-		rs.ranges[len(rs.ranges)-1].Append(h)
-	} else {
-		// otherwise, start a new range
-		rs.ranges = append(rs.ranges, newRange(h))
-
-		// it is possible to miss a header or few from PubSub, due to quick disconnects or sleep
-		// once we start rcving them again we save those in new range
-		// so 'Syncer.getHeaders' can fetch what was missed
-	}
-}
-
-func (rs *ranges) NextWithin(start, end uint64) (*_range, bool) {
-	r, ok := rs.Next()
-	if !ok {
-		return nil, false
-	}
-
-	if r.Start >= start && r.Start < end {
-		return r, true
-	}
-
-	return nil, false
-}
-
-func (rs *ranges) Next() (*_range, bool) {
-	rs.lk.Lock()
-	defer rs.lk.Unlock()
-
-	for {
-		if len(rs.ranges) == 0 {
-			return nil, false
-		}
-
-		out := rs.ranges[0]
-		if !out.Empty() {
-			return out, true
-		}
-
-		rs.ranges = rs.ranges[1:]
-	}
-}
-
-type _range struct {
-	Start uint64
-
-	headers []*ExtendedHeader
-}
-
-func newRange(h *ExtendedHeader) *_range {
-	return &_range{
-		Start:   uint64(h.Height),
-		headers: []*ExtendedHeader{h},
-	}
-}
-
-func (r *_range) Append(h ...*ExtendedHeader) {
-	r.headers = append(r.headers, h...)
-}
-
-func (r *_range) Empty() bool {
-	return len(r.headers) == 0
-}
-
-func (r *_range) Head() *ExtendedHeader {
-	if r.Empty() {
-		return nil
-	}
-	return r.headers[len(r.headers)-1]
-}
-
-func (r *_range) PopHead() *ExtendedHeader {
-	ln := len(r.headers)
-	if ln == 0 {
-		return nil
-	}
-
-	out := r.headers[ln-1]
-	r.headers = r.headers[:ln-1]
-	return out
-}
-
-func (r *_range) Before(end uint64) []*ExtendedHeader {
-	amnt := uint64(len(r.headers))
-	if r.Start+amnt > end {
-		amnt = end - r.Start
-	}
-
-	out := r.headers[:amnt]
-	r.headers = r.headers[amnt:]
-	if len(r.headers) != 0 {
-		r.Start = uint64(r.headers[0].Height)
-	}
-
-	return out
 }
