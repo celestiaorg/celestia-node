@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"fmt"
 	"time"
+
+	"github.com/tendermint/tendermint/libs/math"
 )
 
 // Verify validates trusted header against untrusted.
@@ -22,12 +24,11 @@ func Verify(trusted, untrusted *ExtendedHeader) error {
 			now)
 	}
 
-	// Ensure that +2/3 of new validators signed correctly.
-	if err := trusted.ValidatorSet.VerifyCommitLight(
+	// Ensure that untrusted commit has 2/3 of trusted commit's power.
+	if err := trusted.ValidatorSet.VerifyCommitLightTrusting(
 		trusted.ChainID,
-		untrusted.Commit.BlockID,
-		untrusted.Height,
 		untrusted.Commit,
+		math.Fraction{Numerator: 2, Denominator: 3},
 	); err != nil {
 		return err
 	}
