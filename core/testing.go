@@ -11,7 +11,7 @@ import (
 	rpctest "github.com/tendermint/tendermint/rpc/test"
 )
 
-var defaultRetainBlocks int64 = 10
+const defaultRetainBlocks int64 = 10
 
 // MockConfig provides a testing configuration for embedded Core Client.
 func MockConfig(t *testing.T) *Config {
