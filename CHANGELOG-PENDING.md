@@ -37,6 +37,7 @@ Month, DD, YYYY
 - [service/block, node/p2p: Fix race conditions in TestExtendedHeaderBroadcast and TestFull_P2P_Streams.](https://github.com/celestiaorg/celestia-node/pull/288) [@jenyasd209](https://github.com/jenyasd209)
 - [ci: increase tokens ratio for dupl to fix false positive scenarios](https://github.com/celestiaorg/celestia-node/pull/314) [@Bidon15](https://github.com/Bidon15)
 - [node: Wrap datastore with mutex to prevent data race](https://github.com/celestiaorg/celestia-node/pull/325) [@Bidon15](https://github.com/Bidon15)
+- [ci: update Docker entrypoint.sh to use new `store.path` flag name](https://github.com/celestiaorg/celestia-node/pull/337) [@jbowen93](https://github.com/jbowen93)
 
 ### MISCELLANEOUS
 
@@ -44,4 +45,3 @@ Month, DD, YYYY
 - [workflows/lint: update golangci-lint to v1.43 #308](https://github.com/celestiaorg/celestia-node/pull/308) [@Wondertan](https://github.com/Wondertan)
 - [feat(node): extract overrides from Config into Settings #292](https://github.com/celestiaorg/celestia-node/pull/292) [@Wondertan](https://github.com/Wondertan)
 - [node: fix naming of the test from full to bridge](https://github.com/celestiaorg/celestia-node/pull/341) [@Bidon15](https://github.com/Bidon15)
-
