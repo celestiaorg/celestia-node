@@ -61,7 +61,7 @@ func VerifyNonAdjacent(trst, untrst *ExtendedHeader) error {
 // VerifyAdjacent validates adjacent untrusted header against trusted.
 func VerifyAdjacent(trst, untrst *ExtendedHeader) error {
 	if untrst.Height != trst.Height+1 {
-		return &VerifyError{fmt.Errorf("headers must be adjacent in height")}
+		return ErrNonAdjacent
 	}
 
 	if untrst.ChainID != trst.ChainID {
