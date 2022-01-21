@@ -171,6 +171,8 @@ func (s *store) Append(ctx context.Context, headers ...*ExtendedHeader) error {
 	default:
 		return err
 	case ErrNoHead:
+		// TODO(@Wondertan): Should be a separate Init method instead
+
 		// trust the given header as the initial head
 		err = s.put(headers...)
 		if err != nil {
@@ -189,25 +191,25 @@ func (s *store) Append(ctx context.Context, headers ...*ExtendedHeader) error {
 	}
 
 	verified := make([]*ExtendedHeader, 0, lh)
-	for _, h := range headers {
+	for i, h := range headers {
+		// TODO(@Wondertan): If two headers are on the same height, but have different hashes
+		//  halt the node(https://github.com/celestiaorg/celestia-node/issues/365)
 		if head.Height == h.Height && bytes.Equal(head.Hash(), h.Hash()) {
 			log.Warnw("duplicate header", "hash", head.Hash())
 			continue
 		}
-		// TODO(@Wondertan): Fork choice rule - if two headers are on the same height, but have different hashes
-		//  halt the node(https://github.com/celestiaorg/celestia-node/issues/365)
 
 		err = VerifyAdjacent(head, h)
 		if err != nil {
+			if i == 0 {
+				return err
+			}
+
 			log.Errorw("invalid header", "current head", head.Hash(), "height",
 				head.Height, "attempted new header", h.Hash(), "height", h.Height, "err", err)
 			break // if some headers are cryptographically valid, why not include them? Exactly, so let's include
 		}
 		verified, head = append(verified, h), h
-	}
-	if len(verified) == 0 {
-		log.Warn("header/store: no valid headers were given")
-		return nil
 	}
 
 	err = s.put(verified...)

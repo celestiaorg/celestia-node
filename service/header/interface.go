@@ -52,8 +52,11 @@ var (
 	// ErrNotFound is returned when there is no requested header.
 	ErrNotFound = errors.New("header: not found")
 
-	// ErrNoHead is returned when Store does not contain Head of the chain,
+	// ErrNoHead is returned when Store does not contain Head of the chain.
 	ErrNoHead = fmt.Errorf("header/store: no chain head")
+
+	// ErrNonAdjacent is returned when Store is appended with a header not adjacent to the stored head.
+	ErrNonAdjacent = fmt.Errorf("header/store: non-adjacent")
 )
 
 // Store encompasses the behavior necessary to store and retrieve ExtendedHeaders
