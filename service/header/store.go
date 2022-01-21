@@ -1,8 +1,8 @@
 package header
 
 import (
-	"bytes"
 	"context"
+	"errors"
 	"strconv"
 	"sync"
 
@@ -192,22 +192,21 @@ func (s *store) Append(ctx context.Context, headers ...*ExtendedHeader) error {
 
 	verified := make([]*ExtendedHeader, 0, lh)
 	for i, h := range headers {
-		// TODO(@Wondertan): If two headers are on the same height, but have different hashes
-		//  halt the node(https://github.com/celestiaorg/celestia-node/issues/365)
-		if head.Height == h.Height && bytes.Equal(head.Hash(), h.Hash()) {
-			log.Warnw("duplicate header", "hash", head.Hash())
-			continue
-		}
-
 		err = VerifyAdjacent(head, h)
 		if err != nil {
 			if i == 0 {
 				return err
 			}
 
-			log.Errorw("invalid header", "current head", head.Hash(), "height",
-				head.Height, "attempted new header", h.Hash(), "height", h.Height, "err", err)
-			break // if some headers are cryptographically valid, why not include them? Exactly, so let's include
+			var verErr *VerifyError
+			if errors.As(err, &verErr) {
+				log.Errorw("invalid header",
+					"current height", head.Height,
+					"height", head.Height,
+					"hash", h.Hash(),
+					"reason", err)
+				break
+			}
 		}
 		verified, head = append(verified, h), h
 	}
