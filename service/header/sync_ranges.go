@@ -2,8 +2,8 @@ package header
 
 import "sync"
 
-// ranges keep non-overlapping and non-adjacent header ranges which used to cache headers
-// Always in ascending heights order
+// ranges keeps non-overlapping and non-adjacent header ranges which are used to cache headers (in ascending order).
+// This prevents unnecessary / duplicate network requests for additional headers during sync.
 type ranges struct {
 	ranges []*_range
 	lk     sync.Mutex // no need for RWMutex as there is only one reader
