@@ -14,14 +14,14 @@ import (
 )
 
 /*
-Test-Case: Sync a Light Client with a Bridge Node
+Test-Case: Sync a Light Node with a Bridge Node
 Steps:
-1. Create a bridge node(BN)
+1. Create a Bridge Node(BN)
 2. Start a BN
 3. Check BN is synced
-4. Create a Light Client(LC) with a trusted peer
-5. Start a LC with a defined connection to the BN
-6. Check LC is synced with BN
+4. Create a Light Node(LN) with a trusted peer
+5. Start a LN with a defined connection to the BN
+6. Check LN is synced with BN
 */
 func TestSyncLightWithBridge(t *testing.T) {
 	sw := NewSwamp(t)
@@ -31,7 +31,7 @@ func TestSyncLightWithBridge(t *testing.T) {
 
 	state := bridge.CoreClient.IsRunning()
 	require.True(t, state)
-	sw.WaitTillHeight(20)
+	sw.WaitTillHeight(ctx, 20)
 
 	err := bridge.Start(ctx)
 	require.NoError(t, err)
@@ -40,7 +40,7 @@ func TestSyncLightWithBridge(t *testing.T) {
 
 	addrs, err := peer.AddrInfoToP2pAddrs(host.InfoFromHost(sw.Network.Host(bridge.Host.ID())))
 	require.NoError(t, err)
-	light := sw.NewLightClient(node.WithTrustedPeer(addrs[0].String()))
+	light := sw.NewLightNode(node.WithTrustedPeer(addrs[0].String()))
 
 	require.NoError(t, sw.Network.LinkAll())
 	err = light.Start(ctx)
@@ -48,4 +48,7 @@ func TestSyncLightWithBridge(t *testing.T) {
 
 	time.Sleep(1 * time.Second)
 	assert.False(t, light.HeaderServ.IsSyncing())
+
+	require.NoError(t, bridge.Stop(ctx))
+	require.NoError(t, light.Stop(ctx))
 }

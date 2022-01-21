@@ -22,20 +22,18 @@ import (
 
 var blackholeIP6 = net.ParseIP("100::")
 
-// TODO(@Bidon15): Issue #350
-
 // Swamp represents the main functionality that is needed for the test-case:
 // - Network to link the nodes
 // - CoreClient to share between Bridge nodes
-// - Slices of created Bridge Nodes / Light Clients
+// - Slices of created Bridge/Light Nodes
 // - trustedHash taken from the CoreClient and shared between nodes
 type Swamp struct {
-	t            *testing.T
-	Network      mocknet.Mocknet
-	CoreClient   core.Client
-	BridgeNodes  []*node.Node
-	LightClients []*node.Node
-	trustedHash  string
+	t           *testing.T
+	Network     mocknet.Mocknet
+	CoreClient  core.Client
+	BridgeNodes []*node.Node
+	LightNodes  []*node.Node
+	trustedHash string
 }
 
 // NewSwamp creates a new instance of Swamp.
@@ -52,9 +50,12 @@ func NewSwamp(t *testing.T) *Swamp {
 
 	coreNode.Config().Consensus.CreateEmptyBlocksInterval = 200 * time.Millisecond
 
-	core := core.NewEmbeddedFromNode(coreNode)
+	swp := &Swamp{
+		t:          t,
+		Network:    mocknet.New(ctx),
+		CoreClient: core.NewEmbeddedFromNode(coreNode),
+	}
 
-	swp := &Swamp{t: t, Network: mocknet.New(ctx), CoreClient: core}
 	swp.trustedHash = swp.getTrustedHash(ctx)
 
 	return swp
@@ -62,11 +63,11 @@ func NewSwamp(t *testing.T) *Swamp {
 
 // WaitTillHeight holds the test execution until the given amount of blocks
 // have been produced by the CoreClient.
-func (s *Swamp) WaitTillHeight(height int64) {
+func (s *Swamp) WaitTillHeight(ctx context.Context, height int64) {
 	require.Greater(s.t, height, int64(0))
 
 	bf := core.NewBlockFetcher(s.CoreClient)
-	blocks, err := bf.SubscribeNewBlockEvent(context.TODO())
+	blocks, err := bf.SubscribeNewBlockEvent(ctx)
 	require.NoError(s.t, err)
 
 	for {
@@ -76,7 +77,7 @@ func (s *Swamp) WaitTillHeight(height int64) {
 		}
 	}
 
-	err = bf.UnsubscribeNewBlockEvent(context.TODO())
+	err = bf.UnsubscribeNewBlockEvent(ctx)
 	require.NoError(s.t, err)
 }
 
@@ -145,9 +146,9 @@ func (s *Swamp) NewBridgeNode(options ...node.Option) *node.Node {
 	return node
 }
 
-// NewLightClient creates a new instance of LightClient. Afterwards,
-// the instance is store in the swamp's LightClients slice
-func (s *Swamp) NewLightClient(options ...node.Option) *node.Node {
+// NewLightNode creates a new instance of LightClient. Afterwards,
+// the instance is store in the swamp's LightNodes slice
+func (s *Swamp) NewLightNode(options ...node.Option) *node.Node {
 	cfg := node.DefaultConfig(node.Light)
 	store := node.MockStore(s.t, cfg)
 
@@ -164,6 +165,6 @@ func (s *Swamp) NewLightClient(options ...node.Option) *node.Node {
 
 	node, err := node.New(node.Light, store, options...)
 	require.NoError(s.t, err)
-	s.LightClients = append(s.LightClients, node)
+	s.LightNodes = append(s.LightNodes, node)
 	return node
 }

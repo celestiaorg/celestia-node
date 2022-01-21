@@ -20,9 +20,9 @@ jobs:
         with:
           go-version: ${{ matrix.go }}
       - name: Tests
-        run: make test
+        run: make test-unit
       - name: Tests with Race Detector
-        run: make test-race
+        run: make test-unit-race
   integration_test:
     name: Run Integration Tests
     runs-on: ubuntu-latest
