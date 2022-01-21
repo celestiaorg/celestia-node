@@ -9,19 +9,6 @@ type ranges struct {
 	lk     sync.Mutex // no need for RWMutex as there is only one reader
 }
 
-// PopHead pops and returns the highest ExtendedHeader in all ranges if any.
-func (rs *ranges) PopHead() *ExtendedHeader {
-	rs.lk.Lock()
-	defer rs.lk.Unlock()
-
-	ln := len(rs.ranges)
-	if ln == 0 {
-		return nil
-	}
-
-	return rs.ranges[ln-1].PopHead()
-}
-
 // Head returns the highest ExtendedHeader in all ranges if any.
 func (rs *ranges) Head() *ExtendedHeader {
 	rs.lk.Lock()
@@ -105,8 +92,8 @@ func (rs *ranges) Back() (*_range, bool) {
 }
 
 type _range struct {
-	Start uint64
-
+	Start   uint64
+	lk      sync.Mutex // no need for RWMutex as there is only one reader
 	headers []*ExtendedHeader
 }
 
@@ -119,36 +106,34 @@ func newRange(h *ExtendedHeader) *_range {
 
 // Append appends new headers.
 func (r *_range) Append(h ...*ExtendedHeader) {
+	r.lk.Lock()
 	r.headers = append(r.headers, h...)
+	r.lk.Unlock()
 }
 
 // Empty reports if range is empty.
 func (r *_range) Empty() bool {
+	r.lk.Lock()
+	defer r.lk.Unlock()
 	return len(r.headers) == 0
 }
 
 // Head reports the head of range if any.
 func (r *_range) Head() *ExtendedHeader {
-	if r.Empty() {
-		return nil
-	}
-	return r.headers[len(r.headers)-1]
-}
-
-// PopHead pops and returns the head of range if any.
-func (r *_range) PopHead() *ExtendedHeader {
+	r.lk.Lock()
+	defer r.lk.Unlock()
 	ln := len(r.headers)
 	if ln == 0 {
 		return nil
 	}
-
-	out := r.headers[ln-1]
-	r.headers = r.headers[:ln-1]
-	return out
+	return r.headers[ln-1]
 }
 
 // Before cuts off all the headers before height 'end' and returns them.
 func (r *_range) Before(end uint64) []*ExtendedHeader {
+	r.lk.Lock()
+	defer r.lk.Unlock()
+
 	amnt := uint64(len(r.headers))
 	if r.Start+amnt > end {
 		amnt = end - r.Start
@@ -159,6 +144,5 @@ func (r *_range) Before(end uint64) []*ExtendedHeader {
 	if len(r.headers) != 0 {
 		r.Start = uint64(r.headers[0].Height)
 	}
-
 	return out
 }
