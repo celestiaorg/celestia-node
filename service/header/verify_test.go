@@ -23,12 +23,6 @@ func TestVerifyAdjacent(t *testing.T) {
 		},
 		{
 			prepare: func() {
-				untrusted.Commit.Signatures[0].Signature = nil
-			},
-			err: true,
-		},
-		{
-			prepare: func() {
 				untrusted.ValidatorsHash = tmrand.Bytes(32)
 			},
 			err: true,
