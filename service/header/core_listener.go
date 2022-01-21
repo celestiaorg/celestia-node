@@ -93,9 +93,8 @@ func (cl *CoreListener) listen(ctx context.Context, sub <-chan *types.Block) {
 				} else {
 					log.Errorw("core-listener: broadcasting next header", "height", eh.Height,
 						"err", err)
+					return
 				}
-
-				return
 			}
 		case <-ctx.Done():
 			return
