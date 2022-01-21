@@ -1,4 +1,4 @@
-package build
+package params
 
 // Bootstrappers reports multiaddresses of bootstrap peers for the node's current network.
 func Bootstrappers() []string {

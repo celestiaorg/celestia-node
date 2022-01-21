@@ -1,4 +1,4 @@
-package build
+package params
 
 // Genesis reports a hash of a genesis block for the current network.
 func Genesis() string {
