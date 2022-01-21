@@ -35,8 +35,8 @@ var networksList = map[Network]struct{}{
 	DevNet: {},
 }
 
-// A used network within a build.
-// Can be set with 'ldflags'
+// network is the currently used network within a build.
+// It can be set with 'ldflags'.
 var network Network
 
 // init ensures `network` is always set and correct
