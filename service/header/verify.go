@@ -102,5 +102,5 @@ type VerifyError struct {
 }
 
 func (vr *VerifyError) Error() string {
-	return vr.Reason.Error()
+	return fmt.Sprintf("header: verify: %s", vr.Reason.Error())
 }
