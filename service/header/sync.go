@@ -2,6 +2,8 @@ package header
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"sync/atomic"
 
 	"github.com/libp2p/go-libp2p-core/peer"
@@ -10,7 +12,7 @@ import (
 	tmbytes "github.com/tendermint/tendermint/libs/bytes"
 )
 
-// Syncer implements simplest possible synchronization for headers.
+// Syncer implements efficient synchronization for headers.
 type Syncer struct {
 	sub      *P2PSubscriber
 	exchange Exchange
@@ -42,12 +44,18 @@ func NewSyncer(exchange Exchange, store Store, sub *P2PSubscriber, trusted tmbyt
 }
 
 // Start starts the syncing routine.
-func (s *Syncer) Start(context.Context) error {
+func (s *Syncer) Start(ctx context.Context) error {
 	if s.sub != nil {
 		err := s.sub.AddValidator(s.validateMsg)
 		if err != nil {
 			return err
 		}
+	}
+
+	// TODO(@Wondertan): Ideally, this initialization should be part of Init process
+	err := s.initStore(ctx)
+	if err != nil {
+		log.Error(err)
 	}
 
 	s.ctx, s.cancel = context.WithCancel(context.Background())
@@ -60,6 +68,63 @@ func (s *Syncer) Start(context.Context) error {
 func (s *Syncer) Stop(context.Context) error {
 	s.cancel()
 	return nil
+}
+
+// IsSyncing returns the current sync status of the Syncer.
+func (s *Syncer) IsSyncing() bool {
+	return atomic.LoadUint64(&s.inProgress) == 1
+}
+
+// init initializes if it's empty
+func (s *Syncer) initStore(ctx context.Context) error {
+	_, err := s.store.Head(ctx)
+	switch err {
+	case ErrNoHead:
+		// if there is no head - request header at trusted hash.
+		trusted, err := s.exchange.RequestByHash(ctx, s.trusted)
+		if err != nil {
+			return fmt.Errorf("header: requesting header at trusted hash during init: %w", err)
+		}
+
+		err = s.store.Append(ctx, trusted)
+		if err != nil {
+			return fmt.Errorf("header: appending header during init: %w", err)
+		}
+	case nil:
+	}
+
+	return nil
+}
+
+// trustedHead returns the highest known trusted header which is a valid header with time within the trusting period.
+func (s *Syncer) trustedHead(ctx context.Context) (*ExtendedHeader, error) {
+	// check pending for trusted header and return it if applicable
+	// NOTE: Pending cannot be expired, guaranteed
+	pendHead := s.pending.Head()
+	if pendHead != nil {
+		return pendHead, nil
+	}
+
+	sbj, err := s.store.Head(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	// check if our subjective header is not expired and use it
+	if !IsExpired(sbj) {
+		return sbj, nil
+	}
+
+	// otherwise, request head from a trustedPeer or, in other words, do automatic subjective initialization
+	objHead, err := s.exchange.RequestHead(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	if objHead.Height > sbj.Height {
+		s.pending.Add(objHead)
+	}
+	return objHead, nil
 }
 
 // wantSync will trigger the syncing loop (non-blocking).
@@ -89,58 +154,26 @@ func (s *Syncer) syncLoop() {
 	}
 }
 
-// Sync syncs all headers up to the latest known header in the network.
+// sync ensures we are synced up to any trusted header.
 func (s *Syncer) sync(ctx context.Context) {
-	log.Info("syncing headers")
 	// indicate syncing
-	s.syncInProgress()
-	// when method returns, toggle inProgress off
-	defer s.finishSync()
-	for {
-		// TODO: We need this until https://github.com/celestiaorg/celestia-node/issues/366 is implemented
-		if ctx.Err() != nil {
-			return
-		}
-
-		sbjHead, err := s.subjectiveHead(ctx)
-		if err != nil {
-			log.Errorw("getting subjective head", "err", err)
-			return
-		}
-
-		objHead, err := s.objectiveHead(ctx, sbjHead)
-		if err != nil {
-			log.Errorw("getting objective head", "err", err)
-			return
-		}
-
-		if sbjHead.Height >= objHead.Height {
-			// we are now synced
-			log.Info("synced headers")
-			return
-		}
-
-		err = s.syncDiff(ctx, sbjHead, objHead)
-		if err != nil {
-			log.Errorw("syncing headers", "err", err)
-			return
-		}
-	}
-}
-
-// IsSyncing returns the current sync status of the Syncer.
-func (s *Syncer) IsSyncing() bool {
-	return atomic.LoadUint64(&s.inProgress) == 1
-}
-
-// syncInProgress indicates Syncer's sync status is in progress.
-func (s *Syncer) syncInProgress() {
 	atomic.StoreUint64(&s.inProgress, 1)
-}
+	// indicate syncing is stopped
+	defer atomic.StoreUint64(&s.inProgress, 0)
 
-// finishSync indicates Syncer's sync status as no longer in progress.
-func (s *Syncer) finishSync() {
-	atomic.StoreUint64(&s.inProgress, 0)
+	trstHead, err := s.trustedHead(ctx)
+	if err != nil {
+		log.Errorw("getting trusted head", "err", err)
+		return
+	}
+
+	log.Info("syncing headers")
+	err = s.syncTo(ctx, trstHead)
+	if err != nil {
+		log.Errorw("syncing headers", "err", err)
+		return
+	}
+	log.Info("synced headers")
 }
 
 // validateMsg implements validation of incoming Headers as PubSub msg validator.
@@ -157,104 +190,83 @@ func (s *Syncer) validateMsg(ctx context.Context, p peer.ID, msg *pubsub.Message
 
 // incoming process new incoming Headers, validates them and applies/caches if applicable.
 func (s *Syncer) incoming(ctx context.Context, p peer.ID, maybeHead *ExtendedHeader) pubsub.ValidationResult {
-	localHead, err := s.store.Head(ctx)
-	if err != nil {
-		log.Errorw("getting local head", "err", err)
-		return pubsub.ValidationIgnore // we don't know if header is invalid so ignore
-	}
+	// 1. Try to append. If header is not adjacent/from future - try it for pending cache below
+	err := s.store.Append(ctx, maybeHead)
+	if err == nil {
+		return pubsub.ValidationAccept
+	} else if err != ErrNonAdjacent {
+		var verErr *VerifyError
+		if errors.As(err, &verErr) {
+			log.Errorw("invalid header",
+				"height", maybeHead.Height,
+				"hash", maybeHead.Hash(),
+				"reason", verErr.Reason,
+				"from", p.ShortString())
+			return pubsub.ValidationReject
+		}
 
-	if maybeHead.Height <= localHead.Height {
-		log.Warnw("known header", "height", maybeHead.Height, "from", p.ShortString())
-		return pubsub.ValidationIgnore // we don't know if header is invalid so ignore
-	}
-
-	// incoming that +2/3 of subjective validator set signed the commit and if not - reject
-	err = Verify(localHead, maybeHead)
-	if err != nil {
-		// our subjective view can be far from objective network head(during sync), so we cannot be sure if header is
-		// 100% invalid due to outdated validator set, thus ValidationIgnore
-		// Potentially, we miss
-		log.Warnw("ignoring header",
-			"err", err, "hash", maybeHead.Hash(), "height", maybeHead.Height, "from", p.ShortString())
+		log.Errorw("appending header",
+			"height", maybeHead.Height,
+			"hash", maybeHead.Hash().String(),
+			"from", p.ShortString())
+		// might be a storage error or something else, so ignore
 		return pubsub.ValidationIgnore
 	}
 
-	if maybeHead.Height > localHead.Height+1 {
-		// we might be missing some headers, so save verified header to pending cache
-		s.pending.Add(maybeHead)
-		// and trigger sync to catch-up
-		s.wantSync()
-		// accepted
-		log.Info("new pending header")
-		return pubsub.ValidationAccept
+	// 2. Get known trusted head pending to be synced
+	trstHead, err := s.trustedHead(ctx)
+	if err != nil {
+		log.Errorw("getting trusted head", "err", err)
+		return pubsub.ValidationIgnore // we don't know if header is invalid so ignore
 	}
 
-	// at this point we reliably know 'maybeHead' is adjacent to 'localHead' so append
-	err = s.store.Append(ctx, maybeHead)
-	if err != nil {
-		log.Errorw("appending store with header from PubSub",
-			"hash", maybeHead.Hash().String(), "height", maybeHead.Height, "peer", p.ShortString())
+	// 3. Filter out maybeHead if behind trusted
+	if maybeHead.Height <= trstHead.Height {
+		log.Warnw("received known header",
+			"height", maybeHead.Height,
+			"hash", maybeHead.Hash(),
+			"from", p.ShortString())
 
-		// TODO(@Wondertan): We need to be sure that the error is actually validation error.
-		//  Rejecting msgs due to storage error is not good, but for now that's fine.
+		// TODO(@Wondertan): Remove once duplicates are fully fixed
+		log.Warnf("Ignore the warn above - there is a known issue with duplicate headers on the network.")
+		return pubsub.ValidationIgnore // we don't know if header is invalid so ignore
+	}
+
+	// 4. Verify maybeHead against trusted
+	err = VerifyNonAdjacent(trstHead, maybeHead)
+	var verErr *VerifyError
+	if errors.As(err, &verErr) {
+		log.Errorw("invalid header",
+			"height", maybeHead.Height,
+			"hash", maybeHead.Hash(),
+			"reason", verErr.Reason,
+			"from", p.ShortString())
 		return pubsub.ValidationReject
 	}
 
-	// we are good to go
+	// 5. Save verified header to pending cache
+	s.pending.Add(maybeHead)
+	// and trigger sync to catch-up
+	s.wantSync()
+	log.Infow("new pending head",
+		"height", maybeHead.Height,
+		"hash", maybeHead.Hash(),
+		"from", p.ShortString())
 	return pubsub.ValidationAccept
-}
-
-// subjectiveHead tries to get head locally and if it does not exist, requests it by trusted hash.
-func (s *Syncer) subjectiveHead(ctx context.Context) (*ExtendedHeader, error) {
-	head, err := s.store.Head(ctx)
-	switch err {
-	case nil:
-		return head, nil
-	case ErrNoHead:
-		// if there is no head - request header at trusted hash.
-		trusted, err := s.exchange.RequestByHash(ctx, s.trusted)
-		if err != nil {
-			log.Errorw("requesting header at trusted hash", "err", err)
-			return nil, err
-		}
-
-		err = s.store.Append(ctx, trusted)
-		if err != nil {
-			log.Errorw("appending header at trusted hash to store", "err", err)
-			return nil, err
-		}
-
-		return trusted, nil
-	}
-
-	return nil, err
-}
-
-// objectiveHead gets the objective network head.
-func (s *Syncer) objectiveHead(ctx context.Context, sbj *ExtendedHeader) (*ExtendedHeader, error) {
-	pendHead := s.pending.Head()
-	if pendHead != nil && pendHead.Height >= sbj.Height {
-		return pendHead, nil
-	}
-
-	objHead, err := s.exchange.RequestHead(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	if objHead.Height > sbj.Height {
-		s.pending.Add(objHead)
-	}
-	return objHead, nil
 }
 
 // TODO(@Wondertan): Number of headers that can be requested at once. Either make this configurable or,
 //  find a proper rationale for constant.
 var requestSize uint64 = 256
 
-// syncDiff requests headers from knownHead up to new head.
-func (s *Syncer) syncDiff(ctx context.Context, knownHead, newHead *ExtendedHeader) error {
-	start, end := uint64(knownHead.Height+1), uint64(newHead.Height)
+// syncTo requests headers from locally stored head up to the new head.
+func (s *Syncer) syncTo(ctx context.Context, newHead *ExtendedHeader) error {
+	head, err := s.store.Head(ctx)
+	if err != nil {
+		return err
+	}
+
+	start, end := uint64(head.Height)+1, uint64(newHead.Height)
 	for start <= end {
 		amount := end - start + 1
 		if amount > requestSize {

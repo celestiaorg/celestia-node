@@ -10,10 +10,9 @@ import (
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/tendermint/tendermint/libs/bytes"
 )
 
-func TestSyncSimple(t *testing.T) {
+func TestSyncSimpleRequestingHead(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -32,8 +31,16 @@ func TestSyncSimple(t *testing.T) {
 	require.Nil(t, err)
 
 	requestSize = 13 // just some random number
+
+	// this way we force local head of Syncer to expire, so it requests a new one from trusted peer
+	TrustingPeriod = time.Microsecond
+
 	syncer := NewSyncer(fakeExchange, localStore, nil, head.Hash())
-	syncer.sync(ctx) // manually init blocking sync instead of Start
+	err = syncer.Start(ctx)
+	require.Nil(t, err)
+
+	// TODO(@Wondertan): Async blocking instead of sleep
+	time.Sleep(time.Second)
 
 	exp, err := remoteStore.Head(ctx)
 	require.Nil(t, err)
@@ -41,9 +48,13 @@ func TestSyncSimple(t *testing.T) {
 	have, err := localStore.Head(ctx)
 	require.Nil(t, err)
 	assert.Equal(t, exp.Height, have.Height)
+	assert.Empty(t, syncer.pending.Head())
 }
 
-func TestSyncerInitializeSubjectiveHead(t *testing.T) {
+func TestSyncerInitStore(t *testing.T) {
+	// this way we force local head of Syncer to expire, so it requests a new one from trusted peer
+	TrustingPeriod = time.Microsecond
+
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -63,7 +74,11 @@ func TestSyncerInitializeSubjectiveHead(t *testing.T) {
 	require.Nil(t, err)
 
 	syncer := NewSyncer(fakeExchange, localStore, nil, head.Hash())
-	syncer.sync(ctx) // manually init blocking sync instead of Start
+	err = syncer.Start(ctx)
+	require.Nil(t, err)
+
+	// TODO(@Wondertan): Async blocking instead of sleep
+	time.Sleep(time.Second)
 
 	exp, err := remoteStore.Head(ctx)
 	require.Nil(t, err)
@@ -71,6 +86,7 @@ func TestSyncerInitializeSubjectiveHead(t *testing.T) {
 	have, err := localStore.Head(ctx)
 	require.Nil(t, err)
 	assert.Equal(t, exp.Height, have.Height)
+	assert.Empty(t, syncer.pending.Head())
 }
 
 func TestSyncCatchUp(t *testing.T) {
@@ -112,6 +128,7 @@ func TestSyncCatchUp(t *testing.T) {
 
 	// 4. assert syncer caught-up
 	assert.Equal(t, exp.Height+1, have.Height) // plus one as we didn't add last header to remoteStore
+	assert.Empty(t, syncer.pending.Head())
 }
 
 func TestSyncPendingRangesWithMisses(t *testing.T) {
@@ -129,11 +146,11 @@ func TestSyncPendingRangesWithMisses(t *testing.T) {
 	localStore, err := NewStoreWithHead(sync.MutexWrap(datastore.NewMapDatastore()), head)
 	require.Nil(t, err)
 
-	syncer := NewSyncer(&delayedExchange{fakeExchange}, localStore, nil, head.Hash())
+	syncer := NewSyncer(fakeExchange, localStore, nil, head.Hash())
 	err = syncer.Start(ctx)
 	require.Nil(t, err)
 
-	// miss 1
+	// miss 1 (helps to test that Syncer properly requests missed Headers from Exchange)
 	err = remoteStore.Append(ctx, suite.GenExtendedHeaders(1)...)
 	require.Nil(t, err)
 
@@ -149,13 +166,13 @@ func TestSyncPendingRangesWithMisses(t *testing.T) {
 	err = remoteStore.Append(ctx, range2...)
 	require.Nil(t, err)
 
+	// manually add to pending
 	for _, h := range append(range1, range2...) {
-		res := syncer.incoming(ctx, "", h)
-		assert.Equal(t, pubsub.ValidationAccept, res)
+		syncer.pending.Add(h)
 	}
 
-	// TODO(@Wondertan): Async blocking instead of sleep
-	time.Sleep(time.Second)
+	// and fire app a sync
+	syncer.sync(ctx)
 
 	exp, err := remoteStore.Head(ctx)
 	require.Nil(t, err)
@@ -164,37 +181,5 @@ func TestSyncPendingRangesWithMisses(t *testing.T) {
 	require.Nil(t, err)
 
 	assert.Equal(t, exp.Height, have.Height)
-	assert.Empty(t, syncer.pending.Head())
-}
-
-// delayedExchange prevents sync from finishing instantly
-type delayedExchange struct {
-	innner Exchange
-}
-
-func (d *delayedExchange) delay(ctx context.Context) {
-	select {
-	case <-time.After(time.Millisecond * 100):
-	case <-ctx.Done():
-	}
-}
-
-func (d *delayedExchange) RequestHead(ctx context.Context) (*ExtendedHeader, error) {
-	d.delay(ctx)
-	return d.innner.RequestHead(ctx)
-}
-
-func (d *delayedExchange) RequestHeader(ctx context.Context, height uint64) (*ExtendedHeader, error) {
-	d.delay(ctx)
-	return d.innner.RequestHeader(ctx, height)
-}
-
-func (d *delayedExchange) RequestHeaders(ctx context.Context, origin, amount uint64) ([]*ExtendedHeader, error) {
-	d.delay(ctx)
-	return d.innner.RequestHeaders(ctx, origin, amount)
-}
-
-func (d *delayedExchange) RequestByHash(ctx context.Context, hash bytes.HexBytes) (*ExtendedHeader, error) {
-	d.delay(ctx)
-	return d.innner.RequestByHash(ctx, hash)
+	assert.Empty(t, syncer.pending.Head()) // assert all cache from pending is used
 }
