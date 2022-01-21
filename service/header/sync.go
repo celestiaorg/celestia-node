@@ -245,6 +245,7 @@ func (s *Syncer) incoming(ctx context.Context, p peer.ID, maybeHead *ExtendedHea
 	}
 
 	// 5. Save verified header to pending cache
+	// NOTE: Pending cache can't be DOSed as we verify above each header against a trusted one.
 	s.pending.Add(maybeHead)
 	// and trigger sync to catch-up
 	s.wantSync()
