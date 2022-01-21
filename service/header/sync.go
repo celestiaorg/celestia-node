@@ -232,12 +232,20 @@ func (s *Syncer) subjectiveHead(ctx context.Context) (*ExtendedHeader, error) {
 
 // objectiveHead gets the objective network head.
 func (s *Syncer) objectiveHead(ctx context.Context, sbj *ExtendedHeader) (*ExtendedHeader, error) {
-	phead := s.pending.PopHead()
-	if phead != nil && phead.Height >= sbj.Height {
-		return phead, nil
+	pendHead := s.pending.Head()
+	if pendHead != nil && pendHead.Height >= sbj.Height {
+		return pendHead, nil
 	}
 
-	return s.exchange.RequestHead(ctx)
+	objHead, err := s.exchange.RequestHead(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	if objHead.Height > sbj.Height {
+		s.pending.Add(objHead)
+	}
+	return objHead, nil
 }
 
 // TODO(@Wondertan): Number of headers that can be requested at once. Either make this configurable or,
@@ -247,8 +255,8 @@ var requestSize uint64 = 256
 // syncDiff requests headers from knownHead up to new head.
 func (s *Syncer) syncDiff(ctx context.Context, knownHead, newHead *ExtendedHeader) error {
 	start, end := uint64(knownHead.Height+1), uint64(newHead.Height)
-	for start < end {
-		amount := end - start
+	for start <= end {
+		amount := end - start + 1
 		if amount > requestSize {
 			amount = requestSize
 		}
@@ -266,7 +274,7 @@ func (s *Syncer) syncDiff(ctx context.Context, knownHead, newHead *ExtendedHeade
 		start += uint64(len(headers))
 	}
 
-	return s.store.Append(ctx, newHead)
+	return nil
 }
 
 // getHeaders gets headers from either remote peers or from local cached of headers rcvd by PubSub
