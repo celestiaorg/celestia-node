@@ -83,20 +83,22 @@ func (s *Swamp) WaitTillHeight(ctx context.Context, height int64) {
 	blocks, err := bf.SubscribeNewBlockEvent(ctx)
 	require.NoError(s.t, err)
 
-Loop:
+	defer func() {
+		err = bf.UnsubscribeNewBlockEvent(ctx)
+		require.NoError(s.t, err)
+	}()
+
 	for {
 		select {
 		case <-ctx.Done():
-			break Loop
+			return
 		case block := <-blocks:
 			if height == block.Height {
-				break Loop
+				return
 			}
 		}
 	}
 
-	err = bf.UnsubscribeNewBlockEvent(ctx)
-	require.NoError(s.t, err)
 }
 
 // createPeer is a helper for celestia nodes to initialize
