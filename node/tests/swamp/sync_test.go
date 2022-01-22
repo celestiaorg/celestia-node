@@ -48,7 +48,4 @@ func TestSyncLightWithBridge(t *testing.T) {
 
 	time.Sleep(1 * time.Second)
 	assert.False(t, light.HeaderServ.IsSyncing())
-
-	require.NoError(t, bridge.Stop(ctx))
-	require.NoError(t, light.Stop(ctx))
 }

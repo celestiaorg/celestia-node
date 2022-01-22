@@ -58,7 +58,20 @@ func NewSwamp(t *testing.T) *Swamp {
 
 	swp.trustedHash = swp.getTrustedHash(ctx)
 
+	swp.t.Cleanup(func() {
+		swp.stopAllNodes(ctx, swp.BridgeNodes, swp.LightNodes)
+	})
 	return swp
+}
+
+// stopAllNodes goes through all received slices of Nodes and stops one-by-one
+// this eliminates a manual clean-up in the test-cases itself in the end
+func (s *Swamp) stopAllNodes(ctx context.Context, allNodes ...[]*node.Node) {
+	for _, nodes := range allNodes {
+		for _, node := range nodes {
+			require.NoError(s.t, node.Stop(ctx))
+		}
+	}
 }
 
 // WaitTillHeight holds the test execution until the given amount of blocks
@@ -70,10 +83,15 @@ func (s *Swamp) WaitTillHeight(ctx context.Context, height int64) {
 	blocks, err := bf.SubscribeNewBlockEvent(ctx)
 	require.NoError(s.t, err)
 
+Loop:
 	for {
-		block := <-blocks
-		if height == block.Height {
-			break
+		select {
+		case <-ctx.Done():
+			break Loop
+		case block := <-blocks:
+			if height == block.Height {
+				break Loop
+			}
 		}
 	}
 
@@ -166,5 +184,6 @@ func (s *Swamp) NewLightNode(options ...node.Option) *node.Node {
 	node, err := node.New(node.Light, store, options...)
 	require.NoError(s.t, err)
 	s.LightNodes = append(s.LightNodes, node)
+
 	return node
 }
