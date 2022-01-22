@@ -87,10 +87,8 @@ func (cl *CoreListener) listen(ctx context.Context, sub <-chan *types.Block) {
 			err = cl.p2pSub.Broadcast(ctx, eh)
 			if err != nil {
 				var pserr pubsub.ValidationError
-				if errors.As(err, &pserr) && pserr.Reason == pubsub.RejectValidationIgnored {
-					log.Warnw("core-listener: broadcasting next header", "height", eh.Height,
-						"err", err)
-				} else {
+				// TODO(@Wondertan): Log ValidationIgnore cases as well, once headr duplication issue is fixed
+				if errors.As(err, &pserr) && pserr.Reason != pubsub.RejectValidationIgnored {
 					log.Errorw("core-listener: broadcasting next header", "height", eh.Height,
 						"err", err)
 					return
