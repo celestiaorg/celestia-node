@@ -160,13 +160,11 @@ func (s *Syncer) sync(ctx context.Context) {
 		return
 	}
 
-	log.Info("syncing headers")
 	err = s.syncTo(ctx, trstHead)
 	if err != nil {
 		log.Errorw("syncing headers", "err", err)
 		return
 	}
-	log.Info("synced headers")
 }
 
 // validateMsg implements validation of incoming Headers as PubSub msg validator.
@@ -259,6 +257,13 @@ func (s *Syncer) syncTo(ctx context.Context, newHead *ExtendedHeader) error {
 	if err != nil {
 		return err
 	}
+
+	if head.Height == newHead.Height {
+		return nil
+	}
+
+	log.Info("syncing headers", "from", head.Height, "to", newHead.Height)
+	defer log.Info("synced headers")
 
 	start, end := uint64(head.Height)+1, uint64(newHead.Height)
 	for start <= end {
