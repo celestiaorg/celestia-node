@@ -262,7 +262,7 @@ func (s *Syncer) syncTo(ctx context.Context, newHead *ExtendedHeader) error {
 		return nil
 	}
 
-	log.Info("syncing headers", "from", head.Height, "to", newHead.Height)
+	log.Infow("syncing headers", "from", head.Height, "to", newHead.Height)
 	defer log.Info("synced headers")
 
 	start, end := uint64(head.Height)+1, uint64(newHead.Height)
