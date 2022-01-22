@@ -39,7 +39,7 @@ func NewSyncer(exchange Exchange, store Store, sub *P2PSubscriber, trusted tmbyt
 		exchange:    exchange,
 		store:       store,
 		trusted:     trusted,
-		triggerSync: make(chan struct{}),
+		triggerSync: make(chan struct{}, 1), // should be buffered
 	}
 }
 
@@ -60,7 +60,7 @@ func (s *Syncer) Start(ctx context.Context) error {
 
 	s.ctx, s.cancel = context.WithCancel(context.Background())
 	go s.syncLoop()
-	s.mustSync()
+	s.wantSync()
 	return nil
 }
 
@@ -135,14 +135,7 @@ func (s *Syncer) wantSync() {
 	}
 }
 
-// mustSync will trigger the syncing loop (blocking).
-func (s *Syncer) mustSync() {
-	select {
-	case s.triggerSync <- struct{}{}:
-	case <-s.ctx.Done():
-	}
-}
-
+// syncLoop controls syncing process.
 func (s *Syncer) syncLoop() {
 	for {
 		select {
