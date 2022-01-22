@@ -249,7 +249,7 @@ func (s *Syncer) incoming(ctx context.Context, p peer.ID, maybeHead *ExtendedHea
 
 // TODO(@Wondertan): Number of headers that can be requested at once. Either make this configurable or,
 //  find a proper rationale for constant.
-var requestSize uint64 = 256
+var requestSize uint64 = 512
 
 // syncTo requests headers from locally stored head up to the new head.
 func (s *Syncer) syncTo(ctx context.Context, newHead *ExtendedHeader) error {
