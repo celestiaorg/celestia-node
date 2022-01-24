@@ -79,6 +79,6 @@ func (cfg *Config) Encode(w io.Writer) error {
 
 // ReadFrom pulls a Config from a given reader r.
 func (cfg *Config) Decode(r io.Reader) error {
-	_, err := toml.DecodeReader(r, cfg)
+	_, err := toml.NewDecoder(r).Decode(cfg)
 	return err
 }

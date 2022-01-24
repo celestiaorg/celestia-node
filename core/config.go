@@ -32,7 +32,7 @@ func LoadConfig(path string) (*Config, error) {
 	}
 	defer f.Close()
 	var cfg Config
-	_, err = toml.DecodeReader(f, &cfg)
+	_, err = toml.NewDecoder(f).Decode(&cfg)
 	return &cfg, err
 }
 
