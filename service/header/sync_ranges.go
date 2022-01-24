@@ -129,7 +129,7 @@ func (r *_range) Head() *ExtendedHeader {
 	return r.headers[ln-1]
 }
 
-// Before cuts off all the headers before height 'end' and returns them.
+// Before truncates all the headers before height 'end'.
 func (r *_range) Before(end uint64) []*ExtendedHeader {
 	r.lk.Lock()
 	defer r.lk.Unlock()
