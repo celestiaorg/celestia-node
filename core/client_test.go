@@ -107,7 +107,7 @@ func TestRemoteClient_StartBlockSubscription_And_GetBlock(t *testing.T) {
 // TestRemoteClient_RetryDial ensures 3 additional attempts
 // are made to dial the remote node.
 func TestRemoteClient_RetryDial(t *testing.T) {
-	remote := StartMockNode()
+	remote := StartMockNode(CreateKvStore(defaultRetainBlocks))
 	protocol, ip := getRemoteEndpoint(remote)
 
 	// deliberately stop remote
