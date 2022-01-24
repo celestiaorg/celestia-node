@@ -16,12 +16,14 @@ func init() {
 			cmdnode.NodeFlags(node.Bridge),
 			cmdnode.P2PFlags(),
 			cmdnode.CoreFlags(),
+			cmdnode.HeadersFlags(),
 			cmdnode.MiscFlags(),
 		),
 		cmdnode.Start(
 			cmdnode.NodeFlags(node.Bridge),
 			cmdnode.P2PFlags(),
 			cmdnode.CoreFlags(),
+			cmdnode.HeadersFlags(),
 			cmdnode.MiscFlags(),
 		),
 	)
