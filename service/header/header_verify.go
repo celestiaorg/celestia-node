@@ -21,24 +21,24 @@ import (
 var TrustingPeriod = 168 * time.Hour
 
 // IsExpired checks if header is expired against trusting period.
-func IsExpired(eh *ExtendedHeader) bool {
+func (eh *ExtendedHeader) IsExpired() bool {
 	expirationTime := eh.Time.Add(TrustingPeriod)
 	return !expirationTime.After(time.Now())
 }
 
-// VerifyNonAdjacent validates non-adjacent untrusted header against trusted.
-func VerifyNonAdjacent(trst, untrst *ExtendedHeader) error {
-	if untrst.ChainID != trst.ChainID {
+// VerifyNonAdjacent validates non-adjacent untrusted header against trusted 'eh'.
+func (eh *ExtendedHeader) VerifyNonAdjacent(untrst *ExtendedHeader) error {
+	if untrst.ChainID != eh.ChainID {
 		return &VerifyError{
 			fmt.Errorf(
-				"header belongs to another chain %q, not %q", untrst.ChainID, trst.ChainID,
+				"header belongs to another chain %q, not %q", untrst.ChainID, eh.ChainID,
 			),
 		}
 	}
 
-	if !untrst.Time.After(trst.Time) {
+	if !untrst.Time.After(eh.Time) {
 		return &VerifyError{
-			fmt.Errorf("expected new header time %v to be after old header time %v", untrst.Time, trst.Time),
+			fmt.Errorf("expected new header time %v to be after old header time %v", untrst.Time, eh.Time),
 		}
 	}
 
@@ -50,7 +50,7 @@ func VerifyNonAdjacent(trst, untrst *ExtendedHeader) error {
 	}
 
 	// Ensure that untrusted commit has enough of trusted commit's power.
-	err := trst.ValidatorSet.VerifyCommitLightTrusting(trst.ChainID, untrst.Commit, light.DefaultTrustLevel)
+	err := eh.ValidatorSet.VerifyCommitLightTrusting(eh.ChainID, untrst.Commit, light.DefaultTrustLevel)
 	if err != nil {
 		return &VerifyError{err}
 	}
@@ -58,21 +58,21 @@ func VerifyNonAdjacent(trst, untrst *ExtendedHeader) error {
 	return nil
 }
 
-// VerifyAdjacent validates adjacent untrusted header against trusted.
-func VerifyAdjacent(trst, untrst *ExtendedHeader) error {
-	if untrst.Height != trst.Height+1 {
+// VerifyAdjacent validates adjacent untrusted header against trusted 'eh'.
+func (eh *ExtendedHeader) VerifyAdjacent(untrst *ExtendedHeader) error {
+	if untrst.Height != eh.Height+1 {
 		return ErrNonAdjacent
 	}
 
-	if untrst.ChainID != trst.ChainID {
+	if untrst.ChainID != eh.ChainID {
 		return &VerifyError{
-			fmt.Errorf("header belongs to another chain %q, not %q", untrst.ChainID, trst.ChainID),
+			fmt.Errorf("header belongs to another chain %q, not %q", untrst.ChainID, eh.ChainID),
 		}
 	}
 
-	if !untrst.Time.After(trst.Time) {
+	if !untrst.Time.After(eh.Time) {
 		return &VerifyError{
-			fmt.Errorf("expected new header time %v to be after old header time %v", untrst.Time, trst.Time),
+			fmt.Errorf("expected new header time %v to be after old header time %v", untrst.Time, eh.Time),
 		}
 	}
 
@@ -84,10 +84,10 @@ func VerifyAdjacent(trst, untrst *ExtendedHeader) error {
 	}
 
 	// Check the validator hashes are the same
-	if !bytes.Equal(untrst.ValidatorsHash, trst.NextValidatorsHash) {
+	if !bytes.Equal(untrst.ValidatorsHash, eh.NextValidatorsHash) {
 		return &VerifyError{
 			fmt.Errorf("expected old header next validators (%X) to match those from new header (%X)",
-				trst.NextValidatorsHash,
+				eh.NextValidatorsHash,
 				untrst.ValidatorsHash,
 			),
 		}
