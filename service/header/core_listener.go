@@ -24,9 +24,6 @@ type CoreListener struct {
 	fetcher *core.BlockFetcher
 	dag     format.DAGService
 
-	blockSub <-chan *types.Block
-
-	ctx    context.Context
 	cancel context.CancelFunc
 }
 
@@ -40,7 +37,7 @@ func NewCoreListener(p2pSub *P2PSubscriber, fetcher *core.BlockFetcher, dag form
 
 // Start kicks off the CoreListener listener loop.
 func (cl *CoreListener) Start(ctx context.Context) error {
-	if cl.blockSub != nil {
+	if cl.cancel != nil {
 		return fmt.Errorf("core-listener: already started")
 	}
 
@@ -49,25 +46,24 @@ func (cl *CoreListener) Start(ctx context.Context) error {
 		return err
 	}
 
-	cl.ctx, cl.cancel = context.WithCancel(context.Background())
-	cl.blockSub = sub
-	go cl.listen()
+	ctx, cancel := context.WithCancel(context.Background())
+	go cl.listen(ctx, sub)
+	cl.cancel = cancel
 	return nil
 }
 
 // Stop stops the CoreListener listener loop.
 func (cl *CoreListener) Stop(ctx context.Context) error {
 	cl.cancel()
-	cl.blockSub = nil
+	cl.cancel = nil
 	return cl.fetcher.UnsubscribeNewBlockEvent(ctx)
 }
 
 // listen kicks off a loop, listening for new block events from Core,
 // generating ExtendedHeaders and broadcasting them to the header-sub
 // gossipsub network.
-func (cl *CoreListener) listen() {
+func (cl *CoreListener) listen(ctx context.Context, sub <-chan *types.Block) {
 	defer log.Info("core-listener: listening stopped")
-	sub := cl.blockSub
 	for {
 		select {
 		case b, ok := <-sub:
@@ -75,20 +71,20 @@ func (cl *CoreListener) listen() {
 				return
 			}
 
-			comm, vals, err := cl.fetcher.GetBlockInfo(cl.ctx, &b.Height)
+			comm, vals, err := cl.fetcher.GetBlockInfo(ctx, &b.Height)
 			if err != nil {
 				log.Errorw("core-listener: getting block info", "err", err)
 				return
 			}
 
-			eh, err := MakeExtendedHeader(cl.ctx, b, comm, vals, cl.dag)
+			eh, err := MakeExtendedHeader(ctx, b, comm, vals, cl.dag)
 			if err != nil {
 				log.Errorw("core-listener: making extended header", "err", err)
 				return
 			}
 
 			// broadcast new ExtendedHeader
-			err = cl.p2pSub.Broadcast(cl.ctx, eh)
+			err = cl.p2pSub.Broadcast(ctx, eh)
 			if err != nil {
 				var pserr pubsub.ValidationError
 				if errors.As(err, &pserr) && pserr.Reason == pubsub.RejectValidationIgnored {
@@ -101,7 +97,7 @@ func (cl *CoreListener) listen() {
 
 				return
 			}
-		case <-cl.ctx.Done():
+		case <-ctx.Done():
 			return
 		}
 	}
