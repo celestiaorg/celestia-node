@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/ipfs/go-datastore"
+	"github.com/libp2p/go-libp2p-core/event"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	mocknet "github.com/libp2p/go-libp2p/p2p/net/mock"
 	"github.com/stretchr/testify/assert"
@@ -18,7 +19,7 @@ func TestSubscriber(t *testing.T) {
 	defer cancel()
 
 	// create mock network
-	net, err := mocknet.FullMeshConnected(ctx, 2)
+	net, err := mocknet.FullMeshLinked(ctx, 2)
 	require.NoError(t, err)
 
 	suite := NewTestSuite(t, 3)
@@ -36,10 +37,6 @@ func TestSubscriber(t *testing.T) {
 	err = p2pSub1.Start(context.Background())
 	require.NoError(t, err)
 
-	// subscribe
-	subscription, err := p2pSub1.Subscribe()
-	require.NoError(t, err)
-
 	// get mock host and create new gossipsub on it
 	pubsub2, err := pubsub.NewGossipSub(ctx, net.Hosts()[1],
 		pubsub.WithMessageSignaturePolicy(pubsub.StrictNoSign))
@@ -54,7 +51,29 @@ func TestSubscriber(t *testing.T) {
 	err = p2pSub2.Start(context.Background())
 	require.NoError(t, err)
 
+	sub0, err := net.Hosts()[0].EventBus().Subscribe(&event.EvtPeerIdentificationCompleted{})
+	require.NoError(t, err)
+	sub1, err := net.Hosts()[1].EventBus().Subscribe(&event.EvtPeerIdentificationCompleted{})
+	require.NoError(t, err)
+
+	err = net.ConnectAllButSelf()
+	require.NoError(t, err)
+
+	// wait on both peer identification events
+	for i := 0; i < 2; i++ {
+		select {
+		case <-sub0.Out():
+		case <-sub1.Out():
+		case <-ctx.Done():
+			assert.FailNow(t, "timeout waiting for peers to connect")
+		}
+	}
+
+	// subscribe
 	_, err = p2pSub2.Subscribe()
+	require.NoError(t, err)
+
+	subscription, err := p2pSub1.Subscribe()
 	require.NoError(t, err)
 
 	expectedHeader := suite.GenExtendedHeaders(1)[0]
