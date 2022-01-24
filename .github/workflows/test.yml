@@ -7,17 +7,35 @@ on:
   pull_request:
 
 jobs:
-  build:
+  unit_test:
+    name: Run Unit Tests
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        go: ['1.16', '1.17']
+        go: ["1.16", "1.17"]
     steps:
       - uses: actions/checkout@v2
       - name: set up go
         uses: actions/setup-go@v2
         with:
           go-version: ${{ matrix.go }}
-
-      - name: test
-        run: go test -v ./...
+      - name: Tests
+        run: make test-unit
+      - name: Tests with Race Detector
+        run: make test-unit-race
+  integration_test:
+    name: Run Integration Tests
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        go: ["1.17"]
+    steps:
+      - uses: actions/checkout@v2
+      - name: set up go
+        uses: actions/setup-go@v2
+        with:
+          go-version: ${{ matrix.go }}
+      - name: Swamp Tests
+        run: make test-swamp
+      - name: Swamp Tests with Race Detector
+        run: make test-swamp-race

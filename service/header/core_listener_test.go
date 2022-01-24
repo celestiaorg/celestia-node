@@ -46,7 +46,7 @@ func TestCoreListener(t *testing.T) {
 
 	err = cl.Stop(ctx)
 	require.NoError(t, err)
-	require.Nil(t, cl.blockSub)
+	require.Nil(t, cl.cancel)
 }
 
 func createMocknetWithTwoPubsubEndpoints(t *testing.T) (*pubsub.PubSub, *pubsub.PubSub) {

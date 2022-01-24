@@ -28,11 +28,18 @@ import (
 	"github.com/celestiaorg/celestia-node/service/header"
 )
 
-// RandServiceWithSquare provides a share.Service filled with 'n' NMT trees of 'n' random shares, essentially storing a
-// whole square.
-func RandServiceWithSquare(t *testing.T, n int) (Service, *Root) {
+// RandLightServiceWithSquare provides a share.Service filled with 'n' NMT
+// trees of 'n' random shares, essentially storing a whole square.
+func RandLightServiceWithSquare(t *testing.T, n int) (Service, *Root) {
 	dag := mdutils.Mock()
 	return NewService(dag, NewLightAvailability(dag)), RandFillDAG(t, n, dag)
+}
+
+// RandFullServiceWithSquare provides a share.Service filled with 'n' NMT
+// trees of 'n' random shares, essentially storing a whole square.
+func RandFullServiceWithSquare(t *testing.T, n int) (Service, *Root) {
+	dag := mdutils.Mock()
+	return NewService(dag, NewFullAvailability(dag)), RandFillDAG(t, n, dag)
 }
 
 func RandFillDAG(t *testing.T, n int, dag format.DAGService) *Root {
@@ -79,9 +86,14 @@ func NewDAGNet(ctx context.Context, t *testing.T) *DAGNet {
 	}
 }
 
-func (dn *DAGNet) RandService(n int) (Service, *Root) {
+func (dn *DAGNet) RandLightService(n int) (Service, *Root) {
 	dag, root := dn.RandDAG(n)
 	return NewService(dag, NewLightAvailability(dag)), root
+}
+
+func (dn *DAGNet) RandFullService(n int) (Service, *Root) {
+	dag, root := dn.RandDAG(n)
+	return NewService(dag, NewFullAvailability(dag)), root
 }
 
 func (dn *DAGNet) RandDAG(n int) (format.DAGService, *Root) {

@@ -14,7 +14,6 @@ import (
 var log = logging.Logger("das")
 
 // DASer continuously validates availability of data committed to headers.
-// TODO(@Wondertan): Start and Stop is better be thread-safe.
 type DASer struct {
 	da   share.Availability
 	hsub header.Subscriber
@@ -51,10 +50,6 @@ func (d *DASer) Start(context.Context) error {
 
 // Stop stops sampling.
 func (d *DASer) Stop(ctx context.Context) error {
-	if d.cancel == nil {
-		return fmt.Errorf("da: DASer already stopped")
-	}
-
 	d.cancel()
 	select {
 	case <-d.done:

@@ -7,7 +7,8 @@ WORKDIR ${HOME}
 RUN env GOOS=linux GOARCH=amd64 make build
 
 FROM ubuntu
-ENV NODE_TYPE full
+# Default node type can be overwritten in deployment manifest
+ENV NODE_TYPE bridge
 
 COPY docker/entrypoint.sh /
 

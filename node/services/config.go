@@ -3,10 +3,15 @@ package services
 import (
 	"encoding/hex"
 
+	logging "github.com/ipfs/go-log/v2"
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/multiformats/go-multiaddr"
 	tmbytes "github.com/tendermint/tendermint/libs/bytes"
+
+	"github.com/celestiaorg/celestia-node/params"
 )
+
+var log = logging.Logger("node/services")
 
 type Config struct {
 	// TrustedHash is the Block/Header hash that Nodes use as starting point for header synchronization.
@@ -28,6 +33,7 @@ func DefaultConfig() Config {
 
 func (cfg *Config) trustedPeer() (*peer.AddrInfo, error) {
 	if cfg.TrustedPeer == "" {
+		log.Warn("No Trusted Peer provided. Headers won't be synced accordingly")
 		return &peer.AddrInfo{}, nil
 	}
 
@@ -40,5 +46,8 @@ func (cfg *Config) trustedPeer() (*peer.AddrInfo, error) {
 }
 
 func (cfg *Config) trustedHash() (tmbytes.HexBytes, error) {
+	if cfg.TrustedHash == "" {
+		return hex.DecodeString(params.Genesis())
+	}
 	return hex.DecodeString(cfg.TrustedHash)
 }

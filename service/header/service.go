@@ -44,3 +44,10 @@ func (s *Service) Stop(context.Context) error {
 	log.Info("stopping header service")
 	return nil
 }
+
+// TODO(@Bidon15): Issue #351
+
+// IsSyncing returns the status of sync
+func (s *Service) IsSyncing() bool {
+	return s.syncer.IsSyncing()
+}

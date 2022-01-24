@@ -115,17 +115,11 @@ func createP2PExAndServer(t *testing.T, host, peer libhost.Host) (Exchange, *moc
 	err := serverSideEx.Start(context.Background())
 	require.NoError(t, err)
 
-	// create new exchange
-	clientSideEx := NewP2PExchange(host, libhost.InfoFromHost(peer), nil) // we don't need the store on the requesting side
-	err = clientSideEx.Start(context.Background())
-	require.NoError(t, err)
-
 	t.Cleanup(func() {
 		serverSideEx.Stop(context.Background()) //nolint:errcheck
-		clientSideEx.Stop(context.Background()) //nolint:errcheck
 	})
 
-	return clientSideEx, store
+	return NewP2PExchange(host, peer.ID()), store
 }
 
 type mockStore struct {
