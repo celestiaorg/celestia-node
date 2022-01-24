@@ -51,35 +51,22 @@ func TestSubscriber(t *testing.T) {
 	err = p2pSub2.Start(context.Background())
 	require.NoError(t, err)
 
-	done := make(chan bool, 1)
 	sub0, err := net.Hosts()[0].EventBus().Subscribe(&event.EvtPeerIdentificationCompleted{})
 	require.NoError(t, err)
 	sub1, err := net.Hosts()[1].EventBus().Subscribe(&event.EvtPeerIdentificationCompleted{})
 	require.NoError(t, err)
 
-	go func() {
-		foundSub0 := false
-		foundSub1 := false
-		for {
-			select {
-			case <-sub0.Out():
-				foundSub0 = true
-			case <-sub1.Out():
-				foundSub1 = true
-			}
-			if foundSub0 && foundSub1 {
-				close(done)
-				return
-			}
-		}
-	}()
 	err = net.ConnectAllButSelf()
 	require.NoError(t, err)
 
-	select {
-	case <-done:
-	case <-ctx.Done():
-		assert.FailNow(t, "timeout waiting for peers to connect")
+	// wait on both peer identification events
+	for i := 0; i < 2; i++ {
+		select {
+		case <-sub0.Out():
+		case <-sub1.Out():
+		case <-ctx.Done():
+			assert.FailNow(t, "timeout waiting for peers to connect")
+		}
 	}
 
 	// subscribe
