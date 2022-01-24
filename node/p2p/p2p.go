@@ -18,7 +18,7 @@ type Config struct {
 	// NoAnnounceAddresses - Addresses the P2P subsystem may know about, but that should not be announced/advertised,
 	// as undialable from WAN
 	NoAnnounceAddresses []string
-	// TODO(@Wondertan): This should be a built-time parameter. See https://github.com/celestiaorg/celestia-node/issues/63
+	// TODO(@Wondertan): This should be a build-time parameter. See https://github.com/celestiaorg/celestia-node/issues/63
 	// Bootstrapper is flag telling this node is a bootstrapper.
 	Bootstrapper bool
 	// BootstrapPeers is a list of network specific peers that help with network bootstrapping.
