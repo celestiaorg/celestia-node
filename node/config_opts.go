@@ -34,9 +34,18 @@ func WithConfig(custom *Config) Option {
 	}
 }
 
+// WithMutualPeers sets MutualPeers[] config.
 func WithMutualPeers(addrs []string) Option {
 	return func(cfg *Config, _ *settings) (_ error) {
 		cfg.P2P.MutualPeers = addrs
+		return nil
+	}
+}
+
+// WithBootstrapPeers sets BootstrapPeers[] config.
+func WithBootstrapPeers(addrs []string) Option {
+	return func(cfg *Config, _ *settings) (_ error) {
+		cfg.P2P.BootstrapPeers = addrs
 		return nil
 	}
 }
