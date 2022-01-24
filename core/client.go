@@ -18,6 +18,8 @@ type Client = client.Client
 func NewRemote(protocol, remoteAddr string) (Client, error) {
 	httpClient := retryhttp.NewClient()
 	httpClient.RetryMax = 2
+	// suppress logging
+	httpClient.Logger = nil
 
 	return http.NewWithClient(
 		fmt.Sprintf("%s://%s", protocol, remoteAddr),
