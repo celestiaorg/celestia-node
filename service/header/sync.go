@@ -171,8 +171,9 @@ func (s *Syncer) sync(ctx context.Context) {
 func (s *Syncer) validateMsg(ctx context.Context, p peer.ID, msg *pubsub.Message) pubsub.ValidationResult {
 	maybeHead, err := UnmarshalExtendedHeader(msg.Data)
 	if err != nil {
-		log.Errorw("unmarshalling header received from the PubSub",
-			"err", err, "peer", p.ShortString())
+		log.Errorw("unmarshalling header",
+			"from", p.ShortString(),
+			"err", err)
 		return pubsub.ValidationReject
 	}
 
@@ -191,8 +192,8 @@ func (s *Syncer) incoming(ctx context.Context, p peer.ID, maybeHead *ExtendedHea
 			log.Errorw("invalid header",
 				"height", maybeHead.Height,
 				"hash", maybeHead.Hash(),
-				"reason", verErr.Reason,
-				"from", p.ShortString())
+				"from", p.ShortString(),
+				"reason", verErr.Reason)
 			return pubsub.ValidationReject
 		}
 
@@ -230,8 +231,8 @@ func (s *Syncer) incoming(ctx context.Context, p peer.ID, maybeHead *ExtendedHea
 		log.Errorw("invalid header",
 			"height", maybeHead.Height,
 			"hash", maybeHead.Hash(),
-			"reason", verErr.Reason,
-			"from", p.ShortString())
+			"from", p.ShortString(),
+			"reason", verErr.Reason)
 		return pubsub.ValidationReject
 	}
 

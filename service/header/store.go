@@ -201,10 +201,10 @@ func (s *store) Append(ctx context.Context, headers ...*ExtendedHeader) error {
 			var verErr *VerifyError
 			if errors.As(err, &verErr) {
 				log.Errorw("invalid header",
-					"current height", head.Height,
 					"height", head.Height,
 					"hash", h.Hash(),
-					"reason", err)
+					"current height", head.Height,
+					"reason", verErr.Reason)
 				break
 			}
 		}
