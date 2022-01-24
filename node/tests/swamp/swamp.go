@@ -42,6 +42,7 @@ func NewSwamp(t *testing.T) *Swamp {
 		log.SetDebugLogging()
 	}
 
+	var err error
 	ctx := context.Background()
 	// TODO(@Bidon15): Rework this to be configurable by the swamp's test
 	// case, not here.
@@ -56,7 +57,8 @@ func NewSwamp(t *testing.T) *Swamp {
 		CoreClient: core.NewEmbeddedFromNode(coreNode),
 	}
 
-	swp.trustedHash = swp.getTrustedHash(ctx)
+	swp.trustedHash, err = swp.getTrustedHash(ctx)
+	require.NoError(t, err)
 
 	swp.t.Cleanup(func() {
 		swp.stopAllNodes(ctx, swp.BridgeNodes, swp.LightNodes)
@@ -126,15 +128,22 @@ func (s *Swamp) createPeer(ks keystore.Keystore) host.Host {
 
 // getTrustedHash is needed for celestia nodes to get the trustedhash
 // from CoreClient. This is required to initialize and start correctly.
-func (s *Swamp) getTrustedHash(ctx context.Context) string {
+func (s *Swamp) getTrustedHash(ctx context.Context) (string, error) {
 	bf := core.NewBlockFetcher(s.CoreClient)
 	blocks, err := bf.SubscribeNewBlockEvent(ctx)
 	require.NoError(s.t, err)
-	block := <-blocks
-	hstr := block.Hash().String()
-	err = bf.UnsubscribeNewBlockEvent(ctx)
-	require.NoError(s.t, err)
-	return hstr
+
+	defer func() {
+		err = bf.UnsubscribeNewBlockEvent(ctx)
+		require.NoError(s.t, err)
+	}()
+
+	select {
+	case <-ctx.Done():
+		return "", fmt.Errorf("can't get trusted hash as the channel is closed")
+	case block := <-blocks:
+		return block.Hash().String(), nil
+	}
 }
 
 // TODO(@Bidon15): CoreClient(limitation)

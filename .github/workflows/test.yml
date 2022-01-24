@@ -37,3 +37,5 @@ jobs:
           go-version: ${{ matrix.go }}
       - name: Swamp Tests
         run: make test-swamp
+      - name: Swamp Tests with Race Detector
+        run: make test-swamp-race
