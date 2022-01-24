@@ -45,17 +45,37 @@ lint:
 	@golangci-lint run
 .PHONY: lint
 
-## test: Running all *_test.go.
-test:
-	@echo "--> Running tests"
-	@go test -v ./...
-.PHONY: test
+## test-unit: Running unit tests
+test-unit:
+	@echo "--> Running unit tests"
+	@go test -v `go list ./... | grep -v node/tests`
+.PHONY: test-unit
 
-## test-race: Running all *_test.go with data race detector
-test-race:
-	@echo "--> Running tests with data race detector"
-	@go test -v -race ./...
-.PHONY: test-race
+## test-unit-race: Running unit tests with data race detector
+test-unit-race:
+	@echo "--> Running unit tests with data race detector"
+	@go test -v -race `go list ./... | grep -v node/tests`
+.PHONY: test-unit-race
+
+## test-swamp: Running swamp tests located in node/tests
+test-swamp:
+	@echo "--> Running swamp tests"
+	@go test -v ./node/tests/swamp
+.PHONY: test-swamp
+
+## test-swamp: Running swamp tests with data race detector located in node/tests
+test-swamp-race:
+	@echo "--> Running swamp tests with data race detector"
+	@go test -v -race ./node/tests/swamp
+.PHONY: test-swamp-race
+
+## test-all: Running both unit and swamp tests
+test:
+	@echo "--> Running all tests without data race detector"
+	@go test ./...
+	@echo "--> Running all tests with data race detector"
+	@go test -race ./...
+.PHONY: test
 
 ## benchmark: Running all benchmarks
 benchmark:
