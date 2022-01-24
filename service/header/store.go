@@ -192,7 +192,7 @@ func (s *store) Append(ctx context.Context, headers ...*ExtendedHeader) error {
 
 	verified := make([]*ExtendedHeader, 0, lh)
 	for i, h := range headers {
-		err = VerifyAdjacent(head, h)
+		err = head.VerifyAdjacent(h)
 		if err != nil {
 			if i == 0 {
 				return err

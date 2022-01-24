@@ -56,7 +56,7 @@ func TestVerifyAdjacent(t *testing.T) {
 	for i, test := range tests {
 		t.Run(strconv.Itoa(i), func(t *testing.T) {
 			test.prepare()
-			err := VerifyAdjacent(trusted, untrusted)
+			err := trusted.VerifyAdjacent(untrusted)
 			if test.err {
 				assert.Error(t, err)
 			} else {

@@ -111,7 +111,7 @@ func (s *Syncer) trustedHead(ctx context.Context) (*ExtendedHeader, error) {
 	}
 
 	// check if our subjective header is not expired and use it
-	if !IsExpired(sbj) {
+	if !sbj.IsExpired() {
 		return sbj, nil
 	}
 
@@ -225,7 +225,7 @@ func (s *Syncer) incoming(ctx context.Context, p peer.ID, maybeHead *ExtendedHea
 	}
 
 	// 4. Verify maybeHead against trusted
-	err = VerifyNonAdjacent(trstHead, maybeHead)
+	err = trstHead.VerifyNonAdjacent(maybeHead)
 	var verErr *VerifyError
 	if errors.As(err, &verErr) {
 		log.Errorw("invalid header",
