@@ -31,6 +31,7 @@ Month, DD, YYYY
 - [docker: Created `docker/` dir with `Dockerfile` and `entrypoint.sh` script](https://github.com/celestiaorg/celestia-node/pull/295) [@jbowen93](https://github.com/jbowen93)
 - [chore(share): handle rows concurrently in GetSharesByNamespace #241](https://github.com/celestiaorg/celestia-node/pull/241) [@vgonkivs](https://github.com/vgonkivs)
 - [ci: adding data race detector action](https://github.com/celestiaorg/celestia-node/pull/289) [@Bidon15](https://github.com/Bidon15)
+- [node: add the cmdnode.HeadersFlags() to the Bridge Node's init and start commands](https://github.com/celestiaorg/celestia-node/pull/390)
 
 ### BUG FIXES
 
@@ -41,6 +42,7 @@ Month, DD, YYYY
 - [ci: increase tokens ratio for dupl to fix false positive scenarios](https://github.com/celestiaorg/celestia-node/pull/314) [@Bidon15](https://github.com/Bidon15)
 - [node: Wrap datastore with mutex to prevent data race](https://github.com/celestiaorg/celestia-node/pull/325) [@Bidon15](https://github.com/Bidon15)
 - [ci: update Docker entrypoint.sh to use new `store.path` flag name](https://github.com/celestiaorg/celestia-node/pull/337) [@jbowen93](https://github.com/jbowen93)
+- [ci: update docker/entrypoint.sh to use new `node.store` flag replacing `store.path`](https://github.com/celestiaorg/celestia-node/pull/390)
 
 ### MISCELLANEOUS
 
