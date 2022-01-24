@@ -22,13 +22,12 @@ type Syncer struct {
 	// inProgress is set to 1 once syncing commences and
 	// is set to 0 once syncing is either finished or
 	// not currently in progress
-	inProgress  uint64
+	inProgress uint64
+	// signals to start syncing
 	triggerSync chan struct{}
-
 	// pending keeps ranges of valid headers rcvd from the network awaiting to be appended to store
 	pending ranges
 
-	ctx    context.Context
 	cancel context.CancelFunc
 }
 
@@ -45,6 +44,10 @@ func NewSyncer(exchange Exchange, store Store, sub *P2PSubscriber, trusted tmbyt
 
 // Start starts the syncing routine.
 func (s *Syncer) Start(ctx context.Context) error {
+	if s.cancel != nil {
+		return fmt.Errorf("header: Syncer already started")
+	}
+
 	if s.sub != nil {
 		err := s.sub.AddValidator(s.validateMsg)
 		if err != nil {
@@ -58,15 +61,17 @@ func (s *Syncer) Start(ctx context.Context) error {
 		log.Error(err)
 	}
 
-	s.ctx, s.cancel = context.WithCancel(context.Background())
-	go s.syncLoop()
+	ctx, cancel := context.WithCancel(context.Background())
+	go s.syncLoop(ctx)
 	s.wantSync()
+	s.cancel = cancel
 	return nil
 }
 
 // Stop stops Syncer.
 func (s *Syncer) Stop(context.Context) error {
 	s.cancel()
+	s.cancel = nil
 	return nil
 }
 
@@ -136,12 +141,12 @@ func (s *Syncer) wantSync() {
 }
 
 // syncLoop controls syncing process.
-func (s *Syncer) syncLoop() {
+func (s *Syncer) syncLoop(ctx context.Context) {
 	for {
 		select {
 		case <-s.triggerSync:
-			s.sync(s.ctx)
-		case <-s.ctx.Done():
+			s.sync(ctx)
+		case <-ctx.Done():
 			return
 		}
 	}
