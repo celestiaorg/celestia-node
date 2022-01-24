@@ -7,6 +7,8 @@ import (
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/multiformats/go-multiaddr"
 	tmbytes "github.com/tendermint/tendermint/libs/bytes"
+
+	"github.com/celestiaorg/celestia-node/params"
 )
 
 var log = logging.Logger("node/services")
@@ -44,5 +46,8 @@ func (cfg *Config) trustedPeer() (*peer.AddrInfo, error) {
 }
 
 func (cfg *Config) trustedHash() (tmbytes.HexBytes, error) {
+	if cfg.TrustedHash == "" {
+		return hex.DecodeString(params.Genesis())
+	}
 	return hex.DecodeString(cfg.TrustedHash)
 }

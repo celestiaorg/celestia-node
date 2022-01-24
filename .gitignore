@@ -22,7 +22,6 @@
 abci-cli
 addrbook.json
 artifacts/*
-build/*
 coverage.txt
 docs/.vuepress/dist
 docs/_build
