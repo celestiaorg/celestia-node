@@ -30,7 +30,7 @@ func ParseOptions(opts ...Option) (fx.Option, error) {
 	parsed := make([]fx.Option, 0)
 out:
 	for tp, val := range fopts.provides {
-		allAs := make([]interface{}, len(val.as))
+		allAs := make([]fx.Annotation, len(val.as))
 		for i, as := range val.as {
 			ovr, ok := fopts.overrideSupplies[as]
 			if ok && !ovr.used {
@@ -38,7 +38,7 @@ out:
 				continue out
 			}
 
-			allAs[i] = reflect.New(as).Interface()
+			allAs[i] = fx.As(reflect.New(as).Interface())
 		}
 
 		if len(allAs) == 0 {
@@ -53,7 +53,7 @@ out:
 			}
 		}
 
-		parsed = append(parsed, fx.Provide(fx.Annotate(val.target, fx.As(allAs...))))
+		parsed = append(parsed, fx.Provide(fx.Annotate(val.target, allAs...)))
 	}
 
 	for tp, val := range fopts.supplies {
