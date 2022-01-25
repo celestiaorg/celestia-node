@@ -177,6 +177,8 @@ func (s *Syncer) incoming(ctx context.Context, maybeHead *ExtendedHeader) pubsub
 	case nil:
 		// a happy case where we append adjacent header correctly
 		return pubsub.ValidationAccept
+	case ErrNonAdjacent:
+		// not adjacent, so try to cache it after verifying
 	default:
 		var verErr *VerifyError
 		if errors.As(err, &verErr) {
@@ -192,8 +194,6 @@ func (s *Syncer) incoming(ctx context.Context, maybeHead *ExtendedHeader) pubsub
 			"hash", maybeHead.Hash().String(),
 			"err", err)
 		// might be a storage error or something else, but we can still try to continue processing 'maybeHead'
-	case ErrNonAdjacent:
-		// not adjacent, so try to cache it after verifying
 	}
 
 	// 2. Get known trusted head, so we can verify maybeHead
