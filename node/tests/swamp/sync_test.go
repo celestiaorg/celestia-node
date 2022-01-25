@@ -24,7 +24,11 @@ Steps:
 6. Check LN is synced with BN
 */
 func TestSyncLightWithBridge(t *testing.T) {
-	sw := NewSwamp(t)
+	tendermint, err1 := NewTendermintCoreNode(100, 100*time.Millisecond)
+	require.NoError(t, err1)
+
+	sw := NewSwamp(t, tendermint)
+
 	bridge := sw.NewBridgeNode()
 
 	ctx := context.Background()

@@ -13,6 +13,8 @@ import (
 	mocknet "github.com/libp2p/go-libp2p/p2p/net/mock"
 	ma "github.com/multiformats/go-multiaddr"
 	"github.com/stretchr/testify/require"
+	tn "github.com/tendermint/tendermint/node"
+	rpctest "github.com/tendermint/tendermint/rpc/test"
 
 	"github.com/celestiaorg/celestia-node/core"
 	"github.com/celestiaorg/celestia-node/libs/keystore"
@@ -37,24 +39,18 @@ type Swamp struct {
 }
 
 // NewSwamp creates a new instance of Swamp.
-func NewSwamp(t *testing.T) *Swamp {
+func NewSwamp(t *testing.T, tn *tn.Node) *Swamp {
 	if testing.Verbose() {
 		log.SetDebugLogging()
 	}
 
 	var err error
 	ctx := context.Background()
-	// TODO(@Bidon15): Rework this to be configurable by the swamp's test
-	// case, not here.
-	kvStore := core.CreateKvStore(200)
-	coreNode := core.StartMockNode(kvStore)
-
-	coreNode.Config().Consensus.CreateEmptyBlocksInterval = 200 * time.Millisecond
 
 	swp := &Swamp{
 		t:          t,
 		Network:    mocknet.New(ctx),
-		CoreClient: core.NewEmbeddedFromNode(coreNode),
+		CoreClient: core.NewEmbeddedFromNode(tn),
 	}
 
 	swp.trustedHash, err = swp.getTrustedHash(ctx)
@@ -64,6 +60,25 @@ func NewSwamp(t *testing.T) *Swamp {
 		swp.stopAllNodes(ctx, swp.BridgeNodes, swp.LightNodes)
 	})
 	return swp
+}
+
+// TODO(@Bidon15): CoreClient(limitation)
+// Now, we are making an assumption that consensus mechanism is already tested out
+// so, we are not creating bridge nodes with each one containing its own core client
+// instead we are assigning all created BNs to 1 Core from the swamp
+
+// NewTendermintCoreNode creates a new instance of Tendermint Core with a kvStore
+func NewTendermintCoreNode(blockRetention int64, emptyBlockInterval time.Duration) (*tn.Node, error) {
+	kvStore := core.CreateKvStore(blockRetention)
+
+	var opt rpctest.Options
+	rpctest.RecreateConfig(&opt)
+
+	tn := rpctest.NewTendermint(kvStore, &opt)
+	tn.Config().Consensus.CreateEmptyBlocksInterval = emptyBlockInterval
+
+	err := tn.Start()
+	return tn, err
 }
 
 // stopAllNodes goes through all received slices of Nodes and stops one-by-one
@@ -145,11 +160,6 @@ func (s *Swamp) getTrustedHash(ctx context.Context) (string, error) {
 		return block.Hash().String(), nil
 	}
 }
-
-// TODO(@Bidon15): CoreClient(limitation)
-// Now, we are making an assumption that consensus mechanism is already tested out
-// so, we are not creating bridge nodes with each one containing its own core client
-// instead we are assigning all created BNs to 1 Core from the swamp
 
 // NewBridgeNode creates a new instance of BridgeNodes. Afterwards,
 // the instance is store in the swamp's BridgeNodes slice.
