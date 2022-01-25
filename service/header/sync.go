@@ -296,7 +296,7 @@ func (s *Syncer) getHeaders(ctx context.Context, start, amount uint64) ([]*Exten
 			out = append(out, hs...)
 			start += uint64(len(hs))
 
-			// than, apply cached range
+			// then, apply cached range
 			cached := r.Before(end)
 			out = append(out, cached...)
 			start += uint64(len(cached))
