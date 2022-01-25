@@ -173,9 +173,11 @@ func (s *Syncer) sync(ctx context.Context) {
 func (s *Syncer) incoming(ctx context.Context, maybeHead *ExtendedHeader) pubsub.ValidationResult {
 	// 1. Try to append. If header is not adjacent/from future - try it for pending cache below
 	err := s.store.Append(ctx, maybeHead)
-	if err == nil {
+	switch err {
+	case nil:
+		// a happy case where we append adjacent header correctly
 		return pubsub.ValidationAccept
-	} else if err != ErrNonAdjacent {
+	default:
 		var verErr *VerifyError
 		if errors.As(err, &verErr) {
 			log.Errorw("invalid header",
@@ -187,12 +189,14 @@ func (s *Syncer) incoming(ctx context.Context, maybeHead *ExtendedHeader) pubsub
 
 		log.Errorw("appending header",
 			"height", maybeHead.Height,
-			"hash", maybeHead.Hash().String())
-		// might be a storage error or something else, so ignore
-		return pubsub.ValidationIgnore
+			"hash", maybeHead.Hash().String(),
+			"err", err)
+		// might be a storage error or something else, but we can still try to continue processing 'maybeHead'
+	case ErrNonAdjacent:
+		// not adjacent, so try to cache it after verifying
 	}
 
-	// 2. Get known trusted head pending to be synced
+	// 2. Get known trusted head, so we can verify maybeHead
 	trstHead, err := s.trustedHead(ctx)
 	if err != nil {
 		log.Errorw("getting trusted head", "err", err)
