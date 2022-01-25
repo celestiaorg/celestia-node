@@ -12,12 +12,27 @@ import (
 )
 
 // Syncer implements efficient synchronization for headers.
+//
+// Mainly there are two processes going in Syncer:
+// * Main syncing loop(s.syncLoop)
+//    * Performs syncing from the subjective(local chain view) header up to the latest known trusted header
+//    * Syncs by requesting missing headers from Exchange or
+//    * By accessing cache of pending and verified headers
+// * Receives new headers from PubSub subnetwork (s.incoming)
+//    * Usually, a new header is adjacent to the trusted head and if so, it is simply appended to the local store
+//    	incrementing the subjective height and making it the new latest known trusted header.
+//    * Or, if farther from future,
+//      * verifies against the latest known trusted header
+//    	* adds the header to pending cache(making it the latest known trusted header)
+//      * and triggers syncing loop to catch up to that point.
 type Syncer struct {
 	sub      Subscriber
 	exchange Exchange
 	store    Store
-	trusted  tmbytes.HexBytes
 
+	// trusted hash of the header from which syncer starts to sync, a.k.a genesis,
+	// which can be any valid past header in the chain we trust
+	trusted tmbytes.HexBytes
 	// inProgress is set to 1 once syncing commences and
 	// is set to 0 once syncing is either finished or
 	// not currently in progress
@@ -26,7 +41,7 @@ type Syncer struct {
 	triggerSync chan struct{}
 	// pending keeps ranges of valid headers received from the network awaiting to be appended to store
 	pending ranges
-
+	// cancel cancels syncLoop's context
 	cancel context.CancelFunc
 }
 
