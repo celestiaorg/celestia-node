@@ -20,8 +20,8 @@ type Subscriber interface {
 	// Multiple Subscriptions can be created.
 	Subscribe() (Subscription, error)
 	// AddValidator registers a Validator for all Subscriptions.
-	// Registered Validators receive ExtendedHeaders before Subscriptions
-	// and decide whether they will receive ExtendedHeaders or not.
+	// Registered Validators screen ExtendedHeaders for their validity
+	// before they are sent through Subscriptions.
 	// Multiple validators can be registered.
 	AddValidator(Validator) error
 }
