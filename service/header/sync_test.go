@@ -13,6 +13,9 @@ import (
 )
 
 func TestSyncSimpleRequestingHead(t *testing.T) {
+	// this way we force local head of Syncer to expire, so it requests a new one from trusted peer
+	TrustingPeriod = time.Microsecond
+
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -31,9 +34,6 @@ func TestSyncSimpleRequestingHead(t *testing.T) {
 	require.Nil(t, err)
 
 	requestSize = 13 // just some random number
-
-	// this way we force local head of Syncer to expire, so it requests a new one from trusted peer
-	TrustingPeriod = time.Microsecond
 
 	syncer := NewSyncer(fakeExchange, localStore, &DummySubscriber{}, head.Hash())
 	err = syncer.Start(ctx)
@@ -90,6 +90,9 @@ func TestSyncerInitStore(t *testing.T) {
 }
 
 func TestSyncCatchUp(t *testing.T) {
+	// just set a big enough value, so we trust local header and don't request anything
+	TrustingPeriod = time.Minute
+
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -132,6 +135,9 @@ func TestSyncCatchUp(t *testing.T) {
 }
 
 func TestSyncPendingRangesWithMisses(t *testing.T) {
+	// just set a big enough value, so we trust local header and don't request anything
+	TrustingPeriod = time.Minute
+
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
