@@ -95,6 +95,9 @@ func (ex *P2PExchange) RequestByHash(ctx context.Context, hash tmbytes.HexBytes)
 }
 
 func (ex *P2PExchange) performRequest(ctx context.Context, req *pb.ExtendedHeaderRequest) ([]*ExtendedHeader, error) {
+	if req.Amount == 0 {
+		return make([]*ExtendedHeader, 0), nil
+	}
 	if ex.trustedPeer == "" {
 		return nil, fmt.Errorf("no trusted peer")
 	}
@@ -120,12 +123,6 @@ func (ex *P2PExchange) performRequest(ctx context.Context, req *pb.ExtendedHeade
 		}
 
 		header, err := ProtoToExtendedHeader(resp)
-		if err != nil {
-			stream.Reset() //nolint:errcheck
-			return nil, err
-		}
-		// sanity check the header
-		err = header.ValidateBasic()
 		if err != nil {
 			stream.Reset() //nolint:errcheck
 			return nil, err

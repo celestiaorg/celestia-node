@@ -35,6 +35,9 @@ func (l *LocalExchange) RequestHeader(ctx context.Context, height uint64) (*Exte
 }
 
 func (l *LocalExchange) RequestHeaders(ctx context.Context, origin, amount uint64) ([]*ExtendedHeader, error) {
+	if amount == 0 {
+		return nil, nil
+	}
 	return l.store.GetRangeByHeight(ctx, origin, origin+amount)
 }
 

@@ -6,7 +6,7 @@ import (
 	logging "github.com/ipfs/go-log/v2"
 )
 
-var log = logging.Logger("header-service")
+var log = logging.Logger("header")
 
 // Service represents the header service that can be started / stopped on a node.
 // Service's main function is to manage its sub-services. Service can contain several
@@ -14,22 +14,22 @@ var log = logging.Logger("header-service")
 type Service struct {
 	ex Exchange
 
-	syncer        *Syncer
-	p2pSubscriber *P2PSubscriber
-	p2pServer     *P2PExchangeServer
+	syncer    *Syncer
+	sub       Subscriber
+	p2pServer *P2PExchangeServer
 }
 
 // NewHeaderService creates a new instance of header Service.
 func NewHeaderService(
 	syncer *Syncer,
-	p2pSub *P2PSubscriber,
+	sub Subscriber,
 	p2pServer *P2PExchangeServer,
 	ex Exchange) *Service {
 	return &Service{
-		syncer:        syncer,
-		p2pSubscriber: p2pSub,
-		p2pServer:     p2pServer,
-		ex:            ex,
+		syncer:    syncer,
+		sub:       sub,
+		p2pServer: p2pServer,
+		ex:        ex,
 	}
 }
 

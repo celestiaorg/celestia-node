@@ -7,6 +7,7 @@ import (
 	"github.com/celestiaorg/celestia-node/node/fxutil"
 	"github.com/celestiaorg/celestia-node/node/p2p"
 	"github.com/celestiaorg/celestia-node/node/services"
+	"github.com/celestiaorg/celestia-node/service/header"
 )
 
 // lightComponents keeps all the components as DI options required to built a Light Node.
@@ -44,7 +45,7 @@ func baseComponents(cfg *Config, store Store) fxutil.Option {
 		fxutil.Provide(services.HeaderService),
 		fxutil.Provide(services.HeaderStore),
 		fxutil.Provide(services.HeaderSyncer(cfg.Services)),
-		fxutil.Provide(services.P2PSubscriber),
+		fxutil.ProvideAs(services.P2PSubscriber, new(header.Broadcaster), new(header.Subscriber)),
 		fxutil.Provide(services.HeaderP2PExchangeServer),
 		p2p.Components(cfg.P2P),
 	)

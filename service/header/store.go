@@ -2,6 +2,7 @@ package header
 
 import (
 	"context"
+	"errors"
 	"strconv"
 	"sync"
 
@@ -9,14 +10,14 @@ import (
 	"github.com/ipfs/go-datastore"
 	"github.com/ipfs/go-datastore/namespace"
 
-	"github.com/tendermint/tendermint/libs/bytes"
+	tmbytes "github.com/tendermint/tendermint/libs/bytes"
 )
 
 // TODO(@Wondertan): Those values must be configurable and proper defaults should be set for specific node type.
 var (
-	// DefaultStoreCache defines the amount of max entries allowed in the Header Store cache.
+	// DefaultStoreCacheSize defines the amount of max entries allowed in the Header Store cache.
 	DefaultStoreCacheSize = 1024
-	// DefaultIndexCache defines the amount of max entries allowed in the Height to Hash index cache.
+	// DefaultIndexCacheSize defines the amount of max entries allowed in the Height to Hash index cache.
 	DefaultIndexCacheSize = 256
 )
 
@@ -26,7 +27,7 @@ type store struct {
 	index *heightIndexer
 
 	headLk sync.RWMutex
-	head   bytes.HexBytes
+	head   tmbytes.HexBytes
 }
 
 // NewStore constructs a Store over datastore.
@@ -91,11 +92,17 @@ func (s *store) Head(ctx context.Context) (*ExtendedHeader, error) {
 	case datastore.ErrNotFound:
 		return nil, ErrNoHead
 	case nil:
-		return s.Get(ctx, s.head)
+		head, err := s.Get(ctx, s.head)
+		if err != nil {
+			return nil, err
+		}
+
+		log.Infow("loaded head", "height", head.Height, "hash", head.Hash())
+		return head, nil
 	}
 }
 
-func (s *store) Get(_ context.Context, hash bytes.HexBytes) (*ExtendedHeader, error) {
+func (s *store) Get(_ context.Context, hash tmbytes.HexBytes) (*ExtendedHeader, error) {
 	if v, ok := s.cache.Get(hash.String()); ok {
 		return v.(*ExtendedHeader), nil
 	}
@@ -145,7 +152,7 @@ func (s *store) GetRangeByHeight(ctx context.Context, from, to uint64) ([]*Exten
 	return headers, nil
 }
 
-func (s *store) Has(_ context.Context, hash bytes.HexBytes) (bool, error) {
+func (s *store) Has(_ context.Context, hash tmbytes.HexBytes) (bool, error) {
 	if ok := s.cache.Contains(hash.String()); ok {
 		return ok, nil
 	}
@@ -164,6 +171,8 @@ func (s *store) Append(ctx context.Context, headers ...*ExtendedHeader) error {
 	default:
 		return err
 	case ErrNoHead:
+		// TODO(@Wondertan): Should be a separate Init method instead
+
 		// trust the given header as the initial head
 		err = s.put(headers...)
 		if err != nil {
@@ -182,22 +191,24 @@ func (s *store) Append(ctx context.Context, headers ...*ExtendedHeader) error {
 	}
 
 	verified := make([]*ExtendedHeader, 0, lh)
-	for _, h := range headers {
-		if head.Height == h.Height {
-			continue
-		}
-
-		err = VerifyAdjacent(head, h)
+	for i, h := range headers {
+		err = head.VerifyAdjacent(h)
 		if err != nil {
-			log.Errorw("invalid header", "current head", head.Hash(), "height",
-				head.Height, "attempted new header", h.Hash(), "height", h.Height, "err", err)
-			break // if some headers are cryptographically valid, why not include them? Exactly, so let's include
+			if i == 0 {
+				return err
+			}
+
+			var verErr *VerifyError
+			if errors.As(err, &verErr) {
+				log.Errorw("invalid header",
+					"height", head.Height,
+					"hash", h.Hash(),
+					"current height", head.Height,
+					"reason", verErr.Reason)
+				break
+			}
 		}
 		verified, head = append(verified, h), h
-	}
-	if len(verified) == 0 {
-		log.Warn("header/store: no valid headers were given")
-		return nil
 	}
 
 	err = s.put(verified...)
@@ -256,18 +267,12 @@ func (s *store) loadHead() error {
 		return err
 	}
 
-	err = s.head.UnmarshalJSON(b)
-	if err != nil {
-		return err
-	}
-
-	log.Infow("loaded head", "hash", s.head)
-	return nil
+	return s.head.UnmarshalJSON(b)
 }
 
 // newHead sets a new 'head' and saves it on disk.
 // At this point Header body of the given 'head' must be already written with put.
-func (s *store) newHead(head bytes.HexBytes) error {
+func (s *store) newHead(head tmbytes.HexBytes) error {
 	s.headLk.Lock()
 	s.head = head
 	s.headLk.Unlock()
@@ -301,9 +306,9 @@ func newHeightIndexer(ds datastore.Batching) (*heightIndexer, error) {
 }
 
 // HashByHeight loads a header by the given height.
-func (hi *heightIndexer) HashByHeight(h uint64) (bytes.HexBytes, error) {
+func (hi *heightIndexer) HashByHeight(h uint64) (tmbytes.HexBytes, error) {
 	if v, ok := hi.cache.Get(h); ok {
-		return v.(bytes.HexBytes), nil
+		return v.(tmbytes.HexBytes), nil
 	}
 
 	return hi.ds.Get(heightKey(h))

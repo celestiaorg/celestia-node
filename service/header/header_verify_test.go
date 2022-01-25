@@ -23,12 +23,6 @@ func TestVerifyAdjacent(t *testing.T) {
 		},
 		{
 			prepare: func() {
-				untrusted.Commit.Signatures[0].Signature = nil
-			},
-			err: true,
-		},
-		{
-			prepare: func() {
 				untrusted.ValidatorsHash = tmrand.Bytes(32)
 			},
 			err: true,
@@ -62,7 +56,7 @@ func TestVerifyAdjacent(t *testing.T) {
 	for i, test := range tests {
 		t.Run(strconv.Itoa(i), func(t *testing.T) {
 			test.prepare()
-			err := VerifyAdjacent(trusted, untrusted)
+			err := trusted.VerifyAdjacent(untrusted)
 			if test.err {
 				assert.Error(t, err)
 			} else {
