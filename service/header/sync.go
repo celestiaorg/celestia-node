@@ -24,7 +24,7 @@ type Syncer struct {
 	inProgress uint64
 	// signals to start syncing
 	triggerSync chan struct{}
-	// pending keeps ranges of valid headers rcvd from the network awaiting to be appended to store
+	// pending keeps ranges of valid headers received from the network awaiting to be appended to store
 	pending ranges
 
 	cancel context.CancelFunc
