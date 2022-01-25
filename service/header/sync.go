@@ -169,7 +169,7 @@ func (s *Syncer) sync(ctx context.Context) {
 	}
 }
 
-// incoming process new incoming Headers, validates them and applies/caches if applicable.
+// incoming processes new incoming Headers, validates them and stores/caches if applicable.
 func (s *Syncer) incoming(ctx context.Context, maybeHead *ExtendedHeader) pubsub.ValidationResult {
 	// 1. Try to append. If header is not adjacent/from future - try it for pending cache below
 	err := s.store.Append(ctx, maybeHead)
