@@ -4,9 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sync"
 	"sync/atomic"
+	"time"
 
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
+	tmbytes "github.com/tendermint/tendermint/libs/bytes"
 )
 
 // Syncer implements efficient synchronization for headers.
@@ -28,6 +31,9 @@ type Syncer struct {
 	exchange Exchange
 	store    Store
 
+	// stateLk protects state which represents the current or latest sync
+	stateLk sync.RWMutex
+	state   SyncState
 	// inProgress is set to 1 once syncing commences and
 	// is set to 0 once syncing is either finished or
 	// not currently in progress
@@ -78,6 +84,22 @@ func (s *Syncer) Stop(context.Context) error {
 // IsSyncing returns the current sync status of the Syncer.
 func (s *Syncer) IsSyncing() bool {
 	return atomic.LoadUint64(&s.inProgress) == 1
+}
+
+// SyncState collects all the information about o sync.
+type SyncState struct {
+	ID                           uint64
+	FromHeight, ToHeight, Height uint64
+	FromHash, ToHash             tmbytes.HexBytes
+	Start, End                   time.Time
+	Error                        error
+}
+
+// State reports state of current, if in progress, or last sync, if finished.
+func (s *Syncer) State() SyncState {
+	s.stateLk.RLock()
+	defer s.stateLk.RUnlock()
+	return s.state
 }
 
 // trustedHead returns the latest known trusted header that is within the trusting period.
@@ -142,11 +164,7 @@ func (s *Syncer) sync(ctx context.Context) {
 		return
 	}
 
-	err = s.syncTo(ctx, trstHead)
-	if err != nil {
-		log.Errorw("syncing headers", "err", err)
-		return
-	}
+	s.syncTo(ctx, trstHead)
 }
 
 // processIncoming processes new processIncoming Headers, validates them and stores/caches if applicable.
@@ -218,40 +236,86 @@ func (s *Syncer) processIncoming(ctx context.Context, maybeHead *ExtendedHeader)
 var requestSize uint64 = 512
 
 // syncTo requests headers from locally stored head up to the new head.
-func (s *Syncer) syncTo(ctx context.Context, newHead *ExtendedHeader) error {
+func (s *Syncer) syncTo(ctx context.Context, newHead *ExtendedHeader) {
 	head, err := s.store.Head(ctx)
 	if err != nil {
-		return err
+		log.Errorw("getting head during sync", "err", err)
+		return
 	}
 
 	if head.Height == newHead.Height {
-		return nil
+		return
 	}
 
-	log.Infow("syncing headers", "from", head.Height, "to", newHead.Height)
-	defer log.Info("synced headers")
+	log.Infow("syncing headers",
+		"from", head.Height,
+		"to", newHead.Height)
+	err = s.doSync(ctx, head, newHead)
+	if err != nil {
+		log.Errorw("syncing headers",
+			"from", head.Height,
+			"to", newHead.Height,
+			"err", err)
+		return
+	}
 
-	start, end := uint64(head.Height)+1, uint64(newHead.Height)
-	for start <= end {
-		amount := end - start + 1
+	log.Info("synced headers",
+		"from", head.Height,
+		"to", newHead.Height,
+		"took", s.state.End.Sub(s.state.Start))
+}
+
+// doSync performs actual syncing updating the internal SyncState
+func (s *Syncer) doSync(ctx context.Context, oldHead, newHead *ExtendedHeader) (err error) {
+	from, to := uint64(oldHead.Height)+1, uint64(newHead.Height)
+
+	s.stateLk.Lock()
+	s.state.ID++
+	s.state.FromHeight = from
+	s.state.ToHeight = to
+	s.state.FromHash = oldHead.Hash()
+	s.state.ToHash = newHead.Hash()
+	s.state.Start = time.Now()
+	s.stateLk.Unlock()
+
+	for from <= to {
+		amount := to - from + 1
 		if amount > requestSize {
 			amount = requestSize
 		}
 
-		headers, err := s.getHeaders(ctx, start, amount)
-		if err != nil && len(headers) == 0 {
-			return err
+		amount, err = s.processHeaders(ctx, from, amount)
+		if err != nil && amount == 0 {
+			break
 		}
 
-		ln, err := s.store.Append(ctx, headers...)
-		if err != nil {
-			return err
-		}
-
-		start += uint64(ln)
+		from += amount
+		s.stateLk.Lock()
+		s.state.Height = from
+		s.stateLk.Unlock()
 	}
 
-	return nil
+	s.stateLk.Lock()
+	s.state.Height = from - 1 // minus one as we add one to the amount above
+	s.state.End = time.Now()
+	s.state.Error = err
+	s.stateLk.Unlock()
+	return err
+}
+
+// processHeaders gets and stores the 'amount' number of headers going from the 'start' height.
+func (s *Syncer) processHeaders(ctx context.Context, from, amount uint64) (uint64, error) {
+	headers, err := s.getHeaders(ctx, from, amount)
+	if err != nil {
+		return 0, err
+	}
+
+	ln, err := s.store.Append(ctx, headers...)
+	if err != nil {
+		return 0, err
+	}
+
+	return uint64(ln), nil
 }
 
 // getHeaders gets headers from either remote peers or from local cache of headers received by PubSub
