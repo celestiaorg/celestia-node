@@ -43,6 +43,7 @@ func TestSyncSimpleRequestingHead(t *testing.T) {
 	assert.Equal(t, uint64(exp.Height), syncer.State().Height)
 	assert.Equal(t, uint64(2), syncer.State().FromHeight)
 	assert.Equal(t, uint64(exp.Height), syncer.State().ToHeight)
+	assert.True(t, syncer.State().Finished())
 }
 
 func TestSyncCatchUp(t *testing.T) {
@@ -85,6 +86,7 @@ func TestSyncCatchUp(t *testing.T) {
 	assert.Equal(t, uint64(exp.Height+1), syncer.State().Height)
 	assert.Equal(t, uint64(2), syncer.State().FromHeight)
 	assert.Equal(t, uint64(exp.Height+1), syncer.State().ToHeight)
+	assert.True(t, syncer.State().Finished())
 }
 
 func TestSyncPendingRangesWithMisses(t *testing.T) {

@@ -88,14 +88,22 @@ func (s *Syncer) IsSyncing() bool {
 
 // SyncState collects all the information about o sync.
 type SyncState struct {
-	ID                           uint64
-	FromHeight, ToHeight, Height uint64
-	FromHash, ToHash             tmbytes.HexBytes
-	Start, End                   time.Time
-	Error                        error
+	ID                   uint64 // incrementing ID of a sync
+	Height               uint64 // height at the moment when State is requested for a sync
+	FromHeight, ToHeight uint64 // the starting and the ending point of a sync
+	FromHash, ToHash     tmbytes.HexBytes
+	Start, End           time.Time
+	Error                error // the error that might happen within a sync
+}
+
+// Finished is true whether a sync is done.
+func (s SyncState) Finished() bool {
+	return s.ToHeight == s.Height
 }
 
 // State reports state of current, if in progress, or last sync, if finished.
+// Note that throughout the whole Syncer lifetime there might an initial sync and multiple catch-ups.
+// All of them are treated as different syncs with different state IDs and other information.
 func (s *Syncer) State() SyncState {
 	s.stateLk.RLock()
 	defer s.stateLk.RUnlock()
