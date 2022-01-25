@@ -138,9 +138,7 @@ func (s *Syncer) trustedHead(ctx context.Context) (*ExtendedHeader, error) {
 		return nil, err
 	}
 
-	if objHead.Height > sbj.Height {
-		s.pending.Add(objHead)
-	}
+	s.pending.Add(objHead)
 	return objHead, nil
 }
 
