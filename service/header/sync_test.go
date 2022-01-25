@@ -23,30 +23,30 @@ func TestSyncSimpleRequestingHead(t *testing.T) {
 	head := suite.Head()
 
 	remoteStore, err := NewStoreWithHead(sync.MutexWrap(datastore.NewMapDatastore()), head)
-	require.Nil(t, err)
+	require.NoError(t, err)
 
 	err = remoteStore.Append(ctx, suite.GenExtendedHeaders(100)...)
-	require.Nil(t, err)
+	require.NoError(t, err)
 
 	fakeExchange := NewLocalExchange(remoteStore)
 
 	localStore, err := NewStoreWithHead(sync.MutexWrap(datastore.NewMapDatastore()), head)
-	require.Nil(t, err)
+	require.NoError(t, err)
 
 	requestSize = 13 // just some random number
 
 	syncer := NewSyncer(fakeExchange, localStore, &DummySubscriber{}, head.Hash())
 	err = syncer.Start(ctx)
-	require.Nil(t, err)
+	require.NoError(t, err)
 
 	// TODO(@Wondertan): Async blocking instead of sleep
 	time.Sleep(time.Second)
 
 	exp, err := remoteStore.Head(ctx)
-	require.Nil(t, err)
+	require.NoError(t, err)
 
 	have, err := localStore.Head(ctx)
-	require.Nil(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, exp.Height, have.Height)
 	assert.Empty(t, syncer.pending.Head())
 }
@@ -62,29 +62,29 @@ func TestSyncerInitStore(t *testing.T) {
 	head := suite.Head()
 
 	remoteStore, err := NewStoreWithHead(sync.MutexWrap(datastore.NewMapDatastore()), head)
-	require.Nil(t, err)
+	require.NoError(t, err)
 
 	err = remoteStore.Append(ctx, suite.GenExtendedHeaders(100)...)
-	require.Nil(t, err)
+	require.NoError(t, err)
 
 	fakeExchange := NewLocalExchange(remoteStore)
 
 	// we don't load the head here and expect syncer to load it himself
 	localStore, err := NewStore(sync.MutexWrap(datastore.NewMapDatastore()))
-	require.Nil(t, err)
+	require.NoError(t, err)
 
 	syncer := NewSyncer(fakeExchange, localStore, &DummySubscriber{}, head.Hash())
 	err = syncer.Start(ctx)
-	require.Nil(t, err)
+	require.NoError(t, err)
 
 	// TODO(@Wondertan): Async blocking instead of sleep
 	time.Sleep(time.Second)
 
 	exp, err := remoteStore.Head(ctx)
-	require.Nil(t, err)
+	require.NoError(t, err)
 
 	have, err := localStore.Head(ctx)
-	require.Nil(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, exp.Height, have.Height)
 	assert.Empty(t, syncer.pending.Head())
 }
@@ -100,21 +100,21 @@ func TestSyncCatchUp(t *testing.T) {
 	head := suite.Head()
 
 	remoteStore, err := NewStoreWithHead(sync.MutexWrap(datastore.NewMapDatastore()), head)
-	require.Nil(t, err)
+	require.NoError(t, err)
 
 	fakeExchange := NewLocalExchange(remoteStore)
 
 	localStore, err := NewStoreWithHead(sync.MutexWrap(datastore.NewMapDatastore()), head)
-	require.Nil(t, err)
+	require.NoError(t, err)
 
 	syncer := NewSyncer(fakeExchange, localStore, &DummySubscriber{}, head.Hash())
 	// 1. Initial sync
 	err = syncer.Start(ctx)
-	require.Nil(t, err)
+	require.NoError(t, err)
 
 	// 2. chain grows and syncer misses that
 	err = remoteStore.Append(ctx, suite.GenExtendedHeaders(100)...)
-	require.Nil(t, err)
+	require.NoError(t, err)
 
 	// 3. syncer rcvs header from the future and starts catching-up
 	res := syncer.incoming(ctx, suite.GenExtendedHeaders(1)[0])
@@ -124,10 +124,10 @@ func TestSyncCatchUp(t *testing.T) {
 	time.Sleep(time.Second)
 
 	exp, err := remoteStore.Head(ctx)
-	require.Nil(t, err)
+	require.NoError(t, err)
 
 	have, err := localStore.Head(ctx)
-	require.Nil(t, err)
+	require.NoError(t, err)
 
 	// 4. assert syncer caught-up
 	assert.Equal(t, exp.Height+1, have.Height) // plus one as we didn't add last header to remoteStore
@@ -145,32 +145,32 @@ func TestSyncPendingRangesWithMisses(t *testing.T) {
 	head := suite.Head()
 
 	remoteStore, err := NewStoreWithHead(sync.MutexWrap(datastore.NewMapDatastore()), head)
-	require.Nil(t, err)
+	require.NoError(t, err)
 
 	fakeExchange := NewLocalExchange(remoteStore)
 
 	localStore, err := NewStoreWithHead(sync.MutexWrap(datastore.NewMapDatastore()), head)
-	require.Nil(t, err)
+	require.NoError(t, err)
 
 	syncer := NewSyncer(fakeExchange, localStore, &DummySubscriber{}, head.Hash())
 	err = syncer.Start(ctx)
-	require.Nil(t, err)
+	require.NoError(t, err)
 
 	// miss 1 (helps to test that Syncer properly requests missed Headers from Exchange)
 	err = remoteStore.Append(ctx, suite.GenExtendedHeaders(1)...)
-	require.Nil(t, err)
+	require.NoError(t, err)
 
 	range1 := suite.GenExtendedHeaders(15)
 	err = remoteStore.Append(ctx, range1...)
-	require.Nil(t, err)
+	require.NoError(t, err)
 
 	// miss 2
 	err = remoteStore.Append(ctx, suite.GenExtendedHeaders(3)...)
-	require.Nil(t, err)
+	require.NoError(t, err)
 
 	range2 := suite.GenExtendedHeaders(23)
 	err = remoteStore.Append(ctx, range2...)
-	require.Nil(t, err)
+	require.NoError(t, err)
 
 	// manually add to pending
 	for _, h := range append(range1, range2...) {
@@ -181,10 +181,10 @@ func TestSyncPendingRangesWithMisses(t *testing.T) {
 	syncer.sync(ctx)
 
 	exp, err := remoteStore.Head(ctx)
-	require.Nil(t, err)
+	require.NoError(t, err)
 
 	have, err := localStore.Head(ctx)
-	require.Nil(t, err)
+	require.NoError(t, err)
 
 	assert.Equal(t, exp.Height, have.Height)
 	assert.Empty(t, syncer.pending.Head()) // assert all cache from pending is used
