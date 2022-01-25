@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"sync/atomic"
 
-	"github.com/libp2p/go-libp2p-core/peer"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 
 	tmbytes "github.com/tendermint/tendermint/libs/bytes"
@@ -14,7 +13,7 @@ import (
 
 // Syncer implements efficient synchronization for headers.
 type Syncer struct {
-	sub      *P2PSubscriber
+	sub      Subscriber
 	exchange Exchange
 	store    Store
 	trusted  tmbytes.HexBytes
@@ -32,7 +31,7 @@ type Syncer struct {
 }
 
 // NewSyncer creates a new instance of Syncer.
-func NewSyncer(exchange Exchange, store Store, sub *P2PSubscriber, trusted tmbytes.HexBytes) *Syncer {
+func NewSyncer(exchange Exchange, store Store, sub Subscriber, trusted tmbytes.HexBytes) *Syncer {
 	return &Syncer{
 		sub:         sub,
 		exchange:    exchange,
@@ -48,15 +47,13 @@ func (s *Syncer) Start(ctx context.Context) error {
 		return fmt.Errorf("header: Syncer already started")
 	}
 
-	if s.sub != nil {
-		err := s.sub.AddValidator(s.validateMsg)
-		if err != nil {
-			return err
-		}
+	err := s.sub.AddValidator(s.incoming)
+	if err != nil {
+		return err
 	}
 
 	// TODO(@Wondertan): Ideally, this initialization should be part of Init process
-	err := s.initStore(ctx)
+	err = s.initStore(ctx)
 	if err != nil {
 		log.Error(err)
 	}
@@ -172,21 +169,8 @@ func (s *Syncer) sync(ctx context.Context) {
 	}
 }
 
-// validateMsg implements validation of incoming Headers as PubSub msg validator.
-func (s *Syncer) validateMsg(ctx context.Context, p peer.ID, msg *pubsub.Message) pubsub.ValidationResult {
-	maybeHead, err := UnmarshalExtendedHeader(msg.Data)
-	if err != nil {
-		log.Errorw("unmarshalling header",
-			"from", p.ShortString(),
-			"err", err)
-		return pubsub.ValidationReject
-	}
-
-	return s.incoming(ctx, p, maybeHead)
-}
-
 // incoming process new incoming Headers, validates them and applies/caches if applicable.
-func (s *Syncer) incoming(ctx context.Context, p peer.ID, maybeHead *ExtendedHeader) pubsub.ValidationResult {
+func (s *Syncer) incoming(ctx context.Context, maybeHead *ExtendedHeader) pubsub.ValidationResult {
 	// 1. Try to append. If header is not adjacent/from future - try it for pending cache below
 	err := s.store.Append(ctx, maybeHead)
 	if err == nil {
@@ -197,15 +181,13 @@ func (s *Syncer) incoming(ctx context.Context, p peer.ID, maybeHead *ExtendedHea
 			log.Errorw("invalid header",
 				"height", maybeHead.Height,
 				"hash", maybeHead.Hash(),
-				"from", p.ShortString(),
 				"reason", verErr.Reason)
 			return pubsub.ValidationReject
 		}
 
 		log.Errorw("appending header",
 			"height", maybeHead.Height,
-			"hash", maybeHead.Hash().String(),
-			"from", p.ShortString())
+			"hash", maybeHead.Hash().String())
 		// might be a storage error or something else, so ignore
 		return pubsub.ValidationIgnore
 	}
@@ -221,8 +203,7 @@ func (s *Syncer) incoming(ctx context.Context, p peer.ID, maybeHead *ExtendedHea
 	if maybeHead.Height <= trstHead.Height {
 		log.Warnw("received known header",
 			"height", maybeHead.Height,
-			"hash", maybeHead.Hash(),
-			"from", p.ShortString())
+			"hash", maybeHead.Hash())
 
 		// TODO(@Wondertan): Remove once duplicates are fully fixed
 		log.Warnf("Ignore the warn above - there is a known issue with duplicate headers on the network.")
@@ -236,7 +217,6 @@ func (s *Syncer) incoming(ctx context.Context, p peer.ID, maybeHead *ExtendedHea
 		log.Errorw("invalid header",
 			"height", maybeHead.Height,
 			"hash", maybeHead.Hash(),
-			"from", p.ShortString(),
 			"reason", verErr.Reason)
 		return pubsub.ValidationReject
 	}
@@ -248,8 +228,7 @@ func (s *Syncer) incoming(ctx context.Context, p peer.ID, maybeHead *ExtendedHea
 	s.wantSync()
 	log.Infow("new pending head",
 		"height", maybeHead.Height,
-		"hash", maybeHead.Hash(),
-		"from", p.ShortString())
+		"hash", maybeHead.Hash())
 	return pubsub.ValidationAccept
 }
 

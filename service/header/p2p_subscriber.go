@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/libp2p/go-libp2p-core/peer"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 )
 
@@ -43,10 +44,20 @@ func (p *P2PSubscriber) Stop(context.Context) error {
 	return p.topic.Close()
 }
 
-// AddValidator applies basic pubsub validator for a topic.
-// Multiple validators can be registered.
-func (p *P2PSubscriber) AddValidator(val pubsub.ValidatorEx) error {
-	return p.pubsub.RegisterTopicValidator(PubSubTopic, val)
+// AddValidator applies basic pubsub validator for the topic.
+func (p *P2PSubscriber) AddValidator(val Validator) error {
+	pval := func(ctx context.Context, p peer.ID, msg *pubsub.Message) pubsub.ValidationResult {
+		maybeHead, err := UnmarshalExtendedHeader(msg.Data)
+		if err != nil {
+			log.Errorw("unmarshalling header",
+				"from", p.ShortString(),
+				"err", err)
+			return pubsub.ValidationReject
+		}
+
+		return val(ctx, maybeHead)
+	}
+	return p.pubsub.RegisterTopicValidator(PubSubTopic, pval)
 }
 
 // Subscribe returns a new subscription to the P2PSubscriber's

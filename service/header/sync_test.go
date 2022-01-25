@@ -35,7 +35,7 @@ func TestSyncSimpleRequestingHead(t *testing.T) {
 	// this way we force local head of Syncer to expire, so it requests a new one from trusted peer
 	TrustingPeriod = time.Microsecond
 
-	syncer := NewSyncer(fakeExchange, localStore, nil, head.Hash())
+	syncer := NewSyncer(fakeExchange, localStore, &DummySubscriber{}, head.Hash())
 	err = syncer.Start(ctx)
 	require.Nil(t, err)
 
@@ -73,7 +73,7 @@ func TestSyncerInitStore(t *testing.T) {
 	localStore, err := NewStore(sync.MutexWrap(datastore.NewMapDatastore()))
 	require.Nil(t, err)
 
-	syncer := NewSyncer(fakeExchange, localStore, nil, head.Hash())
+	syncer := NewSyncer(fakeExchange, localStore, &DummySubscriber{}, head.Hash())
 	err = syncer.Start(ctx)
 	require.Nil(t, err)
 
@@ -104,7 +104,7 @@ func TestSyncCatchUp(t *testing.T) {
 	localStore, err := NewStoreWithHead(sync.MutexWrap(datastore.NewMapDatastore()), head)
 	require.Nil(t, err)
 
-	syncer := NewSyncer(fakeExchange, localStore, nil, head.Hash())
+	syncer := NewSyncer(fakeExchange, localStore, &DummySubscriber{}, head.Hash())
 	// 1. Initial sync
 	err = syncer.Start(ctx)
 	require.Nil(t, err)
@@ -114,7 +114,7 @@ func TestSyncCatchUp(t *testing.T) {
 	require.Nil(t, err)
 
 	// 3. syncer rcvs header from the future and starts catching-up
-	res := syncer.incoming(ctx, "", suite.GenExtendedHeaders(1)[0])
+	res := syncer.incoming(ctx, suite.GenExtendedHeaders(1)[0])
 	assert.Equal(t, pubsub.ValidationAccept, res)
 
 	// TODO(@Wondertan): Async blocking instead of sleep
@@ -146,7 +146,7 @@ func TestSyncPendingRangesWithMisses(t *testing.T) {
 	localStore, err := NewStoreWithHead(sync.MutexWrap(datastore.NewMapDatastore()), head)
 	require.Nil(t, err)
 
-	syncer := NewSyncer(fakeExchange, localStore, nil, head.Hash())
+	syncer := NewSyncer(fakeExchange, localStore, &DummySubscriber{}, head.Hash())
 	err = syncer.Start(ctx)
 	require.Nil(t, err)
 

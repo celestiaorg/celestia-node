@@ -23,13 +23,13 @@ func HeaderSyncer(cfg Config) func(
 	lc fx.Lifecycle,
 	ex header.Exchange,
 	store header.Store,
-	sub *header.P2PSubscriber,
+	sub header.Subscriber,
 ) (*header.Syncer, error) {
 	return func(
 		lc fx.Lifecycle,
 		ex header.Exchange,
 		store header.Store,
-		sub *header.P2PSubscriber,
+		sub header.Subscriber,
 	) (*header.Syncer, error) {
 		trustedHash, err := cfg.trustedHash()
 		if err != nil {
@@ -47,23 +47,23 @@ func HeaderSyncer(cfg Config) func(
 }
 
 // P2PSubscriber creates a new header.P2PSubscriber.
-func P2PSubscriber(lc fx.Lifecycle, sub *pubsub.PubSub) (*header.P2PSubscriber, header.Subscriber, header.Broadcaster) {
+func P2PSubscriber(lc fx.Lifecycle, sub *pubsub.PubSub) (header.Subscriber, header.Broadcaster) {
 	p2pSub := header.NewP2PSubscriber(sub)
 	lc.Append(fx.Hook{
 		OnStart: p2pSub.Start,
 		OnStop:  p2pSub.Stop,
 	})
-	return p2pSub, p2pSub, p2pSub
+	return p2pSub, p2pSub
 }
 
 // HeaderService creates a new header.Service.
 func HeaderService(
 	syncer *header.Syncer,
-	p2pSub *header.P2PSubscriber,
+	sub header.Subscriber,
 	p2pServer *header.P2PExchangeServer,
 	ex header.Exchange,
 ) *header.Service {
-	return header.NewHeaderService(syncer, p2pSub, p2pServer, ex)
+	return header.NewHeaderService(syncer, sub, p2pServer, ex)
 }
 
 // HeaderExchangeP2P constructs new P2PExchange for headers.
