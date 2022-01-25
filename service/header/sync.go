@@ -98,7 +98,7 @@ func (s *Syncer) initStore(ctx context.Context) error {
 	return nil
 }
 
-// trustedHead returns the highest known trusted header which is a valid header with time within the trusting period.
+// trustedHead returns the latest known trusted header that is within the trusting period.
 func (s *Syncer) trustedHead(ctx context.Context) (*ExtendedHeader, error) {
 	// check pending for trusted header and return it if applicable
 	// NOTE: Pending cannot be expired, guaranteed
