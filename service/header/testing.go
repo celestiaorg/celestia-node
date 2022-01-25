@@ -3,6 +3,7 @@
 package header
 
 import (
+	"context"
 	mrand "math/rand"
 	"testing"
 	"time"
@@ -195,3 +196,27 @@ func RandBlockID(t *testing.T) types.BlockID {
 	mrand.Read(bid.PartSetHeader.Hash) //nolint:gosec
 	return bid
 }
+
+type DummySubscriber struct {
+	Headers []*ExtendedHeader
+}
+
+func (mhs *DummySubscriber) AddValidator(Validator) error {
+	return nil
+}
+
+func (mhs *DummySubscriber) Subscribe() (Subscription, error) {
+	return mhs, nil
+}
+
+func (mhs *DummySubscriber) NextHeader(ctx context.Context) (*ExtendedHeader, error) {
+	defer func() {
+		mhs.Headers = make([]*ExtendedHeader, 0)
+	}()
+	if len(mhs.Headers) == 0 {
+		return nil, context.Canceled
+	}
+	return mhs.Headers[0], nil
+}
+
+func (mhs *DummySubscriber) Cancel() {}

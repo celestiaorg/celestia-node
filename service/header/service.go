@@ -14,22 +14,22 @@ var log = logging.Logger("header")
 type Service struct {
 	ex Exchange
 
-	syncer        *Syncer
-	p2pSubscriber *P2PSubscriber
-	p2pServer     *P2PExchangeServer
+	syncer    *Syncer
+	sub       Subscriber
+	p2pServer *P2PExchangeServer
 }
 
 // NewHeaderService creates a new instance of header Service.
 func NewHeaderService(
 	syncer *Syncer,
-	p2pSub *P2PSubscriber,
+	sub Subscriber,
 	p2pServer *P2PExchangeServer,
 	ex Exchange) *Service {
 	return &Service{
-		syncer:        syncer,
-		p2pSubscriber: p2pSub,
-		p2pServer:     p2pServer,
-		ex:            ex,
+		syncer:    syncer,
+		sub:       sub,
+		p2pServer: p2pServer,
+		ex:        ex,
 	}
 }
 

@@ -5,14 +5,25 @@ import (
 	"errors"
 	"fmt"
 
+	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	tmbytes "github.com/tendermint/tendermint/libs/bytes"
 )
+
+// Validator aliases a func that validates ExtendedHeader.
+type Validator = func(context.Context, *ExtendedHeader) pubsub.ValidationResult
 
 // Subscriber encompasses the behavior necessary to
 // subscribe/unsubscribe from new ExtendedHeader events from the
 // network.
 type Subscriber interface {
+	// Subscribe creates long-living for validated ExtendedHeaders.
+	// Multiple Subscriptions can be created.
 	Subscribe() (Subscription, error)
+	// AddValidator registers a Validator for all Subscriptions.
+	// Registered Validators receive ExtendedHeaders before Subscriptions
+	// and decide whether they will receive ExtendedHeaders or not.
+	// Multiple validators can be registered.
+	AddValidator(Validator) error
 }
 
 // Subscription can retrieve the next ExtendedHeader from the
