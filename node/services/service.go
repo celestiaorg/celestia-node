@@ -47,13 +47,13 @@ func HeaderSyncer(cfg Config) func(
 }
 
 // P2PSubscriber creates a new header.P2PSubscriber.
-func P2PSubscriber(lc fx.Lifecycle, sub *pubsub.PubSub) (header.Subscriber, header.Broadcaster) {
+func P2PSubscriber(lc fx.Lifecycle, sub *pubsub.PubSub) *header.P2PSubscriber {
 	p2pSub := header.NewP2PSubscriber(sub)
 	lc.Append(fx.Hook{
 		OnStart: p2pSub.Start,
 		OnStop:  p2pSub.Stop,
 	})
-	return p2pSub, p2pSub
+	return p2pSub
 }
 
 // HeaderService creates a new header.Service.
