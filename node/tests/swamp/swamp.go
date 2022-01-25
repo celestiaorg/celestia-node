@@ -13,6 +13,7 @@ import (
 	mocknet "github.com/libp2p/go-libp2p/p2p/net/mock"
 	ma "github.com/multiformats/go-multiaddr"
 	"github.com/stretchr/testify/require"
+	tn "github.com/tendermint/tendermint/node"
 
 	"github.com/celestiaorg/celestia-node/core"
 	"github.com/celestiaorg/celestia-node/libs/keystore"
@@ -37,24 +38,18 @@ type Swamp struct {
 }
 
 // NewSwamp creates a new instance of Swamp.
-func NewSwamp(t *testing.T) *Swamp {
+func NewSwamp(t *testing.T, tn *tn.Node) *Swamp {
 	if testing.Verbose() {
 		log.SetDebugLogging()
 	}
 
 	var err error
 	ctx := context.Background()
-	// TODO(@Bidon15): Rework this to be configurable by the swamp's test
-	// case, not here.
-	kvStore := core.CreateKvStore(200)
-	coreNode := core.StartMockNode(kvStore)
-
-	coreNode.Config().Consensus.CreateEmptyBlocksInterval = 200 * time.Millisecond
 
 	swp := &Swamp{
 		t:          t,
 		Network:    mocknet.New(ctx),
-		CoreClient: core.NewEmbeddedFromNode(coreNode),
+		CoreClient: core.NewEmbeddedFromNode(tn),
 	}
 
 	swp.trustedHash, err = swp.getTrustedHash(ctx)
@@ -64,6 +59,21 @@ func NewSwamp(t *testing.T) *Swamp {
 		swp.stopAllNodes(ctx, swp.BridgeNodes, swp.LightNodes)
 	})
 	return swp
+}
+
+// TODO(@Bidon15): CoreClient(limitation)
+// Now, we are making an assumption that consensus mechanism is already tested out
+// so, we are not creating bridge nodes with each one containing its own core client
+// instead we are assigning all created BNs to 1 Core from the swamp
+
+// NewTendermintCoreNode creates a new instance of Tendermint Core with a kvStore
+func NewTendermintCoreNode(blockRetention int64, emptyBlockInterval time.Duration) *tn.Node {
+	kvStore := core.CreateKvStore(blockRetention)
+	coreNode := core.StartMockNode(kvStore)
+
+	coreNode.Config().Consensus.CreateEmptyBlocksInterval = emptyBlockInterval
+
+	return coreNode
 }
 
 // stopAllNodes goes through all received slices of Nodes and stops one-by-one
@@ -96,6 +106,7 @@ func (s *Swamp) WaitTillHeight(ctx context.Context, height int64) {
 			return
 		case block := <-blocks:
 			if height == block.Height {
+				fmt.Println(block.Height)
 				return
 			}
 		}
@@ -146,11 +157,6 @@ func (s *Swamp) getTrustedHash(ctx context.Context) (string, error) {
 	}
 }
 
-// TODO(@Bidon15): CoreClient(limitation)
-// Now, we are making an assumption that consensus mechanism is already tested out
-// so, we are not creating bridge nodes with each one containing its own core client
-// instead we are assigning all created BNs to 1 Core from the swamp
-
 // NewBridgeNode creates a new instance of BridgeNodes. Afterwards,
 // the instance is store in the swamp's BridgeNodes slice.
 func (s *Swamp) NewBridgeNode(options ...node.Option) *node.Node {
@@ -181,6 +187,25 @@ func (s *Swamp) NewLightNode(options ...node.Option) *node.Node {
 	cfg := node.DefaultConfig(node.Light)
 	store := node.MockStore(s.t, cfg)
 
+	ks, err := store.Keystore()
+	require.NoError(s.t, err)
+
+	// TODO(@Bidon15): If for some reason, we receive one of existing options
+	// like <core, host, hash> from the test case, we need to check them and not use
+	// default that are set here
+	options = append(options,
+		node.WithHost(s.createPeer(ks)),
+		node.WithTrustedHash(s.trustedHash),
+	)
+
+	node, err := node.New(node.Light, store, options...)
+	require.NoError(s.t, err)
+	s.LightNodes = append(s.LightNodes, node)
+
+	return node
+}
+
+func (s *Swamp) NewLightNodeWithStore(store node.Store, options ...node.Option) *node.Node {
 	ks, err := store.Keystore()
 	require.NoError(s.t, err)
 
