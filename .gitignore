@@ -22,6 +22,8 @@
 abci-cli
 addrbook.json
 artifacts/*
+celestia
+cel-shed
 coverage.txt
 docs/.vuepress/dist
 docs/_build

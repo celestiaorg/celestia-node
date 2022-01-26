@@ -5,14 +5,25 @@ import (
 	"errors"
 	"fmt"
 
+	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	tmbytes "github.com/tendermint/tendermint/libs/bytes"
 )
+
+// Validator aliases a func that validates ExtendedHeader.
+type Validator = func(context.Context, *ExtendedHeader) pubsub.ValidationResult
 
 // Subscriber encompasses the behavior necessary to
 // subscribe/unsubscribe from new ExtendedHeader events from the
 // network.
 type Subscriber interface {
+	// Subscribe creates long-living for validated ExtendedHeaders.
+	// Multiple Subscriptions can be created.
 	Subscribe() (Subscription, error)
+	// AddValidator registers a Validator for all Subscriptions.
+	// Registered Validators screen ExtendedHeaders for their validity
+	// before they are sent through Subscriptions.
+	// Multiple validators can be registered.
+	AddValidator(Validator) error
 }
 
 // Subscription can retrieve the next ExtendedHeader from the
@@ -52,8 +63,11 @@ var (
 	// ErrNotFound is returned when there is no requested header.
 	ErrNotFound = errors.New("header: not found")
 
-	// ErrNoHead is returned when Store does not contain Head of the chain,
+	// ErrNoHead is returned when Store does not contain Head of the chain.
 	ErrNoHead = fmt.Errorf("header/store: no chain head")
+
+	// ErrNonAdjacent is returned when Store is appended with a header not adjacent to the stored head.
+	ErrNonAdjacent = fmt.Errorf("header/store: non-adjacent")
 )
 
 // Store encompasses the behavior necessary to store and retrieve ExtendedHeaders

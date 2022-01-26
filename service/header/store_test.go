@@ -32,7 +32,7 @@ func TestStore(t *testing.T) {
 	err = store.Append(ctx, in...)
 	require.NoError(t, err)
 
-	out, err := store.GetRangeByHeight(ctx, 1, 11)
+	out, err := store.GetRangeByHeight(ctx, 2, 12)
 	require.NoError(t, err)
 	for i, h := range in {
 		assert.Equal(t, h.Hash(), out[i].Hash())

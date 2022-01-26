@@ -20,16 +20,16 @@ import (
 // broadcasts the new `ExtendedHeader` to the header-sub gossipsub
 // network.
 type CoreListener struct {
-	p2pSub  *P2PSubscriber
+	bcast   Broadcaster
 	fetcher *core.BlockFetcher
 	dag     format.DAGService
 
 	cancel context.CancelFunc
 }
 
-func NewCoreListener(p2pSub *P2PSubscriber, fetcher *core.BlockFetcher, dag format.DAGService) *CoreListener {
+func NewCoreListener(bcast Broadcaster, fetcher *core.BlockFetcher, dag format.DAGService) *CoreListener {
 	return &CoreListener{
-		p2pSub:  p2pSub,
+		bcast:   bcast,
 		fetcher: fetcher,
 		dag:     dag,
 	}
@@ -84,18 +84,15 @@ func (cl *CoreListener) listen(ctx context.Context, sub <-chan *types.Block) {
 			}
 
 			// broadcast new ExtendedHeader
-			err = cl.p2pSub.Broadcast(ctx, eh)
+			err = cl.bcast.Broadcast(ctx, eh)
 			if err != nil {
 				var pserr pubsub.ValidationError
-				if errors.As(err, &pserr) && pserr.Reason == pubsub.RejectValidationIgnored {
-					log.Warnw("core-listener: broadcasting next header", "height", eh.Height,
-						"err", err)
-				} else {
+				// TODO(@Wondertan): Log ValidationIgnore cases as well, once headr duplication issue is fixed
+				if errors.As(err, &pserr) && pserr.Reason != pubsub.RejectValidationIgnored {
 					log.Errorw("core-listener: broadcasting next header", "height", eh.Height,
 						"err", err)
+					return
 				}
-
-				return
 			}
 		case <-ctx.Done():
 			return

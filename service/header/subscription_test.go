@@ -5,7 +5,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ipfs/go-datastore"
 	"github.com/libp2p/go-libp2p-core/event"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	mocknet "github.com/libp2p/go-libp2p/p2p/net/mock"
@@ -28,12 +27,8 @@ func TestSubscriber(t *testing.T) {
 	pubsub1, err := pubsub.NewGossipSub(ctx, net.Hosts()[0], pubsub.WithMessageSignaturePolicy(pubsub.StrictNoSign))
 	require.NoError(t, err)
 
-	store1, err := NewStoreWithHead(datastore.NewMapDatastore(), suite.Head())
-	require.NoError(t, err)
-
 	// create sub-service lifecycles for header service 1
-	syncer1 := NewSyncer(NewLocalExchange(store1), store1, suite.Head().Hash())
-	p2pSub1 := NewP2PSubscriber(pubsub1, syncer1.Validate)
+	p2pSub1 := NewP2PSubscriber(pubsub1)
 	err = p2pSub1.Start(context.Background())
 	require.NoError(t, err)
 
@@ -42,12 +37,8 @@ func TestSubscriber(t *testing.T) {
 		pubsub.WithMessageSignaturePolicy(pubsub.StrictNoSign))
 	require.NoError(t, err)
 
-	store2, err := NewStoreWithHead(datastore.NewMapDatastore(), suite.Head())
-	require.NoError(t, err)
-
 	// create sub-service lifecycles for header service 2
-	syncer2 := NewSyncer(NewLocalExchange(store2), store2, suite.Head().Hash())
-	p2pSub2 := NewP2PSubscriber(pubsub2, syncer2.Validate)
+	p2pSub2 := NewP2PSubscriber(pubsub2)
 	err = p2pSub2.Start(context.Background())
 	require.NoError(t, err)
 
@@ -79,11 +70,6 @@ func TestSubscriber(t *testing.T) {
 	expectedHeader := suite.GenExtendedHeaders(1)[0]
 	bin, err := expectedHeader.MarshalBinary()
 	require.NoError(t, err)
-
-	// TODO @renaynay: this is a hack meant to simulate syncing being finished
-	// Topic validation logic should be extracted from the syncer,
-	// ref https://github.com/celestiaorg/celestia-node/issues/318
-	syncer1.finishSync()
 
 	err = p2pSub2.topic.Publish(ctx, bin, pubsub.WithReadiness(pubsub.MinTopicSize(1)))
 	require.NoError(t, err)

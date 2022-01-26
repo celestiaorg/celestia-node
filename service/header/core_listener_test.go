@@ -67,7 +67,7 @@ func createCoreListener(
 	fetcher *core.BlockFetcher,
 	ps *pubsub.PubSub,
 ) *CoreListener {
-	p2pSub := NewP2PSubscriber(ps, nil)
+	p2pSub := NewP2PSubscriber(ps)
 	err := p2pSub.Start(context.Background())
 	require.NoError(t, err)
 	t.Cleanup(func() {
