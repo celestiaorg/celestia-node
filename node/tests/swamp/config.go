@@ -3,9 +3,10 @@ package swamp
 import (
 	"time"
 
-	"github.com/celestiaorg/celestia-node/core"
 	"github.com/tendermint/tendermint/abci/types"
 	tn "github.com/tendermint/tendermint/config"
+
+	"github.com/celestiaorg/celestia-node/core"
 )
 
 // Config struct represents a set of pre-requisite attributes from the test scenario
