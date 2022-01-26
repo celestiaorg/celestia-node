@@ -75,15 +75,24 @@ func (s *Syncer) Start(context.Context) error {
 }
 
 // Stop stops Syncer.
-func (s *Syncer) Stop(context.Context) error {
-	s.cancel()
-	s.cancel = nil
-	return nil
+func (s *Syncer) Stop(ctx context.Context) error {
+	defer func() {
+		s.cancel()
+		s.cancel = nil
+	}()
+	return s.WaitSync(ctx)
 }
 
 // IsSyncing returns the current sync status of the Syncer.
 func (s *Syncer) IsSyncing() bool {
 	return atomic.LoadUint64(&s.inProgress) == 1
+}
+
+// WaitSync blocks until ongoing sync is done.
+func (s *Syncer) WaitSync(ctx context.Context) error {
+	// this store method blocks until header is available
+	_, err := s.store.GetByHeight(ctx, s.State().ToHeight)
+	return err
 }
 
 // SyncState collects all the information about o sync.
