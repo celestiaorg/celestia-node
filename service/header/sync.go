@@ -90,6 +90,11 @@ func (s *Syncer) IsSyncing() bool {
 
 // WaitSync blocks until ongoing sync is done.
 func (s *Syncer) WaitSync(ctx context.Context) error {
+	state := s.State()
+	if state.Finished() {
+		return nil
+	}
+
 	// this store method blocks until header is available
 	_, err := s.store.GetByHeight(ctx, s.State().ToHeight)
 	return err
