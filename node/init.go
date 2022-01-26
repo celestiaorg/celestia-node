@@ -90,11 +90,13 @@ func Init(path string, tp Type, options ...Option) error {
 func IsInit(path string, tp Type) bool {
 	path, err := storePath(path)
 	if err != nil {
+		log.Errorw("parsing store path", "path", path, "err", err)
 		return false
 	}
 
 	cfg, err := LoadConfig(configPath(path)) // load the Config and implicitly check for its existence
 	if err != nil {
+		log.Errorw("loading config", "path", path, "err", err)
 		return false
 	}
 
