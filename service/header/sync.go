@@ -281,7 +281,7 @@ func (s *Syncer) syncTo(ctx context.Context, newHead *ExtendedHeader) {
 		return
 	}
 
-	log.Info("synced headers",
+	log.Infow("synced headers",
 		"from", head.Height,
 		"to", newHead.Height,
 		"took", s.state.End.Sub(s.state.Start))
