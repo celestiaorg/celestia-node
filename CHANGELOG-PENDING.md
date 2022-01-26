@@ -21,6 +21,7 @@ Month, DD, YYYY
 
 ### IMPROVEMENTS
 
+- [feat(params): add bootstrappers #399](https://github.com/celestiaorg/celestia-node/pull/399) [@Wondertan](https://github.com/Wondertan)
 - [service/header: remove start/stop from P2PExchange](https://github.com/celestiaorg/celestia-node/pull/367) [@Bidon15](https://github.com/Bidon15)
 - [service/share: Implement `FullAvailability`](https://github.com/celestiaorg/celestia-node/pull/333) [@renaynay](https://github.com/renaynay)
 - [services/header: Refactor `HeaderService` to be responsible for broadcasting new `ExtendedHeader`s to the gossipsub network](https://github.com/celestiaorg/celestia-node/pull/327) [@renaynay](https://github.com/renaynay)
