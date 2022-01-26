@@ -6,7 +6,6 @@ import (
 	"math/rand"
 	"net"
 	"testing"
-	"time"
 
 	"github.com/ipfs/go-log/v2"
 	"github.com/libp2p/go-libp2p-core/host"
@@ -39,13 +38,16 @@ type Swamp struct {
 }
 
 // NewSwamp creates a new instance of Swamp.
-func NewSwamp(t *testing.T, tn *tn.Node) *Swamp {
+func NewSwamp(t *testing.T, cfg *Config) *Swamp {
 	if testing.Verbose() {
 		log.SetDebugLogging()
 	}
 
 	var err error
 	ctx := context.Background()
+
+	tn, err := newTendermintCoreNode(cfg)
+	require.NoError(t, err)
 
 	swp := &Swamp{
 		t:          t,
@@ -59,6 +61,7 @@ func NewSwamp(t *testing.T, tn *tn.Node) *Swamp {
 	swp.t.Cleanup(func() {
 		swp.stopAllNodes(ctx, swp.BridgeNodes, swp.LightNodes)
 	})
+
 	return swp
 }
 
@@ -67,17 +70,18 @@ func NewSwamp(t *testing.T, tn *tn.Node) *Swamp {
 // so, we are not creating bridge nodes with each one containing its own core client
 // instead we are assigning all created BNs to 1 Core from the swamp
 
-// NewTendermintCoreNode creates a new instance of Tendermint Core with a kvStore
-func NewTendermintCoreNode(blockRetention int64, emptyBlockInterval time.Duration) (*tn.Node, error) {
-	kvStore := core.CreateKvStore(blockRetention)
-
+// newTendermintCoreNode creates a new instance of Tendermint Core with a kvStore
+func newTendermintCoreNode(cfg *Config) (*tn.Node, error) {
 	var opt rpctest.Options
 	rpctest.RecreateConfig(&opt)
 
-	tn := rpctest.NewTendermint(kvStore, &opt)
-	tn.Config().Consensus.CreateEmptyBlocksInterval = emptyBlockInterval
+	tn := rpctest.NewTendermint(cfg.App, &opt)
+
+	// rewriting the created config with test's one
+	tn.Config().Consensus = cfg.CoreCfg.Consensus
 
 	err := tn.Start()
+
 	return tn, err
 }
 
