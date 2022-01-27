@@ -16,7 +16,7 @@ type Validator = func(context.Context, *ExtendedHeader) pubsub.ValidationResult
 // subscribe/unsubscribe from new ExtendedHeader events from the
 // network.
 type Subscriber interface {
-	// Subscribe creates long-living for validated ExtendedHeaders.
+	// Subscribe creates long-living Subscription for validated ExtendedHeaders.
 	// Multiple Subscriptions can be created.
 	Subscribe() (Subscription, error)
 	// AddValidator registers a Validator for all Subscriptions.
