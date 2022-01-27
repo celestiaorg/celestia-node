@@ -290,7 +290,7 @@ func (s *Syncer) syncTo(ctx context.Context, newHead *ExtendedHeader) error {
 	return nil
 }
 
-// getHeaders gets headers from either remote peers or from local cached of headers rcvd by PubSub
+// getHeaders gets headers from either remote peers or from local cache of headers received by PubSub
 func (s *Syncer) getHeaders(ctx context.Context, start, amount uint64) ([]*ExtendedHeader, error) {
 	// short-circuit if nothing in pending cache to avoid unnecessary allocation below
 	if _, ok := s.pending.FirstRangeWithin(start, start+amount); !ok {
