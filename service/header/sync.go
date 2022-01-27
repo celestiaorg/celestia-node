@@ -13,15 +13,15 @@ import (
 
 // Syncer implements efficient synchronization for headers.
 //
-// Mainly there are two processes going in Syncer:
-// * Main syncing loop(s.syncLoop)
+// There are two main processes running in Syncer:
+// 1. Main syncing loop(s.syncLoop)
 //    * Performs syncing from the subjective(local chain view) header up to the latest known trusted header
 //    * Syncs by requesting missing headers from Exchange or
 //    * By accessing cache of pending and verified headers
-// * Receives new headers from PubSub subnetwork (s.processIncoming)
-//    * Usually, a new header is adjacent to the trusted head and if so, it is simply appended to the local store
-//    	incrementing the subjective height and making it the new latest known trusted header.
-//    * Or, if farther from future,
+// 2. Receives new headers from PubSub subnetwork (s.processIncoming)
+//    * Usually, a new header is adjacent to the trusted head and if so, it is simply appended to the local store, incrementing the subjective height and 
+// making it the new latest known trusted header.
+//    * Or, if it receives a header further in the future,
 //      * verifies against the latest known trusted header
 //    	* adds the header to pending cache(making it the latest known trusted header)
 //      * and triggers syncing loop to catch up to that point.
