@@ -110,7 +110,7 @@ type SyncState struct {
 	Error                error // the error that might happen within a sync
 }
 
-// Finished is true whether a sync is done.
+// Finished returns true if sync is done, false otherwise.
 func (s SyncState) Finished() bool {
 	return s.ToHeight == s.Height
 }
