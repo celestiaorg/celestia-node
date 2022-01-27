@@ -121,20 +121,20 @@ func (pa *P2PAccess) AccountBalance(ctx context.Context, acct Account) (*Balance
 	if err != nil {
 		return nil, err
     }
-    
-	// write query to stream
+
+    // write query to stream
     err := stream.Write(query)
     if err != nil {
 		return nil, err
     }
 
-	// read resp from stream
+    // read resp from stream
     resp, err := stream.Read(buf)
     if err != nil {
         return nil, err		    
     }	
 
-	// unmarshal balance from response
+    // unmarshal balance from response
 	var bal Balance
     err = bal.Unmarshal(buf)	
 	if err != nil {
@@ -161,13 +161,13 @@ func (pa *P2PAccess) SubmitTx(ctx context.Context, tx Tx) (*TxResponse, error) {
 		return nil, err
     }
 
-	// read response from stream
+    // read response from stream
     resp, err := stream.Read(buf)
     if err != nil {
         return nil, err
     }	
 	
-	// get txResponse from response
+    // get txResponse from response
 	var tx Tx
 	err = tx.Unmarshal(buf)
 	if err != nil {
