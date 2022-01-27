@@ -19,8 +19,8 @@ import (
 //    * Syncs by requesting missing headers from Exchange or
 //    * By accessing cache of pending and verified headers
 // 2. Receives new headers from PubSub subnetwork (s.processIncoming)
-//    * Usually, a new header is adjacent to the trusted head and if so, it is simply appended to the local store, incrementing the subjective height and 
-// making it the new latest known trusted header.
+//    * Usually, a new header is adjacent to the trusted head and if so, it is simply appended to the local store,
+//    incrementing the subjective height and making it the new latest known trusted header.
 //    * Or, if it receives a header further in the future,
 //      * verifies against the latest known trusted header
 //    	* adds the header to pending cache(making it the latest known trusted header)
