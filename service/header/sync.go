@@ -317,8 +317,9 @@ func (s *Syncer) doSync(ctx context.Context, oldHead, newHead *ExtendedHeader) (
 		s.stateLk.Unlock()
 	}
 
+	finHeight := from - 1 // minus one as we add one to the 'amount' in the loop above
 	s.stateLk.Lock()
-	s.state.Height = from - 1 // minus one as we add one to the amount above
+	s.state.Height = finHeight
 	s.state.End = time.Now()
 	s.state.Error = err
 	s.stateLk.Unlock()
