@@ -51,8 +51,10 @@ type StateAccessor interface {
 `StateAccessor` will have 3 separate implementations under the hood: 
 1. **CORE**: RPC connection with a celestia-core endpoint handed to the node upon initialisation
 (*required for this iteration*) 
-2. **P2P**: discovery of a **bridge** node, and then establish direct RPC connection (*nice-to-have for this iteration*)
-3. **LOCAL**: eventually, **full** nodes will be able to provide state to the network, and can execute the
+2. **P2P**: discovery of a **bridge** node or other node that can provide state and submit messages via libp2p to be 
+relayed to celestia-core (*nice-to-have for this iteration*)
+3. **LOCAL**: eventually, **full** nodes will be able to provide state to the network, and can therefore execute and 
+respond to the queries without relaying queries to celestia-core (*to be scoped out and implemented in later iterations*)
 
 ### `CoreAccess`
 
@@ -112,9 +114,9 @@ func NewP2PAccess(host libhost.Host, cc *lens.ChainClient) *P2PAccess {
 
 func (pa *P2PAccess) AccountBalance(ctx context.Context, acct Account) (*Balance, error) {
     // passing in lens.ChainClient here to help construct the query
-	query := acctBalanceQuery(pa.cc, acct) 
+	query := acctBalanceQuery(pa.cc, acct)
 	
-	// open connection with peer who serves State
+    // open connection with peer who serves State
     stream, err := pa.ConnectToStateProvider()   
 	if err != nil {
 		return nil, err
