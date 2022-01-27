@@ -115,7 +115,7 @@ func (s SyncState) Finished() bool {
 	return s.ToHeight == s.Height
 }
 
-// State reports state of current, if in progress, or last sync, if finished.
+// State reports state of the current (if in progress), or last sync (if finished).
 // Note that throughout the whole Syncer lifetime there might an initial sync and multiple catch-ups.
 // All of them are treated as different syncs with different state IDs and other information.
 func (s *Syncer) State() SyncState {
