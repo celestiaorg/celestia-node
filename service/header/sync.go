@@ -18,7 +18,7 @@ import (
 //    * Performs syncing from the subjective(local chain view) header up to the latest known trusted header
 //    * Syncs by requesting missing headers from Exchange or
 //    * By accessing cache of pending and verified headers
-// * Receives new headers from PubSub subnetwork (s.incoming)
+// * Receives new headers from PubSub subnetwork (s.processIncoming)
 //    * Usually, a new header is adjacent to the trusted head and if so, it is simply appended to the local store
 //    	incrementing the subjective height and making it the new latest known trusted header.
 //    * Or, if farther from future,
@@ -62,7 +62,7 @@ func (s *Syncer) Start(ctx context.Context) error {
 		return fmt.Errorf("header: Syncer already started")
 	}
 
-	err := s.sub.AddValidator(s.incoming)
+	err := s.sub.AddValidator(s.processIncoming)
 	if err != nil {
 		return err
 	}
@@ -182,8 +182,8 @@ func (s *Syncer) sync(ctx context.Context) {
 	}
 }
 
-// incoming processes new incoming Headers, validates them and stores/caches if applicable.
-func (s *Syncer) incoming(ctx context.Context, maybeHead *ExtendedHeader) pubsub.ValidationResult {
+// processIncoming processes new processIncoming Headers, validates them and stores/caches if applicable.
+func (s *Syncer) processIncoming(ctx context.Context, maybeHead *ExtendedHeader) pubsub.ValidationResult {
 	// 1. Try to append. If header is not adjacent/from future - try it for pending cache below
 	err := s.store.Append(ctx, maybeHead)
 	switch err {
@@ -293,14 +293,14 @@ func (s *Syncer) syncTo(ctx context.Context, newHead *ExtendedHeader) error {
 // getHeaders gets headers from either remote peers or from local cached of headers rcvd by PubSub
 func (s *Syncer) getHeaders(ctx context.Context, start, amount uint64) ([]*ExtendedHeader, error) {
 	// short-circuit if nothing in pending cache to avoid unnecessary allocation below
-	if _, ok := s.pending.BackWithin(start, start+amount); !ok {
+	if _, ok := s.pending.FirstRangeWithin(start, start+amount); !ok {
 		return s.exchange.RequestHeaders(ctx, start, amount)
 	}
 
 	end, out := start+amount, make([]*ExtendedHeader, 0, amount)
 	for start < end {
 		// if we have some range cached - use it
-		if r, ok := s.pending.BackWithin(start, end); ok {
+		if r, ok := s.pending.FirstRangeWithin(start, end); ok {
 			// first, request everything between start and found range
 			hs, err := s.exchange.RequestHeaders(ctx, start, r.Start-start)
 			if err != nil {

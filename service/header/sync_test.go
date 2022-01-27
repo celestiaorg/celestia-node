@@ -117,7 +117,7 @@ func TestSyncCatchUp(t *testing.T) {
 	require.NoError(t, err)
 
 	// 3. syncer rcvs header from the future and starts catching-up
-	res := syncer.incoming(ctx, suite.GenExtendedHeaders(1)[0])
+	res := syncer.processIncoming(ctx, suite.GenExtendedHeaders(1)[0])
 	assert.Equal(t, pubsub.ValidationAccept, res)
 
 	// TODO(@Wondertan): Async blocking instead of sleep

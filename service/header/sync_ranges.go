@@ -5,7 +5,7 @@ import "sync"
 // ranges keeps non-overlapping and non-adjacent header ranges which are used to cache headers (in ascending order).
 // This prevents unnecessary / duplicate network requests for additional headers during sync.
 type ranges struct {
-	ranges []*_range
+	ranges []*headerRange
 	lk     sync.Mutex // no need for RWMutex as there is only one reader
 }
 
@@ -58,9 +58,10 @@ func (rs *ranges) Add(h *ExtendedHeader) {
 	}
 }
 
-// BackWithin searches for a range within a given height span (start:end].
-func (rs *ranges) BackWithin(start, end uint64) (*_range, bool) {
-	r, ok := rs.Back()
+// FirstRangeWithin checks if the first range is within a given height span [start:end)
+// and returns it.
+func (rs *ranges) FirstRangeWithin(start, end uint64) (*headerRange, bool) {
+	r, ok := rs.First()
 	if !ok {
 		return nil, false
 	}
@@ -72,8 +73,8 @@ func (rs *ranges) BackWithin(start, end uint64) (*_range, bool) {
 	return nil, false
 }
 
-// Back provides a first non-empty range, while cleaning up empty ones.
-func (rs *ranges) Back() (*_range, bool) {
+// First provides a first non-empty range, while cleaning up empty ones.
+func (rs *ranges) First() (*headerRange, bool) {
 	rs.lk.Lock()
 	defer rs.lk.Unlock()
 
@@ -91,35 +92,35 @@ func (rs *ranges) Back() (*_range, bool) {
 	}
 }
 
-type _range struct {
+type headerRange struct {
 	Start   uint64
 	lk      sync.Mutex // no need for RWMutex as there is only one reader
 	headers []*ExtendedHeader
 }
 
-func newRange(h *ExtendedHeader) *_range {
-	return &_range{
+func newRange(h *ExtendedHeader) *headerRange {
+	return &headerRange{
 		Start:   uint64(h.Height),
 		headers: []*ExtendedHeader{h},
 	}
 }
 
 // Append appends new headers.
-func (r *_range) Append(h ...*ExtendedHeader) {
+func (r *headerRange) Append(h ...*ExtendedHeader) {
 	r.lk.Lock()
 	r.headers = append(r.headers, h...)
 	r.lk.Unlock()
 }
 
 // Empty reports if range is empty.
-func (r *_range) Empty() bool {
+func (r *headerRange) Empty() bool {
 	r.lk.Lock()
 	defer r.lk.Unlock()
 	return len(r.headers) == 0
 }
 
 // Head reports the head of range if any.
-func (r *_range) Head() *ExtendedHeader {
+func (r *headerRange) Head() *ExtendedHeader {
 	r.lk.Lock()
 	defer r.lk.Unlock()
 	ln := len(r.headers)
@@ -130,7 +131,7 @@ func (r *_range) Head() *ExtendedHeader {
 }
 
 // Before truncates all the headers before height 'end'.
-func (r *_range) Before(end uint64) []*ExtendedHeader {
+func (r *headerRange) Before(end uint64) []*ExtendedHeader {
 	r.lk.Lock()
 	defer r.lk.Unlock()
 
