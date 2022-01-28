@@ -99,7 +99,7 @@ An idea for how `P2PAccess` could be implemented can be found below.
 ```go
 type P2PAccess struct {
 	host libhost.Host
-    // P2PAccess will still use lens.ChainClient's methods
+	// P2PAccess will still use lens.ChainClient's methods
 	// under the hood, but will use libp2p transport instead
 	// of RPC communication with the Core endpoint.
    cc  *lens.ChainClient 
