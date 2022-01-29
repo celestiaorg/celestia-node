@@ -3,6 +3,7 @@
 package header
 
 import (
+	"context"
 	mrand "math/rand"
 	"testing"
 	"time"
@@ -28,25 +29,42 @@ type TestSuite struct {
 	valSet  *types.ValidatorSet
 	valPntr int
 
-	height int64
-	head   *ExtendedHeader
+	head *ExtendedHeader
 }
 
 // NewTestSuite setups a new test suite with a given number of validators.
 func NewTestSuite(t *testing.T, num int) *TestSuite {
 	valSet, vals := types.RandValidatorSet(num, 10)
-	head := RandExtendedHeader(t)
-	head.NextValidatorsHash = valSet.Hash()
-	head.Height = 0
 	return &TestSuite{
 		t:      t,
 		vals:   vals,
 		valSet: valSet,
-		head:   head,
 	}
 }
 
+func (s *TestSuite) genesis() *ExtendedHeader {
+	gen := RandRawHeader(s.t)
+	gen.ValidatorsHash = s.valSet.Hash()
+	gen.NextValidatorsHash = s.valSet.Hash()
+	gen.Height = 1
+	voteSet := types.NewVoteSet(gen.ChainID, gen.Height, 0, tmproto.PrecommitType, s.valSet)
+	commit, err := types.MakeCommit(RandBlockID(s.t), gen.Height, 0, voteSet, s.vals, time.Now())
+	require.NoError(s.t, err)
+	dah := EmptyDAH()
+	eh := &ExtendedHeader{
+		RawHeader:    *gen,
+		Commit:       commit,
+		ValidatorSet: s.valSet,
+		DAH:          &dah,
+	}
+	require.NoError(s.t, eh.ValidateBasic())
+	return eh
+}
+
 func (s *TestSuite) Head() *ExtendedHeader {
+	if s.head == nil {
+		s.head = s.genesis()
+	}
 	return s.head
 }
 
@@ -59,15 +77,21 @@ func (s *TestSuite) GenExtendedHeaders(num int) []*ExtendedHeader {
 }
 
 func (s *TestSuite) GenExtendedHeader() *ExtendedHeader {
-	s.height++
+	if s.head == nil {
+		s.head = s.genesis()
+		return s.head
+	}
+
 	dah := da.MinDataAvailabilityHeader()
-	rh := s.GenRawHeader(s.height, s.Head().Hash(), s.Head().Commit.Hash(), dah.Hash())
+	height := s.Head().Height + 1
+	rh := s.GenRawHeader(height, s.Head().Hash(), s.Head().Commit.Hash(), dah.Hash())
 	s.head = &ExtendedHeader{
 		RawHeader:    *rh,
 		Commit:       s.Commit(rh),
 		ValidatorSet: s.valSet,
 		DAH:          &dah,
 	}
+	require.NoError(s.t, s.head.ValidateBasic())
 	return s.head
 }
 
@@ -125,7 +149,8 @@ func (s *TestSuite) nextProposer() *types.Validator {
 // RandExtendedHeader provides an ExtendedHeader fixture.
 func RandExtendedHeader(t *testing.T) *ExtendedHeader {
 	rh := RandRawHeader(t)
-	valSet, vals := types.RandValidatorSet(5, 1)
+	valSet, vals := types.RandValidatorSet(3, 1)
+	rh.ValidatorsHash = valSet.Hash()
 	voteSet := types.NewVoteSet(rh.ChainID, rh.Height, 0, tmproto.PrecommitType, valSet)
 	commit, err := types.MakeCommit(RandBlockID(t), rh.Height, 0, voteSet, vals, time.Now())
 	require.NoError(t, err)
@@ -171,3 +196,27 @@ func RandBlockID(t *testing.T) types.BlockID {
 	mrand.Read(bid.PartSetHeader.Hash) //nolint:gosec
 	return bid
 }
+
+type DummySubscriber struct {
+	Headers []*ExtendedHeader
+}
+
+func (mhs *DummySubscriber) AddValidator(Validator) error {
+	return nil
+}
+
+func (mhs *DummySubscriber) Subscribe() (Subscription, error) {
+	return mhs, nil
+}
+
+func (mhs *DummySubscriber) NextHeader(ctx context.Context) (*ExtendedHeader, error) {
+	defer func() {
+		mhs.Headers = make([]*ExtendedHeader, 0)
+	}()
+	if len(mhs.Headers) == 0 {
+		return nil, context.Canceled
+	}
+	return mhs.Headers[0], nil
+}
+
+func (mhs *DummySubscriber) Cancel() {}

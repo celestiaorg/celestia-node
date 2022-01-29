@@ -31,6 +31,10 @@ func (ce *CoreExchange) RequestHeader(ctx context.Context, height uint64) (*Exte
 }
 
 func (ce *CoreExchange) RequestHeaders(ctx context.Context, from, amount uint64) ([]*ExtendedHeader, error) {
+	if amount == 0 {
+		return nil, nil
+	}
+
 	log.Debugw("core: requesting headers", "from", from, "to", from+amount)
 	headers := make([]*ExtendedHeader, amount)
 	for i := range headers {

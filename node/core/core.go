@@ -30,7 +30,7 @@ func Components(cfg Config, loader core.RepoLoader) fxutil.Option {
 	return fxutil.Options(
 		fxutil.Provide(core.NewBlockFetcher),
 		fxutil.ProvideAs(header.NewCoreExchange, new(header.Exchange)),
-		fxutil.Provide(HeaderCoreListener),
+		fxutil.Invoke(HeaderCoreListener),
 		fxutil.ProvideIf(cfg.Remote, func() (core.Client, error) {
 			return RemoteClient(cfg)
 		}),
@@ -56,10 +56,10 @@ func Components(cfg Config, loader core.RepoLoader) fxutil.Option {
 func HeaderCoreListener(
 	lc fx.Lifecycle,
 	ex *core.BlockFetcher,
-	p2pSub *header.P2PSubscriber,
+	bcast header.Broadcaster,
 	dag format.DAGService,
 ) *header.CoreListener {
-	cl := header.NewCoreListener(p2pSub, ex, dag)
+	cl := header.NewCoreListener(bcast, ex, dag)
 	lc.Append(fx.Hook{
 		OnStart: cl.Start,
 		OnStop:  cl.Stop,
