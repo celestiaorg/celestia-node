@@ -96,7 +96,7 @@ func (ca *CoreAccess) SubmitTx(ctx context.Context, tx Tx) (TxResponse, error) {
 While it is not necessary to detail how `P2PAccess` will be implemented in this ADR, it will still conform to the 
 `StateAccessor` interface, but instead of being provided a core endpoint to connect to via RPC and using `lens.ChainClient`
 for state-related queries, `P2PAccess` will perform service discovery of state-providing nodes in the network and perform
-the state queries via libp2p streams.
+the state queries via libp2p streams. More details of the p2p implementation will be described in a separate dedicated ADR.
 
 ```go
 type P2PAccess struct {
