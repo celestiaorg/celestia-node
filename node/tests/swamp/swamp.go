@@ -169,7 +169,7 @@ func (s *Swamp) NewBridgeNode(options ...node.Option) *node.Node {
 		node.WithTrustedHash(s.trustedHash),
 	)
 
-	node, err := node.New(node.Bridge, store, options...)
+	node, err := node.New(node.Bridge, store, nil, options...)
 	require.NoError(s.t, err)
 	s.BridgeNodes = append(s.BridgeNodes, node)
 	return node
@@ -192,7 +192,7 @@ func (s *Swamp) NewLightNode(options ...node.Option) *node.Node {
 		node.WithTrustedHash(s.trustedHash),
 	)
 
-	node, err := node.New(node.Light, store, options...)
+	node, err := node.New(node.Light, store, nil, options...)
 	require.NoError(s.t, err)
 	s.LightNodes = append(s.LightNodes, node)
 

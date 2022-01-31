@@ -19,6 +19,7 @@ func init() {
 			cmdnode.MiscFlags(),
 		),
 		cmdnode.Start(
+			nil,
 			cmdnode.NodeFlags(node.Light),
 			cmdnode.P2PFlags(),
 			cmdnode.HeadersFlags(),

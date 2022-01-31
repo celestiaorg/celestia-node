@@ -13,7 +13,7 @@ import (
 
 func TestNewLight(t *testing.T) {
 	store := MockStore(t, DefaultConfig(Light))
-	nd, err := New(Light, store)
+	nd, err := New(Light, store, nil)
 	require.NoError(t, err)
 	require.NotNil(t, nd)
 	require.NotNil(t, nd.Config)
@@ -23,7 +23,7 @@ func TestNewLight(t *testing.T) {
 
 func TestLightLifecycle(t *testing.T) {
 	store := MockStore(t, DefaultConfig(Light))
-	nd, err := New(Light, store)
+	nd, err := New(Light, store, nil)
 	require.NoError(t, err)
 
 	startCtx, cancel := context.WithCancel(context.Background())
@@ -47,7 +47,7 @@ func TestNewLightWithP2PKey(t *testing.T) {
 	require.NoError(t, err)
 
 	repo := MockStore(t, DefaultConfig(Light))
-	node, err := New(Light, repo, WithP2PKey(key))
+	node, err := New(Light, repo, nil, WithP2PKey(key))
 	require.NoError(t, err)
 	assert.True(t, node.Host.ID().MatchesPrivateKey(key))
 }
@@ -58,7 +58,7 @@ func TestNewLightWithHost(t *testing.T) {
 
 	nw, _ := mocknet.WithNPeers(ctx, 1)
 	repo := MockStore(t, DefaultConfig(Light))
-	node, err := New(Light, repo, WithHost(nw.Host(nw.Peers()[0])))
+	node, err := New(Light, repo, nil, WithHost(nw.Host(nw.Peers()[0])))
 	require.NoError(t, err)
 	assert.Equal(t, node.Host.ID(), nw.Peers()[0])
 }
@@ -69,7 +69,7 @@ func TestLight_WithMutualPeers(t *testing.T) {
 		"/ip6/100:0:114b:abc5:e13a:c32f:7a9e:f00a/tcp/2121/p2p/12D3KooWSRqDfpLsQxpyUhLC9oXHD2WuZ2y5FWzDri7LT4Dw9fSi",
 		"/ip4/192.168.1.10/tcp/2121/p2p/12D3KooWSRqDfpLsQxpyUhLC9oXHD2WuZ2y5FWzDri7LT4Dw9fSi",
 	}
-	node, err := New(Light, repo, WithMutualPeers(peers))
+	node, err := New(Light, repo, nil, WithMutualPeers(peers))
 	require.NoError(t, err)
 	require.NotNil(t, node)
 
@@ -82,7 +82,7 @@ func TestLight_WithBootstrapPeers(t *testing.T) {
 		"/ip6/100:0:114b:abc5:e13a:c32f:7a9e:f00a/tcp/2121/p2p/12D3KooWSRqDfpLsQxpyUhLC9oXHD2WuZ2y5FWzDri7LT4Dw9fSi",
 		"/ip4/192.168.1.10/tcp/2121/p2p/12D3KooWSRqDfpLsQxpyUhLC9oXHD2WuZ2y5FWzDri7LT4Dw9fSi",
 	}
-	node, err := New(Light, repo, WithBootstrapPeers(peers))
+	node, err := New(Light, repo, nil, WithBootstrapPeers(peers))
 	require.NoError(t, err)
 	require.NotNil(t, node)
 

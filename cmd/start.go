@@ -8,10 +8,11 @@ import (
 	flag "github.com/spf13/pflag"
 
 	"github.com/celestiaorg/celestia-node/node"
+	"github.com/celestiaorg/celestia-node/node/fxutil"
 )
 
 // Start constructs a CLI command to start Celestia Node daemon of any type with the given flags.
-func Start(fsets ...*flag.FlagSet) *cobra.Command {
+func Start(extraComponents fxutil.Option, fsets ...*flag.FlagSet) *cobra.Command {
 	cmd := &cobra.Command{
 		Use: "start",
 		Short: `Starts Node daemon. First stopping signal gracefully stops the Node and second terminates it.
@@ -30,7 +31,7 @@ Options passed on start override configuration options only on start and are not
 				return err
 			}
 
-			nd, err := node.New(env.NodeType, store, env.Options()...)
+			nd, err := node.New(env.NodeType, store, nil, env.Options()...)
 			if err != nil {
 				return err
 			}
