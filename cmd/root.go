@@ -4,8 +4,9 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/celestiaorg/celestia-node/node"
 	"github.com/spf13/cobra"
+
+	"github.com/celestiaorg/celestia-node/node"
 )
 
 func NewRootCmd(plugs ...node.Plugin) *cobra.Command {
