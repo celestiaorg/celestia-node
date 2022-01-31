@@ -12,6 +12,7 @@ Month, DD, YYYY
 
 ### FEATURES
 
+- [feat(cmd): portable cli with plugin support](https://github.com/celestiaorg/celestia-node/pull/407) [@evan-forbes](https://github.com/evan-forbes)
 - [params: Define Network Types #346](https://github.com/celestiaorg/celestia-node/pull/346) [@Wondertan](https://github.com/Wondertan)
 - [feat(cmd): give a birth to cel-shed and p2p key utilities #281](https://github.com/celestiaorg/celestia-node/pull/281) [@Wondertan](https://github.com/Wondertan)
 - [feat(cmd|node): MutualPeers Node option and CLI flag #280](https://github.com/celestiaorg/celestia-node/pull/280) [@Wondertan](https://github.com/Wondertan)
