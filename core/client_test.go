@@ -2,8 +2,9 @@ package core
 
 import (
 	"context"
-	"github.com/stretchr/testify/require"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestEmbeddedClientLifecycle(t *testing.T) {
