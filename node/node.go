@@ -64,7 +64,7 @@ type Node struct {
 }
 
 // New assembles a new Node with the given type 'tp' over Store 'store'.
-func New(tp Type, store Store, components []fxutil.Option, options ...Option) (*Node, error) {
+func New(tp Type, store Store, components ComponentAdder, options ...Option) (*Node, error) {
 	cfg, err := store.Config()
 	if err != nil {
 		return nil, err
@@ -82,9 +82,9 @@ func New(tp Type, store Store, components []fxutil.Option, options ...Option) (*
 
 	switch tp {
 	case Bridge:
-		return newNode(bridgeComponents(cfg, store), s.overrides(), fxutil.Options(components...))
+		return newNode(bridgeComponents(cfg, store), components(cfg, store), s.overrides())
 	case Light:
-		return newNode(lightComponents(cfg, store), s.overrides(), fxutil.Options(components...))
+		return newNode(lightComponents(cfg, store), components(cfg, store), s.overrides())
 	default:
 		panic("node: unknown Node Type")
 	}

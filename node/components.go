@@ -10,6 +10,8 @@ import (
 	"github.com/celestiaorg/celestia-node/service/header"
 )
 
+type ComponentAdder func(cfg *Config, store Store) fxutil.Option
+
 // lightComponents keeps all the components as DI options required to built a Light Node.
 func lightComponents(cfg *Config, store Store) fxutil.Option {
 	return fxutil.Options(

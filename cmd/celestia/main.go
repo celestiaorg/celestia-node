@@ -7,7 +7,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/celestiaorg/celestia-node/cmd"
-	"github.com/celestiaorg/celestia-node/node/fxutil"
+	"github.com/celestiaorg/celestia-node/node"
 )
 
 func main() {
@@ -23,7 +23,7 @@ func run() error {
 
 var rootCmd = NewRootCmd(nil)
 
-func NewRootCmd(extraComponents fxutil.Option) *cobra.Command {
+func NewRootCmd(compAddr node.ComponentAdder) *cobra.Command {
 	command := &cobra.Command{
 		Use: "celestia [  bridge  ||  light  ] [subcommand]",
 		Short: `
@@ -38,8 +38,8 @@ func NewRootCmd(extraComponents fxutil.Option) *cobra.Command {
 		},
 	}
 	command.AddCommand(
-		NewBridgeCommand(extraComponents),
-		NewLightCommand(extraComponents),
+		NewBridgeCommand(compAddr),
+		NewLightCommand(compAddr),
 		versionCmd,
 	)
 	command.SetHelpCommand(&cobra.Command{})

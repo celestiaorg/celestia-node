@@ -5,14 +5,13 @@ import (
 
 	cmdnode "github.com/celestiaorg/celestia-node/cmd"
 	"github.com/celestiaorg/celestia-node/node"
-	"github.com/celestiaorg/celestia-node/node/fxutil"
 )
 
 // NOTE: We should always ensure that the added Flags below are parsed somewhere, like in the PersistenPreRun func on
 // parent command.
 
 // NewBridgeCommand creates a new bridge sub command
-func NewBridgeCommand(extraComponents fxutil.Option) *cobra.Command {
+func NewBridgeCommand(compAddr node.ComponentAdder) *cobra.Command {
 	command := &cobra.Command{
 		Use:   "bridge [subcommand]",
 		Args:  cobra.NoArgs,
@@ -56,7 +55,7 @@ func NewBridgeCommand(extraComponents fxutil.Option) *cobra.Command {
 			cmdnode.MiscFlags(),
 		),
 		cmdnode.Start(
-			extraComponents,
+			compAddr,
 			cmdnode.NodeFlags(node.Bridge),
 			cmdnode.P2PFlags(),
 			cmdnode.CoreFlags(),
