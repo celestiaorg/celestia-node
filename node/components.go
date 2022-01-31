@@ -2,22 +2,24 @@ package node
 
 import (
 	"context"
-
 	nodecore "github.com/celestiaorg/celestia-node/node/core"
 	"github.com/celestiaorg/celestia-node/node/fxutil"
 	"github.com/celestiaorg/celestia-node/node/p2p"
 	"github.com/celestiaorg/celestia-node/node/services"
+	"github.com/celestiaorg/celestia-node/node/state"
 	"github.com/celestiaorg/celestia-node/service/header"
 )
 
 // lightComponents keeps all the components as DI options required to built a Light Node.
 func lightComponents(cfg *Config, store Store) fxutil.Option {
-	return fxutil.Options(
+	opts := fxutil.Options(
 		fxutil.Supply(Light),
 		baseComponents(cfg, store),
 		fxutil.Provide(services.DASer),
 		fxutil.Provide(services.HeaderExchangeP2P(cfg.Services)),
+		state.StateOverCoreComponents(cfg.Core, store),
 	)
+	return opts
 }
 
 // bridgeComponents keeps all the components as DI options required to build a Bridge Node.
