@@ -64,7 +64,7 @@ type Node struct {
 }
 
 // New assembles a new Node with the given type 'tp' over Store 'store'.
-func New(tp Type, store Store, components ComponentAdder, options ...Option) (*Node, error) {
+func New(tp Type, store Store, plugs []Plugin, options ...Option) (*Node, error) {
 	cfg, err := store.Config()
 	if err != nil {
 		return nil, err
@@ -80,11 +80,16 @@ func New(tp Type, store Store, components ComponentAdder, options ...Option) (*N
 		}
 	}
 
+	pluginComponents := make([]fxutil.Option, len(plugs))
+	for i, plug := range plugs {
+		pluginComponents[i] = plug.Components(cfg, store)
+	}
+
 	switch tp {
 	case Bridge:
-		return newNode(bridgeComponents(cfg, store), components(cfg, store), s.overrides())
+		return newNode(bridgeComponents(cfg, store), s.overrides(), fxutil.Options(pluginComponents...))
 	case Light:
-		return newNode(lightComponents(cfg, store), components(cfg, store), s.overrides())
+		return newNode(lightComponents(cfg, store), s.overrides(), fxutil.Options(pluginComponents...))
 	default:
 		panic("node: unknown Node Type")
 	}

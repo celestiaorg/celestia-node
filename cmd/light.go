@@ -1,9 +1,8 @@
-package main
+package cmd
 
 import (
 	"github.com/spf13/cobra"
 
-	cmdnode "github.com/celestiaorg/celestia-node/cmd"
 	"github.com/celestiaorg/celestia-node/node"
 )
 
@@ -11,34 +10,34 @@ import (
 // parent command.
 
 // NewLightCommand creates a new light sub command
-func NewLightCommand(compAddr node.ComponentAdder) *cobra.Command {
+func NewLightCommand(plugs []node.Plugin) *cobra.Command {
 	command := &cobra.Command{
 		Use:   "light [subcommand]",
 		Args:  cobra.NoArgs,
 		Short: "Manage your Light node",
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-			env, err := cmdnode.GetEnv(cmd.Context())
+			env, err := GetEnv(cmd.Context())
 			if err != nil {
 				return err
 			}
 			env.SetNodeType(node.Light)
 
-			err = cmdnode.ParseNodeFlags(cmd, env)
+			err = ParseNodeFlags(cmd, env)
 			if err != nil {
 				return err
 			}
 
-			err = cmdnode.ParseP2PFlags(cmd, env)
+			err = ParseP2PFlags(cmd, env)
 			if err != nil {
 				return err
 			}
 
-			err = cmdnode.ParseHeadersFlags(cmd, env)
+			err = ParseHeadersFlags(cmd, env)
 			if err != nil {
 				return err
 			}
 
-			err = cmdnode.ParseMiscFlags(cmd)
+			err = ParseMiscFlags(cmd)
 			if err != nil {
 				return err
 			}
@@ -48,18 +47,19 @@ func NewLightCommand(compAddr node.ComponentAdder) *cobra.Command {
 	}
 
 	command.AddCommand(
-		cmdnode.Init(
-			cmdnode.NodeFlags(node.Light),
-			cmdnode.P2PFlags(),
-			cmdnode.HeadersFlags(),
-			cmdnode.MiscFlags(),
+		Init(
+			plugs,
+			NodeFlags(node.Light),
+			P2PFlags(),
+			HeadersFlags(),
+			MiscFlags(),
 		),
-		cmdnode.Start(
-			compAddr,
-			cmdnode.NodeFlags(node.Light),
-			cmdnode.P2PFlags(),
-			cmdnode.HeadersFlags(),
-			cmdnode.MiscFlags(),
+		Start(
+			plugs,
+			NodeFlags(node.Light),
+			P2PFlags(),
+			HeadersFlags(),
+			MiscFlags(),
 		),
 	)
 

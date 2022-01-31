@@ -1,9 +1,8 @@
-package main
+package cmd
 
 import (
 	"github.com/spf13/cobra"
 
-	cmdnode "github.com/celestiaorg/celestia-node/cmd"
 	"github.com/celestiaorg/celestia-node/node"
 )
 
@@ -11,34 +10,34 @@ import (
 // parent command.
 
 // NewBridgeCommand creates a new bridge sub command
-func NewBridgeCommand(compAddr node.ComponentAdder) *cobra.Command {
+func NewBridgeCommand(plugs []node.Plugin) *cobra.Command {
 	command := &cobra.Command{
 		Use:   "bridge [subcommand]",
 		Args:  cobra.NoArgs,
 		Short: "Manage your Bridge node",
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-			env, err := cmdnode.GetEnv(cmd.Context())
+			env, err := GetEnv(cmd.Context())
 			if err != nil {
 				return err
 			}
 			env.SetNodeType(node.Bridge)
 
-			err = cmdnode.ParseNodeFlags(cmd, env)
+			err = ParseNodeFlags(cmd, env)
 			if err != nil {
 				return err
 			}
 
-			err = cmdnode.ParseP2PFlags(cmd, env)
+			err = ParseP2PFlags(cmd, env)
 			if err != nil {
 				return err
 			}
 
-			err = cmdnode.ParseCoreFlags(cmd, env)
+			err = ParseCoreFlags(cmd, env)
 			if err != nil {
 				return err
 			}
 
-			err = cmdnode.ParseMiscFlags(cmd)
+			err = ParseMiscFlags(cmd)
 			if err != nil {
 				return err
 			}
@@ -48,18 +47,19 @@ func NewBridgeCommand(compAddr node.ComponentAdder) *cobra.Command {
 	}
 
 	command.AddCommand(
-		cmdnode.Init(
-			cmdnode.NodeFlags(node.Bridge),
-			cmdnode.P2PFlags(),
-			cmdnode.CoreFlags(),
-			cmdnode.MiscFlags(),
+		Init(
+			plugs,
+			NodeFlags(node.Bridge),
+			P2PFlags(),
+			CoreFlags(),
+			MiscFlags(),
 		),
-		cmdnode.Start(
-			compAddr,
-			cmdnode.NodeFlags(node.Bridge),
-			cmdnode.P2PFlags(),
-			cmdnode.CoreFlags(),
-			cmdnode.MiscFlags(),
+		Start(
+			plugs,
+			NodeFlags(node.Bridge),
+			P2PFlags(),
+			CoreFlags(),
+			MiscFlags(),
 		),
 	)
 
