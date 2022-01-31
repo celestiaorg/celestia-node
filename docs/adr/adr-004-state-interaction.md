@@ -48,15 +48,14 @@ type StateAccessor interface {
 }
 ```
 
-`StateAccessor` will have 3 separate implementations under the hood: 
+`StateAccessor` will have 3 separate implementations under the hood, the first of which will be outlined in this ADR: 
 1. **CORE**: RPC connection with a celestia-core endpoint handed to the node upon initialisation
 (*required for this iteration*) 
-2. **P2P**: discovery of a **bridge** node or other node that can provide state and submit messages via libp2p to be 
-relayed to celestia-core (*nice-to-have for this iteration*)
+2. **P2P**: discovery of a **bridge** node or other node that is able to provide state (*nice-to-have for this iteration*)
 3. **LOCAL**: eventually, **full** nodes will be able to provide state to the network, and can therefore execute and 
 respond to the queries without relaying queries to celestia-core (*to be scoped out and implemented in later iterations*)
 
-### `CoreAccess`
+### 1. Core Implementation of `StateAccessor`: `CoreAccess`
 
 `CoreAccess` will be the direct RPC connection implementation of `StateAccessor`. It will use the [lens implementation of ChainClient](https://github.com/strangelove-ventures/lens/blob/main/client/chain_client.go#L23)
 under the hood. `lens.ChainClient` provides a nice wrapper around the Cosmos-SDK APIs. 
@@ -92,91 +91,22 @@ func (ca *CoreAccess) SubmitTx(ctx context.Context, tx Tx) (TxResponse, error) {
 }
 ```
 
-### `P2PAccess`
+### 2. P2P Implementation of `StateAccessor`: `P2PAccess`
 
-An idea for how `P2PAccess` could be implemented can be found below.
+While it is not necessary to detail how `P2PAccess` will be implemented in this ADR, it will still conform to the 
+`StateAccessor` interface, but instead of being provided a core endpoint to connect to via RPC and using `lens.ChainClient`
+for state-related queries, `P2PAccess` will perform service discovery of state-providing nodes in the network and perform
+the state queries via libp2p streams.
 
 ```go
 type P2PAccess struct {
-	host libhost.Host
-	// P2PAccess will still use lens.ChainClient's methods
-	// under the hood, but will use libp2p transport instead
-	// of RPC communication with the Core endpoint.
-   cc  *lens.ChainClient 
+    // for discovery and communication
+    // with state-providing nodes
+    host host.Host
+    // for managing keys
+    keybase        keyring.Keyring
+    keyringOptions []keyring.Option
 }
-
-func NewP2PAccess(host libhost.Host, cc *lens.ChainClient) *P2PAccess {
-    return &P2PAccess{
-		host: host,
-		cc: cc,
-    }   	
-}
-
-func (pa *P2PAccess) AccountBalance(ctx context.Context, acct Account) (*Balance, error) {
-    // passing in lens.ChainClient here to help construct the query
-	query := acctBalanceQuery(pa.cc, acct)
-	
-    // open connection with peer who serves State
-    stream, err := pa.ConnectToStateProvider()   
-	if err != nil {
-		return nil, err
-    }
-
-    // write query to stream
-    err := stream.Write(query)
-    if err != nil {
-		return nil, err
-    }
-
-    // read resp from stream
-    resp, err := stream.Read(buf)
-    if err != nil {
-        return nil, err		    
-    }	
-
-    // unmarshal balance from response
-	var bal Balance
-    err = bal.Unmarshal(buf)	
-	if err != nil {
-		return nil, err
-    }
-	
-    return bal, nil
-}
-
-// where Tx implements sdk.Msg
-func (pa *P2PAccess) SubmitTx(ctx context.Context, tx Tx) (*TxResponse, error) {
-    // passing in lens.ChainClient here to help construct the query 
-	query := submitTxQuery(pa.cc, tx)
-	
-    // open connection with peer who serves State
-    stream, err := pa.ConnectToStateProvider()
-    if err != nil {
-        return nil, err
-    }
-    
-    // write query to stream
-    err := stream.Write(query)
-    if err != nil {
-		return nil, err
-    }
-
-    // read response from stream
-    resp, err := stream.Read(buf)
-    if err != nil {
-        return nil, err
-    }	
-	
-    // get txResponse from response
-	var tx Tx
-	err = tx.Unmarshal(buf)
-	if err != nil {
-		return nil, err
-}
-	
-    return TxResponse, nil
-}
-
 ```
 
 ### `StateProvider`
