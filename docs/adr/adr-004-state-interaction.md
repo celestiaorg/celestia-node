@@ -77,7 +77,7 @@ func NewCoreAccess(cc *lens.ChainClient) (*CoreAccess, error) {
 
 // where Account wraps account information and Balance 
 func (ca *CoreAccess) AccountBalance(ctx context.Context, acct Account) (Balance, error) {
-	coins, err := da.cc.QueryBalanceWithAddress(acct.address)
+	coins, err := da.cc.QueryBalanceWithAddress(acct.Address)
 	if err != nil {
 		return err
     }   
