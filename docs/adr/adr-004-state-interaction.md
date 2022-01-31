@@ -43,7 +43,7 @@ related to accounts and transactions in later iterations.
 
 ```go
 type StateAccessor interface {
-	// AccountBalance returns the Celestia Balance for the given Account
+    // AccountBalance returns the Celestia Balance for the given Account
     func AccountBalance(context.Context, Account) (Balance, error)
 	// SubmitTx submits the given Tx, where Tx implements sdk.Msg
     func SubmitTx(context.Context, Tx) error
