@@ -6,7 +6,6 @@ import (
 	"time"
 
 	logging "github.com/ipfs/go-log/v2"
-	"github.com/raulk/go-watchdog"
 	"go.uber.org/fx"
 
 	"github.com/celestiaorg/celestia-node/params"
@@ -15,7 +14,9 @@ import (
 	"github.com/celestiaorg/celestia-node/node/fxutil"
 	"github.com/celestiaorg/celestia-node/node/p2p"
 	"github.com/celestiaorg/celestia-node/node/services"
+	statecomponents "github.com/celestiaorg/celestia-node/node/state"
 	"github.com/celestiaorg/celestia-node/service/header"
+	"github.com/celestiaorg/celestia-node/service/state"
 )
 
 // lightComponents keeps all the components as DI options required to built a Light Node.
@@ -26,6 +27,12 @@ func lightComponents(cfg *Config, store Store) fxutil.Option {
 		fxutil.Provide(services.DASer),
 		fxutil.Provide(services.HeaderExchangeP2P(cfg.Services)),
 		fxutil.Provide(services.LightAvailability),
+		// state components
+		fxutil.ProvideIf(cfg.Core.Remote, state.NewService),
+		fxutil.ProvideIf(cfg.Core.Remote, func() (state.Accessor, error) {
+			// TODO @renaynay: add hooks for CA lifecycle
+			return statecomponents.CoreAccessor(cfg.Services.KeyConf, store.Path(), cfg.Core.RemoteConfig.RemoteAddr)
+		}),
 	)
 }
 

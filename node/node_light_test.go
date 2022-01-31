@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/celestiaorg/celestia-node/core"
 	"github.com/celestiaorg/celestia-node/params"
 )
 
@@ -63,4 +64,21 @@ func TestLight_WithNetwork(t *testing.T) {
 	node := TestNode(t, Light, WithNetwork(params.DevNet))
 	require.NotNil(t, node)
 	assert.Equal(t, node.Network, params.DevNet)
+}
+
+// TestLight_WithStateServiceOverCore checks to make sure
+// state.Service is constructed on the light node when a
+// core endpoint is given.
+func TestLight_WithStateServiceOverCore(t *testing.T) {
+	nd, protocol, endpoint := core.StartRemoteCore()
+	defer nd.Stop() // nolint:errcheck
+
+	conf := DefaultConfig(Light)
+	repo := MockStore(t, conf)
+
+	node, err := New(Light, repo, WithRemoteCore(protocol, endpoint))
+	require.NoError(t, err)
+	defer node.Stop(context.Background()) // nolint:errcheck
+	// check to ensure node's state service is not nil
+	require.NotNil(t, node.StateServ)
 }
