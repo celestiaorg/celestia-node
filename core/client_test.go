@@ -110,6 +110,13 @@ func TestRemoteClient_RetryDial(t *testing.T) {
 	remote := StartMockNode(CreateKvStore(defaultRetainBlocks))
 	protocol, ip := getRemoteEndpoint(remote)
 
+	// wait for remote client to run
+	for {
+		if remote.IsRunning() {
+			break
+		}
+	}
+
 	// deliberately stop remote
 	err := remote.Stop()
 	require.NoError(t, err)
