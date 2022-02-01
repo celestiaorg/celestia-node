@@ -84,6 +84,7 @@ func New(tp Type, store Store, plugs []Plugin, options ...Option) (*Node, error)
 		}
 	}
 
+	// use a null plugin to provide for the PluginOutlet portion of the Node
 	if len(plugs) == 0 {
 		plugs = []Plugin{nullPlugin{}}
 	}
