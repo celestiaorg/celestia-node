@@ -84,6 +84,10 @@ func New(tp Type, store Store, plugs []Plugin, options ...Option) (*Node, error)
 		}
 	}
 
+	if len(plugs) == 0 {
+		plugs = []Plugin{nullPlugin{}}
+	}
+
 	pluginComponents := make([]fxutil.Option, len(plugs))
 	for i, plug := range plugs {
 		pluginComponents[i] = plug.Components(cfg, store)

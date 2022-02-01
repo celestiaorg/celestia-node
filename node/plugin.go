@@ -12,3 +12,13 @@ type Plugin interface {
 // fxutil.Option. This provides the plugin a way to force fx to call the
 // plugin's services/components
 type PluginOutlet struct{}
+
+type nullPlugin struct{}
+
+func (nullPlugin) Name() string                 { return "nullPlugin" }
+func (nullPlugin) Initialize(path string) error { return nil }
+func (nullPlugin) Components(cfg *Config, store Store) fxutil.Option {
+	return fxutil.Options(
+		fxutil.Supply(PluginOutlet{}),
+	)
+}
