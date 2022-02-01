@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/sha256"
+	"fmt"
 	"math"
 	"math/rand"
 	"strconv"
@@ -280,6 +281,84 @@ func TestGetLeavesByNamespace(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestGetLeavesByNamespace_AbsentNamespaceId(t *testing.T) {
+
+	rawData := generateRandNamespacedRawData(16, NamespaceSize, plugin.ShareSize)
+
+	t.Run("Out of range namespace id", func(t *testing.T){
+
+		fmt.Println(rawData[0][:NamespaceSize])
+		minNamespaceId := rawData[0][:NamespaceSize]
+
+		fmt.Println('-')
+		for _, v := range rawData {
+			fmt.Println(v[:NamespaceSize])
+		}
+
+		// testing absent namespace ids
+
+		// out of (min - max) range namespace id
+
+		// less than min namespace id
+		// create random raw data until min namespace id's first byte is greater than 1
+		// decrement min namespace id's first byte
+		// make sure getLeavesByNamespace returns ErrNotFoundInRange error
+
+		// more than max namespace id
+		// create random raw data until max namespace id's first byte is less than 254
+		// increment min namespace id's first byte
+		// make sure getLeavesByNamespace returns ErrNotFoundInRange error
+
+		// in range but still missing id
+
+
+		fmt.Println('-')
+		 = minNamespaceId[0] - 1
+		fmt.Println(minNamespaceId)
+
+		fmt.Println('-')
+		for _, v := range rawData {
+			fmt.Println(v[:NamespaceSize])
+		}
+
+
+		//fmt.Println(rawData)
+
+		//squareSize := uint64(math.Sqrt(float64(len(rawData))))
+		//
+		//// choose random nID from rand shares
+		//expected := rawData[len(rawData)/2]
+		//nID := expected[:NamespaceSize]
+		//
+		//// change rawData to contain several shares with same nID
+		//tt.rawData[(len(tt.rawData)/2)+1] = expected
+		//
+		//// generate DAH
+		//eds, err := da.ExtendShares(squareSize, tt.rawData)
+		//require.NoError(t, err)
+		//dah := da.NewDataAvailabilityHeader(eds)
+		//
+		//// put raw data in DAG
+		//dag := mdutils.Mock()
+		//_, err = PutData(context.Background(), tt.rawData, dag)
+		//require.NoError(t, err)
+		//
+		//rowRootCIDs, err := rowRootsByNamespaceID(nID, &dah)
+		//require.NoError(t, err)
+		//
+		//for _, rowCID := range rowRootCIDs {
+		//	nodes, err := GetLeavesByNamespace(context.Background(), dag, rowCID, nID)
+		//	require.NoError(t, err)
+		//
+		//	for _, node := range nodes {
+		//		// TODO @renaynay: nID is prepended twice for some reason.
+		//		share := node.RawData()[1:]
+		//		assert.Equal(t, expected, share[NamespaceSize:])
+		//	}
+		//}
+	})
 }
 
 // rowRootsByNamespaceID is a convenience method that finds the row root(s)
