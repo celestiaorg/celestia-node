@@ -7,3 +7,8 @@ type Plugin interface {
 	Initialize(path string) error
 	Components(cfg *Config, store Store) fxutil.Option
 }
+
+// PluginOutlet strictly serves as a type to be returned by a plugin's
+// fxutil.Option. This provides the plugin a way to force fx to call the
+// plugin's services/components
+type PluginOutlet struct{}
