@@ -282,43 +282,6 @@ func TestGetLeavesByNamespace(t *testing.T) {
 	}
 }
 
-func putErasuredDataToDag(t *testing.T, rawData [][]byte) (format.DAGService, da.DataAvailabilityHeader) {
-
-	// calc square size
-	squareSize := uint64(math.Sqrt(float64(len(rawData))))
-
-	// generate DAH
-	eds, err := da.ExtendShares(squareSize, rawData)
-	require.NoError(t, err)
-	dah := da.NewDataAvailabilityHeader(eds)
-
-	// put raw data in DAG
-	dag := mdutils.Mock()
-	_, err = PutData(context.Background(), rawData, dag)
-	require.NoError(t, err)
-
-	return dag, dah
-}
-
-func assertNoRowContainsNID(
-	t *testing.T,
-	dag format.DAGService,
-	dah da.DataAvailabilityHeader,
-	nID namespace.ID,
-) {
-	// get all row root cids
-	rowRootCIDs := make([]cid.Cid, len(dah.RowsRoots))
-	for i, rowRoot := range dah.RowsRoots {
-		rowRootCIDs[i] = plugin.MustCidFromNamespacedSha256(rowRoot)
-	}
-
-	// for each row root cid check if the minNID exists
-	for _, rowCID := range rowRootCIDs {
-		_, err := GetLeavesByNamespace(context.Background(), dag, rowCID, nID)
-		assert.Equal(t, ErrNotFoundInRange, err)
-	}
-}
-
 func TestGetLeavesByNamespace_AbsentNamespaceId(t *testing.T) {
 
 
@@ -358,7 +321,7 @@ func TestGetLeavesByNamespace_AbsentNamespaceId(t *testing.T) {
 		rawData := RandNamespacedShares(t, 16).Raw()
 
 		// replace every appearance of someNID with the nextNID so that someNID, which we know
-		//that will be in range will not exist in the namespace range
+		// that will be in range, will not exist in the namespace range
 		someNID := make([]byte, NamespaceSize)
 		copy(someNID, rawData[len(rawData)/2][:NamespaceSize])
 		nextNID := rawData[(len(rawData)/2)+1][:NamespaceSize]
@@ -372,6 +335,44 @@ func TestGetLeavesByNamespace_AbsentNamespaceId(t *testing.T) {
 
 		assertNoRowContainsNID(t, dag, dah, someNID)
 	})
+}
+
+
+func putErasuredDataToDag(t *testing.T, rawData [][]byte) (format.DAGService, da.DataAvailabilityHeader) {
+
+	// calc square size
+	squareSize := uint64(math.Sqrt(float64(len(rawData))))
+
+	// generate DAH
+	eds, err := da.ExtendShares(squareSize, rawData)
+	require.NoError(t, err)
+	dah := da.NewDataAvailabilityHeader(eds)
+
+	// put raw data in DAG
+	dag := mdutils.Mock()
+	_, err = PutData(context.Background(), rawData, dag)
+	require.NoError(t, err)
+
+	return dag, dah
+}
+
+func assertNoRowContainsNID(
+	t *testing.T,
+	dag format.DAGService,
+	dah da.DataAvailabilityHeader,
+	nID namespace.ID,
+) {
+	// get all row root cids
+	rowRootCIDs := make([]cid.Cid, len(dah.RowsRoots))
+	for i, rowRoot := range dah.RowsRoots {
+		rowRootCIDs[i] = plugin.MustCidFromNamespacedSha256(rowRoot)
+	}
+
+	// for each row root cid check if the minNID exists
+	for _, rowCID := range rowRootCIDs {
+		_, err := GetLeavesByNamespace(context.Background(), dag, rowCID, nID)
+		assert.Equal(t, ErrNotFoundInRange, err)
+	}
 }
 
 // rowRootsByNamespaceID is a convenience method that finds the row root(s)
