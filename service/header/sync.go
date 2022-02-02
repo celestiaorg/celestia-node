@@ -221,9 +221,6 @@ func (s *Syncer) processIncoming(ctx context.Context, maybeHead *ExtendedHeader)
 		log.Warnw("received known header",
 			"height", maybeHead.Height,
 			"hash", maybeHead.Hash())
-
-		// TODO(@Wondertan): Remove once duplicates are fully fixed
-		log.Warnf("Ignore the warn above - there is a known issue with duplicate headers on the network.")
 		return pubsub.ValidationIgnore // we don't know if header is invalid so ignore
 	}
 
