@@ -6,6 +6,8 @@ import (
 
 	"github.com/libp2p/go-libp2p-core/peer"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
+	pb "github.com/libp2p/go-libp2p-pubsub/pb"
+	"github.com/minio/blake2b-simd"
 )
 
 // PubSubTopic hardcodes the name of the ExtendedHeader
@@ -30,7 +32,7 @@ func NewP2PSubscriber(ps *pubsub.PubSub) *P2PSubscriber {
 // Start starts the P2PSubscriber, registering a topic validator for the "header-sub"
 // topic and joining it.
 func (p *P2PSubscriber) Start(context.Context) (err error) {
-	p.topic, err = p.pubsub.Join(PubSubTopic)
+	p.topic, err = p.pubsub.Join(PubSubTopic, pubsub.WithTopicMessageIdFn(msgID))
 	return err
 }
 
@@ -77,4 +79,37 @@ func (p *P2PSubscriber) Broadcast(ctx context.Context, header *ExtendedHeader) e
 		return err
 	}
 	return p.topic.Publish(ctx, bin)
+}
+
+// msgID computes an id for a pubsub message
+// TODO(@Wondertan): This cause additional allocations per each recvd message in the topic. Find a way to avoid those.
+func msgID(pmsg *pb.Message) string {
+	msgID := func(data []byte) string {
+		hash := blake2b.Sum256(data)
+		return string(hash[:])
+	}
+
+	h, err := UnmarshalExtendedHeader(pmsg.Data)
+	if err != nil {
+		log.Errorw("unmarshalling header while computing msg id", "err", err)
+		return msgID(pmsg.Data)
+	}
+
+	// IMPORTANT NOTE:
+	// Due to the nature of the Tendermint consensus, validators don't collect all commit signatures,
+	// but only the minimum required amount of them(+2/3 of power). Also, signatures are collected asynchronously.
+	// So for, each validator may have a different set of minimally required signatures causing nondeterminism in
+	// the header message gossiped over the network. Subsequently, this causes message duplicates as each Bridge Node,
+	// connected to personal a validator, sends the validaotor's own view of commits of effectively the same header.
+	//
+	// To solve the problem above, we exclude nondeterministic value from message id calculation
+	h.Commit.Signatures = nil
+
+	data, err := MarshalExtendedHeader(h)
+	if err != nil {
+		log.Errorw("unmarshalling header while computing msg id", "err", err)
+		return msgID(pmsg.Data)
+	}
+
+	return msgID(data)
 }
