@@ -116,8 +116,6 @@ type P2PAccess struct {
 A **bridge** node will run a `StateProvider` (server-side of `P2PAccessor`). The `StateProvider` will be responsible for
 relaying the state-related queries through to its trusted celestia-core node.
 
-A new `core.StateFetcher` will be implemented over the `core.Client` in the `core` package. The `core.StateFetcher` will
-contain methods that wrap communication with the `core.Client`. 
-
-`StateProvider` will listen for state-related queries from **light** nodes and will query the `core.StateFetcher` with 
-the received payloads. 
+The `StateProvider` will be initialised with a `lens.ChainClient` that will be used under the hood for communication 
+with its already-configured celestia-core RPC connection. It will listen for inbound state-related queries from its 
+peers and relay the received payloads to celestia-core.
