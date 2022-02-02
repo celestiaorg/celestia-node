@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"crypto/sha256"
-	"fmt"
 	"math"
 	"math/rand"
 	"strconv"
@@ -283,81 +282,95 @@ func TestGetLeavesByNamespace(t *testing.T) {
 	}
 }
 
+func putErasuredDataToDag(t *testing.T, rawData [][]byte) (format.DAGService, da.DataAvailabilityHeader) {
+
+	// calc square size
+	squareSize := uint64(math.Sqrt(float64(len(rawData))))
+
+	// generate DAH
+	eds, err := da.ExtendShares(squareSize, rawData)
+	require.NoError(t, err)
+	dah := da.NewDataAvailabilityHeader(eds)
+
+	// put raw data in DAG
+	dag := mdutils.Mock()
+	_, err = PutData(context.Background(), rawData, dag)
+	require.NoError(t, err)
+
+	return dag, dah
+}
+
+func assertNoRowContainsNID(
+	t *testing.T,
+	dag format.DAGService,
+	dah da.DataAvailabilityHeader,
+	nID namespace.ID,
+) {
+	// get all row root cids
+	rowRootCIDs := make([]cid.Cid, len(dah.RowsRoots))
+	for i, rowRoot := range dah.RowsRoots {
+		rowRootCIDs[i] = plugin.MustCidFromNamespacedSha256(rowRoot)
+	}
+
+	// for each row root cid check if the minNID exists
+	for _, rowCID := range rowRootCIDs {
+		_, err := GetLeavesByNamespace(context.Background(), dag, rowCID, nID)
+		assert.Equal(t, ErrNotFoundInRange, err)
+	}
+}
+
 func TestGetLeavesByNamespace_AbsentNamespaceId(t *testing.T) {
 
-	rawData := generateRandNamespacedRawData(16, NamespaceSize, plugin.ShareSize)
 
-	t.Run("Out of range namespace id", func(t *testing.T){
+	t.Run("Namespace id less than the minimum namespace in data", func(t *testing.T) {
 
-		fmt.Println(rawData[0][:NamespaceSize])
-		minNamespaceId := rawData[0][:NamespaceSize]
+		rawData := RandNamespacedShares(t, 16).Raw()
 
-		fmt.Println('-')
-		for _, v := range rawData {
-			fmt.Println(v[:NamespaceSize])
+		// replace minimum NID with the second minimum NID
+		minNID := make([]byte, NamespaceSize)
+		copy(minNID, rawData[0][:NamespaceSize])
+		secondMinNID := rawData[1][:NamespaceSize]
+		copy(rawData[0][:NamespaceSize], secondMinNID[:NamespaceSize])
+
+		dag, dah := putErasuredDataToDag(t, rawData)
+
+		assertNoRowContainsNID(t, dag, dah, minNID)
+	})
+
+	t.Run("Namespace id greater than the maximum namespace in data", func(t *testing.T) {
+
+		rawData := RandNamespacedShares(t, 16).Raw()
+
+		// replace maximum NID with the second maximum NID
+		lastItemIndex := len(rawData)-1
+		maxNID := make([]byte, NamespaceSize)
+		copy(maxNID, rawData[lastItemIndex][:NamespaceSize])
+		secondMaxNID := rawData[lastItemIndex-1][:NamespaceSize]
+		copy(rawData[lastItemIndex][:NamespaceSize], secondMaxNID[:NamespaceSize])
+
+		dag, dah := putErasuredDataToDag(t, rawData)
+
+		assertNoRowContainsNID(t, dag, dah, maxNID)
+	})
+
+	t.Run("Namespace id in range but still missing", func(t *testing.T) {
+
+		rawData := RandNamespacedShares(t, 16).Raw()
+
+		// replace every appearance of someNID with the nextNID so that someNID, which we know
+		//that will be in range will not exist in the namespace range
+		someNID := make([]byte, NamespaceSize)
+		copy(someNID, rawData[len(rawData)/2][:NamespaceSize])
+		nextNID := rawData[(len(rawData)/2)+1][:NamespaceSize]
+		for _, nspace := range rawData {
+			if bytes.Compare(nspace[:NamespaceSize], someNID) == 0 {
+				copy(nspace[:NamespaceSize], nextNID)
+			}
 		}
 
-		// testing absent namespace ids
+		dag, dah := putErasuredDataToDag(t, rawData)
 
-		// out of (min - max) range namespace id
-
-		// less than min namespace id
-		// create random raw data until min namespace id's first byte is greater than 1
-		// decrement min namespace id's first byte
-		// make sure getLeavesByNamespace returns ErrNotFoundInRange error
-
-		// more than max namespace id
-		// create random raw data until max namespace id's first byte is less than 254
-		// increment min namespace id's first byte
-		// make sure getLeavesByNamespace returns ErrNotFoundInRange error
-
-		// in range but still missing id
-
-
-		fmt.Println('-')
-		 = minNamespaceId[0] - 1
-		fmt.Println(minNamespaceId)
-
-		fmt.Println('-')
-		for _, v := range rawData {
-			fmt.Println(v[:NamespaceSize])
-		}
-
-
-		//fmt.Println(rawData)
-
-		//squareSize := uint64(math.Sqrt(float64(len(rawData))))
-		//
-		//// choose random nID from rand shares
-		//expected := rawData[len(rawData)/2]
-		//nID := expected[:NamespaceSize]
-		//
-		//// change rawData to contain several shares with same nID
-		//tt.rawData[(len(tt.rawData)/2)+1] = expected
-		//
-		//// generate DAH
-		//eds, err := da.ExtendShares(squareSize, tt.rawData)
-		//require.NoError(t, err)
-		//dah := da.NewDataAvailabilityHeader(eds)
-		//
-		//// put raw data in DAG
-		//dag := mdutils.Mock()
-		//_, err = PutData(context.Background(), tt.rawData, dag)
-		//require.NoError(t, err)
-		//
-		//rowRootCIDs, err := rowRootsByNamespaceID(nID, &dah)
-		//require.NoError(t, err)
-		//
-		//for _, rowCID := range rowRootCIDs {
-		//	nodes, err := GetLeavesByNamespace(context.Background(), dag, rowCID, nID)
-		//	require.NoError(t, err)
-		//
-		//	for _, node := range nodes {
-		//		// TODO @renaynay: nID is prepended twice for some reason.
-		//		share := node.RawData()[1:]
-		//		assert.Equal(t, expected, share[NamespaceSize:])
-		//	}
-		//}
+		assertNoRowContainsNID(t, dag, dah, someNID)
 	})
 }
 
