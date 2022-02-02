@@ -111,7 +111,7 @@ type P2PAccess struct {
 }
 ```
 
-### `StateProvider`
+#### `StateProvider`
 
 A **bridge** node will run a `StateProvider` (server-side of `P2PAccessor`). The `StateProvider` will be responsible for
 relaying the state-related queries through to its trusted celestia-core node.
