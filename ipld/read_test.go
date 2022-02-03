@@ -352,7 +352,7 @@ func TestGetLeavesByNamespace_MultipleRowsContainingSameNamespaceId(t *testing.T
 				break
 			}
 
-			copy(nspace[:], commonNamespaceData)
+			copy(nspace, commonNamespaceData)
 		}
 
 		dag, dah := putErasuredDataToDag(t, rawData)
