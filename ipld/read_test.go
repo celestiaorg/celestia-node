@@ -284,56 +284,51 @@ func TestGetLeavesByNamespace(t *testing.T) {
 
 func TestGetLeavesByNamespace_AbsentNamespaceId(t *testing.T) {
 
-	t.Run("Namespace id less than the minimum namespace in data", func(t *testing.T) {
+	rawData := RandNamespacedShares(t, 16).Raw()
 
-		rawData := RandNamespacedShares(t, 16).Raw()
+	minNid := make([]byte, NamespaceSize)
+	midNid := make([]byte, NamespaceSize)
+	maxNid := make([]byte, NamespaceSize)
 
-		// replace minimum NID with the second minimum NID
-		minNid := make([]byte, NamespaceSize)
-		copy(minNid, rawData[0][:NamespaceSize])
-		secondMinNid := rawData[1][:NamespaceSize]
-		copy(rawData[0][:NamespaceSize], secondMinNid[:NamespaceSize])
+	numberOfShares := len(rawData)
 
-		dag, dah := putErasuredDataToDag(t, rawData)
+	copy(minNid, rawData[0][:NamespaceSize])
+	copy(maxNid, rawData[numberOfShares-1][:NamespaceSize])
+	copy(midNid, rawData[numberOfShares/2][:NamespaceSize])
 
-		assertNoRowContainsNID(t, dag, dah, minNid)
-	})
+	// create min nid missing data by replacing first namespace id with second
+	minNidMissingData := make([][]byte, len(rawData))
+	copy(minNidMissingData, rawData)
+	copy(minNidMissingData[0][:NamespaceSize], rawData[1][:NamespaceSize])
 
-	t.Run("Namespace id greater than the maximum namespace in data", func(t *testing.T) {
+	// create max nid missing data by replacing last namespace id with second last
+	maxNidMissingData := make([][]byte, len(rawData))
+	copy(maxNidMissingData, rawData)
+	copy(maxNidMissingData[numberOfShares-1][:NamespaceSize], rawData[numberOfShares-2][:NamespaceSize])
 
-		rawData := RandNamespacedShares(t, 16).Raw()
+	// create mid nid missing data by replacing middle namespace id with the one after
+	midNidMissingData := make([][]byte, len(rawData))
+	copy(midNidMissingData, rawData)
+	copy(midNidMissingData[numberOfShares/2][:NamespaceSize], rawData[(numberOfShares/2)+1][:NamespaceSize])
 
-		// replace maximum NID with the second maximum NID
-		lastItemIndex := len(rawData) - 1
-		maxNid := make([]byte, NamespaceSize)
-		copy(maxNid, rawData[lastItemIndex][:NamespaceSize])
-		secondMaxNid := rawData[lastItemIndex-1][:NamespaceSize]
-		copy(rawData[lastItemIndex][:NamespaceSize], secondMaxNid[:NamespaceSize])
+	var tests = []struct {
+		name       string
+		data       [][]byte
+		missingNid []byte
+	}{
+		{name: "Namespace id less than the minimum namespace in data", data: minNidMissingData, missingNid: minNid},
+		{name: "Namespace id greater than the maximum namespace in data", data: midNidMissingData, missingNid: midNid},
+		{name: "Namespace id in range but still missing", data: maxNidMissingData, missingNid: maxNid},
+	}
+	for _, tt := range tests {
 
-		dag, dah := putErasuredDataToDag(t, rawData)
+		t.Run(tt.name, func(t *testing.T) {
 
-		assertNoRowContainsNID(t, dag, dah, maxNid)
-	})
+			dag, dah := putErasuredDataToDag(t, tt.data)
 
-	t.Run("Namespace id in range but still missing", func(t *testing.T) {
-
-		rawData := RandNamespacedShares(t, 16).Raw()
-
-		// replace every appearance of someNid with the nextNid so that someNid, which we know
-		// that will be in range, will not exist in the namespace range
-		someNid := make([]byte, NamespaceSize)
-		copy(someNid, rawData[len(rawData)/2][:NamespaceSize])
-		nextNid := rawData[(len(rawData)/2)+1][:NamespaceSize]
-		for _, nspace := range rawData {
-			if bytes.Equal(nspace[:NamespaceSize], someNid) {
-				copy(nspace[:NamespaceSize], nextNid)
-			}
-		}
-
-		dag, dah := putErasuredDataToDag(t, rawData)
-
-		assertNoRowContainsNID(t, dag, dah, someNid)
-	})
+			assertNoRowContainsNID(t, dag, dah, tt.missingNid)
+		})
+	}
 }
 
 func TestGetLeavesByNamespace_MultipleRowsContainingSameNamespaceId(t *testing.T) {
