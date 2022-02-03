@@ -284,20 +284,19 @@ func TestGetLeavesByNamespace(t *testing.T) {
 
 func TestGetLeavesByNamespace_AbsentNamespaceId(t *testing.T) {
 
-
 	t.Run("Namespace id less than the minimum namespace in data", func(t *testing.T) {
 
 		rawData := RandNamespacedShares(t, 16).Raw()
 
 		// replace minimum NID with the second minimum NID
-		minNID := make([]byte, NamespaceSize)
-		copy(minNID, rawData[0][:NamespaceSize])
-		secondMinNID := rawData[1][:NamespaceSize]
-		copy(rawData[0][:NamespaceSize], secondMinNID[:NamespaceSize])
+		minNid := make([]byte, NamespaceSize)
+		copy(minNid, rawData[0][:NamespaceSize])
+		secondMinNid := rawData[1][:NamespaceSize]
+		copy(rawData[0][:NamespaceSize], secondMinNid[:NamespaceSize])
 
 		dag, dah := putErasuredDataToDag(t, rawData)
 
-		assertNoRowContainsNID(t, dag, dah, minNID)
+		assertNoRowContainsNID(t, dag, dah, minNid)
 	})
 
 	t.Run("Namespace id greater than the maximum namespace in data", func(t *testing.T) {
@@ -305,38 +304,78 @@ func TestGetLeavesByNamespace_AbsentNamespaceId(t *testing.T) {
 		rawData := RandNamespacedShares(t, 16).Raw()
 
 		// replace maximum NID with the second maximum NID
-		lastItemIndex := len(rawData)-1
-		maxNID := make([]byte, NamespaceSize)
-		copy(maxNID, rawData[lastItemIndex][:NamespaceSize])
-		secondMaxNID := rawData[lastItemIndex-1][:NamespaceSize]
-		copy(rawData[lastItemIndex][:NamespaceSize], secondMaxNID[:NamespaceSize])
+		lastItemIndex := len(rawData) - 1
+		maxNid := make([]byte, NamespaceSize)
+		copy(maxNid, rawData[lastItemIndex][:NamespaceSize])
+		secondMaxNid := rawData[lastItemIndex-1][:NamespaceSize]
+		copy(rawData[lastItemIndex][:NamespaceSize], secondMaxNid[:NamespaceSize])
 
 		dag, dah := putErasuredDataToDag(t, rawData)
 
-		assertNoRowContainsNID(t, dag, dah, maxNID)
+		assertNoRowContainsNID(t, dag, dah, maxNid)
 	})
 
 	t.Run("Namespace id in range but still missing", func(t *testing.T) {
 
 		rawData := RandNamespacedShares(t, 16).Raw()
 
-		// replace every appearance of someNID with the nextNID so that someNID, which we know
+		// replace every appearance of someNid with the nextNid so that someNid, which we know
 		// that will be in range, will not exist in the namespace range
-		someNID := make([]byte, NamespaceSize)
-		copy(someNID, rawData[len(rawData)/2][:NamespaceSize])
-		nextNID := rawData[(len(rawData)/2)+1][:NamespaceSize]
+		someNid := make([]byte, NamespaceSize)
+		copy(someNid, rawData[len(rawData)/2][:NamespaceSize])
+		nextNid := rawData[(len(rawData)/2)+1][:NamespaceSize]
 		for _, nspace := range rawData {
-			if bytes.Compare(nspace[:NamespaceSize], someNID) == 0 {
-				copy(nspace[:NamespaceSize], nextNID)
+			if bytes.Equal(nspace[:NamespaceSize], someNid) {
+				copy(nspace[:NamespaceSize], nextNid)
 			}
 		}
 
 		dag, dah := putErasuredDataToDag(t, rawData)
 
-		assertNoRowContainsNID(t, dag, dah, someNID)
+		assertNoRowContainsNID(t, dag, dah, someNid)
 	})
 }
 
+func TestGetLeavesByNamespace_MultipleRowsContainingSameNamespaceId(t *testing.T) {
+
+	t.Run("Same namespace id across multiple rows", func(t *testing.T) {
+
+		rawData := RandNamespacedShares(t, 16).Raw()
+
+		// set all shares to the same namespace and data but the last one
+		nid := rawData[0][:NamespaceSize]
+		commonNamespaceData := rawData[0]
+
+		for i, nspace := range rawData {
+
+			if i == len(rawData)-1 {
+				break
+			}
+
+			copy(nspace[:], commonNamespaceData)
+		}
+
+		dag, dah := putErasuredDataToDag(t, rawData)
+
+		rowRootCids, err := rowRootsByNamespaceID(nid, &dah)
+		require.NoError(t, err)
+
+		for _, rowRootCid := range rowRootCids {
+			nodes, err := GetLeavesByNamespace(context.Background(), dag, rowRootCid, nid)
+			require.NoError(t, err)
+
+			for _, node := range nodes {
+
+				// test that the data returned by GetLeavesByNamespace for nid
+				// matches the commonNamespaceData that was copied across almost all data
+
+				share := node.RawData()[1:]
+				assert.Equal(t, commonNamespaceData, share[NamespaceSize:])
+			}
+		}
+	})
+
+}
 
 func putErasuredDataToDag(t *testing.T, rawData [][]byte) (format.DAGService, da.DataAvailabilityHeader) {
 
