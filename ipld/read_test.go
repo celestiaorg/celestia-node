@@ -283,7 +283,6 @@ func TestGetLeavesByNamespace(t *testing.T) {
 }
 
 func TestGetLeavesByNamespace_AbsentNamespaceId(t *testing.T) {
-
 	rawData := RandNamespacedShares(t, 16).Raw()
 
 	minNid := make([]byte, NamespaceSize)
@@ -317,13 +316,12 @@ func TestGetLeavesByNamespace_AbsentNamespaceId(t *testing.T) {
 		missingNid []byte
 	}{
 		{name: "Namespace id less than the minimum namespace in data", data: minNidMissingData, missingNid: minNid},
-		{name: "Namespace id greater than the maximum namespace in data", data: midNidMissingData, missingNid: midNid},
-		{name: "Namespace id in range but still missing", data: maxNidMissingData, missingNid: maxNid},
+		{name: "Namespace id greater than the maximum namespace in data", data: maxNidMissingData, missingNid: maxNid},
+		{name: "Namespace id in range but still missing", data: midNidMissingData, missingNid: midNid},
 	}
+
 	for _, tt := range tests {
-
 		t.Run(tt.name, func(t *testing.T) {
-
 			dag, dah := putErasuredDataToDag(t, tt.data)
 
 			assertNoRowContainsNID(t, dag, dah, tt.missingNid)
@@ -332,9 +330,7 @@ func TestGetLeavesByNamespace_AbsentNamespaceId(t *testing.T) {
 }
 
 func TestGetLeavesByNamespace_MultipleRowsContainingSameNamespaceId(t *testing.T) {
-
 	t.Run("Same namespace id across multiple rows", func(t *testing.T) {
-
 		rawData := RandNamespacedShares(t, 16).Raw()
 
 		// set all shares to the same namespace and data but the last one
@@ -342,7 +338,6 @@ func TestGetLeavesByNamespace_MultipleRowsContainingSameNamespaceId(t *testing.T
 		commonNamespaceData := rawData[0]
 
 		for i, nspace := range rawData {
-
 			if i == len(rawData)-1 {
 				break
 			}
@@ -360,10 +355,8 @@ func TestGetLeavesByNamespace_MultipleRowsContainingSameNamespaceId(t *testing.T
 			require.NoError(t, err)
 
 			for _, node := range nodes {
-
 				// test that the data returned by GetLeavesByNamespace for nid
 				// matches the commonNamespaceData that was copied across almost all data
-
 				share := node.RawData()[1:]
 				assert.Equal(t, commonNamespaceData, share[NamespaceSize:])
 			}
@@ -373,7 +366,6 @@ func TestGetLeavesByNamespace_MultipleRowsContainingSameNamespaceId(t *testing.T
 }
 
 func putErasuredDataToDag(t *testing.T, rawData [][]byte) (format.DAGService, da.DataAvailabilityHeader) {
-
 	// calc square size
 	squareSize := uint64(math.Sqrt(float64(len(rawData))))
 
