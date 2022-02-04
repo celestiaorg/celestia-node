@@ -6,18 +6,25 @@ import (
 	"github.com/celestiaorg/celestia-node/node/fxutil"
 	"github.com/celestiaorg/celestia-node/node/p2p"
 	"github.com/celestiaorg/celestia-node/node/services"
-	"github.com/celestiaorg/celestia-node/node/state"
+	statecomponents "github.com/celestiaorg/celestia-node/node/state"
 	"github.com/celestiaorg/celestia-node/service/header"
+	"github.com/celestiaorg/celestia-node/service/state"
+	lens "github.com/strangelove-ventures/lens/client"
 )
 
 // lightComponents keeps all the components as DI options required to built a Light Node.
 func lightComponents(cfg *Config, store Store) fxutil.Option {
+	// condition for adding state-related components
+	trustedPeerExists := cfg.Services.TrustedPeer != ""
 	opts := fxutil.Options(
 		fxutil.Supply(Light),
 		baseComponents(cfg, store),
 		fxutil.Provide(services.DASer),
 		fxutil.Provide(services.HeaderExchangeP2P(cfg.Services)),
-		state.StateOverCoreComponents(cfg.Core, store),
+		fxutil.ProvideIf(trustedPeerExists, func() (*lens.ChainClient, error) {
+			return statecomponents.ChainClient(cfg.Core, store.Path())
+		}),
+		fxutil.ProvideIf(trustedPeerExists, state.NewCoreAccessor),
 	)
 	return opts
 }
