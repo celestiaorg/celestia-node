@@ -15,13 +15,17 @@ func init() {
 		cmdnode.Init(
 			cmdnode.NodeFlags(node.Light),
 			cmdnode.P2PFlags(),
-			cmdnode.HeadersFlags(),
+			cmdnode.TrustedHashFlags(),
+			cmdnode.TrustedPeerFlags(),
+			// cmdnode.HeadersFlags(),
 			cmdnode.MiscFlags(),
 		),
 		cmdnode.Start(
 			cmdnode.NodeFlags(node.Light),
 			cmdnode.P2PFlags(),
-			cmdnode.HeadersFlags(),
+			cmdnode.TrustedHashFlags(),
+			cmdnode.TrustedPeerFlags(),
+			// cmdnode.HeadersFlags(),
 			cmdnode.MiscFlags(),
 		),
 	)
@@ -48,10 +52,19 @@ var lightCmd = &cobra.Command{
 			return err
 		}
 
-		err = cmdnode.ParseHeadersFlags(cmd, env)
+		err = cmdnode.ParseTrustedHashFlags(cmd, env)
 		if err != nil {
 			return err
 		}
+		err = cmdnode.ParseTrustedPeerFlags(cmd, env)
+		if err != nil {
+			return err
+		}
+
+		// err = cmdnode.ParseHeadersFlags(cmd, env)
+		// if err != nil {
+		// 	return err
+		// }
 
 		err = cmdnode.ParseMiscFlags(cmd)
 		if err != nil {
