@@ -16,14 +16,14 @@ func init() {
 			cmdnode.NodeFlags(node.Bridge),
 			cmdnode.P2PFlags(),
 			cmdnode.CoreFlags(),
-			cmdnode.HeadersFlags(),
+			cmdnode.TrustedHashFlags(),
 			cmdnode.MiscFlags(),
 		),
 		cmdnode.Start(
 			cmdnode.NodeFlags(node.Bridge),
 			cmdnode.P2PFlags(),
 			cmdnode.CoreFlags(),
-			cmdnode.HeadersFlags(),
+			cmdnode.TrustedHashFlags(),
 			cmdnode.MiscFlags(),
 		),
 	)
@@ -51,6 +51,11 @@ var bridgeCmd = &cobra.Command{
 		}
 
 		err = cmdnode.ParseCoreFlags(cmd, env)
+		if err != nil {
+			return err
+		}
+
+		err = cmdnode.ParseTrustedHashFlags(cmd, env)
 		if err != nil {
 			return err
 		}
