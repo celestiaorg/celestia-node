@@ -9,6 +9,8 @@ import (
 	"github.com/celestiaorg/celestia-node/node"
 )
 
+// NewRootCmd returns an initiated celestia root command. The provided plugins
+// will be installed into celestia-node.
 func NewRootCmd(plugs ...node.Plugin) *cobra.Command {
 	plugins := make([]string, len(plugs))
 	for i, plug := range plugs {

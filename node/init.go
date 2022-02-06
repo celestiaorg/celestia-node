@@ -12,7 +12,7 @@ import (
 
 // Init initializes the Node FileSystem Store for the given Node Type 'tp' in the directory under 'path' with
 // default Config. Options are applied over default Config and persisted on disk.
-func Init(path string, tp Type, plugs []Plugin, options ...Option) error {
+func Init(path string, tp Type, options ...Option) error {
 	cfg, sets := DefaultConfig(tp), new(settings)
 	for _, option := range options {
 		if option != nil {
@@ -68,7 +68,7 @@ func Init(path string, tp Type, plugs []Plugin, options ...Option) error {
 		log.Infow("Config already exists", "path", cfgPath)
 	}
 
-	for _, plug := range plugs {
+	for _, plug := range sets.Plugins {
 		err = plug.Initialize(path)
 		if err != nil {
 			return err

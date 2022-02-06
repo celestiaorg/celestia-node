@@ -96,6 +96,9 @@ out:
 		}
 	}
 
+	parsed = append(parsed, fopts.raw...)
+	fmt.Println("len parsed", len(parsed), len(fopts.raw))
+
 	return fx.Options(parsed...), nil
 }
 
@@ -238,6 +241,13 @@ func Invoke(vals ...interface{}) Option {
 	}
 }
 
+func Raw(options ...fx.Option) Option {
+	return func(fo *fxOptions) error {
+		fo.raw = append(fo.raw, options...)
+		return nil
+	}
+}
+
 // Options combines multiples options into a one Option.
 func Options(opts ...Option) Option {
 	return func(o *fxOptions) error {
@@ -256,6 +266,7 @@ type fxOptions struct {
 	provides         map[reflect.Type]*provide
 	supplies         map[reflect.Type]interface{}
 	invokes          []interface{}
+	raw              []fx.Option
 }
 
 type override struct {

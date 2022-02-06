@@ -61,14 +61,14 @@ type Node struct {
 
 	// PluginOutlet serves as an arbitrary type for plugins to return so that fx
 	// will call them
-	PluginOutlet
+	RootPluginOutlet
 
 	// start and stop control ref internal fx.App lifecycle funcs to be called from Start and Stop
 	start, stop lifecycleFunc
 }
 
 // New assembles a new Node with the given type 'tp' over Store 'store'.
-func New(tp Type, store Store, plugs []Plugin, options ...Option) (*Node, error) {
+func New(tp Type, store Store, options ...Option) (*Node, error) {
 	cfg, err := store.Config()
 	if err != nil {
 		return nil, err
@@ -84,21 +84,11 @@ func New(tp Type, store Store, plugs []Plugin, options ...Option) (*Node, error)
 		}
 	}
 
-	// use a null plugin to provide for the PluginOutlet portion of the Node
-	if len(plugs) == 0 {
-		plugs = []Plugin{nullPlugin{}}
-	}
-
-	pluginComponents := make([]fxutil.Option, len(plugs))
-	for i, plug := range plugs {
-		pluginComponents[i] = plug.Components(cfg, store)
-	}
-
 	switch tp {
 	case Bridge:
-		return newNode(bridgeComponents(cfg, store), fxutil.Options(pluginComponents...), s.overrides())
+		return newNode(bridgeComponents(cfg, store), s.plugins(cfg, store), s.overrides())
 	case Light:
-		return newNode(lightComponents(cfg, store), fxutil.Options(pluginComponents...), s.overrides())
+		return newNode(lightComponents(cfg, store), s.plugins(cfg, store), s.overrides())
 	default:
 		panic("node: unknown Node Type")
 	}

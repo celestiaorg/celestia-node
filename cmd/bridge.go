@@ -9,7 +9,8 @@ import (
 // NOTE: We should always ensure that the added Flags below are parsed somewhere, like in the PersistenPreRun func on
 // parent command.
 
-// NewBridgeCommand creates a new bridge sub command
+// NewBridgeCommand creates a new bridge sub command. Provided plugins are
+// installed into celestia-node
 func NewBridgeCommand(plugs []node.Plugin) *cobra.Command {
 	command := &cobra.Command{
 		Use:   "bridge [subcommand]",

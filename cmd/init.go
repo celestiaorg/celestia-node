@@ -19,7 +19,9 @@ func Init(plugs []node.Plugin, fsets ...*flag.FlagSet) *cobra.Command {
 				return err
 			}
 
-			return node.Init(env.StorePath, env.NodeType, plugs, env.Options()...)
+			env.opts = append(env.opts, node.WithPlugins(plugs...))
+
+			return node.Init(env.StorePath, env.NodeType, env.Options()...)
 		},
 	}
 	for _, set := range fsets {

@@ -1,6 +1,10 @@
 package node
 
-import "github.com/celestiaorg/celestia-node/node/fxutil"
+import (
+	"go.uber.org/fx"
+
+	"github.com/celestiaorg/celestia-node/node/fxutil"
+)
 
 type Plugin interface {
 	Name() string
@@ -8,17 +12,24 @@ type Plugin interface {
 	Components(cfg *Config, store Store) fxutil.Option
 }
 
-// PluginOutlet strictly serves as a type to be returned by a plugin's
+// RootPluginOutlet strictly serves as a type to be returned by a plugin's
 // fxutil.Option. This provides the plugin a way to force fx to call the
 // plugin's services/components
-type PluginOutlet struct{}
+type RootPluginOutlet struct{}
 
-type nullPlugin struct{}
+type PluginOutlet interface{}
 
-func (nullPlugin) Name() string                 { return "nullPlugin" }
-func (nullPlugin) Initialize(path string) error { return nil }
-func (nullPlugin) Components(cfg *Config, store Store) fxutil.Option {
-	return fxutil.Options(
-		fxutil.Supply(PluginOutlet{}),
+func CollectSubOutlets(s ...PluginOutlet) RootPluginOutlet {
+	return RootPluginOutlet{}
+}
+
+func collectComponents(cfg *Config, store Store) fxutil.Option {
+	return fxutil.Raw(
+		fx.Provide(
+			fx.Annotate(
+				CollectSubOutlets,
+				fx.ParamTags(`group:"plugins"`),
+			),
+		),
 	)
 }

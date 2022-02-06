@@ -1,10 +1,12 @@
 package node
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/fx"
 
 	"github.com/celestiaorg/celestia-node/node/fxutil"
 )
@@ -16,18 +18,18 @@ var initiallyEmpty = ""
 func TestPluginComponentCall(t *testing.T) {
 	store := MockStore(t, DefaultConfig(Light))
 	nodes := []Type{Light, Bridge}
-	componentPlugin := &testPlugin{}
+	plug := &testPlugin{}
 	for i, node := range nodes {
-		_, err := New(node, store, []Plugin{componentPlugin})
+		_, err := New(node, store, WithPlugins(plug))
 		require.NoError(t, err)
-		assert.Greater(t, componentPlugin.counter, i)
+		assert.Greater(t, plug.counter, i)
 	}
 }
 
 func TestPluginProvide(t *testing.T) {
 	store := MockStore(t, DefaultConfig(Light))
-	componentPlugin := &testPlugin{}
-	_, err := New(Light, store, []Plugin{componentPlugin})
+	plug := &testPlugin{}
+	_, err := New(Light, store, WithPlugins(plug))
 	require.NoError(t, err)
 
 	assert.Equal(t, testStr, initiallyEmpty)
@@ -38,9 +40,23 @@ func TestPluginInit(t *testing.T) {
 	nodes := []Type{Light, Bridge}
 	plugin := &testPlugin{}
 	for _, node := range nodes {
-		require.NoError(t, Init(dir, node, []Plugin{plugin}))
+		require.NoError(t, Init(dir, node, WithPlugins(plugin)))
 		assert.Equal(t, dir, plugin.path)
 	}
+}
+
+func TestMultiplePlugins(t *testing.T) {
+	p1 := &testPlugin{}
+	p2 := &testPlugin2{&testPlugin{}}
+	store := MockStore(t, DefaultConfig(Light))
+	nodes := []Type{Light, Bridge}
+	for i, node := range nodes {
+		_, err := New(node, store, WithPlugins(p1, p2))
+		require.NoError(t, err)
+		assert.Greater(t, p1.counter, i)
+		assert.Greater(t, p2.counter, i)
+	}
+	assert.Equal(t, testStr, initiallyEmpty)
 }
 
 type testPlugin struct {
@@ -53,13 +69,26 @@ func (plug *testPlugin) Initialize(path string) error {
 	plug.path = path
 	return nil
 }
+
 func (plug *testPlugin) Components(cfg *Config, store Store) fxutil.Option {
+	fmt.Println("calling components")
 	plug.counter++
-	return fxutil.Options(fxutil.Provide(provider))
+	return fxutil.Raw(
+		fx.Provide(
+			fx.Annotate(
+				provider,
+				fx.ResultTags(`group:"plugins"`),
+			),
+		),
+	)
 }
 
 // use the PluginOutlet to force fx to call this function
 func provider() PluginOutlet {
 	initiallyEmpty = testStr
 	return struct{}{}
+}
+
+type testPlugin2 struct {
+	*testPlugin
 }

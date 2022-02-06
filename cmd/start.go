@@ -30,7 +30,9 @@ Options passed on start override configuration options only on start and are not
 				return err
 			}
 
-			nd, err := node.New(env.NodeType, store, plugs, env.Options()...)
+			env.opts = append(env.opts, node.WithPlugins(plugs...))
+
+			nd, err := node.New(env.NodeType, store, env.Options()...)
 			if err != nil {
 				return err
 			}
