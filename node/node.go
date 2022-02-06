@@ -59,9 +59,9 @@ type Node struct {
 
 	DASer *das.DASer `optional:"true"`
 
-	// PluginOutlet serves as an arbitrary type for plugins to return so that fx
-	// will call them
-	RootPluginOutlet
+	// RootPlugin serves as an arbitrary type that is used to collect the return
+	// values of plugins
+	RootPlugin
 
 	// start and stop control ref internal fx.App lifecycle funcs to be called from Start and Stop
 	start, stop lifecycleFunc

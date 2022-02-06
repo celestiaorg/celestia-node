@@ -1,7 +1,6 @@
 package node
 
 import (
-	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -70,8 +69,13 @@ func (plug *testPlugin) Initialize(path string) error {
 	return nil
 }
 
+// use the PluginResult to force fx to call this function
+func provider() PluginResult {
+	initiallyEmpty = testStr
+	return struct{}{}
+}
+
 func (plug *testPlugin) Components(cfg *Config, store Store) fxutil.Option {
-	fmt.Println("calling components")
 	plug.counter++
 	return fxutil.Raw(
 		fx.Provide(
@@ -81,12 +85,6 @@ func (plug *testPlugin) Components(cfg *Config, store Store) fxutil.Option {
 			),
 		),
 	)
-}
-
-// use the PluginOutlet to force fx to call this function
-func provider() PluginOutlet {
-	initiallyEmpty = testStr
-	return struct{}{}
 }
 
 type testPlugin2 struct {

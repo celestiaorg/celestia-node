@@ -12,22 +12,23 @@ type Plugin interface {
 	Components(cfg *Config, store Store) fxutil.Option
 }
 
-// RootPluginOutlet strictly serves as a type to be returned by a plugin's
-// fxutil.Option. This provides the plugin a way to force fx to call the
-// plugin's services/components
-type RootPluginOutlet struct{}
+// RootPlugin strictly serves as a type that composes the Node struct. This
+// provides plugins a way to force fx to load the desired plugin components
+type RootPlugin struct{}
 
-type PluginOutlet interface{}
+// PluginResult should be returned by at least one of the plugin's components to
+// ensure that those components are added to celestia-node
+type PluginResult interface{}
 
-func CollectSubOutlets(s ...PluginOutlet) RootPluginOutlet {
-	return RootPluginOutlet{}
+func collectSubOutlets(s ...PluginResult) RootPlugin {
+	return RootPlugin{}
 }
 
-func collectComponents(cfg *Config, store Store) fxutil.Option {
+func collectComponents() fxutil.Option {
 	return fxutil.Raw(
 		fx.Provide(
 			fx.Annotate(
-				CollectSubOutlets,
+				collectSubOutlets,
 				fx.ParamTags(`group:"plugins"`),
 			),
 		),

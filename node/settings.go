@@ -2,7 +2,6 @@ package node
 
 import (
 	"encoding/hex"
-	"fmt"
 
 	"github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/libp2p/go-libp2p-core/host"
@@ -58,6 +57,7 @@ func WithCoreClient(client core.Client) Option {
 	}
 }
 
+// WithPlugins adds the provided plugins to the settings
 func WithPlugins(plugins ...Plugin) Option {
 	return func(c *Config, s *settings) error {
 		s.Plugins = plugins
@@ -88,13 +88,11 @@ func (sets *settings) plugins(cfg *Config, store Store) fxutil.Option {
 	totalPlugins := len(sets.Plugins) + 1
 	pluginComponents := make([]fxutil.Option, totalPlugins)
 
-	pluginComponents[0] = collectComponents(cfg, store)
-
 	for i, plug := range sets.Plugins {
-		pluginComponents[i+1] = plug.Components(cfg, store)
+		pluginComponents[i] = plug.Components(cfg, store)
 	}
 
-	fmt.Println("len plug comps ", len(pluginComponents))
+	pluginComponents[len(pluginComponents)-1] = collectComponents()
 
 	return fxutil.Options(pluginComponents...)
 }
