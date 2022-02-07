@@ -55,7 +55,7 @@ func ParseHeadersFlags(cmd *cobra.Command, env *Env) error {
 	return nil
 }
 
-// TrustedPeerFlags gives a set of hardcoded Header package TrustedPeer flags.
+// TrustedPeerFlags returns a set of flags related to configuring a `TrustedPeer`.
 func TrustedPeerFlags() *flag.FlagSet {
 	flags := &flag.FlagSet{}
 
@@ -83,7 +83,7 @@ func ParseTrustedPeerFlags(cmd *cobra.Command, env *Env) error {
 	return nil
 }
 
-// TrustedHashFlags gives a set of hardcoded Header package TrustedHash flags.
+// TrustedHashFlags returns a set of flags related to configuring a `TrustedHash`.
 func TrustedHashFlags() *flag.FlagSet {
 	flags := &flag.FlagSet{}
 
