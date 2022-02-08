@@ -4,7 +4,7 @@ import "context"
 
 var Token = "celestia"
 
-// Accessor represents the behaviours necessary for a user to
+// Accessor represents the behaviors necessary for a user to
 // query for state-related information and submit transactions/
 // messages to the celestia network.
 type Accessor interface {
@@ -16,5 +16,6 @@ type Accessor interface {
 	AccountBalance(Account) (Balance, error)
 	// SubmitTx submits the given transaction/message to the
 	// Celestia network.
-	SubmitTx(context.Context, Msg) (*TxResponse, error) // TODO @renaynay @wondertan: do we call this SubmitTx or SubmitMsg?
+	// TODO @renaynay @wondertan: do we call this SubmitTx or SubmitMsg?
+	SubmitTx(context.Context, Msg) (*TxResponse, error)
 }

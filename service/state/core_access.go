@@ -22,22 +22,19 @@ func NewCoreAccessor(cc *lens.ChainClient) *CoreAccessor {
 
 // CurrentBalance gets current balance of the node's account.
 func (ca *CoreAccessor) CurrentBalance() (Balance, error) {
-	coins, err := ca.client.QueryBalance(Token)
+	acc, err := ca.client.AccountFromKeyOrAddress(ca.client.Key())
 	if err != nil {
 		return Balance{}, err
 	}
-	if len(coins) == 0 {
-		// try to get self account info
-		addr, err := ca.client.Address()
-		if err != nil {
-			log.Errorw("core-access: fetching own Address", "err", err)
-		}
-		return Balance{}, fmt.Errorf("no balance returned for own account: %v", addr)
-	}
-	// TODO @renaynay: is the first index always the Celestia-specific balance?
-	return coins[0], nil
-}
 
+	balances, err := ca.client.QueryBalanceWithAddress(acc.String())
+	if err != nil {
+		return Balance{}, err
+	}
+
+	// TODO @renaynay: will `celestia` balance always be first?
+	return balances[0], nil
+}
 
 func (ca *CoreAccessor) AccountBalance(account Account) (Balance, error) {
 	coins, err := ca.client.QueryBalanceWithAddress(account.GetAddress().String())

@@ -58,7 +58,7 @@ func StartRemoteClient() (*node.Node, Client, error) {
 	return remote, client, err
 }
 
-// StartRemoteCore starts a remote core and returns it's protocol and address
+// StartRemoteCore starts a remote core and returns its protocol and address
 func StartRemoteCore() (*node.Node, string, string) {
 	remote := StartMockNode(CreateKvStore(defaultRetainBlocks))
 	protocol, ip := getRemoteEndpoint(remote)

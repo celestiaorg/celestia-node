@@ -23,6 +23,7 @@ import (
 	"github.com/celestiaorg/celestia-node/service/block"
 	"github.com/celestiaorg/celestia-node/service/header"
 	"github.com/celestiaorg/celestia-node/service/share"
+	"github.com/celestiaorg/celestia-node/service/state"
 )
 
 const Timeout = time.Second * 15
@@ -56,6 +57,7 @@ type Node struct {
 	BlockServ  *block.Service  `optional:"true"`
 	ShareServ  share.Service   // not optional
 	HeaderServ *header.Service // not optional
+	StateServ  *state.Service  `optional:"true"`
 
 	DASer *das.DASer `optional:"true"`
 

@@ -9,6 +9,8 @@ import (
 	mocknet "github.com/libp2p/go-libp2p/p2p/net/mock"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/celestiaorg/celestia-node/core"
 )
 
 func TestNewLight(t *testing.T) {
@@ -19,6 +21,8 @@ func TestNewLight(t *testing.T) {
 	require.NotNil(t, nd.Config)
 	require.NotNil(t, nd.HeaderServ)
 	assert.NotZero(t, nd.Type)
+	// ensure that state service is not constructed if TrustedCore is not provided
+	require.Nil(t, nd.StateServ)
 }
 
 func TestLightLifecycle(t *testing.T) {
@@ -87,4 +91,20 @@ func TestLight_WithBootstrapPeers(t *testing.T) {
 	require.NotNil(t, node)
 
 	assert.Equal(t, node.Config.P2P.BootstrapPeers, peers)
+}
+
+func TestLight_WithStateServiceOverCore(t *testing.T) {
+	// start a remote mock core node
+	nd, protocol, endpoint := core.StartRemoteCore()
+	defer nd.Stop() // nolint:errcheck
+	// create Light config and add remote as trusted peer
+	conf := DefaultConfig(Light)
+	// create store for node
+	repo := MockStore(t, conf)
+	// create light node
+	node, err := New(Light, repo, WithRemoteCore(protocol, endpoint))
+	require.NoError(t, err)
+	defer node.Stop(context.Background()) // nolint:errcheck
+	// check to ensure node's state service is not nil
+	require.NotNil(t, node.StateServ)
 }
