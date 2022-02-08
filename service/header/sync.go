@@ -326,7 +326,7 @@ func (s *Syncer) doSync(ctx context.Context, oldHead, newHead *ExtendedHeader) (
 	return err
 }
 
-// processHeaders gets and stores the 'amount' number of headers going from the 'start' height.
+// processHeaders gets and stores the given 'amount' of headers starting at the given 'from' height.
 func (s *Syncer) processHeaders(ctx context.Context, from, amount uint64) (uint64, error) {
 	headers, err := s.getHeaders(ctx, from, amount)
 	if err != nil {
