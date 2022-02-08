@@ -281,10 +281,10 @@ func (s *Syncer) syncTo(ctx context.Context, newHead *ExtendedHeader) {
 		return
 	}
 
-	log.Infow("synced headers",
+	log.Infow("finished syncing",
 		"from", head.Height,
 		"to", newHead.Height,
-		"took", s.state.End.Sub(s.state.Start))
+		"elapsed time", s.state.End.Sub(s.state.Start))
 }
 
 // doSync performs actual syncing updating the internal SyncState
