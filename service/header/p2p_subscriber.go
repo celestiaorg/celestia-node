@@ -96,11 +96,12 @@ func msgID(pmsg *pb.Message) string {
 	}
 
 	// IMPORTANT NOTE:
-	// Due to the nature of the Tendermint consensus, validators don't collect all commit signatures,
-	// but only the minimum required amount of them(+2/3 of power). Also, signatures are collected asynchronously.
-	// So for, each validator may have a different set of minimally required signatures causing nondeterminism in
-	// the header message gossiped over the network. Subsequently, this causes message duplicates as each Bridge Node,
-	// connected to personal a validator, sends the validaotor's own view of commits of effectively the same header.
+	// Due to the nature of the Tendermint consensus, validators don't necessarily collect commit signatures from the
+	// entire validator set, but only the minimum required amount of them (>2/3 of voting power). In addition,
+	// signatures are collected asynchronously. Therefore, each validator may have a different set of signatures that
+	// pass the minimum required voting power threshold, causing nondeterminism in the header message gossiped over the
+	// network. Subsequently, this causes message duplicates as each Bridge Node, connected to a personal validator,
+	// sends the validator's own view of commits of effectively the same header.
 	//
 	// To solve the problem above, we exclude nondeterministic value from message id calculation
 	h.Commit.Signatures = nil
