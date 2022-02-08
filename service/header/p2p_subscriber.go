@@ -108,7 +108,7 @@ func msgID(pmsg *pb.Message) string {
 
 	data, err := MarshalExtendedHeader(h)
 	if err != nil {
-		log.Errorw("unmarshalling header while computing msg id", "err", err)
+		log.Errorw("marshaling header while computing msg id", "err", err)
 		return msgID(pmsg.Data)
 	}
 
