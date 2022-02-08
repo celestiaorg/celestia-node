@@ -91,7 +91,8 @@ func msgID(pmsg *pb.Message) string {
 
 	h, err := UnmarshalExtendedHeader(pmsg.Data)
 	if err != nil {
-		log.Errorw("unmarshalling header while computing msg id", "err", err)
+		// There is nothing we can do about the error, and it will be anyway caught during validation.
+		// We also *have* to return some ID for the msg, so give the hash of even faulty msg
 		return msgID(pmsg.Data)
 	}
 
@@ -108,7 +109,7 @@ func msgID(pmsg *pb.Message) string {
 
 	data, err := MarshalExtendedHeader(h)
 	if err != nil {
-		log.Errorw("marshaling header while computing msg id", "err", err)
+		// See the note under unmarshalling step
 		return msgID(pmsg.Data)
 	}
 
