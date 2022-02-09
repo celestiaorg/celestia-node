@@ -11,6 +11,7 @@ const (
 	// Light is a stripped-down Celestia Node which aims to be lightweight while preserving highest possible
 	// security guarantees.
 	Light
+	Full
 )
 
 // String converts Type to its string representation.
@@ -41,10 +42,12 @@ func ParseType(str string) Type {
 var typeToString = map[Type]string{
 	Bridge: "Bridge",
 	Light:  "Light",
+	Full:   "Full",
 }
 
 // typeToString maps strings representations of all valid Types.
 var stringToType = map[string]Type{
 	"Bridge": Bridge,
 	"Light":  Light,
+	"Full":   Full,
 }
