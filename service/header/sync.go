@@ -253,10 +253,6 @@ func (s *Syncer) processIncoming(ctx context.Context, maybeHead *ExtendedHeader)
 	return pubsub.ValidationAccept
 }
 
-// TODO(@Wondertan): Number of headers that can be requested at once. Either make this configurable or,
-//  find a proper rationale for constant.
-var requestSize uint64 = 512
-
 // syncTo requests headers from locally stored head up to the new head.
 func (s *Syncer) syncTo(ctx context.Context, newHead *ExtendedHeader) {
 	head, err := s.store.Head(ctx)
@@ -294,41 +290,30 @@ func (s *Syncer) doSync(ctx context.Context, oldHead, newHead *ExtendedHeader) (
 	s.stateLk.Lock()
 	s.state.ID++
 	s.state.FromHeight = from
+	s.state.Height = from
 	s.state.ToHeight = to
 	s.state.FromHash = oldHead.Hash()
 	s.state.ToHash = newHead.Hash()
 	s.state.Start = time.Now()
 	s.stateLk.Unlock()
 
-	for from <= to {
-		amount := to - from + 1
-		if amount > requestSize {
-			amount = requestSize
-		}
-
-		amount, err = s.processHeaders(ctx, from, amount)
-		if err != nil && amount == 0 {
+	for processed := uint64(0); from < to; from += processed {
+		processed, err = s.processHeaders(ctx, from, to)
+		if err != nil && processed == 0 {
 			break
 		}
-
-		from += amount
-		s.stateLk.Lock()
-		s.state.Height = from
-		s.stateLk.Unlock()
 	}
 
-	finHeight := from - 1 // minus one as we add one to the 'amount' in the loop above
 	s.stateLk.Lock()
-	s.state.Height = finHeight
 	s.state.End = time.Now()
 	s.state.Error = err
 	s.stateLk.Unlock()
 	return err
 }
 
-// processHeaders gets and stores the given 'amount' of headers starting at the given 'from' height.
-func (s *Syncer) processHeaders(ctx context.Context, from, amount uint64) (uint64, error) {
-	headers, err := s.getHeaders(ctx, from, amount)
+// processHeaders gets and stores headers starting at the given 'from' height up to 'to' height - [from:to]
+func (s *Syncer) processHeaders(ctx context.Context, from, to uint64) (uint64, error) {
+	headers, err := s.findHeaders(ctx, from, to)
 	if err != nil {
 		return 0, err
 	}
@@ -337,46 +322,46 @@ func (s *Syncer) processHeaders(ctx context.Context, from, amount uint64) (uint6
 	if err != nil {
 		return 0, err
 	}
-
+	// update the state before ProvideHeights below to always keep state in sync with heightSub
+	s.stateLk.Lock()
+	s.state.Height = to
+	s.stateLk.Unlock()
 	return uint64(ln), nil
 }
 
-// getHeaders gets headers from either remote peers or from local cache of headers received by PubSub
-func (s *Syncer) getHeaders(ctx context.Context, start, amount uint64) ([]*ExtendedHeader, error) {
-	// short-circuit if nothing in pending cache to avoid unnecessary allocation below
-	if _, ok := s.pending.FirstRangeWithin(start, start+amount); !ok {
-		return s.exchange.RequestHeaders(ctx, start, amount)
+// TODO(@Wondertan): Number of headers that can be requested at once. Either make this configurable or,
+//  find a proper rationale for constant.
+// TODO(@Wondertan): Make configurable
+var requestSize uint64 = 512
+
+// findHeaders gets headers from either remote peers or from local cache of headers received by PubSub - [from:to]
+func (s *Syncer) findHeaders(ctx context.Context, from, to uint64) ([]*ExtendedHeader, error) {
+	amount := to - from + 1 // + 1 to include 'to' height as well
+	if amount > requestSize {
+		to, amount = from+requestSize, requestSize
 	}
 
-	end, out := start+amount, make([]*ExtendedHeader, 0, amount)
-	for start < end {
+	out := make([]*ExtendedHeader, 0, amount)
+	for from < to {
 		// if we have some range cached - use it
-		if r, ok := s.pending.FirstRangeWithin(start, end); ok {
-			// first, request everything between start and found range
-			hs, err := s.exchange.RequestHeaders(ctx, start, r.Start-start)
-			if err != nil {
-				return nil, err
-			}
-			out = append(out, hs...)
-			start += uint64(len(hs))
-
-			// then, apply cached range
-			cached := r.Before(end)
-			out = append(out, cached...)
-			start += uint64(len(cached))
-
-			// repeat, as there might be multiple cache ranges
-			continue
+		r, ok := s.pending.FirstRangeWithin(from, to)
+		if !ok {
+			hs, err := s.exchange.RequestHeaders(ctx, from, amount)
+			return append(out, hs...), err
 		}
 
-		// fetch the leftovers
-		hs, err := s.exchange.RequestHeaders(ctx, start, end-start)
+		// first, request everything between from and start of the found range
+		hs, err := s.exchange.RequestHeaders(ctx, from, r.Start-from)
 		if err != nil {
-			// still return what was successfully gotten
-			return out, err
+			return nil, err
 		}
+		out = append(out, hs...)
+		from += uint64(len(hs))
 
-		return append(out, hs...), nil
+		// then, apply cached range if any
+		cached, ln := r.Before(to)
+		out = append(out, cached...)
+		from += ln
 	}
 
 	return out, nil

@@ -15,7 +15,7 @@ func TestSyncSimpleRequestingHead(t *testing.T) {
 	TrustingPeriod = time.Microsecond
 	requestSize = 13 // just some random number
 
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	t.Cleanup(cancel)
 
 	suite := NewTestSuite(t, 3)
@@ -40,17 +40,19 @@ func TestSyncSimpleRequestingHead(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, exp.Height, have.Height)
 	assert.Empty(t, syncer.pending.Head())
-	assert.Equal(t, uint64(exp.Height), syncer.State().Height)
-	assert.Equal(t, uint64(2), syncer.State().FromHeight)
-	assert.Equal(t, uint64(exp.Height), syncer.State().ToHeight)
-	assert.True(t, syncer.State().Finished())
+
+	state := syncer.State()
+	assert.Equal(t, uint64(exp.Height), state.Height)
+	assert.Equal(t, uint64(2), state.FromHeight)
+	assert.Equal(t, uint64(exp.Height), state.ToHeight)
+	assert.True(t, state.Finished(), state)
 }
 
 func TestSyncCatchUp(t *testing.T) {
 	// just set a big enough value, so we trust local header and don't request anything
 	TrustingPeriod = time.Minute
 
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	t.Cleanup(cancel)
 
 	suite := NewTestSuite(t, 3)
@@ -77,23 +79,24 @@ func TestSyncCatchUp(t *testing.T) {
 	exp, err := remoteStore.Head(ctx)
 	require.NoError(t, err)
 
+	// 4. assert syncer caught-up
 	have, err := localStore.Head(ctx)
 	require.NoError(t, err)
-
-	// 4. assert syncer caught-up
 	assert.Equal(t, exp.Height+1, have.Height) // plus one as we didn't add last header to remoteStore
 	assert.Empty(t, syncer.pending.Head())
-	assert.Equal(t, uint64(exp.Height+1), syncer.State().Height)
-	assert.Equal(t, uint64(2), syncer.State().FromHeight)
-	assert.Equal(t, uint64(exp.Height+1), syncer.State().ToHeight)
-	assert.True(t, syncer.State().Finished())
+
+	state := syncer.State()
+	assert.Equal(t, uint64(exp.Height+1), state.Height)
+	assert.Equal(t, uint64(2), state.FromHeight)
+	assert.Equal(t, uint64(exp.Height+1), state.ToHeight)
+	assert.True(t, state.Finished(), state)
 }
 
 func TestSyncPendingRangesWithMisses(t *testing.T) {
 	// just set a big enough value, so we trust local header and don't request anything
 	TrustingPeriod = time.Minute
 
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	t.Cleanup(cancel)
 
 	suite := NewTestSuite(t, 3)
@@ -126,7 +129,7 @@ func TestSyncPendingRangesWithMisses(t *testing.T) {
 		syncer.pending.Add(h)
 	}
 
-	// and fire app a sync
+	// and fire up a sync
 	syncer.sync(ctx)
 
 	exp, err := remoteStore.Head(ctx)
