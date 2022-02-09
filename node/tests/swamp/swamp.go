@@ -80,9 +80,7 @@ func newTendermintCoreNode(cfg *Config) (*tn.Node, error) {
 	// rewriting the created config with test's one
 	tn.Config().Consensus = cfg.CoreCfg.Consensus
 
-	err := tn.Start()
-
-	return tn, err
+	return tn, tn.Start()
 }
 
 // stopAllNodes goes through all received slices of Nodes and stops one-by-one
