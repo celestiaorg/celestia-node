@@ -13,6 +13,7 @@ func init() {
 	rootCmd.AddCommand(
 		bridgeCmd,
 		lightCmd,
+		fullCmd,
 		versionCmd,
 	)
 	rootCmd.SetHelpCommand(&cobra.Command{})
