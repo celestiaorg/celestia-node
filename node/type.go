@@ -8,9 +8,10 @@ const (
 	// Bridge is a Celestia Node that bridges the Celestia consensus network and data availability network.
 	// It maintains a trusted channel/connection to a Celestia Core node via the core.Client API.
 	Bridge Type = iota + 1
-	// Light is a stripped-down Celestia Node which aims to be lightweight while preserving highest possible
+	// Light is a stripped-down Celestia Node which aims to be lightweight while preserving the highest possible
 	// security guarantees.
 	Light
+	// Full is a Celestia Node which keeps track of full-blown blocks.
 	Full
 )
 

@@ -37,6 +37,7 @@ func bridgeComponents(cfg *Config, store Store) fxutil.Option {
 	)
 }
 
+// bridgeComponents keeps all the components as DI options required to build a Full Node.
 func fullComponents(cfg *Config, store Store) fxutil.Option {
 	return fxutil.Options(
 		fxutil.Supply(Full),
