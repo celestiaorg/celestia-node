@@ -11,7 +11,7 @@ const (
 	// Light is a stripped-down Celestia Node which aims to be lightweight while preserving the highest possible
 	// security guarantees.
 	Light
-	// Full is a Celestia Node which keeps track of full-blown blocks.
+	// Full is a Celestia Node that stores blocks in their entirety.
 	Full
 )
 
