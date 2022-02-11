@@ -3,6 +3,7 @@ package header
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/ipfs/go-datastore"
 	"github.com/ipfs/go-datastore/sync"
@@ -16,7 +17,7 @@ func TestStore(t *testing.T) {
 	// Alter Cache sizes to read some values from datastore instead of only cache.
 	DefaultStoreCacheSize, DefaultStoreCacheSize = 5, 5
 
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 
 	suite := NewTestSuite(t, 3)
@@ -49,4 +50,13 @@ func TestStore(t *testing.T) {
 	ok, err = store.Has(ctx, tmrand.Bytes(32))
 	require.NoError(t, err)
 	assert.False(t, ok)
+
+	go func() {
+		err := store.Append(ctx, suite.GenExtendedHeaders(1)...)
+		require.NoError(t, err)
+	}()
+
+	h, err := store.GetByHeight(ctx, 12)
+	require.NoError(t, err)
+	assert.NotNil(t, h)
 }

@@ -28,6 +28,8 @@ type store struct {
 
 	headLk sync.RWMutex
 	head   tmbytes.HexBytes
+
+	heightSub *heightSub
 }
 
 // NewStore constructs a Store over datastore.
@@ -71,9 +73,10 @@ func newStore(ds datastore.Batching) (*store, error) {
 	}
 
 	return &store{
-		ds:    ds,
-		cache: cache,
-		index: index,
+		ds:        ds,
+		cache:     cache,
+		index:     index,
+		heightSub: newHeightSub(),
 	}, nil
 }
 
@@ -120,6 +123,11 @@ func (s *store) Get(_ context.Context, hash tmbytes.HexBytes) (*ExtendedHeader, 
 }
 
 func (s *store) GetByHeight(ctx context.Context, height uint64) (*ExtendedHeader, error) {
+	h, err := s.heightSub.Sub(ctx, height)
+	if h != nil || err != nil {
+		return h, err
+	}
+
 	hash, err := s.index.HashByHeight(height)
 	if err != nil {
 		if err == datastore.ErrNotFound {
@@ -222,6 +230,7 @@ func (s *store) Append(ctx context.Context, headers ...*ExtendedHeader) error {
 	}
 
 	log.Infow("new head", "height", head.Height, "hash", head.Hash())
+	s.heightSub.Pub(verified...)
 	return nil
 }
 
