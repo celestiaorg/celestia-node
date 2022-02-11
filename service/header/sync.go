@@ -100,7 +100,7 @@ func (s *Syncer) WaitSync(ctx context.Context) error {
 	return err
 }
 
-// SyncState collects all the information about o sync.
+// SyncState collects all the information about a sync.
 type SyncState struct {
 	ID                   uint64 // incrementing ID of a sync
 	Height               uint64 // height at the moment when State is requested for a sync
