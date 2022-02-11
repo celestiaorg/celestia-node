@@ -20,16 +20,21 @@ func newHeightSub() *heightSub {
 	}
 }
 
+// Height reports current height.
+func (hs *heightSub) Height() uint64 {
+	return atomic.LoadUint64(&hs.height)
+}
+
 // Sub subscribes for a header of a given height.
 // It can return both values as nil, which means a requested header was already provided
 // and caller should get it elsewhere.
 func (hs *heightSub) Sub(ctx context.Context, height uint64) (*ExtendedHeader, error) {
-	if atomic.LoadUint64(&hs.height) >= height {
+	if hs.Height() >= height {
 		return nil, nil
 	}
 
 	hs.heightReqsLk.Lock()
-	if atomic.LoadUint64(&hs.height) >= height {
+	if hs.Height() >= height {
 		// This is a rare case we have to account for.
 		// The lock above can park a goroutine long enough for hs.height to change for a requested height,
 		// leaving the request never fulfilled and the goroutine deadlocked.
@@ -50,7 +55,7 @@ func (hs *heightSub) Sub(ctx context.Context, height uint64) (*ExtendedHeader, e
 // Pub processes all the outstanding subscriptions matching the given headers.
 // Pub is safe to be called from one goroutine.
 func (hs *heightSub) Pub(headers ...*ExtendedHeader) {
-	height := atomic.LoadUint64(&hs.height)
+	height := hs.Height()
 	from, to := uint64(headers[0].Height), uint64(headers[len(headers)-1].Height)
 	if height != 0 && height+1 != from {
 		log.Warnf("PLEASE REPORT THE BUG: headers given to the heightSub are in the wrong order")
