@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"strconv"
-	"sync"
 
 	lru "github.com/hashicorp/golang-lru"
 	"github.com/ipfs/go-datastore"
@@ -25,9 +24,6 @@ type store struct {
 	ds    datastore.Batching
 	cache *lru.ARCCache
 	index *heightIndexer
-
-	headLk sync.RWMutex
-	head   tmbytes.HexBytes
 
 	heightSub *heightSub
 }
@@ -81,27 +77,18 @@ func newStore(ds datastore.Batching) (*store, error) {
 }
 
 func (s *store) Head(ctx context.Context) (*ExtendedHeader, error) {
-	s.headLk.RLock()
-	head := s.head
-	s.headLk.RUnlock()
-	if head != nil {
-		return s.Get(ctx, head)
+	height := s.heightSub.Height()
+	if height != 0 {
+		return s.GetByHeight(ctx, height)
 	}
 
-	err := s.loadHead()
+	head, err := s.loadHead(ctx)
 	switch err {
 	default:
-		return nil, err
+		log.Infow("loaded head", "height", head.Height, "hash", head.Hash())
+		return head, err
 	case datastore.ErrNotFound:
 		return nil, ErrNoHead
-	case nil:
-		head, err := s.Get(ctx, s.head)
-		if err != nil {
-			return nil, err
-		}
-
-		log.Infow("loaded head", "height", head.Height, "hash", head.Hash())
-		return head, nil
 	}
 }
 
@@ -267,25 +254,24 @@ func (s *store) put(headers ...*ExtendedHeader) error {
 }
 
 // loadHead load the head hash from the disk.
-func (s *store) loadHead() error {
-	s.headLk.Lock()
-	defer s.headLk.Unlock()
-
+func (s *store) loadHead(ctx context.Context) (*ExtendedHeader, error) {
 	b, err := s.ds.Get(headKey)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	return s.head.UnmarshalJSON(b)
+	var head tmbytes.HexBytes
+	err = head.UnmarshalJSON(b)
+	if err != nil {
+		return nil, err
+	}
+
+	return s.Get(ctx, head)
 }
 
 // newHead sets a new 'head' and saves it on disk.
 // At this point Header body of the given 'head' must be already written with put.
 func (s *store) newHead(head tmbytes.HexBytes) error {
-	s.headLk.Lock()
-	s.head = head
-	s.headLk.Unlock()
-
 	b, err := head.MarshalJSON()
 	if err != nil {
 		return err
