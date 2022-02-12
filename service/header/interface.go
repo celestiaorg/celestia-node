@@ -73,6 +73,9 @@ var (
 // Store encompasses the behavior necessary to store and retrieve ExtendedHeaders
 // from a node's local storage.
 type Store interface {
+	// Init initialize Store with the given head, a.k.a., sets genesis.
+	Init(context.Context, *ExtendedHeader) error
+
 	// Head returns the ExtendedHeader of the chain head.
 	Head(context.Context) (*ExtendedHeader, error)
 

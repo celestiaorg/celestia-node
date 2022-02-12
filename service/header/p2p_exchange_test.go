@@ -148,6 +148,8 @@ func createStore(t *testing.T, numHeaders int) *mockStore {
 	return store
 }
 
+func (m *mockStore) Init(context.Context, *ExtendedHeader) error { return nil }
+
 func (m *mockStore) Head(context.Context) (*ExtendedHeader, error) {
 	return m.headers[m.headHeight], nil
 }

@@ -41,18 +41,7 @@ func NewStoreWithHead(ds datastore.Batching, head *ExtendedHeader) (Store, error
 		return nil, err
 	}
 
-	err = store.put(head)
-	if err != nil {
-		return nil, err
-	}
-
-	err = store.newHead(head.Hash())
-	if err != nil {
-		return nil, err
-	}
-
-	log.Infow("new head", "height", head.Height, "hash", head.Hash())
-	return store, nil
+	return store, store.Init(context.TODO(), head)
 }
 
 func newStore(ds datastore.Batching) (*store, error) {
@@ -73,6 +62,22 @@ func newStore(ds datastore.Batching) (*store, error) {
 		index:     index,
 		heightSub: newHeightSub(),
 	}, nil
+}
+
+func (s *store) Init(_ context.Context, initial *ExtendedHeader) error {
+	// trust the given header as the initial head
+	err := s.put(initial)
+	if err != nil {
+		return err
+	}
+
+	err = s.newHead(initial.Hash())
+	if err != nil {
+		return err
+	}
+
+	log.Infow("initial head", "height", initial.Height, "hash", initial.Hash())
+	return nil
 }
 
 func (s *store) Head(ctx context.Context) (*ExtendedHeader, error) {
@@ -165,27 +170,8 @@ func (s *store) Append(ctx context.Context, headers ...*ExtendedHeader) error {
 	}
 
 	head, err := s.Head(ctx)
-	switch err {
-	default:
+	if err != nil {
 		return err
-	case ErrNoHead:
-		// TODO(@Wondertan): Should be a separate Init method instead
-
-		// trust the given header as the initial head
-		err = s.put(headers...)
-		if err != nil {
-			return err
-		}
-
-		head = headers[len(headers)-1]
-		err = s.newHead(head.Hash())
-		if err != nil {
-			return err
-		}
-
-		log.Infow("new head", "height", head.Height, "hash", head.Hash())
-		return nil
-	case nil:
 	}
 
 	verified := make([]*ExtendedHeader, 0, lh)
