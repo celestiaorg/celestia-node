@@ -73,6 +73,13 @@ var (
 // Store encompasses the behavior necessary to store and retrieve ExtendedHeaders
 // from a node's local storage.
 type Store interface {
+	// Start starts the store.
+	Start(context.Context) error
+
+	// Stop stops the store by preventing further writes
+	// and waiting till the ongoing ones are done.
+	Stop(context.Context) error
+
 	// Init initializes Store with the given head, meaning it is initialized with the genesis header.
 	Init(context.Context, *ExtendedHeader) error
 
