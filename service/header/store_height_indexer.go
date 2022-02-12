@@ -49,14 +49,5 @@ func (hi *heightIndexer) Index(headers ...*ExtendedHeader) error {
 		}
 	}
 
-	err = batch.Commit()
-	if err != nil {
-		return err
-	}
-
-	// update the cache only after indexes are written to the disk
-	for _, h := range headers {
-		hi.cache.Add(h.Height, h.Hash())
-	}
-	return nil
+	return batch.Commit()
 }
