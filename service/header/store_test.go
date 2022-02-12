@@ -5,8 +5,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ipfs/go-datastore"
-	"github.com/ipfs/go-datastore/sync"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -15,19 +13,17 @@ import (
 
 func TestStore(t *testing.T) {
 	// Alter Cache sizes to read some values from datastore instead of only cache.
-	DefaultStoreCacheSize, DefaultStoreCacheSize = 5, 5
+	// 	DefaultStoreCacheSize, DefaultStoreCacheSize = 5, 5
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
-	defer cancel()
+	t.Cleanup(cancel)
 
 	suite := NewTestSuite(t, 3)
-
-	store, err := NewStoreWithHead(sync.MutexWrap(datastore.NewMapDatastore()), suite.Head())
-	require.NoError(t, err)
+	store := NewTestStore(ctx, t, suite.Head())
 
 	head, err := store.Head(ctx)
 	require.NoError(t, err)
-	assert.EqualValues(t, suite.Head(), head)
+	assert.EqualValues(t, suite.Head().Hash(), head.Hash())
 
 	in := suite.GenExtendedHeaders(10)
 	err = store.Append(ctx, in...)

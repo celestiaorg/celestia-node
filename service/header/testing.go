@@ -8,6 +8,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ipfs/go-datastore"
+	"github.com/ipfs/go-datastore/sync"
 	"github.com/stretchr/testify/require"
 
 	"github.com/tendermint/tendermint/crypto/tmhash"
@@ -19,6 +21,21 @@ import (
 	"github.com/tendermint/tendermint/types"
 	tmtime "github.com/tendermint/tendermint/types/time"
 )
+
+// NewTestStore creates initialized and started in memory header Store which is useful for testing.
+func NewTestStore(ctx context.Context, t *testing.T, head *ExtendedHeader) Store {
+	store, err := NewStoreWithHead(sync.MutexWrap(datastore.NewMapDatastore()), head)
+	require.NoError(t, err)
+
+	err = store.Start(ctx)
+	require.NoError(t, err)
+
+	t.Cleanup(func() {
+		err := store.Stop(ctx)
+		require.NoError(t, err)
+	})
+	return store
+}
 
 // TestSuite provides everything you need to test chain of Headers.
 // If not, please don't hesitate to extend it for your case.
