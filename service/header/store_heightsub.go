@@ -31,6 +31,11 @@ func (hs *heightSub) Height() uint64 {
 	return atomic.LoadUint64(&hs.height)
 }
 
+// SetHeight sets the new head height for heightSub.
+func (hs *heightSub) SetHeight(height uint64) {
+	atomic.StoreUint64(&hs.height, height)
+}
+
 // Sub subscribes for a header of a given height.
 // It can return errElapsedHeight, which means a requested header was already provided
 // and caller should get it elsewhere.
@@ -59,15 +64,17 @@ func (hs *heightSub) Sub(ctx context.Context, height uint64) (*ExtendedHeader, e
 }
 
 // Pub processes all the outstanding subscriptions matching the given headers.
-// Pub is safe to be called from one goroutine.
+// Pub is only safe when called from one goroutine.
+// For Pub to work correctly, heightSub has to be initialized with SetHeight
+// so that given headers are contiguous to the height on heightSub.
 func (hs *heightSub) Pub(headers ...*ExtendedHeader) {
 	height := hs.Height()
 	from, to := uint64(headers[0].Height), uint64(headers[len(headers)-1].Height)
-	if height != 0 && height+1 != from {
+	if height+1 != from {
 		log.Fatal("PLEASE REPORT THE BUG: headers given to the heightSub are in the wrong order")
 		return
 	}
-	atomic.StoreUint64(&hs.height, to)
+	hs.SetHeight(to)
 
 	hs.heightReqsLk.Lock()
 	defer hs.heightReqsLk.Unlock()

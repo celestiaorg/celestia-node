@@ -18,6 +18,7 @@ func TestHeightSub(t *testing.T) {
 	{
 		h := RandExtendedHeader(t)
 		h.Height = 100
+		hs.SetHeight(99)
 		hs.Pub(h)
 
 		h, err := hs.Sub(ctx, 10)
