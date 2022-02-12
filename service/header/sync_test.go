@@ -34,46 +34,7 @@ func TestSyncSimpleRequestingHead(t *testing.T) {
 	require.NoError(t, err)
 
 	requestSize = 13 // just some random number
-
-	syncer := NewSyncer(fakeExchange, localStore, &DummySubscriber{}, head.Hash())
-	err = syncer.Start(ctx)
-	require.NoError(t, err)
-
-	_, err = localStore.GetByHeight(ctx, 101)
-	require.NoError(t, err)
-
-	exp, err := remoteStore.Head(ctx)
-	require.NoError(t, err)
-
-	have, err := localStore.Head(ctx)
-	require.NoError(t, err)
-	assert.Equal(t, exp.Height, have.Height)
-	assert.Empty(t, syncer.pending.Head())
-}
-
-func TestSyncerInitStore(t *testing.T) {
-	// this way we force local head of Syncer to expire, so it requests a new one from trusted peer
-	TrustingPeriod = time.Microsecond
-
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	suite := NewTestSuite(t, 3)
-	head := suite.Head()
-
-	remoteStore, err := NewStoreWithHead(sync.MutexWrap(datastore.NewMapDatastore()), head)
-	require.NoError(t, err)
-
-	err = remoteStore.Append(ctx, suite.GenExtendedHeaders(100)...)
-	require.NoError(t, err)
-
-	fakeExchange := NewLocalExchange(remoteStore)
-
-	// we don't load the head here and expect syncer to load it himself
-	localStore, err := NewStore(sync.MutexWrap(datastore.NewMapDatastore()))
-	require.NoError(t, err)
-
-	syncer := NewSyncer(fakeExchange, localStore, &DummySubscriber{}, head.Hash())
+	syncer := NewSyncer(fakeExchange, localStore, &DummySubscriber{})
 	err = syncer.Start(ctx)
 	require.NoError(t, err)
 
@@ -107,7 +68,7 @@ func TestSyncCatchUp(t *testing.T) {
 	localStore, err := NewStoreWithHead(sync.MutexWrap(datastore.NewMapDatastore()), head)
 	require.NoError(t, err)
 
-	syncer := NewSyncer(fakeExchange, localStore, &DummySubscriber{}, head.Hash())
+	syncer := NewSyncer(fakeExchange, localStore, &DummySubscriber{})
 	// 1. Initial sync
 	err = syncer.Start(ctx)
 	require.NoError(t, err)
@@ -152,7 +113,7 @@ func TestSyncPendingRangesWithMisses(t *testing.T) {
 	localStore, err := NewStoreWithHead(sync.MutexWrap(datastore.NewMapDatastore()), head)
 	require.NoError(t, err)
 
-	syncer := NewSyncer(fakeExchange, localStore, &DummySubscriber{}, head.Hash())
+	syncer := NewSyncer(fakeExchange, localStore, &DummySubscriber{})
 	err = syncer.Start(ctx)
 	require.NoError(t, err)
 
