@@ -78,12 +78,15 @@ func HeaderP2PExchangeServer(lc fx.Lifecycle, host host.Host, store header.Store
 }
 
 // HeaderStore creates and initializes new header.Store.
-func HeaderStore(ds datastore.Batching) (header.Store, error) {
+func HeaderStore(lc fx.Lifecycle, ds datastore.Batching) (header.Store, error) {
 	store, err := header.NewStore(ds)
 	if err != nil {
 		return nil, err
 	}
-
+	lc.Append(fx.Hook{
+		OnStart: store.Start,
+		OnStop:  store.Stop,
+	})
 	return store, nil
 }
 
