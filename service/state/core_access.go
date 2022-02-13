@@ -8,6 +8,7 @@ import (
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"github.com/tendermint/spm/cosmoscmd"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 
 	"github.com/celestiaorg/celestia-app/app"
 	apptypes "github.com/celestiaorg/celestia-app/x/payment/types"
@@ -43,7 +44,7 @@ func (ca *CoreAccessor) Start(_ context.Context) error {
 		return fmt.Errorf("core-access: already connected to core endpoint")
 	}
 	// dial given celestia-core endpoint
-	client, err := grpc.Dial(ca.coreEndpoint, grpc.WithInsecure()) // TODO @renaynay: insecure?
+	client, err := grpc.Dial(ca.coreEndpoint, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		return err
 	}
