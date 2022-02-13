@@ -128,6 +128,10 @@ func (s *store) Stop(ctx context.Context) error {
 	return nil
 }
 
+func (s *store) Height() uint64 {
+	return s.heightSub.Height()
+}
+
 func (s *store) Head(ctx context.Context) (*ExtendedHeader, error) {
 	head, err := s.GetByHeight(ctx, s.heightSub.Height())
 	if err == nil {
