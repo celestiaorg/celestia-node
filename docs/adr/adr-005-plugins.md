@@ -2,7 +2,7 @@
 
 ## Changelog
 
-- 06-02-2022: init commit
+- 2022-02-06: init commit
 
 ## Context
 
