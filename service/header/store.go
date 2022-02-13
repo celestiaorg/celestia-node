@@ -213,25 +213,23 @@ func (s *store) Has(_ context.Context, hash tmbytes.HexBytes) (bool, error) {
 	return s.ds.Has(datastore.NewKey(hash.String()))
 }
 
-func (s *store) Append(ctx context.Context, headers ...*ExtendedHeader) error {
+func (s *store) Append(ctx context.Context, headers ...*ExtendedHeader) (int, error) {
 	lh := len(headers)
 	if lh == 0 {
-		return nil
+		return 0, nil
 	}
 
+	// take current head to verify headers against
 	head, err := s.Head(ctx)
 	if err != nil {
-		return err
+		return 0, err
 	}
 
+	// collect valid headers
 	verified := make([]*ExtendedHeader, 0, lh)
 	for i, h := range headers {
 		err = head.VerifyAdjacent(h)
 		if err != nil {
-			if i == 0 {
-				return err
-			}
-
 			var verErr *VerifyError
 			if errors.As(err, &verErr) {
 				log.Errorw("invalid header",
@@ -239,8 +237,14 @@ func (s *store) Append(ctx context.Context, headers ...*ExtendedHeader) error {
 					"hash", h.Hash(),
 					"current height", head.Height,
 					"reason", verErr.Reason)
-				break
 			}
+			// if the first header is invalid, no need to go further
+			if i == 0 {
+				// and simply return
+				return 0, err
+			}
+			// otherwise, stop the loop and apply headers appeared to be valid
+			break
 		}
 		verified, head = append(verified, h), h
 	}
@@ -259,11 +263,11 @@ func (s *store) Append(ctx context.Context, headers ...*ExtendedHeader) error {
 		s.heightSub.Pub(verified...)
 		// we return an error here after writing,
 		// as there might be an invalid header in between of a given range
-		return err
+		return len(verified), err
 	case <-s.writesDn:
-		return errStoppedStore
+		return 0, errStoppedStore
 	case <-ctx.Done():
-		return ctx.Err()
+		return 0, ctx.Err()
 	}
 }
 

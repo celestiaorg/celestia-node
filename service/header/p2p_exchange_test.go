@@ -182,7 +182,7 @@ func (m *mockStore) Has(context.Context, tmbytes.HexBytes) (bool, error) {
 	return false, nil
 }
 
-func (m *mockStore) Append(ctx context.Context, headers ...*ExtendedHeader) error {
+func (m *mockStore) Append(ctx context.Context, headers ...*ExtendedHeader) (int, error) {
 	for _, header := range headers {
 		m.headers[header.Height] = header
 		// set head
@@ -190,5 +190,5 @@ func (m *mockStore) Append(ctx context.Context, headers ...*ExtendedHeader) erro
 			m.headHeight = header.Height
 		}
 	}
-	return nil
+	return len(headers), nil
 }
