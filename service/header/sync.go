@@ -152,7 +152,7 @@ func (s *Syncer) sync(ctx context.Context) {
 // processIncoming processes new processIncoming Headers, validates them and stores/caches if applicable.
 func (s *Syncer) processIncoming(ctx context.Context, maybeHead *ExtendedHeader) pubsub.ValidationResult {
 	// 1. Try to append. If header is not adjacent/from future - try it for pending cache below
-	err := s.store.Append(ctx, maybeHead)
+	_, err := s.store.Append(ctx, maybeHead)
 	switch err {
 	case nil:
 		// a happy case where we append adjacent header correctly
@@ -243,12 +243,12 @@ func (s *Syncer) syncTo(ctx context.Context, newHead *ExtendedHeader) error {
 			return err
 		}
 
-		err = s.store.Append(ctx, headers...)
+		ln, err := s.store.Append(ctx, headers...)
 		if err != nil {
 			return err
 		}
 
-		start += uint64(len(headers))
+		start += uint64(ln)
 	}
 
 	return nil
