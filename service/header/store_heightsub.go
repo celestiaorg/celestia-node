@@ -8,6 +8,8 @@ import (
 
 // heightSub provides a minimalistic mechanism to wait till header for a height becomes available.
 type heightSub struct {
+	// height refers to the latest locally available header height
+	// that has been fully verified and inserted into the subjective chain
 	height       uint64 // atomic
 	heightReqsLk sync.Mutex
 	heightReqs   map[uint64][]chan *ExtendedHeader
