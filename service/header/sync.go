@@ -96,7 +96,7 @@ func (s *Syncer) WaitSync(ctx context.Context) error {
 	}
 
 	// this store method blocks until header is available
-	_, err := s.store.GetByHeight(ctx, s.State().ToHeight)
+	_, err := s.store.GetByHeight(ctx, state.ToHeight)
 	return err
 }
 
@@ -112,7 +112,7 @@ type SyncState struct {
 
 // Finished returns true if sync is done, false otherwise.
 func (s SyncState) Finished() bool {
-	return s.ToHeight == s.Height
+	return s.ToHeight <= s.Height
 }
 
 // State reports state of the current (if in progress), or last sync (if finished).
@@ -120,8 +120,10 @@ func (s SyncState) Finished() bool {
 // All of them are treated as different syncs with different state IDs and other information.
 func (s *Syncer) State() SyncState {
 	s.stateLk.RLock()
-	defer s.stateLk.RUnlock()
-	return s.state
+	state := s.state
+	s.stateLk.RUnlock()
+	state.Height = s.store.Height()
+	return state
 }
 
 // trustedHead returns the latest known trusted header that is within the trusting period.
@@ -290,7 +292,6 @@ func (s *Syncer) doSync(ctx context.Context, oldHead, newHead *ExtendedHeader) (
 	s.stateLk.Lock()
 	s.state.ID++
 	s.state.FromHeight = from
-	s.state.Height = from
 	s.state.ToHeight = to
 	s.state.FromHash = oldHead.Hash()
 	s.state.ToHash = newHead.Hash()
@@ -319,14 +320,7 @@ func (s *Syncer) processHeaders(ctx context.Context, from, to uint64) (uint64, e
 	}
 
 	ln, err := s.store.Append(ctx, headers...)
-	if err != nil {
-		return 0, err
-	}
-	// update the state before ProvideHeights below to always keep state in sync with heightSub
-	s.stateLk.Lock()
-	s.state.Height = to
-	s.stateLk.Unlock()
-	return uint64(ln), nil
+	return uint64(ln), err
 }
 
 // TODO(@Wondertan): Number of headers that can be requested at once. Either make this configurable or,
