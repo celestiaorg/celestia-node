@@ -21,6 +21,7 @@ Month, DD, YYYY
 - [swamp: initial structure of the tool](https://github.com/celestiaorg/celestia-node/pull/315) [@Bidon15](https://github.com/Bidon15)
 
 ### IMPROVEMENTS
+- [feat(service/header): update Store.Append to return amount of applied/valid headers #434](https://github.com/celestiaorg/celestia-node/pull/434) [@Wondertan](https://github.com/Wondertan)
 - [refactor(service/header): rework on disk writing strategy of the Store #431](https://github.com/celestiaorg/celestia-node/pull/431) [@Wondertan](https://github.com/Wondertan)
 - [refactor(service/header): extract store initialization from Syncer #430](https://github.com/celestiaorg/celestia-node/pull/430) [@Wondertan](https://github.com/Wondertan)
 - [header: hardening syncing logic #334](https://github.com/celestiaorg/celestia-node/pull/334) [@Wondertan](https://github.com/Wondertan)
