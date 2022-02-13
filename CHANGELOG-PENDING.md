@@ -50,3 +50,4 @@ Month, DD, YYYY
 - [workflows/lint: update golangci-lint to v1.43 #308](https://github.com/celestiaorg/celestia-node/pull/308) [@Wondertan](https://github.com/Wondertan)
 - [feat(node): extract overrides from Config into Settings #292](https://github.com/celestiaorg/celestia-node/pull/292) [@Wondertan](https://github.com/Wondertan)
 - [node: fix naming of the test from full to bridge](https://github.com/celestiaorg/celestia-node/pull/341) [@Bidon15](https://github.com/Bidon15)
+- [ADR 005 Plugins](https://github.com/celestiaorg/celestia-node/pull/414) [@evan-forbes](https://github.com/evan-forbes)
