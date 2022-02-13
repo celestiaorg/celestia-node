@@ -14,6 +14,5 @@ type Accessor interface {
 	BalanceForAddress(ctx context.Context, addr string) (*Balance, error)
 	// SubmitTx submits the given transaction/message to the
 	// Celestia network and blocks until a response is received.
-	// TODO @renaynay @wondertan: do we call this SubmitTx or SubmitMsg?
 	SubmitTx(ctx context.Context, tx Tx) (*TxResponse, error)
 }

@@ -90,8 +90,3 @@ func (ca *CoreAccessor) SubmitTx(ctx context.Context, tx Tx) (*TxResponse, error
 	}
 	return txResp.TxResponse, nil
 }
-
-func (ca *CoreAccessor) BuildTx() (Tx, error) {
-	// TODO @renaynay: implement
-	return nil, nil
-}
