@@ -64,6 +64,10 @@ func (eh *ExtendedHeader) VerifyAdjacent(untrst *ExtendedHeader) error {
 	return nil
 }
 
+// clockDrift defines how much new header's time can drift into
+// the future relative to the now time during verification.
+var clockDrift = 10 * time.Second
+
 // verify performs basic verification of untrusted header.
 func (eh *ExtendedHeader) verify(untrst *ExtendedHeader) error {
 	if untrst.ChainID != eh.ChainID {
@@ -75,7 +79,7 @@ func (eh *ExtendedHeader) verify(untrst *ExtendedHeader) error {
 	}
 
 	now := time.Now()
-	if !untrst.Time.Before(now) {
+	if !untrst.Time.Before(now.Add(clockDrift)) {
 		return fmt.Errorf("new untusted header has a time from the future %v (now: %v)", untrst.Time, now)
 	}
 
