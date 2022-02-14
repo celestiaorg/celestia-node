@@ -84,7 +84,7 @@ func (p *P2PSubscriber) Broadcast(ctx context.Context, header *ExtendedHeader) e
 // msgID computes an id for a pubsub message
 // TODO(@Wondertan): This cause additional allocations per each recvd message in the topic. Find a way to avoid those.
 func msgID(pmsg *pb.Message) string {
-	msgID := func(data []byte) string {
+	mID := func(data []byte) string {
 		hash := blake2b.Sum256(data)
 		return string(hash[:])
 	}
@@ -93,7 +93,7 @@ func msgID(pmsg *pb.Message) string {
 	if err != nil {
 		// There is nothing we can do about the error, and it will be anyway caught during validation.
 		// We also *have* to return some ID for the msg, so give the hash of even faulty msg
-		return msgID(pmsg.Data)
+		return mID(pmsg.Data)
 	}
 
 	// IMPORTANT NOTE:
@@ -110,8 +110,8 @@ func msgID(pmsg *pb.Message) string {
 	data, err := MarshalExtendedHeader(h)
 	if err != nil {
 		// See the note under unmarshalling step
-		return msgID(pmsg.Data)
+		return mID(pmsg.Data)
 	}
 
-	return msgID(data)
+	return mID(data)
 }
