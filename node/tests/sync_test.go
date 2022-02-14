@@ -25,7 +25,7 @@ Steps:
 6. Check LN is synced with BN
 */
 func TestSyncLightWithBridge(t *testing.T) {
-	sw := swamp.NewSwamp(t, swamp.DefaultConfig())
+	sw := swamp.NewSwamp(t, swamp.DefaultInfraComps())
 
 	bridge := sw.NewBridgeNode()
 

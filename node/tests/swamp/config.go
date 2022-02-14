@@ -9,19 +9,19 @@ import (
 	"github.com/celestiaorg/celestia-node/core"
 )
 
-// Config struct represents a set of pre-requisite attributes from the test scenario
-type Config struct {
+// InfraComps struct represents a set of pre-requisite attributes from the test scenario
+type InfraComps struct {
 	App     types.Application
 	CoreCfg *tn.Config
 }
 
-// DefaultConfig creates a KvStore with a block retention of 200
+// DefaultInfraComps creates a KvStore with a block retention of 200
 // In addition, the empty block interval is set to 200ms
-func DefaultConfig() *Config {
+func DefaultInfraComps() *InfraComps {
 	app := core.CreateKvStore(200)
 	tnCfg := tn.TestConfig()
 	tnCfg.Consensus.CreateEmptyBlocksInterval = 200 * time.Millisecond
-	return &Config{
+	return &InfraComps{
 		App:     app,
 		CoreCfg: tnCfg,
 	}
