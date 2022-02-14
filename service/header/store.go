@@ -17,6 +17,9 @@ var (
 	DefaultStoreCacheSize = 10240
 	// DefaultIndexCacheSize defines the amount of max entries allowed in the Height to Hash index cache.
 	DefaultIndexCacheSize = 2048
+	// DefaultWriteBatchSize defines the size of the batched header write.
+	// Headers are written in batches not to thrash the underlying Datastore with writes.
+	DefaultWriteBatchSize = 2048
 )
 
 // errStoppedStore is returned on operations over stopped store
@@ -45,6 +48,8 @@ type store struct {
 	writes chan []*ExtendedHeader
 	// signals writes being done
 	writesDn chan struct{}
+	// pending keeps headers pending to be written in a batch
+	pending []*ExtendedHeader
 }
 
 // NewStore constructs a Store over datastore.
@@ -81,14 +86,15 @@ func newStore(ds datastore.Batching) (*store, error) {
 		cache:       cache,
 		heightIndex: index,
 		heightSub:   newHeightSub(),
-		writes:      make(chan []*ExtendedHeader, 8),
+		writes:      make(chan []*ExtendedHeader, 16),
 		writesDn:    make(chan struct{}),
+		pending:     make([]*ExtendedHeader, 0, DefaultWriteBatchSize),
 	}, nil
 }
 
 func (s *store) Init(_ context.Context, initial *ExtendedHeader) error {
 	// trust the given header as the initial head
-	err := s.write(initial)
+	err := s.flush(initial)
 	if err != nil {
 		return err
 	}
@@ -108,7 +114,7 @@ func (s *store) Start(ctx context.Context) error {
 		s.heightSub.SetHeight(uint64(head.Height))
 	}
 
-	go s.writeLoop()
+	go s.flushLoop()
 	return nil
 }
 
@@ -261,35 +267,49 @@ func (s *store) Append(ctx context.Context, headers ...*ExtendedHeader) error {
 	}
 }
 
-// writeLoop performs writing task to the underlying datastore in a separate routine
+// flushLoop performs writing task to the underlying datastore in a separate routine
 // This way writes are controlled and manageable from one place allowing
 // (1) Appends not to be blocked on long disk IO writes and underlying DB compactions
 // (2) Batching header writes
-// TODO(@Wondertan): Batch multiple writes together, but first the proper batch size should be investigated
-func (s *store) writeLoop() {
+func (s *store) flushLoop() {
 	defer close(s.writesDn)
 	for headers := range s.writes {
-		if headers == nil {
-			return
+		if headers != nil {
+			s.pending = append(s.pending, headers...)
+		}
+		// ensure we flush only if pending is grown enough, or we are stopping(headers == nil)
+		if len(s.pending) < DefaultWriteBatchSize && headers != nil {
+			continue
 		}
 
-		err := s.write(headers...)
+		err := s.flush(s.pending...)
 		if err != nil {
 			// TODO(@Wondertan): Should this be a fatal error case with os.Exit?
 			from, to := uint64(headers[0].Height), uint64(headers[len(headers)-1].Height)
 			log.Errorw("writing header batch", "from", from, "to", to)
 		}
+		// reset pending
+		s.pending = s.pending[:0]
+
+		if headers == nil {
+			// a signal to stop
+			return
+		}
 	}
 }
 
-// write stores the given headers on disk
-func (s *store) write(headers ...*ExtendedHeader) error {
-	// collect all the headers in a batch to be written
+// flush writes the given headers on disk
+func (s *store) flush(headers ...*ExtendedHeader) (err error) {
+	if len(headers) == 0 {
+		return nil
+	}
+
 	batch, err := s.ds.Batch()
 	if err != nil {
 		return err
 	}
 
+	// collect all the headers in the batch to be written
 	for _, h := range headers {
 		b, err := h.MarshalBinary()
 		if err != nil {
@@ -302,25 +322,25 @@ func (s *store) write(headers ...*ExtendedHeader) error {
 		}
 	}
 
-	// write the batch on disk
-	err = batch.Commit()
-	if err != nil {
-		return err
-	}
-
-	// write height indexes for headers as well
-	err = s.heightIndex.Index(headers...)
-	if err != nil {
-		return err
-	}
-
-	// marshal and store reference to the new head
+	// marshal and add to batch reference to the new head
 	b, err := headers[len(headers)-1].Hash().MarshalJSON()
 	if err != nil {
 		return err
 	}
 
-	return s.ds.Put(headKey, b)
+	err = batch.Put(headKey, b)
+	if err != nil {
+		return err
+	}
+
+	// write height indexes for headers as well
+	err = s.heightIndex.IndexTo(batch, headers...)
+	if err != nil {
+		return err
+	}
+
+	// finally, commit the batch on disk
+	return batch.Commit()
 }
 
 // readHead loads the head from the disk.

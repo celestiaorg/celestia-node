@@ -5,6 +5,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ipfs/go-datastore"
+	"github.com/ipfs/go-datastore/sync"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -12,14 +14,17 @@ import (
 )
 
 func TestStore(t *testing.T) {
-	// Alter Cache sizes to read some values from datastore instead of only cache.
-	// 	DefaultStoreCacheSize, DefaultStoreCacheSize = 5, 5
-
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	t.Cleanup(cancel)
 
 	suite := NewTestSuite(t, 3)
-	store := NewTestStore(ctx, t, suite.Head())
+
+	ds := sync.MutexWrap(datastore.NewMapDatastore())
+	store, err := NewStoreWithHead(ds, suite.Head())
+	require.NoError(t, err)
+
+	err = store.Start(ctx)
+	require.NoError(t, err)
 
 	head, err := store.Head(ctx)
 	require.NoError(t, err)
@@ -55,4 +60,26 @@ func TestStore(t *testing.T) {
 	h, err := store.GetByHeight(ctx, 12)
 	require.NoError(t, err)
 	assert.NotNil(t, h)
+
+	err = store.Stop(ctx)
+	require.NoError(t, err)
+
+	// check that the store can be successfully started after previous stop
+	// with all data being flushed.
+	store, err = NewStore(ds)
+	require.NoError(t, err)
+
+	err = store.Start(ctx)
+	require.NoError(t, err)
+
+	head, err = store.Head(ctx)
+	require.NoError(t, err)
+	assert.Equal(t, suite.Head().Hash(), head.Hash())
+
+	out, err = store.GetRangeByHeight(ctx, 1, 13)
+	require.NoError(t, err)
+	assert.Len(t, out, 12)
+
+	err = store.Stop(ctx)
+	require.NoError(t, err)
 }
