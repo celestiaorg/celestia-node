@@ -68,6 +68,20 @@ func (hs *heightSub) Pub(headers ...*ExtendedHeader) {
 	hs.heightReqsLk.Lock()
 	defer hs.heightReqsLk.Unlock()
 
+	// there is a common case where we Pub only header
+	// in this case, we shouldn't loop over each heightReqs
+	// and instead read from the map directly
+	if len(headers) == 1 {
+		reqs, ok := hs.heightReqs[from]
+		if ok {
+			for _, req := range reqs {
+				req <- headers[0] // reqs must always be buffered, so this won't block
+			}
+			delete(hs.heightReqs, from)
+		}
+		return
+	}
+
 	// instead of looping over each header in 'headers', we can loop over each request
 	// which will drastically decrease idle iterations, as there will be less requests than headers
 	for height, reqs := range hs.heightReqs {
