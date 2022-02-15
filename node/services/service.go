@@ -102,7 +102,7 @@ func HeaderStoreInit(cfg *Config) func(context.Context, header.Store, header.Exc
 			//  the network. The step can't be done during unit tests and fixing it would require either
 			//   * Having some test/dev/offline mode for Node that mocks out all the networking
 			//   * Hardcoding full extended header in params pkg, instead of hashes, so we avoid requesting step
-			log.Errorf("initializing store: %s", err)
+			log.Errorf("initializing store failed: %s", err)
 		}
 
 		return nil
