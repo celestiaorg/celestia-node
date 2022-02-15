@@ -46,7 +46,7 @@ type store struct {
 	//
 	// queued of header ranges to be written
 	writes chan []*ExtendedHeader
-	// signals writes being done
+	// signals when writes are finished
 	writesDn chan struct{}
 	// pending keeps headers pending to be written in a batch
 	pending []*ExtendedHeader
