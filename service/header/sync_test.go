@@ -39,8 +39,8 @@ func TestSyncSimpleRequestingHead(t *testing.T) {
 	err = syncer.Start(ctx)
 	require.NoError(t, err)
 
-	// TODO(@Wondertan): Async blocking instead of sleep
-	time.Sleep(time.Second)
+	_, err = localStore.GetByHeight(ctx, 101)
+	require.NoError(t, err)
 
 	exp, err := remoteStore.Head(ctx)
 	require.NoError(t, err)
@@ -120,8 +120,8 @@ func TestSyncCatchUp(t *testing.T) {
 	res := syncer.processIncoming(ctx, suite.GenExtendedHeaders(1)[0])
 	assert.Equal(t, pubsub.ValidationAccept, res)
 
-	// TODO(@Wondertan): Async blocking instead of sleep
-	time.Sleep(time.Second)
+	_, err = localStore.GetByHeight(ctx, 102)
+	require.NoError(t, err)
 
 	exp, err := remoteStore.Head(ctx)
 	require.NoError(t, err)
