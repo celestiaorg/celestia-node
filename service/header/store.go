@@ -266,9 +266,13 @@ func (s *store) Append(ctx context.Context, headers ...*ExtendedHeader) (int, er
 		// it is important to do Pub after updating caches
 		// so cache is consistent with atomic Height counter on the heightSub
 		s.heightSub.Pub(verified...)
+
+		ln := len(verified)
+		head := verified[ln-1]
+		log.Infow("new head", "height", head.Height, "hash", head.Hash())
 		// we return an error here after writing,
 		// as there might be an invalid header in between of a given range
-		return len(verified), err
+		return ln, err
 	case <-s.writesDn:
 		return 0, errStoppedStore
 	case <-ctx.Done():
