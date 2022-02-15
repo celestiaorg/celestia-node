@@ -22,6 +22,7 @@ Month, DD, YYYY
 
 ### IMPROVEMENTS
 
+- [refactor(service/header): extract store initialization from Syncer #430](https://github.com/celestiaorg/celestia-node/pull/430) [@Wondertan](https://github.com/Wondertan)
 - [header: hardening syncing logic #334](https://github.com/celestiaorg/celestia-node/pull/334) [@Wondertan](https://github.com/Wondertan)
 - [feat(params): add bootstrappers #399](https://github.com/celestiaorg/celestia-node/pull/399) [@Wondertan](https://github.com/Wondertan)
 - [service/header: remove start/stop from P2PExchange](https://github.com/celestiaorg/celestia-node/pull/367) [@Bidon15](https://github.com/Bidon15)

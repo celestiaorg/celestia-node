@@ -3,7 +3,6 @@ package header
 import (
 	"context"
 	"errors"
-	"strconv"
 
 	lru "github.com/hashicorp/golang-lru"
 	"github.com/ipfs/go-datastore"
@@ -42,18 +41,7 @@ func NewStoreWithHead(ds datastore.Batching, head *ExtendedHeader) (Store, error
 		return nil, err
 	}
 
-	err = store.put(head)
-	if err != nil {
-		return nil, err
-	}
-
-	err = store.newHead(head.Hash())
-	if err != nil {
-		return nil, err
-	}
-
-	log.Infow("new head", "height", head.Height, "hash", head.Hash())
-	return store, nil
+	return store, store.Init(context.TODO(), head)
 }
 
 func newStore(ds datastore.Batching) (*store, error) {
@@ -74,6 +62,22 @@ func newStore(ds datastore.Batching) (*store, error) {
 		index:     index,
 		heightSub: newHeightSub(),
 	}, nil
+}
+
+func (s *store) Init(_ context.Context, initial *ExtendedHeader) error {
+	// trust the given header as the initial head
+	err := s.put(initial)
+	if err != nil {
+		return err
+	}
+
+	err = s.newHead(initial.Hash())
+	if err != nil {
+		return err
+	}
+
+	log.Infow("initial head", "height", initial.Height, "hash", initial.Hash())
+	return nil
 }
 
 func (s *store) Head(ctx context.Context) (*ExtendedHeader, error) {
@@ -166,27 +170,8 @@ func (s *store) Append(ctx context.Context, headers ...*ExtendedHeader) error {
 	}
 
 	head, err := s.Head(ctx)
-	switch err {
-	default:
+	if err != nil {
 		return err
-	case ErrNoHead:
-		// TODO(@Wondertan): Should be a separate Init method instead
-
-		// trust the given header as the initial head
-		err = s.put(headers...)
-		if err != nil {
-			return err
-		}
-
-		head = headers[len(headers)-1]
-		err = s.newHead(head.Hash())
-		if err != nil {
-			return err
-		}
-
-		log.Infow("new head", "height", head.Height, "hash", head.Hash())
-		return nil
-	case nil:
 	}
 
 	verified := make([]*ExtendedHeader, 0, lh)
@@ -282,72 +267,4 @@ func (s *store) newHead(head tmbytes.HexBytes) error {
 	}
 
 	return s.ds.Put(headKey, b)
-}
-
-// TODO(@Wondertan): There should be a more clever way to index heights, than just storing HeightToHash pair...
-// heightIndexer simply stores and cashes mappings between header Height and Hash.
-type heightIndexer struct {
-	ds    datastore.Batching
-	cache *lru.ARCCache
-}
-
-// newHeightIndexer creates new heightIndexer.
-func newHeightIndexer(ds datastore.Batching) (*heightIndexer, error) {
-	cache, err := lru.NewARC(DefaultIndexCacheSize)
-	if err != nil {
-		return nil, err
-	}
-
-	return &heightIndexer{
-		ds:    ds,
-		cache: cache,
-	}, nil
-}
-
-// HashByHeight loads a header by the given height.
-func (hi *heightIndexer) HashByHeight(h uint64) (tmbytes.HexBytes, error) {
-	if v, ok := hi.cache.Get(h); ok {
-		return v.(tmbytes.HexBytes), nil
-	}
-
-	return hi.ds.Get(heightKey(h))
-}
-
-// Index saves mapping between header Height and Hash.
-func (hi *heightIndexer) Index(headers ...*ExtendedHeader) error {
-	batch, err := hi.ds.Batch()
-	if err != nil {
-		return err
-	}
-
-	for _, h := range headers {
-		err := batch.Put(heightKey(uint64(h.Height)), h.Hash())
-		if err != nil {
-			return err
-		}
-	}
-
-	err = batch.Commit()
-	if err != nil {
-		return err
-	}
-
-	// update the cache only after indexes are written to the disk
-	for _, h := range headers {
-		hi.cache.Add(h.Height, h.Hash())
-	}
-	return nil
-}
-
-var (
-	storePrefix = datastore.NewKey("headers")
-	headKey     = datastore.NewKey("head")
-)
-
-func heightKey(h uint64) datastore.Key {
-	return datastore.NewKey(strconv.Itoa(int(h)))
-}
-
-func headerKey(h *ExtendedHeader) datastore.Key {
-	return datastore.NewKey(h.Hash().String())
 }

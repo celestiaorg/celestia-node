@@ -7,8 +7,6 @@ import (
 	"sync/atomic"
 
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
-
-	tmbytes "github.com/tendermint/tendermint/libs/bytes"
 )
 
 // Syncer implements efficient synchronization for headers.
@@ -30,9 +28,6 @@ type Syncer struct {
 	exchange Exchange
 	store    Store
 
-	// trusted hash of the header from which syncer starts to sync, a.k.a genesis,
-	// which can be any valid past header in the chain we trust
-	trusted tmbytes.HexBytes
 	// inProgress is set to 1 once syncing commences and
 	// is set to 0 once syncing is either finished or
 	// not currently in progress
@@ -46,18 +41,17 @@ type Syncer struct {
 }
 
 // NewSyncer creates a new instance of Syncer.
-func NewSyncer(exchange Exchange, store Store, sub Subscriber, trusted tmbytes.HexBytes) *Syncer {
+func NewSyncer(exchange Exchange, store Store, sub Subscriber) *Syncer {
 	return &Syncer{
 		sub:         sub,
 		exchange:    exchange,
 		store:       store,
-		trusted:     trusted,
 		triggerSync: make(chan struct{}, 1), // should be buffered
 	}
 }
 
 // Start starts the syncing routine.
-func (s *Syncer) Start(ctx context.Context) error {
+func (s *Syncer) Start(context.Context) error {
 	if s.cancel != nil {
 		return fmt.Errorf("header: Syncer already started")
 	}
@@ -65,12 +59,6 @@ func (s *Syncer) Start(ctx context.Context) error {
 	err := s.sub.AddValidator(s.processIncoming)
 	if err != nil {
 		return err
-	}
-
-	// TODO(@Wondertan): Ideally, this initialization should be part of Init process
-	err = s.initStore(ctx)
-	if err != nil {
-		log.Error(err)
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -90,27 +78,6 @@ func (s *Syncer) Stop(context.Context) error {
 // IsSyncing returns the current sync status of the Syncer.
 func (s *Syncer) IsSyncing() bool {
 	return atomic.LoadUint64(&s.inProgress) == 1
-}
-
-// init initializes if it's empty
-func (s *Syncer) initStore(ctx context.Context) error {
-	_, err := s.store.Head(ctx)
-	switch err {
-	case ErrNoHead:
-		// if there is no head - request header at trusted hash.
-		trusted, err := s.exchange.RequestByHash(ctx, s.trusted)
-		if err != nil {
-			return fmt.Errorf("header: requesting header at trusted hash during init: %w", err)
-		}
-
-		err = s.store.Append(ctx, trusted)
-		if err != nil {
-			return fmt.Errorf("header: appending header during init: %w", err)
-		}
-	case nil:
-	}
-
-	return nil
 }
 
 // trustedHead returns the latest known trusted header that is within the trusting period.
