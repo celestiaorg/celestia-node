@@ -28,8 +28,12 @@ func HeadersFlags() *flag.FlagSet {
 
 // ParseHeadersFlags parses Header package flags from the given cmd and applies values to Env.
 func ParseHeadersFlags(cmd *cobra.Command, env *Env) error {
-	ParseTrustedHashFlags(cmd, env)
-	ParseTrustedPeerFlags(cmd, env)
+	if err := ParseTrustedHashFlags(cmd, env); err != nil {
+		return err
+	}
+	if err := ParseTrustedPeerFlags(cmd, env); err != nil {
+		return err
+	}
 
 	return nil
 }
