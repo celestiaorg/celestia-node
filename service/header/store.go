@@ -60,13 +60,13 @@ func NewStore(ds datastore.Batching) (Store, error) {
 }
 
 // NewStoreWithHead initiates a new Store and forcefully sets a given trusted header as head.
-func NewStoreWithHead(ds datastore.Batching, head *ExtendedHeader) (Store, error) {
+func NewStoreWithHead(ctx context.Context, ds datastore.Batching, head *ExtendedHeader) (Store, error) {
 	store, err := newStore(ds)
 	if err != nil {
 		return nil, err
 	}
 
-	return store, store.Init(context.TODO(), head)
+	return store, store.Init(ctx, head)
 }
 
 func newStore(ds datastore.Batching) (*store, error) {

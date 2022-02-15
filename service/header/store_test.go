@@ -20,7 +20,7 @@ func TestStore(t *testing.T) {
 	suite := NewTestSuite(t, 3)
 
 	ds := sync.MutexWrap(datastore.NewMapDatastore())
-	store, err := NewStoreWithHead(ds, suite.Head())
+	store, err := NewStoreWithHead(ctx, ds, suite.Head())
 	require.NoError(t, err)
 
 	err = store.Start(ctx)
