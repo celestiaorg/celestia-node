@@ -25,7 +25,7 @@ var (
 // errStoppedStore is returned for attempted operations on a stopped store
 var errStoppedStore = errors.New("header: stopped store")
 
-// store implement Store interface for ExtendedHeader over Datastore.
+// store implements the Store interface for ExtendedHeaders over Datastore.
 type store struct {
 	// header storing
 	//
