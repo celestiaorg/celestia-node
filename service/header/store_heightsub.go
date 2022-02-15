@@ -60,7 +60,7 @@ func (hs *heightSub) Pub(headers ...*ExtendedHeader) {
 	height := hs.Height()
 	from, to := uint64(headers[0].Height), uint64(headers[len(headers)-1].Height)
 	if height != 0 && height+1 != from {
-		log.Warnf("PLEASE REPORT THE BUG: headers given to the heightSub are in the wrong order")
+		log.Fatal("PLEASE REPORT THE BUG: headers given to the heightSub are in the wrong order")
 		return
 	}
 	atomic.StoreUint64(&hs.height, to)

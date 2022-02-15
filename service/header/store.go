@@ -110,6 +110,9 @@ func (s *store) Get(_ context.Context, hash tmbytes.HexBytes) (*ExtendedHeader, 
 }
 
 func (s *store) GetByHeight(ctx context.Context, height uint64) (*ExtendedHeader, error) {
+	// here we subscribe to the height only in case current head is before the requested 'height'
+	// and if it is, we expect the Sub to return us either error or the header itself
+	// otherwise, Sub will return us both nils, signaling that we have to get the header from the Store
 	h, err := s.heightSub.Sub(ctx, height)
 	if h != nil || err != nil {
 		return h, err
