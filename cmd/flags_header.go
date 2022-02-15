@@ -28,29 +28,8 @@ func HeadersFlags() *flag.FlagSet {
 
 // ParseHeadersFlags parses Header package flags from the given cmd and applies values to Env.
 func ParseHeadersFlags(cmd *cobra.Command, env *Env) error {
-	hash := cmd.Flag(headersTrustedHashFlag).Value.String()
-	if hash != "" {
-		_, err := hex.DecodeString(hash)
-		if err != nil {
-			return fmt.Errorf("cmd: while parsing '%s': %w", headersTrustedHashFlag, err)
-		}
-
-		env.AddOptions(node.WithTrustedHash(hash))
-	}
-
-	tpeers, err := cmd.Flags().GetStringSlice(headersTrustedPeersFlag)
-	if err != nil {
-		return err
-	}
-	if len(tpeers) != 0 {
-		for _, tpeer := range tpeers {
-			_, err := multiaddr.NewMultiaddr(tpeer)
-			if err != nil {
-				return fmt.Errorf("cmd: while parsing '%s' with peer addr '%s': %w", headersTrustedPeersFlag, tpeer, err)
-			}
-			env.AddOptions(node.WithTrustedPeer(tpeer))
-		}
-	}
+	ParseTrustedHashFlags(cmd, env)
+	ParseTrustedPeerFlags(cmd, env)
 
 	return nil
 }
