@@ -2,9 +2,13 @@ package header
 
 import (
 	"context"
+	"errors"
 	"sync"
 	"sync/atomic"
 )
+
+// errElapsedHeight is thrown when a requested height was already provided to heightSub.
+var errElapsedHeight = errors.New("elapsed height")
 
 // heightSub provides a minimalistic mechanism to wait till header for a height becomes available.
 type heightSub struct {
@@ -28,11 +32,11 @@ func (hs *heightSub) Height() uint64 {
 }
 
 // Sub subscribes for a header of a given height.
-// It can return both values as nil, which means a requested header was already provided
+// It can return errElapsedHeight, which means a requested header was already provided
 // and caller should get it elsewhere.
 func (hs *heightSub) Sub(ctx context.Context, height uint64) (*ExtendedHeader, error) {
 	if hs.Height() >= height {
-		return nil, nil
+		return nil, errElapsedHeight
 	}
 
 	hs.heightReqsLk.Lock()
@@ -40,7 +44,7 @@ func (hs *heightSub) Sub(ctx context.Context, height uint64) (*ExtendedHeader, e
 		// This is a rare case we have to account for.
 		// The lock above can park a goroutine long enough for hs.height to change for a requested height,
 		// leaving the request never fulfilled and the goroutine deadlocked.
-		return nil, nil
+		return nil, errElapsedHeight
 	}
 	resp := make(chan *ExtendedHeader, 1)
 	hs.heightReqs[height] = append(hs.heightReqs[height], resp)

@@ -21,7 +21,7 @@ func TestHeightSub(t *testing.T) {
 		hs.Pub(h)
 
 		h, err := hs.Sub(ctx, 10)
-		assert.NoError(t, err)
+		assert.ErrorIs(t, err, errElapsedHeight)
 		assert.Nil(t, h)
 	}
 
