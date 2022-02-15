@@ -294,7 +294,7 @@ func (s *Syncer) doSync(ctx context.Context, oldHead, newHead *ExtendedHeader) (
 	s.state.Start = time.Now()
 	s.stateLk.Unlock()
 
-	for processed := uint64(0); from < to; from += processed {
+	for processed := 0; from < to; from += uint64(processed) {
 		processed, err = s.processHeaders(ctx, from, to)
 		if err != nil && processed == 0 {
 			break
@@ -309,14 +309,13 @@ func (s *Syncer) doSync(ctx context.Context, oldHead, newHead *ExtendedHeader) (
 }
 
 // processHeaders gets and stores headers starting at the given 'from' height up to 'to' height - [from:to]
-func (s *Syncer) processHeaders(ctx context.Context, from, to uint64) (uint64, error) {
+func (s *Syncer) processHeaders(ctx context.Context, from, to uint64) (int, error) {
 	headers, err := s.findHeaders(ctx, from, to)
 	if err != nil {
 		return 0, err
 	}
 
-	ln, err := s.store.Append(ctx, headers...)
-	return uint64(ln), err
+	return s.store.Append(ctx, headers...)
 }
 
 // TODO(@Wondertan): Number of headers that can be requested at once. Either make this configurable or,
