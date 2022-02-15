@@ -1,6 +1,7 @@
 package state
 
-// Service // TODO document
+// Service can access state-related information via the given
+// Accessor.
 type Service struct {
 	accessor Accessor
 }
