@@ -22,7 +22,7 @@ var (
 	DefaultWriteBatchSize = 2048
 )
 
-// errStoppedStore is returned on operations over stopped store
+// errStoppedStore is returned for attempted operations on a stopped store
 var errStoppedStore = errors.New("header: stopped store")
 
 // store implement Store interface for ExtendedHeader over Datastore.
