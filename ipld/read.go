@@ -45,7 +45,6 @@ func RetrieveData(
 			if err != nil {
 				return nil, err
 			}
-
 			go sc.retrieveShare(rootCid, true, row, col, dag)
 		}
 	}
@@ -60,6 +59,79 @@ func RetrieveData(
 	// repair the square
 	tree := wrapper.NewErasuredNamespacedMerkleTree(uint64(edsWidth) / 2)
 	return rsmt2d.RepairExtendedDataSquare(rowRoots, colRoots, flattened, codec, tree.Constructor)
+}
+
+func RetrieveDataExt(
+	ctx context.Context,
+	dah *da.DataAvailabilityHeader,
+	dag ipld.NodeGetter,
+	codec rsmt2d.Codec,
+) (*rsmt2d.ExtendedDataSquare, error) {
+	edsWidth := len(dah.RowsRoots)
+	rowRoots := dah.RowsRoots
+	colRoots := dah.ColumnRoots
+
+	sc := newshareCounter(ctx, uint32(edsWidth))
+	go fillTheBlock(ctx, rowRoots, true, dag, sc)
+	go fillTheBlock(ctx, colRoots, false, dag, sc)
+	err := sc.wait()
+	if err != nil {
+		fmt.Println(err)
+		return nil, err
+	}
+	// flatten the square
+	flattened := sc.flatten()
+
+	tree := wrapper.NewErasuredNamespacedMerkleTree(uint64(edsWidth) / 2)
+	return rsmt2d.RepairExtendedDataSquare(rowRoots, colRoots, flattened, codec, tree.Constructor)
+}
+
+func fillTheBlock(ctx context.Context, data [][]byte, isRow bool, dag ipld.NodeGetter, sc *shareCounter) {
+	for _, number := range uniqueRandNumbers(int(sc.edsWidth/2), int(sc.edsWidth)) {
+		go func(number uint32) {
+			rootCid, _ := plugin.CidFromNamespacedSha256(data[number])
+			leafs, _ := GetLeafsExt(ctx, dag, rootCid, int(sc.edsWidth/8))
+			for leafIndex, l := range leafs {
+				data := l.RawData()[1:]
+				if isRow {
+					sc.shareChan <- indexedShare{data: data[NamespaceSize:], index: index{row: uint32(number), col: uint32(leafIndex)}}
+				} else {
+					sc.shareChan <- indexedShare{data: data[NamespaceSize:], index: index{row: uint32(leafIndex), col: uint32(number)}}
+				}
+			}
+		}(number)
+	}
+}
+
+func GetLeafsExt(
+	ctx context.Context,
+	dag ipld.NodeGetter,
+	root cid.Cid,
+	maxDepth int,
+) (leafs []ipld.Node, err error) {
+	nd, err := dag.Get(ctx, root)
+	if err != nil {
+		return nil, err
+	}
+	if maxDepth == 0 {
+		leafs = append(leafs, nd)
+		return
+	}
+	links := nd.Links()
+	if len(links) == 1 {
+		leafs = append(leafs, nd)
+		return
+	}
+	newDep := maxDepth / 2
+	for _, leaf := range links {
+		l, err := GetLeafsExt(ctx, dag, leaf.Cid, newDep)
+		if err != nil {
+			return nil, err
+		}
+
+		leafs = append(leafs, l...)
+	}
+	return leafs, nil
 }
 
 // uniqueRandNumbers generates count unique random numbers with a max of max
