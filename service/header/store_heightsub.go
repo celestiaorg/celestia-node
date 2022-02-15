@@ -71,7 +71,7 @@ func (hs *heightSub) Pub(headers ...*ExtendedHeader) {
 	height := hs.Height()
 	from, to := uint64(headers[0].Height), uint64(headers[len(headers)-1].Height)
 	if height+1 != from {
-		log.Fatal("PLEASE REPORT THE BUG: headers given to the heightSub are in the wrong order")
+		log.Fatal("PLEASE FILE A BUG REPORT: headers given to the heightSub are in the wrong order")
 		return
 	}
 	hs.SetHeight(to)
