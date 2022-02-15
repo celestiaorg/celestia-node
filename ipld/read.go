@@ -72,8 +72,8 @@ func RetrieveDataExt(
 	colRoots := dah.ColumnRoots
 
 	sc := newshareCounter(ctx, uint32(edsWidth))
-	go fillTheBlock(ctx, rowRoots, true, dag, sc)
 	go fillTheBlock(ctx, colRoots, false, dag, sc)
+	go fillTheBlock(ctx, rowRoots, true, dag, sc)
 	err := sc.wait()
 	if err != nil {
 		fmt.Println(err)
@@ -81,16 +81,22 @@ func RetrieveDataExt(
 	}
 	// flatten the square
 	flattened := sc.flatten()
-
+	fmt.Println(len(flattened))
 	tree := wrapper.NewErasuredNamespacedMerkleTree(uint64(edsWidth) / 2)
 	return rsmt2d.RepairExtendedDataSquare(rowRoots, colRoots, flattened, codec, tree.Constructor)
 }
 
 func fillTheBlock(ctx context.Context, data [][]byte, isRow bool, dag ipld.NodeGetter, sc *shareCounter) {
-	for _, number := range uniqueRandNumbers(int(sc.edsWidth/2), int(sc.edsWidth)) {
+	numbers := make([]uint32, 0)
+	if isRow {
+		numbers = uniqueRandNumbers(int(sc.edsWidth/4), int(sc.edsWidth))
+	} else {
+		numbers = uniqueNumbersInRange(int(sc.edsWidth/2), int(sc.edsWidth), int(sc.edsWidth/4))
+	}
+	for _, number := range numbers {
 		go func(number uint32) {
 			rootCid, _ := plugin.CidFromNamespacedSha256(data[number])
-			leafs, _ := GetLeafsExt(ctx, dag, rootCid, int(sc.edsWidth/8))
+			leafs, _ := GetLeafsExt(ctx, dag, rootCid, int(sc.edsWidth/4))
 			for leafIndex, l := range leafs {
 				data := l.RawData()[1:]
 				if isRow {
@@ -132,6 +138,25 @@ func GetLeafsExt(
 		leafs = append(leafs, l...)
 	}
 	return leafs, nil
+}
+
+func uniqueNumbersInRange(from, to, count int) []uint32 {
+	samples := make(map[uint32]struct{}, count)
+	for i := 0; i < count; {
+		sample := uint32(rand.Intn(to-from) + from)
+		if _, has := samples[sample]; has {
+			continue
+		}
+		samples[sample] = struct{}{}
+		i++
+	}
+	out := make([]uint32, count)
+	counter := 0
+	for s := range samples {
+		out[counter] = s
+		counter++
+	}
+	return out
 }
 
 // uniqueRandNumbers generates count unique random numbers with a max of max
