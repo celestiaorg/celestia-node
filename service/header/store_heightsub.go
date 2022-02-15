@@ -69,7 +69,7 @@ func (hs *heightSub) Pub(headers ...*ExtendedHeader) {
 	defer hs.heightReqsLk.Unlock()
 
 	// instead of looping over each header in 'headers', we can loop over each request
-	// which will drastically decrease idle iterations, as there will be lesser requests than the headers
+	// which will drastically decrease idle iterations, as there will be less requests than headers
 	for height, reqs := range hs.heightReqs {
 		// then we look if any of the requests match the given range of headers
 		if height >= from && height <= to {
