@@ -204,10 +204,6 @@ func (s *Syncer) processIncoming(ctx context.Context, maybeHead *ExtendedHeader)
 	default:
 		var verErr *VerifyError
 		if errors.As(err, &verErr) {
-			log.Errorw("invalid header",
-				"height", maybeHead.Height,
-				"hash", maybeHead.Hash(),
-				"reason", verErr.Reason)
 			return pubsub.ValidationReject
 		}
 
