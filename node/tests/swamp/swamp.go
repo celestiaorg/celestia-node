@@ -186,7 +186,7 @@ func (s *Swamp) NewLightNode(options ...node.Option) *node.Node {
 }
 
 // NewBridgeNodeWithStore creates a new instance of BridgeNodes with predefined Store.
-// Afterwards, the instance is store in the swamp's BridgeNodes slice.
+// Afterwards, the instance is stored in the swamp's BridgeNodes slice.
 func (s *Swamp) NewBridgeNodeWithStore(store node.Store, options ...node.Option) *node.Node {
 	ks, err := store.Keystore()
 	require.NoError(s.t, err)
@@ -207,7 +207,7 @@ func (s *Swamp) NewBridgeNodeWithStore(store node.Store, options ...node.Option)
 }
 
 // NewLightNodeWithStore creates a new instance of LightNode with predefined Store.
-// Afterwards, the instance is store in the swamp's LightNodes slice
+// Afterwards, the instance is stored in the swamp's LightNodes slice
 func (s *Swamp) NewLightNodeWithStore(store node.Store, options ...node.Option) *node.Node {
 	ks, err := store.Keystore()
 	require.NoError(s.t, err)
