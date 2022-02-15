@@ -26,7 +26,7 @@ func newHeightIndexer(ds datastore.Batching) (*heightIndexer, error) {
 	}, nil
 }
 
-// HashByHeight loads a header by the given height.
+// HashByHeight loads a header hash corresponding to the given height.
 func (hi *heightIndexer) HashByHeight(h uint64) (tmbytes.HexBytes, error) {
 	if v, ok := hi.cache.Get(h); ok {
 		return v.(tmbytes.HexBytes), nil
