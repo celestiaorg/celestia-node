@@ -8,13 +8,12 @@ import (
 	logging "github.com/ipfs/go-log/v2"
 	"go.uber.org/fx"
 
-	"github.com/celestiaorg/celestia-node/params"
-
 	nodecore "github.com/celestiaorg/celestia-node/node/core"
 	"github.com/celestiaorg/celestia-node/node/fxutil"
 	"github.com/celestiaorg/celestia-node/node/p2p"
 	"github.com/celestiaorg/celestia-node/node/services"
 	statecomponents "github.com/celestiaorg/celestia-node/node/state"
+	"github.com/celestiaorg/celestia-node/params"
 	"github.com/celestiaorg/celestia-node/service/header"
 	"github.com/celestiaorg/celestia-node/service/state"
 )
@@ -29,9 +28,17 @@ func lightComponents(cfg *Config, store Store) fxutil.Option {
 		fxutil.Provide(services.LightAvailability),
 		// state components
 		fxutil.ProvideIf(cfg.Core.Remote, state.NewService),
-		fxutil.ProvideIf(cfg.Core.Remote, func() (state.Accessor, error) {
-			// TODO @renaynay: add hooks for CA lifecycle
-			return statecomponents.CoreAccessor(cfg.Services.KeyConf, store.Path(), cfg.Core.RemoteConfig.RemoteAddr)
+		fxutil.ProvideIf(cfg.Core.Remote, func(lc fx.Lifecycle) (state.Accessor, error) {
+			ca, err := statecomponents.CoreAccessor(cfg.Services.KeyConf, store.Path(),
+				cfg.Core.RemoteConfig.RemoteAddr)
+			if err != nil {
+				return nil, err
+			}
+			lc.Append(fx.Hook{
+				OnStart: ca.Start,
+				OnStop:  ca.Stop,
+			})
+			return ca, nil
 		}),
 	)
 }

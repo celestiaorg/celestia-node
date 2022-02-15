@@ -6,6 +6,10 @@ import "context"
 // query for state-related information and submit transactions/
 // messages to the Celestia network.
 type Accessor interface {
+	// Start starts the state Accessor.
+	Start(context.Context) error
+	// Stop stops the state Accessor.
+	Stop(context.Context) error
 	// Balance retrieves the Celestia coin balance
 	// for the node's account/signer.
 	Balance(ctx context.Context) (*Balance, error)
