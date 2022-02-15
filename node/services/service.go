@@ -77,7 +77,7 @@ func HeaderP2PExchangeServer(lc fx.Lifecycle, host host.Host, store header.Store
 	return p2pServ
 }
 
-// HeaderStore creates and initialize new header.Store.
+// HeaderStore creates and initializes new header.Store.
 func HeaderStore(ds datastore.Batching) (header.Store, error) {
 	store, err := header.NewStore(ds)
 	if err != nil {
