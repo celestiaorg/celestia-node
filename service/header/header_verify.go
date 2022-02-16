@@ -71,7 +71,7 @@ var clockDrift = 10 * time.Second
 // verify performs basic verification of untrusted header.
 func (eh *ExtendedHeader) verify(untrst *ExtendedHeader) error {
 	if untrst.ChainID != eh.ChainID {
-		return fmt.Errorf("new untusted header has different chain %s, not %s", untrst.ChainID, eh.ChainID)
+		return fmt.Errorf("new untrusted header has different chain %s, not %s", untrst.ChainID, eh.ChainID)
 	}
 
 	if !untrst.Time.After(eh.Time) {
