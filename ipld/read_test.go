@@ -129,9 +129,6 @@ func TestRetrieveBlockData(t *testing.T) {
 		{"128x128(max)", MaxSquareSize},
 	}
 	for _, tc := range tests {
-		if tc.squareSize == MaxSquareSize {
-			t.Skip("skipping as it spawns too many goroutines")
-		}
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			// generate EDS
@@ -147,14 +144,9 @@ func TestRetrieveBlockData(t *testing.T) {
 			defer cancel()
 
 			dah := da.NewDataAvailabilityHeader(in)
-
 			out, err := RetrieveData(ctx, &dah, dag, rsmt2d.NewRSGF8Codec())
 			require.NoError(t, err)
 			assert.True(t, EqualEDS(in, out))
-
-			out2, err1 := RetrieveDataExt(ctx, &dah, dag, rsmt2d.NewRSGF8Codec())
-			require.NoError(t, err1)
-			assert.True(t, EqualEDS(in, out2))
 		})
 	}
 }
