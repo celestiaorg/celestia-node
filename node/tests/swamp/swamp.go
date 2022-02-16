@@ -43,7 +43,7 @@ type Swamp struct {
 }
 
 // NewSwamp creates a new instance of Swamp.
-func NewSwamp(t *testing.T, ic *InfraComponents) *Swamp {
+func NewSwamp(t *testing.T, ic *Components) *Swamp {
 	if testing.Verbose() {
 		log.SetDebugLogging()
 	}
@@ -76,14 +76,14 @@ func NewSwamp(t *testing.T, ic *InfraComponents) *Swamp {
 // instead we are assigning all created BNs to 1 Core from the swamp
 
 // newTendermintCoreNode creates a new instance of Tendermint Core with a kvStore
-func newTendermintCoreNode(ic *InfraComponents) (*tn.Node, error) {
+func newTendermintCoreNode(c *Components) (*tn.Node, error) {
 	var opt rpctest.Options
 	rpctest.RecreateConfig(&opt)
 
-	tn := rpctest.NewTendermint(ic.App, &opt)
+	tn := rpctest.NewTendermint(c.App, &opt)
 
 	// rewriting the created config with test's one
-	tn.Config().Consensus = ic.CoreCfg.Consensus
+	tn.Config().Consensus = c.CoreCfg.Consensus
 
 	return tn, tn.Start()
 }
