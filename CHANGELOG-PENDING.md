@@ -39,6 +39,7 @@ Month, DD, YYYY
 
 ### BUG FIXES
 
+- [fix(service/header): allow some clock drift during verification #435](https://github.com/celestiaorg/celestia-node/pull/435) [@Wondertan](https://github.com/Wondertan)
 - [service/header: fix ExtendedHeader message duplicates on the network #409](https://github.com/celestiaorg/celestia-node/pull/409) [@Wondertan](https://github.com/Wondertan)
 - [fix(header/service): #339 race](https://github.com/celestiaorg/celestia-node/pull/343) [@Wondertan](https://github.com/Wondertan)
 - [core: Properly fetch Validators from Core and two more fixes #328](https://github.com/celestiaorg/celestia-node/pull/328) [@Wondertan](https://github.com/Wondertan)
