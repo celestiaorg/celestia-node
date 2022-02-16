@@ -80,7 +80,8 @@ func (eh *ExtendedHeader) verify(untrst *ExtendedHeader) error {
 
 	now := time.Now()
 	if !untrst.Time.Before(now.Add(clockDrift)) {
-		return fmt.Errorf("new untrusted header has a time from the future %v (now: %v)", untrst.Time, now)
+		return fmt.Errorf(
+			"new untrusted header has a time from the future %v (now: %v, clockDrift: %v)", untrst.Time, now, clockDrift)
 	}
 
 	return nil
