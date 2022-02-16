@@ -5,8 +5,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ipfs/go-datastore"
-	"github.com/ipfs/go-datastore/sync"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -15,26 +13,20 @@ import (
 func TestSyncSimpleRequestingHead(t *testing.T) {
 	// this way we force local head of Syncer to expire, so it requests a new one from trusted peer
 	TrustingPeriod = time.Microsecond
+	requestSize = 13 // just some random number
 
 	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	t.Cleanup(cancel)
 
 	suite := NewTestSuite(t, 3)
 	head := suite.Head()
 
-	remoteStore, err := NewStoreWithHead(sync.MutexWrap(datastore.NewMapDatastore()), head)
+	remoteStore := NewTestStore(ctx, t, head)
+	err := remoteStore.Append(ctx, suite.GenExtendedHeaders(100)...)
 	require.NoError(t, err)
 
-	err = remoteStore.Append(ctx, suite.GenExtendedHeaders(100)...)
-	require.NoError(t, err)
-
-	fakeExchange := NewLocalExchange(remoteStore)
-
-	localStore, err := NewStoreWithHead(sync.MutexWrap(datastore.NewMapDatastore()), head)
-	require.NoError(t, err)
-
-	requestSize = 13 // just some random number
-	syncer := NewSyncer(fakeExchange, localStore, &DummySubscriber{})
+	localStore := NewTestStore(ctx, t, head)
+	syncer := NewSyncer(NewLocalExchange(remoteStore), localStore, &DummySubscriber{})
 	err = syncer.Start(ctx)
 	require.NoError(t, err)
 
@@ -55,22 +47,16 @@ func TestSyncCatchUp(t *testing.T) {
 	TrustingPeriod = time.Minute
 
 	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	t.Cleanup(cancel)
 
 	suite := NewTestSuite(t, 3)
 	head := suite.Head()
 
-	remoteStore, err := NewStoreWithHead(sync.MutexWrap(datastore.NewMapDatastore()), head)
-	require.NoError(t, err)
-
-	fakeExchange := NewLocalExchange(remoteStore)
-
-	localStore, err := NewStoreWithHead(sync.MutexWrap(datastore.NewMapDatastore()), head)
-	require.NoError(t, err)
-
-	syncer := NewSyncer(fakeExchange, localStore, &DummySubscriber{})
+	remoteStore := NewTestStore(ctx, t, head)
+	localStore := NewTestStore(ctx, t, head)
+	syncer := NewSyncer(NewLocalExchange(remoteStore), localStore, &DummySubscriber{})
 	// 1. Initial sync
-	err = syncer.Start(ctx)
+	err := syncer.Start(ctx)
 	require.NoError(t, err)
 
 	// 2. chain grows and syncer misses that
@@ -100,21 +86,15 @@ func TestSyncPendingRangesWithMisses(t *testing.T) {
 	TrustingPeriod = time.Minute
 
 	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	t.Cleanup(cancel)
 
 	suite := NewTestSuite(t, 3)
 	head := suite.Head()
 
-	remoteStore, err := NewStoreWithHead(sync.MutexWrap(datastore.NewMapDatastore()), head)
-	require.NoError(t, err)
-
-	fakeExchange := NewLocalExchange(remoteStore)
-
-	localStore, err := NewStoreWithHead(sync.MutexWrap(datastore.NewMapDatastore()), head)
-	require.NoError(t, err)
-
-	syncer := NewSyncer(fakeExchange, localStore, &DummySubscriber{})
-	err = syncer.Start(ctx)
+	remoteStore := NewTestStore(ctx, t, head)
+	localStore := NewTestStore(ctx, t, head)
+	syncer := NewSyncer(NewLocalExchange(remoteStore), localStore, &DummySubscriber{})
+	err := syncer.Start(ctx)
 	require.NoError(t, err)
 
 	// miss 1 (helps to test that Syncer properly requests missed Headers from Exchange)

@@ -35,13 +35,8 @@ func (hi *heightIndexer) HashByHeight(h uint64) (tmbytes.HexBytes, error) {
 	return hi.ds.Get(heightKey(h))
 }
 
-// Index saves mapping between header Height and Hash.
-func (hi *heightIndexer) Index(headers ...*ExtendedHeader) error {
-	batch, err := hi.ds.Batch()
-	if err != nil {
-		return err
-	}
-
+// IndexTo saves mapping between header Height and Hash to the given batch.
+func (hi *heightIndexer) IndexTo(batch datastore.Batch, headers ...*ExtendedHeader) error {
 	for _, h := range headers {
 		err := batch.Put(heightKey(uint64(h.Height)), h.Hash())
 		if err != nil {
@@ -49,14 +44,5 @@ func (hi *heightIndexer) Index(headers ...*ExtendedHeader) error {
 		}
 	}
 
-	err = batch.Commit()
-	if err != nil {
-		return err
-	}
-
-	// update the cache only after indexes are written to the disk
-	for _, h := range headers {
-		hi.cache.Add(h.Height, h.Hash())
-	}
 	return nil
 }

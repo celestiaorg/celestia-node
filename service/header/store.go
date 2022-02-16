@@ -17,14 +17,39 @@ var (
 	DefaultStoreCacheSize = 10240
 	// DefaultIndexCacheSize defines the amount of max entries allowed in the Height to Hash index cache.
 	DefaultIndexCacheSize = 2048
+	// DefaultWriteBatchSize defines the size of the batched header write.
+	// Headers are written in batches not to thrash the underlying Datastore with writes.
+	DefaultWriteBatchSize = 2048
 )
 
-type store struct {
-	ds    datastore.Batching
-	cache *lru.ARCCache
-	index *heightIndexer
+// errStoppedStore is returned for attempted operations on a stopped store
+var errStoppedStore = errors.New("header: stopped store")
 
+// store implements the Store interface for ExtendedHeaders over Datastore.
+type store struct {
+	// header storing
+	//
+	// underlying KV store
+	ds datastore.Batching
+	// adaptive replacement cache of headers
+	cache *lru.ARCCache
+
+	// header heights management
+	//
+	// maps heights to hashes
+	heightIndex *heightIndexer
+	// manages current store head height (1) and
+	// allows callers to wait till header for a height is stored (2)
 	heightSub *heightSub
+
+	// writing to datastore
+	//
+	// queued of header ranges to be written
+	writes chan []*ExtendedHeader
+	// signals when writes are finished
+	writesDn chan struct{}
+	// pending keeps headers pending to be written in a batch
+	pending []*ExtendedHeader
 }
 
 // NewStore constructs a Store over datastore.
@@ -35,13 +60,13 @@ func NewStore(ds datastore.Batching) (Store, error) {
 }
 
 // NewStoreWithHead initiates a new Store and forcefully sets a given trusted header as head.
-func NewStoreWithHead(ds datastore.Batching, head *ExtendedHeader) (Store, error) {
+func NewStoreWithHead(ctx context.Context, ds datastore.Batching, head *ExtendedHeader) (Store, error) {
 	store, err := newStore(ds)
 	if err != nil {
 		return nil, err
 	}
 
-	return store, store.Init(context.TODO(), head)
+	return store, store.Init(ctx, head)
 }
 
 func newStore(ds datastore.Batching) (*store, error) {
@@ -57,21 +82,19 @@ func newStore(ds datastore.Batching) (*store, error) {
 	}
 
 	return &store{
-		ds:        ds,
-		cache:     cache,
-		index:     index,
-		heightSub: newHeightSub(),
+		ds:          ds,
+		cache:       cache,
+		heightIndex: index,
+		heightSub:   newHeightSub(),
+		writes:      make(chan []*ExtendedHeader, 16),
+		writesDn:    make(chan struct{}),
+		pending:     make([]*ExtendedHeader, 0, DefaultWriteBatchSize),
 	}, nil
 }
 
 func (s *store) Init(_ context.Context, initial *ExtendedHeader) error {
 	// trust the given header as the initial head
-	err := s.put(initial)
-	if err != nil {
-		return err
-	}
-
-	err = s.newHead(initial.Hash())
+	err := s.flush(initial)
 	if err != nil {
 		return err
 	}
@@ -80,20 +103,47 @@ func (s *store) Init(_ context.Context, initial *ExtendedHeader) error {
 	return nil
 }
 
-func (s *store) Head(ctx context.Context) (*ExtendedHeader, error) {
-	height := s.heightSub.Height()
-	if height != 0 {
-		return s.GetByHeight(ctx, height)
-	}
-
-	head, err := s.loadHead(ctx)
+func (s *store) Start(ctx context.Context) error {
+	head, err := s.readHead(ctx)
 	switch err {
 	default:
-		log.Infow("loaded head", "height", head.Height, "hash", head.Hash())
-		return head, err
+		return err
 	case datastore.ErrNotFound:
+		log.Warnf("starting uninitialized store")
+	case nil:
+		s.heightSub.SetHeight(uint64(head.Height))
+	}
+
+	go s.flushLoop()
+	return nil
+}
+
+func (s *store) Stop(ctx context.Context) error {
+	select {
+	case <-s.writesDn:
+		return errStoppedStore
+	default:
+	}
+	// signal to prevent further writes to Store
+	s.writes <- nil
+	select {
+	case <-s.writesDn: // wait till it is done writing
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+
+	// cleanup caches
+	s.cache.Purge()
+	s.heightIndex.cache.Purge()
+	return nil
+}
+
+func (s *store) Head(ctx context.Context) (*ExtendedHeader, error) {
+	head, err := s.GetByHeight(ctx, s.heightSub.Height())
+	if err == ErrNotFound {
 		return nil, ErrNoHead
 	}
+	return head, err
 }
 
 func (s *store) Get(_ context.Context, hash tmbytes.HexBytes) (*ExtendedHeader, error) {
@@ -123,7 +173,7 @@ func (s *store) GetByHeight(ctx context.Context, height uint64) (*ExtendedHeader
 	// otherwise, the errElapsedHeight is thrown,
 	// which means the requested 'height' should be already stored
 
-	hash, err := s.index.HashByHeight(height)
+	hash, err := s.heightIndex.HashByHeight(height)
 	if err != nil {
 		if err == datastore.ErrNotFound {
 			return nil, ErrNotFound
@@ -195,28 +245,71 @@ func (s *store) Append(ctx context.Context, headers ...*ExtendedHeader) error {
 		verified, head = append(verified, h), h
 	}
 
-	err = s.put(verified...)
-	if err != nil {
+	// queue headers to be written on disk
+	select {
+	case s.writes <- verified:
+		// once we sure the 'write' is enqueued - update caches with verified headers
+		for _, h := range verified {
+			s.cache.Add(h.Hash().String(), h)
+			s.heightIndex.cache.Add(uint64(h.Height), h.Hash())
+		}
+		// and notify waiters if any + increase current height
+		// it is important to do Pub after updating caches
+		// so cache is consistent with atomic Height counter on the heightSub
+		s.heightSub.Pub(verified...)
+		// we return an error here after writing,
+		// as there might be an invalid header in between of a given range
 		return err
+	case <-s.writesDn:
+		return errStoppedStore
+	case <-ctx.Done():
+		return ctx.Err()
 	}
-
-	err = s.newHead(head.Hash())
-	if err != nil {
-		return err
-	}
-
-	log.Infow("new head", "height", head.Height, "hash", head.Hash())
-	s.heightSub.Pub(verified...)
-	return nil
 }
 
-// put saves the given headers on disk and into cache.
-func (s *store) put(headers ...*ExtendedHeader) error {
+// flushLoop performs writing task to the underlying datastore in a separate routine
+// This way writes are controlled and manageable from one place allowing
+// (1) Appends not to be blocked on long disk IO writes and underlying DB compactions
+// (2) Batching header writes
+func (s *store) flushLoop() {
+	defer close(s.writesDn)
+	for headers := range s.writes {
+		if headers != nil {
+			s.pending = append(s.pending, headers...)
+		}
+		// ensure we flush only if pending is grown enough, or we are stopping(headers == nil)
+		if len(s.pending) < DefaultWriteBatchSize && headers != nil {
+			continue
+		}
+
+		err := s.flush(s.pending...)
+		if err != nil {
+			// TODO(@Wondertan): Should this be a fatal error case with os.Exit?
+			from, to := uint64(headers[0].Height), uint64(headers[len(headers)-1].Height)
+			log.Errorw("writing header batch", "from", from, "to", to)
+		}
+		// reset pending
+		s.pending = s.pending[:0]
+
+		if headers == nil {
+			// a signal to stop
+			return
+		}
+	}
+}
+
+// flush writes the given headers on disk
+func (s *store) flush(headers ...*ExtendedHeader) (err error) {
+	if len(headers) == 0 {
+		return nil
+	}
+
 	batch, err := s.ds.Batch()
 	if err != nil {
 		return err
 	}
 
+	// collect all the headers in the batch to be written
 	for _, h := range headers {
 		b, err := h.MarshalBinary()
 		if err != nil {
@@ -229,21 +322,29 @@ func (s *store) put(headers ...*ExtendedHeader) error {
 		}
 	}
 
-	err = batch.Commit()
+	// marshal and add to batch reference to the new head
+	b, err := headers[len(headers)-1].Hash().MarshalJSON()
 	if err != nil {
 		return err
 	}
 
-	// consistency is important, so change the cache and the head only after the data is on disk
-	for _, h := range headers {
-		s.cache.Add(h.Hash().String(), h)
+	err = batch.Put(headKey, b)
+	if err != nil {
+		return err
 	}
 
-	return s.index.Index(headers...)
+	// write height indexes for headers as well
+	err = s.heightIndex.IndexTo(batch, headers...)
+	if err != nil {
+		return err
+	}
+
+	// finally, commit the batch on disk
+	return batch.Commit()
 }
 
-// loadHead load the head hash from the disk.
-func (s *store) loadHead(ctx context.Context) (*ExtendedHeader, error) {
+// readHead loads the head from the disk.
+func (s *store) readHead(ctx context.Context) (*ExtendedHeader, error) {
 	b, err := s.ds.Get(headKey)
 	if err != nil {
 		return nil, err
@@ -256,15 +357,4 @@ func (s *store) loadHead(ctx context.Context) (*ExtendedHeader, error) {
 	}
 
 	return s.Get(ctx, head)
-}
-
-// newHead sets a new 'head' and saves it on disk.
-// At this point Header body of the given 'head' must be already written with put.
-func (s *store) newHead(head tmbytes.HexBytes) error {
-	b, err := head.MarshalJSON()
-	if err != nil {
-		return err
-	}
-
-	return s.ds.Put(headKey, b)
 }
