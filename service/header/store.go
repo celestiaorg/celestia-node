@@ -14,9 +14,9 @@ import (
 // TODO(@Wondertan): Those values must be configurable and proper defaults should be set for specific node type.
 var (
 	// DefaultStoreCacheSize defines the amount of max entries allowed in the Header Store cache.
-	DefaultStoreCacheSize = 1024
+	DefaultStoreCacheSize = 10240
 	// DefaultIndexCacheSize defines the amount of max entries allowed in the Height to Hash index cache.
-	DefaultIndexCacheSize = 256
+	DefaultIndexCacheSize = 2048
 )
 
 type store struct {
