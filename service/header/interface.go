@@ -99,6 +99,9 @@ type Store interface {
 	Has(context.Context, tmbytes.HexBytes) (bool, error)
 
 	// Append stores and verifies the given ExtendedHeader(s).
-	// It requires them to be adjacent and in ascending order.
-	Append(context.Context, ...*ExtendedHeader) error
+	// It requires them to be adjacent and in ascending order,
+	// as it applies them contiguously on top of the current head height.
+	// It returns the amount of successfully applied headers,
+	// so caller can understand what given header was invalid, if any.
+	Append(context.Context, ...*ExtendedHeader) (int, error)
 }

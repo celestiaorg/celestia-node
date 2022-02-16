@@ -31,8 +31,9 @@ func TestStore(t *testing.T) {
 	assert.EqualValues(t, suite.Head().Hash(), head.Hash())
 
 	in := suite.GenExtendedHeaders(10)
-	err = store.Append(ctx, in...)
+	ln, err := store.Append(ctx, in...)
 	require.NoError(t, err)
+	assert.Equal(t, 10, ln)
 
 	out, err := store.GetRangeByHeight(ctx, 2, 12)
 	require.NoError(t, err)
@@ -53,8 +54,9 @@ func TestStore(t *testing.T) {
 	assert.False(t, ok)
 
 	go func() {
-		err := store.Append(ctx, suite.GenExtendedHeaders(1)...)
+		ln, err := store.Append(ctx, suite.GenExtendedHeaders(1)...)
 		require.NoError(t, err)
+		assert.Equal(t, 1, ln)
 	}()
 
 	h, err := store.GetByHeight(ctx, 12)
