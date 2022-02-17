@@ -3,11 +3,6 @@ package services
 import (
 	"context"
 
-	"github.com/celestiaorg/celestia-node/das"
-	"github.com/celestiaorg/celestia-node/node/fxutil"
-	"github.com/celestiaorg/celestia-node/service/block"
-	"github.com/celestiaorg/celestia-node/service/header"
-	"github.com/celestiaorg/celestia-node/service/share"
 	"github.com/ipfs/go-datastore"
 	ipld "github.com/ipfs/go-ipld-format"
 	"github.com/ipfs/go-merkledag"
@@ -16,6 +11,12 @@ import (
 	"github.com/libp2p/go-libp2p-core/peerstore"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	"go.uber.org/fx"
+
+	"github.com/celestiaorg/celestia-node/das"
+	"github.com/celestiaorg/celestia-node/node/fxutil"
+	"github.com/celestiaorg/celestia-node/service/block"
+	"github.com/celestiaorg/celestia-node/service/header"
+	"github.com/celestiaorg/celestia-node/service/share"
 )
 
 // HeaderSyncer creates a new header.Syncer.

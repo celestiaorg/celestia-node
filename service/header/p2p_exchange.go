@@ -103,6 +103,7 @@ func (ex *P2PExchange) performRequest(ctx context.Context, req *pb.ExtendedHeade
 		return nil, fmt.Errorf("no trusted peer")
 	}
 
+	// nolint:gosec // G404: Use of weak random number generator
 	index := rand.Intn(len(ex.trustedPeers))
 	stream, err := ex.host.NewStream(ctx, ex.trustedPeers[index], exchangeProtocolID)
 	if err != nil {
