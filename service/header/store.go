@@ -300,6 +300,7 @@ func (s *store) flushLoop() {
 			// TODO(@Wondertan): Should this be a fatal error case with os.Exit?
 			from, to := uint64(headers[0].Height), uint64(headers[len(headers)-1].Height)
 			log.Errorw("writing header batch", "from", from, "to", to)
+			continue
 		}
 		// reset pending
 		s.pending = s.pending[:0]
