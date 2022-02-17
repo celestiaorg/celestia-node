@@ -266,6 +266,11 @@ func (s *Syncer) syncTo(ctx context.Context, newHead *ExtendedHeader) {
 		"to", newHead.Height)
 	err = s.doSync(ctx, head, newHead)
 	if err != nil {
+		if errors.Is(err, context.Canceled) {
+			// don't log this error as it is normal case of Syncer being stopped
+			return
+		}
+
 		log.Errorw("syncing headers",
 			"from", head.Height,
 			"to", newHead.Height,
