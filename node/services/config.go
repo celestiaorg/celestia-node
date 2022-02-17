@@ -33,8 +33,8 @@ func DefaultConfig() Config {
 
 func (cfg *Config) trustedPeers() ([]*peer.AddrInfo, error) {
 	if len(cfg.TrustedPeers) == 0 {
-		log.Warn("No Trusted Peers provided. Headers won't be synced accordingly")
-		return make([]*peer.AddrInfo, 0), nil
+		log.Warn("No Trusted Peers provided. Get default.")
+		cfg.TrustedPeers = params.Bootstrappers()
 	}
 
 	addrInfos := make([]*peer.AddrInfo, len(cfg.TrustedPeers))

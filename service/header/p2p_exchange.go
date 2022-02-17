@@ -28,10 +28,10 @@ type P2PExchange struct {
 	trustedPeers peer.IDSlice
 }
 
-func NewP2PExchange(host host.Host, peer peer.IDSlice) *P2PExchange {
+func NewP2PExchange(host host.Host, peers peer.IDSlice) *P2PExchange {
 	return &P2PExchange{
 		host:         host,
-		trustedPeers: peer,
+		trustedPeers: peers,
 	}
 }
 
@@ -98,9 +98,6 @@ func (ex *P2PExchange) RequestByHash(ctx context.Context, hash tmbytes.HexBytes)
 func (ex *P2PExchange) performRequest(ctx context.Context, req *pb.ExtendedHeaderRequest) ([]*ExtendedHeader, error) {
 	if req.Amount == 0 {
 		return make([]*ExtendedHeader, 0), nil
-	}
-	if len(ex.trustedPeers) == 0 {
-		return nil, fmt.Errorf("no trusted peer")
 	}
 
 	// nolint:gosec // G404: Use of weak random number generator
