@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"math/rand"
 
 	"github.com/libp2p/go-libp2p-core/host"
 	"github.com/libp2p/go-libp2p-core/peer"
@@ -24,13 +25,13 @@ type P2PExchange struct {
 
 	// TODO @renaynay: post-Devnet, we need to remove reliance of Exchange on one bootstrap peer
 	// Ref https://github.com/celestiaorg/celestia-node/issues/172#issuecomment-964306823.
-	trustedPeer peer.ID
+	trustedPeers peer.IDSlice
 }
 
-func NewP2PExchange(host host.Host, peer peer.ID) *P2PExchange {
+func NewP2PExchange(host host.Host, peer peer.IDSlice) *P2PExchange {
 	return &P2PExchange{
-		host:        host,
-		trustedPeer: peer,
+		host:         host,
+		trustedPeers: peer,
 	}
 }
 
@@ -98,11 +99,12 @@ func (ex *P2PExchange) performRequest(ctx context.Context, req *pb.ExtendedHeade
 	if req.Amount == 0 {
 		return make([]*ExtendedHeader, 0), nil
 	}
-	if ex.trustedPeer == "" {
+	if len(ex.trustedPeers) == 0 {
 		return nil, fmt.Errorf("no trusted peer")
 	}
 
-	stream, err := ex.host.NewStream(ctx, ex.trustedPeer, exchangeProtocolID)
+	index := rand.Intn(len(ex.trustedPeers))
+	stream, err := ex.host.NewStream(ctx, ex.trustedPeers[index], exchangeProtocolID)
 	if err != nil {
 		return nil, err
 	}

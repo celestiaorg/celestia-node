@@ -17,32 +17,40 @@ type Config struct {
 	// TrustedHash is the Block/Header hash that Nodes use as starting point for header synchronization.
 	// Only affects the node once on initial sync.
 	TrustedHash string
-	// TrustedPeer is the peer we trust to fetch headers from.
+	// TrustedPeers is the peer we trust to fetch headers from.
 	// Note: The trusted does *not* imply Headers are not verified, but trusted as reliable to fetch headers
 	// at any moment.
-	TrustedPeer string
+	TrustedPeers []string
 }
 
 // TODO(@Wondertan): We need to hardcode trustedHash hash and one bootstrap peer as trusted.
 func DefaultConfig() Config {
 	return Config{
-		TrustedHash: "",
-		TrustedPeer: "",
+		TrustedHash:  "",
+		TrustedPeers: make([]string, 0),
 	}
 }
 
-func (cfg *Config) trustedPeer() (*peer.AddrInfo, error) {
-	if cfg.TrustedPeer == "" {
-		log.Warn("No Trusted Peer provided. Headers won't be synced accordingly")
-		return &peer.AddrInfo{}, nil
+func (cfg *Config) trustedPeers() ([]*peer.AddrInfo, error) {
+	if len(cfg.TrustedPeers) == 0 {
+		log.Warn("No Trusted Peers provided. Headers won't be synced accordingly")
+		return make([]*peer.AddrInfo, 0), nil
 	}
 
-	ma, err := multiaddr.NewMultiaddr(cfg.TrustedPeer)
-	if err != nil {
-		return nil, err
+	addrInfos := make([]*peer.AddrInfo, len(cfg.TrustedPeers))
+	for index, tpeer := range cfg.TrustedPeers {
+		ma, err := multiaddr.NewMultiaddr(tpeer)
+		if err != nil {
+			return nil, err
+		}
+		addrInfo, err := peer.AddrInfoFromP2pAddr(ma)
+		if err != nil {
+			return nil, err
+		}
+		addrInfos[index] = addrInfo
 	}
 
-	return peer.AddrInfoFromP2pAddr(ma)
+	return addrInfos, nil
 }
 
 func (cfg *Config) trustedHash() (tmbytes.HexBytes, error) {

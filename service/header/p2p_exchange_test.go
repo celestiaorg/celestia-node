@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	libhost "github.com/libp2p/go-libp2p-core/host"
+	"github.com/libp2p/go-libp2p-core/peer"
 	mocknet "github.com/libp2p/go-libp2p/p2p/net/mock"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -109,17 +110,17 @@ func createMocknet(ctx context.Context, t *testing.T) (libhost.Host, libhost.Hos
 }
 
 // createP2PExAndServer creates a P2PExchange with 5 headers already in its store.
-func createP2PExAndServer(t *testing.T, host, peer libhost.Host) (Exchange, *mockStore) {
+func createP2PExAndServer(t *testing.T, host, tpeer libhost.Host) (Exchange, *mockStore) {
 	store := createStore(t, 5)
-	serverSideEx := NewP2PExchangeServer(peer, store)
+	serverSideEx := NewP2PExchangeServer(tpeer, store)
 	err := serverSideEx.Start(context.Background())
 	require.NoError(t, err)
 
 	t.Cleanup(func() {
 		serverSideEx.Stop(context.Background()) //nolint:errcheck
 	})
-
-	return NewP2PExchange(host, peer.ID()), store
+	ids := []peer.ID{tpeer.ID()}
+	return NewP2PExchange(host, ids), store
 }
 
 type mockStore struct {

@@ -3,19 +3,19 @@ package services
 import (
 	"context"
 
-	"github.com/ipfs/go-datastore"
-	ipld "github.com/ipfs/go-ipld-format"
-	"github.com/ipfs/go-merkledag"
-	"github.com/libp2p/go-libp2p-core/host"
-	"github.com/libp2p/go-libp2p-core/peerstore"
-	pubsub "github.com/libp2p/go-libp2p-pubsub"
-	"go.uber.org/fx"
-
 	"github.com/celestiaorg/celestia-node/das"
 	"github.com/celestiaorg/celestia-node/node/fxutil"
 	"github.com/celestiaorg/celestia-node/service/block"
 	"github.com/celestiaorg/celestia-node/service/header"
 	"github.com/celestiaorg/celestia-node/service/share"
+	"github.com/ipfs/go-datastore"
+	ipld "github.com/ipfs/go-ipld-format"
+	"github.com/ipfs/go-merkledag"
+	"github.com/libp2p/go-libp2p-core/host"
+	"github.com/libp2p/go-libp2p-core/peer"
+	"github.com/libp2p/go-libp2p-core/peerstore"
+	pubsub "github.com/libp2p/go-libp2p-pubsub"
+	"go.uber.org/fx"
 )
 
 // HeaderSyncer creates a new header.Syncer.
@@ -56,13 +56,16 @@ func HeaderService(
 // HeaderExchangeP2P constructs new P2PExchange for headers.
 func HeaderExchangeP2P(cfg Config) func(host host.Host) (header.Exchange, error) {
 	return func(host host.Host) (header.Exchange, error) {
-		peer, err := cfg.trustedPeer()
+		peers, err := cfg.trustedPeers()
 		if err != nil {
 			return nil, err
 		}
-
-		host.Peerstore().AddAddrs(peer.ID, peer.Addrs, peerstore.PermanentAddrTTL)
-		return header.NewP2PExchange(host, peer.ID), nil
+		ids := make([]peer.ID, len(peers))
+		for index, peer := range peers {
+			ids[index] = peer.ID
+			host.Peerstore().AddAddrs(peer.ID, peer.Addrs, peerstore.PermanentAddrTTL)
+		}
+		return header.NewP2PExchange(host, ids), nil
 	}
 }
 
