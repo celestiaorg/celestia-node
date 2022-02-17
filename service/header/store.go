@@ -99,21 +99,11 @@ func (s *store) Init(_ context.Context, initial *ExtendedHeader) error {
 		return err
 	}
 
-	log.Infow("initial head", "height", initial.Height, "hash", initial.Hash())
+	log.Infow("initialized head", "height", initial.Height, "hash", initial.Hash())
 	return nil
 }
 
-func (s *store) Start(ctx context.Context) error {
-	head, err := s.readHead(ctx)
-	switch err {
-	default:
-		return err
-	case datastore.ErrNotFound:
-		log.Warnf("starting uninitialized store")
-	case nil:
-		s.heightSub.SetHeight(uint64(head.Height))
-	}
-
+func (s *store) Start(context.Context) error {
 	go s.flushLoop()
 	return nil
 }
@@ -140,10 +130,21 @@ func (s *store) Stop(ctx context.Context) error {
 
 func (s *store) Head(ctx context.Context) (*ExtendedHeader, error) {
 	head, err := s.GetByHeight(ctx, s.heightSub.Height())
-	if err == ErrNotFound {
-		return nil, ErrNoHead
+	if err == nil {
+		return head, nil
 	}
-	return head, err
+
+	head, err = s.readHead(ctx)
+	switch err {
+	default:
+		return nil, err
+	case datastore.ErrNotFound, ErrNotFound:
+		return nil, ErrNoHead
+	case nil:
+		s.heightSub.SetHeight(uint64(head.Height))
+		log.Infow("loaded head", "height", head.Height, "hash", head.Hash())
+		return head, nil
+	}
 }
 
 func (s *store) Get(_ context.Context, hash tmbytes.HexBytes) (*ExtendedHeader, error) {
