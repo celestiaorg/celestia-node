@@ -2,7 +2,11 @@ package header
 
 import (
 	"context"
+	"github.com/libp2p/go-libp2p-core/event"
+	mocknet "github.com/libp2p/go-libp2p/p2p/net/mock"
+	"github.com/stretchr/testify/assert"
 	"testing"
+	"time"
 
 	mdutils "github.com/ipfs/go-merkledag/test"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
@@ -50,16 +54,40 @@ func TestCoreListener(t *testing.T) {
 }
 
 func createMocknetWithTwoPubsubEndpoints(t *testing.T) (*pubsub.PubSub, *pubsub.PubSub) {
-	host1, host2 := createMocknet(context.Background(), t)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*15)
+	t.Cleanup(cancel)
+
+	net, err := mocknet.FullMeshLinked(context.Background(), 2)
+	require.NoError(t, err)
+	host0, host1 := net.Hosts()[0], net.Hosts()[1]
+
+	sub0, err := host0.EventBus().Subscribe(&event.EvtPeerIdentificationCompleted{})
+	require.NoError(t, err)
+	sub1, err := host1.EventBus().Subscribe(&event.EvtPeerIdentificationCompleted{})
+	require.NoError(t, err)
+
+	err = net.ConnectAllButSelf()
+	require.NoError(t, err)
+
+	// wait on both peer identification events
+	for i := 0; i < 2; i++ {
+		select {
+		case <-sub0.Out():
+		case <-sub1.Out():
+		case <-ctx.Done():
+			assert.FailNow(t, "timeout waiting for peers to connect")
+		}
+	}
+
 	// create pubsub for host
-	ps1, err := pubsub.NewGossipSub(context.Background(), host1,
+	ps0, err := pubsub.NewGossipSub(context.Background(), host0,
 		pubsub.WithMessageSignaturePolicy(pubsub.StrictNoSign))
 	require.NoError(t, err)
 	// create pubsub for peer-side (to test broadcast comes through network)
-	ps2, err := pubsub.NewGossipSub(context.Background(), host2,
+	ps1, err := pubsub.NewGossipSub(context.Background(), host1,
 		pubsub.WithMessageSignaturePolicy(pubsub.StrictNoSign))
 	require.NoError(t, err)
-	return ps1, ps2
+	return ps0, ps1
 }
 
 func createCoreListener(
