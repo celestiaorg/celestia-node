@@ -36,6 +36,7 @@ Month, DD, YYYY
 - [docker: Created `docker/` dir with `Dockerfile` and `entrypoint.sh` script](https://github.com/celestiaorg/celestia-node/pull/295) [@jbowen93](https://github.com/jbowen93)
 - [chore(share): handle rows concurrently in GetSharesByNamespace #241](https://github.com/celestiaorg/celestia-node/pull/241) [@vgonkivs](https://github.com/vgonkivs)
 - [ci: adding data race detector action](https://github.com/celestiaorg/celestia-node/pull/289) [@Bidon15](https://github.com/Bidon15)
+-[node: Light node can be initialised with multiple trusted peers](https://github.com/celestiaorg/celestia-node/pull/455) [@vgonkivs](https://github.com/vgonkivs)
 
 ### BUG FIXES
 
