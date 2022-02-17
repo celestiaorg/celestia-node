@@ -131,7 +131,7 @@ func (s *store) Stop(ctx context.Context) error {
 func (s *store) Head(ctx context.Context) (*ExtendedHeader, error) {
 	head, err := s.GetByHeight(ctx, s.heightSub.Height())
 	if err == nil {
-		return head, err
+		return head, nil
 	}
 
 	head, err = s.readHead(ctx)
