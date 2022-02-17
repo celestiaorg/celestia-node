@@ -6,7 +6,7 @@ Month, DD, YYYY
 
 ### BREAKING CHANGES
 
-- [node: Light node can be initialised with multiple trusted peers](https://github.com/celestiaorg/celestia-node/pull/455) [@vgonkivs](https://github.com/vgonkivs)
+- [node: Light node can be initialised with multiple trusted peers #455](https://github.com/celestiaorg/celestia-node/pull/455) [@vgonkivs](https://github.com/vgonkivs)
 - [chore: rename Repository to Store #296](https://github.com/celestiaorg/celestia-node/pull/296) [@Wondertan](https://github.com/Wondertan)
 - [chore: rename Full node to Bridge node #294](https://github.com/celestiaorg/celestia-node/pull/294) [@Wondertan](https://github.com/Wondertan)
 - [node: remove InitWith #291](https://github.com/celestiaorg/celestia-node/pull/291) [@Wondertan](https://github.com/Wondertan)
