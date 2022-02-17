@@ -119,8 +119,8 @@ func createP2PExAndServer(t *testing.T, host, tpeer libhost.Host) (Exchange, *mo
 	t.Cleanup(func() {
 		serverSideEx.Stop(context.Background()) //nolint:errcheck
 	})
-	ids := []peer.ID{tpeer.ID()}
-	return NewP2PExchange(host, ids), store
+
+	return NewP2PExchange(host, []peer.ID{tpeer.ID()}), store
 }
 
 type mockStore struct {

@@ -23,8 +23,6 @@ var exchangeProtocolID = protocol.ID("/header-ex/v0.0.1")
 type P2PExchange struct {
 	host host.Host
 
-	// TODO @renaynay: post-Devnet, we need to remove reliance of Exchange on one bootstrap peer
-	// Ref https://github.com/celestiaorg/celestia-node/issues/172#issuecomment-964306823.
 	trustedPeers peer.IDSlice
 }
 
@@ -98,6 +96,10 @@ func (ex *P2PExchange) RequestByHash(ctx context.Context, hash tmbytes.HexBytes)
 func (ex *P2PExchange) performRequest(ctx context.Context, req *pb.ExtendedHeaderRequest) ([]*ExtendedHeader, error) {
 	if req.Amount == 0 {
 		return make([]*ExtendedHeader, 0), nil
+	}
+
+	if len(ex.trustedPeers) == 0 {
+		return nil, fmt.Errorf("no trusted peer")
 	}
 
 	// nolint:gosec // G404: Use of weak random number generator
