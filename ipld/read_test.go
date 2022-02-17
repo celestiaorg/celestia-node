@@ -164,7 +164,7 @@ func TestRetrieveMaxBlockData(t *testing.T) {
 	require.NoError(t, err)
 
 	// limit with deadline, specifically retrieval
-	ctx, cancel := context.WithTimeout(parentCtx, time.Second*2)
+	ctx, cancel := context.WithTimeout(parentCtx, time.Second*50)
 	defer cancel()
 
 	dah := da.NewDataAvailabilityHeader(in)
