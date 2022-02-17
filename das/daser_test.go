@@ -20,13 +20,24 @@ func TestDASer(t *testing.T) {
 		Headers: []*header.ExtendedHeader{randHeader},
 	}
 
-	daser := NewDASer(shareServ, sub)
+	mockGet := new(mockGetter)
+
+	daser := NewDASer(shareServ, sub, mockGet, nil) // TODO @renaynay
 
 	wg := &sync.WaitGroup{}
 	wg.Add(1)
 	go func(wg *sync.WaitGroup) {
-		daser.sampling(context.Background(), sub)
+		daser.sampleLatest(context.Background(), sub)
 		wg.Done()
 	}(wg)
 	wg.Wait()
 }
+
+type mockGetter struct {
+
+}
+
+func (m mockGetter) GetByHeight(ctx context.Context, u uint64) (*header.ExtendedHeader, error) {
+	panic("implement me")
+}
+
