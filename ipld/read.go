@@ -34,7 +34,7 @@ func RetrieveData(
 		return fillQuarter(ctx, rowRoots, dag, true, dataSquare)
 	})
 	errGroup.Go(func() error {
-		return fillQuarter(ctx, rowRoots, dag, false, dataSquare)
+		return fillQuarter(ctx, colRoots, dag, false, dataSquare)
 	})
 
 	if err := errGroup.Wait(); err != nil {
@@ -47,14 +47,14 @@ func RetrieveData(
 // fillQuarter fetches 1/4 of shares for the given root
 func fillQuarter(
 	ctx context.Context,
-	data [][]byte, dag ipld.NodeGetter,
+	roots [][]byte, dag ipld.NodeGetter,
 	isRow bool,
 	dataSquare [][]byte,
 ) error {
 	errGroup, ctx := errgroup.WithContext(ctx)
 	fetcher := func(i int) {
 		errGroup.Go(func() error {
-			rootHash, err := plugin.CidFromNamespacedSha256(data[i])
+			rootHash, err := plugin.CidFromNamespacedSha256(roots[i])
 			if err != nil {
 				return err
 			}
@@ -63,7 +63,7 @@ func fillQuarter(
 				return err
 			}
 
-			leaves, err := GetLeaves(ctx, dag, subtreeRootHash, uint32(len(data)/2))
+			leaves, err := GetLeaves(ctx, dag, subtreeRootHash, uint32(len(roots)/2))
 			if err != nil {
 				return err
 			}
@@ -72,14 +72,14 @@ func fillQuarter(
 				// it's not needed to store data for cols
 				// as we are fetching data from the same share for rows and cols
 				if isRow {
-					dataSquare[(i*len(data))+leafIdx] = shareData[NamespaceSize:]
+					dataSquare[(i*len(roots))+leafIdx] = shareData[NamespaceSize:]
 				}
 			}
 			return err
 		})
 	}
 
-	for i := 0; i < len(data)/2; i++ {
+	for i := 0; i < len(roots)/2; i++ {
 		fetcher(i)
 	}
 	return errGroup.Wait()
