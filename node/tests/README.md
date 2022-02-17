@@ -30,7 +30,7 @@ For example, you will need to know the host of the first Celestia node to be abl
 ```go
 addrs, err := peer.AddrInfoToP2pAddrs(host.InfoFromHost(sw.Network.Host(bridge.Host.ID())))
 require.NoError(t, err)
-light := sw.NewLightClient(node.WithTrustedPeers(addrs[0].String()))
+light := sw.NewLightClient(node.WithTrustedPeer(addrs[0].String()))
 ```
 
 ## Concenptual overview
