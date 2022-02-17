@@ -40,7 +40,7 @@ func (hs *heightSub) SetHeight(height uint64) {
 // It can return errElapsedHeight, which means a requested header was already provided
 // and caller should get it elsewhere.
 func (hs *heightSub) Sub(ctx context.Context, height uint64) (*ExtendedHeader, error) {
-	if hs.Height() >= height {
+	if hs.Height() >= height || hs.Height() == 0 { // if height is zero - intentionally avoid subscribing
 		return nil, errElapsedHeight
 	}
 
