@@ -2,10 +2,10 @@ package ipld
 
 import (
 	"context"
-	"errors"
 
 	"github.com/ipfs/go-cid"
 	ipld "github.com/ipfs/go-ipld-format"
+	"golang.org/x/sync/errgroup"
 
 	"github.com/tendermint/tendermint/pkg/da"
 	"github.com/tendermint/tendermint/pkg/wrapper"
@@ -16,17 +16,10 @@ import (
 	"github.com/celestiaorg/rsmt2d"
 )
 
-var ErrRetrieveTimeout = errors.New("retrieve data timeout")
-
-type totalShares struct {
-	data [][]byte
-	err  chan error
-}
-
 // RetrieveData asynchronously fetches block data using the minimum number
 // of requests to IPFS. It fails if one of the random samples sampled is not available.
 func RetrieveData(
-	parentCtx context.Context,
+	ctx context.Context,
 	dah *da.DataAvailabilityHeader,
 	dag ipld.NodeGetter,
 	codec rsmt2d.Codec,
@@ -34,86 +27,89 @@ func RetrieveData(
 	edsWidth := len(dah.RowsRoots)
 	rowRoots := dah.RowsRoots
 	colRoots := dah.ColumnRoots
-	shares := &totalShares{
-		data: make([][]byte, edsWidth*edsWidth),
-		err:  make(chan error),
+	dataSquare := make([][]byte, edsWidth*edsWidth)
+
+	errGroup, ctx := errgroup.WithContext(ctx)
+	errGroup.Go(func() error {
+		return fillQuarter(ctx, rowRoots, dag, true, dataSquare)
+	})
+	errGroup.Go(func() error {
+		return fillQuarter(ctx, rowRoots, dag, false, dataSquare)
+	})
+
+	if err := errGroup.Wait(); err != nil {
+		return nil, err
 	}
-
-	ctx, cancel := context.WithCancel(parentCtx)
-	defer cancel()
-
-	go fillBlockWithData(ctx, rowRoots, dag, true, shares)
-	go fillBlockWithData(ctx, colRoots, dag, false, shares)
-
-	for i := 0; i < len(dah.RowsRoots); i++ {
-		select {
-		case err := <-shares.err:
-			if err != nil {
-				return nil, err
-			}
-		case <-ctx.Done():
-			return nil, ctx.Err()
-		}
-	}
-
 	tree := wrapper.NewErasuredNamespacedMerkleTree(uint64(edsWidth) / 2)
-	return rsmt2d.RepairExtendedDataSquare(rowRoots, colRoots, shares.data, codec, tree.Constructor)
+	return rsmt2d.RepairExtendedDataSquare(rowRoots, colRoots, dataSquare, codec, tree.Constructor)
 }
 
-// fillBlockWithData fetches 1/4 of shares for the given root
-func fillBlockWithData(
+// fillQuarter fetches 1/4 of shares for the given root
+func fillQuarter(
 	ctx context.Context,
 	data [][]byte, dag ipld.NodeGetter,
 	isRow bool,
-	f *totalShares,
-) {
-	for i := 0; i < len(data)/2; i++ {
-		go func(i int) {
+	dataSquare [][]byte,
+) error {
+	errGroup, ctx := errgroup.WithContext(ctx)
+	fetcher := func(i int) {
+		errGroup.Go(func() error {
 			rootHash, err := plugin.CidFromNamespacedSha256(data[i])
 			if err != nil {
-				f.err <- err
-				return
+				return err
 			}
-			subtreeRootHash, err := getHalfTreeNodeHash(ctx, rootHash, dag, true)
+			subtreeRootHash, err := GetSubtreeLeaves(ctx, rootHash, dag, true)
 			if err != nil {
-				f.err <- err
-				return
+				return err
 			}
 
-			leafs, err := GetLeafs(ctx, dag, *subtreeRootHash)
+			leaves, err := GetLeaves(ctx, dag, subtreeRootHash, uint32(len(data)/2))
 			if err != nil {
-				f.err <- err
-				return
+				return err
 			}
-			for leafIdx, leaf := range leafs {
+			for leafIdx, leaf := range leaves {
 				shareData := leaf.RawData()[1:]
 				// it's not needed to store data for cols
 				// as we are fetching data from the same share for rows and cols
 				if isRow {
-					f.data[(i*len(data))+leafIdx] = shareData[NamespaceSize:]
+					dataSquare[(i*len(data))+leafIdx] = shareData[NamespaceSize:]
 				}
 			}
-			f.err <- nil
-		}(i)
+			return err
+		})
 	}
+
+	for i := 0; i < len(data)/2; i++ {
+		fetcher(i)
+	}
+	return errGroup.Wait()
 }
 
-// getHalfTreeNodeHash returns only one subtree - left or right
-func getHalfTreeNodeHash(ctx context.Context, root cid.Cid, dag ipld.NodeGetter, isLeftSubtree bool) (*cid.Cid, error) {
+// GetSubtreeLeaves returns only one subtree - left or right
+func GetSubtreeLeaves(ctx context.Context, root cid.Cid, dag ipld.NodeGetter, isLeftSubtree bool) (cid.Cid, error) {
 	nd, err := dag.Get(ctx, root)
 	if err != nil {
-		return nil, err
+		return cid.Cid{}, err
 	}
 	links := nd.Links()
 	if isLeftSubtree || len(links) == 1 {
-		return &links[0].Cid, nil
+		return links[0].Cid, nil
 	}
 
-	return &links[1].Cid, nil
+	return links[1].Cid, nil
 }
 
-// GetLeafs recursively starts going down to find all leafs from the given root
-func GetLeafs(ctx context.Context, dag ipld.NodeGetter, root cid.Cid) (leafs []ipld.Node, err error) {
+func GetLeaves(ctx context.Context, dag ipld.NodeGetter, root cid.Cid, size uint32) ([]ipld.Node, error) {
+	leaves, err := getLeaves(ctx, dag, root, make([]ipld.Node, 0, size))
+	if err != nil {
+		return nil, err
+	}
+
+	return leaves, nil
+}
+
+// getLeaves recursively starts going down to find all leafs from the given root
+func getLeaves(ctx context.Context, dag ipld.NodeGetter, root cid.Cid, leaves []ipld.Node) ([]ipld.Node, error) {
 	// request the node
 	nd, err := dag.Get(ctx, root)
 	if err != nil {
@@ -128,20 +124,18 @@ func GetLeafs(ctx context.Context, dag ipld.NodeGetter, root cid.Cid) (leafs []i
 		if err != nil {
 			return nil, err
 		}
-		leafs = append(leafs, nd)
-		return
+
+		return append(leaves, nd), nil
 	}
 
 	for _, node := range lnks {
-		// recursively walk down through selected children to get the leafs
-		l, err := GetLeafs(ctx, dag, node.Cid)
+		// recursively walk down through selected children to get the leaves
+		leaves, err = getLeaves(ctx, dag, node.Cid, leaves)
 		if err != nil {
 			return nil, err
 		}
-
-		leafs = append(leafs, l...)
 	}
-	return
+	return leaves, nil
 }
 
 // GetLeafData fetches and returns the data for leaf leafIndex of root rootCid.
