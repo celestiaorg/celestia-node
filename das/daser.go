@@ -26,8 +26,9 @@ type DASer struct {
 	// checkpoint = latest successfully DASed header (reference to it, not the header)
 	ds datastore.Datastore
 
-	cancel context.CancelFunc
-	done   chan struct{}
+	cancel             context.CancelFunc
+	sampleLatestDn     chan struct{} // done signal for sampleLatest loop
+	sampleCheckpointDn chan struct{} // done signal for sampleFromCheckpoint loop
 }
 
 // NewDASer creates a new DASer.
@@ -38,11 +39,12 @@ func NewDASer(
 	ds datastore.Datastore,
 ) *DASer {
 	return &DASer{
-		da:     da,
-		hsub:   hsub,
-		getter: getter,
-		ds:     ds,
-		done:   make(chan struct{}),
+		da:                 da,
+		hsub:               hsub,
+		getter:             getter,
+		ds:                 ds,
+		sampleLatestDn:     make(chan struct{}),
+		sampleCheckpointDn: make(chan struct{}),
 	}
 }
 
@@ -64,7 +66,8 @@ func (d *DASer) Start(ctx context.Context) error {
 	}
 	log.Infow("loaded latest DASed checkpoint", "height", checkpoint)
 
-	// load current network head // TODO @renaynay: do we have to sample over netHead as well or will that be handled by sampleLatest via hsub?
+	// load current network head
+	// TODO @renaynay: do we have to sample over netHead as well or will that be handled by sampleLatest via hsub?
 	netHead, err := d.getter.Head(ctx)
 	if err != nil {
 		return err
@@ -79,7 +82,7 @@ func (d *DASer) Start(ctx context.Context) error {
 	//    gossipsub topic (samples new inbound headers in the
 	//    network)
 	go d.sampleFromCheckpoint(dasCtx, checkpoint, netHead.Height)
-	go d.sampleLatest(dasCtx, sub)
+	go d.sampleLatest(dasCtx, sub, checkpoint)
 
 	d.cancel = cancel
 	return nil
@@ -88,14 +91,20 @@ func (d *DASer) Start(ctx context.Context) error {
 // Stop stops sampling.
 func (d *DASer) Stop(ctx context.Context) error {
 	d.cancel()
-	select {
-	// TODO @renaynay: add done case for sampleCheckpoint
-	case <-d.done:
-		d.cancel = nil
-		return nil
-	case <-ctx.Done():
-		return ctx.Err()
+	// wait for both sampling routines to exit
+	for i := 0; i < 2; i++ {
+		select {
+		// TODO @renaynay: check to ensure if sampleCheckpoint already done when stop called, then still works
+		case <-d.sampleCheckpointDn:
+			continue
+		case <-d.sampleLatestDn:
+			continue
+		case <-ctx.Done():
+			return ctx.Err()
+		}
 	}
+	d.cancel = nil
+	return nil
 }
 
 // sampleFromCheckpoint starts sampling headers from the last known
@@ -108,6 +117,7 @@ func (d *DASer) Stop(ctx context.Context) error {
 // 2b. DAS on that height
 // 2c. stop when height == network height
 func (d *DASer) sampleFromCheckpoint(ctx context.Context, checkpoint, netHead int64) {
+	defer close(d.sampleCheckpointDn)
 	// immediately break if DASer is up to speed with network head
 	if checkpoint+1 == netHead { // TODO @renaynay: test this scenario
 		log.Debugw("caught up to network head", "net head", netHead)
@@ -145,10 +155,23 @@ func (d *DASer) sampleFromCheckpoint(ctx context.Context, checkpoint, netHead in
 	}
 }
 
-// sampleLatest validates availability for each Header received from header subscription. // TODO renaynay: rename to sampleLatest
-func (d *DASer) sampleLatest(ctx context.Context, sub header.Subscription) {
-	defer sub.Cancel()
-	defer close(d.done)
+// sampleLatest validates availability for each Header received from header subscription.
+func (d *DASer) sampleLatest(ctx context.Context, sub header.Subscription, checkpoint int64) {
+	height := checkpoint
+
+	defer func() {
+		// store latest DASed checkpoint to disk
+		// TODO @renaynay: what sampleLatest DASes [100:150] and
+		//  stores latest checkpoint to disk as network head (150)
+		// 	but sampleFromCheckpoint routine has only sampled from [1:40] so there is a gap
+		//  missing from (40: 100)?
+		if err := storeCheckpoint(d.ds, height); err != nil {
+			log.Errorw("storing latest DASed checkpoint to disk", "height", height, "err", err)
+		}
+		sub.Cancel()
+		close(d.sampleLatestDn)
+	}()
+
 	for {
 		h, err := sub.NextHeader(ctx)
 		if err != nil {
@@ -175,5 +198,7 @@ func (d *DASer) sampleLatest(ctx context.Context, sub header.Subscription) {
 		sampleTime := time.Since(startTime)
 		log.Infow("sampling successful", "height", h.Height, "hash", h.Hash(),
 			"square width", len(h.DAH.RowsRoots), "finished (s)", sampleTime.Seconds())
+
+		height = h.Height
 	}
 }

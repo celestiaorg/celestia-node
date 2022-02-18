@@ -2,6 +2,7 @@ package das
 
 import (
 	"context"
+
 	"github.com/celestiaorg/celestia-node/service/header"
 )
 

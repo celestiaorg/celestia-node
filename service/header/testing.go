@@ -228,7 +228,13 @@ func (mhs *DummySubscriber) Subscribe() (Subscription, error) {
 
 func (mhs *DummySubscriber) NextHeader(ctx context.Context) (*ExtendedHeader, error) {
 	defer func() {
-		mhs.Headers = make([]*ExtendedHeader, 0)
+		if len(mhs.Headers) > 1 {
+			// pop the already-returned header
+			cp := mhs.Headers
+			mhs.Headers = cp[1:]
+		} else {
+			mhs.Headers = make([]*ExtendedHeader, 0)
+		}
 	}()
 	if len(mhs.Headers) == 0 {
 		return nil, context.Canceled

@@ -2,7 +2,6 @@ package das
 
 import (
 	"encoding/binary"
-
 	"github.com/ipfs/go-datastore"
 	"github.com/ipfs/go-datastore/namespace"
 )
@@ -39,8 +38,6 @@ func loadCheckpoint(ds datastore.Datastore) (int64, error) {
 	return int64(binary.BigEndian.Uint64(checkpoint)), err
 }
 
-// TODO @renaynay: document
-
 // storeCheckpoint stores the given DAS checkpoint to disk.
 func storeCheckpoint(ds datastore.Datastore, checkpoint int64) error {
 	buf := make([]byte, 8)
@@ -48,4 +45,3 @@ func storeCheckpoint(ds datastore.Datastore, checkpoint int64) error {
 
 	return ds.Put(checkpointKey, buf)
 }
-
