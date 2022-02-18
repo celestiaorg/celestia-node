@@ -2,6 +2,9 @@ package cmd
 
 import (
 	"fmt"
+	"log"
+	"net/http"
+	"net/http/pprof"
 
 	logging "github.com/ipfs/go-log/v2"
 	"github.com/spf13/cobra"
@@ -12,6 +15,7 @@ import (
 
 var (
 	logLevelFlag = "log.level"
+	pprofFlag    = "pprof"
 )
 
 // MiscFlags gives a set of hardcoded miscellaneous flags.
@@ -23,6 +27,12 @@ func MiscFlags() *flag.FlagSet {
 		"INFO",
 		`DEBUG, INFO, WARN, ERROR, DPANIC, PANIC, FATAL
 and their lower-case forms`,
+	)
+
+	flags.Bool(
+		pprofFlag,
+		false,
+		"Enables std pprof handler to collect profiles",
 	)
 
 	return flags
@@ -38,6 +48,21 @@ func ParseMiscFlags(cmd *cobra.Command) error {
 		}
 
 		logs.SetAllLoggers(level)
+	}
+
+	if ok, err := cmd.Flags().GetBool(pprofFlag); ok && err == nil {
+		// TODO(@Wondertan): Eventually, this should be registered on http server in RPC
+		go func() {
+			mux := http.NewServeMux()
+			mux.HandleFunc("/debug/pprof/", pprof.Index)
+			mux.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
+			mux.HandleFunc("/debug/pprof/profile", pprof.Profile)
+			mux.HandleFunc("/debug/pprof/symbol", pprof.Symbol)
+			mux.HandleFunc("/debug/pprof/trace", pprof.Trace)
+			log.Println(http.ListenAndServe("0.0.0.0:6000", mux))
+		}()
+	} else if err != nil {
+		return err
 	}
 
 	return nil
