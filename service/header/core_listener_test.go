@@ -17,23 +17,22 @@ import (
 
 // TestCoreListener tests the lifecycle of the core listener.
 func TestCoreListener(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*15)
+	t.Cleanup(cancel)
+
 	// create mocknet with two pubsub endpoints
-	ps1, ps2 := createMocknetWithTwoPubsubEndpoints(t)
+	ps0, ps1 := createMocknetWithTwoPubsubEndpoints(ctx, t)
 	// create second subscription endpoint to listen for CoreListener's pubsub messages
-	topic2, err := ps2.Join(PubSubTopic)
+	topic, err := ps1.Join(PubSubTopic)
 	require.NoError(t, err)
-	sub, err := topic2.Subscribe()
+	sub, err := topic.Subscribe()
 	require.NoError(t, err)
 
 	// create one block to store as Head in local store and then unsubscribe from block events
 	fetcher := createCoreFetcher(t)
 
 	// create CoreListener and start listening
-	cl := createCoreListener(t, fetcher, ps1)
-
-	ctx, cancel := context.WithCancel(context.Background())
-	t.Cleanup(cancel)
-
+	cl := createCoreListener(t, fetcher, ps0)
 	err = cl.Start(ctx)
 	require.NoError(t, err)
 
@@ -53,10 +52,7 @@ func TestCoreListener(t *testing.T) {
 	require.Nil(t, cl.cancel)
 }
 
-func createMocknetWithTwoPubsubEndpoints(t *testing.T) (*pubsub.PubSub, *pubsub.PubSub) {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*15)
-	t.Cleanup(cancel)
-
+func createMocknetWithTwoPubsubEndpoints(ctx context.Context, t *testing.T) (*pubsub.PubSub, *pubsub.PubSub) {
 	net, err := mocknet.FullMeshLinked(context.Background(), 2)
 	require.NoError(t, err)
 	host0, host1 := net.Hosts()[0], net.Hosts()[1]
