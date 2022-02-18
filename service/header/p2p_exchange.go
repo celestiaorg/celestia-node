@@ -99,7 +99,7 @@ func (ex *P2PExchange) performRequest(ctx context.Context, req *pb.ExtendedHeade
 	}
 
 	if len(ex.trustedPeers) == 0 {
-		return nil, fmt.Errorf("no trusted peer")
+		return nil, fmt.Errorf("no trusted peers")
 	}
 
 	// nolint:gosec // G404: Use of weak random number generator
