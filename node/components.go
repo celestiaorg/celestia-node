@@ -2,6 +2,11 @@ package node
 
 import (
 	"context"
+	"time"
+
+	logging "github.com/ipfs/go-log/v2"
+	"github.com/raulk/go-watchdog"
+	"go.uber.org/fx"
 
 	nodecore "github.com/celestiaorg/celestia-node/node/core"
 	"github.com/celestiaorg/celestia-node/node/fxutil"
@@ -48,6 +53,33 @@ func baseComponents(cfg *Config, store Store) fxutil.Option {
 		fxutil.Provide(services.HeaderSyncer),
 		fxutil.ProvideAs(services.P2PSubscriber, new(header.Broadcaster), new(header.Subscriber)),
 		fxutil.Provide(services.HeaderP2PExchangeServer),
+		fxutil.Invoke(invkWatchdog(store.Path())),
 		p2p.Components(cfg.P2P),
 	)
 }
+
+func invkWatchdog(pprofdir string) func(lc fx.Lifecycle) error {
+	return func(lc fx.Lifecycle) error {
+		// to get watchdog information logged out
+		watchdog.Logger = logWatchdog
+		// these set up heap pprof auto capturing on disk when threshold hit 90% usage
+		watchdog.HeapProfileDir = pprofdir
+		watchdog.HeapProfileMaxCaptures = 10
+		watchdog.HeapProfileThreshold = 0.9
+
+		policy := watchdog.NewWatermarkPolicy(0.50, 0.60, 0.70, 0.85, 0.90, 0.925, 0.95)
+		err, stop := watchdog.SystemDriven(0, time.Second*5, policy)
+		if err != nil {
+			return err
+		}
+		lc.Append(fx.Hook{
+			OnStop: func(context.Context) error {
+				stop()
+				return nil
+			},
+		})
+		return nil
+	}
+}
+
+var logWatchdog = logging.Logger("watchdog")
