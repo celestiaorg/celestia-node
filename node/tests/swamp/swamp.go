@@ -13,6 +13,7 @@ import (
 	ma "github.com/multiformats/go-multiaddr"
 	"github.com/stretchr/testify/require"
 	tn "github.com/tendermint/tendermint/node"
+	coretypes "github.com/tendermint/tendermint/rpc/core/types"
 	rpctest "github.com/tendermint/tendermint/rpc/test"
 	"github.com/tendermint/tendermint/types"
 
@@ -96,6 +97,13 @@ func (s *Swamp) stopAllNodes(ctx context.Context, allNodes ...[]*node.Node) {
 			require.NoError(s.t, node.Stop(ctx))
 		}
 	}
+}
+
+// GetCoreBlockByHeight returns a tendermint block by height
+func (s *Swamp) GetCoreBlockByHeight(ctx context.Context, height *int64) *coretypes.ResultBlock {
+	b, err := s.CoreClient.Block(ctx, height)
+	require.NoError(s.t, err)
+	return b
 }
 
 // WaitTillHeight holds the test execution until the given amount of blocks
@@ -226,4 +234,38 @@ func (s *Swamp) NewLightNodeWithStore(store node.Store, options ...node.Option) 
 	s.LightNodes = append(s.LightNodes, node)
 
 	return node
+}
+
+// RemoveNode removes a node from the swamp's node slice
+// this allows reusage of the same var in the test scenario
+// if the user needs to stop and start the same node
+func (s *Swamp) RemoveNode(n *node.Node, t node.Type) error {
+	switch t {
+	case node.Light:
+		return s.remove(n, s.LightNodes)
+	case node.Bridge:
+		return s.remove(n, s.BridgeNodes)
+	default:
+		return fmt.Errorf("no such type or node")
+	}
+}
+
+func (s *Swamp) remove(rn *node.Node, sn []*node.Node) error {
+	if len(sn) == 1 {
+		sn = nil
+		return nil
+	}
+
+	initSize := len(sn)
+	for i := 0; i < len(sn); i++ {
+		if sn[i] == rn {
+			sn = append(sn[:i], sn[i+1:]...)
+			i--
+		}
+	}
+
+	if initSize <= len(sn) {
+		return fmt.Errorf("cannot delete the node")
+	}
+	return nil
 }
