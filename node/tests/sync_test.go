@@ -2,8 +2,8 @@ package tests
 
 import (
 	"context"
+	"fmt"
 	"testing"
-	"time"
 
 	"github.com/libp2p/go-libp2p-core/host"
 	"github.com/libp2p/go-libp2p-core/peer"
@@ -37,17 +37,23 @@ func TestSyncLightWithBridge(t *testing.T) {
 
 	err := bridge.Start(ctx)
 	require.NoError(t, err)
-	time.Sleep(1 * time.Second)
-	assert.False(t, bridge.HeaderServ.IsSyncing())
+	h, err := bridge.HeaderServ.GetByHeight(ctx, 20)
+	require.NoError(t, err)
+	fmt.Println(h.Commit.Hash().String())
 
 	addrs, err := peer.AddrInfoToP2pAddrs(host.InfoFromHost(sw.Network.Host(bridge.Host.ID())))
 	require.NoError(t, err)
 	light := sw.NewLightNode(node.WithTrustedPeer(addrs[0].String()))
 
-	require.NoError(t, sw.Network.LinkAll())
 	err = light.Start(ctx)
 	require.NoError(t, err)
 
-	time.Sleep(1 * time.Second)
-	assert.False(t, light.HeaderServ.IsSyncing())
+	h, err = light.HeaderServ.GetByHeight(ctx, 30)
+	require.NoError(t, err)
+
+	var ch int64 = 30
+	b, err := sw.CoreClient.Block(ctx, &ch)
+	require.NoError(t, err)
+
+	assert.EqualValues(t, h.Commit.BlockID.Hash, b.BlockID.Hash)
 }

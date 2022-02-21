@@ -144,6 +144,7 @@ func (s *Swamp) createPeer(ks keystore.Keystore) host.Host {
 	host, err := s.Network.AddPeer(key, a)
 	require.NoError(s.t, err)
 
+	require.NoError(s.t, s.Network.LinkAll())
 	return host
 }
 

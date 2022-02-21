@@ -45,7 +45,11 @@ func (s *Service) Stop(context.Context) error {
 	return nil
 }
 
-// TODO(@Bidon15): Issue #351
+// GetByHeight returns the ExtendedHeader by a provided height
+// This is a blocking call until the height is reached or context deadline is exceeded
+func (s *Service) GetByHeight(ctx context.Context, height uint64) (*ExtendedHeader, error) {
+	return s.syncer.store.GetByHeight(ctx, height)
+}
 
 // IsSyncing returns the status of sync
 func (s *Service) IsSyncing() bool {
