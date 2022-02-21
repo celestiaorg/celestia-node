@@ -19,29 +19,34 @@ import (
 // RetrieveData asynchronously fetches block data using the minimum number
 // of requests to IPFS. It fails if one of the random samples sampled is not available.
 func RetrieveData(
-	ctx context.Context,
+	parentCtx context.Context,
 	dah *da.DataAvailabilityHeader,
-	dag ipld.NodeGetter,
+	dag ipld.DAGService,
 	codec rsmt2d.Codec,
 ) (*rsmt2d.ExtendedDataSquare, error) {
 	edsWidth := len(dah.RowsRoots)
 	rowRoots := dah.RowsRoots
-	colRoots := dah.ColumnRoots
 	dataSquare := make([][]byte, edsWidth*edsWidth)
 
-	errGroup, ctx := errgroup.WithContext(ctx)
-	errGroup.Go(func() error {
-		return fillQuarter(ctx, rowRoots, dag, true, dataSquare)
-	})
-	errGroup.Go(func() error {
-		return fillQuarter(ctx, colRoots, dag, false, dataSquare)
-	})
+	chunk := make([][]byte, edsWidth/2)
+	copy(chunk, rowRoots[:edsWidth/2])
 
+	errGroup, ctx := errgroup.WithContext(parentCtx)
+	errGroup.Go(func() error {
+		return fillQuarter(ctx, chunk, dag, true, dataSquare)
+	})
 	if err := errGroup.Wait(); err != nil {
 		return nil, err
 	}
-	tree := wrapper.NewErasuredNamespacedMerkleTree(uint64(edsWidth) / 2)
-	return rsmt2d.RepairExtendedDataSquare(rowRoots, colRoots, dataSquare, codec, tree.Constructor)
+
+	batchAdder := NewNmtNodeAdder(parentCtx, ipld.NewBatch(parentCtx, dag, ipld.MaxSizeBatchOption(BatchSize)))
+	tree := wrapper.NewErasuredNamespacedMerkleTree(uint64(edsWidth)/2, nmt.NodeVisitor(batchAdder.Visit))
+	extended, err := rsmt2d.RepairExtendedDataSquare(dah.RowsRoots, dah.ColumnRoots, dataSquare, codec, tree.Constructor)
+	if err != nil {
+		return nil, err
+	}
+
+	return extended, batchAdder.Commit()
 }
 
 // fillQuarter fetches 1/4 of shares for the given root
@@ -63,7 +68,7 @@ func fillQuarter(
 				return err
 			}
 
-			leaves, err := GetLeaves(ctx, dag, subtreeRootHash, uint32(len(roots)/2))
+			leaves, err := GetLeaves(ctx, dag, subtreeRootHash, uint32(len(roots)))
 			if err != nil {
 				return err
 			}
@@ -72,14 +77,14 @@ func fillQuarter(
 				// it's not needed to store data for cols
 				// as we are fetching data from the same share for rows and cols
 				if isRow {
-					dataSquare[(i*len(roots))+leafIdx] = shareData[NamespaceSize:]
+					dataSquare[(i*len(roots)*2)+leafIdx] = shareData[NamespaceSize:]
 				}
 			}
 			return err
 		})
 	}
 
-	for i := 0; i < len(roots)/2; i++ {
+	for i := 0; i < len(roots); i++ {
 		fetcher(i)
 	}
 	return errGroup.Wait()

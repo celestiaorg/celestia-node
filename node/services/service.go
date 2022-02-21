@@ -154,6 +154,6 @@ func LightAvailability(ctx context.Context, lc fx.Lifecycle, dag ipld.DAGService
 	return share.NewLightAvailability(merkledag.NewSession(fxutil.WithLifecycle(ctx, lc), dag))
 }
 
-func FullAvailability(ctx context.Context, lc fx.Lifecycle, dag ipld.DAGService) share.Availability {
-	return share.NewFullAvailability(merkledag.NewSession(fxutil.WithLifecycle(ctx, lc), dag))
+func FullAvailability(dag ipld.DAGService) share.Availability {
+	return share.NewFullAvailability(dag)
 }
