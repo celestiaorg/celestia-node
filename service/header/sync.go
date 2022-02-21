@@ -217,8 +217,10 @@ func (s *Syncer) processIncoming(ctx context.Context, maybeHead *ExtendedHeader)
 	var verErr *VerifyError
 	if errors.As(err, &verErr) {
 		log.Errorw("invalid header",
-			"height", maybeHead.Height,
-			"hash", maybeHead.Hash(),
+			"height_of_invalid", maybeHead.Height,
+			"hash_of_invalid", maybeHead.Hash(),
+			"height_of_trusted", trstHead.Height,
+			"hash_of_trusted", trstHead.Hash(),
 			"reason", verErr.Reason)
 		return pubsub.ValidationReject
 	}
@@ -228,7 +230,7 @@ func (s *Syncer) processIncoming(ctx context.Context, maybeHead *ExtendedHeader)
 	s.pending.Add(maybeHead)
 	// and trigger sync to catch-up
 	s.wantSync()
-	log.Infow("new pending head",
+	log.Infow("pending head",
 		"height", maybeHead.Height,
 		"hash", maybeHead.Hash())
 	return pubsub.ValidationAccept
@@ -270,15 +272,15 @@ func (s *Syncer) syncTo(ctx context.Context, newHead *ExtendedHeader) {
 }
 
 // doSync performs actual syncing updating the internal SyncState
-func (s *Syncer) doSync(ctx context.Context, oldHead, newHead *ExtendedHeader) (err error) {
-	from, to := uint64(oldHead.Height)+1, uint64(newHead.Height)
+func (s *Syncer) doSync(ctx context.Context, fromHead, toHead *ExtendedHeader) (err error) {
+	from, to := uint64(fromHead.Height)+1, uint64(toHead.Height)
 
 	s.stateLk.Lock()
 	s.state.ID++
 	s.state.FromHeight = from
 	s.state.ToHeight = to
-	s.state.FromHash = oldHead.Hash()
-	s.state.ToHash = newHead.Hash()
+	s.state.FromHash = fromHead.Hash()
+	s.state.ToHash = toHead.Hash()
 	s.state.Start = time.Now()
 	s.stateLk.Unlock()
 
