@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
@@ -34,10 +33,6 @@ type Syncer struct {
 	// stateLk protects state which represents the current or latest sync
 	stateLk sync.RWMutex
 	state   SyncState
-	// inProgress is set to 1 once syncing commences and
-	// is set to 0 once syncing is either finished or
-	// not currently in progress
-	inProgress uint64
 	// signals to start syncing
 	triggerSync chan struct{}
 	// pending keeps ranges of valid headers received from the network awaiting to be appended to store
@@ -79,11 +74,6 @@ func (s *Syncer) Stop(context.Context) error {
 	s.cancel()
 	s.cancel = nil
 	return nil
-}
-
-// IsSyncing returns the current sync status of the Syncer.
-func (s *Syncer) IsSyncing() bool {
-	return atomic.LoadUint64(&s.inProgress) == 1
 }
 
 // WaitSync blocks until ongoing sync is done.
@@ -175,11 +165,6 @@ func (s *Syncer) syncLoop(ctx context.Context) {
 
 // sync ensures we are synced up to any trusted header.
 func (s *Syncer) sync(ctx context.Context) {
-	// indicate syncing
-	atomic.StoreUint64(&s.inProgress, 1)
-	// indicate syncing is stopped
-	defer atomic.StoreUint64(&s.inProgress, 0)
-
 	trstHead, err := s.trustedHead(ctx)
 	if err != nil {
 		log.Errorw("getting trusted head", "err", err)
