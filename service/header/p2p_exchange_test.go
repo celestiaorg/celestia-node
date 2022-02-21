@@ -153,6 +153,10 @@ func (m *mockStore) Init(context.Context, *ExtendedHeader) error { return nil }
 func (m *mockStore) Start(context.Context) error                 { return nil }
 func (m *mockStore) Stop(context.Context) error                  { return nil }
 
+func (m *mockStore) Height() uint64 {
+	return uint64(m.headHeight)
+}
+
 func (m *mockStore) Head(context.Context) (*ExtendedHeader, error) {
 	return m.headers[m.headHeight], nil
 }

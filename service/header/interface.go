@@ -83,6 +83,9 @@ type Store interface {
 	// Init initializes Store with the given head, meaning it is initialized with the genesis header.
 	Init(context.Context, *ExtendedHeader) error
 
+	// Height reports current height of the chain head.
+	Height() uint64
+
 	// Head returns the ExtendedHeader of the chain head.
 	Head(context.Context) (*ExtendedHeader, error)
 
