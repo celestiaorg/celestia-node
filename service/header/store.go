@@ -14,9 +14,9 @@ import (
 // TODO(@Wondertan): Those values must be configurable and proper defaults should be set for specific node type.
 var (
 	// DefaultStoreCacheSize defines the amount of max entries allowed in the Header Store cache.
-	DefaultStoreCacheSize = 10240
+	DefaultStoreCacheSize = 4096
 	// DefaultIndexCacheSize defines the amount of max entries allowed in the Height to Hash index cache.
-	DefaultIndexCacheSize = 2048
+	DefaultIndexCacheSize = 16384
 	// DefaultWriteBatchSize defines the size of the batched header write.
 	// Headers are written in batches not to thrash the underlying Datastore with writes.
 	DefaultWriteBatchSize = 2048
