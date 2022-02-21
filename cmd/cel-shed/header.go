@@ -36,6 +36,11 @@ Custom store path is not supported yet.`,
 			return fmt.Errorf("invalid node-type")
 		}
 
+		height, err := strconv.Atoi(args[1])
+		if err != nil {
+			return fmt.Errorf("invalid height: %w", err)
+		}
+
 		store, err := node.OpenStore(fmt.Sprintf("~/.celestia-%s", strings.ToLower(tp.String())), tp)
 		if err != nil {
 			return err
@@ -49,11 +54,6 @@ Custom store path is not supported yet.`,
 		hstore, err := header.NewStore(ds)
 		if err != nil {
 			return err
-		}
-
-		height, err := strconv.Atoi(args[1])
-		if err != nil {
-			return fmt.Errorf("ivalid height: %w", err)
 		}
 
 		newHead, err := hstore.GetByHeight(cmd.Context(), uint64(height))
