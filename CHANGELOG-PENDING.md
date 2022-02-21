@@ -12,6 +12,7 @@ Month, DD, YYYY
 
 ### FEATURES
 
+- [feat(cmd): cli flag to enable http/pprof handler to capture profiles #463](https://github.com/celestiaorg/celestia-node/pull/463) [@Wondertan](https://github.com/Wondertan)
 - [service/header: SyncState #397](https://github.com/celestiaorg/celestia-node/pull/397) [@Wondertan](https://github.com/Wondertan)
 - [feat(service/header): HeightSub #428](https://github.com/celestiaorg/celestia-node/pull/428) [@Wondertan](https://github.com/Wondertan)
 - [params: Define Network Types #346](https://github.com/celestiaorg/celestia-node/pull/346) [@Wondertan](https://github.com/Wondertan)
