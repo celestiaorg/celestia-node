@@ -13,20 +13,16 @@ import (
 	"github.com/tendermint/tendermint/pkg/wrapper"
 )
 
-// BatchSize defines an amount of IPLD Nodes to be buffered and written at once.
-// TODO(@Wondertan): Should rely on biggest extended block size param instead
-const BatchSize = 16384 // (128*128 so we flush big blocks in one IO write) //
-
 // PutData posts erasured block data to IPFS using the provided ipld.NodeAdder.
 func PutData(ctx context.Context, shares [][]byte, adder ipld.NodeAdder) (*rsmt2d.ExtendedDataSquare, error) {
 	if len(shares) == 0 {
 		return nil, fmt.Errorf("empty data") // empty block is not an empty Data
 	}
-	// create nmt adder wrapping batch adder
-	batchAdder := NewNmtNodeAdder(ctx, ipld.NewBatch(ctx, adder, ipld.MaxSizeBatchOption(BatchSize)))
+	squareSize := int(math.Sqrt(float64(len(shares))))
+	// create nmt adder wrapping batch adder with calculated size
+	batchAdder := NewNmtNodeAdder(ctx, ipld.NewBatch(ctx, adder, ipld.MaxSizeBatchOption(batchSize(squareSize))))
 	// create the nmt wrapper to generate row and col commitments
-	squareSize := uint64(math.Sqrt(float64(len(shares))))
-	tree := wrapper.NewErasuredNamespacedMerkleTree(squareSize, nmt.NodeVisitor(batchAdder.Visit))
+	tree := wrapper.NewErasuredNamespacedMerkleTree(uint64(squareSize), nmt.NodeVisitor(batchAdder.Visit))
 	// recompute the eds
 	eds, err := rsmt2d.ComputeExtendedDataSquare(shares, rsmt2d.NewRSGF8Codec(), tree.Constructor)
 	if err != nil {
@@ -51,4 +47,13 @@ func ExtractODSShares(eds *rsmt2d.ExtendedDataSquare) [][]byte {
 		}
 	}
 	return origShares
+}
+
+// batchSize calculates the amount of nodes that are generated from block of 'squareSizes'
+// to be batched in one write.
+func batchSize(squareSize int) int {
+	// (squareSize*squareSize) - all the shares
+	// (squareSize*2-1) - amount of nodes in a generated binary tree
+	// *squareSize*2 - multiplier for the amount of trees, both over rows and cols
+	return squareSize*squareSize + (squareSize*2-1)*squareSize*2
 }
