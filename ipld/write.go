@@ -20,7 +20,8 @@ func PutData(ctx context.Context, shares [][]byte, adder ipld.NodeAdder) (*rsmt2
 	}
 	squareSize := int(math.Sqrt(float64(len(shares))))
 	// create nmt adder wrapping batch adder with calculated size
-	batchAdder := NewNmtNodeAdder(ctx, ipld.NewBatch(ctx, adder, ipld.MaxSizeBatchOption(batchSize(squareSize))))
+	bs := batchSize(squareSize * 2)
+	batchAdder := NewNmtNodeAdder(ctx, ipld.NewBatch(ctx, adder, ipld.MaxSizeBatchOption(bs)))
 	// create the nmt wrapper to generate row and col commitments
 	tree := wrapper.NewErasuredNamespacedMerkleTree(uint64(squareSize), nmt.NodeVisitor(batchAdder.Visit))
 	// recompute the eds
