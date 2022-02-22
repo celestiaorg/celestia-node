@@ -32,7 +32,7 @@ and their lower-case forms`,
 	flags.Bool(
 		pprofFlag,
 		false,
-		"Enables std pprof handler to collect profiles",
+		"Enables standard profiling handler (pprof) and exposes the profiles on port 6000",
 	)
 
 	return flags
