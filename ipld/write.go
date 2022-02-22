@@ -53,15 +53,16 @@ func ExtractODSShares(eds *rsmt2d.ExtendedDataSquare) [][]byte {
 // batchSize calculates the amount of nodes that are generated from block of 'squareSizes'
 // to be batched in one write.
 func batchSize(squareSize int) int {
-	// (squareSize*squareSize) - all the shares
 	// (squareSize*2-1) - amount of nodes in a generated binary tree
-	// *squareSize*2 - multiplier for the amount of trees, both over rows and cols
+	// squareSize*2 - the total number of trees, both for rows and cols
+	// (squareSize*squareSize) - all the shares
 	//
-	// Note that our IPLD tree looks like:
+	// Note that while our IPLD tree looks like this:
 	// ---X
 	// -X---X
 	// X-X-X-X
 	// X-X-X-X
-	// So we count leaves two times here for a reason. https://github.com/celestiaorg/celestia-node/issues/183
+	// here we count leaves only once: the CIDs are the same for columns and wows
+	// and for the last two layers as well:
 	return (squareSize*2-1)*squareSize*2 - (squareSize * squareSize)
 }
