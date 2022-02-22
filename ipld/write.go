@@ -55,5 +55,12 @@ func batchSize(squareSize int) int {
 	// (squareSize*squareSize) - all the shares
 	// (squareSize*2-1) - amount of nodes in a generated binary tree
 	// *squareSize*2 - multiplier for the amount of trees, both over rows and cols
+	//
+	// Note that our IPLD tree looks like:
+	// ---X
+	// -X---X
+	// X-X-X-X
+	// X-X-X-X
+	// So we count leaves two times here for a reason.
 	return squareSize*squareSize + (squareSize*2-1)*squareSize*2
 }
