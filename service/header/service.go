@@ -49,5 +49,5 @@ func (s *Service) Stop(context.Context) error {
 
 // IsSyncing returns the status of sync
 func (s *Service) IsSyncing() bool {
-	return s.syncer.IsSyncing()
+	return !s.syncer.State().Finished()
 }
