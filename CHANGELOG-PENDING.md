@@ -6,6 +6,7 @@ Month, DD, YYYY
 
 ### BREAKING CHANGES
 
+- [node: Light node can be initialised with multiple trusted peers #455](https://github.com/celestiaorg/celestia-node/pull/455) [@vgonkivs](https://github.com/vgonkivs)
 - [chore: rename Repository to Store #296](https://github.com/celestiaorg/celestia-node/pull/296) [@Wondertan](https://github.com/Wondertan)
 - [chore: rename Full node to Bridge node #294](https://github.com/celestiaorg/celestia-node/pull/294) [@Wondertan](https://github.com/Wondertan)
 - [node: remove InitWith #291](https://github.com/celestiaorg/celestia-node/pull/291) [@Wondertan](https://github.com/Wondertan)
@@ -13,6 +14,7 @@ Month, DD, YYYY
 ### FEATURES
 
 - [feat(cmd/cel-shed): new header category and store-init cmd #462](https://github.com/celestiaorg/celestia-node/pull/462) [@Wondertan](https://github.com/Wondertan)
+- [feat(cmd): cli flag to enable http/pprof handler to capture profiles #463](https://github.com/celestiaorg/celestia-node/pull/463) [@Wondertan](https://github.com/Wondertan)
 - [service/header: SyncState #397](https://github.com/celestiaorg/celestia-node/pull/397) [@Wondertan](https://github.com/Wondertan)
 - [feat(service/header): HeightSub #428](https://github.com/celestiaorg/celestia-node/pull/428) [@Wondertan](https://github.com/Wondertan)
 - [params: Define Network Types #346](https://github.com/celestiaorg/celestia-node/pull/346) [@Wondertan](https://github.com/Wondertan)
@@ -23,6 +25,7 @@ Month, DD, YYYY
 - [swamp: initial structure of the tool](https://github.com/celestiaorg/celestia-node/pull/315) [@Bidon15](https://github.com/Bidon15)
 
 ### IMPROVEMENTS
+- [perf(node/store): fine-tune Badgerdb params #465](https://github.com/celestiaorg/celestia-node/pull/465) [@Wondertan](https://github.com/Wondertan)
 - [feat(service/header): update Store.Append to return amount of applied/valid headers #434](https://github.com/celestiaorg/celestia-node/pull/434) [@Wondertan](https://github.com/Wondertan)
 - [refactor(service/header): rework on disk writing strategy of the Store #431](https://github.com/celestiaorg/celestia-node/pull/431) [@Wondertan](https://github.com/Wondertan)
 - [refactor(service/header): extract store initialization from Syncer #430](https://github.com/celestiaorg/celestia-node/pull/430) [@Wondertan](https://github.com/Wondertan)
