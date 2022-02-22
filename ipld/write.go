@@ -62,5 +62,5 @@ func batchSize(squareSize int) int {
 	// X-X-X-X
 	// X-X-X-X
 	// So we count leaves two times here for a reason. https://github.com/celestiaorg/celestia-node/issues/183
-	return squareSize*squareSize + (squareSize*2-1)*squareSize*2
+	return (squareSize*2-1)*squareSize*2 - (squareSize * squareSize)
 }
