@@ -50,7 +50,8 @@ func ParseMiscFlags(cmd *cobra.Command) error {
 		logs.SetAllLoggers(level)
 	}
 
-	if ok, err := cmd.Flags().GetBool(pprofFlag); ok && err == nil {
+	ok, err := cmd.Flags().GetBool(pprofFlag)
+	if ok {
 		// TODO(@Wondertan): Eventually, this should be registered on http server in RPC
 		go func() {
 			mux := http.NewServeMux()
@@ -61,9 +62,6 @@ func ParseMiscFlags(cmd *cobra.Command) error {
 			mux.HandleFunc("/debug/pprof/trace", pprof.Trace)
 			log.Println(http.ListenAndServe("0.0.0.0:6000", mux))
 		}()
-	} else if err != nil {
-		return err
 	}
-
-	return nil
+	return err
 }
