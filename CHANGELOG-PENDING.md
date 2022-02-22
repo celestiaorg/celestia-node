@@ -13,6 +13,7 @@ Month, DD, YYYY
 
 ### FEATURES
 
+- [feat(cmd/cel-shed): new header category and store-init cmd #462](https://github.com/celestiaorg/celestia-node/pull/462) [@Wondertan](https://github.com/Wondertan)
 - [feat(cmd): cli flag to enable http/pprof handler to capture profiles #463](https://github.com/celestiaorg/celestia-node/pull/463) [@Wondertan](https://github.com/Wondertan)
 - [service/header: SyncState #397](https://github.com/celestiaorg/celestia-node/pull/397) [@Wondertan](https://github.com/Wondertan)
 - [feat(service/header): HeightSub #428](https://github.com/celestiaorg/celestia-node/pull/428) [@Wondertan](https://github.com/Wondertan)
