@@ -377,7 +377,8 @@ func TestBatchSize(t *testing.T) {
 
 	bs := blockstore.NewBlockstore(dssync.MutexWrap(ds.NewMapDatastore()))
 	dag := merkledag.NewDAGService(blockservice.New(bs, offline.Exchange(bs)))
-	eds := generateRandEDS(t, 32)
+	origWidth := 32
+	eds := generateRandEDS(t, origWidth)
 	_, err := PutData(ctx, ExtractODSShares(eds), dag)
 	require.NoError(t, err)
 
