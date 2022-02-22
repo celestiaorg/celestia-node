@@ -388,8 +388,8 @@ func TestBatchSize(t *testing.T) {
 	for range out {
 		count++
 	}
-
-	assert.Equal(t, count, batchSize(64))
+	extendedWidth := origWidth * 2
+	assert.Equal(t, count, batchSize(extendedWidth))
 }
 
 func putErasuredDataToDag(t *testing.T, rawData [][]byte) (format.DAGService, da.DataAvailabilityHeader) {
