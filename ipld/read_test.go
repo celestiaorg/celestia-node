@@ -372,25 +372,40 @@ func TestGetLeavesByNamespace_MultipleRowsContainingSameNamespaceId(t *testing.T
 }
 
 func TestBatchSize(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
-	defer cancel()
-
-	bs := blockstore.NewBlockstore(dssync.MutexWrap(ds.NewMapDatastore()))
-	dag := merkledag.NewDAGService(blockservice.New(bs, offline.Exchange(bs)))
-	origWidth := 32
-	eds := generateRandEDS(t, origWidth)
-	_, err := PutData(ctx, ExtractODSShares(eds), dag)
-	require.NoError(t, err)
-
-	out, err := bs.AllKeysChan(ctx)
-	require.NoError(t, err)
-
-	var count int
-	for range out {
-		count++
+	tests := []struct {
+		name      string
+		origWidth int
+	}{
+		{"2", 2},
+		{"4", 4},
+		{"8", 8},
+		{"16", 16},
+		{"32", 32},
+		{"64", 64},
 	}
-	extendedWidth := origWidth * 2
-	assert.Equal(t, count, batchSize(extendedWidth))
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+			defer cancel()
+
+			bs := blockstore.NewBlockstore(dssync.MutexWrap(ds.NewMapDatastore()))
+			dag := merkledag.NewDAGService(blockservice.New(bs, offline.Exchange(bs)))
+
+			eds := generateRandEDS(t, tt.origWidth)
+			_, err := PutData(ctx, ExtractODSShares(eds), dag)
+			require.NoError(t, err)
+
+			out, err := bs.AllKeysChan(ctx)
+			require.NoError(t, err)
+
+			var count int
+			for range out {
+				count++
+			}
+			extendedWidth := tt.origWidth * 2
+			assert.Equalf(t, count, batchSize(extendedWidth), "batchSize(%v)", extendedWidth)
+		})
+	}
 }
 
 func putErasuredDataToDag(t *testing.T, rawData [][]byte) (format.DAGService, da.DataAvailabilityHeader) {
