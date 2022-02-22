@@ -10,8 +10,14 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ipfs/go-blockservice"
 	"github.com/ipfs/go-cid"
+	ds "github.com/ipfs/go-datastore"
+	dssync "github.com/ipfs/go-datastore/sync"
+	blockstore "github.com/ipfs/go-ipfs-blockstore"
+	offline "github.com/ipfs/go-ipfs-exchange-offline"
 	format "github.com/ipfs/go-ipld-format"
+	"github.com/ipfs/go-merkledag"
 	mdutils "github.com/ipfs/go-merkledag/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -363,6 +369,27 @@ func TestGetLeavesByNamespace_MultipleRowsContainingSameNamespaceId(t *testing.T
 		}
 	})
 
+}
+
+func TestBatchSize(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+
+	bs := blockstore.NewBlockstore(dssync.MutexWrap(ds.NewMapDatastore()))
+	dag := merkledag.NewDAGService(blockservice.New(bs, offline.Exchange(bs)))
+	eds := generateRandEDS(t, 32)
+	_, err := PutData(ctx, ExtractODSShares(eds), dag)
+	require.NoError(t, err)
+
+	out, err := bs.AllKeysChan(ctx)
+	require.NoError(t, err)
+
+	var count int
+	for range out {
+		count++
+	}
+
+	assert.Equal(t, count, batchSize(64))
 }
 
 func putErasuredDataToDag(t *testing.T, rawData [][]byte) (format.DAGService, da.DataAvailabilityHeader) {
