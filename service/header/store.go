@@ -14,9 +14,9 @@ import (
 // TODO(@Wondertan): Those values must be configurable and proper defaults should be set for specific node type.
 var (
 	// DefaultStoreCacheSize defines the amount of max entries allowed in the Header Store cache.
-	DefaultStoreCacheSize = 10240
+	DefaultStoreCacheSize = 4096
 	// DefaultIndexCacheSize defines the amount of max entries allowed in the Height to Hash index cache.
-	DefaultIndexCacheSize = 2048
+	DefaultIndexCacheSize = 16384
 	// DefaultWriteBatchSize defines the size of the batched header write.
 	// Headers are written in batches not to thrash the underlying Datastore with writes.
 	DefaultWriteBatchSize = 2048
@@ -170,7 +170,7 @@ func (s *store) Get(_ context.Context, hash tmbytes.HexBytes) (*ExtendedHeader, 
 
 func (s *store) GetByHeight(ctx context.Context, height uint64) (*ExtendedHeader, error) {
 	// if the requested 'height' was not yet published
-	// we subscribe and for it
+	// we subscribe to it
 	h, err := s.heightSub.Sub(ctx, height)
 	if err != errElapsedHeight {
 		return h, err
@@ -238,9 +238,10 @@ func (s *store) Append(ctx context.Context, headers ...*ExtendedHeader) (int, er
 			var verErr *VerifyError
 			if errors.As(err, &verErr) {
 				log.Errorw("invalid header",
-					"height", head.Height,
-					"hash", h.Hash(),
-					"current height", head.Height,
+					"height_of_head", head.Height,
+					"hash_of_head", head.Hash(),
+					"height_of_invalid", h.Height,
+					"hash_of_invalid", h.Hash(),
 					"reason", verErr.Reason)
 			}
 			// if the first header is invalid, no need to go further
@@ -314,7 +315,8 @@ func (s *store) flushLoop() {
 
 // flush writes the given headers on disk
 func (s *store) flush(headers ...*ExtendedHeader) (err error) {
-	if len(headers) == 0 {
+	ln := len(headers)
+	if ln == 0 {
 		return nil
 	}
 
@@ -337,7 +339,7 @@ func (s *store) flush(headers ...*ExtendedHeader) (err error) {
 	}
 
 	// marshal and add to batch reference to the new head
-	b, err := headers[len(headers)-1].Hash().MarshalJSON()
+	b, err := headers[ln-1].Hash().MarshalJSON()
 	if err != nil {
 		return err
 	}

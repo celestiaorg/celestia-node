@@ -9,6 +9,7 @@ require (
 	github.com/celestiaorg/go-libp2p-messenger v0.1.0
 	github.com/celestiaorg/nmt v0.8.0
 	github.com/celestiaorg/rsmt2d v0.3.0
+	github.com/dgraph-io/badger/v2 v2.2007.3
 	github.com/gogo/protobuf v1.3.2
 	github.com/hashicorp/go-retryablehttp v0.7.1-0.20211018174820-ff6d014e72d9
 	github.com/hashicorp/golang-lru v0.5.4

@@ -13,6 +13,7 @@ Month, DD, YYYY
 
 ### FEATURES
 
+- [feat(cmd): cli flag to enable http/pprof handler to capture profiles #463](https://github.com/celestiaorg/celestia-node/pull/463) [@Wondertan](https://github.com/Wondertan)
 - [service/header: SyncState #397](https://github.com/celestiaorg/celestia-node/pull/397) [@Wondertan](https://github.com/Wondertan)
 - [feat(service/header): HeightSub #428](https://github.com/celestiaorg/celestia-node/pull/428) [@Wondertan](https://github.com/Wondertan)
 - [params: Define Network Types #346](https://github.com/celestiaorg/celestia-node/pull/346) [@Wondertan](https://github.com/Wondertan)
@@ -24,6 +25,7 @@ Month, DD, YYYY
 
 ### IMPROVEMENTS
 - [feat(node): add go-watchdog to curb OOMs #466](https://github.com/celestiaorg/celestia-node/pull/466) [@Wondertan](https://github.com/Wondertan)
+- [perf(node/store): fine-tune Badgerdb params #465](https://github.com/celestiaorg/celestia-node/pull/465) [@Wondertan](https://github.com/Wondertan)
 - [feat(service/header): update Store.Append to return amount of applied/valid headers #434](https://github.com/celestiaorg/celestia-node/pull/434) [@Wondertan](https://github.com/Wondertan)
 - [refactor(service/header): rework on disk writing strategy of the Store #431](https://github.com/celestiaorg/celestia-node/pull/431) [@Wondertan](https://github.com/Wondertan)
 - [refactor(service/header): extract store initialization from Syncer #430](https://github.com/celestiaorg/celestia-node/pull/430) [@Wondertan](https://github.com/Wondertan)
