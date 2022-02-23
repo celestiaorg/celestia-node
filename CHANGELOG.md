@@ -22,7 +22,9 @@ high-level scenarios.
 
 #### Header Synchronization
 It was almost rewritten from scratch with a better design which:
-* Tolerates network disconnections and primary network interface changes(especially useful for Light Node running on
+* Tolerates network disconnections
+* Tolerates primary network interface changes
+  * both above are useful for Light Node running on laptops/mobiles
   laptops/mobiles)
 * Optimizes bandwidth and IO usage, subsequently speeding up the synchronization time for ~20%
 * Eliminates long-standing issue with header duplicates flooding the network
