@@ -12,6 +12,7 @@ import (
 	mocknet "github.com/libp2p/go-libp2p/p2p/net/mock"
 	ma "github.com/multiformats/go-multiaddr"
 	"github.com/stretchr/testify/require"
+	"github.com/tendermint/tendermint/libs/bytes"
 	tn "github.com/tendermint/tendermint/node"
 	rpctest "github.com/tendermint/tendermint/rpc/test"
 	"github.com/tendermint/tendermint/types"
@@ -98,6 +99,13 @@ func (s *Swamp) stopAllNodes(ctx context.Context, allNodes ...[]*node.Node) {
 	}
 }
 
+// GetCoreBlockHashByHeight returns a tendermint block's hash by provided height
+func (s *Swamp) GetCoreBlockHashByHeight(ctx context.Context, height int64) bytes.HexBytes {
+	b, err := s.CoreClient.Block(ctx, &height)
+	require.NoError(s.t, err)
+	return b.BlockID.Hash
+}
+
 // WaitTillHeight holds the test execution until the given amount of blocks
 // have been produced by the CoreClient.
 func (s *Swamp) WaitTillHeight(ctx context.Context, height int64) {
@@ -144,6 +152,7 @@ func (s *Swamp) createPeer(ks keystore.Keystore) host.Host {
 	host, err := s.Network.AddPeer(key, a)
 	require.NoError(s.t, err)
 
+	require.NoError(s.t, s.Network.LinkAll())
 	return host
 }
 
@@ -225,4 +234,40 @@ func (s *Swamp) NewLightNodeWithStore(store node.Store, options ...node.Option) 
 	s.LightNodes = append(s.LightNodes, node)
 
 	return node
+}
+
+// RemoveNode removes a node from the swamp's node slice
+// this allows reusage of the same var in the test scenario
+// if the user needs to stop and start the same node
+func (s *Swamp) RemoveNode(n *node.Node, t node.Type) error {
+	var err error
+	switch t {
+	case node.Light:
+		s.LightNodes, err = s.remove(n, s.LightNodes)
+		return err
+	case node.Bridge:
+		s.BridgeNodes, err = s.remove(n, s.BridgeNodes)
+		return err
+	default:
+		return fmt.Errorf("no such type or node")
+	}
+}
+
+func (s *Swamp) remove(rn *node.Node, sn []*node.Node) ([]*node.Node, error) {
+	if len(sn) == 1 {
+		return nil, nil
+	}
+
+	initSize := len(sn)
+	for i := 0; i < len(sn); i++ {
+		if sn[i] == rn {
+			sn = append(sn[:i], sn[i+1:]...)
+			i--
+		}
+	}
+
+	if initSize <= len(sn) {
+		return sn, fmt.Errorf("cannot delete the node")
+	}
+	return sn, nil
 }
