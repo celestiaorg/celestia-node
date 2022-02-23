@@ -40,7 +40,7 @@ Full node operators after the update should now migrate to Bridge Node. This mig
 * Change scripts from `celestia full` to `celestia bridge`
 
 #### Trusted Peers
-* `trusted-peer` is now `trusted-peers` flag allowing passing multiple trusted peers.
+* `trusted-peer` is now `trusted-peers` as the flag now allows passing multiple trusted peers.
 * `Config.Services.TrustedPeer` is now `Config.Services.TrustedPeers`
 
 ### BREAKING CHANGES
