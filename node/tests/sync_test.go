@@ -75,10 +75,10 @@ Steps:
 func TestSyncStartStopLightWithBridge(t *testing.T) {
 	sw := swamp.NewSwamp(t, swamp.DefaultComponents())
 
+	bridge := sw.NewBridgeNode()
+
 	ctx := context.Background()
 	sw.WaitTillHeight(ctx, 50)
-
-	bridge := sw.NewBridgeNode()
 
 	err := bridge.Start(ctx)
 	require.NoError(t, err)
