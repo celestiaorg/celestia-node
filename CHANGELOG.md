@@ -1,6 +1,6 @@
 # CHANGELOG
 ## v0.2.0 | 2022-02-23
-The second minor release focuses on the stability and robustness of existing features via minor refactorings, mainly for
+The second minor release focuses on the stability and robustness of existing features via refactorings, mainly for
 headers synchronization and storing, while fixing the DA network segregation by providing bootstrap peers, allowing you to
 run a Light Node with zero effort. The release also includes a few breaking changes.
 
