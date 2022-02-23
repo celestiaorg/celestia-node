@@ -12,7 +12,7 @@ synchronize headers and perform Data Availability Sampling. Now it's unnecessary
 Full) Node to run a Light Node, as now it will rely on bootstrappers by default.
 
 #### Zero effort Light Node
-Now becoming a valuable network validator is only two commands away. Simply run `celestia light init` followed by `celestia
+Now becoming a valuable node that contributes to the security of the of Celestia network is only two commands away. Simply run `celestia light init` followed by `celestia
 light start`, and you are good to go.
 
 #### Test Swamp
