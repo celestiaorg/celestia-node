@@ -32,8 +32,9 @@ It was almost rewritten from scratch with a better design which:
 
 #### Renamed Full Node
 Full Node is now called Bridge Node to emphasize its purpose of bridging the core consensus and the halo DA networks, both
-powering the Celestia project. Spoiler: Next release will come with a reincarnation of the Full Node type, which operates only
-over the DA `celestia-node` network.
+powering the Celestia project. 
+
+> Spoiler: Next release will come with a reincarnation of the Full Node type, which operates only over the DA `celestia-node` network
 
 Full node operators after the update should now migrate to Bridge Node. This migration is trivial:
 * Rename `.celestia-full` to `.celestia-bridge`
