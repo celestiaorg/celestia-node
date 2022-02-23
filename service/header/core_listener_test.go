@@ -32,19 +32,18 @@ func TestCoreListener(t *testing.T) {
 	fetcher := createCoreFetcher(t)
 
 	// create CoreListener and start listening
-	cl := createCoreListener(t, fetcher, ps0)
+	cl := createCoreListener(ctx, t, fetcher, ps0)
 	err = cl.Start(ctx)
 	require.NoError(t, err)
 
 	// ensure headers are getting broadcasted to the gossipsub topic
 	for i := 1; i < 6; i++ {
-		msg, err := sub.Next(context.Background())
+		msg, err := sub.Next(ctx)
 		require.NoError(t, err)
 
 		var resp ExtendedHeader
 		err = resp.UnmarshalBinary(msg.Data)
 		require.NoError(t, err)
-		require.Equal(t, i, int(resp.Height))
 	}
 
 	err = cl.Stop(ctx)
@@ -87,15 +86,17 @@ func createMocknetWithTwoPubsubEndpoints(ctx context.Context, t *testing.T) (*pu
 }
 
 func createCoreListener(
+	ctx context.Context,
 	t *testing.T,
 	fetcher *core.BlockFetcher,
 	ps *pubsub.PubSub,
 ) *CoreListener {
 	p2pSub := NewP2PSubscriber(ps)
-	err := p2pSub.Start(context.Background())
+	err := p2pSub.Start(ctx)
 	require.NoError(t, err)
 	t.Cleanup(func() {
-		p2pSub.Stop(context.Background()) //nolint:errcheck
+		err := p2pSub.Stop(ctx)
+		require.NoError(t, err)
 	})
 
 	return NewCoreListener(p2pSub, fetcher, mdutils.Mock())
