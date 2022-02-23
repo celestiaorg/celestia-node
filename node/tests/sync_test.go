@@ -3,6 +3,7 @@ package tests
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/libp2p/go-libp2p-core/host"
 	"github.com/libp2p/go-libp2p-core/peer"
@@ -29,31 +30,30 @@ func TestSyncLightWithBridge(t *testing.T) {
 	bridge := sw.NewBridgeNode()
 
 	ctx := context.Background()
-
-	state := bridge.CoreClient.IsRunning()
-	require.True(t, state)
 	sw.WaitTillHeight(ctx, 20)
 
 	err := bridge.Start(ctx)
 	require.NoError(t, err)
-	h, err := bridge.HeaderServ.GetByHeight(ctx, 20)
+
+	ctxTimeout, cancel := context.WithTimeout(ctx, 4*time.Second)
+	t.Cleanup(cancel)
+
+	h, err := bridge.HeaderServ.GetByHeight(ctxTimeout, 20)
 	require.NoError(t, err)
 
-	var ch int64 = 20
-	require.EqualValues(t, h.Commit.BlockID.Hash, sw.GetCoreBlockByHeight(ctx, &ch).BlockID.Hash)
+	require.EqualValues(t, h.Commit.BlockID.Hash, sw.GetCoreBlockHashByHeight(ctx, 20))
 
-	addrs, err := peer.AddrInfoToP2pAddrs(host.InfoFromHost(sw.Network.Host(bridge.Host.ID())))
+	addrs, err := peer.AddrInfoToP2pAddrs(host.InfoFromHost(bridge.Host))
 	require.NoError(t, err)
 	light := sw.NewLightNode(node.WithTrustedPeer(addrs[0].String()))
 
 	err = light.Start(ctx)
 	require.NoError(t, err)
 
-	h, err = light.HeaderServ.GetByHeight(ctx, 30)
+	h, err = light.HeaderServ.GetByHeight(ctxTimeout, 30)
 	require.NoError(t, err)
 
-	ch = 30
-	assert.EqualValues(t, h.Commit.BlockID.Hash, sw.GetCoreBlockByHeight(ctx, &ch).BlockID.Hash)
+	assert.EqualValues(t, h.Commit.BlockID.Hash, sw.GetCoreBlockHashByHeight(ctx, 30))
 }
 
 /*
@@ -77,19 +77,19 @@ func TestSyncStartStopLightWithBridge(t *testing.T) {
 	ctx := context.Background()
 
 	sw.WaitTillHeight(ctx, 50)
+
 	bridge := sw.NewBridgeNode()
-	state := bridge.CoreClient.IsRunning()
-	require.True(t, state)
 	err := bridge.Start(ctx)
 	require.NoError(t, err)
 
-	h, err := bridge.HeaderServ.GetByHeight(ctx, 20)
+	ctxTimeout, cancel := context.WithTimeout(ctx, 4*time.Second)
+	t.Cleanup(cancel)
+	h, err := bridge.HeaderServ.GetByHeight(ctxTimeout, 20)
 	require.NoError(t, err)
 
-	var ch int64 = 20
-	require.EqualValues(t, h.Commit.BlockID.Hash, sw.GetCoreBlockByHeight(ctx, &ch).BlockID.Hash)
+	require.EqualValues(t, h.Commit.BlockID.Hash, sw.GetCoreBlockHashByHeight(ctx, 20))
 
-	addrs, err := peer.AddrInfoToP2pAddrs(host.InfoFromHost(sw.Network.Host(bridge.Host.ID())))
+	addrs, err := peer.AddrInfoToP2pAddrs(host.InfoFromHost(bridge.Host))
 	require.NoError(t, err)
 
 	store := node.MockStore(t, node.DefaultConfig(node.Light))
@@ -98,8 +98,8 @@ func TestSyncStartStopLightWithBridge(t *testing.T) {
 
 	h, err = light.HeaderServ.GetByHeight(ctx, 30)
 	require.NoError(t, err)
-	ch = 30
-	require.EqualValues(t, h.Commit.BlockID.Hash, sw.GetCoreBlockByHeight(ctx, &ch).BlockID.Hash)
+
+	require.EqualValues(t, h.Commit.BlockID.Hash, sw.GetCoreBlockHashByHeight(ctx, 30))
 
 	require.NoError(t, light.Stop(ctx))
 	require.NoError(t, sw.RemoveNode(light, node.Light))
@@ -107,8 +107,8 @@ func TestSyncStartStopLightWithBridge(t *testing.T) {
 	light = sw.NewLightNodeWithStore(store, node.WithTrustedPeer(addrs[0].String()))
 	require.NoError(t, light.Start(ctx))
 
-	h, err = light.HeaderServ.GetByHeight(ctx, 40)
+	h, err = light.HeaderServ.GetByHeight(ctxTimeout, 40)
 	require.NoError(t, err)
-	ch = 40
-	assert.EqualValues(t, h.Commit.BlockID.Hash, sw.GetCoreBlockByHeight(ctx, &ch).BlockID.Hash)
+
+	assert.EqualValues(t, h.Commit.BlockID.Hash, sw.GetCoreBlockHashByHeight(ctx, 40))
 }

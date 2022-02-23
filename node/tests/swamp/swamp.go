@@ -12,8 +12,8 @@ import (
 	mocknet "github.com/libp2p/go-libp2p/p2p/net/mock"
 	ma "github.com/multiformats/go-multiaddr"
 	"github.com/stretchr/testify/require"
+	"github.com/tendermint/tendermint/libs/bytes"
 	tn "github.com/tendermint/tendermint/node"
-	coretypes "github.com/tendermint/tendermint/rpc/core/types"
 	rpctest "github.com/tendermint/tendermint/rpc/test"
 	"github.com/tendermint/tendermint/types"
 
@@ -99,11 +99,11 @@ func (s *Swamp) stopAllNodes(ctx context.Context, allNodes ...[]*node.Node) {
 	}
 }
 
-// GetCoreBlockByHeight returns a tendermint block by height
-func (s *Swamp) GetCoreBlockByHeight(ctx context.Context, height *int64) *coretypes.ResultBlock {
-	b, err := s.CoreClient.Block(ctx, height)
+// GetCoreBlockHashByHeight returns a tendermint block's hash by provided height
+func (s *Swamp) GetCoreBlockHashByHeight(ctx context.Context, height int64) bytes.HexBytes {
+	b, err := s.CoreClient.Block(ctx, &height)
 	require.NoError(s.t, err)
-	return b
+	return b.BlockID.Hash
 }
 
 // WaitTillHeight holds the test execution until the given amount of blocks
@@ -240,20 +240,22 @@ func (s *Swamp) NewLightNodeWithStore(store node.Store, options ...node.Option) 
 // this allows reusage of the same var in the test scenario
 // if the user needs to stop and start the same node
 func (s *Swamp) RemoveNode(n *node.Node, t node.Type) error {
+	var err error
 	switch t {
 	case node.Light:
-		return s.remove(n, s.LightNodes)
+		s.LightNodes, err = s.remove(n, s.LightNodes)
+		return err
 	case node.Bridge:
-		return s.remove(n, s.BridgeNodes)
+		s.BridgeNodes, err = s.remove(n, s.BridgeNodes)
+		return err
 	default:
 		return fmt.Errorf("no such type or node")
 	}
 }
 
-func (s *Swamp) remove(rn *node.Node, sn []*node.Node) error {
+func (s *Swamp) remove(rn *node.Node, sn []*node.Node) ([]*node.Node, error) {
 	if len(sn) == 1 {
-		sn = nil
-		return nil
+		return nil, nil
 	}
 
 	initSize := len(sn)
@@ -265,7 +267,7 @@ func (s *Swamp) remove(rn *node.Node, sn []*node.Node) error {
 	}
 
 	if initSize <= len(sn) {
-		return fmt.Errorf("cannot delete the node")
+		return sn, fmt.Errorf("cannot delete the node")
 	}
-	return nil
+	return sn, nil
 }
