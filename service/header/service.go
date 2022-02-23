@@ -53,5 +53,5 @@ func (s *Service) GetByHeight(ctx context.Context, height uint64) (*ExtendedHead
 
 // IsSyncing returns the status of sync
 func (s *Service) IsSyncing() bool {
-	return s.syncer.IsSyncing()
+	return !s.syncer.State().Finished()
 }
