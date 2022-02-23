@@ -24,8 +24,7 @@ high-level scenarios.
 It was almost rewritten from scratch with a better design which:
 * Tolerates network disconnections
 * Tolerates primary network interface changes
-  * both above are useful for Light Node running on laptops/mobiles
-  laptops/mobiles)
+  * both above are useful for Light Node running on laptops or mobile phones
 * Optimizes bandwidth and IO usage, subsequently speeding up the synchronization time for ~20%
 * Eliminates long-standing issue with header duplicates flooding the network
 * Fixes the most common issue community has faced - constant logging of __invalid headers__ error.
