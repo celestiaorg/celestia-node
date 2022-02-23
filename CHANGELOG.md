@@ -16,7 +16,7 @@ Now becoming a valuable network validator is only two commands away. Simply run 
 light start`, and you are good to go.
 
 #### Test Swamp
-The release comes with a new internal testing infrastructure for Celestia Node called test Swamp, aimed to provide an
+The release comes with a new internal testing infrastructure for Celestia Node called Test Swamp, aimed to provide an
 ergonomic framework for integrational testing of `celestia-node`. It allows simulating a network on which we can test various
 high-level scenarios.
 
