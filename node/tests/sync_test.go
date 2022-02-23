@@ -75,10 +75,10 @@ Steps:
 func TestSyncStartStopLightWithBridge(t *testing.T) {
 	sw := swamp.NewSwamp(t, swamp.DefaultComponents())
 
-	bridge := sw.NewBridgeNode()
-
 	ctx := context.Background()
 	sw.WaitTillHeight(ctx, 50)
+
+	bridge := sw.NewBridgeNode()
 
 	err := bridge.Start(ctx)
 	require.NoError(t, err)
@@ -97,7 +97,7 @@ func TestSyncStartStopLightWithBridge(t *testing.T) {
 	light := sw.NewLightNodeWithStore(store, node.WithTrustedPeer(addrs[0].String()))
 	require.NoError(t, light.Start(ctx))
 
-	h, err = light.HeaderServ.GetByHeight(ctx, 30)
+	h, err = light.HeaderServ.GetByHeight(ctxTimeout, 30)
 	require.NoError(t, err)
 
 	require.EqualValues(t, h.Commit.BlockID.Hash, sw.GetCoreBlockHashByHeight(ctx, 30))
