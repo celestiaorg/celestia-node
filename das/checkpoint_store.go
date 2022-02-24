@@ -19,11 +19,8 @@ func NewCheckpointStore(ds datastore.Datastore) datastore.Datastore {
 
 }
 
-// loadCheckpoint // TODO @renaynay: document
-//
-// 1. gets checkpoint from disk
-// 1a. if there is no checkpoint, you start from `GetByHeight` of 1
-// 1b. if there is a checkpoint, continue
+// loadCheckpoint loads the DAS checkpoint from disk and returns it.
+// If there is no known checkpoint, it returns height 0.
 func loadCheckpoint(ds datastore.Datastore) (int64, error) {
 	checkpoint, err := ds.Get(checkpointKey)
 	if err != nil {
