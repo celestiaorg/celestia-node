@@ -6,7 +6,7 @@ import (
 	"github.com/celestiaorg/celestia-node/service/header"
 )
 
-// HeaderGetter contains the behaviour necessary for the DASer
+// HeaderGetter contains the behavior necessary for the DASer
 // to retrieve headers that have become newly available during the
 // syncing process in order to perform data availability sampling
 // over headers from the past.

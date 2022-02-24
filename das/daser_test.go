@@ -18,7 +18,7 @@ import (
 
 // TestDASerLifecycle tests to ensure every mock block is DASed and
 // the DASer checkpoint is updated to network head.
-func TestDASerLifecycle (t *testing.T) {
+func TestDASerLifecycle(t *testing.T) {
 	ds := ds_sync.MutexWrap(datastore.NewMapDatastore())
 	cstore := NewCheckpointStore(ds) // we aren't storing the checkpoint so that DASer starts DASing from height 1.
 

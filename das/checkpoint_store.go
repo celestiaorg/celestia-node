@@ -2,6 +2,7 @@ package das
 
 import (
 	"encoding/binary"
+
 	"github.com/ipfs/go-datastore"
 	"github.com/ipfs/go-datastore/namespace"
 )

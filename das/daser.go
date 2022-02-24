@@ -122,7 +122,7 @@ func (d *DASer) sample(ctx context.Context, sub header.Subscription, checkpoint 
 		// to our last DASed header, kick off routine to DAS all headers
 		// between last DASed header and h. This situation could occur
 		// either on start or due to network latency/disconnection.
-		if h.Height > (height+1) { // TODO @renaynay: what if height = 7 and h.Height = 9 (so only need to catch up on 8
+		if h.Height > (height + 1) { // TODO @renaynay: what if height = 7 and h.Height = 9 (so only need to catch up on 8
 			// DAS headers between last DASed height up to the current
 			// header
 			go d.catchUp(ctx, height, h.Height-1)
@@ -159,9 +159,7 @@ func (d *DASer) catchUp(ctx context.Context, from, to int64) {
 
 	// start sampling from height at checkpoint+1 since the
 	// checkpoint height has already been successfully DASed
-	fmt.Println("from: ", from, " to: ", to)
 	for height := from + 1; height <= to; height++ {
-		fmt.Println("catchup loop height: ", height)
 		h, err := d.getter.GetByHeight(ctx, uint64(height))
 		if err != nil {
 			if err == context.Canceled {
