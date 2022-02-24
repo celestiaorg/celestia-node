@@ -18,11 +18,11 @@ import (
 
 // TestDASerLifecycle tests to ensure every mock block is DASed and
 // the DASer checkpoint is updated to network head.
-func TestDASerLifecycle(t *testing.T) {
+func TestDASerLifecycle (t *testing.T) {
 	ds := ds_sync.MutexWrap(datastore.NewMapDatastore())
 	cstore := NewCheckpointStore(ds) // we aren't storing the checkpoint so that DASer starts DASing from height 1.
 
-	mockGet, shareServ, sub := createDASerSubcomponents(t)
+	mockGet, shareServ, sub := createDASerSubcomponents(t, 15, 15)
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*15)
 	t.Cleanup(cancel)
@@ -33,9 +33,9 @@ func TestDASerLifecycle(t *testing.T) {
 	require.NoError(t, err)
 
 	select {
-	// wait for sampleLatest routine to finish so that it stores the
+	// wait for sample routine to finish so that it stores the
 	// latest DASed checkpoint so that it stores the latest DASed checkpoint
-	case <-daser.sampleLatestDn:
+	case <-daser.sampleDn:
 	case <-ctx.Done():
 	}
 
@@ -48,40 +48,36 @@ func TestDASerLifecycle(t *testing.T) {
 	require.NoError(t, err)
 }
 
-func TestDASer_sampleLatest(t *testing.T) {
-	shareServ, dah := share.RandLightServiceWithSquare(t, 16)
-
-	randHeader := header.RandExtendedHeader(t)
-	randHeader.DataHash = dah.Hash()
-	randHeader.DAH = dah
-
-	sub := &header.DummySubscriber{
-		Headers: []*header.ExtendedHeader{randHeader},
-	}
-
-	mockGet := new(mockGetter)
+func TestDASer_catchUp(t *testing.T) {
 	ds := ds_sync.MutexWrap(datastore.NewMapDatastore())
 	cstore := NewCheckpointStore(ds)
 
-	daser := NewDASer(shareServ, sub, mockGet, cstore)
+	mockGet, shareServ, _ := createDASerSubcomponents(t, 5, 0)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(cancel)
+
+	daser := NewDASer(shareServ, nil, mockGet, cstore)
 
 	wg := &sync.WaitGroup{}
 	wg.Add(1)
 	go func(wg *sync.WaitGroup) {
-		daser.sampleLatest(context.Background(), sub, 0)
+		daser.catchUp(ctx, 2, mockGet.head) // pick random number as `from` parameter
 		wg.Done()
 	}(wg)
 	wg.Wait()
 }
 
-func TestDASer_sampleCheckpoint(t *testing.T) {
+// TestDASer_catchUp_oneHeader tests that catchUp works with a from-to
+// difference of 1
+func TestDASer_catchUp_oneHeader(t *testing.T) {
 	ds := ds_sync.MutexWrap(datastore.NewMapDatastore())
 	cstore := NewCheckpointStore(ds)
 
-	mockGet, shareServ, _ := createDASerSubcomponents(t)
+	mockGet, shareServ, _ := createDASerSubcomponents(t, 6, 0)
 
 	// store checkpoint
-	err := storeCheckpoint(cstore, 2) // pick random header as last checkpoint
+	err := storeCheckpoint(cstore, 5) // pick random header as last checkpoint
 	require.NoError(t, err)
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -94,13 +90,17 @@ func TestDASer_sampleCheckpoint(t *testing.T) {
 	wg := &sync.WaitGroup{}
 	wg.Add(1)
 	go func(wg *sync.WaitGroup) {
-		daser.sampleFromCheckpoint(ctx, checkpoint, mockGet.head)
+		daser.catchUp(ctx, checkpoint, mockGet.head)
 		wg.Done()
 	}(wg)
 	wg.Wait()
 }
 
-func createDASerSubcomponents(t *testing.T) (*mockGetter, share.Service, header.Subscriber) {
+// createDASerSubcomponents takes numGetter (number of headers
+// to store in mockGetter) and numSub (number of headers to store
+// in the mock header.Subscriber), returning a newly instantiated
+// mockGetter, share.Service, and mock header.Subscriber.
+func createDASerSubcomponents(t *testing.T, numGetter, numSub int) (*mockGetter, share.Service, header.Subscriber) {
 	dag := mdutils.Mock()
 	shareServ := share.NewService(dag, share.NewLightAvailability(dag))
 
@@ -109,7 +109,7 @@ func createDASerSubcomponents(t *testing.T) (*mockGetter, share.Service, header.
 	}
 
 	// generate 15 headers from the past for HeaderGetter
-	for i := 0; i < 15; i++ {
+	for i := 0; i < numGetter; i++ {
 		dah := share.RandFillDAG(t, 16, dag)
 
 		randHeader := header.RandExtendedHeader(t)
@@ -119,15 +119,15 @@ func createDASerSubcomponents(t *testing.T) (*mockGetter, share.Service, header.
 
 		mockGet.headers[int64(i+1)] = randHeader
 	}
-	mockGet.head = 15 // network head
+	mockGet.head = int64(numGetter) // network head
 
 	sub := &header.DummySubscriber{
-		Headers: make([]*header.ExtendedHeader, 15),
+		Headers: make([]*header.ExtendedHeader, numSub),
 	}
 
 	// generate 15 headers from the future for p2pSub to pipe through to DASer
 	index := 0
-	for i := 15; i < 30; i++ {
+	for i := numGetter; i < numGetter+numSub; i++ {
 		dah := share.RandFillDAG(t, 16, dag)
 
 		randHeader := header.RandExtendedHeader(t)
