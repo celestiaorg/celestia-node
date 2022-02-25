@@ -16,8 +16,8 @@ Now becoming a valuable node that contributes to the security of the of Celestia
 light start`, and you are good to go.
 
 #### Test Swamp
-The release comes with a new internal testing infrastructure for Celestia Node called Test Swamp, aimed to provide an
-ergonomic framework for integrational testing of `celestia-node`. It allows simulating a network on which we can test various
+The release comes with a new internal testing library for Celestia Node called Test Swamp, aimed to provide an
+ergonomic framework for integration tests for `celestia-node`. It allows simulating a network on which we can test various
 high-level scenarios.
 
 #### Header Synchronization
