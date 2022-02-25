@@ -79,11 +79,6 @@ func (cl *CoreListener) listen(ctx context.Context, sub <-chan *types.Block) {
 
 			eh, err := MakeExtendedHeader(ctx, b, comm, vals, cl.dag)
 			if err != nil {
-				if err == errEmptyBlock {
-					log.Debugw("core-listener: ", err)
-					continue
-				}
-
 				log.Errorw("core-listener: making extended header", "err", err)
 				return
 			}
