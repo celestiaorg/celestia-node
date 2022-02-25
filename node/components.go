@@ -6,6 +6,7 @@ import (
 	"time"
 
 	logging "github.com/ipfs/go-log/v2"
+	"github.com/raulk/go-watchdog"
 	"go.uber.org/fx"
 
 	nodecore "github.com/celestiaorg/celestia-node/node/core"
