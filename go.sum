@@ -174,8 +174,6 @@ github.com/btcsuite/websocket v0.0.0-20150119174127-31079b680792/go.mod h1:ghJtE
 github.com/btcsuite/winsvc v1.0.0/go.mod h1:jsenWakMcC0zFBFurPLEAyrnc/teJEM1O46fmI40EZs=
 github.com/buger/jsonparser v0.0.0-20181115193947-bf1c66bbce23/go.mod h1:bbYlZJ7hK1yFx9hf58LP0zeX7UjIGs20ufpu3evjr+s=
 github.com/casbin/casbin/v2 v2.1.2/go.mod h1:YcPU1XXisHhLzuxH9coDNf2FbKpjGlbCg3n9yuLkIJQ=
-github.com/celestiaorg/celestia-app v0.0.2-0.20220207122156-63519eccc053 h1:09Nsr3WykIE4zBBpGVAFx+s642+kRocsqbCx7sK/CjA=
-github.com/celestiaorg/celestia-app v0.0.2-0.20220207122156-63519eccc053/go.mod h1:rOXjz9htUTu2ihWG8o96uXZzQavfpnZxuVfdzYfx7L4=
 github.com/celestiaorg/celestia-app v0.0.2-0.20220214170311-cfe3ecf30837 h1:Gh30XfMaxAz3IsswEP7XBqcRGE9s1NOlfG/BfghgWok=
 github.com/celestiaorg/celestia-app v0.0.2-0.20220214170311-cfe3ecf30837/go.mod h1:rOXjz9htUTu2ihWG8o96uXZzQavfpnZxuVfdzYfx7L4=
 github.com/celestiaorg/celestia-core v0.34.14-celestia.0.20220119223021-e54097114e14 h1:PiiLrn/eNV++ByjxRo6o8M62aNvVc786AL4Bl3vCpd0=

@@ -4,14 +4,12 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/celestiaorg/celestia-app/app"
+	apptypes "github.com/celestiaorg/celestia-app/x/payment/types"
 	sdk_tx "github.com/cosmos/cosmos-sdk/types/tx"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"github.com/tendermint/spm/cosmoscmd"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
-
-	"github.com/celestiaorg/celestia-app/app"
-	apptypes "github.com/celestiaorg/celestia-app/x/payment/types"
 )
 
 // CoreAccessor implements Accessor over an RPC connection
@@ -39,12 +37,12 @@ func NewCoreAccessor(
 	}, nil
 }
 
-func (ca *CoreAccessor) Start(_ context.Context) error {
+func (ca *CoreAccessor) Start(ctx context.Context) error {
 	if ca.coreConn != nil {
 		return fmt.Errorf("core-access: already connected to core endpoint")
 	}
 	// dial given celestia-core endpoint
-	client, err := grpc.Dial(ca.coreEndpoint, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	client, err := grpc.DialContext(ctx, ca.coreEndpoint, grpc.WithBlock())
 	if err != nil {
 		return err
 	}
