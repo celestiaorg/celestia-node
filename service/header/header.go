@@ -3,6 +3,7 @@ package header
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 
 	format "github.com/ipfs/go-ipld-format"
@@ -19,6 +20,8 @@ type DataAvailabilityHeader = da.DataAvailabilityHeader
 
 // EmptyDAH provides DAH of the empty block.
 var EmptyDAH = da.MinDataAvailabilityHeader
+
+var errEmptyBlock = errors.New("received empty block")
 
 // RawHeader is an alias to core.Header. It is
 // "raw" because it is not yet wrapped to include
@@ -43,6 +46,9 @@ func MakeExtendedHeader(
 	vals *core.ValidatorSet,
 	dag format.NodeAdder,
 ) (*ExtendedHeader, error) {
+	if len(b.Txs) == 0 {
+		return nil, errEmptyBlock
+	}
 	namespacedShares, _ := b.Data.ComputeShares()
 	extended, err := ipld.PutData(ctx, namespacedShares.RawShares(), dag)
 	if err != nil {
