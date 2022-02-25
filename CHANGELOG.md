@@ -6,7 +6,7 @@ run a Light Node with zero effort. The release also includes a few breaking chan
 
 ### Highlights
 #### Hardcoded bootstrap peers
-Bootstrappers are essential backbone peers that every other peer is connected to be part of the DA p2p network.
+Bootstrappers are necessary for peers to connect to when they come online in order to be part of the DA p2p network.
 Additionally, they serve block headers and shares for everyone, so any other node joining the network can use them to
 synchronize headers and perform Data Availability Sampling. Now it's unnecessary to maintain your own Bridge(previously
 Full) Node to run a Light Node, as now it will rely on bootstrappers by default.
