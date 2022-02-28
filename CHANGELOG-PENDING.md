@@ -7,7 +7,7 @@
 ### FEATURES
 
 ### IMPROVEMENTS
-
+- [header: bridge node should short-circuit storing of empty blocks #480](https://github.com/celestiaorg/celestia-node/pull/480) [@vgonkivs](https://github.com/vgonkivs)
 ### BUG FIXES
 
 ### MISCELLANEOUS
