@@ -19,8 +19,8 @@ type DASer struct {
 	da   share.Availability
 	hsub header.Subscriber
 
-	// getter allows the DASer to fetch a header at a certain height
-	// and blocks until it becomes available.
+	// getter allows the DASer to fetch an ExtendedHeader (EH) at a certain height
+	// and blocks until the EH has been processed by the header store.
 	getter HeaderGetter
 	// checkpoint store
 	cstore datastore.Datastore

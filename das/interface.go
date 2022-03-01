@@ -6,10 +6,9 @@ import (
 	"github.com/celestiaorg/celestia-node/service/header"
 )
 
-// HeaderGetter contains the behavior necessary for the DASer
-// to retrieve headers that have become newly available during the
-// syncing process in order to perform data availability sampling
-// over headers from the past.
+// HeaderGetter contains the behavior necessary for the DASer to retrieve
+// headers that have been processed during header sync in order to
+// perform data availability sampling over them.
 type HeaderGetter interface {
 	// GetByHeight returns the ExtendedHeader corresponding to the given
 	// block height.
