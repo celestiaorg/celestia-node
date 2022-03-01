@@ -16,7 +16,6 @@ var (
 // the `das` prefix.
 func NewCheckpointStore(ds datastore.Datastore) datastore.Datastore {
 	return namespace.Wrap(ds, storePrefix)
-
 }
 
 // loadCheckpoint loads the DAS checkpoint from disk and returns it.
