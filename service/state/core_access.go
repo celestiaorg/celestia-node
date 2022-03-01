@@ -30,12 +30,12 @@ func NewCoreAccessor(
 	signer *apptypes.KeyringSigner,
 	encCfg cosmoscmd.EncodingConfig,
 	endpoint string,
-) (*CoreAccessor, error) {
+) *CoreAccessor {
 	return &CoreAccessor{
 		signer:       signer,
 		encCfg:       encCfg,
 		coreEndpoint: endpoint,
-	}, nil
+	}
 }
 
 func (ca *CoreAccessor) Start(ctx context.Context) error {
@@ -51,7 +51,7 @@ func (ca *CoreAccessor) Start(ctx context.Context) error {
 	return nil
 }
 
-func (ca *CoreAccessor) Stop(_ context.Context) error {
+func (ca *CoreAccessor) Stop(context.Context) error {
 	if ca.coreConn == nil {
 		return fmt.Errorf("core-access: no connection found to close")
 	}

@@ -37,8 +37,7 @@ func TestCoreAccess(t *testing.T) {
 	grpcEndpoint := fmt.Sprintf("%s:9090", ip)
 
 	// create CoreAccess with the grpc endpoint to mock core node
-	ca, err := NewCoreAccessor(signer, encCfg, grpcEndpoint)
-	require.NoError(t, err)
+	ca := NewCoreAccessor(signer, encCfg, grpcEndpoint)
 	bal, err := ca.Balance(context.Background())
 	require.NoError(t, err)
 	t.Log("BAL: ", bal)

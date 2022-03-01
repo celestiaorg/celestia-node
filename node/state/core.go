@@ -24,5 +24,5 @@ func CoreAccessor(
 	}
 	signer := apptypes.NewKeyringSigner(ring, keyCfg.KeyringAccName, string(params.GetNetwork()))
 
-	return state.NewCoreAccessor(signer, encCfg, coreEndpoint)
+	return state.NewCoreAccessor(signer, encCfg, coreEndpoint), nil
 }
