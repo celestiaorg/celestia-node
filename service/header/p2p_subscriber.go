@@ -40,7 +40,7 @@ func (p *P2PSubscriber) Start(context.Context) (err error) {
 func (p *P2PSubscriber) Stop(context.Context) error {
 	err := p.pubsub.UnregisterTopicValidator(PubSubTopic)
 	if err != nil {
-		return err
+		log.Warnf("unregistering validator: %s", err)
 	}
 
 	return p.topic.Close()
