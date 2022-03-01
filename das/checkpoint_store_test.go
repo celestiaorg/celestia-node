@@ -10,7 +10,7 @@ import (
 )
 
 func TestCheckpointStore(t *testing.T) {
-	ds := NewCheckpointStore(sync.MutexWrap(datastore.NewMapDatastore()))
+	ds := wrapCheckpointStore(sync.MutexWrap(datastore.NewMapDatastore()))
 	checkpoint := int64(5)
 	err := storeCheckpoint(ds, checkpoint)
 	require.NoError(t, err)

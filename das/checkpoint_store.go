@@ -12,9 +12,11 @@ var (
 	checkpointKey = datastore.NewKey("checkpoint")
 )
 
-// NewCheckpointStore wraps the given datastore.Datastore with
-// the `das` prefix.
-func NewCheckpointStore(ds datastore.Datastore) datastore.Datastore {
+// wrapCheckpointStore wraps the given datastore.Datastore with the `das`
+// prefix. The checkpoint store stores/loads the DASer's checkpoint to/from
+// disk using the checkpointKey. The checkpoint is stored as a uint64
+// representation of the height of the latest successfully DASed header.
+func wrapCheckpointStore(ds datastore.Datastore) datastore.Datastore {
 	return namespace.Wrap(ds, storePrefix)
 }
 

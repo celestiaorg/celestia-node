@@ -20,14 +20,13 @@ import (
 // the DASer checkpoint is updated to network head.
 func TestDASerLifecycle(t *testing.T) {
 	ds := ds_sync.MutexWrap(datastore.NewMapDatastore())
-	cstore := NewCheckpointStore(ds) // we aren't storing the checkpoint so that DASer starts DASing from height 1.
 
 	mockGet, shareServ, sub := createDASerSubcomponents(t, 15, 15)
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*15)
 	t.Cleanup(cancel)
 
-	daser := NewDASer(shareServ, sub, mockGet, cstore)
+	daser := NewDASer(shareServ, sub, mockGet, ds)
 
 	err := daser.Start(ctx)
 	require.NoError(t, err)
@@ -40,7 +39,7 @@ func TestDASerLifecycle(t *testing.T) {
 	}
 
 	// load checkpoint and ensure it's at network head
-	checkpoint, err := loadCheckpoint(cstore)
+	checkpoint, err := loadCheckpoint(daser.cstore)
 	require.NoError(t, err)
 	assert.Equal(t, int64(30), checkpoint)
 
@@ -50,7 +49,7 @@ func TestDASerLifecycle(t *testing.T) {
 
 func TestDASer_catchUp(t *testing.T) {
 	ds := ds_sync.MutexWrap(datastore.NewMapDatastore())
-	cstore := NewCheckpointStore(ds)
+	cstore := wrapCheckpointStore(ds)
 
 	mockGet, shareServ, _ := createDASerSubcomponents(t, 5, 0)
 
@@ -72,7 +71,7 @@ func TestDASer_catchUp(t *testing.T) {
 // difference of 1
 func TestDASer_catchUp_oneHeader(t *testing.T) {
 	ds := ds_sync.MutexWrap(datastore.NewMapDatastore())
-	cstore := NewCheckpointStore(ds)
+	cstore := wrapCheckpointStore(ds)
 
 	mockGet, shareServ, _ := createDASerSubcomponents(t, 6, 0)
 

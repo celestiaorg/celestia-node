@@ -22,9 +22,8 @@ type DASer struct {
 	// getter allows the DASer to fetch a header at a certain height
 	// and blocks until it becomes available.
 	getter HeaderGetter
-	// checkpoint from disk -- DASStore stores checkpoint w/ DASCheckpoint key
-	// checkpoint = latest successfully DASed header (reference to it, not the header)
-	ds datastore.Datastore
+	// checkpoint store
+	cstore datastore.Datastore
 
 	cancel    context.CancelFunc
 	sampleDn  chan struct{} // done signal for sample loop
@@ -36,20 +35,21 @@ func NewDASer(
 	da share.Availability,
 	hsub header.Subscriber,
 	getter HeaderGetter,
-	ds datastore.Datastore,
+	cstore datastore.Datastore,
 ) *DASer {
+	wrappedDS := wrapCheckpointStore(cstore)
 	return &DASer{
 		da:        da,
 		hsub:      hsub,
 		getter:    getter,
-		ds:        ds,
+		cstore:    wrappedDS,
 		sampleDn:  make(chan struct{}),
 		catchUpDn: make(chan struct{}),
 	}
 }
 
 // Start initiates subscription for new ExtendedHeaders and spawns a sampling routine.
-func (d *DASer) Start(_ context.Context) error {
+func (d *DASer) Start(context.Context) error {
 	if d.cancel != nil {
 		return fmt.Errorf("da: DASer already started")
 	}
@@ -60,7 +60,7 @@ func (d *DASer) Start(_ context.Context) error {
 	}
 
 	// load latest DASed checkpoint
-	checkpoint, err := loadCheckpoint(d.ds)
+	checkpoint, err := loadCheckpoint(d.cstore)
 	if err != nil {
 		return err
 	}
@@ -98,7 +98,7 @@ func (d *DASer) sample(ctx context.Context, sub header.Subscription, checkpoint 
 		//  stores latest checkpoint to disk as network head (150)
 		// 	but catchUp routine has only sampled from [1:40] so there is a gap
 		//  missing from (40: 100)?
-		if err := storeCheckpoint(d.ds, checkpoint); err != nil {
+		if err := storeCheckpoint(d.cstore, checkpoint); err != nil {
 			log.Errorw("storing latest DASed checkpoint to disk", "height", checkpoint, "err", err)
 		}
 		sub.Cancel()
@@ -146,9 +146,8 @@ func (d *DASer) sample(ctx context.Context, sub header.Subscription, checkpoint 
 	}
 }
 
-// catchUp starts sampling headers from the last known
-// checkpoint (latest/highest DASed header) `from`, and breaks the loop
-// once network head `to` is reached. (from:to]
+// catchUp starts a sampling routine for headers starting at the `from`
+// height and exits the loop once `to` is reached. (from:to]
 func (d *DASer) catchUp(ctx context.Context, from, to int64) {
 	defer close(d.catchUpDn)
 
