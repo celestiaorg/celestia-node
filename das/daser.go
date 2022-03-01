@@ -92,16 +92,14 @@ func (d *DASer) Stop(ctx context.Context) error {
 
 // sample validates availability for each Header received from header subscription.
 func (d *DASer) sample(ctx context.Context, sub header.Subscription, checkpoint int64) {
-	height := checkpoint
-
 	defer func() {
 		// store latest DASed checkpoint to disk
 		// TODO @renaynay: what sample DASes [100:150] and
 		//  stores latest checkpoint to disk as network head (150)
 		// 	but catchUp routine has only sampled from [1:40] so there is a gap
 		//  missing from (40: 100)?
-		if err := storeCheckpoint(d.ds, height); err != nil {
-			log.Errorw("storing latest DASed checkpoint to disk", "height", height, "err", err)
+		if err := storeCheckpoint(d.ds, checkpoint); err != nil {
+			log.Errorw("storing latest DASed checkpoint to disk", "height", checkpoint, "err", err)
 		}
 		sub.Cancel()
 		close(d.sampleDn)
@@ -122,10 +120,10 @@ func (d *DASer) sample(ctx context.Context, sub header.Subscription, checkpoint 
 		// to our last DASed header, kick off routine to DAS all headers
 		// between last DASed header and h. This situation could occur
 		// either on start or due to network latency/disconnection.
-		if h.Height > (height + 1) {
+		if h.Height > (checkpoint + 1) {
 			// DAS headers between last DASed height up to the current
 			// header
-			go d.catchUp(ctx, height, h.Height-1)
+			go d.catchUp(ctx, checkpoint, h.Height-1)
 		}
 
 		startTime := time.Now()
@@ -144,7 +142,7 @@ func (d *DASer) sample(ctx context.Context, sub header.Subscription, checkpoint 
 		log.Infow("sampling successful", "height", h.Height, "hash", h.Hash(),
 			"square width", len(h.DAH.RowsRoots), "finished (s)", sampleTime.Seconds())
 
-		height = h.Height
+		checkpoint = h.Height
 	}
 }
 
