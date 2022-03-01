@@ -4,12 +4,13 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/celestiaorg/celestia-app/app"
-	apptypes "github.com/celestiaorg/celestia-app/x/payment/types"
 	sdk_tx "github.com/cosmos/cosmos-sdk/types/tx"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"github.com/tendermint/spm/cosmoscmd"
 	"google.golang.org/grpc"
+
+	"github.com/celestiaorg/celestia-app/app"
+	apptypes "github.com/celestiaorg/celestia-app/x/payment/types"
 )
 
 // CoreAccessor implements Accessor over an RPC connection

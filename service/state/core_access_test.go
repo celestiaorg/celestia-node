@@ -3,18 +3,19 @@ package state
 import (
 	"context"
 	"fmt"
-	"github.com/celestiaorg/celestia-app/app"
-	apptypes "github.com/celestiaorg/celestia-app/x/payment/types"
-	"github.com/celestiaorg/celestia-node/core"
+	"os"
+	"testing"
+
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	"github.com/cosmos/cosmos-sdk/testutil"
 	"github.com/stretchr/testify/require"
 	"github.com/tendermint/spm/cosmoscmd"
-	"os"
-	"testing"
 
+	"github.com/celestiaorg/celestia-app/app"
 	apputil "github.com/celestiaorg/celestia-app/testutil"
+	apptypes "github.com/celestiaorg/celestia-app/x/payment/types"
+	"github.com/celestiaorg/celestia-node/core"
 )
 
 func TestCoreAccess(t *testing.T) {
@@ -42,4 +43,3 @@ func TestCoreAccess(t *testing.T) {
 	require.NoError(t, err)
 	t.Log("BAL: ", bal)
 }
-
