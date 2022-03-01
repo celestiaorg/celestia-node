@@ -61,7 +61,8 @@ func TestDASer_catchUp(t *testing.T) {
 	wg := &sync.WaitGroup{}
 	wg.Add(1)
 	go func(wg *sync.WaitGroup) {
-		daser.catchUp(ctx, 2, mockGet.head) // pick random number as `from` parameter
+		// catch up from height 2 to head
+		daser.catchUp(ctx, 2, mockGet.head)
 		wg.Done()
 	}(wg)
 	wg.Wait()
@@ -76,7 +77,7 @@ func TestDASer_catchUp_oneHeader(t *testing.T) {
 	mockGet, shareServ, _ := createDASerSubcomponents(t, 6, 0)
 
 	// store checkpoint
-	err := storeCheckpoint(cstore, 5) // pick random header as last checkpoint
+	err := storeCheckpoint(cstore, 5) // pick arbitrary height as last checkpoint
 	require.NoError(t, err)
 
 	ctx, cancel := context.WithCancel(context.Background())
