@@ -45,8 +45,8 @@ func (s *Service) Stop(context.Context) error {
 	return nil
 }
 
-// GetByHeight returns the ExtendedHeader by a provided height
-// This is a blocking call until the height is reached or context deadline is exceeded
+// GetByHeight returns the ExtendedHeader at the given height, blocking
+// until header has been processed by the store or context deadline is exceeded.
 func (s *Service) GetByHeight(ctx context.Context, height uint64) (*ExtendedHeader, error) {
 	return s.syncer.store.GetByHeight(ctx, height)
 }
