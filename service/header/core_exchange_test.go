@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"testing"
+	"time"
 
 	mdutils "github.com/ipfs/go-merkledag/test"
 	"github.com/stretchr/testify/assert"
@@ -13,14 +14,18 @@ import (
 )
 
 func TestCoreExchange_RequestHeaders(t *testing.T) {
-	fetcher := createCoreFetcher(t)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*15)
+	t.Cleanup(cancel)
+
+	fetcher, err := createCoreFetcher(ctx, t)
+	require.NoError(t, err)
 	store := mdutils.Mock()
 
 	// generate 10 blocks
 	generateBlocks(t, fetcher)
 
 	ce := NewCoreExchange(fetcher, store)
-	headers, err := ce.RequestHeaders(context.Background(), 1, 10)
+	headers, err := ce.RequestHeaders(ctx, 1, 10)
 	require.NoError(t, err)
 
 	assert.Equal(t, 10, len(headers))
@@ -33,9 +38,18 @@ func Test_hashMatch(t *testing.T) {
 	assert.False(t, bytes.Equal(expected, mismatch))
 }
 
-func createCoreFetcher(t *testing.T) *core.BlockFetcher {
+func createCoreFetcher(ctx context.Context, t *testing.T) (*core.BlockFetcher, error) {
 	mock := core.EphemeralMockEmbeddedClient(t)
-	return core.NewBlockFetcher(mock)
+	for {
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		default:
+			if mock.IsRunning() {
+				return core.NewBlockFetcher(mock), nil
+			}
+		}
+	}
 }
 
 func generateBlocks(t *testing.T, fetcher *core.BlockFetcher) {

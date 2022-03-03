@@ -29,7 +29,8 @@ func TestCoreListener(t *testing.T) {
 	require.NoError(t, err)
 
 	// create one block to store as Head in local store and then unsubscribe from block events
-	fetcher := createCoreFetcher(t)
+	fetcher, err := createCoreFetcher(ctx, t)
+	require.NoError(t, err)
 
 	// create CoreListener and start listening
 	cl := createCoreListener(ctx, t, fetcher, ps0)
