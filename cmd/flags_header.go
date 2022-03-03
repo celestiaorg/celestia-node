@@ -79,7 +79,7 @@ func TrustedHashFlags() *flag.FlagSet {
 	return flags
 }
 
-// ParseHeadersFlags parses Header package flags from the given cmd and applies values to Env.
+// ParseTrustedHashFlags parses Header package flags from the given cmd and applies values to Env.
 func ParseTrustedHashFlags(cmd *cobra.Command, env *Env) error {
 	hash := cmd.Flag(headersTrustedHashFlag).Value.String()
 	if hash != "" {
