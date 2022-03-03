@@ -1,0 +1,71 @@
+# ADR #006: Celestia-Node Bad encoding fraud proof(BEFP)
+
+## Changelog
+
+- 2021.03.03 - init commit
+
+## Authors
+
+@vgonkivs @Bidon15 @adlerjohn
+
+## Context
+
+In case when node receives errors `ErrByzantineRow`/`ErrByzantineCol` it should generate a fraud proof that broadcasts message to light clients and informs that block could be malicious.
+
+## Decision
+
+Started disscussion within:
+
+https://github.com/celestiaorg/celestia-node/issues/4
+
+https://github.com/celestiaorg/celestia-node/issues/263
+
+## Detailed Design
+It should be generated when after repairing the entire block, we detect recovered data does not match with its respective row/column roots. The result of RepairExtendedDataSquare will be an error ErrByzantineRow/ErrByzantineCol:
+
+```go
+// ErrByzantineRow is thrown when a repaired row does not match the expected row Merkle root.
+type ErrByzantineRow struct {
+   RowNumber uint     // Row index
+   Shares    [][]byte // Pre-repaired row shares. Missing shares are nil.
+}
+```
+
+```go
+// ErrByzantineCol is thrown when a repaired column does not match the expected column Merkle root.
+type ErrByzantineCol struct {
+   ColNumber uint     // Column index
+   Shares    [][]byte // Pre-repaired column shares. Missing shares are nil.
+}
+```
+Both of these errors consist of column/row numbers that do not match with the Merkle root and shares that were successfully repaired and verified(all correct shares).
+
+Using this info we need to prepare a fraud proof that will consist of:
+ 1. Block height;
+ 2. Non-nil shares returned with error;
+ 3. Merkle Proofs of non-nil shares from 2;
+
+```go
+type BadEncondingFraudProof struct {
+    Height uint64
+    Shares [][]byte
+    MerkleProofs [][]byte
+}
+```
+
+After generating a BEFP struct we have to broadcast it to light clients within pub-sub. A BEFP will be generated in ipld/read.go and returned from RetrevieData as an error. In this case `share.Service` should broadcast this error to light clients via separate sub-service `FraudProofService`.
+
+## Status
+Proposed
+
+## Consequences
+
+### Positive
+
+Detect incorrect block
+
+## References
+
+Data Availability(Bad Encoding) Fraud Proofs: [#4](https://github.com/celestiaorg/celestia-node/issues/4)
+   
+Implement stubs for BadEncodingFraudProofs: [#263](https://github.com/celestiaorg/celestia-node/issues/263) 
