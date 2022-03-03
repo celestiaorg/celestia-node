@@ -25,14 +25,11 @@ func ContentRouting() routing.ContentRouting {
 // Basically, this provides a way to discover peer addresses by respecting public keys.
 func PeerRouting(cfg Config) func(routingParams) (routing.PeerRouting, error) {
 	return func(params routingParams) (routing.PeerRouting, error) {
-		bpeers, err := cfg.bootstrapPeers()
-		if err != nil {
-			return nil, err
-		}
-
+		bpeers := nparams.BootstrappersInfos()
 		prefix := fmt.Sprintf("/celestia/%s", nparams.GetNetwork())
 		mode := dht.ModeAuto
 		if cfg.Bootstrapper {
+			bpeers = nil // no bootstrappers for a bootstrapper ¯\_(ツ)_/¯
 			mode = dht.ModeServer
 		}
 
