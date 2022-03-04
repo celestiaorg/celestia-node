@@ -7,6 +7,7 @@ import (
 	ipld "github.com/ipfs/go-ipld-format"
 	"github.com/ipfs/go-merkledag"
 	"github.com/libp2p/go-libp2p-core/host"
+	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/libp2p/go-libp2p-core/peerstore"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	"go.uber.org/fx"
@@ -19,31 +20,18 @@ import (
 )
 
 // HeaderSyncer creates a new header.Syncer.
-func HeaderSyncer(cfg Config) func(
+func HeaderSyncer(
 	lc fx.Lifecycle,
 	ex header.Exchange,
 	store header.Store,
 	sub header.Subscriber,
 ) (*header.Syncer, error) {
-	return func(
-		lc fx.Lifecycle,
-		ex header.Exchange,
-		store header.Store,
-		sub header.Subscriber,
-	) (*header.Syncer, error) {
-		trustedHash, err := cfg.trustedHash()
-		if err != nil {
-			return nil, err
-		}
-
-		syncer := header.NewSyncer(ex, store, sub, trustedHash)
-		lc.Append(fx.Hook{
-			OnStart: syncer.Start,
-			OnStop:  syncer.Stop,
-		})
-
-		return syncer, nil
-	}
+	syncer := header.NewSyncer(ex, store, sub)
+	lc.Append(fx.Hook{
+		OnStart: syncer.Start,
+		OnStop:  syncer.Stop,
+	})
+	return syncer, nil
 }
 
 // P2PSubscriber creates a new header.P2PSubscriber.
@@ -69,13 +57,16 @@ func HeaderService(
 // HeaderExchangeP2P constructs new P2PExchange for headers.
 func HeaderExchangeP2P(cfg Config) func(host host.Host) (header.Exchange, error) {
 	return func(host host.Host) (header.Exchange, error) {
-		peer, err := cfg.trustedPeer()
+		peers, err := cfg.trustedPeers()
 		if err != nil {
 			return nil, err
 		}
-
-		host.Peerstore().AddAddrs(peer.ID, peer.Addrs, peerstore.PermanentAddrTTL)
-		return header.NewP2PExchange(host, peer.ID), nil
+		ids := make([]peer.ID, len(peers))
+		for index, peer := range peers {
+			ids[index] = peer.ID
+			host.Peerstore().AddAddrs(peer.ID, peer.Addrs, peerstore.PermanentAddrTTL)
+		}
+		return header.NewP2PExchange(host, ids), nil
 	}
 }
 
@@ -90,9 +81,39 @@ func HeaderP2PExchangeServer(lc fx.Lifecycle, host host.Host, store header.Store
 	return p2pServ
 }
 
-// HeaderStore creates new header.Store.
-func HeaderStore(ds datastore.Batching) (header.Store, error) {
-	return header.NewStore(ds)
+// HeaderStore creates and initializes new header.Store.
+func HeaderStore(lc fx.Lifecycle, ds datastore.Batching) (header.Store, error) {
+	store, err := header.NewStore(ds)
+	if err != nil {
+		return nil, err
+	}
+	lc.Append(fx.Hook{
+		OnStart: store.Start,
+		OnStop:  store.Stop,
+	})
+	return store, nil
+}
+
+// HeaderStoreInit initializes the store.
+func HeaderStoreInit(cfg *Config) func(context.Context, header.Store, header.Exchange) error {
+	return func(ctx context.Context, store header.Store, ex header.Exchange) error {
+		trustedHash, err := cfg.trustedHash()
+		if err != nil {
+			return err
+		}
+
+		err = header.InitStore(ctx, store, ex, trustedHash)
+		if err != nil {
+			// TODO(@Wondertan): Error is ignored, as otherwise unit tests for Node construction fail.
+			// 	This is due to requesting step of initialization, which fetches initial Header by trusted hash from
+			//  the network. The step can't be done during unit tests and fixing it would require either
+			//   * Having some test/dev/offline mode for Node that mocks out all the networking
+			//   * Hardcoding full extended header in params pkg, instead of hashes, so we avoid requesting step
+			log.Errorf("initializing store failed: %s", err)
+		}
+
+		return nil
+	}
 }
 
 // BlockService constructs new block.Service.

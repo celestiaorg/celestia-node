@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	libhost "github.com/libp2p/go-libp2p-core/host"
+	"github.com/libp2p/go-libp2p-core/peer"
 	mocknet "github.com/libp2p/go-libp2p/p2p/net/mock"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -109,9 +110,9 @@ func createMocknet(ctx context.Context, t *testing.T) (libhost.Host, libhost.Hos
 }
 
 // createP2PExAndServer creates a P2PExchange with 5 headers already in its store.
-func createP2PExAndServer(t *testing.T, host, peer libhost.Host) (Exchange, *mockStore) {
+func createP2PExAndServer(t *testing.T, host, tpeer libhost.Host) (Exchange, *mockStore) {
 	store := createStore(t, 5)
-	serverSideEx := NewP2PExchangeServer(peer, store)
+	serverSideEx := NewP2PExchangeServer(tpeer, store)
 	err := serverSideEx.Start(context.Background())
 	require.NoError(t, err)
 
@@ -119,7 +120,7 @@ func createP2PExAndServer(t *testing.T, host, peer libhost.Host) (Exchange, *moc
 		serverSideEx.Stop(context.Background()) //nolint:errcheck
 	})
 
-	return NewP2PExchange(host, peer.ID()), store
+	return NewP2PExchange(host, []peer.ID{tpeer.ID()}), store
 }
 
 type mockStore struct {
@@ -146,6 +147,14 @@ func createStore(t *testing.T, numHeaders int) *mockStore {
 		}
 	}
 	return store
+}
+
+func (m *mockStore) Init(context.Context, *ExtendedHeader) error { return nil }
+func (m *mockStore) Start(context.Context) error                 { return nil }
+func (m *mockStore) Stop(context.Context) error                  { return nil }
+
+func (m *mockStore) Height() uint64 {
+	return uint64(m.headHeight)
 }
 
 func (m *mockStore) Head(context.Context) (*ExtendedHeader, error) {
@@ -178,7 +187,7 @@ func (m *mockStore) Has(context.Context, tmbytes.HexBytes) (bool, error) {
 	return false, nil
 }
 
-func (m *mockStore) Append(ctx context.Context, headers ...*ExtendedHeader) error {
+func (m *mockStore) Append(ctx context.Context, headers ...*ExtendedHeader) (int, error) {
 	for _, header := range headers {
 		m.headers[header.Height] = header
 		// set head
@@ -186,5 +195,5 @@ func (m *mockStore) Append(ctx context.Context, headers ...*ExtendedHeader) erro
 			m.headHeight = header.Height
 		}
 	}
-	return nil
+	return len(headers), nil
 }

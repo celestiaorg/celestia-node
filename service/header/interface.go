@@ -73,6 +73,19 @@ var (
 // Store encompasses the behavior necessary to store and retrieve ExtendedHeaders
 // from a node's local storage.
 type Store interface {
+	// Start starts the store.
+	Start(context.Context) error
+
+	// Stop stops the store by preventing further writes
+	// and waiting till the ongoing ones are done.
+	Stop(context.Context) error
+
+	// Init initializes Store with the given head, meaning it is initialized with the genesis header.
+	Init(context.Context, *ExtendedHeader) error
+
+	// Height reports current height of the chain head.
+	Height() uint64
+
 	// Head returns the ExtendedHeader of the chain head.
 	Head(context.Context) (*ExtendedHeader, error)
 
@@ -89,6 +102,9 @@ type Store interface {
 	Has(context.Context, tmbytes.HexBytes) (bool, error)
 
 	// Append stores and verifies the given ExtendedHeader(s).
-	// It requires them to be adjacent and in ascending order.
-	Append(context.Context, ...*ExtendedHeader) error
+	// It requires them to be adjacent and in ascending order,
+	// as it applies them contiguously on top of the current head height.
+	// It returns the amount of successfully applied headers,
+	// so caller can understand what given header was invalid, if any.
+	Append(context.Context, ...*ExtendedHeader) (int, error)
 }

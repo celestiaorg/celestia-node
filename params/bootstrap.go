@@ -17,8 +17,8 @@ func BootstrappersFor(net Network) ([]string, error) {
 // NOTE: Every time we add a new long-running network, its bootstrap peers have to be added here.
 var bootstrapList = map[Network][]string{
 	DevNet: {
-		"/dns4/andromeda.celestia-devops.dev/tcp/2121/p2p/12D3KooWSv6aX4eweBMUtDBXSbTu2uvX1Nf7eFWsDgrJvrgduzU9",
-		"/dns4/libra.celestia-devops.dev/tcp/2121/p2p/12D3KooWNGuNLG7Kiom4UUAyiW6pdJnPXQV7xGereokMJxB5f6SU",
-		"/dns4/norma.celestia-devops.dev/tcp/2121/p2p/12D3KooWBKReVZa4bE1Edfn4TfxK2UCq3qqTtQSHiHeHQy18YgiY",
+		"/dns4/andromeda.celestia-devops.dev/tcp/2121/p2p/12D3KooWKvPXtV1yaQ6e3BRNUHa5Phh8daBwBi3KkGaSSkUPys6D",
+		"/dns4/libra.celestia-devops.dev/tcp/2121/p2p/12D3KooWK5aDotDcLsabBmWDazehQLMsDkRyARm1k7f1zGAXqbt4",
+		"/dns4/norma.celestia-devops.dev/tcp/2121/p2p/12D3KooWHYczJDVNfYVkLcNHPTDKCeiVvRhg8Q9JU3bE3m9eEVyY",
 	},
 }

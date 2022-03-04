@@ -60,13 +60,13 @@ test-unit-race:
 ## test-swamp: Running swamp tests located in node/tests
 test-swamp:
 	@echo "--> Running swamp tests"
-	@go test -v ./node/tests/swamp
+	@go test -v ./node/tests
 .PHONY: test-swamp
 
 ## test-swamp: Running swamp tests with data race detector located in node/tests
 test-swamp-race:
 	@echo "--> Running swamp tests with data race detector"
-	@go test -v -race ./node/tests/swamp
+	@go test -v -race ./node/tests
 .PHONY: test-swamp-race
 
 ## test-all: Running both unit and swamp tests

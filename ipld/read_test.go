@@ -10,8 +10,14 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ipfs/go-blockservice"
 	"github.com/ipfs/go-cid"
+	ds "github.com/ipfs/go-datastore"
+	dssync "github.com/ipfs/go-datastore/sync"
+	blockstore "github.com/ipfs/go-ipfs-blockstore"
+	offline "github.com/ipfs/go-ipfs-exchange-offline"
 	format "github.com/ipfs/go-ipld-format"
+	"github.com/ipfs/go-merkledag"
 	mdutils "github.com/ipfs/go-merkledag/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -250,7 +256,7 @@ func TestGetLeavesByNamespace(t *testing.T) {
 
 			// choose random nID from rand shares
 			expected := tt.rawData[len(tt.rawData)/2]
-			nID := expected[:8]
+			nID := expected[:NamespaceSize]
 
 			// change rawData to contain several shares with same nID
 			tt.rawData[(len(tt.rawData)/2)+1] = expected
@@ -275,10 +281,166 @@ func TestGetLeavesByNamespace(t *testing.T) {
 				for _, node := range nodes {
 					// TODO @renaynay: nID is prepended twice for some reason.
 					share := node.RawData()[1:]
-					assert.Equal(t, expected, share[8:])
+					assert.Equal(t, expected, share[NamespaceSize:])
 				}
 			}
 		})
+	}
+}
+
+func TestGetLeavesByNamespace_AbsentNamespaceId(t *testing.T) {
+	rawData := RandNamespacedShares(t, 16).Raw()
+
+	minNid := make([]byte, NamespaceSize)
+	midNid := make([]byte, NamespaceSize)
+	maxNid := make([]byte, NamespaceSize)
+
+	numberOfShares := len(rawData)
+
+	copy(minNid, rawData[0][:NamespaceSize])
+	copy(maxNid, rawData[numberOfShares-1][:NamespaceSize])
+	copy(midNid, rawData[numberOfShares/2][:NamespaceSize])
+
+	// create min nid missing data by replacing first namespace id with second
+	minNidMissingData := make([][]byte, len(rawData))
+	copy(minNidMissingData, rawData)
+	copy(minNidMissingData[0][:NamespaceSize], rawData[1][:NamespaceSize])
+
+	// create max nid missing data by replacing last namespace id with second last
+	maxNidMissingData := make([][]byte, len(rawData))
+	copy(maxNidMissingData, rawData)
+	copy(maxNidMissingData[numberOfShares-1][:NamespaceSize], rawData[numberOfShares-2][:NamespaceSize])
+
+	// create mid nid missing data by replacing middle namespace id with the one after
+	midNidMissingData := make([][]byte, len(rawData))
+	copy(midNidMissingData, rawData)
+	copy(midNidMissingData[numberOfShares/2][:NamespaceSize], rawData[(numberOfShares/2)+1][:NamespaceSize])
+
+	var tests = []struct {
+		name       string
+		data       [][]byte
+		missingNid []byte
+	}{
+		{name: "Namespace id less than the minimum namespace in data", data: minNidMissingData, missingNid: minNid},
+		{name: "Namespace id greater than the maximum namespace in data", data: maxNidMissingData, missingNid: maxNid},
+		{name: "Namespace id in range but still missing", data: midNidMissingData, missingNid: midNid},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			dag, dah := putErasuredDataToDag(t, tt.data)
+
+			assertNoRowContainsNID(t, dag, dah, tt.missingNid)
+		})
+	}
+}
+
+func TestGetLeavesByNamespace_MultipleRowsContainingSameNamespaceId(t *testing.T) {
+	t.Run("Same namespace id across multiple rows", func(t *testing.T) {
+		rawData := RandNamespacedShares(t, 16).Raw()
+
+		// set all shares to the same namespace and data but the last one
+		nid := rawData[0][:NamespaceSize]
+		commonNamespaceData := rawData[0]
+
+		for i, nspace := range rawData {
+			if i == len(rawData)-1 {
+				break
+			}
+
+			copy(nspace, commonNamespaceData)
+		}
+
+		dag, dah := putErasuredDataToDag(t, rawData)
+
+		rowRootCids, err := rowRootsByNamespaceID(nid, &dah)
+		require.NoError(t, err)
+
+		for _, rowRootCid := range rowRootCids {
+			nodes, err := GetLeavesByNamespace(context.Background(), dag, rowRootCid, nid)
+			require.NoError(t, err)
+
+			for _, node := range nodes {
+				// test that the data returned by GetLeavesByNamespace for nid
+				// matches the commonNamespaceData that was copied across almost all data
+				share := node.RawData()[1:]
+				assert.Equal(t, commonNamespaceData, share[NamespaceSize:])
+			}
+		}
+	})
+
+}
+
+func TestBatchSize(t *testing.T) {
+	tests := []struct {
+		name      string
+		origWidth int
+	}{
+		{"2", 2},
+		{"4", 4},
+		{"8", 8},
+		{"16", 16},
+		{"32", 32},
+		// {"64", 64}, // test case too large for CI with race detector
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ctx, cancel := context.WithTimeout(context.Background(), time.Second*time.Duration(tt.origWidth))
+			defer cancel()
+
+			bs := blockstore.NewBlockstore(dssync.MutexWrap(ds.NewMapDatastore()))
+			dag := merkledag.NewDAGService(blockservice.New(bs, offline.Exchange(bs)))
+
+			eds := generateRandEDS(t, tt.origWidth)
+			_, err := PutData(ctx, ExtractODSShares(eds), dag)
+			require.NoError(t, err)
+
+			out, err := bs.AllKeysChan(ctx)
+			require.NoError(t, err)
+
+			var count int
+			for range out {
+				count++
+			}
+			extendedWidth := tt.origWidth * 2
+			assert.Equalf(t, count, batchSize(extendedWidth), "batchSize(%v)", extendedWidth)
+		})
+	}
+}
+
+func putErasuredDataToDag(t *testing.T, rawData [][]byte) (format.DAGService, da.DataAvailabilityHeader) {
+	// calc square size
+	squareSize := uint64(math.Sqrt(float64(len(rawData))))
+
+	// generate DAH
+	eds, err := da.ExtendShares(squareSize, rawData)
+	require.NoError(t, err)
+	dah := da.NewDataAvailabilityHeader(eds)
+
+	// put raw data in DAG
+	dag := mdutils.Mock()
+	_, err = PutData(context.Background(), rawData, dag)
+	require.NoError(t, err)
+
+	return dag, dah
+}
+
+func assertNoRowContainsNID(
+	t *testing.T,
+	dag format.DAGService,
+	dah da.DataAvailabilityHeader,
+	nID namespace.ID,
+) {
+	// get all row root cids
+	rowRootCIDs := make([]cid.Cid, len(dah.RowsRoots))
+	for i, rowRoot := range dah.RowsRoots {
+		rowRootCIDs[i] = plugin.MustCidFromNamespacedSha256(rowRoot)
+	}
+
+	// for each row root cid check if the minNID exists
+	for _, rowCID := range rowRootCIDs {
+		_, err := GetLeavesByNamespace(context.Background(), dag, rowCID, nID)
+		assert.Equal(t, ErrNotFoundInRange, err)
 	}
 }
 

@@ -1,4 +1,4 @@
-package swamp
+package tests
 
 import (
 	"context"
@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/celestiaorg/celestia-node/node"
+	"github.com/celestiaorg/celestia-node/node/tests/swamp"
 )
 
 /*
@@ -24,7 +25,8 @@ Steps:
 6. Check LN is synced with BN
 */
 func TestSyncLightWithBridge(t *testing.T) {
-	sw := NewSwamp(t)
+	sw := swamp.NewSwamp(t, swamp.DefaultComponents())
+
 	bridge := sw.NewBridgeNode()
 
 	ctx := context.Background()

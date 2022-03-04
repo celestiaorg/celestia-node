@@ -3,6 +3,7 @@ package header
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/ipfs/go-datastore"
 	"github.com/ipfs/go-datastore/sync"
@@ -13,24 +14,26 @@ import (
 )
 
 func TestStore(t *testing.T) {
-	// Alter Cache sizes to read some values from datastore instead of only cache.
-	DefaultStoreCacheSize, DefaultStoreCacheSize = 5, 5
-
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	t.Cleanup(cancel)
 
 	suite := NewTestSuite(t, 3)
 
-	store, err := NewStoreWithHead(sync.MutexWrap(datastore.NewMapDatastore()), suite.Head())
+	ds := sync.MutexWrap(datastore.NewMapDatastore())
+	store, err := NewStoreWithHead(ctx, ds, suite.Head())
+	require.NoError(t, err)
+
+	err = store.Start(ctx)
 	require.NoError(t, err)
 
 	head, err := store.Head(ctx)
 	require.NoError(t, err)
-	assert.EqualValues(t, suite.Head(), head)
+	assert.EqualValues(t, suite.Head().Hash(), head.Hash())
 
 	in := suite.GenExtendedHeaders(10)
-	err = store.Append(ctx, in...)
+	ln, err := store.Append(ctx, in...)
 	require.NoError(t, err)
+	assert.Equal(t, 10, ln)
 
 	out, err := store.GetRangeByHeight(ctx, 2, 12)
 	require.NoError(t, err)
@@ -49,4 +52,36 @@ func TestStore(t *testing.T) {
 	ok, err = store.Has(ctx, tmrand.Bytes(32))
 	require.NoError(t, err)
 	assert.False(t, ok)
+
+	go func() {
+		ln, err := store.Append(ctx, suite.GenExtendedHeaders(1)...)
+		require.NoError(t, err)
+		assert.Equal(t, 1, ln)
+	}()
+
+	h, err := store.GetByHeight(ctx, 12)
+	require.NoError(t, err)
+	assert.NotNil(t, h)
+
+	err = store.Stop(ctx)
+	require.NoError(t, err)
+
+	// check that the store can be successfully started after previous stop
+	// with all data being flushed.
+	store, err = NewStore(ds)
+	require.NoError(t, err)
+
+	err = store.Start(ctx)
+	require.NoError(t, err)
+
+	head, err = store.Head(ctx)
+	require.NoError(t, err)
+	assert.Equal(t, suite.Head().Hash(), head.Hash())
+
+	out, err = store.GetRangeByHeight(ctx, 1, 13)
+	require.NoError(t, err)
+	assert.Len(t, out, 12)
+
+	err = store.Stop(ctx)
+	require.NoError(t, err)
 }

@@ -6,13 +6,15 @@ import (
 	"math/rand"
 	"net"
 	"testing"
-	"time"
 
 	"github.com/ipfs/go-log/v2"
 	"github.com/libp2p/go-libp2p-core/host"
 	mocknet "github.com/libp2p/go-libp2p/p2p/net/mock"
 	ma "github.com/multiformats/go-multiaddr"
 	"github.com/stretchr/testify/require"
+	tn "github.com/tendermint/tendermint/node"
+	rpctest "github.com/tendermint/tendermint/rpc/test"
+	"github.com/tendermint/tendermint/types"
 
 	"github.com/celestiaorg/celestia-node/core"
 	"github.com/celestiaorg/celestia-node/libs/keystore"
@@ -21,6 +23,10 @@ import (
 )
 
 var blackholeIP6 = net.ParseIP("100::")
+
+const subscriberID string = "Swamp"
+
+var queryEvent string = types.QueryForEvent(types.EventNewBlock).String()
 
 // Swamp represents the main functionality that is needed for the test-case:
 // - Network to link the nodes
@@ -37,24 +43,21 @@ type Swamp struct {
 }
 
 // NewSwamp creates a new instance of Swamp.
-func NewSwamp(t *testing.T) *Swamp {
+func NewSwamp(t *testing.T, ic *Components) *Swamp {
 	if testing.Verbose() {
 		log.SetDebugLogging()
 	}
 
 	var err error
 	ctx := context.Background()
-	// TODO(@Bidon15): Rework this to be configurable by the swamp's test
-	// case, not here.
-	kvStore := core.CreateKvStore(200)
-	coreNode := core.StartMockNode(kvStore)
 
-	coreNode.Config().Consensus.CreateEmptyBlocksInterval = 200 * time.Millisecond
+	tn, err := newTendermintCoreNode(ic)
+	require.NoError(t, err)
 
 	swp := &Swamp{
 		t:          t,
 		Network:    mocknet.New(ctx),
-		CoreClient: core.NewEmbeddedFromNode(coreNode),
+		CoreClient: core.NewEmbeddedFromNode(tn),
 	}
 
 	swp.trustedHash, err = swp.getTrustedHash(ctx)
@@ -63,7 +66,26 @@ func NewSwamp(t *testing.T) *Swamp {
 	swp.t.Cleanup(func() {
 		swp.stopAllNodes(ctx, swp.BridgeNodes, swp.LightNodes)
 	})
+
 	return swp
+}
+
+// TODO(@Bidon15): CoreClient(limitation)
+// Now, we are making an assumption that consensus mechanism is already tested out
+// so, we are not creating bridge nodes with each one containing its own core client
+// instead we are assigning all created BNs to 1 Core from the swamp
+
+// newTendermintCoreNode creates a new instance of Tendermint Core with a kvStore
+func newTendermintCoreNode(c *Components) (*tn.Node, error) {
+	var opt rpctest.Options
+	rpctest.RecreateConfig(&opt)
+
+	tn := rpctest.NewTendermint(c.App, &opt)
+
+	// rewriting the created config with test's one
+	tn.Config().Consensus = c.CoreCfg.Consensus
+
+	return tn, tn.Start()
 }
 
 // stopAllNodes goes through all received slices of Nodes and stops one-by-one
@@ -80,13 +102,11 @@ func (s *Swamp) stopAllNodes(ctx context.Context, allNodes ...[]*node.Node) {
 // have been produced by the CoreClient.
 func (s *Swamp) WaitTillHeight(ctx context.Context, height int64) {
 	require.Greater(s.t, height, int64(0))
-
-	bf := core.NewBlockFetcher(s.CoreClient)
-	blocks, err := bf.SubscribeNewBlockEvent(ctx)
+	results, err := s.CoreClient.Subscribe(ctx, subscriberID, queryEvent)
 	require.NoError(s.t, err)
 
 	defer func() {
-		err = bf.UnsubscribeNewBlockEvent(ctx)
+		err = s.CoreClient.Unsubscribe(ctx, subscriberID, queryEvent)
 		require.NoError(s.t, err)
 	}()
 
@@ -94,8 +114,9 @@ func (s *Swamp) WaitTillHeight(ctx context.Context, height int64) {
 		select {
 		case <-ctx.Done():
 			return
-		case block := <-blocks:
-			if height == block.Height {
+		case block := <-results:
+			newBlock := block.Data.(types.EventDataNewBlock).Block
+			if height == newBlock.Height {
 				return
 			}
 		}
@@ -129,34 +150,44 @@ func (s *Swamp) createPeer(ks keystore.Keystore) host.Host {
 // getTrustedHash is needed for celestia nodes to get the trustedhash
 // from CoreClient. This is required to initialize and start correctly.
 func (s *Swamp) getTrustedHash(ctx context.Context) (string, error) {
-	bf := core.NewBlockFetcher(s.CoreClient)
-	blocks, err := bf.SubscribeNewBlockEvent(ctx)
+	results, err := s.CoreClient.Subscribe(ctx, subscriberID, queryEvent)
 	require.NoError(s.t, err)
 
 	defer func() {
-		err = bf.UnsubscribeNewBlockEvent(ctx)
+		err = s.CoreClient.Unsubscribe(ctx, subscriberID, queryEvent)
 		require.NoError(s.t, err)
 	}()
 
 	select {
 	case <-ctx.Done():
 		return "", fmt.Errorf("can't get trusted hash as the channel is closed")
-	case block := <-blocks:
-		return block.Hash().String(), nil
+	case block := <-results:
+		newBlock := block.Data.(types.EventDataNewBlock).Block
+		return newBlock.Hash().String(), nil
 	}
 }
 
-// TODO(@Bidon15): CoreClient(limitation)
-// Now, we are making an assumption that consensus mechanism is already tested out
-// so, we are not creating bridge nodes with each one containing its own core client
-// instead we are assigning all created BNs to 1 Core from the swamp
-
-// NewBridgeNode creates a new instance of BridgeNodes. Afterwards,
-// the instance is store in the swamp's BridgeNodes slice.
+// NewBridgeNode creates a new instance of a BridgeNode providing a default config
+// and a mockstore to the NewBridgeNodeWithStore method
 func (s *Swamp) NewBridgeNode(options ...node.Option) *node.Node {
 	cfg := node.DefaultConfig(node.Bridge)
 	store := node.MockStore(s.t, cfg)
 
+	return s.NewBridgeNodeWithStore(store, options...)
+}
+
+// NewLightNode creates a new instance of a LightNode providing a default config
+// and a mockstore to the NewLightNodeWithStore method
+func (s *Swamp) NewLightNode(options ...node.Option) *node.Node {
+	cfg := node.DefaultConfig(node.Light)
+	store := node.MockStore(s.t, cfg)
+
+	return s.NewLightNodeWithStore(store, options...)
+}
+
+// NewBridgeNodeWithStore creates a new instance of BridgeNodes with predefined Store.
+// Afterwards, the instance is stored in the swamp's BridgeNodes slice.
+func (s *Swamp) NewBridgeNodeWithStore(store node.Store, options ...node.Option) *node.Node {
 	ks, err := store.Keystore()
 	require.NoError(s.t, err)
 
@@ -175,12 +206,9 @@ func (s *Swamp) NewBridgeNode(options ...node.Option) *node.Node {
 	return node
 }
 
-// NewLightNode creates a new instance of LightClient. Afterwards,
-// the instance is store in the swamp's LightNodes slice
-func (s *Swamp) NewLightNode(options ...node.Option) *node.Node {
-	cfg := node.DefaultConfig(node.Light)
-	store := node.MockStore(s.t, cfg)
-
+// NewLightNodeWithStore creates a new instance of LightNode with predefined Store.
+// Afterwards, the instance is stored in the swamp's LightNodes slice
+func (s *Swamp) NewLightNodeWithStore(store node.Store, options ...node.Option) *node.Node {
 	ks, err := store.Keystore()
 	require.NoError(s.t, err)
 
