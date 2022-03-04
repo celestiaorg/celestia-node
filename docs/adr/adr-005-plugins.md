@@ -3,6 +3,7 @@
 ## Changelog
 
 - 2022-02-06: init commit
+- 2022-03-04: decision
 
 ## Context
 
@@ -24,7 +25,7 @@ This would likely require a lot of overhead, and not eliminate any of the existi
 
 ## Decision
 
-- Discussion started in [#407](https://github.com/celestiaorg/celestia-node/pull/407)
+Postponed for now. Per these comments, [comment1](https://github.com/celestiaorg/celestia-node/pull/414#issuecomment-1055871523) [comment2](https://github.com/celestiaorg/celestia-node/pull/414#discussion_r817744441), we are planning on taking a different approach that focuses on exposing a general purpose API. While this will not provide the custom functionality that plugins provide, it will be less cumbersome to support in the future while also serving our most of our needs. However, there is still a possibility that we merge the Plugin implementation, or a different design that provides similar functionality, in the future should we decide to support custom nodes.
 
 ## Detailed Design
 
