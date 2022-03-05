@@ -10,7 +10,7 @@
 
 ## Context
 
-In case when node receives errors `ErrByzantineRow`/`ErrByzantineCol` it should generate a fraud proof that broadcasts message to light clients and informs that block could be malicious.
+In case when node receive `ErrByzantineRow`/`ErrByzantineCol` from the [rsmt2d](https://github.com/celestiaorg/rsmt2d) library it should generate a fraud proof that gets broadcasted to light clients to inform them that block could be malicious.
 
 ## Decision
 
