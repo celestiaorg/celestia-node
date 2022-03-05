@@ -62,7 +62,7 @@ Proposed
 
 ### Positive
 
-Detect incorrect block
+Detect incorrectly encoded block
 
 ## References
 
