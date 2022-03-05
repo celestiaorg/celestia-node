@@ -21,23 +21,8 @@ https://github.com/celestiaorg/celestia-node/issues/4
 https://github.com/celestiaorg/celestia-node/issues/263
 
 ## Detailed Design
-It should be generated when after repairing the entire block, we detect recovered data does not match with its respective row/column roots. The result of RepairExtendedDataSquare will be an error ErrByzantineRow/ErrByzantineCol:
+It should be generated when after repairing the entire block, we detect recovered data does not match with its respective row/column roots. The result of RepairExtendedDataSquare will be an error [ErrByzantineRow](https://github.com/celestiaorg/rsmt2d/blob/f34ec414859fc834835ea97ed54300404eec1ac5/extendeddatacrossword.go#L18-L22)/[ErrByzantineCol](https://github.com/celestiaorg/rsmt2d/blob/f34ec414859fc834835ea97ed54300404eec1ac5/extendeddatacrossword.go#L28-L32):
 
-```go
-// ErrByzantineRow is thrown when a repaired row does not match the expected row Merkle root.
-type ErrByzantineRow struct {
-   RowNumber uint     // Row index
-   Shares    [][]byte // Pre-repaired row shares. Missing shares are nil.
-}
-```
-
-```go
-// ErrByzantineCol is thrown when a repaired column does not match the expected column Merkle root.
-type ErrByzantineCol struct {
-   ColNumber uint     // Column index
-   Shares    [][]byte // Pre-repaired column shares. Missing shares are nil.
-}
-```
 Both of these errors consist of column/row numbers that do not match with the Merkle root and shares that were successfully repaired and verified(all correct shares).
 
 Using this info we need to prepare a fraud proof that will consist of:
