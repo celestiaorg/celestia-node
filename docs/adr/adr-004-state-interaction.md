@@ -113,11 +113,9 @@ func (ca *CoreAccessor) SubmitTx(ctx context.Context, tx Tx) (*TxResponse, error
 ### 2. P2P Implementation of `StateAccessor`: `P2PAccess`
 
 While it is not necessary to detail how `P2PAccess` will be implemented in this ADR, it will still conform to the
-`StateAccessor` interface, but instead of being provided a core endpoint to connect to via RPC and
-using `lens.ChainClient`
-for state-related queries, `P2PAccess` will perform service discovery of state-providing nodes in the network and
-perform the state queries via libp2p streams. More details of the p2p implementation will be described in a separate
-dedicated ADR.
+`StateAccessor` interface, but instead of being provided a core endpoint to connect to via RPC, `P2PAccess` will perform
+service discovery of state-providing nodes in the network and perform the state queries via libp2p streams. More details 
+of the p2p implementation will be described in a separate dedicated ADR.
 
 ```go
 type P2PAccess struct {
@@ -135,6 +133,5 @@ type P2PAccess struct {
 A **bridge** node will run a `StateProvider` (server-side of `P2PAccessor`). The `StateProvider` will be responsible for
 relaying the state-related queries through to its trusted celestia-core node.
 
-The `StateProvider` will be initialised with a `lens.ChainClient` that will be used under the hood for communication
-with its already-configured celestia-core RPC connection. It will listen for inbound state-related queries from its
-peers and relay the received payloads to celestia-core.
+The `StateProvider` will be initialised with a celestia-core RPC connection. It will listen for inbound state-related 
+queries from its peers and relay the received payloads to celestia-core.
