@@ -43,13 +43,20 @@ func MakeExtendedHeader(
 	vals *core.ValidatorSet,
 	dag format.NodeAdder,
 ) (*ExtendedHeader, error) {
-	namespacedShares, _ := b.Data.ComputeShares()
-	extended, err := ipld.PutData(ctx, namespacedShares.RawShares(), dag)
-	if err != nil {
-		return nil, err
+	var dah DataAvailabilityHeader
+	if len(b.Txs) > 0 {
+		namespacedShares, _ := b.Data.ComputeShares()
+		extended, err := ipld.PutData(ctx, namespacedShares.RawShares(), dag)
+		if err != nil {
+			return nil, err
+		}
+		dah = da.NewDataAvailabilityHeader(extended)
+	} else {
+		// use MinDataAvailabilityHeader for empty block
+		dah = EmptyDAH()
+		log.Debugw("empty block received", "height", "blockID", "time", b.Height, b.Time.String(), comm.BlockID)
 	}
 
-	dah := da.NewDataAvailabilityHeader(extended)
 	eh := &ExtendedHeader{
 		RawHeader:    b.Header,
 		DAH:          &dah,
