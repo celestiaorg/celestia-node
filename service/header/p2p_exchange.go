@@ -17,7 +17,7 @@ import (
 	pb "github.com/celestiaorg/celestia-node/service/header/pb"
 )
 
-var exchangeProtocolID = protocol.ID(fmt.Sprintf("/header-ex-%s/v0.0.1", params.GetNetwork()))
+var exchangeProtocolID = protocol.ID(fmt.Sprintf("/header-ex/v0.0.1/%s", params.GetNetwork()))
 
 // P2PExchange enables sending outbound ExtendedHeaderRequests to the network as well as
 // handling inbound ExtendedHeaderRequests from the network.
