@@ -3,6 +3,7 @@
 ## vX.Y.Z | date
 
 ### BREAKING CHANGES
+- [chore: upgrade from Go 1.16 to 1.17 #479](https://github.com/celestiaorg/celestia-node/pull/479) [@rootulp](https://github.com/rootulp)
 
 ### FEATURES
 
