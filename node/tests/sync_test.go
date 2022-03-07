@@ -29,16 +29,15 @@ func TestSyncLightWithBridge(t *testing.T) {
 
 	bridge := sw.NewBridgeNode()
 
-	ctx := context.Background()
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	t.Cleanup(cancel)
+
 	sw.WaitTillHeight(ctx, 20)
 
 	err := bridge.Start(ctx)
 	require.NoError(t, err)
 
-	ctxTimeout, cancel := context.WithTimeout(ctx, 4*time.Second)
-	t.Cleanup(cancel)
-
-	h, err := bridge.HeaderServ.GetByHeight(ctxTimeout, 20)
+	h, err := bridge.HeaderServ.GetByHeight(ctx, 20)
 	require.NoError(t, err)
 
 	require.EqualValues(t, h.Commit.BlockID.Hash, sw.GetCoreBlockHashByHeight(ctx, 20))
@@ -50,7 +49,7 @@ func TestSyncLightWithBridge(t *testing.T) {
 	err = light.Start(ctx)
 	require.NoError(t, err)
 
-	h, err = light.HeaderServ.GetByHeight(ctxTimeout, 30)
+	h, err = light.HeaderServ.GetByHeight(ctx, 30)
 	require.NoError(t, err)
 
 	assert.EqualValues(t, h.Commit.BlockID.Hash, sw.GetCoreBlockHashByHeight(ctx, 30))
@@ -77,15 +76,15 @@ func TestSyncStartStopLightWithBridge(t *testing.T) {
 
 	bridge := sw.NewBridgeNode()
 
-	ctx := context.Background()
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	t.Cleanup(cancel)
+
 	sw.WaitTillHeight(ctx, 50)
 
 	err := bridge.Start(ctx)
 	require.NoError(t, err)
 
-	ctxTimeout, cancel := context.WithTimeout(ctx, 4*time.Second)
-	t.Cleanup(cancel)
-	h, err := bridge.HeaderServ.GetByHeight(ctxTimeout, 20)
+	h, err := bridge.HeaderServ.GetByHeight(ctx, 20)
 	require.NoError(t, err)
 
 	require.EqualValues(t, h.Commit.BlockID.Hash, sw.GetCoreBlockHashByHeight(ctx, 20))
@@ -97,7 +96,7 @@ func TestSyncStartStopLightWithBridge(t *testing.T) {
 	light := sw.NewLightNodeWithStore(store, node.WithTrustedPeer(addrs[0].String()))
 	require.NoError(t, light.Start(ctx))
 
-	h, err = light.HeaderServ.GetByHeight(ctxTimeout, 30)
+	h, err = light.HeaderServ.GetByHeight(ctx, 30)
 	require.NoError(t, err)
 
 	require.EqualValues(t, h.Commit.BlockID.Hash, sw.GetCoreBlockHashByHeight(ctx, 30))
@@ -108,7 +107,7 @@ func TestSyncStartStopLightWithBridge(t *testing.T) {
 	light = sw.NewLightNodeWithStore(store, node.WithTrustedPeer(addrs[0].String()))
 	require.NoError(t, light.Start(ctx))
 
-	h, err = light.HeaderServ.GetByHeight(ctxTimeout, 40)
+	h, err = light.HeaderServ.GetByHeight(ctx, 40)
 	require.NoError(t, err)
 
 	assert.EqualValues(t, h.Commit.BlockID.Hash, sw.GetCoreBlockHashByHeight(ctx, 40))
