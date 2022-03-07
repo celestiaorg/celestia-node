@@ -10,9 +10,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	"github.com/cosmos/cosmos-sdk/testutil"
 	"github.com/stretchr/testify/require"
-	"github.com/tendermint/spm/cosmoscmd"
 
-	"github.com/celestiaorg/celestia-app/app"
 	apputil "github.com/celestiaorg/celestia-app/testutil"
 	apptypes "github.com/celestiaorg/celestia-app/x/payment/types"
 	"github.com/celestiaorg/celestia-node/core"
@@ -26,8 +24,6 @@ func TestCoreAccess(t *testing.T) {
 	acc, err := ring.NewAccount("something", testutil.TestMnemonic, "", "", hd.Secp256k1)
 	require.NoError(t, err)
 	signer := apptypes.NewKeyringSigner(ring, acc.GetName(), "test")
-	// make encoding config
-	encCfg := cosmoscmd.MakeEncodingConfig(app.ModuleBasics)
 
 	// create app and start core node
 	celapp := apputil.SetupTestApp(t, acc.GetAddress())
@@ -37,7 +33,7 @@ func TestCoreAccess(t *testing.T) {
 	grpcEndpoint := fmt.Sprintf("%s:9090", ip)
 
 	// create CoreAccess with the grpc endpoint to mock core node
-	ca := NewCoreAccessor(signer, encCfg, grpcEndpoint)
+	ca := NewCoreAccessor(signer, grpcEndpoint)
 	bal, err := ca.Balance(context.Background())
 	require.NoError(t, err)
 	t.Log("BAL: ", bal)

@@ -6,7 +6,6 @@ import (
 
 	sdk_tx "github.com/cosmos/cosmos-sdk/types/tx"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
-	"github.com/tendermint/spm/cosmoscmd"
 	"google.golang.org/grpc"
 
 	"github.com/celestiaorg/celestia-app/app"
@@ -17,7 +16,6 @@ import (
 // with a celestia-core node.
 type CoreAccessor struct {
 	signer *apptypes.KeyringSigner
-	encCfg cosmoscmd.EncodingConfig
 
 	coreEndpoint string
 	coreConn     *grpc.ClientConn
@@ -28,12 +26,10 @@ type CoreAccessor struct {
 // connection.
 func NewCoreAccessor(
 	signer *apptypes.KeyringSigner,
-	encCfg cosmoscmd.EncodingConfig,
 	endpoint string,
 ) *CoreAccessor {
 	return &CoreAccessor{
 		signer:       signer,
-		encCfg:       encCfg,
 		coreEndpoint: endpoint,
 	}
 }

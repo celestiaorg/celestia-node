@@ -2,7 +2,6 @@ package state
 
 import (
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
-	"github.com/tendermint/spm/cosmoscmd"
 
 	"github.com/celestiaorg/celestia-app/app"
 	apptypes "github.com/celestiaorg/celestia-app/x/payment/types"
@@ -16,13 +15,11 @@ func CoreAccessor(
 	storePath string,
 	coreEndpoint string,
 ) (state.Accessor, error) {
-	encCfg := cosmoscmd.MakeEncodingConfig(app.ModuleBasics)
-
 	ring, err := keyring.New(app.Name, keyring.BackendFile, storePath, nil) // TODO @renaynay: user input?
 	if err != nil {
 		return nil, err
 	}
 	signer := apptypes.NewKeyringSigner(ring, keyCfg.KeyringAccName, string(params.GetNetwork()))
 
-	return state.NewCoreAccessor(signer, encCfg, coreEndpoint), nil
+	return state.NewCoreAccessor(signer, coreEndpoint), nil
 }
