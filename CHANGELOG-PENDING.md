@@ -13,3 +13,4 @@
 
 ### MISCELLANEOUS
 - [ADR 005 Plugins #414](https://github.com/celestiaorg/celestia-node/pull/414) [@evan-forbes](https://github.com/evan-forbes)
+- [service/header: adding network name to protocol ID #496](https://github.com/celestiaorg/celestia-node/pull/496) [@toanngosy](https://github.com/toanngosy)
