@@ -30,8 +30,7 @@ func lightComponents(cfg *Config, store Store) fxutil.Option {
 		// state components
 		fxutil.ProvideIf(cfg.Core.Remote, state.NewService),
 		fxutil.ProvideIf(cfg.Core.Remote, func(lc fx.Lifecycle) (state.Accessor, error) {
-			ca, err := statecomponents.CoreAccessor(cfg.Services.KeyConf, store.Path(),
-				cfg.Core.RemoteConfig.RemoteAddr)
+			ca, err := statecomponents.CoreAccessor(store.Path(), cfg.Core.RemoteConfig.RemoteAddr)
 			if err != nil {
 				return nil, err
 			}

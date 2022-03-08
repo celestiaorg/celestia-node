@@ -5,13 +5,13 @@ import (
 
 	"github.com/celestiaorg/celestia-app/app"
 	apptypes "github.com/celestiaorg/celestia-app/x/payment/types"
-	"github.com/celestiaorg/celestia-node/node/services"
 	"github.com/celestiaorg/celestia-node/params"
 	"github.com/celestiaorg/celestia-node/service/state"
 )
 
+var keyringAccName = "default"
+
 func CoreAccessor(
-	keyCfg services.KeyConfig,
 	storePath string,
 	coreEndpoint string,
 ) (state.Accessor, error) {
@@ -19,7 +19,7 @@ func CoreAccessor(
 	if err != nil {
 		return nil, err
 	}
-	signer := apptypes.NewKeyringSigner(ring, keyCfg.KeyringAccName, string(params.GetNetwork()))
+	signer := apptypes.NewKeyringSigner(ring, keyringAccName, string(params.GetNetwork()))
 
 	return state.NewCoreAccessor(signer, coreEndpoint), nil
 }

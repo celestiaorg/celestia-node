@@ -21,17 +21,12 @@ type Config struct {
 	// Note: The trusted does *not* imply Headers are not verified, but trusted as reliable to fetch headers
 	// at any moment.
 	TrustedPeers []string
-
-	// KeyConf contains configuration details for construction of the keyring.Signer
-	// that will be used to manage the node's account.
-	KeyConf KeyConfig
 }
 
 func DefaultConfig() Config {
 	return Config{
 		TrustedHash:  "",
 		TrustedPeers: make([]string, 0),
-		KeyConf:      DefaultKeyConfig(),
 	}
 }
 
@@ -68,16 +63,4 @@ func (cfg *Config) trustedHash(net params.Network) (tmbytes.HexBytes, error) {
 		return hex.DecodeString(gen)
 	}
 	return hex.DecodeString(cfg.TrustedHash)
-}
-
-// KeyConfig contains configuration details for construction of the keyring.Signer
-// that will be used to manage the node's account.
-type KeyConfig struct {
-	KeyringAccName string
-}
-
-func DefaultKeyConfig() KeyConfig {
-	return KeyConfig{
-		KeyringAccName: "celestia",
-	}
 }
