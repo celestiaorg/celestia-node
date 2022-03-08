@@ -19,6 +19,7 @@ type CoreAccessor struct {
 
 	coreEndpoint string
 	coreConn     *grpc.ClientConn
+	queryCli     banktypes.QueryClient
 }
 
 // NewCoreAccessor dials the given celestia-core endpoint and
@@ -44,6 +45,9 @@ func (ca *CoreAccessor) Start(ctx context.Context) error {
 		return err
 	}
 	ca.coreConn = client
+	// create the query client
+	queryCli := banktypes.NewQueryClient(ca.coreConn)
+	ca.queryCli = queryCli
 	return nil
 }
 
@@ -51,11 +55,13 @@ func (ca *CoreAccessor) Stop(context.Context) error {
 	if ca.coreConn == nil {
 		return fmt.Errorf("core-access: no connection found to close")
 	}
+	// close out core connection
 	err := ca.coreConn.Close()
 	if err != nil {
 		return err
 	}
 	ca.coreConn = nil
+	ca.queryCli = nil
 	return nil
 }
 
@@ -64,19 +70,17 @@ func (ca *CoreAccessor) Balance(ctx context.Context) (*Balance, error) {
 }
 
 func (ca *CoreAccessor) BalanceForAddress(ctx context.Context, addr string) (*Balance, error) {
-	queryCli := banktypes.NewQueryClient(ca.coreConn)
-
-	balReq := &banktypes.QueryBalanceRequest{
+	req := &banktypes.QueryBalanceRequest{
 		Address: addr,
 		Denom:   app.DisplayDenom,
 	}
 
-	balResp, err := queryCli.Balance(ctx, balReq)
+	resp, err := ca.queryCli.Balance(ctx, req)
 	if err != nil {
 		return nil, err
 	}
 
-	return balResp.Balance, nil
+	return resp.Balance, nil
 }
 
 func (ca *CoreAccessor) SubmitTx(ctx context.Context, tx Tx) (*TxResponse, error) {
