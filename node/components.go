@@ -19,7 +19,7 @@ import (
 	"github.com/celestiaorg/celestia-node/service/state"
 )
 
-// lightComponents keeps all the components as DI options required to built a Light Node.
+// lightComponents keeps all the components as DI options required to build a Light Node.
 func lightComponents(cfg *Config, store Store) fxutil.Option {
 	return fxutil.Options(
 		fxutil.Supply(Light),
