@@ -25,9 +25,9 @@ It should be generated when after repairing the entire block, we detect recovere
 Both of these errors consist of column/row numbers that do not match with the Merkle root and shares that were successfully repaired and verified(all correct shares).
 
 Using this info we need to prepare a fraud proof that will consist of:
- 1. Block height;
- 2. Non-nil shares returned with error;
- 3. Merkle Proofs of non-nil shares from 2;
+1. Block height;
+2. Non-nil shares returned with error;
+3. Merkle Proofs of non-nil shares from 2;
 
 ```go
 type BadEncondingFraudProof struct {
