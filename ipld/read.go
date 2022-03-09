@@ -29,10 +29,13 @@ func RetrieveData(
 	rowRoots := dah.RowsRoots
 	dataSquare := make([][]byte, edsWidth*edsWidth)
 
-	quadrant := pickRandomQuadrant(rowRoots)
+	quadrant, err := pickRandomQuadrant(rowRoots)
+	if err != nil {
+		return nil, err
+	}
 	errGroup, ctx := errgroup.WithContext(parentCtx)
 	errGroup.Go(func() error {
-		return fillQuadrant(ctx, quadrant, dag, true, dataSquare)
+		return fillQuadrant(ctx, quadrant, dag, dataSquare)
 	})
 	if err := errGroup.Wait(); err != nil {
 		return nil, err
@@ -50,14 +53,14 @@ func RetrieveData(
 type quadrant struct {
 	isLeftSubtree bool
 	from          int
-	chunk         [][]byte //roots
+	rootCids      []cid.Cid
 }
 
-func pickRandomQuadrant(roots [][]byte) *quadrant {
+func pickRandomQuadrant(roots [][]byte) (*quadrant, error) {
 	edsWidth := len(roots)
 	// get the random number from 1 to 4.
 	q := rand.Intn(4) + 1
-	quadrant := &quadrant{chunk: make([][]byte, edsWidth/2)}
+	quadrant := &quadrant{rootCids: make([]cid.Cid, edsWidth/2)}
 	// quadrants 1 and 3 corresponds to left subtree,
 	// 2 and 4 to the right subtree
 	/* | 1 | 2 |
@@ -75,34 +78,33 @@ func pickRandomQuadrant(roots [][]byte) *quadrant {
 	} else {
 		to = edsWidth / 2
 	}
-	copy(quadrant.chunk, roots[quadrant.from:to])
-	return quadrant
+
+	var err error
+	for index, counter := quadrant.from, 0; index < to; index++ {
+		quadrant.rootCids[counter], err = plugin.CidFromNamespacedSha256(roots[index])
+		if err != nil {
+			return nil, err
+		}
+		counter++
+	}
+	return quadrant, nil
 }
 
 // fillQuadrant fetches 1/4 of shares for the given root
 func fillQuadrant(
 	ctx context.Context,
 	roots *quadrant, dag ipld.NodeGetter,
-	isRow bool,
 	dataSquare [][]byte,
 ) error {
 	errGroup, ctx := errgroup.WithContext(ctx)
-	fetcher := func(i int) {
+	for i := 0; i < len(roots.rootCids); i++ {
+		i := i
 		errGroup.Go(func() error {
-			rootHash, err := plugin.CidFromNamespacedSha256(roots.chunk[i])
+			leaves, err := GetSubtreeLeaves(ctx, roots.rootCids[i], dag, roots.isLeftSubtree, uint32(len(roots.rootCids)/2))
 			if err != nil {
 				return err
 			}
-			subtreeRootHash, err := GetSubtreeLeaves(ctx, rootHash, dag, roots.isLeftSubtree)
-			if err != nil {
-				return err
-			}
-
-			leaves, err := GetLeaves(ctx, dag, subtreeRootHash, uint32(len(roots.chunk)))
-			if err != nil {
-				return err
-			}
-
+			length := len(roots.rootCids)
 			for leafIdx, leaf := range leaves {
 				// shares from the right subtree should be
 				// inserted after all shares from the left subtree
@@ -110,34 +112,34 @@ func fillQuadrant(
 					leafIdx += len(leaves)
 				}
 				shareData := leaf.RawData()[1:]
-				// it's not needed to store data for cols
-				// as we are fetching data from the same share for rows and cols
-				if isRow {
-					dataSquare[((i+roots.from)*len(roots.chunk)*2)+leafIdx] = shareData[NamespaceSize:]
-				}
+				dataSquare[((i+roots.from)*length*2)+leafIdx] = shareData[NamespaceSize:]
+
 			}
 			return err
 		})
-	}
-
-	for i := 0; i < len(roots.chunk); i++ {
-		fetcher(i)
 	}
 	return errGroup.Wait()
 }
 
 // GetSubtreeLeaves returns only one subtree - left or right
-func GetSubtreeLeaves(ctx context.Context, root cid.Cid, dag ipld.NodeGetter, isLeftSubtree bool) (cid.Cid, error) {
+func GetSubtreeLeaves(ctx context.Context, root cid.Cid, dag ipld.NodeGetter, isLeftSubtree bool, treeSize uint32) ([]ipld.Node, error) {
 	nd, err := dag.Get(ctx, root)
 	if err != nil {
-		return cid.Cid{}, err
+		return nil, err
 	}
 	links := nd.Links()
+	subtreeRootHash := cid.Cid{}
 	if isLeftSubtree || len(links) == 1 {
-		return links[0].Cid, nil
+		subtreeRootHash = links[0].Cid
+	} else {
+		subtreeRootHash = links[1].Cid
 	}
 
-	return links[1].Cid, nil
+	leaves, err := GetLeaves(ctx, dag, subtreeRootHash, treeSize)
+	if err != nil {
+		return nil, err
+	}
+	return leaves, nil
 }
 
 func GetLeaves(ctx context.Context, dag ipld.NodeGetter, root cid.Cid, size uint32) ([]ipld.Node, error) {
