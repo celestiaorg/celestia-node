@@ -32,13 +32,14 @@ var queryEvent string = types.QueryForEvent(types.EventNewBlock).String()
 // Swamp represents the main functionality that is needed for the test-case:
 // - Network to link the nodes
 // - CoreClient to share between Bridge nodes
-// - Slices of created Bridge/Light Nodes
+// - Slices of created Bridge/Full/Light Nodes
 // - trustedHash taken from the CoreClient and shared between nodes
 type Swamp struct {
 	t           *testing.T
 	Network     mocknet.Mocknet
 	CoreClient  core.Client
 	BridgeNodes []*node.Node
+	FullNodes   []*node.Node
 	LightNodes  []*node.Node
 	trustedHash string
 }
@@ -185,6 +186,15 @@ func (s *Swamp) NewBridgeNode(options ...node.Option) *node.Node {
 	return s.NewBridgeNodeWithStore(store, options...)
 }
 
+// NewFullNode creates a new instance of a FullNode providing a default config
+// and a mockstore to the NewFullNodeWithStore method
+func (s *Swamp) NewFullNode(options ...node.Option) *node.Node {
+	cfg := node.DefaultConfig(node.Full)
+	store := node.MockStore(s.t, cfg)
+
+	return s.NewFullNodeWithStore(store, options...)
+}
+
 // NewLightNode creates a new instance of a LightNode providing a default config
 // and a mockstore to the NewLightNodeWithStore method
 func (s *Swamp) NewLightNode(options ...node.Option) *node.Node {
@@ -212,6 +222,26 @@ func (s *Swamp) NewBridgeNodeWithStore(store node.Store, options ...node.Option)
 	node, err := node.New(node.Bridge, store, options...)
 	require.NoError(s.t, err)
 	s.BridgeNodes = append(s.BridgeNodes, node)
+	return node
+}
+
+// NewFullNodeWithStore creates a new instance of FullNode with predefined Store.
+// Afterwards, the instance is stored in the swamp's FullNodes slice
+func (s *Swamp) NewFullNodeWithStore(store node.Store, options ...node.Option) *node.Node {
+	ks, err := store.Keystore()
+	require.NoError(s.t, err)
+
+	// TODO(@Bidon15): If for some reason, we receive one of existing options
+	// like <core, host, hash> from the test case, we need to check them and not use
+	// default that are set here
+	options = append(options,
+		node.WithHost(s.createPeer(ks)),
+		node.WithTrustedHash(s.trustedHash),
+	)
+
+	node, err := node.New(node.Full, store, options...)
+	require.NoError(s.t, err)
+	s.FullNodes = append(s.FullNodes, node)
 	return node
 }
 
@@ -247,6 +277,9 @@ func (s *Swamp) RemoveNode(n *node.Node, t node.Type) error {
 		return err
 	case node.Bridge:
 		s.BridgeNodes, err = s.remove(n, s.BridgeNodes)
+		return err
+	case node.Full:
+		s.FullNodes, err = s.remove(n, s.FullNodes)
 		return err
 	default:
 		return fmt.Errorf("no such type or node")
