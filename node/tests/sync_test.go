@@ -113,6 +113,16 @@ func TestSyncStartStopLightWithBridge(t *testing.T) {
 	assert.EqualValues(t, h.Commit.BlockID.Hash, sw.GetCoreBlockHashByHeight(ctx, 40))
 }
 
+/*
+Test-Case: Sync a Full Node with a Bridge Node
+Steps:
+1. Create a Bridge Node(BN)
+2. Start a BN
+3. Check BN is synced to height 20
+4. Create a Full Node(FN) with a trusted peer
+5. Start a FN with a defined connection to the BN
+6. Check FN is synced to height 30
+*/
 func TestSyncFullWithBridge(t *testing.T) {
 	sw := swamp.NewSwamp(t, swamp.DefaultComponents())
 
@@ -143,6 +153,22 @@ func TestSyncFullWithBridge(t *testing.T) {
 	assert.EqualValues(t, h.Commit.BlockID.Hash, sw.GetCoreBlockHashByHeight(ctx, 30))
 }
 
+/*
+Test-Case: Sync a Light Node from a Full Node
+Pre-Requisites:
+- CoreClient is started by swamp
+- CoreClient has generated 20 blocks
+Steps:
+1. Create a Bridge Node(BN)
+2. Start a BN
+3. Check BN is synced to height 20
+4. Create a Full Node(FN) with a trusted peer
+5. Start a FN with a defined connection to the BN
+6. Check FN is synced to height 30
+7. Start a LN with a defined connection to the FN
+8. Start LN
+9. Check LN is synced to height 50
+*/
 func TestSyncLightWithFull(t *testing.T) {
 	sw := swamp.NewSwamp(t, swamp.DefaultComponents())
 
@@ -182,8 +208,8 @@ func TestSyncLightWithFull(t *testing.T) {
 	err = light.Start(ctx)
 	require.NoError(t, err)
 
-	h, err = light.HeaderServ.GetByHeight(ctx, 60)
+	h, err = light.HeaderServ.GetByHeight(ctx, 50)
 	require.NoError(t, err)
 
-	assert.EqualValues(t, h.Commit.BlockID.Hash, sw.GetCoreBlockHashByHeight(ctx, 60))
+	assert.EqualValues(t, h.Commit.BlockID.Hash, sw.GetCoreBlockHashByHeight(ctx, 50))
 }
