@@ -2,6 +2,8 @@ package ipld
 
 import (
 	"context"
+	"fmt"
+	"math/rand"
 
 	"github.com/ipfs/go-cid"
 	ipld "github.com/ipfs/go-ipld-format"
@@ -28,17 +30,14 @@ func RetrieveData(
 	rowRoots := dah.RowsRoots
 	dataSquare := make([][]byte, edsWidth*edsWidth)
 
-	chunk := make([][]byte, edsWidth/2)
-	copy(chunk, rowRoots[:edsWidth/2])
-
+	quadrant := pickRandomQuadrant(rowRoots)
 	errGroup, ctx := errgroup.WithContext(parentCtx)
 	errGroup.Go(func() error {
-		return fillQuarter(ctx, chunk, dag, true, dataSquare)
+		return fillQuadrant(ctx, quadrant, dag, true, dataSquare)
 	})
 	if err := errGroup.Wait(); err != nil {
 		return nil, err
 	}
-
 	batchAdder := NewNmtNodeAdder(parentCtx, ipld.NewBatch(parentCtx, dag, ipld.MaxSizeBatchOption(batchSize(edsWidth))))
 	tree := wrapper.NewErasuredNamespacedMerkleTree(uint64(edsWidth)/2, nmt.NodeVisitor(batchAdder.Visit))
 	extended, err := rsmt2d.RepairExtendedDataSquare(dah.RowsRoots, dah.ColumnRoots, dataSquare, codec, tree.Constructor)
@@ -49,42 +48,76 @@ func RetrieveData(
 	return extended, batchAdder.Commit()
 }
 
-// fillQuarter fetches 1/4 of shares for the given root
-func fillQuarter(
+type quadrant struct {
+	isLeftSubtree bool
+	from          int
+	chunk         [][]byte //roots
+}
+
+func pickRandomQuadrant(roots [][]byte) *quadrant {
+	edsWidth := len(roots)
+	// get the random number from 1 to 4.
+	q := rand.Intn(4) + 1
+	quadrant := &quadrant{chunk: make([][]byte, edsWidth/2)}
+	// quadrants 1 and 3 corresponds to left subtree,
+	// 2 and 4 to the right subtree
+	/* | 1 | 2 |
+	   | 3 | 4 |
+	*/
+	// choose sub-tree
+	if q%2 == 1 {
+		quadrant.isLeftSubtree = true
+	}
+
+	// define range of shares for sampling
+	if q > 2 {
+		quadrant.from = edsWidth / 2
+		copy(quadrant.chunk, roots[edsWidth/2:])
+	} else {
+		copy(quadrant.chunk, roots[:edsWidth/2])
+	}
+
+	return quadrant
+}
+
+// fillQuadrant fetches 1/4 of shares for the given root
+func fillQuadrant(
 	ctx context.Context,
-	roots [][]byte, dag ipld.NodeGetter,
+	roots *quadrant, dag ipld.NodeGetter,
 	isRow bool,
 	dataSquare [][]byte,
 ) error {
 	errGroup, ctx := errgroup.WithContext(ctx)
 	fetcher := func(i int) {
 		errGroup.Go(func() error {
-			rootHash, err := plugin.CidFromNamespacedSha256(roots[i])
+			rootHash, err := plugin.CidFromNamespacedSha256(roots.chunk[i])
 			if err != nil {
 				return err
 			}
-			subtreeRootHash, err := GetSubtreeLeaves(ctx, rootHash, dag, true)
+			subtreeRootHash, err := GetSubtreeLeaves(ctx, rootHash, dag, roots.isLeftSubtree)
 			if err != nil {
 				return err
 			}
 
-			leaves, err := GetLeaves(ctx, dag, subtreeRootHash, uint32(len(roots)))
+			leaves, err := GetLeaves(ctx, dag, subtreeRootHash, uint32(len(roots.chunk)))
 			if err != nil {
 				return err
 			}
+
 			for leafIdx, leaf := range leaves {
 				shareData := leaf.RawData()[1:]
 				// it's not needed to store data for cols
 				// as we are fetching data from the same share for rows and cols
 				if isRow {
-					dataSquare[(i*len(roots)*2)+leafIdx] = shareData[NamespaceSize:]
+					dataSquare[((i+roots.from)*len(roots.chunk)*2)+leafIdx] = shareData[NamespaceSize:]
 				}
 			}
 			return err
 		})
 	}
 
-	for i := 0; i < len(roots); i++ {
+	for i := 0; i < len(roots.chunk); i++ {
+		fmt.Println(i + roots.from)
 		fetcher(i)
 	}
 	return errGroup.Wait()
