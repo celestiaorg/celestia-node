@@ -8,9 +8,11 @@ const (
 	// Bridge is a Celestia Node that bridges the Celestia consensus network and data availability network.
 	// It maintains a trusted channel/connection to a Celestia Core node via the core.Client API.
 	Bridge Type = iota + 1
-	// Light is a stripped-down Celestia Node which aims to be lightweight while preserving highest possible
+	// Light is a stripped-down Celestia Node which aims to be lightweight while preserving the highest possible
 	// security guarantees.
 	Light
+	// Full is a Celestia Node that stores blocks in their entirety.
+	Full
 )
 
 // String converts Type to its string representation.
@@ -41,10 +43,12 @@ func ParseType(str string) Type {
 var typeToString = map[Type]string{
 	Bridge: "Bridge",
 	Light:  "Light",
+	Full:   "Full",
 }
 
 // typeToString maps strings representations of all valid Types.
 var stringToType = map[string]Type{
 	"Bridge": Bridge,
 	"Light":  Light,
+	"Full":   Full,
 }

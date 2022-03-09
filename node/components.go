@@ -23,6 +23,7 @@ func lightComponents(cfg *Config, store Store) fxutil.Option {
 		baseComponents(cfg, store),
 		fxutil.Provide(services.DASer),
 		fxutil.Provide(services.HeaderExchangeP2P(cfg.Services)),
+		fxutil.Provide(services.LightAvailability),
 	)
 }
 
@@ -32,6 +33,18 @@ func bridgeComponents(cfg *Config, store Store) fxutil.Option {
 		fxutil.Supply(Bridge),
 		baseComponents(cfg, store),
 		nodecore.Components(cfg.Core, store.Core),
+		fxutil.Provide(services.LightAvailability), // TODO(@Wondertan): Remove strict requirements to have Availability
+	)
+}
+
+// fullComponents keeps all the components as DI options required to build a Full Node.
+func fullComponents(cfg *Config, store Store) fxutil.Option {
+	return fxutil.Options(
+		fxutil.Supply(Full),
+		baseComponents(cfg, store),
+		fxutil.Provide(services.DASer),
+		fxutil.Provide(services.HeaderExchangeP2P(cfg.Services)),
+		fxutil.Provide(services.FullAvailability),
 	)
 }
 
@@ -44,10 +57,6 @@ func baseComponents(cfg *Config, store Store) fxutil.Option {
 		fxutil.Provide(store.Datastore),
 		fxutil.Provide(store.Keystore),
 		fxutil.Provide(services.ShareService),
-		// TODO @renaynay: once full node type is defined, add FullAvailability
-		//  to full node and LightAvailability to light node. Bridge node does
-		//  not need Availability.
-		fxutil.Provide(services.LightAvailability),
 		fxutil.Provide(services.HeaderService),
 		fxutil.Provide(services.HeaderStore),
 		fxutil.Invoke(services.HeaderStoreInit(&cfg.Services)),

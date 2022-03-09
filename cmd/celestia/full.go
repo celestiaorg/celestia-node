@@ -11,15 +11,15 @@ import (
 // parent command.
 
 func init() {
-	lightCmd.AddCommand(
+	fullCmd.AddCommand(
 		cmdnode.Init(
-			cmdnode.NodeFlags(node.Light),
+			cmdnode.NodeFlags(node.Full),
 			cmdnode.P2PFlags(),
 			cmdnode.HeadersFlags(),
 			cmdnode.MiscFlags(),
 		),
 		cmdnode.Start(
-			cmdnode.NodeFlags(node.Light),
+			cmdnode.NodeFlags(node.Full),
 			cmdnode.P2PFlags(),
 			cmdnode.HeadersFlags(),
 			cmdnode.MiscFlags(),
@@ -27,16 +27,16 @@ func init() {
 	)
 }
 
-var lightCmd = &cobra.Command{
-	Use:   "light [subcommand]",
+var fullCmd = &cobra.Command{
+	Use:   "full [subcommand]",
 	Args:  cobra.NoArgs,
-	Short: "Manage your Light node",
+	Short: "Manage your Full node",
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 		env, err := cmdnode.GetEnv(cmd.Context())
 		if err != nil {
 			return err
 		}
-		env.SetNodeType(node.Light)
+		env.SetNodeType(node.Full)
 
 		err = cmdnode.ParseNodeFlags(cmd, env)
 		if err != nil {
