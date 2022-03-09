@@ -66,7 +66,7 @@ func NewSwamp(t *testing.T, ic *Components) *Swamp {
 	require.NoError(t, err)
 
 	swp.t.Cleanup(func() {
-		swp.stopAllNodes(ctx, swp.BridgeNodes, swp.LightNodes)
+		swp.stopAllNodes(ctx, swp.BridgeNodes, swp.FullNodes, swp.LightNodes)
 	})
 
 	return swp
