@@ -2,7 +2,6 @@ package ipld
 
 import (
 	"context"
-	"fmt"
 	"math/rand"
 
 	"github.com/ipfs/go-cid"
@@ -64,19 +63,19 @@ func pickRandomQuadrant(roots [][]byte) *quadrant {
 	/* | 1 | 2 |
 	   | 3 | 4 |
 	*/
-	// choose sub-tree
+	// choose subtree
 	if q%2 == 1 {
 		quadrant.isLeftSubtree = true
 	}
-
+	to := 0
 	// define range of shares for sampling
 	if q > 2 {
 		quadrant.from = edsWidth / 2
-		copy(quadrant.chunk, roots[edsWidth/2:])
+		to = edsWidth
 	} else {
-		copy(quadrant.chunk, roots[:edsWidth/2])
+		to = edsWidth / 2
 	}
-
+	copy(quadrant.chunk, roots[quadrant.from:to])
 	return quadrant
 }
 
@@ -105,6 +104,11 @@ func fillQuadrant(
 			}
 
 			for leafIdx, leaf := range leaves {
+				// shares from the right subtree should be
+				// inserted after all shares from the left subtree
+				if !roots.isLeftSubtree {
+					leafIdx += len(leaves)
+				}
 				shareData := leaf.RawData()[1:]
 				// it's not needed to store data for cols
 				// as we are fetching data from the same share for rows and cols
@@ -117,7 +121,6 @@ func fillQuadrant(
 	}
 
 	for i := 0; i < len(roots.chunk); i++ {
-		fmt.Println(i + roots.from)
 		fetcher(i)
 	}
 	return errGroup.Wait()
