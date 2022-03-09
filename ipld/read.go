@@ -59,7 +59,7 @@ type quadrant struct {
 func pickRandomQuadrant(roots [][]byte) (*quadrant, error) {
 	edsWidth := len(roots)
 	// get the random number from 1 to 4.
-	q := rand.Intn(4) + 1
+	q := rand.Intn(4) + 1 //nolint:gosec
 	quadrant := &quadrant{rootCids: make([]cid.Cid, edsWidth/2)}
 	// quadrants 1 and 3 corresponds to left subtree,
 	// 2 and 4 to the right subtree
@@ -122,16 +122,18 @@ func fillQuadrant(
 }
 
 // GetSubtreeLeaves returns only one subtree - left or right
-func GetSubtreeLeaves(ctx context.Context, root cid.Cid, dag ipld.NodeGetter, isLeftSubtree bool, treeSize uint32) ([]ipld.Node, error) {
+func GetSubtreeLeaves(
+	ctx context.Context,
+	root cid.Cid,
+	dag ipld.NodeGetter,
+	isLeftSubtree bool, treeSize uint32) ([]ipld.Node, error) {
 	nd, err := dag.Get(ctx, root)
 	if err != nil {
 		return nil, err
 	}
 	links := nd.Links()
-	subtreeRootHash := cid.Cid{}
-	if isLeftSubtree || len(links) == 1 {
-		subtreeRootHash = links[0].Cid
-	} else {
+	subtreeRootHash := links[0].Cid
+	if !isLeftSubtree && len(links) > 1 {
 		subtreeRootHash = links[1].Cid
 	}
 
