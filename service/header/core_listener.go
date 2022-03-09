@@ -36,34 +36,63 @@ func NewCoreListener(bcast Broadcaster, fetcher *core.BlockFetcher, dag format.D
 }
 
 // Start kicks off the CoreListener listener loop.
-func (cl *CoreListener) Start(ctx context.Context) error {
+func (cl *CoreListener) Start(context.Context) error {
 	if cl.cancel != nil {
 		return fmt.Errorf("core-listener: already started")
 	}
 
-	sub, err := cl.fetcher.SubscribeNewBlockEvent(ctx)
-	if err != nil {
-		return err
-	}
-
 	ctx, cancel := context.WithCancel(context.Background())
-	go cl.listen(ctx, sub)
+
+	go cl.listen(ctx)
 	cl.cancel = cancel
 	return nil
 }
 
 // Stop stops the CoreListener listener loop.
-func (cl *CoreListener) Stop(ctx context.Context) error {
+func (cl *CoreListener) Stop(context.Context) error {
 	cl.cancel()
 	cl.cancel = nil
-	return cl.fetcher.UnsubscribeNewBlockEvent(ctx)
+	return nil
 }
 
 // listen kicks off a loop, listening for new block events from Core,
 // generating ExtendedHeaders and broadcasting them to the header-sub
 // gossipsub network.
-func (cl *CoreListener) listen(ctx context.Context, sub <-chan *types.Block) {
-	defer log.Info("core-listener: listening stopped")
+func (cl *CoreListener) listen(ctx context.Context) {
+	var sub <-chan *types.Block
+
+	defer func() {
+		// only attempt to unsubscribe from new block events if currently
+		// subscribed
+		if sub != nil {
+			err := cl.fetcher.UnsubscribeNewBlockEvent(ctx)
+			if err != nil {
+				log.Errorw("core-listener: failed to unsubscribe from new block events", "err", err)
+			}
+		}
+		log.Info("core-listener: listening stopped")
+	}()
+
+	// listener loop will only begin once the Core connection has finished
+	// syncing in order to prevent spamming of old block headers to `headersub`
+	select {
+	case <-ctx.Done():
+		log.Errorw("core-listener: listener loop failed to start", "err", ctx.Err())
+		return
+	default:
+		if err := cl.fetcher.WaitFinishSync(ctx); err != nil {
+			// TODO @renaynay: should this be a fatal error? if the core listener cannot start, then the bridge node is
+			// 	useless as it won't be broadcasting new headers to the network.
+			log.Errorw("core-listener: listener loop failed to start", "err", err)
+		}
+	}
+	// all caught up, start broadcasting new headers
+	sub, err := cl.fetcher.SubscribeNewBlockEvent(ctx)
+	if err != nil {
+		log.Errorw("core-listener: failed to subscribe to new block events", "err", err)
+		return
+	}
+
 	for {
 		select {
 		case b, ok := <-sub:

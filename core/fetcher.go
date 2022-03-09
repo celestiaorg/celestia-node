@@ -177,3 +177,34 @@ func (f *BlockFetcher) UnsubscribeNewBlockEvent(ctx context.Context) error {
 
 	return f.client.Unsubscribe(ctx, newBlockSubscriber, newBlockEventQuery)
 }
+
+// IsSyncing returns the sync status of the Core connection: true for
+// syncing, and false for already caught up. It can also return an error
+// in the case of a failed status request.
+func (f *BlockFetcher) IsSyncing(ctx context.Context) (bool, error) {
+	resp, err := f.client.Status(ctx)
+	if err != nil {
+		return false, err
+	}
+	return resp.SyncInfo.CatchingUp, nil
+}
+
+// WaitFinishSync will block until the Core connection has finished syncing,
+// returning a nil error.
+func (f *BlockFetcher) WaitFinishSync(ctx context.Context) error {
+	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+			syncing, err := f.IsSyncing(ctx)
+			if err != nil {
+				return err
+			}
+			if !syncing {
+				return nil
+			}
+			// TODO @renaynay: should I wait a second or two to request again? Doesn't make sense to keep requesting.
+		}
+	}
+}
