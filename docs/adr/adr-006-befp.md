@@ -11,7 +11,7 @@
 
 ## Context
 
-In case when node receive `ErrByzantineRow`/`ErrByzantineCol` from the [rsmt2d](https://github.com/celestiaorg/rsmt2d) library it should generate a fraud proof that gets broadcasted to light clients to inform them that block could be malicious.
+In case when a Full Node receives `ErrByzantineRow`/`ErrByzantineCol` from the [rsmt2d](https://github.com/celestiaorg/rsmt2d) library, it generates a fraud proof.  After generation of it(fraud proof), a Full Node is broadcasting the fraud proof to Light Nodes, so they(Light Nodes) are notified that a block could be malicious.
 
 ## Decision
 
