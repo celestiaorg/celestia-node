@@ -57,6 +57,12 @@ type StateAccessor interface {
 3. **LOCAL**: eventually, **full** nodes will be able to provide state to the network, and can therefore execute and 
 respond to the queries without relaying queries to celestia-core (*to be scoped out and implemented in later iterations*)
 
+### Verification of Balances
+In order to check that the balances returned via the `AccountBalance` query are correct, it is necessary to also request
+Merkle proofs from the celestia-app and verify them against the latest head's `AppHash`. In order for the `StateAccessor`
+to do this, it would need access to the `header.Store`'s `Head()` method in order to get the latest known header of the 
+node and check its `AppHash`.
+
 ### 1. Core Implementation of `StateAccessor`: `CoreAccess`
 
 `CoreAccess` will be the direct RPC connection implementation of `StateAccessor`. It will use the [lens implementation of ChainClient](https://github.com/strangelove-ventures/lens/blob/main/client/chain_client.go#L23)
