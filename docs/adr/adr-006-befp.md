@@ -60,7 +60,7 @@ message BadEnconding {
 }
 ```
 
-From the other side, the light nodes should be able to subscribe on particular fraud proof updates and verify received data:
+From the other side, light nodes have the ability to subscribe to a particular fraud proof update and verify received data:
 
 ```go
 // Subscriber encompasses the behavior necessary to
