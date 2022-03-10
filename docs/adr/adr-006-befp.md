@@ -94,7 +94,6 @@ type BadEncoding struct {
 type FraudService struct {
    pubsub *pubsub.PubSub
    topic  map[string]*pubsub.Topic
-   mu    sync.Mutex
 }
 
 func(f *FraudService) Subscribe(ctx context.Context, proofType pb.FraudProofType) (Subscription, error){}
