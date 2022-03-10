@@ -119,8 +119,8 @@ Steps:
 1. Create a Bridge Node(BN)
 2. Start a BN
 3. Check BN is synced to height 20
-4. Create a Full Node(FN) with a trusted peer
-5. Start a FN with a defined connection to the BN
+4. Create a Full Node(FN) with a connection to BN as a trusted peer
+5. Start a FN
 6. Check FN is synced to height 30
 */
 func TestSyncFullWithBridge(t *testing.T) {
@@ -162,12 +162,13 @@ Steps:
 1. Create a Bridge Node(BN)
 2. Start a BN
 3. Check BN is synced to height 20
-4. Create a Full Node(FN) with a trusted peer
-5. Start a FN with a defined connection to the BN
+4. Create a Full Node(FN) with a connection to BN as a trusted peer
+5. Start a FN
 6. Check FN is synced to height 30
-7. Start a LN with a defined connection to the FN
-8. Start LN
-9. Check LN is synced to height 50
+7. Create a Light Node(LN) with a connection to FN as a trusted  peer
+8. Start a LN with a defined connection to the FN
+9. Start LN
+10. Check LN is synced to height 50
 */
 func TestSyncLightWithFull(t *testing.T) {
 	sw := swamp.NewSwamp(t, swamp.DefaultComponents())
