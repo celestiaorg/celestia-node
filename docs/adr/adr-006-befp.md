@@ -21,9 +21,13 @@ Started disscussion within:
 - https://github.com/celestiaorg/celestia-node/issues/263
 
 ## Detailed Design
-It should be generated when after repairing the entire block, we detect recovered data does not match with its respective row/column roots. The result of RepairExtendedDataSquare will be an error [ErrByzantineRow](https://github.com/celestiaorg/rsmt2d/blob/f34ec414859fc834835ea97ed54300404eec1ac5/extendeddatacrossword.go#L18-L22)/[ErrByzantineCol](https://github.com/celestiaorg/rsmt2d/blob/f34ec414859fc834835ea97ed54300404eec1ac5/extendeddatacrossword.go#L28-L32):
+A fraud proof is generated if recovered data does not match with its respective row/column roots during block repair process
 
-Both of these errors consist of row/column numbers that do not match with the Merkle root and shares that were successfully repaired and verified (all correct shares).
+The result of RepairExtendedDataSquare will be an error [ErrByzantineRow](https://github.com/celestiaorg/rsmt2d/blob/f34ec414859fc834835ea97ed54300404eec1ac5/extendeddatacrossword.go#L18-L22)/[ErrByzantineCol](https://github.com/celestiaorg/rsmt2d/blob/f34ec414859fc834835ea97ed54300404eec1ac5/extendeddatacrossword.go#L28-L32):
+
+- Both errors consist of 
+  - row/column numbers that do not match with the Merkle root
+  - shares that were successfully repaired and verified (all correct shares).
 
 `ErrByzantineRow`/`ErrByzantineCol` should be returned from RetrevieData. In this case `das.Daser` should generate a MerkleProofs for respective verified shares and create a BEFP. Then broadcast it to light clients via separate sub-service.
 
