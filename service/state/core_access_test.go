@@ -1,21 +1,11 @@
 package state
 
-import (
-	"context"
-	"fmt"
-	"os"
-	"testing"
+/*
+The test below has been commented out for now as the mock celestia-app has issues
+initialising the chain, and therefore cannot be used properly in the test yet.
+ */
 
-	"github.com/cosmos/cosmos-sdk/crypto/hd"
-	"github.com/cosmos/cosmos-sdk/crypto/keyring"
-	"github.com/cosmos/cosmos-sdk/testutil"
-	"github.com/stretchr/testify/require"
-
-	apputil "github.com/celestiaorg/celestia-app/testutil"
-	apptypes "github.com/celestiaorg/celestia-app/x/payment/types"
-	"github.com/celestiaorg/celestia-node/core"
-)
-
+/*
 func TestCoreAccess(t *testing.T) {
 	// create signer + acct
 	dir := t.TempDir()
@@ -38,3 +28,4 @@ func TestCoreAccess(t *testing.T) {
 	require.NoError(t, err)
 	t.Log("BAL: ", bal)
 }
+*/
