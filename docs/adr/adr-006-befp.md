@@ -29,9 +29,13 @@ The result of RepairExtendedDataSquare will be an error [ErrByzantineRow](https:
   - row/column numbers that do not match with the Merkle root
   - shares that were successfully repaired and verified (all correct shares).
 
-`ErrByzantineRow`/`ErrByzantineCol` should be returned from RetrevieData. In this case `das.Daser` should generate a MerkleProofs for respective verified shares and create a BEFP. Then broadcast it to light clients via separate sub-service.
+`ErrByzantineRow`/`ErrByzantineCol` are returned from `RetrevieData`. In addition, `das.Daser`:
 
-`das.Daser` should import a data structure that implements `proof.Broadcaster` interface that uses libp2p.pubsub under the hood:
+1. Generates a MerkleProofs for respective verified shares
+2. Creates a BEFP
+3. Broadcasts it(BEFP) to light nodes via separate sub-service.
+
+`das.Daser` imports a data structure that implements `proof.Broadcaster` interface that uses libp2p.pubsub under the hood:
 
 ```go
 // Broadcaster is a generic interface that sends a different kinds of fraud proofs to all subscribed on particular topic nodes
