@@ -137,20 +137,11 @@ func GetSubtreeLeaves(
 		subtreeRootHash = links[1].Cid
 	}
 
-	leaves, err := GetLeaves(ctx, dag, subtreeRootHash, treeSize)
-	if err != nil {
-		return nil, err
-	}
-	return leaves, nil
+	return getLeaves(ctx, dag, subtreeRootHash, make([]ipld.Node, 0, treeSize))
 }
 
 func GetLeaves(ctx context.Context, dag ipld.NodeGetter, root cid.Cid, size uint32) ([]ipld.Node, error) {
-	leaves, err := getLeaves(ctx, dag, root, make([]ipld.Node, 0, size))
-	if err != nil {
-		return nil, err
-	}
-
-	return leaves, nil
+	return getLeaves(ctx, dag, root, make([]ipld.Node, 0, size))
 }
 
 // getLeaves recursively starts going down to find all leafs from the given root
