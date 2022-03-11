@@ -43,6 +43,7 @@ In addition, `das.Daser`:
 // Broadcaster is a generic interface that sends a different kinds of fraud proofs to all subscribed on particular topic nodes
 type Broadcaster interface {
    // Broadcast takes a Fraud proof data stucture that implements standart BinaryMarshal interface and sends data to light nodes using libp2p pub-sub under the hood.
+   //TODO: unique interface for all Fraud proofs instead of BinaryMarshaller
    Broadcast(ctx context.Context, p encoding.BinaryMarshaller)  
 }
 ```
@@ -80,26 +81,33 @@ type Subscriber interface {
 
 ```go
 type Subscription interface {
-   NextProof() (encoding.BinaryUnmarshal, error)
+   NextProof() (/*NewFraudProofInterface*/, error)
 }
+
 ```
 
 ```go
 type BadEncoding struct {
    Height uint64
    Shares [][]byte
-   MerkleProofs [][][]byte
+   MerkleProofs []nmt.Proof
 }
 ```
 
 ```go
+
+type func([]byte) /*newInterface for FraudProof*/ fpFunc
+
 type FraudService struct {
    pubsub *pubsub.PubSub
-   topic  map[string]*pubsub.Topic
+   topics  map[string]*pubsub.Topic
+   unmarshallers map[string/*enumType*/] fpFunc
+   mu *sync.Mutex
 }
 
 func(f *FraudService) Subscribe(ctx context.Context, proofType pb.FraudProofType) (Subscription, error){}
-
+func(f *FraudService) RegisterUnmarshaller(/*enumType*/,fpFunc){}
+UnRegisterUnmarshaller(/*enumType string*/) error
 func(f *FraudService) Broadcast(ctx context.Context, p encoding.BinaryMarshaller){}
 ```
 
