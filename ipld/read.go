@@ -53,6 +53,7 @@ func RetrieveData(
 type quadrant struct {
 	isLeftSubtree bool
 	from          int
+	to            int
 	rootCids      []cid.Cid
 }
 
@@ -63,24 +64,25 @@ func pickRandomQuadrant(roots [][]byte) (*quadrant, error) {
 	quadrant := &quadrant{rootCids: make([]cid.Cid, edsWidth/2)}
 	// quadrants 1 and 3 corresponds to left subtree,
 	// 2 and 4 to the right subtree
-	/* | 1 | 2 |
-	   | 3 | 4 |
+	/*
+		| 1 | 2 |
+		| 3 | 4 |
 	*/
 	// choose subtree
 	if q%2 == 1 {
 		quadrant.isLeftSubtree = true
 	}
-	to := 0
+
 	// define range of shares for sampling
 	if q > 2 {
 		quadrant.from = edsWidth / 2
-		to = edsWidth
+		quadrant.to = edsWidth
 	} else {
-		to = edsWidth / 2
+		quadrant.to = edsWidth / 2
 	}
 
 	var err error
-	for index, counter := quadrant.from, 0; index < to; index++ {
+	for index, counter := quadrant.from, 0; index < quadrant.to; index++ {
 		quadrant.rootCids[counter], err = plugin.CidFromNamespacedSha256(roots[index])
 		if err != nil {
 			return nil, err
