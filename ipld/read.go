@@ -128,7 +128,9 @@ func GetSubtreeLeaves(
 	ctx context.Context,
 	root cid.Cid,
 	dag ipld.NodeGetter,
-	isLeftSubtree bool, treeSize uint32) ([]ipld.Node, error) {
+	isLeftSubtree bool, 
+	treeSize uint32,
+	) ([]ipld.Node, error) {
 	nd, err := dag.Get(ctx, root)
 	if err != nil {
 		return nil, err
