@@ -2,8 +2,8 @@ package state
 
 /*
 The test below has been commented out for now as the mock celestia-app has issues
-initialising the chain, and therefore cannot be used properly in the test yet.
- */
+initializing the chain, and therefore cannot be used properly in the test yet.
+*/
 
 /*
 func TestCoreAccess(t *testing.T) {
