@@ -39,28 +39,40 @@ In addition, `das.Daser`:
 
 `das.Daser` imports a data structure that implements `proof.Broadcaster` interface that uses libp2p.pubsub under the hood:
 
+
+```go
+type FraudProofType string
+
+const (
+   BadEncoding FraudProofType = "BadEncoding"
+)
+
+type Proof interface {
+   Height() (uint64, error)
+   MerkleProofs() ([][][]byte, error)
+
+   encoding.BinaryMarshaler
+   encoding.BinaryUnmarshaler
+}
+```
+
 ```go
 // Broadcaster is a generic interface that sends a different kinds of fraud proofs to all subscribed on particular topic nodes
 type Broadcaster interface {
    // Broadcast takes a Fraud proof data stucture that implements standart BinaryMarshal interface and sends data to light nodes using libp2p pub-sub under the hood.
-   //TODO: unique interface for all Fraud proofs instead of BinaryMarshaller
-   Broadcast(ctx context.Context, p encoding.BinaryMarshaller)  
+   Broadcast(ctx context.Context, p Proof)  
 }
 ```
 
 Data serialization/deserialization will be performed with `protobuf.Marshal`/`protobuf.Unmarshal` and data structure will be described in proto file:
 
 ```proto3
-enum FraudProofType {
-   BadEncoding=0;
-}
-
 message MerkleProof {
    repeated bytes MerkleProof = 1;
 }
 
 message BadEnconding {
-   required FraudProofType Type = 1;
+   required string Type = 1;
    required uint64 Height = 2;
    repeated bytes Shares = 3;
    repeated MerkleProof MerkleProofs = 4;
@@ -75,15 +87,14 @@ From the other side, light nodes have the ability to subscribe to a particular f
 // network.
 type Subscriber interface {
    // Subscribe allows to subscribe on pub sub topic by it's type
-   Subscribe(ctx context.Context, proofType pb.FraudProofType) (Subscription, error)
+   Subscribe(ctx context.Context, proofType FraudProofType) (Subscription, error)
 }
 ```
 
 ```go
 type Subscription interface {
-   NextProof() (/*NewFraudProofInterface*/, error)
+   NextProof() (Proof, error)
 }
-
 ```
 
 ```go
@@ -95,20 +106,19 @@ type BadEncoding struct {
 ```
 
 ```go
-
-type func([]byte) /*newInterface for FraudProof*/ fpFunc
+type func([]byte) Proof fpFunc
 
 type FraudService struct {
    pubsub *pubsub.PubSub
    topics  map[string]*pubsub.Topic
-   unmarshallers map[string/*enumType*/] fpFunc
+   unmarshallers map[FraudProofType] fpFunc
    mu *sync.Mutex
 }
 
-func(f *FraudService) Subscribe(ctx context.Context, proofType pb.FraudProofType) (Subscription, error){}
-func(f *FraudService) RegisterUnmarshaller(/*enumType*/,fpFunc){}
-UnRegisterUnmarshaller(/*enumType string*/) error
-func(f *FraudService) Broadcast(ctx context.Context, p encoding.BinaryMarshaller){}
+func(f *FraudService) Subscribe(ctx context.Context, proofType FraudProofType) (Subscription, error){}
+func(f *FraudService) RegisterUnmarshaller(FraudProofType,fpFunc){}
+UnRegisterUnmarshaller(FraudProofType) error
+func(f *FraudService) Broadcast(ctx context.Context, p Proof){}
 ```
 
 ## Status
