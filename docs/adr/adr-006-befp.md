@@ -15,7 +15,7 @@ In the case where a Full Node receives `ErrByzantineRow`/`ErrByzantineCol` from 
 
 ## Decision
 
-Started disscussion within:
+BEFPs are addressed in the two below issues:
 
 - https://github.com/celestiaorg/celestia-node/issues/4
 - https://github.com/celestiaorg/celestia-node/issues/263
