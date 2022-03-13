@@ -29,7 +29,9 @@ The result of RepairExtendedDataSquare will be an error [ErrByzantineRow](https:
   - row/column numbers that do not match with the Merkle root
   - shares that were successfully repaired and verified (all correct shares).
 
-`ErrByzantineRow`/`ErrByzantineCol` are returned from `RetrevieData`. In addition, `das.Daser`:
+`ErrByzantineRow`/`ErrByzantineCol` are returned as the error value from `RetrieveData`. 
+
+In addition, `das.Daser`:
 
 1. Generates a MerkleProofs for respective verified shares
 2. Creates a BEFP
