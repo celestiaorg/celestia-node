@@ -21,7 +21,7 @@ Started disscussion within:
 - https://github.com/celestiaorg/celestia-node/issues/263
 
 ## Detailed Design
-A fraud proof is generated if recovered data does not match with its respective row/column roots during block repair process
+A fraud proof is generated if recovered data does not match with its respective row/column roots during block reparation. 
 
 The result of RepairExtendedDataSquare will be an error [ErrByzantineRow](https://github.com/celestiaorg/rsmt2d/blob/f34ec414859fc834835ea97ed54300404eec1ac5/extendeddatacrossword.go#L18-L22)/[ErrByzantineCol](https://github.com/celestiaorg/rsmt2d/blob/f34ec414859fc834835ea97ed54300404eec1ac5/extendeddatacrossword.go#L28-L32):
 
