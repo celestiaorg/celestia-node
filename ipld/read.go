@@ -95,28 +95,37 @@ func pickRandomQuadrant(roots [][]byte) (*quadrant, error) {
 // fillQuadrant fetches 1/4 of shares for the given root
 func fillQuadrant(
 	ctx context.Context,
-	roots *quadrant, 
+	quadrant *quadrant,
 	dag ipld.NodeGetter,
 	dataSquare [][]byte,
 ) error {
 	errGroup, ctx := errgroup.WithContext(ctx)
-	for i := 0; i < len(roots.rootCids); i++ {
+	for i := 0; i < len(quadrant.rootCids); i++ {
 		i := i
 		errGroup.Go(func() error {
-			leaves, err := GetSubtreeLeaves(ctx, roots.rootCids[i], dag, roots.isLeftSubtree, uint32(len(roots.rootCids)/2))
+			leaves, err := GetSubtreeLeaves(
+				ctx,
+				quadrant.rootCids[i],
+				dag,
+				quadrant.isLeftSubtree,
+				uint32(len(quadrant.rootCids)/2),
+			)
 			if err != nil {
 				return err
 			}
-			length := len(roots.rootCids)
+			quadrantWidth := len(quadrant.rootCids)
 			for leafIdx, leaf := range leaves {
 				// shares from the right subtree should be
 				// inserted after all shares from the left subtree
-				if !roots.isLeftSubtree {
+				if !quadrant.isLeftSubtree {
 					leafIdx += len(leaves)
 				}
 				shareData := leaf.RawData()[1:]
-                                 // position is calculated by < insert explanation>
-                                 position := ((i+roots.from)*length*2)+leafIdx
+				// dataSquare represents a single dimensional slice
+				// of 4 quadrants. The representation of quadrants in dataSquare will be
+				// | 1 | | 2 | | 3 | | 4 |
+				// position is calculated by offsetting the index to respective quadrant
+				position := ((i + quadrant.from) * quadrantWidth * 2) + leafIdx
 				dataSquare[position] = shareData[NamespaceSize:]
 
 			}
