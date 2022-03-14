@@ -95,7 +95,8 @@ func pickRandomQuadrant(roots [][]byte) (*quadrant, error) {
 // fillQuadrant fetches 1/4 of shares for the given root
 func fillQuadrant(
 	ctx context.Context,
-	roots *quadrant, dag ipld.NodeGetter,
+	roots *quadrant, 
+	dag ipld.NodeGetter,
 	dataSquare [][]byte,
 ) error {
 	errGroup, ctx := errgroup.WithContext(ctx)
