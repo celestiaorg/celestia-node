@@ -103,7 +103,7 @@ func fillQuadrant(
 	for i := 0; i < len(quadrant.rootCids); i++ {
 		i := i
 		errGroup.Go(func() error {
-			leaves, err := GetSubtreeLeaves(
+			leaves, err := getSubtreeLeaves(
 				ctx,
 				quadrant.rootCids[i],
 				dag,
@@ -135,8 +135,8 @@ func fillQuadrant(
 	return errGroup.Wait()
 }
 
-// GetSubtreeLeaves returns only one subtree - left or right
-func GetSubtreeLeaves(
+// getSubtreeLeaves returns only one subtree - left or right
+func getSubtreeLeaves(
 	ctx context.Context,
 	root cid.Cid,
 	dag ipld.NodeGetter,
@@ -154,10 +154,6 @@ func GetSubtreeLeaves(
 	}
 
 	return getLeaves(ctx, dag, subtreeRootHash, make([]ipld.Node, 0, treeSize))
-}
-
-func GetLeaves(ctx context.Context, dag ipld.NodeGetter, root cid.Cid, size uint32) ([]ipld.Node, error) {
-	return getLeaves(ctx, dag, root, make([]ipld.Node, 0, size))
 }
 
 // getLeaves recursively starts going down to find all leafs from the given root
