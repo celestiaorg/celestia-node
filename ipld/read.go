@@ -115,7 +115,9 @@ func fillQuadrant(
 					leafIdx += len(leaves)
 				}
 				shareData := leaf.RawData()[1:]
-				dataSquare[((i+roots.from)*length*2)+leafIdx] = shareData[NamespaceSize:]
+                                 // position is calculated by < insert explanation>
+                                 position := ((i+roots.from)*length*2)+leafIdx
+				dataSquare[position] = shareData[NamespaceSize:]
 
 			}
 			return err
