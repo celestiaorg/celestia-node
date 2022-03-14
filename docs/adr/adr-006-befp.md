@@ -7,8 +7,8 @@
 
 ## Authors
 
-@vgonkivs @Bidon15 @adlerjohn @Wondertan
-
+@vgonkivs @Bidon15 @adlerjohn @Wondertan @renaynay
+ 
 ## Context
 
 In the case where a Full Node receives `ErrByzantineRow`/`ErrByzantineCol` from the [rsmt2d](https://github.com/celestiaorg/rsmt2d) library, it generates a fraud proof and broadcasts it to Light Nodes such that the Light Nodes are notified that the corresponding block could be malicious.
@@ -33,7 +33,7 @@ The result of RepairExtendedDataSquare will be an error [ErrByzantineRow](https:
 
 In addition, `das.Daser`:
 
-1. Generates a MerkleProofs for respective verified shares
+1. Generates a MerkleProofs for respective verified shares from [nmt](https://github.com/celestiaorg/nmt/blob/master/nmt.go) tree
 2. Creates a BEFP
 3. Broadcasts it(BEFP) to light nodes via separate sub-service.
 
@@ -50,17 +50,19 @@ const (
 type Proof interface {
    Height() (uint64, error)
    MerkleProofs() ([][][]byte, error)
+   ValidateBasic(*da.DataAvailabilityHeader) error
 
-   encoding.BinaryMarshaler
-   encoding.BinaryUnmarshaler
+   // NOTE: should we add?
+   // add encoding.BinaryUnmarshaller
+   Payload() ([]byte, error)
 }
 ```
 
 ```go
-// Broadcaster is a generic interface that sends a different kinds of fraud proofs to all subscribed on particular topic nodes
-type Broadcaster interface {
+// FraudNotifier is a generic interface that sends a different kinds of fraud proofs to all subscribed on particular topic nodes
+type FraudNotifier interface {
    // Broadcast takes a Fraud proof data stucture that implements standart BinaryMarshal interface and sends data to light nodes using libp2p pub-sub under the hood.
-   Broadcast(ctx context.Context, p Proof)  
+   Notify(ctx context.Context, p Proof)  
 }
 ```
 
@@ -76,6 +78,8 @@ message BadEnconding {
    required uint64 Height = 2;
    repeated bytes Shares = 3;
    repeated MerkleProof MerkleProofs = 4;
+   uint8 Position = 5;
+   bool isRow = 6;
 }
 ```
 
@@ -93,8 +97,15 @@ type Subscriber interface {
 
 ```go
 type Subscription interface {
-   NextProof() (Proof, error)
+   Proof() (Proof, error)
 }
+
+type FraudSub struct {
+   pubsub *pubsub.PubSub 
+}
+
+func NewFraudSub(p *pubsub.PubSub)(Subscription, error){}
+func(s *FraudSub) Proof() (Proof, error){}
 ```
 
 ```go
@@ -102,33 +113,28 @@ type BadEncoding struct {
    Height uint64
    Shares [][]byte
    MerkleProofs []nmt.Proof
+   Position uint8
+   isRow bool
 }
 ```
 
 ```go
-type func([]byte) Proof fpFunc
-
+// NOTE: re-think how FraudService should be designed(and contructed) for full nodes and for light nodes
 type FraudService struct {
-   pubsub *pubsub.PubSub
-   topics  map[string]*pubsub.Topic
-   unmarshallers map[FraudProofType] fpFunc
-   mu *sync.Mutex
+   badEncodingSub Subscription
+   fraudNotifier FraudNotifier
+   // @Wondertan please take a look at Proof interface
+   // It will return a codec and a payload of the message
+   //codec map[FraudProofType] fpFunc
 }
 
 func(f *FraudService) Subscribe(ctx context.Context, proofType FraudProofType) (Subscription, error){}
-func(f *FraudService) RegisterUnmarshaller(FraudProofType,fpFunc){}
-UnRegisterUnmarshaller(FraudProofType) error
-func(f *FraudService) Broadcast(ctx context.Context, p Proof){}
+
+func(f *FraudService) Notify(ctx context.Context, p Proof){}
 ```
 
 ## Status
 Proposed
-
-## Consequences
-
-### Positive
-
-Detect incorrectly encoded block
 
 ## References
 
