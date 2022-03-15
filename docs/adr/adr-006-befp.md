@@ -4,6 +4,7 @@
 
 - 2022.03.03 - init commit
 - 2022.03.08 - added pub-sub
+- 2022.03.15 - added BEFP verification
 
 ## Authors
 
@@ -37,7 +38,7 @@ In addition, `das.Daser`:
 2. Creates a BEFP
 3. Notify all light nodes via separate sub-service.
 
-`das.Daser` imports a data structure that implements `proof.Broadcaster` interface that uses libp2p.pubsub under the hood:
+`das.Daser` imports a data structure that implements `proof.FraudNotifier` interface that uses libp2p.pubsub under the hood:
 
 
 ```go
@@ -50,7 +51,7 @@ const (
 type Proof interface {
    Height() (uint64, error)
    MerkleProofs() ([][][]byte, error)
-   ValidateBasic(*da.DataAvailabilityHeader) error
+   ValidateBasic(*dah.DataAvailabilityHeader) error
 
    // NOTE: should we add?
    // encoding.BinaryUnmarshaller
@@ -144,6 +145,10 @@ func(f *FraudService) Subscribe(ctx context.Context, proofType FraudProofType) (
 
 func(f *FraudService) Notify(ctx context.Context, p Proof){}
 ```
+### BEFP verification
+Once a light node receives a `BadEncoding` fraud proof, it should:
+* verify that merkle proofs corresponds to particular shares(if merkle proof does not correspond to a share, than this BEFP is not valid)
+* using `BadEncoding.Shares` light node should re-construct full row or col, compute it's merkle root as in [rsmt2d](https://github.com/celestiaorg/rsmt2d/blob/master/extendeddatacrossword.go#L410) and compare it with merkle root that could be retreived from `dah.DataAvailabilityHeader`(if merkle roots do not match, then this BEFP is not valid)
 
 ## Status
 Proposed
