@@ -33,9 +33,9 @@ The result of RepairExtendedDataSquare will be an error [ErrByzantineRow](https:
 
 In addition, `das.Daser`:
 
-1. Generates a MerkleProofs for respective verified shares from [nmt](https://github.com/celestiaorg/nmt/blob/master/nmt.go) tree
+1. Generates a [MerkleProofs](https://github.com/celestiaorg/nmt/blob/master/proof.go#L17) for respective verified shares from [nmt](https://github.com/celestiaorg/nmt/blob/master/nmt.go) tree
 2. Creates a BEFP
-3. Broadcasts it(BEFP) to light nodes via separate sub-service.
+3. Notify all light nodes via separate sub-service.
 
 `das.Daser` imports a data structure that implements `proof.Broadcaster` interface that uses libp2p.pubsub under the hood:
 
@@ -53,7 +53,7 @@ type Proof interface {
    ValidateBasic(*da.DataAvailabilityHeader) error
 
    // NOTE: should we add?
-   // add encoding.BinaryUnmarshaller
+   // encoding.BinaryUnmarshaller
    Payload() ([]byte, error)
 }
 ```
@@ -67,19 +67,27 @@ type FraudNotifier interface {
 ```
 
 Data serialization/deserialization will be performed with `protobuf.Marshal`/`protobuf.Unmarshal` and data structure will be described in proto file:
-
+Proof proto stucture could be described as in [tendermint/proto](https://github.com/tendermint/tendermint/blob/master/proto/tendermint/crypto/proof.proto#L8)
 ```proto3
+
 message MerkleProof {
-   repeated bytes MerkleProof = 1;
+  int64          total     = 1;
+  int64          index     = 2;
+  bytes          leaf_hash = 3;
+  repeated bytes aunts     = 4;
+}
+
+message Share {
+   bytes Share = 1;
+   MerkleProof Proof = 2;
 }
 
 message BadEnconding {
    required string Type = 1;
    required uint64 Height = 2;
-   repeated bytes Shares = 3;
-   repeated MerkleProof MerkleProofs = 4;
-   uint8 Position = 5;
-   bool isRow = 6;
+   repeated Share Shares = 3;
+   uint8 Position = 4;
+   bool isRow = 5;
 }
 ```
 
@@ -109,23 +117,27 @@ func(s *FraudSub) Proof() (Proof, error){}
 ```
 
 ```go
+type Share struct {
+   Share []byte
+   Proof nmt.Proof
+}
+
 type BadEncoding struct {
    Height uint64
-   Shares [][]byte
-   MerkleProofs []nmt.Proof
+   Shares []*Share
    Position uint8
    isRow bool
 }
 ```
 
 ```go
-// NOTE: re-think how FraudService should be designed(and contructed) for full nodes and for light nodes
+// NOTE: re-think how FraudService should be designed(and constructed) for full nodes and for light nodes
 type FraudService struct {
    badEncodingSub Subscription
    fraudNotifier FraudNotifier
    // @Wondertan please take a look at Proof interface
    // It will return a codec and a payload of the message
-   //codec map[FraudProofType] fpFunc
+   // codec map[FraudProofType] fpFunc
 }
 
 func(f *FraudService) Subscribe(ctx context.Context, proofType FraudProofType) (Subscription, error){}
