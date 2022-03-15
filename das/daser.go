@@ -3,6 +3,7 @@ package das
 import (
 	"context"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/ipfs/go-datastore"
@@ -39,12 +40,10 @@ func NewDASer(
 ) *DASer {
 	wrappedDS := wrapCheckpointStore(cstore)
 	return &DASer{
-		da:        da,
-		hsub:      hsub,
-		getter:    getter,
-		cstore:    wrappedDS,
-		sampleDn:  make(chan struct{}),
-		catchUpDn: make(chan struct{}),
+		da:     da,
+		hsub:   hsub,
+		getter: getter,
+		cstore: wrappedDS,
 	}
 }
 
@@ -67,10 +66,10 @@ func (d *DASer) Start(context.Context) error {
 	log.Infow("loaded latest DASed checkpoint", "height", checkpoint)
 
 	dasCtx, cancel := context.WithCancel(context.Background())
+	d.cancel = cancel
+	d.sampleDn, d.catchUpDn = make(chan struct{}), make(chan struct{})
 
 	go d.sample(dasCtx, sub, checkpoint)
-
-	d.cancel = cancel
 	return nil
 }
 
@@ -81,7 +80,9 @@ func (d *DASer) Stop(ctx context.Context) error {
 	for i := 0; i < 2; i++ {
 		select {
 		case <-d.catchUpDn:
+			d.catchUpDn = nil
 		case <-d.sampleDn:
+			d.sampleDn = nil
 		case <-ctx.Done():
 			return ctx.Err()
 		}
@@ -93,17 +94,13 @@ func (d *DASer) Stop(ctx context.Context) error {
 // sample validates availability for each Header received from header subscription.
 func (d *DASer) sample(ctx context.Context, sub header.Subscription, checkpoint int64) {
 	defer func() {
-		// store latest DASed checkpoint to disk
-		// TODO @renaynay: what sample DASes [100:150] and
-		//  stores latest checkpoint to disk as network head (150)
-		// 	but catchUp routine has only sampled from [1:40] so there is a gap
-		//  missing from (40: 100)?
-		if err := storeCheckpoint(d.cstore, checkpoint); err != nil {
-			log.Errorw("storing latest DASed checkpoint to disk", "height", checkpoint, "err", err)
-		}
 		sub.Cancel()
 		close(d.sampleDn)
 	}()
+
+	// kick off catchUpScheduler
+	jobsCh := make(chan *catchUpJob)
+	go d.catchUpScheduler(ctx, jobsCh, checkpoint)
 
 	for {
 		h, err := sub.NextHeader(ctx)
@@ -120,10 +117,13 @@ func (d *DASer) sample(ctx context.Context, sub header.Subscription, checkpoint 
 		// to our last DASed header, kick off routine to DAS all headers
 		// between last DASed header and h. This situation could occur
 		// either on start or due to network latency/disconnection.
-		if h.Height > (checkpoint + 1) {
+		if h.Height > checkpoint+1 {
 			// DAS headers between last DASed height up to the current
 			// header
-			go d.catchUp(ctx, checkpoint, h.Height-1)
+			jobsCh <- &catchUpJob{
+				from: checkpoint,
+				to:   h.Height - 1,
+			}
 		}
 
 		startTime := time.Now()
@@ -146,17 +146,59 @@ func (d *DASer) sample(ctx context.Context, sub header.Subscription, checkpoint 
 	}
 }
 
-// catchUp starts a sampling routine for headers starting at the `from`
-// height and exits the loop once `to` is reached. (from:to]
-func (d *DASer) catchUp(ctx context.Context, from, to int64) {
-	defer close(d.catchUpDn)
+// catchUpJob represents a catch-up job. (from:to]
+type catchUpJob struct {
+	from, to int64
+}
 
+// catchUpScheduler spawns and manages catch-up jobs, exiting only once all jobs
+// are complete and the last known DASing checkpoint has been stored to disk.
+func (d *DASer) catchUpScheduler(ctx context.Context, jobsCh chan *catchUpJob, checkpoint int64) {
+	wg := sync.WaitGroup{}
+
+	defer func() {
+		// wait for all catch-up jobs to finish
+		wg.Wait()
+		// store latest DASed checkpoint to disk here to ensure that if DASer is not yet
+		// fully caught up to network head, it will resume DASing from this checkpoint
+		// up to current network head
+		// TODO @renaynay: Implement Share Cache #180 to ensure no duplicate DASing over same
+		//  header
+		if err := storeCheckpoint(d.cstore, checkpoint); err != nil {
+			log.Errorw("da: storing latest DASed checkpoint to disk", "height", checkpoint, "err", err)
+		}
+		// signal that all catchUp routines have finished
+		close(d.catchUpDn)
+	}()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case job := <-jobsCh:
+			// spawn catchUp routine
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+
+				d.catchUp(ctx, job)
+				// TODO @renaynay: assumption that each subsequent job is to a higher height than the previous.
+				//  I don't see why that is *not* the case, though.
+				checkpoint = job.to
+			}()
+		}
+	}
+}
+
+// catchUp starts a sampling routine for headers starting at the next header
+// after the `from` height and exits the loop once `to` is reached. (from:to]
+func (d *DASer) catchUp(ctx context.Context, job *catchUpJob) {
 	routineStartTime := time.Now()
-	log.Infow("starting sample routine", "from", from, "to", to)
+	log.Infow("starting sample routine", "from", job.from, "to", job.to)
 
 	// start sampling from height at checkpoint+1 since the
-	// checkpoint height has already been successfully DASed
-	for height := from + 1; height <= to; height++ {
+	// checkpoint height is DASed by broader sample routine
+	for height := job.from + 1; height <= job.to; height++ {
 		h, err := d.getter.GetByHeight(ctx, uint64(height))
 		if err != nil {
 			if err == context.Canceled {
@@ -185,6 +227,6 @@ func (d *DASer) catchUp(ctx context.Context, from, to int64) {
 	}
 
 	totalElapsedTime := time.Since(routineStartTime)
-	log.Infow("successfully sampled all headers up to network head", "from", from,
-		"to", to, "finished (s)", totalElapsedTime.Seconds())
+	log.Infow("successfully sampled all headers up to network head", "from", job.from,
+		"to", job.to, "finished (s)", totalElapsedTime.Seconds())
 }
