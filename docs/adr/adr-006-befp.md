@@ -150,6 +150,7 @@ Once a light node receives a `BadEncoding` fraud proof, it should:
 * verify that merkle proofs corresponds to particular shares(if merkle proof does not correspond to a share, than this BEFP is not valid)
 * using `BadEncoding.Shares` light node should re-construct full row or col, compute it's merkle root as in [rsmt2d](https://github.com/celestiaorg/rsmt2d/blob/master/extendeddatacrossword.go#L410) and compare it with merkle root that could be retreived from `dah.DataAvailabilityHeader`(if merkle roots do not match, then this BEFP is not valid)
 
+Light node should stop `DAS`, `Syncer` and `SubmitTx` services, in case if BEFP is valid.
 ## Status
 Proposed
 
