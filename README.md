@@ -1,6 +1,5 @@
 # Celestia Node
-
-Celestia Bridge and Light node.
+Golang implementation of Celestia's data availability node types (`light` | `full` | `bridge`).
 
 ### Minimum requirements
 
