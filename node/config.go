@@ -38,7 +38,11 @@ func DefaultConfig(tp Type) *Config {
 	case Light:
 		return &Config{
 			P2P:      p2p.DefaultConfig(),
-			Core:     core.DefaultConfig(),
+			Services: services.DefaultConfig(),
+		}
+	case Full:
+		return &Config{
+			P2P:      p2p.DefaultConfig(),
 			Services: services.DefaultConfig(),
 		}
 	default:

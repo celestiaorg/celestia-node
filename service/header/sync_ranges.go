@@ -54,11 +54,11 @@ func (rs *ranges) Add(h *ExtendedHeader) {
 
 		// it is possible to miss a header or few from PubSub, due to quick disconnects or sleep
 		// once we start rcving them again we save those in new range
-		// so 'Syncer.getHeaders' can fetch what was missed
+		// so 'Syncer.findHeaders' can fetch what was missed
 	}
 }
 
-// FirstRangeWithin checks if the first range is within a given height span [start:end)
+// FirstRangeWithin checks if the first range is within a given height span [start:end]
 // and returns it.
 func (rs *ranges) FirstRangeWithin(start, end uint64) (*headerRange, bool) {
 	r, ok := rs.First()
@@ -66,7 +66,7 @@ func (rs *ranges) FirstRangeWithin(start, end uint64) (*headerRange, bool) {
 		return nil, false
 	}
 
-	if r.Start >= start && r.Start < end {
+	if r.Start >= start && r.Start <= end {
 		return r, true
 	}
 
@@ -130,14 +130,14 @@ func (r *headerRange) Head() *ExtendedHeader {
 	return r.headers[ln-1]
 }
 
-// Before truncates all the headers before height 'end'.
-func (r *headerRange) Before(end uint64) []*ExtendedHeader {
+// Before truncates all the headers before height 'end' - [r.Start:end]
+func (r *headerRange) Before(end uint64) ([]*ExtendedHeader, uint64) {
 	r.lk.Lock()
 	defer r.lk.Unlock()
 
 	amnt := uint64(len(r.headers))
-	if r.Start+amnt > end {
-		amnt = end - r.Start
+	if r.Start+amnt >= end {
+		amnt = end - r.Start + 1 // + 1 to include 'end' as well
 	}
 
 	out := r.headers[:amnt]
@@ -145,5 +145,5 @@ func (r *headerRange) Before(end uint64) []*ExtendedHeader {
 	if len(r.headers) != 0 {
 		r.Start = uint64(r.headers[0].Height)
 	}
-	return out
+	return out, amnt
 }

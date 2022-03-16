@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"math/rand"
 
 	"github.com/libp2p/go-libp2p-core/host"
 	"github.com/libp2p/go-libp2p-core/peer"
@@ -12,25 +13,24 @@ import (
 
 	"github.com/celestiaorg/go-libp2p-messenger/serde"
 
+	params "github.com/celestiaorg/celestia-node/params"
 	pb "github.com/celestiaorg/celestia-node/service/header/pb"
 )
 
-var exchangeProtocolID = protocol.ID("/header-ex/v0.0.1")
+var exchangeProtocolID = protocol.ID(fmt.Sprintf("/header-ex/v0.0.1/%s", params.GetNetwork()))
 
 // P2PExchange enables sending outbound ExtendedHeaderRequests to the network as well as
 // handling inbound ExtendedHeaderRequests from the network.
 type P2PExchange struct {
 	host host.Host
 
-	// TODO @renaynay: post-Devnet, we need to remove reliance of Exchange on one bootstrap peer
-	// Ref https://github.com/celestiaorg/celestia-node/issues/172#issuecomment-964306823.
-	trustedPeer peer.ID
+	trustedPeers peer.IDSlice
 }
 
-func NewP2PExchange(host host.Host, peer peer.ID) *P2PExchange {
+func NewP2PExchange(host host.Host, peers peer.IDSlice) *P2PExchange {
 	return &P2PExchange{
-		host:        host,
-		trustedPeer: peer,
+		host:         host,
+		trustedPeers: peers,
 	}
 }
 
@@ -98,11 +98,14 @@ func (ex *P2PExchange) performRequest(ctx context.Context, req *pb.ExtendedHeade
 	if req.Amount == 0 {
 		return make([]*ExtendedHeader, 0), nil
 	}
-	if ex.trustedPeer == "" {
-		return nil, fmt.Errorf("no trusted peer")
+
+	if len(ex.trustedPeers) == 0 {
+		return nil, fmt.Errorf("no trusted peers")
 	}
 
-	stream, err := ex.host.NewStream(ctx, ex.trustedPeer, exchangeProtocolID)
+	// nolint:gosec // G404: Use of weak random number generator
+	index := rand.Intn(len(ex.trustedPeers))
+	stream, err := ex.host.NewStream(ctx, ex.trustedPeers[index], exchangeProtocolID)
 	if err != nil {
 		return nil, err
 	}

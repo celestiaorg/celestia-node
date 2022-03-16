@@ -28,25 +28,8 @@ func (eh *ExtendedHeader) IsExpired() bool {
 
 // VerifyNonAdjacent validates non-adjacent untrusted header against trusted 'eh'.
 func (eh *ExtendedHeader) VerifyNonAdjacent(untrst *ExtendedHeader) error {
-	if untrst.ChainID != eh.ChainID {
-		return &VerifyError{
-			fmt.Errorf(
-				"header belongs to another chain %q, not %q", untrst.ChainID, eh.ChainID,
-			),
-		}
-	}
-
-	if !untrst.Time.After(eh.Time) {
-		return &VerifyError{
-			fmt.Errorf("expected new header time %v to be after old header time %v", untrst.Time, eh.Time),
-		}
-	}
-
-	now := time.Now()
-	if !untrst.Time.Before(now) {
-		return &VerifyError{
-			fmt.Errorf("new header has a time from the future %v (now: %v)", untrst.Time, now),
-		}
+	if err := eh.verify(untrst); err != nil {
+		return &VerifyError{Reason: err}
 	}
 
 	// Ensure that untrusted commit has enough of trusted commit's power.
@@ -64,23 +47,8 @@ func (eh *ExtendedHeader) VerifyAdjacent(untrst *ExtendedHeader) error {
 		return ErrNonAdjacent
 	}
 
-	if untrst.ChainID != eh.ChainID {
-		return &VerifyError{
-			fmt.Errorf("header belongs to another chain %q, not %q", untrst.ChainID, eh.ChainID),
-		}
-	}
-
-	if !untrst.Time.After(eh.Time) {
-		return &VerifyError{
-			fmt.Errorf("expected new header time %v to be after old header time %v", untrst.Time, eh.Time),
-		}
-	}
-
-	now := time.Now()
-	if !untrst.Time.Before(now) {
-		return &VerifyError{
-			fmt.Errorf("new header has a time from the future %v (now: %v)", untrst.Time, now),
-		}
+	if err := eh.verify(untrst); err != nil {
+		return &VerifyError{Reason: err}
 	}
 
 	// Check the validator hashes are the same
@@ -91,6 +59,29 @@ func (eh *ExtendedHeader) VerifyAdjacent(untrst *ExtendedHeader) error {
 				untrst.ValidatorsHash,
 			),
 		}
+	}
+
+	return nil
+}
+
+// clockDrift defines how much new header's time can drift into
+// the future relative to the now time during verification.
+var clockDrift = 10 * time.Second
+
+// verify performs basic verification of untrusted header.
+func (eh *ExtendedHeader) verify(untrst *ExtendedHeader) error {
+	if untrst.ChainID != eh.ChainID {
+		return fmt.Errorf("new untrusted header has different chain %s, not %s", untrst.ChainID, eh.ChainID)
+	}
+
+	if !untrst.Time.After(eh.Time) {
+		return fmt.Errorf("expected new untrusted header time %v to be after old header time %v", untrst.Time, eh.Time)
+	}
+
+	now := time.Now()
+	if !untrst.Time.Before(now.Add(clockDrift)) {
+		return fmt.Errorf(
+			"new untrusted header has a time from the future %v (now: %v, clockDrift: %v)", untrst.Time, now, clockDrift)
 	}
 
 	return nil

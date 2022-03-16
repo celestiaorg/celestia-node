@@ -34,6 +34,7 @@ var log = logging.Logger("node")
 // Currently supported modes:
 // * Bridge
 // * Light
+// * Full
 type Node struct {
 	Type   Type
 	Config *Config
@@ -89,6 +90,8 @@ func New(tp Type, store Store, options ...Option) (*Node, error) {
 		return newNode(bridgeComponents(cfg, store), s.plugins(cfg, store), s.overrides())
 	case Light:
 		return newNode(lightComponents(cfg, store), s.plugins(cfg, store), s.overrides())
+	case Full:
+		return newNode(fullComponents(cfg, store), s.plugins(cfg, store), s.overrides())
 	default:
 		panic("node: unknown Node Type")
 	}
