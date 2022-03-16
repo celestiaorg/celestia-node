@@ -1,4 +1,4 @@
-# ADR #006: Celestia-Node Bad encoding fraud proof(BEFP)
+# ADR #006: Celestia-Node Bad Encoding Fraud Proof (BEFP)
 
 ## Changelog
 
