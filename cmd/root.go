@@ -34,6 +34,7 @@ func NewRootCmd(plugs ...node.Plugin) *cobra.Command {
 	command.AddCommand(
 		NewBridgeCommand(plugs),
 		NewLightCommand(plugs),
+		NewFullCommand(plugs),
 		versionCmd,
 	)
 	command.SetHelpCommand(&cobra.Command{})

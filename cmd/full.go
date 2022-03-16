@@ -9,18 +9,17 @@ import (
 // NOTE: We should always ensure that the added Flags below are parsed somewhere, like in the PersistentPreRun func on
 // parent command.
 
-// NewLightCommand creates a new light sub command
-func NewLightCommand(plugs []node.Plugin) *cobra.Command {
+func NewFullCommand(plugs []node.Plugin) *cobra.Command {
 	command := &cobra.Command{
-		Use:   "light [subcommand]",
+		Use:   "full [subcommand]",
 		Args:  cobra.NoArgs,
-		Short: "Manage your Light node",
+		Short: "Manage your Full node",
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 			env, err := GetEnv(cmd.Context())
 			if err != nil {
 				return err
 			}
-			env.SetNodeType(node.Light)
+			env.SetNodeType(node.Full)
 
 			err = ParseNodeFlags(cmd, env)
 			if err != nil {
@@ -45,25 +44,23 @@ func NewLightCommand(plugs []node.Plugin) *cobra.Command {
 			return nil
 		},
 	}
-
 	command.AddCommand(
 		Init(
 			plugs,
-			NodeFlags(node.Light),
+			NodeFlags(node.Full),
 			P2PFlags(),
-			HeadersFlags(),
 			TrustedHashFlags(),
+			HeadersFlags(),
 			MiscFlags(),
 		),
 		Start(
 			plugs,
-			NodeFlags(node.Light),
+			NodeFlags(node.Full),
 			P2PFlags(),
-			HeadersFlags(),
 			TrustedHashFlags(),
+			HeadersFlags(),
 			MiscFlags(),
 		),
 	)
-
 	return command
 }
