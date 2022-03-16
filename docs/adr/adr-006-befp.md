@@ -1,4 +1,4 @@
-# ADR #006: Celestia-Node Bad Encoding Fraud Proof (BEFP)
+# ADR #006: Celestia-Node Fraud Service
 
 ## Changelog
 
@@ -10,6 +10,7 @@
 
 @vgonkivs @Bidon15 @adlerjohn @Wondertan @renaynay
  
+## 1. Bad Encoding Fraud Proof (BEFP)
 ## Context
 
 In the case where a Full Node receives `ErrByzantineRow`/`ErrByzantineCol` from the [rsmt2d](https://github.com/celestiaorg/rsmt2d) library, it generates a fraud proof and broadcasts it to Light Nodes such that the Light Nodes are notified that the corresponding block could be malicious.
@@ -30,45 +31,41 @@ The result of RepairExtendedDataSquare will be an error [ErrByzantineRow](https:
   - row/column numbers that do not match with the Merkle root
   - shares that were successfully repaired and verified (all correct shares).
 
-`ErrByzantineRow`/`ErrByzantineCol` are returned as the error value from `RetrieveData`. 
+Base on `ErrByzantineRow`/`ErrByzantineCol` internal fields we should generate a [MerkleProofs](https://github.com/celestiaorg/nmt/blob/master/proof.go#L17) for respective verified shares from [nmt](https://github.com/celestiaorg/nmt/blob/master/nmt.go) tree return as the `ErrBadEncoding` from `RetrieveData`. 
+
+```go
+type ErrBadEncoding struct {
+   Shares []*Share
+   Position uint8
+   isRow bool
+}
+
+type Share struct {
+   Share []byte
+   Proof nmt.Proof
+}
+```
 
 In addition, `das.Daser`:
 
-1. Generates a [MerkleProofs](https://github.com/celestiaorg/nmt/blob/master/proof.go#L17) for respective verified shares from [nmt](https://github.com/celestiaorg/nmt/blob/master/nmt.go) tree
-2. Creates a BEFP
-3. Notify all light nodes via separate sub-service.
-
-`das.Daser` imports a data structure that implements `proof.FraudNotifier` interface that uses libp2p.pubsub under the hood:
-
+1. Creates a BEFP:
 
 ```go
-type FraudProofType string
-
 const (
    BadEncoding FraudProofType = "BadEncoding"
 )
 
-type Proof interface {
-   Height() (uint64, error)
-   MerkleProofs() ([][][]byte, error)
-   ValidateBasic(*dah.DataAvailabilityHeader) error
-
-   // NOTE: should we add?
-   // encoding.BinaryUnmarshaller
-   Payload() ([]byte, error)
+type BadEncoding struct {
+   Type FraudProofType
+   Height uint64
+   Shares []*Share
+   Position uint8
+   isRow bool
 }
 ```
 
-```go
-// FraudNotifier is a generic interface that sends a different kinds of fraud proofs to all subscribed on particular topic nodes
-type FraudNotifier interface {
-   // Broadcast takes a Fraud proof data stucture that implements standart BinaryMarshal interface and sends data to light nodes using libp2p pub-sub under the hood.
-   Notify(ctx context.Context, p Proof)  
-}
-```
+2. Notify all light nodes via separate sub-service via proto message:
 
-Data serialization/deserialization will be performed with `protobuf.Marshal`/`protobuf.Unmarshal` and data structure will be described in proto file:
-Proof proto stucture could be described as in [tendermint/proto](https://github.com/tendermint/tendermint/blob/master/proto/tendermint/crypto/proof.proto#L8)
 ```proto3
 
 message MerkleProof {
@@ -91,6 +88,32 @@ message BadEnconding {
    bool isRow = 5;
 }
 ```
+Data serialization/deserialization will be performed with `protobuf.Marshal`/`protobuf.Unmarshal`.
+
+`das.Daser` imports a data structure that implements `proof.FraudNotifier` interface that uses libp2p.pubsub under the hood:
+
+```go
+// FraudNotifier is a generic interface that sends a different kinds of fraud proofs to all subscribed on particular topic nodes
+type FraudNotifier interface {
+   // Broadcast takes a Fraud proof data stucture that implements standart BinaryMarshal interface and sends data to light nodes using libp2p pub-sub under the hood.
+   Notify(ctx context.Context, p Proof)  
+}
+```
+
+```go
+// FraudProofType is a enum type that represents particular fraud proof
+type FraudProofType string
+
+// Proof is a generic interface that will be used for all types of fraud proofs
+type Proof interface {
+   Type() FraudProofType
+   Height() (uint64, error)
+   Validate(*header.ExtendedHeader) error
+
+   encoding.BinaryMarshaller
+   encoding.BinaryUnmarshaller
+}
+```
 
 From the other side, light nodes have the ability to subscribe to a particular fraud proof update and verify received data:
 
@@ -105,6 +128,7 @@ type Subscriber interface {
 ```
 
 ```go
+// Subscription provides only valid proofs, because the validation is done under the hood of pub-sub
 type Subscription interface {
    Proof() (Proof, error)
 }
@@ -118,27 +142,10 @@ func(s *FraudSub) Proof() (Proof, error){}
 ```
 
 ```go
-type Share struct {
-   Share []byte
-   Proof nmt.Proof
-}
-
-type BadEncoding struct {
-   Height uint64
-   Shares []*Share
-   Position uint8
-   isRow bool
-}
-```
-
-```go
 // NOTE: re-think how FraudService should be designed(and constructed) for full nodes and for light nodes
 type FraudService struct {
    badEncodingSub Subscription
    fraudNotifier FraudNotifier
-   // @Wondertan please take a look at Proof interface
-   // It will return a codec and a payload of the message
-   // codec map[FraudProofType] fpFunc
 }
 
 func(f *FraudService) Subscribe(ctx context.Context, proofType FraudProofType) (Subscription, error){}
