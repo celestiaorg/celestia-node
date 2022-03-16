@@ -126,12 +126,8 @@ func TestRetrieveBlockData(t *testing.T) {
 	tests := []test{
 		{"1x1(min)", 1},
 		{"32x32(med)", 32},
-		{"128x128(max)", MaxSquareSize},
 	}
 	for _, tc := range tests {
-		if tc.squareSize == MaxSquareSize {
-			t.Skip("skipping as it spawns too many goroutines")
-		}
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			// generate EDS
@@ -147,12 +143,34 @@ func TestRetrieveBlockData(t *testing.T) {
 			defer cancel()
 
 			dah := da.NewDataAvailabilityHeader(in)
-
 			out, err := RetrieveData(ctx, &dah, dag, rsmt2d.NewRSGF8Codec())
 			require.NoError(t, err)
 			assert.True(t, EqualEDS(in, out))
 		})
 	}
+}
+
+func TestRetrieveMaxBlockData(t *testing.T) {
+	parentCtx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	dag := mdutils.Mock()
+
+	// generate EDS
+	eds := generateRandEDS(t, MaxSquareSize)
+
+	shares := ExtractODSShares(eds)
+
+	in, err := PutData(parentCtx, shares, dag)
+	require.NoError(t, err)
+
+	// limit with deadline, specifically retrieval
+	ctx, cancel := context.WithTimeout(parentCtx, time.Second*50)
+	defer cancel()
+
+	dah := da.NewDataAvailabilityHeader(in)
+	out, err := RetrieveData(ctx, &dah, dag, rsmt2d.NewRSGF8Codec())
+	require.NoError(t, err)
+	assert.True(t, EqualEDS(in, out))
 }
 
 func Test_ConvertEDStoShares(t *testing.T) {

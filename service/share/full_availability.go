@@ -13,19 +13,19 @@ import (
 // recovery technique. It is considered "full" because it is required
 // to download enough shares to fully reconstruct the data square.
 type fullAvailability struct {
-	getter format.NodeGetter
+	service format.DAGService
 }
 
 // NewFullAvailability creates a new full Availability.
-func NewFullAvailability(get format.NodeGetter) Availability {
+func NewFullAvailability(service format.DAGService) Availability {
 	return &fullAvailability{
-		getter: get,
+		service: service,
 	}
 }
 
 // SharesAvailable reconstructs the data committed to the given Root by requesting
 // enough Shares from the network.
 func (fa *fullAvailability) SharesAvailable(ctx context.Context, root *Root) error {
-	_, err := ipld.RetrieveData(ctx, root, fa.getter, rsmt2d.NewRSGF8Codec())
+	_, err := ipld.RetrieveData(ctx, root, fa.service, rsmt2d.NewRSGF8Codec())
 	return err
 }
