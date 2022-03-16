@@ -18,4 +18,4 @@ func run() error {
 	return rootCmd.ExecuteContext(cmd.WithEnv(context.Background()))
 }
 
-var rootCmd = cmd.NewRootCmd(nil, nil)
+var rootCmd = cmd.NewRootCmd()
