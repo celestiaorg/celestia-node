@@ -2,6 +2,7 @@ package ipld
 
 import (
 	"context"
+	"math"
 	"math/rand"
 
 	"github.com/ipfs/go-cid"
@@ -26,28 +27,27 @@ func RetrieveData(
 	codec rsmt2d.Codec,
 ) (*rsmt2d.ExtendedDataSquare, error) {
 	edsWidth := len(dah.RowsRoots)
-	rowRoots := dah.RowsRoots
 	dataSquare := make([][]byte, edsWidth*edsWidth)
 
-	quadrant, err := pickRandomQuadrant(rowRoots)
-	if err != nil {
-		return nil, err
-	}
-	errGroup, ctx := errgroup.WithContext(parentCtx)
-	errGroup.Go(func() error {
-		return fillQuadrant(ctx, quadrant, dag, dataSquare)
-	})
-	if err := errGroup.Wait(); err != nil {
-		return nil, err
-	}
-	batchAdder := NewNmtNodeAdder(parentCtx, ipld.NewBatch(parentCtx, dag, ipld.MaxSizeBatchOption(batchSize(edsWidth))))
-	tree := wrapper.NewErasuredNamespacedMerkleTree(uint64(edsWidth)/2, nmt.NodeVisitor(batchAdder.Visit))
-	extended, err := rsmt2d.RepairExtendedDataSquare(dah.RowsRoots, dah.ColumnRoots, dataSquare, codec, tree.Constructor)
+	q := rand.Intn(4) + 1 //nolint:gosec
+	quadrant, err := pickQuadrant(q, dah.RowsRoots)
 	if err != nil {
 		return nil, err
 	}
 
-	return extended, batchAdder.Commit()
+	extended, err := repairDataSquare(parentCtx, quadrant, dah, dag, dataSquare, codec, true)
+	if err == nil || err != rsmt2d.ErrUnrepairableDataSquare {
+		return extended, err
+	}
+
+	// Trying one more time to repair dataSquare, using dah.Columns
+	quadrant = nil
+	quadrant, err = pickQuadrant(q, dah.ColumnRoots)
+	if err != nil {
+		return nil, err
+	}
+
+	return repairDataSquare(parentCtx, quadrant, dah, dag, dataSquare, codec, false)
 }
 
 type quadrant struct {
@@ -57,10 +57,38 @@ type quadrant struct {
 	rootCids      []cid.Cid
 }
 
-func pickRandomQuadrant(roots [][]byte) (*quadrant, error) {
+func repairDataSquare(
+	parentCtx context.Context,
+	quadrant *quadrant,
+	dah *da.DataAvailabilityHeader,
+	dag ipld.DAGService,
+	dataSquare [][]byte,
+	codec rsmt2d.Codec,
+	isRow bool,
+) (*rsmt2d.ExtendedDataSquare, error) {
+	edsWidth := math.Sqrt(float64(len(dataSquare)))
+	errGroup, ctx := errgroup.WithContext(parentCtx)
+
+	errGroup.Go(func() error {
+		return fillQuadrant(ctx, quadrant, dag, dataSquare, isRow)
+	})
+	if err := errGroup.Wait(); err != nil {
+		return nil, err
+	}
+
+	batchAdder := NewNmtNodeAdder(parentCtx, ipld.NewBatch(parentCtx, dag, ipld.MaxSizeBatchOption(batchSize(int(edsWidth)))))
+	tree := wrapper.NewErasuredNamespacedMerkleTree(uint64(edsWidth)/2, nmt.NodeVisitor(batchAdder.Visit))
+	extended, err := rsmt2d.RepairExtendedDataSquare(dah.RowsRoots, dah.ColumnRoots, dataSquare, codec, tree.Constructor)
+	if err != nil {
+		return nil, err
+	}
+
+	return extended, batchAdder.Commit()
+}
+
+func pickQuadrant(qNumber int, roots [][]byte) (*quadrant, error) {
 	edsWidth := len(roots)
 	// get the random number from 1 to 4.
-	q := rand.Intn(4) + 1 //nolint:gosec
 	quadrant := &quadrant{rootCids: make([]cid.Cid, edsWidth/2)}
 	// quadrants 1 and 3 corresponds to left subtree,
 	// 2 and 4 to the right subtree
@@ -69,12 +97,11 @@ func pickRandomQuadrant(roots [][]byte) (*quadrant, error) {
 		| 3 | 4 |
 	*/
 	// choose subtree
-	if q%2 == 1 {
+	if qNumber%2 == 1 {
 		quadrant.isLeftSubtree = true
 	}
-
 	// define range of shares for sampling
-	if q > 2 {
+	if qNumber > 2 {
 		quadrant.from = edsWidth / 2
 		quadrant.to = edsWidth
 	} else {
@@ -98,6 +125,7 @@ func fillQuadrant(
 	quadrant *quadrant,
 	dag ipld.NodeGetter,
 	dataSquare [][]byte,
+	isRow bool,
 ) error {
 	errGroup, ctx := errgroup.WithContext(ctx)
 	for i := 0; i < len(quadrant.rootCids); i++ {
@@ -126,6 +154,11 @@ func fillQuadrant(
 				// | 1 | | 2 | | 3 | | 4 |
 				// position is calculated by offsetting the index to respective quadrant
 				position := ((i + quadrant.from) * quadrantWidth * 2) + leafIdx
+				if !isRow {
+					// for columns position is computed by multyplying a rowIndex(leafIndex) with
+					// quadrantWidth + colIndex + offset
+					position = leafIdx*quadrantWidth*2 + i + quadrant.from
+				}
 				dataSquare[position] = shareData[NamespaceSize:]
 
 			}
