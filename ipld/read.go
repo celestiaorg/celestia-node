@@ -41,7 +41,6 @@ func RetrieveData(
 	}
 
 	// Trying one more time to repair dataSquare, using dah.Columns
-	quadrant = nil
 	quadrant, err = pickQuadrant(q, dah.ColumnRoots)
 	if err != nil {
 		return nil, err
@@ -155,7 +154,7 @@ func fillQuadrant(
 				// position is calculated by offsetting the index to respective quadrant
 				position := ((i + quadrant.from) * quadrantWidth * 2) + leafIdx
 				if !isRow {
-					// for columns position is computed by multyplying a rowIndex(leafIndex) with
+					// for columns position is computed by multiplying a rowIndex(leafIndex) with
 					// quadrantWidth + colIndex + offset
 					position = leafIdx*quadrantWidth*2 + i + quadrant.from
 				}
