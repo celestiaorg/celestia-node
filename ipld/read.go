@@ -75,7 +75,10 @@ func repairDataSquare(
 		return nil, err
 	}
 
-	batchAdder := NewNmtNodeAdder(parentCtx, ipld.NewBatch(parentCtx, dag, ipld.MaxSizeBatchOption(batchSize(int(edsWidth)))))
+	batchAdder := NewNmtNodeAdder(
+		parentCtx,
+		ipld.NewBatch(parentCtx, dag, ipld.MaxSizeBatchOption(batchSize(int(edsWidth)))),
+	)
 	tree := wrapper.NewErasuredNamespacedMerkleTree(uint64(edsWidth)/2, nmt.NodeVisitor(batchAdder.Visit))
 	extended, err := rsmt2d.RepairExtendedDataSquare(dah.RowsRoots, dah.ColumnRoots, dataSquare, codec, tree.Constructor)
 	if err != nil {
