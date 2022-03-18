@@ -51,8 +51,7 @@ func RetrieveData(
 
 type quadrant struct {
 	isLeftSubtree bool
-	from          int
-	to            int
+	offset        int
 	rootCids      []cid.Cid
 }
 
@@ -104,14 +103,11 @@ func pickQuadrant(qNumber int, roots [][]byte) (*quadrant, error) {
 	}
 	// define range of shares for sampling
 	if qNumber > 2 {
-		quadrant.from = edsWidth / 2
-		quadrant.to = edsWidth
-	} else {
-		quadrant.to = edsWidth / 2
+		quadrant.offset = edsWidth / 2
 	}
 
 	var err error
-	for index, counter := quadrant.from, 0; index < quadrant.to; index++ {
+	for index, counter := quadrant.offset, 0; index < quadrant.offset+edsWidth/2; index++ {
 		quadrant.rootCids[counter], err = plugin.CidFromNamespacedSha256(roots[index])
 		if err != nil {
 			return nil, err
@@ -155,11 +151,11 @@ func fillQuadrant(
 				// of 4 quadrants. The representation of quadrants in dataSquare will be
 				// | 1 | | 2 | | 3 | | 4 |
 				// position is calculated by offsetting the index to respective quadrant
-				position := ((i + quadrant.from) * quadrantWidth * 2) + leafIdx
+				position := ((i + quadrant.offset) * quadrantWidth * 2) + leafIdx
 				if !isRow {
 					// for columns position is computed by multiplying a rowIndex(leafIndex) with
 					// quadrantWidth + colIndex + offset
-					position = leafIdx*quadrantWidth*2 + i + quadrant.from
+					position = leafIdx*quadrantWidth*2 + i + quadrant.offset
 				}
 				dataSquare[position] = shareData[NamespaceSize:]
 
