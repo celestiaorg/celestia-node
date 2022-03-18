@@ -131,8 +131,10 @@ type Subscriber interface {
 // Subscription returns a valid proof if one is received on the topic.
 type Subscription interface {
    Proof() (Proof, error)
+   Cancel() error
 }
 
+// FraudSub implements Subscription.
 type FraudSub struct {
    pubsub *pubsub.PubSub 
 }
@@ -144,7 +146,7 @@ func(s *FraudSub) Proof() (Proof, error)
 ```go
 // NOTE: re-think how FraudService should be designed(and constructed) for full nodes and for light nodes
 type FraudService struct {
-   badEncodingSub Subscription
+   fraudSub Subscription
    fraudNotifier FraudNotifier
 }
 
