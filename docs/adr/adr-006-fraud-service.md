@@ -56,7 +56,6 @@ const (
 )
 
 type BadEncoding struct {
-   Type FraudProofType
    Height uint64
    Shares []*Share
    Position uint8
@@ -81,14 +80,12 @@ message Share {
 }
 
 message BadEnconding {
-   required string Type = 1;
-   required uint64 Height = 2;
-   repeated Share Shares = 3;
-   uint8 Position = 4;
-   bool isRow = 5;
+   required uint64 Height = 1;
+   repeated Share Shares = 2;
+   uint8 Position = 3;
+   bool isRow = 4;
 }
 ```
-Data serialization/deserialization will be performed with `protobuf.Marshal`/`protobuf.Unmarshal`.
 
 `das.Daser` imports a data structure that implements `proof.FraudNotifier` interface that uses libp2p.pubsub under the hood:
 
@@ -139,19 +136,19 @@ type FraudSub struct {
    pubsub *pubsub.PubSub 
 }
 
-func NewFraudSub(p *pubsub.PubSub)(Subscription, error)
-func(s *FraudSub) Proof() (Proof, error)
+func NewFraudSub(p *pubsub.PubSub)(Subscription, error){}
+func(s *FraudSub) Proof() (Proof, error){}
+func(s *FraudSub) Cancel() error{}
 ```
 
 ```go
-// NOTE: re-think how FraudService should be designed(and constructed) for full nodes and for light nodes
 type FraudService struct {
    fraudSub Subscription
    fraudNotifier FraudNotifier
 }
 
-func(f *FraudService) Subscribe(ctx context.Context, proofType FraudProofType) (Subscription, error){}
-
+func(s *FraudService) Proof() (Proof, error){}
+func(s *FraudSub) Cancel() error{}
 func(f *FraudService) Notify(ctx context.Context, p Proof){}
 ```
 ### BEFP verification
