@@ -2,7 +2,6 @@ package ipld
 
 import (
 	"context"
-	"math"
 	"math/rand"
 
 	"github.com/ipfs/go-cid"
@@ -64,7 +63,7 @@ func repairDataSquare(
 	codec rsmt2d.Codec,
 	isRow bool,
 ) (*rsmt2d.ExtendedDataSquare, error) {
-	edsWidth := math.Sqrt(float64(len(dataSquare)))
+	edsWidth := len(dah.RowsRoots)
 	errGroup, ctx := errgroup.WithContext(parentCtx)
 
 	errGroup.Go(func() error {
@@ -76,7 +75,7 @@ func repairDataSquare(
 
 	batchAdder := NewNmtNodeAdder(
 		parentCtx,
-		ipld.NewBatch(parentCtx, dag, ipld.MaxSizeBatchOption(batchSize(int(edsWidth)))),
+		ipld.NewBatch(parentCtx, dag, ipld.MaxSizeBatchOption(batchSize(edsWidth))),
 	)
 	tree := wrapper.NewErasuredNamespacedMerkleTree(uint64(edsWidth)/2, nmt.NodeVisitor(batchAdder.Visit))
 	extended, err := rsmt2d.RepairExtendedDataSquare(dah.RowsRoots, dah.ColumnRoots, dataSquare, codec, tree.Constructor)
