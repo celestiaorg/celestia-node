@@ -10,7 +10,7 @@
 
 @vgonkivs @Bidon15 @adlerjohn @Wondertan @renaynay
  
-## 1. Bad Encoding Fraud Proof (BEFP)
+## Bad Encoding Fraud Proof (BEFP)
 ## Context
 
 In the case where a Full Node receives `ErrByzantineRow`/`ErrByzantineCol` from the [rsmt2d](https://github.com/celestiaorg/rsmt2d) library, it generates a fraud proof and broadcasts it to Light Nodes such that the Light Nodes are notified that the corresponding block could be malicious.
@@ -31,7 +31,7 @@ The result of RepairExtendedDataSquare will be an error [ErrByzantineRow](https:
   - row/column numbers that do not match with the Merkle root
   - shares that were successfully repaired and verified (all correct shares).
 
-Base on `ErrByzantineRow`/`ErrByzantineCol` internal fields we should generate a [MerkleProofs](https://github.com/celestiaorg/nmt/blob/master/proof.go#L17) for respective verified shares from [nmt](https://github.com/celestiaorg/nmt/blob/master/nmt.go) tree return as the `ErrBadEncoding` from `RetrieveData`. 
+Based on `ErrByzantineRow`/`ErrByzantineCol` internal fields, we should generate a [MerkleProofs](https://github.com/celestiaorg/nmt/blob/master/proof.go#L17) for respective verified shares from [nmt](https://github.com/celestiaorg/nmt/blob/master/nmt.go) tree return as the `ErrBadEncoding` from `RetrieveData`. 
 
 ```go
 type ErrBadEncoding struct {
@@ -64,7 +64,7 @@ type BadEncoding struct {
 }
 ```
 
-2. Notify all light nodes via separate sub-service via proto message:
+2. Full node broadcasts BEFP to all light nodes via separate sub-service via proto message:
 
 ```proto3
 
@@ -93,18 +93,18 @@ Data serialization/deserialization will be performed with `protobuf.Marshal`/`pr
 `das.Daser` imports a data structure that implements `proof.FraudNotifier` interface that uses libp2p.pubsub under the hood:
 
 ```go
-// FraudNotifier is a generic interface that sends a different kinds of fraud proofs to all subscribed on particular topic nodes
+// FraudNotifier is a generic interface that sends a `Proof` to all nodes subscribed on the FraudNotifier's topic.
 type FraudNotifier interface {
-   // Broadcast takes a Fraud proof data stucture that implements standart BinaryMarshal interface and sends data to light nodes using libp2p pub-sub under the hood.
+   // Notify takes a fraud `Proof` data structure that implements standard BinaryMarshal interface and broadcasts it to all subscribed peers.
    Notify(ctx context.Context, p Proof)  
 }
 ```
 
 ```go
-// FraudProofType is a enum type that represents particular fraud proof
+// FraudProofType is a enum type that represents a particular type of fraud proof.
 type FraudProofType string
 
-// Proof is a generic interface that will be used for all types of fraud proofs
+// Proof is a generic interface that will be used for all types of fraud proofs in the network.
 type Proof interface {
    Type() FraudProofType
    Height() (uint64, error)
@@ -115,7 +115,7 @@ type Proof interface {
 }
 ```
 
-From the other side, light nodes have the ability to subscribe to a particular fraud proof update and verify received data:
+2a. From the other side, light nodes will, by default, subscribe to the BEFP topic and verify messages received on the topic:
 
 ```go
 // Subscriber encompasses the behavior necessary to
@@ -128,7 +128,7 @@ type Subscriber interface {
 ```
 
 ```go
-// Subscription provides only valid proofs, because the validation is done under the hood of pub-sub
+// Subscription returns a valid proof if one is received on the topic.
 type Subscription interface {
    Proof() (Proof, error)
 }
@@ -137,8 +137,8 @@ type FraudSub struct {
    pubsub *pubsub.PubSub 
 }
 
-func NewFraudSub(p *pubsub.PubSub)(Subscription, error){}
-func(s *FraudSub) Proof() (Proof, error){}
+func NewFraudSub(p *pubsub.PubSub)(Subscription, error)
+func(s *FraudSub) Proof() (Proof, error)
 ```
 
 ```go
@@ -154,10 +154,14 @@ func(f *FraudService) Notify(ctx context.Context, p Proof){}
 ```
 ### BEFP verification
 Once a light node receives a `BadEncoding` fraud proof, it should:
-* verify that merkle proofs corresponds to particular shares(if merkle proof does not correspond to a share, than this BEFP is not valid)
-* using `BadEncoding.Shares` light node should re-construct full row or col, compute it's merkle root as in [rsmt2d](https://github.com/celestiaorg/rsmt2d/blob/master/extendeddatacrossword.go#L410) and compare it with merkle root that could be retreived from `dah.DataAvailabilityHeader`(if merkle roots do not match, then this BEFP is not valid)
+* verify that merkle proofs correspond to particular shares. If the merkle proof does not correspond to a share, then the BEFP is not valid.
+* using `BadEncoding.Shares`, light node should re-construct full row or column, compute its merkle root as in [rsmt2d](https://github.com/celestiaorg/rsmt2d/blob/master/extendeddatacrossword.go#L410) and compare it with merkle root that could be retrieved from the `DataAvailabilityHeader` inside the `ExtendedHeader`. If merkle roots do not match, then the BEFP is not valid.
 
-Light node should stop `DAS`, `Syncer` and `SubmitTx` services, in case if BEFP is valid.
+3. All celestia-nodes should stop some dependent services upon receiving a legitimate BEFP:
+Both full and light nodes should stop `DAS`, `Syncer` and `SubmitTx` services. 
+### Bridge node behaviour
+Bridge nodes will behave as light nodes do by subscribing to BEFP fraud sub and listening for BEFPs. If a BEFP is received, it will similarly shut down all dependent services, including broadcasting new `ExtendedHeader`s to the network.
+
 ## Status
 Proposed
 
