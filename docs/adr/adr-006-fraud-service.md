@@ -35,7 +35,10 @@ Based on `ErrByzantineRow`/`ErrByzantineCol` internal fields, we should generate
 
 ```go
 type ErrBadEncoding struct {
+   // Shares contains all shares from row/col.
+   // For non-nil shares MerkleProof is computed
    Shares []*Share
+   // Position represents the number of row/col where ErrByzantineRow/ErrByzantineColl occurred
    Position uint8
    isRow bool
 }
@@ -57,7 +60,11 @@ const (
 
 type BadEncoding struct {
    Height uint64
+   // Shares contains all shares from row/col
+   // Shares that did not pass verification in rmst2d will be nil
+   // For non-nil shares MerkleProofs are computed
    Shares []*Share
+   // Position represents the number of row/col where ErrByzantineRow/ErrByzantineColl occurred
    Position uint8
    isRow bool
 }
@@ -153,8 +160,8 @@ func(f *FraudService) Notify(ctx context.Context, p Proof){}
 ```
 ### BEFP verification
 Once a light node receives a `BadEncoding` fraud proof, it should:
-* verify that merkle proofs correspond to particular shares. If the merkle proof does not correspond to a share, then the BEFP is not valid.
-* using `BadEncoding.Shares`, light node should re-construct full row or column, compute its merkle root as in [rsmt2d](https://github.com/celestiaorg/rsmt2d/blob/master/extendeddatacrossword.go#L410) and compare it with merkle root that could be retrieved from the `DataAvailabilityHeader` inside the `ExtendedHeader`. If merkle roots do not match, then the BEFP is not valid.
+* verify that Merkle proofs correspond to particular shares. If the Merkle proof does not correspond to a share, then the BEFP is not valid.
+* using `BadEncoding.Shares`, light node should re-construct full row or column, compute its Merkle root as in [rsmt2d](https://github.com/celestiaorg/rsmt2d/blob/master/extendeddatacrossword.go#L410) and compare it with Merkle root that could be retrieved from the `DataAvailabilityHeader` inside the `ExtendedHeader`. If Merkle roots do not match, then the BEFP is not valid.
 
 3. All celestia-nodes should stop some dependent services upon receiving a legitimate BEFP:
 Both full and light nodes should stop `DAS`, `Syncer` and `SubmitTx` services. 
