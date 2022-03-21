@@ -63,6 +63,13 @@ Merkle proofs from the celestia-app and verify them against the latest head's `A
 to do this, it would need access to the `header.Store`'s `Head()` method in order to get the latest known header of the 
 node and check its `AppHash`.
 
+### Availability of `StateService` during sync
+The `Syncer` in the `header`  package provides one public method, `Finished()`, that indicates whether the syncer has 
+finished syncing. Introducing the availability of `StateService` would require extending the public API for `Syncer` 
+with an additional method, `NetworkHead()`, in order to be able to fetch *current* state from the network. The `Syncer`
+would then have to be passed to any implementation of `StateService` upon construction and relied on in order to access 
+the network head even if the syncer is still syncing, as the network head is still verified even during sync.
+
 ### 1. Core Implementation of `StateAccessor`: `CoreAccess`
 
 `CoreAccess` will be the direct RPC connection implementation of `StateAccessor`. It will use the [lens implementation of ChainClient](https://github.com/strangelove-ventures/lens/blob/main/client/chain_client.go#L23)
