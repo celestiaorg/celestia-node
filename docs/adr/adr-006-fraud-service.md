@@ -94,40 +94,44 @@ message BadEnconding {
 }
 ```
 
-`das.Daser` imports a data structure that implements `proof.FraudNotifier` interface that uses libp2p.pubsub under the hood:
+`das.Daser` imports a data structure that implements `proof.Broadcaster` interface that uses libp2p.pubsub under the hood:
 
 ```go
-// FraudNotifier is a generic interface that sends a `Proof` to all nodes subscribed on the FraudNotifier's topic.
-type FraudNotifier interface {
-   // Notify takes a fraud `Proof` data structure that implements standard BinaryMarshal interface and broadcasts it to all subscribed peers.
-   Notify(ctx context.Context, p Proof)  
+// Broadcaster is a generic interface that sends a `Proof` to all nodes subscribed on the Broadcaster's topic.
+type Broadcaster interface {
+   // Broadcast takes a fraud `Proof` data structure that implements standard BinaryMarshal interface and broadcasts it to all subscribed peers.
+   Broadcast(ctx context.Context, p Proof)  
 }
 ```
 
 ```go
 // FraudProofType is a enum type that represents a particular type of fraud proof.
-type FraudProofType string
+type ProofType string
 
 // Proof is a generic interface that will be used for all types of fraud proofs in the network.
 type Proof interface {
-   Type() FraudProofType
+   Type() ProofType
    Height() (uint64, error)
    Validate(*header.ExtendedHeader) error
 
    encoding.BinaryMarshaller
-   encoding.BinaryUnmarshaller
 }
 ```
 
 2a. From the other side, light nodes will, by default, subscribe to the BEFP topic and verify messages received on the topic:
 
 ```go
+type proofUnmarshaller func([]byte)Proof
 // Subscriber encompasses the behavior necessary to
 // subscribe/unsubscribe from new FraudProofs events from the
 // network.
 type Subscriber interface {
-   // Subscribe allows to subscribe on pub sub topic by it's type
-   Subscribe(ctx context.Context, proofType FraudProofType) (Subscription, error)
+   // Subscribe allows to subscribe on pub sub topic by it's type.
+   // Subscribe should register pub-sub validator on topic.
+   Subscribe(ctx context.Context, proofType ProofType) (Subscription, error)
+   // RegisterUnmarshaller registers unmarshller for particular ProofType.
+   // If there is no umarshaller for `ProofType` then `Subscribe` should return an error.
+   RegisterUnmarshaller(proofType ProofType, f proofUnmarshaller) error
 }
 ```
 
@@ -137,26 +141,19 @@ type Subscription interface {
    Proof() (Proof, error)
    Cancel() error
 }
-
-// FraudSub implements Subscription.
-type FraudSub struct {
-   pubsub *pubsub.PubSub 
-}
-
-func NewFraudSub(p *pubsub.PubSub)(Subscription, error){}
-func(s *FraudSub) Proof() (Proof, error){}
-func(s *FraudSub) Cancel() error{}
 ```
 
 ```go
-type FraudService struct {
-   fraudSub Subscription
-   fraudNotifier FraudNotifier
+// FraudSub implements Subscriber and Broadcaster.
+type FraudSub struct {
+   pubsub *pubsub.PubSub
+   topics map[ProofType]*pubsub.Topic
+   unmarshallers map[ProofType]proofUnmarshaller
 }
 
-func(s *FraudService) Proof() (Proof, error){}
-func(s *FraudSub) Cancel() error{}
-func(f *FraudService) Notify(ctx context.Context, p Proof){}
+func(s *FraudService) RegisterUnmarshaller(proofType ProofType, f proofUnmarshaller) error{}
+func(s *FraudService) Subscribe(ctx context.Context, proofType ProofType) (Subscription, error){}
+func(s *FraudService) Broadcast(ctx context.Context, p Proof){}
 ```
 ### BEFP verification
 Once a light node receives a `BadEncoding` fraud proof, it should:
