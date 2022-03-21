@@ -1,10 +1,11 @@
-FROM golang:1.17 as builder
-RUN apt update && \
-    apt install make bash
+FROM --platform=$BUILDPLATFORM golang:1.17 as builder
+RUN apt-get update && \
+    apt-get install make bash
 ENV HOME /celestia-node
 COPY / ${HOME}
 WORKDIR ${HOME}
-RUN env GOOS=linux GOARCH=amd64 make build
+ARG TARGETPLATFORM
+RUN env GOOS=linux GOARCH=TARGETPLATFORM make build
 
 FROM ubuntu
 # Default node type can be overwritten in deployment manifest
