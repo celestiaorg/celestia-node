@@ -176,11 +176,11 @@ func (d *DASer) catchUpScheduler(ctx context.Context, checkpoint int64) {
 		if err := storeCheckpoint(d.cstore, checkpoint); err != nil {
 			log.Errorw("storing checkpoint to disk", "height", checkpoint, "err", err)
 		}
-		// signal that all catchUp routines have finished
-		close(d.catchUpDn)
 		// close out jobs channel
 		close(d.jobsCh)
 		d.jobsCh = nil
+		// signal that all catchUp routines have finished
+		close(d.catchUpDn)
 	}()
 
 	for {
