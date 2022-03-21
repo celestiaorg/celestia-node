@@ -4,8 +4,8 @@ RUN apt-get update && \
 ENV HOME /celestia-node
 COPY / ${HOME}
 WORKDIR ${HOME}
-ARG TARGETPLATFORM
-RUN env GOOS=linux GOARCH=TARGETPLATFORM make build
+ARG TARGETOS TARGETARCH
+RUN env GOOS=TARGETOS GOARCH=TARGETARCH make build
 
 FROM ubuntu
 # Default node type can be overwritten in deployment manifest
