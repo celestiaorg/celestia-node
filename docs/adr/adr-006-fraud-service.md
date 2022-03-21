@@ -13,7 +13,7 @@
 ## Bad Encoding Fraud Proof (BEFP)
 ## Context
 
-In the case where a Full Node receives `ErrByzantineRow`/`ErrByzantineCol` from the [rsmt2d](https://github.com/celestiaorg/rsmt2d) library, it generates a fraud-proof and broadcasts it to DA network such that the Light Nodes are notified that the corresponding block could be malicious.
+In the case where a Full Node receives `ErrByzantineRow`/`ErrByzantineCol` from the [rsmt2d](https://github.com/celestiaorg/rsmt2d) library, it generates a fraud-proof and broadcasts it to DA network such that the light nodes are notified that the corresponding block could be malicious.
 
 ## Decision
 
@@ -100,12 +100,12 @@ message BadEnconding {
 // Broadcaster is a generic interface that sends a `Proof` to all nodes subscribed on the Broadcaster's topic.
 type Broadcaster interface {
    // Broadcast takes a fraud `Proof` data structure that implements standard BinaryMarshal interface and broadcasts it to all subscribed peers.
-   Broadcast(ctx context.Context, p Proof)  
+   Broadcast(ctx context.Context, p Proof) error
 }
 ```
 
 ```go
-// FraudProofType is a enum type that represents a particular type of fraud proof.
+// ProofType is a enum type that represents a particular type of fraud proof.
 type ProofType string
 
 // Proof is a generic interface that will be used for all types of fraud proofs in the network.
@@ -132,6 +132,9 @@ type Subscriber interface {
    // RegisterUnmarshaller registers unmarshaller for the given ProofType.
    // If there is no umarshaller for `ProofType`, then `Subscribe` returns an error.
    RegisterUnmarshaller(proofType ProofType, f proofUnmarshaller) error
+   // UnregisterUnmarshaller removes unmarshaller for the given ProofType.
+   // If there is no unmarshaller for `ProofType`, then it returns an error.
+   UnregisterUnmarshaller(proofType ProofType) error{}
 }
 ```
 
@@ -155,7 +158,7 @@ func(s *FraudService) RegisterUnmarshaller(proofType ProofType, f proofUnmarshal
 func(s *FraudService) UnregisterUnmarshaller(proofType ProofType) error{}
 
 func(s *FraudService) Subscribe(ctx context.Context, proofType ProofType) (Subscription, error){}
-func(s *FraudService) Broadcast(ctx context.Context, p Proof){}
+func(s *FraudService) Broadcast(ctx context.Context, p Proof) error{}
 ```
 ### BEFP verification
 Once a light node receives a `BadEncoding` fraud proof, it should:
