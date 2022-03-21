@@ -7,7 +7,6 @@ import (
 
 	format "github.com/ipfs/go-ipld-format"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
-	"github.com/tendermint/tendermint/types"
 
 	"github.com/celestiaorg/celestia-node/core"
 )
@@ -49,9 +48,14 @@ func (cl *CoreListener) Start(context.Context) error {
 }
 
 // Stop stops the CoreListener listener loop.
-func (cl *CoreListener) Stop(context.Context) error {
+func (cl *CoreListener) Stop(ctx context.Context) error {
 	cl.cancel()
 	cl.cancel = nil
+
+	err := cl.fetcher.UnsubscribeNewBlockEvent(ctx)
+	if err != nil {
+		log.Errorw("core-listener: failed to unsubscribe from new block events", "err", err)
+	}
 	return nil
 }
 
@@ -59,33 +63,16 @@ func (cl *CoreListener) Stop(context.Context) error {
 // generating ExtendedHeaders and broadcasting them to the header-sub
 // gossipsub network.
 func (cl *CoreListener) listen(ctx context.Context) {
-	var sub <-chan *types.Block
-
-	defer func() {
-		// only attempt to unsubscribe from new block events if currently
-		// subscribed
-		if sub != nil {
-			err := cl.fetcher.UnsubscribeNewBlockEvent(ctx)
-			if err != nil {
-				log.Errorw("core-listener: failed to unsubscribe from new block events", "err", err)
-			}
-		}
-		log.Info("core-listener: listening stopped")
-	}()
+	defer log.Info("core-listener: listening stopped")
 
 	// listener loop will only begin once the Core connection has finished
 	// syncing in order to prevent spamming of old block headers to `headersub`
-	select {
-	case <-ctx.Done():
-		log.Errorw("core-listener: listener loop failed to start", "err", ctx.Err())
-		return
-	default:
-		if err := cl.fetcher.WaitFinishSync(ctx); err != nil {
-			// TODO @renaynay: should this be a fatal error? if the core listener cannot start, then the bridge node is
-			// 	useless as it won't be broadcasting new headers to the network.
-			log.Errorw("core-listener: listener loop failed to start", "err", err)
-		}
+	if err := cl.fetcher.WaitFinishSync(ctx); err != nil {
+		// TODO @renaynay: should this be a fatal error? if the core listener cannot start, then the bridge node is
+		// 	useless as it won't be broadcasting new headers to the network.
+		log.Errorw("core-listener: listener loop failed to start", "err", err)
 	}
+
 	// all caught up, start broadcasting new headers
 	sub, err := cl.fetcher.SubscribeNewBlockEvent(ctx)
 	if err != nil {
