@@ -26,7 +26,10 @@ type DASer struct {
 	// checkpoint store
 	cstore datastore.Datastore
 
-	cancel    context.CancelFunc
+	cancel context.CancelFunc
+
+	jobsCh chan *catchUpJob
+
 	sampleDn  chan struct{} // done signal for sample loop
 	catchUpDn chan struct{} // done signal for catchUp loop
 }
@@ -65,6 +68,8 @@ func (d *DASer) Start(context.Context) error {
 	}
 	log.Infow("loaded latest DASed checkpoint", "height", checkpoint)
 
+	d.jobsCh = make(chan *catchUpJob)
+
 	dasCtx, cancel := context.WithCancel(context.Background())
 	d.cancel = cancel
 	d.sampleDn, d.catchUpDn = make(chan struct{}), make(chan struct{})
@@ -99,8 +104,7 @@ func (d *DASer) sample(ctx context.Context, sub header.Subscription, checkpoint 
 	}()
 
 	// kick off catchUpScheduler
-	jobsCh := make(chan *catchUpJob)
-	go d.catchUpScheduler(ctx, jobsCh, checkpoint)
+	go d.catchUpScheduler(ctx, checkpoint)
 
 	for {
 		h, err := sub.NextHeader(ctx)
@@ -120,7 +124,7 @@ func (d *DASer) sample(ctx context.Context, sub header.Subscription, checkpoint 
 		if h.Height > checkpoint+1 {
 			// DAS headers between last DASed height up to the current
 			// header
-			jobsCh <- &catchUpJob{
+			d.jobsCh <- &catchUpJob{
 				from: checkpoint,
 				to:   h.Height - 1,
 			}
@@ -153,7 +157,7 @@ type catchUpJob struct {
 
 // catchUpScheduler spawns and manages catch-up jobs, exiting only once all jobs
 // are complete and the last known DASing checkpoint has been stored to disk.
-func (d *DASer) catchUpScheduler(ctx context.Context, jobsCh chan *catchUpJob, checkpoint int64) {
+func (d *DASer) catchUpScheduler(ctx context.Context, checkpoint int64) {
 	wg := sync.WaitGroup{}
 
 	defer func() {
@@ -169,13 +173,16 @@ func (d *DASer) catchUpScheduler(ctx context.Context, jobsCh chan *catchUpJob, c
 		}
 		// signal that all catchUp routines have finished
 		close(d.catchUpDn)
+		// close out jobs channel
+		close(d.jobsCh)
+		d.jobsCh = nil
 	}()
 
 	for {
 		select {
 		case <-ctx.Done():
 			return
-		case job := <-jobsCh:
+		case job := <-d.jobsCh:
 			// spawn catchUp routine
 			wg.Add(1)
 			go func() {
