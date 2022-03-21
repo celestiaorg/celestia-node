@@ -165,7 +165,7 @@ func (d *DASer) catchUpScheduler(ctx context.Context, jobsCh chan *catchUpJob, c
 		// TODO @renaynay: Implement Share Cache #180 to ensure no duplicate DASing over same
 		//  header
 		if err := storeCheckpoint(d.cstore, checkpoint); err != nil {
-			log.Errorw("da: storing latest DASed checkpoint to disk", "height", checkpoint, "err", err)
+			log.Errorw("storing checkpoint to disk", "height", checkpoint, "err", err)
 		}
 		// signal that all catchUp routines have finished
 		close(d.catchUpDn)
@@ -226,7 +226,6 @@ func (d *DASer) catchUp(ctx context.Context, job *catchUpJob) {
 			"square width", len(h.DAH.RowsRoots), "finished (s)", sampleTime.Seconds())
 	}
 
-	totalElapsedTime := time.Since(routineStartTime)
-	log.Infow("successfully sampled all headers up to network head", "from", job.from,
-		"to", job.to, "finished (s)", totalElapsedTime.Seconds())
+	log.Infow("successfully caught up", "from", job.from,
+		"to", job.to, "finished (s)", time.Since(routineStartTime))
 }
