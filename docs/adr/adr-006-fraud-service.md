@@ -13,7 +13,7 @@
 ## Bad Encoding Fraud Proof (BEFP)
 ## Context
 
-In the case where a Full Node receives `ErrByzantineRow`/`ErrByzantineCol` from the [rsmt2d](https://github.com/celestiaorg/rsmt2d) library, it generates a fraud proof and broadcasts it to Light Nodes such that the Light Nodes are notified that the corresponding block could be malicious.
+In the case where a Full Node receives `ErrByzantineRow`/`ErrByzantineCol` from the [rsmt2d](https://github.com/celestiaorg/rsmt2d) library, it generates a fraud-proof and broadcasts it to DA network such that the Light Nodes are notified that the corresponding block could be malicious.
 
 ## Decision
 
@@ -55,7 +55,7 @@ In addition, `das.Daser`:
 
 ```go
 const (
-   BadEncoding FraudProofType = "BadEncoding"
+   BadEncoding ProofType = "BadEncoding"
 )
 
 type BadEncoding struct {
@@ -121,7 +121,7 @@ type Proof interface {
 2a. From the other side, light nodes will, by default, subscribe to the BEFP topic and verify messages received on the topic:
 
 ```go
-type proofUnmarshaller func([]byte)Proof
+type proofUnmarshaller func([]byte) Proof
 // Subscriber encompasses the behavior necessary to
 // subscribe/unsubscribe from new FraudProofs events from the
 // network.
@@ -129,8 +129,8 @@ type Subscriber interface {
    // Subscribe allows to subscribe on pub sub topic by it's type.
    // Subscribe should register pub-sub validator on topic.
    Subscribe(ctx context.Context, proofType ProofType) (Subscription, error)
-   // RegisterUnmarshaller registers unmarshller for particular ProofType.
-   // If there is no umarshaller for `ProofType` then `Subscribe` should return an error.
+   // RegisterUnmarshaller registers unmarshaller for the given ProofType.
+   // If there is no umarshaller for `ProofType`, then `Subscribe` returns an error.
    RegisterUnmarshaller(proofType ProofType, f proofUnmarshaller) error
 }
 ```
@@ -152,6 +152,8 @@ type FraudSub struct {
 }
 
 func(s *FraudService) RegisterUnmarshaller(proofType ProofType, f proofUnmarshaller) error{}
+func(s *FraudService) UnregisterUnmarshaller(proofType ProofType) error{}
+
 func(s *FraudService) Subscribe(ctx context.Context, proofType ProofType) (Subscription, error){}
 func(s *FraudService) Broadcast(ctx context.Context, p Proof){}
 ```
