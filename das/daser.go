@@ -47,6 +47,7 @@ func NewDASer(
 		hsub:   hsub,
 		getter: getter,
 		cstore: wrappedDS,
+		jobsCh: make(chan *catchUpJob),
 	}
 }
 
@@ -67,8 +68,6 @@ func (d *DASer) Start(context.Context) error {
 		return err
 	}
 	log.Infow("loaded latest DASed checkpoint", "height", checkpoint)
-
-	d.jobsCh = make(chan *catchUpJob)
 
 	dasCtx, cancel := context.WithCancel(context.Background())
 	d.cancel = cancel
@@ -176,9 +175,6 @@ func (d *DASer) catchUpScheduler(ctx context.Context, checkpoint int64) {
 		if err := storeCheckpoint(d.cstore, checkpoint); err != nil {
 			log.Errorw("storing checkpoint to disk", "height", checkpoint, "err", err)
 		}
-		// close out jobs channel
-		close(d.jobsCh)
-		d.jobsCh = nil
 		// signal that all catchUp routines have finished
 		close(d.catchUpDn)
 	}()
@@ -206,7 +202,7 @@ func (d *DASer) catchUpScheduler(ctx context.Context, checkpoint int64) {
 // after the `from` height and exits the loop once `to` is reached. (from:to]
 func (d *DASer) catchUp(ctx context.Context, job *catchUpJob) {
 	routineStartTime := time.Now()
-	log.Infow("starting sample routine", "from", job.from, "to", job.to)
+	log.Infow("sampling past headers", "from", job.from, "to", job.to)
 
 	// start sampling from height at checkpoint+1 since the
 	// checkpoint height is DASed by broader sample routine
