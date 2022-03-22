@@ -172,11 +172,11 @@ Both full and light nodes should stop `DAS`, `Syncer` and `SubmitTx` services.
 
 ```go
 type FraudStore interface {
-   // Put stores given Proof by header's hash in respective for this fraud proof folder
+   // Put stores given Proof by header's hash in respective for this fraud proof directory
    Put(path FraudProofType, headerHash string, p Proof) error
-   // Get retrieves Proof by header's hash from respective for this fraud proof folder
+   // Get retrieves Proof by header's hash from respective for this fraud proof directory
    Get(path FraudProofType, headerHash string) (Proof, error)
-   // GetMany retrieves all Proofs from the respective for this fraud proof folder
+   // GetMany retrieves all Proofs from the respective for this fraud proof directory
    GetMany(path FraudProofType) ([]Proof, error)
 }
 
