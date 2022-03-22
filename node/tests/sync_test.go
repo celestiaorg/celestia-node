@@ -29,7 +29,7 @@ func TestSyncLightWithBridge(t *testing.T) {
 
 	bridge := sw.NewBridgeNode()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 40*time.Second)
 	t.Cleanup(cancel)
 
 	sw.WaitTillHeight(ctx, 20)
@@ -76,7 +76,7 @@ func TestSyncStartStopLightWithBridge(t *testing.T) {
 
 	bridge := sw.NewBridgeNode()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 40*time.Second)
 	t.Cleanup(cancel)
 
 	sw.WaitTillHeight(ctx, 50)
@@ -93,7 +93,7 @@ func TestSyncStartStopLightWithBridge(t *testing.T) {
 	require.NoError(t, err)
 
 	store := node.MockStore(t, node.DefaultConfig(node.Light))
-	light := sw.NewLightNodeWithStore(store, node.WithTrustedPeer(addrs[0].String()))
+	light := sw.NewNodeWithStore(node.Light, store, node.WithTrustedPeer(addrs[0].String()))
 	require.NoError(t, light.Start(ctx))
 
 	h, err = light.HeaderServ.GetByHeight(ctx, 30)
@@ -104,7 +104,7 @@ func TestSyncStartStopLightWithBridge(t *testing.T) {
 	require.NoError(t, light.Stop(ctx))
 	require.NoError(t, sw.RemoveNode(light, node.Light))
 
-	light = sw.NewLightNodeWithStore(store, node.WithTrustedPeer(addrs[0].String()))
+	light = sw.NewNodeWithStore(node.Light, store, node.WithTrustedPeer(addrs[0].String()))
 	require.NoError(t, light.Start(ctx))
 
 	h, err = light.HeaderServ.GetByHeight(ctx, 40)
@@ -128,7 +128,7 @@ func TestSyncFullWithBridge(t *testing.T) {
 
 	bridge := sw.NewBridgeNode()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 40*time.Second)
 	t.Cleanup(cancel)
 
 	sw.WaitTillHeight(ctx, 20)
@@ -175,7 +175,7 @@ func TestSyncLightWithFull(t *testing.T) {
 
 	bridge := sw.NewBridgeNode()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	t.Cleanup(cancel)
 
 	sw.WaitTillHeight(ctx, 20)
