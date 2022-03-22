@@ -145,7 +145,7 @@ func DASer(
 	avail share.Availability,
 	sub header.Subscriber,
 	hstore header.Store,
-	ds datastore.Datastore,
+	ds datastore.Batching,
 ) *das.DASer {
 	das := das.NewDASer(avail, sub, hstore, ds)
 	lc.Append(fx.Hook{
