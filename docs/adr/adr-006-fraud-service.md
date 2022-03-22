@@ -17,7 +17,7 @@ In the case where a Full Node receives `ErrByzantineRow`/`ErrByzantineCol` from 
 
 ## Decision
 
-BEFPs are addressed in the two below issues:
+BEFPs were first addressed in the two issues below:
 
 - https://github.com/celestiaorg/celestia-node/issues/4
 - https://github.com/celestiaorg/celestia-node/issues/263
@@ -25,20 +25,20 @@ BEFPs are addressed in the two below issues:
 ## Detailed Design
 A fraud proof is generated if recovered data does not match with its respective row/column roots during block reparation. 
 
-The result of RepairExtendedDataSquare will be an error [ErrByzantineRow](https://github.com/celestiaorg/rsmt2d/blob/f34ec414859fc834835ea97ed54300404eec1ac5/extendeddatacrossword.go#L18-L22)/[ErrByzantineCol](https://github.com/celestiaorg/rsmt2d/blob/f34ec414859fc834835ea97ed54300404eec1ac5/extendeddatacrossword.go#L28-L32):
+The result of `RepairExtendedDataSquare` will be an error [`ErrByzantineRow`](https://github.com/celestiaorg/rsmt2d/blob/f34ec414859fc834835ea97ed54300404eec1ac5/extendeddatacrossword.go#L18-L22)/[`ErrByzantineCol`](https://github.com/celestiaorg/rsmt2d/blob/f34ec414859fc834835ea97ed54300404eec1ac5/extendeddatacrossword.go#L28-L32):
 
 - Both errors consist of 
   - row/column numbers that do not match with the Merkle root
   - shares that were successfully repaired and verified (all correct shares).
 
-Based on `ErrByzantineRow`/`ErrByzantineCol` internal fields, we should generate a [MerkleProofs](https://github.com/celestiaorg/nmt/blob/master/proof.go#L17) for respective verified shares from [nmt](https://github.com/celestiaorg/nmt/blob/master/nmt.go) tree return as the `ErrBadEncoding` from `RetrieveData`. 
+Based on `ErrByzantineRow`/`ErrByzantineCol` internal fields, we should generate [MerkleProofs](https://github.com/celestiaorg/nmt/blob/e381b44f223e9ac570a8d59bbbdbb2d5a5f1ad5f/proof.go#L17) for respective verified shares from [nmt](https://github.com/celestiaorg/nmt) tree return as the `ErrBadEncoding` from `RetrieveData`. 
 
 ```go
 type ErrBadEncoding struct {
    // Shares contains all shares from row/col.
    // For non-nil shares MerkleProof is computed
    Shares []*Share
-   // Position represents the number of row/col where ErrByzantineRow/ErrByzantineColl occurred
+   // Position represents the number of row/col where ErrByzantineRow/ErrByzantineColl occurred.
    Position uint8
    isRow bool
 }
