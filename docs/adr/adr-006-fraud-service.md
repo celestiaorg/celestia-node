@@ -166,7 +166,24 @@ Once a light node receives a `BadEncodingProof` fraud proof, it should:
 * using `BadEncodingProof.Shares`, light node should re-construct full row or column, compute its Merkle root as in [rsmt2d](https://github.com/celestiaorg/rsmt2d/blob/ac0f1e1a51bf7b5420965fb7c35fa32a56e02292/extendeddatacrossword.go#L410) and compare it with Merkle root that could be retrieved from the `DataAvailabilityHeader` inside the `ExtendedHeader`. If Merkle roots do not match, then the BEFP is not valid.
 
 3. All celestia-nodes should stop some dependent services upon receiving a legitimate BEFP:
-Both full and light nodes should stop `DAS`, `Syncer` and `SubmitTx` services. 
+Both full and light nodes should stop `DAS`, `Syncer` and `SubmitTx` services.
+
+4. Valid BadEncodingFraudProofs should be stored on the disk using `FraudStore` interface:
+
+```go
+type FraudStore interface {
+   // Put stores given Proof by header's hash in respective for this fraud proof folder
+   Put(path FraudProofType, headerHash string, p Proof) error
+   // Get retrieves Proof by header's hash from respective for this fraud proof folder
+   Get(path FraudProofType, headerHash string) (Proof, error)
+   // GetMany retrieves all Proofs from the respective for this fraud proof folder
+   GetMany(path FraudProofType) ([]Proof, error)
+}
+
+type fraudstore struct{
+   path string
+}
+```
 ### Bridge node behaviour
 Bridge nodes will behave as light nodes do by subscribing to BEFP fraud sub and listening for BEFPs. If a BEFP is received, it will similarly shut down all dependent services, including broadcasting new `ExtendedHeader`s to the network.
 
