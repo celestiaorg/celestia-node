@@ -31,7 +31,7 @@ The result of `RepairExtendedDataSquare` will be an error [`ErrByzantineRow`](ht
   - row/column numbers that do not match with the Merkle root
   - shares that were successfully repaired and verified (all correct shares).
 
-Based on `ErrByzantineRow`/`ErrByzantineCol` internal fields, we should generate [MerkleProofs](https://github.com/celestiaorg/nmt/blob/e381b44f223e9ac570a8d59bbbdbb2d5a5f1ad5f/proof.go#L17) for respective verified shares from [nmt](https://github.com/celestiaorg/nmt) tree return as the `ErrBadEncoding` from `RetrieveData`. 
+Based on `ErrByzantineRow`/`ErrByzantineCol` internal fields, we should generate [MerkleProof](https://github.com/celestiaorg/nmt/blob/e381b44f223e9ac570a8d59bbbdbb2d5a5f1ad5f/proof.go#L17) for respective verified shares from [nmt](https://github.com/celestiaorg/nmt) tree return as the `ErrBadEncoding` from `RetrieveData`. 
 
 ```go
 type ErrBadEncoding struct {
@@ -58,7 +58,7 @@ const (
    BadEncoding ProofType = "BadEncoding"
 )
 
-type BadEncoding struct {
+type BadEncodingProof struct {
    Height uint64
    // Shares contains all shares from row/col
    // Shares that did not pass verification in rmst2d will be nil
@@ -154,16 +154,16 @@ type FraudSub struct {
    unmarshallers map[ProofType]proofUnmarshaller
 }
 
-func(s *FraudService) RegisterUnmarshaller(proofType ProofType, f proofUnmarshaller) error{}
-func(s *FraudService) UnregisterUnmarshaller(proofType ProofType) error{}
+func(s *FraudSub) RegisterUnmarshaller(proofType ProofType, f proofUnmarshaller) error{}
+func(s *FraudSub) UnregisterUnmarshaller(proofType ProofType) error{}
 
-func(s *FraudService) Subscribe(ctx context.Context, proofType ProofType) (Subscription, error){}
-func(s *FraudService) Broadcast(ctx context.Context, p Proof) error{}
+func(s *FraudSub) Subscribe(ctx context.Context, proofType ProofType) (Subscription, error){}
+func(s *FraudSub) Broadcast(ctx context.Context, p Proof) error{}
 ```
 ### BEFP verification
-Once a light node receives a `BadEncoding` fraud proof, it should:
+Once a light node receives a `BadEncodingProof` fraud proof, it should:
 * verify that Merkle proofs correspond to particular shares. If the Merkle proof does not correspond to a share, then the BEFP is not valid.
-* using `BadEncoding.Shares`, light node should re-construct full row or column, compute its Merkle root as in [rsmt2d](https://github.com/celestiaorg/rsmt2d/blob/master/extendeddatacrossword.go#L410) and compare it with Merkle root that could be retrieved from the `DataAvailabilityHeader` inside the `ExtendedHeader`. If Merkle roots do not match, then the BEFP is not valid.
+* using `BadEncodingProof.Shares`, light node should re-construct full row or column, compute its Merkle root as in [rsmt2d](https://github.com/celestiaorg/rsmt2d/blob/ac0f1e1a51bf7b5420965fb7c35fa32a56e02292/extendeddatacrossword.go#L410) and compare it with Merkle root that could be retrieved from the `DataAvailabilityHeader` inside the `ExtendedHeader`. If Merkle roots do not match, then the BEFP is not valid.
 
 3. All celestia-nodes should stop some dependent services upon receiving a legitimate BEFP:
 Both full and light nodes should stop `DAS`, `Syncer` and `SubmitTx` services. 
