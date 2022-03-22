@@ -25,27 +25,27 @@ func ContentRouting() routing.ContentRouting {
 // Basically, this provides a way to discover peer addresses by respecting public keys.
 func PeerRouting(cfg Config) func(routingParams) (routing.PeerRouting, error) {
 	return func(params routingParams) (routing.PeerRouting, error) {
-		bpeers := nparams.BootstrappersInfos()
-		prefix := fmt.Sprintf("/celestia/%s", nparams.GetNetwork())
-		mode := dht.ModeAuto
-		if cfg.Bootstrapper {
-			bpeers = nil // no bootstrappers for a bootstrapper ¯\_(ツ)_/¯
-			mode = dht.ModeServer
-		}
-
-		d, err := dht.New(
-			fxutil.WithLifecycle(params.Ctx, params.Lc),
-			params.Host,
-			dht.Mode(mode),
-			dht.BootstrapPeers(bpeers...),
-			dht.ProtocolPrefix(protocol.ID(prefix)),
+		opts := []dht.Option{
+			dht.Mode(dht.ModeAuto),
+			dht.BootstrapPeers(nparams.BootstrappersInfos()...),
+			dht.ProtocolPrefix(protocol.ID(fmt.Sprintf("/celestia/%s", nparams.GetNetwork()))),
 			dht.Datastore(params.DataStore),
 			dht.QueryFilter(dht.PublicQueryFilter),
 			dht.RoutingTableFilter(dht.PublicRoutingTableFilter),
 			// disable DHT for everything besides peer routing
 			dht.DisableValues(),
 			dht.DisableProviders(),
-		)
+		}
+
+		if cfg.Bootstrapper {
+			// override options for bootstrapper
+			opts = append(opts,
+				dht.Mode(dht.ModeServer), // it must accept incoming connections
+				dht.BootstrapPeers(),     // no bootstrappers for a bootstrapper ¯\_(ツ)_/¯
+			)
+		}
+
+		d, err := dht.New(fxutil.WithLifecycle(params.Ctx, params.Lc), params.Host, opts...)
 		if err != nil {
 			return nil, err
 		}
