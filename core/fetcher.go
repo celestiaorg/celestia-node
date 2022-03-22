@@ -3,7 +3,6 @@ package core
 import (
 	"context"
 	"fmt"
-	"time"
 
 	tmbytes "github.com/tendermint/tendermint/libs/bytes"
 	"github.com/tendermint/tendermint/types"
@@ -188,27 +187,4 @@ func (f *BlockFetcher) IsSyncing(ctx context.Context) (bool, error) {
 		return false, err
 	}
 	return resp.SyncInfo.CatchingUp, nil
-}
-
-// WaitFinishSync will block until the Core connection has finished syncing,
-// returning a nil error. A non-nil error will be returned if the context is
-// canceled or if there is an error fetching syncing status from the Core
-// connection.
-func (f *BlockFetcher) WaitFinishSync(ctx context.Context) error {
-	for {
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		default:
-			syncing, err := f.IsSyncing(ctx)
-			if err != nil {
-				return err
-			}
-			if !syncing {
-				return nil
-			}
-			// wait a second before requesting sync status again
-			time.Sleep(time.Second)
-		}
-	}
 }

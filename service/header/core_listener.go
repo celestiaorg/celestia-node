@@ -65,15 +65,6 @@ func (cl *CoreListener) Stop(ctx context.Context) error {
 func (cl *CoreListener) listen(ctx context.Context) {
 	defer log.Info("core-listener: listening stopped")
 
-	// listener loop will only begin once the Core connection has finished
-	// syncing in order to prevent spamming of old block headers to `headersub`
-	if err := cl.fetcher.WaitFinishSync(ctx); err != nil {
-		// TODO @renaynay: should this be a fatal error? if the core listener cannot start, then the bridge node is
-		// 	useless as it won't be broadcasting new headers to the network.
-		log.Errorw("core-listener: listener loop failed to start", "err", err)
-	}
-
-	// all caught up, start broadcasting new headers
 	sub, err := cl.fetcher.SubscribeNewBlockEvent(ctx)
 	if err != nil {
 		log.Errorw("core-listener: failed to subscribe to new block events", "err", err)
@@ -99,15 +90,24 @@ func (cl *CoreListener) listen(ctx context.Context) {
 				return
 			}
 
-			// broadcast new ExtendedHeader
-			err = cl.bcast.Broadcast(ctx, eh)
+			// only broadcast new ExtendedHeaders if core has finished syncing
+			// in order to prevent spamming of old block headers to `headersub`
+			syncing, err := cl.fetcher.IsSyncing(ctx)
 			if err != nil {
-				var pserr pubsub.ValidationError
-				// TODO(@Wondertan): Log ValidationIgnore cases as well, once headr duplication issue is fixed
-				if errors.As(err, &pserr) && pserr.Reason != pubsub.RejectValidationIgnored {
-					log.Errorw("core-listener: broadcasting next header", "height", eh.Height,
-						"err", err)
-					return
+				log.Errorw("core-listener: fetching sync status from core", "err", err)
+				return
+			}
+			if !syncing {
+				// broadcast new ExtendedHeader
+				err = cl.bcast.Broadcast(ctx, eh)
+				if err != nil {
+					var pserr pubsub.ValidationError
+					// TODO(@Wondertan): Log ValidationIgnore cases as well, once headr duplication issue is fixed
+					if errors.As(err, &pserr) && pserr.Reason != pubsub.RejectValidationIgnored {
+						log.Errorw("core-listener: broadcasting next header", "height", eh.Height,
+							"err", err)
+						return
+					}
 				}
 			}
 		case <-ctx.Done():
