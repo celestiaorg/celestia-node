@@ -41,7 +41,7 @@ body:
       label: Steps to reproduce it
       description: What steps have you made to reproduce it? 
       placeholder: Tell us what you see!
-      value: "Example: 1. Make build 2. Execute binary"
+      value:
     validations:
       required: true
   - type: textarea
@@ -50,7 +50,7 @@ body:
       label: Expected result
       description: What do you expect to happen as a final result? 
       placeholder: Let us know what is expected
-      value: "Example: Celestia node is running in default mode"
+      value:
     validations:
       required: true
   - type: textarea
@@ -59,7 +59,7 @@ body:
       label: Actual result
       description: What do you see happened instead as a final result? 
       placeholder: This is the crucial part in detecting the root cause of the issue
-      value: "Example: Celestia node is throwing errors during startup"
+      value:
     validations:
       required: true
   - type: textarea
