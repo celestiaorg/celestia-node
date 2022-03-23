@@ -6,9 +6,10 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/tendermint/tendermint/pkg/wrapper"
+
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/rsmt2d"
-	"github.com/tendermint/tendermint/pkg/wrapper"
 
 	pb "github.com/celestiaorg/celestia-node/fraud/pb"
 	"github.com/celestiaorg/celestia-node/service/header"
@@ -25,10 +26,18 @@ type BadEncodingProof struct {
 	isRow    bool
 }
 
-func CreateBadEncodingFraudProof(height uint64, position uint8, isRow bool, data [][]byte, errShares [][]byte) (Proof, error) {
+func CreateBadEncodingFraudProof(
+	height uint64,
+	position uint8,
+	isRow bool,
+	data [][]byte,
+	errShares [][]byte,
+) (Proof, error) {
 	tree := nmt.New(sha256.New())
 	for _, value := range data {
-		tree.Push(value)
+		if err := tree.Push(value); err != nil {
+			return nil, err
+		}
 	}
 
 	shares := make([]*Share, 0, len(errShares))
