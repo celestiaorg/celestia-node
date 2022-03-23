@@ -21,7 +21,6 @@ import (
 // the DASer checkpoint is updated to network head.
 func TestDASerLifecycle(t *testing.T) {
 	ds := ds_sync.MutexWrap(datastore.NewMapDatastore())
-	cstore := wrapCheckpointStore(ds)
 	dag := mdutils.Mock()
 
 	// 15 headers from the past and 15 future headers
@@ -30,7 +29,7 @@ func TestDASerLifecycle(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*15)
 	t.Cleanup(cancel)
 
-	daser := NewDASer(shareServ, sub, mockGet, cstore)
+	daser := NewDASer(shareServ, sub, mockGet, ds)
 
 	err := daser.Start(ctx)
 	require.NoError(t, err)
@@ -54,7 +53,6 @@ func TestDASerLifecycle(t *testing.T) {
 
 func TestDASer_Restart(t *testing.T) {
 	ds := ds_sync.MutexWrap(datastore.NewMapDatastore())
-	cstore := wrapCheckpointStore(ds)
 	dag := mdutils.Mock()
 
 	// 15 headers from the past and 15 future headers
@@ -63,7 +61,7 @@ func TestDASer_Restart(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*15)
 	t.Cleanup(cancel)
 
-	daser := NewDASer(shareServ, sub, mockGet, cstore)
+	daser := NewDASer(shareServ, sub, mockGet, ds)
 
 	err := daser.Start(ctx)
 	require.NoError(t, err)
@@ -112,7 +110,6 @@ func TestDASer_Restart(t *testing.T) {
 
 func TestDASer_catchUp(t *testing.T) {
 	ds := ds_sync.MutexWrap(datastore.NewMapDatastore())
-	cstore := wrapCheckpointStore(ds)
 	dag := mdutils.Mock()
 
 	mockGet, shareServ, _ := createDASerSubcomponents(t, dag, 5, 0)
@@ -120,7 +117,7 @@ func TestDASer_catchUp(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
 
-	daser := NewDASer(shareServ, nil, mockGet, cstore)
+	daser := NewDASer(shareServ, nil, mockGet, ds)
 
 	wg := &sync.WaitGroup{}
 	wg.Add(1)
@@ -140,20 +137,19 @@ func TestDASer_catchUp(t *testing.T) {
 // difference of 1
 func TestDASer_catchUp_oneHeader(t *testing.T) {
 	ds := ds_sync.MutexWrap(datastore.NewMapDatastore())
-	cstore := wrapCheckpointStore(ds)
 	dag := mdutils.Mock()
 
 	mockGet, shareServ, _ := createDASerSubcomponents(t, dag, 6, 0)
+	daser := NewDASer(shareServ, nil, mockGet, ds)
 
 	// store checkpoint
-	err := storeCheckpoint(cstore, 5) // pick arbitrary height as last checkpoint
+	err := storeCheckpoint(daser.cstore, 5) // pick arbitrary height as last checkpoint
 	require.NoError(t, err)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
 
-	daser := NewDASer(shareServ, nil, mockGet, cstore)
-	checkpoint, err := loadCheckpoint(cstore)
+	checkpoint, err := loadCheckpoint(daser.cstore)
 	require.NoError(t, err)
 
 	wg := &sync.WaitGroup{}
