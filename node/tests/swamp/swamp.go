@@ -204,6 +204,9 @@ func (s *Swamp) NewLightNode(options ...node.Option) *node.Node {
 	return s.NewNodeWithStore(node.Light, store, options...)
 }
 
+// NewNodeWithStore creates a new instance of Node with predefined Store.
+// Afterwards, the instance is stored in the swamp's Nodes' slice according to the
+// node's type provided from the user.
 func (s *Swamp) NewNodeWithStore(t node.Type, store node.Store, options ...node.Option) *node.Node {
 	var n *node.Node
 
