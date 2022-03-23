@@ -230,7 +230,7 @@ func (d *DASer) catchUp(ctx context.Context, job *catchUpJob) {
 		}
 
 		sampleTime := time.Since(startTime)
-		log.Infow("sampling successful", "height", h.Height, "hash", h.Hash(),
+		log.Debugw("sampled past header", "height", h.Height, "hash", h.Hash(),
 			"square width", len(h.DAH.RowsRoots), "finished (s)", sampleTime.Seconds())
 	}
 
