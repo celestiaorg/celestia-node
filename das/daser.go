@@ -67,7 +67,7 @@ func (d *DASer) Start(context.Context) error {
 	if err != nil {
 		return err
 	}
-	log.Infow("loaded latest DASed checkpoint", "height", checkpoint)
+	log.Infow("loaded checkpoint", "height", checkpoint)
 
 	dasCtx, cancel := context.WithCancel(context.Background())
 	d.cancel = cancel
