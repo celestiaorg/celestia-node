@@ -178,76 +178,54 @@ func (s *Swamp) getTrustedHash(ctx context.Context) (string, error) {
 }
 
 // NewBridgeNode creates a new instance of a BridgeNode providing a default config
-// and a mockstore to the NewBridgeNodeWithStore method
+// and a mockstore to the NewNodeWithStore method
 func (s *Swamp) NewBridgeNode(options ...node.Option) *node.Node {
 	cfg := node.DefaultConfig(node.Bridge)
 	store := node.MockStore(s.t, cfg)
 
-	return s.NewBridgeNodeWithStore(store, options...)
+	return s.NewNodeWithStore(node.Bridge, store, options...)
 }
 
 // NewFullNode creates a new instance of a FullNode providing a default config
-// and a mockstore to the NewFullNodeWithStore method
+// and a mockstore to the NewNodeWithStore method
 func (s *Swamp) NewFullNode(options ...node.Option) *node.Node {
 	cfg := node.DefaultConfig(node.Full)
 	store := node.MockStore(s.t, cfg)
 
-	return s.NewFullNodeWithStore(store, options...)
+	return s.NewNodeWithStore(node.Full, store, options...)
 }
 
 // NewLightNode creates a new instance of a LightNode providing a default config
-// and a mockstore to the NewLightNodeWithStore method
+// and a mockstore to the NewNodeWithStore method
 func (s *Swamp) NewLightNode(options ...node.Option) *node.Node {
 	cfg := node.DefaultConfig(node.Light)
 	store := node.MockStore(s.t, cfg)
 
-	return s.NewLightNodeWithStore(store, options...)
+	return s.NewNodeWithStore(node.Light, store, options...)
 }
 
-// NewBridgeNodeWithStore creates a new instance of BridgeNodes with predefined Store.
-// Afterwards, the instance is stored in the swamp's BridgeNodes slice.
-func (s *Swamp) NewBridgeNodeWithStore(store node.Store, options ...node.Option) *node.Node {
-	ks, err := store.Keystore()
-	require.NoError(s.t, err)
+func (s *Swamp) NewNodeWithStore(t node.Type, store node.Store, options ...node.Option) *node.Node {
+	var n *node.Node
 
-	// TODO(@Bidon15): If for some reason, we receive one of existing options
-	// like <core, host, hash> from the test case, we need to check them and not use
-	// default that are set here
-	options = append(options,
-		node.WithCoreClient(s.CoreClient),
-		node.WithHost(s.createPeer(ks)),
-		node.WithTrustedHash(s.trustedHash),
-	)
+	switch t {
+	case node.Bridge:
+		options = append(options,
+			node.WithCoreClient(s.CoreClient),
+		)
+		n = s.newNode(node.Bridge, store, options...)
+		s.BridgeNodes = append(s.BridgeNodes, n)
+	case node.Full:
+		n = s.newNode(node.Full, store, options...)
+		s.FullNodes = append(s.FullNodes, n)
+	case node.Light:
+		n = s.newNode(node.Light, store, options...)
+		s.LightNodes = append(s.LightNodes, n)
+	}
 
-	node, err := node.New(node.Bridge, store, options...)
-	require.NoError(s.t, err)
-	s.BridgeNodes = append(s.BridgeNodes, node)
-	return node
+	return n
 }
 
-// NewFullNodeWithStore creates a new instance of FullNode with predefined Store.
-// Afterwards, the instance is stored in the swamp's FullNodes slice
-func (s *Swamp) NewFullNodeWithStore(store node.Store, options ...node.Option) *node.Node {
-	ks, err := store.Keystore()
-	require.NoError(s.t, err)
-
-	// TODO(@Bidon15): If for some reason, we receive one of existing options
-	// like <core, host, hash> from the test case, we need to check them and not use
-	// default that are set here
-	options = append(options,
-		node.WithHost(s.createPeer(ks)),
-		node.WithTrustedHash(s.trustedHash),
-	)
-
-	node, err := node.New(node.Full, store, options...)
-	require.NoError(s.t, err)
-	s.FullNodes = append(s.FullNodes, node)
-	return node
-}
-
-// NewLightNodeWithStore creates a new instance of LightNode with predefined Store.
-// Afterwards, the instance is stored in the swamp's LightNodes slice
-func (s *Swamp) NewLightNodeWithStore(store node.Store, options ...node.Option) *node.Node {
+func (s *Swamp) newNode(t node.Type, store node.Store, options ...node.Option) *node.Node {
 	ks, err := store.Keystore()
 	require.NoError(s.t, err)
 
@@ -259,9 +237,8 @@ func (s *Swamp) NewLightNodeWithStore(store node.Store, options ...node.Option) 
 		node.WithTrustedHash(s.trustedHash),
 	)
 
-	node, err := node.New(node.Light, store, options...)
+	node, err := node.New(t, store, options...)
 	require.NoError(s.t, err)
-	s.LightNodes = append(s.LightNodes, node)
 
 	return node
 }
