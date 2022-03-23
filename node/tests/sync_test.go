@@ -14,6 +14,9 @@ import (
 	"github.com/celestiaorg/celestia-node/node/tests/swamp"
 )
 
+// a default timeout for the context that is used in tests
+const defaultTimeout = 40 * time.Second
+
 /*
 Test-Case: Sync a Light Node with a Bridge Node
 Steps:
@@ -29,7 +32,7 @@ func TestSyncLightWithBridge(t *testing.T) {
 
 	bridge := sw.NewBridgeNode()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 40*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
 	t.Cleanup(cancel)
 
 	sw.WaitTillHeight(ctx, 20)
@@ -76,7 +79,7 @@ func TestSyncStartStopLightWithBridge(t *testing.T) {
 
 	bridge := sw.NewBridgeNode()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 40*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
 	t.Cleanup(cancel)
 
 	sw.WaitTillHeight(ctx, 50)
@@ -128,7 +131,7 @@ func TestSyncFullWithBridge(t *testing.T) {
 
 	bridge := sw.NewBridgeNode()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 40*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
 	t.Cleanup(cancel)
 
 	sw.WaitTillHeight(ctx, 20)
