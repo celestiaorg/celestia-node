@@ -75,10 +75,10 @@ type BadEncodingProof struct {
 ```proto3
 
 message MerkleProof {
-  int64          total     = 1;
-  int64          index     = 2;
-  bytes          leaf_hash = 3;
-  repeated bytes aunts     = 4;
+   int64          start     = 1;
+   int64          end       = 2;
+   repeated bytes nodes     = 3;
+   bytes          leaf_hash = 4;
 }
 
 message Share {
