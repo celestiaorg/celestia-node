@@ -123,14 +123,14 @@ func (d *DASer) sample(ctx context.Context, sub header.Subscription, checkpoint 
 		if h.Height > checkpoint+1 {
 			// DAS headers between last DASed height up to the current
 			// header
+			job := &catchUpJob{
+				from: checkpoint,
+				to:   h.Height - 1,
+			}
 			select {
 			case <-ctx.Done():
 				return
-			default:
-				d.jobsCh <- &catchUpJob{
-					from: checkpoint,
-					to:   h.Height - 1,
-				}
+			case d.jobsCh <- job:
 			}
 		}
 
