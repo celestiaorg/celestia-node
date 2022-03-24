@@ -167,16 +167,3 @@ func TestBridge_WithMutualPeers(t *testing.T) {
 
 	assert.Equal(t, node.Config.P2P.MutualPeers, peers)
 }
-
-func TestBridge_WithBootstrapPeers(t *testing.T) {
-	repo := MockStore(t, DefaultConfig(Bridge))
-	peers := []string{
-		"/ip6/100:0:114b:abc5:e13a:c32f:7a9e:f00a/tcp/2121/p2p/12D3KooWSRqDfpLsQxpyUhLC9oXHD2WuZ2y5FWzDri7LT4Dw9fSi",
-		"/ip4/192.168.1.10/tcp/2121/p2p/12D3KooWSRqDfpLsQxpyUhLC9oXHD2WuZ2y5FWzDri7LT4Dw9fSi",
-	}
-	node, err := New(Bridge, repo, WithBootstrapPeers(peers))
-	require.NoError(t, err)
-	require.NotNil(t, node)
-
-	assert.Equal(t, node.Config.P2P.BootstrapPeers, peers)
-}
