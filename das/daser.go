@@ -214,7 +214,7 @@ func (d *DASer) catchUp(ctx context.Context, job *catchUpJob) {
 			}
 
 			log.Errorw("failed to get next header", "height", height, "err", err)
-			continue // TODO @renaynay: should we really continue in this case?
+			return
 		}
 
 		startTime := time.Now()
