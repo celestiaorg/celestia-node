@@ -7,6 +7,7 @@ import (
 
 	format "github.com/ipfs/go-ipld-format"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
+	"github.com/tendermint/tendermint/types"
 
 	"github.com/celestiaorg/celestia-node/core"
 )
@@ -35,14 +36,19 @@ func NewCoreListener(bcast Broadcaster, fetcher *core.BlockFetcher, dag format.D
 }
 
 // Start kicks off the CoreListener listener loop.
-func (cl *CoreListener) Start(context.Context) error {
+func (cl *CoreListener) Start(ctx context.Context) error {
 	if cl.cancel != nil {
 		return fmt.Errorf("core-listener: already started")
 	}
 
-	ctx, cancel := context.WithCancel(context.Background())
+	sub, err := cl.fetcher.SubscribeNewBlockEvent(ctx)
+	if err != nil {
+		return err
+	}
 
-	go cl.listen(ctx)
+	clCtx, cancel := context.WithCancel(context.Background())
+
+	go cl.listen(clCtx, sub)
 	cl.cancel = cancel
 	return nil
 }
@@ -62,14 +68,8 @@ func (cl *CoreListener) Stop(ctx context.Context) error {
 // listen kicks off a loop, listening for new block events from Core,
 // generating ExtendedHeaders and broadcasting them to the header-sub
 // gossipsub network.
-func (cl *CoreListener) listen(ctx context.Context) {
+func (cl *CoreListener) listen(ctx context.Context, sub <-chan *types.Block) {
 	defer log.Info("core-listener: listening stopped")
-
-	sub, err := cl.fetcher.SubscribeNewBlockEvent(ctx)
-	if err != nil {
-		log.Errorw("core-listener: failed to subscribe to new block events", "err", err)
-		return
-	}
 
 	for {
 		select {
