@@ -73,6 +73,9 @@ func (d *DASer) Start(context.Context) error {
 	d.cancel = cancel
 	d.sampleDn, d.catchUpDn = make(chan struct{}), make(chan struct{})
 
+	// kick off catch-up routine scheduler
+	go d.catchUpScheduler(dasCtx, checkpoint)
+	// kick off sampling routine for recently received headers
 	go d.sample(dasCtx, sub, checkpoint)
 	return nil
 }
@@ -101,9 +104,6 @@ func (d *DASer) sample(ctx context.Context, sub header.Subscription, checkpoint 
 		sub.Cancel()
 		close(d.sampleDn)
 	}()
-
-	// kick off catchUpScheduler
-	go d.catchUpScheduler(ctx, checkpoint)
 
 	for {
 		h, err := sub.NextHeader(ctx)
