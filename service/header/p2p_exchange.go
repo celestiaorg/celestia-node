@@ -13,11 +13,10 @@ import (
 
 	"github.com/celestiaorg/go-libp2p-messenger/serde"
 
-	params "github.com/celestiaorg/celestia-node/params"
 	pb "github.com/celestiaorg/celestia-node/service/header/pb"
 )
 
-var exchangeProtocolID = protocol.ID(fmt.Sprintf("/header-ex/v0.0.1/%s", params.GetNetwork()))
+var exchangeProtocolID = protocol.ID("/header-ex/v0.0.1")
 
 // P2PExchange enables sending outbound ExtendedHeaderRequests to the network as well as
 // handling inbound ExtendedHeaderRequests from the network.
