@@ -3,37 +3,37 @@ package params
 import (
 	"os"
 	"strings"
+	"sync"
 
 	"github.com/libp2p/go-libp2p-core/peer"
 	ma "github.com/multiformats/go-multiaddr"
 )
 
-// BootstrappersInfos returns address information of bootstrap peers for the node's current network.
+// BootstrappersInfos returns address information of predefined bootstrap peers for the node's current network.
+// Use CELESTIA_BOOTSTRAPPERS env var to set custom bootstrap peers.
 func BootstrappersInfos() []peer.AddrInfo {
-	bs := Bootstrappers()
-	maddrs := make([]ma.Multiaddr, len(bs))
-	for i, addr := range bs {
-		maddr, err := ma.NewMultiaddr(addr)
-		if err != nil {
-			panic(err)
-		}
-		maddrs[i] = maddr
+	infosLk.Lock()
+	defer infosLk.Unlock()
+	if infos != nil {
+		return infos
 	}
 
-	infos, err := peer.AddrInfosFromP2pAddrs(maddrs...)
+	var err error
+	infos, err = parseAddrInfos(Bootstrappers())
 	if err != nil {
 		panic(err)
 	}
-
 	return infos
 }
 
-// Bootstrappers reports multiaddresses of bootstrap peers for the node's current network.
+// Bootstrappers reports multiaddresses of predefined bootstrap peers for the node's current network.
+// Use CELESTIA_BOOTSTRAPPERS env var to set custom bootstrap peers.
 func Bootstrappers() []string {
 	return bootstrapList[network] // network is guaranteed to be valid
 }
 
-// BootstrappersFor reports multiaddresses of bootstrap peers for a given network.
+// BootstrappersFor reports multiaddresses of predefined bootstrap peers for a given network.
+// Use CELESTIA_BOOTSTRAPPERS env var to set custom bootstrap peers.
 func BootstrappersFor(net Network) ([]string, error) {
 	if err := net.Validate(); err != nil {
 		return nil, err
@@ -53,25 +53,49 @@ var bootstrapList = map[Network][]string{
 }
 
 func init() {
-	if bootstrappers, ok := os.LookupEnv("CELESTIA_BOOTSTRAPPERS"); ok {
-		// validate value correctness
-		bs := strings.Split(bootstrappers, ",")
-		maddrs := make([]ma.Multiaddr, len(bs))
-		for i, addr := range bs {
-			maddr, err := ma.NewMultiaddr(addr)
-			if err != nil {
-				println("wrong multiaddress in CELESTIA_BOOTSTRAPPERS")
-				panic(err)
-			}
-			maddrs[i] = maddr
+	if netbootstrappers, ok := os.LookupEnv("CELESTIA_BOOTSTRAPPERS"); ok {
+		netbootstrappers := strings.Split(netbootstrappers, ":")
+		if len(netbootstrappers) != 2 {
+			panic("env CELESTIA_BOOTSTRAPPERS: must be formatted as 'network:multiaddr1,multiaddr2...'")
 		}
 
-		_, err := peer.AddrInfosFromP2pAddrs(maddrs...)
+		net, bootstrappers := Network(netbootstrappers[0]), netbootstrappers[1]
+		if err := net.Validate(); err != nil {
+			println("env CELESTIA_BOOTSTRAPPERS")
+			panic(err)
+		}
+		bs := strings.Split(bootstrappers, ",")
+
+		// validate correctness
+		_, err := parseAddrInfos(bs)
 		if err != nil {
-			println("wrong multiaddress in CELESTIA_BOOTSTRAPPERS")
+			println("env CELESTIA_BOOTSTRAPPERS: contains invalid multiaddress")
 			panic(err)
 		}
 
-		bootstrapList[Private] = bs
+		bootstrapList[net] = bs
 	}
 }
+
+func parseAddrInfos(addrs []string) ([]peer.AddrInfo, error) {
+	infos := make([]peer.AddrInfo, len(addrs))
+	for _, addr := range addrs {
+		maddr, err := ma.NewMultiaddr(addr)
+		if err != nil {
+			return nil, err
+		}
+
+		info, err := peer.AddrInfoFromP2pAddr(maddr)
+		if err != nil {
+			return nil, err
+		}
+		infos = append(infos, *info)
+	}
+
+	return infos, nil
+}
+
+var (
+	infosLk sync.Mutex
+	infos   []peer.AddrInfo
+)
