@@ -177,3 +177,14 @@ func (f *BlockFetcher) UnsubscribeNewBlockEvent(ctx context.Context) error {
 
 	return f.client.Unsubscribe(ctx, newBlockSubscriber, newBlockEventQuery)
 }
+
+// IsSyncing returns the sync status of the Core connection: true for
+// syncing, and false for already caught up. It can also return an error
+// in the case of a failed status request.
+func (f *BlockFetcher) IsSyncing(ctx context.Context) (bool, error) {
+	resp, err := f.client.Status(ctx)
+	if err != nil {
+		return false, err
+	}
+	return resp.SyncInfo.CatchingUp, nil
+}
