@@ -86,7 +86,7 @@ func (ca *CoreAccessor) BalanceForAddress(ctx context.Context, addr types.AccAdd
 }
 
 func (ca *CoreAccessor) SubmitTx(ctx context.Context, tx Tx) (*TxResponse, error) {
-	txResp, err := apptypes.BroadcastTx(ctx, ca.coreConn, sdk_tx.BroadcastMode_BROADCAST_MODE_SYNC, tx)
+	txResp, err := apptypes.BroadcastTx(ctx, ca.coreConn, sdk_tx.BroadcastMode_BROADCAST_MODE_BLOCK, tx)
 	if err != nil {
 		return nil, err
 	}

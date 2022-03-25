@@ -21,6 +21,7 @@ type Accessor interface {
 	// for the given types.AccAddress.
 	BalanceForAddress(ctx context.Context, addr types.AccAddress) (*Balance, error)
 	// SubmitTx submits the given transaction/message to the
-	// Celestia network and blocks until a response is received.
+	// Celestia network and blocks until the tx is included in
+	// a block.
 	SubmitTx(ctx context.Context, tx Tx) (*TxResponse, error)
 }
