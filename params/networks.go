@@ -2,6 +2,7 @@ package params
 
 import (
 	"errors"
+	"os"
 )
 
 // GetNetwork returns the network of the current build.
@@ -47,6 +48,16 @@ var network Network
 
 // init ensures `network` is always set and correct
 func init() {
+	if net, ok := os.LookupEnv("CELESTIA_NETWORK"); ok {
+		network = Network(net)
+		if err := network.Validate(); err != nil {
+			println("env CELESTIA_NETWORK")
+			panic(err)
+		}
+
+		return
+	}
+
 	if network == "" {
 		network = DefaultNetwork
 	}
