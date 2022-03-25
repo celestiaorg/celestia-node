@@ -6,6 +6,8 @@ import (
 )
 
 // Genesis reports a hash of a genesis block for the current network.
+// Genesis is strictly defined and can't be modified.
+// To run a custom genesis private network use CELESTIA_PRIVATE_GENESIS env var.
 func Genesis() string {
 	return genesisList[network] // network is guaranteed to be valid
 }
@@ -26,7 +28,7 @@ var genesisList = map[Network]string{
 }
 
 func init() {
-	if genesis, ok := os.LookupEnv("CELESTIA_GENESIS_HASH"); ok {
+	if genesis, ok := os.LookupEnv("CELESTIA_PRIVATE_GENESIS"); ok {
 		network = Private
 		genesisList[Private] = strings.ToUpper(genesis)
 	}
