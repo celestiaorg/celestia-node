@@ -172,10 +172,9 @@ Steps:
 4. Create a Full Node(FN) with a connection to BN as a trusted peer
 5. Start a FN
 6. Check FN is synced to height 30
-7. Create a Light Node(LN) with a connection to FN as a trusted  peer
-8. Start a LN with a defined connection to the FN
-9. Start LN
-10. Check LN is synced to height 50
+7. Create a Light Node(LN) with a connection to FN as a trusted peer
+8. Start LN
+9. Check LN is synced to height 50
 */
 func TestSyncLightWithFull(t *testing.T) {
 	sw := swamp.NewSwamp(t, swamp.DefaultComponents())
@@ -225,6 +224,22 @@ func TestSyncLightWithFull(t *testing.T) {
 	assert.EqualValues(t, h.Commit.BlockID.Hash, sw.GetCoreBlockHashByHeight(ctx, 50))
 }
 
+/*
+Test-Case: Sync a Light Node with multiple trusted peers
+Pre-Requisites:
+- CoreClient is started by swamp
+- CoreClient has generated 20 blocks
+Steps:
+1. Create a Bridge Node(BN)
+2. Start a BN
+3. Check BN is synced to height 20
+4. Create a Full Node(FN) with a connection to BN as a trusted peer
+5. Start a FN
+6. Check FN is synced to height 30
+7. Create a Light Node(LN) with a connection to BN, FN as trusted peers
+8. Start LN
+9. Check LN is synced to height 50
+*/
 func TestSyncLightWithMultiplePeers(t *testing.T) {
 	sw := swamp.NewSwamp(t, swamp.DefaultComponents())
 
