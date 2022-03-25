@@ -1,6 +1,9 @@
 package params
 
 import (
+	"os"
+	"strings"
+
 	"github.com/libp2p/go-libp2p-core/peer"
 	ma "github.com/multiformats/go-multiaddr"
 )
@@ -46,4 +49,29 @@ var bootstrapList = map[Network][]string{
 		"/dns4/libra.celestia-devops.dev/tcp/2121/p2p/12D3KooWK5aDotDcLsabBmWDazehQLMsDkRyARm1k7f1zGAXqbt4",
 		"/dns4/norma.celestia-devops.dev/tcp/2121/p2p/12D3KooWHYczJDVNfYVkLcNHPTDKCeiVvRhg8Q9JU3bE3m9eEVyY",
 	},
+	Private: {},
+}
+
+func init() {
+	if bootstrappers, ok := os.LookupEnv("CELESTIA_BOOTSTRAPPERS"); ok {
+		// validate value correctness
+		bs := strings.Split(bootstrappers, ",")
+		maddrs := make([]ma.Multiaddr, len(bs))
+		for i, addr := range bs {
+			maddr, err := ma.NewMultiaddr(addr)
+			if err != nil {
+				println("wrong multiaddress in CELESTIA_BOOTSTRAPPERS")
+				panic(err)
+			}
+			maddrs[i] = maddr
+		}
+
+		_, err := peer.AddrInfosFromP2pAddrs(maddrs...)
+		if err != nil {
+			println("wrong multiaddress in CELESTIA_BOOTSTRAPPERS")
+			panic(err)
+		}
+
+		bootstrapList[Private] = bs
+	}
 }

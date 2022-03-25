@@ -1,6 +1,8 @@
 package params
 
-import "errors"
+import (
+	"errors"
+)
 
 // GetNetwork returns the network of the current build.
 func GetNetwork() Network {
@@ -14,6 +16,10 @@ var DefaultNetwork = DevNet
 const (
 	// DevNet or devnet-2 according to celestiaorg/networks
 	DevNet Network = "devnet-2"
+	// Private can be used to set up any private network, including local testing setups.
+	// Use CELESTIA_GENESIS_HASH env var to enable Private by specifying its genesis block hash.
+	// Use CELESTIA_BOOTSTRAPPERS env var to set bootstrap peers for the private network.
+	Private Network = "private"
 )
 
 // Network is a type definition for DA network run by Celestia Node.
@@ -32,7 +38,8 @@ func (n Network) Validate() error {
 
 // networksList is a strict list of all known long-standing networks.
 var networksList = map[Network]struct{}{
-	DevNet: {},
+	DevNet:  {},
+	Private: {},
 }
 
 // network is the currently used network within a build.
