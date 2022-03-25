@@ -73,12 +73,12 @@ func (p *P2PSubscriber) Subscribe() (Subscription, error) {
 }
 
 // Broadcast broadcasts the given ExtendedHeader to the topic.
-func (p *P2PSubscriber) Broadcast(ctx context.Context, header *ExtendedHeader) error {
+func (p *P2PSubscriber) Broadcast(ctx context.Context, header *ExtendedHeader, opts ...pubsub.PubOpt) error {
 	bin, err := header.MarshalBinary()
 	if err != nil {
 		return err
 	}
-	return p.topic.Publish(ctx, bin)
+	return p.topic.Publish(ctx, bin, opts...)
 }
 
 // msgID computes an id for a pubsub message
