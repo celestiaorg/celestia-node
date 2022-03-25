@@ -61,6 +61,17 @@ func fullComponents(cfg *Config, store Store) fxutil.Option {
 		fxutil.Provide(services.DASer),
 		fxutil.Provide(services.HeaderExchangeP2P(cfg.Services)),
 		fxutil.Provide(services.FullAvailability),
+		fxutil.ProvideIf(cfg.Core.Remote, func(lc fx.Lifecycle) (state.Accessor, error) {
+			ca, err := statecomponents.CoreAccessor(store.Path(), cfg.Core.RemoteConfig.RemoteAddr)
+			if err != nil {
+				return nil, err
+			}
+			lc.Append(fx.Hook{
+				OnStart: ca.Start,
+				OnStop:  ca.Stop,
+			})
+			return ca, nil
+		}),
 	)
 }
 
