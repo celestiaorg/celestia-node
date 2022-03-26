@@ -121,7 +121,7 @@ type Proof interface {
 2a. From the other side, light nodes will, by default, subscribe to the BEFP topic and verify messages received on the topic:
 
 ```go
-type proofUnmarshaller func([]byte) Proof
+type proofUnmarshaller func([]byte) (Proof error)
 // Subscriber encompasses the behavior necessary to
 // subscribe/unsubscribe from new FraudProofs events from the
 // network.
@@ -141,8 +141,8 @@ type Subscriber interface {
 ```go
 // Subscription returns a valid proof if one is received on the topic.
 type Subscription interface {
-   Proof() (Proof, error)
-   Cancel() error
+   Proof(context.Context) (Proof, error)
+   Cancel()
 }
 ```
 
