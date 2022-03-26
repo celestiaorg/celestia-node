@@ -30,7 +30,11 @@ func lightComponents(cfg *Config, store Store) fxutil.Option {
 		// state components
 		fxutil.ProvideIf(cfg.Core.Remote, state.NewService),
 		fxutil.ProvideIf(cfg.Core.Remote, func(lc fx.Lifecycle) (state.Accessor, error) {
-			ca, err := statecomponents.CoreAccessor(store.Path(), cfg.Core.RemoteConfig.RemoteAddr)
+			ks, err := store.Keystore()
+			if err != nil {
+				return nil, err
+			}
+			ca, err := statecomponents.CoreAccessor(ks, cfg.Core.RemoteConfig.RemoteAddr)
 			if err != nil {
 				return nil, err
 			}
@@ -62,7 +66,11 @@ func fullComponents(cfg *Config, store Store) fxutil.Option {
 		fxutil.Provide(services.HeaderExchangeP2P(cfg.Services)),
 		fxutil.Provide(services.FullAvailability),
 		fxutil.ProvideIf(cfg.Core.Remote, func(lc fx.Lifecycle) (state.Accessor, error) {
-			ca, err := statecomponents.CoreAccessor(store.Path(), cfg.Core.RemoteConfig.RemoteAddr)
+			ks, err := store.Keystore()
+			if err != nil {
+				return nil, err
+			}
+			ca, err := statecomponents.CoreAccessor(ks, cfg.Core.RemoteConfig.RemoteAddr)
 			if err != nil {
 				return nil, err
 			}
