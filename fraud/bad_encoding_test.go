@@ -4,12 +4,13 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/celestiaorg/celestia-node/ipld"
-	"github.com/celestiaorg/celestia-node/service/header"
-	"github.com/celestiaorg/rsmt2d"
 	"github.com/stretchr/testify/require"
 	"github.com/tendermint/tendermint/pkg/da"
 	"github.com/tendermint/tendermint/pkg/wrapper"
+
+	"github.com/celestiaorg/celestia-node/ipld"
+	"github.com/celestiaorg/celestia-node/service/header"
+	"github.com/celestiaorg/rsmt2d"
 )
 
 func TestFraudProof(t *testing.T) {
@@ -25,7 +26,13 @@ func TestFraudProof(t *testing.T) {
 	dataSquare[4] = shares[2]
 	dataSquare[5] = shares[3]
 
-	newEds, err := rsmt2d.RepairExtendedDataSquare(eds1.RowRoots(), eds1.ColRoots(), dataSquare, rsmt2d.NewRSGF8Codec(), tree.Constructor)
+	newEds, err := rsmt2d.RepairExtendedDataSquare(
+		eds1.RowRoots(),
+		eds1.ColRoots(),
+		dataSquare,
+		rsmt2d.NewRSGF8Codec(),
+		tree.Constructor,
+	)
 	require.Error(t, err)
 	require.Nil(t, newEds)
 	var errRow *rsmt2d.ErrByzantineRow
