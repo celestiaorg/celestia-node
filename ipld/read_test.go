@@ -135,23 +135,6 @@ func Test_ConvertEDStoShares(t *testing.T) {
 	require.Equal(t, rawshares, resshares)
 }
 
-func generateRandEDS(t *testing.T, originalSquareWidth int) *rsmt2d.ExtendedDataSquare {
-	shareCount := originalSquareWidth * originalSquareWidth
-
-	// generate test data
-	nsshares := RandNamespacedShares(t, shareCount)
-
-	shares := nsshares.Raw()
-
-	// create the nmt wrapper to generate row and col commitments
-	tree := wrapper.NewErasuredNamespacedMerkleTree(uint64(originalSquareWidth))
-
-	// compute extended square
-	eds, err := rsmt2d.ComputeExtendedDataSquare(shares, rsmt2d.NewRSGF8Codec(), tree.Constructor)
-	require.NoError(t, err)
-	return eds
-}
-
 func flatten(eds *rsmt2d.ExtendedDataSquare) [][]byte {
 	flattenedEDSSize := eds.Width() * eds.Width()
 	out := make([][]byte, flattenedEDSSize)
@@ -355,7 +338,7 @@ func TestBatchSize(t *testing.T) {
 			bs := blockstore.NewBlockstore(dssync.MutexWrap(ds.NewMapDatastore()))
 			dag := merkledag.NewDAGService(blockservice.New(bs, offline.Exchange(bs)))
 
-			eds := generateRandEDS(t, tt.origWidth)
+			eds := GenerateRandEDS(t, tt.origWidth)
 			_, err := PutData(ctx, ExtractODSShares(eds), dag)
 			require.NoError(t, err)
 
