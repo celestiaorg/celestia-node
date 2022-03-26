@@ -101,7 +101,7 @@ func (p *BadEncodingProof) Validate(header *header.ExtendedHeader) error {
 		root = header.DAH.RowsRoots[p.Position]
 	}
 
-	shares := make([][]byte, 0, len(p.Shares))
+	shares := make([][]byte, len(p.Shares))
 	// verify that Merkle proofs correspond to particular shares
 	for index, share := range p.Shares {
 		if share != nil {
