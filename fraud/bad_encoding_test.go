@@ -34,7 +34,6 @@ func TestFraudProof(t *testing.T) {
 		tree.Constructor,
 	)
 	require.Error(t, err)
-	require.Nil(t, newEds)
 	var errRow *rsmt2d.ErrByzantineRow
 	require.True(t, errors.As(err, &errRow))
 
