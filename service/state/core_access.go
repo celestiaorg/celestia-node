@@ -92,3 +92,12 @@ func (ca *CoreAccessor) SubmitTx(ctx context.Context, tx Tx) (*TxResponse, error
 	}
 	return txResp.TxResponse, nil
 }
+
+func (ca *CoreAccessor) SubmitTxWithBroadcastMode(ctx context.Context, tx Tx, mode sdk_tx.BroadcastMode) (*TxResponse, error) {
+	txResp, err := apptypes.BroadcastTx(ctx, ca.coreConn, mode, tx)
+	if err != nil {
+		return nil, err
+	}
+	return txResp.TxResponse, nil
+}
+
