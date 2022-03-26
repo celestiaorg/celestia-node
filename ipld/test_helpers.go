@@ -84,6 +84,23 @@ func RandNamespacedShares(t *testing.T, total int) NamespacedShares {
 	return shares
 }
 
+func GenerateRandEDS(t *testing.T, originalSquareWidth int) *rsmt2d.ExtendedDataSquare {
+	shareCount := originalSquareWidth * originalSquareWidth
+
+	// generate test data
+	nsshares := RandNamespacedShares(t, shareCount)
+
+	shares := nsshares.Raw()
+
+	// create the nmt wrapper to generate row and col commitments
+	tree := wrapper.NewErasuredNamespacedMerkleTree(uint64(originalSquareWidth))
+
+	// compute extended square
+	eds, err := rsmt2d.ComputeExtendedDataSquare(shares, rsmt2d.NewRSGF8Codec(), tree.Constructor)
+	require.NoError(t, err)
+	return eds
+}
+
 func sortByteArrays(src [][]byte) {
 	sort.Slice(src, func(i, j int) bool { return bytes.Compare(src[i], src[j]) < 0 })
 }
