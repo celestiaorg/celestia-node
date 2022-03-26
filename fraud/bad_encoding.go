@@ -30,19 +30,25 @@ func CreateBadEncodingFraudProof(
 	height uint64,
 	position uint8,
 	isRow bool,
-	data [][]byte,
+	eds *rsmt2d.ExtendedDataSquare,
 	errShares [][]byte,
 ) (Proof, error) {
-	tree := nmt.New(sha256.New())
-	for _, value := range data {
-		if err := tree.Push(value); err != nil {
-			return nil, err
-		}
-	}
-
-	shares := make([]*Share, 0, len(errShares))
+	var tree *nmt.NamespacedMerkleTree
+	shares := make([]*Share, len(errShares))
 	for index, share := range errShares {
 		if share != nil {
+			tree = nmt.New(sha256.New())
+			data := eds.Row(uint(index))
+			if isRow {
+				data = eds.Col(uint(index))
+			}
+
+			for _, value := range data {
+				if err := tree.Push(value); err != nil {
+					break
+				}
+			}
+
 			proof, err := tree.Prove(index)
 			if err != nil {
 				return nil, err
