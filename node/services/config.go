@@ -23,7 +23,6 @@ type Config struct {
 	TrustedPeers []string
 }
 
-// TODO(@Wondertan): We need to hardcode trustedHash hash and one bootstrap peer as trusted.
 func DefaultConfig() Config {
 	return Config{
 		TrustedHash:  "",
@@ -31,31 +30,37 @@ func DefaultConfig() Config {
 	}
 }
 
-func (cfg *Config) trustedPeers() ([]*peer.AddrInfo, error) {
+func (cfg *Config) trustedPeers(net params.Network) (infos []*peer.AddrInfo, err error) {
 	if len(cfg.TrustedPeers) == 0 {
-		log.Info("No trusted peers given, initializing with default bootstrappers as trusted peers")
-		cfg.TrustedPeers = params.Bootstrappers()
+		log.Info("No trusted peers in config, initializing with default bootstrappers as trusted peers")
+		cfg.TrustedPeers, err = params.BootstrappersFor(net)
+		if err != nil {
+			return
+		}
 	}
 
-	addrInfos := make([]*peer.AddrInfo, len(cfg.TrustedPeers))
-	for index, tpeer := range cfg.TrustedPeers {
+	infos = make([]*peer.AddrInfo, len(cfg.TrustedPeers))
+	for i, tpeer := range cfg.TrustedPeers {
 		ma, err := multiaddr.NewMultiaddr(tpeer)
 		if err != nil {
 			return nil, err
 		}
-		addrInfo, err := peer.AddrInfoFromP2pAddr(ma)
+		infos[i], err = peer.AddrInfoFromP2pAddr(ma)
 		if err != nil {
 			return nil, err
 		}
-		addrInfos[index] = addrInfo
 	}
 
-	return addrInfos, nil
+	return
 }
 
-func (cfg *Config) trustedHash() (tmbytes.HexBytes, error) {
+func (cfg *Config) trustedHash(net params.Network) (tmbytes.HexBytes, error) {
 	if cfg.TrustedHash == "" {
-		return hex.DecodeString(params.Genesis())
+		gen, err := params.GenesisFor(net)
+		if err != nil {
+			return nil, err
+		}
+		return hex.DecodeString(gen)
 	}
 	return hex.DecodeString(cfg.TrustedHash)
 }
