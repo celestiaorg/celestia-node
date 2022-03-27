@@ -1,8 +1,8 @@
 package params
 
-// Genesis reports a hash of a genesis block for the current network.
-func Genesis() string {
-	return genesisList[network] // network is guaranteed to be valid
+// DefaultGenesis reports a hash of a genesis block for the current network.
+func DefaultGenesis() string {
+	return genesisList[defaultNetwork] // network is guaranteed to be valid
 }
 
 // GenesisFor reports a hash of a genesis block for a given network.

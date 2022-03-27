@@ -2,13 +2,13 @@ package params
 
 import "errors"
 
-// GetNetwork returns the network of the current build.
-func GetNetwork() Network {
-	return network
+// GetDefaultNetwork returns the network of the current build.
+func GetDefaultNetwork() Network {
+	return defaultNetwork
 }
 
-// DefaultNetwork sets a default network for Celestia Node.
-var DefaultNetwork = DevNet
+// defaultNetwork defines a default network for the Celestia Node.
+var defaultNetwork = DevNet
 
 // NOTE: Every time we add a new long-running network, it has to be added here.
 const (
@@ -33,19 +33,4 @@ func (n Network) Validate() error {
 // networksList is a strict list of all known long-standing networks.
 var networksList = map[Network]struct{}{
 	DevNet: {},
-}
-
-// network is the currently used network within a build.
-// It can be set with 'ldflags'.
-var network Network
-
-// init ensures `network` is always set and correct
-func init() {
-	if network == "" {
-		network = DefaultNetwork
-	}
-
-	if err := network.Validate(); err != nil {
-		panic(err)
-	}
 }
