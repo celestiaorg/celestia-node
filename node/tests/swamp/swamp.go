@@ -17,11 +17,19 @@ import (
 	rpctest "github.com/tendermint/tendermint/rpc/test"
 	"github.com/tendermint/tendermint/types"
 
+	"github.com/celestiaorg/celestia-node/params"
+
 	"github.com/celestiaorg/celestia-node/core"
 	"github.com/celestiaorg/celestia-node/libs/keystore"
 	"github.com/celestiaorg/celestia-node/node"
 	"github.com/celestiaorg/celestia-node/node/p2p"
 )
+
+func init() {
+	// NOTE: This way any pkg that imports swamp also gets it network to be private.
+	// This is ok as Swamp must not be imported from non-testing environment.
+	params.DefaultNetwork = params.Private
+}
 
 var blackholeIP6 = net.ParseIP("100::")
 
