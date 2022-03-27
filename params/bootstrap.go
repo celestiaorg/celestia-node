@@ -5,20 +5,6 @@ import (
 	ma "github.com/multiformats/go-multiaddr"
 )
 
-// DefaultBootstrappersInfos returns address information of bootstrap peers for the node's current network.
-func DefaultBootstrappersInfos() []peer.AddrInfo {
-	infos, err := parseAddrInfos(DefaultBootstrappers())
-	if err != nil {
-		panic(err)
-	}
-	return infos
-}
-
-// DefaultBootstrappers reports multiaddresses of bootstrap peers for the node's current network.
-func DefaultBootstrappers() []string {
-	return bootstrapList[defaultNetwork] // network is guaranteed to be valid
-}
-
 // BootstrappersInfosFor returns address information of bootstrap peers for a given network.
 func BootstrappersInfosFor(net Network) ([]peer.AddrInfo, error) {
 	bs, err := BootstrappersFor(net)

@@ -1,10 +1,5 @@
 package params
 
-// DefaultGenesis reports a hash of a genesis block for the current network.
-func DefaultGenesis() string {
-	return genesisList[defaultNetwork] // network is guaranteed to be valid
-}
-
 // GenesisFor reports a hash of a genesis block for a given network.
 func GenesisFor(net Network) (string, error) {
 	if err := net.Validate(); err != nil {

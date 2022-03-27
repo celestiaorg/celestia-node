@@ -2,14 +2,6 @@ package params
 
 import "errors"
 
-// GetDefaultNetwork returns the network of the current build.
-func GetDefaultNetwork() Network {
-	return defaultNetwork
-}
-
-// defaultNetwork defines a default network for the Celestia Node.
-var defaultNetwork = DevNet
-
 // NOTE: Every time we add a new long-running network, it has to be added here.
 const (
 	// DevNet or devnet-2 according to celestiaorg/networks
