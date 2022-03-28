@@ -22,7 +22,6 @@ func TestNewBridge(t *testing.T) {
 	require.NotNil(t, node.Config)
 	require.NotNil(t, node.Host)
 	require.NotNil(t, node.HeaderServ)
-	require.Nil(t, node.BlockServ)
 	assert.NotZero(t, node.Type)
 }
 

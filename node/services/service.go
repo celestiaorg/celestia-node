@@ -14,7 +14,6 @@ import (
 
 	"github.com/celestiaorg/celestia-node/das"
 	"github.com/celestiaorg/celestia-node/node/fxutil"
-	"github.com/celestiaorg/celestia-node/service/block"
 	"github.com/celestiaorg/celestia-node/service/header"
 	"github.com/celestiaorg/celestia-node/service/share"
 )
@@ -114,19 +113,6 @@ func HeaderStoreInit(cfg *Config) func(context.Context, header.Store, header.Exc
 
 		return nil
 	}
-}
-
-// BlockService constructs new block.Service.
-func BlockService(
-	lc fx.Lifecycle,
-	store ipld.DAGService,
-) *block.Service {
-	service := block.NewBlockService(store)
-	lc.Append(fx.Hook{
-		OnStart: service.Start,
-		OnStop:  service.Stop,
-	})
-	return service
 }
 
 // ShareService constructs new share.Service.
