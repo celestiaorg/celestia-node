@@ -7,6 +7,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/celestiaorg/celestia-node/params"
+
 	"github.com/celestiaorg/celestia-node/core"
 )
 
@@ -37,7 +39,7 @@ func TestBridge_WithMockedCoreClient(t *testing.T) {
 	repo := MockStore(t, DefaultConfig(Bridge))
 
 	_, client := core.StartTestClient(t)
-	node, err := New(Bridge, repo, WithCoreClient(client))
+	node, err := New(Bridge, repo, WithCoreClient(client), WithNetwork(params.Private))
 	require.NoError(t, err)
 	require.NotNil(t, node)
 	assert.True(t, node.CoreClient.IsRunning())
