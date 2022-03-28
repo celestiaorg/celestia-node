@@ -42,11 +42,13 @@ func NewDASer(
 ) *DASer {
 	wrappedDS := wrapCheckpointStore(cstore)
 	return &DASer{
-		da:     da,
-		hsub:   hsub,
-		getter: getter,
-		cstore: wrappedDS,
-		jobsCh: make(chan *catchUpJob, 16),
+		da:        da,
+		hsub:      hsub,
+		getter:    getter,
+		cstore:    wrappedDS,
+		jobsCh:    make(chan *catchUpJob, 16),
+		sampleDn:  make(chan struct{}),
+		catchUpDn: make(chan struct{}),
 	}
 }
 
@@ -70,7 +72,6 @@ func (d *DASer) Start(context.Context) error {
 
 	dasCtx, cancel := context.WithCancel(context.Background())
 	d.cancel = cancel
-	d.sampleDn, d.catchUpDn = make(chan struct{}), make(chan struct{})
 
 	// kick off catch-up routine manager
 	go d.catchUpManager(dasCtx, checkpoint)
@@ -86,9 +87,7 @@ func (d *DASer) Stop(ctx context.Context) error {
 	for i := 0; i < 2; i++ {
 		select {
 		case <-d.catchUpDn:
-			d.catchUpDn = nil
 		case <-d.sampleDn:
-			d.sampleDn = nil
 		case <-ctx.Done():
 			return ctx.Err()
 		}
@@ -101,8 +100,12 @@ func (d *DASer) Stop(ctx context.Context) error {
 func (d *DASer) sample(ctx context.Context, sub header.Subscription, checkpoint int64) {
 	defer func() {
 		sub.Cancel()
-		close(d.sampleDn)
+		// send done signal
+		d.sampleDn <- struct{}{}
 	}()
+
+	// sampleHeight tracks the current height of this routine
+	sampleHeight := checkpoint
 
 	for {
 		h, err := sub.NextHeader(ctx)
@@ -119,11 +122,11 @@ func (d *DASer) sample(ctx context.Context, sub header.Subscription, checkpoint 
 		// to our last DASed header, kick off routine to DAS all headers
 		// between last DASed header and h. This situation could occur
 		// either on start or due to network latency/disconnection.
-		if h.Height > checkpoint+1 {
+		if h.Height > sampleHeight+1 {
 			// DAS headers between last DASed height up to the current
 			// header
 			job := &catchUpJob{
-				from: checkpoint,
+				from: sampleHeight,
 				to:   h.Height - 1,
 			}
 			select {
@@ -149,7 +152,7 @@ func (d *DASer) sample(ctx context.Context, sub header.Subscription, checkpoint 
 		log.Infow("sampling successful", "height", h.Height, "hash", h.Hash(),
 			"square width", len(h.DAH.RowsRoots), "finished (s)", sampleTime.Seconds())
 
-		checkpoint = h.Height
+		sampleHeight = h.Height
 	}
 }
 
@@ -170,8 +173,8 @@ func (d *DASer) catchUpManager(ctx context.Context, checkpoint int64) {
 		if err := storeCheckpoint(d.cstore, checkpoint); err != nil {
 			log.Errorw("storing checkpoint to disk", "height", checkpoint, "err", err)
 		}
-		// signal that all catchUp routines have finished
-		close(d.catchUpDn)
+		// signal that catch-up routine finished
+		d.catchUpDn <- struct{}{}
 	}()
 
 	for {
@@ -237,7 +240,7 @@ func (d *DASer) catchUp(ctx context.Context, job *catchUpJob) (int64, error) {
 			"square width", len(h.DAH.RowsRoots), "finished (s)", sampleTime.Seconds())
 	}
 
-	log.Infow("successfully caught up", "from", job.from,
+	log.Infow("successfully sampled past headers", "from", job.from,
 		"to", job.to, "finished (s)", time.Since(routineStartTime))
 	// report successful result
 	return job.to, nil
