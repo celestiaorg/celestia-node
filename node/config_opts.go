@@ -19,7 +19,7 @@ func WithTrustedHash(hash string) Option {
 }
 
 // WithTrustedPeers appends a slice of TrustedPeers to the Config.
-func WithTrustedPeers(addr []string) Option {
+func WithTrustedPeers(addr ...string) Option {
 	return func(cfg *Config, _ *settings) (_ error) {
 		cfg.Services.TrustedPeers = append(cfg.Services.TrustedPeers, addr...)
 		return

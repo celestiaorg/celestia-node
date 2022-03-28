@@ -47,9 +47,8 @@ func TestSyncLightWithBridge(t *testing.T) {
 
 	addrs, err := peer.AddrInfoToP2pAddrs(host.InfoFromHost(bridge.Host))
 	require.NoError(t, err)
-	trustedPeers := []string{addrs[0].String()}
 
-	light := sw.NewLightNode(node.WithTrustedPeers(trustedPeers))
+	light := sw.NewLightNode(node.WithTrustedPeers(addrs[0].String()))
 
 	err = light.Start(ctx)
 	require.NoError(t, err)
@@ -96,10 +95,9 @@ func TestSyncStartStopLightWithBridge(t *testing.T) {
 
 	addrs, err := peer.AddrInfoToP2pAddrs(host.InfoFromHost(bridge.Host))
 	require.NoError(t, err)
-	trustedPeers := []string{addrs[0].String()}
 
 	store := node.MockStore(t, node.DefaultConfig(node.Light))
-	light := sw.NewNodeWithStore(node.Light, store, node.WithTrustedPeers(trustedPeers))
+	light := sw.NewNodeWithStore(node.Light, store, node.WithTrustedPeers(addrs[0].String()))
 	require.NoError(t, light.Start(ctx))
 
 	h, err = light.HeaderServ.GetByHeight(ctx, 30)
@@ -110,7 +108,7 @@ func TestSyncStartStopLightWithBridge(t *testing.T) {
 	require.NoError(t, light.Stop(ctx))
 	require.NoError(t, sw.RemoveNode(light, node.Light))
 
-	light = sw.NewNodeWithStore(node.Light, store, node.WithTrustedPeers(trustedPeers))
+	light = sw.NewNodeWithStore(node.Light, store, node.WithTrustedPeers(addrs[0].String()))
 	require.NoError(t, light.Start(ctx))
 
 	h, err = light.HeaderServ.GetByHeight(ctx, 40)
@@ -149,9 +147,8 @@ func TestSyncFullWithBridge(t *testing.T) {
 
 	addrs, err := peer.AddrInfoToP2pAddrs(host.InfoFromHost(bridge.Host))
 	require.NoError(t, err)
-	trustedPeers := []string{addrs[0].String()}
 
-	full := sw.NewFullNode(node.WithTrustedPeers(trustedPeers))
+	full := sw.NewFullNode(node.WithTrustedPeers(addrs[0].String()))
 	require.NoError(t, full.Start(ctx))
 
 	h, err = full.HeaderServ.GetByHeight(ctx, 30)
@@ -196,9 +193,8 @@ func TestSyncLightWithFull(t *testing.T) {
 
 	addrs, err := peer.AddrInfoToP2pAddrs(host.InfoFromHost(bridge.Host))
 	require.NoError(t, err)
-	trustedPeers := []string{addrs[0].String()}
 
-	full := sw.NewFullNode(node.WithTrustedPeers(trustedPeers))
+	full := sw.NewFullNode(node.WithTrustedPeers(addrs[0].String()))
 	require.NoError(t, full.Start(ctx))
 
 	h, err = full.HeaderServ.GetByHeight(ctx, 30)
@@ -208,9 +204,8 @@ func TestSyncLightWithFull(t *testing.T) {
 
 	addrs, err = peer.AddrInfoToP2pAddrs(host.InfoFromHost(full.Host))
 	require.NoError(t, err)
-	trustedPeers = []string{addrs[0].String()}
 
-	light := sw.NewLightNode(node.WithTrustedPeers(trustedPeers))
+	light := sw.NewLightNode(node.WithTrustedPeers(addrs[0].String()))
 
 	err = sw.Network.UnlinkPeers(bridge.Host.ID(), light.Host.ID())
 	require.NoError(t, err)
@@ -240,7 +235,7 @@ Steps:
 8. Start LN
 9. Check LN is synced to height 50
 */
-func TestSyncLightWithMultiplePeers(t *testing.T) {
+func TestSyncLightWithTrustedPeers(t *testing.T) {
 	sw := swamp.NewSwamp(t, swamp.DefaultComponents())
 
 	bridge := sw.NewBridgeNode()
@@ -263,7 +258,7 @@ func TestSyncLightWithMultiplePeers(t *testing.T) {
 
 	trustedPeers := []string{addrs[0].String()}
 
-	full := sw.NewFullNode(node.WithTrustedPeers(trustedPeers))
+	full := sw.NewFullNode(node.WithTrustedPeers(addrs[0].String()))
 	require.NoError(t, full.Start(ctx))
 
 	h, err = full.HeaderServ.GetByHeight(ctx, 30)
@@ -276,7 +271,7 @@ func TestSyncLightWithMultiplePeers(t *testing.T) {
 
 	trustedPeers = append(trustedPeers, addrs[0].String())
 
-	light := sw.NewLightNode(node.WithTrustedPeers(trustedPeers))
+	light := sw.NewLightNode(node.WithTrustedPeers(trustedPeers...))
 
 	err = light.Start(ctx)
 	require.NoError(t, err)

@@ -64,7 +64,7 @@ func ParseTrustedPeerFlags(cmd *cobra.Command, env *Env) error {
 		}
 	}
 
-	env.AddOptions(node.WithTrustedPeers(tpeers))
+	env.AddOptions(node.WithTrustedPeers(tpeers...))
 
 	return nil
 }
