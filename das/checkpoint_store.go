@@ -20,7 +20,7 @@ func wrapCheckpointStore(ds datastore.Datastore) datastore.Datastore {
 	return namespace.Wrap(ds, storePrefix)
 }
 
-// loadCheckpoint loads the DAS checkpoint from disk and returns it.
+// loadCheckpoint loads the DAS checkpoint height from disk and returns it.
 // If there is no known checkpoint, it returns height 0.
 func loadCheckpoint(ds datastore.Datastore) (int64, error) {
 	checkpoint, err := ds.Get(checkpointKey)
