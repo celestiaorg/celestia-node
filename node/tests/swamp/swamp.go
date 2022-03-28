@@ -17,6 +17,8 @@ import (
 	rpctest "github.com/tendermint/tendermint/rpc/test"
 	"github.com/tendermint/tendermint/types"
 
+	"github.com/celestiaorg/celestia-node/params"
+
 	"github.com/celestiaorg/celestia-node/core"
 	"github.com/celestiaorg/celestia-node/libs/keystore"
 	"github.com/celestiaorg/celestia-node/node"
@@ -246,6 +248,7 @@ func (s *Swamp) newNode(t node.Type, store node.Store, options ...node.Option) *
 	options = append(options,
 		node.WithHost(s.createPeer(ks)),
 		node.WithTrustedHash(s.trustedHash),
+		node.WithNetwork(params.Private),
 	)
 
 	node, err := node.New(t, store, options...)
