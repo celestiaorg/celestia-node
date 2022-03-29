@@ -1,8 +1,10 @@
 package fraud
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
+	"sort"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -16,9 +18,10 @@ import (
 func TestFraudProof(t *testing.T) {
 	eds := ipld.GenerateRandEDS(t, 2)
 
-	tree := NewErasuredNamespacedMerkleTree(uint64(eds.Width() * 2))
+	tree := NewErasuredNamespacedMerkleTree(uint64(eds.Width()))
 	shares := flatten(eds)
 
+	sortByteArrays(shares)
 	copy(shares[0][8:], shares[1][8:])
 	eds1, _ := rsmt2d.ImportExtendedDataSquare(shares, rsmt2d.NewRSGF8Codec(), tree.Constructor)
 
@@ -57,4 +60,8 @@ func flatten(eds *rsmt2d.ExtendedDataSquare) [][]byte {
 	}
 	fmt.Println(flattenedEDSSize)
 	return out
+}
+
+func sortByteArrays(src [][]byte) {
+	sort.Slice(src, func(i, j int) bool { return bytes.Compare(src[i], src[j]) < 0 })
 }

@@ -35,27 +35,26 @@ func CreateBadEncodingFraudProof(
 	//OUTER:
 	for index, share := range errShares {
 		if share != nil {
-			tree = NewErasuredNamespacedMerkleTree(uint64(len(errShares) * 2))
+			tree = NewErasuredNamespacedMerkleTree(uint64(len(errShares)))
 			data := eds.Row(uint(index))
 			if isRow {
 				data = eds.Col(uint(index))
 			}
-
 			for i, value := range data {
-				tree.Push(value, rsmt2d.SquareIndex{Axis: 0, Cell: uint(i)})
+				tree.Push(value, rsmt2d.SquareIndex{Axis: uint(position), Cell: uint(i)})
 				if tree.Err != nil {
 					fmt.Println(tree.Err)
 					//continue OUTER
 				}
 			}
 
-			proof, err := tree.InclusionProof(uint8(0))
+			proof, err := tree.InclusionProof(uint8(position))
 			if err != nil {
 				return nil, err
 			}
-			shares[index] = &Share{errShares[index], proof}
+			d := tree.PrepareData(rsmt2d.SquareIndex{Axis: uint(position), Cell: uint(0)}, errShares[index])
+			shares[index] = &Share{d, proof}
 			fmt.Println(shares[index].Validate(eds.ColRoots()[index]))
-			fmt.Println(bytes.Equal(eds.ColRoots()[index], tree.Root()))
 		}
 	}
 
