@@ -16,7 +16,7 @@ func CoreAccessor(
 	ks keystore.Keystore,
 	coreEndpoint string,
 ) (state.Accessor, error) {
-	// TODO @renaynay: Include optioin for setting custom `userInput` parameter with
+	// TODO @renaynay: Include option for setting custom `userInput` parameter with
 	//  implementation of https://github.com/celestiaorg/celestia-node/issues/415.
 	ring, err := keyring.New(app.Name, keyring.BackendFile, ks.Path(), nil)
 	if err != nil {
