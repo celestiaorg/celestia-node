@@ -41,8 +41,8 @@ require (
 	github.com/multiformats/go-base32 v0.0.4
 	github.com/multiformats/go-multiaddr v0.5.0
 	github.com/multiformats/go-multihash v0.1.0
-	github.com/spf13/cobra v1.4.0
 	github.com/raulk/go-watchdog v1.2.0
+	github.com/spf13/cobra v1.4.0
 	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/testify v1.7.1-0.20210427113832-6241f9ab9942
 	github.com/tendermint/tendermint v0.34.14
@@ -237,12 +237,8 @@ require (
 	go.uber.org/atomic v1.9.0 // indirect
 	go.uber.org/dig v1.12.0 // indirect
 	go.uber.org/multierr v1.7.0 // indirect
-	golang.org/x/crypto v0.0.0-20210817164053-32db794688a5 // indirect
-	golang.org/x/net v0.0.0-20210903162142-ad29c8ab022f // indirect
-	golang.org/x/sys v0.0.0-20211205182925-97ca703d548d // indirect
 	golang.org/x/crypto v0.0.0-20210921155107-089bfa567519 // indirect
 	golang.org/x/net v0.0.0-20211015210444-4f30a5c0130f // indirect
-	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c // indirect
 	golang.org/x/sys v0.0.0-20220114195835-da31bd327af9 // indirect
 	golang.org/x/term v0.0.0-20210927222741-03fcf44c2211 // indirect
 	golang.org/x/text v0.3.7 // indirect
@@ -256,8 +252,8 @@ require (
 )
 
 replace (
-	github.com/libp2p/go-libp2p-pubsub v0.5.7-0.20211029175501-5c90105738cf => github.com/celestiaorg/go-libp2p-pubsub v0.5.7-0.20220325112944-d33a3e5e13d5
-	github.com/tendermint/tendermint v0.34.14 => github.com/celestiaorg/celestia-core v0.34.14-celestia
 	github.com/cosmos/cosmos-sdk => github.com/celestiaorg/cosmos-sdk v0.44.1-celestia
 	github.com/gogo/protobuf => github.com/regen-network/protobuf v1.3.3-alpha.regen.1
+	github.com/libp2p/go-libp2p-pubsub v0.5.7-0.20211029175501-5c90105738cf => github.com/celestiaorg/go-libp2p-pubsub v0.5.7-0.20220325112944-d33a3e5e13d5
+	github.com/tendermint/tendermint v0.34.14 => github.com/celestiaorg/celestia-core v0.34.14-celestia.0.20220228062426-721562a3544d
 )
