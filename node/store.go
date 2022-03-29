@@ -11,7 +11,6 @@ import (
 	dsbadger "github.com/ipfs/go-ds-badger2"
 	"github.com/mitchellh/go-homedir"
 
-	"github.com/celestiaorg/celestia-node/core"
 	"github.com/celestiaorg/celestia-node/libs/fslock"
 	"github.com/celestiaorg/celestia-node/libs/keystore"
 )
@@ -35,9 +34,6 @@ type Store interface {
 	// Datastore provides a Datastore - a KV store for arbitrary data to be stored on disk.
 	Datastore() (datastore.Batching, error)
 
-	// Core provides an access to Core's Store.
-	Core() (core.Store, error)
-
 	// Config loads the stored Node config.
 	Config() (*Config, error)
 
@@ -52,7 +48,7 @@ type Store interface {
 // To be opened the Store must be initialized first, otherwise ErrNotInited is thrown.
 // OpenStore takes a file Lock on directory, hence only one Store can be opened at a time under the given 'path',
 // otherwise ErrOpened is thrown.
-func OpenStore(path string, tp Type) (Store, error) {
+func OpenStore(path string) (Store, error) {
 	path, err := storePath(path)
 	if err != nil {
 		return nil, err
@@ -66,7 +62,7 @@ func OpenStore(path string, tp Type) (Store, error) {
 		return nil, err
 	}
 
-	ok := IsInit(path, tp)
+	ok := IsInit(path)
 	if !ok {
 		flock.Unlock() // nolint: errcheck
 		return nil, ErrNotInited
@@ -163,25 +159,6 @@ func (f *fsStore) Datastore() (_ datastore.Batching, err error) {
 	return f.data, nil
 }
 
-func (f *fsStore) Core() (_ core.Store, err error) {
-	f.lock.RLock()
-	if f.core != nil {
-		f.lock.RUnlock()
-		return f.core, nil
-	}
-	f.lock.RUnlock()
-
-	f.lock.Lock()
-	defer f.lock.Unlock()
-
-	f.core, err = core.OpenStore(corePath(f.path))
-	if err != nil {
-		return nil, fmt.Errorf("node: can't open Core Store: %w", err)
-	}
-
-	return f.core, nil
-}
-
 func (f *fsStore) Close() error {
 	defer f.dirLock.Unlock() // nolint: errcheck
 	return f.data.Close()
@@ -192,7 +169,6 @@ type fsStore struct {
 
 	data datastore.Batching
 	keys keystore.Keystore
-	core core.Store
 
 	lock    sync.RWMutex   // protects all the fields
 	dirLock *fslock.Locker // protects directory
@@ -216,8 +192,4 @@ func keysPath(base string) string {
 
 func dataPath(base string) string {
 	return filepath.Join(base, "data")
-}
-
-func corePath(base string) string {
-	return filepath.Join(base, "core")
 }

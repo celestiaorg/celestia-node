@@ -34,8 +34,17 @@ func Test_hashMatch(t *testing.T) {
 }
 
 func createCoreFetcher(t *testing.T) *core.BlockFetcher {
-	mock := core.EphemeralMockEmbeddedClient(t)
-	return core.NewBlockFetcher(mock)
+	nd, client, err := core.StartRemoteClient()
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		client.Stop() //nolint:errcheck
+		nd.Stop()     //nolint:errcheck
+	})
+
+	err = client.Start()
+	require.NoError(t, err)
+
+	return core.NewBlockFetcher(client)
 }
 
 func generateBlocks(t *testing.T, fetcher *core.BlockFetcher) {

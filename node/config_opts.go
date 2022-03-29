@@ -3,9 +3,8 @@ package node
 // WithRemoteCore configures Node to start with remote Core.
 func WithRemoteCore(protocol string, address string) Option {
 	return func(cfg *Config, _ *settings) (_ error) {
-		cfg.Core.Remote = true
-		cfg.Core.RemoteConfig.Protocol = protocol
-		cfg.Core.RemoteConfig.RemoteAddr = address
+		cfg.Core.Protocol = protocol
+		cfg.Core.RemoteAddr = address
 		return
 	}
 }

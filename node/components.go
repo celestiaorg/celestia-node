@@ -35,7 +35,7 @@ func bridgeComponents(cfg *Config, store Store) fxutil.Option {
 	return fxutil.Options(
 		fxutil.Supply(Bridge),
 		baseComponents(cfg, store),
-		nodecore.Components(cfg.Core, store.Core),
+		nodecore.Components(cfg.Core),
 		fxutil.Provide(services.LightAvailability), // TODO(@Wondertan): Remove strict requirements to have Availability
 	)
 }

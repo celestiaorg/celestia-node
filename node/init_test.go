@@ -16,7 +16,7 @@ func TestInit(t *testing.T) {
 
 	for _, node := range nodes {
 		require.NoError(t, Init(dir, node))
-		assert.True(t, IsInit(dir, node))
+		assert.True(t, IsInit(dir))
 	}
 }
 
@@ -39,20 +39,12 @@ func TestIsInitWithBrokenConfig(t *testing.T) {
 		[P2P]
 		  ListenAddresses = [/ip4/0.0.0.0/tcp/2121]
     `))
-	nodes := []Type{Light, Bridge}
-
-	for _, node := range nodes {
-		assert.False(t, IsInit(dir, node))
-	}
+	assert.False(t, IsInit(dir))
 }
 
 func TestIsInitForNonExistDir(t *testing.T) {
 	path := "/invalid_path"
-	nodes := []Type{Light, Bridge}
-
-	for _, node := range nodes {
-		assert.False(t, IsInit(path, node))
-	}
+	assert.False(t, IsInit(path))
 }
 
 func TestInitErrForLockedDir(t *testing.T) {

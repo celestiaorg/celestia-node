@@ -11,7 +11,15 @@ import (
 )
 
 func TestBlockFetcher_GetBlock_and_SubscribeNewBlockEvent(t *testing.T) {
-	client := MockEmbeddedClient()
+	nd, client, err := StartRemoteClient()
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		client.Stop() //nolint:errcheck
+		nd.Stop()     //nolint:errcheck
+	})
+	err = client.Start()
+	require.NoError(t, err)
+
 	fetcher := NewBlockFetcher(client)
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -37,7 +45,15 @@ func TestBlockFetcher_GetBlock_and_SubscribeNewBlockEvent(t *testing.T) {
 // TestBlockFetcherHeaderValues tests that both the Commit and ValidatorSet
 // endpoints are working as intended.
 func TestBlockFetcherHeaderValues(t *testing.T) {
-	client := MockEmbeddedClient()
+	nd, client, err := StartRemoteClient()
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		client.Stop() //nolint:errcheck
+		nd.Stop()     //nolint:errcheck
+	})
+	err = client.Start()
+	require.NoError(t, err)
+
 	fetcher := NewBlockFetcher(client)
 
 	ctx, cancel := context.WithCancel(context.Background())

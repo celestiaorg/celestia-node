@@ -25,7 +25,7 @@ Options passed on start override configuration options only on start and are not
 				return err
 			}
 
-			store, err := node.OpenStore(env.StorePath, env.NodeType)
+			store, err := node.OpenStore(env.StorePath)
 			if err != nil {
 				return err
 			}

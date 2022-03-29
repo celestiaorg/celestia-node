@@ -14,15 +14,20 @@ func MockStore(t *testing.T, cfg *Config) Store {
 	store := NewMemStore()
 	err := store.PutConfig(cfg)
 	require.NoError(t, err)
-	cstore, err := store.Core()
-	require.NoError(t, err)
-	err = cstore.PutConfig(core.MockConfig(t))
-	require.NoError(t, err)
 	return store
 }
 
 func TestNode(t *testing.T, tp Type, opts ...Option) *Node {
-	store := MockStore(t, DefaultConfig(tp))
+	remote, _, err := core.StartRemoteClient()
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		remote.Stop() //nolint:errcheck
+	})
+
+	cfg := DefaultConfig(tp)
+	cfg.Core.Protocol, cfg.Core.RemoteAddr = core.GetRemoteEndpoint(remote)
+
+	store := MockStore(t, cfg)
 	nd, err := New(tp, store, opts...)
 	require.NoError(t, err)
 	return nd

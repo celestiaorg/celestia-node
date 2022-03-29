@@ -10,16 +10,16 @@ import (
 func TestRepoBridge(t *testing.T) {
 	dir := t.TempDir()
 
-	_, err := OpenStore(dir, Bridge)
+	_, err := OpenStore(dir)
 	assert.ErrorIs(t, err, ErrNotInited)
 
 	err = Init(dir, Bridge)
 	require.NoError(t, err)
 
-	store, err := OpenStore(dir, Bridge)
+	store, err := OpenStore(dir)
 	require.NoError(t, err)
 
-	_, err = OpenStore(dir, Bridge)
+	_, err = OpenStore(dir)
 	assert.ErrorIs(t, err, ErrOpened)
 
 	ks, err := store.Keystore()
@@ -29,10 +29,6 @@ func TestRepoBridge(t *testing.T) {
 	data, err := store.Datastore()
 	assert.NoError(t, err)
 	assert.NotNil(t, data)
-
-	cstore, err := store.Core()
-	assert.NoError(t, err)
-	assert.NotNil(t, cstore)
 
 	cfg, err := store.Config()
 	assert.NoError(t, err)
@@ -42,16 +38,16 @@ func TestRepoBridge(t *testing.T) {
 func TestRepoLight(t *testing.T) {
 	dir := t.TempDir()
 
-	_, err := OpenStore(dir, Light)
+	_, err := OpenStore(dir)
 	assert.ErrorIs(t, err, ErrNotInited)
 
 	err = Init(dir, Light)
 	require.NoError(t, err)
 
-	store, err := OpenStore(dir, Light)
+	store, err := OpenStore(dir)
 	require.NoError(t, err)
 
-	_, err = OpenStore(dir, Light)
+	_, err = OpenStore(dir)
 	assert.ErrorIs(t, err, ErrOpened)
 
 	ks, err := store.Keystore()
@@ -61,10 +57,6 @@ func TestRepoLight(t *testing.T) {
 	data, err := store.Datastore()
 	assert.NoError(t, err)
 	assert.NotNil(t, data)
-
-	cstore, err := store.Core()
-	assert.Error(t, err)
-	assert.Nil(t, cstore)
 
 	cfg, err := store.Config()
 	assert.NoError(t, err)
