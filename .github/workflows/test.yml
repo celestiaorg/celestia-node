@@ -19,6 +19,8 @@ jobs:
         uses: actions/setup-go@v2
         with:
           go-version: ${{ matrix.go }}
+      - name: Tests with Race Detector
+        run: make test-unit-race
       - name: Test & Coverage
         run: |
           go install github.com/ory/go-acc@v0.2.6
@@ -26,8 +28,6 @@ jobs:
       - uses: codecov/codecov-action@v2.1.0
         with:
           file: ./coverage.txt
-      - name: Tests with Race Detector
-        run: make test-unit-race
   integration_test:
     name: Run Integration Tests
     runs-on: ubuntu-latest
