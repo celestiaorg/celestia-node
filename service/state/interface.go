@@ -2,8 +2,6 @@ package state
 
 import (
 	"context"
-
-	"github.com/cosmos/cosmos-sdk/types"
 )
 
 // Accessor represents the behaviors necessary for a user to
@@ -19,7 +17,7 @@ type Accessor interface {
 	Balance(ctx context.Context) (*Balance, error)
 	// BalanceForAddress retrieves the Celestia coin balance
 	// for the given types.AccAddress.
-	BalanceForAddress(ctx context.Context, addr types.AccAddress) (*Balance, error)
+	BalanceForAddress(ctx context.Context, addr Address) (*Balance, error)
 	// SubmitTx submits the given transaction/message to the
 	// Celestia network and blocks until the tx is included in
 	// a block.

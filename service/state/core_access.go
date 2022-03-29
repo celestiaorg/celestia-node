@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/cosmos/cosmos-sdk/types"
 	sdk_tx "github.com/cosmos/cosmos-sdk/types/tx"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"google.golang.org/grpc"
@@ -71,7 +70,7 @@ func (ca *CoreAccessor) Balance(ctx context.Context) (*Balance, error) {
 	return ca.BalanceForAddress(ctx, ca.signer.GetSignerInfo().GetAddress())
 }
 
-func (ca *CoreAccessor) BalanceForAddress(ctx context.Context, addr types.AccAddress) (*Balance, error) {
+func (ca *CoreAccessor) BalanceForAddress(ctx context.Context, addr Address) (*Balance, error) {
 	req := &banktypes.QueryBalanceRequest{
 		Address: addr.String(),
 		Denom:   app.DisplayDenom,
