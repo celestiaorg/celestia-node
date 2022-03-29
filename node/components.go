@@ -27,23 +27,6 @@ func lightComponents(cfg *Config, store Store) fxutil.Option {
 		fxutil.Provide(services.DASer),
 		fxutil.Provide(services.HeaderExchangeP2P(cfg.Services)),
 		fxutil.Provide(services.LightAvailability),
-		// state components
-		fxutil.ProvideIf(cfg.Core.Remote, state.NewService),
-		fxutil.ProvideIf(cfg.Core.Remote, func(lc fx.Lifecycle) (state.Accessor, error) {
-			ks, err := store.Keystore()
-			if err != nil {
-				return nil, err
-			}
-			ca, err := statecomponents.CoreAccessor(ks, cfg.Core.RemoteConfig.RemoteAddr)
-			if err != nil {
-				return nil, err
-			}
-			lc.Append(fx.Hook{
-				OnStart: ca.Start,
-				OnStop:  ca.Stop,
-			})
-			return ca, nil
-		}),
 	)
 }
 
@@ -65,21 +48,6 @@ func fullComponents(cfg *Config, store Store) fxutil.Option {
 		fxutil.Provide(services.DASer),
 		fxutil.Provide(services.HeaderExchangeP2P(cfg.Services)),
 		fxutil.Provide(services.FullAvailability),
-		fxutil.ProvideIf(cfg.Core.Remote, func(lc fx.Lifecycle) (state.Accessor, error) {
-			ks, err := store.Keystore()
-			if err != nil {
-				return nil, err
-			}
-			ca, err := statecomponents.CoreAccessor(ks, cfg.Core.RemoteConfig.RemoteAddr)
-			if err != nil {
-				return nil, err
-			}
-			lc.Append(fx.Hook{
-				OnStart: ca.Start,
-				OnStop:  ca.Stop,
-			})
-			return ca, nil
-		}),
 	)
 }
 
@@ -101,6 +69,23 @@ func baseComponents(cfg *Config, store Store) fxutil.Option {
 		fxutil.Provide(services.HeaderP2PExchangeServer),
 		fxutil.Invoke(invokeWatchdog(store.Path())),
 		p2p.Components(cfg.P2P),
+		// state components
+		fxutil.ProvideIf(cfg.Core.Remote, state.NewService),
+		fxutil.ProvideIf(cfg.Core.Remote, func(lc fx.Lifecycle) (state.Accessor, error) {
+			ks, err := store.Keystore()
+			if err != nil {
+				return nil, err
+			}
+			ca, err := statecomponents.CoreAccessor(ks, cfg.Core.RemoteConfig.RemoteAddr)
+			if err != nil {
+				return nil, err
+			}
+			lc.Append(fx.Hook{
+				OnStart: ca.Start,
+				OnStop:  ca.Stop,
+			})
+			return ca, nil
+		}),
 	)
 }
 
