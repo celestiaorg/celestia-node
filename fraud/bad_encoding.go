@@ -2,13 +2,9 @@ package fraud
 
 import (
 	"bytes"
-	"crypto/sha256"
 	"errors"
 	"fmt"
 
-	"github.com/tendermint/tendermint/pkg/wrapper"
-
-	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/rsmt2d"
 
 	pb "github.com/celestiaorg/celestia-node/fraud/pb"
@@ -33,27 +29,33 @@ func CreateBadEncodingFraudProof(
 	eds *rsmt2d.ExtendedDataSquare,
 	errShares [][]byte,
 ) (Proof, error) {
-	var tree *nmt.NamespacedMerkleTree
+	var tree ErasuredNamespacedMerkleTree
+	fmt.Println(len(errShares))
 	shares := make([]*Share, len(errShares))
+	//OUTER:
 	for index, share := range errShares {
 		if share != nil {
-			tree = nmt.New(sha256.New())
+			tree = NewErasuredNamespacedMerkleTree(uint64(len(errShares) * 2))
 			data := eds.Row(uint(index))
 			if isRow {
 				data = eds.Col(uint(index))
 			}
 
-			for _, value := range data {
-				if err := tree.Push(value); err != nil {
-					break
+			for i, value := range data {
+				tree.Push(value, rsmt2d.SquareIndex{Axis: 0, Cell: uint(i)})
+				if tree.Err != nil {
+					fmt.Println(tree.Err)
+					//continue OUTER
 				}
 			}
 
-			proof, err := tree.Prove(index)
+			proof, err := tree.InclusionProof(uint8(0))
 			if err != nil {
 				return nil, err
 			}
 			shares[index] = &Share{errShares[index], proof}
+			fmt.Println(shares[index].Validate(eds.ColRoots()[index]))
+			fmt.Println(bytes.Equal(eds.ColRoots()[index], tree.Root()))
 		}
 	}
 
@@ -112,13 +114,14 @@ func (p *BadEncodingProof) Validate(header *header.ExtendedHeader) error {
 		}
 	}
 
-	// rebuilt a row/col
+	// // rebuilt a row/col
 	codec := rsmt2d.NewRSGF8Codec()
 	rebuiltShares, err := codec.Encode(shares)
 	if err != nil {
 		return err
 	}
-	tree := wrapper.NewErasuredNamespacedMerkleTree(uint64(len(rebuiltShares)))
+
+	tree := NewErasuredNamespacedMerkleTree(uint64(len(rebuiltShares)))
 	for i, share := range rebuiltShares {
 		tree.Push(share, rsmt2d.SquareIndex{Axis: 0, Cell: uint(i)})
 	}

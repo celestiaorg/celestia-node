@@ -2,11 +2,11 @@ package fraud
 
 import (
 	"errors"
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 	"github.com/tendermint/tendermint/pkg/da"
-	"github.com/tendermint/tendermint/pkg/wrapper"
 
 	"github.com/celestiaorg/celestia-node/ipld"
 	"github.com/celestiaorg/celestia-node/service/header"
@@ -15,21 +15,17 @@ import (
 
 func TestFraudProof(t *testing.T) {
 	eds := ipld.GenerateRandEDS(t, 2)
-	shares := ipld.ExtractODSShares(eds)
 
-	tree := wrapper.NewErasuredNamespacedMerkleTree(uint64(2))
+	tree := NewErasuredNamespacedMerkleTree(uint64(eds.Width() * 2))
+	shares := flatten(eds)
+
 	copy(shares[0][8:], shares[1][8:])
 	eds1, _ := rsmt2d.ImportExtendedDataSquare(shares, rsmt2d.NewRSGF8Codec(), tree.Constructor)
-	dataSquare := make([][]byte, 16)
-	dataSquare[0] = shares[0]
-	dataSquare[1] = shares[1]
-	dataSquare[4] = shares[2]
-	dataSquare[5] = shares[3]
 
 	newEds, err := rsmt2d.RepairExtendedDataSquare(
 		eds1.RowRoots(),
 		eds1.ColRoots(),
-		dataSquare,
+		shares,
 		rsmt2d.NewRSGF8Codec(),
 		tree.Constructor,
 	)
@@ -38,7 +34,6 @@ func TestFraudProof(t *testing.T) {
 	require.True(t, errors.As(err, &errRow))
 
 	errStruct := err.(*rsmt2d.ErrByzantineRow)
-
 	p, err := CreateBadEncodingFraudProof(1, uint8(errStruct.RowNumber), true, newEds, errStruct.Shares)
 	require.NoError(t, err)
 
@@ -48,4 +43,18 @@ func TestFraudProof(t *testing.T) {
 	err = p.Validate(h)
 	require.NoError(t, err)
 
+}
+
+func flatten(eds *rsmt2d.ExtendedDataSquare) [][]byte {
+	flattenedEDSSize := eds.Width() * eds.Width()
+	out := make([][]byte, flattenedEDSSize)
+	count := 0
+	for i := uint(0); i < eds.Width(); i++ {
+		for _, share := range eds.Row(i) {
+			out[count] = share
+			count++
+		}
+	}
+	fmt.Println(flattenedEDSSize)
+	return out
 }
