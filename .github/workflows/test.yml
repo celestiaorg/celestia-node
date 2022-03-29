@@ -19,8 +19,13 @@ jobs:
         uses: actions/setup-go@v2
         with:
           go-version: ${{ matrix.go }}
-      - name: Tests
-        run: make test-unit
+      - name: Test & Coverage
+        run: |
+          go install github.com/ory/go-acc@v0.2.6
+          go-acc -o coverage.txt `go list ./... | grep -v node/tests` -- -v
+      - uses: codecov/codecov-action@v2.1.0
+        with:
+          file: ./coverage.txt
       - name: Tests with Race Detector
         run: make test-unit-race
   integration_test:
@@ -36,6 +41,11 @@ jobs:
         with:
           go-version: ${{ matrix.go }}
       - name: Swamp Tests
-        run: make test-swamp
+        run: |
+          go install github.com/ory/go-acc@v0.2.6
+          go-acc -o coverage.txt ./node/tests -- -v
+        - uses: codecov/codecov-action@v2.1.0
+          with:
+            file: ./coverage.txt
       - name: Swamp Tests with Race Detector
         run: make test-swamp-race
