@@ -2,7 +2,6 @@ package header
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
 	format "github.com/ipfs/go-ipld-format"
@@ -71,6 +70,12 @@ func (cl *CoreListener) listen(ctx context.Context, sub <-chan *types.Block) {
 				return
 			}
 
+			syncing, err := cl.fetcher.IsSyncing(ctx)
+			if err != nil {
+				log.Errorw("core-listener: getting sync state", "err", err)
+				return
+			}
+
 			comm, vals, err := cl.fetcher.GetBlockInfo(ctx, &b.Height)
 			if err != nil {
 				log.Errorw("core-listener: getting block info", "err", err)
@@ -83,16 +88,11 @@ func (cl *CoreListener) listen(ctx context.Context, sub <-chan *types.Block) {
 				return
 			}
 
-			// broadcast new ExtendedHeader
-			err = cl.bcast.Broadcast(ctx, eh)
+			// broadcast new ExtendedHeader, but if core is still syncing, notify only local subscribers
+			err = cl.bcast.Broadcast(ctx, eh, pubsub.WithLocalPublication(syncing))
 			if err != nil {
-				var pserr pubsub.ValidationError
-				// TODO(@Wondertan): Log ValidationIgnore cases as well, once headr duplication issue is fixed
-				if errors.As(err, &pserr) && pserr.Reason != pubsub.RejectValidationIgnored {
-					log.Errorw("core-listener: broadcasting next header", "height", eh.Height,
-						"err", err)
-					return
-				}
+				log.Errorw("core-listener: broadcasting next header", "height", eh.Height,
+					"err", err)
 			}
 		case <-ctx.Done():
 			return

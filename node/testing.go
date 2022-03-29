@@ -20,3 +20,10 @@ func MockStore(t *testing.T, cfg *Config) Store {
 	require.NoError(t, err)
 	return store
 }
+
+func TestNode(t *testing.T, tp Type, opts ...Option) *Node {
+	store := MockStore(t, DefaultConfig(tp))
+	nd, err := New(tp, store, opts...)
+	require.NoError(t, err)
+	return nd
+}

@@ -38,7 +38,7 @@ type Subscription interface {
 
 // Broadcaster broadcasts an ExtendedHeader to the network.
 type Broadcaster interface {
-	Broadcast(ctx context.Context, header *ExtendedHeader) error
+	Broadcast(ctx context.Context, header *ExtendedHeader, opts ...pubsub.PubOpt) error
 }
 
 // Exchange encompasses the behavior necessary to request ExtendedHeaders

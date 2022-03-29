@@ -49,6 +49,7 @@ func (hs *heightSub) Sub(ctx context.Context, height uint64) (*ExtendedHeader, e
 		// This is a rare case we have to account for.
 		// The lock above can park a goroutine long enough for hs.height to change for a requested height,
 		// leaving the request never fulfilled and the goroutine deadlocked.
+		hs.heightReqsLk.Unlock()
 		return nil, errElapsedHeight
 	}
 	resp := make(chan *ExtendedHeader, 1)

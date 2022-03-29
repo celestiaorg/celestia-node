@@ -9,6 +9,8 @@ import (
 	"github.com/libp2p/go-libp2p-core/peerstore"
 	"github.com/libp2p/go-libp2p-peerstore/pstoremem"
 	"github.com/libp2p/go-libp2p/p2p/net/conngater"
+
+	"github.com/celestiaorg/celestia-node/params"
 )
 
 // ConnManagerConfig configures connection manager.
@@ -35,11 +37,7 @@ func ConnectionManager(cfg Config) func() (coreconnmgr.ConnManager, error) {
 		if err != nil {
 			return nil, err
 		}
-
-		bpeers, err := cfg.bootstrapPeers()
-		if err != nil {
-			return nil, err
-		}
+		bpeers := params.BootstrappersInfos()
 
 		cm := connmgr.NewConnManager(cfg.ConnManager.Low, cfg.ConnManager.High, cfg.ConnManager.GracePeriod)
 		for _, info := range fpeers {

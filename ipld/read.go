@@ -2,12 +2,11 @@ package ipld
 
 import (
 	"context"
-	"errors"
-	"fmt"
 	"math/rand"
 
 	"github.com/ipfs/go-cid"
 	ipld "github.com/ipfs/go-ipld-format"
+	"golang.org/x/sync/errgroup"
 
 	"github.com/tendermint/tendermint/pkg/da"
 	"github.com/tendermint/tendermint/pkg/wrapper"
@@ -18,190 +17,173 @@ import (
 	"github.com/celestiaorg/rsmt2d"
 )
 
-var ErrRetrieveTimeout = errors.New("retrieve data timeout")
-
 // RetrieveData asynchronously fetches block data using the minimum number
 // of requests to IPFS. It fails if one of the random samples sampled is not available.
 func RetrieveData(
-	ctx context.Context,
+	parentCtx context.Context,
 	dah *da.DataAvailabilityHeader,
-	dag ipld.NodeGetter,
+	dag ipld.DAGService,
 	codec rsmt2d.Codec,
 ) (*rsmt2d.ExtendedDataSquare, error) {
 	edsWidth := len(dah.RowsRoots)
-	sc := newshareCounter(ctx, uint32(edsWidth))
-	// convert the row and col roots into Cids
 	rowRoots := dah.RowsRoots
-	colRoots := dah.ColumnRoots
-	// sample 1/4 of the total extended square by sampling half of the leaves in
-	// half of the rows.
-	// Sampling is done randomly here in an effort to increase
-	// resilience when the downloading node is also serving the shares back to
-	// the network. // TODO @renaynay: this should probably eventually change to
-	// just downloading the first half.
-	for _, row := range uniqueRandNumbers(edsWidth/2, edsWidth) {
-		for _, col := range uniqueRandNumbers(edsWidth/2, edsWidth) {
-			rootCid, err := plugin.CidFromNamespacedSha256(rowRoots[row])
-			if err != nil {
-				return nil, err
-			}
+	dataSquare := make([][]byte, edsWidth*edsWidth)
 
-			go sc.retrieveShare(rootCid, true, row, col, dag)
-		}
-	}
-	// wait until enough data has been collected, too many errors encountered,
-	// or the timeout is reached
-	err := sc.wait()
+	quadrant, err := pickRandomQuadrant(rowRoots)
 	if err != nil {
 		return nil, err
 	}
-	// flatten the square
-	flattened := sc.flatten()
-	// repair the square
-	tree := wrapper.NewErasuredNamespacedMerkleTree(uint64(edsWidth) / 2)
-	return rsmt2d.RepairExtendedDataSquare(rowRoots, colRoots, flattened, codec, tree.Constructor)
+	errGroup, ctx := errgroup.WithContext(parentCtx)
+	errGroup.Go(func() error {
+		return fillQuadrant(ctx, quadrant, dag, dataSquare)
+	})
+	if err := errGroup.Wait(); err != nil {
+		return nil, err
+	}
+	batchAdder := NewNmtNodeAdder(parentCtx, ipld.NewBatch(parentCtx, dag, ipld.MaxSizeBatchOption(batchSize(edsWidth))))
+	tree := wrapper.NewErasuredNamespacedMerkleTree(uint64(edsWidth)/2, nmt.NodeVisitor(batchAdder.Visit))
+	extended, err := rsmt2d.RepairExtendedDataSquare(dah.RowsRoots, dah.ColumnRoots, dataSquare, codec, tree.Constructor)
+	if err != nil {
+		return nil, err
+	}
+
+	return extended, batchAdder.Commit()
 }
 
-// uniqueRandNumbers generates count unique random numbers with a max of max
-func uniqueRandNumbers(count, max int) []uint32 {
-	if count > max {
-		panic(fmt.Sprintf("cannot create %d unique samples from a max of %d", count, max))
+type quadrant struct {
+	isLeftSubtree bool
+	from          int
+	to            int
+	rootCids      []cid.Cid
+}
+
+func pickRandomQuadrant(roots [][]byte) (*quadrant, error) {
+	edsWidth := len(roots)
+	// get the random number from 1 to 4.
+	q := rand.Intn(4) + 1 //nolint:gosec
+	quadrant := &quadrant{rootCids: make([]cid.Cid, edsWidth/2)}
+	// quadrants 1 and 3 corresponds to left subtree,
+	// 2 and 4 to the right subtree
+	/*
+		| 1 | 2 |
+		| 3 | 4 |
+	*/
+	// choose subtree
+	if q%2 == 1 {
+		quadrant.isLeftSubtree = true
 	}
-	samples := make(map[uint32]struct{}, count)
-	for i := 0; i < count; {
-		// nolint:gosec // G404: Use of weak random number generator
-		sample := uint32(rand.Intn(max))
-		if _, has := samples[sample]; has {
-			continue
+
+	// define range of shares for sampling
+	if q > 2 {
+		quadrant.from = edsWidth / 2
+		quadrant.to = edsWidth
+	} else {
+		quadrant.to = edsWidth / 2
+	}
+
+	var err error
+	for index, counter := quadrant.from, 0; index < quadrant.to; index++ {
+		quadrant.rootCids[counter], err = plugin.CidFromNamespacedSha256(roots[index])
+		if err != nil {
+			return nil, err
 		}
-		samples[sample] = struct{}{}
-		i++
-	}
-	out := make([]uint32, count)
-	counter := 0
-	for s := range samples {
-		out[counter] = s
 		counter++
 	}
-	return out
+	return quadrant, nil
 }
 
-type index struct {
-	row uint32
-	col uint32
-}
-
-type indexedShare struct {
-	data []byte
-	index
-}
-
-// shareCounter is a thread safe tallying mechanism for share retrieval
-type shareCounter struct {
-	// all shares
-	shares map[index][]byte
-	// number of shares successfully collected
-	counter uint32
-	// the width of the extended data square
-	edsWidth uint32
-	// the minimum shares needed to repair the extended data square
-	minSharesNeeded uint32
-
-	shareChan chan indexedShare
-	ctx       context.Context
-	cancel    context.CancelFunc
-	// any errors encountered when attempting to retrieve shares
-	errc chan error
-}
-
-func newshareCounter(parentCtx context.Context, edsWidth uint32) *shareCounter {
-	ctx, cancel := context.WithCancel(parentCtx)
-
-	// calculate the min number of shares needed to repair the square
-	minSharesNeeded := edsWidth * edsWidth / 4
-
-	return &shareCounter{
-		shares:          make(map[index][]byte),
-		edsWidth:        edsWidth,
-		minSharesNeeded: minSharesNeeded,
-		shareChan:       make(chan indexedShare, 512),
-		errc:            make(chan error, 1),
-		ctx:             ctx,
-		cancel:          cancel,
-	}
-}
-
-// retrieveLeaf uses GetLeafData to fetch a single leaf and counts that leaf
-func (sc *shareCounter) retrieveShare(
-	rootCid cid.Cid,
-	isRow bool,
-	axisIdx uint32,
-	idx uint32,
+// fillQuadrant fetches 1/4 of shares for the given root
+func fillQuadrant(
+	ctx context.Context,
+	quadrant *quadrant,
 	dag ipld.NodeGetter,
-) {
-	data, err := GetLeafData(sc.ctx, rootCid, idx, sc.edsWidth, dag)
-	if err != nil {
-		select {
-		case <-sc.ctx.Done():
-		case sc.errc <- err:
-		}
-	}
+	dataSquare [][]byte,
+) error {
+	errGroup, ctx := errgroup.WithContext(ctx)
+	for i := 0; i < len(quadrant.rootCids); i++ {
+		i := i
+		errGroup.Go(func() error {
+			leaves, err := getSubtreeLeaves(
+				ctx,
+				quadrant.rootCids[i],
+				dag,
+				quadrant.isLeftSubtree,
+				uint32(len(quadrant.rootCids)/2),
+			)
+			if err != nil {
+				return err
+			}
+			quadrantWidth := len(quadrant.rootCids)
+			for leafIdx, leaf := range leaves {
+				// shares from the right subtree should be
+				// inserted after all shares from the left subtree
+				if !quadrant.isLeftSubtree {
+					leafIdx += len(leaves)
+				}
+				shareData := leaf.RawData()[1:]
+				// dataSquare represents a single dimensional slice
+				// of 4 quadrants. The representation of quadrants in dataSquare will be
+				// | 1 | | 2 | | 3 | | 4 |
+				// position is calculated by offsetting the index to respective quadrant
+				position := ((i + quadrant.from) * quadrantWidth * 2) + leafIdx
+				dataSquare[position] = shareData[NamespaceSize:]
 
-	if len(data) < plugin.ShareSize {
-		return
-	}
-
-	// switch the row and col indexes if needed
-	rowIdx := idx
-	colIdx := axisIdx
-	if isRow {
-		rowIdx = axisIdx
-		colIdx = idx
-	}
-
-	select {
-	case <-sc.ctx.Done():
-	case sc.shareChan <- indexedShare{data: data[NamespaceSize:], index: index{row: rowIdx, col: colIdx}}:
-	}
-}
-
-// wait until enough data has been collected, the timeout has been reached, or
-// too many errors are encountered
-func (sc *shareCounter) wait() error {
-	defer sc.cancel()
-
-	for {
-		select {
-		case <-sc.ctx.Done():
-			err := sc.ctx.Err()
-			if err == context.DeadlineExceeded {
-				return ErrRetrieveTimeout
 			}
 			return err
-		case share := <-sc.shareChan:
-			_, has := sc.shares[share.index]
-			// add iff it does not already exists
-			if !has {
-				sc.shares[share.index] = share.data
-				sc.counter++
-				// check finishing condition
-				if sc.counter >= sc.minSharesNeeded {
-					return nil
-				}
-			}
-
-		case err := <-sc.errc:
-			return fmt.Errorf("failure to retrieve data square: %w", err)
-		}
+		})
 	}
+	return errGroup.Wait()
 }
 
-func (sc *shareCounter) flatten() [][]byte {
-	flattended := make([][]byte, sc.edsWidth*sc.edsWidth)
-	for index, data := range sc.shares {
-		flattended[(index.row*sc.edsWidth)+index.col] = data
+// getSubtreeLeaves returns only one subtree - left or right
+func getSubtreeLeaves(
+	ctx context.Context,
+	root cid.Cid,
+	dag ipld.NodeGetter,
+	isLeftSubtree bool,
+	treeSize uint32,
+) ([]ipld.Node, error) {
+	nd, err := dag.Get(ctx, root)
+	if err != nil {
+		return nil, err
 	}
-	return flattended
+	links := nd.Links()
+	subtreeRootHash := links[0].Cid
+	if !isLeftSubtree && len(links) > 1 {
+		subtreeRootHash = links[1].Cid
+	}
+
+	return getLeaves(ctx, dag, subtreeRootHash, make([]ipld.Node, 0, treeSize))
+}
+
+// getLeaves recursively starts going down to find all leafs from the given root
+func getLeaves(ctx context.Context, dag ipld.NodeGetter, root cid.Cid, leaves []ipld.Node) ([]ipld.Node, error) {
+	// request the node
+	nd, err := dag.Get(ctx, root)
+	if err != nil {
+		return nil, err
+	}
+
+	// look for links
+	lnks := nd.Links()
+	if len(lnks) == 1 {
+		// in case there is only one we reached tree's bottom, so finally request the leaf.
+		nd, err = dag.Get(ctx, lnks[0].Cid)
+		if err != nil {
+			return nil, err
+		}
+
+		return append(leaves, nd), nil
+	}
+
+	for _, node := range lnks {
+		// recursively walk down through selected children to get the leaves
+		leaves, err = getLeaves(ctx, dag, node.Cid, leaves)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return leaves, nil
 }
 
 // GetLeafData fetches and returns the data for leaf leafIndex of root rootCid.

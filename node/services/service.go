@@ -14,7 +14,6 @@ import (
 
 	"github.com/celestiaorg/celestia-node/das"
 	"github.com/celestiaorg/celestia-node/node/fxutil"
-	"github.com/celestiaorg/celestia-node/service/block"
 	"github.com/celestiaorg/celestia-node/service/header"
 	"github.com/celestiaorg/celestia-node/service/share"
 )
@@ -116,19 +115,6 @@ func HeaderStoreInit(cfg *Config) func(context.Context, header.Store, header.Exc
 	}
 }
 
-// BlockService constructs new block.Service.
-func BlockService(
-	lc fx.Lifecycle,
-	store ipld.DAGService,
-) *block.Service {
-	service := block.NewBlockService(store)
-	lc.Append(fx.Hook{
-		OnStart: service.Start,
-		OnStop:  service.Stop,
-	})
-	return service
-}
-
 // ShareService constructs new share.Service.
 func ShareService(lc fx.Lifecycle, dag ipld.DAGService, avail share.Availability) share.Service {
 	service := share.NewService(dag, avail)
@@ -140,8 +126,14 @@ func ShareService(lc fx.Lifecycle, dag ipld.DAGService, avail share.Availability
 }
 
 // DASer constructs a new Data Availability Sampler.
-func DASer(lc fx.Lifecycle, avail share.Availability, sub header.Subscriber) *das.DASer {
-	das := das.NewDASer(avail, sub)
+func DASer(
+	lc fx.Lifecycle,
+	avail share.Availability,
+	sub header.Subscriber,
+	hstore header.Store,
+	ds datastore.Batching,
+) *das.DASer {
+	das := das.NewDASer(avail, sub, hstore, ds)
 	lc.Append(fx.Hook{
 		OnStart: das.Start,
 		OnStop:  das.Stop,
@@ -154,6 +146,6 @@ func LightAvailability(ctx context.Context, lc fx.Lifecycle, dag ipld.DAGService
 	return share.NewLightAvailability(merkledag.NewSession(fxutil.WithLifecycle(ctx, lc), dag))
 }
 
-func FullAvailability(ctx context.Context, lc fx.Lifecycle, dag ipld.DAGService) share.Availability {
-	return share.NewFullAvailability(merkledag.NewSession(fxutil.WithLifecycle(ctx, lc), dag))
+func FullAvailability(dag ipld.DAGService) share.Availability {
+	return share.NewFullAvailability(dag)
 }

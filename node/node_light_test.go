@@ -11,25 +11,17 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestNewLight(t *testing.T) {
-	store := MockStore(t, DefaultConfig(Light))
-	nd, err := New(Light, store, nil)
-	require.NoError(t, err)
-	require.NotNil(t, nd)
-	require.NotNil(t, nd.Config)
-	require.NotNil(t, nd.HeaderServ)
-	assert.NotZero(t, nd.Type)
-}
-
-func TestLightLifecycle(t *testing.T) {
-	store := MockStore(t, DefaultConfig(Light))
-	nd, err := New(Light, store, nil)
-	require.NoError(t, err)
+func TestNewLightAndLifecycle(t *testing.T) {
+	node := TestNode(t, Light)
+	require.NotNil(t, node)
+	require.NotNil(t, node.Config)
+	require.NotNil(t, node.HeaderServ)
+	assert.NotZero(t, node.Type)
 
 	startCtx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	err = nd.Start(startCtx)
+	err := node.Start(startCtx)
 	require.NoError(t, err)
 
 	stopCtx, stopCtxCancel := context.WithCancel(context.Background())
@@ -38,53 +30,29 @@ func TestLightLifecycle(t *testing.T) {
 		stopCtxCancel()
 	})
 
-	err = nd.Stop(stopCtx)
+	err = node.Stop(stopCtx)
 	require.NoError(t, err)
 }
 
 func TestNewLightWithP2PKey(t *testing.T) {
 	key, _, err := crypto.GenerateEd25519Key(rand.Reader)
 	require.NoError(t, err)
-
-	repo := MockStore(t, DefaultConfig(Light))
-	node, err := New(Light, repo, nil, WithP2PKey(key))
-	require.NoError(t, err)
+	node := TestNode(t, Light, WithP2PKey(key))
 	assert.True(t, node.Host.ID().MatchesPrivateKey(key))
 }
 
 func TestNewLightWithHost(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	t.Cleanup(cancel)
-
-	nw, _ := mocknet.WithNPeers(ctx, 1)
-	repo := MockStore(t, DefaultConfig(Light))
-	node, err := New(Light, repo, nil, WithHost(nw.Host(nw.Peers()[0])))
-	require.NoError(t, err)
+	nw, _ := mocknet.WithNPeers(context.Background(), 1)
+	node := TestNode(t, Light, WithHost(nw.Host(nw.Peers()[0])))
 	assert.Equal(t, node.Host.ID(), nw.Peers()[0])
 }
 
 func TestLight_WithMutualPeers(t *testing.T) {
-	repo := MockStore(t, DefaultConfig(Light))
 	peers := []string{
 		"/ip6/100:0:114b:abc5:e13a:c32f:7a9e:f00a/tcp/2121/p2p/12D3KooWSRqDfpLsQxpyUhLC9oXHD2WuZ2y5FWzDri7LT4Dw9fSi",
 		"/ip4/192.168.1.10/tcp/2121/p2p/12D3KooWSRqDfpLsQxpyUhLC9oXHD2WuZ2y5FWzDri7LT4Dw9fSi",
 	}
-	node, err := New(Light, repo, nil, WithMutualPeers(peers))
-	require.NoError(t, err)
+	node := TestNode(t, Light, WithMutualPeers(peers))
 	require.NotNil(t, node)
-
 	assert.Equal(t, node.Config.P2P.MutualPeers, peers)
-}
-
-func TestLight_WithBootstrapPeers(t *testing.T) {
-	repo := MockStore(t, DefaultConfig(Light))
-	peers := []string{
-		"/ip6/100:0:114b:abc5:e13a:c32f:7a9e:f00a/tcp/2121/p2p/12D3KooWSRqDfpLsQxpyUhLC9oXHD2WuZ2y5FWzDri7LT4Dw9fSi",
-		"/ip4/192.168.1.10/tcp/2121/p2p/12D3KooWSRqDfpLsQxpyUhLC9oXHD2WuZ2y5FWzDri7LT4Dw9fSi",
-	}
-	node, err := New(Light, repo, nil, WithBootstrapPeers(peers))
-	require.NoError(t, err)
-	require.NotNil(t, node)
-
-	assert.Equal(t, node.Config.P2P.BootstrapPeers, peers)
 }

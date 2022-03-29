@@ -1,5 +1,30 @@
 package params
 
+import (
+	"github.com/libp2p/go-libp2p-core/peer"
+	ma "github.com/multiformats/go-multiaddr"
+)
+
+// BootstrappersInfos returns address information of bootstrap peers for the node's current network.
+func BootstrappersInfos() []peer.AddrInfo {
+	bs := Bootstrappers()
+	maddrs := make([]ma.Multiaddr, len(bs))
+	for i, addr := range bs {
+		maddr, err := ma.NewMultiaddr(addr)
+		if err != nil {
+			panic(err)
+		}
+		maddrs[i] = maddr
+	}
+
+	infos, err := peer.AddrInfosFromP2pAddrs(maddrs...)
+	if err != nil {
+		panic(err)
+	}
+
+	return infos
+}
+
 // Bootstrappers reports multiaddresses of bootstrap peers for the node's current network.
 func Bootstrappers() []string {
 	return bootstrapList[network] // network is guaranteed to be valid

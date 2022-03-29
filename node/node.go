@@ -20,7 +20,6 @@ import (
 	"github.com/celestiaorg/celestia-node/das"
 	"github.com/celestiaorg/celestia-node/node/fxutil"
 	"github.com/celestiaorg/celestia-node/node/rpc"
-	"github.com/celestiaorg/celestia-node/service/block"
 	"github.com/celestiaorg/celestia-node/service/header"
 	"github.com/celestiaorg/celestia-node/service/share"
 )
@@ -52,9 +51,7 @@ type Node struct {
 	DataExchange exchange.Interface
 	DAG          format.DAGService
 	// p2p protocols
-	PubSub *pubsub.PubSub
-	// BlockService provides access to the node's Block Service
-	BlockServ  *block.Service  `optional:"true"`
+	PubSub     *pubsub.PubSub
 	ShareServ  share.Service   // not optional
 	HeaderServ *header.Service // not optional
 

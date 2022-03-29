@@ -21,8 +21,6 @@ type Config struct {
 	// TODO(@Wondertan): This should be a build-time parameter. See https://github.com/celestiaorg/celestia-node/issues/63
 	// Bootstrapper is flag telling this node is a bootstrapper.
 	Bootstrapper bool
-	// BootstrapPeers is a list of network specific peers that help with network bootstrapping.
-	BootstrapPeers []string
 	// MutualPeers are peers which have a bidirectional peering agreement with the configured node.
 	// Connections with those peers are protected from being trimmed, dropped or negatively scored.
 	// NOTE: Any two peers must bidirectionally configure each other on their MutualPeers field.
@@ -47,11 +45,10 @@ func DefaultConfig() Config {
 			"/ip4/127.0.0.1/tcp/2121",
 			"/ip6/::/tcp/2121",
 		},
-		BootstrapPeers: []string{},
-		MutualPeers:    []string{},
-		Bootstrapper:   false,
-		PeerExchange:   false,
-		ConnManager:    DefaultConnManagerConfig(),
+		MutualPeers:  []string{},
+		Bootstrapper: false,
+		PeerExchange: false,
+		ConnManager:  DefaultConnManagerConfig(),
 	}
 }
 
@@ -73,18 +70,6 @@ func Components(cfg Config) fxutil.Option {
 		fxutil.Provide(AddrsFactory(cfg.AnnounceAddresses, cfg.NoAnnounceAddresses)),
 		fxutil.Invoke(Listen(cfg.ListenAddresses)),
 	)
-}
-
-func (cfg *Config) bootstrapPeers() (_ []peer.AddrInfo, err error) {
-	maddrs := make([]ma.Multiaddr, len(cfg.BootstrapPeers))
-	for i, addr := range cfg.BootstrapPeers {
-		maddrs[i], err = ma.NewMultiaddr(addr)
-		if err != nil {
-			return nil, fmt.Errorf("failure to parse config.P2P.BootstrapPeers: %s", err)
-		}
-	}
-
-	return peer.AddrInfosFromP2pAddrs(maddrs...)
 }
 
 func (cfg *Config) mutualPeers() (_ []peer.AddrInfo, err error) {

@@ -18,10 +18,10 @@ func WithTrustedHash(hash string) Option {
 	}
 }
 
-// WithTrustedPeer appends TrustedPeer to the Config.
-func WithTrustedPeer(addr string) Option {
+// WithTrustedPeers appends new "trusted peers" to the Config.
+func WithTrustedPeers(addr ...string) Option {
 	return func(cfg *Config, _ *settings) (_ error) {
-		cfg.Services.TrustedPeers = append(cfg.Services.TrustedPeers, addr)
+		cfg.Services.TrustedPeers = append(cfg.Services.TrustedPeers, addr...)
 		return
 	}
 }
@@ -38,14 +38,6 @@ func WithConfig(custom *Config) Option {
 func WithMutualPeers(addrs []string) Option {
 	return func(cfg *Config, _ *settings) (_ error) {
 		cfg.P2P.MutualPeers = addrs
-		return nil
-	}
-}
-
-// WithBootstrapPeers sets the `BootstrapPeers` field in the config.
-func WithBootstrapPeers(addrs []string) Option {
-	return func(cfg *Config, _ *settings) (_ error) {
-		cfg.P2P.BootstrapPeers = addrs
 		return nil
 	}
 }
