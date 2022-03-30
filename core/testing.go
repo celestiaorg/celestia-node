@@ -31,14 +31,6 @@ func StartRemoteClient() (*node.Node, Client, error) {
 	return remote, client, err
 }
 
-// StartRemoteCore starts a remote core and returns its protocol and address
-func StartRemoteCore() (*node.Node, string, string) {
-	app := CreateKvStore(defaultRetainBlocks)
-	remote := StartMockNode(app)
-	protocol, ip := GetRemoteEndpoint(remote)
-	return remote, protocol, ip
-}
-
 // GetRemoteEndpoint returns the protocol and ip of the remote node.
 func GetRemoteEndpoint(remote *node.Node) (string, string) {
 	endpoint := remote.Config().RPC.ListenAddress

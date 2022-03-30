@@ -70,13 +70,13 @@ func baseComponents(cfg *Config, store Store) fxutil.Option {
 		fxutil.Invoke(invokeWatchdog(store.Path())),
 		p2p.Components(cfg.P2P),
 		// state components
-		fxutil.ProvideIf(cfg.Core.Remote, state.NewService),
-		fxutil.ProvideIf(cfg.Core.Remote, func(lc fx.Lifecycle) (state.Accessor, error) {
+		fxutil.ProvideIf(cfg.Core.RemoteAddr != "", state.NewService),
+		fxutil.ProvideIf(cfg.Core.RemoteAddr != "", func(lc fx.Lifecycle) (state.Accessor, error) {
 			ks, err := store.Keystore()
 			if err != nil {
 				return nil, err
 			}
-			ca, err := statecomponents.CoreAccessor(ks, cfg.Core.RemoteConfig.RemoteAddr, params.DefaultNetwork())
+			ca, err := statecomponents.CoreAccessor(ks, cfg.Core.RemoteAddr, params.DefaultNetwork())
 			if err != nil {
 				return nil, err
 			}
