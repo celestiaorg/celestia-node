@@ -2,11 +2,9 @@ package node
 
 import (
 	"context"
-	"testing"
-	"time"
-
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"testing"
 
 	"github.com/celestiaorg/celestia-node/params"
 
@@ -53,19 +51,4 @@ func TestBridge_WithMockedCoreClient(t *testing.T) {
 
 	err = node.Stop(ctx)
 	require.NoError(t, err)
-}
-
-func TestRene(t *testing.T) {
-	corenode, client, err := core.StartRemoteClient()
-	require.NoError(t, err)
-	t.Cleanup(func() {
-		client.Stop()   //nolint:errcheck
-		corenode.Stop() //nolint:errcheck
-	})
-	err = client.Start()
-	require.NoError(t, err)
-
-	t.Log(core.GetRemoteEndpoint(corenode))
-
-	time.Sleep(5 * time.Minute)
 }
