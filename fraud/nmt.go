@@ -75,15 +75,6 @@ func (w *ErasuredNamespacedMerkleTree) InclusionProof(index uint8) (nmt.Proof, e
 	return w.tree.Prove(int(index))
 }
 
-func (w *ErasuredNamespacedMerkleTree) PrepareData(idx rsmt2d.SquareIndex, data []byte) []byte {
-	nidAndData := make([]byte, consts.NamespaceSize+len(data))
-	copy(nidAndData[consts.NamespaceSize:], data)
-	// use the parity namespace if the cell is not in Q0 of the extended data square
-	if idx.Axis+1 > uint(w.squareSize) || idx.Cell+1 > uint(w.squareSize) {
-		copy(nidAndData[:consts.NamespaceSize], consts.ParitySharesNamespaceID)
-	} else {
-		copy(nidAndData[:consts.NamespaceSize], data[:consts.NamespaceSize])
-	}
-
-	return nidAndData
+func (w *ErasuredNamespacedMerkleTree) Tree() *nmt.NamespacedMerkleTree {
+	return w.tree
 }

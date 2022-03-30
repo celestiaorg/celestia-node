@@ -10,11 +10,11 @@ import (
 
 type Share struct {
 	Share []byte
-	Proof nmt.Proof
+	Proof *nmt.Proof
 }
 
 func (s *Share) Validate(root []byte) bool {
-	return s.Proof.VerifyInclusion(sha256.New(), s.Share[:ipld.NamespaceSize], s.Share[ipld.NamespaceSize:], root)
+	return s.Proof.VerifyInclusion(sha256.New(), s.Share[:ipld.NamespaceSize], s.Share, root)
 }
 
 func (s *Share) ShareToProto() *pb.Share {
