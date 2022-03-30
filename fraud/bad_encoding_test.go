@@ -37,6 +37,9 @@ func TestFraudProof(t *testing.T) {
 	require.True(t, errors.As(err, &errRow))
 
 	errStruct := err.(*rsmt2d.ErrByzantineRow)
+	fmt.Println(errStruct.Shares)
+	errStruct.Shares[1] = nil
+	errStruct.Shares[3] = nil
 	p, err := CreateBadEncodingFraudProof(1, uint8(errStruct.RowNumber), true, newEds, errStruct.Shares)
 	require.NoError(t, err)
 
