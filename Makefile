@@ -11,7 +11,7 @@ help: Makefile
 ## build: Build celestia-node binary.
 build:
 	@echo "--> Building Celestia"
-	@go build -ldflags ${LDFLAGS} ./cmd/celestia
+	@go build -o build/ -ldflags ${LDFLAGS} ./cmd/celestia
 .PHONY: build
 
 ## install: Build and install the celestia-node binary into the GOBIN directory.
