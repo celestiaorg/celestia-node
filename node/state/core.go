@@ -15,6 +15,7 @@ var keyringAccName = "default"
 func CoreAccessor(
 	ks keystore.Keystore,
 	coreEndpoint string,
+	net params.Network,
 ) (state.Accessor, error) {
 	// TODO @renaynay: Include option for setting custom `userInput` parameter with
 	//  implementation of https://github.com/celestiaorg/celestia-node/issues/415.
@@ -22,7 +23,7 @@ func CoreAccessor(
 	if err != nil {
 		return nil, err
 	}
-	signer := apptypes.NewKeyringSigner(ring, keyringAccName, string(params.GetNetwork()))
+	signer := apptypes.NewKeyringSigner(ring, keyringAccName, string(net))
 
 	return state.NewCoreAccessor(signer, coreEndpoint), nil
 }

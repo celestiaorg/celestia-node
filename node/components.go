@@ -76,7 +76,7 @@ func baseComponents(cfg *Config, store Store) fxutil.Option {
 			if err != nil {
 				return nil, err
 			}
-			ca, err := statecomponents.CoreAccessor(ks, cfg.Core.RemoteConfig.RemoteAddr)
+			ca, err := statecomponents.CoreAccessor(ks, cfg.Core.RemoteConfig.RemoteAddr, params.DefaultNetwork())
 			if err != nil {
 				return nil, err
 			}

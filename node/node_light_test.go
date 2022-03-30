@@ -5,11 +5,12 @@ import (
 	"crypto/rand"
 	"testing"
 
-	"github.com/celestiaorg/celestia-node/params"
 	"github.com/libp2p/go-libp2p-core/crypto"
 	mocknet "github.com/libp2p/go-libp2p/p2p/net/mock"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/celestiaorg/celestia-node/params"
 )
 
 func TestNewLightAndLifecycle(t *testing.T) {
