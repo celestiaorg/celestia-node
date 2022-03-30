@@ -17,12 +17,18 @@ func init() {
 			cmdnode.P2PFlags(),
 			cmdnode.HeadersFlags(),
 			cmdnode.MiscFlags(),
+			// NOTE: for now, state-related queries can only be accessed
+			// over an RPC connection with a celestia-core node.
+			cmdnode.CoreFlags(),
 		),
 		cmdnode.Start(
 			cmdnode.NodeFlags(node.Light),
 			cmdnode.P2PFlags(),
 			cmdnode.HeadersFlags(),
 			cmdnode.MiscFlags(),
+			// NOTE: for now, state-related queries can only be accessed
+			// over an RPC connection with a celestia-core node.
+			cmdnode.CoreFlags(),
 		),
 	)
 }
@@ -54,6 +60,11 @@ var lightCmd = &cobra.Command{
 		}
 
 		err = cmdnode.ParseMiscFlags(cmd)
+		if err != nil {
+			return err
+		}
+
+		err = cmdnode.ParseCoreFlags(cmd, env)
 		if err != nil {
 			return err
 		}

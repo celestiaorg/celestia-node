@@ -31,6 +31,9 @@ type Keystore interface {
 
 	// List lists all stored key names.
 	List() ([]KeyName, error)
+
+	// Path reports the path of the Keystore.
+	Path() string
 }
 
 // KeyNameFromBase32 decodes KeyName from Base32 format.

@@ -53,20 +53,21 @@ func MockEmbeddedClient() Client {
 // mock Core Client.
 func StartRemoteClient() (*node.Node, Client, error) {
 	remote := StartMockNode(CreateKvStore(defaultRetainBlocks))
-	protocol, ip := getRemoteEndpoint(remote)
+	protocol, ip := GetRemoteEndpoint(remote)
 	client, err := NewRemote(protocol, ip)
 	return remote, client, err
 }
 
-// StartRemoteCore starts a remote core and returns it's protocol and address
+// StartRemoteCore starts a remote core and returns its protocol and address
 func StartRemoteCore() (*node.Node, string, string) {
-	remote := StartMockNode(CreateKvStore(defaultRetainBlocks))
-	protocol, ip := getRemoteEndpoint(remote)
+	app := CreateKvStore(defaultRetainBlocks)
+	remote := StartMockNode(app)
+	protocol, ip := GetRemoteEndpoint(remote)
 	return remote, protocol, ip
 }
 
-// getRemoteEndpoint returns the protocol and ip of the remote node.
-func getRemoteEndpoint(remote *node.Node) (string, string) {
+// GetRemoteEndpoint returns the protocol and ip of the remote node.
+func GetRemoteEndpoint(remote *node.Node) (string, string) {
 	endpoint := remote.Config().RPC.ListenAddress
 	// protocol = "tcp"
 	protocol, ip := endpoint[:3], endpoint[6:]

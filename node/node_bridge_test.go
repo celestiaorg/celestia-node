@@ -4,10 +4,10 @@ import (
 	"context"
 	"testing"
 
-	"github.com/celestiaorg/celestia-node/core"
-
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/celestiaorg/celestia-node/core"
 )
 
 func TestNewBridgeAndLifecycle(t *testing.T) {
