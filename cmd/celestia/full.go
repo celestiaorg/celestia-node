@@ -34,8 +34,15 @@ func init() {
 }
 
 var fullCmd = &cobra.Command{
-	Use:               "full [subcommand]",
-	Args:              cobra.NoArgs,
-	Short:             "Manage your Full node",
-	PersistentPreRunE: parseFlags,
+	Use:   "full [subcommand]",
+	Args:  cobra.NoArgs,
+	Short: "Manage your Full node",
+	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+		env, err := cmdnode.GetEnv(cmd.Context())
+		if err != nil {
+			return err
+		}
+		env.SetNodeType(node.Full)
+		return parseFlags(cmd, args)
+	},
 }

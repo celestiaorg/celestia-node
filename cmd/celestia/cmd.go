@@ -4,7 +4,6 @@ import (
 	"github.com/spf13/cobra"
 
 	cmdnode "github.com/celestiaorg/celestia-node/cmd"
-	"github.com/celestiaorg/celestia-node/node"
 )
 
 func parseFlags(cmd *cobra.Command, args []string) error {
@@ -12,7 +11,6 @@ func parseFlags(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	env.SetNodeType(node.Bridge)
 
 	err = cmdnode.ParseNodeFlags(cmd, env)
 	if err != nil {
