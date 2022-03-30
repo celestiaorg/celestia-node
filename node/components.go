@@ -71,8 +71,8 @@ func baseComponents(cfg *Config, store Store) fxutil.Option {
 		fxutil.Invoke(invokeWatchdog(store.Path())),
 		p2p.Components(cfg.P2P),
 		// state components
-		fxutil.ProvideIf(cfg.Core.RemoteAddr != "", state.NewService),
-		fxutil.ProvideIf(cfg.Core.RemoteAddr != "", statecomponents.CoreAccessor(cfg.Core.RemoteAddr)),
+		fxutil.Provide(state.NewService),
+		fxutil.Provide(statecomponents.CoreAccessor(cfg.Core.RemoteAddr)),
 	)
 }
 

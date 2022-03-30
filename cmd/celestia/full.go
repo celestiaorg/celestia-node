@@ -17,47 +17,25 @@ func init() {
 			cmdnode.P2PFlags(),
 			cmdnode.HeadersFlags(),
 			cmdnode.MiscFlags(),
+			// NOTE: for now, state-related queries can only be accessed
+			// over an RPC connection with a celestia-core node.
+			cmdnode.CoreFlags(),
 		),
 		cmdnode.Start(
 			cmdnode.NodeFlags(node.Full),
 			cmdnode.P2PFlags(),
 			cmdnode.HeadersFlags(),
 			cmdnode.MiscFlags(),
+			// NOTE: for now, state-related queries can only be accessed
+			// over an RPC connection with a celestia-core node.
+			cmdnode.CoreFlags(),
 		),
 	)
 }
 
 var fullCmd = &cobra.Command{
-	Use:   "full [subcommand]",
-	Args:  cobra.NoArgs,
-	Short: "Manage your Full node",
-	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-		env, err := cmdnode.GetEnv(cmd.Context())
-		if err != nil {
-			return err
-		}
-		env.SetNodeType(node.Full)
-
-		err = cmdnode.ParseNodeFlags(cmd, env)
-		if err != nil {
-			return err
-		}
-
-		err = cmdnode.ParseP2PFlags(cmd, env)
-		if err != nil {
-			return err
-		}
-
-		err = cmdnode.ParseHeadersFlags(cmd, env)
-		if err != nil {
-			return err
-		}
-
-		err = cmdnode.ParseMiscFlags(cmd)
-		if err != nil {
-			return err
-		}
-
-		return nil
-	},
+	Use:               "full [subcommand]",
+	Args:              cobra.NoArgs,
+	Short:             "Manage your Full node",
+	PersistentPreRunE: parseFlags,
 }

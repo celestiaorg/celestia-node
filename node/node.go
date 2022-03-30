@@ -57,7 +57,7 @@ type Node struct {
 	PubSub     *pubsub.PubSub
 	ShareServ  share.Service   // not optional
 	HeaderServ *header.Service // not optional
-	StateServ  *state.Service  `optional:"true"`
+	StateServ  *state.Service  // not optional
 
 	DASer *das.DASer `optional:"true"`
 
