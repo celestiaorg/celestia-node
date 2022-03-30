@@ -13,7 +13,7 @@ func TestRepoBridge(t *testing.T) {
 	_, err := OpenStore(dir, Bridge)
 	assert.ErrorIs(t, err, ErrNotInited)
 
-	err = Init(dir, Bridge)
+	err = Init(dir, Bridge, nil)
 	require.NoError(t, err)
 
 	store, err := OpenStore(dir, Bridge)
@@ -45,7 +45,7 @@ func TestRepoLight(t *testing.T) {
 	_, err := OpenStore(dir, Light)
 	assert.ErrorIs(t, err, ErrNotInited)
 
-	err = Init(dir, Light)
+	err = Init(dir, Light, nil)
 	require.NoError(t, err)
 
 	store, err := OpenStore(dir, Light)

@@ -68,6 +68,13 @@ func Init(path string, tp Type, options ...Option) error {
 		log.Infow("Config already exists", "path", cfgPath)
 	}
 
+	for _, plug := range sets.Plugins {
+		err = plug.Initialize(path)
+		if err != nil {
+			return err
+		}
+	}
+
 	// TODO(@Wondertan): This is a lazy hack which prevents Core Store to be generated for all case, and generates
 	//  only for a Bridge Node with embedded Core Node. Ideally, we should a have global map Node Type/Mode -> Custom
 	//  Init Func, so Init would run initialization for specific Mode/Type.

@@ -59,6 +59,10 @@ type Node struct {
 
 	DASer *das.DASer `optional:"true"`
 
+	// RootPlugin serves as an arbitrary type that is used to collect the return
+	// values of plugins
+	RootPlugin
+
 	// start and stop control ref internal fx.App lifecycle funcs to be called from Start and Stop
 	start, stop lifecycleFunc
 }
@@ -82,11 +86,11 @@ func New(tp Type, store Store, options ...Option) (*Node, error) {
 
 	switch tp {
 	case Bridge:
-		return newNode(bridgeComponents(cfg, store), s.overrides())
+		return newNode(bridgeComponents(cfg, store), s.plugins(cfg, store), s.overrides())
 	case Light:
-		return newNode(lightComponents(cfg, store), s.overrides())
+		return newNode(lightComponents(cfg, store), s.plugins(cfg, store), s.overrides())
 	case Full:
-		return newNode(fullComponents(cfg, store), s.overrides())
+		return newNode(fullComponents(cfg, store), s.plugins(cfg, store), s.overrides())
 	default:
 		panic("node: unknown Node Type")
 	}

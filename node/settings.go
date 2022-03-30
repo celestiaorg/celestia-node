@@ -68,12 +68,21 @@ func WithCoreClient(client core.Client) Option {
 	}
 }
 
+// WithPlugins adds the provided plugins to the settings
+func WithPlugins(plugins ...Plugin) Option {
+	return func(c *Config, s *settings) error {
+		s.Plugins = plugins
+		return nil
+	}
+}
+
 // settings store all the non Config values that can be altered for Node with Options.
 type settings struct {
 	Network    params.Network
 	P2PKey     crypto.PrivKey
 	Host       p2p.HostBase
 	CoreClient core.Client
+	Plugins    []Plugin
 }
 
 // overrides collects all the custom Modules and Components set to be overridden for the Node.
@@ -85,4 +94,18 @@ func (sets *settings) overrides() fxutil.Option {
 		&sets.Host,
 		&sets.CoreClient,
 	)
+}
+
+// plugins collects and returns the fx components
+func (sets *settings) plugins(cfg *Config, store Store) fxutil.Option {
+	totalPlugins := len(sets.Plugins) + 1
+	pluginComponents := make([]fxutil.Option, totalPlugins)
+
+	for i, plug := range sets.Plugins {
+		pluginComponents[i] = plug.Components(cfg, store)
+	}
+
+	pluginComponents[len(pluginComponents)-1] = collectComponents()
+
+	return fxutil.Options(pluginComponents...)
 }

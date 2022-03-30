@@ -8,7 +8,7 @@ import (
 )
 
 // Init constructs a CLI command to initialize Celestia Node of any type with the given flags.
-func Init(fsets ...*flag.FlagSet) *cobra.Command {
+func Init(plugs []node.Plugin, fsets ...*flag.FlagSet) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "init",
 		Short: "Initialization for Celestia Node. Passed flags have persisted effect.",
@@ -18,6 +18,8 @@ func Init(fsets ...*flag.FlagSet) *cobra.Command {
 			if err != nil {
 				return err
 			}
+
+			env.opts = append(env.opts, node.WithPlugins(plugs...))
 
 			return node.Init(env.StorePath, env.NodeType, env.Options()...)
 		},
