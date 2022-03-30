@@ -5,7 +5,6 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/celestiaorg/celestia-node/core"
 	"github.com/celestiaorg/celestia-node/libs/fslock"
 	"github.com/celestiaorg/celestia-node/libs/utils"
 )
@@ -68,41 +67,22 @@ func Init(path string, tp Type, options ...Option) error {
 		log.Infow("Config already exists", "path", cfgPath)
 	}
 
-	// TODO(@Wondertan): This is a lazy hack which prevents Core Store to be generated for all case, and generates
-	//  only for a Bridge Node with embedded Core Node. Ideally, we should a have global map Node Type/Mode -> Custom
-	//  Init Func, so Init would run initialization for specific Mode/Type.
-	if !cfg.Core.Remote && tp == Bridge {
-		corePath := corePath(path)
-		err = initDir(corePath)
-		if err != nil {
-			return err
-		}
-
-		return core.Init(corePath)
-	}
-
 	log.Info("Node Store initialized")
 	return nil
 }
 
 // IsInit checks whether FileSystem Store was setup under given 'path'.
 // If any required file/subdirectory does not exist, then false is reported.
-func IsInit(path string, tp Type) bool {
+func IsInit(path string) bool {
 	path, err := storePath(path)
 	if err != nil {
 		log.Errorw("parsing store path", "path", path, "err", err)
 		return false
 	}
 
-	cfg, err := LoadConfig(configPath(path)) // load the Config and implicitly check for its existence
+	_, err = LoadConfig(configPath(path)) // load the Config and implicitly check for its existence
 	if err != nil {
 		log.Errorw("loading config", "path", path, "err", err)
-		return false
-	}
-
-	// TODO(@Wondertan): this is undesirable hack related to the TODO above.
-	//  They should be resolved together.
-	if !cfg.Core.Remote && tp == Bridge && !core.IsInit(corePath(path)) {
 		return false
 	}
 

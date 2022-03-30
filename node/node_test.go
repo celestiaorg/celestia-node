@@ -11,8 +11,9 @@ import (
 
 func Test_StateServiceConstruction(t *testing.T) {
 	for _, tp := range []Type{Bridge, Full, Light} {
-		nd, protocol, ip := core.StartRemoteCore()
-		node := TestNode(t, tp, WithRemoteCore(protocol, ip))
+		nd, _, err := core.StartRemoteClient()
+		require.NoError(t, err)
+		node := TestNode(t, tp, WithRemoteCore(core.GetRemoteEndpoint(nd)))
 		// check to ensure node's state service is not nil
 		require.NotNil(t, node.StateServ)
 		// stop the node

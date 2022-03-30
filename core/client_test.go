@@ -7,46 +7,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestEmbeddedClientLifecycle(t *testing.T) {
-	client := MockEmbeddedClient()
-	require.NoError(t, client.Stop())
-}
-
-func TestEmbeddedClient_Status(t *testing.T) {
-	client := MockEmbeddedClient()
-
-	ctx, cancel := context.WithCancel(context.Background())
-	t.Cleanup(cancel)
-
-	status, err := client.Status(ctx)
-	require.NoError(t, err)
-	require.NotNil(t, status)
-
-	require.NoError(t, client.Stop())
-}
-
-func TestEmbeddedClient_StartBlockSubscription_And_GetBlock(t *testing.T) {
-	client := MockEmbeddedClient()
-
-	ctx, cancel := context.WithCancel(context.Background())
-	t.Cleanup(cancel)
-
-	eventChan, err := client.Subscribe(ctx, newBlockSubscriber, newBlockEventQuery)
-	require.NoError(t, err)
-
-	for i := 1; i <= 3; i++ {
-		<-eventChan
-		// check that `Block` works as intended (passing nil to get block at latest height)
-		block, err := client.Block(ctx, nil)
-		require.NoError(t, err)
-		require.Equal(t, int64(i), block.Block.Height)
-	}
-
-	// unsubscribe to event channel
-	require.NoError(t, client.Unsubscribe(ctx, newBlockSubscriber, newBlockEventQuery))
-	require.NoError(t, client.Stop())
-}
-
 func TestRemoteClientLifecycle(t *testing.T) {
 	remote, client, err := StartRemoteClient()
 	require.NoError(t, err)

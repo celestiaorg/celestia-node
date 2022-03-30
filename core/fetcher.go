@@ -4,13 +4,17 @@ import (
 	"context"
 	"fmt"
 
+	logging "github.com/ipfs/go-log/v2"
 	tmbytes "github.com/tendermint/tendermint/libs/bytes"
 	"github.com/tendermint/tendermint/types"
 )
 
 const newBlockSubscriber = "NewBlock/Events"
 
-var newBlockEventQuery = types.QueryForEvent(types.EventNewBlock).String()
+var (
+	log                = logging.Logger("core/fetcher")
+	newBlockEventQuery = types.QueryForEvent(types.EventNewBlock).String()
+)
 
 type BlockFetcher struct {
 	client Client

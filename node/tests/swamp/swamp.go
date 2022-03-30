@@ -56,10 +56,17 @@ func NewSwamp(t *testing.T, ic *Components) *Swamp {
 	tn, err := newTendermintCoreNode(ic)
 	require.NoError(t, err)
 
+	protocol, ip := core.GetRemoteEndpoint(tn)
+	remote, err := core.NewRemote(protocol, ip)
+	require.NoError(t, err)
+
+	err = remote.Start()
+	require.NoError(t, err)
+
 	swp := &Swamp{
 		t:          t,
 		Network:    mocknet.New(ctx),
-		CoreClient: core.NewEmbeddedFromNode(tn),
+		CoreClient: remote,
 	}
 
 	swp.trustedHash, err = swp.getTrustedHash(ctx)
@@ -67,6 +74,8 @@ func NewSwamp(t *testing.T, ic *Components) *Swamp {
 
 	swp.t.Cleanup(func() {
 		swp.stopAllNodes(ctx, swp.BridgeNodes, swp.FullNodes, swp.LightNodes)
+		remote.Stop() //nolint:errcheck
+		tn.Stop()     // nolint:errcheck
 	})
 
 	return swp

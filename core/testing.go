@@ -1,39 +1,17 @@
 package core
 
 import (
-	"os"
-	"testing"
-
 	"github.com/tendermint/tendermint/abci/example/kvstore"
 	"github.com/tendermint/tendermint/abci/types"
-	"github.com/tendermint/tendermint/config"
 	"github.com/tendermint/tendermint/node"
 	rpctest "github.com/tendermint/tendermint/rpc/test"
 )
 
 const defaultRetainBlocks int64 = 10
 
-// MockConfig provides a testing configuration for embedded Core Client.
-func MockConfig(t *testing.T) *Config {
-	cfg := config.ResetTestRoot(t.Name())
-	t.Cleanup(func() {
-		os.RemoveAll(cfg.RootDir)
-	})
-	return cfg
-}
-
 // StartMockNode starts a mock Core node background process and returns it.
 func StartMockNode(app types.Application) *node.Node {
 	return rpctest.StartTendermint(app, rpctest.SuppressStdout, rpctest.RecreateConfig)
-}
-
-func EphemeralMockEmbeddedClient(t *testing.T) Client {
-	nd := StartMockNode(CreateKvStore(defaultRetainBlocks))
-	t.Cleanup(func() {
-		nd.Stop() //nolint:errcheck
-		rpctest.StopTendermint(nd)
-	})
-	return NewEmbeddedFromNode(nd)
 }
 
 // CreateKvStore creates a simple kv store app and gives the user
@@ -44,11 +22,6 @@ func CreateKvStore(retainBlocks int64) *kvstore.Application {
 	return app
 }
 
-// MockEmbeddedClient returns a started mock Core Client.
-func MockEmbeddedClient() Client {
-	return NewEmbeddedFromNode(StartMockNode(CreateKvStore(defaultRetainBlocks)))
-}
-
 // StartRemoteClient returns a started remote Core node process, as well its
 // mock Core Client.
 func StartRemoteClient() (*node.Node, Client, error) {
@@ -56,14 +29,6 @@ func StartRemoteClient() (*node.Node, Client, error) {
 	protocol, ip := GetRemoteEndpoint(remote)
 	client, err := NewRemote(protocol, ip)
 	return remote, client, err
-}
-
-// StartRemoteCore starts a remote core and returns its protocol and address
-func StartRemoteCore() (*node.Node, string, string) {
-	app := CreateKvStore(defaultRetainBlocks)
-	remote := StartMockNode(app)
-	protocol, ip := GetRemoteEndpoint(remote)
-	return remote, protocol, ip
 }
 
 // GetRemoteEndpoint returns the protocol and ip of the remote node.
