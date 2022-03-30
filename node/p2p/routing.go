@@ -25,10 +25,15 @@ func ContentRouting() routing.ContentRouting {
 // Basically, this provides a way to discover peer addresses by respecting public keys.
 func PeerRouting(cfg Config) func(routingParams) (routing.PeerRouting, error) {
 	return func(params routingParams) (routing.PeerRouting, error) {
+		bpeers, err := nparams.BootstrappersInfosFor(params.Net)
+		if err != nil {
+			return nil, err
+		}
+
 		opts := []dht.Option{
 			dht.Mode(dht.ModeAuto),
-			dht.BootstrapPeers(nparams.BootstrappersInfos()...),
-			dht.ProtocolPrefix(protocol.ID(fmt.Sprintf("/celestia/%s", nparams.GetNetwork()))),
+			dht.BootstrapPeers(bpeers...),
+			dht.ProtocolPrefix(protocol.ID(fmt.Sprintf("/celestia/%s", params.Net))),
 			dht.Datastore(params.DataStore),
 			dht.QueryFilter(dht.PublicQueryFilter),
 			dht.RoutingTableFilter(dht.PublicRoutingTableFilter),
@@ -66,6 +71,7 @@ type routingParams struct {
 	fx.In
 
 	Ctx       context.Context
+	Net       nparams.Network
 	Lc        fx.Lifecycle
 	Host      HostBase
 	DataStore datastore.Batching

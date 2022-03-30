@@ -9,6 +9,8 @@ import (
 	"github.com/raulk/go-watchdog"
 	"go.uber.org/fx"
 
+	"github.com/celestiaorg/celestia-node/params"
+
 	nodecore "github.com/celestiaorg/celestia-node/node/core"
 	"github.com/celestiaorg/celestia-node/node/fxutil"
 	"github.com/celestiaorg/celestia-node/node/p2p"
@@ -51,6 +53,7 @@ func fullComponents(cfg *Config, store Store) fxutil.Option {
 // baseComponents keeps all the common components shared between different Node types.
 func baseComponents(cfg *Config, store Store) fxutil.Option {
 	return fxutil.Options(
+		fxutil.Supply(params.DefaultNetwork()),
 		fxutil.Provide(context.Background),
 		fxutil.Supply(cfg),
 		fxutil.Supply(store.Config),
