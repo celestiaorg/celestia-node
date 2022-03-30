@@ -1,6 +1,7 @@
 package core
 
 import (
+	"context"
 	"fmt"
 
 	format "github.com/ipfs/go-ipld-format"
@@ -28,7 +29,7 @@ func Components(cfg Config) fxutil.Option {
 		fxutil.Provide(core.NewBlockFetcher),
 		fxutil.ProvideAs(header.NewCoreExchange, new(header.Exchange)),
 		fxutil.Invoke(HeaderCoreListener),
-		fxutil.Provide(func() (core.Client, error) {
+		fxutil.Provide(func(lc fx.Lifecycle) (core.Client, error) {
 			if cfg.RemoteAddr == "" {
 				return nil, fmt.Errorf("no celestia-core endpoint given")
 			}
@@ -36,7 +37,15 @@ func Components(cfg Config) fxutil.Option {
 			if err != nil {
 				return nil, err
 			}
-			err = client.Start()
+			lc.Append(fx.Hook{
+				OnStart: func(context.Context) error {
+					return client.Start()
+				},
+				OnStop: func(context.Context) error {
+					return client.Stop()
+				},
+			})
+
 			return client, err
 		}),
 	)
