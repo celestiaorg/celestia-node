@@ -3,6 +3,7 @@ package header
 import (
 	"bytes"
 	"context"
+	"os"
 	"testing"
 
 	mdutils "github.com/ipfs/go-merkledag/test"
@@ -13,6 +14,11 @@ import (
 )
 
 func TestCoreExchange_RequestHeaders(t *testing.T) {
+	// Issue: https://github.com/celestiaorg/celestia-node/issues/584
+	if os.Getenv("SKIP_CI") != "" {
+		t.Skip("Skipping this flaky test in CI Env")
+	}
+
 	fetcher := createCoreFetcher(t)
 	store := mdutils.Mock()
 
