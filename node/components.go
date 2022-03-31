@@ -13,10 +13,13 @@ import (
 	"github.com/celestiaorg/celestia-node/node/fxutil"
 	"github.com/celestiaorg/celestia-node/node/p2p"
 	"github.com/celestiaorg/celestia-node/node/services"
+	statecomponents "github.com/celestiaorg/celestia-node/node/state"
+	"github.com/celestiaorg/celestia-node/params"
 	"github.com/celestiaorg/celestia-node/service/header"
+	"github.com/celestiaorg/celestia-node/service/state"
 )
 
-// lightComponents keeps all the components as DI options required to built a Light Node.
+// lightComponents keeps all the components as DI options required to build a Light Node.
 func lightComponents(cfg *Config, store Store) fxutil.Option {
 	return fxutil.Options(
 		fxutil.Supply(Light),
@@ -32,7 +35,7 @@ func bridgeComponents(cfg *Config, store Store) fxutil.Option {
 	return fxutil.Options(
 		fxutil.Supply(Bridge),
 		baseComponents(cfg, store),
-		nodecore.Components(cfg.Core, store.Core),
+		nodecore.Components(cfg.Core),
 		fxutil.Provide(services.LightAvailability), // TODO(@Wondertan): Remove strict requirements to have Availability
 	)
 }
@@ -51,6 +54,7 @@ func fullComponents(cfg *Config, store Store) fxutil.Option {
 // baseComponents keeps all the common components shared between different Node types.
 func baseComponents(cfg *Config, store Store) fxutil.Option {
 	return fxutil.Options(
+		fxutil.Supply(params.DefaultNetwork()),
 		fxutil.Provide(context.Background),
 		fxutil.Supply(cfg),
 		fxutil.Supply(store.Config),
@@ -65,6 +69,23 @@ func baseComponents(cfg *Config, store Store) fxutil.Option {
 		fxutil.Provide(services.HeaderP2PExchangeServer),
 		fxutil.Invoke(invokeWatchdog(store.Path())),
 		p2p.Components(cfg.P2P),
+		// state components
+		fxutil.ProvideIf(cfg.Core.RemoteAddr != "", state.NewService),
+		fxutil.ProvideIf(cfg.Core.RemoteAddr != "", func(lc fx.Lifecycle) (state.Accessor, error) {
+			ks, err := store.Keystore()
+			if err != nil {
+				return nil, err
+			}
+			ca, err := statecomponents.CoreAccessor(ks, cfg.Core.RemoteAddr, params.DefaultNetwork())
+			if err != nil {
+				return nil, err
+			}
+			lc.Append(fx.Hook{
+				OnStart: ca.Start,
+				OnStop:  ca.Stop,
+			})
+			return ca, nil
+		}),
 	)
 }
 

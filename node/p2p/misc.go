@@ -31,13 +31,17 @@ func DefaultConnManagerConfig() ConnManagerConfig {
 }
 
 // ConnectionManager provides a constructor for ConnectionManager.
-func ConnectionManager(cfg Config) func() (coreconnmgr.ConnManager, error) {
-	return func() (coreconnmgr.ConnManager, error) {
+func ConnectionManager(cfg Config) func(params.Network) (coreconnmgr.ConnManager, error) {
+	return func(net params.Network) (coreconnmgr.ConnManager, error) {
 		fpeers, err := cfg.mutualPeers()
 		if err != nil {
 			return nil, err
 		}
-		bpeers := params.BootstrappersInfos()
+
+		bpeers, err := params.BootstrappersInfosFor(net)
+		if err != nil {
+			return nil, err
+		}
 
 		cm := connmgr.NewConnManager(cfg.ConnManager.Low, cfg.ConnManager.High, cfg.ConnManager.GracePeriod)
 		for _, info := range fpeers {

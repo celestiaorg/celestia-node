@@ -62,8 +62,9 @@ func ParseTrustedPeerFlags(cmd *cobra.Command, env *Env) error {
 		if err != nil {
 			return fmt.Errorf("cmd: while parsing '%s' with peer addr '%s': %w", headersTrustedPeersFlag, tpeer, err)
 		}
-		env.AddOptions(node.WithTrustedPeer(tpeer))
 	}
+
+	env.AddOptions(node.WithTrustedPeers(tpeers...))
 
 	return nil
 }

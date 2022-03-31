@@ -6,6 +6,8 @@ import (
 	"github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/libp2p/go-libp2p-core/host"
 
+	"github.com/celestiaorg/celestia-node/params"
+
 	"github.com/celestiaorg/celestia-node/core"
 	"github.com/celestiaorg/celestia-node/node/fxutil"
 	"github.com/celestiaorg/celestia-node/node/p2p"
@@ -13,6 +15,15 @@ import (
 
 // Option for Node's Config.
 type Option func(*Config, *settings) error
+
+// WithNetwork specifies the Network to which the Node should connect to.
+// WARNING: Use this option with caution and never run the Node with different networks over the same persisted Store.
+func WithNetwork(net params.Network) Option {
+	return func(cfg *Config, sets *settings) error {
+		sets.Network = net
+		return nil
+	}
+}
 
 // WithP2PKey sets custom Ed25519 private key for p2p networking.
 func WithP2PKey(key crypto.PrivKey) Option {
@@ -59,6 +70,7 @@ func WithCoreClient(client core.Client) Option {
 
 // settings store all the non Config values that can be altered for Node with Options.
 type settings struct {
+	Network    params.Network
 	P2PKey     crypto.PrivKey
 	Host       p2p.HostBase
 	CoreClient core.Client
@@ -68,6 +80,7 @@ type settings struct {
 // TODO(@Bidon15): Pass settings instead of overrides func. Issue #300
 func (sets *settings) overrides() fxutil.Option {
 	return fxutil.OverrideSupply(
+		&sets.Network,
 		&sets.P2PKey,
 		&sets.Host,
 		&sets.CoreClient,

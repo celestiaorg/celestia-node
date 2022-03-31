@@ -9,6 +9,8 @@ import (
 	mocknet "github.com/libp2p/go-libp2p/p2p/net/mock"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/celestiaorg/celestia-node/params"
 )
 
 func TestNewLightAndLifecycle(t *testing.T) {
@@ -55,4 +57,10 @@ func TestLight_WithMutualPeers(t *testing.T) {
 	node := TestNode(t, Light, WithMutualPeers(peers))
 	require.NotNil(t, node)
 	assert.Equal(t, node.Config.P2P.MutualPeers, peers)
+}
+
+func TestLight_WithNetwork(t *testing.T) {
+	node := TestNode(t, Light, WithNetwork(params.DevNet))
+	require.NotNil(t, node)
+	assert.Equal(t, node.Network, params.DevNet)
 }

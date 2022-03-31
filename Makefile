@@ -48,7 +48,7 @@ lint:
 ## test-unit: Running unit tests
 test-unit:
 	@echo "--> Running unit tests"
-	@go test -v `go list ./... | grep -v node/tests`
+	@go test -v `go list ./... | grep -v node/tests` -covermode=atomic -coverprofile=coverage.out
 .PHONY: test-unit
 
 ## test-unit-race: Running unit tests with data race detector

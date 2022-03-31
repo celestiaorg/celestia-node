@@ -12,6 +12,8 @@ import (
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	"go.uber.org/fx"
 
+	"github.com/celestiaorg/celestia-node/params"
+
 	"github.com/celestiaorg/celestia-node/das"
 	"github.com/celestiaorg/celestia-node/node/fxutil"
 	"github.com/celestiaorg/celestia-node/service/header"
@@ -54,9 +56,9 @@ func HeaderService(
 }
 
 // HeaderExchangeP2P constructs new P2PExchange for headers.
-func HeaderExchangeP2P(cfg Config) func(host host.Host) (header.Exchange, error) {
-	return func(host host.Host) (header.Exchange, error) {
-		peers, err := cfg.trustedPeers()
+func HeaderExchangeP2P(cfg Config) func(params.Network, host.Host) (header.Exchange, error) {
+	return func(net params.Network, host host.Host) (header.Exchange, error) {
+		peers, err := cfg.trustedPeers(net)
 		if err != nil {
 			return nil, err
 		}
@@ -94,9 +96,9 @@ func HeaderStore(lc fx.Lifecycle, ds datastore.Batching) (header.Store, error) {
 }
 
 // HeaderStoreInit initializes the store.
-func HeaderStoreInit(cfg *Config) func(context.Context, header.Store, header.Exchange) error {
-	return func(ctx context.Context, store header.Store, ex header.Exchange) error {
-		trustedHash, err := cfg.trustedHash()
+func HeaderStoreInit(cfg *Config) func(context.Context, params.Network, header.Store, header.Exchange) error {
+	return func(ctx context.Context, net params.Network, store header.Store, ex header.Exchange) error {
+		trustedHash, err := cfg.trustedHash(net)
 		if err != nil {
 			return err
 		}

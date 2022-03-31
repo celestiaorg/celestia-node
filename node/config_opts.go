@@ -3,9 +3,8 @@ package node
 // WithRemoteCore configures Node to start with remote Core.
 func WithRemoteCore(protocol string, address string) Option {
 	return func(cfg *Config, _ *settings) (_ error) {
-		cfg.Core.Remote = true
-		cfg.Core.RemoteConfig.Protocol = protocol
-		cfg.Core.RemoteConfig.RemoteAddr = address
+		cfg.Core.Protocol = protocol
+		cfg.Core.RemoteAddr = address
 		return
 	}
 }
@@ -18,10 +17,10 @@ func WithTrustedHash(hash string) Option {
 	}
 }
 
-// WithTrustedPeer appends TrustedPeer to the Config.
-func WithTrustedPeer(addr string) Option {
+// WithTrustedPeers appends new "trusted peers" to the Config.
+func WithTrustedPeers(addr ...string) Option {
 	return func(cfg *Config, _ *settings) (_ error) {
-		cfg.Services.TrustedPeers = append(cfg.Services.TrustedPeers, addr)
+		cfg.Services.TrustedPeers = append(cfg.Services.TrustedPeers, addr...)
 		return
 	}
 }
