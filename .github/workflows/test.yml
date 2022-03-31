@@ -42,7 +42,7 @@ jobs:
         with:
           go-version: ${{ matrix.go }}
       - name: execute test run
-        run: make SKIP_CI=$SKIP_CI test-unit-race
+        run: make SKIP_CI=${{ env.SKIP_CI }} test-unit-race
   integration_test:
     name: Run Integration Tests
     runs-on: ubuntu-latest
