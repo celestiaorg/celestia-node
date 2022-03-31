@@ -35,15 +35,7 @@ func TestNewBridgeAndLifecycle(t *testing.T) {
 func TestBridge_WithMockedCoreClient(t *testing.T) {
 	repo := MockStore(t, DefaultConfig(Bridge))
 
-	corenode, client, err := core.StartRemoteClient()
-	require.NoError(t, err)
-	t.Cleanup(func() {
-		client.Stop()   //nolint:errcheck
-		corenode.Stop() //nolint:errcheck
-	})
-	err = client.Start()
-	require.NoError(t, err)
-
+	_, client := core.StartTestClient(t)
 	node, err := New(Bridge, repo, WithCoreClient(client))
 	require.NoError(t, err)
 	require.NotNil(t, node)
