@@ -33,6 +33,7 @@ func TestNewBridgeAndLifecycle(t *testing.T) {
 }
 
 func TestBridge_WithMockedCoreClient(t *testing.T) {
+	t.Skip("skipping") // consult https://github.com/celestiaorg/celestia-core/issues/667 for reasoning
 	repo := MockStore(t, DefaultConfig(Bridge))
 
 	_, client := core.StartTestClient(t)
