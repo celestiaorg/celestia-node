@@ -18,6 +18,7 @@ import (
 
 // TestCoreListener tests the lifecycle of the core listener.
 func TestCoreListener(t *testing.T) {
+	// Issue: https://github.com/celestiaorg/celestia-node/issues/579
 	if os.Getenv("SKIP_CI") != "" {
 		t.Skip("Skipping this flaky test in CI Env")
 	}
