@@ -10,6 +10,7 @@ import (
 	"go.uber.org/fx"
 
 	nodecore "github.com/celestiaorg/celestia-node/node/core"
+
 	"github.com/celestiaorg/celestia-node/node/fxutil"
 	"github.com/celestiaorg/celestia-node/node/p2p"
 	"github.com/celestiaorg/celestia-node/node/services"
@@ -71,21 +72,7 @@ func baseComponents(cfg *Config, store Store) fxutil.Option {
 		p2p.Components(cfg.P2P),
 		// state components
 		fxutil.ProvideIf(cfg.Core.RemoteAddr != "", state.NewService),
-		fxutil.ProvideIf(cfg.Core.RemoteAddr != "", func(lc fx.Lifecycle) (state.Accessor, error) {
-			ks, err := store.Keystore()
-			if err != nil {
-				return nil, err
-			}
-			ca, err := statecomponents.CoreAccessor(ks, cfg.Core.RemoteAddr, params.DefaultNetwork())
-			if err != nil {
-				return nil, err
-			}
-			lc.Append(fx.Hook{
-				OnStart: ca.Start,
-				OnStop:  ca.Stop,
-			})
-			return ca, nil
-		}),
+		fxutil.ProvideIf(cfg.Core.RemoteAddr != "", statecomponents.CoreAccessor(cfg.Core.RemoteAddr)),
 	)
 }
 
