@@ -54,7 +54,12 @@ test-unit:
 ## test-unit-race: Running unit tests with data race detector
 test-unit-race:
 	@echo "--> Running unit tests with data race detector"
+ifeq ($(SKIP_CI),TRUE)
+	@echo "--> Note: Some of the tests are skipped in CI comparing to local execution. Refer to issues section for more info"
+	@SKIP_CI=true go test -v -race `go list ./... | grep -v node/tests`
+else
 	@go test -v -race `go list ./... | grep -v node/tests`
+endif
 .PHONY: test-unit-race
 
 ## test-swamp: Running swamp tests located in node/tests

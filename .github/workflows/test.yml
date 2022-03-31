@@ -6,6 +6,9 @@ on:
       - main
   pull_request:
 
+env:
+  SKIP_CI: TRUE
+
 jobs:
   test_coverage:
     name: Unit Tests Coverage
@@ -39,7 +42,7 @@ jobs:
         with:
           go-version: ${{ matrix.go }}
       - name: execute test run
-        run: make test-unit-race
+        run: make SKIP_CI=$SKIP_CI test-unit-race
   integration_test:
     name: Run Integration Tests
     runs-on: ubuntu-latest

@@ -2,6 +2,7 @@ package header
 
 import (
 	"context"
+	"os"
 	"testing"
 	"time"
 
@@ -17,6 +18,9 @@ import (
 
 // TestCoreListener tests the lifecycle of the core listener.
 func TestCoreListener(t *testing.T) {
+	if os.Getenv("SKIP_CI") != "" {
+		t.Skip("Skipping this flaky test in CI Env")
+	}
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*15)
 	t.Cleanup(cancel)
 
