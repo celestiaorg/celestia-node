@@ -7,44 +7,22 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestRemoteClientLifecycle(t *testing.T) {
-	remote, client, err := StartRemoteClient()
-	require.NoError(t, err)
-
-	require.NoError(t, client.Start())
-	require.NoError(t, client.Stop())
-	require.NoError(t, remote.Stop())
-}
-
 func TestRemoteClient_Status(t *testing.T) {
-	remote, client, err := StartRemoteClient()
-	require.NoError(t, err)
+	_, client := StartTestClient(t)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
-
-	// client must be `started` before performing requests
-	err = client.Start()
-	require.NoError(t, err)
 
 	status, err := client.Status(ctx)
 	require.NoError(t, err)
 	require.NotNil(t, status)
-
-	require.NoError(t, client.Stop())
-	require.NoError(t, remote.Stop())
 }
 
 func TestRemoteClient_StartBlockSubscription_And_GetBlock(t *testing.T) {
-	remote, client, err := StartRemoteClient()
-	require.NoError(t, err)
+	_, client := StartTestClient(t)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
-
-	// client must be `started` before subscribing to new block events.
-	err = client.Start()
-	require.NoError(t, err)
 
 	eventChan, err := client.Subscribe(ctx, newBlockSubscriber, newBlockEventQuery)
 	require.NoError(t, err)
@@ -59,6 +37,4 @@ func TestRemoteClient_StartBlockSubscription_And_GetBlock(t *testing.T) {
 
 	// unsubscribe to event channel
 	require.NoError(t, client.Unsubscribe(ctx, newBlockSubscriber, newBlockEventQuery))
-	require.NoError(t, client.Stop())
-	require.NoError(t, remote.Stop())
 }
