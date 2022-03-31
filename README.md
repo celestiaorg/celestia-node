@@ -1,7 +1,7 @@
 # Celestia Node
 
 [![Go Reference](https://pkg.go.dev/badge/github.com/celestiaorg/celestia-node.svg)](https://pkg.go.dev/github.com/celestiaorg/celestia-node)
-![GitHub release (latest by date including pre-releases)](https://img.shields.io/github/v/release/celestiaorg/celestia-node)
+[![GitHub release (latest by date including pre-releases)](https://img.shields.io/github/v/release/celestiaorg/celestia-node)
 
 
 Golang implementation of Celestia's data availability node types (`light` | `full` | `bridge`).
