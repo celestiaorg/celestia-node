@@ -7,8 +7,8 @@ on:
   pull_request:
 
 jobs:
-  unit_test:
-    name: Run Unit Tests
+  test_coverage:
+    name: Unit Tests Coverage
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -19,9 +19,26 @@ jobs:
         uses: actions/setup-go@v2
         with:
           go-version: ${{ matrix.go }}
-      - name: Tests
-        run: make test-unit
-      - name: Tests with Race Detector
+      - name: Test & Coverage
+        run: |
+          go install github.com/ory/go-acc@v0.2.6
+          go-acc -o coverage.txt `go list ./... | grep -v node/tests` -- -v
+      - uses: codecov/codecov-action@v2.1.0
+        with:
+          file: ./coverage.txt
+  unit_race_test:
+    name: Run Unit Tests with Race Detector
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        go: ["1.17"]
+    steps:
+      - uses: actions/checkout@v3
+      - name: set up go
+        uses: actions/setup-go@v2
+        with:
+          go-version: ${{ matrix.go }}
+      - name: execute test run
         run: make test-unit-race
   integration_test:
     name: Run Integration Tests
