@@ -11,15 +11,7 @@ import (
 )
 
 func TestBlockFetcher_GetBlock_and_SubscribeNewBlockEvent(t *testing.T) {
-	nd, client, err := StartRemoteClient()
-	require.NoError(t, err)
-	t.Cleanup(func() {
-		client.Stop() //nolint:errcheck
-		nd.Stop()     //nolint:errcheck
-	})
-	err = client.Start()
-	require.NoError(t, err)
-
+	_, client := StartTestClient(t)
 	fetcher := NewBlockFetcher(client)
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -39,21 +31,12 @@ func TestBlockFetcher_GetBlock_and_SubscribeNewBlockEvent(t *testing.T) {
 	}
 
 	require.NoError(t, fetcher.UnsubscribeNewBlockEvent(ctx))
-	require.NoError(t, client.Stop())
 }
 
 // TestBlockFetcherHeaderValues tests that both the Commit and ValidatorSet
 // endpoints are working as intended.
 func TestBlockFetcherHeaderValues(t *testing.T) {
-	nd, client, err := StartRemoteClient()
-	require.NoError(t, err)
-	t.Cleanup(func() {
-		client.Stop() //nolint:errcheck
-		nd.Stop()     //nolint:errcheck
-	})
-	err = client.Start()
-	require.NoError(t, err)
-
+	_, client := StartTestClient(t)
 	fetcher := NewBlockFetcher(client)
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -83,5 +66,4 @@ func TestBlockFetcherHeaderValues(t *testing.T) {
 	assert.Equal(t, nextBlock.ValidatorsHash, hexBytes)
 
 	require.NoError(t, fetcher.UnsubscribeNewBlockEvent(ctx))
-	require.NoError(t, client.Stop())
 }

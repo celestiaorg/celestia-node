@@ -34,16 +34,7 @@ func Test_hashMatch(t *testing.T) {
 }
 
 func createCoreFetcher(t *testing.T) *core.BlockFetcher {
-	nd, client, err := core.StartRemoteClient()
-	require.NoError(t, err)
-	t.Cleanup(func() {
-		client.Stop() //nolint:errcheck
-		nd.Stop()     //nolint:errcheck
-	})
-
-	err = client.Start()
-	require.NoError(t, err)
-
+	_, client := core.StartTestClient(t)
 	return core.NewBlockFetcher(client)
 }
 

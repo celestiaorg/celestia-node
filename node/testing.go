@@ -18,16 +18,9 @@ func MockStore(t *testing.T, cfg *Config) Store {
 }
 
 func TestNode(t *testing.T, tp Type, opts ...Option) *Node {
-	remote, _, err := core.StartRemoteClient()
-	require.NoError(t, err)
-	t.Cleanup(func() {
-		remote.Stop() //nolint:errcheck
-	})
-
-	cfg := DefaultConfig(tp)
-	cfg.Core.Protocol, cfg.Core.RemoteAddr = core.GetRemoteEndpoint(remote)
-
-	store := MockStore(t, cfg)
+	node, _ := core.StartTestKVApp(t)
+	opts = append(opts, WithRemoteCore(core.GetEndpoint(node)))
+	store := MockStore(t, DefaultConfig(tp))
 	nd, err := New(tp, store, opts...)
 	require.NoError(t, err)
 	return nd

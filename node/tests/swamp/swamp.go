@@ -55,8 +55,7 @@ func NewSwamp(t *testing.T, ic *Components) *Swamp {
 
 	tn, err := newTendermintCoreNode(ic)
 	require.NoError(t, err)
-
-	protocol, ip := core.GetRemoteEndpoint(tn)
+	protocol, ip := core.GetEndpoint(tn)
 	remote, err := core.NewRemote(protocol, ip)
 	require.NoError(t, err)
 
