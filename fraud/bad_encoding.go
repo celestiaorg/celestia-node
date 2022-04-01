@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/celestiaorg/rsmt2d"
+	"github.com/tendermint/tendermint/pkg/consts"
 
 	pb "github.com/celestiaorg/celestia-node/fraud/pb"
 	"github.com/celestiaorg/celestia-node/service/header"
@@ -35,20 +36,34 @@ func CreateBadEncodingFraudProof(
 
 	for index, share := range errShares {
 		if share != nil {
-			tree = NewErasuredNamespacedMerkleTree(uint64(len(errShares)))
+			tree = NewErasuredNamespacedMerkleTree(uint64(len(errShares) / 2))
 			data = eds.Row(uint(index))
 			if isRow {
 				data = eds.Col(uint(index))
 			}
-			if err := buildTreeFromDataRoot(&tree, data); err != nil {
+			if err := buildTreeFromDataRoot(&tree, data, index); err != nil {
 				continue
 			}
 
-			proof, err := tree.InclusionProof(uint8(0))
+			proof, err := tree.InclusionProof(uint8(position))
 			if err != nil {
 				return nil, err
 			}
-			shares[index] = &Share{errShares[index], &proof}
+			/*
+				NamespaceID sholud be replaced with ParitySharesNamespaceID for
+				all shares except Q0(all erasure coded shares).
+				For EDS 4x4 Q0 is [[0;0],[0;1],[1:0],[1;1]].
+				x	x	x	x
+				x	x	x	x
+				x	x	x	x
+				x	x	x	x
+			*/
+			namespaceID := share[:consts.NamespaceSize]
+			if index >= len(errShares)/2 || int(position) >= len(errShares)/2 {
+				namespaceID = consts.ParitySharesNamespaceID
+			}
+
+			shares[index] = &Share{namespaceID, share, &proof}
 		}
 	}
 
@@ -87,34 +102,39 @@ func (p *BadEncodingProof) MarshalBinary() ([]byte, error) {
 }
 
 func (p *BadEncodingProof) Validate(header *header.ExtendedHeader) error {
-	if int(p.Position) >= len(header.DAH.RowsRoots) || int(p.Position) >= len(header.DAH.ColumnRoots) {
+	merkleRowRoots := header.DAH.RowsRoots
+	merkleColRoots := header.DAH.ColumnRoots
+	if int(p.Position) >= len(merkleRowRoots) || int(p.Position) >= len(merkleColRoots) {
 		return errors.New("invalid fraud proof: incorrect position of data square")
 	}
-	var rebuildNeeded bool
-	root := header.DAH.RowsRoots
-	if p.isRow {
-		root = header.DAH.ColumnRoots
+	if len(merkleRowRoots) != len(merkleColRoots) {
+		return errors.New("invalid fraud proof: invalid extended header")
+	}
+	if len(merkleRowRoots) != len(p.Shares) || len(p.Shares) != len(p.Shares) {
+		return errors.New("invalid fraud proof: invalid shares")
 	}
 
-	shares := make([][]byte, len(p.Shares))
-	fmt.Println(len(p.Shares))
+	var rebuildNeeded bool
+	roots := merkleRowRoots
+	if p.isRow {
+		roots = merkleColRoots
+	}
+
+	shares := make([][]byte, len(roots))
+
 	// verify that Merkle proofs correspond to particular shares
 	for index, share := range p.Shares {
 		if share == nil {
 			rebuildNeeded = true
 			continue
 		}
-		shares[index] = share.Share
-		if share.Proof == nil {
-			continue
-		}
-		if ok := share.Validate(root[index]); !ok {
+		shares[index] = share.Raw
+		if ok := share.Validate(roots[index]); !ok {
 			return fmt.Errorf("invalid fraud proof: incorrect share received at position %d", index)
 		}
 	}
 
 	if rebuildNeeded {
-		var err error
 		// rebuild a row/col
 		codec := rsmt2d.NewRSGF8Codec()
 		rebuildShares, err := codec.Decode(shares)
@@ -122,25 +142,27 @@ func (p *BadEncodingProof) Validate(header *header.ExtendedHeader) error {
 			return err
 		}
 		rebuiltExtendedShares, err := codec.Encode(rebuildShares)
+		if err != nil {
+			return err
+		}
 
-		rebuildShares = append(
+		shares = append(
 			rebuildShares,
 			rebuiltExtendedShares...,
 		)
 
-		shares = rebuildShares
-		fmt.Println(shares)
-	}
-	fmt.Println(shares)
-	tree := NewErasuredNamespacedMerkleTree(uint64(len(shares)))
-	for i, share := range shares {
-		tree.Push(share, rsmt2d.SquareIndex{Axis: 0, Cell: uint(i)})
 	}
 
-	merkleRoot := header.DAH.ColumnRoots[p.Position]
-	if p.isRow {
-		merkleRoot = header.DAH.RowsRoots[p.Position]
+	tree := NewErasuredNamespacedMerkleTree(uint64(len(shares) / 2))
+	for i, share := range shares {
+		tree.Push(share, rsmt2d.SquareIndex{Axis: uint(p.Position), Cell: uint(i)})
 	}
+
+	merkleRoot := merkleColRoots[p.Position]
+	if p.isRow {
+		merkleRoot = merkleRowRoots[p.Position]
+	}
+
 	// compare Merkle Roots
 	if !bytes.Equal(tree.Root(), merkleRoot) {
 		return errors.New("invalid fraud proof: merkle roots do not match")
@@ -148,14 +170,17 @@ func (p *BadEncodingProof) Validate(header *header.ExtendedHeader) error {
 	return nil
 }
 
-func buildTreeFromDataRoot(tree *ErasuredNamespacedMerkleTree, root [][]byte) error {
+func buildTreeFromDataRoot(tree *ErasuredNamespacedMerkleTree, root [][]byte, index int) error {
 	for idx, data := range root {
 		if data == nil {
 			return errors.New("empty share")
 		}
 		// error handling is not supposed here because ErasuredNamespacedMerkleTree panics in case of any error
 		// TODO: should we rework this mechanism?
-		tree.Push(data, rsmt2d.SquareIndex{Axis: uint(0), Cell: uint(idx)})
+
+		// Axis is an exteranl shifting(e.g between Rows); Cell - is an internal shifting(e.g inside one col)
+		// They are also valid vice versa(Axis - shifting between Cols, Cell - shifting inside row)
+		tree.Push(data, rsmt2d.SquareIndex{Axis: uint(index), Cell: uint(idx)})
 
 	}
 	return nil
