@@ -43,6 +43,32 @@ var lightCmd = &cobra.Command{
 			return err
 		}
 		env.SetNodeType(node.Light)
-		return parseFlags(cmd, args)
+
+		err = cmdnode.ParseNodeFlags(cmd, env)
+		if err != nil {
+			return err
+		}
+
+		err = cmdnode.ParseP2PFlags(cmd, env)
+		if err != nil {
+			return err
+		}
+
+		err = cmdnode.ParseCoreFlags(cmd, env)
+		if err != nil {
+			return err
+		}
+
+		err = cmdnode.ParseTrustedHashFlags(cmd, env)
+		if err != nil {
+			return err
+		}
+
+		err = cmdnode.ParseMiscFlags(cmd)
+		if err != nil {
+			return err
+		}
+
+		return nil
 	},
 }
