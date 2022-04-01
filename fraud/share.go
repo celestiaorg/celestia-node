@@ -3,23 +3,25 @@ package fraud
 import (
 	"crypto/sha256"
 
-	pb "github.com/celestiaorg/celestia-node/fraud/pb"
-	"github.com/celestiaorg/celestia-node/ipld"
 	"github.com/celestiaorg/nmt"
+
+	pb "github.com/celestiaorg/celestia-node/fraud/pb"
 )
 
 type Share struct {
-	Share []byte
-	Proof *nmt.Proof
+	NamespaceID []byte
+	Raw         []byte
+	Proof       *nmt.Proof
 }
 
 func (s *Share) Validate(root []byte) bool {
-	return s.Proof.VerifyInclusion(sha256.New(), s.Share[:ipld.NamespaceSize], s.Share, root)
+	return s.Proof.VerifyInclusion(sha256.New(), s.NamespaceID, s.Raw, root)
 }
 
 func (s *Share) ShareToProto() *pb.Share {
 	share := pb.Share{
-		Share: s.Share,
+		NamespaceID: s.NamespaceID,
+		Raw:         s.Raw,
 		Proof: &pb.MerkleProof{
 			Start:    int64(s.Proof.Start()),
 			End:      int64(s.Proof.End()),

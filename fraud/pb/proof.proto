@@ -10,8 +10,9 @@ message MerkleProof {
  }
 
 message Share {
-    bytes       Share = 1;
-    MerkleProof Proof = 2;
+    bytes NamespaceID = 1;
+    bytes       Raw   = 2;
+    MerkleProof Proof = 3;
 }
 
 message BadEnconding {
