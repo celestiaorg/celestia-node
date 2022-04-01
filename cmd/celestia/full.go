@@ -60,7 +60,7 @@ var fullCmd = &cobra.Command{
 			return err
 		}
 
-		err = cmdnode.ParseTrustedHashFlags(cmd, env)
+		err = cmdnode.ParseHeadersFlags(cmd, env)
 		if err != nil {
 			return err
 		}
