@@ -65,13 +65,13 @@ endif
 ## test-swamp: Running swamp tests located in node/tests
 test-swamp:
 	@echo "--> Running swamp tests"
-	@go test -v ./node/tests
+	@go test -v -tags test_swamp ./...
 .PHONY: test-swamp
 
 ## test-swamp: Running swamp tests with data race detector located in node/tests
 test-swamp-race:
 	@echo "--> Running swamp tests with data race detector"
-	@go test -v -race ./node/tests
+	@go test -v -race -tags test_swamp ./...
 .PHONY: test-swamp-race
 
 ## test-all: Running both unit and swamp tests
