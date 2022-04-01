@@ -5,6 +5,8 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	"github.com/celestiaorg/celestia-node/params"
+
 	"github.com/celestiaorg/celestia-node/core"
 )
 
@@ -19,7 +21,7 @@ func MockStore(t *testing.T, cfg *Config) Store {
 
 func TestNode(t *testing.T, tp Type, opts ...Option) *Node {
 	node, _ := core.StartTestKVApp(t)
-	opts = append(opts, WithRemoteCore(core.GetEndpoint(node)))
+	opts = append(opts, WithRemoteCore(core.GetEndpoint(node)), WithNetwork(params.Private))
 	store := MockStore(t, DefaultConfig(tp))
 	nd, err := New(tp, store, opts...)
 	require.NoError(t, err)

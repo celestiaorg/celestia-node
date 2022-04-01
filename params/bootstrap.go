@@ -31,6 +31,7 @@ var bootstrapList = map[Network][]string{
 		"/dns4/libra.celestia-devops.dev/tcp/2121/p2p/12D3KooWK5aDotDcLsabBmWDazehQLMsDkRyARm1k7f1zGAXqbt4",
 		"/dns4/norma.celestia-devops.dev/tcp/2121/p2p/12D3KooWHYczJDVNfYVkLcNHPTDKCeiVvRhg8Q9JU3bE3m9eEVyY",
 	},
+	Private: {},
 }
 
 func parseAddrInfos(addrs []string) ([]peer.AddrInfo, error) {

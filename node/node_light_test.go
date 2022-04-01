@@ -60,7 +60,7 @@ func TestLight_WithMutualPeers(t *testing.T) {
 }
 
 func TestLight_WithNetwork(t *testing.T) {
-	node := TestNode(t, Light, WithNetwork(params.DevNet))
+	node := TestNode(t, Light, WithNetwork(params.Private))
 	require.NotNil(t, node)
-	assert.Equal(t, node.Network, params.DevNet)
+	assert.Equal(t, node.Network, params.Private)
 }
