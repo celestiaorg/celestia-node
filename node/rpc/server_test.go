@@ -1,6 +1,7 @@
 package rpc
 
 import (
+	"context"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -11,12 +12,17 @@ import (
 )
 
 func TestServer(t *testing.T) {
-	server := NewServer()
-	err := server.Start("127.0.0.1:0")
+	server := NewServer(DefaultConfig())
+
+	ctx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(cancel)
+
+	err := server.Start(ctx)
 	require.NoError(t, err)
 
 	// register ping handler
-	server.RegisterHandler("/ping", ping{})
+	ping := new(ping)
+	server.RegisterHandlerFunc("/ping", ping.ServeHTTP, http.MethodGet)
 
 	url := fmt.Sprintf("http://%s/ping", server.listener.Addr().String())
 
@@ -30,7 +36,7 @@ func TestServer(t *testing.T) {
 	})
 	assert.Equal(t, "pong", string(buf))
 
-	err = server.Stop()
+	err = server.Stop(ctx)
 	require.NoError(t, err)
 }
 

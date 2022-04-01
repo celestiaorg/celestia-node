@@ -4,16 +4,26 @@ import (
 	"context"
 	"os"
 
+	"github.com/cosmos/cosmos-sdk/client/keys"
 	"github.com/spf13/cobra"
+	"github.com/tendermint/spm/cosmoscmd"
 
+	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-node/cmd"
 )
 
 func init() {
+	// NOTE: this is absolutely necessary to ensure that the accounts are prefixed with `celes`
+	cosmoscmd.SetPrefixes(app.AccountAddressPrefix)
+
+	keyCmd := keys.Commands("")
+	keyCmd.Short = "Manage your account's keys"
+
 	rootCmd.AddCommand(
 		bridgeCmd,
 		lightCmd,
 		fullCmd,
+		keyCmd,
 		versionCmd,
 	)
 	rootCmd.SetHelpCommand(&cobra.Command{})
@@ -31,7 +41,7 @@ func run() error {
 }
 
 var rootCmd = &cobra.Command{
-	Use: "celestia [  bridge  ||  light  ] [subcommand]",
+	Use: "celestia [  bridge  ||  full ||  light  ] [subcommand]",
 	Short: `
 	  / ____/__  / /__  _____/ /_(_)___ _
 	 / /   / _ \/ / _ \/ ___/ __/ / __  /

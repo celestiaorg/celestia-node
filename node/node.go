@@ -3,7 +3,6 @@ package node
 import (
 	"context"
 	"fmt"
-	"net/http"
 	"time"
 
 	exchange "github.com/ipfs/go-ipfs-exchange-interface"
@@ -125,14 +124,6 @@ func (n *Node) Run(ctx context.Context) error {
 
 	<-ctx.Done()
 	return ctx.Err()
-}
-
-func (n *Node) RegisterAPI(endpoint string, api http.Handler) error {
-	if n.RPCServer == nil {
-		return fmt.Errorf("RPC server does not exist")
-	}
-	n.RPCServer.RegisterHandler(endpoint, api)
-	return nil
 }
 
 // Stop shuts down the Node, all its running Components/Services and returns.
