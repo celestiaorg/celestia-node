@@ -1,9 +1,10 @@
+//go:build test_unit_core
+
 package header
 
 import (
 	"bytes"
 	"context"
-	"os"
 	"testing"
 
 	mdutils "github.com/ipfs/go-merkledag/test"
@@ -13,12 +14,8 @@ import (
 	"github.com/celestiaorg/celestia-node/core"
 )
 
+// Issue: https://github.com/celestiaorg/celestia-node/issues/584
 func TestCoreExchange_RequestHeaders(t *testing.T) {
-	// Issue: https://github.com/celestiaorg/celestia-node/issues/584
-	if os.Getenv("SKIP_CI") != "" {
-		t.Skip("Skipping this flaky test in CI Env")
-	}
-
 	fetcher := createCoreFetcher(t)
 	store := mdutils.Mock()
 

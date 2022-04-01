@@ -30,7 +30,7 @@ jobs:
         with:
           file: ./coverage.txt
   unit_race_test:
-    name: Run Unit Tests with Race Detector
+    name: Run All Unit Tests with Race Detector (No Core)
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -43,6 +43,20 @@ jobs:
           go-version: ${{ matrix.go }}
       - name: execute test run
         run: make SKIP_CI=${{ env.SKIP_CI }} test-unit-race
+  unit_core_race_test:
+    name: Run Core Unit Tests with Race Detector
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        go: ["1.17"]
+    steps:
+      - uses: actions/checkout@v3
+      - name: set up go
+        uses: actions/setup-go@v2
+        with:
+          go-version: ${{ matrix.go }}
+      - name: execute test run
+        run: go test -v -race -tags test_unit_core ./...
   integration_test:
     name: Run Integration Tests
     runs-on: ubuntu-latest

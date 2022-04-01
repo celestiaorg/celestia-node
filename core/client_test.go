@@ -1,3 +1,5 @@
+//go:build test_unit_core
+
 package core
 
 import (

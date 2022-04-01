@@ -1,3 +1,5 @@
+//go:build test_swamp
+
 package tests
 
 import (

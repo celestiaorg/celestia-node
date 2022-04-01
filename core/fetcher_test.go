@@ -1,8 +1,9 @@
+//go:build test_unit_core
+
 package core
 
 import (
 	"context"
-	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -36,12 +37,8 @@ func TestBlockFetcher_GetBlock_and_SubscribeNewBlockEvent(t *testing.T) {
 
 // TestBlockFetcherHeaderValues tests that both the Commit and ValidatorSet
 // endpoints are working as intended.
+// Issue: https://github.com/celestiaorg/celestia-node/issues/582
 func TestBlockFetcherHeaderValues(t *testing.T) {
-	// Issue: https://github.com/celestiaorg/celestia-node/issues/582
-	if os.Getenv("SKIP_CI") != "" {
-		t.Skip("Skipping this flaky test in CI Env")
-	}
-
 	_, client := StartTestClient(t)
 
 	fetcher := NewBlockFetcher(client)

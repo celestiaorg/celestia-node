@@ -48,15 +48,15 @@ lint:
 ## test-unit: Running unit tests
 test-unit:
 	@echo "--> Running unit tests"
-	@go test -v `go list ./... | grep -v node/tests` -covermode=atomic -coverprofile=coverage.out
+	@go test -v -tags test_unit,test_unit_core ./... -covermode=atomic -coverprofile=coverage.out
 .PHONY: test-unit
 
 ## test-unit-race: Running unit tests with data race detector
 test-unit-race:
 	@echo "--> Running unit tests with data race detector"
 ifeq ($(SKIP_CI),true)
-	@echo "--> Note: Some of the tests are skipped in CI comparing to local execution. Refer to issues section for more info"
-	@SKIP_CI=true go test -v -race `go list ./... | grep -v node/tests`
+	@echo "--> Note: Core tests are removed from this run into a separate job run"
+	@go test -v -race -tags test_unit ./... 
 else
 	@go test -v -race `go list ./... | grep -v node/tests`
 endif

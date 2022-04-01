@@ -1,8 +1,9 @@
+//go:build test_unit_core
+
 package header
 
 import (
 	"context"
-	"os"
 	"testing"
 	"time"
 
@@ -17,11 +18,8 @@ import (
 )
 
 // TestCoreListener tests the lifecycle of the core listener.
+// Issue: https://github.com/celestiaorg/celestia-node/issues/579
 func TestCoreListener(t *testing.T) {
-	// Issue: https://github.com/celestiaorg/celestia-node/issues/579
-	if os.Getenv("SKIP_CI") != "" {
-		t.Skip("Skipping this flaky test in CI Env")
-	}
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*15)
 	t.Cleanup(cancel)
 
