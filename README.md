@@ -30,10 +30,10 @@ make install
 ```
 
 ### Node types
-* **Bridge** nodes - bridge nodes relay blocks from the celestia consensus network to the celestia data availability 
+* **Bridge** nodes - relay blocks from the celestia consensus network to the celestia data availability 
 (DA) network
-* **Full** nodes - full nodes fully reconstruct and store blocks by sampling the DA network for shares
-* **Light** nodes - light nodes verify the availability of block data by sampling the DA network for shares
+* **Full** nodes - fully reconstruct and store blocks by sampling the DA network for shares
+* **Light** nodes - verify the availability of block data by sampling the DA network for shares
 
 More information can be found [here](https://github.com/celestiaorg/celestia-node/blob/main/docs/adr/adr-003-march2022-testnet.md#legend).
 
