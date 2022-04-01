@@ -1,5 +1,3 @@
-//go:build test_unit || test_unit_core
-
 package ipld
 
 import (
