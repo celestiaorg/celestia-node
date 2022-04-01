@@ -8,25 +8,17 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestNewFull(t *testing.T) {
-	store := MockStore(t, DefaultConfig(Full))
-	nd, err := New(Full, store)
-	require.NoError(t, err)
-	require.NotNil(t, nd)
-	require.NotNil(t, nd.Config)
-	require.NotNil(t, nd.HeaderServ)
-	assert.NotZero(t, nd.Type)
-}
-
-func TestFullLifecycle(t *testing.T) {
-	store := MockStore(t, DefaultConfig(Full))
-	nd, err := New(Full, store)
-	require.NoError(t, err)
+func TestNewFullAndLifecycle(t *testing.T) {
+	node := TestNode(t, Full)
+	require.NotNil(t, node)
+	require.NotNil(t, node.Config)
+	require.NotNil(t, node.HeaderServ)
+	assert.NotZero(t, node.Type)
 
 	startCtx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	err = nd.Start(startCtx)
+	err := node.Start(startCtx)
 	require.NoError(t, err)
 
 	stopCtx, stopCtxCancel := context.WithCancel(context.Background())
@@ -35,6 +27,6 @@ func TestFullLifecycle(t *testing.T) {
 		stopCtxCancel()
 	})
 
-	err = nd.Stop(stopCtx)
+	err = node.Stop(stopCtx)
 	require.NoError(t, err)
 }

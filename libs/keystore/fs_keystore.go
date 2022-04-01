@@ -118,6 +118,10 @@ func (f *fsKeystore) List() ([]KeyName, error) {
 	return names, nil
 }
 
+func (f *fsKeystore) Path() string {
+	return f.path
+}
+
 func (f *fsKeystore) pathTo(file string) string {
 	return filepath.Join(f.path, file)
 }

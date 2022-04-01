@@ -6,14 +6,12 @@ import (
 	"github.com/ipfs/go-datastore"
 	ds_sync "github.com/ipfs/go-datastore/sync"
 
-	"github.com/celestiaorg/celestia-node/core"
 	"github.com/celestiaorg/celestia-node/libs/keystore"
 )
 
 type memStore struct {
 	keys keystore.Keystore
 	data datastore.Batching
-	core core.Store
 	cfg  *Config
 	cfgL sync.Mutex
 }
@@ -24,7 +22,6 @@ func NewMemStore() Store {
 	return &memStore{
 		keys: keystore.NewMapKeystore(),
 		data: ds_sync.MutexWrap(datastore.NewMapDatastore()),
-		core: core.NewMemStore(),
 	}
 }
 
@@ -34,10 +31,6 @@ func (m *memStore) Keystore() (keystore.Keystore, error) {
 
 func (m *memStore) Datastore() (datastore.Batching, error) {
 	return m.data, nil
-}
-
-func (m *memStore) Core() (core.Store, error) {
-	return m.core, nil
 }
 
 func (m *memStore) Config() (*Config, error) {

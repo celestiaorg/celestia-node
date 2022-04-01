@@ -20,8 +20,10 @@ import (
 	"github.com/celestiaorg/celestia-node/das"
 	"github.com/celestiaorg/celestia-node/node/fxutil"
 	"github.com/celestiaorg/celestia-node/node/rpc"
+	"github.com/celestiaorg/celestia-node/params"
 	"github.com/celestiaorg/celestia-node/service/header"
 	"github.com/celestiaorg/celestia-node/service/share"
+	"github.com/celestiaorg/celestia-node/service/state"
 )
 
 const Timeout = time.Second * 15
@@ -35,8 +37,9 @@ var log = logging.Logger("node")
 // * Light
 // * Full
 type Node struct {
-	Type   Type
-	Config *Config
+	Type    Type
+	Network params.Network
+	Config  *Config
 
 	// CoreClient provides access to a Core node process.
 	CoreClient core.Client `optional:"true"`
@@ -54,6 +57,7 @@ type Node struct {
 	PubSub     *pubsub.PubSub
 	ShareServ  share.Service   // not optional
 	HeaderServ *header.Service // not optional
+	StateServ  *state.Service  `optional:"true"`
 
 	DASer *das.DASer `optional:"true"`
 

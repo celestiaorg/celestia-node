@@ -15,6 +15,6 @@ vendor
 .bak
 .idea/
 .vscode/
-./celestia
-./cel-shed
-./coverage.txt
+celestia
+cel-shed
+coverage.txt

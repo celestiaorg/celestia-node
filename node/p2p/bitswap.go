@@ -43,7 +43,7 @@ func DataExchange(cfg Config) func(bitSwapParams) (exchange.Interface, blockstor
 		if err != nil {
 			return nil, nil, err
 		}
-		prefix := protocol.ID(fmt.Sprintf("/celestia/%s", nparams.GetNetwork()))
+		prefix := protocol.ID(fmt.Sprintf("/celestia/%s", params.Net))
 		return bitswap.New(
 			ctx,
 			network.NewFromIpfsHost(params.Host, params.Cr, network.Prefix(prefix)),
@@ -57,6 +57,7 @@ type bitSwapParams struct {
 	fx.In
 
 	Ctx  context.Context
+	Net  nparams.Network
 	Lc   fx.Lifecycle
 	Host host.Host
 	Cr   routing.ContentRouting

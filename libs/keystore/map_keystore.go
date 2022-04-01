@@ -65,3 +65,7 @@ func (m *mapKeystore) List() ([]KeyName, error) {
 
 	return keys, nil
 }
+
+func (m *mapKeystore) Path() string {
+	return ""
+}
