@@ -1,3 +1,4 @@
+//nolint:dupl
 package main
 
 import (
@@ -54,17 +55,17 @@ var lightCmd = &cobra.Command{
 			return err
 		}
 
+		err = cmdnode.ParseCoreFlags(cmd, env)
+		if err != nil {
+			return err
+		}
+
 		err = cmdnode.ParseHeadersFlags(cmd, env)
 		if err != nil {
 			return err
 		}
 
 		err = cmdnode.ParseMiscFlags(cmd)
-		if err != nil {
-			return err
-		}
-
-		err = cmdnode.ParseCoreFlags(cmd, env)
 		if err != nil {
 			return err
 		}

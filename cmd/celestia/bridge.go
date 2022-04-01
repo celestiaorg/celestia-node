@@ -1,3 +1,4 @@
+//nolint:dupl
 package main
 
 import (
@@ -38,6 +39,7 @@ var bridgeCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
+
 		env.SetNodeType(node.Bridge)
 
 		err = cmdnode.ParseNodeFlags(cmd, env)

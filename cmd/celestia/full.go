@@ -1,3 +1,4 @@
+//nolint:dupl
 package main
 
 import (
@@ -17,12 +18,18 @@ func init() {
 			cmdnode.P2PFlags(),
 			cmdnode.HeadersFlags(),
 			cmdnode.MiscFlags(),
+			// NOTE: for now, state-related queries can only be accessed
+			// over an RPC connection with a celestia-core node.
+			cmdnode.CoreFlags(),
 		),
 		cmdnode.Start(
 			cmdnode.NodeFlags(node.Full),
 			cmdnode.P2PFlags(),
 			cmdnode.HeadersFlags(),
 			cmdnode.MiscFlags(),
+			// NOTE: for now, state-related queries can only be accessed
+			// over an RPC connection with a celestia-core node.
+			cmdnode.CoreFlags(),
 		),
 	)
 }
@@ -36,6 +43,7 @@ var fullCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
+
 		env.SetNodeType(node.Full)
 
 		err = cmdnode.ParseNodeFlags(cmd, env)
@@ -44,6 +52,11 @@ var fullCmd = &cobra.Command{
 		}
 
 		err = cmdnode.ParseP2PFlags(cmd, env)
+		if err != nil {
+			return err
+		}
+
+		err = cmdnode.ParseCoreFlags(cmd, env)
 		if err != nil {
 			return err
 		}
