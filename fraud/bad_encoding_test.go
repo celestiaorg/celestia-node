@@ -14,7 +14,7 @@ import (
 	"github.com/celestiaorg/rsmt2d"
 )
 
-func TestCreateBadEncodingFraudProofFromRows(t *testing.T) {
+func TestCreateBadEncodingFraudProof(t *testing.T) {
 	eds := ipld.GenerateRandEDS(t, 2)
 	type test struct {
 		name   string
@@ -40,7 +40,7 @@ func TestCreateBadEncodingFraudProofFromRows(t *testing.T) {
 	}
 }
 
-func TestFraudProof(t *testing.T) {
+func TestFraudProofValidation(t *testing.T) {
 	eds := ipld.GenerateRandEDS(t, 2)
 	size := eds.Width()
 
@@ -79,11 +79,11 @@ func TestBuildTreeFromDataRoot(t *testing.T) {
 	eds := ipld.GenerateRandEDS(t, 8)
 	size := eds.Width()
 	type test struct {
-		name      string
-		length    int
-		errShares func(uint) [][]byte
-		data      func(uint) [][]byte
-		roots     [][]byte
+		name        string
+		length      int
+		errShares   func(uint) [][]byte
+		dataFetcher func(uint) [][]byte
+		roots       [][]byte
 	}
 	var tests = []test{
 		{
@@ -108,7 +108,7 @@ func TestBuildTreeFromDataRoot(t *testing.T) {
 				errShares := tc.errShares(uint(i))
 				for index := range errShares {
 					tree := NewErasuredNamespacedMerkleTree(uint64(size / 2))
-					require.NoError(t, buildTreeFromDataRoot(&tree, tc.data(uint(index)), index))
+					require.NoError(t, buildTreeFromDataRoot(&tree, tc.dataFetcher(uint(index)), index))
 					require.True(t, bytes.Equal(tc.roots[index], tree.Root()))
 				}
 			}
