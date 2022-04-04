@@ -30,17 +30,14 @@ func TestCreateBadEncodingFraudProof(t *testing.T) {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			for index := 0; index < tc.length; index++ {
-				p, err := CreateBadEncodingFraudProof(1, uint8(index), tc.isRow, eds, tc.roots(uint(index)))
+				_, err := CreateBadEncodingFraudProof(1, uint8(index), tc.isRow, eds, tc.roots(uint(index)))
 				require.NoError(t, err)
-				dah := da.NewDataAvailabilityHeader(eds)
-				h := &header.ExtendedHeader{DAH: &dah}
-				require.NoError(t, p.Validate(h))
 			}
 		})
 	}
 }
 
-func TestFraudProofValidation(t *testing.T) {
+func TestFraudProofValidationForRow(t *testing.T) {
 	eds := ipld.GenerateRandEDS(t, 2)
 	size := eds.Width()
 
@@ -48,23 +45,76 @@ func TestFraudProofValidation(t *testing.T) {
 	shares := flatten(eds)
 
 	copy(shares[0][8:], shares[1][8:])
+
 	eds1, err := rsmt2d.ImportExtendedDataSquare(shares, rsmt2d.NewRSGF8Codec(), tree.Constructor)
 	require.NoError(t, err)
-	newEds, err := rsmt2d.RepairExtendedDataSquare(
+	dataSquare := make([][]byte, size*size)
+	copy(dataSquare, shares)
+	dataSquare[2] = nil
+	dataSquare[3] = nil
+	dataSquare[8] = nil
+	dataSquare[12] = nil
+	_, err = rsmt2d.RepairExtendedDataSquare(
 		eds1.RowRoots(),
 		eds1.ColRoots(),
-		shares,
+		dataSquare,
 		rsmt2d.NewRSGF8Codec(),
 		tree.Constructor,
 	)
+
 	require.Error(t, err)
+	// [2] and [3] will be empty
 	var errRow *rsmt2d.ErrByzantineRow
 	require.True(t, errors.As(err, &errRow))
 
 	errRow = err.(*rsmt2d.ErrByzantineRow)
 	fmt.Println(errRow.Shares)
 
-	p, err := CreateBadEncodingFraudProof(1, uint8(errRow.RowNumber), true, newEds, errRow.Shares)
+	p, err := CreateBadEncodingFraudProof(1, uint8(errRow.RowNumber), true, eds1, errRow.Shares)
+	require.NoError(t, err)
+
+	dah := da.NewDataAvailabilityHeader(eds1)
+	h := &header.ExtendedHeader{DAH: &dah}
+
+	err = p.Validate(h)
+	require.NoError(t, err)
+
+}
+
+func TestFraudProofValidationForCol(t *testing.T) {
+	eds := ipld.GenerateRandEDS(t, 2)
+	size := eds.Width()
+
+	tree := NewErasuredNamespacedMerkleTree(uint64(size / 2))
+	shares := flatten(eds)
+	copy(shares[3][8:], shares[2][8:])
+
+	eds1, err := rsmt2d.ImportExtendedDataSquare(shares, rsmt2d.NewRSGF8Codec(), tree.Constructor)
+	require.NoError(t, err)
+
+	dataSquare := make([][]byte, len(shares))
+	copy(dataSquare, shares)
+	dataSquare[1] = nil
+	dataSquare[3] = nil
+	dataSquare[8] = nil
+	dataSquare[12] = nil
+
+	_, err = rsmt2d.RepairExtendedDataSquare(
+		eds1.RowRoots(),
+		eds1.ColRoots(),
+		dataSquare,
+		rsmt2d.NewRSGF8Codec(),
+		tree.Constructor,
+	)
+	require.Error(t, err)
+	// [1] and [3] will be empty
+	var errCol *rsmt2d.ErrByzantineCol
+	require.True(t, errors.As(err, &errCol))
+
+	errCol = err.(*rsmt2d.ErrByzantineCol)
+	fmt.Println(errCol.Shares)
+
+	p, err := CreateBadEncodingFraudProof(1, uint8(errCol.ColNumber), false, eds1, errCol.Shares)
 	require.NoError(t, err)
 
 	dah := da.NewDataAvailabilityHeader(eds1)

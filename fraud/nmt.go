@@ -62,7 +62,6 @@ func (w *ErasuredNamespacedMerkleTree) Push(data []byte, idx rsmt2d.SquareIndex)
 		copy(nidAndData[:consts.NamespaceSize], data[:consts.NamespaceSize])
 	}
 	w.Err = w.tree.Push(nidAndData)
-	return
 }
 
 // Root fulfills the rsmt.Tree interface by generating and returning the
