@@ -95,7 +95,7 @@ func TestFraudProofValidationForCol(t *testing.T) {
 	dataSquare := make([][]byte, len(shares))
 	copy(dataSquare, shares)
 	dataSquare[1] = nil
-	dataSquare[3] = nil
+	dataSquare[2] = nil
 	dataSquare[8] = nil
 	dataSquare[12] = nil
 
@@ -107,7 +107,7 @@ func TestFraudProofValidationForCol(t *testing.T) {
 		tree.Constructor,
 	)
 	require.Error(t, err)
-	// [1] and [3] will be empty
+
 	var errCol *rsmt2d.ErrByzantineCol
 	require.True(t, errors.As(err, &errCol))
 
