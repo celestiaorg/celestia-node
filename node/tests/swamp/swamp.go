@@ -7,13 +7,14 @@ import (
 	"net"
 	"testing"
 
-	"github.com/ipfs/go-log/v2"
+	"github.com/ipfs/go-log"
 	"github.com/libp2p/go-libp2p-core/host"
 	mocknet "github.com/libp2p/go-libp2p/p2p/net/mock"
 	ma "github.com/multiformats/go-multiaddr"
 	"github.com/stretchr/testify/require"
 	"github.com/tendermint/tendermint/libs/bytes"
 	tn "github.com/tendermint/tendermint/node"
+	coretypes "github.com/tendermint/tendermint/rpc/core/types"
 	rpctest "github.com/tendermint/tendermint/rpc/test"
 	"github.com/tendermint/tendermint/types"
 
@@ -50,6 +51,7 @@ type Swamp struct {
 func NewSwamp(t *testing.T, ic *Components) *Swamp {
 	if testing.Verbose() {
 		log.SetDebugLogging()
+		// log.SetAllLoggers(log.LevelInfo)
 	}
 
 	var err error
@@ -80,6 +82,12 @@ func NewSwamp(t *testing.T, ic *Components) *Swamp {
 	})
 
 	return swp
+}
+
+//ticker for loop go routine
+func (s *Swamp) CreateTx(ctx context.Context, str string) (*coretypes.ResultBroadcastTx, error) {
+	result, err := s.CoreClient.BroadcastTxSync(ctx, []byte(str))
+	return result, err
 }
 
 // TODO(@Bidon15): CoreClient(limitation)
