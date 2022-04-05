@@ -19,26 +19,26 @@ func WithLifecycle(ctx context.Context, lc fx.Lifecycle) context.Context {
 }
 
 // SupplyIf supplies DI if a condition is met.
-func SupplyIf(cond bool, val ...interface{}) Option {
+func SupplyIf(cond bool, val ...interface{}) fx.Option {
 	if cond {
-		return Supply(val...)
+		return fx.Supply(val...)
 	}
-	return Options()
+	return fx.Options()
 }
 
 // ProvideIf provides a given constructor if a condition is met.
-func ProvideIf(cond bool, ctor ...interface{}) Option {
+func ProvideIf(cond bool, ctor ...interface{}) fx.Option {
 	if cond {
-		return Provide(ctor...)
+		return fx.Provide(ctor...)
 	}
 
-	return Options()
+	return fx.Options()
 }
 
 // InvokeIf invokes a given function if a condition is met.
-func InvokeIf(cond bool, function interface{}) Option {
+func InvokeIf(cond bool, function interface{}) fx.Option {
 	if cond {
-		return Invoke(function)
+		return fx.Invoke(function)
 	}
-	return Options()
+	return fx.Options()
 }
