@@ -11,7 +11,6 @@ import (
 
 	nodecore "github.com/celestiaorg/celestia-node/node/core"
 
-	"github.com/celestiaorg/celestia-node/node/fxutil"
 	"github.com/celestiaorg/celestia-node/node/p2p"
 	"github.com/celestiaorg/celestia-node/node/services"
 	statecomponents "github.com/celestiaorg/celestia-node/node/state"
@@ -21,58 +20,58 @@ import (
 )
 
 // lightComponents keeps all the components as DI options required to build a Light Node.
-func lightComponents(cfg *Config, store Store) fxutil.Option {
-	return fxutil.Options(
-		fxutil.Supply(Light),
+func lightComponents(cfg *Config, store Store) fx.Option {
+	return fx.Options(
+		fx.Supply(Light),
 		baseComponents(cfg, store),
-		fxutil.Provide(services.DASer),
-		fxutil.Provide(services.HeaderExchangeP2P(cfg.Services)),
-		fxutil.Provide(services.LightAvailability),
+		fx.Provide(services.DASer),
+		fx.Provide(services.HeaderExchangeP2P(cfg.Services)),
+		fx.Provide(services.LightAvailability),
 	)
 }
 
 // bridgeComponents keeps all the components as DI options required to build a Bridge Node.
-func bridgeComponents(cfg *Config, store Store) fxutil.Option {
-	return fxutil.Options(
-		fxutil.Supply(Bridge),
+func bridgeComponents(cfg *Config, store Store) fx.Option {
+	return fx.Options(
+		fx.Supply(Bridge),
 		baseComponents(cfg, store),
 		nodecore.Components(cfg.Core),
-		fxutil.Provide(services.LightAvailability), // TODO(@Wondertan): Remove strict requirements to have Availability
+		fx.Provide(services.LightAvailability), // TODO(@Wondertan): Remove strict requirements to have Availability
 	)
 }
 
 // fullComponents keeps all the components as DI options required to build a Full Node.
-func fullComponents(cfg *Config, store Store) fxutil.Option {
-	return fxutil.Options(
-		fxutil.Supply(Full),
+func fullComponents(cfg *Config, store Store) fx.Option {
+	return fx.Options(
+		fx.Supply(Full),
 		baseComponents(cfg, store),
-		fxutil.Provide(services.DASer),
-		fxutil.Provide(services.HeaderExchangeP2P(cfg.Services)),
-		fxutil.Provide(services.FullAvailability),
+		fx.Provide(services.DASer),
+		fx.Provide(services.HeaderExchangeP2P(cfg.Services)),
+		fx.Provide(services.FullAvailability),
 	)
 }
 
 // baseComponents keeps all the common components shared between different Node types.
-func baseComponents(cfg *Config, store Store) fxutil.Option {
-	return fxutil.Options(
-		fxutil.Supply(params.DefaultNetwork()),
-		fxutil.Provide(context.Background),
-		fxutil.Supply(cfg),
-		fxutil.Supply(store.Config),
-		fxutil.Provide(store.Datastore),
-		fxutil.Provide(store.Keystore),
-		fxutil.Provide(services.ShareService),
-		fxutil.Provide(services.HeaderService),
-		fxutil.Provide(services.HeaderStore),
-		fxutil.Invoke(services.HeaderStoreInit(&cfg.Services)),
-		fxutil.Provide(services.HeaderSyncer),
-		fxutil.ProvideAs(services.P2PSubscriber, new(header.Broadcaster), new(header.Subscriber)),
-		fxutil.Provide(services.HeaderP2PExchangeServer),
-		fxutil.Invoke(invokeWatchdog(store.Path())),
+func baseComponents(cfg *Config, store Store) fx.Option {
+	return fx.Options(
+		fx.Provide(params.DefaultNetwork),
+		fx.Provide(context.Background),
+		fx.Supply(cfg),
+		fx.Supply(store.Config),
+		fx.Provide(store.Datastore),
+		fx.Provide(store.Keystore),
+		fx.Provide(services.ShareService),
+		fx.Provide(services.HeaderService),
+		fx.Provide(services.HeaderStore),
+		fx.Invoke(services.HeaderStoreInit(&cfg.Services)),
+		fx.Provide(services.HeaderSyncer),
+		fx.Provide(fx.Annotate(services.P2PSubscriber, fx.As(new(header.Broadcaster), new(header.Subscriber)))),
+		fx.Provide(services.HeaderP2PExchangeServer),
+		fx.Invoke(invokeWatchdog(store.Path())),
 		p2p.Components(cfg.P2P),
 		// state components
-		fxutil.Provide(state.NewService),
-		fxutil.Provide(statecomponents.CoreAccessor(cfg.Core.RemoteAddr)),
+		fx.Provide(state.NewService),
+		fx.Provide(statecomponents.CoreAccessor(cfg.Core.RemoteAddr)),
 	)
 }
 

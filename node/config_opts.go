@@ -2,41 +2,36 @@ package node
 
 // WithRemoteCore configures Node to start with remote Core.
 func WithRemoteCore(protocol string, address string) Option {
-	return func(cfg *Config, _ *settings) (_ error) {
-		cfg.Core.Protocol = protocol
-		cfg.Core.RemoteAddr = address
-		return
+	return func(sets *settings) {
+		sets.cfg.Core.Protocol = protocol
+		sets.cfg.Core.RemoteAddr = address
 	}
 }
 
 // WithTrustedHash sets TrustedHash to the Config.
 func WithTrustedHash(hash string) Option {
-	return func(cfg *Config, _ *settings) (_ error) {
-		cfg.Services.TrustedHash = hash
-		return
+	return func(sets *settings) {
+		sets.cfg.Services.TrustedHash = hash
 	}
 }
 
 // WithTrustedPeers appends new "trusted peers" to the Config.
 func WithTrustedPeers(addr ...string) Option {
-	return func(cfg *Config, _ *settings) (_ error) {
-		cfg.Services.TrustedPeers = append(cfg.Services.TrustedPeers, addr...)
-		return
+	return func(sets *settings) {
+		sets.cfg.Services.TrustedPeers = append(sets.cfg.Services.TrustedPeers, addr...)
 	}
 }
 
 // WithConfig sets the entire custom config.
 func WithConfig(custom *Config) Option {
-	return func(cfg *Config, _ *settings) (_ error) {
-		*cfg = *custom
-		return
+	return func(sets *settings) {
+		sets.cfg = custom
 	}
 }
 
 // WithMutualPeers sets the `MutualPeers` field in the config.
 func WithMutualPeers(addrs []string) Option {
-	return func(cfg *Config, _ *settings) (_ error) {
-		cfg.P2P.MutualPeers = addrs
-		return nil
+	return func(sets *settings) {
+		sets.cfg.P2P.MutualPeers = addrs
 	}
 }
