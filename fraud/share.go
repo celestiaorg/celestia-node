@@ -19,7 +19,7 @@ func (s *Share) Validate(root []byte) bool {
 }
 
 func (s *Share) ShareToProto() *pb.Share {
-	share := pb.Share{
+	return &pb.Share{
 		NamespaceID: s.NamespaceID,
 		Raw:         s.Raw,
 		Proof: &pb.MerkleProof{
@@ -29,5 +29,13 @@ func (s *Share) ShareToProto() *pb.Share {
 			LeafHash: s.Proof.LeafHash(),
 		},
 	}
-	return &share
+}
+
+func ProtoToShare(protoShares []*pb.Share) []*Share {
+	shares := make([]*Share, len(protoShares))
+	for _, share := range protoShares {
+		proof := ProtoToProof(share.Proof)
+		shares = append(shares, &Share{share.NamespaceID, share.Raw, &proof})
+	}
+	return shares
 }

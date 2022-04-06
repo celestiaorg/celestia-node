@@ -31,26 +31,21 @@ func CreateBadEncodingFraudProof(
 	eds *rsmt2d.ExtendedDataSquare,
 	errShares [][]byte,
 ) (Proof, error) {
-	var tree ErasuredNamespacedMerkleTree
 	shares := make([]*Share, len(errShares))
-
 	for index, share := range errShares {
 		if share != nil {
-			tree = NewErasuredNamespacedMerkleTree(uint64(len(errShares) / 2))
 			data := eds.Row(uint(index))
 			if isRow {
 				data = eds.Col(uint(index))
 			}
-			if err := buildTreeFromDataRoot(&tree, data, index); err != nil {
-				continue
-			}
 
+			tree := buildTreeFromLeaves(data, index)
 			proof, err := tree.InclusionProof(position)
 			if err != nil {
 				return nil, err
 			}
 			/*
-				NamespaceID sholud be replaced with ParitySharesNamespaceID for
+				NamespaceID should be replaced with ParitySharesNamespaceID for
 				all shares except Q0(all erasure coded shares).
 				For EDS 4x4 Q0 is [[0;0],[0;1],[1:0],[1;1]].
 				x	x	x	x
@@ -101,7 +96,25 @@ func (p *BadEncodingProof) MarshalBinary() ([]byte, error) {
 	return badEncodingFraudProof.Marshal()
 }
 
-func (p *BadEncodingProof) Validate(header *header.ExtendedHeader) error {
+func (p *BadEncodingProof) UnmarshalBinary(data []byte) error {
+	in := pb.BadEnconding{}
+	if err := in.Unmarshal(data); err != nil {
+		return err
+	}
+	befp := UnmarshalBefp(&in)
+	*p = *befp
+
+	return nil
+}
+
+func UnmarshalBefp(befp *pb.BadEnconding) *BadEncodingProof {
+	return &BadEncodingProof{
+		BlockHeight: befp.Height,
+		Shares:      ProtoToShare(befp.Shares),
+	}
+}
+
+func (p *BadEncodingProof) Validate(header *header.ExtendedHeader, codec rsmt2d.Codec) error {
 	merkleRowRoots := header.DAH.RowsRoots
 	merkleColRoots := header.DAH.ColumnRoots
 	if int(p.Position) >= len(merkleRowRoots) || int(p.Position) >= len(merkleColRoots) {
@@ -133,7 +146,6 @@ func (p *BadEncodingProof) Validate(header *header.ExtendedHeader) error {
 	}
 
 	// rebuild a row/col
-	codec := rsmt2d.NewRSGF8Codec()
 	rebuiltShares, err := codec.Decode(shares)
 	if err != nil {
 		return err
@@ -162,18 +174,13 @@ func (p *BadEncodingProof) Validate(header *header.ExtendedHeader) error {
 	return nil
 }
 
-func buildTreeFromDataRoot(tree *ErasuredNamespacedMerkleTree, root [][]byte, index int) error {
-	for idx, data := range root {
-		if data == nil {
-			return errors.New("empty share")
-		}
-		// error handling is not supposed here because ErasuredNamespacedMerkleTree panics in case of any error
-		// TODO: should we rework this mechanism?
-
+func buildTreeFromLeaves(leaves [][]byte, index int) *ErasuredNamespacedMerkleTree {
+	tree := NewErasuredNamespacedMerkleTree(uint64(len(leaves) / 2))
+	for idx, data := range leaves {
 		// Axis is an exteranl shifting(e.g between Rows); Cell - is an internal shifting(e.g inside one col)
 		// They are also valid vice versa(Axis - shifting between Cols, Cell - shifting inside row)
 		tree.Push(data, rsmt2d.SquareIndex{Axis: uint(index), Cell: uint(idx)})
 
 	}
-	return nil
+	return &tree
 }
