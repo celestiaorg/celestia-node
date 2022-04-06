@@ -8,7 +8,6 @@ import (
 	"go.uber.org/fx"
 
 	"github.com/celestiaorg/celestia-node/core"
-	"github.com/celestiaorg/celestia-node/node/fxutil"
 	"github.com/celestiaorg/celestia-node/service/header"
 )
 
@@ -24,12 +23,12 @@ func DefaultConfig() Config {
 }
 
 // Components collects all the components and services related to managing the relationship with the Core node.
-func Components(cfg Config) fxutil.Option {
-	return fxutil.Options(
-		fxutil.Provide(core.NewBlockFetcher),
-		fxutil.ProvideAs(header.NewCoreExchange, new(header.Exchange)),
-		fxutil.Invoke(HeaderCoreListener),
-		fxutil.Provide(func(lc fx.Lifecycle) (core.Client, error) {
+func Components(cfg Config) fx.Option {
+	return fx.Options(
+		fx.Provide(core.NewBlockFetcher),
+		fx.Provide(fx.Annotate(header.NewCoreExchange, fx.As(new(header.Exchange)))),
+		fx.Invoke(HeaderCoreListener),
+		fx.Provide(func(lc fx.Lifecycle) (core.Client, error) {
 			if cfg.RemoteAddr == "" {
 				return nil, fmt.Errorf("no celestia-core endpoint given")
 			}

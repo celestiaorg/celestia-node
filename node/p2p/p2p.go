@@ -5,8 +5,7 @@ import (
 
 	"github.com/libp2p/go-libp2p-core/peer"
 	ma "github.com/multiformats/go-multiaddr"
-
-	"github.com/celestiaorg/celestia-node/node/fxutil"
+	"go.uber.org/fx"
 )
 
 // Config combines all configuration fields for P2P subsystem.
@@ -53,22 +52,22 @@ func DefaultConfig() Config {
 }
 
 // Components collects all the components and services related to p2p.
-func Components(cfg Config) fxutil.Option {
-	return fxutil.Options(
-		fxutil.Provide(Key),
-		fxutil.Provide(ID),
-		fxutil.Provide(PeerStore),
-		fxutil.Provide(ConnectionManager(cfg)),
-		fxutil.Provide(ConnectionGater),
-		fxutil.Provide(Host(cfg)),
-		fxutil.Provide(RoutedHost),
-		fxutil.Provide(PubSub(cfg)),
-		fxutil.Provide(DataExchange(cfg)),
-		fxutil.Provide(DAG),
-		fxutil.Provide(PeerRouting(cfg)),
-		fxutil.Provide(ContentRouting),
-		fxutil.Provide(AddrsFactory(cfg.AnnounceAddresses, cfg.NoAnnounceAddresses)),
-		fxutil.Invoke(Listen(cfg.ListenAddresses)),
+func Components(cfg Config) fx.Option {
+	return fx.Options(
+		fx.Provide(Key),
+		fx.Provide(ID),
+		fx.Provide(PeerStore),
+		fx.Provide(ConnectionManager(cfg)),
+		fx.Provide(ConnectionGater),
+		fx.Provide(Host(cfg)),
+		fx.Provide(RoutedHost),
+		fx.Provide(PubSub(cfg)),
+		fx.Provide(DataExchange(cfg)),
+		fx.Provide(DAG),
+		fx.Provide(PeerRouting(cfg)),
+		fx.Provide(ContentRouting),
+		fx.Provide(AddrsFactory(cfg.AnnounceAddresses, cfg.NoAnnounceAddresses)),
+		fx.Invoke(Listen(cfg.ListenAddresses)),
 	)
 }
 

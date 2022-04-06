@@ -7,9 +7,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/celestiaorg/celestia-node/params"
-
 	"github.com/celestiaorg/celestia-node/core"
+	"github.com/celestiaorg/celestia-node/params"
 )
 
 func TestNewBridgeAndLifecycle(t *testing.T) {

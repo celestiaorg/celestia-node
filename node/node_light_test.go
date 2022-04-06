@@ -45,8 +45,8 @@ func TestNewLightWithP2PKey(t *testing.T) {
 
 func TestNewLightWithHost(t *testing.T) {
 	nw, _ := mocknet.WithNPeers(context.Background(), 1)
-	node := TestNode(t, Light, WithHost(nw.Host(nw.Peers()[0])))
-	assert.Equal(t, node.Host.ID(), nw.Peers()[0])
+	node := TestNode(t, Light, WithHost(nw.Hosts()[0]))
+	assert.Equal(t, nw.Peers()[0], node.Host.ID())
 }
 
 func TestLight_WithMutualPeers(t *testing.T) {
@@ -60,7 +60,7 @@ func TestLight_WithMutualPeers(t *testing.T) {
 }
 
 func TestLight_WithNetwork(t *testing.T) {
-	node := TestNode(t, Light, WithNetwork(params.Private))
+	node := TestNode(t, Light)
 	require.NotNil(t, node)
-	assert.Equal(t, node.Network, params.Private)
+	assert.Equal(t, params.Private, node.Network)
 }

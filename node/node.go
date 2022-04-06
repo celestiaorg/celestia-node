@@ -18,7 +18,6 @@ import (
 
 	"github.com/celestiaorg/celestia-node/core"
 	"github.com/celestiaorg/celestia-node/das"
-	"github.com/celestiaorg/celestia-node/node/fxutil"
 	"github.com/celestiaorg/celestia-node/node/rpc"
 	"github.com/celestiaorg/celestia-node/params"
 	"github.com/celestiaorg/celestia-node/service/header"
@@ -72,23 +71,18 @@ func New(tp Type, store Store, options ...Option) (*Node, error) {
 		return nil, err
 	}
 
-	s := new(settings)
+	s := &settings{cfg: cfg}
 	for _, option := range options {
-		if option != nil {
-			err := option(cfg, s)
-			if err != nil {
-				return nil, err
-			}
-		}
+		option(s)
 	}
 
 	switch tp {
 	case Bridge:
-		return newNode(bridgeComponents(cfg, store), s.overrides())
+		return newNode(bridgeComponents(s.cfg, store), fx.Options(s.opts...))
 	case Light:
-		return newNode(lightComponents(cfg, store), s.overrides())
+		return newNode(lightComponents(s.cfg, store), fx.Options(s.opts...))
 	case Full:
-		return newNode(fullComponents(cfg, store), s.overrides())
+		return newNode(fullComponents(s.cfg, store), fx.Options(s.opts...))
 	default:
 		panic("node: unknown Node Type")
 	}
@@ -162,17 +156,12 @@ func (n *Node) Stop(ctx context.Context) error {
 // DI options allow initializing the Node with a customized set of components and services.
 // NOTE: newNode is currently meant to be used privately to create various custom Node types e.g. Light, unless we
 // decide to give package users the ability to create custom node types themselves.
-func newNode(opts ...fxutil.Option) (*Node, error) {
-	fopt, err := fxutil.ParseOptions(opts...)
-	if err != nil {
-		return nil, err
-	}
-
+func newNode(opts ...fx.Option) (*Node, error) {
 	node := new(Node)
 	app := fx.New(
 		fx.NopLogger,
 		fx.Extract(node),
-		fopt,
+		fx.Options(opts...),
 	)
 	if err := app.Err(); err != nil {
 		return nil, err
