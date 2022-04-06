@@ -30,6 +30,7 @@ type BadEncodingProof struct {
 }
 
 func CreateBadEncodingFraudProof(
+	ctx context.Context,
 	height uint64,
 	position uint8,
 	isRow bool,
@@ -46,7 +47,7 @@ func CreateBadEncodingFraudProof(
 				data = eds.Col(uint(index))
 			}
 
-			tree, err := buildTreeFromLeaves(data, roots[index], index, dag)
+			tree, err := buildTreeFromLeaves(ctx, data, roots[index], index, dag)
 			if err != nil {
 				return nil, err
 			}
@@ -185,6 +186,7 @@ func (p *BadEncodingProof) Validate(header *header.ExtendedHeader, codec rsmt2d.
 }
 
 func buildTreeFromLeaves(
+	ctx context.Context,
 	leaves [][]byte,
 	root []byte,
 	axis int,
@@ -195,7 +197,7 @@ func buildTreeFromLeaves(
 	for idx, data := range leaves {
 		if bytes.Equal(data, emptyData) {
 			// if share was not repaired, then we should get it through sampling
-			share, err := getShare(root, idx, len(leaves), dag)
+			share, err := getShare(ctx, root, idx, len(leaves), dag)
 			if err != nil {
 				return nil, err
 			}
@@ -208,10 +210,10 @@ func buildTreeFromLeaves(
 	return &tree, nil
 }
 
-func getShare(root []byte, index int, length int, dag format.NodeGetter) ([]byte, error) {
+func getShare(ctx context.Context, root []byte, index int, length int, dag format.NodeGetter) ([]byte, error) {
 	cid, err := plugin.CidFromNamespacedSha256(root)
 	if err != nil {
 		return nil, err
 	}
-	return ipld.GetLeafData(context.Background(), cid, uint32(index), uint32(length), dag)
+	return ipld.GetLeafData(ctx, cid, uint32(index), uint32(length), dag)
 }
