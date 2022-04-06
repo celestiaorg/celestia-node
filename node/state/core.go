@@ -17,7 +17,7 @@ var keyringAccName = "celes"
 
 func CoreAccessor(endpoint string, tp string) func(fx.Lifecycle, params.Network) (state.Accessor, error) {
 	return func(lc fx.Lifecycle, net params.Network) (state.Accessor, error) {
-		keyPath := fmt.Sprintf("~/.celestia-%s/keys", tp)
+		keyPath := fmt.Sprintf("~/.celestia-%s/keys", tp) // TODO @renaynay: needs to be config param
 
 		// TODO @renaynay: Include option for setting custom `userInput` parameter with
 		//  implementation of https://github.com/celestiaorg/celestia-node/issues/415.

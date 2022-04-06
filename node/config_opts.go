@@ -11,9 +11,8 @@ func WithRemoteCore(protocol string, address string) Option {
 // WithGRPCEndpoint configures Node to connect to given gRPC address
 // for state-related queries.
 func WithGRPCEndpoint(address string) Option {
-	return func(cfg *Config, _ *settings) (_ error) {
-		cfg.Core.GRPCAddr = address
-		return
+	return func(sets *settings) {
+		sets.cfg.Core.GRPCAddr = address
 	}
 }
 
