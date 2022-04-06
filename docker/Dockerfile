@@ -15,7 +15,7 @@ ENV NODE_TYPE bridge
 COPY docker/entrypoint.sh /
 
 # Copy in the binary
-COPY --from=builder /src/celestia /
+COPY --from=builder /src/build/celestia /
 
 EXPOSE 2121
 
