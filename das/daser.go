@@ -146,6 +146,7 @@ func (d *DASer) sample(ctx context.Context, sub header.Subscription, checkpoint 
 			log.Errorw("sampling failed", "height", h.Height, "hash", h.Hash(),
 				"square width", len(h.DAH.RowsRoots), "data root", h.DAH.Hash(), "err", err)
 			// continue sampling
+			continue
 		}
 
 		sampleTime := time.Since(startTime)
@@ -233,6 +234,7 @@ func (d *DASer) catchUp(ctx context.Context, job *catchUpJob) (int64, error) {
 			log.Errorw("sampling failed", "height", h.Height, "hash", h.Hash(),
 				"square width", len(h.DAH.RowsRoots), "data root", h.DAH.Hash(), "err", err)
 			// continue sampling
+			continue
 		}
 
 		sampleTime := time.Since(startTime)
