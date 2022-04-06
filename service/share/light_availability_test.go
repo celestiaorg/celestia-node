@@ -36,7 +36,7 @@ func TestShareAvailableOverMocknet(t *testing.T) {
 
 	net := NewDAGNet(ctx, t)
 	_, root := net.RandLightService(16)
-	serv := net.CleanService()
+	serv := net.CleanLightService()
 	net.ConnectAll()
 
 	err := serv.SharesAvailable(ctx, root)
