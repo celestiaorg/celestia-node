@@ -2,7 +2,6 @@ package share
 
 import (
 	"context"
-	"math"
 	"testing"
 
 	"github.com/ipfs/go-bitswap"
@@ -15,14 +14,10 @@ import (
 	format "github.com/ipfs/go-ipld-format"
 	"github.com/ipfs/go-merkledag"
 	mdutils "github.com/ipfs/go-merkledag/test"
+	"github.com/libp2p/go-libp2p-core/peer"
 	record "github.com/libp2p/go-libp2p-record"
 	mocknet "github.com/libp2p/go-libp2p/p2p/net/mock"
 	"github.com/stretchr/testify/require"
-
-	"github.com/tendermint/tendermint/pkg/wrapper"
-
-	"github.com/celestiaorg/nmt"
-	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/ipld"
 	"github.com/celestiaorg/celestia-node/service/header"
@@ -43,21 +38,9 @@ func RandFullServiceWithSquare(t *testing.T, n int) (Service, *Root) {
 }
 
 func RandFillDAG(t *testing.T, n int, dag format.DAGService) *Root {
-	shares := RandShares(t, n*n)
-	sharesSlices := make([][]byte, n*n)
-	for i, share := range shares {
-		sharesSlices[i] = share
-	}
-	na := ipld.NewNmtNodeAdder(context.TODO(), dag)
-
-	squareSize := uint32(math.Sqrt(float64(len(shares))))
-	tree := wrapper.NewErasuredNamespacedMerkleTree(uint64(squareSize), nmt.NodeVisitor(na.Visit))
-	eds, err := rsmt2d.ComputeExtendedDataSquare(sharesSlices, rsmt2d.NewRSGF8Codec(), tree.Constructor)
+	shares := ipld.RandNamespacedShares(t, n*n)
+	eds, err := ipld.PutData(context.TODO(), shares.Raw(), dag)
 	require.NoError(t, err)
-
-	err = na.Commit()
-	require.NoError(t, err)
-
 	dah, err := header.DataAvailabilityHeaderFromExtendedData(eds)
 	require.NoError(t, err)
 	return &dah
@@ -73,9 +56,10 @@ func RandShares(t *testing.T, n int) []Share {
 }
 
 type DAGNet struct {
-	ctx context.Context
-	t   *testing.T
-	net mocknet.Mocknet
+	ctx   context.Context
+	t     *testing.T
+	net   mocknet.Mocknet
+	nodes []peer.ID
 }
 
 func NewDAGNet(ctx context.Context, t *testing.T) *DAGNet {
@@ -101,14 +85,20 @@ func (dn *DAGNet) RandDAG(n int) (format.DAGService, *Root) {
 	return dag, RandFillDAG(dn.t, n, dag)
 }
 
-func (dn *DAGNet) CleanService() Service {
+func (dn *DAGNet) CleanLightService() Service {
 	dag := dn.CleanDAG()
 	return NewService(dag, NewLightAvailability(dag))
+}
+
+func (dn *DAGNet) CleanFullService() Service {
+	dag := dn.CleanDAG()
+	return NewService(dag, NewFullAvailability(dag))
 }
 
 func (dn *DAGNet) CleanDAG() format.DAGService {
 	nd, err := dn.net.GenPeer()
 	require.NoError(dn.t, err)
+	dn.nodes = append(dn.nodes, nd.ID())
 
 	dstore := dssync.MutexWrap(ds.NewMapDatastore())
 	bstore := blockstore.NewBlockstore(dstore)
@@ -122,5 +112,10 @@ func (dn *DAGNet) ConnectAll() {
 	require.NoError(dn.t, err)
 
 	err = dn.net.ConnectAllButSelf()
+	require.NoError(dn.t, err)
+}
+
+func (dn *DAGNet) Disconnect(peerA, peerB int) {
+	err := dn.net.DisconnectPeers(dn.nodes[peerA], dn.nodes[peerB])
 	require.NoError(dn.t, err)
 }
