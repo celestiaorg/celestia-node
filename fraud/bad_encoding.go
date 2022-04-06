@@ -8,6 +8,7 @@ import (
 
 	format "github.com/ipfs/go-ipld-format"
 	"github.com/tendermint/tendermint/pkg/consts"
+	"github.com/tendermint/tendermint/pkg/wrapper"
 
 	"github.com/celestiaorg/rsmt2d"
 
@@ -49,7 +50,7 @@ func CreateBadEncodingFraudProof(
 			if err != nil {
 				return nil, err
 			}
-			proof, err := tree.InclusionProof(position)
+			proof, err := tree.Tree().Prove(int(position))
 			if err != nil {
 				return nil, err
 			}
@@ -165,7 +166,7 @@ func (p *BadEncodingProof) Validate(header *header.ExtendedHeader, codec rsmt2d.
 	}
 	rebuiltShares = append(rebuiltShares, rebuiltExtendedShares...)
 
-	tree := NewErasuredNamespacedMerkleTree(uint64(len(shares) / 2))
+	tree := wrapper.NewErasuredNamespacedMerkleTree(uint64(len(shares) / 2))
 	for i, share := range rebuiltShares {
 		tree.Push(share, rsmt2d.SquareIndex{Axis: uint(p.Position), Cell: uint(i)})
 	}
@@ -188,8 +189,8 @@ func buildTreeFromLeaves(
 	root []byte,
 	axis int,
 	dag format.NodeGetter,
-) (*ErasuredNamespacedMerkleTree, error) {
-	tree := NewErasuredNamespacedMerkleTree(uint64(len(leaves) / 2))
+) (*wrapper.ErasuredNamespacedMerkleTree, error) {
+	tree := wrapper.NewErasuredNamespacedMerkleTree(uint64(len(leaves) / 2))
 	emptyData := bytes.Repeat([]byte{0}, len(leaves[0]))
 	for idx, data := range leaves {
 		if bytes.Equal(data, emptyData) {

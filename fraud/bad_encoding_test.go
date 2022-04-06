@@ -8,6 +8,7 @@ import (
 	mdutils "github.com/ipfs/go-merkledag/test"
 	"github.com/stretchr/testify/require"
 	"github.com/tendermint/tendermint/pkg/da"
+	"github.com/tendermint/tendermint/pkg/wrapper"
 
 	"github.com/celestiaorg/celestia-node/ipld"
 	"github.com/celestiaorg/celestia-node/service/header"
@@ -43,7 +44,7 @@ func TestFraudProofValidationForRow(t *testing.T) {
 	eds := ipld.RandEDS(t, 2)
 	size := eds.Width()
 
-	tree := NewErasuredNamespacedMerkleTree(uint64(size / 2))
+	tree := wrapper.NewErasuredNamespacedMerkleTree(uint64(size / 2))
 	_, err := ipld.PutData(context.Background(), ipld.ExtractODSShares(eds), dag)
 	require.NoError(t, err)
 	shares := flatten(eds)
@@ -94,7 +95,7 @@ func TestFraudProofValidationForCol(t *testing.T) {
 	_, err := ipld.PutData(context.Background(), ipld.ExtractODSShares(eds), dag)
 	require.NoError(t, err)
 
-	tree := NewErasuredNamespacedMerkleTree(uint64(size / 2))
+	tree := wrapper.NewErasuredNamespacedMerkleTree(uint64(size / 2))
 	shares := flatten(eds)
 	copy(shares[8][8:], shares[9][8:])
 
