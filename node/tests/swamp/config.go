@@ -21,6 +21,9 @@ func DefaultComponents() *Components {
 	app := core.CreateKVStore(200)
 	tnCfg := tn.TestConfig()
 	tnCfg.Consensus.CreateEmptyBlocksInterval = 200 * time.Millisecond
+	tnCfg.Consensus.TimeoutPrevote = 300 * time.Millisecond
+	tnCfg.Consensus.TimeoutPrecommit = 300 * time.Millisecond
+	tnCfg.Consensus.TimeoutPropose = 300 * time.Millisecond
 	return &Components{
 		App:     app,
 		CoreCfg: tnCfg,
