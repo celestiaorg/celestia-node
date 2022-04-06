@@ -9,7 +9,7 @@ import (
 	"github.com/minio/blake2b-simd"
 	"go.uber.org/fx"
 
-	"github.com/celestiaorg/celestia-node/node/fxutil"
+	"github.com/celestiaorg/celestia-node/libs/fxutil"
 )
 
 // PubSub provides a constructor for PubSub protocol with GossipSub routing.

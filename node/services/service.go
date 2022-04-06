@@ -12,10 +12,9 @@ import (
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	"go.uber.org/fx"
 
-	"github.com/celestiaorg/celestia-node/params"
-
 	"github.com/celestiaorg/celestia-node/das"
-	"github.com/celestiaorg/celestia-node/node/fxutil"
+	"github.com/celestiaorg/celestia-node/libs/fxutil"
+	"github.com/celestiaorg/celestia-node/params"
 	"github.com/celestiaorg/celestia-node/service/header"
 	"github.com/celestiaorg/celestia-node/service/share"
 )

@@ -9,6 +9,8 @@ import (
 	"github.com/raulk/go-watchdog"
 	"go.uber.org/fx"
 
+	"github.com/celestiaorg/celestia-node/libs/fxutil"
+
 	nodecore "github.com/celestiaorg/celestia-node/node/core"
 
 	"github.com/celestiaorg/celestia-node/node/p2p"
@@ -65,7 +67,7 @@ func baseComponents(cfg *Config, store Store) fx.Option {
 		fx.Provide(services.HeaderStore),
 		fx.Invoke(services.HeaderStoreInit(&cfg.Services)),
 		fx.Provide(services.HeaderSyncer),
-		fx.Provide(fx.Annotate(services.P2PSubscriber, fx.As(new(header.Broadcaster), new(header.Subscriber)))),
+		fxutil.ProvideAs(services.P2PSubscriber, new(header.Broadcaster), new(header.Subscriber)),
 		fx.Provide(services.HeaderP2PExchangeServer),
 		fx.Invoke(invokeWatchdog(store.Path())),
 		p2p.Components(cfg.P2P),

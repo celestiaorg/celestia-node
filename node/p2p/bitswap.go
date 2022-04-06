@@ -14,7 +14,7 @@ import (
 	"github.com/libp2p/go-libp2p-core/routing"
 	"go.uber.org/fx"
 
-	"github.com/celestiaorg/celestia-node/node/fxutil"
+	"github.com/celestiaorg/celestia-node/libs/fxutil"
 	nparams "github.com/celestiaorg/celestia-node/params"
 )
 

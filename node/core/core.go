@@ -7,6 +7,8 @@ import (
 	format "github.com/ipfs/go-ipld-format"
 	"go.uber.org/fx"
 
+	"github.com/celestiaorg/celestia-node/libs/fxutil"
+
 	"github.com/celestiaorg/celestia-node/core"
 	"github.com/celestiaorg/celestia-node/service/header"
 )
@@ -26,7 +28,7 @@ func DefaultConfig() Config {
 func Components(cfg Config) fx.Option {
 	return fx.Options(
 		fx.Provide(core.NewBlockFetcher),
-		fx.Provide(fx.Annotate(header.NewCoreExchange, fx.As(new(header.Exchange)))),
+		fxutil.ProvideAs(header.NewCoreExchange, new(header.Exchange)),
 		fx.Invoke(HeaderCoreListener),
 		fx.Provide(func(lc fx.Lifecycle) (core.Client, error) {
 			if cfg.RemoteAddr == "" {
