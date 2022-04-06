@@ -41,6 +41,7 @@ For full and light nodes, the general flow of the header Service is as follows:
 	1. Syncer listens for new ExtendedHeaders from HeaderSub
 	2. If there is a gap between the local head of chain and the new, validated network head, the Syncer
 	   kicks off a sync routine to request all ExtendedHeaders between local head and network head.
-	3. While the Syncer requests headers between the local head and network head in batches, it appends them to the subjective chain via Store with the last batched header as the new local head.
+	3. While the Syncer requests headers between the local head and network head in batches, it appends them to the
+	   subjective chain via Store with the last batched header as the new local head.
 */
 package header
