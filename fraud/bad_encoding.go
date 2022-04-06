@@ -2,14 +2,18 @@ package fraud
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 
+	format "github.com/ipfs/go-ipld-format"
 	"github.com/tendermint/tendermint/pkg/consts"
 
 	"github.com/celestiaorg/rsmt2d"
 
 	pb "github.com/celestiaorg/celestia-node/fraud/pb"
+	"github.com/celestiaorg/celestia-node/ipld"
+	"github.com/celestiaorg/celestia-node/ipld/plugin"
 	"github.com/celestiaorg/celestia-node/service/header"
 )
 
@@ -29,7 +33,9 @@ func CreateBadEncodingFraudProof(
 	position uint8,
 	isRow bool,
 	eds *rsmt2d.ExtendedDataSquare,
+	roots [][]byte,
 	errShares [][]byte,
+	dag format.NodeGetter,
 ) (Proof, error) {
 	shares := make([]*Share, len(errShares))
 	for index, share := range errShares {
@@ -39,7 +45,10 @@ func CreateBadEncodingFraudProof(
 				data = eds.Col(uint(index))
 			}
 
-			tree := buildTreeFromLeaves(data, index)
+			tree, err := buildTreeFromLeaves(data, roots[index], index, dag)
+			if err != nil {
+				return nil, err
+			}
 			proof, err := tree.InclusionProof(position)
 			if err != nil {
 				return nil, err
@@ -174,13 +183,34 @@ func (p *BadEncodingProof) Validate(header *header.ExtendedHeader, codec rsmt2d.
 	return nil
 }
 
-func buildTreeFromLeaves(leaves [][]byte, index int) *ErasuredNamespacedMerkleTree {
+func buildTreeFromLeaves(
+	leaves [][]byte,
+	root []byte,
+	axis int,
+	dag format.NodeGetter,
+) (*ErasuredNamespacedMerkleTree, error) {
 	tree := NewErasuredNamespacedMerkleTree(uint64(len(leaves) / 2))
+	emptyData := bytes.Repeat([]byte{0}, len(leaves[0]))
 	for idx, data := range leaves {
+		if bytes.Equal(data, emptyData) {
+			// if share was not repaired, then we should get it through sampling
+			share, err := getShare(root, idx, len(leaves), dag)
+			if err != nil {
+				return nil, err
+			}
+			data = share[consts.NamespaceSize:]
+		}
 		// Axis is an exteranl shifting(e.g between Rows); Cell - is an internal shifting(e.g inside one col)
 		// They are also valid vice versa(Axis - shifting between Cols, Cell - shifting inside row)
-		tree.Push(data, rsmt2d.SquareIndex{Axis: uint(index), Cell: uint(idx)})
-
+		tree.Push(data, rsmt2d.SquareIndex{Axis: uint(axis), Cell: uint(idx)})
 	}
-	return &tree
+	return &tree, nil
+}
+
+func getShare(root []byte, index int, length int, dag format.NodeGetter) ([]byte, error) {
+	cid, err := plugin.CidFromNamespacedSha256(root)
+	if err != nil {
+		return nil, err
+	}
+	return ipld.GetLeafData(context.Background(), cid, uint32(index), uint32(length), dag)
 }
