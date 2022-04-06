@@ -6,6 +6,7 @@ import (
 
 	"github.com/ipfs/go-cid"
 	ipld "github.com/ipfs/go-ipld-format"
+	"github.com/ipfs/go-merkledag"
 	"golang.org/x/sync/errgroup"
 
 	"github.com/tendermint/tendermint/pkg/da"
@@ -35,7 +36,7 @@ func RetrieveData(
 	}
 	errGroup, ctx := errgroup.WithContext(parentCtx)
 	errGroup.Go(func() error {
-		return fillQuadrant(ctx, quadrant, dag, dataSquare)
+		return fillQuadrant(ctx, quadrant, merkledag.NewSession(ctx, dag), dataSquare)
 	})
 	if err := errGroup.Wait(); err != nil {
 		return nil, err
