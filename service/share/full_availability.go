@@ -2,6 +2,7 @@ package share
 
 import (
 	"context"
+	"errors"
 
 	format "github.com/ipfs/go-ipld-format"
 
@@ -26,6 +27,17 @@ func NewFullAvailability(service format.DAGService) Availability {
 // SharesAvailable reconstructs the data committed to the given Root by requesting
 // enough Shares from the network.
 func (fa *fullAvailability) SharesAvailable(ctx context.Context, root *Root) error {
+	ctx, cancel := context.WithTimeout(ctx, AvailabilityTimeout)
+	defer cancel()
+
 	_, err := ipld.RetrieveData(ctx, root, fa.service, rsmt2d.NewRSGF8Codec())
+	if err != nil {
+		log.Errorw("availability validation failed", "root", root.Hash(), "err", err)
+		if errors.Is(err, format.ErrNotFound) || errors.Is(err, context.DeadlineExceeded) {
+			return ErrNotAvailable
+		}
+
+		return err
+	}
 	return err
 }
