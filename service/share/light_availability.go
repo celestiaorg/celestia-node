@@ -14,7 +14,7 @@ var DefaultSampleAmount = 16
 
 // lightAvailability implements Availability using Data Availability Sampling technique.
 // It is light because it does not require the downloading of all the data to verify
-// its availability. It is assumed that there are lots of lightAvailability instances
+// its availability. It is assumed that there are a lot of lightAvailability instances
 // on the network doing sampling over the same Root to collectively verify its availability.
 type lightAvailability struct {
 	getter format.NodeGetter
