@@ -33,6 +33,9 @@ git clone https://github.com/celestiaorg/celestia-node.git
 make install
 ```
 
+For more information on setting up a node and the hardware requirements needed, go visit our docs at 
+https://docs.celestia.org.
+
 ### Node types
 * **Bridge** nodes - relay blocks from the celestia consensus network to the celestia data availability 
 (DA) network
