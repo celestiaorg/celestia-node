@@ -24,6 +24,8 @@ func DefaultComponents() *Components {
 	tnCfg.Consensus.TimeoutPrevote = 300 * time.Millisecond
 	tnCfg.Consensus.TimeoutPrecommit = 300 * time.Millisecond
 	tnCfg.Consensus.TimeoutPropose = 300 * time.Millisecond
+	tnCfg.Consensus.TimeoutCommit = time.Millisecond * 1000
+	tnCfg.Consensus.SkipTimeoutCommit = false
 	return &Components{
 		App:     app,
 		CoreCfg: tnCfg,
