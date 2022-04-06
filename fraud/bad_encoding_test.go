@@ -3,7 +3,6 @@ package fraud
 import (
 	"bytes"
 	"errors"
-	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -15,7 +14,7 @@ import (
 )
 
 func TestCreateBadEncodingFraudProof(t *testing.T) {
-	eds := ipld.GenerateRandEDS(t, 2)
+	eds := ipld.RandEDS(t, 2)
 	type test struct {
 		name   string
 		isRow  bool
@@ -38,7 +37,7 @@ func TestCreateBadEncodingFraudProof(t *testing.T) {
 }
 
 func TestFraudProofValidationForRow(t *testing.T) {
-	eds := ipld.GenerateRandEDS(t, 2)
+	eds := ipld.RandEDS(t, 2)
 	size := eds.Width()
 
 	tree := NewErasuredNamespacedMerkleTree(uint64(size / 2))
@@ -67,22 +66,19 @@ func TestFraudProofValidationForRow(t *testing.T) {
 	var errRow *rsmt2d.ErrByzantineRow
 	require.True(t, errors.As(err, &errRow))
 
-	errRow = err.(*rsmt2d.ErrByzantineRow)
-	fmt.Println(errRow.Shares)
-
 	p, err := CreateBadEncodingFraudProof(1, uint8(errRow.RowNumber), true, eds1, errRow.Shares)
 	require.NoError(t, err)
 
 	dah := da.NewDataAvailabilityHeader(eds1)
 	h := &header.ExtendedHeader{DAH: &dah}
 
-	err = p.Validate(h)
+	err = p.Validate(h, rsmt2d.NewRSGF8Codec())
 	require.NoError(t, err)
 
 }
 
 func TestFraudProofValidationForCol(t *testing.T) {
-	eds := ipld.GenerateRandEDS(t, 2)
+	eds := ipld.RandEDS(t, 2)
 	size := eds.Width()
 
 	tree := NewErasuredNamespacedMerkleTree(uint64(size / 2))
@@ -111,23 +107,19 @@ func TestFraudProofValidationForCol(t *testing.T) {
 	var errCol *rsmt2d.ErrByzantineCol
 	require.True(t, errors.As(err, &errCol))
 
-	errCol = err.(*rsmt2d.ErrByzantineCol)
-	fmt.Println(errCol.Shares)
-
 	p, err := CreateBadEncodingFraudProof(1, uint8(errCol.ColNumber), false, eds1, errCol.Shares)
 	require.NoError(t, err)
 
 	dah := da.NewDataAvailabilityHeader(eds1)
 	h := &header.ExtendedHeader{DAH: &dah}
 
-	err = p.Validate(h)
+	err = p.Validate(h, rsmt2d.NewRSGF8Codec())
 	require.NoError(t, err)
 
 }
 
 func TestBuildTreeFromDataRoot(t *testing.T) {
-	eds := ipld.GenerateRandEDS(t, 8)
-	size := eds.Width()
+	eds := ipld.RandEDS(t, 8)
 	type test struct {
 		name        string
 		length      int
@@ -157,8 +149,8 @@ func TestBuildTreeFromDataRoot(t *testing.T) {
 			for i := 0; i < tc.length; i++ {
 				errShares := tc.errShares(uint(i))
 				for index := range errShares {
-					tree := NewErasuredNamespacedMerkleTree(uint64(size / 2))
-					require.NoError(t, buildTreeFromDataRoot(&tree, tc.dataFetcher(uint(index)), index))
+					tree := buildTreeFromLeaves(tc.dataFetcher(uint(index)), index)
+					require.NotNil(t, tree)
 					require.True(t, bytes.Equal(tc.roots[index], tree.Root()))
 				}
 			}

@@ -3,7 +3,10 @@ package fraud
 import (
 	"encoding"
 
+	pb "github.com/celestiaorg/celestia-node/fraud/pb"
 	"github.com/celestiaorg/celestia-node/service/header"
+	"github.com/celestiaorg/nmt"
+	"github.com/celestiaorg/rsmt2d"
 )
 
 type ProofType string
@@ -20,7 +23,12 @@ type Proof interface {
 	Height() uint64
 	// Validate check the validity of fraud proof.
 	// Validate throws an error if some conditions don't pass and thus fraud proof is not valid
-	Validate(*header.ExtendedHeader) error
+	Validate(*header.ExtendedHeader, rsmt2d.Codec) error
 
 	encoding.BinaryMarshaler
+	encoding.BinaryUnmarshaler
+}
+
+func ProtoToProof(protoProof *pb.MerkleProof) nmt.Proof {
+	return nmt.NewInclusionProof(int(protoProof.Start), int(protoProof.End), protoProof.Nodes, true)
 }

@@ -7,7 +7,7 @@ message MerkleProof {
    int64          end       = 2;
    repeated bytes nodes     = 3;
    bytes          leaf_hash = 4;
- }
+}
 
 message Share {
     bytes NamespaceID = 1;
@@ -20,4 +20,4 @@ message BadEnconding {
     repeated Share Shares   = 2;
     uint32         Position = 3;
     bool           isRow    = 4;
- }
+}
