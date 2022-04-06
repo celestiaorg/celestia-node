@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 
 	mdutils "github.com/ipfs/go-merkledag/test"
 	"github.com/stretchr/testify/require"
@@ -32,7 +33,7 @@ func TestCreateBadEncodingFraudProofWithCompletedShares(t *testing.T) {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			for index := 0; index < tc.length; index++ {
-				_, err := CreateBadEncodingFraudProof(1, uint8(index), tc.isRow, eds, tc.roots, tc.leaves(uint(index)), nil)
+				_, err := CreateBadEncodingFraudProof(context.Background(), 1, uint8(index), tc.isRow, eds, tc.roots, tc.leaves(uint(index)), nil)
 				require.NoError(t, err)
 			}
 		})
@@ -69,8 +70,10 @@ func TestFraudProofValidationForRow(t *testing.T) {
 	// [2] and [3] will be empty
 	var errRow *rsmt2d.ErrByzantineRow
 	require.True(t, errors.As(err, &errRow))
-
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*2)
+	defer cancel()
 	p, err := CreateBadEncodingFraudProof(
+		ctx,
 		1,
 		uint8(errRow.RowNumber),
 		true,
@@ -121,7 +124,11 @@ func TestFraudProofValidationForCol(t *testing.T) {
 	var errCol *rsmt2d.ErrByzantineCol
 	require.True(t, errors.As(err, &errCol))
 
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*2)
+	defer cancel()
+
 	p, err := CreateBadEncodingFraudProof(
+		ctx,
 		1,
 		uint8(errCol.ColNumber),
 		false,
