@@ -9,6 +9,7 @@
 ## Changelog
 
 * 2021-11-25: initial draft
+* 2022-03-30: update to bridge node definition
 
 <hr style="border:2px solid gray"> </hr>
 
@@ -20,11 +21,17 @@ Refers to the data availability "halo" network created around the Core network.
 
 ### **Bridge Node**
 
-A **bridge** node is a **full** node that is connected to a Celestia Core node via RPC. It receives either a remote
-address from a running Core node or it can run a Core node as an embedded process, but the critical difference is that
-instead of reconstructing blocks via downloading enough shares from the network, it receives headers and blocks directly from its 
-trusted Core node, validating blocks, erasure coding them, and producing `ExtendedHeader`s to broadcast to the Celestia 
-DA network.
+A **bridge** node is a node that is connected to a celestia-core node via RPC. It receives a remote address from a 
+running celestia-core node and listens for blocks from celestia-core. For each new block from celestia-core, the **bridge**
+node performs basic validation on the block via `ValidateBasic()`, extends the block data, generates a Data Availability 
+Header (DAH) from the extended block data, and creates an `ExtendedHeader` from the block header and the DAH, and finally 
+broadcasts it to the data availability network (DA network).
+
+A **bridge** node does not care about what kind of celestia-core node it is connected to (validator or regular full node),
+it only cares that it has a direct RPC connection to a celestia-core node from which it can listen for new blocks.
+
+The name **bridge** was chosen as the purpose of this node type is to provide a mechanism to relay celestia-core blocks
+to the data availability network.  
 
 ### **Full Node**
 
