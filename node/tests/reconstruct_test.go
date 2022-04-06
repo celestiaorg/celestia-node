@@ -39,15 +39,16 @@ func TestFullReconstructFromBridge(t *testing.T) {
 	t.Cleanup(cancel)
 
 	ticker := time.NewTicker(10 * time.Millisecond)
-	done := make(chan bool)
+	// done := make(chan bool)
 
 	go func(tt *testing.T) {
 		for {
 			select {
-			case <-done:
+			// case <- done:
+			case <-ctx.Done():
 				return
 			case <-ticker.C:
-				_, e := sw.CreateTx(ctx, "kuna="+RandomString(8))
+				_, e := sw.CreateTx(ctx, RandomString(4)+"="+RandomString(8))
 				require.NoError(tt, e)
 			}
 		}
@@ -81,7 +82,7 @@ func TestFullReconstructFromBridge(t *testing.T) {
 
 	time.Sleep(1600 * time.Millisecond)
 	ticker.Stop()
-	done <- true
+	// done <- true
 	fmt.Println("Ticker stopped")
 }
 
@@ -89,7 +90,7 @@ func TestFullReconstructFromLights(t *testing.T) {
 
 	sw := swamp.NewSwamp(t, swamp.DefaultComponents())
 
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	ctx, cancel := context.WithTimeout(context.Background(), 40*time.Second)
 	t.Cleanup(cancel)
 
 	ticker := time.NewTicker(10 * time.Millisecond)
@@ -101,7 +102,7 @@ func TestFullReconstructFromLights(t *testing.T) {
 			case <-done:
 				return
 			case <-ticker.C:
-				_, e := sw.CreateTx(ctx, "kuna="+RandomString(8))
+				_, e := sw.CreateTx(ctx, RandomString(4)+"="+RandomString(8))
 				require.NoError(tt, e)
 			}
 		}
@@ -127,7 +128,7 @@ func TestFullReconstructFromLights(t *testing.T) {
 		light := sw.NewLightNode(node.WithTrustedPeers(addrs[0].String()))
 		err = light.Start(ctx)
 		require.NoError(t, err)
-		trustedPeers = []string{getMultiAddr(light.Host)}
+		trustedPeers = append(trustedPeers, getMultiAddr(light.Host))
 	}
 
 	full := sw.NewFullNode(node.WithTrustedPeers(trustedPeers...))
