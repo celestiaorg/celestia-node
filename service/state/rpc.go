@@ -23,7 +23,7 @@ var (
 
 func (s *Service) RegisterEndpoints(rpc *rpc.Server) {
 	rpc.RegisterHandlerFunc("/balance", s.handleBalanceRequest, http.MethodGet)
-	rpc.RegisterHandlerFunc(fmt.Sprintf("/balance/{%s}", addrKey), s.handleBalanceForAddrRequest, http.MethodPost)
+	rpc.RegisterHandlerFunc(fmt.Sprintf("/balance/{%s}", addrKey), s.handleBalanceForAddrRequest, http.MethodGet)
 	rpc.RegisterHandlerFunc(fmt.Sprintf("/submit_tx/{%s}", txKey), s.handleSubmitTx, http.MethodPost)
 }
 

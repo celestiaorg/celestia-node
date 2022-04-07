@@ -13,7 +13,7 @@ import (
 // parent command.
 
 func init() {
-	lightKeyCmd := keys.Commands("~/.celestia-light/keys")
+	lightKeyCmd := keys.Commands("$HOME/.celestia-light/keys")
 	lightKeyCmd.Short = "Manage your light node account keys"
 	lightKeyCmd.PersistentPreRunE = func(cmd *cobra.Command, args []string) error {
 		_, err := cmdnode.GetEnv(cmd.Context())
