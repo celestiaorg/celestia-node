@@ -21,16 +21,15 @@ func CoreAccessor(endpoint string) func(fx.Lifecycle, keystore.Keystore, params.
 		fmt.Println("\n\n\n\n KEYPATH: ", ks.Path())
 		// TODO @renaynay: Include option for setting custom `userInput` parameter with
 		//  implementation of https://github.com/celestiaorg/celestia-node/issues/415.
+		// TODO @renaynay @Wondertan: ensure that keyring backend from config is passed
+		//  here instead of hardcoded `BackendTest`: https://github.com/celestiaorg/celestia-node/issues/603.
 		ring, err := keyring.New(app.Name, keyring.BackendTest, ks.Path(), os.Stdin)
 		if err != nil {
 			return nil, err
 		}
 		signer := apptypes.NewKeyringSigner(ring, keyringAccName, string(net))
 
-		ca, err := state.NewCoreAccessor(signer, endpoint), nil
-		if err != nil {
-			return nil, err
-		}
+		ca := state.NewCoreAccessor(signer, endpoint)
 		lc.Append(fx.Hook{
 			OnStart: ca.Start,
 			OnStop:  ca.Stop,
