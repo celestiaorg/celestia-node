@@ -2,11 +2,8 @@ package main
 
 import (
 	"context"
-	"fmt"
-	"github.com/cosmos/cosmos-sdk/client/flags"
 	"os"
 
-	"github.com/cosmos/cosmos-sdk/client/keys"
 	"github.com/spf13/cobra"
 	"github.com/tendermint/spm/cosmoscmd"
 
@@ -15,24 +12,14 @@ import (
 )
 
 func init() {
-	// NOTE: this is absolutely necessary to ensure that the accounts are prefixed with `celes`
+	// This is necessary to ensure that the account addresses are correctly prefixed
+	// as in the celestia application.
 	cosmoscmd.SetPrefixes(app.AccountAddressPrefix)
-
-	keyCmd := keys.Commands("")
-	keyCmd.Short = "Manage your account's keys"
-	// mark FlagKeyringDir flag as required
-	keyCmd.Flag(flags.FlagKeyringDir).Usage = "The client Keyring directory (REQUIRED) (example $HOME/.celestia-light)"
-	err := keyCmd.MarkPersistentFlagRequired(flags.FlagKeyringDir)
-	if err != nil {
-		fmt.Println("key command error: ", err.Error())
-		os.Exit(1)
-	}
 
 	rootCmd.AddCommand(
 		bridgeCmd,
 		lightCmd,
 		fullCmd,
-		keyCmd,
 		versionCmd,
 	)
 	rootCmd.SetHelpCommand(&cobra.Command{})

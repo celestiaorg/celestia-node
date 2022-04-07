@@ -43,7 +43,6 @@ func (s *Service) handleBalanceRequest(w http.ResponseWriter, r *http.Request) {
 		log.Errorw("serving /balance request", "err", err)
 		return
 	}
-	w.WriteHeader(http.StatusOK) // TODO @renaynay set header before or after writing resp?
 	_, err = w.Write(resp)
 	if err != nil {
 		log.Errorw("writing /balance response", "err", err)
@@ -75,7 +74,6 @@ func (s *Service) handleBalanceForAddrRequest(w http.ResponseWriter, r *http.Req
 		log.Errorw("serving /balance request", "err", err)
 		return
 	}
-	w.WriteHeader(http.StatusOK) // TODO @renaynay set header before or after writing resp?
 	_, err = w.Write(resp)
 	if err != nil {
 		log.Errorw("writing /balance response", "err", err)
@@ -106,7 +104,6 @@ func (s *Service) handleSubmitTx(w http.ResponseWriter, r *http.Request) {
 		log.Errorw("serving /submit_tx request", "err", err)
 		return
 	}
-	w.WriteHeader(http.StatusOK) // TODO @renaynay set header before or after writing resp?
 	_, err = w.Write(resp)
 	if err != nil {
 		log.Errorw("writing /balance response", "err", err)

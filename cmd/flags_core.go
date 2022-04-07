@@ -29,7 +29,7 @@ func CoreFlags() *flag.FlagSet {
 	flags.String(
 		coreGRPCFlag,
 		"",
-		"Indicates node to connect to the given core node gRPC endpoint for state-related queries"+
+		"Indicates node to connect to the given celestia-app gRPC endpoint for state-related queries"+
 			"Example: <ip>:<port>, 127.0.0.1:9090",
 	)
 
