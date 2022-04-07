@@ -8,6 +8,7 @@ import (
 
 	mdutils "github.com/ipfs/go-merkledag/test"
 	"github.com/stretchr/testify/require"
+	"github.com/tendermint/tendermint/pkg/consts"
 	"github.com/tendermint/tendermint/pkg/da"
 	"github.com/tendermint/tendermint/pkg/wrapper"
 
@@ -50,7 +51,7 @@ func TestFraudProofValidationForRow(t *testing.T) {
 	require.NoError(t, err)
 	shares := flatten(eds)
 	copy(shares[3][8:], shares[8][8:])
-	attackerEDS, err := rsmt2d.ImportExtendedDataSquare(shares, rsmt2d.NewRSGF8Codec(), tree.Constructor)
+	attackerEDS, err := rsmt2d.ImportExtendedDataSquare(shares, consts.DefaultCodec(), tree.Constructor)
 	require.NoError(t, err)
 	dataSquare := make([][]byte, size*size)
 	copy(dataSquare, shares)
@@ -62,7 +63,7 @@ func TestFraudProofValidationForRow(t *testing.T) {
 		attackerEDS.RowRoots(),
 		attackerEDS.ColRoots(),
 		dataSquare,
-		rsmt2d.NewRSGF8Codec(),
+		consts.DefaultCodec(),
 		tree.Constructor,
 	)
 	require.Error(t, err)
@@ -87,7 +88,7 @@ func TestFraudProofValidationForRow(t *testing.T) {
 	dah := da.NewDataAvailabilityHeader(attackerEDS)
 	h := &header.ExtendedHeader{DAH: &dah}
 
-	err = p.Validate(h, rsmt2d.NewRSGF8Codec())
+	err = p.Validate(h, consts.DefaultCodec())
 	require.NoError(t, err)
 }
 
@@ -102,7 +103,7 @@ func TestFraudProofValidationForCol(t *testing.T) {
 	shares := flatten(eds)
 	copy(shares[8][8:], shares[9][8:])
 
-	attackerEDS, err := rsmt2d.ImportExtendedDataSquare(shares, rsmt2d.NewRSGF8Codec(), tree.Constructor)
+	attackerEDS, err := rsmt2d.ImportExtendedDataSquare(shares, consts.DefaultCodec(), tree.Constructor)
 	require.NoError(t, err)
 
 	dataSquare := make([][]byte, len(shares))
@@ -116,7 +117,7 @@ func TestFraudProofValidationForCol(t *testing.T) {
 		attackerEDS.RowRoots(),
 		attackerEDS.ColRoots(),
 		dataSquare,
-		rsmt2d.NewRSGF8Codec(),
+		consts.DefaultCodec(),
 		tree.Constructor,
 	)
 	require.Error(t, err)
@@ -142,7 +143,7 @@ func TestFraudProofValidationForCol(t *testing.T) {
 	dah := da.NewDataAvailabilityHeader(attackerEDS)
 	h := &header.ExtendedHeader{DAH: &dah}
 
-	err = p.Validate(h, rsmt2d.NewRSGF8Codec())
+	err = p.Validate(h, consts.DefaultCodec())
 	require.NoError(t, err)
 
 }
