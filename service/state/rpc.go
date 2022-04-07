@@ -2,6 +2,7 @@ package state
 
 import (
 	"context"
+	"encoding/hex"
 	"fmt"
 	"net/http"
 	"time"
@@ -26,7 +27,6 @@ func (s *Service) RegisterEndpoints(rpc *rpc.Server) {
 	rpc.RegisterHandlerFunc(fmt.Sprintf("/submit_tx/{%s}", txKey), s.handleSubmitTx, http.MethodPost)
 }
 
-// TODO @renaynay simplify logic between balance get and balance post
 func (s *Service) handleBalanceRequest(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 	defer cancel()
@@ -86,10 +86,15 @@ func (s *Service) handleSubmitTx(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 	defer cancel()
 	// read and parse request
-	vars := mux.Vars(r)
-	txStr := vars[txKey]
+	txStr := mux.Vars(r)[txKey]
+	raw, err := hex.DecodeString(txStr)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		log.Errorw("serving /submit_tx request", "err", err)
+		return
+	}
 	// perform request
-	txResp, err := s.accessor.SubmitTx(ctx, []byte(txStr))
+	txResp, err := s.accessor.SubmitTx(ctx, raw)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		log.Errorw("serving /submit_tx request", "err", err)

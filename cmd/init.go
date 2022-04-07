@@ -18,6 +18,7 @@ func Init(fsets ...*flag.FlagSet) *cobra.Command {
 			if err != nil {
 				return err
 			}
+
 			return node.Init(env.StorePath, env.NodeType, env.Options()...)
 		},
 	}
