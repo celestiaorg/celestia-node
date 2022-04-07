@@ -36,12 +36,12 @@ func TestShareAvailableOverMocknet_Full(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	net := NewDAGNet(ctx, t)
-	_, root := net.RandFullService(32)
-	serv := net.CleanFullService()
+	net := NewTestDAGNet(ctx, t)
+	_, root := net.RandFullNode(32)
+	nd := net.FullNode()
 	net.ConnectAll()
 
-	err := serv.SharesAvailable(ctx, root)
+	err := nd.SharesAvailable(ctx, root)
 	assert.NoError(t, err)
 }
 
@@ -50,18 +50,22 @@ func TestShareAvailable_FullOverLights(t *testing.T) {
 		origSquareSize = 8
 		lightNodes     = 192
 	)
+
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
 	defer cancel()
 
-	net := NewDAGNet(ctx, t)
-	_, root := net.RandFullService(origSquareSize) // make a source node, a.k.a bridge
-	full := net.CleanFullService()                 // make a full availability service which reconstructs data
+	net := NewTestDAGNet(ctx, t)
+	source, root := net.RandFullNode(origSquareSize) // make a source node, a.k.a bridge
+	full := net.FullNode()                           // make a full availability service which reconstructs data
 
-	lights := make([]Service, lightNodes)
+	lights := make([]*node, lightNodes)
 	for i := 0; i < len(lights); i++ {
-		lights[i] = net.CleanLightService()
+		light := net.LightNode()
+		net.Connect(light.ID(), full.ID())
+		net.Connect(light.ID(), source.ID())
+		lights[i] = light
 	}
-	net.ConnectAll()
+
 	for i := 0; i < len(lights); i++ {
 		err := lights[i].SharesAvailable(ctx, root)
 		require.NoError(t, err)
