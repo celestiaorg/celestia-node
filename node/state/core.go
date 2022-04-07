@@ -1,10 +1,10 @@
 package state
 
 import (
-	"fmt"
 	"os"
 
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
+	logging "github.com/ipfs/go-log/v2"
 	"go.uber.org/fx"
 
 	"github.com/celestiaorg/celestia-app/app"
@@ -14,11 +14,14 @@ import (
 	"github.com/celestiaorg/celestia-node/service/state"
 )
 
-var keyringAccName = "celes"
+var (
+	log = logging.Logger("state-access-constructor")
+
+	keyringAccName = "celes"
+)
 
 func CoreAccessor(endpoint string) func(fx.Lifecycle, keystore.Keystore, params.Network) (state.Accessor, error) {
 	return func(lc fx.Lifecycle, ks keystore.Keystore, net params.Network) (state.Accessor, error) {
-		fmt.Println("\n\n\n\n KEYPATH: ", ks.Path())
 		// TODO @renaynay: Include option for setting custom `userInput` parameter with
 		//  implementation of https://github.com/celestiaorg/celestia-node/issues/415.
 		// TODO @renaynay @Wondertan: ensure that keyring backend from config is passed
@@ -28,6 +31,9 @@ func CoreAccessor(endpoint string) func(fx.Lifecycle, keystore.Keystore, params.
 			return nil, err
 		}
 		signer := apptypes.NewKeyringSigner(ring, keyringAccName, string(net))
+
+		log.Infow("constructed keyring signer", "backend", keyring.BackendTest, "path", ks.Path(),
+			"keyring account name", keyringAccName)
 
 		ca := state.NewCoreAccessor(signer, endpoint)
 		lc.Append(fx.Hook{

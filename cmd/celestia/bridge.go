@@ -13,7 +13,7 @@ import (
 // parent command.
 
 func init() {
-	bridgeKeyCmd := keys.Commands("~/.celestia-bridge/keys")
+	bridgeKeyCmd := keys.Commands("$HOME/.celestia-bridge/keys")
 	bridgeKeyCmd.Short = "Manage your bridge node account keys"
 	bridgeKeyCmd.PersistentPreRunE = func(cmd *cobra.Command, args []string) error {
 		_, err := cmdnode.GetEnv(cmd.Context())

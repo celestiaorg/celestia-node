@@ -1,11 +1,9 @@
 package state
 
 import (
-	"context"
 	"encoding/hex"
 	"fmt"
 	"net/http"
-	"time"
 
 	"github.com/cosmos/cosmos-sdk/types"
 	"github.com/gorilla/mux"
@@ -28,10 +26,7 @@ func (s *Service) RegisterEndpoints(rpc *rpc.Server) {
 }
 
 func (s *Service) handleBalanceRequest(w http.ResponseWriter, r *http.Request) {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
-	defer cancel()
-
-	bal, err := s.accessor.Balance(ctx)
+	bal, err := s.accessor.Balance(r.Context())
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		log.Errorw("serving /balance request", "err", err)
@@ -50,8 +45,6 @@ func (s *Service) handleBalanceRequest(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Service) handleBalanceForAddrRequest(w http.ResponseWriter, r *http.Request) {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
-	defer cancel()
 	// read and parse request
 	vars := mux.Vars(r)
 	addrStr := vars[addrKey]
@@ -62,7 +55,7 @@ func (s *Service) handleBalanceForAddrRequest(w http.ResponseWriter, r *http.Req
 		log.Errorw("getting AccAddressFromBech32", "err", err)
 		return
 	}
-	bal, err := s.accessor.BalanceForAddress(ctx, addr)
+	bal, err := s.accessor.BalanceForAddress(r.Context(), addr)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		log.Errorw("serving /balance request", "err", err)
@@ -81,8 +74,6 @@ func (s *Service) handleBalanceForAddrRequest(w http.ResponseWriter, r *http.Req
 }
 
 func (s *Service) handleSubmitTx(w http.ResponseWriter, r *http.Request) {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
-	defer cancel()
 	// read and parse request
 	txStr := mux.Vars(r)[txKey]
 	raw, err := hex.DecodeString(txStr)
@@ -92,7 +83,7 @@ func (s *Service) handleSubmitTx(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	// perform request
-	txResp, err := s.accessor.SubmitTx(ctx, raw)
+	txResp, err := s.accessor.SubmitTx(r.Context(), raw)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		log.Errorw("serving /submit_tx request", "err", err)
