@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"fmt"
+	"github.com/cosmos/cosmos-sdk/client/flags"
 	"os"
 
 	"github.com/cosmos/cosmos-sdk/client/keys"
@@ -18,6 +20,13 @@ func init() {
 
 	keyCmd := keys.Commands("")
 	keyCmd.Short = "Manage your account's keys"
+	// mark FlagKeyringDir flag as required
+	keyCmd.Flag(flags.FlagKeyringDir).Usage = "The client Keyring directory (REQUIRED) (example $HOME/.celestia-light)"
+	err := keyCmd.MarkPersistentFlagRequired(flags.FlagKeyringDir)
+	if err != nil {
+		fmt.Println("key command error: ", err.Error())
+		os.Exit(1)
+	}
 
 	rootCmd.AddCommand(
 		bridgeCmd,

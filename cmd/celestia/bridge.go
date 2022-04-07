@@ -27,6 +27,7 @@ func init() {
 			cmdnode.TrustedHashFlags(),
 			cmdnode.MiscFlags(),
 		),
+
 	)
 }
 
