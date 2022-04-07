@@ -34,7 +34,16 @@ func TestCreateBadEncodingFraudProofWithCompletedShares(t *testing.T) {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			for index := 0; index < tc.length; index++ {
-				_, err := CreateBadEncodingFraudProof(context.Background(), 1, uint8(index), tc.isRow, eds, tc.roots, tc.leaves(uint(index)), nil)
+				_, err := CreateBadEncodingFraudProof(
+					context.Background(),
+					1,
+					uint8(index),
+					tc.isRow,
+					eds,
+					tc.roots,
+					tc.leaves(uint(index)),
+					nil,
+				)
 				require.NoError(t, err)
 			}
 		})
