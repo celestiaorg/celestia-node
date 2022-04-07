@@ -25,7 +25,7 @@ import (
 func lightComponents(cfg *Config, store Store) fx.Option {
 	return fx.Options(
 		fx.Supply(Light),
-		baseComponents(Light, cfg, store),
+		baseComponents(cfg, store),
 		fx.Provide(services.DASer),
 		fx.Provide(services.HeaderExchangeP2P(cfg.Services)),
 		fx.Provide(services.LightAvailability),
@@ -36,7 +36,7 @@ func lightComponents(cfg *Config, store Store) fx.Option {
 func bridgeComponents(cfg *Config, store Store) fx.Option {
 	return fx.Options(
 		fx.Supply(Bridge),
-		baseComponents(Bridge, cfg, store),
+		baseComponents(cfg, store),
 		nodecore.Components(cfg.Core),
 		fx.Provide(services.LightAvailability), // TODO(@Wondertan): Remove strict requirements to have Availability
 	)
@@ -46,7 +46,7 @@ func bridgeComponents(cfg *Config, store Store) fx.Option {
 func fullComponents(cfg *Config, store Store) fx.Option {
 	return fx.Options(
 		fx.Supply(Full),
-		baseComponents(Full, cfg, store),
+		baseComponents(cfg, store),
 		fx.Provide(services.DASer),
 		fx.Provide(services.HeaderExchangeP2P(cfg.Services)),
 		fx.Provide(services.FullAvailability),
@@ -54,7 +54,7 @@ func fullComponents(cfg *Config, store Store) fx.Option {
 }
 
 // baseComponents keeps all the common components shared between different Node types.
-func baseComponents(tp Type, cfg *Config, store Store) fx.Option {
+func baseComponents(cfg *Config, store Store) fx.Option {
 	return fx.Options(
 		fx.Provide(params.DefaultNetwork),
 		fx.Provide(context.Background),
