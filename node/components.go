@@ -2,7 +2,6 @@ package node
 
 import (
 	"context"
-	"strings"
 	"sync"
 	"time"
 
@@ -74,7 +73,7 @@ func baseComponents(tp Type, cfg *Config, store Store) fx.Option {
 		p2p.Components(cfg.P2P),
 		// state components
 		fx.Provide(statecomponents.NewService),
-		fx.Provide(statecomponents.CoreAccessor(cfg.Core.GRPCAddr, strings.ToLower(tp.String()))),
+		fx.Provide(statecomponents.CoreAccessor(cfg.Core.GRPCAddr)),
 		// RPC component
 		fx.Provide(func(lc fx.Lifecycle) *rpc.Server {
 			// TODO @renaynay @Wondertan: not providing any custom config
