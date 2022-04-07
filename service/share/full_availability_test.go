@@ -55,7 +55,7 @@ func TestShareAvailable_FullOverLights(t *testing.T) {
 
 	net := NewDAGNet(ctx, t)
 	_, root := net.RandFullService(origSquareSize) // make a source node, a.k.a bridge
-	full := net.CleanFullService()                 // make a full which reconstructs data
+	full := net.CleanFullService()                 // make a full availability service which reconstructs data
 
 	lights := make([]Service, lightNodes)
 	for i := 0; i < len(lights); i++ {
