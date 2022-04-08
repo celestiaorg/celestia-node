@@ -78,10 +78,10 @@ message MerkleProof {
    int64          start     = 1;
    int64          end       = 2;
    repeated bytes nodes     = 3;
-   bytes          leaf_hash = 4;
+   bytes leaf_hash          = 4;
 }
 
-message Share {
+message ShareWithProof {
    bytes Share = 1;
    MerkleProof Proof = 2;
 }
@@ -89,7 +89,7 @@ message Share {
 message BadEnconding {
    required uint64 Height = 1;
    repeated Share Shares = 2;
-   uint8 Position = 3;
+   uint8 Index = 3;
    bool isRow = 4;
 }
 ```
