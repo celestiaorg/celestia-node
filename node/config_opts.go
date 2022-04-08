@@ -8,6 +8,14 @@ func WithRemoteCore(protocol string, address string) Option {
 	}
 }
 
+// WithGRPCEndpoint configures Node to connect to given gRPC address
+// for state-related queries.
+func WithGRPCEndpoint(address string) Option {
+	return func(sets *settings) {
+		sets.cfg.Core.GRPCAddr = address
+	}
+}
+
 // WithTrustedHash sets TrustedHash to the Config.
 func WithTrustedHash(hash string) Option {
 	return func(sets *settings) {

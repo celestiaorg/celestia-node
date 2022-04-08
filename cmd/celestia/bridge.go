@@ -2,6 +2,7 @@
 package main
 
 import (
+	"github.com/cosmos/cosmos-sdk/client/keys"
 	"github.com/spf13/cobra"
 
 	cmdnode "github.com/celestiaorg/celestia-node/cmd"
@@ -12,6 +13,13 @@ import (
 // parent command.
 
 func init() {
+	bridgeKeyCmd := keys.Commands("$HOME/.celestia-bridge/keys")
+	bridgeKeyCmd.Short = "Manage your bridge node account keys"
+	bridgeKeyCmd.PersistentPreRunE = func(cmd *cobra.Command, args []string) error {
+		_, err := cmdnode.GetEnv(cmd.Context())
+		return err
+	}
+
 	bridgeCmd.AddCommand(
 		cmdnode.Init(
 			cmdnode.NodeFlags(node.Bridge),
@@ -27,6 +35,7 @@ func init() {
 			cmdnode.TrustedHashFlags(),
 			cmdnode.MiscFlags(),
 		),
+		bridgeKeyCmd,
 	)
 }
 

@@ -73,12 +73,12 @@ func (ca *CoreAccessor) Balance(ctx context.Context) (*Balance, error) {
 func (ca *CoreAccessor) BalanceForAddress(ctx context.Context, addr Address) (*Balance, error) {
 	req := &banktypes.QueryBalanceRequest{
 		Address: addr.String(),
-		Denom:   app.DisplayDenom,
+		Denom:   app.BondDenom,
 	}
 
 	resp, err := ca.queryCli.Balance(ctx, req)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("querying client for balance: %s", err.Error())
 	}
 
 	return resp.Balance, nil

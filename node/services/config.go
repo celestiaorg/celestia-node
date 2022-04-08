@@ -32,7 +32,8 @@ func DefaultConfig() Config {
 
 func (cfg *Config) trustedPeers(net params.Network) (infos []*peer.AddrInfo, err error) {
 	if len(cfg.TrustedPeers) == 0 {
-		log.Infow("No trusted peers in config, initializing with default bootstrappers as trusted peers for network: ", net)
+		log.Infof("No trusted peers in config, initializing with default bootstrappers as trusted peers for "+
+			"network: %s", net)
 		cfg.TrustedPeers, err = params.BootstrappersFor(net)
 		if err != nil {
 			return

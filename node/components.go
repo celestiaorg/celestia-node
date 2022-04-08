@@ -14,11 +14,11 @@ import (
 	nodecore "github.com/celestiaorg/celestia-node/node/core"
 
 	"github.com/celestiaorg/celestia-node/node/p2p"
+	"github.com/celestiaorg/celestia-node/node/rpc"
 	"github.com/celestiaorg/celestia-node/node/services"
 	statecomponents "github.com/celestiaorg/celestia-node/node/state"
 	"github.com/celestiaorg/celestia-node/params"
 	"github.com/celestiaorg/celestia-node/service/header"
-	"github.com/celestiaorg/celestia-node/service/state"
 )
 
 // lightComponents keeps all the components as DI options required to build a Light Node.
@@ -72,8 +72,20 @@ func baseComponents(cfg *Config, store Store) fx.Option {
 		fx.Invoke(invokeWatchdog(store.Path())),
 		p2p.Components(cfg.P2P),
 		// state components
-		fx.Provide(state.NewService),
-		fx.Provide(statecomponents.CoreAccessor(cfg.Core.RemoteAddr)),
+		fx.Provide(statecomponents.NewService),
+		fx.Provide(statecomponents.CoreAccessor(cfg.Core.GRPCAddr)),
+		// RPC component
+		fx.Provide(func(lc fx.Lifecycle) *rpc.Server {
+			// TODO @renaynay @Wondertan: not providing any custom config
+			//  functionality here as this component is meant to be removed on
+			//  implementation of https://github.com/celestiaorg/celestia-node/pull/506.
+			serv := rpc.NewServer(rpc.DefaultConfig())
+			lc.Append(fx.Hook{
+				OnStart: serv.Start,
+				OnStop:  serv.Stop,
+			})
+			return serv
+		}),
 	)
 }
 

@@ -13,6 +13,7 @@ import (
 
 var (
 	coreRemoteFlag = "core.remote"
+	coreGRPCFlag   = "core.grpc"
 )
 
 // CoreFlags gives a set of hardcoded Core flags.
@@ -24,6 +25,12 @@ func CoreFlags() *flag.FlagSet {
 		"",
 		"Indicates node to connect to the given remote core node. "+
 			"Example: <protocol>://<ip>:<port>, tcp://127.0.0.1:26657",
+	)
+	flags.String(
+		coreGRPCFlag,
+		"",
+		"Indicates node to connect to the given celestia-app gRPC endpoint for state-related queries"+
+			"Example: <ip>:<port>, 127.0.0.1:9090",
 	)
 
 	return flags
@@ -39,6 +46,11 @@ func ParseCoreFlags(cmd *cobra.Command, env *Env) error {
 		}
 
 		env.AddOptions(node.WithRemoteCore(proto, addr))
+	}
+
+	grpcEndpoint := cmd.Flag(coreGRPCFlag).Value.String()
+	if grpcEndpoint != "" {
+		env.AddOptions(node.WithGRPCEndpoint(grpcEndpoint))
 	}
 
 	return nil

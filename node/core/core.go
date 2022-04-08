@@ -17,6 +17,7 @@ import (
 type Config struct {
 	Protocol   string
 	RemoteAddr string
+	GRPCAddr   string
 }
 
 // DefaultConfig returns default configuration for Core subsystem.

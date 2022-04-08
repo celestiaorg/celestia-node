@@ -5,11 +5,17 @@ import (
 	"os"
 
 	"github.com/spf13/cobra"
+	"github.com/tendermint/spm/cosmoscmd"
 
+	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-node/cmd"
 )
 
 func init() {
+	// This is necessary to ensure that the account addresses are correctly prefixed
+	// as in the celestia application.
+	cosmoscmd.SetPrefixes(app.AccountAddressPrefix)
+
 	rootCmd.AddCommand(
 		bridgeCmd,
 		lightCmd,
@@ -31,7 +37,7 @@ func run() error {
 }
 
 var rootCmd = &cobra.Command{
-	Use: "celestia [  bridge  ||  light  ] [subcommand]",
+	Use: "celestia [  bridge  ||  full ||  light  ] [subcommand]",
 	Short: `
 	  / ____/__  / /__  _____/ /_(_)___ _
 	 / /   / _ \/ / _ \/ ___/ __/ / __  /
