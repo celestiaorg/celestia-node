@@ -80,9 +80,25 @@ func TestShareAvailable_FullOverLights(t *testing.T) {
 }
 
 func TestShareAvailable_MultipleFullOverLights(t *testing.T) {
+	// B - Bridge
+	// L - Light Node
+	// F - Full Node
+	// ── - connection
+	//
+	// Topology:
+	// NOTE: There are more Light Nodes in practice
+	// ┌─┬─┬─B─┬─┬─┐
+	// │ │ │   │ │ │
+	// │ │ │   │ │ │
+	// │ │ │   │ │ │
+	// L L L   L L L
+	// │ │ │   │ │ │
+	// └─┴─┤   ├─┴─┘
+	//    F└───┘F
+	//
 	const (
 		origSquareSize = 8
-		lightNodes     = 192
+		lightNodes     = 192 // total number of nodes on two subnetworks
 	)
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
