@@ -33,12 +33,5 @@ curl -X POST http://<ip>:26658/submit_tx/0A84060A81060A1D2F7061796D656E742E4D736
 
 Response
 ```
-�&@3EBE6BE76CD1AF3CE70D5D513C94193E78535908502276825B13C68C6C0182C1*:0A1B0A192F7061796D656E742E4D7367506179466F724D6573736167652�[{"events":[{"type":"message","attributes":[{"key":"action","value":"/payment.MsgPayForMessage"}]},{"type":"payformessage","attributes":[{"key":"signer","value":"celes1vdjkcetnx9khvun3d4kx2emvx36hxertw3skwamp0furvvrnvaerqut5d4nns6nc8pmrvvcxu6e2w"},{"key":"size","value":"256"}]}]}]:�.
-message#
-action/payment.MsgPayForMessage{
-payformessage]
-signerSceles1vdjkcetnx9khvun3d4kx2emvx36hxertw3skwamp0furvvrnvaerqut5d4nns6nc8pmrvvcxu6e2w
-
-size256H��
-          P֬
+{"txhash":"E4B98AF73852A2FC99E1708C3C5B7CE93449A0E9381387D022FAE759F76E1F0D","codespace":"sdk","code":19,"logs":null}
 ```
