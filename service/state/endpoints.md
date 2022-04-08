@@ -8,8 +8,8 @@ curl -X GET http://<ip>:26658/balance
 ```
 
 Response
-```
-uceles999995000000000
+```json
+{"denom":"uceles","amount":"999995000000000"}
 ```
 
 ### `POST`  `/balance/{address}`
@@ -20,8 +20,8 @@ curl -X GET http://<ip>:26658/balance/celes1vuw7pdcyap2u62x6dyqjdzznlg25jll6jj76
 ```
 
 Response
-```go
-uceles99999500000000
+```json
+{"denom":"uceles","amount":"999995000000000"}
 ```
 
 ### `POST`  `/submit_tx/{tx}`
@@ -32,6 +32,6 @@ curl -X POST http://<ip>:26658/submit_tx/0A84060A81060A1D2F7061796D656E742E4D736
 ```
 
 Response
-```
+```json
 {"txhash":"E4B98AF73852A2FC99E1708C3C5B7CE93449A0E9381387D022FAE759F76E1F0D","codespace":"sdk","code":19,"logs":null}
 ```

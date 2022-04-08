@@ -33,7 +33,7 @@ func (s *Service) handleBalanceRequest(w http.ResponseWriter, r *http.Request) {
 		log.Errorw("serving /balance request", "err", err)
 		return
 	}
-	resp, err := bal.Marshal()
+	resp, err := json.Marshal(bal)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		log.Errorw("serving /balance request", "err", err)
@@ -62,7 +62,7 @@ func (s *Service) handleBalanceForAddrRequest(w http.ResponseWriter, r *http.Req
 		log.Errorw("serving /balance request", "err", err)
 		return
 	}
-	resp, err := bal.Marshal()
+	resp, err := json.Marshal(bal)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		log.Errorw("serving /balance request", "err", err)
