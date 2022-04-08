@@ -6,7 +6,6 @@ import (
 	pb "github.com/celestiaorg/celestia-node/fraud/pb"
 	"github.com/celestiaorg/celestia-node/service/header"
 	"github.com/celestiaorg/nmt"
-	"github.com/celestiaorg/rsmt2d"
 )
 
 type ProofType string
@@ -19,11 +18,11 @@ const (
 type Proof interface {
 	// Type returns the exact type of fraud proof
 	Type() ProofType
-	// Height returns header's height
+	// Height returns the block height corresponding to the Proof
 	Height() uint64
 	// Validate check the validity of fraud proof.
 	// Validate throws an error if some conditions don't pass and thus fraud proof is not valid
-	Validate(*header.ExtendedHeader, rsmt2d.Codec) error
+	Validate(*header.ExtendedHeader) error
 
 	encoding.BinaryMarshaler
 	encoding.BinaryUnmarshaler

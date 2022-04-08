@@ -34,7 +34,7 @@ func TestCreateBadEncodingFraudProofWithCompletedShares(t *testing.T) {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			for index := 0; index < tc.length; index++ {
-				_, err := CreateBadEncodingFraudProof(
+				_, err := CreateBadEncodingProof(
 					context.Background(),
 					1,
 					uint8(index),
@@ -82,7 +82,7 @@ func TestFraudProofValidationForRow(t *testing.T) {
 	require.True(t, errors.As(err, &errRow))
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*2)
 	defer cancel()
-	p, err := CreateBadEncodingFraudProof(
+	p, err := CreateBadEncodingProof(
 		ctx,
 		1,
 		uint8(errRow.RowNumber),
@@ -97,7 +97,7 @@ func TestFraudProofValidationForRow(t *testing.T) {
 	dah := da.NewDataAvailabilityHeader(attackerEDS)
 	h := &header.ExtendedHeader{DAH: &dah}
 
-	err = p.Validate(h, consts.DefaultCodec())
+	err = p.Validate(h)
 	require.NoError(t, err)
 }
 
@@ -137,7 +137,7 @@ func TestFraudProofValidationForCol(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*2)
 	defer cancel()
 
-	p, err := CreateBadEncodingFraudProof(
+	p, err := CreateBadEncodingProof(
 		ctx,
 		1,
 		uint8(errCol.ColNumber),
@@ -152,7 +152,7 @@ func TestFraudProofValidationForCol(t *testing.T) {
 	dah := da.NewDataAvailabilityHeader(attackerEDS)
 	h := &header.ExtendedHeader{DAH: &dah}
 
-	err = p.Validate(h, consts.DefaultCodec())
+	err = p.Validate(h)
 	require.NoError(t, err)
 
 }

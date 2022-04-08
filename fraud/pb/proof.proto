@@ -3,21 +3,21 @@ syntax = "proto3";
 package fraud.pb;
 
 message MerkleProof {
-   int64          start     = 1;
-   int64          end       = 2;
-   repeated bytes nodes     = 3;
-   bytes          leaf_hash = 4;
+  int64          start     = 1;
+  int64          end       = 2;
+  repeated bytes nodes     = 3;
+  bytes          leaf_hash = 4;
 }
 
 message Share {
-    bytes NamespaceID = 1;
-    bytes       Raw   = 2;
-    MerkleProof Proof = 3;
+  bytes NamespaceID = 1;
+  bytes       Data   = 2;
+  MerkleProof Proof = 3;
 }
 
 message BadEnconding {
-    uint64         Height   = 1;
-    repeated Share Shares   = 2;
-    uint32         Position = 3;
-    bool           isRow    = 4;
+  uint64         Height   = 1;
+  repeated Share Shares   = 2;
+  uint32         Index    = 3;
+  bool           isRow    = 4;
 }
