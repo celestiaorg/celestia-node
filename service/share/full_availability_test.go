@@ -80,14 +80,14 @@ func TestShareAvailable_FullOverLights(t *testing.T) {
 }
 
 func TestShareAvailable_MultipleFullOverLights(t *testing.T) {
-	// B - Bridge
+	// S - Source
 	// L - Light Node
 	// F - Full Node
 	// ── - connection
 	//
 	// Topology:
 	// NOTE: There are more Light Nodes in practice
-	// ┌─┬─┬─B─┬─┬─┐
+	// ┌─┬─┬─S─┬─┬─┐
 	// │ │ │   │ │ │
 	// │ │ │   │ │ │
 	// │ │ │   │ │ │
@@ -98,7 +98,7 @@ func TestShareAvailable_MultipleFullOverLights(t *testing.T) {
 	//
 	const (
 		origSquareSize = 8
-		lightNodes     = 192 // total number of nodes on two subnetworks
+		lightNodes     = 128 // total number of nodes on two subnetworks
 	)
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
@@ -135,14 +135,30 @@ func TestShareAvailable_MultipleFullOverLights(t *testing.T) {
 		require.NoError(t, err)
 	}
 
-	net.Connect(full1.ID(), full2.ID())
-
+	// ensure full and source are not connected
 	net.Disconnect(full1.ID(), source.ID())
 	net.Disconnect(full2.ID(), source.ID())
 
-	err := full1.SharesAvailable(ctx, root)
-	assert.NoError(t, err)
+	ctx1, cancel1 := context.WithTimeout(ctx, time.Second*3)
+	defer cancel1()
 
+	// check that full1 cannot reconstruct on its own
+	err := full1.SharesAvailable(ctx1, root)
+	require.ErrorIs(t, err, ErrNotAvailable)
+
+	ctx2, cancel2 := context.WithTimeout(ctx, time.Second*3)
+	defer cancel2()
+
+	// check that full2 cannot reconstruct on its own
+	err = full2.SharesAvailable(ctx2, root)
+	require.ErrorIs(t, err, ErrNotAvailable)
+
+	// but after they connect
+	net.Connect(full1.ID(), full2.ID())
+
+	// they both should be able to reconstruct the block
+	err = full1.SharesAvailable(ctx, root)
+	require.NoError(t, err, ErrNotAvailable)
 	err = full2.SharesAvailable(ctx, root)
-	assert.NoError(t, err)
+	require.NoError(t, err, ErrNotAvailable)
 }
