@@ -2,6 +2,7 @@ package state
 
 import (
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"net/http"
 
@@ -89,7 +90,7 @@ func (s *Service) handleSubmitTx(w http.ResponseWriter, r *http.Request) {
 		log.Errorw("serving /submit_tx request", "err", err)
 		return
 	}
-	resp, err := txResp.Marshal()
+	resp, err := json.Marshal(txResp)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		log.Errorw("serving /submit_tx request", "err", err)
