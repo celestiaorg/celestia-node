@@ -6,13 +6,14 @@ replace github.com/ipfs/go-verifcid => github.com/celestiaorg/go-verifcid v0.0.1
 
 require (
 	github.com/BurntSushi/toml v1.0.0
-	github.com/celestiaorg/celestia-app v0.0.2-0.20220214170311-cfe3ecf30837
+	github.com/celestiaorg/celestia-app v0.2.0-rc-1
 	github.com/celestiaorg/go-libp2p-messenger v0.1.0
 	github.com/celestiaorg/nmt v0.8.0
 	github.com/celestiaorg/rsmt2d v0.3.1
-	github.com/cosmos/cosmos-sdk v0.44.0
+	github.com/cosmos/cosmos-sdk v0.44.3
 	github.com/dgraph-io/badger/v2 v2.2007.4
 	github.com/gogo/protobuf v1.3.3
+	github.com/gorilla/mux v1.8.0
 	github.com/hashicorp/go-retryablehttp v0.7.1-0.20211018174820-ff6d014e72d9
 	github.com/hashicorp/golang-lru v0.5.4
 	github.com/ipfs/go-bitswap v0.4.0
@@ -45,6 +46,7 @@ require (
 	github.com/spf13/cobra v1.4.0
 	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/testify v1.7.1-0.20210427113832-6241f9ab9942
+	github.com/tendermint/spm v0.1.9
 	github.com/tendermint/tendermint v0.34.14
 	go.uber.org/fx v1.17.1
 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
@@ -71,7 +73,7 @@ require (
 	github.com/coreos/go-systemd/v22 v22.3.2 // indirect
 	github.com/cosmos/go-bip39 v1.0.0 // indirect
 	github.com/cosmos/iavl v0.17.1 // indirect
-	github.com/cosmos/ibc-go v1.2.0 // indirect
+	github.com/cosmos/ibc-go v1.2.2 // indirect
 	github.com/cosmos/ledger-cosmos-go v0.11.1 // indirect
 	github.com/cosmos/ledger-go v0.9.2 // indirect
 	github.com/cskr/pubsub v1.0.2 // indirect
@@ -101,7 +103,6 @@ require (
 	github.com/google/orderedcode v0.0.1 // indirect
 	github.com/google/uuid v1.3.0 // indirect
 	github.com/gorilla/handlers v1.5.1 // indirect
-	github.com/gorilla/mux v1.8.0 // indirect
 	github.com/gorilla/websocket v1.4.2 // indirect
 	github.com/grpc-ecosystem/go-grpc-middleware v1.3.0 // indirect
 	github.com/grpc-ecosystem/grpc-gateway v1.16.0 // indirect
@@ -137,7 +138,7 @@ require (
 	github.com/klauspost/compress v1.12.3 // indirect
 	github.com/klauspost/cpuid/v2 v2.0.9 // indirect
 	github.com/koron/go-ssdp v0.0.2 // indirect
-	github.com/lib/pq v1.2.0 // indirect
+	github.com/lib/pq v1.10.2 // indirect
 	github.com/libp2p/go-addr-util v0.1.0 // indirect
 	github.com/libp2p/go-buffer-pool v0.0.2 // indirect
 	github.com/libp2p/go-cidranger v1.1.0 // indirect
@@ -224,14 +225,13 @@ require (
 	github.com/tendermint/btcd v0.1.1 // indirect
 	github.com/tendermint/crypto v0.0.0-20191022145703-50d29ede1e15 // indirect
 	github.com/tendermint/go-amino v0.16.0 // indirect
-	github.com/tendermint/spm v0.1.5 // indirect
-	github.com/tendermint/tm-db v0.6.4 // indirect
+	github.com/tendermint/tm-db v0.6.6 // indirect
 	github.com/vivint/infectious v0.0.0-20200605153912-25a574ae18a3 // indirect
 	github.com/whyrusleeping/go-keyspace v0.0.0-20160322163242-5b898ac5add1 // indirect
 	github.com/whyrusleeping/multiaddr-filter v0.0.0-20160516205228-e903e4adabd7 // indirect
 	github.com/whyrusleeping/timecache v0.0.0-20160911033111-cfcb2f1abfee // indirect
 	github.com/zondax/hid v0.9.0 // indirect
-	go.etcd.io/bbolt v1.3.5 // indirect
+	go.etcd.io/bbolt v1.3.6 // indirect
 	go.opencensus.io v0.23.0 // indirect
 	go.uber.org/atomic v1.9.0 // indirect
 	go.uber.org/dig v1.14.0 // indirect
@@ -252,8 +252,8 @@ require (
 )
 
 replace (
-	github.com/cosmos/cosmos-sdk => github.com/celestiaorg/cosmos-sdk v0.44.1-celestia
+	github.com/cosmos/cosmos-sdk => github.com/celestiaorg/cosmos-sdk v0.44.2-celestia-rc-1
 	github.com/gogo/protobuf => github.com/regen-network/protobuf v1.3.3-alpha.regen.1
-	github.com/libp2p/go-libp2p-pubsub v0.5.7-0.20211029175501-5c90105738cf => github.com/celestiaorg/go-libp2p-pubsub v0.5.7-0.20220325112944-d33a3e5e13d5
-	github.com/tendermint/tendermint v0.34.14 => github.com/celestiaorg/celestia-core v0.34.14-celestia.0.20220228062426-721562a3544d
+	github.com/libp2p/go-libp2p-pubsub v0.5.7-0.20211029175501-5c90105738cf => github.com/celestiaorg/go-libp2p-pubsub v0.5.6-celestia
+	github.com/tendermint/tendermint v0.34.14 => github.com/celestiaorg/celestia-core v0.34.15-celestia
 )
