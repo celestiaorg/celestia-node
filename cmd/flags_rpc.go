@@ -8,6 +8,7 @@ import (
 )
 
 var (
+	addrFlag = "rpc.addr"
 	portFlag = "rpc.port"
 )
 
@@ -15,6 +16,11 @@ var (
 func RPCFlags() *flag.FlagSet {
 	flags := &flag.FlagSet{}
 
+	flags.String(
+		addrFlag,
+		"",
+		"Set a custom RPC listen address (default: 0.0.0.0)",
+	)
 	flags.String(
 		portFlag,
 		"",
@@ -26,6 +32,10 @@ func RPCFlags() *flag.FlagSet {
 
 // ParseRPCFlags parses RPC flags from the given cmd and applies values to Env.
 func ParseRPCFlags(cmd *cobra.Command, env *Env) error {
+	addr := cmd.Flag(addrFlag).Value.String()
+	if addr != "" {
+		env.AddOptions(node.WithRPCAddress(addr))
+	}
 	port := cmd.Flag(portFlag).Value.String()
 	if port != "" {
 		env.AddOptions(node.WithRPCPort(port))
