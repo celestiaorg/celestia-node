@@ -19,7 +19,7 @@ func RPCFlags() *flag.FlagSet {
 	flags.String(
 		addrFlag,
 		"",
-		"Set a custom RPC listen address (default: 0.0.0.0)",
+		"Set a custom RPC listen address (default: localhost)",
 	)
 	flags.String(
 		portFlag,
