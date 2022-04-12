@@ -37,7 +37,7 @@ func NewServer(cfg Config) *Server {
 
 // Start starts the RPC Server, listening on the given address.
 func (s *Server) Start(context.Context) error {
-	listenAddr := fmt.Sprintf("0.0.0.0:%s", s.cfg.Port)
+	listenAddr := fmt.Sprintf("%s:%s", s.cfg.Address, s.cfg.Port)
 	listener, err := net.Listen("tcp", listenAddr)
 	if err != nil {
 		return err
