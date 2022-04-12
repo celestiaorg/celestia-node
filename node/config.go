@@ -37,11 +37,13 @@ func DefaultConfig(tp Type) *Config {
 		}
 	case Light:
 		return &Config{
+			RPC:      rpc.DefaultConfig(),
 			P2P:      p2p.DefaultConfig(),
 			Services: services.DefaultConfig(),
 		}
 	case Full:
 		return &Config{
+			RPC:      rpc.DefaultConfig(),
 			P2P:      p2p.DefaultConfig(),
 			Services: services.DefaultConfig(),
 		}

@@ -2,6 +2,7 @@ package rpc
 
 import (
 	"context"
+	"fmt"
 	"net"
 	"net/http"
 
@@ -36,7 +37,8 @@ func NewServer(cfg Config) *Server {
 
 // Start starts the RPC Server, listening on the given address.
 func (s *Server) Start(context.Context) error {
-	listener, err := net.Listen("tcp", s.cfg.ListenAddr)
+	listenAddr := fmt.Sprintf("%s:%s", s.cfg.Address, s.cfg.Port)
+	listener, err := net.Listen("tcp", listenAddr)
 	if err != nil {
 		return err
 	}
