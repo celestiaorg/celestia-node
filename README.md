@@ -31,6 +31,10 @@ make install
 
 For more information on setting up a node and the hardware requirements needed, go visit our docs at <https://docs.celestia.org>.
 
+## API docs
+
+Celestia-node public API is documented [here](https://docs.celestia.org/developers/node-api/).
+
 ## Node types
 
 - **Bridge** nodes - relay blocks from the celestia consensus network to the celestia data availability (DA) network
