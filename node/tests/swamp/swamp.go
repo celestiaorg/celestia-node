@@ -249,6 +249,7 @@ func (s *Swamp) newNode(t node.Type, store node.Store, options ...node.Option) *
 		node.WithHost(s.createPeer(ks)),
 		node.WithTrustedHash(s.trustedHash),
 		node.WithNetwork(params.Private),
+		node.WithRPCPort("0"),
 	)
 
 	node, err := node.New(t, store, options...)

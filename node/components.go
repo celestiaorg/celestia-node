@@ -10,9 +10,7 @@ import (
 	"go.uber.org/fx"
 
 	"github.com/celestiaorg/celestia-node/libs/fxutil"
-
 	nodecore "github.com/celestiaorg/celestia-node/node/core"
-
 	"github.com/celestiaorg/celestia-node/node/p2p"
 	"github.com/celestiaorg/celestia-node/node/rpc"
 	"github.com/celestiaorg/celestia-node/node/services"
@@ -75,17 +73,7 @@ func baseComponents(cfg *Config, store Store) fx.Option {
 		fx.Provide(statecomponents.NewService),
 		fx.Provide(statecomponents.CoreAccessor(cfg.Core.GRPCAddr)),
 		// RPC component
-		fx.Provide(func(lc fx.Lifecycle) *rpc.Server {
-			// TODO @renaynay @Wondertan: not providing any custom config
-			//  functionality here as this component is meant to be removed on
-			//  implementation of https://github.com/celestiaorg/celestia-node/pull/506.
-			serv := rpc.NewServer(rpc.DefaultConfig())
-			lc.Append(fx.Hook{
-				OnStart: serv.Start,
-				OnStop:  serv.Stop,
-			})
-			return serv
-		}),
+		fx.Provide(rpc.RPC(cfg.RPC)),
 	)
 }
 
