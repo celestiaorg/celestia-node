@@ -1,12 +1,14 @@
 package rpc
 
 type Config struct {
-	ListenAddr string
+	Address string
+	Port    string
 }
 
 func DefaultConfig() Config {
 	return Config{
+		Address: "0.0.0.0",
 		// do NOT expose the same port as celestia-core by default so that both can run on the same machine
-		ListenAddr: "0.0.0.0:26658",
+		Port: "26658",
 	}
 }

@@ -16,7 +16,6 @@ func TestNewFullAndLifecycle(t *testing.T) {
 	assert.NotZero(t, node.Type)
 
 	startCtx, cancel := context.WithCancel(context.Background())
-	defer cancel()
 
 	err := node.Start(startCtx)
 	require.NoError(t, err)

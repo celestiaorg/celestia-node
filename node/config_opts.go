@@ -16,6 +16,22 @@ func WithGRPCEndpoint(address string) Option {
 	}
 }
 
+// WithRPCPort configures Node to expose the given port for RPC
+// queries.
+func WithRPCPort(port string) Option {
+	return func(sets *settings) {
+		sets.cfg.RPC.Port = port
+	}
+}
+
+// WithRPCAddress configures Node to listen on the given address for RPC
+// queries.
+func WithRPCAddress(addr string) Option {
+	return func(sets *settings) {
+		sets.cfg.RPC.Address = addr
+	}
+}
+
 // WithTrustedHash sets TrustedHash to the Config.
 func WithTrustedHash(hash string) Option {
 	return func(sets *settings) {

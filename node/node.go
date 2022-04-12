@@ -99,7 +99,7 @@ func (n *Node) Start(ctx context.Context) error {
 	}
 
 	// TODO(@Wondertan): Print useful information about the node:
-	//  * API/RPC address
+	//  * API/RPCServer address
 	log.Infof("started %s Node", n.Type)
 
 	addrs, err := peer.AddrInfoToP2pAddrs(host.InfoFromHost(n.Host))

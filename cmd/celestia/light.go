@@ -29,6 +29,7 @@ func init() {
 			// NOTE: for now, state-related queries can only be accessed
 			// over an RPC connection with a celestia-core node.
 			cmdnode.CoreFlags(),
+			cmdnode.RPCFlags(),
 		),
 		cmdnode.Start(
 			cmdnode.NodeFlags(node.Light),
@@ -38,6 +39,7 @@ func init() {
 			// NOTE: for now, state-related queries can only be accessed
 			// over an RPC connection with a celestia-core node.
 			cmdnode.CoreFlags(),
+			cmdnode.RPCFlags(),
 		),
 		lightKeyCmd,
 	)
@@ -75,6 +77,11 @@ var lightCmd = &cobra.Command{
 		}
 
 		err = cmdnode.ParseMiscFlags(cmd)
+		if err != nil {
+			return err
+		}
+
+		err = cmdnode.ParseRPCFlags(cmd, env)
 		if err != nil {
 			return err
 		}
