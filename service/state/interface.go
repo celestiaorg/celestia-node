@@ -2,6 +2,10 @@ package state
 
 import (
 	"context"
+
+	"google.golang.org/grpc"
+
+	apptypes "github.com/celestiaorg/celestia-app/x/payment/types"
 )
 
 // Accessor represents the behaviors necessary for a user to
@@ -12,6 +16,13 @@ type Accessor interface {
 	Start(context.Context) error
 	// Stop stops the state Accessor.
 	Stop(context.Context) error
+
+	// KeyringSigner returns the KeyringSigner used by the Accessor.
+	KeyringSigner() *apptypes.KeyringSigner
+	// Conn returns a gRPC connection to node that serves state-related
+	// requests.
+	Conn() (*grpc.ClientConn, error)
+
 	// Balance retrieves the Celestia coin balance
 	// for the node's account/signer.
 	Balance(ctx context.Context) (*Balance, error)

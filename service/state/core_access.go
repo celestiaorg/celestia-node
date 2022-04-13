@@ -103,3 +103,14 @@ func (ca *CoreAccessor) SubmitTxWithBroadcastMode(
 	}
 	return txResp.TxResponse, nil
 }
+
+func (ca *CoreAccessor) KeyringSigner() *apptypes.KeyringSigner {
+	return ca.signer
+}
+
+func (ca *CoreAccessor) Conn() (*grpc.ClientConn, error) {
+	if ca.coreConn == nil {
+		return nil, fmt.Errorf("no running gRPC connection")
+	}
+	return ca.coreConn, nil
+}
