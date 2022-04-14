@@ -161,34 +161,34 @@ func (s *service) GetSharesByNamespace(ctx context.Context, root *Root, nID name
 		return nil, ipld.ErrNotFoundInRange
 	}
 
-	type res struct {
-		nodes []format.Node
-		err   error
-	}
-	resultCh := make(chan *res)
-
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	for _, rootCID := range rowRootCIDs {
-		go func(rootCID cid.Cid) {
-			nodes, err := ipld.GetLeavesByNamespace(ctx, s.dag, rootCID, nID)
-			resultCh <- &res{nodes: nodes, err: err}
-		}(rootCID)
+	errCh := make(chan error)
+	nodes := make([][]format.Node, len(rowRootCIDs))
+	for i, rootCID := range rowRootCIDs {
+		go func(i int, rootCID cid.Cid) {
+			var err error
+			nodes[i], err = ipld.GetLeavesByNamespace(ctx, s.dag, rootCID, nID)
+			errCh <- err
+		}(i, rootCID)
+	}
+
+	for i := 0; i < len(rowRootCIDs); i++ {
+		select {
+		case err := <-errCh:
+			if err != nil {
+				return nil, err
+			}
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		}
 	}
 
 	namespacedShares := make([]Share, 0)
 	for i := 0; i < len(rowRootCIDs); i++ {
-		select {
-		case result := <-resultCh:
-			if result.err != nil {
-				return nil, result.err
-			}
-			for _, node := range result.nodes {
-				namespacedShares = append(namespacedShares, node.RawData()[1:])
-			}
-		case <-ctx.Done():
-			return nil, ctx.Err()
+		for _, node := range nodes[i] {
+			namespacedShares = append(namespacedShares, node.RawData()[1:])
 		}
 	}
 
