@@ -35,28 +35,38 @@ func TestGetShare(t *testing.T) {
 
 func TestService_GetSharesByNamespace(t *testing.T) {
 	var tests = []struct {
-		amountShares       int
+		squareSize         int
 		expectedShareCount int
 	}{
-		{amountShares: 4, expectedShareCount: 1},
-		{amountShares: 16, expectedShareCount: 2},
-		{amountShares: 128, expectedShareCount: 1},
+		{squareSize: 4, expectedShareCount: 1},
+		{squareSize: 16, expectedShareCount: 2},
+		{squareSize: 128, expectedShareCount: 1},
 	}
 
 	for i, tt := range tests {
 		t.Run(strconv.Itoa(i), func(t *testing.T) {
-			serv, root := RandLightServiceWithSquare(t, tt.amountShares)
-			randNID := root.RowsRoots[(len(root.RowsRoots)-1)/2][:8]
+			serv, dag := RandLightService()
+			n := tt.squareSize * tt.squareSize
+			randShares := RandShares(t, n)
+			idx1 := (n - 1) / 2
+			idx2 := n / 2
 			if tt.expectedShareCount > 1 {
 				// make it so that two rows have the same namespace ID
-				root.RowsRoots[(len(root.RowsRoots) / 2)] = root.RowsRoots[(len(root.RowsRoots)-1)/2]
+				copy(randShares[idx2][:8], randShares[idx1][:8])
 			}
+			root := FillDag(t, tt.squareSize, dag, randShares)
+			randNID := []byte(randShares[idx1][:8])
 
 			shares, err := serv.GetSharesByNamespace(context.Background(), root, randNID)
 			require.NoError(t, err)
 			assert.Len(t, shares, tt.expectedShareCount)
 			for _, value := range shares {
 				assert.Equal(t, randNID, []byte(value.NamespaceID()))
+			}
+			if tt.expectedShareCount > 1 {
+				// idx1 is always smaller than idx2
+				assert.Equal(t, []byte(randShares[idx1]), shares[0].Data())
+				assert.Equal(t, []byte(randShares[idx2]), shares[1].Data())
 			}
 		})
 	}
