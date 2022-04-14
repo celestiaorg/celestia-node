@@ -11,17 +11,19 @@ import (
 	format "github.com/ipfs/go-ipld-format"
 	logging "github.com/ipfs/go-log/v2"
 	"github.com/ipfs/go-merkledag"
-
+	"github.com/tendermint/tendermint/pkg/consts"
 	"github.com/tendermint/tendermint/pkg/da"
 
 	"github.com/celestiaorg/celestia-node/ipld"
 	"github.com/celestiaorg/celestia-node/ipld/plugin"
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/nmt/namespace"
-	"github.com/celestiaorg/rsmt2d"
 )
 
 var log = logging.Logger("share")
+
+// DefaultCodec sets the default rsmt2d.Codec for shares.
+var DefaultCodec = consts.DefaultCodec
 
 // TODO(@Wondertan): We prefix real data of shares with namespaces to be able to recover them during erasure coding
 //  recovery. However, that is storage and bandwidth overhead(8 bytes per each share) which we can avoid by getting
@@ -77,6 +79,7 @@ type Service interface {
 // NewService creates new basic share.Service.
 func NewService(dag format.DAGService, avail Availability) Service {
 	return &service{
+		rtrv:         ipld.NewRetriever(dag, DefaultCodec()),
 		Availability: avail,
 		dag:          dag,
 	}
@@ -85,7 +88,8 @@ func NewService(dag format.DAGService, avail Availability) Service {
 // TODO(@Wondertan): Simple thread safety for Start and Stop would not hurt.
 type service struct {
 	Availability
-	dag format.DAGService
+	rtrv *ipld.Retriever
+	dag  format.DAGService
 	// session is dag sub-session that applies optimization for fetching/loading related nodes, like shares
 	// prefer session over dag for fetching nodes.
 	session format.NodeGetter
@@ -133,7 +137,7 @@ func (s *service) GetShare(ctx context.Context, dah *Root, row, col int) (Share,
 }
 
 func (s *service) GetShares(ctx context.Context, root *Root) ([][]Share, error) {
-	eds, err := ipld.RetrieveData(ctx, root, s.dag, rsmt2d.NewRSGF8Codec())
+	eds, err := s.rtrv.Retrieve(ctx, root)
 	if err != nil {
 		return nil, err
 	}
