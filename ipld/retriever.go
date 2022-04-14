@@ -32,8 +32,8 @@ var RetrieveQuadrantTimeout = time.Minute * 5
 //  ---- ----
 // | 2  | 3  |
 //  ---- ----
-// Retriever randomly picks one of the data square quadrants and tries to request them one by one until it is able to
-// reconstruct the whole square.
+// Retriever randomly picks one of the data square quadrants and tries to request them one by one until it is able
+// the whole square.
 type Retriever struct {
 	dag   format.DAGService
 	codec rsmt2d.Codec
