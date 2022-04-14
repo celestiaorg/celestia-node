@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"math/rand"
 
+	"golang.org/x/sync/errgroup"
+
 	"github.com/ipfs/go-cid"
 	format "github.com/ipfs/go-ipld-format"
 	logging "github.com/ipfs/go-log/v2"
@@ -161,28 +163,19 @@ func (s *service) GetSharesByNamespace(ctx context.Context, root *Root, nID name
 		return nil, ipld.ErrNotFoundInRange
 	}
 
-	ctx, cancel := context.WithCancel(ctx)
-	defer cancel()
-
-	errCh := make(chan error)
+	errGroup, ctx := errgroup.WithContext(ctx)
 	nodes := make([][]format.Node, len(rowRootCIDs))
 	for i, rootCID := range rowRootCIDs {
-		go func(i int, rootCID cid.Cid) {
-			var err error
+		// shadow loop variables, to ensure correct values are captured
+		i, rootCID := i, rootCID
+		errGroup.Go(func() (err error) {
 			nodes[i], err = ipld.GetLeavesByNamespace(ctx, s.dag, rootCID, nID)
-			errCh <- err
-		}(i, rootCID)
+			return
+		})
 	}
 
-	for i := 0; i < len(rowRootCIDs); i++ {
-		select {
-		case err := <-errCh:
-			if err != nil {
-				return nil, err
-			}
-		case <-ctx.Done():
-			return nil, ctx.Err()
-		}
+	if err := errGroup.Wait(); err != nil {
+		return nil, err
 	}
 
 	namespacedShares := make([]Share, 0)
