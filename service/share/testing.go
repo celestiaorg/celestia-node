@@ -35,6 +35,13 @@ func RandLightServiceWithSquare(t *testing.T, n int) (Service, *Root) {
 	return NewService(dag, NewLightAvailability(dag)), RandFillDAG(t, n, dag)
 }
 
+// RandLightService provides an unfilled share.Service with corresponding
+// format.DAGService than can be filled by the test.
+func RandLightService() (Service, format.DAGService) {
+	dag := mdutils.Mock()
+	return NewService(dag, NewLightAvailability(dag)), dag
+}
+
 // RandFullServiceWithSquare provides a share.Service filled with 'n' NMT
 // trees of 'n' random shares, essentially storing a whole square.
 func RandFullServiceWithSquare(t *testing.T, n int) (Service, *Root) {
@@ -44,6 +51,10 @@ func RandFullServiceWithSquare(t *testing.T, n int) (Service, *Root) {
 
 func RandFillDAG(t *testing.T, n int, dag format.DAGService) *Root {
 	shares := RandShares(t, n*n)
+	return FillDag(t, n, dag, shares)
+}
+
+func FillDag(t *testing.T, n int, dag format.DAGService, shares []Share) *Root {
 	sharesSlices := make([][]byte, n*n)
 	for i, share := range shares {
 		sharesSlices[i] = share

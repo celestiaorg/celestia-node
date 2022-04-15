@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"math/rand"
 
+	"golang.org/x/sync/errgroup"
+
 	"github.com/ipfs/go-cid"
 	format "github.com/ipfs/go-ipld-format"
 	logging "github.com/ipfs/go-log/v2"
@@ -161,34 +163,25 @@ func (s *service) GetSharesByNamespace(ctx context.Context, root *Root, nID name
 		return nil, ipld.ErrNotFoundInRange
 	}
 
-	type res struct {
-		nodes []format.Node
-		err   error
+	errGroup, ctx := errgroup.WithContext(ctx)
+	nodes := make([][]format.Node, len(rowRootCIDs))
+	for i, rootCID := range rowRootCIDs {
+		// shadow loop variables, to ensure correct values are captured
+		i, rootCID := i, rootCID
+		errGroup.Go(func() (err error) {
+			nodes[i], err = ipld.GetLeavesByNamespace(ctx, s.dag, rootCID, nID)
+			return
+		})
 	}
-	resultCh := make(chan *res)
 
-	ctx, cancel := context.WithCancel(ctx)
-	defer cancel()
-
-	for _, rootCID := range rowRootCIDs {
-		go func(rootCID cid.Cid) {
-			nodes, err := ipld.GetLeavesByNamespace(ctx, s.dag, rootCID, nID)
-			resultCh <- &res{nodes: nodes, err: err}
-		}(rootCID)
+	if err := errGroup.Wait(); err != nil {
+		return nil, err
 	}
 
 	namespacedShares := make([]Share, 0)
 	for i := 0; i < len(rowRootCIDs); i++ {
-		select {
-		case result := <-resultCh:
-			if result.err != nil {
-				return nil, result.err
-			}
-			for _, node := range result.nodes {
-				namespacedShares = append(namespacedShares, node.RawData()[1:])
-			}
-		case <-ctx.Done():
-			return nil, ctx.Err()
+		for _, node := range nodes[i] {
+			namespacedShares = append(namespacedShares, node.RawData()[1:])
 		}
 	}
 
