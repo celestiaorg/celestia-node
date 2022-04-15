@@ -64,10 +64,10 @@ func TestFraudProofValidationForRow(t *testing.T) {
 	require.NoError(t, err)
 	dataSquare := make([][]byte, size*size)
 	copy(dataSquare, shares)
-	dataSquare[2] = nil
-	dataSquare[3] = nil
-	dataSquare[8] = nil
-	dataSquare[12] = nil
+	// dataSquare[2] = nil
+	// dataSquare[3] = nil
+	// dataSquare[8] = nil
+	// dataSquare[12] = nil
 	brokenEDS, err := rsmt2d.RepairExtendedDataSquare(
 		attackerEDS.RowRoots(),
 		attackerEDS.ColRoots(),
