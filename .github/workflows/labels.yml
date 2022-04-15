@@ -2,7 +2,7 @@ name: Required Labels
 
 on:
   pull_request:
-    types: opened
+    types: [opened, labeled, unlabeled, synchronize]
 jobs:
   label:
     runs-on: ubuntu-latest
