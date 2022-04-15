@@ -125,3 +125,71 @@ func GetLeavesByNamespace(
 	}
 	return out, err
 }
+
+// getSubtreeLeavesWithProof is downloading leaf data with it's proof by calling getLeavesWithProofs
+func getSubtreeLeavesWithProof(ctx context.Context, root cid.Cid, dag ipld.NodeGetter, isLeftSubtree bool) ([]*NamespacedShareWithProof, error) {
+	nd, err := dag.Get(ctx, root)
+	if err != nil {
+		return nil, err
+	}
+	leaves := make([]ipld.Node, 0)
+	proofs := make([][]cid.Cid, 0)
+	path := make([]cid.Cid, 0)
+	nameSpacedShares := make([]*NamespacedShareWithProof, 0)
+	if isLeftSubtree {
+		path = append(path, nd.Links()[1].Cid)
+		proofs, leaves, err = getLeavesWithProofs(ctx, nd.Links()[0].Cid, dag, proofs, leaves, path)
+		for index, leaf := range leaves {
+			nameSpacedShares = append(nameSpacedShares, NewShareWithProof(index, leaf, proofs[index]))
+		}
+		return nameSpacedShares, nil
+	}
+	proofs, leaves, err = getLeavesWithProofs(ctx, nd.Links()[1].Cid, dag, proofs, leaves, path)
+	for index, leaf := range leaves {
+		proofs[index] = append(proofs[index], nd.Links()[0].Cid)
+		nameSpacedShares = append(nameSpacedShares, NewShareWithProof(index, leaf, proofs[index]))
+	}
+	return nil, err
+}
+
+// getLeavesWithProofs is recursively going from the given root to the leaf, collecting the opposite subnode hashes as proofs.
+func getLeavesWithProofs(ctx context.Context, root cid.Cid, dag ipld.NodeGetter, proofs [][]cid.Cid, leaves []ipld.Node, path []cid.Cid) ([][]cid.Cid, []ipld.Node, error) {
+	nd, err := dag.Get(ctx, root)
+	if err != nil {
+		return nil, nil, err
+	}
+	lnks := nd.Links()
+	if len(lnks) == 1 {
+		// in case there is only one we reached tree's bottom, so finally request the leaf.
+		nd, err = dag.Get(ctx, lnks[0].Cid)
+		if err != nil {
+			return nil, nil, err
+		}
+		p := make([]cid.Cid, len(path))
+		copy(p, path)
+		return append(proofs, p), append(leaves, nd), nil
+	}
+
+	for index, node := range lnks {
+		path := path
+		if index == leftSubnode {
+			// appending right side for the left subnode
+			path = append(path, lnks[rightSubNode].Cid)
+		}
+		leavesAmount := len(leaves)
+		//means we are going left
+		proofs, leaves, err = getLeavesWithProofs(ctx, node.Cid, dag, proofs, leaves, path)
+		if err != nil {
+			return nil, nil, err
+		}
+		if index == rightSubNode {
+			// appending left subnode that were fetched in previous getLeavesWithProofs
+			for idx := leavesAmount; idx < len(leaves); idx++ {
+				proofs[idx] = append(proofs[idx], lnks[leftSubnode].Cid)
+			}
+		}
+
+	}
+
+	return proofs, leaves, err
+}

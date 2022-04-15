@@ -8,10 +8,10 @@ import (
 	"github.com/celestiaorg/nmt"
 )
 
-type ProofType string
+type ProofType int
 
 const (
-	BadEncoding ProofType = "BadEncoding"
+	BadEncoding ProofType = iota
 )
 
 // Proof is a generic interface that will be used for all types of fraud proofs in the network.
