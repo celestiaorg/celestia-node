@@ -138,7 +138,15 @@ func (rs *retrieverSession) retrieve(ctx context.Context, q *quadrant) (*rsmt2d.
 
 type quadrant struct {
 	roots []cid.Cid
-	x, y  int
+	// Coordinates of each quadrant(x;y)
+	// ------  -------
+	// |  Q0 | | Q1  |
+	// |(0:0)| |(1:0)|
+	// ------  -------
+	// |  Q2 | | Q3  |
+	// |(0;1)| |(1;1)|
+	// ------  ------
+	x, y int
 }
 
 func (rs *retrieverSession) request(ctx context.Context, q *quadrant) {
