@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/sha256"
+	"errors"
 	"math"
 	"math/rand"
 	"strconv"
@@ -21,6 +22,7 @@ import (
 	mdutils "github.com/ipfs/go-merkledag/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/tendermint/tendermint/pkg/consts"
 	"github.com/tendermint/tendermint/pkg/da"
 	"github.com/tendermint/tendermint/pkg/wrapper"
 
@@ -440,4 +442,105 @@ func generateRandNamespacedRawData(total, nidSize, leafSize uint32) [][]byte {
 	}
 
 	return data
+}
+
+func TestGetProof(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	dag := mdutils.Mock()
+
+	// generate EDS
+	eds := generateRandEDS(t, 2)
+	width := eds.Width()
+	shares := ExtractODSShares(eds)
+
+	in, err := PutData(ctx, shares, dag)
+	require.NoError(t, err)
+
+	// limit with deadline, specifically retrieval
+	_ctx, cancel := context.WithTimeout(ctx, time.Second*2)
+	defer cancel()
+	dah := da.NewDataAvailabilityHeader(in)
+	for _, root := range dah.RowsRoots {
+		rootCid := plugin.MustCidFromNamespacedSha256(root)
+		for index := 0; uint(index) < width; index++ {
+			proof := make([]cid.Cid, 0)
+			proof, err = GetProof(_ctx, dag, rootCid, proof, index, int(width))
+			require.NoError(t, err)
+			node, err := GetLeaf(ctx, dag, rootCid, index, int(width))
+			require.NoError(t, err)
+			data := node.RawData()[1:]
+			if !bytes.Equal(data[:8], consts.ParitySharesNamespaceID) {
+				data = data[8:]
+			}
+			inclusion := NewShareWithProof(index, data, proof)
+			require.True(t, inclusion.Validate(root))
+		}
+
+	}
+}
+
+func TestGetProves(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	dag := mdutils.Mock()
+
+	// generate EDS
+	eds := generateRandEDS(t, 2)
+	width := eds.Width()
+	shares := ExtractODSShares(eds)
+
+	in, err := PutData(ctx, shares, dag)
+	require.NoError(t, err)
+
+	// limit with deadline, specifically retrieval
+	_ctx, cancel := context.WithTimeout(ctx, time.Second*2)
+	defer cancel()
+	dah := da.NewDataAvailabilityHeader(in)
+	for index, root := range dah.ColumnRoots {
+		rootCid := plugin.MustCidFromNamespacedSha256(root)
+		data := make([][]byte, 0, width)
+		for index := 0; uint(index) < width; index++ {
+			node, err := GetLeaf(_ctx, dag, rootCid, index, int(width))
+			require.NoError(t, err)
+			data = append(data, node.RawData()[9:])
+
+		}
+		proves, err := GetProvesForShares(_ctx, dag, rootCid, data, index > 1)
+		require.NoError(t, err)
+		for _, proof := range proves {
+			require.True(t, proof.Validate(root)) // FIX
+		}
+	}
+}
+
+func TestRetreiveDataFailedWithByzzErro(t *testing.T) {
+	dag := mdutils.Mock()
+	eds := RandEDS(t, 2)
+	size := eds.Width()
+
+	shares := flatten(eds)
+	copy(shares[3][8:], shares[4][8:])
+	batchAdder := NewNmtNodeAdder(
+		context.Background(),
+		format.NewBatch(context.Background(),
+			dag,
+			format.MaxSizeBatchOption(4),
+		),
+	)
+	tree := wrapper.NewErasuredNamespacedMerkleTree(uint64(2), nmt.NodeVisitor(batchAdder.Visit))
+	attackerEDS, _ := rsmt2d.ImportExtendedDataSquare(shares, consts.DefaultCodec(), tree.Constructor)
+	err := batchAdder.Commit()
+	require.NoError(t, err)
+
+	dataSquare := make([][]byte, size*size)
+	copy(dataSquare, shares)
+	dataSquare[2] = nil
+	dataSquare[3] = nil
+	dataSquare[8] = nil
+	dataSquare[12] = nil
+	da := da.NewDataAvailabilityHeader(attackerEDS)
+	_, err = RetrieveData(context.Background(), &da, dag, consts.DefaultCodec())
+	var errByz *ErrByzantine
+	require.True(t, errors.As(err, &errByz))
 }

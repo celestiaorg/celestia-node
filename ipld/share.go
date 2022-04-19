@@ -3,15 +3,12 @@ package ipld
 import (
 	"bytes"
 	"crypto/sha256"
-	"errors"
 
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/nmt/namespace"
-	"github.com/celestiaorg/rsmt2d"
+
 	"github.com/ipfs/go-cid"
-	ipld "github.com/ipfs/go-ipld-format"
 	"github.com/tendermint/tendermint/pkg/consts"
-	"github.com/tendermint/tendermint/pkg/wrapper"
 
 	pb "github.com/celestiaorg/celestia-node/ipld/pb"
 	"github.com/celestiaorg/celestia-node/ipld/plugin"
@@ -71,39 +68,19 @@ type NamespacedShareWithProof struct {
 
 // NewShareWithProof takes leaf and it's path, starting from the tree root,
 // and computes nmt.Proof for this leaf
-func NewShareWithProof(index int, leaf ipld.Node, pathToLeaf []cid.Cid) *NamespacedShareWithProof {
+func NewShareWithProof(index int, leaf []byte, pathToLeaf []cid.Cid) *NamespacedShareWithProof {
 	rangeProofs := make([][]byte, 0)
 	for idx := len(pathToLeaf) - 1; idx >= 0; idx-- {
 		node := plugin.NamespacedSha256FromCID(pathToLeaf[idx])
 		rangeProofs = append(rangeProofs, node)
 	}
 
+	id := namespace.ID(leaf[:8])
+	if bytes.Equal(leaf[:8], consts.ParitySharesNamespaceID) {
+		leaf = leaf[8:]
+	}
 	proof := nmt.NewInclusionProof(index, index+1, rangeProofs, true)
-	return &NamespacedShareWithProof{leaf.RawData()[1 : NamespaceSize+1], leaf.RawData()[consts.NamespaceSize+1:], &proof}
-}
-
-// NewShareWithProofFromLeaves takes full row or col and computes proof against row/col root
-func NewShareWithProofFromLeaves(leaves [][]byte, root []byte, axis uint, leafIndex int, isParityShare bool) (*NamespacedShareWithProof, error) {
-	tree := wrapper.NewErasuredNamespacedMerkleTree(uint64(len(leaves) / 2))
-	emptyData := bytes.Repeat([]byte{0}, len(leaves[0]))
-	for idx, data := range leaves {
-		if bytes.Equal(data, emptyData) {
-			return nil, errors.New("empty leaf")
-		}
-		// Axis is an external shifting (e.g between Rows); Cell - is an internal shifting(e.g inside one col)
-		// They are also valid vice versa(Axis - shifting between Cols, Cell - shifting inside row)
-		tree.Push(data, rsmt2d.SquareIndex{Axis: uint(axis), Cell: uint(idx)})
-	}
-
-	proof, err := tree.Prove(leafIndex)
-	if err != nil {
-		return nil, err
-	}
-	namespaceID := leaves[leafIndex][:consts.NamespaceSize]
-	if isParityShare {
-		namespaceID = consts.ParitySharesNamespaceID
-	}
-	return &NamespacedShareWithProof{namespaceID, leaves[leafIndex], &proof}, nil
+	return &NamespacedShareWithProof{id, leaf, &proof}
 }
 
 func (s *NamespacedShareWithProof) Validate(root []byte) bool {
@@ -129,7 +106,10 @@ func ProtoToShare(protoShares []*pb.Share) []*NamespacedShareWithProof {
 	shares := make([]*NamespacedShareWithProof, len(protoShares))
 	for _, share := range protoShares {
 		proof := ProtoToProof(share.Proof)
-		shares = append(shares, &NamespacedShareWithProof{share.NamespaceID, append(share.NamespaceID, share.Data...), &proof})
+		shares = append(
+			shares,
+			&NamespacedShareWithProof{share.NamespaceID, append(share.NamespaceID, share.Data...), &proof},
+		)
 	}
 	return shares
 }
