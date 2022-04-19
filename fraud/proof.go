@@ -3,9 +3,7 @@ package fraud
 import (
 	"encoding"
 
-	pb "github.com/celestiaorg/celestia-node/fraud/pb"
 	"github.com/celestiaorg/celestia-node/service/header"
-	"github.com/celestiaorg/nmt"
 )
 
 type ProofType int
@@ -26,8 +24,4 @@ type Proof interface {
 
 	encoding.BinaryMarshaler
 	encoding.BinaryUnmarshaler
-}
-
-func ProtoToProof(protoProof *pb.MerkleProof) nmt.Proof {
-	return nmt.NewInclusionProof(int(protoProof.Start), int(protoProof.End), protoProof.Nodes, true)
 }

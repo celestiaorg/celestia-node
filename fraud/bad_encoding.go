@@ -2,11 +2,9 @@ package fraud
 
 import (
 	"bytes"
-	"context"
 	"errors"
 	"fmt"
 
-	format "github.com/ipfs/go-ipld-format"
 	"github.com/tendermint/tendermint/pkg/consts"
 	"github.com/tendermint/tendermint/pkg/wrapper"
 
@@ -14,7 +12,7 @@ import (
 
 	pb "github.com/celestiaorg/celestia-node/fraud/pb"
 	"github.com/celestiaorg/celestia-node/ipld"
-	"github.com/celestiaorg/celestia-node/ipld/plugin"
+	ipld_pb "github.com/celestiaorg/celestia-node/ipld/pb"
 	"github.com/celestiaorg/celestia-node/service/header"
 )
 
@@ -23,7 +21,7 @@ type BadEncodingProof struct {
 	// ShareWithProof contains all shares from row or col.
 	// Shares that did not pass verification in rmst2d will be nil.
 	// For non-nil shares MerkleProofs are computed.
-	Shares []*ShareWithProof
+	Shares []*ipld.NamespacedShareWithProof
 	// Index represents the row/col index where ErrByzantineRow/ErrByzantineColl occurred
 	Index uint8
 	// isRow shows that verification failed on row
@@ -32,65 +30,17 @@ type BadEncodingProof struct {
 
 // CreateBadEncodingProof creates a new Bad Encoding Fraud Proof that should be propagated through network
 // Fraud Proof will contain shares that did not pass the verification and appropriate to them Merkle Proofs
-// In case if it's not possible to build Merkle Proof due to incomplete row/col,
-// then missing shares should be get though sampling.
 func CreateBadEncodingProof(
-	ctx context.Context,
 	height uint64,
-	index uint8,
-	isRow bool,
-	eds *rsmt2d.ExtendedDataSquare,
-	roots [][]byte,
-	errShares [][]byte,
-	dag format.NodeGetter,
-) (Proof, error) {
-	shares := make([]*ShareWithProof, len(errShares))
-	for idx, share := range errShares {
-		if share == nil {
-			continue
-		}
-		// if error shares are from row, then Merkle Trees should genererated from
-		// share respective column. It's supposed that columns are fully repaired. If not, then
-		// missing shares should be get through sampling
-		data := eds.Row(uint(idx))
-		if isRow {
-			// if error shares are from col, then Merkle Trees should genererated from
-			// share respective row. It's supposed that columns are fully repaired. If not, then
-			// missing shares should be get through sampling
-			data = eds.Col(uint(idx))
-		}
-
-		tree, err := buildTreeFromLeaves(ctx, data, roots[idx], idx, dag)
-		if err != nil {
-			return nil, err
-		}
-		proof, err := tree.Tree().Prove(int(index))
-		if err != nil {
-			return nil, err
-		}
-		/*
-			NamespaceID should be replaced with ParitySharesNamespaceID for
-			all shares except Q0(all erasure coded shares).
-			For EDS 4x4 Q0 is [[0;0],[0;1],[1:0],[1;1]].
-			x	x	x	x
-			x	x	x	x
-			x	x	x	x
-			x	x	x	x
-		*/
-		namespaceID := share[:consts.NamespaceSize]
-		if idx >= len(errShares)/2 || int(index) >= len(errShares)/2 {
-			namespaceID = consts.ParitySharesNamespaceID
-		}
-
-		shares[idx] = &ShareWithProof{namespaceID, share, &proof}
-	}
+	shares *ipld.ErrByzantine,
+) Proof {
 
 	return &BadEncodingProof{
 		BlockHeight: height,
-		Shares:      shares,
-		isRow:       isRow,
-		Index:       index,
-	}, nil
+		Shares:      shares.Shares,
+		isRow:       shares.IsRow,
+		Index:       shares.Index,
+	}
 }
 
 // Type returns type of fraud proof
@@ -105,12 +55,12 @@ func (p *BadEncodingProof) Height() uint64 {
 
 // MarshalBinary converts BadEncodingProof to binary
 func (p *BadEncodingProof) MarshalBinary() ([]byte, error) {
-	shares := make([]*pb.Share, 0, len(p.Shares))
+	shares := make([]*ipld_pb.Share, 0, len(p.Shares))
 	for _, share := range p.Shares {
 		shares = append(shares, share.ShareWithProofToProto())
 	}
 
-	badEncodingFraudProof := pb.BadEnconding{
+	badEncodingFraudProof := pb.BadEncoding{
 		Height: p.BlockHeight,
 		Shares: shares,
 		Index:  uint32(p.Index),
@@ -121,7 +71,7 @@ func (p *BadEncodingProof) MarshalBinary() ([]byte, error) {
 
 // UnmarshalBinary converts binary to BadEncodingProof
 func (p *BadEncodingProof) UnmarshalBinary(data []byte) error {
-	in := pb.BadEnconding{}
+	in := pb.BadEncoding{}
 	if err := in.Unmarshal(data); err != nil {
 		return err
 	}
@@ -131,17 +81,17 @@ func (p *BadEncodingProof) UnmarshalBinary(data []byte) error {
 	return nil
 }
 
-// UnmarshalBefp converts given data to BadEncodingProof
-func UnmarshalBEFP(befp *pb.BadEnconding) *BadEncodingProof {
+// UnmarshalBEFP converts given data to BadEncodingProof
+func UnmarshalBEFP(befp *pb.BadEncoding) *BadEncodingProof {
 	return &BadEncodingProof{
 		BlockHeight: befp.Height,
-		Shares:      ProtoToShare(befp.Shares),
+		Shares:      ipld.ProtoToShare(befp.Shares),
 	}
 }
 
 // Validate ensures that Fraud Proof that was created by full node is correct.
-// Validate checks that provided Merke Proofs are corresponded to particular shares,
-// rebuilds bad row or col from received shares, computes Merke Root
+// Validate checks that provided Merkle Proofs are corresponded to particular shares,
+// rebuilds bad row or col from received shares, computes Merkle Root
 // and compares it with block's Merkle Root
 func (p *BadEncodingProof) Validate(header *header.ExtendedHeader) error {
 	merkleRowRoots := header.DAH.RowsRoots
@@ -156,23 +106,20 @@ func (p *BadEncodingProof) Validate(header *header.ExtendedHeader) error {
 		return errors.New("invalid fraud proof: invalid shares")
 	}
 
-	roots := merkleRowRoots
-	// if error shares are from row, then Merkle Proofs should by verified against
-	// respective column roots, because this Merkle Proofs were built against columns.
-	// The logic is valid vice versa
-	if p.isRow {
-		roots = merkleColRoots
+	roots := merkleRowRoots[p.Index]
+	if !p.isRow {
+		roots = merkleColRoots[p.Index]
 	}
 
-	shares := make([][]byte, len(roots))
+	shares := make([][]byte, len(merkleRowRoots))
 
 	// verify that Merkle proofs correspond to particular shares
 	for index, share := range p.Shares {
 		if share == nil {
 			continue
 		}
-		shares[index] = share.Data
-		if ok := share.Validate(roots[index]); !ok {
+		shares[index] = share.Share
+		if ok := share.Validate(roots); !ok {
 			return fmt.Errorf("invalid fraud proof: incorrect share received at Index %d", index)
 		}
 	}
@@ -183,13 +130,13 @@ func (p *BadEncodingProof) Validate(header *header.ExtendedHeader) error {
 	if err != nil {
 		return err
 	}
-	rebuiltExtendedShares, err := codec.Encode(rebuiltShares)
+	rebuiltExtendedShares, err := codec.Encode(rebuiltShares[0 : len(shares)/2])
 	if err != nil {
 		return err
 	}
 	rebuiltShares = append(rebuiltShares, rebuiltExtendedShares...)
 
-	tree := wrapper.NewErasuredNamespacedMerkleTree(uint64(len(roots) / 2))
+	tree := wrapper.NewErasuredNamespacedMerkleTree(uint64(len(shares) / 2))
 	for i, share := range rebuiltShares {
 		tree.Push(share, rsmt2d.SquareIndex{Axis: uint(p.Index), Cell: uint(i)})
 	}
@@ -205,37 +152,4 @@ func (p *BadEncodingProof) Validate(header *header.ExtendedHeader) error {
 	}
 
 	return nil
-}
-
-func buildTreeFromLeaves(
-	ctx context.Context,
-	leaves [][]byte,
-	root []byte,
-	axis int,
-	dag format.NodeGetter,
-) (*wrapper.ErasuredNamespacedMerkleTree, error) {
-	tree := wrapper.NewErasuredNamespacedMerkleTree(uint64(len(leaves) / 2))
-	emptyData := bytes.Repeat([]byte{0}, len(leaves[0]))
-	for idx, data := range leaves {
-		if bytes.Equal(data, emptyData) {
-			// if share was not repaired, then we should get it through sampling
-			share, err := getShare(ctx, root, idx, len(leaves), dag)
-			if err != nil {
-				return nil, err
-			}
-			data = share[consts.NamespaceSize:]
-		}
-		// Axis is an external shifting (e.g between Rows); Cell - is an internal shifting(e.g inside one col)
-		// They are also valid vice versa(Axis - shifting between Cols, Cell - shifting inside row)
-		tree.Push(data, rsmt2d.SquareIndex{Axis: uint(axis), Cell: uint(idx)})
-	}
-	return &tree, nil
-}
-
-func getShare(ctx context.Context, root []byte, index int, length int, dag format.NodeGetter) ([]byte, error) {
-	cid, err := plugin.CidFromNamespacedSha256(root)
-	if err != nil {
-		return nil, err
-	}
-	return ipld.GetLeafData(ctx, cid, uint32(index), uint32(length), dag)
 }

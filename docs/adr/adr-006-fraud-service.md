@@ -55,7 +55,7 @@ In addition, `das.Daser`:
 
 ```go
 const (
-   BadEncoding ProofType = "BadEncoding"
+   BadEncoding ProofType = 0
 )
 
 type BadEncodingProof struct {
@@ -106,7 +106,7 @@ type Broadcaster interface {
 
 ```go
 // ProofType is a enum type that represents a particular type of fraud proof.
-type ProofType string
+type ProofType int
 
 // Proof is a generic interface that will be used for all types of fraud proofs in the network.
 type Proof interface {

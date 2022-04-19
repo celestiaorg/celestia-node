@@ -2,14 +2,29 @@ package ipld
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/ipfs/go-cid"
 	ipld "github.com/ipfs/go-ipld-format"
+	"github.com/tendermint/tendermint/pkg/consts"
+	"github.com/tendermint/tendermint/pkg/da"
 
 	"github.com/celestiaorg/celestia-node/ipld/plugin"
 	"github.com/celestiaorg/nmt"
+	"github.com/celestiaorg/rsmt2d"
+
 	"github.com/celestiaorg/nmt/namespace"
 )
+
+type ErrByzantine struct {
+	Index  uint8
+	Shares []*NamespacedShareWithProof
+	IsRow  bool
+}
+
+func (e *ErrByzantine) Error() string {
+	return fmt.Sprintf("byzantine error. isRow:%v, Index:%v", e.IsRow, e.Index)
+}
 
 // GetLeaves gets all the leaves under the given root. It recursively starts traversing the DAG to find all the leafs.
 // It also takes a pre-allocated slice 'leaves'.
@@ -88,6 +103,76 @@ func GetLeaf(ctx context.Context, dag ipld.NodeGetter, root cid.Cid, leaf, total
 	return GetLeaf(ctx, dag, root, leaf, total)
 }
 
+// GetProvesForShares fetches Merkle Proof for shares range and converts it to NamespacedShareWithProof
+func GetProvesForShares(
+	ctx context.Context,
+	dag ipld.NodeGetter,
+	root cid.Cid,
+	shares [][]byte,
+	isErasuredData bool,
+) ([]*NamespacedShareWithProof, error) {
+	proofs := make([]*NamespacedShareWithProof, len(shares))
+	var err error
+	for index, share := range shares {
+		if share != nil {
+			proof := make([]cid.Cid, 0)
+			proof, err = GetProof(ctx, dag, root, proof, index, len(shares))
+			if err != nil {
+				return nil, err
+			}
+			// extend with parityNamespaceID because errShares are erasured data. They do not contain
+			// specific namespace id. This condition is valid for all shares except first quadrant
+			if isErasuredData || index >= len(shares)/2 {
+				share = append(consts.ParitySharesNamespaceID, share...)
+			}
+			proofs[index] = NewShareWithProof(index, share, proof)
+		}
+	}
+
+	return proofs, nil
+}
+
+// GetProof fetches and returns the leaf's Merkle Proof.
+// It walks down the IPLD NMT tree until it reaches the leaf and returns collected proof
+func GetProof(
+	ctx context.Context,
+	dag ipld.NodeGetter,
+	root cid.Cid,
+	proof []cid.Cid,
+	leaf, total int,
+) ([]cid.Cid, error) {
+	// request the node
+	nd, err := dag.Get(ctx, root)
+	if err != nil {
+		return nil, err
+	}
+
+	// look for links
+	lnks := nd.Links()
+	if len(lnks) == 1 {
+		p := make([]cid.Cid, len(proof))
+		copy(p, proof)
+		return p, nil
+	}
+
+	// route walk to appropriate children
+	total /= 2 // as we are using binary tree, every step decreases total leaves in a half
+	if leaf < total {
+		root = lnks[0].Cid // if target leave on the left, go with walk down the first children
+		proof = append(proof, lnks[1].Cid)
+	} else {
+		root, leaf = lnks[1].Cid, leaf-total // otherwise go down the second
+		proof, err = GetProof(ctx, dag, root, proof, leaf, total)
+		if err != nil {
+			return nil, err
+		}
+		return append(proof, lnks[0].Cid), nil
+	}
+
+	// recursively walk down through selected children
+	return GetProof(ctx, dag, root, proof, leaf, total)
+}
+
 // GetLeavesByNamespace returns all the shares from the given DataAvailabilityHeader root
 // with the given namespace.ID.
 func GetLeavesByNamespace(
@@ -126,70 +211,40 @@ func GetLeavesByNamespace(
 	return out, err
 }
 
-// getSubtreeLeavesWithProof is downloading leaf data with it's proof by calling getLeavesWithProofs
-func getSubtreeLeavesWithProof(ctx context.Context, root cid.Cid, dag ipld.NodeGetter, isLeftSubtree bool) ([]*NamespacedShareWithProof, error) {
-	nd, err := dag.Get(ctx, root)
+func handleByzantineError(
+	ctx context.Context,
+	dah *da.DataAvailabilityHeader,
+	dag ipld.DAGService,
+	errRow *rsmt2d.ErrByzantineRow,
+	errCol *rsmt2d.ErrByzantineCol,
+	isErasuredData bool,
+) error {
+	var errShares [][]byte
+	var root []byte
+	isRow := false
+	var index uint8
+	if errRow != nil {
+		errShares = errRow.Shares
+		root = dah.RowsRoots[errRow.RowNumber]
+		index = uint8(errRow.RowNumber)
+		isRow = true
+	} else {
+		errShares = errCol.Shares
+		root = dah.ColumnRoots[errCol.ColNumber]
+		index = uint8(errCol.ColNumber)
+	}
+
+	sharesWithProof, err := GetProvesForShares(
+		ctx,
+		dag,
+		plugin.MustCidFromNamespacedSha256(root),
+		errShares,
+		isErasuredData,
+	)
 	if err != nil {
-		return nil, err
-	}
-	leaves := make([]ipld.Node, 0)
-	proofs := make([][]cid.Cid, 0)
-	path := make([]cid.Cid, 0)
-	nameSpacedShares := make([]*NamespacedShareWithProof, 0)
-	if isLeftSubtree {
-		path = append(path, nd.Links()[1].Cid)
-		proofs, leaves, err = getLeavesWithProofs(ctx, nd.Links()[0].Cid, dag, proofs, leaves, path)
-		for index, leaf := range leaves {
-			nameSpacedShares = append(nameSpacedShares, NewShareWithProof(index, leaf, proofs[index]))
-		}
-		return nameSpacedShares, nil
-	}
-	proofs, leaves, err = getLeavesWithProofs(ctx, nd.Links()[1].Cid, dag, proofs, leaves, path)
-	for index, leaf := range leaves {
-		proofs[index] = append(proofs[index], nd.Links()[0].Cid)
-		nameSpacedShares = append(nameSpacedShares, NewShareWithProof(index, leaf, proofs[index]))
-	}
-	return nil, err
-}
-
-// getLeavesWithProofs is recursively going from the given root to the leaf, collecting the opposite subnode hashes as proofs.
-func getLeavesWithProofs(ctx context.Context, root cid.Cid, dag ipld.NodeGetter, proofs [][]cid.Cid, leaves []ipld.Node, path []cid.Cid) ([][]cid.Cid, []ipld.Node, error) {
-	nd, err := dag.Get(ctx, root)
-	if err != nil {
-		return nil, nil, err
-	}
-	lnks := nd.Links()
-	if len(lnks) == 1 {
-		// in case there is only one we reached tree's bottom, so finally request the leaf.
-		nd, err = dag.Get(ctx, lnks[0].Cid)
-		if err != nil {
-			return nil, nil, err
-		}
-		p := make([]cid.Cid, len(path))
-		copy(p, path)
-		return append(proofs, p), append(leaves, nd), nil
+		return err
 	}
 
-	for index, node := range lnks {
-		path := path
-		if index == leftSubnode {
-			// appending right side for the left subnode
-			path = append(path, lnks[rightSubNode].Cid)
-		}
-		leavesAmount := len(leaves)
-		//means we are going left
-		proofs, leaves, err = getLeavesWithProofs(ctx, node.Cid, dag, proofs, leaves, path)
-		if err != nil {
-			return nil, nil, err
-		}
-		if index == rightSubNode {
-			// appending left subnode that were fetched in previous getLeavesWithProofs
-			for idx := leavesAmount; idx < len(leaves); idx++ {
-				proofs[idx] = append(proofs[idx], lnks[leftSubnode].Cid)
-			}
-		}
-
-	}
-
-	return proofs, leaves, err
+	byzErr := &ErrByzantine{Index: index, Shares: sharesWithProof, IsRow: isRow}
+	return byzErr
 }
