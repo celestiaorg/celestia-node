@@ -130,7 +130,7 @@ func (rs *retrieverSession) retrieve(ctx context.Context, q *quadrant) (*rsmt2d.
 	err := rsmt2d.RepairExtendedDataSquare(rs.dah.RowsRoots, rs.dah.ColumnRoots, rs.square, rs.codec, rs.treeFn)
 	if err != nil {
 		log.Errorw("not enough shares sampled to recover, retrying...", "err", err)
-		return nil, format.ErrNotFound
+		return nil, err
 	}
 
 	return rsmt2d.ImportExtendedDataSquare(rs.square, rs.codec, rs.treeFn)
