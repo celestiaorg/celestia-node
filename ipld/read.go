@@ -6,7 +6,7 @@ import (
 
 	"github.com/ipfs/go-cid"
 	ipld "github.com/ipfs/go-ipld-format"
-	"github.com/tendermint/tendermint/pkg/consts"
+
 	"github.com/tendermint/tendermint/pkg/da"
 
 	"github.com/celestiaorg/celestia-node/ipld/plugin"
@@ -109,23 +109,21 @@ func GetProvesForShares(
 	dag ipld.NodeGetter,
 	root cid.Cid,
 	shares [][]byte,
-	isErasuredData bool,
 ) ([]*NamespacedShareWithProof, error) {
 	proofs := make([]*NamespacedShareWithProof, len(shares))
-	var err error
+
 	for index, share := range shares {
 		if share != nil {
 			proof := make([]cid.Cid, 0)
+			s, err := GetLeafData(ctx, root, uint32(index), uint32(len(shares)), dag)
+			if err != nil {
+				return nil, err
+			}
 			proof, err = GetProof(ctx, dag, root, proof, index, len(shares))
 			if err != nil {
 				return nil, err
 			}
-			// extend with parityNamespaceID because errShares are erasured data. They do not contain
-			// specific namespace id. This condition is valid for all shares except first quadrant
-			if isErasuredData || index >= len(shares)/2 {
-				share = append(consts.ParitySharesNamespaceID, share...)
-			}
-			proofs[index] = NewShareWithProof(index, share, proof)
+			proofs[index] = NewShareWithProof(index, s, proof)
 		}
 	}
 
@@ -217,7 +215,6 @@ func handleByzantineError(
 	dag ipld.DAGService,
 	errRow *rsmt2d.ErrByzantineRow,
 	errCol *rsmt2d.ErrByzantineCol,
-	isErasuredData bool,
 ) error {
 	var errShares [][]byte
 	var root []byte
@@ -239,7 +236,6 @@ func handleByzantineError(
 		dag,
 		plugin.MustCidFromNamespacedSha256(root),
 		errShares,
-		isErasuredData,
 	)
 	if err != nil {
 		return err

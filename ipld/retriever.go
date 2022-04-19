@@ -3,6 +3,7 @@ package ipld
 import (
 	"context"
 	"encoding/hex"
+	"errors"
 	"sync"
 	"time"
 
@@ -13,6 +14,7 @@ import (
 	"github.com/tendermint/tendermint/pkg/da"
 	"github.com/tendermint/tendermint/pkg/wrapper"
 
+	"github.com/celestiaorg/celestia-node/ipld/plugin"
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/rsmt2d"
 )
@@ -57,10 +59,52 @@ func (r *Retriever) Retrieve(ctx context.Context, dah *da.DataAvailabilityHeader
 				return eds, nil
 			}
 		}
+		if byzErr := r.handleByzantineError(ctx, dah, err); byzErr != nil {
+			return nil, byzErr
+		}
 		// retry quadrants until we can reconstruct the EDS or error out
 	}
 
 	return nil, format.ErrNotFound
+}
+
+func (r *Retriever) handleByzantineError(
+	ctx context.Context,
+	dah *da.DataAvailabilityHeader,
+	byzErr error,
+) error {
+	var errRow *rsmt2d.ErrByzantineRow
+	var errCol *rsmt2d.ErrByzantineCol
+	if !errors.As(byzErr, &errRow) && !errors.As(byzErr, &errCol) {
+		return nil
+	}
+	var errShares [][]byte
+	var root []byte
+	isRow := false
+	var index uint8
+	if errRow != nil {
+		errShares = errRow.Shares
+		root = dah.RowsRoots[errRow.RowNumber]
+		index = uint8(errRow.RowNumber)
+		isRow = true
+	} else {
+		errShares = errCol.Shares
+		root = dah.ColumnRoots[errCol.ColNumber]
+		index = uint8(errCol.ColNumber)
+	}
+	// todo: fetch proofs only for sampled shares
+	sharesWithProof, err := GetProvesForShares(
+		ctx,
+		r.dag,
+		plugin.MustCidFromNamespacedSha256(root),
+		errShares,
+	)
+	if err != nil {
+		return err
+	}
+
+	byz := &ErrByzantine{Index: index, Shares: sharesWithProof, IsRow: isRow}
+	return byz
 }
 
 type retrieverSession struct {

@@ -90,7 +90,6 @@ benchmark:
 
 PB_PKGS=$(shell find . -name 'pb' -type d)
 PB_CORE=$(shell go list -f {{.Dir}} -m github.com/tendermint/tendermint)
-PB_IPLD="./ipld"
 PB_GOGO=$(shell go list -f {{.Dir}} -m github.com/gogo/protobuf)
 
 ## pb-gen: Generate protobuf code for all /pb/*.proto files in the project.
