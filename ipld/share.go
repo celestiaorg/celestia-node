@@ -1,14 +1,12 @@
 package ipld
 
 import (
-	"bytes"
 	"crypto/sha256"
 
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/nmt/namespace"
 
 	"github.com/ipfs/go-cid"
-	"github.com/tendermint/tendermint/pkg/consts"
 
 	pb "github.com/celestiaorg/celestia-node/ipld/pb"
 	"github.com/celestiaorg/celestia-node/ipld/plugin"
@@ -76,16 +74,16 @@ func NewShareWithProof(index int, leaf []byte, pathToLeaf []cid.Cid) *Namespaced
 	}
 
 	id := namespace.ID(leaf[:8])
-	if bytes.Equal(leaf[:8], consts.ParitySharesNamespaceID) {
-		leaf = leaf[8:]
-	}
 	proof := nmt.NewInclusionProof(index, index+1, rangeProofs, true)
-	return &NamespacedShareWithProof{id, leaf, &proof}
+	return &NamespacedShareWithProof{id, leaf[8:], &proof}
 }
 
 func (s *NamespacedShareWithProof) Validate(root []byte) bool {
 	// As nmt prepends NamespaceID twice, we need to pass the full data with NamespaceID in
 	// VerifyInclusion
+
+	// todo
+	// prepend for parity shares
 	return s.Proof.VerifyInclusion(sha256.New(), s.ID, s.Share, root)
 }
 
@@ -108,12 +106,14 @@ func ProtoToShare(protoShares []*pb.Share) []*NamespacedShareWithProof {
 		proof := ProtoToProof(share.Proof)
 		shares = append(
 			shares,
-			&NamespacedShareWithProof{share.NamespaceID, append(share.NamespaceID, share.Data...), &proof},
+			&NamespacedShareWithProof{share.NamespaceID, share.Data, &proof},
 		)
 	}
 	return shares
 }
 
 func ProtoToProof(protoProof *pb.MerkleProof) nmt.Proof {
+
+	// p
 	return nmt.NewInclusionProof(int(protoProof.Start), int(protoProof.End), protoProof.Nodes, true)
 }

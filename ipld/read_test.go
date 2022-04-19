@@ -497,7 +497,7 @@ func TestGetProves(t *testing.T) {
 	_ctx, cancel := context.WithTimeout(ctx, time.Second*2)
 	defer cancel()
 	dah := da.NewDataAvailabilityHeader(in)
-	for index, root := range dah.ColumnRoots {
+	for _, root := range dah.ColumnRoots {
 		rootCid := plugin.MustCidFromNamespacedSha256(root)
 		data := make([][]byte, 0, width)
 		for index := 0; uint(index) < width; index++ {
@@ -506,7 +506,7 @@ func TestGetProves(t *testing.T) {
 			data = append(data, node.RawData()[9:])
 
 		}
-		proves, err := GetProvesForShares(_ctx, dag, rootCid, data, index > 1)
+		proves, err := GetProvesForShares(_ctx, dag, rootCid, data)
 		require.NoError(t, err)
 		for _, proof := range proves {
 			require.True(t, proof.Validate(root)) // FIX
@@ -514,13 +514,13 @@ func TestGetProves(t *testing.T) {
 	}
 }
 
-func TestRetreiveDataFailedWithByzzErro(t *testing.T) {
+func TestRetreiveDataFailedWithByzzError(t *testing.T) {
 	dag := mdutils.Mock()
 	eds := RandEDS(t, 2)
 	size := eds.Width()
 
 	shares := flatten(eds)
-	copy(shares[3][8:], shares[4][8:])
+	copy(shares[14][8:], shares[15][8:])
 	batchAdder := NewNmtNodeAdder(
 		context.Background(),
 		format.NewBatch(context.Background(),
@@ -528,19 +528,14 @@ func TestRetreiveDataFailedWithByzzErro(t *testing.T) {
 			format.MaxSizeBatchOption(4),
 		),
 	)
-	tree := wrapper.NewErasuredNamespacedMerkleTree(uint64(2), nmt.NodeVisitor(batchAdder.Visit))
+	tree := wrapper.NewErasuredNamespacedMerkleTree(uint64(size/2), nmt.NodeVisitor(batchAdder.Visit))
 	attackerEDS, _ := rsmt2d.ImportExtendedDataSquare(shares, consts.DefaultCodec(), tree.Constructor)
 	err := batchAdder.Commit()
 	require.NoError(t, err)
 
-	dataSquare := make([][]byte, size*size)
-	copy(dataSquare, shares)
-	dataSquare[2] = nil
-	dataSquare[3] = nil
-	dataSquare[8] = nil
-	dataSquare[12] = nil
 	da := da.NewDataAvailabilityHeader(attackerEDS)
-	_, err = RetrieveData(context.Background(), &da, dag, consts.DefaultCodec())
+	r := NewRetriever(dag, consts.DefaultCodec())
+	_, err = r.Retrieve(context.Background(), &da)
 	var errByz *ErrByzantine
 	require.True(t, errors.As(err, &errByz))
 }
