@@ -120,7 +120,7 @@ func (rs *retrieverSession) retrieve(ctx context.Context, q *quadrant) (*rsmt2d.
 	rs.request(ctx, q)
 
 	// try repair
-	eds, err := rsmt2d.RepairExtendedDataSquare(rs.dah.RowsRoots, rs.dah.ColumnRoots, rs.square, rs.codec, rs.treeFn)
+	err := rsmt2d.RepairExtendedDataSquare(rs.dah.RowsRoots, rs.dah.ColumnRoots, rs.square, rs.codec, rs.treeFn)
 	if err != nil {
 
 		// TODO(@Wondertan): This is a hack around limitation of rsmt2d. It sets empty zeroed shares back to nil
@@ -136,7 +136,12 @@ func (rs *retrieverSession) retrieve(ctx context.Context, q *quadrant) (*rsmt2d.
 		return nil, format.ErrNotFound
 	}
 
-	return eds, rs.adder.Commit()
+	err = rs.adder.Commit()
+	if err != nil {
+		return nil, err
+	}
+
+	return rsmt2d.ImportExtendedDataSquare(rs.square, rs.codec, rs.treeFn)
 }
 
 type quadrant struct {

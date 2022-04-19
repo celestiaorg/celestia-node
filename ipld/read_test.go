@@ -93,10 +93,11 @@ func TestBlockRecovery(t *testing.T) {
 			flat := flatten(eds)
 
 			// recover a partially complete square
-			reds, err := rsmt2d.RepairExtendedDataSquare(
+			rdata := removeRandShares(flat, tc.d)
+			err = rsmt2d.RepairExtendedDataSquare(
 				rowRoots,
 				colRoots,
-				removeRandShares(flat, tc.d),
+				rdata,
 				rsmt2d.NewRSGF8Codec(),
 				recoverTree.Constructor,
 			)
@@ -108,6 +109,8 @@ func TestBlockRecovery(t *testing.T) {
 			}
 			assert.NoError(t, err)
 
+			reds, err := rsmt2d.ImportExtendedDataSquare(rdata, rsmt2d.NewRSGF8Codec(), tree.Constructor)
+			require.NoError(t, err)
 			// check that the squares are equal
 			assert.Equal(t, flatten(eds), flatten(reds))
 		})
