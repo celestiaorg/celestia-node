@@ -114,6 +114,14 @@ func (r *Retriever) newSession(ctx context.Context, dah *da.DataAvailabilityHead
 }
 
 func (rs *retrieverSession) retrieve(ctx context.Context, q *quadrant) (*rsmt2d.ExtendedDataSquare, error) {
+	defer func() {
+		// all shares which were requested or repaired are written to disk with the commit
+		// we store *all*, so they are served to the network, including incorrectly committed data(BEFP case),
+		// so that network can check BEFP
+		if err := rs.adder.Commit(); err != nil {
+			log.Errorw("committing DAG", "err", err)
+		}
+	}()
 	// request and fill quadrant's into
 	// we don't care about the errors here, just need to request as much data as we can to be able to reconstruct below
 	rs.request(ctx, q)
@@ -123,11 +131,6 @@ func (rs *retrieverSession) retrieve(ctx context.Context, q *quadrant) (*rsmt2d.
 	if err != nil {
 		log.Errorw("not enough shares sampled to recover, retrying...", "err", err)
 		return nil, format.ErrNotFound
-	}
-
-	err = rs.adder.Commit()
-	if err != nil {
-		return nil, err
 	}
 
 	return rsmt2d.ImportExtendedDataSquare(rs.square, rs.codec, rs.treeFn)
