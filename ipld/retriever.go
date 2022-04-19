@@ -1,7 +1,6 @@
 package ipld
 
 import (
-	"bytes"
 	"context"
 	"math/rand"
 	"time"
@@ -122,16 +121,6 @@ func (rs *retrieverSession) retrieve(ctx context.Context, q *quadrant) (*rsmt2d.
 	// try repair
 	err := rsmt2d.RepairExtendedDataSquare(rs.dah.RowsRoots, rs.dah.ColumnRoots, rs.square, rs.codec, rs.treeFn)
 	if err != nil {
-
-		// TODO(@Wondertan): This is a hack around limitation of rsmt2d. It sets empty zeroed shares back to nil
-		//  reversing operation done inside rsmt2d
-		fillerChunk := bytes.Repeat([]byte{0}, 264)
-		for i, share := range rs.square {
-			if bytes.Equal(share, fillerChunk) {
-				rs.square[i] = nil
-			}
-		}
-
 		log.Errorw("not enough shares sampled to recover, retrying...", "err", err)
 		return nil, format.ErrNotFound
 	}
