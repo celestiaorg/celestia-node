@@ -149,7 +149,7 @@ type StateModule interface {
     Balance
     BalanceOf
     Submit
-    SubmitFrom
+    SubmitTxFrom
 
     // TODO: Feels like something is missing here
 }
