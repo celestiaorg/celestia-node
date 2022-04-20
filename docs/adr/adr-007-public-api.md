@@ -148,7 +148,7 @@ type NodeModule/MiscModule interface {
 type StateModule interface {
     Balance
     BalanceOf
-    Submit
+    SubmitTx
     SubmitTxFrom
 
     // TODO: Feels like something is missing here
