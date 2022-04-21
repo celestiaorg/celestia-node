@@ -7,11 +7,8 @@ import (
 	"github.com/ipfs/go-cid"
 	ipld "github.com/ipfs/go-ipld-format"
 
-	"github.com/tendermint/tendermint/pkg/da"
-
 	"github.com/celestiaorg/celestia-node/ipld/plugin"
 	"github.com/celestiaorg/nmt"
-	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/nmt/namespace"
 )
@@ -206,40 +203,4 @@ func GetLeavesByNamespace(
 		out = append(nds, out...)
 	}
 	return out, err
-}
-
-func handleByzantineError(
-	ctx context.Context,
-	dah *da.DataAvailabilityHeader,
-	dag ipld.DAGService,
-	errRow *rsmt2d.ErrByzantineRow,
-	errCol *rsmt2d.ErrByzantineCol,
-) error {
-	var errShares [][]byte
-	var root []byte
-	isRow := false
-	var index uint8
-	if errRow != nil {
-		errShares = errRow.Shares
-		root = dah.RowsRoots[errRow.RowNumber]
-		index = uint8(errRow.RowNumber)
-		isRow = true
-	} else {
-		errShares = errCol.Shares
-		root = dah.ColumnRoots[errCol.ColNumber]
-		index = uint8(errCol.ColNumber)
-	}
-
-	sharesWithProof, err := GetProvesForShares(
-		ctx,
-		dag,
-		plugin.MustCidFromNamespacedSha256(root),
-		errShares,
-	)
-	if err != nil {
-		return err
-	}
-
-	byzErr := &ErrByzantine{Index: index, Shares: sharesWithProof, IsRow: isRow}
-	return byzErr
 }
