@@ -4,7 +4,8 @@ import "context"
 
 // Broadcaster is a generic interface that sends a `Proof` to all nodes subscribed on the Broadcaster's topic.
 type Broadcaster interface {
-	// Broadcast takes a fraud `Proof` data structure that implements standard BinaryMarshal interface and broadcasts it to all subscribed peers.
+	// Broadcast takes a fraud `Proof` data structure that implements standard BinaryMarshal interface
+	// and broadcasts it to all subscribed peers.
 	Broadcast(ctx context.Context, p Proof) error
 }
 

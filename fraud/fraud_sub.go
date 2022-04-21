@@ -3,12 +3,13 @@ package fraud
 import (
 	"context"
 	"errors"
+	"sync"
 
 	"github.com/celestiaorg/celestia-node/service/header"
+
 	logging "github.com/ipfs/go-log/v2"
 	"github.com/libp2p/go-libp2p-core/peer"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
-	"github.com/tendermint/tendermint/libs/sync"
 )
 
 var log = logging.Logger("fraud")
@@ -17,8 +18,8 @@ type proofUnmarshaller func([]byte) (Proof, error)
 
 type headerFetcher func(ctx context.Context, height uint64) (*header.ExtendedHeader, error)
 
-// FraudSub implements Subscriber and Broadcaster.
-type FraudSub struct {
+// Fraudsub implements Subscriber and Broadcaster.
+type Fraudsub struct {
 	pubsub        *pubsub.PubSub
 	topics        map[ProofType]*pubsub.Topic
 	unmarshallers map[ProofType]proofUnmarshaller
@@ -26,11 +27,11 @@ type FraudSub struct {
 	mu *sync.Mutex
 }
 
-func NewFraudSub(p *pubsub.PubSub) *FraudSub {
-	return &FraudSub{pubsub: p, mu: &sync.Mutex{}}
+func NewFraudsub(p *pubsub.PubSub) *Fraudsub {
+	return &Fraudsub{pubsub: p, mu: &sync.Mutex{}}
 }
 
-func (f *FraudSub) Subscribe(proofType ProofType) (Subscription, error) {
+func (f *Fraudsub) Subscribe(proofType ProofType) (Subscription, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	if _, ok := f.topics[proofType]; ok {
@@ -62,7 +63,7 @@ func getSubTopic(p ProofType) (string, error) {
 	}
 }
 
-func (f *FraudSub) subcribeTo(p ProofType, t string) error {
+func (f *Fraudsub) subcribeTo(p ProofType, t string) error {
 	topic, err := f.pubsub.Join(t)
 	if err != nil {
 		return err
@@ -72,7 +73,7 @@ func (f *FraudSub) subcribeTo(p ProofType, t string) error {
 	return nil
 }
 
-func (f *FraudSub) RegisterUnmarshaller(proofType ProofType, u proofUnmarshaller) error {
+func (f *Fraudsub) RegisterUnmarshaller(proofType ProofType, u proofUnmarshaller) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 
@@ -84,7 +85,7 @@ func (f *FraudSub) RegisterUnmarshaller(proofType ProofType, u proofUnmarshaller
 	return nil
 }
 
-func (f *FraudSub) UnregisterUnmarshaller(proofType ProofType) error {
+func (f *Fraudsub) UnregisterUnmarshaller(proofType ProofType) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 
@@ -97,19 +98,19 @@ func (f *FraudSub) UnregisterUnmarshaller(proofType ProofType) error {
 
 }
 
-func (f *FraudSub) Broadcast(ctx context.Context, p Proof) error {
+func (f *Fraudsub) Broadcast(ctx context.Context, p Proof) error {
 	bin, err := p.MarshalBinary()
 	if err != nil {
 		return err
 	}
 	if topic, ok := f.topics[p.Type()]; ok {
-		topic.Publish(ctx, bin)
+		return topic.Publish(ctx, bin)
 	}
 
 	return errors.New("topic is not found")
 }
 
-func (f *FraudSub) AddValidator(topic string, proofType ProofType, fetcher headerFetcher) error {
+func (f *Fraudsub) AddValidator(topic string, proofType ProofType, fetcher headerFetcher) error {
 	val := func(ctx context.Context, p peer.ID, msg *pubsub.Message) pubsub.ValidationResult {
 		f.mu.Lock()
 		defer f.mu.Unlock()

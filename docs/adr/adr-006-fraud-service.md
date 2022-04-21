@@ -147,18 +147,18 @@ type Subscription interface {
 ```
 
 ```go
-// FraudSub implements Subscriber and Broadcaster.
-type FraudSub struct {
+// Fraudsub implements Subscriber and Broadcaster.
+type Fraudsub struct {
    pubsub *pubsub.PubSub
    topics map[ProofType]*pubsub.Topic
    unmarshallers map[ProofType]proofUnmarshaller
 }
 
-func(s *FraudSub) RegisterUnmarshaller(proofType ProofType, f proofUnmarshaller) error{}
-func(s *FraudSub) UnregisterUnmarshaller(proofType ProofType) error{}
+func(s *Fraudsub) RegisterUnmarshaller(proofType ProofType, f proofUnmarshaller) error{}
+func(s *Fraudsub) UnregisterUnmarshaller(proofType ProofType) error{}
 
-func(s *FraudSub) Subscribe(ctx context.Context, proofType ProofType) (Subscription, error){}
-func(s *FraudSub) Broadcast(ctx context.Context, p Proof) error{}
+func(s *Fraudsub) Subscribe(ctx context.Context, proofType ProofType) (Subscription, error){}
+func(s *Fraudsub) Broadcast(ctx context.Context, p Proof) error{}
 ```
 ### BEFP verification
 Once a light node receives a `BadEncodingProof` fraud proof, it should:
