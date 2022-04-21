@@ -84,7 +84,7 @@ func RandNamespacedShares(t *testing.T, total int) NamespacedShares {
 	return shares
 }
 
-func GenerateRandEDS(t *testing.T, originalSquareWidth int) *rsmt2d.ExtendedDataSquare {
+func generateRandEDS(t *testing.T, originalSquareWidth int) *rsmt2d.ExtendedDataSquare {
 	shareCount := originalSquareWidth * originalSquareWidth
 
 	// generate test data

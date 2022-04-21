@@ -338,7 +338,7 @@ func TestBatchSize(t *testing.T) {
 			bs := blockstore.NewBlockstore(dssync.MutexWrap(ds.NewMapDatastore()))
 			dag := merkledag.NewDAGService(blockservice.New(bs, offline.Exchange(bs)))
 
-			eds := GenerateRandEDS(t, tt.origWidth)
+			eds := generateRandEDS(t, tt.origWidth)
 			_, err := PutData(ctx, ExtractODSShares(eds), dag)
 			require.NoError(t, err)
 
@@ -433,7 +433,7 @@ func TestGetProof(t *testing.T) {
 	dag := mdutils.Mock()
 
 	// generate EDS
-	eds := GenerateRandEDS(t, 2)
+	eds := generateRandEDS(t, 2)
 	width := eds.Width()
 	shares := ExtractODSShares(eds)
 
@@ -469,7 +469,7 @@ func TestGetProves(t *testing.T) {
 	dag := mdutils.Mock()
 
 	// generate EDS
-	eds := GenerateRandEDS(t, 2)
+	eds := generateRandEDS(t, 2)
 	width := eds.Width()
 	shares := ExtractODSShares(eds)
 
