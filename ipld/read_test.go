@@ -433,7 +433,7 @@ func TestGetProof(t *testing.T) {
 	dag := mdutils.Mock()
 
 	// generate EDS
-	eds := generateRandEDS(t, 2)
+	eds := GenerateRandEDS(t, 2)
 	width := eds.Width()
 	shares := ExtractODSShares(eds)
 
@@ -469,7 +469,7 @@ func TestGetProves(t *testing.T) {
 	dag := mdutils.Mock()
 
 	// generate EDS
-	eds := generateRandEDS(t, 2)
+	eds := GenerateRandEDS(t, 2)
 	width := eds.Width()
 	shares := ExtractODSShares(eds)
 
