@@ -39,7 +39,7 @@ func TestRetriever_Retrieve(t *testing.T) {
 			require.NoError(t, err)
 
 			// limit with timeout, specifically retrieval
-			ctx, cancel := context.WithTimeout(ctx, time.Minute) // the timeout is big for the max size which is long
+			ctx, cancel := context.WithTimeout(ctx, time.Minute*2) // the timeout is big for the max size which is long
 			defer cancel()
 
 			dah := da.NewDataAvailabilityHeader(in)
