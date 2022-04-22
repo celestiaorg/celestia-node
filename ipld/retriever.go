@@ -3,6 +3,7 @@ package ipld
 import (
 	"context"
 	"math/rand"
+	"sync"
 	"time"
 
 	"github.com/ipfs/go-cid"
@@ -154,25 +155,35 @@ func (rs *retrieverSession) request(ctx context.Context, q *quadrant) {
 	defer cancel()
 
 	size := len(q.roots)
-	for i, root := range q.roots {
-		nd, err := rs.dag.Get(ctx, root)
-		if err != nil {
-			log.Errorw("getting root", "err", err)
-			continue // so that we still try for other roots
-		}
+	wg := &sync.WaitGroup{}
+	wg.Add(size)
 
-		// TODO(@Wondertan): GetLeaves should return everything it was able to request even on error,
-		// 	so that we fill as much data as possible
-		// get leaves of left or right subtree
-		nds, err := GetLeaves(ctx, rs.dag, nd.Links()[q.x].Cid, make([]format.Node, 0, size))
-		if err != nil {
-			log.Errorw("getting all the leaves", "err", err)
-			continue
-		}
-		// fill leaves into the square
-		for j, nd := range nds {
-			pos := i*size*2 + size*q.x + size*size*2*q.y + j
-			rs.square[pos] = nd.RawData()[1+NamespaceSize:]
-		}
+	for i, root := range q.roots {
+		go func(i int, root cid.Cid) {
+			defer wg.Done()
+			nd, err := rs.dag.Get(ctx, root)
+			if err != nil {
+				log.Errorw("getting root", "err", err)
+				return
+			}
+			// TODO(@Wondertan): GetLeaves should return everything it was able to request even on error,
+			// 	so that we fill as much data as possible
+			// get leaves of left or right subtree
+			nds, err := GetLeaves(ctx, rs.dag, nd.Links()[q.x].Cid, make([]format.Node, 0, size))
+			if err != nil {
+				log.Errorw("getting all the leaves", "err", err)
+				return
+			}
+			// fill leaves into the square
+			for j, nd := range nds {
+				pos := i*size*2 + size*q.x + size*size*2*q.y + j
+				rs.square[pos] = nd.RawData()[1+NamespaceSize:]
+			}
+		}(i, root)
+
 	}
+
+	// wait for each root
+	// we don't need to interrupt roots if one of them fails - downloading everything we can
+	wg.Wait()
 }
