@@ -11,7 +11,8 @@ import (
 	"github.com/celestiaorg/nmt/namespace"
 )
 
-// GetLeaves recursively starts going down to find all leafs from the given root
+// GetLeaves gets all the leaves under the given root. It recursively starts traversing the DAG to find all the leafs.
+// It also takes a pre-allocated slice 'leaves'.
 func GetLeaves(ctx context.Context, dag ipld.NodeGetter, root cid.Cid, leaves []ipld.Node) ([]ipld.Node, error) {
 	// request the node
 	nd, err := dag.Get(ctx, root)

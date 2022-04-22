@@ -33,8 +33,8 @@ var RetrieveQuadrantTimeout = time.Minute * 5
 //  ---- ----
 // | 2  | 3  |
 //  ---- ----
-// Retriever randomly picks one of the data square quadrants and tries to request them one by one until it is able
-// the whole square.
+// Retriever randomly picks one of the data square quadrants and tries to request them one by one until it is able to
+// reconstruct the whole square.
 type Retriever struct {
 	dag   format.DAGService
 	codec rsmt2d.Codec
@@ -71,7 +71,7 @@ func (r *Retriever) Retrieve(ctx context.Context, dah *da.DataAvailabilityHeader
 			y:     y,
 		}
 	}
-	// shuffling helps data to be equally distributed around the network
+	// shuffle quadrants to be fetched in random order
 	rand.Shuffle(len(qs), func(i, j int) { qs[i], qs[j] = qs[j], qs[i] })
 
 	ses := r.newSession(ctx, dah)
@@ -123,7 +123,7 @@ func (rs *retrieverSession) retrieve(ctx context.Context, q *quadrant) (*rsmt2d.
 			log.Errorw("committing DAG", "err", err)
 		}
 	}()
-	// request and fill quadrant's into
+	// request quadrant and fill it into rs.square slice
 	// we don't care about the errors here, just need to request as much data as we can to be able to reconstruct below
 	rs.request(ctx, q)
 
@@ -180,7 +180,6 @@ func (rs *retrieverSession) request(ctx context.Context, q *quadrant) {
 				rs.square[pos] = nd.RawData()[1+NamespaceSize:]
 			}
 		}(i, root)
-
 	}
 
 	// wait for each root
