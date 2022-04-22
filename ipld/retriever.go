@@ -2,6 +2,7 @@ package ipld
 
 import (
 	"context"
+	"encoding/hex"
 	"math/rand"
 	"sync"
 	"time"
@@ -50,6 +51,7 @@ func NewRetriever(dag format.DAGService, codec rsmt2d.Codec) *Retriever {
 // It steadily tries to request other 3/4 data if 1/4 is not found within RetrieveQuadrantTimeout or unrecoverable.
 // TODO(@Wondertan): Randomize requesting from Col Roots with retrying.
 func (r *Retriever) Retrieve(ctx context.Context, dah *da.DataAvailabilityHeader) (*rsmt2d.ExtendedDataSquare, error) {
+	log.Debugw("retrieving data square", "data_hash", hex.EncodeToString(dah.Hash()), len(dah.RowsRoots))
 	daroots := dah.RowsRoots
 	size, origSize := len(daroots), len(daroots)/2
 	roots := make([]cid.Cid, size)
@@ -130,10 +132,11 @@ func (rs *retrieverSession) retrieve(ctx context.Context, q *quadrant) (*rsmt2d.
 	// try repair
 	err := rsmt2d.RepairExtendedDataSquare(rs.dah.RowsRoots, rs.dah.ColumnRoots, rs.square, rs.codec, rs.treeFn)
 	if err != nil {
-		log.Errorw("not enough shares sampled to recover, retrying...", "err", err)
+		log.Errorw("not enough shares to reconstruct data square, retrying...", "err", err)
 		return nil, err
 	}
 
+	log.Infow("data square reconstructed", "data_hash", hex.EncodeToString(rs.dah.Hash()), "size", len(rs.square))
 	return rsmt2d.ImportExtendedDataSquare(rs.square, rs.codec, rs.treeFn)
 }
 
@@ -146,7 +149,7 @@ type quadrant struct {
 	// ------  -------
 	// |  Q2 | | Q3  |
 	// |(0;1)| |(1;1)|
-	// ------  ------
+	// ------  -------
 	x, y int
 }
 
@@ -158,12 +161,13 @@ func (rs *retrieverSession) request(ctx context.Context, q *quadrant) {
 	wg := &sync.WaitGroup{}
 	wg.Add(size)
 
+	log.Debugw("requesting quadrant", "x", q.x, "y", q.y, "len(roots)", size)
 	for i, root := range q.roots {
 		go func(i int, root cid.Cid) {
 			defer wg.Done()
 			nd, err := rs.dag.Get(ctx, root)
 			if err != nil {
-				log.Errorw("getting root", "err", err)
+				log.Errorw("getting root", "root", root.String(), "err", err)
 				return
 			}
 			// TODO(@Wondertan): GetLeaves should return everything it was able to request even on error,
@@ -171,7 +175,7 @@ func (rs *retrieverSession) request(ctx context.Context, q *quadrant) {
 			// get leaves of left or right subtree
 			nds, err := GetLeaves(ctx, rs.dag, nd.Links()[q.x].Cid, make([]format.Node, 0, size))
 			if err != nil {
-				log.Errorw("getting all the leaves", "err", err)
+				log.Errorw("getting all the leaves", "root", root.String(), "err", err)
 				return
 			}
 			// fill leaves into the square
@@ -179,6 +183,8 @@ func (rs *retrieverSession) request(ctx context.Context, q *quadrant) {
 				pos := i*size*2 + size*q.x + size*size*2*q.y + j
 				rs.square[pos] = nd.RawData()[1+NamespaceSize:]
 			}
+
+			log.Debugw("received root", "root", root.String())
 		}(i, root)
 	}
 
