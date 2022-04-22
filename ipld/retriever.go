@@ -3,7 +3,6 @@ package ipld
 import (
 	"context"
 	"encoding/hex"
-	"math/rand"
 	"sync"
 	"time"
 
@@ -14,7 +13,6 @@ import (
 	"github.com/tendermint/tendermint/pkg/da"
 	"github.com/tendermint/tendermint/pkg/wrapper"
 
-	"github.com/celestiaorg/celestia-node/ipld/plugin"
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/rsmt2d"
 )
@@ -49,39 +47,15 @@ func NewRetriever(dag format.DAGService, codec rsmt2d.Codec) *Retriever {
 // Retrieve retrieves all the data committed to DataAvailabilityHeader.
 // It aims to request from the network only 1/4 of the data and reconstructs other 3/4 parts using the rsmt2d.Codec.
 // It steadily tries to request other 3/4 data if 1/4 is not found within RetrieveQuadrantTimeout or unrecoverable.
-// TODO(@Wondertan): Randomize requesting from Col Roots with retrying.
 func (r *Retriever) Retrieve(ctx context.Context, dah *da.DataAvailabilityHeader) (*rsmt2d.ExtendedDataSquare, error) {
-	log.Debugw("retrieving data square", "data_hash", hex.EncodeToString(dah.Hash()), len(dah.RowsRoots))
-	daroots := dah.RowsRoots
-	size, origSize := len(daroots), len(daroots)/2
-	roots := make([]cid.Cid, size)
-	for i := 0; i < size; i++ {
-		roots[i] = plugin.MustCidFromNamespacedSha256(daroots[i])
-	}
-
-	qs := make([]*quadrant, 4) // there are constantly four quadrants
-	for i := range qs {
-		// convert quadrant index to coordinate
-		x, y := i%2, 0
-		if i > 1 {
-			y = 1
-		}
-
-		qs[i] = &quadrant{
-			roots: roots[origSize*y : origSize*(y+1)],
-			x:     x,
-			y:     y,
-		}
-	}
-	// shuffle quadrants to be fetched in random order
-	rand.Shuffle(len(qs), func(i, j int) { qs[i], qs[j] = qs[j], qs[i] })
-
 	ses := r.newSession(ctx, dah)
-	for _, q := range qs {
+	for _, qs := range newQuadrants(dah) {
 		// TODO: ErrByzantineRow/Col
-		eds, err := ses.retrieve(ctx, q)
-		if err == nil {
-			return eds, nil
+		for _, q := range qs {
+			eds, err := ses.retrieve(ctx, q)
+			if err == nil {
+				return eds, nil
+			}
 		}
 		// retry quadrants until we have something or error
 	}
@@ -117,6 +91,7 @@ func (r *Retriever) newSession(ctx context.Context, dah *da.DataAvailabilityHead
 }
 
 func (rs *retrieverSession) retrieve(ctx context.Context, q *quadrant) (*rsmt2d.ExtendedDataSquare, error) {
+	log.Debugw("retrieving data square", "data_hash", hex.EncodeToString(rs.dah.Hash()), "size", len(rs.square))
 	defer func() {
 		// all shares which were requested or repaired are written to disk with the commit
 		// we store *all*, so they are served to the network, including incorrectly committed data(BEFP case),
@@ -138,19 +113,6 @@ func (rs *retrieverSession) retrieve(ctx context.Context, q *quadrant) (*rsmt2d.
 
 	log.Infow("data square reconstructed", "data_hash", hex.EncodeToString(rs.dah.Hash()), "size", len(rs.square))
 	return rsmt2d.ImportExtendedDataSquare(rs.square, rs.codec, rs.treeFn)
-}
-
-type quadrant struct {
-	roots []cid.Cid
-	// Coordinates of each quadrant(x;y)
-	// ------  -------
-	// |  Q0 | | Q1  |
-	// |(0:0)| |(1:0)|
-	// ------  -------
-	// |  Q2 | | Q3  |
-	// |(0;1)| |(1;1)|
-	// ------  -------
-	x, y int
 }
 
 func (rs *retrieverSession) request(ctx context.Context, q *quadrant) {
@@ -180,14 +142,11 @@ func (rs *retrieverSession) request(ctx context.Context, q *quadrant) {
 			}
 			// fill leaves into the square
 			for j, nd := range nds {
-				pos := i*size*2 + size*q.x + size*size*2*q.y + j
-				rs.square[pos] = nd.RawData()[1+NamespaceSize:]
+				rs.square[q.index(i, j)] = nd.RawData()[1+NamespaceSize:]
 			}
-
 			log.Debugw("received root", "root", root.String())
 		}(i, root)
 	}
-
 	// wait for each root
 	// we don't need to interrupt roots if one of them fails - downloading everything we can
 	wg.Wait()
