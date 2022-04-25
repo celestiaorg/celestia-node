@@ -25,7 +25,6 @@ type submitPFDRequest struct {
 	NamespaceID string `json:"namespace_id"`
 	Data        string `json:"data"`
 	GasLimit    uint64 `json:"gas_limit"`
-	MaxDataSize uint64 `json:"max_data_size"`
 }
 
 func (s *Service) RegisterEndpoints(rpc *rpc.Server) {
@@ -134,10 +133,15 @@ func (s *Service) handleSubmitPFD(w http.ResponseWriter, r *http.Request) {
 		log.Errorw("serving /submit_pfd request", "err", err)
 		return
 	}
-	data := []byte(req.Data)
+	data, err := hex.DecodeString(req.Data)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		log.Errorw("serving /submit_pfd request", "err", err)
+		return
+	}
 
 	// perform request
-	txResp, err := s.SubmitPayForData(r.Context(), nID, data, req.GasLimit, req.MaxDataSize)
+	txResp, err := s.SubmitPayForData(r.Context(), nID, data, req.GasLimit)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		_, werr := w.Write([]byte(err.Error()))

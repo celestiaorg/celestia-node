@@ -2,7 +2,6 @@ package state
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/cosmos/cosmos-sdk/x/auth/signing"
 
@@ -25,9 +24,8 @@ func (s *Service) SubmitPayForData(
 	nID namespace.ID,
 	data []byte,
 	gasLim uint64,
-	maxSize uint64,
 ) (*TxResponse, error) {
-	pfd, err := s.BuildPayForData(ctx, nID, data, gasLim, maxSize)
+	pfd, err := s.BuildPayForData(ctx, nID, data, gasLim)
 	if err != nil {
 		return nil, err
 	}
@@ -52,17 +50,11 @@ func (s *Service) BuildPayForData(
 	nID namespace.ID,
 	message []byte,
 	gasLim uint64,
-	maxSize uint64,
 ) (*PayForData, error) {
 	// create the raw WirePayForMessage transaction
 	wpfmMsg, err := apptypes.NewWirePayForMessage(nID, message, shareSizes...)
 	if err != nil {
 		return nil, err
-	}
-	// TODO @renaynay: as a result of `padMessage`, the following is observed:
-	//  {wpfmMsg.MessageSize: 256,  len(message): 5}
-	if wpfmMsg.GetMessageSize() > maxSize {
-		return nil, fmt.Errorf("message size %d cannot exceed specified max size %d", wpfmMsg.GetMessageSize(), maxSize)
 	}
 
 	// get signer and conn info
