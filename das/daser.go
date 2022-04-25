@@ -2,13 +2,16 @@ package das
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
 	"github.com/ipfs/go-datastore"
 	logging "github.com/ipfs/go-log/v2"
 
+	"github.com/celestiaorg/celestia-node/fraud"
 	"github.com/celestiaorg/celestia-node/header"
+	"github.com/celestiaorg/celestia-node/ipld"
 	"github.com/celestiaorg/celestia-node/service/share"
 )
 
@@ -16,8 +19,9 @@ var log = logging.Logger("das")
 
 // DASer continuously validates availability of data committed to headers.
 type DASer struct {
-	da   share.Availability
-	hsub header.Subscriber
+	da       share.Availability
+	hsub     header.Subscriber
+	fService fraud.Service
 
 	// getter allows the DASer to fetch an ExtendedHeader (EH) at a certain height
 	// and blocks until the EH has been processed by the header store.
@@ -38,6 +42,7 @@ func NewDASer(
 	da share.Availability,
 	hsub header.Subscriber,
 	getter HeaderGetter,
+	fService fraud.Service,
 	cstore datastore.Datastore,
 ) *DASer {
 	wrappedDS := wrapCheckpointStore(cstore)
@@ -45,6 +50,7 @@ func NewDASer(
 		da:        da,
 		hsub:      hsub,
 		getter:    getter,
+		fService:  fService,
 		cstore:    wrappedDS,
 		jobsCh:    make(chan *catchUpJob, 16),
 		sampleDn:  make(chan struct{}),
@@ -53,7 +59,7 @@ func NewDASer(
 }
 
 // Start initiates subscription for new ExtendedHeaders and spawns a sampling routine.
-func (d *DASer) Start(context.Context) error {
+func (d *DASer) Start(ctx context.Context) error {
 	if d.cancel != nil {
 		return fmt.Errorf("da: DASer already started")
 	}
@@ -73,6 +79,8 @@ func (d *DASer) Start(context.Context) error {
 	dasCtx, cancel := context.WithCancel(context.Background())
 	d.cancel = cancel
 
+	// start listening for bad encoding fraud proof
+	go d.subscribeToBefp(ctx)
 	// kick off catch-up routine manager
 	go d.catchUpManager(dasCtx, checkpoint)
 	// kick off sampling routine for recently received headers
@@ -141,6 +149,14 @@ func (d *DASer) sample(ctx context.Context, sub header.Subscription, checkpoint 
 		err = d.da.SharesAvailable(ctx, h.DAH)
 		if err != nil {
 			if err == context.Canceled {
+				return
+			}
+			var byzantineErr *ipld.ErrByzantine
+			if errors.As(err, &byzantineErr) {
+				err := d.fService.Broadcast(ctx, fraud.CreateBadEncodingProof(uint64(h.Height), byzantineErr))
+				if err != nil {
+					log.Errorw("fraud proof propagating failed with error ", err)
+				}
 				return
 			}
 			log.Errorw("sampling failed", "height", h.Height, "hash", h.Hash(),
@@ -244,4 +260,23 @@ func (d *DASer) catchUp(ctx context.Context, job *catchUpJob) (int64, error) {
 		"to", job.to, "finished (s)", time.Since(routineStartTime))
 	// report successful result
 	return job.to, nil
+}
+
+func (d *DASer) subscribeToBefp(ctx context.Context) {
+	subscription, err := fraud.SubscribeToBefp(d.fService, d.getter.GetByHeight)
+	if err != nil {
+		log.Errorw("failed to subscribe on bad encoding fraud proof ", err)
+		return
+	}
+
+	for {
+		// TODO @vgonkivs: stop all services
+		// At this point we have received already verified fraud proof,
+		// so there are no needs to call Validate.
+		_, err := subscription.Proof(ctx)
+		if err != nil {
+			log.Errorw("listening to fp failed, err", err)
+			return
+		}
+	}
 }

@@ -2,11 +2,12 @@ package fraud
 
 import (
 	"context"
+	"fmt"
 
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 )
 
-// subscription handles Fraud Proff from the pubsub topic.
+// subscription handles Fraud Proof from the pubsub topic.
 type subscription struct {
 	topic        *pubsub.Topic
 	subscription *pubsub.Subscription
@@ -22,12 +23,10 @@ func newSubscription(topic *pubsub.Topic, u proofUnmarshaller) (*subscription, e
 	return &subscription{topic, sub, u}, nil
 }
 
-// At this point we are sure that Proof is valid.
-// For more information check fraud.AddValidator
 func (s *subscription) Proof(ctx context.Context) (Proof, error) {
 	data, err := s.subscription.Next(ctx)
 	if err != nil {
-		log.Error("errr during listening to the next proof: ", err.Error())
+		return nil, fmt.Errorf("error during listening to the next proof: %s ", err.Error())
 	}
 
 	return s.unmarshaller(data.Data)
