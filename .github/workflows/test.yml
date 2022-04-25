@@ -23,7 +23,7 @@ jobs:
         run: |
           go install github.com/ory/go-acc@v0.2.6
           go-acc -o coverage.txt `go list ./... | grep -v node/tests` -- -v
-      - uses: codecov/codecov-action@v2.1.0
+      - uses: codecov/codecov-action@v3.1.0
         with:
           file: ./coverage.txt
   unit_race_test:
