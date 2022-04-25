@@ -13,6 +13,7 @@ import (
 	"go.uber.org/fx"
 
 	"github.com/celestiaorg/celestia-node/das"
+	"github.com/celestiaorg/celestia-node/fraud"
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/header/p2p"
 	"github.com/celestiaorg/celestia-node/header/store"
@@ -138,8 +139,9 @@ func DASer(
 	sub header.Subscriber,
 	hstore header.Store,
 	ds datastore.Batching,
+	pubsub *pubsub.PubSub,
 ) *das.DASer {
-	das := das.NewDASer(avail, sub, hstore, ds)
+	das := das.NewDASer(avail, sub, hstore, fraud.NewService(pubsub), ds)
 	lc.Append(fx.Hook{
 		OnStart: das.Start,
 		OnStop:  das.Stop,

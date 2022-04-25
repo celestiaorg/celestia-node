@@ -71,6 +71,12 @@ func (p *BadEncodingProof) MarshalBinary() ([]byte, error) {
 	return badEncodingFraudProof.Marshal()
 }
 
+// UnmarshalBEFP converts given data to BadEncodingProof
+func UnmarshalBefp(data []byte) (Proof, error) {
+	befp := &BadEncodingProof{}
+	return befp, befp.UnmarshalBinary(data)
+}
+
 // UnmarshalBinary converts binary to BadEncodingProof
 func (p *BadEncodingProof) UnmarshalBinary(data []byte) error {
 	in := pb.BadEncoding{}
@@ -153,4 +159,16 @@ func (p *BadEncodingProof) Validate(header *header.ExtendedHeader) error {
 	}
 
 	return nil
+}
+
+func SubscribeToBefp(fsub Subscriber, fetcher headerFetcher) (Subscription, error) {
+	err := fsub.AddValidator(BadEncoding, fetcher)
+	if err != nil {
+		return nil, err
+	}
+	err = fsub.RegisterUnmarshaller(BadEncoding, UnmarshalBefp)
+	if err != nil {
+		return nil, err
+	}
+	return fsub.Subscribe(BadEncoding)
 }

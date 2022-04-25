@@ -31,7 +31,7 @@ func TestDASerLifecycle(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	t.Cleanup(cancel)
 
-	daser := NewDASer(shareServ, sub, mockGet, ds)
+	daser := NewDASer(shareServ, sub, mockGet, nil, ds)
 
 	err := daser.Start(ctx)
 	require.NoError(t, err)
@@ -69,7 +69,7 @@ func TestDASer_Restart(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	t.Cleanup(cancel)
 
-	daser := NewDASer(shareServ, sub, mockGet, ds)
+	daser := NewDASer(shareServ, sub, mockGet, nil, ds)
 
 	err := daser.Start(ctx)
 	require.NoError(t, err)
@@ -131,7 +131,7 @@ func TestDASer_catchUp(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
 
-	daser := NewDASer(shareServ, nil, mockGet, ds)
+	daser := NewDASer(shareServ, nil, mockGet, nil, ds)
 
 	type catchUpResult struct {
 		checkpoint int64
@@ -168,7 +168,7 @@ func TestDASer_catchUp_oneHeader(t *testing.T) {
 	dag := mdutils.Mock()
 
 	mockGet, shareServ, _ := createDASerSubcomponents(t, dag, 6, 0)
-	daser := NewDASer(shareServ, nil, mockGet, ds)
+	daser := NewDASer(shareServ, nil, mockGet, nil, ds)
 
 	// store checkpoint
 	err := storeCheckpoint(daser.cstore, 5) // pick arbitrary height as last checkpoint
