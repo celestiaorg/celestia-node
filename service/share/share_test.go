@@ -5,8 +5,6 @@ import (
 	"context"
 	"encoding/hex"
 	"encoding/json"
-	"github.com/celestiaorg/celestia-node/ipld"
-	core "github.com/tendermint/tendermint/types"
 	"math"
 	mrand "math/rand"
 	"strconv"
@@ -16,6 +14,9 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/tendermint/tendermint/pkg/da"
+	core "github.com/tendermint/tendermint/types"
+
+	"github.com/celestiaorg/celestia-node/ipld"
 )
 
 func TestGetShare(t *testing.T) {
@@ -165,13 +166,39 @@ func TestSharesRoundTrip(t *testing.T) {
 	}
 
 	cases := []testCase{
-		{"original test case", [][]byte{b.Data.Messages.MessagesList[0].Data}, [][]byte{namespace}},
-		{"one short message", [][]byte{{1, 2, 3, 4}}, [][]byte{namespace}},
-		{"one short before other namespace", [][]byte{{1, 2, 3, 4}, {4, 5, 6, 7}}, [][]byte{namespace, namespaceAfter}},
-		{"one short after other namespace", [][]byte{{1, 2, 3, 4}, {4, 5, 6, 7}}, [][]byte{namespaceBefore, namespace}},
-		{"two short messages", [][]byte{{1, 2, 3, 4}, {4, 5, 6, 7}}, [][]byte{namespace, namespace}},
-		{"two short messages before other namespace", [][]byte{{1, 2, 3, 4}, {4, 5, 6, 7}, {7, 8, 9}}, [][]byte{namespace, namespace, namespaceAfter}},
-		{"two short messages after other namespace", [][]byte{{1, 2, 3, 4}, {4, 5, 6, 7}, {7, 8, 9}}, [][]byte{namespaceBefore, namespace, namespace}},
+		{
+			"original test case",
+			[][]byte{b.Data.Messages.MessagesList[0].Data},
+			[][]byte{namespace}},
+		{
+			"one short message",
+			[][]byte{{1, 2, 3, 4}},
+			[][]byte{namespace}},
+		{
+			"one short before other namespace",
+			[][]byte{{1, 2, 3, 4}, {4, 5, 6, 7}},
+			[][]byte{namespace, namespaceAfter},
+		},
+		{
+			"one short after other namespace",
+			[][]byte{{1, 2, 3, 4}, {4, 5, 6, 7}},
+			[][]byte{namespaceBefore, namespace},
+		},
+		{
+			"two short messages",
+			[][]byte{{1, 2, 3, 4}, {4, 5, 6, 7}},
+			[][]byte{namespace, namespace},
+		},
+		{
+			"two short messages before other namespace",
+			[][]byte{{1, 2, 3, 4}, {4, 5, 6, 7}, {7, 8, 9}},
+			[][]byte{namespace, namespace, namespaceAfter},
+		},
+		{
+			"two short messages after other namespace",
+			[][]byte{{1, 2, 3, 4}, {4, 5, 6, 7}, {7, 8, 9}},
+			[][]byte{namespaceBefore, namespace, namespace},
+		},
 	}
 	randBytes := func(n int) []byte {
 		bytes := make([]byte, n)
@@ -180,12 +207,36 @@ func TestSharesRoundTrip(t *testing.T) {
 	}
 	for i := 128; i < 4192; i += mrand.Intn(256) {
 		l := strconv.Itoa(i)
-		cases = append(cases, testCase{"one " + l + " bytes message", [][]byte{randBytes(i)}, [][]byte{namespace}})
-		cases = append(cases, testCase{"one " + l + " bytes before other namespace", [][]byte{randBytes(i), randBytes(1 + mrand.Intn(i))}, [][]byte{namespace, namespaceAfter}})
-		cases = append(cases, testCase{"one " + l + " bytes after other namespace", [][]byte{randBytes(1 + mrand.Intn(i)), randBytes(i)}, [][]byte{namespaceBefore, namespace}})
-		cases = append(cases, testCase{"two " + l + " bytes messages", [][]byte{randBytes(i), randBytes(i)}, [][]byte{namespace, namespace}})
-		cases = append(cases, testCase{"two " + l + " bytes messages before other namespace", [][]byte{randBytes(i), randBytes(i), randBytes(1 + mrand.Intn(i))}, [][]byte{namespace, namespace, namespaceAfter}})
-		cases = append(cases, testCase{"two " + l + " bytes messages after other namespace", [][]byte{randBytes(1 + mrand.Intn(i)), randBytes(i), randBytes(i)}, [][]byte{namespaceBefore, namespace, namespace}})
+		cases = append(cases, testCase{
+			"one " + l + " bytes message",
+			[][]byte{randBytes(i)},
+			[][]byte{namespace},
+		})
+		cases = append(cases, testCase{
+			"one " + l + " bytes before other namespace",
+			[][]byte{randBytes(i), randBytes(1 + mrand.Intn(i))},
+			[][]byte{namespace, namespaceAfter},
+		})
+		cases = append(cases, testCase{
+			"one " + l + " bytes after other namespace",
+			[][]byte{randBytes(1 + mrand.Intn(i)), randBytes(i)},
+			[][]byte{namespaceBefore, namespace},
+		})
+		cases = append(cases, testCase{
+			"two " + l + " bytes messages",
+			[][]byte{randBytes(i), randBytes(i)},
+			[][]byte{namespace, namespace},
+		})
+		cases = append(cases, testCase{
+			"two " + l + " bytes messages before other namespace",
+			[][]byte{randBytes(i), randBytes(i), randBytes(1 + mrand.Intn(i))},
+			[][]byte{namespace, namespace, namespaceAfter},
+		})
+		cases = append(cases, testCase{
+			"two " + l + " bytes messages after other namespace",
+			[][]byte{randBytes(1 + mrand.Intn(i)), randBytes(i), randBytes(i)},
+			[][]byte{namespaceBefore, namespace, namespace},
+		})
 	}
 
 	for _, tc := range cases {
@@ -196,7 +247,7 @@ func TestSharesRoundTrip(t *testing.T) {
 			var msgsInNamespace [][]byte
 			require.Equal(t, len(tc.namespaces), len(tc.messages))
 			for i := range tc.messages {
-				b.Data.Messages.MessagesList[i] = core.Message{tc.namespaces[i], tc.messages[i]}
+				b.Data.Messages.MessagesList[i] = core.Message{NamespaceID: tc.namespaces[i], Data: tc.messages[i]}
 				if bytes.Equal(tc.namespaces[i], namespace) {
 					msgsInNamespace = append(msgsInNamespace, tc.messages[i])
 				}
@@ -248,6 +299,7 @@ func TestSharesRoundTrip(t *testing.T) {
 }
 
 // this is a sample block from devnet-2 which originally showed the issue with share ordering
+// nolint:lll
 var sampleBlock = []byte(`
     {
       "header": {
