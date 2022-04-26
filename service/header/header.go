@@ -45,7 +45,10 @@ func MakeExtendedHeader(
 ) (*ExtendedHeader, error) {
 	var dah DataAvailabilityHeader
 	if len(b.Txs) > 0 {
-		namespacedShares, _ := b.Data.ComputeShares()
+		namespacedShares, _, err := b.Data.ComputeShares(b.Data.OriginalSquareSize)
+		if err != nil {
+			return nil, err
+		}
 		extended, err := ipld.PutData(ctx, namespacedShares.RawShares(), dag)
 		if err != nil {
 			return nil, err
