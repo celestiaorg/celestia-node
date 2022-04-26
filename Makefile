@@ -14,6 +14,11 @@ build:
 	@go build -o build/ -ldflags ${LDFLAGS} ./cmd/celestia
 .PHONY: build
 
+## clean: Clean up celestia-node binary.
+clean:
+	@echo "--> Cleaning up ./build"
+	@rm -rf build/*
+
 ## install: Build and install the celestia-node binary into the GOBIN directory.
 install:
 	@echo "--> Installing Celestia"
