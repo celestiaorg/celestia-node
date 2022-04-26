@@ -57,7 +57,7 @@ func (r *Retriever) Retrieve(ctx context.Context, dah *da.DataAvailabilityHeader
 				return eds, nil
 			}
 		}
-		// retry quadrants until we have something or error
+		// retry quadrants until we can reconstruct the EDS or error out
 	}
 
 	return nil, format.ErrNotFound
@@ -107,7 +107,7 @@ func (rs *retrieverSession) retrieve(ctx context.Context, q *quadrant) (*rsmt2d.
 	// try repair
 	err := rsmt2d.RepairExtendedDataSquare(rs.dah.RowsRoots, rs.dah.ColumnRoots, rs.square, rs.codec, rs.treeFn)
 	if err != nil {
-		log.Errorw("not enough shares to reconstruct data square, retrying...", "err", err)
+		log.Warnw("not enough shares to reconstruct data square, requesting more...", "err", err)
 		return nil, err
 	}
 
@@ -144,7 +144,6 @@ func (rs *retrieverSession) request(ctx context.Context, q *quadrant) {
 			for j, nd := range nds {
 				rs.square[q.index(i, j)] = nd.RawData()[1+NamespaceSize:]
 			}
-			log.Debugw("received root", "root", root.String())
 		}(i, root)
 	}
 	// wait for each root

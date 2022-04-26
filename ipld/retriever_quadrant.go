@@ -32,7 +32,7 @@ type quadrant struct {
 }
 
 // newQuadrants constructs a slice of quadrants from DAHeader.
-// Constantly, there are 4 quadrants for each source: row and col (8 in total).
+// There are always 4 quadrants per each source (row and col), so 8 in total.
 // The ordering of quadrants is random.
 func newQuadrants(dah *da.DataAvailabilityHeader) [][]*quadrant {
 	// combine all the roots into one slice, so they can be easily accessible by index
@@ -54,7 +54,7 @@ func newQuadrants(dah *da.DataAvailabilityHeader) [][]*quadrant {
 
 		for i := range quadrants {
 			// convert quadrant index into coordinates
-			x, y := i%2, i>>1
+			x, y := i%2, i/2
 			if source == 1 { // swap coordinates for column
 				x, y = y, x
 			}
