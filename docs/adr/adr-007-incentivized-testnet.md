@@ -55,16 +55,16 @@ several components that will go into implementing the overall design as well as 
 The full implementation of bad encoding fraud proof (BEFP) generation, propagation and handling is required for the 
 incentivized testnet. At the moment, generation and broadcasting of BEFPs is still in review. 
 
-### Testing TODO LINK TRACKING ISSUE
+### [Testing](https://github.com/celestiaorg/celestia-node/issues/7)
 One of the biggest priorities for incentivized testnet is to test a lot of the assumptions we are working under in terms
 of sampling in realistic network conditions with a variety of topologies.
 
 Among the most important test cases, the following are required: 
-* TODO
-* TODO 
-* TODO
+* [Large Block Tests](https://github.com/celestiaorg/celestia-node/issues/602)
+* [Block Recovery Tests](https://github.com/celestiaorg/test-infra/issues/21)
+* [Peer Discovery Tests](https://github.com/celestiaorg/celestia-node/issues/649)
 
-In terms of testing infrastructure, [testground](https://github.com/testground/testground) will be considered.
+In terms of testing infrastructure, [testground](https://github.com/testground/testground) will be considered. A [proof of concept](https://github.com/celestiaorg/celestia-node/issues/638) will be done in order to accomplish the above tests.
 
 ### [Wallet Management](https://github.com/celestiaorg/celestia-node/issues/415)
 All DA node types will support sending transactions and querying state-related information, meaning DA nodes 
