@@ -58,9 +58,9 @@ func (r *Retriever) Retrieve(ctx context.Context, dah *da.DataAvailabilityHeader
 			if err == nil {
 				return eds, nil
 			}
-		}
-		if byzErr := r.handleByzantineError(ctx, dah, err); byzErr != nil {
-			return nil, byzErr
+			if byzErr := r.handleByzantineError(ctx, dah, err); byzErr != nil {
+				return nil, byzErr
+			}
 		}
 		// retry quadrants until we can reconstruct the EDS or error out
 	}
