@@ -121,7 +121,7 @@ func GetLeavesByNamespace(
 				continue
 			}
 		}
-		out = append(nds, out...)
+		out = append(out, nds...)
 	}
 	return out, err
 }

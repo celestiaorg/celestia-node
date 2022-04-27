@@ -1,8 +1,13 @@
 package share
 
 import (
+	"bytes"
 	"context"
+	_ "embed"
+	"encoding/hex"
+	"encoding/json"
 	"math"
+	mrand "math/rand"
 	"strconv"
 	"testing"
 
@@ -10,6 +15,9 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/tendermint/tendermint/pkg/da"
+	core "github.com/tendermint/tendermint/types"
+
+	"github.com/celestiaorg/celestia-node/ipld"
 )
 
 func TestGetShare(t *testing.T) {
@@ -135,3 +143,162 @@ func BenchmarkService_GetSharesByNamespace(b *testing.B) {
 		})
 	}
 }
+
+func TestSharesRoundTrip(t *testing.T) {
+	serv, store := RandLightService()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	var b core.Block
+	err := json.Unmarshal([]byte(sampleBlock), &b)
+	require.NoError(t, err)
+
+	namespace, err := hex.DecodeString("00001337BEEF0000")
+	require.NoError(t, err)
+	namespaceBefore, err := hex.DecodeString("0000000000000123")
+	require.NoError(t, err)
+	namespaceAfter, err := hex.DecodeString("1234000000000123")
+	require.NoError(t, err)
+
+	type testCase struct {
+		name       string
+		messages   [][]byte
+		namespaces [][]byte
+	}
+
+	cases := []testCase{
+		{
+			"original test case",
+			[][]byte{b.Data.Messages.MessagesList[0].Data},
+			[][]byte{namespace}},
+		{
+			"one short message",
+			[][]byte{{1, 2, 3, 4}},
+			[][]byte{namespace}},
+		{
+			"one short before other namespace",
+			[][]byte{{1, 2, 3, 4}, {4, 5, 6, 7}},
+			[][]byte{namespace, namespaceAfter},
+		},
+		{
+			"one short after other namespace",
+			[][]byte{{1, 2, 3, 4}, {4, 5, 6, 7}},
+			[][]byte{namespaceBefore, namespace},
+		},
+		{
+			"two short messages",
+			[][]byte{{1, 2, 3, 4}, {4, 5, 6, 7}},
+			[][]byte{namespace, namespace},
+		},
+		{
+			"two short messages before other namespace",
+			[][]byte{{1, 2, 3, 4}, {4, 5, 6, 7}, {7, 8, 9}},
+			[][]byte{namespace, namespace, namespaceAfter},
+		},
+		{
+			"two short messages after other namespace",
+			[][]byte{{1, 2, 3, 4}, {4, 5, 6, 7}, {7, 8, 9}},
+			[][]byte{namespaceBefore, namespace, namespace},
+		},
+	}
+	randBytes := func(n int) []byte {
+		bytes := make([]byte, n)
+		mrand.Read(bytes)
+		return bytes
+	}
+	for i := 128; i < 4192; i += mrand.Intn(256) {
+		l := strconv.Itoa(i)
+		cases = append(cases, testCase{
+			"one " + l + " bytes message",
+			[][]byte{randBytes(i)},
+			[][]byte{namespace},
+		})
+		cases = append(cases, testCase{
+			"one " + l + " bytes before other namespace",
+			[][]byte{randBytes(i), randBytes(1 + mrand.Intn(i))},
+			[][]byte{namespace, namespaceAfter},
+		})
+		cases = append(cases, testCase{
+			"one " + l + " bytes after other namespace",
+			[][]byte{randBytes(1 + mrand.Intn(i)), randBytes(i)},
+			[][]byte{namespaceBefore, namespace},
+		})
+		cases = append(cases, testCase{
+			"two " + l + " bytes messages",
+			[][]byte{randBytes(i), randBytes(i)},
+			[][]byte{namespace, namespace},
+		})
+		cases = append(cases, testCase{
+			"two " + l + " bytes messages before other namespace",
+			[][]byte{randBytes(i), randBytes(i), randBytes(1 + mrand.Intn(i))},
+			[][]byte{namespace, namespace, namespaceAfter},
+		})
+		cases = append(cases, testCase{
+			"two " + l + " bytes messages after other namespace",
+			[][]byte{randBytes(1 + mrand.Intn(i)), randBytes(i), randBytes(i)},
+			[][]byte{namespaceBefore, namespace, namespace},
+		})
+	}
+
+	for _, tc := range cases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			// prepare data
+			b.Data.Messages.MessagesList = make([]core.Message, len(tc.messages))
+			var msgsInNamespace [][]byte
+			require.Equal(t, len(tc.namespaces), len(tc.messages))
+			for i := range tc.messages {
+				b.Data.Messages.MessagesList[i] = core.Message{NamespaceID: tc.namespaces[i], Data: tc.messages[i]}
+				if bytes.Equal(tc.namespaces[i], namespace) {
+					msgsInNamespace = append(msgsInNamespace, tc.messages[i])
+				}
+			}
+
+			namespacedShares, _ := b.Data.ComputeShares()
+
+			// test round trip using only encoding, without IPLD
+			{
+				myShares := make([][]byte, 0)
+				for _, sh := range namespacedShares.RawShares() {
+					if bytes.Equal(namespace, sh[:8]) {
+						myShares = append(myShares, sh)
+					}
+				}
+				msgs, err := core.ParseMsgs(myShares)
+				require.NoError(t, err)
+				assert.Len(t, msgs.MessagesList, len(msgsInNamespace))
+				for i := range msgs.MessagesList {
+					assert.Equal(t, msgsInNamespace[i], msgs.MessagesList[i].Data)
+				}
+			}
+
+			// test full round trip - with IPLD + decoding shares
+			{
+				extSquare, err := ipld.PutData(ctx, namespacedShares.RawShares(), store)
+				require.NoError(t, err)
+
+				dah := da.NewDataAvailabilityHeader(extSquare)
+				shares, err := serv.GetSharesByNamespace(ctx, &dah, namespace)
+				require.NoError(t, err)
+				require.NotEmpty(t, shares)
+
+				rawShares := make([][]byte, len(shares))
+				for i, share := range shares {
+					rawShares[i] = share.Data()
+				}
+
+				msgs, err := core.ParseMsgs(rawShares)
+				require.NoError(t, err)
+				assert.Len(t, msgs.MessagesList, len(msgsInNamespace))
+				for i := range msgs.MessagesList {
+					assert.Equal(t, namespace, []byte(msgs.MessagesList[i].NamespaceID))
+					assert.Equal(t, msgsInNamespace[i], msgs.MessagesList[i].Data)
+				}
+			}
+		})
+	}
+}
+
+// this is a sample block from devnet-2 which originally showed the issue with share ordering
+//go:embed "testdata/block-825320.json"
+var sampleBlock string
