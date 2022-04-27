@@ -92,7 +92,7 @@ func (r *Retriever) handleByzantineError(
 		root = dah.ColumnRoots[errCol.ColNumber]
 		index = uint8(errCol.ColNumber)
 	}
-	// todo: fetch proofs only for sampled shares
+
 	sharesWithProof, err := GetProvesForShares(
 		ctx,
 		r.dag,

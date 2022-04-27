@@ -82,8 +82,6 @@ func (s *NamespacedShareWithProof) Validate(root []byte) bool {
 	// As nmt prepends NamespaceID twice, we need to pass the full data with NamespaceID in
 	// VerifyInclusion
 
-	// todo
-	// prepend for parity shares
 	return s.Proof.VerifyInclusion(sha256.New(), s.ID, s.Share, root)
 }
 
@@ -113,7 +111,5 @@ func ProtoToShare(protoShares []*pb.Share) []*NamespacedShareWithProof {
 }
 
 func ProtoToProof(protoProof *pb.MerkleProof) nmt.Proof {
-
-	// p
 	return nmt.NewInclusionProof(int(protoProof.Start), int(protoProof.End), protoProof.Nodes, true)
 }
