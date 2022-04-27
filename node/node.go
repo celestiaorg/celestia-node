@@ -99,8 +99,6 @@ func (n *Node) Start(ctx context.Context) error {
 		return fmt.Errorf("node: failed to start: %w", err)
 	}
 
-	// TODO(@Wondertan): Print useful information about the node:
-	//  * API/RPCServer address
 	log.Infof("\n\n/_____/  /_____/  /_____/  /_____/  /_____/ \n\nStarted celestia DA node \nnode "+
 		"type: 	%s\nnetwork: 	%s\n\n/_____/  /_____/  /_____/  /_____/  /_____/ \n", strings.ToLower(n.Type.String()),
 		n.Network)
