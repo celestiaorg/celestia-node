@@ -21,6 +21,22 @@ Continue reading [here](https://blog.celestia.org/celestia-mvp-release-data-avai
 |-------------|----------------|
 | Go version  | 1.17 or higher |
 
+## System Requirements 
+
+These specifications must be met in order to successfully run a celestia-node.
+
+### Light node
+```
+Operating System: 64-bit Linux, Mac OS X 10.14+
+Storage: 5GB available space SSD
+```
+
+### Bridge and full nodes
+```
+Operating System: 64-bit Linux, Mac OS X 10.14+ 
+Storage: 100+GB available space SSD
+```
+
 ## Installation
 
 ```sh
