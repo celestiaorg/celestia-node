@@ -17,7 +17,7 @@ import (
 
 // TestCoreListener tests the lifecycle of the core listener.
 func TestCoreListener(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*15)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 	t.Cleanup(cancel)
 
 	// create mocknet with two pubsub endpoints

@@ -9,7 +9,7 @@ require (
 	github.com/celestiaorg/celestia-app v0.2.0-rc-1
 	github.com/celestiaorg/go-libp2p-messenger v0.1.0
 	github.com/celestiaorg/nmt v0.8.0
-	github.com/celestiaorg/rsmt2d v0.3.1
+	github.com/celestiaorg/rsmt2d v0.4.0
 	github.com/cosmos/cosmos-sdk v0.44.3
 	github.com/dgraph-io/badger/v2 v2.2007.4
 	github.com/gogo/protobuf v1.3.3

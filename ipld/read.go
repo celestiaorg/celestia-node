@@ -2,162 +2,18 @@ package ipld
 
 import (
 	"context"
-	"math/rand"
 
 	"github.com/ipfs/go-cid"
 	ipld "github.com/ipfs/go-ipld-format"
-	"golang.org/x/sync/errgroup"
-
-	"github.com/tendermint/tendermint/pkg/da"
-	"github.com/tendermint/tendermint/pkg/wrapper"
 
 	"github.com/celestiaorg/celestia-node/ipld/plugin"
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/nmt/namespace"
-	"github.com/celestiaorg/rsmt2d"
 )
 
-// RetrieveData asynchronously fetches block data using the minimum number
-// of requests to IPFS. It fails if one of the random samples sampled is not available.
-func RetrieveData(
-	parentCtx context.Context,
-	dah *da.DataAvailabilityHeader,
-	dag ipld.DAGService,
-	codec rsmt2d.Codec,
-) (*rsmt2d.ExtendedDataSquare, error) {
-	edsWidth := len(dah.RowsRoots)
-	rowRoots := dah.RowsRoots
-	dataSquare := make([][]byte, edsWidth*edsWidth)
-
-	quadrant, err := pickRandomQuadrant(rowRoots)
-	if err != nil {
-		return nil, err
-	}
-	errGroup, ctx := errgroup.WithContext(parentCtx)
-	errGroup.Go(func() error {
-		return fillQuadrant(ctx, quadrant, dag, dataSquare)
-	})
-	if err := errGroup.Wait(); err != nil {
-		return nil, err
-	}
-	batchAdder := NewNmtNodeAdder(parentCtx, ipld.NewBatch(parentCtx, dag, ipld.MaxSizeBatchOption(batchSize(edsWidth))))
-	tree := wrapper.NewErasuredNamespacedMerkleTree(uint64(edsWidth)/2, nmt.NodeVisitor(batchAdder.Visit))
-	extended, err := rsmt2d.RepairExtendedDataSquare(dah.RowsRoots, dah.ColumnRoots, dataSquare, codec, tree.Constructor)
-	if err != nil {
-		return nil, err
-	}
-
-	return extended, batchAdder.Commit()
-}
-
-type quadrant struct {
-	isLeftSubtree bool
-	from          int
-	to            int
-	rootCids      []cid.Cid
-}
-
-func pickRandomQuadrant(roots [][]byte) (*quadrant, error) {
-	edsWidth := len(roots)
-	// get the random number from 1 to 4.
-	q := rand.Intn(4) + 1 //nolint:gosec
-	quadrant := &quadrant{rootCids: make([]cid.Cid, edsWidth/2)}
-	// quadrants 1 and 3 corresponds to left subtree,
-	// 2 and 4 to the right subtree
-	/*
-		| 1 | 2 |
-		| 3 | 4 |
-	*/
-	// choose subtree
-	if q%2 == 1 {
-		quadrant.isLeftSubtree = true
-	}
-
-	// define range of shares for sampling
-	if q > 2 {
-		quadrant.from = edsWidth / 2
-		quadrant.to = edsWidth
-	} else {
-		quadrant.to = edsWidth / 2
-	}
-
-	var err error
-	for index, counter := quadrant.from, 0; index < quadrant.to; index++ {
-		quadrant.rootCids[counter], err = plugin.CidFromNamespacedSha256(roots[index])
-		if err != nil {
-			return nil, err
-		}
-		counter++
-	}
-	return quadrant, nil
-}
-
-// fillQuadrant fetches 1/4 of shares for the given root
-func fillQuadrant(
-	ctx context.Context,
-	quadrant *quadrant,
-	dag ipld.NodeGetter,
-	dataSquare [][]byte,
-) error {
-	errGroup, ctx := errgroup.WithContext(ctx)
-	for i := 0; i < len(quadrant.rootCids); i++ {
-		i := i
-		errGroup.Go(func() error {
-			leaves, err := getSubtreeLeaves(
-				ctx,
-				quadrant.rootCids[i],
-				dag,
-				quadrant.isLeftSubtree,
-				uint32(len(quadrant.rootCids)/2),
-			)
-			if err != nil {
-				return err
-			}
-			quadrantWidth := len(quadrant.rootCids)
-			for leafIdx, leaf := range leaves {
-				// shares from the right subtree should be
-				// inserted after all shares from the left subtree
-				if !quadrant.isLeftSubtree {
-					leafIdx += len(leaves)
-				}
-				shareData := leaf.RawData()[1:]
-				// dataSquare represents a single dimensional slice
-				// of 4 quadrants. The representation of quadrants in dataSquare will be
-				// | 1 | | 2 | | 3 | | 4 |
-				// position is calculated by offsetting the index to respective quadrant
-				position := ((i + quadrant.from) * quadrantWidth * 2) + leafIdx
-				dataSquare[position] = shareData[NamespaceSize:]
-
-			}
-			return err
-		})
-	}
-	return errGroup.Wait()
-}
-
-// getSubtreeLeaves returns only one subtree - left or right
-func getSubtreeLeaves(
-	ctx context.Context,
-	root cid.Cid,
-	dag ipld.NodeGetter,
-	isLeftSubtree bool,
-	treeSize uint32,
-) ([]ipld.Node, error) {
-	nd, err := dag.Get(ctx, root)
-	if err != nil {
-		return nil, err
-	}
-	links := nd.Links()
-	subtreeRootHash := links[0].Cid
-	if !isLeftSubtree && len(links) > 1 {
-		subtreeRootHash = links[1].Cid
-	}
-
-	return getLeaves(ctx, dag, subtreeRootHash, make([]ipld.Node, 0, treeSize))
-}
-
-// getLeaves recursively starts going down to find all leafs from the given root
-func getLeaves(ctx context.Context, dag ipld.NodeGetter, root cid.Cid, leaves []ipld.Node) ([]ipld.Node, error) {
+// GetLeaves gets all the leaves under the given root. It recursively starts traversing the DAG to find all the leafs.
+// It also takes a pre-allocated slice 'leaves'.
+func GetLeaves(ctx context.Context, dag ipld.NodeGetter, root cid.Cid, leaves []ipld.Node) ([]ipld.Node, error) {
 	// request the node
 	nd, err := dag.Get(ctx, root)
 	if err != nil {
@@ -177,8 +33,8 @@ func getLeaves(ctx context.Context, dag ipld.NodeGetter, root cid.Cid, leaves []
 	}
 
 	for _, node := range lnks {
-		// recursively walk down through selected children to get the leaves
-		leaves, err = getLeaves(ctx, dag, node.Cid, leaves)
+		// recursively walk down through selected children to request the leaves
+		leaves, err = GetLeaves(ctx, dag, node.Cid, leaves)
 		if err != nil {
 			return nil, err
 		}

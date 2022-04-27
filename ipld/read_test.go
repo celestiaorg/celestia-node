@@ -93,10 +93,11 @@ func TestBlockRecovery(t *testing.T) {
 			flat := flatten(eds)
 
 			// recover a partially complete square
-			reds, err := rsmt2d.RepairExtendedDataSquare(
+			rdata := removeRandShares(flat, tc.d)
+			err = rsmt2d.RepairExtendedDataSquare(
 				rowRoots,
 				colRoots,
-				removeRandShares(flat, tc.d),
+				rdata,
 				rsmt2d.NewRSGF8Codec(),
 				recoverTree.Constructor,
 			)
@@ -108,69 +109,12 @@ func TestBlockRecovery(t *testing.T) {
 			}
 			assert.NoError(t, err)
 
+			reds, err := rsmt2d.ImportExtendedDataSquare(rdata, rsmt2d.NewRSGF8Codec(), tree.Constructor)
+			require.NoError(t, err)
 			// check that the squares are equal
 			assert.Equal(t, flatten(eds), flatten(reds))
 		})
 	}
-}
-
-func TestRetrieveBlockData(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	dag := mdutils.Mock()
-
-	type test struct {
-		name       string
-		squareSize int
-	}
-	tests := []test{
-		{"1x1(min)", 1},
-		{"32x32(med)", 32},
-	}
-	for _, tc := range tests {
-		tc := tc
-		t.Run(tc.name, func(t *testing.T) {
-			// generate EDS
-			eds := generateRandEDS(t, tc.squareSize)
-
-			shares := ExtractODSShares(eds)
-
-			in, err := PutData(ctx, shares, dag)
-			require.NoError(t, err)
-
-			// limit with deadline, specifically retrieval
-			ctx, cancel := context.WithTimeout(ctx, time.Second*2)
-			defer cancel()
-
-			dah := da.NewDataAvailabilityHeader(in)
-			out, err := RetrieveData(ctx, &dah, dag, rsmt2d.NewRSGF8Codec())
-			require.NoError(t, err)
-			assert.True(t, EqualEDS(in, out))
-		})
-	}
-}
-
-func TestRetrieveMaxBlockData(t *testing.T) {
-	parentCtx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	dag := mdutils.Mock()
-
-	// generate EDS
-	eds := generateRandEDS(t, MaxSquareSize)
-
-	shares := ExtractODSShares(eds)
-
-	in, err := PutData(parentCtx, shares, dag)
-	require.NoError(t, err)
-
-	// limit with deadline, specifically retrieval
-	ctx, cancel := context.WithTimeout(parentCtx, time.Second*50)
-	defer cancel()
-
-	dah := da.NewDataAvailabilityHeader(in)
-	out, err := RetrieveData(ctx, &dah, dag, rsmt2d.NewRSGF8Codec())
-	require.NoError(t, err)
-	assert.True(t, EqualEDS(in, out))
 }
 
 func Test_ConvertEDStoShares(t *testing.T) {
