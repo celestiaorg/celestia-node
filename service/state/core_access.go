@@ -10,7 +10,9 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 
 	"github.com/celestiaorg/celestia-app/app"
+	"github.com/celestiaorg/celestia-app/x/payment"
 	apptypes "github.com/celestiaorg/celestia-app/x/payment/types"
+	"github.com/celestiaorg/nmt/namespace"
 )
 
 // CoreAccessor implements Accessor over an RPC connection
@@ -64,6 +66,15 @@ func (ca *CoreAccessor) Stop(context.Context) error {
 	ca.coreConn = nil
 	ca.queryCli = nil
 	return nil
+}
+
+func (ca *CoreAccessor) SubmitPayForData(
+	ctx context.Context,
+	nID namespace.ID,
+	data []byte,
+	gasLim uint64,
+) (*TxResponse, error) {
+	return payment.SubmitPayForData(ctx, ca.signer, ca.coreConn, nID, data, gasLim)
 }
 
 func (ca *CoreAccessor) Balance(ctx context.Context) (*Balance, error) {
