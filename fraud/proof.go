@@ -2,6 +2,7 @@ package fraud
 
 import (
 	"encoding"
+	"fmt"
 
 	"github.com/celestiaorg/celestia-node/service/header"
 )
@@ -11,6 +12,15 @@ type ProofType int
 const (
 	BadEncoding ProofType = iota
 )
+
+func (p ProofType) String() string {
+	switch p {
+	case BadEncoding:
+		return "BadEncoding"
+	default:
+		panic(fmt.Sprintf("invalid proof type: %d", p))
+	}
+}
 
 // Proof is a generic interface that will be used for all types of fraud proofs in the network.
 type Proof interface {

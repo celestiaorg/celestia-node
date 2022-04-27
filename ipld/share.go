@@ -3,13 +3,13 @@ package ipld
 import (
 	"crypto/sha256"
 
-	"github.com/celestiaorg/nmt"
-	"github.com/celestiaorg/nmt/namespace"
-
 	"github.com/ipfs/go-cid"
+	"github.com/tendermint/tendermint/pkg/consts"
 
 	pb "github.com/celestiaorg/celestia-node/ipld/pb"
 	"github.com/celestiaorg/celestia-node/ipld/plugin"
+	"github.com/celestiaorg/nmt"
+	"github.com/celestiaorg/nmt/namespace"
 )
 
 const (
@@ -73,9 +73,9 @@ func NewShareWithProof(index int, leaf []byte, pathToLeaf []cid.Cid) *Namespaced
 		rangeProofs = append(rangeProofs, node)
 	}
 
-	id := namespace.ID(leaf[:8])
+	id := namespace.ID(leaf[:consts.NamespaceSize])
 	proof := nmt.NewInclusionProof(index, index+1, rangeProofs, true)
-	return &NamespacedShareWithProof{id, leaf[8:], &proof}
+	return &NamespacedShareWithProof{id, leaf[consts.NamespaceSize:], &proof}
 }
 
 func (s *NamespacedShareWithProof) Validate(root []byte) bool {

@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"errors"
+	"fmt"
 	"math"
 	"math/rand"
 	"strconv"
@@ -461,22 +462,30 @@ func TestGetProof(t *testing.T) {
 	_ctx, cancel := context.WithTimeout(ctx, time.Second*2)
 	defer cancel()
 	dah := da.NewDataAvailabilityHeader(in)
-	for _, root := range dah.RowsRoots {
-		rootCid := plugin.MustCidFromNamespacedSha256(root)
-		for index := 0; uint(index) < width; index++ {
-			proof := make([]cid.Cid, 0)
-			proof, err = GetProof(_ctx, dag, rootCid, proof, index, int(width))
-			require.NoError(t, err)
-			node, err := GetLeaf(ctx, dag, rootCid, index, int(width))
-			require.NoError(t, err)
-			data := node.RawData()[1:]
-			if !bytes.Equal(data[:8], consts.ParitySharesNamespaceID) {
-				data = data[8:]
-			}
-			inclusion := NewShareWithProof(index, data, proof)
-			require.True(t, inclusion.Validate(root))
-		}
+	var tests = []struct {
+		roots [][]byte
+	}{
+		{dah.RowsRoots},
+		{dah.ColumnRoots},
+	}
 
+	for i, tt := range tests {
+		t.Run(strconv.Itoa(i), func(t *testing.T) {
+			for _, root := range tt.roots {
+				rootCid := plugin.MustCidFromNamespacedSha256(root)
+				for index := 0; uint(index) < width; index++ {
+					fmt.Println(index)
+					proof := make([]cid.Cid, 0)
+					proof, err = GetProof(_ctx, dag, rootCid, proof, index, int(width))
+					require.NoError(t, err)
+					node, err := GetLeaf(ctx, dag, rootCid, index, int(width))
+					require.NoError(t, err)
+					data := node.RawData()[1:]
+					inclusion := NewShareWithProof(index, data, proof)
+					require.True(t, inclusion.Validate(root))
+				}
+			}
+		})
 	}
 }
 
@@ -525,7 +534,7 @@ func TestRetreiveDataFailedWithByzzError(t *testing.T) {
 		context.Background(),
 		format.NewBatch(context.Background(),
 			dag,
-			format.MaxSizeBatchOption(4),
+			format.MaxSizeBatchOption(int(size/2)),
 		),
 	)
 	tree := wrapper.NewErasuredNamespacedMerkleTree(uint64(size/2), nmt.NodeVisitor(batchAdder.Visit))
