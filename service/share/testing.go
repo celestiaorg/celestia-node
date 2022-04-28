@@ -51,19 +51,15 @@ func RandFullServiceWithSquare(t *testing.T, n int) (Service, *Root) {
 
 func RandFillDAG(t *testing.T, n int, dag format.DAGService) *Root {
 	shares := RandShares(t, n*n)
-	return FillDag(t, n, dag, shares)
+	return FillDag(t, dag, shares)
 }
 
-func FillDag(t *testing.T, n int, dag format.DAGService, shares []Share) *Root {
-	sharesSlices := make([][]byte, n*n)
-	for i, share := range shares {
-		sharesSlices[i] = share
-	}
+func FillDag(t *testing.T, dag format.DAGService, shares []Share) *Root {
 	na := ipld.NewNmtNodeAdder(context.TODO(), dag)
 
 	squareSize := uint32(math.Sqrt(float64(len(shares))))
 	tree := wrapper.NewErasuredNamespacedMerkleTree(uint64(squareSize), nmt.NodeVisitor(na.Visit))
-	eds, err := rsmt2d.ComputeExtendedDataSquare(sharesSlices, rsmt2d.NewRSGF8Codec(), tree.Constructor)
+	eds, err := rsmt2d.ComputeExtendedDataSquare(shares, rsmt2d.NewRSGF8Codec(), tree.Constructor)
 	require.NoError(t, err)
 
 	err = na.Commit()
@@ -76,11 +72,7 @@ func FillDag(t *testing.T, n int, dag format.DAGService, shares []Share) *Root {
 
 // RandShares provides 'n' randomized shares prefixed with random namespaces.
 func RandShares(t *testing.T, n int) []Share {
-	shares := make([]Share, n)
-	for i, share := range ipld.RandNamespacedShares(t, n) {
-		shares[i] = Share(share.Share)
-	}
-	return shares
+	return ipld.RandShares(t, n)
 }
 
 type DAGNet struct {

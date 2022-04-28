@@ -45,7 +45,7 @@ func (la *lightAvailability) SharesAvailable(ctx context.Context, dah *Root) err
 	for _, s := range samples {
 		go func(s Sample) {
 			root, leaf := translate(dah, s.Row, s.Col)
-			_, err := ipld.GetLeaf(ctx, ses, root, leaf, len(dah.RowsRoots))
+			_, err := ipld.GetShare(ctx, ses, root, leaf, len(dah.RowsRoots))
 			// we don't really care about Share bodies at this point
 			// it also means we now saved the Share in local storage
 			select {

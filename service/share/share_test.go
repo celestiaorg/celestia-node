@@ -13,7 +13,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
 	"github.com/tendermint/tendermint/pkg/da"
 	core "github.com/tendermint/tendermint/types"
 
@@ -46,13 +45,13 @@ func TestService_GetSharesByNamespace(t *testing.T) {
 		squareSize         int
 		expectedShareCount int
 	}{
-		{squareSize: 4, expectedShareCount: 1},
+		{squareSize: 4, expectedShareCount: 2},
 		{squareSize: 16, expectedShareCount: 2},
-		{squareSize: 128, expectedShareCount: 1},
+		{squareSize: 128, expectedShareCount: 2},
 	}
 
-	for i, tt := range tests {
-		t.Run(strconv.Itoa(i), func(t *testing.T) {
+	for _, tt := range tests {
+		t.Run("size"+strconv.Itoa(tt.squareSize), func(t *testing.T) {
 			serv, dag := RandLightService()
 			n := tt.squareSize * tt.squareSize
 			randShares := RandShares(t, n)
@@ -62,19 +61,19 @@ func TestService_GetSharesByNamespace(t *testing.T) {
 				// make it so that two rows have the same namespace ID
 				copy(randShares[idx2][:8], randShares[idx1][:8])
 			}
-			root := FillDag(t, tt.squareSize, dag, randShares)
-			randNID := []byte(randShares[idx1][:8])
+			root := FillDag(t, dag, randShares)
+			randNID := randShares[idx1][:8]
 
 			shares, err := serv.GetSharesByNamespace(context.Background(), root, randNID)
 			require.NoError(t, err)
 			assert.Len(t, shares, tt.expectedShareCount)
 			for _, value := range shares {
-				assert.Equal(t, randNID, []byte(value.NamespaceID()))
+				assert.Equal(t, randNID, []byte(GetID(value)))
 			}
 			if tt.expectedShareCount > 1 {
 				// idx1 is always smaller than idx2
-				assert.Equal(t, []byte(randShares[idx1]), shares[0].Data())
-				assert.Equal(t, []byte(randShares[idx2]), shares[1].Data())
+				assert.Equal(t, randShares[idx1], shares[0])
+				assert.Equal(t, randShares[idx2], shares[1])
 			}
 		})
 	}
@@ -92,11 +91,9 @@ func TestGetShares(t *testing.T) {
 	shares, err := serv.GetShares(ctx, dah)
 	require.NoError(t, err)
 
-	flattened := make([][]byte, 0)
+	flattened := make([][]byte, 0, len(shares)*2)
 	for _, row := range shares {
-		for _, share := range row {
-			flattened = append(flattened, share)
-		}
+		flattened = append(flattened, row...)
 	}
 	// generate DAH from shares returned by `GetShares` to compare
 	// calculated DAH to expected DAH
@@ -282,12 +279,7 @@ func TestSharesRoundTrip(t *testing.T) {
 				require.NoError(t, err)
 				require.NotEmpty(t, shares)
 
-				rawShares := make([][]byte, len(shares))
-				for i, share := range shares {
-					rawShares[i] = share.Data()
-				}
-
-				msgs, err := core.ParseMsgs(rawShares)
+				msgs, err := core.ParseMsgs(shares)
 				require.NoError(t, err)
 				assert.Len(t, msgs.MessagesList, len(msgsInNamespace))
 				for i := range msgs.MessagesList {
