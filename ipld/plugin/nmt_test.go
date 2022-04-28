@@ -10,6 +10,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/tendermint/tendermint/pkg/consts"
 
 	"github.com/tendermint/tendermint/pkg/da"
 )
@@ -20,10 +21,10 @@ func TestNamespaceFromCID(t *testing.T) {
 	var tests = []struct {
 		randData [][]byte
 	}{
-		{randData: generateRandNamespacedRawData(4, namespaceSize, ShareSize)},
-		{randData: generateRandNamespacedRawData(16, 16, ShareSize)},
-		{randData: generateRandNamespacedRawData(4, 4, ShareSize)},
-		{randData: generateRandNamespacedRawData(4, namespaceSize, ShareSize/2)},
+		{randData: generateRandNamespacedRawData(4, consts.NamespaceSize, consts.ShareSize)},
+		{randData: generateRandNamespacedRawData(16, 16, consts.ShareSize)},
+		{randData: generateRandNamespacedRawData(4, 4, consts.ShareSize)},
+		{randData: generateRandNamespacedRawData(4, consts.NamespaceSize, consts.ShareSize/2)},
 	}
 
 	for i, tt := range tests {
