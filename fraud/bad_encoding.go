@@ -148,7 +148,7 @@ func (p *BadEncodingProof) Validate(header *header.ExtendedHeader) error {
 	}
 
 	if bytes.Equal(tree.Root(), merkleRoot) {
-		return errors.New("invalid fraud proof: merkle root matches")
+		return errors.New("invalid fraud proof: recomputed Merkle root matches the header's row/column root")
 	}
 
 	return nil
