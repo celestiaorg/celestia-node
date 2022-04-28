@@ -2,22 +2,18 @@ package ipld
 
 import (
 	"bytes"
-	"crypto/sha256"
-	"math"
 	mrand "math/rand"
 	"sort"
 	"testing"
 
-	"github.com/ipfs/go-cid"
 	"github.com/stretchr/testify/require"
 
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/tendermint/tendermint/pkg/wrapper"
-
-	"github.com/celestiaorg/celestia-node/ipld/plugin"
 )
 
+// EqualEDS check whether two given EDSes are equal.
 // TODO(Wondertan): Move to rsmt2d
 // TODO(Wondertan): Propose use of int by default instead of uint for the sake convenience and Golang practices
 func EqualEDS(a *rsmt2d.ExtendedDataSquare, b *rsmt2d.ExtendedDataSquare) bool {
@@ -37,53 +33,36 @@ func EqualEDS(a *rsmt2d.ExtendedDataSquare, b *rsmt2d.ExtendedDataSquare) bool {
 	return true
 }
 
-// TODO(Wondertan): Move to NMT plugin
-func RandNamespacedCID(t *testing.T) cid.Cid {
-	raw := make([]byte, NamespaceSize*2+sha256.Size)
-	_, err := mrand.Read(raw) // nolint:gosec // G404: Use of weak random number generator
-	require.NoError(t, err)
-	id, err := plugin.CidFromNamespacedSha256(raw)
-	require.NoError(t, err)
-	return id
-}
-
+// RandEDS generates EDS filled with the random data with the given size for original square.
 func RandEDS(t *testing.T, size int) *rsmt2d.ExtendedDataSquare {
-	shares := RandNamespacedShares(t, size*size)
+	shares := RandShares(t, size*size)
 	// create the nmt wrapper to generate row and col commitments
-	squareSize := uint32(math.Sqrt(float64(len(shares))))
-	tree := wrapper.NewErasuredNamespacedMerkleTree(uint64(squareSize))
+	tree := wrapper.NewErasuredNamespacedMerkleTree(uint64(size))
 	// recompute the eds
-	eds, err := rsmt2d.ComputeExtendedDataSquare(shares.Raw(), rsmt2d.NewRSGF8Codec(), tree.Constructor)
+	eds, err := rsmt2d.ComputeExtendedDataSquare(shares, DefaultRSMT2DCodec(), tree.Constructor)
 	require.NoError(t, err, "failure to recompute the extended data square")
 	return eds
 }
 
-func RandNamespacedShares(t *testing.T, total int) NamespacedShares {
+// RandShares generate 'total' amount of shares filled with random data.
+func RandShares(t *testing.T, total int) []Share {
 	if total&(total-1) != 0 {
 		t.Fatal("Namespace total must be power of 2")
 	}
 
-	data := make([][]byte, total)
-	for i := 0; i < total; i++ {
-		nid := make([]byte, NamespaceSize)
-		_, err := mrand.Read(nid) // nolint:gosec // G404: Use of weak random number generator
+	shares := make([]Share, total)
+	for i := range shares {
+		nid := make([]byte, ShareSize)
+		_, err := mrand.Read(nid[:NamespaceSize]) // nolint:gosec // G404: Use of weak random number generator
 		require.NoError(t, err)
-		data[i] = nid
+		shares[i] = nid
 	}
-	sortByteArrays(data)
+	sort.Slice(shares, func(i, j int) bool { return bytes.Compare(shares[i], shares[j]) < 0 })
 
-	shares := make(NamespacedShares, total)
-	for i := 0; i < total; i++ {
-		shares[i].ID = data[i]
-		shares[i].Share = make([]byte, NamespaceSize+plugin.ShareSize)
-		copy(shares[i].Share[:NamespaceSize], data[i])
-		_, err := mrand.Read(shares[i].Share[NamespaceSize:]) // nolint:gosec // G404: Use of weak random number generator
+	for i := range shares {
+		_, err := mrand.Read(shares[i][NamespaceSize:]) // nolint:gosec // G404: Use of weak random number generator
 		require.NoError(t, err)
 	}
 
 	return shares
-}
-
-func sortByteArrays(src [][]byte) {
-	sort.Slice(src, func(i, j int) bool { return bytes.Compare(src[i], src[j]) < 0 })
 }

@@ -12,7 +12,6 @@ message MerkleProof {
 }
 
 message Share {
-  bytes NamespaceID = 1;
-  bytes Data = 2;
-  MerkleProof Proof = 3;
+  bytes Data = 1;
+  MerkleProof Proof = 2;
 }

@@ -21,7 +21,7 @@ type BadEncodingProof struct {
 	// ShareWithProof contains all shares from row or col.
 	// Shares that did not pass verification in rmst2d will be nil.
 	// For non-nil shares MerkleProofs are computed.
-	Shares []*ipld.NamespacedShareWithProof
+	Shares []*ipld.ShareWithProof
 	// Index represents the row/col index where ErrByzantineRow/ErrByzantineColl occurred
 	Index uint8
 	// isRow shows that verification failed on row

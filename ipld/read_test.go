@@ -1,9 +1,7 @@
 package ipld
 
 import (
-	"bytes"
 	"context"
-	"crypto/sha256"
 	"math"
 	"math/rand"
 	"strconv"
@@ -21,34 +19,34 @@ import (
 	mdutils "github.com/ipfs/go-merkledag/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/tendermint/tendermint/pkg/consts"
 	"github.com/tendermint/tendermint/pkg/da"
 	"github.com/tendermint/tendermint/pkg/wrapper"
 
-	"github.com/celestiaorg/celestia-node/ipld/plugin"
 	"github.com/celestiaorg/nmt"
+
+	"github.com/celestiaorg/celestia-node/ipld/plugin"
 	"github.com/celestiaorg/nmt/namespace"
 	"github.com/celestiaorg/rsmt2d"
 )
 
-func TestGetLeafData(t *testing.T) {
-	const leaves = 16
+func TestGetShare(t *testing.T) {
+	const size = 8
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 	dag := mdutils.Mock()
 
 	// generate random shares for the nmt
-	shares := RandNamespacedShares(t, leaves)
-
-	// create a random tree
-	root, err := getNmtRoot(ctx, dag, shares.Raw())
+	shares := RandShares(t, size*size)
+	eds, err := PutData(ctx, shares, dag)
 	require.NoError(t, err)
 
 	for i, leaf := range shares {
-		data, err := GetLeafData(ctx, root, uint32(i), uint32(len(shares)), dag)
+		row := i / size
+		pos := i - (size * row)
+		share, err := GetShare(ctx, dag, plugin.MustCidFromNamespacedSha256(eds.RowRoots()[row]), pos, size*2)
 		require.NoError(t, err)
-		assert.True(t, bytes.Equal(leaf.Share, data))
+		assert.Equal(t, leaf, share)
 	}
 }
 
@@ -59,12 +57,12 @@ func TestBlockRecovery(t *testing.T) {
 	extendedShareCount := extendedSquareWidth * extendedSquareWidth
 
 	// generate test data
-	quarterShares := RandNamespacedShares(t, shareCount)
-	allShares := RandNamespacedShares(t, shareCount)
+	quarterShares := RandShares(t, shareCount)
+	allShares := RandShares(t, shareCount)
 
 	testCases := []struct {
 		name      string
-		shares    NamespacedShares
+		shares    []Share
 		expectErr bool
 		errString string
 		d         int // number of shares to delete
@@ -84,7 +82,7 @@ func TestBlockRecovery(t *testing.T) {
 			tree := wrapper.NewErasuredNamespacedMerkleTree(squareSize)
 			recoverTree := wrapper.NewErasuredNamespacedMerkleTree(squareSize)
 
-			eds, err := rsmt2d.ComputeExtendedDataSquare(tc.shares.Raw(), rsmt2d.NewRSGF8Codec(), tree.Constructor)
+			eds, err := rsmt2d.ComputeExtendedDataSquare(tc.shares, rsmt2d.NewRSGF8Codec(), tree.Constructor)
 			require.NoError(t, err)
 
 			// calculate roots using the first complete square
@@ -120,59 +118,17 @@ func TestBlockRecovery(t *testing.T) {
 
 func Test_ConvertEDStoShares(t *testing.T) {
 	squareWidth := 16
-	origShares := RandNamespacedShares(t, squareWidth*squareWidth)
-	rawshares := origShares.Raw()
+	shares := RandShares(t, squareWidth*squareWidth)
 
 	// create the nmt wrapper to generate row and col commitments
 	tree := wrapper.NewErasuredNamespacedMerkleTree(uint64(squareWidth))
 
 	// compute extended square
-	eds, err := rsmt2d.ComputeExtendedDataSquare(rawshares, rsmt2d.NewRSGF8Codec(), tree.Constructor)
-	require.NoError(t, err)
-
-	resshares := ExtractODSShares(eds)
-	require.Equal(t, rawshares, resshares)
-}
-
-func generateRandEDS(t *testing.T, originalSquareWidth int) *rsmt2d.ExtendedDataSquare {
-	shareCount := originalSquareWidth * originalSquareWidth
-
-	// generate test data
-	nsshares := RandNamespacedShares(t, shareCount)
-
-	shares := nsshares.Raw()
-
-	// create the nmt wrapper to generate row and col commitments
-	tree := wrapper.NewErasuredNamespacedMerkleTree(uint64(originalSquareWidth))
-
-	// compute extended square
 	eds, err := rsmt2d.ComputeExtendedDataSquare(shares, rsmt2d.NewRSGF8Codec(), tree.Constructor)
 	require.NoError(t, err)
-	return eds
-}
 
-// getNmtRoot generates the nmt root of some namespaced data
-func getNmtRoot(
-	ctx context.Context,
-	dag format.NodeAdder,
-	namespacedData [][]byte,
-) (cid.Cid, error) {
-	na := NewNmtNodeAdder(ctx, dag)
-	tree := nmt.New(sha256.New(), nmt.NamespaceIDSize(NamespaceSize), nmt.NodeVisitor(na.Visit))
-	for _, leaf := range namespacedData {
-		err := tree.Push(leaf)
-		if err != nil {
-			return cid.Undef, err
-		}
-	}
-
-	// call Root early as it initiates saving
-	root := tree.Root()
-	if err := na.Commit(); err != nil {
-		return cid.Undef, err
-	}
-
-	return plugin.CidFromNamespacedSha256(root)
+	resshares := ExtractODS(eds)
+	require.Equal(t, shares, resshares)
 }
 
 // removes d shares from data
@@ -190,20 +146,20 @@ func removeRandShares(data [][]byte, d int) [][]byte {
 	return data
 }
 
-func TestGetLeavesByNamespace(t *testing.T) {
+func TestGetSharesByNamespace(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	dag := mdutils.Mock()
+
 	var tests = []struct {
-		rawData [][]byte
+		rawData []Share
 	}{
-		{rawData: generateRandNamespacedRawData(16, NamespaceSize, plugin.ShareSize)},
-		{rawData: generateRandNamespacedRawData(16, NamespaceSize, 8)},
-		{rawData: generateRandNamespacedRawData(4, NamespaceSize, plugin.ShareSize)},
-		{rawData: generateRandNamespacedRawData(16, NamespaceSize, 8)},
+		{rawData: RandShares(t, 4)},
+		{rawData: RandShares(t, 16)},
 	}
 
 	for i, tt := range tests {
 		t.Run(strconv.Itoa(i), func(t *testing.T) {
-			squareSize := uint64(math.Sqrt(float64(len(tt.rawData))))
-
 			// choose random nID from rand shares
 			expected := tt.rawData[len(tt.rawData)/2]
 			nID := expected[:NamespaceSize]
@@ -211,27 +167,20 @@ func TestGetLeavesByNamespace(t *testing.T) {
 			// change rawData to contain several shares with same nID
 			tt.rawData[(len(tt.rawData)/2)+1] = expected
 
-			// generate DAH
-			eds, err := da.ExtendShares(squareSize, tt.rawData)
-			require.NoError(t, err)
-			dah := da.NewDataAvailabilityHeader(eds)
-
 			// put raw data in DAG
-			dag := mdutils.Mock()
-			_, err = PutData(context.Background(), tt.rawData, dag)
+			eds, err := PutData(ctx, tt.rawData, dag)
 			require.NoError(t, err)
 
-			rowRootCIDs, err := rowRootsByNamespaceID(nID, &dah)
-			require.NoError(t, err)
-
-			for _, rowCID := range rowRootCIDs {
-				nodes, err := GetLeavesByNamespace(context.Background(), dag, rowCID, nID)
+			for _, row := range eds.RowRoots() {
+				rcid := plugin.MustCidFromNamespacedSha256(row)
+				shares, err := GetSharesByNamespace(context.Background(), dag, rcid, nID)
+				if err == ErrNotFoundInRange {
+					continue
+				}
 				require.NoError(t, err)
 
-				for _, node := range nodes {
-					// TODO @renaynay: nID is prepended twice for some reason.
-					share := node.RawData()[1:]
-					assert.Equal(t, expected, share[NamespaceSize:])
+				for _, share := range shares {
+					assert.Equal(t, expected, share)
 				}
 			}
 		})
@@ -239,36 +188,40 @@ func TestGetLeavesByNamespace(t *testing.T) {
 }
 
 func TestGetLeavesByNamespace_AbsentNamespaceId(t *testing.T) {
-	rawData := RandNamespacedShares(t, 16).Raw()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	dag := mdutils.Mock()
+
+	shares := RandShares(t, 16)
 
 	minNid := make([]byte, NamespaceSize)
 	midNid := make([]byte, NamespaceSize)
 	maxNid := make([]byte, NamespaceSize)
 
-	numberOfShares := len(rawData)
+	numberOfShares := len(shares)
 
-	copy(minNid, rawData[0][:NamespaceSize])
-	copy(maxNid, rawData[numberOfShares-1][:NamespaceSize])
-	copy(midNid, rawData[numberOfShares/2][:NamespaceSize])
+	copy(minNid, shares[0][:NamespaceSize])
+	copy(maxNid, shares[numberOfShares-1][:NamespaceSize])
+	copy(midNid, shares[numberOfShares/2][:NamespaceSize])
 
 	// create min nid missing data by replacing first namespace id with second
-	minNidMissingData := make([][]byte, len(rawData))
-	copy(minNidMissingData, rawData)
-	copy(minNidMissingData[0][:NamespaceSize], rawData[1][:NamespaceSize])
+	minNidMissingData := make([]Share, len(shares))
+	copy(minNidMissingData, shares)
+	copy(minNidMissingData[0][:NamespaceSize], shares[1][:NamespaceSize])
 
 	// create max nid missing data by replacing last namespace id with second last
-	maxNidMissingData := make([][]byte, len(rawData))
-	copy(maxNidMissingData, rawData)
-	copy(maxNidMissingData[numberOfShares-1][:NamespaceSize], rawData[numberOfShares-2][:NamespaceSize])
+	maxNidMissingData := make([]Share, len(shares))
+	copy(maxNidMissingData, shares)
+	copy(maxNidMissingData[numberOfShares-1][:NamespaceSize], shares[numberOfShares-2][:NamespaceSize])
 
 	// create mid nid missing data by replacing middle namespace id with the one after
-	midNidMissingData := make([][]byte, len(rawData))
-	copy(midNidMissingData, rawData)
-	copy(midNidMissingData[numberOfShares/2][:NamespaceSize], rawData[(numberOfShares/2)+1][:NamespaceSize])
+	midNidMissingData := make([]Share, len(shares))
+	copy(midNidMissingData, shares)
+	copy(midNidMissingData[numberOfShares/2][:NamespaceSize], shares[(numberOfShares/2)+1][:NamespaceSize])
 
 	var tests = []struct {
 		name       string
-		data       [][]byte
+		data       []Share
 		missingNid []byte
 	}{
 		{name: "Namespace id less than the minimum namespace in data", data: minNidMissingData, missingNid: minNid},
@@ -278,47 +231,50 @@ func TestGetLeavesByNamespace_AbsentNamespaceId(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			dag, dah := putErasuredDataToDag(t, tt.data)
-
-			assertNoRowContainsNID(t, dag, dah, tt.missingNid)
+			eds, err := PutData(ctx, shares, dag)
+			require.NoError(t, err)
+			assertNoRowContainsNID(t, dag, eds, tt.missingNid)
 		})
 	}
 }
 
 func TestGetLeavesByNamespace_MultipleRowsContainingSameNamespaceId(t *testing.T) {
-	t.Run("Same namespace id across multiple rows", func(t *testing.T) {
-		rawData := RandNamespacedShares(t, 16).Raw()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	dag := mdutils.Mock()
 
-		// set all shares to the same namespace and data but the last one
-		nid := rawData[0][:NamespaceSize]
-		commonNamespaceData := rawData[0]
+	shares := RandShares(t, 16)
 
-		for i, nspace := range rawData {
-			if i == len(rawData)-1 {
-				break
-			}
+	// set all shares to the same namespace and data but the last one
+	nid := shares[0][:NamespaceSize]
+	commonNamespaceData := shares[0]
 
-			copy(nspace, commonNamespaceData)
+	for i, nspace := range shares {
+		if i == len(shares)-1 {
+			break
 		}
 
-		dag, dah := putErasuredDataToDag(t, rawData)
+		copy(nspace, commonNamespaceData)
+	}
 
-		rowRootCids, err := rowRootsByNamespaceID(nid, &dah)
+	eds, err := PutData(ctx, shares, dag)
+	require.NoError(t, err)
+
+	for _, row := range eds.RowRoots() {
+		rcid := plugin.MustCidFromNamespacedSha256(row)
+		nodes, err := GetLeavesByNamespace(context.Background(), dag, rcid, nid)
+		if err == ErrNotFoundInRange {
+			continue
+		}
 		require.NoError(t, err)
 
-		for _, rowRootCid := range rowRootCids {
-			nodes, err := GetLeavesByNamespace(context.Background(), dag, rowRootCid, nid)
-			require.NoError(t, err)
-
-			for _, node := range nodes {
-				// test that the data returned by GetLeavesByNamespace for nid
-				// matches the commonNamespaceData that was copied across almost all data
-				share := node.RawData()[1:]
-				assert.Equal(t, commonNamespaceData, share[NamespaceSize:])
-			}
+		for _, node := range nodes {
+			// test that the data returned by GetLeavesByNamespace for nid
+			// matches the commonNamespaceData that was copied across almost all data
+			share := node.RawData()[1:]
+			assert.Equal(t, commonNamespaceData, share[NamespaceSize:])
 		}
-	})
-
+	}
 }
 
 func TestBatchSize(t *testing.T) {
@@ -341,8 +297,8 @@ func TestBatchSize(t *testing.T) {
 			bs := blockstore.NewBlockstore(dssync.MutexWrap(ds.NewMapDatastore()))
 			dag := merkledag.NewDAGService(blockservice.New(bs, offline.Exchange(bs)))
 
-			eds := generateRandEDS(t, tt.origWidth)
-			_, err := PutData(ctx, ExtractODSShares(eds), dag)
+			eds := RandEDS(t, tt.origWidth)
+			_, err := PutData(ctx, ExtractODS(eds), dag)
 			require.NoError(t, err)
 
 			out, err := bs.AllKeysChan(ctx)
@@ -358,32 +314,15 @@ func TestBatchSize(t *testing.T) {
 	}
 }
 
-func putErasuredDataToDag(t *testing.T, rawData [][]byte) (format.DAGService, da.DataAvailabilityHeader) {
-	// calc square size
-	squareSize := uint64(math.Sqrt(float64(len(rawData))))
-
-	// generate DAH
-	eds, err := da.ExtendShares(squareSize, rawData)
-	require.NoError(t, err)
-	dah := da.NewDataAvailabilityHeader(eds)
-
-	// put raw data in DAG
-	dag := mdutils.Mock()
-	_, err = PutData(context.Background(), rawData, dag)
-	require.NoError(t, err)
-
-	return dag, dah
-}
-
 func assertNoRowContainsNID(
 	t *testing.T,
 	dag format.DAGService,
-	dah da.DataAvailabilityHeader,
+	eds *rsmt2d.ExtendedDataSquare,
 	nID namespace.ID,
 ) {
 	// get all row root cids
-	rowRootCIDs := make([]cid.Cid, len(dah.RowsRoots))
-	for i, rowRoot := range dah.RowsRoots {
+	rowRootCIDs := make([]cid.Cid, len(eds.RowRoots()))
+	for i, rowRoot := range eds.RowRoots() {
 		rowRootCIDs[i] = plugin.MustCidFromNamespacedSha256(rowRoot)
 	}
 
@@ -394,58 +333,17 @@ func assertNoRowContainsNID(
 	}
 }
 
-// rowRootsByNamespaceID is a convenience method that finds the row root(s)
-// that contain the given namespace ID.
-func rowRootsByNamespaceID(nID namespace.ID, dah *da.DataAvailabilityHeader) ([]cid.Cid, error) {
-	roots := make([]cid.Cid, 0)
-	for _, row := range dah.RowsRoots {
-		// if nID exists within range of min -> max of row, return the row
-		if !nID.Less(nmt.MinNamespace(row, nID.Size())) && nID.LessOrEqual(nmt.MaxNamespace(row, nID.Size())) {
-			roots = append(roots, plugin.MustCidFromNamespacedSha256(row))
-		}
-	}
-	if len(roots) == 0 {
-		return nil, ErrNotFoundInRange
-	}
-	return roots, nil
-}
-
-// generateRandNamespacedRawData returns random namespaced raw data for testing purposes.
-func generateRandNamespacedRawData(total, nidSize, leafSize uint32) [][]byte {
-	data := make([][]byte, total)
-	for i := uint32(0); i < total; i++ {
-		nid := make([]byte, nidSize)
-
-		rand.Read(nid)
-		data[i] = nid
-	}
-	sortByteArrays(data)
-	for i := uint32(0); i < total; i++ {
-		d := make([]byte, leafSize)
-
-		rand.Read(d)
-		data[i] = append(data[i], d...)
-	}
-
-	return data
-}
-
 func TestGetProof(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
+	const width = 4
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*2)
 	defer cancel()
 	dag := mdutils.Mock()
 
-	// generate EDS
-	eds := generateRandEDS(t, 2)
-	width := eds.Width()
-	shares := ExtractODSShares(eds)
-
+	shares := RandShares(t, width*width)
 	in, err := PutData(ctx, shares, dag)
 	require.NoError(t, err)
 
-	// limit with deadline, specifically retrieval
-	_ctx, cancel := context.WithTimeout(ctx, time.Second*2)
-	defer cancel()
 	dah := da.NewDataAvailabilityHeader(in)
 	var tests = []struct {
 		roots [][]byte
@@ -458,14 +356,13 @@ func TestGetProof(t *testing.T) {
 		t.Run(strconv.Itoa(i), func(t *testing.T) {
 			for _, root := range tt.roots {
 				rootCid := plugin.MustCidFromNamespacedSha256(root)
-				for index := 0; uint(index) < width; index++ {
+				for index := 0; uint(index) < in.Width(); index++ {
 					proof := make([]cid.Cid, 0)
-					proof, err = GetProof(_ctx, dag, rootCid, proof, index, int(width))
+					proof, err = GetProof(ctx, dag, rootCid, proof, index, int(in.Width()))
 					require.NoError(t, err)
-					node, err := GetLeaf(ctx, dag, rootCid, index, int(width))
+					node, err := GetLeaf(ctx, dag, rootCid, index, int(in.Width()))
 					require.NoError(t, err)
-					data := node.RawData()[1:]
-					inclusion := NewShareWithProof(index, data, proof)
+					inclusion := NewShareWithProof(index, node.RawData()[1:], proof)
 					require.True(t, inclusion.Validate(root))
 				}
 			}
@@ -474,61 +371,57 @@ func TestGetProof(t *testing.T) {
 }
 
 func TestGetProofs(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	t.Cleanup(cancel)
+	const width = 4
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*2)
+	defer cancel()
 	dag := mdutils.Mock()
 
-	// generate EDS
-	eds := generateRandEDS(t, 2)
-	width := eds.Width()
-	shares := ExtractODSShares(eds)
-
+	shares := RandShares(t, width*width)
 	in, err := PutData(ctx, shares, dag)
 	require.NoError(t, err)
 
-	// limit with deadline, specifically retrieval
-	_ctx, cancel := context.WithTimeout(ctx, time.Second*2)
-	t.Cleanup(cancel)
 	dah := da.NewDataAvailabilityHeader(in)
 	for _, root := range dah.ColumnRoots {
 		rootCid := plugin.MustCidFromNamespacedSha256(root)
-		data := make([][]byte, 0, width)
-		for index := 0; uint(index) < width; index++ {
-			node, err := GetLeaf(_ctx, dag, rootCid, index, int(width))
+		data := make([][]byte, 0, in.Width())
+		for index := 0; uint(index) < in.Width(); index++ {
+			node, err := GetLeaf(ctx, dag, rootCid, index, int(in.Width()))
 			require.NoError(t, err)
 			data = append(data, node.RawData()[9:])
-
 		}
-		proves, err := GetProofsForShares(_ctx, dag, rootCid, data)
+
+		proves, err := GetProofsForShares(ctx, dag, rootCid, data)
 		require.NoError(t, err)
 		for _, proof := range proves {
-			require.True(t, proof.Validate(root)) // FIX
+			require.True(t, proof.Validate(root))
 		}
 	}
 }
 
-func TestRetreiveDataFailedWithByzzError(t *testing.T) {
-	dag := mdutils.Mock()
-	eds := RandEDS(t, 2)
-	size := eds.Width()
+func TestRetrieveDataFailedWithByzantineError(t *testing.T) {
+	const width = 4
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*2)
+	defer cancel()
 
+	dag := mdutils.Mock()
+	eds := RandEDS(t, width)
 	shares := ExtractEDS(eds)
+
+	// corrupt shares so that eds erasure coding does not match
 	copy(shares[14][8:], shares[15][8:])
-	batchAdder := NewNmtNodeAdder(
-		context.Background(),
-		format.NewBatch(context.Background(),
-			dag,
-			format.MaxSizeBatchOption(int(size/2)),
-		),
-	)
-	tree := wrapper.NewErasuredNamespacedMerkleTree(uint64(size/2), nmt.NodeVisitor(batchAdder.Visit))
-	attackerEDS, _ := rsmt2d.ImportExtendedDataSquare(shares, consts.DefaultCodec(), tree.Constructor)
-	err := batchAdder.Commit()
+
+	// import corrupted eds
+	batchAdder := NewNmtNodeAdder(ctx, format.NewBatch(ctx, dag))
+	tree := wrapper.NewErasuredNamespacedMerkleTree(uint64(width), nmt.NodeVisitor(batchAdder.Visit))
+	attackerEDS, err := rsmt2d.ImportExtendedDataSquare(shares, DefaultRSMT2DCodec(), tree.Constructor)
+	require.NoError(t, err)
+	err = batchAdder.Commit()
 	require.NoError(t, err)
 
+	// ensure we rcv an error
 	da := da.NewDataAvailabilityHeader(attackerEDS)
-	r := NewRetriever(dag, consts.DefaultCodec())
-	_, err = r.Retrieve(context.Background(), &da)
+	r := NewRetriever(dag, DefaultRSMT2DCodec())
+	_, err = r.Retrieve(ctx, &da)
 	var errByz *ErrByzantine
 	require.ErrorAs(t, err, &errByz)
 }
