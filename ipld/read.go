@@ -58,7 +58,7 @@ func GetLeaves(ctx context.Context, dag ipld.NodeGetter, root cid.Cid, leaves []
 	return leaves, nil
 }
 
-// GetShare fetches and returns the data for leaf leafIndex of root rootCid.
+// GetShare fetches and returns the data for leaf `leafIndex` of root `rootCid`.
 func GetShare(
 	ctx context.Context,
 	dag ipld.NodeGetter,
@@ -233,9 +233,9 @@ func GetLeavesByNamespace(
 	return out, err
 }
 
-// leafToShare convert an NMT leaf represented in IPLD into a Share
+// leafToShare converts an NMT leaf into a Share.
 func leafToShare(nd ipld.Node) Share {
-	// * First byte represents the type fo the node, and it's unrelated to the actual share data
-	// * Additional namespace is prepended so tha parity data can be identified with a parity namespace which we cut off
+	// * First byte represents the type of the node, and is unrelated to the actual share data
+	// * Additional namespace is prepended so that parity data can be identified with a parity namespace, which we cut off
 	return nd.RawData()[1+NamespaceSize:] // TODO(@Wondertan): Rework NMT/IPLD plugin to avoid the type byte
 }

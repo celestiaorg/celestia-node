@@ -49,7 +49,7 @@ func (n *NmtNodeAdder) Visit(hash []byte, children ...[]byte) {
 	}
 }
 
-// NodeAdder return the ipld.NodeAdder originally provided to the NmtNodeAdder.
+// NodeAdder returns the ipld.NodeAdder originally provided to the NmtNodeAdder.
 func (n *NmtNodeAdder) NodeAdder() ipld.NodeAdder {
 	return n.add
 }

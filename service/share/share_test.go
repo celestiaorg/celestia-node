@@ -51,7 +51,7 @@ func TestService_GetSharesByNamespace(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		t.Run("size"+strconv.Itoa(tt.squareSize), func(t *testing.T) {
+		t.Run("size: "+strconv.Itoa(tt.squareSize), func(t *testing.T) {
 			serv, dag := RandLightService()
 			n := tt.squareSize * tt.squareSize
 			randShares := RandShares(t, n)
