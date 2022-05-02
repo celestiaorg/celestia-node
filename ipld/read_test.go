@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"crypto/sha256"
-	"errors"
 	"fmt"
 	"math"
 	"math/rand"
@@ -489,9 +488,9 @@ func TestGetProof(t *testing.T) {
 	}
 }
 
-func TestGetProves(t *testing.T) {
+func TestGetProofs(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	t.Cleanup(cancel)
 	dag := mdutils.Mock()
 
 	// generate EDS
@@ -504,7 +503,7 @@ func TestGetProves(t *testing.T) {
 
 	// limit with deadline, specifically retrieval
 	_ctx, cancel := context.WithTimeout(ctx, time.Second*2)
-	defer cancel()
+	t.Cleanup(cancel)
 	dah := da.NewDataAvailabilityHeader(in)
 	for _, root := range dah.ColumnRoots {
 		rootCid := plugin.MustCidFromNamespacedSha256(root)
@@ -515,7 +514,7 @@ func TestGetProves(t *testing.T) {
 			data = append(data, node.RawData()[9:])
 
 		}
-		proves, err := GetProvesForShares(_ctx, dag, rootCid, data)
+		proves, err := GetProofsForShares(_ctx, dag, rootCid, data)
 		require.NoError(t, err)
 		for _, proof := range proves {
 			require.True(t, proof.Validate(root)) // FIX
@@ -546,5 +545,5 @@ func TestRetreiveDataFailedWithByzzError(t *testing.T) {
 	r := NewRetriever(dag, consts.DefaultCodec())
 	_, err = r.Retrieve(context.Background(), &da)
 	var errByz *ErrByzantine
-	require.True(t, errors.As(err, &errByz))
+	require.ErrorAs(t, err, &errByz)
 }

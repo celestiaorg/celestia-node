@@ -40,10 +40,9 @@ func TestFraudProofValidation(t *testing.T) {
 	var errByz *ipld.ErrByzantine
 	require.True(t, errors.As(err, &errByz))
 
-	p := CreateBadEncodingProof(1, errByz)
-
 	dah := &header.ExtendedHeader{DAH: &da}
 
+	p := CreateBadEncodingProof(uint64(dah.Height), errByz)
 	err = p.Validate(dah)
 	require.NoError(t, err)
 

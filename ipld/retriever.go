@@ -52,13 +52,12 @@ func NewRetriever(dag format.DAGService, codec rsmt2d.Codec) *Retriever {
 func (r *Retriever) Retrieve(ctx context.Context, dah *da.DataAvailabilityHeader) (*rsmt2d.ExtendedDataSquare, error) {
 	ses := r.newSession(ctx, dah)
 	for _, qs := range newQuadrants(dah) {
-		// TODO: ErrByzantineRow/Col
 		for _, q := range qs {
 			eds, err := ses.retrieve(ctx, q)
 			if err == nil {
 				return eds, nil
 			}
-			if byzErr := r.handleByzantineError(ctx, dah, err); byzErr != nil {
+			if byzErr := r.checkForByzantineError(ctx, dah, err); byzErr != nil {
 				return nil, byzErr
 			}
 		}
@@ -68,7 +67,9 @@ func (r *Retriever) Retrieve(ctx context.Context, dah *da.DataAvailabilityHeader
 	return nil, format.ErrNotFound
 }
 
-func (r *Retriever) handleByzantineError(
+// checkForByzantineError ensures that passed error is rsmt2d.ErrByzantineRow/Col,
+// fetches proof for every share from row or col and converts error to ErrByzantine
+func (r *Retriever) checkForByzantineError(
 	ctx context.Context,
 	dah *da.DataAvailabilityHeader,
 	byzErr error,
@@ -97,7 +98,7 @@ func (r *Retriever) handleByzantineError(
 		index = uint8(errCol.ColNumber)
 	}
 
-	sharesWithProof, err := GetProvesForShares(
+	sharesWithProof, err := GetProofsForShares(
 		ctx,
 		r.dag,
 		plugin.MustCidFromNamespacedSha256(root),

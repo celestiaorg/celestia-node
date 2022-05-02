@@ -96,6 +96,9 @@ func UnmarshalBEFP(befp *pb.BadEncoding) *BadEncodingProof {
 func (p *BadEncodingProof) Validate(header *header.ExtendedHeader) error {
 	merkleRowRoots := header.DAH.RowsRoots
 	merkleColRoots := header.DAH.ColumnRoots
+	if header.Height != int64(p.BlockHeight) {
+		return errors.New("invalid fraud proof: incorrect block height")
+	}
 	if int(p.Index) >= len(merkleRowRoots) || int(p.Index) >= len(merkleColRoots) {
 		return errors.New("invalid fraud proof: incorrect Index of bad row/col")
 	}
@@ -106,9 +109,9 @@ func (p *BadEncodingProof) Validate(header *header.ExtendedHeader) error {
 		return errors.New("invalid fraud proof: invalid shares")
 	}
 
-	roots := merkleRowRoots[p.Index]
+	root := merkleRowRoots[p.Index]
 	if !p.isRow {
-		roots = merkleColRoots[p.Index]
+		root = merkleColRoots[p.Index]
 	}
 
 	shares := make([][]byte, len(merkleRowRoots))
@@ -119,7 +122,7 @@ func (p *BadEncodingProof) Validate(header *header.ExtendedHeader) error {
 			continue
 		}
 		shares[index] = share.Share
-		if ok := share.Validate(roots); !ok {
+		if ok := share.Validate(root); !ok {
 			return fmt.Errorf("invalid fraud proof: incorrect share received at Index %d", index)
 		}
 	}

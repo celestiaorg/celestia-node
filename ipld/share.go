@@ -58,9 +58,13 @@ func (ns NamespacedShares) Raw() [][]byte {
 	return res
 }
 
+// NamespacedShareWithProof contains data with corresponding Merkle Proof
 type NamespacedShareWithProof struct {
+	// ID is a share namespace
 	ID namespace.ID
+	// Share is a full data including namespace
 	Share
+	// Proof is a Merkle Proof of current share
 	Proof *nmt.Proof
 }
 
@@ -68,8 +72,8 @@ type NamespacedShareWithProof struct {
 // and computes the nmt.Proof for it.
 func NewShareWithProof(index int, leaf []byte, pathToLeaf []cid.Cid) *NamespacedShareWithProof {
 	rangeProofs := make([][]byte, 0)
-	for idx := len(pathToLeaf) - 1; idx >= 0; idx-- {
-		node := plugin.NamespacedSha256FromCID(pathToLeaf[idx])
+	for i := len(pathToLeaf) - 1; i >= 0; i-- {
+		node := plugin.NamespacedSha256FromCID(pathToLeaf[i])
 		rangeProofs = append(rangeProofs, node)
 	}
 

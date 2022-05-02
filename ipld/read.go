@@ -13,6 +13,8 @@ import (
 	"github.com/celestiaorg/nmt/namespace"
 )
 
+// ErrByzantine is an error converted from rsmt2d.ByzantineRow/Col +
+// Merkle Proof of each share.
 type ErrByzantine struct {
 	Index  uint8
 	Shares []*NamespacedShareWithProof
@@ -100,9 +102,9 @@ func GetLeaf(ctx context.Context, dag ipld.NodeGetter, root cid.Cid, leaf, total
 	return GetLeaf(ctx, dag, root, leaf, total)
 }
 
-// GetProvesForShares fetches Merkle proofs for the given shares
+// GetProofsForShares fetches Merkle proofs for the given shares
 // and returns the result as an array of NamespacedShareWithProof.
-func GetProvesForShares(
+func GetProofsForShares(
 	ctx context.Context,
 	dag ipld.NodeGetter,
 	root cid.Cid,
