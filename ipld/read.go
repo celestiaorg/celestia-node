@@ -100,7 +100,7 @@ func GetLeaf(ctx context.Context, dag ipld.NodeGetter, root cid.Cid, leaf, total
 	return GetLeaf(ctx, dag, root, leaf, total)
 }
 
-// GetProvesForShares fetches Merkle Proof for shares range and converts it to NamespacedShareWithProof
+// GetProvesForShares fetches Merkle proofs for the given shares and returns the result as an array of NamespacedShareWithProof.
 func GetProvesForShares(
 	ctx context.Context,
 	dag ipld.NodeGetter,

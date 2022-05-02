@@ -64,8 +64,8 @@ type NamespacedShareWithProof struct {
 	Proof *nmt.Proof
 }
 
-// NewShareWithProof takes leaf and it's path, starting from the tree root,
-// and computes nmt.Proof for this leaf
+// NewShareWithProof takes the given leaf and its path, starting from the tree root,
+// and computes the nmt.Proof for it.
 func NewShareWithProof(index int, leaf []byte, pathToLeaf []cid.Cid) *NamespacedShareWithProof {
 	rangeProofs := make([][]byte, 0)
 	for idx := len(pathToLeaf) - 1; idx >= 0; idx-- {

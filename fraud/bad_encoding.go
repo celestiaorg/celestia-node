@@ -29,7 +29,7 @@ type BadEncodingProof struct {
 }
 
 // CreateBadEncodingProof creates a new Bad Encoding Fraud Proof that should be propagated through network
-// Fraud Proof will contain shares that did not pass the verification and appropriate to them Merkle Proofs
+// The fraud proof will contain shares that did not pass verification and their relevant Merkle proofs.
 func CreateBadEncodingProof(
 	height uint64,
 	shares *ipld.ErrByzantine,
@@ -89,8 +89,8 @@ func UnmarshalBEFP(befp *pb.BadEncoding) *BadEncodingProof {
 	}
 }
 
-// Validate ensures that Fraud Proof that was created by full node is correct.
-// Validate checks that provided Merkle Proofs are corresponded to particular shares,
+// Validate ensures that fraud proof is correct.
+// Validate checks that provided Merkle Proofs correspond to the shares,
 // rebuilds bad row or col from received shares, computes Merkle Root
 // and compares it with block's Merkle Root
 func (p *BadEncodingProof) Validate(header *header.ExtendedHeader) error {
@@ -142,9 +142,9 @@ func (p *BadEncodingProof) Validate(header *header.ExtendedHeader) error {
 	}
 
 	// comparing rebuilt Merkle Root of bad row/col with respective Merkle Root of row/col from block
-	merkleRoot := merkleColRoots[p.Index]
-	if p.isRow {
-		merkleRoot = merkleRowRoots[p.Index]
+	merkleRoot := merkleRowRoots[p.Index]
+	if !p.isRow {
+		merkleRoot = merkleColRoots[p.Index]
 	}
 
 	if bytes.Equal(tree.Root(), merkleRoot) {

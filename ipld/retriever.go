@@ -73,15 +73,19 @@ func (r *Retriever) handleByzantineError(
 	dah *da.DataAvailabilityHeader,
 	byzErr error,
 ) error {
-	var errRow *rsmt2d.ErrByzantineRow
-	var errCol *rsmt2d.ErrByzantineCol
+        var (
+           errRow *rsmt2d.ErrByzantineRow
+           errCol *rsmt2d.ErrByzantineCol
+        )
 	if !errors.As(byzErr, &errRow) && !errors.As(byzErr, &errCol) {
 		return nil
 	}
-	var errShares [][]byte
-	var root []byte
+	var (
+		errShares [][]byte
+		root      []byte
+		index     uint8
+	)
 	isRow := false
-	var index uint8
 	if errRow != nil {
 		errShares = errRow.Shares
 		root = dah.RowsRoots[errRow.RowNumber]
