@@ -14,6 +14,12 @@ import (
 	"github.com/celestiaorg/celestia-node/node/rpc"
 )
 
+const (
+	balanceEndpoint   = "/balance"
+	submitTxEndpoint  = "/submit_tx"
+	submitPFDEndpoint = "/submit_pfd"
+)
+
 var (
 	addrKey = "address"
 	txKey   = "tx"
@@ -30,28 +36,30 @@ type submitPFDRequest struct {
 }
 
 func (s *Service) RegisterEndpoints(rpc *rpc.Server) {
-	rpc.RegisterHandlerFunc("/balance", s.handleBalanceRequest, http.MethodGet)
-	rpc.RegisterHandlerFunc(fmt.Sprintf("/balance/{%s}", addrKey), s.handleBalanceForAddrRequest, http.MethodGet)
-	rpc.RegisterHandlerFunc(fmt.Sprintf("/submit_tx/{%s}", txKey), s.handleSubmitTx, http.MethodPost)
-	rpc.RegisterHandlerFunc("/submit_pfd", s.handleSubmitPFD, http.MethodPost)
+	rpc.RegisterHandlerFunc(balanceEndpoint, s.handleBalanceRequest, http.MethodGet)
+	rpc.RegisterHandlerFunc(fmt.Sprintf("%s/{%s}", balanceEndpoint, addrKey), s.handleBalanceForAddrRequest,
+		http.MethodGet)
+	rpc.RegisterHandlerFunc(fmt.Sprintf("%s/{%s}", submitTxEndpoint, txKey), s.handleSubmitTx, http.MethodPost)
+	rpc.RegisterHandlerFunc(submitPFDEndpoint, s.handleSubmitPFD, http.MethodPost)
 }
 
 func (s *Service) handleBalanceRequest(w http.ResponseWriter, r *http.Request) {
 	bal, err := s.accessor.Balance(r.Context())
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
-		log.Errorw("serving /balance request", "err", err)
+		w.Write([]byte(err.Error())) //nolint:errcheck
+		log.Errorw("serving request", "endpoint", balanceEndpoint, "err", err)
 		return
 	}
 	resp, err := json.Marshal(bal)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
-		log.Errorw("serving /balance request", "err", err)
+		log.Errorw("serving request", "endpoint", balanceEndpoint, "err", err)
 		return
 	}
 	_, err = w.Write(resp)
 	if err != nil {
-		log.Errorw("writing /balance response", "err", err)
+		log.Errorw("writing response", "endpoint", balanceEndpoint, "err", err)
 	}
 }
 
@@ -63,24 +71,26 @@ func (s *Service) handleBalanceForAddrRequest(w http.ResponseWriter, r *http.Req
 	addr, err := types.AccAddressFromBech32(addrStr)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
-		log.Errorw("getting AccAddressFromBech32", "err", err)
+		w.Write([]byte(err.Error())) //nolint:errcheck
+		log.Errorw("serving request", "endpoint", balanceEndpoint, "err", err)
 		return
 	}
 	bal, err := s.accessor.BalanceForAddress(r.Context(), addr)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
-		log.Errorw("serving /balance request", "err", err)
+		w.Write([]byte(err.Error())) //nolint:errcheck
+		log.Errorw("serving request", "endpoint", balanceEndpoint, "err", err)
 		return
 	}
 	resp, err := json.Marshal(bal)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
-		log.Errorw("serving /balance request", "err", err)
+		log.Errorw("serving request", "endpoint", balanceEndpoint, "err", err)
 		return
 	}
 	_, err = w.Write(resp)
 	if err != nil {
-		log.Errorw("writing /balance response", "err", err)
+		log.Errorw("writing response", "endpoint", balanceEndpoint, "err", err)
 	}
 }
 
@@ -90,25 +100,26 @@ func (s *Service) handleSubmitTx(w http.ResponseWriter, r *http.Request) {
 	raw, err := hex.DecodeString(txStr)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
-		log.Errorw("serving /submit_tx request", "err", err)
+		log.Errorw("serving request", "endpoint", submitTxEndpoint, "err", err)
 		return
 	}
 	// perform request
 	txResp, err := s.accessor.SubmitTx(r.Context(), raw)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
-		log.Errorw("serving /submit_tx request", "err", err)
+		w.Write([]byte(err.Error())) //nolint:errcheck
+		log.Errorw("serving request", "endpoint", submitTxEndpoint, "err", err)
 		return
 	}
 	resp, err := json.Marshal(txResp)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
-		log.Errorw("serving /submit_tx request", "err", err)
+		log.Errorw("serving request", "endpoint", submitTxEndpoint, "err", err)
 		return
 	}
 	_, err = w.Write(resp)
 	if err != nil {
-		log.Errorw("writing /balance response", "err", err)
+		log.Errorw("writing response", "endpoint", submitTxEndpoint, "err", err)
 	}
 }
 
@@ -117,7 +128,7 @@ func (s *Service) handleSubmitPFD(w http.ResponseWriter, r *http.Request) {
 	raw, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
-		log.Errorw("serving /submit_pfd request", "err", err)
+		log.Errorw("serving request", "endpoint", submitPFDEndpoint, "err", err)
 		return
 	}
 	// decode request
@@ -125,42 +136,41 @@ func (s *Service) handleSubmitPFD(w http.ResponseWriter, r *http.Request) {
 	err = json.Unmarshal(raw, req)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
-		log.Errorw("serving /submit_pfd request", "err", err)
+		log.Errorw("serving request", "endpoint", submitPFDEndpoint, "err", err)
 		return
 	}
 
 	nID, err := hex.DecodeString(req.NamespaceID)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
-		log.Errorw("serving /submit_pfd request", "err", err)
+		log.Errorw("serving request", "endpoint", submitPFDEndpoint, "err", err)
 		return
 	}
 	data, err := hex.DecodeString(req.Data)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
-		log.Errorw("serving /submit_pfd request", "err", err)
+		log.Errorw("serving request", "endpoint", submitPFDEndpoint, "err", err)
 		return
 	}
-
 	// perform request
 	txResp, err := s.accessor.SubmitPayForData(r.Context(), nID, data, req.GasLimit)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		_, werr := w.Write([]byte(err.Error()))
 		if werr != nil {
-			log.Errorw("writing /submit_pfd response", "err", werr)
+			log.Errorw("writing response", "endpoint", submitPFDEndpoint, "err", werr)
 		}
-		log.Errorw("serving /submit_pfd request", "err", err)
+		log.Errorw("serving request", "endpoint", submitPFDEndpoint, "err", err)
 		return
 	}
 	resp, err := json.Marshal(txResp)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
-		log.Errorw("serving /submit_pfd request", "err", err)
+		log.Errorw("serving request", "endpoint", submitPFDEndpoint, "err", err)
 		return
 	}
 	_, err = w.Write(resp)
 	if err != nil {
-		log.Errorw("writing /submit_pfd response", "err", err)
+		log.Errorw("writing response", "endpoint", submitPFDEndpoint, "err", err)
 	}
 }
