@@ -103,7 +103,9 @@ func (p *BadEncodingProof) Validate(header *header.ExtendedHeader) error {
 		return errors.New("invalid fraud proof: incorrect Index of bad row/col")
 	}
 	if len(merkleRowRoots) != len(merkleColRoots) {
-		return errors.New("invalid fraud proof: invalid extended header")
+		// NOTE: This should never happen as callers of this method should not feed it with a
+		// malformed extended header.
+		panic("invalid extended header: length of row and column roots do not match")
 	}
 	if len(merkleRowRoots) != len(p.Shares) || len(merkleColRoots) != len(p.Shares) {
 		return errors.New("invalid fraud proof: invalid shares")
