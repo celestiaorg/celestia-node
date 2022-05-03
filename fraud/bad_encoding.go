@@ -94,18 +94,21 @@ func UnmarshalBEFP(befp *pb.BadEncoding) *BadEncodingProof {
 // rebuilds bad row or col from received shares, computes Merkle Root
 // and compares it with block's Merkle Root.
 func (p *BadEncodingProof) Validate(header *header.ExtendedHeader) error {
-	merkleRowRoots := header.DAH.RowsRoots
-	merkleColRoots := header.DAH.ColumnRoots
 	if header.Height != int64(p.BlockHeight) {
 		return errors.New("invalid fraud proof: incorrect block height")
 	}
-	if int(p.Index) >= len(merkleRowRoots) {
-		return fmt.Errorf("invalid fraud proof: index out of bounds (%d >= %d)", int(p.Index), len(merkleRowRoots))
-	}
+	merkleRowRoots := header.DAH.RowsRoots
+	merkleColRoots := header.DAH.ColumnRoots
 	if len(merkleRowRoots) != len(merkleColRoots) {
 		// NOTE: This should never happen as callers of this method should not feed it with a
 		// malformed extended header.
-		panic("invalid extended header: length of row and column roots do not match")
+		panic(fmt.Sprintf("invalid extended header: length of row and column roots do not match. (rowRoots=%d) (colRoots=%d)",
+			len(merkleRowRoots),
+			len(merkleColRoots)),
+		)
+	}
+	if int(p.Index) >= len(merkleRowRoots) {
+		return fmt.Errorf("invalid fraud proof: index out of bounds (%d >= %d)", int(p.Index), len(merkleRowRoots))
 	}
 	if len(merkleRowRoots) != len(p.Shares) {
 		return fmt.Errorf("invalid fraud proof: incorrect number of shares %d != %d", len(p.Shares), len(merkleRowRoots))
