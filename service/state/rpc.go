@@ -4,7 +4,6 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"net/http"
 
 	"github.com/cosmos/cosmos-sdk/types"
@@ -136,16 +135,9 @@ func (s *Service) handleSubmitTx(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Service) handleSubmitPFD(w http.ResponseWriter, r *http.Request) {
-	// parse body from request
-	raw, err := ioutil.ReadAll(r.Body)
-	if err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		log.Errorw("serving request", "endpoint", submitPFDEndpoint, "err", err)
-		return
-	}
 	// decode request
-	req := new(submitPFDRequest)
-	err = json.Unmarshal(raw, req)
+	var req submitPFDRequest
+	err := json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		log.Errorw("serving request", "endpoint", submitPFDEndpoint, "err", err)
