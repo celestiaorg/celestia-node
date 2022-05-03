@@ -75,18 +75,14 @@ func (p *BadEncodingProof) UnmarshalBinary(data []byte) error {
 	if err := in.Unmarshal(data); err != nil {
 		return err
 	}
-	befp := protoToBEFP(&in)
+	befp := &BadEncodingProof{
+		BlockHeight: in.Height,
+		Shares:      ipld.ProtoToShare(in.Shares),
+	}
+
 	*p = *befp
 
 	return nil
-}
-
-// protoToBEFP converts given data to BadEncodingProof
-func protoToBEFP(befp *pb.BadEncoding) *BadEncodingProof {
-	return &BadEncodingProof{
-		BlockHeight: befp.Height,
-		Shares:      ipld.ProtoToShare(befp.Shares),
-	}
 }
 
 // Validate ensures that fraud proof is correct.

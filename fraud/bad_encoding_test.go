@@ -23,7 +23,7 @@ func TestFraudProofValidation(t *testing.T) {
 	eds := ipld.RandEDS(t, 2)
 	size := eds.Width()
 
-	shares := ipld.Flatten(eds)
+	shares := ipld.ExtractEDS(eds)
 	copy(shares[3][8:], shares[4][8:])
 	batchAdder := ipld.NewNmtNodeAdder(
 		context.Background(),

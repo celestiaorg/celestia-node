@@ -91,7 +91,7 @@ func TestBlockRecovery(t *testing.T) {
 			rowRoots := eds.RowRoots()
 			colRoots := eds.ColRoots()
 
-			flat := Flatten(eds)
+			flat := ExtractEDS(eds)
 
 			// recover a partially complete square
 			rdata := removeRandShares(flat, tc.d)
@@ -113,7 +113,7 @@ func TestBlockRecovery(t *testing.T) {
 			reds, err := rsmt2d.ImportExtendedDataSquare(rdata, rsmt2d.NewRSGF8Codec(), tree.Constructor)
 			require.NoError(t, err)
 			// check that the squares are equal
-			assert.Equal(t, Flatten(eds), Flatten(reds))
+			assert.Equal(t, ExtractEDS(eds), ExtractEDS(reds))
 		})
 	}
 }
@@ -512,7 +512,7 @@ func TestRetreiveDataFailedWithByzzError(t *testing.T) {
 	eds := RandEDS(t, 2)
 	size := eds.Width()
 
-	shares := Flatten(eds)
+	shares := ExtractEDS(eds)
 	copy(shares[14][8:], shares[15][8:])
 	batchAdder := NewNmtNodeAdder(
 		context.Background(),

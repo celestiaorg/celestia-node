@@ -87,17 +87,3 @@ func RandNamespacedShares(t *testing.T, total int) NamespacedShares {
 func sortByteArrays(src [][]byte) {
 	sort.Slice(src, func(i, j int) bool { return bytes.Compare(src[i], src[j]) < 0 })
 }
-
-// Flatten takes an EDS and extracts all shares from it
-func Flatten(eds *rsmt2d.ExtendedDataSquare) [][]byte {
-	flattenedEDSSize := eds.Width() * eds.Width()
-	out := make([][]byte, flattenedEDSSize)
-	count := 0
-	for i := uint(0); i < eds.Width(); i++ {
-		for _, share := range eds.Row(i) {
-			out[count] = share
-			count++
-		}
-	}
-	return out
-}

@@ -50,6 +50,20 @@ func ExtractODSShares(eds *rsmt2d.ExtendedDataSquare) [][]byte {
 	return origShares
 }
 
+// Flatten takes an EDS and extracts all shares from it
+func ExtractEDS(eds *rsmt2d.ExtendedDataSquare) [][]byte {
+	flattenedEDSSize := eds.Width() * eds.Width()
+	out := make([][]byte, flattenedEDSSize)
+	count := 0
+	for i := uint(0); i < eds.Width(); i++ {
+		for _, share := range eds.Row(i) {
+			out[count] = share
+			count++
+		}
+	}
+	return out
+}
+
 // batchSize calculates the amount of nodes that are generated from block of 'squareSizes'
 // to be batched in one write.
 func batchSize(squareSize int) int {
