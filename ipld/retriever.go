@@ -108,8 +108,7 @@ func (r *Retriever) checkForByzantineError(
 		return err
 	}
 
-	byz := &ErrByzantine{Index: index, Shares: sharesWithProof, IsRow: isRow}
-	return byz
+	return &ErrByzantine{Index: index, Shares: sharesWithProof, IsRow: isRow}
 }
 
 type retrieverSession struct {

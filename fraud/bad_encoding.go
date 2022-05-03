@@ -75,14 +75,14 @@ func (p *BadEncodingProof) UnmarshalBinary(data []byte) error {
 	if err := in.Unmarshal(data); err != nil {
 		return err
 	}
-	befp := UnmarshalBEFP(&in)
+	befp := protoToBEFP(&in)
 	*p = *befp
 
 	return nil
 }
 
-// UnmarshalBEFP converts given data to BadEncodingProof
-func UnmarshalBEFP(befp *pb.BadEncoding) *BadEncodingProof {
+// protoToBEFP converts given data to BadEncodingProof
+func protoToBEFP(befp *pb.BadEncoding) *BadEncodingProof {
 	return &BadEncodingProof{
 		BlockHeight: befp.Height,
 		Shares:      ipld.ProtoToShare(befp.Shares),

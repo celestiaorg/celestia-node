@@ -115,6 +115,8 @@ func GetProofsForShares(
 	for index, share := range shares {
 		if share != nil {
 			proof := make([]cid.Cid, 0)
+			// TODO(@vgonkivs): Combine GetLeafData and GetProof in one function as the are traversing the same tree.
+			// Add options that will control what data will be fetched.
 			s, err := GetLeafData(ctx, root, uint32(index), uint32(len(shares)), dag)
 			if err != nil {
 				return nil, err

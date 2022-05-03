@@ -54,8 +54,7 @@ In addition, `das.Daser`:
 1. Creates a BEFP:
 
 ```go
-// Currently we support only one fraud proof. But this enum will be extended in future with another
-// fraud proofs
+// Currently, we support only one fraud proof. But this enum will be extended in the future with other
 const (
    BadEncoding ProofType = 0
 )

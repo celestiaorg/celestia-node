@@ -91,7 +91,7 @@ func TestBlockRecovery(t *testing.T) {
 			rowRoots := eds.RowRoots()
 			colRoots := eds.ColRoots()
 
-			flat := flatten(eds)
+			flat := Flatten(eds)
 
 			// recover a partially complete square
 			rdata := removeRandShares(flat, tc.d)
@@ -113,7 +113,7 @@ func TestBlockRecovery(t *testing.T) {
 			reds, err := rsmt2d.ImportExtendedDataSquare(rdata, rsmt2d.NewRSGF8Codec(), tree.Constructor)
 			require.NoError(t, err)
 			// check that the squares are equal
-			assert.Equal(t, flatten(eds), flatten(reds))
+			assert.Equal(t, Flatten(eds), Flatten(reds))
 		})
 	}
 }
@@ -149,19 +149,6 @@ func generateRandEDS(t *testing.T, originalSquareWidth int) *rsmt2d.ExtendedData
 	eds, err := rsmt2d.ComputeExtendedDataSquare(shares, rsmt2d.NewRSGF8Codec(), tree.Constructor)
 	require.NoError(t, err)
 	return eds
-}
-
-func flatten(eds *rsmt2d.ExtendedDataSquare) [][]byte {
-	flattenedEDSSize := eds.Width() * eds.Width()
-	out := make([][]byte, flattenedEDSSize)
-	count := 0
-	for i := uint(0); i < eds.Width(); i++ {
-		for _, share := range eds.Row(i) {
-			out[count] = share
-			count++
-		}
-	}
-	return out
 }
 
 // getNmtRoot generates the nmt root of some namespaced data
@@ -525,7 +512,7 @@ func TestRetreiveDataFailedWithByzzError(t *testing.T) {
 	eds := RandEDS(t, 2)
 	size := eds.Width()
 
-	shares := flatten(eds)
+	shares := Flatten(eds)
 	copy(shares[14][8:], shares[15][8:])
 	batchAdder := NewNmtNodeAdder(
 		context.Background(),

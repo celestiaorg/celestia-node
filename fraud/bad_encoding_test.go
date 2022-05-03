@@ -23,7 +23,7 @@ func TestFraudProofValidation(t *testing.T) {
 	eds := ipld.RandEDS(t, 2)
 	size := eds.Width()
 
-	shares := flatten(eds)
+	shares := ipld.Flatten(eds)
 	copy(shares[3][8:], shares[4][8:])
 	batchAdder := ipld.NewNmtNodeAdder(
 		context.Background(),
@@ -45,18 +45,4 @@ func TestFraudProofValidation(t *testing.T) {
 	p := CreateBadEncodingProof(uint64(dah.Height), errByz)
 	err = p.Validate(dah)
 	require.NoError(t, err)
-
-}
-
-func flatten(eds *rsmt2d.ExtendedDataSquare) [][]byte {
-	flattenedEDSSize := eds.Width() * eds.Width()
-	out := make([][]byte, flattenedEDSSize)
-	count := 0
-	for i := uint(0); i < eds.Width(); i++ {
-		for _, share := range eds.Row(i) {
-			out[count] = share
-			count++
-		}
-	}
-	return out
 }
