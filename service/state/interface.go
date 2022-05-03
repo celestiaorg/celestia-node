@@ -2,6 +2,8 @@ package state
 
 import (
 	"context"
+
+	"github.com/celestiaorg/nmt/namespace"
 )
 
 // Accessor represents the behaviors necessary for a user to
@@ -12,6 +14,10 @@ type Accessor interface {
 	Start(context.Context) error
 	// Stop stops the state Accessor.
 	Stop(context.Context) error
+
+	// SubmitPayForData builds, signs and submits a PayForData transaction.
+	SubmitPayForData(ctx context.Context, nID namespace.ID, data []byte, gasLim uint64) (*TxResponse, error)
+
 	// Balance retrieves the Celestia coin balance
 	// for the node's account/signer.
 	Balance(ctx context.Context) (*Balance, error)
