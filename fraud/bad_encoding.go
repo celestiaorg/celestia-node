@@ -32,7 +32,7 @@ type BadEncodingProof struct {
 // The fraud proof will contain shares that did not pass verification and their relevant Merkle proofs.
 func CreateBadEncodingProof(
 	height uint64,
-	shares *ipld.ErrByzantine,
+	errByzantine *ipld.ErrByzantine,
 ) Proof {
 
 	return &BadEncodingProof{
@@ -99,16 +99,16 @@ func (p *BadEncodingProof) Validate(header *header.ExtendedHeader) error {
 	if header.Height != int64(p.BlockHeight) {
 		return errors.New("invalid fraud proof: incorrect block height")
 	}
-	if int(p.Index) >= len(merkleRowRoots) || int(p.Index) >= len(merkleColRoots) {
-		return errors.New("invalid fraud proof: incorrect Index of bad row/col")
+	if int(p.Index) >= len(merkleRowRoots) {
+		return fmt.Errorf("invalid fraud proof: index out of bounds (%d >= %d)", int(p.Index), len(merkleRowRoots))
 	}
 	if len(merkleRowRoots) != len(merkleColRoots) {
 		// NOTE: This should never happen as callers of this method should not feed it with a
 		// malformed extended header.
 		panic("invalid extended header: length of row and column roots do not match")
 	}
-	if len(merkleRowRoots) != len(p.Shares) || len(merkleColRoots) != len(p.Shares) {
-		return errors.New("invalid fraud proof: invalid shares")
+	if len(merkleRowRoots) != len(p.Shares) {
+		return fmt.Errorf("invalid fraud proof: incorrect number of shares %d != %d", len(p.Shares), len(merkleRowRoots))
 	}
 
 	root := merkleRowRoots[p.Index]
