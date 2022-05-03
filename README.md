@@ -67,3 +67,7 @@ celestia <node_type> start
 - [Header](./service/header/doc.go)
 - [Share](./service/share/doc.go)
 - [DAS](./das/doc.go)
+
+## Code of Conduct
+
+See our Code of Conduct [here](https://docs.celestia.org/community/coc).
