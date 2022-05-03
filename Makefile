@@ -97,7 +97,7 @@ pb-gen:
 	@echo '--> Generating protobuf'
 	@for dir in $(PB_PKGS); \
 		do for file in `find $$dir -type f -name "*.proto"`; \
-			do protoc -I=. -I=${PB_CORE}/proto/ -I=${PB_GOGO}  --gogofaster_out . $$file; \
+			do protoc -I=. -I=${PB_CORE}/proto/ -I=${PB_GOGO}  --gogofaster_out=paths=source_relative:. $$file; \
 			echo '-->' $$file; \
 		done; \
 	done;

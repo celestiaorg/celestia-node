@@ -2,14 +2,30 @@ package ipld
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/ipfs/go-cid"
 	ipld "github.com/ipfs/go-ipld-format"
 
 	"github.com/celestiaorg/celestia-node/ipld/plugin"
 	"github.com/celestiaorg/nmt"
+
 	"github.com/celestiaorg/nmt/namespace"
 )
+
+// ErrByzantine is an error converted from rsmt2d.ByzantineRow/Col +
+// Merkle Proof of each share.
+type ErrByzantine struct {
+	Index  uint8
+	Shares []*NamespacedShareWithProof
+	// TODO(@vgokivs): Change to enum type and rename to Axis after
+	// updating rsmt2d
+	IsRow bool
+}
+
+func (e *ErrByzantine) Error() string {
+	return fmt.Sprintf("byzantine error. isRow:%v, Index:%v", e.IsRow, e.Index)
+}
 
 // GetLeaves gets all the leaves under the given root. It recursively starts traversing the DAG to find all the leafs.
 // It also takes a pre-allocated slice 'leaves'.
@@ -86,6 +102,77 @@ func GetLeaf(ctx context.Context, dag ipld.NodeGetter, root cid.Cid, leaf, total
 
 	// recursively walk down through selected children
 	return GetLeaf(ctx, dag, root, leaf, total)
+}
+
+// GetProofsForShares fetches Merkle proofs for the given shares
+// and returns the result as an array of NamespacedShareWithProof.
+func GetProofsForShares(
+	ctx context.Context,
+	dag ipld.NodeGetter,
+	root cid.Cid,
+	shares [][]byte,
+) ([]*NamespacedShareWithProof, error) {
+	proofs := make([]*NamespacedShareWithProof, len(shares))
+
+	for index, share := range shares {
+		if share != nil {
+			proof := make([]cid.Cid, 0)
+			// TODO(@vgonkivs): Combine GetLeafData and GetProof in one function as the are traversing the same tree.
+			// Add options that will control what data will be fetched.
+			s, err := GetLeafData(ctx, root, uint32(index), uint32(len(shares)), dag)
+			if err != nil {
+				return nil, err
+			}
+			proof, err = GetProof(ctx, dag, root, proof, index, len(shares))
+			if err != nil {
+				return nil, err
+			}
+			proofs[index] = NewShareWithProof(index, s, proof)
+		}
+	}
+
+	return proofs, nil
+}
+
+// GetProof fetches and returns the leaf's Merkle Proof.
+// It walks down the IPLD NMT tree until it reaches the leaf and returns collected proof
+func GetProof(
+	ctx context.Context,
+	dag ipld.NodeGetter,
+	root cid.Cid,
+	proof []cid.Cid,
+	leaf, total int,
+) ([]cid.Cid, error) {
+	// request the node
+	nd, err := dag.Get(ctx, root)
+	if err != nil {
+		return nil, err
+	}
+
+	// look for links
+	lnks := nd.Links()
+	if len(lnks) == 1 {
+		p := make([]cid.Cid, len(proof))
+		copy(p, proof)
+		return p, nil
+	}
+
+	// route walk to appropriate children
+	total /= 2 // as we are using binary tree, every step decreases total leaves in a half
+	if leaf < total {
+		root = lnks[0].Cid // if target leave on the left, go with walk down the first children
+		proof = append(proof, lnks[1].Cid)
+	} else {
+		root, leaf = lnks[1].Cid, leaf-total // otherwise go down the second
+		proof, err = GetProof(ctx, dag, root, proof, leaf, total)
+		if err != nil {
+			return nil, err
+		}
+		return append(proof, lnks[0].Cid), nil
+	}
+
+	// recursively walk down through selected children
+	return GetProof(ctx, dag, root, proof, leaf, total)
 }
 
 // GetLeavesByNamespace returns all the shares from the given DataAvailabilityHeader root

@@ -3,6 +3,7 @@ package ipld
 import (
 	"context"
 	"encoding/hex"
+	"errors"
 	"sync"
 	"time"
 
@@ -13,6 +14,7 @@ import (
 	"github.com/tendermint/tendermint/pkg/da"
 	"github.com/tendermint/tendermint/pkg/wrapper"
 
+	"github.com/celestiaorg/celestia-node/ipld/plugin"
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/rsmt2d"
 )
@@ -50,17 +52,63 @@ func NewRetriever(dag format.DAGService, codec rsmt2d.Codec) *Retriever {
 func (r *Retriever) Retrieve(ctx context.Context, dah *da.DataAvailabilityHeader) (*rsmt2d.ExtendedDataSquare, error) {
 	ses := r.newSession(ctx, dah)
 	for _, qs := range newQuadrants(dah) {
-		// TODO: ErrByzantineRow/Col
 		for _, q := range qs {
 			eds, err := ses.retrieve(ctx, q)
 			if err == nil {
 				return eds, nil
+			}
+			if byzErr := r.checkForByzantineError(ctx, dah, err); byzErr != nil {
+				return nil, byzErr
 			}
 		}
 		// retry quadrants until we can reconstruct the EDS or error out
 	}
 
 	return nil, format.ErrNotFound
+}
+
+// checkForByzantineError ensures that passed error is rsmt2d.ErrByzantineRow/Col,
+// fetches proof for every share from row or col and converts error to ErrByzantine
+func (r *Retriever) checkForByzantineError(
+	ctx context.Context,
+	dah *da.DataAvailabilityHeader,
+	byzErr error,
+) error {
+	var (
+		errRow *rsmt2d.ErrByzantineRow
+		errCol *rsmt2d.ErrByzantineCol
+	)
+	if !errors.As(byzErr, &errRow) && !errors.As(byzErr, &errCol) {
+		return nil
+	}
+	var (
+		errShares [][]byte
+		root      []byte
+		index     uint8
+	)
+	isRow := false
+	if errRow != nil {
+		errShares = errRow.Shares
+		root = dah.RowsRoots[errRow.RowNumber]
+		index = uint8(errRow.RowNumber)
+		isRow = true
+	} else {
+		errShares = errCol.Shares
+		root = dah.ColumnRoots[errCol.ColNumber]
+		index = uint8(errCol.ColNumber)
+	}
+
+	sharesWithProof, err := GetProofsForShares(
+		ctx,
+		r.dag,
+		plugin.MustCidFromNamespacedSha256(root),
+		errShares,
+	)
+	if err != nil {
+		return err
+	}
+
+	return &ErrByzantine{Index: index, Shares: sharesWithProof, IsRow: isRow}
 }
 
 type retrieverSession struct {

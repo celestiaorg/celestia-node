@@ -1,0 +1,12 @@
+syntax = "proto3";
+
+package fraud.pb;
+
+import "ipld/pb/share.proto";
+
+message BadEncoding {
+  uint64 Height   = 1;
+  repeated ipld.pb.Share Shares = 2;
+  uint32 Index    = 3;
+  bool isRow    = 4;
+}

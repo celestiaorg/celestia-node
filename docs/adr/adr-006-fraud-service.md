@@ -31,15 +31,15 @@ The result of `RepairExtendedDataSquare` will be an error [`ErrByzantineRow`](ht
   - row/column numbers that do not match with the Merkle root
   - shares that were successfully repaired and verified (all correct shares).
 
-Based on `ErrByzantineRow`/`ErrByzantineCol` internal fields, we should generate [MerkleProof](https://github.com/celestiaorg/nmt/blob/e381b44f223e9ac570a8d59bbbdbb2d5a5f1ad5f/proof.go#L17) for respective verified shares from [nmt](https://github.com/celestiaorg/nmt) tree return as the `ErrBadEncoding` from `RetrieveData`. 
+Based on `ErrByzantineRow`/`ErrByzantineCol` internal fields, we should generate [MerkleProof](https://github.com/celestiaorg/nmt/blob/e381b44f223e9ac570a8d59bbbdbb2d5a5f1ad5f/proof.go#L17) for respective verified shares from [nmt](https://github.com/celestiaorg/nmt) tree return as the `ErrByzantine` from `RetrieveData`. 
 
 ```go
-type ErrBadEncoding struct {
+type ErrByzantine struct {
    // Shares contains all shares from row/col.
    // For non-nil shares MerkleProof is computed
-   Shares []*Share
-   // Position represents the number of row/col where ErrByzantineRow/ErrByzantineColl occurred.
-   Position uint8
+   Shares []*NamespacedShareWithProof
+   // Index represents the number of row/col where ErrByzantineRow/ErrByzantineColl occurred.
+   Index uint8
    isRow bool
 }
 
@@ -54,8 +54,9 @@ In addition, `das.Daser`:
 1. Creates a BEFP:
 
 ```go
+// Currently, we support only one fraud proof. But this enum will be extended in the future with other
 const (
-   BadEncoding ProofType = "BadEncoding"
+   BadEncoding ProofType = 0
 )
 
 type BadEncodingProof struct {
@@ -63,9 +64,9 @@ type BadEncodingProof struct {
    // Shares contains all shares from row/col
    // Shares that did not pass verification in rmst2d will be nil
    // For non-nil shares MerkleProofs are computed
-   Shares []*Share
-   // Position represents the number of row/col where ErrByzantineRow/ErrByzantineColl occurred
-   Position uint8
+   Shares []*NamespacedShareWithProof
+   // Index represents the number of row/col where ErrByzantineRow/ErrByzantineColl occurred
+   Index uint8
    isRow bool
 }
 ```
@@ -75,13 +76,13 @@ type BadEncodingProof struct {
 ```proto3
 
 message MerkleProof {
-  int64          total     = 1;
-  int64          index     = 2;
-  bytes          leaf_hash = 3;
-  repeated bytes aunts     = 4;
+   int64          start     = 1;
+   int64          end       = 2;
+   repeated bytes nodes     = 3;
+   bytes leaf_hash          = 4;
 }
 
-message Share {
+message ShareWithProof {
    bytes Share = 1;
    MerkleProof Proof = 2;
 }
@@ -89,7 +90,7 @@ message Share {
 message BadEnconding {
    required uint64 Height = 1;
    repeated Share Shares = 2;
-   uint8 Position = 3;
+   uint8 Index = 3;
    bool isRow = 4;
 }
 ```
@@ -106,7 +107,7 @@ type Broadcaster interface {
 
 ```go
 // ProofType is a enum type that represents a particular type of fraud proof.
-type ProofType string
+type ProofType int
 
 // Proof is a generic interface that will be used for all types of fraud proofs in the network.
 type Proof interface {
@@ -163,7 +164,7 @@ func(s *FraudSub) Broadcast(ctx context.Context, p Proof) error{}
 ### BEFP verification
 Once a light node receives a `BadEncodingProof` fraud proof, it should:
 * verify that Merkle proofs correspond to particular shares. If the Merkle proof does not correspond to a share, then the BEFP is not valid.
-* using `BadEncodingProof.Shares`, light node should re-construct full row or column, compute its Merkle root as in [rsmt2d](https://github.com/celestiaorg/rsmt2d/blob/ac0f1e1a51bf7b5420965fb7c35fa32a56e02292/extendeddatacrossword.go#L410) and compare it with Merkle root that could be retrieved from the `DataAvailabilityHeader` inside the `ExtendedHeader`. If Merkle roots do not match, then the BEFP is not valid.
+* using `BadEncodingProof.Shares`, light node should re-construct full row or column, compute its Merkle root as in [rsmt2d](https://github.com/celestiaorg/rsmt2d/blob/ac0f1e1a51bf7b5420965fb7c35fa32a56e02292/extendeddatacrossword.go#L410) and compare it with Merkle root that could be retrieved from the `DataAvailabilityHeader` inside the `ExtendedHeader`. If Merkle roots match, then the BEFP is not valid.
 
 3. All celestia-nodes should stop some dependent services upon receiving a legitimate BEFP:
 Both full and light nodes should stop `DAS`, `Syncer` and `SubmitTx` services.

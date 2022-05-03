@@ -21,6 +21,7 @@ import (
 	mdutils "github.com/ipfs/go-merkledag/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/tendermint/tendermint/pkg/consts"
 	"github.com/tendermint/tendermint/pkg/da"
 	"github.com/tendermint/tendermint/pkg/wrapper"
 
@@ -90,7 +91,7 @@ func TestBlockRecovery(t *testing.T) {
 			rowRoots := eds.RowRoots()
 			colRoots := eds.ColRoots()
 
-			flat := flatten(eds)
+			flat := ExtractEDS(eds)
 
 			// recover a partially complete square
 			rdata := removeRandShares(flat, tc.d)
@@ -112,7 +113,7 @@ func TestBlockRecovery(t *testing.T) {
 			reds, err := rsmt2d.ImportExtendedDataSquare(rdata, rsmt2d.NewRSGF8Codec(), tree.Constructor)
 			require.NoError(t, err)
 			// check that the squares are equal
-			assert.Equal(t, flatten(eds), flatten(reds))
+			assert.Equal(t, ExtractEDS(eds), ExtractEDS(reds))
 		})
 	}
 }
@@ -148,19 +149,6 @@ func generateRandEDS(t *testing.T, originalSquareWidth int) *rsmt2d.ExtendedData
 	eds, err := rsmt2d.ComputeExtendedDataSquare(shares, rsmt2d.NewRSGF8Codec(), tree.Constructor)
 	require.NoError(t, err)
 	return eds
-}
-
-func flatten(eds *rsmt2d.ExtendedDataSquare) [][]byte {
-	flattenedEDSSize := eds.Width() * eds.Width()
-	out := make([][]byte, flattenedEDSSize)
-	count := 0
-	for i := uint(0); i < eds.Width(); i++ {
-		for _, share := range eds.Row(i) {
-			out[count] = share
-			count++
-		}
-	}
-	return out
 }
 
 // getNmtRoot generates the nmt root of some namespaced data
@@ -440,4 +428,107 @@ func generateRandNamespacedRawData(total, nidSize, leafSize uint32) [][]byte {
 	}
 
 	return data
+}
+
+func TestGetProof(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	dag := mdutils.Mock()
+
+	// generate EDS
+	eds := generateRandEDS(t, 2)
+	width := eds.Width()
+	shares := ExtractODSShares(eds)
+
+	in, err := PutData(ctx, shares, dag)
+	require.NoError(t, err)
+
+	// limit with deadline, specifically retrieval
+	_ctx, cancel := context.WithTimeout(ctx, time.Second*2)
+	defer cancel()
+	dah := da.NewDataAvailabilityHeader(in)
+	var tests = []struct {
+		roots [][]byte
+	}{
+		{dah.RowsRoots},
+		{dah.ColumnRoots},
+	}
+
+	for i, tt := range tests {
+		t.Run(strconv.Itoa(i), func(t *testing.T) {
+			for _, root := range tt.roots {
+				rootCid := plugin.MustCidFromNamespacedSha256(root)
+				for index := 0; uint(index) < width; index++ {
+					proof := make([]cid.Cid, 0)
+					proof, err = GetProof(_ctx, dag, rootCid, proof, index, int(width))
+					require.NoError(t, err)
+					node, err := GetLeaf(ctx, dag, rootCid, index, int(width))
+					require.NoError(t, err)
+					data := node.RawData()[1:]
+					inclusion := NewShareWithProof(index, data, proof)
+					require.True(t, inclusion.Validate(root))
+				}
+			}
+		})
+	}
+}
+
+func TestGetProofs(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(cancel)
+	dag := mdutils.Mock()
+
+	// generate EDS
+	eds := generateRandEDS(t, 2)
+	width := eds.Width()
+	shares := ExtractODSShares(eds)
+
+	in, err := PutData(ctx, shares, dag)
+	require.NoError(t, err)
+
+	// limit with deadline, specifically retrieval
+	_ctx, cancel := context.WithTimeout(ctx, time.Second*2)
+	t.Cleanup(cancel)
+	dah := da.NewDataAvailabilityHeader(in)
+	for _, root := range dah.ColumnRoots {
+		rootCid := plugin.MustCidFromNamespacedSha256(root)
+		data := make([][]byte, 0, width)
+		for index := 0; uint(index) < width; index++ {
+			node, err := GetLeaf(_ctx, dag, rootCid, index, int(width))
+			require.NoError(t, err)
+			data = append(data, node.RawData()[9:])
+
+		}
+		proves, err := GetProofsForShares(_ctx, dag, rootCid, data)
+		require.NoError(t, err)
+		for _, proof := range proves {
+			require.True(t, proof.Validate(root)) // FIX
+		}
+	}
+}
+
+func TestRetreiveDataFailedWithByzzError(t *testing.T) {
+	dag := mdutils.Mock()
+	eds := RandEDS(t, 2)
+	size := eds.Width()
+
+	shares := ExtractEDS(eds)
+	copy(shares[14][8:], shares[15][8:])
+	batchAdder := NewNmtNodeAdder(
+		context.Background(),
+		format.NewBatch(context.Background(),
+			dag,
+			format.MaxSizeBatchOption(int(size/2)),
+		),
+	)
+	tree := wrapper.NewErasuredNamespacedMerkleTree(uint64(size/2), nmt.NodeVisitor(batchAdder.Visit))
+	attackerEDS, _ := rsmt2d.ImportExtendedDataSquare(shares, consts.DefaultCodec(), tree.Constructor)
+	err := batchAdder.Commit()
+	require.NoError(t, err)
+
+	da := da.NewDataAvailabilityHeader(attackerEDS)
+	r := NewRetriever(dag, consts.DefaultCodec())
+	_, err = r.Retrieve(context.Background(), &da)
+	var errByz *ErrByzantine
+	require.ErrorAs(t, err, &errByz)
 }
