@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"crypto/sha256"
-	"fmt"
 	"math"
 	"math/rand"
 	"strconv"
@@ -473,7 +472,6 @@ func TestGetProof(t *testing.T) {
 			for _, root := range tt.roots {
 				rootCid := plugin.MustCidFromNamespacedSha256(root)
 				for index := 0; uint(index) < width; index++ {
-					fmt.Println(index)
 					proof := make([]cid.Cid, 0)
 					proof, err = GetProof(_ctx, dag, rootCid, proof, index, int(width))
 					require.NoError(t, err)

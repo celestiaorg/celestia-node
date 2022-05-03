@@ -92,7 +92,7 @@ func UnmarshalBEFP(befp *pb.BadEncoding) *BadEncodingProof {
 // Validate ensures that fraud proof is correct.
 // Validate checks that provided Merkle Proofs correspond to the shares,
 // rebuilds bad row or col from received shares, computes Merkle Root
-// and compares it with block's Merkle Root
+// and compares it with block's Merkle Root.
 func (p *BadEncodingProof) Validate(header *header.ExtendedHeader) error {
 	merkleRowRoots := header.DAH.RowsRoots
 	merkleColRoots := header.DAH.ColumnRoots

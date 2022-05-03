@@ -31,15 +31,15 @@ The result of `RepairExtendedDataSquare` will be an error [`ErrByzantineRow`](ht
   - row/column numbers that do not match with the Merkle root
   - shares that were successfully repaired and verified (all correct shares).
 
-Based on `ErrByzantineRow`/`ErrByzantineCol` internal fields, we should generate [MerkleProof](https://github.com/celestiaorg/nmt/blob/e381b44f223e9ac570a8d59bbbdbb2d5a5f1ad5f/proof.go#L17) for respective verified shares from [nmt](https://github.com/celestiaorg/nmt) tree return as the `ErrBadEncoding` from `RetrieveData`. 
+Based on `ErrByzantineRow`/`ErrByzantineCol` internal fields, we should generate [MerkleProof](https://github.com/celestiaorg/nmt/blob/e381b44f223e9ac570a8d59bbbdbb2d5a5f1ad5f/proof.go#L17) for respective verified shares from [nmt](https://github.com/celestiaorg/nmt) tree return as the `ErrByzantine` from `RetrieveData`. 
 
 ```go
-type ErrBadEncoding struct {
+type ErrByzantine struct {
    // Shares contains all shares from row/col.
    // For non-nil shares MerkleProof is computed
-   Shares []*Share
-   // Position represents the number of row/col where ErrByzantineRow/ErrByzantineColl occurred.
-   Position uint8
+   Shares []*NamespacedShareWithProof
+   // Index represents the number of row/col where ErrByzantineRow/ErrByzantineColl occurred.
+   Index uint8
    isRow bool
 }
 
@@ -54,6 +54,8 @@ In addition, `das.Daser`:
 1. Creates a BEFP:
 
 ```go
+// Currently we support only one fraud proof. But this enum will be extended in future with another
+// fraud proofs
 const (
    BadEncoding ProofType = 0
 )
@@ -63,9 +65,9 @@ type BadEncodingProof struct {
    // Shares contains all shares from row/col
    // Shares that did not pass verification in rmst2d will be nil
    // For non-nil shares MerkleProofs are computed
-   Shares []*Share
-   // Position represents the number of row/col where ErrByzantineRow/ErrByzantineColl occurred
-   Position uint8
+   Shares []*NamespacedShareWithProof
+   // Index represents the number of row/col where ErrByzantineRow/ErrByzantineColl occurred
+   Index uint8
    isRow bool
 }
 ```
