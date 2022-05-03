@@ -47,7 +47,10 @@ func (s *Service) handleBalanceRequest(w http.ResponseWriter, r *http.Request) {
 	bal, err := s.accessor.Balance(r.Context())
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte(err.Error())) //nolint:errcheck
+		_, werr := w.Write([]byte(err.Error()))
+		if werr != nil {
+			log.Errorw("writing response", "endpoint", balanceEndpoint, "err", werr)
+		}
 		log.Errorw("serving request", "endpoint", balanceEndpoint, "err", err)
 		return
 	}
@@ -71,14 +74,20 @@ func (s *Service) handleBalanceForAddrRequest(w http.ResponseWriter, r *http.Req
 	addr, err := types.AccAddressFromBech32(addrStr)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
-		w.Write([]byte(err.Error())) //nolint:errcheck
+		_, werr := w.Write([]byte(err.Error()))
+		if werr != nil {
+			log.Errorw("writing response", "endpoint", balanceEndpoint, "err", werr)
+		}
 		log.Errorw("serving request", "endpoint", balanceEndpoint, "err", err)
 		return
 	}
 	bal, err := s.accessor.BalanceForAddress(r.Context(), addr)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte(err.Error())) //nolint:errcheck
+		_, werr := w.Write([]byte(err.Error()))
+		if werr != nil {
+			log.Errorw("writing response", "endpoint", balanceEndpoint, "err", werr)
+		}
 		log.Errorw("serving request", "endpoint", balanceEndpoint, "err", err)
 		return
 	}
@@ -107,7 +116,10 @@ func (s *Service) handleSubmitTx(w http.ResponseWriter, r *http.Request) {
 	txResp, err := s.accessor.SubmitTx(r.Context(), raw)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte(err.Error())) //nolint:errcheck
+		_, werr := w.Write([]byte(err.Error()))
+		if werr != nil {
+			log.Errorw("writing response", "endpoint", submitTxEndpoint, "err", werr)
+		}
 		log.Errorw("serving request", "endpoint", submitTxEndpoint, "err", err)
 		return
 	}
