@@ -18,7 +18,9 @@ import (
 type ErrByzantine struct {
 	Index  uint8
 	Shares []*NamespacedShareWithProof
-	IsRow  bool
+	// TODO(@vgokivs): Change to enum type and rename to Axis after
+	// updating rsmt2d
+	IsRow bool
 }
 
 func (e *ErrByzantine) Error() string {
