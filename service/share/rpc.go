@@ -3,7 +3,6 @@ package share
 import (
 	"encoding/hex"
 	"encoding/json"
-	"io/ioutil"
 	"net/http"
 
 	"github.com/celestiaorg/celestia-node/node/rpc"
@@ -23,58 +22,54 @@ func (s *service) RegisterEndpoints(rpc *rpc.Server) {
 }
 
 func (s *service) handleSharesByNamespaceRequest(w http.ResponseWriter, r *http.Request) {
-	// parse payload from request
-	buf, err := ioutil.ReadAll(r.Body)
-	if err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		log.Errorf("serving %s request: %s", namespacedSharesEndpoint, err.Error())
-		return
-	}
 	// unmarshal payload
 	var req sharesByNamespaceRequest
-	err = json.Unmarshal(buf, &req)
+	err := json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
-		log.Errorf("serving %s request: %s", namespacedSharesEndpoint, err.Error())
+		log.Errorw("serving request", "endpoint", namespacedSharesEndpoint, "err", err)
 		return
 	}
 	// decode namespaceID
 	nID, err := hex.DecodeString(req.NamespaceID)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
-		log.Errorf("serving %s request: %s", namespacedSharesEndpoint, err.Error())
+		log.Errorw("serving request", "endpoint", namespacedSharesEndpoint, "err", err)
 		return
 	}
 	// decode and unmarshal root
 	rawRoot, err := hex.DecodeString(req.Root)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
-		log.Errorf("serving %s request: %s", namespacedSharesEndpoint, err.Error())
+		log.Errorw("serving request", "endpoint", namespacedSharesEndpoint, "err", err)
 		return
 	}
 	var root Root
 	err = json.Unmarshal(rawRoot, &root)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
-		log.Errorf("serving %s request: %s", namespacedSharesEndpoint, err.Error())
+		log.Errorw("serving request", "endpoint", namespacedSharesEndpoint, "err", err)
 		return
 	}
 	// perform request
 	shares, err := s.GetSharesByNamespace(r.Context(), &root, nID)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte(err.Error())) //nolint:errcheck
-		log.Errorf("serving %s request: %s", namespacedSharesEndpoint, err.Error())
+		_, werr := w.Write([]byte(err.Error()))
+		if werr != nil {
+			log.Errorw("writing response", "endpoint", namespacedSharesEndpoint, "err", werr)
+		}
+		log.Errorw("serving request", "endpoint", namespacedSharesEndpoint, "err", err)
 		return
 	}
 	resp, err := json.Marshal(shares)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
-		log.Errorf("serving %s request: %s", namespacedSharesEndpoint, err.Error())
+		log.Errorw("serving request", "endpoint", namespacedSharesEndpoint, "err", err)
 		return
 	}
 	_, err = w.Write(resp)
 	if err != nil {
-		log.Errorf("serving %s request: %s", namespacedSharesEndpoint, err.Error())
+		log.Errorw("serving request", "endpoint", namespacedSharesEndpoint, "err", err)
 	}
 }
