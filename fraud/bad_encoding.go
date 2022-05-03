@@ -37,9 +37,9 @@ func CreateBadEncodingProof(
 
 	return &BadEncodingProof{
 		BlockHeight: height,
-		Shares:      shares.Shares,
-		isRow:       shares.IsRow,
-		Index:       shares.Index,
+		Shares:      errByzantine.Shares,
+		isRow:       errByzantine.IsRow,
+		Index:       errByzantine.Index,
 	}
 }
 
@@ -147,12 +147,7 @@ func (p *BadEncodingProof) Validate(header *header.ExtendedHeader) error {
 	}
 
 	// comparing rebuilt Merkle Root of bad row/col with respective Merkle Root of row/col from block
-	merkleRoot := merkleRowRoots[p.Index]
-	if !p.isRow {
-		merkleRoot = merkleColRoots[p.Index]
-	}
-
-	if bytes.Equal(tree.Root(), merkleRoot) {
+	if bytes.Equal(tree.Root(), root) {
 		return errors.New("invalid fraud proof: recomputed Merkle root matches the header's row/column root")
 	}
 
