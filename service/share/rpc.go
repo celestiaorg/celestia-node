@@ -14,7 +14,7 @@ const namespacedSharesEndpoint = "/namespaced_shares"
 // request payload
 type sharesByNamespaceRequest struct {
 	NamespaceID string `json:"namespace_id"`
-	Root        string `json:"root"`
+	DAH         string `json:"dah"`
 }
 
 func (s *service) RegisterEndpoints(rpc *rpc.Server) {
@@ -38,7 +38,7 @@ func (s *service) handleSharesByNamespaceRequest(w http.ResponseWriter, r *http.
 		return
 	}
 	// decode and unmarshal root
-	rawRoot, err := hex.DecodeString(req.Root)
+	rawRoot, err := hex.DecodeString(req.DAH)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		log.Errorw("serving request", "endpoint", namespacedSharesEndpoint, "err", err)
