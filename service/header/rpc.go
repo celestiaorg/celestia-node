@@ -21,6 +21,10 @@ var (
 	rpcHeightKey = "height"
 )
 
+type dahResponse struct {
+	DAH string `json:"dah"`
+}
+
 func (s *Service) RegisterEndpoints(rpc *rpc.Server) {
 	rpc.RegisterHandlerFunc(fmt.Sprintf("%s/{%s}", headerByHeightEndpoint, rpcHeightKey), s.handleHeaderRequest,
 		http.MethodGet)
@@ -61,8 +65,16 @@ func (s *Service) handleRootRequest(w http.ResponseWriter, r *http.Request) {
 		log.Errorw("serving request", "endpoint", dahByHeightEndpoint, "err", err)
 		return
 	}
-	// write response as hex
-	_, err = w.Write([]byte(hex.EncodeToString(resp)))
+	// write response
+	dahResp, err := json.Marshal(&dahResponse{
+		DAH: hex.EncodeToString(resp),
+	})
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		log.Errorw("serving request", "endpoint", dahByHeightEndpoint, "err", err)
+		return
+	}
+	_, err = w.Write(dahResp)
 	if err != nil {
 		log.Errorw("writing response", "endpoint", dahByHeightEndpoint, "err", err)
 		return
