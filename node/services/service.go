@@ -51,8 +51,9 @@ func HeaderService(
 	sub header.Subscriber,
 	p2pServer *header.P2PExchangeServer,
 	ex header.Exchange,
+	rpc *rpc.Server,
 ) *header.Service {
-	return header.NewHeaderService(syncer, sub, p2pServer, ex)
+	return header.NewHeaderService(syncer, sub, p2pServer, ex, rpc)
 }
 
 // HeaderExchangeP2P constructs new P2PExchange for headers.

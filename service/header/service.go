@@ -4,6 +4,8 @@ import (
 	"context"
 
 	logging "github.com/ipfs/go-log/v2"
+
+	"github.com/celestiaorg/celestia-node/node/rpc"
 )
 
 var log = logging.Logger("header")
@@ -24,13 +26,17 @@ func NewHeaderService(
 	syncer *Syncer,
 	sub Subscriber,
 	p2pServer *P2PExchangeServer,
-	ex Exchange) *Service {
-	return &Service{
+	ex Exchange,
+	rpc *rpc.Server,
+) *Service {
+	serv := &Service{
 		syncer:    syncer,
 		sub:       sub,
 		p2pServer: p2pServer,
 		ex:        ex,
 	}
+	serv.RegisterEndpoints(rpc)
+	return serv
 }
 
 // Start starts the header Service.
