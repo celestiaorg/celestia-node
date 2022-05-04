@@ -14,7 +14,7 @@ import (
 
 const (
 	headerByHeightEndpoint = "/header"
-	rootByHeightEndpoint   = "/root"
+	dahByHeightEndpoint    = "/dah"
 )
 
 var (
@@ -24,7 +24,7 @@ var (
 func (s *Service) RegisterEndpoints(rpc *rpc.Server) {
 	rpc.RegisterHandlerFunc(fmt.Sprintf("%s/{%s}", headerByHeightEndpoint, rpcHeightKey), s.handleHeaderRequest,
 		http.MethodGet)
-	rpc.RegisterHandlerFunc(fmt.Sprintf("%s/{%s}", rootByHeightEndpoint, rpcHeightKey), s.handleRootRequest,
+	rpc.RegisterHandlerFunc(fmt.Sprintf("%s/{%s}", dahByHeightEndpoint, rpcHeightKey), s.handleRootRequest,
 		http.MethodGet)
 }
 
@@ -49,7 +49,7 @@ func (s *Service) handleHeaderRequest(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Service) handleRootRequest(w http.ResponseWriter, r *http.Request) {
-	header, err := s.performGetHeaderRequest(w, r, rootByHeightEndpoint)
+	header, err := s.performGetHeaderRequest(w, r, dahByHeightEndpoint)
 	if err != nil {
 		// return here as we've already logged and written the error
 		return
@@ -58,13 +58,13 @@ func (s *Service) handleRootRequest(w http.ResponseWriter, r *http.Request) {
 	resp, err := json.Marshal(header.DAH)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
-		log.Errorw("serving request", "endpoint", rootByHeightEndpoint, "err", err)
+		log.Errorw("serving request", "endpoint", dahByHeightEndpoint, "err", err)
 		return
 	}
 	// write response as hex
 	_, err = w.Write([]byte(hex.EncodeToString(resp)))
 	if err != nil {
-		log.Errorw("writing response", "endpoint", rootByHeightEndpoint, "err", err)
+		log.Errorw("writing response", "endpoint", dahByHeightEndpoint, "err", err)
 		return
 	}
 }
