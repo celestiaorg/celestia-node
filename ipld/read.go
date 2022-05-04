@@ -192,11 +192,8 @@ func GetSharesByNamespace(
 	return shares, nil
 }
 
-// ErrNotFoundInRange is returned when namespace.ID is not found under the root.
-var ErrNotFoundInRange = fmt.Errorf("ipld: namespace.ID not found in range")
-
-// GetLeavesByNamespace returns all the leaves from the given root
-// with the given namespace.ID.
+// GetLeavesByNamespace returns all the leaves from the given root with the given namespace.ID.
+// If nothing is found it returns both data and err as nil.
 func GetLeavesByNamespace(
 	ctx context.Context,
 	dag ipld.NodeGetter,
@@ -205,7 +202,7 @@ func GetLeavesByNamespace(
 ) (out []ipld.Node, err error) {
 	rootH := plugin.NamespacedSha256FromCID(root)
 	if nID.Less(nmt.MinNamespace(rootH, nID.Size())) || !nID.LessOrEqual(nmt.MaxNamespace(rootH, nID.Size())) {
-		return nil, ErrNotFoundInRange
+		return nil, nil
 	}
 	// request the node
 	nd, err := dag.Get(ctx, root)
@@ -223,10 +220,7 @@ func GetLeavesByNamespace(
 	for _, lnk := range nd.Links() {
 		nds, err := GetLeavesByNamespace(ctx, dag, lnk.Cid, nID)
 		if err != nil {
-			if err == ErrNotFoundInRange {
-				// There is always right and left child and it is ok if one of them does not have a required nID.
-				continue
-			}
+			return out, err
 		}
 		out = append(out, nds...)
 	}
