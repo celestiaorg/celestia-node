@@ -63,9 +63,14 @@ func NewShareWithProof(index int, share Share, pathToLeaf []cid.Cid) *ShareWithP
 	}
 }
 
-func (s *ShareWithProof) Validate(root []byte) bool {
-	// As nmt prepends NamespaceID twice, we need to pass the full data with NamespaceID in VerifyInclusion
-	return s.Proof.VerifyInclusion(sha256.New(), ShareID(s.Share), ShareData(s.Share), root)
+// Validate validates inclusion of the share under the given root CID.
+func (s *ShareWithProof) Validate(root cid.Cid) bool {
+	return s.Proof.VerifyInclusion(
+		sha256.New(), // TODO(@Wondertan): This should be defined somewhere globally
+		ShareID(s.Share),
+		ShareData(s.Share),
+		plugin.NamespacedSha256FromCID(root),
+	)
 }
 
 func (s *ShareWithProof) ShareWithProofToProto() *pb.Share {

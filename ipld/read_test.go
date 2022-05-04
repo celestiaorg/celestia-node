@@ -358,7 +358,7 @@ func TestGetProof(t *testing.T) {
 					node, err := GetLeaf(ctx, dag, rootCid, index, int(in.Width()))
 					require.NoError(t, err)
 					inclusion := NewShareWithProof(index, node.RawData()[1:], proof)
-					require.True(t, inclusion.Validate(root))
+					require.True(t, inclusion.Validate(rootCid))
 				}
 			}
 		})
@@ -388,14 +388,14 @@ func TestGetProofs(t *testing.T) {
 		proves, err := GetProofsForShares(ctx, dag, rootCid, data)
 		require.NoError(t, err)
 		for _, proof := range proves {
-			require.True(t, proof.Validate(root))
+			require.True(t, proof.Validate(rootCid))
 		}
 	}
 }
 
 func TestRetrieveDataFailedWithByzantineError(t *testing.T) {
 	const width = 4
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*2)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 	defer cancel()
 
 	dag := mdutils.Mock()

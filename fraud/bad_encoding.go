@@ -8,6 +8,8 @@ import (
 	"github.com/tendermint/tendermint/pkg/consts"
 	"github.com/tendermint/tendermint/pkg/wrapper"
 
+	"github.com/celestiaorg/celestia-node/ipld/plugin"
+
 	"github.com/celestiaorg/rsmt2d"
 
 	pb "github.com/celestiaorg/celestia-node/fraud/pb"
@@ -123,7 +125,7 @@ func (p *BadEncodingProof) Validate(header *header.ExtendedHeader) error {
 			continue
 		}
 		shares[index] = share.Share
-		if ok := share.Validate(root); !ok {
+		if ok := share.Validate(plugin.MustCidFromNamespacedSha256(root)); !ok {
 			return fmt.Errorf("invalid fraud proof: incorrect share received at Index %d", index)
 		}
 	}
