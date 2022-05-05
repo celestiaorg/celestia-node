@@ -35,7 +35,7 @@ Based on `ErrByzantineRow`/`ErrByzantineCol` internal fields, we should generate
 
 ```go
 type ErrByzantine struct {
-   // Shares contains all shares from row/col.
+   // Shares contain all shares from row/col.
    // For non-nil shares MerkleProof is computed
    Shares []*NamespacedShareWithProof
    // Index represents the number of row/col where ErrByzantineRow/ErrByzantineColl occurred.
@@ -61,7 +61,7 @@ const (
 
 type BadEncodingProof struct {
    Height uint64
-   // Shares contains all shares from row/col
+   // Shares contain all shares from row/col
    // Shares that did not pass verification in rmst2d will be nil
    // For non-nil shares MerkleProofs are computed
    Shares []*NamespacedShareWithProof
@@ -122,20 +122,20 @@ type Proof interface {
 2a. From the other side, light nodes will, by default, subscribe to the BEFP topic and verify messages received on the topic:
 
 ```go
-type proofUnmarshaller func([]byte) (Proof error)
+type proofUnmarshaler func([]byte) (Proof error)
 // Subscriber encompasses the behavior necessary to
 // subscribe/unsubscribe from new FraudProofs events from the
 // network.
 type Subscriber interface {
-   // Subscribe allows to subscribe on pub sub topic by it's type.
+   // Subscribe allows to subscribe on pub sub topic by its type.
    // Subscribe should register pub-sub validator on topic.
    Subscribe(ctx context.Context, proofType ProofType) (Subscription, error)
-   // RegisterUnmarshaller registers unmarshaller for the given ProofType.
-   // If there is no umarshaller for `ProofType`, then `Subscribe` returns an error.
-   RegisterUnmarshaller(proofType ProofType, f proofUnmarshaller) error
-   // UnregisterUnmarshaller removes unmarshaller for the given ProofType.
-   // If there is no unmarshaller for `ProofType`, then it returns an error.
-   UnregisterUnmarshaller(proofType ProofType) error{}
+   // RegisterUnmarshaler registers unmarshaler for the given ProofType.
+   // If there is no unmarshaler for `ProofType`, then `Subscribe` returns an error.
+   RegisterUnmarshaler(proofType ProofType, f proofUnmarshaler) error
+   // UnregisterUnmarshaler removes unmarshaler for the given ProofType.
+   // If there is no unmarshaler for `ProofType`, then it returns an error.
+   UnregisterUnmarshaler(proofType ProofType) error{}
 }
 ```
 
@@ -148,18 +148,18 @@ type Subscription interface {
 ```
 
 ```go
-// FraudSub implements Subscriber and Broadcaster.
-type FraudSub struct {
+// service implements Subscriber and Broadcaster.
+type service struct {
    pubsub *pubsub.PubSub
    topics map[ProofType]*pubsub.Topic
-   unmarshallers map[ProofType]proofUnmarshaller
+   unmarshalers map[ProofType]proofUnmarshaler
 }
 
-func(s *FraudSub) RegisterUnmarshaller(proofType ProofType, f proofUnmarshaller) error{}
-func(s *FraudSub) UnregisterUnmarshaller(proofType ProofType) error{}
+func(s *service) RegisterUnmarshaler(proofType ProofType, f proofUnmarshaler) error{}
+func(s *service) UnregisterUnmarshaler(proofType ProofType) error{}
 
-func(s *FraudSub) Subscribe(ctx context.Context, proofType ProofType) (Subscription, error){}
-func(s *FraudSub) Broadcast(ctx context.Context, p Proof) error{}
+func(s *service) Subscribe(ctx context.Context, proofType ProofType) (Subscription, error){}
+func(s *service) Broadcast(ctx context.Context, p Proof) error{}
 ```
 ### BEFP verification
 Once a light node receives a `BadEncodingProof` fraud proof, it should:

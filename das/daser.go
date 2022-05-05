@@ -42,8 +42,8 @@ func NewDASer(
 	da share.Availability,
 	hsub header.Subscriber,
 	getter HeaderGetter,
-	fService fraud.Service,
 	cstore datastore.Datastore,
+	fService fraud.Service,
 ) *DASer {
 	wrappedDS := wrapCheckpointStore(cstore)
 	return &DASer{
@@ -59,7 +59,7 @@ func NewDASer(
 }
 
 // Start initiates subscription for new ExtendedHeaders and spawns a sampling routine.
-func (d *DASer) Start(ctx context.Context) error {
+func (d *DASer) Start(context.Context) error {
 	if d.cancel != nil {
 		return fmt.Errorf("da: DASer already started")
 	}
@@ -80,7 +80,7 @@ func (d *DASer) Start(ctx context.Context) error {
 	d.cancel = cancel
 
 	// start listening for bad encoding fraud proof
-	go d.subscribeToBefp(ctx)
+	go d.subscribeToBefp(dasCtx)
 	// kick off catch-up routine manager
 	go d.catchUpManager(dasCtx, checkpoint)
 	// kick off sampling routine for recently received headers
@@ -263,20 +263,18 @@ func (d *DASer) catchUp(ctx context.Context, job *catchUpJob) (int64, error) {
 }
 
 func (d *DASer) subscribeToBefp(ctx context.Context) {
-	subscription, err := fraud.SubscribeToBefp(d.fService, d.getter.GetByHeight)
+	subscription, err := d.fService.Subscribe(fraud.BadEncoding)
 	if err != nil {
 		log.Errorw("failed to subscribe on bad encoding fraud proof ", err)
 		return
 	}
-
-	for {
-		// TODO @vgonkivs: stop all services
-		// At this point we have received already verified fraud proof,
-		// so there are no needs to call Validate.
-		_, err := subscription.Proof(ctx)
-		if err != nil {
-			log.Errorw("listening to fp failed, err", err)
-			return
-		}
+	log.Info("Start listening to bad encoding fraud proof")
+	// At this point we receive already verified fraud proof,
+	// so there are no needs to call Validate.
+	_, err = subscription.Proof(ctx)
+	if err != nil {
+		log.Errorw("listening to fp failed, err", err)
+		return
 	}
+	d.Stop(ctx) //nolint:errcheck
 }

@@ -9,18 +9,17 @@ import (
 
 // subscription handles Fraud Proof from the pubsub topic.
 type subscription struct {
-	topic        *pubsub.Topic
 	subscription *pubsub.Subscription
-	unmarshaller proofUnmarshaller
+	unmarshaler  proofUnmarshaler
 }
 
-func newSubscription(topic *pubsub.Topic, u proofUnmarshaller) (*subscription, error) {
+func newSubscription(topic *pubsub.Topic, u proofUnmarshaler) (*subscription, error) {
 	sub, err := topic.Subscribe()
 	if err != nil {
 		return nil, err
 	}
 
-	return &subscription{topic, sub, u}, nil
+	return &subscription{sub, u}, nil
 }
 
 func (s *subscription) Proof(ctx context.Context) (Proof, error) {
@@ -28,8 +27,12 @@ func (s *subscription) Proof(ctx context.Context) (Proof, error) {
 	if err != nil {
 		return nil, fmt.Errorf("error during listening to the next proof: %s ", err.Error())
 	}
-
-	return s.unmarshaller(data.Data)
+	proof, err := s.unmarshaler(data.Data)
+	if err != nil {
+		return nil, err
+	}
+	log.Debugw("fraud_proof", proof.Type(), " received at ", "height", proof.Height())
+	return proof, nil
 }
 
 func (s *subscription) Cancel() {

@@ -1,8 +1,13 @@
 package fraud
 
-import "context"
+import (
+	"context"
+)
 
 type Service interface {
+	Start(context.Context) error
+	Stop(context.Context) error
+
 	Subscriber
 	Broadcaster
 }
@@ -11,25 +16,25 @@ type Service interface {
 type Broadcaster interface {
 	// Broadcast takes a fraud `Proof` data structure that implements standard BinaryMarshal
 	// interface and broadcasts it to all subscribed peers.
-	Broadcast(ctx context.Context, p Proof) error
+	Broadcast(context.Context, Proof) error
 }
 
 // Subscriber encompasses the behavior necessary to
 // subscribe/unsubscribe from new FraudProofs events from the
 // network.
 type Subscriber interface {
-	// Subscribe allows to subscribe on pub sub topic by it's type.
+	// Subscribe allows to subscribe on pub sub topic by its type.
 	// Subscribe should register pub-sub validator on topic.
-	Subscribe(proofType ProofType) (Subscription, error)
-	// RegisterUnmarshaller registers unmarshaller for the given ProofType.
-	// If there is no umarshaller for `ProofType`, then `Subscribe` returns an error.
-	RegisterUnmarshaller(proofType ProofType, f proofUnmarshaller) error
-	// UnregisterUnmarshaller removes unmarshaller for the given ProofType.
-	// If there is no unmarshaller for `ProofType`, then it returns an error.
-	UnregisterUnmarshaller(proofType ProofType) error
+	Subscribe(ProofType) (Subscription, error)
+	// RegisterUnmarshaler registers unmarshaler for the given ProofType.
+	// If there is no unmarshaler for `ProofType`, then `Subscribe` returns an error.
+	RegisterUnmarshaler(ProofType, proofUnmarshaler) error
+	// UnregisterUnmarshaler removes unmarshaler for the given ProofType.
+	// If there is no unmarshaler for `ProofType`, then it returns an error.
+	UnregisterUnmarshaler(ProofType) error
 
 	// AddValidator adds internal validation to topic inside libp2p
-	AddValidator(proofType ProofType, fetcher headerFetcher) error
+	AddValidator(ProofType, Validator) error
 }
 
 // Subscription returns a valid proof if one is received on the topic.
