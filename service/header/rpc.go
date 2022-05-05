@@ -28,7 +28,7 @@ type dahResponse struct {
 func (s *Service) RegisterEndpoints(rpc *rpc.Server) {
 	rpc.RegisterHandlerFunc(fmt.Sprintf("%s/{%s}", headerByHeightEndpoint, rpcHeightKey), s.handleHeaderRequest,
 		http.MethodGet)
-	rpc.RegisterHandlerFunc(fmt.Sprintf("%s/{%s}", dahByHeightEndpoint, rpcHeightKey), s.handleRootRequest,
+	rpc.RegisterHandlerFunc(fmt.Sprintf("%s/{%s}", dahByHeightEndpoint, rpcHeightKey), s.handleDAHRequest,
 		http.MethodGet)
 }
 
@@ -52,7 +52,7 @@ func (s *Service) handleHeaderRequest(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (s *Service) handleRootRequest(w http.ResponseWriter, r *http.Request) {
+func (s *Service) handleDAHRequest(w http.ResponseWriter, r *http.Request) {
 	header, err := s.performGetHeaderRequest(w, r, dahByHeightEndpoint)
 	if err != nil {
 		// return here as we've already logged and written the error
