@@ -139,14 +139,23 @@ func DASer(
 	sub header.Subscriber,
 	hstore header.Store,
 	ds datastore.Batching,
-	pubsub *pubsub.PubSub,
+	fService fraud.Service,
 ) *das.DASer {
-	das := das.NewDASer(avail, sub, hstore, fraud.NewService(pubsub), ds)
+	das := das.NewDASer(avail, sub, hstore, ds, fService)
 	lc.Append(fx.Hook{
 		OnStart: das.Start,
 		OnStop:  das.Stop,
 	})
 	return das
+}
+
+func FraudService(lc fx.Lifecycle, sub *pubsub.PubSub, hstore header.Store) fraud.Service {
+	f := fraud.NewService(sub, hstore)
+	lc.Append(fx.Hook{
+		OnStart: f.Start,
+		OnStop:  f.Stop,
+	})
+	return f
 }
 
 // LightAvailability constructs light share availability.
