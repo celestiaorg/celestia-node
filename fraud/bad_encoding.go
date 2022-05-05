@@ -8,6 +8,8 @@ import (
 	"github.com/tendermint/tendermint/pkg/consts"
 	"github.com/tendermint/tendermint/pkg/wrapper"
 
+	"github.com/celestiaorg/celestia-node/ipld/plugin"
+
 	"github.com/celestiaorg/rsmt2d"
 
 	pb "github.com/celestiaorg/celestia-node/fraud/pb"
@@ -21,7 +23,7 @@ type BadEncodingProof struct {
 	// ShareWithProof contains all shares from row or col.
 	// Shares that did not pass verification in rmst2d will be nil.
 	// For non-nil shares MerkleProofs are computed.
-	Shares []*ipld.NamespacedShareWithProof
+	Shares []*ipld.ShareWithProof
 	// Index represents the row/col index where ErrByzantineRow/ErrByzantineColl occurred
 	Index uint8
 	// isRow shows that verification failed on row
@@ -123,7 +125,7 @@ func (p *BadEncodingProof) Validate(header *header.ExtendedHeader) error {
 			continue
 		}
 		shares[index] = share.Share
-		if ok := share.Validate(root); !ok {
+		if ok := share.Validate(plugin.MustCidFromNamespacedSha256(root)); !ok {
 			return fmt.Errorf("invalid fraud proof: incorrect share received at Index %d", index)
 		}
 	}

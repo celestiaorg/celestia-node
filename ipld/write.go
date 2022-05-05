@@ -13,8 +13,8 @@ import (
 	"github.com/tendermint/tendermint/pkg/wrapper"
 )
 
-// PutData posts erasured block data to IPFS using the provided ipld.NodeAdder.
-func PutData(ctx context.Context, shares [][]byte, adder ipld.NodeAdder) (*rsmt2d.ExtendedDataSquare, error) {
+// PutData erasures and extends shares to IPLD DAG using the provided ipld.NodeAdder.
+func PutData(ctx context.Context, shares []Share, adder ipld.NodeAdder) (*rsmt2d.ExtendedDataSquare, error) {
 	if len(shares) == 0 {
 		return nil, fmt.Errorf("empty data") // empty block is not an empty Data
 	}
@@ -25,7 +25,7 @@ func PutData(ctx context.Context, shares [][]byte, adder ipld.NodeAdder) (*rsmt2
 	// create the nmt wrapper to generate row and col commitments
 	tree := wrapper.NewErasuredNamespacedMerkleTree(uint64(squareSize), nmt.NodeVisitor(batchAdder.Visit))
 	// recompute the eds
-	eds, err := rsmt2d.ComputeExtendedDataSquare(shares, rsmt2d.NewRSGF8Codec(), tree.Constructor)
+	eds, err := rsmt2d.ComputeExtendedDataSquare(shares, DefaultRSMT2DCodec(), tree.Constructor)
 	if err != nil {
 		return nil, fmt.Errorf("failure to recompute the extended data square: %w", err)
 	}
@@ -35,10 +35,10 @@ func PutData(ctx context.Context, shares [][]byte, adder ipld.NodeAdder) (*rsmt2
 	return eds, batchAdder.Commit()
 }
 
-// ExtractODSShares returns the original shares of the given ExtendedDataSquare. This
+// ExtractODS returns the original shares of the given ExtendedDataSquare. This
 // is a helper function for circumstances where PutData must be used after the EDS has already
 // been generated.
-func ExtractODSShares(eds *rsmt2d.ExtendedDataSquare) [][]byte {
+func ExtractODS(eds *rsmt2d.ExtendedDataSquare) []Share {
 	origWidth := eds.Width() / 2
 	origShares := make([][]byte, origWidth*origWidth)
 	for i := uint(0); i < origWidth; i++ {
@@ -50,8 +50,8 @@ func ExtractODSShares(eds *rsmt2d.ExtendedDataSquare) [][]byte {
 	return origShares
 }
 
-// Flatten takes an EDS and extracts all shares from it
-func ExtractEDS(eds *rsmt2d.ExtendedDataSquare) [][]byte {
+// ExtractEDS takes an EDS and extracts all shares from it in a flattened slice(row by row).
+func ExtractEDS(eds *rsmt2d.ExtendedDataSquare) []Share {
 	flattenedEDSSize := eds.Width() * eds.Width()
 	out := make([][]byte, flattenedEDSSize)
 	count := 0

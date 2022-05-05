@@ -9,8 +9,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/tendermint/tendermint/pkg/da"
-
-	"github.com/celestiaorg/rsmt2d"
 )
 
 func TestRetriever_Retrieve(t *testing.T) {
@@ -18,7 +16,7 @@ func TestRetriever_Retrieve(t *testing.T) {
 	defer cancel()
 
 	dag := mdutils.Mock()
-	r := NewRetriever(dag, rsmt2d.NewRSGF8Codec())
+	r := NewRetriever(dag, DefaultRSMT2DCodec())
 
 	type test struct {
 		name       string
@@ -34,8 +32,8 @@ func TestRetriever_Retrieve(t *testing.T) {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			// generate EDS
-			shares := RandNamespacedShares(t, tc.squareSize*tc.squareSize)
-			in, err := PutData(ctx, shares.Raw(), dag)
+			shares := RandShares(t, tc.squareSize*tc.squareSize)
+			in, err := PutData(ctx, shares, dag)
 			require.NoError(t, err)
 
 			// limit with timeout, specifically retrieval

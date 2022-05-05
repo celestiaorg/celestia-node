@@ -6,7 +6,7 @@ import (
 	"github.com/ipfs/go-cid"
 	"github.com/tendermint/tendermint/pkg/consts"
 
-	pb "github.com/celestiaorg/celestia-node/ipld/pb"
+	"github.com/celestiaorg/celestia-node/ipld/pb"
 	"github.com/celestiaorg/celestia-node/ipld/plugin"
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/nmt/namespace"
@@ -14,54 +14,33 @@ import (
 
 const (
 	// MaxSquareSize is currently the maximum size supported for unerasured data in rsmt2d.ExtendedDataSquare.
-	MaxSquareSize = 128
-	// NamespaceSize is a system wide size for NMT namespaces.
-	// TODO(Wondertan): Should be part of IPLD/NMT plugin
-	NamespaceSize = 8
+	MaxSquareSize = consts.MaxSquareSize
+	// NamespaceSize is a system-wide size for NMT namespaces.
+	NamespaceSize = consts.NamespaceSize
+	// ShareSize is a system-wide size of a share, including both data and namespace ID
+	ShareSize = consts.ShareSize
 )
 
-// TODO(Wondertan):
-//  Currently Share prepends namespace bytes while NamespaceShare just takes a copy of namespace
-//  separating it in separate field. This is really confusing for newcomers and even for those who worked with code,
-//  but had some time off of it. Instead, we shouldn't copy(1) and likely have only one type - NamespacedShare, as we
-//  don't support shares without namespace.
+// DefaultRSMT2DCodec sets the default rsmt2d.Codec for shares.
+var DefaultRSMT2DCodec = consts.DefaultCodec
 
 // Share contains the raw share data without the corresponding namespace.
-type Share []byte
+// NOTE: Alias for the byte is chosen to keep maximal compatibility, especially with rsmt2d. Ideally, we should define
+// reusable type elsewhere and make everyone(Core, rsmt2d, ipld) to rely on it.
+type Share = []byte
 
-// TODO(Wondertan): Consider using alias to namespace.PrefixedData instead
-// NamespacedShare extends a Share with the corresponding namespace.
-type NamespacedShare struct {
-	Share
-	ID namespace.ID
+// ShareID gets the namespace ID from the share.
+func ShareID(s Share) namespace.ID {
+	return s[:NamespaceSize]
 }
 
-func (n NamespacedShare) NamespaceID() namespace.ID {
-	return n.ID
+// ShareData gets data from the share.
+func ShareData(s Share) []byte {
+	return s[NamespaceSize:]
 }
 
-func (n NamespacedShare) Data() []byte {
-	return n.Share
-}
-
-// NamespacedShares is just a list of NamespacedShare elements.
-// It can be used to extract the raw shares.
-type NamespacedShares []NamespacedShare
-
-// Raw returns the raw shares that can be fed into the erasure coding
-// library (e.g. rsmt2d).
-func (ns NamespacedShares) Raw() [][]byte {
-	res := make([][]byte, len(ns))
-	for i, nsh := range ns {
-		res[i] = nsh.Share
-	}
-	return res
-}
-
-// NamespacedShareWithProof contains data with corresponding Merkle Proof
-type NamespacedShareWithProof struct {
-	// ID is a share namespace
-	ID namespace.ID
+// ShareWithProof contains data with corresponding Merkle Proof
+type ShareWithProof struct {
 	// Share is a full data including namespace
 	Share
 	// Proof is a Merkle Proof of current share
@@ -70,29 +49,33 @@ type NamespacedShareWithProof struct {
 
 // NewShareWithProof takes the given leaf and its path, starting from the tree root,
 // and computes the nmt.Proof for it.
-func NewShareWithProof(index int, leaf []byte, pathToLeaf []cid.Cid) *NamespacedShareWithProof {
-	rangeProofs := make([][]byte, 0)
+func NewShareWithProof(index int, share Share, pathToLeaf []cid.Cid) *ShareWithProof {
+	rangeProofs := make([][]byte, 0, len(pathToLeaf))
 	for i := len(pathToLeaf) - 1; i >= 0; i-- {
 		node := plugin.NamespacedSha256FromCID(pathToLeaf[i])
 		rangeProofs = append(rangeProofs, node)
 	}
 
-	id := namespace.ID(leaf[:consts.NamespaceSize])
 	proof := nmt.NewInclusionProof(index, index+1, rangeProofs, true)
-	return &NamespacedShareWithProof{id, leaf[consts.NamespaceSize:], &proof}
+	return &ShareWithProof{
+		share,
+		&proof,
+	}
 }
 
-func (s *NamespacedShareWithProof) Validate(root []byte) bool {
-	// As nmt prepends NamespaceID twice, we need to pass the full data with NamespaceID in
-	// VerifyInclusion
-
-	return s.Proof.VerifyInclusion(sha256.New(), s.ID, s.Share, root)
+// Validate validates inclusion of the share under the given root CID.
+func (s *ShareWithProof) Validate(root cid.Cid) bool {
+	return s.Proof.VerifyInclusion(
+		sha256.New(), // TODO(@Wondertan): This should be defined somewhere globally
+		ShareID(s.Share),
+		ShareData(s.Share),
+		plugin.NamespacedSha256FromCID(root),
+	)
 }
 
-func (s *NamespacedShareWithProof) ShareWithProofToProto() *pb.Share {
+func (s *ShareWithProof) ShareWithProofToProto() *pb.Share {
 	return &pb.Share{
-		NamespaceID: s.ID,
-		Data:        s.Share,
+		Data: s.Share,
 		Proof: &pb.MerkleProof{
 			Start:    int64(s.Proof.Start()),
 			End:      int64(s.Proof.End()),
@@ -102,14 +85,11 @@ func (s *NamespacedShareWithProof) ShareWithProofToProto() *pb.Share {
 	}
 }
 
-func ProtoToShare(protoShares []*pb.Share) []*NamespacedShareWithProof {
-	shares := make([]*NamespacedShareWithProof, len(protoShares))
-	for _, share := range protoShares {
+func ProtoToShare(protoShares []*pb.Share) []*ShareWithProof {
+	shares := make([]*ShareWithProof, len(protoShares))
+	for i, share := range protoShares {
 		proof := ProtoToProof(share.Proof)
-		shares = append(
-			shares,
-			&NamespacedShareWithProof{share.NamespaceID, share.Data, &proof},
-		)
+		shares[i] = &ShareWithProof{share.Data, &proof}
 	}
 	return shares
 }

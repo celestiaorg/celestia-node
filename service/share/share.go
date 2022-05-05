@@ -11,7 +11,6 @@ import (
 	format "github.com/ipfs/go-ipld-format"
 	logging "github.com/ipfs/go-log/v2"
 	"github.com/ipfs/go-merkledag"
-	"github.com/tendermint/tendermint/pkg/consts"
 	"github.com/tendermint/tendermint/pkg/da"
 
 	"github.com/celestiaorg/celestia-node/ipld"
@@ -23,21 +22,15 @@ import (
 
 var log = logging.Logger("share")
 
-// DefaultCodec sets the default rsmt2d.Codec for shares.
-var DefaultCodec = consts.DefaultCodec
-
-// TODO(@Wondertan): We prefix real data of shares with namespaces to be able to recover them during erasure coding
-//  recovery. However, that is storage and bandwidth overhead(8 bytes per each share) which we can avoid by getting
-//  namespaces from CIDs stored in IPLD NMT Nodes, instead of encoding namespaces in erasure coding.
-//
-// TODO(@Wondertan): Ideally, Shares structure should be defined in a separate store with
-//  rsmt2d/nmt/celestia-core/celestia-node importing it. rsmt2d and nmt are already dependent on the notion of "share",
-//  so why shouldn't we have a separated and global type for it to avoid the type mess with defining own share type in
-//  each package.
-//
 // Share is a fixed-size data chunk associated with a namespace ID, whose data will be erasure-coded and committed
 // to in Namespace Merkle trees.
-type Share = namespace.PrefixedData8
+type Share = ipld.Share
+
+// GetID extracts namespace ID out of a Share.
+var GetID = ipld.ShareID
+
+// GetData extracts data out of a Share.
+var GetData = ipld.ShareData
 
 // Root represents root commitment to multiple Shares.
 // In practice, it is a commitment to all the Data in a square.
@@ -84,7 +77,7 @@ type Service interface {
 // NewService creates new basic share.Service.
 func NewService(dag format.DAGService, avail Availability) Service {
 	return &service{
-		rtrv:         ipld.NewRetriever(dag, DefaultCodec()),
+		rtrv:         ipld.NewRetriever(dag, ipld.DefaultRSMT2DCodec()),
 		Availability: avail,
 		dag:          dag,
 	}
@@ -130,15 +123,12 @@ func (s *service) Stop(context.Context) error {
 
 func (s *service) GetShare(ctx context.Context, dah *Root, row, col int) (Share, error) {
 	root, leaf := translate(dah, row, col)
-	nd, err := ipld.GetLeaf(ctx, s.dag, root, leaf, len(dah.RowsRoots))
+	nd, err := ipld.GetShare(ctx, s.dag, root, leaf, len(dah.RowsRoots))
 	if err != nil {
 		return nil, err
 	}
 
-	// we exclude one byte, as it is not part of the share, but encoding of IPLD NMT Node type.
-	// TODO(@Wondertan): There is way to understand node type indirectly,
-	//  without overhead(storing/fetching) of appending it to share.
-	return nd.RawData()[1:], nil
+	return nd, nil
 }
 
 func (s *service) GetShares(ctx context.Context, root *Root) ([][]Share, error) {
@@ -169,16 +159,16 @@ func (s *service) GetSharesByNamespace(ctx context.Context, root *Root, nID name
 		}
 	}
 	if len(rowRootCIDs) == 0 {
-		return nil, ipld.ErrNotFoundInRange
+		return nil, format.ErrNotFound
 	}
 
 	errGroup, ctx := errgroup.WithContext(ctx)
-	nodes := make([][]format.Node, len(rowRootCIDs))
+	shares := make([][]Share, len(rowRootCIDs))
 	for i, rootCID := range rowRootCIDs {
 		// shadow loop variables, to ensure correct values are captured
 		i, rootCID := i, rootCID
 		errGroup.Go(func() (err error) {
-			nodes[i], err = ipld.GetLeavesByNamespace(ctx, s.dag, rootCID, nID)
+			shares[i], err = ipld.GetSharesByNamespace(ctx, s.dag, rootCID, nID)
 			return
 		})
 	}
@@ -187,14 +177,16 @@ func (s *service) GetSharesByNamespace(ctx context.Context, root *Root, nID name
 		return nil, err
 	}
 
-	namespacedShares := make([]Share, 0)
+	// we don't know the amount of shares in the namespace, so we cannot preallocate properly
+	// TODO(@Wondertan): Consider improving encoding schema for data in the shares that will also include metadata
+	// 	with the amount of shares. If we are talking about plenty of data here, proper preallocation would make a
+	// 	difference
+	var out []Share
 	for i := 0; i < len(rowRootCIDs); i++ {
-		for _, node := range nodes[i] {
-			namespacedShares = append(namespacedShares, node.RawData()[1:])
-		}
+		out = append(out, shares[i]...)
 	}
 
-	return namespacedShares, nil
+	return out, nil
 }
 
 // translate transforms square coordinates into IPLD NMT tree path to a leaf node.

@@ -17,7 +17,7 @@ import (
 // Merkle Proof of each share.
 type ErrByzantine struct {
 	Index  uint8
-	Shares []*NamespacedShareWithProof
+	Shares []*ShareWithProof
 	// TODO(@vgokivs): Change to enum type and rename to Axis after
 	// updating rsmt2d
 	IsRow bool
@@ -58,22 +58,20 @@ func GetLeaves(ctx context.Context, dag ipld.NodeGetter, root cid.Cid, leaves []
 	return leaves, nil
 }
 
-// GetLeafData fetches and returns the data for leaf leafIndex of root rootCid.
-// It stops and returns an error if the provided context is canceled before
-// finishing
-func GetLeafData(
+// GetShare fetches and returns the data for leaf `leafIndex` of root `rootCid`.
+func GetShare(
 	ctx context.Context,
-	rootCid cid.Cid,
-	leafIndex uint32,
-	totalLeafs uint32, // this corresponds to the extended square width
 	dag ipld.NodeGetter,
-) ([]byte, error) {
-	nd, err := GetLeaf(ctx, dag, rootCid, int(leafIndex), int(totalLeafs))
+	rootCid cid.Cid,
+	leafIndex int,
+	totalLeafs int, // this corresponds to the extended square width
+) (Share, error) {
+	nd, err := GetLeaf(ctx, dag, rootCid, leafIndex, totalLeafs)
 	if err != nil {
 		return nil, err
 	}
 
-	return nd.RawData()[1:], nil
+	return leafToShare(nd), nil
 }
 
 // GetLeaf fetches and returns the raw leaf.
@@ -105,21 +103,20 @@ func GetLeaf(ctx context.Context, dag ipld.NodeGetter, root cid.Cid, leaf, total
 }
 
 // GetProofsForShares fetches Merkle proofs for the given shares
-// and returns the result as an array of NamespacedShareWithProof.
+// and returns the result as an array of ShareWithProof.
 func GetProofsForShares(
 	ctx context.Context,
 	dag ipld.NodeGetter,
 	root cid.Cid,
 	shares [][]byte,
-) ([]*NamespacedShareWithProof, error) {
-	proofs := make([]*NamespacedShareWithProof, len(shares))
-
+) ([]*ShareWithProof, error) {
+	proofs := make([]*ShareWithProof, len(shares))
 	for index, share := range shares {
 		if share != nil {
 			proof := make([]cid.Cid, 0)
 			// TODO(@vgonkivs): Combine GetLeafData and GetProof in one function as the are traversing the same tree.
 			// Add options that will control what data will be fetched.
-			s, err := GetLeafData(ctx, root, uint32(index), uint32(len(shares)), dag)
+			s, err := GetLeaf(ctx, dag, root, index, len(shares))
 			if err != nil {
 				return nil, err
 			}
@@ -127,7 +124,7 @@ func GetProofsForShares(
 			if err != nil {
 				return nil, err
 			}
-			proofs[index] = NewShareWithProof(index, s, proof)
+			proofs[index] = NewShareWithProof(index, s.RawData()[1:], proof)
 		}
 	}
 
@@ -148,7 +145,6 @@ func GetProof(
 	if err != nil {
 		return nil, err
 	}
-
 	// look for links
 	lnks := nd.Links()
 	if len(lnks) == 1 {
@@ -175,8 +171,29 @@ func GetProof(
 	return GetProof(ctx, dag, root, proof, leaf, total)
 }
 
-// GetLeavesByNamespace returns all the shares from the given DataAvailabilityHeader root
+// GetSharesByNamespace returns all the shares from the given root
 // with the given namespace.ID.
+func GetSharesByNamespace(
+	ctx context.Context,
+	dag ipld.NodeGetter,
+	root cid.Cid,
+	nID namespace.ID,
+) ([]Share, error) {
+	leaves, err := GetLeavesByNamespace(ctx, dag, root, nID)
+	if err != nil {
+		return nil, err
+	}
+
+	shares := make([]Share, len(leaves))
+	for i, leaf := range leaves {
+		shares[i] = leafToShare(leaf)
+	}
+
+	return shares, nil
+}
+
+// GetLeavesByNamespace returns all the leaves from the given root with the given namespace.ID.
+// If nothing is found it returns both data and err as nil.
 func GetLeavesByNamespace(
 	ctx context.Context,
 	dag ipld.NodeGetter,
@@ -185,7 +202,7 @@ func GetLeavesByNamespace(
 ) (out []ipld.Node, err error) {
 	rootH := plugin.NamespacedSha256FromCID(root)
 	if nID.Less(nmt.MinNamespace(rootH, nID.Size())) || !nID.LessOrEqual(nmt.MaxNamespace(rootH, nID.Size())) {
-		return nil, ErrNotFoundInRange
+		return nil, nil
 	}
 	// request the node
 	nd, err := dag.Get(ctx, root)
@@ -203,12 +220,16 @@ func GetLeavesByNamespace(
 	for _, lnk := range nd.Links() {
 		nds, err := GetLeavesByNamespace(ctx, dag, lnk.Cid, nID)
 		if err != nil {
-			if err == ErrNotFoundInRange {
-				// There is always right and left child and it is ok if one of them does not have a required nID.
-				continue
-			}
+			return out, err
 		}
 		out = append(out, nds...)
 	}
 	return out, err
+}
+
+// leafToShare converts an NMT leaf into a Share.
+func leafToShare(nd ipld.Node) Share {
+	// * First byte represents the type of the node, and is unrelated to the actual share data
+	// * Additional namespace is prepended so that parity data can be identified with a parity namespace, which we cut off
+	return nd.RawData()[1+NamespaceSize:] // TODO(@Wondertan): Rework NMT/IPLD plugin to avoid the type byte
 }

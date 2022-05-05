@@ -10,10 +10,11 @@ import (
 	"io"
 
 	blocks "github.com/ipfs/go-block-format"
-	cid "github.com/ipfs/go-cid"
+	"github.com/ipfs/go-cid"
 	ipld "github.com/ipfs/go-ipld-format"
 	mh "github.com/multiformats/go-multihash"
 	mhcore "github.com/multiformats/go-multihash/core"
+	"github.com/tendermint/tendermint/pkg/consts"
 
 	"github.com/celestiaorg/nmt"
 )
@@ -32,18 +33,8 @@ const (
 	// that contain an NMT node (inner and leaf nodes).
 	Sha256Namespace8Flagged = 0x7701
 
-	// DagParserFormatName can be used when putting into the IPLD Dag
-	DagParserFormatName = "extended-square-row-or-col"
-
-	// ShareSize system wide default size for data shares.
-	ShareSize = 256
-
-	// Repeated here to avoid a dependency to the wrapping repo as this makes
-	// it hard to compile and use the plugin against a local ipfs version.
-	// TODO: plugins have config options; make this configurable instead
-	namespaceSize = 8
 	// nmtHashSize is the size of a digest created by an NMT in bytes.
-	nmtHashSize = 2*namespaceSize + sha256.Size
+	nmtHashSize = 2*consts.NamespaceSize + sha256.Size
 
 	// mhOverhead is the size of the prepended buffer of the CID encoding
 	// for NamespacedSha256. For more information, see:
@@ -130,12 +121,12 @@ func DataSquareRowOrColumnRawInputParser(r io.Reader, _mhType uint64, _mhLen int
 
 	n := nmt.New(
 		sha256.New(),
-		nmt.NamespaceIDSize(namespaceSize),
+		nmt.NamespaceIDSize(consts.NamespaceSize),
 		nmt.NodeVisitor(collector.visit),
 	)
 
 	for {
-		namespacedLeaf := make([]byte, ShareSize+namespaceSize)
+		namespacedLeaf := make([]byte, consts.ShareSize+consts.NamespaceSize)
 		if _, err := io.ReadFull(br, namespacedLeaf); err != nil {
 			if err == io.EOF {
 				break
@@ -410,7 +401,7 @@ func CidFromNamespacedSha256(namespacedHash []byte) (cid.Cid, error) {
 	if err != nil {
 		return cid.Undef, err
 	}
-	return cid.NewCidV1(NmtCodec, mh.Multihash(buf)), nil
+	return cid.NewCidV1(NmtCodec, buf), nil
 }
 
 // MustCidFromNamespacedSha256 is a wrapper around cidFromNamespacedSha256 that panics
