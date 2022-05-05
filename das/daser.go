@@ -270,6 +270,8 @@ func (d *DASer) subscribeToBefp(ctx context.Context) {
 		log.Errorw("failed to subscribe on bad encoding fraud proof ", err)
 		return
 	}
+	defer subscription.Cancel()
+
 	log.Info("Start listening to bad encoding fraud proof")
 	// At this point we receive already verified fraud proof,
 	// so there are no needs to call Validate.
