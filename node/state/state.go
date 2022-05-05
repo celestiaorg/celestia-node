@@ -4,6 +4,7 @@ import (
 	logging "github.com/ipfs/go-log/v2"
 	"go.uber.org/fx"
 
+	"github.com/celestiaorg/celestia-node/fraud"
 	"github.com/celestiaorg/celestia-node/node/key"
 	"github.com/celestiaorg/celestia-node/service/state"
 )
@@ -21,6 +22,11 @@ func Components(coreEndpoint string, cfg key.Config) fx.Option {
 }
 
 // Service constructs a new state.Service.
-func Service(accessor state.Accessor) *state.Service {
-	return state.NewService(accessor)
+func Service(lc fx.Lifecycle, accessor state.Accessor, fService fraud.Service) *state.Service {
+	serv := state.NewService(accessor, fService)
+	lc.Append(fx.Hook{
+		OnStart: serv.Start,
+		OnStop:  serv.Stop,
+	})
+	return serv
 }

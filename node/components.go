@@ -25,7 +25,6 @@ func lightComponents(cfg *Config, store Store) fx.Option {
 	return fx.Options(
 		fx.Supply(Light),
 		baseComponents(cfg, store),
-		fx.Provide(services.FraudService),
 		fx.Invoke(services.DASer),
 		fx.Provide(services.HeaderExchangeP2P(cfg.Services)),
 		fx.Provide(services.LightAvailability),
@@ -48,7 +47,6 @@ func fullComponents(cfg *Config, store Store) fx.Option {
 	return fx.Options(
 		fx.Supply(Full),
 		baseComponents(cfg, store),
-		fx.Provide(services.FraudService),
 		fx.Provide(services.DASer),
 		fx.Provide(services.HeaderExchangeP2P(cfg.Services)),
 		fx.Provide(services.FullAvailability),
@@ -71,6 +69,7 @@ func baseComponents(cfg *Config, store Store) fx.Option {
 		fx.Provide(services.HeaderService),
 		fx.Provide(services.HeaderStore),
 		fx.Invoke(services.HeaderStoreInit(&cfg.Services)),
+		fx.Provide(services.FraudService),
 		fx.Provide(services.HeaderSyncer),
 		fxutil.ProvideAs(services.P2PSubscriber, new(header.Broadcaster), new(header.Subscriber)),
 		fx.Provide(services.HeaderP2PExchangeServer),
