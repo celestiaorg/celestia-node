@@ -37,22 +37,22 @@ func (s *service) handleSharesByNamespaceRequest(w http.ResponseWriter, r *http.
 		log.Errorw("serving request", "endpoint", namespacedSharesEndpoint, "err", err)
 		return
 	}
-	// decode and unmarshal root
-	rawRoot, err := hex.DecodeString(req.DAH)
+	// decode and unmarshal DAH
+	rawDAH, err := hex.DecodeString(req.DAH)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		log.Errorw("serving request", "endpoint", namespacedSharesEndpoint, "err", err)
 		return
 	}
-	var root Root
-	err = json.Unmarshal(rawRoot, &root)
+	var dah Root
+	err = json.Unmarshal(rawDAH, &dah)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		log.Errorw("serving request", "endpoint", namespacedSharesEndpoint, "err", err)
 		return
 	}
 	// perform request
-	shares, err := s.GetSharesByNamespace(r.Context(), &root, nID)
+	shares, err := s.GetSharesByNamespace(r.Context(), &dah, nID)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		_, werr := w.Write([]byte(err.Error()))
