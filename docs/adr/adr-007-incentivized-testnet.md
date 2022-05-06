@@ -19,8 +19,8 @@ breakdown of the individual feature requirements.
 
 ## Legend
 
-**DA node**: any node type implemented in celestia-node
-**DA network**: the p2p network of celestia-node
+- **DA node**: any node type implemented in celestia-node
+- **DA network**: the p2p network of celestia-node
 
 ## Technical Requirements
 
@@ -62,10 +62,12 @@ The full implementation of bad encoding fraud proof (BEFP) generation, propagati
 incentivized testnet. At the moment, generation and broadcasting of BEFPs is still in review.
 
 ### [Testing](https://github.com/celestiaorg/celestia-node/issues/7)
+
 One of the biggest priorities for incentivized testnet is to test a lot of the assumptions we are working under in terms
 of sampling in realistic network conditions with a variety of topologies.
 
-Among the most important test cases, the following are required: 
+Among the most important test cases, the following are required:
+
 * [Large Block Tests](https://github.com/celestiaorg/celestia-node/issues/602)
 * [Block Recovery Tests](https://github.com/celestiaorg/test-infra/issues/21)
 * [Peer Discovery Tests](https://github.com/celestiaorg/celestia-node/issues/649)
@@ -106,6 +108,4 @@ All node types must have metrics collection and tracing of hot paths implemented
 ### [Disk usage/storage optimizations](https://github.com/celestiaorg/celestia-node/issues/671)
 
 * [Badgerv3 update](https://github.com/celestiaorg/celestia-node/issues/482)
-
 * [Share and header pruning](https://github.com/celestiaorg/celestia-node/issues/272)
-
