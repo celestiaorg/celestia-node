@@ -10,7 +10,7 @@ import (
 	"github.com/celestiaorg/celestia-node/libs/fxutil"
 
 	"github.com/celestiaorg/celestia-node/core"
-	"github.com/celestiaorg/celestia-node/service/header"
+	"github.com/celestiaorg/celestia-node/header"
 )
 
 // Config combines all configuration fields for managing the relationship with a Core node.

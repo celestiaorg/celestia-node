@@ -4,27 +4,29 @@ import (
 	"context"
 
 	logging "github.com/ipfs/go-log/v2"
+
+	"github.com/celestiaorg/celestia-node/header"
 )
 
-var log = logging.Logger("header")
+var log = logging.Logger("header_service")
 
 // Service represents the header service that can be started / stopped on a node.
 // Service's main function is to manage its sub-services. Service can contain several
-// sub-services, such as Exchange, P2PExchangeServer, Syncer, and so forth.
+// sub-services, such as Exchange, header.P2PExchangeServer, Syncer, and so forth.
 type Service struct {
-	ex Exchange
+	ex header.Exchange
 
-	syncer    *Syncer
-	sub       Subscriber
-	p2pServer *P2PExchangeServer
+	syncer    *header.Syncer
+	sub       header.Subscriber
+	p2pServer *header.P2PExchangeServer
 }
 
 // NewHeaderService creates a new instance of header Service.
 func NewHeaderService(
-	syncer *Syncer,
-	sub Subscriber,
-	p2pServer *P2PExchangeServer,
-	ex Exchange) *Service {
+	syncer *header.Syncer,
+	sub header.Subscriber,
+	p2pServer *header.P2PExchangeServer,
+	ex header.Exchange) *Service {
 	return &Service{
 		syncer:    syncer,
 		sub:       sub,
@@ -47,8 +49,8 @@ func (s *Service) Stop(context.Context) error {
 
 // GetByHeight returns the ExtendedHeader at the given height, blocking
 // until header has been processed by the store or context deadline is exceeded.
-func (s *Service) GetByHeight(ctx context.Context, height uint64) (*ExtendedHeader, error) {
-	return s.syncer.store.GetByHeight(ctx, height)
+func (s *Service) GetByHeight(ctx context.Context, height uint64) (*header.ExtendedHeader, error) {
+	return s.syncer.GetByHeight(ctx, height)
 }
 
 // IsSyncing returns the status of sync

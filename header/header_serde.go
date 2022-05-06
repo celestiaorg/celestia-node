@@ -4,7 +4,7 @@ import (
 	"github.com/tendermint/tendermint/pkg/da"
 	core "github.com/tendermint/tendermint/types"
 
-	header_pb "github.com/celestiaorg/celestia-node/service/header/pb"
+	header_pb "github.com/celestiaorg/celestia-node/header/pb"
 )
 
 // MarshalExtendedHeader serializes given ExtendedHeader to bytes using protobuf.

@@ -5,6 +5,8 @@ import (
 	"context"
 	"fmt"
 
+	logging "github.com/ipfs/go-log/v2"
+
 	format "github.com/ipfs/go-ipld-format"
 	bts "github.com/tendermint/tendermint/libs/bytes"
 	"github.com/tendermint/tendermint/pkg/da"
@@ -12,8 +14,10 @@ import (
 
 	"github.com/celestiaorg/celestia-node/ipld"
 
-	header_pb "github.com/celestiaorg/celestia-node/service/header/pb"
+	header_pb "github.com/celestiaorg/celestia-node/header/pb"
 )
+
+var log = logging.Logger("header_service")
 
 type DataAvailabilityHeader = da.DataAvailabilityHeader
 

@@ -13,10 +13,11 @@ import (
 	"go.uber.org/fx"
 
 	"github.com/celestiaorg/celestia-node/das"
+	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/libs/fxutil"
 	"github.com/celestiaorg/celestia-node/node/rpc"
 	"github.com/celestiaorg/celestia-node/params"
-	"github.com/celestiaorg/celestia-node/service/header"
+	headerservice "github.com/celestiaorg/celestia-node/service/header"
 	"github.com/celestiaorg/celestia-node/service/share"
 )
 
@@ -51,8 +52,8 @@ func HeaderService(
 	sub header.Subscriber,
 	p2pServer *header.P2PExchangeServer,
 	ex header.Exchange,
-) *header.Service {
-	return header.NewHeaderService(syncer, sub, p2pServer, ex)
+) *headerservice.Service {
+	return headerservice.NewHeaderService(syncer, sub, p2pServer, ex)
 }
 
 // HeaderExchangeP2P constructs new P2PExchange for headers.

@@ -8,7 +8,7 @@ import (
 
 	tmbytes "github.com/tendermint/tendermint/libs/bytes"
 
-	pb "github.com/celestiaorg/celestia-node/service/header/pb"
+	pb "github.com/celestiaorg/celestia-node/header/pb"
 	"github.com/celestiaorg/go-libp2p-messenger/serde"
 )
 
