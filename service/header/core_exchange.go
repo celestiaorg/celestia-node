@@ -10,7 +10,7 @@ import (
 	tmbytes "github.com/tendermint/tendermint/libs/bytes"
 
 	"github.com/celestiaorg/celestia-node/core"
-	extheader "github.com/celestiaorg/celestia-node/service/header/extHeader"
+	extheader "github.com/celestiaorg/celestia-node/service/header/extheader"
 )
 
 type CoreExchange struct {
@@ -80,7 +80,9 @@ func (ce *CoreExchange) RequestHead(ctx context.Context) (*extheader.ExtendedHea
 	return ce.getExtendedHeaderByHeight(ctx, nil)
 }
 
-func (ce *CoreExchange) getExtendedHeaderByHeight(ctx context.Context, height *int64) (*extheader.ExtendedHeader, error) {
+func (ce *CoreExchange) getExtendedHeaderByHeight(
+	ctx context.Context,
+	height *int64) (*extheader.ExtendedHeader, error) {
 	b, err := ce.fetcher.GetBlock(ctx, height)
 	if err != nil {
 		return nil, err

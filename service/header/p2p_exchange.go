@@ -13,7 +13,7 @@ import (
 
 	"github.com/celestiaorg/go-libp2p-messenger/serde"
 
-	extheader "github.com/celestiaorg/celestia-node/service/header/extHeader"
+	extheader "github.com/celestiaorg/celestia-node/service/header/extheader"
 	pb "github.com/celestiaorg/celestia-node/service/header/extheader/pb"
 )
 
@@ -94,7 +94,9 @@ func (ex *P2PExchange) RequestByHash(ctx context.Context, hash tmbytes.HexBytes)
 	return headers[0], nil
 }
 
-func (ex *P2PExchange) performRequest(ctx context.Context, req *pb.ExtendedHeaderRequest) ([]*extheader.ExtendedHeader, error) {
+func (ex *P2PExchange) performRequest(
+	ctx context.Context,
+	req *pb.ExtendedHeaderRequest) ([]*extheader.ExtendedHeader, error) {
 	if req.Amount == 0 {
 		return make([]*extheader.ExtendedHeader, 0), nil
 	}

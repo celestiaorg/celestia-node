@@ -13,7 +13,7 @@ import (
 
 	tmbytes "github.com/tendermint/tendermint/libs/bytes"
 
-	extheader "github.com/celestiaorg/celestia-node/service/header/extHeader"
+	extheader "github.com/celestiaorg/celestia-node/service/header/extheader"
 	header_pb "github.com/celestiaorg/celestia-node/service/header/extheader/pb"
 	"github.com/celestiaorg/go-libp2p-messenger/serde"
 )

@@ -13,7 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/celestiaorg/celestia-node/core"
-	extheader "github.com/celestiaorg/celestia-node/service/header/extHeader"
+	extheader "github.com/celestiaorg/celestia-node/service/header/extheader"
 )
 
 // TestCoreListener tests the lifecycle of the core listener.

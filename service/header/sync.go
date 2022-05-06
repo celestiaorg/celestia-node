@@ -7,7 +7,7 @@ import (
 	"sync"
 	"time"
 
-	extheader "github.com/celestiaorg/celestia-node/service/header/extHeader"
+	extheader "github.com/celestiaorg/celestia-node/service/header/extheader"
 
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	tmbytes "github.com/tendermint/tendermint/libs/bytes"

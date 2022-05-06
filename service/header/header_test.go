@@ -2,12 +2,13 @@ package header
 
 import (
 	"context"
-	extheader "github.com/celestiaorg/celestia-node/service/header/extHeader"
 	"testing"
 
 	mdutils "github.com/ipfs/go-merkledag/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	extheader "github.com/celestiaorg/celestia-node/service/header/extheader"
 )
 
 func TestMakeExtendedHeaderForEmptyBlock(t *testing.T) {

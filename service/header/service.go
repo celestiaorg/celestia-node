@@ -3,8 +3,9 @@ package header
 import (
 	"context"
 
-	extheader "github.com/celestiaorg/celestia-node/service/header/extHeader"
 	logging "github.com/ipfs/go-log/v2"
+
+	extheader "github.com/celestiaorg/celestia-node/service/header/extheader"
 )
 
 var log = logging.Logger("header")

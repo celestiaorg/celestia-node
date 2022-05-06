@@ -9,7 +9,7 @@ import (
 	"github.com/tendermint/tendermint/types"
 
 	"github.com/celestiaorg/celestia-node/core"
-	extheader "github.com/celestiaorg/celestia-node/service/header/extHeader"
+	extheader "github.com/celestiaorg/celestia-node/service/header/extheader"
 )
 
 // CoreListener is responsible for listening to Core for

@@ -13,7 +13,7 @@ import (
 	pb "github.com/celestiaorg/celestia-node/fraud/pb"
 	"github.com/celestiaorg/celestia-node/ipld"
 	ipld_pb "github.com/celestiaorg/celestia-node/ipld/pb"
-	extheader "github.com/celestiaorg/celestia-node/service/header/extHeader"
+	extheader "github.com/celestiaorg/celestia-node/service/header/extheader"
 )
 
 type BadEncodingProof struct {

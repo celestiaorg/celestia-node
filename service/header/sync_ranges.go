@@ -3,7 +3,7 @@ package header
 import (
 	"sync"
 
-	extheader "github.com/celestiaorg/celestia-node/service/header/extHeader"
+	extheader "github.com/celestiaorg/celestia-node/service/header/extheader"
 )
 
 // ranges keeps non-overlapping and non-adjacent header ranges which are used to cache headers (in ascending order).

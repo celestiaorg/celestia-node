@@ -1,10 +1,11 @@
 package header
 
 import (
-	extheader "github.com/celestiaorg/celestia-node/service/header/extHeader"
 	lru "github.com/hashicorp/golang-lru"
 	"github.com/ipfs/go-datastore"
 	tmbytes "github.com/tendermint/tendermint/libs/bytes"
+
+	extheader "github.com/celestiaorg/celestia-node/service/header/extheader"
 )
 
 // TODO(@Wondertan): There should be a more clever way to index heights, than just storing HeightToHash pair...

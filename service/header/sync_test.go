@@ -5,10 +5,11 @@ import (
 	"testing"
 	"time"
 
-	extheader "github.com/celestiaorg/celestia-node/service/header/extHeader"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	extheader "github.com/celestiaorg/celestia-node/service/header/extheader"
 )
 
 func TestSyncSimpleRequestingHead(t *testing.T) {

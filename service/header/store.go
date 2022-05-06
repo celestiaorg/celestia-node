@@ -4,12 +4,13 @@ import (
 	"context"
 	"errors"
 
-	extheader "github.com/celestiaorg/celestia-node/service/header/extHeader"
 	lru "github.com/hashicorp/golang-lru"
 	"github.com/ipfs/go-datastore"
 	"github.com/ipfs/go-datastore/namespace"
 
 	tmbytes "github.com/tendermint/tendermint/libs/bytes"
+
+	extheader "github.com/celestiaorg/celestia-node/service/header/extheader"
 )
 
 // TODO(@Wondertan): Those values must be configurable and proper defaults should be set for specific node type.

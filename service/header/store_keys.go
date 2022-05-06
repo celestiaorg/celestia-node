@@ -3,8 +3,9 @@ package header
 import (
 	"strconv"
 
-	extheader "github.com/celestiaorg/celestia-node/service/header/extHeader"
 	"github.com/ipfs/go-datastore"
+
+	extheader "github.com/celestiaorg/celestia-node/service/header/extheader"
 )
 
 var (

@@ -2,11 +2,12 @@ package header
 
 import (
 	"context"
-	extheader "github.com/celestiaorg/celestia-node/service/header/extHeader"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
+
+	extheader "github.com/celestiaorg/celestia-node/service/header/extheader"
 )
 
 func TestHeightSub(t *testing.T) {

@@ -4,7 +4,7 @@ import (
 	"encoding"
 	"fmt"
 
-	extheader "github.com/celestiaorg/celestia-node/service/header/extHeader"
+	extheader "github.com/celestiaorg/celestia-node/service/header/extheader"
 )
 
 type ProofType int

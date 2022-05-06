@@ -6,7 +6,7 @@ import (
 	"sync"
 	"sync/atomic"
 
-	extheader "github.com/celestiaorg/celestia-node/service/header/extHeader"
+	extheader "github.com/celestiaorg/celestia-node/service/header/extheader"
 )
 
 // errElapsedHeight is thrown when a requested height was already provided to heightSub.

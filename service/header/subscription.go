@@ -3,8 +3,9 @@ package header
 import (
 	"context"
 
-	extheader "github.com/celestiaorg/celestia-node/service/header/extHeader"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
+
+	extheader "github.com/celestiaorg/celestia-node/service/header/extheader"
 )
 
 // subscription handles retrieving ExtendedHeaders from the header pubsub topic.

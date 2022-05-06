@@ -5,12 +5,13 @@ import (
 	"testing"
 	"time"
 
-	extheader "github.com/celestiaorg/celestia-node/service/header/extHeader"
 	"github.com/libp2p/go-libp2p-core/event"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	mocknet "github.com/libp2p/go-libp2p/p2p/net/mock"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	extheader "github.com/celestiaorg/celestia-node/service/header/extheader"
 )
 
 // TestSubscriber tests the header Service's implementation of Subscriber.

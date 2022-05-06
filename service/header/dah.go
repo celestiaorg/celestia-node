@@ -1,7 +1,7 @@
 package header
 
 import (
-	extheader "github.com/celestiaorg/celestia-node/service/header/extHeader"
+	extheader "github.com/celestiaorg/celestia-node/service/header/extheader"
 	"github.com/celestiaorg/rsmt2d"
 )
 

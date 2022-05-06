@@ -4,8 +4,9 @@ import (
 	"context"
 	"testing"
 
-	extheader "github.com/celestiaorg/celestia-node/service/header/extHeader"
 	"github.com/stretchr/testify/assert"
+
+	extheader "github.com/celestiaorg/celestia-node/service/header/extheader"
 )
 
 func TestSharesAvailable_Full(t *testing.T) {

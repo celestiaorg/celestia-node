@@ -3,7 +3,8 @@ package header
 import (
 	"context"
 
-	extheader "github.com/celestiaorg/celestia-node/service/header/extHeader"
+	extheader "github.com/celestiaorg/celestia-node/service/header/extheader"
+
 	"github.com/tendermint/tendermint/libs/bytes"
 )
 
@@ -35,7 +36,9 @@ func (l *LocalExchange) RequestHeader(ctx context.Context, height uint64) (*exth
 	return l.store.GetByHeight(ctx, height)
 }
 
-func (l *LocalExchange) RequestHeaders(ctx context.Context, origin, amount uint64) ([]*extheader.ExtendedHeader, error) {
+func (l *LocalExchange) RequestHeaders(
+	ctx context.Context,
+	origin, amount uint64) ([]*extheader.ExtendedHeader, error) {
 	if amount == 0 {
 		return nil, nil
 	}

@@ -13,7 +13,7 @@ import (
 	"github.com/tendermint/tendermint/pkg/wrapper"
 
 	"github.com/celestiaorg/celestia-node/ipld"
-	extheader "github.com/celestiaorg/celestia-node/service/header/extHeader"
+	extheader "github.com/celestiaorg/celestia-node/service/header/extheader"
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/rsmt2d"
 )

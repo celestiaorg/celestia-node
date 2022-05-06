@@ -3,7 +3,7 @@ package das
 import (
 	"context"
 
-	extheader "github.com/celestiaorg/celestia-node/service/header/extHeader"
+	extheader "github.com/celestiaorg/celestia-node/service/header/extheader"
 )
 
 // HeaderGetter contains the behavior necessary for the DASer to retrieve

@@ -4,11 +4,12 @@ import (
 	"context"
 	"fmt"
 
-	extheader "github.com/celestiaorg/celestia-node/service/header/extHeader"
 	"github.com/libp2p/go-libp2p-core/peer"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	pb "github.com/libp2p/go-libp2p-pubsub/pb"
 	"github.com/minio/blake2b-simd"
+
+	extheader "github.com/celestiaorg/celestia-node/service/header/extheader"
 )
 
 // PubSubTopic hardcodes the name of the ExtendedHeader

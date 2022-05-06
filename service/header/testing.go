@@ -6,7 +6,7 @@ import (
 	"context"
 	"testing"
 
-	extheader "github.com/celestiaorg/celestia-node/service/header/extHeader"
+	extheader "github.com/celestiaorg/celestia-node/service/header/extheader"
 
 	"github.com/ipfs/go-datastore"
 	"github.com/ipfs/go-datastore/sync"
