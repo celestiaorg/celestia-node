@@ -1,9 +1,10 @@
 package state
 
 import (
+	"go.uber.org/fx"
+
 	"github.com/celestiaorg/celestia-node/fraud"
 	"github.com/celestiaorg/celestia-node/service/state"
-	"go.uber.org/fx"
 )
 
 func NewService(lc fx.Lifecycle, accessor state.Accessor, fService fraud.Service) *state.Service {
