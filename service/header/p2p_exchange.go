@@ -14,7 +14,7 @@ import (
 	"github.com/celestiaorg/go-libp2p-messenger/serde"
 
 	extheader "github.com/celestiaorg/celestia-node/service/header/extHeader"
-	pb "github.com/celestiaorg/celestia-node/service/header/pb"
+	pb "github.com/celestiaorg/celestia-node/service/header/extheader/pb"
 )
 
 var exchangeProtocolID = protocol.ID("/header-ex/v0.0.1")

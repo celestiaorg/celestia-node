@@ -12,7 +12,7 @@ import (
 
 	"github.com/celestiaorg/celestia-node/ipld"
 
-	header_pb "github.com/celestiaorg/celestia-node/service/header/pb"
+	header_pb "github.com/celestiaorg/celestia-node/service/header/extheader/pb"
 )
 
 type DataAvailabilityHeader = da.DataAvailabilityHeader
@@ -54,7 +54,6 @@ func MakeExtendedHeader(
 	} else {
 		// use MinDataAvailabilityHeader for empty block
 		dah = EmptyDAH()
-		//log.Debugw("empty block received", "height", "blockID", "time", b.Height, b.Time.String(), comm.BlockID)
 	}
 
 	eh := &ExtendedHeader{
