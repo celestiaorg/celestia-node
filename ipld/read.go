@@ -199,7 +199,7 @@ func GetLeavesByNamespace(
 	dag ipld.NodeGetter,
 	root cid.Cid,
 	nID namespace.ID,
-) (out []ipld.Node, err error) {
+) ([]ipld.Node, error) {
 	rootH := plugin.NamespacedSha256FromCID(root)
 	if nID.Less(nmt.MinNamespace(rootH, nID.Size())) || !nID.LessOrEqual(nmt.MaxNamespace(rootH, nID.Size())) {
 		return nil, nil
@@ -207,16 +207,16 @@ func GetLeavesByNamespace(
 	// request the node
 	nd, err := dag.Get(ctx, root)
 	if err != nil {
-		return
+		return nil, err
 	}
 	// check links
 	lnks := nd.Links()
 	if len(lnks) == 1 {
 		// if there is one link, then this is a leaf node, so just return it
-		out = append(out, nd)
-		return
+		return []ipld.Node{nd}, nil
 	}
 	// if there are some links, then traverse them
+	var out []ipld.Node
 	for _, lnk := range nd.Links() {
 		nds, err := GetLeavesByNamespace(ctx, dag, lnk.Cid, nID)
 		if err != nil {
@@ -224,7 +224,7 @@ func GetLeavesByNamespace(
 		}
 		out = append(out, nds...)
 	}
-	return out, err
+	return out, nil
 }
 
 // leafToShare converts an NMT leaf into a Share.
