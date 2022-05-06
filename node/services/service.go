@@ -14,6 +14,7 @@ import (
 
 	"github.com/celestiaorg/celestia-node/das"
 	"github.com/celestiaorg/celestia-node/header"
+	"github.com/celestiaorg/celestia-node/header/headersync"
 	"github.com/celestiaorg/celestia-node/libs/fxutil"
 	"github.com/celestiaorg/celestia-node/node/rpc"
 	"github.com/celestiaorg/celestia-node/params"
@@ -21,14 +22,14 @@ import (
 	"github.com/celestiaorg/celestia-node/service/share"
 )
 
-// HeaderSyncer creates a new header.Syncer.
+// HeaderSyncer creates a new Syncer.
 func HeaderSyncer(
 	lc fx.Lifecycle,
 	ex header.Exchange,
 	store header.Store,
 	sub header.Subscriber,
-) (*header.Syncer, error) {
-	syncer := header.NewSyncer(ex, store, sub)
+) (*headersync.Syncer, error) {
+	syncer := headersync.NewSyncer(ex, store, sub)
 	lc.Append(fx.Hook{
 		OnStart: syncer.Start,
 		OnStop:  syncer.Stop,
@@ -48,7 +49,7 @@ func P2PSubscriber(lc fx.Lifecycle, sub *pubsub.PubSub) (*header.P2PSubscriber, 
 
 // HeaderService creates a new header.Service.
 func HeaderService(
-	syncer *header.Syncer,
+	syncer *headersync.Syncer,
 	sub header.Subscriber,
 	p2pServer *header.P2PExchangeServer,
 	ex header.Exchange,

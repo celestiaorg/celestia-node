@@ -6,24 +6,25 @@ import (
 	logging "github.com/ipfs/go-log/v2"
 
 	"github.com/celestiaorg/celestia-node/header"
+	"github.com/celestiaorg/celestia-node/header/headersync"
 )
 
 var log = logging.Logger("header_service")
 
 // Service represents the header service that can be started / stopped on a node.
 // Service's main function is to manage its sub-services. Service can contain several
-// sub-services, such as Exchange, header.P2PExchangeServer, Syncer, and so forth.
+// sub-services, such as Exchange, P2PExchangeServer, Syncer, and so forth.
 type Service struct {
 	ex header.Exchange
 
-	syncer    *header.Syncer
+	syncer    *headersync.Syncer
 	sub       header.Subscriber
 	p2pServer *header.P2PExchangeServer
 }
 
 // NewHeaderService creates a new instance of header Service.
 func NewHeaderService(
-	syncer *header.Syncer,
+	syncer *headersync.Syncer,
 	sub header.Subscriber,
 	p2pServer *header.P2PExchangeServer,
 	ex header.Exchange) *Service {
