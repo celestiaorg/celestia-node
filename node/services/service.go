@@ -14,6 +14,7 @@ import (
 
 	"github.com/celestiaorg/celestia-node/das"
 	"github.com/celestiaorg/celestia-node/header"
+	"github.com/celestiaorg/celestia-node/header/headerexchange"
 	"github.com/celestiaorg/celestia-node/header/headerstore"
 	"github.com/celestiaorg/celestia-node/header/headersync"
 	"github.com/celestiaorg/celestia-node/libs/fxutil"
@@ -38,9 +39,9 @@ func HeaderSyncer(
 	return syncer, nil
 }
 
-// P2PSubscriber creates a new header.P2PSubscriber.
-func P2PSubscriber(lc fx.Lifecycle, sub *pubsub.PubSub) (*header.P2PSubscriber, *header.P2PSubscriber) {
-	p2pSub := header.NewP2PSubscriber(sub)
+// P2PSubscriber creates a new P2PSubscriber.
+func P2PSubscriber(lc fx.Lifecycle, sub *pubsub.PubSub) (*headerexchange.P2PSubscriber, *headerexchange.P2PSubscriber) {
+	p2pSub := headerexchange.NewP2PSubscriber(sub)
 	lc.Append(fx.Hook{
 		OnStart: p2pSub.Start,
 		OnStop:  p2pSub.Stop,
@@ -52,7 +53,7 @@ func P2PSubscriber(lc fx.Lifecycle, sub *pubsub.PubSub) (*header.P2PSubscriber, 
 func HeaderService(
 	syncer *headersync.Syncer,
 	sub header.Subscriber,
-	p2pServer *header.P2PExchangeServer,
+	p2pServer *headerexchange.P2PExchangeServer,
 	ex header.Exchange,
 ) *headerservice.Service {
 	return headerservice.NewHeaderService(syncer, sub, p2pServer, ex)
@@ -70,13 +71,13 @@ func HeaderExchangeP2P(cfg Config) func(params.Network, host.Host) (header.Excha
 			ids[index] = peer.ID
 			host.Peerstore().AddAddrs(peer.ID, peer.Addrs, peerstore.PermanentAddrTTL)
 		}
-		return header.NewP2PExchange(host, ids), nil
+		return headerexchange.NewP2PExchange(host, ids), nil
 	}
 }
 
 // HeaderP2PExchangeServer creates a new header.P2PExchangeServer.
-func HeaderP2PExchangeServer(lc fx.Lifecycle, host host.Host, store header.Store) *header.P2PExchangeServer {
-	p2pServ := header.NewP2PExchangeServer(host, store)
+func HeaderP2PExchangeServer(lc fx.Lifecycle, host host.Host, store header.Store) *headerexchange.P2PExchangeServer {
+	p2pServ := headerexchange.NewP2PExchangeServer(host, store)
 	lc.Append(fx.Hook{
 		OnStart: p2pServ.Start,
 		OnStop:  p2pServ.Stop,

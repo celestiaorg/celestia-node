@@ -6,6 +6,7 @@ import (
 	logging "github.com/ipfs/go-log/v2"
 
 	"github.com/celestiaorg/celestia-node/header"
+	"github.com/celestiaorg/celestia-node/header/headerexchange"
 	"github.com/celestiaorg/celestia-node/header/headersync"
 )
 
@@ -19,14 +20,14 @@ type Service struct {
 
 	syncer    *headersync.Syncer
 	sub       header.Subscriber
-	p2pServer *header.P2PExchangeServer
+	p2pServer *headerexchange.P2PExchangeServer
 }
 
 // NewHeaderService creates a new instance of header Service.
 func NewHeaderService(
 	syncer *headersync.Syncer,
 	sub header.Subscriber,
-	p2pServer *header.P2PExchangeServer,
+	p2pServer *headerexchange.P2PExchangeServer,
 	ex header.Exchange) *Service {
 	return &Service{
 		syncer:    syncer,

@@ -17,7 +17,7 @@ import (
 	header_pb "github.com/celestiaorg/celestia-node/header/pb"
 )
 
-var log = logging.Logger("header_service")
+var log = logging.Logger("header")
 
 type DataAvailabilityHeader = da.DataAvailabilityHeader
 

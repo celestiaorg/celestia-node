@@ -1,4 +1,4 @@
-package header
+package headerexchange
 
 import (
 	"context"
@@ -13,6 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/celestiaorg/celestia-node/core"
+	"github.com/celestiaorg/celestia-node/header"
 )
 
 // TestCoreListener tests the lifecycle of the core listener.
@@ -41,7 +42,7 @@ func TestCoreListener(t *testing.T) {
 		msg, err := sub.Next(ctx)
 		require.NoError(t, err)
 
-		var resp ExtendedHeader
+		var resp header.ExtendedHeader
 		err = resp.UnmarshalBinary(msg.Data)
 		require.NoError(t, err)
 	}

@@ -1,4 +1,4 @@
-package header
+package headerexchange
 
 import (
 	"bytes"

@@ -1,4 +1,4 @@
-package header
+package headerexchange
 
 import (
 	"context"
@@ -9,6 +9,7 @@ import (
 	"github.com/tendermint/tendermint/types"
 
 	"github.com/celestiaorg/celestia-node/core"
+	"github.com/celestiaorg/celestia-node/header"
 )
 
 // CoreListener is responsible for listening to Core for
@@ -19,14 +20,14 @@ import (
 // broadcasts the new `ExtendedHeader` to the header-sub gossipsub
 // network.
 type CoreListener struct {
-	bcast   Broadcaster
+	bcast   header.Broadcaster
 	fetcher *core.BlockFetcher
 	dag     format.DAGService
 
 	cancel context.CancelFunc
 }
 
-func NewCoreListener(bcast Broadcaster, fetcher *core.BlockFetcher, dag format.DAGService) *CoreListener {
+func NewCoreListener(bcast header.Broadcaster, fetcher *core.BlockFetcher, dag format.DAGService) *CoreListener {
 	return &CoreListener{
 		bcast:   bcast,
 		fetcher: fetcher,
@@ -82,7 +83,7 @@ func (cl *CoreListener) listen(ctx context.Context, sub <-chan *types.Block) {
 				return
 			}
 
-			eh, err := MakeExtendedHeader(ctx, b, comm, vals, cl.dag)
+			eh, err := header.MakeExtendedHeader(ctx, b, comm, vals, cl.dag)
 			if err != nil {
 				log.Errorw("core-listener: making extended header", "err", err)
 				return

@@ -1,9 +1,11 @@
-package header
+package headerexchange
 
 import (
 	"context"
 
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
+
+	"github.com/celestiaorg/celestia-node/header"
 )
 
 // subscription handles retrieving ExtendedHeaders from the header pubsub topic.
@@ -27,14 +29,14 @@ func newSubscription(topic *pubsub.Topic) (*subscription, error) {
 }
 
 // NextHeader returns the next (latest) verified ExtendedHeader from the network.
-func (s *subscription) NextHeader(ctx context.Context) (*ExtendedHeader, error) {
+func (s *subscription) NextHeader(ctx context.Context) (*header.ExtendedHeader, error) {
 	msg, err := s.subscription.Next(ctx)
 	if err != nil {
 		return nil, err
 	}
 	log.Debugw("received message", "topic", msg.Message.GetTopic(), "sender", msg.ReceivedFrom)
 
-	var header ExtendedHeader
+	var header header.ExtendedHeader
 	err = header.UnmarshalBinary(msg.Data)
 	if err != nil {
 		log.Errorw("unmarshalling data from message", "err", err)

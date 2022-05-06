@@ -1,4 +1,4 @@
-package header
+package headerexchange
 
 import (
 	"context"
@@ -8,6 +8,8 @@ import (
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	pb "github.com/libp2p/go-libp2p-pubsub/pb"
 	"github.com/minio/blake2b-simd"
+
+	"github.com/celestiaorg/celestia-node/header"
 )
 
 // PubSubTopic hardcodes the name of the ExtendedHeader
@@ -47,9 +49,9 @@ func (p *P2PSubscriber) Stop(context.Context) error {
 }
 
 // AddValidator applies basic pubsub validator for the topic.
-func (p *P2PSubscriber) AddValidator(val Validator) error {
+func (p *P2PSubscriber) AddValidator(val header.Validator) error {
 	pval := func(ctx context.Context, p peer.ID, msg *pubsub.Message) pubsub.ValidationResult {
-		maybeHead, err := UnmarshalExtendedHeader(msg.Data)
+		maybeHead, err := header.UnmarshalExtendedHeader(msg.Data)
 		if err != nil {
 			log.Errorw("unmarshalling header",
 				"from", p.ShortString(),
@@ -64,7 +66,7 @@ func (p *P2PSubscriber) AddValidator(val Validator) error {
 
 // Subscribe returns a new subscription to the P2PSubscriber's
 // topic.
-func (p *P2PSubscriber) Subscribe() (Subscription, error) {
+func (p *P2PSubscriber) Subscribe() (header.Subscription, error) {
 	if p.topic == nil {
 		return nil, fmt.Errorf("header topic is not instantiated, service must be started before subscribing")
 	}
@@ -73,7 +75,7 @@ func (p *P2PSubscriber) Subscribe() (Subscription, error) {
 }
 
 // Broadcast broadcasts the given ExtendedHeader to the topic.
-func (p *P2PSubscriber) Broadcast(ctx context.Context, header *ExtendedHeader, opts ...pubsub.PubOpt) error {
+func (p *P2PSubscriber) Broadcast(ctx context.Context, header *header.ExtendedHeader, opts ...pubsub.PubOpt) error {
 	bin, err := header.MarshalBinary()
 	if err != nil {
 		return err
@@ -89,7 +91,7 @@ func msgID(pmsg *pb.Message) string {
 		return string(hash[:])
 	}
 
-	h, err := UnmarshalExtendedHeader(pmsg.Data)
+	h, err := header.UnmarshalExtendedHeader(pmsg.Data)
 	if err != nil {
 		// There is nothing we can do about the error, and it will be anyway caught during validation.
 		// We also *have* to return some ID for the msg, so give the hash of even faulty msg
@@ -107,7 +109,7 @@ func msgID(pmsg *pb.Message) string {
 	// To solve the problem above, we exclude nondeterministic value from message id calculation
 	h.Commit.Signatures = nil
 
-	data, err := MarshalExtendedHeader(h)
+	data, err := header.MarshalExtendedHeader(h)
 	if err != nil {
 		// See the note under unmarshalling step
 		return mID(pmsg.Data)

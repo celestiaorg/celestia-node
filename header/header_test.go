@@ -7,10 +7,14 @@ import (
 	mdutils "github.com/ipfs/go-merkledag/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/celestiaorg/celestia-node/core"
 )
 
 func TestMakeExtendedHeaderForEmptyBlock(t *testing.T) {
-	fetcher := createCoreFetcher(t)
+	_, client := core.StartTestClient(t)
+	fetcher := core.NewBlockFetcher(client)
+
 	store := mdutils.Mock()
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()

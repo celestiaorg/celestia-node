@@ -1,4 +1,4 @@
-package header
+package headerexchange
 
 import (
 	"bytes"
@@ -13,6 +13,7 @@ import (
 
 	tmbytes "github.com/tendermint/tendermint/libs/bytes"
 
+	"github.com/celestiaorg/celestia-node/header"
 	header_pb "github.com/celestiaorg/celestia-node/header/pb"
 	"github.com/celestiaorg/go-libp2p-messenger/serde"
 )
@@ -95,7 +96,7 @@ func TestP2PExchange_RequestByHash(t *testing.T) {
 	_, err = serde.Read(stream, resp)
 	require.NoError(t, err)
 	// compare
-	eh, err := ProtoToExtendedHeader(resp)
+	eh, err := header.ProtoToExtendedHeader(resp)
 	require.NoError(t, err)
 
 	assert.Equal(t, store.headers[reqHeight].Height, eh.Height)
@@ -110,7 +111,7 @@ func createMocknet(ctx context.Context, t *testing.T) (libhost.Host, libhost.Hos
 }
 
 // createP2PExAndServer creates a P2PExchange with 5 headers already in its store.
-func createP2PExAndServer(t *testing.T, host, tpeer libhost.Host) (Exchange, *mockStore) {
+func createP2PExAndServer(t *testing.T, host, tpeer libhost.Host) (header.Exchange, *mockStore) {
 	store := createStore(t, 5)
 	serverSideEx := NewP2PExchangeServer(tpeer, store)
 	err := serverSideEx.Start(context.Background())
@@ -124,7 +125,7 @@ func createP2PExAndServer(t *testing.T, host, tpeer libhost.Host) (Exchange, *mo
 }
 
 type mockStore struct {
-	headers    map[int64]*ExtendedHeader
+	headers    map[int64]*header.ExtendedHeader
 	headHeight int64
 }
 
@@ -132,11 +133,11 @@ type mockStore struct {
 // headers
 func createStore(t *testing.T, numHeaders int) *mockStore {
 	store := &mockStore{
-		headers:    make(map[int64]*ExtendedHeader),
+		headers:    make(map[int64]*header.ExtendedHeader),
 		headHeight: 0,
 	}
 
-	suite := NewTestSuite(t, numHeaders)
+	suite := header.NewTestSuite(t, numHeaders)
 
 	for i := 0; i < numHeaders; i++ {
 		header := suite.GenExtendedHeader()
@@ -149,19 +150,19 @@ func createStore(t *testing.T, numHeaders int) *mockStore {
 	return store
 }
 
-func (m *mockStore) Init(context.Context, *ExtendedHeader) error { return nil }
-func (m *mockStore) Start(context.Context) error                 { return nil }
-func (m *mockStore) Stop(context.Context) error                  { return nil }
+func (m *mockStore) Init(context.Context, *header.ExtendedHeader) error { return nil }
+func (m *mockStore) Start(context.Context) error                        { return nil }
+func (m *mockStore) Stop(context.Context) error                         { return nil }
 
 func (m *mockStore) Height() uint64 {
 	return uint64(m.headHeight)
 }
 
-func (m *mockStore) Head(context.Context) (*ExtendedHeader, error) {
+func (m *mockStore) Head(context.Context) (*header.ExtendedHeader, error) {
 	return m.headers[m.headHeight], nil
 }
 
-func (m *mockStore) Get(ctx context.Context, hash tmbytes.HexBytes) (*ExtendedHeader, error) {
+func (m *mockStore) Get(ctx context.Context, hash tmbytes.HexBytes) (*header.ExtendedHeader, error) {
 	for _, header := range m.headers {
 		if bytes.Equal(header.Hash(), hash) {
 			return header, nil
@@ -170,12 +171,12 @@ func (m *mockStore) Get(ctx context.Context, hash tmbytes.HexBytes) (*ExtendedHe
 	return nil, nil
 }
 
-func (m *mockStore) GetByHeight(ctx context.Context, height uint64) (*ExtendedHeader, error) {
+func (m *mockStore) GetByHeight(ctx context.Context, height uint64) (*header.ExtendedHeader, error) {
 	return m.headers[int64(height)], nil
 }
 
-func (m *mockStore) GetRangeByHeight(ctx context.Context, from, to uint64) ([]*ExtendedHeader, error) {
-	headers := make([]*ExtendedHeader, to-from)
+func (m *mockStore) GetRangeByHeight(ctx context.Context, from, to uint64) ([]*header.ExtendedHeader, error) {
+	headers := make([]*header.ExtendedHeader, to-from)
 	for i := range headers {
 		headers[i] = m.headers[int64(from)]
 		from++
@@ -187,7 +188,7 @@ func (m *mockStore) Has(context.Context, tmbytes.HexBytes) (bool, error) {
 	return false, nil
 }
 
-func (m *mockStore) Append(ctx context.Context, headers ...*ExtendedHeader) (int, error) {
+func (m *mockStore) Append(ctx context.Context, headers ...*header.ExtendedHeader) (int, error) {
 	for _, header := range headers {
 		m.headers[header.Height] = header
 		// set head
