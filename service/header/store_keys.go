@@ -3,6 +3,7 @@ package header
 import (
 	"strconv"
 
+	extheader "github.com/celestiaorg/celestia-node/service/header/extHeader"
 	"github.com/ipfs/go-datastore"
 )
 
@@ -15,6 +16,6 @@ func heightKey(h uint64) datastore.Key {
 	return datastore.NewKey(strconv.Itoa(int(h)))
 }
 
-func headerKey(h *ExtendedHeader) datastore.Key {
+func headerKey(h *extheader.ExtendedHeader) datastore.Key {
 	return datastore.NewKey(h.Hash().String())
 }

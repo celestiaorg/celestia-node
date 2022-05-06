@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	extheader "github.com/celestiaorg/celestia-node/service/header/extHeader"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -12,13 +13,13 @@ import (
 
 func TestSyncSimpleRequestingHead(t *testing.T) {
 	// this way we force local head of Syncer to expire, so it requests a new one from trusted peer
-	TrustingPeriod = time.Microsecond
+	extheader.TrustingPeriod = time.Microsecond
 	requestSize = 13 // just some random number
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	t.Cleanup(cancel)
 
-	suite := NewTestSuite(t, 3)
+	suite := extheader.NewTestSuite(t, 3)
 	head := suite.Head()
 
 	remoteStore := NewTestStore(ctx, t, head)
@@ -50,12 +51,12 @@ func TestSyncSimpleRequestingHead(t *testing.T) {
 
 func TestSyncCatchUp(t *testing.T) {
 	// just set a big enough value, so we trust local header and don't request anything
-	TrustingPeriod = time.Minute
+	extheader.TrustingPeriod = time.Minute
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	t.Cleanup(cancel)
 
-	suite := NewTestSuite(t, 3)
+	suite := extheader.NewTestSuite(t, 3)
 	head := suite.Head()
 
 	remoteStore := NewTestStore(ctx, t, head)
@@ -94,12 +95,12 @@ func TestSyncCatchUp(t *testing.T) {
 
 func TestSyncPendingRangesWithMisses(t *testing.T) {
 	// just set a big enough value, so we trust local header and don't request anything
-	TrustingPeriod = time.Minute
+	extheader.TrustingPeriod = time.Minute
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	t.Cleanup(cancel)
 
-	suite := NewTestSuite(t, 3)
+	suite := extheader.NewTestSuite(t, 3)
 	head := suite.Head()
 
 	remoteStore := NewTestStore(ctx, t, head)

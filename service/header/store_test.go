@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	extheader "github.com/celestiaorg/celestia-node/service/header/extHeader"
 	"github.com/ipfs/go-datastore"
 	"github.com/ipfs/go-datastore/sync"
 	"github.com/stretchr/testify/assert"
@@ -17,7 +18,7 @@ func TestStore(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	t.Cleanup(cancel)
 
-	suite := NewTestSuite(t, 3)
+	suite := extheader.NewTestSuite(t, 3)
 
 	ds := sync.MutexWrap(datastore.NewMapDatastore())
 	store, err := NewStoreWithHead(ctx, ds, suite.Head())

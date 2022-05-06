@@ -1,4 +1,4 @@
-package header
+package extheader
 
 import (
 	"github.com/tendermint/tendermint/pkg/da"

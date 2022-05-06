@@ -3,7 +3,7 @@ package das
 import (
 	"context"
 
-	"github.com/celestiaorg/celestia-node/service/header"
+	extheader "github.com/celestiaorg/celestia-node/service/header/extHeader"
 )
 
 // HeaderGetter contains the behavior necessary for the DASer to retrieve
@@ -12,5 +12,5 @@ import (
 type HeaderGetter interface {
 	// GetByHeight returns the ExtendedHeader corresponding to the given
 	// block height.
-	GetByHeight(context.Context, uint64) (*header.ExtendedHeader, error)
+	GetByHeight(context.Context, uint64) (*extheader.ExtendedHeader, error)
 }

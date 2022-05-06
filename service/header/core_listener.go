@@ -9,6 +9,7 @@ import (
 	"github.com/tendermint/tendermint/types"
 
 	"github.com/celestiaorg/celestia-node/core"
+	extheader "github.com/celestiaorg/celestia-node/service/header/extHeader"
 )
 
 // CoreListener is responsible for listening to Core for
@@ -82,7 +83,7 @@ func (cl *CoreListener) listen(ctx context.Context, sub <-chan *types.Block) {
 				return
 			}
 
-			eh, err := MakeExtendedHeader(ctx, b, comm, vals, cl.dag)
+			eh, err := extheader.MakeExtendedHeader(ctx, b, comm, vals, cl.dag)
 			if err != nil {
 				log.Errorw("core-listener: making extended header", "err", err)
 				return

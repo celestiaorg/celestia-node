@@ -1,6 +1,10 @@
 package header
 
-import "sync"
+import (
+	"sync"
+
+	extheader "github.com/celestiaorg/celestia-node/service/header/extHeader"
+)
 
 // ranges keeps non-overlapping and non-adjacent header ranges which are used to cache headers (in ascending order).
 // This prevents unnecessary / duplicate network requests for additional headers during sync.
@@ -10,7 +14,7 @@ type ranges struct {
 }
 
 // Head returns the highest ExtendedHeader in all ranges if any.
-func (rs *ranges) Head() *ExtendedHeader {
+func (rs *ranges) Head() *extheader.ExtendedHeader {
 	rs.lk.Lock()
 	defer rs.lk.Unlock()
 
@@ -25,7 +29,7 @@ func (rs *ranges) Head() *ExtendedHeader {
 
 // Add appends the new ExtendedHeader to existing range or starts a new one.
 // It starts a new one if the new ExtendedHeader is not adjacent to any of existing ranges.
-func (rs *ranges) Add(h *ExtendedHeader) {
+func (rs *ranges) Add(h *extheader.ExtendedHeader) {
 	head := rs.Head()
 
 	// short-circuit if header is from the past
@@ -95,18 +99,18 @@ func (rs *ranges) First() (*headerRange, bool) {
 type headerRange struct {
 	Start   uint64
 	lk      sync.Mutex // no need for RWMutex as there is only one reader
-	headers []*ExtendedHeader
+	headers []*extheader.ExtendedHeader
 }
 
-func newRange(h *ExtendedHeader) *headerRange {
+func newRange(h *extheader.ExtendedHeader) *headerRange {
 	return &headerRange{
 		Start:   uint64(h.Height),
-		headers: []*ExtendedHeader{h},
+		headers: []*extheader.ExtendedHeader{h},
 	}
 }
 
 // Append appends new headers.
-func (r *headerRange) Append(h ...*ExtendedHeader) {
+func (r *headerRange) Append(h ...*extheader.ExtendedHeader) {
 	r.lk.Lock()
 	r.headers = append(r.headers, h...)
 	r.lk.Unlock()
@@ -120,7 +124,7 @@ func (r *headerRange) Empty() bool {
 }
 
 // Head reports the head of range if any.
-func (r *headerRange) Head() *ExtendedHeader {
+func (r *headerRange) Head() *extheader.ExtendedHeader {
 	r.lk.Lock()
 	defer r.lk.Unlock()
 	ln := len(r.headers)
@@ -131,7 +135,7 @@ func (r *headerRange) Head() *ExtendedHeader {
 }
 
 // Before truncates all the headers before height 'end' - [r.Start:end]
-func (r *headerRange) Before(end uint64) ([]*ExtendedHeader, uint64) {
+func (r *headerRange) Before(end uint64) ([]*extheader.ExtendedHeader, uint64) {
 	r.lk.Lock()
 	defer r.lk.Unlock()
 

@@ -1,4 +1,4 @@
-package header
+package extheader
 
 import (
 	"bytes"
@@ -54,7 +54,7 @@ func MakeExtendedHeader(
 	} else {
 		// use MinDataAvailabilityHeader for empty block
 		dah = EmptyDAH()
-		log.Debugw("empty block received", "height", "blockID", "time", b.Height, b.Time.String(), comm.BlockID)
+		//log.Debugw("empty block received", "height", "blockID", "time", b.Height, b.Time.String(), comm.BlockID)
 	}
 
 	eh := &ExtendedHeader{

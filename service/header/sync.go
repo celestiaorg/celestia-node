@@ -7,6 +7,8 @@ import (
 	"sync"
 	"time"
 
+	extheader "github.com/celestiaorg/celestia-node/service/header/extHeader"
+
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	tmbytes "github.com/tendermint/tendermint/libs/bytes"
 )
@@ -115,7 +117,7 @@ func (s *Syncer) State() SyncState {
 }
 
 // trustedHead returns the latest known trusted header that is within the trusting period.
-func (s *Syncer) trustedHead(ctx context.Context) (*ExtendedHeader, error) {
+func (s *Syncer) trustedHead(ctx context.Context) (*extheader.ExtendedHeader, error) {
 	// check pending for trusted header and return it if applicable
 	// NOTE: Pending cannot be expired, guaranteed
 	pendHead := s.pending.Head()
@@ -175,17 +177,17 @@ func (s *Syncer) sync(ctx context.Context) {
 }
 
 // processIncoming processes new processIncoming Headers, validates them and stores/caches if applicable.
-func (s *Syncer) processIncoming(ctx context.Context, maybeHead *ExtendedHeader) pubsub.ValidationResult {
+func (s *Syncer) processIncoming(ctx context.Context, maybeHead *extheader.ExtendedHeader) pubsub.ValidationResult {
 	// 1. Try to append. If header is not adjacent/from future - try it for pending cache below
 	_, err := s.store.Append(ctx, maybeHead)
 	switch err {
 	case nil:
 		// a happy case where we append adjacent header correctly
 		return pubsub.ValidationAccept
-	case ErrNonAdjacent:
+	case extheader.ErrNonAdjacent:
 		// not adjacent, so try to cache it after verifying
 	default:
-		var verErr *VerifyError
+		var verErr *extheader.VerifyError
 		if errors.As(err, &verErr) {
 			return pubsub.ValidationReject
 		}
@@ -214,7 +216,7 @@ func (s *Syncer) processIncoming(ctx context.Context, maybeHead *ExtendedHeader)
 
 	// 4. Verify maybeHead against trusted
 	err = trstHead.VerifyNonAdjacent(maybeHead)
-	var verErr *VerifyError
+	var verErr *extheader.VerifyError
 	if errors.As(err, &verErr) {
 		log.Errorw("invalid header",
 			"height_of_invalid", maybeHead.Height,
@@ -237,7 +239,7 @@ func (s *Syncer) processIncoming(ctx context.Context, maybeHead *ExtendedHeader)
 }
 
 // syncTo requests headers from locally stored head up to the new head.
-func (s *Syncer) syncTo(ctx context.Context, newHead *ExtendedHeader) {
+func (s *Syncer) syncTo(ctx context.Context, newHead *extheader.ExtendedHeader) {
 	head, err := s.store.Head(ctx)
 	if err != nil {
 		log.Errorw("getting head during sync", "err", err)
@@ -272,7 +274,7 @@ func (s *Syncer) syncTo(ctx context.Context, newHead *ExtendedHeader) {
 }
 
 // doSync performs actual syncing updating the internal SyncState
-func (s *Syncer) doSync(ctx context.Context, fromHead, toHead *ExtendedHeader) (err error) {
+func (s *Syncer) doSync(ctx context.Context, fromHead, toHead *extheader.ExtendedHeader) (err error) {
 	from, to := uint64(fromHead.Height)+1, uint64(toHead.Height)
 
 	s.stateLk.Lock()
@@ -314,13 +316,13 @@ func (s *Syncer) processHeaders(ctx context.Context, from, to uint64) (int, erro
 var requestSize uint64 = 512
 
 // findHeaders gets headers from either remote peers or from local cache of headers received by PubSub - [from:to]
-func (s *Syncer) findHeaders(ctx context.Context, from, to uint64) ([]*ExtendedHeader, error) {
+func (s *Syncer) findHeaders(ctx context.Context, from, to uint64) ([]*extheader.ExtendedHeader, error) {
 	amount := to - from + 1 // + 1 to include 'to' height as well
 	if amount > requestSize {
 		to, amount = from+requestSize, requestSize
 	}
 
-	out := make([]*ExtendedHeader, 0, amount)
+	out := make([]*extheader.ExtendedHeader, 0, amount)
 	for from < to {
 		// if we have some range cached - use it
 		r, ok := s.pending.FirstRangeWithin(from, to)

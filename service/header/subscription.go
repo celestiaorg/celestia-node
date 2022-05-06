@@ -3,6 +3,7 @@ package header
 import (
 	"context"
 
+	extheader "github.com/celestiaorg/celestia-node/service/header/extHeader"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 )
 
@@ -27,14 +28,14 @@ func newSubscription(topic *pubsub.Topic) (*subscription, error) {
 }
 
 // NextHeader returns the next (latest) verified ExtendedHeader from the network.
-func (s *subscription) NextHeader(ctx context.Context) (*ExtendedHeader, error) {
+func (s *subscription) NextHeader(ctx context.Context) (*extheader.ExtendedHeader, error) {
 	msg, err := s.subscription.Next(ctx)
 	if err != nil {
 		return nil, err
 	}
 	log.Debugw("received message", "topic", msg.Message.GetTopic(), "sender", msg.ReceivedFrom)
 
-	var header ExtendedHeader
+	var header extheader.ExtendedHeader
 	err = header.UnmarshalBinary(msg.Data)
 	if err != nil {
 		log.Errorw("unmarshalling data from message", "err", err)

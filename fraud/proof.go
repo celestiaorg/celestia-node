@@ -4,7 +4,7 @@ import (
 	"encoding"
 	"fmt"
 
-	"github.com/celestiaorg/celestia-node/service/header"
+	extheader "github.com/celestiaorg/celestia-node/service/header/extHeader"
 )
 
 type ProofType int
@@ -31,7 +31,7 @@ type Proof interface {
 	// Validate check the validity of fraud proof.
 	// Validate throws an error if some conditions don't pass and thus fraud proof is not valid
 	// NOTE: header.ExtendedHeader should pass basic validation otherwise it will panic if it's malformed
-	Validate(*header.ExtendedHeader) error
+	Validate(*extheader.ExtendedHeader) error
 
 	encoding.BinaryMarshaler
 	encoding.BinaryUnmarshaler

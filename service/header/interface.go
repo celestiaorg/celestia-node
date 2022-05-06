@@ -4,13 +4,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	extheader "github.com/celestiaorg/celestia-node/service/header/extHeader"
 
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	tmbytes "github.com/tendermint/tendermint/libs/bytes"
 )
 
 // Validator aliases a func that validates ExtendedHeader.
-type Validator = func(context.Context, *ExtendedHeader) pubsub.ValidationResult
+type Validator = func(context.Context, *extheader.ExtendedHeader) pubsub.ValidationResult
 
 // Subscriber encompasses the behavior necessary to
 // subscribe/unsubscribe from new ExtendedHeader events from the
@@ -31,14 +32,14 @@ type Subscriber interface {
 type Subscription interface {
 	// NextHeader returns the newest verified and valid ExtendedHeader
 	// in the network.
-	NextHeader(ctx context.Context) (*ExtendedHeader, error)
+	NextHeader(ctx context.Context) (*extheader.ExtendedHeader, error)
 	// Cancel cancels the subscription.
 	Cancel()
 }
 
 // Broadcaster broadcasts an ExtendedHeader to the network.
 type Broadcaster interface {
-	Broadcast(ctx context.Context, header *ExtendedHeader, opts ...pubsub.PubOpt) error
+	Broadcast(ctx context.Context, header *extheader.ExtendedHeader, opts ...pubsub.PubOpt) error
 }
 
 // Exchange encompasses the behavior necessary to request ExtendedHeaders
@@ -46,17 +47,17 @@ type Broadcaster interface {
 type Exchange interface {
 	// RequestHead requests the latest ExtendedHeader. Note that the ExtendedHeader
 	// must be verified thereafter.
-	RequestHead(ctx context.Context) (*ExtendedHeader, error)
+	RequestHead(ctx context.Context) (*extheader.ExtendedHeader, error)
 	// RequestHeader performs a request for the ExtendedHeader at the given
 	// height to the network. Note that the ExtendedHeader must be verified
 	// thereafter.
-	RequestHeader(ctx context.Context, height uint64) (*ExtendedHeader, error)
+	RequestHeader(ctx context.Context, height uint64) (*extheader.ExtendedHeader, error)
 	// RequestHeaders performs a request for the given range of ExtendedHeaders
 	// to the network. Note that the ExtendedHeaders must be verified thereafter.
-	RequestHeaders(ctx context.Context, origin, amount uint64) ([]*ExtendedHeader, error)
+	RequestHeaders(ctx context.Context, origin, amount uint64) ([]*extheader.ExtendedHeader, error)
 	// RequestByHash performs a request for the ExtendedHeader by the given hash corresponding
 	// to the RawHeader. Note that the ExtendedHeader must be verified thereafter.
-	RequestByHash(ctx context.Context, hash tmbytes.HexBytes) (*ExtendedHeader, error)
+	RequestByHash(ctx context.Context, hash tmbytes.HexBytes) (*extheader.ExtendedHeader, error)
 }
 
 var (
@@ -65,9 +66,6 @@ var (
 
 	// ErrNoHead is returned when Store is empty (does not contain any known header).
 	ErrNoHead = fmt.Errorf("header/store: no chain head")
-
-	// ErrNonAdjacent is returned when Store is appended with a header not adjacent to the stored head.
-	ErrNonAdjacent = fmt.Errorf("header/store: non-adjacent")
 )
 
 // Store encompasses the behavior necessary to store and retrieve ExtendedHeaders
@@ -81,22 +79,22 @@ type Store interface {
 	Stop(context.Context) error
 
 	// Init initializes Store with the given head, meaning it is initialized with the genesis header.
-	Init(context.Context, *ExtendedHeader) error
+	Init(context.Context, *extheader.ExtendedHeader) error
 
 	// Height reports current height of the chain head.
 	Height() uint64
 
 	// Head returns the ExtendedHeader of the chain head.
-	Head(context.Context) (*ExtendedHeader, error)
+	Head(context.Context) (*extheader.ExtendedHeader, error)
 
 	// Get returns the ExtendedHeader corresponding to the given hash.
-	Get(context.Context, tmbytes.HexBytes) (*ExtendedHeader, error)
+	Get(context.Context, tmbytes.HexBytes) (*extheader.ExtendedHeader, error)
 
 	// GetByHeight returns the ExtendedHeader corresponding to the given block height.
-	GetByHeight(context.Context, uint64) (*ExtendedHeader, error)
+	GetByHeight(context.Context, uint64) (*extheader.ExtendedHeader, error)
 
 	// GetRangeByHeight returns the given range [from:to) of ExtendedHeaders.
-	GetRangeByHeight(ctx context.Context, from, to uint64) ([]*ExtendedHeader, error)
+	GetRangeByHeight(ctx context.Context, from, to uint64) ([]*extheader.ExtendedHeader, error)
 
 	// Has checks whether ExtendedHeader is already stored.
 	Has(context.Context, tmbytes.HexBytes) (bool, error)
@@ -106,5 +104,5 @@ type Store interface {
 	// as it applies them contiguously on top of the current head height.
 	// It returns the amount of successfully applied headers,
 	// so caller can understand what given header was invalid, if any.
-	Append(context.Context, ...*ExtendedHeader) (int, error)
+	Append(context.Context, ...*extheader.ExtendedHeader) (int, error)
 }

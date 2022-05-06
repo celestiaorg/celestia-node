@@ -13,6 +13,7 @@ import (
 
 	"github.com/celestiaorg/go-libp2p-messenger/serde"
 
+	extheader "github.com/celestiaorg/celestia-node/service/header/extHeader"
 	pb "github.com/celestiaorg/celestia-node/service/header/pb"
 )
 
@@ -33,7 +34,7 @@ func NewP2PExchange(host host.Host, peers peer.IDSlice) *P2PExchange {
 	}
 }
 
-func (ex *P2PExchange) RequestHead(ctx context.Context) (*ExtendedHeader, error) {
+func (ex *P2PExchange) RequestHead(ctx context.Context) (*extheader.ExtendedHeader, error) {
 	log.Debug("p2p: requesting head")
 	// create request
 	req := &pb.ExtendedHeaderRequest{
@@ -47,7 +48,7 @@ func (ex *P2PExchange) RequestHead(ctx context.Context) (*ExtendedHeader, error)
 	return headers[0], nil
 }
 
-func (ex *P2PExchange) RequestHeader(ctx context.Context, height uint64) (*ExtendedHeader, error) {
+func (ex *P2PExchange) RequestHeader(ctx context.Context, height uint64) (*extheader.ExtendedHeader, error) {
 	log.Debugw("p2p: requesting header", "height", height)
 	// sanity check height
 	if height == 0 {
@@ -65,7 +66,7 @@ func (ex *P2PExchange) RequestHeader(ctx context.Context, height uint64) (*Exten
 	return headers[0], nil
 }
 
-func (ex *P2PExchange) RequestHeaders(ctx context.Context, from, amount uint64) ([]*ExtendedHeader, error) {
+func (ex *P2PExchange) RequestHeaders(ctx context.Context, from, amount uint64) ([]*extheader.ExtendedHeader, error) {
 	log.Debugw("p2p: requesting headers", "from", from, "to", from+amount)
 	// create request
 	req := &pb.ExtendedHeaderRequest{
@@ -75,7 +76,7 @@ func (ex *P2PExchange) RequestHeaders(ctx context.Context, from, amount uint64) 
 	return ex.performRequest(ctx, req)
 }
 
-func (ex *P2PExchange) RequestByHash(ctx context.Context, hash tmbytes.HexBytes) (*ExtendedHeader, error) {
+func (ex *P2PExchange) RequestByHash(ctx context.Context, hash tmbytes.HexBytes) (*extheader.ExtendedHeader, error) {
 	log.Debugw("p2p: requesting header", "hash", hash.String())
 	// create request
 	req := &pb.ExtendedHeaderRequest{
@@ -93,9 +94,9 @@ func (ex *P2PExchange) RequestByHash(ctx context.Context, hash tmbytes.HexBytes)
 	return headers[0], nil
 }
 
-func (ex *P2PExchange) performRequest(ctx context.Context, req *pb.ExtendedHeaderRequest) ([]*ExtendedHeader, error) {
+func (ex *P2PExchange) performRequest(ctx context.Context, req *pb.ExtendedHeaderRequest) ([]*extheader.ExtendedHeader, error) {
 	if req.Amount == 0 {
-		return make([]*ExtendedHeader, 0), nil
+		return make([]*extheader.ExtendedHeader, 0), nil
 	}
 
 	if len(ex.trustedPeers) == 0 {
@@ -115,7 +116,7 @@ func (ex *P2PExchange) performRequest(ctx context.Context, req *pb.ExtendedHeade
 		return nil, err
 	}
 	// read responses
-	headers := make([]*ExtendedHeader, req.Amount)
+	headers := make([]*extheader.ExtendedHeader, req.Amount)
 	for i := 0; i < int(req.Amount); i++ {
 		resp := new(pb.ExtendedHeader)
 		_, err := serde.Read(stream, resp)
@@ -124,7 +125,7 @@ func (ex *P2PExchange) performRequest(ctx context.Context, req *pb.ExtendedHeade
 			return nil, err
 		}
 
-		header, err := ProtoToExtendedHeader(resp)
+		header, err := extheader.ProtoToExtendedHeader(resp)
 		if err != nil {
 			stream.Reset() //nolint:errcheck
 			return nil, err

@@ -6,7 +6,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/celestiaorg/celestia-node/service/header"
+	extheader "github.com/celestiaorg/celestia-node/service/header/extHeader"
 )
 
 func TestSharesAvailable(t *testing.T) {
@@ -25,7 +25,7 @@ func TestSharesAvailableFailed(t *testing.T) {
 
 	// RandLightServiceWithSquare creates a NewLightAvailability inside, so we can test it
 	s, _ := RandLightServiceWithSquare(t, 16)
-	empty := header.EmptyDAH()
+	empty := extheader.EmptyDAH()
 	err := s.SharesAvailable(ctx, &empty)
 	assert.Error(t, err)
 }

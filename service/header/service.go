@@ -3,6 +3,7 @@ package header
 import (
 	"context"
 
+	extheader "github.com/celestiaorg/celestia-node/service/header/extHeader"
 	logging "github.com/ipfs/go-log/v2"
 )
 
@@ -47,7 +48,7 @@ func (s *Service) Stop(context.Context) error {
 
 // GetByHeight returns the ExtendedHeader at the given height, blocking
 // until header has been processed by the store or context deadline is exceeded.
-func (s *Service) GetByHeight(ctx context.Context, height uint64) (*ExtendedHeader, error) {
+func (s *Service) GetByHeight(ctx context.Context, height uint64) (*extheader.ExtendedHeader, error) {
 	return s.syncer.store.GetByHeight(ctx, height)
 }
 

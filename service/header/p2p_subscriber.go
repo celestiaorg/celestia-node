@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	extheader "github.com/celestiaorg/celestia-node/service/header/extHeader"
 	"github.com/libp2p/go-libp2p-core/peer"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	pb "github.com/libp2p/go-libp2p-pubsub/pb"
@@ -49,7 +50,7 @@ func (p *P2PSubscriber) Stop(context.Context) error {
 // AddValidator applies basic pubsub validator for the topic.
 func (p *P2PSubscriber) AddValidator(val Validator) error {
 	pval := func(ctx context.Context, p peer.ID, msg *pubsub.Message) pubsub.ValidationResult {
-		maybeHead, err := UnmarshalExtendedHeader(msg.Data)
+		maybeHead, err := extheader.UnmarshalExtendedHeader(msg.Data)
 		if err != nil {
 			log.Errorw("unmarshalling header",
 				"from", p.ShortString(),
@@ -73,7 +74,7 @@ func (p *P2PSubscriber) Subscribe() (Subscription, error) {
 }
 
 // Broadcast broadcasts the given ExtendedHeader to the topic.
-func (p *P2PSubscriber) Broadcast(ctx context.Context, header *ExtendedHeader, opts ...pubsub.PubOpt) error {
+func (p *P2PSubscriber) Broadcast(ctx context.Context, header *extheader.ExtendedHeader, opts ...pubsub.PubOpt) error {
 	bin, err := header.MarshalBinary()
 	if err != nil {
 		return err
@@ -89,7 +90,7 @@ func msgID(pmsg *pb.Message) string {
 		return string(hash[:])
 	}
 
-	h, err := UnmarshalExtendedHeader(pmsg.Data)
+	h, err := extheader.UnmarshalExtendedHeader(pmsg.Data)
 	if err != nil {
 		// There is nothing we can do about the error, and it will be anyway caught during validation.
 		// We also *have* to return some ID for the msg, so give the hash of even faulty msg
@@ -107,7 +108,7 @@ func msgID(pmsg *pb.Message) string {
 	// To solve the problem above, we exclude nondeterministic value from message id calculation
 	h.Commit.Signatures = nil
 
-	data, err := MarshalExtendedHeader(h)
+	data, err := extheader.MarshalExtendedHeader(h)
 	if err != nil {
 		// See the note under unmarshalling step
 		return mID(pmsg.Data)

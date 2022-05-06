@@ -4,9 +4,8 @@ import (
 	"context"
 	"testing"
 
+	extheader "github.com/celestiaorg/celestia-node/service/header/extHeader"
 	"github.com/stretchr/testify/assert"
-
-	"github.com/celestiaorg/celestia-node/service/header"
 )
 
 func TestSharesAvailable_Full(t *testing.T) {
@@ -25,7 +24,7 @@ func TestSharesAvailableFailed_Full(t *testing.T) {
 
 	// RandFullServiceWithSquare creates a NewFullAvailability inside, so we can test it
 	s, _ := RandFullServiceWithSquare(t, 16)
-	empty := header.EmptyDAH()
+	empty := extheader.EmptyDAH()
 	err := s.SharesAvailable(ctx, &empty)
 	assert.Error(t, err)
 }

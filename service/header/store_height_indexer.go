@@ -1,6 +1,7 @@
 package header
 
 import (
+	extheader "github.com/celestiaorg/celestia-node/service/header/extHeader"
 	lru "github.com/hashicorp/golang-lru"
 	"github.com/ipfs/go-datastore"
 	tmbytes "github.com/tendermint/tendermint/libs/bytes"
@@ -36,7 +37,7 @@ func (hi *heightIndexer) HashByHeight(h uint64) (tmbytes.HexBytes, error) {
 }
 
 // IndexTo saves mapping between header Height and Hash to the given batch.
-func (hi *heightIndexer) IndexTo(batch datastore.Batch, headers ...*ExtendedHeader) error {
+func (hi *heightIndexer) IndexTo(batch datastore.Batch, headers ...*extheader.ExtendedHeader) error {
 	for _, h := range headers {
 		err := batch.Put(heightKey(uint64(h.Height)), h.Hash())
 		if err != nil {

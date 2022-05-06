@@ -10,6 +10,7 @@ import (
 	tmbytes "github.com/tendermint/tendermint/libs/bytes"
 
 	"github.com/celestiaorg/celestia-node/core"
+	extheader "github.com/celestiaorg/celestia-node/service/header/extHeader"
 )
 
 type CoreExchange struct {
@@ -24,19 +25,19 @@ func NewCoreExchange(fetcher *core.BlockFetcher, dag format.DAGService) *CoreExc
 	}
 }
 
-func (ce *CoreExchange) RequestHeader(ctx context.Context, height uint64) (*ExtendedHeader, error) {
+func (ce *CoreExchange) RequestHeader(ctx context.Context, height uint64) (*extheader.ExtendedHeader, error) {
 	log.Debugw("core: requesting header", "height", height)
 	intHeight := int64(height)
 	return ce.getExtendedHeaderByHeight(ctx, &intHeight)
 }
 
-func (ce *CoreExchange) RequestHeaders(ctx context.Context, from, amount uint64) ([]*ExtendedHeader, error) {
+func (ce *CoreExchange) RequestHeaders(ctx context.Context, from, amount uint64) ([]*extheader.ExtendedHeader, error) {
 	if amount == 0 {
 		return nil, nil
 	}
 
 	log.Debugw("core: requesting headers", "from", from, "to", from+amount)
-	headers := make([]*ExtendedHeader, amount)
+	headers := make([]*extheader.ExtendedHeader, amount)
 	for i := range headers {
 		extHeader, err := ce.RequestHeader(ctx, from+uint64(i))
 		if err != nil {
@@ -49,7 +50,7 @@ func (ce *CoreExchange) RequestHeaders(ctx context.Context, from, amount uint64)
 	return headers, nil
 }
 
-func (ce *CoreExchange) RequestByHash(ctx context.Context, hash tmbytes.HexBytes) (*ExtendedHeader, error) {
+func (ce *CoreExchange) RequestByHash(ctx context.Context, hash tmbytes.HexBytes) (*extheader.ExtendedHeader, error) {
 	log.Debugw("core: requesting header", "hash", hash.String())
 	block, err := ce.fetcher.GetBlockByHash(ctx, hash)
 	if err != nil {
@@ -61,7 +62,7 @@ func (ce *CoreExchange) RequestByHash(ctx context.Context, hash tmbytes.HexBytes
 		return nil, err
 	}
 
-	eh, err := MakeExtendedHeader(ctx, block, comm, vals, ce.shareStore)
+	eh, err := extheader.MakeExtendedHeader(ctx, block, comm, vals, ce.shareStore)
 	if err != nil {
 		return nil, err
 	}
@@ -74,12 +75,12 @@ func (ce *CoreExchange) RequestByHash(ctx context.Context, hash tmbytes.HexBytes
 	return eh, nil
 }
 
-func (ce *CoreExchange) RequestHead(ctx context.Context) (*ExtendedHeader, error) {
+func (ce *CoreExchange) RequestHead(ctx context.Context) (*extheader.ExtendedHeader, error) {
 	log.Debug("core: requesting head")
 	return ce.getExtendedHeaderByHeight(ctx, nil)
 }
 
-func (ce *CoreExchange) getExtendedHeaderByHeight(ctx context.Context, height *int64) (*ExtendedHeader, error) {
+func (ce *CoreExchange) getExtendedHeaderByHeight(ctx context.Context, height *int64) (*extheader.ExtendedHeader, error) {
 	b, err := ce.fetcher.GetBlock(ctx, height)
 	if err != nil {
 		return nil, err
@@ -90,5 +91,5 @@ func (ce *CoreExchange) getExtendedHeaderByHeight(ctx context.Context, height *i
 		return nil, err
 	}
 
-	return MakeExtendedHeader(ctx, b, comm, vals, ce.shareStore)
+	return extheader.MakeExtendedHeader(ctx, b, comm, vals, ce.shareStore)
 }

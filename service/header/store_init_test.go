@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	extheader "github.com/celestiaorg/celestia-node/service/header/extHeader"
 	"github.com/ipfs/go-datastore"
 	"github.com/ipfs/go-datastore/sync"
 	"github.com/stretchr/testify/assert"
@@ -15,7 +16,7 @@ func TestInitStore_NoReinit(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	t.Cleanup(cancel)
 
-	suite := NewTestSuite(t, 3)
+	suite := extheader.NewTestSuite(t, 3)
 	head := suite.Head()
 	exchange := NewLocalExchange(NewTestStore(ctx, t, head))
 

@@ -3,6 +3,7 @@ package header
 import (
 	"context"
 
+	extheader "github.com/celestiaorg/celestia-node/service/header/extHeader"
 	"github.com/tendermint/tendermint/libs/bytes"
 )
 
@@ -26,21 +27,21 @@ func (l *LocalExchange) Stop(context.Context) error {
 	return nil
 }
 
-func (l *LocalExchange) RequestHead(ctx context.Context) (*ExtendedHeader, error) {
+func (l *LocalExchange) RequestHead(ctx context.Context) (*extheader.ExtendedHeader, error) {
 	return l.store.Head(ctx)
 }
 
-func (l *LocalExchange) RequestHeader(ctx context.Context, height uint64) (*ExtendedHeader, error) {
+func (l *LocalExchange) RequestHeader(ctx context.Context, height uint64) (*extheader.ExtendedHeader, error) {
 	return l.store.GetByHeight(ctx, height)
 }
 
-func (l *LocalExchange) RequestHeaders(ctx context.Context, origin, amount uint64) ([]*ExtendedHeader, error) {
+func (l *LocalExchange) RequestHeaders(ctx context.Context, origin, amount uint64) ([]*extheader.ExtendedHeader, error) {
 	if amount == 0 {
 		return nil, nil
 	}
 	return l.store.GetRangeByHeight(ctx, origin, origin+amount)
 }
 
-func (l *LocalExchange) RequestByHash(ctx context.Context, hash bytes.HexBytes) (*ExtendedHeader, error) {
+func (l *LocalExchange) RequestByHash(ctx context.Context, hash bytes.HexBytes) (*extheader.ExtendedHeader, error) {
 	return l.store.Get(ctx, hash)
 }

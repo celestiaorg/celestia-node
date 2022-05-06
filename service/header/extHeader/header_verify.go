@@ -1,4 +1,4 @@
-package header
+package extheader
 
 import (
 	"bytes"
@@ -6,6 +6,11 @@ import (
 	"time"
 
 	"github.com/tendermint/tendermint/light"
+)
+
+var (
+	// ErrNonAdjacent is returned when Store is appended with a header not adjacent to the stored head.
+	ErrNonAdjacent = fmt.Errorf("header/store: non-adjacent")
 )
 
 // TrustingPeriod is period through which we can trust a header's validators set.

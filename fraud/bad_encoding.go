@@ -13,7 +13,7 @@ import (
 	pb "github.com/celestiaorg/celestia-node/fraud/pb"
 	"github.com/celestiaorg/celestia-node/ipld"
 	ipld_pb "github.com/celestiaorg/celestia-node/ipld/pb"
-	"github.com/celestiaorg/celestia-node/service/header"
+	extheader "github.com/celestiaorg/celestia-node/service/header/extHeader"
 )
 
 type BadEncodingProof struct {
@@ -89,7 +89,7 @@ func (p *BadEncodingProof) UnmarshalBinary(data []byte) error {
 // Validate checks that provided Merkle Proofs correspond to the shares,
 // rebuilds bad row or col from received shares, computes Merkle Root
 // and compares it with block's Merkle Root.
-func (p *BadEncodingProof) Validate(header *header.ExtendedHeader) error {
+func (p *BadEncodingProof) Validate(header *extheader.ExtendedHeader) error {
 	if header.Height != int64(p.BlockHeight) {
 		return errors.New("invalid fraud proof: incorrect block height")
 	}

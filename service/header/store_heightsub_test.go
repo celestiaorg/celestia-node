@@ -2,6 +2,7 @@ package header
 
 import (
 	"context"
+	extheader "github.com/celestiaorg/celestia-node/service/header/extHeader"
 	"testing"
 	"time"
 
@@ -16,7 +17,7 @@ func TestHeightSub(t *testing.T) {
 
 	// assert subscription returns nil for past heights
 	{
-		h := RandExtendedHeader(t)
+		h := extheader.RandExtendedHeader(t)
 		h.Height = 100
 		hs.SetHeight(99)
 		hs.Pub(h)
@@ -29,9 +30,9 @@ func TestHeightSub(t *testing.T) {
 	// assert actual subscription works
 	{
 		go func() {
-			h1 := RandExtendedHeader(t)
+			h1 := extheader.RandExtendedHeader(t)
 			h1.Height = 101
-			h2 := RandExtendedHeader(t)
+			h2 := extheader.RandExtendedHeader(t)
 			h1.Height = 101
 			hs.Pub(h1, h2)
 		}()

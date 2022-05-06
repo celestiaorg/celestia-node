@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	extheader "github.com/celestiaorg/celestia-node/service/header/extHeader"
 	"github.com/libp2p/go-libp2p-core/event"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	mocknet "github.com/libp2p/go-libp2p/p2p/net/mock"
@@ -21,7 +22,7 @@ func TestSubscriber(t *testing.T) {
 	net, err := mocknet.FullMeshLinked(ctx, 2)
 	require.NoError(t, err)
 
-	suite := NewTestSuite(t, 3)
+	suite := extheader.NewTestSuite(t, 3)
 
 	// get mock host and create new gossipsub on it
 	pubsub1, err := pubsub.NewGossipSub(ctx, net.Hosts()[0], pubsub.WithMessageSignaturePolicy(pubsub.StrictNoSign))

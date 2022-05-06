@@ -13,7 +13,7 @@ import (
 	"github.com/tendermint/tendermint/pkg/wrapper"
 
 	"github.com/celestiaorg/celestia-node/ipld"
-	"github.com/celestiaorg/celestia-node/service/header"
+	extheader "github.com/celestiaorg/celestia-node/service/header/extHeader"
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/rsmt2d"
 )
@@ -40,7 +40,7 @@ func TestFraudProofValidation(t *testing.T) {
 	var errByz *ipld.ErrByzantine
 	require.True(t, errors.As(err, &errByz))
 
-	dah := &header.ExtendedHeader{DAH: &da}
+	dah := &extheader.ExtendedHeader{DAH: &da}
 
 	p := CreateBadEncodingProof(uint64(dah.Height), errByz)
 	err = p.Validate(dah)

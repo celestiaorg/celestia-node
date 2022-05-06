@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 
+	extheader "github.com/celestiaorg/celestia-node/service/header/extHeader"
 	lru "github.com/hashicorp/golang-lru"
 	"github.com/ipfs/go-datastore"
 	"github.com/ipfs/go-datastore/namespace"
@@ -45,11 +46,11 @@ type store struct {
 	// writing to datastore
 	//
 	// queued of header ranges to be written
-	writes chan []*ExtendedHeader
+	writes chan []*extheader.ExtendedHeader
 	// signals when writes are finished
 	writesDn chan struct{}
 	// pending keeps headers pending to be written in a batch
-	pending []*ExtendedHeader
+	pending []*extheader.ExtendedHeader
 }
 
 // NewStore constructs a Store over datastore.
@@ -60,7 +61,7 @@ func NewStore(ds datastore.Batching) (Store, error) {
 }
 
 // NewStoreWithHead initiates a new Store and forcefully sets a given trusted header as head.
-func NewStoreWithHead(ctx context.Context, ds datastore.Batching, head *ExtendedHeader) (Store, error) {
+func NewStoreWithHead(ctx context.Context, ds datastore.Batching, head *extheader.ExtendedHeader) (Store, error) {
 	store, err := newStore(ds)
 	if err != nil {
 		return nil, err
@@ -86,13 +87,13 @@ func newStore(ds datastore.Batching) (*store, error) {
 		cache:       cache,
 		heightIndex: index,
 		heightSub:   newHeightSub(),
-		writes:      make(chan []*ExtendedHeader, 16),
+		writes:      make(chan []*extheader.ExtendedHeader, 16),
 		writesDn:    make(chan struct{}),
-		pending:     make([]*ExtendedHeader, 0, DefaultWriteBatchSize),
+		pending:     make([]*extheader.ExtendedHeader, 0, DefaultWriteBatchSize),
 	}, nil
 }
 
-func (s *store) Init(_ context.Context, initial *ExtendedHeader) error {
+func (s *store) Init(_ context.Context, initial *extheader.ExtendedHeader) error {
 	// trust the given header as the initial head
 	err := s.flush(initial)
 	if err != nil {
@@ -132,7 +133,7 @@ func (s *store) Height() uint64 {
 	return s.heightSub.Height()
 }
 
-func (s *store) Head(ctx context.Context) (*ExtendedHeader, error) {
+func (s *store) Head(ctx context.Context) (*extheader.ExtendedHeader, error) {
 	head, err := s.GetByHeight(ctx, s.heightSub.Height())
 	if err == nil {
 		return head, nil
@@ -151,9 +152,9 @@ func (s *store) Head(ctx context.Context) (*ExtendedHeader, error) {
 	}
 }
 
-func (s *store) Get(_ context.Context, hash tmbytes.HexBytes) (*ExtendedHeader, error) {
+func (s *store) Get(_ context.Context, hash tmbytes.HexBytes) (*extheader.ExtendedHeader, error) {
 	if v, ok := s.cache.Get(hash.String()); ok {
-		return v.(*ExtendedHeader), nil
+		return v.(*extheader.ExtendedHeader), nil
 	}
 
 	b, err := s.ds.Get(datastore.NewKey(hash.String()))
@@ -165,10 +166,10 @@ func (s *store) Get(_ context.Context, hash tmbytes.HexBytes) (*ExtendedHeader, 
 		return nil, err
 	}
 
-	return UnmarshalExtendedHeader(b)
+	return extheader.UnmarshalExtendedHeader(b)
 }
 
-func (s *store) GetByHeight(ctx context.Context, height uint64) (*ExtendedHeader, error) {
+func (s *store) GetByHeight(ctx context.Context, height uint64) (*extheader.ExtendedHeader, error) {
 	// if the requested 'height' was not yet published
 	// we subscribe to it
 	h, err := s.heightSub.Sub(ctx, height)
@@ -190,14 +191,14 @@ func (s *store) GetByHeight(ctx context.Context, height uint64) (*ExtendedHeader
 	return s.Get(ctx, hash)
 }
 
-func (s *store) GetRangeByHeight(ctx context.Context, from, to uint64) ([]*ExtendedHeader, error) {
+func (s *store) GetRangeByHeight(ctx context.Context, from, to uint64) ([]*extheader.ExtendedHeader, error) {
 	h, err := s.GetByHeight(ctx, to-1)
 	if err != nil {
 		return nil, err
 	}
 
 	ln := to - from
-	headers := make([]*ExtendedHeader, ln)
+	headers := make([]*extheader.ExtendedHeader, ln)
 	for i := ln - 1; i > 0; i-- {
 		headers[i] = h
 		h, err = s.Get(ctx, h.LastHeader())
@@ -218,7 +219,7 @@ func (s *store) Has(_ context.Context, hash tmbytes.HexBytes) (bool, error) {
 	return s.ds.Has(datastore.NewKey(hash.String()))
 }
 
-func (s *store) Append(ctx context.Context, headers ...*ExtendedHeader) (int, error) {
+func (s *store) Append(ctx context.Context, headers ...*extheader.ExtendedHeader) (int, error) {
 	lh := len(headers)
 	if lh == 0 {
 		return 0, nil
@@ -231,11 +232,11 @@ func (s *store) Append(ctx context.Context, headers ...*ExtendedHeader) (int, er
 	}
 
 	// collect valid headers
-	verified := make([]*ExtendedHeader, 0, lh)
+	verified := make([]*extheader.ExtendedHeader, 0, lh)
 	for i, h := range headers {
 		err = head.VerifyAdjacent(h)
 		if err != nil {
-			var verErr *VerifyError
+			var verErr *extheader.VerifyError
 			if errors.As(err, &verErr) {
 				log.Errorw("invalid header",
 					"height_of_head", head.Height,
@@ -314,7 +315,7 @@ func (s *store) flushLoop() {
 }
 
 // flush writes the given headers on disk
-func (s *store) flush(headers ...*ExtendedHeader) (err error) {
+func (s *store) flush(headers ...*extheader.ExtendedHeader) (err error) {
 	ln := len(headers)
 	if ln == 0 {
 		return nil
@@ -360,7 +361,7 @@ func (s *store) flush(headers ...*ExtendedHeader) (err error) {
 }
 
 // readHead loads the head from the disk.
-func (s *store) readHead(ctx context.Context) (*ExtendedHeader, error) {
+func (s *store) readHead(ctx context.Context) (*extheader.ExtendedHeader, error) {
 	b, err := s.ds.Get(headKey)
 	if err != nil {
 		return nil, err

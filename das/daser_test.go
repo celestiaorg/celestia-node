@@ -14,6 +14,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/celestiaorg/celestia-node/service/header"
+	extheader "github.com/celestiaorg/celestia-node/service/header/extHeader"
 	"github.com/celestiaorg/celestia-node/service/share"
 )
 
@@ -220,7 +221,7 @@ func createDASerSubcomponents(
 	shareServ := share.NewService(dag, share.NewLightAvailability(dag))
 
 	mockGet := &mockGetter{
-		headers: make(map[int64]*header.ExtendedHeader),
+		headers: make(map[int64]*extheader.ExtendedHeader),
 		doneCh:  make(chan struct{}),
 	}
 
@@ -240,13 +241,13 @@ func (m *mockGetter) fillSubWithHeaders(
 	startHeight,
 	endHeight int,
 ) {
-	sub.Headers = make([]*header.ExtendedHeader, endHeight-startHeight)
+	sub.Headers = make([]*extheader.ExtendedHeader, endHeight-startHeight)
 
 	index := 0
 	for i := startHeight; i < endHeight; i++ {
 		dah := share.RandFillDAG(t, 16, dag)
 
-		randHeader := header.RandExtendedHeader(t)
+		randHeader := extheader.RandExtendedHeader(t)
 		randHeader.DataHash = dah.Hash()
 		randHeader.DAH = dah
 		randHeader.Height = int64(i + 1)
@@ -263,14 +264,14 @@ type mockGetter struct {
 	doneCh chan struct{} // signals all stored headers have been retrieved
 
 	head    int64
-	headers map[int64]*header.ExtendedHeader
+	headers map[int64]*extheader.ExtendedHeader
 }
 
 func (m *mockGetter) generateHeaders(t *testing.T, dag format.DAGService, startHeight, endHeight int) {
 	for i := startHeight; i < endHeight; i++ {
 		dah := share.RandFillDAG(t, 16, dag)
 
-		randHeader := header.RandExtendedHeader(t)
+		randHeader := extheader.RandExtendedHeader(t)
 		randHeader.DataHash = dah.Hash()
 		randHeader.DAH = dah
 		randHeader.Height = int64(i + 1)
@@ -281,11 +282,11 @@ func (m *mockGetter) generateHeaders(t *testing.T, dag format.DAGService, startH
 	m.head = int64(startHeight + endHeight)
 }
 
-func (m *mockGetter) Head(context.Context) (*header.ExtendedHeader, error) {
+func (m *mockGetter) Head(context.Context) (*extheader.ExtendedHeader, error) {
 	return m.headers[m.head], nil
 }
 
-func (m *mockGetter) GetByHeight(_ context.Context, height uint64) (*header.ExtendedHeader, error) {
+func (m *mockGetter) GetByHeight(_ context.Context, height uint64) (*extheader.ExtendedHeader, error) {
 	defer func() {
 		if int64(height) == m.head {
 			close(m.doneCh)
