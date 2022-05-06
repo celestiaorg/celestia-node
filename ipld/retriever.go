@@ -47,8 +47,9 @@ func NewRetriever(dag format.DAGService, codec rsmt2d.Codec) *Retriever {
 }
 
 // Retrieve retrieves all the data committed to DataAvailabilityHeader.
-// It aims to request from the network only 1/4 of the data and reconstructs other 3/4 parts using the rsmt2d.Codec.
-// It steadily tries to request other 3/4 data if 1/4 is not found within RetrieveQuadrantTimeout or unrecoverable.
+// If not available locally, it aims to request from the network only 1/4 of the data and reconstructs other 3/4 parts
+// using the rsmt2d.Codec. It steadily tries to request other 3/4 data if 1/4 is not found within
+// RetrieveQuadrantTimeout or unrecoverable.
 func (r *Retriever) Retrieve(ctx context.Context, dah *da.DataAvailabilityHeader) (*rsmt2d.ExtendedDataSquare, error) {
 	ses := r.newSession(ctx, dah)
 	for _, qs := range newQuadrants(dah) {
@@ -139,7 +140,7 @@ func (r *Retriever) newSession(ctx context.Context, dah *da.DataAvailabilityHead
 }
 
 func (rs *retrieverSession) retrieve(ctx context.Context, q *quadrant) (*rsmt2d.ExtendedDataSquare, error) {
-	log.Debugw("retrieving data square", "data_hash", hex.EncodeToString(rs.dah.Hash()), "size", len(rs.square))
+	log.Debugw("retrieving data square", "data_hash", hex.EncodeToString(rs.dah.Hash()), "size", len(rs.dah.RowsRoots))
 	defer func() {
 		// all shares which were requested or repaired are written to disk with the commit
 		// we store *all*, so they are served to the network, including incorrectly committed data(BEFP case),
@@ -159,7 +160,7 @@ func (rs *retrieverSession) retrieve(ctx context.Context, q *quadrant) (*rsmt2d.
 		return nil, err
 	}
 
-	log.Infow("data square reconstructed", "data_hash", hex.EncodeToString(rs.dah.Hash()), "size", len(rs.square))
+	log.Infow("data square reconstructed", "data_hash", hex.EncodeToString(rs.dah.Hash()), "size", len(rs.dah.RowsRoots))
 	return rsmt2d.ImportExtendedDataSquare(rs.square, rs.codec, rs.treeFn)
 }
 
@@ -171,7 +172,7 @@ func (rs *retrieverSession) request(ctx context.Context, q *quadrant) {
 	wg := &sync.WaitGroup{}
 	wg.Add(size)
 
-	log.Debugw("requesting quadrant", "x", q.x, "y", q.y, "len(roots)", size)
+	log.Debugw("requesting quadrant", "x", q.x, "y", q.y, "size", size)
 	for i, root := range q.roots {
 		go func(i int, root cid.Cid) {
 			defer wg.Done()

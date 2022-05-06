@@ -13,8 +13,8 @@ import (
 	"github.com/tendermint/tendermint/pkg/wrapper"
 )
 
-// PutData erasures and extends shares to IPLD DAG using the provided ipld.NodeAdder.
-func PutData(ctx context.Context, shares []Share, adder ipld.NodeAdder) (*rsmt2d.ExtendedDataSquare, error) {
+// AddShares erasures and extends shares to IPLD DAG using the provided ipld.NodeAdder.
+func AddShares(ctx context.Context, shares []Share, adder ipld.NodeAdder) (*rsmt2d.ExtendedDataSquare, error) {
 	if len(shares) == 0 {
 		return nil, fmt.Errorf("empty data") // empty block is not an empty Data
 	}
@@ -36,7 +36,7 @@ func PutData(ctx context.Context, shares []Share, adder ipld.NodeAdder) (*rsmt2d
 }
 
 // ExtractODS returns the original shares of the given ExtendedDataSquare. This
-// is a helper function for circumstances where PutData must be used after the EDS has already
+// is a helper function for circumstances where AddShares must be used after the EDS has already
 // been generated.
 func ExtractODS(eds *rsmt2d.ExtendedDataSquare) []Share {
 	origWidth := eds.Width() / 2

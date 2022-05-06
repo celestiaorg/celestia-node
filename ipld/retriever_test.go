@@ -2,6 +2,7 @@ package ipld
 
 import (
 	"context"
+	"math/rand"
 	"testing"
 	"time"
 
@@ -12,6 +13,8 @@ import (
 )
 
 func TestRetriever_Retrieve(t *testing.T) {
+	rand.Seed(time.Now().UnixNano()) // otherwise, the quadrant sampling is deterministic in tests
+
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -33,11 +36,11 @@ func TestRetriever_Retrieve(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// generate EDS
 			shares := RandShares(t, tc.squareSize*tc.squareSize)
-			in, err := PutData(ctx, shares, dag)
+			in, err := AddShares(ctx, shares, dag)
 			require.NoError(t, err)
 
 			// limit with timeout, specifically retrieval
-			ctx, cancel := context.WithTimeout(ctx, time.Minute*2) // the timeout is big for the max size which is long
+			ctx, cancel := context.WithTimeout(ctx, time.Minute*5) // the timeout is big for the max size which is long
 			defer cancel()
 
 			dah := da.NewDataAvailabilityHeader(in)
