@@ -12,6 +12,7 @@ require (
 	github.com/celestiaorg/rsmt2d v0.4.0
 	github.com/cosmos/cosmos-sdk v0.44.3
 	github.com/dgraph-io/badger/v2 v2.2007.4
+	github.com/gammazero/workerpool v1.1.2
 	github.com/gogo/protobuf v1.3.3
 	github.com/gorilla/mux v1.8.0
 	github.com/hashicorp/go-retryablehttp v0.7.1-0.20211018174820-ff6d014e72d9
@@ -91,6 +92,7 @@ require (
 	github.com/felixge/httpsnoop v1.0.1 // indirect
 	github.com/flynn/noise v1.0.0 // indirect
 	github.com/fsnotify/fsnotify v1.5.1 // indirect
+	github.com/gammazero/deque v0.1.0 // indirect
 	github.com/go-kit/kit v0.12.0 // indirect
 	github.com/go-kit/log v0.2.0 // indirect
 	github.com/go-logfmt/logfmt v0.5.1 // indirect

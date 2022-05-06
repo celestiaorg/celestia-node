@@ -176,23 +176,18 @@ func (rs *retrieverSession) request(ctx context.Context, q *quadrant) {
 	for i, root := range q.roots {
 		go func(i int, root cid.Cid) {
 			defer wg.Done()
+			// get the root node
 			nd, err := rs.dag.Get(ctx, root)
 			if err != nil {
 				log.Errorw("getting root", "root", root.String(), "err", err)
 				return
 			}
-			// TODO(@Wondertan): GetLeaves should return everything it was able to request even on error,
-			// 	so that we fill as much data as possible
-			// get leaves of left or right subtree
-			nds, err := GetLeaves(ctx, rs.dag, nd.Links()[q.x].Cid, make([]format.Node, 0, size))
-			if err != nil {
-				log.Errorw("getting all the leaves", "root", root.String(), "err", err)
-				return
-			}
-			// fill leaves into the square
-			for j, nd := range nds {
-				rs.square[q.index(i, j)] = nd.RawData()[1+NamespaceSize:]
-			}
+			// and go get shares of left or the right side of the whole col/row axis
+			// the left or the right side of the tree represent some portion of the quadrant
+			// which we put into the rs.square share-by-share by calculating shares' indexes using q.index
+			GetShares(ctx, rs.dag, nd.Links()[q.x].Cid, size, func(j int, share Share) {
+				rs.square[q.index(i, j)] = share
+			})
 		}(i, root)
 	}
 	// wait for each root
