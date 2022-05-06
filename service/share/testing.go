@@ -24,8 +24,8 @@ import (
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/rsmt2d"
 
+	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/ipld"
-	"github.com/celestiaorg/celestia-node/service/header"
 )
 
 // RandLightServiceWithSquare provides a share.Service filled with 'n' NMT

@@ -9,6 +9,7 @@ import (
 	"github.com/raulk/go-watchdog"
 	"go.uber.org/fx"
 
+	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/libs/fxutil"
 	nodecore "github.com/celestiaorg/celestia-node/node/core"
 	"github.com/celestiaorg/celestia-node/node/p2p"
@@ -16,7 +17,6 @@ import (
 	"github.com/celestiaorg/celestia-node/node/services"
 	statecomponents "github.com/celestiaorg/celestia-node/node/state"
 	"github.com/celestiaorg/celestia-node/params"
-	"github.com/celestiaorg/celestia-node/service/header"
 )
 
 // lightComponents keeps all the components as DI options required to build a Light Node.
