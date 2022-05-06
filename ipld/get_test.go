@@ -38,7 +38,7 @@ func TestGetShare(t *testing.T) {
 
 	// generate random shares for the nmt
 	shares := RandShares(t, size*size)
-	eds, err := PutData(ctx, shares, dag)
+	eds, err := AddShares(ctx, shares, dag)
 	require.NoError(t, err)
 
 	for i, leaf := range shares {
@@ -168,7 +168,7 @@ func TestGetSharesByNamespace(t *testing.T) {
 			tt.rawData[(len(tt.rawData)/2)+1] = expected
 
 			// put raw data in DAG
-			eds, err := PutData(ctx, tt.rawData, dag)
+			eds, err := AddShares(ctx, tt.rawData, dag)
 			require.NoError(t, err)
 
 			for _, row := range eds.RowRoots() {
@@ -228,7 +228,7 @@ func TestGetLeavesByNamespace_AbsentNamespaceId(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			eds, err := PutData(ctx, shares, dag)
+			eds, err := AddShares(ctx, shares, dag)
 			require.NoError(t, err)
 			assertNoRowContainsNID(t, dag, eds, tt.missingNid)
 		})
@@ -254,7 +254,7 @@ func TestGetLeavesByNamespace_MultipleRowsContainingSameNamespaceId(t *testing.T
 		copy(nspace, commonNamespaceData)
 	}
 
-	eds, err := PutData(ctx, shares, dag)
+	eds, err := AddShares(ctx, shares, dag)
 	require.NoError(t, err)
 
 	for _, row := range eds.RowRoots() {
@@ -292,7 +292,7 @@ func TestBatchSize(t *testing.T) {
 			dag := merkledag.NewDAGService(blockservice.New(bs, offline.Exchange(bs)))
 
 			eds := RandEDS(t, tt.origWidth)
-			_, err := PutData(ctx, ExtractODS(eds), dag)
+			_, err := AddShares(ctx, ExtractODS(eds), dag)
 			require.NoError(t, err)
 
 			out, err := bs.AllKeysChan(ctx)
@@ -336,7 +336,7 @@ func TestGetProof(t *testing.T) {
 	dag := mdutils.Mock()
 
 	shares := RandShares(t, width*width)
-	in, err := PutData(ctx, shares, dag)
+	in, err := AddShares(ctx, shares, dag)
 	require.NoError(t, err)
 
 	dah := da.NewDataAvailabilityHeader(in)
@@ -372,7 +372,7 @@ func TestGetProofs(t *testing.T) {
 	dag := mdutils.Mock()
 
 	shares := RandShares(t, width*width)
-	in, err := PutData(ctx, shares, dag)
+	in, err := AddShares(ctx, shares, dag)
 	require.NoError(t, err)
 
 	dah := da.NewDataAvailabilityHeader(in)

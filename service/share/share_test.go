@@ -271,7 +271,7 @@ func TestSharesRoundTrip(t *testing.T) {
 
 			// test full round trip - with IPLD + decoding shares
 			{
-				extSquare, err := ipld.PutData(ctx, namespacedShares.RawShares(), store)
+				extSquare, err := ipld.AddShares(ctx, namespacedShares.RawShares(), store)
 				require.NoError(t, err)
 
 				dah := da.NewDataAvailabilityHeader(extSquare)

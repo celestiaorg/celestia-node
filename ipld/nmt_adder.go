@@ -10,7 +10,7 @@ import (
 )
 
 // NmtNodeAdder adds ipld.Nodes to the underlying ipld.Batch if it is inserted
-// into an nmt tree
+// into a nmt tree.
 type NmtNodeAdder struct {
 	ctx    context.Context
 	add    ipld.NodeAdder
