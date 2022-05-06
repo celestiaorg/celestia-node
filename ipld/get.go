@@ -27,37 +27,6 @@ func (e *ErrByzantine) Error() string {
 	return fmt.Sprintf("byzantine error. isRow:%v, Index:%v", e.IsRow, e.Index)
 }
 
-// GetLeaves gets all the leaves under the given root. It recursively starts traversing the DAG to find all the leafs.
-// It also takes a pre-allocated slice 'leaves'.
-func GetLeaves(ctx context.Context, dag ipld.NodeGetter, root cid.Cid, leaves []ipld.Node) ([]ipld.Node, error) {
-	// request the node
-	nd, err := dag.Get(ctx, root)
-	if err != nil {
-		return nil, err
-	}
-
-	// look for links
-	lnks := nd.Links()
-	if len(lnks) == 1 {
-		// in case there is only one we reached tree's bottom, so finally request the leaf.
-		nd, err = dag.Get(ctx, lnks[0].Cid)
-		if err != nil {
-			return nil, err
-		}
-
-		return append(leaves, nd), nil
-	}
-
-	for _, node := range lnks {
-		// recursively walk down through selected children to request the leaves
-		leaves, err = GetLeaves(ctx, dag, node.Cid, leaves)
-		if err != nil {
-			return nil, err
-		}
-	}
-	return leaves, nil
-}
-
 // GetShare fetches and returns the data for leaf `leafIndex` of root `rootCid`.
 func GetShare(
 	ctx context.Context,
