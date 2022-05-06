@@ -159,7 +159,7 @@ func (s *service) GetSharesByNamespace(ctx context.Context, root *Root, nID name
 		}
 	}
 	if len(rowRootCIDs) == 0 {
-		return nil, format.ErrNotFound
+		return nil, nil
 	}
 
 	errGroup, ctx := errgroup.WithContext(ctx)

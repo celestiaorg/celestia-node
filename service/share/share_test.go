@@ -108,13 +108,13 @@ func TestGetShares(t *testing.T) {
 	require.NoError(t, err)
 }
 
-func TestService_GetSharesByNamespaceNotFoundInRange(t *testing.T) {
+func TestService_GetSharesByNamespaceNotFound(t *testing.T) {
 	serv, root := RandLightServiceWithSquare(t, 1)
 	root.RowsRoots = nil
 
 	shares, err := serv.GetSharesByNamespace(context.Background(), root, []byte(""))
 	assert.Len(t, shares, 0)
-	require.Error(t, err, "namespaceID not found in range")
+	assert.NoError(t, err)
 }
 
 func BenchmarkService_GetSharesByNamespace(b *testing.B) {
