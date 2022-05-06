@@ -76,5 +76,4 @@ func (s *Service) subscribeToBefp(ctx context.Context) {
 		return
 	}
 	atomic.StoreUint64(&s.haltedSubmitTx, 1)
-	return
 }
