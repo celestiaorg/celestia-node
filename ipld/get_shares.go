@@ -42,7 +42,8 @@ func GetShares(ctx context.Context, dag format.NodeGetter, root cid.Cid, shares 
 		id  cid.Cid
 		pos int
 	}
-	jobs := make(chan *job, shares/2) // this buffer ensures writes to 'jobs' are never blocking (bin-tree-feat)
+	// this buffer ensures writes to 'jobs' are never blocking (bin-tree-feat)
+	jobs := make(chan *job, (shares+1)/2) // +1 for the case where 'shares' is 1
 	jobs <- &job{id: root}
 	// total amount of routines spawned and total amount of nodes we process (bin-tree-feat)
 	// so we can specify exact amount of loops we do, and wait for this amount of routines to finish processing
