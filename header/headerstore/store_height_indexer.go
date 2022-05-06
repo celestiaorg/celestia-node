@@ -1,9 +1,11 @@
-package header
+package headerstore
 
 import (
 	lru "github.com/hashicorp/golang-lru"
 	"github.com/ipfs/go-datastore"
 	tmbytes "github.com/tendermint/tendermint/libs/bytes"
+
+	"github.com/celestiaorg/celestia-node/header"
 )
 
 // TODO(@Wondertan): There should be a more clever way to index heights, than just storing HeightToHash pair...
@@ -36,7 +38,7 @@ func (hi *heightIndexer) HashByHeight(h uint64) (tmbytes.HexBytes, error) {
 }
 
 // IndexTo saves mapping between header Height and Hash to the given batch.
-func (hi *heightIndexer) IndexTo(batch datastore.Batch, headers ...*ExtendedHeader) error {
+func (hi *heightIndexer) IndexTo(batch datastore.Batch, headers ...*header.ExtendedHeader) error {
 	for _, h := range headers {
 		err := batch.Put(heightKey(uint64(h.Height)), h.Hash())
 		if err != nil {

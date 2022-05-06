@@ -1,4 +1,4 @@
-package header
+package headerstore
 
 import (
 	"context"
@@ -9,15 +9,17 @@ import (
 	"github.com/ipfs/go-datastore/sync"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/celestiaorg/celestia-node/header"
 )
 
 func TestInitStore_NoReinit(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	t.Cleanup(cancel)
 
-	suite := NewTestSuite(t, 3)
+	suite := header.NewTestSuite(t, 3)
 	head := suite.Head()
-	exchange := NewLocalExchange(NewTestStore(ctx, t, head))
+	exchange := header.NewLocalExchange(NewTestStore(ctx, t, head))
 
 	ds := sync.MutexWrap(datastore.NewMapDatastore())
 	store, err := NewStore(ds)

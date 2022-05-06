@@ -14,6 +14,7 @@ import (
 
 	"github.com/celestiaorg/celestia-node/das"
 	"github.com/celestiaorg/celestia-node/header"
+	"github.com/celestiaorg/celestia-node/header/headerstore"
 	"github.com/celestiaorg/celestia-node/header/headersync"
 	"github.com/celestiaorg/celestia-node/libs/fxutil"
 	"github.com/celestiaorg/celestia-node/node/rpc"
@@ -86,7 +87,7 @@ func HeaderP2PExchangeServer(lc fx.Lifecycle, host host.Host, store header.Store
 
 // HeaderStore creates and initializes new header.Store.
 func HeaderStore(lc fx.Lifecycle, ds datastore.Batching) (header.Store, error) {
-	store, err := header.NewStore(ds)
+	store, err := headerstore.NewStore(ds)
 	if err != nil {
 		return nil, err
 	}
@@ -105,7 +106,7 @@ func HeaderStoreInit(cfg *Config) func(context.Context, params.Network, header.S
 			return err
 		}
 
-		err = header.InitStore(ctx, store, ex, trustedHash)
+		err = headerstore.InitStore(ctx, store, ex, trustedHash)
 		if err != nil {
 			// TODO(@Wondertan): Error is ignored, as otherwise unit tests for Node construction fail.
 			// 	This is due to requesting step of initialization, which fetches initial Header by trusted hash from

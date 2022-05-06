@@ -1,10 +1,12 @@
-package header
+package headerstore
 
 import (
 	"context"
 	"errors"
 	"sync"
 	"sync/atomic"
+
+	"github.com/celestiaorg/celestia-node/header"
 )
 
 // errElapsedHeight is thrown when a requested height was already provided to heightSub.
@@ -16,13 +18,13 @@ type heightSub struct {
 	// that has been fully verified and inserted into the subjective chain
 	height       uint64 // atomic
 	heightReqsLk sync.Mutex
-	heightReqs   map[uint64][]chan *ExtendedHeader
+	heightReqs   map[uint64][]chan *header.ExtendedHeader
 }
 
 // newHeightSub instantiates new heightSub.
 func newHeightSub() *heightSub {
 	return &heightSub{
-		heightReqs: make(map[uint64][]chan *ExtendedHeader),
+		heightReqs: make(map[uint64][]chan *header.ExtendedHeader),
 	}
 }
 
@@ -39,7 +41,7 @@ func (hs *heightSub) SetHeight(height uint64) {
 // Sub subscribes for a header of a given height.
 // It can return errElapsedHeight, which means a requested header was already provided
 // and caller should get it elsewhere.
-func (hs *heightSub) Sub(ctx context.Context, height uint64) (*ExtendedHeader, error) {
+func (hs *heightSub) Sub(ctx context.Context, height uint64) (*header.ExtendedHeader, error) {
 	if hs.Height() >= height {
 		return nil, errElapsedHeight
 	}
@@ -52,7 +54,7 @@ func (hs *heightSub) Sub(ctx context.Context, height uint64) (*ExtendedHeader, e
 		hs.heightReqsLk.Unlock()
 		return nil, errElapsedHeight
 	}
-	resp := make(chan *ExtendedHeader, 1)
+	resp := make(chan *header.ExtendedHeader, 1)
 	hs.heightReqs[height] = append(hs.heightReqs[height], resp)
 	hs.heightReqsLk.Unlock()
 
@@ -68,7 +70,7 @@ func (hs *heightSub) Sub(ctx context.Context, height uint64) (*ExtendedHeader, e
 // Pub is only safe when called from one goroutine.
 // For Pub to work correctly, heightSub has to be initialized with SetHeight
 // so that given headers are contiguous to the height on heightSub.
-func (hs *heightSub) Pub(headers ...*ExtendedHeader) {
+func (hs *heightSub) Pub(headers ...*header.ExtendedHeader) {
 	height := hs.Height()
 	from, to := uint64(headers[0].Height), uint64(headers[len(headers)-1].Height)
 	if height+1 != from {

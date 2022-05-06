@@ -1,4 +1,4 @@
-package header
+package headerstore
 
 import (
 	"context"
@@ -11,13 +11,15 @@ import (
 	"github.com/stretchr/testify/require"
 
 	tmrand "github.com/tendermint/tendermint/libs/rand"
+
+	"github.com/celestiaorg/celestia-node/header"
 )
 
 func TestStore(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	t.Cleanup(cancel)
 
-	suite := NewTestSuite(t, 3)
+	suite := header.NewTestSuite(t, 3)
 
 	ds := sync.MutexWrap(datastore.NewMapDatastore())
 	store, err := NewStoreWithHead(ctx, ds, suite.Head())

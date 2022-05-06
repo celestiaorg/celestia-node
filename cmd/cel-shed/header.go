@@ -7,8 +7,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/celestiaorg/celestia-node/header"
-
+	"github.com/celestiaorg/celestia-node/header/headerstore"
 	"github.com/celestiaorg/celestia-node/node"
 )
 
@@ -51,7 +50,7 @@ Custom store path is not supported yet.`,
 			return err
 		}
 
-		hstore, err := header.NewStore(ds)
+		hstore, err := headerstore.NewStore(ds)
 		if err != nil {
 			return err
 		}

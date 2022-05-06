@@ -1,4 +1,4 @@
-package header
+package headerstore
 
 import (
 	"context"
@@ -6,6 +6,8 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+
+	"github.com/celestiaorg/celestia-node/header"
 )
 
 func TestHeightSub(t *testing.T) {
@@ -16,7 +18,7 @@ func TestHeightSub(t *testing.T) {
 
 	// assert subscription returns nil for past heights
 	{
-		h := RandExtendedHeader(t)
+		h := header.RandExtendedHeader(t)
 		h.Height = 100
 		hs.SetHeight(99)
 		hs.Pub(h)
@@ -29,9 +31,9 @@ func TestHeightSub(t *testing.T) {
 	// assert actual subscription works
 	{
 		go func() {
-			h1 := RandExtendedHeader(t)
+			h1 := header.RandExtendedHeader(t)
 			h1.Height = 101
-			h2 := RandExtendedHeader(t)
+			h2 := header.RandExtendedHeader(t)
 			h1.Height = 101
 			hs.Pub(h1, h2)
 		}()
