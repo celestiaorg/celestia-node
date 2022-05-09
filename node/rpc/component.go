@@ -25,7 +25,7 @@ func ServerComponent(cfg rpc.Config) func(lc fx.Lifecycle) *rpc.Server {
 
 func HandlerComponents(
 	state *state.Service,
-	share share.Service,
+	share *share.Service,
 	header *header.Service,
 	serv *rpc.Server,
 ) *rpc.Handler {
