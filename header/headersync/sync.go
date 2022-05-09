@@ -15,7 +15,7 @@ import (
 	"github.com/celestiaorg/celestia-node/header"
 )
 
-var log = logging.Logger("header_sync")
+var log = logging.Logger("header/sync")
 
 // Syncer implements efficient synchronization for headers.
 //

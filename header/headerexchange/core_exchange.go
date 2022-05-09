@@ -14,7 +14,7 @@ import (
 	"github.com/celestiaorg/celestia-node/header"
 )
 
-var log = logging.Logger("header_exchanger")
+var log = logging.Logger("header/exchange")
 
 type CoreExchange struct {
 	fetcher    *core.BlockFetcher

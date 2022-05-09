@@ -10,7 +10,7 @@ import (
 	"github.com/celestiaorg/celestia-node/header/headersync"
 )
 
-var log = logging.Logger("header_service")
+var log = logging.Logger("header/service")
 
 // Service represents the header service that can be started / stopped on a node.
 // Service's main function is to manage its sub-services. Service can contain several
