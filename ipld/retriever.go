@@ -121,8 +121,9 @@ type retrieverSession struct {
 	treeFn rsmt2d.TreeConstructorFn
 	codec  rsmt2d.Codec
 
-	dah    *da.DataAvailabilityHeader
-	square [][]byte
+	dah      *da.DataAvailabilityHeader
+	squareLk sync.RWMutex
+	square   [][]byte
 }
 
 func (r *Retriever) newSession(ctx context.Context, dah *da.DataAvailabilityHeader) *retrieverSession {
@@ -155,6 +156,9 @@ func (rs *retrieverSession) retrieve(ctx context.Context, q *quadrant) (*rsmt2d.
 	rs.request(ctx, q)
 
 	// try repair
+	// TODO: Avoid reimporting of the square which can potentially remove the requirement for the lock
+	rs.squareLk.Lock()
+	defer rs.squareLk.Unlock()
 	err := rsmt2d.RepairExtendedDataSquare(rs.dah.RowsRoots, rs.dah.ColumnRoots, rs.square, rs.codec, rs.treeFn)
 	if err != nil {
 		return nil, err
@@ -185,7 +189,12 @@ func (rs *retrieverSession) request(ctx context.Context, q *quadrant) {
 			// the left or the right side of the tree represent some portion of the quadrant
 			// which we put into the rs.square share-by-share by calculating shares' indexes using q.index
 			GetShares(ctx, rs.dag, nd.Links()[q.x].Cid, size, func(j int, share Share) {
+				// the R lock here is *not* to protect rs.square from multiple concurrent shares writes
+				// but to avoid races between share writes and repairing attempts
+				// shares are written atomically in their own slice slot
+				rs.squareLk.RLock()
 				rs.square[q.index(i, j)] = share
+				rs.squareLk.RUnlock()
 			})
 		}(i, root)
 	}
