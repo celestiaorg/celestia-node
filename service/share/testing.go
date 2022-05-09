@@ -30,21 +30,21 @@ import (
 
 // RandLightServiceWithSquare provides a share.Service filled with 'n' NMT
 // trees of 'n' random shares, essentially storing a whole square.
-func RandLightServiceWithSquare(t *testing.T, n int) (Service, *Root) {
+func RandLightServiceWithSquare(t *testing.T, n int) (*Service, *Root) {
 	dag := mdutils.Mock()
 	return NewService(dag, NewLightAvailability(dag)), RandFillDAG(t, n, dag)
 }
 
 // RandLightService provides an unfilled share.Service with corresponding
 // format.DAGService than can be filled by the test.
-func RandLightService() (Service, format.DAGService) {
+func RandLightService() (*Service, format.DAGService) {
 	dag := mdutils.Mock()
 	return NewService(dag, NewLightAvailability(dag)), dag
 }
 
 // RandFullServiceWithSquare provides a share.Service filled with 'n' NMT
 // trees of 'n' random shares, essentially storing a whole square.
-func RandFullServiceWithSquare(t *testing.T, n int) (Service, *Root) {
+func RandFullServiceWithSquare(t *testing.T, n int) (*Service, *Root) {
 	dag := mdutils.Mock()
 	return NewService(dag, NewFullAvailability(dag)), RandFillDAG(t, n, dag)
 }
@@ -89,12 +89,12 @@ func NewDAGNet(ctx context.Context, t *testing.T) *DAGNet {
 	}
 }
 
-func (dn *DAGNet) RandLightService(n int) (Service, *Root) {
+func (dn *DAGNet) RandLightService(n int) (*Service, *Root) {
 	dag, root := dn.RandDAG(n)
 	return NewService(dag, NewLightAvailability(dag)), root
 }
 
-func (dn *DAGNet) RandFullService(n int) (Service, *Root) {
+func (dn *DAGNet) RandFullService(n int) (*Service, *Root) {
 	dag, root := dn.RandDAG(n)
 	return NewService(dag, NewFullAvailability(dag)), root
 }
@@ -104,7 +104,7 @@ func (dn *DAGNet) RandDAG(n int) (format.DAGService, *Root) {
 	return dag, RandFillDAG(dn.t, n, dag)
 }
 
-func (dn *DAGNet) CleanService() Service {
+func (dn *DAGNet) CleanService() *Service {
 	dag := dn.CleanDAG()
 	return NewService(dag, NewLightAvailability(dag))
 }

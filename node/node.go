@@ -55,7 +55,7 @@ type Node struct {
 	// p2p protocols
 	PubSub *pubsub.PubSub
 	// services
-	ShareServ  share.Service   // not optional
+	ShareServ  *share.Service  // not optional
 	HeaderServ *header.Service // not optional
 	StateServ  *state.Service  // not optional
 
