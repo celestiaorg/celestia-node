@@ -1,4 +1,4 @@
-package headersync
+package sync
 
 import (
 	"context"
@@ -10,8 +10,8 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/celestiaorg/celestia-node/header"
-	"github.com/celestiaorg/celestia-node/header/headerexchange"
-	"github.com/celestiaorg/celestia-node/header/headerstore"
+	"github.com/celestiaorg/celestia-node/header/exchange"
+	"github.com/celestiaorg/celestia-node/header/store"
 )
 
 func TestSyncSimpleRequestingHead(t *testing.T) {
@@ -25,12 +25,12 @@ func TestSyncSimpleRequestingHead(t *testing.T) {
 	suite := header.NewTestSuite(t, 3)
 	head := suite.Head()
 
-	remoteStore := headerstore.NewTestStore(ctx, t, head)
+	remoteStore := store.NewTestStore(ctx, t, head)
 	_, err := remoteStore.Append(ctx, suite.GenExtendedHeaders(100)...)
 	require.NoError(t, err)
 
-	localStore := headerstore.NewTestStore(ctx, t, head)
-	syncer := NewSyncer(headerexchange.NewLocalExchange(remoteStore), localStore, &header.DummySubscriber{})
+	localStore := store.NewTestStore(ctx, t, head)
+	syncer := NewSyncer(exchange.NewLocalExchange(remoteStore), localStore, &header.DummySubscriber{})
 	err = syncer.Start(ctx)
 	require.NoError(t, err)
 
@@ -62,9 +62,9 @@ func TestSyncCatchUp(t *testing.T) {
 	suite := header.NewTestSuite(t, 3)
 	head := suite.Head()
 
-	remoteStore := headerstore.NewTestStore(ctx, t, head)
-	localStore := headerstore.NewTestStore(ctx, t, head)
-	syncer := NewSyncer(headerexchange.NewLocalExchange(remoteStore), localStore, &header.DummySubscriber{})
+	remoteStore := store.NewTestStore(ctx, t, head)
+	localStore := store.NewTestStore(ctx, t, head)
+	syncer := NewSyncer(exchange.NewLocalExchange(remoteStore), localStore, &header.DummySubscriber{})
 	// 1. Initial sync
 	err := syncer.Start(ctx)
 	require.NoError(t, err)
@@ -106,9 +106,9 @@ func TestSyncPendingRangesWithMisses(t *testing.T) {
 	suite := header.NewTestSuite(t, 3)
 	head := suite.Head()
 
-	remoteStore := headerstore.NewTestStore(ctx, t, head)
-	localStore := headerstore.NewTestStore(ctx, t, head)
-	syncer := NewSyncer(headerexchange.NewLocalExchange(remoteStore), localStore, &header.DummySubscriber{})
+	remoteStore := store.NewTestStore(ctx, t, head)
+	localStore := store.NewTestStore(ctx, t, head)
+	syncer := NewSyncer(exchange.NewLocalExchange(remoteStore), localStore, &header.DummySubscriber{})
 	err := syncer.Start(ctx)
 	require.NoError(t, err)
 

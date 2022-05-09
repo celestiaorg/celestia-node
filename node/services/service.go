@@ -14,9 +14,9 @@ import (
 
 	"github.com/celestiaorg/celestia-node/das"
 	"github.com/celestiaorg/celestia-node/header"
-	"github.com/celestiaorg/celestia-node/header/headerexchange"
-	"github.com/celestiaorg/celestia-node/header/headerstore"
-	"github.com/celestiaorg/celestia-node/header/headersync"
+	"github.com/celestiaorg/celestia-node/header/exchange"
+	"github.com/celestiaorg/celestia-node/header/store"
+	"github.com/celestiaorg/celestia-node/header/sync"
 	"github.com/celestiaorg/celestia-node/libs/fxutil"
 	"github.com/celestiaorg/celestia-node/node/rpc"
 	"github.com/celestiaorg/celestia-node/params"
@@ -30,8 +30,8 @@ func HeaderSyncer(
 	ex header.Exchange,
 	store header.Store,
 	sub header.Subscriber,
-) (*headersync.Syncer, error) {
-	syncer := headersync.NewSyncer(ex, store, sub)
+) (*sync.Syncer, error) {
+	syncer := sync.NewSyncer(ex, store, sub)
 	lc.Append(fx.Hook{
 		OnStart: syncer.Start,
 		OnStop:  syncer.Stop,
@@ -40,8 +40,8 @@ func HeaderSyncer(
 }
 
 // P2PSubscriber creates a new P2PSubscriber.
-func P2PSubscriber(lc fx.Lifecycle, sub *pubsub.PubSub) (*headerexchange.P2PSubscriber, *headerexchange.P2PSubscriber) {
-	p2pSub := headerexchange.NewP2PSubscriber(sub)
+func P2PSubscriber(lc fx.Lifecycle, sub *pubsub.PubSub) (*exchange.P2PSubscriber, *exchange.P2PSubscriber) {
+	p2pSub := exchange.NewP2PSubscriber(sub)
 	lc.Append(fx.Hook{
 		OnStart: p2pSub.Start,
 		OnStop:  p2pSub.Stop,
@@ -51,9 +51,9 @@ func P2PSubscriber(lc fx.Lifecycle, sub *pubsub.PubSub) (*headerexchange.P2PSubs
 
 // HeaderService creates a new header.Service.
 func HeaderService(
-	syncer *headersync.Syncer,
+	syncer *sync.Syncer,
 	sub header.Subscriber,
-	p2pServer *headerexchange.P2PExchangeServer,
+	p2pServer *exchange.P2PExchangeServer,
 	ex header.Exchange,
 ) *headerservice.Service {
 	return headerservice.NewHeaderService(syncer, sub, p2pServer, ex)
@@ -71,13 +71,13 @@ func HeaderExchangeP2P(cfg Config) func(params.Network, host.Host) (header.Excha
 			ids[index] = peer.ID
 			host.Peerstore().AddAddrs(peer.ID, peer.Addrs, peerstore.PermanentAddrTTL)
 		}
-		return headerexchange.NewP2PExchange(host, ids), nil
+		return exchange.NewP2PExchange(host, ids), nil
 	}
 }
 
 // HeaderP2PExchangeServer creates a new header.P2PExchangeServer.
-func HeaderP2PExchangeServer(lc fx.Lifecycle, host host.Host, store header.Store) *headerexchange.P2PExchangeServer {
-	p2pServ := headerexchange.NewP2PExchangeServer(host, store)
+func HeaderP2PExchangeServer(lc fx.Lifecycle, host host.Host, store header.Store) *exchange.P2PExchangeServer {
+	p2pServ := exchange.NewP2PExchangeServer(host, store)
 	lc.Append(fx.Hook{
 		OnStart: p2pServ.Start,
 		OnStop:  p2pServ.Stop,
@@ -88,7 +88,7 @@ func HeaderP2PExchangeServer(lc fx.Lifecycle, host host.Host, store header.Store
 
 // HeaderStore creates and initializes new header.Store.
 func HeaderStore(lc fx.Lifecycle, ds datastore.Batching) (header.Store, error) {
-	store, err := headerstore.NewStore(ds)
+	store, err := store.NewStore(ds)
 	if err != nil {
 		return nil, err
 	}
@@ -101,13 +101,13 @@ func HeaderStore(lc fx.Lifecycle, ds datastore.Batching) (header.Store, error) {
 
 // HeaderStoreInit initializes the store.
 func HeaderStoreInit(cfg *Config) func(context.Context, params.Network, header.Store, header.Exchange) error {
-	return func(ctx context.Context, net params.Network, store header.Store, ex header.Exchange) error {
+	return func(ctx context.Context, net params.Network, s header.Store, ex header.Exchange) error {
 		trustedHash, err := cfg.trustedHash(net)
 		if err != nil {
 			return err
 		}
 
-		err = headerstore.InitStore(ctx, store, ex, trustedHash)
+		err = store.InitStore(ctx, s, ex, trustedHash)
 		if err != nil {
 			// TODO(@Wondertan): Error is ignored, as otherwise unit tests for Node construction fail.
 			// 	This is due to requesting step of initialization, which fetches initial Header by trusted hash from

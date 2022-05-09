@@ -1,4 +1,4 @@
-package headersync
+package sync
 
 import (
 	"sync"

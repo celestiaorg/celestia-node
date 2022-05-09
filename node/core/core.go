@@ -7,7 +7,7 @@ import (
 	format "github.com/ipfs/go-ipld-format"
 	"go.uber.org/fx"
 
-	"github.com/celestiaorg/celestia-node/header/headerexchange"
+	"github.com/celestiaorg/celestia-node/header/exchange"
 	"github.com/celestiaorg/celestia-node/libs/fxutil"
 
 	"github.com/celestiaorg/celestia-node/core"
@@ -30,7 +30,7 @@ func DefaultConfig() Config {
 func Components(cfg Config) fx.Option {
 	return fx.Options(
 		fx.Provide(core.NewBlockFetcher),
-		fxutil.ProvideAs(headerexchange.NewCoreExchange, new(header.Exchange)),
+		fxutil.ProvideAs(exchange.NewCoreExchange, new(header.Exchange)),
 		fx.Invoke(HeaderCoreListener),
 		fx.Provide(func(lc fx.Lifecycle) (core.Client, error) {
 			if cfg.RemoteAddr == "" {
@@ -59,8 +59,8 @@ func HeaderCoreListener(
 	ex *core.BlockFetcher,
 	bcast header.Broadcaster,
 	dag format.DAGService,
-) *headerexchange.CoreListener {
-	cl := headerexchange.NewCoreListener(bcast, ex, dag)
+) *exchange.CoreListener {
+	cl := exchange.NewCoreListener(bcast, ex, dag)
 	lc.Append(fx.Hook{
 		OnStart: cl.Start,
 		OnStop:  cl.Stop,

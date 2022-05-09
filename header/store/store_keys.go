@@ -1,4 +1,4 @@
-package headerstore
+package store
 
 import (
 	"strconv"

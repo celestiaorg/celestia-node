@@ -20,7 +20,7 @@ import (
 	"github.com/celestiaorg/celestia-node/das"
 	"github.com/celestiaorg/celestia-node/node/rpc"
 	"github.com/celestiaorg/celestia-node/params"
-	headerservice "github.com/celestiaorg/celestia-node/service/header"
+	"github.com/celestiaorg/celestia-node/service/header"
 	"github.com/celestiaorg/celestia-node/service/share"
 	"github.com/celestiaorg/celestia-node/service/state"
 )
@@ -55,9 +55,9 @@ type Node struct {
 	// p2p protocols
 	PubSub *pubsub.PubSub
 	// services
-	ShareServ  share.Service          // not optional
-	HeaderServ *headerservice.Service // not optional
-	StateServ  *state.Service         // not optional
+	ShareServ  share.Service   // not optional
+	HeaderServ *header.Service // not optional
+	StateServ  *state.Service  // not optional
 
 	DASer *das.DASer `optional:"true"`
 

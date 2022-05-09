@@ -1,4 +1,4 @@
-package headerexchange
+package exchange
 
 import (
 	"context"

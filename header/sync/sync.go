@@ -1,4 +1,4 @@
-package headersync
+package sync
 
 import (
 	"context"
@@ -38,7 +38,7 @@ type Syncer struct {
 
 	// stateLk protects state which represents the current or latest sync
 	stateLk sync.RWMutex
-	state   SyncState
+	state   State
 	// signals to start syncing
 	triggerSync chan struct{}
 	// pending keeps ranges of valid headers received from the network awaiting to be appended to store
@@ -94,8 +94,8 @@ func (s *Syncer) WaitSync(ctx context.Context) error {
 	return err
 }
 
-// SyncState collects all the information about a sync.
-type SyncState struct {
+// State collects all the information about a sync.
+type State struct {
 	ID                   uint64 // incrementing ID of a sync
 	Height               uint64 // height at the moment when State is requested for a sync
 	FromHeight, ToHeight uint64 // the starting and the ending point of a sync
@@ -105,14 +105,14 @@ type SyncState struct {
 }
 
 // Finished returns true if sync is done, false otherwise.
-func (s SyncState) Finished() bool {
+func (s State) Finished() bool {
 	return s.ToHeight <= s.Height
 }
 
 // State reports state of the current (if in progress), or last sync (if finished).
 // Note that throughout the whole Syncer lifetime there might an initial sync and multiple catch-ups.
 // All of them are treated as different syncs with different state IDs and other information.
-func (s *Syncer) State() SyncState {
+func (s *Syncer) State() State {
 	s.stateLk.RLock()
 	state := s.state
 	s.stateLk.RUnlock()
@@ -277,7 +277,7 @@ func (s *Syncer) syncTo(ctx context.Context, newHead *header.ExtendedHeader) {
 		"elapsed time", s.state.End.Sub(s.state.Start))
 }
 
-// doSync performs actual syncing updating the internal SyncState
+// doSync performs actual syncing updating the internal State
 func (s *Syncer) doSync(ctx context.Context, fromHead, toHead *header.ExtendedHeader) (err error) {
 	from, to := uint64(fromHead.Height)+1, uint64(toHead.Height)
 

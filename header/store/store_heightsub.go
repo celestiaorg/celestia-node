@@ -1,8 +1,9 @@
-package headerstore
+package store
 
 import (
 	"context"
 	"errors"
+
 	"sync"
 	"sync/atomic"
 
