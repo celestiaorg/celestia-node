@@ -14,7 +14,6 @@ import (
 
 	"github.com/celestiaorg/celestia-node/das"
 	"github.com/celestiaorg/celestia-node/libs/fxutil"
-	"github.com/celestiaorg/celestia-node/node/rpc"
 	"github.com/celestiaorg/celestia-node/params"
 	"github.com/celestiaorg/celestia-node/service/header"
 	"github.com/celestiaorg/celestia-node/service/share"
@@ -118,9 +117,8 @@ func HeaderStoreInit(cfg *Config) func(context.Context, params.Network, header.S
 }
 
 // ShareService constructs new share.Service.
-func ShareService(lc fx.Lifecycle, dag ipld.DAGService, avail share.Availability, rpc *rpc.Server) share.Service {
+func ShareService(lc fx.Lifecycle, dag ipld.DAGService, avail share.Availability) share.Service {
 	service := share.NewService(dag, avail)
-	service.RegisterEndpoints(rpc)
 	lc.Append(fx.Hook{
 		OnStart: service.Start,
 		OnStop:  service.Stop,

@@ -1,11 +1,9 @@
-package share
+package rpc
 
 import (
 	"encoding/hex"
 	"encoding/json"
 	"net/http"
-
-	"github.com/celestiaorg/celestia-node/node/rpc"
 )
 
 const namespacedSharesEndpoint = "/namespaced_shares"
@@ -14,14 +12,10 @@ const namespacedSharesEndpoint = "/namespaced_shares"
 // request payload
 type sharesByNamespaceRequest struct {
 	NamespaceID string `json:"namespace_id"`
-	Root        string `json:"root"`
+	Height      uint64 `json:"height"`
 }
 
-func (s *service) RegisterEndpoints(rpc *rpc.Server) {
-	rpc.RegisterHandlerFunc(namespacedSharesEndpoint, s.handleSharesByNamespaceRequest, http.MethodGet)
-}
-
-func (s *service) handleSharesByNamespaceRequest(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) handleSharesByNamespaceRequest(w http.ResponseWriter, r *http.Request) {
 	// unmarshal payload
 	var req sharesByNamespaceRequest
 	err := json.NewDecoder(r.Body).Decode(&req)
@@ -37,22 +31,15 @@ func (s *service) handleSharesByNamespaceRequest(w http.ResponseWriter, r *http.
 		log.Errorw("serving request", "endpoint", namespacedSharesEndpoint, "err", err)
 		return
 	}
-	// decode and unmarshal root
-	rawRoot, err := hex.DecodeString(req.Root)
+	// get header by given height
+	header, err := h.header.GetByHeight(r.Context(), req.Height)
 	if err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		log.Errorw("serving request", "endpoint", namespacedSharesEndpoint, "err", err)
-		return
-	}
-	var root Root
-	err = json.Unmarshal(rawRoot, &root)
-	if err != nil {
-		w.WriteHeader(http.StatusBadRequest)
+		w.WriteHeader(http.StatusInternalServerError)
 		log.Errorw("serving request", "endpoint", namespacedSharesEndpoint, "err", err)
 		return
 	}
 	// perform request
-	shares, err := s.GetSharesByNamespace(r.Context(), &root, nID)
+	shares, err := h.share.GetSharesByNamespace(r.Context(), header.DAH, nID)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		_, werr := w.Write([]byte(err.Error()))

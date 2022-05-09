@@ -7,11 +7,7 @@ import (
 	"net/http"
 
 	"github.com/gorilla/mux"
-
-	logging "github.com/ipfs/go-log/v2"
 )
-
-var log = logging.Logger("rpc")
 
 // Server represents an RPC server on the Node.
 // TODO @renaynay: eventually, rpc server should be able to be toggled on and off.
