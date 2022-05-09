@@ -1,16 +1,12 @@
-package state
+package rpc
 
 import (
 	"encoding/hex"
 	"encoding/json"
-	"fmt"
 	"net/http"
 
 	"github.com/cosmos/cosmos-sdk/types"
 	"github.com/gorilla/mux"
-	logging "github.com/ipfs/go-log/v2"
-
-	"github.com/celestiaorg/celestia-node/node/rpc"
 )
 
 const (
@@ -22,8 +18,6 @@ const (
 var (
 	addrKey = "address"
 	txKey   = "tx"
-
-	log = logging.Logger("state/rpc")
 )
 
 // submitPFDRequest represents a request to submit a PayForData
@@ -34,16 +28,8 @@ type submitPFDRequest struct {
 	GasLimit    uint64 `json:"gas_limit"`
 }
 
-func (s *Service) RegisterEndpoints(rpc *rpc.Server) {
-	rpc.RegisterHandlerFunc(balanceEndpoint, s.handleBalanceRequest, http.MethodGet)
-	rpc.RegisterHandlerFunc(fmt.Sprintf("%s/{%s}", balanceEndpoint, addrKey), s.handleBalanceForAddrRequest,
-		http.MethodGet)
-	rpc.RegisterHandlerFunc(fmt.Sprintf("%s/{%s}", submitTxEndpoint, txKey), s.handleSubmitTx, http.MethodPost)
-	rpc.RegisterHandlerFunc(submitPFDEndpoint, s.handleSubmitPFD, http.MethodPost)
-}
-
-func (s *Service) handleBalanceRequest(w http.ResponseWriter, r *http.Request) {
-	bal, err := s.accessor.Balance(r.Context())
+func (h *Handler) handleBalanceRequest(w http.ResponseWriter, r *http.Request) {
+	bal, err := h.state.Balance(r.Context())
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		_, werr := w.Write([]byte(err.Error()))
@@ -65,7 +51,7 @@ func (s *Service) handleBalanceRequest(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (s *Service) handleBalanceForAddrRequest(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) handleBalanceForAddrRequest(w http.ResponseWriter, r *http.Request) {
 	// read and parse request
 	vars := mux.Vars(r)
 	addrStr := vars[addrKey]
@@ -80,7 +66,7 @@ func (s *Service) handleBalanceForAddrRequest(w http.ResponseWriter, r *http.Req
 		log.Errorw("serving request", "endpoint", balanceEndpoint, "err", err)
 		return
 	}
-	bal, err := s.accessor.BalanceForAddress(r.Context(), addr)
+	bal, err := h.state.BalanceForAddress(r.Context(), addr)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		_, werr := w.Write([]byte(err.Error()))
@@ -102,7 +88,7 @@ func (s *Service) handleBalanceForAddrRequest(w http.ResponseWriter, r *http.Req
 	}
 }
 
-func (s *Service) handleSubmitTx(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) handleSubmitTx(w http.ResponseWriter, r *http.Request) {
 	// read and parse request
 	txStr := mux.Vars(r)[txKey]
 	raw, err := hex.DecodeString(txStr)
@@ -112,7 +98,7 @@ func (s *Service) handleSubmitTx(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	// perform request
-	txResp, err := s.accessor.SubmitTx(r.Context(), raw)
+	txResp, err := h.state.SubmitTx(r.Context(), raw)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		_, werr := w.Write([]byte(err.Error()))
@@ -134,7 +120,7 @@ func (s *Service) handleSubmitTx(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (s *Service) handleSubmitPFD(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) handleSubmitPFD(w http.ResponseWriter, r *http.Request) {
 	// decode request
 	var req submitPFDRequest
 	err := json.NewDecoder(r.Body).Decode(&req)
@@ -157,7 +143,7 @@ func (s *Service) handleSubmitPFD(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	// perform request
-	txResp, err := s.accessor.SubmitPayForData(r.Context(), nID, data, req.GasLimit)
+	txResp, err := h.state.SubmitPayForData(r.Context(), nID, data, req.GasLimit)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		_, werr := w.Write([]byte(err.Error()))

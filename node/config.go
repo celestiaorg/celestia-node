@@ -8,8 +8,8 @@ import (
 
 	"github.com/celestiaorg/celestia-node/node/core"
 	"github.com/celestiaorg/celestia-node/node/p2p"
-	"github.com/celestiaorg/celestia-node/node/rpc"
 	"github.com/celestiaorg/celestia-node/node/services"
+	"github.com/celestiaorg/celestia-node/service/rpc"
 )
 
 // ConfigLoader defines a function that loads a config from any source.
