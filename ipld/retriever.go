@@ -51,6 +51,7 @@ func NewRetriever(dag format.DAGService, codec rsmt2d.Codec) *Retriever {
 // using the rsmt2d.Codec. It steadily tries to request other 3/4 data if 1/4 is not found within
 // RetrieveQuadrantTimeout or unrecoverable.
 func (r *Retriever) Retrieve(ctx context.Context, dah *da.DataAvailabilityHeader) (*rsmt2d.ExtendedDataSquare, error) {
+	log.Debugw("retrieving data square", "data_hash", hex.EncodeToString(dah.Hash()), "size", len(dah.RowsRoots))
 	ses := r.newSession(ctx, dah)
 	for _, qs := range newQuadrants(dah) {
 		for _, q := range qs {
@@ -61,6 +62,7 @@ func (r *Retriever) Retrieve(ctx context.Context, dah *da.DataAvailabilityHeader
 			if byzErr := r.checkForByzantineError(ctx, dah, err); byzErr != nil {
 				return nil, byzErr
 			}
+			log.Warnw("not enough shares to reconstruct data square, requesting more...", "err", err)
 		}
 		// retry quadrants until we can reconstruct the EDS or error out
 	}
@@ -140,7 +142,6 @@ func (r *Retriever) newSession(ctx context.Context, dah *da.DataAvailabilityHead
 }
 
 func (rs *retrieverSession) retrieve(ctx context.Context, q *quadrant) (*rsmt2d.ExtendedDataSquare, error) {
-	log.Debugw("retrieving data square", "data_hash", hex.EncodeToString(rs.dah.Hash()), "size", len(rs.dah.RowsRoots))
 	defer func() {
 		// all shares which were requested or repaired are written to disk with the commit
 		// we store *all*, so they are served to the network, including incorrectly committed data(BEFP case),
@@ -156,7 +157,6 @@ func (rs *retrieverSession) retrieve(ctx context.Context, q *quadrant) (*rsmt2d.
 	// try repair
 	err := rsmt2d.RepairExtendedDataSquare(rs.dah.RowsRoots, rs.dah.ColumnRoots, rs.square, rs.codec, rs.treeFn)
 	if err != nil {
-		log.Warnw("not enough shares to reconstruct data square, requesting more...", "err", err)
 		return nil, err
 	}
 
@@ -172,14 +172,13 @@ func (rs *retrieverSession) request(ctx context.Context, q *quadrant) {
 	wg := &sync.WaitGroup{}
 	wg.Add(size)
 
-	log.Debugw("requesting quadrant", "x", q.x, "y", q.y, "size", size)
+	log.Debugw("requesting quadrant", "axis", q.source, "x", q.x, "y", q.y, "size", size)
 	for i, root := range q.roots {
 		go func(i int, root cid.Cid) {
 			defer wg.Done()
 			// get the root node
 			nd, err := rs.dag.Get(ctx, root)
 			if err != nil {
-				log.Errorw("getting root", "root", root.String(), "err", err)
 				return
 			}
 			// and go get shares of left or the right side of the whole col/row axis
