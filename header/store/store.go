@@ -3,7 +3,6 @@ package store
 import (
 	"context"
 	"errors"
-	"fmt"
 
 	logging "github.com/ipfs/go-log/v2"
 
@@ -32,8 +31,6 @@ var (
 var (
 	// errStoppedStore is returned for attempted operations on a stopped store
 	errStoppedStore = errors.New("stopped store")
-	// errNoHead is returned when Store is empty (does not contain any known header).
-	errNoHead = fmt.Errorf("no chain head")
 )
 
 // store implements the Store interface for ExtendedHeaders over Datastore.
@@ -154,7 +151,7 @@ func (s *store) Head(ctx context.Context) (*header.ExtendedHeader, error) {
 	default:
 		return nil, err
 	case datastore.ErrNotFound, header.ErrNotFound:
-		return nil, errNoHead
+		return nil, header.ErrNoHead
 	case nil:
 		s.heightSub.SetHeight(uint64(head.Height))
 		log.Infow("loaded head", "height", head.Height, "hash", head.Hash())

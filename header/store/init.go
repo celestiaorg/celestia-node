@@ -15,7 +15,7 @@ func Init(ctx context.Context, store header.Store, ex header.Exchange, hash tmby
 	switch err {
 	default:
 		return err
-	case errNoHead:
+	case header.ErrNoHead:
 		initial, err := ex.RequestByHash(ctx, hash)
 		if err != nil {
 			return err
