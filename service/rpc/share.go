@@ -9,11 +9,19 @@ import (
 	"github.com/gorilla/mux"
 
 	"github.com/celestiaorg/celestia-node/service/header"
+	"github.com/celestiaorg/celestia-node/service/share"
 )
 
 const namespacedSharesEndpoint = "/namespaced_shares"
 
 var nIDKey = "nid"
+
+// NamespacedSharesResponse represents the response to a
+// SharesByNamespace request.
+type NamespacedSharesResponse struct {
+	Shares []share.Share `json:"shares"`
+	Height uint64        `json:"height"`
+}
 
 func (h *Handler) handleSharesByNamespaceRequest(w http.ResponseWriter, r *http.Request) {
 	// read and parse request
@@ -63,7 +71,10 @@ func (h *Handler) handleSharesByNamespaceRequest(w http.ResponseWriter, r *http.
 		log.Errorw("serving request", "endpoint", namespacedSharesEndpoint, "err", err)
 		return
 	}
-	resp, err := json.Marshal(shares)
+	resp, err := json.Marshal(&NamespacedSharesResponse{
+		Shares: shares,
+		Height: uint64(header.Height),
+	})
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		log.Errorw("serving request", "endpoint", namespacedSharesEndpoint, "err", err)

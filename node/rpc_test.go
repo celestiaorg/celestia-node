@@ -2,6 +2,7 @@ package node
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"testing"
@@ -16,8 +17,9 @@ import (
 func TestNamespacedSharesRequest(t *testing.T) {
 	nd := setupNodeWithModifiedRPC(t)
 	// create request for header at height 2
-	endpoint := fmt.Sprintf("http://127.0.0.1:%s/namespaced_shares/0000000000000001/height/2",
-		nd.RPCServer.ListenAddr()[5:])
+	height := uint64(2)
+	endpoint := fmt.Sprintf("http://127.0.0.1:%s/namespaced_shares/0000000000000001/height/%d",
+		nd.RPCServer.ListenAddr()[5:], height)
 	resp, err := http.Get(endpoint)
 	require.NoError(t, err)
 	defer func() {
@@ -26,6 +28,10 @@ func TestNamespacedSharesRequest(t *testing.T) {
 	}()
 	// check to make sure request was successfully completed
 	require.True(t, resp.StatusCode == http.StatusOK)
+	// decode resp
+	namespacedShares := new(rpc.NamespacedSharesResponse)
+	err = json.NewDecoder(resp.Body).Decode(namespacedShares)
+	require.Equal(t, height, namespacedShares.Height)
 }
 
 func TestHeaderRequest(t *testing.T) {
