@@ -5,6 +5,7 @@ import (
 	flag "github.com/spf13/pflag"
 
 	"github.com/celestiaorg/celestia-node/node"
+	"github.com/celestiaorg/celestia-node/node/rpc"
 )
 
 var (
@@ -18,12 +19,12 @@ func RPCFlags() *flag.FlagSet {
 
 	flags.String(
 		addrFlag,
-		"0.0.0.0",
+		rpc.DefaultConfig().Address,
 		"Set a custom RPC listen address (default: localhost)",
 	)
 	flags.String(
 		portFlag,
-		"26658",
+		rpc.DefaultConfig().Port,
 		"Set a custom RPC port (default: 26658)",
 	)
 
