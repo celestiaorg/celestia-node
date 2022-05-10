@@ -34,11 +34,11 @@ func TestShareAvailableOverMocknet(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	net := NewDAGNet(ctx, t)
-	_, root := net.RandLightService(16)
-	serv := net.CleanService()
+	net := NewTestDAGNet(ctx, t)
+	_, root := net.RandLightNode(16)
+	nd := net.LightNode()
 	net.ConnectAll()
 
-	err := serv.SharesAvailable(ctx, root)
+	err := nd.SharesAvailable(ctx, root)
 	assert.NoError(t, err)
 }
