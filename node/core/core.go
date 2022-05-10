@@ -11,7 +11,7 @@ import (
 
 	"github.com/celestiaorg/celestia-node/core"
 	"github.com/celestiaorg/celestia-node/header"
-	coreexchange "github.com/celestiaorg/celestia-node/header/core"
+	headercore "github.com/celestiaorg/celestia-node/header/core"
 )
 
 // Config combines all configuration fields for managing the relationship with a Core node.
@@ -30,7 +30,7 @@ func DefaultConfig() Config {
 func Components(cfg Config) fx.Option {
 	return fx.Options(
 		fx.Provide(core.NewBlockFetcher),
-		fxutil.ProvideAs(coreexchange.NewExchange, new(header.Exchange)),
+		fxutil.ProvideAs(headercore.NewExchange, new(header.Exchange)),
 		fx.Invoke(HeaderListener),
 		fx.Provide(func(lc fx.Lifecycle) (core.Client, error) {
 			if cfg.RemoteAddr == "" {
@@ -59,8 +59,8 @@ func HeaderListener(
 	ex *core.BlockFetcher,
 	bcast header.Broadcaster,
 	dag format.DAGService,
-) *coreexchange.Listener {
-	cl := coreexchange.NewListener(bcast, ex, dag)
+) *headercore.Listener {
+	cl := headercore.NewListener(bcast, ex, dag)
 	lc.Append(fx.Hook{
 		OnStart: cl.Start,
 		OnStop:  cl.Stop,

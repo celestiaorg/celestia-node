@@ -21,6 +21,10 @@ import (
 
 var log = logging.Logger("header/p2p")
 
+// PubSubTopic hardcodes the name of the ExtendedHeader
+// gossipsub topic.
+const PubSubTopic = "header-sub"
+
 var exchangeProtocolID = protocol.ID("/header-ex/v0.0.1")
 
 // Exchange enables sending outbound ExtendedHeaderRequests to the network as well as

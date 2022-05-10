@@ -30,13 +30,13 @@ func NewSubscriber(ps *pubsub.PubSub) *Subscriber {
 // Start starts the Subscriber, registering a topic validator for the "header-sub"
 // topic and joining it.
 func (p *Subscriber) Start(context.Context) (err error) {
-	p.topic, err = p.pubsub.Join(header.PubSubTopic, pubsub.WithTopicMessageIdFn(msgID))
+	p.topic, err = p.pubsub.Join(PubSubTopic, pubsub.WithTopicMessageIdFn(msgID))
 	return err
 }
 
 // Stop closes the topic and unregisters its validator.
 func (p *Subscriber) Stop(context.Context) error {
-	err := p.pubsub.UnregisterTopicValidator(header.PubSubTopic)
+	err := p.pubsub.UnregisterTopicValidator(PubSubTopic)
 	if err != nil {
 		log.Warnf("unregistering validator: %s", err)
 	}
@@ -57,7 +57,7 @@ func (p *Subscriber) AddValidator(val header.Validator) error {
 
 		return val(ctx, maybeHead)
 	}
-	return p.pubsub.RegisterTopicValidator(header.PubSubTopic, pval)
+	return p.pubsub.RegisterTopicValidator(PubSubTopic, pval)
 }
 
 // Subscribe returns a new subscription to the Subscriber's

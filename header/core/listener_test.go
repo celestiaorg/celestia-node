@@ -25,7 +25,7 @@ func TestListener(t *testing.T) {
 	// create mocknet with two pubsub endpoints
 	ps0, ps1 := createMocknetWithTwoPubsubEndpoints(ctx, t)
 	// create second subscription endpoint to listen for Listener's pubsub messages
-	topic, err := ps1.Join(header.PubSubTopic)
+	topic, err := ps1.Join(p2p.PubSubTopic)
 	require.NoError(t, err)
 	sub, err := topic.Subscribe()
 	require.NoError(t, err)

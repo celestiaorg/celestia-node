@@ -76,7 +76,7 @@ func HeaderExchangeP2P(cfg Config) func(params.Network, host.Host) (header.Excha
 	}
 }
 
-// HeaderP2PExchangeServer creates a new header.ExchangeServer.
+// HeaderP2PExchangeServer creates a new header/p2p.ExchangeServer.
 func HeaderP2PExchangeServer(lc fx.Lifecycle, host host.Host, store header.Store) *p2p.ExchangeServer {
 	p2pServ := p2p.NewExchangeServer(host, store)
 	lc.Append(fx.Hook{
