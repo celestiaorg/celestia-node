@@ -3,7 +3,7 @@ package p2p
 import (
 	"fmt"
 
-	header_pb "github.com/celestiaorg/celestia-node/header/pb"
+	p2p_pb "github.com/celestiaorg/celestia-node/header/p2p/pb"
 )
 
 // ExtendedHeaderRequest is the packet format for nodes to request ExtendedHeaders
@@ -32,8 +32,8 @@ func (ehr *ExtendedHeaderRequest) UnmarshalBinary(data []byte) error {
 	return nil
 }
 
-func (ehr *ExtendedHeaderRequest) ToProto() *header_pb.ExtendedHeaderRequest {
-	return &header_pb.ExtendedHeaderRequest{
+func (ehr *ExtendedHeaderRequest) ToProto() *p2p_pb.ExtendedHeaderRequest {
+	return &p2p_pb.ExtendedHeaderRequest{
 		Origin: ehr.Origin,
 		Amount: ehr.Amount,
 	}

@@ -16,7 +16,9 @@ import (
 	"github.com/celestiaorg/go-libp2p-messenger/serde"
 
 	"github.com/celestiaorg/celestia-node/header"
-	pb "github.com/celestiaorg/celestia-node/header/pb"
+
+	p2p_pb "github.com/celestiaorg/celestia-node/header/p2p/pb"
+	header_pb "github.com/celestiaorg/celestia-node/header/pb"
 )
 
 var log = logging.Logger("header/p2p")
@@ -45,7 +47,7 @@ func NewExchange(host host.Host, peers peer.IDSlice) *Exchange {
 func (ex *Exchange) RequestHead(ctx context.Context) (*header.ExtendedHeader, error) {
 	log.Debug("requesting head")
 	// create request
-	req := &pb.ExtendedHeaderRequest{
+	req := &p2p_pb.ExtendedHeaderRequest{
 		Origin: uint64(0),
 		Amount: 1,
 	}
@@ -63,7 +65,7 @@ func (ex *Exchange) RequestHeader(ctx context.Context, height uint64) (*header.E
 		return nil, fmt.Errorf("specified request height must be greater than 0")
 	}
 	// create request
-	req := &pb.ExtendedHeaderRequest{
+	req := &p2p_pb.ExtendedHeaderRequest{
 		Origin: height,
 		Amount: 1,
 	}
@@ -77,7 +79,7 @@ func (ex *Exchange) RequestHeader(ctx context.Context, height uint64) (*header.E
 func (ex *Exchange) RequestHeaders(ctx context.Context, from, amount uint64) ([]*header.ExtendedHeader, error) {
 	log.Debugw("requesting headers", "from", from, "to", from+amount)
 	// create request
-	req := &pb.ExtendedHeaderRequest{
+	req := &p2p_pb.ExtendedHeaderRequest{
 		Origin: from,
 		Amount: amount,
 	}
@@ -87,7 +89,7 @@ func (ex *Exchange) RequestHeaders(ctx context.Context, from, amount uint64) ([]
 func (ex *Exchange) RequestByHash(ctx context.Context, hash tmbytes.HexBytes) (*header.ExtendedHeader, error) {
 	log.Debugw("requesting header", "hash", hash.String())
 	// create request
-	req := &pb.ExtendedHeaderRequest{
+	req := &p2p_pb.ExtendedHeaderRequest{
 		Hash:   hash.Bytes(),
 		Amount: 1,
 	}
@@ -104,7 +106,7 @@ func (ex *Exchange) RequestByHash(ctx context.Context, hash tmbytes.HexBytes) (*
 
 func (ex *Exchange) performRequest(
 	ctx context.Context,
-	req *pb.ExtendedHeaderRequest,
+	req *p2p_pb.ExtendedHeaderRequest,
 ) ([]*header.ExtendedHeader, error) {
 	if req.Amount == 0 {
 		return make([]*header.ExtendedHeader, 0), nil
@@ -129,7 +131,7 @@ func (ex *Exchange) performRequest(
 	// read responses
 	headers := make([]*header.ExtendedHeader, req.Amount)
 	for i := 0; i < int(req.Amount); i++ {
-		resp := new(pb.ExtendedHeader)
+		resp := new(header_pb.ExtendedHeader)
 		_, err := serde.Read(stream, resp)
 		if err != nil {
 			stream.Reset() //nolint:errcheck

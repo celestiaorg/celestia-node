@@ -9,7 +9,7 @@ import (
 	tmbytes "github.com/tendermint/tendermint/libs/bytes"
 
 	"github.com/celestiaorg/celestia-node/header"
-	pb "github.com/celestiaorg/celestia-node/header/pb"
+	p2p_pb "github.com/celestiaorg/celestia-node/header/p2p/pb"
 	"github.com/celestiaorg/go-libp2p-messenger/serde"
 )
 
@@ -53,7 +53,7 @@ func (serv *ExchangeServer) Stop(context.Context) error {
 // requestHandler handles inbound ExtendedHeaderRequests.
 func (serv *ExchangeServer) requestHandler(stream network.Stream) {
 	// unmarshal request
-	pbreq := new(pb.ExtendedHeaderRequest)
+	pbreq := new(p2p_pb.ExtendedHeaderRequest)
 	_, err := serde.Read(stream, pbreq)
 	if err != nil {
 		log.Errorw("server: reading header request from stream", "err", err)
