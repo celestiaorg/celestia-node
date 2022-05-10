@@ -27,8 +27,7 @@ func (h *Handler) handleHeaderRequest(w http.ResponseWriter, r *http.Request) {
 	// marshal and write response
 	resp, err := json.Marshal(header)
 	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		log.Errorw("serving request", "endpoint", headerByHeightEndpoint, "err", err)
+		writeError(w, http.StatusInternalServerError, headerByHeightEndpoint, err)
 		return
 	}
 	_, err = w.Write(resp)
@@ -48,23 +47,13 @@ func (h *Handler) performGetHeaderRequest(
 	heightStr := vars[heightKey]
 	height, err := strconv.Atoi(heightStr)
 	if err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		_, werr := w.Write([]byte("must provide height as int"))
-		if werr != nil {
-			log.Errorw("writing response", "endpoint", endpoint, "err", werr)
-		}
-		log.Errorw("serving request", "endpoint", endpoint, "err", err)
+		writeError(w, http.StatusBadRequest, endpoint, err)
 		return nil, err
 	}
 	// perform request
 	header, err := h.header.GetByHeight(r.Context(), uint64(height))
 	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		_, werr := w.Write([]byte(err.Error()))
-		if werr != nil {
-			log.Errorw("writing response", "endpoint", endpoint, "err", werr)
-		}
-		log.Errorw("serving request", "endpoint", endpoint, "err", err)
+		writeError(w, http.StatusInternalServerError, endpoint, err)
 		return nil, err
 	}
 	return header, nil
