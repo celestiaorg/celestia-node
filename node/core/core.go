@@ -7,11 +7,11 @@ import (
 	format "github.com/ipfs/go-ipld-format"
 	"go.uber.org/fx"
 
-	"github.com/celestiaorg/celestia-node/header/exchange"
 	"github.com/celestiaorg/celestia-node/libs/fxutil"
 
 	"github.com/celestiaorg/celestia-node/core"
 	"github.com/celestiaorg/celestia-node/header"
+	coreexchange "github.com/celestiaorg/celestia-node/header/core"
 )
 
 // Config combines all configuration fields for managing the relationship with a Core node.
@@ -30,7 +30,7 @@ func DefaultConfig() Config {
 func Components(cfg Config) fx.Option {
 	return fx.Options(
 		fx.Provide(core.NewBlockFetcher),
-		fxutil.ProvideAs(exchange.NewCoreExchange, new(header.Exchange)),
+		fxutil.ProvideAs(coreexchange.NewCoreExchange, new(header.Exchange)),
 		fx.Invoke(HeaderCoreListener),
 		fx.Provide(func(lc fx.Lifecycle) (core.Client, error) {
 			if cfg.RemoteAddr == "" {
@@ -59,8 +59,8 @@ func HeaderCoreListener(
 	ex *core.BlockFetcher,
 	bcast header.Broadcaster,
 	dag format.DAGService,
-) *exchange.CoreListener {
-	cl := exchange.NewCoreListener(bcast, ex, dag)
+) *coreexchange.CoreListener {
+	cl := coreexchange.NewCoreListener(bcast, ex, dag)
 	lc.Append(fx.Hook{
 		OnStart: cl.Start,
 		OnStop:  cl.Stop,
