@@ -79,3 +79,8 @@ func (s *Server) RegisterHandlerFunc(pattern string, handlerFunc http.HandlerFun
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	s.srvMux.ServeHTTP(w, r)
 }
+
+// ListenAddr returns the listen address of the server.
+func (s *Server) ListenAddr() string {
+	return s.listener.Addr().String()
+}
