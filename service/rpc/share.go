@@ -7,6 +7,8 @@ import (
 	"strconv"
 
 	"github.com/gorilla/mux"
+
+	"github.com/celestiaorg/celestia-node/service/header"
 )
 
 const namespacedSharesEndpoint = "/namespaced_shares"
@@ -16,11 +18,19 @@ var nIDKey = "nid"
 func (h *Handler) handleSharesByNamespaceRequest(w http.ResponseWriter, r *http.Request) {
 	// read and parse request
 	vars := mux.Vars(r)
-	height, err := strconv.Atoi(vars[heightKey])
-	if err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		log.Errorw("serving request", "endpoint", namespacedSharesEndpoint, "err", err)
-		return
+	var (
+		height = 0
+		err    error
+	)
+	// if a height was given, parse it, otherwise get namespaced shares
+	// from the latest header
+	if strHeight, ok := vars[heightKey]; ok {
+		height, err = strconv.Atoi(strHeight)
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			log.Errorw("serving request", "endpoint", namespacedSharesEndpoint, "err", err)
+			return
+		}
 	}
 	hexNID := vars[nIDKey]
 	nID, err := hex.DecodeString(hexNID)
@@ -29,8 +39,14 @@ func (h *Handler) handleSharesByNamespaceRequest(w http.ResponseWriter, r *http.
 		log.Errorw("serving request", "endpoint", namespacedSharesEndpoint, "err", err)
 		return
 	}
-	// get header by given height
-	header, err := h.header.GetByHeight(r.Context(), uint64(height))
+	// get header
+	var header *header.ExtendedHeader
+	switch height {
+	case 0:
+		header, err = h.header.Head(r.Context())
+	default:
+		header, err = h.header.GetByHeight(r.Context(), uint64(height))
+	}
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		log.Errorw("serving request", "endpoint", namespacedSharesEndpoint, "err", err)
