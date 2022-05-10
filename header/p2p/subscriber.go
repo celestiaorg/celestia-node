@@ -12,30 +12,30 @@ import (
 	"github.com/celestiaorg/celestia-node/header"
 )
 
-// P2PSubscriber manages the lifecycle and relationship of header Service
+// Subscriber manages the lifecycle and relationship of header Service
 // with the "header-sub" gossipsub topic.
-type P2PSubscriber struct {
+type Subscriber struct {
 	pubsub *pubsub.PubSub
 	topic  *pubsub.Topic
 }
 
-// NewP2PSubscriber returns a P2PSubscriber that manages the header Service's
+// NewSubscriber returns a Subscriber that manages the header Service's
 // relationship with the "header-sub" gossipsub topic.
-func NewP2PSubscriber(ps *pubsub.PubSub) *P2PSubscriber {
-	return &P2PSubscriber{
+func NewSubscriber(ps *pubsub.PubSub) *Subscriber {
+	return &Subscriber{
 		pubsub: ps,
 	}
 }
 
-// Start starts the P2PSubscriber, registering a topic validator for the "header-sub"
+// Start starts the Subscriber, registering a topic validator for the "header-sub"
 // topic and joining it.
-func (p *P2PSubscriber) Start(context.Context) (err error) {
+func (p *Subscriber) Start(context.Context) (err error) {
 	p.topic, err = p.pubsub.Join(header.PubSubTopic, pubsub.WithTopicMessageIdFn(msgID))
 	return err
 }
 
 // Stop closes the topic and unregisters its validator.
-func (p *P2PSubscriber) Stop(context.Context) error {
+func (p *Subscriber) Stop(context.Context) error {
 	err := p.pubsub.UnregisterTopicValidator(header.PubSubTopic)
 	if err != nil {
 		log.Warnf("unregistering validator: %s", err)
@@ -45,7 +45,7 @@ func (p *P2PSubscriber) Stop(context.Context) error {
 }
 
 // AddValidator applies basic pubsub validator for the topic.
-func (p *P2PSubscriber) AddValidator(val header.Validator) error {
+func (p *Subscriber) AddValidator(val header.Validator) error {
 	pval := func(ctx context.Context, p peer.ID, msg *pubsub.Message) pubsub.ValidationResult {
 		maybeHead, err := header.UnmarshalExtendedHeader(msg.Data)
 		if err != nil {
@@ -60,9 +60,9 @@ func (p *P2PSubscriber) AddValidator(val header.Validator) error {
 	return p.pubsub.RegisterTopicValidator(header.PubSubTopic, pval)
 }
 
-// Subscribe returns a new subscription to the P2PSubscriber's
+// Subscribe returns a new subscription to the Subscriber's
 // topic.
-func (p *P2PSubscriber) Subscribe() (header.Subscription, error) {
+func (p *Subscriber) Subscribe() (header.Subscription, error) {
 	if p.topic == nil {
 		return nil, fmt.Errorf("header topic is not instantiated, service must be started before subscribing")
 	}
@@ -71,7 +71,7 @@ func (p *P2PSubscriber) Subscribe() (header.Subscription, error) {
 }
 
 // Broadcast broadcasts the given ExtendedHeader to the topic.
-func (p *P2PSubscriber) Broadcast(ctx context.Context, header *header.ExtendedHeader, opts ...pubsub.PubOpt) error {
+func (p *Subscriber) Broadcast(ctx context.Context, header *header.ExtendedHeader, opts ...pubsub.PubOpt) error {
 	bin, err := header.MarshalBinary()
 	if err != nil {
 		return err

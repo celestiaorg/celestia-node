@@ -39,9 +39,9 @@ func HeaderSyncer(
 	return syncer, nil
 }
 
-// P2PSubscriber creates a new P2PSubscriber.
-func P2PSubscriber(lc fx.Lifecycle, sub *pubsub.PubSub) (*p2p.P2PSubscriber, *p2p.P2PSubscriber) {
-	p2pSub := p2p.NewP2PSubscriber(sub)
+// P2PSubscriber creates a new p2p.Subscriber.
+func P2PSubscriber(lc fx.Lifecycle, sub *pubsub.PubSub) (*p2p.Subscriber, *p2p.Subscriber) {
+	p2pSub := p2p.NewSubscriber(sub)
 	lc.Append(fx.Hook{
 		OnStart: p2pSub.Start,
 		OnStop:  p2pSub.Stop,
@@ -53,14 +53,14 @@ func P2PSubscriber(lc fx.Lifecycle, sub *pubsub.PubSub) (*p2p.P2PSubscriber, *p2
 func HeaderService(
 	syncer *sync.Syncer,
 	sub header.Subscriber,
-	p2pServer *p2p.P2PExchangeServer,
+	p2pServer *p2p.ExchangeServer,
 	ex header.Exchange,
 	store header.Store,
 ) *headerservice.Service {
 	return headerservice.NewHeaderService(syncer, sub, p2pServer, ex, store)
 }
 
-// HeaderExchangeP2P constructs new P2PExchange for headers.
+// HeaderExchangeP2P constructs new Exchange for headers.
 func HeaderExchangeP2P(cfg Config) func(params.Network, host.Host) (header.Exchange, error) {
 	return func(net params.Network, host host.Host) (header.Exchange, error) {
 		peers, err := cfg.trustedPeers(net)
@@ -72,13 +72,13 @@ func HeaderExchangeP2P(cfg Config) func(params.Network, host.Host) (header.Excha
 			ids[index] = peer.ID
 			host.Peerstore().AddAddrs(peer.ID, peer.Addrs, peerstore.PermanentAddrTTL)
 		}
-		return p2p.NewP2PExchange(host, ids), nil
+		return p2p.NewExchange(host, ids), nil
 	}
 }
 
-// HeaderP2PExchangeServer creates a new header.P2PExchangeServer.
-func HeaderP2PExchangeServer(lc fx.Lifecycle, host host.Host, store header.Store) *p2p.P2PExchangeServer {
-	p2pServ := p2p.NewP2PExchangeServer(host, store)
+// HeaderP2PExchangeServer creates a new header.ExchangeServer.
+func HeaderP2PExchangeServer(lc fx.Lifecycle, host host.Host, store header.Store) *p2p.ExchangeServer {
+	p2pServ := p2p.NewExchangeServer(host, store)
 	lc.Append(fx.Hook{
 		OnStart: p2pServ.Start,
 		OnStop:  p2pServ.Stop,

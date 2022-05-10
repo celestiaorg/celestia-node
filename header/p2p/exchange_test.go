@@ -18,7 +18,7 @@ import (
 	"github.com/celestiaorg/go-libp2p-messenger/serde"
 )
 
-func TestP2PExchange_RequestHead(t *testing.T) {
+func TestExchange_RequestHead(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
 
@@ -32,7 +32,7 @@ func TestP2PExchange_RequestHead(t *testing.T) {
 	assert.Equal(t, store.headers[store.headHeight].Hash(), header.Hash())
 }
 
-func TestP2PExchange_RequestHeader(t *testing.T) {
+func TestExchange_RequestHeader(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -45,7 +45,7 @@ func TestP2PExchange_RequestHeader(t *testing.T) {
 	assert.Equal(t, store.headers[5].Hash(), header.Hash())
 }
 
-func TestP2PExchange_RequestHeaders(t *testing.T) {
+func TestExchange_RequestHeaders(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -60,9 +60,9 @@ func TestP2PExchange_RequestHeaders(t *testing.T) {
 	}
 }
 
-// TestP2PExchange_RequestByHash tests that the P2PExchange instance can
+// TestExchange_RequestByHash tests that the Exchange instance can
 // respond to an ExtendedHeaderRequest for a hash instead of a height.
-func TestP2PExchange_RequestByHash(t *testing.T) {
+func TestExchange_RequestByHash(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -70,9 +70,9 @@ func TestP2PExchange_RequestByHash(t *testing.T) {
 	require.NoError(t, err)
 	// get host and peer
 	host, peer := net.Hosts()[0], net.Hosts()[1]
-	// create and start the P2PExchangeServer
+	// create and start the ExchangeServer
 	store := createStore(t, 5)
-	serv := NewP2PExchangeServer(host, store)
+	serv := NewExchangeServer(host, store)
 	err = serv.Start(ctx)
 	require.NoError(t, err)
 	t.Cleanup(func() {
@@ -110,10 +110,10 @@ func createMocknet(ctx context.Context, t *testing.T) (libhost.Host, libhost.Hos
 	return net.Hosts()[0], net.Hosts()[1]
 }
 
-// createP2PExAndServer creates a P2PExchange with 5 headers already in its store.
+// createP2PExAndServer creates a Exchange with 5 headers already in its store.
 func createP2PExAndServer(t *testing.T, host, tpeer libhost.Host) (header.Exchange, *mockStore) {
 	store := createStore(t, 5)
-	serverSideEx := NewP2PExchangeServer(tpeer, store)
+	serverSideEx := NewExchangeServer(tpeer, store)
 	err := serverSideEx.Start(context.Background())
 	require.NoError(t, err)
 
@@ -121,7 +121,7 @@ func createP2PExAndServer(t *testing.T, host, tpeer libhost.Host) (header.Exchan
 		serverSideEx.Stop(context.Background()) //nolint:errcheck
 	})
 
-	return NewP2PExchange(host, []peer.ID{tpeer.ID()}), store
+	return NewExchange(host, []peer.ID{tpeer.ID()}), store
 }
 
 type mockStore struct {

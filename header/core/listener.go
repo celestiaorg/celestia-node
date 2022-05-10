@@ -12,14 +12,14 @@ import (
 	"github.com/celestiaorg/celestia-node/header"
 )
 
-// CoreListener is responsible for listening to Core for
+// Listener is responsible for listening to Core for
 // new block events and converting new Core blocks into
 // the main data structure used in the Celestia DA network:
 // `ExtendedHeader`. After digesting the Core block, extending
-// it, and generating the `ExtendedHeader`, the CoreListener
+// it, and generating the `ExtendedHeader`, the Listener
 // broadcasts the new `ExtendedHeader` to the header-sub gossipsub
 // network.
-type CoreListener struct {
+type Listener struct {
 	bcast   header.Broadcaster
 	fetcher *core.BlockFetcher
 	dag     format.DAGService
@@ -27,16 +27,16 @@ type CoreListener struct {
 	cancel context.CancelFunc
 }
 
-func NewCoreListener(bcast header.Broadcaster, fetcher *core.BlockFetcher, dag format.DAGService) *CoreListener {
-	return &CoreListener{
+func NewListener(bcast header.Broadcaster, fetcher *core.BlockFetcher, dag format.DAGService) *Listener {
+	return &Listener{
 		bcast:   bcast,
 		fetcher: fetcher,
 		dag:     dag,
 	}
 }
 
-// Start kicks off the CoreListener listener loop.
-func (cl *CoreListener) Start(ctx context.Context) error {
+// Start kicks off the Listener listener loop.
+func (cl *Listener) Start(ctx context.Context) error {
 	if cl.cancel != nil {
 		return fmt.Errorf("listener: already started")
 	}
@@ -52,8 +52,8 @@ func (cl *CoreListener) Start(ctx context.Context) error {
 	return nil
 }
 
-// Stop stops the CoreListener listener loop.
-func (cl *CoreListener) Stop(ctx context.Context) error {
+// Stop stops the Listener listener loop.
+func (cl *Listener) Stop(ctx context.Context) error {
 	cl.cancel()
 	cl.cancel = nil
 	return cl.fetcher.UnsubscribeNewBlockEvent(ctx)
@@ -62,7 +62,7 @@ func (cl *CoreListener) Stop(ctx context.Context) error {
 // listen kicks off a loop, listening for new block events from Core,
 // generating ExtendedHeaders and broadcasting them to the header-sub
 // gossipsub network.
-func (cl *CoreListener) listen(ctx context.Context, sub <-chan *types.Block) {
+func (cl *Listener) listen(ctx context.Context, sub <-chan *types.Block) {
 	defer log.Info("listener: listening stopped")
 	for {
 		select {

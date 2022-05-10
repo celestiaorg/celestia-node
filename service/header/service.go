@@ -14,13 +14,13 @@ var log = logging.Logger("service/header")
 
 // Service represents the header service that can be started / stopped on a node.
 // Service's main function is to manage its sub-services. Service can contain several
-// sub-services, such as Exchange, P2PExchangeServer, Syncer, and so forth.
+// sub-services, such as Exchange, ExchangeServer, Syncer, and so forth.
 type Service struct {
 	ex header.Exchange
 
 	syncer    *sync.Syncer
 	sub       header.Subscriber
-	p2pServer *p2p.P2PExchangeServer
+	p2pServer *p2p.ExchangeServer
 	store     header.Store
 }
 
@@ -28,7 +28,7 @@ type Service struct {
 func NewHeaderService(
 	syncer *sync.Syncer,
 	sub header.Subscriber,
-	p2pServer *p2p.P2PExchangeServer,
+	p2pServer *p2p.ExchangeServer,
 	ex header.Exchange,
 	store header.Store) *Service {
 	return &Service{

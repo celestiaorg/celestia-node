@@ -23,22 +23,22 @@ var log = logging.Logger("header/p2p")
 
 var exchangeProtocolID = protocol.ID("/header-ex/v0.0.1")
 
-// P2PExchange enables sending outbound ExtendedHeaderRequests to the network as well as
+// Exchange enables sending outbound ExtendedHeaderRequests to the network as well as
 // handling inbound ExtendedHeaderRequests from the network.
-type P2PExchange struct {
+type Exchange struct {
 	host host.Host
 
 	trustedPeers peer.IDSlice
 }
 
-func NewP2PExchange(host host.Host, peers peer.IDSlice) *P2PExchange {
-	return &P2PExchange{
+func NewExchange(host host.Host, peers peer.IDSlice) *Exchange {
+	return &Exchange{
 		host:         host,
 		trustedPeers: peers,
 	}
 }
 
-func (ex *P2PExchange) RequestHead(ctx context.Context) (*header.ExtendedHeader, error) {
+func (ex *Exchange) RequestHead(ctx context.Context) (*header.ExtendedHeader, error) {
 	log.Debug("requesting head")
 	// create request
 	req := &pb.ExtendedHeaderRequest{
@@ -52,7 +52,7 @@ func (ex *P2PExchange) RequestHead(ctx context.Context) (*header.ExtendedHeader,
 	return headers[0], nil
 }
 
-func (ex *P2PExchange) RequestHeader(ctx context.Context, height uint64) (*header.ExtendedHeader, error) {
+func (ex *Exchange) RequestHeader(ctx context.Context, height uint64) (*header.ExtendedHeader, error) {
 	log.Debugw("requesting header", "height", height)
 	// sanity check height
 	if height == 0 {
@@ -70,7 +70,7 @@ func (ex *P2PExchange) RequestHeader(ctx context.Context, height uint64) (*heade
 	return headers[0], nil
 }
 
-func (ex *P2PExchange) RequestHeaders(ctx context.Context, from, amount uint64) ([]*header.ExtendedHeader, error) {
+func (ex *Exchange) RequestHeaders(ctx context.Context, from, amount uint64) ([]*header.ExtendedHeader, error) {
 	log.Debugw("requesting headers", "from", from, "to", from+amount)
 	// create request
 	req := &pb.ExtendedHeaderRequest{
@@ -80,7 +80,7 @@ func (ex *P2PExchange) RequestHeaders(ctx context.Context, from, amount uint64) 
 	return ex.performRequest(ctx, req)
 }
 
-func (ex *P2PExchange) RequestByHash(ctx context.Context, hash tmbytes.HexBytes) (*header.ExtendedHeader, error) {
+func (ex *Exchange) RequestByHash(ctx context.Context, hash tmbytes.HexBytes) (*header.ExtendedHeader, error) {
 	log.Debugw("requesting header", "hash", hash.String())
 	// create request
 	req := &pb.ExtendedHeaderRequest{
@@ -98,7 +98,7 @@ func (ex *P2PExchange) RequestByHash(ctx context.Context, hash tmbytes.HexBytes)
 	return headers[0], nil
 }
 
-func (ex *P2PExchange) performRequest(
+func (ex *Exchange) performRequest(
 	ctx context.Context,
 	req *pb.ExtendedHeaderRequest,
 ) ([]*header.ExtendedHeader, error) {

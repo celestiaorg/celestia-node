@@ -13,9 +13,9 @@ import (
 	"github.com/celestiaorg/go-libp2p-messenger/serde"
 )
 
-// P2PExchangeServer represents the server-side component for
+// ExchangeServer represents the server-side component for
 // responding to inbound header-related requests.
-type P2PExchangeServer struct {
+type ExchangeServer struct {
 	host  host.Host
 	store header.Store
 
@@ -23,17 +23,17 @@ type P2PExchangeServer struct {
 	cancel context.CancelFunc
 }
 
-// NewP2PExchangeServer returns a new P2P server that handles inbound
+// NewExchangeServer returns a new P2P server that handles inbound
 // header-related requests.
-func NewP2PExchangeServer(host host.Host, store header.Store) *P2PExchangeServer {
-	return &P2PExchangeServer{
+func NewExchangeServer(host host.Host, store header.Store) *ExchangeServer {
+	return &ExchangeServer{
 		host:  host,
 		store: store,
 	}
 }
 
 // Start sets the stream handler for inbound header-related requests.
-func (serv *P2PExchangeServer) Start(context.Context) error {
+func (serv *ExchangeServer) Start(context.Context) error {
 	serv.ctx, serv.cancel = context.WithCancel(context.Background())
 	log.Info("server: listening for inbound header requests")
 
@@ -43,7 +43,7 @@ func (serv *P2PExchangeServer) Start(context.Context) error {
 }
 
 // Stop removes the stream handler for serving header-related requests.
-func (serv *P2PExchangeServer) Stop(context.Context) error {
+func (serv *ExchangeServer) Stop(context.Context) error {
 	log.Info("server: stopping server")
 	serv.cancel()
 	serv.host.RemoveStreamHandler(exchangeProtocolID)
@@ -51,7 +51,7 @@ func (serv *P2PExchangeServer) Stop(context.Context) error {
 }
 
 // requestHandler handles inbound ExtendedHeaderRequests.
-func (serv *P2PExchangeServer) requestHandler(stream network.Stream) {
+func (serv *ExchangeServer) requestHandler(stream network.Stream) {
 	// unmarshal request
 	pbreq := new(pb.ExtendedHeaderRequest)
 	_, err := serde.Read(stream, pbreq)
@@ -75,7 +75,7 @@ func (serv *P2PExchangeServer) requestHandler(stream network.Stream) {
 
 // handleRequestByHash returns the ExtendedHeader at the given hash
 // if it exists.
-func (serv *P2PExchangeServer) handleRequestByHash(hash []byte, stream network.Stream) {
+func (serv *ExchangeServer) handleRequestByHash(hash []byte, stream network.Stream) {
 	log.Debugw("server: handling header request", "hash", tmbytes.HexBytes(hash).String())
 
 	h, err := serv.store.Get(serv.ctx, hash)
@@ -100,7 +100,7 @@ func (serv *P2PExchangeServer) handleRequestByHash(hash []byte, stream network.S
 
 // handleRequest fetches the ExtendedHeader at the given origin and
 // writes it to the stream.
-func (serv *P2PExchangeServer) handleRequest(from, to uint64, stream network.Stream) {
+func (serv *ExchangeServer) handleRequest(from, to uint64, stream network.Stream) {
 	var headers []*header.ExtendedHeader
 	if from == uint64(0) {
 		log.Debug("server: handling head request")

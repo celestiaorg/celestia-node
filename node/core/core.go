@@ -30,8 +30,8 @@ func DefaultConfig() Config {
 func Components(cfg Config) fx.Option {
 	return fx.Options(
 		fx.Provide(core.NewBlockFetcher),
-		fxutil.ProvideAs(coreexchange.NewCoreExchange, new(header.Exchange)),
-		fx.Invoke(HeaderCoreListener),
+		fxutil.ProvideAs(coreexchange.NewExchange, new(header.Exchange)),
+		fx.Invoke(HeaderListener),
 		fx.Provide(func(lc fx.Lifecycle) (core.Client, error) {
 			if cfg.RemoteAddr == "" {
 				return nil, fmt.Errorf("no celestia-core endpoint given")
@@ -54,13 +54,13 @@ func Components(cfg Config) fx.Option {
 	)
 }
 
-func HeaderCoreListener(
+func HeaderListener(
 	lc fx.Lifecycle,
 	ex *core.BlockFetcher,
 	bcast header.Broadcaster,
 	dag format.DAGService,
-) *coreexchange.CoreListener {
-	cl := coreexchange.NewCoreListener(bcast, ex, dag)
+) *coreexchange.Listener {
+	cl := coreexchange.NewListener(bcast, ex, dag)
 	lc.Append(fx.Hook{
 		OnStart: cl.Start,
 		OnStop:  cl.Stop,

@@ -16,25 +16,25 @@ import (
 
 var log = logging.Logger("header/core")
 
-type CoreExchange struct {
+type Exchange struct {
 	fetcher    *core.BlockFetcher
 	shareStore format.DAGService
 }
 
-func NewCoreExchange(fetcher *core.BlockFetcher, dag format.DAGService) *CoreExchange {
-	return &CoreExchange{
+func NewExchange(fetcher *core.BlockFetcher, dag format.DAGService) *Exchange {
+	return &Exchange{
 		fetcher:    fetcher,
 		shareStore: dag,
 	}
 }
 
-func (ce *CoreExchange) RequestHeader(ctx context.Context, height uint64) (*header.ExtendedHeader, error) {
+func (ce *Exchange) RequestHeader(ctx context.Context, height uint64) (*header.ExtendedHeader, error) {
 	log.Debugw("requesting header", "height", height)
 	intHeight := int64(height)
 	return ce.getExtendedHeaderByHeight(ctx, &intHeight)
 }
 
-func (ce *CoreExchange) RequestHeaders(ctx context.Context, from, amount uint64) ([]*header.ExtendedHeader, error) {
+func (ce *Exchange) RequestHeaders(ctx context.Context, from, amount uint64) ([]*header.ExtendedHeader, error) {
 	if amount == 0 {
 		return nil, nil
 	}
@@ -53,7 +53,7 @@ func (ce *CoreExchange) RequestHeaders(ctx context.Context, from, amount uint64)
 	return headers, nil
 }
 
-func (ce *CoreExchange) RequestByHash(ctx context.Context, hash tmbytes.HexBytes) (*header.ExtendedHeader, error) {
+func (ce *Exchange) RequestByHash(ctx context.Context, hash tmbytes.HexBytes) (*header.ExtendedHeader, error) {
 	log.Debugw("requesting header", "hash", hash.String())
 	block, err := ce.fetcher.GetBlockByHash(ctx, hash)
 	if err != nil {
@@ -78,12 +78,12 @@ func (ce *CoreExchange) RequestByHash(ctx context.Context, hash tmbytes.HexBytes
 	return eh, nil
 }
 
-func (ce *CoreExchange) RequestHead(ctx context.Context) (*header.ExtendedHeader, error) {
+func (ce *Exchange) RequestHead(ctx context.Context) (*header.ExtendedHeader, error) {
 	log.Debug("requesting head")
 	return ce.getExtendedHeaderByHeight(ctx, nil)
 }
 
-func (ce *CoreExchange) getExtendedHeaderByHeight(ctx context.Context, height *int64) (*header.ExtendedHeader, error) {
+func (ce *Exchange) getExtendedHeaderByHeight(ctx context.Context, height *int64) (*header.ExtendedHeader, error) {
 	b, err := ce.fetcher.GetBlock(ctx, height)
 	if err != nil {
 		return nil, err

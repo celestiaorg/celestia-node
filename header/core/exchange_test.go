@@ -19,7 +19,7 @@ func TestCoreExchange_RequestHeaders(t *testing.T) {
 	// generate 10 blocks
 	generateBlocks(t, fetcher)
 
-	ce := NewCoreExchange(fetcher, store)
+	ce := NewExchange(fetcher, store)
 	headers, err := ce.RequestHeaders(context.Background(), 1, 10)
 	require.NoError(t, err)
 

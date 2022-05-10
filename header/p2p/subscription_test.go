@@ -30,7 +30,7 @@ func TestSubscriber(t *testing.T) {
 	require.NoError(t, err)
 
 	// create sub-service lifecycles for header service 1
-	p2pSub1 := NewP2PSubscriber(pubsub1)
+	p2pSub1 := NewSubscriber(pubsub1)
 	err = p2pSub1.Start(context.Background())
 	require.NoError(t, err)
 
@@ -40,7 +40,7 @@ func TestSubscriber(t *testing.T) {
 	require.NoError(t, err)
 
 	// create sub-service lifecycles for header service 2
-	p2pSub2 := NewP2PSubscriber(pubsub2)
+	p2pSub2 := NewSubscriber(pubsub2)
 	err = p2pSub2.Start(context.Background())
 	require.NoError(t, err)
 
