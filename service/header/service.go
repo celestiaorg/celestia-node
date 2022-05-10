@@ -10,7 +10,7 @@ import (
 	"github.com/celestiaorg/celestia-node/header/sync"
 )
 
-var log = logging.Logger("header/service")
+var log = logging.Logger("service/header")
 
 // Service represents the header service that can be started / stopped on a node.
 // Service's main function is to manage its sub-services. Service can contain several
@@ -21,6 +21,7 @@ type Service struct {
 	syncer    *sync.Syncer
 	sub       header.Subscriber
 	p2pServer *exchange.P2PExchangeServer
+	store     header.Store
 }
 
 // NewHeaderService creates a new instance of header Service.
@@ -28,12 +29,14 @@ func NewHeaderService(
 	syncer *sync.Syncer,
 	sub header.Subscriber,
 	p2pServer *exchange.P2PExchangeServer,
-	ex header.Exchange) *Service {
+	ex header.Exchange,
+	store header.Store) *Service {
 	return &Service{
 		syncer:    syncer,
 		sub:       sub,
 		p2pServer: p2pServer,
 		ex:        ex,
+		store:     store,
 	}
 }
 
@@ -52,7 +55,7 @@ func (s *Service) Stop(context.Context) error {
 // GetByHeight returns the ExtendedHeader at the given height, blocking
 // until header has been processed by the store or context deadline is exceeded.
 func (s *Service) GetByHeight(ctx context.Context, height uint64) (*header.ExtendedHeader, error) {
-	return s.syncer.GetByHeight(ctx, height)
+	return s.store.GetByHeight(ctx, height)
 }
 
 // IsSyncing returns the status of sync

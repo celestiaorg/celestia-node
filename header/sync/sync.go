@@ -351,7 +351,3 @@ func (s *Syncer) findHeaders(ctx context.Context, from, to uint64) ([]*header.Ex
 
 	return out, nil
 }
-
-func (s *Syncer) GetByHeight(ctx context.Context, height uint64) (*header.ExtendedHeader, error) {
-	return s.store.GetByHeight(ctx, height)
-}
