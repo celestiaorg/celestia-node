@@ -31,9 +31,9 @@ var (
 
 var (
 	// errStoppedStore is returned for attempted operations on a stopped store
-	errStoppedStore = errors.New("header/store: stopped store")
+	errStoppedStore = errors.New("stopped store")
 	// errNoHead is returned when Store is empty (does not contain any known header).
-	errNoHead = fmt.Errorf("header/store: no chain head")
+	errNoHead = fmt.Errorf("no chain head")
 )
 
 // store implements the Store interface for ExtendedHeaders over Datastore.

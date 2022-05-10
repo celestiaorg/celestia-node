@@ -35,7 +35,7 @@ func NewP2PExchangeServer(host host.Host, store header.Store) *P2PExchangeServer
 // Start sets the stream handler for inbound header-related requests.
 func (serv *P2PExchangeServer) Start(context.Context) error {
 	serv.ctx, serv.cancel = context.WithCancel(context.Background())
-	log.Info("p2p-server: listening for inbound header requests")
+	log.Info("server: listening for inbound header requests")
 
 	serv.host.SetStreamHandler(exchangeProtocolID, serv.requestHandler)
 
@@ -44,7 +44,7 @@ func (serv *P2PExchangeServer) Start(context.Context) error {
 
 // Stop removes the stream handler for serving header-related requests.
 func (serv *P2PExchangeServer) Stop(context.Context) error {
-	log.Info("p2p-server: stopping server")
+	log.Info("server: stopping server")
 	serv.cancel()
 	serv.host.RemoveStreamHandler(exchangeProtocolID)
 	return nil
@@ -56,7 +56,7 @@ func (serv *P2PExchangeServer) requestHandler(stream network.Stream) {
 	pbreq := new(pb.ExtendedHeaderRequest)
 	_, err := serde.Read(stream, pbreq)
 	if err != nil {
-		log.Errorw("p2p-server: reading header request from stream", "err", err)
+		log.Errorw("server: reading header request from stream", "err", err)
 		stream.Reset() //nolint:errcheck
 		return
 	}
@@ -76,23 +76,23 @@ func (serv *P2PExchangeServer) requestHandler(stream network.Stream) {
 // handleRequestByHash returns the ExtendedHeader at the given hash
 // if it exists.
 func (serv *P2PExchangeServer) handleRequestByHash(hash []byte, stream network.Stream) {
-	log.Debugw("p2p-server: handling header request", "hash", tmbytes.HexBytes(hash).String())
+	log.Debugw("server: handling header request", "hash", tmbytes.HexBytes(hash).String())
 
 	h, err := serv.store.Get(serv.ctx, hash)
 	if err != nil {
-		log.Errorw("p2p-server: getting header by hash", "hash", tmbytes.HexBytes(hash).String(), "err", err)
+		log.Errorw("server: getting header by hash", "hash", tmbytes.HexBytes(hash).String(), "err", err)
 		stream.Reset() //nolint:errcheck
 		return
 	}
 	resp, err := header.ExtendedHeaderToProto(h)
 	if err != nil {
-		log.Errorw("p2p-server: marshaling header to proto", "hash", tmbytes.HexBytes(hash).String(), "err", err)
+		log.Errorw("server: marshaling header to proto", "hash", tmbytes.HexBytes(hash).String(), "err", err)
 		stream.Reset() //nolint:errcheck
 		return
 	}
 	_, err = serde.Write(stream, resp)
 	if err != nil {
-		log.Errorw("p2p-server: writing header to stream", "hash", tmbytes.HexBytes(hash).String(), "err", err)
+		log.Errorw("server: writing header to stream", "hash", tmbytes.HexBytes(hash).String(), "err", err)
 		stream.Reset() //nolint:errcheck
 		return
 	}
@@ -103,22 +103,22 @@ func (serv *P2PExchangeServer) handleRequestByHash(hash []byte, stream network.S
 func (serv *P2PExchangeServer) handleRequest(from, to uint64, stream network.Stream) {
 	var headers []*header.ExtendedHeader
 	if from == uint64(0) {
-		log.Debug("p2p-server: handling head request")
+		log.Debug("server: handling head request")
 
 		head, err := serv.store.Head(serv.ctx)
 		if err != nil {
-			log.Errorw("p2p-server: getting head", "err", err)
+			log.Errorw("server: getting head", "err", err)
 			stream.Reset() //nolint:errcheck
 			return
 		}
 		headers = make([]*header.ExtendedHeader, 1)
 		headers[0] = head
 	} else {
-		log.Debugw("p2p-server: handling headers request", "from", from, "to", to)
+		log.Debugw("server: handling headers request", "from", from, "to", to)
 
 		headersByRange, err := serv.store.GetRangeByHeight(serv.ctx, from, to)
 		if err != nil {
-			log.Errorw("p2p-server: getting headers", "from", from, "to", to, "err", err)
+			log.Errorw("server: getting headers", "from", from, "to", to, "err", err)
 			stream.Reset() //nolint:errcheck
 			return
 		}
@@ -128,14 +128,14 @@ func (serv *P2PExchangeServer) handleRequest(from, to uint64, stream network.Str
 	for _, h := range headers {
 		resp, err := header.ExtendedHeaderToProto(h)
 		if err != nil {
-			log.Errorw("p2p-server: marshaling header to proto", "height", h.Height, "err", err)
+			log.Errorw("server: marshaling header to proto", "height", h.Height, "err", err)
 			stream.Reset() //nolint:errcheck
 			return
 		}
 
 		_, err = serde.Write(stream, resp)
 		if err != nil {
-			log.Errorw("p2p-server: writing header to stream", "height", h.Height, "err", err)
+			log.Errorw("server: writing header to stream", "height", h.Height, "err", err)
 			stream.Reset() //nolint:errcheck
 			return
 		}

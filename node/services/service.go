@@ -108,7 +108,7 @@ func HeaderStoreInit(cfg *Config) func(context.Context, params.Network, header.S
 			return err
 		}
 
-		err = store.InitStore(ctx, s, ex, trustedHash)
+		err = store.Init(ctx, s, ex, trustedHash)
 		if err != nil {
 			// TODO(@Wondertan): Error is ignored, as otherwise unit tests for Node construction fail.
 			// 	This is due to requesting step of initialization, which fetches initial Header by trusted hash from

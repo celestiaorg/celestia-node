@@ -39,7 +39,7 @@ func NewP2PExchange(host host.Host, peers peer.IDSlice) *P2PExchange {
 }
 
 func (ex *P2PExchange) RequestHead(ctx context.Context) (*header.ExtendedHeader, error) {
-	log.Debug("p2p: requesting head")
+	log.Debug("requesting head")
 	// create request
 	req := &pb.ExtendedHeaderRequest{
 		Origin: uint64(0),
@@ -53,7 +53,7 @@ func (ex *P2PExchange) RequestHead(ctx context.Context) (*header.ExtendedHeader,
 }
 
 func (ex *P2PExchange) RequestHeader(ctx context.Context, height uint64) (*header.ExtendedHeader, error) {
-	log.Debugw("p2p: requesting header", "height", height)
+	log.Debugw("requesting header", "height", height)
 	// sanity check height
 	if height == 0 {
 		return nil, fmt.Errorf("specified request height must be greater than 0")
@@ -71,7 +71,7 @@ func (ex *P2PExchange) RequestHeader(ctx context.Context, height uint64) (*heade
 }
 
 func (ex *P2PExchange) RequestHeaders(ctx context.Context, from, amount uint64) ([]*header.ExtendedHeader, error) {
-	log.Debugw("p2p: requesting headers", "from", from, "to", from+amount)
+	log.Debugw("requesting headers", "from", from, "to", from+amount)
 	// create request
 	req := &pb.ExtendedHeaderRequest{
 		Origin: from,
@@ -81,7 +81,7 @@ func (ex *P2PExchange) RequestHeaders(ctx context.Context, from, amount uint64) 
 }
 
 func (ex *P2PExchange) RequestByHash(ctx context.Context, hash tmbytes.HexBytes) (*header.ExtendedHeader, error) {
-	log.Debugw("p2p: requesting header", "hash", hash.String())
+	log.Debugw("requesting header", "hash", hash.String())
 	// create request
 	req := &pb.ExtendedHeaderRequest{
 		Hash:   hash.Bytes(),

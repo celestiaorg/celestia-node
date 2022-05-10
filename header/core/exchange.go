@@ -14,7 +14,7 @@ import (
 	"github.com/celestiaorg/celestia-node/header"
 )
 
-var log = logging.Logger("header/exchange")
+var log = logging.Logger("header/core")
 
 type CoreExchange struct {
 	fetcher    *core.BlockFetcher
@@ -29,7 +29,7 @@ func NewCoreExchange(fetcher *core.BlockFetcher, dag format.DAGService) *CoreExc
 }
 
 func (ce *CoreExchange) RequestHeader(ctx context.Context, height uint64) (*header.ExtendedHeader, error) {
-	log.Debugw("core: requesting header", "height", height)
+	log.Debugw("requesting header", "height", height)
 	intHeight := int64(height)
 	return ce.getExtendedHeaderByHeight(ctx, &intHeight)
 }
@@ -39,7 +39,7 @@ func (ce *CoreExchange) RequestHeaders(ctx context.Context, from, amount uint64)
 		return nil, nil
 	}
 
-	log.Debugw("core: requesting headers", "from", from, "to", from+amount)
+	log.Debugw("requesting headers", "from", from, "to", from+amount)
 	headers := make([]*header.ExtendedHeader, amount)
 	for i := range headers {
 		extHeader, err := ce.RequestHeader(ctx, from+uint64(i))
@@ -54,7 +54,7 @@ func (ce *CoreExchange) RequestHeaders(ctx context.Context, from, amount uint64)
 }
 
 func (ce *CoreExchange) RequestByHash(ctx context.Context, hash tmbytes.HexBytes) (*header.ExtendedHeader, error) {
-	log.Debugw("core: requesting header", "hash", hash.String())
+	log.Debugw("requesting header", "hash", hash.String())
 	block, err := ce.fetcher.GetBlockByHash(ctx, hash)
 	if err != nil {
 		return nil, err
@@ -79,7 +79,7 @@ func (ce *CoreExchange) RequestByHash(ctx context.Context, hash tmbytes.HexBytes
 }
 
 func (ce *CoreExchange) RequestHead(ctx context.Context) (*header.ExtendedHeader, error) {
-	log.Debug("core: requesting head")
+	log.Debug("requesting head")
 	return ce.getExtendedHeaderByHeight(ctx, nil)
 }
 

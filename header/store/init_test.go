@@ -26,7 +26,7 @@ func TestInitStore_NoReinit(t *testing.T) {
 	store, err := NewStore(ds)
 	require.NoError(t, err)
 
-	err = InitStore(ctx, store, exchange, head.Hash())
+	err = Init(ctx, store, exchange, head.Hash())
 	assert.NoError(t, err)
 
 	err = store.Start(ctx)
@@ -41,7 +41,7 @@ func TestInitStore_NoReinit(t *testing.T) {
 	reopenedStore, err := NewStore(ds)
 	require.NoError(t, err)
 
-	err = InitStore(ctx, reopenedStore, exchange, head.Hash())
+	err = Init(ctx, reopenedStore, exchange, head.Hash())
 	assert.NoError(t, err)
 
 	err = reopenedStore.Start(ctx)
