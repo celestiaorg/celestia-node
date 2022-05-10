@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/celestiaorg/celestia-node/header"
-	"github.com/celestiaorg/celestia-node/header/core"
+	"github.com/celestiaorg/celestia-node/header/local"
 )
 
 func TestInitStore_NoReinit(t *testing.T) {
@@ -20,7 +20,7 @@ func TestInitStore_NoReinit(t *testing.T) {
 
 	suite := header.NewTestSuite(t, 3)
 	head := suite.Head()
-	exchange := core.NewLocalExchange(NewTestStore(ctx, t, head))
+	exchange := local.NewExchange(NewTestStore(ctx, t, head))
 
 	ds := sync.MutexWrap(datastore.NewMapDatastore())
 	store, err := NewStore(ds)
