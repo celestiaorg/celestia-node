@@ -14,6 +14,35 @@ import (
 )
 
 func TestNamespacedSharesRequest(t *testing.T) {
+	nd := setupNodeWithModifiedRPC(t)
+	// create request for header at height 2
+	endpoint := fmt.Sprintf("http://127.0.0.1:%s/namespaced_shares/0000000000000001/height/2",
+		nd.RPCServer.ListenAddr()[5:])
+	resp, err := http.Get(endpoint)
+	require.NoError(t, err)
+	defer func() {
+		err = resp.Body.Close()
+		require.NoError(t, err)
+	}()
+	// check to make sure request was successfully completed
+	require.True(t, resp.StatusCode == http.StatusOK)
+}
+
+func TestHeaderRequest(t *testing.T) {
+	nd := setupNodeWithModifiedRPC(t)
+	// create request for header at height 2
+	endpoint := fmt.Sprintf("http://127.0.0.1:%s/header/2", nd.RPCServer.ListenAddr()[5:])
+	resp, err := http.Get(endpoint)
+	require.NoError(t, err)
+	defer func() {
+		err = resp.Body.Close()
+		require.NoError(t, err)
+	}()
+	// check to make sure request was successfully completed
+	require.True(t, resp.StatusCode == http.StatusOK)
+}
+
+func setupNodeWithModifiedRPC(t *testing.T) *Node {
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
 	// create test node with a dummy header service, manually add a dummy header
@@ -34,20 +63,11 @@ func TestNamespacedSharesRequest(t *testing.T) {
 	// start node
 	err := nd.Start(ctx)
 	require.NoError(t, err)
-	defer func() {
+	t.Cleanup(func() {
 		err = nd.Stop(ctx)
 		require.NoError(t, err)
-	}()
-	// create request for header at height 2
-	endpoint := fmt.Sprintf("http://127.0.0.1:%s/header/2", nd.RPCServer.ListenAddr()[5:])
-	resp, err := http.Get(endpoint)
-	require.NoError(t, err)
-	defer func() {
-		err = resp.Body.Close()
-		require.NoError(t, err)
-	}()
-	// check to make sure request was successfully completed
-	require.True(t, resp.StatusCode == http.StatusOK)
+	})
+	return nd
 }
 
 func setupHeaderService(t *testing.T) *header.Service {
