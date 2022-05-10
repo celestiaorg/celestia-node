@@ -1,4 +1,4 @@
-package exchange
+package p2p
 
 import (
 	"context"
@@ -11,10 +11,6 @@ import (
 
 	"github.com/celestiaorg/celestia-node/header"
 )
-
-// PubSubTopic hardcodes the name of the ExtendedHeader
-// gossipsub topic.
-const PubSubTopic = "header-sub"
 
 // P2PSubscriber manages the lifecycle and relationship of header Service
 // with the "header-sub" gossipsub topic.
@@ -34,13 +30,13 @@ func NewP2PSubscriber(ps *pubsub.PubSub) *P2PSubscriber {
 // Start starts the P2PSubscriber, registering a topic validator for the "header-sub"
 // topic and joining it.
 func (p *P2PSubscriber) Start(context.Context) (err error) {
-	p.topic, err = p.pubsub.Join(PubSubTopic, pubsub.WithTopicMessageIdFn(msgID))
+	p.topic, err = p.pubsub.Join(header.PubSubTopic, pubsub.WithTopicMessageIdFn(msgID))
 	return err
 }
 
 // Stop closes the topic and unregisters its validator.
 func (p *P2PSubscriber) Stop(context.Context) error {
-	err := p.pubsub.UnregisterTopicValidator(PubSubTopic)
+	err := p.pubsub.UnregisterTopicValidator(header.PubSubTopic)
 	if err != nil {
 		log.Warnf("unregistering validator: %s", err)
 	}
@@ -61,7 +57,7 @@ func (p *P2PSubscriber) AddValidator(val header.Validator) error {
 
 		return val(ctx, maybeHead)
 	}
-	return p.pubsub.RegisterTopicValidator(PubSubTopic, pval)
+	return p.pubsub.RegisterTopicValidator(header.PubSubTopic, pval)
 }
 
 // Subscribe returns a new subscription to the P2PSubscriber's

@@ -14,6 +14,7 @@ import (
 
 	"github.com/celestiaorg/celestia-node/core"
 	"github.com/celestiaorg/celestia-node/header"
+	"github.com/celestiaorg/celestia-node/header/p2p"
 )
 
 // TestCoreListener tests the lifecycle of the core listener.
@@ -24,7 +25,7 @@ func TestCoreListener(t *testing.T) {
 	// create mocknet with two pubsub endpoints
 	ps0, ps1 := createMocknetWithTwoPubsubEndpoints(ctx, t)
 	// create second subscription endpoint to listen for CoreListener's pubsub messages
-	topic, err := ps1.Join(PubSubTopic)
+	topic, err := ps1.Join(header.PubSubTopic)
 	require.NoError(t, err)
 	sub, err := topic.Subscribe()
 	require.NoError(t, err)
@@ -92,7 +93,7 @@ func createCoreListener(
 	fetcher *core.BlockFetcher,
 	ps *pubsub.PubSub,
 ) *CoreListener {
-	p2pSub := NewP2PSubscriber(ps)
+	p2pSub := p2p.NewP2PSubscriber(ps)
 	err := p2pSub.Start(ctx)
 	require.NoError(t, err)
 	t.Cleanup(func() {

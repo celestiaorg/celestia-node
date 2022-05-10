@@ -19,6 +19,10 @@ import (
 
 var log = logging.Logger("header")
 
+// PubSubTopic hardcodes the name of the ExtendedHeader
+// gossipsub topic.
+const PubSubTopic = "header-sub"
+
 type DataAvailabilityHeader = da.DataAvailabilityHeader
 
 // EmptyDAH provides DAH of the empty block.

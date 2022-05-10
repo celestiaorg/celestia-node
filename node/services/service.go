@@ -14,7 +14,7 @@ import (
 
 	"github.com/celestiaorg/celestia-node/das"
 	"github.com/celestiaorg/celestia-node/header"
-	"github.com/celestiaorg/celestia-node/header/exchange"
+	"github.com/celestiaorg/celestia-node/header/p2p"
 	"github.com/celestiaorg/celestia-node/header/store"
 	"github.com/celestiaorg/celestia-node/header/sync"
 	"github.com/celestiaorg/celestia-node/libs/fxutil"
@@ -40,8 +40,8 @@ func HeaderSyncer(
 }
 
 // P2PSubscriber creates a new P2PSubscriber.
-func P2PSubscriber(lc fx.Lifecycle, sub *pubsub.PubSub) (*exchange.P2PSubscriber, *exchange.P2PSubscriber) {
-	p2pSub := exchange.NewP2PSubscriber(sub)
+func P2PSubscriber(lc fx.Lifecycle, sub *pubsub.PubSub) (*p2p.P2PSubscriber, *p2p.P2PSubscriber) {
+	p2pSub := p2p.NewP2PSubscriber(sub)
 	lc.Append(fx.Hook{
 		OnStart: p2pSub.Start,
 		OnStop:  p2pSub.Stop,
@@ -53,7 +53,7 @@ func P2PSubscriber(lc fx.Lifecycle, sub *pubsub.PubSub) (*exchange.P2PSubscriber
 func HeaderService(
 	syncer *sync.Syncer,
 	sub header.Subscriber,
-	p2pServer *exchange.P2PExchangeServer,
+	p2pServer *p2p.P2PExchangeServer,
 	ex header.Exchange,
 	store header.Store,
 ) *headerservice.Service {
@@ -72,13 +72,13 @@ func HeaderExchangeP2P(cfg Config) func(params.Network, host.Host) (header.Excha
 			ids[index] = peer.ID
 			host.Peerstore().AddAddrs(peer.ID, peer.Addrs, peerstore.PermanentAddrTTL)
 		}
-		return exchange.NewP2PExchange(host, ids), nil
+		return p2p.NewP2PExchange(host, ids), nil
 	}
 }
 
 // HeaderP2PExchangeServer creates a new header.P2PExchangeServer.
-func HeaderP2PExchangeServer(lc fx.Lifecycle, host host.Host, store header.Store) *exchange.P2PExchangeServer {
-	p2pServ := exchange.NewP2PExchangeServer(host, store)
+func HeaderP2PExchangeServer(lc fx.Lifecycle, host host.Host, store header.Store) *p2p.P2PExchangeServer {
+	p2pServ := p2p.NewP2PExchangeServer(host, store)
 	lc.Append(fx.Hook{
 		OnStart: p2pServ.Start,
 		OnStop:  p2pServ.Stop,

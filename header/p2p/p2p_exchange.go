@@ -1,10 +1,12 @@
-package exchange
+package p2p
 
 import (
 	"bytes"
 	"context"
 	"fmt"
 	"math/rand"
+
+	logging "github.com/ipfs/go-log/v2"
 
 	"github.com/libp2p/go-libp2p-core/host"
 	"github.com/libp2p/go-libp2p-core/peer"
@@ -16,6 +18,8 @@ import (
 	"github.com/celestiaorg/celestia-node/header"
 	pb "github.com/celestiaorg/celestia-node/header/pb"
 )
+
+var log = logging.Logger("header/p2p")
 
 var exchangeProtocolID = protocol.ID("/header-ex/v0.0.1")
 
