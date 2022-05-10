@@ -19,3 +19,4 @@ vendor
 celestia
 cel-shed
 coverage.txt
+go.work
