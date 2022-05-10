@@ -14,7 +14,8 @@ func (h *Handler) RegisterEndpoints(rpc *Server) {
 	rpc.RegisterHandlerFunc(submitPFDEndpoint, h.handleSubmitPFD, http.MethodPost)
 
 	// share endpoints
-	rpc.RegisterHandlerFunc(namespacedSharesEndpoint, h.handleSharesByNamespaceRequest, http.MethodGet)
+	rpc.RegisterHandlerFunc(fmt.Sprintf("%s/{%s}/height/{%s}", namespacedSharesEndpoint, nIDKey, heightKey),
+		h.handleSharesByNamespaceRequest, http.MethodGet)
 
 	// header endpoints
 	rpc.RegisterHandlerFunc(fmt.Sprintf("%s/{%s}", headerByHeightEndpoint, heightKey), h.handleHeaderRequest,

@@ -4,35 +4,33 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"net/http"
+	"strconv"
+
+	"github.com/gorilla/mux"
 )
 
 const namespacedSharesEndpoint = "/namespaced_shares"
 
-// sharesByNamespaceRequest represents a `GetSharesByNamespace`
-// request payload
-type sharesByNamespaceRequest struct {
-	NamespaceID string `json:"namespace_id"`
-	Height      uint64 `json:"height"`
-}
+var nIDKey = "nid"
 
 func (h *Handler) handleSharesByNamespaceRequest(w http.ResponseWriter, r *http.Request) {
-	// unmarshal payload
-	var req sharesByNamespaceRequest
-	err := json.NewDecoder(r.Body).Decode(&req)
+	// read and parse request
+	vars := mux.Vars(r)
+	height, err := strconv.Atoi(vars[heightKey])
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		log.Errorw("serving request", "endpoint", namespacedSharesEndpoint, "err", err)
 		return
 	}
-	// decode namespaceID
-	nID, err := hex.DecodeString(req.NamespaceID)
+	hexNID := vars[nIDKey]
+	nID, err := hex.DecodeString(hexNID)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		log.Errorw("serving request", "endpoint", namespacedSharesEndpoint, "err", err)
 		return
 	}
 	// get header by given height
-	header, err := h.header.GetByHeight(r.Context(), req.Height)
+	header, err := h.header.GetByHeight(r.Context(), uint64(height))
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		log.Errorw("serving request", "endpoint", namespacedSharesEndpoint, "err", err)
