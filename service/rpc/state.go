@@ -47,7 +47,6 @@ func (h *Handler) handleBalanceRequest(w http.ResponseWriter, r *http.Request) {
 		log.Errorw("serving request", "endpoint", balanceEndpoint, "err", err)
 		return
 	}
-	w.Header().Add("Content-type", "application/json")
 	_, err = w.Write(resp)
 	if err != nil {
 		log.Errorw("writing response", "endpoint", balanceEndpoint, "err", err)
@@ -85,7 +84,6 @@ func (h *Handler) handleBalanceForAddrRequest(w http.ResponseWriter, r *http.Req
 		log.Errorw("serving request", "endpoint", balanceEndpoint, "err", err)
 		return
 	}
-	w.Header().Add("Content-type", "application/json")
 	_, err = w.Write(resp)
 	if err != nil {
 		log.Errorw("writing response", "endpoint", balanceEndpoint, "err", err)
@@ -124,7 +122,6 @@ func (h *Handler) handleSubmitTx(w http.ResponseWriter, r *http.Request) {
 		log.Errorw("serving request", "endpoint", submitTxEndpoint, "err", err)
 		return
 	}
-	w.Header().Add("Content-type", "application/json")
 	_, err = w.Write(resp)
 	if err != nil {
 		log.Errorw("writing response", "endpoint", submitTxEndpoint, "err", err)
@@ -169,7 +166,6 @@ func (h *Handler) handleSubmitPFD(w http.ResponseWriter, r *http.Request) {
 		log.Errorw("serving request", "endpoint", submitPFDEndpoint, "err", err)
 		return
 	}
-	w.Header().Add("Content-type", "application/json")
 	_, err = w.Write(resp)
 	if err != nil {
 		log.Errorw("writing response", "endpoint", submitPFDEndpoint, "err", err)

@@ -21,14 +21,24 @@ type Server struct {
 
 // NewServer returns a new RPC Server.
 func NewServer(cfg Config) *Server {
+	srvMux := mux.NewRouter()
+	srvMux.Use(setContentType)
+
 	server := &Server{
 		cfg:    cfg,
-		srvMux: mux.NewRouter(),
+		srvMux: srvMux,
 	}
 	server.srv = &http.Server{
 		Handler: server,
 	}
 	return server
+}
+
+func setContentType(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Add("Content-Type", "application/json")
+		next.ServeHTTP(w, r)
+	})
 }
 
 // Start starts the RPC Server, listening on the given address.

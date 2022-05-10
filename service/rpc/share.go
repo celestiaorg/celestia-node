@@ -69,7 +69,6 @@ func (h *Handler) handleSharesByNamespaceRequest(w http.ResponseWriter, r *http.
 		log.Errorw("serving request", "endpoint", namespacedSharesEndpoint, "err", err)
 		return
 	}
-	w.Header().Add("Content-type", "application/json")
 	_, err = w.Write(resp)
 	if err != nil {
 		log.Errorw("serving request", "endpoint", namespacedSharesEndpoint, "err", err)

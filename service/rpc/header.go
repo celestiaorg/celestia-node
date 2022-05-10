@@ -31,7 +31,6 @@ func (h *Handler) handleHeaderRequest(w http.ResponseWriter, r *http.Request) {
 		log.Errorw("serving request", "endpoint", headerByHeightEndpoint, "err", err)
 		return
 	}
-	w.Header().Add("Content-type", "application/json")
 	_, err = w.Write(resp)
 	if err != nil {
 		log.Errorw("writing response", "endpoint", headerByHeightEndpoint, "err", err)
