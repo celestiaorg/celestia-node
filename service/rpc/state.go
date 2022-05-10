@@ -15,10 +15,12 @@ const (
 	submitPFDEndpoint = "/submit_pfd"
 )
 
-var (
-	addrKey = "address"
-	txKey   = "tx"
-)
+var addrKey = "address"
+
+// submitTxRequest represents a request to submit a raw transaction
+type submitTxRequest struct {
+	Tx string `json:"tx"`
+}
 
 // submitPFDRequest represents a request to submit a PayForData
 // transaction.
@@ -89,16 +91,22 @@ func (h *Handler) handleBalanceForAddrRequest(w http.ResponseWriter, r *http.Req
 }
 
 func (h *Handler) handleSubmitTx(w http.ResponseWriter, r *http.Request) {
-	// read and parse request
-	txStr := mux.Vars(r)[txKey]
-	raw, err := hex.DecodeString(txStr)
+	// decode request
+	var req submitTxRequest
+	err := json.NewDecoder(r.Body).Decode(&req)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		log.Errorw("serving request", "endpoint", submitTxEndpoint, "err", err)
+		return
+	}
+	rawTx, err := hex.DecodeString(req.Tx)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		log.Errorw("serving request", "endpoint", submitTxEndpoint, "err", err)
 		return
 	}
 	// perform request
-	txResp, err := h.state.SubmitTx(r.Context(), raw)
+	txResp, err := h.state.SubmitTx(r.Context(), rawTx)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		_, werr := w.Write([]byte(err.Error()))
