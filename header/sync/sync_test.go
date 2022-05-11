@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/celestiaorg/celestia-node/fraud"
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/header/local"
 	"github.com/celestiaorg/celestia-node/header/store"
@@ -30,7 +31,7 @@ func TestSyncSimpleRequestingHead(t *testing.T) {
 	require.NoError(t, err)
 
 	localStore := store.NewTestStore(ctx, t, head)
-	syncer := NewSyncer(local.NewExchange(remoteStore), localStore, &header.DummySubscriber{})
+	syncer := NewSyncer(local.NewExchange(remoteStore), localStore, &header.DummySubscriber{}, &fraud.DummyService{})
 	err = syncer.Start(ctx)
 	require.NoError(t, err)
 
@@ -64,7 +65,7 @@ func TestSyncCatchUp(t *testing.T) {
 
 	remoteStore := store.NewTestStore(ctx, t, head)
 	localStore := store.NewTestStore(ctx, t, head)
-	syncer := NewSyncer(local.NewExchange(remoteStore), localStore, &header.DummySubscriber{})
+	syncer := NewSyncer(local.NewExchange(remoteStore), localStore, &header.DummySubscriber{}, &fraud.DummyService{})
 	// 1. Initial sync
 	err := syncer.Start(ctx)
 	require.NoError(t, err)
@@ -108,7 +109,7 @@ func TestSyncPendingRangesWithMisses(t *testing.T) {
 
 	remoteStore := store.NewTestStore(ctx, t, head)
 	localStore := store.NewTestStore(ctx, t, head)
-	syncer := NewSyncer(local.NewExchange(remoteStore), localStore, &header.DummySubscriber{})
+	syncer := NewSyncer(local.NewExchange(remoteStore), localStore, &header.DummySubscriber{}, &fraud.DummyService{})
 	err := syncer.Start(ctx)
 	require.NoError(t, err)
 

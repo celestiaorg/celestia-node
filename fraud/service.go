@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/celestiaorg/celestia-node/service/header"
+	"github.com/celestiaorg/celestia-node/header"
 
 	logging "github.com/ipfs/go-log/v2"
 	"github.com/libp2p/go-libp2p-core/peer"
