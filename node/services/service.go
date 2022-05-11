@@ -29,8 +29,9 @@ func HeaderSyncer(
 	ex header.Exchange,
 	store header.Store,
 	sub header.Subscriber,
+	fsub fraud.Service,
 ) (*sync.Syncer, error) {
-	syncer := sync.NewSyncer(ex, store, sub)
+	syncer := sync.NewSyncer(ex, store, sub, fsub)
 	lc.Append(fx.Hook{
 		OnStart: syncer.Start,
 		OnStop:  syncer.Stop,

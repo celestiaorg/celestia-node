@@ -16,7 +16,9 @@ var log = logging.Logger("state/rpc")
 // Accessor.
 type Service struct {
 	accessor Accessor
-	fsub     fraud.Subscriber
+
+	fsub   fraud.Subscriber
+	cancel context.CancelFunc
 
 	haltedSubmitTx uint64
 }
@@ -50,12 +52,15 @@ func (s *Service) SubmitTx(ctx context.Context, tx Tx) (*TxResponse, error) {
 	return s.accessor.SubmitTx(ctx, tx)
 }
 
-func (s *Service) Start(ctx context.Context) error {
+func (s *Service) Start(context.Context) error {
+	ctx, cancel := context.WithCancel(context.Background())
+	s.cancel = cancel
 	go s.subscribeToBefp(ctx)
 	return nil
 }
 
 func (s *Service) Stop(context.Context) error {
+	s.cancel()
 	return nil
 }
 
