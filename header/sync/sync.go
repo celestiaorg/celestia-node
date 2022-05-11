@@ -72,7 +72,7 @@ func (s *Syncer) Start(context.Context) error {
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
-	go s.subscribeToBefp(ctx)
+	go fraud.SubscribeToBefp(ctx, s.fSub, s.Stop)
 	go s.syncLoop(ctx)
 	s.wantSync()
 	s.cancel = cancel
@@ -354,23 +354,4 @@ func (s *Syncer) findHeaders(ctx context.Context, from, to uint64) ([]*header.Ex
 	}
 
 	return out, nil
-}
-
-func (s *Syncer) subscribeToBefp(ctx context.Context) {
-	subscription, err := s.fSub.Subscribe(fraud.BadEncoding)
-	if err != nil {
-		log.Errorw("failed to subscribe on bad encoding fraud proof ", err)
-		return
-	}
-	defer subscription.Cancel()
-
-	log.Info("Start listening to bad encoding fraud proof")
-	// At this point we receive already verified fraud proof,
-	// so there are no needs to call Validate.
-	_, err = subscription.Proof(ctx)
-	if err != nil {
-		log.Errorw("listening to fp failed, err", err)
-		return
-	}
-	s.Stop(ctx) //nolint:errcheck
 }

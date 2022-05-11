@@ -2,6 +2,7 @@ package fraud
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 
@@ -159,4 +160,23 @@ func (p *BadEncodingProof) Validate(header *header.ExtendedHeader) error {
 	}
 
 	return nil
+}
+
+func SubscribeToBefp(ctx context.Context, s Subscriber, stop func(context.Context) error) {
+	subscription, err := s.Subscribe(BadEncoding)
+	if err != nil {
+		log.Errorw("failed to subscribe on bad encoding fraud proof ", err)
+		return
+	}
+	defer subscription.Cancel()
+
+	log.Info("Start listening to bad encoding fraud proof11")
+	// At this point we receive already verified fraud proof,
+	// so there are no needs to call Validate.
+	_, err = subscription.Proof(ctx)
+	if err != nil {
+		log.Errorw("listening to fp failed, err", err)
+		return
+	}
+	stop(ctx) //nolint:errcheck
 }
