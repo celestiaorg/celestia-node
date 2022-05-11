@@ -13,9 +13,9 @@ import (
 	"github.com/celestiaorg/rsmt2d"
 
 	pb "github.com/celestiaorg/celestia-node/fraud/pb"
+	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/ipld"
 	ipld_pb "github.com/celestiaorg/celestia-node/ipld/pb"
-	"github.com/celestiaorg/celestia-node/service/header"
 )
 
 type BadEncodingProof struct {

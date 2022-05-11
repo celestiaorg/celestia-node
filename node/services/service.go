@@ -13,21 +13,25 @@ import (
 	"go.uber.org/fx"
 
 	"github.com/celestiaorg/celestia-node/das"
+	"github.com/celestiaorg/celestia-node/header"
+	"github.com/celestiaorg/celestia-node/header/p2p"
+	"github.com/celestiaorg/celestia-node/header/store"
+	"github.com/celestiaorg/celestia-node/header/sync"
 	"github.com/celestiaorg/celestia-node/libs/fxutil"
 	"github.com/celestiaorg/celestia-node/node/rpc"
 	"github.com/celestiaorg/celestia-node/params"
-	"github.com/celestiaorg/celestia-node/service/header"
+	headerservice "github.com/celestiaorg/celestia-node/service/header"
 	"github.com/celestiaorg/celestia-node/service/share"
 )
 
-// HeaderSyncer creates a new header.Syncer.
+// HeaderSyncer creates a new Syncer.
 func HeaderSyncer(
 	lc fx.Lifecycle,
 	ex header.Exchange,
 	store header.Store,
 	sub header.Subscriber,
-) (*header.Syncer, error) {
-	syncer := header.NewSyncer(ex, store, sub)
+) (*sync.Syncer, error) {
+	syncer := sync.NewSyncer(ex, store, sub)
 	lc.Append(fx.Hook{
 		OnStart: syncer.Start,
 		OnStop:  syncer.Stop,
@@ -35,9 +39,9 @@ func HeaderSyncer(
 	return syncer, nil
 }
 
-// P2PSubscriber creates a new header.P2PSubscriber.
-func P2PSubscriber(lc fx.Lifecycle, sub *pubsub.PubSub) (*header.P2PSubscriber, *header.P2PSubscriber) {
-	p2pSub := header.NewP2PSubscriber(sub)
+// P2PSubscriber creates a new p2p.Subscriber.
+func P2PSubscriber(lc fx.Lifecycle, sub *pubsub.PubSub) (*p2p.Subscriber, *p2p.Subscriber) {
+	p2pSub := p2p.NewSubscriber(sub)
 	lc.Append(fx.Hook{
 		OnStart: p2pSub.Start,
 		OnStop:  p2pSub.Stop,
@@ -47,15 +51,16 @@ func P2PSubscriber(lc fx.Lifecycle, sub *pubsub.PubSub) (*header.P2PSubscriber, 
 
 // HeaderService creates a new header.Service.
 func HeaderService(
-	syncer *header.Syncer,
+	syncer *sync.Syncer,
 	sub header.Subscriber,
-	p2pServer *header.P2PExchangeServer,
+	p2pServer *p2p.ExchangeServer,
 	ex header.Exchange,
-) *header.Service {
-	return header.NewHeaderService(syncer, sub, p2pServer, ex)
+	store header.Store,
+) *headerservice.Service {
+	return headerservice.NewHeaderService(syncer, sub, p2pServer, ex, store)
 }
 
-// HeaderExchangeP2P constructs new P2PExchange for headers.
+// HeaderExchangeP2P constructs new Exchange for headers.
 func HeaderExchangeP2P(cfg Config) func(params.Network, host.Host) (header.Exchange, error) {
 	return func(net params.Network, host host.Host) (header.Exchange, error) {
 		peers, err := cfg.trustedPeers(net)
@@ -67,13 +72,13 @@ func HeaderExchangeP2P(cfg Config) func(params.Network, host.Host) (header.Excha
 			ids[index] = peer.ID
 			host.Peerstore().AddAddrs(peer.ID, peer.Addrs, peerstore.PermanentAddrTTL)
 		}
-		return header.NewP2PExchange(host, ids), nil
+		return p2p.NewExchange(host, ids), nil
 	}
 }
 
-// HeaderP2PExchangeServer creates a new header.P2PExchangeServer.
-func HeaderP2PExchangeServer(lc fx.Lifecycle, host host.Host, store header.Store) *header.P2PExchangeServer {
-	p2pServ := header.NewP2PExchangeServer(host, store)
+// HeaderP2PExchangeServer creates a new header/p2p.ExchangeServer.
+func HeaderP2PExchangeServer(lc fx.Lifecycle, host host.Host, store header.Store) *p2p.ExchangeServer {
+	p2pServ := p2p.NewExchangeServer(host, store)
 	lc.Append(fx.Hook{
 		OnStart: p2pServ.Start,
 		OnStop:  p2pServ.Stop,
@@ -84,7 +89,7 @@ func HeaderP2PExchangeServer(lc fx.Lifecycle, host host.Host, store header.Store
 
 // HeaderStore creates and initializes new header.Store.
 func HeaderStore(lc fx.Lifecycle, ds datastore.Batching) (header.Store, error) {
-	store, err := header.NewStore(ds)
+	store, err := store.NewStore(ds)
 	if err != nil {
 		return nil, err
 	}
@@ -97,13 +102,13 @@ func HeaderStore(lc fx.Lifecycle, ds datastore.Batching) (header.Store, error) {
 
 // HeaderStoreInit initializes the store.
 func HeaderStoreInit(cfg *Config) func(context.Context, params.Network, header.Store, header.Exchange) error {
-	return func(ctx context.Context, net params.Network, store header.Store, ex header.Exchange) error {
+	return func(ctx context.Context, net params.Network, s header.Store, ex header.Exchange) error {
 		trustedHash, err := cfg.trustedHash(net)
 		if err != nil {
 			return err
 		}
 
-		err = header.InitStore(ctx, store, ex, trustedHash)
+		err = store.Init(ctx, s, ex, trustedHash)
 		if err != nil {
 			// TODO(@Wondertan): Error is ignored, as otherwise unit tests for Node construction fail.
 			// 	This is due to requesting step of initialization, which fetches initial Header by trusted hash from

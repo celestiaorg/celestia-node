@@ -6,7 +6,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/celestiaorg/celestia-node/service/header"
+	"github.com/celestiaorg/celestia-node/header"
 )
 
 func TestSharesAvailable(t *testing.T) {

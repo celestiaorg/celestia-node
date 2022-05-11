@@ -7,8 +7,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/celestiaorg/celestia-node/service/header"
-
+	"github.com/celestiaorg/celestia-node/header/store"
 	"github.com/celestiaorg/celestia-node/node"
 )
 
@@ -41,17 +40,17 @@ Custom store path is not supported yet.`,
 			return fmt.Errorf("invalid height: %w", err)
 		}
 
-		store, err := node.OpenStore(fmt.Sprintf("~/.celestia-%s", strings.ToLower(tp.String())))
+		s, err := node.OpenStore(fmt.Sprintf("~/.celestia-%s", strings.ToLower(tp.String())))
 		if err != nil {
 			return err
 		}
 
-		ds, err := store.Datastore()
+		ds, err := s.Datastore()
 		if err != nil {
 			return err
 		}
 
-		hstore, err := header.NewStore(ds)
+		hstore, err := store.NewStore(ds)
 		if err != nil {
 			return err
 		}
