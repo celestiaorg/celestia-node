@@ -80,7 +80,7 @@ func (d *DASer) Start(context.Context) error {
 	d.cancel = cancel
 
 	// start listening for bad encoding fraud proof
-	go d.subscribeToBefp(dasCtx)
+	go fraud.SubscribeToBefp(dasCtx, d.fService, d.Stop)
 	// kick off catch-up routine manager
 	go d.catchUpManager(dasCtx, checkpoint)
 	// kick off sampling routine for recently received headers
@@ -262,23 +262,4 @@ func (d *DASer) catchUp(ctx context.Context, job *catchUpJob) (int64, error) {
 		"to", job.to, "finished (s)", time.Since(routineStartTime))
 	// report successful result
 	return job.to, nil
-}
-
-func (d *DASer) subscribeToBefp(ctx context.Context) {
-	subscription, err := d.fService.Subscribe(fraud.BadEncoding)
-	if err != nil {
-		log.Errorw("failed to subscribe on bad encoding fraud proof ", err)
-		return
-	}
-	defer subscription.Cancel()
-
-	log.Info("Start listening to bad encoding fraud proof")
-	// At this point we receive already verified fraud proof,
-	// so there are no needs to call Validate.
-	_, err = subscription.Proof(ctx)
-	if err != nil {
-		log.Errorw("listening to fp failed, err", err)
-		return
-	}
-	d.Stop(ctx) //nolint:errcheck
 }

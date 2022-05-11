@@ -55,30 +55,14 @@ func (s *Service) SubmitTx(ctx context.Context, tx Tx) (*TxResponse, error) {
 func (s *Service) Start(context.Context) error {
 	ctx, cancel := context.WithCancel(context.Background())
 	s.cancel = cancel
-	go s.subscribeToBefp(ctx)
+	go fraud.SubscribeToBefp(ctx, s.fsub, func(context.Context) error {
+		atomic.StoreUint64(&s.haltedSubmitTx, 1)
+		return nil
+	})
 	return nil
 }
 
 func (s *Service) Stop(context.Context) error {
 	s.cancel()
 	return nil
-}
-
-func (s *Service) subscribeToBefp(ctx context.Context) {
-	subscription, err := s.fsub.Subscribe(fraud.BadEncoding)
-	if err != nil {
-		log.Error(err)
-		return
-	}
-	defer subscription.Cancel()
-
-	_, err = subscription.Proof(ctx)
-	if err != nil {
-		if err == context.Canceled {
-			return
-		}
-		log.Error(err)
-		return
-	}
-	atomic.StoreUint64(&s.haltedSubmitTx, 1)
 }
