@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/celestiaorg/celestia-node/core"
+	"github.com/celestiaorg/celestia-node/header"
 )
 
 func TestCoreExchange_RequestHeaders(t *testing.T) {
@@ -19,7 +20,7 @@ func TestCoreExchange_RequestHeaders(t *testing.T) {
 	// generate 10 blocks
 	generateBlocks(t, fetcher)
 
-	ce := NewExchange(fetcher, store)
+	ce := NewExchange(fetcher, store, header.MakeExtendedHeader)
 	headers, err := ce.RequestHeaders(context.Background(), 1, 10)
 	require.NoError(t, err)
 

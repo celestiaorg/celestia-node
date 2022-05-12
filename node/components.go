@@ -36,6 +36,7 @@ func bridgeComponents(cfg *Config, store Store) fx.Option {
 		fx.Supply(Bridge),
 		baseComponents(cfg, store),
 		nodecore.Components(cfg.Core),
+		fx.Supply(header.MakeExtendedHeader),
 		fx.Provide(services.LightAvailability), // TODO(@Wondertan): Remove strict requirements to have Availability
 	)
 }
