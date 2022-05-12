@@ -74,7 +74,7 @@ func baseComponents(cfg *Config, store Store) fx.Option {
 		fx.Provide(statecomponents.CoreAccessor(cfg.Core.GRPCAddr)),
 		// RPC components
 		fx.Provide(rpc.ServerComponent(cfg.RPC)),
-		fx.Provide(rpc.HandlerComponents),
+		fx.Invoke(rpc.HandlerComponents),
 	)
 }
 

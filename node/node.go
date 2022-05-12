@@ -44,8 +44,7 @@ type Node struct {
 	CoreClient core.Client `optional:"true"`
 
 	// rpc components
-	RPCServer  *rpc.Server  `optional:"true"`
-	RPCHandler *rpc.Handler `optional:"true"`
+	RPCServer *rpc.Server `optional:"true"`
 	// p2p components
 	Host         host.Host
 	ConnGater    connmgr.ConnectionGater

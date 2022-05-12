@@ -63,7 +63,7 @@ func setupNodeWithModifiedRPC(t *testing.T) *Node {
 	t.Cleanup(cancel)
 	// create test node with a dummy header service, manually add a dummy header
 	// service and register it with rpc handler/server
-	hServ := setupHeaderService(t)
+	hServ := setupHeaderService(ctx, t)
 	// create overrides
 	overrideHeaderServ := func(sets *settings) {
 		sets.opts = append(sets.opts, fx.Replace(hServ))
@@ -75,7 +75,7 @@ func setupNodeWithModifiedRPC(t *testing.T) *Node {
 			return handler
 		}))
 	}
-	nd := TestNode(t, Light, overrideHeaderServ, overrideRPCHandler)
+	nd := TestNode(t, Full, overrideHeaderServ, overrideRPCHandler)
 	// start node
 	err := nd.Start(ctx)
 	require.NoError(t, err)
@@ -86,10 +86,7 @@ func setupNodeWithModifiedRPC(t *testing.T) *Node {
 	return nd
 }
 
-func setupHeaderService(t *testing.T) *service.Service {
-	ctx, cancel := context.WithCancel(context.Background())
-	t.Cleanup(cancel)
-
+func setupHeaderService(ctx context.Context, t *testing.T) *service.Service {
 	suite := header.NewTestSuite(t, 1)
 	head := suite.Head()
 	// create header stores

@@ -28,8 +28,7 @@ func HandlerComponents(
 	share share.Service,
 	header *header.Service,
 	serv *rpc.Server,
-) *rpc.Handler {
+) {
 	handler := rpc.NewHandler(state, share, header)
 	handler.RegisterEndpoints(serv)
-	return handler
 }
