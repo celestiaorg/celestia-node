@@ -10,10 +10,19 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.uber.org/fx"
 
-	"github.com/celestiaorg/celestia-node/service/header"
+	"github.com/celestiaorg/celestia-node/header"
+	"github.com/celestiaorg/celestia-node/header/local"
+	"github.com/celestiaorg/celestia-node/header/store"
+	"github.com/celestiaorg/celestia-node/header/sync"
+	service "github.com/celestiaorg/celestia-node/service/header"
 	"github.com/celestiaorg/celestia-node/service/rpc"
 )
 
+// NOTE: The following tests are against common RPC endpoints provided by
+// celestia-node. They will be removed upon refactoring of the RPC
+// architecture and Public API. @renaynay @Wondertan.
+
+// TestNamespacedSharesRequest tests the `/namespaced_shares` endpoint.
 func TestNamespacedSharesRequest(t *testing.T) {
 	nd := setupNodeWithModifiedRPC(t)
 	// create request for header at height 2
@@ -34,6 +43,7 @@ func TestNamespacedSharesRequest(t *testing.T) {
 	require.Equal(t, height, namespacedShares.Height)
 }
 
+// TestHeaderRequest tests the `/header` endpoint.
 func TestHeaderRequest(t *testing.T) {
 	nd := setupNodeWithModifiedRPC(t)
 	// create request for header at height 2
@@ -76,19 +86,19 @@ func setupNodeWithModifiedRPC(t *testing.T) *Node {
 	return nd
 }
 
-func setupHeaderService(t *testing.T) *header.Service {
+func setupHeaderService(t *testing.T) *service.Service {
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
 
 	suite := header.NewTestSuite(t, 1)
 	head := suite.Head()
-	// create stores
-	remoteStore := header.NewTestStore(ctx, t, head)
-	localStore := header.NewTestStore(ctx, t, head)
+	// create header stores
+	remoteStore := store.NewTestStore(ctx, t, head)
+	localStore := store.NewTestStore(ctx, t, head)
 	_, err := localStore.Append(ctx, suite.GenExtendedHeaders(5)...)
 	require.NoError(t, err)
 	// create syncer
-	syncer := header.NewSyncer(header.NewLocalExchange(remoteStore), localStore, &header.DummySubscriber{})
+	syncer := sync.NewSyncer(local.NewExchange(remoteStore), localStore, &header.DummySubscriber{})
 
-	return header.NewHeaderService(syncer, nil, nil, nil)
+	return service.NewHeaderService(syncer, nil, nil, nil, localStore)
 }
