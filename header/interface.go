@@ -5,9 +5,19 @@ import (
 	"errors"
 	"fmt"
 
+	format "github.com/ipfs/go-ipld-format"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	tmbytes "github.com/tendermint/tendermint/libs/bytes"
+	core "github.com/tendermint/tendermint/types"
 )
+
+type Maker = func(
+	context.Context,
+	*core.Block,
+	*core.Commit,
+	*core.ValidatorSet,
+	format.NodeAdder,
+) (*ExtendedHeader, error)
 
 // Validator aliases a func that validates ExtendedHeader.
 type Validator = func(context.Context, *ExtendedHeader) pubsub.ValidationResult
