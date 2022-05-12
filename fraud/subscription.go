@@ -25,13 +25,15 @@ func newSubscription(topic *pubsub.Topic, u proofUnmarshaler) (*subscription, er
 func (s *subscription) Proof(ctx context.Context) (Proof, error) {
 	data, err := s.subscription.Next(ctx)
 	if err != nil {
+		if err == context.Canceled {
+			return nil, err
+		}
 		return nil, fmt.Errorf("error during listening to the next proof: %s ", err.Error())
 	}
 	proof, err := s.unmarshaler(data.Data)
 	if err != nil {
 		return nil, err
 	}
-	log.Debugw("fraud_proof", proof.Type(), " received at ", "height", proof.Height())
 	return proof, nil
 }
 

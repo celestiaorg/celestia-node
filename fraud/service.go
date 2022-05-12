@@ -2,6 +2,7 @@ package fraud
 
 import (
 	"context"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"sync"
@@ -60,6 +61,7 @@ func (f *service) Stop(context.Context) error {
 }
 
 func (f *service) Subscribe(proofType ProofType) (Subscription, error) {
+	// TODO: @vgonkivs check if fraud proof is in fraud store, then return with error
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	if _, ok := f.unmarshalers[proofType]; !ok {
@@ -151,7 +153,7 @@ func (f *service) processIncoming(ctx context.Context, proofType ProofType, data
 			"err", err)
 		return pubsub.ValidationReject
 	}
-
+	log.Debugw("received Bad Encoding Fraud Proof from block ", "hash", hex.EncodeToString(extHeader.DAH.Hash()))
 	return pubsub.ValidationAccept
 }
 

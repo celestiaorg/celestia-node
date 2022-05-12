@@ -37,7 +37,6 @@ func CreateBadEncodingProof(
 	height uint64,
 	errByzantine *ipld.ErrByzantine,
 ) Proof {
-
 	return &BadEncodingProof{
 		BlockHeight: height,
 		Shares:      errByzantine.Shares,
@@ -87,6 +86,8 @@ func (p *BadEncodingProof) UnmarshalBinary(data []byte) error {
 	befp := &BadEncodingProof{
 		BlockHeight: in.Height,
 		Shares:      ipld.ProtoToShare(in.Shares),
+		Index:       uint8(in.Index),
+		isRow:       in.IsRow,
 	}
 
 	*p = *befp
@@ -170,12 +171,15 @@ func SubscribeToBefp(ctx context.Context, s Subscriber, stop func(context.Contex
 	}
 	defer subscription.Cancel()
 
-	log.Info("Start listening to bad encoding fraud proof11")
+	log.Info("Start listening to bad encoding fraud proof")
 	// At this point we receive already verified fraud proof,
 	// so there are no needs to call Validate.
 	_, err = subscription.Proof(ctx)
 	if err != nil {
-		log.Errorw("listening to fp failed, err", err)
+		if err == context.Canceled {
+			return
+		}
+		log.Errorw("listening to fp failed", "err", err)
 		return
 	}
 	stop(ctx) //nolint:errcheck
