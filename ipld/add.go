@@ -53,7 +53,7 @@ func ImportShares(ctx context.Context, shares [][]byte, na ipld.NodeAdder) (*rsm
 	}
 	// compute roots
 	eds.RowRoots()
-	// commit the batch to ipfs
+	// commit the batch to DAG
 	return eds, batchAdder.Commit()
 }
 
