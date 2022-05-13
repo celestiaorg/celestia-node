@@ -122,7 +122,7 @@ func HeaderStoreInit(cfg *Config) func(context.Context, params.Network, header.S
 }
 
 // ShareService constructs new share.Service.
-func ShareService(lc fx.Lifecycle, dag ipld.DAGService, avail share.Availability) share.Service {
+func ShareService(lc fx.Lifecycle, dag ipld.DAGService, avail share.Availability) *share.Service {
 	service := share.NewService(dag, avail)
 	lc.Append(fx.Hook{
 		OnStart: service.Start,

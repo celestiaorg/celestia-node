@@ -35,9 +35,18 @@ var GetData = ipld.ShareData
 // In practice, it is a commitment to all the Data in a square.
 type Root = da.DataAvailabilityHeader
 
-// Service provides a simple interface to access any data square or block share on the network.
+// NewService creates new basic share.Service.
+func NewService(dag format.DAGService, avail Availability) *Service {
+	return &Service{
+		rtrv:         ipld.NewRetriever(dag, ipld.DefaultRSMT2DCodec()),
+		Availability: avail,
+		dag:          dag,
+	}
+}
+
+// Service provides access to any data square or block share on the network.
 //
-// All Get methods follow the following flow:
+// All Get methods provided on Service follow the following flow:
 // 	* Check local storage for the requested Share.
 // 		* If exists
 // 			* Load from disk
@@ -47,39 +56,8 @@ type Root = da.DataAvailabilityHeader
 //      	* Fetch the Share from the provider
 //			* Store the Share
 //			* Return
-type Service interface {
-	Availability
-
-	// GetShare loads a Share committed to the given DataAvailabilityHeader by its Row and Column coordinates in the
-	// erasure coded data square or block.
-	GetShare(ctx context.Context, root *Root, row, col int) (Share, error)
-
-	// GetShares loads all the Shares committed to the given DataAvailabilityHeader as a 2D array/slice.
-	// It also optimistically executes erasure coding recovery.
-	GetShares(context.Context, *Root) ([][]Share, error)
-
-	// GetSharesByNamespace loads all the Shares of the given namespace.ID committed to the given
-	// DataAvailabilityHeader as a 1D array/slice.
-	GetSharesByNamespace(context.Context, *Root, namespace.ID) ([]Share, error)
-
-	// Start starts the Service.
-	Start(context.Context) error
-
-	// Stop stops the Service.
-	Stop(context.Context) error
-}
-
-// NewService creates new basic share.Service.
-func NewService(dag format.DAGService, avail Availability) Service {
-	return &service{
-		rtrv:         ipld.NewRetriever(dag, ipld.DefaultRSMT2DCodec()),
-		Availability: avail,
-		dag:          dag,
-	}
-}
-
 // TODO(@Wondertan): Simple thread safety for Start and Stop would not hurt.
-type service struct {
+type Service struct {
 	Availability
 	rtrv *ipld.Retriever
 	dag  format.DAGService
@@ -90,7 +68,7 @@ type service struct {
 	cancel context.CancelFunc
 }
 
-func (s *service) Start(context.Context) error {
+func (s *Service) Start(context.Context) error {
 	if s.session != nil || s.cancel != nil {
 		return fmt.Errorf("share: Service already started")
 	}
@@ -105,7 +83,7 @@ func (s *service) Start(context.Context) error {
 	return nil
 }
 
-func (s *service) Stop(context.Context) error {
+func (s *Service) Stop(context.Context) error {
 	if s.session == nil || s.cancel == nil {
 		return fmt.Errorf("share: Service already stopped")
 	}
@@ -116,7 +94,7 @@ func (s *service) Stop(context.Context) error {
 	return nil
 }
 
-func (s *service) GetShare(ctx context.Context, dah *Root, row, col int) (Share, error) {
+func (s *Service) GetShare(ctx context.Context, dah *Root, row, col int) (Share, error) {
 	root, leaf := translate(dah, row, col)
 	nd, err := ipld.GetShare(ctx, s.dag, root, leaf, len(dah.RowsRoots))
 	if err != nil {
@@ -126,7 +104,7 @@ func (s *service) GetShare(ctx context.Context, dah *Root, row, col int) (Share,
 	return nd, nil
 }
 
-func (s *service) GetShares(ctx context.Context, root *Root) ([][]Share, error) {
+func (s *Service) GetShares(ctx context.Context, root *Root) ([][]Share, error) {
 	eds, err := s.rtrv.Retrieve(ctx, root)
 	if err != nil {
 		return nil, err
@@ -146,7 +124,7 @@ func (s *service) GetShares(ctx context.Context, root *Root) ([][]Share, error) 
 	return shares, nil
 }
 
-func (s *service) GetSharesByNamespace(ctx context.Context, root *Root, nID namespace.ID) ([]Share, error) {
+func (s *Service) GetSharesByNamespace(ctx context.Context, root *Root, nID namespace.ID) ([]Share, error) {
 	rowRootCIDs := make([]cid.Cid, 0)
 	for _, row := range root.RowsRoots {
 		if !nID.Less(nmt.MinNamespace(row, nID.Size())) && nID.LessOrEqual(nmt.MaxNamespace(row, nID.Size())) {

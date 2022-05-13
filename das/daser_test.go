@@ -216,7 +216,7 @@ func createDASerSubcomponents(
 	dag format.DAGService,
 	numGetter,
 	numSub int,
-) (*mockGetter, share.Service, *header.DummySubscriber) {
+) (*mockGetter, *share.Service, *header.DummySubscriber) {
 	shareServ := share.NewService(dag, share.NewLightAvailability(dag))
 
 	mockGet := &mockGetter{
