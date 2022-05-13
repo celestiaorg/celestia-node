@@ -5,8 +5,9 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/celestiaorg/celestia-node/core"
 	"github.com/celestiaorg/celestia-node/params"
+
+	"github.com/celestiaorg/celestia-node/core"
 )
 
 // MockStore provides mock in memory Store for testing purposes.
