@@ -15,7 +15,6 @@ import (
 
 	"github.com/celestiaorg/celestia-node/ipld"
 	"github.com/celestiaorg/celestia-node/ipld/plugin"
-	"github.com/celestiaorg/celestia-node/node/rpc"
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/nmt/namespace"
 )
@@ -68,10 +67,6 @@ type Service interface {
 
 	// Stop stops the Service.
 	Stop(context.Context) error
-
-	// RegisterEndpoints registers the service's available endpoints on the RPC
-	// server.
-	RegisterEndpoints(rpc *rpc.Server)
 }
 
 // NewService creates new basic share.Service.

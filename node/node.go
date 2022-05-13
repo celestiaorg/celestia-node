@@ -18,9 +18,9 @@ import (
 
 	"github.com/celestiaorg/celestia-node/core"
 	"github.com/celestiaorg/celestia-node/das"
-	"github.com/celestiaorg/celestia-node/node/rpc"
 	"github.com/celestiaorg/celestia-node/params"
 	"github.com/celestiaorg/celestia-node/service/header"
+	"github.com/celestiaorg/celestia-node/service/rpc"
 	"github.com/celestiaorg/celestia-node/service/share"
 	"github.com/celestiaorg/celestia-node/service/state"
 )
@@ -43,9 +43,8 @@ type Node struct {
 	// CoreClient provides access to a Core node process.
 	CoreClient core.Client `optional:"true"`
 
-	// RPCServer provides access to Node's exposed APIs.
+	// rpc components
 	RPCServer *rpc.Server `optional:"true"`
-
 	// p2p components
 	Host         host.Host
 	ConnGater    connmgr.ConnectionGater

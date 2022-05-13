@@ -7,11 +7,7 @@ import (
 	"net/http"
 
 	"github.com/gorilla/mux"
-
-	logging "github.com/ipfs/go-log/v2"
 )
-
-var log = logging.Logger("rpc")
 
 // Server represents an RPC server on the Node.
 // TODO @renaynay: eventually, rpc server should be able to be toggled on and off.
@@ -25,14 +21,24 @@ type Server struct {
 
 // NewServer returns a new RPC Server.
 func NewServer(cfg Config) *Server {
+	srvMux := mux.NewRouter()
+	srvMux.Use(setContentType)
+
 	server := &Server{
 		cfg:    cfg,
-		srvMux: mux.NewRouter(),
+		srvMux: srvMux,
 	}
 	server.srv = &http.Server{
 		Handler: server,
 	}
 	return server
+}
+
+func setContentType(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Add("Content-Type", "application/json")
+		next.ServeHTTP(w, r)
+	})
 }
 
 // Start starts the RPC Server, listening on the given address.
@@ -72,4 +78,9 @@ func (s *Server) RegisterHandlerFunc(pattern string, handlerFunc http.HandlerFun
 // ServeHTTP serves inbound requests on the Server.
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	s.srvMux.ServeHTTP(w, r)
+}
+
+// ListenAddr returns the listen address of the server.
+func (s *Server) ListenAddr() string {
+	return s.listener.Addr().String()
 }
