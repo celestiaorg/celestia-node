@@ -36,41 +36,39 @@ func TestNode(t *testing.T, tp Type, opts ...Option) *Node {
 }
 
 // WithFaultMaker is used to enable test cases with invalid blocks
-func WithFaultMaker() Option {
+func WithFaultMaker(faultHeight int64) Option {
+	log.Info("assign fault maker to get incorrect block at height ", faultHeight)
 	return func(sets *settings) {
-		sets.opts = append(sets.opts, fx.Replace(faultMaker))
-	}
-}
+		sets.opts = append(sets.opts, fx.Replace(func(ctx context.Context,
+			b *types.Block,
+			comm *types.Commit,
+			vals *types.ValidatorSet,
+			dag format.NodeAdder) (*header.ExtendedHeader, error) {
+			var dah da.DataAvailabilityHeader
 
-func faultMaker(ctx context.Context,
-	b *types.Block,
-	comm *types.Commit,
-	vals *types.ValidatorSet,
-	dag format.NodeAdder) (*header.ExtendedHeader, error) {
-	log.Info("using fault header maker...")
-	var dah da.DataAvailabilityHeader
+			namespacedShares, _ := b.Data.ComputeShares()
 
-	namespacedShares, _ := b.Data.ComputeShares()
+			extended, err := ipld.AddShares(ctx, namespacedShares.RawShares(), dag)
+			if err != nil {
+				return nil, err
+			}
 
-	extended, err := ipld.AddShares(ctx, namespacedShares.RawShares(), dag)
-	if err != nil {
-		return nil, err
+			if b.Height == faultHeight {
+				t := testing.T{}
+				size := len(namespacedShares.RawShares()) * 2
+				extended = ipld.RandEDS(&t, size)
+				shares := ipld.ExtractEDS(extended)
+				copy(shares[0][consts.NamespaceSize:], shares[1][consts.NamespaceSize:])
+				dah = ipld.CreateDAH(ctx, shares, uint64(extended.Width()), dag)
+			}
+			dah = da.NewDataAvailabilityHeader(extended)
+			eh := &header.ExtendedHeader{
+				RawHeader:    b.Header,
+				DAH:          &dah,
+				Commit:       comm,
+				ValidatorSet: vals,
+			}
+			return eh, nil
+		}))
 	}
-
-	if b.Height == int64(1) {
-		t := testing.T{}
-		size := len(namespacedShares.RawShares()) * 2
-		extended = ipld.RandEDS(&t, size)
-		shares := ipld.ExtractEDS(extended)
-		copy(shares[0][consts.NamespaceSize:], shares[1][consts.NamespaceSize:])
-		dah = ipld.CreateDAH(ctx, shares, uint64(extended.Width()), dag)
-	}
-	dah = da.NewDataAvailabilityHeader(extended)
-	eh := &header.ExtendedHeader{
-		RawHeader:    b.Header,
-		DAH:          &dah,
-		Commit:       comm,
-		ValidatorSet: vals,
-	}
-	return eh, nil
 }

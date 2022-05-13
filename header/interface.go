@@ -11,6 +11,7 @@ import (
 	core "github.com/tendermint/tendermint/types"
 )
 
+// Maker aliases a func that creates ExtendedHeader.
 type Maker = func(
 	context.Context,
 	*core.Block,
