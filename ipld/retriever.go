@@ -51,6 +51,7 @@ func NewRetriever(dag format.DAGService, codec rsmt2d.Codec) *Retriever {
 // using the rsmt2d.Codec. It steadily tries to request other 3/4 data if 1/4 is not found within
 // RetrieveQuadrantTimeout or unrecoverable.
 func (r *Retriever) Retrieve(ctx context.Context, dah *da.DataAvailabilityHeader) (*rsmt2d.ExtendedDataSquare, error) {
+	log.Debugw("retrieving data square", "data_hash", hex.EncodeToString(dah.Hash()), "size", len(dah.RowsRoots))
 	ses := r.newSession(ctx, dah)
 	for _, qs := range newQuadrants(dah) {
 		for _, q := range qs {
@@ -61,6 +62,7 @@ func (r *Retriever) Retrieve(ctx context.Context, dah *da.DataAvailabilityHeader
 			if byzErr := r.checkForByzantineError(ctx, dah, err); byzErr != nil {
 				return nil, byzErr
 			}
+			log.Warnw("not enough shares to reconstruct data square, requesting more...", "err", err)
 		}
 		// retry quadrants until we can reconstruct the EDS or error out
 	}
@@ -119,8 +121,9 @@ type retrieverSession struct {
 	treeFn rsmt2d.TreeConstructorFn
 	codec  rsmt2d.Codec
 
-	dah    *da.DataAvailabilityHeader
-	square [][]byte
+	dah      *da.DataAvailabilityHeader
+	squareLk sync.RWMutex
+	square   [][]byte
 }
 
 func (r *Retriever) newSession(ctx context.Context, dah *da.DataAvailabilityHeader) *retrieverSession {
@@ -140,7 +143,6 @@ func (r *Retriever) newSession(ctx context.Context, dah *da.DataAvailabilityHead
 }
 
 func (rs *retrieverSession) retrieve(ctx context.Context, q *quadrant) (*rsmt2d.ExtendedDataSquare, error) {
-	log.Debugw("retrieving data square", "data_hash", hex.EncodeToString(rs.dah.Hash()), "size", len(rs.dah.RowsRoots))
 	defer func() {
 		// all shares which were requested or repaired are written to disk with the commit
 		// we store *all*, so they are served to the network, including incorrectly committed data(BEFP case),
@@ -154,9 +156,11 @@ func (rs *retrieverSession) retrieve(ctx context.Context, q *quadrant) (*rsmt2d.
 	rs.request(ctx, q)
 
 	// try repair
+	// TODO: Avoid reimporting of the square which can potentially remove the requirement for the lock
+	rs.squareLk.Lock()
+	defer rs.squareLk.Unlock()
 	err := rsmt2d.RepairExtendedDataSquare(rs.dah.RowsRoots, rs.dah.ColumnRoots, rs.square, rs.codec, rs.treeFn)
 	if err != nil {
-		log.Warnw("not enough shares to reconstruct data square, requesting more...", "err", err)
 		return nil, err
 	}
 
@@ -172,27 +176,26 @@ func (rs *retrieverSession) request(ctx context.Context, q *quadrant) {
 	wg := &sync.WaitGroup{}
 	wg.Add(size)
 
-	log.Debugw("requesting quadrant", "x", q.x, "y", q.y, "size", size)
+	log.Debugw("requesting quadrant", "axis", q.source, "x", q.x, "y", q.y, "size", size)
 	for i, root := range q.roots {
 		go func(i int, root cid.Cid) {
 			defer wg.Done()
+			// get the root node
 			nd, err := rs.dag.Get(ctx, root)
 			if err != nil {
-				log.Errorw("getting root", "root", root.String(), "err", err)
 				return
 			}
-			// TODO(@Wondertan): GetLeaves should return everything it was able to request even on error,
-			// 	so that we fill as much data as possible
-			// get leaves of left or right subtree
-			nds, err := GetLeaves(ctx, rs.dag, nd.Links()[q.x].Cid, make([]format.Node, 0, size))
-			if err != nil {
-				log.Errorw("getting all the leaves", "root", root.String(), "err", err)
-				return
-			}
-			// fill leaves into the square
-			for j, nd := range nds {
-				rs.square[q.index(i, j)] = nd.RawData()[1+NamespaceSize:]
-			}
+			// and go get shares of left or the right side of the whole col/row axis
+			// the left or the right side of the tree represent some portion of the quadrant
+			// which we put into the rs.square share-by-share by calculating shares' indexes using q.index
+			GetShares(ctx, rs.dag, nd.Links()[q.x].Cid, size, func(j int, share Share) {
+				// the R lock here is *not* to protect rs.square from multiple concurrent shares writes
+				// but to avoid races between share writes and repairing attempts
+				// shares are written atomically in their own slice slot
+				rs.squareLk.RLock()
+				rs.square[q.index(i, j)] = share
+				rs.squareLk.RUnlock()
+			})
 		}(i, root)
 	}
 	// wait for each root
