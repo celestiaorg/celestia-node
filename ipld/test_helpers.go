@@ -2,19 +2,14 @@ package ipld
 
 import (
 	"bytes"
-	"context"
 	mrand "math/rand"
 	"sort"
 	"testing"
 
-	format "github.com/ipfs/go-ipld-format"
 	"github.com/stretchr/testify/require"
 
-	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/rsmt2d"
 
-	"github.com/tendermint/tendermint/pkg/consts"
-	"github.com/tendermint/tendermint/pkg/da"
 	"github.com/tendermint/tendermint/pkg/wrapper"
 )
 
@@ -70,17 +65,4 @@ func RandShares(t *testing.T, total int) []Share {
 	}
 
 	return shares
-}
-
-// CreateDAH creates DataAvailabilityHeader from the given shares and eds width
-func CreateDAH(ctx context.Context, shares [][]byte, size uint64, na format.NodeAdder) da.DataAvailabilityHeader {
-	batchAdder := NewNmtNodeAdder(
-		ctx,
-		format.NewBatch(ctx, na, format.MaxSizeBatchOption(int(size)*2)),
-	)
-	tree := wrapper.NewErasuredNamespacedMerkleTree(size/2, nmt.NodeVisitor(batchAdder.Visit))
-	attackerEDS, _ := rsmt2d.ImportExtendedDataSquare(shares, consts.DefaultCodec(), tree.Constructor)
-	_ = batchAdder.Commit()
-
-	return da.NewDataAvailabilityHeader(attackerEDS)
 }

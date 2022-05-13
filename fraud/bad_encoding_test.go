@@ -8,6 +8,7 @@ import (
 	mdutils "github.com/ipfs/go-merkledag/test"
 	"github.com/stretchr/testify/require"
 	"github.com/tendermint/tendermint/pkg/consts"
+	"github.com/tendermint/tendermint/pkg/da"
 
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/ipld"
@@ -16,13 +17,14 @@ import (
 func TestFraudProofValidation(t *testing.T) {
 	dag := mdutils.Mock()
 	eds := ipld.RandEDS(t, 2)
-	size := eds.Width()
 
 	shares := ipld.ExtractEDS(eds)
 	copy(shares[3][8:], shares[4][8:])
-	da := ipld.CreateDAH(context.Background(), shares, uint64(size), dag)
+	eds, err := ipld.ImportShares(context.Background(), shares, dag)
+	require.NoError(t, err)
+	da := da.NewDataAvailabilityHeader(eds)
 	r := ipld.NewRetriever(dag, consts.DefaultCodec())
-	_, err := r.Retrieve(context.Background(), &da)
+	_, err = r.Retrieve(context.Background(), &da)
 	var errByz *ipld.ErrByzantine
 	require.True(t, errors.As(err, &errByz))
 
