@@ -35,15 +35,6 @@ var GetData = ipld.ShareData
 // In practice, it is a commitment to all the Data in a square.
 type Root = da.DataAvailabilityHeader
 
-// NewService creates new basic share.Service.
-func NewService(dag format.DAGService, avail Availability) *Service {
-	return &Service{
-		rtrv:         ipld.NewRetriever(dag, ipld.DefaultRSMT2DCodec()),
-		Availability: avail,
-		dag:          dag,
-	}
-}
-
 // Service provides access to any data square or block share on the network.
 //
 // All Get methods provided on Service follow the following flow:
@@ -66,6 +57,15 @@ type Service struct {
 	session format.NodeGetter
 	// cancel controls lifecycle of the session
 	cancel context.CancelFunc
+}
+
+// NewService creates new basic share.Service.
+func NewService(dag format.DAGService, avail Availability) *Service {
+	return &Service{
+		rtrv:         ipld.NewRetriever(dag, ipld.DefaultRSMT2DCodec()),
+		Availability: avail,
+		dag:          dag,
+	}
 }
 
 func (s *Service) Start(context.Context) error {
