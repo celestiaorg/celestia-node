@@ -1,6 +1,7 @@
 package state
 
 import (
+	"github.com/cosmos/cosmos-sdk/crypto/hd"
 	"os"
 
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
@@ -31,9 +32,23 @@ func CoreAccessor(endpoint string) func(fx.Lifecycle, keystore.Keystore, params.
 			return nil, err
 		}
 		signer := apptypes.NewKeyringSigner(ring, keyringAccName, string(net))
+		keys, err := signer.List()
+		if err != nil {
+			return nil, err
+		}
+		// if no key was found in keystore path, generate new key for node
+		if len(keys) == 0 {
+			log.Infow("NO KEY FOUND IN PATH, GENERATING NEW KEY...", "path", ks.Path())
+			info, mn, err := signer.NewMnemonic(keyringAccName, keyring.English, "", "",
+				hd.Secp256k1)
+			if err != nil {
+				return nil, err
+			}
+			log.Infow("NEW KEY GENERATED...", "name", info.GetName(), "mnemonic", mn)
+		}
 
 		log.Infow("constructed keyring signer", "backend", keyring.BackendTest, "path", ks.Path(),
-			"keyring account name", keyringAccName)
+			"keyring account name", keyringAccName, "chain-id", string(net))
 
 		ca := state.NewCoreAccessor(signer, endpoint)
 		lc.Append(fx.Hook{
