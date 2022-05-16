@@ -11,8 +11,8 @@ import (
 	core "github.com/tendermint/tendermint/types"
 )
 
-// Maker aliases a function that creates an ExtendedHeader.
-type Maker = func(
+// Generator aliases a function that creates an ExtendedHeader.
+type Generator = func(
 	context.Context,
 	*core.Block,
 	*core.Commit,
