@@ -1,6 +1,7 @@
 package state
 
 import (
+	"fmt"
 	"os"
 
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
@@ -44,7 +45,9 @@ func CoreAccessor(endpoint string) func(fx.Lifecycle, keystore.Keystore, params.
 			if err != nil {
 				return nil, err
 			}
-			log.Infow("NEW KEY GENERATED...", "name", info.GetName(), "mnemonic", mn)
+			log.Info("NEW KEY GENERATED...")
+			fmt.Printf("\nNAME: %s\nADDRESS: %s\nMNEMONIC (save this somewhere safe!!!): \n%s\n\n",
+				info.GetName(), info.GetAddress().String(), mn)
 		}
 
 		log.Infow("constructed keyring signer", "backend", keyring.BackendTest, "path", ks.Path(),
