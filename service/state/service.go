@@ -20,7 +20,7 @@ type Service struct {
 	fsub   fraud.Subscriber
 	cancel context.CancelFunc
 
-	haltedSubmitTx uint64
+	haltedSubmitTx uint32
 }
 
 // NewService constructs a new state Service.
@@ -56,7 +56,7 @@ func (s *Service) Start(context.Context) error {
 	ctx, cancel := context.WithCancel(context.Background())
 	s.cancel = cancel
 	go fraud.SubscribeToBefp(ctx, s.fsub, func(context.Context) error {
-		atomic.StoreUint64(&s.haltedSubmitTx, 1)
+		atomic.StoreUint32(&s.haltedSubmitTx, 1)
 		return nil
 	})
 	return nil
@@ -65,4 +65,8 @@ func (s *Service) Start(context.Context) error {
 func (s *Service) Stop(context.Context) error {
 	s.cancel()
 	return nil
+}
+
+func (s *Service) IsHaltedSubmitTx() bool {
+	return atomic.LoadUint32(&s.haltedSubmitTx) == 1
 }
