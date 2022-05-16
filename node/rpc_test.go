@@ -4,7 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"net/http"
+	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -25,37 +28,100 @@ import (
 // TestNamespacedSharesRequest tests the `/namespaced_shares` endpoint.
 func TestNamespacedSharesRequest(t *testing.T) {
 	nd := setupNodeWithModifiedRPC(t)
-	// create request for header at height 2
+	// create several requests for header at height 2
 	height := uint64(2)
-	endpoint := fmt.Sprintf("http://127.0.0.1:%s/namespaced_shares/0000000000000001/height/%d",
-		nd.RPCServer.ListenAddr()[5:], height)
+	var tests = []struct {
+		nID         string
+		expectedErr bool
+	}{
+		{
+			nID:         "0000000000000001",
+			expectedErr: false,
+		},
+		{
+			nID:         "00000000000001",
+			expectedErr: true,
+		},
+		{
+			nID:         "000000000000000001",
+			expectedErr: true,
+		},
+	}
+
+	for i, tt := range tests {
+		t.Run(strconv.Itoa(i), func(t *testing.T) {
+			endpoint := fmt.Sprintf("http://127.0.0.1:%s/namespaced_shares/%s/height/%d",
+				nd.RPCServer.ListenAddr()[5:], tt.nID, height)
+			resp, err := http.Get(endpoint)
+			defer func() {
+				err = resp.Body.Close()
+				require.NoError(t, err)
+			}()
+			// check resp
+			if tt.expectedErr {
+				require.False(t, resp.StatusCode == http.StatusOK)
+
+				buf, err := ioutil.ReadAll(resp.Body)
+				require.NoError(t, err)
+				expectedErr := strings.Trim(string(buf), "\"\"") //nolint:staticcheck
+				require.Equal(t, "namespace id must be default size 8", expectedErr)
+
+				return
+			}
+			require.NoError(t, err)
+			require.True(t, resp.StatusCode == http.StatusOK)
+			// decode resp
+			namespacedShares := new(rpc.NamespacedSharesResponse)
+			err = json.NewDecoder(resp.Body).Decode(namespacedShares)
+			require.Equal(t, height, namespacedShares.Height)
+		})
+	}
+}
+
+// TestHeadRequest rests the `/head` endpoint.
+func TestHeadRequest(t *testing.T) {
+	nd := setupNodeWithModifiedRPC(t)
+	endpoint := fmt.Sprintf("http://127.0.0.1:%s/head", nd.RPCServer.ListenAddr()[5:])
 	resp, err := http.Get(endpoint)
 	require.NoError(t, err)
 	defer func() {
 		err = resp.Body.Close()
 		require.NoError(t, err)
 	}()
-	// check to make sure request was successfully completed
 	require.True(t, resp.StatusCode == http.StatusOK)
-	// decode resp
-	namespacedShares := new(rpc.NamespacedSharesResponse)
-	err = json.NewDecoder(resp.Body).Decode(namespacedShares)
-	require.Equal(t, height, namespacedShares.Height)
 }
 
 // TestHeaderRequest tests the `/header` endpoint.
 func TestHeaderRequest(t *testing.T) {
 	nd := setupNodeWithModifiedRPC(t)
-	// create request for header at height 2
-	endpoint := fmt.Sprintf("http://127.0.0.1:%s/header/2", nd.RPCServer.ListenAddr()[5:])
-	resp, err := http.Get(endpoint)
-	require.NoError(t, err)
-	defer func() {
-		err = resp.Body.Close()
-		require.NoError(t, err)
-	}()
-	// check to make sure request was successfully completed
-	require.True(t, resp.StatusCode == http.StatusOK)
+	// create several requests for headers
+	var tests = []struct {
+		height      uint64
+		expectedErr bool
+	}{
+		{
+			height:      uint64(2),
+			expectedErr: false,
+		},
+		{
+			height:      uint64(0),
+			expectedErr: true,
+		},
+	}
+
+	for i, tt := range tests {
+		t.Run(strconv.Itoa(i), func(t *testing.T) {
+			endpoint := fmt.Sprintf("http://127.0.0.1:%s/header/%d", nd.RPCServer.ListenAddr()[5:], tt.height)
+			resp, err := http.Get(endpoint)
+			require.NoError(t, err)
+			defer func() {
+				err = resp.Body.Close()
+				require.NoError(t, err)
+			}()
+
+			require.Equal(t, tt.expectedErr, resp.StatusCode != http.StatusOK)
+		})
+	}
 }
 
 func setupNodeWithModifiedRPC(t *testing.T) *Node {
