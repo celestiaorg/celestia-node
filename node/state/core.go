@@ -39,7 +39,7 @@ func CoreAccessor(endpoint string) func(fx.Lifecycle, keystore.Keystore, params.
 		}
 		// if no key was found in keystore path, generate new key for node
 		if len(keys) == 0 {
-			log.Infow("NO KEY FOUND IN PATH, GENERATING NEW KEY...", "path", ks.Path())
+			log.Infow("NO KEY FOUND IN STORE, GENERATING NEW KEY...", "path", ks.Path())
 			info, mn, err := signer.NewMnemonic(keyringAccName, keyring.English, "", "",
 				hd.Secp256k1)
 			if err != nil {
