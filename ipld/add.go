@@ -38,7 +38,7 @@ func AddShares(ctx context.Context, shares []Share, adder ipld.NodeAdder) (*rsmt
 // ImportShares imports flattend chunks of data into Extended Data square and saves it in IPLD DAG
 func ImportShares(ctx context.Context, shares [][]byte, na ipld.NodeAdder) (*rsmt2d.ExtendedDataSquare, error) {
 	if len(shares) == 0 {
-		return nil, fmt.Errorf("empty data") // empty block is not an empty Data
+		return nil, fmt.Errorf("ipld: importing empty data")
 	}
 	squareSize := int(math.Sqrt(float64(len(shares))))
 	// create nmt adder wrapping batch adder with calculated size
