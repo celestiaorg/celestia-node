@@ -1,9 +1,9 @@
 package state
 
 import (
-	"github.com/cosmos/cosmos-sdk/crypto/hd"
 	"os"
 
+	"github.com/cosmos/cosmos-sdk/crypto/hd"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	logging "github.com/ipfs/go-log/v2"
 	"go.uber.org/fx"
