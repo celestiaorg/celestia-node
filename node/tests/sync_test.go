@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/node"
 	"github.com/celestiaorg/celestia-node/node/tests/swamp"
 )
@@ -280,4 +281,37 @@ func TestSyncLightWithTrustedPeers(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.EqualValues(t, h.Commit.BlockID.Hash, sw.GetCoreBlockHashByHeight(ctx, 50))
+}
+
+func TestFraudProofBroadcasting(t *testing.T) {
+	sw := swamp.NewSwamp(t, swamp.DefaultComponents())
+
+	bridge := sw.NewBridgeNode(node.WithHeaderGenerator(header.FraudMaker(t, 20)))
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	t.Cleanup(cancel)
+
+	sw.WaitTillHeight(ctx, 15)
+
+	err := bridge.Start(ctx)
+	require.NoError(t, err)
+	h, err := bridge.HeaderServ.GetByHeight(ctx, 15)
+	require.NoError(t, err)
+	require.EqualValues(t, h.Commit.BlockID.Hash, sw.GetCoreBlockHashByHeight(ctx, 15))
+	addrs, err := peer.AddrInfoToP2pAddrs(host.InfoFromHost(bridge.Host))
+	require.NoError(t, err)
+
+	light := sw.NewLightNode(node.WithTrustedPeers(addrs[0].String()))
+	err = light.Start(ctx)
+	require.NoError(t, err)
+
+	require.NoError(t, err)
+
+	full := sw.NewFullNode(node.WithTrustedPeers(addrs[0].String()))
+
+	err = full.Start(ctx)
+	require.NoError(t, err)
+	_, err = full.HeaderServ.GetByHeight(ctx, 21)
+	require.NoError(t, err)
+
 }
