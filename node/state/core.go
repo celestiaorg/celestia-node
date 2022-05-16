@@ -37,21 +37,35 @@ func CoreAccessor(endpoint string) func(fx.Lifecycle, keystore.Keystore, params.
 		if err != nil {
 			return nil, err
 		}
+		// check if key exists with prefix `celes`
+		var (
+			exists = false
+			name   = ""
+		)
+		for _, key := range keys {
+			if key.GetName()[:5] == keyringAccName {
+				exists = true
+				name = key.GetName()
+			}
+		}
 		// if no key was found in keystore path, generate new key for node
-		if len(keys) == 0 {
+		if !exists {
 			log.Infow("NO KEY FOUND IN STORE, GENERATING NEW KEY...", "path", ks.Path())
 			info, mn, err := signer.NewMnemonic(keyringAccName, keyring.English, "", "",
 				hd.Secp256k1)
 			if err != nil {
 				return nil, err
 			}
+
+			name = info.GetName()
+
 			log.Info("NEW KEY GENERATED...")
 			fmt.Printf("\nNAME: %s\nADDRESS: %s\nMNEMONIC (save this somewhere safe!!!): \n%s\n\n",
 				info.GetName(), info.GetAddress().String(), mn)
 		}
 
 		log.Infow("constructed keyring signer", "backend", keyring.BackendTest, "path", ks.Path(),
-			"keyring account name", keyringAccName, "chain-id", string(net))
+			"key name", name, "chain-id", string(net))
 
 		ca := state.NewCoreAccessor(signer, endpoint)
 		lc.Append(fx.Hook{
