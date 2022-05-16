@@ -59,8 +59,9 @@ func HeaderListener(
 	ex *core.BlockFetcher,
 	bcast header.Broadcaster,
 	dag format.DAGService,
+	generator header.Generator,
 ) *headercore.Listener {
-	cl := headercore.NewListener(bcast, ex, dag)
+	cl := headercore.NewListener(bcast, ex, dag, generator)
 	lc.Append(fx.Hook{
 		OnStart: cl.Start,
 		OnStop:  cl.Stop,

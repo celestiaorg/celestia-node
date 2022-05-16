@@ -8,6 +8,7 @@ import (
 	"go.uber.org/fx"
 
 	"github.com/celestiaorg/celestia-node/core"
+	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/libs/fxutil"
 	"github.com/celestiaorg/celestia-node/node/p2p"
 	"github.com/celestiaorg/celestia-node/params"
@@ -68,5 +69,12 @@ func WithHost(hst host.Host) Option {
 func WithCoreClient(client core.Client) Option {
 	return func(sets *settings) {
 		sets.opts = append(sets.opts, fxutil.ReplaceAs(client, new(core.Client)))
+	}
+}
+
+// WithHeaderGenerator sets custom func that creates extended header
+func WithHeaderGenerator(generator header.Generator) Option {
+	return func(sets *settings) {
+		sets.opts = append(sets.opts, fx.Replace(generator))
 	}
 }
