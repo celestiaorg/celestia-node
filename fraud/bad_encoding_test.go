@@ -35,7 +35,7 @@ func TestFraudProofValidation(t *testing.T) {
 	require.NoError(t, err)
 
 	da := da.NewDataAvailabilityHeader(attackerEDS)
-	r := ipld.NewRetriever(dag, consts.DefaultCodec())
+	r := ipld.NewRetriever(dag)
 	_, err = r.Retrieve(context.Background(), &da)
 	var errByz *ipld.ErrByzantine
 	require.True(t, errors.As(err, &errByz))

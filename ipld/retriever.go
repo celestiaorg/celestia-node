@@ -37,13 +37,12 @@ var RetrieveQuadrantTimeout = time.Minute * 5
 // Retriever randomly picks one of the data square quadrants and tries to request them one by one until it is able to
 // reconstruct the whole square.
 type Retriever struct {
-	dag   format.DAGService
-	codec rsmt2d.Codec
+	dag format.DAGService
 }
 
 // NewRetriever creates a new instance of the Retriever over IPLD Service and rmst2d.Codec
-func NewRetriever(dag format.DAGService, codec rsmt2d.Codec) *Retriever {
-	return &Retriever{dag: dag, codec: codec}
+func NewRetriever(dag format.DAGService) *Retriever {
+	return &Retriever{dag: dag}
 }
 
 // Retrieve retrieves all the data committed to DataAvailabilityHeader.
@@ -136,7 +135,7 @@ func (r *Retriever) newSession(ctx context.Context, dah *da.DataAvailabilityHead
 			tree := wrapper.NewErasuredNamespacedMerkleTree(uint64(size)/2, nmt.NodeVisitor(adder.Visit))
 			return &tree
 		},
-		codec:  r.codec,
+		codec:  DefaultRSMT2DCodec(),
 		dah:    dah,
 		square: make([][]byte, size*size),
 	}
