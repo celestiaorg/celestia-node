@@ -9,7 +9,7 @@ import (
 	logging "github.com/ipfs/go-log/v2"
 
 	"github.com/celestiaorg/celestia-node/header"
-	"github.com/celestiaorg/celestia-node/libs/utils"
+	"github.com/celestiaorg/celestia-node/libs/service"
 	"github.com/celestiaorg/celestia-node/service/share"
 )
 
@@ -17,6 +17,8 @@ var log = logging.Logger("das")
 
 // DASer continuously validates availability of data committed to headers.
 type DASer struct {
+	service.Service
+
 	da   share.Availability
 	hsub header.Subscriber
 
@@ -32,8 +34,6 @@ type DASer struct {
 
 	sampleDn  chan struct{} // done signal for sample loop
 	catchUpDn chan struct{} // done signal for catchUp loop
-
-	state *utils.StateWrapper
 }
 
 // NewDASer creates a new DASer.
@@ -52,7 +52,6 @@ func NewDASer(
 		jobsCh:    make(chan *catchUpJob, 16),
 		sampleDn:  make(chan struct{}),
 		catchUpDn: make(chan struct{}),
-		state:     utils.NewStateWrapper(),
 	}
 }
 
@@ -77,7 +76,7 @@ func (d *DASer) Start(context.Context) error {
 	dasCtx, cancel := context.WithCancel(context.Background())
 	d.cancel = cancel
 
-	d.state.SetState(utils.Running)
+	d.SetState(service.Running)
 	// kick off catch-up routine manager
 	go d.catchUpManager(dasCtx, checkpoint)
 	// kick off sampling routine for recently received headers
@@ -87,11 +86,11 @@ func (d *DASer) Start(context.Context) error {
 
 // Stop stops sampling.
 func (d *DASer) Stop(ctx context.Context) error {
-	if d.state.State() == utils.Stopped {
+	if d.State() == service.Stopped {
 		log.Debug("Daser is stopped")
 		return nil
 	}
-	defer d.state.SetState(utils.Stopped)
+	defer d.SetState(service.Stopped)
 	d.cancel()
 	// wait for both sampling routines to exit
 	for i := 0; i < 2; i++ {

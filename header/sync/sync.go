@@ -13,7 +13,7 @@ import (
 	tmbytes "github.com/tendermint/tendermint/libs/bytes"
 
 	"github.com/celestiaorg/celestia-node/header"
-	"github.com/celestiaorg/celestia-node/libs/utils"
+	"github.com/celestiaorg/celestia-node/libs/service"
 )
 
 var log = logging.Logger("header/sync")
@@ -33,6 +33,8 @@ var log = logging.Logger("header/sync")
 //    	* adds the header to pending cache(making it the latest known trusted header)
 //      * and triggers syncing loop to catch up to that point.
 type Syncer struct {
+	service.Service
+
 	sub      header.Subscriber
 	exchange header.Exchange
 	store    header.Store
@@ -46,18 +48,15 @@ type Syncer struct {
 	pending ranges
 	// cancel cancels syncLoop's context
 	cancel context.CancelFunc
-
-	serviceState *utils.StateWrapper
 }
 
 // NewSyncer creates a new instance of Syncer.
 func NewSyncer(exchange header.Exchange, store header.Store, sub header.Subscriber) *Syncer {
 	return &Syncer{
-		sub:          sub,
-		exchange:     exchange,
-		store:        store,
-		triggerSync:  make(chan struct{}, 1), // should be buffered
-		serviceState: utils.NewStateWrapper(),
+		sub:         sub,
+		exchange:    exchange,
+		store:       store,
+		triggerSync: make(chan struct{}, 1), // should be buffered
 	}
 }
 
@@ -73,7 +72,7 @@ func (s *Syncer) Start(context.Context) error {
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
-	s.serviceState.SetState(utils.Running)
+	s.SetState(service.Running)
 	go s.syncLoop(ctx)
 	s.wantSync()
 	s.cancel = cancel
@@ -82,11 +81,11 @@ func (s *Syncer) Start(context.Context) error {
 
 // Stop stops Syncer.
 func (s *Syncer) Stop(context.Context) error {
-	if s.serviceState.State() == utils.Stopped {
+	if s.Service.State() == service.Stopped {
 		log.Debug("Syncer is stopped")
 		return nil
 	}
-	s.serviceState.SetState(utils.Stopped)
+	s.SetState(service.Stopped)
 	s.cancel()
 	s.cancel = nil
 	return nil
