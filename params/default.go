@@ -15,21 +15,8 @@ func DefaultNetwork() Network {
 }
 
 func init() {
-	// check if a different network from the registry was specified
-	if network, ok := os.LookupEnv("CELESTIA_NETWORK"); ok {
-		if _, exists := networksList[Network(network)]; !exists {
-			panic("unknown network specified")
-		}
-		defaultNetwork = Network(network)
-		return
-	}
-	// check if private network option set
-	if genesis, ok := os.LookupEnv("CELESTIA_PRIVATE_GENESIS"); ok {
-		defaultNetwork = Private
-		genesisList[Private] = strings.ToUpper(genesis)
-	}
 	// check if custom network option set
-	if customNet, ok := os.LookupEnv("CELESTIA_CUSTOM"); ok {
+	if customNet, ok := os.LookupEnv("CELESTIA_CUSTOM_GENESIS"); ok {
 		fmt.Print("\n\nWARNING: Celestia custom network specified. Only use this option if the node is " +
 			"freshly created and initialized.\n**DO NOT** run a custom network over an already-existing node " +
 			"store!\n\n")
@@ -37,7 +24,7 @@ func init() {
 		params := strings.Split(customNet, "=")
 		// ensure both params are present
 		if len(params) != 2 {
-			panic("must provide CELESTIA_CUSTOM in this format: <network_ID>=<genesis hash>")
+			panic("must provide CELESTIA_CUSTOM_GENESIS in this format: <network_ID>=<genesis hash>")
 		}
 		netID, genHash := params[0], params[1]
 
@@ -46,16 +33,35 @@ func init() {
 		networksList[defaultNetwork] = struct{}{}
 		genesisList[defaultNetwork] = strings.ToUpper(genHash)
 	}
+	// check if a custom network was specified
+	if network, ok := os.LookupEnv("CELESTIA_CUSTOM_NETWORK"); ok {
+		if err := Network(network).Validate(); err != nil {
+			panic("unknown network specified")
+		}
+	}
 	// check if custom bootstrappers were provided for a network
-	if bootstrappers, ok := os.LookupEnv("CELESTIA_BOOTSTRAPPERS"); ok {
+	if bootstrappers, ok := os.LookupEnv("CELESTIA_CUSTOM_BOOTSTRAPPERS"); ok {
 		params := strings.Split(bootstrappers, "=")
 		// ensure both params are present
 		if len(params) != 2 {
-			panic("must provide CELESTIA_BOOTSTRAPPERS in this format: " +
+			panic("must provide CELESTIA_CUSTOM_BOOTSTRAPPERS in this format: " +
 				"<network_ID>=<boostrappers comma separated list>")
 		}
 
 		netID, list := params[0], params[1]
-		bootstrapList[Network(netID)] = strings.Split(list, ",")
+		// validate correctness
+		bs := strings.Split(list, ",")
+		_, err := parseAddrInfos(bs)
+		if err != nil {
+			println("env CELESTIA_CUSTOM_BOOTSTRAPPERS: contains invalid multiaddress")
+			panic(err)
+		}
+
+		bootstrapList[Network(netID)] = bs
+	}
+	// check if private network option set
+	if genesis, ok := os.LookupEnv("CELESTIA_PRIVATE_GENESIS"); ok {
+		defaultNetwork = Private
+		genesisList[Private] = strings.ToUpper(genesis)
 	}
 }
