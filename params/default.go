@@ -28,9 +28,8 @@ func init() {
 		}
 		netID, genHash := params[0], params[1]
 
-		defaultNetwork = Network(netID)
 		// register new network and set as default for node to use
-		networksList[defaultNetwork] = struct{}{}
+		networksList[Network(netID)] = struct{}{}
 		genesisList[defaultNetwork] = strings.ToUpper(genHash)
 	}
 	// check if a custom network was specified
@@ -38,6 +37,7 @@ func init() {
 		if err := Network(network).Validate(); err != nil {
 			panic("unknown network specified")
 		}
+		defaultNetwork = Network(network)
 	}
 	// check if custom bootstrappers were provided for a network
 	if bootstrappers, ok := os.LookupEnv("CELESTIA_CUSTOM_BOOTSTRAPPERS"); ok {
