@@ -192,8 +192,15 @@ func (rs *retrieverSession) request(ctx context.Context, q *quadrant) {
 				// the R lock here is *not* to protect rs.square from multiple concurrent shares writes
 				// but to avoid races between share writes and repairing attempts
 				// shares are written atomically in their own slice slot
+				idx := q.index(i, j)
 				rs.squareLk.RLock()
-				rs.square[q.index(i, j)] = share
+				// write only set nil shares, because shares can be passed here
+				// twice for the same coordinate from row or column
+				// NOTE: we never actually fetch the share from the network twice,
+				//  and it is cached on IPLD(blockservice) level
+				if rs.square[idx] == nil {
+					rs.square[idx] = share
+				}
 				rs.squareLk.RUnlock()
 			})
 		}(i, root)
