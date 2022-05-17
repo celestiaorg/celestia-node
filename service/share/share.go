@@ -62,7 +62,7 @@ type Service struct {
 // NewService creates new basic share.Service.
 func NewService(dag format.DAGService, avail Availability) *Service {
 	return &Service{
-		rtrv:         ipld.NewRetriever(dag, ipld.DefaultRSMT2DCodec()),
+		rtrv:         ipld.NewRetriever(dag),
 		Availability: avail,
 		dag:          dag,
 	}

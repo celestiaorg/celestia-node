@@ -19,7 +19,7 @@ func TestRetriever_Retrieve(t *testing.T) {
 	defer cancel()
 
 	dag := mdutils.Mock()
-	r := NewRetriever(dag, DefaultRSMT2DCodec())
+	r := NewRetriever(dag)
 
 	type test struct {
 		name       string
