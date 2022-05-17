@@ -13,6 +13,7 @@ import (
 	tmbytes "github.com/tendermint/tendermint/libs/bytes"
 
 	"github.com/celestiaorg/celestia-node/header"
+	"github.com/celestiaorg/celestia-node/libs/utils"
 )
 
 var log = logging.Logger("header/sync")
@@ -45,15 +46,18 @@ type Syncer struct {
 	pending ranges
 	// cancel cancels syncLoop's context
 	cancel context.CancelFunc
+
+	serviceState *utils.StateWrapper
 }
 
 // NewSyncer creates a new instance of Syncer.
 func NewSyncer(exchange header.Exchange, store header.Store, sub header.Subscriber) *Syncer {
 	return &Syncer{
-		sub:         sub,
-		exchange:    exchange,
-		store:       store,
-		triggerSync: make(chan struct{}, 1), // should be buffered
+		sub:          sub,
+		exchange:     exchange,
+		store:        store,
+		triggerSync:  make(chan struct{}, 1), // should be buffered
+		serviceState: utils.NewStateWrapper(),
 	}
 }
 
@@ -69,6 +73,7 @@ func (s *Syncer) Start(context.Context) error {
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
+	s.serviceState.SetState(utils.Running)
 	go s.syncLoop(ctx)
 	s.wantSync()
 	s.cancel = cancel
@@ -77,6 +82,11 @@ func (s *Syncer) Start(context.Context) error {
 
 // Stop stops Syncer.
 func (s *Syncer) Stop(context.Context) error {
+	if s.serviceState.State() == utils.Stopped {
+		log.Debug("Syncer is stopped")
+		return nil
+	}
+	s.serviceState.SetState(utils.Stopped)
 	s.cancel()
 	s.cancel = nil
 	return nil
