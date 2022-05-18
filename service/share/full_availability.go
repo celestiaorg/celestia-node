@@ -19,7 +19,7 @@ type fullAvailability struct {
 // NewFullAvailability creates a new full Availability.
 func NewFullAvailability(dag format.DAGService) Availability {
 	return &fullAvailability{
-		rtrv: ipld.NewRetriever(dag, ipld.DefaultRSMT2DCodec()),
+		rtrv: ipld.NewRetriever(dag),
 	}
 }
 
