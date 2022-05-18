@@ -39,4 +39,5 @@ func Handler(
 ) {
 	handler := rpc.NewHandler(state, share, header)
 	handler.RegisterEndpoints(serv)
+	handler.RegisterMiddlewares(serv)
 }

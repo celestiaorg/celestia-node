@@ -5,12 +5,9 @@ import (
 	"sync/atomic"
 
 	"github.com/celestiaorg/nmt/namespace"
-	logging "github.com/ipfs/go-log/v2"
 
 	"github.com/celestiaorg/celestia-node/fraud"
 )
-
-var log = logging.Logger("state/rpc")
 
 // Service can access state-related information via the given
 // Accessor.
@@ -20,7 +17,7 @@ type Service struct {
 	fsub   fraud.Subscriber
 	cancel context.CancelFunc
 
-	haltedSubmitTx uint64
+	isBefpReceived uint64
 }
 
 // NewService constructs a new state Service.
@@ -56,7 +53,7 @@ func (s *Service) Start(context.Context) error {
 	ctx, cancel := context.WithCancel(context.Background())
 	s.cancel = cancel
 	go fraud.SubscribeToBefp(ctx, s.fsub, func(context.Context) error {
-		atomic.StoreUint64(&s.haltedSubmitTx, 1)
+		atomic.StoreUint64(&s.isBefpReceived, 1)
 		return nil
 	})
 	return nil
@@ -65,4 +62,8 @@ func (s *Service) Start(context.Context) error {
 func (s *Service) Stop(context.Context) error {
 	s.cancel()
 	return nil
+}
+
+func (s *Service) IsBefpReceived() bool {
+	return atomic.LoadUint64(&s.isBefpReceived) == 1
 }

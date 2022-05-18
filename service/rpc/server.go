@@ -22,7 +22,6 @@ type Server struct {
 // NewServer returns a new RPC Server.
 func NewServer(cfg Config) *Server {
 	srvMux := mux.NewRouter()
-	srvMux.Use(setContentType)
 
 	server := &Server{
 		cfg:    cfg,
@@ -32,13 +31,6 @@ func NewServer(cfg Config) *Server {
 		Handler: server,
 	}
 	return server
-}
-
-func setContentType(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Add("Content-Type", "application/json")
-		next.ServeHTTP(w, r)
-	})
 }
 
 // Start starts the RPC Server, listening on the given address.
@@ -67,6 +59,11 @@ func (s *Server) Stop(context.Context) error {
 	s.listener = nil
 	log.Info("RPC server stopped")
 	return nil
+}
+
+// RegisterMiddleware allows to register a custom middleware that will be called before http.Request will reach handler
+func (s *Server) RegisterMiddleware(m mux.MiddlewareFunc) {
+	s.srvMux.Use(m)
 }
 
 // RegisterHandlerFunc registers the given http.HandlerFunc on the Server's multiplexer
