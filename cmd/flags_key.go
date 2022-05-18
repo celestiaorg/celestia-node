@@ -7,7 +7,7 @@ import (
 	"github.com/celestiaorg/celestia-node/node"
 )
 
-var keyringAccNameFlag = "keyring.AccName"
+var keyringAccNameFlag = "keyring.accname"
 
 func KeyFlags() *flag.FlagSet {
 	flags := &flag.FlagSet{}
