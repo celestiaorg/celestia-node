@@ -59,3 +59,10 @@ func WithMutualPeers(addrs []string) Option {
 		sets.cfg.P2P.MutualPeers = addrs
 	}
 }
+
+// WithKeyringAccName sets the `KeyringAccName` field in the key config.
+func WithKeyringAccName(name string) Option {
+	return func(sets *settings) {
+		sets.cfg.Key.KeyringAccName = name
+	}
+}

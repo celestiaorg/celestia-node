@@ -30,6 +30,7 @@ func init() {
 			// over an RPC connection with a celestia-core node.
 			cmdnode.CoreFlags(),
 			cmdnode.RPCFlags(),
+			cmdnode.KeyFlags(),
 		),
 		cmdnode.Start(
 			cmdnode.NodeFlags(node.Light),
@@ -40,6 +41,7 @@ func init() {
 			// over an RPC connection with a celestia-core node.
 			cmdnode.CoreFlags(),
 			cmdnode.RPCFlags(),
+			cmdnode.KeyFlags(),
 		),
 		lightKeyCmd,
 	)
@@ -85,6 +87,8 @@ var lightCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
+
+		cmdnode.ParseKeyFlags(cmd, env)
 
 		return nil
 	},

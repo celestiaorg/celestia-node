@@ -16,13 +16,12 @@ import (
 	"github.com/celestiaorg/celestia-node/service/state"
 )
 
-var (
-	log = logging.Logger("state-access-constructor")
+var log = logging.Logger("state-access-constructor")
 
-	keyringAccName = "celes"
-)
-
-func CoreAccessor(endpoint string) func(fx.Lifecycle, keystore.Keystore, params.Network) (state.Accessor, error) {
+func CoreAccessor(
+	endpoint,
+	keyringAccName string,
+) func(fx.Lifecycle, keystore.Keystore, params.Network) (state.Accessor, error) {
 	return func(lc fx.Lifecycle, ks keystore.Keystore, net params.Network) (state.Accessor, error) {
 		// TODO @renaynay: Include option for setting custom `userInput` parameter with
 		//  implementation of https://github.com/celestiaorg/celestia-node/issues/415.
@@ -33,39 +32,42 @@ func CoreAccessor(endpoint string) func(fx.Lifecycle, keystore.Keystore, params.
 			return nil, err
 		}
 		signer := apptypes.NewKeyringSigner(ring, keyringAccName, string(net))
-		keys, err := signer.List()
-		if err != nil {
-			return nil, err
-		}
-		// check if key exists with prefix `celes`
-		var (
-			exists = false
-			name   = ""
-		)
-		for _, key := range keys {
-			if key.GetName()[:5] == keyringAccName {
-				exists = true
-				name = key.GetName()
-			}
-		}
-		// if no key was found in keystore path, generate new key for node
-		if !exists {
-			log.Infow("NO KEY FOUND IN STORE, GENERATING NEW KEY...", "path", ks.Path())
-			info, mn, err := signer.NewMnemonic(keyringAccName, keyring.English, "", "",
-				hd.Secp256k1)
+
+		var info keyring.Info
+		// if custom keyringAccName provided, find key for that name
+		if keyringAccName != "" {
+			keyInfo, err := signer.Key(keyringAccName)
 			if err != nil {
 				return nil, err
 			}
+			info = keyInfo
+		} else {
+			// check if key exists for signer
+			keys, err := signer.List()
+			if err != nil {
+				return nil, err
+			}
+			// if no key was found in keystore path, generate new key for node
+			if len(keys) == 0 {
+				log.Infow("NO KEY FOUND IN STORE, GENERATING NEW KEY...", "path", ks.Path())
+				keyInfo, mn, err := signer.NewMnemonic("my_celes_key", keyring.English, "",
+					"", hd.Secp256k1)
+				if err != nil {
+					return nil, err
+				}
+				log.Info("NEW KEY GENERATED...")
+				fmt.Printf("\nNAME: %s\nADDRESS: %s\nMNEMONIC (save this somewhere safe!!!): \n%s\n\n",
+					keyInfo.GetName(), keyInfo.GetAddress().String(), mn)
 
-			name = info.GetName()
-
-			log.Info("NEW KEY GENERATED...")
-			fmt.Printf("\nNAME: %s\nADDRESS: %s\nMNEMONIC (save this somewhere safe!!!): \n%s\n\n",
-				info.GetName(), info.GetAddress().String(), mn)
+				info = keyInfo
+			} else {
+				// if one or more keys are present and no keyringAccName was given, use the first key in list
+				info = keys[0]
+			}
 		}
 
 		log.Infow("constructed keyring signer", "backend", keyring.BackendTest, "path", ks.Path(),
-			"key name", name, "chain-id", string(net))
+			"key name", info.GetName(), "chain-id", string(net))
 
 		ca := state.NewCoreAccessor(signer, endpoint)
 		lc.Append(fx.Hook{

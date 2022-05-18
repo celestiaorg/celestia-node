@@ -71,7 +71,7 @@ func baseComponents(cfg *Config, store Store) fx.Option {
 		p2p.Components(cfg.P2P),
 		// state components
 		fx.Provide(statecomponents.NewService),
-		fx.Provide(statecomponents.CoreAccessor(cfg.Core.GRPCAddr)),
+		fx.Provide(statecomponents.CoreAccessor(cfg.Core.GRPCAddr, cfg.Key.KeyringAccName)),
 		// RPC components
 		fx.Provide(rpc.ServerComponent(cfg.RPC)),
 		fx.Invoke(rpc.HandlerComponents),
