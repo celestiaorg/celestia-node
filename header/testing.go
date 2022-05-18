@@ -206,6 +206,10 @@ func (mhs *DummySubscriber) AddValidator(Validator) error {
 	return nil
 }
 
+func (mhs *DummySubscriber) RemoveValidator() error {
+	return nil
+}
+
 func (mhs *DummySubscriber) Subscribe() (Subscription, error) {
 	return mhs, nil
 }

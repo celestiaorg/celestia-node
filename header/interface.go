@@ -35,6 +35,8 @@ type Subscriber interface {
 	// before they are sent through Subscriptions.
 	// Multiple validators can be registered.
 	AddValidator(Validator) error
+	// RemoveValidator removes message validation.
+	RemoveValidator() error
 }
 
 // Subscription can retrieve the next ExtendedHeader from the
