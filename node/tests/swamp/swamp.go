@@ -47,9 +47,14 @@ type Swamp struct {
 }
 
 // NewSwamp creates a new instance of Swamp.
-func NewSwamp(t *testing.T, ic *Components) *Swamp {
+func NewSwamp(t *testing.T, options ...Option) *Swamp {
 	if testing.Verbose() {
 		log.SetDebugLogging()
+	}
+
+	ic := DefaultComponents()
+	for _, option := range options {
+		option(ic)
 	}
 
 	var err error
