@@ -23,7 +23,7 @@ type Listener struct {
 	bcast     header.Broadcaster
 	fetcher   *core.BlockFetcher
 	dag       format.DAGService
-	generator header.Generator
+	construct header.ConstructFn
 	cancel    context.CancelFunc
 }
 
@@ -31,13 +31,13 @@ func NewListener(
 	bcast header.Broadcaster,
 	fetcher *core.BlockFetcher,
 	dag format.DAGService,
-	generator header.Generator,
+	construct header.ConstructFn,
 ) *Listener {
 	return &Listener{
 		bcast:     bcast,
 		fetcher:   fetcher,
 		dag:       dag,
-		generator: generator,
+		construct: construct,
 	}
 }
 
@@ -89,7 +89,7 @@ func (cl *Listener) listen(ctx context.Context, sub <-chan *types.Block) {
 				return
 			}
 
-			eh, err := cl.generator(ctx, b, comm, vals, cl.dag)
+			eh, err := cl.construct(ctx, b, comm, vals, cl.dag)
 			if err != nil {
 				log.Errorw("listener: making extended header", "err", err)
 				return

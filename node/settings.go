@@ -72,9 +72,9 @@ func WithCoreClient(client core.Client) Option {
 	}
 }
 
-// WithHeaderGenerator sets custom func that creates extended header
-func WithHeaderGenerator(generator header.Generator) Option {
+// WithHeaderConstructorFn sets custom func that creates extended header
+func WithHeaderConstructorFn(construct header.ConstructFn) Option {
 	return func(sets *settings) {
-		sets.opts = append(sets.opts, fx.Replace(generator))
+		sets.opts = append(sets.opts, fx.Replace(construct))
 	}
 }

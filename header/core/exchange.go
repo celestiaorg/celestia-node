@@ -19,14 +19,14 @@ var log = logging.Logger("header/core")
 type Exchange struct {
 	fetcher    *core.BlockFetcher
 	shareStore format.DAGService
-	generator  header.Generator
+	construct  header.ConstructFn
 }
 
-func NewExchange(fetcher *core.BlockFetcher, dag format.DAGService, generator header.Generator) *Exchange {
+func NewExchange(fetcher *core.BlockFetcher, dag format.DAGService, construct header.ConstructFn) *Exchange {
 	return &Exchange{
 		fetcher:    fetcher,
 		shareStore: dag,
-		generator:  generator,
+		construct:  construct,
 	}
 }
 
@@ -67,7 +67,7 @@ func (ce *Exchange) RequestByHash(ctx context.Context, hash tmbytes.HexBytes) (*
 		return nil, err
 	}
 
-	eh, err := ce.generator(ctx, block, comm, vals, ce.shareStore)
+	eh, err := ce.construct(ctx, block, comm, vals, ce.shareStore)
 	if err != nil {
 		return nil, err
 	}
@@ -96,5 +96,5 @@ func (ce *Exchange) getExtendedHeaderByHeight(ctx context.Context, height *int64
 		return nil, err
 	}
 
-	return ce.generator(ctx, b, comm, vals, ce.shareStore)
+	return ce.construct(ctx, b, comm, vals, ce.shareStore)
 }
