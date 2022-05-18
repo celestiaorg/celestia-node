@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sync/atomic"
 	"time"
 
 	"github.com/ipfs/go-datastore"
@@ -35,6 +36,9 @@ type DASer struct {
 
 	sampleDn  chan struct{} // done signal for sample loop
 	catchUpDn chan struct{} // done signal for catchUp loop
+
+	// isServiceRunnig shows service state
+	isServiceRunnig uint64
 }
 
 // NewDASer creates a new DASer.
@@ -79,6 +83,7 @@ func (d *DASer) Start(context.Context) error {
 	dasCtx, cancel := context.WithCancel(context.Background())
 	d.cancel = cancel
 
+	atomic.StoreUint64(&d.isServiceRunnig, 1)
 	// start listening for bad encoding fraud proof
 	go fraud.SubscribeToBefp(dasCtx, d.fService, d.Stop)
 	// kick off catch-up routine manager
@@ -90,17 +95,21 @@ func (d *DASer) Start(context.Context) error {
 
 // Stop stops sampling.
 func (d *DASer) Stop(ctx context.Context) error {
-	d.cancel()
-	// wait for both sampling routines to exit
-	for i := 0; i < 2; i++ {
-		select {
-		case <-d.catchUpDn:
-		case <-d.sampleDn:
-		case <-ctx.Done():
-			return ctx.Err()
+	if atomic.LoadUint64(&d.isServiceRunnig) == 1 {
+		// switch state to avoid getting in this statement twice
+		atomic.StoreUint64(&d.isServiceRunnig, 0)
+		d.cancel()
+		// wait for both sampling routines to exit
+		for i := 0; i < 2; i++ {
+			select {
+			case <-d.catchUpDn:
+			case <-d.sampleDn:
+			case <-ctx.Done():
+				return ctx.Err()
+			}
 		}
+		d.cancel = nil
 	}
-	d.cancel = nil
 	return nil
 }
 
