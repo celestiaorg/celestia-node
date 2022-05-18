@@ -3,14 +3,12 @@ package rpc
 import (
 	"encoding/hex"
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"strconv"
 
 	"github.com/gorilla/mux"
 
 	"github.com/celestiaorg/celestia-node/header"
-	"github.com/celestiaorg/celestia-node/ipld"
 	"github.com/celestiaorg/celestia-node/service/share"
 )
 
@@ -45,12 +43,6 @@ func (h *Handler) handleSharesByNamespaceRequest(w http.ResponseWriter, r *http.
 	nID, err := hex.DecodeString(hexNID)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, namespacedSharesEndpoint, err)
-		return
-	}
-	// sanity check nID size
-	if len(nID) != ipld.NamespaceSize {
-		writeError(w, http.StatusBadRequest, namespacedSharesEndpoint,
-			fmt.Errorf("namespace id must be default size %d", ipld.NamespaceSize))
 		return
 	}
 	// get header

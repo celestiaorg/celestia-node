@@ -3,13 +3,10 @@ package rpc
 import (
 	"encoding/hex"
 	"encoding/json"
-	"fmt"
 	"net/http"
 
 	"github.com/cosmos/cosmos-sdk/types"
 	"github.com/gorilla/mux"
-
-	"github.com/celestiaorg/celestia-node/ipld"
 )
 
 const (
@@ -117,12 +114,6 @@ func (h *Handler) handleSubmitPFD(w http.ResponseWriter, r *http.Request) {
 	nID, err := hex.DecodeString(req.NamespaceID)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, submitPFDEndpoint, err)
-		return
-	}
-	// sanity check nID size
-	if len(nID) != ipld.NamespaceSize {
-		writeError(w, http.StatusBadRequest, submitPFDEndpoint,
-			fmt.Errorf("namespace id must be default size %d", ipld.NamespaceSize))
 		return
 	}
 	data, err := hex.DecodeString(req.Data)
