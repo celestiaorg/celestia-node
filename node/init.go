@@ -8,6 +8,7 @@ import (
 
 	"github.com/celestiaorg/celestia-node/libs/fslock"
 	"github.com/celestiaorg/celestia-node/libs/utils"
+	"github.com/celestiaorg/celestia-node/params"
 )
 
 // Init initializes the Node FileSystem Store for the given Node Type 'tp' in the directory under 'path' with
@@ -118,7 +119,7 @@ func initDir(path string) error {
 	if utils.Exists(path) {
 		// if the dir already exists and `CELESTIA_CUSTOM` env var is set,
 		// fail out to prevent store corruption
-		if _, ok := os.LookupEnv("CELESTIA_CUSTOM"); ok {
+		if _, ok := os.LookupEnv(params.EnvCustomNetwork); ok {
 			return fmt.Errorf("cannot run a custom network over an already-existing node store")
 		}
 		return nil
