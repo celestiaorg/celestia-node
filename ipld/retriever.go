@@ -37,13 +37,12 @@ var RetrieveQuadrantTimeout = time.Minute * 5
 // Retriever randomly picks one of the data square quadrants and tries to request them one by one until it is able to
 // reconstruct the whole square.
 type Retriever struct {
-	dag   format.DAGService
-	codec rsmt2d.Codec
+	dag format.DAGService
 }
 
 // NewRetriever creates a new instance of the Retriever over IPLD Service and rmst2d.Codec
-func NewRetriever(dag format.DAGService, codec rsmt2d.Codec) *Retriever {
-	return &Retriever{dag: dag, codec: codec}
+func NewRetriever(dag format.DAGService) *Retriever {
+	return &Retriever{dag: dag}
 }
 
 // Retrieve retrieves all the data committed to DataAvailabilityHeader.
@@ -136,7 +135,7 @@ func (r *Retriever) newSession(ctx context.Context, dah *da.DataAvailabilityHead
 			tree := wrapper.NewErasuredNamespacedMerkleTree(uint64(size)/2, nmt.NodeVisitor(adder.Visit))
 			return &tree
 		},
-		codec:  r.codec,
+		codec:  DefaultRSMT2DCodec(),
 		dah:    dah,
 		square: make([][]byte, size*size),
 	}
@@ -192,8 +191,15 @@ func (rs *retrieverSession) request(ctx context.Context, q *quadrant) {
 				// the R lock here is *not* to protect rs.square from multiple concurrent shares writes
 				// but to avoid races between share writes and repairing attempts
 				// shares are written atomically in their own slice slot
+				idx := q.index(i, j)
 				rs.squareLk.RLock()
-				rs.square[q.index(i, j)] = share
+				// write only set nil shares, because shares can be passed here
+				// twice for the same coordinate from row or column
+				// NOTE: we never actually fetch the share from the network twice,
+				//  and it is cached on IPLD(blockservice) level
+				if rs.square[idx] == nil {
+					rs.square[idx] = share
+				}
 				rs.squareLk.RUnlock()
 			})
 		}(i, root)

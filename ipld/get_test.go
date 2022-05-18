@@ -415,7 +415,7 @@ func TestRetrieveDataFailedWithByzantineError(t *testing.T) {
 
 	// ensure we rcv an error
 	da := da.NewDataAvailabilityHeader(attackerEDS)
-	r := NewRetriever(dag, DefaultRSMT2DCodec())
+	r := NewRetriever(dag)
 	_, err = r.Retrieve(ctx, &da)
 	var errByz *ErrByzantine
 	require.ErrorAs(t, err, &errByz)
