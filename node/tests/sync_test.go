@@ -28,7 +28,7 @@ Steps:
 6. Check LN is synced to height 30
 */
 func TestSyncLightWithBridge(t *testing.T) {
-	sw := swamp.NewSwamp(t, swamp.DefaultComponents())
+	sw := swamp.NewSwamp(t)
 
 	bridge := sw.NewBridgeNode()
 
@@ -76,7 +76,7 @@ Steps:
 9. Check LN is synced to height 40
 */
 func TestSyncStartStopLightWithBridge(t *testing.T) {
-	sw := swamp.NewSwamp(t, swamp.DefaultComponents())
+	sw := swamp.NewSwamp(t)
 
 	bridge := sw.NewBridgeNode()
 
@@ -128,7 +128,7 @@ Steps:
 6. Check FN is synced to height 30
 */
 func TestSyncFullWithBridge(t *testing.T) {
-	sw := swamp.NewSwamp(t, swamp.DefaultComponents())
+	sw := swamp.NewSwamp(t)
 
 	bridge := sw.NewBridgeNode()
 
@@ -174,7 +174,7 @@ Steps:
 9. Check LN is synced to height 50
 */
 func TestSyncLightWithFull(t *testing.T) {
-	sw := swamp.NewSwamp(t, swamp.DefaultComponents())
+	sw := swamp.NewSwamp(t)
 
 	bridge := sw.NewBridgeNode()
 
@@ -236,7 +236,7 @@ Steps:
 9. Check LN is synced to height 50
 */
 func TestSyncLightWithTrustedPeers(t *testing.T) {
-	sw := swamp.NewSwamp(t, swamp.DefaultComponents())
+	sw := swamp.NewSwamp(t)
 
 	bridge := sw.NewBridgeNode()
 
