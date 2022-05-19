@@ -125,6 +125,10 @@ func (s *Service) GetShares(ctx context.Context, root *Root) ([][]Share, error) 
 }
 
 func (s *Service) GetSharesByNamespace(ctx context.Context, root *Root, nID namespace.ID) ([]Share, error) {
+	err := ipld.SanityCheckNID(nID)
+	if err != nil {
+		return nil, err
+	}
 	rowRootCIDs := make([]cid.Cid, 0)
 	for _, row := range root.RowsRoots {
 		if !nID.Less(nmt.MinNamespace(row, nID.Size())) && nID.LessOrEqual(nmt.MaxNamespace(row, nID.Size())) {

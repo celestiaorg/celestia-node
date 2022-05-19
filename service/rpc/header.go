@@ -11,12 +11,31 @@ import (
 )
 
 const (
+	headEndpoint           = "/head"
 	headerByHeightEndpoint = "/header"
 )
 
 var (
 	heightKey = "height"
 )
+
+func (h *Handler) handleHeadRequest(w http.ResponseWriter, r *http.Request) {
+	head, err := h.header.Head(r.Context())
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, headEndpoint, err)
+		return
+	}
+	resp, err := json.Marshal(head)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, headEndpoint, err)
+		return
+	}
+	_, err = w.Write(resp)
+	if err != nil {
+		log.Errorw("writing response", "endpoint", headEndpoint, "err", err)
+		return
+	}
+}
 
 func (h *Handler) handleHeaderRequest(w http.ResponseWriter, r *http.Request) {
 	header, err := h.performGetHeaderRequest(w, r, headerByHeightEndpoint)
