@@ -1,9 +1,12 @@
 package params
 
 import (
+	logging "github.com/ipfs/go-log/v2"
 	"github.com/libp2p/go-libp2p-core/peer"
 	ma "github.com/multiformats/go-multiaddr"
 )
+
+var log = logging.Logger("params")
 
 // BootstrappersInfosFor returns address information of bootstrap peers for a given network.
 func BootstrappersInfosFor(net Network) ([]peer.AddrInfo, error) {
@@ -39,11 +42,13 @@ func parseAddrInfos(addrs []string) ([]peer.AddrInfo, error) {
 	for _, addr := range addrs {
 		maddr, err := ma.NewMultiaddr(addr)
 		if err != nil {
+			log.Errorw("parsing and validating addr", "addr", addr, "err", err)
 			return nil, err
 		}
 
 		info, err := peer.AddrInfoFromP2pAddr(maddr)
 		if err != nil {
+			log.Errorw("parsing info from multiaddr", "maddr", maddr, "err", err)
 			return nil, err
 		}
 		infos = append(infos, *info)
