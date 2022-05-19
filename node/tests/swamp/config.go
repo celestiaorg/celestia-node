@@ -27,7 +27,7 @@ func DefaultComponents() *Components {
 	}
 }
 
-// Option for Swamp's Config.
+// Option for modifying Swamp's Config.
 type Option func(*Components)
 
 // WithBlockInterval sets a custom interval for block creation.
