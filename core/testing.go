@@ -1,30 +1,34 @@
 package core
 
 import (
+	"context"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 	"github.com/tendermint/tendermint/abci/example/kvstore"
 	"github.com/tendermint/tendermint/abci/types"
-	"github.com/tendermint/tendermint/node"
+	"github.com/tendermint/tendermint/config"
+	tmservice "github.com/tendermint/tendermint/libs/service"
 	rpctest "github.com/tendermint/tendermint/rpc/test"
 )
 
 const defaultRetainBlocks int64 = 50
 
 // StartTestNode starts a mock Core node background process and returns it.
-func StartTestNode(t *testing.T, app types.Application) *node.Node {
-	nd := rpctest.StartTendermint(app, rpctest.SuppressStdout, rpctest.RecreateConfig)
+func StartTestNode(ctx context.Context, t *testing.T, app types.Application, cfg *config.Config) tmservice.Service {
+	nd, _, err := rpctest.StartTendermint(ctx, cfg, app, rpctest.SuppressStdout)
+	require.NoError(t, err)
 	t.Cleanup(func() {
-		rpctest.StopTendermint(nd)
+		require.NoError(t, nd.Stop())
 	})
 	return nd
 }
 
 // StartTestKVApp starts Tendermint KVApp.
-func StartTestKVApp(t *testing.T) (*node.Node, types.Application) {
+func StartTestKVApp(ctx context.Context, t *testing.T) (tmservice.Service, types.Application, *config.Config) {
+	cfg := config.TestConfig()
 	app := CreateKVStore(defaultRetainBlocks)
-	return StartTestNode(t, app), app
+	return StartTestNode(ctx, t, app, cfg), app, cfg
 }
 
 // CreateKVStore creates a simple kv store app and gives the user
@@ -37,9 +41,9 @@ func CreateKVStore(retainBlocks int64) *kvstore.Application {
 
 // StartTestClient returns a started remote Core node process, as well its
 // mock Core Client.
-func StartTestClient(t *testing.T) (*node.Node, Client) {
-	nd, _ := StartTestKVApp(t)
-	protocol, ip := GetEndpoint(nd)
+func StartTestClient(ctx context.Context, t *testing.T) (tmservice.Service, Client) {
+	nd, _, cfg := StartTestKVApp(ctx, t)
+	protocol, ip := GetEndpoint(cfg)
 	client, err := NewRemote(protocol, ip)
 	require.NoError(t, err)
 	t.Cleanup(func() {
@@ -52,8 +56,8 @@ func StartTestClient(t *testing.T) (*node.Node, Client) {
 }
 
 // GetEndpoint returns the protocol and ip of the remote node.
-func GetEndpoint(remote *node.Node) (string, string) {
-	endpoint := remote.Config().RPC.ListenAddress
+func GetEndpoint(cfg *config.Config) (string, string) {
+	endpoint := cfg.RPC.ListenAddress
 	protocol, ip := endpoint[:3], endpoint[6:]
 	return protocol, ip
 }
