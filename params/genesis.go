@@ -1,5 +1,7 @@
 package params
 
+import "fmt"
+
 // GenesisFor reports a hash of a genesis block for a given network.
 // Genesis is strictly defined and can't be modified.
 // To run a custom genesis private network use CELESTIA_PRIVATE_GENESIS env var.
@@ -8,7 +10,12 @@ func GenesisFor(net Network) (string, error) {
 		return "", err
 	}
 
-	return genesisList[net], nil
+	genHash, ok := genesisList[net]
+	if !ok {
+		return "", fmt.Errorf("trusted hash not found for network %s", net)
+	}
+
+	return genHash, nil
 }
 
 // NOTE: Every time we add a new long-running network, its genesis hash has to be added here.
