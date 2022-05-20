@@ -50,22 +50,22 @@ func NewRetriever(dag format.DAGService) *Retriever {
 // RetrieveQuadrantTimeout or unrecoverable.
 func (r *Retriever) Retrieve(ctx context.Context, dah *da.DataAvailabilityHeader) (*rsmt2d.ExtendedDataSquare, error) {
 	log.Debugw("retrieving data square", "data_hash", hex.EncodeToString(dah.Hash()), "size", len(dah.RowsRoots))
-	ses := r.newSession(ctx, dah)
-	for _, qs := range newQuadrants(dah) {
-		for _, q := range qs {
-			eds, err := ses.retrieve(ctx, q)
-			if err == nil {
-				return eds, nil
-			}
-			var (
-				errRow *rsmt2d.ErrByzantineRow
-				errCol *rsmt2d.ErrByzantineCol
-			)
-			if errors.As(err, &errRow) || errors.As(err, &errCol) {
-				return nil, NewErrByzantine(ctx, r.dag, dah, errRow, errCol)
-			}
-			log.Warnw("not enough shares to reconstruct data square, requesting more...", "err", err)
+	ses, err := r.newSession(ctx, dah)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, q := range newQuadrants(dah) {
+		eds, err := ses.retrieve(ctx, q)
+		if err == nil {
+			return eds, nil
 		}
+
+		var errByz *rsmt2d.ErrByzantineData
+		if errors.As(err, &errByz) {
+			return nil, NewErrByzantine(ctx, r.dag, dah, errByz)
+		}
+		log.Warnw("not enough shares to reconstruct data square, requesting more...", "err", err)
 		// retry quadrants until we can reconstruct the EDS or error out
 	}
 
@@ -79,15 +79,16 @@ type retrieverSession struct {
 	treeFn rsmt2d.TreeConstructorFn
 	codec  rsmt2d.Codec
 
-	dah      *da.DataAvailabilityHeader
-	squareLk sync.RWMutex
-	square   [][]byte
+	dah            *da.DataAvailabilityHeader
+	squareLk       sync.RWMutex
+	square         [][]byte
+	squareImported *rsmt2d.ExtendedDataSquare
 }
 
-func (r *Retriever) newSession(ctx context.Context, dah *da.DataAvailabilityHeader) *retrieverSession {
+func (r *Retriever) newSession(ctx context.Context, dah *da.DataAvailabilityHeader) (*retrieverSession, error) {
 	size := len(dah.RowsRoots)
 	adder := NewNmtNodeAdder(ctx, format.NewBatch(ctx, r.dag, format.MaxSizeBatchOption(batchSize(size))))
-	return &retrieverSession{
+	ses := &retrieverSession{
 		dag:   merkledag.NewSession(ctx, r.dag),
 		adder: adder,
 		treeFn: func() rsmt2d.Tree {
@@ -98,6 +99,14 @@ func (r *Retriever) newSession(ctx context.Context, dah *da.DataAvailabilityHead
 		dah:    dah,
 		square: make([][]byte, size*size),
 	}
+
+	square, err := rsmt2d.ImportExtendedDataSquare(ses.square, ses.codec, ses.treeFn)
+	if err != nil {
+		return nil, err
+	}
+
+	ses.squareImported = square
+	return ses, nil
 }
 
 func (rs *retrieverSession) retrieve(ctx context.Context, q *quadrant) (*rsmt2d.ExtendedDataSquare, error) {
@@ -117,13 +126,13 @@ func (rs *retrieverSession) retrieve(ctx context.Context, q *quadrant) (*rsmt2d.
 	// TODO: Avoid reimporting of the square which can potentially remove the requirement for the lock
 	rs.squareLk.Lock()
 	defer rs.squareLk.Unlock()
-	err := rsmt2d.RepairExtendedDataSquare(rs.dah.RowsRoots, rs.dah.ColumnRoots, rs.square, rs.codec, rs.treeFn)
+	err := rs.squareImported.Repair(rs.dah.RowsRoots, rs.dah.ColumnRoots, rs.codec, rs.treeFn)
 	if err != nil {
 		return nil, err
 	}
 
 	log.Infow("data square reconstructed", "data_hash", hex.EncodeToString(rs.dah.Hash()), "size", len(rs.dah.RowsRoots))
-	return rsmt2d.ImportExtendedDataSquare(rs.square, rs.codec, rs.treeFn)
+	return rs.squareImported, nil
 }
 
 func (rs *retrieverSession) request(ctx context.Context, q *quadrant) {

@@ -93,14 +93,14 @@ func TestBlockRecovery(t *testing.T) {
 
 			// recover a partially complete square
 			rdata := removeRandShares(flat, tc.d)
-			err = rsmt2d.RepairExtendedDataSquare(
-				rowRoots,
-				colRoots,
+			eds, err = rsmt2d.ImportExtendedDataSquare(
 				rdata,
 				rsmt2d.NewRSGF8Codec(),
 				recoverTree.Constructor,
 			)
+			require.NoError(t, err)
 
+			err = eds.Repair(rowRoots, colRoots, rsmt2d.NewRSGF8Codec(), recoverTree.Constructor)
 			if tc.expectErr {
 				require.Error(t, err)
 				require.Contains(t, err.Error(), tc.errString)
