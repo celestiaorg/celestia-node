@@ -112,7 +112,7 @@ func TestService_GetSharesByNamespaceNotFound(t *testing.T) {
 	serv, root := RandLightServiceWithSquare(t, 1)
 	root.RowsRoots = nil
 
-	shares, err := serv.GetSharesByNamespace(context.Background(), root, []byte(""))
+	shares, err := serv.GetSharesByNamespace(context.Background(), root, []byte{1, 1, 1, 1, 1, 1, 1, 1})
 	assert.Len(t, shares, 0)
 	assert.NoError(t, err)
 }

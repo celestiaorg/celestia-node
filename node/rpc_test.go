@@ -33,6 +33,7 @@ func TestNamespacedSharesRequest(t *testing.T) {
 	var tests = []struct {
 		nID         string
 		expectedErr bool
+		errMsg      string
 	}{
 		{
 			nID:         "0000000000000001",
@@ -41,10 +42,12 @@ func TestNamespacedSharesRequest(t *testing.T) {
 		{
 			nID:         "00000000000001",
 			expectedErr: true,
+			errMsg:      "expected namespace ID of size 8, got 7",
 		},
 		{
 			nID:         "000000000000000001",
 			expectedErr: true,
+			errMsg:      "expected namespace ID of size 8, got 9",
 		},
 	}
 
@@ -64,7 +67,7 @@ func TestNamespacedSharesRequest(t *testing.T) {
 				buf, err := ioutil.ReadAll(resp.Body)
 				require.NoError(t, err)
 				expectedErr := strings.Trim(string(buf), "\"\"") //nolint:staticcheck
-				require.Equal(t, "namespace id must be default size 8", expectedErr)
+				require.Equal(t, tt.errMsg, expectedErr)
 
 				return
 			}
