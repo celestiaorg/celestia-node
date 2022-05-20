@@ -28,6 +28,7 @@ func init() {
 			cmdnode.TrustedHashFlags(),
 			cmdnode.MiscFlags(),
 			cmdnode.RPCFlags(),
+			cmdnode.KeyFlags(),
 		),
 		cmdnode.Start(
 			cmdnode.NodeFlags(node.Bridge),
@@ -36,6 +37,7 @@ func init() {
 			cmdnode.TrustedHashFlags(),
 			cmdnode.MiscFlags(),
 			cmdnode.RPCFlags(),
+			cmdnode.KeyFlags(),
 		),
 		bridgeKeyCmd,
 	)
@@ -82,6 +84,8 @@ var bridgeCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
+
+		cmdnode.ParseKeyFlags(cmd, env)
 
 		return nil
 	},
