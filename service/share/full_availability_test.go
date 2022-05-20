@@ -3,6 +3,7 @@ package share
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 
@@ -20,7 +21,7 @@ func TestSharesAvailable_Full(t *testing.T) {
 }
 
 func TestSharesAvailableFailed_Full(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 
 	// RandFullServiceWithSquare creates a NewFullAvailability inside, so we can test it
