@@ -13,7 +13,6 @@ import (
 	ma "github.com/multiformats/go-multiaddr"
 	"github.com/stretchr/testify/require"
 	"github.com/tendermint/tendermint/libs/bytes"
-	rpctest "github.com/tendermint/tendermint/rpc/test"
 	"github.com/tendermint/tendermint/types"
 
 	"github.com/celestiaorg/celestia-node/params"
@@ -91,16 +90,9 @@ func NewSwamp(t *testing.T, options ...Option) *Swamp {
 // so, we are not creating bridge nodes with each one containing its own core client
 // instead we are assigning all created BNs to 1 Core from the swamp
 
-// newTendermintCoreNode creates a new instance of Tendermint Core with a kvStore
+// newTendermintCoreNode creates a new instance of Tendermint Core with a kvStore and starts it
 func newTendermintCoreNode(ctx context.Context, t *testing.T, c *Components) tmservice.Service {
-	var opt rpctest.Options
-	rpctest.RecreateConfig(&opt)
-
 	tn := core.StartTestNode(ctx, t, c.App, c.CoreCfg)
-	// tn := rpctest.NewTendermint(c.App, &opt)
-
-	// rewriting the created config with test's one
-	// tn.Config().Consensus = c.CoreCfg.Consensus
 
 	return tn
 }

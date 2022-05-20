@@ -102,6 +102,7 @@ require (
 	github.com/fsnotify/fsnotify v1.5.1 // indirect
 	github.com/gammazero/deque v0.1.0 // indirect
 	github.com/go-kit/kit v0.12.0 // indirect
+	github.com/go-playground/validator/v10 v10.4.1 // indirect
 	github.com/godbus/dbus v0.0.0-20190726142602-4481cbc300e2 // indirect
 	github.com/godbus/dbus/v5 v5.0.4 // indirect
 	github.com/gogo/gateway v1.1.0 // indirect
@@ -129,7 +130,7 @@ require (
 	github.com/hashicorp/go-version v1.4.0 // indirect
 	github.com/hashicorp/hcl v1.0.0 // indirect
 	github.com/hdevalence/ed25519consensus v0.0.0-20220222234857-c00d1f31bab3 // indirect
-	github.com/huin/goupnp v1.0.2 // indirect
+	github.com/huin/goupnp v1.0.3-0.20220313090229-ca81a64b4204 // indirect
 	github.com/improbable-eng/grpc-web v0.15.0 // indirect
 	github.com/inconshreveable/mousetrap v1.0.0 // indirect
 	github.com/ipfs/bbloom v0.0.4 // indirect
