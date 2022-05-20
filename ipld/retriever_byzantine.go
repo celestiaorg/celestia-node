@@ -35,30 +35,17 @@ func NewErrByzantine(
 	ctx context.Context,
 	dag format.NodeGetter,
 	dah *da.DataAvailabilityHeader,
-	errRow *rsmt2d.ErrByzantineRow,
-	errCol *rsmt2d.ErrByzantineCol) *ErrByzantine {
-	var (
-		errShares [][]byte
-		root      []byte
-		index     uint8
-	)
-	isRow := false
-	if errRow != nil {
-		errShares = errRow.Shares
-		root = dah.RowsRoots[errRow.RowNumber]
-		index = uint8(errRow.RowNumber)
-		isRow = true
-	} else {
-		errShares = errCol.Shares
-		root = dah.ColumnRoots[errCol.ColNumber]
-		index = uint8(errCol.ColNumber)
-	}
-
+	errByz *rsmt2d.ErrByzantineData,
+) *ErrByzantine {
+	root := [][][]byte{
+		dah.RowsRoots,
+		dah.ColumnRoots,
+	}[errByz.Axis][errByz.Index]
 	sharesWithProof, err := GetProofsForShares(
 		ctx,
 		dag,
 		plugin.MustCidFromNamespacedSha256(root),
-		errShares,
+		errByz.Shares,
 	)
 	if err != nil {
 		// Fatal as rsmt2d proved that error is byzantine,
@@ -69,5 +56,9 @@ func NewErrByzantine(
 		log.Fatalw("getting proof for ErrByzantine", "err", err)
 	}
 
-	return &ErrByzantine{Index: index, Shares: sharesWithProof, IsRow: isRow}
+	return &ErrByzantine{
+		Index:  uint8(errByz.Index),
+		Shares: sharesWithProof,
+		IsRow:  errByz.Axis == rsmt2d.Row,
+	}
 }
