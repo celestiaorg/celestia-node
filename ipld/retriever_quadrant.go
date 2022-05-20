@@ -34,7 +34,7 @@ type quadrant struct {
 // newQuadrants constructs a slice of quadrants from DAHeader.
 // There are always 4 quadrants per each source (row and col), so 8 in total.
 // The ordering of quadrants is random.
-func newQuadrants(dah *da.DataAvailabilityHeader) [][]*quadrant {
+func newQuadrants(dah *da.DataAvailabilityHeader) []*quadrant {
 	// combine all the roots into one slice, so they can be easily accessible by index
 	daRoots := [][][]byte{
 		dah.RowsRoots,
@@ -66,12 +66,14 @@ func newQuadrants(dah *da.DataAvailabilityHeader) [][]*quadrant {
 				source: source,
 			}
 		}
-		// shuffle quadrants to be fetched in random order
-		rand.Shuffle(len(quadrants), func(i, j int) { quadrants[i], quadrants[j] = quadrants[j], quadrants[i] })
 	}
-	// randomize sources, s.t. downloading on the network happens from both rows and cols
-	rand.Shuffle(len(sources), func(i, j int) { sources[i], sources[j] = sources[j], sources[i] })
-	return sources
+	quadrants := make([]*quadrant, 0, numQuadrants*2)
+	for _, qs := range sources {
+		quadrants = append(quadrants, qs...)
+	}
+	// shuffle quadrants to be fetched in random order
+	rand.Shuffle(len(quadrants), func(i, j int) { quadrants[i], quadrants[j] = quadrants[j], quadrants[i] })
+	return quadrants
 }
 
 // index calculates index for a share in a data square slice flattened by rows.
