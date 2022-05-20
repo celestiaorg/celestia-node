@@ -2,7 +2,6 @@ package ipld
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/ipfs/go-cid"
 	ipld "github.com/ipfs/go-ipld-format"
@@ -12,20 +11,6 @@ import (
 
 	"github.com/celestiaorg/nmt/namespace"
 )
-
-// ErrByzantine is an error converted from rsmt2d.ByzantineRow/Col +
-// Merkle Proof of each share.
-type ErrByzantine struct {
-	Index  uint8
-	Shares []*ShareWithProof
-	// TODO(@vgokivs): Change to enum type and rename to Axis after
-	// updating rsmt2d
-	IsRow bool
-}
-
-func (e *ErrByzantine) Error() string {
-	return fmt.Sprintf("byzantine error. isRow:%v, Index:%v", e.IsRow, e.Index)
-}
 
 // GetShare fetches and returns the data for leaf `leafIndex` of root `rootCid`.
 func GetShare(
