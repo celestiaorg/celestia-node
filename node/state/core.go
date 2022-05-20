@@ -10,6 +10,7 @@ import (
 	"go.uber.org/fx"
 
 	"github.com/celestiaorg/celestia-app/app"
+	"github.com/celestiaorg/celestia-app/app/encoding"
 	apptypes "github.com/celestiaorg/celestia-app/x/payment/types"
 	"github.com/celestiaorg/celestia-node/libs/keystore"
 	"github.com/celestiaorg/celestia-node/params"
@@ -27,13 +28,14 @@ func CoreAccessor(
 		//  implementation of https://github.com/celestiaorg/celestia-node/issues/415.
 		// TODO @renaynay @Wondertan: ensure that keyring backend from config is passed
 		//  here instead of hardcoded `BackendTest`: https://github.com/celestiaorg/celestia-node/issues/603.
-		ring, err := keyring.New(app.Name, keyring.BackendTest, ks.Path(), os.Stdin)
+		encConf := encoding.MakeEncodingConfig(app.ModuleBasics.RegisterInterfaces)
+		ring, err := keyring.New(app.Name, keyring.BackendTest, ks.Path(), os.Stdin, encConf.Codec)
 		if err != nil {
 			return nil, err
 		}
 		signer := apptypes.NewKeyringSigner(ring, keyringAccName, string(net))
 
-		var info keyring.Info
+		var info *keyring.Record
 		// if custom keyringAccName provided, find key for that name
 		if keyringAccName != "" {
 			keyInfo, err := signer.Key(keyringAccName)
@@ -56,8 +58,12 @@ func CoreAccessor(
 					return nil, err
 				}
 				log.Info("NEW KEY GENERATED...")
+				addr, err := keyInfo.GetAddress()
+				if err != nil {
+					return nil, err
+				}
 				fmt.Printf("\nNAME: %s\nADDRESS: %s\nMNEMONIC (save this somewhere safe!!!): \n%s\n\n",
-					keyInfo.GetName(), keyInfo.GetAddress().String(), mn)
+					keyInfo.Name, addr.String(), mn)
 
 				info = keyInfo
 			} else {
@@ -67,7 +73,7 @@ func CoreAccessor(
 		}
 
 		log.Infow("constructed keyring signer", "backend", keyring.BackendTest, "path", ks.Path(),
-			"key name", info.GetName(), "chain-id", string(net))
+			"key name", info.Name, "chain-id", string(net))
 
 		ca := state.NewCoreAccessor(signer, endpoint)
 		lc.Append(fx.Hook{
