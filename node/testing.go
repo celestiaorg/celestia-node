@@ -1,7 +1,9 @@
 package node
 
 import (
+	"context"
 	"testing"
+	"time"
 
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
@@ -22,13 +24,11 @@ func MockStore(t *testing.T, cfg *Config) Store {
 }
 
 func TestNode(t *testing.T, tp Type, opts ...Option) *Node {
-	node, _ := core.StartTestKVApp(t)
-	opts = append(
-		opts,
-		WithRemoteCore(core.GetEndpoint(node)),
-		WithNetwork(params.Private),
-		WithKeyringSigner(TestKeyringSigner(t)),
-	)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	t.Cleanup(cancel)
+
+	node, _, cfg := core.StartTestKVApp(ctx, t)
+	opts = append(opts, WithRemoteCore(core.GetEndpoint(cfg)), WithNetwork(params.Private))
 	store := MockStore(t, DefaultConfig(tp))
 	nd, err := New(tp, store, opts...)
 	require.NoError(t, err)

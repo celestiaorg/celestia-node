@@ -13,7 +13,6 @@ import (
 	ma "github.com/multiformats/go-multiaddr"
 	"github.com/stretchr/testify/require"
 	"github.com/tendermint/tendermint/libs/bytes"
-	tn "github.com/tendermint/tendermint/node"
 	rpctest "github.com/tendermint/tendermint/rpc/test"
 	"github.com/tendermint/tendermint/types"
 
@@ -60,14 +59,14 @@ func NewSwamp(t *testing.T, options ...Option) *Swamp {
 	var err error
 	ctx := context.Background()
 
-	tn, err := newTendermintCoreNode(ic)
-	require.NoError(t, err)
-	protocol, ip := core.GetEndpoint(tn)
+	tn := newTendermintCoreNode(ic)
+
+	protocol, ip := core.GetEndpoint(ic.CoreCfg)
 	remote, err := core.NewRemote(protocol, ip)
 	require.NoError(t, err)
 
-	err = remote.Start()
-	require.NoError(t, err)
+	// err = remote.Start()
+	// require.NoError(t, err)
 
 	swp := &Swamp{
 		t:          t,
@@ -93,16 +92,17 @@ func NewSwamp(t *testing.T, options ...Option) *Swamp {
 // instead we are assigning all created BNs to 1 Core from the swamp
 
 // newTendermintCoreNode creates a new instance of Tendermint Core with a kvStore
-func newTendermintCoreNode(c *Components) (*tn.Node, error) {
+func newTendermintCoreNode(ctx context.Context, t *testing.T, c *Components) tmservice.Service {
 	var opt rpctest.Options
 	rpctest.RecreateConfig(&opt)
 
-	tn := rpctest.NewTendermint(c.App, &opt)
+	tn := core.StartTestNode(ctx, t, c.App, c.CoreCfg)
+	// tn := rpctest.NewTendermint(c.App, &opt)
 
 	// rewriting the created config with test's one
-	tn.Config().Consensus = c.CoreCfg.Consensus
+	// tn.Config().Consensus = c.CoreCfg.Consensus
 
-	return tn, tn.Start()
+	return tn
 }
 
 // stopAllNodes goes through all received slices of Nodes and stops one-by-one

@@ -78,7 +78,11 @@ func (ca *CoreAccessor) SubmitPayForData(
 }
 
 func (ca *CoreAccessor) Balance(ctx context.Context) (*Balance, error) {
-	return ca.BalanceForAddress(ctx, ca.signer.GetSignerInfo().GetAddress())
+	addr, err := ca.signer.GetSignerInfo().GetAddress()
+	if err != nil {
+		return nil, err
+	}
+	return ca.BalanceForAddress(ctx, addr)
 }
 
 func (ca *CoreAccessor) BalanceForAddress(ctx context.Context, addr Address) (*Balance, error) {
