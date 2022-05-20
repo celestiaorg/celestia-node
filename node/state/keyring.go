@@ -8,24 +8,29 @@ import (
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 
 	"github.com/celestiaorg/celestia-app/app"
+	"github.com/celestiaorg/celestia-app/app/encoding"
 	apptypes "github.com/celestiaorg/celestia-app/x/payment/types"
 	"github.com/celestiaorg/celestia-node/libs/keystore"
 	"github.com/celestiaorg/celestia-node/node/key"
 	"github.com/celestiaorg/celestia-node/params"
 )
 
+// func(fx.Lifecycle, keystore.Keystore, params.Network) (state.Accessor, error) {
+// 	return func(lc fx.Lifecycle, ks keystore.Keystore, net params.Network) (state.Accessor, error) {
+// TODO @renaynay: Include option for setting custom `userInput` parameter with
+//  implementation of https://github.com/celestiaorg/celestia-node/issues/415.
+// TODO @renaynay @Wondertan: ensure that keyring backend from config is passed
+//  here instead of hardcoded `BackendTest`: https://github.com/celestiaorg/celestia-node/issues/603.
+
 func Keyring(cfg key.Config) func(keystore.Keystore, params.Network) (*apptypes.KeyringSigner, error) {
 	return func(ks keystore.Keystore, net params.Network) (*apptypes.KeyringSigner, error) {
-		// TODO @renaynay: Include option for setting custom `userInput` parameter with
-		//  implementation of https://github.com/celestiaorg/celestia-node/issues/415.
-		// TODO @renaynay @Wondertan: ensure that keyring backend from config is passed
-		//  here instead of hardcoded `BackendTest`: https://github.com/celestiaorg/celestia-node/issues/603.
-		ring, err := keyring.New(app.Name, keyring.BackendTest, ks.Path(), os.Stdin)
+		encConf := encoding.MakeEncodingConfig(app.ModuleBasics.RegisterInterfaces)
+		ring, err := keyring.New(app.Name, keyring.BackendTest, ks.Path(), os.Stdin, encConf.Codec)
 		if err != nil {
 			return nil, err
 		}
 
-		var info keyring.Info
+		var info *keyring.Record
 		// if custom keyringAccName provided, find key for that name
 		if cfg.KeyringAccName != "" {
 			keyInfo, err := ring.Key(cfg.KeyringAccName)
@@ -48,8 +53,12 @@ func Keyring(cfg key.Config) func(keystore.Keystore, params.Network) (*apptypes.
 					return nil, err
 				}
 				log.Info("NEW KEY GENERATED...")
+				addr, err := keyInfo.GetAddress()
+				if err != nil {
+					return nil, err
+				}
 				fmt.Printf("\nNAME: %s\nADDRESS: %s\nMNEMONIC (save this somewhere safe!!!): \n%s\n\n",
-					keyInfo.GetName(), keyInfo.GetAddress().String(), mn)
+					keyInfo.Name, addr.String(), mn)
 
 				info = keyInfo
 			} else {
@@ -58,10 +67,10 @@ func Keyring(cfg key.Config) func(keystore.Keystore, params.Network) (*apptypes.
 			}
 		}
 		// construct signer using the default key found / generated above
-		signer := apptypes.NewKeyringSigner(ring, info.GetName(), string(net))
+		signer := apptypes.NewKeyringSigner(ring, info.Name, string(net))
 		signerInfo := signer.GetSignerInfo()
 		log.Infow("constructed keyring signer", "backend", keyring.BackendTest, "path", ks.Path(),
-			"key name", signerInfo.GetName(), "chain-id", string(net))
+			"key name", signerInfo.Name, "chain-id", string(net))
 
 		return signer, nil
 	}
