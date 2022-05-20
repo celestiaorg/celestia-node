@@ -31,6 +31,8 @@ var NumConcurrentSquares = 8
 
 // Global worker pool that globally controls and limits goroutines spawned by
 // GetShares.
+// TODO(@Wondertan): Idle timeout for workers needs to be configured to around block time,
+// 	so that workers spawned between each reconstruction for every new block are reused.
 var pool = workerpool.New(NumWorkersLimit)
 
 // GetShares gets shares from either local storage, or, if not found, requests
