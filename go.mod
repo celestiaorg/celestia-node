@@ -47,7 +47,6 @@ require (
 	github.com/spf13/cobra v1.4.0
 	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/testify v1.7.1
-	github.com/tendermint/spm v0.1.9
 	github.com/tendermint/tendermint v0.35.4
 	go.uber.org/fx v1.17.1
 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c

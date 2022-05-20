@@ -5,16 +5,19 @@ import (
 	"os"
 
 	"github.com/spf13/cobra"
-	"github.com/tendermint/spm/cosmoscmd"
 
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-node/cmd"
+
+	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
 func init() {
 	// This is necessary to ensure that the account addresses are correctly prefixed
 	// as in the celestia application.
-	cosmoscmd.SetPrefixes(app.AccountAddressPrefix)
+	cfg := sdk.GetConfig()
+	cfg.SetBech32PrefixForAccount(app.Bech32PrefixAccAddr, app.Bech32PrefixAccPub)
+	cfg.Seal()
 
 	rootCmd.AddCommand(
 		bridgeCmd,
