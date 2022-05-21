@@ -11,28 +11,6 @@ import (
 	"github.com/celestiaorg/celestia-node/params"
 )
 
-func TestNewBridgeAndLifecycle(t *testing.T) {
-	node := TestNode(t, Bridge)
-	require.NotNil(t, node)
-	require.NotNil(t, node.Config)
-	require.NotZero(t, node.Type)
-	require.NotNil(t, node.Host)
-	require.NotNil(t, node.CoreClient)
-	require.NotNil(t, node.HeaderServ)
-
-	ctx, cancel := context.WithCancel(context.Background())
-	t.Cleanup(cancel)
-
-	err := node.Start(ctx)
-	require.NoError(t, err)
-
-	ctx, cancel = context.WithCancel(context.Background())
-	t.Cleanup(cancel)
-
-	err = node.Stop(ctx)
-	require.NoError(t, err)
-}
-
 func TestBridge_WithMockedCoreClient(t *testing.T) {
 	t.Skip("skipping") // consult https://github.com/celestiaorg/celestia-core/issues/667 for reasoning
 	repo := MockStore(t, DefaultConfig(Bridge))
