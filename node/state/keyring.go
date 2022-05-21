@@ -24,26 +24,25 @@ func Keyring(cfg key.Config) func(keystore.Keystore, params.Network) (*apptypes.
 		if err != nil {
 			return nil, err
 		}
-		signer := apptypes.NewKeyringSigner(ring, cfg.KeyringAccName, string(net))
 
 		var info keyring.Info
 		// if custom keyringAccName provided, find key for that name
 		if cfg.KeyringAccName != "" {
-			keyInfo, err := signer.Key(cfg.KeyringAccName)
+			keyInfo, err := ring.Key(cfg.KeyringAccName)
 			if err != nil {
 				return nil, err
 			}
 			info = keyInfo
 		} else {
 			// check if key exists for signer
-			keys, err := signer.List()
+			keys, err := ring.List()
 			if err != nil {
 				return nil, err
 			}
 			// if no key was found in keystore path, generate new key for node
 			if len(keys) == 0 {
 				log.Infow("NO KEY FOUND IN STORE, GENERATING NEW KEY...", "path", ks.Path())
-				keyInfo, mn, err := signer.NewMnemonic("my_celes_key", keyring.English, "",
+				keyInfo, mn, err := ring.NewMnemonic("my_celes_key", keyring.English, "",
 					"", hd.Secp256k1)
 				if err != nil {
 					return nil, err
@@ -58,9 +57,11 @@ func Keyring(cfg key.Config) func(keystore.Keystore, params.Network) (*apptypes.
 				info = keys[0]
 			}
 		}
-
+		// construct signer using the default key found / generated above
+		signer := apptypes.NewKeyringSigner(ring, info.GetName(), string(net))
+		signerInfo := signer.GetSignerInfo()
 		log.Infow("constructed keyring signer", "backend", keyring.BackendTest, "path", ks.Path(),
-			"key name", info.GetName(), "chain-id", string(net))
+			"key name", signerInfo.GetName(), "chain-id", string(net))
 
 		return signer, nil
 	}
