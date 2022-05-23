@@ -18,7 +18,7 @@ func TestCoreExchange_RequestHeaders(t *testing.T) {
 	t.Cleanup(cancel)
 
 	fetcher := createCoreFetcher(ctx, t)
-	store := mdutils.Mock()
+	store := mdutils.Bserv()
 
 	// generate 10 blocks
 	generateBlocks(t, fetcher)

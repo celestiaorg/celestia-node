@@ -63,7 +63,7 @@ func Components(cfg Config) fx.Option {
 		fx.Provide(RoutedHost),
 		fx.Provide(PubSub(cfg)),
 		fx.Provide(DataExchange(cfg)),
-		fx.Provide(DAG),
+		fx.Provide(BlockService),
 		fx.Provide(PeerRouting(cfg)),
 		fx.Provide(ContentRouting),
 		fx.Provide(AddrsFactory(cfg.AnnounceAddresses, cfg.NoAnnounceAddresses)),

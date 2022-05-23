@@ -18,7 +18,7 @@ func TestMakeExtendedHeaderForEmptyBlock(t *testing.T) {
 	_, client := core.StartTestClient(ctx, t)
 	fetcher := core.NewBlockFetcher(client)
 
-	store := mdutils.Mock()
+	store := mdutils.Bserv()
 
 	sub, err := fetcher.SubscribeNewBlockEvent(ctx)
 	require.NoError(t, err)

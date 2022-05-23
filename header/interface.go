@@ -5,7 +5,7 @@ import (
 	"errors"
 	"fmt"
 
-	format "github.com/ipfs/go-ipld-format"
+	"github.com/ipfs/go-blockservice"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	tmbytes "github.com/tendermint/tendermint/libs/bytes"
 	core "github.com/tendermint/tendermint/types"
@@ -17,7 +17,7 @@ type ConstructFn = func(
 	*core.Block,
 	*core.Commit,
 	*core.ValidatorSet,
-	format.NodeAdder,
+	blockservice.BlockService,
 ) (*ExtendedHeader, error)
 
 // Validator aliases a func that validates ExtendedHeader.

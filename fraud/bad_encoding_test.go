@@ -14,7 +14,7 @@ import (
 )
 
 func TestFraudProofValidation(t *testing.T) {
-	dag := mdutils.Mock()
+	dag := mdutils.Bserv()
 	eds := ipld.RandEDS(t, 2)
 
 	shares := ipld.ExtractEDS(eds)

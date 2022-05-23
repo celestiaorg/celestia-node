@@ -3,6 +3,7 @@ package plugin
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"crypto/sha256"
 	"errors"
 	"fmt"
@@ -10,6 +11,7 @@ import (
 	"io"
 
 	blocks "github.com/ipfs/go-block-format"
+	"github.com/ipfs/go-blockservice"
 	"github.com/ipfs/go-cid"
 	ipld "github.com/ipfs/go-ipld-format"
 	mh "github.com/multiformats/go-multihash"
@@ -51,8 +53,6 @@ func init() {
 			return NewNamespaceHasher(nmt.NewNmtHasher(sha256.New(), nmt.DefaultNamespaceIDLen, true))
 		},
 	)
-	// this should already happen when the plugin is injected but it doesn't for some CI tests
-	ipld.DefaultBlockDecoder.Register(NmtCodec, NmtNodeParser)
 	// register the codecs in the global maps
 	cid.Codecs[NmtCodecName] = NmtCodec
 	cid.CodecToStr[NmtCodec] = NmtCodecName
@@ -184,7 +184,16 @@ func prependNode(newNode ipld.Node, nodes []ipld.Node) []ipld.Node {
 	return prepended
 }
 
-func NmtNodeParser(block blocks.Block) (ipld.Node, error) {
+func Get(ctx context.Context, dag blockservice.BlockGetter, root cid.Cid) (ipld.Node, error) {
+	block, err := dag.GetBlock(ctx, root)
+	if err != nil {
+		return nil, err
+	}
+
+	return decodeBlock(block)
+}
+
+func decodeBlock(block blocks.Block) (ipld.Node, error) {
 	// length of the domain separator for leaf and inner nodes:
 	const prefixOffset = 1
 	var (

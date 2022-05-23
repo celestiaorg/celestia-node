@@ -102,5 +102,5 @@ func createListener(
 		require.NoError(t, err)
 	})
 
-	return NewListener(p2pSub, fetcher, mdutils.Mock(), header.MakeExtendedHeader)
+	return NewListener(p2pSub, fetcher, mdutils.Bserv(), header.MakeExtendedHeader)
 }

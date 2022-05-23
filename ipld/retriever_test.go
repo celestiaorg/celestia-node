@@ -18,7 +18,7 @@ func TestRetriever_Retrieve(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	dag := mdutils.Mock()
+	dag := mdutils.Bserv()
 	r := NewRetriever(dag)
 
 	type test struct {

@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/ipfs/go-blockservice"
 	"github.com/ipfs/go-cid"
 	format "github.com/ipfs/go-ipld-format"
 	logging "github.com/ipfs/go-log/v2"
@@ -14,6 +15,7 @@ import (
 	"github.com/tendermint/tendermint/pkg/da"
 	"github.com/tendermint/tendermint/pkg/wrapper"
 
+	"github.com/celestiaorg/celestia-node/ipld/plugin"
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/rsmt2d"
 )
@@ -36,11 +38,11 @@ var RetrieveQuadrantTimeout = time.Minute * 5
 // Retriever randomly picks one of the data square quadrants and tries to request them one by one until it is able to
 // reconstruct the whole square.
 type Retriever struct {
-	dag format.DAGService
+	dag blockservice.BlockService
 }
 
 // NewRetriever creates a new instance of the Retriever over IPLD Service and rmst2d.Codec
-func NewRetriever(dag format.DAGService) *Retriever {
+func NewRetriever(dag blockservice.BlockService) *Retriever {
 	return &Retriever{dag: dag}
 }
 
@@ -73,7 +75,7 @@ func (r *Retriever) Retrieve(ctx context.Context, dah *da.DataAvailabilityHeader
 }
 
 type retrieverSession struct {
-	dag   format.NodeGetter
+	dag   blockservice.BlockGetter
 	adder *NmtNodeAdder
 
 	treeFn rsmt2d.TreeConstructorFn
@@ -87,9 +89,16 @@ type retrieverSession struct {
 
 func (r *Retriever) newSession(ctx context.Context, dah *da.DataAvailabilityHeader) (*retrieverSession, error) {
 	size := len(dah.RowsRoots)
-	adder := NewNmtNodeAdder(ctx, format.NewBatch(ctx, r.dag, format.MaxSizeBatchOption(batchSize(size))))
+	adder := NewNmtNodeAdder(
+		ctx,
+		format.NewBatch(
+			ctx,
+			merkledag.NewDAGService(r.dag),
+			format.MaxSizeBatchOption(batchSize(size)),
+		),
+	)
 	ses := &retrieverSession{
-		dag:   merkledag.NewSession(ctx, r.dag),
+		dag:   blockservice.NewSession(ctx, r.dag),
 		adder: adder,
 		treeFn: func() rsmt2d.Tree {
 			tree := wrapper.NewErasuredNamespacedMerkleTree(uint64(size)/2, nmt.NodeVisitor(adder.Visit))
@@ -148,7 +157,7 @@ func (rs *retrieverSession) request(ctx context.Context, q *quadrant) {
 		go func(i int, root cid.Cid) {
 			defer wg.Done()
 			// get the root node
-			nd, err := rs.dag.Get(ctx, root)
+			nd, err := plugin.Get(ctx, rs.dag, root)
 			if err != nil {
 				return
 			}

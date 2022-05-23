@@ -3,9 +3,8 @@ package services
 import (
 	"context"
 
+	"github.com/ipfs/go-blockservice"
 	"github.com/ipfs/go-datastore"
-	ipld "github.com/ipfs/go-ipld-format"
-	"github.com/ipfs/go-merkledag"
 	"github.com/libp2p/go-libp2p-core/host"
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/libp2p/go-libp2p-core/peerstore"
@@ -122,7 +121,7 @@ func HeaderStoreInit(cfg *Config) func(context.Context, params.Network, header.S
 }
 
 // ShareService constructs new share.Service.
-func ShareService(lc fx.Lifecycle, dag ipld.DAGService, avail share.Availability) *share.Service {
+func ShareService(lc fx.Lifecycle, dag blockservice.BlockService, avail share.Availability) *share.Service {
 	service := share.NewService(dag, avail)
 	lc.Append(fx.Hook{
 		OnStart: service.Start,
@@ -148,10 +147,10 @@ func DASer(
 }
 
 // LightAvailability constructs light share availability.
-func LightAvailability(ctx context.Context, lc fx.Lifecycle, dag ipld.DAGService) share.Availability {
-	return share.NewLightAvailability(merkledag.NewSession(fxutil.WithLifecycle(ctx, lc), dag))
+func LightAvailability(ctx context.Context, lc fx.Lifecycle, dag blockservice.BlockService) share.Availability {
+	return share.NewLightAvailability(blockservice.NewSession(fxutil.WithLifecycle(ctx, lc), dag))
 }
 
-func FullAvailability(dag ipld.DAGService) share.Availability {
+func FullAvailability(dag blockservice.BlockService) share.Availability {
 	return share.NewFullAvailability(dag)
 }

@@ -3,6 +3,7 @@ package ipld
 import (
 	"context"
 
+	"github.com/ipfs/go-blockservice"
 	"github.com/ipfs/go-cid"
 	ipld "github.com/ipfs/go-ipld-format"
 
@@ -15,7 +16,7 @@ import (
 // GetShare fetches and returns the data for leaf `leafIndex` of root `rootCid`.
 func GetShare(
 	ctx context.Context,
-	dag ipld.NodeGetter,
+	dag blockservice.BlockGetter,
 	rootCid cid.Cid,
 	leafIndex int,
 	totalLeafs int, // this corresponds to the extended square width
@@ -30,9 +31,9 @@ func GetShare(
 
 // GetLeaf fetches and returns the raw leaf.
 // It walks down the IPLD NMT tree until it finds the requested one.
-func GetLeaf(ctx context.Context, dag ipld.NodeGetter, root cid.Cid, leaf, total int) (ipld.Node, error) {
+func GetLeaf(ctx context.Context, dag blockservice.BlockGetter, root cid.Cid, leaf, total int) (ipld.Node, error) {
 	// request the node
-	nd, err := dag.Get(ctx, root)
+	nd, err := plugin.Get(ctx, dag, root)
 	if err != nil {
 		return nil, err
 	}
@@ -41,7 +42,7 @@ func GetLeaf(ctx context.Context, dag ipld.NodeGetter, root cid.Cid, leaf, total
 	lnks := nd.Links()
 	if len(lnks) == 1 {
 		// in case there is only one we reached tree's bottom, so finally request the leaf.
-		return dag.Get(ctx, lnks[0].Cid)
+		return plugin.Get(ctx, dag, lnks[0].Cid)
 	}
 
 	// route walk to appropriate children
@@ -60,7 +61,7 @@ func GetLeaf(ctx context.Context, dag ipld.NodeGetter, root cid.Cid, leaf, total
 // and returns the result as an array of ShareWithProof.
 func GetProofsForShares(
 	ctx context.Context,
-	dag ipld.NodeGetter,
+	dag blockservice.BlockGetter,
 	root cid.Cid,
 	shares [][]byte,
 ) ([]*ShareWithProof, error) {
@@ -89,13 +90,13 @@ func GetProofsForShares(
 // It walks down the IPLD NMT tree until it reaches the leaf and returns collected proof
 func GetProof(
 	ctx context.Context,
-	dag ipld.NodeGetter,
+	dag blockservice.BlockGetter,
 	root cid.Cid,
 	proof []cid.Cid,
 	leaf, total int,
 ) ([]cid.Cid, error) {
 	// request the node
-	nd, err := dag.Get(ctx, root)
+	nd, err := plugin.Get(ctx, dag, root)
 	if err != nil {
 		return nil, err
 	}
@@ -129,7 +130,7 @@ func GetProof(
 // with the given namespace.ID.
 func GetSharesByNamespace(
 	ctx context.Context,
-	dag ipld.NodeGetter,
+	dag blockservice.BlockGetter,
 	root cid.Cid,
 	nID namespace.ID,
 ) ([]Share, error) {
@@ -150,7 +151,7 @@ func GetSharesByNamespace(
 // If nothing is found it returns both data and err as nil.
 func GetLeavesByNamespace(
 	ctx context.Context,
-	dag ipld.NodeGetter,
+	dag blockservice.BlockGetter,
 	root cid.Cid,
 	nID namespace.ID,
 ) ([]ipld.Node, error) {
@@ -163,7 +164,7 @@ func GetLeavesByNamespace(
 		return nil, nil
 	}
 	// request the node
-	nd, err := dag.Get(ctx, root)
+	nd, err := plugin.Get(ctx, dag, root)
 	if err != nil {
 		return nil, err
 	}

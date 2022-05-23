@@ -5,9 +5,9 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/ipfs/go-blockservice"
 	logging "github.com/ipfs/go-log/v2"
 
-	format "github.com/ipfs/go-ipld-format"
 	bts "github.com/tendermint/tendermint/libs/bytes"
 	"github.com/tendermint/tendermint/pkg/da"
 	core "github.com/tendermint/tendermint/types"
@@ -43,7 +43,7 @@ func MakeExtendedHeader(
 	b *core.Block,
 	comm *core.Commit,
 	vals *core.ValidatorSet,
-	dag format.NodeAdder,
+	dag blockservice.BlockService,
 ) (*ExtendedHeader, error) {
 	var dah DataAvailabilityHeader
 	if len(b.Txs) > 0 {

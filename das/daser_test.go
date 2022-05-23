@@ -6,9 +6,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ipfs/go-blockservice"
 	"github.com/ipfs/go-datastore"
 	ds_sync "github.com/ipfs/go-datastore/sync"
-	format "github.com/ipfs/go-ipld-format"
 	mdutils "github.com/ipfs/go-merkledag/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -23,7 +23,7 @@ var timeout = time.Second * 15
 // the DASer checkpoint is updated to network head.
 func TestDASerLifecycle(t *testing.T) {
 	ds := ds_sync.MutexWrap(datastore.NewMapDatastore())
-	dag := mdutils.Mock()
+	dag := mdutils.Bserv()
 
 	// 15 headers from the past and 15 future headers
 	mockGet, shareServ, sub := createDASerSubcomponents(t, dag, 15, 15)
@@ -61,7 +61,7 @@ func TestDASerLifecycle(t *testing.T) {
 
 func TestDASer_Restart(t *testing.T) {
 	ds := ds_sync.MutexWrap(datastore.NewMapDatastore())
-	dag := mdutils.Mock()
+	dag := mdutils.Bserv()
 
 	// 15 headers from the past and 15 future headers
 	mockGet, shareServ, sub := createDASerSubcomponents(t, dag, 15, 15)
@@ -124,7 +124,7 @@ func TestDASer_Restart(t *testing.T) {
 
 func TestDASer_catchUp(t *testing.T) {
 	ds := ds_sync.MutexWrap(datastore.NewMapDatastore())
-	dag := mdutils.Mock()
+	dag := mdutils.Bserv()
 
 	mockGet, shareServ, _ := createDASerSubcomponents(t, dag, 5, 0)
 
@@ -165,7 +165,7 @@ func TestDASer_catchUp(t *testing.T) {
 // difference of 1
 func TestDASer_catchUp_oneHeader(t *testing.T) {
 	ds := ds_sync.MutexWrap(datastore.NewMapDatastore())
-	dag := mdutils.Mock()
+	dag := mdutils.Bserv()
 
 	mockGet, shareServ, _ := createDASerSubcomponents(t, dag, 6, 0)
 	daser := NewDASer(shareServ, nil, mockGet, ds)
@@ -256,7 +256,7 @@ func TestDASer_catchUp_fails(t *testing.T) {
 // mockGetter, share.Service, and mock header.Subscriber.
 func createDASerSubcomponents(
 	t *testing.T,
-	dag format.DAGService,
+	dag blockservice.BlockService,
 	numGetter,
 	numSub int,
 ) (*mockGetter, *share.Service, *header.DummySubscriber) {
@@ -279,7 +279,7 @@ func createDASerSubcomponents(
 func (m *mockGetter) fillSubWithHeaders(
 	t *testing.T,
 	sub *header.DummySubscriber,
-	dag format.DAGService,
+	dag blockservice.BlockService,
 	startHeight,
 	endHeight int,
 ) {
@@ -309,7 +309,7 @@ type mockGetter struct {
 	headers map[int64]*header.ExtendedHeader
 }
 
-func (m *mockGetter) generateHeaders(t *testing.T, dag format.DAGService, startHeight, endHeight int) {
+func (m *mockGetter) generateHeaders(t *testing.T, dag blockservice.BlockService, startHeight, endHeight int) {
 	for i := startHeight; i < endHeight; i++ {
 		dah := share.RandFillDAG(t, 16, dag)
 

@@ -7,10 +7,9 @@ import (
 
 	"golang.org/x/sync/errgroup"
 
+	"github.com/ipfs/go-blockservice"
 	"github.com/ipfs/go-cid"
-	format "github.com/ipfs/go-ipld-format"
 	logging "github.com/ipfs/go-log/v2"
-	"github.com/ipfs/go-merkledag"
 	"github.com/tendermint/tendermint/pkg/da"
 
 	"github.com/celestiaorg/celestia-node/ipld"
@@ -51,16 +50,16 @@ type Root = da.DataAvailabilityHeader
 type Service struct {
 	Availability
 	rtrv *ipld.Retriever
-	dag  format.DAGService
+	dag  blockservice.BlockService
 	// session is dag sub-session that applies optimization for fetching/loading related nodes, like shares
 	// prefer session over dag for fetching nodes.
-	session format.NodeGetter
+	session blockservice.BlockGetter
 	// cancel controls lifecycle of the session
 	cancel context.CancelFunc
 }
 
 // NewService creates new basic share.Service.
-func NewService(dag format.DAGService, avail Availability) *Service {
+func NewService(dag blockservice.BlockService, avail Availability) *Service {
 	return &Service{
 		rtrv:         ipld.NewRetriever(dag),
 		Availability: avail,
@@ -79,7 +78,7 @@ func (s *Service) Start(context.Context) error {
 	// The newer context here is created to control lifecycle of the session.
 	ctx, cancel := context.WithCancel(context.Background())
 	s.cancel = cancel
-	s.session = merkledag.NewSession(ctx, s.dag)
+	s.session = blockservice.NewSession(ctx, s.dag)
 	return nil
 }
 

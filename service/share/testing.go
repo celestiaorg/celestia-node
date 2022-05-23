@@ -12,7 +12,6 @@ import (
 	dssync "github.com/ipfs/go-datastore/sync"
 	blockstore "github.com/ipfs/go-ipfs-blockstore"
 	"github.com/ipfs/go-ipfs-routing/offline"
-	format "github.com/ipfs/go-ipld-format"
 	"github.com/ipfs/go-merkledag"
 	mdutils "github.com/ipfs/go-merkledag/test"
 	record "github.com/libp2p/go-libp2p-record"
@@ -31,31 +30,31 @@ import (
 // RandLightServiceWithSquare provides a share.Service filled with 'n' NMT
 // trees of 'n' random shares, essentially storing a whole square.
 func RandLightServiceWithSquare(t *testing.T, n int) (*Service, *Root) {
-	dag := mdutils.Mock()
+	dag := mdutils.Bserv()
 	return NewService(dag, NewLightAvailability(dag)), RandFillDAG(t, n, dag)
 }
 
 // RandLightService provides an unfilled share.Service with corresponding
-// format.DAGService than can be filled by the test.
-func RandLightService() (*Service, format.DAGService) {
-	dag := mdutils.Mock()
+// blockservice.BlockService than can be filled by the test.
+func RandLightService() (*Service, blockservice.BlockService) {
+	dag := mdutils.Bserv()
 	return NewService(dag, NewLightAvailability(dag)), dag
 }
 
 // RandFullServiceWithSquare provides a share.Service filled with 'n' NMT
 // trees of 'n' random shares, essentially storing a whole square.
 func RandFullServiceWithSquare(t *testing.T, n int) (*Service, *Root) {
-	dag := mdutils.Mock()
+	dag := mdutils.Bserv()
 	return NewService(dag, NewFullAvailability(dag)), RandFillDAG(t, n, dag)
 }
 
-func RandFillDAG(t *testing.T, n int, dag format.DAGService) *Root {
+func RandFillDAG(t *testing.T, n int, dag blockservice.BlockService) *Root {
 	shares := RandShares(t, n*n)
 	return FillDag(t, dag, shares)
 }
 
-func FillDag(t *testing.T, dag format.DAGService, shares []Share) *Root {
-	na := ipld.NewNmtNodeAdder(context.TODO(), dag)
+func FillDag(t *testing.T, dag blockservice.BlockService, shares []Share) *Root {
+	na := ipld.NewNmtNodeAdder(context.TODO(), merkledag.NewDAGService(dag))
 
 	squareSize := uint32(math.Sqrt(float64(len(shares))))
 	tree := wrapper.NewErasuredNamespacedMerkleTree(uint64(squareSize), nmt.NodeVisitor(na.Visit))
@@ -99,7 +98,7 @@ func (dn *DAGNet) RandFullService(n int) (*Service, *Root) {
 	return NewService(dag, NewFullAvailability(dag)), root
 }
 
-func (dn *DAGNet) RandDAG(n int) (format.DAGService, *Root) {
+func (dn *DAGNet) RandDAG(n int) (blockservice.BlockService, *Root) {
 	dag := dn.CleanDAG()
 	return dag, RandFillDAG(dn.t, n, dag)
 }
@@ -109,7 +108,7 @@ func (dn *DAGNet) CleanService() *Service {
 	return NewService(dag, NewLightAvailability(dag))
 }
 
-func (dn *DAGNet) CleanDAG() format.DAGService {
+func (dn *DAGNet) CleanDAG() blockservice.BlockService {
 	nd, err := dn.net.GenPeer()
 	require.NoError(dn.t, err)
 
@@ -117,7 +116,7 @@ func (dn *DAGNet) CleanDAG() format.DAGService {
 	bstore := blockstore.NewBlockstore(dstore)
 	routing := offline.NewOfflineRouter(dstore, record.NamespacedValidator{})
 	bs := bitswap.New(dn.ctx, network.NewFromIpfsHost(nd, routing), bstore, bitswap.ProvideEnabled(false))
-	return merkledag.NewDAGService(blockservice.New(bstore, bs))
+	return blockservice.New(bstore, bs)
 }
 
 func (dn *DAGNet) ConnectAll() {

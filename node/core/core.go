@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	format "github.com/ipfs/go-ipld-format"
+	"github.com/ipfs/go-blockservice"
 	"go.uber.org/fx"
 
 	"github.com/celestiaorg/celestia-node/libs/fxutil"
@@ -58,7 +58,7 @@ func HeaderListener(
 	lc fx.Lifecycle,
 	ex *core.BlockFetcher,
 	bcast header.Broadcaster,
-	dag format.DAGService,
+	dag blockservice.BlockService,
 	construct header.ConstructFn,
 ) *headercore.Listener {
 	cl := headercore.NewListener(bcast, ex, dag, construct)

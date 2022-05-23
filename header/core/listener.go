@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	format "github.com/ipfs/go-ipld-format"
+	"github.com/ipfs/go-blockservice"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	"github.com/tendermint/tendermint/types"
 
@@ -22,7 +22,7 @@ import (
 type Listener struct {
 	bcast     header.Broadcaster
 	fetcher   *core.BlockFetcher
-	dag       format.DAGService
+	dag       blockservice.BlockService
 	construct header.ConstructFn
 	cancel    context.CancelFunc
 }
@@ -30,7 +30,7 @@ type Listener struct {
 func NewListener(
 	bcast header.Broadcaster,
 	fetcher *core.BlockFetcher,
-	dag format.DAGService,
+	dag blockservice.BlockService,
 	construct header.ConstructFn,
 ) *Listener {
 	return &Listener{

@@ -34,7 +34,7 @@ func TestGetShare(t *testing.T) {
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
-	dag := mdutils.Mock()
+	dag := mdutils.Bserv()
 
 	// generate random shares for the nmt
 	shares := RandShares(t, size*size)
@@ -149,7 +149,7 @@ func removeRandShares(data [][]byte, d int) [][]byte {
 func TestGetSharesByNamespace(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	dag := mdutils.Mock()
+	dag := mdutils.Bserv()
 
 	var tests = []struct {
 		rawData []Share
@@ -187,7 +187,7 @@ func TestGetSharesByNamespace(t *testing.T) {
 func TestGetLeavesByNamespace_AbsentNamespaceId(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	dag := mdutils.Mock()
+	dag := mdutils.Bserv()
 
 	shares := RandShares(t, 16)
 
@@ -238,7 +238,7 @@ func TestGetLeavesByNamespace_AbsentNamespaceId(t *testing.T) {
 func TestGetLeavesByNamespace_MultipleRowsContainingSameNamespaceId(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	dag := mdutils.Mock()
+	dag := mdutils.Bserv()
 
 	shares := RandShares(t, 16)
 
@@ -289,10 +289,9 @@ func TestBatchSize(t *testing.T) {
 			defer cancel()
 
 			bs := blockstore.NewBlockstore(dssync.MutexWrap(ds.NewMapDatastore()))
-			dag := merkledag.NewDAGService(blockservice.New(bs, offline.Exchange(bs)))
 
 			eds := RandEDS(t, tt.origWidth)
-			_, err := AddShares(ctx, ExtractODS(eds), dag)
+			_, err := AddShares(ctx, ExtractODS(eds), blockservice.New(bs, offline.Exchange(bs)))
 			require.NoError(t, err)
 
 			out, err := bs.AllKeysChan(ctx)
@@ -310,7 +309,7 @@ func TestBatchSize(t *testing.T) {
 
 func assertNoRowContainsNID(
 	t *testing.T,
-	dag format.DAGService,
+	dag blockservice.BlockService,
 	eds *rsmt2d.ExtendedDataSquare,
 	nID namespace.ID,
 ) {
@@ -333,7 +332,7 @@ func TestGetProof(t *testing.T) {
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*2)
 	defer cancel()
-	dag := mdutils.Mock()
+	dag := mdutils.Bserv()
 
 	shares := RandShares(t, width*width)
 	in, err := AddShares(ctx, shares, dag)
@@ -369,7 +368,7 @@ func TestGetProofs(t *testing.T) {
 	const width = 4
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*2)
 	defer cancel()
-	dag := mdutils.Mock()
+	dag := mdutils.Bserv()
 
 	shares := RandShares(t, width*width)
 	in, err := AddShares(ctx, shares, dag)
@@ -398,7 +397,7 @@ func TestRetrieveDataFailedWithByzantineError(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 	defer cancel()
 
-	dag := mdutils.Mock()
+	dag := mdutils.Bserv()
 	eds := RandEDS(t, width)
 	shares := ExtractEDS(eds)
 
@@ -406,7 +405,14 @@ func TestRetrieveDataFailedWithByzantineError(t *testing.T) {
 	copy(shares[14][8:], shares[15][8:])
 
 	// import corrupted eds
-	batchAdder := NewNmtNodeAdder(ctx, format.NewBatch(ctx, dag, format.MaxSizeBatchOption(batchSize(width*2))))
+	batchAdder := NewNmtNodeAdder(
+		ctx,
+		format.NewBatch(
+			ctx,
+			merkledag.NewDAGService(dag),
+			format.MaxSizeBatchOption(batchSize(width*2)),
+		),
+	)
 	tree := wrapper.NewErasuredNamespacedMerkleTree(uint64(width), nmt.NodeVisitor(batchAdder.Visit))
 	attackerEDS, err := rsmt2d.ImportExtendedDataSquare(shares, DefaultRSMT2DCodec(), tree.Constructor)
 	require.NoError(t, err)
