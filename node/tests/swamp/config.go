@@ -7,6 +7,7 @@ import (
 	tn "github.com/tendermint/tendermint/config"
 
 	"github.com/celestiaorg/celestia-node/core"
+	rpctest "github.com/tendermint/tendermint/rpc/test"
 )
 
 // Components struct represents a set of pre-requisite attributes from the test scenario
@@ -20,6 +21,10 @@ type Components struct {
 func DefaultComponents() *Components {
 	app := core.CreateKVStore(200)
 	tnCfg, err := rpctest.CreateConfig("swamp_tm")
+	if err != nil {
+		// todo remove panic
+		panic(err)
+	}
 	tnCfg.Consensus.CreateEmptyBlocksInterval = 200 * time.Millisecond
 	return &Components{
 		App:     app,
