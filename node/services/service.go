@@ -2,7 +2,6 @@ package services
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/ipfs/go-datastore"
 	ipld "github.com/ipfs/go-ipld-format"
@@ -107,8 +106,6 @@ func HeaderStoreInit(cfg *Config) func(context.Context, params.Network, header.S
 		if err != nil {
 			return err
 		}
-
-		fmt.Println("\n\n\nTRUSTED HASH: ", trustedHash.String(), "\n\n")
 
 		err = store.Init(ctx, s, ex, trustedHash)
 		if err != nil {

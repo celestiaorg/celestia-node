@@ -29,7 +29,7 @@ func init() {
 		// ensure at least custom network is set
 		params := strings.Split(custom, ":")
 		if len(params) == 0 {
-			panic(fmt.Sprintf("must provide at least <network_ID> to use a custom network"))
+			panic("must provide at least <network_ID> to use a custom network")
 		}
 		netID := params[0]
 		defaultNetwork = Network(netID)
