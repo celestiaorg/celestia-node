@@ -3,10 +3,9 @@ package swamp
 import (
 	"time"
 
+	"github.com/celestiaorg/celestia-node/core"
 	"github.com/tendermint/tendermint/abci/types"
 	tn "github.com/tendermint/tendermint/config"
-
-	"github.com/celestiaorg/celestia-node/core"
 	rpctest "github.com/tendermint/tendermint/rpc/test"
 )
 
