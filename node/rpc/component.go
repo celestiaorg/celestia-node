@@ -9,10 +9,17 @@ import (
 	"github.com/celestiaorg/celestia-node/service/state"
 )
 
-// ServerComponent constructs a new RPC Server from the given Config.
+func Components(cfg rpc.Config) fx.Option {
+	return fx.Options(
+		fx.Provide(Server(cfg)),
+		fx.Invoke(Handler),
+	)
+}
+
+// Server constructs a new RPC Server from the given Config.
 // TODO @renaynay @Wondertan: this component is meant to be removed on implementation
 //  of https://github.com/celestiaorg/celestia-node/pull/506.
-func ServerComponent(cfg rpc.Config) func(lc fx.Lifecycle) *rpc.Server {
+func Server(cfg rpc.Config) func(lc fx.Lifecycle) *rpc.Server {
 	return func(lc fx.Lifecycle) *rpc.Server {
 		serv := rpc.NewServer(cfg)
 		lc.Append(fx.Hook{
@@ -23,7 +30,8 @@ func ServerComponent(cfg rpc.Config) func(lc fx.Lifecycle) *rpc.Server {
 	}
 }
 
-func HandlerComponents(
+// Handler constructs a new RPC Handler from the given services.
+func Handler(
 	state *state.Service,
 	share *share.Service,
 	header *header.Service,

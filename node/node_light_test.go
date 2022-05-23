@@ -13,29 +13,6 @@ import (
 	"github.com/celestiaorg/celestia-node/params"
 )
 
-func TestNewLightAndLifecycle(t *testing.T) {
-	node := TestNode(t, Light)
-	require.NotNil(t, node)
-	require.NotNil(t, node.Config)
-	require.NotNil(t, node.HeaderServ)
-	assert.NotZero(t, node.Type)
-
-	startCtx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	err := node.Start(startCtx)
-	require.NoError(t, err)
-
-	stopCtx, stopCtxCancel := context.WithCancel(context.Background())
-	t.Cleanup(func() {
-		cancel()
-		stopCtxCancel()
-	})
-
-	err = node.Stop(stopCtx)
-	require.NoError(t, err)
-}
-
 func TestNewLightWithP2PKey(t *testing.T) {
 	key, _, err := crypto.GenerateEd25519Key(rand.Reader)
 	require.NoError(t, err)

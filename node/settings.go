@@ -7,6 +7,7 @@ import (
 	"github.com/libp2p/go-libp2p-core/host"
 	"go.uber.org/fx"
 
+	apptypes "github.com/celestiaorg/celestia-app/x/payment/types"
 	"github.com/celestiaorg/celestia-node/core"
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/libs/fxutil"
@@ -76,5 +77,13 @@ func WithCoreClient(client core.Client) Option {
 func WithHeaderConstructFn(construct header.ConstructFn) Option {
 	return func(sets *settings) {
 		sets.opts = append(sets.opts, fx.Replace(construct))
+	}
+}
+
+// WithKeyringSigner overrides the default keyring signer constructed
+// by the node.
+func WithKeyringSigner(signer *apptypes.KeyringSigner) Option {
+	return func(sets *settings) {
+		sets.opts = append(sets.opts, fx.Replace(signer))
 	}
 }
