@@ -79,8 +79,6 @@ func NewSwamp(t *testing.T, options ...Option) *Swamp {
 
 	swp.t.Cleanup(func() {
 		swp.stopAllNodes(ctx, swp.BridgeNodes, swp.FullNodes, swp.LightNodes)
-		remote.Stop() //nolint:errcheck
-		tn.Stop()     // nolint:errcheck
 	})
 
 	return swp

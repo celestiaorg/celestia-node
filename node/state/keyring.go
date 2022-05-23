@@ -15,15 +15,12 @@ import (
 	"github.com/celestiaorg/celestia-node/params"
 )
 
-// func(fx.Lifecycle, keystore.Keystore, params.Network) (state.Accessor, error) {
-// 	return func(lc fx.Lifecycle, ks keystore.Keystore, net params.Network) (state.Accessor, error) {
-// TODO @renaynay: Include option for setting custom `userInput` parameter with
-//  implementation of https://github.com/celestiaorg/celestia-node/issues/415.
-// TODO @renaynay @Wondertan: ensure that keyring backend from config is passed
-//  here instead of hardcoded `BackendTest`: https://github.com/celestiaorg/celestia-node/issues/603.
-
 func Keyring(cfg key.Config) func(keystore.Keystore, params.Network) (*apptypes.KeyringSigner, error) {
 	return func(ks keystore.Keystore, net params.Network) (*apptypes.KeyringSigner, error) {
+		// TODO @renaynay: Include option for setting custom `userInput` parameter with
+		//  implementation of https://github.com/celestiaorg/celestia-node/issues/415.
+		// TODO @renaynay @Wondertan: ensure that keyring backend from config is passed
+		//  here instead of hardcoded `BackendTest`: https://github.com/celestiaorg/celestia-node/issues/603.
 		encConf := encoding.MakeEncodingConfig(app.ModuleEncodingRegisters...)
 		ring, err := keyring.New(app.Name, keyring.BackendTest, ks.Path(), os.Stdin, encConf.Codec)
 		if err != nil {
