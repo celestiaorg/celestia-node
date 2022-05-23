@@ -59,7 +59,7 @@ func NewSwamp(t *testing.T, options ...Option) *Swamp {
 	var err error
 	ctx := context.Background()
 
-	tn := newTendermintCoreNode(context.Background(), t, ic)
+	newTendermintCoreNode(context.Background(), t, ic)
 
 	protocol, ip := core.GetEndpoint(ic.CoreCfg)
 	remote, err := core.NewRemote(protocol, ip)
@@ -130,8 +130,8 @@ func (s *Swamp) WaitTillHeight(ctx context.Context, height int64) {
 		case <-ctx.Done():
 			return
 		case block := <-results:
-			newBlock := block.Data.(types.EventDataNewBlock).Block
-			if height == newBlock.Height {
+			newBlock := block.Data.(types.EventDataNewBlock)
+			if height == newBlock.Block.Height {
 				return
 			}
 		}
