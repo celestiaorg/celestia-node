@@ -65,8 +65,8 @@ func NewSwamp(t *testing.T, options ...Option) *Swamp {
 	remote, err := core.NewRemote(protocol, ip)
 	require.NoError(t, err)
 
-	// err = remote.Start()
-	// require.NoError(t, err)
+	err = remote.Start()
+	require.NoError(t, err)
 
 	swp := &Swamp{
 		t:          t,
