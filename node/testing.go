@@ -9,6 +9,8 @@ import (
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	"github.com/stretchr/testify/require"
 
+	"github.com/celestiaorg/celestia-app/app"
+	"github.com/celestiaorg/celestia-app/app/encoding"
 	apptypes "github.com/celestiaorg/celestia-app/x/payment/types"
 	"github.com/celestiaorg/celestia-node/core"
 	"github.com/celestiaorg/celestia-node/params"
@@ -36,7 +38,8 @@ func TestNode(t *testing.T, tp Type, opts ...Option) *Node {
 }
 
 func TestKeyringSigner(t *testing.T) *apptypes.KeyringSigner {
-	ring := keyring.NewInMemory()
+	encConf := encoding.MakeEncodingConfig(app.ModuleEncodingRegisters...)
+	ring := keyring.NewInMemory(encConf.Codec)
 	signer := apptypes.NewKeyringSigner(ring, "", string(params.Private))
 	_, _, err := signer.NewMnemonic("test_celes", keyring.English, "",
 		"", hd.Secp256k1)

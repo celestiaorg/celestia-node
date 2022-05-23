@@ -24,7 +24,7 @@ import (
 
 func Keyring(cfg key.Config) func(keystore.Keystore, params.Network) (*apptypes.KeyringSigner, error) {
 	return func(ks keystore.Keystore, net params.Network) (*apptypes.KeyringSigner, error) {
-		encConf := encoding.MakeEncodingConfig(app.ModuleBasics.RegisterInterfaces)
+		encConf := encoding.MakeEncodingConfig(app.ModuleEncodingRegisters...)
 		ring, err := keyring.New(app.Name, keyring.BackendTest, ks.Path(), os.Stdin, encConf.Codec)
 		if err != nil {
 			return nil, err

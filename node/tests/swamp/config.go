@@ -3,10 +3,11 @@ package swamp
 import (
 	"time"
 
-	"github.com/celestiaorg/celestia-node/core"
 	"github.com/tendermint/tendermint/abci/types"
 	tn "github.com/tendermint/tendermint/config"
 	rpctest "github.com/tendermint/tendermint/rpc/test"
+
+	"github.com/celestiaorg/celestia-node/core"
 )
 
 // Components struct represents a set of pre-requisite attributes from the test scenario
