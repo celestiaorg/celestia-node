@@ -22,10 +22,10 @@ const defaultRetainBlocks int64 = 50
 
 // StartTestNode starts a mock Core node background process and returns it.
 func StartTestNode(ctx context.Context, t *testing.T, app types.Application, cfg *config.Config) tmservice.Service {
-	nd, _, err := rpctest.StartTendermint(ctx, cfg, app, rpctest.SuppressStdout)
+	nd, closer, err := rpctest.StartTendermint(ctx, cfg, app, rpctest.SuppressStdout)
 	require.NoError(t, err)
 	t.Cleanup(func() {
-		require.NoError(t, nd.Stop())
+		require.NoError(t, closer(ctx))
 	})
 	return nd
 }
