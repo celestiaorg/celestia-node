@@ -6,7 +6,7 @@ replace github.com/ipfs/go-verifcid => github.com/celestiaorg/go-verifcid v0.0.1
 
 require (
 	github.com/BurntSushi/toml v1.1.0
-	github.com/celestiaorg/celestia-app v0.5.0-rc-2
+	github.com/celestiaorg/celestia-app v0.5.0-rc-2.0.20220522173832-fcc1bd0cbc22
 	github.com/celestiaorg/go-libp2p-messenger v0.1.0
 	github.com/celestiaorg/nmt v0.8.0
 	github.com/celestiaorg/rsmt2d v0.5.0
@@ -278,5 +278,5 @@ replace (
 	github.com/cosmos/cosmos-sdk => github.com/celestiaorg/cosmos-sdk v1.1.0-sdk-v0.46.0
 	github.com/gogo/protobuf => github.com/regen-network/protobuf v1.3.3-alpha.regen.1
 	github.com/libp2p/go-libp2p-pubsub v0.5.7-0.20211029175501-5c90105738cf => github.com/celestiaorg/go-libp2p-pubsub v0.5.6-celestia
-	github.com/tendermint/tendermint => github.com/celestiaorg/celestia-core v1.2.1-tm-v0.35.4
+	github.com/tendermint/tendermint => github.com/celestiaorg/celestia-core v1.2.2-tm-v0.35.4
 )

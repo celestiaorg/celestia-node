@@ -13,6 +13,7 @@ import (
 	ma "github.com/multiformats/go-multiaddr"
 	"github.com/stretchr/testify/require"
 	"github.com/tendermint/tendermint/libs/bytes"
+	tmservice "github.com/tendermint/tendermint/libs/service"
 	"github.com/tendermint/tendermint/types"
 
 	"github.com/celestiaorg/celestia-node/params"
@@ -27,7 +28,7 @@ var blackholeIP6 = net.ParseIP("100::")
 
 const subscriberID string = "Swamp"
 
-var queryEvent string = types.QueryForEvent(types.EventNewBlock).String()
+var queryEvent string = types.QueryForEvent(types.EventNewBlockValue).String()
 
 // Swamp represents the main functionality that is needed for the test-case:
 // - Network to link the nodes
@@ -58,7 +59,7 @@ func NewSwamp(t *testing.T, options ...Option) *Swamp {
 	var err error
 	ctx := context.Background()
 
-	tn := newTendermintCoreNode(ic)
+	tn := newTendermintCoreNode(context.Background(), t, ic)
 
 	protocol, ip := core.GetEndpoint(ic.CoreCfg)
 	remote, err := core.NewRemote(protocol, ip)
