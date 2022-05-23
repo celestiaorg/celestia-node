@@ -80,7 +80,7 @@ func TestSyncStartStopLightWithBridge(t *testing.T) {
 
 	bridge := sw.NewBridgeNode()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 	t.Cleanup(cancel)
 
 	sw.WaitTillHeight(ctx, 50)
@@ -132,7 +132,7 @@ func TestSyncFullWithBridge(t *testing.T) {
 
 	bridge := sw.NewBridgeNode()
 
-	ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 	t.Cleanup(cancel)
 
 	sw.WaitTillHeight(ctx, 20)
@@ -178,7 +178,7 @@ func TestSyncLightWithFull(t *testing.T) {
 
 	bridge := sw.NewBridgeNode()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 	t.Cleanup(cancel)
 
 	sw.WaitTillHeight(ctx, 20)
@@ -240,7 +240,7 @@ func TestSyncLightWithTrustedPeers(t *testing.T) {
 
 	bridge := sw.NewBridgeNode()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 	t.Cleanup(cancel)
 
 	sw.WaitTillHeight(ctx, 20)

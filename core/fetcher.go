@@ -13,7 +13,7 @@ const newBlockSubscriber = "NewBlock/Events"
 
 var (
 	log                = logging.Logger("core/fetcher")
-	newBlockEventQuery = types.QueryForEvent(types.EventNewBlockValue).String()
+	NewBlockEventQuery = types.QueryForEvent(types.EventNewBlockValue).String()
 )
 
 type BlockFetcher struct {
@@ -122,7 +122,7 @@ func (f *BlockFetcher) SubscribeNewBlockEvent(ctx context.Context) (<-chan *type
 	if !f.client.IsRunning() {
 		return nil, fmt.Errorf("client not running")
 	}
-	eventChan, err := f.client.Subscribe(ctx, newBlockSubscriber, newBlockEventQuery)
+	eventChan, err := f.client.Subscribe(ctx, newBlockSubscriber, NewBlockEventQuery)
 	if err != nil {
 		return nil, err
 	}
@@ -179,7 +179,7 @@ func (f *BlockFetcher) UnsubscribeNewBlockEvent(ctx context.Context) error {
 		f.doneCh = nil
 	}()
 
-	return f.client.Unsubscribe(ctx, newBlockSubscriber, newBlockEventQuery)
+	return f.client.Unsubscribe(ctx, newBlockSubscriber, NewBlockEventQuery)
 }
 
 // IsSyncing returns the sync status of the Core connection: true for

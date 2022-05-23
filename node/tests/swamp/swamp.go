@@ -22,11 +22,13 @@ import (
 	"github.com/celestiaorg/celestia-node/libs/keystore"
 	"github.com/celestiaorg/celestia-node/node"
 	"github.com/celestiaorg/celestia-node/node/p2p"
+
+	rpcclient "github.com/tendermint/tendermint/rpc/client"
 )
 
 var blackholeIP6 = net.ParseIP("100::")
 
-const subscriberID string = "Swamp"
+const subscriberID string = "NewBlockSwamp/Events"
 
 var queryEvent string = types.QueryForEvent(types.EventNewBlockValue).String()
 
@@ -117,25 +119,32 @@ func (s *Swamp) GetCoreBlockHashByHeight(ctx context.Context, height int64) byte
 // have been produced by the CoreClient.
 func (s *Swamp) WaitTillHeight(ctx context.Context, height int64) {
 	require.Greater(s.t, height, int64(0))
-	results, err := s.CoreClient.Subscribe(ctx, subscriberID, queryEvent)
-	require.NoError(s.t, err)
 
-	defer func() {
-		err = s.CoreClient.Unsubscribe(ctx, subscriberID, queryEvent)
-		require.NoError(s.t, err)
-	}()
-
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case block := <-results:
-			newBlock := block.Data.(types.EventDataNewBlock)
-			if height == newBlock.Block.Height {
-				return
-			}
-		}
+	waiter := func(delta int64) (abort error) {
+		return rpcclient.DefaultWaitStrategy(1)
 	}
+
+	err := rpcclient.WaitForHeight(s.CoreClient, height, waiter)
+	require.NoError(s.t, err)
+	// results, err := s.CoreClient.Subscribe(ctx, subscriberID, core.NewBlockEventQuery)
+	// require.NoError(s.t, err)
+
+	// defer func() {
+	// 	err = s.CoreClient.Unsubscribe(ctx, subscriberID, core.NewBlockEventQuery)
+	// 	require.NoError(s.t, err)
+	// }()
+
+	// for {
+	// 	select {
+	// 	case <-ctx.Done():
+	// 		return
+	// 	case block := <-results:
+	// 		newBlock := block.Data.(types.EventDataNewBlock)
+	// 		if height <= newBlock.Block.Height {
+	// 			return
+	// 		}
+	// 	}
+	// }
 
 }
 
