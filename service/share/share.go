@@ -49,21 +49,21 @@ type Root = da.DataAvailabilityHeader
 // TODO(@Wondertan): Simple thread safety for Start and Stop would not hurt.
 type Service struct {
 	Availability
-	rtrv *ipld.Retriever
-	dag  blockservice.BlockService
-	// session is dag sub-session that applies optimization for fetching/loading related nodes, like shares
-	// prefer session over dag for fetching nodes.
+	rtrv  *ipld.Retriever
+	bServ blockservice.BlockService
+	// session is blockservice sub-session that applies optimization for fetching/loading related nodes, like shares
+	// prefer session over blockservice for fetching nodes.
 	session blockservice.BlockGetter
 	// cancel controls lifecycle of the session
 	cancel context.CancelFunc
 }
 
 // NewService creates new basic share.Service.
-func NewService(dag blockservice.BlockService, avail Availability) *Service {
+func NewService(bServ blockservice.BlockService, avail Availability) *Service {
 	return &Service{
-		rtrv:         ipld.NewRetriever(dag),
+		rtrv:         ipld.NewRetriever(bServ),
 		Availability: avail,
-		dag:          dag,
+		bServ:        bServ,
 	}
 }
 
@@ -78,7 +78,7 @@ func (s *Service) Start(context.Context) error {
 	// The newer context here is created to control lifecycle of the session.
 	ctx, cancel := context.WithCancel(context.Background())
 	s.cancel = cancel
-	s.session = blockservice.NewSession(ctx, s.dag)
+	s.session = blockservice.NewSession(ctx, s.bServ)
 	return nil
 }
 
@@ -95,7 +95,7 @@ func (s *Service) Stop(context.Context) error {
 
 func (s *Service) GetShare(ctx context.Context, dah *Root, row, col int) (Share, error) {
 	root, leaf := translate(dah, row, col)
-	nd, err := ipld.GetShare(ctx, s.dag, root, leaf, len(dah.RowsRoots))
+	nd, err := ipld.GetShare(ctx, s.bServ, root, leaf, len(dah.RowsRoots))
 	if err != nil {
 		return nil, err
 	}
@@ -144,7 +144,7 @@ func (s *Service) GetSharesByNamespace(ctx context.Context, root *Root, nID name
 		// shadow loop variables, to ensure correct values are captured
 		i, rootCID := i, rootCID
 		errGroup.Go(func() (err error) {
-			shares[i], err = ipld.GetSharesByNamespace(ctx, s.dag, rootCID, nID)
+			shares[i], err = ipld.GetSharesByNamespace(ctx, s.bServ, rootCID, nID)
 			return
 		})
 	}

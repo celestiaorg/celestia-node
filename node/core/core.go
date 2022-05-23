@@ -58,10 +58,10 @@ func HeaderListener(
 	lc fx.Lifecycle,
 	ex *core.BlockFetcher,
 	bcast header.Broadcaster,
-	dag blockservice.BlockService,
+	bServ blockservice.BlockService,
 	construct header.ConstructFn,
 ) *headercore.Listener {
-	cl := headercore.NewListener(bcast, ex, dag, construct)
+	cl := headercore.NewListener(bcast, ex, bServ, construct)
 	lc.Append(fx.Hook{
 		OnStart: cl.Start,
 		OnStop:  cl.Stop,

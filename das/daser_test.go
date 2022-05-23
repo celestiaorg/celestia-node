@@ -23,10 +23,10 @@ var timeout = time.Second * 15
 // the DASer checkpoint is updated to network head.
 func TestDASerLifecycle(t *testing.T) {
 	ds := ds_sync.MutexWrap(datastore.NewMapDatastore())
-	dag := mdutils.Bserv()
+	bServ := mdutils.Bserv()
 
 	// 15 headers from the past and 15 future headers
-	mockGet, shareServ, sub := createDASerSubcomponents(t, dag, 15, 15)
+	mockGet, shareServ, sub := createDASerSubcomponents(t, bServ, 15, 15)
 
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	t.Cleanup(cancel)
@@ -61,10 +61,10 @@ func TestDASerLifecycle(t *testing.T) {
 
 func TestDASer_Restart(t *testing.T) {
 	ds := ds_sync.MutexWrap(datastore.NewMapDatastore())
-	dag := mdutils.Bserv()
+	bServ := mdutils.Bserv()
 
 	// 15 headers from the past and 15 future headers
-	mockGet, shareServ, sub := createDASerSubcomponents(t, dag, 15, 15)
+	mockGet, shareServ, sub := createDASerSubcomponents(t, bServ, 15, 15)
 
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	t.Cleanup(cancel)
@@ -85,10 +85,10 @@ func TestDASer_Restart(t *testing.T) {
 	require.NoError(t, err)
 
 	// reset mockGet, generate 15 "past" headers, building off chain head which is 30
-	mockGet.generateHeaders(t, dag, 30, 45)
+	mockGet.generateHeaders(t, bServ, 30, 45)
 	mockGet.doneCh = make(chan struct{})
 	// reset dummy subscriber
-	mockGet.fillSubWithHeaders(t, sub, dag, 45, 60)
+	mockGet.fillSubWithHeaders(t, sub, bServ, 45, 60)
 	// manually set mockGet head to trigger stop at 45
 	mockGet.head = int64(45)
 
@@ -124,9 +124,9 @@ func TestDASer_Restart(t *testing.T) {
 
 func TestDASer_catchUp(t *testing.T) {
 	ds := ds_sync.MutexWrap(datastore.NewMapDatastore())
-	dag := mdutils.Bserv()
+	bServ := mdutils.Bserv()
 
-	mockGet, shareServ, _ := createDASerSubcomponents(t, dag, 5, 0)
+	mockGet, shareServ, _ := createDASerSubcomponents(t, bServ, 5, 0)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
@@ -165,9 +165,9 @@ func TestDASer_catchUp(t *testing.T) {
 // difference of 1
 func TestDASer_catchUp_oneHeader(t *testing.T) {
 	ds := ds_sync.MutexWrap(datastore.NewMapDatastore())
-	dag := mdutils.Bserv()
+	bServ := mdutils.Bserv()
 
-	mockGet, shareServ, _ := createDASerSubcomponents(t, dag, 6, 0)
+	mockGet, shareServ, _ := createDASerSubcomponents(t, bServ, 6, 0)
 	daser := NewDASer(shareServ, nil, mockGet, ds)
 
 	// store checkpoint
@@ -256,21 +256,21 @@ func TestDASer_catchUp_fails(t *testing.T) {
 // mockGetter, share.Service, and mock header.Subscriber.
 func createDASerSubcomponents(
 	t *testing.T,
-	dag blockservice.BlockService,
+	bServ blockservice.BlockService,
 	numGetter,
 	numSub int,
 ) (*mockGetter, *share.Service, *header.DummySubscriber) {
-	shareServ := share.NewService(dag, share.NewLightAvailability(dag))
+	shareServ := share.NewService(bServ, share.NewLightAvailability(bServ))
 
 	mockGet := &mockGetter{
 		headers: make(map[int64]*header.ExtendedHeader),
 		doneCh:  make(chan struct{}),
 	}
 
-	mockGet.generateHeaders(t, dag, 0, numGetter)
+	mockGet.generateHeaders(t, bServ, 0, numGetter)
 
 	sub := new(header.DummySubscriber)
-	mockGet.fillSubWithHeaders(t, sub, dag, numGetter, numGetter+numSub)
+	mockGet.fillSubWithHeaders(t, sub, bServ, numGetter, numGetter+numSub)
 
 	return mockGet, shareServ, sub
 }
@@ -279,7 +279,7 @@ func createDASerSubcomponents(
 func (m *mockGetter) fillSubWithHeaders(
 	t *testing.T,
 	sub *header.DummySubscriber,
-	dag blockservice.BlockService,
+	bServ blockservice.BlockService,
 	startHeight,
 	endHeight int,
 ) {
@@ -287,7 +287,7 @@ func (m *mockGetter) fillSubWithHeaders(
 
 	index := 0
 	for i := startHeight; i < endHeight; i++ {
-		dah := share.RandFillDAG(t, 16, dag)
+		dah := share.RandFillDAG(t, 16, bServ)
 
 		randHeader := header.RandExtendedHeader(t)
 		randHeader.DataHash = dah.Hash()
@@ -309,9 +309,9 @@ type mockGetter struct {
 	headers map[int64]*header.ExtendedHeader
 }
 
-func (m *mockGetter) generateHeaders(t *testing.T, dag blockservice.BlockService, startHeight, endHeight int) {
+func (m *mockGetter) generateHeaders(t *testing.T, bServ blockservice.BlockService, startHeight, endHeight int) {
 	for i := startHeight; i < endHeight; i++ {
-		dah := share.RandFillDAG(t, 16, dag)
+		dah := share.RandFillDAG(t, 16, bServ)
 
 		randHeader := header.RandExtendedHeader(t)
 		randHeader.DataHash = dah.Hash()

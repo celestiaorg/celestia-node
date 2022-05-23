@@ -50,7 +50,7 @@ type Node struct {
 	ConnGater    connmgr.ConnectionGater
 	Routing      routing.PeerRouting
 	DataExchange exchange.Interface
-	DAG          blockservice.BlockService
+	BlockService blockservice.BlockService
 	// p2p protocols
 	PubSub *pubsub.PubSub
 	// services

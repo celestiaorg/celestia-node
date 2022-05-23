@@ -18,9 +18,9 @@ type fullAvailability struct {
 }
 
 // NewFullAvailability creates a new full Availability.
-func NewFullAvailability(dag blockservice.BlockService) Availability {
+func NewFullAvailability(bServ blockservice.BlockService) Availability {
 	return &fullAvailability{
-		rtrv: ipld.NewRetriever(dag),
+		rtrv: ipld.NewRetriever(bServ),
 	}
 }
 

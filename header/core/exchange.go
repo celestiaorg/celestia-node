@@ -22,10 +22,10 @@ type Exchange struct {
 	construct  header.ConstructFn
 }
 
-func NewExchange(fetcher *core.BlockFetcher, dag blockservice.BlockService, construct header.ConstructFn) *Exchange {
+func NewExchange(fetcher *core.BlockFetcher, bServ blockservice.BlockService, construct header.ConstructFn) *Exchange {
 	return &Exchange{
 		fetcher:    fetcher,
-		shareStore: dag,
+		shareStore: bServ,
 		construct:  construct,
 	}
 }

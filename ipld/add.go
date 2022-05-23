@@ -15,7 +15,7 @@ import (
 	"github.com/tendermint/tendermint/pkg/wrapper"
 )
 
-// AddShares erasures and extends shares to IPLD DAG using the provided ipld.NodeAdder.
+// AddShares erasures and extends shares to blockservice.BlockService using the provided ipld.NodeAdder.
 func AddShares(
 	ctx context.Context,
 	shares []Share,
@@ -41,7 +41,7 @@ func AddShares(
 	return eds, batchAdder.Commit()
 }
 
-// ImportShares imports flattend chunks of data into Extended Data square and saves it in IPLD DAG
+// ImportShares imports flattend chunks of data into Extended Data square and saves it in blockservice.BlockService
 func ImportShares(
 	ctx context.Context,
 	shares [][]byte,

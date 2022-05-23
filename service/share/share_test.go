@@ -52,7 +52,7 @@ func TestService_GetSharesByNamespace(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run("size: "+strconv.Itoa(tt.squareSize), func(t *testing.T) {
-			serv, dag := RandLightService()
+			serv, bServ := RandLightService()
 			n := tt.squareSize * tt.squareSize
 			randShares := RandShares(t, n)
 			idx1 := (n - 1) / 2
@@ -61,7 +61,7 @@ func TestService_GetSharesByNamespace(t *testing.T) {
 				// make it so that two rows have the same namespace ID
 				copy(randShares[idx2][:8], randShares[idx1][:8])
 			}
-			root := FillDag(t, dag, randShares)
+			root := FillDag(t, bServ, randShares)
 			randNID := randShares[idx1][:8]
 
 			shares, err := serv.GetSharesByNamespace(context.Background(), root, randNID)

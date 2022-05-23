@@ -30,31 +30,31 @@ import (
 // RandLightServiceWithSquare provides a share.Service filled with 'n' NMT
 // trees of 'n' random shares, essentially storing a whole square.
 func RandLightServiceWithSquare(t *testing.T, n int) (*Service, *Root) {
-	dag := mdutils.Bserv()
-	return NewService(dag, NewLightAvailability(dag)), RandFillDAG(t, n, dag)
+	bServ := mdutils.Bserv()
+	return NewService(bServ, NewLightAvailability(bServ)), RandFillDAG(t, n, bServ)
 }
 
 // RandLightService provides an unfilled share.Service with corresponding
 // blockservice.BlockService than can be filled by the test.
 func RandLightService() (*Service, blockservice.BlockService) {
-	dag := mdutils.Bserv()
-	return NewService(dag, NewLightAvailability(dag)), dag
+	bServ := mdutils.Bserv()
+	return NewService(bServ, NewLightAvailability(bServ)), bServ
 }
 
 // RandFullServiceWithSquare provides a share.Service filled with 'n' NMT
 // trees of 'n' random shares, essentially storing a whole square.
 func RandFullServiceWithSquare(t *testing.T, n int) (*Service, *Root) {
-	dag := mdutils.Bserv()
-	return NewService(dag, NewFullAvailability(dag)), RandFillDAG(t, n, dag)
+	bServ := mdutils.Bserv()
+	return NewService(bServ, NewFullAvailability(bServ)), RandFillDAG(t, n, bServ)
 }
 
-func RandFillDAG(t *testing.T, n int, dag blockservice.BlockService) *Root {
+func RandFillDAG(t *testing.T, n int, bServ blockservice.BlockService) *Root {
 	shares := RandShares(t, n*n)
-	return FillDag(t, dag, shares)
+	return FillDag(t, bServ, shares)
 }
 
-func FillDag(t *testing.T, dag blockservice.BlockService, shares []Share) *Root {
-	na := ipld.NewNmtNodeAdder(context.TODO(), merkledag.NewDAGService(dag))
+func FillDag(t *testing.T, bServ blockservice.BlockService, shares []Share) *Root {
+	na := ipld.NewNmtNodeAdder(context.TODO(), merkledag.NewDAGService(bServ))
 
 	squareSize := uint32(math.Sqrt(float64(len(shares))))
 	tree := wrapper.NewErasuredNamespacedMerkleTree(uint64(squareSize), nmt.NodeVisitor(na.Visit))
@@ -89,23 +89,23 @@ func NewDAGNet(ctx context.Context, t *testing.T) *DAGNet {
 }
 
 func (dn *DAGNet) RandLightService(n int) (*Service, *Root) {
-	dag, root := dn.RandDAG(n)
-	return NewService(dag, NewLightAvailability(dag)), root
+	bServ, root := dn.RandDAG(n)
+	return NewService(bServ, NewLightAvailability(bServ)), root
 }
 
 func (dn *DAGNet) RandFullService(n int) (*Service, *Root) {
-	dag, root := dn.RandDAG(n)
-	return NewService(dag, NewFullAvailability(dag)), root
+	bServ, root := dn.RandDAG(n)
+	return NewService(bServ, NewFullAvailability(bServ)), root
 }
 
 func (dn *DAGNet) RandDAG(n int) (blockservice.BlockService, *Root) {
-	dag := dn.CleanDAG()
-	return dag, RandFillDAG(dn.t, n, dag)
+	bServ := dn.CleanDAG()
+	return bServ, RandFillDAG(dn.t, n, bServ)
 }
 
 func (dn *DAGNet) CleanService() *Service {
-	dag := dn.CleanDAG()
-	return NewService(dag, NewLightAvailability(dag))
+	bServ := dn.CleanDAG()
+	return NewService(bServ, NewLightAvailability(bServ))
 }
 
 func (dn *DAGNet) CleanDAG() blockservice.BlockService {

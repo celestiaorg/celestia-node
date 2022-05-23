@@ -49,7 +49,7 @@ var pool = workerpool.New(NumWorkersLimit)
 // tree, so it's not suitable for anything else besides that. Parts on the
 // implementation that rely on this property are explicitly tagged with
 // (bin-tree-feat).
-func GetShares(ctx context.Context, dag blockservice.BlockGetter, root cid.Cid, shares int, put func(int, Share)) {
+func GetShares(ctx context.Context, bGetter blockservice.BlockGetter, root cid.Cid, shares int, put func(int, Share)) {
 	// job is not used anywhere else, so can be kept here
 	type job struct {
 		id  cid.Cid
@@ -72,7 +72,7 @@ func GetShares(ctx context.Context, dag blockservice.BlockGetter, root cid.Cid, 
 			// processing of each other
 			pool.Submit(func() {
 				defer wg.Done()
-				nd, err := plugin.Get(ctx, dag, j.id)
+				nd, err := plugin.Get(ctx, bGetter, j.id)
 				if err != nil {
 					// we don't really care about errors here
 					// just fetch as much as possible
@@ -83,7 +83,7 @@ func GetShares(ctx context.Context, dag blockservice.BlockGetter, root cid.Cid, 
 				if len(lnks) == 1 { // so we are almost there
 					// the reason why the comment on 'total' is lying, as each
 					// leaf has its own additional leaf(hack) so get it
-					nd, err := plugin.Get(ctx, dag, lnks[0].Cid)
+					nd, err := plugin.Get(ctx, bGetter, lnks[0].Cid)
 					if err != nil {
 						// again, we don't care
 						return

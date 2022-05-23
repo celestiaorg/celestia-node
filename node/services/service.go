@@ -121,8 +121,8 @@ func HeaderStoreInit(cfg *Config) func(context.Context, params.Network, header.S
 }
 
 // ShareService constructs new share.Service.
-func ShareService(lc fx.Lifecycle, dag blockservice.BlockService, avail share.Availability) *share.Service {
-	service := share.NewService(dag, avail)
+func ShareService(lc fx.Lifecycle, bServ blockservice.BlockService, avail share.Availability) *share.Service {
+	service := share.NewService(bServ, avail)
 	lc.Append(fx.Hook{
 		OnStart: service.Start,
 		OnStop:  service.Stop,
@@ -147,10 +147,10 @@ func DASer(
 }
 
 // LightAvailability constructs light share availability.
-func LightAvailability(ctx context.Context, lc fx.Lifecycle, dag blockservice.BlockService) share.Availability {
-	return share.NewLightAvailability(blockservice.NewSession(fxutil.WithLifecycle(ctx, lc), dag))
+func LightAvailability(ctx context.Context, lc fx.Lifecycle, bServ blockservice.BlockService) share.Availability {
+	return share.NewLightAvailability(blockservice.NewSession(fxutil.WithLifecycle(ctx, lc), bServ))
 }
 
-func FullAvailability(dag blockservice.BlockService) share.Availability {
-	return share.NewFullAvailability(dag)
+func FullAvailability(bServ blockservice.BlockService) share.Availability {
+	return share.NewFullAvailability(bServ)
 }

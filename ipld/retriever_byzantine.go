@@ -33,7 +33,7 @@ func (e *ErrByzantine) Error() string {
 // TODO(@Wondertan): Migrate to ErrByzantineData in the newest rsmt2d
 func NewErrByzantine(
 	ctx context.Context,
-	dag blockservice.BlockGetter,
+	bGetter blockservice.BlockGetter,
 	dah *da.DataAvailabilityHeader,
 	errByz *rsmt2d.ErrByzantineData,
 ) *ErrByzantine {
@@ -43,7 +43,7 @@ func NewErrByzantine(
 	}[errByz.Axis][errByz.Index]
 	sharesWithProof, err := GetProofsForShares(
 		ctx,
-		dag,
+		bGetter,
 		plugin.MustCidFromNamespacedSha256(root),
 		errByz.Shares,
 	)

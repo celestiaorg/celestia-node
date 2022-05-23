@@ -43,7 +43,7 @@ func MakeExtendedHeader(
 	b *core.Block,
 	comm *core.Commit,
 	vals *core.ValidatorSet,
-	dag blockservice.BlockService,
+	bServ blockservice.BlockService,
 ) (*ExtendedHeader, error) {
 	var dah DataAvailabilityHeader
 	if len(b.Txs) > 0 {
@@ -51,7 +51,7 @@ func MakeExtendedHeader(
 		if err != nil {
 			return nil, err
 		}
-		extended, err := ipld.AddShares(ctx, namespacedShares.RawShares(), dag)
+		extended, err := ipld.AddShares(ctx, namespacedShares.RawShares(), bServ)
 		if err != nil {
 			return nil, err
 		}
