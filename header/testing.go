@@ -8,9 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/celestiaorg/celestia-node/core"
 	"github.com/stretchr/testify/require"
-
 	"github.com/tendermint/tendermint/crypto/tmhash"
 	"github.com/tendermint/tendermint/libs/bytes"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
@@ -19,6 +17,8 @@ import (
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	"github.com/tendermint/tendermint/types"
 	"github.com/tendermint/tendermint/version"
+
+	"github.com/celestiaorg/celestia-node/core"
 )
 
 // TestSuite provides everything you need to test chain of Headers.
