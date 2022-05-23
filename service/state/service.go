@@ -61,6 +61,7 @@ func (s *Service) Start(context.Context) error {
 
 func (s *Service) Stop(context.Context) error {
 	s.cancel()
+	s.cancel = nil
 	return nil
 }
 

@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	format "github.com/ipfs/go-ipld-format"
 	"github.com/stretchr/testify/require"
 	"github.com/tendermint/tendermint/crypto/tmhash"
 	"github.com/tendermint/tendermint/libs/bytes"
@@ -19,6 +20,7 @@ import (
 	"github.com/tendermint/tendermint/version"
 
 	"github.com/celestiaorg/celestia-node/core"
+	"github.com/celestiaorg/celestia-node/ipld"
 )
 
 // TestSuite provides everything you need to test chain of Headers.
@@ -196,6 +198,45 @@ func RandBlockID(t *testing.T) types.BlockID {
 	mrand.Read(bid.Hash)               //nolint:gosec
 	mrand.Read(bid.PartSetHeader.Hash) //nolint:gosec
 	return bid
+}
+
+// FraudMaker creates a custom ConstructFn that breaks the block at the given height
+func FraudMaker(t *testing.T, faultHeight int64) ConstructFn {
+	log.Info("assign fault maker to get incorrect block at height ", faultHeight)
+	return func(ctx context.Context,
+		b *types.Block,
+		comm *types.Commit,
+		vals *types.ValidatorSet,
+		dag format.NodeAdder) (*ExtendedHeader, error) {
+		eh := &ExtendedHeader{
+			RawHeader:    b.Header,
+			Commit:       comm,
+			ValidatorSet: vals,
+		}
+
+		if b.Height == faultHeight {
+			eh = createFraudExtHeader(t, eh, dag)
+			return eh, nil
+		}
+
+		namespacedShares, _ := b.Data.ComputeShares()
+		extended, err := ipld.AddShares(ctx, namespacedShares.RawShares(), dag)
+		require.NoError(t, err)
+		dah := da.NewDataAvailabilityHeader(extended)
+		eh.DAH = &dah
+		return eh, nil
+	}
+}
+
+func createFraudExtHeader(t *testing.T, eh *ExtendedHeader, dag format.NodeAdder) *ExtendedHeader {
+	extended := ipld.RandEDS(t, 2)
+	shares := ipld.ExtractEDS(extended)
+	copy(shares[0][ipld.NamespaceSize:], shares[1][ipld.NamespaceSize:])
+	extended, err := ipld.ImportShares(context.Background(), shares, dag)
+	require.NoError(t, err)
+	dah := da.NewDataAvailabilityHeader(extended)
+	eh.DAH = &dah
+	return eh
 }
 
 type DummySubscriber struct {

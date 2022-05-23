@@ -254,6 +254,14 @@ func (d *DASer) catchUp(ctx context.Context, job *catchUpJob) (int64, error) {
 				// error as nil since the routine was ordered to stop
 				return height - 1, nil
 			}
+			var byzantineErr *ipld.ErrByzantine
+			if errors.As(err, &byzantineErr) {
+				err := d.fService.Broadcast(ctx, fraud.CreateBadEncodingProof(uint64(h.Height), byzantineErr))
+				if err != nil {
+					log.Errorw("fraud proof propagating failed with error ", err)
+				}
+				return height, err
+			}
 			log.Errorw("sampling failed", "height", h.Height, "hash", h.Hash(),
 				"square width", len(h.DAH.RowsRoots), "data root", h.DAH.Hash(), "err", err)
 			// report previous height as the last successfully sampled height
