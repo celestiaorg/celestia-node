@@ -9,6 +9,7 @@ import (
 	"github.com/raulk/go-watchdog"
 	"go.uber.org/fx"
 
+	"github.com/celestiaorg/celestia-node/fraud"
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/libs/fxutil"
 	nodecore "github.com/celestiaorg/celestia-node/node/core"
@@ -25,7 +26,7 @@ func lightComponents(cfg *Config, store Store) fx.Option {
 	return fx.Options(
 		fx.Supply(Light),
 		baseComponents(cfg, store),
-		fx.Invoke(services.DASer),
+		fx.Provide(services.DASer),
 		fx.Provide(services.HeaderExchangeP2P(cfg.Services)),
 		fx.Provide(services.LightAvailability),
 	)
@@ -69,7 +70,7 @@ func baseComponents(cfg *Config, store Store) fx.Option {
 		fx.Provide(services.HeaderService),
 		fx.Provide(services.HeaderStore),
 		fx.Invoke(services.HeaderStoreInit(&cfg.Services)),
-		fx.Provide(services.FraudService),
+		fxutil.ProvideAs(services.FraudService, new(fraud.Service), new(fraud.Subscriber)),
 		fx.Provide(services.HeaderSyncer),
 		fxutil.ProvideAs(services.P2PSubscriber, new(header.Broadcaster), new(header.Subscriber)),
 		fx.Provide(services.HeaderP2PExchangeServer),

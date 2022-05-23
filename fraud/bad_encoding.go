@@ -163,6 +163,7 @@ func (p *BadEncodingProof) Validate(header *header.ExtendedHeader) error {
 	return nil
 }
 
+// SubscribeToBefp listens to Bad Encoding Fraud Proof and stops services once it was received
 func SubscribeToBefp(ctx context.Context, s Subscriber, stop func(context.Context) error) {
 	subscription, err := s.Subscribe(BadEncoding)
 	if err != nil {

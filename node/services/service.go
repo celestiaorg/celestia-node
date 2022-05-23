@@ -29,7 +29,7 @@ func HeaderSyncer(
 	ex header.Exchange,
 	store header.Store,
 	sub header.Subscriber,
-	fsub fraud.Service,
+	fsub fraud.Subscriber,
 ) (*sync.Syncer, error) {
 	syncer := sync.NewSyncer(ex, store, sub, fsub)
 	lc.Append(fx.Hook{
@@ -149,13 +149,14 @@ func DASer(
 	return das
 }
 
-func FraudService(lc fx.Lifecycle, sub *pubsub.PubSub, hstore header.Store) fraud.Service {
+// FraudService constructs fraud proof service
+func FraudService(lc fx.Lifecycle, sub *pubsub.PubSub, hstore header.Store) (fraud.Service, fraud.Service) {
 	f := fraud.NewService(sub, hstore)
 	lc.Append(fx.Hook{
 		OnStart: f.Start,
 		OnStop:  f.Stop,
 	})
-	return f
+	return f, f
 }
 
 // LightAvailability constructs light share availability.

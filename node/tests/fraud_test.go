@@ -19,14 +19,14 @@ import (
 Test-Case: Broadcast Fraud Proof to different nodes
 Pre-Requisites:
 - CoreClient is started by swamp
-- CoreClient has generated 2 blocks
 Steps:
-1. Create a Bridge Node(BN) with broken block an height 10
+1. Create a Bridge Node(BN) with broken extended header at height 10
 2. Start a BN
 3. Create a Full Node(FN) with a connection to BN as a trusted peer
 4. Start a FN
-5. Check FN is not synced to 11.
-11 is not available because DASer will be stopped after receiving BEFP.
+5. Subscribe to BEFP and wait when it will be received
+6. Check FN is not synced to 15.
+15 is not available because DASer will be stopped after receiving BEFP.
 */
 func TestFraudProofBroadcasting(t *testing.T) {
 	sw := swamp.NewSwamp(t, swamp.WithBlockInterval(time.Millisecond*100))

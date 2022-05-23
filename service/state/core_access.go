@@ -12,7 +12,6 @@ import (
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/x/payment"
 	apptypes "github.com/celestiaorg/celestia-app/x/payment/types"
-
 	"github.com/celestiaorg/nmt/namespace"
 )
 

@@ -16,12 +16,16 @@ import (
 
 var log = logging.Logger("fraud")
 
+// proofUnmarshaler aliases a function that parses data to `Proof`
 type proofUnmarshaler func([]byte) (Proof, error)
 
+// headerFetcher aliases a function that is used to fetch ExtendedHeader from store
 type headerFetcher func(context.Context, uint64) (*header.ExtendedHeader, error)
 
-type Validator = func(ctx context.Context, proofType ProofType, data []byte) pubsub.ValidationResult
+// Validator aliases a function that validate pubsub incoming messages
+type Validator func(ctx context.Context, proofType ProofType, data []byte) pubsub.ValidationResult
 
+// service is propagating and validating Fraud Proofs
 // service implements Service interface.
 type service struct {
 	pubsub       *pubsub.PubSub

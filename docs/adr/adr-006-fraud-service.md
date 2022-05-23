@@ -35,9 +35,9 @@ Based on `ErrByzantineRow`/`ErrByzantineCol` internal fields, we should generate
 
 ```go
 type ErrByzantine struct {
-   // Shares contain all shares from row/col.
+   // Shares contains all shares from row/col.
    // For non-nil shares MerkleProof is computed
-   Shares []*NamespacedShareWithProof
+   Shares []*ShareWithProof
    // Index represents the number of row/col where ErrByzantineRow/ErrByzantineColl occurred.
    Index uint8
    isRow bool
@@ -64,7 +64,7 @@ type BadEncodingProof struct {
    // Shares contain all shares from row/col
    // Shares that did not pass verification in rmst2d will be nil
    // For non-nil shares MerkleProofs are computed
-   Shares []*NamespacedShareWithProof
+   Shares []*ShareWithProof
    // Index represents the number of row/col where ErrByzantineRow/ErrByzantineColl occurred
    Index uint8
    isRow bool
@@ -95,7 +95,7 @@ message BadEnconding {
 }
 ```
 
-`das.Daser` imports a data structure that implements `proof.Broadcaster` interface that uses libp2p.pubsub under the hood:
+`das.Daser` imports a data structure that implements `fraud.Service` interface that uses libp2p.pubsub under the hood:
 
 ```go
 // Broadcaster is a generic interface that sends a `Proof` to all nodes subscribed on the Broadcaster's topic.
