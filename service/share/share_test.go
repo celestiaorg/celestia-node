@@ -251,7 +251,7 @@ func TestSharesRoundTrip(t *testing.T) {
 				}
 			}
 
-			namespacedShares, _ := b.Data.ComputeShares()
+			namespacedShares, _, _ := b.Data.ComputeShares(uint64(0))
 
 			// test round trip using only encoding, without IPLD
 			{
