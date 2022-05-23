@@ -25,7 +25,7 @@ func TestNode(t *testing.T, tp Type, opts ...Option) *Node {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	t.Cleanup(cancel)
 
-	node, _, cfg := core.StartTestKVApp(ctx, t)
+	_, _, cfg := core.StartTestKVApp(ctx, t)
 	opts = append(opts, WithRemoteCore(core.GetEndpoint(cfg)), WithNetwork(params.Private))
 	store := MockStore(t, DefaultConfig(tp))
 	nd, err := New(tp, store, opts...)

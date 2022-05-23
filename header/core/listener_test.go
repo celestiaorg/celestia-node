@@ -31,7 +31,7 @@ func TestListener(t *testing.T) {
 	require.NoError(t, err)
 
 	// create one block to store as Head in local store and then unsubscribe from block events
-	fetcher := createCoreFetcher(t)
+	fetcher := createCoreFetcher(ctx, t)
 
 	// create Listener and start listening
 	cl := createListener(ctx, t, fetcher, ps0)

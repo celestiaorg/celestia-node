@@ -19,7 +19,7 @@ type Components struct {
 // In addition, the empty block interval is set to 200ms
 func DefaultComponents() *Components {
 	app := core.CreateKVStore(200)
-	tnCfg := tn.TestConfig()
+	tnCfg, err := rpctest.CreateConfig("swamp_tm")
 	tnCfg.Consensus.CreateEmptyBlocksInterval = 200 * time.Millisecond
 	return &Components{
 		App:     app,

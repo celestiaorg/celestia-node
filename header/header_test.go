@@ -12,12 +12,13 @@ import (
 )
 
 func TestMakeExtendedHeaderForEmptyBlock(t *testing.T) {
-	_, client := core.StartTestClient(t)
+	ctx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(cancel)
+
+	_, client := core.StartTestClient(ctx, t)
 	fetcher := core.NewBlockFetcher(client)
 
 	store := mdutils.Mock()
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
 
 	sub, err := fetcher.SubscribeNewBlockEvent(ctx)
 	require.NoError(t, err)
