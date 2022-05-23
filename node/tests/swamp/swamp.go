@@ -225,7 +225,7 @@ func (s *Swamp) NewLightNode(options ...node.Option) *node.Node {
 func (s *Swamp) NewNodeWithStore(t node.Type, store node.Store, options ...node.Option) *node.Node {
 	var n *node.Node
 
-	options = append(options, node.WithCustomKeyringSigner(node.InMemKeyringSigner(s.t)))
+	options = append(options, node.WithKeyringSigner(node.TestKeyringSigner(s.t)))
 
 	switch t {
 	case node.Bridge:

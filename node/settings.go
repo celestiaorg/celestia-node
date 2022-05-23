@@ -80,9 +80,9 @@ func WithHeaderConstructFn(construct header.ConstructFn) Option {
 	}
 }
 
-// WithCustomKeyringSigner overrides the default keyring signer constructed
+// WithKeyringSigner overrides the default keyring signer constructed
 // by the node.
-func WithCustomKeyringSigner(signer *apptypes.KeyringSigner) Option {
+func WithKeyringSigner(signer *apptypes.KeyringSigner) Option {
 	return func(sets *settings) {
 		sets.opts = append(sets.opts, fx.Replace(signer))
 	}

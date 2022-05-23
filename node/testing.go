@@ -27,7 +27,7 @@ func TestNode(t *testing.T, tp Type, opts ...Option) *Node {
 		opts,
 		WithRemoteCore(core.GetEndpoint(node)),
 		WithNetwork(params.Private),
-		WithCustomKeyringSigner(InMemKeyringSigner(t)),
+		WithKeyringSigner(TestKeyringSigner(t)),
 	)
 	store := MockStore(t, DefaultConfig(tp))
 	nd, err := New(tp, store, opts...)
@@ -35,7 +35,7 @@ func TestNode(t *testing.T, tp Type, opts ...Option) *Node {
 	return nd
 }
 
-func InMemKeyringSigner(t *testing.T) *apptypes.KeyringSigner {
+func TestKeyringSigner(t *testing.T) *apptypes.KeyringSigner {
 	ring := keyring.NewInMemory()
 	signer := apptypes.NewKeyringSigner(ring, "", string(params.Private))
 	_, _, err := signer.NewMnemonic("test_celes", keyring.English, "",
