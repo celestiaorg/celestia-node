@@ -1,4 +1,3 @@
-//nolint:dupl
 package main
 
 import (
@@ -25,7 +24,6 @@ func init() {
 			cmdnode.NodeFlags(node.Bridge),
 			cmdnode.P2PFlags(),
 			cmdnode.CoreFlags(),
-			cmdnode.TrustedHashFlags(),
 			cmdnode.MiscFlags(),
 			cmdnode.RPCFlags(),
 			cmdnode.KeyFlags(),
@@ -34,7 +32,6 @@ func init() {
 			cmdnode.NodeFlags(node.Bridge),
 			cmdnode.P2PFlags(),
 			cmdnode.CoreFlags(),
-			cmdnode.TrustedHashFlags(),
 			cmdnode.MiscFlags(),
 			cmdnode.RPCFlags(),
 			cmdnode.KeyFlags(),
@@ -66,11 +63,6 @@ var bridgeCmd = &cobra.Command{
 		}
 
 		err = cmdnode.ParseCoreFlags(cmd, env)
-		if err != nil {
-			return err
-		}
-
-		err = cmdnode.ParseTrustedHashFlags(cmd, env)
 		if err != nil {
 			return err
 		}
