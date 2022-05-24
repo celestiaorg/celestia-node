@@ -29,7 +29,7 @@ func init() {
 		// ensure at least custom network is set
 		params := strings.Split(custom, ":")
 		if len(params) == 0 {
-			panic("must provide at least <network_ID> to use a custom network")
+			panic("params: must provide at least <network_ID> to use a custom network")
 		}
 		netID := params[0]
 		defaultNetwork = Network(netID)
@@ -46,7 +46,7 @@ func init() {
 			bs := strings.Split(bootstrappers, ",")
 			_, err := parseAddrInfos(bs)
 			if err != nil {
-				println(fmt.Sprintf("env %s: contains invalid multiaddress", EnvCustomNetwork))
+				println(fmt.Sprintf("params: env %s: contains invalid multiaddress", EnvCustomNetwork))
 				panic(err)
 			}
 			bootstrapList[Network(netID)] = bs

@@ -12,7 +12,7 @@ func GenesisFor(net Network) (string, error) {
 
 	genHash, ok := genesisList[net]
 	if !ok {
-		return "", fmt.Errorf("trusted hash not found for network %s", net)
+		return "", fmt.Errorf("params: trusted hash not found for network %s", net)
 	}
 
 	return genHash, nil
