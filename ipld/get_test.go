@@ -392,13 +392,15 @@ func TestGetProofs(t *testing.T) {
 }
 
 func TestRetrieveDataFailedWithByzantineError(t *testing.T) {
-	const width = 4
+	const width = 8
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 	defer cancel()
 
 	bServ := mdutils.Bserv()
 	eds := RandEDS(t, width)
 	shares := ExtractEDS(eds)
+	eds, err := ImportShares(ctx, shares, dag)
+	require.NoError(t, err)
 
 	// corrupt shares so that eds erasure coding does not match
 	copy(shares[14][8:], shares[15][8:])
