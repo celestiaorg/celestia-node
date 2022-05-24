@@ -2,6 +2,7 @@ package share
 
 import (
 	"context"
+	"errors"
 	"math"
 	"testing"
 
@@ -126,4 +127,16 @@ func (dn *DAGNet) ConnectAll() {
 
 	err = dn.net.ConnectAllButSelf()
 	require.NoError(dn.t, err)
+}
+
+// brokenAvailability allows to test error cases during sampling
+type brokenAvailability struct {
+}
+
+func NewBrokenAvailability() Availability {
+	return &brokenAvailability{}
+}
+
+func (b *brokenAvailability) SharesAvailable(context.Context, *Root) error {
+	return errors.New("da: data not available")
 }
