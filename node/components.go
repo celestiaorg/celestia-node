@@ -17,6 +17,7 @@ import (
 	"github.com/celestiaorg/celestia-node/node/services"
 	statecomponents "github.com/celestiaorg/celestia-node/node/state"
 	"github.com/celestiaorg/celestia-node/params"
+	"github.com/celestiaorg/celestia-node/service/share"
 )
 
 // lightComponents keeps all the components as DI options required to build a Light Node.
@@ -61,13 +62,17 @@ func baseComponents(cfg *Config, store Store) fx.Option {
 		fx.Supply(store.Config),
 		fx.Provide(store.Datastore),
 		fx.Provide(store.Keystore),
+		// share components
+		fx.Invoke(share.EnsureEmptySquareExists),
 		fx.Provide(services.ShareService),
+		// header components
 		fx.Provide(services.HeaderService),
 		fx.Provide(services.HeaderStore),
 		fx.Invoke(services.HeaderStoreInit(&cfg.Services)),
 		fx.Provide(services.HeaderSyncer),
 		fxutil.ProvideAs(services.P2PSubscriber, new(header.Broadcaster), new(header.Subscriber)),
 		fx.Provide(services.HeaderP2PExchangeServer),
+		// p2p components
 		fx.Invoke(invokeWatchdog(store.Path())),
 		p2p.Components(cfg.P2P),
 		// state components
