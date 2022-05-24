@@ -22,7 +22,6 @@ func DefaultComponents() *Components {
 	app := core.CreateKVStore(2000)
 	tnCfg, err := rpctest.CreateConfig("swamp_tm")
 	if err != nil {
-		// todo remove panic
 		panic(err)
 	}
 	tnCfg.Consensus.CreateEmptyBlocksInterval = 100 * time.Millisecond
