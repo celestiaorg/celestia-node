@@ -21,7 +21,7 @@ func DefaultNetwork() Network {
 
 func init() {
 	// check if custom network option set
-	// format: CELESTIA_CUSTOM=<netID>:<trustedHash>:<bootstrapPeerList>
+	// format: CELESTIA_CUSTOM=<netID>:<genesisHash>:<bootstrapPeerList>
 	if custom, ok := os.LookupEnv(EnvCustomNetwork); ok {
 		fmt.Print("\n\nWARNING: Celestia custom network specified. Only use this option if the node is " +
 			"freshly created and initialized.\n**DO NOT** run a custom network over an already-existing node " +
