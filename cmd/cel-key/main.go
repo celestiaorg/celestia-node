@@ -8,6 +8,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/client/config"
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	"github.com/cosmos/cosmos-sdk/client/keys"
+	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/x/auth/types"
 	"github.com/spf13/cobra"
 
@@ -32,6 +33,7 @@ var initClientCtx = client.Context{}.
 var rootCmd = keys.Commands("~")
 
 func init() {
+	rootCmd.PersistentFlags().AddFlagSet(DirectoryFlags())
 	rootCmd.PersistentPreRunE = func(cmd *cobra.Command, _ []string) error {
 		initClientCtx, err := client.ReadPersistentCommandFlags(initClientCtx, cmd.Flags())
 		if err != nil {
@@ -45,7 +47,8 @@ func init() {
 		if err := client.SetCmdClientContextHandler(initClientCtx, cmd); err != nil {
 			return err
 		}
-		return nil
+
+		return ParseDirectoryFlags(cmd)
 	}
 }
 
@@ -57,6 +60,10 @@ func main() {
 }
 
 func run() error {
+	cfg := sdk.GetConfig()
+	cfg.SetBech32PrefixForAccount(app.Bech32PrefixAccAddr, app.Bech32PrefixAccPub)
+	cfg.Seal()
+
 	ctx := context.WithValue(context.Background(), client.ClientContextKey, &initClientCtx)
 	return rootCmd.ExecuteContext(cmd.WithEnv(ctx))
 }
