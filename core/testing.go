@@ -18,7 +18,8 @@ import (
 	tmtypes "github.com/tendermint/tendermint/types"
 )
 
-const defaultRetainBlocks int64 = 50
+// so that we never hit an issue where we request blocks that are removed
+const defaultRetainBlocks int64 = 10000
 
 // StartTestNode starts a mock Core node background process and returns it.
 func StartTestNode(ctx context.Context, t *testing.T, app types.Application, cfg *config.Config) tmservice.Service {
