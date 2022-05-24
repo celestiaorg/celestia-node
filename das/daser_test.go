@@ -207,6 +207,49 @@ func TestDASer_catchUp_oneHeader(t *testing.T) {
 	require.NoError(t, result.err)
 }
 
+func TestDASer_catchUp_fails(t *testing.T) {
+	ds := ds_sync.MutexWrap(datastore.NewMapDatastore())
+	dag := mdutils.Mock()
+
+	mockGet, _, _ := createDASerSubcomponents(t, dag, 6, 0)
+	daser := NewDASer(share.NewBrokenAvailability(), nil, mockGet, ds)
+
+	// store checkpoint
+	err := storeCheckpoint(daser.cstore, 5) // pick arbitrary height as last checkpoint
+	require.NoError(t, err)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(cancel)
+
+	checkpoint, err := loadCheckpoint(daser.cstore)
+	require.NoError(t, err)
+
+	type catchUpResult struct {
+		checkpoint int64
+		err        error
+	}
+	resultCh := make(chan *catchUpResult, 1)
+
+	wg := &sync.WaitGroup{}
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		job := &catchUpJob{
+			from: checkpoint,
+			to:   mockGet.head,
+		}
+		checkpt, err := daser.catchUp(ctx, job)
+		resultCh <- &catchUpResult{
+			checkpoint: checkpt,
+			err:        err,
+		}
+	}()
+	wg.Wait()
+
+	result := <-resultCh
+	require.ErrorIs(t, result.err, share.ErrNotAvailable)
+}
+
 // createDASerSubcomponents takes numGetter (number of headers
 // to store in mockGetter) and numSub (number of headers to store
 // in the mock header.Subscriber), returning a newly instantiated

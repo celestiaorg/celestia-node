@@ -104,7 +104,7 @@ func (d *DASer) sample(ctx context.Context, sub header.Subscription, checkpoint 
 		d.sampleDn <- struct{}{}
 	}()
 
-	// sampleHeight tracks the current height of this routine
+	// sampleHeight tracks the last successful height of this routine
 	sampleHeight := checkpoint
 
 	for {
@@ -145,8 +145,8 @@ func (d *DASer) sample(ctx context.Context, sub header.Subscription, checkpoint 
 			}
 			log.Errorw("sampling failed", "height", h.Height, "hash", h.Hash(),
 				"square width", len(h.DAH.RowsRoots), "data root", h.DAH.Hash(), "err", err)
-			// continue sampling
-			continue
+			log.Warn("DASer WILL BE STOPPED. IN ORDER TO CONTINUE SAMPLING, RE-START THE NODE")
+			return
 		}
 
 		sampleTime := time.Since(startTime)
@@ -185,17 +185,15 @@ func (d *DASer) catchUpManager(ctx context.Context, checkpoint int64) {
 		case job := <-d.jobsCh:
 			// perform catchUp routine
 			height, err := d.catchUp(ctx, job)
-			// update checkpoint before checking error as the height
-			// value from catchUp represents the last successfully DASed height,
-			// regardless of the routine's success
-			checkpoint = height
 			// exit routine if a catch-up job was unsuccessful
 			if err != nil {
 				log.Errorw("catch-up routine failed", "attempted range (from, to)", job.from,
 					job.to, "last successfully sampled height", height)
-				log.Warn("IN ORDER TO CONTINUE SAMPLING OVER PAST HEADERS, RE-START THE NODE")
+				log.Warn("DASer WILL BE STOPPED. IN ORDER TO CONTINUE SAMPLING OVER PAST HEADERS, RE-START THE NODE")
 				return
 			}
+			// store the height of the last successfully sampled header
+			checkpoint = height
 		}
 	}
 }
@@ -233,8 +231,8 @@ func (d *DASer) catchUp(ctx context.Context, job *catchUpJob) (int64, error) {
 			}
 			log.Errorw("sampling failed", "height", h.Height, "hash", h.Hash(),
 				"square width", len(h.DAH.RowsRoots), "data root", h.DAH.Hash(), "err", err)
-			// continue sampling
-			continue
+			// report previous height as the last successfully sampled height
+			return height - 1, err
 		}
 
 		sampleTime := time.Since(startTime)
