@@ -78,7 +78,7 @@ var rootCmd = &cobra.Command{
 			return err
 		}
 
-		if err := client.SetCmdClientContextHandler(initClientCtx, cmd); err != nil {
+		if err = client.SetCmdClientContextHandler(initClientCtx, cmd); err != nil {
 			return err
 		}
 		return nil
