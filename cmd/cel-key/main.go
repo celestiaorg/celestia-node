@@ -2,16 +2,18 @@ package main
 
 import (
 	"context"
-	"github.com/celestiaorg/celestia-app/app"
-	"github.com/celestiaorg/celestia-app/app/encoding"
-	"github.com/celestiaorg/celestia-node/cmd"
+	"os"
+
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/client/config"
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	"github.com/cosmos/cosmos-sdk/client/keys"
 	"github.com/cosmos/cosmos-sdk/x/auth/types"
 	"github.com/spf13/cobra"
-	"os"
+
+	"github.com/celestiaorg/celestia-app/app"
+	"github.com/celestiaorg/celestia-app/app/encoding"
+	"github.com/celestiaorg/celestia-node/cmd"
 )
 
 var encodingConfig = encoding.MakeEncodingConfig(app.ModuleEncodingRegisters...)
@@ -44,6 +46,13 @@ func init() {
 			return err
 		}
 		return nil
+	}
+}
+
+func main() {
+	err := run()
+	if err != nil {
+		os.Exit(1)
 	}
 }
 

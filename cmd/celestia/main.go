@@ -2,12 +2,13 @@ package main
 
 import (
 	"context"
-	"github.com/celestiaorg/celestia-node/cmd"
-	sdk "github.com/cosmos/cosmos-sdk/types"
-	"github.com/spf13/cobra"
 	"os"
 
+	sdk "github.com/cosmos/cosmos-sdk/types"
+	"github.com/spf13/cobra"
+
 	"github.com/celestiaorg/celestia-app/app"
+	"github.com/celestiaorg/celestia-node/cmd"
 )
 
 func init() {
