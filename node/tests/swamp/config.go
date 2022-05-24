@@ -5,6 +5,7 @@ import (
 
 	"github.com/tendermint/tendermint/abci/types"
 	tn "github.com/tendermint/tendermint/config"
+	rpctest "github.com/tendermint/tendermint/rpc/test"
 
 	"github.com/celestiaorg/celestia-node/core"
 )
@@ -18,9 +19,12 @@ type Components struct {
 // DefaultComponents creates a KvStore with a block retention of 200
 // In addition, the empty block interval is set to 200ms
 func DefaultComponents() *Components {
-	app := core.CreateKVStore(200)
-	tnCfg := tn.TestConfig()
-	tnCfg.Consensus.CreateEmptyBlocksInterval = 200 * time.Millisecond
+	app := core.CreateKVStore(2000)
+	tnCfg, err := rpctest.CreateConfig("swamp_tm")
+	if err != nil {
+		panic(err)
+	}
+	tnCfg.Consensus.CreateEmptyBlocksInterval = 100 * time.Millisecond
 	return &Components{
 		App:     app,
 		CoreCfg: tnCfg,

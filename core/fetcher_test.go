@@ -11,11 +11,11 @@ import (
 )
 
 func TestBlockFetcher_GetBlock_and_SubscribeNewBlockEvent(t *testing.T) {
-	_, client := StartTestClient(t)
-	fetcher := NewBlockFetcher(client)
-
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
+
+	_, client := StartTestClient(ctx, t)
+	fetcher := NewBlockFetcher(client)
 
 	// generate some blocks
 	newBlockChan, err := fetcher.SubscribeNewBlockEvent(ctx)
@@ -36,11 +36,11 @@ func TestBlockFetcher_GetBlock_and_SubscribeNewBlockEvent(t *testing.T) {
 // TestBlockFetcherHeaderValues tests that both the Commit and ValidatorSet
 // endpoints are working as intended.
 func TestBlockFetcherHeaderValues(t *testing.T) {
-	_, client := StartTestClient(t)
-	fetcher := NewBlockFetcher(client)
-
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
+
+	_, client := StartTestClient(ctx, t)
+	fetcher := NewBlockFetcher(client)
 
 	// generate some blocks
 	newBlockChan, err := fetcher.SubscribeNewBlockEvent(ctx)

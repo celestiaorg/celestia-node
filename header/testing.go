@@ -9,15 +9,16 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
-
 	"github.com/tendermint/tendermint/crypto/tmhash"
 	"github.com/tendermint/tendermint/libs/bytes"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
+	tmtime "github.com/tendermint/tendermint/libs/time"
 	"github.com/tendermint/tendermint/pkg/da"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
-	"github.com/tendermint/tendermint/proto/tendermint/version"
 	"github.com/tendermint/tendermint/types"
-	tmtime "github.com/tendermint/tendermint/types/time"
+	"github.com/tendermint/tendermint/version"
+
+	"github.com/celestiaorg/celestia-node/core"
 )
 
 // TestSuite provides everything you need to test chain of Headers.
@@ -34,7 +35,7 @@ type TestSuite struct {
 
 // NewTestSuite setups a new test suite with a given number of validators.
 func NewTestSuite(t *testing.T, num int) *TestSuite {
-	valSet, vals := types.RandValidatorSet(num, 10)
+	valSet, vals := core.RandValidatorSet(num, 10)
 	return &TestSuite{
 		t:      t,
 		vals:   vals,
@@ -48,7 +49,7 @@ func (s *TestSuite) genesis() *ExtendedHeader {
 	gen.NextValidatorsHash = s.valSet.Hash()
 	gen.Height = 1
 	voteSet := types.NewVoteSet(gen.ChainID, gen.Height, 0, tmproto.PrecommitType, s.valSet)
-	commit, err := types.MakeCommit(RandBlockID(s.t), gen.Height, 0, voteSet, s.vals, time.Now())
+	commit, err := core.MakeCommit(RandBlockID(s.t), gen.Height, 0, voteSet, s.vals, time.Now())
 	require.NoError(s.t, err)
 	dah := EmptyDAH()
 	eh := &ExtendedHeader{
@@ -149,10 +150,10 @@ func (s *TestSuite) nextProposer() *types.Validator {
 // RandExtendedHeader provides an ExtendedHeader fixture.
 func RandExtendedHeader(t *testing.T) *ExtendedHeader {
 	rh := RandRawHeader(t)
-	valSet, vals := types.RandValidatorSet(3, 1)
+	valSet, vals := core.RandValidatorSet(3, 1)
 	rh.ValidatorsHash = valSet.Hash()
 	voteSet := types.NewVoteSet(rh.ChainID, rh.Height, 0, tmproto.PrecommitType, valSet)
-	commit, err := types.MakeCommit(RandBlockID(t), rh.Height, 0, voteSet, vals, time.Now())
+	commit, err := core.MakeCommit(RandBlockID(t), rh.Height, 0, voteSet, vals, time.Now())
 	require.NoError(t, err)
 	dah := EmptyDAH()
 	return &ExtendedHeader{
@@ -166,7 +167,7 @@ func RandExtendedHeader(t *testing.T) *ExtendedHeader {
 // RandRawHeader provides a RawHeader fixture.
 func RandRawHeader(t *testing.T) *RawHeader {
 	return &RawHeader{
-		Version:            version.Consensus{Block: 11, App: 1},
+		Version:            version.Consensus{Block: uint64(11), App: uint64(1)},
 		ChainID:            "test",
 		Height:             mrand.Int63(), //nolint:gosec
 		Time:               time.Now(),

@@ -14,7 +14,10 @@ import (
 )
 
 func TestCoreExchange_RequestHeaders(t *testing.T) {
-	fetcher := createCoreFetcher(t)
+	ctx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(cancel)
+
+	fetcher := createCoreFetcher(ctx, t)
 	store := mdutils.Mock()
 
 	// generate 10 blocks
@@ -34,8 +37,8 @@ func Test_hashMatch(t *testing.T) {
 	assert.False(t, bytes.Equal(expected, mismatch))
 }
 
-func createCoreFetcher(t *testing.T) *core.BlockFetcher {
-	_, client := core.StartTestClient(t)
+func createCoreFetcher(ctx context.Context, t *testing.T) *core.BlockFetcher {
+	_, client := core.StartTestClient(ctx, t)
 	return core.NewBlockFetcher(client)
 }
 

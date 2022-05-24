@@ -13,8 +13,6 @@ import (
 	ma "github.com/multiformats/go-multiaddr"
 	"github.com/stretchr/testify/require"
 	"github.com/tendermint/tendermint/libs/bytes"
-	tn "github.com/tendermint/tendermint/node"
-	rpctest "github.com/tendermint/tendermint/rpc/test"
 	"github.com/tendermint/tendermint/types"
 
 	"github.com/celestiaorg/celestia-node/params"
@@ -27,9 +25,9 @@ import (
 
 var blackholeIP6 = net.ParseIP("100::")
 
-const subscriberID string = "Swamp"
+const subscriberID string = "NewBlockSwamp/Events"
 
-var queryEvent string = types.QueryForEvent(types.EventNewBlock).String()
+var queryEvent string = types.QueryForEvent(types.EventNewBlockValue).String()
 
 // Swamp represents the main functionality that is needed for the test-case:
 // - Network to link the nodes
@@ -60,9 +58,12 @@ func NewSwamp(t *testing.T, options ...Option) *Swamp {
 	var err error
 	ctx := context.Background()
 
-	tn, err := newTendermintCoreNode(ic)
-	require.NoError(t, err)
-	protocol, ip := core.GetEndpoint(tn)
+	// TODO(@Bidon15): CoreClient(limitation)
+	// Now, we are making an assumption that consensus mechanism is already tested out
+	// so, we are not creating bridge nodes with each one containing its own core client
+	// instead we are assigning all created BNs to 1 Core from the swamp
+	core.StartTestNode(ctx, t, ic.App, ic.CoreCfg)
+	protocol, ip := core.GetEndpoint(ic.CoreCfg)
 	remote, err := core.NewRemote(protocol, ip)
 	require.NoError(t, err)
 
@@ -80,29 +81,9 @@ func NewSwamp(t *testing.T, options ...Option) *Swamp {
 
 	swp.t.Cleanup(func() {
 		swp.stopAllNodes(ctx, swp.BridgeNodes, swp.FullNodes, swp.LightNodes)
-		remote.Stop() //nolint:errcheck
-		tn.Stop()     // nolint:errcheck
 	})
 
 	return swp
-}
-
-// TODO(@Bidon15): CoreClient(limitation)
-// Now, we are making an assumption that consensus mechanism is already tested out
-// so, we are not creating bridge nodes with each one containing its own core client
-// instead we are assigning all created BNs to 1 Core from the swamp
-
-// newTendermintCoreNode creates a new instance of Tendermint Core with a kvStore
-func newTendermintCoreNode(c *Components) (*tn.Node, error) {
-	var opt rpctest.Options
-	rpctest.RecreateConfig(&opt)
-
-	tn := rpctest.NewTendermint(c.App, &opt)
-
-	// rewriting the created config with test's one
-	tn.Config().Consensus = c.CoreCfg.Consensus
-
-	return tn, tn.Start()
 }
 
 // stopAllNodes goes through all received slices of Nodes and stops one-by-one
@@ -123,14 +104,20 @@ func (s *Swamp) GetCoreBlockHashByHeight(ctx context.Context, height int64) byte
 }
 
 // WaitTillHeight holds the test execution until the given amount of blocks
-// have been produced by the CoreClient.
+// has been produced by the CoreClient.
 func (s *Swamp) WaitTillHeight(ctx context.Context, height int64) {
 	require.Greater(s.t, height, int64(0))
+
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
 	results, err := s.CoreClient.Subscribe(ctx, subscriberID, queryEvent)
 	require.NoError(s.t, err)
 
 	defer func() {
-		err = s.CoreClient.Unsubscribe(ctx, subscriberID, queryEvent)
+		// TODO(@Wondertan): For some reason, the Unsubscribe does not work and we have to do
+		//  an UnsubscribeAll as a hack. There is somewhere a bug in the Tendermint which should be
+		//  investigated
+		err = s.CoreClient.UnsubscribeAll(ctx, subscriberID)
 		require.NoError(s.t, err)
 	}()
 
@@ -139,13 +126,12 @@ func (s *Swamp) WaitTillHeight(ctx context.Context, height int64) {
 		case <-ctx.Done():
 			return
 		case block := <-results:
-			newBlock := block.Data.(types.EventDataNewBlock).Block
-			if height == newBlock.Height {
+			newBlock := block.Data.(types.EventDataNewBlock)
+			if height <= newBlock.Block.Height {
 				return
 			}
 		}
 	}
-
 }
 
 // createPeer is a helper for celestia nodes to initialize
@@ -175,11 +161,14 @@ func (s *Swamp) createPeer(ks keystore.Keystore) host.Host {
 // getTrustedHash is needed for celestia nodes to get the trustedhash
 // from CoreClient. This is required to initialize and start correctly.
 func (s *Swamp) getTrustedHash(ctx context.Context) (string, error) {
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
 	results, err := s.CoreClient.Subscribe(ctx, subscriberID, queryEvent)
 	require.NoError(s.t, err)
 
 	defer func() {
-		err = s.CoreClient.Unsubscribe(ctx, subscriberID, queryEvent)
+		err := s.CoreClient.UnsubscribeAll(ctx, subscriberID)
 		require.NoError(s.t, err)
 	}()
 

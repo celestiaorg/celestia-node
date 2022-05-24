@@ -8,10 +8,10 @@ import (
 )
 
 func TestRemoteClient_Status(t *testing.T) {
-	_, client := StartTestClient(t)
-
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
+
+	_, client := StartTestClient(ctx, t)
 
 	status, err := client.Status(ctx)
 	require.NoError(t, err)
@@ -19,10 +19,10 @@ func TestRemoteClient_Status(t *testing.T) {
 }
 
 func TestRemoteClient_StartBlockSubscription_And_GetBlock(t *testing.T) {
-	_, client := StartTestClient(t)
-
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
+
+	_, client := StartTestClient(ctx, t)
 
 	eventChan, err := client.Subscribe(ctx, newBlockSubscriber, newBlockEventQuery)
 	require.NoError(t, err)
