@@ -13,7 +13,6 @@ import (
 	ma "github.com/multiformats/go-multiaddr"
 	"github.com/stretchr/testify/require"
 	"github.com/tendermint/tendermint/libs/bytes"
-	tmservice "github.com/tendermint/tendermint/libs/service"
 	"github.com/tendermint/tendermint/types"
 
 	"github.com/celestiaorg/celestia-node/params"
@@ -22,8 +21,6 @@ import (
 	"github.com/celestiaorg/celestia-node/libs/keystore"
 	"github.com/celestiaorg/celestia-node/node"
 	"github.com/celestiaorg/celestia-node/node/p2p"
-
-	rpcclient "github.com/tendermint/tendermint/rpc/client"
 )
 
 var blackholeIP6 = net.ParseIP("100::")
@@ -61,8 +58,11 @@ func NewSwamp(t *testing.T, options ...Option) *Swamp {
 	var err error
 	ctx := context.Background()
 
-	newTendermintCoreNode(context.Background(), t, ic)
-
+	// TODO(@Bidon15): CoreClient(limitation)
+	// Now, we are making an assumption that consensus mechanism is already tested out
+	// so, we are not creating bridge nodes with each one containing its own core client
+	// instead we are assigning all created BNs to 1 Core from the swamp
+	core.StartTestNode(ctx, t, ic.App, ic.CoreCfg)
 	protocol, ip := core.GetEndpoint(ic.CoreCfg)
 	remote, err := core.NewRemote(protocol, ip)
 	require.NoError(t, err)
@@ -86,18 +86,6 @@ func NewSwamp(t *testing.T, options ...Option) *Swamp {
 	return swp
 }
 
-// TODO(@Bidon15): CoreClient(limitation)
-// Now, we are making an assumption that consensus mechanism is already tested out
-// so, we are not creating bridge nodes with each one containing its own core client
-// instead we are assigning all created BNs to 1 Core from the swamp
-
-// newTendermintCoreNode creates a new instance of Tendermint Core with a kvStore and starts it
-func newTendermintCoreNode(ctx context.Context, t *testing.T, c *Components) tmservice.Service {
-	tn := core.StartTestNode(ctx, t, c.App, c.CoreCfg)
-
-	return tn
-}
-
 // stopAllNodes goes through all received slices of Nodes and stops one-by-one
 // this eliminates a manual clean-up in the test-cases itself in the end
 func (s *Swamp) stopAllNodes(ctx context.Context, allNodes ...[]*node.Node) {
@@ -116,36 +104,34 @@ func (s *Swamp) GetCoreBlockHashByHeight(ctx context.Context, height int64) byte
 }
 
 // WaitTillHeight holds the test execution until the given amount of blocks
-// have been produced by the CoreClient.
+// has been produced by the CoreClient.
 func (s *Swamp) WaitTillHeight(ctx context.Context, height int64) {
 	require.Greater(s.t, height, int64(0))
 
-	waiter := func(delta int64) (abort error) {
-		return rpcclient.DefaultWaitStrategy(1)
-	}
-
-	err := rpcclient.WaitForHeight(s.CoreClient, height, waiter)
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	results, err := s.CoreClient.Subscribe(ctx, subscriberID, queryEvent)
 	require.NoError(s.t, err)
-	// results, err := s.CoreClient.Subscribe(ctx, subscriberID, core.NewBlockEventQuery)
-	// require.NoError(s.t, err)
 
-	// defer func() {
-	// 	err = s.CoreClient.Unsubscribe(ctx, subscriberID, core.NewBlockEventQuery)
-	// 	require.NoError(s.t, err)
-	// }()
+	defer func() {
+		// TODO(@Wondertan): For some reason, the Unsubscribe does not work and we have to do
+		//  an UnsubscribeAll as a hack. There is somewhere a bug in the Tendermint which should be
+		//  investigated
+		err = s.CoreClient.UnsubscribeAll(ctx, subscriberID)
+		require.NoError(s.t, err)
+	}()
 
-	// for {
-	// 	select {
-	// 	case <-ctx.Done():
-	// 		return
-	// 	case block := <-results:
-	// 		newBlock := block.Data.(types.EventDataNewBlock)
-	// 		if height <= newBlock.Block.Height {
-	// 			return
-	// 		}
-	// 	}
-	// }
-
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case block := <-results:
+			newBlock := block.Data.(types.EventDataNewBlock)
+			if height <= newBlock.Block.Height {
+				return
+			}
+		}
+	}
 }
 
 // createPeer is a helper for celestia nodes to initialize
@@ -175,11 +161,14 @@ func (s *Swamp) createPeer(ks keystore.Keystore) host.Host {
 // getTrustedHash is needed for celestia nodes to get the trustedhash
 // from CoreClient. This is required to initialize and start correctly.
 func (s *Swamp) getTrustedHash(ctx context.Context) (string, error) {
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
 	results, err := s.CoreClient.Subscribe(ctx, subscriberID, queryEvent)
 	require.NoError(s.t, err)
 
 	defer func() {
-		err = s.CoreClient.Unsubscribe(ctx, subscriberID, queryEvent)
+		err := s.CoreClient.UnsubscribeAll(ctx, subscriberID)
 		require.NoError(s.t, err)
 	}()
 
