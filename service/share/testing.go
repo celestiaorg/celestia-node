@@ -2,7 +2,6 @@ package share
 
 import (
 	"context"
-	"errors"
 	"math"
 	"testing"
 
@@ -138,5 +137,5 @@ func NewBrokenAvailability() Availability {
 }
 
 func (b *brokenAvailability) SharesAvailable(context.Context, *Root) error {
-	return errors.New("da: data not available")
+	return ErrNotAvailable
 }

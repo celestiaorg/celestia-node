@@ -247,7 +247,7 @@ func TestDASer_catchUp_fails(t *testing.T) {
 	wg.Wait()
 
 	result := <-resultCh
-	require.Error(t, result.err)
+	require.ErrorIs(t, result.err, share.ErrNotAvailable)
 }
 
 // createDASerSubcomponents takes numGetter (number of headers
