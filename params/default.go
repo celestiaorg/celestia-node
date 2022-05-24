@@ -21,30 +21,36 @@ func DefaultNetwork() Network {
 
 func init() {
 	// check if custom network option set
+	// format: CELESTIA_CUSTOM=<netID>:<trustedHash>:<bootstrapPeerList>
 	if custom, ok := os.LookupEnv(EnvCustomNetwork); ok {
 		fmt.Print("\n\nWARNING: Celestia custom network specified. Only use this option if the node is " +
 			"freshly created and initialized.\n**DO NOT** run a custom network over an already-existing node " +
 			"store!\n\n")
-		// ensure all three params are present
+		// ensure at least custom network is set
 		params := strings.Split(custom, ":")
-		if len(params) != 3 {
-			panic(fmt.Sprintf("must provide %s in this format: "+
-				"<network_ID>:<genesis hash>:<comma-separated list of bootstrappers>", EnvCustomNetwork))
+		if len(params) == 0 {
+			panic("params: must provide at least <network_ID> to use a custom network")
 		}
-		netID, genHash, bootstrappers := params[0], params[1], params[2]
-		// validate bootstrappers
-		bs := strings.Split(bootstrappers, ",")
-		_, err := parseAddrInfos(bs)
-		if err != nil {
-			println(fmt.Sprintf("env %s: contains invalid multiaddress", EnvCustomNetwork))
-			panic(err)
-		}
-		bootstrapList[Network(netID)] = bs
-		// set custom network as default network for node to use
+		netID := params[0]
 		defaultNetwork = Network(netID)
-		// register network and genesis hash
 		networksList[defaultNetwork] = struct{}{}
-		genesisList[defaultNetwork] = strings.ToUpper(genHash)
+		// check if genesis hash provided and register it if exists
+		if len(params) == 2 {
+			genHash := params[1]
+			genesisList[defaultNetwork] = strings.ToUpper(genHash)
+		}
+		// check if bootstrappers were provided and register
+		if len(params) == 3 {
+			bootstrappers := params[2]
+			// validate bootstrappers
+			bs := strings.Split(bootstrappers, ",")
+			_, err := parseAddrInfos(bs)
+			if err != nil {
+				println(fmt.Sprintf("params: env %s: contains invalid multiaddress", EnvCustomNetwork))
+				panic(err)
+			}
+			bootstrapList[Network(netID)] = bs
+		}
 	}
 	// check if private network option set
 	if genesis, ok := os.LookupEnv(EnvPrivateGenesis); ok {
