@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	format "github.com/ipfs/go-ipld-format"
+	"github.com/ipfs/go-blockservice"
 	"github.com/stretchr/testify/require"
 	"github.com/tendermint/tendermint/crypto/tmhash"
 	"github.com/tendermint/tendermint/libs/bytes"
@@ -207,7 +207,7 @@ func FraudMaker(t *testing.T, faultHeight int64) ConstructFn {
 		b *types.Block,
 		comm *types.Commit,
 		vals *types.ValidatorSet,
-		dag format.NodeAdder) (*ExtendedHeader, error) {
+		bServ blockservice.BlockService) (*ExtendedHeader, error) {
 		eh := &ExtendedHeader{
 			RawHeader:    b.Header,
 			Commit:       comm,
@@ -215,12 +215,12 @@ func FraudMaker(t *testing.T, faultHeight int64) ConstructFn {
 		}
 
 		if b.Height == faultHeight {
-			eh = createFraudExtHeader(t, eh, dag)
+			eh = createFraudExtHeader(t, eh, bServ)
 			return eh, nil
 		}
 
-		namespacedShares, _ := b.Data.ComputeShares()
-		extended, err := ipld.AddShares(ctx, namespacedShares.RawShares(), dag)
+		namespacedShares, _, _ := b.Data.ComputeShares(uint64(0))
+		extended, err := ipld.AddShares(ctx, namespacedShares.RawShares(), bServ)
 		require.NoError(t, err)
 		dah := da.NewDataAvailabilityHeader(extended)
 		eh.DAH = &dah
@@ -228,7 +228,7 @@ func FraudMaker(t *testing.T, faultHeight int64) ConstructFn {
 	}
 }
 
-func createFraudExtHeader(t *testing.T, eh *ExtendedHeader, dag format.NodeAdder) *ExtendedHeader {
+func createFraudExtHeader(t *testing.T, eh *ExtendedHeader, dag blockservice.BlockService) *ExtendedHeader {
 	extended := ipld.RandEDS(t, 2)
 	shares := ipld.ExtractEDS(extended)
 	copy(shares[0][ipld.NamespaceSize:], shares[1][ipld.NamespaceSize:])
