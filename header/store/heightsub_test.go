@@ -31,10 +31,13 @@ func TestHeightSub(t *testing.T) {
 	// assert actual subscription works
 	{
 		go func() {
+			// fixes flakiness on CI
+			time.Sleep(time.Millisecond)
+
 			h1 := header.RandExtendedHeader(t)
 			h1.Height = 101
 			h2 := header.RandExtendedHeader(t)
-			h1.Height = 101
+			h2.Height = 102
 			hs.Pub(h1, h2)
 		}()
 
