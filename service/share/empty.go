@@ -1,4 +1,4 @@
-package services
+package share
 
 import (
 	"bytes"
@@ -10,11 +10,11 @@ import (
 	"github.com/celestiaorg/celestia-node/ipld"
 )
 
-// StoreEmptyBlock checks if the given DAG contains an empty block data square.
+// EnsureEmptySquareExists checks if the given DAG contains an empty block data square.
 // If it does not, it stores an empty block. This optimization exists to prevent
 // redundant storing of empty block data so that it is only stored once and returned
 // upon request for a block with an empty data square. Ref: header/header.go#L56
-func StoreEmptyBlock(ctx context.Context, dag format.DAGService) error {
+func EnsureEmptySquareExists(ctx context.Context, dag format.DAGService) error {
 	shares := make([][]byte, consts.MinSharecount)
 	for i := 0; i < consts.MinSharecount; i++ {
 		shares[i] = tailPaddingShare
