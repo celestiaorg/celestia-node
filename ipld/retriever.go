@@ -92,9 +92,10 @@ func (r *Retriever) Retrieve(ctx context.Context, dah *da.DataAvailabilityHeader
 	}
 }
 
-// retrievalSession represents a data square retrieval session
-// It manages the data square, quadrant request retries
-// and provides simple API to know when
+// retrievalSession represents a data square retrieval session.
+// It manages one data square that is being retrieved and
+// quadrant request retries. Also, provides an API
+// to reconstruct the block once enough shares are fetched.
 type retrievalSession struct {
 	bget  blockservice.BlockGetter
 	adder *NmtNodeAdder
@@ -105,11 +106,11 @@ type retrievalSession struct {
 	dah            *da.DataAvailabilityHeader
 	squareImported *rsmt2d.ExtendedDataSquare
 
-	quadrants []*quadrant
-	squareLk  sync.RWMutex
-	square    [][]byte
-	shares    uint32
-	done      chan struct{}
+	quadrants   []*quadrant
+	squareLk    sync.RWMutex
+	square      [][]byte
+	sharesCount uint32
+	done        chan struct{}
 }
 
 func (r *Retriever) newSession(ctx context.Context, dah *da.DataAvailabilityHeader) (*retrievalSession, error) {
@@ -164,9 +165,9 @@ func (rs *retrievalSession) Reconstruct() (*rsmt2d.ExtendedDataSquare, error) {
 }
 
 func (rs *retrievalSession) Close() error {
-	// all shares which were requested or repaired are written to disk with the commit
-	// we store *all*, so they are served to the network, including incorrectly committed
-	// data(BEFP case), so that network can check BEFP
+	// All shares which were requested or repaired are written to disk with the commit.
+	// Note that we store *all*, so they are served to the network, including incorrectly committed
+	// data(BEFP case), so that the network can check BEFP.
 	err := rs.adder.Commit()
 	if err != nil {
 		log.Errorw("committing DAG", "err", err)
@@ -181,9 +182,9 @@ func (rs *retrievalSession) request(ctx context.Context) {
 	t := time.NewTicker(RetrieveQuadrantTimeout)
 	defer t.Stop()
 	for retry := 0; retry < len(rs.quadrants); retry++ {
-		// request quadrant and fill it into rs.square slice
-		// we don't care about the errors here,
-		// just need to request as much data as we can to be able to Reconstruct below
+		// Request quadrant and fill it into rs.square slice.
+		// We don't need to care about the errors here.
+		// Just need to request as much data as we can to be able to Reconstruct below.
 		rs.doRequest(ctx, rs.quadrants[retry])
 		select {
 		case <-t.C:
@@ -224,7 +225,7 @@ func (rs *retrievalSession) doRequest(ctx context.Context, q *quadrant) {
 					// TODO(@Wondertan): This is not an ideal way to know when to start
 					//  reconstruction and can cause idle reconstruction tries in some cases,
 					//  but it is totally fine for the happy case and for now.
-					if atomic.AddUint32(&rs.shares, 1) >= uint32(size*size) {
+					if atomic.AddUint32(&rs.sharesCount, 1) >= uint32(size*size) {
 						select {
 						case rs.done <- struct{}{}:
 						default:
