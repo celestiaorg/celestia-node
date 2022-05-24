@@ -231,8 +231,8 @@ func (d *DASer) catchUp(ctx context.Context, job *catchUpJob) (int64, error) {
 			}
 			log.Errorw("sampling failed", "height", h.Height, "hash", h.Hash(),
 				"square width", len(h.DAH.RowsRoots), "data root", h.DAH.Hash(), "err", err)
-			// continue sampling
-			continue
+			// report previous height as the last successfully sampled height
+			return height - 1, err
 		}
 
 		sampleTime := time.Since(startTime)
