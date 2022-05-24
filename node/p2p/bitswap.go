@@ -49,6 +49,10 @@ func DataExchange(cfg Config) func(bitSwapParams) (exchange.Interface, blockstor
 			network.NewFromIpfsHost(params.Host, params.Cr, network.Prefix(prefix)),
 			bs,
 			bitswap.ProvideEnabled(false),
+			// NOTE: These below ar required for our protocol to work reliably.
+			// See https://github.com/celestiaorg/celestia-node/issues/732
+			bitswap.SetSendDontHaves(false),
+			bitswap.SetSimulateDontHavesOnTimeout(false),
 		), bs, nil
 	}
 }
