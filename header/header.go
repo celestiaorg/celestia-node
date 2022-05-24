@@ -47,8 +47,7 @@ func MakeExtendedHeader(
 ) (*ExtendedHeader, error) {
 	var dah DataAvailabilityHeader
 	if len(b.Txs) > 0 {
-		// TODO(@Bidon15): Do we need curLen(int)?
-		namespacedShares, _, err := b.Data.ComputeShares(uint64(0))
+		namespacedShares, _, err := b.Data.ComputeShares(b.OriginalSquareSize)
 		if err != nil {
 			return nil, err
 		}
