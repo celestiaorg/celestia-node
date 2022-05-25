@@ -4,12 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"strconv"
-	"strings"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/fx"
 
@@ -25,11 +24,34 @@ import (
 // celestia-node. They will be removed upon refactoring of the RPC
 // architecture and Public API. @renaynay @Wondertan.
 
+const testHeight = uint64(2)
+
 // TestNamespacedSharesRequest tests the `/namespaced_shares` endpoint.
 func TestNamespacedSharesRequest(t *testing.T) {
+	testGetNamespacedRequest(t, "namespaced_shares", func(t *testing.T, resp *http.Response) {
+		t.Helper()
+		namespacedShares := new(rpc.NamespacedSharesResponse)
+		err := json.NewDecoder(resp.Body).Decode(namespacedShares)
+		assert.NoError(t, err)
+		assert.Equal(t, testHeight, namespacedShares.Height)
+	})
+}
+
+// TestNamespacedDataRequest tests the `/namespaced_shares` endpoint.
+func TestNamespacedDataRequest(t *testing.T) {
+	testGetNamespacedRequest(t, "namespaced_data", func(t *testing.T, resp *http.Response) {
+		t.Helper()
+		namespacedData := new(rpc.NamespacedDataResponse)
+		err := json.NewDecoder(resp.Body).Decode(namespacedData)
+		assert.NoError(t, err)
+		assert.Equal(t, testHeight, namespacedData.Height)
+	})
+}
+
+func testGetNamespacedRequest(t *testing.T, endpointName string, assertResponseOK func(*testing.T, *http.Response)) {
+	t.Helper()
 	nd := setupNodeWithModifiedRPC(t)
 	// create several requests for header at height 2
-	height := uint64(2)
 	var tests = []struct {
 		nID         string
 		expectedErr bool
@@ -53,8 +75,8 @@ func TestNamespacedSharesRequest(t *testing.T) {
 
 	for i, tt := range tests {
 		t.Run(strconv.Itoa(i), func(t *testing.T) {
-			endpoint := fmt.Sprintf("http://127.0.0.1:%s/namespaced_shares/%s/height/%d",
-				nd.RPCServer.ListenAddr()[5:], tt.nID, height)
+			endpoint := fmt.Sprintf("http://127.0.0.1:%s/%s/%s/height/%d",
+				nd.RPCServer.ListenAddr()[5:], endpointName, tt.nID, testHeight)
 			resp, err := http.Get(endpoint)
 			defer func() {
 				err = resp.Body.Close()
@@ -63,20 +85,20 @@ func TestNamespacedSharesRequest(t *testing.T) {
 			// check resp
 			if tt.expectedErr {
 				require.False(t, resp.StatusCode == http.StatusOK)
+				require.Equal(t, "application/json", resp.Header.Get("Content-Type"))
 
-				buf, err := ioutil.ReadAll(resp.Body)
+				var errorMessage string
+				err := json.NewDecoder(resp.Body).Decode(&errorMessage)
+
 				require.NoError(t, err)
-				expectedErr := strings.Trim(string(buf), "\"\"") //nolint:staticcheck
-				require.Equal(t, tt.errMsg, expectedErr)
+				require.Equal(t, tt.errMsg, errorMessage)
 
 				return
 			}
 			require.NoError(t, err)
 			require.True(t, resp.StatusCode == http.StatusOK)
-			// decode resp
-			namespacedShares := new(rpc.NamespacedSharesResponse)
-			err = json.NewDecoder(resp.Body).Decode(namespacedShares)
-			require.Equal(t, height, namespacedShares.Height)
+
+			assertResponseOK(t, resp)
 		})
 	}
 }
