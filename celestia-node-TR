@@ -1,0 +1,73 @@
+# Celestia Node TR
+
+[![Go Reference](https://pkg.go.dev/badge/github.com/celestiaorg/celestia-node.svg)](https://pkg.go.dev/github.com/celestiaorg/celestia-node)
+[![GitHub release (latest by date including pre-releases)](https://img.shields.io/github/v/release/celestiaorg/celestia-node)](https://github.com/celestiaorg/celestia-node/releases/latest)
+[![test](https://github.com/celestiaorg/celestia-node/actions/workflows/test.yml/badge.svg)](https://github.com/celestiaorg/celestia-node/actions/workflows/test.yml)
+[![lint](https://github.com/celestiaorg/celestia-node/actions/workflows/lint.yml/badge.svg)](https://github.com/celestiaorg/celestia-node/actions/workflows/lint.yml)
+[![Go Report Card](https://goreportcard.com/badge/github.com/celestiaorg/celestia-node)](https://goreportcard.com/report/github.com/celestiaorg/celestia-node)
+[![codecov](https://codecov.io/gh/celestiaorg/celestia-node/branch/main/graph/badge.svg?token=CWGA4RLDS9)](https://codecov.io/gh/celestiaorg/celestia-node)
+
+Celestia'nın veri kullanılabilirliği düğüm türlerinin Golang uygulaması  (`light` | `full` | `bridge`).
+
+Yukarıda açıklanan celestia düğümü türleri celestia veri kullanılabilirliği (DA) ağını içerir.
+
+DA ağı, konsensüs ağından gelen blokları dinleyerek ve veri kullanılabilirliği örneklemesi (DAS) için sindirilebilir hale getirerek celestia çekirdekli konsensüs ağını sarar.
+
+DAS hakkında daha fazla bilgi edinmek ve Celestia zincir verilerine nasıl güvenli ve ölçeklenebilir erişim sağladığını öğrenmek istiyorsanız [buradan](https://blog.celestia.org/celestia-mvp-release-data-availability-sampling-light-clients) okumaya devam edebilirsiniz.
+
+## Minimum gereksinimler
+
+| Gereksinim  | Notları        |
+|-------------|----------------|
+| Go version  | 1.17 or higher |
+
+## Sistem Gereksinimleri 
+
+Node türü başına sistem gereksinimleri için resmi dokümanlar sayfasına bakın: 
+* [Bridge](https://docs.celestia.org/nodes/bridge-validator-node#hardware-requirements)
+* [Light](https://docs.celestia.org/nodes/light-node#hardware-requirements)
+* *Full coming soon*
+
+## Kurulum
+
+```sh
+git clone https://github.com/celestiaorg/celestia-node.git 
+cd celestia-node
+make install
+```
+
+Bir node kurma ve gereken donanım gereksinimleri hakkında daha fazla bilgi için şu adresteki dokümanlarımızı ziyaret edin: <https://docs.celestia.org>.
+
+## API dokümanları
+
+Celestia-node ortak API'sı belgeleri [burada](https://docs.celestia.org/developers/node-api/).
+
+## Node türleri
+
+- **Bridge** nodes - Blokları celestia konsensüs ağından celestia veri kullanılabilirliği (DA) ağına aktarma
+- **Full** nodes - DA ağını paylaşımlar için örnekleyerek blokları tamamen yeniden oluşturun ve saklayın
+- **Light** nodes - DA ağını paylaşımlar için örnekleyerek blok verilerinin kullanılabilirliğini doğrulayın
+
+Daha fazla bilgi [burada](https://github.com/celestiaorg/celestia-node/blob/main/docs/adr/adr-003-march2022-testnet.md#legend).
+
+## Run a node
+
+`<node_type>` can be `bridge`, `full` or `light`.
+
+```sh
+celestia <node_type> init 
+```
+
+```sh
+celestia <node_type> start
+```
+
+## Pakete özgü belgeler
+
+- [Header](./service/header/doc.go)
+- [Share](./service/share/doc.go)
+- [DAS](./das/doc.go)
+
+## Kod kuralları
+
+Kod kurallarımıza bakın [burada](https://docs.celestia.org/community/coc).
