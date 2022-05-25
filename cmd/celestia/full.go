@@ -2,7 +2,6 @@
 package main
 
 import (
-	"github.com/cosmos/cosmos-sdk/client/keys"
 	"github.com/spf13/cobra"
 
 	cmdnode "github.com/celestiaorg/celestia-node/cmd"
@@ -13,13 +12,6 @@ import (
 // parent command.
 
 func init() {
-	fullKeyCmd := keys.Commands("~/.celestia-full/keys")
-	fullKeyCmd.Short = "Manage your full node account keys"
-	fullKeyCmd.PersistentPreRunE = func(cmd *cobra.Command, args []string) error {
-		_, err := cmdnode.GetEnv(cmd.Context())
-		return err
-	}
-
 	fullCmd.AddCommand(
 		cmdnode.Init(
 			cmdnode.NodeFlags(node.Full),
@@ -43,7 +35,6 @@ func init() {
 			cmdnode.RPCFlags(),
 			cmdnode.KeyFlags(),
 		),
-		fullKeyCmd,
 	)
 }
 

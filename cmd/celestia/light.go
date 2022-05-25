@@ -2,7 +2,6 @@
 package main
 
 import (
-	"github.com/cosmos/cosmos-sdk/client/keys"
 	"github.com/spf13/cobra"
 
 	cmdnode "github.com/celestiaorg/celestia-node/cmd"
@@ -13,13 +12,6 @@ import (
 // parent command.
 
 func init() {
-	lightKeyCmd := keys.Commands("~/.celestia-light/keys")
-	lightKeyCmd.Short = "Manage your light node account keys"
-	lightKeyCmd.PersistentPreRunE = func(cmd *cobra.Command, args []string) error {
-		_, err := cmdnode.GetEnv(cmd.Context())
-		return err
-	}
-
 	lightCmd.AddCommand(
 		cmdnode.Init(
 			cmdnode.NodeFlags(node.Light),
@@ -43,7 +35,6 @@ func init() {
 			cmdnode.RPCFlags(),
 			cmdnode.KeyFlags(),
 		),
-		lightKeyCmd,
 	)
 }
 

@@ -4,12 +4,11 @@ import (
 	"context"
 	"os"
 
+	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/spf13/cobra"
 
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-node/cmd"
-
-	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
 func init() {
@@ -42,6 +41,7 @@ func run() error {
 var rootCmd = &cobra.Command{
 	Use: "celestia [  bridge  ||  full ||  light  ] [subcommand]",
 	Short: `
+		____      __          __  _
 	  / ____/__  / /__  _____/ /_(_)___ _
 	 / /   / _ \/ / _ \/ ___/ __/ / __  /
 	/ /___/  __/ /  __(__  ) /_/ / /_/ /

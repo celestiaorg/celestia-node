@@ -37,6 +37,18 @@ install-shed:
 	@go install ./cmd/cel-shed
 .PHONY: install-shed
 
+## key: Build cel-key binary.
+cel-key:
+	@echo "--> Building cel-key"
+	@go build ./cmd/cel-key
+.PHONY: cel-key
+
+## install-key: Build and install the cel-key binary into the GOBIN directory.
+install-key:
+	@echo "--> Installing cel-key"
+	@go install ./cmd/cel-key
+.PHONY: install-key
+
 ## fmt: Formats only *.go (excluding *.pb.go *pb_test.go). Runs `gofmt & goimports` internally.
 fmt:
 	@find . -name '*.go' -type f -not -path "*.git*" -not -name '*.pb.go' -not -name '*pb_test.go' | xargs gofmt -w -s
