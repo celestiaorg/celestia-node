@@ -12,6 +12,12 @@ import (
 )
 
 func init() {
+	// This is necessary to ensure that the account addresses are correctly prefixed
+	// as in the celestia application.
+	cfg := sdk.GetConfig()
+	cfg.SetBech32PrefixForAccount(app.Bech32PrefixAccAddr, app.Bech32PrefixAccPub)
+	cfg.Seal()
+
 	rootCmd.AddCommand(
 		bridgeCmd,
 		lightCmd,
@@ -29,10 +35,6 @@ func main() {
 }
 
 func run() error {
-	cfg := sdk.GetConfig()
-	cfg.SetBech32PrefixForAccount(app.Bech32PrefixAccAddr, app.Bech32PrefixAccPub)
-	cfg.Seal()
-
 	return rootCmd.ExecuteContext(cmd.WithEnv(context.Background()))
 }
 
