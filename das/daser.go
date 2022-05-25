@@ -186,6 +186,8 @@ func (d *DASer) catchUpManager(ctx context.Context, checkpoint int64) {
 		case job := <-d.jobsCh:
 			// perform catchUp routine
 			height, err := d.catchUp(ctx, job)
+			// store the height of the last successfully sampled header
+			checkpoint = height
 			// exit routine if a catch-up job was unsuccessful
 			if err != nil {
 				log.Errorw("catch-up routine failed", "attempted range (from, to)", job.from,
@@ -193,8 +195,6 @@ func (d *DASer) catchUpManager(ctx context.Context, checkpoint int64) {
 				log.Warn("DASer WILL BE STOPPED. IN ORDER TO CONTINUE SAMPLING OVER PAST HEADERS, RE-START THE NODE")
 				return
 			}
-			// store the height of the last successfully sampled header
-			checkpoint = height
 		}
 	}
 }
