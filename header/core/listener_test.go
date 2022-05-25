@@ -58,6 +58,15 @@ func createMocknetWithTwoPubsubEndpoints(ctx context.Context, t *testing.T) (*pu
 	require.NoError(t, err)
 	host0, host1 := net.Hosts()[0], net.Hosts()[1]
 
+	// create pubsub for host
+	ps0, err := pubsub.NewGossipSub(context.Background(), host0,
+		pubsub.WithMessageSignaturePolicy(pubsub.StrictNoSign))
+	require.NoError(t, err)
+	// create pubsub for peer-side (to test broadcast comes through network)
+	ps1, err := pubsub.NewGossipSub(context.Background(), host1,
+		pubsub.WithMessageSignaturePolicy(pubsub.StrictNoSign))
+	require.NoError(t, err)
+
 	sub0, err := host0.EventBus().Subscribe(&event.EvtPeerIdentificationCompleted{})
 	require.NoError(t, err)
 	sub1, err := host1.EventBus().Subscribe(&event.EvtPeerIdentificationCompleted{})
@@ -76,14 +85,6 @@ func createMocknetWithTwoPubsubEndpoints(ctx context.Context, t *testing.T) (*pu
 		}
 	}
 
-	// create pubsub for host
-	ps0, err := pubsub.NewGossipSub(context.Background(), host0,
-		pubsub.WithMessageSignaturePolicy(pubsub.StrictNoSign))
-	require.NoError(t, err)
-	// create pubsub for peer-side (to test broadcast comes through network)
-	ps1, err := pubsub.NewGossipSub(context.Background(), host1,
-		pubsub.WithMessageSignaturePolicy(pubsub.StrictNoSign))
-	require.NoError(t, err)
 	return ps0, ps1
 }
 
