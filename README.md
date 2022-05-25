@@ -26,7 +26,7 @@ Continue reading [here](https://blog.celestia.org/celestia-mvp-release-data-avai
 See the official docs page for system requirements per node type: 
 * [Bridge](https://docs.celestia.org/nodes/bridge-validator-node#hardware-requirements)
 * [Light](https://docs.celestia.org/nodes/light-node#hardware-requirements)
-* *Full coming soon*
+* [Full](https://docs.celestia.org/nodes/full-node#hardware-requirements)
 
 ## Installation
 
