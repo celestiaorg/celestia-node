@@ -6,8 +6,8 @@ import (
 
 // NOTE: Every time we add a new long-running network, it has to be added here.
 const (
-	// DevNet or devnet-2 according to celestiaorg/networks
-	DevNet Network = "devnet-2"
+	// Mamaki testnet. See: celestiaorg/networks.
+	Mamaki Network = "mamaki"
 	// Private can be used to set up any private network, including local testing setups.
 	// Use CELESTIA_PRIVATE_GENESIS env var to enable Private by specifying its genesis block hash.
 	Private Network = "private"
@@ -29,6 +29,6 @@ func (n Network) Validate() error {
 
 // networksList is a strict list of all known long-standing networks.
 var networksList = map[Network]struct{}{
-	DevNet:  {},
+	Mamaki:  {},
 	Private: {},
 }
