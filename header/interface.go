@@ -72,13 +72,13 @@ type Exchange interface {
 
 var (
 	// ErrNotFound is returned when there is no requested header.
-	ErrNotFound = errors.New("not found")
+	ErrNotFound = errors.New("header: not found")
 
 	// ErrNoHead is returned when Store is empty (does not contain any known header).
-	ErrNoHead = fmt.Errorf("no chain head")
+	ErrNoHead = fmt.Errorf("header/store: no chain head")
 
 	// ErrNonAdjacent is returned when Store is appended with a header not adjacent to the stored head.
-	ErrNonAdjacent = fmt.Errorf("non-adjacent")
+	ErrNonAdjacent = fmt.Errorf("header/store: non-adjacent")
 )
 
 // Store encompasses the behavior necessary to store and retrieve ExtendedHeaders
