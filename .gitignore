@@ -18,5 +18,6 @@ vendor
 .vscode/
 celestia
 cel-shed
+cel-key
 coverage.txt
 go.work
