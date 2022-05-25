@@ -174,6 +174,7 @@ func (d *DASer) catchUpManager(ctx context.Context, checkpoint int64) {
 		if err := storeCheckpoint(d.cstore, checkpoint); err != nil {
 			log.Errorw("storing checkpoint to disk", "height", checkpoint, "err", err)
 		}
+		log.Infow("stored checkpoint to disk", "checkpoint", checkpoint)
 		// signal that catch-up routine finished
 		d.catchUpDn <- struct{}{}
 	}()
@@ -236,7 +237,7 @@ func (d *DASer) catchUp(ctx context.Context, job *catchUpJob) (int64, error) {
 		}
 
 		sampleTime := time.Since(startTime)
-		log.Debugw("sampled past header", "height", h.Height, "hash", h.Hash(),
+		log.Infow("sampled past header", "height", h.Height, "hash", h.Hash(),
 			"square width", len(h.DAH.RowsRoots), "finished (s)", sampleTime.Seconds())
 	}
 
