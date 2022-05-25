@@ -12,7 +12,7 @@ const (
 )
 
 // defaultNetwork defines a default network for the Celestia Node.
-var defaultNetwork = DevNet
+var defaultNetwork = Mamaki
 
 // DefaultNetwork returns the network of the current build.
 func DefaultNetwork() Network {
