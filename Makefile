@@ -1,6 +1,9 @@
 SHELL=/usr/bin/env bash
 PROJECTNAME=$(shell basename "$(PWD)")
 LDFLAGS="-X 'main.buildTime=$(shell date)' -X 'main.lastCommit=$(shell git rev-parse HEAD)' -X 'main.semanticVersion=$(shell git describe --tags --dirty=-dev)'"
+ifeq (${PREFIX},)
+	PREFIX := /usr/local
+endif
 
 ## help: Get more info on make commands.
 help: Makefile
@@ -19,11 +22,17 @@ clean:
 	@echo "--> Cleaning up ./build"
 	@rm -rf build/*
 
-## install: Build and install the celestia-node binary into the GOBIN directory.
-install:
+## install: Build and install the celestia-node binary into the $PREFIX (/usr/local/ by default) directory.
+install: build
+	@echo "--> Installing Celestia"
+	@install -v ./build/* -t ${PREFIX}/bin/
+.PHONY: install
+
+## go-install: Build and install the celestia-node binary into the GOBIN directory.
+go-install:
 	@echo "--> Installing Celestia"
 	@go install -ldflags ${LDFLAGS}  ./cmd/celestia
-.PHONY: install
+.PHONY: go-install
 
 ## shed: Build cel-shed binary.
 cel-shed:

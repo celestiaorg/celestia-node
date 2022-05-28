@@ -33,7 +33,8 @@ See the official docs page for system requirements per node type:
 ```sh
 git clone https://github.com/celestiaorg/celestia-node.git 
 cd celestia-node
-make install
+make build
+sudo make install
 ```
 
 For more information on setting up a node and the hardware requirements needed, go visit our docs at <https://docs.celestia.org>.
