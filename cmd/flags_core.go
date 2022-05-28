@@ -52,7 +52,9 @@ func ParseCoreFlags(cmd *cobra.Command, env *Env) error {
 	grpcEndpoint := cmd.Flag(coreGRPCFlag).Value.String()
 	if grpcEndpoint != "" {
 		// trim ip:port from the endpoint
-		grpcEndpoint = strings.Trim(grpcEndpoint, "http://") //nolint:staticcheck
+		grpcEndpoint = strings.Trim(grpcEndpoint, "http://")  //nolint:staticcheck
+		grpcEndpoint = strings.Trim(grpcEndpoint, "https://") //nolint:staticcheck
+		grpcEndpoint = strings.Trim(grpcEndpoint, "tcp://")   //nolint:staticcheck
 		env.AddOptions(node.WithGRPCEndpoint(grpcEndpoint))
 	}
 
