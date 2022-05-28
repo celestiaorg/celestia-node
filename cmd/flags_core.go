@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net"
 	"net/url"
+	"strings"
 
 	"github.com/spf13/cobra"
 	flag "github.com/spf13/pflag"
@@ -50,6 +51,8 @@ func ParseCoreFlags(cmd *cobra.Command, env *Env) error {
 
 	grpcEndpoint := cmd.Flag(coreGRPCFlag).Value.String()
 	if grpcEndpoint != "" {
+		// trim ip:port from the endpoint
+		grpcEndpoint = strings.Trim(grpcEndpoint, "http://") //nolint:staticcheck
 		env.AddOptions(node.WithGRPCEndpoint(grpcEndpoint))
 	}
 
