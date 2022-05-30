@@ -6,8 +6,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ipfs/go-blockservice"
 	exchange "github.com/ipfs/go-ipfs-exchange-interface"
-	format "github.com/ipfs/go-ipld-format"
 	logging "github.com/ipfs/go-log/v2"
 	"github.com/libp2p/go-libp2p-core/connmgr"
 	"github.com/libp2p/go-libp2p-core/host"
@@ -50,7 +50,7 @@ type Node struct {
 	ConnGater    connmgr.ConnectionGater
 	Routing      routing.PeerRouting
 	DataExchange exchange.Interface
-	DAG          format.DAGService
+	BlockService blockservice.BlockService
 	// p2p protocols
 	PubSub *pubsub.PubSub
 	// services

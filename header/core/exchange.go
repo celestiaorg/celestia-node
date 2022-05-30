@@ -5,7 +5,7 @@ import (
 	"context"
 	"fmt"
 
-	format "github.com/ipfs/go-ipld-format"
+	"github.com/ipfs/go-blockservice"
 	logging "github.com/ipfs/go-log/v2"
 
 	tmbytes "github.com/tendermint/tendermint/libs/bytes"
@@ -18,14 +18,14 @@ var log = logging.Logger("header/core")
 
 type Exchange struct {
 	fetcher    *core.BlockFetcher
-	shareStore format.DAGService
+	shareStore blockservice.BlockService
 	construct  header.ConstructFn
 }
 
-func NewExchange(fetcher *core.BlockFetcher, dag format.DAGService, construct header.ConstructFn) *Exchange {
+func NewExchange(fetcher *core.BlockFetcher, bServ blockservice.BlockService, construct header.ConstructFn) *Exchange {
 	return &Exchange{
 		fetcher:    fetcher,
-		shareStore: dag,
+		shareStore: bServ,
 		construct:  construct,
 	}
 }

@@ -7,13 +7,14 @@ import (
 	"sync"
 	"time"
 
+	"github.com/ipfs/go-blockservice"
 	"github.com/ipfs/go-cid"
 	format "github.com/ipfs/go-ipld-format"
 	logging "github.com/ipfs/go-log/v2"
-	"github.com/ipfs/go-merkledag"
 	"github.com/tendermint/tendermint/pkg/da"
 	"github.com/tendermint/tendermint/pkg/wrapper"
 
+	"github.com/celestiaorg/celestia-node/ipld/plugin"
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/rsmt2d"
 )
@@ -36,12 +37,12 @@ var RetrieveQuadrantTimeout = time.Minute * 5
 // Retriever randomly picks one of the data square quadrants and tries to request them one by one until it is able to
 // reconstruct the whole square.
 type Retriever struct {
-	dag format.DAGService
+	bServ blockservice.BlockService
 }
 
 // NewRetriever creates a new instance of the Retriever over IPLD Service and rmst2d.Codec
-func NewRetriever(dag format.DAGService) *Retriever {
-	return &Retriever{dag: dag}
+func NewRetriever(bServ blockservice.BlockService) *Retriever {
+	return &Retriever{bServ: bServ}
 }
 
 // Retrieve retrieves all the data committed to DataAvailabilityHeader.
@@ -63,7 +64,7 @@ func (r *Retriever) Retrieve(ctx context.Context, dah *da.DataAvailabilityHeader
 
 		var errByz *rsmt2d.ErrByzantineData
 		if errors.As(err, &errByz) {
-			return nil, NewErrByzantine(ctx, r.dag, dah, errByz)
+			return nil, NewErrByzantine(ctx, r.bServ, dah, errByz)
 		}
 		log.Warnw("not enough shares to reconstruct data square, requesting more...", "err", err)
 		// retry quadrants until we can reconstruct the EDS or error out
@@ -73,8 +74,8 @@ func (r *Retriever) Retrieve(ctx context.Context, dah *da.DataAvailabilityHeader
 }
 
 type retrieverSession struct {
-	dag   format.NodeGetter
-	adder *NmtNodeAdder
+	session blockservice.BlockGetter
+	adder   *NmtNodeAdder
 
 	treeFn rsmt2d.TreeConstructorFn
 	codec  rsmt2d.Codec
@@ -87,10 +88,14 @@ type retrieverSession struct {
 
 func (r *Retriever) newSession(ctx context.Context, dah *da.DataAvailabilityHeader) (*retrieverSession, error) {
 	size := len(dah.RowsRoots)
-	adder := NewNmtNodeAdder(ctx, format.NewBatch(ctx, r.dag, format.MaxSizeBatchOption(batchSize(size))))
+	adder := NewNmtNodeAdder(
+		ctx,
+		r.bServ,
+		format.MaxSizeBatchOption(batchSize(size)),
+	)
 	ses := &retrieverSession{
-		dag:   merkledag.NewSession(ctx, r.dag),
-		adder: adder,
+		session: blockservice.NewSession(ctx, r.bServ),
+		adder:   adder,
 		treeFn: func() rsmt2d.Tree {
 			tree := wrapper.NewErasuredNamespacedMerkleTree(uint64(size)/2, nmt.NodeVisitor(adder.Visit))
 			return &tree
@@ -148,14 +153,14 @@ func (rs *retrieverSession) request(ctx context.Context, q *quadrant) {
 		go func(i int, root cid.Cid) {
 			defer wg.Done()
 			// get the root node
-			nd, err := rs.dag.Get(ctx, root)
+			nd, err := plugin.GetNode(ctx, rs.session, root)
 			if err != nil {
 				return
 			}
 			// and go get shares of left or the right side of the whole col/row axis
 			// the left or the right side of the tree represent some portion of the quadrant
 			// which we put into the rs.square share-by-share by calculating shares' indexes using q.index
-			GetShares(ctx, rs.dag, nd.Links()[q.x].Cid, size, func(j int, share Share) {
+			GetShares(ctx, rs.session, nd.Links()[q.x].Cid, size, func(j int, share Share) {
 				// the R lock here is *not* to protect rs.square from multiple concurrent shares writes
 				// but to avoid races between share writes and repairing attempts
 				// shares are written atomically in their own slice slot

@@ -4,8 +4,8 @@ import (
 	"context"
 	"errors"
 
+	"github.com/ipfs/go-blockservice"
 	format "github.com/ipfs/go-ipld-format"
-	"github.com/ipfs/go-merkledag"
 
 	"github.com/celestiaorg/celestia-node/ipld"
 )
@@ -18,13 +18,13 @@ var DefaultSampleAmount = 16
 // its availability. It is assumed that there are a lot of lightAvailability instances
 // on the network doing sampling over the same Root to collectively verify its availability.
 type lightAvailability struct {
-	getter format.NodeGetter
+	getter blockservice.BlockGetter
 }
 
 // NewLightAvailability creates a new light Availability.
-func NewLightAvailability(get format.NodeGetter) Availability {
+func NewLightAvailability(getter blockservice.BlockGetter) Availability {
 	return &lightAvailability{
-		getter: get,
+		getter: getter,
 	}
 }
 
@@ -40,12 +40,11 @@ func (la *lightAvailability) SharesAvailable(ctx context.Context, dah *Root) err
 	ctx, cancel := context.WithTimeout(ctx, AvailabilityTimeout)
 	defer cancel()
 
-	ses := merkledag.NewSession(ctx, la.getter)
 	errs := make(chan error, len(samples))
 	for _, s := range samples {
 		go func(s Sample) {
 			root, leaf := translate(dah, s.Row, s.Col)
-			_, err := ipld.GetShare(ctx, ses, root, leaf, len(dah.RowsRoots))
+			_, err := ipld.GetShare(ctx, la.getter, root, leaf, len(dah.RowsRoots))
 			// we don't really care about Share bodies at this point
 			// it also means we now saved the Share in local storage
 			select {

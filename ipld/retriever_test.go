@@ -18,8 +18,8 @@ func TestRetriever_Retrieve(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	dag := mdutils.Mock()
-	r := NewRetriever(dag)
+	bServ := mdutils.Bserv()
+	r := NewRetriever(bServ)
 
 	type test struct {
 		name       string
@@ -36,7 +36,7 @@ func TestRetriever_Retrieve(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// generate EDS
 			shares := RandShares(t, tc.squareSize*tc.squareSize)
-			in, err := AddShares(ctx, shares, dag)
+			in, err := AddShares(ctx, shares, bServ)
 			require.NoError(t, err)
 
 			// limit with timeout, specifically retrieval

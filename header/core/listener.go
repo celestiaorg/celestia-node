@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	format "github.com/ipfs/go-ipld-format"
+	"github.com/ipfs/go-blockservice"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	"github.com/tendermint/tendermint/types"
 
@@ -22,7 +22,7 @@ import (
 type Listener struct {
 	bcast     header.Broadcaster
 	fetcher   *core.BlockFetcher
-	dag       format.DAGService
+	bServ     blockservice.BlockService
 	construct header.ConstructFn
 	cancel    context.CancelFunc
 }
@@ -30,13 +30,13 @@ type Listener struct {
 func NewListener(
 	bcast header.Broadcaster,
 	fetcher *core.BlockFetcher,
-	dag format.DAGService,
+	bServ blockservice.BlockService,
 	construct header.ConstructFn,
 ) *Listener {
 	return &Listener{
 		bcast:     bcast,
 		fetcher:   fetcher,
-		dag:       dag,
+		bServ:     bServ,
 		construct: construct,
 	}
 }
@@ -89,7 +89,7 @@ func (cl *Listener) listen(ctx context.Context, sub <-chan *types.Block) {
 				return
 			}
 
-			eh, err := cl.construct(ctx, b, comm, vals, cl.dag)
+			eh, err := cl.construct(ctx, b, comm, vals, cl.bServ)
 			if err != nil {
 				log.Errorw("listener: making extended header", "err", err)
 				return

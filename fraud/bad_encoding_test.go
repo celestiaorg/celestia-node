@@ -14,15 +14,15 @@ import (
 )
 
 func TestFraudProofValidation(t *testing.T) {
-	dag := mdutils.Mock()
+	bServ := mdutils.Bserv()
 	eds := ipld.RandEDS(t, 2)
 
 	shares := ipld.ExtractEDS(eds)
 	copy(shares[3][8:], shares[4][8:])
-	eds, err := ipld.ImportShares(context.Background(), shares, dag)
+	eds, err := ipld.ImportShares(context.Background(), shares, bServ)
 	require.NoError(t, err)
 	da := da.NewDataAvailabilityHeader(eds)
-	r := ipld.NewRetriever(dag)
+	r := ipld.NewRetriever(bServ)
 	_, err = r.Retrieve(context.Background(), &da)
 	var errByz *ipld.ErrByzantine
 	require.True(t, errors.As(err, &errByz))

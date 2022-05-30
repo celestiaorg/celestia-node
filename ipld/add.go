@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math"
 
+	"github.com/ipfs/go-blockservice"
 	ipld "github.com/ipfs/go-ipld-format"
 
 	"github.com/celestiaorg/nmt"
@@ -13,15 +14,19 @@ import (
 	"github.com/tendermint/tendermint/pkg/wrapper"
 )
 
-// AddShares erasures and extends shares to IPLD DAG using the provided ipld.NodeAdder.
-func AddShares(ctx context.Context, shares []Share, adder ipld.NodeAdder) (*rsmt2d.ExtendedDataSquare, error) {
+// AddShares erasures and extends shares to blockservice.BlockService using the provided ipld.NodeAdder.
+func AddShares(
+	ctx context.Context,
+	shares []Share,
+	adder blockservice.BlockService,
+) (*rsmt2d.ExtendedDataSquare, error) {
 	if len(shares) == 0 {
 		return nil, fmt.Errorf("empty data") // empty block is not an empty Data
 	}
 	squareSize := int(math.Sqrt(float64(len(shares))))
 	// create nmt adder wrapping batch adder with calculated size
 	bs := batchSize(squareSize * 2)
-	batchAdder := NewNmtNodeAdder(ctx, ipld.NewBatch(ctx, adder, ipld.MaxSizeBatchOption(bs)))
+	batchAdder := NewNmtNodeAdder(ctx, adder, ipld.MaxSizeBatchOption(bs))
 	// create the nmt wrapper to generate row and col commitments
 	tree := wrapper.NewErasuredNamespacedMerkleTree(uint64(squareSize), nmt.NodeVisitor(batchAdder.Visit))
 	// recompute the eds
@@ -35,15 +40,18 @@ func AddShares(ctx context.Context, shares []Share, adder ipld.NodeAdder) (*rsmt
 	return eds, batchAdder.Commit()
 }
 
-// ImportShares imports flattend chunks of data into Extended Data square and saves it in IPLD DAG
-func ImportShares(ctx context.Context, shares [][]byte, na ipld.NodeAdder) (*rsmt2d.ExtendedDataSquare, error) {
+// ImportShares imports flattend chunks of data into Extended Data square and saves it in blockservice.BlockService
+func ImportShares(
+	ctx context.Context,
+	shares [][]byte,
+	adder blockservice.BlockService) (*rsmt2d.ExtendedDataSquare, error) {
 	if len(shares) == 0 {
 		return nil, fmt.Errorf("ipld: importing empty data")
 	}
 	squareSize := int(math.Sqrt(float64(len(shares))))
 	// create nmt adder wrapping batch adder with calculated size
 	bs := batchSize(squareSize * 2)
-	batchAdder := NewNmtNodeAdder(ctx, ipld.NewBatch(ctx, na, ipld.MaxSizeBatchOption(bs)))
+	batchAdder := NewNmtNodeAdder(ctx, adder, ipld.MaxSizeBatchOption(bs))
 	// create the nmt wrapper to generate row and col commitments
 	tree := wrapper.NewErasuredNamespacedMerkleTree(uint64(squareSize/2), nmt.NodeVisitor(batchAdder.Visit))
 	// recompute the eds
