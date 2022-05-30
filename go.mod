@@ -6,7 +6,7 @@ replace github.com/ipfs/go-verifcid => github.com/celestiaorg/go-verifcid v0.0.1
 
 require (
 	github.com/BurntSushi/toml v1.1.0
-	github.com/celestiaorg/celestia-app v0.5.1
+	github.com/celestiaorg/celestia-app v0.5.2
 	github.com/celestiaorg/go-libp2p-messenger v0.1.0
 	github.com/celestiaorg/nmt v0.8.0
 	github.com/celestiaorg/rsmt2d v0.5.0
