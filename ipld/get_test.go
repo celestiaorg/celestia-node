@@ -15,7 +15,6 @@ import (
 	blockstore "github.com/ipfs/go-ipfs-blockstore"
 	offline "github.com/ipfs/go-ipfs-exchange-offline"
 	format "github.com/ipfs/go-ipld-format"
-	"github.com/ipfs/go-merkledag"
 	mdutils "github.com/ipfs/go-merkledag/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -407,11 +406,8 @@ func TestRetrieveDataFailedWithByzantineError(t *testing.T) {
 	// import corrupted eds
 	batchAdder := NewNmtNodeAdder(
 		ctx,
-		format.NewBatch(
-			ctx,
-			merkledag.NewDAGService(bServ),
-			format.MaxSizeBatchOption(batchSize(width*2)),
-		),
+		bServ,
+		format.MaxSizeBatchOption(batchSize(width*2)),
 	)
 	tree := wrapper.NewErasuredNamespacedMerkleTree(uint64(width), nmt.NodeVisitor(batchAdder.Visit))
 	attackerEDS, err := rsmt2d.ImportExtendedDataSquare(shares, DefaultRSMT2DCodec(), tree.Constructor)

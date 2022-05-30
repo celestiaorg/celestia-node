@@ -11,7 +11,6 @@ import (
 	"github.com/ipfs/go-cid"
 	format "github.com/ipfs/go-ipld-format"
 	logging "github.com/ipfs/go-log/v2"
-	"github.com/ipfs/go-merkledag"
 	"github.com/tendermint/tendermint/pkg/da"
 	"github.com/tendermint/tendermint/pkg/wrapper"
 
@@ -91,11 +90,8 @@ func (r *Retriever) newSession(ctx context.Context, dah *da.DataAvailabilityHead
 	size := len(dah.RowsRoots)
 	adder := NewNmtNodeAdder(
 		ctx,
-		format.NewBatch(
-			ctx,
-			merkledag.NewDAGService(r.bServ),
-			format.MaxSizeBatchOption(batchSize(size)),
-		),
+		r.bServ,
+		format.MaxSizeBatchOption(batchSize(size)),
 	)
 	ses := &retrieverSession{
 		session: blockservice.NewSession(ctx, r.bServ),

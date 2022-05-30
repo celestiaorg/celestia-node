@@ -3,6 +3,9 @@ package ipld
 import (
 	"context"
 
+	"github.com/ipfs/go-blockservice"
+	"github.com/ipfs/go-merkledag"
+
 	"github.com/ipfs/go-cid"
 	ipld "github.com/ipfs/go-ipld-format"
 
@@ -21,9 +24,9 @@ type NmtNodeAdder struct {
 // NewNmtNodeAdder returns a new NmtNodeAdder with the provided context and
 // batch. Note that the context provided should have a timeout
 // It is not thread-safe.
-func NewNmtNodeAdder(ctx context.Context, add ipld.NodeAdder) *NmtNodeAdder {
+func NewNmtNodeAdder(ctx context.Context, bs blockservice.BlockService, opts ...ipld.BatchOption) *NmtNodeAdder {
 	return &NmtNodeAdder{
-		add:    add,
+		add:    ipld.NewBatch(ctx, merkledag.NewDAGService(bs), opts...),
 		ctx:    ctx,
 		leaves: cid.NewSet(),
 	}

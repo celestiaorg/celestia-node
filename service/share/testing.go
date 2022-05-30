@@ -12,7 +12,7 @@ import (
 	dssync "github.com/ipfs/go-datastore/sync"
 	blockstore "github.com/ipfs/go-ipfs-blockstore"
 	"github.com/ipfs/go-ipfs-routing/offline"
-	"github.com/ipfs/go-merkledag"
+	format "github.com/ipfs/go-ipld-format"
 	mdutils "github.com/ipfs/go-merkledag/test"
 	record "github.com/libp2p/go-libp2p-record"
 	mocknet "github.com/libp2p/go-libp2p/p2p/net/mock"
@@ -54,7 +54,7 @@ func RandFillDAG(t *testing.T, n int, bServ blockservice.BlockService) *Root {
 }
 
 func FillDag(t *testing.T, bServ blockservice.BlockService, shares []Share) *Root {
-	na := ipld.NewNmtNodeAdder(context.TODO(), merkledag.NewDAGService(bServ))
+	na := ipld.NewNmtNodeAdder(context.TODO(), bServ, format.MaxSizeBatchOption(len(shares)))
 
 	squareSize := uint32(math.Sqrt(float64(len(shares))))
 	tree := wrapper.NewErasuredNamespacedMerkleTree(uint64(squareSize), nmt.NodeVisitor(na.Visit))
