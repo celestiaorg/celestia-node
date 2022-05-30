@@ -8,7 +8,7 @@ require (
 	github.com/BurntSushi/toml v1.1.0
 	github.com/celestiaorg/celestia-app v0.5.2
 	github.com/celestiaorg/go-libp2p-messenger v0.1.0
-	github.com/celestiaorg/nmt v0.8.0
+	github.com/celestiaorg/nmt v0.9.0
 	github.com/celestiaorg/rsmt2d v0.5.0
 	github.com/cosmos/cosmos-sdk v0.46.0-beta2.0.20220418184507-c53157dd63f6
 	github.com/dgraph-io/badger/v2 v2.2007.4
