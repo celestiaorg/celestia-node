@@ -35,7 +35,7 @@ func init() {
 		defaultNetwork = Network(netID)
 		networksList[defaultNetwork] = struct{}{}
 		// check if genesis hash provided and register it if exists
-		if len(params) == 2 {
+		if len(params) >= 2 {
 			genHash := params[1]
 			genesisList[defaultNetwork] = strings.ToUpper(genHash)
 		}
