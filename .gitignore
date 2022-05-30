@@ -10,6 +10,8 @@ build/
 *.coverprofile
 *.test
 *.orig
+*.address
+*.info
 */vendor
 vendor
 .DS_Store
