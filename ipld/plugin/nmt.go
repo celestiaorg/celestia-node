@@ -184,7 +184,7 @@ func prependNode(newNode ipld.Node, nodes []ipld.Node) []ipld.Node {
 	return prepended
 }
 
-func Get(ctx context.Context, bGetter blockservice.BlockGetter, root cid.Cid) (ipld.Node, error) {
+func GetNode(ctx context.Context, bGetter blockservice.BlockGetter, root cid.Cid) (ipld.Node, error) {
 	block, err := bGetter.GetBlock(ctx, root)
 	if err != nil {
 		return nil, err

@@ -33,7 +33,7 @@ func GetShare(
 // It walks down the IPLD NMT tree until it finds the requested one.
 func GetLeaf(ctx context.Context, bGetter blockservice.BlockGetter, root cid.Cid, leaf, total int) (ipld.Node, error) {
 	// request the node
-	nd, err := plugin.Get(ctx, bGetter, root)
+	nd, err := plugin.GetNode(ctx, bGetter, root)
 	if err != nil {
 		return nil, err
 	}
@@ -42,7 +42,7 @@ func GetLeaf(ctx context.Context, bGetter blockservice.BlockGetter, root cid.Cid
 	lnks := nd.Links()
 	if len(lnks) == 1 {
 		// in case there is only one we reached tree's bottom, so finally request the leaf.
-		return plugin.Get(ctx, bGetter, lnks[0].Cid)
+		return plugin.GetNode(ctx, bGetter, lnks[0].Cid)
 	}
 
 	// route walk to appropriate children
@@ -96,7 +96,7 @@ func GetProof(
 	leaf, total int,
 ) ([]cid.Cid, error) {
 	// request the node
-	nd, err := plugin.Get(ctx, bGetter, root)
+	nd, err := plugin.GetNode(ctx, bGetter, root)
 	if err != nil {
 		return nil, err
 	}
@@ -164,7 +164,7 @@ func GetLeavesByNamespace(
 		return nil, nil
 	}
 	// request the node
-	nd, err := plugin.Get(ctx, bGetter, root)
+	nd, err := plugin.GetNode(ctx, bGetter, root)
 	if err != nil {
 		return nil, err
 	}

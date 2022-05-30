@@ -72,7 +72,7 @@ func GetShares(ctx context.Context, bGetter blockservice.BlockGetter, root cid.C
 			// processing of each other
 			pool.Submit(func() {
 				defer wg.Done()
-				nd, err := plugin.Get(ctx, bGetter, j.id)
+				nd, err := plugin.GetNode(ctx, bGetter, j.id)
 				if err != nil {
 					// we don't really care about errors here
 					// just fetch as much as possible
@@ -83,7 +83,7 @@ func GetShares(ctx context.Context, bGetter blockservice.BlockGetter, root cid.C
 				if len(lnks) == 1 { // so we are almost there
 					// the reason why the comment on 'total' is lying, as each
 					// leaf has its own additional leaf(hack) so get it
-					nd, err := plugin.Get(ctx, bGetter, lnks[0].Cid)
+					nd, err := plugin.GetNode(ctx, bGetter, lnks[0].Cid)
 					if err != nil {
 						// again, we don't care
 						return

@@ -209,7 +209,7 @@ func TestDASer_catchUp_oneHeader(t *testing.T) {
 
 func TestDASer_catchUp_fails(t *testing.T) {
 	ds := ds_sync.MutexWrap(datastore.NewMapDatastore())
-	dag := mdutils.Mock()
+	dag := mdutils.Bserv()
 
 	mockGet, _, _ := createDASerSubcomponents(t, dag, 6, 0)
 	daser := NewDASer(share.NewBrokenAvailability(), nil, mockGet, ds)

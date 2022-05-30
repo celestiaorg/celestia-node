@@ -157,7 +157,7 @@ func (rs *retrieverSession) request(ctx context.Context, q *quadrant) {
 		go func(i int, root cid.Cid) {
 			defer wg.Done()
 			// get the root node
-			nd, err := plugin.Get(ctx, rs.session, root)
+			nd, err := plugin.GetNode(ctx, rs.session, root)
 			if err != nil {
 				return
 			}
