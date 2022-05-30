@@ -29,9 +29,13 @@ func TestNode(t *testing.T, tp Type, opts ...Option) *Node {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	t.Cleanup(cancel)
 
-	_, _, cfg := core.StartTestKVApp(ctx, t)
-	opts = append(opts, WithRemoteCore(core.GetEndpoint(cfg)), WithNetwork(params.Private))
 	store := MockStore(t, DefaultConfig(tp))
+	_, _, cfg := core.StartTestKVApp(ctx, t)
+	opts = append(opts,
+		WithRemoteCore(core.GetEndpoint(cfg)),
+		WithNetwork(params.Private),
+		WithRPCPort("0"),
+	)
 	nd, err := New(tp, store, opts...)
 	require.NoError(t, err)
 	return nd
