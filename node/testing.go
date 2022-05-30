@@ -35,6 +35,7 @@ func TestNode(t *testing.T, tp Type, opts ...Option) *Node {
 		WithRemoteCore(core.GetEndpoint(cfg)),
 		WithNetwork(params.Private),
 		WithRPCPort("0"),
+		WithKeyringSigner(TestKeyringSigner(t)),
 	)
 	nd, err := New(tp, store, opts...)
 	require.NoError(t, err)
