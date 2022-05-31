@@ -247,10 +247,6 @@ func (mhs *DummySubscriber) AddValidator(Validator) error {
 	return nil
 }
 
-func (mhs *DummySubscriber) RemoveValidator() error {
-	return nil
-}
-
 func (mhs *DummySubscriber) Subscribe() (Subscription, error) {
 	return mhs, nil
 }
@@ -269,6 +265,10 @@ func (mhs *DummySubscriber) NextHeader(ctx context.Context) (*ExtendedHeader, er
 		return nil, context.Canceled
 	}
 	return mhs.Headers[0], nil
+}
+
+func (mhs *DummySubscriber) Stop(ctx context.Context) error {
+	return nil
 }
 
 func (mhs *DummySubscriber) Cancel() {}

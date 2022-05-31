@@ -3,9 +3,7 @@ package sync
 import (
 	"context"
 	"errors"
-	"fmt"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	logging "github.com/ipfs/go-log/v2"
@@ -48,9 +46,6 @@ type Syncer struct {
 	pending ranges
 	// cancel cancels syncLoop's context
 	cancel context.CancelFunc
-
-	// isRunning shows service state
-	isRunning uint64
 }
 
 // NewSyncer creates a new instance of Syncer.
@@ -66,15 +61,10 @@ func NewSyncer(exchange header.Exchange, store header.Store, sub header.Subscrib
 
 // Start starts the syncing routine.
 func (s *Syncer) Start(context.Context) error {
-	if s.cancel != nil {
-		return fmt.Errorf("header: Syncer already started")
-	}
-
 	err := s.sub.AddValidator(s.processIncoming)
 	if err != nil {
 		return err
 	}
-	atomic.StoreUint64(&s.isRunning, 1)
 	ctx, cancel := context.WithCancel(context.Background())
 	go fraud.SubscribeToBEFP(ctx, s.fSub, s.Stop)
 	go s.syncLoop(ctx)
@@ -85,13 +75,8 @@ func (s *Syncer) Start(context.Context) error {
 
 // Stop stops Syncer.
 func (s *Syncer) Stop(context.Context) error {
-	if atomic.LoadUint64(&s.isRunning) == 1 {
-		// switch state to avoid getting in this statement twice
-		atomic.StoreUint64(&s.isRunning, 0)
-		s.cancel()
-		s.cancel = nil
-		return s.sub.RemoveValidator()
-	}
+	s.cancel()
+	s.sub.Stop(context.Background()) //nolint:errcheck
 	return nil
 }
 

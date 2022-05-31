@@ -95,9 +95,7 @@ func (d *DASer) Start(context.Context) error {
 
 // Stop stops sampling.
 func (d *DASer) Stop(ctx context.Context) error {
-	if atomic.LoadUint64(&d.isRunning) == 1 {
-		// switch state to avoid getting in this statement twice
-		atomic.StoreUint64(&d.isRunning, 0)
+	if atomic.CompareAndSwapUint64(&d.isRunning, 1, 0) {
 		d.cancel()
 		// wait for both sampling routines to exit
 		for i := 0; i < 2; i++ {

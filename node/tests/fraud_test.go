@@ -51,7 +51,7 @@ func TestFraudProofBroadcasting(t *testing.T) {
 	require.NoError(t, err)
 
 	// Since GetByHeight is a blocking operation for headers that is not received, we
-	// should set a tiomeout because all daser/syncer are stopped at this point
+	// should set a timeout because all daser/syncer are stopped at this point
 	newCtx, cancel := context.WithTimeout(context.Background(), time.Millisecond*500)
 	t.Cleanup(cancel)
 	_, err = full.HeaderServ.GetByHeight(newCtx, 15)

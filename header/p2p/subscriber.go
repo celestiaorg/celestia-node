@@ -60,11 +60,6 @@ func (p *Subscriber) AddValidator(val header.Validator) error {
 	return p.pubsub.RegisterTopicValidator(PubSubTopic, pval)
 }
 
-// RemoveValidator removes pubsub message validation
-func (p *Subscriber) RemoveValidator() error {
-	return p.pubsub.UnregisterTopicValidator(PubSubTopic)
-}
-
 // Subscribe returns a new subscription to the Subscriber's
 // topic.
 func (p *Subscriber) Subscribe() (header.Subscription, error) {

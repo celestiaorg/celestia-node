@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/hex"
 	"errors"
-	"fmt"
 	"sync"
 
 	"github.com/celestiaorg/celestia-node/header"
@@ -34,7 +33,7 @@ func (t *topics) getTopic(proofType ProofType) (*pubsub.Topic, bool, error) {
 		if err != nil {
 			return nil, ok, err
 		}
-		log.Debugf("successfully subscibed to topic", getSubTopic(proofType))
+		log.Debugf("successfully subscibed to topic: %s", getSubTopic(proofType))
 		t.pubSubTopics[proofType] = topic
 	}
 
@@ -51,6 +50,15 @@ func (t *topics) publish(ctx context.Context, data []byte, proofType ProofType) 
 	}
 
 	return errors.New("topic is not found")
+}
+
+// registerValidator adds an internal validation to topic inside libp2p for provided ProofType
+func (t *topics) registerValidator(proofType ProofType, val Validator) error {
+	return t.pubsub.RegisterTopicValidator(
+		getSubTopic(proofType),
+		func(ctx context.Context, _ peer.ID, msg *pubsub.Message) pubsub.ValidationResult {
+			return val(ctx, proofType, msg.Data)
+		})
 }
 
 // service is propagating and validating Fraud Proofs
@@ -103,13 +111,7 @@ func (f *service) Subscribe(proofType ProofType) (Subscription, error) {
 	}
 	// if topic was joined for the first time then we should register a validator for it
 	if !wasjoined {
-		// add internal validation to topic inside libp2p for provided ProofType
-		if err = f.topics.pubsub.RegisterTopicValidator(
-			getSubTopic(proofType),
-			func(ctx context.Context, _ peer.ID, msg *pubsub.Message) pubsub.ValidationResult {
-				return f.processIncoming(ctx, proofType, msg.Data)
-			},
-		); err != nil {
+		if err = f.topics.registerValidator(proofType, f.processIncoming); err != nil {
 			return nil, err
 		}
 	}
@@ -118,8 +120,8 @@ func (f *service) Subscribe(proofType ProofType) (Subscription, error) {
 }
 
 func (f *service) RegisterUnmarshaler(proofType ProofType, u ProofUnmarshaler) error {
-	f.mu.RLock()
-	defer f.mu.RUnlock()
+	f.mu.Lock()
+	defer f.mu.Unlock()
 
 	if _, ok := f.unmarshalers[proofType]; ok {
 		return errors.New("unmarshaler is registered")
@@ -130,8 +132,8 @@ func (f *service) RegisterUnmarshaler(proofType ProofType, u ProofUnmarshaler) e
 }
 
 func (f *service) UnregisterUnmarshaler(proofType ProofType) error {
-	f.mu.RLock()
-	defer f.mu.RUnlock()
+	f.mu.Lock()
+	defer f.mu.Unlock()
 
 	if _, ok := f.unmarshalers[proofType]; !ok {
 		return errors.New("unmarshaler is not registered")
@@ -153,8 +155,8 @@ func (f *service) Broadcast(ctx context.Context, p Proof) error {
 
 func (f *service) processIncoming(ctx context.Context, proofType ProofType, data []byte) pubsub.ValidationResult {
 	f.mu.RLock()
-	defer f.mu.RUnlock()
 	unmarshaler, ok := f.unmarshalers[proofType]
+	f.mu.RUnlock()
 	if !ok {
 		log.Error("unmarshaler is not found")
 		return pubsub.ValidationReject
@@ -183,10 +185,5 @@ func (f *service) processIncoming(ctx context.Context, proofType ProofType, data
 }
 
 func getSubTopic(p ProofType) string {
-	switch p {
-	case BadEncoding:
-		return "befp-sub"
-	default:
-		panic(fmt.Sprintf("invalid proof type %d", p))
-	}
+	return p.String() + "-sub"
 }
