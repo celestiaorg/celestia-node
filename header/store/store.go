@@ -3,6 +3,7 @@ package store
 import (
 	"context"
 	"errors"
+	"sync"
 
 	logging "github.com/ipfs/go-log/v2"
 
@@ -56,7 +57,7 @@ type store struct {
 	// signals when writes are finished
 	writesDn chan struct{}
 	// pending keeps headers pending to be written in a batch
-	pending []*header.ExtendedHeader
+	pending *batch
 }
 
 // NewStore constructs a Store over datastore.
@@ -95,7 +96,7 @@ func newStore(ds datastore.Batching) (*store, error) {
 		heightSub:   newHeightSub(),
 		writes:      make(chan []*header.ExtendedHeader, 16),
 		writesDn:    make(chan struct{}),
-		pending:     make([]*header.ExtendedHeader, 0, DefaultWriteBatchSize),
+		pending:     newBatch(DefaultWriteBatchSize),
 	}, nil
 }
 
@@ -162,6 +163,10 @@ func (s *store) Get(_ context.Context, hash tmbytes.HexBytes) (*header.ExtendedH
 	if v, ok := s.cache.Get(hash.String()); ok {
 		return v.(*header.ExtendedHeader), nil
 	}
+	// check if the requested header is not yet written on disk
+	if h := s.pending.Get(hash); h != nil {
+		return h, nil
+	}
 
 	b, err := s.ds.Get(datastore.NewKey(hash.String()))
 	if err != nil {
@@ -189,7 +194,12 @@ func (s *store) GetByHeight(ctx context.Context, height uint64) (*header.Extende
 		return h, err
 	}
 	// otherwise, the errElapsedHeight is thrown,
-	// which means the requested 'height' should be already stored
+	// which means the requested 'height' should present
+	//
+	// check if the requested header is not yet written on disk
+	if h := s.pending.GetByHeight(height); h != nil {
+		return h, nil
+	}
 
 	hash, err := s.heightIndex.HashByHeight(height)
 	if err != nil {
@@ -225,6 +235,10 @@ func (s *store) GetRangeByHeight(ctx context.Context, from, to uint64) ([]*heade
 
 func (s *store) Has(_ context.Context, hash tmbytes.HexBytes) (bool, error) {
 	if ok := s.cache.Contains(hash.String()); ok {
+		return ok, nil
+	}
+	// check if the requested header is not yet written on disk
+	if ok := s.pending.Has(hash); ok {
 		return ok, nil
 	}
 
@@ -302,14 +316,14 @@ func (s *store) flushLoop() {
 	defer close(s.writesDn)
 	for headers := range s.writes {
 		if headers != nil {
-			s.pending = append(s.pending, headers...)
+			s.pending.Append(headers...)
 		}
 		// ensure we flush only if pending is grown enough, or we are stopping(headers == nil)
-		if len(s.pending) < DefaultWriteBatchSize && headers != nil {
+		if s.pending.Len() < DefaultWriteBatchSize && headers != nil {
 			continue
 		}
 
-		err := s.flush(s.pending...)
+		err := s.flush(s.pending.GetAll()...)
 		if err != nil {
 			// TODO(@Wondertan): Should this be a fatal error case with os.Exit?
 			from, to := uint64(headers[0].Height), uint64(headers[len(headers)-1].Height)
@@ -317,7 +331,7 @@ func (s *store) flushLoop() {
 			continue
 		}
 		// reset pending
-		s.pending = s.pending[:0]
+		s.pending.Reset()
 
 		if headers == nil {
 			// a signal to stop
@@ -386,4 +400,101 @@ func (s *store) readHead(ctx context.Context) (*header.ExtendedHeader, error) {
 	}
 
 	return s.Get(ctx, head)
+}
+
+// batch keeps an adjacent range of headers and loosely mimics the Store
+// interface. NOTE: Can fully implement Store for a use case.
+//
+// It keeps a mapping 'height -> header' and 'hash -> height'
+// unlike the Store which keeps 'hash -> header' and 'height -> hash'.
+// The approach simplifies implementation for the batch and
+// makes it better optimized for the GetByHeight case which is what we need.
+type batch struct {
+	lk      sync.RWMutex
+	heights map[string]uint64
+	headers []*header.ExtendedHeader
+}
+
+// newBatch creates the batch with the given pre-allocated size.
+func newBatch(size int) *batch {
+	return &batch{
+		heights: make(map[string]uint64, size),
+		headers: make([]*header.ExtendedHeader, 0, size),
+	}
+}
+
+// Len gives current length of the batch.
+func (b *batch) Len() int {
+	b.lk.RLock()
+	defer b.lk.RUnlock()
+	return len(b.headers)
+}
+
+// GetAll returns a slice to all the headers in the batch.
+func (b *batch) GetAll() []*header.ExtendedHeader {
+	b.lk.RLock()
+	defer b.lk.RUnlock()
+	return b.headers
+}
+
+// Get returns a header by its hash.
+func (b *batch) Get(hash tmbytes.HexBytes) *header.ExtendedHeader {
+	b.lk.RLock()
+	defer b.lk.RUnlock()
+	height, ok := b.heights[hash.String()]
+	if !ok {
+		return nil
+	}
+
+	return b.getByHeight(height)
+}
+
+// GetByHeight returns a header by its height.
+func (b *batch) GetByHeight(height uint64) *header.ExtendedHeader {
+	b.lk.RLock()
+	defer b.lk.RUnlock()
+	return b.getByHeight(height)
+}
+
+func (b *batch) getByHeight(height uint64) *header.ExtendedHeader {
+	ln := uint64(len(b.headers))
+	if ln == 0 {
+		return nil
+	}
+
+	head := uint64(b.headers[ln-1].Height)
+	base := head - ln
+	if height > head || height <= base {
+		return nil
+	}
+
+	return b.headers[height-base-1]
+}
+
+// Append appends new headers to the batch.
+func (b *batch) Append(headers ...*header.ExtendedHeader) {
+	b.lk.Lock()
+	defer b.lk.Unlock()
+	for _, h := range headers {
+		b.headers = append(b.headers, h)
+		b.heights[h.Hash().String()] = uint64(h.Height)
+	}
+}
+
+// Has checks whether header by the hash is present in the batch.
+func (b *batch) Has(hash tmbytes.HexBytes) bool {
+	b.lk.RLock()
+	defer b.lk.RUnlock()
+	_, ok := b.heights[hash.String()]
+	return ok
+}
+
+// Reset cleans references to batched headers.
+func (b *batch) Reset() {
+	b.lk.Lock()
+	defer b.lk.Unlock()
+	b.headers = b.headers[:0]
+	for k := range b.heights {
+		delete(b.heights, k)
+	}
 }
