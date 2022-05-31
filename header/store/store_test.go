@@ -87,3 +87,31 @@ func TestStore(t *testing.T) {
 	err = store.Stop(ctx)
 	require.NoError(t, err)
 }
+
+func TestStorePendingCacheMiss(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	t.Cleanup(cancel)
+
+	suite := header.NewTestSuite(t, 3)
+
+	ds := sync.MutexWrap(datastore.NewMapDatastore())
+
+	DefaultWriteBatchSize = 100
+	DefaultStoreCacheSize = 100
+	store, err := NewStoreWithHead(ctx, ds, suite.Head())
+	require.NoError(t, err)
+
+	err = store.Start(ctx)
+	require.NoError(t, err)
+	_, err = store.Append(ctx, suite.GenExtendedHeaders(100)...)
+	require.NoError(t, err)
+
+	_, err = store.Append(ctx, suite.GenExtendedHeaders(50)...)
+	require.NoError(t, err)
+
+	_, err = store.GetRangeByHeight(ctx, 1, 101)
+	require.NoError(t, err)
+
+	_, err = store.GetRangeByHeight(ctx, 101, 151)
+	require.NoError(t, err)
+}
