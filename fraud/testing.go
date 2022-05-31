@@ -21,7 +21,7 @@ func (d *DummyService) Subscribe(ProofType) (Subscription, error) {
 	return &dummySubscription{}, nil
 }
 
-func (d *DummyService) RegisterUnmarshaler(ProofType, proofUnmarshaler) error {
+func (d *DummyService) RegisterUnmarshaler(ProofType, ProofUnmarshaler) error {
 	return nil
 }
 

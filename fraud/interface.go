@@ -2,7 +2,18 @@ package fraud
 
 import (
 	"context"
+
+	logging "github.com/ipfs/go-log/v2"
+	pubsub "github.com/libp2p/go-libp2p-pubsub"
 )
+
+var log = logging.Logger("fraud")
+
+// ProofUnmarshaler aliases a function that parses data to `Proof`
+type ProofUnmarshaler func([]byte) (Proof, error)
+
+// Validator aliases a function that validate pubsub incoming messages
+type Validator func(ctx context.Context, proofType ProofType, data []byte) pubsub.ValidationResult
 
 type Service interface {
 	Start(context.Context) error
@@ -28,11 +39,10 @@ type Subscriber interface {
 	Subscribe(ProofType) (Subscription, error)
 	// RegisterUnmarshaler registers unmarshaler for the given ProofType.
 	// If there is no unmarshaler for `ProofType`, then `Subscribe` returns an error.
-	RegisterUnmarshaler(ProofType, proofUnmarshaler) error
+	RegisterUnmarshaler(ProofType, ProofUnmarshaler) error
 	// UnregisterUnmarshaler removes unmarshaler for the given ProofType.
 	// If there is no unmarshaler for `ProofType`, then it returns an error.
 	UnregisterUnmarshaler(ProofType) error
-
 	// AddValidator adds internal validation to topic inside libp2p
 	AddValidator(ProofType, Validator) error
 }

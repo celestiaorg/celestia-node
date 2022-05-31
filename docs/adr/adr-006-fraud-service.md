@@ -122,7 +122,7 @@ type Proof interface {
 2a. From the other side, light nodes will, by default, subscribe to the BEFP topic and verify messages received on the topic:
 
 ```go
-type proofUnmarshaler func([]byte) (Proof error)
+type ProofUnmarshaler func([]byte) (Proof error)
 // Subscriber encompasses the behavior necessary to
 // subscribe/unsubscribe from new FraudProofs events from the
 // network.
@@ -132,7 +132,7 @@ type Subscriber interface {
    Subscribe(ctx context.Context, proofType ProofType) (Subscription, error)
    // RegisterUnmarshaler registers unmarshaler for the given ProofType.
    // If there is no unmarshaler for `ProofType`, then `Subscribe` returns an error.
-   RegisterUnmarshaler(proofType ProofType, f proofUnmarshaler) error
+   RegisterUnmarshaler(proofType ProofType, f ProofUnmarshaler) error
    // UnregisterUnmarshaler removes unmarshaler for the given ProofType.
    // If there is no unmarshaler for `ProofType`, then it returns an error.
    UnregisterUnmarshaler(proofType ProofType) error{}
@@ -152,10 +152,10 @@ type Subscription interface {
 type service struct {
    pubsub *pubsub.PubSub
    topics map[ProofType]*pubsub.Topic
-   unmarshalers map[ProofType]proofUnmarshaler
+   unmarshalers map[ProofType]ProofUnmarshaler
 }
 
-func(s *service) RegisterUnmarshaler(proofType ProofType, f proofUnmarshaler) error{}
+func(s *service) RegisterUnmarshaler(proofType ProofType, f ProofUnmarshaler) error{}
 func(s *service) UnregisterUnmarshaler(proofType ProofType) error{}
 
 func(s *service) Subscribe(ctx context.Context, proofType ProofType) (Subscription, error){}

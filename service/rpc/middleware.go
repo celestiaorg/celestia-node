@@ -25,7 +25,7 @@ func checkAllowance(state *state.Service) mux.MiddlewareFunc {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			// check if state service was halted and deny the transaction
-			if r.Method == http.MethodPost && state.IsBefpReceived() {
+			if r.Method == http.MethodPost && state.BEFPReceived() {
 				writeError(w, http.StatusMethodNotAllowed, r.URL.Path, errors.New("not possible to submit data"))
 				return
 			}

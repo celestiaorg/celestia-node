@@ -49,8 +49,8 @@ type Syncer struct {
 	// cancel cancels syncLoop's context
 	cancel context.CancelFunc
 
-	// isServiceRunnig shows service state
-	isServiceRunnig uint64
+	// isRunning shows service state
+	isRunning uint64
 }
 
 // NewSyncer creates a new instance of Syncer.
@@ -74,9 +74,9 @@ func (s *Syncer) Start(context.Context) error {
 	if err != nil {
 		return err
 	}
-	atomic.StoreUint64(&s.isServiceRunnig, 1)
+	atomic.StoreUint64(&s.isRunning, 1)
 	ctx, cancel := context.WithCancel(context.Background())
-	go fraud.SubscribeToBefp(ctx, s.fSub, s.Stop)
+	go fraud.SubscribeToBEFP(ctx, s.fSub, s.Stop)
 	go s.syncLoop(ctx)
 	s.wantSync()
 	s.cancel = cancel
@@ -85,9 +85,9 @@ func (s *Syncer) Start(context.Context) error {
 
 // Stop stops Syncer.
 func (s *Syncer) Stop(context.Context) error {
-	if atomic.LoadUint64(&s.isServiceRunnig) == 1 {
+	if atomic.LoadUint64(&s.isRunning) == 1 {
 		// switch state to avoid getting in this statement twice
-		atomic.StoreUint64(&s.isServiceRunnig, 0)
+		atomic.StoreUint64(&s.isRunning, 0)
 		s.cancel()
 		s.cancel = nil
 		return s.sub.RemoveValidator()

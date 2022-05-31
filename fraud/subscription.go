@@ -10,10 +10,10 @@ import (
 // subscription handles Fraud Proof from the pubsub topic.
 type subscription struct {
 	subscription *pubsub.Subscription
-	unmarshaler  proofUnmarshaler
+	unmarshaler  ProofUnmarshaler
 }
 
-func newSubscription(topic *pubsub.Topic, u proofUnmarshaler) (*subscription, error) {
+func newSubscription(topic *pubsub.Topic, u ProofUnmarshaler) (*subscription, error) {
 	sub, err := topic.Subscribe()
 	if err != nil {
 		return nil, err

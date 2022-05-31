@@ -151,7 +151,7 @@ func DASer(
 
 // FraudService constructs fraud proof service
 func FraudService(lc fx.Lifecycle, sub *pubsub.PubSub, hstore header.Store) (fraud.Service, fraud.Service) {
-	f := fraud.NewService(sub, hstore)
+	f := fraud.NewService(sub, hstore.GetByHeight)
 	lc.Append(fx.Hook{
 		OnStart: f.Start,
 		OnStop:  f.Stop,

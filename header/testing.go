@@ -202,7 +202,7 @@ func RandBlockID(t *testing.T) types.BlockID {
 
 // FraudMaker creates a custom ConstructFn that breaks the block at the given height
 func FraudMaker(t *testing.T, faultHeight int64) ConstructFn {
-	log.Info("assign fault maker to get incorrect block at height ", faultHeight)
+	log.Infow("Corrupting block...", "height", faultHeight)
 	return func(ctx context.Context,
 		b *types.Block,
 		comm *types.Commit,

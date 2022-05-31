@@ -9,38 +9,37 @@ import (
 
 	"github.com/celestiaorg/celestia-node/header"
 
-	logging "github.com/ipfs/go-log/v2"
 	"github.com/libp2p/go-libp2p-core/peer"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 )
 
-var log = logging.Logger("fraud")
-
-// proofUnmarshaler aliases a function that parses data to `Proof`
-type proofUnmarshaler func([]byte) (Proof, error)
-
 // headerFetcher aliases a function that is used to fetch ExtendedHeader from store
 type headerFetcher func(context.Context, uint64) (*header.ExtendedHeader, error)
 
-// Validator aliases a function that validate pubsub incoming messages
-type Validator func(ctx context.Context, proofType ProofType, data []byte) pubsub.ValidationResult
+// topics wraps the map with ProofType and pubsub topic and RWMutex
+type topics struct {
+	t  map[ProofType]*pubsub.Topic
+	mu sync.RWMutex
+}
 
 // service is propagating and validating Fraud Proofs
 // service implements Service interface.
 type service struct {
 	pubsub       *pubsub.PubSub
-	topics       map[ProofType]*pubsub.Topic
-	unmarshalers map[ProofType]proofUnmarshaler
+	topics       *topics
+	unmarshalers map[ProofType]ProofUnmarshaler
 	getter       headerFetcher
-	mu           *sync.Mutex
+	mu           sync.RWMutex
 }
 
-func NewService(p *pubsub.PubSub, hstore header.Store) Service {
+func NewService(p *pubsub.PubSub, getter headerFetcher) Service {
 	return &service{
-		pubsub: p, topics: make(map[ProofType]*pubsub.Topic),
-		unmarshalers: make(map[ProofType]proofUnmarshaler),
-		getter:       hstore.GetByHeight,
-		mu:           &sync.Mutex{},
+		pubsub: p,
+		topics: &topics{
+			t: make(map[ProofType]*pubsub.Topic),
+		},
+		unmarshalers: make(map[ProofType]ProofUnmarshaler),
+		getter:       getter,
 	}
 }
 
@@ -66,27 +65,32 @@ func (f *service) Stop(context.Context) error {
 
 func (f *service) Subscribe(proofType ProofType) (Subscription, error) {
 	// TODO: @vgonkivs check if fraud proof is in fraud store, then return with error
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	if _, ok := f.unmarshalers[proofType]; !ok {
+	f.mu.RLock()
+	u, ok := f.unmarshalers[proofType]
+	if !ok {
 		return nil, errors.New("unmarshaler is not registered")
 	}
+	f.mu.RUnlock()
 
-	if _, ok := f.topics[proofType]; !ok {
-		topic, err := f.pubsub.Join(getSubTopic(proofType))
+	f.topics.mu.Lock()
+	t, ok := f.topics.t[proofType]
+	if !ok {
+		var err error
+		t, err = f.pubsub.Join(getSubTopic(proofType))
 		if err != nil {
 			return nil, err
 		}
-		log.Debugf("successfully subscibed to topic", topic.String())
-		f.topics[proofType] = topic
+		log.Debugf("successfully subscibed to topic", t.String())
+		f.topics.t[proofType] = t
 	}
+	f.topics.mu.Unlock()
 
-	return newSubscription(f.topics[proofType], f.unmarshalers[proofType])
+	return newSubscription(t, u)
 }
 
-func (f *service) RegisterUnmarshaler(proofType ProofType, u proofUnmarshaler) error {
-	f.mu.Lock()
-	defer f.mu.Unlock()
+func (f *service) RegisterUnmarshaler(proofType ProofType, u ProofUnmarshaler) error {
+	f.mu.RLock()
+	defer f.mu.RUnlock()
 
 	if _, ok := f.unmarshalers[proofType]; ok {
 		return errors.New("unmarshaler is registered")
@@ -97,8 +101,8 @@ func (f *service) RegisterUnmarshaler(proofType ProofType, u proofUnmarshaler) e
 }
 
 func (f *service) UnregisterUnmarshaler(proofType ProofType) error {
-	f.mu.Lock()
-	defer f.mu.Unlock()
+	f.mu.RLock()
+	defer f.mu.RUnlock()
 
 	if _, ok := f.unmarshalers[proofType]; !ok {
 		return errors.New("unmarshaler is not registered")
@@ -114,7 +118,11 @@ func (f *service) Broadcast(ctx context.Context, p Proof) error {
 	if err != nil {
 		return err
 	}
-	if topic, ok := f.topics[p.Type()]; ok {
+
+	f.topics.mu.RLock()
+	defer f.topics.mu.RUnlock()
+
+	if topic, ok := f.topics.t[p.Type()]; ok {
 		return topic.Publish(ctx, bin)
 	}
 
@@ -131,8 +139,8 @@ func (f *service) AddValidator(proofType ProofType, val Validator) error {
 }
 
 func (f *service) processIncoming(ctx context.Context, proofType ProofType, data []byte) pubsub.ValidationResult {
-	f.mu.Lock()
-	defer f.mu.Unlock()
+	f.mu.RLock()
+	defer f.mu.RUnlock()
 	unmarshaler, ok := f.unmarshalers[proofType]
 	if !ok {
 		log.Error("unmarshaler is not found")

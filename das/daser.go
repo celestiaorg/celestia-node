@@ -37,8 +37,8 @@ type DASer struct {
 	sampleDn  chan struct{} // done signal for sample loop
 	catchUpDn chan struct{} // done signal for catchUp loop
 
-	// isServiceRunnig shows service state
-	isServiceRunnig uint64
+	// isRunning shows service state
+	isRunning uint64
 }
 
 // NewDASer creates a new DASer.
@@ -83,9 +83,9 @@ func (d *DASer) Start(context.Context) error {
 	dasCtx, cancel := context.WithCancel(context.Background())
 	d.cancel = cancel
 
-	atomic.StoreUint64(&d.isServiceRunnig, 1)
+	atomic.StoreUint64(&d.isRunning, 1)
 	// start listening for bad encoding fraud proof
-	go fraud.SubscribeToBefp(dasCtx, d.fService, d.Stop)
+	go fraud.SubscribeToBEFP(dasCtx, d.fService, d.Stop)
 	// kick off catch-up routine manager
 	go d.catchUpManager(dasCtx, checkpoint)
 	// kick off sampling routine for recently received headers
@@ -95,9 +95,9 @@ func (d *DASer) Start(context.Context) error {
 
 // Stop stops sampling.
 func (d *DASer) Stop(ctx context.Context) error {
-	if atomic.LoadUint64(&d.isServiceRunnig) == 1 {
+	if atomic.LoadUint64(&d.isRunning) == 1 {
 		// switch state to avoid getting in this statement twice
-		atomic.StoreUint64(&d.isServiceRunnig, 0)
+		atomic.StoreUint64(&d.isRunning, 0)
 		d.cancel()
 		// wait for both sampling routines to exit
 		for i := 0; i < 2; i++ {

@@ -212,8 +212,8 @@ func TestDASer_catchUp_fails(t *testing.T) {
 	ds := ds_sync.MutexWrap(datastore.NewMapDatastore())
 	bServ := mdutils.Bserv()
 
-	mockGet, _, _, _ := createDASerSubcomponents(t, bServ, 6, 0)
-	daser := NewDASer(share.NewBrokenAvailability(), nil, mockGet, ds, nil)
+	mockGet, _, _, mockService := createDASerSubcomponents(t, bServ, 6, 0)
+	daser := NewDASer(share.NewBrokenAvailability(), nil, mockGet, ds, mockService)
 
 	// store checkpoint
 	err := storeCheckpoint(daser.cstore, 5) // pick arbitrary height as last checkpoint
