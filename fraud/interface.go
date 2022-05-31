@@ -43,8 +43,6 @@ type Subscriber interface {
 	// UnregisterUnmarshaler removes unmarshaler for the given ProofType.
 	// If there is no unmarshaler for `ProofType`, then it returns an error.
 	UnregisterUnmarshaler(ProofType) error
-	// AddValidator adds internal validation to topic inside libp2p
-	AddValidator(ProofType, Validator) error
 }
 
 // Subscription returns a valid proof if one is received on the topic.

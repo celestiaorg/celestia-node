@@ -16,16 +16,46 @@ import (
 // headerFetcher aliases a function that is used to fetch ExtendedHeader from store
 type headerFetcher func(context.Context, uint64) (*header.ExtendedHeader, error)
 
-// topics wraps the map with ProofType and pubsub topic and RWMutex
+// topics allows to operate with pubsub connection and pubsub topics
 type topics struct {
-	t  map[ProofType]*pubsub.Topic
-	mu sync.RWMutex
+	pubsub       *pubsub.PubSub
+	pubSubTopics map[ProofType]*pubsub.Topic
+	mu           sync.RWMutex
+}
+
+// getTopic joins a pubsub.Topic if it was not joined before and returns it
+func (t *topics) getTopic(proofType ProofType) (*pubsub.Topic, bool, error) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	topic, ok := t.pubSubTopics[proofType]
+	if !ok {
+		var err error
+		topic, err = t.pubsub.Join(getSubTopic(proofType))
+		if err != nil {
+			return nil, ok, err
+		}
+		log.Debugf("successfully subscibed to topic", getSubTopic(proofType))
+		t.pubSubTopics[proofType] = topic
+	}
+
+	return topic, ok, nil
+}
+
+// publish allows to publish Fraud Proofs to the network
+func (t *topics) publish(ctx context.Context, data []byte, proofType ProofType) error {
+	t.mu.RLock()
+	defer t.mu.RUnlock()
+
+	if topic, ok := t.pubSubTopics[proofType]; ok {
+		return topic.Publish(ctx, data)
+	}
+
+	return errors.New("topic is not found")
 }
 
 // service is propagating and validating Fraud Proofs
 // service implements Service interface.
 type service struct {
-	pubsub       *pubsub.PubSub
 	topics       *topics
 	unmarshalers map[ProofType]ProofUnmarshaler
 	getter       headerFetcher
@@ -34,9 +64,9 @@ type service struct {
 
 func NewService(p *pubsub.PubSub, getter headerFetcher) Service {
 	return &service{
-		pubsub: p,
 		topics: &topics{
-			t: make(map[ProofType]*pubsub.Topic),
+			pubsub:       p,
+			pubSubTopics: make(map[ProofType]*pubsub.Topic),
 		},
 		unmarshalers: make(map[ProofType]ProofUnmarshaler),
 		getter:       getter,
@@ -46,12 +76,7 @@ func NewService(p *pubsub.PubSub, getter headerFetcher) Service {
 func (f *service) Start(context.Context) error {
 	log.Info("fraud service is starting...")
 
-	// Add validator and default Unmarshaler for BEFP
-	err := f.AddValidator(BadEncoding, f.processIncoming)
-	if err != nil {
-		return err
-	}
-	err = f.RegisterUnmarshaler(BadEncoding, UnmarshalBEFP)
+	err := f.RegisterUnmarshaler(BadEncoding, UnmarshalBEFP)
 	if err != nil {
 		return err
 	}
@@ -67,23 +92,27 @@ func (f *service) Subscribe(proofType ProofType) (Subscription, error) {
 	// TODO: @vgonkivs check if fraud proof is in fraud store, then return with error
 	f.mu.RLock()
 	u, ok := f.unmarshalers[proofType]
+	f.mu.RUnlock()
 	if !ok {
 		return nil, errors.New("unmarshaler is not registered")
 	}
-	f.mu.RUnlock()
 
-	f.topics.mu.Lock()
-	t, ok := f.topics.t[proofType]
-	if !ok {
-		var err error
-		t, err = f.pubsub.Join(getSubTopic(proofType))
-		if err != nil {
+	t, wasjoined, err := f.topics.getTopic(proofType)
+	if err != nil {
+		return nil, err
+	}
+	// if topic was joined for the first time then we should register a validator for it
+	if !wasjoined {
+		// add internal validation to topic inside libp2p for provided ProofType
+		if err = f.topics.pubsub.RegisterTopicValidator(
+			getSubTopic(proofType),
+			func(ctx context.Context, _ peer.ID, msg *pubsub.Message) pubsub.ValidationResult {
+				return f.processIncoming(ctx, proofType, msg.Data)
+			},
+		); err != nil {
 			return nil, err
 		}
-		log.Debugf("successfully subscibed to topic", t.String())
-		f.topics.t[proofType] = t
 	}
-	f.topics.mu.Unlock()
 
 	return newSubscription(t, u)
 }
@@ -119,23 +148,7 @@ func (f *service) Broadcast(ctx context.Context, p Proof) error {
 		return err
 	}
 
-	f.topics.mu.RLock()
-	defer f.topics.mu.RUnlock()
-
-	if topic, ok := f.topics.t[p.Type()]; ok {
-		return topic.Publish(ctx, bin)
-	}
-
-	return errors.New("topic is not found")
-}
-
-func (f *service) AddValidator(proofType ProofType, val Validator) error {
-	topic := getSubTopic(proofType)
-	pval := func(ctx context.Context, _ peer.ID, msg *pubsub.Message) pubsub.ValidationResult {
-		return val(ctx, proofType, msg.Data)
-	}
-
-	return f.pubsub.RegisterTopicValidator(topic, pval)
+	return f.topics.publish(ctx, bin, p.Type())
 }
 
 func (f *service) processIncoming(ctx context.Context, proofType ProofType, data []byte) pubsub.ValidationResult {
