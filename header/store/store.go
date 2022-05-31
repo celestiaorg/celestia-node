@@ -289,16 +289,6 @@ func (s *store) Append(ctx context.Context, headers ...*header.ExtendedHeader) (
 	// queue headers to be written on disk
 	select {
 	case s.writes <- verified:
-		// once we sure the 'write' is enqueued - update caches with verified headers
-		for _, h := range verified {
-			s.cache.Add(h.Hash().String(), h)
-			s.heightIndex.cache.Add(uint64(h.Height), h.Hash())
-		}
-		// and notify waiters if any + increase current height
-		// it is important to do Pub after updating caches
-		// so cache is consistent with atomic Height counter on the heightSub
-		s.heightSub.Pub(verified...)
-
 		ln := len(verified)
 		head := verified[ln-1]
 		log.Infow("new head", "height", head.Height, "hash", head.Hash())
@@ -320,7 +310,12 @@ func (s *store) flushLoop() {
 	defer close(s.writesDn)
 	for headers := range s.writes {
 		if headers != nil {
+			// once headers are in pending and accessible
 			s.pending.Append(headers...)
+			// notify waiters if any + increase current height
+			// it is important to do Pub after updating pending
+			// so pending is consistent with atomic Height counter on the heightSub
+			s.heightSub.Pub(headers...)
 		}
 		// ensure we flush only if pending is grown enough, or we are stopping(headers == nil)
 		if s.pending.Len() < DefaultWriteBatchSize && headers != nil {
