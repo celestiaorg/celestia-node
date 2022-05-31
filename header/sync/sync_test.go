@@ -29,13 +29,16 @@ func TestSyncSimpleRequestingHead(t *testing.T) {
 	_, err := remoteStore.Append(ctx, suite.GenExtendedHeaders(100)...)
 	require.NoError(t, err)
 
+	_, err = remoteStore.GetByHeight(ctx, 100)
+	require.NoError(t, err)
+
 	localStore := store.NewTestStore(ctx, t, head)
 	syncer := NewSyncer(local.NewExchange(remoteStore), localStore, &header.DummySubscriber{})
 	err = syncer.Start(ctx)
 	require.NoError(t, err)
 
-	// TODO(@Wondertan): Async blocking instead of sleep
-	time.Sleep(time.Second)
+	_, err = localStore.GetByHeight(ctx, 100)
+	require.NoError(t, err)
 
 	exp, err := remoteStore.Head(ctx)
 	require.NoError(t, err)
@@ -135,6 +138,11 @@ func TestSyncPendingRangesWithMisses(t *testing.T) {
 
 	// and fire up a sync
 	syncer.sync(ctx)
+
+	_, err = remoteStore.GetByHeight(ctx, 43)
+	require.NoError(t, err)
+	_, err = localStore.GetByHeight(ctx, 43)
+	require.NoError(t, err)
 
 	exp, err := remoteStore.Head(ctx)
 	require.NoError(t, err)
