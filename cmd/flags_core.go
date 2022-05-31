@@ -50,7 +50,12 @@ func ParseCoreFlags(cmd *cobra.Command, env *Env) error {
 
 	grpcEndpoint := cmd.Flag(coreGRPCFlag).Value.String()
 	if grpcEndpoint != "" {
-		env.AddOptions(node.WithGRPCEndpoint(grpcEndpoint))
+		// parse ip:port from the endpoint
+		grpcURL, err := url.Parse(grpcEndpoint)
+		if err != nil {
+			return err
+		}
+		env.AddOptions(node.WithGRPCEndpoint(grpcURL.Host))
 	}
 
 	return nil
