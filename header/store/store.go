@@ -172,7 +172,13 @@ func (s *store) Get(_ context.Context, hash tmbytes.HexBytes) (*header.ExtendedH
 		return nil, err
 	}
 
-	return header.UnmarshalExtendedHeader(b)
+	h, err := header.UnmarshalExtendedHeader(b)
+	if err != nil {
+		return h, nil
+	}
+
+	s.cache.Add(h.Hash().String(), h)
+	return h, nil
 }
 
 func (s *store) GetByHeight(ctx context.Context, height uint64) (*header.ExtendedHeader, error) {
