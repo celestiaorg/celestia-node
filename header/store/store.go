@@ -47,17 +47,20 @@ type store struct {
 	//
 	// maps heights to hashes
 	heightIndex *heightIndexer
-	// manages current store head height (1) and
+	// manages current store read head height (1) and
 	// allows callers to wait till header for a height is stored (2)
 	heightSub *heightSub
 
 	// writing to datastore
 	//
-	// queued of header ranges to be written
+	writeLk sync.Mutex
+	// queue of headers to be written
 	writes chan []*header.ExtendedHeader
 	// signals when writes are finished
 	writesDn chan struct{}
-	// pending keeps headers pending to be written in a batch
+	// writeHead maintains the current write head
+	writeHead *header.ExtendedHeader
+	// pending keeps headers pending to be written in one batch
 	pending *batch
 }
 
@@ -249,16 +252,23 @@ func (s *store) Has(_ context.Context, hash tmbytes.HexBytes) (bool, error) {
 	return s.ds.Has(datastore.NewKey(hash.String()))
 }
 
-func (s *store) Append(ctx context.Context, headers ...*header.ExtendedHeader) (int, error) {
+func (s *store) Append(ctx context.Context, headers ...*header.ExtendedHeader) (_ int, err error) {
 	lh := len(headers)
 	if lh == 0 {
 		return 0, nil
 	}
+	// taking the ownership of append
+	// mainly, this is need to avoid race conditions for s.writeHead
+	s.writeLk.Lock()
+	defer s.writeLk.Unlock()
 
-	// take current head to verify headers against
-	head, err := s.Head(ctx)
-	if err != nil {
-		return 0, err
+	// take current write head to verify headers against
+	head := s.writeHead
+	if head == nil {
+		head, err = s.Head(ctx)
+		if err != nil {
+			return 0, err
+		}
 	}
 
 	// collect valid headers
@@ -290,8 +300,8 @@ func (s *store) Append(ctx context.Context, headers ...*header.ExtendedHeader) (
 	select {
 	case s.writes <- verified:
 		ln := len(verified)
-		head := verified[ln-1]
-		log.Infow("new head", "height", head.Height, "hash", head.Hash())
+		s.writeHead = verified[ln-1]
+		log.Infow("new head", "height", s.writeHead.Height, "hash", s.writeHead.Hash())
 		// we return an error here after writing,
 		// as there might be an invalid header in between of a given range
 		return ln, err
