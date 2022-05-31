@@ -3,6 +3,7 @@ package store
 import (
 	"context"
 	"errors"
+	"fmt"
 	"sync"
 
 	logging "github.com/ipfs/go-log/v2"
@@ -187,6 +188,9 @@ func (s *store) Get(_ context.Context, hash tmbytes.HexBytes) (*header.ExtendedH
 }
 
 func (s *store) GetByHeight(ctx context.Context, height uint64) (*header.ExtendedHeader, error) {
+	if height == 0 {
+		return nil, fmt.Errorf("header/store: height must be bigger than zero")
+	}
 	// if the requested 'height' was not yet published
 	// we subscribe to it
 	h, err := s.heightSub.Sub(ctx, height)
