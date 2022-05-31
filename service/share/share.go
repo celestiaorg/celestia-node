@@ -90,6 +90,8 @@ func (s *Service) Stop(context.Context) error {
 	s.cancel()
 	s.cancel = nil
 	s.session = nil
+	// cleanup cache
+
 	return nil
 }
 
