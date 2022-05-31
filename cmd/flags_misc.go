@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 	"net/http/pprof"
+	"strings"
 
 	logging "github.com/ipfs/go-log/v2"
 	"github.com/spf13/cobra"
@@ -14,8 +15,9 @@ import (
 )
 
 var (
-	logLevelFlag = "log.level"
-	pprofFlag    = "pprof"
+	logLevelFlag       = "log.level"
+	logLevelModuleFlag = "log.level.module"
+	pprofFlag          = "pprof"
 )
 
 // MiscFlags gives a set of hardcoded miscellaneous flags.
@@ -27,6 +29,12 @@ func MiscFlags() *flag.FlagSet {
 		"INFO",
 		`DEBUG, INFO, WARN, ERROR, DPANIC, PANIC, FATAL
 and their lower-case forms`,
+	)
+
+	flags.StringSlice(
+		logLevelModuleFlag,
+		nil,
+		"<module>:<level>, e.g. pubsub:debug",
 	)
 
 	flags.Bool(
@@ -48,6 +56,18 @@ func ParseMiscFlags(cmd *cobra.Command) error {
 		}
 
 		logs.SetAllLoggers(level)
+	}
+
+	logModules, err := cmd.Flags().GetStringSlice(logLevelModuleFlag)
+	if err != nil {
+		return err
+	}
+	for _, ll := range logModules {
+		params := strings.Split(ll, ":")
+		err := logging.SetLogLevel(params[0], params[1])
+		if err != nil {
+			return err
+		}
 	}
 
 	ok, err := cmd.Flags().GetBool(pprofFlag)
