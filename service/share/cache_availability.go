@@ -23,7 +23,6 @@ func NewCacheAvailability(avail Availability) (Availability, error) {
 	if err != nil {
 		return nil, err
 	}
-
 	return &cacheAvailability{
 		avail: avail,
 		cache: cache,
@@ -32,8 +31,8 @@ func NewCacheAvailability(avail Availability) (Availability, error) {
 
 // SharesAvailable will cache, upon success, the hash of the given Root.
 func (ca cacheAvailability) SharesAvailable(ctx context.Context, root *Root) error {
-	// check if root has already been sampled (if it exists in the cache,
-	// it was sampled successfully)
+	// if root has already been sampled successfully, do not
+	// sample again
 	_, ok := ca.cache.Get(root.String())
 	if ok {
 		return nil

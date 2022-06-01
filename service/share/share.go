@@ -91,8 +91,7 @@ func (s *Service) Stop(ctx context.Context) error {
 	s.cancel = nil
 	s.session = nil
 	// cleanup cache
-	s.Availability.Stop(ctx)
-	return nil
+	return s.Availability.Stop(ctx)
 }
 
 func (s *Service) GetShare(ctx context.Context, dah *Root, row, col int) (Share, error) {
