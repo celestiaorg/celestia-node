@@ -50,9 +50,9 @@ func NewRetriever(bServ blockservice.BlockService) *Retriever {
 
 // Retrieve retrieves all the data committed to DataAvailabilityHeader.
 //
-// If not available locally, it aims to request from the network only any 1/4 of the data(quadrant)
-// and reconstructs other 3/4 parts via rstm2d. If the requested quadrant is not available within
-// RetrieveQuadrantTimeout, it starts requesting more, one by one, until either the data is
+// If not available locally, it aims to request from the network only one quadrant (1/4) of the data square
+// and reconstructs the other three quadrants (3/4). If the requested quadrant is not available within
+// RetrieveQuadrantTimeout, it starts requesting another quadrant until either the data is
 // reconstructed, context is canceled or ErrByzantine is generated.
 func (r *Retriever) Retrieve(ctx context.Context, dah *da.DataAvailabilityHeader) (*rsmt2d.ExtendedDataSquare, error) {
 	ctx, cancel := context.WithCancel(ctx)
@@ -74,7 +74,7 @@ func (r *Retriever) Retrieve(ctx context.Context, dah *da.DataAvailabilityHeader
 			if err == nil {
 				return eds, nil
 			}
-			// it might be a catastrophic error case, check for it
+			// check to ensure it is not a catastrophic error case, otherwise handle accordingly
 			var errByz *rsmt2d.ErrByzantineData
 			if errors.As(err, &errByz) {
 				return nil, NewErrByzantine(ctx, r.bServ, dah, errByz)
@@ -113,6 +113,7 @@ type retrievalSession struct {
 	done        chan struct{}
 }
 
+// newSession creates a new retrieval session and kicks off requesting process.
 func (r *Retriever) newSession(ctx context.Context, dah *da.DataAvailabilityHeader) (*retrievalSession, error) {
 	size := len(dah.RowsRoots)
 	adder := NewNmtNodeAdder(
@@ -144,8 +145,9 @@ func (r *Retriever) newSession(ctx context.Context, dah *da.DataAvailabilityHead
 	return ses, nil
 }
 
-// Done notifies user to try reconstruction.
-// Try because there is no way currently to guarantedd when
+// Done signals that enough shares have been retrieved to attempt
+// square reconstruction. "Attempt" because there is no way currently to
+// guarantee that reconstruction can be performed with the shares provided.
 func (rs *retrievalSession) Done() <-chan struct{} {
 	return rs.done
 }
@@ -160,12 +162,12 @@ func (rs *retrievalSession) Reconstruct() (*rsmt2d.ExtendedDataSquare, error) {
 	if err != nil {
 		return nil, err
 	}
-	log.Debugw("data square reconstructed", "data_hash", hex.EncodeToString(rs.dah.Hash()), "size", len(rs.dah.RowsRoots))
+	log.Infow("data square reconstructed", "data_hash", hex.EncodeToString(rs.dah.Hash()), "size", len(rs.dah.RowsRoots))
 	return rs.squareImported, nil
 }
 
 func (rs *retrievalSession) Close() error {
-	// All shares which were requested or repaired are written to disk with the commit.
+	// All shares which were requested or repaired are written to disk via `Commit`.
 	// Note that we store *all*, so they are served to the network, including incorrectly committed
 	// data(BEFP case), so that the network can check BEFP.
 	err := rs.adder.Commit()
@@ -185,20 +187,32 @@ func (rs *retrievalSession) request(ctx context.Context) {
 		// Request quadrant and fill it into rs.square slice.
 		// We don't need to care about the errors here.
 		// Just need to request as much data as we can to be able to Reconstruct below.
-		rs.doRequest(ctx, rs.quadrants[retry])
+		q := rs.quadrants[retry]
+		log.Debugw("requesting quadrant",
+			"axis", q.source,
+			"x", q.x,
+			"y", q.y,
+			"size", len(q.roots),
+		)
+		rs.doRequest(ctx, q)
 		select {
 		case <-t.C:
 		case <-ctx.Done():
 			return
 		}
-		log.Warnf("data quadrant wasn't received in %s, requesting another one...", RetrieveQuadrantTimeout.String())
+		log.Warnw("quadrant request timeout",
+			"timeout", RetrieveQuadrantTimeout.String(),
+			"axis", q.source,
+			"x", q.x,
+			"y", q.y,
+			"size", len(q.roots),
+		)
 	}
 }
 
 // doRequest requests the given quadrant by requesting halves of axis(Row or Col) using GetShares.
 func (rs *retrievalSession) doRequest(ctx context.Context, q *quadrant) {
 	size := len(q.roots)
-	log.Debugw("requesting quadrant", "axis", q.source, "x", q.x, "y", q.y, "size", size)
 	for i, root := range q.roots {
 		go func(i int, root cid.Cid) {
 			// get the root node
