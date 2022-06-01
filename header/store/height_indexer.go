@@ -40,7 +40,7 @@ func (hi *heightIndexer) HashByHeight(h uint64) (tmbytes.HexBytes, error) {
 	}
 
 	hi.cache.Add(h, tmbytes.HexBytes(val))
-	return val, err
+	return val, nil
 }
 
 // IndexTo saves mapping between header Height and Hash to the given batch.

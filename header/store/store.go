@@ -48,7 +48,7 @@ type store struct {
 	// maps heights to hashes
 	heightIndex *heightIndexer
 	// manages current store read head height (1) and
-	// allows callers to wait till header for a height is stored (2)
+	// allows callers to wait until header for a height is stored (2)
 	heightSub *heightSub
 
 	// writing to datastore
@@ -183,7 +183,7 @@ func (s *store) Get(_ context.Context, hash tmbytes.HexBytes) (*header.ExtendedH
 
 	h, err := header.UnmarshalExtendedHeader(b)
 	if err != nil {
-		return h, nil
+		return nil, err
 	}
 
 	s.cache.Add(h.Hash().String(), h)
