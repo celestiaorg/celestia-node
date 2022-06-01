@@ -31,18 +31,12 @@ func DefaultConnManagerConfig() ConnManagerConfig {
 }
 
 // ConnectionManager provides a constructor for ConnectionManager.
-func ConnectionManager(cfg Config) func(params.Network) (coreconnmgr.ConnManager, error) {
-	return func(net params.Network) (coreconnmgr.ConnManager, error) {
+func ConnectionManager(cfg Config) func(params.BootstrapPeers) (coreconnmgr.ConnManager, error) {
+	return func(bpeers params.BootstrapPeers) (coreconnmgr.ConnManager, error) {
 		fpeers, err := cfg.mutualPeers()
 		if err != nil {
 			return nil, err
 		}
-
-		bpeers, err := params.BootstrappersInfosFor(net)
-		if err != nil {
-			return nil, err
-		}
-
 		cm := connmgr.NewConnManager(cfg.ConnManager.Low, cfg.ConnManager.High, cfg.ConnManager.GracePeriod)
 		for _, info := range fpeers {
 			cm.Protect(info.ID, "protected-mutual")

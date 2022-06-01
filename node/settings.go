@@ -87,3 +87,10 @@ func WithKeyringSigner(signer *apptypes.KeyringSigner) Option {
 		sets.opts = append(sets.opts, fx.Replace(signer))
 	}
 }
+
+// WithBootstrapPeers sets custom bootstrap peers
+func WithBootstrapPeers(peers params.BootstrapPeers) Option {
+	return func(sets *settings) {
+		sets.opts = append(sets.opts, fx.Replace(peers))
+	}
+}

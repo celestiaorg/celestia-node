@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/ipfs/go-datastore"
+	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/libp2p/go-libp2p-core/protocol"
 	"github.com/libp2p/go-libp2p-core/routing"
 	dht "github.com/libp2p/go-libp2p-kad-dht"
@@ -25,11 +26,10 @@ func ContentRouting() routing.ContentRouting {
 // Basically, this provides a way to discover peer addresses by respecting public keys.
 func PeerRouting(cfg Config) func(routingParams) (routing.PeerRouting, error) {
 	return func(params routingParams) (routing.PeerRouting, error) {
-		bpeers, err := nparams.BootstrappersInfosFor(params.Net)
-		if err != nil {
-			return nil, err
+		bpeers := make([]peer.AddrInfo, len(params.Peers))
+		for index := range params.Peers {
+			bpeers[index] = *params.Peers[index]
 		}
-
 		opts := []dht.Option{
 			dht.Mode(dht.ModeAuto),
 			dht.BootstrapPeers(bpeers...),
@@ -72,6 +72,7 @@ type routingParams struct {
 
 	Ctx       context.Context
 	Net       nparams.Network
+	Peers     nparams.BootstrapPeers
 	Lc        fx.Lifecycle
 	Host      HostBase
 	DataStore datastore.Batching

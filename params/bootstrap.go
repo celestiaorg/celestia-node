@@ -9,8 +9,8 @@ import (
 var log = logging.Logger("params")
 
 // BootstrappersInfosFor returns address information of bootstrap peers for a given network.
-func BootstrappersInfosFor(net Network) ([]peer.AddrInfo, error) {
-	bs, err := BootstrappersFor(net)
+func BootstrappersInfosFor(net Network) (BootstrapPeers, error) {
+	bs, err := bootstrappersFor(net)
 	if err != nil {
 		return nil, err
 	}
@@ -18,8 +18,8 @@ func BootstrappersInfosFor(net Network) ([]peer.AddrInfo, error) {
 	return parseAddrInfos(bs)
 }
 
-// BootstrappersFor reports multiaddresses of bootstrap peers for a given network.
-func BootstrappersFor(net Network) ([]string, error) {
+// bootstrappersFor reports multiaddresses of bootstrap peers for a given network.
+func bootstrappersFor(net Network) ([]string, error) {
 	if err := net.Validate(); err != nil {
 		return nil, err
 	}
@@ -37,8 +37,9 @@ var bootstrapList = map[Network][]string{
 	Private: {},
 }
 
-func parseAddrInfos(addrs []string) ([]peer.AddrInfo, error) {
-	infos := make([]peer.AddrInfo, 0, len(addrs))
+// parseAddrInfos converts strings to AddrInfos
+func parseAddrInfos(addrs []string) ([]*peer.AddrInfo, error) {
+	infos := make([]*peer.AddrInfo, 0, len(addrs))
 	for _, addr := range addrs {
 		maddr, err := ma.NewMultiaddr(addr)
 		if err != nil {
@@ -51,7 +52,7 @@ func parseAddrInfos(addrs []string) ([]peer.AddrInfo, error) {
 			log.Errorw("parsing info from multiaddr", "maddr", maddr, "err", err)
 			return nil, err
 		}
-		infos = append(infos, *info)
+		infos = append(infos, info)
 	}
 
 	return infos, nil
