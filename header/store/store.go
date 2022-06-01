@@ -319,15 +319,14 @@ func (s *store) Append(ctx context.Context, headers ...*header.ExtendedHeader) (
 func (s *store) flushLoop() {
 	defer close(s.writesDn)
 	for headers := range s.writes {
-		if headers != nil {
-			// once headers are in pending and accessible
-			s.pending.Append(headers...)
-			// notify waiters if any + increase current height
-			// it is important to do Pub after updating pending
-			// so pending is consistent with atomic Height counter on the heightSub
-			s.heightSub.Pub(headers...)
-		}
-		// ensure we flush only if pending is grown enough, or we are stopping(headers == nil)
+		// add headers to the pending and ensure they are accessible
+		s.pending.Append(headers...)
+		// and notify waiters if any + increase current read head height
+		// it is important to do Pub after updating pending
+		// so pending is consistent with atomic Height counter on the heightSub
+		s.heightSub.Pub(headers...)
+		// don't flush and continue if pending batch is not grown enough,
+		// and Store is not stopping(headers == nil)
 		if s.pending.Len() < DefaultWriteBatchSize && headers != nil {
 			continue
 		}
