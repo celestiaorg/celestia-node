@@ -18,8 +18,8 @@ const (
 // Network is a type definition for DA network run by Celestia Node.
 type Network string
 
-// BootstrapPeers is a type definition for nodes that will be used as bootstrappers
-type BootstrapPeers []*peer.AddrInfo
+// Bootstrappers is a type definition for nodes that will be used as bootstrappers
+type Bootstrappers []peer.AddrInfo
 
 // ErrInvalidNetwork is thrown when unknown network is used.
 var ErrInvalidNetwork = errors.New("params: invalid network")

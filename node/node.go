@@ -38,7 +38,7 @@ var log = logging.Logger("node")
 type Node struct {
 	Type           Type
 	Network        params.Network
-	BootstrapPeers params.BootstrapPeers
+	BootstrapPeers params.Bootstrappers
 	Config         *Config
 
 	// CoreClient provides access to a Core node process.

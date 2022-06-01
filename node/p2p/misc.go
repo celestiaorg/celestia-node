@@ -31,8 +31,8 @@ func DefaultConnManagerConfig() ConnManagerConfig {
 }
 
 // ConnectionManager provides a constructor for ConnectionManager.
-func ConnectionManager(cfg Config) func(params.BootstrapPeers) (coreconnmgr.ConnManager, error) {
-	return func(bpeers params.BootstrapPeers) (coreconnmgr.ConnManager, error) {
+func ConnectionManager(cfg Config) func(params.Bootstrappers) (coreconnmgr.ConnManager, error) {
+	return func(bpeers params.Bootstrappers) (coreconnmgr.ConnManager, error) {
 		fpeers, err := cfg.mutualPeers()
 		if err != nil {
 			return nil, err
