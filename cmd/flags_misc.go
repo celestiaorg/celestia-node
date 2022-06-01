@@ -64,6 +64,10 @@ func ParseMiscFlags(cmd *cobra.Command) error {
 	}
 	for _, ll := range logModules {
 		params := strings.Split(ll, ":")
+		if len(params) != 2 {
+			return fmt.Errorf("cmd: %s arg must be in form <module>:<level>, e.g. pubsub:debug", logLevelModuleFlag)
+		}
+
 		err := logging.SetLogLevel(params[0], params[1])
 		if err != nil {
 			return err
