@@ -348,8 +348,8 @@ func (s *store) flushLoop() {
 	}
 }
 
-// flush writes the given headers on disk
-func (s *store) flush(headers ...*header.ExtendedHeader) (err error) {
+// flush writes the given batch to datastore.
+func (s *store) flush(headers ...*header.ExtendedHeader) error {
 	ln := len(headers)
 	if ln == 0 {
 		return nil
@@ -394,7 +394,7 @@ func (s *store) flush(headers ...*header.ExtendedHeader) (err error) {
 	return batch.Commit()
 }
 
-// readHead loads the head from the disk.
+// readHead loads the head from the datastore.
 func (s *store) readHead(ctx context.Context) (*header.ExtendedHeader, error) {
 	b, err := s.ds.Get(headKey)
 	if err != nil {
