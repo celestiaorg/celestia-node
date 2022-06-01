@@ -34,7 +34,7 @@ func NewCacheAvailability(avail Availability) (Availability, error) {
 func (ca cacheAvailability) SharesAvailable(ctx context.Context, root *Root) error {
 	// check if root has already been sampled (if it exists in the cache,
 	// it was sampled successfully)
-	_, ok := ca.cache.Get(string(root.Hash()))
+	_, ok := ca.cache.Get(root.String())
 	if ok {
 		return nil
 	}
@@ -42,11 +42,12 @@ func (ca cacheAvailability) SharesAvailable(ctx context.Context, root *Root) err
 		return err
 	}
 	// TODO @renaynay: what gets stored here? an empty byte arr /struct or something to indicate that it has been sampled?
-	ca.cache.Add(string(root.Hash()), struct{}{})
+	ca.cache.Add(root.String(), struct{}{})
 	return nil
 }
 
 // Stop purges the cache.
-func (ca *cacheAvailability) Stop() {
+func (ca *cacheAvailability) Stop(context.Context) error {
 	ca.cache.Purge()
+	return nil
 }

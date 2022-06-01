@@ -48,6 +48,14 @@ func RandFullServiceWithSquare(t *testing.T, n int) (*Service, *Root) {
 	return NewService(bServ, NewFullAvailability(bServ)), RandFillDAG(t, n, bServ)
 }
 
+// TODO @renaynay: document
+func RandFullCacheServiceWithSquare(t *testing.T, n int) (*Service, *Root) {
+	bServ := mdutils.Bserv()
+	ca, err := NewCacheAvailability(NewFullAvailability(bServ))
+	require.NoError(t, err)
+	return NewService(bServ, ca), RandFillDAG(t, n, bServ)
+}
+
 func RandFillDAG(t *testing.T, n int, bServ blockservice.BlockService) *Root {
 	shares := RandShares(t, n*n)
 	return FillDag(t, bServ, shares)
@@ -138,3 +146,5 @@ func NewBrokenAvailability() Availability {
 func (b *brokenAvailability) SharesAvailable(context.Context, *Root) error {
 	return ErrNotAvailable
 }
+
+func (b *brokenAvailability) Stop(context.Context) error { return nil }

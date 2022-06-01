@@ -147,7 +147,11 @@ func DASer(
 }
 
 // LightAvailability constructs light share availability wrapped in a share cache.
-func LightAvailability(ctx context.Context, lc fx.Lifecycle, bServ blockservice.BlockService) (share.Availability, error) {
+func LightAvailability(
+	ctx context.Context,
+	lc fx.Lifecycle,
+	bServ blockservice.BlockService,
+) (share.Availability, error) {
 	la := share.NewLightAvailability(blockservice.NewSession(fxutil.WithLifecycle(ctx, lc), bServ))
 	return share.NewCacheAvailability(la)
 }

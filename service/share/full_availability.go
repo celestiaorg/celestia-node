@@ -42,4 +42,4 @@ func (fa *fullAvailability) SharesAvailable(ctx context.Context, root *Root) err
 	return err
 }
 
-func (fa *fullAvailability) Stop() {}
+func (fa *fullAvailability) Stop(context.Context) error { return nil }
