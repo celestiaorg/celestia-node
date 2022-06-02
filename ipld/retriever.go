@@ -68,7 +68,7 @@ func (r *Retriever) Retrieve(ctx context.Context, dah *da.DataAvailabilityHeader
 			if err == nil {
 				return eds, nil
 			}
-			// check to ensure it is not a catastrophic error case, otherwise handle accordingly
+			// check to ensure it is not a catastrophic ErrByzantine case, otherwise handle accordingly
 			var errByz *rsmt2d.ErrByzantineData
 			if errors.As(err, &errByz) {
 				return nil, NewErrByzantine(ctx, r.bServ, dah, errByz)
@@ -162,8 +162,8 @@ func (rs *retrievalSession) Reconstruct() (*rsmt2d.ExtendedDataSquare, error) {
 
 func (rs *retrievalSession) Close() error {
 	// All shares which were requested or repaired are written to disk via `Commit`.
-	// Note that we store *all*, so they are served to the network, including incorrectly committed
-	// data(BEFP case), so that the network can check BEFP.
+	// Note that we store *all*, so they are served to the network, including commit of incorrect
+	// data(BEFP/ErrByzantineCase case), so that the network can check BEFP.
 	err := rs.adder.Commit()
 	if err != nil {
 		log.Errorw("committing DAG", "err", err)
@@ -178,9 +178,6 @@ func (rs *retrievalSession) request(ctx context.Context) {
 	t := time.NewTicker(RetrieveQuadrantTimeout)
 	defer t.Stop()
 	for retry := 0; retry < len(rs.quadrants); retry++ {
-		// Request quadrant and fill it into rs.square slice.
-		// We don't need to care about the errors here.
-		// Just need to request as much data as we can to be able to Reconstruct below.
 		q := rs.quadrants[retry]
 		log.Debugw("requesting quadrant",
 			"axis", q.source,
@@ -204,7 +201,8 @@ func (rs *retrievalSession) request(ctx context.Context) {
 	}
 }
 
-// doRequest requests the given quadrant by requesting halves of axis(Row or Col) using GetShares.
+// doRequest requests the given quadrant by requesting halves of axis(Row or Col) using GetShares
+// and fills shares into rs.square slice.
 func (rs *retrievalSession) doRequest(ctx context.Context, q *quadrant) {
 	size := len(q.roots)
 	for i, root := range q.roots {
