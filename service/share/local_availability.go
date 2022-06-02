@@ -7,7 +7,7 @@ import (
 	"github.com/ipfs/go-datastore/namespace"
 )
 
-var shareStorePrefix = datastore.NewKey("shares")
+var localAvailabilityPrefix = datastore.NewKey("local_availability")
 
 func rootKey(root *Root) datastore.Key {
 	return datastore.NewKey(root.String())
@@ -25,7 +25,7 @@ type localAvailability struct {
 // NewLocalAvailability wraps the given Availability with an additional datastore
 // for sampling result caching.
 func NewLocalAvailability(avail Availability, ds datastore.Datastore) (Availability, error) {
-	ds = namespace.Wrap(ds, shareStorePrefix)
+	ds = namespace.Wrap(ds, localAvailabilityPrefix)
 	return &localAvailability{
 		avail: avail,
 		ds:    ds,
