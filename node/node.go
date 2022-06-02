@@ -36,9 +36,10 @@ var log = logging.Logger("node")
 // * Light
 // * Full
 type Node struct {
-	Type    Type
-	Network params.Network
-	Config  *Config
+	Type          Type
+	Network       params.Network
+	Bootstrappers params.Bootstrappers
+	Config        *Config
 
 	// CoreClient provides access to a Core node process.
 	CoreClient core.Client `optional:"true"`

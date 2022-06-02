@@ -30,26 +30,23 @@ func DefaultConfig() Config {
 	}
 }
 
-func (cfg *Config) trustedPeers(net params.Network) (infos []*peer.AddrInfo, err error) {
+func (cfg *Config) trustedPeers(bpeers params.Bootstrappers) (infos []peer.AddrInfo, err error) {
 	if len(cfg.TrustedPeers) == 0 {
-		log.Infof("No trusted peers in config, initializing with default bootstrappers as trusted peers for "+
-			"network: %s", net)
-		cfg.TrustedPeers, err = params.BootstrappersFor(net)
-		if err != nil {
-			return
-		}
+		log.Infof("No trusted peers in config, initializing with default bootstrappers as trusted peers")
+		return bpeers, nil
 	}
 
-	infos = make([]*peer.AddrInfo, len(cfg.TrustedPeers))
+	infos = make([]peer.AddrInfo, len(cfg.TrustedPeers))
 	for i, tpeer := range cfg.TrustedPeers {
 		ma, err := multiaddr.NewMultiaddr(tpeer)
 		if err != nil {
 			return nil, err
 		}
-		infos[i], err = peer.AddrInfoFromP2pAddr(ma)
+		p, err := peer.AddrInfoFromP2pAddr(ma)
 		if err != nil {
 			return nil, err
 		}
+		infos[i] = *p
 	}
 
 	return

@@ -2,6 +2,8 @@ package params
 
 import (
 	"errors"
+
+	"github.com/libp2p/go-libp2p-core/peer"
 )
 
 // NOTE: Every time we add a new long-running network, it has to be added here.
@@ -15,6 +17,9 @@ const (
 
 // Network is a type definition for DA network run by Celestia Node.
 type Network string
+
+// Bootstrappers is a type definition for nodes that will be used as bootstrappers
+type Bootstrappers []peer.AddrInfo
 
 // ErrInvalidNetwork is thrown when unknown network is used.
 var ErrInvalidNetwork = errors.New("params: invalid network")

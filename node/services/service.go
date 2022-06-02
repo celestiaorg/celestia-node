@@ -59,9 +59,9 @@ func HeaderService(
 }
 
 // HeaderExchangeP2P constructs new Exchange for headers.
-func HeaderExchangeP2P(cfg Config) func(params.Network, host.Host) (header.Exchange, error) {
-	return func(net params.Network, host host.Host) (header.Exchange, error) {
-		peers, err := cfg.trustedPeers(net)
+func HeaderExchangeP2P(cfg Config) func(params.Bootstrappers, host.Host) (header.Exchange, error) {
+	return func(bpeers params.Bootstrappers, host host.Host) (header.Exchange, error) {
+		peers, err := cfg.trustedPeers(bpeers)
 		if err != nil {
 			return nil, err
 		}
