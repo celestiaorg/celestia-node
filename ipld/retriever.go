@@ -22,12 +22,6 @@ import (
 
 var log = logging.Logger("ipld")
 
-// RetrieveQuadrantTimeout defines how much time Retriever waits before
-// starting to retrieve another quadrant.
-// TODO(@Wondertan): Its not yet clear what equilibrium time would be
-//  and needs further experimentation.
-var RetrieveQuadrantTimeout = time.Minute
-
 // Retriever retrieves rsmt2d.ExtendedDataSquares from the IPLD network.
 // Instead of requesting data 'share by share' it requests data by quadrants
 // minimizing bandwidth usage in the happy cases.
