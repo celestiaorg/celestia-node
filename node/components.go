@@ -57,7 +57,7 @@ func fullComponents(cfg *Config, store Store) fx.Option {
 func baseComponents(cfg *Config, store Store) fx.Option {
 	return fx.Options(
 		fx.Provide(params.DefaultNetwork),
-		fx.Provide(params.BootstrappersInfosFor),
+		fx.Provide(params.BootstrappersFor),
 		fx.Provide(context.Background),
 		fx.Supply(cfg),
 		fx.Supply(store.Config),

@@ -8,8 +8,8 @@ import (
 
 var log = logging.Logger("params")
 
-// BootstrappersInfosFor returns address information of bootstrap peers for a given network.
-func BootstrappersInfosFor(net Network) (Bootstrappers, error) {
+// BootstrappersFor returns address information of bootstrap peers for a given network.
+func BootstrappersFor(net Network) (Bootstrappers, error) {
 	bs, err := bootstrappersFor(net)
 	if err != nil {
 		return nil, err

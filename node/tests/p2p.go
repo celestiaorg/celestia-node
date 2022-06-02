@@ -33,7 +33,7 @@ func TestUseBridgeNodeAsBootstraper(t *testing.T) {
 	nodes := []*node.Node{full, light}
 	for index := range nodes {
 		require.NoError(t, nodes[index].Start(ctx))
-		assert.Equal(t, *addr, nodes[index].BootstrapPeers[0])
+		assert.Equal(t, *addr, nodes[index].Bootstrappers[0])
 		assert.True(t, nodes[index].Host.Network().Connectedness(addr.ID) == network.Connected)
 	}
 }
