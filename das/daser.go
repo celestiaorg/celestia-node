@@ -38,6 +38,7 @@ type DASer struct {
 	catchUpDn chan struct{} // done signal for catchUp loop
 
 	// isRunning shows service state
+	// uint32 is used to atomically change the state
 	isRunning uint32
 }
 
@@ -84,8 +85,6 @@ func (d *DASer) Start(context.Context) error {
 	d.cancel = cancel
 
 	atomic.StoreUint32(&d.isRunning, 1)
-	// start listening for bad encoding fraud proof
-	go fraud.SubscribeToBEFP(dasCtx, d.fService, d.Stop)
 	// kick off catch-up routine manager
 	go d.catchUpManager(dasCtx, checkpoint)
 	// kick off sampling routine for recently received headers

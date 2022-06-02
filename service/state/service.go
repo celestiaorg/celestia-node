@@ -52,7 +52,7 @@ func (s *Service) SubmitTx(ctx context.Context, tx Tx) (*TxResponse, error) {
 func (s *Service) Start(context.Context) error {
 	ctx, cancel := context.WithCancel(context.Background())
 	s.cancel = cancel
-	go fraud.SubscribeToBEFP(ctx, s.fsub, func(context.Context) error {
+	go fraud.OnBEFP(ctx, s.fsub, func(context.Context) error {
 		atomic.StoreUint64(&s.befpReceived, 1)
 		return nil
 	})

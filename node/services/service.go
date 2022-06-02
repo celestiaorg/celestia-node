@@ -25,6 +25,7 @@ import (
 
 // HeaderSyncer creates a new Syncer.
 func HeaderSyncer(
+	ctx context.Context,
 	lc fx.Lifecycle,
 	ex header.Exchange,
 	store header.Store,
@@ -36,6 +37,7 @@ func HeaderSyncer(
 		OnStart: syncer.Start,
 		OnStop:  syncer.Stop,
 	})
+	go fraud.OnBEFP(fxutil.WithLifecycle(ctx, lc), fsub, syncer.Stop)
 	return syncer, nil
 }
 
@@ -134,6 +136,7 @@ func ShareService(lc fx.Lifecycle, bServ blockservice.BlockService, avail share.
 
 // DASer constructs a new Data Availability Sampler.
 func DASer(
+	ctx context.Context,
 	lc fx.Lifecycle,
 	avail share.Availability,
 	sub header.Subscriber,
@@ -146,16 +149,14 @@ func DASer(
 		OnStart: das.Start,
 		OnStop:  das.Stop,
 	})
+	go fraud.OnBEFP(fxutil.WithLifecycle(ctx, lc), fService, das.Stop)
 	return das
 }
 
 // FraudService constructs fraud proof service
-func FraudService(lc fx.Lifecycle, sub *pubsub.PubSub, hstore header.Store) (fraud.Service, fraud.Service) {
+func FraudService(sub *pubsub.PubSub, hstore header.Store) (fraud.Service, fraud.Service) {
 	f := fraud.NewService(sub, hstore.GetByHeight)
-	lc.Append(fx.Hook{
-		OnStart: f.Start,
-		OnStop:  f.Stop,
-	})
+	f.RegisterUnmarshaler(fraud.BadEncoding, fraud.UnmarshalBEFP) //nolint:errcheck
 	return f, f
 }
 

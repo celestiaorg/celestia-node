@@ -16,7 +16,7 @@ const (
 func (p ProofType) String() string {
 	switch p {
 	case BadEncoding:
-		return "badEncoding"
+		return "badencoding"
 	default:
 		panic(fmt.Sprintf("invalid proof type: %d", p))
 	}

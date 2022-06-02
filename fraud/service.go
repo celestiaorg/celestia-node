@@ -29,18 +29,6 @@ func NewService(p *pubsub.PubSub, getter headerFetcher) Service {
 	}
 }
 
-func (f *service) Start(context.Context) error {
-	err := f.RegisterUnmarshaler(BadEncoding, UnmarshalBEFP)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-func (f *service) Stop(context.Context) error {
-	return nil
-}
-
 func (f *service) Subscribe(proofType ProofType) (Subscription, error) {
 	// TODO: @vgonkivs check if fraud proof is in fraud store, then return with error
 	f.mu.RLock()

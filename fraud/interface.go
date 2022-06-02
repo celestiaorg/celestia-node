@@ -17,9 +17,6 @@ type headerFetcher func(context.Context, uint64) (*header.ExtendedHeader, error)
 type ProofUnmarshaler func([]byte) (Proof, error)
 
 type Service interface {
-	Start(context.Context) error
-	Stop(context.Context) error
-
 	Subscriber
 	Broadcaster
 }

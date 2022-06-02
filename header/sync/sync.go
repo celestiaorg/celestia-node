@@ -66,7 +66,6 @@ func (s *Syncer) Start(context.Context) error {
 		return err
 	}
 	ctx, cancel := context.WithCancel(context.Background())
-	go fraud.SubscribeToBEFP(ctx, s.fSub, s.Stop)
 	go s.syncLoop(ctx)
 	s.wantSync()
 	s.cancel = cancel
