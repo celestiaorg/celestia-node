@@ -48,10 +48,22 @@ func RandFullServiceWithSquare(t *testing.T, n int) (*Service, *Root) {
 	return NewService(bServ, NewFullAvailability(bServ)), RandFillDAG(t, n, bServ)
 }
 
-// TODO @renaynay: document
-func RandFullCacheServiceWithSquare(t *testing.T, n int) (*Service, *Root) {
+// RandLightLocalServiceWithSquare is the same as RandLightServiceWithSquare, except
+// the Availability is wrapped with localAvailability.
+func RandLightLocalServiceWithSquare(t *testing.T, n int) (*Service, *Root) {
 	bServ := mdutils.Bserv()
-	ca, err := NewCacheAvailability(NewFullAvailability(bServ))
+	ds := dssync.MutexWrap(ds.NewMapDatastore())
+	ca, err := NewLocalAvailability(NewLightAvailability(bServ), ds)
+	require.NoError(t, err)
+	return NewService(bServ, ca), RandFillDAG(t, n, bServ)
+}
+
+// RandFullLocalServiceWithSquare is the same as RandFullServiceWithSquare, except
+// the Availability is wrapped with localAvailability.
+func RandFullLocalServiceWithSquare(t *testing.T, n int) (*Service, *Root) {
+	bServ := mdutils.Bserv()
+	ds := dssync.MutexWrap(ds.NewMapDatastore())
+	ca, err := NewLocalAvailability(NewFullAvailability(bServ), ds)
 	require.NoError(t, err)
 	return NewService(bServ, ca), RandFillDAG(t, n, bServ)
 }
@@ -146,5 +158,3 @@ func NewBrokenAvailability() Availability {
 func (b *brokenAvailability) SharesAvailable(context.Context, *Root) error {
 	return ErrNotAvailable
 }
-
-func (b *brokenAvailability) Stop(context.Context) error { return nil }

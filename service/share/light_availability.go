@@ -74,5 +74,3 @@ func (la *lightAvailability) SharesAvailable(ctx context.Context, dah *Root) err
 
 	return nil
 }
-
-func (la *lightAvailability) Stop(context.Context) error { return nil }
