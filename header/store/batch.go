@@ -36,7 +36,7 @@ func (b *batch) Len() int {
 	return len(b.headers)
 }
 
-// GetAll returns a slice to all the headers in the batch.
+// GetAll returns a slice of all the headers in the batch.
 func (b *batch) GetAll() []*header.ExtendedHeader {
 	b.lk.RLock()
 	defer b.lk.RUnlock()

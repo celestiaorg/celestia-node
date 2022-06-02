@@ -201,7 +201,7 @@ func (s *store) GetByHeight(ctx context.Context, height uint64) (*header.Extende
 		return h, err
 	}
 	// otherwise, the errElapsedHeight is thrown,
-	// which means the requested 'height' should present
+	// which means the requested 'height' should be present
 	//
 	// check if the requested header is not yet written on disk
 	if h := s.pending.GetByHeight(height); h != nil {
