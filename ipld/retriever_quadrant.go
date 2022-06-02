@@ -3,6 +3,7 @@ package ipld
 import (
 	"math"
 	"math/rand"
+	"time"
 
 	"github.com/ipfs/go-cid"
 	"github.com/tendermint/tendermint/pkg/da"
@@ -10,8 +11,23 @@ import (
 	"github.com/celestiaorg/celestia-node/ipld/plugin"
 )
 
-// there are always 4 quadrants
-const numQuadrants = 4
+const (
+	// there are always 4 quadrants
+	numQuadrants = 4
+	// blockTime equals to the time with which new blocks are produced in the network.
+	// TODO(@Wondertan): Here we assume that the block time is a minute, but
+	//  block time is a network wide variable/param that has to be taken from
+	//  a proper place
+	blockTime = time.Minute
+)
+
+// RetrieveQuadrantTimeout defines how much time Retriever waits before
+// starting to retrieve another quadrant.
+//
+// NOTE:
+//  * The whole data square must be retrieved in less than block time.
+//  * We have 4 quadrants from two sources(rows, cols) which equals to 8 in total.
+var RetrieveQuadrantTimeout = blockTime / numQuadrants * 2
 
 type quadrant struct {
 	// slice of roots to get shares from
