@@ -6,60 +6,8 @@ import (
 	"errors"
 	"sync"
 
-	"github.com/celestiaorg/celestia-node/header"
-
-	"github.com/libp2p/go-libp2p-core/peer"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 )
-
-// headerFetcher aliases a function that is used to fetch ExtendedHeader from store
-type headerFetcher func(context.Context, uint64) (*header.ExtendedHeader, error)
-
-// topics allows to operate with pubsub connection and pubsub topics
-type topics struct {
-	pubsub       *pubsub.PubSub
-	pubSubTopics map[ProofType]*pubsub.Topic
-	mu           sync.RWMutex
-}
-
-// getTopic joins a pubsub.Topic if it was not joined before and returns it
-func (t *topics) getTopic(proofType ProofType) (*pubsub.Topic, bool, error) {
-	t.mu.Lock()
-	defer t.mu.Unlock()
-	topic, ok := t.pubSubTopics[proofType]
-	if !ok {
-		var err error
-		topic, err = t.pubsub.Join(getSubTopic(proofType))
-		if err != nil {
-			return nil, ok, err
-		}
-		log.Debugf("successfully subscibed to topic: %s", getSubTopic(proofType))
-		t.pubSubTopics[proofType] = topic
-	}
-
-	return topic, ok, nil
-}
-
-// publish allows to publish Fraud Proofs to the network
-func (t *topics) publish(ctx context.Context, data []byte, proofType ProofType) error {
-	t.mu.RLock()
-	defer t.mu.RUnlock()
-
-	if topic, ok := t.pubSubTopics[proofType]; ok {
-		return topic.Publish(ctx, data)
-	}
-
-	return errors.New("topic is not found")
-}
-
-// registerValidator adds an internal validation to topic inside libp2p for provided ProofType
-func (t *topics) registerValidator(proofType ProofType, val Validator) error {
-	return t.pubsub.RegisterTopicValidator(
-		getSubTopic(proofType),
-		func(ctx context.Context, _ peer.ID, msg *pubsub.Message) pubsub.ValidationResult {
-			return val(ctx, proofType, msg.Data)
-		})
-}
 
 // service is propagating and validating Fraud Proofs
 // service implements Service interface.
@@ -82,8 +30,6 @@ func NewService(p *pubsub.PubSub, getter headerFetcher) Service {
 }
 
 func (f *service) Start(context.Context) error {
-	log.Info("fraud service is starting...")
-
 	err := f.RegisterUnmarshaler(BadEncoding, UnmarshalBEFP)
 	if err != nil {
 		return err
@@ -92,7 +38,6 @@ func (f *service) Start(context.Context) error {
 }
 
 func (f *service) Stop(context.Context) error {
-	log.Info("fraud service is stopping...")
 	return nil
 }
 
@@ -102,7 +47,7 @@ func (f *service) Subscribe(proofType ProofType) (Subscription, error) {
 	u, ok := f.unmarshalers[proofType]
 	f.mu.RUnlock()
 	if !ok {
-		return nil, errors.New("unmarshaler is not registered")
+		return nil, errors.New("fraud: unmarshaler is not registered")
 	}
 
 	t, wasjoined, err := f.topics.getTopic(proofType)
@@ -124,7 +69,7 @@ func (f *service) RegisterUnmarshaler(proofType ProofType, u ProofUnmarshaler) e
 	defer f.mu.Unlock()
 
 	if _, ok := f.unmarshalers[proofType]; ok {
-		return errors.New("unmarshaler is registered")
+		return errors.New("fraud: unmarshaler is already registered")
 	}
 	f.unmarshalers[proofType] = u
 
@@ -136,7 +81,7 @@ func (f *service) UnregisterUnmarshaler(proofType ProofType) error {
 	defer f.mu.Unlock()
 
 	if _, ok := f.unmarshalers[proofType]; !ok {
-		return errors.New("unmarshaler is not registered")
+		return errors.New("fraud: unmarshaler is not registered")
 	}
 	delete(f.unmarshalers, proofType)
 
@@ -180,7 +125,7 @@ func (f *service) processIncoming(ctx context.Context, proofType ProofType, data
 			"err", err)
 		return pubsub.ValidationReject
 	}
-	log.Debugw("received Bad Encoding Fraud Proof from block ", "hash", hex.EncodeToString(extHeader.DAH.Hash()))
+	log.Warnw("received Bad Encoding Fraud Proof from block ", "hash", hex.EncodeToString(extHeader.DAH.Hash()))
 	return pubsub.ValidationAccept
 }
 

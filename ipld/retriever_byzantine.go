@@ -17,7 +17,7 @@ import (
 // It is converted from rsmt2d.ByzantineRow/Col +
 // Merkle Proof for each share.
 type ErrByzantine struct {
-	Index  uint8
+	Index  uint
 	Shares []*ShareWithProof
 	// TODO(@vgokivs): Change to enum type and rename to Axis after
 	// updating rsmt2d
@@ -57,7 +57,7 @@ func NewErrByzantine(
 	}
 
 	return &ErrByzantine{
-		Index:  uint8(errByz.Index),
+		Index:  errByz.Index,
 		Shares: sharesWithProof,
 		IsRow:  errByz.Axis == rsmt2d.Row,
 	}

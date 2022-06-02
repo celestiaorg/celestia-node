@@ -74,9 +74,9 @@ func (s *Syncer) Start(context.Context) error {
 }
 
 // Stop stops Syncer.
-func (s *Syncer) Stop(context.Context) error {
+func (s *Syncer) Stop(ctx context.Context) error {
 	s.cancel()
-	s.sub.Stop(context.Background()) //nolint:errcheck
+	s.sub.Stop(ctx) //nolint:errcheck
 	return nil
 }
 

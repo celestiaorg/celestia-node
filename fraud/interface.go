@@ -4,16 +4,17 @@ import (
 	"context"
 
 	logging "github.com/ipfs/go-log/v2"
-	pubsub "github.com/libp2p/go-libp2p-pubsub"
+
+	"github.com/celestiaorg/celestia-node/header"
 )
 
 var log = logging.Logger("fraud")
 
+// headerFetcher aliases a function that is used to fetch ExtendedHeader from store
+type headerFetcher func(context.Context, uint64) (*header.ExtendedHeader, error)
+
 // ProofUnmarshaler aliases a function that parses data to `Proof`
 type ProofUnmarshaler func([]byte) (Proof, error)
-
-// Validator aliases a function that validate pubsub incoming messages
-type Validator func(ctx context.Context, proofType ProofType, data []byte) pubsub.ValidationResult
 
 type Service interface {
 	Start(context.Context) error

@@ -26,7 +26,7 @@ type BadEncodingProof struct {
 	// For non-nil shares MerkleProofs are computed.
 	Shares []*ipld.ShareWithProof
 	// Index represents the row/col index where ErrByzantineRow/ErrByzantineColl occurred
-	Index uint8
+	Index uint
 	// isRow shows that verification failed on row
 	isRow bool
 }
@@ -86,7 +86,7 @@ func (p *BadEncodingProof) UnmarshalBinary(data []byte) error {
 	befp := &BadEncodingProof{
 		BlockHeight: in.Height,
 		Shares:      ipld.ProtoToShare(in.Shares),
-		Index:       uint8(in.Index),
+		Index:       uint(in.Index),
 		isRow:       in.IsRow,
 	}
 
@@ -108,16 +108,19 @@ func (p *BadEncodingProof) Validate(header *header.ExtendedHeader) error {
 	if len(merkleRowRoots) != len(merkleColRoots) {
 		// NOTE: This should never happen as callers of this method should not feed it with a
 		// malformed extended header.
-		panic(fmt.Sprintf("invalid extended header: length of row and column roots do not match. (rowRoots=%d) (colRoots=%d)",
+		panic(fmt.Sprintf(
+			"fraud: invalid extended header. length of row and column roots do not match. (rowRoots=%d) (colRoots=%d)",
 			len(merkleRowRoots),
 			len(merkleColRoots)),
 		)
 	}
 	if int(p.Index) >= len(merkleRowRoots) {
-		return fmt.Errorf("invalid fraud proof: index out of bounds (%d >= %d)", int(p.Index), len(merkleRowRoots))
+		return fmt.Errorf("fraud: invalid fraud proof. index out of bounds (%d >= %d)", int(p.Index), len(merkleRowRoots))
 	}
 	if len(merkleRowRoots) != len(p.Shares) {
-		return fmt.Errorf("invalid fraud proof: incorrect number of shares %d != %d", len(p.Shares), len(merkleRowRoots))
+		return fmt.Errorf(
+			"fraud: invalid fraud proof. incorrect number of shares %d != %d", len(p.Shares), len(merkleRowRoots),
+		)
 	}
 
 	root := merkleRowRoots[p.Index]
@@ -134,7 +137,7 @@ func (p *BadEncodingProof) Validate(header *header.ExtendedHeader) error {
 		}
 		shares[index] = share.Share
 		if ok := share.Validate(plugin.MustCidFromNamespacedSha256(root)); !ok {
-			return fmt.Errorf("invalid fraud proof: incorrect share received at Index %d", index)
+			return fmt.Errorf("fraud: invalid fraud proof. incorrect share received at Index %d", index)
 		}
 	}
 
@@ -152,12 +155,14 @@ func (p *BadEncodingProof) Validate(header *header.ExtendedHeader) error {
 
 	tree := wrapper.NewErasuredNamespacedMerkleTree(uint64(len(shares) / 2))
 	for i, share := range rebuiltShares {
-		tree.Push(share, rsmt2d.SquareIndex{Axis: uint(p.Index), Cell: uint(i)})
+		tree.Push(share, rsmt2d.SquareIndex{Axis: p.Index, Cell: uint(i)})
 	}
 
 	// comparing rebuilt Merkle Root of bad row/col with respective Merkle Root of row/col from block
 	if bytes.Equal(tree.Root(), root) {
-		return errors.New("invalid fraud proof: recomputed Merkle root matches the header's row/column root")
+		return errors.New(
+			"fraud: invalid fraud proof. recomputed Merkle root matches the header's row/column root",
+		)
 	}
 
 	return nil
@@ -180,7 +185,7 @@ func SubscribeToBEFP(ctx context.Context, s Subscriber, stop func(context.Contex
 		if err == context.Canceled {
 			return
 		}
-		log.Errorw("listening to fp failed", "err", err)
+		log.Warnw("listening to fp failed", "err", err)
 		return
 	}
 	stop(ctx) //nolint:errcheck

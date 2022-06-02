@@ -1,6 +1,10 @@
 package fraud
 
-import "context"
+import (
+	"context"
+
+	pubsub "github.com/libp2p/go-libp2p-pubsub"
+)
 
 type DummyService struct {
 }
@@ -29,7 +33,10 @@ func (d *DummyService) UnregisterUnmarshaler(ProofType) error {
 	return nil
 }
 
-func (d *DummyService) AddValidator(ProofType, Validator) error {
+func (d *DummyService) AddValidator(
+	ProofType,
+	func(context.Context, ProofType, []byte) pubsub.ValidationResult,
+) error {
 	return nil
 }
 
