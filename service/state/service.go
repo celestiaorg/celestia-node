@@ -2,22 +2,19 @@ package state
 
 import (
 	"context"
-	"sync/atomic"
-
-	"github.com/celestiaorg/nmt/namespace"
 
 	"github.com/celestiaorg/celestia-node/fraud"
+	"github.com/celestiaorg/nmt/namespace"
 )
 
 // Service can access state-related information via the given
 // Accessor.
 type Service struct {
-	accessor Accessor
-
-	fsub   fraud.Subscriber
+	ctx    context.Context
 	cancel context.CancelFunc
 
-	befpReceived uint64
+	accessor Accessor
+	fsub     fraud.Subscriber
 }
 
 // NewService constructs a new state Service.
@@ -50,21 +47,15 @@ func (s *Service) SubmitTx(ctx context.Context, tx Tx) (*TxResponse, error) {
 }
 
 func (s *Service) Start(context.Context) error {
-	ctx, cancel := context.WithCancel(context.Background())
-	s.cancel = cancel
-	go fraud.OnBEFP(ctx, s.fsub, func(context.Context) error {
-		atomic.StoreUint64(&s.befpReceived, 1)
-		return nil
-	})
+	s.ctx, s.cancel = context.WithCancel(context.Background())
 	return nil
 }
 
 func (s *Service) Stop(context.Context) error {
 	s.cancel()
-	s.cancel = nil
 	return nil
 }
 
-func (s *Service) BEFPReceived() bool {
-	return atomic.LoadUint64(&s.befpReceived) == 1
+func (s *Service) IsStopped() bool {
+	return s.ctx.Err() != nil
 }

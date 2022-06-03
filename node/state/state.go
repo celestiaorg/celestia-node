@@ -1,10 +1,13 @@
 package state
 
 import (
+	"context"
+
 	logging "github.com/ipfs/go-log/v2"
 	"go.uber.org/fx"
 
 	"github.com/celestiaorg/celestia-node/fraud"
+	"github.com/celestiaorg/celestia-node/libs/fxutil"
 	"github.com/celestiaorg/celestia-node/node/key"
 	"github.com/celestiaorg/celestia-node/service/state"
 )
@@ -22,11 +25,12 @@ func Components(coreEndpoint string, cfg key.Config) fx.Option {
 }
 
 // Service constructs a new state.Service.
-func Service(lc fx.Lifecycle, accessor state.Accessor, fService fraud.Service) *state.Service {
-	serv := state.NewService(accessor, fService)
+func Service(ctx context.Context, lc fx.Lifecycle, accessor state.Accessor, fsub fraud.Subscriber) *state.Service {
+	serv := state.NewService(accessor, fsub)
 	lc.Append(fx.Hook{
 		OnStart: serv.Start,
 		OnStop:  serv.Stop,
 	})
+	go fraud.OnBEFP(fxutil.WithLifecycle(ctx, lc), fsub, serv.Stop)
 	return serv
 }

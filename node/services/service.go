@@ -154,10 +154,12 @@ func DASer(
 }
 
 // FraudService constructs fraud proof service
-func FraudService(sub *pubsub.PubSub, hstore header.Store) (fraud.Service, fraud.Service) {
+func FraudService(sub *pubsub.PubSub, hstore header.Store) (fraud.Service, fraud.Service, error) {
 	f := fraud.NewService(sub, hstore.GetByHeight)
-	f.RegisterUnmarshaler(fraud.BadEncoding, fraud.UnmarshalBEFP) //nolint:errcheck
-	return f, f
+	if err := f.RegisterUnmarshaler(fraud.BadEncoding, fraud.UnmarshalBEFP); err != nil {
+		return nil, nil, err
+	}
+	return f, f, nil
 }
 
 // LightAvailability constructs light share availability.
