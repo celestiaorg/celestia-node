@@ -6,6 +6,8 @@ import (
 	"github.com/ipfs/go-datastore"
 	"github.com/ipfs/go-datastore/autobatch"
 	"github.com/ipfs/go-datastore/namespace"
+
+	"github.com/celestiaorg/celestia-node/header/store"
 )
 
 var cacheAvailabilityPrefix = datastore.NewKey("sampling_result")
@@ -27,7 +29,7 @@ type cacheAvailability struct {
 // for sampling result caching.
 func NewCacheAvailability(avail Availability, ds datastore.Batching) Availability {
 	ds = namespace.Wrap(ds, cacheAvailabilityPrefix)
-	autoDS := autobatch.NewAutoBatching(ds, 50)
+	autoDS := autobatch.NewAutoBatching(ds, store.DefaultWriteBatchSize)
 	return &cacheAvailability{
 		avail: avail,
 		ds:    autoDS,
