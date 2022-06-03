@@ -252,7 +252,7 @@ func (s *store) Has(_ context.Context, hash tmbytes.HexBytes) (bool, error) {
 	return s.ds.Has(datastore.NewKey(hash.String()))
 }
 
-func (s *store) Append(ctx context.Context, headers ...*header.ExtendedHeader) (_ int, err error) {
+func (s *store) Append(ctx context.Context, headers ...*header.ExtendedHeader) (int, error) {
 	lh := len(headers)
 	if lh == 0 {
 		return 0, nil
@@ -263,6 +263,7 @@ func (s *store) Append(ctx context.Context, headers ...*header.ExtendedHeader) (
 	defer s.writeLk.Unlock()
 
 	// take current write head to verify headers against
+	var err error
 	head := s.writeHead
 	if head == nil {
 		head, err = s.Head(ctx)
