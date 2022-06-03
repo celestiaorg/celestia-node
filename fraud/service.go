@@ -38,12 +38,12 @@ func (f *service) Subscribe(proofType ProofType) (Subscription, error) {
 		return nil, errors.New("fraud: unmarshaler is not registered")
 	}
 
-	t, wasjoined, err := f.topics.getTopic(proofType)
+	t, wasNotjoined, err := f.topics.getTopic(proofType)
 	if err != nil {
 		return nil, err
 	}
 	// if topic was joined for the first time then we should register a validator for it
-	if !wasjoined {
+	if wasNotjoined {
 		if err = f.topics.registerValidator(proofType, f.processIncoming); err != nil {
 			return nil, err
 		}

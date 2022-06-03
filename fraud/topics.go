@@ -31,7 +31,8 @@ func (t *topics) getTopic(proofType ProofType) (*pubsub.Topic, bool, error) {
 		t.pubSubTopics[proofType] = topic
 	}
 
-	return topic, ok, nil
+	// ok returns with the opposite value to show that topic was not joined before
+	return topic, !ok, nil
 }
 
 // publish allows to publish Fraud Proofs to the network

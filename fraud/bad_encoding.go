@@ -74,7 +74,10 @@ func (p *BadEncodingProof) MarshalBinary() ([]byte, error) {
 // UnmarshalBEFP converts given data to BadEncodingProof
 func UnmarshalBEFP(data []byte) (Proof, error) {
 	befp := &BadEncodingProof{}
-	return befp, befp.UnmarshalBinary(data)
+	if err := befp.UnmarshalBinary(data); err != nil {
+		return nil, err
+	}
+	return befp, nil
 }
 
 // UnmarshalBinary converts binary to BadEncodingProof
