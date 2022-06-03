@@ -49,22 +49,20 @@ func RandFullServiceWithSquare(t *testing.T, n int) (*Service, *Root) {
 }
 
 // RandLightLocalServiceWithSquare is the same as RandLightServiceWithSquare, except
-// the Availability is wrapped with localAvailability.
+// the Availability is wrapped with cacheAvailability.
 func RandLightLocalServiceWithSquare(t *testing.T, n int) (*Service, *Root) {
 	bServ := mdutils.Bserv()
 	ds := dssync.MutexWrap(ds.NewMapDatastore())
-	ca, err := NewLocalAvailability(NewLightAvailability(bServ), ds)
-	require.NoError(t, err)
+	ca := NewCacheAvailability(NewLightAvailability(bServ), ds)
 	return NewService(bServ, ca), RandFillDAG(t, n, bServ)
 }
 
 // RandFullLocalServiceWithSquare is the same as RandFullServiceWithSquare, except
-// the Availability is wrapped with localAvailability.
+// the Availability is wrapped with cacheAvailability.
 func RandFullLocalServiceWithSquare(t *testing.T, n int) (*Service, *Root) {
 	bServ := mdutils.Bserv()
 	ds := dssync.MutexWrap(ds.NewMapDatastore())
-	ca, err := NewLocalAvailability(NewFullAvailability(bServ), ds)
-	require.NoError(t, err)
+	ca := NewCacheAvailability(NewFullAvailability(bServ), ds)
 	return NewService(bServ, ca), RandFillDAG(t, n, bServ)
 }
 

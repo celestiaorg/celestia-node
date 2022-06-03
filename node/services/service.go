@@ -146,19 +146,19 @@ func DASer(
 	return das
 }
 
-// LightAvailability constructs light share availability wrapped in local availability.
+// LightAvailability constructs light share availability wrapped in cache availability.
 func LightAvailability(
 	ctx context.Context,
 	lc fx.Lifecycle,
 	bServ blockservice.BlockService,
 	ds datastore.Batching,
-) (share.Availability, error) {
+) share.Availability {
 	la := share.NewLightAvailability(blockservice.NewSession(fxutil.WithLifecycle(ctx, lc), bServ))
-	return share.NewLocalAvailability(la, ds)
+	return share.NewCacheAvailability(la, ds)
 }
 
-// FullAvailability constructs full share availability wrapped in local availability.
-func FullAvailability(bServ blockservice.BlockService, ds datastore.Batching) (share.Availability, error) {
+// FullAvailability constructs full share availability wrapped in cache availability.
+func FullAvailability(bServ blockservice.BlockService, ds datastore.Batching) share.Availability {
 	fa := share.NewFullAvailability(bServ)
-	return share.NewLocalAvailability(fa, ds)
+	return share.NewCacheAvailability(fa, ds)
 }

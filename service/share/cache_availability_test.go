@@ -15,9 +15,9 @@ import (
 	"github.com/celestiaorg/celestia-node/header"
 )
 
-// TestLocalAvailability tests to ensure that the successful result of a
+// TestCacheAvailability tests to ensure that the successful result of a
 // sampling process is properly stored locally.
-func TestLocalAvailability(t *testing.T) {
+func TestCacheAvailability(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -40,24 +40,24 @@ func TestLocalAvailability(t *testing.T) {
 
 	for i, tt := range tests {
 		t.Run(strconv.Itoa(i), func(t *testing.T) {
-			la := tt.service.Availability.(*localAvailability)
+			ca := tt.service.Availability.(*cacheAvailability)
 			// ensure the dah isn't yet in the cache
-			exists, err := la.ds.Has(rootKey(tt.root))
+			exists, err := ca.ds.Has(rootKey(tt.root))
 			require.NoError(t, err)
 			assert.False(t, exists)
 			err = tt.service.SharesAvailable(ctx, tt.root)
 			require.NoError(t, err)
 			// ensure the dah was stored properly
-			exists, err = la.ds.Has(rootKey(tt.root))
+			exists, err = ca.ds.Has(rootKey(tt.root))
 			require.NoError(t, err)
 			assert.True(t, exists)
 		})
 	}
 }
 
-// TestLocalAvailability_Failed tests to make sure a failed
+// TestCacheAvailability_Failed tests to make sure a failed
 // sampling process is not stored.
-func TestLocalAvailability_Failed(t *testing.T) {
+func TestCacheAvailability_Failed(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -80,41 +80,40 @@ func TestLocalAvailability_Failed(t *testing.T) {
 
 	for i, tt := range tests {
 		t.Run(strconv.Itoa(i), func(t *testing.T) {
-			la := tt.service.Availability.(*localAvailability)
+			ca := tt.service.Availability.(*cacheAvailability)
 
 			empty := header.EmptyDAH()
 			err := tt.service.SharesAvailable(ctx, &empty)
 			require.Error(t, err)
 			// ensure the dah was NOT cached
-			exists, err := la.ds.Has(rootKey(&empty))
+			exists, err := ca.ds.Has(rootKey(&empty))
 			require.NoError(t, err)
 			assert.False(t, exists)
 		})
 	}
 }
 
-// TestLocalAvailability_NoDuplicateSampling tests to ensure that
+// TestCacheAvailability_NoDuplicateSampling tests to ensure that
 // if the Root was already sampled, it does not run a sampling routine
 // again.
-func TestLocalAvailability_NoDuplicateSampling(t *testing.T) {
+func TestCacheAvailability_NoDuplicateSampling(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	// create root to cache
 	root := RandFillDAG(t, 16, mdutils.Bserv())
 	// wrap dummyAvailability with a datastore
 	ds := sync.MutexWrap(datastore.NewMapDatastore())
-	la, err := NewLocalAvailability(&dummyAvailability{counter: 0}, ds)
-	require.NoError(t, err)
+	ca := NewCacheAvailability(&dummyAvailability{counter: 0}, ds)
 	// sample the root
-	err = la.SharesAvailable(ctx, root)
+	err := ca.SharesAvailable(ctx, root)
 	require.NoError(t, err)
 	// ensure root was cached
-	exists, err := la.(*localAvailability).ds.Has(rootKey(root))
+	exists, err := ca.(*cacheAvailability).ds.Has(rootKey(root))
 	require.NoError(t, err)
 	assert.True(t, exists)
 	// call sampling routine over same root again and ensure no error is returned
 	// if an error was returned, that means duplicate sampling occurred
-	err = la.SharesAvailable(ctx, root)
+	err = ca.SharesAvailable(ctx, root)
 	require.NoError(t, err)
 }
 

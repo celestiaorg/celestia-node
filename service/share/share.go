@@ -82,7 +82,7 @@ func (s *Service) Start(context.Context) error {
 	return nil
 }
 
-func (s *Service) Stop(ctx context.Context) error {
+func (s *Service) Stop(context.Context) error {
 	if s.session == nil || s.cancel == nil {
 		return fmt.Errorf("share: Service already stopped")
 	}
