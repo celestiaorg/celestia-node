@@ -35,7 +35,7 @@ type Subscriber interface {
 	// before they are sent through Subscriptions.
 	// Multiple validators can be registered.
 	AddValidator(Validator) error
-	// Stop removes header-sub validator and closes the topic
+	// Stop removes header-sub validator and closes the topic.
 	Stop(context.Context) error
 }
 

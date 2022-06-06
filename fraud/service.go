@@ -9,8 +9,8 @@ import (
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 )
 
-// service is propagating and validating Fraud Proofs
-// service implements Service interface.
+// service is responsible for validating and propagating Fraud Proofs.
+// It implements the Service interface.
 type service struct {
 	topics *topics
 

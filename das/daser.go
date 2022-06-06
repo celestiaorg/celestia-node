@@ -252,7 +252,7 @@ func (d *DASer) catchUp(ctx context.Context, job *catchUpJob) (int64, error) {
 			if errors.As(err, &byzantineErr) {
 				err := d.fService.Broadcast(ctx, fraud.CreateBadEncodingProof(uint64(h.Height), byzantineErr))
 				if err != nil {
-					log.Errorw("fraud proof propagating failed with error ", err)
+					log.Errorw("fraud proof propagating failed", "err", err)
 				}
 				return height, err
 			}

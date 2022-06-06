@@ -153,7 +153,7 @@ func DASer(
 	return das
 }
 
-// FraudService constructs fraud proof service
+// FraudService constructs fraud proof service.
 func FraudService(sub *pubsub.PubSub, hstore header.Store) (fraud.Service, fraud.Service, error) {
 	f := fraud.NewService(sub, hstore.GetByHeight)
 	if err := f.RegisterUnmarshaler(fraud.BadEncoding, fraud.UnmarshalBEFP); err != nil {

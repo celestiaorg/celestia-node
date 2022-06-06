@@ -140,7 +140,7 @@ func (p *BadEncodingProof) Validate(header *header.ExtendedHeader) error {
 		}
 		shares[index] = share.Share
 		if ok := share.Validate(plugin.MustCidFromNamespacedSha256(root)); !ok {
-			return fmt.Errorf("fraud: invalid fraud proof. incorrect share received at Index %d", index)
+			return fmt.Errorf("fraud: invalid fraud proof, incorrect share received at index %d", index)
 		}
 	}
 
@@ -164,23 +164,23 @@ func (p *BadEncodingProof) Validate(header *header.ExtendedHeader) error {
 	// comparing rebuilt Merkle Root of bad row/col with respective Merkle Root of row/col from block.
 	if bytes.Equal(tree.Root(), root) {
 		return errors.New(
-			"fraud: invalid fraud proof. recomputed Merkle root matches the header's row/column root",
+			"fraud: invalid fraud proof, recomputed Merkle root matches the header's row/column root",
 		)
 	}
 
 	return nil
 }
 
-// OnBEFP listens to Bad Encoding Fraud Proof and stops services once it was received.
+// OnBEFP listens to Bad Encoding Fraud Proof and stops services immediately if it is received.
 func OnBEFP(ctx context.Context, s Subscriber, stop func(context.Context) error) {
 	subscription, err := s.Subscribe(BadEncoding)
 	if err != nil {
-		log.Errorw("failed to subscribe on bad encoding fraud proof ", err)
+		log.Errorw("failed to subscribe to bad encoding fraud proof", "err", err)
 		return
 	}
 	defer subscription.Cancel()
 
-	log.Info("Start listening to bad encoding fraud proof")
+	log.Info("Listening for bad encoding fraud")
 	// At this point we receive already verified fraud proof,
 	// so there are no needs to call Validate.
 	_, err = subscription.Proof(ctx)
@@ -188,8 +188,9 @@ func OnBEFP(ctx context.Context, s Subscriber, stop func(context.Context) error)
 		if err == context.Canceled {
 			return
 		}
-		log.Warnw("listening to fp failed", "err", err)
+		log.Warnw("reading next proof failed", "err", err)
 		return
 	}
+	
 	stop(ctx) //nolint:errcheck
 }

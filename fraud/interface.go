@@ -10,7 +10,7 @@ import (
 
 var log = logging.Logger("fraud")
 
-// headerFetcher aliases a function that is used to fetch ExtendedHeader from store.
+// headerFetcher aliases a function that is used to fetch an ExtendedHeader from store by height.
 type headerFetcher func(context.Context, uint64) (*header.ExtendedHeader, error)
 
 // ProofUnmarshaler aliases a function that parses data to `Proof`.
@@ -29,10 +29,10 @@ type Broadcaster interface {
 }
 
 // Subscriber encompasses the behavior necessary to
-// subscribe/unsubscribe from new FraudProofs events from the
+// subscribe/unsubscribe from new FraudProof events from the
 // network.
 type Subscriber interface {
-	// Subscribe allows to subscribe on pub sub topic by its type.
+	// Subscribe allows to subscribe on a Proof pub sub topic by its type.
 	// Subscribe should register pub-sub validator on topic.
 	Subscribe(ProofType) (Subscription, error)
 	// RegisterUnmarshaler registers unmarshaler for the given ProofType.
