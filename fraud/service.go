@@ -12,10 +12,12 @@ import (
 // service is propagating and validating Fraud Proofs
 // service implements Service interface.
 type service struct {
-	topics       *topics
+	topics *topics
+
 	unmarshalers map[ProofType]ProofUnmarshaler
-	getter       headerFetcher
 	mu           sync.RWMutex
+
+	getter headerFetcher
 }
 
 func NewService(p *pubsub.PubSub, getter headerFetcher) Service {
@@ -42,7 +44,7 @@ func (f *service) Subscribe(proofType ProofType) (Subscription, error) {
 	if err != nil {
 		return nil, err
 	}
-	// if topic was joined for the first time then we should register a validator for it
+	// if topic was joined for the first time then we should register a validator for it.
 	if wasNotjoined {
 		if err = f.topics.registerValidator(proofType, f.processIncoming); err != nil {
 			return nil, err
@@ -86,7 +88,11 @@ func (f *service) Broadcast(ctx context.Context, p Proof) error {
 	return f.topics.publish(ctx, bin, p.Type())
 }
 
-func (f *service) processIncoming(ctx context.Context, proofType ProofType, data []byte) pubsub.ValidationResult {
+func (f *service) processIncoming(
+	ctx context.Context,
+	proofType ProofType,
+	msg *pubsub.Message,
+) pubsub.ValidationResult {
 	f.mu.RLock()
 	unmarshaler, ok := f.unmarshalers[proofType]
 	f.mu.RUnlock()
@@ -94,9 +100,9 @@ func (f *service) processIncoming(ctx context.Context, proofType ProofType, data
 		log.Error("unmarshaler is not found")
 		return pubsub.ValidationReject
 	}
-	proof, err := unmarshaler(data)
+	proof, err := unmarshaler(msg.Data)
 	if err != nil {
-		log.Errorw("unmarshalling header error", err)
+		log.Errorw("unmarshaling header error", err)
 		return pubsub.ValidationReject
 	}
 
@@ -111,9 +117,13 @@ func (f *service) processIncoming(ctx context.Context, proofType ProofType, data
 	if err != nil {
 		log.Errorw("validation err: ",
 			"err", err)
+		f.topics.addPeerToBlacklist(msg.ReceivedFrom)
 		return pubsub.ValidationReject
 	}
-	log.Warnw("received Bad Encoding Fraud Proof from block ", "hash", hex.EncodeToString(extHeader.DAH.Hash()))
+	log.Warnw("received Bad Encoding Fraud Proof from block ",
+		"hash", hex.EncodeToString(extHeader.DAH.Hash()),
+		"from", msg.ReceivedFrom.String(),
+	)
 	return pubsub.ValidationAccept
 }
 

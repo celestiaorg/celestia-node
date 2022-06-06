@@ -25,13 +25,13 @@ type BadEncodingProof struct {
 	// Shares that did not pass verification in rmst2d will be nil.
 	// For non-nil shares MerkleProofs are computed.
 	Shares []*ipld.ShareWithProof
-	// Index represents the row/col index where ErrByzantineRow/ErrByzantineColl occurred
-	Index uint
-	// isRow shows that verification failed on row
+	// Index represents the row/col index where ErrByzantineRow/ErrByzantineColl occurred.
+	Index uint32
+	// isRow shows that verification failed on row.
 	isRow bool
 }
 
-// CreateBadEncodingProof creates a new Bad Encoding Fraud Proof that should be propagated through network
+// CreateBadEncodingProof creates a new Bad Encoding Fraud Proof that should be propagated through network.
 // The fraud proof will contain shares that did not pass verification and their relevant Merkle proofs.
 func CreateBadEncodingProof(
 	height uint64,
@@ -41,21 +41,21 @@ func CreateBadEncodingProof(
 		BlockHeight: height,
 		Shares:      errByzantine.Shares,
 		isRow:       errByzantine.IsRow,
-		Index:       errByzantine.Index,
+		Index:       uint32(errByzantine.Index),
 	}
 }
 
-// Type returns type of fraud proof
+// Type returns type of fraud proof.
 func (p *BadEncodingProof) Type() ProofType {
 	return BadEncoding
 }
 
-// Height returns block height
+// Height returns block height.
 func (p *BadEncodingProof) Height() uint64 {
 	return p.BlockHeight
 }
 
-// MarshalBinary converts BadEncodingProof to binary
+// MarshalBinary converts BadEncodingProof to binary.
 func (p *BadEncodingProof) MarshalBinary() ([]byte, error) {
 	shares := make([]*ipld_pb.Share, 0, len(p.Shares))
 	for _, share := range p.Shares {
@@ -65,13 +65,13 @@ func (p *BadEncodingProof) MarshalBinary() ([]byte, error) {
 	badEncodingFraudProof := pb.BadEncoding{
 		Height: p.BlockHeight,
 		Shares: shares,
-		Index:  uint32(p.Index),
+		Index:  p.Index,
 		IsRow:  p.isRow,
 	}
 	return badEncodingFraudProof.Marshal()
 }
 
-// UnmarshalBEFP converts given data to BadEncodingProof
+// UnmarshalBEFP converts given data to BadEncodingProof.
 func UnmarshalBEFP(data []byte) (Proof, error) {
 	befp := &BadEncodingProof{}
 	if err := befp.UnmarshalBinary(data); err != nil {
@@ -80,7 +80,7 @@ func UnmarshalBEFP(data []byte) (Proof, error) {
 	return befp, nil
 }
 
-// UnmarshalBinary converts binary to BadEncodingProof
+// UnmarshalBinary converts binary to BadEncodingProof.
 func (p *BadEncodingProof) UnmarshalBinary(data []byte) error {
 	in := pb.BadEncoding{}
 	if err := in.Unmarshal(data); err != nil {
@@ -89,7 +89,7 @@ func (p *BadEncodingProof) UnmarshalBinary(data []byte) error {
 	befp := &BadEncodingProof{
 		BlockHeight: in.Height,
 		Shares:      ipld.ProtoToShare(in.Shares),
-		Index:       uint(in.Index),
+		Index:       in.Index,
 		isRow:       in.IsRow,
 	}
 
@@ -158,10 +158,10 @@ func (p *BadEncodingProof) Validate(header *header.ExtendedHeader) error {
 
 	tree := wrapper.NewErasuredNamespacedMerkleTree(uint64(len(shares) / 2))
 	for i, share := range rebuiltShares {
-		tree.Push(share, rsmt2d.SquareIndex{Axis: p.Index, Cell: uint(i)})
+		tree.Push(share, rsmt2d.SquareIndex{Axis: uint(p.Index), Cell: uint(i)})
 	}
 
-	// comparing rebuilt Merkle Root of bad row/col with respective Merkle Root of row/col from block
+	// comparing rebuilt Merkle Root of bad row/col with respective Merkle Root of row/col from block.
 	if bytes.Equal(tree.Root(), root) {
 		return errors.New(
 			"fraud: invalid fraud proof. recomputed Merkle root matches the header's row/column root",
@@ -171,7 +171,7 @@ func (p *BadEncodingProof) Validate(header *header.ExtendedHeader) error {
 	return nil
 }
 
-// OnBEFP listens to Bad Encoding Fraud Proof and stops services once it was received
+// OnBEFP listens to Bad Encoding Fraud Proof and stops services once it was received.
 func OnBEFP(ctx context.Context, s Subscriber, stop func(context.Context) error) {
 	subscription, err := s.Subscribe(BadEncoding)
 	if err != nil {

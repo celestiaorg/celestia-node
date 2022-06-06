@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"sync/atomic"
 	"time"
 
 	"github.com/ipfs/go-datastore"
@@ -30,6 +29,7 @@ type DASer struct {
 	// checkpoint store
 	cstore datastore.Datastore
 
+	ctx    context.Context
 	cancel context.CancelFunc
 
 	jobsCh chan *catchUpJob
@@ -37,9 +37,6 @@ type DASer struct {
 	sampleDn  chan struct{} // done signal for sample loop
 	catchUpDn chan struct{} // done signal for catchUp loop
 
-	// isRunning shows service state
-	// uint32 is used to atomically change the state
-	isRunning uint32
 }
 
 // NewDASer creates a new DASer.
@@ -81,32 +78,32 @@ func (d *DASer) Start(context.Context) error {
 	}
 	log.Infow("loaded checkpoint", "height", checkpoint)
 
-	dasCtx, cancel := context.WithCancel(context.Background())
-	d.cancel = cancel
+	d.ctx, d.cancel = context.WithCancel(context.Background())
 
-	atomic.StoreUint32(&d.isRunning, 1)
 	// kick off catch-up routine manager
-	go d.catchUpManager(dasCtx, checkpoint)
+	go d.catchUpManager(d.ctx, checkpoint)
 	// kick off sampling routine for recently received headers
-	go d.sample(dasCtx, sub, checkpoint)
+	go d.sample(d.ctx, sub, checkpoint)
 	return nil
 }
 
 // Stop stops sampling.
 func (d *DASer) Stop(ctx context.Context) error {
-	if atomic.CompareAndSwapUint32(&d.isRunning, 1, 0) {
-		d.cancel()
-		// wait for both sampling routines to exit
-		for i := 0; i < 2; i++ {
-			select {
-			case <-d.catchUpDn:
-			case <-d.sampleDn:
-			case <-ctx.Done():
-				return ctx.Err()
-			}
-		}
-		d.cancel = nil
+	if d.ctx.Err() != nil {
+		return nil
 	}
+
+	d.cancel()
+	// wait for both sampling routines to exit
+	for i := 0; i < 2; i++ {
+		select {
+		case <-d.catchUpDn:
+		case <-d.sampleDn:
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+	}
+	d.cancel = nil
 	return nil
 }
 

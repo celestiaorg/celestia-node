@@ -9,14 +9,15 @@ import (
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 )
 
-// topics allows to operate with pubsub connection and pubsub topics
+// topics allows to operate with pubsub connection and pubsub topics.
 type topics struct {
-	pubsub       *pubsub.PubSub
+	pubsub *pubsub.PubSub
+
 	pubSubTopics map[ProofType]*pubsub.Topic
 	mu           sync.RWMutex
 }
 
-// getTopic joins a pubsub.Topic if it was not joined before and returns it
+// getTopic joins a pubsub.Topic if it was not joined before and returns it.
 func (t *topics) getTopic(proofType ProofType) (*pubsub.Topic, bool, error) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
@@ -31,7 +32,7 @@ func (t *topics) getTopic(proofType ProofType) (*pubsub.Topic, bool, error) {
 		t.pubSubTopics[proofType] = topic
 	}
 
-	// ok returns with the opposite value to show that topic was not joined before
+	// ok returns with the opposite value to show that topic was not joined before.
 	return topic, !ok, nil
 }
 
@@ -47,15 +48,21 @@ func (t *topics) publish(ctx context.Context, data []byte, proofType ProofType) 
 	return errors.New("fraud: topic is not found")
 }
 
-// registerValidator adds an internal validation to topic inside libp2p for provided ProofType
+// registerValidator adds an internal validation to topic inside libp2p for provided ProofType.
 func (t *topics) registerValidator(
 	proofType ProofType,
-	val func(context.Context, ProofType, []byte) pubsub.ValidationResult,
+	val func(context.Context, ProofType, *pubsub.Message) pubsub.ValidationResult,
 ) error {
 	return t.pubsub.RegisterTopicValidator(
 		getSubTopic(proofType),
 		func(ctx context.Context, _ peer.ID, msg *pubsub.Message) pubsub.ValidationResult {
-			return val(ctx, proofType, msg.Data)
+			return val(ctx, proofType, msg)
 		},
 	)
+}
+
+// addPeerToBlacklist adds a peer to pubsub blacklist to avoid receiving messages
+// from it in the future.
+func (t *topics) addPeerToBlacklist(peer peer.ID) {
+	t.pubsub.BlacklistPeer(peer)
 }

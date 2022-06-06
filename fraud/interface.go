@@ -10,10 +10,10 @@ import (
 
 var log = logging.Logger("fraud")
 
-// headerFetcher aliases a function that is used to fetch ExtendedHeader from store
+// headerFetcher aliases a function that is used to fetch ExtendedHeader from store.
 type headerFetcher func(context.Context, uint64) (*header.ExtendedHeader, error)
 
-// ProofUnmarshaler aliases a function that parses data to `Proof`
+// ProofUnmarshaler aliases a function that parses data to `Proof`.
 type ProofUnmarshaler func([]byte) (Proof, error)
 
 type Service interface {
@@ -45,7 +45,7 @@ type Subscriber interface {
 
 // Subscription returns a valid proof if one is received on the topic.
 type Subscription interface {
-	// Proof returns already verified valid proof
+	// Proof returns already verified valid proof.
 	Proof(context.Context) (Proof, error)
 	Cancel()
 }
