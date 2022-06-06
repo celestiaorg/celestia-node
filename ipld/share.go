@@ -68,7 +68,7 @@ func (s *ShareWithProof) Validate(root cid.Cid) bool {
 	return s.Proof.VerifyInclusion(
 		sha256.New(), // TODO(@Wondertan): This should be defined somewhere globally
 		ShareID(s.Share),
-		ShareData(s.Share),
+		[][]byte{ShareData(s.Share)},
 		plugin.NamespacedSha256FromCID(root),
 	)
 }
