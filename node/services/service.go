@@ -8,6 +8,8 @@ import (
 	"github.com/libp2p/go-libp2p-core/host"
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/libp2p/go-libp2p-core/peerstore"
+	"github.com/libp2p/go-libp2p-core/routing"
+	discovery "github.com/libp2p/go-libp2p-discovery"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	"go.uber.org/fx"
 
@@ -167,21 +169,41 @@ func LightAvailability(
 	lc fx.Lifecycle,
 	bServ blockservice.BlockService,
 	ds datastore.Batching,
+	r routing.ContentRouting,
+	h host.Host,
 ) share.Availability {
-	la := share.NewLightAvailability(bServ)
+	la := share.NewLightAvailability(
+		bServ,
+		discovery.NewRoutingDiscovery(r),
+		h,
+	)
 	ca := share.NewCacheAvailability(la, ds)
 	lc.Append(fx.Hook{
-		OnStop: ca.Close,
+		OnStart: la.Start,
+		OnStop: func(ctx context.Context) error {
+			la.Stop(ctx)
+			return ca.Close(ctx)
+		},
 	})
 	return ca
 }
 
 // FullAvailability constructs full share availability wrapped in cache availability.
-func FullAvailability(lc fx.Lifecycle, bServ blockservice.BlockService, ds datastore.Batching) share.Availability {
-	fa := share.NewFullAvailability(bServ)
+func FullAvailability(
+	lc fx.Lifecycle,
+	bServ blockservice.BlockService,
+	ds datastore.Batching,
+	r routing.ContentRouting,
+	h host.Host,
+) share.Availability {
+	fa := share.NewFullAvailability(bServ, discovery.NewRoutingDiscovery(r), h)
 	ca := share.NewCacheAvailability(fa, ds)
 	lc.Append(fx.Hook{
-		OnStop: ca.Close,
+		OnStart: fa.Start,
+		OnStop: func(ctx context.Context) error {
+			_ = fa.Stop(ctx) // nolint:errcheck
+			return ca.Close(ctx)
+		},
 	})
 	return ca
 }

@@ -14,7 +14,9 @@ import (
 	mdutils "github.com/ipfs/go-merkledag/test"
 	"github.com/libp2p/go-libp2p-core/host"
 	"github.com/libp2p/go-libp2p-core/peer"
+	discovery "github.com/libp2p/go-libp2p-discovery"
 	record "github.com/libp2p/go-libp2p-record"
+	routinghelpers "github.com/libp2p/go-libp2p-routing-helpers"
 	mocknet "github.com/libp2p/go-libp2p/p2p/net/mock"
 	"github.com/stretchr/testify/require"
 	"github.com/tendermint/tendermint/pkg/da"
@@ -26,21 +28,40 @@ import (
 // trees of 'n' random shares, essentially storing a whole square.
 func RandLightServiceWithSquare(t *testing.T, n int) (*Service, *Root) {
 	bServ := mdutils.Bserv()
-	return NewService(bServ, NewLightAvailability(bServ)), RandFillBS(t, n, bServ)
+	return NewService(bServ, NewLightAvailability(
+		bServ,
+		discovery.NewRoutingDiscovery(
+			routinghelpers.Null{}),
+		nil),
+	), RandFillBS(t, n, bServ)
+
 }
 
 // RandLightService provides an unfilled share.Service with corresponding
 // blockservice.BlockService than can be filled by the test.
 func RandLightService() (*Service, blockservice.BlockService) {
 	bServ := mdutils.Bserv()
-	return NewService(bServ, NewLightAvailability(bServ)), bServ
+	return NewService(bServ, NewLightAvailability(
+		bServ,
+		discovery.NewRoutingDiscovery(
+			routinghelpers.Null{}),
+		nil),
+	), bServ
 }
 
 // RandFullServiceWithSquare provides a share.Service filled with 'n' NMT
 // trees of 'n' random shares, essentially storing a whole square.
 func RandFullServiceWithSquare(t *testing.T, n int) (*Service, *Root) {
 	bServ := mdutils.Bserv()
-	return NewService(bServ, NewFullAvailability(bServ)), RandFillBS(t, n, bServ)
+	return NewService(
+		bServ,
+		NewLightAvailability(
+			bServ,
+			discovery.NewRoutingDiscovery(
+				routinghelpers.Null{}),
+			nil,
+		),
+	), RandFillBS(t, n, bServ)
 }
 
 // RandLightLocalServiceWithSquare is the same as RandLightServiceWithSquare, except

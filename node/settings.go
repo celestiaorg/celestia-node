@@ -2,6 +2,7 @@ package node
 
 import (
 	"encoding/hex"
+	"time"
 
 	"github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/libp2p/go-libp2p-core/host"
@@ -88,9 +89,16 @@ func WithKeyringSigner(signer *apptypes.KeyringSigner) Option {
 	}
 }
 
-// WithBootstrappers sets custom bootstrap peers
+// WithBootstrappers sets custom bootstrap peers.
 func WithBootstrappers(peers params.Bootstrappers) Option {
 	return func(sets *settings) {
 		sets.opts = append(sets.opts, fx.Replace(peers))
+	}
+}
+
+// WithRefreshRoutingTablePeriod sets custom refresh period for dht.
+func WithRefreshRoutingTablePeriod(interval time.Duration) Option {
+	return func(sets *settings) {
+		sets.cfg.P2P.RoutingTableRefreshPeriod = interval
 	}
 }
