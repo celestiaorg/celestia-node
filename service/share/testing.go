@@ -14,7 +14,9 @@ import (
 	"github.com/ipfs/go-ipfs-routing/offline"
 	format "github.com/ipfs/go-ipld-format"
 	mdutils "github.com/ipfs/go-merkledag/test"
+	discovery "github.com/libp2p/go-libp2p-discovery"
 	record "github.com/libp2p/go-libp2p-record"
+	routinghelpers "github.com/libp2p/go-libp2p-routing-helpers"
 	mocknet "github.com/libp2p/go-libp2p/p2p/net/mock"
 	"github.com/stretchr/testify/require"
 
@@ -31,21 +33,40 @@ import (
 // trees of 'n' random shares, essentially storing a whole square.
 func RandLightServiceWithSquare(t *testing.T, n int) (*Service, *Root) {
 	bServ := mdutils.Bserv()
-	return NewService(bServ, NewLightAvailability(bServ)), RandFillDAG(t, n, bServ)
+	return NewService(bServ, NewLightAvailability(
+		bServ,
+		discovery.NewRoutingDiscovery(
+			routinghelpers.Null{}),
+		nil),
+	), RandFillDAG(t, n, bServ)
+
 }
 
 // RandLightService provides an unfilled share.Service with corresponding
 // blockservice.BlockService than can be filled by the test.
 func RandLightService() (*Service, blockservice.BlockService) {
 	bServ := mdutils.Bserv()
-	return NewService(bServ, NewLightAvailability(bServ)), bServ
+	return NewService(bServ, NewLightAvailability(
+		bServ,
+		discovery.NewRoutingDiscovery(
+			routinghelpers.Null{}),
+		nil),
+	), bServ
 }
 
 // RandFullServiceWithSquare provides a share.Service filled with 'n' NMT
 // trees of 'n' random shares, essentially storing a whole square.
 func RandFullServiceWithSquare(t *testing.T, n int) (*Service, *Root) {
 	bServ := mdutils.Bserv()
-	return NewService(bServ, NewFullAvailability(bServ)), RandFillDAG(t, n, bServ)
+	return NewService(
+		bServ,
+		NewLightAvailability(
+			bServ,
+			discovery.NewRoutingDiscovery(
+				routinghelpers.Null{}),
+			nil,
+		),
+	), RandFillDAG(t, n, bServ)
 }
 
 // RandLightLocalServiceWithSquare is the same as RandLightServiceWithSquare, except
@@ -108,12 +129,26 @@ func NewDAGNet(ctx context.Context, t *testing.T) *DAGNet {
 
 func (dn *DAGNet) RandLightService(n int) (*Service, *Root) {
 	bServ, root := dn.RandDAG(n)
-	return NewService(bServ, NewLightAvailability(bServ)), root
+	return NewService(
+		bServ,
+		NewLightAvailability(
+			bServ,
+			discovery.NewRoutingDiscovery(
+				routinghelpers.Null{}),
+			nil),
+	), root
 }
 
 func (dn *DAGNet) RandFullService(n int) (*Service, *Root) {
 	bServ, root := dn.RandDAG(n)
-	return NewService(bServ, NewFullAvailability(bServ)), root
+	return NewService(
+		bServ,
+		NewLightAvailability(
+			bServ,
+			discovery.NewRoutingDiscovery(
+				routinghelpers.Null{}),
+			nil),
+	), root
 }
 
 func (dn *DAGNet) RandDAG(n int) (blockservice.BlockService, *Root) {
@@ -123,7 +158,11 @@ func (dn *DAGNet) RandDAG(n int) (blockservice.BlockService, *Root) {
 
 func (dn *DAGNet) CleanService() *Service {
 	bServ := dn.CleanDAG()
-	return NewService(bServ, NewLightAvailability(bServ))
+	return NewService(bServ, NewLightAvailability(
+		bServ,
+		discovery.NewRoutingDiscovery(
+			routinghelpers.Null{}),
+		nil))
 }
 
 func (dn *DAGNet) CleanDAG() blockservice.BlockService {
@@ -156,3 +195,7 @@ func NewBrokenAvailability() Availability {
 func (b *brokenAvailability) SharesAvailable(context.Context, *Root) error {
 	return ErrNotAvailable
 }
+
+func (b *brokenAvailability) Start(context.Context) {}
+
+func (b *brokenAvailability) Stop(context.Context) {}

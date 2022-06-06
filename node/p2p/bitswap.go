@@ -12,6 +12,7 @@ import (
 	"github.com/libp2p/go-libp2p-core/host"
 	"github.com/libp2p/go-libp2p-core/protocol"
 	"github.com/libp2p/go-libp2p-core/routing"
+	routinghelpers "github.com/libp2p/go-libp2p-routing-helpers"
 	"go.uber.org/fx"
 
 	"github.com/celestiaorg/celestia-node/libs/fxutil"
@@ -46,7 +47,7 @@ func DataExchange(cfg Config) func(bitSwapParams) (exchange.Interface, blockstor
 		prefix := protocol.ID(fmt.Sprintf("/celestia/%s", params.Net))
 		return bitswap.New(
 			ctx,
-			network.NewFromIpfsHost(params.Host, params.Cr, network.Prefix(prefix)),
+			network.NewFromIpfsHost(params.Host, &routinghelpers.Null{}, network.Prefix(prefix)),
 			bs,
 			bitswap.ProvideEnabled(false),
 			// NOTE: These below ar required for our protocol to work reliably.

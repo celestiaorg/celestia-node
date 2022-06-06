@@ -6,8 +6,11 @@ import (
 
 	"github.com/ipfs/go-blockservice"
 	format "github.com/ipfs/go-ipld-format"
+	"github.com/libp2p/go-libp2p-core/discovery"
+	"github.com/libp2p/go-libp2p-core/host"
 
 	"github.com/celestiaorg/celestia-node/ipld"
+	disc "github.com/celestiaorg/celestia-node/service/share/discovery"
 )
 
 // DefaultSampleAmount sets the default amount of samples to be sampled from the network by lightAvailability.
@@ -18,14 +21,22 @@ var DefaultSampleAmount = 16
 // its availability. It is assumed that there are a lot of lightAvailability instances
 // on the network doing sampling over the same Root to collectively verify its availability.
 type lightAvailability struct {
-	bserv blockservice.BlockService
+	bserv      blockservice.BlockService
+	notifee    *disc.Notifee
+	discoverer discovery.Discoverer
+
+	ctx    context.Context
+	cancel context.CancelFunc
 }
 
 // NewLightAvailability creates a new light Availability.
-func NewLightAvailability(bserv blockservice.BlockService) Availability {
-	return &lightAvailability{
-		bserv: bserv,
+func NewLightAvailability(bserv blockservice.BlockService, d discovery.Discoverer, host host.Host) *lightAvailability {
+	la := &lightAvailability{
+		bserv:      bserv,
+		notifee:    disc.NewNotifee(disc.NewPeerCache(), host),
+		discoverer: d,
 	}
+	return la
 }
 
 // SharesAvailable randomly samples DefaultSamples amount of Shares committed to the given Root.
@@ -83,4 +94,16 @@ func (la *lightAvailability) SharesAvailable(ctx context.Context, dah *Root) err
 	}
 
 	return nil
+}
+
+// Start starts looking for a new peers in network.
+func (la *lightAvailability) Start(context.Context) error {
+	la.ctx, la.cancel = context.WithCancel(context.Background())
+	disc.FindPeers(la.ctx, la.discoverer, la.notifee)
+	return nil
+}
+
+// Stop stops all discovery processes.
+func (la *lightAvailability) Stop(context.Context) {
+	la.cancel()
 }

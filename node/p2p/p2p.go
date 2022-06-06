@@ -2,6 +2,7 @@ package p2p
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/libp2p/go-libp2p-core/peer"
 	ma "github.com/multiformats/go-multiaddr"
@@ -29,6 +30,8 @@ type Config struct {
 	PeerExchange bool
 	// ConnManager is a configuration tuple for ConnectionManager.
 	ConnManager ConnManagerConfig
+	// RoutingTable refresh period.
+	RoutingTableRefreshPeriod time.Duration
 }
 
 // DefaultConfig returns default configuration for P2P subsystem.
@@ -44,10 +47,11 @@ func DefaultConfig() Config {
 			"/ip4/127.0.0.1/tcp/2121",
 			"/ip6/::/tcp/2121",
 		},
-		MutualPeers:  []string{},
-		Bootstrapper: false,
-		PeerExchange: false,
-		ConnManager:  DefaultConnManagerConfig(),
+		MutualPeers:               []string{},
+		Bootstrapper:              false,
+		PeerExchange:              false,
+		ConnManager:               DefaultConnManagerConfig(),
+		RoutingTableRefreshPeriod: time.Minute,
 	}
 }
 
