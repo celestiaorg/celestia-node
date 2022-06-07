@@ -16,17 +16,17 @@ import (
 )
 
 /*
-Test-Case: Broadcast Fraud Proof to different nodes
+Test-Case: Full Node will propagate BEFP to the network, once ByzantineError will be received from sampling.
 Pre-Requisites:
-- CoreClient is started by swamp
+- CoreClient is started by swamp.
 Steps:
-1. Create a Bridge Node(BN) with broken extended header at height 10
-2. Start a BN
-3. Create a Full Node(FN) with a connection to BN as a trusted peer
-4. Start a FN
-5. Subscribe to BEFP and wait when it will be received
+1. Create a Bridge Node(BN) with broken extended header at height 10.
+2. Start a BN.
+3. Create a Full Node(FN) with a connection to BN as a trusted peer.
+4. Start a FN.
+5. Subscribe to BEFP and wait when it will be received.
 6. Check FN is not synced to 15.
-15 is not available because DASer will be stopped after receiving BEFP.
+Note: 15 is not available because DASer will be stopped before reaching this height due to receiving BEFP.
 */
 func TestFraudProofBroadcasting(t *testing.T) {
 	sw := swamp.NewSwamp(t, swamp.WithBlockInterval(time.Millisecond*100))
