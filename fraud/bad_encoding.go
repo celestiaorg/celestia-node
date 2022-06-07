@@ -191,6 +191,7 @@ func OnBEFP(ctx context.Context, s Subscriber, stop func(context.Context) error)
 		log.Warnw("reading next proof failed", "err", err)
 		return
 	}
-	
-	stop(ctx) //nolint:errcheck
+	if err = stop(ctx); err != nil {
+		log.Warn(err)
+	}
 }

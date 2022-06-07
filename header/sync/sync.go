@@ -75,8 +75,8 @@ func (s *Syncer) Start(context.Context) error {
 // Stop stops Syncer.
 func (s *Syncer) Stop(ctx context.Context) error {
 	s.cancel()
-	s.sub.Stop(ctx) //nolint:errcheck
-	return nil
+
+	return s.sub.Stop(ctx)
 }
 
 // WaitSync blocks until ongoing sync is done.

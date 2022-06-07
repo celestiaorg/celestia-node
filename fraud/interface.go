@@ -16,6 +16,8 @@ type headerFetcher func(context.Context, uint64) (*header.ExtendedHeader, error)
 // ProofUnmarshaler aliases a function that parses data to `Proof`.
 type ProofUnmarshaler func([]byte) (Proof, error)
 
+// Service encompasses the behavior necessary to subscribe and broadcast
+// Fraud Proofs within the network.
 type Service interface {
 	Subscriber
 	Broadcaster
@@ -33,7 +35,6 @@ type Broadcaster interface {
 // network.
 type Subscriber interface {
 	// Subscribe allows to subscribe on a Proof pub sub topic by its type.
-	// Subscribe should register pub-sub validator on topic.
 	Subscribe(ProofType) (Subscription, error)
 	// RegisterUnmarshaler registers unmarshaler for the given ProofType.
 	// If there is no unmarshaler for `ProofType`, then `Subscribe` returns an error.

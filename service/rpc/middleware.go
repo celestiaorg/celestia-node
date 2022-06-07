@@ -9,7 +9,7 @@ import (
 	"github.com/celestiaorg/celestia-node/service/state"
 )
 
-func (h *Handler) RegisterMiddlewares(rpc *Server) {
+func (h *Handler) RegisterMiddleware(rpc *Server) {
 	rpc.RegisterMiddleware(setContentType)
 	rpc.RegisterMiddleware(checkAllowance(h.state))
 }

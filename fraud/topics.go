@@ -11,29 +11,34 @@ import (
 
 // topics allows to operate with pubsub connection and pubsub topics.
 type topics struct {
-	pubsub *pubsub.PubSub
-
-	pubSubTopics map[ProofType]*pubsub.Topic
 	mu           sync.RWMutex
+	pubSubTopics map[ProofType]*pubsub.Topic
+
+	pubsub *pubsub.PubSub
 }
 
-// getTopic joins a pubsub.Topic if it was not joined before and returns it.
-func (t *topics) getTopic(proofType ProofType) (*pubsub.Topic, bool, error) {
+// join allows to subscribe on pubsub topic
+func (t *topics) join(
+	proofType ProofType,
+) (*pubsub.Topic, error) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
-	topic, ok := t.pubSubTopics[proofType]
-	if !ok {
-		var err error
-		topic, err = t.pubsub.Join(getSubTopic(proofType))
-		if err != nil {
-			return nil, ok, err
-		}
-		log.Debugf("successfully subscibed to topic: %s", getSubTopic(proofType))
-		t.pubSubTopics[proofType] = topic
-	}
 
-	// ok returns with the opposite value to show that topic was not joined before.
-	return topic, !ok, nil
+	topic, err := t.pubsub.Join(getSubTopic(proofType))
+	if err != nil {
+		return nil, err
+	}
+	log.Debugf("successfully subscibed to topic: %s", getSubTopic(proofType))
+	t.pubSubTopics[proofType] = topic
+	return topic, nil
+}
+
+// getTopic returns pubsub topic.
+func (t *topics) getTopic(proofType ProofType) (*pubsub.Topic, bool) {
+	t.mu.RLock()
+	defer t.mu.RUnlock()
+	topic, ok := t.pubSubTopics[proofType]
+	return topic, ok
 }
 
 // publish allows to publish Fraud Proofs to the network

@@ -12,11 +12,10 @@ import (
 // service is responsible for validating and propagating Fraud Proofs.
 // It implements the Service interface.
 type service struct {
-	topics *topics
-
-	unmarshalers map[ProofType]ProofUnmarshaler
 	mu           sync.RWMutex
+	unmarshalers map[ProofType]ProofUnmarshaler
 
+	topics *topics
 	getter headerFetcher
 }
 
@@ -33,24 +32,29 @@ func NewService(p *pubsub.PubSub, getter headerFetcher) Service {
 
 func (f *service) Subscribe(proofType ProofType) (Subscription, error) {
 	// TODO: @vgonkivs check if fraud proof is in fraud store, then return with error
-	f.mu.RLock()
+	f.mu.Lock()
 	u, ok := f.unmarshalers[proofType]
-	f.mu.RUnlock()
 	if !ok {
 		return nil, errors.New("fraud: unmarshaler is not registered")
 	}
 
-	t, wasNotjoined, err := f.topics.getTopic(proofType)
-	if err != nil {
-		return nil, err
-	}
-	// if topic was joined for the first time then we should register a validator for it.
-	if wasNotjoined {
-		if err = f.topics.registerValidator(proofType, f.processIncoming); err != nil {
+	t, ok := f.topics.getTopic(proofType)
+
+	// if topic was not stored in cache, then we should register a validator and
+	// join pubsub topic.
+	if !ok {
+		err := f.topics.registerValidator(proofType, f.processIncoming)
+		if err != nil {
+			f.mu.Unlock()
+			return nil, err
+		}
+		t, err = f.topics.join(proofType)
+		if err != nil {
+			f.mu.Unlock()
 			return nil, err
 		}
 	}
-
+	f.mu.Unlock()
 	return newSubscription(t, u)
 }
 
@@ -120,7 +124,7 @@ func (f *service) processIncoming(
 		f.topics.addPeerToBlacklist(msg.ReceivedFrom)
 		return pubsub.ValidationReject
 	}
-	log.Warnw("received Bad Encoding Fraud Proof from block ",
+	log.Warnw("received", "fp", proof.Type(),
 		"hash", hex.EncodeToString(extHeader.DAH.Hash()),
 		"from", msg.ReceivedFrom.String(),
 	)

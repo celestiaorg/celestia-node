@@ -61,7 +61,7 @@ const (
 
 type BadEncodingProof struct {
    Height uint64
-   // Shares contain all shares from row/col
+   // Shares contains all shares from row/col
    // Shares that did not pass verification in rmst2d will be nil
    // For non-nil shares MerkleProofs are computed
    Shares []*ShareWithProof
@@ -128,7 +128,6 @@ type ProofUnmarshaler func([]byte) (Proof error)
 // network.
 type Subscriber interface {
    // Subscribe allows to subscribe on pub sub topic by its type.
-   // Subscribe should register pub-sub validator on topic.
    Subscribe(ctx context.Context, proofType ProofType) (Subscription, error)
    // RegisterUnmarshaler registers unmarshaler for the given ProofType.
    // If there is no unmarshaler for `ProofType`, then `Subscribe` returns an error.

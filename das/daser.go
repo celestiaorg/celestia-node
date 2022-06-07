@@ -19,10 +19,10 @@ var log = logging.Logger("das")
 
 // DASer continuously validates availability of data committed to headers.
 type DASer struct {
-	da       share.Availability
-	hsub     header.Subscriber
-	fService fraud.Service
+	da    share.Availability
+	bcast fraud.Broadcaster
 
+	hsub header.Subscriber
 	// getter allows the DASer to fetch an ExtendedHeader (EH) at a certain height
 	// and blocks until the EH has been processed by the header store.
 	getter HeaderGetter
@@ -36,7 +36,6 @@ type DASer struct {
 
 	sampleDn  chan struct{} // done signal for sample loop
 	catchUpDn chan struct{} // done signal for catchUp loop
-
 }
 
 // NewDASer creates a new DASer.
@@ -45,14 +44,14 @@ func NewDASer(
 	hsub header.Subscriber,
 	getter HeaderGetter,
 	cstore datastore.Datastore,
-	fService fraud.Service,
+	bcast fraud.Broadcaster,
 ) *DASer {
 	wrappedDS := wrapCheckpointStore(cstore)
 	return &DASer{
 		da:        da,
+		bcast:     bcast,
 		hsub:      hsub,
 		getter:    getter,
-		fService:  fService,
 		cstore:    wrappedDS,
 		jobsCh:    make(chan *catchUpJob, 16),
 		sampleDn:  make(chan struct{}),
@@ -154,14 +153,7 @@ func (d *DASer) sample(ctx context.Context, sub header.Subscription, checkpoint 
 			if err == context.Canceled {
 				return
 			}
-			var byzantineErr *ipld.ErrByzantine
-			if errors.As(err, &byzantineErr) {
-				err := d.fService.Broadcast(ctx, fraud.CreateBadEncodingProof(uint64(h.Height), byzantineErr))
-				if err != nil {
-					log.Errorw("fraud proof propagating failed with error ", err)
-				}
-				return
-			}
+			d.checkForByzantineError(uint64(h.Height), err)
 			log.Errorw("sampling failed", "height", h.Height, "hash", h.Hash(),
 				"square width", len(h.DAH.RowsRoots), "data root", h.DAH.Hash(), "err", err)
 			log.Warn("DASer WILL BE STOPPED. IN ORDER TO CONTINUE SAMPLING, RE-START THE NODE")
@@ -248,14 +240,7 @@ func (d *DASer) catchUp(ctx context.Context, job *catchUpJob) (int64, error) {
 				// error as nil since the routine was ordered to stop
 				return height - 1, nil
 			}
-			var byzantineErr *ipld.ErrByzantine
-			if errors.As(err, &byzantineErr) {
-				err := d.fService.Broadcast(ctx, fraud.CreateBadEncodingProof(uint64(h.Height), byzantineErr))
-				if err != nil {
-					log.Errorw("fraud proof propagating failed", "err", err)
-				}
-				return height, err
-			}
+			d.checkForByzantineError(uint64(h.Height), err)
 			log.Errorw("sampling failed", "height", h.Height, "hash", h.Hash(),
 				"square width", len(h.DAH.RowsRoots), "data root", h.DAH.Hash(), "err", err)
 			// report previous height as the last successfully sampled height
@@ -271,4 +256,14 @@ func (d *DASer) catchUp(ctx context.Context, job *catchUpJob) (int64, error) {
 		"to", job.to, "finished (s)", time.Since(routineStartTime))
 	// report successful result
 	return job.to, nil
+}
+
+func (d *DASer) checkForByzantineError(height uint64, err error) {
+	var byzantineErr *ipld.ErrByzantine
+	if errors.As(err, &byzantineErr) {
+		err := d.bcast.Broadcast(d.ctx, fraud.CreateBadEncodingProof(height, byzantineErr))
+		if err != nil {
+			log.Errorw("fraud proof propagating failed", "err", err)
+		}
+	}
 }
