@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strconv"
 	"testing"
+	"time"
 
 	"github.com/ipfs/go-datastore"
 	"github.com/ipfs/go-datastore/sync"
@@ -58,24 +59,17 @@ func TestCacheAvailability(t *testing.T) {
 // TestCacheAvailability_Failed tests to make sure a failed
 // sampling process is not stored.
 func TestCacheAvailability_Failed(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 
-	fullLocalServ, dah0 := RandFullLocalServiceWithSquare(t, 16)
-	lightLocalServ, dah1 := RandLightLocalServiceWithSquare(t, 16)
+	fullLocalServ, _ := RandFullLocalServiceWithSquare(t, 16)
+	lightLocalServ, _ := RandLightLocalServiceWithSquare(t, 16)
 
 	var tests = []struct {
 		service *Service
-		root    *Root
 	}{
-		{
-			service: fullLocalServ,
-			root:    dah0,
-		},
-		{
-			service: lightLocalServ,
-			root:    dah1,
-		},
+		{service: fullLocalServ},
+		{service: lightLocalServ},
 	}
 
 	for i, tt := range tests {
