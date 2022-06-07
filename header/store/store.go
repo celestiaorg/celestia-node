@@ -18,7 +18,7 @@ import (
 
 var log = logging.Logger("header/store")
 
-// TODO(@Wondertan): Those values must be configurable and proper defaults should be set for specific node type.
+// TODO(@Wondertan): Those values must be configurable and proper defaults should be set for specific node type. (#709)
 var (
 	// DefaultStoreCacheSize defines the amount of max entries allowed in the Header Store cache.
 	DefaultStoreCacheSize = 4096
