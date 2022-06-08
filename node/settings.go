@@ -13,6 +13,7 @@ import (
 	"github.com/celestiaorg/celestia-node/libs/fxutil"
 	"github.com/celestiaorg/celestia-node/node/p2p"
 	"github.com/celestiaorg/celestia-node/params"
+	"github.com/celestiaorg/celestia-node/telemetry"
 )
 
 // settings store values that can be augmented or changed for Node with Options.
@@ -36,6 +37,13 @@ func WithNetwork(net params.Network) Option {
 func WithP2PKey(key crypto.PrivKey) Option {
 	return func(sets *settings) {
 		sets.opts = append(sets.opts, fxutil.ReplaceAs(key, new(crypto.PrivKey)))
+	}
+}
+
+// WithTelemetry enables metrics
+func WithTelemetry() Option {
+	return func(sets *settings) {
+		sets.opts = append(sets.opts, telemetry.Module())
 	}
 }
 

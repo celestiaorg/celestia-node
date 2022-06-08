@@ -3,12 +3,17 @@ package share
 import (
 	"context"
 	"errors"
+	"time"
 
 	"github.com/ipfs/go-blockservice"
 	format "github.com/ipfs/go-ipld-format"
+	"go.opentelemetry.io/otel"
 
 	"github.com/celestiaorg/celestia-node/ipld"
+	"github.com/celestiaorg/celestia-node/telemetry"
 )
+
+const tracerName = "fullAvailability"
 
 // fullAvailability implements Availability using the full data square
 // recovery technique. It is considered "full" because it is required
@@ -27,6 +32,16 @@ func NewFullAvailability(bServ blockservice.BlockService) Availability {
 // SharesAvailable reconstructs the data committed to the given Root by requesting
 // enough Shares from the network.
 func (fa *fullAvailability) SharesAvailable(ctx context.Context, root *Root) error {
+	ctx, span := otel.Tracer(tracerName).Start(ctx, "SharesAvailable")
+	defer span.End()
+
+	startTime := time.Now()
+	defer func() {
+		telemetry.RecordSharesAvailable(ctx, time.Since(startTime))
+	}()
+
+	telemetry.IncSharesAvailable(ctx)
+
 	ctx, cancel := context.WithTimeout(ctx, AvailabilityTimeout)
 	defer cancel()
 

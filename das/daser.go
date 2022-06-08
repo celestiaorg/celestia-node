@@ -7,10 +7,13 @@ import (
 
 	"github.com/ipfs/go-datastore"
 	logging "github.com/ipfs/go-log/v2"
+	"go.opentelemetry.io/otel"
 
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/service/share"
 )
+
+const tracerName = "das"
 
 var log = logging.Logger("das")
 
@@ -138,8 +141,11 @@ func (d *DASer) sample(ctx context.Context, sub header.Subscription, checkpoint 
 
 		startTime := time.Now()
 
-		err = d.da.SharesAvailable(ctx, h.DAH)
+		ctxWithSpan, span := otel.Tracer(tracerName).Start(ctx, "sample")
+
+		err = d.da.SharesAvailable(ctxWithSpan, h.DAH)
 		if err != nil {
+			span.End()
 			if err == context.Canceled {
 				return
 			}
@@ -153,6 +159,7 @@ func (d *DASer) sample(ctx context.Context, sub header.Subscription, checkpoint 
 		log.Infow("sampling successful", "height", h.Height, "hash", h.Hash(),
 			"square width", len(h.DAH.RowsRoots), "finished (s)", sampleTime.Seconds())
 
+		span.End()
 		sampleHeight = h.Height
 	}
 }
@@ -222,8 +229,11 @@ func (d *DASer) catchUp(ctx context.Context, job *catchUpJob) (int64, error) {
 
 		startTime := time.Now()
 
-		err = d.da.SharesAvailable(ctx, h.DAH)
+		ctxWithSpan, span := otel.Tracer(tracerName).Start(ctx, "catchUp")
+
+		err = d.da.SharesAvailable(ctxWithSpan, h.DAH)
 		if err != nil {
+			span.End()
 			if err == context.Canceled {
 				// report previous height as the last successfully sampled height and
 				// error as nil since the routine was ordered to stop
@@ -238,6 +248,7 @@ func (d *DASer) catchUp(ctx context.Context, job *catchUpJob) (int64, error) {
 		sampleTime := time.Since(startTime)
 		log.Infow("sampled past header", "height", h.Height, "hash", h.Hash(),
 			"square width", len(h.DAH.RowsRoots), "finished (s)", sampleTime.Seconds())
+		span.End()
 	}
 
 	log.Infow("successfully sampled past headers", "from", job.from,
