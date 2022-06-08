@@ -150,42 +150,30 @@ func TestHeaderRequest(t *testing.T) {
 	}
 }
 
+// TestAvailabilityRequest tests the /data_available endpoint.
 func TestAvailabilityRequest(t *testing.T) {
 	nd := setupNodeWithModifiedRPC(t)
 
-	var tests = []struct {
-		height      int
-		expectedErr bool
-	}{
-		{
-			height:      5,
-			expectedErr: false,
-		},
-		{
-			height:      0,
-			expectedErr: true,
-		},
-	}
+	height := 5
+	endpoint := fmt.Sprintf("http://127.0.0.1:%s/data_available/%d", nd.RPCServer.ListenAddr()[5:], height)
+	resp, err := http.Get(endpoint)
+	require.NoError(t, err)
+	defer func() {
+		err = resp.Body.Close()
+		require.NoError(t, err)
+	}()
 
-	for i, tt := range tests {
-		t.Run(strconv.Itoa(i), func(t *testing.T) {
-			endpoint := fmt.Sprintf("http://127.0.0.1:%s/data_available/%d",
-				nd.RPCServer.ListenAddr()[5:], tt.height)
-			resp, err := http.Get(endpoint)
-			require.NoError(t, err)
-			defer func() {
-				err = resp.Body.Close()
-				require.NoError(t, err)
-			}()
-			buf, err := ioutil.ReadAll(resp.Body)
-			require.NoError(t, err)
-			if tt.expectedErr {
-				assert.NotEqual(t, fmt.Sprintf("block data at height %d is available", tt.height), string(buf))
-			} else {
-				assert.Equal(t, fmt.Sprintf("block data at height %d is available", tt.height), string(buf))
-			}
-		})
+	buf, err := ioutil.ReadAll(resp.Body)
+	require.NoError(t, err)
+
+	var availResp struct {
+		Height    uint64 `json:"height"`
+		Available bool   `json:"available"`
 	}
+	err = json.Unmarshal(buf, &availResp)
+	require.NoError(t, err)
+
+	assert.True(t, availResp.Available)
 }
 
 func setupNodeWithModifiedRPC(t *testing.T) *Node {

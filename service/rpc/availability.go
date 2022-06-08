@@ -1,7 +1,7 @@
 package rpc
 
 import (
-	"fmt"
+	"encoding/json"
 	"net/http"
 	"strconv"
 
@@ -11,6 +11,12 @@ import (
 )
 
 const heightAvailabilityEndpoint = "/data_available"
+
+// TODO @renaynay: doc
+type availabilityResponse struct {
+	Height    uint64 `json:"height"`
+	Available bool   `json:"available"`
+}
 
 func (h *Handler) handleHeightAvailabilityRequest(w http.ResponseWriter, r *http.Request) {
 	heightStr := mux.Vars(r)[heightKey]
@@ -29,12 +35,28 @@ func (h *Handler) handleHeightAvailabilityRequest(w http.ResponseWriter, r *http
 	err = h.share.Availability.SharesAvailable(r.Context(), header.DAH)
 	switch err {
 	case nil:
-		_, werr := w.Write([]byte(fmt.Sprintf("block data at height %d is available", height)))
+		resp, err := json.Marshal(&availabilityResponse{
+			Height:    uint64(height),
+			Available: true,
+		})
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, heightAvailabilityEndpoint, err)
+			return
+		}
+		_, werr := w.Write(resp)
 		if werr != nil {
 			log.Errorw("serving request", "endpoint", heightAvailabilityEndpoint, "err", err)
 		}
 	case share.ErrNotAvailable:
-		_, werr := w.Write([]byte(fmt.Sprintf("block data at height %d is unavailable", height)))
+		resp, err := json.Marshal(&availabilityResponse{
+			Height:    uint64(height),
+			Available: false,
+		})
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, heightAvailabilityEndpoint, err)
+			return
+		}
+		_, werr := w.Write(resp)
 		if werr != nil {
 			log.Errorw("serving request", "endpoint", heightAvailabilityEndpoint, "err", err)
 		}
