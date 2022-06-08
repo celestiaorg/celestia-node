@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"sync"
+	"time"
 
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 )
@@ -43,12 +44,13 @@ func (f *service) Subscribe(proofType ProofType) (Subscription, error) {
 	// if topic was not stored in cache, then we should register a validator and
 	// join pubsub topic.
 	if !ok {
-		err := f.topics.registerValidator(proofType, f.processIncoming)
+		var err error
+		t, err = f.topics.join(proofType)
 		if err != nil {
 			f.mu.Unlock()
 			return nil, err
 		}
-		t, err = f.topics.join(proofType)
+		err = f.topics.registerValidator(proofType, f.processIncoming)
 		if err != nil {
 			f.mu.Unlock()
 			return nil, err
@@ -110,13 +112,22 @@ func (f *service) processIncoming(
 		return pubsub.ValidationReject
 	}
 
-	extHeader, err := f.getter(ctx, proof.Height())
+	// create a timeout for block fetching since our validator will be called synchronously
+	// and getter is a blocking function.
+	newCtx, cancel := context.WithTimeout(ctx, time.Minute*2)
+	extHeader, err := f.getter(newCtx, proof.Height())
 	if err != nil {
+		cancel()
+		// Timeout means there is a problem with the network.
+		// As we cannot prove or discard Fraud Proof, user must restart the node.
+		if errors.Is(err, context.DeadlineExceeded) {
+			log.Fatal("could not get block. Timeout reached. Please restart your node.")
+		}
 		log.Errorw("failed to fetch block: ",
 			"err", err)
 		return pubsub.ValidationReject
 	}
-
+	defer cancel()
 	err = proof.Validate(extHeader)
 	if err != nil {
 		log.Errorw("validation err: ",
@@ -124,7 +135,7 @@ func (f *service) processIncoming(
 		f.topics.addPeerToBlacklist(msg.ReceivedFrom)
 		return pubsub.ValidationReject
 	}
-	log.Warnw("received", "fp", proof.Type(),
+	log.Warnw("received an inbound proof", "kind", proof.Type(),
 		"hash", hex.EncodeToString(extHeader.DAH.Hash()),
 		"from", msg.ReceivedFrom.String(),
 	)

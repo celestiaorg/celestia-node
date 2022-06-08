@@ -17,10 +17,8 @@ type topics struct {
 	pubsub *pubsub.PubSub
 }
 
-// join allows to subscribe on pubsub topic
-func (t *topics) join(
-	proofType ProofType,
-) (*pubsub.Topic, error) {
+// join subscribes to the topic of the given proof type.
+func (t *topics) join(proofType ProofType) (*pubsub.Topic, error) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 
@@ -28,7 +26,7 @@ func (t *topics) join(
 	if err != nil {
 		return nil, err
 	}
-	log.Debugf("successfully subscibed to topic: %s", getSubTopic(proofType))
+	log.Debugf("successfully subscribed to topic: %s", getSubTopic(proofType))
 	t.pubSubTopics[proofType] = topic
 	return topic, nil
 }
@@ -63,6 +61,8 @@ func (t *topics) registerValidator(
 		func(ctx context.Context, _ peer.ID, msg *pubsub.Message) pubsub.ValidationResult {
 			return val(ctx, proofType, msg)
 		},
+		// make validation synchronous.
+		pubsub.WithValidatorInline(true),
 	)
 }
 
