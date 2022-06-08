@@ -45,7 +45,8 @@ func NewCacheAvailability(avail Availability, ds datastore.Batching) Availabilit
 // SharesAvailable will store, upon success, the hash of the given Root to disk.
 func (ca *cacheAvailability) SharesAvailable(ctx context.Context, root *Root) error {
 	// do not sample over Root that has already been sampled
-	exists, err := ca.ds.Has(rootKey(root))
+	key := rootKey(root)
+	exists, err := ca.ds.Has(key)
 	if err != nil {
 		return err
 	}
@@ -56,9 +57,9 @@ func (ca *cacheAvailability) SharesAvailable(ctx context.Context, root *Root) er
 	if err != nil {
 		return err
 	}
-	err = ca.ds.Put(rootKey(root), []byte{})
+	err = ca.ds.Put(key, []byte{})
 	if err != nil {
-		log.Errorw("storing result of successful SharesAvailable request to disk", "err", err)
+		log.Errorw("storing root of successful SharesAvailable request to disk", "err", err)
 	}
 	return err
 }
