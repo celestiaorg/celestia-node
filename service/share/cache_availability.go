@@ -22,10 +22,10 @@ func rootKey(root *Root) datastore.Key {
 	return datastore.NewKey(root.String())
 }
 
-// cacheAvailability wraps a given Availability (whether it's light or full)
+// CacheAvailability wraps a given Availability (whether it's light or full)
 // and stores the results of a successful sampling routine over a given Root's hash
 // to disk.
-type cacheAvailability struct {
+type CacheAvailability struct {
 	avail Availability
 
 	ds *autobatch.Datastore
@@ -33,17 +33,17 @@ type cacheAvailability struct {
 
 // NewCacheAvailability wraps the given Availability with an additional datastore
 // for sampling result caching.
-func NewCacheAvailability(avail Availability, ds datastore.Batching) Availability {
+func NewCacheAvailability(avail Availability, ds datastore.Batching) *CacheAvailability {
 	ds = namespace.Wrap(ds, cacheAvailabilityPrefix)
 	autoDS := autobatch.NewAutoBatching(ds, DefaultWriteBatchSize)
-	return &cacheAvailability{
+	return &CacheAvailability{
 		avail: avail,
 		ds:    autoDS,
 	}
 }
 
 // SharesAvailable will store, upon success, the hash of the given Root to disk.
-func (ca *cacheAvailability) SharesAvailable(ctx context.Context, root *Root) error {
+func (ca *CacheAvailability) SharesAvailable(ctx context.Context, root *Root) error {
 	// do not sample over Root that has already been sampled
 	key := rootKey(root)
 	exists, err := ca.ds.Has(key)
@@ -62,4 +62,9 @@ func (ca *cacheAvailability) SharesAvailable(ctx context.Context, root *Root) er
 		log.Errorw("storing root of successful SharesAvailable request to disk", "err", err)
 	}
 	return err
+}
+
+// Stop flushes all queued writes to disk.
+func (ca *CacheAvailability) Stop(context.Context) error {
+	return ca.ds.Flush()
 }

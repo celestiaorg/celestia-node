@@ -154,11 +154,19 @@ func LightAvailability(
 	ds datastore.Batching,
 ) share.Availability {
 	la := share.NewLightAvailability(blockservice.NewSession(fxutil.WithLifecycle(ctx, lc), bServ))
-	return share.NewCacheAvailability(la, ds)
+	ca := share.NewCacheAvailability(la, ds)
+	lc.Append(fx.Hook{
+		OnStop: ca.Stop,
+	})
+	return ca
 }
 
 // FullAvailability constructs full share availability wrapped in cache availability.
-func FullAvailability(bServ blockservice.BlockService, ds datastore.Batching) share.Availability {
+func FullAvailability(lc fx.Lifecycle, bServ blockservice.BlockService, ds datastore.Batching) share.Availability {
 	fa := share.NewFullAvailability(bServ)
-	return share.NewCacheAvailability(fa, ds)
+	ca := share.NewCacheAvailability(fa, ds)
+	lc.Append(fx.Hook{
+		OnStop: ca.Stop,
+	})
+	return ca
 }

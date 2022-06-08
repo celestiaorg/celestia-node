@@ -41,7 +41,7 @@ func TestCacheAvailability(t *testing.T) {
 
 	for i, tt := range tests {
 		t.Run(strconv.Itoa(i), func(t *testing.T) {
-			ca := tt.service.Availability.(*cacheAvailability)
+			ca := tt.service.Availability.(*CacheAvailability)
 			// ensure the dah isn't yet in the cache
 			exists, err := ca.ds.Has(rootKey(tt.root))
 			require.NoError(t, err)
@@ -74,7 +74,7 @@ func TestCacheAvailability_Failed(t *testing.T) {
 
 	for i, tt := range tests {
 		t.Run(strconv.Itoa(i), func(t *testing.T) {
-			ca := tt.service.Availability.(*cacheAvailability)
+			ca := tt.service.Availability.(*CacheAvailability)
 
 			empty := header.EmptyDAH()
 			err := tt.service.SharesAvailable(ctx, &empty)
@@ -102,7 +102,7 @@ func TestCacheAvailability_NoDuplicateSampling(t *testing.T) {
 	err := ca.SharesAvailable(ctx, root)
 	require.NoError(t, err)
 	// ensure root was cached
-	exists, err := ca.(*cacheAvailability).ds.Has(rootKey(root))
+	exists, err := ca.ds.Has(rootKey(root))
 	require.NoError(t, err)
 	assert.True(t, exists)
 	// call sampling routine over same root again and ensure no error is returned
