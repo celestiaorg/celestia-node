@@ -5,6 +5,11 @@
 - 2022.03.03 - init commit
 - 2022.03.08 - added pub-sub
 - 2022.03.15 - added BEFP verification
+- 2022.06.08 - 
+  * updated rsmtd error naming(as it was changed in implementation);
+  * changed from NamespaceShareWithProof to ShareWithProof;
+  * made ProofUnmarshaler public and extended return params;
+  * fixed typo issues;
 
 ## Authors
 
@@ -13,7 +18,7 @@
 ## Bad Encoding Fraud Proof (BEFP)
 ## Context
 
-In the case where a Full Node receives `ErrByzantineRow`/`ErrByzantineCol` from the [rsmt2d](https://github.com/celestiaorg/rsmt2d) library, it generates a fraud-proof and broadcasts it to DA network such that the light nodes are notified that the corresponding block could be malicious.
+In the case where a Full Node receives `ErrByzantineData` from the [rsmt2d](https://github.com/celestiaorg/rsmt2d) library, it generates a fraud-proof and broadcasts it to DA network such that the light nodes are notified that the corresponding block could be malicious.
 
 ## Decision
 
@@ -37,7 +42,7 @@ Based on `ErrByzantineRow`/`ErrByzantineCol` internal fields, we should generate
 type ErrByzantine struct {
    // Shares contains all shares from row/col.
    // For non-nil shares MerkleProof is computed
-   Shares []*NamespacedShareWithProof
+   Shares []*ShareWithProof
    // Index represents the number of row/col where ErrByzantineRow/ErrByzantineColl occurred.
    Index uint8
    isRow bool
@@ -64,7 +69,7 @@ type BadEncodingProof struct {
    // Shares contains all shares from row/col
    // Shares that did not pass verification in rmst2d will be nil
    // For non-nil shares MerkleProofs are computed
-   Shares []*NamespacedShareWithProof
+   Shares []*ShareWithProof
    // Index represents the number of row/col where ErrByzantineRow/ErrByzantineColl occurred
    Index uint8
    isRow bool
@@ -95,7 +100,7 @@ message BadEnconding {
 }
 ```
 
-`das.Daser` imports a data structure that implements `proof.Broadcaster` interface that uses libp2p.pubsub under the hood:
+`das.Daser` imports a data structure that implements `fraud.Broadcaster` interface that uses libp2p.pubsub under the hood:
 
 ```go
 // Broadcaster is a generic interface that sends a `Proof` to all nodes subscribed on the Broadcaster's topic.
@@ -122,19 +127,19 @@ type Proof interface {
 2a. From the other side, light nodes will, by default, subscribe to the BEFP topic and verify messages received on the topic:
 
 ```go
-type proofUnmarshaller func([]byte) Proof
+type ProofUnmarshaller func([]byte) (Proof,error)
 // Subscriber encompasses the behavior necessary to
 // subscribe/unsubscribe from new FraudProofs events from the
 // network.
 type Subscriber interface {
-   // Subscribe allows to subscribe on pub sub topic by it's type.
+   // Subscribe allows to subscribe on pub sub topic by its type.
    // Subscribe should register pub-sub validator on topic.
    Subscribe(ctx context.Context, proofType ProofType) (Subscription, error)
-   // RegisterUnmarshaller registers unmarshaller for the given ProofType.
-   // If there is no umarshaller for `ProofType`, then `Subscribe` returns an error.
+   // RegisterUnmarshaler registers unmarshaler for the given ProofType.
+   // If there is no unmarshaler for `ProofType`, then `Subscribe` returns an error.
    RegisterUnmarshaller(proofType ProofType, f proofUnmarshaller) error
-   // UnregisterUnmarshaller removes unmarshaller for the given ProofType.
-   // If there is no unmarshaller for `ProofType`, then it returns an error.
+   // UnregisterUnmarshaler removes unmarshaler for the given ProofType.
+   // If there is no unmarshaler for `ProofType`, then it returns an error.
    UnregisterUnmarshaller(proofType ProofType) error{}
 }
 ```
@@ -142,7 +147,7 @@ type Subscriber interface {
 ```go
 // Subscription returns a valid proof if one is received on the topic.
 type Subscription interface {
-   Proof() (Proof, error)
+   Proof(context.Context) (Proof, error)
    Cancel() error
 }
 ```
@@ -152,14 +157,14 @@ type Subscription interface {
 type FraudSub struct {
    pubsub *pubsub.PubSub
    topics map[ProofType]*pubsub.Topic
-   unmarshallers map[ProofType]proofUnmarshaller
+   unmarshallers map[ProofType]ProofUnmarshaller
 }
 
-func(s *FraudSub) RegisterUnmarshaller(proofType ProofType, f proofUnmarshaller) error{}
-func(s *FraudSub) UnregisterUnmarshaller(proofType ProofType) error{}
+func(s *service) RegisterUnmarshaler(proofType ProofType, f ProofUnmarshaller) error{}
+func(s *service) UnregisterUnmarshaler(proofType ProofType) error{}
 
-func(s *FraudSub) Subscribe(ctx context.Context, proofType ProofType) (Subscription, error){}
-func(s *FraudSub) Broadcast(ctx context.Context, p Proof) error{}
+func(s *service) Subscribe(ctx context.Context, proofType ProofType) (Subscription, error){}
+func(s *service) Broadcast(ctx context.Context, p Proof) error{}
 ```
 ### BEFP verification
 Once a light node receives a `BadEncodingProof` fraud proof, it should:
