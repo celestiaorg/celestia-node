@@ -73,16 +73,11 @@ func (r *Retriever) Retrieve(ctx context.Context, dah *da.DataAvailabilityHeader
 			if errors.As(err, &errByz) {
 				return nil, NewErrByzantine(ctx, r.bServ, dah, errByz)
 			}
+
+			log.Warnw("not enough shares to reconstruct data square, requesting more...", "err", err)
 		case <-ctx.Done():
 			return nil, ctx.Err()
 		}
-
-		var errByz *rsmt2d.ErrByzantineData
-		if errors.As(err, &errByz) {
-			return nil, NewErrByzantine(ctx, r.bServ, dah, errByz)
-		}
-		log.Warnw("not enough shares to reconstruct data square, requesting more...", "err", err)
-		// retry quadrants until we can reconstruct the EDS or error out
 	}
 }
 
