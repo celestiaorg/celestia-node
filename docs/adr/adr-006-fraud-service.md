@@ -6,7 +6,7 @@
 - 2022.03.08 - added pub-sub
 - 2022.03.15 - added BEFP verification
 - 2022.06.08 - 
-  * updated rsmtd error naming(as it was changed in implementation);
+  * updated rsmt2d error naming(as it was changed in implementation);
   * changed from NamespaceShareWithProof to ShareWithProof;
   * made ProofUnmarshaler public and extended return params;
   * fixed typo issues;
