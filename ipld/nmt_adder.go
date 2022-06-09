@@ -16,7 +16,7 @@ import (
 // into a nmt tree.
 type NmtNodeAdder struct {
 	ctx    context.Context
-	add    ipld.NodeAdder
+	add    *ipld.Batch
 	leaves *cid.Set
 	err    error
 }
@@ -52,19 +52,11 @@ func (n *NmtNodeAdder) Visit(hash []byte, children ...[]byte) {
 	}
 }
 
-// NodeAdder returns the ipld.NodeAdder originally provided to the NmtNodeAdder.
-func (n *NmtNodeAdder) NodeAdder() ipld.NodeAdder {
-	return n.add
-}
-
 // Commit checks for errors happened during Visit and if absent commits data to inner Batch.
 func (n *NmtNodeAdder) Commit() error {
 	if n.err != nil {
 		return n.err
 	}
 
-	if b, ok := n.add.(*ipld.Batch); ok {
-		return b.Commit()
-	}
-	return nil
+	return n.add.Commit()
 }
