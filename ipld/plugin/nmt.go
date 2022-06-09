@@ -218,7 +218,7 @@ func decodeBlock(block blocks.Block) (ipld.Node, error) {
 		}, nil
 	}
 	if bytes.Equal(domainSeparator, innerPrefix) {
-		return nmtNode{
+		return &nmtNode{
 			cid: block.Cid(),
 			l:   data[prefixOffset : prefixOffset+nmtHashSize],
 			r:   data[prefixOffset+nmtHashSize:],
