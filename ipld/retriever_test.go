@@ -94,3 +94,33 @@ func TestRetriever_ByzantineError(t *testing.T) {
 	var errByz *ErrByzantine
 	require.ErrorAs(t, err, &errByz)
 }
+
+// TestRetriever_MultipleRandQuadrants asserts that reconstruction succeeds
+// when any three random quadrants requested.
+func TestRetriever_MultipleRandQuadrants(t *testing.T) {
+	RetrieveQuadrantTimeout = time.Millisecond * 500
+	const squareSize = 32
+	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+	defer cancel()
+
+	bServ := mdutils.Bserv()
+	r := NewRetriever(bServ)
+
+	// generate EDS
+	shares := RandShares(t, squareSize*squareSize)
+	in, err := AddShares(ctx, shares, bServ)
+	require.NoError(t, err)
+
+	dah := da.NewDataAvailabilityHeader(in)
+	ses, err := r.newSession(ctx, &dah)
+	require.NoError(t, err)
+
+	// wait until two additional quadrants requested
+	// this reliably allows us to reproduce the issue
+	time.Sleep(RetrieveQuadrantTimeout * 2)
+	// then ensure we have enough shares for reconstruction for slow machines e.g. CI
+	<-ses.Done()
+
+	_, err = ses.Reconstruct()
+	assert.NoError(t, err)
+}

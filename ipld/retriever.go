@@ -151,6 +151,19 @@ func (rs *retrievalSession) Reconstruct() (*rsmt2d.ExtendedDataSquare, error) {
 	// prevent further writes to the square
 	rs.squareLk.Lock()
 	defer rs.squareLk.Unlock()
+
+	// TODO(@Wondertan): This is bad!
+	//  * We should not reimport the square multiple times
+	//  * We should set shares into imported square via SetShare(https://github.com/celestiaorg/rsmt2d/issues/83)
+	//  to accomplish the above point.
+	{
+		squareImported, err := rsmt2d.ImportExtendedDataSquare(rs.square, rs.codec, rs.treeFn)
+		if err != nil {
+			return nil, err
+		}
+		rs.squareImported = squareImported
+	}
+
 	// and try to repair with what we have
 	err := rs.squareImported.Repair(rs.dah.RowsRoots, rs.dah.ColumnRoots, rs.codec, rs.treeFn)
 	if err != nil {
