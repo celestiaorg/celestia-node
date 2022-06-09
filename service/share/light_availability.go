@@ -18,13 +18,13 @@ var DefaultSampleAmount = 16
 // its availability. It is assumed that there are a lot of lightAvailability instances
 // on the network doing sampling over the same Root to collectively verify its availability.
 type lightAvailability struct {
-	getter blockservice.BlockGetter
+	bserv blockservice.BlockService
 }
 
 // NewLightAvailability creates a new light Availability.
-func NewLightAvailability(getter blockservice.BlockGetter) Availability {
+func NewLightAvailability(getter blockservice.BlockService) Availability {
 	return &lightAvailability{
-		getter: getter,
+		bserv: getter,
 	}
 }
 
@@ -47,11 +47,12 @@ func (la *lightAvailability) SharesAvailable(ctx context.Context, dah *Root) err
 	ctx, cancel := context.WithTimeout(ctx, AvailabilityTimeout)
 	defer cancel()
 
+	ses := blockservice.NewSession(ctx, la.bserv)
 	errs := make(chan error, len(samples))
 	for _, s := range samples {
 		go func(s Sample) {
 			root, leaf := translate(dah, s.Row, s.Col)
-			_, err := ipld.GetShare(ctx, la.getter, root, leaf, len(dah.RowsRoots))
+			_, err := ipld.GetShare(ctx, ses, root, leaf, len(dah.RowsRoots))
 			// we don't really care about Share bodies at this point
 			// it also means we now saved the Share in local storage
 			select {
@@ -70,7 +71,9 @@ func (la *lightAvailability) SharesAvailable(ctx context.Context, dah *Root) err
 		}
 
 		if err != nil {
-			log.Errorw("availability validation failed", "root", dah.Hash(), "err", err)
+			if !errors.Is(err, context.Canceled) {
+				log.Errorw("availability validation failed", "root", dah.Hash(), "err", err)
+			}
 			if errors.Is(err, format.ErrNotFound) || errors.Is(err, context.DeadlineExceeded) {
 				return ErrNotAvailable
 			}
