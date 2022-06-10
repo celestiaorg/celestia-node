@@ -156,7 +156,7 @@ func LightAvailability(
 	la := share.NewLightAvailability(blockservice.NewSession(fxutil.WithLifecycle(ctx, lc), bServ))
 	ca := share.NewCacheAvailability(la, ds)
 	lc.Append(fx.Hook{
-		OnStop: ca.Stop,
+		OnStop: ca.Close,
 	})
 	return ca
 }
@@ -166,7 +166,7 @@ func FullAvailability(lc fx.Lifecycle, bServ blockservice.BlockService, ds datas
 	fa := share.NewFullAvailability(bServ)
 	ca := share.NewCacheAvailability(fa, ds)
 	lc.Append(fx.Hook{
-		OnStop: ca.Stop,
+		OnStop: ca.Close,
 	})
 	return ca
 }

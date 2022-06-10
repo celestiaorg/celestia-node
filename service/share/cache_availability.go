@@ -64,7 +64,7 @@ func (ca *CacheAvailability) SharesAvailable(ctx context.Context, root *Root) er
 	return err
 }
 
-// Stop flushes all queued writes to disk.
-func (ca *CacheAvailability) Stop(context.Context) error {
+// Close flushes all queued writes to disk.
+func (ca *CacheAvailability) Close(context.Context) error {
 	return ca.ds.Flush()
 }
