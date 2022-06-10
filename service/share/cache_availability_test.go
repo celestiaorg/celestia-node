@@ -12,6 +12,7 @@ import (
 	mdutils "github.com/ipfs/go-merkledag/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/tendermint/tendermint/pkg/da"
 
 	"github.com/celestiaorg/celestia-node/header"
 )
@@ -109,6 +110,19 @@ func TestCacheAvailability_NoDuplicateSampling(t *testing.T) {
 	// if an error was returned, that means duplicate sampling occurred
 	err = ca.SharesAvailable(ctx, root)
 	require.NoError(t, err)
+}
+
+// TestCacheAvailability_MinRoot tests to make sure `SharesAvailable` will
+// short circuit if the given root is a minimum DataAvailabilityHeader (minRoot).
+func TestCacheAvailability_MinRoot(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	fullLocalServ, _ := RandFullLocalServiceWithSquare(t, 16)
+	minDAH := da.MinDataAvailabilityHeader()
+
+	err := fullLocalServ.SharesAvailable(ctx, &minDAH)
+	assert.NoError(t, err)
 }
 
 type dummyAvailability struct {

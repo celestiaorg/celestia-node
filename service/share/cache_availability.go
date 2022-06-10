@@ -1,11 +1,13 @@
 package share
 
 import (
+	"bytes"
 	"context"
 
 	"github.com/ipfs/go-datastore"
 	"github.com/ipfs/go-datastore/autobatch"
 	"github.com/ipfs/go-datastore/namespace"
+	"github.com/tendermint/tendermint/pkg/da"
 )
 
 var (
@@ -13,14 +15,11 @@ var (
 	// Headers are written in batches not to thrash the underlying Datastore with writes.
 	// TODO(@Wondertan, @renaynay): Those values must be configurable and proper defaults should be set for specific node
 	//  type. (#709)
-	DefaultWriteBatchSize = 2048
-
+	DefaultWriteBatchSize   = 2048
 	cacheAvailabilityPrefix = datastore.NewKey("sampling_result")
-)
 
-func rootKey(root *Root) datastore.Key {
-	return datastore.NewKey(root.String())
-}
+	minRoot = da.MinDataAvailabilityHeader()
+)
 
 // CacheAvailability wraps a given Availability (whether it's light or full)
 // and stores the results of a successful sampling routine over a given Root's hash
@@ -36,6 +35,7 @@ type CacheAvailability struct {
 func NewCacheAvailability(avail Availability, ds datastore.Batching) *CacheAvailability {
 	ds = namespace.Wrap(ds, cacheAvailabilityPrefix)
 	autoDS := autobatch.NewAutoBatching(ds, DefaultWriteBatchSize)
+
 	return &CacheAvailability{
 		avail: avail,
 		ds:    autoDS,
@@ -44,6 +44,10 @@ func NewCacheAvailability(avail Availability, ds datastore.Batching) *CacheAvail
 
 // SharesAvailable will store, upon success, the hash of the given Root to disk.
 func (ca *CacheAvailability) SharesAvailable(ctx context.Context, root *Root) error {
+	// short-circuit if given root is minimum DAH
+	if isMinRoot(root) {
+		return nil
+	}
 	// do not sample over Root that has already been sampled
 	key := rootKey(root)
 	exists, err := ca.ds.Has(key)
@@ -67,4 +71,14 @@ func (ca *CacheAvailability) SharesAvailable(ctx context.Context, root *Root) er
 // Close flushes all queued writes to disk.
 func (ca *CacheAvailability) Close(context.Context) error {
 	return ca.ds.Flush()
+}
+
+func rootKey(root *Root) datastore.Key {
+	return datastore.NewKey(root.String())
+}
+
+// isMinRoot returns whether the given root is a minimum (empty)
+// DataAvailabilityHeader (DAH).
+func isMinRoot(root *Root) bool {
+	return bytes.Equal(minRoot.Hash(), root.Hash())
 }
