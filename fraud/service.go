@@ -13,75 +13,53 @@ import (
 // service is responsible for validating and propagating Fraud Proofs.
 // It implements the Service interface.
 type service struct {
-	mu           sync.RWMutex
-	unmarshalers map[ProofType]ProofUnmarshaler
-
-	topics *topics
+	pubsub *pubsub.PubSub
 	getter headerFetcher
+
+	mu     sync.RWMutex
+	topics map[ProofType]*topic
 }
 
 func NewService(p *pubsub.PubSub, getter headerFetcher) Service {
 	return &service{
-		topics: &topics{
-			pubsub:       p,
-			pubSubTopics: make(map[ProofType]*pubsub.Topic),
-		},
-		unmarshalers: make(map[ProofType]ProofUnmarshaler),
-		getter:       getter,
+		pubsub: p,
+		getter: getter,
+		topics: make(map[ProofType]*topic),
 	}
 }
 
 func (f *service) Subscribe(proofType ProofType) (Subscription, error) {
 	// TODO: @vgonkivs check if fraud proof is in fraud store, then return with error
 	f.mu.Lock()
-	u, ok := f.unmarshalers[proofType]
-	if !ok {
-		return nil, errors.New("fraud: unmarshaler is not registered")
-	}
-
-	t, ok := f.topics.getTopic(proofType)
-
-	// if topic was not stored in cache, then we should register a validator and
-	// join pubsub topic.
-	if !ok {
-		var err error
-		t, err = f.topics.join(proofType)
-		if err != nil {
-			f.mu.Unlock()
-			return nil, err
-		}
-		err = f.topics.registerValidator(proofType, f.processIncoming)
-		if err != nil {
-			f.mu.Unlock()
-			return nil, err
-		}
-	}
+	t, ok := f.topics[proofType]
 	f.mu.Unlock()
-	return newSubscription(t, u)
+	if !ok {
+		return nil, errors.New("fraud: topic was not created")
+	}
+	return newSubscription(t)
 }
 
 func (f *service) RegisterUnmarshaler(proofType ProofType, u ProofUnmarshaler) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 
-	if _, ok := f.unmarshalers[proofType]; ok {
-		return errors.New("fraud: unmarshaler is already registered")
+	t, err := createTopic(f.pubsub, proofType, u, f.processIncoming)
+	if err != nil {
+		return err
 	}
-	f.unmarshalers[proofType] = u
-
+	f.topics[proofType] = t
 	return nil
 }
 
 func (f *service) UnregisterUnmarshaler(proofType ProofType) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-
-	if _, ok := f.unmarshalers[proofType]; !ok {
-		return errors.New("fraud: unmarshaler is not registered")
+	t, ok := f.topics[proofType]
+	if !ok {
+		return errors.New("fraud: topic was not created")
 	}
-	delete(f.unmarshalers, proofType)
-
-	return nil
+	delete(f.topics, proofType)
+	return t.close()
 
 }
 
@@ -90,8 +68,13 @@ func (f *service) Broadcast(ctx context.Context, p Proof) error {
 	if err != nil {
 		return err
 	}
-
-	return f.topics.publish(ctx, bin, p.Type())
+	f.mu.RLock()
+	t, ok := f.topics[p.Type()]
+	f.mu.RUnlock()
+	if !ok {
+		return errors.New("fraud: topic was not created")
+	}
+	return t.publish(ctx, bin)
 }
 
 func (f *service) processIncoming(
@@ -100,13 +83,13 @@ func (f *service) processIncoming(
 	msg *pubsub.Message,
 ) pubsub.ValidationResult {
 	f.mu.RLock()
-	unmarshaler, ok := f.unmarshalers[proofType]
+	t, ok := f.topics[proofType]
 	f.mu.RUnlock()
 	if !ok {
-		log.Error("unmarshaler is not found")
+		log.Error("topic was not created")
 		return pubsub.ValidationReject
 	}
-	proof, err := unmarshaler(msg.Data)
+	proof, err := t.codec(msg.Data)
 	if err != nil {
 		log.Errorw("unmarshaling header error", err)
 		return pubsub.ValidationReject
@@ -132,7 +115,7 @@ func (f *service) processIncoming(
 	if err != nil {
 		log.Errorw("validation err: ",
 			"err", err)
-		f.topics.addPeerToBlacklist(msg.ReceivedFrom)
+		f.pubsub.BlacklistPeer(msg.ReceivedFrom)
 		return pubsub.ValidationReject
 	}
 	log.Warnw("received an inbound proof", "kind", proof.Type(),

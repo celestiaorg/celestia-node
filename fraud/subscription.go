@@ -12,13 +12,13 @@ type subscription struct {
 	unmarshaler  ProofUnmarshaler
 }
 
-func newSubscription(topic *pubsub.Topic, u ProofUnmarshaler) (*subscription, error) {
-	sub, err := topic.Subscribe()
+func newSubscription(t *topic) (*subscription, error) {
+	sub, err := t.topic.Subscribe()
 	if err != nil {
 		return nil, err
 	}
 
-	return &subscription{sub, u}, nil
+	return &subscription{sub, t.codec}, nil
 }
 
 func (s *subscription) Proof(ctx context.Context) (Proof, error) {
