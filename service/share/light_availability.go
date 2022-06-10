@@ -22,9 +22,9 @@ type lightAvailability struct {
 }
 
 // NewLightAvailability creates a new light Availability.
-func NewLightAvailability(getter blockservice.BlockService) Availability {
+func NewLightAvailability(bserv blockservice.BlockService) Availability {
 	return &lightAvailability{
-		bserv: getter,
+		bserv: bserv,
 	}
 }
 
