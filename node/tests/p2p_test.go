@@ -51,7 +51,7 @@ func TestUseBridgeNodeAsBootstraper(t *testing.T) {
 }
 
 /*
-Test-Case: Sync a Light Node with a Bridge Node
+Test-Case: Connect Full And Light using Bridge node as a bootstrapper
 Steps:
 1. Create a Bridge Node(BN)
 2. Start a BN
@@ -87,21 +87,20 @@ func TestBootstrapNodesFromBridgeNode(t *testing.T) {
 		assert.Equal(t, *addr, nodes[index].Bootstrappers[0])
 		assert.True(t, nodes[index].Host.Network().Connectedness(addr.ID) == network.Connected)
 	}
-	sub0, err := light.Host.EventBus().Subscribe(&event.EvtPeerConnectednessChanged{})
+	sub, err := light.Host.EventBus().Subscribe(&event.EvtPeerConnectednessChanged{})
 	require.NoError(t, err)
-	defer sub0.Close()
-LOOP:
-	for {
-		select {
-		case <-ctx.Done():
+	defer sub.Close()
+	for p := range sub.Out() {
+		if ctx.Err() == context.DeadlineExceeded {
 			t.Fatal("peer was not found")
-		case p := <-sub0.Out():
-			ev := p.(event.EvtPeerConnectednessChanged)
+		}
+		if ev, ok := p.(event.EvtPeerConnectednessChanged); ok {
 			if ev.Peer == full.Host.ID() && ev.Connectedness == network.Connected {
-				break LOOP
+				break
 			}
 		}
 	}
+
 	addrFull := host.InfoFromHost(full.Host)
 	assert.True(t, light.Host.Network().Connectedness(addrFull.ID) == network.Connected)
 }
