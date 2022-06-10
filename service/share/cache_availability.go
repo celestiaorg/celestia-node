@@ -44,7 +44,7 @@ func NewCacheAvailability(avail Availability, ds datastore.Batching) *CacheAvail
 
 // SharesAvailable will store, upon success, the hash of the given Root to disk.
 func (ca *CacheAvailability) SharesAvailable(ctx context.Context, root *Root) error {
-	// short-circuit if given root is minimum DAH
+// short-circuit if the given root is minimum DAH of an empty data square
 	if isMinRoot(root) {
 		return nil
 	}

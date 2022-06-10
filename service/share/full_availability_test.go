@@ -3,11 +3,8 @@ package share
 import (
 	"context"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
-
-	"github.com/celestiaorg/celestia-node/header"
 )
 
 func TestSharesAvailable_Full(t *testing.T) {
@@ -18,17 +15,6 @@ func TestSharesAvailable_Full(t *testing.T) {
 	service, dah := RandFullServiceWithSquare(t, 16)
 	err := service.SharesAvailable(ctx, dah)
 	assert.NoError(t, err)
-}
-
-func TestSharesAvailableFailed_Full(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
-	defer cancel()
-
-	// RandFullServiceWithSquare creates a NewFullAvailability inside, so we can test it
-	s, _ := RandFullServiceWithSquare(t, 16)
-	empty := header.EmptyDAH()
-	err := s.SharesAvailable(ctx, &empty)
-	assert.Error(t, err)
 }
 
 func TestShareAvailableOverMocknet_Full(t *testing.T) {

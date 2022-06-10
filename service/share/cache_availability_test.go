@@ -13,8 +13,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/tendermint/tendermint/pkg/da"
-
-	"github.com/celestiaorg/celestia-node/header"
 )
 
 // TestCacheAvailability tests to ensure that the successful result of a
@@ -57,35 +55,25 @@ func TestCacheAvailability(t *testing.T) {
 	}
 }
 
+var invalidHeader = da.DataAvailabilityHeader{
+	RowsRoots: [][]byte{{1, 2}},
+}
+
 // TestCacheAvailability_Failed tests to make sure a failed
 // sampling process is not stored.
 func TestCacheAvailability_Failed(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 
-	fullLocalServ, _ := RandFullLocalServiceWithSquare(t, 16)
-	lightLocalServ, _ := RandLightLocalServiceWithSquare(t, 16)
+	ca := NewCacheAvailability(&dummyAvailability{}, sync.MutexWrap(datastore.NewMapDatastore()))
+	serv := NewService(mdutils.Bserv(), ca)
 
-	var tests = []struct {
-		service *Service
-	}{
-		{service: fullLocalServ},
-		{service: lightLocalServ},
-	}
-
-	for i, tt := range tests {
-		t.Run(strconv.Itoa(i), func(t *testing.T) {
-			ca := tt.service.Availability.(*CacheAvailability)
-
-			empty := header.EmptyDAH()
-			err := tt.service.SharesAvailable(ctx, &empty)
-			require.Error(t, err)
-			// ensure the dah was NOT cached
-			exists, err := ca.ds.Has(rootKey(&empty))
-			require.NoError(t, err)
-			assert.False(t, exists)
-		})
-	}
+	err := serv.SharesAvailable(ctx, &invalidHeader)
+	require.Error(t, err)
+	// ensure the dah was NOT cached
+	exists, err := ca.ds.Has(rootKey(&invalidHeader))
+	require.NoError(t, err)
+	assert.False(t, exists)
 }
 
 // TestCacheAvailability_NoDuplicateSampling tests to ensure that
@@ -131,7 +119,10 @@ type dummyAvailability struct {
 
 // SharesAvailable should only be called once, if called more than once, return
 // error.
-func (da *dummyAvailability) SharesAvailable(context.Context, *Root) error {
+func (da *dummyAvailability) SharesAvailable(_ context.Context, root *Root) error {
+	if root == &invalidHeader {
+		return fmt.Errorf("invalid header")
+	}
 	if da.counter > 0 {
 		return fmt.Errorf("duplicate sampling process called")
 	}

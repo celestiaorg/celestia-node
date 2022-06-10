@@ -32,6 +32,13 @@ func NewLightAvailability(getter blockservice.BlockGetter) Availability {
 // This way SharesAvailable subjectively verifies that Shares are available.
 func (la *lightAvailability) SharesAvailable(ctx context.Context, dah *Root) error {
 	log.Debugw("Validate availability", "root", dah.Hash())
+	// We assume the caller of this method has already performed basic validation on the
+	// given dah/root. If for some reason this has not happened, the node should panic.
+	if err := dah.ValidateBasic(); err != nil {
+		log.Errorw("Availability validation cannot be performed on a malformed DataAvailabilityHeader",
+			"err", err)
+		panic(err)
+	}
 	samples, err := SampleSquare(len(dah.RowsRoots), DefaultSampleAmount)
 	if err != nil {
 		return err

@@ -29,6 +29,13 @@ func NewFullAvailability(bServ blockservice.BlockService) Availability {
 func (fa *fullAvailability) SharesAvailable(ctx context.Context, root *Root) error {
 	ctx, cancel := context.WithTimeout(ctx, AvailabilityTimeout)
 	defer cancel()
+	// we assume the caller of this method has already performed basic validation on the
+	// given dah/root. If for some reason this has not happened, the node should panic.
+	if err := root.ValidateBasic(); err != nil {
+		log.Errorw("Availability validation cannot be performed on a malformed DataAvailabilityHeader",
+			"err", err)
+		panic(err)
+	}
 
 	_, err := fa.rtrv.Retrieve(ctx, root)
 	if err != nil {
