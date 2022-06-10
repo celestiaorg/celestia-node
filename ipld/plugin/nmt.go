@@ -1,14 +1,12 @@
 package plugin
 
 import (
-	"bufio"
 	"bytes"
 	"context"
 	"crypto/sha256"
 	"errors"
 	"fmt"
 	"hash"
-	"io"
 
 	blocks "github.com/ipfs/go-block-format"
 	"github.com/ipfs/go-blockservice"
@@ -105,83 +103,6 @@ func (n *namespaceHasher) Sum([]byte) []byte {
 	flagLen := int(n.NamespaceLen * 2)
 	sha256Len := n.Hasher.Size()
 	return n.Hasher.HashNode(n.data[:flagLen+sha256Len], n.data[flagLen+sha256Len:])
-}
-
-// DataSquareRowOrColumnRawInputParser reads the raw shares and extract the IPLD nodes from the NMT tree.
-// Note, to parse without any error the input has to be of the form:
-//
-// <share_0>| ... |<share_numOfShares - 1>
-//
-// Note while this coredag.DagParser is implemented here so this plugin can be used from
-// the commandline, the ipld Nodes will rather be created together with the NMT
-// root instead of re-computing it here.
-func DataSquareRowOrColumnRawInputParser(r io.Reader, _mhType uint64, _mhLen int) ([]ipld.Node, error) {
-	br := bufio.NewReader(r)
-	collector := newNodeCollector()
-
-	n := nmt.New(
-		sha256.New(),
-		nmt.NamespaceIDSize(consts.NamespaceSize),
-		nmt.NodeVisitor(collector.visit),
-	)
-
-	for {
-		namespacedLeaf := make([]byte, consts.ShareSize+consts.NamespaceSize)
-		if _, err := io.ReadFull(br, namespacedLeaf); err != nil {
-			if err == io.EOF {
-				break
-			}
-			return nil, err
-		}
-		if err := n.Push(namespacedLeaf); err != nil {
-			return nil, err
-		}
-	}
-	// to trigger the collection of nodes:
-	_ = n.Root()
-	return collector.ipldNodes(), nil
-}
-
-// nmtNodeCollector creates and collects ipld.Nodes if inserted into a nmt tree.
-// It is mainly used for testing.
-type nmtNodeCollector struct {
-	nodes []ipld.Node
-}
-
-func newNodeCollector() *nmtNodeCollector {
-	// extendedRowOrColumnSize is hardcoded here to avoid importing
-	extendedRowOrColumnSize := 2 * 128
-	return &nmtNodeCollector{nodes: make([]ipld.Node, 0, extendedRowOrColumnSize)}
-}
-
-func (n nmtNodeCollector) ipldNodes() []ipld.Node {
-	return n.nodes
-}
-
-func (n *nmtNodeCollector) visit(hash []byte, children ...[]byte) {
-	cid := MustCidFromNamespacedSha256(hash)
-	switch len(children) {
-	case 1:
-		n.nodes = prependNode(nmtLeafNode{
-			cid:  cid,
-			Data: children[0],
-		}, n.nodes)
-	case 2:
-		n.nodes = prependNode(nmtNode{
-			cid: cid,
-			l:   children[0],
-			r:   children[1],
-		}, n.nodes)
-	default:
-		panic("expected a binary tree")
-	}
-}
-
-func prependNode(newNode ipld.Node, nodes []ipld.Node) []ipld.Node {
-	prepended := make([]ipld.Node, len(nodes)+1)
-	prepended[0] = newNode
-	copy(prepended[1:], nodes)
-	return prepended
 }
 
 func GetNode(ctx context.Context, bGetter blockservice.BlockGetter, root cid.Cid) (ipld.Node, error) {
