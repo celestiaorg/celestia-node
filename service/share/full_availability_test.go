@@ -89,3 +89,78 @@ func TestShareAvailable_OneFullNode(t *testing.T) {
 	err := errg.Wait()
 	require.NoError(t, err)
 }
+
+// TestShareAvailable_ConnectedFullNodes asserts that two connected FullAvailability nodes
+// can ensure data availability via two isolated LightAvailability node subnetworks. Full nodes
+// start their availability process first, then Lights start availability process and connect to
+// Fulls and only after Lights connect to the source node which has the data. After Lights connect
+// to the source, Full must be able to finish the availability process started in the beginning.
+func TestShareAvailable_ConnectedFullNodes(t *testing.T) {
+	// NOTE: Numbers are taken from the original 'Fraud and Data Availability Proofs' paper
+	DefaultSampleAmount = 20 // s
+	const (
+		origSquareSize = 16 // k
+		lightNodes     = 60 // c
+	)
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
+	defer cancel()
+
+	net := NewTestDAGNet(ctx, t)
+	source, root := net.RandFullNode(origSquareSize)
+
+	// create two full nodes and ensure they are disconnected
+	full1 := net.FullNode()
+	full2 := net.FullNode()
+
+	// pre-connect fulls
+	net.Connect(full1.ID(), full2.ID())
+	// ensure fulls and source are not connected
+	// so that fulls take data from light nodes only
+	net.Disconnect(full1.ID(), source.ID())
+	net.Disconnect(full2.ID(), source.ID())
+
+	// start reconstruction for fulls
+	errg, errCtx := errgroup.WithContext(ctx)
+	errg.Go(func() error {
+		return full1.SharesAvailable(errCtx, root)
+	})
+	errg.Go(func() error {
+		return full2.SharesAvailable(errCtx, root)
+	})
+
+	// create light nodes and start sampling for them immediately
+	lights1, lights2 := make([]*node, lightNodes/2), make([]*node, lightNodes/2)
+	for i := 0; i < len(lights1); i++ {
+		lights1[i] = net.LightNode()
+		go func(i int) {
+			err := lights1[i].SharesAvailable(ctx, root)
+			require.NoError(t, err)
+		}(i)
+
+		lights2[i] = net.LightNode()
+		go func(i int) {
+			err := lights2[i].SharesAvailable(ctx, root)
+			require.NoError(t, err)
+		}(i)
+	}
+
+	// shape topology
+	for i := 0; i < len(lights1); i++ {
+		// ensure lights1 are only connected to full1
+		net.Connect(lights1[i].ID(), full1.ID())
+		net.Disconnect(lights1[i].ID(), full2.ID())
+		// ensure lights2 are only connected to full2
+		net.Connect(lights2[i].ID(), full2.ID())
+		net.Disconnect(lights2[i].ID(), full1.ID())
+	}
+
+	// start connection lights with sources
+	for i := 0; i < len(lights1); i++ {
+		net.Connect(lights1[i].ID(), source.ID())
+		net.Connect(lights2[i].ID(), source.ID())
+	}
+
+	err := errg.Wait()
+	require.NoError(t, err)
+}
