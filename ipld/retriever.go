@@ -99,9 +99,10 @@ type retrievalSession struct {
 	sharesLks   []sync.Mutex
 	sharesCount uint32
 
-	squareLk sync.RWMutex
-	square   [][]byte
-	squareDn chan struct{}
+	squareLk  sync.RWMutex
+	square    [][]byte
+	squareSig chan struct{}
+	squareDn  chan struct{}
 }
 
 // newSession creates a new retrieval session and kicks off requesting process.
@@ -124,7 +125,8 @@ func (r *Retriever) newSession(ctx context.Context, dah *da.DataAvailabilityHead
 		quadrants: newQuadrants(dah),
 		sharesLks: make([]sync.Mutex, size*size),
 		square:    make([][]byte, size*size),
-		squareDn:  make(chan struct{}, 1),
+		squareSig: make(chan struct{}, 1),
+		squareDn:  make(chan struct{}),
 	}
 
 	square, err := rsmt2d.ImportExtendedDataSquare(ses.square, ses.codec, ses.treeFn)
@@ -141,11 +143,14 @@ func (r *Retriever) newSession(ctx context.Context, dah *da.DataAvailabilityHead
 // square reconstruction. "Attempt" because there is no way currently to
 // guarantee that reconstruction can be performed with the shares provided.
 func (rs *retrievalSession) Done() <-chan struct{} {
-	return rs.squareDn
+	return rs.squareSig
 }
 
 // Reconstruct tries to reconstruct the data square and returns it on success.
 func (rs *retrievalSession) Reconstruct() (*rsmt2d.ExtendedDataSquare, error) {
+	if rs.isReconstructed() {
+		return rs.squareImported, nil
+	}
 	// prevent further writes to the square
 	rs.squareLk.Lock()
 	defer rs.squareLk.Unlock()
@@ -168,7 +173,20 @@ func (rs *retrievalSession) Reconstruct() (*rsmt2d.ExtendedDataSquare, error) {
 		return nil, err
 	}
 	log.Infow("data square reconstructed", "data_hash", hex.EncodeToString(rs.dah.Hash()), "size", len(rs.dah.RowsRoots))
+	close(rs.squareDn)
 	return rs.squareImported, nil
+}
+
+// isReconstructed report true whether the square attached to the session
+// is already reconstructed.
+func (rs *retrievalSession) isReconstructed() bool {
+	select {
+	case <-rs.squareDn:
+		// return early if square is already reconstructed
+		return true
+	default:
+		return false
+	}
 }
 
 func (rs *retrievalSession) Close() error {
@@ -241,22 +259,28 @@ func (rs *retrievalSession) doRequest(ctx context.Context, q *quadrant) {
 					// if already locked and written - do nothing
 					return
 				}
-				// on success, write the share into the square
-				rs.squareLk.RLock()
-				// NOTE: The R lock here is *not* to protect rs.square from multiple
+				// The R lock here is *not* to protect rs.square from multiple
 				// concurrent shares writes but to avoid races between share writes and
 				// repairing attempts.
 				// Shares are written atomically in their own slice slots and these "writes" do
 				// not need synchronization!
+				rs.squareLk.RLock()
+				defer rs.squareLk.RUnlock()
+				// the routine could be blocked above for some time during which the square
+				// might be reconstructed, if so don't write anything and return
+				if rs.isReconstructed() {
+					return
+				}
 				rs.square[idx] = share
-				rs.squareLk.RUnlock()
 				// if we have >= 1/4 of the square we can start trying to Reconstruct
 				// TODO(@Wondertan): This is not an ideal way to know when to start
 				//  reconstruction and can cause idle reconstruction tries in some cases,
 				//  but it is totally fine for the happy case and for now.
+				//  The earlier we correctly know that we have the full square - the earlier
+				//  we cancel ongoing requests - the less data is being wastedly transferred.
 				if atomic.AddUint32(&rs.sharesCount, 1) >= uint32(size*size) {
 					select {
-					case rs.squareDn <- struct{}{}:
+					case rs.squareSig <- struct{}{}:
 					default:
 					}
 				}
