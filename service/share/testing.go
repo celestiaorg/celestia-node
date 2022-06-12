@@ -79,9 +79,20 @@ func RandShares(t *testing.T, n int) []Share {
 }
 
 type node struct {
+	net *dagNet
 	*Service
 	blockservice.BlockService
 	host.Host
+}
+
+func (n *node) ClearStorage() {
+	keys, err := n.Blockstore().AllKeysChan(n.net.ctx)
+	require.NoError(n.net.t, err)
+
+	for k := range keys {
+		err := n.DeleteBlock(k)
+		require.NoError(n.net.t, err)
+	}
 }
 
 type dagNet struct {
@@ -138,7 +149,11 @@ func (dn *dagNet) Node() *node {
 		bitswap.SetSimulateDontHavesOnTimeout(false),
 		bitswap.SetSendDontHaves(false),
 	)
-	nd := &node{BlockService: blockservice.New(bstore, bs), Host: hst}
+	nd := &node{
+		net:          dn,
+		BlockService: blockservice.New(bstore, bs),
+		Host:         hst,
+	}
 	dn.nodes = append(dn.nodes, nd)
 	return nd
 }
