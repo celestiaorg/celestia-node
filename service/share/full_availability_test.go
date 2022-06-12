@@ -2,6 +2,7 @@ package share
 
 import (
 	"context"
+	"math/rand"
 	"testing"
 	"time"
 
@@ -11,6 +12,12 @@ import (
 
 	"github.com/celestiaorg/celestia-node/ipld"
 )
+
+func init() {
+	ipld.RetrieveQuadrantTimeout = time.Millisecond * 100 // to speed up tests
+	// randomize quadrant fetching, otherwise quadrant sampling is deterministic
+	rand.Seed(time.Now().UnixNano())
+}
 
 func TestSharesAvailable_Full(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
@@ -35,45 +42,50 @@ func TestShareAvailableOverMocknet_Full(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-func TestShareAvailable_FullOverLights(t *testing.T) {
-	ipld.RetrieveQuadrantTimeout = time.Millisecond * 200
+// TestShareAvailable_OneFullNode asserts that a FullAvailability node can ensure
+// data is available(reconstruct data square) while being connected to
+// LightAvailability node's only.
+func TestShareAvailable_OneFullNode(t *testing.T) {
+	// NOTE: Numbers are taken from the original 'Fraud and Data Availability Proofs' paper
 	DefaultSampleAmount = 20 // s
-
 	const (
 		origSquareSize = 16 // k
 		lightNodes     = 69 // c
 	)
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*60)
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Minute)
 	defer cancel()
 
 	net := NewTestDAGNet(ctx, t)
 	source, root := net.RandFullNode(origSquareSize) // make a source node, a.k.a bridge
 	full := net.FullNode()                           // make a full availability service which reconstructs data
 
-	lights := make([]*node, lightNodes)
-	for i := 0; i < len(lights); i++ {
-		light := net.LightNode()
-		net.Connect(light.ID(), full.ID())
-		net.Connect(light.ID(), source.ID())
-		lights[i] = light
-	}
-
-	errg, errCtx := errgroup.WithContext(ctx)
-	for i := 0; i < len(lights); i++ {
-		i := i
-		errg.Go(func() error {
-			return lights[i].SharesAvailable(errCtx, root)
-		})
-	}
-
-	err := errg.Wait()
-	require.NoError(t, err)
-
 	// ensure there is no connection between source and full nodes
 	// so that full reconstructs from the light nodes only
 	net.Disconnect(source.ID(), full.ID())
 
-	err = full.SharesAvailable(ctx, root)
-	assert.NoError(t, err)
+	errg, errCtx := errgroup.WithContext(ctx)
+	errg.Go(func() error {
+		return full.SharesAvailable(errCtx, root)
+	})
+
+	lights := make([]*node, lightNodes)
+	for i := 0; i < len(lights); i++ {
+		lights[i] = net.LightNode()
+		go func(i int) {
+			err := lights[i].SharesAvailable(ctx, root)
+			require.NoError(t, err)
+		}(i)
+	}
+
+	for i := 0; i < len(lights); i++ {
+		net.Connect(lights[i].ID(), source.ID())
+	}
+
+	for i := 0; i < len(lights); i++ {
+		net.Connect(lights[i].ID(), full.ID())
+	}
+
+	err := errg.Wait()
+	require.NoError(t, err)
 }
