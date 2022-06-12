@@ -98,6 +98,7 @@ type retrievalSession struct {
 	quadrants   []*quadrant
 	squareLk    sync.RWMutex
 	square      [][]byte
+	sharesLks   []sync.Mutex
 	sharesCount uint32
 	done        chan struct{}
 }
@@ -121,6 +122,7 @@ func (r *Retriever) newSession(ctx context.Context, dah *da.DataAvailabilityHead
 		dah:       dah,
 		quadrants: newQuadrants(dah),
 		square:    make([][]byte, size*size),
+		sharesLks: make([]sync.Mutex, size*size),
 		done:      make(chan struct{}, 1),
 	}
 
@@ -224,29 +226,39 @@ func (rs *retrievalSession) doRequest(ctx context.Context, q *quadrant) {
 			// the left or the right side of the tree represent some portion of the quadrant
 			// which we put into the rs.square share-by-share by calculating shares' indexes using q.index
 			GetShares(ctx, rs.bget, nd.Links()[q.x].Cid, size, func(j int, share Share) {
-				// the R lock here is *not* to protect rs.square from multiple concurrent shares writes
-				// but to avoid races between share writes and repairing attempts
-				// shares are written atomically in their own slice slot
+				// NOTE: Each share can be fetched twice, from two sources(Row or Col).
+				// These shares are always equal, and we allow only the first one to be written
+				// in the square.
+				// NOTE-2: We never actually fetch shares from the network *twice*,
+				// and they are cached on IPLD(blockservice) level.
+				//
+				// calc index of the share
 				idx := q.index(i, j)
+				// try to lock the share
+				ok := rs.sharesLks[idx].TryLock()
+				if !ok {
+					// if already locked and written - do nothing
+					return
+				}
+				// on success, write the share into the square
 				rs.squareLk.RLock()
-				// write only set nil shares, because shares can be passed here
-				// twice for the same coordinate from row or column
-				// NOTE: we never actually fetch the share from the network twice,
-				//  and it is cached on IPLD(blockservice) level
-				if rs.square[idx] == nil {
-					rs.square[idx] = share
-					// if we have >= 1/4 of the square we can start trying to Reconstruct
-					// TODO(@Wondertan): This is not an ideal way to know when to start
-					//  reconstruction and can cause idle reconstruction tries in some cases,
-					//  but it is totally fine for the happy case and for now.
-					if atomic.AddUint32(&rs.sharesCount, 1) >= uint32(size*size) {
-						select {
-						case rs.done <- struct{}{}:
-						default:
-						}
+				// NOTE: The R lock here is *not* to protect rs.square from multiple
+				// concurrent shares writes but to avoid races between share writes and
+				// repairing attempts.
+				// Shares are written atomically in their own slice slots and these "writes" do
+				// not need synchronization!
+				rs.square[idx] = share
+				rs.squareLk.RUnlock()
+				// if we have >= 1/4 of the square we can start trying to Reconstruct
+				// TODO(@Wondertan): This is not an ideal way to know when to start
+				//  reconstruction and can cause idle reconstruction tries in some cases,
+				//  but it is totally fine for the happy case and for now.
+				if atomic.AddUint32(&rs.sharesCount, 1) >= uint32(size*size) {
+					select {
+					case rs.done <- struct{}{}:
+					default:
 					}
 				}
-				rs.squareLk.RUnlock()
 			})
 		}(i, root)
 	}
