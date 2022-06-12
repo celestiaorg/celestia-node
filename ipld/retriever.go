@@ -96,11 +96,12 @@ type retrievalSession struct {
 	squareImported *rsmt2d.ExtendedDataSquare
 
 	quadrants   []*quadrant
-	squareLk    sync.RWMutex
-	square      [][]byte
 	sharesLks   []sync.Mutex
 	sharesCount uint32
-	done        chan struct{}
+
+	squareLk sync.RWMutex
+	square   [][]byte
+	squareDn chan struct{}
 }
 
 // newSession creates a new retrieval session and kicks off requesting process.
@@ -121,9 +122,9 @@ func (r *Retriever) newSession(ctx context.Context, dah *da.DataAvailabilityHead
 		codec:     DefaultRSMT2DCodec(),
 		dah:       dah,
 		quadrants: newQuadrants(dah),
-		square:    make([][]byte, size*size),
 		sharesLks: make([]sync.Mutex, size*size),
-		done:      make(chan struct{}, 1),
+		square:    make([][]byte, size*size),
+		squareDn:  make(chan struct{}, 1),
 	}
 
 	square, err := rsmt2d.ImportExtendedDataSquare(ses.square, ses.codec, ses.treeFn)
@@ -140,7 +141,7 @@ func (r *Retriever) newSession(ctx context.Context, dah *da.DataAvailabilityHead
 // square reconstruction. "Attempt" because there is no way currently to
 // guarantee that reconstruction can be performed with the shares provided.
 func (rs *retrievalSession) Done() <-chan struct{} {
-	return rs.done
+	return rs.squareDn
 }
 
 // Reconstruct tries to reconstruct the data square and returns it on success.
@@ -255,7 +256,7 @@ func (rs *retrievalSession) doRequest(ctx context.Context, q *quadrant) {
 				//  but it is totally fine for the happy case and for now.
 				if atomic.AddUint32(&rs.sharesCount, 1) >= uint32(size*size) {
 					select {
-					case rs.done <- struct{}{}:
+					case rs.squareDn <- struct{}{}:
 					default:
 					}
 				}
