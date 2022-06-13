@@ -80,6 +80,8 @@ var fullCmd = &cobra.Command{
 			return err
 		}
 
+		env.AddOptions(node.WithTelemetry())
+
 		cmdnode.ParseKeyFlags(cmd, env)
 
 		return nil
