@@ -2,7 +2,16 @@ package fraud
 
 import (
 	"context"
+
+	logging "github.com/ipfs/go-log/v2"
+
+	"github.com/celestiaorg/celestia-node/header"
 )
+
+var log = logging.Logger("fraud")
+
+// headerFetcher aliases a function that is used to fetch an ExtendedHeader from store by height.
+type headerFetcher func(context.Context, uint64) (*header.ExtendedHeader, error)
 
 // ProofUnmarshaler aliases a function that parses data to `Proof`.
 type ProofUnmarshaler func([]byte) (Proof, error)
