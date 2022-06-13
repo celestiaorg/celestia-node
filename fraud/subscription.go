@@ -26,11 +26,8 @@ func (s *subscription) Proof(ctx context.Context) (Proof, error) {
 	if err != nil {
 		return nil, err
 	}
-	proof, err := s.unmarshaler(data.Data)
-	if err != nil {
-		return nil, err
-	}
-	return proof, nil
+
+	return s.unmarshaler(data.Data)
 }
 
 func (s *subscription) Cancel() {
