@@ -18,7 +18,7 @@ func newSubscription(t *topic) (*subscription, error) {
 		return nil, err
 	}
 
-	return &subscription{sub, t.codec}, nil
+	return &subscription{sub, t.unmarshal}, nil
 }
 
 func (s *subscription) Proof(ctx context.Context) (Proof, error) {

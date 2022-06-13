@@ -89,7 +89,7 @@ func (f *service) processIncoming(
 		log.Error("topic was not created")
 		return pubsub.ValidationReject
 	}
-	proof, err := t.codec(msg.Data)
+	proof, err := t.unmarshal(msg.Data)
 	if err != nil {
 		log.Errorw("unmarshaling header error", err)
 		return pubsub.ValidationReject

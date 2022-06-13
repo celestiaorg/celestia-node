@@ -9,8 +9,8 @@ import (
 
 // topic holds pubsub topic and unmarshaler of corresponded Fraud Proof
 type topic struct {
-	topic *pubsub.Topic
-	codec ProofUnmarshaler
+	topic     *pubsub.Topic
+	unmarshal ProofUnmarshaler
 }
 
 // publish allows to publish Fraud Proofs to the network
@@ -20,14 +20,14 @@ func (t *topic) publish(ctx context.Context, data []byte) error {
 
 // close removes unmarshaler and closes pubsub topic
 func (t *topic) close() error {
-	t.codec = nil
+	t.unmarshal = nil
 	return t.topic.Close()
 }
 
 func createTopic(
 	p *pubsub.PubSub,
 	proofType ProofType,
-	codec ProofUnmarshaler,
+	unmarshal ProofUnmarshaler,
 	val func(context.Context, ProofType, *pubsub.Message) pubsub.ValidationResult) (*topic, error) {
 	t, err := p.Join(getSubTopic(proofType))
 	if err != nil {
@@ -37,7 +37,7 @@ func createTopic(
 		return nil, err
 	}
 	log.Debugf("successfully subscribed to topic: %s", getSubTopic(proofType))
-	return &topic{topic: t, codec: codec}, nil
+	return &topic{topic: t, unmarshal: unmarshal}, nil
 }
 
 // registerValidator adds an internal validation to topic inside libp2p for provided ProofType.
