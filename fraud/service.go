@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/hex"
 	"errors"
+	"fmt"
 	"sync"
 	"time"
 
@@ -12,6 +13,7 @@ import (
 )
 
 const (
+	// fetchHeaderTimeout duration of GetByHeight request to fetch an ExtendedHeader.
 	fetchHeaderTimeout = time.Minute * 2
 )
 
@@ -39,14 +41,18 @@ func (f *service) Subscribe(proofType ProofType) (Subscription, error) {
 	t, ok := f.topics[proofType]
 	f.topicsLk.Unlock()
 	if !ok {
-		return nil, errors.New("fraud: unmarshaler for the given proof type is not registered")
+		return nil, fmt.Errorf("fraud: unmarshaler for %s proof is not registered", proofType)
 	}
 	return newSubscription(t)
 }
 
 func (f *service) RegisterUnmarshaler(proofType ProofType, u ProofUnmarshaler) error {
-	f.topicsLk.Lock()
-	defer f.topicsLk.Unlock()
+	f.topicsLk.RLock()
+	_, ok := f.topics[proofType]
+	f.topicsLk.RUnlock()
+	if ok {
+		return fmt.Errorf("fraud: unmarshaler for %s proof is registered", proofType)
+	}
 
 	t, err := f.pubsub.Join(getSubTopic(proofType))
 	if err != nil {
@@ -63,8 +69,9 @@ func (f *service) RegisterUnmarshaler(proofType ProofType, u ProofUnmarshaler) e
 	if err != nil {
 		return err
 	}
-
+	f.topicsLk.Lock()
 	f.topics[proofType] = &topic{topic: t, unmarshal: u}
+	f.topicsLk.Unlock()
 	return nil
 }
 
@@ -73,7 +80,7 @@ func (f *service) UnregisterUnmarshaler(proofType ProofType) error {
 	defer f.topicsLk.Unlock()
 	t, ok := f.topics[proofType]
 	if !ok {
-		return errors.New("fraud: unmarshaler for the given proof type is not registered")
+		return fmt.Errorf("fraud: unmarshaler for %s proof is not registered", proofType)
 	}
 	delete(f.topics, proofType)
 	return t.close()
@@ -89,7 +96,7 @@ func (f *service) Broadcast(ctx context.Context, p Proof) error {
 	t, ok := f.topics[p.Type()]
 	f.topicsLk.RUnlock()
 	if !ok {
-		return errors.New("fraud: unmarshaler for the given proof type is not registered")
+		return fmt.Errorf("fraud: unmarshaler for %s proof is not registered", p.Type())
 	}
 	return t.publish(ctx, bin)
 }
@@ -136,6 +143,7 @@ func (f *service) processIncoming(
 		return pubsub.ValidationReject
 	}
 	log.Warnw("received fraud proof", "proofType", proof.Type(),
+		"height", proof.Height(),
 		"hash", hex.EncodeToString(extHeader.DAH.Hash()),
 		"from", msg.ReceivedFrom.String(),
 	)
