@@ -3,7 +3,6 @@ package fraud
 import (
 	"context"
 
-	"github.com/libp2p/go-libp2p-core/peer"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 )
 
@@ -22,36 +21,4 @@ func (t *topic) publish(ctx context.Context, data []byte) error {
 func (t *topic) close() error {
 	t.unmarshal = nil
 	return t.topic.Close()
-}
-
-func createTopic(
-	p *pubsub.PubSub,
-	proofType ProofType,
-	unmarshal ProofUnmarshaler,
-	val func(context.Context, ProofType, *pubsub.Message) pubsub.ValidationResult) (*topic, error) {
-	t, err := p.Join(getSubTopic(proofType))
-	if err != nil {
-		return nil, err
-	}
-	if err = registerValidator(p, proofType, val); err != nil {
-		return nil, err
-	}
-	log.Debugf("successfully subscribed to topic: %s", getSubTopic(proofType))
-	return &topic{topic: t, unmarshal: unmarshal}, nil
-}
-
-// registerValidator adds an internal validation to topic inside libp2p for provided ProofType.
-func registerValidator(
-	p *pubsub.PubSub,
-	proofType ProofType,
-	val func(context.Context, ProofType, *pubsub.Message) pubsub.ValidationResult,
-) error {
-	return p.RegisterTopicValidator(
-		getSubTopic(proofType),
-		func(ctx context.Context, _ peer.ID, msg *pubsub.Message) pubsub.ValidationResult {
-			return val(ctx, proofType, msg)
-		},
-		// make validation synchronous.
-		pubsub.WithValidatorInline(true),
-	)
 }
