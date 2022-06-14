@@ -91,23 +91,14 @@ type Store interface {
 	// and waiting till the ongoing ones are done.
 	Stop(context.Context) error
 
+	// Getter encompasses all getter methods for headers.
+	Getter
+
 	// Init initializes Store with the given head, meaning it is initialized with the genesis header.
 	Init(context.Context, *ExtendedHeader) error
 
 	// Height reports current height of the chain head.
 	Height() uint64
-
-	// Head returns the ExtendedHeader of the chain head.
-	Head(context.Context) (*ExtendedHeader, error)
-
-	// Get returns the ExtendedHeader corresponding to the given hash.
-	Get(context.Context, tmbytes.HexBytes) (*ExtendedHeader, error)
-
-	// GetByHeight returns the ExtendedHeader corresponding to the given block height.
-	GetByHeight(context.Context, uint64) (*ExtendedHeader, error)
-
-	// GetRangeByHeight returns the given range [from:to) of ExtendedHeaders.
-	GetRangeByHeight(ctx context.Context, from, to uint64) ([]*ExtendedHeader, error)
 
 	// Has checks whether ExtendedHeader is already stored.
 	Has(context.Context, tmbytes.HexBytes) (bool, error)
@@ -123,7 +114,15 @@ type Store interface {
 // Getter contains the behavior necessary for a component to retrieve
 // headers that have been processed during header sync.
 type Getter interface {
-	// GetByHeight returns the ExtendedHeader corresponding to the given
-	// block height.
+	// Head returns the ExtendedHeader of the chain head.
+	Head(context.Context) (*ExtendedHeader, error)
+
+	// Get returns the ExtendedHeader corresponding to the given hash.
+	Get(context.Context, tmbytes.HexBytes) (*ExtendedHeader, error)
+
+	// GetByHeight returns the ExtendedHeader corresponding to the given block height.
 	GetByHeight(context.Context, uint64) (*ExtendedHeader, error)
+
+	// GetRangeByHeight returns the given range [from:to) of ExtendedHeaders.
+	GetRangeByHeight(ctx context.Context, from, to uint64) ([]*ExtendedHeader, error)
 }
