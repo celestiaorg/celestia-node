@@ -8,7 +8,6 @@ import (
 	logging "github.com/ipfs/go-log/v2"
 
 	"github.com/libp2p/go-libp2p-core/host"
-	"github.com/libp2p/go-libp2p-core/network"
 	"github.com/libp2p/go-libp2p-core/peer"
 )
 
@@ -17,8 +16,8 @@ const (
 	peersLimit = 5
 	// peerWeight total weight of discovered peers
 	peerWeight = 1000
-	// connectTimeout is timeout given to connect to discovered peer
-	connectTimeout = time.Minute
+	// connectionTimeout is timeout given to connect to discovered peer
+	connectionTimeout = time.Minute
 )
 
 var log = logging.Logger("discovery")
@@ -48,19 +47,17 @@ func (n *Notifee) HandlePeersFound(topic string, peers []peer.AddrInfo) error {
 		if peer.ID == n.host.ID() || len(peer.Addrs) == 0 || n.set.Contains(peer.ID) {
 			continue
 		}
-		if n.host.Network().Connectedness(peer.ID) != network.Connected {
-			ctx, cancel := context.WithTimeout(context.Background(), connectTimeout)
-			err := n.host.Connect(ctx, peer)
-			if err != nil {
-				cancel()
-				log.Warn(err)
-				continue
-			}
-			cancel()
+		ctx, cancel := context.WithTimeout(context.Background(), connectionTimeout)
+		err := n.host.Connect(ctx, peer)
+		cancel()
+		if err != nil {
+			log.Warn(err)
+			continue
 		}
 		log.Debugw("adding peer to cache", "id", peer.ID)
 		n.host.ConnManager().TagPeer(peer.ID, topic, peerWeight)
 		n.set.Add(peer.ID)
+
 	}
 	return nil
 }
