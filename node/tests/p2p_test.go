@@ -9,7 +9,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/libp2p/go-libp2p-core/event"
 	"github.com/libp2p/go-libp2p-core/host"
 	"github.com/libp2p/go-libp2p-core/network"
 	"github.com/libp2p/go-libp2p-core/peer"
@@ -85,7 +84,8 @@ Steps:
 3. Create full/light nodes with bridge node as bootsrapped peer
 4. Start full/light nodes
 5. Ensure that nodes are connected to bridge
-6. Check that full and light nodes are connected to each other
+6. Wait until light will find full node
+7. Check that full and light nodes are connected to each other
 */
 func TestBootstrapNodesFromBridgeNode(t *testing.T) {
 	sw := swamp.NewSwamp(t)
@@ -109,23 +109,26 @@ func TestBootstrapNodesFromBridgeNode(t *testing.T) {
 		node.WithRefreshRoutingTablePeriod(time.Second*30),
 	)
 	nodes := []*node.Node{full, light}
+	ch := make(chan struct{})
+	bundle := &network.NotifyBundle{}
+	bundle.ConnectedF = func(_ network.Network, conn network.Conn) {
+		if conn.RemotePeer() == full.Host.ID() {
+			ch <- struct{}{}
+		}
+	}
+	light.Host.Network().Notify(bundle)
+
 	for index := range nodes {
 		require.NoError(t, nodes[index].Start(ctx))
 		assert.Equal(t, *addr, nodes[index].Bootstrappers[0])
 		assert.True(t, nodes[index].Host.Network().Connectedness(addr.ID) == network.Connected)
 	}
-	sub, err := light.Host.EventBus().Subscribe(&event.EvtPeerConnectednessChanged{})
-	require.NoError(t, err)
-	defer sub.Close()
-	for p := range sub.Out() {
-		if ctx.Err() == context.DeadlineExceeded {
-			t.Fatal("peer was not found")
-		}
-		if ev, ok := p.(event.EvtPeerConnectednessChanged); ok {
-			if ev.Peer == full.Host.ID() && ev.Connectedness == network.Connected {
-				break
-			}
-		}
+
+	select {
+	case <-ctx.Done():
+		t.Fatal("peer was not found")
+	case <-ch:
+		break
 	}
 
 	addrFull := host.InfoFromHost(full.Host)
