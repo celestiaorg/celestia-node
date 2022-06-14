@@ -79,7 +79,6 @@ func (s *Service) Start(context.Context) error {
 	ctx, cancel := context.WithCancel(context.Background())
 	s.cancel = cancel
 	s.session = blockservice.NewSession(ctx, s.bServ)
-	s.Availability.Start(ctx)
 	return nil
 }
 
@@ -91,7 +90,6 @@ func (s *Service) Stop(context.Context) error {
 	s.cancel()
 	s.cancel = nil
 	s.session = nil
-	s.Availability.Stop()
 	return nil
 }
 

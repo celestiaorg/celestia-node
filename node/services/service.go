@@ -181,7 +181,7 @@ func LightAvailability(
 	lc.Append(fx.Hook{
 		OnStart: la.Start,
 		OnStop: func(ctx context.Context) error {
-			la.Stop(ctx)
+			_ = la.Stop(ctx)
 			return ca.Close(ctx)
 		},
 	})
@@ -201,7 +201,7 @@ func FullAvailability(
 	lc.Append(fx.Hook{
 		OnStart: fa.Start,
 		OnStop: func(ctx context.Context) error {
-			_ = fa.Stop(ctx) // nolint:errcheck
+			_ = fa.Stop(ctx)
 			return ca.Close(ctx)
 		},
 	})

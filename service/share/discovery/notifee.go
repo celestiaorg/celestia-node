@@ -14,20 +14,24 @@ import (
 )
 
 const (
+	// peersLimit is max amount of peers that will be discovered
 	peersLimit = 5
+	// peerWeight total weight of discovered peers
 	peerWeight = 1000
+	// connectTimeout is timeout given to connect to discovered peer
+	connectTimeout = time.Minute
 )
 
 var log = logging.Logger("discovery")
 
 // Notifee allows to receive and store discovered peers.
 type Notifee struct {
-	cache *PeerCache
-	host  host.Host
+	set  *peer.Set
+	host host.Host
 }
 
 // NewNotifee constructs new Notifee.
-func NewNotifee(cache *PeerCache, h host.Host) *Notifee {
+func NewNotifee(cache *peer.Set, h host.Host) *Notifee {
 	return &Notifee{
 		cache,
 		h,
@@ -37,39 +41,30 @@ func NewNotifee(cache *PeerCache, h host.Host) *Notifee {
 // HandlePeersFound receives peers and tries to establish a connection with them.
 // Peer will be added to PeerCache if connection succeeds.
 func (n *Notifee) HandlePeersFound(topic string, peers []peer.AddrInfo) error {
-	var (
-		ctx    context.Context
-		cancel context.CancelFunc
-	)
-
 	for _, peer := range peers {
-		if cancel != nil {
-			cancel()
-		}
-		if n.cache.Size() == peersLimit {
+		if n.set.Size() == peersLimit {
 			return errors.New("amount of peers reaches the limit")
 		}
 
-		if peer.ID == n.host.ID() || len(peer.Addrs) == 0 || n.cache.Has(peer.ID) {
+		if peer.ID == n.host.ID() || len(peer.Addrs) == 0 || n.set.Contains(peer.ID) {
 			continue
 		}
 		if n.host.Network().Connectedness(peer.ID) != network.Connected {
-			ctx, cancel = context.WithTimeout(context.Background(), time.Minute*1)
+			ctx, cancel := context.WithTimeout(context.Background(), connectTimeout)
 			err := n.host.Connect(ctx, peer)
 			if err != nil {
+				cancel()
 				log.Warn(err)
 				continue
 			}
+			cancel()
 		}
 		log.Debugw("adding peer to cache", "id", peer.ID)
 		n.host.ConnManager().TagPeer(peer.ID, topic, peerWeight)
-		n.cache.Add(peer.ID)
+		n.set.Add(peer.ID)
 		go n.emit(peer.ID, network.Connected)
 	}
 
-	if cancel != nil {
-		cancel()
-	}
 	return nil
 }
 
