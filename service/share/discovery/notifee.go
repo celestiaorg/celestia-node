@@ -7,7 +7,6 @@ import (
 
 	logging "github.com/ipfs/go-log/v2"
 
-	"github.com/libp2p/go-libp2p-core/event"
 	"github.com/libp2p/go-libp2p-core/host"
 	"github.com/libp2p/go-libp2p-core/network"
 	"github.com/libp2p/go-libp2p-core/peer"
@@ -62,20 +61,6 @@ func (n *Notifee) HandlePeersFound(topic string, peers []peer.AddrInfo) error {
 		log.Debugw("adding peer to cache", "id", peer.ID)
 		n.host.ConnManager().TagPeer(peer.ID, topic, peerWeight)
 		n.set.Add(peer.ID)
-		go n.emit(peer.ID, network.Connected)
 	}
-
 	return nil
-}
-
-func (n *Notifee) emit(id peer.ID, state network.Connectedness) {
-	emitter, err := n.host.EventBus().Emitter(&event.EvtPeerConnectednessChanged{})
-	if err != nil {
-		log.Warn(err)
-		return
-	}
-	err = emitter.Emit(event.EvtPeerConnectednessChanged{Peer: id, Connectedness: state})
-	if err != nil {
-		log.Warn(err)
-	}
 }
