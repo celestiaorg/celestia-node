@@ -83,7 +83,7 @@ func TestCacheAvailability_NoDuplicateSampling(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	// create root to cache
-	root := RandFillDAG(t, 16, mdutils.Bserv())
+	root := RandFillBS(t, 16, mdutils.Bserv())
 	// wrap dummyAvailability with a datastore
 	ds := sync.MutexWrap(datastore.NewMapDatastore())
 	ca := NewCacheAvailability(&dummyAvailability{counter: 0}, ds)
