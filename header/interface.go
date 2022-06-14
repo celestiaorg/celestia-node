@@ -116,3 +116,11 @@ type Getter interface {
 	// GetRangeByHeight returns the given range [from:to) of ExtendedHeaders.
 	GetRangeByHeight(ctx context.Context, from, to uint64) ([]*ExtendedHeader, error)
 }
+
+// Getter contains the behavior necessary for a component to retrieve
+// headers that have been processed during header sync.
+type Getter interface {
+	// GetByHeight returns the ExtendedHeader corresponding to the given
+	// block height.
+	GetByHeight(context.Context, uint64) (*ExtendedHeader, error)
+}
