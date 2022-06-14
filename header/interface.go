@@ -119,3 +119,11 @@ type Store interface {
 	// so caller can understand what given header was invalid, if any.
 	Append(context.Context, ...*ExtendedHeader) (int, error)
 }
+
+// Getter contains the behavior necessary for a component to retrieve
+// headers that have been processed during header sync.
+type Getter interface {
+	// GetByHeight returns the ExtendedHeader corresponding to the given
+	// block height.
+	GetByHeight(context.Context, uint64) (*ExtendedHeader, error)
+}

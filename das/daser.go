@@ -21,7 +21,7 @@ type DASer struct {
 
 	// getter allows the DASer to fetch an ExtendedHeader (EH) at a certain height
 	// and blocks until the EH has been processed by the header store.
-	getter HeaderGetter
+	getter header.Getter
 	// checkpoint store
 	cstore datastore.Datastore
 
@@ -37,7 +37,7 @@ type DASer struct {
 func NewDASer(
 	da share.Availability,
 	hsub header.Subscriber,
-	getter HeaderGetter,
+	getter header.Getter,
 	cstore datastore.Datastore,
 ) *DASer {
 	wrappedDS := wrapCheckpointStore(cstore)
