@@ -8,6 +8,7 @@ import (
 	format "github.com/ipfs/go-ipld-format"
 	"github.com/libp2p/go-libp2p-core/discovery"
 	"github.com/libp2p/go-libp2p-core/host"
+	"github.com/libp2p/go-libp2p-core/peer"
 
 	"github.com/celestiaorg/celestia-node/ipld"
 	disc "github.com/celestiaorg/celestia-node/service/share/discovery"
@@ -16,11 +17,11 @@ import (
 // DefaultSampleAmount sets the default amount of samples to be sampled from the network by lightAvailability.
 var DefaultSampleAmount = 16
 
-// lightAvailability implements Availability using Data Availability Sampling technique.
+// LightAvailability implements Availability using Data Availability Sampling technique.
 // It is light because it does not require the downloading of all the data to verify
 // its availability. It is assumed that there are a lot of lightAvailability instances
 // on the network doing sampling over the same Root to collectively verify its availability.
-type lightAvailability struct {
+type LightAvailability struct {
 	bserv      blockservice.BlockService
 	notifee    *disc.Notifee
 	discoverer discovery.Discoverer
@@ -30,10 +31,10 @@ type lightAvailability struct {
 }
 
 // NewLightAvailability creates a new light Availability.
-func NewLightAvailability(bserv blockservice.BlockService, d discovery.Discoverer, host host.Host) *lightAvailability {
-	la := &lightAvailability{
+func NewLightAvailability(bserv blockservice.BlockService, d discovery.Discoverer, host host.Host) *LightAvailability {
+	la := &LightAvailability{
 		bserv:      bserv,
-		notifee:    disc.NewNotifee(disc.NewPeerCache(), host),
+		notifee:    disc.NewNotifee(peer.NewSet(), host),
 		discoverer: d,
 	}
 	return la
@@ -41,7 +42,7 @@ func NewLightAvailability(bserv blockservice.BlockService, d discovery.Discovere
 
 // SharesAvailable randomly samples DefaultSamples amount of Shares committed to the given Root.
 // This way SharesAvailable subjectively verifies that Shares are available.
-func (la *lightAvailability) SharesAvailable(ctx context.Context, dah *Root) error {
+func (la *LightAvailability) SharesAvailable(ctx context.Context, dah *Root) error {
 	log.Debugw("Validate availability", "root", dah.Hash())
 	// We assume the caller of this method has already performed basic validation on the
 	// given dah/root. If for some reason this has not happened, the node should panic.
@@ -97,13 +98,14 @@ func (la *lightAvailability) SharesAvailable(ctx context.Context, dah *Root) err
 }
 
 // Start starts looking for a new peers in network.
-func (la *lightAvailability) Start(context.Context) error {
+func (la *LightAvailability) Start(context.Context) error {
 	la.ctx, la.cancel = context.WithCancel(context.Background())
 	disc.FindPeers(la.ctx, la.discoverer, la.notifee)
 	return nil
 }
 
 // Stop stops all discovery processes.
-func (la *lightAvailability) Stop(context.Context) {
+func (la *LightAvailability) Stop(context.Context) error {
 	la.cancel()
+	return nil
 }

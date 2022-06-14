@@ -7,17 +7,17 @@ import (
 	"github.com/ipfs/go-blockservice"
 	format "github.com/ipfs/go-ipld-format"
 	"github.com/libp2p/go-libp2p-core/discovery"
-
 	"github.com/libp2p/go-libp2p-core/host"
+	"github.com/libp2p/go-libp2p-core/peer"
 
 	"github.com/celestiaorg/celestia-node/ipld"
 	disc "github.com/celestiaorg/celestia-node/service/share/discovery"
 )
 
-// fullAvailability implements Availability using the full data square
+// FullAvailability implements Availability using the full data square
 // recovery technique. It is considered "full" because it is required
 // to download enough shares to fully reconstruct the data square.
-type fullAvailability struct {
+type FullAvailability struct {
 	notifee *disc.Notifee
 
 	rtrv    *ipld.Retriever
@@ -28,9 +28,9 @@ type fullAvailability struct {
 }
 
 // NewFullAvailability creates a new full Availability.
-func NewFullAvailability(bServ blockservice.BlockService, d discovery.Discovery, host host.Host) *fullAvailability {
-	fa := &fullAvailability{
-		notifee: disc.NewNotifee(disc.NewPeerCache(), host),
+func NewFullAvailability(bServ blockservice.BlockService, d discovery.Discovery, host host.Host) *FullAvailability {
+	fa := &FullAvailability{
+		notifee: disc.NewNotifee(peer.NewSet(), host),
 		rtrv:    ipld.NewRetriever(bServ),
 		service: d,
 	}
@@ -40,7 +40,7 @@ func NewFullAvailability(bServ blockservice.BlockService, d discovery.Discovery,
 
 // SharesAvailable reconstructs the data committed to the given Root by requesting
 // enough Shares from the network.
-func (fa *fullAvailability) SharesAvailable(ctx context.Context, root *Root) error {
+func (fa *FullAvailability) SharesAvailable(ctx context.Context, root *Root) error {
 	ctx, cancel := context.WithTimeout(ctx, AvailabilityTimeout)
 	defer cancel()
 	// we assume the caller of this method has already performed basic validation on the
@@ -64,7 +64,7 @@ func (fa *fullAvailability) SharesAvailable(ctx context.Context, root *Root) err
 }
 
 // Start announces to the network and then starts looking for new peers
-func (fa *fullAvailability) Start(context.Context) error {
+func (fa *FullAvailability) Start(context.Context) error {
 	fa.ctx, fa.cancel = context.WithCancel(context.Background())
 	disc.Advertise(fa.ctx, fa.service)
 	disc.FindPeers(fa.ctx, fa.service, fa.notifee)
@@ -72,7 +72,7 @@ func (fa *fullAvailability) Start(context.Context) error {
 }
 
 // Stop cancels all discovery processes.
-func (fa *fullAvailability) Stop(context.Context) error {
+func (fa *FullAvailability) Stop(context.Context) error {
 	fa.cancel()
 	return nil
 }

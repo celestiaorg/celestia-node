@@ -74,7 +74,12 @@ func RandFullServiceWithSquare(t *testing.T, n int) (*Service, *Root) {
 func RandLightLocalServiceWithSquare(t *testing.T, n int) (*Service, *Root) {
 	bServ := mdutils.Bserv()
 	ds := dssync.MutexWrap(ds.NewMapDatastore())
-	ca := NewCacheAvailability(NewLightAvailability(bServ), ds)
+	ca := NewCacheAvailability(
+		NewLightAvailability(
+			bServ,
+			discovery.NewRoutingDiscovery(routinghelpers.Null{}), nil),
+		ds,
+	)
 	return NewService(bServ, ca), RandFillDAG(t, n, bServ)
 }
 
@@ -83,7 +88,12 @@ func RandLightLocalServiceWithSquare(t *testing.T, n int) (*Service, *Root) {
 func RandFullLocalServiceWithSquare(t *testing.T, n int) (*Service, *Root) {
 	bServ := mdutils.Bserv()
 	ds := dssync.MutexWrap(ds.NewMapDatastore())
-	ca := NewCacheAvailability(NewFullAvailability(bServ), ds)
+	ca := NewCacheAvailability(
+		NewFullAvailability(
+			bServ,
+			discovery.NewRoutingDiscovery(routinghelpers.Null{}), nil),
+		ds,
+	)
 	return NewService(bServ, ca), RandFillDAG(t, n, bServ)
 }
 
@@ -195,7 +205,3 @@ func NewBrokenAvailability() Availability {
 func (b *brokenAvailability) SharesAvailable(context.Context, *Root) error {
 	return ErrNotAvailable
 }
-
-func (b *brokenAvailability) Start(context.Context) {}
-
-func (b *brokenAvailability) Stop(context.Context) {}
