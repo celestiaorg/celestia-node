@@ -249,9 +249,7 @@ func (rs *retrievalSession) doRequest(ctx context.Context, q *quadrant) {
 				// These shares are always equal, and we allow only the first one to be written
 				// in the square.
 				// NOTE-2: We never actually fetch shares from the network *twice*.
-				// Once a share is downloaded from the network it is cached on the 
-				// IPLD(blockservice) level.
-				//
+				// Once a share is downloaded from the network it is cached on the IPLD(blockservice) level.
 				// calc index of the share
 				idx := q.index(i, j)
 				// try to lock the share
