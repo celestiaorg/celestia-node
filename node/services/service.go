@@ -12,10 +12,12 @@ import (
 	"go.uber.org/fx"
 
 	"github.com/celestiaorg/celestia-node/das"
+	"github.com/celestiaorg/celestia-node/fraud"
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/header/p2p"
 	"github.com/celestiaorg/celestia-node/header/store"
 	"github.com/celestiaorg/celestia-node/header/sync"
+	"github.com/celestiaorg/celestia-node/libs/fxutil"
 	"github.com/celestiaorg/celestia-node/params"
 	headerservice "github.com/celestiaorg/celestia-node/service/header"
 	"github.com/celestiaorg/celestia-node/service/share"
@@ -23,16 +25,19 @@ import (
 
 // HeaderSyncer creates a new Syncer.
 func HeaderSyncer(
+	ctx context.Context,
 	lc fx.Lifecycle,
 	ex header.Exchange,
 	store header.Store,
 	sub header.Subscriber,
+	fsub fraud.Subscriber,
 ) (*sync.Syncer, error) {
 	syncer := sync.NewSyncer(ex, store, sub)
 	lc.Append(fx.Hook{
 		OnStart: syncer.Start,
 		OnStop:  syncer.Stop,
 	})
+	go fraud.OnBEFP(fxutil.WithLifecycle(ctx, lc), fsub, syncer.Stop)
 	return syncer, nil
 }
 
@@ -131,18 +136,30 @@ func ShareService(lc fx.Lifecycle, bServ blockservice.BlockService, avail share.
 
 // DASer constructs a new Data Availability Sampler.
 func DASer(
+	ctx context.Context,
 	lc fx.Lifecycle,
 	avail share.Availability,
 	sub header.Subscriber,
 	hstore header.Store,
 	ds datastore.Batching,
+	fservice fraud.Service,
 ) *das.DASer {
-	das := das.NewDASer(avail, sub, hstore, ds)
+	das := das.NewDASer(avail, sub, hstore, ds, fservice)
 	lc.Append(fx.Hook{
 		OnStart: das.Start,
 		OnStop:  das.Stop,
 	})
+	go fraud.OnBEFP(fxutil.WithLifecycle(ctx, lc), fservice, das.Stop)
 	return das
+}
+
+// FraudService constructs fraud proof service.
+func FraudService(sub *pubsub.PubSub, hstore header.Store) (fraud.Service, fraud.Service, error) {
+	f := fraud.NewService(sub, hstore.GetByHeight)
+	if err := f.RegisterUnmarshaler(fraud.BadEncoding, fraud.UnmarshalBEFP); err != nil {
+		return nil, nil, err
+	}
+	return f, f, nil
 }
 
 // LightAvailability constructs light share availability wrapped in cache availability.

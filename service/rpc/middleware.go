@@ -1,11 +1,17 @@
 package rpc
 
 import (
+	"errors"
 	"net/http"
+
+	"github.com/gorilla/mux"
+
+	"github.com/celestiaorg/celestia-node/service/state"
 )
 
 func (h *Handler) RegisterMiddleware(rpc *Server) {
 	rpc.RegisterMiddleware(setContentType)
+	rpc.RegisterMiddleware(checkAllowance(h.state))
 }
 
 func setContentType(next http.Handler) http.Handler {
@@ -13,4 +19,18 @@ func setContentType(next http.Handler) http.Handler {
 		w.Header().Add("Content-Type", "application/json")
 		next.ServeHTTP(w, r)
 	})
+}
+
+// checkAllowance ensures that context was canceled and prohibit POST requests.
+func checkAllowance(state *state.Service) mux.MiddlewareFunc {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			// check if state service was halted and deny the transaction
+			if r.Method == http.MethodPost && state.IsStopped() {
+				writeError(w, http.StatusMethodNotAllowed, r.URL.Path, errors.New("not possible to submit data"))
+				return
+			}
+			next.ServeHTTP(w, r)
+		})
+	}
 }

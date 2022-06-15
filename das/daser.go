@@ -2,13 +2,16 @@ package das
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
 	"github.com/ipfs/go-datastore"
 	logging "github.com/ipfs/go-log/v2"
 
+	"github.com/celestiaorg/celestia-node/fraud"
 	"github.com/celestiaorg/celestia-node/header"
+	"github.com/celestiaorg/celestia-node/ipld"
 	"github.com/celestiaorg/celestia-node/service/share"
 )
 
@@ -16,8 +19,9 @@ var log = logging.Logger("das")
 
 // DASer continuously validates availability of data committed to headers.
 type DASer struct {
-	da   share.Availability
-	hsub header.Subscriber
+	da    share.Availability
+	bcast fraud.Broadcaster
+	hsub  header.Subscriber
 
 	// getter allows the DASer to fetch an ExtendedHeader (EH) at a certain height
 	// and blocks until the EH has been processed by the header store.
@@ -25,6 +29,7 @@ type DASer struct {
 	// checkpoint store
 	cstore datastore.Datastore
 
+	ctx    context.Context
 	cancel context.CancelFunc
 
 	jobsCh chan *catchUpJob
@@ -39,10 +44,12 @@ func NewDASer(
 	hsub header.Subscriber,
 	getter header.Getter,
 	cstore datastore.Datastore,
+	bcast fraud.Broadcaster,
 ) *DASer {
 	wrappedDS := wrapCheckpointStore(cstore)
 	return &DASer{
 		da:        da,
+		bcast:     bcast,
 		hsub:      hsub,
 		getter:    getter,
 		cstore:    wrappedDS,
@@ -74,14 +81,23 @@ func (d *DASer) Start(context.Context) error {
 	log.Infow("loaded checkpoint", "height", checkpoint)
 
 	// kick off catch-up routine manager
-	go d.catchUpManager(dasCtx, checkpoint)
+	go d.catchUpManager(d.ctx, checkpoint)
 	// kick off sampling routine for recently received headers
-	go d.sample(dasCtx, sub, checkpoint)
+	go d.sample(d.ctx, sub, checkpoint)
 	return nil
 }
 
 // Stop stops sampling.
 func (d *DASer) Stop(ctx context.Context) error {
+	// Stop func can now be invoked twice in one Lifecycle, when:
+	// * BEFP is received;
+	// * node is stopping;
+	// this statement helps avoiding panic on the second Stop.
+	// If ctx.Err is not nil then it means that Stop was called for the first time.
+	// NOTE: we are expecting *only* ContextCancelled error here.
+	if d.ctx.Err() != nil {
+		return nil
+	}
 	d.cancel()
 	// wait for both sampling routines to exit
 	for i := 0; i < 2; i++ {
@@ -227,6 +243,7 @@ func (d *DASer) sampleHeader(ctx context.Context, h *header.ExtendedHeader) erro
 		if err == context.Canceled {
 			return nil
 		}
+		d.checkForByzantineError(d.ctx, uint64(h.Height), err)
 		log.Errorw("sampling failed", "height", h.Height, "hash", h.Hash(),
 			"square width", len(h.DAH.RowsRoots), "data root", h.DAH.Hash(), "err", err)
 		log.Warn("DASer WILL BE STOPPED. IN ORDER TO CONTINUE SAMPLING, RE-START THE NODE")
@@ -239,4 +256,14 @@ func (d *DASer) sampleHeader(ctx context.Context, h *header.ExtendedHeader) erro
 		"square width", len(h.DAH.RowsRoots), "finished (s)", sampleTime.Seconds())
 
 	return nil
+}
+
+func (d *DASer) checkForByzantineError(ctx context.Context, height uint64, err error) {
+	var byzantineErr *ipld.ErrByzantine
+	if errors.As(err, &byzantineErr) {
+		err := d.bcast.Broadcast(ctx, fraud.CreateBadEncodingProof([]byte("hash"), height, byzantineErr))
+		if err != nil {
+			log.Errorw("fraud proof propagating failed", "err", err)
+		}
+	}
 }

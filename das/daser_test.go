@@ -14,6 +14,7 @@ import (
 	"github.com/stretchr/testify/require"
 	tmbytes "github.com/tendermint/tendermint/libs/bytes"
 
+	"github.com/celestiaorg/celestia-node/fraud"
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/service/share"
 )
@@ -27,12 +28,12 @@ func TestDASerLifecycle(t *testing.T) {
 	bServ := mdutils.Bserv()
 
 	// 15 headers from the past and 15 future headers
-	mockGet, shareServ, sub := createDASerSubcomponents(t, bServ, 15, 15)
+	mockGet, shareServ, sub, mockService := createDASerSubcomponents(t, bServ, 15, 15)
 
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	t.Cleanup(cancel)
 
-	daser := NewDASer(shareServ, sub, mockGet, ds)
+	daser := NewDASer(shareServ, sub, mockGet, ds, mockService)
 
 	err := daser.Start(ctx)
 	require.NoError(t, err)
@@ -65,12 +66,12 @@ func TestDASer_Restart(t *testing.T) {
 	bServ := mdutils.Bserv()
 
 	// 15 headers from the past and 15 future headers
-	mockGet, shareServ, sub := createDASerSubcomponents(t, bServ, 15, 15)
+	mockGet, shareServ, sub, mockService := createDASerSubcomponents(t, bServ, 15, 15)
 
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	t.Cleanup(cancel)
 
-	daser := NewDASer(shareServ, sub, mockGet, ds)
+	daser := NewDASer(shareServ, sub, mockGet, ds, mockService)
 
 	err := daser.Start(ctx)
 	require.NoError(t, err)
@@ -127,12 +128,12 @@ func TestDASer_catchUp(t *testing.T) {
 	ds := ds_sync.MutexWrap(datastore.NewMapDatastore())
 	bServ := mdutils.Bserv()
 
-	mockGet, shareServ, _ := createDASerSubcomponents(t, bServ, 5, 0)
+	mockGet, shareServ, _, mockService := createDASerSubcomponents(t, bServ, 5, 0)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
 
-	daser := NewDASer(shareServ, nil, mockGet, ds)
+	daser := NewDASer(shareServ, nil, mockGet, ds, mockService)
 
 	type catchUpResult struct {
 		checkpoint int64
@@ -168,8 +169,8 @@ func TestDASer_catchUp_oneHeader(t *testing.T) {
 	ds := ds_sync.MutexWrap(datastore.NewMapDatastore())
 	bServ := mdutils.Bserv()
 
-	mockGet, shareServ, _ := createDASerSubcomponents(t, bServ, 6, 0)
-	daser := NewDASer(shareServ, nil, mockGet, ds)
+	mockGet, shareServ, _, mockService := createDASerSubcomponents(t, bServ, 6, 0)
+	daser := NewDASer(shareServ, nil, mockGet, ds, mockService)
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
 
@@ -209,10 +210,10 @@ func TestDASer_catchUp_oneHeader(t *testing.T) {
 
 func TestDASer_catchUp_fails(t *testing.T) {
 	ds := ds_sync.MutexWrap(datastore.NewMapDatastore())
-	dag := mdutils.Bserv()
+	bServ := mdutils.Bserv()
 
-	mockGet, _, _ := createDASerSubcomponents(t, dag, 6, 0)
-	daser := NewDASer(share.NewBrokenAvailability(), nil, mockGet, ds)
+	mockGet, _, _, mockService := createDASerSubcomponents(t, bServ, 6, 0)
+	daser := NewDASer(share.NewBrokenAvailability(), nil, mockGet, ds, mockService)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
@@ -259,7 +260,7 @@ func createDASerSubcomponents(
 	bServ blockservice.BlockService,
 	numGetter,
 	numSub int,
-) (*mockGetter, *share.Service, *header.DummySubscriber) {
+) (*mockGetter, *share.Service, *header.DummySubscriber, *fraud.DummyService) {
 	shareServ := share.NewService(bServ, share.NewLightAvailability(bServ))
 
 	mockGet := &mockGetter{
@@ -270,9 +271,10 @@ func createDASerSubcomponents(
 	mockGet.generateHeaders(t, bServ, 0, numGetter)
 
 	sub := new(header.DummySubscriber)
+	fraud := new(fraud.DummyService)
 	mockGet.fillSubWithHeaders(t, sub, bServ, numGetter, numGetter+numSub)
 
-	return mockGet, shareServ, sub
+	return mockGet, shareServ, sub, fraud
 }
 
 // fillSubWithHeaders generates `num` headers from the future for p2pSub to pipe through to DASer.
