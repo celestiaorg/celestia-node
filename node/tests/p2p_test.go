@@ -17,7 +17,7 @@ import (
 )
 
 /*
-Test-Case: Sync a Light Node with a Bridge Node
+Test-Case: Full/Light Nodes connection to Bridge as a Bootstapper
 Steps:
 1. Create a Bridge Node(BN)
 2. Start a BN
