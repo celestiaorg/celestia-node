@@ -51,14 +51,21 @@ func Advertise(ctx context.Context, a core.Advertiser) {
 // FindPeers starts peer discovery every 30 seconds until peer cache will not reach peersLimit.
 // Can be simplified when https://github.com/libp2p/go-libp2p/pull/1379 will be merged.
 func FindPeers(ctx context.Context, d *Discoverer) {
+	d.discoveryStatus.Store(true)
 	go func() {
 		t := time.NewTicker(interval * 3)
-		defer t.Stop()
+		defer func() {
+			t.Stop()
+			d.discoveryStatus.Store(false)
+		}()
 		for {
 			select {
 			case <-ctx.Done():
 				return
 			case <-t.C:
+				if d.set.Size() == PeersLimit {
+					return
+				}
 				peers, err := discovery.FindPeers(ctx, d.discoverer, namespace)
 				if err != nil {
 					continue
