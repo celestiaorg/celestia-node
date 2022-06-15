@@ -27,18 +27,14 @@ import (
 
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/ipld"
+	disc "github.com/celestiaorg/celestia-node/service/share/discovery"
 )
 
 // RandLightServiceWithSquare provides a share.Service filled with 'n' NMT
 // trees of 'n' random shares, essentially storing a whole square.
 func RandLightServiceWithSquare(t *testing.T, n int) (*Service, *Root) {
 	bServ := mdutils.Bserv()
-	return NewService(bServ, NewLightAvailability(
-		bServ,
-		discovery.NewRoutingDiscovery(
-			routinghelpers.Null{}),
-		nil),
-	), RandFillDAG(t, n, bServ)
+	return NewService(bServ, NewLightAvailability(bServ)), RandFillDAG(t, n, bServ)
 
 }
 
@@ -46,12 +42,7 @@ func RandLightServiceWithSquare(t *testing.T, n int) (*Service, *Root) {
 // blockservice.BlockService than can be filled by the test.
 func RandLightService() (*Service, blockservice.BlockService) {
 	bServ := mdutils.Bserv()
-	return NewService(bServ, NewLightAvailability(
-		bServ,
-		discovery.NewRoutingDiscovery(
-			routinghelpers.Null{}),
-		nil),
-	), bServ
+	return NewService(bServ, NewLightAvailability(bServ)), bServ
 }
 
 // RandFullServiceWithSquare provides a share.Service filled with 'n' NMT
@@ -60,12 +51,7 @@ func RandFullServiceWithSquare(t *testing.T, n int) (*Service, *Root) {
 	bServ := mdutils.Bserv()
 	return NewService(
 		bServ,
-		NewLightAvailability(
-			bServ,
-			discovery.NewRoutingDiscovery(
-				routinghelpers.Null{}),
-			nil,
-		),
+		NewLightAvailability(bServ),
 	), RandFillDAG(t, n, bServ)
 }
 
@@ -75,10 +61,9 @@ func RandLightLocalServiceWithSquare(t *testing.T, n int) (*Service, *Root) {
 	bServ := mdutils.Bserv()
 	ds := dssync.MutexWrap(ds.NewMapDatastore())
 	ca := NewCacheAvailability(
-		NewLightAvailability(
-			bServ,
-			discovery.NewRoutingDiscovery(routinghelpers.Null{}), nil),
+		NewLightAvailability(bServ),
 		ds,
+		disc.NewDiscoverer(nil, nil, discovery.NewRoutingDiscovery(routinghelpers.Null{})),
 	)
 	return NewService(bServ, ca), RandFillDAG(t, n, bServ)
 }
@@ -89,10 +74,9 @@ func RandFullLocalServiceWithSquare(t *testing.T, n int) (*Service, *Root) {
 	bServ := mdutils.Bserv()
 	ds := dssync.MutexWrap(ds.NewMapDatastore())
 	ca := NewCacheAvailability(
-		NewFullAvailability(
-			bServ,
-			discovery.NewRoutingDiscovery(routinghelpers.Null{}), nil),
+		NewFullAvailability(bServ),
 		ds,
+		disc.NewDiscoverer(nil, nil, discovery.NewRoutingDiscovery(routinghelpers.Null{})),
 	)
 	return NewService(bServ, ca), RandFillDAG(t, n, bServ)
 }
@@ -139,26 +123,12 @@ func NewDAGNet(ctx context.Context, t *testing.T) *DAGNet {
 
 func (dn *DAGNet) RandLightService(n int) (*Service, *Root) {
 	bServ, root := dn.RandDAG(n)
-	return NewService(
-		bServ,
-		NewLightAvailability(
-			bServ,
-			discovery.NewRoutingDiscovery(
-				routinghelpers.Null{}),
-			nil),
-	), root
+	return NewService(bServ, NewLightAvailability(bServ)), root
 }
 
 func (dn *DAGNet) RandFullService(n int) (*Service, *Root) {
 	bServ, root := dn.RandDAG(n)
-	return NewService(
-		bServ,
-		NewLightAvailability(
-			bServ,
-			discovery.NewRoutingDiscovery(
-				routinghelpers.Null{}),
-			nil),
-	), root
+	return NewService(bServ, NewLightAvailability(bServ)), root
 }
 
 func (dn *DAGNet) RandDAG(n int) (blockservice.BlockService, *Root) {
@@ -168,11 +138,7 @@ func (dn *DAGNet) RandDAG(n int) (blockservice.BlockService, *Root) {
 
 func (dn *DAGNet) CleanService() *Service {
 	bServ := dn.CleanDAG()
-	return NewService(bServ, NewLightAvailability(
-		bServ,
-		discovery.NewRoutingDiscovery(
-			routinghelpers.Null{}),
-		nil))
+	return NewService(bServ, NewLightAvailability(bServ))
 }
 
 func (dn *DAGNet) CleanDAG() blockservice.BlockService {

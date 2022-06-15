@@ -260,7 +260,7 @@ func createDASerSubcomponents(
 	numGetter,
 	numSub int,
 ) (*mockGetter, *share.Service, *header.DummySubscriber) {
-	shareServ := share.NewService(bServ, share.NewLightAvailability(bServ, nil, nil))
+	shareServ := share.NewService(bServ, share.NewLightAvailability(bServ))
 
 	mockGet := &mockGetter{
 		headers: make(map[int64]*header.ExtendedHeader),

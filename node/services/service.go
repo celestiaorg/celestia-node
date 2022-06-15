@@ -18,9 +18,11 @@ import (
 	"github.com/celestiaorg/celestia-node/header/p2p"
 	"github.com/celestiaorg/celestia-node/header/store"
 	"github.com/celestiaorg/celestia-node/header/sync"
+	"github.com/celestiaorg/celestia-node/libs/fxutil"
 	"github.com/celestiaorg/celestia-node/params"
 	headerservice "github.com/celestiaorg/celestia-node/service/header"
 	"github.com/celestiaorg/celestia-node/service/share"
+	disc "github.com/celestiaorg/celestia-node/service/share/discovery"
 )
 
 // HeaderSyncer creates a new Syncer.
@@ -155,38 +157,33 @@ func LightAvailability(
 	r routing.ContentRouting,
 	h host.Host,
 ) share.Availability {
-	la := share.NewLightAvailability(
-		bServ,
-		discovery.NewRoutingDiscovery(r),
-		h,
-	)
-	ca := share.NewCacheAvailability(la, ds)
+	discoverer := disc.NewDiscoverer(disc.NewLimitedSet(disc.PeersLimit), h, discovery.NewRoutingDiscovery(r))
+	ca := share.NewCacheAvailability(share.NewLightAvailability(bServ), ds, discoverer)
 	lc.Append(fx.Hook{
-		OnStart: la.Start,
-		OnStop: func(ctx context.Context) error {
-			_ = la.Stop(ctx)
-			return ca.Close(ctx)
-		},
+		OnStart: ca.Start,
+		OnStop:  ca.Close,
 	})
 	return ca
 }
 
 // FullAvailability constructs full share availability wrapped in cache availability.
 func FullAvailability(
+	ctx context.Context,
 	lc fx.Lifecycle,
 	bServ blockservice.BlockService,
 	ds datastore.Batching,
 	r routing.ContentRouting,
 	h host.Host,
 ) share.Availability {
-	fa := share.NewFullAvailability(bServ, discovery.NewRoutingDiscovery(r), h)
-	ca := share.NewCacheAvailability(fa, ds)
+	service := discovery.NewRoutingDiscovery(r)
+	discoverer := disc.NewDiscoverer(disc.NewLimitedSet(disc.PeersLimit), h, service)
+	ca := share.NewCacheAvailability(share.NewFullAvailability(bServ), ds, discoverer)
 	lc.Append(fx.Hook{
-		OnStart: fa.Start,
-		OnStop: func(ctx context.Context) error {
-			_ = fa.Stop(ctx)
-			return ca.Close(ctx)
+		OnStart: func(context.Context) error {
+			disc.Advertise(fxutil.WithLifecycle(ctx, lc), service)
+			return ca.Start(ctx)
 		},
+		OnStop: ca.Close,
 	})
 	return ca
 }

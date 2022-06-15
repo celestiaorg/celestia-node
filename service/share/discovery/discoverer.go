@@ -7,6 +7,7 @@ import (
 
 	logging "github.com/ipfs/go-log/v2"
 
+	"github.com/libp2p/go-libp2p-core/discovery"
 	"github.com/libp2p/go-libp2p-core/host"
 	"github.com/libp2p/go-libp2p-core/peer"
 )
@@ -22,46 +23,53 @@ const (
 
 var log = logging.Logger("discovery")
 
-// Notifee allows to receive and store discovered peers.
-type Notifee struct {
+// Discoverer finds and stores discovered full nodes.
+type Discoverer struct {
 	set  *LimitedSet
 	host host.Host
+
+	discoverer discovery.Discoverer
 }
 
-// NewNotifee constructs new Notifee.
-func NewNotifee(set *LimitedSet, h host.Host) *Notifee {
-	return &Notifee{
+func (d *Discoverer) Start(ctx context.Context) {
+	FindPeers(ctx, d)
+}
+
+// NewDiscoverer constructs new Discoverer.
+func NewDiscoverer(set *LimitedSet, h host.Host, d discovery.Discoverer) *Discoverer {
+	return &Discoverer{
 		set,
 		h,
+		d,
 	}
 }
 
-// HandlePeersFound receives peers and tries to establish a connection with them.
+// handlePeersFound receives peers and tries to establish a connection with them.
 // Peer will be added to PeerCache if connection succeeds.
-func (n *Notifee) HandlePeersFound(topic string, peers []peer.AddrInfo) error {
+func (d *Discoverer) handlePeersFound(topic string, peers []peer.AddrInfo) error {
 	for _, peer := range peers {
-		if n.set.Size() == PeersLimit {
+		if d.set.Size() == PeersLimit {
 			return errors.New("amount of peers reaches the limit")
 		}
 
-		if peer.ID == n.host.ID() || len(peer.Addrs) == 0 || n.set.Contains(peer.ID) {
+		if peer.ID == d.host.ID() || len(peer.Addrs) == 0 || d.set.Contains(peer.ID) {
 			continue
 		}
-		err := n.set.TryAdd(peer.ID)
+		err := d.set.TryAdd(peer.ID)
 		if err != nil {
 			return err
 		}
 
 		ctx, cancel := context.WithTimeout(context.Background(), connectionTimeout)
-		err = n.host.Connect(ctx, peer)
+		err = d.host.Connect(ctx, peer)
 		cancel()
 		if err != nil {
 			log.Warn(err)
-			n.set.Remove(peer.ID)
+			d.set.Remove(peer.ID)
 			continue
 		}
 		log.Debugw("added peer to set", "id", peer.ID)
-		n.host.ConnManager().TagPeer(peer.ID, topic, peerWeight)
+		d.host.ConnManager().TagPeer(peer.ID, topic, peerWeight)
 	}
 	return nil
 }
