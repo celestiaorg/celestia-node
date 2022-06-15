@@ -13,6 +13,13 @@ const (
 	interval  = time.Second * 10
 )
 
+var (
+	// waitF calculates time to restart announcing.
+	waitF = func(ttl time.Duration) time.Duration {
+		return 7 * ttl / 8
+	}
+)
+
 // Advertise is a utility function that persistently advertises a service through an Advertiser.
 func Advertise(ctx context.Context, a core.Advertiser) {
 	go func() {
@@ -32,9 +39,8 @@ func Advertise(ctx context.Context, a core.Advertiser) {
 				}
 			}
 
-			wait := 7 * ttl / 8
 			select {
-			case <-time.After(wait):
+			case <-time.After(waitF(ttl)):
 			case <-ctx.Done():
 				return
 			}
@@ -42,7 +48,7 @@ func Advertise(ctx context.Context, a core.Advertiser) {
 	}()
 }
 
-// FindPeers starts peer discovery every 2 minutes until peer cache will not reach peersLimit.
+// FindPeers starts peer discovery every 30 seconds until peer cache will not reach peersLimit.
 // Can be simplified when https://github.com/libp2p/go-libp2p/pull/1379 will be merged.
 func FindPeers(ctx context.Context, d core.Discoverer, n *Notifee) {
 	go func() {
