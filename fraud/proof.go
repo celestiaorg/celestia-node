@@ -26,6 +26,8 @@ func (p ProofType) String() string {
 type Proof interface {
 	// Type returns the exact type of fraud proof
 	Type() ProofType
+	// Hash returns the block hash.
+	Hash() string
 	// Height returns the block height corresponding to the Proof
 	Height() uint64
 	// Validate check the validity of fraud proof.

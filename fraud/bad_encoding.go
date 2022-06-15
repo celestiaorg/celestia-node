@@ -19,6 +19,7 @@ import (
 )
 
 type BadEncodingProof struct {
+	BlockHash   string
 	BlockHeight uint64
 	// ShareWithProof contains all shares from row or col.
 	// Shares that did not pass verification in rmst2d will be nil.
@@ -33,11 +34,13 @@ type BadEncodingProof struct {
 // CreateBadEncodingProof creates a new Bad Encoding Fraud Proof that should be propagated through network
 // The fraud proof will contain shares that did not pass verification and their relevant Merkle proofs.
 func CreateBadEncodingProof(
+	hash string,
 	height uint64,
 	errByzantine *ipld.ErrByzantine,
 ) Proof {
 
 	return &BadEncodingProof{
+		BlockHash:   hash,
 		BlockHeight: height,
 		Shares:      errByzantine.Shares,
 		isRow:       errByzantine.IsRow,
@@ -48,6 +51,11 @@ func CreateBadEncodingProof(
 // Type returns type of fraud proof
 func (p *BadEncodingProof) Type() ProofType {
 	return BadEncoding
+}
+
+// Hash returns block height.
+func (p *BadEncodingProof) Hash() string {
+	return p.BlockHash
 }
 
 // Height returns block height
@@ -63,6 +71,7 @@ func (p *BadEncodingProof) MarshalBinary() ([]byte, error) {
 	}
 
 	badEncodingFraudProof := pb.BadEncoding{
+		Hash:   p.BlockHash,
 		Height: p.BlockHeight,
 		Shares: shares,
 		Index:  uint32(p.Index),
@@ -87,6 +96,7 @@ func (p *BadEncodingProof) UnmarshalBinary(data []byte) error {
 		return err
 	}
 	befp := &BadEncodingProof{
+		BlockHash:   in.Hash,
 		BlockHeight: in.Height,
 		Shares:      ipld.ProtoToShare(in.Shares),
 	}
