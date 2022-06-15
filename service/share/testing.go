@@ -22,6 +22,7 @@ import (
 	"github.com/tendermint/tendermint/pkg/da"
 
 	"github.com/celestiaorg/celestia-node/ipld"
+	disc "github.com/celestiaorg/celestia-node/service/share/discovery"
 )
 
 // RandLightServiceWithSquare provides a share.Service filled with 'n' NMT
@@ -41,12 +42,7 @@ func RandLightServiceWithSquare(t *testing.T, n int) (*Service, *Root) {
 // blockservice.BlockService than can be filled by the test.
 func RandLightService() (*Service, blockservice.BlockService) {
 	bServ := mdutils.Bserv()
-	return NewService(bServ, NewLightAvailability(
-		bServ,
-		discovery.NewRoutingDiscovery(
-			routinghelpers.Null{}),
-		nil),
-	), bServ
+	return NewService(bServ, NewLightAvailability(bServ)), bServ
 }
 
 // RandFullServiceWithSquare provides a share.Service filled with 'n' NMT
@@ -70,10 +66,9 @@ func RandLightLocalServiceWithSquare(t *testing.T, n int) (*Service, *Root) {
 	bServ := mdutils.Bserv()
 	ds := dssync.MutexWrap(ds.NewMapDatastore())
 	ca := NewCacheAvailability(
-		NewLightAvailability(
-			bServ,
-			discovery.NewRoutingDiscovery(routinghelpers.Null{}), nil),
+		NewLightAvailability(bServ),
 		ds,
+		disc.NewDiscoverer(nil, nil, discovery.NewRoutingDiscovery(routinghelpers.Null{})),
 	)
 	return NewService(bServ, ca), RandFillBS(t, n, bServ)
 }
@@ -84,10 +79,9 @@ func RandFullLocalServiceWithSquare(t *testing.T, n int) (*Service, *Root) {
 	bServ := mdutils.Bserv()
 	ds := dssync.MutexWrap(ds.NewMapDatastore())
 	ca := NewCacheAvailability(
-		NewFullAvailability(
-			bServ,
-			discovery.NewRoutingDiscovery(routinghelpers.Null{}), nil),
+		NewFullAvailability(bServ),
 		ds,
+		disc.NewDiscoverer(nil, nil, discovery.NewRoutingDiscovery(routinghelpers.Null{})),
 	)
 	return NewService(bServ, ca), RandFillBS(t, n, bServ)
 }

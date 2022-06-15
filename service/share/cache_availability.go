@@ -9,6 +9,8 @@ import (
 	"github.com/ipfs/go-datastore/autobatch"
 	"github.com/ipfs/go-datastore/namespace"
 	"github.com/tendermint/tendermint/pkg/da"
+
+	"github.com/celestiaorg/celestia-node/service/share/discovery"
 )
 
 var (
@@ -26,23 +28,25 @@ var (
 // and stores the results of a successful sampling routine over a given Root's hash
 // to disk.
 type CacheAvailability struct {
-	avail Availability
-
+	avail  Availability
+	cancel context.CancelFunc
 	// TODO(@Wondertan): Once we come to parallelized DASer, this lock becomes a contention point
 	//  Related to #483
-	dsLk sync.RWMutex
-	ds   *autobatch.Datastore
+	dsLk       sync.RWMutex
+	ds         *autobatch.Datastore
+	discoverer *discovery.Discoverer
 }
 
 // NewCacheAvailability wraps the given Availability with an additional datastore
 // for sampling result caching.
-func NewCacheAvailability(avail Availability, ds datastore.Batching) *CacheAvailability {
+func NewCacheAvailability(avail Availability, ds datastore.Batching, d *discovery.Discoverer) *CacheAvailability {
 	ds = namespace.Wrap(ds, cacheAvailabilityPrefix)
 	autoDS := autobatch.NewAutoBatching(ds, DefaultWriteBatchSize)
 
 	return &CacheAvailability{
-		avail: avail,
-		ds:    autoDS,
+		avail:      avail,
+		ds:         autoDS,
+		discoverer: d,
 	}
 }
 
@@ -80,9 +84,18 @@ func (ca *CacheAvailability) ProbabilityOfAvailability() float64 {
 	return ca.avail.ProbabilityOfAvailability()
 }
 
+// Start starts looking for a new peers in network.
+func (ca *CacheAvailability) Start(context.Context) error {
+	ctx, cancel := context.WithCancel(context.Background())
+	ca.cancel = cancel
+	ca.discoverer.Start(ctx)
+	return nil
+}
+
 // Close flushes all queued writes to disk.
-func (ca *CacheAvailability) Close(ctx context.Context) error {
-	return ca.ds.Flush(ctx)
+func (ca *CacheAvailability) Close(context.Context) error {
+	ca.cancel()
+	return ca.ds.Flush()
 }
 
 func rootKey(root *Root) datastore.Key {

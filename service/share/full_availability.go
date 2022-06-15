@@ -6,32 +6,21 @@ import (
 
 	"github.com/ipfs/go-blockservice"
 	format "github.com/ipfs/go-ipld-format"
-	"github.com/libp2p/go-libp2p-core/discovery"
-	"github.com/libp2p/go-libp2p-core/host"
 
 	"github.com/celestiaorg/celestia-node/ipld"
-	disc "github.com/celestiaorg/celestia-node/service/share/discovery"
 )
 
 // FullAvailability implements Availability using the full data square
 // recovery technique. It is considered "full" because it is required
 // to download enough shares to fully reconstruct the data square.
 type FullAvailability struct {
-	notifee *disc.Notifee
-
-	rtrv    *ipld.Retriever
-	service discovery.Discovery
-
-	ctx    context.Context
-	cancel context.CancelFunc
+	rtrv *ipld.Retriever
 }
 
 // NewFullAvailability creates a new full Availability.
-func NewFullAvailability(bServ blockservice.BlockService, d discovery.Discovery, host host.Host) *FullAvailability {
+func NewFullAvailability(bServ blockservice.BlockService) *FullAvailability {
 	fa := &FullAvailability{
-		notifee: disc.NewNotifee(disc.NewLimitedSet(disc.PeersLimit), host),
-		rtrv:    ipld.NewRetriever(bServ),
-		service: d,
+		rtrv: ipld.NewRetriever(bServ),
 	}
 
 	return fa

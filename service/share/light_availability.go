@@ -7,11 +7,8 @@ import (
 
 	"github.com/ipfs/go-blockservice"
 	format "github.com/ipfs/go-ipld-format"
-	"github.com/libp2p/go-libp2p-core/discovery"
-	"github.com/libp2p/go-libp2p-core/host"
 
 	"github.com/celestiaorg/celestia-node/ipld"
-	disc "github.com/celestiaorg/celestia-node/service/share/discovery"
 )
 
 // DefaultSampleAmount sets the default amount of samples to be sampled from the network by lightAvailability.
@@ -22,20 +19,13 @@ var DefaultSampleAmount = 16
 // its availability. It is assumed that there are a lot of lightAvailability instances
 // on the network doing sampling over the same Root to collectively verify its availability.
 type LightAvailability struct {
-	bserv      blockservice.BlockService
-	notifee    *disc.Notifee
-	discoverer discovery.Discoverer
-
-	ctx    context.Context
-	cancel context.CancelFunc
+	bserv blockservice.BlockService
 }
 
 // NewLightAvailability creates a new light Availability.
-func NewLightAvailability(bserv blockservice.BlockService, d discovery.Discoverer, host host.Host) *LightAvailability {
+func NewLightAvailability(bserv blockservice.BlockService) *LightAvailability {
 	la := &LightAvailability{
-		bserv:      bserv,
-		notifee:    disc.NewNotifee(disc.NewLimitedSet(disc.PeersLimit), host),
-		discoverer: d,
+		bserv: bserv,
 	}
 	return la
 }

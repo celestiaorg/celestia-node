@@ -11,7 +11,6 @@ import (
 	exchange "github.com/ipfs/go-ipfs-exchange-interface"
 	"github.com/libp2p/go-libp2p-core/host"
 	"github.com/libp2p/go-libp2p-core/protocol"
-	"github.com/libp2p/go-libp2p-core/routing"
 	routinghelpers "github.com/libp2p/go-libp2p-routing-helpers"
 	"go.uber.org/fx"
 
@@ -65,6 +64,5 @@ type bitSwapParams struct {
 	Net  nparams.Network
 	Lc   fx.Lifecycle
 	Host host.Host
-	Cr   routing.ContentRouting
 	Ds   datastore.Batching
 }
