@@ -4,32 +4,26 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 
 	mdutils "github.com/ipfs/go-merkledag/test"
 	"github.com/stretchr/testify/require"
-	"github.com/tendermint/tendermint/pkg/da"
 
-	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/ipld"
 )
 
 func TestFraudProofValidation(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*15)
+	defer t.Cleanup(cancel)
 	bServ := mdutils.Bserv()
-	eds := ipld.RandEDS(t, 2)
-
-	shares := ipld.ExtractEDS(eds)
-	copy(shares[3][8:], shares[4][8:])
-	eds, err := ipld.ImportShares(context.Background(), shares, bServ)
+	_, store := createService(t)
+	h, err := store.GetByHeight(ctx, 1)
 	require.NoError(t, err)
-	da := da.NewDataAvailabilityHeader(eds)
-	r := ipld.NewRetriever(bServ)
-	_, err = r.Retrieve(context.Background(), &da)
+
+	faultDAH, err := generateByzantineError(ctx, t, h, bServ)
 	var errByz *ipld.ErrByzantine
 	require.True(t, errors.As(err, &errByz))
-
-	dah := &header.ExtendedHeader{DAH: &da}
-
-	p := CreateBadEncodingProof([]byte("hash"), uint64(dah.Height), errByz)
-	err = p.Validate(dah)
+	p := CreateBadEncodingProof([]byte("hash"), uint64(faultDAH.Height), errByz)
+	err = p.Validate(faultDAH)
 	require.NoError(t, err)
 }
