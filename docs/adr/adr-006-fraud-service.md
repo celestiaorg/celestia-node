@@ -10,6 +10,7 @@
   * changed from NamespaceShareWithProof to ShareWithProof;
   * made ProofUnmarshaler public and extended return params;
   * fixed typo issues;
+- 2022.06.15 - Extend Proof interface with Hash method
 
 ## Authors
 
@@ -117,6 +118,7 @@ type ProofType int
 // Proof is a generic interface that will be used for all types of fraud proofs in the network.
 type Proof interface {
    Type() ProofType
+   Hash() string
    Height() (uint64, error)
    Validate(*header.ExtendedHeader) error
 
