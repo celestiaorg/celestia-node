@@ -8,7 +8,6 @@ import (
 	format "github.com/ipfs/go-ipld-format"
 	"github.com/libp2p/go-libp2p-core/discovery"
 	"github.com/libp2p/go-libp2p-core/host"
-	"github.com/libp2p/go-libp2p-core/peer"
 
 	"github.com/celestiaorg/celestia-node/ipld"
 	disc "github.com/celestiaorg/celestia-node/service/share/discovery"
@@ -30,7 +29,7 @@ type FullAvailability struct {
 // NewFullAvailability creates a new full Availability.
 func NewFullAvailability(bServ blockservice.BlockService, d discovery.Discovery, host host.Host) *FullAvailability {
 	fa := &FullAvailability{
-		notifee: disc.NewNotifee(peer.NewSet(), host),
+		notifee: disc.NewNotifee(disc.NewLimitedSet(disc.PeersLimit), host),
 		rtrv:    ipld.NewRetriever(bServ),
 		service: d,
 	}
