@@ -12,8 +12,8 @@ import (
 )
 
 const (
-	// peersLimit is max amount of peers that will be discovered
-	peersLimit = 5
+	// PeersLimit is max amount of peers that will be discovered
+	PeersLimit = 5
 	// peerWeight total weight of discovered peers
 	peerWeight = 1000
 	// connectionTimeout is timeout given to connect to discovered peer
@@ -24,14 +24,14 @@ var log = logging.Logger("discovery")
 
 // Notifee allows to receive and store discovered peers.
 type Notifee struct {
-	set  *peer.Set
+	set  *LimitedSet
 	host host.Host
 }
 
 // NewNotifee constructs new Notifee.
-func NewNotifee(cache *peer.Set, h host.Host) *Notifee {
+func NewNotifee(set *LimitedSet, h host.Host) *Notifee {
 	return &Notifee{
-		cache,
+		set,
 		h,
 	}
 }
@@ -40,24 +40,28 @@ func NewNotifee(cache *peer.Set, h host.Host) *Notifee {
 // Peer will be added to PeerCache if connection succeeds.
 func (n *Notifee) HandlePeersFound(topic string, peers []peer.AddrInfo) error {
 	for _, peer := range peers {
-		if n.set.Size() == peersLimit {
+		if n.set.Size() == PeersLimit {
 			return errors.New("amount of peers reaches the limit")
 		}
 
 		if peer.ID == n.host.ID() || len(peer.Addrs) == 0 || n.set.Contains(peer.ID) {
 			continue
 		}
+		err := n.set.TryAdd(peer.ID)
+		if err != nil {
+			return err
+		}
+
 		ctx, cancel := context.WithTimeout(context.Background(), connectionTimeout)
-		err := n.host.Connect(ctx, peer)
+		err = n.host.Connect(ctx, peer)
 		cancel()
 		if err != nil {
 			log.Warn(err)
+			n.set.Remove(peer.ID)
 			continue
 		}
-		log.Debugw("adding peer to cache", "id", peer.ID)
+		log.Debugw("added peer to set", "id", peer.ID)
 		n.host.ConnManager().TagPeer(peer.ID, topic, peerWeight)
-		n.set.Add(peer.ID)
-
 	}
 	return nil
 }

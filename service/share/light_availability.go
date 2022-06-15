@@ -8,7 +8,6 @@ import (
 	format "github.com/ipfs/go-ipld-format"
 	"github.com/libp2p/go-libp2p-core/discovery"
 	"github.com/libp2p/go-libp2p-core/host"
-	"github.com/libp2p/go-libp2p-core/peer"
 
 	"github.com/celestiaorg/celestia-node/ipld"
 	disc "github.com/celestiaorg/celestia-node/service/share/discovery"
@@ -34,7 +33,7 @@ type LightAvailability struct {
 func NewLightAvailability(bserv blockservice.BlockService, d discovery.Discoverer, host host.Host) *LightAvailability {
 	la := &LightAvailability{
 		bserv:      bserv,
-		notifee:    disc.NewNotifee(peer.NewSet(), host),
+		notifee:    disc.NewNotifee(disc.NewLimitedSet(disc.PeersLimit), host),
 		discoverer: d,
 	}
 	return la
