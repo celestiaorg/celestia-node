@@ -5,9 +5,9 @@ package fraud.pb;
 import "ipld/pb/share.proto";
 
 message BadEncoding {
-  string Hash = 1;
+  bytes HeaderHash = 1;
   uint64 Height   = 2;
   repeated ipld.pb.Share Shares = 3;
   uint32 Index    = 4;
-  bool isRow    = 5;
+  bool IsRow    = 5;
 }
