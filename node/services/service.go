@@ -37,10 +37,14 @@ func HeaderSyncer(
 ) (*sync.Syncer, error) {
 	syncer := sync.NewSyncer(ex, store, sub)
 	lc.Append(fx.Hook{
-		OnStart: syncer.Start,
-		OnStop:  syncer.Stop,
+		OnStart: func(context.Context) error {
+			_ = syncer.Start(ctx)
+			go fraud.OnBEFP(fxutil.WithLifecycle(ctx, lc), fsub, syncer.Stop)
+			return nil
+		},
+		OnStop: syncer.Stop,
 	})
-	go fraud.OnBEFP(fxutil.WithLifecycle(ctx, lc), fsub, syncer.Stop)
+
 	return syncer, nil
 }
 
@@ -155,16 +159,24 @@ func DASer(
 ) *das.DASer {
 	das := das.NewDASer(avail, sub, hstore, ds, fservice)
 	lc.Append(fx.Hook{
-		OnStart: das.Start,
-		OnStop:  das.Stop,
+		OnStart: func(context.Context) error {
+			_ = das.Start(ctx)
+			go fraud.OnBEFP(fxutil.WithLifecycle(ctx, lc), fservice, das.Stop)
+			return nil
+		},
+		OnStop: das.Stop,
 	})
-	go fraud.OnBEFP(fxutil.WithLifecycle(ctx, lc), fservice, das.Stop)
+
 	return das
 }
 
-// FraudService constructs fraud proof service for bad encoding fraud proofs (BEFPs).
-func FraudService(sub *pubsub.PubSub, hstore header.Store) (fraud.Service, fraud.Service, error) {
-	f := fraud.NewService(sub, hstore.GetByHeight)
+// FraudService constructs fraud proof service.
+func FraudService(
+	sub *pubsub.PubSub,
+	hstore header.Store,
+	ds datastore.Batching,
+) (fraud.Service, fraud.Service, error) {
+	f := fraud.NewService(sub, hstore.GetByHeight, ds)
 	if err := f.RegisterUnmarshaler(fraud.BadEncoding, fraud.UnmarshalBEFP); err != nil {
 		return nil, nil, err
 	}

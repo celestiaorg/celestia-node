@@ -194,6 +194,12 @@ func OnBEFP(ctx context.Context, s Subscriber, stop func(context.Context) error)
 	subscription, err := s.Subscribe(BadEncoding)
 	if err != nil {
 		log.Errorw("failed to subscribe to bad encoding fraud proof", "err", err)
+		if errors.Is(err, ErrFraudStoreNotEmpty) {
+			// if fraud store has BEFP then we should not proceed with subscription and stop services.
+			if err = stop(ctx); err != nil {
+				log.Warn(err)
+			}
+		}
 		return
 	}
 	defer subscription.Cancel()

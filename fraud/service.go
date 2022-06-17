@@ -8,6 +8,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/ipfs/go-datastore"
+	"github.com/ipfs/go-datastore/namespace"
 	"github.com/libp2p/go-libp2p-core/peer"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 )
@@ -23,20 +25,35 @@ type service struct {
 	topicsLk sync.RWMutex
 	topics   map[ProofType]*topic
 
+	storeLk sync.RWMutex
+	store   map[ProofType]datastore.Datastore
+
 	pubsub *pubsub.PubSub
 	getter headerFetcher
+	ds     datastore.Datastore
 }
 
-func NewService(p *pubsub.PubSub, getter headerFetcher) Service {
+func NewService(p *pubsub.PubSub, getter headerFetcher, ds datastore.Datastore) Service {
 	return &service{
 		pubsub: p,
 		getter: getter,
 		topics: make(map[ProofType]*topic),
+		store:  make(map[ProofType]datastore.Datastore),
+		ds:     ds,
 	}
 }
 
 func (f *service) Subscribe(proofType ProofType) (Subscription, error) {
-	// TODO: @vgonkivs check if fraud proof is in fraud store, then return with error
+	f.storeLk.Lock()
+	if _, ok := f.store[proofType]; !ok {
+		f.store[proofType] = namespace.Wrap(f.ds, makeKey(proofType))
+	}
+	_, err := getAll(context.Background(), f.store[proofType])
+	f.storeLk.Unlock()
+	if err == nil {
+		return nil, ErrFraudStoreNotEmpty
+	}
+
 	f.topicsLk.Lock()
 	t, ok := f.topics[proofType]
 	f.topicsLk.Unlock()
@@ -148,6 +165,13 @@ func (f *service) processIncoming(
 		"from", msg.ReceivedFrom.String(),
 	)
 	log.Warn("Shutting down services...")
+	f.storeLk.RLock()
+	defer f.storeLk.RUnlock()
+	if err := put(ctx, f.store[proofType], datastore.NewKey(string(proof.HeaderHash())), msg.Data); err != nil {
+		log.Warn(err)
+		// TODO(@vgonkivs): discuss  what to do in this case
+	}
+
 	return pubsub.ValidationAccept
 }
 

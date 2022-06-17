@@ -65,16 +65,20 @@ func (d *DASer) Start(context.Context) error {
 		return fmt.Errorf("da: DASer already started")
 	}
 
+	d.ctx, d.cancel = context.WithCancel(context.Background())
+
 	sub, err := d.hsub.Subscribe()
 	if err != nil {
+		// we can catch a deadlock if error will be received as now Stop could be called after receiving a BEFP
+		d.cancel()
 		return err
 	}
-
-	d.ctx, d.cancel = context.WithCancel(context.Background())
 
 	// load latest DASed checkpoint
 	checkpoint, err := loadCheckpoint(d.ctx, d.cstore)
 	if err != nil {
+		// we can catch a deadlock if error will be received as now Stop could be called after receiving a BEFP
+		d.cancel()
 		return err
 	}
 	log.Infow("loaded checkpoint", "height", checkpoint)

@@ -28,9 +28,13 @@ func Components(coreEndpoint string, cfg key.Config) fx.Option {
 func Service(ctx context.Context, lc fx.Lifecycle, accessor state.Accessor, fsub fraud.Subscriber) *state.Service {
 	serv := state.NewService(accessor)
 	lc.Append(fx.Hook{
-		OnStart: serv.Start,
-		OnStop:  serv.Stop,
+		OnStart: func(context.Context) error {
+			_ = serv.Start(ctx)
+			go fraud.OnBEFP(fxutil.WithLifecycle(ctx, lc), fsub, serv.Stop)
+			return nil
+		},
+		OnStop: serv.Stop,
 	})
-	go fraud.OnBEFP(fxutil.WithLifecycle(ctx, lc), fsub, serv.Stop)
+
 	return serv
 }
