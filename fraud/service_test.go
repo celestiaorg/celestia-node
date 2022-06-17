@@ -45,7 +45,7 @@ func TestService_Subscribe(t *testing.T) {
 
 func TestService_BroadcastFails(t *testing.T) {
 	s := createService(t)
-	p := CreateBadEncodingProof(0, &ipld.ErrByzantine{
+	p := CreateBadEncodingProof([]byte("hash"), 0, &ipld.ErrByzantine{
 		Index:  0,
 		Shares: make([]*ipld.ShareWithProof, 0),
 	},

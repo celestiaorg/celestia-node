@@ -29,7 +29,7 @@ func TestFraudProofValidation(t *testing.T) {
 
 	dah := &header.ExtendedHeader{DAH: &da}
 
-	p := CreateBadEncodingProof(uint64(dah.Height), errByz)
+	p := CreateBadEncodingProof([]byte("hash"), uint64(dah.Height), errByz)
 	err = p.Validate(dah)
 	require.NoError(t, err)
 }
