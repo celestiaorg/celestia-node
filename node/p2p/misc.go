@@ -50,8 +50,17 @@ func ConnectionManager(cfg Config) func(params.Bootstrappers) (coreconnmgr.ConnM
 }
 
 // ConnectionGater constructs a ConnectionGater.
-func ConnectionGater(ds datastore.Batching) (coreconnmgr.ConnectionGater, error) {
-	return conngater.NewBasicConnectionGater(ds)
+func ConnectionGater(cfg Config) func(datastore.Batching) (coreconnmgr.ConnectionGater, error) {
+	return func(ds datastore.Batching) (coreconnmgr.ConnectionGater, error) {
+		m, err := conngater.NewBasicConnectionGater(ds)
+		if err != nil {
+			return nil, err
+		}
+		for _, peer := range cfg.BlacklistPeers {
+			_ = m.BlockPeer(peer)
+		}
+		return m, nil
+	}
 }
 
 // PeerStore constructs a PeerStore.

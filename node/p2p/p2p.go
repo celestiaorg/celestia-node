@@ -29,6 +29,8 @@ type Config struct {
 	PeerExchange bool
 	// ConnManager is a configuration tuple for ConnectionManager.
 	ConnManager ConnManagerConfig
+	// BlacklistPeers defines peers that will not be allowed to dial.
+	BlacklistPeers []peer.ID
 }
 
 // DefaultConfig returns default configuration for P2P subsystem.
@@ -58,7 +60,7 @@ func Components(cfg Config) fx.Option {
 		fx.Provide(ID),
 		fx.Provide(PeerStore),
 		fx.Provide(ConnectionManager(cfg)),
-		fx.Provide(ConnectionGater),
+		fx.Provide(ConnectionGater(cfg)),
 		fx.Provide(Host(cfg)),
 		fx.Provide(RoutedHost),
 		fx.Provide(PubSub(cfg)),

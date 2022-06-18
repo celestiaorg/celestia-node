@@ -5,6 +5,7 @@ import (
 
 	"github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/libp2p/go-libp2p-core/host"
+	"github.com/libp2p/go-libp2p-core/peer"
 	"go.uber.org/fx"
 
 	apptypes "github.com/celestiaorg/celestia-app/x/payment/types"
@@ -92,5 +93,11 @@ func WithKeyringSigner(signer *apptypes.KeyringSigner) Option {
 func WithBootstrappers(peers params.Bootstrappers) Option {
 	return func(sets *settings) {
 		sets.opts = append(sets.opts, fx.Replace(peers))
+	}
+}
+
+func WithBlacklistPeers(peers []peer.ID) Option {
+	return func(sets *settings) {
+		sets.cfg.P2P.BlacklistPeers = peers
 	}
 }

@@ -37,3 +37,28 @@ func TestUseBridgeNodeAsBootstraper(t *testing.T) {
 		assert.True(t, nodes[index].Host.Network().Connectedness(addr.ID) == network.Connected)
 	}
 }
+
+/*
+Test-Case: Add peer to blacklist
+Steps:
+1. Create a Full Node(BN)
+2. Start a FN
+3. Create a Light Node(LN) and add id of FN to black list
+5. Start a LN
+6. Check FN is allowed to connect to LN
+7. Check LN is not allowed to connect to FN
+*/
+func TestAddPeerToBlackList(t *testing.T) {
+	sw := swamp.NewSwamp(t)
+	full := sw.NewFullNode()
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	t.Cleanup(cancel)
+	require.NoError(t, full.Start(ctx))
+
+	addr := host.InfoFromHost(full.Host)
+	light := sw.NewLightNode(node.WithBlacklistPeers([]peer.ID{addr.ID}))
+	require.NoError(t, light.Start(ctx))
+
+	require.True(t, full.ConnGater.InterceptPeerDial(host.InfoFromHost(light.Host).ID))
+	require.False(t, light.ConnGater.InterceptPeerDial(addr.ID))
+}
