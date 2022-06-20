@@ -46,7 +46,7 @@ require (
 	github.com/raulk/go-watchdog v1.2.0
 	github.com/spf13/cobra v1.4.0
 	github.com/spf13/pflag v1.0.5
-	github.com/stretchr/testify v1.7.2
+	github.com/stretchr/testify v1.7.3
 	github.com/tendermint/tendermint v0.35.4
 	go.uber.org/fx v1.17.1
 	golang.org/x/sync v0.0.0-20220513210516-0976fa681c29
