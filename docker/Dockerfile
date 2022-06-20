@@ -1,6 +1,5 @@
 FROM --platform=$BUILDPLATFORM golang:1.18 as builder
 RUN apt-get install make
-    #  apt-get update && \
 WORKDIR /src
 COPY go.mod go.sum ./
 RUN go mod download
