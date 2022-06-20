@@ -91,12 +91,29 @@ type Store interface {
 	// and waiting till the ongoing ones are done.
 	Stop(context.Context) error
 
+	// Getter encompasses all getter methods for headers.
+	Getter
+
 	// Init initializes Store with the given head, meaning it is initialized with the genesis header.
 	Init(context.Context, *ExtendedHeader) error
 
 	// Height reports current height of the chain head.
 	Height() uint64
 
+	// Has checks whether ExtendedHeader is already stored.
+	Has(context.Context, tmbytes.HexBytes) (bool, error)
+
+	// Append stores and verifies the given ExtendedHeader(s).
+	// It requires them to be adjacent and in ascending order,
+	// as it applies them contiguously on top of the current head height.
+	// It returns the amount of successfully applied headers,
+	// so caller can understand what given header was invalid, if any.
+	Append(context.Context, ...*ExtendedHeader) (int, error)
+}
+
+// Getter contains the behavior necessary for a component to retrieve
+// headers that have been processed during header sync.
+type Getter interface {
 	// Head returns the ExtendedHeader of the chain head.
 	Head(context.Context) (*ExtendedHeader, error)
 
@@ -108,14 +125,4 @@ type Store interface {
 
 	// GetRangeByHeight returns the given range [from:to) of ExtendedHeaders.
 	GetRangeByHeight(ctx context.Context, from, to uint64) ([]*ExtendedHeader, error)
-
-	// Has checks whether ExtendedHeader is already stored.
-	Has(context.Context, tmbytes.HexBytes) (bool, error)
-
-	// Append stores and verifies the given ExtendedHeader(s).
-	// It requires them to be adjacent and in ascending order,
-	// as it applies them contiguously on top of the current head height.
-	// It returns the amount of successfully applied headers,
-	// so caller can understand what given header was invalid, if any.
-	Append(context.Context, ...*ExtendedHeader) (int, error)
 }

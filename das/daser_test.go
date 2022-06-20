@@ -12,6 +12,7 @@ import (
 	mdutils "github.com/ipfs/go-merkledag/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	tmbytes "github.com/tendermint/tendermint/libs/bytes"
 
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/service/share"
@@ -335,4 +336,12 @@ func (m *mockGetter) GetByHeight(_ context.Context, height uint64) (*header.Exte
 		}
 	}()
 	return m.headers[int64(height)], nil
+}
+
+func (m *mockGetter) GetRangeByHeight(ctx context.Context, from, to uint64) ([]*header.ExtendedHeader, error) {
+	return nil, nil
+}
+
+func (m *mockGetter) Get(context.Context, tmbytes.HexBytes) (*header.ExtendedHeader, error) {
+	return nil, nil
 }
