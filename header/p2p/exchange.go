@@ -43,7 +43,7 @@ func NewExchange(host host.Host, peers peer.IDSlice) *Exchange {
 	}
 }
 
-func (ex *Exchange) RequestHead(ctx context.Context) (*header.ExtendedHeader, error) {
+func (ex *Exchange) Head(ctx context.Context) (*header.ExtendedHeader, error) {
 	log.Debug("requesting head")
 	// create request
 	req := &p2p_pb.ExtendedHeaderRequest{
@@ -57,7 +57,7 @@ func (ex *Exchange) RequestHead(ctx context.Context) (*header.ExtendedHeader, er
 	return headers[0], nil
 }
 
-func (ex *Exchange) RequestHeader(ctx context.Context, height uint64) (*header.ExtendedHeader, error) {
+func (ex *Exchange) GetByHeight(ctx context.Context, height uint64) (*header.ExtendedHeader, error) {
 	log.Debugw("requesting header", "height", height)
 	// sanity check height
 	if height == 0 {
@@ -75,7 +75,7 @@ func (ex *Exchange) RequestHeader(ctx context.Context, height uint64) (*header.E
 	return headers[0], nil
 }
 
-func (ex *Exchange) RequestHeaders(ctx context.Context, from, amount uint64) ([]*header.ExtendedHeader, error) {
+func (ex *Exchange) GetRangeByHeight(ctx context.Context, from, amount uint64) ([]*header.ExtendedHeader, error) {
 	log.Debugw("requesting headers", "from", from, "to", from+amount)
 	// create request
 	req := &p2p_pb.ExtendedHeaderRequest{
@@ -85,7 +85,7 @@ func (ex *Exchange) RequestHeaders(ctx context.Context, from, amount uint64) ([]
 	return ex.performRequest(ctx, req)
 }
 
-func (ex *Exchange) RequestByHash(ctx context.Context, hash tmbytes.HexBytes) (*header.ExtendedHeader, error) {
+func (ex *Exchange) Get(ctx context.Context, hash tmbytes.HexBytes) (*header.ExtendedHeader, error) {
 	log.Debugw("requesting header", "hash", hash.String())
 	// create request
 	req := &p2p_pb.ExtendedHeaderRequest{

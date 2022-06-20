@@ -140,7 +140,7 @@ func (s *Syncer) trustedHead(ctx context.Context) (*header.ExtendedHeader, error
 	}
 
 	// otherwise, request head from a trustedPeer or, in other words, do automatic subjective initialization
-	objHead, err := s.exchange.RequestHead(ctx)
+	objHead, err := s.exchange.Head(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -331,12 +331,12 @@ func (s *Syncer) findHeaders(ctx context.Context, from, to uint64) ([]*header.Ex
 		// if we have some range cached - use it
 		r, ok := s.pending.FirstRangeWithin(from, to)
 		if !ok {
-			hs, err := s.exchange.RequestHeaders(ctx, from, amount)
+			hs, err := s.exchange.GetRangeByHeight(ctx, from, amount)
 			return append(out, hs...), err
 		}
 
 		// first, request everything between from and start of the found range
-		hs, err := s.exchange.RequestHeaders(ctx, from, r.Start-from)
+		hs, err := s.exchange.GetRangeByHeight(ctx, from, r.Start-from)
 		if err != nil {
 			return nil, err
 		}
