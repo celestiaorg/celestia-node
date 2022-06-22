@@ -154,7 +154,7 @@ func (h *Handler) handleTransfer(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if req.Amount <= 0 {
-		writeError(w, http.StatusBadRequest, transferEndpoint, errors.New("invalid amount"))
+		writeError(w, http.StatusBadRequest, transferEndpoint, errors.New("amount must be greater than 0"))
 		return
 	}
 	addr, err := types.AccAddressFromBech32(req.To)
