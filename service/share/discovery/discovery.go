@@ -62,7 +62,7 @@ func FindPeers(ctx context.Context, d *Discoverer) {
 				continue
 			}
 			if err = d.handlePeersFound(namespace, peers); err != nil {
-				log.Warn()
+				log.Info(err) // informs that peers limit reached
 				return
 			}
 		}
