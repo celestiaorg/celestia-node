@@ -103,10 +103,10 @@ enum axis {
 
 message BadEncoding {
    bytes HeaderHash = 1;
-   uint64 Height   = 2;
+   uint64 Height = 2;
    repeated ipld.pb.Share Shares = 3;
-   uint32 Index    = 4;
-   axis Axis    = 5;
+   uint32 Index = 4;
+   axis Axis = 5;
 }
 ```
 
