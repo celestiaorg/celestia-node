@@ -136,23 +136,7 @@ func (d *DASer) sample(ctx context.Context, sub header.Subscription, checkpoint 
 			}
 		}
 
-		startTime := time.Now()
-
-		err = d.da.SharesAvailable(ctx, h.DAH)
-		if err != nil {
-			if err == context.Canceled {
-				return
-			}
-			log.Errorw("sampling failed", "height", h.Height, "hash", h.Hash(),
-				"square width", len(h.DAH.RowsRoots), "data root", h.DAH.Hash(), "err", err)
-			log.Warn("DASer WILL BE STOPPED. IN ORDER TO CONTINUE SAMPLING, RE-START THE NODE")
-			return
-		}
-
-		sampleTime := time.Since(startTime)
-		log.Infow("sampling successful", "height", h.Height, "hash", h.Hash(),
-			"square width", len(h.DAH.RowsRoots), "finished (s)", sampleTime.Seconds())
-
+		d.sampleHeader(ctx, h)
 		sampleHeight = h.Height
 	}
 }
@@ -220,28 +204,38 @@ func (d *DASer) catchUp(ctx context.Context, job *catchUpJob) (int64, error) {
 			return height - 1, err
 		}
 
-		startTime := time.Now()
-
-		err = d.da.SharesAvailable(ctx, h.DAH)
+		height, err = d.sampleHeader(ctx, h)
 		if err != nil {
-			if err == context.Canceled {
-				// report previous height as the last successfully sampled height and
-				// error as nil since the routine was ordered to stop
-				return height - 1, nil
-			}
-			log.Errorw("sampling failed", "height", h.Height, "hash", h.Hash(),
-				"square width", len(h.DAH.RowsRoots), "data root", h.DAH.Hash(), "err", err)
-			// report previous height as the last successfully sampled height
 			return height - 1, err
 		}
-
-		sampleTime := time.Since(startTime)
-		log.Infow("sampled past header", "height", h.Height, "hash", h.Hash(),
-			"square width", len(h.DAH.RowsRoots), "finished (s)", sampleTime.Seconds())
 	}
 
 	log.Infow("successfully sampled past headers", "from", job.from,
 		"to", job.to, "finished (s)", time.Since(routineStartTime))
 	// report successful result
 	return job.to, nil
+}
+
+func (d *DASer) sampleHeader(ctx context.Context, h *header.ExtendedHeader) (int64, error) {
+	startTime := time.Now()
+
+	err := d.da.SharesAvailable(ctx, h.DAH)
+	if err != nil {
+		if err == context.Canceled {
+			// report previous height as the last successfully sampled height and
+			// error as nil since the routine was ordered to stop
+			return h.Height, nil
+		}
+		log.Errorw("sampling failed", "height", h.Height, "hash", h.Hash(),
+			"square width", len(h.DAH.RowsRoots), "data root", h.DAH.Hash(), "err", err)
+		log.Warn("DASer WILL BE STOPPED. IN ORDER TO CONTINUE SAMPLING, RE-START THE NODE")
+		// report previous height as the last successfully sampled height
+		return h.Height, err
+	}
+
+	sampleTime := time.Since(startTime)
+	log.Infow("sampled header", "height", h.Height, "hash", h.Hash(),
+		"square width", len(h.DAH.RowsRoots), "finished (s)", sampleTime.Seconds())
+
+	return h.Height, nil
 }
