@@ -168,7 +168,7 @@ func (rs *retrievalSession) Reconstruct() (*rsmt2d.ExtendedDataSquare, error) {
 	}
 
 	// and try to repair with what we have
-	err := rs.squareImported.Repair(rs.dah.RowsRoots, rs.dah.ColumnRoots, rs.codec, rs.treeFn)
+	err := rs.squareImported.Repair(rs.dah.RowsRoots, rs.dah.ColumnRoots)
 	if err != nil {
 		return nil, err
 	}
