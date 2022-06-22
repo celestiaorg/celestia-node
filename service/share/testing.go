@@ -18,13 +18,12 @@ import (
 	mocknet "github.com/libp2p/go-libp2p/p2p/net/mock"
 	"github.com/stretchr/testify/require"
 
+	"github.com/tendermint/tendermint/pkg/da"
 	"github.com/tendermint/tendermint/pkg/wrapper"
 
+	"github.com/celestiaorg/celestia-node/ipld"
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/rsmt2d"
-
-	"github.com/celestiaorg/celestia-node/header"
-	"github.com/celestiaorg/celestia-node/ipld"
 )
 
 // RandLightServiceWithSquare provides a share.Service filled with 'n' NMT
@@ -82,8 +81,7 @@ func FillDag(t *testing.T, bServ blockservice.BlockService, shares []Share) *Roo
 	err = na.Commit()
 	require.NoError(t, err)
 
-	dah, err := header.DataAvailabilityHeaderFromExtendedData(eds)
-	require.NoError(t, err)
+	dah := da.NewDataAvailabilityHeader(eds)
 	return &dah
 }
 
