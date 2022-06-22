@@ -42,7 +42,7 @@ func RandLightServiceWithSquare(t *testing.T, n int) (*Service, *Root) {
 // blockservice.BlockService than can be filled by the test.
 func RandLightService() (*Service, blockservice.BlockService) {
 	bServ := mdutils.Bserv()
-	return NewService(bServ, NewLightAvailability(bServ)), bServ
+	return NewService(bServ, NewLightAvailability(bServ), disc.Null()), bServ
 }
 
 // RandFullServiceWithSquare provides a share.Service filled with 'n' NMT
@@ -68,9 +68,8 @@ func RandLightLocalServiceWithSquare(t *testing.T, n int) (*Service, *Root) {
 	ca := NewCacheAvailability(
 		NewLightAvailability(bServ),
 		ds,
-		disc.NewDiscoverer(nil, nil, discovery.NewRoutingDiscovery(routinghelpers.Null{})),
 	)
-	return NewService(bServ, ca), RandFillBS(t, n, bServ)
+	return NewService(bServ, ca, disc.Null()), RandFillBS(t, n, bServ)
 }
 
 // RandFullLocalServiceWithSquare is the same as RandFullServiceWithSquare, except
@@ -81,9 +80,8 @@ func RandFullLocalServiceWithSquare(t *testing.T, n int) (*Service, *Root) {
 	ca := NewCacheAvailability(
 		NewFullAvailability(bServ),
 		ds,
-		disc.NewDiscoverer(nil, nil, discovery.NewRoutingDiscovery(routinghelpers.Null{})),
 	)
-	return NewService(bServ, ca), RandFillBS(t, n, bServ)
+	return NewService(bServ, ca, disc.Null()), RandFillBS(t, n, bServ)
 }
 
 // RandFillBS fills the given BlockService with a random block of a given size.

@@ -129,7 +129,6 @@ func TestBootstrapNodesFromBridgeNode(t *testing.T) {
 	case <-ch:
 		break
 	}
-
 	addrFull := host.InfoFromHost(full.Host)
 	assert.True(t, light.Host.Network().Connectedness(addrFull.ID) == network.Connected)
 }

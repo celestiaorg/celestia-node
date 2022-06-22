@@ -128,8 +128,15 @@ func HeaderStoreInit(cfg *Config) func(context.Context, params.Network, header.S
 }
 
 // ShareService constructs new share.Service.
-func ShareService(lc fx.Lifecycle, bServ blockservice.BlockService, avail share.Availability) *share.Service {
-	service := share.NewService(bServ, avail)
+func ShareService(
+	lc fx.Lifecycle,
+	bServ blockservice.BlockService,
+	avail share.Availability,
+	r routing.ContentRouting,
+	h host.Host,
+) *share.Service {
+	discoverer := disc.NewDiscoverer(disc.NewLimitedSet(disc.PeersLimit), h, discovery.NewRoutingDiscovery(r))
+	service := share.NewService(bServ, avail, discoverer)
 	lc.Append(fx.Hook{
 		OnStart: service.Start,
 		OnStop:  service.Stop,
@@ -170,14 +177,10 @@ func LightAvailability(
 	lc fx.Lifecycle,
 	bServ blockservice.BlockService,
 	ds datastore.Batching,
-	r routing.ContentRouting,
-	h host.Host,
 ) share.Availability {
-	discoverer := disc.NewDiscoverer(disc.NewLimitedSet(disc.PeersLimit), h, discovery.NewRoutingDiscovery(r))
-	ca := share.NewCacheAvailability(share.NewLightAvailability(bServ), ds, discoverer)
+	ca := share.NewCacheAvailability(share.NewLightAvailability(bServ), ds)
 	lc.Append(fx.Hook{
-		OnStart: ca.Start,
-		OnStop:  ca.Close,
+		OnStop: ca.Close,
 	})
 	return ca
 }
@@ -189,15 +192,13 @@ func FullAvailability(
 	bServ blockservice.BlockService,
 	ds datastore.Batching,
 	r routing.ContentRouting,
-	h host.Host,
 ) share.Availability {
 	service := discovery.NewRoutingDiscovery(r)
-	discoverer := disc.NewDiscoverer(disc.NewLimitedSet(disc.PeersLimit), h, service)
-	ca := share.NewCacheAvailability(share.NewFullAvailability(bServ), ds, discoverer)
+	ca := share.NewCacheAvailability(share.NewFullAvailability(bServ), ds)
 	lc.Append(fx.Hook{
 		OnStart: func(context.Context) error {
-			disc.Advertise(fxutil.WithLifecycle(ctx, lc), service)
-			return ca.Start(ctx)
+			go disc.Advertise(fxutil.WithLifecycle(ctx, lc), service)
+			return nil
 		},
 		OnStop: ca.Close,
 	})

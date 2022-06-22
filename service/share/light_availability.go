@@ -18,13 +18,13 @@ var DefaultSampleAmount = 16
 // It is light because it does not require the downloading of all the data to verify
 // its availability. It is assumed that there are a lot of lightAvailability instances
 // on the network doing sampling over the same Root to collectively verify its availability.
-type LightAvailability struct {
+type lightAvailability struct {
 	bserv blockservice.BlockService
 }
 
 // NewLightAvailability creates a new light Availability.
-func NewLightAvailability(bserv blockservice.BlockService) *LightAvailability {
-	la := &LightAvailability{
+func NewLightAvailability(bserv blockservice.BlockService) Availability {
+	la := &lightAvailability{
 		bserv: bserv,
 	}
 	return la
@@ -32,7 +32,7 @@ func NewLightAvailability(bserv blockservice.BlockService) *LightAvailability {
 
 // SharesAvailable randomly samples DefaultSamples amount of Shares committed to the given Root.
 // This way SharesAvailable subjectively verifies that Shares are available.
-func (la *LightAvailability) SharesAvailable(ctx context.Context, dah *Root) error {
+func (la *lightAvailability) SharesAvailable(ctx context.Context, dah *Root) error {
 	log.Debugw("Validate availability", "root", dah.Hash())
 	// We assume the caller of this method has already performed basic validation on the
 	// given dah/root. If for some reason this has not happened, the node should panic.

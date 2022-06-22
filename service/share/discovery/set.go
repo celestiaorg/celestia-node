@@ -37,8 +37,8 @@ func (ps *LimitedSet) Size() int {
 	return len(ps.ps)
 }
 
-// TryAdd Attempts to add the given peer into the set.
-// This operation will fail if the number of peers in the set is equal to size
+// TryAdd attempts to add the given peer into the set.
+// This operation will fail if the number of peers in the set is equal to size.
 func (ps *LimitedSet) TryAdd(p peer.ID) error {
 	ps.lk.Lock()
 	defer ps.lk.Unlock()

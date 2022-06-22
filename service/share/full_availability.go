@@ -13,13 +13,13 @@ import (
 // FullAvailability implements Availability using the full data square
 // recovery technique. It is considered "full" because it is required
 // to download enough shares to fully reconstruct the data square.
-type FullAvailability struct {
+type fullAvailability struct {
 	rtrv *ipld.Retriever
 }
 
 // NewFullAvailability creates a new full Availability.
-func NewFullAvailability(bServ blockservice.BlockService) *FullAvailability {
-	fa := &FullAvailability{
+func NewFullAvailability(bServ blockservice.BlockService) Availability {
+	fa := &fullAvailability{
 		rtrv: ipld.NewRetriever(bServ),
 	}
 
@@ -28,7 +28,7 @@ func NewFullAvailability(bServ blockservice.BlockService) *FullAvailability {
 
 // SharesAvailable reconstructs the data committed to the given Root by requesting
 // enough Shares from the network.
-func (fa *FullAvailability) SharesAvailable(ctx context.Context, root *Root) error {
+func (fa *fullAvailability) SharesAvailable(ctx context.Context, root *Root) error {
 	ctx, cancel := context.WithTimeout(ctx, AvailabilityTimeout)
 	defer cancel()
 	// we assume the caller of this method has already performed basic validation on the

@@ -24,7 +24,6 @@ func ContentRouting(r routing.PeerRouting) routing.ContentRouting {
 // Basically, this provides a way to discover peer addresses by respecting public keys.
 func PeerRouting(cfg Config) func(routingParams) (routing.PeerRouting, error) {
 	return func(params routingParams) (routing.PeerRouting, error) {
-
 		opts := []dht.Option{
 			dht.Mode(dht.ModeAuto),
 			dht.BootstrapPeers(params.Peers...),

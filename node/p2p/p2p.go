@@ -29,8 +29,7 @@ type Config struct {
 	// This is enabled by default for Bootstrappers.
 	PeerExchange bool
 	// ConnManager is a configuration tuple for ConnectionManager.
-	ConnManager ConnManagerConfig
-	// RoutingTable refresh period.
+	ConnManager               ConnManagerConfig
 	RoutingTableRefreshPeriod time.Duration
 }
 

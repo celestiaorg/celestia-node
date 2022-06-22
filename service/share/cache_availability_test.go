@@ -65,8 +65,8 @@ func TestCacheAvailability_Failed(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 
-	ca := NewCacheAvailability(&dummyAvailability{}, sync.MutexWrap(datastore.NewMapDatastore()), nil)
-	serv := NewService(mdutils.Bserv(), ca)
+	ca := NewCacheAvailability(&dummyAvailability{}, sync.MutexWrap(datastore.NewMapDatastore()))
+	serv := NewService(mdutils.Bserv(), ca, nil)
 
 	err := serv.SharesAvailable(ctx, &invalidHeader)
 	require.Error(t, err)
@@ -86,7 +86,7 @@ func TestCacheAvailability_NoDuplicateSampling(t *testing.T) {
 	root := RandFillBS(t, 16, mdutils.Bserv())
 	// wrap dummyAvailability with a datastore
 	ds := sync.MutexWrap(datastore.NewMapDatastore())
-	ca := NewCacheAvailability(&dummyAvailability{counter: 0}, ds, nil)
+	ca := NewCacheAvailability(&dummyAvailability{counter: 0}, ds)
 	// sample the root
 	err := ca.SharesAvailable(ctx, root)
 	require.NoError(t, err)

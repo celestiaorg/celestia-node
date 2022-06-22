@@ -15,6 +15,7 @@ import (
 const (
 	// PeersLimit is max amount of peers that will be discovered
 	PeersLimit = 5
+
 	// peerWeight total weight of discovered peers
 	peerWeight = 1000
 	// connectionTimeout is timeout given to connect to discovered peer
@@ -27,12 +28,7 @@ var log = logging.Logger("discovery")
 type Discoverer struct {
 	set  *LimitedSet
 	host host.Host
-
-	discoverer discovery.Discoverer
-}
-
-func (d *Discoverer) Start(ctx context.Context) {
-	FindPeers(ctx, d)
+	disc discovery.Discoverer
 }
 
 // NewDiscoverer constructs new Discoverer.
