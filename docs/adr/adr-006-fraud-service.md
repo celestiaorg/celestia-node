@@ -97,8 +97,8 @@ message ShareWithProof {
 }
 
 enum axis {
-   Row = 0;
-   Col = 1;
+   ROW = 0;
+   COL = 1;
 }
 
 message BadEncoding {
