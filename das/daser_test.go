@@ -2,6 +2,8 @@ package das
 
 import (
 	"context"
+	pubsub "github.com/libp2p/go-libp2p-pubsub"
+	mocknet "github.com/libp2p/go-libp2p/p2p/net/mock"
 	"sync"
 	"testing"
 	"time"
@@ -28,7 +30,7 @@ func TestDASerLifecycle(t *testing.T) {
 	bServ := mdutils.Bserv()
 
 	// 15 headers from the past and 15 future headers
-	mockGet, shareServ, sub, mockService := createDASerSubcomponents(t, bServ, 15, 15)
+	mockGet, shareServ, sub, mockService := createDASerSubcomponents(t, bServ, 15, 15, share.NewLightAvailability)
 
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	t.Cleanup(cancel)
@@ -66,7 +68,7 @@ func TestDASer_Restart(t *testing.T) {
 	bServ := mdutils.Bserv()
 
 	// 15 headers from the past and 15 future headers
-	mockGet, shareServ, sub, mockService := createDASerSubcomponents(t, bServ, 15, 15)
+	mockGet, shareServ, sub, mockService := createDASerSubcomponents(t, bServ, 15, 15, share.NewLightAvailability)
 
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	t.Cleanup(cancel)
@@ -128,7 +130,7 @@ func TestDASer_catchUp(t *testing.T) {
 	ds := ds_sync.MutexWrap(datastore.NewMapDatastore())
 	bServ := mdutils.Bserv()
 
-	mockGet, shareServ, _, mockService := createDASerSubcomponents(t, bServ, 5, 0)
+	mockGet, shareServ, _, mockService := createDASerSubcomponents(t, bServ, 5, 0, share.NewLightAvailability)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
@@ -169,7 +171,7 @@ func TestDASer_catchUp_oneHeader(t *testing.T) {
 	ds := ds_sync.MutexWrap(datastore.NewMapDatastore())
 	bServ := mdutils.Bserv()
 
-	mockGet, shareServ, _, mockService := createDASerSubcomponents(t, bServ, 6, 0)
+	mockGet, shareServ, _, mockService := createDASerSubcomponents(t, bServ, 6, 0, share.NewLightAvailability)
 	daser := NewDASer(shareServ, nil, mockGet, ds, mockService)
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
@@ -212,7 +214,7 @@ func TestDASer_catchUp_fails(t *testing.T) {
 	ds := ds_sync.MutexWrap(datastore.NewMapDatastore())
 	bServ := mdutils.Bserv()
 
-	mockGet, _, _, mockService := createDASerSubcomponents(t, bServ, 6, 0)
+	mockGet, _, _, mockService := createDASerSubcomponents(t, bServ, 6, 0, share.NewLightAvailability)
 	daser := NewDASer(share.NewBrokenAvailability(), nil, mockGet, ds, mockService)
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -251,6 +253,48 @@ func TestDASer_catchUp_fails(t *testing.T) {
 	require.ErrorIs(t, result.err, share.ErrNotAvailable)
 }
 
+func TestDASer_stopsAfter_BEFP(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Minute*3)
+	t.Cleanup(cancel)
+
+	ds := ds_sync.MutexWrap(datastore.NewMapDatastore())
+	bServ := mdutils.Bserv()
+	// create mock network
+	net, err := mocknet.FullMeshLinked(ctx, 1)
+	require.NoError(t, err)
+	// create pubsub for host
+	ps, err := pubsub.NewGossipSub(ctx, net.Hosts()[0],
+		pubsub.WithMessageSignaturePolicy(pubsub.StrictNoSign))
+
+	// 15 headers from the past and 15 future headers
+	mockGet, shareServ, sub, _ := createDASerSubcomponents(t, bServ, 15, 15, share.NewFullAvailability)
+
+	// create fraud service and break one header
+	f := fraud.NewService(ps, mockGet.GetByHeight)
+	f.RegisterUnmarshaler(fraud.BadEncoding, fraud.UnmarshalBEFP)
+	mockGet.headers[1] = header.CreateFraudExtHeader(t, mockGet.headers[1], bServ)
+
+	// create and start DASer
+	daser := NewDASer(shareServ, sub, mockGet, ds, f)
+	go fraud.OnBEFP(ctx, f, daser.Stop)
+	require.NoError(t, daser.Start(ctx))
+
+	// wait for dasing catch-up routine fails
+	select {
+	case <-ctx.Done():
+		t.Fatal(ctx.Err())
+	case <-daser.ctx.Done():
+		break
+	}
+
+	// give catch-up routine a second to finish up sampling last header
+	// TODO @renaynay: this sleep is a known flakey solution to the issue that
+	//  we do not have DASState implemented yet. Once DASState is implemented, rely
+	//  on that instead of sleeping.
+	time.Sleep(time.Second * 1)
+	require.True(t, daser.ctx.Err() == context.Canceled)
+}
+
 // createDASerSubcomponents takes numGetter (number of headers
 // to store in mockGetter) and numSub (number of headers to store
 // in the mock header.Subscriber), returning a newly instantiated
@@ -260,8 +304,9 @@ func createDASerSubcomponents(
 	bServ blockservice.BlockService,
 	numGetter,
 	numSub int,
+	availabilityFn func(blockservice.BlockService) share.Availability,
 ) (*mockGetter, *share.Service, *header.DummySubscriber, *fraud.DummyService) {
-	shareServ := share.NewService(bServ, share.NewLightAvailability(bServ))
+	shareServ := share.NewService(bServ, availabilityFn(bServ))
 
 	mockGet := &mockGetter{
 		headers: make(map[int64]*header.ExtendedHeader),
