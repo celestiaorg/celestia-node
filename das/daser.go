@@ -136,7 +136,11 @@ func (d *DASer) sample(ctx context.Context, sub header.Subscription, checkpoint 
 			}
 		}
 
-		d.sampleHeader(ctx, h)
+		err = d.sampleHeader(ctx, h)
+		if err != nil {
+			return
+		}
+
 		sampleHeight = h.Height
 	}
 }
@@ -175,7 +179,6 @@ func (d *DASer) catchUpManager(ctx context.Context, checkpoint int64) {
 			// exit routine if a catch-up job was unsuccessful
 			if err != nil {
 				log.Errorw("catch-up routine failed", "attempted range: from", job.from, "to", job.to)
-				log.Warn("DASer WILL BE STOPPED. IN ORDER TO CONTINUE SAMPLING OVER PAST HEADERS, RE-START THE NODE")
 				return
 			}
 		}
@@ -204,9 +207,9 @@ func (d *DASer) catchUp(ctx context.Context, job *catchUpJob) (int64, error) {
 			return height - 1, err
 		}
 
-		height, err = d.sampleHeader(ctx, h)
+		err = d.sampleHeader(ctx, h)
 		if err != nil {
-			return height - 1, err
+			return h.Height - 1, err
 		}
 	}
 
@@ -216,26 +219,24 @@ func (d *DASer) catchUp(ctx context.Context, job *catchUpJob) (int64, error) {
 	return job.to, nil
 }
 
-func (d *DASer) sampleHeader(ctx context.Context, h *header.ExtendedHeader) (int64, error) {
+func (d *DASer) sampleHeader(ctx context.Context, h *header.ExtendedHeader) error {
 	startTime := time.Now()
 
 	err := d.da.SharesAvailable(ctx, h.DAH)
 	if err != nil {
 		if err == context.Canceled {
-			// report previous height as the last successfully sampled height and
-			// error as nil since the routine was ordered to stop
-			return h.Height, nil
+			return nil
 		}
 		log.Errorw("sampling failed", "height", h.Height, "hash", h.Hash(),
 			"square width", len(h.DAH.RowsRoots), "data root", h.DAH.Hash(), "err", err)
 		log.Warn("DASer WILL BE STOPPED. IN ORDER TO CONTINUE SAMPLING, RE-START THE NODE")
 		// report previous height as the last successfully sampled height
-		return h.Height, err
+		return err
 	}
 
 	sampleTime := time.Since(startTime)
 	log.Infow("sampled header", "height", h.Height, "hash", h.Hash(),
 		"square width", len(h.DAH.RowsRoots), "finished (s)", sampleTime.Seconds())
 
-	return h.Height, nil
+	return nil
 }
