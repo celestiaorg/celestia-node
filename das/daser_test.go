@@ -2,8 +2,6 @@ package das
 
 import (
 	"context"
-	pubsub "github.com/libp2p/go-libp2p-pubsub"
-	mocknet "github.com/libp2p/go-libp2p/p2p/net/mock"
 	"sync"
 	"testing"
 	"time"
@@ -12,6 +10,8 @@ import (
 	"github.com/ipfs/go-datastore"
 	ds_sync "github.com/ipfs/go-datastore/sync"
 	mdutils "github.com/ipfs/go-merkledag/test"
+	pubsub "github.com/libp2p/go-libp2p-pubsub"
+	mocknet "github.com/libp2p/go-libp2p/p2p/net/mock"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	tmbytes "github.com/tendermint/tendermint/libs/bytes"
@@ -265,13 +265,13 @@ func TestDASer_stopsAfter_BEFP(t *testing.T) {
 	// create pubsub for host
 	ps, err := pubsub.NewGossipSub(ctx, net.Hosts()[0],
 		pubsub.WithMessageSignaturePolicy(pubsub.StrictNoSign))
-
+	require.NoError(t, err)
 	// 15 headers from the past and 15 future headers
 	mockGet, shareServ, sub, _ := createDASerSubcomponents(t, bServ, 15, 15, share.NewFullAvailability)
 
 	// create fraud service and break one header
 	f := fraud.NewService(ps, mockGet.GetByHeight)
-	f.RegisterUnmarshaler(fraud.BadEncoding, fraud.UnmarshalBEFP)
+	require.NoError(t, f.RegisterUnmarshaler(fraud.BadEncoding, fraud.UnmarshalBEFP))
 	mockGet.headers[1] = header.CreateFraudExtHeader(t, mockGet.headers[1], bServ)
 
 	// create and start DASer
