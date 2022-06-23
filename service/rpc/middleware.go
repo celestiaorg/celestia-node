@@ -11,7 +11,7 @@ import (
 
 func (h *Handler) RegisterMiddleware(rpc *Server) {
 	rpc.RegisterMiddleware(setContentType)
-	rpc.RegisterMiddleware(checkAllowance(h.state))
+	rpc.RegisterMiddleware(checkPostDisabled(h.state))
 }
 
 func setContentType(next http.Handler) http.Handler {
@@ -21,8 +21,8 @@ func setContentType(next http.Handler) http.Handler {
 	})
 }
 
-// checkAllowance ensures that context was canceled and prohibit POST requests.
-func checkAllowance(state *state.Service) mux.MiddlewareFunc {
+// checkPostDisabled ensures that context was canceled and prohibit POST requests.
+func checkPostDisabled(state *state.Service) mux.MiddlewareFunc {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			// check if state service was halted and deny the transaction
