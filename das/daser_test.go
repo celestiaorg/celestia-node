@@ -260,7 +260,7 @@ func TestDASer_stopsAfter_BEFP(t *testing.T) {
 	ds := ds_sync.MutexWrap(datastore.NewMapDatastore())
 	bServ := mdutils.Bserv()
 	// create mock network
-	net, err := mocknet.FullMeshLinked(ctx, 1)
+	net, err := mocknet.FullMeshLinked(1)
 	require.NoError(t, err)
 	// create pubsub for host
 	ps, err := pubsub.NewGossipSub(ctx, net.Hosts()[0],

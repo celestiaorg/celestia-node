@@ -70,11 +70,10 @@ func (d *DASer) Start(context.Context) error {
 		return err
 	}
 
-	dasCtx, cancel := context.WithCancel(context.Background())
-	d.cancel = cancel
+	d.ctx, d.cancel = context.WithCancel(context.Background())
 
 	// load latest DASed checkpoint
-	checkpoint, err := loadCheckpoint(dasCtx, d.cstore)
+	checkpoint, err := loadCheckpoint(d.ctx, d.cstore)
 	if err != nil {
 		return err
 	}
@@ -264,6 +263,8 @@ func (d *DASer) checkForByzantineError(ctx context.Context, hash []byte, height 
 		err := d.bcast.Broadcast(ctx, fraud.CreateBadEncodingProof(hash, height, byzantineErr))
 		if err != nil {
 			log.Errorw("fraud proof propagating failed", "err", err)
+			return
 		}
+		log.Warn("fraud detected and broadcasted successfully. Shutting down services…")
 	}
 }
