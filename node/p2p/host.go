@@ -13,6 +13,7 @@ import (
 	"github.com/libp2p/go-libp2p-core/routing"
 	p2pconfig "github.com/libp2p/go-libp2p/config"
 	routedhost "github.com/libp2p/go-libp2p/p2p/host/routed"
+	"github.com/libp2p/go-libp2p/p2p/net/conngater"
 	"go.uber.org/fx"
 
 	"github.com/celestiaorg/celestia-node/libs/fxutil"
@@ -75,5 +76,5 @@ type hostParams struct {
 	AddrF     p2pconfig.AddrsFactory
 	PStore    peerstore.Peerstore
 	ConnMngr  connmgr.ConnManager
-	ConnGater connmgr.ConnectionGater
+	ConnGater *conngater.BasicConnectionGater
 }
