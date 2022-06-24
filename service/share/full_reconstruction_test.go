@@ -18,8 +18,8 @@ func init() {
 }
 
 // TestShareAvailable_OneFullNode asserts that a FullAvailability node can ensure
-// data is available(reconstruct data square) while being connected to
-// LightAvailability node's only.
+// data is available (reconstruct data square) while being connected to
+// LightAvailability nodes only.
 func TestShareAvailable_OneFullNode(t *testing.T) {
 	// NOTE: Numbers are taken from the original 'Fraud and Data Availability Proofs' paper
 	DefaultSampleAmount = 20 // s
