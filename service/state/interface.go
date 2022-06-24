@@ -31,6 +31,6 @@ type Accessor interface {
 	// a block.
 	SubmitTx(ctx context.Context, tx Tx) (*TxResponse, error)
 
-	// Transfer sends the given amount of coins from current wallet to the given account address.
+	// Transfer sends the given amount of coins from default wallet of the node to the given account address.
 	Transfer(ctx context.Context, to types.AccAddress, amount types.Int, gasLimit uint64) (*TxResponse, error)
 }
