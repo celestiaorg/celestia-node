@@ -50,8 +50,8 @@ func ConnectionManager(cfg Config) func(params.Bootstrappers) (coreconnmgr.ConnM
 }
 
 // ConnectionGater constructs a ConnectionGater.
-func ConnectionGater(cfg Config) func(datastore.Batching) (coreconnmgr.ConnectionGater, error) {
-	return func(ds datastore.Batching) (coreconnmgr.ConnectionGater, error) {
+func ConnectionGater(cfg Config) func(datastore.Batching) (*conngater.BasicConnectionGater, error) {
+	return func(ds datastore.Batching) (*conngater.BasicConnectionGater, error) {
 		m, err := conngater.NewBasicConnectionGater(ds)
 		if err != nil {
 			return nil, err
