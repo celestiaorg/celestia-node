@@ -40,6 +40,6 @@ func (s *Service) SubmitTx(ctx context.Context, tx Tx) (*TxResponse, error) {
 	return s.accessor.SubmitTx(ctx, tx)
 }
 
-func (s *Service) Transfer(ctx context.Context, to AccAddress, amount Int, gasLimit uint64) (*TxResponse, error) {
+func (s *Service) Transfer(ctx context.Context, to Address, amount Int, gasLimit uint64) (*TxResponse, error) {
 	return s.accessor.Transfer(ctx, to, amount, gasLimit)
 }

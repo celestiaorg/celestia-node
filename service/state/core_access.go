@@ -140,7 +140,7 @@ func (ca *CoreAccessor) SubmitTxWithBroadcastMode(
 
 func (ca *CoreAccessor) Transfer(
 	ctx context.Context,
-	to AccAddress,
+	to Address,
 	amount Int,
 	gasLim uint64,
 ) (*TxResponse, error) {
@@ -149,7 +149,7 @@ func (ca *CoreAccessor) Transfer(
 		return nil, err
 	}
 	coins := types.NewCoins(types.NewCoin(app.BondDenom, amount))
-	msg := banktypes.NewMsgSend(addr, to, coins)
+	msg := banktypes.NewMsgSend(addr, to.(types.AccAddress), coins)
 	signedTx, err := ca.constructSignedTx(ctx, msg, apptypes.SetGasLimit(gasLim))
 	if err != nil {
 		return nil, err
