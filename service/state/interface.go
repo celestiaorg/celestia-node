@@ -3,6 +3,8 @@ package state
 import (
 	"context"
 
+	"github.com/cosmos/cosmos-sdk/types"
+
 	"github.com/celestiaorg/nmt/namespace"
 )
 
@@ -28,4 +30,7 @@ type Accessor interface {
 	// Celestia network and blocks until the tx is included in
 	// a block.
 	SubmitTx(ctx context.Context, tx Tx) (*TxResponse, error)
+
+	// Transfer sends the given amount of coins from default wallet of the node to the given account address.
+	Transfer(ctx context.Context, to types.Address, amount types.Int, gasLimit uint64) (*TxResponse, error)
 }

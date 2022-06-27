@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/cosmos/cosmos-sdk/types"
 	sdk_tx "github.com/cosmos/cosmos-sdk/types/tx"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"google.golang.org/grpc"
@@ -68,6 +69,24 @@ func (ca *CoreAccessor) Stop(context.Context) error {
 	return nil
 }
 
+func (ca *CoreAccessor) constructSignedTx(
+	ctx context.Context,
+	msg types.Msg,
+	opts ...apptypes.TxBuilderOption,
+) ([]byte, error) {
+	// should be called first in order to make a valid tx
+	err := ca.signer.QueryAccountNumber(ctx, ca.coreConn)
+	if err != nil {
+		return nil, err
+	}
+
+	tx, err := ca.signer.BuildSignedTx(ca.signer.NewTxBuilder(opts...), msg)
+	if err != nil {
+		return nil, err
+	}
+	return ca.signer.EncodeTx(tx)
+}
+
 func (ca *CoreAccessor) SubmitPayForData(
 	ctx context.Context,
 	nID namespace.ID,
@@ -117,4 +136,27 @@ func (ca *CoreAccessor) SubmitTxWithBroadcastMode(
 		return nil, err
 	}
 	return txResp.TxResponse, nil
+}
+
+func (ca *CoreAccessor) Transfer(
+	ctx context.Context,
+	addr Address,
+	amount Int,
+	gasLim uint64,
+) (*TxResponse, error) {
+	to, ok := addr.(types.AccAddress)
+	if !ok {
+		return nil, fmt.Errorf("state: unsupported address type")
+	}
+	from, err := ca.signer.GetSignerInfo().GetAddress()
+	if err != nil {
+		return nil, err
+	}
+	coins := types.NewCoins(types.NewCoin(app.BondDenom, amount))
+	msg := banktypes.NewMsgSend(from, to, coins)
+	signedTx, err := ca.constructSignedTx(ctx, msg, apptypes.SetGasLimit(gasLim))
+	if err != nil {
+		return nil, err
+	}
+	return ca.SubmitTx(ctx, signedTx)
 }
