@@ -20,10 +20,7 @@ import (
 )
 
 func TestExchange_RequestHead(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	t.Cleanup(cancel)
-
-	host, peer := createMocknet(ctx, t)
+	host, peer := createMocknet(t)
 	exchg, store := createP2PExAndServer(t, host, peer)
 	// perform header request
 	header, err := exchg.Head(context.Background())
@@ -34,10 +31,7 @@ func TestExchange_RequestHead(t *testing.T) {
 }
 
 func TestExchange_RequestHeader(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	host, peer := createMocknet(ctx, t)
+	host, peer := createMocknet(t)
 	exchg, store := createP2PExAndServer(t, host, peer)
 	// perform expected request
 	header, err := exchg.GetByHeight(context.Background(), 5)
@@ -47,10 +41,7 @@ func TestExchange_RequestHeader(t *testing.T) {
 }
 
 func TestExchange_RequestHeaders(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	host, peer := createMocknet(ctx, t)
+	host, peer := createMocknet(t)
 	exchg, store := createP2PExAndServer(t, host, peer)
 	// perform expected request
 	gotHeaders, err := exchg.GetRangeByHeight(context.Background(), 1, 5)
@@ -67,7 +58,7 @@ func TestExchange_RequestByHash(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	net, err := mocknet.FullMeshConnected(context.Background(), 2)
+	net, err := mocknet.FullMeshConnected(2)
 	require.NoError(t, err)
 	// get host and peer
 	host, peer := net.Hosts()[0], net.Hosts()[1]
@@ -104,8 +95,8 @@ func TestExchange_RequestByHash(t *testing.T) {
 	assert.Equal(t, store.headers[reqHeight].Hash(), eh.Hash())
 }
 
-func createMocknet(ctx context.Context, t *testing.T) (libhost.Host, libhost.Host) {
-	net, err := mocknet.FullMeshConnected(ctx, 2)
+func createMocknet(t *testing.T) (libhost.Host, libhost.Host) {
+	net, err := mocknet.FullMeshConnected(2)
 	require.NoError(t, err)
 	// get host and peer
 	return net.Hosts()[0], net.Hosts()[1]

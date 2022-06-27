@@ -63,15 +63,15 @@ func (d *DASer) Start(context.Context) error {
 		return err
 	}
 
+	dasCtx, cancel := context.WithCancel(context.Background())
+	d.cancel = cancel
+
 	// load latest DASed checkpoint
-	checkpoint, err := loadCheckpoint(d.cstore)
+	checkpoint, err := loadCheckpoint(dasCtx, d.cstore)
 	if err != nil {
 		return err
 	}
 	log.Infow("loaded checkpoint", "height", checkpoint)
-
-	dasCtx, cancel := context.WithCancel(context.Background())
-	d.cancel = cancel
 
 	// kick off catch-up routine manager
 	go d.catchUpManager(dasCtx, checkpoint)
@@ -171,7 +171,7 @@ func (d *DASer) catchUpManager(ctx context.Context, checkpoint int64) {
 		// up to current network head
 		// TODO @renaynay: Implement Share Cache #180 to ensure no duplicate DASing over same
 		//  header
-		if err := storeCheckpoint(d.cstore, checkpoint); err != nil {
+		if err := storeCheckpoint(ctx, d.cstore, checkpoint); err != nil {
 			log.Errorw("storing checkpoint to disk", "height", checkpoint, "err", err)
 		}
 		log.Infow("stored checkpoint to disk", "checkpoint", checkpoint)

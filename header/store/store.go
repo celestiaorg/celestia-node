@@ -36,6 +36,9 @@ var (
 
 // store implements the Store interface for ExtendedHeaders over Datastore.
 type store struct {
+	ctx    context.Context
+	cancel context.CancelFunc
+
 	// header storing
 	//
 	// underlying KV store
@@ -116,6 +119,7 @@ func (s *store) Init(_ context.Context, initial *header.ExtendedHeader) error {
 }
 
 func (s *store) Start(context.Context) error {
+	s.ctx, s.cancel = context.WithCancel(context.Background())
 	go s.flushLoop()
 	return nil
 }
@@ -134,6 +138,8 @@ func (s *store) Stop(ctx context.Context) error {
 		return ctx.Err()
 	}
 
+	s.cancel()
+	s.cancel = nil
 	// cleanup caches
 	s.cache.Purge()
 	s.heightIndex.cache.Purge()
@@ -172,7 +178,7 @@ func (s *store) Get(_ context.Context, hash tmbytes.HexBytes) (*header.ExtendedH
 		return h, nil
 	}
 
-	b, err := s.ds.Get(datastore.NewKey(hash.String()))
+	b, err := s.ds.Get(s.ctx, datastore.NewKey(hash.String()))
 	if err != nil {
 		if err == datastore.ErrNotFound {
 			return nil, header.ErrNotFound
@@ -208,7 +214,7 @@ func (s *store) GetByHeight(ctx context.Context, height uint64) (*header.Extende
 		return h, nil
 	}
 
-	hash, err := s.heightIndex.HashByHeight(height)
+	hash, err := s.heightIndex.HashByHeight(s.ctx, height)
 	if err != nil {
 		if err == datastore.ErrNotFound {
 			return nil, header.ErrNotFound
@@ -249,7 +255,7 @@ func (s *store) Has(_ context.Context, hash tmbytes.HexBytes) (bool, error) {
 		return ok, nil
 	}
 
-	return s.ds.Has(datastore.NewKey(hash.String()))
+	return s.ds.Has(s.ctx, datastore.NewKey(hash.String()))
 }
 
 func (s *store) Append(ctx context.Context, headers ...*header.ExtendedHeader) (int, error) {
@@ -356,7 +362,7 @@ func (s *store) flush(headers ...*header.ExtendedHeader) error {
 		return nil
 	}
 
-	batch, err := s.ds.Batch()
+	batch, err := s.ds.Batch(s.ctx)
 	if err != nil {
 		return err
 	}
@@ -368,7 +374,7 @@ func (s *store) flush(headers ...*header.ExtendedHeader) error {
 			return err
 		}
 
-		err = batch.Put(headerKey(h), b)
+		err = batch.Put(s.ctx, headerKey(h), b)
 		if err != nil {
 			return err
 		}
@@ -380,24 +386,24 @@ func (s *store) flush(headers ...*header.ExtendedHeader) error {
 		return err
 	}
 
-	err = batch.Put(headKey, b)
+	err = batch.Put(s.ctx, headKey, b)
 	if err != nil {
 		return err
 	}
 
 	// write height indexes for headers as well
-	err = s.heightIndex.IndexTo(batch, headers...)
+	err = s.heightIndex.IndexTo(s.ctx, batch, headers...)
 	if err != nil {
 		return err
 	}
 
 	// finally, commit the batch on disk
-	return batch.Commit()
+	return batch.Commit(s.ctx)
 }
 
 // readHead loads the head from the datastore.
 func (s *store) readHead(ctx context.Context) (*header.ExtendedHeader, error) {
-	b, err := s.ds.Get(headKey)
+	b, err := s.ds.Get(s.ctx, headKey)
 	if err != nil {
 		return nil, err
 	}

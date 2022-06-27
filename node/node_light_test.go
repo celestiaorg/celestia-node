@@ -1,7 +1,6 @@
 package node
 
 import (
-	"context"
 	"crypto/rand"
 	"testing"
 
@@ -21,7 +20,7 @@ func TestNewLightWithP2PKey(t *testing.T) {
 }
 
 func TestNewLightWithHost(t *testing.T) {
-	nw, _ := mocknet.WithNPeers(context.Background(), 1)
+	nw, _ := mocknet.WithNPeers(1)
 	node := TestNode(t, Light, WithHost(nw.Hosts()[0]))
 	assert.Equal(t, nw.Peers()[0], node.Host.ID())
 }

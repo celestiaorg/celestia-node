@@ -72,8 +72,9 @@ func (n *namespaceHasher) Sum([]byte) []byte {
 func GetNode(ctx context.Context, bGetter blockservice.BlockGetter, root cid.Cid) (ipld.Node, error) {
 	block, err := bGetter.GetBlock(ctx, root)
 	if err != nil {
-		if errors.Is(err, blockservice.ErrNotFound) {
-			return nil, ipld.ErrNotFound
+		var errNotFound *ipld.ErrNotFound
+		if errors.As(err, &errNotFound) {
+			return nil, errNotFound
 		}
 		return nil, err
 	}

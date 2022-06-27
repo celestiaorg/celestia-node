@@ -72,7 +72,7 @@ func NewSwamp(t *testing.T, options ...Option) *Swamp {
 
 	swp := &Swamp{
 		t:          t,
-		Network:    mocknet.New(ctx),
+		Network:    mocknet.New(),
 		CoreClient: remote,
 	}
 

@@ -55,6 +55,6 @@ func ConnectionGater(ds datastore.Batching) (*conngater.BasicConnectionGater, er
 }
 
 // PeerStore constructs a PeerStore.
-func PeerStore() peerstore.Peerstore {
+func PeerStore() (peerstore.Peerstore, error) {
 	return pstoremem.NewPeerstore()
 }
