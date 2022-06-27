@@ -16,7 +16,7 @@ import (
 	"github.com/celestiaorg/nmt/namespace"
 )
 
-// CoreAccessor implements Accessor over an RPC connection
+// CoreAccessor implements Accessor over a gRPC connection
 // with a celestia-core node.
 type CoreAccessor struct {
 	signer *apptypes.KeyringSigner
