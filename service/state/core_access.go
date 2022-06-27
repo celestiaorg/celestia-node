@@ -140,16 +140,20 @@ func (ca *CoreAccessor) SubmitTxWithBroadcastMode(
 
 func (ca *CoreAccessor) Transfer(
 	ctx context.Context,
-	to Address,
+	addr Address,
 	amount Int,
 	gasLim uint64,
 ) (*TxResponse, error) {
-	addr, err := ca.signer.GetSignerInfo().GetAddress()
+	to, ok := addr.(types.AccAddress)
+	if !ok {
+		return nil, fmt.Errorf("state: unsupported address type")
+	}
+	from, err := ca.signer.GetSignerInfo().GetAddress()
 	if err != nil {
 		return nil, err
 	}
 	coins := types.NewCoins(types.NewCoin(app.BondDenom, amount))
-	msg := banktypes.NewMsgSend(addr, to.(types.AccAddress), coins)
+	msg := banktypes.NewMsgSend(from, to, coins)
 	signedTx, err := ca.constructSignedTx(ctx, msg, apptypes.SetGasLimit(gasLim))
 	if err != nil {
 		return nil, err
