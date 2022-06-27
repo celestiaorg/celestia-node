@@ -26,7 +26,7 @@ func TestExchange_RequestHead(t *testing.T) {
 	host, peer := createMocknet(ctx, t)
 	exchg, store := createP2PExAndServer(t, host, peer)
 	// perform header request
-	header, err := exchg.RequestHead(context.Background())
+	header, err := exchg.Head(context.Background())
 	require.NoError(t, err)
 
 	assert.Equal(t, store.headers[store.headHeight].Height, header.Height)
@@ -40,7 +40,7 @@ func TestExchange_RequestHeader(t *testing.T) {
 	host, peer := createMocknet(ctx, t)
 	exchg, store := createP2PExAndServer(t, host, peer)
 	// perform expected request
-	header, err := exchg.RequestHeader(context.Background(), 5)
+	header, err := exchg.GetByHeight(context.Background(), 5)
 	require.NoError(t, err)
 	assert.Equal(t, store.headers[5].Height, header.Height)
 	assert.Equal(t, store.headers[5].Hash(), header.Hash())
@@ -53,7 +53,7 @@ func TestExchange_RequestHeaders(t *testing.T) {
 	host, peer := createMocknet(ctx, t)
 	exchg, store := createP2PExAndServer(t, host, peer)
 	// perform expected request
-	gotHeaders, err := exchg.RequestHeaders(context.Background(), 1, 5)
+	gotHeaders, err := exchg.GetRangeByHeight(context.Background(), 1, 5)
 	require.NoError(t, err)
 	for _, got := range gotHeaders {
 		assert.Equal(t, store.headers[got.Height].Height, got.Height)
