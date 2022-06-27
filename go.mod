@@ -41,7 +41,7 @@ require (
 	github.com/minio/blake2b-simd v0.0.0-20160723061019-3f5f724cb5b1
 	github.com/mitchellh/go-homedir v1.1.0
 	github.com/multiformats/go-base32 v0.0.4
-	github.com/multiformats/go-multiaddr v0.5.0
+	github.com/multiformats/go-multiaddr v0.6.0
 	github.com/multiformats/go-multihash v0.1.0
 	github.com/raulk/go-watchdog v1.2.0
 	github.com/spf13/cobra v1.5.0
