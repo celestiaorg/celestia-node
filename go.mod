@@ -278,5 +278,5 @@ replace (
 	github.com/cosmos/cosmos-sdk => github.com/celestiaorg/cosmos-sdk v1.1.0-sdk-v0.46.0
 	github.com/gogo/protobuf => github.com/regen-network/protobuf v1.3.3-alpha.regen.1
 	github.com/libp2p/go-libp2p-pubsub v0.5.7-0.20211029175501-5c90105738cf => github.com/celestiaorg/go-libp2p-pubsub v0.5.6-celestia
-	github.com/tendermint/tendermint => github.com/celestiaorg/celestia-core v1.2.3-tm-v0.35.6
+	github.com/tendermint/tendermint => github.com/celestiaorg/celestia-core v1.2.4-tm-v0.35.6
 )
