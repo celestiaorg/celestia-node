@@ -93,7 +93,7 @@ func (n *node) ClearStorage() {
 	require.NoError(n.net.t, err)
 
 	for k := range keys {
-		err := n.DeleteBlock(k)
+		err := n.DeleteBlock(n.net.ctx, k)
 		require.NoError(n.net.t, err)
 	}
 }
@@ -111,7 +111,7 @@ func NewTestDAGNet(ctx context.Context, t *testing.T) *dagNet { //nolint:revive
 	return &dagNet{
 		ctx: ctx,
 		t:   t,
-		net: mocknet.New(ctx),
+		net: mocknet.New(),
 	}
 }
 

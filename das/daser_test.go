@@ -54,7 +54,7 @@ func TestDASerLifecycle(t *testing.T) {
 	require.NoError(t, err)
 
 	// load checkpoint and ensure it's at network head
-	checkpoint, err := loadCheckpoint(daser.cstore)
+	checkpoint, err := loadCheckpoint(ctx, daser.cstore)
 	require.NoError(t, err)
 	// ensure checkpoint is stored at 15
 	assert.Equal(t, int64(15), checkpoint)
@@ -117,7 +117,7 @@ func TestDASer_Restart(t *testing.T) {
 	require.NoError(t, err)
 
 	// load checkpoint and ensure it's at network head
-	checkpoint, err := loadCheckpoint(daser.cstore)
+	checkpoint, err := loadCheckpoint(ctx, daser.cstore)
 	require.NoError(t, err)
 	// ensure checkpoint is stored at 45
 	assert.Equal(t, int64(45), checkpoint)
@@ -170,15 +170,14 @@ func TestDASer_catchUp_oneHeader(t *testing.T) {
 
 	mockGet, shareServ, _ := createDASerSubcomponents(t, bServ, 6, 0)
 	daser := NewDASer(shareServ, nil, mockGet, ds)
-
-	// store checkpoint
-	err := storeCheckpoint(daser.cstore, 5) // pick arbitrary height as last checkpoint
-	require.NoError(t, err)
-
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
 
-	checkpoint, err := loadCheckpoint(daser.cstore)
+	// store checkpoint
+	err := storeCheckpoint(ctx, daser.cstore, 5) // pick arbitrary height as last checkpoint
+	require.NoError(t, err)
+
+	checkpoint, err := loadCheckpoint(ctx, daser.cstore)
 	require.NoError(t, err)
 
 	type catchUpResult struct {
@@ -215,14 +214,14 @@ func TestDASer_catchUp_fails(t *testing.T) {
 	mockGet, _, _ := createDASerSubcomponents(t, dag, 6, 0)
 	daser := NewDASer(share.NewBrokenAvailability(), nil, mockGet, ds)
 
-	// store checkpoint
-	err := storeCheckpoint(daser.cstore, 5) // pick arbitrary height as last checkpoint
-	require.NoError(t, err)
-
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
 
-	checkpoint, err := loadCheckpoint(daser.cstore)
+	// store checkpoint
+	err := storeCheckpoint(ctx, daser.cstore, 5) // pick arbitrary height as last checkpoint
+	require.NoError(t, err)
+
+	checkpoint, err := loadCheckpoint(ctx, daser.cstore)
 	require.NoError(t, err)
 
 	type catchUpResult struct {

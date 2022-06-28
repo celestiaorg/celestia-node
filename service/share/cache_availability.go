@@ -50,7 +50,7 @@ func (ca *CacheAvailability) SharesAvailable(ctx context.Context, root *Root) er
 	}
 	// do not sample over Root that has already been sampled
 	key := rootKey(root)
-	exists, err := ca.ds.Has(key)
+	exists, err := ca.ds.Has(ctx, key)
 	if err != nil {
 		return err
 	}
@@ -61,7 +61,7 @@ func (ca *CacheAvailability) SharesAvailable(ctx context.Context, root *Root) er
 	if err != nil {
 		return err
 	}
-	err = ca.ds.Put(key, []byte{})
+	err = ca.ds.Put(ctx, key, []byte{})
 	if err != nil {
 		log.Errorw("storing root of successful SharesAvailable request to disk", "err", err)
 	}
@@ -69,8 +69,8 @@ func (ca *CacheAvailability) SharesAvailable(ctx context.Context, root *Root) er
 }
 
 // Close flushes all queued writes to disk.
-func (ca *CacheAvailability) Close(context.Context) error {
-	return ca.ds.Flush()
+func (ca *CacheAvailability) Close(ctx context.Context) error {
+	return ca.ds.Flush(ctx)
 }
 
 func rootKey(root *Root) datastore.Key {

@@ -1,6 +1,8 @@
 package store
 
 import (
+	"context"
+
 	lru "github.com/hashicorp/golang-lru"
 	"github.com/ipfs/go-datastore"
 	tmbytes "github.com/tendermint/tendermint/libs/bytes"
@@ -29,12 +31,12 @@ func newHeightIndexer(ds datastore.Batching) (*heightIndexer, error) {
 }
 
 // HashByHeight loads a header hash corresponding to the given height.
-func (hi *heightIndexer) HashByHeight(h uint64) (tmbytes.HexBytes, error) {
+func (hi *heightIndexer) HashByHeight(ctx context.Context, h uint64) (tmbytes.HexBytes, error) {
 	if v, ok := hi.cache.Get(h); ok {
 		return v.(tmbytes.HexBytes), nil
 	}
 
-	val, err := hi.ds.Get(heightKey(h))
+	val, err := hi.ds.Get(ctx, heightKey(h))
 	if err != nil {
 		return nil, err
 	}
@@ -44,9 +46,9 @@ func (hi *heightIndexer) HashByHeight(h uint64) (tmbytes.HexBytes, error) {
 }
 
 // IndexTo saves mapping between header Height and Hash to the given batch.
-func (hi *heightIndexer) IndexTo(batch datastore.Batch, headers ...*header.ExtendedHeader) error {
+func (hi *heightIndexer) IndexTo(ctx context.Context, batch datastore.Batch, headers ...*header.ExtendedHeader) error {
 	for _, h := range headers {
-		err := batch.Put(heightKey(uint64(h.Height)), h.Hash())
+		err := batch.Put(ctx, heightKey(uint64(h.Height)), h.Hash())
 		if err != nil {
 			return err
 		}

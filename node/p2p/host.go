@@ -16,7 +16,6 @@ import (
 	"github.com/libp2p/go-libp2p/p2p/net/conngater"
 	"go.uber.org/fx"
 
-	"github.com/celestiaorg/celestia-node/libs/fxutil"
 	nparams "github.com/celestiaorg/celestia-node/params"
 )
 
@@ -50,7 +49,7 @@ func Host(cfg Config) func(hostParams) (HostBase, error) {
 			opts = append(opts, libp2p.EnableNATService())
 		}
 
-		h, err := libp2p.NewWithoutDefaults(fxutil.WithLifecycle(params.Ctx, params.Lc), opts...)
+		h, err := libp2p.NewWithoutDefaults(opts...)
 		if err != nil {
 			return nil, err
 		}
@@ -68,7 +67,6 @@ type HostBase host.Host
 type hostParams struct {
 	fx.In
 
-	Ctx       context.Context
 	Net       nparams.Network
 	Lc        fx.Lifecycle
 	ID        peer.ID

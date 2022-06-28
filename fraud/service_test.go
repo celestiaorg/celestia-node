@@ -58,7 +58,7 @@ func createService(t *testing.T) Service {
 	t.Cleanup(cancel)
 
 	// create mock network
-	net, err := mocknet.FullMeshLinked(ctx, 2)
+	net, err := mocknet.FullMeshLinked(2)
 	require.NoError(t, err)
 
 	// create pubsub for host
