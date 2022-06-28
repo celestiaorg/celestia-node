@@ -40,8 +40,7 @@ func (fa *fullAvailability) SharesAvailable(ctx context.Context, root *Root) err
 	_, err := fa.rtrv.Retrieve(ctx, root)
 	if err != nil {
 		log.Errorw("availability validation failed", "root", root.Hash(), "err", err)
-		var notFound *format.ErrNotFound
-		if errors.As(err, &notFound) || errors.Is(err, context.DeadlineExceeded) {
+		if format.IsNotFound(err) || errors.Is(err, context.DeadlineExceeded) {
 			return ErrNotAvailable
 		}
 
