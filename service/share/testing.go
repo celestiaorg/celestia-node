@@ -1,6 +1,7 @@
 package share
 
 import (
+	"bytes"
 	"context"
 	"testing"
 
@@ -240,18 +241,28 @@ func (sn *subNet) ConnectAll() {
 	}
 }
 
-// brokenAvailability allows to test error cases during sampling
-type brokenAvailability struct{}
-
-func NewBrokenAvailability() Availability {
-	return &brokenAvailability{}
+type TestBrokenAvailability struct {
+	Root *Root
 }
 
-func (b *brokenAvailability) SharesAvailable(context.Context, *Root) error {
-	return ErrNotAvailable
+// NewTestBrokenAvailability returns an instance of Availability that
+// allows for testing error cases during sampling.
+//
+// If the Root field is empty, it will return ErrNotAvailable on every call
+// to SharesAvailable. Otherwise, it will only return ErrNotAvailable if the
+// given Root hash matches the stored Root hash.
+func NewTestBrokenAvailability() Availability {
+	return &TestBrokenAvailability{}
 }
 
-func (b *brokenAvailability) ProbabilityOfAvailability() float64 {
+func (b *TestBrokenAvailability) SharesAvailable(_ context.Context, root *Root) error {
+	if b.Root == nil || bytes.Equal(b.Root.Hash(), root.Hash()) {
+		return ErrNotAvailable
+	}
+	return nil
+}
+
+func (b *TestBrokenAvailability) ProbabilityOfAvailability() float64 {
 	return 0
 }
 
@@ -261,4 +272,21 @@ func TestLightAvailability(bServ blockservice.BlockService) *LightAvailability {
 
 func TestFullAvailability(bServ blockservice.BlockService) *FullAvailability {
 	return NewFullAvailability(bServ, routing.NewRoutingDiscovery(routinghelpers.Null{}), nil)
+}
+
+type TestSuccessfulAvailability struct {
+}
+
+// NewTestSuccessfulAvailability returns an Availability that always
+// returns successfully when SharesAvailable is called.
+func NewTestSuccessfulAvailability() Availability {
+	return &TestSuccessfulAvailability{}
+}
+
+func (tsa *TestSuccessfulAvailability) SharesAvailable(context.Context, *Root) error {
+	return nil
+}
+
+func (tsa *TestSuccessfulAvailability) ProbabilityOfAvailability() float64 {
+	return 0
 }

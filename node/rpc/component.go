@@ -3,18 +3,12 @@ package rpc
 import (
 	"go.uber.org/fx"
 
+	"github.com/celestiaorg/celestia-node/das"
 	"github.com/celestiaorg/celestia-node/service/header"
 	"github.com/celestiaorg/celestia-node/service/rpc"
 	"github.com/celestiaorg/celestia-node/service/share"
 	"github.com/celestiaorg/celestia-node/service/state"
 )
-
-func Components(cfg rpc.Config) fx.Option {
-	return fx.Options(
-		fx.Provide(Server(cfg)),
-		fx.Invoke(Handler),
-	)
-}
 
 // Server constructs a new RPC Server from the given Config.
 // TODO @renaynay @Wondertan: this component is meant to be removed on implementation
@@ -36,8 +30,9 @@ func Handler(
 	share *share.Service,
 	header *header.Service,
 	serv *rpc.Server,
+	daser *das.DASer,
 ) {
-	handler := rpc.NewHandler(state, share, header)
+	handler := rpc.NewHandler(state, share, header, daser)
 	handler.RegisterEndpoints(serv)
 	handler.RegisterMiddleware(serv)
 }

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sync/atomic"
 	"time"
 
 	"github.com/ipfs/go-datastore"
@@ -19,18 +20,16 @@ var log = logging.Logger("das")
 
 // DASer continuously validates availability of data committed to headers.
 type DASer struct {
-	da    share.Availability
-	bcast fraud.Broadcaster
-	hsub  header.Subscriber
-
-	// getter allows the DASer to fetch an ExtendedHeader (EH) at a certain height
-	// and blocks until the EH has been processed by the header store.
-	getter header.Getter
-	// checkpoint store
-	cstore datastore.Datastore
-
 	ctx    context.Context
 	cancel context.CancelFunc
+
+	da     share.Availability
+	bcast  fraud.Broadcaster
+	hsub   header.Subscriber // listens for new headers in the network
+	getter header.Getter     // retrieves past headers
+
+	cstore datastore.Datastore // checkpoint store
+	state  state
 
 	jobsCh chan *catchUpJob
 
@@ -113,8 +112,12 @@ func (d *DASer) Stop(ctx context.Context) error {
 
 // sample validates availability for each Header received from header subscription.
 func (d *DASer) sample(ctx context.Context, sub header.Subscription, checkpoint int64) {
+	// indicate sampling routine is running
+	atomic.StoreUint64(&d.state.sample.IsRunning, 1)
 	defer func() {
 		sub.Cancel()
+		// indicate sampling routine is stopped
+		atomic.StoreUint64(&d.state.sample.IsRunning, 0)
 		// send done signal
 		d.sampleDn <- struct{}{}
 	}()
@@ -153,9 +156,14 @@ func (d *DASer) sample(ctx context.Context, sub header.Subscription, checkpoint 
 
 		err = d.sampleHeader(ctx, h)
 		if err != nil {
+			// record error
+			d.updateSampleState(h, err)
+			log.Warn("DASer SAMPLING ROUTINE WILL BE STOPPED. IN ORDER TO CONTINUE SAMPLING, " +
+				"RE-START THE NODE")
 			return
 		}
 
+		d.updateSampleState(h, nil)
 		sampleHeight = h.Height
 	}
 }
@@ -187,13 +195,22 @@ func (d *DASer) catchUpManager(ctx context.Context, checkpoint int64) {
 		case <-ctx.Done():
 			return
 		case job := <-d.jobsCh:
+			// record details of incoming job
+			d.recordJobDetails(job)
 			// perform catchUp routine
 			height, err := d.catchUp(ctx, job)
 			// store the height of the last successfully sampled header
 			checkpoint = height
 			// exit routine if a catch-up job was unsuccessful
 			if err != nil {
+				// record error
+				d.state.catchUpLk.Lock()
+				d.state.catchUp.Error = err
+				d.state.catchUpLk.Unlock()
+
 				log.Errorw("catch-up routine failed", "attempted range: from", job.from, "to", job.to)
+				log.Warn("DASer CATCH-UP SAMPLING ROUTINE WILL BE STOPPED. IN ORDER TO CONTINUE SAMPLING, " +
+					"RE-START THE NODE")
 				return
 			}
 		}
@@ -203,7 +220,6 @@ func (d *DASer) catchUpManager(ctx context.Context, checkpoint int64) {
 // catchUp starts a sampling routine for headers starting at the next header
 // after the `from` height and exits the loop once `to` is reached. (from:to]
 func (d *DASer) catchUp(ctx context.Context, job *catchUpJob) (int64, error) {
-	routineStartTime := time.Now()
 	log.Infow("sampling past headers", "from", job.from, "to", job.to)
 
 	// start sampling from height at checkpoint+1 since the
@@ -226,10 +242,17 @@ func (d *DASer) catchUp(ctx context.Context, job *catchUpJob) (int64, error) {
 		if err != nil {
 			return h.Height - 1, err
 		}
+		d.state.catchUpLk.Lock()
+		d.state.catchUp.Height = uint64(h.Height)
+		d.state.catchUpLk.Unlock()
 	}
+	d.state.catchUpLk.Lock()
+	d.state.catchUp.End = time.Now()
+	d.state.catchUpLk.Unlock()
 
+	jobDetails := d.CatchUpRoutineState()
 	log.Infow("successfully sampled past headers", "from", job.from,
-		"to", job.to, "finished (s)", time.Since(routineStartTime))
+		"to", job.to, "finished (s)", jobDetails.Duration())
 	// report successful result
 	return job.to, nil
 }
@@ -252,7 +275,6 @@ func (d *DASer) sampleHeader(ctx context.Context, h *header.ExtendedHeader) erro
 		}
 		log.Errorw("sampling failed", "height", h.Height, "hash", h.Hash(),
 			"square width", len(h.DAH.RowsRoots), "data root", h.DAH.Hash(), "err", err)
-		log.Warn("DASer WILL BE STOPPED. IN ORDER TO CONTINUE SAMPLING, RE-START THE NODE")
 		// report previous height as the last successfully sampled height
 		return err
 	}
@@ -262,4 +284,41 @@ func (d *DASer) sampleHeader(ctx context.Context, h *header.ExtendedHeader) erro
 		"square width", len(h.DAH.RowsRoots), "finished (s)", sampleTime.Seconds())
 
 	return nil
+}
+
+// SampleRoutineState reports the current state of the
+// DASer's main sampling routine.
+func (d *DASer) SampleRoutineState() RoutineState {
+	d.state.sampleLk.RLock()
+	state := d.state.sample
+	d.state.sampleLk.RUnlock()
+	return state
+}
+
+func (d *DASer) updateSampleState(h *header.ExtendedHeader, err error) {
+	height := uint64(h.Height)
+
+	d.state.sampleLk.Lock()
+	defer d.state.sampleLk.Unlock()
+	d.state.sample.LatestSampledHeight = height
+	d.state.sample.LatestSampledSquareWidth = uint64(len(h.DAH.RowsRoots))
+	d.state.sample.Error = err
+}
+
+// CatchUpRoutineState reports the current state of the
+// DASer's `catchUp` routine.
+func (d *DASer) CatchUpRoutineState() JobInfo {
+	d.state.catchUpLk.RLock()
+	state := d.state.catchUp
+	d.state.catchUpLk.RUnlock()
+	return state
+}
+
+func (d *DASer) recordJobDetails(job *catchUpJob) {
+	d.state.catchUpLk.Lock()
+	defer d.state.catchUpLk.Unlock()
+	d.state.catchUp.ID++
+	d.state.catchUp.From = uint64(job.from)
+	d.state.catchUp.To = uint64(job.to)
+	d.state.catchUp.Start = time.Now()
 }
