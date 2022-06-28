@@ -73,7 +73,7 @@ func validateAddress(address string) (string, string, error) {
 		return "", "", fmt.Errorf("both protocol and host must present in the address")
 	}
 
-	if _, port, err := net.SplitHostPort(u.Host); err != nil || port == "" {
+	if _, _, err := net.SplitHostPort(u.Host); err != nil {
 		return "", "", fmt.Errorf("incorrect address provided for Remote Core")
 	}
 
