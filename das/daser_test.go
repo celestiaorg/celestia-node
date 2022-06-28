@@ -19,6 +19,7 @@ import (
 	"github.com/celestiaorg/celestia-node/fraud"
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/service/share"
+	"github.com/celestiaorg/celestia-node/service/share/discovery"
 )
 
 var timeout = time.Second * 15
@@ -306,7 +307,7 @@ func createDASerSubcomponents(
 	numSub int,
 	availabilityFn func(blockservice.BlockService) share.Availability,
 ) (*mockGetter, *share.Service, *header.DummySubscriber, *fraud.DummyService) {
-	shareServ := share.NewService(bServ, availabilityFn(bServ))
+	shareServ := share.NewService(bServ, availabilityFn(bServ), discovery.Null())
 
 	mockGet := &mockGetter{
 		headers: make(map[int64]*header.ExtendedHeader),

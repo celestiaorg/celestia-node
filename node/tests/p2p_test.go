@@ -116,7 +116,6 @@ func TestBootstrapNodesFromBridgeNode(t *testing.T) {
 		}
 	}
 	light.Host.Network().Notify(bundle)
-
 	for index := range nodes {
 		require.NoError(t, nodes[index].Start(ctx))
 		assert.Equal(t, *addr, nodes[index].Bootstrappers[0])

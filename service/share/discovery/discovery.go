@@ -5,7 +5,7 @@ import (
 	"time"
 
 	core "github.com/libp2p/go-libp2p-core/discovery"
-	discovery "github.com/libp2p/go-libp2p-discovery"
+	"github.com/libp2p/go-libp2p/p2p/discovery/util"
 )
 
 const (
@@ -56,7 +56,7 @@ func FindPeers(ctx context.Context, d *Discoverer) {
 		case <-ctx.Done():
 			return
 		case <-t.C:
-			peers, err := discovery.FindPeers(ctx, d.disc, namespace)
+			peers, err := util.FindPeers(ctx, d.disc, namespace)
 			if err != nil {
 				log.Debug(err)
 				continue

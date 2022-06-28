@@ -89,8 +89,8 @@ func (ca *CacheAvailability) Start(context.Context) error {
 }
 
 // Close flushes all queued writes to disk.
-func (ca *CacheAvailability) Close(context.Context) error {
-	return ca.ds.Flush()
+func (ca *CacheAvailability) Close(ctx context.Context) error {
+	return ca.ds.Flush(ctx)
 }
 
 func rootKey(root *Root) datastore.Key {

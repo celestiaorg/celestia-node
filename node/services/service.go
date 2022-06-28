@@ -9,8 +9,8 @@ import (
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/libp2p/go-libp2p-core/peerstore"
 	"github.com/libp2p/go-libp2p-core/routing"
-	discovery "github.com/libp2p/go-libp2p-discovery"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
+	routingdisc "github.com/libp2p/go-libp2p/p2p/discovery/routing"
 	"go.uber.org/fx"
 
 	"github.com/celestiaorg/celestia-node/das"
@@ -135,7 +135,7 @@ func ShareService(
 	r routing.ContentRouting,
 	h host.Host,
 ) *share.Service {
-	discoverer := disc.NewDiscoverer(disc.NewLimitedSet(disc.PeersLimit), h, discovery.NewRoutingDiscovery(r))
+	discoverer := disc.NewDiscoverer(disc.NewLimitedSet(disc.PeersLimit), h, routingdisc.NewRoutingDiscovery(r))
 	service := share.NewService(bServ, avail, discoverer)
 	lc.Append(fx.Hook{
 		OnStart: service.Start,
@@ -193,7 +193,7 @@ func FullAvailability(
 	ds datastore.Batching,
 	r routing.ContentRouting,
 ) share.Availability {
-	service := discovery.NewRoutingDiscovery(r)
+	service := routingdisc.NewRoutingDiscovery(r)
 	ca := share.NewCacheAvailability(share.NewFullAvailability(bServ), ds)
 	lc.Append(fx.Hook{
 		OnStart: func(context.Context) error {
