@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"sync"
-	"time"
 
 	logging "github.com/ipfs/go-log/v2"
 
@@ -320,6 +319,7 @@ func (s *store) Append(ctx context.Context, headers ...*header.ExtendedHeader) (
 // (2) Batching header writes
 func (s *store) flushLoop() {
 	defer close(s.writesDn)
+	ctx := context.Background()
 	for headers := range s.writes {
 		// add headers to the pending and ensure they are accessible
 		s.pending.Append(headers...)
@@ -333,8 +333,6 @@ func (s *store) flushLoop() {
 			continue
 		}
 
-		ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
-		defer cancel()
 		err := s.flush(ctx, s.pending.GetAll()...)
 		if err != nil {
 			// TODO(@Wondertan): Should this be a fatal error case with os.Exit?
