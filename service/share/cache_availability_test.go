@@ -129,3 +129,7 @@ func (da *dummyAvailability) SharesAvailable(_ context.Context, root *Root) erro
 	da.counter++
 	return nil
 }
+
+func (da *dummyAvailability) ProbabilityOfAvailability() float64 {
+	return 0
+}

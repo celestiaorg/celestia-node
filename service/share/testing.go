@@ -242,3 +242,7 @@ func NewBrokenAvailability() Availability {
 func (b *brokenAvailability) SharesAvailable(context.Context, *Root) error {
 	return ErrNotAvailable
 }
+
+func (b *brokenAvailability) ProbabilityOfAvailability() float64 {
+	return 0
+}
