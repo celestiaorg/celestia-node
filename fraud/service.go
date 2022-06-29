@@ -147,6 +147,7 @@ func (f *service) processIncoming(
 		"hash", hex.EncodeToString(extHeader.DAH.Hash()),
 		"from", msg.ReceivedFrom.String(),
 	)
+	log.Warn("Shutting down services...")
 	return pubsub.ValidationAccept
 }
 
