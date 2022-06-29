@@ -20,11 +20,6 @@ func (s *Swamp) SubmitData(ctx context.Context, t *testing.T, data []byte) {
 	require.Zero(t, result.Code)
 }
 
-func (s *Swamp) FillBlock(ctx context.Context, t *testing.T, bsize int) {
-	data := make([]byte, bsize*ipld.ShareSize)
-	s.SubmitData(ctx, t, data)
-}
-
 func (s *Swamp) FillBlocks(ctx context.Context, t *testing.T, bsize, blocks int) {
 	btime := s.comps.CoreCfg.Consensus.CreateEmptyBlocksInterval
 	timer := time.NewTimer(btime)
