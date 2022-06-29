@@ -18,6 +18,7 @@ import (
 
 	"github.com/celestiaorg/celestia-node/core"
 	"github.com/celestiaorg/celestia-node/das"
+	"github.com/celestiaorg/celestia-node/fraud"
 	"github.com/celestiaorg/celestia-node/params"
 	"github.com/celestiaorg/celestia-node/service/header"
 	"github.com/celestiaorg/celestia-node/service/rpc"
@@ -58,8 +59,8 @@ type Node struct {
 	ShareServ  *share.Service  // not optional
 	HeaderServ *header.Service // not optional
 	StateServ  *state.Service  // not optional
-
-	DASer *das.DASer `optional:"true"`
+	FraudServ  fraud.Service   // not optional
+	DASer      *das.DASer      `optional:"true"`
 
 	// start and stop control ref internal fx.App lifecycle funcs to be called from Start and Stop
 	start, stop lifecycleFunc

@@ -10,10 +10,13 @@ import (
 	"github.com/ipfs/go-datastore"
 	ds_sync "github.com/ipfs/go-datastore/sync"
 	mdutils "github.com/ipfs/go-merkledag/test"
+	pubsub "github.com/libp2p/go-libp2p-pubsub"
+	mocknet "github.com/libp2p/go-libp2p/p2p/net/mock"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	tmbytes "github.com/tendermint/tendermint/libs/bytes"
 
+	"github.com/celestiaorg/celestia-node/fraud"
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/service/share"
 )
@@ -27,12 +30,12 @@ func TestDASerLifecycle(t *testing.T) {
 	bServ := mdutils.Bserv()
 
 	// 15 headers from the past and 15 future headers
-	mockGet, shareServ, sub := createDASerSubcomponents(t, bServ, 15, 15)
+	mockGet, shareServ, sub, mockService := createDASerSubcomponents(t, bServ, 15, 15, share.NewLightAvailability)
 
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	t.Cleanup(cancel)
 
-	daser := NewDASer(shareServ, sub, mockGet, ds)
+	daser := NewDASer(shareServ, sub, mockGet, ds, mockService)
 
 	err := daser.Start(ctx)
 	require.NoError(t, err)
@@ -65,12 +68,12 @@ func TestDASer_Restart(t *testing.T) {
 	bServ := mdutils.Bserv()
 
 	// 15 headers from the past and 15 future headers
-	mockGet, shareServ, sub := createDASerSubcomponents(t, bServ, 15, 15)
+	mockGet, shareServ, sub, mockService := createDASerSubcomponents(t, bServ, 15, 15, share.NewLightAvailability)
 
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	t.Cleanup(cancel)
 
-	daser := NewDASer(shareServ, sub, mockGet, ds)
+	daser := NewDASer(shareServ, sub, mockGet, ds, mockService)
 
 	err := daser.Start(ctx)
 	require.NoError(t, err)
@@ -127,12 +130,12 @@ func TestDASer_catchUp(t *testing.T) {
 	ds := ds_sync.MutexWrap(datastore.NewMapDatastore())
 	bServ := mdutils.Bserv()
 
-	mockGet, shareServ, _ := createDASerSubcomponents(t, bServ, 5, 0)
+	mockGet, shareServ, _, mockService := createDASerSubcomponents(t, bServ, 5, 0, share.NewLightAvailability)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
 
-	daser := NewDASer(shareServ, nil, mockGet, ds)
+	daser := NewDASer(shareServ, nil, mockGet, ds, mockService)
 
 	type catchUpResult struct {
 		checkpoint int64
@@ -168,8 +171,8 @@ func TestDASer_catchUp_oneHeader(t *testing.T) {
 	ds := ds_sync.MutexWrap(datastore.NewMapDatastore())
 	bServ := mdutils.Bserv()
 
-	mockGet, shareServ, _ := createDASerSubcomponents(t, bServ, 6, 0)
-	daser := NewDASer(shareServ, nil, mockGet, ds)
+	mockGet, shareServ, _, mockService := createDASerSubcomponents(t, bServ, 6, 0, share.NewLightAvailability)
+	daser := NewDASer(shareServ, nil, mockGet, ds, mockService)
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
 
@@ -209,10 +212,10 @@ func TestDASer_catchUp_oneHeader(t *testing.T) {
 
 func TestDASer_catchUp_fails(t *testing.T) {
 	ds := ds_sync.MutexWrap(datastore.NewMapDatastore())
-	dag := mdutils.Bserv()
+	bServ := mdutils.Bserv()
 
-	mockGet, _, _ := createDASerSubcomponents(t, dag, 6, 0)
-	daser := NewDASer(share.NewBrokenAvailability(), nil, mockGet, ds)
+	mockGet, _, _, mockService := createDASerSubcomponents(t, bServ, 6, 0, share.NewLightAvailability)
+	daser := NewDASer(share.NewBrokenAvailability(), nil, mockGet, ds, mockService)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
@@ -250,6 +253,48 @@ func TestDASer_catchUp_fails(t *testing.T) {
 	require.ErrorIs(t, result.err, share.ErrNotAvailable)
 }
 
+func TestDASer_stopsAfter_BEFP(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Minute*3)
+	t.Cleanup(cancel)
+
+	ds := ds_sync.MutexWrap(datastore.NewMapDatastore())
+	bServ := mdutils.Bserv()
+	// create mock network
+	net, err := mocknet.FullMeshLinked(1)
+	require.NoError(t, err)
+	// create pubsub for host
+	ps, err := pubsub.NewGossipSub(ctx, net.Hosts()[0],
+		pubsub.WithMessageSignaturePolicy(pubsub.StrictNoSign))
+	require.NoError(t, err)
+	// 15 headers from the past and 15 future headers
+	mockGet, shareServ, sub, _ := createDASerSubcomponents(t, bServ, 15, 15, share.NewFullAvailability)
+
+	// create fraud service and break one header
+	f := fraud.NewService(ps, mockGet.GetByHeight)
+	require.NoError(t, f.RegisterUnmarshaler(fraud.BadEncoding, fraud.UnmarshalBEFP))
+	mockGet.headers[1] = header.CreateFraudExtHeader(t, mockGet.headers[1], bServ)
+
+	// create and start DASer
+	daser := NewDASer(shareServ, sub, mockGet, ds, f)
+	go fraud.OnBEFP(ctx, f, daser.Stop)
+	require.NoError(t, daser.Start(ctx))
+
+	// wait for dasing catch-up routine fails
+	select {
+	case <-ctx.Done():
+		t.Fatal(ctx.Err())
+	case <-daser.ctx.Done():
+		break
+	}
+
+	// give catch-up routine a second to finish up sampling last header
+	// TODO @renaynay: this sleep is a known flakey solution to the issue that
+	//  we do not have DASState implemented yet. Once DASState is implemented, rely
+	//  on that instead of sleeping.
+	time.Sleep(time.Second * 1)
+	require.True(t, daser.ctx.Err() == context.Canceled)
+}
+
 // createDASerSubcomponents takes numGetter (number of headers
 // to store in mockGetter) and numSub (number of headers to store
 // in the mock header.Subscriber), returning a newly instantiated
@@ -259,8 +304,9 @@ func createDASerSubcomponents(
 	bServ blockservice.BlockService,
 	numGetter,
 	numSub int,
-) (*mockGetter, *share.Service, *header.DummySubscriber) {
-	shareServ := share.NewService(bServ, share.NewLightAvailability(bServ))
+	availabilityFn func(blockservice.BlockService) share.Availability,
+) (*mockGetter, *share.Service, *header.DummySubscriber, *fraud.DummyService) {
+	shareServ := share.NewService(bServ, availabilityFn(bServ))
 
 	mockGet := &mockGetter{
 		headers: make(map[int64]*header.ExtendedHeader),
@@ -270,9 +316,10 @@ func createDASerSubcomponents(
 	mockGet.generateHeaders(t, bServ, 0, numGetter)
 
 	sub := new(header.DummySubscriber)
+	fraud := new(fraud.DummyService)
 	mockGet.fillSubWithHeaders(t, sub, bServ, numGetter, numGetter+numSub)
 
-	return mockGet, shareServ, sub
+	return mockGet, shareServ, sub, fraud
 }
 
 // fillSubWithHeaders generates `num` headers from the future for p2pSub to pipe through to DASer.

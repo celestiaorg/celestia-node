@@ -4,10 +4,12 @@ package header
 
 import (
 	"context"
+
 	mrand "math/rand"
 	"testing"
 	"time"
 
+	"github.com/ipfs/go-blockservice"
 	"github.com/stretchr/testify/require"
 	"github.com/tendermint/tendermint/crypto/tmhash"
 	"github.com/tendermint/tendermint/libs/bytes"
@@ -19,6 +21,8 @@ import (
 	"github.com/tendermint/tendermint/version"
 
 	"github.com/celestiaorg/celestia-node/core"
+
+	"github.com/celestiaorg/celestia-node/ipld"
 )
 
 // TestSuite provides everything you need to test chain of Headers.
@@ -198,6 +202,39 @@ func RandBlockID(t *testing.T) types.BlockID {
 	return bid
 }
 
+// FraudMaker creates a custom ConstructFn that breaks the block at the given height.
+func FraudMaker(t *testing.T, faultHeight int64) ConstructFn {
+	log.Warn("Corrupting block...", "height", faultHeight)
+	return func(ctx context.Context,
+		b *types.Block,
+		comm *types.Commit,
+		vals *types.ValidatorSet,
+		bServ blockservice.BlockService) (*ExtendedHeader, error) {
+		eh := &ExtendedHeader{
+			RawHeader:    b.Header,
+			Commit:       comm,
+			ValidatorSet: vals,
+		}
+
+		if b.Height == faultHeight {
+			eh = CreateFraudExtHeader(t, eh, bServ)
+			return eh, nil
+		}
+		return MakeExtendedHeader(ctx, b, comm, vals, bServ)
+	}
+}
+
+func CreateFraudExtHeader(t *testing.T, eh *ExtendedHeader, dag blockservice.BlockService) *ExtendedHeader {
+	extended := ipld.RandEDS(t, 2)
+	shares := ipld.ExtractEDS(extended)
+	copy(shares[0][ipld.NamespaceSize:], shares[1][ipld.NamespaceSize:])
+	extended, err := ipld.ImportShares(context.Background(), shares, dag)
+	require.NoError(t, err)
+	dah := da.NewDataAvailabilityHeader(extended)
+	eh.DAH = &dah
+	return eh
+}
+
 type DummySubscriber struct {
 	Headers []*ExtendedHeader
 }
@@ -226,4 +263,5 @@ func (mhs *DummySubscriber) NextHeader(ctx context.Context) (*ExtendedHeader, er
 	return mhs.Headers[0], nil
 }
 
-func (mhs *DummySubscriber) Cancel() {}
+func (mhs *DummySubscriber) Stop(context.Context) error { return nil }
+func (mhs *DummySubscriber) Cancel()                    {}

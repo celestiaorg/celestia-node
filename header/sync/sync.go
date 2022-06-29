@@ -3,7 +3,6 @@ package sync
 import (
 	"context"
 	"errors"
-	"fmt"
 	"sync"
 	"time"
 
@@ -59,10 +58,6 @@ func NewSyncer(exchange header.Exchange, store header.Store, sub header.Subscrib
 
 // Start starts the syncing routine.
 func (s *Syncer) Start(context.Context) error {
-	if s.cancel != nil {
-		return fmt.Errorf("header: Syncer already started")
-	}
-
 	err := s.sub.AddValidator(s.processIncoming)
 	if err != nil {
 		return err
@@ -76,10 +71,9 @@ func (s *Syncer) Start(context.Context) error {
 }
 
 // Stop stops Syncer.
-func (s *Syncer) Stop(context.Context) error {
+func (s *Syncer) Stop(ctx context.Context) error {
 	s.cancel()
-	s.cancel = nil
-	return nil
+	return s.sub.Stop(ctx)
 }
 
 // WaitSync blocks until ongoing sync is done.
