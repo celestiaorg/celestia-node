@@ -166,14 +166,12 @@ func TestAvailabilityRequest(t *testing.T) {
 	buf, err := ioutil.ReadAll(resp.Body)
 	require.NoError(t, err)
 
-	var availResp struct {
-		Height    uint64 `json:"height"`
-		Available bool   `json:"available"`
-	}
+	availResp := new(rpc.AvailabilityResponse)
 	err = json.Unmarshal(buf, &availResp)
 	require.NoError(t, err)
 
 	assert.True(t, availResp.Available)
+	assert.Equal(t, uint64(height), availResp.Height)
 }
 
 func setupNodeWithModifiedRPC(t *testing.T) *Node {

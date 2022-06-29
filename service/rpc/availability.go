@@ -12,10 +12,12 @@ import (
 
 const heightAvailabilityEndpoint = "/data_available"
 
-// TODO @renaynay: doc
-type availabilityResponse struct {
-	Height    uint64 `json:"height"`
-	Available bool   `json:"available"`
+// AvailabilityResponse represents the response to a
+// `/data_available` request.
+type AvailabilityResponse struct {
+	Height      uint64 `json:"height"`
+	Available   bool   `json:"available"`
+	Probability string `json:"probability_of_availability"`
 }
 
 func (h *Handler) handleHeightAvailabilityRequest(w http.ResponseWriter, r *http.Request) {
@@ -32,13 +34,21 @@ func (h *Handler) handleHeightAvailabilityRequest(w http.ResponseWriter, r *http
 		return
 	}
 
+	// calculate the probability of data square availability based
+	// on sample size
+	probabilityOfAvailability := strconv.FormatFloat(
+		share.ProbabilityOfAvailability(share.DefaultSampleAmount), 'g', -1, 64)
+
+	availResp := &AvailabilityResponse{
+		Height:      uint64(height),
+		Probability: probabilityOfAvailability,
+	}
+
 	err = h.share.Availability.SharesAvailable(r.Context(), header.DAH)
 	switch err {
 	case nil:
-		resp, err := json.Marshal(&availabilityResponse{
-			Height:    uint64(height),
-			Available: true,
-		})
+		availResp.Available = true
+		resp, err := json.Marshal(availResp)
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, heightAvailabilityEndpoint, err)
 			return
@@ -48,10 +58,8 @@ func (h *Handler) handleHeightAvailabilityRequest(w http.ResponseWriter, r *http
 			log.Errorw("serving request", "endpoint", heightAvailabilityEndpoint, "err", err)
 		}
 	case share.ErrNotAvailable:
-		resp, err := json.Marshal(&availabilityResponse{
-			Height:    uint64(height),
-			Available: false,
-		})
+		availResp.Available = false
+		resp, err := json.Marshal(availResp)
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, heightAvailabilityEndpoint, err)
 			return
