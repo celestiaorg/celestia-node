@@ -29,7 +29,7 @@ import (
  Note: 15 is not available because DASer will be stopped before reaching this height due to receiving BEFP.
 */
 func TestFraudProofBroadcasting(t *testing.T) {
-	sw := swamp.NewSwamp(t, swamp.WithBlockInterval(time.Millisecond*100))
+	sw := swamp.NewSwamp(t, swamp.WithBlockTime(time.Millisecond*100))
 
 	bridge := sw.NewBridgeNode(node.WithHeaderConstructFn(header.FraudMaker(t, 10)))
 
