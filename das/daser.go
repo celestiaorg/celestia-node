@@ -242,7 +242,15 @@ func (d *DASer) sampleHeader(ctx context.Context, h *header.ExtendedHeader) erro
 		if err == context.Canceled {
 			return nil
 		}
-		d.checkForByzantineError(d.ctx, h.Hash(), uint64(h.Height), err)
+		var byzantineErr *ipld.ErrByzantine
+		if errors.As(err, &byzantineErr) {
+			sendErr := d.bcast.Broadcast(ctx, fraud.CreateBadEncodingProof(h.Hash(), uint64(h.Height), byzantineErr))
+			if sendErr != nil {
+				log.Errorw("fraud proof propagating failed", "err", err)
+			} else {
+				log.Warn("Shutting down services…")
+			}
+		}
 		log.Errorw("sampling failed", "height", h.Height, "hash", h.Hash(),
 			"square width", len(h.DAH.RowsRoots), "data root", h.DAH.Hash(), "err", err)
 		log.Warn("DASer WILL BE STOPPED. IN ORDER TO CONTINUE SAMPLING, RE-START THE NODE")
@@ -255,16 +263,4 @@ func (d *DASer) sampleHeader(ctx context.Context, h *header.ExtendedHeader) erro
 		"square width", len(h.DAH.RowsRoots), "finished (s)", sampleTime.Seconds())
 
 	return nil
-}
-
-func (d *DASer) checkForByzantineError(ctx context.Context, hash []byte, height uint64, err error) {
-	var byzantineErr *ipld.ErrByzantine
-	if errors.As(err, &byzantineErr) {
-		err := d.bcast.Broadcast(ctx, fraud.CreateBadEncodingProof(hash, height, byzantineErr))
-		if err != nil {
-			log.Errorw("fraud proof propagating failed", "err", err)
-			return
-		}
-		log.Warn("fraud detected and broadcasted successfully. Shutting down services…")
-	}
 }
