@@ -15,7 +15,6 @@ const heightAvailabilityEndpoint = "/data_available"
 // AvailabilityResponse represents the response to a
 // `/data_available` request.
 type AvailabilityResponse struct {
-	Height      uint64 `json:"height"`
 	Available   bool   `json:"available"`
 	Probability string `json:"probability_of_availability"`
 }
@@ -34,14 +33,9 @@ func (h *Handler) handleHeightAvailabilityRequest(w http.ResponseWriter, r *http
 		return
 	}
 
-	// calculate the probability of data square availability based
-	// on sample size
-	probabilityOfAvailability := strconv.FormatFloat(
-		share.ProbabilityOfAvailability(share.DefaultSampleAmount), 'g', -1, 64)
-
 	availResp := &AvailabilityResponse{
-		Height:      uint64(height),
-		Probability: probabilityOfAvailability,
+		Probability: strconv.FormatFloat(
+			share.ProbabilityOfAvailability(share.DefaultSampleAmount), 'g', -1, 64),
 	}
 
 	err = h.share.Availability.SharesAvailable(r.Context(), header.DAH)

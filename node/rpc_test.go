@@ -171,7 +171,6 @@ func TestAvailabilityRequest(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.True(t, availResp.Available)
-	assert.Equal(t, uint64(height), availResp.Height)
 }
 
 func setupNodeWithModifiedRPC(t *testing.T) *Node {
