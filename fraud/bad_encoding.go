@@ -122,16 +122,16 @@ func (p *BadEncodingProof) Validate(header *header.ExtendedHeader) error {
 		// NOTE: This should never happen as callers of this method should not feed it with a
 		// malformed extended header.
 		panic(fmt.Sprintf(
-			"fraud: invalid extended header. length of row and column roots do not match. (rowRoots=%d) (colRoots=%d)",
+			"fraud: invalid extended header: length of row and column roots do not match. (rowRoots=%d) (colRoots=%d)",
 			len(merkleRowRoots),
 			len(merkleColRoots)),
 		)
 	}
 	if int(p.Index) >= len(merkleRowRoots) {
-		return fmt.Errorf("fraud: index out of bounds (%d >= %d)", int(p.Index), len(merkleRowRoots))
+		return fmt.Errorf("fraud: invalid proof: index out of bounds (%d >= %d)", int(p.Index), len(merkleRowRoots))
 	}
 	if len(merkleRowRoots) != len(p.Shares) {
-		return fmt.Errorf("fraud: incorrect number of shares %d != %d", len(p.Shares), len(merkleRowRoots))
+		return fmt.Errorf("fraud: invalid proof: incorrect number of shares %d != %d", len(p.Shares), len(merkleRowRoots))
 	}
 
 	root := merkleRowRoots[p.Index]
@@ -148,7 +148,7 @@ func (p *BadEncodingProof) Validate(header *header.ExtendedHeader) error {
 		}
 		shares[index] = share.Share
 		if ok := share.Validate(plugin.MustCidFromNamespacedSha256(root)); !ok {
-			return fmt.Errorf("fraud: incorrect share received at index %d", index)
+			return fmt.Errorf("fraud: invalid proof: incorrect share received at index %d", index)
 		}
 	}
 
@@ -171,7 +171,7 @@ func (p *BadEncodingProof) Validate(header *header.ExtendedHeader) error {
 
 	// comparing rebuilt Merkle Root of bad row/col with respective Merkle Root of row/col from block.
 	if bytes.Equal(tree.Root(), root) {
-		return errors.New("fraud: recomputed Merkle root matches the header's row/column root")
+		return errors.New("fraud: invalid proof: recomputed Merkle root matches the DAH's row/column root")
 	}
 
 	return nil
