@@ -244,11 +244,10 @@ func (d *DASer) sampleHeader(ctx context.Context, h *header.ExtendedHeader) erro
 		}
 		var byzantineErr *ipld.ErrByzantine
 		if errors.As(err, &byzantineErr) {
+			log.Warn("Propagating proof...")
 			sendErr := d.bcast.Broadcast(ctx, fraud.CreateBadEncodingProof(h.Hash(), uint64(h.Height), byzantineErr))
 			if sendErr != nil {
-				log.Errorw("fraud proof propagating failed", "err", err)
-			} else {
-				log.Warn("Shutting down services…")
+				log.Errorw("fraud proof propagating failed", "err", sendErr)
 			}
 		}
 		log.Errorw("sampling failed", "height", h.Height, "hash", h.Hash(),
