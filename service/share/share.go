@@ -14,7 +14,6 @@ import (
 
 	"github.com/celestiaorg/celestia-node/ipld"
 	"github.com/celestiaorg/celestia-node/ipld/plugin"
-	"github.com/celestiaorg/celestia-node/service/share/discovery"
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/nmt/namespace"
 )
@@ -55,17 +54,15 @@ type Service struct {
 	// session is blockservice sub-session that applies optimization for fetching/loading related nodes, like shares
 	// prefer session over blockservice for fetching nodes.
 	session blockservice.BlockGetter
-	disc    *discovery.Discoverer
 	cancel  context.CancelFunc
 }
 
 // NewService creates new basic share.Service.
-func NewService(bServ blockservice.BlockService, avail Availability, discoverer *discovery.Discoverer) *Service {
+func NewService(bServ blockservice.BlockService, avail Availability) *Service {
 	return &Service{
 		rtrv:         ipld.NewRetriever(bServ),
 		Availability: avail,
 		bServ:        bServ,
-		disc:         discoverer,
 	}
 }
 
@@ -81,7 +78,6 @@ func (s *Service) Start(context.Context) error {
 	ctx, cancel := context.WithCancel(context.Background())
 	s.cancel = cancel
 	s.session = blockservice.NewSession(ctx, s.bServ)
-	go discovery.FindPeers(ctx, s.disc)
 	return nil
 }
 

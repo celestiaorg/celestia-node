@@ -20,28 +20,27 @@ import (
 	"github.com/tendermint/tendermint/pkg/da"
 
 	"github.com/celestiaorg/celestia-node/ipld"
-	disc "github.com/celestiaorg/celestia-node/service/share/discovery"
 )
 
 // RandLightServiceWithSquare provides a share.Service filled with 'n' NMT
 // trees of 'n' random shares, essentially storing a whole square.
 func RandLightServiceWithSquare(t *testing.T, n int) (*Service, *Root) {
 	bServ := mdutils.Bserv()
-	return NewService(bServ, NewLightAvailability(bServ), disc.Null()), RandFillBS(t, n, bServ)
+	return NewService(bServ, NewLightAvailability(bServ, Null(), nil)), RandFillBS(t, n, bServ)
 }
 
 // RandLightService provides an unfilled share.Service with corresponding
 // blockservice.BlockService than can be filled by the test.
 func RandLightService() (*Service, blockservice.BlockService) {
 	bServ := mdutils.Bserv()
-	return NewService(bServ, NewLightAvailability(bServ), disc.Null()), bServ
+	return NewService(bServ, NewLightAvailability(bServ, Null(), nil)), bServ
 }
 
 // RandFullServiceWithSquare provides a share.Service filled with 'n' NMT
 // trees of 'n' random shares, essentially storing a whole square.
 func RandFullServiceWithSquare(t *testing.T, n int) (*Service, *Root) {
 	bServ := mdutils.Bserv()
-	return NewService(bServ, NewLightAvailability(bServ), disc.Null()), RandFillBS(t, n, bServ)
+	return NewService(bServ, NewLightAvailability(bServ, Null(), nil)), RandFillBS(t, n, bServ)
 }
 
 // RandLightLocalServiceWithSquare is the same as RandLightServiceWithSquare, except
@@ -50,10 +49,10 @@ func RandLightLocalServiceWithSquare(t *testing.T, n int) (*Service, *Root) {
 	bServ := mdutils.Bserv()
 	ds := dssync.MutexWrap(ds.NewMapDatastore())
 	ca := NewCacheAvailability(
-		NewLightAvailability(bServ),
+		NewLightAvailability(bServ, Null(), nil),
 		ds,
 	)
-	return NewService(bServ, ca, disc.Null()), RandFillBS(t, n, bServ)
+	return NewService(bServ, ca), RandFillBS(t, n, bServ)
 }
 
 // RandFullLocalServiceWithSquare is the same as RandFullServiceWithSquare, except
@@ -62,10 +61,10 @@ func RandFullLocalServiceWithSquare(t *testing.T, n int) (*Service, *Root) {
 	bServ := mdutils.Bserv()
 	ds := dssync.MutexWrap(ds.NewMapDatastore())
 	ca := NewCacheAvailability(
-		NewFullAvailability(bServ),
+		NewFullAvailability(bServ, Null(), nil),
 		ds,
 	)
-	return NewService(bServ, ca, disc.Null()), RandFillBS(t, n, bServ)
+	return NewService(bServ, ca), RandFillBS(t, n, bServ)
 }
 
 // RandFillBS fills the given BlockService with a random block of a given size.
@@ -137,14 +136,14 @@ func (dn *dagNet) RandFullNode(squareSize int) (*node, *Root) {
 // LightNode creates a new empty LightAvailability Node.
 func (dn *dagNet) LightNode() *node {
 	nd := dn.Node()
-	nd.Service = NewService(nd.BlockService, NewLightAvailability(nd.BlockService), disc.Null())
+	nd.Service = NewService(nd.BlockService, NewLightAvailability(nd.BlockService, Null(), nil))
 	return nd
 }
 
 // FullNode creates a new empty FullAvailability Node.
 func (dn *dagNet) FullNode() *node {
 	nd := dn.Node()
-	nd.Service = NewService(nd.BlockService, NewFullAvailability(nd.BlockService), disc.Null())
+	nd.Service = NewService(nd.BlockService, NewFullAvailability(nd.BlockService, Null(), nil))
 	return nd
 }
 

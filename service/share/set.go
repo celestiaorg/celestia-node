@@ -1,4 +1,4 @@
-package discovery
+package share
 
 import (
 	"errors"
@@ -16,8 +16,8 @@ type LimitedSet struct {
 	limit int
 }
 
-// NewLimitedSet constructs a set with the maximum peers amount.
-func NewLimitedSet(size int) *LimitedSet {
+// newLimitedSet constructs a set with the maximum peers amount.
+func newLimitedSet(size int) *LimitedSet {
 	ps := new(LimitedSet)
 	ps.ps = make(map[peer.ID]struct{})
 	ps.limit = size

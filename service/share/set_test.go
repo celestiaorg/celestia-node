@@ -1,4 +1,4 @@
-package discovery
+package share
 
 import (
 	"testing"
@@ -14,7 +14,7 @@ func TestSet_TryAdd(t *testing.T) {
 	h, err := m.GenPeer()
 	require.NoError(t, err)
 
-	set := NewLimitedSet(1)
+	set := newLimitedSet(1)
 	require.NoError(t, set.TryAdd(h.ID()))
 	require.True(t, set.Contains(h.ID()))
 }
@@ -26,7 +26,7 @@ func TestSet_TryAddFails(t *testing.T) {
 	h2, err := m.GenPeer()
 	require.NoError(t, err)
 
-	set := NewLimitedSet(1)
+	set := newLimitedSet(1)
 	require.NoError(t, set.TryAdd(h1.ID()))
 	require.Error(t, set.TryAdd(h2.ID()))
 }
@@ -36,7 +36,7 @@ func TestSet_Remove(t *testing.T) {
 	h, err := m.GenPeer()
 	require.NoError(t, err)
 
-	set := NewLimitedSet(1)
+	set := newLimitedSet(1)
 	require.NoError(t, set.TryAdd(h.ID()))
 	set.Remove(h.ID())
 	require.False(t, set.Contains(h.ID()))
@@ -49,7 +49,7 @@ func TestSet_Peers(t *testing.T) {
 	h2, err := m.GenPeer()
 	require.NoError(t, err)
 
-	set := NewLimitedSet(2)
+	set := newLimitedSet(2)
 	require.NoError(t, set.TryAdd(h1.ID()))
 	require.NoError(t, set.TryAdd(h2.ID()))
 	require.True(t, len(set.Peers()) == 2)
@@ -62,7 +62,7 @@ func TestSet_Size(t *testing.T) {
 	h2, err := m.GenPeer()
 	require.NoError(t, err)
 
-	set := NewLimitedSet(2)
+	set := newLimitedSet(2)
 	require.NoError(t, set.TryAdd(h1.ID()))
 	require.NoError(t, set.TryAdd(h2.ID()))
 	require.Equal(t, 2, set.Size())

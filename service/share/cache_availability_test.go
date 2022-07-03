@@ -66,7 +66,7 @@ func TestCacheAvailability_Failed(t *testing.T) {
 	defer cancel()
 
 	ca := NewCacheAvailability(&dummyAvailability{}, sync.MutexWrap(datastore.NewMapDatastore()))
-	serv := NewService(mdutils.Bserv(), ca, nil)
+	serv := NewService(mdutils.Bserv(), ca)
 
 	err := serv.SharesAvailable(ctx, &invalidHeader)
 	require.Error(t, err)

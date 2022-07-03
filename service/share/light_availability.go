@@ -7,6 +7,8 @@ import (
 
 	"github.com/ipfs/go-blockservice"
 	format "github.com/ipfs/go-ipld-format"
+	"github.com/libp2p/go-libp2p-core/host"
+	"github.com/libp2p/go-libp2p/p2p/discovery/routing"
 
 	"github.com/celestiaorg/celestia-node/ipld"
 )
@@ -18,21 +20,42 @@ var DefaultSampleAmount = 16
 // It is light because it does not require the downloading of all the data to verify
 // its availability. It is assumed that there are a lot of lightAvailability instances
 // on the network doing sampling over the same Root to collectively verify its availability.
-type lightAvailability struct {
+type LightAvailability struct {
 	bserv blockservice.BlockService
+	disc  *discoverer
+
+	cancel context.CancelFunc
 }
 
 // NewLightAvailability creates a new light Availability.
-func NewLightAvailability(bserv blockservice.BlockService) Availability {
-	la := &lightAvailability{
+func NewLightAvailability(
+	bserv blockservice.BlockService,
+	r *routing.RoutingDiscovery,
+	h host.Host,
+) *LightAvailability {
+	la := &LightAvailability{
 		bserv: bserv,
+		disc:  newDiscoverer(newLimitedSet(PeersLimit), h, r),
 	}
 	return la
 }
 
+func (la *LightAvailability) Start(context.Context) error {
+	ctx, cancel := context.WithCancel(context.Background())
+	la.cancel = cancel
+	go la.disc.findPeers(ctx)
+
+	return nil
+}
+
+func (la *LightAvailability) Stop(context.Context) error {
+	la.cancel()
+	return nil
+}
+
 // SharesAvailable randomly samples DefaultSamples amount of Shares committed to the given Root.
 // This way SharesAvailable subjectively verifies that Shares are available.
-func (la *lightAvailability) SharesAvailable(ctx context.Context, dah *Root) error {
+func (la *LightAvailability) SharesAvailable(ctx context.Context, dah *Root) error {
 	log.Debugw("Validate availability", "root", dah.Hash())
 	// We assume the caller of this method has already performed basic validation on the
 	// given dah/root. If for some reason this has not happened, the node should panic.

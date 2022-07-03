@@ -1,15 +1,14 @@
-package discovery
+package share
 
 import (
 	"context"
 	"errors"
 	"time"
 
-	logging "github.com/ipfs/go-log/v2"
-
 	"github.com/libp2p/go-libp2p-core/discovery"
 	"github.com/libp2p/go-libp2p-core/host"
 	"github.com/libp2p/go-libp2p-core/peer"
+	"github.com/libp2p/go-libp2p/p2p/discovery/util"
 )
 
 const (
@@ -22,18 +21,16 @@ const (
 	connectionTimeout = time.Minute
 )
 
-var log = logging.Logger("discovery")
-
-// Discoverer finds and stores discovered full nodes.
-type Discoverer struct {
+// discoverer finds and stores discovered full nodes.
+type discoverer struct {
 	set  *LimitedSet
 	host host.Host
 	disc discovery.Discoverer
 }
 
-// NewDiscoverer constructs new Discoverer.
-func NewDiscoverer(set *LimitedSet, h host.Host, d discovery.Discoverer) *Discoverer {
-	return &Discoverer{
+// newDiscoverer constructs new Discoverer.
+func newDiscoverer(set *LimitedSet, h host.Host, d discovery.Discoverer) *discoverer {
+	return &discoverer{
 		set,
 		h,
 		d,
@@ -42,7 +39,7 @@ func NewDiscoverer(set *LimitedSet, h host.Host, d discovery.Discoverer) *Discov
 
 // handlePeersFound receives peers and tries to establish a connection with them.
 // Peer will be added to PeerCache if connection succeeds.
-func (d *Discoverer) handlePeersFound(topic string, peers []peer.AddrInfo) error {
+func (d *discoverer) handlePeersFound(topic string, peers []peer.AddrInfo) error {
 	for _, peer := range peers {
 		if d.set.Size() == PeersLimit {
 			return errors.New("amount of peers reaches the limit")
@@ -68,4 +65,27 @@ func (d *Discoverer) handlePeersFound(topic string, peers []peer.AddrInfo) error
 		d.host.ConnManager().TagPeer(peer.ID, topic, peerWeight)
 	}
 	return nil
+}
+
+// FindPeers starts peer discovery every 30 seconds until peer cache will not reach peersLimit.
+// TODO(@vgonkivs): simplify when https://github.com/libp2p/go-libp2p/pull/1379 will be merged.
+func (d *discoverer) findPeers(ctx context.Context) {
+	t := time.NewTicker(interval * 3)
+	defer t.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-t.C:
+			peers, err := util.FindPeers(ctx, d.disc, topic)
+			if err != nil {
+				log.Debug(err)
+				continue
+			}
+			if err = d.handlePeersFound(topic, peers); err != nil {
+				log.Info(err) // informs that peers limit reached
+				return
+			}
+		}
+	}
 }

@@ -23,7 +23,6 @@ import (
 	"github.com/celestiaorg/celestia-node/params"
 	headerservice "github.com/celestiaorg/celestia-node/service/header"
 	"github.com/celestiaorg/celestia-node/service/share"
-	disc "github.com/celestiaorg/celestia-node/service/share/discovery"
 )
 
 // HeaderSyncer creates a new Syncer.
@@ -135,8 +134,7 @@ func ShareService(
 	r routing.ContentRouting,
 	h host.Host,
 ) *share.Service {
-	discoverer := disc.NewDiscoverer(disc.NewLimitedSet(disc.PeersLimit), h, routingdisc.NewRoutingDiscovery(r))
-	service := share.NewService(bServ, avail, discoverer)
+	service := share.NewService(bServ, avail)
 	lc.Append(fx.Hook{
 		OnStart: service.Start,
 		OnStop:  service.Stop,
@@ -177,10 +175,17 @@ func LightAvailability(
 	lc fx.Lifecycle,
 	bServ blockservice.BlockService,
 	ds datastore.Batching,
+	r routing.ContentRouting,
+	h host.Host,
 ) share.Availability {
-	ca := share.NewCacheAvailability(share.NewLightAvailability(bServ), ds)
+	la := share.NewLightAvailability(bServ, routingdisc.NewRoutingDiscovery(r), h)
+	ca := share.NewCacheAvailability(la, ds)
 	lc.Append(fx.Hook{
-		OnStop: ca.Close,
+		OnStart: la.Start,
+		OnStop: func(ctx context.Context) error {
+			_ = la.Stop(ctx)
+			return ca.Close(ctx)
+		},
 	})
 	return ca
 }
@@ -192,15 +197,16 @@ func FullAvailability(
 	bServ blockservice.BlockService,
 	ds datastore.Batching,
 	r routing.ContentRouting,
+	h host.Host,
 ) share.Availability {
-	service := routingdisc.NewRoutingDiscovery(r)
-	ca := share.NewCacheAvailability(share.NewFullAvailability(bServ), ds)
+	fa := share.NewFullAvailability(bServ, routingdisc.NewRoutingDiscovery(r), h)
+	ca := share.NewCacheAvailability(fa, ds)
 	lc.Append(fx.Hook{
-		OnStart: func(context.Context) error {
-			go disc.Advertise(fxutil.WithLifecycle(ctx, lc), service)
-			return nil
+		OnStart: fa.Start,
+		OnStop: func(ctx context.Context) error {
+			_ = fa.Stop(ctx)
+			return ca.Close(ctx)
 		},
-		OnStop: ca.Close,
 	})
 	return ca
 }
