@@ -9,7 +9,6 @@ import (
 )
 
 func TestSet_TryAdd(t *testing.T) {
-
 	m := mocknet.New()
 	h, err := m.GenPeer()
 	require.NoError(t, err)

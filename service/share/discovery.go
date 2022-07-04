@@ -2,47 +2,43 @@ package share
 
 import (
 	"context"
-	"errors"
 	"time"
+
+	"golang.org/x/sync/errgroup"
 
 	core "github.com/libp2p/go-libp2p-core/discovery"
 	"github.com/libp2p/go-libp2p-core/host"
 	"github.com/libp2p/go-libp2p-core/peer"
-	"github.com/libp2p/go-libp2p/p2p/discovery/util"
 )
 
 const (
-	// PeersLimit is max amount of peers that will be discovered
+	// PeersLimit is max amount of peers that will be discovered.
 	PeersLimit = 5
 
-	// peerWeight total weight of discovered peers
+	// peerWeight total weight of discovered peers.
 	peerWeight = 1000
-	// connectionTimeout is timeout given to connect to discovered peer
-	connectionTimeout = time.Minute
-	topic             = "full"
-	interval          = time.Second * 10
+	topic      = "full"
+	interval   = time.Second * 10
 )
 
-var (
-	// waitF calculates time to restart announcing.
-	waitF = func(ttl time.Duration) time.Duration {
-		return 7 * ttl / 8
-	}
-)
+// waitF calculates time to restart announcing.
+var waitF = func(ttl time.Duration) time.Duration {
+	return 7 * ttl / 8
+}
 
-// discovery implements discoverer interface to avoid using it in light availability.
+// discoverer used to protect light nodes of being advertised as they support only peer discovery.
 type discoverer interface {
 	findPeers(ctx context.Context)
 }
 
-// discoverer finds and stores discovered full nodes.
+// discovery combines advertise and discover services and allows to store discovered nodes.
 type discovery struct {
 	set  *limitedSet
 	host host.Host
 	disc core.Discovery
 }
 
-// newDiscoverer constructs new Discoverer.
+// newDiscovery constructs a new discovery.
 func newDiscovery(h host.Host, d core.Discovery) *discovery {
 	return &discovery{
 		newLimitedSet(PeersLimit),
@@ -53,31 +49,24 @@ func newDiscovery(h host.Host, d core.Discovery) *discovery {
 
 // handlePeersFound receives peers and tries to establish a connection with them.
 // Peer will be added to PeerCache if connection succeeds.
-func (d *discovery) handlePeersFound(topic string, peers []peer.AddrInfo) error {
-	for _, peer := range peers {
-		if d.set.Size() == PeersLimit {
-			return errors.New("amount of peers reaches the limit")
-		}
-
-		if peer.ID == d.host.ID() || len(peer.Addrs) == 0 || d.set.Contains(peer.ID) {
-			continue
-		}
-		err := d.set.TryAdd(peer.ID)
-		if err != nil {
-			return err
-		}
-
-		ctx, cancel := context.WithTimeout(context.Background(), connectionTimeout)
-		err = d.host.Connect(ctx, peer)
-		cancel()
-		if err != nil {
-			log.Warn(err)
-			d.set.Remove(peer.ID)
-			continue
-		}
-		log.Debugw("added peer to set", "id", peer.ID)
-		d.host.ConnManager().TagPeer(peer.ID, topic, peerWeight)
+func (d *discovery) handlePeerFound(ctx context.Context, topic string, peer peer.AddrInfo) error {
+	if peer.ID == d.host.ID() || len(peer.Addrs) == 0 || d.set.Contains(peer.ID) {
+		return nil
 	}
+	err := d.set.TryAdd(peer.ID)
+	if err != nil {
+		return err
+	}
+
+	err = d.host.Connect(ctx, peer)
+	if err != nil {
+		log.Warn(err)
+		d.set.Remove(peer.ID)
+		return err
+	}
+	log.Debugw("added peer to set", "id", peer.ID)
+	// add tag to protect peer of being killed by ConnManager
+	d.host.ConnManager().TagPeer(peer.ID, topic, peerWeight)
 	return nil
 }
 
@@ -86,18 +75,25 @@ func (d *discovery) handlePeersFound(topic string, peers []peer.AddrInfo) error 
 func (d *discovery) findPeers(ctx context.Context) {
 	t := time.NewTicker(interval * 3)
 	defer t.Stop()
+	errg, errCtx := errgroup.WithContext(ctx)
 	for {
 		select {
 		case <-ctx.Done():
 			return
 		case <-t.C:
-			peers, err := util.FindPeers(ctx, d.disc, topic)
+			peers, err := d.disc.FindPeers(ctx, topic)
 			if err != nil {
-				log.Debug(err)
+				log.Error(err)
 				continue
 			}
-			if err = d.handlePeersFound(topic, peers); err != nil {
-				log.Info(err) // informs that peers limit reached
+			for peer := range peers {
+				peer := peer
+				errg.Go(func() error {
+					return d.handlePeerFound(errCtx, topic, peer)
+				})
+			}
+			if err := errg.Wait(); err != nil {
+				log.Warn(err) // informs that peers limit reached
 				return
 			}
 		}
