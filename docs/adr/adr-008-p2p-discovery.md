@@ -8,7 +8,6 @@
 
 @vgonkivs
 
-## P2P Full Node Discovery
 ## Context
 
 This ADR is intended to describe p2p full node discovery in celestia node. 
@@ -35,17 +34,17 @@ type discoverer interface {
     findPeers(ctx context.Context)
 }
 ```
-## Full Nodes behavior:
-1. Node starts advertising itself at `full` topic after system boots up in order to be found.
-2. Node starts finding other full nodes to be able to establish a connection with them.
-3. As soon as a new peer is found, node will try to establish a connection with it. In case if the connection is successful
-node will Tag Peer and add to the internal storage.
+### Full Nodes behavior:
+1. Node starts advertising itself over DHT at `full` namespace after the system boots up in order to be found.
+2. Node starts finding other full nodes to be able to join the Full Node network.
+3. As soon as a new peer is found, the node will try to establish a connection with it. In case the connection is successful
+the node will Tag Peer and add to the internal storage.
 
 
-## Light Nodes behavior:
-1. Node starts finding full nodes to be able to establish a connection with them using `discoverer` interface.
-2. As soon as a new peer is found, node will try to establish a connection with it. In case if the connection is successful
-   node will Tag Peer and add to the internal storage.
+### Light Nodes behavior:
+1. Node starts finding full nodes over DHT at "full" namespace using the `discoverer` interface.
+2. As soon as a new peer is found, the node will try to establish a connection with it. In case the connection is successful
+   the node will Tag Peer and add to the internal storage.
 
 Tagging allows to protect peer from being killed by ConnManager.
 
