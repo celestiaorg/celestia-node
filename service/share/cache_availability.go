@@ -76,6 +76,10 @@ func (ca *CacheAvailability) SharesAvailable(ctx context.Context, root *Root) er
 	return err
 }
 
+func (ca *CacheAvailability) ProbabilityOfAvailability() float64 {
+	return ca.avail.ProbabilityOfAvailability()
+}
+
 // Close flushes all queued writes to disk.
 func (ca *CacheAvailability) Close(ctx context.Context) error {
 	return ca.ds.Flush(ctx)

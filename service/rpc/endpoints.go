@@ -24,6 +24,10 @@ func (h *Handler) RegisterEndpoints(rpc *Server) {
 	rpc.RegisterHandlerFunc(fmt.Sprintf("%s/{%s}", namespacedDataEndpoint, nIDKey),
 		h.handleDataByNamespaceRequest, http.MethodGet)
 
+	// DAS endpoints
+	rpc.RegisterHandlerFunc(fmt.Sprintf("%s/{%s}", heightAvailabilityEndpoint, heightKey),
+		h.handleHeightAvailabilityRequest, http.MethodGet)
+
 	// header endpoints
 	rpc.RegisterHandlerFunc(fmt.Sprintf("%s/{%s}", headerByHeightEndpoint, heightKey), h.handleHeaderRequest,
 		http.MethodGet)
