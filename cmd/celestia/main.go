@@ -2,10 +2,9 @@ package main
 
 import (
 	"context"
-	crypto_rand "crypto/rand"
-	"encoding/binary"
-	math_rand "math/rand"
+	"math/rand"
 	"os"
+	"time"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/spf13/cobra"
@@ -38,12 +37,7 @@ func main() {
 }
 
 func run() error {
-	seed := make([]byte, 32)
-	_, err := crypto_rand.Read(seed)
-	if err != nil {
-		return err
-	}
-	math_rand.Seed(int64(binary.LittleEndian.Uint64(seed)))
+	rand.Seed(time.Now().Unix())
 
 	return rootCmd.ExecuteContext(cmd.WithEnv(context.Background()))
 }
