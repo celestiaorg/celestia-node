@@ -47,7 +47,7 @@ func (ps *limitedSet) TryAdd(p peer.ID) error {
 		return nil
 	}
 
-	return errors.New("discovery: peers limit reached")
+	return errors.New("share: discovery: peers limit reached")
 }
 
 func (ps *limitedSet) Remove(id peer.ID) {

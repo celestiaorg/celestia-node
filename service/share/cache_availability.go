@@ -80,14 +80,6 @@ func (ca *CacheAvailability) ProbabilityOfAvailability() float64 {
 	return ca.avail.ProbabilityOfAvailability()
 }
 
-// Start starts looking for a new peers in network.
-func (ca *CacheAvailability) Start(context.Context) error {
-	ctx, cancel := context.WithCancel(context.Background())
-	ca.cancel = cancel
-	ca.discoverer.Start(ctx)
-	return nil
-}
-
 // Close flushes all queued writes to disk.
 func (ca *CacheAvailability) Close(ctx context.Context) error {
 	return ca.ds.Flush(ctx)

@@ -69,20 +69,6 @@ func (fa *FullAvailability) SharesAvailable(ctx context.Context, root *Root) err
 	return err
 }
 
-func (fa *fullAvailability) ProbabilityOfAvailability() float64 {
+func (fa *FullAvailability) ProbabilityOfAvailability() float64 {
 	return 1
-}
-
-// Start announces to the network and then starts looking for new peers
-func (fa *FullAvailability) Start(context.Context) error {
-	fa.ctx, fa.cancel = context.WithCancel(context.Background())
-	disc.Advertise(fa.ctx, fa.service)
-	disc.FindPeers(fa.ctx, fa.service, fa.notifee)
-	return nil
-}
-
-// Stop cancels all discovery processes.
-func (fa *FullAvailability) Stop(context.Context) error {
-	fa.cancel()
-	return nil
 }

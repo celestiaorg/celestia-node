@@ -115,19 +115,6 @@ func (la *LightAvailability) SharesAvailable(ctx context.Context, dah *Root) err
 // (DefaultSampleAmount).
 //
 // Formula: 1 - (0.75 ** amount of samples)
-func (la *lightAvailability) ProbabilityOfAvailability() float64 {
+func (la *LightAvailability) ProbabilityOfAvailability() float64 {
 	return 1 - math.Pow(0.75, float64(DefaultSampleAmount))
-}
-
-// Start starts looking for a new peers in network.
-func (la *LightAvailability) Start(context.Context) error {
-	la.ctx, la.cancel = context.WithCancel(context.Background())
-	disc.FindPeers(la.ctx, la.discoverer, la.notifee)
-	return nil
-}
-
-// Stop stops all discovery processes.
-func (la *LightAvailability) Stop(context.Context) error {
-	la.cancel()
-	return nil
 }

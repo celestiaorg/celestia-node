@@ -4,18 +4,18 @@ import (
 	"context"
 	"time"
 
-	"golang.org/x/sync/errgroup"
-
 	core "github.com/libp2p/go-libp2p-core/discovery"
 	"github.com/libp2p/go-libp2p-core/host"
 	"github.com/libp2p/go-libp2p-core/peer"
 )
 
 const (
-	// PeersLimit is max amount of peers that will be discovered.
-	PeersLimit = 5
+	// peersLimit is max amount of peers that will be discovered.
+	peersLimit = 5
 
-	// peerWeight total weight of discovered peers.
+	// peerWeight is a weight of discovered peers.
+	// peerWeight is a number that will be assigned to all discovered full nodes,
+	// so ConnManager will not break a connection with them.
 	peerWeight = 1000
 	topic      = "full"
 	interval   = time.Second * 10
@@ -41,7 +41,7 @@ type discovery struct {
 // newDiscovery constructs a new discovery.
 func newDiscovery(h host.Host, d core.Discovery) *discovery {
 	return &discovery{
-		newLimitedSet(PeersLimit),
+		newLimitedSet(peersLimit),
 		h,
 		d,
 	}
@@ -49,52 +49,48 @@ func newDiscovery(h host.Host, d core.Discovery) *discovery {
 
 // handlePeersFound receives peers and tries to establish a connection with them.
 // Peer will be added to PeerCache if connection succeeds.
-func (d *discovery) handlePeerFound(ctx context.Context, topic string, peer peer.AddrInfo) error {
-	if peer.ID == d.host.ID() || len(peer.Addrs) == 0 || d.set.Contains(peer.ID) {
-		return nil
+func (d *discovery) handlePeerFound(ctx context.Context, topic string, peer peer.AddrInfo) {
+	if peer.ID == d.host.ID() || len(peer.Addrs) == 0 {
+		return
 	}
 	err := d.set.TryAdd(peer.ID)
 	if err != nil {
-		return err
+		log.Debug(err)
+		return
 	}
 
 	err = d.host.Connect(ctx, peer)
 	if err != nil {
 		log.Warn(err)
 		d.set.Remove(peer.ID)
-		return err
+		return
 	}
 	log.Debugw("added peer to set", "id", peer.ID)
 	// add tag to protect peer of being killed by ConnManager
 	d.host.ConnManager().TagPeer(peer.ID, topic, peerWeight)
-	return nil
 }
 
 // findPeers starts peer discovery every 30 seconds until peer cache will not reach peersLimit.
-// TODO(@vgonkivs): simplify when https://github.com/libp2p/go-libp2p/pull/1379 will be merged.
+// TODO (@vgonkivs): simplify when https://github.com/libp2p/go-libp2p/pull/1379 will be merged.
 func (d *discovery) findPeers(ctx context.Context) {
 	t := time.NewTicker(interval * 3)
 	defer t.Stop()
-	errg, errCtx := errgroup.WithContext(ctx)
 	for {
 		select {
 		case <-ctx.Done():
 			return
 		case <-t.C:
+			// return if limit was reached to stop the loop and finish discovery
+			if d.set.Size() >= peersLimit {
+				return
+			}
 			peers, err := d.disc.FindPeers(ctx, topic)
 			if err != nil {
 				log.Error(err)
 				continue
 			}
 			for peer := range peers {
-				peer := peer
-				errg.Go(func() error {
-					return d.handlePeerFound(errCtx, topic, peer)
-				})
-			}
-			if err := errg.Wait(); err != nil {
-				log.Warn(err) // informs that peers limit reached
-				return
+				go d.handlePeerFound(ctx, topic, peer)
 			}
 		}
 	}
