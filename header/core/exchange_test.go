@@ -24,7 +24,7 @@ func TestCoreExchange_RequestHeaders(t *testing.T) {
 	generateBlocks(t, fetcher)
 
 	ce := NewExchange(fetcher, store, header.MakeExtendedHeader)
-	headers, err := ce.RequestHeaders(context.Background(), 1, 10)
+	headers, err := ce.GetRangeByHeight(context.Background(), 1, 10)
 	require.NoError(t, err)
 
 	assert.Equal(t, 10, len(headers))

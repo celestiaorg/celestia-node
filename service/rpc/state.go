@@ -3,6 +3,7 @@ package rpc
 import (
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"net/http"
 
 	"github.com/cosmos/cosmos-sdk/types"
@@ -13,6 +14,7 @@ const (
 	balanceEndpoint   = "/balance"
 	submitTxEndpoint  = "/submit_tx"
 	submitPFDEndpoint = "/submit_pfd"
+	transferEndpoint  = "/transfer"
 )
 
 var addrKey = "address"
@@ -28,6 +30,12 @@ type submitPFDRequest struct {
 	NamespaceID string `json:"namespace_id"`
 	Data        string `json:"data"`
 	GasLimit    uint64 `json:"gas_limit"`
+}
+
+type transferRequest struct {
+	To       string `json:"to"`
+	Amount   int64  `json:"amount"`
+	GasLimit uint64 `json:"gas_limit"`
 }
 
 func (h *Handler) handleBalanceRequest(w http.ResponseWriter, r *http.Request) {
@@ -135,5 +143,39 @@ func (h *Handler) handleSubmitPFD(w http.ResponseWriter, r *http.Request) {
 	_, err = w.Write(resp)
 	if err != nil {
 		log.Errorw("writing response", "endpoint", submitPFDEndpoint, "err", err)
+	}
+}
+
+func (h *Handler) handleTransfer(w http.ResponseWriter, r *http.Request) {
+	var req transferRequest
+	err := json.NewDecoder(r.Body).Decode(&req)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, transferEndpoint, err)
+		return
+	}
+	if req.Amount <= 0 {
+		writeError(w, http.StatusBadRequest, transferEndpoint, errors.New("amount must be greater than 0"))
+		return
+	}
+	addr, err := types.AccAddressFromBech32(req.To)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, transferEndpoint, err)
+		return
+	}
+	amount := types.NewInt(req.Amount)
+
+	txResp, err := h.state.Transfer(r.Context(), addr, amount, req.GasLimit)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, transferEndpoint, err)
+		return
+	}
+	resp, err := json.Marshal(txResp)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, transferEndpoint, err)
+		return
+	}
+	_, err = w.Write(resp)
+	if err != nil {
+		log.Errorw("writing response", "endpoint", transferEndpoint, "err", err)
 	}
 }

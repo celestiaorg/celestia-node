@@ -34,9 +34,13 @@ func DefaultComponents() *Components {
 // Option for modifying Swamp's Config.
 type Option func(*Components)
 
-// WithBlockInterval sets a custom interval for block creation.
-func WithBlockInterval(interval time.Duration) Option {
+// WithBlockTime sets a custom interval for block creation.
+func WithBlockTime(t time.Duration) Option {
 	return func(c *Components) {
-		c.CoreCfg.Consensus.CreateEmptyBlocksInterval = interval
+		// for empty block
+		c.CoreCfg.Consensus.CreateEmptyBlocksInterval = t
+		// for filled block
+		c.CoreCfg.Consensus.TimeoutCommit = t
+		c.CoreCfg.Consensus.SkipTimeoutCommit = true
 	}
 }

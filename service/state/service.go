@@ -9,6 +9,9 @@ import (
 // Service can access state-related information via the given
 // Accessor.
 type Service struct {
+	ctx    context.Context
+	cancel context.CancelFunc
+
 	accessor Accessor
 }
 
@@ -38,4 +41,23 @@ func (s *Service) BalanceForAddress(ctx context.Context, addr Address) (*Balance
 
 func (s *Service) SubmitTx(ctx context.Context, tx Tx) (*TxResponse, error) {
 	return s.accessor.SubmitTx(ctx, tx)
+}
+
+func (s *Service) Transfer(ctx context.Context, to Address, amount Int, gasLimit uint64) (*TxResponse, error) {
+	return s.accessor.Transfer(ctx, to, amount, gasLimit)
+}
+
+func (s *Service) Start(context.Context) error {
+	s.ctx, s.cancel = context.WithCancel(context.Background())
+	return nil
+}
+
+func (s *Service) Stop(context.Context) error {
+	s.cancel()
+	return nil
+}
+
+// IsStopped checks if context was canceled.
+func (s *Service) IsStopped() bool {
+	return s.ctx.Err() != nil
 }

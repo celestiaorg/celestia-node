@@ -2,10 +2,17 @@ package share
 
 import (
 	"context"
+	"math/rand"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 )
+
+func init() {
+	// randomize quadrant fetching, otherwise quadrant sampling is deterministic
+	rand.Seed(time.Now().UnixNano())
+}
 
 func TestSharesAvailable_Full(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
@@ -21,11 +28,11 @@ func TestShareAvailableOverMocknet_Full(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	net := NewDAGNet(ctx, t)
-	_, root := net.RandFullService(16)
-	serv := net.CleanService()
+	net := NewTestDAGNet(ctx, t)
+	_, root := net.RandFullNode(32)
+	nd := net.FullNode()
 	net.ConnectAll()
 
-	err := serv.SharesAvailable(ctx, root)
+	err := nd.SharesAvailable(ctx, root)
 	assert.NoError(t, err)
 }

@@ -104,9 +104,9 @@ func newStore(ds datastore.Batching) (*store, error) {
 	}, nil
 }
 
-func (s *store) Init(_ context.Context, initial *header.ExtendedHeader) error {
+func (s *store) Init(ctx context.Context, initial *header.ExtendedHeader) error {
 	// trust the given header as the initial head
-	err := s.flush(initial)
+	err := s.flush(ctx, initial)
 	if err != nil {
 		return err
 	}
@@ -163,7 +163,7 @@ func (s *store) Head(ctx context.Context) (*header.ExtendedHeader, error) {
 	}
 }
 
-func (s *store) Get(_ context.Context, hash tmbytes.HexBytes) (*header.ExtendedHeader, error) {
+func (s *store) Get(ctx context.Context, hash tmbytes.HexBytes) (*header.ExtendedHeader, error) {
 	if v, ok := s.cache.Get(hash.String()); ok {
 		return v.(*header.ExtendedHeader), nil
 	}
@@ -172,7 +172,7 @@ func (s *store) Get(_ context.Context, hash tmbytes.HexBytes) (*header.ExtendedH
 		return h, nil
 	}
 
-	b, err := s.ds.Get(datastore.NewKey(hash.String()))
+	b, err := s.ds.Get(ctx, datastore.NewKey(hash.String()))
 	if err != nil {
 		if err == datastore.ErrNotFound {
 			return nil, header.ErrNotFound
@@ -208,7 +208,7 @@ func (s *store) GetByHeight(ctx context.Context, height uint64) (*header.Extende
 		return h, nil
 	}
 
-	hash, err := s.heightIndex.HashByHeight(height)
+	hash, err := s.heightIndex.HashByHeight(ctx, height)
 	if err != nil {
 		if err == datastore.ErrNotFound {
 			return nil, header.ErrNotFound
@@ -240,7 +240,7 @@ func (s *store) GetRangeByHeight(ctx context.Context, from, to uint64) ([]*heade
 	return headers, nil
 }
 
-func (s *store) Has(_ context.Context, hash tmbytes.HexBytes) (bool, error) {
+func (s *store) Has(ctx context.Context, hash tmbytes.HexBytes) (bool, error) {
 	if ok := s.cache.Contains(hash.String()); ok {
 		return ok, nil
 	}
@@ -249,7 +249,7 @@ func (s *store) Has(_ context.Context, hash tmbytes.HexBytes) (bool, error) {
 		return ok, nil
 	}
 
-	return s.ds.Has(datastore.NewKey(hash.String()))
+	return s.ds.Has(ctx, datastore.NewKey(hash.String()))
 }
 
 func (s *store) Append(ctx context.Context, headers ...*header.ExtendedHeader) (int, error) {
@@ -319,6 +319,7 @@ func (s *store) Append(ctx context.Context, headers ...*header.ExtendedHeader) (
 // (2) Batching header writes
 func (s *store) flushLoop() {
 	defer close(s.writesDn)
+	ctx := context.Background()
 	for headers := range s.writes {
 		// add headers to the pending and ensure they are accessible
 		s.pending.Append(headers...)
@@ -332,7 +333,7 @@ func (s *store) flushLoop() {
 			continue
 		}
 
-		err := s.flush(s.pending.GetAll()...)
+		err := s.flush(ctx, s.pending.GetAll()...)
 		if err != nil {
 			// TODO(@Wondertan): Should this be a fatal error case with os.Exit?
 			from, to := uint64(headers[0].Height), uint64(headers[len(headers)-1].Height)
@@ -350,13 +351,13 @@ func (s *store) flushLoop() {
 }
 
 // flush writes the given batch to datastore.
-func (s *store) flush(headers ...*header.ExtendedHeader) error {
+func (s *store) flush(ctx context.Context, headers ...*header.ExtendedHeader) error {
 	ln := len(headers)
 	if ln == 0 {
 		return nil
 	}
 
-	batch, err := s.ds.Batch()
+	batch, err := s.ds.Batch(ctx)
 	if err != nil {
 		return err
 	}
@@ -368,7 +369,7 @@ func (s *store) flush(headers ...*header.ExtendedHeader) error {
 			return err
 		}
 
-		err = batch.Put(headerKey(h), b)
+		err = batch.Put(ctx, headerKey(h), b)
 		if err != nil {
 			return err
 		}
@@ -380,24 +381,24 @@ func (s *store) flush(headers ...*header.ExtendedHeader) error {
 		return err
 	}
 
-	err = batch.Put(headKey, b)
+	err = batch.Put(ctx, headKey, b)
 	if err != nil {
 		return err
 	}
 
 	// write height indexes for headers as well
-	err = s.heightIndex.IndexTo(batch, headers...)
+	err = s.heightIndex.IndexTo(ctx, batch, headers...)
 	if err != nil {
 		return err
 	}
 
 	// finally, commit the batch on disk
-	return batch.Commit()
+	return batch.Commit(ctx)
 }
 
 // readHead loads the head from the datastore.
 func (s *store) readHead(ctx context.Context) (*header.ExtendedHeader, error) {
-	b, err := s.ds.Get(headKey)
+	b, err := s.ds.Get(ctx, headKey)
 	if err != nil {
 		return nil, err
 	}

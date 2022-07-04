@@ -30,13 +30,13 @@ func NewExchange(fetcher *core.BlockFetcher, bServ blockservice.BlockService, co
 	}
 }
 
-func (ce *Exchange) RequestHeader(ctx context.Context, height uint64) (*header.ExtendedHeader, error) {
+func (ce *Exchange) GetByHeight(ctx context.Context, height uint64) (*header.ExtendedHeader, error) {
 	log.Debugw("requesting header", "height", height)
 	intHeight := int64(height)
 	return ce.getExtendedHeaderByHeight(ctx, &intHeight)
 }
 
-func (ce *Exchange) RequestHeaders(ctx context.Context, from, amount uint64) ([]*header.ExtendedHeader, error) {
+func (ce *Exchange) GetRangeByHeight(ctx context.Context, from, amount uint64) ([]*header.ExtendedHeader, error) {
 	if amount == 0 {
 		return nil, nil
 	}
@@ -44,7 +44,7 @@ func (ce *Exchange) RequestHeaders(ctx context.Context, from, amount uint64) ([]
 	log.Debugw("requesting headers", "from", from, "to", from+amount)
 	headers := make([]*header.ExtendedHeader, amount)
 	for i := range headers {
-		extHeader, err := ce.RequestHeader(ctx, from+uint64(i))
+		extHeader, err := ce.GetByHeight(ctx, from+uint64(i))
 		if err != nil {
 			return nil, err
 		}
@@ -55,7 +55,7 @@ func (ce *Exchange) RequestHeaders(ctx context.Context, from, amount uint64) ([]
 	return headers, nil
 }
 
-func (ce *Exchange) RequestByHash(ctx context.Context, hash tmbytes.HexBytes) (*header.ExtendedHeader, error) {
+func (ce *Exchange) Get(ctx context.Context, hash tmbytes.HexBytes) (*header.ExtendedHeader, error) {
 	log.Debugw("requesting header", "hash", hash.String())
 	block, err := ce.fetcher.GetBlockByHash(ctx, hash)
 	if err != nil {
@@ -80,7 +80,7 @@ func (ce *Exchange) RequestByHash(ctx context.Context, hash tmbytes.HexBytes) (*
 	return eh, nil
 }
 
-func (ce *Exchange) RequestHead(ctx context.Context) (*header.ExtendedHeader, error) {
+func (ce *Exchange) Head(ctx context.Context) (*header.ExtendedHeader, error) {
 	log.Debug("requesting head")
 	return ce.getExtendedHeaderByHeight(ctx, nil)
 }

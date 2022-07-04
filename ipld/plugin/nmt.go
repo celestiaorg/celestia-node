@@ -23,11 +23,8 @@ const (
 	// Below used multiformats (one codec, one multihash) seem free:
 	// https://github.com/multiformats/multicodec/blob/master/table.csv
 
-	// NmtCodec is the codec used for leaf and inner nodes of an Namespaced Merkle Tree.
+	// NmtCodec is the codec used for leaf and inner nodes of a Namespaced Merkle Tree.
 	NmtCodec = 0x7700
-
-	// NmtCodecName is the name used during registry of the NmtCodec codec
-	NmtCodecName = "nmt-node"
 
 	// Sha256Namespace8Flagged is the multihash code used to hash blocks
 	// that contain an NMT node (inner and leaf nodes).
@@ -35,45 +32,12 @@ const (
 
 	// nmtHashSize is the size of a digest created by an NMT in bytes.
 	nmtHashSize = 2*consts.NamespaceSize + sha256.Size
-
-	// mhOverhead is the size of the prepended buffer of the CID encoding
-	// for NamespacedSha256. For more information, see:
-	// https://multiformats.io/multihash/#the-multihash-format
-	mhOverhead = 4
 )
 
 func init() {
-	mustRegisterNamespacedCodec(
-		Sha256Namespace8Flagged,
-		"sha2-256-namespace8-flagged",
-		nmtHashSize,
-		func() hash.Hash {
-			return NewNamespaceHasher(nmt.NewNmtHasher(sha256.New(), nmt.DefaultNamespaceIDLen, true))
-		},
-	)
-	// register the codecs in the global maps
-	cid.Codecs[NmtCodecName] = NmtCodec
-	cid.CodecToStr[NmtCodec] = NmtCodecName
-}
-
-func mustRegisterNamespacedCodec(
-	codec uint64,
-	name string,
-	defaultLength int,
-	hashFunc func() hash.Hash,
-) {
-	if _, ok := mh.Codes[codec]; !ok {
-		// make sure that the Codec wasn't registered from somewhere different than this plugin already:
-		if _, found := mh.Codes[codec]; found {
-			panic(fmt.Sprintf("Codec 0x%X is already present: %v", codec, mh.Codes[codec]))
-		}
-		// add to mh.Codes map first, otherwise mh.RegisterHashFunc would err:
-		mh.Codes[codec] = name
-		mh.Names[name] = codec
-		mh.DefaultLengths[codec] = defaultLength
-
-		mhcore.Register(codec, hashFunc)
-	}
+	mhcore.Register(Sha256Namespace8Flagged, func() hash.Hash {
+		return NewNamespaceHasher(nmt.NewNmtHasher(sha256.New(), nmt.DefaultNamespaceIDLen, true))
+	})
 }
 
 type namespaceHasher struct {
@@ -108,8 +72,9 @@ func (n *namespaceHasher) Sum([]byte) []byte {
 func GetNode(ctx context.Context, bGetter blockservice.BlockGetter, root cid.Cid) (ipld.Node, error) {
 	block, err := bGetter.GetBlock(ctx, root)
 	if err != nil {
-		if errors.Is(err, blockservice.ErrNotFound) {
-			return nil, ipld.ErrNotFound
+		var errNotFound *ipld.ErrNotFound
+		if errors.As(err, &errNotFound) {
+			return nil, errNotFound
 		}
 		return nil, err
 	}
@@ -351,7 +316,12 @@ func MustCidFromNamespacedSha256(hash []byte) cid.Cid {
 	return cidFromHash
 }
 
+// cidPrefixSize is the size of the prepended buffer of the CID encoding
+// for NamespacedSha256. For more information, see:
+// https://multiformats.io/multihash/#the-multihash-format
+const cidPrefixSize = 4
+
 // NamespacedSha256FromCID derives the Namespaced hash from the given CID.
 func NamespacedSha256FromCID(cid cid.Cid) []byte {
-	return cid.Hash()[mhOverhead:]
+	return cid.Hash()[cidPrefixSize:]
 }

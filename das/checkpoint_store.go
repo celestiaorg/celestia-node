@@ -1,6 +1,7 @@
 package das
 
 import (
+	"context"
 	"encoding/binary"
 
 	"github.com/ipfs/go-datastore"
@@ -22,8 +23,8 @@ func wrapCheckpointStore(ds datastore.Datastore) datastore.Datastore {
 
 // loadCheckpoint loads the DAS checkpoint height from disk and returns it.
 // If there is no known checkpoint, it returns height 0.
-func loadCheckpoint(ds datastore.Datastore) (int64, error) {
-	checkpoint, err := ds.Get(checkpointKey)
+func loadCheckpoint(ctx context.Context, ds datastore.Datastore) (int64, error) {
+	checkpoint, err := ds.Get(ctx, checkpointKey)
 	if err != nil {
 		// if no checkpoint was found, return checkpoint as
 		// 0 since DASer begins sampling on checkpoint+1
@@ -38,9 +39,9 @@ func loadCheckpoint(ds datastore.Datastore) (int64, error) {
 }
 
 // storeCheckpoint stores the given DAS checkpoint to disk.
-func storeCheckpoint(ds datastore.Datastore, checkpoint int64) error {
+func storeCheckpoint(ctx context.Context, ds datastore.Datastore, checkpoint int64) error {
 	buf := make([]byte, 8)
 	binary.BigEndian.PutUint64(buf, uint64(checkpoint))
 
-	return ds.Put(checkpointKey, buf)
+	return ds.Put(ctx, checkpointKey, buf)
 }

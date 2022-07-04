@@ -2,13 +2,16 @@ package das
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
 	"github.com/ipfs/go-datastore"
 	logging "github.com/ipfs/go-log/v2"
 
+	"github.com/celestiaorg/celestia-node/fraud"
 	"github.com/celestiaorg/celestia-node/header"
+	"github.com/celestiaorg/celestia-node/ipld"
 	"github.com/celestiaorg/celestia-node/service/share"
 )
 
@@ -16,8 +19,9 @@ var log = logging.Logger("das")
 
 // DASer continuously validates availability of data committed to headers.
 type DASer struct {
-	da   share.Availability
-	hsub header.Subscriber
+	da    share.Availability
+	bcast fraud.Broadcaster
+	hsub  header.Subscriber
 
 	// getter allows the DASer to fetch an ExtendedHeader (EH) at a certain height
 	// and blocks until the EH has been processed by the header store.
@@ -25,6 +29,7 @@ type DASer struct {
 	// checkpoint store
 	cstore datastore.Datastore
 
+	ctx    context.Context
 	cancel context.CancelFunc
 
 	jobsCh chan *catchUpJob
@@ -39,10 +44,12 @@ func NewDASer(
 	hsub header.Subscriber,
 	getter header.Getter,
 	cstore datastore.Datastore,
+	bcast fraud.Broadcaster,
 ) *DASer {
 	wrappedDS := wrapCheckpointStore(cstore)
 	return &DASer{
 		da:        da,
+		bcast:     bcast,
 		hsub:      hsub,
 		getter:    getter,
 		cstore:    wrappedDS,
@@ -63,25 +70,33 @@ func (d *DASer) Start(context.Context) error {
 		return err
 	}
 
+	d.ctx, d.cancel = context.WithCancel(context.Background())
+
 	// load latest DASed checkpoint
-	checkpoint, err := loadCheckpoint(d.cstore)
+	checkpoint, err := loadCheckpoint(d.ctx, d.cstore)
 	if err != nil {
 		return err
 	}
 	log.Infow("loaded checkpoint", "height", checkpoint)
 
-	dasCtx, cancel := context.WithCancel(context.Background())
-	d.cancel = cancel
-
 	// kick off catch-up routine manager
-	go d.catchUpManager(dasCtx, checkpoint)
+	go d.catchUpManager(d.ctx, checkpoint)
 	// kick off sampling routine for recently received headers
-	go d.sample(dasCtx, sub, checkpoint)
+	go d.sample(d.ctx, sub, checkpoint)
 	return nil
 }
 
 // Stop stops sampling.
 func (d *DASer) Stop(ctx context.Context) error {
+	// Stop func can now be invoked twice in one Lifecycle, when:
+	// * BEFP is received;
+	// * node is stopping;
+	// this statement helps avoiding panic on the second Stop.
+	// If ctx.Err is not nil then it means that Stop was called for the first time.
+	// NOTE: we are expecting *only* ContextCancelled error here.
+	if d.ctx.Err() == context.Canceled {
+		return nil
+	}
 	d.cancel()
 	// wait for both sampling routines to exit
 	for i := 0; i < 2; i++ {
@@ -136,22 +151,10 @@ func (d *DASer) sample(ctx context.Context, sub header.Subscription, checkpoint 
 			}
 		}
 
-		startTime := time.Now()
-
-		err = d.da.SharesAvailable(ctx, h.DAH)
+		err = d.sampleHeader(ctx, h)
 		if err != nil {
-			if err == context.Canceled {
-				return
-			}
-			log.Errorw("sampling failed", "height", h.Height, "hash", h.Hash(),
-				"square width", len(h.DAH.RowsRoots), "data root", h.DAH.Hash(), "err", err)
-			log.Warn("DASer WILL BE STOPPED. IN ORDER TO CONTINUE SAMPLING, RE-START THE NODE")
 			return
 		}
-
-		sampleTime := time.Since(startTime)
-		log.Infow("sampling successful", "height", h.Height, "hash", h.Hash(),
-			"square width", len(h.DAH.RowsRoots), "finished (s)", sampleTime.Seconds())
 
 		sampleHeight = h.Height
 	}
@@ -171,7 +174,7 @@ func (d *DASer) catchUpManager(ctx context.Context, checkpoint int64) {
 		// up to current network head
 		// TODO @renaynay: Implement Share Cache #180 to ensure no duplicate DASing over same
 		//  header
-		if err := storeCheckpoint(d.cstore, checkpoint); err != nil {
+		if err := storeCheckpoint(ctx, d.cstore, checkpoint); err != nil {
 			log.Errorw("storing checkpoint to disk", "height", checkpoint, "err", err)
 		}
 		log.Infow("stored checkpoint to disk", "checkpoint", checkpoint)
@@ -191,7 +194,6 @@ func (d *DASer) catchUpManager(ctx context.Context, checkpoint int64) {
 			// exit routine if a catch-up job was unsuccessful
 			if err != nil {
 				log.Errorw("catch-up routine failed", "attempted range: from", job.from, "to", job.to)
-				log.Warn("DASer WILL BE STOPPED. IN ORDER TO CONTINUE SAMPLING OVER PAST HEADERS, RE-START THE NODE")
 				return
 			}
 		}
@@ -220,28 +222,44 @@ func (d *DASer) catchUp(ctx context.Context, job *catchUpJob) (int64, error) {
 			return height - 1, err
 		}
 
-		startTime := time.Now()
-
-		err = d.da.SharesAvailable(ctx, h.DAH)
+		err = d.sampleHeader(ctx, h)
 		if err != nil {
-			if err == context.Canceled {
-				// report previous height as the last successfully sampled height and
-				// error as nil since the routine was ordered to stop
-				return height - 1, nil
-			}
-			log.Errorw("sampling failed", "height", h.Height, "hash", h.Hash(),
-				"square width", len(h.DAH.RowsRoots), "data root", h.DAH.Hash(), "err", err)
-			// report previous height as the last successfully sampled height
-			return height - 1, err
+			return h.Height - 1, err
 		}
-
-		sampleTime := time.Since(startTime)
-		log.Infow("sampled past header", "height", h.Height, "hash", h.Hash(),
-			"square width", len(h.DAH.RowsRoots), "finished (s)", sampleTime.Seconds())
 	}
 
 	log.Infow("successfully sampled past headers", "from", job.from,
 		"to", job.to, "finished (s)", time.Since(routineStartTime))
 	// report successful result
 	return job.to, nil
+}
+
+func (d *DASer) sampleHeader(ctx context.Context, h *header.ExtendedHeader) error {
+	startTime := time.Now()
+
+	err := d.da.SharesAvailable(ctx, h.DAH)
+	if err != nil {
+		if err == context.Canceled {
+			return nil
+		}
+		var byzantineErr *ipld.ErrByzantine
+		if errors.As(err, &byzantineErr) {
+			log.Warn("Propagating proof...")
+			sendErr := d.bcast.Broadcast(ctx, fraud.CreateBadEncodingProof(h.Hash(), uint64(h.Height), byzantineErr))
+			if sendErr != nil {
+				log.Errorw("fraud proof propagating failed", "err", sendErr)
+			}
+		}
+		log.Errorw("sampling failed", "height", h.Height, "hash", h.Hash(),
+			"square width", len(h.DAH.RowsRoots), "data root", h.DAH.Hash(), "err", err)
+		log.Warn("DASer WILL BE STOPPED. IN ORDER TO CONTINUE SAMPLING, RE-START THE NODE")
+		// report previous height as the last successfully sampled height
+		return err
+	}
+
+	sampleTime := time.Since(startTime)
+	log.Infow("sampled header", "height", h.Height, "hash", h.Hash(),
+		"square width", len(h.DAH.RowsRoots), "finished (s)", sampleTime.Seconds())
+
+	return nil
 }

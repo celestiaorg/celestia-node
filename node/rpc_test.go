@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"strconv"
 	"testing"
@@ -147,6 +148,29 @@ func TestHeaderRequest(t *testing.T) {
 			require.Equal(t, tt.expectedErr, resp.StatusCode != http.StatusOK)
 		})
 	}
+}
+
+// TestAvailabilityRequest tests the /data_available endpoint.
+func TestAvailabilityRequest(t *testing.T) {
+	nd := setupNodeWithModifiedRPC(t)
+
+	height := 5
+	endpoint := fmt.Sprintf("http://127.0.0.1:%s/data_available/%d", nd.RPCServer.ListenAddr()[5:], height)
+	resp, err := http.Get(endpoint)
+	require.NoError(t, err)
+	defer func() {
+		err = resp.Body.Close()
+		require.NoError(t, err)
+	}()
+
+	buf, err := ioutil.ReadAll(resp.Body)
+	require.NoError(t, err)
+
+	availResp := new(rpc.AvailabilityResponse)
+	err = json.Unmarshal(buf, &availResp)
+	require.NoError(t, err)
+
+	assert.True(t, availResp.Available)
 }
 
 func setupNodeWithModifiedRPC(t *testing.T) *Node {
