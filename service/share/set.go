@@ -7,9 +7,9 @@ import (
 	"github.com/libp2p/go-libp2p-core/peer"
 )
 
-// LimitedSet is a thread safe set of peers with given limit.
+// limitedSet is a thread safe set of peers with given limit.
 // Inspired by libp2p peer.Set but extended with Remove method.
-type LimitedSet struct {
+type limitedSet struct {
 	lk sync.RWMutex
 	ps map[peer.ID]struct{}
 
@@ -17,21 +17,21 @@ type LimitedSet struct {
 }
 
 // newLimitedSet constructs a set with the maximum peers amount.
-func newLimitedSet(size int) *LimitedSet {
-	ps := new(LimitedSet)
+func newLimitedSet(limit int) *limitedSet {
+	ps := new(limitedSet)
 	ps.ps = make(map[peer.ID]struct{})
-	ps.limit = size
+	ps.limit = limit
 	return ps
 }
 
-func (ps *LimitedSet) Contains(p peer.ID) bool {
+func (ps *limitedSet) Contains(p peer.ID) bool {
 	ps.lk.RLock()
 	_, ok := ps.ps[p]
 	ps.lk.RUnlock()
 	return ok
 }
 
-func (ps *LimitedSet) Size() int {
+func (ps *limitedSet) Size() int {
 	ps.lk.RLock()
 	defer ps.lk.RUnlock()
 	return len(ps.ps)
@@ -39,7 +39,7 @@ func (ps *LimitedSet) Size() int {
 
 // TryAdd attempts to add the given peer into the set.
 // This operation will fail if the number of peers in the set is equal to size.
-func (ps *LimitedSet) TryAdd(p peer.ID) error {
+func (ps *limitedSet) TryAdd(p peer.ID) error {
 	ps.lk.Lock()
 	defer ps.lk.Unlock()
 	if len(ps.ps) < ps.limit {
@@ -50,7 +50,7 @@ func (ps *LimitedSet) TryAdd(p peer.ID) error {
 	return errors.New("discovery: peers limit reached")
 }
 
-func (ps *LimitedSet) Remove(id peer.ID) {
+func (ps *limitedSet) Remove(id peer.ID) {
 	ps.lk.Lock()
 	defer ps.lk.Unlock()
 	if ps.limit > 0 {
@@ -58,7 +58,7 @@ func (ps *LimitedSet) Remove(id peer.ID) {
 	}
 }
 
-func (ps *LimitedSet) Peers() []peer.ID {
+func (ps *limitedSet) Peers() []peer.ID {
 	ps.lk.Lock()
 	out := make([]peer.ID, 0, len(ps.ps))
 	for p := range ps.ps {

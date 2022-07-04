@@ -12,6 +12,7 @@ import (
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	routingdisc "github.com/libp2p/go-libp2p/p2p/discovery/routing"
 	"go.uber.org/fx"
+	"go.uber.org/multierr"
 
 	"github.com/celestiaorg/celestia-node/das"
 	"github.com/celestiaorg/celestia-node/fraud"
@@ -183,8 +184,9 @@ func LightAvailability(
 	lc.Append(fx.Hook{
 		OnStart: la.Start,
 		OnStop: func(ctx context.Context) error {
-			_ = la.Stop(ctx)
-			return ca.Close(ctx)
+			laErr := la.Stop(ctx)
+			caErr := ca.Close(ctx)
+			return multierr.Append(laErr, caErr)
 		},
 	})
 	return ca
@@ -192,7 +194,6 @@ func LightAvailability(
 
 // FullAvailability constructs full share availability wrapped in cache availability.
 func FullAvailability(
-	ctx context.Context,
 	lc fx.Lifecycle,
 	bServ blockservice.BlockService,
 	ds datastore.Batching,
@@ -204,8 +205,9 @@ func FullAvailability(
 	lc.Append(fx.Hook{
 		OnStart: fa.Start,
 		OnStop: func(ctx context.Context) error {
-			_ = fa.Stop(ctx)
-			return ca.Close(ctx)
+			faErr := fa.Stop(ctx)
+			caErr := ca.Close(ctx)
+			return multierr.Append(faErr, caErr)
 		},
 	})
 	return ca

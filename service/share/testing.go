@@ -15,6 +15,8 @@ import (
 	"github.com/libp2p/go-libp2p-core/host"
 	"github.com/libp2p/go-libp2p-core/peer"
 	record "github.com/libp2p/go-libp2p-record"
+	routinghelpers "github.com/libp2p/go-libp2p-routing-helpers"
+	"github.com/libp2p/go-libp2p/p2p/discovery/routing"
 	mocknet "github.com/libp2p/go-libp2p/p2p/net/mock"
 	"github.com/stretchr/testify/require"
 	"github.com/tendermint/tendermint/pkg/da"
@@ -26,21 +28,21 @@ import (
 // trees of 'n' random shares, essentially storing a whole square.
 func RandLightServiceWithSquare(t *testing.T, n int) (*Service, *Root) {
 	bServ := mdutils.Bserv()
-	return NewService(bServ, NewLightAvailability(bServ, Null(), nil)), RandFillBS(t, n, bServ)
+	return NewService(bServ, TestLigthAvailability(bServ)), RandFillBS(t, n, bServ)
 }
 
 // RandLightService provides an unfilled share.Service with corresponding
 // blockservice.BlockService than can be filled by the test.
 func RandLightService() (*Service, blockservice.BlockService) {
 	bServ := mdutils.Bserv()
-	return NewService(bServ, NewLightAvailability(bServ, Null(), nil)), bServ
+	return NewService(bServ, TestLigthAvailability(bServ)), bServ
 }
 
 // RandFullServiceWithSquare provides a share.Service filled with 'n' NMT
 // trees of 'n' random shares, essentially storing a whole square.
 func RandFullServiceWithSquare(t *testing.T, n int) (*Service, *Root) {
 	bServ := mdutils.Bserv()
-	return NewService(bServ, NewLightAvailability(bServ, Null(), nil)), RandFillBS(t, n, bServ)
+	return NewService(bServ, TestFullAvailability(bServ)), RandFillBS(t, n, bServ)
 }
 
 // RandLightLocalServiceWithSquare is the same as RandLightServiceWithSquare, except
@@ -49,7 +51,7 @@ func RandLightLocalServiceWithSquare(t *testing.T, n int) (*Service, *Root) {
 	bServ := mdutils.Bserv()
 	ds := dssync.MutexWrap(ds.NewMapDatastore())
 	ca := NewCacheAvailability(
-		NewLightAvailability(bServ, Null(), nil),
+		TestLigthAvailability(bServ),
 		ds,
 	)
 	return NewService(bServ, ca), RandFillBS(t, n, bServ)
@@ -61,7 +63,7 @@ func RandFullLocalServiceWithSquare(t *testing.T, n int) (*Service, *Root) {
 	bServ := mdutils.Bserv()
 	ds := dssync.MutexWrap(ds.NewMapDatastore())
 	ca := NewCacheAvailability(
-		NewFullAvailability(bServ, Null(), nil),
+		TestFullAvailability(bServ),
 		ds,
 	)
 	return NewService(bServ, ca), RandFillBS(t, n, bServ)
@@ -136,14 +138,14 @@ func (dn *dagNet) RandFullNode(squareSize int) (*node, *Root) {
 // LightNode creates a new empty LightAvailability Node.
 func (dn *dagNet) LightNode() *node {
 	nd := dn.Node()
-	nd.Service = NewService(nd.BlockService, NewLightAvailability(nd.BlockService, Null(), nil))
+	nd.Service = NewService(nd.BlockService, TestLigthAvailability(nd.BlockService))
 	return nd
 }
 
 // FullNode creates a new empty FullAvailability Node.
 func (dn *dagNet) FullNode() *node {
 	nd := dn.Node()
-	nd.Service = NewService(nd.BlockService, NewFullAvailability(nd.BlockService, Null(), nil))
+	nd.Service = NewService(nd.BlockService, TestFullAvailability(nd.BlockService))
 	return nd
 }
 
@@ -251,4 +253,12 @@ func (b *brokenAvailability) SharesAvailable(context.Context, *Root) error {
 
 func (b *brokenAvailability) ProbabilityOfAvailability() float64 {
 	return 0
+}
+
+func TestLigthAvailability(bServ blockservice.BlockService) *LightAvailability {
+	return NewLightAvailability(bServ, routing.NewRoutingDiscovery(routinghelpers.Null{}), nil)
+}
+
+func TestFullAvailability(bServ blockservice.BlockService) *FullAvailability {
+	return NewFullAvailability(bServ, routing.NewRoutingDiscovery(routinghelpers.Null{}), nil)
 }

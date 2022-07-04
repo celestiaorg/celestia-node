@@ -22,7 +22,7 @@ var DefaultSampleAmount = 16
 // on the network doing sampling over the same Root to collectively verify its availability.
 type LightAvailability struct {
 	bserv blockservice.BlockService
-	disc  *discoverer
+	disc  discoverer
 
 	cancel context.CancelFunc
 }
@@ -35,7 +35,7 @@ func NewLightAvailability(
 ) *LightAvailability {
 	la := &LightAvailability{
 		bserv: bserv,
-		disc:  newDiscoverer(newLimitedSet(PeersLimit), h, r),
+		disc:  newDiscovery(h, r),
 	}
 	return la
 }

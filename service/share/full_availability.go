@@ -16,9 +16,8 @@ import (
 // recovery technique. It is considered "full" because it is required
 // to download enough shares to fully reconstruct the data square.
 type FullAvailability struct {
-	rtrv    *ipld.Retriever
-	routing *routing.RoutingDiscovery
-	disc    *discoverer
+	rtrv *ipld.Retriever
+	disc *discovery
 
 	cancel context.CancelFunc
 }
@@ -26,16 +25,15 @@ type FullAvailability struct {
 // NewFullAvailability creates a new full Availability.
 func NewFullAvailability(bServ blockservice.BlockService, r *routing.RoutingDiscovery, h host.Host) *FullAvailability {
 	return &FullAvailability{
-		rtrv:    ipld.NewRetriever(bServ),
-		routing: r,
-		disc:    newDiscoverer(newLimitedSet(PeersLimit), h, r),
+		rtrv: ipld.NewRetriever(bServ),
+		disc: newDiscovery(h, r),
 	}
 }
 
 func (fa *FullAvailability) Start(context.Context) error {
 	ctx, cancel := context.WithCancel(context.Background())
 	fa.cancel = cancel
-	go Advertise(ctx, fa.routing)
+	go fa.disc.advertise(ctx)
 	go fa.disc.findPeers(ctx)
 
 	return nil
