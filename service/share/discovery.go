@@ -11,7 +11,7 @@ import (
 
 const (
 	// peersLimit is max amount of peers that will be discovered.
-	peersLimit = 5
+	peersLimit = 3
 
 	// peerWeight is a weight of discovered peers.
 	// peerWeight is a number that will be assigned to all discovered full nodes,

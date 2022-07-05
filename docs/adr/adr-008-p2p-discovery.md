@@ -20,7 +20,7 @@ As soon as full node is found and connection is established with it, then it wil
 ## Detailed design
 ```go
 // peersLimit is max amount of peers that will be discovered.
-peersLimit = 5
+peersLimit = 3
 
 // discovery combines advertise and discover services and allows to store discovered nodes.
 type discovery struct {
@@ -54,9 +54,11 @@ the node will call [Tag Peer](https://github.com/libp2p/go-libp2p-core/blob/525a
 
 
 ### Light Nodes behavior:
-1. Node starts finding full nodes over DHT at "full" namespace using the `discoverer` interface.
+1. Node starts finding full nodes over DHT at `full` namespace using the `discoverer` interface.
 2. As soon as a new peer is found, the node will try to establish a connection with it. In case the connection is successful
    the node will call [Tag Peer](https://github.com/libp2p/go-libp2p-core/blob/525a0b13017263bde889a3295fa2e4212d7af8c5/connmgr/manager.go#L35) and add peer to the peer set.
+
+*NOTE* Bridge node behaves the same as Full nodes.
 
 Tagging allows to protect peer from being killed by ConnManager.
 ```go
