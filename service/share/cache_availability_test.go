@@ -42,13 +42,13 @@ func TestCacheAvailability(t *testing.T) {
 		t.Run(strconv.Itoa(i), func(t *testing.T) {
 			ca := tt.service.Availability.(*CacheAvailability)
 			// ensure the dah isn't yet in the cache
-			exists, err := ca.ds.Has(rootKey(tt.root))
+			exists, err := ca.ds.Has(ctx, rootKey(tt.root))
 			require.NoError(t, err)
 			assert.False(t, exists)
 			err = tt.service.SharesAvailable(ctx, tt.root)
 			require.NoError(t, err)
 			// ensure the dah was stored properly
-			exists, err = ca.ds.Has(rootKey(tt.root))
+			exists, err = ca.ds.Has(ctx, rootKey(tt.root))
 			require.NoError(t, err)
 			assert.True(t, exists)
 		})
@@ -71,7 +71,7 @@ func TestCacheAvailability_Failed(t *testing.T) {
 	err := serv.SharesAvailable(ctx, &invalidHeader)
 	require.Error(t, err)
 	// ensure the dah was NOT cached
-	exists, err := ca.ds.Has(rootKey(&invalidHeader))
+	exists, err := ca.ds.Has(ctx, rootKey(&invalidHeader))
 	require.NoError(t, err)
 	assert.False(t, exists)
 }
@@ -83,7 +83,7 @@ func TestCacheAvailability_NoDuplicateSampling(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	// create root to cache
-	root := RandFillDAG(t, 16, mdutils.Bserv())
+	root := RandFillBS(t, 16, mdutils.Bserv())
 	// wrap dummyAvailability with a datastore
 	ds := sync.MutexWrap(datastore.NewMapDatastore())
 	ca := NewCacheAvailability(&dummyAvailability{counter: 0}, ds)
@@ -91,7 +91,7 @@ func TestCacheAvailability_NoDuplicateSampling(t *testing.T) {
 	err := ca.SharesAvailable(ctx, root)
 	require.NoError(t, err)
 	// ensure root was cached
-	exists, err := ca.ds.Has(rootKey(root))
+	exists, err := ca.ds.Has(ctx, rootKey(root))
 	require.NoError(t, err)
 	assert.True(t, exists)
 	// call sampling routine over same root again and ensure no error is returned
@@ -128,4 +128,8 @@ func (da *dummyAvailability) SharesAvailable(_ context.Context, root *Root) erro
 	}
 	da.counter++
 	return nil
+}
+
+func (da *dummyAvailability) ProbabilityOfAvailability() float64 {
+	return 0
 }

@@ -15,12 +15,11 @@ import (
 	"github.com/tendermint/tendermint/libs/bytes"
 	"github.com/tendermint/tendermint/types"
 
-	"github.com/celestiaorg/celestia-node/params"
-
 	"github.com/celestiaorg/celestia-node/core"
 	"github.com/celestiaorg/celestia-node/libs/keystore"
 	"github.com/celestiaorg/celestia-node/node"
 	"github.com/celestiaorg/celestia-node/node/p2p"
+	"github.com/celestiaorg/celestia-node/params"
 )
 
 var blackholeIP6 = net.ParseIP("100::")
@@ -42,6 +41,7 @@ type Swamp struct {
 	FullNodes   []*node.Node
 	LightNodes  []*node.Node
 	trustedHash string
+	comps       *Components
 }
 
 // NewSwamp creates a new instance of Swamp.
@@ -72,8 +72,9 @@ func NewSwamp(t *testing.T, options ...Option) *Swamp {
 
 	swp := &Swamp{
 		t:          t,
-		Network:    mocknet.New(ctx),
+		Network:    mocknet.New(),
 		CoreClient: remote,
+		comps:      ic,
 	}
 
 	swp.trustedHash, err = swp.getTrustedHash(ctx)

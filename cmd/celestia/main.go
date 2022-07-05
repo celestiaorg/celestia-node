@@ -2,7 +2,9 @@ package main
 
 import (
 	"context"
+	"math/rand"
 	"os"
+	"time"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/spf13/cobra"
@@ -35,6 +37,8 @@ func main() {
 }
 
 func run() error {
+	rand.Seed(time.Now().Unix())
+
 	return rootCmd.ExecuteContext(cmd.WithEnv(context.Background()))
 }
 

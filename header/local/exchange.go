@@ -28,21 +28,21 @@ func (l *Exchange) Stop(context.Context) error {
 	return nil
 }
 
-func (l *Exchange) RequestHead(ctx context.Context) (*header.ExtendedHeader, error) {
+func (l *Exchange) Head(ctx context.Context) (*header.ExtendedHeader, error) {
 	return l.store.Head(ctx)
 }
 
-func (l *Exchange) RequestHeader(ctx context.Context, height uint64) (*header.ExtendedHeader, error) {
+func (l *Exchange) GetByHeight(ctx context.Context, height uint64) (*header.ExtendedHeader, error) {
 	return l.store.GetByHeight(ctx, height)
 }
 
-func (l *Exchange) RequestHeaders(ctx context.Context, origin, amount uint64) ([]*header.ExtendedHeader, error) {
+func (l *Exchange) GetRangeByHeight(ctx context.Context, origin, amount uint64) ([]*header.ExtendedHeader, error) {
 	if amount == 0 {
 		return nil, nil
 	}
 	return l.store.GetRangeByHeight(ctx, origin, origin+amount)
 }
 
-func (l *Exchange) RequestByHash(ctx context.Context, hash bytes.HexBytes) (*header.ExtendedHeader, error) {
+func (l *Exchange) Get(ctx context.Context, hash bytes.HexBytes) (*header.ExtendedHeader, error) {
 	return l.store.Get(ctx, hash)
 }

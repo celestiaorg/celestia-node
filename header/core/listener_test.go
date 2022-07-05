@@ -54,7 +54,7 @@ func TestListener(t *testing.T) {
 }
 
 func createMocknetWithTwoPubsubEndpoints(ctx context.Context, t *testing.T) (*pubsub.PubSub, *pubsub.PubSub) {
-	net, err := mocknet.FullMeshLinked(context.Background(), 2)
+	net, err := mocknet.FullMeshLinked(2)
 	require.NoError(t, err)
 	host0, host1 := net.Hosts()[0], net.Hosts()[1]
 

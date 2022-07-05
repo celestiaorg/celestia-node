@@ -35,6 +35,8 @@ type Subscriber interface {
 	// before they are sent through Subscriptions.
 	// Multiple validators can be registered.
 	AddValidator(Validator) error
+	// Stop removes header-sub validator and closes the topic.
+	Stop(context.Context) error
 }
 
 // Subscription can retrieve the next ExtendedHeader from the
@@ -55,19 +57,7 @@ type Broadcaster interface {
 // Exchange encompasses the behavior necessary to request ExtendedHeaders
 // from the network.
 type Exchange interface {
-	// RequestHead requests the latest ExtendedHeader. Note that the ExtendedHeader
-	// must be verified thereafter.
-	RequestHead(ctx context.Context) (*ExtendedHeader, error)
-	// RequestHeader performs a request for the ExtendedHeader at the given
-	// height to the network. Note that the ExtendedHeader must be verified
-	// thereafter.
-	RequestHeader(ctx context.Context, height uint64) (*ExtendedHeader, error)
-	// RequestHeaders performs a request for the given range of ExtendedHeaders
-	// to the network. Note that the ExtendedHeaders must be verified thereafter.
-	RequestHeaders(ctx context.Context, origin, amount uint64) ([]*ExtendedHeader, error)
-	// RequestByHash performs a request for the ExtendedHeader by the given hash corresponding
-	// to the RawHeader. Note that the ExtendedHeader must be verified thereafter.
-	RequestByHash(ctx context.Context, hash tmbytes.HexBytes) (*ExtendedHeader, error)
+	Getter
 }
 
 var (

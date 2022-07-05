@@ -3,6 +3,7 @@ package share
 import (
 	"context"
 	"errors"
+	"math"
 
 	"github.com/ipfs/go-blockservice"
 	format "github.com/ipfs/go-ipld-format"
@@ -74,7 +75,7 @@ func (la *lightAvailability) SharesAvailable(ctx context.Context, dah *Root) err
 			if !errors.Is(err, context.Canceled) {
 				log.Errorw("availability validation failed", "root", dah.Hash(), "err", err)
 			}
-			if errors.Is(err, format.ErrNotFound) || errors.Is(err, context.DeadlineExceeded) {
+			if format.IsNotFound(err) || errors.Is(err, context.DeadlineExceeded) {
 				return ErrNotAvailable
 			}
 
@@ -83,4 +84,13 @@ func (la *lightAvailability) SharesAvailable(ctx context.Context, dah *Root) err
 	}
 
 	return nil
+}
+
+// ProbabilityOfAvailability calculates the probability that the
+// data square is available based on the amount of samples collected
+// (DefaultSampleAmount).
+//
+// Formula: 1 - (0.75 ** amount of samples)
+func (la *lightAvailability) ProbabilityOfAvailability() float64 {
+	return 1 - math.Pow(0.75, float64(DefaultSampleAmount))
 }

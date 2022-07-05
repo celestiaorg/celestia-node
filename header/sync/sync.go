@@ -3,7 +3,6 @@ package sync
 import (
 	"context"
 	"errors"
-	"fmt"
 	"sync"
 	"time"
 
@@ -59,10 +58,6 @@ func NewSyncer(exchange header.Exchange, store header.Store, sub header.Subscrib
 
 // Start starts the syncing routine.
 func (s *Syncer) Start(context.Context) error {
-	if s.cancel != nil {
-		return fmt.Errorf("header: Syncer already started")
-	}
-
 	err := s.sub.AddValidator(s.processIncoming)
 	if err != nil {
 		return err
@@ -76,10 +71,9 @@ func (s *Syncer) Start(context.Context) error {
 }
 
 // Stop stops Syncer.
-func (s *Syncer) Stop(context.Context) error {
+func (s *Syncer) Stop(ctx context.Context) error {
 	s.cancel()
-	s.cancel = nil
-	return nil
+	return s.sub.Stop(ctx)
 }
 
 // WaitSync blocks until ongoing sync is done.
@@ -140,7 +134,7 @@ func (s *Syncer) trustedHead(ctx context.Context) (*header.ExtendedHeader, error
 	}
 
 	// otherwise, request head from a trustedPeer or, in other words, do automatic subjective initialization
-	objHead, err := s.exchange.RequestHead(ctx)
+	objHead, err := s.exchange.Head(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -331,12 +325,12 @@ func (s *Syncer) findHeaders(ctx context.Context, from, to uint64) ([]*header.Ex
 		// if we have some range cached - use it
 		r, ok := s.pending.FirstRangeWithin(from, to)
 		if !ok {
-			hs, err := s.exchange.RequestHeaders(ctx, from, amount)
+			hs, err := s.exchange.GetRangeByHeight(ctx, from, amount)
 			return append(out, hs...), err
 		}
 
 		// first, request everything between from and start of the found range
-		hs, err := s.exchange.RequestHeaders(ctx, from, r.Start-from)
+		hs, err := s.exchange.GetRangeByHeight(ctx, from, r.Start-from)
 		if err != nil {
 			return nil, err
 		}

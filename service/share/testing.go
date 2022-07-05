@@ -2,7 +2,6 @@ package share
 
 import (
 	"context"
-	"math"
 	"testing"
 
 	"github.com/ipfs/go-bitswap"
@@ -12,18 +11,14 @@ import (
 	dssync "github.com/ipfs/go-datastore/sync"
 	blockstore "github.com/ipfs/go-ipfs-blockstore"
 	"github.com/ipfs/go-ipfs-routing/offline"
-	format "github.com/ipfs/go-ipld-format"
 	mdutils "github.com/ipfs/go-merkledag/test"
+	"github.com/libp2p/go-libp2p-core/host"
+	"github.com/libp2p/go-libp2p-core/peer"
 	record "github.com/libp2p/go-libp2p-record"
 	mocknet "github.com/libp2p/go-libp2p/p2p/net/mock"
 	"github.com/stretchr/testify/require"
+	"github.com/tendermint/tendermint/pkg/da"
 
-	"github.com/tendermint/tendermint/pkg/wrapper"
-
-	"github.com/celestiaorg/nmt"
-	"github.com/celestiaorg/rsmt2d"
-
-	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/ipld"
 )
 
@@ -31,7 +26,7 @@ import (
 // trees of 'n' random shares, essentially storing a whole square.
 func RandLightServiceWithSquare(t *testing.T, n int) (*Service, *Root) {
 	bServ := mdutils.Bserv()
-	return NewService(bServ, NewLightAvailability(bServ)), RandFillDAG(t, n, bServ)
+	return NewService(bServ, NewLightAvailability(bServ)), RandFillBS(t, n, bServ)
 }
 
 // RandLightService provides an unfilled share.Service with corresponding
@@ -45,7 +40,7 @@ func RandLightService() (*Service, blockservice.BlockService) {
 // trees of 'n' random shares, essentially storing a whole square.
 func RandFullServiceWithSquare(t *testing.T, n int) (*Service, *Root) {
 	bServ := mdutils.Bserv()
-	return NewService(bServ, NewFullAvailability(bServ)), RandFillDAG(t, n, bServ)
+	return NewService(bServ, NewFullAvailability(bServ)), RandFillBS(t, n, bServ)
 }
 
 // RandLightLocalServiceWithSquare is the same as RandLightServiceWithSquare, except
@@ -54,7 +49,7 @@ func RandLightLocalServiceWithSquare(t *testing.T, n int) (*Service, *Root) {
 	bServ := mdutils.Bserv()
 	ds := dssync.MutexWrap(ds.NewMapDatastore())
 	ca := NewCacheAvailability(NewLightAvailability(bServ), ds)
-	return NewService(bServ, ca), RandFillDAG(t, n, bServ)
+	return NewService(bServ, ca), RandFillBS(t, n, bServ)
 }
 
 // RandFullLocalServiceWithSquare is the same as RandFullServiceWithSquare, except
@@ -63,27 +58,20 @@ func RandFullLocalServiceWithSquare(t *testing.T, n int) (*Service, *Root) {
 	bServ := mdutils.Bserv()
 	ds := dssync.MutexWrap(ds.NewMapDatastore())
 	ca := NewCacheAvailability(NewFullAvailability(bServ), ds)
-	return NewService(bServ, ca), RandFillDAG(t, n, bServ)
+	return NewService(bServ, ca), RandFillBS(t, n, bServ)
 }
 
-func RandFillDAG(t *testing.T, n int, bServ blockservice.BlockService) *Root {
+// RandFillBS fills the given BlockService with a random block of a given size.
+func RandFillBS(t *testing.T, n int, bServ blockservice.BlockService) *Root {
 	shares := RandShares(t, n*n)
-	return FillDag(t, bServ, shares)
+	return FillBS(t, bServ, shares)
 }
 
-func FillDag(t *testing.T, bServ blockservice.BlockService, shares []Share) *Root {
-	na := ipld.NewNmtNodeAdder(context.TODO(), bServ, format.MaxSizeBatchOption(len(shares)))
-
-	squareSize := uint32(math.Sqrt(float64(len(shares))))
-	tree := wrapper.NewErasuredNamespacedMerkleTree(uint64(squareSize), nmt.NodeVisitor(na.Visit))
-	eds, err := rsmt2d.ComputeExtendedDataSquare(shares, rsmt2d.NewRSGF8Codec(), tree.Constructor)
+// FillBS fills the given BlockService with the given shares.
+func FillBS(t *testing.T, bServ blockservice.BlockService, shares []Share) *Root {
+	eds, err := ipld.AddShares(context.TODO(), shares, bServ)
 	require.NoError(t, err)
-
-	err = na.Commit()
-	require.NoError(t, err)
-
-	dah, err := header.DataAvailabilityHeaderFromExtendedData(eds)
-	require.NoError(t, err)
+	dah := da.NewDataAvailabilityHeader(eds)
 	return &dah
 }
 
@@ -92,52 +80,96 @@ func RandShares(t *testing.T, n int) []Share {
 	return ipld.RandShares(t, n)
 }
 
-type DAGNet struct {
-	ctx context.Context
-	t   *testing.T
-	net mocknet.Mocknet
+type node struct {
+	net *dagNet
+	*Service
+	blockservice.BlockService
+	host.Host
 }
 
-func NewDAGNet(ctx context.Context, t *testing.T) *DAGNet {
-	return &DAGNet{
-		ctx: ctx,
-		t:   t,
-		net: mocknet.New(ctx),
+// ClearStorage cleans up the storage of the node.
+func (n *node) ClearStorage() {
+	keys, err := n.Blockstore().AllKeysChan(n.net.ctx)
+	require.NoError(n.net.t, err)
+
+	for k := range keys {
+		err := n.DeleteBlock(n.net.ctx, k)
+		require.NoError(n.net.t, err)
 	}
 }
 
-func (dn *DAGNet) RandLightService(n int) (*Service, *Root) {
-	bServ, root := dn.RandDAG(n)
-	return NewService(bServ, NewLightAvailability(bServ)), root
+type dagNet struct {
+	ctx   context.Context
+	t     *testing.T
+	net   mocknet.Mocknet
+	nodes []*node
 }
 
-func (dn *DAGNet) RandFullService(n int) (*Service, *Root) {
-	bServ, root := dn.RandDAG(n)
-	return NewService(bServ, NewFullAvailability(bServ)), root
+// NewTestDAGNet creates a new testing swarm utility to spawn different nodes
+// and test how they interact and/or exchange data.
+func NewTestDAGNet(ctx context.Context, t *testing.T) *dagNet { //nolint:revive
+	return &dagNet{
+		ctx: ctx,
+		t:   t,
+		net: mocknet.New(),
+	}
 }
 
-func (dn *DAGNet) RandDAG(n int) (blockservice.BlockService, *Root) {
-	bServ := dn.CleanDAG()
-	return bServ, RandFillDAG(dn.t, n, bServ)
+// RandLightNode creates a Light Node filled with a random block of the given size.
+func (dn *dagNet) RandLightNode(squareSize int) (*node, *Root) {
+	nd := dn.LightNode()
+	return nd, RandFillBS(dn.t, squareSize, nd.BlockService)
 }
 
-func (dn *DAGNet) CleanService() *Service {
-	bServ := dn.CleanDAG()
-	return NewService(bServ, NewLightAvailability(bServ))
+// RandFullNode creates a Full Node filled with a random block of the given size.
+func (dn *dagNet) RandFullNode(squareSize int) (*node, *Root) {
+	nd := dn.FullNode()
+	return nd, RandFillBS(dn.t, squareSize, nd.BlockService)
 }
 
-func (dn *DAGNet) CleanDAG() blockservice.BlockService {
-	nd, err := dn.net.GenPeer()
+// LightNode creates a new empty LightAvailability Node.
+func (dn *dagNet) LightNode() *node {
+	nd := dn.Node()
+	nd.Service = NewService(nd.BlockService, NewLightAvailability(nd.BlockService))
+	return nd
+}
+
+// FullNode creates a new empty FullAvailability Node.
+func (dn *dagNet) FullNode() *node {
+	nd := dn.Node()
+	nd.Service = NewService(nd.BlockService, NewFullAvailability(nd.BlockService))
+	return nd
+}
+
+// Node create a plain network node that can serve and request data.
+func (dn *dagNet) Node() *node {
+	hst, err := dn.net.GenPeer()
 	require.NoError(dn.t, err)
-
 	dstore := dssync.MutexWrap(ds.NewMapDatastore())
 	bstore := blockstore.NewBlockstore(dstore)
 	routing := offline.NewOfflineRouter(dstore, record.NamespacedValidator{})
-	bs := bitswap.New(dn.ctx, network.NewFromIpfsHost(nd, routing), bstore, bitswap.ProvideEnabled(false))
-	return blockservice.New(bstore, bs)
+	bs := bitswap.New(
+		dn.ctx,
+		network.NewFromIpfsHost(hst, routing),
+		bstore,
+		bitswap.ProvideEnabled(false),          // disable routines for DHT content provides, as we don't use them
+		bitswap.EngineBlockstoreWorkerCount(1), // otherwise it spawns 128 routines which is too much for tests
+		bitswap.EngineTaskWorkerCount(2),
+		bitswap.TaskWorkerCount(2),
+		bitswap.SetSimulateDontHavesOnTimeout(false),
+		bitswap.SetSendDontHaves(false),
+	)
+	nd := &node{
+		net:          dn,
+		BlockService: blockservice.New(bstore, bs),
+		Host:         hst,
+	}
+	dn.nodes = append(dn.nodes, nd)
+	return nd
 }
 
-func (dn *DAGNet) ConnectAll() {
+// ConnectAll connects all the peers on registered on the dagNet.
+func (dn *dagNet) ConnectAll() {
 	err := dn.net.LinkAll()
 	require.NoError(dn.t, err)
 
@@ -145,9 +177,63 @@ func (dn *DAGNet) ConnectAll() {
 	require.NoError(dn.t, err)
 }
 
-// brokenAvailability allows to test error cases during sampling
-type brokenAvailability struct {
+// Connect connects two given peer.
+func (dn *dagNet) Connect(peerA, peerB peer.ID) {
+	_, err := dn.net.LinkPeers(peerA, peerB)
+	require.NoError(dn.t, err)
+	_, err = dn.net.ConnectPeers(peerA, peerB)
+	require.NoError(dn.t, err)
 }
+
+// Disconnect disconnects two peers.
+// It does a hard disconnect, meaning that disconnected peers won't be able to reconnect on their own
+// but only with dagNet.Connect or dagNet.ConnectAll.
+func (dn *dagNet) Disconnect(peerA, peerB peer.ID) {
+	err := dn.net.DisconnectPeers(peerA, peerB)
+	require.NoError(dn.t, err)
+	err = dn.net.UnlinkPeers(peerA, peerB)
+	require.NoError(dn.t, err)
+}
+
+type subNet struct {
+	*dagNet
+	nodes []*node
+}
+
+func (dn *dagNet) SubNet() *subNet {
+	return &subNet{dn, nil}
+}
+
+func (sn *subNet) LightNode() *node {
+	nd := sn.dagNet.LightNode()
+	sn.nodes = append(sn.nodes, nd)
+	return nd
+}
+
+func (sn *subNet) FullNode() *node {
+	nd := sn.dagNet.FullNode()
+	sn.nodes = append(sn.nodes, nd)
+	return nd
+}
+
+func (sn *subNet) ConnectAll() {
+	nodes := sn.nodes
+	for _, n1 := range nodes {
+		for _, n2 := range nodes {
+			if n1 == n2 {
+				continue
+			}
+			_, err := sn.net.LinkPeers(n1.ID(), n2.ID())
+			require.NoError(sn.t, err)
+
+			_, err = sn.net.ConnectPeers(n1.ID(), n2.ID())
+			require.NoError(sn.t, err)
+		}
+	}
+}
+
+// brokenAvailability allows to test error cases during sampling
+type brokenAvailability struct{}
 
 func NewBrokenAvailability() Availability {
 	return &brokenAvailability{}
@@ -155,4 +241,8 @@ func NewBrokenAvailability() Availability {
 
 func (b *brokenAvailability) SharesAvailable(context.Context, *Root) error {
 	return ErrNotAvailable
+}
+
+func (b *brokenAvailability) ProbabilityOfAvailability() float64 {
+	return 0
 }

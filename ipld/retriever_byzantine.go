@@ -17,7 +17,7 @@ import (
 // It is converted from rsmt2d.ByzantineRow/Col +
 // Merkle Proof for each share.
 type ErrByzantine struct {
-	Index  uint8
+	Index  uint32
 	Shares []*ShareWithProof
 	Axis   rsmt2d.Axis
 }
@@ -54,7 +54,7 @@ func NewErrByzantine(
 	}
 
 	return &ErrByzantine{
-		Index:  uint8(errByz.Index),
+		Index:  uint32(errByz.Index),
 		Shares: sharesWithProof,
 		Axis:   errByz.Axis,
 	}

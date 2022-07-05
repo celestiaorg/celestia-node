@@ -1,7 +1,9 @@
 package das
 
 import (
+	"context"
 	"testing"
+	"time"
 
 	"github.com/ipfs/go-datastore"
 	"github.com/ipfs/go-datastore/sync"
@@ -12,9 +14,11 @@ import (
 func TestCheckpointStore(t *testing.T) {
 	ds := wrapCheckpointStore(sync.MutexWrap(datastore.NewMapDatastore()))
 	checkpoint := int64(5)
-	err := storeCheckpoint(ds, checkpoint)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+	defer t.Cleanup(cancel)
+	err := storeCheckpoint(ctx, ds, checkpoint)
 	require.NoError(t, err)
-	got, err := loadCheckpoint(ds)
+	got, err := loadCheckpoint(ctx, ds)
 	require.NoError(t, err)
 
 	assert.Equal(t, checkpoint, got)

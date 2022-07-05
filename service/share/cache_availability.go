@@ -3,6 +3,7 @@ package share
 import (
 	"bytes"
 	"context"
+	"sync"
 
 	"github.com/ipfs/go-datastore"
 	"github.com/ipfs/go-datastore/autobatch"
@@ -27,7 +28,10 @@ var (
 type CacheAvailability struct {
 	avail Availability
 
-	ds *autobatch.Datastore
+	// TODO(@Wondertan): Once we come to parallelized DASer, this lock becomes a contention point
+	//  Related to #483
+	dsLk sync.RWMutex
+	ds   *autobatch.Datastore
 }
 
 // NewCacheAvailability wraps the given Availability with an additional datastore
@@ -50,27 +54,35 @@ func (ca *CacheAvailability) SharesAvailable(ctx context.Context, root *Root) er
 	}
 	// do not sample over Root that has already been sampled
 	key := rootKey(root)
-	exists, err := ca.ds.Has(key)
-	if err != nil {
+
+	ca.dsLk.RLock()
+	exists, err := ca.ds.Has(ctx, key)
+	ca.dsLk.RUnlock()
+	if err != nil || exists {
 		return err
 	}
-	if exists {
-		return nil
-	}
+
 	err = ca.avail.SharesAvailable(ctx, root)
 	if err != nil {
 		return err
 	}
-	err = ca.ds.Put(key, []byte{})
+
+	ca.dsLk.Lock()
+	err = ca.ds.Put(ctx, key, []byte{})
+	ca.dsLk.Unlock()
 	if err != nil {
 		log.Errorw("storing root of successful SharesAvailable request to disk", "err", err)
 	}
 	return err
 }
 
+func (ca *CacheAvailability) ProbabilityOfAvailability() float64 {
+	return ca.avail.ProbabilityOfAvailability()
+}
+
 // Close flushes all queued writes to disk.
-func (ca *CacheAvailability) Close(context.Context) error {
-	return ca.ds.Flush()
+func (ca *CacheAvailability) Close(ctx context.Context) error {
+	return ca.ds.Flush(ctx)
 }
 
 func rootKey(root *Root) datastore.Key {

@@ -4,11 +4,11 @@ import (
 	"time"
 
 	"github.com/ipfs/go-datastore"
-	connmgr "github.com/libp2p/go-libp2p-connmgr"
 	coreconnmgr "github.com/libp2p/go-libp2p-core/connmgr"
 	"github.com/libp2p/go-libp2p-core/peerstore"
 	"github.com/libp2p/go-libp2p-peerstore/pstoremem"
 	"github.com/libp2p/go-libp2p/p2p/net/conngater"
+	"github.com/libp2p/go-libp2p/p2p/net/connmgr"
 
 	"github.com/celestiaorg/celestia-node/params"
 )
@@ -37,7 +37,14 @@ func ConnectionManager(cfg Config) func(params.Bootstrappers) (coreconnmgr.ConnM
 		if err != nil {
 			return nil, err
 		}
-		cm := connmgr.NewConnManager(cfg.ConnManager.Low, cfg.ConnManager.High, cfg.ConnManager.GracePeriod)
+		cm, err := connmgr.NewConnManager(
+			cfg.ConnManager.Low,
+			cfg.ConnManager.High,
+			connmgr.WithGracePeriod(cfg.ConnManager.GracePeriod),
+		)
+		if err != nil {
+			return nil, err
+		}
 		for _, info := range fpeers {
 			cm.Protect(info.ID, "protected-mutual")
 		}
@@ -49,12 +56,12 @@ func ConnectionManager(cfg Config) func(params.Bootstrappers) (coreconnmgr.ConnM
 	}
 }
 
-// ConnectionGater constructs a ConnectionGater.
-func ConnectionGater(ds datastore.Batching) (coreconnmgr.ConnectionGater, error) {
+// ConnectionGater constructs a BasicConnectionGater.
+func ConnectionGater(ds datastore.Batching) (*conngater.BasicConnectionGater, error) {
 	return conngater.NewBasicConnectionGater(ds)
 }
 
 // PeerStore constructs a PeerStore.
-func PeerStore() peerstore.Peerstore {
+func PeerStore() (peerstore.Peerstore, error) {
 	return pstoremem.NewPeerstore()
 }

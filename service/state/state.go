@@ -16,3 +16,6 @@ type TxResponse = sdk.TxResponse
 
 // Address is an alias to the Address type from Cosmos-SDK.
 type Address = sdk.Address
+
+// Int is an alias to the Int type from Cosmos-SDK.
+type Int = sdk.Int

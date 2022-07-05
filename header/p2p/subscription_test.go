@@ -20,7 +20,7 @@ func TestSubscriber(t *testing.T) {
 	defer cancel()
 
 	// create mock network
-	net, err := mocknet.FullMeshLinked(ctx, 2)
+	net, err := mocknet.FullMeshLinked(2)
 	require.NoError(t, err)
 
 	suite := header.NewTestSuite(t, 3)

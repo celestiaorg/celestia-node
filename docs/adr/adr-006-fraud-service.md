@@ -80,7 +80,7 @@ type BadEncodingProof struct {
 }
 ```
 
-2. Full node broadcasts BEFP to all light nodes via separate sub-service via proto message:
+2. Full node broadcasts BEFP to all light and full nodes via separate sub-service via proto message:
 
 ```proto3
 
@@ -134,8 +134,9 @@ type Proof interface {
    encoding.BinaryMarshaller
 }
 ```
+*Note*: Full node, that detected a malicious block and created a Fraud Proof, will also receive it by subscription to stop respective services.
 
-2a. From the other side, light nodes will, by default, subscribe to the BEFP topic and verify messages received on the topic:
+2a. From the other side, nodes will, by default, subscribe to the BEFP topic and verify messages received on the topic:
 
 ```go
 type ProofUnmarshaller func([]byte) (Proof,error)
