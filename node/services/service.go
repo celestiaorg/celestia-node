@@ -130,13 +130,7 @@ func HeaderStoreInit(cfg *Config) func(context.Context, params.Network, header.S
 }
 
 // ShareService constructs new share.Service.
-func ShareService(
-	lc fx.Lifecycle,
-	bServ blockservice.BlockService,
-	avail share.Availability,
-	r routing.ContentRouting,
-	h host.Host,
-) *share.Service {
+func ShareService(lc fx.Lifecycle, bServ blockservice.BlockService, avail *share.CacheAvailability) *share.Service {
 	service := share.NewService(bServ, avail)
 	lc.Append(fx.Hook{
 		OnStart: service.Start,
@@ -149,7 +143,7 @@ func ShareService(
 func DASer(
 	ctx context.Context,
 	lc fx.Lifecycle,
-	avail share.Availability,
+	avail *share.CacheAvailability,
 	sub header.Subscriber,
 	hstore header.Store,
 	ds datastore.Batching,
