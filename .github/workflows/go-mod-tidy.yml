@@ -1,0 +1,28 @@
+name: Go Mod Tidy Check
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+  release:
+    types: [published]
+
+env:
+  GO_VERSION: 1.18
+
+jobs:
+  go_mod_tidy_check:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - uses: actions/setup-go@v3
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - run: go mod tidy
+
+      - name: check for diff
+        run: git diff --exit-code
