@@ -19,18 +19,15 @@ import (
 type ErrByzantine struct {
 	Index  uint32
 	Shares []*ShareWithProof
-	// TODO(@vgokivs): Change to enum type and rename to Axis after
-	// updating rsmt2d
-	IsRow bool
+	Axis   rsmt2d.Axis
 }
 
 func (e *ErrByzantine) Error() string {
-	return fmt.Sprintf("byzantine error. isRow:%v, Index:%v", e.IsRow, e.Index)
+	return fmt.Sprintf("byzantine error. Axis:%v, Index:%v", e.Axis, e.Index)
 }
 
 // NewErrByzantine creates new ErrByzantine from rsmt2d error.
 // If error happens during proof collection, it terminates the process with os.Exit(1).
-// TODO(@Wondertan): Migrate to ErrByzantineData in the newest rsmt2d
 func NewErrByzantine(
 	ctx context.Context,
 	bGetter blockservice.BlockGetter,
@@ -59,6 +56,6 @@ func NewErrByzantine(
 	return &ErrByzantine{
 		Index:  uint32(errByz.Index),
 		Shares: sharesWithProof,
-		IsRow:  errByz.Axis == rsmt2d.Row,
+		Axis:   errByz.Axis,
 	}
 }

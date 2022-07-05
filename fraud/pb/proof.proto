@@ -4,10 +4,15 @@ package fraud.pb;
 
 import "ipld/pb/share.proto";
 
+enum axis {
+  ROW = 0;
+  COL = 1;
+}
+
 message BadEncoding {
   bytes HeaderHash = 1;
   uint64 Height   = 2;
   repeated ipld.pb.Share Shares = 3;
   uint32 Index    = 4;
-  bool IsRow    = 5;
+  axis Axis    = 5;
 }

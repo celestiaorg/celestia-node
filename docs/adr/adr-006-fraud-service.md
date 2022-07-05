@@ -11,6 +11,7 @@
   * made ProofUnmarshaler public and extended return params;
   * fixed typo issues;
 - 2022.06.15 - Extend Proof interface with HeaderHash method
+- 2022.06.22 - Updated rsmt2d to change isRow to Axis
 
 ## Authors
 
@@ -46,7 +47,8 @@ type ErrByzantine struct {
    Shares []*ShareWithProof
    // Index represents the number of row/col where ErrByzantineRow/ErrByzantineColl occurred.
    Index uint8
-   isRow bool
+   // Axis represents the axis that verification failed on.
+   Axis rsmt2d.Axis
 }
 
 type Share struct {
@@ -73,7 +75,8 @@ type BadEncodingProof struct {
    Shares []*ShareWithProof
    // Index represents the number of row/col where ErrByzantineRow/ErrByzantineColl occurred
    Index uint8
-   isRow bool
+   // Axis represents the axis that verification failed on.
+   Axis rsmt2d.Axis
 }
 ```
 
@@ -93,11 +96,17 @@ message ShareWithProof {
    MerkleProof Proof = 2;
 }
 
-message BadEnconding {
-   required uint64 Height = 1;
-   repeated Share Shares = 2;
-   uint8 Index = 3;
-   bool isRow = 4;
+enum axis {
+   ROW = 0;
+   COL = 1;
+}
+
+message BadEncoding {
+   bytes HeaderHash = 1;
+   uint64 Height = 2;
+   repeated ipld.pb.Share Shares = 3;
+   uint32 Index = 4;
+   axis Axis = 5;
 }
 ```
 

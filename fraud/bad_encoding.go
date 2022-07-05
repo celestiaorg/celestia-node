@@ -27,8 +27,8 @@ type BadEncodingProof struct {
 	Shares []*ipld.ShareWithProof
 	// Index represents the row/col index where ErrByzantineRow/ErrByzantineColl occurred.
 	Index uint32
-	// isRow shows that verification failed on row.
-	isRow bool
+	// Axis represents the axis that verification failed on.
+	Axis rsmt2d.Axis
 }
 
 // CreateBadEncodingProof creates a new Bad Encoding Fraud Proof that should be propagated through network.
@@ -43,8 +43,8 @@ func CreateBadEncodingProof(
 		headerHash:  hash,
 		BlockHeight: height,
 		Shares:      errByzantine.Shares,
-		isRow:       errByzantine.IsRow,
 		Index:       errByzantine.Index,
+		Axis:        errByzantine.Axis,
 	}
 }
 
@@ -75,7 +75,7 @@ func (p *BadEncodingProof) MarshalBinary() ([]byte, error) {
 		Height:     p.BlockHeight,
 		Shares:     shares,
 		Index:      p.Index,
-		IsRow:      p.isRow,
+		Axis:       pb.Axis(p.Axis),
 	}
 	return badEncodingFraudProof.Marshal()
 }
@@ -100,7 +100,7 @@ func (p *BadEncodingProof) UnmarshalBinary(data []byte) error {
 		BlockHeight: in.Height,
 		Shares:      ipld.ProtoToShare(in.Shares),
 		Index:       in.Index,
-		isRow:       in.IsRow,
+		Axis:        rsmt2d.Axis(in.Axis),
 	}
 
 	*p = *befp
@@ -135,7 +135,7 @@ func (p *BadEncodingProof) Validate(header *header.ExtendedHeader) error {
 	}
 
 	root := merkleRowRoots[p.Index]
-	if !p.isRow {
+	if p.Axis == rsmt2d.Col {
 		root = merkleColRoots[p.Index]
 	}
 
