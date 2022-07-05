@@ -33,9 +33,9 @@ func NewFullAvailability(bServ blockservice.BlockService, r *routing.RoutingDisc
 func (fa *FullAvailability) Start(context.Context) error {
 	ctx, cancel := context.WithCancel(context.Background())
 	fa.cancel = cancel
+
 	go fa.disc.advertise(ctx)
 	go fa.disc.findPeers(ctx)
-
 	return nil
 }
 

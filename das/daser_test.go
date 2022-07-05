@@ -28,7 +28,7 @@ var timeout = time.Second * 15
 func TestDASerLifecycle(t *testing.T) {
 	ds := ds_sync.MutexWrap(datastore.NewMapDatastore())
 	bServ := mdutils.Bserv()
-	avail := share.TestLigthAvailability(bServ)
+	avail := share.TestLightAvailability(bServ)
 	// 15 headers from the past and 15 future headers
 	mockGet, shareServ, sub, mockService := createDASerSubcomponents(t, bServ, 15, 15, avail)
 
@@ -66,7 +66,7 @@ func TestDASerLifecycle(t *testing.T) {
 func TestDASer_Restart(t *testing.T) {
 	ds := ds_sync.MutexWrap(datastore.NewMapDatastore())
 	bServ := mdutils.Bserv()
-	avail := share.TestLigthAvailability(bServ)
+	avail := share.TestLightAvailability(bServ)
 	// 15 headers from the past and 15 future headers
 	mockGet, shareServ, sub, mockService := createDASerSubcomponents(t, bServ, 15, 15, avail)
 
@@ -129,7 +129,7 @@ func TestDASer_Restart(t *testing.T) {
 func TestDASer_catchUp(t *testing.T) {
 	ds := ds_sync.MutexWrap(datastore.NewMapDatastore())
 	bServ := mdutils.Bserv()
-	avail := share.TestLigthAvailability(bServ)
+	avail := share.TestLightAvailability(bServ)
 	mockGet, shareServ, _, mockService := createDASerSubcomponents(t, bServ, 5, 0, avail)
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -170,7 +170,7 @@ func TestDASer_catchUp(t *testing.T) {
 func TestDASer_catchUp_oneHeader(t *testing.T) {
 	ds := ds_sync.MutexWrap(datastore.NewMapDatastore())
 	bServ := mdutils.Bserv()
-	avail := share.TestLigthAvailability(bServ)
+	avail := share.TestLightAvailability(bServ)
 	mockGet, shareServ, _, mockService := createDASerSubcomponents(t, bServ, 6, 0, avail)
 	daser := NewDASer(shareServ, nil, mockGet, ds, mockService)
 	ctx, cancel := context.WithCancel(context.Background())
@@ -213,7 +213,7 @@ func TestDASer_catchUp_oneHeader(t *testing.T) {
 func TestDASer_catchUp_fails(t *testing.T) {
 	ds := ds_sync.MutexWrap(datastore.NewMapDatastore())
 	bServ := mdutils.Bserv()
-	avail := share.TestLigthAvailability(bServ)
+	avail := share.TestLightAvailability(bServ)
 	mockGet, _, _, mockService := createDASerSubcomponents(t, bServ, 6, 0, avail)
 	daser := NewDASer(share.NewBrokenAvailability(), nil, mockGet, ds, mockService)
 

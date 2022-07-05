@@ -28,14 +28,14 @@ import (
 // trees of 'n' random shares, essentially storing a whole square.
 func RandLightServiceWithSquare(t *testing.T, n int) (*Service, *Root) {
 	bServ := mdutils.Bserv()
-	return NewService(bServ, TestLigthAvailability(bServ)), RandFillBS(t, n, bServ)
+	return NewService(bServ, TestLightAvailability(bServ)), RandFillBS(t, n, bServ)
 }
 
 // RandLightService provides an unfilled share.Service with corresponding
 // blockservice.BlockService than can be filled by the test.
 func RandLightService() (*Service, blockservice.BlockService) {
 	bServ := mdutils.Bserv()
-	return NewService(bServ, TestLigthAvailability(bServ)), bServ
+	return NewService(bServ, TestLightAvailability(bServ)), bServ
 }
 
 // RandFullServiceWithSquare provides a share.Service filled with 'n' NMT
@@ -51,7 +51,7 @@ func RandLightLocalServiceWithSquare(t *testing.T, n int) (*Service, *Root) {
 	bServ := mdutils.Bserv()
 	ds := dssync.MutexWrap(ds.NewMapDatastore())
 	ca := NewCacheAvailability(
-		TestLigthAvailability(bServ),
+		TestLightAvailability(bServ),
 		ds,
 	)
 	return NewService(bServ, ca), RandFillBS(t, n, bServ)
@@ -138,7 +138,7 @@ func (dn *dagNet) RandFullNode(squareSize int) (*node, *Root) {
 // LightNode creates a new empty LightAvailability Node.
 func (dn *dagNet) LightNode() *node {
 	nd := dn.Node()
-	nd.Service = NewService(nd.BlockService, TestLigthAvailability(nd.BlockService))
+	nd.Service = NewService(nd.BlockService, TestLightAvailability(nd.BlockService))
 	return nd
 }
 
@@ -255,7 +255,7 @@ func (b *brokenAvailability) ProbabilityOfAvailability() float64 {
 	return 0
 }
 
-func TestLigthAvailability(bServ blockservice.BlockService) *LightAvailability {
+func TestLightAvailability(bServ blockservice.BlockService) *LightAvailability {
 	return NewLightAvailability(bServ, routing.NewRoutingDiscovery(routinghelpers.Null{}), nil)
 }
 
