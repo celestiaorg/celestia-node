@@ -66,4 +66,4 @@ peerWeight = 1000
 ![discovery](https://user-images.githubusercontent.com/40579846/177183260-92d1c390-928b-4c06-9516-24afea94d1f1.png)
 
 ## Status
-Proposed
+Merged
