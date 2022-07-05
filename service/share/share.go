@@ -54,8 +54,7 @@ type Service struct {
 	// session is blockservice sub-session that applies optimization for fetching/loading related nodes, like shares
 	// prefer session over blockservice for fetching nodes.
 	session blockservice.BlockGetter
-	// cancel controls lifecycle of the session
-	cancel context.CancelFunc
+	cancel  context.CancelFunc
 }
 
 // NewService creates new basic share.Service.
@@ -75,7 +74,7 @@ func (s *Service) Start(context.Context) error {
 	// NOTE: The ctx given as param is used to control Start flow and only needed when Start is blocking,
 	// but this one is not.
 	//
-	// The newer context here is created to control lifecycle of the session.
+	// The newer context here is created to control lifecycle of the session and peer discovery.
 	ctx, cancel := context.WithCancel(context.Background())
 	s.cancel = cancel
 	s.session = blockservice.NewSession(ctx, s.bServ)

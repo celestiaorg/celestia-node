@@ -6,27 +6,47 @@ import (
 
 	"github.com/ipfs/go-blockservice"
 	format "github.com/ipfs/go-ipld-format"
+	"github.com/libp2p/go-libp2p-core/host"
+	"github.com/libp2p/go-libp2p/p2p/discovery/routing"
 
 	"github.com/celestiaorg/celestia-node/ipld"
 )
 
-// fullAvailability implements Availability using the full data square
+// FullAvailability implements Availability using the full data square
 // recovery technique. It is considered "full" because it is required
 // to download enough shares to fully reconstruct the data square.
-type fullAvailability struct {
+type FullAvailability struct {
 	rtrv *ipld.Retriever
+	disc *discovery
+
+	cancel context.CancelFunc
 }
 
 // NewFullAvailability creates a new full Availability.
-func NewFullAvailability(bServ blockservice.BlockService) Availability {
-	return &fullAvailability{
+func NewFullAvailability(bServ blockservice.BlockService, r *routing.RoutingDiscovery, h host.Host) *FullAvailability {
+	return &FullAvailability{
 		rtrv: ipld.NewRetriever(bServ),
+		disc: newDiscovery(h, r),
 	}
+}
+
+func (fa *FullAvailability) Start(context.Context) error {
+	ctx, cancel := context.WithCancel(context.Background())
+	fa.cancel = cancel
+
+	go fa.disc.advertise(ctx)
+	go fa.disc.findPeers(ctx)
+	return nil
+}
+
+func (fa *FullAvailability) Stop(context.Context) error {
+	fa.cancel()
+	return nil
 }
 
 // SharesAvailable reconstructs the data committed to the given Root by requesting
 // enough Shares from the network.
-func (fa *fullAvailability) SharesAvailable(ctx context.Context, root *Root) error {
+func (fa *FullAvailability) SharesAvailable(ctx context.Context, root *Root) error {
 	ctx, cancel := context.WithTimeout(ctx, AvailabilityTimeout)
 	defer cancel()
 	// we assume the caller of this method has already performed basic validation on the
@@ -49,6 +69,6 @@ func (fa *fullAvailability) SharesAvailable(ctx context.Context, root *Root) err
 	return err
 }
 
-func (fa *fullAvailability) ProbabilityOfAvailability() float64 {
+func (fa *FullAvailability) ProbabilityOfAvailability() float64 {
 	return 1
 }

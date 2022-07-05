@@ -8,7 +8,6 @@ import (
 	"github.com/libp2p/go-libp2p-core/protocol"
 	"github.com/libp2p/go-libp2p-core/routing"
 	dht "github.com/libp2p/go-libp2p-kad-dht"
-	routinghelpers "github.com/libp2p/go-libp2p-routing-helpers"
 	"go.uber.org/fx"
 
 	"github.com/celestiaorg/celestia-node/libs/fxutil"
@@ -17,8 +16,8 @@ import (
 
 // ContentRouting constructs nil content routing,
 // as for our use-case existing ContentRouting mechanisms, e.g DHT, are unsuitable
-func ContentRouting() routing.ContentRouting {
-	return &routinghelpers.Null{}
+func ContentRouting(r routing.PeerRouting) routing.ContentRouting {
+	return r.(*dht.IpfsDHT)
 }
 
 // PeerRouting provides constructor for PeerRouting over DHT.
@@ -30,11 +29,7 @@ func PeerRouting(cfg Config) func(routingParams) (routing.PeerRouting, error) {
 			dht.BootstrapPeers(params.Peers...),
 			dht.ProtocolPrefix(protocol.ID(fmt.Sprintf("/celestia/%s", params.Net))),
 			dht.Datastore(params.DataStore),
-			dht.QueryFilter(dht.PublicQueryFilter),
-			dht.RoutingTableFilter(dht.PublicRoutingTableFilter),
-			// disable DHT for everything besides peer routing
-			dht.DisableValues(),
-			dht.DisableProviders(),
+			dht.RoutingTableRefreshPeriod(cfg.RoutingTableRefreshPeriod),
 		}
 
 		if cfg.Bootstrapper {
@@ -57,7 +52,6 @@ func PeerRouting(cfg Config) func(routingParams) (routing.PeerRouting, error) {
 				return d.Close()
 			},
 		})
-
 		return d, nil
 	}
 }
