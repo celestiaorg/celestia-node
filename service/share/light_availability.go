@@ -22,8 +22,9 @@ var DefaultSampleAmount = 16
 // on the network doing sampling over the same Root to collectively verify its availability.
 type LightAvailability struct {
 	bserv blockservice.BlockService
-	disc  discoverer
-
+	// disc is using to discovered new nodes in network.
+	// it's not allowed to call advertise for light nodes(Full nodes only).
+	disc   *discovery
 	cancel context.CancelFunc
 }
 

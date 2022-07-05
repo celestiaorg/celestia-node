@@ -32,11 +32,6 @@ type discovery struct {
 	disc core.Discovery
 }
 
-// discoverer used to protect light nodes of being advertised as they support only peer discovery.
-type discoverer interface {
-    findPeers(ctx context.Context)
-}
-
 // limitedSet is a thread safe set of peers with given limit.
 // Inspired by libp2p peer.Set but extended with Remove method.
 type limitedSet struct {

@@ -26,11 +26,6 @@ var waitF = func(ttl time.Duration) time.Duration {
 	return 7 * ttl / 8
 }
 
-// discoverer used to protect light nodes of being advertised as they support only peer discovery.
-type discoverer interface {
-	findPeers(ctx context.Context)
-}
-
 // discovery combines advertise and discover services and allows to store discovered nodes.
 type discovery struct {
 	set  *limitedSet
