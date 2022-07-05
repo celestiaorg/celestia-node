@@ -178,8 +178,6 @@ github.com/celestiaorg/nmt v0.10.0 h1:HLfVWvpagHz5+uiE0QSjzv350wLhhnybNmrxq9NHLK
 github.com/celestiaorg/nmt v0.10.0/go.mod h1:3bqzTj8xKj0DgQUpOgZzoxvtNkC3MS/hTbQ6dn8SIa0=
 github.com/celestiaorg/rsmt2d v0.5.0 h1:Wa0uNZUXl8lIMJnSunjoD65ktqBedXZD0z2ZU3xKYYw=
 github.com/celestiaorg/rsmt2d v0.5.0/go.mod h1:EZ+O2KdCq8xI7WFwjATLdhtMdrdClmAs2w7zENDr010=
-github.com/celestiaorg/rsmt2d v0.6.0 h1:32Eq5t7lPNbhftPFFjxwCUeEjWg/yGgeMbshxnGw03c=
-github.com/celestiaorg/rsmt2d v0.6.0/go.mod h1:EZ+O2KdCq8xI7WFwjATLdhtMdrdClmAs2w7zENDr010=
 github.com/cenkalti/backoff v2.2.1+incompatible h1:tNowT99t7UNflLxfYYSlKYsBpXdEet03Pg2g16Swow4=
 github.com/cenkalti/backoff v2.2.1+incompatible/go.mod h1:90ReRw6GdpyfrHakVjL/QHaoyV4aDUVVkXQJJJ3NXXM=
 github.com/cenkalti/backoff/v4 v4.1.1 h1:G2HAfAmvm/GcKan2oOQpBXOd2tT2G57ZnZGWa1PxPBQ=
