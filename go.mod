@@ -30,11 +30,11 @@ require (
 	github.com/ipfs/go-ipld-format v0.4.0
 	github.com/ipfs/go-log/v2 v2.5.1
 	github.com/ipfs/go-merkledag v0.6.0
-	github.com/libp2p/go-libp2p v0.20.2
+	github.com/libp2p/go-libp2p v0.20.3
 	github.com/libp2p/go-libp2p-core v0.17.0
 	github.com/libp2p/go-libp2p-kad-dht v0.16.0
 	github.com/libp2p/go-libp2p-peerstore v0.6.0
-	github.com/libp2p/go-libp2p-pubsub v0.7.0
+	github.com/libp2p/go-libp2p-pubsub v0.7.1-0.20220701163738-60cf38003244
 	github.com/libp2p/go-libp2p-record v0.1.3
 	github.com/libp2p/go-libp2p-routing-helpers v0.2.3
 	github.com/minio/blake2b-simd v0.0.0-20160723061019-3f5f724cb5b1
@@ -167,7 +167,6 @@ require (
 	github.com/libp2p/go-eventbus v0.2.1 // indirect
 	github.com/libp2p/go-flow-metrics v0.0.3 // indirect
 	github.com/libp2p/go-libp2p-asn-util v0.2.0 // indirect
-	github.com/libp2p/go-libp2p-discovery v0.6.0 // indirect
 	github.com/libp2p/go-libp2p-kbucket v0.4.7 // indirect
 	github.com/libp2p/go-libp2p-loggables v0.1.0 // indirect
 	github.com/libp2p/go-libp2p-resource-manager v0.3.0 // indirect
@@ -199,7 +198,7 @@ require (
 	github.com/multiformats/go-multiaddr-fmt v0.1.0 // indirect
 	github.com/multiformats/go-multibase v0.0.3 // indirect
 	github.com/multiformats/go-multicodec v0.4.1 // indirect
-	github.com/multiformats/go-multistream v0.3.2 // indirect
+	github.com/multiformats/go-multistream v0.3.3 // indirect
 	github.com/multiformats/go-varint v0.0.6 // indirect
 	github.com/nxadm/tail v1.4.8 // indirect
 	github.com/oasisprotocol/curve25519-voi v0.0.0-20210609091139-0a56a4bca00b // indirect
@@ -274,6 +273,5 @@ require (
 replace (
 	github.com/cosmos/cosmos-sdk => github.com/celestiaorg/cosmos-sdk v1.1.0-sdk-v0.46.0
 	github.com/gogo/protobuf => github.com/regen-network/protobuf v1.3.3-alpha.regen.1
-	github.com/libp2p/go-libp2p-pubsub v0.7.0 => github.com/celestiaorg/go-libp2p-pubsub v0.6.2-0.20220628100036-657948473f1f
 	github.com/tendermint/tendermint => github.com/celestiaorg/celestia-core v1.2.4-tm-v0.35.6
 )
