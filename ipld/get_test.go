@@ -96,7 +96,7 @@ func TestBlockRecovery(t *testing.T) {
 			)
 			require.NoError(t, err)
 
-			err = eds.Repair(rowRoots, colRoots)
+			err = eds.Repair(rowRoots, colRoots, rsmt2d.NewRSGF8Codec(), recoverTree.Constructor)
 			if tc.expectErr {
 				require.Error(t, err)
 				require.Contains(t, err.Error(), tc.errString)

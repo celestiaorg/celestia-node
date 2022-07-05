@@ -26,7 +26,7 @@ type BadEncodingProof struct {
 	// For non-nil shares MerkleProofs are computed.
 	Shares []*ipld.ShareWithProof
 	// Index represents the row/col index where ErrByzantineRow/ErrByzantineColl occurred.
-	Index uint8
+	Index uint32
 	// Axis represents the axis that verification failed on.
 	Axis rsmt2d.Axis
 }
@@ -100,7 +100,7 @@ func (p *BadEncodingProof) UnmarshalBinary(data []byte) error {
 		BlockHeight: in.Height,
 		Shares:      ipld.ProtoToShare(in.Shares),
 		Index:       in.Index,
-		isRow:       in.IsRow,
+		Axis:        rsmt2d.Axis(in.Axis),
 	}
 
 	*p = *befp
