@@ -41,8 +41,8 @@ func NewLightAvailability(
 func (la *LightAvailability) Start(context.Context) error {
 	ctx, cancel := context.WithCancel(context.Background())
 	la.cancel = cancel
-	go la.disc.findPeers(ctx)
 
+	go la.disc.ensurePeers(ctx)
 	return nil
 }
 

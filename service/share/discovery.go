@@ -5,7 +5,9 @@ import (
 	"time"
 
 	core "github.com/libp2p/go-libp2p-core/discovery"
+	"github.com/libp2p/go-libp2p-core/event"
 	"github.com/libp2p/go-libp2p-core/host"
+	"github.com/libp2p/go-libp2p-core/network"
 	"github.com/libp2p/go-libp2p-core/peer"
 )
 
@@ -76,10 +78,19 @@ func (d *discovery) handlePeerFound(ctx context.Context, topic string, peer peer
 	d.host.ConnManager().TagPeer(peer.ID, topic, peerWeight)
 }
 
-// findPeers starts peer discovery every discoveryInterval until peer cache reaches peersLimit.
-func (d *discovery) findPeers(ctx context.Context) {
+// ensurePeers subscribes on Event Bus and starts peer discovery every 30 seconds
+// until peer cache will not reach peersLimit.
+// Discovery will be stopped once peers limit will be reached and will be restarted
+// when one of stored peer will be disconnected.
+func (d *discovery) ensurePeers(ctx context.Context) {
 	if d.peersLimit == 0 {
 		log.Warn("peers limit is set to 0. Skipping discovery...")
+		return
+	}
+	// subscribe on Event Bus in order to catch disconnected peers and restart the discovery
+	sub, err := d.host.EventBus().Subscribe(&event.EvtPeerConnectednessChanged{})
+	if err != nil {
+		log.Error(err)
 		return
 	}
 	t := time.NewTicker(d.discoveryInterval)
@@ -87,11 +98,15 @@ func (d *discovery) findPeers(ctx context.Context) {
 	for {
 		select {
 		case <-ctx.Done():
+			if err = sub.Close(); err != nil {
+				log.Warn(err)
+			}
 			return
 		case <-t.C:
-			// return if limit was reached to stop the loop and finish discovery
 			if uint(d.set.Size()) == d.peersLimit {
-				return
+				// stop ticker if we have reached the limit
+				t.Stop()
+				continue
 			}
 			peers, err := d.disc.FindPeers(ctx, topic)
 			if err != nil {
@@ -100,6 +115,18 @@ func (d *discovery) findPeers(ctx context.Context) {
 			}
 			for peer := range peers {
 				go d.handlePeerFound(ctx, topic, peer)
+			}
+		case e := <-sub.Out():
+			// listen to disconnect event to remove peer from set
+			// reset timer in order to restart the discovery, once stored peer is disconnected
+			connStatus := e.(event.EvtPeerConnectednessChanged)
+			if connStatus.Connectedness == network.NotConnected {
+				if d.set.Contains(connStatus.Peer) {
+					// TODO (@vgonkivs): add backoff
+					d.set.Remove(connStatus.Peer)
+					d.host.ConnManager().UntagPeer(connStatus.Peer, topic)
+					t.Reset(d.discoveryInterval)
+				}
 			}
 		}
 	}

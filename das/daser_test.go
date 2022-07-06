@@ -28,7 +28,7 @@ var timeout = time.Second * 15
 func TestDASerLifecycle(t *testing.T) {
 	ds := ds_sync.MutexWrap(datastore.NewMapDatastore())
 	bServ := mdutils.Bserv()
-	avail := share.TestLightAvailability(bServ)
+	avail := share.TestLightAvailability(t, bServ)
 	// 15 headers from the past and 15 future headers
 	mockGet, shareServ, sub, mockService := createDASerSubcomponents(t, bServ, 15, 15, avail)
 
@@ -71,7 +71,7 @@ func TestDASerLifecycle(t *testing.T) {
 func TestDASer_Restart(t *testing.T) {
 	ds := ds_sync.MutexWrap(datastore.NewMapDatastore())
 	bServ := mdutils.Bserv()
-	avail := share.TestLightAvailability(bServ)
+	avail := share.TestLightAvailability(t, bServ)
 	// 15 headers from the past and 15 future headers
 	mockGet, shareServ, sub, mockService := createDASerSubcomponents(t, bServ, 15, 15, avail)
 
@@ -130,7 +130,7 @@ func TestDASer_Restart(t *testing.T) {
 func TestDASer_catchUp(t *testing.T) {
 	ds := ds_sync.MutexWrap(datastore.NewMapDatastore())
 	bServ := mdutils.Bserv()
-	avail := share.TestLightAvailability(bServ)
+	avail := share.TestLightAvailability(t, bServ)
 	mockGet, shareServ, _, mockService := createDASerSubcomponents(t, bServ, 5, 0, avail)
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -171,7 +171,7 @@ func TestDASer_catchUp(t *testing.T) {
 func TestDASer_catchUp_oneHeader(t *testing.T) {
 	ds := ds_sync.MutexWrap(datastore.NewMapDatastore())
 	bServ := mdutils.Bserv()
-	avail := share.TestLightAvailability(bServ)
+	avail := share.TestLightAvailability(t, bServ)
 	mockGet, shareServ, _, mockService := createDASerSubcomponents(t, bServ, 6, 0, avail)
 	daser := NewDASer(shareServ, nil, mockGet, ds, mockService)
 	ctx, cancel := context.WithCancel(context.Background())
@@ -214,7 +214,7 @@ func TestDASer_catchUp_oneHeader(t *testing.T) {
 func TestDASer_catchUp_fails(t *testing.T) {
 	ds := ds_sync.MutexWrap(datastore.NewMapDatastore())
 	bServ := mdutils.Bserv()
-	avail := share.TestLightAvailability(bServ)
+	avail := share.TestLightAvailability(t, bServ)
 	mockGet, _, _, mockService := createDASerSubcomponents(t, bServ, 6, 0, avail)
 	daser := NewDASer(share.NewTestBrokenAvailability(), nil, mockGet, ds, mockService)
 
@@ -267,7 +267,7 @@ func TestDASer_stopsAfter_BEFP(t *testing.T) {
 	ps, err := pubsub.NewGossipSub(ctx, net.Hosts()[0],
 		pubsub.WithMessageSignaturePolicy(pubsub.StrictNoSign))
 	require.NoError(t, err)
-	avail := share.TestFullAvailability(bServ)
+	avail := share.TestFullAvailability(t, bServ)
 	// 15 headers from the past and 15 future headers
 	mockGet, shareServ, sub, _ := createDASerSubcomponents(t, bServ, 15, 15, avail)
 
