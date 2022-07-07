@@ -12,7 +12,6 @@ import (
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	routingdisc "github.com/libp2p/go-libp2p/p2p/discovery/routing"
 	"go.uber.org/fx"
-	"go.uber.org/multierr"
 
 	"github.com/celestiaorg/celestia-node/das"
 	"github.com/celestiaorg/celestia-node/fraud"
@@ -181,44 +180,30 @@ func FraudService(
 	return f, nil
 }
 
-// LightAvailability constructs light share availability wrapped in cache availability.
+// LightAvailability constructs light share availability.
 func LightAvailability(
-	lc fx.Lifecycle,
 	bServ blockservice.BlockService,
-	ds datastore.Batching,
 	r routing.ContentRouting,
 	h host.Host,
-) share.Availability {
-	la := share.NewLightAvailability(bServ, routingdisc.NewRoutingDiscovery(r), h)
-	ca := share.NewCacheAvailability(la, ds)
-	lc.Append(fx.Hook{
-		OnStart: la.Start,
-		OnStop: func(ctx context.Context) error {
-			laErr := la.Stop(ctx)
-			caErr := ca.Close(ctx)
-			return multierr.Append(laErr, caErr)
-		},
-	})
-	return ca
+) *share.LightAvailability {
+	return share.NewLightAvailability(bServ, routingdisc.NewRoutingDiscovery(r), h)
 }
 
-// FullAvailability constructs full share availability wrapped in cache availability.
+// FullAvailability constructs full share availability.
 func FullAvailability(
-	lc fx.Lifecycle,
 	bServ blockservice.BlockService,
-	ds datastore.Batching,
 	r routing.ContentRouting,
 	h host.Host,
-) share.Availability {
-	fa := share.NewFullAvailability(bServ, routingdisc.NewRoutingDiscovery(r), h)
-	ca := share.NewCacheAvailability(fa, ds)
+) *share.FullAvailability {
+	return share.NewFullAvailability(bServ, routingdisc.NewRoutingDiscovery(r), h)
+}
+
+// CacheAvailability wraps either Full or Light availability with a cache for result sampling.
+func CacheAvailability[A share.Availability](lc fx.Lifecycle, ds datastore.Batching, avail A) share.Availability {
+	ca := share.NewCacheAvailability(avail, ds)
 	lc.Append(fx.Hook{
-		OnStart: fa.Start,
-		OnStop: func(ctx context.Context) error {
-			faErr := fa.Stop(ctx)
-			caErr := ca.Close(ctx)
-			return multierr.Append(faErr, caErr)
-		},
+		OnStart: avail.Start,
+		OnStop:  avail.Stop,
 	})
 	return ca
 }

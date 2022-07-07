@@ -22,4 +22,6 @@ type Availability interface {
 	// being available based on the number of samples collected.
 	// TODO(@Wondertan): Merge with SharesAvailable method, eventually
 	ProbabilityOfAvailability() float64
+	Start(context.Context) error
+	Stop(context.Context) error
 }

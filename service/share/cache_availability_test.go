@@ -117,6 +117,13 @@ type dummyAvailability struct {
 	counter int
 }
 
+func (b *dummyAvailability) Start(context.Context) error {
+	return nil
+}
+
+func (b *dummyAvailability) Stop(context.Context) error {
+	return nil
+}
 // SharesAvailable should only be called once, if called more than once, return
 // error.
 func (da *dummyAvailability) SharesAvailable(_ context.Context, root *Root) error {
