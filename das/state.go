@@ -20,16 +20,16 @@ type state struct {
 // RoutineState contains important information about the state of a
 // current sampling routine.
 type RoutineState struct {
-	// tracks whether routine is running
-	IsRunning bool `json:"is_running"`
+	// reports if an error has occurred during the routine's
+	// sampling process
+	Error error `json:"error"`
 	// tracks the latest successfully sampled height of the routine
 	LatestSampledHeight uint64 `json:"latest_sampled_height"`
 	// tracks the square width of the latest successfully sampled
 	// height of the routine
 	LatestSampledSquareWidth uint64 `json:"latest_sampled_square_width"`
-	// reports if an error has occurred during the routine's
-	// sampling process
-	Error error `json:"error"`
+	// tracks whether routine is running
+	IsRunning bool `json:"is_running"`
 }
 
 // JobInfo contains information about a catchUp job.
