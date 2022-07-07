@@ -317,7 +317,7 @@ func TestDASerState(t *testing.T) {
 
 					err := daser.Stop(ctx)
 					require.NoError(t, err)
-					assert.Zero(t, daser.SampleRoutineState().IsRunning)
+					assert.False(t, daser.SampleRoutineState().IsRunning)
 					return
 				}
 			}
