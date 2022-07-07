@@ -133,16 +133,23 @@ func (n *Node) Run(ctx context.Context) error {
 // Stop shuts down the Node, all its running Components/Services and returns.
 // Canceling the given context earlier 'ctx' unblocks the Stop and aborts graceful shutdown forcing remaining
 // Components/Services to close immediately.
-func (n *Node) Stop(ctx context.Context) error {
+func (n *Node) Stop(ctx context.Context) (err error) {
 	ctx, cancel := context.WithTimeout(ctx, Timeout)
 	defer cancel()
+	defer func() {
+		if err != nil {
+			log.Errorf("Stopping %s Node: %s", n.Type, err)
 
-	err := n.stop(ctx)
+		}
+	}()
+	err = n.stop(ctx)
 	if err != nil {
-		log.Errorf("Stopping %s Node: %s", n.Type, err)
 		return err
 	}
-
+	err = n.Host.Close()
+	if err == nil {
+		return err
+	}
 	log.Infof("stopped %s Node", n.Type)
 	return nil
 }
