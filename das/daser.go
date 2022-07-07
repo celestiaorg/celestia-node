@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"sync/atomic"
 	"time"
 
 	"github.com/ipfs/go-datastore"
@@ -113,11 +112,11 @@ func (d *DASer) Stop(ctx context.Context) error {
 // sample validates availability for each Header received from header subscription.
 func (d *DASer) sample(ctx context.Context, sub header.Subscription, checkpoint int64) {
 	// indicate sampling routine is running
-	atomic.StoreUint64(&d.state.sample.IsRunning, 1)
+	d.indicateRunning()
 	defer func() {
 		sub.Cancel()
 		// indicate sampling routine is stopped
-		atomic.StoreUint64(&d.state.sample.IsRunning, 0)
+		d.indicateStopped()
 		// send done signal
 		d.sampleDn <- struct{}{}
 	}()
@@ -303,6 +302,18 @@ func (d *DASer) updateSampleState(h *header.ExtendedHeader, err error) {
 	d.state.sample.LatestSampledHeight = height
 	d.state.sample.LatestSampledSquareWidth = uint64(len(h.DAH.RowsRoots))
 	d.state.sample.Error = err
+}
+
+func (d *DASer) indicateRunning() {
+	d.state.sampleLk.Lock()
+	d.state.sample.IsRunning = 1
+	d.state.sampleLk.Unlock()
+}
+
+func (d *DASer) indicateStopped() {
+	d.state.sampleLk.Lock()
+	d.state.sample.IsRunning = 0
+	d.state.sampleLk.Unlock()
 }
 
 // CatchUpRoutineState reports the current state of the
