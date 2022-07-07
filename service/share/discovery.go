@@ -135,6 +135,7 @@ func (d *discovery) ensurePeers(ctx context.Context) {
 // advertise is a utility function that persistently advertises a service through an Advertiser.
 func (d *discovery) advertise(ctx context.Context) {
 	timer := time.NewTimer(d.advertiseInterval)
+	defer timer.Stop()
 	for {
 		ttl, err := d.disc.Advertise(ctx, topic)
 		if err != nil {
