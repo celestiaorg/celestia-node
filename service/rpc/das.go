@@ -8,7 +8,7 @@ import (
 )
 
 const (
-	dasStateEndpoint = "/daser"
+	dasStateEndpoint = "/daser/state"
 )
 
 // DasStateResponse encompasses the fields returned in response

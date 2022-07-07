@@ -180,7 +180,7 @@ func TestAvailabilityRequest(t *testing.T) {
 func TestDASStateRequest(t *testing.T) {
 	nd := setupNodeWithModifiedRPC(t)
 
-	endpoint := fmt.Sprintf("http://127.0.0.1:%s/daser", nd.RPCServer.ListenAddr()[5:])
+	endpoint := fmt.Sprintf("http://127.0.0.1:%s/daser/state", nd.RPCServer.ListenAddr()[5:])
 	resp, err := http.Get(endpoint)
 	require.NoError(t, err)
 	defer func() {
