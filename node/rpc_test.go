@@ -177,6 +177,23 @@ func TestAvailabilityRequest(t *testing.T) {
 	assert.True(t, availResp.Available)
 }
 
+func TestDASStateRequest(t *testing.T) {
+	nd := setupNodeWithModifiedRPC(t)
+
+	endpoint := fmt.Sprintf("http://127.0.0.1:%s/daser", nd.RPCServer.ListenAddr()[5:])
+	resp, err := http.Get(endpoint)
+	require.NoError(t, err)
+	defer func() {
+		err = resp.Body.Close()
+		require.NoError(t, err)
+	}()
+	dasStateResp := new(rpc.DasStateResponse)
+	err = json.NewDecoder(resp.Body).Decode(dasStateResp)
+	require.NoError(t, err)
+	// ensure daser is running
+	assert.Equal(t, uint64(1), dasStateResp.SampleRoutine.IsRunning)
+}
+
 func setupNodeWithModifiedRPC(t *testing.T) *Node {
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
