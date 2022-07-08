@@ -15,3 +15,7 @@ func SetAllLoggers(level logging.LogLevel) {
 	_ = logging.SetLogLevel("nat", "INFO")
 	_ = logging.SetLogLevel("dht/RtRefreshManager", "FATAL")
 }
+
+func SetDebugLogging() {
+	SetAllLoggers(logging.LevelDebug)
+}
