@@ -7,7 +7,6 @@ import (
 	"net"
 	"testing"
 
-	"github.com/ipfs/go-log/v2"
 	"github.com/libp2p/go-libp2p-core/host"
 	mocknet "github.com/libp2p/go-libp2p/p2p/net/mock"
 	ma "github.com/multiformats/go-multiaddr"
@@ -17,6 +16,7 @@ import (
 
 	"github.com/celestiaorg/celestia-node/core"
 	"github.com/celestiaorg/celestia-node/libs/keystore"
+	"github.com/celestiaorg/celestia-node/logs"
 	"github.com/celestiaorg/celestia-node/node"
 	"github.com/celestiaorg/celestia-node/node/p2p"
 	"github.com/celestiaorg/celestia-node/params"
@@ -47,7 +47,7 @@ type Swamp struct {
 // NewSwamp creates a new instance of Swamp.
 func NewSwamp(t *testing.T, options ...Option) *Swamp {
 	if testing.Verbose() {
-		log.SetDebugLogging()
+		logs.SetDebugLogging()
 	}
 
 	ic := DefaultComponents()
