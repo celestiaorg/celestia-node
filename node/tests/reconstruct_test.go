@@ -90,7 +90,7 @@ func TestFullReconstructFromLights(t *testing.T) {
 	ipld.RetrieveQuadrantTimeout = time.Millisecond * 100
 	share.DefaultSampleAmount = 20
 	const (
-		blocks = 20
+		blocks = 5
 		btime  = time.Millisecond * 100
 		bsize  = 16
 		lnodes = 69
