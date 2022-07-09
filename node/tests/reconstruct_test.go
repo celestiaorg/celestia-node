@@ -11,16 +11,15 @@ import (
 	"time"
 
 	"github.com/libp2p/go-libp2p-core/host"
+	"github.com/libp2p/go-libp2p-core/network"
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/sync/errgroup"
 
 	"github.com/celestiaorg/celestia-node/ipld"
-
-	"github.com/celestiaorg/celestia-node/service/share"
-
 	"github.com/celestiaorg/celestia-node/node"
 	"github.com/celestiaorg/celestia-node/node/tests/swamp"
+	"github.com/celestiaorg/celestia-node/service/share"
 )
 
 /*
@@ -102,30 +101,45 @@ func TestFullReconstructFromLights(t *testing.T) {
 	sw := swamp.NewSwamp(t, swamp.WithBlockTime(btime))
 	go sw.FillBlocks(ctx, t, bsize, blocks)
 
-	bridge := sw.NewBridgeNode()
+	cfg := node.DefaultConfig(node.Bridge)
+	cfg.P2P.Bootstrapper = true
+	bridge := sw.NewBridgeNode(node.WithConfig(cfg), node.WithRefreshRoutingTablePeriod(time.Second*30))
 	err := bridge.Start(ctx)
 	require.NoError(t, err)
-
+	addr := host.InfoFromHost(bridge.Host)
 	lights, trusted := make([]*node.Node, lnodes), make([]string, lnodes)
 	for i := 0; i < lnodes; i++ {
-		light := sw.NewLightNode(node.WithTrustedPeers(getMultiAddr(t, bridge.Host)))
+		light := sw.NewLightNode(
+			node.WithBootstrappers([]peer.AddrInfo{*addr}),
+			node.WithRefreshRoutingTablePeriod(time.Second*30),
+		)
 		err = light.Start(ctx)
 		require.NoError(t, err)
 		lights[i] = light
 		trusted[i] = getMultiAddr(t, light.Host)
 	}
 
-	full := sw.NewFullNode(node.WithTrustedPeers(trusted...))
-	err = sw.Network.UnlinkPeers(bridge.Host.ID(), full.Host.ID())
-	require.NoError(t, err)
+	full := sw.NewFullNode(
+		node.WithBootstrappers([]peer.AddrInfo{*addr}),
+		node.WithRefreshRoutingTablePeriod(time.Second*30),
+	)
 	err = full.Start(ctx)
 	require.NoError(t, err)
-
-	for _, l := range lights {
-		err := full.Host.Connect(ctx, *host.InfoFromHost(l.Host))
-		require.NoError(t, err)
+	ch := make(chan struct{})
+	bundle := &network.NotifyBundle{}
+	bundle.ConnectedF = func(_ network.Network, conn network.Conn) {
+		if conn.RemotePeer() == full.Host.ID() {
+			ch <- struct{}{}
+		}
 	}
-
+	// wait until at least one light node finds a full node.
+	lights[0].Host.Network().Notify(bundle)
+	select {
+	case <-ctx.Done():
+		t.Fatal("peer was not found")
+	case <-ch:
+		break
+	}
 	errg, bctx := errgroup.WithContext(ctx)
 	for i := 1; i <= blocks+1; i++ {
 		i := i
