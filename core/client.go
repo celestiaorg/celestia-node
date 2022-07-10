@@ -24,3 +24,4 @@ func NewRemote(protocol, remoteAddr string) (Client, error) {
 		httpClient.StandardClient(),
 	)
 }
+ффф
