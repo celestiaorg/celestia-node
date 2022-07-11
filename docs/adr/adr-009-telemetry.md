@@ -4,10 +4,15 @@
 
 * 2022-07-4: Started
 * 2022-07-10: Initial Draft finished
+* 2022-07-11: Stylistic improvements
 
 ## Authors 
 
 @Wondertan @liamsi
+
+## Legend
+- "ShrEx" - Share Exchange
+> It's all ogre now
 
 ## Context
 > Now I know why I don't like writing ADRs - because I cannot run/test them and see if they work or not.
@@ -19,12 +24,13 @@ we have is logging and there are two more options we need to explore from the ob
 There are several priorities and "why"s we need deeper observability:
 * Analysis of the current p2p share exchange or "ShrEx" stack
   * So we can evaluate real world Full Node reconstruction qualities, along with data availability sampling
-  * And unblock celestia-node development planning
+  * And adjust our roadmap accordingly.
 * Incentivized Testnet
   * Tracking participants and validation that do task correctly
   * So all participants provide to us valuable data/insight/traces that we can analyze and improve on
-* Monitoring of the Celestia's own DA network infrastructure, e.g. DA Network Bootstrappers
-* Monitoring dashboard for the node operators
+* Monitoring dashboars
+  * For Celestia's own DA network infrastructure, e.g. DA Network Bootstrappers
+  * For the node operators
 * Extend debugging arsenal for the networking heavy DA layer
   * Local development
   * Issues found with Testground
@@ -47,7 +53,7 @@ This ADR is intended to outline the decisions on how to proceed with:
 The first "ShrEx" stack analysis priority is critical for Celestia project. The analysis results will tell us whether
 our current Full Node reconstruction qualities conforms to the main network requirements, subsequently affecting 
 the development roadmap of the celestia-node before the main network launch, therefore is a potential blocker to the 
-launch, which needs to be resolved ASAP. Basing on the former, the plan is focused on unblocking the reconstruction 
+Basing on the former, the plan is focused on unblocking the reconstruction 
 story first and then proceed with steady covering of our codebase with traces for the complex codepaths as well as 
 metrics and dashboards for "measurables".
 
@@ -59,7 +65,7 @@ are free as well as for the efficient bootstrapping into the code for the new de
 The next biggest priority - incentivized Testnet can be largely covered with traces as well. All participant will submit
 traces from their nodes to any provided backend endpoint by us during the whole network lifespan. Later on, we will be 
 able to verify the data of each participant by querying historical traces. This is the feature that some backend solutions 
-provide, which we can use as well to extract valuable on how the network performs in macro view.
+provide, which we can use as well to extract valuable insight on how the network performs in macro view.
 
 ### Tooling/Dependencies
 
@@ -76,7 +82,7 @@ and props to @liamsi for initial kickoff and a deep dive into OpenTelemetry.
 
 #### Tracing Backends
 
-For the tracing there are 3 modern OSS tools are recommended. All of them have bidirectional support with OpenTelemetry:
+For tracing, there are 3 modern OSS tools that are recommended. All of them have bidirectional support with OpenTelemetry:
 * [Uptrace](https://get.uptrace.dev/guide/#what-is-uptrace)
   * The most recent (~1 year)
   * The richest UI
@@ -118,8 +124,8 @@ A visual example of a generic tracing dashboard provided via [Uptrace](https://u
 ![tracing](img/tracing-dashboard.png)
 
 Mainly, for "ShrEx" and reconstruction analysis we need to know if the reconstruction succeeded and the time it took.
-The tracing in this case would provide both for the whole reconstruction operation and for each sub operation of each
-process and the node involved.
+The tracing in this case would provide all three metrics for the whole reconstruction operation and for each sub operation of each
+process.
 
 #### Spans
 Span represents an operation (unit of work) in a trace. They keep the time when operation _started_ and _ended_. Any 
