@@ -138,6 +138,7 @@ func TestBootstrapNodesFromBridgeNode(t *testing.T) {
 		assert.True(t, light.Host.Network().Connectedness(addrFull.ID) == network.Connected)
 	}
 	require.NoError(t, full.Stop(ctx))
+	require.NoError(t, full.Host.Network().Close())
 	select {
 	case <-ctx.Done():
 		t.Fatal("peer was not disconnected")

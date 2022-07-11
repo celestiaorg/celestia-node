@@ -107,38 +107,40 @@ func TestFullReconstructFromLights(t *testing.T) {
 	err := bridge.Start(ctx)
 	require.NoError(t, err)
 	addr := host.InfoFromHost(bridge.Host)
-	lights, trusted := make([]*node.Node, lnodes), make([]string, lnodes)
-	for i := 0; i < lnodes; i++ {
-		light := sw.NewLightNode(
-			node.WithBootstrappers([]peer.AddrInfo{*addr}),
-			node.WithRefreshRoutingTablePeriod(time.Second*30),
-		)
-		err = light.Start(ctx)
-		require.NoError(t, err)
-		lights[i] = light
-		trusted[i] = getMultiAddr(t, light.Host)
-	}
 
 	full := sw.NewFullNode(
 		node.WithBootstrappers([]peer.AddrInfo{*addr}),
 		node.WithRefreshRoutingTablePeriod(time.Second*30),
 	)
-	err = full.Start(ctx)
-	require.NoError(t, err)
-	ch := make(chan struct{})
+	ch := make(chan struct{}, lnodes-1)
 	bundle := &network.NotifyBundle{}
 	bundle.ConnectedF = func(_ network.Network, conn network.Conn) {
 		if conn.RemotePeer() == full.Host.ID() {
 			ch <- struct{}{}
 		}
 	}
-	// wait until at least one light node finds a full node.
-	lights[0].Host.Network().Notify(bundle)
-	select {
-	case <-ctx.Done():
-		t.Fatal("peer was not found")
-	case <-ch:
-		break
+	lights := make([]*node.Node, lnodes)
+	for i := 0; i < lnodes; i++ {
+		go func(i int) {
+			light := sw.NewLightNode(
+				node.WithBootstrappers([]peer.AddrInfo{*addr}),
+				node.WithRefreshRoutingTablePeriod(time.Second*30),
+			)
+			err = light.Start(ctx)
+			light.Host.Network().Notify(bundle)
+			require.NoError(t, err)
+			lights[i] = light
+		}(i)
+	}
+	err = full.Start(ctx)
+	require.NoError(t, err)
+	for i := 0; i < lnodes; i++ {
+		select {
+		case <-ctx.Done():
+			t.Fatal("peer was not found")
+		case <-ch:
+			continue
+		}
 	}
 	errg, bctx := errgroup.WithContext(ctx)
 	for i := 1; i <= blocks+1; i++ {
