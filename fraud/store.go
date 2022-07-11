@@ -2,7 +2,7 @@ package fraud
 
 import (
 	"context"
-	"errors"
+	"fmt"
 	"strings"
 
 	"github.com/ipfs/go-datastore"
@@ -11,13 +11,20 @@ import (
 
 var (
 	storePrefix = "fraud"
-	// ErrFraudStoreNotEmpty will be thrown if a fraud store holds a Fraud Proof.
-	ErrFraudStoreNotEmpty = errors.New("fraud store is not empty")
 )
 
+type ErrFraudExists struct {
+	Type   ProofType
+	Proofs [][]byte
+}
+
+func (e *ErrFraudExists) Error() string {
+	return fmt.Sprintf("fraud: %s proof exists\n", e.Type)
+}
+
 // put adds a Fraud Proof to the datastore with the given key.
-func put(ctx context.Context, ds datastore.Datastore, key datastore.Key, value []byte) error {
-	return ds.Put(ctx, key, value)
+func put(ctx context.Context, ds datastore.Datastore, hash string, value []byte) error {
+	return ds.Put(ctx, datastore.NewKey(hash), value)
 }
 
 // query allows to send any custom requests that will be needed.
@@ -32,7 +39,7 @@ func query(ctx context.Context, ds datastore.Datastore, q q.Query) ([]q.Entry, e
 
 // getAll queries all Fraud Proofs by its type.
 func getAll(ctx context.Context, ds datastore.Datastore) ([][]byte, error) {
-	entries, err := query(ctx, ds, q.Query{})
+	entries, err := query(ctx, ds, q.Query{Orders: []q.Order{q.OrderByKeyDescending{}}})
 	if err != nil {
 		return nil, err
 	}

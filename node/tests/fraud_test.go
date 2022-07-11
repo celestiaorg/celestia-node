@@ -2,6 +2,7 @@ package tests
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -67,5 +68,6 @@ func TestFraudProofBroadcasting(t *testing.T) {
 	full = sw.NewNodeWithStore(node.Full, store, node.WithTrustedPeers(addrs[0].String()))
 	require.NoError(t, full.Start(ctx))
 	_, err = full.FraudServ.Subscribe(fraud.BadEncoding)
-	require.ErrorIs(t, err, fraud.ErrFraudStoreNotEmpty)
+	var errNotEmpty *fraud.ErrFraudExists
+	require.True(t, errors.As(err, &errNotEmpty))
 }

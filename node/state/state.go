@@ -29,9 +29,9 @@ func Service(ctx context.Context, lc fx.Lifecycle, accessor state.Accessor, fsub
 	serv := state.NewService(accessor)
 	lc.Append(fx.Hook{
 		OnStart: func(context.Context) error {
-			_ = serv.Start(ctx)
+			err := serv.Start(ctx)
 			go fraud.OnBEFP(fxutil.WithLifecycle(ctx, lc), fsub, serv.Stop)
-			return nil
+			return err
 		},
 		OnStop: serv.Stop,
 	})

@@ -26,7 +26,7 @@ type service struct {
 	topics   map[ProofType]*topic
 
 	storeLk sync.RWMutex
-	store   map[ProofType]datastore.Datastore
+	stores  map[ProofType]datastore.Datastore
 
 	pubsub *pubsub.PubSub
 	getter headerFetcher
@@ -38,20 +38,24 @@ func NewService(p *pubsub.PubSub, getter headerFetcher, ds datastore.Datastore) 
 		pubsub: p,
 		getter: getter,
 		topics: make(map[ProofType]*topic),
-		store:  make(map[ProofType]datastore.Datastore),
+		stores: make(map[ProofType]datastore.Datastore),
 		ds:     ds,
 	}
 }
 
 func (f *service) Subscribe(proofType ProofType) (Subscription, error) {
 	f.storeLk.Lock()
-	if _, ok := f.store[proofType]; !ok {
-		f.store[proofType] = namespace.Wrap(f.ds, makeKey(proofType))
+	if _, ok := f.stores[proofType]; !ok {
+		f.stores[proofType] = namespace.Wrap(f.ds, makeKey(proofType))
 	}
-	_, err := getAll(context.Background(), f.store[proofType])
+	store := f.stores[proofType]
+	proofs, err := getAll(context.TODO(), store)
 	f.storeLk.Unlock()
 	if err == nil {
-		return nil, ErrFraudStoreNotEmpty
+		return nil, &ErrFraudExists{Type: proofType, Proofs: proofs}
+	}
+	if err != datastore.ErrNotFound {
+		return nil, err
 	}
 
 	f.topicsLk.Lock()
@@ -166,10 +170,10 @@ func (f *service) processIncoming(
 	)
 	log.Warn("Shutting down services...")
 	f.storeLk.RLock()
-	defer f.storeLk.RUnlock()
-	if err := put(ctx, f.store[proofType], datastore.NewKey(string(proof.HeaderHash())), msg.Data); err != nil {
+	store := f.stores[proofType]
+	f.storeLk.RUnlock()
+	if err := put(ctx, store, string(proof.HeaderHash()), msg.Data); err != nil {
 		log.Warn(err)
-		// TODO(@vgonkivs): discuss  what to do in this case
 	}
 
 	return pubsub.ValidationAccept

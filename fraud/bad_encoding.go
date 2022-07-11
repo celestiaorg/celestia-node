@@ -180,6 +180,7 @@ func (p *BadEncodingProof) Validate(header *header.ExtendedHeader) error {
 // OnBEFP listens to Bad Encoding Fraud Proof and stops services immediately if it is received.
 func OnBEFP(ctx context.Context, s Subscriber, stop func(context.Context) error) {
 	var err error
+	var subscription Subscription
 	defer func() {
 		if err == context.Canceled {
 			return
@@ -191,15 +192,9 @@ func OnBEFP(ctx context.Context, s Subscriber, stop func(context.Context) error)
 		}
 	}()
 
-	subscription, err := s.Subscribe(BadEncoding)
+	subscription, err = s.Subscribe(BadEncoding)
 	if err != nil {
 		log.Errorw("failed to subscribe to bad encoding fraud proof", "err", err)
-		if errors.Is(err, ErrFraudStoreNotEmpty) {
-			// if fraud store has BEFP then we should not proceed with subscription and stop services.
-			if err = stop(ctx); err != nil {
-				log.Warn(err)
-			}
-		}
 		return
 	}
 	defer subscription.Cancel()
@@ -212,6 +207,5 @@ func OnBEFP(ctx context.Context, s Subscriber, stop func(context.Context) error)
 			return
 		}
 		log.Errorw("reading next proof failed", "err", err)
-		return
 	}
 }
