@@ -14,6 +14,7 @@ func SetAllLoggers(level logging.LogLevel) {
 	_ = logging.SetLogLevel("connmgr", "WARN")
 	_ = logging.SetLogLevel("nat", "INFO")
 	_ = logging.SetLogLevel("dht/RtRefreshManager", "FATAL")
+	_ = logging.SetLogLevel("bitswap_network", "ERROR")
 }
 
 func SetDebugLogging() {

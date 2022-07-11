@@ -2,7 +2,7 @@ package share
 
 import (
 	"context"
-	"errors"
+	"fmt"
 	"sync"
 	"time"
 
@@ -11,7 +11,8 @@ import (
 	"github.com/libp2p/go-libp2p/p2p/discovery/backoff"
 )
 
-// backoffConnector wraps a host to establish a connection with peers.
+// backoffConnector wraps a libp2p.Host to establish a connection with peers
+// with adding a delay for the next connection attempt.
 type backoffConnector struct {
 	h       host.Host
 	backoff backoff.BackoffStrategy
@@ -20,8 +21,7 @@ type backoffConnector struct {
 	backoffCache map[peer.ID]connectionCacheData
 }
 
-// connectionCacheData stores time when next attempt to establish a connection with the remote peer
-// will be performed.
+// connectionCacheData stores time when next connection attempt with the remote peer.
 type connectionCacheData struct {
 	nexttry time.Time
 }
@@ -42,21 +42,17 @@ func (b *backoffConnector) Connect(ctx context.Context, p peer.AddrInfo) error {
 		now := time.Now()
 		if now.Before(cacheData.nexttry) {
 			b.cacheLK.Unlock()
-			return errors.New("share: discovery: backoff period is not ended")
+			return fmt.Errorf("share: discovery: backoff period is not ended for peer=%s", p.ID.String())
 		}
 	}
 	b.backoffCache[p.ID] = connectionCacheData{
 		time.Now().Add(b.backoff.Delay()),
 	}
 	b.cacheLK.Unlock()
-	err := b.h.Connect(ctx, p)
-	if err != nil {
-		return err
-	}
-	return nil
+	return b.h.Connect(ctx, p)
 }
 
-// Reset updates a time of the next attempt.
+// Reset removes a delay for the next connection attempt.
 func (b *backoffConnector) Reset(p peer.ID) {
 	b.cacheLK.Lock()
 	defer b.cacheLK.Unlock()
