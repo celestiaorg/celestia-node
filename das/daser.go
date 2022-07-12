@@ -66,20 +66,16 @@ func (d *DASer) Start(context.Context) error {
 		return fmt.Errorf("da: DASer already started")
 	}
 
-	d.ctx, d.cancel = context.WithCancel(context.Background())
-
 	sub, err := d.hsub.Subscribe()
 	if err != nil {
-		// we can catch a deadlock if error will be received as now Stop could be called after receiving a BEFP
-		d.cancel()
 		return err
 	}
+
+	d.ctx, d.cancel = context.WithCancel(context.Background())
 
 	// load latest DASed checkpoint
 	checkpoint, err := loadCheckpoint(d.ctx, d.cstore)
 	if err != nil {
-		// we can catch a deadlock if error will be received as now Stop could be called after receiving a BEFP
-		d.cancel()
 		return err
 	}
 	log.Infow("loaded checkpoint", "height", checkpoint)
@@ -88,8 +84,8 @@ func (d *DASer) Start(context.Context) error {
 	go d.catchUpManager(d.ctx, checkpoint)
 	// kick off sampling routine for recently received headers
 	go d.sample(d.ctx, sub, checkpoint)
-	// fetch stored fraud proof
-	go d.checkStoredFraudProofs(d.ctx, fraud.BadEncoding)
+	// fetch stored fraud proofs
+	go d.ensureProofs(d.ctx, fraud.BadEncoding)
 	return nil
 }
 
@@ -271,7 +267,7 @@ func (d *DASer) sampleHeader(ctx context.Context, h *header.ExtendedHeader) erro
 	return nil
 }
 
-func (d *DASer) checkStoredFraudProofs(ctx context.Context, proofType fraud.ProofType) {
+func (d *DASer) ensureProofs(ctx context.Context, proofType fraud.ProofType) {
 	proofs, err := d.fservice.GetAll(ctx, proofType)
 	switch err {
 	// this error is expected in most cases. It is thrown
