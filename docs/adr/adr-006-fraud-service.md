@@ -204,7 +204,7 @@ Once a node starts, it will check if datastore has a BEFP:
 ```go
 func getAll(ctx context.Context, ds datastore.Datastore) ([][]byte, error)
 ```
-In case if response error will be empty(not ```datastore.ErrNotFound```), then BEFP has been already added to storage and node should be halted.
+In case if response error will be empty (and not ```datastore.ErrNotFound```), then a BEFP has been already added to storage and the node should be halted.
 ### Bridge node behaviour
 Bridge nodes will behave as light nodes do by subscribing to BEFP fraud sub and listening for BEFPs. If a BEFP is received, it will similarly shut down all dependent services, including broadcasting new `ExtendedHeader`s to the network.
 

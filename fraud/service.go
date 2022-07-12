@@ -44,17 +44,24 @@ func NewService(p *pubsub.PubSub, getter headerFetcher, ds datastore.Datastore) 
 }
 
 func (f *service) Subscribe(proofType ProofType) (Subscription, error) {
+	ctx := context.TODO()
+
 	f.storeLk.Lock()
-	if _, ok := f.stores[proofType]; !ok {
-		f.stores[proofType] = namespace.Wrap(f.ds, makeKey(proofType))
+	store, ok := f.stores[proofType]
+	if !ok {
+		store = namespace.Wrap(f.ds, makeKey(proofType))
+		f.stores[proofType] = store
 	}
-	store := f.stores[proofType]
-	proofs, err := getAll(context.TODO(), store)
 	f.storeLk.Unlock()
-	if err == nil {
+
+	proofs, err := getAll(ctx, store)
+	switch err {
+	// this error is expected in most cases. It is thrown
+	// when no Fraud Proof is stored
+	case datastore.ErrNotFound:
+	case nil:
 		return nil, &ErrFraudExists{Type: proofType, Proofs: proofs}
-	}
-	if err != datastore.ErrNotFound {
+	default:
 		return nil, err
 	}
 
