@@ -9,7 +9,6 @@ import (
 	"github.com/ipfs/go-datastore/autobatch"
 	"github.com/ipfs/go-datastore/namespace"
 	"github.com/tendermint/tendermint/pkg/da"
-	"go.uber.org/multierr"
 )
 
 var (
@@ -52,11 +51,9 @@ func (ca *CacheAvailability) Start(ctx context.Context) error {
 	return ca.avail.Start(ctx)
 }
 
-// Stop stops the underlying Availability and closes the CacheAvailability.
+// Stop is an alias for Close to conform to the Availability interface.
 func (ca *CacheAvailability) Stop(ctx context.Context) error {
-	availErr := ca.avail.Stop(ctx)
-	cacheErr := ca.Close(ctx)
-	return multierr.Append(availErr, cacheErr)
+	return ca.Close(ctx)
 }
 
 // SharesAvailable will store, upon success, the hash of the given Root to disk.

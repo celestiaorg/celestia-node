@@ -176,28 +176,39 @@ func FraudService(
 
 // LightAvailability constructs light share availability.
 func LightAvailability(
+	lc fx.Lifecycle,
 	bServ blockservice.BlockService,
 	r routing.ContentRouting,
 	h host.Host,
 ) *share.LightAvailability {
-	return share.NewLightAvailability(bServ, routingdisc.NewRoutingDiscovery(r), h)
+	la := share.NewLightAvailability(bServ, routingdisc.NewRoutingDiscovery(r), h)
+	lc.Append(fx.Hook{
+		OnStart: la.Start,
+		OnStop:  la.Stop,
+	})
+	return la
 }
 
 // FullAvailability constructs full share availability.
 func FullAvailability(
+	lc fx.Lifecycle,
 	bServ blockservice.BlockService,
 	r routing.ContentRouting,
 	h host.Host,
 ) *share.FullAvailability {
-	return share.NewFullAvailability(bServ, routingdisc.NewRoutingDiscovery(r), h)
+	fa := share.NewFullAvailability(bServ, routingdisc.NewRoutingDiscovery(r), h)
+	lc.Append(fx.Hook{
+		OnStart: fa.Start,
+		OnStop:  fa.Stop,
+	})
+	return fa
 }
 
 // CacheAvailability wraps either Full or Light availability with a cache for result sampling.
 func CacheAvailability[A share.Availability](lc fx.Lifecycle, ds datastore.Batching, avail A) share.Availability {
 	ca := share.NewCacheAvailability(avail, ds)
 	lc.Append(fx.Hook{
-		OnStart: avail.Start,
-		OnStop:  avail.Stop,
+		OnStop: ca.Stop,
 	})
 	return ca
 }
