@@ -97,13 +97,15 @@ func (d *discovery) ensurePeers(ctx context.Context) {
 		return
 	}
 	t := time.NewTicker(d.discoveryInterval)
-	defer t.Stop()
+	defer func() {
+		t.Stop()
+		if err = sub.Close(); err != nil {
+			log.Warn(err)
+		}
+	}()
 	for {
 		select {
 		case <-ctx.Done():
-			if err = sub.Close(); err != nil {
-				log.Warn(err)
-			}
 			return
 		case <-t.C:
 			if uint(d.set.Size()) == d.peersLimit {
@@ -131,6 +133,10 @@ func (d *discovery) ensurePeers(ctx context.Context) {
 					t.Reset(d.discoveryInterval)
 				}
 			}
+			d.connector.RestartBackOff(connStatus.Peer)
+			d.set.Remove(connStatus.Peer)
+			d.host.ConnManager().UntagPeer(connStatus.Peer, topic)
+			t.Reset(d.discoveryInterval)
 		}
 	}
 }

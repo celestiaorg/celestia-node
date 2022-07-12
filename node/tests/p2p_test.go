@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/libp2p/go-libp2p-core/event"
 	"github.com/libp2p/go-libp2p-core/host"
 	"github.com/libp2p/go-libp2p-core/network"
 	"github.com/libp2p/go-libp2p-core/peer"
@@ -113,30 +114,32 @@ func TestBootstrapNodesFromBridgeNode(t *testing.T) {
 	light := sw.NewLightNode(nodesConfig...)
 	nodes := []*node.Node{full, light}
 	ch := make(chan struct{})
-	bundle := &network.NotifyBundle{}
-	bundle.ConnectedF = func(_ network.Network, conn network.Conn) {
-		if conn.RemotePeer() == full.Host.ID() {
-			ch <- struct{}{}
-		}
-	}
-	bundle.DisconnectedF = func(_ network.Network, conn network.Conn) {
-		if conn.RemotePeer() == full.Host.ID() {
-			ch <- struct{}{}
-		}
-	}
-	light.Host.Network().Notify(bundle)
+	sub, err := light.Host.EventBus().Subscribe(&event.EvtPeerConnectednessChanged{})
+	require.NoError(t, err)
+	defer sub.Close()
 	for index := range nodes {
 		require.NoError(t, nodes[index].Start(ctx))
 		assert.Equal(t, *addr, nodes[index].Bootstrappers[0])
 		assert.True(t, nodes[index].Host.Network().Connectedness(addr.ID) == network.Connected)
 	}
 	addrFull := host.InfoFromHost(full.Host)
+	go func() {
+		for e := range sub.Out() {
+			connStatus := e.(event.EvtPeerConnectednessChanged)
+			if (connStatus.Connectedness == network.Connected ||
+				connStatus.Connectedness == network.NotConnected) && connStatus.Peer == full.Host.ID() {
+				ch <- struct{}{}
+			}
+		}
+	}()
+
 	select {
 	case <-ctx.Done():
 		t.Fatal("peer was not found")
 	case <-ch:
 		assert.True(t, light.Host.Network().Connectedness(addrFull.ID) == network.Connected)
 	}
+
 	require.NoError(t, full.Stop(ctx))
 	require.NoError(t, full.Host.Network().Close())
 	select {
