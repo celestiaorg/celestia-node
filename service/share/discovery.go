@@ -74,7 +74,6 @@ func (d *discovery) handlePeerFound(ctx context.Context, topic string, peer peer
 // until peer cache will not reach peersLimit.
 // Discovery will be stopped once peers limit will be reached and will be restarted
 // when one of stored peer will be disconnected.
-// TODO (@vgonkivs): simplify when https://github.com/libp2p/go-libp2p/pull/1379 will be merged.
 func (d *discovery) ensurePeers(ctx context.Context) {
 	// subscribe on Event Bus in order to catch disconnected peers and restart the discovery
 	sub, err := d.host.EventBus().Subscribe(&event.EvtPeerConnectednessChanged{})
@@ -83,13 +82,16 @@ func (d *discovery) ensurePeers(ctx context.Context) {
 		return
 	}
 	t := time.NewTicker(interval * 3)
-	defer t.Stop()
+	defer func() {
+		t.Stop()
+		if err = sub.Close(); err != nil {
+			log.Warn(err)
+		}
+	}()
+
 	for {
 		select {
 		case <-ctx.Done():
-			if err = sub.Close(); err != nil {
-				log.Warn(err)
-			}
 			return
 		case <-t.C:
 			if d.set.Size() >= peersLimit {
@@ -109,14 +111,13 @@ func (d *discovery) ensurePeers(ctx context.Context) {
 			// listen to disconnect event to remove peer from set and reset backoff time
 			// reset timer in order to restart the discovery, once stored peer is disconnected
 			connStatus := e.(event.EvtPeerConnectednessChanged)
-			if connStatus.Connectedness == network.NotConnected {
-				if d.set.Contains(connStatus.Peer) {
-					d.connector.Reset(connStatus.Peer)
-					d.set.Remove(connStatus.Peer)
-					d.host.ConnManager().UntagPeer(connStatus.Peer, topic)
-					t.Reset(interval * 3)
-				}
+			if connStatus.Connectedness != network.NotConnected || !d.set.Contains(connStatus.Peer) {
+				continue
 			}
+			d.connector.RestartBackOff(connStatus.Peer)
+			d.set.Remove(connStatus.Peer)
+			d.host.ConnManager().UntagPeer(connStatus.Peer, topic)
+			t.Reset(interval * 3)
 		}
 	}
 }

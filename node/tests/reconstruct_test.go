@@ -10,8 +10,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/libp2p/go-libp2p-core/event"
 	"github.com/libp2p/go-libp2p-core/host"
-	"github.com/libp2p/go-libp2p-core/network"
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/sync/errgroup"
@@ -112,33 +112,33 @@ func TestFullReconstructFromLights(t *testing.T) {
 		node.WithBootstrappers([]peer.AddrInfo{*addr}),
 		node.WithRefreshRoutingTablePeriod(time.Second*30),
 	)
-	ch := make(chan struct{}, lnodes-1)
-	bundle := &network.NotifyBundle{}
-	bundle.ConnectedF = func(_ network.Network, conn network.Conn) {
-		if conn.RemotePeer() == full.Host.ID() {
-			ch <- struct{}{}
-		}
-	}
 	lights := make([]*node.Node, lnodes)
+	subs := make([]event.Subscription, lnodes)
+	errg, errCtx := errgroup.WithContext(ctx)
 	for i := 0; i < lnodes; i++ {
-		go func(i int) {
+		i := i
+		errg.Go(func() error {
 			light := sw.NewLightNode(
 				node.WithBootstrappers([]peer.AddrInfo{*addr}),
 				node.WithRefreshRoutingTablePeriod(time.Second*30),
 			)
-			err = light.Start(ctx)
-			light.Host.Network().Notify(bundle)
-			require.NoError(t, err)
+			sub, err := light.Host.EventBus().Subscribe(&event.EvtPeerConnectednessChanged{})
+			if err != nil {
+				return err
+			}
+			subs[i] = sub
 			lights[i] = light
-		}(i)
+			return light.Start(errCtx)
+		})
 	}
+	require.NoError(t, errg.Wait())
 	err = full.Start(ctx)
 	require.NoError(t, err)
 	for i := 0; i < lnodes; i++ {
 		select {
 		case <-ctx.Done():
 			t.Fatal("peer was not found")
-		case <-ch:
+		case <-subs[i].Out():
 			continue
 		}
 	}
