@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/ipfs/go-datastore"
+	logging "github.com/ipfs/go-log/v2"
 	"github.com/libp2p/go-libp2p-core/protocol"
 	"github.com/libp2p/go-libp2p-core/routing"
 	dht "github.com/libp2p/go-libp2p-kad-dht"
@@ -12,6 +13,10 @@ import (
 
 	"github.com/celestiaorg/celestia-node/libs/fxutil"
 	nparams "github.com/celestiaorg/celestia-node/params"
+)
+
+var (
+	log = logging.Logger("node/p2p")
 )
 
 // ContentRouting constructs nil content routing,
@@ -24,6 +29,11 @@ func ContentRouting(r routing.PeerRouting) routing.ContentRouting {
 // Basically, this provides a way to discover peer addresses by respecting public keys.
 func PeerRouting(cfg Config) func(routingParams) (routing.PeerRouting, error) {
 	return func(params routingParams) (routing.PeerRouting, error) {
+		if cfg.RoutingTableRefreshPeriod <= 0 {
+			log.Warnw("routingTableRefreshPeriod is not valid. restoring to default value...",
+				"refreshPeriod", cfg.RoutingTableRefreshPeriod)
+			cfg.RoutingTableRefreshPeriod = defaultRoutingRefreshPeriod
+		}
 		opts := []dht.Option{
 			dht.Mode(dht.ModeAuto),
 			dht.BootstrapPeers(params.Peers...),
