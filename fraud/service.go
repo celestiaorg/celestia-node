@@ -178,8 +178,8 @@ func (f *service) GetAll(ctx context.Context, proofType ProofType) ([]Proof, err
 	if !ok {
 		return nil, errors.New("fraud: unmarshaler for the given proof type is not registered")
 	}
-	return getAll(ctx, store, t.unmarshal)
 
+	return getAll(ctx, store, t.unmarshal)
 }
 
 func (f *service) initStore(proofType ProofType) {

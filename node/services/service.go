@@ -38,7 +38,10 @@ func HeaderSyncer(
 	syncer := sync.NewSyncer(ex, store, sub)
 	lc.Append(fx.Hook{
 		OnStart: func(context.Context) error {
-			_ = syncer.Start(ctx)
+			err := syncer.Start(ctx)
+			if err != nil {
+				return err
+			}
 			go fraud.OnBEFP(fxutil.WithLifecycle(ctx, lc), fsub, syncer.Stop)
 			return nil
 		},
