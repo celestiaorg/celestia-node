@@ -2,7 +2,6 @@ package fraud
 
 import (
 	"context"
-	"fmt"
 	"strings"
 
 	"github.com/ipfs/go-datastore"
@@ -12,15 +11,6 @@ import (
 var (
 	storePrefix = "fraud"
 )
-
-type ErrFraudExists struct {
-	Type   ProofType
-	Proofs [][]byte
-}
-
-func (e *ErrFraudExists) Error() string {
-	return fmt.Sprintf("fraud: %s proof exists\n", e.Type)
-}
 
 // put adds a Fraud Proof to the datastore with the given key.
 func put(ctx context.Context, ds datastore.Datastore, hash string, value []byte) error {
@@ -38,19 +28,32 @@ func query(ctx context.Context, ds datastore.Datastore, q q.Query) ([]q.Entry, e
 }
 
 // getAll queries all Fraud Proofs by its type.
-func getAll(ctx context.Context, ds datastore.Datastore) ([][]byte, error) {
-	entries, err := query(ctx, ds, q.Query{Orders: []q.Order{q.OrderByKeyDescending{}}})
+func getAll(ctx context.Context, ds datastore.Datastore, u ProofUnmarshaler) ([]Proof, error) {
+	entries, err := query(ctx, ds, q.Query{Orders: []q.Order{
+		// sort entries in ascending order
+		q.OrderByFunction(
+			func(a, b q.Entry) int {
+				if a.Expiration.After(b.Expiration) {
+					return -1
+				}
+				return 1
+			})},
+	},
+	)
 	if err != nil {
 		return nil, err
 	}
 	if len(entries) == 0 {
 		return nil, datastore.ErrNotFound
 	}
-	proofs := make([][]byte, 0, len(entries))
-	for _, val := range entries {
-		proofs = append(proofs, val.Value)
+	proofs := make([]Proof, 0)
+	for _, data := range entries {
+		proof, err := u(data.Value)
+		if err != nil {
+			continue
+		}
+		proofs = append(proofs, proof)
 	}
-
 	return proofs, nil
 }
 

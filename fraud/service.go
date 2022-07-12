@@ -44,27 +44,6 @@ func NewService(p *pubsub.PubSub, getter headerFetcher, ds datastore.Datastore) 
 }
 
 func (f *service) Subscribe(proofType ProofType) (Subscription, error) {
-	ctx := context.TODO()
-
-	f.storeLk.Lock()
-	store, ok := f.stores[proofType]
-	if !ok {
-		store = namespace.Wrap(f.ds, makeKey(proofType))
-		f.stores[proofType] = store
-	}
-	f.storeLk.Unlock()
-
-	proofs, err := getAll(ctx, store)
-	switch err {
-	// this error is expected in most cases. It is thrown
-	// when no Fraud Proof is stored
-	case datastore.ErrNotFound:
-	case nil:
-		return nil, &ErrFraudExists{Type: proofType, Proofs: proofs}
-	default:
-		return nil, err
-	}
-
 	f.topicsLk.Lock()
 	t, ok := f.topics[proofType]
 	f.topicsLk.Unlock()
@@ -91,8 +70,6 @@ func (f *service) RegisterUnmarshaler(proofType ProofType, u ProofUnmarshaler) e
 		func(ctx context.Context, _ peer.ID, msg *pubsub.Message) pubsub.ValidationResult {
 			return f.processIncoming(ctx, proofType, msg)
 		},
-		// make validation synchronous.
-		pubsub.WithValidatorInline(true),
 	)
 	if err != nil {
 		return err
@@ -100,6 +77,7 @@ func (f *service) RegisterUnmarshaler(proofType ProofType, u ProofUnmarshaler) e
 	f.topicsLk.Lock()
 	f.topics[proofType] = &topic{topic: t, unmarshal: u}
 	f.topicsLk.Unlock()
+	f.initStore(proofType)
 	return nil
 }
 
@@ -111,11 +89,12 @@ func (f *service) UnregisterUnmarshaler(proofType ProofType) error {
 		return fmt.Errorf("fraud: unmarshaler for %s proof is not registered", proofType)
 	}
 	delete(f.topics, proofType)
+	f.removeStore(proofType)
 	return t.close()
 
 }
 
-func (f *service) Broadcast(ctx context.Context, p Proof) error {
+func (f *service) Broadcast(ctx context.Context, p Proof, opts ...pubsub.PubOpt) error {
 	bin, err := p.MarshalBinary()
 	if err != nil {
 		return err
@@ -126,7 +105,7 @@ func (f *service) Broadcast(ctx context.Context, p Proof) error {
 	if !ok {
 		return fmt.Errorf("fraud: unmarshaler for %s proof is not registered", p.Type())
 	}
-	return t.publish(ctx, bin)
+	return t.publish(ctx, bin, opts...)
 }
 
 func (f *service) processIncoming(
@@ -184,6 +163,46 @@ func (f *service) processIncoming(
 	}
 
 	return pubsub.ValidationAccept
+}
+
+func (f *service) GetAll(ctx context.Context, proofType ProofType) ([]Proof, error) {
+	f.storeLk.Lock()
+	store, ok := f.stores[proofType]
+	if !ok {
+		return nil, errors.New("fraud: fraud proof is not supported")
+	}
+	f.storeLk.Unlock()
+	f.topicsLk.Lock()
+	t, ok := f.topics[proofType]
+	f.topicsLk.Unlock()
+	if !ok {
+		return nil, errors.New("fraud: unmarshaler for the given proof type is not registered")
+	}
+	return getAll(ctx, store, t.unmarshal)
+
+}
+
+func (f *service) initStore(proofType ProofType) {
+	f.storeLk.Lock()
+	defer f.storeLk.Unlock()
+	_, ok := f.stores[proofType]
+	if !ok {
+		store := namespace.Wrap(f.ds, makeKey(proofType))
+		f.stores[proofType] = store
+	}
+}
+
+func (f *service) removeStore(proofType ProofType) {
+	f.storeLk.Lock()
+
+	store, ok := f.stores[proofType]
+	if ok {
+		err := store.Delete(context.TODO(), makeKey(proofType))
+		if err != nil {
+			log.Warn(err)
+		}
+		delete(f.stores, proofType)
+	}
 }
 
 func getSubTopic(p ProofType) string {

@@ -13,8 +13,8 @@ type topic struct {
 }
 
 // publish allows to publish Fraud Proofs to the network
-func (t *topic) publish(ctx context.Context, data []byte) error {
-	return t.topic.Publish(ctx, data)
+func (t *topic) publish(ctx context.Context, data []byte, opts ...pubsub.PubOpt) error {
+	return t.topic.Publish(ctx, data, opts...)
 }
 
 // close removes unmarshaler and closes pubsub topic

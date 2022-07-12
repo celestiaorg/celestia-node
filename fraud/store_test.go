@@ -3,7 +3,6 @@ package fraud
 import (
 	"context"
 	"errors"
-	"sort"
 	"testing"
 	"time"
 
@@ -60,22 +59,10 @@ func TestStore_GetAll(t *testing.T) {
 		require.NoError(t, err)
 		faultHeaders = append(faultHeaders, faultDAH)
 	}
-	sort.Slice(faultHeaders, func(i, j int) bool {
-		return faultHeaders[i].Height > faultHeaders[j].Height
-	})
-	proofs, err := getAll(ctx, badEncodingStore)
+	befp, err := getAll(ctx, badEncodingStore, UnmarshalBEFP)
 	require.NoError(t, err)
-	require.NotEmpty(t, proofs)
-	befp := make([]Proof, 0)
-	for i := 0; i < len(proofs); i++ {
-		proof, err := UnmarshalBEFP(proofs[i])
-		require.NoError(t, err)
-		befp = append(befp, proof)
-	}
-	sort.Slice(befp, func(i, j int) bool {
-		return befp[i].Height() > befp[j].Height()
-	})
-	for i := 0; i < len(proofs); i++ {
+	require.NotEmpty(t, befp)
+	for i := 0; i < len(befp); i++ {
 		require.NoError(t, befp[i].Validate(faultHeaders[i]))
 	}
 }

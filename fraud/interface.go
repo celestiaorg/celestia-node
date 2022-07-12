@@ -4,6 +4,7 @@ import (
 	"context"
 
 	logging "github.com/ipfs/go-log/v2"
+	pubsub "github.com/libp2p/go-libp2p-pubsub"
 
 	"github.com/celestiaorg/celestia-node/header"
 )
@@ -21,13 +22,14 @@ type ProofUnmarshaler func([]byte) (Proof, error)
 type Service interface {
 	Subscriber
 	Broadcaster
+	Getter
 }
 
 // Broadcaster is a generic interface that sends a `Proof` to all nodes subscribed on the Broadcaster's topic.
 type Broadcaster interface {
 	// Broadcast takes a fraud `Proof` data structure that implements standard BinaryMarshal
 	// interface and broadcasts it to all subscribed peers.
-	Broadcast(context.Context, Proof) error
+	Broadcast(context.Context, Proof, ...pubsub.PubOpt) error
 }
 
 // Subscriber encompasses the behavior necessary to
@@ -49,4 +51,9 @@ type Subscription interface {
 	// Proof returns already verified valid proof.
 	Proof(context.Context) (Proof, error)
 	Cancel()
+}
+
+// Getter encompasses the behavior to fetch stored FraudProofs.
+type Getter interface {
+	GetAll(context.Context, ProofType) ([]Proof, error)
 }
