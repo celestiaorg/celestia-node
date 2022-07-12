@@ -9,6 +9,8 @@ import (
 	"go.uber.org/fx"
 )
 
+const defaultRoutingRefreshPeriod = time.Minute
+
 // Config combines all configuration fields for P2P subsystem.
 type Config struct {
 	// ListenAddresses - Addresses to listen to on local NIC.
@@ -50,7 +52,7 @@ func DefaultConfig() Config {
 		Bootstrapper:              false,
 		PeerExchange:              false,
 		ConnManager:               DefaultConnManagerConfig(),
-		RoutingTableRefreshPeriod: time.Minute,
+		RoutingTableRefreshPeriod: defaultRoutingRefreshPeriod,
 	}
 }
 
