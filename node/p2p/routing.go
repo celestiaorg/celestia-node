@@ -15,9 +15,7 @@ import (
 	nparams "github.com/celestiaorg/celestia-node/params"
 )
 
-var (
-	log = logging.Logger("node/p2p")
-)
+var log = logging.Logger("node/p2p")
 
 // ContentRouting constructs nil content routing,
 // as for our use-case existing ContentRouting mechanisms, e.g DHT, are unsuitable
@@ -30,9 +28,8 @@ func ContentRouting(r routing.PeerRouting) routing.ContentRouting {
 func PeerRouting(cfg Config) func(routingParams) (routing.PeerRouting, error) {
 	return func(params routingParams) (routing.PeerRouting, error) {
 		if cfg.RoutingTableRefreshPeriod <= 0 {
-			log.Warnw("routingTableRefreshPeriod is not valid. restoring to default value...",
-				"refreshPeriod", cfg.RoutingTableRefreshPeriod)
 			cfg.RoutingTableRefreshPeriod = defaultRoutingRefreshPeriod
+			log.Warnf("routingTableRefreshPeriod is not valid. restoring to default value: %d", cfg.RoutingTableRefreshPeriod)
 		}
 		opts := []dht.Option{
 			dht.Mode(dht.ModeAuto),
