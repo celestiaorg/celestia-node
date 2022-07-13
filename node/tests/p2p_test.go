@@ -149,3 +149,98 @@ func TestBootstrapNodesFromBridgeNode(t *testing.T) {
 		assert.True(t, light.Host.Network().Connectedness(addrFull.ID) == network.NotConnected)
 	}
 }
+
+/*
+Test-Case: Restart full node discovery after one node is disconnected
+Steps:
+1. Create a Bridge Node(BN)
+2. Start a BN
+3. Create 4 full nodes with bridge node as bootstrapper peer
+4. Start 3 of full nodes
+5. Check that nodes are connected to each other
+6. Start the last FN
+7. Stop one of full node in order to restart discovery
+8. Check that disconnected node throws EvPeerDisconnected and connection status to it is NotConnected
+9. Check that the last FN is connected to one of the nodes
+*NOTE*: this test will take some time because it relies on several cycles of peer discovery
+*/
+func TestRestartNodeDiscovery(t *testing.T) {
+	sw := swamp.NewSwamp(t)
+	cfg := node.DefaultConfig(node.Bridge)
+	cfg.P2P.Bootstrapper = true
+	bridge := sw.NewBridgeNode(node.WithConfig(cfg), node.WithRefreshRoutingTablePeriod(time.Second*30))
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	t.Cleanup(cancel)
+
+	err := bridge.Start(ctx)
+	require.NoError(t, err)
+	addr := host.InfoFromHost(bridge.Host)
+
+	full1 := sw.NewFullNode(
+		node.WithBootstrappers([]peer.AddrInfo{*addr}),
+		node.WithRefreshRoutingTablePeriod(time.Second*10),
+	)
+
+	full2 := sw.NewFullNode(
+		node.WithBootstrappers([]peer.AddrInfo{*addr}),
+		node.WithRefreshRoutingTablePeriod(time.Second*10),
+	)
+
+	full3 := sw.NewFullNode(
+		node.WithBootstrappers([]peer.AddrInfo{*addr}),
+		node.WithRefreshRoutingTablePeriod(time.Second*10),
+	)
+
+	full4 := sw.NewFullNode(
+		node.WithBootstrappers([]peer.AddrInfo{*addr}),
+		node.WithRefreshRoutingTablePeriod(time.Second*10),
+	)
+
+	nodes := []*node.Node{full1, full2, full3}
+	ch := make(chan peer.ID)
+	sub, err := full1.Host.EventBus().Subscribe(&event.EvtPeerConnectednessChanged{})
+	require.NoError(t, err)
+	defer sub.Close()
+	for index := range nodes {
+		require.NoError(t, nodes[index].Start(ctx))
+		assert.Equal(t, *addr, nodes[index].Bootstrappers[0])
+		assert.True(t, nodes[index].Host.Network().Connectedness(addr.ID) == network.Connected)
+	}
+
+	go func() {
+		for e := range sub.Out() {
+			connStatus := e.(event.EvtPeerConnectednessChanged)
+			if connStatus.Peer == full2.Host.ID() || connStatus.Peer == full3.Host.ID() ||
+				connStatus.Peer == full4.Host.ID() {
+				ch <- connStatus.Peer
+			}
+		}
+	}()
+	for i := 0; i < 2; i++ {
+		select {
+		case <-ctx.Done():
+			t.Fatal("peer was not found")
+		case p := <-ch:
+			assert.True(t, full1.Host.Network().Connectedness(p) == network.Connected)
+
+		}
+	}
+	require.NoError(t, full4.Start(ctx))
+	time.Sleep(time.Second * 30)
+	require.NoError(t, full3.Stop(ctx))
+	require.NoError(t, full3.Host.Close())
+
+	for i := 0; i < 2; i++ {
+		select {
+		case <-ctx.Done():
+			t.Fatal("peer was not disconnected")
+		case p := <-ch:
+			conn := network.Connected
+			if host.InfoFromHost(full3.Host).ID == p {
+				conn = network.NotConnected
+			}
+			assert.True(t, full1.Host.Network().Connectedness(p) == conn)
+		}
+	}
+}
