@@ -23,7 +23,7 @@ type ErrByzantine struct {
 }
 
 func (e *ErrByzantine) Error() string {
-	return fmt.Sprintf("byzantine error. Axis:%v, Index:%v", e.Axis, e.Index)
+	return fmt.Sprintf("byzantine error(Axis:%v, Index:%v)", e.Axis, e.Index)
 }
 
 // NewErrByzantine creates new ErrByzantine from rsmt2d error.
