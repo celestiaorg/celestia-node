@@ -8,6 +8,7 @@ import (
 
 	"github.com/ipfs/go-datastore"
 	logging "github.com/ipfs/go-log/v2"
+	pubsub "github.com/libp2p/go-libp2p-pubsub"
 
 	"github.com/celestiaorg/celestia-node/fraud"
 	"github.com/celestiaorg/celestia-node/header"
@@ -19,9 +20,9 @@ var log = logging.Logger("das")
 
 // DASer continuously validates availability of data committed to headers.
 type DASer struct {
-	da    share.Availability
-	bcast fraud.Broadcaster
-	hsub  header.Subscriber
+	da       share.Availability
+	fservice fraud.Service
+	hsub     header.Subscriber
 
 	// getter allows the DASer to fetch an ExtendedHeader (EH) at a certain height
 	// and blocks until the EH has been processed by the header store.
@@ -44,12 +45,12 @@ func NewDASer(
 	hsub header.Subscriber,
 	getter header.Getter,
 	cstore datastore.Datastore,
-	bcast fraud.Broadcaster,
+	fservice fraud.Service,
 ) *DASer {
 	wrappedDS := wrapCheckpointStore(cstore)
 	return &DASer{
 		da:        da,
-		bcast:     bcast,
+		fservice:  fservice,
 		hsub:      hsub,
 		getter:    getter,
 		cstore:    wrappedDS,
@@ -83,6 +84,8 @@ func (d *DASer) Start(context.Context) error {
 	go d.catchUpManager(d.ctx, checkpoint)
 	// kick off sampling routine for recently received headers
 	go d.sample(d.ctx, sub, checkpoint)
+	// fetch stored fraud proofs
+	go d.ensureProofs(d.ctx, fraud.BadEncoding)
 	return nil
 }
 
@@ -245,7 +248,7 @@ func (d *DASer) sampleHeader(ctx context.Context, h *header.ExtendedHeader) erro
 		var byzantineErr *ipld.ErrByzantine
 		if errors.As(err, &byzantineErr) {
 			log.Warn("Propagating proof...")
-			sendErr := d.bcast.Broadcast(ctx, fraud.CreateBadEncodingProof(h.Hash(), uint64(h.Height), byzantineErr))
+			sendErr := d.fservice.Broadcast(ctx, fraud.CreateBadEncodingProof(h.Hash(), uint64(h.Height), byzantineErr))
 			if sendErr != nil {
 				log.Errorw("fraud proof propagating failed", "err", sendErr)
 			}
@@ -262,4 +265,23 @@ func (d *DASer) sampleHeader(ctx context.Context, h *header.ExtendedHeader) erro
 		"square width", len(h.DAH.RowsRoots), "finished (s)", sampleTime.Seconds())
 
 	return nil
+}
+
+func (d *DASer) ensureProofs(ctx context.Context, proofType fraud.ProofType) {
+	proofs, err := d.fservice.GetAll(ctx, proofType)
+	switch err {
+	// this error is expected in most cases. It is thrown
+	// when no Fraud Proof is stored
+	case datastore.ErrNotFound:
+		return
+	case nil:
+		for _, proof := range proofs {
+			err = d.fservice.Broadcast(ctx, proof, pubsub.WithLocalPublication(true))
+			if err != nil {
+				panic(fmt.Sprintf("could not send fraud proof:%s", err.Error()))
+			}
+		}
+	default:
+		log.Error(err)
+	}
 }

@@ -45,7 +45,7 @@ func TestStore_GetAll(t *testing.T) {
 	ds := ds_sync.MutexWrap(datastore.NewMapDatastore())
 	badEncodingStore := namespace.Wrap(ds, makeKey(BadEncoding))
 	faultHeaders := make([]*header.ExtendedHeader, 0)
-	for i := 0; i < 8; i++ {
+	for i := 0; i < 3; i++ {
 		h, err := store.GetByHeight(ctx, uint64(i+1))
 		require.NoError(t, err)
 		faultDAH, err := generateByzantineError(ctx, t, h, bServ)

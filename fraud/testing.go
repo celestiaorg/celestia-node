@@ -14,6 +14,10 @@ import (
 type DummyService struct {
 }
 
+func (d *DummyService) Start(context.Context) error {
+	return nil
+}
+
 func (d *DummyService) Stop(context.Context) error {
 	return nil
 }
@@ -31,15 +35,6 @@ func (d *DummyService) RegisterUnmarshaler(ProofType, ProofUnmarshaler) error {
 }
 
 func (d *DummyService) UnregisterUnmarshaler(ProofType) error {
-	return nil
-}
-
-func (d *DummyService) Start(
-	context.Context,
-	ProofType,
-	func(context.Context) error,
-	func(context.Context) error,
-) error {
 	return nil
 }
 

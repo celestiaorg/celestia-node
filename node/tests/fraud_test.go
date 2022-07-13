@@ -65,5 +65,8 @@ func TestFraudProofBroadcasting(t *testing.T) {
 	require.NoError(t, sw.RemoveNode(full, node.Full))
 
 	full = sw.NewNodeWithStore(node.Full, store, node.WithTrustedPeers(addrs[0].String()))
-	require.Error(t, full.Start(ctx))
+	require.NoError(t, full.Start(ctx))
+	proofs, err := full.FraudServ.GetAll(ctx, fraud.BadEncoding)
+	require.NoError(t, err)
+	require.NotNil(t, proofs)
 }
