@@ -10,6 +10,11 @@ import (
 	logging "github.com/ipfs/go-log/v2"
 	"github.com/spf13/cobra"
 	flag "github.com/spf13/pflag"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/exporters/jaeger"
+	"go.opentelemetry.io/otel/sdk/resource"
+	tracesdk "go.opentelemetry.io/otel/sdk/trace"
+	semconv "go.opentelemetry.io/otel/semconv/v1.10.0"
 
 	"github.com/celestiaorg/celestia-node/logs"
 )
@@ -17,6 +22,7 @@ import (
 var (
 	logLevelFlag       = "log.level"
 	logLevelModuleFlag = "log.level.module"
+	tracingJaegerFlag  = "tracing.jaeger"
 	pprofFlag          = "pprof"
 )
 
@@ -35,6 +41,12 @@ and their lower-case forms`,
 		logLevelModuleFlag,
 		nil,
 		"<module>:<level>, e.g. pubsub:debug",
+	)
+
+	flags.String(
+		tracingJaegerFlag,
+		"",
+		"Enables Jaeger tracing. Expects an URL",
 	)
 
 	flags.Bool(
@@ -72,6 +84,25 @@ func ParseMiscFlags(cmd *cobra.Command) error {
 		if err != nil {
 			return err
 		}
+	}
+
+	tracingJaegerURL := cmd.Flag(tracingJaegerFlag).Value.String()
+	if tracingJaegerURL != "" {
+		exp, err := jaeger.New(jaeger.WithCollectorEndpoint(jaeger.WithEndpoint(tracingJaegerURL)))
+		if err != nil {
+			return err
+		}
+
+		tp := tracesdk.NewTracerProvider(
+			// Always be sure to batch in production.
+			tracesdk.WithBatcher(exp),
+			// Record information about this application in a Resource.
+			tracesdk.WithResource(resource.NewWithAttributes(
+				semconv.SchemaURL,
+				semconv.ServiceNameKey.String("celestia-node"),
+			)),
+		)
+		otel.SetTracerProvider(tp)
 	}
 
 	ok, err := cmd.Flags().GetBool(pprofFlag)
