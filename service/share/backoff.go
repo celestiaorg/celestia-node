@@ -17,7 +17,7 @@ type backoffConnector struct {
 	h       host.Host
 	backoff backoff.BackoffFactory
 
-	cacheLK      sync.Mutex
+	cacheLk      sync.Mutex
 	backoffCache map[peer.ID]connectionCacheData
 }
 
@@ -37,13 +37,12 @@ func newBackoffConnector(h host.Host, factory backoff.BackoffFactory) *backoffCo
 
 // Connect puts peer to the backoffCache and tries to establish a connection with it.
 func (b *backoffConnector) Connect(ctx context.Context, p peer.AddrInfo) error {
-	b.cacheLK.Lock()
-	cacheData, ok := b.backoffCache[p.ID]
 	strategy := b.backoff()
+	b.cacheLk.Lock()
+	cacheData, ok := b.backoffCache[p.ID]
 	if ok {
-		now := time.Now()
-		if now.Before(cacheData.nexttry) {
-			b.cacheLK.Unlock()
+		if time.Now().Before(cacheData.nexttry) {
+			b.cacheLk.Unlock()
 			return fmt.Errorf("share: discovery: backoff period is not ended for peer=%s", p.ID.String())
 		}
 		strategy = b.backoffCache[p.ID].backoff
@@ -52,19 +51,22 @@ func (b *backoffConnector) Connect(ctx context.Context, p peer.AddrInfo) error {
 		time.Now().Add(strategy.Delay()),
 		strategy,
 	}
-	b.cacheLK.Unlock()
+	b.cacheLk.Unlock()
 	return b.h.Connect(ctx, p)
 }
 
 // RestartBackOff resets delay time between attempts and add a delay for the next connection attempt to remote peer.
 // Mainly it will be call when host will receive a notification that remote peer was disconnected.
 func (b *backoffConnector) RestartBackOff(p peer.ID) {
-	b.cacheLK.Lock()
-	defer b.cacheLK.Unlock()
-	strategy := b.backoffCache[p].backoff
-	strategy.Reset()
+	b.cacheLk.Lock()
+	defer b.cacheLk.Unlock()
+	cache, ok := b.backoffCache[p]
+	if !ok {
+		return
+	}
+	cache.backoff.Reset()
 	b.backoffCache[p] = connectionCacheData{
-		time.Now().Add(strategy.Delay()),
-		strategy,
+		time.Now().Add(cache.backoff.Delay()),
+		cache.backoff,
 	}
 }

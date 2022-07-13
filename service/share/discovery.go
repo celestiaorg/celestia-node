@@ -61,7 +61,7 @@ func NewDiscovery(
 // handlePeersFound receives peers and tries to establish a connection with them.
 // Peer will be added to PeerCache if connection succeeds.
 func (d *discovery) handlePeerFound(ctx context.Context, topic string, peer peer.AddrInfo) {
-	if peer.ID == d.host.ID() || len(peer.Addrs) == 0 {
+	if peer.ID == d.host.ID() || len(peer.Addrs) == 0 || d.set.Contains(peer.ID) {
 		return
 	}
 	err := d.set.TryAdd(peer.ID)
