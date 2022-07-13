@@ -3,13 +3,13 @@ package state
 import (
 	"context"
 
-	"github.com/ipfs/go-datastore"
 	logging "github.com/ipfs/go-log/v2"
 	"go.uber.org/fx"
 
 	"github.com/celestiaorg/celestia-node/fraud"
 	"github.com/celestiaorg/celestia-node/libs/fxutil"
 	"github.com/celestiaorg/celestia-node/node/key"
+	"github.com/celestiaorg/celestia-node/node/services"
 	"github.com/celestiaorg/celestia-node/service/state"
 )
 
@@ -30,15 +30,7 @@ func Service(ctx context.Context, lc fx.Lifecycle, accessor state.Accessor, fser
 	serv := state.NewService(accessor)
 	lc.Append(fx.Hook{
 		OnStart: func(context.Context) error {
-			proofs, err := fservice.Get(ctx, fraud.BadEncoding)
-			switch err {
-			case nil:
-				return fraud.ErrFraudExists{Type: fraud.BadEncoding, Proof: proofs}
-			case datastore.ErrNotFound:
-			default:
-				return err
-			}
-			return fraud.OnBEFP(fxutil.WithLifecycle(ctx, lc), fservice, serv.Start, serv.Stop)
+			return services.FraudedLifecycle(fxutil.WithLifecycle(ctx, lc), fraud.BadEncoding, fservice, serv.Start, serv.Stop)
 		},
 		OnStop: serv.Stop,
 	})

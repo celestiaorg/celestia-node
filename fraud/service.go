@@ -89,7 +89,6 @@ func (f *service) UnregisterUnmarshaler(proofType ProofType) error {
 		return fmt.Errorf("fraud: unmarshaler for %s proof is not registered", proofType)
 	}
 	delete(f.topics, proofType)
-	f.removeStore(proofType)
 	return t.close()
 
 }
@@ -189,19 +188,6 @@ func (f *service) initStore(proofType ProofType) {
 	if !ok {
 		store := namespace.Wrap(f.ds, makeKey(proofType))
 		f.stores[proofType] = store
-	}
-}
-
-func (f *service) removeStore(proofType ProofType) {
-	f.storeLk.Lock()
-
-	store, ok := f.stores[proofType]
-	if ok {
-		err := store.Delete(context.TODO(), makeKey(proofType))
-		if err != nil {
-			log.Warn(err)
-		}
-		delete(f.stores, proofType)
 	}
 }
 

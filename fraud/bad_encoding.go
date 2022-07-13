@@ -2,7 +2,6 @@ package fraud
 
 import (
 	"bytes"
-	"context"
 	"errors"
 	"fmt"
 
@@ -175,42 +174,4 @@ func (p *BadEncodingProof) Validate(header *header.ExtendedHeader) error {
 	}
 
 	return nil
-}
-
-// OnBEFP listens to Bad Encoding Fraud Proof and stops services immediately if it is received.
-func OnBEFP(ctx context.Context, s Subscriber, start, stop func(context.Context) error) error {
-	subscription, err := s.Subscribe(BadEncoding)
-	if err != nil {
-		return err
-	}
-	err = start(ctx)
-	if err != nil {
-		return err
-	}
-	go subscribe(ctx, subscription, stop)
-	return nil
-}
-
-func subscribe(ctx context.Context, s Subscription, stop func(context.Context) error) {
-	var err error
-	defer func() {
-		s.Cancel()
-		if err == context.Canceled {
-			return
-		}
-		stopErr := stop(ctx)
-		if stopErr != nil {
-			log.Warn(stopErr)
-		}
-	}()
-
-	// At this point we receive already verified fraud proof,
-	// so there are no needs to call Validate.
-	_, err = s.Proof(ctx)
-	if err != nil {
-		if err == context.Canceled {
-			return
-		}
-		log.Errorw("reading next proof failed", "err", err)
-	}
 }

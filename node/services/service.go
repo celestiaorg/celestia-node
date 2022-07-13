@@ -38,15 +38,7 @@ func HeaderSyncer(
 	syncer := sync.NewSyncer(ex, store, sub)
 	lc.Append(fx.Hook{
 		OnStart: func(context.Context) error {
-			proofs, err := fservice.Get(ctx, fraud.BadEncoding)
-			switch err {
-			case nil:
-				return fraud.ErrFraudExists{Type: fraud.BadEncoding, Proof: proofs}
-			case datastore.ErrNotFound:
-			default:
-				return err
-			}
-			return fraud.OnBEFP(fxutil.WithLifecycle(ctx, lc), fservice, syncer.Start, syncer.Stop)
+			return FraudedLifecycle(fxutil.WithLifecycle(ctx, lc), fraud.BadEncoding, fservice, syncer.Start, syncer.Stop)
 		},
 		OnStop: syncer.Stop,
 	})
@@ -166,15 +158,7 @@ func DASer(
 	das := das.NewDASer(avail, sub, hstore, ds, fservice)
 	lc.Append(fx.Hook{
 		OnStart: func(context.Context) error {
-			proofs, err := fservice.Get(ctx, fraud.BadEncoding)
-			switch err {
-			case nil:
-				return fraud.ErrFraudExists{Type: fraud.BadEncoding, Proof: proofs}
-			case datastore.ErrNotFound:
-			default:
-				return err
-			}
-			return fraud.OnBEFP(fxutil.WithLifecycle(ctx, lc), fservice, das.Start, das.Stop)
+			return FraudedLifecycle(fxutil.WithLifecycle(ctx, lc), fraud.BadEncoding, fservice, das.Start, das.Stop)
 		},
 		OnStop: das.Stop,
 	})
@@ -235,4 +219,37 @@ func FullAvailability(
 		},
 	})
 	return ca
+}
+
+// FraudedLifecycle wraps service starting.
+// It allows to check if Fraud Proof was stored in the local storage before service starts.
+// If there are no Fraud Proofs, then startF will be invoked.
+func FraudedLifecycle(
+	ctx context.Context,
+	p fraud.ProofType,
+	fservice fraud.Service,
+	start, handle func(context.Context) error,
+) error {
+	subscription, err := fservice.Subscribe(p)
+	if err != nil {
+		return err
+	}
+	proofs, err := fservice.Get(ctx, p)
+	switch err {
+	case nil:
+		return fraud.ErrFraudExists{Type: fraud.BadEncoding, Proof: proofs}
+	case datastore.ErrNotFound:
+	default:
+		return err
+	}
+
+	err = start(ctx)
+	if err != nil {
+		return err
+	}
+
+	// handle incoming Fraud Proofs
+	go fraud.OnProof(ctx, subscription, handle)
+	return nil
+
 }
