@@ -7,6 +7,15 @@ import (
 	"github.com/celestiaorg/celestia-node/header"
 )
 
+type ErrFraudExists struct {
+	Type  ProofType
+	Proof []Proof
+}
+
+func (e ErrFraudExists) Error() string {
+	return fmt.Sprintf("fraud: %s proof exists\n", e.Type.String())
+}
+
 type ProofType int
 
 const (

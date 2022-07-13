@@ -3,6 +3,7 @@ package state
 import (
 	"context"
 
+	"github.com/ipfs/go-datastore"
 	logging "github.com/ipfs/go-log/v2"
 	"go.uber.org/fx"
 
@@ -25,13 +26,19 @@ func Components(coreEndpoint string, cfg key.Config) fx.Option {
 }
 
 // Service constructs a new state.Service.
-func Service(ctx context.Context, lc fx.Lifecycle, accessor state.Accessor, fsub fraud.Subscriber) *state.Service {
+func Service(ctx context.Context, lc fx.Lifecycle, accessor state.Accessor, fservice fraud.Service) *state.Service {
 	serv := state.NewService(accessor)
 	lc.Append(fx.Hook{
 		OnStart: func(context.Context) error {
-			err := serv.Start(ctx)
-			go fraud.OnBEFP(fxutil.WithLifecycle(ctx, lc), fsub, serv.Stop)
-			return err
+			proofs, err := fservice.Get(ctx, fraud.BadEncoding)
+			switch err {
+			case nil:
+				return fraud.ErrFraudExists{Type: fraud.BadEncoding, Proof: proofs}
+			case datastore.ErrNotFound:
+			default:
+				return err
+			}
+			return fraud.OnBEFP(fxutil.WithLifecycle(ctx, lc), fservice, serv.Start, serv.Stop)
 		},
 		OnStop: serv.Stop,
 	})

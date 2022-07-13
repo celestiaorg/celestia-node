@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	"github.com/ipfs/go-blockservice"
-	pubsub "github.com/libp2p/go-libp2p-pubsub"
 
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/ipld"
@@ -22,7 +21,7 @@ func (d *DummyService) Stop(context.Context) error {
 	return nil
 }
 
-func (d *DummyService) Broadcast(context.Context, Proof, ...pubsub.PubOpt) error {
+func (d *DummyService) Broadcast(context.Context, Proof) error {
 	return nil
 }
 
@@ -38,7 +37,7 @@ func (d *DummyService) UnregisterUnmarshaler(ProofType) error {
 	return nil
 }
 
-func (d *DummyService) GetAll(context.Context, ProofType) ([]Proof, error) {
+func (d *DummyService) Get(context.Context, ProofType) ([]Proof, error) {
 	return nil, nil
 }
 

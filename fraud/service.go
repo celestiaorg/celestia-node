@@ -94,7 +94,7 @@ func (f *service) UnregisterUnmarshaler(proofType ProofType) error {
 
 }
 
-func (f *service) Broadcast(ctx context.Context, p Proof, opts ...pubsub.PubOpt) error {
+func (f *service) Broadcast(ctx context.Context, p Proof) error {
 	bin, err := p.MarshalBinary()
 	if err != nil {
 		return err
@@ -105,7 +105,7 @@ func (f *service) Broadcast(ctx context.Context, p Proof, opts ...pubsub.PubOpt)
 	if !ok {
 		return fmt.Errorf("fraud: unmarshaler for %s proof is not registered", p.Type())
 	}
-	return t.publish(ctx, bin, opts...)
+	return t.publish(ctx, bin)
 }
 
 func (f *service) processIncoming(
@@ -165,7 +165,7 @@ func (f *service) processIncoming(
 	return pubsub.ValidationAccept
 }
 
-func (f *service) GetAll(ctx context.Context, proofType ProofType) ([]Proof, error) {
+func (f *service) Get(ctx context.Context, proofType ProofType) ([]Proof, error) {
 	f.storeLk.Lock()
 	store, ok := f.stores[proofType]
 	if !ok {

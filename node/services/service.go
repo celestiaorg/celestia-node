@@ -33,17 +33,20 @@ func HeaderSyncer(
 	ex header.Exchange,
 	store header.Store,
 	sub header.Subscriber,
-	fsub fraud.Subscriber,
+	fservice fraud.Service,
 ) (*sync.Syncer, error) {
 	syncer := sync.NewSyncer(ex, store, sub)
 	lc.Append(fx.Hook{
 		OnStart: func(context.Context) error {
-			err := syncer.Start(ctx)
-			if err != nil {
+			proofs, err := fservice.Get(ctx, fraud.BadEncoding)
+			switch err {
+			case nil:
+				return fraud.ErrFraudExists{Type: fraud.BadEncoding, Proof: proofs}
+			case datastore.ErrNotFound:
+			default:
 				return err
 			}
-			go fraud.OnBEFP(fxutil.WithLifecycle(ctx, lc), fsub, syncer.Stop)
-			return nil
+			return fraud.OnBEFP(fxutil.WithLifecycle(ctx, lc), fservice, syncer.Start, syncer.Stop)
 		},
 		OnStop: syncer.Stop,
 	})
@@ -163,9 +166,15 @@ func DASer(
 	das := das.NewDASer(avail, sub, hstore, ds, fservice)
 	lc.Append(fx.Hook{
 		OnStart: func(context.Context) error {
-			_ = das.Start(ctx)
-			go fraud.OnBEFP(fxutil.WithLifecycle(ctx, lc), fservice, das.Stop)
-			return nil
+			proofs, err := fservice.Get(ctx, fraud.BadEncoding)
+			switch err {
+			case nil:
+				return fraud.ErrFraudExists{Type: fraud.BadEncoding, Proof: proofs}
+			case datastore.ErrNotFound:
+			default:
+				return err
+			}
+			return fraud.OnBEFP(fxutil.WithLifecycle(ctx, lc), fservice, das.Start, das.Stop)
 		},
 		OnStop: das.Stop,
 	})
@@ -178,12 +187,12 @@ func FraudService(
 	sub *pubsub.PubSub,
 	hstore header.Store,
 	ds datastore.Batching,
-) (fraud.Service, fraud.Service, error) {
+) (fraud.Service, error) {
 	f := fraud.NewService(sub, hstore.GetByHeight, ds)
 	if err := f.RegisterUnmarshaler(fraud.BadEncoding, fraud.UnmarshalBEFP); err != nil {
-		return nil, nil, err
+		return nil, err
 	}
-	return f, f, nil
+	return f, nil
 }
 
 // LightAvailability constructs light share availability wrapped in cache availability.
