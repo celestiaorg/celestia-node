@@ -33,17 +33,12 @@ func HeaderSyncer(
 	ex header.Exchange,
 	store header.Store,
 	sub header.Subscriber,
-	fsub fraud.Subscriber,
+	fsub fraud.Service,
 ) (*sync.Syncer, error) {
 	syncer := sync.NewSyncer(ex, store, sub)
 	lc.Append(fx.Hook{
 		OnStart: func(context.Context) error {
-			err := syncer.Start(ctx)
-			if err != nil {
-				return err
-			}
-			go fraud.OnBEFP(fxutil.WithLifecycle(ctx, lc), fsub, syncer.Stop)
-			return nil
+			return fsub.ListenFraudProofs(fxutil.WithLifecycle(ctx, lc), fraud.BadEncoding, syncer.Start, syncer.Stop)
 		},
 		OnStop: syncer.Stop,
 	})
@@ -163,9 +158,7 @@ func DASer(
 	das := das.NewDASer(avail, sub, hstore, ds, fservice)
 	lc.Append(fx.Hook{
 		OnStart: func(context.Context) error {
-			_ = das.Start(ctx)
-			go fraud.OnBEFP(fxutil.WithLifecycle(ctx, lc), fservice, das.Stop)
-			return nil
+			return fservice.ListenFraudProofs(fxutil.WithLifecycle(ctx, lc), fraud.BadEncoding, das.Start, das.Stop)
 		},
 		OnStop: das.Stop,
 	})

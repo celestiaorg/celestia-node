@@ -43,6 +43,27 @@ func NewService(p *pubsub.PubSub, getter headerFetcher, ds datastore.Datastore) 
 	}
 }
 
+func (f *service) ListenFraudProofs(
+	ctx context.Context,
+	proofType ProofType,
+	start func(context.Context) error,
+	stop func(context.Context) error,
+) error {
+	_, err := f.checkProofs(ctx, proofType)
+	switch err {
+	// this error is expected in most cases. It is thrown
+	// when no Fraud Proof is stored
+	case datastore.ErrNotFound:
+		if err = start(ctx); err == nil {
+			go onFraudProof(ctx, f, proofType, stop)
+		}
+	case nil:
+		// TODO(@vgonkivs) validate all received Fraud Proofs
+		return errors.New("fraud: fraud proof is stored. service will not be started")
+	}
+	return err
+}
+
 func (f *service) Subscribe(proofType ProofType) (Subscription, error) {
 	f.topicsLk.Lock()
 	t, ok := f.topics[proofType]
@@ -203,6 +224,22 @@ func (f *service) removeStore(proofType ProofType) {
 		}
 		delete(f.stores, proofType)
 	}
+}
+
+func (f *service) checkProofs(ctx context.Context, proofType ProofType) ([]Proof, error) {
+	f.storeLk.Lock()
+	store, ok := f.stores[proofType]
+	if !ok {
+		return nil, errors.New("fraud: fraud proof is not supported")
+	}
+	f.storeLk.Unlock()
+	f.topicsLk.Lock()
+	t, ok := f.topics[proofType]
+	f.topicsLk.Unlock()
+	if !ok {
+		return nil, errors.New("fraud: unmarshaler for the given proof type is not registered")
+	}
+	return getAll(ctx, store, t.unmarshal)
 }
 
 func getSubTopic(p ProofType) string {

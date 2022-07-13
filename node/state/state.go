@@ -25,13 +25,11 @@ func Components(coreEndpoint string, cfg key.Config) fx.Option {
 }
 
 // Service constructs a new state.Service.
-func Service(ctx context.Context, lc fx.Lifecycle, accessor state.Accessor, fsub fraud.Subscriber) *state.Service {
+func Service(ctx context.Context, lc fx.Lifecycle, accessor state.Accessor, fsub fraud.Service) *state.Service {
 	serv := state.NewService(accessor)
 	lc.Append(fx.Hook{
 		OnStart: func(context.Context) error {
-			err := serv.Start(ctx)
-			go fraud.OnBEFP(fxutil.WithLifecycle(ctx, lc), fsub, serv.Stop)
-			return err
+			return fsub.ListenFraudProofs(fxutil.WithLifecycle(ctx, lc), fraud.BadEncoding, serv.Start, serv.Stop)
 		},
 		OnStop: serv.Stop,
 	})

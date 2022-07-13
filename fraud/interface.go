@@ -20,9 +20,14 @@ type ProofUnmarshaler func([]byte) (Proof, error)
 // Service encompasses the behavior necessary to subscribe and broadcast
 // Fraud Proofs within the network.
 type Service interface {
+	ListenFraudProofs(_ context.Context,
+		_ ProofType,
+		start func(context.Context) error,
+		stop func(context.Context) error,
+	) error
+
 	Subscriber
 	Broadcaster
-	Getter
 }
 
 // Broadcaster is a generic interface that sends a `Proof` to all nodes subscribed on the Broadcaster's topic.
@@ -51,9 +56,4 @@ type Subscription interface {
 	// Proof returns already verified valid proof.
 	Proof(context.Context) (Proof, error)
 	Cancel()
-}
-
-// Getter encompasses the behavior to fetch stored FraudProofs.
-type Getter interface {
-	GetAll(context.Context, ProofType) ([]Proof, error)
 }

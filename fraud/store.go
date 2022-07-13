@@ -2,6 +2,7 @@ package fraud
 
 import (
 	"context"
+	"sort"
 	"strings"
 
 	"github.com/ipfs/go-datastore"
@@ -29,17 +30,7 @@ func query(ctx context.Context, ds datastore.Datastore, q q.Query) ([]q.Entry, e
 
 // getAll queries all Fraud Proofs by its type.
 func getAll(ctx context.Context, ds datastore.Datastore, u ProofUnmarshaler) ([]Proof, error) {
-	entries, err := query(ctx, ds, q.Query{Orders: []q.Order{
-		// sort entries in ascending order
-		q.OrderByFunction(
-			func(a, b q.Entry) int {
-				if a.Expiration.After(b.Expiration) {
-					return -1
-				}
-				return 1
-			})},
-	},
-	)
+	entries, err := query(ctx, ds, q.Query{})
 	if err != nil {
 		return nil, err
 	}
@@ -54,6 +45,10 @@ func getAll(ctx context.Context, ds datastore.Datastore, u ProofUnmarshaler) ([]
 		}
 		proofs = append(proofs, proof)
 	}
+	// sort proofs in ascending order by block height
+	sort.Slice(proofs, func(i, j int) bool {
+		return proofs[i].Height() < proofs[j].Height()
+	})
 	return proofs, nil
 }
 
