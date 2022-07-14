@@ -42,33 +42,24 @@ type transferRequest struct {
 }
 
 func (h *Handler) handleBalanceRequest(w http.ResponseWriter, r *http.Request) {
-	bal, err := h.state.Balance(r.Context())
-	if err != nil {
-		writeError(w, http.StatusInternalServerError, balanceEndpoint, err)
-		return
-	}
-	resp, err := json.Marshal(bal)
-	if err != nil {
-		writeError(w, http.StatusInternalServerError, balanceEndpoint, err)
-		return
-	}
-	_, err = w.Write(resp)
-	if err != nil {
-		log.Errorw("writing response", "endpoint", balanceEndpoint, "err", err)
-	}
-}
-
-func (h *Handler) handleBalanceForAddrRequest(w http.ResponseWriter, r *http.Request) {
+	var (
+		bal *state.Balance
+		err error
+	)
 	// read and parse request
 	vars := mux.Vars(r)
-	addrStr := vars[addrKey]
-	// convert address to Address type
-	addr, err := types.AccAddressFromBech32(addrStr)
-	if err != nil {
-		writeError(w, http.StatusBadRequest, balanceEndpoint, err)
-		return
+	addrStr, exists := vars[addrKey]
+	if exists {
+		// convert address to Address type
+		addr, addrerr := types.AccAddressFromBech32(addrStr)
+		if addrerr != nil {
+			writeError(w, http.StatusBadRequest, balanceEndpoint, addrerr)
+			return
+		}
+		bal, err = h.state.BalanceForAddress(r.Context(), addr)
+	} else {
+		bal, err = h.state.Balance(r.Context())
 	}
-	bal, err := h.state.BalanceForAddress(r.Context(), addr)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, balanceEndpoint, err)
 		return
