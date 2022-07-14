@@ -2,6 +2,7 @@ package node
 
 import (
 	"context"
+	"net"
 	"testing"
 	"time"
 
@@ -31,8 +32,12 @@ func TestNode(t *testing.T, tp Type, opts ...Option) *Node {
 
 	store := MockStore(t, DefaultConfig(tp))
 	_, _, cfg := core.StartTestKVApp(ctx, t)
+	endpoint, err := core.GetEndpoint(cfg)
+	require.NoError(t, err)
+	ip, port, err := net.SplitHostPort(endpoint)
+	require.NoError(t, err)
 	opts = append(opts,
-		WithRemoteCore(core.GetEndpoint(cfg)),
+		WithRemoteCore(ip, port),
 		WithNetwork(params.Private),
 		WithRPCPort("0"),
 		WithKeyringSigner(TestKeyringSigner(t)),

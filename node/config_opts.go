@@ -1,18 +1,18 @@
 package node
 
 // WithRemoteCore configures Node to start with remote Core.
-func WithRemoteCore(protocol string, address string) Option {
+func WithRemoteCore(ip, port string) Option {
 	return func(sets *settings) {
-		sets.cfg.Core.Protocol = protocol
-		sets.cfg.Core.RemoteAddr = address
+		sets.cfg.Core.IP = ip
+		sets.cfg.Core.RPCPort = port
 	}
 }
 
-// WithGRPCEndpoint configures Node to connect to given gRPC address
+// WithGRPCPort configures Node to connect to given gRPC port
 // for state-related queries.
-func WithGRPCEndpoint(address string) Option {
+func WithGRPCPort(port string) Option {
 	return func(sets *settings) {
-		sets.cfg.Core.GRPCAddr = address
+		sets.cfg.Core.GRPCPort = port
 	}
 }
 

@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"math/rand"
+	"net"
+	"net/url"
 	"sort"
 	"testing"
 	"time"
@@ -51,8 +53,9 @@ func CreateKVStore(retainBlocks int64) *kvstore.Application {
 // mock Core Client.
 func StartTestClient(ctx context.Context, t *testing.T) (tmservice.Service, Client) {
 	nd, _, cfg := StartTestKVApp(ctx, t)
-	protocol, ip := GetEndpoint(cfg)
-	client, err := NewRemote(protocol, ip)
+	endpoint, err := GetEndpoint(cfg)
+	require.NoError(t, err)
+	client, err := NewRemote(endpoint)
 	require.NoError(t, err)
 	t.Cleanup(func() {
 		err := client.Stop()
@@ -63,11 +66,17 @@ func StartTestClient(ctx context.Context, t *testing.T) (tmservice.Service, Clie
 	return nd, client
 }
 
-// GetEndpoint returns the protocol and ip of the remote node.
-func GetEndpoint(cfg *config.Config) (string, string) {
-	endpoint := cfg.RPC.ListenAddress
-	protocol, ip := endpoint[:3], endpoint[6:]
-	return protocol, ip
+// GetEndpoint returns the remote node's RPC endpoint.
+func GetEndpoint(cfg *config.Config) (string, error) {
+	url, err := url.Parse(cfg.RPC.ListenAddress)
+	if err != nil {
+		return "", err
+	}
+	host, _, err := net.SplitHostPort(url.Host)
+	if err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("%s:%s", host, url.Port()), nil
 }
 
 func RandValidator(randPower bool, minPower int64) (*tmtypes.Validator, tmtypes.PrivValidator) {

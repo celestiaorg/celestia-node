@@ -16,10 +16,10 @@ var log = logging.Logger("state-access-constructor")
 
 // Components provides all components necessary to construct the
 // state service.
-func Components(coreEndpoint string, cfg key.Config) fx.Option {
+func Components(coreIP, grpcPort string, cfg key.Config) fx.Option {
 	return fx.Options(
 		fx.Provide(Keyring(cfg)),
-		fx.Provide(CoreAccessor(coreEndpoint)),
+		fx.Provide(CoreAccessor(coreIP, grpcPort)),
 		fx.Provide(Service),
 	)
 }

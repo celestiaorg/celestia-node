@@ -13,14 +13,14 @@ import (
 type Client = client.Client
 
 // NewRemote creates a new Client that communicates with a remote Core endpoint over HTTP.
-func NewRemote(protocol, remoteAddr string) (Client, error) {
+func NewRemote(endpoint string) (Client, error) {
 	httpClient := retryhttp.NewClient()
 	httpClient.RetryMax = 2
 	// suppress logging
 	httpClient.Logger = nil
 
 	return http.NewWithClient(
-		fmt.Sprintf("%s://%s", protocol, remoteAddr),
+		fmt.Sprintf("tcp://%s", endpoint),
 		httpClient.StandardClient(),
 	)
 }
