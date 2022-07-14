@@ -4,6 +4,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"github.com/celestiaorg/celestia-node/service/state"
 	"net/http"
 
 	"github.com/cosmos/cosmos-sdk/types"
@@ -11,10 +12,11 @@ import (
 )
 
 const (
-	balanceEndpoint   = "/balance"
-	submitTxEndpoint  = "/submit_tx"
-	submitPFDEndpoint = "/submit_pfd"
-	transferEndpoint  = "/transfer"
+	balanceEndpoint         = "/balance"
+	verifiedBalanceEndpoint = "/verified_balance"
+	submitTxEndpoint        = "/submit_tx"
+	submitPFDEndpoint       = "/submit_pfd"
+	transferEndpoint        = "/transfer"
 )
 
 var addrKey = "address"
@@ -78,6 +80,40 @@ func (h *Handler) handleBalanceForAddrRequest(w http.ResponseWriter, r *http.Req
 	_, err = w.Write(resp)
 	if err != nil {
 		log.Errorw("writing response", "endpoint", balanceEndpoint, "err", err)
+	}
+}
+
+func (h *Handler) handleVerifiedBalanceRequest(w http.ResponseWriter, r *http.Request) {
+	var (
+		bal *state.Balance
+		err error
+	)
+	// read and parse request
+	vars := mux.Vars(r)
+	addrStr, exists := vars[addrKey]
+	if exists {
+		// convert address to Address type
+		addr, err := types.AccAddressFromBech32(addrStr)
+		if err != nil {
+			writeError(w, http.StatusBadRequest, verifiedBalanceEndpoint, err)
+			return
+		}
+		bal, err = h.state.VerifiedBalanceForAddress(r.Context(), addr)
+	} else {
+		bal, err = h.state.VerifiedBalance(r.Context())
+	}
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, verifiedBalanceEndpoint, err)
+		return
+	}
+	resp, err := json.Marshal(bal)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, verifiedBalanceEndpoint, err)
+		return
+	}
+	_, err = w.Write(resp)
+	if err != nil {
+		log.Errorw("writing response", "endpoint", verifiedBalanceEndpoint, "err", err)
 	}
 }
 
