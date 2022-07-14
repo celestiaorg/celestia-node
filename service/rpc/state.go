@@ -4,11 +4,12 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
-	"github.com/celestiaorg/celestia-node/service/state"
 	"net/http"
 
 	"github.com/cosmos/cosmos-sdk/types"
 	"github.com/gorilla/mux"
+
+	"github.com/celestiaorg/celestia-node/service/state"
 )
 
 const (
@@ -93,9 +94,9 @@ func (h *Handler) handleVerifiedBalanceRequest(w http.ResponseWriter, r *http.Re
 	addrStr, exists := vars[addrKey]
 	if exists {
 		// convert address to Address type
-		addr, err := types.AccAddressFromBech32(addrStr)
-		if err != nil {
-			writeError(w, http.StatusBadRequest, verifiedBalanceEndpoint, err)
+		addr, addrerr := types.AccAddressFromBech32(addrStr)
+		if addrerr != nil {
+			writeError(w, http.StatusBadRequest, verifiedBalanceEndpoint, addrerr)
 			return
 		}
 		bal, err = h.state.VerifiedBalanceForAddress(r.Context(), addr)
