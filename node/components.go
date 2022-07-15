@@ -92,7 +92,7 @@ func baseComponents(cfg *Config, store Store) fx.Option {
 		fx.Invoke(invokeWatchdog(store.Path())),
 		p2p.Components(cfg.P2P),
 		// state components
-		statecomponents.Components(cfg.Core.IP, cfg.Core.GRPCPort, cfg.Key),
+		statecomponents.Components(cfg.Core, cfg.Key),
 		// RPC components
 		fx.Provide(rpc.Server(cfg.RPC)),
 	)

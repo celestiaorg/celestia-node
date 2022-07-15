@@ -17,20 +17,27 @@ type Accessor interface {
 	// Stop stops the state Accessor.
 	Stop(context.Context) error
 
-	// SubmitPayForData builds, signs and submits a PayForData transaction.
-	SubmitPayForData(ctx context.Context, nID namespace.ID, data []byte, gasLim uint64) (*TxResponse, error)
-
-	// Balance retrieves the Celestia coin balance
-	// for the node's account/signer.
+	// Balance retrieves the Celestia coin balance for the node's account/signer.
 	Balance(ctx context.Context) (*Balance, error)
-	// BalanceForAddress retrieves the Celestia coin balance
-	// for the given types.AccAddress.
+	// BalanceForAddress retrieves the Celestia coin balance for the given types.AccAddress.
 	BalanceForAddress(ctx context.Context, addr Address) (*Balance, error)
+	// VerifiedBalance retrieves the Celestia coin balance for the node's account/signer
+	// and verifies it against the corresponding block's AppHash.
+	VerifiedBalance(ctx context.Context) (*Balance, error)
+	// VerifiedBalanceForAddress performs a balance request and verifies the returned balance against the
+	// corresponding block's AppHash.
+	//
+	// NOTE: the balance returned is technically the balance reported by the block right before
+	// the node's current head. This is due to the fact that for block N, the block's AppHash is
+	// the result of applying the previous block's transaction list.
+	VerifiedBalanceForAddress(ctx context.Context, addr Address) (*Balance, error)
+
+	// Transfer sends the given amount of coins from default wallet of the node to the given account address.
+	Transfer(ctx context.Context, to types.Address, amount types.Int, gasLimit uint64) (*TxResponse, error)
 	// SubmitTx submits the given transaction/message to the
 	// Celestia network and blocks until the tx is included in
 	// a block.
 	SubmitTx(ctx context.Context, tx Tx) (*TxResponse, error)
-
-	// Transfer sends the given amount of coins from default wallet of the node to the given account address.
-	Transfer(ctx context.Context, to types.Address, amount types.Int, gasLimit uint64) (*TxResponse, error)
+	// SubmitPayForData builds, signs and submits a PayForData transaction.
+	SubmitPayForData(ctx context.Context, nID namespace.ID, data []byte, gasLim uint64) (*TxResponse, error)
 }
