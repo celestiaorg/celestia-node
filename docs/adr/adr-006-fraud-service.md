@@ -170,7 +170,7 @@ type Subscription interface {
 type service struct {
    pubsub *pubsub.PubSub
    
-   storeLk sync.RWMutex
+   storesLk sync.RWMutex
    stores   map[ProofType]datastore.Datastore
    
    topics map[ProofType]*pubsub.Topic
