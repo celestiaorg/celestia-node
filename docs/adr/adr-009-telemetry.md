@@ -4,8 +4,9 @@
 
 * 2022-07-4: Started
 * 2022-07-10: Initial Draft finished
-* 2022-07-11: Stylistic improvements
-
+* 2022-07-11: Stylistic improvements from @renaynay
+* 2022-07-14: Stylistic improvements from @liamsi
+* 2022-07-15: Stylistic improvements from @rootulp and @bidon15
 ## Authors 
 
 @Wondertan @liamsi
@@ -128,6 +129,7 @@ The tracing in this case would provide all three metrics for the whole reconstru
 process.
 
 #### Spans
+
 Span represents an operation (unit of work) in a trace. They keep the time when operation _started_ and _ended_. Any 
 additional user defined _attributes_, operation status(success or error with an error itself) and events/logs that 
 may happen during the operation.
@@ -136,11 +138,17 @@ Spans also form a parent tree, meaning that each span associated to a process ca
 spans and vise-versa. Altogether, this feature allows to see the whole trace of execution of any part of the system, no 
 matter how complex it is. This is exactly what we need to analyze our reconstruction performance.
 
-An example of a root span in `ipld.Retriever`:
+#### Integration Example
+
+First, we define global pkg level tracer to create spans from within `ipld` pkg. Basically, it groups spans under 
+common logical namespace and extends the full name of each span.
+```go
+var tracer = otel.Tracer("ipld")
+```
+
+Then, we define a root span in `ipld.Retriever`:
 ```go
 import "go.opentelemetry.io/otel"
-
-var tracer = otel.Tracer("share")
 
 func (r *Retriever) Retrieve(ctx context.Context, dah *da.DataAvailabilityHeader) (*rsmt2d.ExtendedDataSquare, error) {
   ctx, span := tracer.Start(ctx, "retrieve-square")
@@ -154,7 +162,7 @@ func (r *Retriever) Retrieve(ctx context.Context, dah *da.DataAvailabilityHeader
 }
 ```
 
-The child span in `ipld.Retriever.Reconstruct`:
+Next, the child span in `ipld.Retriever.Reconstruct`:
 ```go
 	ctx, span := tracer.Start(ctx, "reconstruct-square")
 	defer span.End()
@@ -167,7 +175,7 @@ The child span in `ipld.Retriever.Reconstruct`:
 	}
 ```
 
-And the quadrant request event:
+And lastly, the quadrant request event:
 ```go
     span.AddEvent("requesting quadrant", trace.WithAttributes(
         attribute.Int("axis", q.source),
@@ -177,6 +185,9 @@ And the quadrant request event:
     ))
 ```
 > The above is only examples related to our code and is a subject to change.
+
+Here is the result of the above code sending traces visualized on Jaeger UI
+![tracing](img/trace-jaeger.png)
 
 #### Backends connection 
 
