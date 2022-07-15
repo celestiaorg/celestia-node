@@ -223,9 +223,9 @@ func FullAvailability(
 	return ca
 }
 
-// FraudLifecycle wraps service starting.
-// It allows to check if Fraud Proof was stored in the local storage before service starts.
-// If there are no Fraud Proofs, then start function will be invoked.
+// FraudLifecycle controls the lifecycle of service depending on fraud proofs.
+// It starts the service only if no fraud-proof exists and stops the service automatically
+// if a proof arrives after the service was started.
 func FraudLifecycle(
 	startCtx, lifecycleCtx context.Context,
 	p fraud.ProofType,
