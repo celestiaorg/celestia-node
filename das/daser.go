@@ -306,14 +306,14 @@ func (d *DASer) updateSampleState(h *header.ExtendedHeader, err error) {
 
 func (d *DASer) indicateRunning() {
 	d.state.sampleLk.Lock()
+	defer d.state.sampleLk.Unlock()
 	d.state.sample.IsRunning = true
-	d.state.sampleLk.Unlock()
 }
 
 func (d *DASer) indicateStopped() {
 	d.state.sampleLk.Lock()
+	defer d.state.sampleLk.Unlock()
 	d.state.sample.IsRunning = false
-	d.state.sampleLk.Unlock()
 }
 
 // CatchUpRoutineState reports the current state of the
