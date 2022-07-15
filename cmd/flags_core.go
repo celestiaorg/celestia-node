@@ -12,9 +12,9 @@ import (
 )
 
 var (
-	coreFlag     = "core"
-	coreRPCFlag  = "core.rpc"
-	coreGRPCFlag = "core.grpc"
+	coreFlag     = "core.ip"
+	coreRPCFlag  = "core.rpc.port"
+	coreGRPCFlag = "core.grpc.port"
 )
 
 // CoreFlags gives a set of hardcoded Core flags.
@@ -30,12 +30,12 @@ func CoreFlags() *flag.FlagSet {
 	flags.String(
 		coreRPCFlag,
 		"26657",
-		"Set a custom RPC port for the core node connection. The --core flag must also be provided.",
+		"Set a custom RPC port for the core node connection. The --core.ip flag must also be provided.",
 	)
 	flags.String(
 		coreGRPCFlag,
 		"9090",
-		"Set a custom gRPC port for the core node connection. The --core flag must also be provided.",
+		"Set a custom gRPC port for the core node connection. The --core.ip flag must also be provided.",
 	)
 
 	return flags
@@ -43,10 +43,10 @@ func CoreFlags() *flag.FlagSet {
 
 // ParseCoreFlags parses Core flags from the given cmd and applies values to Env.
 func ParseCoreFlags(cmd *cobra.Command, env *Env) error {
-	coreRemote := cmd.Flag(coreFlag).Value.String()
-	if coreRemote != "" {
+	coreIP := cmd.Flag(coreFlag).Value.String()
+	if coreIP != "" {
 		// sanity check given core ip addr and strip leading protocol
-		ip, err := sanityCheckIP(coreRemote)
+		ip, err := sanityCheckIP(coreIP)
 		if err != nil {
 			return err
 		}
@@ -69,7 +69,7 @@ func ParseCoreFlags(cmd *cobra.Command, env *Env) error {
 		return nil
 	}
 	if cmd.Flag(coreGRPCFlag).Changed || cmd.Flag(coreRPCFlag).Changed {
-		return fmt.Errorf("cannot specify RPC/gRPC ports without specifying an IP address for --core")
+		return fmt.Errorf("cannot specify RPC/gRPC ports without specifying an IP address for --core.ip")
 	}
 	return nil
 }
