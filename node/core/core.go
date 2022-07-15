@@ -72,5 +72,5 @@ func HeaderListener(
 
 // RemoteClient provides a constructor for core.Client over RPC.
 func RemoteClient(cfg Config) (core.Client, error) {
-	return core.NewRemote(fmt.Sprintf("%s:%s", cfg.IP, cfg.RPCPort))
+	return core.NewRemote(cfg.IP, cfg.RPCPort)
 }

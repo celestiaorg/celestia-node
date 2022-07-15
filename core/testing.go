@@ -55,7 +55,9 @@ func StartTestClient(ctx context.Context, t *testing.T) (tmservice.Service, Clie
 	nd, _, cfg := StartTestKVApp(ctx, t)
 	endpoint, err := GetEndpoint(cfg)
 	require.NoError(t, err)
-	client, err := NewRemote(endpoint)
+	ip, port, err := net.SplitHostPort(endpoint)
+	require.NoError(t, err)
+	client, err := NewRemote(ip, port)
 	require.NoError(t, err)
 	t.Cleanup(func() {
 		err := client.Stop()

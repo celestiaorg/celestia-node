@@ -65,7 +65,9 @@ func NewSwamp(t *testing.T, options ...Option) *Swamp {
 	core.StartTestNode(ctx, t, ic.App, ic.CoreCfg)
 	endpoint, err := core.GetEndpoint(ic.CoreCfg)
 	require.NoError(t, err)
-	remote, err := core.NewRemote(endpoint)
+	ip, port, err := net.SplitHostPort(endpoint)
+	require.NoError(t, err)
+	remote, err := core.NewRemote(ip, port)
 	require.NoError(t, err)
 
 	err = remote.Start()
