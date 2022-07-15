@@ -10,7 +10,7 @@
 
 @Wondertan @liamsi
 
-## Legend
+## Glossary
 - "ShrEx" - Share Exchange
 > It's all ogre now
 
@@ -22,23 +22,23 @@ Celestia Node needs deeper observability of each module and their components. Th
 we have is logging and there are two more options we need to explore from the observability triangle(tracing, metrics and logs).
 
 There are several priorities and "why"s we need deeper observability:
-* Analysis of the current p2p share exchange or "ShrEx" stack
-  * So we can evaluate real world Full Node reconstruction qualities, along with data availability sampling
-  * And adjust our roadmap accordingly.
-* Incentivized Testnet
-  * Tracking participants and validation that do task correctly
-  * So all participants provide to us valuable data/insight/traces that we can analyze and improve on
-* Monitoring dashboars
-  * For Celestia's own DA network infrastructure, e.g. DA Network Bootstrappers
-  * For the node operators
-* Extend debugging arsenal for the networking heavy DA layer
-  * Local development
-  * Issues found with Testground
-  * Production
 * Establishing metrics/data driven engineering culture for celestia-node devs
   * Metrics and tracing allows extracting dry facts out of any software on its performance, liveness, bottlenecks,
     regressions, etc., on whole system scale, so devs can reliably respond
   * Basing on these, all the improvements can be proven with data _before_ and _after_ a change
+* Analysis of the current p2p share exchange or "ShrEx" stack
+  * So we can evaluate real world Full Node reconstruction qualities, along with data availability sampling
+  * And adjust our roadmap accordingly
+* Incentivized Testnet
+  * Tracking participants and validation that do task correctly
+  * So all participants provide to us valuable data/insight/traces that we can analyze and improve on
+* Monitoring dashboards
+  * For Celestia's own DA network infrastructure, e.g. DA Network Bootstrappers
+  * For the node operators
+* Extend debugging arsenal for the networking heavy DA layer
+  * Local development
+  * Issues found with [Testground testing](https://github.com/celestiaorg/test-infra)
+  * Production
 
 This ADR is intended to outline the decisions on how to proceed with:
 * Integration plan according to the priorities and the requirements
@@ -51,10 +51,10 @@ This ADR is intended to outline the decisions on how to proceed with:
 ### Plan
 
 The first "ShrEx" stack analysis priority is critical for Celestia project. The analysis results will tell us whether
-our current Full Node reconstruction qualities conforms to the main network requirements, subsequently affecting 
-the development roadmap of the celestia-node before the main network launch, therefore is a potential blocker to the 
+our current [Full Node reconstruction](https://github.com/celestiaorg/celestia-node/issues/602) qualities conforms to the main network requirements, subsequently affecting 
+the development roadmap of the celestia-node before the main network launch.
 Basing on the former, the plan is focused on unblocking the reconstruction 
-story first and then proceed with steady covering of our codebase with traces for the complex codepaths as well as 
+analysis first and then proceed with steady covering of our codebase with traces for the complex codepaths as well as 
 metrics and dashboards for "measurables".
 
 Fortunately, the "ShrEx" analysis can be performed with _tracing_ only(more on that in [Tracing](./#Tracing)), so the
@@ -221,6 +221,14 @@ As you will see in the examples below, tracing looks similar to logging and have
 tracing is debug logging on steroids, and we can potentially consider dropping conventional _debug_ logging once we 
 fully cover our codebases with the tracing. Same as logging, traces can be pipe out into the stdout as prettyprinted
 event log.
+
+## Further Readings
+- [Uptrace tracing tools comparison](https://get.uptrace.dev/compare/distributed-tracing-tools.html)
+- [Uptrace guide](https://get.uptrace.dev/guide/)
+- [Uptrace OpenTelemetry Docs](https://opentelemetry.uptrace.dev/)
+> Provides simple Go API guide for metrics and traces
+- [OpenTelemetry Docs](https://opentelemetry.io/docs/)
+- [Prometheus Docs](prometheus.io/docs/introduction/overview)
 
 ## Status
 Proposed
