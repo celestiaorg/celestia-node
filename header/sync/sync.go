@@ -103,6 +103,11 @@ func (s State) Finished() bool {
 	return s.ToHeight <= s.Height
 }
 
+// Duration returns the duration of the sync.
+func (s State) Duration() time.Duration {
+	return s.End.Sub(s.Start)
+}
+
 // State reports state of the current (if in progress), or last sync (if finished).
 // Note that throughout the whole Syncer lifetime there might an initial sync and multiple catch-ups.
 // All of them are treated as different syncs with different state IDs and other information.
