@@ -8,12 +8,11 @@ import (
 )
 
 type ErrFraudExists struct {
-	Type  ProofType
 	Proof []Proof
 }
 
-func (e ErrFraudExists) Error() string {
-	return fmt.Sprintf("fraud: %s proof exists\n", e.Type.String())
+func (e *ErrFraudExists) Error() string {
+	return fmt.Sprintf("fraud: %s proof exists\n", e.Proof[0].Type())
 }
 
 type ProofType int

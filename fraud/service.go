@@ -125,8 +125,6 @@ func (f *service) processIncoming(
 		return pubsub.ValidationReject
 	}
 
-	// create a timeout for block fetching since our validator will be called synchronously
-	// and getter is a blocking function.
 	newCtx, cancel := context.WithTimeout(ctx, fetchHeaderTimeout)
 	extHeader, err := f.getter(newCtx, proof.Height())
 	defer cancel()
@@ -153,29 +151,32 @@ func (f *service) processIncoming(
 		"hash", hex.EncodeToString(extHeader.DAH.Hash()),
 		"from", msg.ReceivedFrom.String(),
 	)
-	log.Warn("Shutting down services...")
 	f.storeLk.RLock()
-	store := f.stores[proofType]
+	store, ok := f.stores[proofType]
 	f.storeLk.RUnlock()
-	if err := put(ctx, store, string(proof.HeaderHash()), msg.Data); err != nil {
-		log.Warn(err)
+	if ok {
+		err = put(ctx, store, string(proof.HeaderHash()), msg.Data)
+		if err != nil {
+			log.Warn(err)
+		}
 	}
-
+	log.Warn("Shutting down services...")
 	return pubsub.ValidationAccept
 }
 
 func (f *service) Get(ctx context.Context, proofType ProofType) ([]Proof, error) {
-	f.storeLk.Lock()
+	f.storeLk.RLock()
 	store, ok := f.stores[proofType]
+	f.storeLk.RUnlock()
 	if !ok {
-		return nil, errors.New("fraud: fraud proof is not supported")
+		return nil, fmt.Errorf("fraud: proof type %s is not supported", proofType)
 	}
-	f.storeLk.Unlock()
-	f.topicsLk.Lock()
+
+	f.topicsLk.RLock()
 	t, ok := f.topics[proofType]
-	f.topicsLk.Unlock()
+	f.topicsLk.RUnlock()
 	if !ok {
-		return nil, errors.New("fraud: unmarshaler for the given proof type is not registered")
+		return nil, fmt.Errorf("fraud: unmarshaler for proof type %s is not registered", proofType)
 	}
 
 	return getAll(ctx, store, t.unmarshal)

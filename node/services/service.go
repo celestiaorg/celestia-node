@@ -228,16 +228,21 @@ func FraudedLifecycle(
 	ctx context.Context,
 	p fraud.ProofType,
 	fservice fraud.Service,
-	start, handle func(context.Context) error,
+	start, stop func(context.Context) error,
 ) error {
 	subscription, err := fservice.Subscribe(p)
 	if err != nil {
 		return err
 	}
+	go func() {
+		<-ctx.Done()
+		subscription.Cancel()
+	}()
+
 	proofs, err := fservice.Get(ctx, p)
 	switch err {
 	case nil:
-		return fraud.ErrFraudExists{Type: fraud.BadEncoding, Proof: proofs}
+		return &fraud.ErrFraudExists{Proof: proofs}
 	case datastore.ErrNotFound:
 	default:
 		return err
@@ -249,7 +254,7 @@ func FraudedLifecycle(
 	}
 
 	// handle incoming Fraud Proofs
-	go fraud.OnProof(ctx, subscription, handle)
+	go fraud.OnProof(ctx, subscription, stop)
 	return nil
 
 }

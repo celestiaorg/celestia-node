@@ -37,7 +37,7 @@ func TestStore_Put(t *testing.T) {
 }
 
 func TestStore_GetAll(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Minute*15)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*15)
 	defer t.Cleanup(cancel)
 	bServ := mdutils.Bserv()
 	_, store := createService(t)
@@ -65,4 +65,17 @@ func TestStore_GetAll(t *testing.T) {
 	for i := 0; i < len(befp); i++ {
 		require.NoError(t, befp[i].Validate(faultHeaders[i]))
 	}
+}
+
+func Test_GetAllFailed(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*15)
+	defer t.Cleanup(cancel)
+
+	ds := ds_sync.MutexWrap(datastore.NewMapDatastore())
+	badEncodingStore := namespace.Wrap(ds, makeKey(BadEncoding))
+
+	proofs, err := getAll(ctx, badEncodingStore, UnmarshalBEFP)
+	require.Error(t, err)
+	require.ErrorIs(t, err, datastore.ErrNotFound)
+	require.Nil(t, proofs)
 }

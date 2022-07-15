@@ -2,8 +2,8 @@ package fraud
 
 import (
 	"context"
+	"fmt"
 	"sort"
-	"strings"
 
 	"github.com/ipfs/go-datastore"
 	q "github.com/ipfs/go-datastore/query"
@@ -29,7 +29,7 @@ func query(ctx context.Context, ds datastore.Datastore, q q.Query) ([]q.Entry, e
 }
 
 // getAll queries all Fraud Proofs by their type.
-func getAll(ctx context.Context, ds datastore.Datastore, u ProofUnmarshaler) ([]Proof, error) {
+func getAll(ctx context.Context, ds datastore.Datastore, unmarshal ProofUnmarshaler) ([]Proof, error) {
 	entries, err := query(ctx, ds, q.Query{})
 	if err != nil {
 		return nil, err
@@ -39,8 +39,9 @@ func getAll(ctx context.Context, ds datastore.Datastore, u ProofUnmarshaler) ([]
 	}
 	proofs := make([]Proof, 0)
 	for _, data := range entries {
-		proof, err := u(data.Value)
+		proof, err := unmarshal(data.Value)
 		if err != nil {
+			log.Warn(err)
 			continue
 		}
 		proofs = append(proofs, proof)
@@ -52,5 +53,5 @@ func getAll(ctx context.Context, ds datastore.Datastore, u ProofUnmarshaler) ([]
 }
 
 func makeKey(p ProofType) datastore.Key {
-	return datastore.NewKey(strings.Join([]string{storePrefix, p.String()}, "/"))
+	return datastore.NewKey(fmt.Sprintf("%s/%s", storePrefix, p))
 }
