@@ -66,9 +66,11 @@ func ParseCoreFlags(cmd *cobra.Command, env *Env) error {
 			return err
 		}
 		env.AddOptions(node.WithGRPCPort(grpc))
+		return nil
 	}
-	// TODO @renaynay: implement some sort of sanity check to make sure grpc/rpc aren't provided without
-	//  --core also being specified?
+	if cmd.Flag(coreGRPCFlag).Changed || cmd.Flag(coreRPCFlag).Changed {
+		return fmt.Errorf("cannot specify RPC/gRPC ports without specifying an IP address for --core")
+	}
 	return nil
 }
 
