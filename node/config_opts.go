@@ -7,8 +7,8 @@ func WithRemoteCoreIP(ip string) Option {
 	}
 }
 
-// WithRemoteCoreRPCPort configures Node to connect to the given remote Core port.
-func WithRemoteCoreRPCPort(port string) Option {
+// WithRemoteCorePort configures Node to connect to the given remote Core port.
+func WithRemoteCorePort(port string) Option {
 	return func(sets *settings) {
 		sets.cfg.Core.RPCPort = port
 	}

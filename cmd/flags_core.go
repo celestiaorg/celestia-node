@@ -44,33 +44,33 @@ func CoreFlags() *flag.FlagSet {
 // ParseCoreFlags parses Core flags from the given cmd and applies values to Env.
 func ParseCoreFlags(cmd *cobra.Command, env *Env) error {
 	coreIP := cmd.Flag(coreFlag).Value.String()
-	if coreIP != "" {
-		// sanity check given core ip addr and strip leading protocol
-		ip, err := sanityCheckIP(coreIP)
-		if err != nil {
-			return err
+	if coreIP == "" {
+		if cmd.Flag(coreGRPCFlag).Changed || cmd.Flag(coreRPCFlag).Changed {
+			return fmt.Errorf("cannot specify RPC/gRPC ports without specifying an IP address for --core.ip")
 		}
-
-		rpc := cmd.Flag(coreRPCFlag).Value.String()
-		// sanity check rpc endpoint
-		_, err = strconv.Atoi(rpc)
-		if err != nil {
-			return err
-		}
-		env.AddOptions(node.WithRemoteCoreIP(ip), node.WithRemoteCoreRPCPort(rpc))
-
-		grpc := cmd.Flag(coreGRPCFlag).Value.String()
-		// sanity check gRPC endpoint
-		_, err = strconv.Atoi(grpc)
-		if err != nil {
-			return err
-		}
-		env.AddOptions(node.WithGRPCPort(grpc))
 		return nil
 	}
-	if cmd.Flag(coreGRPCFlag).Changed || cmd.Flag(coreRPCFlag).Changed {
-		return fmt.Errorf("cannot specify RPC/gRPC ports without specifying an IP address for --core.ip")
+	// sanity check given core ip addr and strip leading protocol
+	ip, err := sanityCheckIP(coreIP)
+	if err != nil {
+		return err
 	}
+
+	rpc := cmd.Flag(coreRPCFlag).Value.String()
+	// sanity check rpc endpoint
+	_, err = strconv.Atoi(rpc)
+	if err != nil {
+		return err
+	}
+	env.AddOptions(node.WithRemoteCoreIP(ip), node.WithRemoteCorePort(rpc))
+
+	grpc := cmd.Flag(coreGRPCFlag).Value.String()
+	// sanity check gRPC endpoint
+	_, err = strconv.Atoi(grpc)
+	if err != nil {
+		return err
+	}
+	env.AddOptions(node.WithGRPCPort(grpc))
 	return nil
 }
 

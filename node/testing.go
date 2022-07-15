@@ -38,7 +38,7 @@ func TestNode(t *testing.T, tp Type, opts ...Option) *Node {
 	require.NoError(t, err)
 	opts = append(opts,
 		WithRemoteCoreIP(ip),
-		WithRemoteCoreRPCPort(port),
+		WithRemoteCorePort(port),
 		WithNetwork(params.Private),
 		WithRPCPort("0"),
 		WithKeyringSigner(TestKeyringSigner(t)),
