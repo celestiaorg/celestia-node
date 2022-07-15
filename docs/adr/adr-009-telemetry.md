@@ -2,17 +2,18 @@
 
 ## Changelog
 
-* 2022-07-4: Started
+* 2022-07-04: Started
 * 2022-07-10: Initial Draft finished
 * 2022-07-11: Stylistic improvements from @renaynay
 * 2022-07-14: Stylistic improvements from @liamsi
 * 2022-07-15: Stylistic improvements from @rootulp and @bidon15
+* 
 ## Authors 
 
 @Wondertan @liamsi
 
 ## Glossary
-- "ShrEx" - Share Exchange
+- `ShrEx` - P2P Share Exchange Stack
 > It's all ogre now
 
 ## Context
@@ -27,12 +28,13 @@ There are several priorities and "why"s we need deeper observability:
   * Metrics and tracing allows extracting dry facts out of any software on its performance, liveness, bottlenecks,
     regressions, etc., on whole system scale, so devs can reliably respond
   * Basing on these, all the improvements can be proven with data _before_ and _after_ a change
-* Analysis of the current p2p share exchange or "ShrEx" stack
-  * So we can evaluate real world Full Node reconstruction qualities, along with data availability sampling
-  * And adjust our roadmap accordingly
+* Roadmap adjustment after analysis of the current `ShrEx` based on real world data from:
+  * Full Node reconstruction qualities
+  * Data availability sampling
 * Incentivized Testnet
-  * Tracking participants and validation that do task correctly
-  * So all participants provide to us valuable data/insight/traces that we can analyze and improve on
+  * Tracking participants
+  * Validating done tasks with transparent evidence
+  * Harvesting valuable data/insight/traces that we can analyze and improve on
 * Monitoring dashboards
   * For Celestia's own DA network infrastructure, e.g. DA Network Bootstrappers
   * For the node operators
@@ -51,17 +53,21 @@ This ADR is intended to outline the decisions on how to proceed with:
 
 ### Plan
 
-The first "ShrEx" stack analysis priority is critical for Celestia project. The analysis results will tell us whether
-our current [Full Node reconstruction](https://github.com/celestiaorg/celestia-node/issues/602) qualities conforms to the main network requirements, subsequently affecting 
-the development roadmap of the celestia-node before the main network launch.
-Basing on the former, the plan is focused on unblocking the reconstruction 
+#### First Priority
+
+The first priority lies on "ShrEx" stack analysis results  for Celestia project. The outcome will tell us whether
+our current [Full Node reconstruction](https://github.com/celestiaorg/celestia-node/issues/602) qualities conforms to 
+the main network requirements, subsequently affecting the development roadmap of the celestia-node before the main 
+network launch. Basing on the former, the plan is focused on unblocking the reconstruction 
 analysis first and then proceed with steady covering of our codebase with traces for the complex codepaths as well as 
 metrics and dashboards for "measurables".
 
-Fortunately, the "ShrEx" analysis can be performed with _tracing_ only(more on that in [Tracing](./#Tracing)), so the
+Fortunately, the `ShrEx` analysis can be performed with _tracing_ only(more on that in [Tracing](./#Tracing)), so the
 decision for the celestia-node team is to cover with traces only the _necessary_ for the current "ShrEx" stack code as 
 the initial response to the ADR, leaving the rest to be integrated in the background for the devs in the team once they 
 are free as well as for the efficient bootstrapping into the code for the new devs.
+
+#### Second Priority
 
 The next biggest priority - incentivized Testnet can be largely covered with traces as well. All participant will submit
 traces from their nodes to any provided backend endpoint by us during the whole network lifespan. Later on, we will be 
@@ -101,11 +107,11 @@ For tracing, there are 3 modern OSS tools that are recommended. All of them have
 
 Each of these backends can be used independently and depending on the use case. For us, these are main use cases: 
 * Local development/debugging for the private network or even public network setup
-> I am personally planning to set up the lightweight Uptrace for the local light node. Just to play around and observe 
-> things
 * Data collection from the Testground test runs
 * Bootstrappers monitoring infrastructure
 * Data collection from the incentivized testnet participants
+> I am personally planning to set up the lightweight Uptrace for the local light node. Just to play around and observe
+> things
 
 There is no strict decision on which of these backends and where to use. People taking ownership of any listed vectors
 are free to use any recommended solution or any unlisted.
@@ -124,9 +130,11 @@ each operation and any events or errors as they occur.
 A visual example of a generic tracing dashboard provided via [Uptrace](https://uptrace.dev/) backend
 ![tracing](img/tracing-dashboard.png)
 
-Mainly, for "ShrEx" and reconstruction analysis we need to know if the reconstruction succeeded and the time it took.
-The tracing in this case would provide all three metrics for the whole reconstruction operation and for each sub operation of each
-process.
+Mainly, for `ShrEx` and reconstruction analysis we need to know if the reconstruction succeeded and the time it took for
+the big block sizes(EDS >= 128). The tracing in this case would provide all the data for the whole reconstruction 
+operation and for each sub operation within reconstruction, e.g time spend specifically on erasure coding
+> NOTE: The exact compute time is not available unless [rsmt2d#107](https://github.com/celestiaorg/rsmt2d/issues/107)
+> is fixed.
 
 #### Spans
 
