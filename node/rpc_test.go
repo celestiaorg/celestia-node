@@ -9,16 +9,20 @@ import (
 	"strconv"
 	"testing"
 
+	"github.com/ipfs/go-datastore"
+	ds_sync "github.com/ipfs/go-datastore/sync"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/fx"
 
+	"github.com/celestiaorg/celestia-node/das"
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/header/local"
 	"github.com/celestiaorg/celestia-node/header/store"
 	"github.com/celestiaorg/celestia-node/header/sync"
 	service "github.com/celestiaorg/celestia-node/service/header"
 	"github.com/celestiaorg/celestia-node/service/rpc"
+	"github.com/celestiaorg/celestia-node/service/share"
 )
 
 // NOTE: The following tests are against common RPC endpoints provided by
@@ -173,24 +177,52 @@ func TestAvailabilityRequest(t *testing.T) {
 	assert.True(t, availResp.Available)
 }
 
+func TestDASStateRequest(t *testing.T) {
+	nd := setupNodeWithModifiedRPC(t)
+
+	endpoint := fmt.Sprintf("http://127.0.0.1:%s/daser/state", nd.RPCServer.ListenAddr()[5:])
+	resp, err := http.Get(endpoint)
+	require.NoError(t, err)
+	defer func() {
+		err = resp.Body.Close()
+		require.NoError(t, err)
+	}()
+	dasStateResp := new(rpc.DasStateResponse)
+	err = json.NewDecoder(resp.Body).Decode(dasStateResp)
+	require.NoError(t, err)
+	// ensure daser is running
+	assert.True(t, dasStateResp.SampleRoutine.IsRunning)
+}
+
 func setupNodeWithModifiedRPC(t *testing.T) *Node {
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
 	// create test node with a dummy header service, manually add a dummy header
 	// service and register it with rpc handler/server
 	hServ := setupHeaderService(ctx, t)
+	daser := setupDASer()
 	// create overrides
 	overrideHeaderServ := func(sets *settings) {
 		sets.opts = append(sets.opts, fx.Replace(hServ))
 	}
-	overrideRPCHandler := func(sets *settings) {
-		sets.opts = append(sets.opts, fx.Replace(func(srv *rpc.Server) *rpc.Handler {
-			handler := rpc.NewHandler(nil, nil, hServ)
-			handler.RegisterEndpoints(srv)
-			return handler
+	overrideDASer := func(sets *settings) {
+		sets.opts = append(sets.opts, fx.Replace(func() func(lc fx.Lifecycle) *das.DASer {
+			return func(lc fx.Lifecycle) *das.DASer {
+				lc.Append(fx.Hook{
+					OnStart: daser.Start,
+					OnStop:  daser.Stop,
+				})
+				return daser
+			}
 		}))
 	}
-	nd := TestNode(t, Full, overrideHeaderServ, overrideRPCHandler)
+	overrideRPCHandler := func(sets *settings) {
+		sets.opts = append(sets.opts, fx.Invoke(func(srv *rpc.Server) {
+			handler := rpc.NewHandler(nil, nil, hServ, daser)
+			handler.RegisterEndpoints(srv)
+		}))
+	}
+	nd := TestNode(t, Full, overrideHeaderServ, overrideDASer, overrideRPCHandler)
 	// start node
 	err := nd.Start(ctx)
 	require.NoError(t, err)
@@ -213,4 +245,10 @@ func setupHeaderService(ctx context.Context, t *testing.T) *service.Service {
 	syncer := sync.NewSyncer(local.NewExchange(remoteStore), localStore, &header.DummySubscriber{})
 
 	return service.NewHeaderService(syncer, nil, nil, nil, localStore)
+}
+
+func setupDASer() *das.DASer {
+	ds := ds_sync.MutexWrap(datastore.NewMapDatastore())
+	sub := &header.DummySubscriber{Headers: make([]*header.ExtendedHeader, 10)}
+	return das.NewDASer(share.NewTestSuccessfulAvailability(), sub, nil, ds, nil)
 }

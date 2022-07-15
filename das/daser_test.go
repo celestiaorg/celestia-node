@@ -39,28 +39,33 @@ func TestDASerLifecycle(t *testing.T) {
 
 	err := daser.Start(ctx)
 	require.NoError(t, err)
+	defer func() {
+		err = daser.Stop(ctx)
+		require.NoError(t, err)
 
+		// load checkpoint and ensure it's at network head
+		checkpoint, err := loadCheckpoint(ctx, daser.cstore)
+		require.NoError(t, err)
+		// ensure checkpoint is stored at 15
+		assert.Equal(t, int64(15), checkpoint)
+	}()
 	// wait for dasing catch-up routine to finish
 	select {
 	case <-ctx.Done():
 		t.Fatal(ctx.Err())
 	case <-mockGet.doneCh:
 	}
-
 	// give catch-up routine a second to finish up sampling last header
-	// TODO @renaynay: this sleep is a known flakey solution to the issue that
-	//  we do not have DASState implemented yet. Once DASState is implemented, rely
-	//  on that instead of sleeping.
-	time.Sleep(time.Second * 1)
-
-	err = daser.Stop(ctx)
-	require.NoError(t, err)
-
-	// load checkpoint and ensure it's at network head
-	checkpoint, err := loadCheckpoint(ctx, daser.cstore)
-	require.NoError(t, err)
-	// ensure checkpoint is stored at 15
-	assert.Equal(t, int64(15), checkpoint)
+	for {
+		select {
+		case <-ctx.Done():
+			t.Fatal(ctx.Err())
+		default:
+			if daser.CatchUpRoutineState().Finished() {
+				return
+			}
+		}
+	}
 }
 
 func TestDASer_Restart(t *testing.T) {
@@ -106,18 +111,14 @@ func TestDASer_Restart(t *testing.T) {
 	// wait for dasing catch-up routine to finish
 	select {
 	case <-restartCtx.Done():
-		t.Fatal(ctx.Err())
+		t.Fatal(restartCtx.Err())
 	case <-mockGet.doneCh:
 	}
 
-	// give catch-up routine a second to finish up sampling last header
-	// TODO @renaynay: this sleep is a known flakey solution to the issue that
-	//  we do not have DASState implemented yet. Once DASState is implemented, rely
-	//  on that instead of sleeping.
-	time.Sleep(time.Second * 1)
-
 	err = daser.Stop(restartCtx)
 	require.NoError(t, err)
+
+	assert.True(t, daser.CatchUpRoutineState().Finished())
 
 	// load checkpoint and ensure it's at network head
 	checkpoint, err := loadCheckpoint(ctx, daser.cstore)
@@ -215,7 +216,7 @@ func TestDASer_catchUp_fails(t *testing.T) {
 	bServ := mdutils.Bserv()
 	avail := share.TestLightAvailability(bServ)
 	mockGet, _, _, mockService := createDASerSubcomponents(t, bServ, 6, 0, avail)
-	daser := NewDASer(share.NewBrokenAvailability(), nil, mockGet, ds, mockService)
+	daser := NewDASer(share.NewTestBrokenAvailability(), nil, mockGet, ds, mockService)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
@@ -288,15 +289,108 @@ func TestDASer_stopsAfter_BEFP(t *testing.T) {
 	case <-ctx.Done():
 		t.Fatal(ctx.Err())
 	case <-daser.ctx.Done():
-		break
 	}
 
-	// give catch-up routine a second to finish up sampling last header
-	// TODO @renaynay: this sleep is a known flakey solution to the issue that
-	//  we do not have DASState implemented yet. Once DASState is implemented, rely
-	//  on that instead of sleeping.
-	time.Sleep(time.Second * 1)
 	require.True(t, daser.ctx.Err() == context.Canceled)
+}
+func TestDASerState(t *testing.T) {
+	ds := ds_sync.MutexWrap(datastore.NewMapDatastore())
+	bServ := mdutils.Bserv()
+
+	// 30 headers in the past and 30 headers in the future (so final sample height should be 60)
+	mockGet, shareServ, sub, fraud := createDASerSubcomponents(t, bServ, 30, 30, share.NewTestSuccessfulAvailability())
+	expectedFinalSampleHeight := uint64(60)
+	expectedFinalSampleWidth := uint64(len(sub.Headers[29].DAH.RowsRoots))
+
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	t.Cleanup(cancel)
+
+	daser := NewDASer(shareServ, sub, mockGet, ds, fraud)
+	err := daser.Start(ctx)
+	require.NoError(t, err)
+	defer func() {
+		// wait for all "future" headers to be sampled
+		for {
+			select {
+			case <-ctx.Done():
+				t.Fatal(ctx.Err())
+			default:
+				if daser.SampleRoutineState().LatestSampledHeight == expectedFinalSampleHeight {
+					assert.Equal(t, expectedFinalSampleWidth, daser.SampleRoutineState().LatestSampledSquareWidth)
+
+					err := daser.Stop(ctx)
+					require.NoError(t, err)
+					assert.False(t, daser.SampleRoutineState().IsRunning)
+					return
+				}
+			}
+		}
+	}()
+	select {
+	case <-ctx.Done():
+		t.Fatal(ctx.Err())
+	case <-mockGet.doneCh:
+	}
+	// give catchUp routine a second to exit
+	for {
+		select {
+		case <-ctx.Done():
+			t.Fatal(ctx.Err())
+		default:
+			if daser.CatchUpRoutineState().Finished() {
+				return
+			}
+		}
+	}
+}
+
+// TestDASerState_WithErrorInCatchUp tests for the case where an
+// error has occurred inside the catchUp routine, ensuring the catchUp
+// routine exits as expected and reports the error accurately.
+func TestDASerState_WithErrorInCatchUp(t *testing.T) {
+	ds := ds_sync.MutexWrap(datastore.NewMapDatastore())
+	bServ := mdutils.Bserv()
+
+	// 30 headers in the past and 30 headers in the future
+	// catchUp routine error should occur at height 16
+	brokenHeight := 16
+	mockGet, shareServ, sub, fraud := createDASerWithFailingAvailability(t, bServ, 30, 30,
+		int64(brokenHeight))
+
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	t.Cleanup(cancel)
+
+	daser := NewDASer(shareServ, sub, mockGet, ds, fraud)
+	// allow catchUpDn signal to be read twice
+	daser.catchUpDn = make(chan struct{}, 2)
+
+	err := daser.Start(ctx)
+	require.NoError(t, err)
+	defer func() {
+		err = daser.Stop(ctx)
+		require.NoError(t, err)
+	}()
+	// wait until catchUp routine has fetched the broken header
+	select {
+	case <-ctx.Done():
+		t.Fatal(ctx.Err())
+	case <-mockGet.brokenHeightCh:
+	}
+	// wait for daser to exit catchUp routine
+	select {
+	case <-ctx.Done():
+		t.Fatal(ctx.Err())
+	case <-daser.catchUpDn:
+		catchUp := daser.CatchUpRoutineState()
+		// make sure catchUp routine didn't successfully complete
+		assert.False(t, catchUp.Finished())
+		// ensure that the error has been reported
+		assert.NotNil(t, catchUp.Error)
+		assert.Equal(t, uint64(brokenHeight)-1, catchUp.Height)
+		// send another done signal so `Stop` can read it
+		daser.catchUpDn <- struct{}{}
+		return
+	}
 }
 
 // createDASerSubcomponents takes numGetter (number of headers
@@ -311,19 +405,46 @@ func createDASerSubcomponents(
 	availability share.Availability,
 ) (*mockGetter, *share.Service, *header.DummySubscriber, *fraud.DummyService) {
 	shareServ := share.NewService(bServ, availability)
+	mockGet, sub := createMockGetterAndSub(t, bServ, numGetter, numSub)
+	fraud := new(fraud.DummyService)
+	return mockGet, shareServ, sub, fraud
+}
 
+func createMockGetterAndSub(
+	t *testing.T,
+	bServ blockservice.BlockService,
+	numGetter,
+	numSub int,
+) (*mockGetter, *header.DummySubscriber) {
 	mockGet := &mockGetter{
-		headers: make(map[int64]*header.ExtendedHeader),
-		doneCh:  make(chan struct{}),
+		headers:        make(map[int64]*header.ExtendedHeader),
+		doneCh:         make(chan struct{}),
+		brokenHeightCh: make(chan struct{}),
 	}
 
 	mockGet.generateHeaders(t, bServ, 0, numGetter)
 
 	sub := new(header.DummySubscriber)
-	fraud := new(fraud.DummyService)
 	mockGet.fillSubWithHeaders(t, sub, bServ, numGetter, numGetter+numSub)
 
-	return mockGet, shareServ, sub, fraud
+	return mockGet, sub
+}
+
+func createDASerWithFailingAvailability(
+	t *testing.T,
+	bServ blockservice.BlockService,
+	numGetter,
+	numSub int,
+	brokenHeight int64,
+) (*mockGetter, *share.Service, *header.DummySubscriber, *fraud.DummyService) {
+	mockGet, sub := createMockGetterAndSub(t, bServ, numGetter, numSub)
+	mockGet.brokenHeight = brokenHeight
+
+	shareServ := share.NewService(bServ, &share.TestBrokenAvailability{
+		Root: mockGet.headers[brokenHeight].DAH,
+	})
+
+	return mockGet, shareServ, sub, new(fraud.DummyService)
 }
 
 // fillSubWithHeaders generates `num` headers from the future for p2pSub to pipe through to DASer.
@@ -356,6 +477,9 @@ func (m *mockGetter) fillSubWithHeaders(
 type mockGetter struct {
 	doneCh chan struct{} // signals all stored headers have been retrieved
 
+	brokenHeight   int64
+	brokenHeightCh chan struct{}
+
 	head    int64
 	headers map[int64]*header.ExtendedHeader
 }
@@ -381,10 +505,14 @@ func (m *mockGetter) Head(context.Context) (*header.ExtendedHeader, error) {
 
 func (m *mockGetter) GetByHeight(_ context.Context, height uint64) (*header.ExtendedHeader, error) {
 	defer func() {
-		if int64(height) == m.head {
+		switch int64(height) {
+		case m.brokenHeight:
+			close(m.brokenHeightCh)
+		case m.head:
 			close(m.doneCh)
 		}
 	}()
+
 	return m.headers[int64(height)], nil
 }
 

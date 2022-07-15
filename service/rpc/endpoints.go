@@ -32,4 +32,10 @@ func (h *Handler) RegisterEndpoints(rpc *Server) {
 	rpc.RegisterHandlerFunc(fmt.Sprintf("%s/{%s}", headerByHeightEndpoint, heightKey), h.handleHeaderRequest,
 		http.MethodGet)
 	rpc.RegisterHandlerFunc(headEndpoint, h.handleHeadRequest, http.MethodGet)
+
+	// DASer endpoints
+	// only register if DASer service is available
+	if h.das != nil {
+		rpc.RegisterHandlerFunc(dasStateEndpoint, h.handleDASStateRequest, http.MethodGet)
+	}
 }

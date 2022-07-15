@@ -18,7 +18,10 @@ import (
 	"github.com/celestiaorg/celestia-node/node/services"
 	statecomponents "github.com/celestiaorg/celestia-node/node/state"
 	"github.com/celestiaorg/celestia-node/params"
+	headerServ "github.com/celestiaorg/celestia-node/service/header"
+	rpcServ "github.com/celestiaorg/celestia-node/service/rpc"
 	"github.com/celestiaorg/celestia-node/service/share"
+	"github.com/celestiaorg/celestia-node/service/state"
 )
 
 // lightComponents keeps all the components as DI options required to build a Light Node.
@@ -29,6 +32,7 @@ func lightComponents(cfg *Config, store Store) fx.Option {
 		fx.Provide(services.DASer),
 		fx.Provide(services.HeaderExchangeP2P(cfg.Services)),
 		fx.Provide(services.LightAvailability),
+		fx.Invoke(rpc.Handler),
 	)
 }
 
@@ -40,6 +44,14 @@ func bridgeComponents(cfg *Config, store Store) fx.Option {
 		nodecore.Components(cfg.Core),
 		fx.Supply(header.MakeExtendedHeader),
 		fx.Provide(services.LightAvailability), // TODO(@Wondertan): Remove strict requirements to have Availability
+		fx.Invoke(func(
+			state *state.Service,
+			share *share.Service,
+			header *headerServ.Service,
+			rpcSrv *rpcServ.Server,
+		) {
+			rpc.Handler(state, share, header, rpcSrv, nil)
+		}),
 	)
 }
 
@@ -51,6 +63,7 @@ func fullComponents(cfg *Config, store Store) fx.Option {
 		fx.Provide(services.DASer),
 		fx.Provide(services.HeaderExchangeP2P(cfg.Services)),
 		fx.Provide(services.FullAvailability),
+		fx.Invoke(rpc.Handler),
 	)
 }
 
@@ -81,7 +94,7 @@ func baseComponents(cfg *Config, store Store) fx.Option {
 		// state components
 		statecomponents.Components(cfg.Core.GRPCAddr, cfg.Key),
 		// RPC components
-		rpc.Components(cfg.RPC),
+		fx.Provide(rpc.Server(cfg.RPC)),
 	)
 }
 
