@@ -13,12 +13,12 @@ var (
 	storePrefix = "fraud"
 )
 
-// put adds a Fraud Proof to the datastore with the given key.
+// put adds a Fraud Proof to the datastore with the given hash as the key.
 func put(ctx context.Context, ds datastore.Datastore, hash string, value []byte) error {
 	return ds.Put(ctx, datastore.NewKey(hash), value)
 }
 
-// query allows to send any custom requests that will be needed.
+// query performs a custom query on the given datastore.
 func query(ctx context.Context, ds datastore.Datastore, q q.Query) ([]q.Entry, error) {
 	results, err := ds.Query(ctx, q)
 	if err != nil {
@@ -28,7 +28,7 @@ func query(ctx context.Context, ds datastore.Datastore, q q.Query) ([]q.Entry, e
 	return results.Rest()
 }
 
-// getAll queries all Fraud Proofs by its type.
+// getAll queries all Fraud Proofs by their type.
 func getAll(ctx context.Context, ds datastore.Datastore, u ProofUnmarshaler) ([]Proof, error) {
 	entries, err := query(ctx, ds, q.Query{})
 	if err != nil {

@@ -34,8 +34,8 @@ func (s *subscription) Cancel() {
 	s.subscription.Cancel()
 }
 
-// OnProof accepts the subscription and waiting for the next Fraud Proof.
-// In case if Fraud Proof is received, then handleF will be invoked.
+// OnProof accepts the subscription and waits for the next Fraud Proof.
+// In case a Fraud Proof is received, then the given handle function will be invoked.
 func OnProof(ctx context.Context, subscription Subscription, handle func(ctx context.Context) error) {
 	var err error
 	defer func() {

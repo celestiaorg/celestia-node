@@ -194,13 +194,13 @@ Both full and light nodes should stop `DAS`, `Syncer` and `SubmitTx` services.
 4. Valid BadEncodingFraudProofs should be stored on the disk using `FraudStore` interface:
 
 ### BEFP storage
-BEFP storage will be created on first subscription to Bad Encoding  Fraud Proof.
-BEFP will be stored in datastore once it will be received, using `fraud/badEncodingProof` path and a block Hash as a key:
+BEFP storage will be created on first subscription to Bad Encoding Fraud Proof.
+BEFP will be stored in datastore once it will be received, using `fraud/badEncodingProof` path and the corresponding block hash as the key:
 ```go
 //  put adds a Fraud Proof to the datastore with the given key.
-func put(ctx context.Context, datastore.Datastore,datastore.Key,[]byte) error
+func put(ctx context.Context, store datastore.Datastore, key datastore.Key, proof []byte) error
 ```
-Once a node starts, it will check if datastore has a BEFP:
+Once a node starts, it will check if its datastore has a BEFP:
 ```go
 func getAll(ctx context.Context, ds datastore.Datastore) ([][]byte, error)
 ```

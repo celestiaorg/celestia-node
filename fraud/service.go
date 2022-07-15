@@ -186,8 +186,7 @@ func (f *service) initStore(proofType ProofType) {
 	defer f.storeLk.Unlock()
 	_, ok := f.stores[proofType]
 	if !ok {
-		store := namespace.Wrap(f.ds, makeKey(proofType))
-		f.stores[proofType] = store
+		f.stores[proofType] = namespace.Wrap(f.ds, makeKey(proofType))
 	}
 }
 
