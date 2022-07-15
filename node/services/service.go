@@ -36,9 +36,10 @@ func HeaderSyncer(
 	fservice fraud.Service,
 ) (*sync.Syncer, error) {
 	syncer := sync.NewSyncer(ex, store, sub)
+	lifecycleCtx := fxutil.WithLifecycle(ctx, lc)
 	lc.Append(fx.Hook{
-		OnStart: func(context.Context) error {
-			return FraudedLifecycle(fxutil.WithLifecycle(ctx, lc), fraud.BadEncoding, fservice, syncer.Start, syncer.Stop)
+		OnStart: func(startCtx context.Context) error {
+			return FraudLifecycle(startCtx, lifecycleCtx, fraud.BadEncoding, fservice, syncer.Start, syncer.Stop)
 		},
 		OnStop: syncer.Stop,
 	})
@@ -156,9 +157,10 @@ func DASer(
 	fservice fraud.Service,
 ) *das.DASer {
 	das := das.NewDASer(avail, sub, hstore, ds, fservice)
+	lifecycleCtx := fxutil.WithLifecycle(ctx, lc)
 	lc.Append(fx.Hook{
-		OnStart: func(context.Context) error {
-			return FraudedLifecycle(fxutil.WithLifecycle(ctx, lc), fraud.BadEncoding, fservice, das.Start, das.Stop)
+		OnStart: func(startContext context.Context) error {
+			return FraudLifecycle(startContext, lifecycleCtx, fraud.BadEncoding, fservice, das.Start, das.Stop)
 		},
 		OnStop: das.Stop,
 	})
@@ -221,40 +223,32 @@ func FullAvailability(
 	return ca
 }
 
-// FraudedLifecycle wraps service starting.
+// FraudLifecycle wraps service starting.
 // It allows to check if Fraud Proof was stored in the local storage before service starts.
 // If there are no Fraud Proofs, then start function will be invoked.
-func FraudedLifecycle(
-	ctx context.Context,
+func FraudLifecycle(
+	startCtx, lifecycleCtx context.Context,
 	p fraud.ProofType,
 	fservice fraud.Service,
 	start, stop func(context.Context) error,
 ) error {
-	subscription, err := fservice.Subscribe(p)
-	if err != nil {
-		return err
-	}
-	go func() {
-		<-ctx.Done()
-		subscription.Cancel()
-	}()
-
-	proofs, err := fservice.Get(ctx, p)
+	proofs, err := fservice.Get(startCtx, p)
 	switch err {
+	default:
+		return err
 	case nil:
 		return &fraud.ErrFraudExists{Proof: proofs}
 	case datastore.ErrNotFound:
-	default:
-		return err
 	}
-
-	err = start(ctx)
+	err = start(startCtx)
 	if err != nil {
 		return err
 	}
-
 	// handle incoming Fraud Proofs
-	go fraud.OnProof(ctx, subscription, stop)
+	go fraud.OnProof(lifecycleCtx, fservice, p, func(fraud.Proof) {
+		if err := stop(lifecycleCtx); err != nil {
+			log.Error(err)
+		}
+	})
 	return nil
-
 }

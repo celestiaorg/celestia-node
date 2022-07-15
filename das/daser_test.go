@@ -277,11 +277,12 @@ func TestDASer_stopsAfter_BEFP(t *testing.T) {
 
 	// create and start DASer
 	daser := NewDASer(shareServ, sub, mockGet, ds, f)
-	subscription, err := f.Subscribe(fraud.BadEncoding)
-	require.NoError(t, err)
 
 	require.NoError(t, daser.Start(ctx))
-	fraud.OnProof(ctx, subscription, daser.Stop)
+	fraud.OnProof(ctx, f, fraud.BadEncoding,
+		func(proof fraud.Proof) {
+			require.NoError(t, daser.Stop(ctx))
+		})
 	// wait for dasing catch-up routine fails
 	select {
 	case <-ctx.Done():

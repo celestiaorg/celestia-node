@@ -28,9 +28,10 @@ func Components(coreEndpoint string, cfg key.Config) fx.Option {
 // Service constructs a new state.Service.
 func Service(ctx context.Context, lc fx.Lifecycle, accessor state.Accessor, fservice fraud.Service) *state.Service {
 	serv := state.NewService(accessor)
+	lifecycleCtx := fxutil.WithLifecycle(ctx, lc)
 	lc.Append(fx.Hook{
-		OnStart: func(context.Context) error {
-			return services.FraudedLifecycle(fxutil.WithLifecycle(ctx, lc), fraud.BadEncoding, fservice, serv.Start, serv.Stop)
+		OnStart: func(startCtx context.Context) error {
+			return services.FraudLifecycle(startCtx, lifecycleCtx, fraud.BadEncoding, fservice, serv.Start, serv.Stop)
 		},
 		OnStop: serv.Stop,
 	})

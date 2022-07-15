@@ -34,12 +34,19 @@ func (s *subscription) Cancel() {
 	s.subscription.Cancel()
 }
 
-// OnProof accepts the subscription and waits for the next Fraud Proof.
+// OnProof subscribes on Fraud Proof.
 // In case a Fraud Proof is received, then the given handle function will be invoked.
-func OnProof(ctx context.Context, subscription Subscription, handle func(ctx context.Context) error) {
+func OnProof(ctx context.Context, subscriber Subscriber, p ProofType, handle func(proof Proof)) {
+	subscription, err := subscriber.Subscribe(p)
+	if err != nil {
+		log.Warn(err)
+		return
+	}
+	defer subscription.Cancel()
+
 	// At this point we receive already verified fraud proof,
 	// so there are no needs to call Validate.
-	_, err := subscription.Proof(ctx)
+	proof, err := subscription.Proof(ctx)
 	if err != nil {
 		if err != context.Canceled {
 			log.Errorw("reading next proof failed", "err", err)
@@ -47,8 +54,5 @@ func OnProof(ctx context.Context, subscription Subscription, handle func(ctx con
 		return
 	}
 
-	err = handle(ctx)
-	if err != nil {
-		log.Warn(err)
-	}
+	handle(proof)
 }

@@ -25,8 +25,8 @@ type service struct {
 	topicsLk sync.RWMutex
 	topics   map[ProofType]*topic
 
-	storeLk sync.RWMutex
-	stores  map[ProofType]datastore.Datastore
+	storesLk sync.RWMutex
+	stores   map[ProofType]datastore.Datastore
 
 	pubsub *pubsub.PubSub
 	getter headerFetcher
@@ -151,23 +151,25 @@ func (f *service) processIncoming(
 		"hash", hex.EncodeToString(extHeader.DAH.Hash()),
 		"from", msg.ReceivedFrom.String(),
 	)
-	f.storeLk.RLock()
+	f.storesLk.RLock()
 	store, ok := f.stores[proofType]
-	f.storeLk.RUnlock()
+	f.storesLk.RUnlock()
 	if ok {
 		err = put(ctx, store, string(proof.HeaderHash()), msg.Data)
 		if err != nil {
-			log.Warn(err)
+			log.Error(err)
 		}
+	} else {
+		log.Warnf("no store for incoming proofs type %s", proof.Type())
 	}
 	log.Warn("Shutting down services...")
 	return pubsub.ValidationAccept
 }
 
 func (f *service) Get(ctx context.Context, proofType ProofType) ([]Proof, error) {
-	f.storeLk.RLock()
+	f.storesLk.RLock()
 	store, ok := f.stores[proofType]
-	f.storeLk.RUnlock()
+	f.storesLk.RUnlock()
 	if !ok {
 		return nil, fmt.Errorf("fraud: proof type %s is not supported", proofType)
 	}
@@ -183,8 +185,8 @@ func (f *service) Get(ctx context.Context, proofType ProofType) ([]Proof, error)
 }
 
 func (f *service) initStore(proofType ProofType) {
-	f.storeLk.Lock()
-	defer f.storeLk.Unlock()
+	f.storesLk.Lock()
+	defer f.storesLk.Unlock()
 	_, ok := f.stores[proofType]
 	if !ok {
 		f.stores[proofType] = namespace.Wrap(f.ds, makeKey(proofType))

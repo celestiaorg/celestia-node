@@ -10,9 +10,9 @@
   * changed from NamespaceShareWithProof to ShareWithProof;
   * made ProofUnmarshaler public and extended return params;
   * fixed typo issues;
-- 2022.06.15 - Extend Proof interface with HeaderHash method;
+- 2022.06.15 - Extend Proof interface with HeaderHash method
 - 2022.06.22 - Updated rsmt2d to change isRow to Axis
-- 2022.07.03 - Add storage description;
+- 2022.07.03 - Add storage description
 
 ## Authors
 
@@ -171,7 +171,7 @@ type service struct {
    pubsub *pubsub.PubSub
    
    storeLk sync.RWMutex
-   store   map[ProofType]datastore.Datastore
+   stores   map[ProofType]datastore.Datastore
    
    topics map[ProofType]*pubsub.Topic
    unmarshallers map[ProofType]ProofUnmarshaller
