@@ -12,6 +12,7 @@
   * fixed typo issues;
 - 2022.06.15 - Extend Proof interface with HeaderHash method
 - 2022.06.22 - Updated rsmt2d to change isRow to Axis
+- 2022.07.03 - Add storage description
 
 ## Authors
 
@@ -165,9 +166,13 @@ type Subscription interface {
 ```
 
 ```go
-// FraudSub implements Subscriber and Broadcaster.
-type FraudSub struct {
+// service implements Subscriber and Broadcaster.
+type service struct {
    pubsub *pubsub.PubSub
+   
+   storesLk sync.RWMutex
+   stores   map[ProofType]datastore.Datastore
+   
    topics map[ProofType]*pubsub.Topic
    unmarshallers map[ProofType]ProofUnmarshaller
 }
@@ -188,20 +193,18 @@ Both full and light nodes should stop `DAS`, `Syncer` and `SubmitTx` services.
 
 4. Valid BadEncodingFraudProofs should be stored on the disk using `FraudStore` interface:
 
+### BEFP storage
+BEFP storage will be created on first subscription to Bad Encoding Fraud Proof.
+BEFP will be stored in datastore once it will be received, using `fraud/badEncodingProof` path and the corresponding block hash as the key:
 ```go
-type FraudStore interface {
-   // Put stores given Proof by header's hash in respective for this fraud proof directory
-   Put(path FraudProofType, headerHash string, p Proof) error
-   // Get retrieves Proof by header's hash from respective for this fraud proof directory
-   Get(path FraudProofType, headerHash string) (Proof, error)
-   // GetMany retrieves all Proofs from the respective for this fraud proof directory
-   GetMany(path FraudProofType) ([]Proof, error)
-}
-
-type fraudstore struct{
-   path string
-}
+//  put adds a Fraud Proof to the datastore with the given key.
+func put(ctx context.Context, store datastore.Datastore, key datastore.Key, proof []byte) error
 ```
+Once a node starts, it will check if its datastore has a BEFP:
+```go
+func getAll(ctx context.Context, ds datastore.Datastore) ([][]byte, error)
+```
+In case if response error will be empty (and not ```datastore.ErrNotFound```), then a BEFP has been already added to storage and the node should be halted.
 ### Bridge node behaviour
 Bridge nodes will behave as light nodes do by subscribing to BEFP fraud sub and listening for BEFPs. If a BEFP is received, it will similarly shut down all dependent services, including broadcasting new `ExtendedHeader`s to the network.
 

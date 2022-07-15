@@ -37,6 +37,10 @@ func (d *DummyService) UnregisterUnmarshaler(ProofType) error {
 	return nil
 }
 
+func (d *DummyService) Get(context.Context, ProofType) ([]Proof, error) {
+	return nil, nil
+}
+
 type dummySubscription struct {
 }
 

@@ -9,6 +9,7 @@ import (
 	"github.com/celestiaorg/celestia-node/fraud"
 	"github.com/celestiaorg/celestia-node/libs/fxutil"
 	"github.com/celestiaorg/celestia-node/node/key"
+	"github.com/celestiaorg/celestia-node/node/services"
 	"github.com/celestiaorg/celestia-node/service/state"
 )
 
@@ -25,12 +26,15 @@ func Components(coreEndpoint string, cfg key.Config) fx.Option {
 }
 
 // Service constructs a new state.Service.
-func Service(ctx context.Context, lc fx.Lifecycle, accessor state.Accessor, fsub fraud.Subscriber) *state.Service {
+func Service(ctx context.Context, lc fx.Lifecycle, accessor state.Accessor, fservice fraud.Service) *state.Service {
 	serv := state.NewService(accessor)
+	lifecycleCtx := fxutil.WithLifecycle(ctx, lc)
 	lc.Append(fx.Hook{
-		OnStart: serv.Start,
-		OnStop:  serv.Stop,
+		OnStart: func(startCtx context.Context) error {
+			return services.FraudLifecycle(startCtx, lifecycleCtx, fraud.BadEncoding, fservice, serv.Start, serv.Stop)
+		},
+		OnStop: serv.Stop,
 	})
-	go fraud.OnBEFP(fxutil.WithLifecycle(ctx, lc), fsub, serv.Stop)
+
 	return serv
 }

@@ -21,6 +21,7 @@ type ProofUnmarshaler func([]byte) (Proof, error)
 type Service interface {
 	Subscriber
 	Broadcaster
+	Getter
 }
 
 // Broadcaster is a generic interface that sends a `Proof` to all nodes subscribed on the Broadcaster's topic.
@@ -49,4 +50,9 @@ type Subscription interface {
 	// Proof returns already verified valid proof.
 	Proof(context.Context) (Proof, error)
 	Cancel()
+}
+
+// Getter encompasses the behavior to fetch stored FraudProofs.
+type Getter interface {
+	Get(context.Context, ProofType) ([]Proof, error)
 }

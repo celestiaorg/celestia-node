@@ -8,6 +8,8 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	"github.com/ipfs/go-datastore"
+	"github.com/ipfs/go-datastore/sync"
 	mdutils "github.com/ipfs/go-merkledag/test"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	mocknet "github.com/libp2p/go-libp2p/p2p/net/mock"
@@ -91,5 +93,5 @@ func createService(t *testing.T) (Service, *mockStore) {
 		pubsub.WithMessageSignaturePolicy(pubsub.StrictNoSign))
 	require.NoError(t, err)
 	store := createStore(t, 10)
-	return NewService(ps, store.GetByHeight), store
+	return NewService(ps, store.GetByHeight, sync.MutexWrap(datastore.NewMapDatastore())), store
 }

@@ -8,6 +8,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/ipfs/go-datastore"
+	"github.com/ipfs/go-datastore/namespace"
 	"github.com/libp2p/go-libp2p-core/peer"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 )
@@ -23,20 +25,25 @@ type service struct {
 	topicsLk sync.RWMutex
 	topics   map[ProofType]*topic
 
+	storesLk sync.RWMutex
+	stores   map[ProofType]datastore.Datastore
+
 	pubsub *pubsub.PubSub
 	getter headerFetcher
+	ds     datastore.Datastore
 }
 
-func NewService(p *pubsub.PubSub, getter headerFetcher) Service {
+func NewService(p *pubsub.PubSub, getter headerFetcher, ds datastore.Datastore) Service {
 	return &service{
 		pubsub: p,
 		getter: getter,
 		topics: make(map[ProofType]*topic),
+		stores: make(map[ProofType]datastore.Datastore),
+		ds:     ds,
 	}
 }
 
 func (f *service) Subscribe(proofType ProofType) (Subscription, error) {
-	// TODO: @vgonkivs check if fraud proof is in fraud store, then return with error
 	f.topicsLk.Lock()
 	t, ok := f.topics[proofType]
 	f.topicsLk.Unlock()
@@ -63,8 +70,6 @@ func (f *service) RegisterUnmarshaler(proofType ProofType, u ProofUnmarshaler) e
 		func(ctx context.Context, _ peer.ID, msg *pubsub.Message) pubsub.ValidationResult {
 			return f.processIncoming(ctx, proofType, msg)
 		},
-		// make validation synchronous.
-		pubsub.WithValidatorInline(true),
 	)
 	if err != nil {
 		return err
@@ -72,6 +77,7 @@ func (f *service) RegisterUnmarshaler(proofType ProofType, u ProofUnmarshaler) e
 	f.topicsLk.Lock()
 	f.topics[proofType] = &topic{topic: t, unmarshal: u}
 	f.topicsLk.Unlock()
+	f.initStore(proofType)
 	return nil
 }
 
@@ -119,8 +125,6 @@ func (f *service) processIncoming(
 		return pubsub.ValidationReject
 	}
 
-	// create a timeout for block fetching since our validator will be called synchronously
-	// and getter is a blocking function.
 	newCtx, cancel := context.WithTimeout(ctx, fetchHeaderTimeout)
 	extHeader, err := f.getter(newCtx, proof.Height())
 	defer cancel()
@@ -147,8 +151,46 @@ func (f *service) processIncoming(
 		"hash", hex.EncodeToString(extHeader.DAH.Hash()),
 		"from", msg.ReceivedFrom.String(),
 	)
+	f.storesLk.RLock()
+	store, ok := f.stores[proofType]
+	f.storesLk.RUnlock()
+	if ok {
+		err = put(ctx, store, string(proof.HeaderHash()), msg.Data)
+		if err != nil {
+			log.Error(err)
+		}
+	} else {
+		log.Warnf("no store for incoming proofs type %s", proof.Type())
+	}
 	log.Warn("Shutting down services...")
 	return pubsub.ValidationAccept
+}
+
+func (f *service) Get(ctx context.Context, proofType ProofType) ([]Proof, error) {
+	f.storesLk.RLock()
+	store, ok := f.stores[proofType]
+	f.storesLk.RUnlock()
+	if !ok {
+		return nil, fmt.Errorf("fraud: proof type %s is not supported", proofType)
+	}
+
+	f.topicsLk.RLock()
+	t, ok := f.topics[proofType]
+	f.topicsLk.RUnlock()
+	if !ok {
+		return nil, fmt.Errorf("fraud: unmarshaler for proof type %s is not registered", proofType)
+	}
+
+	return getAll(ctx, store, t.unmarshal)
+}
+
+func (f *service) initStore(proofType ProofType) {
+	f.storesLk.Lock()
+	defer f.storesLk.Unlock()
+	_, ok := f.stores[proofType]
+	if !ok {
+		f.stores[proofType] = namespace.Wrap(f.ds, makeKey(proofType))
+	}
 }
 
 func getSubTopic(p ProofType) string {

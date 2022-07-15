@@ -33,14 +33,17 @@ func HeaderSyncer(
 	ex header.Exchange,
 	store header.Store,
 	sub header.Subscriber,
-	fsub fraud.Subscriber,
+	fservice fraud.Service,
 ) (*sync.Syncer, error) {
 	syncer := sync.NewSyncer(ex, store, sub)
+	lifecycleCtx := fxutil.WithLifecycle(ctx, lc)
 	lc.Append(fx.Hook{
-		OnStart: syncer.Start,
-		OnStop:  syncer.Stop,
+		OnStart: func(startCtx context.Context) error {
+			return FraudLifecycle(startCtx, lifecycleCtx, fraud.BadEncoding, fservice, syncer.Start, syncer.Stop)
+		},
+		OnStop: syncer.Stop,
 	})
-	go fraud.OnBEFP(fxutil.WithLifecycle(ctx, lc), fsub, syncer.Stop)
+
 	return syncer, nil
 }
 
@@ -154,21 +157,28 @@ func DASer(
 	fservice fraud.Service,
 ) *das.DASer {
 	das := das.NewDASer(avail, sub, hstore, ds, fservice)
+	lifecycleCtx := fxutil.WithLifecycle(ctx, lc)
 	lc.Append(fx.Hook{
-		OnStart: das.Start,
-		OnStop:  das.Stop,
+		OnStart: func(startContext context.Context) error {
+			return FraudLifecycle(startContext, lifecycleCtx, fraud.BadEncoding, fservice, das.Start, das.Stop)
+		},
+		OnStop: das.Stop,
 	})
-	go fraud.OnBEFP(fxutil.WithLifecycle(ctx, lc), fservice, das.Stop)
+
 	return das
 }
 
-// FraudService constructs fraud proof service for bad encoding fraud proofs (BEFPs).
-func FraudService(sub *pubsub.PubSub, hstore header.Store) (fraud.Service, fraud.Service, error) {
-	f := fraud.NewService(sub, hstore.GetByHeight)
+// FraudService constructs fraud proof service.
+func FraudService(
+	sub *pubsub.PubSub,
+	hstore header.Store,
+	ds datastore.Batching,
+) (fraud.Service, error) {
+	f := fraud.NewService(sub, hstore.GetByHeight, ds)
 	if err := f.RegisterUnmarshaler(fraud.BadEncoding, fraud.UnmarshalBEFP); err != nil {
-		return nil, nil, err
+		return nil, err
 	}
-	return f, f, nil
+	return f, nil
 }
 
 // LightAvailability constructs light share availability wrapped in cache availability.
@@ -211,4 +221,34 @@ func FullAvailability(
 		},
 	})
 	return ca
+}
+
+// FraudLifecycle controls the lifecycle of service depending on fraud proofs.
+// It starts the service only if no fraud-proof exists and stops the service automatically
+// if a proof arrives after the service was started.
+func FraudLifecycle(
+	startCtx, lifecycleCtx context.Context,
+	p fraud.ProofType,
+	fservice fraud.Service,
+	start, stop func(context.Context) error,
+) error {
+	proofs, err := fservice.Get(startCtx, p)
+	switch err {
+	default:
+		return err
+	case nil:
+		return &fraud.ErrFraudExists{Proof: proofs}
+	case datastore.ErrNotFound:
+	}
+	err = start(startCtx)
+	if err != nil {
+		return err
+	}
+	// handle incoming Fraud Proofs
+	go fraud.OnProof(lifecycleCtx, fservice, p, func(fraud.Proof) {
+		if err := stop(lifecycleCtx); err != nil {
+			log.Error(err)
+		}
+	})
+	return nil
 }

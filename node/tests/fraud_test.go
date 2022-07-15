@@ -40,7 +40,9 @@ func TestFraudProofBroadcasting(t *testing.T) {
 	require.NoError(t, err)
 	addrs, err := peer.AddrInfoToP2pAddrs(host.InfoFromHost(bridge.Host))
 	require.NoError(t, err)
-	full := sw.NewFullNode(node.WithTrustedPeers(addrs[0].String()))
+
+	store := node.MockStore(t, node.DefaultConfig(node.Full))
+	full := sw.NewNodeWithStore(node.Full, store, node.WithTrustedPeers(addrs[0].String()))
 
 	err = full.Start(ctx)
 	require.NoError(t, err)
@@ -58,4 +60,13 @@ func TestFraudProofBroadcasting(t *testing.T) {
 
 	_, err = full.HeaderServ.GetByHeight(newCtx, 15)
 	require.ErrorIs(t, err, context.DeadlineExceeded)
+
+	require.NoError(t, full.Stop(ctx))
+	require.NoError(t, sw.RemoveNode(full, node.Full))
+
+	full = sw.NewNodeWithStore(node.Full, store, node.WithTrustedPeers(addrs[0].String()))
+	require.Error(t, full.Start(ctx))
+	proofs, err := full.FraudServ.Get(ctx, fraud.BadEncoding)
+	require.NoError(t, err)
+	require.NotNil(t, proofs)
 }
