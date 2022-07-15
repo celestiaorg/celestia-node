@@ -57,7 +57,7 @@ func ParseCoreFlags(cmd *cobra.Command, env *Env) error {
 		if err != nil {
 			return err
 		}
-		env.AddOptions(node.WithRemoteCore(ip, rpc))
+		env.AddOptions(node.WithRemoteCoreIP(ip), node.WithRemoteCoreRPCPort(rpc))
 
 		grpc := cmd.Flag(coreGRPCFlag).Value.String()
 		// sanity check gRPC endpoint

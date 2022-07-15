@@ -1,9 +1,15 @@
 package node
 
-// WithRemoteCore configures Node to start with remote Core.
-func WithRemoteCore(ip, port string) Option {
+// WithRemoteCoreIP configures Node to connect to the given remote Core IP.
+func WithRemoteCoreIP(ip string) Option {
 	return func(sets *settings) {
 		sets.cfg.Core.IP = ip
+	}
+}
+
+// WithRemoteCoreRPCPort configures Node to connect to the given remote Core port.
+func WithRemoteCoreRPCPort(port string) Option {
+	return func(sets *settings) {
 		sets.cfg.Core.RPCPort = port
 	}
 }
