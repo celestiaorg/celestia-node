@@ -7,7 +7,7 @@
 * 2022-07-11: Stylistic improvements from @renaynay
 * 2022-07-14: Stylistic improvements from @liamsi
 * 2022-07-15: Stylistic improvements from @rootulp and @bidon15
-* 
+
 ## Authors 
 
 @Wondertan @liamsi
@@ -62,10 +62,10 @@ network launch. Basing on the former, the plan is focused on unblocking the reco
 analysis first and then proceed with steady covering of our codebase with traces for the complex codepaths as well as 
 metrics and dashboards for "measurables".
 
-Fortunately, the `ShrEx` analysis can be performed with _tracing_ only(more on that in [Tracing](./#Tracing)), so the
-decision for the celestia-node team is to cover with traces only the _necessary_ for the current "ShrEx" stack code as 
-the initial response to the ADR, leaving the rest to be integrated in the background for the devs in the team once they 
-are free as well as for the efficient bootstrapping into the code for the new devs.
+Fortunately, the `ShrEx` analysis can be performed with _tracing_ only(more on that in Tracing Design section below), 
+so the decision for the celestia-node team is to cover with traces only the _necessary_ for the current "ShrEx" stack 
+code as the initial response to the ADR, leaving the rest to be integrated in the background for the devs in the team 
+once they are free as well as for the efficient bootstrapping into the code for the new devs.
 
 #### Second Priority
 
@@ -122,7 +122,7 @@ are free to use any recommended solution or any unlisted.
 
 ## Design
 
-### Tracing
+### Tracing Design
 
 Tracing allows to see _how_ any process progresses through different modules, APIs and networks, as well as timings of 
 each operation and any events or errors as they occur.
@@ -225,7 +225,7 @@ Jaeger example
     tp.Shutdown(ctx)
 ```
 
-### Metrics
+### Metrics Design
 
 // WIP
 
@@ -247,7 +247,7 @@ event log.
 - [Uptrace OpenTelemetry Docs](https://opentelemetry.uptrace.dev/)
 > Provides simple Go API guide for metrics and traces
 - [OpenTelemetry Docs](https://opentelemetry.io/docs/)
-- [Prometheus Docs](prometheus.io/docs/introduction/overview)
+- [Prometheus Docs](https://prometheus.io/docs/introduction/overview)
 
 ## Status
 Proposed
