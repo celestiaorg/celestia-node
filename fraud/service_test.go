@@ -218,7 +218,7 @@ func createService(t *testing.T) (Service, *mockStore) {
 		pubsub.WithMessageSignaturePolicy(pubsub.StrictNoSign))
 	require.NoError(t, err)
 	store := createStore(t, 10)
-	return NewService(ps, store.GetByHeight, sync.MutexWrap(datastore.NewMapDatastore())), store
+	return NewService(ps, net.Hosts()[0], store.GetByHeight, sync.MutexWrap(datastore.NewMapDatastore())), store
 }
 
 func createServiceWithHost(ctx context.Context, t *testing.T, host host.Host) (Service, *mockStore) {

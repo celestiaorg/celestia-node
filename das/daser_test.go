@@ -272,7 +272,7 @@ func TestDASer_stopsAfter_BEFP(t *testing.T) {
 	mockGet, shareServ, sub, _ := createDASerSubcomponents(t, bServ, 15, 15, avail)
 
 	// create fraud service and break one header
-	f := fraud.NewService(ps, mockGet.GetByHeight, ds)
+	f := fraud.NewService(ps, net.Hosts()[0], mockGet.GetByHeight, ds)
 	mockGet.headers[1] = header.CreateFraudExtHeader(t, mockGet.headers[1], bServ)
 	newCtx := context.Background()
 

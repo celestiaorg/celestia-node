@@ -164,10 +164,11 @@ func DASer(
 // FraudService constructs fraud proof service.
 func FraudService(
 	sub *pubsub.PubSub,
+	host host.Host,
 	hstore header.Store,
 	ds datastore.Batching,
 ) fraud.Service {
-	return fraud.NewService(sub, hstore.GetByHeight, ds)
+	return fraud.NewService(sub, host, hstore.GetByHeight, ds)
 }
 
 // LightAvailability constructs light share availability.

@@ -3,10 +3,13 @@ package fraud
 import (
 	"context"
 	"encoding"
+	"errors"
 	"fmt"
 
 	"github.com/celestiaorg/celestia-node/header"
 )
+
+var ErrProofNotFound = errors.New("fraud: proof was not found")
 
 type ErrFraudExists struct {
 	Proof []Proof
