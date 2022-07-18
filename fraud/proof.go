@@ -2,10 +2,13 @@ package fraud
 
 import (
 	"encoding"
+	"errors"
 	"fmt"
 
 	"github.com/celestiaorg/celestia-node/header"
 )
+
+var ErrProofNotFound = errors.New("fraud: proof was not found")
 
 type ErrFraudExists struct {
 	Proof []Proof
@@ -25,6 +28,15 @@ func (p ProofType) String() string {
 	switch p {
 	case BadEncoding:
 		return "badencoding"
+	default:
+		panic(fmt.Sprintf("fraud: invalid proof type: %d", p))
+	}
+}
+
+func toProof(p int32) ProofType {
+	switch p {
+	case 0:
+		return BadEncoding
 	default:
 		panic(fmt.Sprintf("fraud: invalid proof type: %d", p))
 	}
