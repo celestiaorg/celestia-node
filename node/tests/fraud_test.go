@@ -73,3 +73,62 @@ func TestFraudProofBroadcasting(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, proofs)
 }
+
+/*
+ Test-Case: Light node receives Fraud Proof using Fraud Sync
+ Pre-Requisites:
+ - CoreClient is started by swamp.
+ Steps:
+ 1. Create a Bridge Node(BN) with broken extended header at height 10.
+ 2. Start a BN.
+ 3. Create a Full Node(FN) with a connection to BN as a trusted peer.
+ 4. Start a FN.
+ 5. Subscribe to BEFP and wait when it will be received.
+ 6. Start LN once BEFP is received and verified by FN.
+ 7. Wait until LN will be connected to FN and fetch Fraud Proof.
+*/
+func TestFraudProofSyncing(t *testing.T) {
+	sw := swamp.NewSwamp(t, swamp.WithBlockTime(time.Millisecond*100))
+	cfg := node.DefaultConfig(node.Bridge)
+	cfg.P2P.Bootstrapper = true
+	const defaultTimeInterval = time.Second * 3
+	bridge := sw.NewBridgeNode(
+		node.WithConfig(cfg),
+		node.WithRefreshRoutingTablePeriod(defaultTimeInterval),
+		node.WithDiscoveryInterval(defaultTimeInterval),
+		node.WithAdvertiseInterval(defaultTimeInterval),
+		node.WithHeaderConstructFn(header.FraudMaker(t, 10)),
+	)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+	t.Cleanup(cancel)
+
+	err := bridge.Start(ctx)
+	require.NoError(t, err)
+	addr := host.InfoFromHost(bridge.Host)
+	addrs, err := peer.AddrInfoToP2pAddrs(addr)
+	require.NoError(t, err)
+
+	full := sw.NewFullNode(
+		node.WithTrustedPeers(addrs[0].String()),
+		node.WithRefreshRoutingTablePeriod(defaultTimeInterval),
+		node.WithAdvertiseInterval(defaultTimeInterval),
+	)
+
+	ln := sw.NewLightNode(
+		node.WithBootstrappers([]peer.AddrInfo{*addr}),
+		node.WithRefreshRoutingTablePeriod(defaultTimeInterval),
+		node.WithDiscoveryInterval(defaultTimeInterval),
+	)
+
+	require.NoError(t, full.Start(ctx))
+	subscr, err := full.FraudServ.Subscribe(fraud.BadEncoding)
+	require.NoError(t, err)
+	_, err = subscr.Proof(ctx)
+	require.NoError(t, err)
+
+	require.NoError(t, ln.Start(ctx))
+	subsC, err := ln.FraudServ.Subscribe(fraud.BadEncoding)
+	require.NoError(t, err)
+	_, err = subsC.Proof(ctx)
+	require.NoError(t, err)
+}

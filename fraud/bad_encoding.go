@@ -2,6 +2,7 @@ package fraud
 
 import (
 	"bytes"
+	"encoding/hex"
 	"errors"
 	"fmt"
 
@@ -57,8 +58,8 @@ func (p *BadEncodingProof) Type() ProofType {
 }
 
 // HeaderHash returns block hash.
-func (p *BadEncodingProof) HeaderHash() []byte {
-	return p.headerHash
+func (p *BadEncodingProof) HeaderHash() string {
+	return hex.EncodeToString(p.headerHash)
 }
 
 // Height returns block height.

@@ -22,6 +22,7 @@ type Service interface {
 	Subscriber
 	Broadcaster
 	Getter
+	Syncer
 }
 
 // Broadcaster is a generic interface that sends a `Proof` to all nodes subscribed on the Broadcaster's topic.
@@ -49,4 +50,10 @@ type Subscription interface {
 	// Proof returns already verified valid proof.
 	Proof(context.Context) (Proof, error)
 	Cancel()
+}
+
+// Syncer encompasses the behavior to get fraud proofs from external peers.
+type Syncer interface {
+	// Sync allows to get Fraud Proofs from other nodes.
+	Sync(context.Context)
 }

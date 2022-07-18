@@ -3,13 +3,10 @@ package fraud
 import (
 	"context"
 	"encoding"
-	"errors"
 	"fmt"
 
 	"github.com/celestiaorg/celestia-node/header"
 )
-
-var ErrProofNotFound = errors.New("fraud: proof was not found")
 
 type ErrFraudExists struct {
 	Proof []Proof
@@ -38,7 +35,7 @@ type Proof interface {
 	// Type returns the exact type of fraud proof.
 	Type() ProofType
 	// HeaderHash returns the block hash.
-	HeaderHash() []byte
+	HeaderHash() string
 	// Height returns the block height corresponding to the Proof.
 	Height() uint64
 	// Validate check the validity of fraud proof.

@@ -162,13 +162,20 @@ func DASer(
 }
 
 // FraudService constructs fraud proof service.
-func FraudService(
+func FraudService[A share.Availability](
 	sub *pubsub.PubSub,
 	host host.Host,
 	hstore header.Store,
 	ds datastore.Batching,
+	avail A,
 ) fraud.Service {
-	return fraud.NewService(sub, host, hstore.GetByHeight, ds)
+	opts := make([]fraud.ServiceOptions, 0)
+	switch any(avail).(type) {
+	case *share.LightAvailability:
+		opts = append(opts, fraud.WithEnabledSyncer())
+	default:
+	}
+	return fraud.NewService(sub, host, hstore.GetByHeight, ds, opts...)
 }
 
 // LightAvailability constructs light share availability.
@@ -255,17 +262,14 @@ func FraudLifecycle(
 		return &fraud.ErrFraudExists{Proof: proofs}
 	case datastore.ErrNotFound:
 	}
-	err = start(startCtx)
-	if err != nil {
-		return err
-	}
 	// handle incoming Fraud Proofs
 	go fraud.OnProof(lifecycleCtx, fservice, p, func(fraud.Proof) {
 		if err := stop(lifecycleCtx); err != nil {
 			log.Error(err)
 		}
 	})
-	return nil
+	fservice.Sync(lifecycleCtx)
+	return start(startCtx)
 }
 
 // Metrics enables metrics for services.

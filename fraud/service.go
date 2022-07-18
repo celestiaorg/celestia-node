@@ -1,14 +1,15 @@
 package fraud
 
 import (
+	"bytes"
 	"context"
 	"encoding/hex"
 	"errors"
 	"fmt"
 	"sync"
-	"time"
 
 	"github.com/ipfs/go-datastore"
+	"github.com/libp2p/go-libp2p-core/event"
 	"github.com/libp2p/go-libp2p-core/host"
 	"github.com/libp2p/go-libp2p-core/network"
 	"github.com/libp2p/go-libp2p-core/peer"
@@ -16,15 +17,24 @@ import (
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	"golang.org/x/sync/errgroup"
 
+	"github.com/celestiaorg/go-libp2p-messenger/serde"
+
 	pb "github.com/celestiaorg/celestia-node/fraud/pb"
 	"github.com/celestiaorg/celestia-node/params"
-	"github.com/celestiaorg/go-libp2p-messenger/serde"
 )
 
-// fetchHeaderTimeout duration of GetByHeight request to fetch an ExtendedHeader.
-const fetchHeaderTimeout = time.Minute * 2
+// fraudRequests is amount of external requests that will be done in order to get fraud proofs from another peers.
+const fraudRequests = 5
 
 var fraudProtocolID = protocol.ID(fmt.Sprintf("/fraud/v0.0.1/%s", params.DefaultNetwork()))
+
+type ServiceOptions func(*service)
+
+func WithEnabledSyncer() ServiceOptions {
+	return func(s *service) {
+		s.enabledSyncer = true
+	}
+}
 
 // service is responsible for validating and propagating Fraud Proofs.
 // It implements the Service interface.
@@ -39,10 +49,19 @@ type service struct {
 	host   host.Host
 	getter headerFetcher
 	ds     datastore.Datastore
+
+	sync          sync.Once
+	enabledSyncer bool
 }
 
-func NewService(p *pubsub.PubSub, host host.Host, getter headerFetcher, ds datastore.Datastore) Service {
-	return &service{
+func NewService(
+	p *pubsub.PubSub,
+	host host.Host,
+	getter headerFetcher,
+	ds datastore.Datastore,
+	opts ...ServiceOptions,
+) Service {
+	s := &service{
 		pubsub: p,
 		host:   host,
 		getter: getter,
@@ -50,6 +69,10 @@ func NewService(p *pubsub.PubSub, host host.Host, getter headerFetcher, ds datas
 		stores: make(map[ProofType]datastore.Datastore),
 		ds:     ds,
 	}
+	for _, opt := range opts {
+		opt(s)
+	}
+	return s
 }
 
 func (f *service) Subscribe(proofType ProofType) (_ Subscription, err error) {
@@ -98,20 +121,32 @@ func (f *service) processIncoming(
 		}
 		return pubsub.ValidationReject
 	}
+	msg.ValidatorData = proof
+	if msg.Local {
+		return f.processLocal(ctx, proofType, proof.HeaderHash(), msg.Data)
+	}
+	result := f.processExternal(ctx, proof, from)
+	if result != pubsub.ValidationAccept {
+		return result
+	}
 
-	newCtx, cancel := context.WithTimeout(ctx, fetchHeaderTimeout)
-	extHeader, err := f.getter(newCtx, proof.Height())
-	defer cancel()
+	err = f.put(ctx, proof.Type(), proof.HeaderHash(), msg.Data)
 	if err != nil {
-		// Timeout means there is a problem with the network.
-		// As we cannot prove or discard Fraud Proof, user must restart the node.
-		if errors.Is(err, context.DeadlineExceeded) {
-			log.Errorw("failed to fetch header. Timeout reached.")
-			// TODO(@vgonkivs): add handling for this case. As we are not able to verify fraud proof.
-		}
+		log.Error(err)
+	}
+	return result
+}
+
+func (f *service) processExternal(
+	ctx context.Context,
+	proof Proof,
+	from peer.ID,
+) pubsub.ValidationResult {
+	extHeader, err := f.getter(ctx, proof.Height())
+	if err != nil {
 		log.Errorw("failed to fetch header to verify a fraud proof",
 			"err", err, "proofType", proof.Type(), "height", proof.Height())
-		return pubsub.ValidationIgnore
+		return pubsub.ValidationReject
 	}
 	err = proof.Validate(extHeader)
 	if err != nil {
@@ -125,20 +160,33 @@ func (f *service) processIncoming(
 		"hash", hex.EncodeToString(extHeader.DAH.Hash()),
 		"from", from.String(),
 	)
-	msg.ValidatorData = proof
-	f.storesLk.Lock()
-	store, ok := f.stores[proofType]
-	if !ok {
-		store = initStore(proofType, f.ds)
-		f.stores[proofType] = store
-	}
-	f.storesLk.Unlock()
-	err = put(ctx, store, string(proof.HeaderHash()), msg.Data)
-	if err != nil {
-		log.Error(err)
-	}
 	log.Warn("Shutting down services...")
 	return pubsub.ValidationAccept
+}
+
+func (f *service) processLocal(
+	ctx context.Context,
+	proofType ProofType,
+	hash string,
+	rawData []byte,
+) pubsub.ValidationResult {
+	f.storesLk.RLock()
+	storage := f.stores[proofType]
+	f.storesLk.RUnlock()
+	data, err := getByHash(ctx, storage, hash)
+	if err != nil {
+		// TODO @vgonkivs: should we panic here???
+		panic(fmt.Sprintf("unexpected error while fetching a proof from the storage: %s", err.Error()))
+	}
+
+	if bytes.Compare(data, rawData) == 0 {
+		log.Warnw("received fraud proof",
+			"proofType", proofType,
+			"headerHash", hash,
+		)
+		return pubsub.ValidationAccept
+	}
+	return pubsub.ValidationReject
 }
 
 func (f *service) Get(ctx context.Context, proofType ProofType) ([]Proof, error) {
@@ -153,66 +201,15 @@ func (f *service) Get(ctx context.Context, proofType ProofType) ([]Proof, error)
 	return getAll(ctx, store, proofType)
 }
 
-func (f *service) sendRequest(
-	ctx context.Context,
-	p peer.ID, message *pb.FraudMessage,
-) ([]Proof, error) {
-	stream, err := f.host.NewStream(ctx, p, fraudProtocolID)
-	if err != nil {
-		return nil, err
+func (f *service) put(ctx context.Context, proofType ProofType, hash string, data []byte) error {
+	f.storesLk.Lock()
+	store, ok := f.stores[proofType]
+	if !ok {
+		store = initStore(proofType, f.ds)
+		f.stores[proofType] = store
 	}
-
-	defer func() {
-		if err := stream.Close(); err != nil {
-			log.Warn(err)
-		}
-	}()
-
-	_, err = serde.Write(stream, message)
-	if err != nil {
-		stream.Reset() //nolint:errcheck
-		return nil, err
-	}
-
-	_, err = serde.Read(stream, message)
-	if err != nil {
-		stream.Reset() //nolint:errcheck
-		return nil, err
-	}
-
-	if len(message.RespondedProofs) == 0 {
-		stream.Reset() //nolint:errcheck
-		return nil, ErrProofNotFound
-	}
-
-	var (
-		proofs = make([]Proof, 0)
-		wg     = &sync.WaitGroup{}
-		mu     = &sync.Mutex{}
-	)
-	wg.Add(len(message.RespondedProofs))
-	for _, data := range message.RespondedProofs {
-		go func(data *pb.RespondedProof) {
-			defer wg.Done()
-			f.topicsLk.RLock()
-			t, ok := f.topics[toProof(data.Type)]
-			f.topicsLk.RUnlock()
-			if !ok {
-				log.Errorf("unmarshaler for proof type %s is not registered", toProof(data.Type))
-				return
-			}
-			proof, err := t.unmarshal(data.Value)
-			if err != nil {
-				log.Error(err)
-				return
-			}
-			mu.Lock()
-			proofs = append(proofs, proof)
-			mu.Unlock()
-		}(data)
-	}
-	wg.Wait()
-	return proofs, nil
+	f.storesLk.Unlock()
+	return put(ctx, store, hash, data)
 }
 
 func (f *service) handleFraudMessageRequest(stream network.Stream) {
@@ -224,26 +221,16 @@ func (f *service) handleFraudMessageRequest(stream network.Stream) {
 		return
 	}
 
-	errg, ctx := errgroup.WithContext(context.TODO())
-	mu := &sync.Mutex{}
+	errg, ctx := errgroup.WithContext(context.Background())
+	mu := sync.Mutex{}
 	for _, p := range msg.RequestedProofType {
 		proofType := toProof(p)
 		errg.Go(func() error {
-			f.topicsLk.Lock()
-			t, ok := f.topics[proofType]
-			f.topicsLk.RUnlock()
-			if !ok {
-				return fmt.Errorf("fraud: unmarshaler for proof type %s is not registered", proofType)
-			}
-
-			f.storesLk.RLock()
-			store, ok := f.stores[proofType]
-			f.storesLk.RUnlock()
-			if !ok {
-				return fmt.Errorf("fraud: no store for requested proofs type %s", proofType)
-			}
-			proofs, err := getAll(ctx, store, t.unmarshal)
+			proofs, err := f.Get(ctx, proofType)
 			if err != nil {
+				if errors.Is(err, datastore.ErrNotFound) {
+					return nil
+				}
 				return err
 			}
 
@@ -273,6 +260,89 @@ func (f *service) handleFraudMessageRequest(stream network.Stream) {
 	}
 }
 
-func getSubTopic(p ProofType) string {
-	return p.String() + "-sub"
+func (f *service) Sync(ctx context.Context) {
+	f.sync.Do(func() {
+		f.host.SetStreamHandler(fraudProtocolID, f.handleFraudMessageRequest)
+		if f.enabledSyncer {
+			go f.syncFraudProofs(ctx)
+		}
+	})
+}
+
+func (f *service) syncFraudProofs(ctx context.Context) {
+	log.Debug("start fetching Fraud Proofs")
+	f.topicsLk.RLock()
+	proofTypes := make([]int32, 0, len(f.topics))
+	for proofType := range f.topics {
+		proofTypes = append(proofTypes, int32(proofType))
+	}
+	f.topicsLk.RUnlock()
+	sub, err := f.host.EventBus().Subscribe(&event.EvtPeerIdentificationCompleted{})
+	if err != nil {
+		log.Error(err)
+		return
+	}
+	defer sub.Close()
+	connStatus := event.EvtPeerIdentificationCompleted{}
+	for i := 0; i < fraudRequests; i++ {
+		select {
+		case <-ctx.Done():
+			return
+		case e := <-sub.Out():
+			connStatus = e.(event.EvtPeerIdentificationCompleted)
+		}
+
+		if connStatus.Peer == f.host.ID() {
+			continue
+		}
+		go func(p peer.ID) {
+			respProofs, err := requestProofs(ctx, f.host, p, proofTypes)
+			if err != nil {
+				log.Error(err)
+				return
+			}
+			if len(respProofs) == 0 {
+				log.Debug("proof was not found")
+				return
+			}
+			log.Debug("got Fraud proofs from peer: ", connStatus.Peer)
+			wg := sync.WaitGroup{}
+			wg.Add(len(respProofs))
+			for _, data := range respProofs {
+				go func(data *pb.RespondedProof) {
+					defer wg.Done()
+					proof, err := Unmarshal(ProofType(data.Type), data.Value)
+					if err != nil {
+						if !errors.Is(err, &errNoUnmarshaler{}) {
+							f.pubsub.BlacklistPeer(p)
+						}
+						return
+					}
+					h, err := f.getter(ctx, proof.Height())
+					if err != nil {
+						log.Error(err)
+						return
+					}
+					err = proof.Validate(h)
+					if err != nil {
+						f.pubsub.BlacklistPeer(p)
+						return
+					}
+
+					err = f.put(ctx, proof.Type(), proof.HeaderHash(), data.Value)
+					if err != nil {
+						log.Error(err)
+					}
+
+					f.topicsLk.RLock()
+					err = f.topics[proof.Type()].Publish(ctx, data.Value, pubsub.WithLocalPublication(true))
+					f.topicsLk.RUnlock()
+					if err != nil {
+						log.Error(err)
+					}
+				}(data)
+			}
+			wg.Wait()
+		}(connStatus.Peer)
+	}
 }

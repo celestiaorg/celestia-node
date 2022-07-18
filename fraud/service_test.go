@@ -3,6 +3,7 @@ package fraud
 import (
 	"context"
 	"encoding/hex"
+	"errors"
 	"testing"
 	"time"
 
@@ -10,12 +11,14 @@ import (
 
 	"github.com/ipfs/go-datastore"
 	"github.com/ipfs/go-datastore/sync"
+	mdutils "github.com/ipfs/go-merkledag/test"
 	"github.com/libp2p/go-libp2p-core/host"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	pubsubpb "github.com/libp2p/go-libp2p-pubsub/pb"
 	mocknet "github.com/libp2p/go-libp2p/p2p/net/mock"
 
 	"github.com/celestiaorg/celestia-node/header"
+	"github.com/celestiaorg/celestia-node/ipld"
 )
 
 func TestService_Subscribe(t *testing.T) {
@@ -116,8 +119,19 @@ func TestService_ReGossiping(t *testing.T) {
 	// create first fraud service that will broadcast incorrect Fraud Proof
 	pserviceA, _ := createServiceWithHost(ctx, t, net.Hosts()[0])
 	require.NoError(t, err)
-	serviceA := pserviceA.(*service)
 
+	// create and break byzantine error
+	_, err = generateByzantineError(ctx, t, h, mdutils.Bserv())
+	require.Error(t, err)
+	var errByz *ipld.ErrByzantine
+	require.True(t, errors.As(err, &errByz))
+	errByz.Index = 2
+
+	fserviceA := serviceA.(*service)
+	require.NotNil(t, fserviceA)
+
+	blackList, err := pubsub.NewTimeCachedBlacklist(time.Hour)
+	require.NoError(t, err)
 	// create pub sub in order to listen for Fraud Proof
 	psB, err := pubsub.NewGossipSub(ctx, net.Hosts()[1], // -> B
 		pubsub.WithMessageSignaturePolicy(pubsub.StrictNoSign))
@@ -188,9 +202,6 @@ func TestService_Get(t *testing.T) {
 	proof := newValidProof()
 	bin, err := proof.MarshalBinary()
 	require.NoError(t, err)
-	pService, _ := createService(t)
-	service := pService.(*service)
-	require.NotNil(t, service)
 
 	// try to fetch proof
 	_, err = pService.Get(ctx, proof.Type())
@@ -227,5 +238,5 @@ func createServiceWithHost(ctx context.Context, t *testing.T, host host.Host) (S
 		pubsub.WithMessageSignaturePolicy(pubsub.StrictNoSign))
 	require.NoError(t, err)
 	store := createStore(t, 10)
-	return NewService(ps, store.GetByHeight, sync.MutexWrap(datastore.NewMapDatastore())), store
+	return NewService(ps, host, store.GetByHeight, sync.MutexWrap(datastore.NewMapDatastore())), store
 }
