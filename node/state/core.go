@@ -10,10 +10,11 @@ import (
 // CoreAccessor constructs a new instance of state.Accessor over
 // a celestia-core connection.
 func CoreAccessor(
-	endpoint string,
+	coreIP,
+	grpcPort string,
 ) func(fx.Lifecycle, *apptypes.KeyringSigner) (state.Accessor, error) {
 	return func(lc fx.Lifecycle, signer *apptypes.KeyringSigner) (state.Accessor, error) {
-		ca := state.NewCoreAccessor(signer, endpoint)
+		ca := state.NewCoreAccessor(signer, coreIP, grpcPort)
 		lc.Append(fx.Hook{
 			OnStart: ca.Start,
 			OnStop:  ca.Stop,

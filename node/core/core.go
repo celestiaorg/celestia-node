@@ -16,12 +16,13 @@ import (
 
 // Config combines all configuration fields for managing the relationship with a Core node.
 type Config struct {
-	Protocol   string
-	RemoteAddr string
-	GRPCAddr   string
+	IP       string
+	RPCPort  string
+	GRPCPort string
 }
 
-// DefaultConfig returns default configuration for Core subsystem.
+// DefaultConfig returns default configuration for managing the
+// node's connection to a Celestia-Core endpoint.
 func DefaultConfig() Config {
 	return Config{}
 }
@@ -33,7 +34,7 @@ func Components(cfg Config) fx.Option {
 		fxutil.ProvideAs(headercore.NewExchange, new(header.Exchange)),
 		fx.Invoke(HeaderListener),
 		fx.Provide(func(lc fx.Lifecycle) (core.Client, error) {
-			if cfg.RemoteAddr == "" {
+			if cfg.IP == "" {
 				return nil, fmt.Errorf("no celestia-core endpoint given")
 			}
 			client, err := RemoteClient(cfg)
@@ -71,5 +72,5 @@ func HeaderListener(
 
 // RemoteClient provides a constructor for core.Client over RPC.
 func RemoteClient(cfg Config) (core.Client, error) {
-	return core.NewRemote(cfg.Protocol, cfg.RemoteAddr)
+	return core.NewRemote(cfg.IP, cfg.RPCPort)
 }

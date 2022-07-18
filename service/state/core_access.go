@@ -21,9 +21,10 @@ import (
 type CoreAccessor struct {
 	signer *apptypes.KeyringSigner
 
-	coreEndpoint string
-	coreConn     *grpc.ClientConn
-	queryCli     banktypes.QueryClient
+	coreIP   string
+	grpcPort string
+	coreConn *grpc.ClientConn
+	queryCli banktypes.QueryClient
 }
 
 // NewCoreAccessor dials the given celestia-core endpoint and
@@ -31,11 +32,13 @@ type CoreAccessor struct {
 // connection.
 func NewCoreAccessor(
 	signer *apptypes.KeyringSigner,
-	endpoint string,
+	coreIP,
+	grpcPort string,
 ) *CoreAccessor {
 	return &CoreAccessor{
-		signer:       signer,
-		coreEndpoint: endpoint,
+		signer:   signer,
+		coreIP:   coreIP,
+		grpcPort: grpcPort,
 	}
 }
 
@@ -44,7 +47,8 @@ func (ca *CoreAccessor) Start(ctx context.Context) error {
 		return fmt.Errorf("core-access: already connected to core endpoint")
 	}
 	// dial given celestia-core endpoint
-	client, err := grpc.DialContext(ctx, ca.coreEndpoint, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	endpoint := fmt.Sprintf("%s:%s", ca.coreIP, ca.grpcPort)
+	client, err := grpc.DialContext(ctx, endpoint, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		return err
 	}

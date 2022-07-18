@@ -63,8 +63,11 @@ func NewSwamp(t *testing.T, options ...Option) *Swamp {
 	// so, we are not creating bridge nodes with each one containing its own core client
 	// instead we are assigning all created BNs to 1 Core from the swamp
 	core.StartTestNode(ctx, t, ic.App, ic.CoreCfg)
-	protocol, ip := core.GetEndpoint(ic.CoreCfg)
-	remote, err := core.NewRemote(protocol, ip)
+	endpoint, err := core.GetEndpoint(ic.CoreCfg)
+	require.NoError(t, err)
+	ip, port, err := net.SplitHostPort(endpoint)
+	require.NoError(t, err)
+	remote, err := core.NewRemote(ip, port)
 	require.NoError(t, err)
 
 	err = remote.Start()
