@@ -37,7 +37,7 @@ func (s *subscription) Cancel() {
 // OnProof subscribes on a single Fraud Proof.
 // In case a Fraud Proof is received, then the given handle function will be invoked.
 func OnProof(ctx context.Context, subscriber Subscriber, p ProofType, handle func(proof Proof)) {
-	subscription, err := subscriber.Subscribe(p)
+	subscription, err := subscriber.Subscribe(ctx, p)
 	if err != nil {
 		log.Error(err)
 		return

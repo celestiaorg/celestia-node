@@ -35,7 +35,7 @@ func TestService_UnregisterUnmarshaler(t *testing.T) {
 func TestService_SubscribeFails(t *testing.T) {
 	s, _ := createService(t)
 
-	_, err := s.Subscribe(BadEncoding)
+	_, err := s.Subscribe(context.TODO(), BadEncoding)
 	require.Error(t, err)
 }
 
@@ -43,7 +43,7 @@ func TestService_Subscribe(t *testing.T) {
 	s, _ := createService(t)
 	require.NoError(t, s.RegisterUnmarshaler(BadEncoding, UnmarshalBEFP))
 
-	_, err := s.Subscribe(BadEncoding)
+	_, err := s.Subscribe(context.TODO(), BadEncoding)
 	require.NoError(t, err)
 }
 
@@ -72,7 +72,7 @@ func TestService_Broadcast(t *testing.T) {
 	var errByz *ipld.ErrByzantine
 	require.True(t, errors.As(err, &errByz))
 
-	subs, err := s.Subscribe(BadEncoding)
+	subs, err := s.Subscribe(context.TODO(), BadEncoding)
 	require.NoError(t, err)
 	require.NoError(t, s.Broadcast(ctx, CreateBadEncodingProof([]byte("hash"), uint64(h.Height), errByz)))
 	p, err := subs.Proof(ctx)

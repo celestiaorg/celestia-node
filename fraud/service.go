@@ -3,10 +3,8 @@ package fraud
 import (
 	"context"
 	"encoding/hex"
-	"errors"
 	"fmt"
 	"sync"
-	"time"
 
 	"github.com/ipfs/go-datastore"
 	"github.com/ipfs/go-datastore/namespace"
@@ -21,9 +19,6 @@ import (
 	"github.com/celestiaorg/celestia-node/params"
 	"github.com/celestiaorg/go-libp2p-messenger/serde"
 )
-
-// fetchHeaderTimeout duration of GetByHeight request to fetch an ExtendedHeader.
-const fetchHeaderTimeout = time.Minute * 2
 
 var fraudProtocolID = protocol.ID(fmt.Sprintf("/fraud/v0.0.1/%s", params.DefaultNetwork()))
 
@@ -40,6 +35,7 @@ type service struct {
 	host   host.Host
 	getter headerFetcher
 	ds     datastore.Datastore
+	once   sync.Once
 }
 
 func NewService(p *pubsub.PubSub, host host.Host, getter headerFetcher, ds datastore.Datastore) Service {
@@ -53,17 +49,25 @@ func NewService(p *pubsub.PubSub, host host.Host, getter headerFetcher, ds datas
 	}
 }
 
-func (f *service) Subscribe(proofType ProofType) (Subscription, error) {
+func (f *service) Subscribe(ctx context.Context, proofType ProofType) (Subscription, error) {
 	f.topicsLk.Lock()
 	t, ok := f.topics[proofType]
 	f.topicsLk.Unlock()
 	if !ok {
 		return nil, fmt.Errorf("fraud: unmarshaler for %s proof is not registered", proofType)
 	}
+	topic, err := newSubscription(t)
+	if err != nil {
+		return nil, err
+	}
 
 	f.host.SetStreamHandler(fraudProtocolID, f.handleFraudMessageRequest)
 
-	return newSubscription(t)
+	go f.once.Do(func() {
+		f.syncFraudProofs(ctx, proofType)
+	})
+
+	return topic, nil
 }
 
 func (f *service) RegisterUnmarshaler(proofType ProofType, u ProofUnmarshaler) error {
@@ -91,6 +95,7 @@ func (f *service) RegisterUnmarshaler(proofType ProofType, u ProofUnmarshaler) e
 	f.topics[proofType] = &topic{topic: t, unmarshal: u}
 	f.topicsLk.Unlock()
 	f.initStore(proofType)
+
 	return nil
 }
 
@@ -138,19 +143,11 @@ func (f *service) processIncoming(
 		return pubsub.ValidationReject
 	}
 
-	newCtx, cancel := context.WithTimeout(ctx, fetchHeaderTimeout)
-	extHeader, err := f.getter(newCtx, proof.Height())
-	defer cancel()
+	extHeader, err := f.getter(ctx, proof.Height())
 	if err != nil {
-		// Timeout means there is a problem with the network.
-		// As we cannot prove or discard Fraud Proof, user must restart the node.
-		if errors.Is(err, context.DeadlineExceeded) {
-			log.Errorw("failed to fetch header. Timeout reached.")
-			// TODO(@vgonkivs): add handling for this case. As we are not able to verify fraud proof.
-		}
 		log.Errorw("failed to fetch header to verify a fraud proof",
 			"err", err, "proofType", proof.Type(), "height", proof.Height())
-		return pubsub.ValidationIgnore
+		return pubsub.ValidationReject
 	}
 	err = proof.Validate(extHeader)
 	if err != nil {
@@ -323,6 +320,49 @@ func (f *service) handleFraudMessageRequest(stream network.Stream) {
 	_, err = serde.Write(stream, msg)
 	if err != nil {
 		log.Error(err)
+	}
+}
+
+func (f *service) syncFraudProofs(ctx context.Context, proofType ProofType) {
+	f.topicsLk.RLock()
+	t, ok := f.topics[proofType]
+	f.topicsLk.RUnlock()
+	if !ok {
+		log.Warn("fraud: no topic registered for %s proof", proofType)
+		return
+	}
+	ev, err := t.topic.EventHandler()
+	if err != nil {
+		log.Warn(err)
+	}
+	for i := 0; i < 5; i++ {
+		event, err := ev.NextPeerEvent(ctx)
+		if err != nil {
+			log.Error(err)
+			return
+		}
+		if event.Type != pubsub.PeerJoin {
+			continue
+		}
+
+		msg := &pb.FraudMessage{RequestedProofType: []int32{int32(proofType)}}
+		proofs, err := f.sendRequest(ctx, event.Peer, msg)
+		if err != nil {
+			log.Warn(err)
+			continue
+		}
+
+		for _, proof := range proofs {
+			bin, err := proof.MarshalBinary()
+			if err != nil {
+				continue
+			}
+			err = t.publish(ctx, bin, pubsub.WithLocalPublication(true))
+			if err != nil {
+				log.Warn(err)
+			}
+		}
+		return
 	}
 }
 

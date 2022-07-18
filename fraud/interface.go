@@ -36,7 +36,7 @@ type Broadcaster interface {
 // network.
 type Subscriber interface {
 	// Subscribe allows to subscribe on a Proof pub sub topic by its type.
-	Subscribe(ProofType) (Subscription, error)
+	Subscribe(context.Context, ProofType) (Subscription, error)
 	// RegisterUnmarshaler registers unmarshaler for the given ProofType.
 	// If there is no unmarshaler for `ProofType`, then `Subscribe` returns an error.
 	RegisterUnmarshaler(ProofType, ProofUnmarshaler) error
