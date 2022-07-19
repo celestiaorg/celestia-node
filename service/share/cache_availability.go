@@ -46,16 +46,6 @@ func NewCacheAvailability(avail Availability, ds datastore.Batching) *CacheAvail
 	}
 }
 
-// Start starts the underlying Availability.
-func (ca *CacheAvailability) Start(ctx context.Context) error {
-	return ca.avail.Start(ctx)
-}
-
-// Stop is an alias for Close to conform to the Availability interface.
-func (ca *CacheAvailability) Stop(ctx context.Context) error {
-	return ca.Close(ctx)
-}
-
 // SharesAvailable will store, upon success, the hash of the given Root to disk.
 func (ca *CacheAvailability) SharesAvailable(ctx context.Context, root *Root) error {
 	// short-circuit if the given root is minimum DAH of an empty data square

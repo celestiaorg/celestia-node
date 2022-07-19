@@ -255,14 +255,6 @@ func NewTestBrokenAvailability() Availability {
 	return &TestBrokenAvailability{}
 }
 
-func (b *TestBrokenAvailability) Start(context.Context) error {
-	return nil
-}
-
-func (b *TestBrokenAvailability) Stop(context.Context) error {
-	return nil
-}
-
 func (b *TestBrokenAvailability) SharesAvailable(_ context.Context, root *Root) error {
 	if b.Root == nil || bytes.Equal(b.Root.Hash(), root.Hash()) {
 		return ErrNotAvailable
@@ -289,14 +281,6 @@ type TestSuccessfulAvailability struct {
 // returns successfully when SharesAvailable is called.
 func NewTestSuccessfulAvailability() Availability {
 	return &TestSuccessfulAvailability{}
-}
-
-func (tsa *TestSuccessfulAvailability) Start(context.Context) error {
-	return nil
-}
-
-func (tsa *TestSuccessfulAvailability) Stop(context.Context) error {
-	return nil
 }
 
 func (tsa *TestSuccessfulAvailability) SharesAvailable(context.Context, *Root) error {
