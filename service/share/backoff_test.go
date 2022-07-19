@@ -42,7 +42,7 @@ func TestBackoff_ResetBackoffPeriod(t *testing.T) {
 	b := newBackoffConnector(m.Hosts()[0], backoff.NewFixedBackoff(time.Minute))
 	info := host.InfoFromHost(m.Hosts()[1])
 	require.NoError(t, b.Connect(ctx, *info))
-	nexttry := b.backoffCache[info.ID].nexttry
-	b.RestartBackOff(info.ID)
-	require.True(t, b.backoffCache[info.ID].nexttry.After(nexttry))
+	nexttry := b.cacheData[info.ID].nexttry
+	b.RestartBackoff(info.ID)
+	require.True(t, b.cacheData[info.ID].nexttry.After(nexttry))
 }

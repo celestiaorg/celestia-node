@@ -19,9 +19,10 @@ const (
 	// peerWeight is a weight of discovered peers.
 	// peerWeight is a number that will be assigned to all discovered full nodes,
 	// so ConnManager will not break a connection with them.
-	peerWeight = 1000
-	topic      = "full"
-	interval   = time.Second * 10
+	peerWeight                = 1000
+	topic                     = "full"
+	interval                  = time.Second * 10
+	defaultConnectionInterval = interval * 3
 )
 
 // waitF calculates time to restart announcing.
@@ -72,7 +73,7 @@ func (d *discovery) handlePeerFound(ctx context.Context, topic string, peer peer
 
 // ensurePeers ensures we always have 'peerLimit' connected peers.
 // It starts peer discovery every 30 seconds until peer cache reaches peersLimit.
-// Discovery is restarted if any previously discovered peers disconnect.
+// Discovery is restarted if any previously connected peers disconnect.
 func (d *discovery) ensurePeers(ctx context.Context) {
 	// subscribe on Event Bus in order to catch disconnected peers and restart the discovery
 	sub, err := d.host.EventBus().Subscribe(&event.EvtPeerConnectednessChanged{})
@@ -80,11 +81,11 @@ func (d *discovery) ensurePeers(ctx context.Context) {
 		log.Error(err)
 		return
 	}
-	t := time.NewTicker(interval * 3)
+	t := time.NewTicker(defaultConnectionInterval)
 	defer func() {
 		t.Stop()
 		if err = sub.Close(); err != nil {
-			log.Warn(err)
+			log.Error(err)
 		}
 	}()
 
@@ -113,10 +114,10 @@ func (d *discovery) ensurePeers(ctx context.Context) {
 			if connStatus.Connectedness != network.NotConnected || !d.set.Contains(connStatus.Peer) {
 				continue
 			}
-			d.connector.RestartBackOff(connStatus.Peer)
+			d.connector.RestartBackoff(connStatus.Peer)
 			d.set.Remove(connStatus.Peer)
 			d.host.ConnManager().UntagPeer(connStatus.Peer, topic)
-			t.Reset(interval * 3)
+			t.Reset(defaultConnectionInterval)
 		}
 	}
 }
