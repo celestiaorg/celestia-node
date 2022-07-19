@@ -17,8 +17,8 @@ type backoffConnector struct {
 	h       host.Host
 	backoff backoff.BackoffFactory
 
-	cacheLk      sync.Mutex
-	backoffCache map[peer.ID]connectionCacheData
+	cacheLk   sync.Mutex
+	cacheData map[peer.ID]connectionCacheData
 }
 
 // connectionCacheData stores time when next connection attempt with the remote peer.
@@ -29,9 +29,9 @@ type connectionCacheData struct {
 
 func newBackoffConnector(h host.Host, factory backoff.BackoffFactory) *backoffConnector {
 	return &backoffConnector{
-		h:            h,
-		backoff:      factory,
-		backoffCache: make(map[peer.ID]connectionCacheData),
+		h:         h,
+		backoff:   factory,
+		cacheData: make(map[peer.ID]connectionCacheData),
 	}
 }
 
@@ -39,15 +39,15 @@ func newBackoffConnector(h host.Host, factory backoff.BackoffFactory) *backoffCo
 func (b *backoffConnector) Connect(ctx context.Context, p peer.AddrInfo) error {
 	strategy := b.backoff()
 	b.cacheLk.Lock()
-	cacheData, ok := b.backoffCache[p.ID]
+	cacheData, ok := b.cacheData[p.ID]
 	if ok {
 		if time.Now().Before(cacheData.nexttry) {
 			b.cacheLk.Unlock()
-			return fmt.Errorf("share: discovery: backoff period is not ended for peer=%s", p.ID.String())
+			return fmt.Errorf("share/discovery: backoff period is not ended for peer=%s", p.ID.String())
 		}
-		strategy = b.backoffCache[p.ID].backoff
+		strategy = b.cacheData[p.ID].backoff
 	}
-	b.backoffCache[p.ID] = connectionCacheData{
+	b.cacheData[p.ID] = connectionCacheData{
 		time.Now().Add(strategy.Delay()),
 		strategy,
 	}
@@ -55,17 +55,17 @@ func (b *backoffConnector) Connect(ctx context.Context, p peer.AddrInfo) error {
 	return b.h.Connect(ctx, p)
 }
 
-// RestartBackOff resets delay time between attempts and add a delay for the next connection attempt to remote peer.
-// Mainly it will be call when host will receive a notification that remote peer was disconnected.
-func (b *backoffConnector) RestartBackOff(p peer.ID) {
+// RestartBackoff resets delay time between attempts and adds a delay for the next connection attempt to remote peer.
+// It will mostly be called when host receives a notification that remote peer was disconnected.
+func (b *backoffConnector) RestartBackoff(p peer.ID) {
 	b.cacheLk.Lock()
 	defer b.cacheLk.Unlock()
-	cache, ok := b.backoffCache[p]
+	cache, ok := b.cacheData[p]
 	if !ok {
 		return
 	}
 	cache.backoff.Reset()
-	b.backoffCache[p] = connectionCacheData{
+	b.cacheData[p] = connectionCacheData{
 		time.Now().Add(cache.backoff.Delay()),
 		cache.backoff,
 	}
