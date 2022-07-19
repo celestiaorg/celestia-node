@@ -196,51 +196,61 @@ func TestRestartNodeDiscovery(t *testing.T) {
 		node.WithBootstrappers([]peer.AddrInfo{*addr}),
 		node.WithRefreshRoutingTablePeriod(time.Second*10),
 	)
-
-	nodes := []*node.Node{full1, full2, full3}
-	ch := make(chan peer.ID)
+	full5 := sw.NewFullNode(
+		node.WithBootstrappers([]peer.AddrInfo{*addr}),
+		node.WithRefreshRoutingTablePeriod(time.Second*10),
+	)
+	nodes := []*node.Node{full1, full2, full3, full4}
 	sub, err := full1.Host.EventBus().Subscribe(&event.EvtPeerConnectednessChanged{})
 	require.NoError(t, err)
+	sub1, err := full5.Host.EventBus().Subscribe(&event.EvtPeerConnectednessChanged{})
+	require.NoError(t, err)
 	defer sub.Close()
+	defer sub1.Close()
 	for index := range nodes {
 		require.NoError(t, nodes[index].Start(ctx))
 		assert.Equal(t, *addr, nodes[index].Bootstrappers[0])
 		assert.True(t, nodes[index].Host.Network().Connectedness(addr.ID) == network.Connected)
 	}
 
-	go func() {
-		for e := range sub.Out() {
-			connStatus := e.(event.EvtPeerConnectednessChanged)
-			if connStatus.Peer == full2.Host.ID() || connStatus.Peer == full3.Host.ID() ||
-				connStatus.Peer == full4.Host.ID() {
-				ch <- connStatus.Peer
-			}
+	for i := 0; i < 3; i++ {
+		e := <-sub.Out()
+		connStatus := e.(event.EvtPeerConnectednessChanged)
+		id := connStatus.Peer
+		if id != full2.Host.ID() && id != full3.Host.ID() && id != full4.Host.ID() {
+			t.Fatal("unexpected peer connected")
 		}
-	}()
-	for i := 0; i < 2; i++ {
-		select {
-		case <-ctx.Done():
-			t.Fatal("peer was not found")
-		case p := <-ch:
-			assert.True(t, full1.Host.Network().Connectedness(p) == network.Connected)
-
-		}
+		assert.True(t, full1.Host.Network().Connectedness(id) == network.Connected)
 	}
-	require.NoError(t, full4.Start(ctx))
-	time.Sleep(time.Second * 30)
+	require.NoError(t, full5.Start(ctx))
+
+	select {
+	case <-sub1.Out():
+	case e := <-sub.Out():
+		connStatus := e.(event.EvtPeerConnectednessChanged)
+		if host.InfoFromHost(full5.Host).ID != connStatus.Peer {
+			t.Fatal()
+		}
+	case <-ctx.Done():
+		t.Fatal(ctx.Err())
+
+	}
 	require.NoError(t, full3.Stop(ctx))
 	require.NoError(t, full3.Host.Close())
 
-	for i := 0; i < 2; i++ {
-		select {
-		case <-ctx.Done():
-			t.Fatal("peer was not disconnected")
-		case p := <-ch:
-			conn := network.Connected
-			if host.InfoFromHost(full3.Host).ID == p {
-				conn = network.NotConnected
-			}
-			assert.True(t, full1.Host.Network().Connectedness(p) == conn)
+	e := <-sub.Out()
+	connStatus := e.(event.EvtPeerConnectednessChanged)
+	if host.InfoFromHost(full3.Host).ID == connStatus.Peer {
+		assert.True(t, connStatus.Connectedness == network.NotConnected)
+	}
+
+	select {
+	case <-ctx.Done():
+		t.Fatal("peer was not connected")
+	case e := <-sub.Out():
+		connStatus := e.(event.EvtPeerConnectednessChanged)
+		if host.InfoFromHost(full5.Host).ID == connStatus.Peer {
+			assert.True(t, connStatus.Connectedness == network.Connected)
 		}
 	}
 }
