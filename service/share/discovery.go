@@ -9,7 +9,6 @@ import (
 	"github.com/libp2p/go-libp2p-core/host"
 	"github.com/libp2p/go-libp2p-core/network"
 	"github.com/libp2p/go-libp2p-core/peer"
-	"github.com/libp2p/go-libp2p/p2p/discovery/backoff"
 )
 
 const (
@@ -51,7 +50,7 @@ func NewDiscovery(
 		newLimitedSet(peersLimit),
 		h,
 		d,
-		newBackoffConnector(h, backoff.NewFixedBackoff(time.Hour)),
+		newBackoffConnector(h, defaultBackoffFactory),
 		peersLimit,
 		discInterval,
 		advertiseInterval,
@@ -95,6 +94,7 @@ func (d *discovery) ensurePeers(ctx context.Context) {
 		log.Error(err)
 		return
 	}
+	go d.connector.processExpiredPeers(ctx)
 	t := time.NewTicker(d.discoveryInterval)
 	defer func() {
 		t.Stop()
@@ -126,7 +126,7 @@ func (d *discovery) ensurePeers(ctx context.Context) {
 			connStatus := e.(event.EvtPeerConnectednessChanged)
 			if connStatus.Connectedness == network.NotConnected {
 				if d.set.Contains(connStatus.Peer) {
-					d.connector.Reset(connStatus.Peer)
+					d.connector.RestartBackoff(connStatus.Peer)
 					d.set.Remove(connStatus.Peer)
 					d.host.ConnManager().UntagPeer(connStatus.Peer, topic)
 					t.Reset(d.discoveryInterval)
