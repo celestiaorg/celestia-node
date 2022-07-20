@@ -70,7 +70,7 @@ var fullCmd = &cobra.Command{
 			return err
 		}
 
-		err = cmdnode.ParseMiscFlags(cmd)
+		err = cmdnode.ParseMiscFlags(cmd, env)
 		if err != nil {
 			return err
 		}
