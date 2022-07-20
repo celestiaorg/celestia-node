@@ -6,12 +6,18 @@ import (
 	"net/http"
 	"net/http/pprof"
 	"strings"
+	"time"
 
 	logging "github.com/ipfs/go-log/v2"
 	"github.com/spf13/cobra"
 	flag "github.com/spf13/pflag"
 	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetrichttp"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
+	"go.opentelemetry.io/otel/metric/global"
+	controller "go.opentelemetry.io/otel/sdk/metric/controller/basic"
+	processor "go.opentelemetry.io/otel/sdk/metric/processor/basic"
+	selector "go.opentelemetry.io/otel/sdk/metric/selector/simple"
 	"go.opentelemetry.io/otel/sdk/resource"
 	tracesdk "go.opentelemetry.io/otel/sdk/trace"
 	semconv "go.opentelemetry.io/otel/semconv/v1.10.0"
@@ -25,6 +31,8 @@ var (
 	pprofFlag           = "pprof"
 	tracingFlag         = "tracing"
 	tracingEndpointFlag = "tracing.endpoint"
+	metricsFlag         = "metrics"
+	metricsEndpointFlag = "metrics.endpoint"
 )
 
 // MiscFlags gives a set of hardcoded miscellaneous flags.
@@ -60,6 +68,18 @@ and their lower-case forms`,
 		tracingEndpointFlag,
 		"localhost:4318",
 		"Sets HTTP endpoint for OTLP traces to be exported to. Depends on '--tracing'",
+	)
+
+	flags.Bool(
+		metricsFlag,
+		false,
+		"Enables OTLP metrics with HTTP exporter",
+	)
+
+	flags.String(
+		metricsEndpointFlag,
+		"localhost:4318",
+		"Sets HTTP endpoint for OTLP metrics to be exported to. Depends on '--metrics'",
 	)
 
 	return flags
@@ -114,6 +134,10 @@ func ParseMiscFlags(cmd *cobra.Command, env *Env) error {
 	}
 
 	ok, err = cmd.Flags().GetBool(tracingFlag)
+	if err != nil {
+		return err
+	}
+
 	if ok {
 		exp, err := otlptracehttp.New(cmd.Context(),
 			otlptracehttp.WithEndpoint(cmd.Flag(tracingEndpointFlag).Value.String()),
@@ -135,6 +159,42 @@ func ParseMiscFlags(cmd *cobra.Command, env *Env) error {
 			)),
 		)
 		otel.SetTracerProvider(tp)
+	}
+
+	ok, err = cmd.Flags().GetBool(metricsFlag)
+	if err != nil {
+		return err
+	}
+
+	if ok {
+		exp, err := otlpmetrichttp.New(cmd.Context(),
+			otlpmetrichttp.WithEndpoint(cmd.Flag(metricsEndpointFlag).Value.String()),
+			otlpmetrichttp.WithCompression(otlpmetrichttp.GzipCompression),
+			otlpmetrichttp.WithInsecure(),
+		)
+		if err != nil {
+			return err
+		}
+
+		pusher := controller.New(
+			processor.NewFactory(
+				selector.NewWithHistogramDistribution(),
+				exp,
+			),
+			controller.WithExporter(exp),
+			controller.WithCollectPeriod(2*time.Second),
+			controller.WithResource(resource.NewWithAttributes(
+				semconv.SchemaURL,
+				semconv.ServiceNameKey.String(fmt.Sprintf("Celestia-%s", env.NodeType.String())),
+				// TODO(@Wondertan): Versioning: semconv.ServiceVersionKey
+			)),
+		)
+
+		err = pusher.Start(cmd.Context())
+		if err != nil {
+			return err
+		}
+		global.SetMeterProvider(pusher)
 	}
 
 	return err
