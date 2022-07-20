@@ -9,7 +9,6 @@ import (
 	"github.com/libp2p/go-libp2p-core/host"
 	"github.com/libp2p/go-libp2p-core/network"
 	"github.com/libp2p/go-libp2p-core/peer"
-	"github.com/libp2p/go-libp2p/p2p/discovery/backoff"
 )
 
 const (
@@ -44,7 +43,7 @@ func newDiscovery(h host.Host, d core.Discovery) *discovery {
 		newLimitedSet(peersLimit),
 		h,
 		d,
-		newBackoffConnector(h, backoff.NewFixedBackoff(time.Hour)),
+		newBackoffConnector(h, defaultBackoffFactory),
 	}
 }
 
@@ -81,6 +80,9 @@ func (d *discovery) ensurePeers(ctx context.Context) {
 		log.Error(err)
 		return
 	}
+
+	go d.connector.processExpiredPeers(ctx)
+
 	t := time.NewTicker(defaultConnectionInterval)
 	defer func() {
 		t.Stop()

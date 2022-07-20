@@ -226,7 +226,7 @@ func TestRestartNodeDiscovery(t *testing.T) {
 	case e := <-sub.Out():
 		connStatus := e.(event.EvtPeerConnectednessChanged)
 		if host.InfoFromHost(full5.Host).ID != connStatus.Peer {
-			t.Fatal()
+			t.Fatal("unexpected peer connected")
 		}
 	case <-ctx.Done():
 		t.Fatal(ctx.Err())
@@ -241,13 +241,16 @@ func TestRestartNodeDiscovery(t *testing.T) {
 		assert.True(t, connStatus.Connectedness == network.NotConnected)
 	}
 
-	select {
-	case <-ctx.Done():
-		t.Fatal("peer was not connected")
-	case e := <-sub.Out():
-		connStatus := e.(event.EvtPeerConnectednessChanged)
-		if host.InfoFromHost(full5.Host).ID == connStatus.Peer {
-			assert.True(t, connStatus.Connectedness == network.Connected)
+	for {
+		select {
+		case <-ctx.Done():
+			t.Fatal("peer was not connected")
+		case e := <-sub.Out():
+			connStatus := e.(event.EvtPeerConnectednessChanged)
+			if host.InfoFromHost(full5.Host).ID == connStatus.Peer {
+				assert.True(t, connStatus.Connectedness == network.Connected)
+				return
+			}
 		}
 	}
 }
