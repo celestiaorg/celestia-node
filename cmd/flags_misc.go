@@ -11,7 +11,7 @@ import (
 	"github.com/spf13/cobra"
 	flag "github.com/spf13/pflag"
 	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/exporters/jaeger"
+	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
 	"go.opentelemetry.io/otel/sdk/resource"
 	tracesdk "go.opentelemetry.io/otel/sdk/trace"
 	semconv "go.opentelemetry.io/otel/semconv/v1.10.0"
@@ -20,10 +20,11 @@ import (
 )
 
 var (
-	logLevelFlag       = "log.level"
-	logLevelModuleFlag = "log.level.module"
-	tracingJaegerFlag  = "tracing.jaeger"
-	pprofFlag          = "pprof"
+	logLevelFlag        = "log.level"
+	logLevelModuleFlag  = "log.level.module"
+	pprofFlag           = "pprof"
+	tracingFlag         = "tracing"
+	tracingEndpointFlag = "tracing.endpoint"
 )
 
 // MiscFlags gives a set of hardcoded miscellaneous flags.
@@ -43,23 +44,29 @@ and their lower-case forms`,
 		"<module>:<level>, e.g. pubsub:debug",
 	)
 
-	flags.String(
-		tracingJaegerFlag,
-		"",
-		"Enables Jaeger tracing. Expects an URL",
-	)
-
 	flags.Bool(
 		pprofFlag,
 		false,
 		"Enables standard profiling handler (pprof) and exposes the profiles on port 6000",
 	)
 
+	flags.Bool(
+		tracingFlag,
+		false,
+		"Enables OTLP tracing with HTTP exporter",
+	)
+
+	flags.String(
+		tracingEndpointFlag,
+		"localhost:4318",
+		"Sets HTTP endpoint for OTLP traces to be exported to. Depends on '--tracing'",
+	)
+
 	return flags
 }
 
 // ParseMiscFlags parses miscellaneous flags from the given cmd and applies values to Env.
-func ParseMiscFlags(cmd *cobra.Command) error {
+func ParseMiscFlags(cmd *cobra.Command, env *Env) error {
 	logLevel := cmd.Flag(logLevelFlag).Value.String()
 	if logLevel != "" {
 		level, err := logging.LevelFromString(logLevel)
@@ -86,28 +93,15 @@ func ParseMiscFlags(cmd *cobra.Command) error {
 		}
 	}
 
-	tracingJaegerURL := cmd.Flag(tracingJaegerFlag).Value.String()
-	if tracingJaegerURL != "" {
-		exp, err := jaeger.New(jaeger.WithCollectorEndpoint(jaeger.WithEndpoint(tracingJaegerURL)))
-		if err != nil {
-			return err
-		}
-
-		tp := tracesdk.NewTracerProvider(
-			// Always be sure to batch in production.
-			tracesdk.WithBatcher(exp),
-			// Record information about this application in a Resource.
-			tracesdk.WithResource(resource.NewWithAttributes(
-				semconv.SchemaURL,
-				semconv.ServiceNameKey.String("celestia-node"),
-			)),
-		)
-		otel.SetTracerProvider(tp)
+	ok, err := cmd.Flags().GetBool(pprofFlag)
+	if err != nil {
+		return err
 	}
 
-	ok, err := cmd.Flags().GetBool(pprofFlag)
 	if ok {
 		// TODO(@Wondertan): Eventually, this should be registered on http server in RPC
+		//  by passing the http.Server with preregistered pprof handlers to the node.
+		//  Node should not register pprof itself.
 		go func() {
 			mux := http.NewServeMux()
 			mux.HandleFunc("/debug/pprof/", pprof.Index)
@@ -118,5 +112,30 @@ func ParseMiscFlags(cmd *cobra.Command) error {
 			log.Println(http.ListenAndServe("0.0.0.0:6000", mux))
 		}()
 	}
+
+	ok, err = cmd.Flags().GetBool(tracingFlag)
+	if ok {
+		exp, err := otlptracehttp.New(cmd.Context(),
+			otlptracehttp.WithEndpoint(cmd.Flag(tracingEndpointFlag).Value.String()),
+			otlptracehttp.WithCompression(otlptracehttp.GzipCompression),
+			otlptracehttp.WithInsecure(),
+		)
+		if err != nil {
+			return err
+		}
+
+		tp := tracesdk.NewTracerProvider(
+			// Always be sure to batch in production.
+			tracesdk.WithBatcher(exp),
+			// Record information about this application in a Resource.
+			tracesdk.WithResource(resource.NewWithAttributes(
+				semconv.SchemaURL,
+				semconv.ServiceNameKey.String(fmt.Sprintf("Celestia-%s", env.NodeType.String())),
+				// TODO(@Wondertan): Versioning: semconv.ServiceVersionKey
+			)),
+		)
+		otel.SetTracerProvider(tp)
+	}
+
 	return err
 }
