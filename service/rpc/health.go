@@ -10,12 +10,24 @@ const healthEndpoint = "/health"
 // HealthResponse represents the response to a
 // `/health` request.
 type HealthResponse struct {
-	Status string `json:"status"`
+	StateService  bool             `json:"state_service"`
+	ShareService  bool             `json:"share_service"`
+	DASStatus     DasStateResponse `json:"das_status"`
+	HeaderSyncing bool             `json:"header_syncing"`
 }
 
 func (h *Handler) handleHealthRequest(w http.ResponseWriter, r *http.Request) {
 	availResp := &HealthResponse{
-		Status: "ok",
+		StateService:  !h.state.IsStopped(),
+		ShareService:  !h.share.IsStopped(),
+		HeaderSyncing: h.header.IsSyncing(),
+	}
+
+	if h.das != nil {
+		dasState := new(DasStateResponse)
+		dasState.SampleRoutine = h.das.SampleRoutineState()
+		dasState.CatchUpRoutine = h.das.CatchUpRoutineState()
+		availResp.DASStatus = *dasState
 	}
 
 	resp, err := json.Marshal(availResp)

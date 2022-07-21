@@ -82,7 +82,7 @@ func (s *Service) Start(context.Context) error {
 }
 
 func (s *Service) Stop(context.Context) error {
-	if s.session == nil || s.cancel == nil {
+	if s.IsStopped() {
 		return fmt.Errorf("share: Service already stopped")
 	}
 
@@ -90,6 +90,11 @@ func (s *Service) Stop(context.Context) error {
 	s.cancel = nil
 	s.session = nil
 	return nil
+}
+
+// IsStopped checks if context was canceled.
+func (s *Service) IsStopped() bool {
+	return s.session != nil || s.cancel != nil
 }
 
 func (s *Service) GetShare(ctx context.Context, dah *Root, row, col int) (Share, error) {
