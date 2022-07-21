@@ -6,6 +6,9 @@ import (
 )
 
 func (h *Handler) RegisterEndpoints(rpc *Server) {
+	// health endpoints
+	rpc.RegisterHandlerFunc(healthEndpoint, h.handleHealthRequest, http.MethodGet)
+
 	// state endpoints
 	rpc.RegisterHandlerFunc(balanceEndpoint, h.handleBalanceRequest, http.MethodGet)
 	rpc.RegisterHandlerFunc(fmt.Sprintf("%s/{%s}", balanceEndpoint, addrKey), h.handleBalanceForAddrRequest,
