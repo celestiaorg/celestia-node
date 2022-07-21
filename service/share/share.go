@@ -94,7 +94,7 @@ func (s *Service) Stop(context.Context) error {
 
 // IsStopped checks if context was canceled.
 func (s *Service) IsStopped() bool {
-	return s.session != nil || s.cancel != nil
+	return s.session == nil || s.cancel == nil
 }
 
 func (s *Service) GetShare(ctx context.Context, dah *Root, row, col int) (Share, error) {
