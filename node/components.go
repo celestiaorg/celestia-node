@@ -43,7 +43,7 @@ func bridgeComponents(cfg *Config, store Store) fx.Option {
 		baseComponents(cfg, store),
 		nodecore.Components(cfg.Core),
 		fx.Supply(header.MakeExtendedHeader),
-		fx.Provide(services.LightAvailability), // TODO(@Wondertan): Remove strict requirements to have Availability
+		fx.Provide(services.FullAvailability),
 		fx.Invoke(func(
 			state *state.Service,
 			share *share.Service,
