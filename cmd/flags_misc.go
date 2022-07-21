@@ -22,6 +22,8 @@ import (
 	tracesdk "go.opentelemetry.io/otel/sdk/trace"
 	semconv "go.opentelemetry.io/otel/semconv/v1.10.0"
 
+	"github.com/celestiaorg/celestia-node/node"
+
 	"github.com/celestiaorg/celestia-node/logs"
 )
 
@@ -195,6 +197,8 @@ func ParseMiscFlags(cmd *cobra.Command, env *Env) error {
 			return err
 		}
 		global.SetMeterProvider(pusher)
+
+		env.AddOptions(node.WithMetrics(true))
 	}
 
 	return err
