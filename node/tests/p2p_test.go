@@ -176,73 +176,39 @@ func TestRestartNodeDiscovery(t *testing.T) {
 	err := bridge.Start(ctx)
 	require.NoError(t, err)
 	addr := host.InfoFromHost(bridge.Host)
+	nodes := make([]*node.Node, 4)
+	for index := 0; index < 4; index++ {
+		nodes[index] = sw.NewFullNode(
+			node.WithBootstrappers([]peer.AddrInfo{*addr}),
+			node.WithRefreshRoutingTablePeriod(time.Second*10),
+		)
+	}
 
-	full1 := sw.NewFullNode(
-		node.WithBootstrappers([]peer.AddrInfo{*addr}),
-		node.WithRefreshRoutingTablePeriod(time.Second*10),
-	)
-
-	full2 := sw.NewFullNode(
-		node.WithBootstrappers([]peer.AddrInfo{*addr}),
-		node.WithRefreshRoutingTablePeriod(time.Second*10),
-	)
-
-	full3 := sw.NewFullNode(
-		node.WithBootstrappers([]peer.AddrInfo{*addr}),
-		node.WithRefreshRoutingTablePeriod(time.Second*10),
-	)
-
-	full4 := sw.NewFullNode(
-		node.WithBootstrappers([]peer.AddrInfo{*addr}),
-		node.WithRefreshRoutingTablePeriod(time.Second*10),
-	)
-	full5 := sw.NewFullNode(
-		node.WithBootstrappers([]peer.AddrInfo{*addr}),
-		node.WithRefreshRoutingTablePeriod(time.Second*10),
-	)
-	nodes := []*node.Node{full1, full2, full3, full4}
-	sub, err := full1.Host.EventBus().Subscribe(&event.EvtPeerConnectednessChanged{})
+	sub, err := nodes[0].Host.EventBus().Subscribe(&event.EvtPeerConnectednessChanged{})
 	require.NoError(t, err)
-	sub1, err := full5.Host.EventBus().Subscribe(&event.EvtPeerConnectednessChanged{})
+	fullSub, err := nodes[3].Host.EventBus().Subscribe(&event.EvtPeerConnectednessChanged{})
 	require.NoError(t, err)
 	defer sub.Close()
-	defer sub1.Close()
-	for index := range nodes {
+	defer fullSub.Close()
+	for index := 0; index < 3; index++ {
 		require.NoError(t, nodes[index].Start(ctx))
 		assert.Equal(t, *addr, nodes[index].Bootstrappers[0])
 		assert.True(t, nodes[index].Host.Network().Connectedness(addr.ID) == network.Connected)
 	}
 
-	for i := 0; i < 3; i++ {
+	for i := 0; i < 2; i++ {
 		e := <-sub.Out()
 		connStatus := e.(event.EvtPeerConnectednessChanged)
 		id := connStatus.Peer
-		if id != full2.Host.ID() && id != full3.Host.ID() && id != full4.Host.ID() {
+		if id != nodes[1].Host.ID() && id != nodes[2].Host.ID() && id != bridge.Host.ID() {
 			t.Fatal("unexpected peer connected")
 		}
-		assert.True(t, full1.Host.Network().Connectedness(id) == network.Connected)
+		assert.True(t, nodes[0].Host.Network().Connectedness(id) == network.Connected)
 	}
-	require.NoError(t, full5.Start(ctx))
-
-	select {
-	case <-sub1.Out():
-	case e := <-sub.Out():
-		connStatus := e.(event.EvtPeerConnectednessChanged)
-		if host.InfoFromHost(full5.Host).ID != connStatus.Peer {
-			t.Fatal("unexpected peer connected")
-		}
-	case <-ctx.Done():
-		t.Fatal(ctx.Err())
-
-	}
-	require.NoError(t, full3.Stop(ctx))
-	require.NoError(t, full3.Host.Close())
-
-	e := <-sub.Out()
-	connStatus := e.(event.EvtPeerConnectednessChanged)
-	if host.InfoFromHost(full3.Host).ID == connStatus.Peer {
-		assert.True(t, connStatus.Connectedness == network.NotConnected)
-	}
+	assert.True(t, nodes[0].Host.Network().Connectedness(nodes[3].Host.ID()) == network.NotConnected)
+	require.NoError(t, nodes[3].Start(ctx))
+	require.NoError(t, nodes[2].Stop(ctx))
+	require.NoError(t, nodes[2].Host.Close())
 
 	for {
 		select {
@@ -250,7 +216,7 @@ func TestRestartNodeDiscovery(t *testing.T) {
 			t.Fatal("peer was not connected")
 		case e := <-sub.Out():
 			connStatus := e.(event.EvtPeerConnectednessChanged)
-			if host.InfoFromHost(full5.Host).ID == connStatus.Peer {
+			if host.InfoFromHost(nodes[3].Host).ID == connStatus.Peer {
 				assert.True(t, connStatus.Connectedness == network.Connected)
 				return
 			}

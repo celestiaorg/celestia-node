@@ -30,21 +30,21 @@ import (
 // trees of 'n' random shares, essentially storing a whole square.
 func RandLightServiceWithSquare(t *testing.T, n int) (*Service, *Root) {
 	bServ := mdutils.Bserv()
-	return NewService(bServ, TestLightAvailability(t, bServ)), RandFillBS(t, n, bServ)
+	return NewService(bServ, TestLightAvailability(bServ)), RandFillBS(t, n, bServ)
 }
 
 // RandLightService provides an unfilled share.Service with corresponding
 // blockservice.BlockService than can be filled by the test.
 func RandLightService() (*Service, blockservice.BlockService) {
 	bServ := mdutils.Bserv()
-	return NewService(bServ, TestLightAvailability(&testing.T{}, bServ)), bServ
+	return NewService(bServ, TestLightAvailability(bServ)), bServ
 }
 
 // RandFullServiceWithSquare provides a share.Service filled with 'n' NMT
 // trees of 'n' random shares, essentially storing a whole square.
 func RandFullServiceWithSquare(t *testing.T, n int) (*Service, *Root) {
 	bServ := mdutils.Bserv()
-	return NewService(bServ, TestFullAvailability(t, bServ)), RandFillBS(t, n, bServ)
+	return NewService(bServ, TestFullAvailability(bServ)), RandFillBS(t, n, bServ)
 }
 
 // RandLightLocalServiceWithSquare is the same as RandLightServiceWithSquare, except
@@ -53,7 +53,7 @@ func RandLightLocalServiceWithSquare(t *testing.T, n int) (*Service, *Root) {
 	bServ := mdutils.Bserv()
 	ds := dssync.MutexWrap(ds.NewMapDatastore())
 	ca := NewCacheAvailability(
-		TestLightAvailability(t, bServ),
+		TestLightAvailability(bServ),
 		ds,
 	)
 	return NewService(bServ, ca), RandFillBS(t, n, bServ)
@@ -65,7 +65,7 @@ func RandFullLocalServiceWithSquare(t *testing.T, n int) (*Service, *Root) {
 	bServ := mdutils.Bserv()
 	ds := dssync.MutexWrap(ds.NewMapDatastore())
 	ca := NewCacheAvailability(
-		TestFullAvailability(t, bServ),
+		TestFullAvailability(bServ),
 		ds,
 	)
 	return NewService(bServ, ca), RandFillBS(t, n, bServ)
@@ -140,14 +140,14 @@ func (dn *dagNet) RandFullNode(squareSize int) (*node, *Root) {
 // LightNode creates a new empty LightAvailability Node.
 func (dn *dagNet) LightNode() *node {
 	nd := dn.Node()
-	nd.Service = NewService(nd.BlockService, TestLightAvailability(&testing.T{}, nd.BlockService))
+	nd.Service = NewService(nd.BlockService, TestLightAvailability(nd.BlockService))
 	return nd
 }
 
 // FullNode creates a new empty FullAvailability Node.
 func (dn *dagNet) FullNode() *node {
 	nd := dn.Node()
-	nd.Service = NewService(nd.BlockService, TestFullAvailability(&testing.T{}, nd.BlockService))
+	nd.Service = NewService(nd.BlockService, TestFullAvailability(nd.BlockService))
 	return nd
 }
 
