@@ -8,6 +8,8 @@ import (
 	"github.com/libp2p/go-libp2p-core/host"
 	"go.uber.org/fx"
 
+	"github.com/celestiaorg/celestia-node/node/services"
+
 	apptypes "github.com/celestiaorg/celestia-app/x/payment/types"
 	"github.com/celestiaorg/celestia-node/core"
 	"github.com/celestiaorg/celestia-node/header"
@@ -100,5 +102,15 @@ func WithBootstrappers(peers params.Bootstrappers) Option {
 func WithRefreshRoutingTablePeriod(interval time.Duration) Option {
 	return func(sets *settings) {
 		sets.cfg.P2P.RoutingTableRefreshPeriod = interval
+	}
+}
+
+// WithMetrics enables metrics exporting for the node.
+func WithMetrics(enable bool) Option {
+	return func(sets *settings) {
+		if !enable {
+			return
+		}
+		sets.opts = append(sets.opts, services.Metrics())
 	}
 }
