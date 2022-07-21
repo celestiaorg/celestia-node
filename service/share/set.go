@@ -31,10 +31,10 @@ func (ps *limitedSet) Contains(p peer.ID) bool {
 	return ok
 }
 
-func (ps *limitedSet) Size() int {
+func (ps *limitedSet) Size() uint {
 	ps.lk.RLock()
 	defer ps.lk.RUnlock()
-	return len(ps.ps)
+	return uint(len(ps.ps))
 }
 
 // TryAdd attempts to add the given peer into the set.

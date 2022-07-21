@@ -1,5 +1,7 @@
 package node
 
+import "time"
+
 // WithRemoteCoreIP configures Node to connect to the given remote Core IP.
 func WithRemoteCoreIP(ip string) Option {
 	return func(sets *settings) {
@@ -49,6 +51,33 @@ func WithTrustedHash(hash string) Option {
 func WithTrustedPeers(addr ...string) Option {
 	return func(sets *settings) {
 		sets.cfg.Services.TrustedPeers = append(sets.cfg.Services.TrustedPeers, addr...)
+	}
+}
+
+// WithPeersLimit overrides default amount of peers that are available during discovery.
+func WithPeersLimit(limit uint) Option {
+	return func(sets *settings) {
+		sets.cfg.Services.PeersLimit = limit
+	}
+}
+
+// WithDiscoveryInterval sets interval between discovery sessions.
+func WithDiscoveryInterval(interval time.Duration) Option {
+	return func(sets *settings) {
+		if interval <= 0 {
+			return
+		}
+		sets.cfg.Services.DiscoveryInterval = interval
+	}
+}
+
+// WithAdvertiseInterval sets interval between advertises.
+func WithAdvertiseInterval(interval time.Duration) Option {
+	return func(sets *settings) {
+		if interval <= 0 {
+			return
+		}
+		sets.cfg.Services.AdvertiseInterval = interval
 	}
 }
 

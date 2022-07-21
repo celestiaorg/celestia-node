@@ -175,33 +175,62 @@ func FraudService(
 }
 
 // LightAvailability constructs light share availability.
-func LightAvailability(
+func LightAvailability(cfg Config) func(
 	lc fx.Lifecycle,
 	bServ blockservice.BlockService,
+	ds datastore.Batching,
 	r routing.ContentRouting,
 	h host.Host,
 ) *share.LightAvailability {
-	la := share.NewLightAvailability(bServ, routingdisc.NewRoutingDiscovery(r), h)
-	lc.Append(fx.Hook{
-		OnStart: la.Start,
-		OnStop:  la.Stop,
-	})
-	return la
+	return func(
+		lc fx.Lifecycle,
+		bServ blockservice.BlockService,
+		ds datastore.Batching,
+		r routing.ContentRouting,
+		h host.Host,
+	) *share.LightAvailability {
+		disc := share.NewDiscovery(
+			h,
+			routingdisc.NewRoutingDiscovery(r),
+			cfg.PeersLimit,
+			cfg.DiscoveryInterval,
+			cfg.AdvertiseInterval,
+		)
+		la := share.NewLightAvailability(bServ, disc)
+		lc.Append(fx.Hook{
+			OnStart: la.Start,
+			OnStop:  la.Stop,
+		})
+		return la
+	}
 }
 
 // FullAvailability constructs full share availability.
-func FullAvailability(
+func FullAvailability(cfg Config) func(
 	lc fx.Lifecycle,
 	bServ blockservice.BlockService,
-	r routing.ContentRouting,
-	h host.Host,
-) *share.FullAvailability {
-	fa := share.NewFullAvailability(bServ, routingdisc.NewRoutingDiscovery(r), h)
-	lc.Append(fx.Hook{
-		OnStart: fa.Start,
-		OnStop:  fa.Stop,
-	})
-	return fa
+	ds datastore.Batching, r routing.ContentRouting, h host.Host) *share.FullAvailability {
+	return func(
+		lc fx.Lifecycle,
+		bServ blockservice.BlockService,
+		ds datastore.Batching,
+		r routing.ContentRouting,
+		h host.Host,
+	) *share.FullAvailability {
+		disc := share.NewDiscovery(
+			h,
+			routingdisc.NewRoutingDiscovery(r),
+			cfg.PeersLimit,
+			cfg.DiscoveryInterval,
+			cfg.AdvertiseInterval,
+		)
+		fa := share.NewFullAvailability(bServ, disc)
+		lc.Append(fx.Hook{
+			OnStart: fa.Start,
+			OnStop:  fa.Stop,
+		})
+		return fa
+	}
 }
 
 // CacheAvailability wraps either Full or Light availability with a cache for result sampling.

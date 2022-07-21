@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"testing"
+	"time"
 
 	"github.com/ipfs/go-bitswap"
 	"github.com/ipfs/go-bitswap/network"
@@ -267,11 +268,13 @@ func (b *TestBrokenAvailability) ProbabilityOfAvailability() float64 {
 }
 
 func TestLightAvailability(bServ blockservice.BlockService) *LightAvailability {
-	return NewLightAvailability(bServ, routing.NewRoutingDiscovery(routinghelpers.Null{}), nil)
+	disc := NewDiscovery(nil, routing.NewRoutingDiscovery(routinghelpers.Null{}), 0, time.Second, time.Second)
+	return NewLightAvailability(bServ, disc)
 }
 
 func TestFullAvailability(bServ blockservice.BlockService) *FullAvailability {
-	return NewFullAvailability(bServ, routing.NewRoutingDiscovery(routinghelpers.Null{}), nil)
+	disc := NewDiscovery(nil, routing.NewRoutingDiscovery(routinghelpers.Null{}), 0, time.Second, time.Second)
+	return NewFullAvailability(bServ, disc)
 }
 
 type TestSuccessfulAvailability struct {
