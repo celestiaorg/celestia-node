@@ -17,20 +17,17 @@ type Accessor interface {
 	// Stop stops the state Accessor.
 	Stop(context.Context) error
 
-	// Balance retrieves the Celestia coin balance for the node's account/signer.
+	// Balance retrieves the Celestia coin balance for the node's account/signer
+	// and verifies it against the corresponding block's AppHash.
 	Balance(ctx context.Context) (*Balance, error)
 	// BalanceForAddress retrieves the Celestia coin balance for the given types.AccAddress.
-	BalanceForAddress(ctx context.Context, addr Address) (*Balance, error)
-	// VerifiedBalance retrieves the Celestia coin balance for the node's account/signer
-	// and verifies it against the corresponding block's AppHash.
-	VerifiedBalance(ctx context.Context) (*Balance, error)
-	// VerifiedBalanceForAddress performs a balance request and verifies the returned balance against the
-	// corresponding block's AppHash.
+	// BalanceForAddress retrieves the Celestia coin balance for the given address and verifies
+	// the returned balance against the corresponding block's AppHash.
 	//
-	// NOTE: the balance returned is technically the balance reported by the block right before
-	// the node's current head. This is due to the fact that for block N, the block's AppHash is
-	// the result of applying the previous block's transaction list.
-	VerifiedBalanceForAddress(ctx context.Context, addr Address) (*Balance, error)
+	// NOTE: the balance returned is the balance reported by the block right before
+	// the node's current head (head-1). This is due to the fact that for block N, the block's
+	// `AppHash` is the result of applying the previous block's transaction list.
+	BalanceForAddress(ctx context.Context, addr Address) (*Balance, error)
 
 	// Transfer sends the given amount of coins from default wallet of the node to the given account address.
 	Transfer(ctx context.Context, to types.Address, amount types.Int, gasLimit uint64) (*TxResponse, error)

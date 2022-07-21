@@ -43,14 +43,6 @@ func (s *Service) BalanceForAddress(ctx context.Context, addr Address) (*Balance
 	return s.accessor.BalanceForAddress(ctx, addr)
 }
 
-func (s *Service) VerifiedBalance(ctx context.Context) (*Balance, error) {
-	return s.accessor.VerifiedBalance(ctx)
-}
-
-func (s *Service) VerifiedBalanceForAddress(ctx context.Context, addr Address) (*Balance, error) {
-	return s.accessor.VerifiedBalanceForAddress(ctx, addr)
-}
-
 func (s *Service) SubmitTx(ctx context.Context, tx Tx) (*TxResponse, error) {
 	return s.accessor.SubmitTx(ctx, tx)
 }

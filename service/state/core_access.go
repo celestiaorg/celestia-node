@@ -133,28 +133,6 @@ func (ca *CoreAccessor) Balance(ctx context.Context) (*Balance, error) {
 }
 
 func (ca *CoreAccessor) BalanceForAddress(ctx context.Context, addr Address) (*Balance, error) {
-	req := &bank_types.QueryBalanceRequest{
-		Address: addr.String(),
-		Denom:   app.BondDenom,
-	}
-
-	resp, err := ca.queryCli.Balance(ctx, req)
-	if err != nil {
-		return nil, fmt.Errorf("querying client for balance: %s", err.Error())
-	}
-
-	return resp.Balance, nil
-}
-
-func (ca *CoreAccessor) VerifiedBalance(ctx context.Context) (*Balance, error) {
-	addr, err := ca.signer.GetSignerInfo().GetAddress()
-	if err != nil {
-		return nil, err
-	}
-	return ca.VerifiedBalanceForAddress(ctx, addr)
-}
-
-func (ca *CoreAccessor) VerifiedBalanceForAddress(ctx context.Context, addr Address) (*Balance, error) {
 	head, err := ca.getter.Head(ctx)
 	if err != nil {
 		return nil, err
