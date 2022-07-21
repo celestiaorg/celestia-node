@@ -30,7 +30,6 @@ type backoffConnector struct {
 type connectionCacheData struct {
 	nexttry time.Time
 	backoff backoff.BackoffStrategy
-	ttl     time.Time
 }
 
 func newBackoffConnector(h host.Host, factory backoff.BackoffFactory) *backoffConnector {
@@ -53,11 +52,11 @@ func (b *backoffConnector) Connect(ctx context.Context, p peer.AddrInfo) error {
 		}
 		strategy = b.cacheData[p.ID].backoff
 	}
-	b.cacheData[p.ID] = &connectionCacheData{
+	cacheData = &connectionCacheData{
 		nexttry: time.Now().Add(strategy.Delay()),
 		backoff: strategy,
 	}
-
+	b.cacheData[p.ID] = cacheData
 	b.cacheLk.Unlock()
 	return b.h.Connect(ctx, p)
 }
@@ -69,15 +68,19 @@ func (b *backoffConnector) RestartBackoff(p peer.ID) {
 	defer b.cacheLk.Unlock()
 	cache, ok := b.cacheData[p]
 	if !ok {
+		backoff := b.backoff()
+		cache = &connectionCacheData{
+			nexttry: time.Now().Add(backoff.Delay()),
+			backoff: backoff,
+		}
+		b.cacheData[p] = cache
 		return
 	}
 	cache.backoff.Reset()
-	b.cacheData[p].nexttry = time.Now().Add(cache.backoff.Delay())
-	b.cacheData[p].backoff = cache.backoff
-	b.cacheData[p].ttl = time.Now().Add(defaultTimeToLive)
+	cache.nexttry = time.Now().Add(cache.backoff.Delay())
 }
 
-func (b *backoffConnector) processExpiredPeers(ctx context.Context) {
+func (b *backoffConnector) GC(ctx context.Context) {
 	ticker := time.NewTicker(defaultTimeToLive)
 	for {
 		select {
@@ -86,7 +89,7 @@ func (b *backoffConnector) processExpiredPeers(ctx context.Context) {
 		case <-ticker.C:
 			b.cacheLk.Lock()
 			for id, cache := range b.cacheData {
-				if !cache.ttl.IsZero() && cache.ttl.Before(time.Now()) {
+				if cache.nexttry.Before(time.Now()) {
 					delete(b.cacheData, id)
 				}
 			}

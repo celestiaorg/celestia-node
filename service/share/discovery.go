@@ -81,7 +81,7 @@ func (d *discovery) ensurePeers(ctx context.Context) {
 		return
 	}
 
-	go d.connector.processExpiredPeers(ctx)
+	go d.connector.GC(ctx)
 
 	t := time.NewTicker(defaultConnectionInterval)
 	defer func() {
