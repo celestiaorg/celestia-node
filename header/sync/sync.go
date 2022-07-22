@@ -88,6 +88,11 @@ func (s *Syncer) WaitSync(ctx context.Context) error {
 	return err
 }
 
+// Finished returns true if sync is done, false otherwise.
+func (s *Syncer) Finished() bool {
+	return s.State().Finished()
+}
+
 // State collects all the information about a sync.
 type State struct {
 	ID                   uint64 // incrementing ID of a sync
