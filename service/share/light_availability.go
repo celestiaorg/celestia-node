@@ -7,8 +7,6 @@ import (
 
 	"github.com/ipfs/go-blockservice"
 	format "github.com/ipfs/go-ipld-format"
-	"github.com/libp2p/go-libp2p-core/host"
-	"github.com/libp2p/go-libp2p/p2p/discovery/routing"
 
 	"github.com/celestiaorg/celestia-node/ipld"
 )
@@ -31,12 +29,11 @@ type LightAvailability struct {
 // NewLightAvailability creates a new light Availability.
 func NewLightAvailability(
 	bserv blockservice.BlockService,
-	r *routing.RoutingDiscovery,
-	h host.Host,
+	disc *discovery,
 ) *LightAvailability {
 	la := &LightAvailability{
 		bserv: bserv,
-		disc:  newDiscovery(h, r),
+		disc:  disc,
 	}
 	return la
 }
