@@ -11,6 +11,10 @@ on:
 env:
   GO_VERSION: 1.18
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
 jobs:
   lint:
     name: Lint
