@@ -6,8 +6,8 @@ import (
 	"github.com/libp2p/go-libp2p-core/host"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	pubsub_pb "github.com/libp2p/go-libp2p-pubsub/pb"
-	"github.com/minio/blake2b-simd"
 	"go.uber.org/fx"
+	"golang.org/x/crypto/blake2b"
 
 	"github.com/celestiaorg/celestia-node/libs/fxutil"
 )
