@@ -47,7 +47,7 @@ func TestFraudProofBroadcasting(t *testing.T) {
 	err = full.Start(ctx)
 	require.NoError(t, err)
 
-	subscr, err := full.FraudServ.Subscribe(fraud.BadEncoding)
+	subscr, err := full.FraudServ.Subscribe(ctx, fraud.BadEncoding)
 	require.NoError(t, err)
 	_, err = subscr.Proof(ctx)
 	require.NoError(t, err)

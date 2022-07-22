@@ -16,3 +16,14 @@ message BadEncoding {
   uint32 Index    = 4;
   axis Axis    = 5;
 }
+
+
+message RespondedProof {
+  int32 Type = 1;
+  bytes Value = 2;
+}
+
+message FraudMessage {
+  repeated int32 RequestedProofType = 1;
+  repeated RespondedProof RespondedProofs= 2;
+}
