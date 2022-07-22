@@ -3,6 +3,7 @@ package state
 import (
 	"context"
 
+	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/nmt/namespace"
 )
 
@@ -13,12 +14,15 @@ type Service struct {
 	cancel context.CancelFunc
 
 	accessor Accessor
+
+	getter header.Getter
 }
 
 // NewService constructs a new state Service.
-func NewService(accessor Accessor) *Service {
+func NewService(accessor Accessor, getter header.Getter) *Service {
 	return &Service{
 		accessor: accessor,
+		getter:   getter,
 	}
 }
 
