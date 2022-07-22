@@ -40,6 +40,9 @@ func (s *Service) SubmitPayForData(
 }
 
 func (s *Service) Balance(ctx context.Context) (*Balance, error) {
+	if !s.sync.Finished() {
+		return nil, fmt.Errorf("node is not synced up to network head yet, balances will not be current")
+	}
 	return s.accessor.Balance(ctx)
 }
 
