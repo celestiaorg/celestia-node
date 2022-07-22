@@ -12,7 +12,6 @@ import (
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	routingdisc "github.com/libp2p/go-libp2p/p2p/discovery/routing"
 	"go.uber.org/fx"
-	"go.uber.org/multierr"
 
 	"github.com/celestiaorg/celestia-node/das"
 	"github.com/celestiaorg/celestia-node/fraud"
@@ -131,13 +130,7 @@ func HeaderStoreInit(cfg *Config) func(context.Context, params.Network, header.S
 }
 
 // ShareService constructs new share.Service.
-func ShareService(
-	lc fx.Lifecycle,
-	bServ blockservice.BlockService,
-	avail share.Availability,
-	r routing.ContentRouting,
-	h host.Host,
-) *share.Service {
+func ShareService(lc fx.Lifecycle, bServ blockservice.BlockService, avail share.Availability) *share.Service {
 	service := share.NewService(bServ, avail)
 	lc.Append(fx.Hook{
 		OnStart: service.Start,
@@ -181,44 +174,41 @@ func FraudService(
 	return f, nil
 }
 
-// LightAvailability constructs light share availability wrapped in cache availability.
+// LightAvailability constructs light share availability.
 func LightAvailability(
 	lc fx.Lifecycle,
 	bServ blockservice.BlockService,
-	ds datastore.Batching,
 	r routing.ContentRouting,
 	h host.Host,
-) share.Availability {
+) *share.LightAvailability {
 	la := share.NewLightAvailability(bServ, routingdisc.NewRoutingDiscovery(r), h)
-	ca := share.NewCacheAvailability(la, ds)
 	lc.Append(fx.Hook{
 		OnStart: la.Start,
-		OnStop: func(ctx context.Context) error {
-			laErr := la.Stop(ctx)
-			caErr := ca.Close(ctx)
-			return multierr.Append(laErr, caErr)
-		},
+		OnStop:  la.Stop,
 	})
-	return ca
+	return la
 }
 
-// FullAvailability constructs full share availability wrapped in cache availability.
+// FullAvailability constructs full share availability.
 func FullAvailability(
 	lc fx.Lifecycle,
 	bServ blockservice.BlockService,
-	ds datastore.Batching,
 	r routing.ContentRouting,
 	h host.Host,
-) share.Availability {
+) *share.FullAvailability {
 	fa := share.NewFullAvailability(bServ, routingdisc.NewRoutingDiscovery(r), h)
-	ca := share.NewCacheAvailability(fa, ds)
 	lc.Append(fx.Hook{
 		OnStart: fa.Start,
-		OnStop: func(ctx context.Context) error {
-			faErr := fa.Stop(ctx)
-			caErr := ca.Close(ctx)
-			return multierr.Append(faErr, caErr)
-		},
+		OnStop:  fa.Stop,
+	})
+	return fa
+}
+
+// CacheAvailability wraps either Full or Light availability with a cache for result sampling.
+func CacheAvailability[A share.Availability](lc fx.Lifecycle, ds datastore.Batching, avail A) share.Availability {
+	ca := share.NewCacheAvailability(avail, ds)
+	lc.Append(fx.Hook{
+		OnStop: ca.Close,
 	})
 	return ca
 }
