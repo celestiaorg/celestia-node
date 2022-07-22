@@ -90,10 +90,12 @@ func TestBootstrapNodesFromBridgeNode(t *testing.T) {
 	sw := swamp.NewSwamp(t)
 	cfg := node.DefaultConfig(node.Bridge)
 	cfg.P2P.Bootstrapper = true
+	const defaultTimeInterval = time.Second * 10
+
 	bridge := sw.NewBridgeNode(node.WithConfig(cfg),
-		node.WithRefreshRoutingTablePeriod(time.Second*10),
-		node.WithDiscoveryInterval(time.Second*10),
-		node.WithAdvertiseInterval(time.Second*10),
+		node.WithRefreshRoutingTablePeriod(defaultTimeInterval),
+		node.WithDiscoveryInterval(defaultTimeInterval),
+		node.WithAdvertiseInterval(defaultTimeInterval),
 	)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
@@ -105,15 +107,15 @@ func TestBootstrapNodesFromBridgeNode(t *testing.T) {
 
 	full := sw.NewFullNode(
 		node.WithBootstrappers([]peer.AddrInfo{*addr}),
-		node.WithRefreshRoutingTablePeriod(time.Second*10),
-		node.WithDiscoveryInterval(time.Second*10),
-		node.WithAdvertiseInterval(time.Second*10),
+		node.WithRefreshRoutingTablePeriod(defaultTimeInterval),
+		node.WithDiscoveryInterval(defaultTimeInterval),
+		node.WithAdvertiseInterval(defaultTimeInterval),
 	)
 	light := sw.NewLightNode(
 		node.WithBootstrappers([]peer.AddrInfo{*addr}),
-		node.WithRefreshRoutingTablePeriod(time.Second*10),
-		node.WithDiscoveryInterval(time.Second*10),
-		node.WithAdvertiseInterval(time.Second*10),
+		node.WithRefreshRoutingTablePeriod(defaultTimeInterval),
+		node.WithDiscoveryInterval(defaultTimeInterval),
+		node.WithAdvertiseInterval(defaultTimeInterval),
 	)
 	nodes := []*node.Node{full, light}
 	ch := make(chan struct{})

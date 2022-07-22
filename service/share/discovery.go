@@ -76,7 +76,7 @@ func (d *discovery) handlePeerFound(ctx context.Context, topic string, peer peer
 	d.host.ConnManager().TagPeer(peer.ID, topic, peerWeight)
 }
 
-// findPeers starts peer discovery every discoveryInterval until peer cache will not reach peersLimit.
+// findPeers starts peer discovery every discoveryInterval until peer cache reaches peersLimit.
 func (d *discovery) findPeers(ctx context.Context) {
 	if d.peersLimit == 0 {
 		log.Warn("peers limit is set to 0. Skipping discovery...")

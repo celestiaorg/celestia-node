@@ -54,7 +54,7 @@ func WithTrustedPeers(addr ...string) Option {
 	}
 }
 
-// WithPeersLimit overrides default amount of peers that are available during discovery.
+// WithPeersLimit overrides default peer limit for peers found during discover.
 func WithPeersLimit(limit uint) Option {
 	return func(sets *settings) {
 		sets.cfg.Services.PeersLimit = limit
