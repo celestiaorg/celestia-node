@@ -14,6 +14,10 @@ import (
 	logging "github.com/ipfs/go-log/v2"
 	"github.com/tendermint/tendermint/pkg/da"
 	"github.com/tendermint/tendermint/pkg/wrapper"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/trace"
 
 	"github.com/celestiaorg/celestia-node/ipld/plugin"
 	"github.com/celestiaorg/nmt"
@@ -21,6 +25,8 @@ import (
 )
 
 var log = logging.Logger("ipld")
+
+var tracer = otel.Tracer("ipld")
 
 // Retriever retrieves rsmt2d.ExtendedDataSquares from the IPLD network.
 // Instead of requesting data 'share by share' it requests data by quadrants
@@ -52,6 +58,13 @@ func (r *Retriever) Retrieve(ctx context.Context, dah *da.DataAvailabilityHeader
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel() // cancels all the ongoing requests if reconstruction succeeds early
 
+	ctx, span := tracer.Start(ctx, "retrieve-square")
+	defer span.End()
+	span.SetAttributes(
+		attribute.Int("size", len(dah.RowsRoots)),
+		attribute.String("data_hash", hex.EncodeToString(dah.Hash())),
+	)
+
 	log.Debugw("retrieving data square", "data_hash", hex.EncodeToString(dah.Hash()), "size", len(dah.RowsRoots))
 	ses, err := r.newSession(ctx, dah)
 	if err != nil {
@@ -64,13 +77,15 @@ func (r *Retriever) Retrieve(ctx context.Context, dah *da.DataAvailabilityHeader
 	for {
 		select {
 		case <-ses.Done():
-			eds, err := ses.Reconstruct()
+			eds, err := ses.Reconstruct(ctx)
 			if err == nil {
+				span.SetStatus(codes.Ok, "square-retrieved")
 				return eds, nil
 			}
 			// check to ensure it is not a catastrophic ErrByzantine case, otherwise handle accordingly
 			var errByz *rsmt2d.ErrByzantineData
 			if errors.As(err, &errByz) {
+				span.RecordError(err)
 				return nil, NewErrByzantine(ctx, r.bServ, dah, errByz)
 			}
 
@@ -103,6 +118,8 @@ type retrievalSession struct {
 	square    [][]byte
 	squareSig chan struct{}
 	squareDn  chan struct{}
+
+	span trace.Span
 }
 
 // newSession creates a new retrieval session and kicks off requesting process.
@@ -127,6 +144,7 @@ func (r *Retriever) newSession(ctx context.Context, dah *da.DataAvailabilityHead
 		square:    make([][]byte, size*size),
 		squareSig: make(chan struct{}, 1),
 		squareDn:  make(chan struct{}),
+		span:      trace.SpanFromContext(ctx),
 	}
 
 	square, err := rsmt2d.ImportExtendedDataSquare(ses.square, ses.codec, ses.treeFn)
@@ -147,7 +165,7 @@ func (rs *retrievalSession) Done() <-chan struct{} {
 }
 
 // Reconstruct tries to reconstruct the data square and returns it on success.
-func (rs *retrievalSession) Reconstruct() (*rsmt2d.ExtendedDataSquare, error) {
+func (rs *retrievalSession) Reconstruct(ctx context.Context) (*rsmt2d.ExtendedDataSquare, error) {
 	if rs.isReconstructed() {
 		return rs.squareImported, nil
 	}
@@ -167,9 +185,13 @@ func (rs *retrievalSession) Reconstruct() (*rsmt2d.ExtendedDataSquare, error) {
 		rs.squareImported = squareImported
 	}
 
+	_, span := tracer.Start(ctx, "reconstruct-square")
+	defer span.End()
+
 	// and try to repair with what we have
 	err := rs.squareImported.Repair(rs.dah.RowsRoots, rs.dah.ColumnRoots, rs.codec, rs.treeFn)
 	if err != nil {
+		span.RecordError(err)
 		return nil, err
 	}
 	log.Infow("data square reconstructed", "data_hash", hex.EncodeToString(rs.dah.Hash()), "size", len(rs.dah.RowsRoots))
@@ -190,6 +212,7 @@ func (rs *retrievalSession) isReconstructed() bool {
 }
 
 func (rs *retrievalSession) Close() error {
+	defer rs.span.End()
 	// All shares which were requested or repaired are written to disk via `Commit`.
 	// Note that we store *all*, so they are served to the network, including commit of incorrect
 	// data(BEFP/ErrByzantineCase case), so that the network can check BEFP.
@@ -214,6 +237,12 @@ func (rs *retrievalSession) request(ctx context.Context) {
 			"y", q.y,
 			"size", len(q.roots),
 		)
+		rs.span.AddEvent("requesting quadrant", trace.WithAttributes(
+			attribute.Int("axis", q.source),
+			attribute.Int("x", q.x),
+			attribute.Int("y", q.y),
+			attribute.Int("size", len(q.roots)),
+		))
 		rs.doRequest(ctx, q)
 		select {
 		case <-t.C:
@@ -227,6 +256,12 @@ func (rs *retrievalSession) request(ctx context.Context) {
 			"y", q.y,
 			"size", len(q.roots),
 		)
+		rs.span.AddEvent("quadrant request timeout", trace.WithAttributes(
+			attribute.Int("axis", q.source),
+			attribute.Int("x", q.x),
+			attribute.Int("y", q.y),
+			attribute.Int("size", len(q.roots)),
+		))
 	}
 }
 
@@ -239,6 +274,10 @@ func (rs *retrievalSession) doRequest(ctx context.Context, q *quadrant) {
 			// get the root node
 			nd, err := plugin.GetNode(ctx, rs.bget, root)
 			if err != nil {
+				rs.span.RecordError(err, trace.WithAttributes(
+					attribute.String("requesting-root", root.String()),
+					attribute.Int("root-id", i),
+				))
 				return
 			}
 			// and go get shares of left or the right side of the whole col/row axis

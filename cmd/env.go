@@ -12,6 +12,9 @@ import (
 // 1. Propagate values from parent to child commands.
 // 2. To group common logic that multiple commands rely on.
 // Usage can be extended.
+// TODO(@Wondertan): We should move to using context only instead.
+//  Env, in fact, only keeps some additional fields which should be
+//  kept in the context directly using WithValue
 type Env struct {
 	NodeType  node.Type
 	StorePath string
