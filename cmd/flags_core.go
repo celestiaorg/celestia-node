@@ -81,6 +81,7 @@ func sanityCheckIP(ip string) (string, error) {
 	ip = strings.TrimPrefix(ip, "http://")
 	ip = strings.TrimPrefix(ip, "https://")
 	ip = strings.TrimPrefix(ip, "tcp://")
+	ip = strings.TrimSuffix(ip, "/")
 	ip = strings.Split(ip, ":")[0]
 	if ip == "" {
 		return "", fmt.Errorf("invalid IP addr given: %s", original)
