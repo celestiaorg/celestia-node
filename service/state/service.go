@@ -2,8 +2,10 @@ package state
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/celestiaorg/celestia-node/header"
+	"github.com/celestiaorg/celestia-node/header/sync"
 	"github.com/celestiaorg/nmt/namespace"
 )
 
@@ -16,13 +18,15 @@ type Service struct {
 	accessor Accessor
 
 	getter header.Getter
+	sync   sync.Sub
 }
 
 // NewService constructs a new state Service.
-func NewService(accessor Accessor, getter header.Getter) *Service {
+func NewService(accessor Accessor, getter header.Getter, sync sync.Sub) *Service {
 	return &Service{
 		accessor: accessor,
 		getter:   getter,
+		sync:     sync,
 	}
 }
 
@@ -40,6 +44,9 @@ func (s *Service) Balance(ctx context.Context) (*Balance, error) {
 }
 
 func (s *Service) BalanceForAddress(ctx context.Context, addr Address) (*Balance, error) {
+	if !s.sync.Finished() {
+		return nil, fmt.Errorf("node is not synced up to network head yet, balances will not be current")
+	}
 	return s.accessor.BalanceForAddress(ctx, addr)
 }
 
