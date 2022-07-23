@@ -42,7 +42,7 @@ func NewService(p *pubsub.PubSub, getter headerFetcher, ds datastore.Datastore) 
 	}
 }
 
-func (f *service) Subscribe(proofType ProofType) (_ *pubsub.Subscription, err error) {
+func (f *service) Subscribe(proofType ProofType) (_ Subscription, err error) {
 	f.topicsLk.Lock()
 	t, ok := f.topics[proofType]
 	if !ok {
@@ -53,8 +53,13 @@ func (f *service) Subscribe(proofType ProofType) (_ *pubsub.Subscription, err er
 		}
 		f.topics[proofType] = t
 	}
+	subs, err := t.Subscribe()
 	f.topicsLk.Unlock()
-	return t.Subscribe()
+	if err != nil {
+		return nil, err
+	}
+
+	return &subscription{subs}, nil
 }
 
 func (f *service) Broadcast(ctx context.Context, p Proof) error {

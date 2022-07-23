@@ -51,7 +51,7 @@ func TestService_Broadcast(t *testing.T) {
 	subs, err := s.Subscribe(BadEncoding)
 	require.NoError(t, err)
 	require.NoError(t, s.Broadcast(ctx, CreateBadEncodingProof([]byte("hash"), uint64(h.Height), errByz)))
-	p, err := GetProof(ctx, subs)
+	p, err := subs.Proof(ctx)
 	require.NoError(t, err)
 	require.NoError(t, p.Validate(faultHeader))
 }

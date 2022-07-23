@@ -167,7 +167,14 @@ type service struct {
     getter headerFetcher
     ds     datastore.Datastore
 }
+// Subscription returns a valid proof if one is received on the topic.
+ type Subscription interface {
+    Proof(context.Context) (Proof, error)
+    Cancel() error
+ }
+```
 
+```go 
 func(s *service) Subscribe(ctx context.Context, proofType ProofType) (Subscription, error){}
 func(s *service) Broadcast(ctx context.Context, p Proof) error{}
 ```
