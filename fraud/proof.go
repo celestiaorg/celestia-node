@@ -1,8 +1,11 @@
 package fraud
 
 import (
+	"context"
 	"encoding"
 	"fmt"
+
+	pubsub "github.com/libp2p/go-libp2p-pubsub"
 
 	"github.com/celestiaorg/celestia-node/header"
 )
@@ -44,5 +47,38 @@ type Proof interface {
 	Validate(*header.ExtendedHeader) error
 
 	encoding.BinaryMarshaler
-	encoding.BinaryUnmarshaler
+}
+
+// GetProof listens for the next Fraud Proof and unmarshal received binary into Proof.
+func GetProof(ctx context.Context, s *pubsub.Subscription) (Proof, error) {
+	data, err := s.Next(ctx)
+	if err != nil {
+		return nil, err
+	}
+	topic := s.Topic()
+	unmarshaler := DefaultUnmarshalers[getProofTypeFromTopic(topic)]
+	return unmarshaler(data.Data)
+}
+
+// OnProof subscribes on a single Fraud Proof.
+// In case a Fraud Proof is received, then the given handle function will be invoked.
+func OnProof(ctx context.Context, subscriber Subscriber, p ProofType, handle func(proof Proof)) {
+	subscription, err := subscriber.Subscribe(p)
+	if err != nil {
+		log.Error(err)
+		return
+	}
+	defer subscription.Cancel()
+
+	// At this point we receive already verified fraud proof,
+	// so there are no needs to call Validate.
+	proof, err := GetProof(ctx, subscription)
+	if err != nil {
+		if err != context.Canceled {
+			log.Errorw("reading next proof failed", "err", err)
+		}
+		return
+	}
+
+	handle(proof)
 }

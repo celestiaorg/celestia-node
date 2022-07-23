@@ -17,31 +17,8 @@ import (
 	"github.com/celestiaorg/celestia-node/ipld"
 )
 
-func TestService_RegisterUnmarshaler(t *testing.T) {
-	s, _ := createService(t)
-	require.NoError(t, s.RegisterUnmarshaler(BadEncoding, UnmarshalBEFP))
-
-	require.Error(t, s.RegisterUnmarshaler(BadEncoding, UnmarshalBEFP))
-}
-
-func TestService_UnregisterUnmarshaler(t *testing.T) {
-	s, _ := createService(t)
-	require.NoError(t, s.RegisterUnmarshaler(BadEncoding, UnmarshalBEFP))
-	require.NoError(t, s.UnregisterUnmarshaler(BadEncoding))
-
-	require.Error(t, s.UnregisterUnmarshaler(BadEncoding))
-}
-
-func TestService_SubscribeFails(t *testing.T) {
-	s, _ := createService(t)
-
-	_, err := s.Subscribe(BadEncoding)
-	require.Error(t, err)
-}
-
 func TestService_Subscribe(t *testing.T) {
 	s, _ := createService(t)
-	require.NoError(t, s.RegisterUnmarshaler(BadEncoding, UnmarshalBEFP))
 
 	_, err := s.Subscribe(BadEncoding)
 	require.NoError(t, err)
@@ -63,7 +40,6 @@ func TestService_Broadcast(t *testing.T) {
 
 	bServ := mdutils.Bserv()
 	s, store := createService(t)
-	require.NoError(t, s.RegisterUnmarshaler(BadEncoding, UnmarshalBEFP))
 	h, err := store.GetByHeight(context.TODO(), 1)
 	require.NoError(t, err)
 
@@ -75,7 +51,7 @@ func TestService_Broadcast(t *testing.T) {
 	subs, err := s.Subscribe(BadEncoding)
 	require.NoError(t, err)
 	require.NoError(t, s.Broadcast(ctx, CreateBadEncodingProof([]byte("hash"), uint64(h.Height), errByz)))
-	p, err := subs.Proof(ctx)
+	p, err := GetProof(ctx, subs)
 	require.NoError(t, err)
 	require.NoError(t, p.Validate(faultHeader))
 }
