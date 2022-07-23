@@ -49,7 +49,7 @@ func TestFraudProofBroadcasting(t *testing.T) {
 
 	subscr, err := full.FraudServ.Subscribe(fraud.BadEncoding)
 	require.NoError(t, err)
-	_, err = subscr.Proof(ctx)
+	_, err = fraud.GetProof(ctx, subscr)
 	require.NoError(t, err)
 
 	// Since GetByHeight is a blocking operation for headers that is not received, we
