@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	"github.com/ipfs/go-blockservice"
-	pubsub "github.com/libp2p/go-libp2p-pubsub"
 
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/ipld"
@@ -18,8 +17,8 @@ func (d *DummyService) Broadcast(context.Context, Proof) error {
 	return nil
 }
 
-func (d *DummyService) Subscribe(ProofType) (*pubsub.Subscription, error) {
-	return &pubsub.Subscription{}, nil
+func (d *DummyService) Subscribe(ProofType) (Subscription, error) {
+	return &subscription{}, nil
 }
 
 func (d *DummyService) Get(context.Context, ProofType) ([]Proof, error) {

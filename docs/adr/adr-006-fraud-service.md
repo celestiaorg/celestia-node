@@ -177,9 +177,6 @@ In addition, `das.Daser`:
 	 ds     datastore.Datastore
     }
 
-    func(s *service) RegisterUnmarshaler(proofType ProofType, f ProofUnmarshaller) error{}
-    func(s *service) UnregisterUnmarshaler(proofType ProofType) error{}
-
     func(s *service) Subscribe(ctx context.Context, proofType ProofType) (Subscription, error){}
     func(s *service) Broadcast(ctx context.Context, p Proof) error{}
     ```

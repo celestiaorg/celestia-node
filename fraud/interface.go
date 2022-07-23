@@ -4,7 +4,6 @@ import (
 	"context"
 
 	logging "github.com/ipfs/go-log/v2"
-	pubsub "github.com/libp2p/go-libp2p-pubsub"
 
 	"github.com/celestiaorg/celestia-node/header"
 )
@@ -37,10 +36,17 @@ type Broadcaster interface {
 // network.
 type Subscriber interface {
 	// Subscribe allows to subscribe on a Proof pub sub topic by its type.
-	Subscribe(ProofType) (*pubsub.Subscription, error)
+	Subscribe(ProofType) (Subscription, error)
 }
 
 // Getter encompasses the behavior to fetch stored FraudProofs.
 type Getter interface {
 	Get(context.Context, ProofType) ([]Proof, error)
+}
+
+// Subscription returns a valid proof if one is received on the topic.
+type Subscription interface {
+	// Proof returns already verified valid proof.
+	Proof(context.Context) (Proof, error)
+	Cancel()
 }
