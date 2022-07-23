@@ -48,7 +48,7 @@ func (f *service) Subscribe(proofType ProofType) (_ Subscription, err error) {
 	if !ok {
 		t, err = join(f.pubsub, proofType, f.processIncoming)
 		if err != nil {
-			f.topicsLk.Lock()
+			f.topicsLk.Unlock()
 			return nil, err
 		}
 		f.topics[proofType] = t
@@ -131,12 +131,12 @@ func (f *service) processIncoming(
 }
 
 func (f *service) Get(ctx context.Context, proofType ProofType) ([]Proof, error) {
-	f.storesLk.RLock()
+	f.storesLk.Lock()
 	store, ok := f.stores[proofType]
 	if !ok {
 		store = namespace.Wrap(f.ds, makeKey(proofType))
 		f.stores[proofType] = store
 	}
-	f.storesLk.RUnlock()
+	f.storesLk.Unlock()
 	return getAll(ctx, store, DefaultUnmarshalers[proofType])
 }
