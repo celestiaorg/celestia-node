@@ -274,16 +274,15 @@ func TestDASer_stopsAfter_BEFP(t *testing.T) {
 	// create fraud service and break one header
 	f := fraud.NewService(ps, mockGet.GetByHeight, ds)
 	require.NoError(t, f.RegisterUnmarshaler(fraud.BadEncoding, fraud.UnmarshalBEFP))
-	mockGet.headers[1] = header.CreateFraudExtHeader(t, mockGet.headers[1], bServ)
+	mockGet.headers[10] = header.CreateFraudExtHeader(t, mockGet.headers[10], bServ)
 
 	// create and start DASer
 	daser := NewDASer(shareServ, sub, mockGet, ds, f)
-
-	require.NoError(t, daser.Start(ctx))
-	fraud.OnProof(ctx, f, fraud.BadEncoding,
+	go fraud.OnProof(ctx, f, fraud.BadEncoding,
 		func(proof fraud.Proof) {
 			require.NoError(t, daser.Stop(ctx))
 		})
+	require.NoError(t, daser.Start(ctx))
 	// wait for dasing catch-up routine fails
 	select {
 	case <-ctx.Done():
