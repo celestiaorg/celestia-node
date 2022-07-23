@@ -13,6 +13,7 @@
 - 2022.06.15 - Extend Proof interface with HeaderHash method
 - 2022.06.22 - Updated rsmt2d to change isRow to Axis
 - 2022.07.03 - Add storage description
+- 2022.07.23 - rework unmarshalers registration
 
 ## Authors
 
@@ -148,38 +149,32 @@ type Subscriber interface {
    // Subscribe allows to subscribe on pub sub topic by its type.
    // Subscribe should register pub-sub validator on topic.
    Subscribe(ctx context.Context, proofType ProofType) (Subscription, error)
-   // RegisterUnmarshaler registers unmarshaler for the given ProofType.
-   // If there is no unmarshaler for `ProofType`, then `Subscribe` returns an error.
-   RegisterUnmarshaller(proofType ProofType, f proofUnmarshaller) error
-   // UnregisterUnmarshaler removes unmarshaler for the given ProofType.
-   // If there is no unmarshaler for `ProofType`, then it returns an error.
-   UnregisterUnmarshaller(proofType ProofType) error{}
-}
-```
-
-```go
-// Subscription returns a valid proof if one is received on the topic.
-type Subscription interface {
-   Proof(context.Context) (Proof, error)
-   Cancel() error
 }
 ```
 
 ```go
 // service implements Subscriber and Broadcaster.
+// service is responsible for validating and propagating Fraud Proofs.
+// It implements the Service interface.
 type service struct {
-   pubsub *pubsub.PubSub
-   
-   storesLk sync.RWMutex
-   stores   map[ProofType]datastore.Datastore
-   
-   topics map[ProofType]*pubsub.Topic
-   unmarshallers map[ProofType]ProofUnmarshaller
+    topicsLk sync.RWMutex
+    topics   map[ProofType]*pubsub.Topic
+
+    storesLk sync.RWMutex
+    stores   map[ProofType]datastore.Datastore
+
+    pubsub *pubsub.PubSub
+    getter headerFetcher
+    ds     datastore.Datastore
 }
+// Subscription returns a valid proof if one is received on the topic.
+ type Subscription interface {
+    Proof(context.Context) (Proof, error)
+    Cancel() error
+ }
+```
 
-func(s *service) RegisterUnmarshaler(proofType ProofType, f ProofUnmarshaller) error{}
-func(s *service) UnregisterUnmarshaler(proofType ProofType) error{}
-
+```go 
 func(s *service) Subscribe(ctx context.Context, proofType ProofType) (Subscription, error){}
 func(s *service) Broadcast(ctx context.Context, p Proof) error{}
 ```
