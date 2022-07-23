@@ -13,6 +13,7 @@
 - 2022.06.15 - Extend Proof interface with HeaderHash method
 - 2022.06.22 - Updated rsmt2d to change isRow to Axis
 - 2022.07.03 - Add storage description
+- 2022.07.23 - rework unmarshalers registration
 
 ## Authors
 
@@ -151,12 +152,6 @@ In addition, `das.Daser`:
     // Subscribe allows to subscribe on pub sub topic by its type.
     // Subscribe should register pub-sub validator on topic.
     Subscribe(ctx context.Context, proofType ProofType) (Subscription, error)
-    // RegisterUnmarshaler registers unmarshaler for the given ProofType.
-    // If there is no unmarshaler for `ProofType`, then `Subscribe` returns an error.
-    RegisterUnmarshaller(proofType ProofType, f proofUnmarshaller) error
-    // UnregisterUnmarshaler removes unmarshaler for the given ProofType.
-    // If there is no unmarshaler for `ProofType`, then it returns an error.
-    UnregisterUnmarshaller(proofType ProofType) error{}
     }
     ```
 
@@ -177,7 +172,9 @@ In addition, `das.Daser`:
     stores   map[ProofType]datastore.Datastore
 
     topics map[ProofType]*pubsub.Topic
-    unmarshallers map[ProofType]ProofUnmarshaller
+   
+    getter headerFetcher
+	 ds     datastore.Datastore
     }
 
     func(s *service) RegisterUnmarshaler(proofType ProofType, f ProofUnmarshaller) error{}
