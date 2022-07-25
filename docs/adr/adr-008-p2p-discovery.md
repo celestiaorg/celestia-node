@@ -3,7 +3,7 @@
 ## Changelog
 
 - 2022.07.04 - discovery data structure
-- 2022.07.20 - detail bridge node behavior (@renaynay)
+- 2022.07.20 - detail bridge node behavior (@renaynay, @Wondertan)
 
 ## Authors
 
