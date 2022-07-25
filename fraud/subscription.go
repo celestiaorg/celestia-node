@@ -21,7 +21,10 @@ func (s *subscription) Proof(ctx context.Context) (Proof, error) {
 		return nil, err
 	}
 	topic := s.subscription.Topic()
-	unmarshaler := DefaultUnmarshalers[getProofTypeFromTopic(topic)]
+	unmarshaler, err := GetUnmarshaler(getProofTypeFromTopic(topic))
+	if err != nil {
+		return nil, err
+	}
 	return unmarshaler(data.Data)
 }
 

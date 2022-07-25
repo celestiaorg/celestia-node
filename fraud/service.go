@@ -81,7 +81,11 @@ func (f *service) processIncoming(
 	proofType ProofType,
 	msg *pubsub.Message,
 ) pubsub.ValidationResult {
-	unmarshaler := DefaultUnmarshalers[proofType]
+	unmarshaler, err := GetUnmarshaler(proofType)
+	if err != nil {
+		log.Errorw(err.Error())
+		return pubsub.ValidationReject
+	}
 	proof, err := unmarshaler(msg.Data)
 	if err != nil {
 		log.Errorw("failed to unmarshal fraud proof", err)
@@ -138,5 +142,9 @@ func (f *service) Get(ctx context.Context, proofType ProofType) ([]Proof, error)
 		f.stores[proofType] = store
 	}
 	f.storesLk.Unlock()
-	return getAll(ctx, store, DefaultUnmarshalers[proofType])
+	unmarshaler, err := GetUnmarshaler(proofType)
+	if err != nil {
+		return nil, err
+	}
+	return getAll(ctx, store, unmarshaler)
 }
