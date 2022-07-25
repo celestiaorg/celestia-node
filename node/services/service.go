@@ -178,14 +178,12 @@ func FraudService(
 func LightAvailability(cfg Config) func(
 	lc fx.Lifecycle,
 	bServ blockservice.BlockService,
-	ds datastore.Batching,
 	r routing.ContentRouting,
 	h host.Host,
 ) *share.LightAvailability {
 	return func(
 		lc fx.Lifecycle,
 		bServ blockservice.BlockService,
-		ds datastore.Batching,
 		r routing.ContentRouting,
 		h host.Host,
 	) *share.LightAvailability {
@@ -209,14 +207,12 @@ func LightAvailability(cfg Config) func(
 func FullAvailability(cfg Config) func(
 	lc fx.Lifecycle,
 	bServ blockservice.BlockService,
-	ds datastore.Batching,
 	r routing.ContentRouting,
 	h host.Host,
 ) *share.FullAvailability {
 	return func(
 		lc fx.Lifecycle,
 		bServ blockservice.BlockService,
-		ds datastore.Batching,
 		r routing.ContentRouting,
 		h host.Host,
 	) *share.FullAvailability {
