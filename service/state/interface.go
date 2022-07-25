@@ -20,7 +20,6 @@ type Accessor interface {
 	// Balance retrieves the Celestia coin balance for the node's account/signer
 	// and verifies it against the corresponding block's AppHash.
 	Balance(ctx context.Context) (*Balance, error)
-	// BalanceForAddress retrieves the Celestia coin balance for the given types.AccAddress.
 	// BalanceForAddress retrieves the Celestia coin balance for the given address and verifies
 	// the returned balance against the corresponding block's AppHash.
 	//
