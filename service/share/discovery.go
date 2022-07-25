@@ -27,7 +27,7 @@ type discovery struct {
 	set  *limitedSet
 	host host.Host
 	disc core.Discovery
-	// peersLimit is max amount of peers that will be discovered.
+	// peersLimit is max amount of peers that will be discovered during a discovery session.
 	peersLimit uint
 	// discInterval is an interval between discovery sessions.
 	discoveryInterval time.Duration
