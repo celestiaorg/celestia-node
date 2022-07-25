@@ -90,7 +90,7 @@ func (d *discovery) findPeers(ctx context.Context) {
 			return
 		case <-t.C:
 			// return if limit was reached to stop the loop and finish discovery
-			if d.set.Size() >= d.peersLimit {
+			if uint(d.set.Size()) >= d.peersLimit {
 				return
 			}
 			peers, err := d.disc.FindPeers(ctx, topic)

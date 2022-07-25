@@ -22,6 +22,7 @@ type Config struct {
 	// Note: The trusted does *not* imply Headers are not verified, but trusted as reliable to fetch headers
 	// at any moment.
 	TrustedPeers []string
+	// NOTE: All further fields related to share/discovery.
 	// PeersLimit defines how many peers will be added during discovery.
 	PeersLimit uint
 	// DiscoveryInterval is an interval between discovery sessions.
