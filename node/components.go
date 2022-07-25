@@ -31,7 +31,7 @@ func lightComponents(cfg *Config, store Store) fx.Option {
 		baseComponents(cfg, store),
 		fx.Provide(services.DASer),
 		fx.Provide(services.HeaderExchangeP2P(cfg.Services)),
-		fx.Provide(services.LightAvailability),
+		fx.Provide(services.LightAvailability(cfg.Services)),
 		fx.Provide(services.CacheAvailability[*share.LightAvailability]),
 		fx.Invoke(rpc.Handler),
 	)
@@ -44,7 +44,7 @@ func bridgeComponents(cfg *Config, store Store) fx.Option {
 		baseComponents(cfg, store),
 		nodecore.Components(cfg.Core),
 		fx.Supply(header.MakeExtendedHeader),
-		fx.Provide(services.FullAvailability),
+		fx.Provide(services.FullAvailability(cfg.Services)),
 		fx.Provide(services.CacheAvailability[*share.FullAvailability]),
 		fx.Invoke(func(
 			state *state.Service,
@@ -64,7 +64,7 @@ func fullComponents(cfg *Config, store Store) fx.Option {
 		baseComponents(cfg, store),
 		fx.Provide(services.DASer),
 		fx.Provide(services.HeaderExchangeP2P(cfg.Services)),
-		fx.Provide(services.FullAvailability),
+		fx.Provide(services.FullAvailability(cfg.Services)),
 		fx.Provide(services.CacheAvailability[*share.FullAvailability]),
 		fx.Invoke(rpc.Handler),
 	)

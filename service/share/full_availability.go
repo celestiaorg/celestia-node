@@ -6,8 +6,6 @@ import (
 
 	"github.com/ipfs/go-blockservice"
 	format "github.com/ipfs/go-ipld-format"
-	"github.com/libp2p/go-libp2p-core/host"
-	"github.com/libp2p/go-libp2p/p2p/discovery/routing"
 
 	"github.com/celestiaorg/celestia-node/ipld"
 )
@@ -23,10 +21,10 @@ type FullAvailability struct {
 }
 
 // NewFullAvailability creates a new full Availability.
-func NewFullAvailability(bServ blockservice.BlockService, r *routing.RoutingDiscovery, h host.Host) *FullAvailability {
+func NewFullAvailability(bServ blockservice.BlockService, disc *discovery) *FullAvailability {
 	return &FullAvailability{
 		rtrv: ipld.NewRetriever(bServ),
-		disc: newDiscovery(h, r),
+		disc: disc,
 	}
 }
 
