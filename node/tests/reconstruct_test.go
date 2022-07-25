@@ -103,25 +103,28 @@ func TestFullReconstructFromLights(t *testing.T) {
 
 	cfg := node.DefaultConfig(node.Bridge)
 	cfg.P2P.Bootstrapper = true
-	bridge := sw.NewBridgeNode(node.WithConfig(cfg), node.WithRefreshRoutingTablePeriod(time.Second*30))
-	err := bridge.Start(ctx)
-	require.NoError(t, err)
+	const defaultTimeInterval = time.Second * 10
+	var defaultOptions = []node.Option{
+		node.WithRefreshRoutingTablePeriod(defaultTimeInterval),
+		node.WithDiscoveryInterval(defaultTimeInterval),
+		node.WithAdvertiseInterval(defaultTimeInterval),
+	}
+
+	bridgeConfig := append([]node.Option{node.WithConfig(cfg)}, defaultOptions...)
+	cfg.P2P.Bootstrapper = true
+	bridge := sw.NewBridgeNode(bridgeConfig...)
+	require.NoError(t, bridge.Start(ctx))
 	addr := host.InfoFromHost(bridge.Host)
 
-	full := sw.NewFullNode(
-		node.WithBootstrappers([]peer.AddrInfo{*addr}),
-		node.WithRefreshRoutingTablePeriod(time.Second*30),
-	)
+	nodesConfig := append([]node.Option{node.WithBootstrappers([]peer.AddrInfo{*addr})}, defaultOptions...)
+	full := sw.NewFullNode(nodesConfig...)
 	lights := make([]*node.Node, lnodes)
 	subs := make([]event.Subscription, lnodes)
 	errg, errCtx := errgroup.WithContext(ctx)
 	for i := 0; i < lnodes; i++ {
 		i := i
 		errg.Go(func() error {
-			light := sw.NewLightNode(
-				node.WithBootstrappers([]peer.AddrInfo{*addr}),
-				node.WithRefreshRoutingTablePeriod(time.Second*30),
-			)
+			light := sw.NewLightNode(nodesConfig...)
 			sub, err := light.Host.EventBus().Subscribe(&event.EvtPeerConnectednessChanged{})
 			if err != nil {
 				return err
@@ -132,8 +135,7 @@ func TestFullReconstructFromLights(t *testing.T) {
 		})
 	}
 	require.NoError(t, errg.Wait())
-	err = full.Start(ctx)
-	require.NoError(t, err)
+	require.NoError(t, full.Start(ctx))
 	for i := 0; i < lnodes; i++ {
 		select {
 		case <-ctx.Done():
@@ -155,8 +157,7 @@ func TestFullReconstructFromLights(t *testing.T) {
 		})
 	}
 
-	err = errg.Wait()
-	require.NoError(t, err)
+	require.NoError(t, errg.Wait())
 }
 
 func getMultiAddr(t *testing.T, h host.Host) string {
