@@ -12,7 +12,7 @@ import (
 )
 
 // defaultTimeToLive is a default period after which disconnected peers will be removed from cache
-const defaultTimeToLive = time.Hour
+const defaultGCInterval = time.Hour
 
 var defaultBackoffFactory = backoff.NewFixedBackoff(time.Hour)
 
@@ -44,19 +44,19 @@ func newBackoffConnector(h host.Host, factory backoff.BackoffFactory) *backoffCo
 func (b *backoffConnector) Connect(ctx context.Context, p peer.AddrInfo) error {
 	strategy := b.backoff()
 	b.cacheLk.Lock()
-	cacheData, ok := b.cacheData[p.ID]
+	cache, ok := b.cacheData[p.ID]
 	if ok {
-		if time.Now().Before(cacheData.nexttry) {
+		if time.Now().Before(cache.nexttry) {
 			b.cacheLk.Unlock()
 			return fmt.Errorf("share/discovery: backoff period is not ended for peer=%s", p.ID.String())
 		}
 		strategy = b.cacheData[p.ID].backoff
+	} else {
+		cache = &connectionCacheData{}
+		b.cacheData[p.ID] = cache
 	}
-	cacheData = &connectionCacheData{
-		nexttry: time.Now().Add(strategy.Delay()),
-		backoff: strategy,
-	}
-	b.cacheData[p.ID] = cacheData
+	cache.nexttry = time.Now().Add(strategy.Delay())
+	cache.backoff = strategy
 	b.cacheLk.Unlock()
 	return b.h.Connect(ctx, p)
 }
@@ -81,7 +81,7 @@ func (b *backoffConnector) RestartBackoff(p peer.ID) {
 }
 
 func (b *backoffConnector) GC(ctx context.Context) {
-	ticker := time.NewTicker(defaultTimeToLive)
+	ticker := time.NewTicker(defaultGCInterval)
 	for {
 		select {
 		case <-ctx.Done():
