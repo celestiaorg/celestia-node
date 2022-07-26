@@ -3,17 +3,18 @@
 ## Changelog
 
 - 2022-7-19: Started
-- 2022-7-22: Add section on "How can node operators monitor their node?"
+- 2022-7-22: Add section on "How to monitor celestia-node with Grafana Cloud"
+- 2022-7-26: Add section on "How to monitor celestia-node with Uptrace"
 
 ## Context
 
-We're adding telemetry to celestia-node by instrumenting our codebase with metrics (see [ADR-009-telemetry](./adr-009-telemetry.md)). If the option to report metrics is enabled on celestia-node, then celestia-node will push metrics via [OLTP Explorter](https://opentelemetry.io/docs/reference/specification/protocol/exporter/) to an [OTEL Collector](https://opentelemetry.io/docs/collector/) instance. The Celestia team will manage an OLTP Collector instance during the incentivized testnet (and likely beyond) to collect metrics from nodes on the network. Celestia-node operators have the option of running their own OTEL Collector instance in order to collect metrics from their nodes.
+We're adding telemetry to celestia-node by instrumenting our codebase with metrics (see [ADR-009-telemetry](./adr-009-telemetry.md)). If the option to report metrics is enabled on celestia-node, then celestia-node will push metrics via [OLTP Exporter](https://opentelemetry.io/docs/reference/specification/protocol/exporter/) to an [OTEL Collector](https://opentelemetry.io/docs/collector/) instance. The Celestia team will manage an OTEL Collector instance during the incentivized testnet (and likely beyond) to collect metrics from nodes on the network. Celestia-node operators have the option of running their own OTEL Collector instance in order to collect metrics from their nodes.
 
-We would like to make the metrics collected in the Celestia team managed OLTP Collector actionable by making them queryable in internal Grafana dashboards. We additionally want a subset of metrics to be queryable by a public incentivized testnet leaderboard frontend.
+We would like to make the metrics collected in the Celestia team managed OTEL Collector actionable by making them queryable in internal Grafana dashboards. We additionally want a subset of metrics to be queryable by a public incentivized testnet leaderboard frontend.
 
-We would like to make it possible for node operators to monitor their own nodes by deploying their own OLTP collector instance.
+We would like to make it possible for node operators to monitor their own nodes with the telemetry tools Grafana and Uptrace. They can achieve this by deploying their own OTEL Collector instance and configuring it to export metrics to Grafana or Uptrace.
 
-This document proposes a strategy for making data in the Celestia team managed OTEL Collector available for use in internal Grafana dashboards and a public leaderboard. Additionally it describes how a node operator can monitor their own node by deploying their own OLTP collector instance.
+This document proposes a strategy for making data in the Celestia team managed OTEL Collector available for use in internal Grafana dashboards and a public leaderboard. Additionally it describes how a node operator can monitor their own node by deploying their own OTEL Collector instance.
 
 ![Incentivized Testnet Monitoring Diagram](./img/incentivized-testnet-monitoring-diagram.svg)
 
@@ -26,13 +27,13 @@ Grafana can query data from [multiple data sources](https://grafana.com/docs/gra
 1. [Prometheus](https://github.com/prometheus/prometheus) is an open-source time series database written in Go. Prometheus uses the [PromQL](https://prometheus.io/docs/prometheus/latest/querying/basics/) query language. We can deploy Prometheus ourselves or use a hosted Prometheus provider (ex. [Google](https://cloud.google.com/stackdriver/docs/managed-prometheus), [AWS](https://aws.amazon.com/prometheus/), [Grafana](https://grafana.com/go/hosted-prometheus-monitoring/), etc.). Prometheus is pull-based which means services that would like to expose Prometheus metrics must provide an HTTP endpoint (ex. `/metrics`) that a Prometheus instance can poll (see [instrumenting a Go application for Prometheus](https://prometheus.io/docs/guides/go-application/)). Prometheus is used by [Cosmos SDK telemetry](https://docs.cosmos.network/main/core/telemetry.html) and [Tendermint telemetry](https://docs.tendermint.com/v0.35/nodes/metrics.html) so one major benefit to using Prometheus is that metrics emitted by celestia-core, celestia-app, and celestia-node can share the same database.
 2. [InfluxDB](https://github.com/influxdata/influxdb) is another open-source time series database written in Go. It is free to deploy the InfluxDB but there is a commercial offering from [influxdata](https://www.influxdata.com/get-influxdb/) that provides clustering and on-prem deployments. InfluxDB uses the [InfluxQL](https://docs.influxdata.com/influxdb/v1.8/query_language/) query language which appears less capable at advanced queries [ref](https://www.robustperception.io/translating-between-monitoring-languages/). InfluxDB is push-based which means services can push metrics directly to an InfluxDB instance ([ref](https://logz.io/blog/prometheus-influxdb/#:~:text=InfluxDB%20is%20a%20push%2Dbased,and%20Prometheus%20fetches%20them%20periodically.)). See [Prometheus vs. InfluxDB](https://prometheus.io/docs/introduction/comparison/#prometheus-vs-influxdb) for a more detailed comparison.
 
-If alternative data sources should be evaluated, please share them with us.
+If alternative data sources should be evaluated, please share them with us. We propose using Prometheus at this time.
 
-### How to export data out of OLTP Collector?
+### How to export data out of OTEL Collector?
 
-[Exporters](https://opentelemetry.io/docs/collector/configuration/#exporters) provide a way to export data from an OLTP Collector to a supported destination.
+[Exporters](https://opentelemetry.io/docs/collector/configuration/#exporters) provide a way to export data from an OTEL Collector to a supported destination.
 
-We configure OLTP collector to export data to Prometheus like this:
+We configure OTEL Collector to export data to Prometheus like this:
 
 ```yaml
 exporters:
@@ -51,7 +52,7 @@ service:
       exporters: [prometheus]
 ```
 
-OLTP collector support for exporting to InfluxDB is still in [beta](https://github.com/open-telemetry/opentelemetry-collector#beta=). See [InfluxDB Exporter](https://pkg.go.dev/github.com/open-telemetry/opentelemetry-collector-contrib/exporter/influxdbexporter#section-readme).
+OTEL Collector support for exporting to InfluxDB is still in [beta](https://github.com/open-telemetry/opentelemetry-collector#beta=). See [InfluxDB Exporter](https://pkg.go.dev/github.com/open-telemetry/opentelemetry-collector-contrib/exporter/influxdbexporter#section-readme).
 
 ### How to query data in Prometheus from Grafana?
 
@@ -68,11 +69,13 @@ Implementation details for the incentivized testnet leaderboard are not yet know
 
 ### How can a node operator monitor their own node?
 
-Node operators have the option of running their own instance of OTEL Collector to collect metrics from their nodes. Rough steps:
+Node operators have the option of running their own instance of OTEL Collector to collect metrics from their nodes. A minimal guide for node operators to collect telemetry from their nodes follows:
+
+#### How to monitor celestia-node with Grafana Cloud
 
 1. [Install celestia-node](https://docs.celestia.org/developers/celestia-node)
-2. Start a Grafana instance. If you'd like to use a cloud-hosted Grafana, sign up for an account on <https://grafana.com/>
-3. [Install OTEL Collector](https://opentelemetry.io/docs/collector/getting-started/). If on a Linux machine follow [these steps](https://opentelemetry.io/docs/collector/getting-started/#linux-packaging=). OTEL Collector should start automatically immediately after installation.
+2. Sign up for an account on [Grafana](https://grafana.com/)
+3. [Install OTEL Collector](https://opentelemetry.io/docs/collector/getting-started/) on the same machine as celestia-node. If on a Linux machine follow [these steps](https://opentelemetry.io/docs/collector/getting-started/#linux-packaging=). OTEL Collector should start automatically immediately after installation.
 4. Configure OTEL Collector to receive metrics from celestia-node by confirming your `/etc/otelcol/config.yaml` has the default config:
 
     ```yaml
@@ -106,9 +109,30 @@ Node operators have the option of running their own instance of OTEL Collector t
 
 7. Restart OTEL Collector with `sudo systemctl restart otelcol`
 8. Monitor that OTEL Collector started correctly with `systemctl status otelcol.service` and confirming no errors in `journalctl | grep otelcol | grep Error`
-9. Start celestia-node
-10. Verify that metrics are being displayed in Grafana
+9. Start celestia-node with metrics enabled `celestia light start --core.ip https://rpc-mamaki.pops.one --metrics`
+10. Verify that metrics are being displayed in Grafana.
 11. [Optional] Import a [OpenTelemetry Collector Dashboard](https://grafana.com/grafana/dashboards/12553-opentelemetry-collector/) into Grafana to monitor your OTEL Collector.
+
+#### How to monitor celestia-node with Uptrace
+
+1. [Install celestia-node](https://docs.celestia.org/developers/celestia-node).
+2. Create an account on [Uptrace](https://app.uptrace.dev/).
+3. Create a project on Uptrace.
+4. Follow [these steps](https://uptrace.dev/opentelemetry/collector.html#when-to-use-opentelemetry-collector=) to install OTEL Collector Contrib on the same host as celestia-node.
+5. Configure OTEL Collector Contrib based on the [configuration](https://uptrace.dev/opentelemetry/collector.html#configuration=) section in the Uptrace docs. Ensure you selected your newly created project in the dropdown. If you'd like to collect traces and metrics, you need to add the `metrics` section under `services.pipelines`:
+
+    ```yaml
+    service:
+      pipelines:
+        metrics:
+          receivers: [otlp]
+          processors: [batch]
+          exporters: [otlp]
+    ```
+
+6. Restart OTEL Collector contrib with `sudo systemctl restart otelcol-contrib`. Check that OTEL Collector Contrib is running with `sudo systemctl status otelcol-contrib` and confirm there are no errors in `sudo journalctl -u otelcol-contrib -f`. If you encounter `No journal files were found.` then reference this [StackOverflow post](https://stackoverflow.com/questions/30783134/systemd-user-journals-not-being-created/47930381#47930381).
+7. Start celestia-node with metrics and traces enabled: `celestia light start --core.ip https://rpc-mamaki.pops.one --tracing --metrics`.
+8. Navigate to Uptrace and create a dashboard. Confirm you can see a metric.
 
 ### Should we host a Prometheus instance ourselves or use a hosted provider?
 
@@ -125,6 +149,10 @@ The Prometheus docs state the following with regard to [Denial of Service](https
 > There are some mitigations in place for excess load or expensive queries. However, if too many or too expensive queries/metrics are provided components will fall over. It is more likely that a component will be accidentally taken out by a trusted user than by malicious action.
 
 So if we are concerned about the public leaderboard crashing the Prometheus instance that we use for internal dashboards, we may want to host two separate instances. This seems feasible by configuring OTEL Collector to export to two different Prometheus instances. This is a one way door, I suggest sticking with one instance for now and if we observe scenarios where the Prometheus instance falls over, we can explore a hosted option or running separate instances per use case.
+
+### Should node operators be able to emit metrics and traces to multiple OTEL collectors?
+
+During the incentivized testnet, if we require node operators to emit metrics (and traces) to a Celestia managed OTEL Collector, then they won't be able to also emit metrics to an OTEL Collector they manage (based on our current implementation).
 
 ## Status
 
