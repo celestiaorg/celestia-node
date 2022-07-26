@@ -6,18 +6,14 @@ import (
 
 	"github.com/cosmos/cosmos-sdk/api/tendermint/abci"
 	"github.com/cosmos/cosmos-sdk/types"
-	sdk_types "github.com/cosmos/cosmos-sdk/types"
-	sdk_errors "github.com/cosmos/cosmos-sdk/types/errors"
-	sdk_tx "github.com/cosmos/cosmos-sdk/types/tx"
-	bank_types "github.com/cosmos/cosmos-sdk/x/bank/types"
-	proof_utils "github.com/cosmos/ibc-go/v4/modules/core/23-commitment/types"
-	sdk_abci "github.com/tendermint/tendermint/abci/types"
-	rpc_client "github.com/tendermint/tendermint/rpc/client"
+	sdktypes "github.com/cosmos/cosmos-sdk/types"
+	sdktx "github.com/cosmos/cosmos-sdk/types/tx"
+	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
+	proofutils "github.com/cosmos/ibc-go/v4/modules/core/23-commitment/types"
+	rpcclient "github.com/tendermint/tendermint/rpc/client"
 	"github.com/tendermint/tendermint/rpc/client/http"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials/insecure"
-	"google.golang.org/grpc/status"
 
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/x/payment"
@@ -32,8 +28,8 @@ type CoreAccessor struct {
 	signer *apptypes.KeyringSigner
 	getter header.Getter
 
-	queryCli bank_types.QueryClient
-	rpcCli   rpc_client.ABCIClient
+	queryCli banktypes.QueryClient
+	rpcCli   rpcclient.ABCIClient
 
 	coreConn *grpc.ClientConn
 	coreIP   string
@@ -72,7 +68,7 @@ func (ca *CoreAccessor) Start(ctx context.Context) error {
 	}
 	ca.coreConn = client
 	// create the query client
-	queryCli := bank_types.NewQueryClient(ca.coreConn)
+	queryCli := banktypes.NewQueryClient(ca.coreConn)
 	ca.queryCli = queryCli
 	// create ABCI query client
 	cli, err := http.New(fmt.Sprintf("http://%s:%s", ca.coreIP, ca.rpcPort))
@@ -141,15 +137,15 @@ func (ca *CoreAccessor) BalanceForAddress(ctx context.Context, addr Address) (*B
 	// the AppHash contained in the head is actually the state root
 	// after applying the transactions contained in the previous block.
 	// TODO @renaynay: once https://github.com/cosmos/cosmos-sdk/pull/12674 is merged, use this method instead
-	prefixedAccountKey := append(bank_types.CreateAccountBalancesPrefix(addr.Bytes()), []byte(app.BondDenom)...)
+	prefixedAccountKey := append(banktypes.CreateAccountBalancesPrefix(addr.Bytes()), []byte(app.BondDenom)...)
 	abciReq := abci.RequestQuery{
 		// TODO @renayay: once https://github.com/cosmos/cosmos-sdk/pull/12674 is merged, use const instead
-		Path:   fmt.Sprintf("store/%s/key", bank_types.StoreKey),
+		Path:   fmt.Sprintf("store/%s/key", banktypes.StoreKey),
 		Height: head.Height - 1,
 		Data:   prefixedAccountKey,
 		Prove:  true,
 	}
-	opts := rpc_client.ABCIQueryOptions{
+	opts := rpcclient.ABCIQueryOptions{
 		Height: abciReq.Height,
 		Prove:  abciReq.Prove,
 	}
@@ -162,20 +158,20 @@ func (ca *CoreAccessor) BalanceForAddress(ctx context.Context, addr Address) (*B
 	}
 	// unmarshal balance information
 	value := result.Response.Value
-	coin, ok := sdk_types.NewIntFromString(string(value))
+	coin, ok := sdktypes.NewIntFromString(string(value))
 	if !ok {
-		return nil, fmt.Errorf("cannot convert %s into sdk_types.Int", string(value))
+		return nil, fmt.Errorf("cannot convert %s into sdktypes.Int", string(value))
 	}
 	// convert proofs into a more digestible format
-	merkleproof, err := proof_utils.ConvertProofs(result.Response.GetProofOps())
+	merkleproof, err := proofutils.ConvertProofs(result.Response.GetProofOps())
 	if err != nil {
 		return nil, err
 	}
-	root := proof_utils.NewMerkleRoot(head.AppHash)
+	root := proofutils.NewMerkleRoot(head.AppHash)
 	// VerifyMembership expects the path as:
 	// []string{<store key of module>, <actual key corresponding to requested value>}
-	path := proof_utils.NewMerklePath(bank_types.StoreKey, string(prefixedAccountKey))
-	err = merkleproof.VerifyMembership(proof_utils.GetSDKSpecs(), root, path, value)
+	path := proofutils.NewMerklePath(banktypes.StoreKey, string(prefixedAccountKey))
+	err = merkleproof.VerifyMembership(proofutils.GetSDKSpecs(), root, path, value)
 	if err != nil {
 		return nil, err
 	}
@@ -186,7 +182,7 @@ func (ca *CoreAccessor) BalanceForAddress(ctx context.Context, addr Address) (*B
 }
 
 func (ca *CoreAccessor) SubmitTx(ctx context.Context, tx Tx) (*TxResponse, error) {
-	txResp, err := apptypes.BroadcastTx(ctx, ca.coreConn, sdk_tx.BroadcastMode_BROADCAST_MODE_BLOCK, tx)
+	txResp, err := apptypes.BroadcastTx(ctx, ca.coreConn, sdktx.BroadcastMode_BROADCAST_MODE_BLOCK, tx)
 	if err != nil {
 		return nil, err
 	}
@@ -196,7 +192,7 @@ func (ca *CoreAccessor) SubmitTx(ctx context.Context, tx Tx) (*TxResponse, error
 func (ca *CoreAccessor) SubmitTxWithBroadcastMode(
 	ctx context.Context,
 	tx Tx,
-	mode sdk_tx.BroadcastMode,
+	mode sdktx.BroadcastMode,
 ) (*TxResponse, error) {
 	txResp, err := apptypes.BroadcastTx(ctx, ca.coreConn, mode, tx)
 	if err != nil {
@@ -220,23 +216,10 @@ func (ca *CoreAccessor) Transfer(
 		return nil, err
 	}
 	coins := types.NewCoins(types.NewCoin(app.BondDenom, amount))
-	msg := bank_types.NewMsgSend(from, to, coins)
+	msg := banktypes.NewMsgSend(from, to, coins)
 	signedTx, err := ca.constructSignedTx(ctx, msg, apptypes.SetGasLimit(gasLim))
 	if err != nil {
 		return nil, err
 	}
 	return ca.SubmitTx(ctx, signedTx)
-}
-
-func sdkErrorToGRPCError(resp sdk_abci.ResponseQuery) error {
-	switch resp.Code {
-	case sdk_errors.ErrInvalidRequest.ABCICode():
-		return status.Error(codes.InvalidArgument, resp.Log)
-	case sdk_errors.ErrUnauthorized.ABCICode():
-		return status.Error(codes.Unauthenticated, resp.Log)
-	case sdk_errors.ErrKeyNotFound.ABCICode():
-		return status.Error(codes.NotFound, resp.Log)
-	default:
-		return status.Error(codes.Unknown, resp.Log)
-	}
 }
