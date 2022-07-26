@@ -35,7 +35,7 @@ as well as submit transactions.
 type StateService struct {
 accessor StateAccessor
 }
-``` 
+```
 
 ### `StateAccessor`
 
@@ -68,16 +68,18 @@ type StateAccessor interface {
    iterations*)
 
 ### Verification of Balances
+
 In order to check that the balances returned via the `AccountBalance` query are correct, it is necessary to also request
 Merkle proofs from the celestia-app and verify them against the latest head's `AppHash`. In order for the `StateAccessor`
-to do this, it would need access to the `header.Store`'s `Head()` method in order to get the latest known header of the 
+to do this, it would need access to the `header.Store`'s `Head()` method in order to get the latest known header of the
 node and check its `AppHash`.
 
 ### Availability of `StateService` during sync
-The `Syncer` in the `header`  package provides one public method, `Finished()`, that indicates whether the syncer has 
-finished syncing. Introducing the availability of `StateService` would require extending the public API for `Syncer` 
+
+The `Syncer` in the `header`  package provides one public method, `Finished()`, that indicates whether the syncer has
+finished syncing. Introducing the availability of `StateService` would require extending the public API for `Syncer`
 with an additional method, `NetworkHead()`, in order to be able to fetch *current* state from the network. The `Syncer`
-would then have to be passed to any implementation of `StateService` upon construction and relied on in order to access 
+would then have to be passed to any implementation of `StateService` upon construction and relied on in order to access
 the network head even if the syncer is still syncing, as the network head is still verified even during sync.
 
 ### 1. Core Implementation of `StateAccessor`: `CoreAccess`
@@ -128,7 +130,7 @@ func (ca *CoreAccessor) SubmitTx(ctx context.Context, tx Tx) (*TxResponse, error
 
 While it is not necessary to detail how `P2PAccess` will be implemented in this ADR, it will still conform to the
 `StateAccessor` interface, but instead of being provided a core endpoint to connect to via RPC, `P2PAccess` will perform
-service discovery of state-providing nodes in the network and perform the state queries via libp2p streams. More details 
+service discovery of state-providing nodes in the network and perform the state queries via libp2p streams. More details
 of the p2p implementation will be described in a separate dedicated ADR.
 
 ```go
@@ -147,5 +149,5 @@ type P2PAccess struct {
 A **bridge** node will run a `StateProvider` (server-side of `P2PAccessor`). The `StateProvider` will be responsible for
 relaying the state-related queries through to its trusted celestia-core node.
 
-The `StateProvider` will be initialised with a celestia-core RPC connection. It will listen for inbound state-related 
+The `StateProvider` will be initialised with a celestia-core RPC connection. It will listen for inbound state-related
 queries from its peers and relay the received payloads to celestia-core.

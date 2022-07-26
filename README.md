@@ -20,9 +20,10 @@ Continue reading [here](https://blog.celestia.org/celestia-mvp-release-data-avai
 |-------------|----------------|
 | Go version  | 1.18 or higher |
 
-## System Requirements 
+## System Requirements
 
-See the official docs page for system requirements per node type: 
+See the official docs page for system requirements per node type:
+
 * [Bridge](https://docs.celestia.org/nodes/bridge-node#hardware-requirements)
 * [Light](https://docs.celestia.org/nodes/light-node#hardware-requirements)
 * [Full](https://docs.celestia.org/nodes/full-storage-node#hardware-requirements)
@@ -44,9 +45,9 @@ Celestia-node public API is documented [here](https://docs.celestia.org/develope
 
 ## Node types
 
-- **Bridge** nodes - relay blocks from the celestia consensus network to the celestia data availability (DA) network
-- **Full** nodes - fully reconstruct and store blocks by sampling the DA network for shares
-- **Light** nodes - verify the availability of block data by sampling the DA network for shares
+* **Bridge** nodes - relay blocks from the celestia consensus network to the celestia data availability (DA) network
+* **Full** nodes - fully reconstruct and store blocks by sampling the DA network for shares
+* **Light** nodes - verify the availability of block data by sampling the DA network for shares
 
 More information can be found [here](https://github.com/celestiaorg/celestia-node/blob/main/docs/adr/adr-003-march2022-testnet.md#legend).
 
@@ -64,9 +65,9 @@ celestia <node_type> start
 
 ## Package-specific documentation
 
-- [Header](./service/header/doc.go)
-- [Share](./service/share/doc.go)
-- [DAS](./das/doc.go)
+* [Header](./service/header/doc.go)
+* [Share](./service/share/doc.go)
+* [DAS](./das/doc.go)
 
 ## Code of Conduct
 
