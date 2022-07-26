@@ -276,7 +276,7 @@ func (rs *retrievalSession) doRequest(ctx context.Context, q *quadrant) {
 			if err != nil {
 				rs.span.RecordError(err, trace.WithAttributes(
 					attribute.String("requesting-root", root.String()),
-					attribute.Int("root-id", i),
+					attribute.Int("root-index", i),
 				))
 				return
 			}
