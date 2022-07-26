@@ -24,7 +24,7 @@ This document proposes a strategy for making data in the Celestia team managed O
 Grafana can query data from [multiple data sources](https://grafana.com/docs/grafana/latest/datasources/#supported-data-sources). This document explores two of these data sources:
 
 1. [Prometheus](https://github.com/prometheus/prometheus) is an open-source time series database written in Go. Prometheus uses the [PromQL](https://prometheus.io/docs/prometheus/latest/querying/basics/) query language. We can deploy Prometheus ourselves or use a hosted Prometheus provider (ex. [Google](https://cloud.google.com/stackdriver/docs/managed-prometheus), [AWS](https://aws.amazon.com/prometheus/), [Grafana](https://grafana.com/go/hosted-prometheus-monitoring/), etc.). Prometheus is pull-based which means services that would like to expose Prometheus metrics must provide an HTTP endpoint (ex. `/metrics`) that a Prometheus instance can poll (see [instrumenting a Go application for Prometheus](https://prometheus.io/docs/guides/go-application/)). Prometheus is used by [Cosmos SDK telemetry](https://docs.cosmos.network/main/core/telemetry.html) and [Tendermint telemetry](https://docs.tendermint.com/v0.35/nodes/metrics.html) so one major benefit to using Prometheus is that metrics emitted by celestia-core, celestia-app, and celestia-node can share the same database.
-1. [InfluxDB](https://github.com/influxdata/influxdb) is another open-source time series database written in Go. It is free to deploy the InfluxDB but there is a commercial offering from [influxdata](https://www.influxdata.com/get-influxdb/) that provides clustering and on-prem deployments. InfluxDB uses the [InfluxQL](https://docs.influxdata.com/influxdb/v1.8/query_language/) query language which appears less capable at advanced queries [ref](https://www.robustperception.io/translating-between-monitoring-languages/). InfluxDB is push-based which means services can push metrics directly to an InfluxDB instance ([ref](https://logz.io/blog/prometheus-influxdb/#:~:text=InfluxDB%20is%20a%20push%2Dbased,and%20Prometheus%20fetches%20them%20periodically.)). See [Prometheus vs. InfluxDB](https://prometheus.io/docs/introduction/comparison/#prometheus-vs-influxdb) for a more detailed comparison.
+2. [InfluxDB](https://github.com/influxdata/influxdb) is another open-source time series database written in Go. It is free to deploy the InfluxDB but there is a commercial offering from [influxdata](https://www.influxdata.com/get-influxdb/) that provides clustering and on-prem deployments. InfluxDB uses the [InfluxQL](https://docs.influxdata.com/influxdb/v1.8/query_language/) query language which appears less capable at advanced queries [ref](https://www.robustperception.io/translating-between-monitoring-languages/). InfluxDB is push-based which means services can push metrics directly to an InfluxDB instance ([ref](https://logz.io/blog/prometheus-influxdb/#:~:text=InfluxDB%20is%20a%20push%2Dbased,and%20Prometheus%20fetches%20them%20periodically.)). See [Prometheus vs. InfluxDB](https://prometheus.io/docs/introduction/comparison/#prometheus-vs-influxdb) for a more detailed comparison.
 
 If alternative data sources should be evaluated, please share them with us.
 
@@ -64,16 +64,16 @@ Prometheus server exposes an HTTP API for querying metrics (see [docs](https://p
 Implementation details for the incentivized testnet leaderboard are not yet known (likely built by an external vendor). Two possible implementations are:
 
 1. If the incentivized testnet has a dedicated backend, it can query the HTTP API above
-1. If the incentivized testnet has **no** dedicated backend and the frontend queries Prometheus directly, then there exists a TypeScript library: [prometheus-query-js](https://github.com/samber/prometheus-query-js) which may be helpful.
+2. If the incentivized testnet has **no** dedicated backend and the frontend queries Prometheus directly, then there exists a TypeScript library: [prometheus-query-js](https://github.com/samber/prometheus-query-js) which may be helpful.
 
 ### How can a node operator monitor their own node?
 
 Node operators have the option of running their own instance of OTEL Collector to collect metrics from their nodes. Rough steps:
 
 1. [Install celestia-node](https://docs.celestia.org/developers/celestia-node)
-1. Start a Grafana instance. If you'd like to use a cloud-hosted Grafana, sign up for an account on <https://grafana.com/>
-1. [Install OTEL Collector](https://opentelemetry.io/docs/collector/getting-started/). If on a Linux machine follow [these steps](https://opentelemetry.io/docs/collector/getting-started/#linux-packaging=). OTEL Collector should start automatically immediately after installation.
-1. Configure OTEL Collector to receive metrics from celestia-node by confirming your `/etc/otelcol/config.yaml` has the default config:
+2. Start a Grafana instance. If you'd like to use a cloud-hosted Grafana, sign up for an account on <https://grafana.com/>
+3. [Install OTEL Collector](https://opentelemetry.io/docs/collector/getting-started/). If on a Linux machine follow [these steps](https://opentelemetry.io/docs/collector/getting-started/#linux-packaging=). OTEL Collector should start automatically immediately after installation.
+4. Configure OTEL Collector to receive metrics from celestia-node by confirming your `/etc/otelcol/config.yaml` has the default config:
 
     ```yaml
     receivers:
@@ -84,7 +84,7 @@ Node operators have the option of running their own instance of OTEL Collector t
     ```
 
     This starts the [OTLP receiver](https://github.com/open-telemetry/opentelemetry-collector/blob/main/receiver/otlpreceiver/README.md) on port 4317 for gRPC and 4318 for HTTP. Celestia-node will by default emit HTTP metrics to `localhost:4318` so if you deployed OTEL Collector on the same machine as celestia-node, you can preserve the default config.
-1. Configure OTEL Collector to send metrics to Prometheus. If you are using cloud-hosted Grafana, add something like the following to your `/etc/otelcol/config.yaml`:
+5. Configure OTEL Collector to send metrics to Prometheus. If you are using cloud-hosted Grafana, add something like the following to your `/etc/otelcol/config.yaml`:
 
     ```yaml
     exporters:
@@ -92,7 +92,7 @@ Node operators have the option of running their own instance of OTEL Collector t
         endpoint: https://361398:eyJrIjoiYTNlZTFiOTc2NjA2ODJlOGY1ZGRlNGJkNWMwODRkMDY2M2U2MTE3NiIsIm4iOiJtZXRyaWNzLWtleSIsImlkIjo2MTU4ODJ9@prometheus-prod-01-eu-west-0.grafana.net/api/prom/push
     ```
 
-1. Configure OTEL Collector to enable the `otlp` receiver and the `prometheusremotewrite` exporter. In `/etc/otelcol/config.yaml`:
+6. Configure OTEL Collector to enable the `otlp` receiver and the `prometheusremotewrite` exporter. In `/etc/otelcol/config.yaml`:
 
     ```yaml
     service:
@@ -104,11 +104,11 @@ Node operators have the option of running their own instance of OTEL Collector t
 
     See [this article](https://grafana.com/blog/2022/05/10/how-to-collect-prometheus-metrics-with-the-opentelemetry-collector-and-grafana/) for more details. You may need to specify port 443 in the endpoint like this: `endpoint: "https://USER:PASSWORD@prometheus-blocks-prod-us-central1.grafana.net:443/api/prom/push"`
 
-1. Restart OTEL Collector with `sudo systemctl restart otelcol`
-1. Monitor that OTEL Collector started correctly with `systemctl status otelcol.service` and confirming no errors in `journalctl | grep otelcol | grep Error`
-1. Start celestia-node
-1. Verify that metrics are being displayed in Grafana
-1. [Optional] Import a [OpenTelemetry Collector Dashboard](https://grafana.com/grafana/dashboards/12553-opentelemetry-collector/) into Grafana to monitor your OTEL Collector.
+7. Restart OTEL Collector with `sudo systemctl restart otelcol`
+8. Monitor that OTEL Collector started correctly with `systemctl status otelcol.service` and confirming no errors in `journalctl | grep otelcol | grep Error`
+9. Start celestia-node
+10. Verify that metrics are being displayed in Grafana
+11. [Optional] Import a [OpenTelemetry Collector Dashboard](https://grafana.com/grafana/dashboards/12553-opentelemetry-collector/) into Grafana to monitor your OTEL Collector.
 
 ### Should we host a Prometheus instance ourselves or use a hosted provider?
 
