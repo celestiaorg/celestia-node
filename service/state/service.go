@@ -2,8 +2,6 @@ package state
 
 import (
 	"context"
-	"fmt"
-
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/header/sync"
 	"github.com/celestiaorg/nmt/namespace"
@@ -40,15 +38,17 @@ func (s *Service) SubmitPayForData(
 }
 
 func (s *Service) Balance(ctx context.Context) (*Balance, error) {
-	if !s.sync.Finished() {
-		return nil, fmt.Errorf("node is not synced up to network head yet, balances will not be current")
+	err := s.sync.WaitSync(ctx)
+	if err != nil {
+		return nil, err
 	}
 	return s.accessor.Balance(ctx)
 }
 
 func (s *Service) BalanceForAddress(ctx context.Context, addr Address) (*Balance, error) {
-	if !s.sync.Finished() {
-		return nil, fmt.Errorf("node is not synced up to network head yet, balances will not be current")
+	err := s.sync.WaitSync(ctx)
+	if err != nil {
+		return nil, err
 	}
 	return s.accessor.BalanceForAddress(ctx, addr)
 }
