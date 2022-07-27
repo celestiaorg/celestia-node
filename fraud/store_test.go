@@ -59,7 +59,7 @@ func TestStore_GetAll(t *testing.T) {
 		require.NoError(t, err)
 		faultHeaders = append(faultHeaders, faultDAH)
 	}
-	befp, err := getAll(ctx, badEncodingStore, UnmarshalBEFP)
+	befp, err := getAll(ctx, badEncodingStore, BadEncoding)
 	require.NoError(t, err)
 	require.NotEmpty(t, befp)
 	for i := 0; i < len(befp); i++ {
@@ -74,7 +74,7 @@ func Test_GetAllFailed(t *testing.T) {
 	ds := ds_sync.MutexWrap(datastore.NewMapDatastore())
 	badEncodingStore := namespace.Wrap(ds, makeKey(BadEncoding))
 
-	proofs, err := getAll(ctx, badEncodingStore, UnmarshalBEFP)
+	proofs, err := getAll(ctx, badEncodingStore, BadEncoding)
 	require.Error(t, err)
 	require.ErrorIs(t, err, datastore.ErrNotFound)
 	require.Nil(t, proofs)

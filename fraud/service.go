@@ -18,6 +18,10 @@ const (
 	fetchHeaderTimeout = time.Minute * 2
 )
 
+func init() {
+	Register(BadEncoding, UnmarshalBEFP)
+}
+
 // service is responsible for validating and propagating Fraud Proofs.
 // It implements the Service interface.
 type service struct {
@@ -81,15 +85,12 @@ func (f *service) processIncoming(
 	proofType ProofType,
 	msg *pubsub.Message,
 ) pubsub.ValidationResult {
-	unmarshaler, err := GetUnmarshaler(proofType)
+	proof, err := Unmarshal(proofType, msg.Data)
 	if err != nil {
-		log.Errorw(err.Error())
-		return pubsub.ValidationReject
-	}
-	proof, err := unmarshaler(msg.Data)
-	if err != nil {
-		log.Errorw("failed to unmarshal fraud proof", err)
-		f.pubsub.BlacklistPeer(msg.ReceivedFrom)
+		log.Error(err)
+		if !errors.Is(err, &ErrNoUnmarshaler{}) {
+			f.pubsub.BlacklistPeer(msg.ReceivedFrom)
+		}
 		return pubsub.ValidationReject
 	}
 
@@ -142,9 +143,6 @@ func (f *service) Get(ctx context.Context, proofType ProofType) ([]Proof, error)
 		f.stores[proofType] = store
 	}
 	f.storesLk.Unlock()
-	unmarshaler, err := GetUnmarshaler(proofType)
-	if err != nil {
-		return nil, err
-	}
-	return getAll(ctx, store, unmarshaler)
+
+	return getAll(ctx, store, proofType)
 }

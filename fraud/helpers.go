@@ -2,8 +2,6 @@ package fraud
 
 import (
 	"context"
-	"fmt"
-	"strings"
 
 	"github.com/libp2p/go-libp2p-core/peer"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
@@ -13,20 +11,6 @@ const fraudSubSuffix = "-sub"
 
 func getSubTopic(p ProofType) string {
 	return p.String() + fraudSubSuffix
-}
-
-func getProofTypeFromTopic(topic string) ProofType {
-	str := strings.TrimSuffix(topic, fraudSubSuffix)
-	return toProof(str)
-}
-
-func toProof(proof string) ProofType {
-	switch proof {
-	case "badencoding":
-		return BadEncoding
-	default:
-		panic(fmt.Sprintf("fraud: invalid proof type: %s", proof))
-	}
 }
 
 func join(p *pubsub.PubSub, proofType ProofType,

@@ -16,6 +16,14 @@ func (e *ErrFraudExists) Error() string {
 	return fmt.Sprintf("fraud: %s proof exists\n", e.Proof[0].Type())
 }
 
+type ErrNoUnmarshaler struct {
+	proofType ProofType
+}
+
+func (e *ErrNoUnmarshaler) Error() string {
+	return fmt.Sprintf("fraud: unmarshaler for %s type is not registered", e.proofType)
+}
+
 type ProofType int
 
 const (
@@ -68,4 +76,15 @@ func OnProof(ctx context.Context, subscriber Subscriber, p ProofType, handle fun
 	}
 
 	handle(proof)
+}
+
+// Unmarshal converts raw bytes into respective Proof type.
+func Unmarshal(proofType ProofType, msg []byte) (Proof, error) {
+	unmarshalersLk.RLock()
+	defer unmarshalersLk.RUnlock()
+	unmarshaler, ok := defaultUnmarshalers[proofType]
+	if !ok {
+		return nil, &ErrNoUnmarshaler{proofType: proofType}
+	}
+	return unmarshaler(msg)
 }
