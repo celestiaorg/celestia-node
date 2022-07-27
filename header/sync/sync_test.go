@@ -14,6 +14,8 @@ import (
 	"github.com/celestiaorg/celestia-node/header/store"
 )
 
+var blockTime = time.Microsecond
+
 func TestSyncSimpleRequestingHead(t *testing.T) {
 	// this way we force local head of Syncer to expire, so it requests a new one from trusted peer
 	header.TrustingPeriod = time.Microsecond
@@ -33,7 +35,7 @@ func TestSyncSimpleRequestingHead(t *testing.T) {
 	require.NoError(t, err)
 
 	localStore := store.NewTestStore(ctx, t, head)
-	syncer := NewSyncer(local.NewExchange(remoteStore), localStore, &header.DummySubscriber{})
+	syncer := NewSyncer(local.NewExchange(remoteStore), localStore, &header.DummySubscriber{}, blockTime)
 	err = syncer.Start(ctx)
 	require.NoError(t, err)
 
@@ -58,6 +60,8 @@ func TestSyncSimpleRequestingHead(t *testing.T) {
 func TestSyncCatchUp(t *testing.T) {
 	// just set a big enough value, so we trust local header and don't request anything
 	header.TrustingPeriod = time.Minute
+	// set a big enough block time that local header is considered recent
+	bigBlockTime := time.Minute
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	t.Cleanup(cancel)
@@ -67,7 +71,7 @@ func TestSyncCatchUp(t *testing.T) {
 
 	remoteStore := store.NewTestStore(ctx, t, head)
 	localStore := store.NewTestStore(ctx, t, head)
-	syncer := NewSyncer(local.NewExchange(remoteStore), localStore, &header.DummySubscriber{})
+	syncer := NewSyncer(local.NewExchange(remoteStore), localStore, &header.DummySubscriber{}, bigBlockTime)
 	// 1. Initial sync
 	err := syncer.Start(ctx)
 	require.NoError(t, err)
@@ -77,7 +81,7 @@ func TestSyncCatchUp(t *testing.T) {
 	require.NoError(t, err)
 
 	// 3. syncer rcvs header from the future and starts catching-up
-	res := syncer.processIncoming(ctx, suite.GenExtendedHeaders(1)[0])
+	res := syncer.incomingHead(ctx, suite.GenExtendedHeaders(1)[0])
 	assert.Equal(t, pubsub.ValidationAccept, res)
 
 	_, err = localStore.GetByHeight(ctx, 102)
@@ -102,6 +106,7 @@ func TestSyncCatchUp(t *testing.T) {
 func TestSyncPendingRangesWithMisses(t *testing.T) {
 	// just set a big enough value, so we trust local header and don't request anything
 	header.TrustingPeriod = time.Minute
+	biggerBlockTime := time.Minute
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	t.Cleanup(cancel)
@@ -111,7 +116,7 @@ func TestSyncPendingRangesWithMisses(t *testing.T) {
 
 	remoteStore := store.NewTestStore(ctx, t, head)
 	localStore := store.NewTestStore(ctx, t, head)
-	syncer := NewSyncer(local.NewExchange(remoteStore), localStore, &header.DummySubscriber{})
+	syncer := NewSyncer(local.NewExchange(remoteStore), localStore, &header.DummySubscriber{}, biggerBlockTime)
 	err := syncer.Start(ctx)
 	require.NoError(t, err)
 
@@ -152,4 +157,74 @@ func TestSyncPendingRangesWithMisses(t *testing.T) {
 
 	assert.Equal(t, exp.Height, have.Height)
 	assert.Empty(t, syncer.pending.Head()) // assert all cache from pending is used
+}
+
+// TestSyncHead tests the Syncer's Head method.
+// TODO @renaynay: doc this test better!!!!
+func TestSyncHead(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	t.Cleanup(cancel)
+
+	suite := header.NewTestSuite(t, 3)
+	head := suite.Head()
+
+	remoteStore := store.NewTestStore(ctx, t, head)
+	_, err := remoteStore.Append(ctx, suite.GenExtendedHeaders(100)...)
+	require.NoError(t, err)
+
+	_, err = remoteStore.GetByHeight(ctx, 100)
+	require.NoError(t, err)
+
+	localStore := store.NewTestStore(ctx, t, head)
+	syncer := NewSyncer(local.NewExchange(remoteStore), localStore, &header.DummySubscriber{}, blockTime)
+	err = syncer.Start(ctx)
+	require.NoError(t, err)
+
+	_, err = localStore.GetByHeight(ctx, 100)
+	require.NoError(t, err)
+
+	// send some headers through "headersub" to increase pending cache
+	headers := suite.GenExtendedHeaders(10)
+	res := syncer.incomingHead(ctx, headers[len(headers)-1])
+	require.Equal(t, pubsub.ValidationAccept, res)
+
+	// compare Syncer's reported head against local store's head
+	storeHead, err := localStore.Head(ctx)
+	require.NoError(t, err)
+	syncHead, err := syncer.Head(ctx)
+	require.NoError(t, err)
+
+	// ensure Syncer reports its head from pending cache rather than the store
+	assert.Greater(t, syncHead.Height, storeHead.Height)
+}
+
+// TestSync_withBadObjectiveHead tests to make sure the Syncer
+// ignores a bad (late or does not pass verification) head returned by
+// its underlying Exchange.
+// TODO @renaynay: doc this test betteR!!!!!!!
+func TestSync_withBadObjectiveHead(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	t.Cleanup(cancel)
+
+	suite := header.NewTestSuite(t, 3)
+
+	lateHead := suite.Head()
+	badExchange := store.NewTestStore(ctx, t, lateHead)
+
+	suite.GenExtendedHeaders(10)
+
+	syncer := NewSyncer(badExchange, store.NewTestStore(ctx, t, suite.Head()), &header.DummySubscriber{}, blockTime)
+	err := syncer.Start(ctx)
+	require.NoError(t, err)
+
+	sbj, err := syncer.objectiveHead(ctx)
+	require.NoError(t, err)
+
+	// ensure that subjective head returned is not the bad exchange's head
+	badHead, err := badExchange.Head(ctx)
+	require.NoError(t, err)
+	assert.NotEqual(t, badHead.Height, sbj.Height)
+	assert.Equal(t, suite.Head().Height, sbj.Height)
+	// ensure bad exchange's head is NOT added as new sync target
+	assert.Empty(t, syncer.pending.Head())
 }

@@ -2,6 +2,7 @@ package params
 
 import (
 	"errors"
+	"time"
 
 	"github.com/libp2p/go-libp2p-core/peer"
 )
@@ -13,6 +14,8 @@ const (
 	// Private can be used to set up any private network, including local testing setups.
 	// Use CELESTIA_PRIVATE_GENESIS env var to enable Private by specifying its genesis block hash.
 	Private Network = "private"
+	// TODO @renaynay @Wondertan: Set this once it's agreed upon, ideally this could point at a core const
+	BlockTime = time.Second * 30
 )
 
 // Network is a type definition for DA network run by Celestia Node.

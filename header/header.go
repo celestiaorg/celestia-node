@@ -132,3 +132,7 @@ func (eh *ExtendedHeader) UnmarshalBinary(data []byte) error {
 	*eh = *out
 	return nil
 }
+
+func (eh *ExtendedHeader) Equals(header *ExtendedHeader) bool {
+	return bytes.Equal(eh.Hash(), header.Hash())
+}
