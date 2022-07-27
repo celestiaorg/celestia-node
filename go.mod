@@ -11,6 +11,8 @@ require (
 	github.com/celestiaorg/nmt v0.10.0
 	github.com/celestiaorg/rsmt2d v0.5.0
 	github.com/cosmos/cosmos-sdk v0.46.0-beta2.0.20220418184507-c53157dd63f6
+	github.com/cosmos/cosmos-sdk/api v0.1.0
+	github.com/cosmos/ibc-go/v4 v4.0.0-rc0
 	github.com/dgraph-io/badger/v2 v2.2007.4
 	github.com/gammazero/workerpool v1.1.2
 	github.com/gogo/protobuf v1.3.3
@@ -60,7 +62,7 @@ require (
 	filippo.io/edwards25519 v1.0.0-rc.1 // indirect
 	github.com/99designs/keyring v1.1.6 // indirect
 	github.com/Workiva/go-datastructures v1.0.53 // indirect
-	github.com/armon/go-metrics v0.3.10 // indirect
+	github.com/armon/go-metrics v0.4.0 // indirect
 	github.com/aws/aws-sdk-go v1.40.45 // indirect
 	github.com/benbjohnson/clock v1.3.0 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
@@ -106,7 +108,6 @@ require (
 	github.com/fsnotify/fsnotify v1.5.4 // indirect
 	github.com/gammazero/deque v0.1.0 // indirect
 	github.com/go-kit/kit v0.12.0 // indirect
-	github.com/go-playground/validator/v10 v10.4.1 // indirect
 	github.com/go-task/slim-sprig v0.0.0-20210107165309-348f09dbbbc0 // indirect
 	github.com/godbus/dbus v0.0.0-20190726142602-4481cbc300e2 // indirect
 	github.com/godbus/dbus/v5 v5.0.4 // indirect

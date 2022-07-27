@@ -4,15 +4,21 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/cosmos/cosmos-sdk/api/tendermint/abci"
 	"github.com/cosmos/cosmos-sdk/types"
-	sdk_tx "github.com/cosmos/cosmos-sdk/types/tx"
+	sdktypes "github.com/cosmos/cosmos-sdk/types"
+	sdktx "github.com/cosmos/cosmos-sdk/types/tx"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
+	proofutils "github.com/cosmos/ibc-go/v4/modules/core/23-commitment/types"
+	rpcclient "github.com/tendermint/tendermint/rpc/client"
+	"github.com/tendermint/tendermint/rpc/client/http"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/x/payment"
 	apptypes "github.com/celestiaorg/celestia-app/x/payment/types"
+	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/nmt/namespace"
 )
 
@@ -20,11 +26,15 @@ import (
 // with a celestia-core node.
 type CoreAccessor struct {
 	signer *apptypes.KeyringSigner
+	getter header.Getter
 
-	coreIP   string
-	grpcPort string
-	coreConn *grpc.ClientConn
 	queryCli banktypes.QueryClient
+	rpcCli   rpcclient.ABCIClient
+
+	coreConn *grpc.ClientConn
+	coreIP   string
+	rpcPort  string
+	grpcPort string
 }
 
 // NewCoreAccessor dials the given celestia-core endpoint and
@@ -32,12 +42,16 @@ type CoreAccessor struct {
 // connection.
 func NewCoreAccessor(
 	signer *apptypes.KeyringSigner,
+	getter header.Getter,
 	coreIP,
+	rpcPort string,
 	grpcPort string,
 ) *CoreAccessor {
 	return &CoreAccessor{
 		signer:   signer,
+		getter:   getter,
 		coreIP:   coreIP,
+		rpcPort:  rpcPort,
 		grpcPort: grpcPort,
 	}
 }
@@ -56,6 +70,12 @@ func (ca *CoreAccessor) Start(ctx context.Context) error {
 	// create the query client
 	queryCli := banktypes.NewQueryClient(ca.coreConn)
 	ca.queryCli = queryCli
+	// create ABCI query client
+	cli, err := http.New(fmt.Sprintf("http://%s:%s", ca.coreIP, ca.rpcPort))
+	if err != nil {
+		return err
+	}
+	ca.rpcCli = cli
 	return nil
 }
 
@@ -109,21 +129,60 @@ func (ca *CoreAccessor) Balance(ctx context.Context) (*Balance, error) {
 }
 
 func (ca *CoreAccessor) BalanceForAddress(ctx context.Context, addr Address) (*Balance, error) {
-	req := &banktypes.QueryBalanceRequest{
-		Address: addr.String(),
-		Denom:   app.BondDenom,
-	}
-
-	resp, err := ca.queryCli.Balance(ctx, req)
+	head, err := ca.getter.Head(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("querying client for balance: %s", err.Error())
+		return nil, err
 	}
-
-	return resp.Balance, nil
+	// construct an ABCI query for the height at head-1 because
+	// the AppHash contained in the head is actually the state root
+	// after applying the transactions contained in the previous block.
+	// TODO @renaynay: once https://github.com/cosmos/cosmos-sdk/pull/12674 is merged, use this method instead
+	prefixedAccountKey := append(banktypes.CreateAccountBalancesPrefix(addr.Bytes()), []byte(app.BondDenom)...)
+	abciReq := abci.RequestQuery{
+		// TODO @renayay: once https://github.com/cosmos/cosmos-sdk/pull/12674 is merged, use const instead
+		Path:   fmt.Sprintf("store/%s/key", banktypes.StoreKey),
+		Height: head.Height - 1,
+		Data:   prefixedAccountKey,
+		Prove:  true,
+	}
+	opts := rpcclient.ABCIQueryOptions{
+		Height: abciReq.Height,
+		Prove:  abciReq.Prove,
+	}
+	result, err := ca.rpcCli.ABCIQueryWithOptions(ctx, abciReq.Path, abciReq.Data, opts)
+	if err != nil {
+		return nil, err
+	}
+	if !result.Response.IsOK() {
+		return nil, sdkErrorToGRPCError(result.Response)
+	}
+	// unmarshal balance information
+	value := result.Response.Value
+	coin, ok := sdktypes.NewIntFromString(string(value))
+	if !ok {
+		return nil, fmt.Errorf("cannot convert %s into sdktypes.Int", string(value))
+	}
+	// convert proofs into a more digestible format
+	merkleproof, err := proofutils.ConvertProofs(result.Response.GetProofOps())
+	if err != nil {
+		return nil, err
+	}
+	root := proofutils.NewMerkleRoot(head.AppHash)
+	// VerifyMembership expects the path as:
+	// []string{<store key of module>, <actual key corresponding to requested value>}
+	path := proofutils.NewMerklePath(banktypes.StoreKey, string(prefixedAccountKey))
+	err = merkleproof.VerifyMembership(proofutils.GetSDKSpecs(), root, path, value)
+	if err != nil {
+		return nil, err
+	}
+	return &Balance{
+		Denom:  app.BondDenom,
+		Amount: coin,
+	}, nil
 }
 
 func (ca *CoreAccessor) SubmitTx(ctx context.Context, tx Tx) (*TxResponse, error) {
-	txResp, err := apptypes.BroadcastTx(ctx, ca.coreConn, sdk_tx.BroadcastMode_BROADCAST_MODE_BLOCK, tx)
+	txResp, err := apptypes.BroadcastTx(ctx, ca.coreConn, sdktx.BroadcastMode_BROADCAST_MODE_BLOCK, tx)
 	if err != nil {
 		return nil, err
 	}
@@ -133,7 +192,7 @@ func (ca *CoreAccessor) SubmitTx(ctx context.Context, tx Tx) (*TxResponse, error
 func (ca *CoreAccessor) SubmitTxWithBroadcastMode(
 	ctx context.Context,
 	tx Tx,
-	mode sdk_tx.BroadcastMode,
+	mode sdktx.BroadcastMode,
 ) (*TxResponse, error) {
 	txResp, err := apptypes.BroadcastTx(ctx, ca.coreConn, mode, tx)
 	if err != nil {
