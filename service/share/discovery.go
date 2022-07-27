@@ -5,7 +5,9 @@ import (
 	"time"
 
 	core "github.com/libp2p/go-libp2p-core/discovery"
+	"github.com/libp2p/go-libp2p-core/event"
 	"github.com/libp2p/go-libp2p-core/host"
+	"github.com/libp2p/go-libp2p-core/network"
 	"github.com/libp2p/go-libp2p-core/peer"
 )
 
@@ -24,9 +26,10 @@ var waitF = func(ttl time.Duration) time.Duration {
 
 // discovery combines advertise and discover services and allows to store discovered nodes.
 type discovery struct {
-	set  *limitedSet
-	host host.Host
-	disc core.Discovery
+	set       *limitedSet
+	host      host.Host
+	disc      core.Discovery
+	connector *backoffConnector
 	// peersLimit is max amount of peers that will be discovered during a discovery session.
 	peersLimit uint
 	// discInterval is an interval between discovery sessions.
@@ -47,6 +50,7 @@ func NewDiscovery(
 		newLimitedSet(peersLimit),
 		h,
 		d,
+		newBackoffConnector(h, defaultBackoffFactory),
 		peersLimit,
 		discInterval,
 		advertiseInterval,
@@ -56,7 +60,7 @@ func NewDiscovery(
 // handlePeersFound receives peers and tries to establish a connection with them.
 // Peer will be added to PeerCache if connection succeeds.
 func (d *discovery) handlePeerFound(ctx context.Context, topic string, peer peer.AddrInfo) {
-	if peer.ID == d.host.ID() || len(peer.Addrs) == 0 {
+	if peer.ID == d.host.ID() || len(peer.Addrs) == 0 || d.set.Contains(peer.ID) {
 		return
 	}
 	err := d.set.TryAdd(peer.ID)
@@ -65,7 +69,7 @@ func (d *discovery) handlePeerFound(ctx context.Context, topic string, peer peer
 		return
 	}
 
-	err = d.host.Connect(ctx, peer)
+	err = d.connector.Connect(ctx, peer)
 	if err != nil {
 		log.Warn(err)
 		d.set.Remove(peer.ID)
@@ -76,22 +80,38 @@ func (d *discovery) handlePeerFound(ctx context.Context, topic string, peer peer
 	d.host.ConnManager().TagPeer(peer.ID, topic, peerWeight)
 }
 
-// findPeers starts peer discovery every discoveryInterval until peer cache reaches peersLimit.
-func (d *discovery) findPeers(ctx context.Context) {
+// ensurePeers ensures we always have 'peerLimit' connected peers.
+// It starts peer discovery every 30 seconds until peer cache reaches peersLimit.
+// Discovery is restarted if any previously connected peers disconnect.
+func (d *discovery) ensurePeers(ctx context.Context) {
 	if d.peersLimit == 0 {
 		log.Warn("peers limit is set to 0. Skipping discovery...")
 		return
 	}
+	// subscribe on Event Bus in order to catch disconnected peers and restart the discovery
+	sub, err := d.host.EventBus().Subscribe(&event.EvtPeerConnectednessChanged{})
+	if err != nil {
+		log.Error(err)
+		return
+	}
+	go d.connector.GC(ctx)
+
 	t := time.NewTicker(d.discoveryInterval)
-	defer t.Stop()
+	defer func() {
+		t.Stop()
+		if err = sub.Close(); err != nil {
+			log.Error(err)
+		}
+	}()
 	for {
 		select {
 		case <-ctx.Done():
 			return
 		case <-t.C:
-			// return if limit was reached to stop the loop and finish discovery
 			if uint(d.set.Size()) == d.peersLimit {
-				return
+				// stop ticker if we have reached the limit
+				t.Stop()
+				continue
 			}
 			peers, err := d.disc.FindPeers(ctx, topic)
 			if err != nil {
@@ -101,6 +121,18 @@ func (d *discovery) findPeers(ctx context.Context) {
 			for peer := range peers {
 				go d.handlePeerFound(ctx, topic, peer)
 			}
+		case e := <-sub.Out():
+			// listen to disconnect event to remove peer from set and reset backoff time
+			// reset timer in order to restart the discovery, once stored peer is disconnected
+			connStatus := e.(event.EvtPeerConnectednessChanged)
+			if connStatus.Connectedness == network.NotConnected {
+				if d.set.Contains(connStatus.Peer) {
+					d.connector.RestartBackoff(connStatus.Peer)
+					d.set.Remove(connStatus.Peer)
+					d.host.ConnManager().UntagPeer(connStatus.Peer, topic)
+					t.Reset(d.discoveryInterval)
+				}
+			}
 		}
 	}
 }
@@ -108,6 +140,7 @@ func (d *discovery) findPeers(ctx context.Context) {
 // advertise is a utility function that persistently advertises a service through an Advertiser.
 func (d *discovery) advertise(ctx context.Context) {
 	timer := time.NewTimer(d.advertiseInterval)
+	defer timer.Stop()
 	for {
 		ttl, err := d.disc.Advertise(ctx, topic)
 		if err != nil {

@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/libp2p/go-libp2p-core/event"
 	"github.com/libp2p/go-libp2p-core/host"
 	"github.com/libp2p/go-libp2p-core/network"
 	"github.com/libp2p/go-libp2p-core/peer"
@@ -85,6 +86,7 @@ Steps:
 5. Ensure that nodes are connected to bridge
 6. Wait until light will find full node
 7. Check that full and light nodes are connected to each other
+8. Stop FN and ensure that it's not connected to LN
 */
 func TestBootstrapNodesFromBridgeNode(t *testing.T) {
 	sw := swamp.NewSwamp(t)
@@ -112,25 +114,116 @@ func TestBootstrapNodesFromBridgeNode(t *testing.T) {
 	light := sw.NewLightNode(nodesConfig...)
 	nodes := []*node.Node{full, light}
 	ch := make(chan struct{})
-	bundle := &network.NotifyBundle{}
-	bundle.ConnectedF = func(_ network.Network, conn network.Conn) {
-		if conn.RemotePeer() == full.Host.ID() {
-			ch <- struct{}{}
-		}
-	}
-	light.Host.Network().Notify(bundle)
+	sub, err := light.Host.EventBus().Subscribe(&event.EvtPeerConnectednessChanged{})
+	require.NoError(t, err)
+	defer sub.Close()
 	for index := range nodes {
 		require.NoError(t, nodes[index].Start(ctx))
 		assert.Equal(t, *addr, nodes[index].Bootstrappers[0])
 		assert.True(t, nodes[index].Host.Network().Connectedness(addr.ID) == network.Connected)
 	}
+	addrFull := host.InfoFromHost(full.Host)
+	go func() {
+		for e := range sub.Out() {
+			connStatus := e.(event.EvtPeerConnectednessChanged)
+			if connStatus.Peer == full.Host.ID() {
+				ch <- struct{}{}
+			}
+		}
+	}()
 
 	select {
 	case <-ctx.Done():
 		t.Fatal("peer was not found")
 	case <-ch:
-		break
+		assert.True(t, light.Host.Network().Connectedness(addrFull.ID) == network.Connected)
 	}
-	addrFull := host.InfoFromHost(full.Host)
-	assert.True(t, light.Host.Network().Connectedness(addrFull.ID) == network.Connected)
+
+	require.NoError(t, full.Stop(ctx))
+	require.NoError(t, full.Host.Network().Close())
+	select {
+	case <-ctx.Done():
+		t.Fatal("peer was not disconnected")
+	case <-ch:
+		assert.True(t, light.Host.Network().Connectedness(addrFull.ID) == network.NotConnected)
+	}
+}
+
+/*
+Test-Case: Restart full node discovery after one node is disconnected
+Steps:
+1. Create a Bridge Node(BN)
+2. Start a BN
+3. Create 2 full nodes with bridge node as bootstrapper peer and start them
+4. Check that nodes are connected to each other
+5. Create one more node with disabled discovery
+6. Stop one of full node in order to restart discovery
+7. Check that the last FN is connected to one of the nodes
+*NOTE*: this test will take some time because it relies on several cycles of peer discovery
+*/
+func TestRestartNodeDiscovery(t *testing.T) {
+	sw := swamp.NewSwamp(t)
+	cfg := node.DefaultConfig(node.Bridge)
+	cfg.P2P.Bootstrapper = true
+	const defaultTimeInterval = time.Second * 10
+	const fullNodes = 2
+	var defaultOptions = []node.Option{
+		node.WithPeersLimit(fullNodes),
+		node.WithRefreshRoutingTablePeriod(defaultTimeInterval),
+		node.WithDiscoveryInterval(defaultTimeInterval),
+		node.WithAdvertiseInterval(defaultTimeInterval),
+	}
+	bridgeConfig := append([]node.Option{node.WithConfig(cfg)}, defaultOptions...)
+	bridge := sw.NewBridgeNode(bridgeConfig...)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	t.Cleanup(cancel)
+
+	err := bridge.Start(ctx)
+	require.NoError(t, err)
+	addr := host.InfoFromHost(bridge.Host)
+	nodes := make([]*node.Node, fullNodes)
+	nodesConfig := append([]node.Option{node.WithBootstrappers([]peer.AddrInfo{*addr})}, defaultOptions...)
+	for index := 0; index < fullNodes; index++ {
+		nodes[index] = sw.NewFullNode(nodesConfig...)
+	}
+
+	sub, err := nodes[0].Host.EventBus().Subscribe(&event.EvtPeerConnectednessChanged{})
+	require.NoError(t, err)
+	defer sub.Close()
+	for index := 0; index < fullNodes; index++ {
+		require.NoError(t, nodes[index].Start(ctx))
+		assert.Equal(t, *addr, nodes[index].Bootstrappers[0])
+		assert.True(t, nodes[index].Host.Network().Connectedness(addr.ID) == network.Connected)
+	}
+
+	// wait until full nodes connect each other
+	e := <-sub.Out()
+	connStatus := e.(event.EvtPeerConnectednessChanged)
+	id := connStatus.Peer
+	if id != nodes[1].Host.ID() {
+		t.Fatal("unexpected peer connected")
+	}
+	assert.True(t, nodes[0].Host.Network().Connectedness(id) == network.Connected)
+
+	// create one more node with disabled discovery
+	nodesConfig[1] = node.WithPeersLimit(0)
+	node := sw.NewFullNode(nodesConfig...)
+	require.NoError(t, node.Start(ctx))
+	// stop one node in order to remove it from cache and restart discovery
+	require.NoError(t, nodes[1].Stop(ctx))
+	// close context in order to receive disconnected event(should be used in tests only)
+	require.NoError(t, nodes[1].Host.Close())
+	for {
+		select {
+		case <-ctx.Done():
+			t.Fatal("peer was not connected")
+		case e := <-sub.Out():
+			connStatus := e.(event.EvtPeerConnectednessChanged)
+			if host.InfoFromHost(node.Host).ID == connStatus.Peer {
+				assert.True(t, connStatus.Connectedness == network.Connected)
+				return
+			}
+		}
+	}
 }

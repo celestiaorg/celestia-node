@@ -97,6 +97,7 @@ func WithBootstrappers(peers params.Bootstrappers) Option {
 }
 
 // WithRefreshRoutingTablePeriod sets custom refresh period for dht.
+// Currently, it is used to speed up tests.
 func WithRefreshRoutingTablePeriod(interval time.Duration) Option {
 	return func(sets *settings) {
 		sets.cfg.P2P.RoutingTableRefreshPeriod = interval
