@@ -11,8 +11,8 @@ import (
 	"github.com/libp2p/go-libp2p/p2p/discovery/backoff"
 )
 
-// defaultTimeToLive is a default period after which disconnected peers will be removed from cache
-const defaultGCInterval = time.Hour
+// gcInterval is a default period after which disconnected peers will be removed from cache
+const gcInterval = time.Hour
 
 var defaultBackoffFactory = backoff.NewFixedBackoff(time.Hour)
 
@@ -42,23 +42,29 @@ func newBackoffConnector(h host.Host, factory backoff.BackoffFactory) *backoffCo
 
 // Connect puts peer to the backoffCache and tries to establish a connection with it.
 func (b *backoffConnector) Connect(ctx context.Context, p peer.AddrInfo) error {
-	strategy := b.backoff()
+	// we should lock the mutex before calling connectionData and not inside because otherwise it could be modified
+	// from another goroutine as it returns a pointer
 	b.cacheLk.Lock()
-	cache, ok := b.cacheData[p.ID]
-	if ok {
-		if time.Now().Before(cache.nexttry) {
-			b.cacheLk.Unlock()
-			return fmt.Errorf("share/discovery: backoff period is not ended for peer=%s", p.ID.String())
-		}
-		strategy = b.cacheData[p.ID].backoff
-	} else {
-		cache = &connectionCacheData{}
-		b.cacheData[p.ID] = cache
+	cache := b.connectionData(p.ID)
+	if time.Now().Before(cache.nexttry) {
+		b.cacheLk.Unlock()
+		return fmt.Errorf("share/discovery: backoff period is not ended for peer=%s", p.ID.String())
 	}
-	cache.nexttry = time.Now().Add(strategy.Delay())
-	cache.backoff = strategy
+	cache.nexttry = time.Now().Add(cache.backoff.Delay())
 	b.cacheLk.Unlock()
 	return b.h.Connect(ctx, p)
+}
+
+// connectionData returns connectionCacheData from the map if it was stored, otherwise it will instantiate
+// a new one.
+func (b *backoffConnector) connectionData(p peer.ID) *connectionCacheData {
+	cache, ok := b.cacheData[p]
+	if !ok {
+		cache = &connectionCacheData{}
+		cache.backoff = b.backoff()
+		b.cacheData[p] = cache
+	}
+	return cache
 }
 
 // RestartBackoff resets delay time between attempts and adds a delay for the next connection attempt to remote peer.
@@ -66,22 +72,13 @@ func (b *backoffConnector) Connect(ctx context.Context, p peer.AddrInfo) error {
 func (b *backoffConnector) RestartBackoff(p peer.ID) {
 	b.cacheLk.Lock()
 	defer b.cacheLk.Unlock()
-	cache, ok := b.cacheData[p]
-	if !ok {
-		backoff := b.backoff()
-		cache = &connectionCacheData{
-			nexttry: time.Now().Add(backoff.Delay()),
-			backoff: backoff,
-		}
-		b.cacheData[p] = cache
-		return
-	}
+	cache := b.connectionData(p)
 	cache.backoff.Reset()
 	cache.nexttry = time.Now().Add(cache.backoff.Delay())
 }
 
 func (b *backoffConnector) GC(ctx context.Context) {
-	ticker := time.NewTicker(defaultGCInterval)
+	ticker := time.NewTicker(gcInterval)
 	for {
 		select {
 		case <-ctx.Done():

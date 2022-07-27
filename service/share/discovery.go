@@ -133,10 +133,6 @@ func (d *discovery) ensurePeers(ctx context.Context) {
 					t.Reset(d.discoveryInterval)
 				}
 			}
-			d.connector.RestartBackoff(connStatus.Peer)
-			d.set.Remove(connStatus.Peer)
-			d.host.ConnManager().UntagPeer(connStatus.Peer, topic)
-			t.Reset(d.discoveryInterval)
 		}
 	}
 }

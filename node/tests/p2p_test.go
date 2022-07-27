@@ -126,8 +126,7 @@ func TestBootstrapNodesFromBridgeNode(t *testing.T) {
 	go func() {
 		for e := range sub.Out() {
 			connStatus := e.(event.EvtPeerConnectednessChanged)
-			if (connStatus.Connectedness == network.Connected ||
-				connStatus.Connectedness == network.NotConnected) && connStatus.Peer == full.Host.ID() {
+			if connStatus.Peer == full.Host.ID() {
 				ch <- struct{}{}
 			}
 		}
@@ -167,8 +166,9 @@ func TestRestartNodeDiscovery(t *testing.T) {
 	cfg := node.DefaultConfig(node.Bridge)
 	cfg.P2P.Bootstrapper = true
 	const defaultTimeInterval = time.Second * 10
+	const fullNodes = 2
 	var defaultOptions = []node.Option{
-		node.WithPeersLimit(2),
+		node.WithPeersLimit(fullNodes),
 		node.WithRefreshRoutingTablePeriod(defaultTimeInterval),
 		node.WithDiscoveryInterval(defaultTimeInterval),
 		node.WithAdvertiseInterval(defaultTimeInterval),
@@ -182,16 +182,16 @@ func TestRestartNodeDiscovery(t *testing.T) {
 	err := bridge.Start(ctx)
 	require.NoError(t, err)
 	addr := host.InfoFromHost(bridge.Host)
-	nodes := make([]*node.Node, 2)
+	nodes := make([]*node.Node, fullNodes)
 	nodesConfig := append([]node.Option{node.WithBootstrappers([]peer.AddrInfo{*addr})}, defaultOptions...)
-	for index := 0; index < 2; index++ {
+	for index := 0; index < fullNodes; index++ {
 		nodes[index] = sw.NewFullNode(nodesConfig...)
 	}
 
 	sub, err := nodes[0].Host.EventBus().Subscribe(&event.EvtPeerConnectednessChanged{})
 	require.NoError(t, err)
 	defer sub.Close()
-	for index := 0; index < 2; index++ {
+	for index := 0; index < fullNodes; index++ {
 		require.NoError(t, nodes[index].Start(ctx))
 		assert.Equal(t, *addr, nodes[index].Bootstrappers[0])
 		assert.True(t, nodes[index].Host.Network().Connectedness(addr.ID) == network.Connected)
@@ -212,6 +212,8 @@ func TestRestartNodeDiscovery(t *testing.T) {
 	require.NoError(t, node.Start(ctx))
 	// stop one node in order to remove it from cache and restart discovery
 	require.NoError(t, nodes[1].Stop(ctx))
+	// close context in order to receive disconnected event(should be used in tests only)
+	require.NoError(t, nodes[1].Host.Close())
 	for {
 		select {
 		case <-ctx.Done():
