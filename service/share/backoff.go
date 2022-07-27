@@ -23,11 +23,11 @@ type backoffConnector struct {
 	backoff backoff.BackoffFactory
 
 	cacheLk   sync.Mutex
-	cacheData map[peer.ID]*connectionCacheData
+	cacheData map[peer.ID]*backoffData
 }
 
-// connectionCacheData stores time when next connection attempt with the remote peer.
-type connectionCacheData struct {
+// backoffData stores time when next connection attempt with the remote peer.
+type backoffData struct {
 	nexttry time.Time
 	backoff backoff.BackoffStrategy
 }
@@ -36,7 +36,7 @@ func newBackoffConnector(h host.Host, factory backoff.BackoffFactory) *backoffCo
 	return &backoffConnector{
 		h:         h,
 		backoff:   factory,
-		cacheData: make(map[peer.ID]*connectionCacheData),
+		cacheData: make(map[peer.ID]*backoffData),
 	}
 }
 
@@ -55,12 +55,12 @@ func (b *backoffConnector) Connect(ctx context.Context, p peer.AddrInfo) error {
 	return b.h.Connect(ctx, p)
 }
 
-// connectionData returns connectionCacheData from the map if it was stored, otherwise it will instantiate
+// connectionData returns backoffData from the map if it was stored, otherwise it will instantiate
 // a new one.
-func (b *backoffConnector) connectionData(p peer.ID) *connectionCacheData {
+func (b *backoffConnector) connectionData(p peer.ID) *backoffData {
 	cache, ok := b.cacheData[p]
 	if !ok {
-		cache = &connectionCacheData{}
+		cache = &backoffData{}
 		cache.backoff = b.backoff()
 		b.cacheData[p] = cache
 	}
