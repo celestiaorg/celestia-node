@@ -71,7 +71,7 @@ type StateAccessor interface {
 In order to check that the balances returned via the `AccountBalance` query are correct, it is necessary to also request
 Merkle proofs from celestia-app and verify them against the latest head's `AppHash`.
 
-In order for the `StateAccessor` to do this, it would need access to the `header.Store`'s `Head()` method in order to get the latest known header of the node and check its `AppHash`.
+In order for the `StateAccessor` to do this, it would need access to the `header.Getter`'s `Head()` method in order to get the latest known header of the node and check its `AppHash`.
 Then, instead of performing a regular `gRPC` query against the celestia-app's bank module, it would perform an ABCI request query via RPC as such: 
 
 ```go
