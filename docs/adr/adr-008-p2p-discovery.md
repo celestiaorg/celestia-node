@@ -27,12 +27,12 @@ peersLimit = 3
 
 // discovery combines advertise and discover services and allows to store discovered nodes.
 type discovery struct {
- // storage where all discovered and active peers are saved.
- set  *limitedSet
- // libp2p.Host allows to connect to discovered peers.
- host host.Host
- // libp2p.Discovery allows to advertise and discover peers.
- disc core.Discovery
+    // storage where all discovered and active peers are saved.
+    set  *limitedSet
+    // libp2p.Host allows to connect to discovered peers.
+    host host.Host
+    // libp2p.Discovery allows to advertise and discover peers.
+    disc core.Discovery
 }
 
 // limitedSet is a thread safe set of peers with given limit.
