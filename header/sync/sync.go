@@ -88,6 +88,12 @@ func (s *Syncer) WaitSync(ctx context.Context) error {
 	return err
 }
 
+// Head returns the Syncer's pending head if it exists, and if not, eagerly
+// fetches the head from the header.Exchange.
+func (s *Syncer) Head(ctx context.Context) (*header.ExtendedHeader, error) {
+	return s.trustedHead(ctx)
+}
+
 // State collects all the information about a sync.
 type State struct {
 	ID                   uint64 // incrementing ID of a sync
