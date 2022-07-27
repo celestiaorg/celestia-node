@@ -3,6 +3,8 @@ package fraud
 import (
 	"context"
 	"errors"
+	"fmt"
+	"reflect"
 
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 )
@@ -20,12 +22,11 @@ func (s *subscription) Proof(ctx context.Context) (Proof, error) {
 	if err != nil {
 		return nil, err
 	}
-	topic := s.subscription.Topic()
-	unmarshaler, err := GetUnmarshaler(getProofTypeFromTopic(topic))
-	if err != nil {
-		return nil, err
+	proof, ok := data.ValidatorData.(Proof)
+	if !ok {
+		return nil, fmt.Errorf("fraud: unexpected type received %s", reflect.TypeOf(data.ValidatorData))
 	}
-	return unmarshaler(data.Data)
+	return proof, nil
 }
 
 func (s *subscription) Cancel() {

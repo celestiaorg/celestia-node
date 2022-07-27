@@ -120,6 +120,7 @@ func (f *service) processIncoming(
 		"hash", hex.EncodeToString(extHeader.DAH.Hash()),
 		"from", msg.ReceivedFrom.String(),
 	)
+	msg.ValidatorData = proof
 	f.storesLk.RLock()
 	store, ok := f.stores[proofType]
 	f.storesLk.RUnlock()
