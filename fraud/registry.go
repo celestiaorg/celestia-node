@@ -4,8 +4,10 @@ import (
 	"sync"
 )
 
-var unmarshalersLk = sync.RWMutex{}
-var defaultUnmarshalers = map[ProofType]ProofUnmarshaler{}
+var (
+	unmarshalersLk      = sync.RWMutex{}
+	defaultUnmarshalers = map[ProofType]ProofUnmarshaler{}
+)
 
 // Register sets unmarshaler in map by provided ProofType.
 func Register(proofType ProofType, unmarshaler ProofUnmarshaler) {

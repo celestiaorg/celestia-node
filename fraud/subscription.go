@@ -8,7 +8,7 @@ import (
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 )
 
-// subscription wraps pubsub subscription and handle Fraud Proof from the pubsub topic.
+// subscription wraps pubsub subscription and handles Fraud Proof from the pubsub topic.
 type subscription struct {
 	subscription *pubsub.Subscription
 }

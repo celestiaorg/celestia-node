@@ -55,7 +55,7 @@ type Proof interface {
 	encoding.BinaryMarshaler
 }
 
-// OnProof subscribes on a single Fraud Proof.
+// OnProof subscribes to the given Fraud Proof topic via the given Subscriber.
 // In case a Fraud Proof is received, then the given handle function will be invoked.
 func OnProof(ctx context.Context, subscriber Subscriber, p ProofType, handle func(proof Proof)) {
 	subscription, err := subscriber.Subscribe(p)
@@ -66,7 +66,7 @@ func OnProof(ctx context.Context, subscriber Subscriber, p ProofType, handle fun
 	defer subscription.Cancel()
 
 	// At this point we receive already verified fraud proof,
-	// so there are no needs to call Validate.
+	// so there is no need to call Validate.
 	proof, err := subscription.Proof(ctx)
 	if err != nil {
 		if err != context.Canceled {
