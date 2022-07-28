@@ -70,7 +70,7 @@ func (rs *ranges) FirstRangeWithin(start, end uint64) (*headerRange, bool) {
 		return nil, false
 	}
 
-	if r.Start >= start && r.Start <= end {
+	if r.start >= start && r.start <= end {
 		return r, true
 	}
 
@@ -97,14 +97,14 @@ func (rs *ranges) First() (*headerRange, bool) {
 }
 
 type headerRange struct {
-	Start   uint64
+	start   uint64
 	lk      sync.Mutex // no need for RWMutex as there is only one reader
 	headers []*header.ExtendedHeader
 }
 
 func newRange(h *header.ExtendedHeader) *headerRange {
 	return &headerRange{
-		Start:   uint64(h.Height),
+		start:   uint64(h.Height),
 		headers: []*header.ExtendedHeader{h},
 	}
 }
@@ -140,14 +140,14 @@ func (r *headerRange) Before(end uint64) ([]*header.ExtendedHeader, uint64) {
 	defer r.lk.Unlock()
 
 	amnt := uint64(len(r.headers))
-	if r.Start+amnt >= end {
-		amnt = end - r.Start + 1 // + 1 to include 'end' as well
+	if r.start+amnt >= end {
+		amnt = end - r.start + 1 // + 1 to include 'end' as well
 	}
 
 	out := r.headers[:amnt]
 	r.headers = r.headers[amnt:]
 	if len(r.headers) != 0 {
-		r.Start = uint64(r.headers[0].Height)
+		r.start = uint64(r.headers[0].Height)
 	}
 	return out, amnt
 }
