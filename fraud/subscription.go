@@ -2,7 +2,6 @@ package fraud
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"reflect"
 
@@ -16,7 +15,7 @@ type subscription struct {
 
 func (s *subscription) Proof(ctx context.Context) (Proof, error) {
 	if s.subscription == nil {
-		return nil, errors.New("fraud: subscription is not created")
+		panic("fraud: subscription is not created")
 	}
 	data, err := s.subscription.Next(ctx)
 	if err != nil {
@@ -24,7 +23,7 @@ func (s *subscription) Proof(ctx context.Context) (Proof, error) {
 	}
 	proof, ok := data.ValidatorData.(Proof)
 	if !ok {
-		return nil, fmt.Errorf("fraud: unexpected type received %s", reflect.TypeOf(data.ValidatorData))
+		panic(fmt.Sprintf("fraud: unexpected type received %s", reflect.TypeOf(data.ValidatorData)))
 	}
 	return proof, nil
 }

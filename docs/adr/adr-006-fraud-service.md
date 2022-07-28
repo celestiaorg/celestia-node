@@ -174,7 +174,7 @@ In addition, `das.Daser`:
     topics map[ProofType]*pubsub.Topic
    
     getter headerFetcher
-	 ds     datastore.Datastore
+    ds     datastore.Datastore
     }
 
     func(s *service) Subscribe(ctx context.Context, proofType ProofType) (Subscription, error){}

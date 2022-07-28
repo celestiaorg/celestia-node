@@ -17,6 +17,10 @@ import (
 	"github.com/celestiaorg/celestia-node/ipld/plugin"
 )
 
+func init() {
+	Register(BadEncoding, UnmarshalBEFP)
+}
+
 type BadEncodingProof struct {
 	headerHash  []byte
 	BlockHeight uint64

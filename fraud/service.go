@@ -18,10 +18,6 @@ const (
 	fetchHeaderTimeout = time.Minute * 2
 )
 
-func init() {
-	Register(BadEncoding, UnmarshalBEFP)
-}
-
 // service is responsible for validating and propagating Fraud Proofs.
 // It implements the Service interface.
 type service struct {
@@ -48,21 +44,19 @@ func NewService(p *pubsub.PubSub, getter headerFetcher, ds datastore.Datastore) 
 
 func (f *service) Subscribe(proofType ProofType) (_ Subscription, err error) {
 	f.topicsLk.Lock()
+	defer f.topicsLk.Unlock()
 	t, ok := f.topics[proofType]
 	if !ok {
 		t, err = join(f.pubsub, proofType, f.processIncoming)
 		if err != nil {
-			f.topicsLk.Unlock()
 			return nil, err
 		}
 		f.topics[proofType] = t
 	}
 	subs, err := t.Subscribe()
-	f.topicsLk.Unlock()
 	if err != nil {
 		return nil, err
 	}
-
 	return &subscription{subs}, nil
 }
 
