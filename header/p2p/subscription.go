@@ -2,6 +2,8 @@ package p2p
 
 import (
 	"context"
+	"fmt"
+	"reflect"
 
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 
@@ -36,15 +38,13 @@ func (s *subscription) NextHeader(ctx context.Context) (*header.ExtendedHeader, 
 	}
 	log.Debugw("received message", "topic", msg.Message.GetTopic(), "sender", msg.ReceivedFrom)
 
-	var header header.ExtendedHeader
-	err = header.UnmarshalBinary(msg.Data)
-	if err != nil {
-		log.Errorw("unmarshalling data from message", "err", err)
-		return nil, err
+	header, ok := msg.ValidatorData.(*header.ExtendedHeader)
+	if !ok {
+		panic(fmt.Sprintf("invalid type received %s", reflect.TypeOf(msg.ValidatorData)))
 	}
 
 	log.Debugw("received new ExtendedHeader", "height", header.Height, "hash", header.Hash())
-	return &header, nil
+	return header, nil
 }
 
 // Cancel cancels the subscription to new ExtendedHeaders from the network.

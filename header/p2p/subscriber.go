@@ -54,7 +54,7 @@ func (p *Subscriber) AddValidator(val header.Validator) error {
 				"err", err)
 			return pubsub.ValidationReject
 		}
-
+		msg.ValidatorData = maybeHead
 		return val(ctx, maybeHead)
 	}
 	return p.pubsub.RegisterTopicValidator(PubSubTopic, pval)
