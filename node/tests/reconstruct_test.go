@@ -136,11 +136,16 @@ func TestFullReconstructFromLights(t *testing.T) {
 	}
 	require.NoError(t, errg.Wait())
 	require.NoError(t, full.Start(ctx))
-	for i := 0; i < lnodes; i++ {
+	i := 0
+	for i < lnodes {
 		select {
 		case <-ctx.Done():
 			t.Fatal("peer was not found")
-		case <-subs[i].Out():
+		case connStatus := <-subs[i].Out():
+			p := connStatus.(event.EvtPeerConnectednessChanged)
+			if p.Peer == full.Host.ID() {
+				i++
+			}
 			continue
 		}
 	}
