@@ -53,9 +53,19 @@ func NewNamespaceHasher(hasher *nmt.Hasher) hash.Hash {
 }
 
 func (n *namespaceHasher) Write(data []byte) (int, error) {
-	n.tp = data[0]
+	ln, nln, hln := len(data), int(n.NamespaceLen), n.Hash.Size()
+	innerNodeSize, leafNodeSize := (nln*2+hln)*2, nln+consts.ShareSize
+	switch ln {
+	default:
+		return 0, fmt.Errorf("wrong data size")
+	case innerNodeSize, innerNodeSize + 1: // w/ and w/o additional type byte
+		n.tp = nmt.NodePrefix
+	case leafNodeSize, leafNodeSize + 1: // w/ and w/o additional type byte
+		n.tp = nmt.LeafPrefix
+	}
+
 	n.data = data[1:]
-	return len(data), nil
+	return ln, nil
 }
 
 func (n *namespaceHasher) Sum([]byte) []byte {
