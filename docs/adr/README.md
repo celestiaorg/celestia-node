@@ -29,4 +29,4 @@ Note the context/background should be written in the present tense.
 
 To start a new ADR, you can use this template: [adr-template.md](./adr-template.md)
 
-### Table of Contents:
+## Table of Contents

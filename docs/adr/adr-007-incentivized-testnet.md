@@ -19,8 +19,8 @@ breakdown of the individual feature requirements.
 
 ## Legend
 
-- **DA node**: any node type implemented in celestia-node
-- **DA network**: the p2p network of celestia-node
+* **DA node**: any node type implemented in celestia-node
+* **DA network**: the p2p network of celestia-node
 
 ## Technical Requirements
 
