@@ -82,7 +82,7 @@ func (f *service) processIncoming(
 	proof, err := Unmarshal(proofType, msg.Data)
 	if err != nil {
 		log.Error(err)
-		if !errors.Is(err, &ErrNoUnmarshaler{}) {
+		if !errors.Is(err, &errNoUnmarshaler{}) {
 			f.pubsub.BlacklistPeer(msg.ReceivedFrom)
 		}
 		return pubsub.ValidationReject

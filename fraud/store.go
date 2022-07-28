@@ -42,7 +42,7 @@ func getAll(ctx context.Context, ds datastore.Datastore, proofType ProofType) ([
 	for _, data := range entries {
 		proof, err := Unmarshal(proofType, data.Value)
 		if err != nil {
-			if errors.Is(err, &ErrNoUnmarshaler{}) {
+			if errors.Is(err, &errNoUnmarshaler{}) {
 				return nil, err
 			}
 			log.Warn(err)

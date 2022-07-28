@@ -16,11 +16,11 @@ func (e *ErrFraudExists) Error() string {
 	return fmt.Sprintf("fraud: %s proof exists\n", e.Proof[0].Type())
 }
 
-type ErrNoUnmarshaler struct {
+type errNoUnmarshaler struct {
 	proofType ProofType
 }
 
-func (e *ErrNoUnmarshaler) Error() string {
+func (e *errNoUnmarshaler) Error() string {
 	return fmt.Sprintf("fraud: unmarshaler for %s type is not registered", e.proofType)
 }
 
@@ -84,7 +84,7 @@ func Unmarshal(proofType ProofType, msg []byte) (Proof, error) {
 	defer unmarshalersLk.RUnlock()
 	unmarshaler, ok := defaultUnmarshalers[proofType]
 	if !ok {
-		return nil, &ErrNoUnmarshaler{proofType: proofType}
+		return nil, &errNoUnmarshaler{proofType: proofType}
 	}
 	return unmarshaler(msg)
 }
