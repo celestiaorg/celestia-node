@@ -170,6 +170,11 @@ func ParseMiscFlags(cmd *cobra.Command, env *Env) error {
 		return err
 	}
 
+	// Note: in order to support celestia-node exporting metrics to an OTEL
+	// collector that is running with self-signed certificates, we would need to
+	// accept as arguments paths to the Certificate Authority that signed the
+	// certs. See
+	// https://opentelemetry.io/docs/collector/configuration/#setting-up-certificates
 	cer, err := tls.LoadX509KeyPair("/home/ca.pem", "/home/ca-key.pem")
 	if err != nil {
 		log.Fatal(err)
