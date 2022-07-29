@@ -5,6 +5,7 @@
 - 2022-7-19: Started
 - 2022-7-22: Add section on "How to monitor celestia-node with Grafana Cloud"
 - 2022-7-26: Add section on "How to monitor celestia-node with Uptrace"
+- 2022-7-29: Add section on "How to send data over HTTPS"
 
 ## Context
 
@@ -154,6 +155,33 @@ So if we are concerned about the public leaderboard crashing the Prometheus inst
 
 During the incentivized testnet, if we require node operators to emit metrics (and traces) to a Celestia managed OTEL Collector, then they won't be able to also emit metrics to an OTEL Collector they manage (based on our current implementation).
 
+### How to send data over HTTPS
+
+#### OTEL Collector -> Prometheus
+
+Uses HTTPS by default. No additional configuration needed besides copying remote endpoint from Grafana Cloud.
+
+#### OTEL Collector -> Uptrace
+
+Uses HTTPS by default. No additional configuration needed besides copying the data source name from Uptrace.
+
+#### celestia-node -> OTEL Collector
+
+1. Ensure that celestia-node doesn't use [`WithInsecure`](https://github.com/open-telemetry/opentelemetry-go/blob/main/exporters/otlp/otlpmetric/otlpmetrichttp/options.go#L161) when constructing otlptracehttp client
+1. Configure the OTEL Collector receiver to run with a TLS certificate and key. A TLS certificate can be generated with [LetsEncrypt](https://letsencrypt.org/). Example:
+
+```yaml
+receivers:
+  otlp:
+    protocols:
+      grpc:
+      http:
+        endpoint: otel.collector.celestia.observer:4318
+        tls:
+          cert_file: /home/fullchain.pem
+          key_file:  /home/privkey.pem
+```
+
 ## Status
 
 Proposed
@@ -162,6 +190,7 @@ Proposed
 
 - <https://github.com/celestiaorg/celestia-node/pull/901>
 - <https://github.com/celestiaorg/celestia-node/pull/907>
+- <https://opentelemetry.io/docs/collector/>
 - <https://celestia-team.slack.com/archives/C03QAJVLHK3/p1658169362548589>
 - <https://www.notion.so/celestiaorg/Telemetry-Dashboard-d85550a3caee4004b00a2e3bf82619b1>
-- <https://opentelemetry.io/docs/collector/>
+- <https://www.notion.so/celestiaorg/TLS-for-telemetry-6ce8e321616140a6be64ed27e99dc791>
