@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"crypto/tls"
 	"fmt"
 	"log"
 	"net/http"
@@ -168,10 +169,18 @@ func ParseMiscFlags(cmd *cobra.Command, env *Env) error {
 		return err
 	}
 
+	cer, err := tls.LoadX509KeyPair("/home/cert.pem", "/home/cert-key.pem")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	tlsConfig := &tls.Config{Certificates: []tls.Certificate{cer}}
+
 	if ok {
 		exp, err := otlpmetrichttp.New(cmd.Context(),
 			otlpmetrichttp.WithEndpoint(cmd.Flag(metricsEndpointFlag).Value.String()),
 			otlpmetrichttp.WithCompression(otlpmetrichttp.GzipCompression),
+			otlpmetrichttp.WithTLSClientConfig(tlsConfig),
 		)
 		if err != nil {
 			return err
