@@ -166,12 +166,8 @@ func FraudService(
 	sub *pubsub.PubSub,
 	hstore header.Store,
 	ds datastore.Batching,
-) (fraud.Service, error) {
-	f := fraud.NewService(sub, hstore.GetByHeight, ds)
-	if err := f.RegisterUnmarshaler(fraud.BadEncoding, fraud.UnmarshalBEFP); err != nil {
-		return nil, err
-	}
-	return f, nil
+) fraud.Service {
+	return fraud.NewService(sub, hstore.GetByHeight, ds)
 }
 
 // LightAvailability constructs light share availability.

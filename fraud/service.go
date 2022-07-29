@@ -10,7 +10,6 @@ import (
 
 	"github.com/ipfs/go-datastore"
 	"github.com/ipfs/go-datastore/namespace"
-	"github.com/libp2p/go-libp2p-core/peer"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 )
 
@@ -23,7 +22,7 @@ const (
 // It implements the Service interface.
 type service struct {
 	topicsLk sync.RWMutex
-	topics   map[ProofType]*topic
+	topics   map[ProofType]*pubsub.Topic
 
 	storesLk sync.RWMutex
 	stores   map[ProofType]datastore.Datastore
@@ -37,60 +36,28 @@ func NewService(p *pubsub.PubSub, getter headerFetcher, ds datastore.Datastore) 
 	return &service{
 		pubsub: p,
 		getter: getter,
-		topics: make(map[ProofType]*topic),
+		topics: make(map[ProofType]*pubsub.Topic),
 		stores: make(map[ProofType]datastore.Datastore),
 		ds:     ds,
 	}
 }
 
-func (f *service) Subscribe(proofType ProofType) (Subscription, error) {
-	f.topicsLk.Lock()
-	t, ok := f.topics[proofType]
-	f.topicsLk.Unlock()
-	if !ok {
-		return nil, fmt.Errorf("fraud: unmarshaler for %s proof is not registered", proofType)
-	}
-	return newSubscription(t)
-}
-
-func (f *service) RegisterUnmarshaler(proofType ProofType, u ProofUnmarshaler) error {
-	f.topicsLk.RLock()
-	_, ok := f.topics[proofType]
-	f.topicsLk.RUnlock()
-	if ok {
-		return fmt.Errorf("fraud: unmarshaler for %s proof is registered", proofType)
-	}
-
-	t, err := f.pubsub.Join(getSubTopic(proofType))
-	if err != nil {
-		return err
-	}
-	err = f.pubsub.RegisterTopicValidator(
-		getSubTopic(proofType),
-		func(ctx context.Context, _ peer.ID, msg *pubsub.Message) pubsub.ValidationResult {
-			return f.processIncoming(ctx, proofType, msg)
-		},
-	)
-	if err != nil {
-		return err
-	}
-	f.topicsLk.Lock()
-	f.topics[proofType] = &topic{topic: t, unmarshal: u}
-	f.topicsLk.Unlock()
-	f.initStore(proofType)
-	return nil
-}
-
-func (f *service) UnregisterUnmarshaler(proofType ProofType) error {
+func (f *service) Subscribe(proofType ProofType) (_ Subscription, err error) {
 	f.topicsLk.Lock()
 	defer f.topicsLk.Unlock()
 	t, ok := f.topics[proofType]
 	if !ok {
-		return fmt.Errorf("fraud: unmarshaler for %s proof is not registered", proofType)
+		t, err = join(f.pubsub, proofType, f.processIncoming)
+		if err != nil {
+			return nil, err
+		}
+		f.topics[proofType] = t
 	}
-	delete(f.topics, proofType)
-	return t.close()
-
+	subs, err := t.Subscribe()
+	if err != nil {
+		return nil, err
+	}
+	return &subscription{subs}, nil
 }
 
 func (f *service) Broadcast(ctx context.Context, p Proof) error {
@@ -104,7 +71,7 @@ func (f *service) Broadcast(ctx context.Context, p Proof) error {
 	if !ok {
 		return fmt.Errorf("fraud: unmarshaler for %s proof is not registered", p.Type())
 	}
-	return t.publish(ctx, bin)
+	return t.Publish(ctx, bin)
 }
 
 func (f *service) processIncoming(
@@ -112,16 +79,12 @@ func (f *service) processIncoming(
 	proofType ProofType,
 	msg *pubsub.Message,
 ) pubsub.ValidationResult {
-	f.topicsLk.RLock()
-	t, ok := f.topics[proofType]
-	f.topicsLk.RUnlock()
-	if !ok {
-		panic("fraud: unmarshaler for the given proof type is not registered")
-	}
-	proof, err := t.unmarshal(msg.Data)
+	proof, err := Unmarshal(proofType, msg.Data)
 	if err != nil {
-		log.Errorw("failed to unmarshal fraud proof", err)
-		f.pubsub.BlacklistPeer(msg.ReceivedFrom)
+		log.Error(err)
+		if !errors.Is(err, &errNoUnmarshaler{}) {
+			f.pubsub.BlacklistPeer(msg.ReceivedFrom)
+		}
 		return pubsub.ValidationReject
 	}
 
@@ -151,6 +114,7 @@ func (f *service) processIncoming(
 		"hash", hex.EncodeToString(extHeader.DAH.Hash()),
 		"from", msg.ReceivedFrom.String(),
 	)
+	msg.ValidatorData = proof
 	f.storesLk.RLock()
 	store, ok := f.stores[proofType]
 	f.storesLk.RUnlock()
@@ -167,32 +131,13 @@ func (f *service) processIncoming(
 }
 
 func (f *service) Get(ctx context.Context, proofType ProofType) ([]Proof, error) {
-	f.storesLk.RLock()
-	store, ok := f.stores[proofType]
-	f.storesLk.RUnlock()
-	if !ok {
-		return nil, fmt.Errorf("fraud: proof type %s is not supported", proofType)
-	}
-
-	f.topicsLk.RLock()
-	t, ok := f.topics[proofType]
-	f.topicsLk.RUnlock()
-	if !ok {
-		return nil, fmt.Errorf("fraud: unmarshaler for proof type %s is not registered", proofType)
-	}
-
-	return getAll(ctx, store, t.unmarshal)
-}
-
-func (f *service) initStore(proofType ProofType) {
 	f.storesLk.Lock()
-	defer f.storesLk.Unlock()
-	_, ok := f.stores[proofType]
+	store, ok := f.stores[proofType]
 	if !ok {
-		f.stores[proofType] = namespace.Wrap(f.ds, makeKey(proofType))
+		store = namespace.Wrap(f.ds, makeKey(proofType))
+		f.stores[proofType] = store
 	}
-}
+	f.storesLk.Unlock()
 
-func getSubTopic(p ProofType) string {
-	return p.String() + "-sub"
+	return getAll(ctx, store, proofType)
 }

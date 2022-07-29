@@ -37,12 +37,11 @@ type Broadcaster interface {
 type Subscriber interface {
 	// Subscribe allows to subscribe on a Proof pub sub topic by its type.
 	Subscribe(ProofType) (Subscription, error)
-	// RegisterUnmarshaler registers unmarshaler for the given ProofType.
-	// If there is no unmarshaler for `ProofType`, then `Subscribe` returns an error.
-	RegisterUnmarshaler(ProofType, ProofUnmarshaler) error
-	// UnregisterUnmarshaler removes unmarshaler for the given ProofType.
-	// If there is no unmarshaler for `ProofType`, then it returns an error.
-	UnregisterUnmarshaler(ProofType) error
+}
+
+// Getter encompasses the behavior to fetch stored FraudProofs.
+type Getter interface {
+	Get(context.Context, ProofType) ([]Proof, error)
 }
 
 // Subscription returns a valid proof if one is received on the topic.
@@ -50,9 +49,4 @@ type Subscription interface {
 	// Proof returns already verified valid proof.
 	Proof(context.Context) (Proof, error)
 	Cancel()
-}
-
-// Getter encompasses the behavior to fetch stored FraudProofs.
-type Getter interface {
-	Get(context.Context, ProofType) ([]Proof, error)
 }
