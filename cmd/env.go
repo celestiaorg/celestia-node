@@ -14,7 +14,7 @@ import (
 // Usage can be extended.
 // TODO(@Wondertan): We should move to using context only instead.
 //  Env, in fact, only keeps some additional fields which should be
-//  kept in the context directly using WithValue
+//  kept in the context directly using WithValue (#965)
 type Env struct {
 	NodeType  node.Type
 	StorePath string

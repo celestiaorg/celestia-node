@@ -33,9 +33,6 @@ func MonitorHead(store Store) {
 			headC.Observe(
 				ctx,
 				head.Height,
-				attribute.String("hash", head.Hash().String()),
-				attribute.String("app_hash", head.AppHash.String()),
-				attribute.String("data_root", head.DAH.String()),
 				attribute.Int("square_size", len(head.DAH.RowsRoots)),
 			)
 		},
