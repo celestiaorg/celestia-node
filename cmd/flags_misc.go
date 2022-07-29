@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"crypto/tls"
+	"crypto/x509"
 	"fmt"
 	"log"
 	"net/http"
@@ -169,12 +170,22 @@ func ParseMiscFlags(cmd *cobra.Command, env *Env) error {
 		return err
 	}
 
-	cer, err := tls.LoadX509KeyPair("/home/cert.pem", "/home/cert-key.pem")
+	cer, err := tls.LoadX509KeyPair("/home/ca.pem", "/home/ca-key.pem")
 	if err != nil {
 		log.Fatal(err)
 	}
+	fmt.Printf("cer %+v", cer)
 
-	tlsConfig := &tls.Config{Certificates: []tls.Certificate{cer}}
+	cert, err := x509.ParseCertificate(cer.Certificate[0])
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Printf("cert %+v", cert)
+
+	rootCAs := x509.NewCertPool()
+	rootCAs.AddCert(cert)
+
+	tlsConfig := &tls.Config{RootCAs: rootCAs}
 
 	if ok {
 		exp, err := otlpmetrichttp.New(cmd.Context(),
