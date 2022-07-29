@@ -4,6 +4,7 @@ import (
 	"go.uber.org/fx"
 
 	apptypes "github.com/celestiaorg/celestia-app/x/payment/types"
+	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/service/state"
 )
 
@@ -11,10 +12,11 @@ import (
 // a celestia-core connection.
 func CoreAccessor(
 	coreIP,
-	grpcPort string,
-) func(fx.Lifecycle, *apptypes.KeyringSigner) (state.Accessor, error) {
-	return func(lc fx.Lifecycle, signer *apptypes.KeyringSigner) (state.Accessor, error) {
-		ca := state.NewCoreAccessor(signer, coreIP, grpcPort)
+	coreRPC,
+	coreGRPC string,
+) func(fx.Lifecycle, *apptypes.KeyringSigner, header.Store) (state.Accessor, error) {
+	return func(lc fx.Lifecycle, signer *apptypes.KeyringSigner, getter header.Store) (state.Accessor, error) {
+		ca := state.NewCoreAccessor(signer, getter, coreIP, coreRPC, coreGRPC)
 		lc.Append(fx.Hook{
 			OnStart: ca.Start,
 			OnStop:  ca.Stop,

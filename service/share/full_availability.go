@@ -33,7 +33,7 @@ func (fa *FullAvailability) Start(context.Context) error {
 	fa.cancel = cancel
 
 	go fa.disc.advertise(ctx)
-	go fa.disc.findPeers(ctx)
+	go fa.disc.ensurePeers(ctx)
 	return nil
 }
 

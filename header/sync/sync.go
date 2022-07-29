@@ -335,7 +335,7 @@ func (s *Syncer) findHeaders(ctx context.Context, from, to uint64) ([]*header.Ex
 		}
 
 		// first, request everything between from and start of the found range
-		hs, err := s.exchange.GetRangeByHeight(ctx, from, r.Start-from)
+		hs, err := s.exchange.GetRangeByHeight(ctx, from, r.start-from)
 		if err != nil {
 			return nil, err
 		}

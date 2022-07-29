@@ -1,6 +1,6 @@
 # Contributing
 
-Thank you for your interest in contributing to Celestia-Node! 
+Thank you for your interest in contributing to Celestia-Node!
 
 All work on the code base should be motivated by [our Github
 issues](https://github.com/celestiaorg/celestia-node/issues). If you
@@ -34,7 +34,8 @@ Each stage of the process is aimed at creating feedback cycles which align contr
 
 ## PR Naming
 
-PRs should be titled as following: 
+PRs should be titled as following:
+
 ```txt
 pkg: Concise title of PR
 ```
@@ -64,7 +65,7 @@ is the author/s of the change.
 
 The main development branch is `main`.
 
-Every release is maintained in a release branch named `vX.Y`. On each respective release branch, we tag the releases 
+Every release is maintained in a release branch named `vX.Y`. On each respective release branch, we tag the releases
 vX.Y.0, vX.Y.1 and so forth.
 
 Note all pull requests should be squash merged except for merging to a release branch (named `vX.Y`). This keeps the commit history clean and makes it
@@ -72,12 +73,12 @@ easy to reference the pull request where a change was introduced.
 
 ### Development Procedure
 
-The latest state of development is on `main`, which must never fail `make test`. _Never_ force push `main`.
+The latest state of development is on `main`, which must never fail `make test`. *Never* force push `main`.
 
 To begin contributing, create a development branch on your fork.
 
-Make changes, and before submitting a pull request, update the `CHANGELOG_PENDING.md` to record your change. Also, `git 
-rebase` on top of the latest `main`. 
+Make changes, and before submitting a pull request, update the `CHANGELOG_PENDING.md` to record your change. Also, `git
+rebase` on top of the latest `main`.
 
 Sometimes (often!) pull requests get out-of-date with main, as other people merge different pull requests to main. It is
 our convention that pull request authors are responsible for updating their branches with `main`. (This also means that you shouldn't update someone else's branch for them; even if it seems like you're doing them a favor, you may be interfering with their git flow in some way!)

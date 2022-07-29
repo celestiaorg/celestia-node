@@ -1,6 +1,7 @@
 package fraud
 
 import (
+	"context"
 	"encoding"
 	"fmt"
 
@@ -13,6 +14,14 @@ type ErrFraudExists struct {
 
 func (e *ErrFraudExists) Error() string {
 	return fmt.Sprintf("fraud: %s proof exists\n", e.Proof[0].Type())
+}
+
+type errNoUnmarshaler struct {
+	proofType ProofType
+}
+
+func (e *errNoUnmarshaler) Error() string {
+	return fmt.Sprintf("fraud: unmarshaler for %s type is not registered", e.proofType)
 }
 
 type ProofType int
@@ -44,5 +53,38 @@ type Proof interface {
 	Validate(*header.ExtendedHeader) error
 
 	encoding.BinaryMarshaler
-	encoding.BinaryUnmarshaler
+}
+
+// OnProof subscribes to the given Fraud Proof topic via the given Subscriber.
+// In case a Fraud Proof is received, then the given handle function will be invoked.
+func OnProof(ctx context.Context, subscriber Subscriber, p ProofType, handle func(proof Proof)) {
+	subscription, err := subscriber.Subscribe(p)
+	if err != nil {
+		log.Error(err)
+		return
+	}
+	defer subscription.Cancel()
+
+	// At this point we receive already verified fraud proof,
+	// so there is no need to call Validate.
+	proof, err := subscription.Proof(ctx)
+	if err != nil {
+		if err != context.Canceled {
+			log.Errorw("reading next proof failed", "err", err)
+		}
+		return
+	}
+
+	handle(proof)
+}
+
+// Unmarshal converts raw bytes into respective Proof type.
+func Unmarshal(proofType ProofType, msg []byte) (Proof, error) {
+	unmarshalersLk.RLock()
+	defer unmarshalersLk.RUnlock()
+	unmarshaler, ok := defaultUnmarshalers[proofType]
+	if !ok {
+		return nil, &errNoUnmarshaler{proofType: proofType}
+	}
+	return unmarshaler(msg)
 }

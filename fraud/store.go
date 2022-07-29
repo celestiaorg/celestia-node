@@ -2,6 +2,7 @@ package fraud
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sort"
 
@@ -29,7 +30,7 @@ func query(ctx context.Context, ds datastore.Datastore, q q.Query) ([]q.Entry, e
 }
 
 // getAll queries all Fraud Proofs by their type.
-func getAll(ctx context.Context, ds datastore.Datastore, unmarshal ProofUnmarshaler) ([]Proof, error) {
+func getAll(ctx context.Context, ds datastore.Datastore, proofType ProofType) ([]Proof, error) {
 	entries, err := query(ctx, ds, q.Query{})
 	if err != nil {
 		return nil, err
@@ -39,8 +40,11 @@ func getAll(ctx context.Context, ds datastore.Datastore, unmarshal ProofUnmarsha
 	}
 	proofs := make([]Proof, 0)
 	for _, data := range entries {
-		proof, err := unmarshal(data.Value)
+		proof, err := Unmarshal(proofType, data.Value)
 		if err != nil {
+			if errors.Is(err, &errNoUnmarshaler{}) {
+				return nil, err
+			}
 			log.Warn(err)
 			continue
 		}
