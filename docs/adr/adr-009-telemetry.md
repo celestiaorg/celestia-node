@@ -8,6 +8,7 @@
 * 2022-07-14: Stylistic improvements from @liamsi
 * 2022-07-15: Stylistic improvements from @rootulp and @bidon15
 * 2022-07-29: Formatting fixes
+* 2022-07-29: Clarify and add more info regarding Uptrace
 
 ## Authors
 
@@ -80,6 +81,10 @@ traces from their nodes to any provided backend endpoint by us during the whole 
 able to verify the data of each participant by querying historical traces. This is the feature that some backend solutions
 provide, which we can use as well to extract valuable insight on how the network performs in macro view.
 
+#### Third Priority
+
+Enabling total observability of the node through metrics and traces.
+
 ### Tooling/Dependencies
 
 #### Golang API/Shim
@@ -100,9 +105,7 @@ For tracing, there are 3 modern OSS tools that are recommended. All of them have
 
 * [Uptrace](https://get.uptrace.dev/guide/#what-is-uptrace)
   * The most recent (~1 year)
-  * The richest UI
   * Tight to Clickhouse DB
-  * Made by OpenTelemetry
   * The most lightweight
 * [Jaeger](https://www.jaegertracing.io/)
   * The most mature
@@ -122,6 +125,7 @@ Each of these backends can be used independently and depending on the use case. 
 
 > I am personally planning to set up the lightweight Uptrace for the local light node. Just to play around and observe
 > things
+> UPDATE: It turns out it is not that straightforward and adds additional overhead. See #Other-Findings
 
 There is no strict decision on which of these backends and where to use. People taking ownership of any listed vectors
 are free to use any recommended solution or any unlisted.
@@ -249,13 +253,32 @@ Jaeger example
 
 * Tracing performance
   * _Every_ method calling two more functions making network request can affect overall performance
+* Security and exported data protection
+  * OTLP provides TLS support
 
-## Other
+## Other Findings
+
+### Tracing and Logging
 
 As you will see in the examples below, tracing looks similar to logging and have almost the same semantics. In fact,
 tracing is debug logging on steroids, and we can potentially consider dropping conventional _debug_ logging once we
 fully cover our codebases with the tracing. Same as logging, traces can be pipe out into the stdout as prettyprinted
 event log.
+
+### Uptrace
+
+It turns out that running only Uptrace locally Collector is PITA. It requires either:
+
+* Using their [uptrace-go](https://github.com/uptrace/uptrace-go/blob/master/example/metrics/main.go) custom OTel wrapper
+  * For some undocumented reason they decided to go with a custom wrapper while it's possible to use OTel with Uptrace
+directly
+* The direct usage though also requires additional frictions and does not work with defaults. Requires:
+  * Token auth to send data
+  * Custom URL and path
+  * Maintaining config for itself and clickhouse
+
+Overall, it is not user-friendly alternative to known projects, even thought it still does not require running Otel
+Collector and absorbs both tracing and metrics.
 
 ## Further Readings
 
