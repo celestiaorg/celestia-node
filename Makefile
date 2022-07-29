@@ -63,12 +63,14 @@ fmt:
 	@find . -name '*.go' -type f -not -path "*.git*" -not -name '*.pb.go' -not -name '*pb_test.go' | xargs gofmt -w -s
 	@find . -name '*.go' -type f -not -path "*.git*"  -not -name '*.pb.go' -not -name '*pb_test.go' | xargs goimports -w -local github.com/celestiaorg
 	@go mod tidy -compat=1.17
+	@markdownlint -fq -c .markdownlint.yaml .
 .PHONY: fmt
 
 ## lint: Linting *.go files using golangci-lint. Look for .golangci.yml for the list of linters.
 lint:
 	@echo "--> Running linter"
 	@golangci-lint run
+	@markdownlint -c .markdownlint.yaml .
 .PHONY: lint
 
 ## test-unit: Running unit tests
