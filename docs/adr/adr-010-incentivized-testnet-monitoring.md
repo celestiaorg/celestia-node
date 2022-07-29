@@ -165,7 +165,9 @@ Uses HTTPS by default. No additional configuration needed besides copying remote
 
 Uses HTTPS by default. No additional configuration needed besides copying the data source name from Uptrace.
 
-#### celestia-node -> OTEL Collector
+#### celestia-node -> OTEL Collector with public certificate
+
+In the case where an OTEL Collector is running on a different host than celestia-node (e.g. Celestia managed OTEL Collector during the incentivized testnet), then the OTEL Collector must be configured with a public certificate so that celestia-nodes can send data to it over HTTPS.
 
 1. Ensure that celestia-node doesn't use [`WithInsecure`](https://github.com/open-telemetry/opentelemetry-go/blob/main/exporters/otlp/otlpmetric/otlpmetrichttp/options.go#L161) when constructing otlptracehttp client
 1. Configure the OTEL Collector receiver to run with a TLS certificate and key. A TLS certificate can be generated with [LetsEncrypt](https://letsencrypt.org/). Example:
@@ -181,6 +183,26 @@ receivers:
           cert_file: /home/fullchain.pem
           key_file:  /home/privkey.pem
 ```
+
+#### celestia-node -> OTEL Collector without public certificate
+
+In the case where a node operator wants to send data from celestia-node to an OTEL Collector without a public certificate (e.g. node-operator managed OTEL Collector), they can issue self-signed certificate in order send data over HTTPS. Alternatively they can send data over HTTP.
+
+1. Follow the steps at [setting up certificates](https://opentelemetry.io/docs/collector/configuration/#setting-up-certificates)
+1. Configure the OTEL Collector receiver to run with this self-signed certificate. Example:
+
+    ```yaml
+    receivers:
+    otlp:
+        protocols:
+        grpc:
+        http:
+            tls:
+            cert_file: /home/cert.pem
+            key_file: /home/cert-key.pem
+    ```
+
+1. Ensure that celestia-node runs with a TLS config that contains the Root CA created in step 1. See [sample code](https://github.com/celestiaorg/celestia-node/blob/rp/tracing-with-tls/cmd/flags_misc.go#L173-L199)
 
 ## Status
 
