@@ -10,6 +10,7 @@ import (
 
 	"github.com/ipfs/go-datastore"
 	"github.com/ipfs/go-datastore/namespace"
+	"github.com/libp2p/go-libp2p-core/peer"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 )
 
@@ -60,7 +61,7 @@ func (f *service) Subscribe(proofType ProofType) (_ Subscription, err error) {
 	return &subscription{subs}, nil
 }
 
-func (f *service) Broadcast(ctx context.Context, p Proof) error {
+func (f *service) Broadcast(ctx context.Context, p Proof, opts ...pubsub.PubOpt) error {
 	bin, err := p.MarshalBinary()
 	if err != nil {
 		return err
@@ -71,19 +72,20 @@ func (f *service) Broadcast(ctx context.Context, p Proof) error {
 	if !ok {
 		return fmt.Errorf("fraud: unmarshaler for %s proof is not registered", p.Type())
 	}
-	return t.Publish(ctx, bin)
+	return t.Publish(ctx, bin, opts...)
 }
 
 func (f *service) processIncoming(
 	ctx context.Context,
 	proofType ProofType,
+	from peer.ID,
 	msg *pubsub.Message,
 ) pubsub.ValidationResult {
 	proof, err := Unmarshal(proofType, msg.Data)
 	if err != nil {
 		log.Error(err)
 		if !errors.Is(err, &errNoUnmarshaler{}) {
-			f.pubsub.BlacklistPeer(msg.ReceivedFrom)
+			f.pubsub.BlacklistPeer(from)
 		}
 		return pubsub.ValidationReject
 	}
@@ -106,13 +108,13 @@ func (f *service) processIncoming(
 	if err != nil {
 		log.Errorw("proof validation err: ",
 			"err", err, "proofType", proof.Type(), "height", proof.Height())
-		f.pubsub.BlacklistPeer(msg.ReceivedFrom)
+		f.pubsub.BlacklistPeer(from)
 		return pubsub.ValidationReject
 	}
 	log.Warnw("received fraud proof", "proofType", proof.Type(),
 		"height", proof.Height(),
 		"hash", hex.EncodeToString(extHeader.DAH.Hash()),
-		"from", msg.ReceivedFrom.String(),
+		"from", from.String(),
 	)
 	msg.ValidatorData = proof
 	f.storesLk.RLock()

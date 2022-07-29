@@ -5,6 +5,8 @@ import (
 
 	logging "github.com/ipfs/go-log/v2"
 
+	pubsub "github.com/libp2p/go-libp2p-pubsub"
+
 	"github.com/celestiaorg/celestia-node/header"
 )
 
@@ -28,7 +30,7 @@ type Service interface {
 type Broadcaster interface {
 	// Broadcast takes a fraud `Proof` data structure that implements standard BinaryMarshal
 	// interface and broadcasts it to all subscribed peers.
-	Broadcast(context.Context, Proof) error
+	Broadcast(context.Context, Proof, ...pubsub.PubOpt) error
 }
 
 // Subscriber encompasses the behavior necessary to
