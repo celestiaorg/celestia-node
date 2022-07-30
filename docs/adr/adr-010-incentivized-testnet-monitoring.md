@@ -34,6 +34,8 @@ If alternative data sources should be evaluated, please share them with us.
 
 We agreed to using Prometheus at this time.
 
+## Detailed Design
+
 ### How to export data out of OTEL Collector?
 
 [Exporters](https://opentelemetry.io/docs/collector/configuration/#exporters) provide a way to export data from an OTEL Collector to a supported destination.
@@ -76,7 +78,8 @@ Implementation details for the incentivized testnet leaderboard are not yet know
 
 Node operators have the option of running their own instance of OTEL Collector to collect metrics from their nodes. A minimal guide for node operators to collect telemetry from their nodes follows:
 
-#### How to monitor celestia-node with Grafana Cloud
+<details>
+<summary> How to monitor celestia-node with Grafana Cloud</summary>
 
 1. [Install celestia-node](https://docs.celestia.org/developers/celestia-node)
 2. Sign up for an account on [Grafana](https://grafana.com/)
@@ -118,7 +121,10 @@ Node operators have the option of running their own instance of OTEL Collector t
 10. Verify that metrics are being displayed in Grafana.
 11. [Optional] Import a [OpenTelemetry Collector Dashboard](https://grafana.com/grafana/dashboards/12553-opentelemetry-collector/) into Grafana to monitor your OTEL Collector.
 
-#### How to monitor celestia-node with Uptrace
+</details>
+
+<details>
+<summary> How to monitor celestia-node with Uptrace</summary>
 
 1. [Install celestia-node](https://docs.celestia.org/developers/celestia-node).
 2. Create an account on [Uptrace](https://app.uptrace.dev/).
@@ -138,6 +144,7 @@ Node operators have the option of running their own instance of OTEL Collector t
 6. Restart OTEL Collector contrib with `sudo systemctl restart otelcol-contrib`. Check that OTEL Collector Contrib is running with `sudo systemctl status otelcol-contrib` and confirm there are no errors in `sudo journalctl -u otelcol-contrib -f`. If you encounter `No journal files were found.` then reference this [StackOverflow post](https://stackoverflow.com/questions/30783134/systemd-user-journals-not-being-created/47930381#47930381).
 7. Start celestia-node with metrics and traces enabled: `celestia light start --core.ip https://rpc-mamaki.pops.one --tracing --metrics`.
 8. Navigate to Uptrace and create a dashboard. Confirm you can see a metric.
+</details>
 
 ### Should we host a Prometheus instance ourselves or use a hosted provider?
 
