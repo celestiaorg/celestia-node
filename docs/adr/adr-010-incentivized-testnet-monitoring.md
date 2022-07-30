@@ -144,6 +144,7 @@ Node operators have the option of running their own instance of OTEL Collector t
 6. Restart OTEL Collector contrib with `sudo systemctl restart otelcol-contrib`. Check that OTEL Collector Contrib is running with `sudo systemctl status otelcol-contrib` and confirm there are no errors in `sudo journalctl -u otelcol-contrib -f`. If you encounter `No journal files were found.` then reference this [StackOverflow post](https://stackoverflow.com/questions/30783134/systemd-user-journals-not-being-created/47930381#47930381).
 7. Start celestia-node with metrics and traces enabled: `celestia light start --core.ip https://rpc-mamaki.pops.one --tracing --metrics`.
 8. Navigate to Uptrace and create a dashboard. Confirm you can see a metric.
+
 </details>
 
 ### Should we host a Prometheus instance ourselves or use a hosted provider?
