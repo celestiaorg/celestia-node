@@ -120,8 +120,10 @@ func TestService_BlackListPeer(t *testing.T) {
 		}
 	}
 
-	_, err = serviceA.Subscribe(BadEncoding)
+	// subscribe to BEFP
+	subsA, err := serviceA.Subscribe(BadEncoding)
 	require.NoError(t, err)
+	defer subsA.Cancel()
 
 	subsB, err := serviceB.Subscribe(BadEncoding)
 	require.NoError(t, err)
@@ -152,6 +154,7 @@ func TestService_BlackListPeer(t *testing.T) {
 	_, err = subsC.Proof(newCtx)
 	require.Error(t, err)
 	require.True(t, bl.Contains(net.Hosts()[1].ID()))
+	require.False(t, bl.Contains(net.Hosts()[0].ID()))
 }
 
 func TestService_GossipingOfFaultBEFP(t *testing.T) {
@@ -218,8 +221,9 @@ func TestService_GossipingOfFaultBEFP(t *testing.T) {
 	}
 
 	// subscribe to BEFP
-	_, err = serviceA.Subscribe(BadEncoding)
+	subsA, err := serviceA.Subscribe(BadEncoding)
 	require.NoError(t, err)
+	defer subsA.Cancel()
 
 	subsB, err := serviceB.Subscribe(BadEncoding)
 	require.NoError(t, err)
@@ -245,6 +249,103 @@ func TestService_GossipingOfFaultBEFP(t *testing.T) {
 	proofs, err := serviceC.Get(ctx, BadEncoding)
 	require.Error(t, err)
 	require.Nil(t, proofs)
+}
+
+func TestService_GossipingOfBEFP(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	defer t.Cleanup(cancel)
+	// create mock network
+	net, err := mocknet.FullMeshLinked(3)
+	require.NoError(t, err)
+	bServ := mdutils.Bserv()
+
+	// create first fraud service that will broadcast incorrect Fraud Proof
+	serviceA, store1 := createServiceWithHost(t, net.Hosts()[0])
+
+	h, err := store1.GetByHeight(context.TODO(), 1)
+	require.NoError(t, err)
+
+	// create and break byzantine error
+	_, err = generateByzantineError(ctx, t, h, bServ)
+	require.Error(t, err)
+	var errByz *ipld.ErrByzantine
+	require.True(t, errors.As(err, &errByz))
+
+	fserviceA := serviceA.(*service)
+	require.NotNil(t, fserviceA)
+
+	bl, err := pubsub.NewTimeCachedBlacklist(time.Hour)
+	require.NoError(t, err)
+	// create pub sub in order to listen for Fraud Proof
+	psB, err := pubsub.NewGossipSub(ctx, net.Hosts()[1], // -> B
+		pubsub.WithMessageSignaturePolicy(pubsub.StrictNoSign), pubsub.WithBlacklist(bl))
+	require.NoError(t, err)
+	// create second service that will receive and validate Fraud Proof
+	serviceB := NewService(psB, store1.GetByHeight, sync.MutexWrap(datastore.NewMapDatastore()))
+	fserviceB := serviceB.(*service)
+	require.NotNil(t, fserviceB)
+	addrB := host.InfoFromHost(net.Hosts()[1]) // -> B
+
+	// create pub sub in order to listen for Fraud Proof
+	psC, err := pubsub.NewGossipSub(ctx, net.Hosts()[2], // -> C
+		pubsub.WithMessageSignaturePolicy(pubsub.StrictNoSign))
+	require.NoError(t, err)
+	serviceC := NewService(psC, store1.GetByHeight, sync.MutexWrap(datastore.NewMapDatastore()))
+
+	// perform subscriptions
+	sub0, err := net.Hosts()[0].EventBus().Subscribe(&event.EvtPeerIdentificationCompleted{})
+	require.NoError(t, err)
+	sub2, err := net.Hosts()[2].EventBus().Subscribe(&event.EvtPeerIdentificationCompleted{})
+	require.NoError(t, err)
+
+	// establish connections
+	// connect peers: A -> B -> C, so A and C are not connected to each other
+	require.NoError(t, net.Hosts()[0].Connect(ctx, *addrB)) // host[0] is A
+	require.NoError(t, net.Hosts()[2].Connect(ctx, *addrB)) // host[2] is C
+
+	// wait on both peer identification events
+	for i := 0; i < 2; i++ {
+		select {
+		case <-sub0.Out():
+		case <-sub2.Out():
+		case <-ctx.Done():
+			assert.FailNow(t, "timeout waiting for peers to connect")
+		}
+	}
+
+	// subscribe to BEFP
+	subsA, err := serviceA.Subscribe(BadEncoding)
+	require.NoError(t, err)
+	defer subsA.Cancel()
+
+	subsB, err := serviceB.Subscribe(BadEncoding)
+	require.NoError(t, err)
+	defer subsB.Cancel()
+
+	subsC, err := serviceC.Subscribe(BadEncoding)
+	require.NoError(t, err)
+	defer subsC.Cancel()
+
+	// deregister validator in order to send Fraud Proof
+	fserviceA.pubsub.UnregisterTopicValidator(getSubTopic(BadEncoding)) //nolint:errcheck
+	// Broadcast BEFP
+	err = fserviceA.Broadcast(ctx, CreateBadEncodingProof([]byte("hash"), uint64(h.Height), errByz),
+		pubsub.WithReadiness(pubsub.MinTopicSize(1)))
+	require.NoError(t, err)
+
+	newCtx, cancel := context.WithTimeout(ctx, time.Millisecond*100)
+	t.Cleanup(cancel)
+	p, err := subsB.Proof(newCtx)
+	require.NoError(t, err)
+	require.NoError(t, p.Validate(h))
+
+	p, err = subsC.Proof(ctx)
+	require.NoError(t, err)
+	require.NoError(t, p.Validate(h))
+
+	proofs, err := serviceC.Get(ctx, BadEncoding)
+	require.NoError(t, err)
+	require.NoError(t, proofs[0].Validate(h))
 }
 
 func createService(t *testing.T) (Service, *mockStore) {
