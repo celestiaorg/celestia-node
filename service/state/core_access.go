@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	"github.com/cosmos/cosmos-sdk/api/tendermint/abci"
-	"github.com/cosmos/cosmos-sdk/types"
 	sdktypes "github.com/cosmos/cosmos-sdk/types"
 	sdktx "github.com/cosmos/cosmos-sdk/types/tx"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
@@ -95,7 +94,7 @@ func (ca *CoreAccessor) Stop(context.Context) error {
 
 func (ca *CoreAccessor) constructSignedTx(
 	ctx context.Context,
-	msg types.Msg,
+	msg sdktypes.Msg,
 	opts ...apptypes.TxBuilderOption,
 ) ([]byte, error) {
 	// should be called first in order to make a valid tx
@@ -207,7 +206,7 @@ func (ca *CoreAccessor) Transfer(
 	amount Int,
 	gasLim uint64,
 ) (*TxResponse, error) {
-	to, ok := addr.(types.AccAddress)
+	to, ok := addr.(sdktypes.AccAddress)
 	if !ok {
 		return nil, fmt.Errorf("state: unsupported address type")
 	}
@@ -215,7 +214,7 @@ func (ca *CoreAccessor) Transfer(
 	if err != nil {
 		return nil, err
 	}
-	coins := types.NewCoins(types.NewCoin(app.BondDenom, amount))
+	coins := sdktypes.NewCoins(sdktypes.NewCoin(app.BondDenom, amount))
 	msg := banktypes.NewMsgSend(from, to, coins)
 	signedTx, err := ca.constructSignedTx(ctx, msg, apptypes.SetGasLimit(gasLim))
 	if err != nil {
