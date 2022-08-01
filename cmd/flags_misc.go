@@ -22,9 +22,8 @@ import (
 	tracesdk "go.opentelemetry.io/otel/sdk/trace"
 	semconv "go.opentelemetry.io/otel/semconv/v1.10.0"
 
-	"github.com/celestiaorg/celestia-node/node"
-
 	"github.com/celestiaorg/celestia-node/logs"
+	"github.com/celestiaorg/celestia-node/node"
 )
 
 var (
@@ -33,8 +32,10 @@ var (
 	pprofFlag           = "pprof"
 	tracingFlag         = "tracing"
 	tracingEndpointFlag = "tracing.endpoint"
+	tracingTlS          = "tracing.tls"
 	metricsFlag         = "metrics"
 	metricsEndpointFlag = "metrics.endpoint"
+	metricsTlS          = "metrics.tls"
 )
 
 // MiscFlags gives a set of hardcoded miscellaneous flags.
@@ -73,6 +74,12 @@ and their lower-case forms`,
 	)
 
 	flags.Bool(
+		tracingTlS,
+		true,
+		"Enable TLS connection to OTLP tracing backend",
+	)
+
+	flags.Bool(
 		metricsFlag,
 		false,
 		"Enables OTLP metrics with HTTP exporter",
@@ -82,6 +89,12 @@ and their lower-case forms`,
 		metricsEndpointFlag,
 		"localhost:4318",
 		"Sets HTTP endpoint for OTLP metrics to be exported to. Depends on '--metrics'",
+	)
+
+	flags.Bool(
+		metricsTlS,
+		true,
+		"Enable TLS connection to OTLP metric backend",
 	)
 
 	return flags
@@ -141,11 +154,15 @@ func ParseMiscFlags(cmd *cobra.Command, env *Env) error {
 	}
 
 	if ok {
-		exp, err := otlptracehttp.New(cmd.Context(),
-			otlptracehttp.WithEndpoint(cmd.Flag(tracingEndpointFlag).Value.String()),
+		opts := []otlptracehttp.Option{
 			otlptracehttp.WithCompression(otlptracehttp.GzipCompression),
-			otlptracehttp.WithInsecure(),
-		)
+			otlptracehttp.WithEndpoint(cmd.Flag(tracingEndpointFlag).Value.String()),
+		}
+		if ok, _ := cmd.Flags().GetBool(tracingTlS); !ok {
+			opts = append(opts, otlptracehttp.WithInsecure())
+		}
+
+		exp, err := otlptracehttp.New(cmd.Context(), opts...)
 		if err != nil {
 			return err
 		}
@@ -169,11 +186,15 @@ func ParseMiscFlags(cmd *cobra.Command, env *Env) error {
 	}
 
 	if ok {
-		exp, err := otlpmetrichttp.New(cmd.Context(),
-			otlpmetrichttp.WithEndpoint(cmd.Flag(metricsEndpointFlag).Value.String()),
+		opts := []otlpmetrichttp.Option{
 			otlpmetrichttp.WithCompression(otlpmetrichttp.GzipCompression),
-			otlpmetrichttp.WithInsecure(),
-		)
+			otlpmetrichttp.WithEndpoint(cmd.Flag(tracingEndpointFlag).Value.String()),
+		}
+		if ok, _ := cmd.Flags().GetBool(tracingTlS); !ok {
+			opts = append(opts, otlpmetrichttp.WithInsecure())
+		}
+
+		exp, err := otlpmetrichttp.New(cmd.Context(), opts...)
 		if err != nil {
 			return err
 		}
