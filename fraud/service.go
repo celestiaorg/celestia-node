@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/ipfs/go-datastore"
-	"github.com/ipfs/go-datastore/namespace"
 	"github.com/libp2p/go-libp2p-core/peer"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 )
@@ -119,14 +118,14 @@ func (f *service) processIncoming(
 	msg.ValidatorData = proof
 	f.storesLk.RLock()
 	store, ok := f.stores[proofType]
+	if !ok {
+		store = initStore(proofType, f.ds)
+		f.stores[proofType] = store
+	}
 	f.storesLk.RUnlock()
-	if ok {
-		err = put(ctx, store, string(proof.HeaderHash()), msg.Data)
-		if err != nil {
-			log.Error(err)
-		}
-	} else {
-		log.Warnf("no store for incoming proofs type %s", proof.Type())
+	err = put(ctx, store, string(proof.HeaderHash()), msg.Data)
+	if err != nil {
+		log.Error(err)
 	}
 	log.Warn("Shutting down services...")
 	return pubsub.ValidationAccept
@@ -136,7 +135,7 @@ func (f *service) Get(ctx context.Context, proofType ProofType) ([]Proof, error)
 	f.storesLk.Lock()
 	store, ok := f.stores[proofType]
 	if !ok {
-		store = namespace.Wrap(f.ds, makeKey(proofType))
+		store = initStore(proofType, f.ds)
 		f.stores[proofType] = store
 	}
 	f.storesLk.Unlock()
