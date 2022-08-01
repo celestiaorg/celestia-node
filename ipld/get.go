@@ -208,6 +208,11 @@ func GetLeavesByNamespace(
 			}
 
 			lnks := nd.Links()
+			// wg counter should be incremented before adding new jobs
+			if len(lnks) > 1 {
+				wg.Add(len(lnks))
+			}
+
 			if len(lnks) == 1 {
 				mu.Lock()
 				leaves = append(leaves, result{nd, j.pos})
@@ -221,7 +226,6 @@ func GetLeavesByNamespace(
 					id:  lnk.Cid,
 					pos: j.pos*2 + i,
 				}:
-					wg.Add(1)
 				case <-ctx.Done():
 					return
 				}
