@@ -19,8 +19,6 @@ This document proposes a strategy for making data in the Celestia team managed O
 
 ![Incentivized Testnet Monitoring Diagram](./img/incentivized-testnet-monitoring-diagram.svg)
 
-// Comment on diagram <https://lucid.app/lucidchart/d957570f-9c06-4a82-9843-00d8232f734a/edit?invitationId=inv_247247d6-3a67-40b1-8513-1818caadd627>#
-
 ### Where to export data to?
 
 Grafana can query data from [multiple data sources](https://grafana.com/docs/grafana/latest/datasources/#supported-data-sources). This document explores two of these data sources:
