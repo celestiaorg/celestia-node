@@ -70,7 +70,7 @@ fmt:
 lint:
 	@echo "--> Running linter"
 	@golangci-lint run
-	@markdownlint --config .markdownlint.yaml .
+	@markdownlint --config .markdownlint.yaml '**/*.md'
 .PHONY: lint
 
 ## test-unit: Running unit tests
