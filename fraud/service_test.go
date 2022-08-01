@@ -69,9 +69,9 @@ func TestService_BlackListPeer(t *testing.T) {
 	bServ := mdutils.Bserv()
 
 	// create first fraud service that will broadcast incorrect Fraud Proof
-	serviceA, store1 := createServiceWithHost(t, net.Hosts()[0])
+	serviceA, store1 := createServiceWithHost(ctx, t, net.Hosts()[0])
 
-	h, err := store1.GetByHeight(context.TODO(), 1)
+	h, err := store1.GetByHeight(ctx, 1)
 	require.NoError(t, err)
 
 	// create and break byzantine error
@@ -85,7 +85,7 @@ func TestService_BlackListPeer(t *testing.T) {
 	require.NotNil(t, fserviceA)
 
 	// create second service that will receive and validate Fraud Proof
-	serviceB, _ := createServiceWithHost(t, net.Hosts()[1])
+	serviceB, _ := createServiceWithHost(ctx, t, net.Hosts()[1])
 
 	fserviceB := serviceB.(*service)
 	require.NotNil(t, fserviceB)
@@ -145,22 +145,28 @@ func TestService_BlackListPeer(t *testing.T) {
 	fserviceB.pubsub.RegisterTopicValidator(getSubTopic(BadEncoding), f) //nolint:errcheck
 	bin, err := befp.MarshalBinary()
 	require.NoError(t, err)
-	err = fserviceA.topics[BadEncoding].Publish(ctx, bin, pubsub.WithReadiness(pubsub.MinTopicSize(1)))
+	topic, ok := fserviceA.topics[BadEncoding]
+	require.True(t, ok)
+	// we cannot avoid sleep because it helps to avoid flakiness
+	time.Sleep(time.Millisecond * 100)
+	err = topic.Publish(ctx, bin, pubsub.WithReadiness(pubsub.MinTopicSize(1)))
 	require.NoError(t, err)
 
 	_, err = subsB.Proof(ctx)
 	require.NoError(t, err)
 
 	newCtx, cancel := context.WithTimeout(ctx, time.Millisecond*500)
-	t.Cleanup(cancel)
+	defer cancel()
 	_, err = subsC.Proof(newCtx)
 	require.Error(t, err)
-	require.True(t, bl.Contains(net.Hosts()[1].ID()))
 	require.False(t, bl.Contains(net.Hosts()[0].ID()))
+	require.True(t, bl.Contains(net.Hosts()[1].ID()))
+	// we cannot avoid sleep because it helps to avoid flakiness
+	time.Sleep(time.Millisecond * 100)
 }
 
 func TestService_GossipingOfFaultBEFP(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 	defer t.Cleanup(cancel)
 	// create mock network
 	net, err := mocknet.FullMeshLinked(3)
@@ -168,7 +174,7 @@ func TestService_GossipingOfFaultBEFP(t *testing.T) {
 	bServ := mdutils.Bserv()
 
 	// create first fraud service that will broadcast incorrect Fraud Proof
-	serviceA, store1 := createServiceWithHost(t, net.Hosts()[0])
+	serviceA, store1 := createServiceWithHost(ctx, t, net.Hosts()[0])
 
 	h, err := store1.GetByHeight(context.TODO(), 1)
 	require.NoError(t, err)
@@ -241,6 +247,8 @@ func TestService_GossipingOfFaultBEFP(t *testing.T) {
 	befp := CreateBadEncodingProof([]byte("hash"), uint64(h.Height), errByz)
 	bin, err := befp.MarshalBinary()
 	require.NoError(t, err)
+	// we cannot avoid sleep because it helps to avoid flakiness
+	time.Sleep(time.Millisecond * 100)
 	err = fserviceA.topics[BadEncoding].Publish(ctx, bin, pubsub.WithReadiness(pubsub.MinTopicSize(1)))
 	require.NoError(t, err)
 
@@ -253,10 +261,12 @@ func TestService_GossipingOfFaultBEFP(t *testing.T) {
 	proofs, err := serviceC.Get(ctx, BadEncoding)
 	require.Error(t, err)
 	require.Nil(t, proofs)
+	// we cannot avoid sleep because it helps to avoid flakiness
+	time.Sleep(time.Millisecond * 100)
 }
 
 func TestService_GossipingOfBEFP(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*7)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 	defer t.Cleanup(cancel)
 	// create mock network
 	net, err := mocknet.FullMeshLinked(3)
@@ -264,7 +274,7 @@ func TestService_GossipingOfBEFP(t *testing.T) {
 	bServ := mdutils.Bserv()
 
 	// create first fraud service that will broadcast incorrect Fraud Proof
-	serviceA, store1 := createServiceWithHost(t, net.Hosts()[0])
+	serviceA, store1 := createServiceWithHost(ctx, t, net.Hosts()[0])
 
 	h, err := store1.GetByHeight(context.TODO(), 1)
 	require.NoError(t, err)
@@ -336,6 +346,8 @@ func TestService_GossipingOfBEFP(t *testing.T) {
 	befp := CreateBadEncodingProof([]byte("hash"), uint64(h.Height), errByz)
 	bin, err := befp.MarshalBinary()
 	require.NoError(t, err)
+	// we cannot avoid sleep because it helps to avoid flakiness
+	time.Sleep(time.Millisecond * 100)
 	err = fserviceA.topics[BadEncoding].Publish(ctx, bin, pubsub.WithReadiness(pubsub.MinTopicSize(1)))
 	require.NoError(t, err)
 
@@ -352,6 +364,8 @@ func TestService_GossipingOfBEFP(t *testing.T) {
 	proofs, err := serviceC.Get(ctx, BadEncoding)
 	require.NoError(t, err)
 	require.NoError(t, proofs[0].Validate(h))
+	// we cannot avoid sleep because it helps to avoid flakiness
+	time.Sleep(time.Millisecond * 100)
 }
 
 func createService(t *testing.T) (Service, *mockStore) {
@@ -369,10 +383,7 @@ func createService(t *testing.T) (Service, *mockStore) {
 	return NewService(ps, store.GetByHeight, sync.MutexWrap(datastore.NewMapDatastore())), store
 }
 
-func createServiceWithHost(t *testing.T, host host.Host) (Service, *mockStore) {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*15)
-	t.Cleanup(cancel)
-
+func createServiceWithHost(ctx context.Context, t *testing.T, host host.Host) (Service, *mockStore) {
 	// create pubsub for host
 	ps, err := pubsub.NewGossipSub(ctx, host,
 		pubsub.WithMessageSignaturePolicy(pubsub.StrictNoSign))
