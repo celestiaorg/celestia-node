@@ -114,7 +114,7 @@ func ParseMiscFlags(cmd *cobra.Command, env *Env) error {
 
 	logModules, err := cmd.Flags().GetStringSlice(logLevelModuleFlag)
 	if err != nil {
-		return err
+		panic(err)
 	}
 	for _, ll := range logModules {
 		params := strings.Split(ll, ":")
@@ -130,7 +130,7 @@ func ParseMiscFlags(cmd *cobra.Command, env *Env) error {
 
 	ok, err := cmd.Flags().GetBool(pprofFlag)
 	if err != nil {
-		return err
+		panic(err)
 	}
 
 	if ok {
@@ -150,7 +150,7 @@ func ParseMiscFlags(cmd *cobra.Command, env *Env) error {
 
 	ok, err = cmd.Flags().GetBool(tracingFlag)
 	if err != nil {
-		return err
+		panic(err)
 	}
 
 	if ok {
@@ -158,7 +158,9 @@ func ParseMiscFlags(cmd *cobra.Command, env *Env) error {
 			otlptracehttp.WithCompression(otlptracehttp.GzipCompression),
 			otlptracehttp.WithEndpoint(cmd.Flag(tracingEndpointFlag).Value.String()),
 		}
-		if ok, _ := cmd.Flags().GetBool(tracingTlS); !ok {
+		if ok, err := cmd.Flags().GetBool(tracingTlS); err != nil {
+			panic(err)
+		} else if !ok {
 			opts = append(opts, otlptracehttp.WithInsecure())
 		}
 
@@ -182,7 +184,7 @@ func ParseMiscFlags(cmd *cobra.Command, env *Env) error {
 
 	ok, err = cmd.Flags().GetBool(metricsFlag)
 	if err != nil {
-		return err
+		panic(err)
 	}
 
 	if ok {
@@ -190,7 +192,9 @@ func ParseMiscFlags(cmd *cobra.Command, env *Env) error {
 			otlpmetrichttp.WithCompression(otlpmetrichttp.GzipCompression),
 			otlpmetrichttp.WithEndpoint(cmd.Flag(tracingEndpointFlag).Value.String()),
 		}
-		if ok, _ := cmd.Flags().GetBool(tracingTlS); !ok {
+		if ok, err := cmd.Flags().GetBool(tracingTlS); err != nil {
+			panic(err)
+		} else if !ok {
 			opts = append(opts, otlpmetrichttp.WithInsecure())
 		}
 
