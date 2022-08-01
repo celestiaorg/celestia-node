@@ -255,8 +255,7 @@ func TestGetLeavesByNamespace_MultipleRowsContainingSameNamespaceId(t *testing.T
 
 	for _, row := range eds.RowRoots() {
 		rcid := plugin.MustCidFromNamespacedSha256(row)
-		nodes, err := GetLeavesByNamespace(ctx, bServ, rcid, nid)
-		require.NoError(t, err)
+		nodes := GetLeavesByNamespace(ctx, bServ, rcid, nid)
 
 		for _, node := range nodes {
 			// test that the data returned by GetLeavesByNamespace for nid
@@ -317,9 +316,8 @@ func assertNoRowContainsNID(
 
 	// for each row root cid check if the minNID exists
 	for _, rowCID := range rowRootCIDs {
-		data, err := GetLeavesByNamespace(context.Background(), bServ, rowCID, nID)
+		data := GetLeavesByNamespace(context.Background(), bServ, rowCID, nID)
 		assert.Nil(t, data)
-		assert.Nil(t, err)
 	}
 }
 

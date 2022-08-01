@@ -2,6 +2,8 @@ package ipld
 
 import (
 	"context"
+	"sort"
+	"sync"
 
 	"github.com/ipfs/go-blockservice"
 	"github.com/ipfs/go-cid"
@@ -134,10 +136,10 @@ func GetSharesByNamespace(
 	root cid.Cid,
 	nID namespace.ID,
 ) ([]Share, error) {
-	leaves, err := GetLeavesByNamespace(ctx, bGetter, root, nID)
-	if err != nil {
-		return nil, err
-	}
+	leaves := GetLeavesByNamespace(ctx, bGetter, root, nID)
+	// if err != nil {
+	// 	return nil, err
+	// }
 
 	shares := make([]Share, len(leaves))
 	for i, leaf := range leaves {
@@ -148,42 +150,98 @@ func GetSharesByNamespace(
 }
 
 // GetLeavesByNamespace returns all the leaves from the given root with the given namespace.ID.
-// If nothing is found it returns both data and err as nil.
+// If nothing is found it returns data as nil.
 func GetLeavesByNamespace(
 	ctx context.Context,
 	bGetter blockservice.BlockGetter,
 	root cid.Cid,
 	nID namespace.ID,
-) ([]ipld.Node, error) {
-	err := SanityCheckNID(nID)
-	if err != nil {
-		return nil, err
+) []ipld.Node {
+	type job struct {
+		id  cid.Cid
+		pos int
 	}
-	rootH := plugin.NamespacedSha256FromCID(root)
-	if nID.Less(nmt.MinNamespace(rootH, nID.Size())) || !nID.LessOrEqual(nmt.MaxNamespace(rootH, nID.Size())) {
-		return nil, nil
+
+	// TODO: There has to be a more elegant solution
+	// bookkeeping is needed to be able to sort the leaves after the walk
+	type result struct {
+		node ipld.Node
+		pos  int
 	}
-	// request the node
-	nd, err := plugin.GetNode(ctx, bGetter, root)
-	if err != nil {
-		return nil, err
+
+	// TODO: Should this be NumWorkersLimit?
+	// we don't know the amount of shares in the namespace, so we cannot preallocate properly
+	jobs := make(chan *job, NumWorkersLimit)
+	jobs <- &job{id: root}
+
+	// the wg counter cannot be preallocated either, it is incremented with each job
+	wg := sync.WaitGroup{}
+	wg.Add(1)
+
+	var leaves []result
+	mu := &sync.Mutex{}
+
+	// once the wait group is done, we can close the jobs channel to break the following loop
+	go func() {
+		wg.Wait()
+		close(jobs)
+	}()
+
+	for j := range jobs {
+		j := j
+		// TODO: This is using the pool from get_shares.go, is this okay?
+		pool.Submit(func() {
+			defer wg.Done()
+			err := SanityCheckNID(nID)
+			if err != nil {
+				return
+			}
+
+			rootH := plugin.NamespacedSha256FromCID(j.id)
+			if nID.Less(nmt.MinNamespace(rootH, nID.Size())) || !nID.LessOrEqual(nmt.MaxNamespace(rootH, nID.Size())) {
+				return
+			}
+
+			nd, err := plugin.GetNode(ctx, bGetter, j.id)
+			if err != nil {
+				return
+			}
+
+			lnks := nd.Links()
+			if len(lnks) == 1 {
+				mu.Lock()
+				leaves = append(leaves, result{nd, j.pos})
+				mu.Unlock()
+				return
+			}
+
+			for i, lnk := range lnks {
+				select {
+				case jobs <- &job{
+					id:  lnk.Cid,
+					pos: j.pos*2 + i,
+				}:
+					wg.Add(1)
+				case <-ctx.Done():
+					return
+				}
+			}
+		})
 	}
-	// check links
-	lnks := nd.Links()
-	if len(lnks) == 1 {
-		// if there is one link, then this is a leaf node, so just return it
-		return []ipld.Node{nd}, nil
-	}
-	// if there are some links, then traverse them
-	var out []ipld.Node
-	for _, lnk := range nd.Links() {
-		nds, err := GetLeavesByNamespace(ctx, bGetter, lnk.Cid, nID)
-		if err != nil {
-			return out, err
+
+	if len(leaves) > 0 {
+		sort.SliceStable(leaves, func(i, j int) bool {
+			return leaves[i].pos < leaves[j].pos
+		})
+
+		output := make([]ipld.Node, len(leaves))
+		for i, leaf := range leaves {
+			output[i] = leaf.node
 		}
-		out = append(out, nds...)
+		return output
 	}
-	return out, nil
+
+	return nil
 }
 
 // leafToShare converts an NMT leaf into a Share.
