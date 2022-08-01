@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	"github.com/ipfs/go-blockservice"
-	pubsub "github.com/libp2p/go-libp2p-pubsub"
 
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/ipld"
@@ -14,7 +13,7 @@ import (
 type DummyService struct {
 }
 
-func (d *DummyService) Broadcast(context.Context, Proof, ...pubsub.PubOpt) error {
+func (d *DummyService) Broadcast(context.Context, Proof) error {
 	return nil
 }
 

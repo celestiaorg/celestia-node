@@ -60,7 +60,7 @@ func (f *service) Subscribe(proofType ProofType) (_ Subscription, err error) {
 	return &subscription{subs}, nil
 }
 
-func (f *service) Broadcast(ctx context.Context, p Proof, opts ...pubsub.PubOpt) error {
+func (f *service) Broadcast(ctx context.Context, p Proof) error {
 	bin, err := p.MarshalBinary()
 	if err != nil {
 		return err
@@ -71,7 +71,7 @@ func (f *service) Broadcast(ctx context.Context, p Proof, opts ...pubsub.PubOpt)
 	if !ok {
 		return fmt.Errorf("fraud: unmarshaler for %s proof is not registered", p.Type())
 	}
-	return t.Publish(ctx, bin, opts...)
+	return t.Publish(ctx, bin)
 }
 
 func (f *service) processIncoming(

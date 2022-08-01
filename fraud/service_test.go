@@ -143,7 +143,9 @@ func TestService_BlackListPeer(t *testing.T) {
 		return pubsub.ValidationAccept
 	}
 	fserviceB.pubsub.RegisterTopicValidator(getSubTopic(BadEncoding), f) //nolint:errcheck
-	err = fserviceA.Broadcast(ctx, befp, pubsub.WithReadiness(pubsub.MinTopicSize(1)))
+	bin, err := befp.MarshalBinary()
+	require.NoError(t, err)
+	err = fserviceA.topics[BadEncoding].Publish(ctx, bin, pubsub.WithReadiness(pubsub.MinTopicSize(1)))
 	require.NoError(t, err)
 
 	_, err = subsB.Proof(ctx)
@@ -236,8 +238,10 @@ func TestService_GossipingOfFaultBEFP(t *testing.T) {
 	// deregister validator in order to send Fraud Proof
 	fserviceA.pubsub.UnregisterTopicValidator(getSubTopic(BadEncoding)) //nolint:errcheck
 	// Broadcast BEFP
-	err = fserviceA.Broadcast(ctx, CreateBadEncodingProof([]byte("hash"), uint64(h.Height), errByz),
-		pubsub.WithReadiness(pubsub.MinTopicSize(1)))
+	befp := CreateBadEncodingProof([]byte("hash"), uint64(h.Height), errByz)
+	bin, err := befp.MarshalBinary()
+	require.NoError(t, err)
+	err = fserviceA.topics[BadEncoding].Publish(ctx, bin, pubsub.WithReadiness(pubsub.MinTopicSize(1)))
 	require.NoError(t, err)
 
 	newCtx, cancel := context.WithTimeout(ctx, time.Millisecond*100)
@@ -252,7 +256,7 @@ func TestService_GossipingOfFaultBEFP(t *testing.T) {
 }
 
 func TestService_GossipingOfBEFP(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*7)
 	defer t.Cleanup(cancel)
 	// create mock network
 	net, err := mocknet.FullMeshLinked(3)
@@ -329,8 +333,10 @@ func TestService_GossipingOfBEFP(t *testing.T) {
 	// deregister validator in order to send Fraud Proof
 	fserviceA.pubsub.UnregisterTopicValidator(getSubTopic(BadEncoding)) //nolint:errcheck
 	// Broadcast BEFP
-	err = fserviceA.Broadcast(ctx, CreateBadEncodingProof([]byte("hash"), uint64(h.Height), errByz),
-		pubsub.WithReadiness(pubsub.MinTopicSize(1)))
+	befp := CreateBadEncodingProof([]byte("hash"), uint64(h.Height), errByz)
+	bin, err := befp.MarshalBinary()
+	require.NoError(t, err)
+	err = fserviceA.topics[BadEncoding].Publish(ctx, bin, pubsub.WithReadiness(pubsub.MinTopicSize(1)))
 	require.NoError(t, err)
 
 	newCtx, cancel := context.WithTimeout(ctx, time.Millisecond*100)
