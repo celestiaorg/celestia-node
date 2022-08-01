@@ -91,7 +91,18 @@ func (s *Syncer) WaitSync(ctx context.Context) error {
 // Head returns the Syncer's pending head if it exists, and if not, eagerly
 // fetches the head from the header.Exchange.
 func (s *Syncer) Head(ctx context.Context) (*header.ExtendedHeader, error) {
-	return s.trustedHead(ctx)
+	// try pending head
+	pendHead := s.pending.Head()
+	if pendHead != nil {
+		return pendHead, nil
+	}
+	// if no pending head, eagerly fetch head from network
+	objHead, err := s.exchange.Head(ctx)
+	if err != nil {
+		return nil, err
+	}
+	s.pending.Add(objHead)
+	return objHead, nil
 }
 
 // State collects all the information about a sync.
