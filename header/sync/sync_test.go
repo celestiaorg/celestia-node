@@ -153,3 +153,44 @@ func TestSyncPendingRangesWithMisses(t *testing.T) {
 	assert.Equal(t, exp.Height, have.Height)
 	assert.Empty(t, syncer.pending.Head()) // assert all cache from pending is used
 }
+
+// TestSyncHead tests the Syncer's Head method.
+func TestSyncHead(t *testing.T) {
+	// this way we force local head of Syncer to expire, so it requests a new one from trusted peer
+	header.TrustingPeriod = time.Microsecond
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	t.Cleanup(cancel)
+
+	suite := header.NewTestSuite(t, 3)
+	head := suite.Head()
+
+	remoteStore := store.NewTestStore(ctx, t, head)
+	_, err := remoteStore.Append(ctx, suite.GenExtendedHeaders(100)...)
+	require.NoError(t, err)
+
+	_, err = remoteStore.GetByHeight(ctx, 100)
+	require.NoError(t, err)
+
+	localStore := store.NewTestStore(ctx, t, head)
+	syncer := NewSyncer(local.NewExchange(remoteStore), localStore, &header.DummySubscriber{})
+	err = syncer.Start(ctx)
+	require.NoError(t, err)
+
+	_, err = localStore.GetByHeight(ctx, 100)
+	require.NoError(t, err)
+
+	// send some headers through "headersub" to increase pending cache
+	headers := suite.GenExtendedHeaders(10)
+	res := syncer.processIncoming(ctx, headers[len(headers)-1])
+	require.Equal(t, pubsub.ValidationAccept, res)
+
+	// compare Syncer's reported head against local store's head
+	storeHead, err := localStore.Head(ctx)
+	require.NoError(t, err)
+	syncHead, err := syncer.Head(ctx)
+	require.NoError(t, err)
+
+	// ensure Syncer reports its head from pending cache rather than the store
+	assert.Greater(t, syncHead.Height, storeHead.Height)
+}
