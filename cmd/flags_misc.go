@@ -190,9 +190,9 @@ func ParseMiscFlags(cmd *cobra.Command, env *Env) error {
 	if ok {
 		opts := []otlpmetrichttp.Option{
 			otlpmetrichttp.WithCompression(otlpmetrichttp.GzipCompression),
-			otlpmetrichttp.WithEndpoint(cmd.Flag(tracingEndpointFlag).Value.String()),
+			otlpmetrichttp.WithEndpoint(cmd.Flag(metricsEndpointFlag).Value.String()),
 		}
-		if ok, err := cmd.Flags().GetBool(tracingTlS); err != nil {
+		if ok, err := cmd.Flags().GetBool(metricsTlS); err != nil {
 			panic(err)
 		} else if !ok {
 			opts = append(opts, otlpmetrichttp.WithInsecure())
