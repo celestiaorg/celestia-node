@@ -74,14 +74,9 @@ func GetLeavesByNamespace(
 	root cid.Cid,
 	nID namespace.ID,
 ) []ipld.Node {
-	type job struct {
-		id  cid.Cid
-		pos int
-	}
-
-	// TODO: There has to be a more elegant solution
 	// bookkeeping is needed to be able to sort the leaves after the walk
-	type result struct {
+	type job struct {
+		id   cid.Cid
 		node ipld.Node
 		pos  int
 	}
@@ -95,7 +90,7 @@ func GetLeavesByNamespace(
 	wg := WrappedWaitGroup{sync.WaitGroup{}, sync.Mutex{}, 0}
 	wg.Add(1)
 
-	var leaves []result
+	var leaves []job
 	mu := &sync.Mutex{}
 
 	for wg.IsWorking() {
@@ -126,7 +121,7 @@ func GetLeavesByNamespace(
 					wg.Add(linkCount)
 				} else if linkCount == 1 {
 					mu.Lock()
-					leaves = append(leaves, result{nd, j.pos})
+					leaves = append(leaves, job{nd.Cid(), nd, j.pos})
 					mu.Unlock()
 					return
 				}
