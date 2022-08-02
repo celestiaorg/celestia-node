@@ -116,13 +116,13 @@ func (f *service) processIncoming(
 		"from", from.String(),
 	)
 	msg.ValidatorData = proof
-	f.storesLk.RLock()
+	f.storesLk.Lock()
 	store, ok := f.stores[proofType]
 	if !ok {
 		store = initStore(proofType, f.ds)
 		f.stores[proofType] = store
 	}
-	f.storesLk.RUnlock()
+	f.storesLk.Unlock()
 	err = put(ctx, store, string(proof.HeaderHash()), msg.Data)
 	if err != nil {
 		log.Error(err)

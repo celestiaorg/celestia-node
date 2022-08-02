@@ -40,14 +40,13 @@ func TestService_BroadcastFails(t *testing.T) {
 
 func TestService_Broadcast(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*15)
-	defer t.Cleanup(cancel)
+	t.Cleanup(cancel)
 
-	bServ := mdutils.Bserv()
 	s, store := createService(t)
-	h, err := store.GetByHeight(context.TODO(), 1)
+	h, err := store.GetByHeight(ctx, 1)
 	require.NoError(t, err)
 
-	faultHeader, err := generateByzantineError(ctx, t, h, bServ)
+	faultHeader, err := generateByzantineError(ctx, t, h, mdutils.Bserv())
 	require.Error(t, err)
 	var errByz *ipld.ErrByzantine
 	require.True(t, errors.As(err, &errByz))
@@ -62,11 +61,10 @@ func TestService_Broadcast(t *testing.T) {
 
 func TestService_BlackListPeer(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
-	defer t.Cleanup(cancel)
+	t.Cleanup(cancel)
 	// create mock network
 	net, err := mocknet.FullMeshLinked(3)
 	require.NoError(t, err)
-	bServ := mdutils.Bserv()
 
 	// create first fraud service that will broadcast incorrect Fraud Proof
 	serviceA, store1 := createServiceWithHost(ctx, t, net.Hosts()[0])
@@ -75,7 +73,7 @@ func TestService_BlackListPeer(t *testing.T) {
 	require.NoError(t, err)
 
 	// create and break byzantine error
-	_, err = generateByzantineError(ctx, t, h, bServ)
+	_, err = generateByzantineError(ctx, t, h, mdutils.Bserv())
 	require.Error(t, err)
 	var errByz *ipld.ErrByzantine
 	require.True(t, errors.As(err, &errByz))
@@ -90,11 +88,11 @@ func TestService_BlackListPeer(t *testing.T) {
 	fserviceB := serviceB.(*service)
 	require.NotNil(t, fserviceB)
 
-	bl, err := pubsub.NewTimeCachedBlacklist(time.Hour * 1)
+	blackList, err := pubsub.NewTimeCachedBlacklist(time.Hour * 1)
 	require.NoError(t, err)
 	// create pub sub in order to listen for Fraud Proof
 	psC, err := pubsub.NewGossipSub(ctx, net.Hosts()[2], // -> C
-		pubsub.WithMessageSignaturePolicy(pubsub.StrictNoSign), pubsub.WithBlacklist(bl))
+		pubsub.WithMessageSignaturePolicy(pubsub.StrictNoSign), pubsub.WithBlacklist(blackList))
 	require.NoError(t, err)
 
 	addrB := host.InfoFromHost(net.Hosts()[1]) // -> B
@@ -157,30 +155,30 @@ func TestService_BlackListPeer(t *testing.T) {
 
 	newCtx, cancel := context.WithTimeout(ctx, time.Millisecond*500)
 	defer cancel()
+
 	_, err = subsC.Proof(newCtx)
 	require.Error(t, err)
-	require.False(t, bl.Contains(net.Hosts()[0].ID()))
-	require.True(t, bl.Contains(net.Hosts()[1].ID()))
+	require.False(t, blackList.Contains(net.Hosts()[0].ID()))
+	require.True(t, blackList.Contains(net.Hosts()[1].ID()))
 	// we cannot avoid sleep because it helps to avoid flakiness
 	time.Sleep(time.Millisecond * 100)
 }
 
 func TestService_GossipingOfFaultBEFP(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
-	defer t.Cleanup(cancel)
+	t.Cleanup(cancel)
 	// create mock network
 	net, err := mocknet.FullMeshLinked(3)
 	require.NoError(t, err)
-	bServ := mdutils.Bserv()
 
 	// create first fraud service that will broadcast incorrect Fraud Proof
 	serviceA, store1 := createServiceWithHost(ctx, t, net.Hosts()[0])
 
-	h, err := store1.GetByHeight(context.TODO(), 1)
+	h, err := store1.GetByHeight(ctx, 1)
 	require.NoError(t, err)
 
 	// create and break byzantine error
-	_, err = generateByzantineError(ctx, t, h, bServ)
+	_, err = generateByzantineError(ctx, t, h, mdutils.Bserv())
 	require.Error(t, err)
 	var errByz *ipld.ErrByzantine
 	require.True(t, errors.As(err, &errByz))
@@ -189,11 +187,11 @@ func TestService_GossipingOfFaultBEFP(t *testing.T) {
 	fserviceA := serviceA.(*service)
 	require.NotNil(t, fserviceA)
 
-	bl, err := pubsub.NewTimeCachedBlacklist(time.Hour)
+	blackList, err := pubsub.NewTimeCachedBlacklist(time.Hour)
 	require.NoError(t, err)
 	// create pub sub in order to listen for Fraud Proof
 	psB, err := pubsub.NewGossipSub(ctx, net.Hosts()[1], // -> B
-		pubsub.WithMessageSignaturePolicy(pubsub.StrictNoSign), pubsub.WithBlacklist(bl))
+		pubsub.WithMessageSignaturePolicy(pubsub.StrictNoSign), pubsub.WithBlacklist(blackList))
 	require.NoError(t, err)
 	// create second service that will receive and validate Fraud Proof
 	serviceB := NewService(psB, store1.GetByHeight, sync.MutexWrap(datastore.NewMapDatastore()))
@@ -253,10 +251,11 @@ func TestService_GossipingOfFaultBEFP(t *testing.T) {
 	require.NoError(t, err)
 
 	newCtx, cancel := context.WithTimeout(ctx, time.Millisecond*100)
-	t.Cleanup(cancel)
+	defer cancel()
+
 	_, err = subsB.Proof(newCtx)
 	require.Error(t, err)
-	require.True(t, bl.Contains(net.Hosts()[0].ID()))
+	require.True(t, blackList.Contains(net.Hosts()[0].ID()))
 
 	proofs, err := serviceC.Get(ctx, BadEncoding)
 	require.Error(t, err)
@@ -267,20 +266,19 @@ func TestService_GossipingOfFaultBEFP(t *testing.T) {
 
 func TestService_GossipingOfBEFP(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
-	defer t.Cleanup(cancel)
+	t.Cleanup(cancel)
 	// create mock network
 	net, err := mocknet.FullMeshLinked(3)
 	require.NoError(t, err)
-	bServ := mdutils.Bserv()
 
 	// create first fraud service that will broadcast incorrect Fraud Proof
 	serviceA, store1 := createServiceWithHost(ctx, t, net.Hosts()[0])
 
-	h, err := store1.GetByHeight(context.TODO(), 1)
+	h, err := store1.GetByHeight(ctx, 1)
 	require.NoError(t, err)
 
 	// create and break byzantine error
-	_, err = generateByzantineError(ctx, t, h, bServ)
+	_, err = generateByzantineError(ctx, t, h, mdutils.Bserv())
 	require.Error(t, err)
 	var errByz *ipld.ErrByzantine
 	require.True(t, errors.As(err, &errByz))
@@ -288,11 +286,9 @@ func TestService_GossipingOfBEFP(t *testing.T) {
 	fserviceA := serviceA.(*service)
 	require.NotNil(t, fserviceA)
 
-	bl, err := pubsub.NewTimeCachedBlacklist(time.Hour)
-	require.NoError(t, err)
 	// create pub sub in order to listen for Fraud Proof
 	psB, err := pubsub.NewGossipSub(ctx, net.Hosts()[1], // -> B
-		pubsub.WithMessageSignaturePolicy(pubsub.StrictNoSign), pubsub.WithBlacklist(bl))
+		pubsub.WithMessageSignaturePolicy(pubsub.StrictNoSign))
 	require.NoError(t, err)
 	// create second service that will receive and validate Fraud Proof
 	serviceB := NewService(psB, store1.GetByHeight, sync.MutexWrap(datastore.NewMapDatastore()))
@@ -352,7 +348,8 @@ func TestService_GossipingOfBEFP(t *testing.T) {
 	require.NoError(t, err)
 
 	newCtx, cancel := context.WithTimeout(ctx, time.Millisecond*100)
-	t.Cleanup(cancel)
+	defer cancel()
+
 	p, err := subsB.Proof(newCtx)
 	require.NoError(t, err)
 	require.NoError(t, p.Validate(h))
