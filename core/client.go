@@ -21,6 +21,7 @@ func NewRemote(ip, port string) (Client, error) {
 
 	return http.NewWithClient(
 		fmt.Sprintf("tcp://%s:%s", ip, port),
+		"/websocket",
 		httpClient.StandardClient(),
 	)
 }

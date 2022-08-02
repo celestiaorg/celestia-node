@@ -26,7 +26,7 @@ var blackholeIP6 = net.ParseIP("100::")
 
 const subscriberID string = "NewBlockSwamp/Events"
 
-var queryEvent string = types.QueryForEvent(types.EventNewBlockValue).String()
+var queryEvent string = types.QueryForEvent(types.EventNewBlock).String()
 
 // Swamp represents the main functionality that is needed for the test-case:
 // - Network to link the nodes
