@@ -36,7 +36,9 @@ type Syncer struct {
 	exchange header.Exchange
 	store    header.Store
 
-	blockTime time.Duration // TODO @rneyanay document
+	// blockTime provides a reference point for the Syncer to determine
+	// whether its subjective head is outdated
+	blockTime time.Duration
 
 	// stateLk protects state which represents the current or latest sync
 	stateLk sync.RWMutex
@@ -144,8 +146,8 @@ func (s *Syncer) trustedHead(ctx context.Context) (*header.ExtendedHeader, error
 		return nil, err
 	}
 
-	// check if our subjective header is not expired and use it
-	if !sbj.IsExpired() || (time.Now().Sub(sbj.Time) <= s.blockTime) {
+	// check if our subjective header is not expired or too outdated and use it
+	if !sbj.IsExpired() && (time.Now().Sub(sbj.Time) <= s.blockTime) {
 		return sbj, nil
 	}
 

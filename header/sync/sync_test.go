@@ -14,7 +14,7 @@ import (
 	"github.com/celestiaorg/celestia-node/header/store"
 )
 
-var blockTime = time.Microsecond
+var blockTime = time.Minute
 
 func TestSyncSimpleRequestingHead(t *testing.T) {
 	// this way we force local head of Syncer to expire, so it requests a new one from trusted peer
