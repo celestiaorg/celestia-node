@@ -2,7 +2,6 @@ package ipld
 
 import (
 	"context"
-	"sort"
 	"sync"
 
 	"github.com/celestiaorg/celestia-node/ipld/plugin"
@@ -25,8 +24,9 @@ func GetSharesByNamespace(
 	bGetter blockservice.BlockGetter,
 	root cid.Cid,
 	nID namespace.ID,
+	maxShares int,
 ) ([]Share, error) {
-	leaves := GetLeavesByNamespace(ctx, bGetter, root, nID)
+	leaves := GetLeavesByNamespace(ctx, bGetter, root, nID, maxShares)
 
 	shares := make([]Share, len(leaves))
 	for i, leaf := range leaves {
@@ -36,36 +36,55 @@ func GetSharesByNamespace(
 	return shares, nil
 }
 
-type WrappedWaitGroup struct {
+// wrappedWaitGroup is needed because waitgroups do not expose their internal counter
+// and we don't know in advance how many jobs we will have to wait for.
+type wrappedWaitGroup struct {
 	wg      sync.WaitGroup
 	mu      sync.Mutex
 	counter int
 }
 
-func (w *WrappedWaitGroup) Add(count int) {
+func (w *wrappedWaitGroup) Add(count int) {
 	w.wg.Add(count)
 	w.mu.Lock()
 	w.counter += count
 	w.mu.Unlock()
 }
 
-func (w *WrappedWaitGroup) Done() {
+func (w *wrappedWaitGroup) Done() {
 	w.wg.Done()
 	w.mu.Lock()
 	w.counter--
 	w.mu.Unlock()
 }
 
-func (w *WrappedWaitGroup) Wait() {
+func (w *wrappedWaitGroup) Wait() {
 	w.wg.Wait()
 }
 
-func (w *WrappedWaitGroup) IsWorking() bool {
+func (w *wrappedWaitGroup) IsWorking() bool {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	return w.counter > 0
 }
 
+type fetchedBounds struct {
+	lowest  int
+	highest int
+}
+
+func (b *fetchedBounds) Update(index int) {
+	if index <= b.lowest {
+		b.lowest = index
+	}
+	// not an `else if` because an element can be both the
+	// lower and higher bound
+	if index >= b.highest {
+		b.highest = index
+	}
+}
+
+// The following implementation is based on GetShares in get_shares.go
 // GetLeavesByNamespace returns all the leaves from the given root with the given namespace.ID.
 // If nothing is found it returns data as nil.
 func GetLeavesByNamespace(
@@ -73,36 +92,45 @@ func GetLeavesByNamespace(
 	bGetter blockservice.BlockGetter,
 	root cid.Cid,
 	nID namespace.ID,
+	maxShares int,
 ) []ipld.Node {
-	// bookkeeping is needed to be able to sort the leaves after the walk
-	type job struct {
-		id   cid.Cid
-		node ipld.Node
-		pos  int
+	// TODO(@distractedm1nd) Should we return an error if the nID is invalid?
+	err := SanityCheckNID(nID)
+	if err != nil {
+		return nil
 	}
 
-	// TODO: Should this be NumWorkersLimit?
-	// we don't know the amount of shares in the namespace, so we cannot preallocate properly
-	jobs := make(chan *job, NumWorkersLimit)
+	// TODO(@distractedm1nd): Should we abstract this struct already?
+	type job struct {
+		id  cid.Cid
+		pos int
+	}
+
+	// we don't know where in the tree the leaves in the namespace are,
+	// so we keep track of the bounds to return the correct slice
+
+	// maxShares acts as a sentinel to know if we find any leaves
+	bounds := fetchedBounds{maxShares, 0}
+	mu := sync.Mutex{}
+
+	// TODO(@distractedm1nd) Can this buffer be smaller? In get_shares it is (shares+1)/2
+	jobs := make(chan *job, maxShares)
 	jobs <- &job{id: root}
 
 	// the wg counter cannot be preallocated either, it is incremented with each job
-	wg := WrappedWaitGroup{sync.WaitGroup{}, sync.Mutex{}, 0}
+	wg := wrappedWaitGroup{sync.WaitGroup{}, sync.Mutex{}, 0}
 	wg.Add(1)
 
-	var leaves []job
-	mu := &sync.Mutex{}
+	// we overallocate space for leaves since we do not know how many we will find
+	// on the level above, the length of the Row is passed in as maxShares
+	leaves := make([]ipld.Node, maxShares)
 
+	// if the waitgroup counter is above 0, we are still walking the tree
 	for wg.IsWorking() {
 		select {
 		case j := <-jobs:
 			namespacePool.Submit(func() {
 				defer wg.Done()
-
-				err := SanityCheckNID(nID)
-				if err != nil {
-					return
-				}
 
 				rootH := plugin.NamespacedSha256FromCID(j.id)
 				if nID.Less(nmt.MinNamespace(rootH, nID.Size())) || !nID.LessOrEqual(nmt.MaxNamespace(rootH, nID.Size())) {
@@ -116,20 +144,26 @@ func GetLeavesByNamespace(
 
 				lnks := nd.Links()
 				linkCount := len(lnks)
-				// wg counter should be incremented before adding new jobs
+				// wg counter needs to be incremented **before** adding new jobs
 				if linkCount > 1 {
 					wg.Add(linkCount)
 				} else if linkCount == 1 {
 					mu.Lock()
-					leaves = append(leaves, job{nd.Cid(), nd, j.pos})
+					// successfully fetched a leaf belonging to the namespace
+					leaves[j.pos] = nd
+					// we found a leaf, so we update the bounds
+					bounds.Update(j.pos)
 					mu.Unlock()
 					return
 				}
 
+				// this node has links in the namespace, so keep walking
 				for i, lnk := range lnks {
 					select {
 					case jobs <- &job{
-						id:  lnk.Cid,
+						id: lnk.Cid,
+						// position represents the index in a flattened binary tree,
+						// so we can return a slice of leaves in order
 						pos: j.pos*2 + i,
 					}:
 					case <-ctx.Done():
@@ -139,22 +173,14 @@ func GetLeavesByNamespace(
 			})
 		case <-ctx.Done():
 			return nil
+		// default case is needed to prevent blocking
 		default:
 		}
 	}
 
-	wg.Wait()
-	if len(leaves) > 0 {
-		sort.Slice(leaves, func(i, j int) bool {
-			return leaves[i].pos < leaves[j].pos
-		})
-
-		output := make([]ipld.Node, len(leaves))
-		for i, leaf := range leaves {
-			output[i] = leaf.node
-		}
-		return output
+	// we didnt find any leaves, return nil
+	if bounds.lowest == maxShares {
+		return nil
 	}
-
-	return nil
+	return leaves[bounds.lowest : bounds.highest+1]
 }

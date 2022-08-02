@@ -143,7 +143,7 @@ func (s *Service) GetSharesByNamespace(ctx context.Context, root *Root, nID name
 		// shadow loop variables, to ensure correct values are captured
 		i, rootCID := i, rootCID
 		errGroup.Go(func() (err error) {
-			shares[i], err = ipld.GetSharesByNamespace(ctx, s.bServ, rootCID, nID)
+			shares[i], err = ipld.GetSharesByNamespace(ctx, s.bServ, rootCID, nID, len(root.RowsRoots))
 			return
 		})
 	}

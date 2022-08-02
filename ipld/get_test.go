@@ -169,7 +169,7 @@ func TestGetSharesByNamespace(t *testing.T) {
 
 			for _, row := range eds.RowRoots() {
 				rcid := plugin.MustCidFromNamespacedSha256(row)
-				shares, err := GetSharesByNamespace(ctx, bServ, rcid, nID)
+				shares, err := GetSharesByNamespace(ctx, bServ, rcid, nID, len(eds.RowRoots()))
 				require.NoError(t, err)
 
 				for _, share := range shares {
@@ -255,7 +255,7 @@ func TestGetLeavesByNamespace_MultipleRowsContainingSameNamespaceId(t *testing.T
 
 	for _, row := range eds.RowRoots() {
 		rcid := plugin.MustCidFromNamespacedSha256(row)
-		nodes := GetLeavesByNamespace(ctx, bServ, rcid, nid)
+		nodes := GetLeavesByNamespace(ctx, bServ, rcid, nid, len(shares))
 
 		for _, node := range nodes {
 			// test that the data returned by GetLeavesByNamespace for nid
@@ -308,15 +308,16 @@ func assertNoRowContainsNID(
 	eds *rsmt2d.ExtendedDataSquare,
 	nID namespace.ID,
 ) {
+	rowRootCount := len(eds.RowRoots())
 	// get all row root cids
-	rowRootCIDs := make([]cid.Cid, len(eds.RowRoots()))
+	rowRootCIDs := make([]cid.Cid, rowRootCount)
 	for i, rowRoot := range eds.RowRoots() {
 		rowRootCIDs[i] = plugin.MustCidFromNamespacedSha256(rowRoot)
 	}
 
 	// for each row root cid check if the minNID exists
 	for _, rowCID := range rowRootCIDs {
-		data := GetLeavesByNamespace(context.Background(), bServ, rowCID, nID)
+		data := GetLeavesByNamespace(context.Background(), bServ, rowCID, nID, rowRootCount)
 		assert.Nil(t, data)
 	}
 }
