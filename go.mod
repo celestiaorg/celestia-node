@@ -20,15 +20,15 @@ require (
 	github.com/gorilla/mux v1.8.0
 	github.com/hashicorp/go-retryablehttp v0.7.1-0.20211018174820-ff6d014e72d9
 	github.com/hashicorp/golang-lru v0.5.5-0.20210104140557-80c98217689d
-	github.com/ipfs/go-bitswap v0.7.0
+	github.com/ipfs/go-bitswap v0.8.0
 	github.com/ipfs/go-block-format v0.0.3
-	github.com/ipfs/go-blockservice v0.3.0
+	github.com/ipfs/go-blockservice v0.4.0
 	github.com/ipfs/go-cid v0.2.0
 	github.com/ipfs/go-datastore v0.6.0
 	github.com/ipfs/go-ds-badger2 v0.1.3
 	github.com/ipfs/go-ipfs-blockstore v1.2.0
-	github.com/ipfs/go-ipfs-exchange-interface v0.1.0
-	github.com/ipfs/go-ipfs-exchange-offline v0.2.0
+	github.com/ipfs/go-ipfs-exchange-interface v0.2.0
+	github.com/ipfs/go-ipfs-exchange-offline v0.3.0
 	github.com/ipfs/go-ipfs-routing v0.2.1
 	github.com/ipfs/go-ipld-format v0.4.0
 	github.com/ipfs/go-log/v2 v2.5.1
