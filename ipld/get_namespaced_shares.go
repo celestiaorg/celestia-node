@@ -114,8 +114,9 @@ func GetLeavesByNamespace(
 	bounds := fetchedBounds{maxShares, 0}
 	mu := sync.Mutex{}
 
-	// TODO(@distractedm1nd) Can this buffer be smaller? In get_shares it is (shares+1)/2
-	jobs := make(chan *job, maxShares)
+	// buffer the jobs to avoid blocking, we only need as many
+	// queued as the number of shares in the second-to-last layer
+	jobs := make(chan *job, (maxShares+1)/2)
 	jobs <- &job{id: root}
 
 	// the wg counter cannot be preallocated either, it is incremented with each job
