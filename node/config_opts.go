@@ -54,6 +54,14 @@ func WithTrustedPeers(addr ...string) Option {
 	}
 }
 
+// WithBlockTime overrides the default block time with the given
+// duration.
+func WithBlockTime(blockTime time.Duration) Option {
+	return func(sets *settings) {
+		sets.cfg.Services.BlockTime = blockTime
+	}
+}
+
 // WithPeersLimit overrides default peer limit for peers found during discovery.
 func WithPeersLimit(limit uint) Option {
 	return func(sets *settings) {

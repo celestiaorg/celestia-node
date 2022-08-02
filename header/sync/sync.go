@@ -3,6 +3,7 @@ package sync
 import (
 	"context"
 	"errors"
+	"fmt"
 	"sync"
 	"time"
 
@@ -35,6 +36,8 @@ type Syncer struct {
 	exchange header.Exchange
 	store    header.Store
 
+	blockTime time.Duration // TODO @rneyanay document
+
 	// stateLk protects state which represents the current or latest sync
 	stateLk sync.RWMutex
 	state   State
@@ -47,11 +50,12 @@ type Syncer struct {
 }
 
 // NewSyncer creates a new instance of Syncer.
-func NewSyncer(exchange header.Exchange, store header.Store, sub header.Subscriber) *Syncer {
+func NewSyncer(exchange header.Exchange, store header.Store, sub header.Subscriber, blockTime time.Duration) *Syncer {
 	return &Syncer{
 		sub:         sub,
 		exchange:    exchange,
 		store:       store,
+		blockTime:   blockTime,
 		triggerSync: make(chan struct{}, 1), // should be buffered
 	}
 }
@@ -88,21 +92,11 @@ func (s *Syncer) WaitSync(ctx context.Context) error {
 	return err
 }
 
-// Head returns the Syncer's pending head if it exists, and if not, eagerly
-// fetches the head from the header.Exchange.
+// Head tries to return the Syncer's view of the objective head of the
+// network.
+// TODO @renaynay more doc as to what this means ^
 func (s *Syncer) Head(ctx context.Context) (*header.ExtendedHeader, error) {
-	// try pending head
-	pendHead := s.pending.Head()
-	if pendHead != nil {
-		return pendHead, nil
-	}
-	// if no pending head, eagerly fetch head from network
-	objHead, err := s.exchange.Head(ctx)
-	if err != nil {
-		return nil, err
-	}
-	s.pending.Add(objHead)
-	return objHead, nil
+	return s.trustedHead(ctx)
 }
 
 // State collects all the information about a sync.
@@ -151,14 +145,19 @@ func (s *Syncer) trustedHead(ctx context.Context) (*header.ExtendedHeader, error
 	}
 
 	// check if our subjective header is not expired and use it
-	if !sbj.IsExpired() {
+	if !sbj.IsExpired() || (time.Now().Sub(sbj.Time) <= s.blockTime) {
 		return sbj, nil
 	}
 
-	// otherwise, request head from a trustedPeer or, in other words, do automatic subjective initialization
+	// otherwise, attempt to request head from a trustedPeer or, in other words, do
+	// automatic subjective initialization
 	objHead, err := s.exchange.Head(ctx)
 	if err != nil {
 		return nil, err
+	}
+	// ensure that head returned from trustedPeer is more recent than subjective head
+	if objHead.Height < sbj.Height {
+		return nil, fmt.Errorf("trusted peer failed to return current network head") // TODO @renaynay: err message?
 	}
 
 	s.pending.Add(objHead)

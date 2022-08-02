@@ -42,6 +42,7 @@ func TestNode(t *testing.T, tp Type, opts ...Option) *Node {
 		WithNetwork(params.Private),
 		WithRPCPort("0"),
 		WithKeyringSigner(TestKeyringSigner(t)),
+		WithBlockTime(time.Microsecond),
 	)
 	nd, err := New(tp, store, opts...)
 	require.NoError(t, err)

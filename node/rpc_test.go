@@ -20,6 +20,7 @@ import (
 	"github.com/celestiaorg/celestia-node/header/local"
 	"github.com/celestiaorg/celestia-node/header/store"
 	"github.com/celestiaorg/celestia-node/header/sync"
+	"github.com/celestiaorg/celestia-node/params"
 	service "github.com/celestiaorg/celestia-node/service/header"
 	"github.com/celestiaorg/celestia-node/service/rpc"
 	"github.com/celestiaorg/celestia-node/service/share"
@@ -242,7 +243,7 @@ func setupHeaderService(ctx context.Context, t *testing.T) *service.Service {
 	_, err := localStore.Append(ctx, suite.GenExtendedHeaders(5)...)
 	require.NoError(t, err)
 	// create syncer
-	syncer := sync.NewSyncer(local.NewExchange(remoteStore), localStore, &header.DummySubscriber{})
+	syncer := sync.NewSyncer(local.NewExchange(remoteStore), localStore, &header.DummySubscriber{}, params.BlockTime)
 
 	return service.NewHeaderService(syncer, nil, nil, nil, localStore)
 }
