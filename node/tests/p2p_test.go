@@ -214,7 +214,7 @@ func TestRestartNodeDiscovery(t *testing.T) {
 	defer connectSub.Close()
 
 	// disconnect and unlink peers in order to receive disconnected event
-	// NOTE: Consistence is very important here. We have to unlink peers and only after that call disconnect
+	// NOTE: Order is very important here. We have to unlink peers, and only after that call disconnect,
 	// otherwise pubsub could re-establish the connection.
 	// For more information:
 	// https://github.com/libp2p/go-libp2p-pubsub/blob/60cf38003244a277084c6f3eec0e584ab6cc07bd/pubsub.go#L710
