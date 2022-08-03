@@ -1,8 +1,9 @@
 package ipld
 
 import (
-	"fmt"
 	"github.com/ipfs/go-cid"
+
+	"fmt"
 )
 
 // job represents an encountered node to investigate during the `GetShares` and `GetSharesByNamespace` routines
