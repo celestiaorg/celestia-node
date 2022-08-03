@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/ipfs/go-datastore"
-	"github.com/ipfs/go-datastore/namespace"
+	"github.com/libp2p/go-libp2p-core/peer"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 )
 
@@ -77,13 +77,14 @@ func (f *service) Broadcast(ctx context.Context, p Proof) error {
 func (f *service) processIncoming(
 	ctx context.Context,
 	proofType ProofType,
+	from peer.ID,
 	msg *pubsub.Message,
 ) pubsub.ValidationResult {
 	proof, err := Unmarshal(proofType, msg.Data)
 	if err != nil {
 		log.Error(err)
 		if !errors.Is(err, &errNoUnmarshaler{}) {
-			f.pubsub.BlacklistPeer(msg.ReceivedFrom)
+			f.pubsub.BlacklistPeer(from)
 		}
 		return pubsub.ValidationReject
 	}
@@ -106,25 +107,25 @@ func (f *service) processIncoming(
 	if err != nil {
 		log.Errorw("proof validation err: ",
 			"err", err, "proofType", proof.Type(), "height", proof.Height())
-		f.pubsub.BlacklistPeer(msg.ReceivedFrom)
+		f.pubsub.BlacklistPeer(from)
 		return pubsub.ValidationReject
 	}
 	log.Warnw("received fraud proof", "proofType", proof.Type(),
 		"height", proof.Height(),
 		"hash", hex.EncodeToString(extHeader.DAH.Hash()),
-		"from", msg.ReceivedFrom.String(),
+		"from", from.String(),
 	)
 	msg.ValidatorData = proof
-	f.storesLk.RLock()
+	f.storesLk.Lock()
 	store, ok := f.stores[proofType]
-	f.storesLk.RUnlock()
-	if ok {
-		err = put(ctx, store, string(proof.HeaderHash()), msg.Data)
-		if err != nil {
-			log.Error(err)
-		}
-	} else {
-		log.Warnf("no store for incoming proofs type %s", proof.Type())
+	if !ok {
+		store = initStore(proofType, f.ds)
+		f.stores[proofType] = store
+	}
+	f.storesLk.Unlock()
+	err = put(ctx, store, string(proof.HeaderHash()), msg.Data)
+	if err != nil {
+		log.Error(err)
 	}
 	log.Warn("Shutting down services...")
 	return pubsub.ValidationAccept
@@ -134,7 +135,7 @@ func (f *service) Get(ctx context.Context, proofType ProofType) ([]Proof, error)
 	f.storesLk.Lock()
 	store, ok := f.stores[proofType]
 	if !ok {
-		store = namespace.Wrap(f.ds, makeKey(proofType))
+		store = initStore(proofType, f.ds)
 		f.stores[proofType] = store
 	}
 	f.storesLk.Unlock()

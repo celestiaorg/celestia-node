@@ -7,6 +7,7 @@ import (
 	"sort"
 
 	"github.com/ipfs/go-datastore"
+	"github.com/ipfs/go-datastore/namespace"
 	q "github.com/ipfs/go-datastore/query"
 )
 
@@ -54,6 +55,10 @@ func getAll(ctx context.Context, ds datastore.Datastore, proofType ProofType) ([
 		return proofs[i].Height() < proofs[j].Height()
 	})
 	return proofs, nil
+}
+
+func initStore(proofType ProofType, ds datastore.Datastore) datastore.Datastore {
+	return namespace.Wrap(ds, makeKey(proofType))
 }
 
 func makeKey(p ProofType) datastore.Key {
