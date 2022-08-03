@@ -154,7 +154,7 @@ func TestService_BlackListPeer(t *testing.T) {
 	require.NoError(t, err)
 
 	newCtx, cancel := context.WithTimeout(ctx, time.Millisecond*500)
-	defer cancel()
+	t.Cleanup(cancel)
 
 	_, err = subsC.Proof(newCtx)
 	require.Error(t, err)
@@ -251,7 +251,7 @@ func TestService_GossipingOfFaultBEFP(t *testing.T) {
 	require.NoError(t, err)
 
 	newCtx, cancel := context.WithTimeout(ctx, time.Millisecond*100)
-	defer cancel()
+	t.Cleanup(cancel)
 
 	_, err = subsB.Proof(newCtx)
 	require.Error(t, err)
@@ -348,7 +348,7 @@ func TestService_GossipingOfBEFP(t *testing.T) {
 	require.NoError(t, err)
 
 	newCtx, cancel := context.WithTimeout(ctx, time.Millisecond*100)
-	defer cancel()
+	t.Cleanup(cancel)
 
 	p, err := subsB.Proof(newCtx)
 	require.NoError(t, err)
