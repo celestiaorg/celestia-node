@@ -52,11 +52,6 @@ var pool = workerpool.New(NumWorkersLimit)
 // implementation that rely on this property are explicitly tagged with
 // (bin-tree-feat).
 func GetShares(ctx context.Context, bGetter blockservice.BlockGetter, root cid.Cid, shares int, put func(int, Share)) {
-	// job is not used anywhere else, so can be kept here
-	type job struct {
-		id  cid.Cid
-		pos int
-	}
 	// this buffer ensures writes to 'jobs' are never blocking (bin-tree-feat)
 	jobs := make(chan *job, (shares+1)/2) // +1 for the case where 'shares' is 1
 	jobs <- &job{id: root}

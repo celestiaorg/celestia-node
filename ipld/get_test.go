@@ -255,10 +255,11 @@ func TestGetLeavesByNamespace_MultipleRowsContainingSameNamespaceId(t *testing.T
 
 	for _, row := range eds.RowRoots() {
 		rcid := plugin.MustCidFromNamespacedSha256(row)
-		nodes := GetLeavesByNamespace(ctx, bServ, rcid, nid, len(shares))
+		nodes, err := getLeavesByNamespace(ctx, bServ, rcid, nid, len(shares))
+		assert.Nil(t, err)
 
 		for _, node := range nodes {
-			// test that the data returned by GetLeavesByNamespace for nid
+			// test that the data returned by getLeavesByNamespace for nid
 			// matches the commonNamespaceData that was copied across almost all data
 			share := node.RawData()[1:]
 			assert.Equal(t, commonNamespaceData, share[NamespaceSize:])
@@ -317,8 +318,9 @@ func assertNoRowContainsNID(
 
 	// for each row root cid check if the minNID exists
 	for _, rowCID := range rowRootCIDs {
-		data := GetLeavesByNamespace(context.Background(), bServ, rowCID, nID, rowRootCount)
+		data, err := getLeavesByNamespace(context.Background(), bServ, rowCID, nID, rowRootCount)
 		assert.Nil(t, data)
+		assert.Nil(t, err)
 	}
 }
 

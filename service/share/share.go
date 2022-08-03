@@ -122,6 +122,7 @@ func (s *Service) GetShares(ctx context.Context, root *Root) ([][]Share, error) 
 	return shares, nil
 }
 
+// GetSharesByNamespace iterates over a square's row roots and accumulates the found shares in the given namespace.ID.
 func (s *Service) GetSharesByNamespace(ctx context.Context, root *Root, nID namespace.ID) ([]Share, error) {
 	err := ipld.SanityCheckNID(nID)
 	if err != nil {
