@@ -274,27 +274,27 @@ func TestDASer_stopsAfter_BEFP(t *testing.T) {
 	// create fraud service and break one header
 	f := fraud.NewService(ps, mockGet.GetByHeight, ds)
 	mockGet.headers[1] = header.CreateFraudExtHeader(t, mockGet.headers[1], bServ)
-	newCtx, cancel := context.WithCancel(ctx)
-	defer cancel()
+	newCtx := context.Background()
+
 	// create and start DASer
 	daser := NewDASer(shareServ, sub, mockGet, ds, f)
-	ch := make(chan struct{})
+	resultCh := make(chan error)
 	go fraud.OnProof(newCtx, f, fraud.BadEncoding,
-		func(proof fraud.Proof) {
-			ch <- struct{}{}
+		func(fraud.Proof) {
+			resultCh <- daser.Stop(ctx)
 		})
-	time.Sleep(time.Millisecond * 100)
+
 	require.NoError(t, daser.Start(newCtx))
 	// wait for fraud proof will be handled
 	select {
 	case <-ctx.Done():
 		t.Fatal(ctx.Err())
-	case <-ch:
-		require.NoError(t, daser.Stop(ctx))
+	case res := <-resultCh:
+		require.NoError(t, res)
 	}
-
 	require.True(t, daser.ctx.Err() == context.Canceled)
 }
+
 func TestDASerState(t *testing.T) {
 	ds := ds_sync.MutexWrap(datastore.NewMapDatastore())
 	bServ := mdutils.Bserv()
