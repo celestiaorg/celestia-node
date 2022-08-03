@@ -17,7 +17,7 @@ import (
 	"github.com/celestiaorg/celestia-node/cmd"
 )
 
-var encodingConfig = encoding.MakeEncodingConfig(app.ModuleEncodingRegisters...)
+var encodingConfig = encoding.MakeConfig(app.ModuleEncodingRegisters...)
 
 var initClientCtx = client.Context{}.
 	WithCodec(encodingConfig.Codec).
