@@ -96,7 +96,6 @@ func (s *Syncer) WaitSync(ctx context.Context) error {
 
 // Head tries to return the Syncer's view of the objective head of the
 // network.
-// TODO @renaynay more doc as to what this means ^
 func (s *Syncer) Head(ctx context.Context) (*header.ExtendedHeader, error) {
 	return s.trustedHead(ctx)
 }
@@ -146,7 +145,8 @@ func (s *Syncer) trustedHead(ctx context.Context) (*header.ExtendedHeader, error
 		return nil, err
 	}
 
-	// check if our subjective header is not expired or too outdated and use it
+	// check if our subjective header is not expired and not too outdated (relative to the
+	// network's block time) and use it
 	if !sbj.IsExpired() && (time.Now().Sub(sbj.Time) <= s.blockTime) {
 		return sbj, nil
 	}
