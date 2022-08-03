@@ -158,8 +158,9 @@ func (s *Syncer) trustedHead(ctx context.Context) (*header.ExtendedHeader, error
 		return nil, err
 	}
 	// ensure that head returned from trustedPeer is more recent than subjective head
+	// as it is possible that the trustedPeer's reported head is not current.
 	if objHead.Height < sbj.Height {
-		return nil, fmt.Errorf("trusted peer failed to return current network head") // TODO @renaynay: err message?
+		return nil, fmt.Errorf("trusted peer failed to return current network head")
 	}
 
 	s.pending.Add(objHead)
