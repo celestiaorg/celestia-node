@@ -8,6 +8,7 @@ import (
 	sdktypes "github.com/cosmos/cosmos-sdk/types"
 	sdktx "github.com/cosmos/cosmos-sdk/types/tx"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
+	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 	proofutils "github.com/cosmos/ibc-go/v4/modules/core/23-commitment/types"
 	rpcclient "github.com/tendermint/tendermint/rpc/client"
 	"github.com/tendermint/tendermint/rpc/client/http"
@@ -216,6 +217,108 @@ func (ca *CoreAccessor) Transfer(
 	}
 	coins := sdktypes.NewCoins(sdktypes.NewCoin(app.BondDenom, amount))
 	msg := banktypes.NewMsgSend(from, to, coins)
+	signedTx, err := ca.constructSignedTx(ctx, msg, apptypes.SetGasLimit(gasLim))
+	if err != nil {
+		return nil, err
+	}
+	return ca.SubmitTx(ctx, signedTx)
+}
+
+func (ca *CoreAccessor) CancelUnbondingDelegation(
+	ctx context.Context,
+	validator Address,
+	amount Int,
+	gasLim uint64,
+) (*TxResponse, error) {
+	valAddr, ok := validator.(sdktypes.ValAddress)
+	if !ok {
+		return nil, fmt.Errorf("state: unsupported address type")
+	}
+	from, err := ca.signer.GetSignerInfo().GetAddress()
+	if err != nil {
+		return nil, err
+	}
+	coins := sdktypes.NewCoin(app.BondDenom, amount)
+	// TODO(distractedm1nd): Is this the best way to be getting the height? Should it be head.Height or head.Height - 1?
+	head, err := ca.getter.Head(ctx)
+	if err != nil {
+		return nil, err
+	}
+	msg := stakingtypes.NewMsgCancelUnbondingDelegation(from, valAddr, head.Height, coins)
+	signedTx, err := ca.constructSignedTx(ctx, msg, apptypes.SetGasLimit(gasLim))
+	if err != nil {
+		return nil, err
+	}
+	return ca.SubmitTx(ctx, signedTx)
+}
+
+func (ca *CoreAccessor) BeginRedelegate(
+	ctx context.Context,
+	delAddr Address,
+	newValidatorAddr Address,
+	amount Int,
+	gasLim uint64,
+) (*TxResponse, error) {
+	srcValAddr, ok := delAddr.(sdktypes.ValAddress)
+	if !ok {
+		return nil, fmt.Errorf("state: unsupported address type")
+	}
+	dstValAddr, ok := newValidatorAddr.(sdktypes.ValAddress)
+	if !ok {
+		return nil, fmt.Errorf("state: unsupported address type")
+	}
+	from, err := ca.signer.GetSignerInfo().GetAddress()
+	if err != nil {
+		return nil, err
+	}
+	coins := sdktypes.NewCoin(app.BondDenom, amount)
+	msg := stakingtypes.NewMsgBeginRedelegate(from, srcValAddr, dstValAddr, coins)
+	signedTx, err := ca.constructSignedTx(ctx, msg, apptypes.SetGasLimit(gasLim))
+	if err != nil {
+		return nil, err
+	}
+	return ca.SubmitTx(ctx, signedTx)
+}
+
+func (ca *CoreAccessor) Undelegate(
+	ctx context.Context,
+	delAddr Address,
+	amount Int,
+	gasLim uint64,
+) (*TxResponse, error) {
+	delegate, ok := delAddr.(sdktypes.ValAddress)
+	if !ok {
+		return nil, fmt.Errorf("state: unsupported address type")
+	}
+	from, err := ca.signer.GetSignerInfo().GetAddress()
+	if err != nil {
+		return nil, err
+	}
+	coins := sdktypes.NewCoin(app.BondDenom, amount)
+	msg := stakingtypes.NewMsgUndelegate(from, delegate, coins)
+	signedTx, err := ca.constructSignedTx(ctx, msg, apptypes.SetGasLimit(gasLim))
+	if err != nil {
+		return nil, err
+	}
+	return ca.SubmitTx(ctx, signedTx)
+}
+
+func (ca *CoreAccessor) Delegate(
+	ctx context.Context,
+	delAddr Address,
+	amount Int,
+	gasLim uint64,
+) (*TxResponse, error) {
+	delegate, ok := delAddr.(sdktypes.ValAddress)
+	if !ok {
+		return nil, fmt.Errorf("state: unsupported address type")
+	}
+	from, err := ca.signer.GetSignerInfo().GetAddress()
+	if err != nil {
+		return nil, err
+	}
+	coins := sdktypes.NewCoin(app.BondDenom, amount)
+	msg := stakingtypes.NewMsgDelegate(from, delegate, coins)
 	signedTx, err := ca.constructSignedTx(ctx, msg, apptypes.SetGasLimit(gasLim))
 	if err != nil {
 		return nil, err
