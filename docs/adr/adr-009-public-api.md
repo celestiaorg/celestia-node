@@ -146,7 +146,7 @@ type NodeModule interface {
     Version
 
     LogList
-    LogSet
+    LogLevelSet
 
 	Start(ctx context.Context) error
 	Stop(ctx context.Context) error
@@ -208,6 +208,15 @@ type FraudModule interface {
     List(type)
 }
 ```
+
+##### Metrics
+
+```go
+type MetricsModule interface {
+ // TODO	
+}
+```
+
 
 ## Status
 
