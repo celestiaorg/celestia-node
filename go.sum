@@ -167,10 +167,8 @@ github.com/btcsuite/websocket v0.0.0-20150119174127-31079b680792/go.mod h1:ghJtE
 github.com/btcsuite/winsvc v1.0.0/go.mod h1:jsenWakMcC0zFBFurPLEAyrnc/teJEM1O46fmI40EZs=
 github.com/buger/jsonparser v0.0.0-20181115193947-bf1c66bbce23/go.mod h1:bbYlZJ7hK1yFx9hf58LP0zeX7UjIGs20ufpu3evjr+s=
 github.com/casbin/casbin/v2 v2.1.2/go.mod h1:YcPU1XXisHhLzuxH9coDNf2FbKpjGlbCg3n9yuLkIJQ=
-github.com/celestiaorg/celestia-app v0.6.1-0.20220727032824-5eedbd048a34 h1:rgj9l2UEcUhhWWXygrPH592LFzs3CLCeP8vJnJqfeZA=
-github.com/celestiaorg/celestia-app v0.6.1-0.20220727032824-5eedbd048a34/go.mod h1:pAIMoZKf9Mw3FVvZgARgpWDtXPF7KK2IO18KGzI/i5g=
-github.com/celestiaorg/celestia-app v0.6.1-0.20220802153743-a073709fbc00 h1:3Q3H6MIzKZl9uqoe4CNqTCUM7w5q3JtfV2U0H+YnGdg=
-github.com/celestiaorg/celestia-app v0.6.1-0.20220802153743-a073709fbc00/go.mod h1:tJHs8T9ZM3LyFnY/T9xP8iIEQraz2DPIkldttyk1yzU=
+github.com/celestiaorg/celestia-app v0.6.1-0.20220802211248-87653d6cb78e h1:2jeor54JHK6SN9LhZdv+8eAqfCq+kMWHyIa0UlMulLg=
+github.com/celestiaorg/celestia-app v0.6.1-0.20220802211248-87653d6cb78e/go.mod h1:K29hZqQCTakQuQyiGM3s9QqaFpX6jH26TyAw37BZqVc=
 github.com/celestiaorg/celestia-core v1.3.0-tm-v0.34.20 h1:Mq/3VB22g1iunaHBIsH2mD0Y/Pm34q6xxokKeHkXCD8=
 github.com/celestiaorg/celestia-core v1.3.0-tm-v0.34.20/go.mod h1:bFyLvRuHAPewkGy4WazXJhfYhdV4u79iuoYaeNL3EO4=
 github.com/celestiaorg/cosmos-sdk v1.2.0-sdk-v0.46.0 h1:A1F7L/09uGClsU+kmugMy47Ezv4ll0uxNRNdaGa37T8=
@@ -247,7 +245,6 @@ github.com/cosmos/cosmos-proto v1.0.0-alpha7 h1:yqYUOHF2jopwZh4dVQp3xgqwftE5/2hk
 github.com/cosmos/cosmos-proto v1.0.0-alpha7/go.mod h1:dosO4pSAbJF8zWCzCoTWP7nNsjcvSUBQmniFxDg5daw=
 github.com/cosmos/cosmos-sdk/api v0.1.0 h1:xfSKM0e9p+EJTMQnf5PbWE6VT8ruxTABIJ64Rd064dE=
 github.com/cosmos/cosmos-sdk/api v0.1.0/go.mod h1:CupqQBskAOiTXO1XDZ/wrtWzN/wTxUvbQmOqdUhR8wI=
-github.com/cosmos/cosmos-sdk/errors v1.0.0-beta.3 h1:Ep7FHNViVwwGnwLFEPewZYsyN2CJNVMmMvFmtNQtbnw=
 github.com/cosmos/go-bip39 v0.0.0-20180819234021-555e2067c45d/go.mod h1:tSxLoYXyBmiFeKpvmq4dzayMdCjCnu8uqmCysIGBT2Y=
 github.com/cosmos/go-bip39 v1.0.0 h1:pcomnQdrdH22njcAatO0yWojsUnCO3y2tNoV1cb6hHY=
 github.com/cosmos/go-bip39 v1.0.0/go.mod h1:RNJv0H/pOIVgxw6KS7QeX2a0Uo0aKUlfhZ4xuwvCdJw=
