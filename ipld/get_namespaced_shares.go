@@ -3,6 +3,7 @@ package ipld
 import (
 	"context"
 	"sync"
+	"sync/atomic"
 
 	"github.com/gammazero/workerpool"
 	"github.com/ipfs/go-blockservice"
@@ -14,7 +15,7 @@ import (
 	"github.com/celestiaorg/nmt/namespace"
 )
 
-// TODO(@distractedm1nd) Should the namespace pool use NumWorkersLimit? This should probably be configurable.
+// TODO(@distractedm1nd) Find a better figure than NumWorkersLimit for this pool.
 // Worker pool responsible for the goroutines spawned by getLeavesByNamespace
 var namespacePool = workerpool.New(NumWorkersLimit)
 
@@ -43,22 +44,20 @@ func GetSharesByNamespace(
 // and we don't know in advance how many jobs we will have to wait for.
 type wrappedWaitGroup struct {
 	wg      sync.WaitGroup
-	mu      sync.Mutex
-	counter int
+	counter int64
 }
 
-func (w *wrappedWaitGroup) Add(count int) {
-	w.wg.Add(count)
-	w.mu.Lock()
-	w.counter += count
-	w.mu.Unlock()
+func (w *wrappedWaitGroup) Add(count int64) {
+	w.wg.Add(int(count))
+	atomic.AddInt64(&w.counter, count)
 }
 
-func (w *wrappedWaitGroup) Done() {
+func (w *wrappedWaitGroup) Done(jobs chan *job) {
 	w.wg.Done()
-	w.mu.Lock()
-	w.counter--
-	w.mu.Unlock()
+	atomic.AddInt64(&w.counter, -1)
+	if atomic.LoadInt64(&w.counter) == 0 {
+		close(jobs)
+	}
 }
 
 func (w *wrappedWaitGroup) Wait() {
@@ -66,28 +65,25 @@ func (w *wrappedWaitGroup) Wait() {
 }
 
 func (w *wrappedWaitGroup) IsWorking() bool {
-	w.mu.Lock()
-	defer w.mu.Unlock()
-	return w.counter > 0
+	return atomic.LoadInt64(&w.counter) > 0
 }
 
 type fetchedBounds struct {
-	mu      sync.Mutex
-	lowest  int
-	highest int
+	lowest  int64
+	highest int64
 }
 
-func (b *fetchedBounds) Update(index int) {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	if index <= b.lowest {
-		b.lowest = index
+func (b *fetchedBounds) Update(index int64) bool {
+	ok := true
+	if lowest := atomic.LoadInt64(&b.lowest); index < lowest {
+		ok = ok && atomic.CompareAndSwapInt64(&b.lowest, lowest, index)
 	}
-	// not an `else if` because an element can be both the
-	// lower and higher bound
-	if index >= b.highest {
-		b.highest = index
+	// not an `else if` because an element can be both the lower and higher bound
+	// for example, if there is only one share in the namespace
+	if highest := atomic.LoadInt64(&b.highest); index > highest {
+		ok = ok && atomic.CompareAndSwapInt64(&b.highest, highest, index)
 	}
+	return ok
 }
 
 // getLeavesByNamespace returns all the leaves from the given root with the given namespace.ID.
@@ -108,7 +104,7 @@ func getLeavesByNamespace(
 	// we don't know where in the tree the leaves in the namespace are,
 	// so we keep track of the bounds to return the correct slice
 	// maxShares acts as a sentinel to know if we find any leaves
-	bounds := fetchedBounds{sync.Mutex{}, maxShares, 0}
+	bounds := fetchedBounds{int64(maxShares), 0}
 
 	// buffer the jobs to avoid blocking, we only need as many
 	// queued as the number of shares in the second-to-last layer
@@ -116,20 +112,24 @@ func getLeavesByNamespace(
 	jobs <- &job{id: root}
 
 	// the wg counter cannot be pre-allocated either, it is incremented with each job
-	wg := wrappedWaitGroup{sync.WaitGroup{}, sync.Mutex{}, 0}
+	var wg wrappedWaitGroup
 	wg.Add(1)
 
 	// we overallocate space for leaves since we do not know how many we will find
 	// on the level above, the length of the Row is passed in as maxShares
 	leaves := make([]ipld.Node, maxShares)
-	leafLk := sync.Mutex{}
 
-	// if the WaitGroup counter is above 0, we are still walking the tree
-	for wg.IsWorking() {
+	// stillWorking will be set to false when the waitgroup counter reaches 0, closing the jobs channel
+	for stillWorking := true; stillWorking; {
 		select {
-		case j := <-jobs:
+		case j, ok := <-jobs:
+			if !ok {
+				stillWorking = false
+				break
+			}
 			namespacePool.Submit(func() {
-				defer wg.Done()
+				// if the WaitGroup counter is above 0, we are still walking the tree
+				defer wg.Done(jobs)
 
 				rootH := plugin.NamespacedSha256FromCID(j.id)
 				if nID.Less(nmt.MinNamespace(rootH, nID.Size())) || !nID.LessOrEqual(nmt.MaxNamespace(rootH, nID.Size())) {
@@ -142,17 +142,18 @@ func getLeavesByNamespace(
 				}
 
 				links := nd.Links()
-				linkCount := len(links)
+				linkCount := uint64(len(links))
 				// wg counter needs to be incremented **before** adding new jobs
 				if linkCount > 1 {
-					wg.Add(linkCount)
+					wg.Add(int64(linkCount))
 				} else if linkCount == 1 {
 					// successfully fetched a leaf belonging to the namespace
-					leafLk.Lock()
 					leaves[j.pos] = nd
-					leafLk.Unlock()
 					// we found a leaf, so we update the bounds
-					bounds.Update(j.pos)
+					// the update routine is repeated until the atomic swap is successful
+					for ok := false; !ok; {
+						ok = bounds.Update(int64(j.pos))
+					}
 					return
 				}
 
@@ -172,13 +173,11 @@ func getLeavesByNamespace(
 			})
 		case <-ctx.Done():
 			return nil, nil
-		// default case is needed to prevent blocking
-		default:
 		}
 	}
 
 	// we didn't find any leaves, return nil
-	if bounds.lowest == maxShares {
+	if bounds.lowest == int64(maxShares) {
 		return nil, nil
 	}
 
