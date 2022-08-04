@@ -29,7 +29,11 @@ func StartTestNode(ctx context.Context, t *testing.T, app types.Application, cfg
 		options.SpecificConfig = cfg
 	})
 	t.Cleanup(func() {
-		rpctest.StopTendermint(nd)
+		err := nd.Stop()
+		if err != nil {
+			panic(err)
+		}
+		nd.Wait()
 	})
 	return nd
 }
