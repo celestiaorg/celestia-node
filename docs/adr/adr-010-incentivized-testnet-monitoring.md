@@ -7,6 +7,7 @@
 - 2022-7-26: Add section on "How to monitor celestia-node with Uptrace"
 - 2022-7-29: Add section on "How to send data over HTTPS"
 - 2022-8-1: Revise architecture to minimize Celestia managed components
+- 2022-8-4: Add section on "Why doesn't the Celestia team host OTEL Collectors for node operators?"
 
 ## Context
 
@@ -166,9 +167,18 @@ The Prometheus docs state the following with regard to [Denial of Service](https
 
 So if we are concerned about the public leaderboard crashing the Prometheus instance that we use for internal dashboards, we may want to host two separate instances. This seems feasible by configuring OTEL Collector to export to two different Prometheus instances. This is a one way door, I suggest sticking with one instance because Grafana Cloud guarantees 99.5% uptime.
 
-### Should node operators be able to emit metrics and traces to multiple OTEL collectors?
+### Why doesn't the Celestia team host OTEL Collectors for node operators?
 
-~~During the incentivized testnet, if we require node operators to emit metrics (and traces) to a Celestia managed OTEL Collector, then they won't be able to also emit metrics to an OTEL Collector they manage (based on our current implementation).~~ This is no longer a concern because we expect celestia-node operators to run their own OTEL Collector agent alongside celestia-node. Under this architecture, node operators are at liberty to configure multiple exporters and can therefore export to multiple OTEL collectors by routing traffic through their agent collector.
+1. Node operators will lose the ability to monitor their own celestia-node. Since opentelemetry-go only supports configuring one exporter ( [open-telemetry/opentelemetry-go#3055](https://github.com/open-telemetry/opentelemetry-go/issues/3055)), if node operators were obligated to export metrics to a Celestia team managed OTEL Collector endpoint, they wouldn't be able to export to their own OTEL Collector (and by proxy any telemetry platforms they wish to use). This violates the desideratum:
+
+    > We would like to make it possible for node operators to monitor their own nodes with existing telemetry tools (e.g. Grafana and Uptrace)
+
+1. Node operators will have an "incentive" to maintain high uptime for their OTEL Collector. If the Celestia team took on this responsibility and failed to provide a highly available solution, then node operators would be penalized for downtime of a component they have no control over.
+1. We expect 1500+ node operators during the incentivized testnet and there is minimal documentation on the scale of workload an individual OTEL Collector can handle. We'd have to design and operate a highly available OTEL Collector fleet to maintain high uptime for node operators. At this time no cloud managed offerings for OTEL Collector exist.
+
+### Should node operators be able to configure celestia-node to export to multiple OTEL collectors?
+
+This is not supported by [open-telemetry/opentelemetry-go#3055](https://github.com/open-telemetry/opentelemetry-go/issues/3055) and is no longer a concern because we expect celestia-node operators to run their own OTEL Collector agent alongside celestia-node. Under this architecture, node operators are at liberty to configure multiple exporters in OTEL Collector and can therefore export to multiple OTEL collectors by routing traffic through their agent OTEL Collector.
 
 ### How to send data over HTTPS
 
