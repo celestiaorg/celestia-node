@@ -196,3 +196,30 @@ func TestSyncHead(t *testing.T) {
 	// ensure Syncer reports its head from pending cache rather than the store
 	assert.Greater(t, syncHead.Height, storeHead.Height)
 }
+
+// Test_trustedHead_withBadObjectiveHead tests to make sure the Syncer
+// ignores a bad (late or does not pass verification) head returned by
+// its underlying Exchange.
+func Test_trustedHead_withBadObjectiveHead(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	t.Cleanup(cancel)
+
+	suite := header.NewTestSuite(t, 3)
+
+	lateHead := suite.Head()
+	badExchange := store.NewTestStore(ctx, t, lateHead)
+
+	suite.GenExtendedHeaders(10)
+
+	syncer := NewSyncer(badExchange, store.NewTestStore(ctx, t, suite.Head()), &header.DummySubscriber{}, blockTime)
+	trusted, err := syncer.trustedHead(ctx)
+	require.NoError(t, err)
+
+	// ensure that trusted head returned is not the bad exchange's head
+	badHead, err := badExchange.Head(ctx)
+	require.NoError(t, err)
+	assert.NotEqual(t, badHead.Height, trusted.Height)
+	assert.Equal(t, suite.Head().Height, trusted.Height)
+	// ensure bad exchange's head is NOT added as new sync target
+	require.Nil(t, syncer.pending.Head())
+}

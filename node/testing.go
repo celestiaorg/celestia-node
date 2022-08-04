@@ -42,7 +42,9 @@ func TestNode(t *testing.T, tp Type, opts ...Option) *Node {
 		WithNetwork(params.Private),
 		WithRPCPort("0"),
 		WithKeyringSigner(TestKeyringSigner(t)),
-		WithBlockTime(time.Microsecond),
+		func(sets *settings) { // override the block time
+			sets.cfg.Services.BlockTime = time.Microsecond
+		},
 	)
 	nd, err := New(tp, store, opts...)
 	require.NoError(t, err)
