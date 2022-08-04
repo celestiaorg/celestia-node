@@ -3,7 +3,6 @@ package sync
 import (
 	"context"
 	"errors"
-	"fmt"
 	"sync"
 	"time"
 
@@ -140,15 +139,15 @@ func (s *Syncer) trustedHead(ctx context.Context) (*header.ExtendedHeader, error
 		return pendHead, nil
 	}
 
-	sbj, err := s.store.Head(ctx)
+	sbjHead, err := s.store.Head(ctx)
 	if err != nil {
 		return nil, err
 	}
 
 	// check if our subjective header is not expired and not too outdated (relative to the
 	// network's block time) and use it
-	if !sbj.IsExpired() && (time.Now().Sub(sbj.Time) <= s.blockTime) {
-		return sbj, nil
+	if !sbjHead.IsExpired() && sbjHead.IsRecent(s.blockTime) {
+		return sbjHead, nil
 	}
 
 	// otherwise, attempt to request head from a trustedPeer or, in other words, do
@@ -157,14 +156,15 @@ func (s *Syncer) trustedHead(ctx context.Context) (*header.ExtendedHeader, error
 	if err != nil {
 		return nil, err
 	}
-	// ensure that head returned from trustedPeer is more recent than subjective head
-	// as it is possible that the trustedPeer's reported head is not current.
-	if objHead.Height < sbj.Height {
-		return nil, fmt.Errorf("trusted peer failed to return current network head")
-	}
 
-	s.pending.Add(objHead)
-	return objHead, nil
+	// verify head returned from trustedPeer against subjective head
+	res := s.verifyMaybeHead(sbjHead, objHead)
+	if res == pubsub.ValidationAccept {
+		return objHead, nil
+	}
+	// objHead was either ignored or rejected, return most current known
+	// header to the Syncer
+	return sbjHead, nil
 }
 
 // wantSync will trigger the syncing loop (non-blocking).
@@ -220,7 +220,6 @@ func (s *Syncer) processIncoming(ctx context.Context, maybeHead *header.Extended
 			"err", err)
 		// might be a storage error or something else, but we can still try to continue processing 'maybeHead'
 	}
-
 	// 2. Get known trusted head, so we can verify maybeHead
 	trstHead, err := s.trustedHead(ctx)
 	if err != nil {
@@ -228,35 +227,41 @@ func (s *Syncer) processIncoming(ctx context.Context, maybeHead *header.Extended
 		return pubsub.ValidationIgnore // we don't know if header is invalid so ignore
 	}
 
-	// 3. Filter out maybeHead if behind trusted
-	if maybeHead.Height <= trstHead.Height {
+	// 3. Attempt to verify maybeHead
+	return s.verifyMaybeHead(trstHead, maybeHead)
+}
+
+// verifyMaybeHead verifies the potential new head against the trusted head, and if
+// the potential new head is valid, sets it as the sync target.
+func (s *Syncer) verifyMaybeHead(trusted, maybe *header.ExtendedHeader) pubsub.ValidationResult {
+	// 1. Filter out maybe if behind trusted
+	if maybe.Height <= trusted.Height {
 		log.Warnw("received known header",
-			"height", maybeHead.Height,
-			"hash", maybeHead.Hash())
+			"height", maybe.Height,
+			"hash", maybe.Hash())
 		return pubsub.ValidationIgnore // we don't know if header is invalid so ignore
 	}
 
-	// 4. Verify maybeHead against trusted
-	err = trstHead.VerifyNonAdjacent(maybeHead)
+	// 2. Verify maybeHead against trusted
+	err := trusted.VerifyNonAdjacent(maybe)
 	var verErr *header.VerifyError
 	if errors.As(err, &verErr) {
 		log.Errorw("invalid header",
-			"height_of_invalid", maybeHead.Height,
-			"hash_of_invalid", maybeHead.Hash(),
-			"height_of_trusted", trstHead.Height,
-			"hash_of_trusted", trstHead.Hash(),
+			"height_of_invalid", maybe.Height,
+			"hash_of_invalid", maybe.Hash(),
+			"height_of_trusted", trusted.Height,
+			"hash_of_trusted", trusted.Hash(),
 			"reason", verErr.Reason)
 		return pubsub.ValidationReject
 	}
-
-	// 5. Save verified header to pending cache
+	// 3. Save verified header to pending cache
 	// NOTE: Pending cache can't be DOSed as we verify above each header against a trusted one.
-	s.pending.Add(maybeHead)
-	// and trigger sync to catch-up
+	s.pending.Add(maybe)
+	// 4. And trigger sync to catch up to new sync target
 	s.wantSync()
 	log.Infow("pending head",
-		"height", maybeHead.Height,
-		"hash", maybeHead.Hash())
+		"height", maybe.Height,
+		"hash", maybe.Hash())
 	return pubsub.ValidationAccept
 }
 
