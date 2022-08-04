@@ -255,7 +255,7 @@ func TestDASer_catchUp_fails(t *testing.T) {
 }
 
 func TestDASer_stopsAfter_BEFP(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Minute*3)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 	t.Cleanup(cancel)
 
 	ds := ds_sync.MutexWrap(datastore.NewMapDatastore())
@@ -274,24 +274,27 @@ func TestDASer_stopsAfter_BEFP(t *testing.T) {
 	// create fraud service and break one header
 	f := fraud.NewService(ps, mockGet.GetByHeight, ds)
 	mockGet.headers[1] = header.CreateFraudExtHeader(t, mockGet.headers[1], bServ)
+	newCtx := context.Background()
 
 	// create and start DASer
 	daser := NewDASer(shareServ, sub, mockGet, ds, f)
-
-	require.NoError(t, daser.Start(ctx))
-	fraud.OnProof(ctx, f, fraud.BadEncoding,
-		func(proof fraud.Proof) {
-			require.NoError(t, daser.Stop(ctx))
+	resultCh := make(chan error)
+	go fraud.OnProof(newCtx, f, fraud.BadEncoding,
+		func(fraud.Proof) {
+			resultCh <- daser.Stop(ctx)
 		})
-	// wait for dasing catch-up routine fails
+
+	require.NoError(t, daser.Start(newCtx))
+	// wait for fraud proof will be handled
 	select {
 	case <-ctx.Done():
 		t.Fatal(ctx.Err())
-	case <-daser.ctx.Done():
+	case res := <-resultCh:
+		require.NoError(t, res)
 	}
-
 	require.True(t, daser.ctx.Err() == context.Canceled)
 }
+
 func TestDASerState(t *testing.T) {
 	ds := ds_sync.MutexWrap(datastore.NewMapDatastore())
 	bServ := mdutils.Bserv()
