@@ -160,6 +160,7 @@ func TestSyncPendingRangesWithMisses(t *testing.T) {
 }
 
 // TestSyncHead tests the Syncer's Head method.
+// TODO @renaynay: doc this test better!!!!
 func TestSyncHead(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	t.Cleanup(cancel)
@@ -197,10 +198,11 @@ func TestSyncHead(t *testing.T) {
 	assert.Greater(t, syncHead.Height, storeHead.Height)
 }
 
-// Test_trustedHead_withBadObjectiveHead tests to make sure the Syncer
+// TestSync_withBadObjectiveHead tests to make sure the Syncer
 // ignores a bad (late or does not pass verification) head returned by
 // its underlying Exchange.
-func Test_trustedHead_withBadObjectiveHead(t *testing.T) {
+// TODO @renaynay: doc this test betteR!!!!!!!
+func TestSync_withBadObjectiveHead(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	t.Cleanup(cancel)
 
@@ -215,14 +217,14 @@ func Test_trustedHead_withBadObjectiveHead(t *testing.T) {
 	err := syncer.Start(ctx)
 	require.NoError(t, err)
 
-	trusted, err := syncer.objectiveHead(ctx)
+	sbj, err := syncer.objectiveHead(ctx)
 	require.NoError(t, err)
 
-	// ensure that trusted head returned is not the bad exchange's head
+	// ensure that subjective head returned is not the bad exchange's head
 	badHead, err := badExchange.Head(ctx)
 	require.NoError(t, err)
-	assert.NotEqual(t, badHead.Height, trusted.Height)
-	assert.Equal(t, suite.Head().Height, trusted.Height)
+	assert.NotEqual(t, badHead.Height, sbj.Height)
+	assert.Equal(t, suite.Head().Height, sbj.Height)
 	// ensure bad exchange's head is NOT added as new sync target
 	assert.Empty(t, syncer.pending.Head())
 }
