@@ -48,16 +48,6 @@ type wrappedWaitGroup struct {
 	counter int64
 }
 
-func createWrappedWaitGroup(jobs chan *job) *wrappedWaitGroup {
-	wg := &wrappedWaitGroup{
-		wg:      sync.WaitGroup{},
-		jobs:    jobs,
-		counter: 0,
-	}
-	wg.Add(1)
-	return wg
-}
-
 func (w *wrappedWaitGroup) Add(count int64) {
 	w.wg.Add(int(count))
 	atomic.AddInt64(&w.counter, count)
@@ -122,7 +112,9 @@ func getLeavesByNamespace(
 	jobs := make(chan *job, (maxShares+1)/2)
 	jobs <- &job{id: root}
 
-	wg := createWrappedWaitGroup(jobs)
+	var wg wrappedWaitGroup
+	wg.jobs = jobs
+	wg.Add(1)
 
 	// we overallocate space for leaves since we do not know how many we will find
 	// on the level above, the length of the Row is passed in as maxShares
