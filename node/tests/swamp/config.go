@@ -18,8 +18,8 @@ type Components struct {
 // DefaultComponents creates a KvStore with a block retention of 200
 // In addition, the empty block interval is set to 200ms
 func DefaultComponents() *Components {
-	app := core.CreateKVStore(200)
-	tnCfg := tn.TestConfig()
+	app := core.CreateKVStore(2000)
+	tnCfg := tn.ResetTestRoot("swamp_tests")
 	tnCfg.Consensus.CreateEmptyBlocksInterval = 100 * time.Millisecond
 	return &Components{
 		App:     app,

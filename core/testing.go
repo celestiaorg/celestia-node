@@ -29,18 +29,14 @@ func StartTestNode(ctx context.Context, t *testing.T, app types.Application, cfg
 		options.SpecificConfig = cfg
 	})
 	t.Cleanup(func() {
-		err := nd.Stop()
-		if err != nil {
-			panic(err)
-		}
-		nd.Wait()
+		rpctest.StopTendermint(nd)
 	})
 	return nd
 }
 
 // StartTestKVApp starts Tendermint KVApp.
 func StartTestKVApp(ctx context.Context, t *testing.T) (tmservice.Service, types.Application, *config.Config) {
-	cfg := rpctest.GetConfig()
+	cfg := rpctest.GetConfig(true)
 	app := CreateKVStore(defaultRetainBlocks)
 	return StartTestNode(ctx, t, app, cfg), app, cfg
 }
