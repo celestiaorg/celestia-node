@@ -31,6 +31,11 @@ func (eh *ExtendedHeader) IsRecent(blockTime time.Duration) bool {
 	return time.Now().Sub(eh.Time) <= blockTime // TODO @renaynay: should we allow for a 5-10 block drift here?
 }
 
+// IsBefore returns whether the given header is of a higher height.
+func (eh *ExtendedHeader) IsBefore(h *ExtendedHeader) bool {
+	return eh.Height <= h.Height
+}
+
 // VerifyNonAdjacent validates non-adjacent untrusted header against trusted 'eh'.
 func (eh *ExtendedHeader) VerifyNonAdjacent(untrst *ExtendedHeader) error {
 	if err := eh.verify(untrst); err != nil {
