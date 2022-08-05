@@ -221,7 +221,7 @@ func Test_trustedHead_withBadObjectiveHead(t *testing.T) {
 	err := syncer.Start(ctx)
 	require.NoError(t, err)
 
-	trusted, err := syncer.trustedHead(ctx)
+	trusted, err := syncer.objectiveHead(ctx)
 	require.NoError(t, err)
 
 	// ensure that trusted head returned is not the bad exchange's head
