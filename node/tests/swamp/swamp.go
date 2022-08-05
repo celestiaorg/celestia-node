@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/libp2p/go-libp2p-core/host"
+	"github.com/libp2p/go-libp2p-core/peer"
 	mocknet "github.com/libp2p/go-libp2p/p2p/net/mock"
 	ma "github.com/multiformats/go-multiaddr"
 	"github.com/stretchr/testify/require"
@@ -295,4 +296,15 @@ func (s *Swamp) remove(rn *node.Node, sn []*node.Node) ([]*node.Node, error) {
 		return sn, fmt.Errorf("cannot delete the node")
 	}
 	return sn, nil
+}
+
+// Disconnect allows to break a connection between two peers without any possibility to re-establish it.
+// Order is very important here. We have to unlink peers first, and only after that call disconnect,
+// otherwise pubsub could re-establish the connection.
+func (s *Swamp) Disconnect(peerA, peerB peer.ID) error {
+	err := s.Network.UnlinkPeers(peerA, peerB)
+	if err != nil {
+		return err
+	}
+	return s.Network.DisconnectPeers(peerA, peerB)
 }
