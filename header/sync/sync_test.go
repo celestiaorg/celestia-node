@@ -161,9 +161,6 @@ func TestSyncPendingRangesWithMisses(t *testing.T) {
 
 // TestSyncHead tests the Syncer's Head method.
 func TestSyncHead(t *testing.T) {
-	// this way we force local head of Syncer to expire, so it requests a new one from trusted peer
-	header.TrustingPeriod = time.Microsecond
-
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	t.Cleanup(cancel)
 
@@ -204,9 +201,6 @@ func TestSyncHead(t *testing.T) {
 // ignores a bad (late or does not pass verification) head returned by
 // its underlying Exchange.
 func Test_trustedHead_withBadObjectiveHead(t *testing.T) {
-	// this way we force local head of Syncer to expire, so it requests a new one from trusted peer
-	header.TrustingPeriod = time.Microsecond
-
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	t.Cleanup(cancel)
 

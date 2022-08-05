@@ -238,7 +238,7 @@ func (s *Syncer) processIncoming(ctx context.Context, maybeHead *header.Extended
 		return pubsub.ValidationIgnore // we don't know if header is invalid so ignore
 	}
 
-	// TODO: Explain this very edgy case. Can happend if the node was offline for more than unbonding period
+	// TODO: Explain this very edgy case. Can happen if the node was offline for more than unbonding period
 	if subjHead.IsExpired() {
 		_, err = s.objectiveHead(ctx)
 		if err != nil {
@@ -246,14 +246,13 @@ func (s *Syncer) processIncoming(ctx context.Context, maybeHead *header.Extended
 		}
 		s.wantSync()
 		return pubsub.ValidationIgnore
-	} else {
-		// 3. Attempt to verify maybeHead
-		res := s.newHead(subjHead, maybeHead)
-		if res == pubsub.ValidationAccept {
-			s.wantSync()
-		}
-		return res
 	}
+	// 3. Attempt to verify maybeHead
+	res := s.newHead(subjHead, maybeHead)
+	if res == pubsub.ValidationAccept {
+		s.wantSync()
+	}
+	return res
 }
 
 // newHead verifies the potential new head against the trusted head, and if
