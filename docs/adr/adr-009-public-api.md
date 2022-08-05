@@ -33,6 +33,11 @@ some modules to meet resource requirements of a type. Example: FullAvailability 
 an app, but users are those who decide how they want to build the app using the API.
 * Language agnostic. It should be simple to implement similar module interfaces/traits in other languages over RPC clients
 
+### Implementation
+
+The tracking issue can be found [here](https://github.com/celestiaorg/celestia-node/issues/944).
+It provides a more detailed step-by-step process for how the below described design will be implemented.
+
 ### Details
 #### Services Deprecation
 The initial step is to deprecate and remove our services in code and stop relying on services as the notion. Instead, 
