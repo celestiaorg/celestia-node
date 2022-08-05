@@ -44,7 +44,18 @@ func GetSharesByNamespace(
 // and we don't know in advance how many jobs we will have to wait for.
 type wrappedWaitGroup struct {
 	wg      sync.WaitGroup
+	jobs    chan *job
 	counter int64
+}
+
+func CreateWrappedWaitGroup(jobs chan *job) *wrappedWaitGroup {
+	wg := &wrappedWaitGroup{
+		wg:      sync.WaitGroup{},
+		jobs:    jobs,
+		counter: 0,
+	}
+	wg.Add(1)
+	return wg
 }
 
 func (w *wrappedWaitGroup) Add(count int64) {
@@ -52,11 +63,11 @@ func (w *wrappedWaitGroup) Add(count int64) {
 	atomic.AddInt64(&w.counter, count)
 }
 
-func (w *wrappedWaitGroup) Done(jobs chan *job) {
+func (w *wrappedWaitGroup) Done() {
 	w.wg.Done()
 	atomic.AddInt64(&w.counter, -1)
 	if atomic.LoadInt64(&w.counter) == 0 {
-		close(jobs)
+		close(w.jobs)
 	}
 }
 
@@ -64,26 +75,26 @@ func (w *wrappedWaitGroup) Wait() {
 	w.wg.Wait()
 }
 
-func (w *wrappedWaitGroup) IsWorking() bool {
-	return atomic.LoadInt64(&w.counter) > 0
-}
-
 type fetchedBounds struct {
 	lowest  int64
 	highest int64
 }
 
-func (b *fetchedBounds) Update(index int64) bool {
-	ok := true
-	if lowest := atomic.LoadInt64(&b.lowest); index < lowest {
-		ok = ok && atomic.CompareAndSwapInt64(&b.lowest, lowest, index)
+func (b *fetchedBounds) Update(index int64) {
+	for ok := false; !ok; {
+		ok = true
+		if lowest := atomic.LoadInt64(&b.lowest); index < lowest {
+			ok = atomic.CompareAndSwapInt64(&b.lowest, lowest, index)
+		}
 	}
 	// not an `else if` because an element can be both the lower and higher bound
 	// for example, if there is only one share in the namespace
-	if highest := atomic.LoadInt64(&b.highest); index > highest {
-		ok = ok && atomic.CompareAndSwapInt64(&b.highest, highest, index)
+	for ok := false; !ok; {
+		ok = true
+		if highest := atomic.LoadInt64(&b.highest); index > highest {
+			ok = atomic.CompareAndSwapInt64(&b.highest, highest, index)
+		}
 	}
-	return ok
 }
 
 // getLeavesByNamespace returns all the leaves from the given root with the given namespace.ID.
@@ -111,25 +122,26 @@ func getLeavesByNamespace(
 	jobs := make(chan *job, (maxShares+1)/2)
 	jobs <- &job{id: root}
 
-	// the wg counter cannot be pre-allocated either, it is incremented with each job
-	var wg wrappedWaitGroup
-	wg.Add(1)
+	wg := CreateWrappedWaitGroup(jobs)
 
 	// we overallocate space for leaves since we do not know how many we will find
 	// on the level above, the length of the Row is passed in as maxShares
 	leaves := make([]ipld.Node, maxShares)
 
 	// stillWorking will be set to false when the waitgroup counter reaches 0, closing the jobs channel
-	for stillWorking := true; stillWorking; {
+	for {
 		select {
 		case j, ok := <-jobs:
 			if !ok {
-				stillWorking = false
-				break
+				// we didn't find any leaves, return nil
+				if bounds.lowest == int64(maxShares) {
+					return nil, nil
+				}
+
+				return leaves[bounds.lowest : bounds.highest+1], nil
 			}
 			namespacePool.Submit(func() {
-				// if the WaitGroup counter is above 0, we are still walking the tree
-				defer wg.Done(jobs)
+				defer wg.Done()
 
 				rootH := plugin.NamespacedSha256FromCID(j.id)
 				if nID.Less(nmt.MinNamespace(rootH, nID.Size())) || !nID.LessOrEqual(nmt.MaxNamespace(rootH, nID.Size())) {
@@ -151,9 +163,7 @@ func getLeavesByNamespace(
 					leaves[j.pos] = nd
 					// we found a leaf, so we update the bounds
 					// the update routine is repeated until the atomic swap is successful
-					for ok := false; !ok; {
-						ok = bounds.Update(int64(j.pos))
-					}
+					bounds.Update(int64(j.pos))
 					return
 				}
 
@@ -175,11 +185,4 @@ func getLeavesByNamespace(
 			return nil, nil
 		}
 	}
-
-	// we didn't find any leaves, return nil
-	if bounds.lowest == int64(maxShares) {
-		return nil, nil
-	}
-
-	return leaves[bounds.lowest : bounds.highest+1], nil
 }
