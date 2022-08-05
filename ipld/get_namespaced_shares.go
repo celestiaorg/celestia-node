@@ -48,7 +48,7 @@ type wrappedWaitGroup struct {
 	counter int64
 }
 
-func CreateWrappedWaitGroup(jobs chan *job) *wrappedWaitGroup {
+func createWrappedWaitGroup(jobs chan *job) *wrappedWaitGroup {
 	wg := &wrappedWaitGroup{
 		wg:      sync.WaitGroup{},
 		jobs:    jobs,
@@ -122,7 +122,7 @@ func getLeavesByNamespace(
 	jobs := make(chan *job, (maxShares+1)/2)
 	jobs <- &job{id: root}
 
-	wg := CreateWrappedWaitGroup(jobs)
+	wg := createWrappedWaitGroup(jobs)
 
 	// we overallocate space for leaves since we do not know how many we will find
 	// on the level above, the length of the Row is passed in as maxShares
