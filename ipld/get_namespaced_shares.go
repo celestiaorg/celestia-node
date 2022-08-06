@@ -2,7 +2,6 @@ package ipld
 
 import (
 	"context"
-	"golang.org/x/sync/errgroup"
 	"sync"
 	"sync/atomic"
 
@@ -14,6 +13,8 @@ import (
 	"github.com/celestiaorg/celestia-node/ipld/plugin"
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/nmt/namespace"
+
+	"golang.org/x/sync/errgroup"
 )
 
 // TODO(@distractedm1nd) Find a better figure than NumWorkersLimit for this pool.
