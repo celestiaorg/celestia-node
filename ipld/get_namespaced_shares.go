@@ -2,6 +2,7 @@ package ipld
 
 import (
 	"context"
+	"golang.org/x/sync/errgroup"
 	"sync"
 	"sync/atomic"
 
@@ -84,7 +85,8 @@ func (b *fetchedBounds) Update(index int64) {
 }
 
 // getLeavesByNamespace returns all the leaves from the given root with the given namespace.ID.
-// If nothing is found, it returns both data and error as nil.
+// If no shares are found, it returns both data and error as nil.
+// A non-nil error means that only partial data is returned, because at least one share retrieval failed
 // The following implementation is based on `GetShares`.
 func getLeavesByNamespace(
 	ctx context.Context,
@@ -112,6 +114,9 @@ func getLeavesByNamespace(
 	wg.jobs = jobs
 	wg.Add(1)
 
+	// we use an errgroup so that only the first encountered retrieval error is returned
+	retrievalErr, ctx := errgroup.WithContext(ctx)
+
 	// we overallocate space for leaves since we do not know how many we will find
 	// on the level above, the length of the Row is passed in as maxShares
 	leaves := make([]ipld.Node, maxShares)
@@ -126,7 +131,7 @@ func getLeavesByNamespace(
 					return nil, nil
 				}
 
-				return leaves[bounds.lowest : bounds.highest+1], nil
+				return leaves[bounds.lowest : bounds.highest+1], retrievalErr.Wait()
 			}
 			namespacePool.Submit(func() {
 				defer wg.Done()
@@ -138,7 +143,10 @@ func getLeavesByNamespace(
 
 				nd, err := plugin.GetNode(ctx, bGetter, j.id)
 				if err != nil {
-					return
+					retrievalErr.Go(func() error {
+						log.Errorw("getSharesByNamespace: could not retrieve node", "nID", nID, "err", err)
+						return err
+					})
 				}
 
 				links := nd.Links()
@@ -170,7 +178,7 @@ func getLeavesByNamespace(
 				}
 			})
 		case <-ctx.Done():
-			return nil, nil
+			return nil, retrievalErr.Wait()
 		}
 	}
 }
