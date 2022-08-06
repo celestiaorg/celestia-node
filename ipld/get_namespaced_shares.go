@@ -71,18 +71,15 @@ type fetchedBounds struct {
 }
 
 func (b *fetchedBounds) Update(index int64) {
-	for {
-		lowest := atomic.LoadInt64(&b.lowest)
-		if index >= lowest || atomic.CompareAndSwapInt64(&b.lowest, lowest, index) {
-			break
-		}
+	lowest := atomic.LoadInt64(&b.lowest)
+	for index < lowest && !atomic.CompareAndSwapInt64(&b.lowest, lowest, index) {
+		lowest = atomic.LoadInt64(&b.lowest)
 	}
-
-	for {
-		highest := atomic.LoadInt64(&b.highest)
-		if index <= highest || atomic.CompareAndSwapInt64(&b.highest, highest, index) {
-			break
-		}
+	// we always run both checks because element can be both the lower and higher bound
+	// for example, if there is only one share in the namespace
+	highest := atomic.LoadInt64(&b.highest)
+	for index > highest && !atomic.CompareAndSwapInt64(&b.highest, highest, index) {
+		highest = atomic.LoadInt64(&b.highest)
 	}
 }
 
