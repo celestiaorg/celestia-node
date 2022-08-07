@@ -45,6 +45,8 @@ type Syncer struct {
 	triggerSync chan struct{}
 	// pending keeps ranges of valid headers received from the network awaiting to be appended to store
 	pending ranges
+	// objLk ensures only one objective head is requested at any moment
+	objLk sync.RWMutex
 
 	// controls lifecycle for syncLoop
 	ctx    context.Context
@@ -176,6 +178,15 @@ func (s *Syncer) objectiveHead(ctx context.Context) (*header.ExtendedHeader, err
 		return sbjHead, nil
 	}
 	// otherwise, request head from a trusted peer, as we assume it is fully synced
+	//
+	// the lock construction here ensures only one routine requests at a time
+	// while others wait via Rlock
+	if !s.objLk.TryLock() {
+		s.objLk.RLock()
+		defer s.objLk.RUnlock()
+		return s.subjectiveHead(ctx)
+	}
+	defer s.objLk.Unlock()
 	// TODO(@Wondertan): Here is another potential network optimization:
 	//  * From sbjHead's timestamp and current time predict the time to the next header(TNH)
 	//  * If now >= TNH && now <= TNH + (THP) header propagation time

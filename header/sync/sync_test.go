@@ -8,6 +8,7 @@ import (
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/tendermint/tendermint/libs/bytes"
 
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/header/local"
@@ -154,4 +155,61 @@ func TestSyncPendingRangesWithMisses(t *testing.T) {
 
 	assert.Equal(t, exp.Height, have.Height)
 	assert.Empty(t, syncer.pending.Head()) // assert all cache from pending is used
+}
+
+// Test that only one objective header is requested at a time
+func TestSyncer_OnlyOneRecentRequest(t *testing.T) {
+	blockTime := time.Nanosecond // so that we always request recent
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	t.Cleanup(cancel)
+
+	suite := header.NewTestSuite(t, 3)
+	store := store.NewTestStore(ctx, t, suite.Head())
+	newHead := suite.GenExtendedHeader()
+	exchange := &exchangeCountingHead{header: newHead}
+	syncer := NewSyncer(exchange, store, &header.DummySubscriber{}, blockTime)
+
+	res := make(chan *header.ExtendedHeader)
+	for i := 0; i < 10; i++ {
+		go func() {
+			head, err := syncer.objectiveHead(ctx)
+			if err != nil {
+				panic(err)
+			}
+			select {
+			case res <- head:
+			case <-ctx.Done():
+				return
+			}
+		}()
+	}
+
+	for i := 0; i < 10; i++ {
+		head := <-res
+		assert.True(t, exchange.header.Equals(head))
+	}
+	assert.Equal(t, 1, exchange.counter)
+}
+
+type exchangeCountingHead struct {
+	header  *header.ExtendedHeader
+	counter int
+}
+
+func (e *exchangeCountingHead) Head(context.Context) (*header.ExtendedHeader, error) {
+	e.counter++
+	time.Sleep(time.Millisecond * 100) // simulate requesting something
+	return e.header, nil
+}
+
+func (e *exchangeCountingHead) Get(ctx context.Context, bytes bytes.HexBytes) (*header.ExtendedHeader, error) {
+	panic("implement me")
+}
+
+func (e *exchangeCountingHead) GetByHeight(ctx context.Context, u uint64) (*header.ExtendedHeader, error) {
+	panic("implement me")
+}
+
+func (e *exchangeCountingHead) GetRangeByHeight(c context.Context, from, to uint64) ([]*header.ExtendedHeader, error) {
+	panic("implement me")
 }
