@@ -34,7 +34,7 @@ func HeaderSyncer(
 	sub header.Subscriber,
 	fservice fraud.Service,
 ) (*sync.Syncer, error) {
-	syncer := sync.NewSyncer(ex, store, sub)
+	syncer := sync.NewSyncer(ex, store, sub, params.BlockTime)
 	lifecycleCtx := fxutil.WithLifecycle(ctx, lc)
 	lc.Append(fx.Hook{
 		OnStart: func(startCtx context.Context) error {

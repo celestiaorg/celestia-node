@@ -35,6 +35,8 @@ type Syncer struct {
 	exchange header.Exchange
 	store    header.Store
 
+	blockTime time.Duration
+
 	// stateLk protects state which represents the current or latest sync
 	stateLk sync.RWMutex
 	state   State
@@ -47,11 +49,12 @@ type Syncer struct {
 }
 
 // NewSyncer creates a new instance of Syncer.
-func NewSyncer(exchange header.Exchange, store header.Store, sub header.Subscriber) *Syncer {
+func NewSyncer(exchange header.Exchange, store header.Store, sub header.Subscriber, blockTime time.Duration) *Syncer {
 	return &Syncer{
 		sub:         sub,
 		exchange:    exchange,
 		store:       store,
+		blockTime:   blockTime,
 		triggerSync: make(chan struct{}, 1), // should be buffered
 	}
 }

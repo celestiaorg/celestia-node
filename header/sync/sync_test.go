@@ -14,6 +14,8 @@ import (
 	"github.com/celestiaorg/celestia-node/header/store"
 )
 
+var blockTime = 30 * time.Second
+
 func TestSyncSimpleRequestingHead(t *testing.T) {
 	// this way we force local head of Syncer to expire, so it requests a new one from trusted peer
 	header.TrustingPeriod = time.Microsecond
@@ -33,7 +35,7 @@ func TestSyncSimpleRequestingHead(t *testing.T) {
 	require.NoError(t, err)
 
 	localStore := store.NewTestStore(ctx, t, head)
-	syncer := NewSyncer(local.NewExchange(remoteStore), localStore, &header.DummySubscriber{})
+	syncer := NewSyncer(local.NewExchange(remoteStore), localStore, &header.DummySubscriber{}, blockTime)
 	err = syncer.Start(ctx)
 	require.NoError(t, err)
 
@@ -67,7 +69,7 @@ func TestSyncCatchUp(t *testing.T) {
 
 	remoteStore := store.NewTestStore(ctx, t, head)
 	localStore := store.NewTestStore(ctx, t, head)
-	syncer := NewSyncer(local.NewExchange(remoteStore), localStore, &header.DummySubscriber{})
+	syncer := NewSyncer(local.NewExchange(remoteStore), localStore, &header.DummySubscriber{}, blockTime)
 	// 1. Initial sync
 	err := syncer.Start(ctx)
 	require.NoError(t, err)
@@ -111,7 +113,7 @@ func TestSyncPendingRangesWithMisses(t *testing.T) {
 
 	remoteStore := store.NewTestStore(ctx, t, head)
 	localStore := store.NewTestStore(ctx, t, head)
-	syncer := NewSyncer(local.NewExchange(remoteStore), localStore, &header.DummySubscriber{})
+	syncer := NewSyncer(local.NewExchange(remoteStore), localStore, &header.DummySubscriber{}, blockTime)
 	err := syncer.Start(ctx)
 	require.NoError(t, err)
 
