@@ -26,6 +26,11 @@ func (eh *ExtendedHeader) IsExpired() bool {
 	return !expirationTime.After(time.Now())
 }
 
+// IsRecent checks if header is recent against the given blockTime.
+func (eh *ExtendedHeader) IsRecent(blockTime time.Duration) bool {
+	return time.Since(eh.Time) <= blockTime // TODO @renaynay: should we allow for a 5-10 block drift here?
+}
+
 // VerifyNonAdjacent validates non-adjacent untrusted header against trusted 'eh'.
 func (eh *ExtendedHeader) VerifyNonAdjacent(untrst *ExtendedHeader) error {
 	if err := eh.verify(untrst); err != nil {
