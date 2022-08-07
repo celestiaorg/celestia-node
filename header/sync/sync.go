@@ -173,6 +173,10 @@ func (s *Syncer) objectiveHead(ctx context.Context) (*header.ExtendedHeader, err
 		return sbjHead, nil
 	}
 	// otherwise, request head from a trusted peer, as we assume it is fully synced
+	// TODO(@Wondertan): Here is another potential network optimization:
+	//  * From sbjHead's timestamp and current time predict the time to the next header(TNH)
+	//  * If now >= TNH && now <= TNH + (THP) header propagation time
+	//    * Wait for header to arrive instead of requesting it
 	maybeHead, err := s.exchange.Head(ctx)
 	if err != nil {
 		return nil, err
