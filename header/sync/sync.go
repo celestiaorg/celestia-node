@@ -45,7 +45,9 @@ type Syncer struct {
 	triggerSync chan struct{}
 	// pending keeps ranges of valid headers received from the network awaiting to be appended to store
 	pending ranges
-	// cancel cancels syncLoop's context
+
+	// controls lifecycle for syncLoop
+	ctx    context.Context
 	cancel context.CancelFunc
 }
 
@@ -62,6 +64,9 @@ func NewSyncer(exchange header.Exchange, store header.Store, sub header.Subscrib
 
 // Start starts the syncing routine.
 func (s *Syncer) Start(ctx context.Context) error {
+	s.ctx, s.cancel = context.WithCancel(context.Background())
+	// register validator for header subscriptions
+	// syncer does not subscribe itself and syncs headers together with validation
 	err := s.sub.AddValidator(s.incomingHead)
 	if err != nil {
 		return err
@@ -71,10 +76,8 @@ func (s *Syncer) Start(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-
-	ctx, cancel := context.WithCancel(context.Background())
-	go s.syncLoop(ctx)
-	s.cancel = cancel
+	// start syncLoop only if Start is errorless
+	go s.syncLoop()
 	return nil
 }
 
@@ -272,12 +275,12 @@ func (s *Syncer) wantSync() {
 }
 
 // syncLoop controls syncing process.
-func (s *Syncer) syncLoop(ctx context.Context) {
+func (s *Syncer) syncLoop() {
 	for {
 		select {
 		case <-s.triggerSync:
-			s.sync(ctx)
-		case <-ctx.Done():
+			s.sync(s.ctx)
+		case <-s.ctx.Done():
 			return
 		}
 	}
