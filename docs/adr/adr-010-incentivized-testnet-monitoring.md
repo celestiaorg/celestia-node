@@ -8,6 +8,7 @@
 - 2022-7-29: Add section on "How to send data over HTTPS"
 - 2022-8-1: Revise architecture to minimize Celestia managed components
 - 2022-8-4: Add section on "Why doesn't the Celestia team host OTEL Collectors for node operators?"
+- 2022-8-8: Rename section to "Which actor should run OTEL Collector(s) during the incentivized testnet?"
 
 ## Context
 
@@ -167,14 +168,44 @@ The Prometheus docs state the following with regard to [Denial of Service](https
 
 So if we are concerned about the public leaderboard crashing the Prometheus instance that we use for internal dashboards, we may want to host two separate instances. This seems feasible by configuring OTEL Collector to export to two different Prometheus instances. This is a one way door, I suggest sticking with one instance because Grafana Cloud guarantees 99.5% uptime.
 
-### Why doesn't the Celestia team host OTEL Collectors for node operators?
+### Which actor should run OTEL Collector(s) during the incentivized testnet?
 
-1. Node operators will lose the ability to monitor their own celestia-node. Since opentelemetry-go only supports configuring one exporter ( [open-telemetry/opentelemetry-go#3055](https://github.com/open-telemetry/opentelemetry-go/issues/3055)), if node operators were obligated to export metrics to a Celestia team managed OTEL Collector endpoint, they wouldn't be able to export to their own OTEL Collector (and by proxy any telemetry platforms they wish to use). This violates the desideratum:
+#### Scenario A: Node operators
+
+Pros
+
+- This deployment architecture is more representative of mainnet where node operators will run their own telemetry stack to monitor their node. Exposing node operators to OTEL Collector during incentivized testnet allows them to practice this deployment architecture prior to mainnet.
+- Node operators will have an "incentive" to maintain high uptime for their OTEL Collector.
+
+Cons
+
+- Additional operational burden for incentivized testnet participants. We can mitigate this concern by providing easy install steps and scripts.
+
+#### Scenario B: Celestia team
+
+Pros
+
+- It will be easier for nodes to participate if they only have to deploy one piece of software (celestia-node) and not two (celestia-node and OTEL Collector).
+
+Cons
+
+- Node operators will lose the ability to monitor their own celestia-node. Since opentelemetry-go supports configuring only one exporter ( [open-telemetry/opentelemetry-go#3055](https://github.com/open-telemetry/opentelemetry-go/issues/3055)), if node operators were obligated to export metrics to a Celestia team managed OTEL Collector endpoint, they wouldn't be able to export to their own OTEL Collector (and by proxy any telemetry platforms they wish to use). This violates the desideratum:
 
     > We would like to make it possible for node operators to monitor their own nodes with existing telemetry tools (e.g. Grafana and Uptrace)
 
-1. Node operators will have an "incentive" to maintain high uptime for their OTEL Collector. If the Celestia team took on this responsibility and failed to provide a highly available solution, then node operators would be penalized for downtime of a component they have no control over.
-1. We expect 1500+ node operators during the incentivized testnet and there is minimal documentation on the scale of workload an individual OTEL Collector can handle. We'd have to design and operate a highly available OTEL Collector fleet to maintain high uptime for node operators. At this time no cloud managed offerings for OTEL Collector exist.
+- If the Celestia team took on this responsibility and failed to provide a highly available solution, then node operators would be penalized for downtime of a component they have no control over.
+- We expect 1500+ node operators during the incentivized testnet and there is minimal documentation on the scale of workload an individual OTEL Collector can handle. We'd have to design and operate a best-effort highly available OTEL Collector fleet to maintain high uptime for node operators. At this time no cloud managed offerings for OTEL Collector exist.
+
+#### Scenario C: Node operators by default. Celestia team as a best-effort fallback
+
+Pros
+
+- Optionality for node operators who don't want to deploy an OTEL Collector to rely on a best-effort OTEL Collector provided by Celestia team.
+
+Cons:
+
+- This option increases the cognitive load on node operators who now have an additional decision at deployment time.
+- Increased operational burden on Celestia team during incentivized testnet (and beyond).
 
 ### Should node operators be able to configure celestia-node to export to multiple OTEL collectors?
 
