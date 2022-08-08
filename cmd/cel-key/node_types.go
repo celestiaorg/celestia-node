@@ -20,7 +20,7 @@ var (
 func DirectoryFlags() *flag.FlagSet {
 	flags := &flag.FlagSet{}
 	flags.String(nodeDirKey, "", "Sets key utility to use the node type's directory (e.g. "+
-		"~/.celestia-light if --node.type light is passed.")
+		"~/.celestia-light if --node.type light is passed).")
 
 	return flags
 }
