@@ -81,7 +81,7 @@ func TestSyncCatchUp(t *testing.T) {
 	require.NoError(t, err)
 
 	// 3. syncer rcvs header from the future and starts catching-up
-	res := syncer.incomingHead(ctx, suite.GenExtendedHeaders(1)[0])
+	res := syncer.incomingNetHead(ctx, suite.GenExtendedHeaders(1)[0])
 	assert.Equal(t, pubsub.ValidationAccept, res)
 
 	time.Sleep(time.Millisecond * 10) // needs some to realize it is syncing
@@ -174,7 +174,7 @@ func TestSyncer_OnlyOneRecentRequest(t *testing.T) {
 	res := make(chan *header.ExtendedHeader)
 	for i := 0; i < 10; i++ {
 		go func() {
-			head, err := syncer.objectiveHead(ctx)
+			head, err := syncer.networkHead(ctx)
 			if err != nil {
 				panic(err)
 			}
