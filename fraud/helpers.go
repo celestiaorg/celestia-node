@@ -14,15 +14,15 @@ func getSubTopic(p ProofType) string {
 }
 
 func join(p *pubsub.PubSub, proofType ProofType,
-	validate func(context.Context, ProofType, *pubsub.Message) pubsub.ValidationResult) (*pubsub.Topic, error) {
+	validate func(context.Context, ProofType, peer.ID, *pubsub.Message) pubsub.ValidationResult) (*pubsub.Topic, error) {
 	t, err := p.Join(getSubTopic(proofType))
 	if err != nil {
 		return nil, err
 	}
 	err = p.RegisterTopicValidator(
 		getSubTopic(proofType),
-		func(ctx context.Context, _ peer.ID, msg *pubsub.Message) pubsub.ValidationResult {
-			return validate(ctx, proofType, msg)
+		func(ctx context.Context, from peer.ID, msg *pubsub.Message) pubsub.ValidationResult {
+			return validate(ctx, proofType, from, msg)
 		},
 	)
 	return t, err

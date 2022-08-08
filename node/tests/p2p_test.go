@@ -157,7 +157,7 @@ Steps:
 3. Create 2 full nodes with bridge node as bootstrapper peer and start them
 4. Check that nodes are connected to each other
 5. Create one more node with disabled discovery
-6. Stop one of full node in order to restart discovery
+6. Disconnect FNs from each other
 7. Check that the last FN is connected to one of the nodes
 *NOTE*: this test will take some time because it relies on several cycles of peer discovery
 */
@@ -165,7 +165,7 @@ func TestRestartNodeDiscovery(t *testing.T) {
 	sw := swamp.NewSwamp(t)
 	cfg := node.DefaultConfig(node.Bridge)
 	cfg.P2P.Bootstrapper = true
-	const defaultTimeInterval = time.Second * 10
+	const defaultTimeInterval = time.Second * 2
 	const fullNodes = 2
 	var defaultOptions = []node.Option{
 		node.WithPeersLimit(fullNodes),
@@ -176,7 +176,7 @@ func TestRestartNodeDiscovery(t *testing.T) {
 	bridgeConfig := append([]node.Option{node.WithConfig(cfg)}, defaultOptions...)
 	bridge := sw.NewBridgeNode(bridgeConfig...)
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	t.Cleanup(cancel)
 
 	err := bridge.Start(ctx)
@@ -188,42 +188,51 @@ func TestRestartNodeDiscovery(t *testing.T) {
 		nodes[index] = sw.NewFullNode(nodesConfig...)
 	}
 
-	sub, err := nodes[0].Host.EventBus().Subscribe(&event.EvtPeerConnectednessChanged{})
+	identitySub, err := nodes[0].Host.EventBus().Subscribe(&event.EvtPeerIdentificationCompleted{})
 	require.NoError(t, err)
-	defer sub.Close()
+	defer identitySub.Close()
+
 	for index := 0; index < fullNodes; index++ {
 		require.NoError(t, nodes[index].Start(ctx))
-		assert.Equal(t, *addr, nodes[index].Bootstrappers[0])
 		assert.True(t, nodes[index].Host.Network().Connectedness(addr.ID) == network.Connected)
 	}
 
 	// wait until full nodes connect each other
-	e := <-sub.Out()
-	connStatus := e.(event.EvtPeerConnectednessChanged)
+	e := <-identitySub.Out()
+	connStatus := e.(event.EvtPeerIdentificationCompleted)
 	id := connStatus.Peer
 	if id != nodes[1].Host.ID() {
 		t.Fatal("unexpected peer connected")
 	}
-	assert.True(t, nodes[0].Host.Network().Connectedness(id) == network.Connected)
+	require.True(t, nodes[0].Host.Network().Connectedness(id) == network.Connected)
 
 	// create one more node with disabled discovery
 	nodesConfig[1] = node.WithPeersLimit(0)
 	node := sw.NewFullNode(nodesConfig...)
+	connectSub, err := nodes[0].Host.EventBus().Subscribe(&event.EvtPeerConnectednessChanged{})
+	require.NoError(t, err)
+	defer connectSub.Close()
+
+	// disconnect and unlink peers in order to receive disconnected event
+	// NOTE: Order is very important here. We have to unlink peers, and only after that call disconnect,
+	// otherwise pubsub could re-establish the connection.
+	// For more information:
+	// https://github.com/libp2p/go-libp2p-pubsub/blob/60cf38003244a277084c6f3eec0e584ab6cc07bd/pubsub.go#L710
+	require.NoError(t, sw.Network.UnlinkPeers(nodes[0].Host.ID(), nodes[1].Host.ID()))
+	require.NoError(t, sw.Network.DisconnectPeers(nodes[0].Host.ID(), nodes[1].Host.ID()))
+
 	require.NoError(t, node.Start(ctx))
-	// stop one node in order to remove it from cache and restart discovery
-	require.NoError(t, nodes[1].Stop(ctx))
-	// close context in order to receive disconnected event(should be used in tests only)
-	require.NoError(t, nodes[1].Host.Close())
 	for {
 		select {
 		case <-ctx.Done():
-			t.Fatal("peer was not connected")
-		case e := <-sub.Out():
-			connStatus := e.(event.EvtPeerConnectednessChanged)
-			if host.InfoFromHost(node.Host).ID == connStatus.Peer {
-				assert.True(t, connStatus.Connectedness == network.Connected)
-				return
+			require.True(t, nodes[0].Host.Network().Connectedness(node.Host.ID()) == network.Connected)
+		case conn := <-connectSub.Out():
+			status := conn.(event.EvtPeerConnectednessChanged)
+			if status.Peer != node.Host.ID() {
+				continue
 			}
+			require.True(t, status.Connectedness == network.Connected)
+			return
 		}
 	}
 }

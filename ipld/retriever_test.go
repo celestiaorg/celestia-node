@@ -121,6 +121,6 @@ func TestRetriever_MultipleRandQuadrants(t *testing.T) {
 	// then ensure we have enough shares for reconstruction for slow machines e.g. CI
 	<-ses.Done()
 
-	_, err = ses.Reconstruct()
+	_, err = ses.Reconstruct(ctx)
 	assert.NoError(t, err)
 }
