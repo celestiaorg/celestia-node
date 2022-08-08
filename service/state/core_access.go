@@ -157,6 +157,11 @@ func (ca *CoreAccessor) BalanceForAddress(ctx context.Context, addr Address) (*B
 	}
 	// unmarshal balance information
 	value := result.Response.Value
+	// if the value returned is empty, the account balance does not yet exist
+	if len(value) == 0 {
+		return nil, fmt.Errorf("account balance does not exist at block height %d, wait for node to sync",
+			head.Height)
+	}
 	coin, ok := sdktypes.NewIntFromString(string(value))
 	if !ok {
 		return nil, fmt.Errorf("cannot convert %s into sdktypes.Int", string(value))
