@@ -12,7 +12,7 @@
 
 ## Context
 
-We're adding telemetry to celestia-node by instrumenting our codebase with metrics (see [ADR-009-telemetry](./adr-009-telemetry.md)). If the option to report metrics is enabled on celestia-node, then celestia-node will push metrics via [OLTP Exporter](https://opentelemetry.io/docs/reference/specification/protocol/exporter/) to an [OTEL Collector](https://opentelemetry.io/docs/collector/) instance.
+We're adding telemetry to celestia-node by instrumenting our codebase with metrics (see [ADR-009-telemetry](./adr-009-telemetry.md)). If the option to report metrics is enabled on celestia-node, then celestia-node will push metrics via [OTLP Exporter](https://opentelemetry.io/docs/reference/specification/protocol/exporter/) to an [OTEL Collector](https://opentelemetry.io/docs/collector/) instance.
 
 We would like to make the metrics exported by celestia-node actionable by making them queryable in internal Grafana dashboards. We additionally want a subset of metrics to be queryable by a public incentivized testnet leaderboard frontend.
 
@@ -24,7 +24,7 @@ This document proposes a strategy for making data available for use in internal 
 
 We expect celestia-node operators to deploy an OTEL Collector agent alongside celestia-node during the incentivized testnet and export metrics to a Prometheus instance hosted in Grafana Cloud. We will share a Prometheus endpoint and API keys when this infrastructure is available.
 
-![Incentivized Testnet Monitoring Diagram](./img/incentivized-testnet-monitoring-diagram.svg)
+![incentivized testnet monitoring diagram](./img/incentivized-testnet-monitoring-diagram.png)
 
 ## Detailed Design
 
@@ -172,6 +172,8 @@ So if we are concerned about the public leaderboard crashing the Prometheus inst
 
 #### Scenario A: Node operators
 
+![scenario a](./img/incentivized-testnet-monitoring-scenario-a.png)
+
 Pros
 
 - This deployment architecture is more representative of mainnet where node operators will run their own telemetry stack to monitor their node. Exposing node operators to OTEL Collector during incentivized testnet allows them to practice this deployment architecture prior to mainnet.
@@ -182,6 +184,8 @@ Cons
 - Additional operational burden for incentivized testnet participants. We can mitigate this concern by providing easy install steps and scripts.
 
 #### Scenario B: Celestia team
+
+![scenario b](./img/incentivized-testnet-monitoring-scenario-b.png)
 
 Pros
 
@@ -196,7 +200,9 @@ Cons
 - If the Celestia team took on this responsibility and failed to provide a highly available solution, then node operators would be penalized for downtime of a component they have no control over.
 - We expect 1500+ node operators during the incentivized testnet and there is minimal documentation on the scale of workload an individual OTEL Collector can handle. We'd have to design and operate a best-effort highly available OTEL Collector fleet to maintain high uptime for node operators. At this time no cloud managed offerings for OTEL Collector exist.
 
-#### Scenario C: Node operators by default. Celestia team as a best-effort fallback
+#### Scenario C: Both. Node operators by default and Celestia team as a best-effort fallback
+
+![scenario c](./img/incentivized-testnet-monitoring-scenario-c.png)
 
 Pros
 
