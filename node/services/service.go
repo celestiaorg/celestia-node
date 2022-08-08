@@ -26,7 +26,7 @@ import (
 )
 
 // HeaderSyncer creates a new Syncer.
-func HeaderSyncer(cfg Config) func(
+func HeaderSyncer(
 	ctx context.Context,
 	lc fx.Lifecycle,
 	ex header.Exchange,
@@ -34,23 +34,15 @@ func HeaderSyncer(cfg Config) func(
 	sub header.Subscriber,
 	fservice fraud.Service,
 ) (*sync.Syncer, error) {
-	return func(ctx context.Context,
-		lc fx.Lifecycle,
-		ex header.Exchange,
-		store header.Store,
-		sub header.Subscriber,
-		fservice fraud.Service,
-	) (*sync.Syncer, error) {
-		syncer := sync.NewSyncer(ex, store, sub, cfg.BlockTime)
-		lifecycleCtx := fxutil.WithLifecycle(ctx, lc)
-		lc.Append(fx.Hook{
-			OnStart: func(startCtx context.Context) error {
-				return FraudLifecycle(startCtx, lifecycleCtx, fraud.BadEncoding, fservice, syncer.Start, syncer.Stop)
-			},
-			OnStop: syncer.Stop,
-		})
-		return syncer, nil
-	}
+	syncer := sync.NewSyncer(ex, store, sub, params.NetworkBlockTime.Time())
+	lifecycleCtx := fxutil.WithLifecycle(ctx, lc)
+	lc.Append(fx.Hook{
+		OnStart: func(startCtx context.Context) error {
+			return FraudLifecycle(startCtx, lifecycleCtx, fraud.BadEncoding, fservice, syncer.Start, syncer.Stop)
+		},
+		OnStop: syncer.Stop,
+	})
+	return syncer, nil
 }
 
 // P2PSubscriber creates a new p2p.Subscriber.

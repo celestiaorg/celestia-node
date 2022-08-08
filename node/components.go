@@ -88,7 +88,7 @@ func baseComponents(cfg *Config, store Store) fx.Option {
 		fx.Provide(services.HeaderStore),
 		fx.Invoke(services.HeaderStoreInit(&cfg.Services)),
 		fxutil.ProvideAs(services.FraudService, new(fraud.Service), new(fraud.Subscriber)),
-		fx.Provide(services.HeaderSyncer(cfg.Services)),
+		fx.Provide(services.HeaderSyncer),
 		fxutil.ProvideAs(services.P2PSubscriber, new(header.Broadcaster), new(header.Subscriber)),
 		fx.Provide(services.HeaderP2PExchangeServer),
 		// p2p components

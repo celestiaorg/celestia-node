@@ -33,6 +33,14 @@ func WithNetwork(net params.Network) Option {
 	}
 }
 
+// WithBlockTime specifies the block time of the network.
+// WARNING: Use this option with caution.
+func WithBlockTime(blockTime params.BlockTime) Option {
+	return func(sets *settings) {
+		sets.opts = append(sets.opts, fx.Replace(blockTime))
+	}
+}
+
 // WithP2PKey sets custom Ed25519 private key for p2p networking.
 func WithP2PKey(key crypto.PrivKey) Option {
 	return func(sets *settings) {

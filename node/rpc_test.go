@@ -243,7 +243,8 @@ func setupHeaderService(ctx context.Context, t *testing.T) *service.Service {
 	_, err := localStore.Append(ctx, suite.GenExtendedHeaders(5)...)
 	require.NoError(t, err)
 	// create syncer
-	syncer := sync.NewSyncer(local.NewExchange(remoteStore), localStore, &header.DummySubscriber{}, params.BlockTime)
+	syncer := sync.NewSyncer(local.NewExchange(remoteStore), localStore, &header.DummySubscriber{},
+		params.NetworkBlockTime.Time())
 
 	return service.NewHeaderService(syncer, nil, nil, nil, localStore)
 }
