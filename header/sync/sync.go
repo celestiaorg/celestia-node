@@ -297,18 +297,13 @@ func (s *Syncer) syncLoop() {
 	}
 }
 
-// sync ensures we are synced up to subjective header.
+// sync ensures we are synced from the local header Store's Head up to the new subjective head
 func (s *Syncer) sync(ctx context.Context) {
-	pendHead := s.pending.Head()
-	if pendHead == nil {
+	newHead := s.pending.Head()
+	if newHead == nil {
 		return
 	}
 
-	s.syncTo(ctx, pendHead)
-}
-
-// syncTo requests headers from locally stored head up to the new head.
-func (s *Syncer) syncTo(ctx context.Context, newHead *header.ExtendedHeader) {
 	head, err := s.store.Head(ctx)
 	if err != nil {
 		log.Errorw("getting head during sync", "err", err)
@@ -316,7 +311,7 @@ func (s *Syncer) syncTo(ctx context.Context, newHead *header.ExtendedHeader) {
 	}
 
 	if head.Height == newHead.Height {
-		return
+		return // should never happen, but just in case
 	}
 
 	log.Infow("syncing headers",

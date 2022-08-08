@@ -40,7 +40,8 @@ func TestSyncSimpleRequestingHead(t *testing.T) {
 	err = syncer.Start(ctx)
 	require.NoError(t, err)
 
-	_, err = localStore.GetByHeight(ctx, 100)
+	time.Sleep(time.Millisecond * 10) // needs some to realize it is syncing
+	err = syncer.WaitSync(ctx)
 	require.NoError(t, err)
 
 	exp, err := remoteStore.Head(ctx)
@@ -83,7 +84,8 @@ func TestSyncCatchUp(t *testing.T) {
 	res := syncer.incomingHead(ctx, suite.GenExtendedHeaders(1)[0])
 	assert.Equal(t, pubsub.ValidationAccept, res)
 
-	_, err = localStore.GetByHeight(ctx, 102)
+	time.Sleep(time.Millisecond * 10) // needs some to realize it is syncing
+	err = syncer.WaitSync(ctx)
 	require.NoError(t, err)
 
 	exp, err := remoteStore.Head(ctx)
