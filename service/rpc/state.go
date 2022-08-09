@@ -52,6 +52,7 @@ type delegationRequest struct {
 	GasLimit uint64 `json:"gas_limit"`
 }
 
+// delegationRequest represents a request for redelegation
 type redelegationRequest struct {
 	From     string `json:"from"`
 	To       string `json:"to"`

@@ -239,7 +239,6 @@ func (ca *CoreAccessor) CancelUnbondingDelegation(
 		return nil, err
 	}
 	coins := sdktypes.NewCoin(app.BondDenom, amount)
-	// TODO(distractedm1nd): Is this the best way to be getting the height? Should it be head.Height or head.Height - 1?
 	head, err := ca.getter.Head(ctx)
 	if err != nil {
 		return nil, err

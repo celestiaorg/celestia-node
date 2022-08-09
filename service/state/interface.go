@@ -37,12 +37,12 @@ type Accessor interface {
 	// SubmitPayForData builds, signs and submits a PayForData transaction.
 	SubmitPayForData(ctx context.Context, nID namespace.ID, data []byte, gasLim uint64) (*TxResponse, error)
 
-	// CancelUnbondingDelegation cancels a user's pending undelegation from a validator
+	// CancelUnbondingDelegation cancels a user's pending undelegation from a validator.
 	CancelUnbondingDelegation(ctx context.Context, valAddr Address, amount Int, gasLim uint64) (*TxResponse, error)
 	// BeginRedelegate sends a user's delegated tokens to a new validator for redelegation.
 	BeginRedelegate(ctx context.Context, srcValAddr, dstValAddr Address, amount Int, gasLim uint64) (*TxResponse, error)
-	// Undelegate undelegates a user's delegated tokens, unbonding them from the current validator
+	// Undelegate undelegates a user's delegated tokens, unbonding them from the current validator.
 	Undelegate(ctx context.Context, delAddr Address, amount Int, gasLim uint64) (*TxResponse, error)
-	// Delegate sends a user's liquid tokens to a validator for delegation
+	// Delegate sends a user's liquid tokens to a validator for delegation.
 	Delegate(ctx context.Context, delAddr Address, amount Int, gasLim uint64) (*TxResponse, error)
 }
