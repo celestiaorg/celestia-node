@@ -14,11 +14,11 @@ import (
 func requestProofs(
 	ctx context.Context,
 	host host.Host,
-	p peer.ID,
+	pid peer.ID,
 	proofTypes []int32,
 ) ([]*pb.RespondedProof, error) {
 	msg := &pb.FraudMessage{RequestedProofType: proofTypes}
-	stream, err := host.NewStream(ctx, p, fraudProtocolID)
+	stream, err := host.NewStream(ctx, pid, fraudProtocolID)
 	if err != nil {
 		return nil, err
 	}

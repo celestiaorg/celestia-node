@@ -54,6 +54,6 @@ type Subscription interface {
 
 // Syncer encompasses the behavior to get fraud proofs from external peers.
 type Syncer interface {
-	// Sync allows to get Fraud Proofs from other nodes.
+	// Sync explicitly requests and validates Fraud Proofs from other nodes.
 	Sync(context.Context)
 }

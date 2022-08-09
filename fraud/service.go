@@ -295,8 +295,8 @@ func (f *service) syncFraudProofs(ctx context.Context) {
 		if connStatus.Peer == f.host.ID() {
 			continue
 		}
-		go func(p peer.ID) {
-			respProofs, err := requestProofs(ctx, f.host, p, proofTypes)
+		go func(pid peer.ID) {
+			respProofs, err := requestProofs(ctx, f.host, pid, proofTypes)
 			if err != nil {
 				log.Error(err)
 				return
@@ -311,10 +311,10 @@ func (f *service) syncFraudProofs(ctx context.Context) {
 			for _, data := range respProofs {
 				go func(data *pb.RespondedProof) {
 					defer wg.Done()
-					proof, err := Unmarshal(ProofType(data.Type), data.Value)
+					proof, err := Unmarshal(toProof(data.Type), data.Value)
 					if err != nil {
 						if !errors.Is(err, &errNoUnmarshaler{}) {
-							f.pubsub.BlacklistPeer(p)
+							f.pubsub.BlacklistPeer(pid)
 						}
 						return
 					}
@@ -325,7 +325,7 @@ func (f *service) syncFraudProofs(ctx context.Context) {
 					}
 					err = proof.Validate(h)
 					if err != nil {
-						f.pubsub.BlacklistPeer(p)
+						f.pubsub.BlacklistPeer(pid)
 						return
 					}
 
@@ -335,8 +335,13 @@ func (f *service) syncFraudProofs(ctx context.Context) {
 					}
 
 					f.topicsLk.RLock()
-					err = f.topics[proof.Type()].Publish(ctx, data.Value, pubsub.WithLocalPublication(true))
+					topic, ok := f.topics[proof.Type()]
 					f.topicsLk.RUnlock()
+					if !ok {
+						log.Error("topic is not registered for proof ", proof.Type())
+						return
+					}
+					err = topic.Publish(ctx, data.Value, pubsub.WithLocalPublication(true))
 					if err != nil {
 						log.Error(err)
 					}
