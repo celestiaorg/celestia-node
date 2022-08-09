@@ -197,7 +197,7 @@ Both full and light nodes should stop `DAS`, `Syncer` and `SubmitTx` services.
 
 1. Valid BadEncodingFraudProofs should be stored on the disk using `FraudStore` interface:
 
-### BEFP storage
+### Fraud storage
 
 BEFP storage will be created on first subscription to Bad Encoding Fraud Proof.
 BEFP will be stored in datastore once it will be received, using `fraud/badEncodingProof` path and the corresponding block hash as the key:
@@ -214,6 +214,17 @@ func getAll(ctx context.Context, ds datastore.Datastore) ([][]byte, error)
 ```
 
 In case if response error will be empty (and not ```datastore.ErrNotFound```), then a BEFP has been already added to storage and the node should be halted.
+
+### Fraud sync
+
+The main purpose of Fraud Sync is to deliver Fraud Proofs to nodes that were started after BEFP appears. Assuming that Full nodes can create the BEFP during reconstruction, Fraud Sync is mainly implemented for Light Nodes:
+
+- Once Light Node checks that local Fraud storage is empty - it starts waiting for new connections with the remote peers(Full/Bridge nodes) using `share/discovery`.
+- Light Node will send 5 requests to newly connected peers in order to get a Fraud Proof.
+- If Fraud Proof is received from remote peer, then it should be validated and propagated across all local subscriptions in order to stop respective services.
+
+NOTE: if received Fraud Proof will be invalid, then remote peer will be added to the black list.
+Both Full/Light nodes are registering stream handler in order to handle fraud proof requests.
 
 ### Bridge node behaviour
 
