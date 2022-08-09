@@ -9,6 +9,7 @@ import (
 	sdktx "github.com/cosmos/cosmos-sdk/types/tx"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	proofutils "github.com/cosmos/ibc-go/v4/modules/core/23-commitment/types"
+	logging "github.com/ipfs/go-log/v2"
 	rpcclient "github.com/tendermint/tendermint/rpc/client"
 	"github.com/tendermint/tendermint/rpc/client/http"
 	"google.golang.org/grpc"
@@ -20,6 +21,8 @@ import (
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/nmt/namespace"
 )
+
+var log = logging.Logger("state")
 
 // CoreAccessor implements Accessor over a gRPC connection
 // with a celestia-core node.
@@ -159,8 +162,12 @@ func (ca *CoreAccessor) BalanceForAddress(ctx context.Context, addr Address) (*B
 	value := result.Response.Value
 	// if the value returned is empty, the account balance does not yet exist
 	if len(value) == 0 {
-		return nil, fmt.Errorf("account balance does not exist at block height %d, wait for node to sync",
-			head.Height)
+		log.Errorf("balance for account %s does not exist at block height %d, "+
+			"wait for node to sync", addr.String(), head.Height)
+		return &Balance{
+			Denom:  app.BondDenom,
+			Amount: sdktypes.NewInt(0),
+		}, nil
 	}
 	coin, ok := sdktypes.NewIntFromString(string(value))
 	if !ok {
