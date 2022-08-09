@@ -162,20 +162,13 @@ func DASer(
 }
 
 // FraudService constructs fraud proof service.
-func FraudService[A share.Availability](
+func FraudService(
 	sub *pubsub.PubSub,
 	host host.Host,
 	hstore header.Store,
 	ds datastore.Batching,
-	avail A,
 ) fraud.Service {
-	opts := make([]fraud.ServiceOptions, 0)
-	switch any(avail).(type) {
-	case *share.LightAvailability:
-		opts = append(opts, fraud.WithEnabledSyncer())
-	default:
-	}
-	return fraud.NewService(sub, host, hstore.GetByHeight, ds, opts...)
+	return fraud.NewService(sub, host, hstore.GetByHeight, ds)
 }
 
 // LightAvailability constructs light share availability.
@@ -237,9 +230,23 @@ func FullAvailability(cfg Config) func(
 }
 
 // CacheAvailability wraps either Full or Light availability with a cache for result sampling.
-func CacheAvailability[A share.Availability](lc fx.Lifecycle, ds datastore.Batching, avail A) share.Availability {
+func CacheAvailability[A share.Availability](
+	ctx context.Context,
+	lc fx.Lifecycle,
+	ds datastore.Batching,
+	fservice fraud.Service,
+	avail A,
+) share.Availability {
 	ca := share.NewCacheAvailability(avail, ds)
 	lc.Append(fx.Hook{
+		OnStart: func(context.Context) error {
+			switch any(avail).(type) {
+			case *share.LightAvailability:
+				fservice.Sync(fxutil.WithLifecycle(ctx, lc))
+			default:
+			}
+			return nil
+		},
 		OnStop: ca.Close,
 	})
 	return ca
@@ -268,7 +275,6 @@ func FraudLifecycle(
 			log.Error(err)
 		}
 	})
-	fservice.Sync(lifecycleCtx)
 	return start(startCtx)
 }
 

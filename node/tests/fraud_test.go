@@ -91,7 +91,7 @@ func TestFraudProofSyncing(t *testing.T) {
 	sw := swamp.NewSwamp(t, swamp.WithBlockTime(time.Millisecond*100))
 	cfg := node.DefaultConfig(node.Bridge)
 	cfg.P2P.Bootstrapper = true
-	const defaultTimeInterval = time.Second * 3
+	const defaultTimeInterval = time.Second * 5
 	bridge := sw.NewBridgeNode(
 		node.WithConfig(cfg),
 		node.WithRefreshRoutingTablePeriod(defaultTimeInterval),
@@ -114,18 +114,17 @@ func TestFraudProofSyncing(t *testing.T) {
 		node.WithAdvertiseInterval(defaultTimeInterval),
 	)
 
-	ln := sw.NewLightNode(
-		node.WithBootstrappers([]peer.AddrInfo{*addr}),
-		node.WithRefreshRoutingTablePeriod(defaultTimeInterval),
-		node.WithDiscoveryInterval(defaultTimeInterval),
-	)
-
 	require.NoError(t, full.Start(ctx))
 	subscr, err := full.FraudServ.Subscribe(fraud.BadEncoding)
 	require.NoError(t, err)
 	_, err = subscr.Proof(ctx)
 	require.NoError(t, err)
 
+	ln := sw.NewLightNode(
+		node.WithBootstrappers([]peer.AddrInfo{*addr}),
+		node.WithRefreshRoutingTablePeriod(defaultTimeInterval),
+		node.WithDiscoveryInterval(defaultTimeInterval),
+	)
 	require.NoError(t, ln.Start(ctx))
 	subsC, err := ln.FraudServ.Subscribe(fraud.BadEncoding)
 	require.NoError(t, err)

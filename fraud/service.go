@@ -28,14 +28,6 @@ const fraudRequests = 5
 
 var fraudProtocolID = protocol.ID(fmt.Sprintf("/fraud/v0.0.1/%s", params.DefaultNetwork()))
 
-type ServiceOptions func(*service)
-
-func WithEnabledSyncer() ServiceOptions {
-	return func(s *service) {
-		s.enabledSyncer = true
-	}
-}
-
 // service is responsible for validating and propagating Fraud Proofs.
 // It implements the Service interface.
 type service struct {
@@ -49,9 +41,6 @@ type service struct {
 	host   host.Host
 	getter headerFetcher
 	ds     datastore.Datastore
-
-	sync          sync.Once
-	enabledSyncer bool
 }
 
 func NewService(
@@ -59,7 +48,6 @@ func NewService(
 	host host.Host,
 	getter headerFetcher,
 	ds datastore.Datastore,
-	opts ...ServiceOptions,
 ) Service {
 	s := &service{
 		pubsub: p,
@@ -69,9 +57,8 @@ func NewService(
 		stores: make(map[ProofType]datastore.Datastore),
 		ds:     ds,
 	}
-	for _, opt := range opts {
-		opt(s)
-	}
+
+	host.SetStreamHandler(fraudProtocolID, s.handleFraudMessageRequest)
 	return s
 }
 
@@ -261,22 +248,11 @@ func (f *service) handleFraudMessageRequest(stream network.Stream) {
 }
 
 func (f *service) Sync(ctx context.Context) {
-	f.sync.Do(func() {
-		f.host.SetStreamHandler(fraudProtocolID, f.handleFraudMessageRequest)
-		if f.enabledSyncer {
-			go f.syncFraudProofs(ctx)
-		}
-	})
+	go f.syncFraudProofs(ctx)
 }
 
 func (f *service) syncFraudProofs(ctx context.Context) {
 	log.Debug("start fetching Fraud Proofs")
-	f.topicsLk.RLock()
-	proofTypes := make([]int32, 0, len(f.topics))
-	for proofType := range f.topics {
-		proofTypes = append(proofTypes, int32(proofType))
-	}
-	f.topicsLk.RUnlock()
 	sub, err := f.host.EventBus().Subscribe(&event.EvtPeerIdentificationCompleted{})
 	if err != nil {
 		log.Error(err)
@@ -296,6 +272,13 @@ func (f *service) syncFraudProofs(ctx context.Context) {
 			continue
 		}
 		go func(pid peer.ID) {
+			log.Debug("requesting proofs from peer ", pid)
+			f.topicsLk.RLock()
+			proofTypes := make([]int32, 0, len(f.topics))
+			for proofType := range f.topics {
+				proofTypes = append(proofTypes, int32(proofType))
+			}
+			f.topicsLk.RUnlock()
 			respProofs, err := requestProofs(ctx, f.host, pid, proofTypes)
 			if err != nil {
 				log.Error(err)
