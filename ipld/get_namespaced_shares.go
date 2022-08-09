@@ -22,6 +22,7 @@ import (
 var namespacePool = workerpool.New(NumWorkersLimit)
 
 // GetSharesByNamespace walks the tree of a given root and returns its shares within the given namespace.ID.
+// If a share could not be retrieved, err is not nil, and the returned array contains nil shares.
 func GetSharesByNamespace(
 	ctx context.Context,
 	bGetter blockservice.BlockGetter,
@@ -30,16 +31,18 @@ func GetSharesByNamespace(
 	maxShares int,
 ) ([]Share, error) {
 	leaves, err := getLeavesByNamespace(ctx, bGetter, root, nID, maxShares)
-	if err != nil {
+	if err != nil && leaves == nil {
 		return nil, err
 	}
 
 	shares := make([]Share, len(leaves))
 	for i, leaf := range leaves {
-		shares[i] = leafToShare(leaf)
+		if leaf != nil {
+			shares[i] = leafToShare(leaf)
+		}
 	}
 
-	return shares, nil
+	return shares, err
 }
 
 // wrappedWaitGroup is needed because waitgroups do not expose their internal counter,
@@ -145,9 +148,13 @@ func getLeavesByNamespace(
 				nd, err := plugin.GetNode(ctx, bGetter, j.id)
 				if err != nil {
 					retrievalErr.Go(func() error {
-						log.Errorw("getSharesByNamespace: could not retrieve node", "nID", nID, "err", err)
+						log.Errorw("getSharesByNamespace: could not retrieve node", "nID", nID, "pos", j.pos, "err", err)
 						return err
 					})
+					// we need to explicitly write nil at the index,
+					// for the case that the final share cannot be fetched
+					leaves[j.pos] = nil
+					return
 				}
 
 				links := nd.Links()
