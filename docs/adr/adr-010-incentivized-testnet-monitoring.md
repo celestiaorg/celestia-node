@@ -9,6 +9,7 @@
 - 2022-8-1: Revise architecture to minimize Celestia managed components
 - 2022-8-4: Add section on "Why doesn't the Celestia team host OTEL Collectors for node operators?"
 - 2022-8-8: Rename section to "Which actor should run OTEL Collector(s) during the incentivized testnet?"
+- 2022-8-9: Update diagrams and add "Scenario D"
 
 ## Context
 
