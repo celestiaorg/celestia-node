@@ -227,9 +227,9 @@ func (f *service) handleFraudMessageRequest(stream network.Stream) {
 					log.Warn(err)
 					continue
 				}
-				resp := &pb.RespondedProof{Type: int32(proofType), Value: bin}
+				resp := &pb.ProofResponse{Type: int32(proofType), Value: bin}
 				mu.Lock()
-				msg.RespondedProofs = append(msg.RespondedProofs, resp)
+				msg.Proofs = append(msg.Proofs, resp)
 				mu.Unlock()
 			}
 			return nil
@@ -292,7 +292,7 @@ func (f *service) syncFraudProofs(ctx context.Context) {
 			wg := sync.WaitGroup{}
 			wg.Add(len(respProofs))
 			for _, data := range respProofs {
-				go func(data *pb.RespondedProof) {
+				go func(data *pb.ProofResponse) {
 					defer wg.Done()
 					proof, err := Unmarshal(toProof(data.Type), data.Value)
 					if err != nil {

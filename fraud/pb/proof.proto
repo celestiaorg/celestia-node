@@ -17,13 +17,12 @@ message BadEncoding {
   axis Axis    = 5;
 }
 
-
-message RespondedProof {
+message ProofResponse {
   int32 Type = 1;
   bytes Value = 2;
 }
 
 message FraudMessage {
   repeated int32 RequestedProofType = 1;
-  repeated RespondedProof RespondedProofs= 2;
+  repeated ProofResponse Proofs= 2;
 }

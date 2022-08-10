@@ -16,7 +16,7 @@ func requestProofs(
 	host host.Host,
 	pid peer.ID,
 	proofTypes []int32,
-) ([]*pb.RespondedProof, error) {
+) ([]*pb.ProofResponse, error) {
 	msg := &pb.FraudMessage{RequestedProofType: proofTypes}
 	stream, err := host.NewStream(ctx, pid, fraudProtocolID)
 	if err != nil {
@@ -34,5 +34,5 @@ func requestProofs(
 		return nil, err
 	}
 
-	return msg.RespondedProofs, stream.Close()
+	return msg.Proofs, stream.Close()
 }
