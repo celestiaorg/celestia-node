@@ -139,8 +139,8 @@ func TestBootstrapNodesFromBridgeNode(t *testing.T) {
 		assert.True(t, light.Host.Network().Connectedness(addrFull.ID) == network.Connected)
 	}
 
+	sw.Disconnect(t, light.Host.ID(), full.Host.ID())
 	require.NoError(t, full.Stop(ctx))
-	require.NoError(t, full.Host.Network().Close())
 	select {
 	case <-ctx.Done():
 		t.Fatal("peer was not disconnected")
@@ -212,15 +212,7 @@ func TestRestartNodeDiscovery(t *testing.T) {
 	connectSub, err := nodes[0].Host.EventBus().Subscribe(&event.EvtPeerConnectednessChanged{})
 	require.NoError(t, err)
 	defer connectSub.Close()
-
-	// disconnect and unlink peers in order to receive disconnected event
-	// NOTE: Order is very important here. We have to unlink peers, and only after that call disconnect,
-	// otherwise pubsub could re-establish the connection.
-	// For more information:
-	// https://github.com/libp2p/go-libp2p-pubsub/blob/60cf38003244a277084c6f3eec0e584ab6cc07bd/pubsub.go#L710
-	require.NoError(t, sw.Network.UnlinkPeers(nodes[0].Host.ID(), nodes[1].Host.ID()))
-	require.NoError(t, sw.Network.DisconnectPeers(nodes[0].Host.ID(), nodes[1].Host.ID()))
-
+	sw.Disconnect(t, nodes[0].Host.ID(), nodes[1].Host.ID())
 	require.NoError(t, node.Start(ctx))
 	for {
 		select {

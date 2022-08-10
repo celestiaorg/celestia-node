@@ -153,7 +153,7 @@ func TestService_BlackListPeer(t *testing.T) {
 	_, err = subsB.Proof(ctx)
 	require.NoError(t, err)
 
-	newCtx, cancel := context.WithTimeout(ctx, time.Millisecond*500)
+	newCtx, cancel := context.WithTimeout(ctx, time.Second*1)
 	t.Cleanup(cancel)
 
 	_, err = subsC.Proof(newCtx)
