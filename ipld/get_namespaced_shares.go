@@ -2,9 +2,10 @@ package ipld
 
 import (
 	"context"
-	"github.com/celestiaorg/nmt"
 	"sync"
 	"sync/atomic"
+
+	"github.com/celestiaorg/nmt"
 
 	"go.opentelemetry.io/otel/trace"
 
@@ -16,6 +17,7 @@ import (
 	ipld "github.com/ipfs/go-ipld-format"
 
 	"github.com/celestiaorg/celestia-node/ipld/plugin"
+
 	"github.com/celestiaorg/nmt/namespace"
 )
 
