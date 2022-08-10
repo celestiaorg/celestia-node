@@ -2,6 +2,8 @@ package ipld
 
 import (
 	"context"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 	"sync"
 	"sync/atomic"
 
@@ -30,6 +32,9 @@ func GetSharesByNamespace(
 	nID namespace.ID,
 	maxShares int,
 ) ([]Share, error) {
+	ctx, span := tracer.Start(ctx, "get-shares-by-namespace")
+	defer span.End()
+
 	leaves, err := getLeavesByNamespace(ctx, bGetter, root, nID, maxShares)
 	if err != nil && leaves == nil {
 		return nil, err
@@ -99,6 +104,14 @@ func getLeavesByNamespace(
 	nID namespace.ID,
 	maxShares int,
 ) ([]ipld.Node, error) {
+	ctx, span := tracer.Start(ctx, "get-leaves-by-namespace")
+	defer span.End()
+
+	span.SetAttributes(
+		attribute.String("namespace", nID.String()),
+		attribute.String("root", root.String()),
+	)
+
 	err := SanityCheckNID(nID)
 	if err != nil {
 		return nil, err
@@ -132,12 +145,14 @@ func getLeavesByNamespace(
 			if !ok {
 				// we didn't find any leaves, return nil
 				if bounds.lowest == int64(maxShares) {
-					return nil, nil
+					return nil, retrievalErr.Wait()
 				}
 
 				return leaves[bounds.lowest : bounds.highest+1], retrievalErr.Wait()
 			}
 			namespacePool.Submit(func() {
+				ctx, span := tracer.Start(ctx, "process-job")
+				defer span.End()
 				defer wg.Done()
 
 				rootH := plugin.NamespacedSha256FromCID(j.id)
@@ -151,6 +166,9 @@ func getLeavesByNamespace(
 						log.Errorw("getSharesByNamespace: could not retrieve node", "nID", nID, "pos", j.pos, "err", err)
 						return err
 					})
+					span.RecordError(err, trace.WithAttributes(
+						attribute.Int("pos", j.pos),
+					))
 					// we need to explicitly write nil at the index,
 					// for the case that the final share cannot be fetched
 					leaves[j.pos] = nil
@@ -164,6 +182,7 @@ func getLeavesByNamespace(
 					wg.Add(int64(linkCount))
 				} else if linkCount == 1 {
 					// successfully fetched a leaf belonging to the namespace
+					span.AddEvent("found-leaf")
 					leaves[j.pos] = nd
 					// we found a leaf, so we update the bounds
 					// the update routine is repeated until the atomic swap is successful
@@ -180,6 +199,10 @@ func getLeavesByNamespace(
 						// so we can return a slice of leaves in order
 						pos: j.pos*2 + i,
 					}:
+						span.AddEvent("added-job", trace.WithAttributes(
+							attribute.String("cid", lnk.Cid.String()),
+							attribute.Int("pos", j.pos*2+i),
+						))
 					case <-ctx.Done():
 						return
 					}

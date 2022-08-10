@@ -2,6 +2,8 @@ package ipld
 
 import (
 	"context"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 	"sync"
 
 	"github.com/gammazero/workerpool"
@@ -52,6 +54,9 @@ var pool = workerpool.New(NumWorkersLimit)
 // implementation that rely on this property are explicitly tagged with
 // (bin-tree-feat).
 func GetShares(ctx context.Context, bGetter blockservice.BlockGetter, root cid.Cid, shares int, put func(int, Share)) {
+	ctx, span := tracer.Start(ctx, "get-shares")
+	defer span.End()
+
 	// this buffer ensures writes to 'jobs' are never blocking (bin-tree-feat)
 	jobs := make(chan *job, (shares+1)/2) // +1 for the case where 'shares' is 1
 	jobs <- &job{id: root}
@@ -68,7 +73,10 @@ func GetShares(ctx context.Context, bGetter blockservice.BlockGetter, root cid.C
 			// work over each job concurrently, s.t. shares do not block
 			// processing of each other
 			pool.Submit(func() {
+				ctx, span := tracer.Start(ctx, "process-job")
+				defer span.End()
 				defer wg.Done()
+
 				nd, err := plugin.GetNode(ctx, bGetter, j.id)
 				if err != nil {
 					// we don't really care about errors here
@@ -82,11 +90,13 @@ func GetShares(ctx context.Context, bGetter blockservice.BlockGetter, root cid.C
 					// leaf has its own additional leaf(hack) so get it
 					nd, err := plugin.GetNode(ctx, bGetter, lnks[0].Cid)
 					if err != nil {
-						// again, we don't care
+						// again, we don't really care much, just fetch as much as possible
+						span.RecordError(err)
 						return
 					}
 					// successfully fetched a share/leaf
 					// ladies and gentlemen, we got em!
+					span.AddEvent("found-leaf")
 					put(j.pos, leafToShare(nd))
 					return
 				}
@@ -100,6 +110,10 @@ func GetShares(ctx context.Context, bGetter blockservice.BlockGetter, root cid.C
 						// s.t. 'if' above knows where to put a share
 						pos: j.pos*2 + i,
 					}:
+						span.AddEvent("added-job", trace.WithAttributes(
+							attribute.String("cid", lnk.Cid.String()),
+							attribute.Int("pos", j.pos*2+i),
+						))
 					case <-ctx.Done():
 						return
 					}
