@@ -44,7 +44,10 @@ func TestFullReconstructFromBridge(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 	t.Cleanup(cancel)
 	sw := swamp.NewSwamp(t, swamp.WithBlockTime(btime))
-	go sw.FillBlocks(ctx, t, bsize, blocks)
+	errCh := make(chan error)
+	go func() {
+		errCh <- sw.FillBlocks(ctx, bsize, blocks)
+	}()
 
 	bridge := sw.NewBridgeNode()
 	err := bridge.Start(ctx)
@@ -66,9 +69,13 @@ func TestFullReconstructFromBridge(t *testing.T) {
 			return full.ShareServ.SharesAvailable(bctx, h.DAH)
 		})
 	}
-
-	err = errg.Wait()
+	select {
+	case <-ctx.Done():
+		t.Fatal("timeout reached")
+	case err = <-errCh:
+	}
 	require.NoError(t, err)
+	require.NoError(t, errg.Wait())
 }
 
 /*
@@ -99,7 +106,10 @@ func TestFullReconstructFromLights(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	t.Cleanup(cancel)
 	sw := swamp.NewSwamp(t, swamp.WithBlockTime(btime))
-	go sw.FillBlocks(ctx, t, bsize, blocks)
+	errCh := make(chan error)
+	go func() {
+		errCh <- sw.FillBlocks(ctx, bsize, blocks)
+	}()
 
 	cfg := node.DefaultConfig(node.Bridge)
 	cfg.P2P.Bootstrapper = true
@@ -156,7 +166,13 @@ func TestFullReconstructFromLights(t *testing.T) {
 			return full.ShareServ.SharesAvailable(bctx, h.DAH)
 		})
 	}
-
+	var err error
+	select {
+	case <-ctx.Done():
+		t.Fatal("timeout reached")
+	case err = <-errCh:
+	}
+	require.NoError(t, err)
 	require.NoError(t, errg.Wait())
 }
 
