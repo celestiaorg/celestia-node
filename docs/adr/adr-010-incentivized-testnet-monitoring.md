@@ -16,15 +16,9 @@ We're adding telemetry to celestia-node by instrumenting our codebase with metri
 
 We would like to make the metrics exported by celestia-node actionable by making them queryable in internal Grafana dashboards. We additionally want a subset of metrics to be queryable by a public incentivized testnet leaderboard frontend.
 
-We would like to make it possible for node operators to monitor their own nodes with existing telemetry tools (e.g. Grafana and Uptrace). They can achieve this by deploying and configuring an OTEL Collector instance.
+We would like to make it possible for node operators to monitor their own nodes with existing telemetry tools (e.g. Grafana and Uptrace).
 
-This document proposes a strategy for making data available for use in internal Grafana dashboards and a public leaderboard. Additionally it describes how a node operator can configure their OTEL Collector instance.
-
-## Proposed Architecture
-
-We expect celestia-node operators to deploy an OTEL Collector agent alongside celestia-node during the incentivized testnet and export metrics to a Prometheus instance hosted in Grafana Cloud. We will share a Prometheus endpoint and API keys when this infrastructure is available.
-
-![incentivized testnet monitoring diagram](./img/incentivized-testnet-monitoring-diagram.png)
+This document proposes a strategy for making data available for use in internal Grafana dashboards and a public leaderboard. Additionally it describes how a node operator can deploy and configure their own OTEL Collector instance.
 
 ## Detailed Design
 
@@ -154,11 +148,11 @@ Node operators have the option of adding an additional exporter to their OTEL Co
 
 ### Should we host a Prometheus instance ourselves or use a hosted provider?
 
-We currently host a Prometheus instance on DigitalOcean (host mamaki-prometheus) for development. However, cloud hosted Prometheus providers take on the responsibility of running, upgrading, and scaling a Prometheus instance for us (see [oss-vs-cloud](https://grafana.com/oss-vs-cloud/). Although multiple hosted providers exist, we propose using Grafana Cloud's hosted Prometheus for the incentivized testnet.
+We currently host a Prometheus instance on DigitalOcean (host mamaki-prometheus) for development. However, cloud hosted Prometheus providers take on the responsibility of running, upgrading, and scaling a Prometheus instance for us (see [oss-vs-cloud](https://grafana.com/oss-vs-cloud/). Although multiple hosted providers exist, we propose using Grafana Cloud's hosted Prometheus at this time.
 
 ### Should we host a Grafana instance ourselves or use a hosted provider?
 
-We already host a Grafana instance on DigitalOcean (host mamaki-prometheus). We propose using Grafana Cloud's hosted Grafana for the incentivized testnet due to it's tight integration with Grafana Cloud Prometheus.
+We already host a Grafana instance on DigitalOcean (host mamaki-prometheus). We propose using Grafana Cloud's hosted Grafana at this time due to it's tight integration with Grafana Cloud Prometheus.
 
 ### Should we host separate Prometheus instances per use case? I.e. one for internal dashboards and one for public leaderboard?
 
@@ -176,7 +170,7 @@ So if we are concerned about the public leaderboard crashing the Prometheus inst
 
 Pros
 
-- This deployment architecture is more representative of mainnet where node operators will run their own telemetry stack to monitor their node. Exposing node operators to OTEL Collector during incentivized testnet allows them to practice this deployment architecture prior to mainnet.
+- This deployment architecture is more representative of mainnet where full storage node operators will run their own telemetry stack to monitor their node. Exposing node operators to OTEL Collector during incentivized testnet allows them to practice this deployment architecture during incentivized testnet prior to mainnet.
 - Node operators will have an "incentive" to maintain high uptime for their OTEL Collector.
 
 Cons
@@ -193,14 +187,9 @@ Pros
 
 Cons
 
-- Node operators will lose the ability to monitor their own celestia-node. Since opentelemetry-go supports configuring only one exporter ( [open-telemetry/opentelemetry-go#3055](https://github.com/open-telemetry/opentelemetry-go/issues/3055)), if node operators were obligated to export metrics to a Celestia team managed OTEL Collector endpoint, they wouldn't be able to export to their own OTEL Collector (and by proxy any telemetry platforms they wish to use). This violates the desideratum:
+- At this time, there are no cloud managed offerings for OTEL Collector. There is minimal documentation on the scale of workload an individual OTEL Collector can handle. We'd have to design and operate a highly available OTEL Collector fleet to maintain high uptime for node operators. We'd also have to mitigate DDOS attacks against our OTEL Collector endpoint (cursory investigation below).
 
-    > We would like to make it possible for node operators to monitor their own nodes with existing telemetry tools (e.g. Grafana and Uptrace)
-
-- If the Celestia team took on this responsibility and failed to provide a highly available solution, then node operators would be penalized for downtime of a component they have no control over.
-- We expect 1500+ node operators during the incentivized testnet and there is minimal documentation on the scale of workload an individual OTEL Collector can handle. We'd have to design and operate a best-effort highly available OTEL Collector fleet to maintain high uptime for node operators. At this time no cloud managed offerings for OTEL Collector exist.
-
-#### Scenario C: Both. Node operators by default and Celestia team as a best-effort fallback
+#### Scenario C: Node operators by default and Celestia team as a fallback
 
 ![scenario c](./img/incentivized-testnet-monitoring-scenario-c.png)
 
@@ -208,14 +197,33 @@ Pros
 
 - Optionality for node operators who don't want to deploy an OTEL Collector to rely on a best-effort OTEL Collector provided by Celestia team.
 
-Cons:
+Cons
 
 - This option increases the cognitive load on node operators who now have an additional decision at deployment time.
 - Increased operational burden on Celestia team during incentivized testnet (and beyond).
 
+#### Scenario D: Celestia team by default and node operators if they want
+
+The diagram, pros, and cons are the same as scenario C.
+
+This scenario differs from Scenario C in the docs for node deployment. The docs specify a Celestia team managed OTEL Collector endpoint by default. For node operators who want self-managed telemetry, the docs contain steps on how to setup a node operator managed agent OTEL Collector and how to proxy metrics to the Celestia team managed gateway OTEL Collector.
+
+The docs may also contain steps on connecting the agent OTEL Collector to Prometheus and Grafana.
+
 ### Should node operators be able to configure celestia-node to export to multiple OTEL collectors?
 
-This is not supported by [open-telemetry/opentelemetry-go#3055](https://github.com/open-telemetry/opentelemetry-go/issues/3055) and is no longer a concern because we expect celestia-node operators to run their own OTEL Collector agent alongside celestia-node. Under this architecture, node operators are at liberty to configure multiple exporters in OTEL Collector and can therefore export to multiple OTEL collectors by routing traffic through their agent OTEL Collector.
+This is not supported by [open-telemetry/opentelemetry-go#3055](https://github.com/open-telemetry/opentelemetry-go/issues/3055). This means node operators can only configure one OTLP backend for their node. If they wish to export metrics to multiple OTEL Collectors then they must route traffic through an agent OTEL Collector that they have deployed. Their agent OTEL Collector can forward metrics to any other OTEL Collector that they have access to.
+
+### How to mitigate DDOS attacks against OTEL Collector?
+
+- [https://medium.com/opentelemetry/securing-your-opentelemetry-collector-1a4f9fa5bd6f](https://medium.com/opentelemetry/securing-your-opentelemetry-collector-1a4f9fa5bd6f)
+  - Uses an authentication server (Keycloak) to handle OAuth2 between service and remote OTEL Collector.
+- [https://medium.com/@michaelericksen_12434/securing-your-opentelemetry-collector-updated-3f9884e37a09](https://medium.com/@michaelericksen_12434/securing-your-opentelemetry-collector-updated-3f9884e37a09)
+  - Also uses authentication server (Keycloak). Runs services in Docker.
+
+### How to mitigate DDOS attacks against Prometheus?
+
+It’s possible to create an API key with the `MetricsPublisher` role on cloud hosted Prometheus. These API keys can be distributed to participants if they are expected to remote write to Prometheus.
 
 ### How to send data over HTTPS
 
@@ -270,8 +278,6 @@ In the case where a node operator wants to send data from celestia-node to an OT
 
 Official resource requirements are not stated in the OTEL Collector docs. However, [performance benchmarks](https://github.com/open-telemetry/opentelemetry-collector/blob/main/docs/performance.md#results-without-tail-based-sampling) indicate that OTEL Collector is able to handle up to 10K traces ([units unclear](https://github.com/open-telemetry/opentelemetry-collector/issues/5780)) on 1 CPU and 2GB RAM. Given [light node](https://docs.celestia.org/nodes/light-node#hardware-requirements) runs on 1 CPU and 2GB RAM, it seems feasible to run an OTEL Collector agent on the most resource constrained target hardware.
 
-During mainnet, we won't require nodes to share telemetry data so resource constrained devices won't be obligated to run an OTEL Collector agent indefinitely.
-
 ## Status
 
 Proposed
@@ -284,3 +290,4 @@ Proposed
 - <https://celestia-team.slack.com/archives/C03QAJVLHK3/p1658169362548589>
 - <https://www.notion.so/celestiaorg/Telemetry-Dashboard-d85550a3caee4004b00a2e3bf82619b1>
 - <https://www.notion.so/celestiaorg/TLS-for-telemetry-6ce8e321616140a6be64ed27e99dc791>
+- <https://lightstep.com/opentelemetry/collecting-and-exporting-data#opentelemetry-collector>
