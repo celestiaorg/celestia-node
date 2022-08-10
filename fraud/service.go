@@ -288,7 +288,7 @@ func (f *service) syncFraudProofs(ctx context.Context) {
 				log.Debug("proof was not found")
 				return
 			}
-			log.Debug("got Fraud proofs from peer: ", connStatus.Peer)
+			log.Debug("got fraud proofs from peer: ", connStatus.Peer)
 			wg := sync.WaitGroup{}
 			wg.Add(len(respProofs))
 			for _, data := range respProofs {

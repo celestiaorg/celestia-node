@@ -217,14 +217,14 @@ In case if response error will be empty (and not ```datastore.ErrNotFound```), t
 
 ### Fraud sync
 
-The main purpose of Fraud Sync is to deliver Fraud Proofs to nodes that were started after BEFP appears. Assuming that Full nodes can create the BEFP during reconstruction, Fraud Sync is mainly implemented for Light Nodes:
+The main purpose of FraudSync is to deliver fraud proofs to nodes that were started after a BEFP appears. Since full nodes create the BEFP during reconstruction, FraudSync is mainly implemented for light nodes:
 
-- Once Light Node checks that local Fraud storage is empty - it starts waiting for new connections with the remote peers(Full/Bridge nodes) using `share/discovery`.
-- Light Node will send 5 requests to newly connected peers in order to get a Fraud Proof.
-- If Fraud Proof is received from remote peer, then it should be validated and propagated across all local subscriptions in order to stop respective services.
+- Once a light node checks that its local fraud storage is empty, it starts waiting for new connections with the remote peers(full/bridge nodes) using `share/discovery`.
+- The light node will send 5 requests to newly connected peers to get a fraud proof.
+- If a fraud proof is received from a remote peer, then it should be validated and propagated across all local subscriptions in order to stop the respective services.
 
-NOTE: if received Fraud Proof will be invalid, then remote peer will be added to the black list.
-Both Full/Light nodes are registering stream handler in order to handle fraud proof requests.
+NOTE: if a received fraud proof ends up being invalid, then the remote peer will be added to the black list.
+Both full/light nodes register a stream handler for handling fraud proof requests.
 
 ### Bridge node behaviour
 
