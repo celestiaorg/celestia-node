@@ -53,9 +53,10 @@ func GetSharesByNamespace(
 // wrappedWaitGroup is needed because waitgroups do not expose their internal counter,
 // and we don't know in advance how many jobs we will have to wait for.
 type wrappedWaitGroup struct {
-	wg      sync.WaitGroup
-	jobs    chan *job
-	counter int64
+	wg        sync.WaitGroup
+	jobs      chan *job
+	closeOnce sync.Once
+	counter   int64
 }
 
 func (w *wrappedWaitGroup) Add(count int64) {
@@ -66,8 +67,13 @@ func (w *wrappedWaitGroup) Add(count int64) {
 func (w *wrappedWaitGroup) Done() {
 	w.wg.Done()
 	atomic.AddInt64(&w.counter, -1)
+
+	// Close channel if this job was the last one
 	if atomic.LoadInt64(&w.counter) == 0 {
-		close(w.jobs)
+		// necessary because a race can happen between the counter load and channel close
+		w.closeOnce.Do(func() {
+			close(w.jobs)
+		})
 	}
 }
 
