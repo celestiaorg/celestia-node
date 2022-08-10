@@ -2,6 +2,7 @@ package ipld
 
 import (
 	"context"
+	"github.com/celestiaorg/nmt"
 	"sync"
 	"sync/atomic"
 
@@ -15,10 +16,7 @@ import (
 	ipld "github.com/ipfs/go-ipld-format"
 
 	"github.com/celestiaorg/celestia-node/ipld/plugin"
-	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/nmt/namespace"
-
-	"golang.org/x/sync/errgroup"
 )
 
 // TODO(@distractedm1nd) Find a better figure than NumWorkersLimit for this pool.
@@ -55,10 +53,9 @@ func GetSharesByNamespace(
 // wrappedWaitGroup is needed because waitgroups do not expose their internal counter,
 // and we don't know in advance how many jobs we will have to wait for.
 type wrappedWaitGroup struct {
-	wg        sync.WaitGroup
-	jobs      chan *job
-	closeOnce sync.Once
-	counter   int64
+	wg      sync.WaitGroup
+	jobs    chan *job
+	counter int64
 }
 
 func (w *wrappedWaitGroup) Add(count int64) {
@@ -68,14 +65,11 @@ func (w *wrappedWaitGroup) Add(count int64) {
 
 func (w *wrappedWaitGroup) Done() {
 	w.wg.Done()
-	atomic.AddInt64(&w.counter, -1)
+	numRemaining := atomic.AddInt64(&w.counter, -1)
 
 	// Close channel if this job was the last one
-	if atomic.LoadInt64(&w.counter) == 0 {
-		// necessary because a race can happen between the counter load and channel close
-		w.closeOnce.Do(func() {
-			close(w.jobs)
-		})
+	if numRemaining == 0 {
+		close(w.jobs)
 	}
 }
 
@@ -139,8 +133,8 @@ func getLeavesByNamespace(
 	wg.jobs = jobs
 	wg.Add(1)
 
-	// we use an errgroup so that only the first encountered retrieval error is returned
-	var retrievalErr errgroup.Group
+	var singleErr sync.Once
+	var retrievalErr error
 
 	// we overallocate space for leaves since we do not know how many we will find
 	// on the level above, the length of the Row is passed in as maxShares
@@ -153,26 +147,23 @@ func getLeavesByNamespace(
 			if !ok {
 				// we didn't find any leaves, return nil
 				if bounds.lowest == int64(maxShares) {
-					return nil, retrievalErr.Wait()
+					return nil, retrievalErr
 				}
 
-				return leaves[bounds.lowest : bounds.highest+1], retrievalErr.Wait()
+				return leaves[bounds.lowest : bounds.highest+1], retrievalErr
 			}
 			namespacePool.Submit(func() {
 				ctx, span := tracer.Start(ctx, "process-job")
 				defer span.End()
 				defer wg.Done()
 
-				rootH := plugin.NamespacedSha256FromCID(j.id)
-				if nID.Less(nmt.MinNamespace(rootH, nID.Size())) || !nID.LessOrEqual(nmt.MaxNamespace(rootH, nID.Size())) {
-					return
-				}
-
+				// if an error is likely to be returned or not depends on
+				// the underlying impl of the blockservice, currently it is not a realistic probability
 				nd, err := plugin.GetNode(ctx, bGetter, j.id)
 				if err != nil {
-					retrievalErr.Go(func() error {
+					singleErr.Do(func() {
 						log.Errorw("getSharesByNamespace: could not retrieve node", "nID", nID, "pos", j.pos, "err", err)
-						return err
+						retrievalErr = err
 					})
 					span.RecordError(err, trace.WithAttributes(
 						attribute.Int("pos", j.pos),
@@ -185,9 +176,7 @@ func getLeavesByNamespace(
 				links := nd.Links()
 				linkCount := uint64(len(links))
 				// wg counter needs to be incremented **before** adding new jobs
-				if linkCount > 1 {
-					wg.Add(int64(linkCount))
-				} else if linkCount == 1 {
+				if linkCount == 1 {
 					// successfully fetched a leaf belonging to the namespace
 					span.AddEvent("found-leaf")
 					leaves[j.pos] = nd
@@ -199,16 +188,29 @@ func getLeavesByNamespace(
 
 				// this node has links in the namespace, so keep walking
 				for i, lnk := range links {
-					select {
-					case jobs <- &job{
+
+					newJob := &job{
 						id: lnk.Cid,
 						// position represents the index in a flattened binary tree,
 						// so we can return a slice of leaves in order
 						pos: j.pos*2 + i,
-					}:
+					}
+
+					// if the link's nID isn't in range we don't need to create a new job for it
+					jobNid := plugin.NamespacedSha256FromCID(newJob.id)
+					if nID.Less(nmt.MinNamespace(jobNid, nID.Size())) || !nID.LessOrEqual(nmt.MaxNamespace(jobNid, nID.Size())) {
+						continue
+					}
+
+					// by passing the previous check, we know we will have one more node to process
+					// note: it is important to increase the counter before sending to the channel
+					wg.Add(1)
+
+					select {
+					case jobs <- newJob:
 						span.AddEvent("added-job", trace.WithAttributes(
-							attribute.String("cid", lnk.Cid.String()),
-							attribute.Int("pos", j.pos*2+i),
+							attribute.String("cid", newJob.id.String()),
+							attribute.Int("pos", newJob.pos),
 						))
 					case <-ctx.Done():
 						return
@@ -216,7 +218,7 @@ func getLeavesByNamespace(
 				}
 			})
 		case <-ctx.Done():
-			return nil, retrievalErr.Wait()
+			return nil, retrievalErr
 		}
 	}
 }
