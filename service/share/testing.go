@@ -199,9 +199,9 @@ func (dn *dagNet) Connect(peerA, peerB peer.ID) {
 // It does a hard disconnect, meaning that disconnected peers won't be able to reconnect on their own
 // but only with dagNet.Connect or dagNet.ConnectAll.
 func (dn *dagNet) Disconnect(peerA, peerB peer.ID) {
-	err := dn.net.DisconnectPeers(peerA, peerB)
+	err := dn.net.UnlinkPeers(peerA, peerB)
 	require.NoError(dn.t, err)
-	err = dn.net.UnlinkPeers(peerA, peerB)
+	err = dn.net.DisconnectPeers(peerA, peerB)
 	require.NoError(dn.t, err)
 }
 
