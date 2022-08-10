@@ -206,24 +206,25 @@ func TestGetLeavesByNamespace_IncompleteData(t *testing.T) {
 	// remove the second share from the first row
 	rcid := plugin.MustCidFromNamespacedSha256(roots[0])
 	node, err := plugin.GetNode(ctx, bServ, rcid)
-	assert.Nil(t, err)
+	require.NoError(t, err)
 
 	// Left side of the tree contains the original shares
 	data, err := plugin.GetNode(ctx, bServ, node.Links()[0].Cid)
-	assert.Nil(t, err)
+	require.NoError(t, err)
 
 	// Second share is the left side's right child
 	l, err := plugin.GetNode(ctx, bServ, data.Links()[0].Cid)
-	assert.Nil(t, err)
+	require.NoError(t, err)
 	r, err := plugin.GetNode(ctx, bServ, l.Links()[1].Cid)
+	require.NoError(t, err)
 	err = bServ.DeleteBlock(ctx, r.Cid())
-	assert.Nil(t, err)
+	require.NoError(t, err)
 
 	nodes, err := getLeavesByNamespace(ctx, bServ, rcid, nid, len(shares))
 	assert.Equal(t, nil, nodes[1])
 	// TODO(distractedm1nd): Decide if we should return an array containing nil
 	assert.Equal(t, 4, len(nodes))
-	assert.Error(t, err)
+	require.Error(t, err)
 }
 
 func TestGetLeavesByNamespace_AbsentNamespaceId(t *testing.T) {

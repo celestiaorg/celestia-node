@@ -138,7 +138,7 @@ func getLeavesByNamespace(
 	wg.Add(1)
 
 	// we use an errgroup so that only the first encountered retrieval error is returned
-	retrievalErr, ctx := errgroup.WithContext(ctx)
+	var retrievalErr errgroup.Group
 
 	// we overallocate space for leaves since we do not know how many we will find
 	// on the level above, the length of the Row is passed in as maxShares
@@ -175,9 +175,8 @@ func getLeavesByNamespace(
 					span.RecordError(err, trace.WithAttributes(
 						attribute.Int("pos", j.pos),
 					))
-					// we need to explicitly write nil at the index,
-					// for the case that the final share cannot be fetched
-					leaves[j.pos] = nil
+					// we still need to update the bounds
+					bounds.Update(int64(j.pos))
 					return
 				}
 
