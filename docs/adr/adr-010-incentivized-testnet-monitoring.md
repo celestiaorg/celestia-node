@@ -10,6 +10,7 @@
 - 2022-8-4: Add section on "Why doesn't the Celestia team host OTEL Collectors for node operators?"
 - 2022-8-8: Rename section to "Which actor should run OTEL Collector(s) during the incentivized testnet?"
 - 2022-8-9: Update diagrams and add "Scenario D"
+- 2022-8-10: Add decision for "Which actor should run OTEL Collector(s) during the incentivized testnet?"
 
 ## Context
 
@@ -210,6 +211,11 @@ The diagram, pros, and cons are the same as scenario C.
 This scenario differs from Scenario C in the docs for node deployment. The docs specify a Celestia team managed OTEL Collector endpoint by default. For node operators who want self-managed telemetry, the docs contain steps on how to setup a node operator managed agent OTEL Collector and how to proxy metrics to the Celestia team managed gateway OTEL Collector.
 
 The docs may also contain steps on connecting the agent OTEL Collector to Prometheus and Grafana.
+
+<!-- markdownlint-disable-next-line MD024 -->
+#### Decision
+
+We agreed on **Scenario D** at this time. Our docs will describe how to connect to the Celestia team managed OTEL Collector (i.e. `--metrics.endpoint`). Our docs will also include an advanced guide for node operators if they wish to deploy a self-managed OTEL Collector.
 
 ### Should node operators be able to configure celestia-node to export to multiple OTEL collectors?
 
