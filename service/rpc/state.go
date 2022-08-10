@@ -60,6 +60,21 @@ type redelegationRequest struct {
 	GasLimit uint64 `json:"gas_limit"`
 }
 
+// unbondRequest represents a request to begin unbonding
+type unbondRequest struct {
+	From     string `json:"from"`
+	Amount   int64  `json:"amount"`
+	GasLimit uint64 `json:"gas_limit"`
+}
+
+// cancelUnbondRequest represents a request to cancel unbonding
+type cancelUnbondRequest struct {
+	From     string `json:"from"`
+	Amount   int64  `json:"amount"`
+	Height   int64  `json:"height"`
+	GasLimit uint64 `json:"gas_limit"`
+}
+
 func (h *Handler) handleBalanceRequest(w http.ResponseWriter, r *http.Request) {
 	var (
 		bal *state.Balance
@@ -228,7 +243,7 @@ func (h *Handler) handleDelegation(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) handleUndelegation(w http.ResponseWriter, r *http.Request) {
-	var req delegationRequest
+	var req unbondRequest
 	err := json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, undelegationEndpoint, err)
@@ -238,7 +253,7 @@ func (h *Handler) handleUndelegation(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, undelegationEndpoint, errors.New("amount must be greater than 0"))
 		return
 	}
-	addr, err := types.ValAddressFromBech32(req.To)
+	addr, err := types.ValAddressFromBech32(req.From)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, undelegationEndpoint, err)
 		return
@@ -262,7 +277,7 @@ func (h *Handler) handleUndelegation(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) handleCancelUnbonding(w http.ResponseWriter, r *http.Request) {
-	var req delegationRequest
+	var req cancelUnbondRequest
 	err := json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, cancelUnbondingEndpoint, err)
@@ -272,14 +287,14 @@ func (h *Handler) handleCancelUnbonding(w http.ResponseWriter, r *http.Request) 
 		writeError(w, http.StatusBadRequest, cancelUnbondingEndpoint, errors.New("amount must be greater than 0"))
 		return
 	}
-	addr, err := types.ValAddressFromBech32(req.To)
+	addr, err := types.ValAddressFromBech32(req.From)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, cancelUnbondingEndpoint, err)
 		return
 	}
 	amount := types.NewInt(req.Amount)
-
-	txResp, err := h.state.CancelUnbondingDelegation(r.Context(), addr, amount, req.GasLimit)
+	height := types.NewInt(req.Height)
+	txResp, err := h.state.CancelUnbondingDelegation(r.Context(), addr, amount, height, req.GasLimit)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, cancelUnbondingEndpoint, err)
 		return

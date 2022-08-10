@@ -38,7 +38,7 @@ type Accessor interface {
 	SubmitPayForData(ctx context.Context, nID namespace.ID, data []byte, gasLim uint64) (*TxResponse, error)
 
 	// CancelUnbondingDelegation cancels a user's pending undelegation from a validator.
-	CancelUnbondingDelegation(ctx context.Context, valAddr Address, amount Int, gasLim uint64) (*TxResponse, error)
+	CancelUnbondingDelegation(ctx context.Context, valAddr Address, amount, height Int, gasLim uint64) (*TxResponse, error)
 	// BeginRedelegate sends a user's delegated tokens to a new validator for redelegation.
 	BeginRedelegate(ctx context.Context, srcValAddr, dstValAddr Address, amount Int, gasLim uint64) (*TxResponse, error)
 	// Undelegate undelegates a user's delegated tokens, unbonding them from the current validator.

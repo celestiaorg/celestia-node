@@ -54,10 +54,11 @@ func (s *Service) Transfer(ctx context.Context, to Address, amount Int, gasLimit
 func (s *Service) CancelUnbondingDelegation(
 	ctx context.Context,
 	valAddr Address,
-	amount Int,
+	amount,
+	height Int,
 	gasLim uint64,
 ) (*TxResponse, error) {
-	return s.accessor.CancelUnbondingDelegation(ctx, valAddr, amount, gasLim)
+	return s.accessor.CancelUnbondingDelegation(ctx, valAddr, amount, height, gasLim)
 }
 
 func (s *Service) BeginRedelegate(

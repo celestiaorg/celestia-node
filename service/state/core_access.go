@@ -227,7 +227,8 @@ func (ca *CoreAccessor) Transfer(
 func (ca *CoreAccessor) CancelUnbondingDelegation(
 	ctx context.Context,
 	valAddr Address,
-	amount Int,
+	amount,
+	height Int,
 	gasLim uint64,
 ) (*TxResponse, error) {
 	validator, ok := valAddr.(sdktypes.ValAddress)
@@ -239,11 +240,7 @@ func (ca *CoreAccessor) CancelUnbondingDelegation(
 		return nil, err
 	}
 	coins := sdktypes.NewCoin(app.BondDenom, amount)
-	head, err := ca.getter.Head(ctx)
-	if err != nil {
-		return nil, err
-	}
-	msg := stakingtypes.NewMsgCancelUnbondingDelegation(from, validator, head.Height, coins)
+	msg := stakingtypes.NewMsgCancelUnbondingDelegation(from, validator, height.Int64(), coins)
 	signedTx, err := ca.constructSignedTx(ctx, msg, apptypes.SetGasLimit(gasLim))
 	if err != nil {
 		return nil, err
