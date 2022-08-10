@@ -2,10 +2,12 @@ package ipld
 
 import (
 	"context"
-	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/trace"
 	"sync"
 	"sync/atomic"
+
+	"go.opentelemetry.io/otel/trace"
+
+	"go.opentelemetry.io/otel/attribute"
 
 	"github.com/gammazero/workerpool"
 	"github.com/ipfs/go-blockservice"
