@@ -22,11 +22,11 @@ import (
 )
 
 // TODO(@distractedm1nd) Find a better figure than NumWorkersLimit for this pool.
-// Worker pool responsible for the goroutines spawned by getLeavesByNamespace
+// namespacePool is a worker pool responsible for the goroutines spawned by getLeavesByNamespace
 var namespacePool = workerpool.New(NumWorkersLimit)
 
 // GetSharesByNamespace walks the tree of a given root and returns its shares within the given namespace.ID.
-// If a share could not be retrieved, err is not nil, and the returned array contains nil shares.
+// If a share could not be retrieved, err is not nil, and the returned array contains nil shares in place of the shares it was unable to retrieve.
 func GetSharesByNamespace(
 	ctx context.Context,
 	bGetter blockservice.BlockGetter,
@@ -97,7 +97,7 @@ func (b *fetchedBounds) Update(index int64) {
 	}
 }
 
-// getLeavesByNamespace returns all the leaves from the given root with the given namespace.ID.
+// getLeavesByNamespace returns as many leaves from the given root with the given namespace.ID as it can retrieve.
 // If no shares are found, it returns both data and error as nil.
 // A non-nil error means that only partial data is returned, because at least one share retrieval failed
 // The following implementation is based on `GetShares`.
@@ -135,8 +135,10 @@ func getLeavesByNamespace(
 	wg.jobs = jobs
 	wg.Add(1)
 
-	var singleErr sync.Once
-	var retrievalErr error
+	var (
+	   singleErr sync.Once
+	   retrievalErr error
+	 )
 
 	// we overallocate space for leaves since we do not know how many we will find
 	// on the level above, the length of the Row is passed in as maxShares
