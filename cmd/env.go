@@ -2,8 +2,6 @@ package cmd
 
 import (
 	"context"
-	"fmt"
-
 	"github.com/celestiaorg/celestia-node/node"
 )
 
@@ -15,47 +13,34 @@ import (
 // TODO(@Wondertan): We should move to using context only instead.
 //  Env, in fact, only keeps some additional fields which should be
 //  kept in the context directly using WithValue (#965)
-type Env struct {
-	NodeType  node.Type
-	StorePath string
 
-	opts []node.Option
+// NodeType reads the node.Type from the context.
+func NodeType(ctx context.Context) node.Type {
+	return ctx.Value("NodeType").(node.Type)
 }
 
-// WithEnv wraps given ctx with Env.
-func WithEnv(ctx context.Context) context.Context {
-	_, err := GetEnv(ctx)
-	if err == nil {
-		panic("cmd: only one Env is allowed to be set in a ctx")
-	}
-
-	return context.WithValue(ctx, envCtxKey{}, &Env{})
-}
-
-// GetEnv takes Env from the given ctx, if any.
-func GetEnv(ctx context.Context) (*Env, error) {
-	env, ok := ctx.Value(envCtxKey{}).(*Env)
-	if !ok {
-		return nil, fmt.Errorf("cmd: Env is not set in ctx.Context")
-	}
-
-	return env, nil
+// StorePath reads the store path from the context.
+func StorePath(ctx context.Context) string {
+	return ctx.Value("StorePath").(string)
 }
 
 // SetNodeType sets Node Type to the Env.
-func (env *Env) SetNodeType(tp node.Type) {
-	env.NodeType = tp
+func SetNodeType(ctx context.Context, tp node.Type) context.Context {
+	return context.WithValue(ctx, "NodeType", tp)
+}
+
+// SetStorePath sets Store Path to the Env.
+func SetStorePath(ctx context.Context, storePath string) context.Context {
+	return context.WithValue(ctx, "StorePath", storePath)
 }
 
 // Options returns Node Options parsed from Environment(Flags, ENV vars, etc)
-func (env *Env) Options() []node.Option {
-	return env.opts
+func Options(ctx context.Context) []node.Option {
+	return ctx.Value("Options").([]node.Option)
 }
 
 // AddOptions add new options to Env.
-func (env *Env) AddOptions(opts ...node.Option) {
-	env.opts = append(env.opts, opts...)
+func AddOptions(ctx context.Context, opts ...node.Option) context.Context {
+	options := Options(ctx)
+	return context.WithValue(ctx, "Options", append(options, opts...))
 }
-
-// envCtxKey is a key used to identify Env on a ctx.Context.
-type envCtxKey struct{}

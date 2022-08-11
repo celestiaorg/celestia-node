@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"github.com/spf13/cobra"
 	flag "github.com/spf13/pflag"
 
@@ -17,9 +18,10 @@ func KeyFlags() *flag.FlagSet {
 	return flags
 }
 
-func ParseKeyFlags(cmd *cobra.Command, env *Env) {
+func ParseKeyFlags(ctx context.Context, cmd *cobra.Command) context.Context {
 	keyringAccName := cmd.Flag(keyringAccNameFlag).Value.String()
 	if keyringAccName != "" {
-		env.AddOptions(node.WithKeyringAccName(keyringAccName))
+		return AddOptions(ctx, node.WithKeyringAccName(keyringAccName))
 	}
+	return ctx
 }

@@ -10,7 +10,6 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/celestiaorg/celestia-app/app"
-	"github.com/celestiaorg/celestia-node/cmd"
 )
 
 func init() {
@@ -39,7 +38,7 @@ func main() {
 func run() error {
 	rand.Seed(time.Now().Unix())
 
-	return rootCmd.ExecuteContext(cmd.WithEnv(context.Background()))
+	return rootCmd.ExecuteContext(context.Background())
 }
 
 var rootCmd = &cobra.Command{

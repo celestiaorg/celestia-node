@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"github.com/spf13/cobra"
 	flag "github.com/spf13/pflag"
 
@@ -31,14 +32,14 @@ func RPCFlags() *flag.FlagSet {
 }
 
 // ParseRPCFlags parses RPC flags from the given cmd and applies values to Env.
-func ParseRPCFlags(cmd *cobra.Command, env *Env) error {
+func ParseRPCFlags(ctx context.Context, cmd *cobra.Command) (context.Context, error) {
 	addr := cmd.Flag(addrFlag).Value.String()
 	if addr != "" {
-		env.AddOptions(node.WithRPCAddress(addr))
+		ctx = AddOptions(ctx, node.WithRPCAddress(addr))
 	}
 	port := cmd.Flag(portFlag).Value.String()
 	if port != "" {
-		env.AddOptions(node.WithRPCPort(port))
+		ctx = AddOptions(ctx, node.WithRPCPort(port))
 	}
-	return nil
+	return ctx, nil
 }
