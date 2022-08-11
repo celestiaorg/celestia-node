@@ -32,8 +32,8 @@ type NamespacedSharesResponse struct {
 // NamespacedDataResponse represents the response to a
 // DataByNamespace request.
 type NamespacedDataResponse struct {
-	Data   [][]byte `json:"data"`
-	Height uint64   `json:"height"`
+	Data   string `json:"data"`
+	Height uint64 `json:"height"`
 }
 
 func (h *Handler) handleSharesByNamespaceRequest(w http.ResponseWriter, r *http.Request) {
@@ -78,7 +78,7 @@ func (h *Handler) handleDataByNamespaceRequest(w http.ResponseWriter, r *http.Re
 		return
 	}
 	resp, err := json.Marshal(&NamespacedDataResponse{
-		Data:   data,
+		Data:   hex.EncodeToString(flatten(data)),
 		Height: uint64(headerHeight),
 	})
 	if err != nil {
@@ -139,4 +139,12 @@ func parseGetByNamespaceArgs(r *http.Request) (height uint64, nID namespace.ID, 
 	}
 
 	return height, nID, nil
+}
+
+func flatten(data [][]byte) []byte {
+	flat := make([]byte, 0)
+	for _, d := range data {
+		flat = append(flat, d...)
+	}
+	return flat
 }
