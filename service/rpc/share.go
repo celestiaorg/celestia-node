@@ -25,8 +25,8 @@ var nIDKey = "nid"
 // NamespacedSharesResponse represents the response to a
 // SharesByNamespace request.
 type NamespacedSharesResponse struct {
-	Shares []share.Share `json:"shares"`
-	Height uint64        `json:"height"`
+	Shares string `json:"shares"`
+	Height uint64 `json:"height"`
 }
 
 // NamespacedDataResponse represents the response to a
@@ -48,7 +48,7 @@ func (h *Handler) handleSharesByNamespaceRequest(w http.ResponseWriter, r *http.
 		return
 	}
 	resp, err := json.Marshal(&NamespacedSharesResponse{
-		Shares: shares,
+		Shares: hex.EncodeToString(flatten(shares)),
 		Height: uint64(headerHeight),
 	})
 	if err != nil {
