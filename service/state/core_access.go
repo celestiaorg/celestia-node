@@ -162,8 +162,7 @@ func (ca *CoreAccessor) BalanceForAddress(ctx context.Context, addr Address) (*B
 	value := result.Response.Value
 	// if the value returned is empty, the account balance does not yet exist
 	if len(value) == 0 {
-		log.Errorf("balance for account %s does not exist at block height %d, "+
-			"wait for node to sync", addr.String(), head.Height)
+		log.Errorf("balance for account %s does not exist at block height %d", addr.String(), head.Height)
 		return &Balance{
 			Denom:  app.BondDenom,
 			Amount: sdktypes.NewInt(0),
