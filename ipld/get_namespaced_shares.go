@@ -190,7 +190,6 @@ func getLeavesByNamespace(
 
 				// this node has links in the namespace, so keep walking
 				for i, lnk := range links {
-
 					newJob := &job{
 						id: lnk.Cid,
 						// position represents the index in a flattened binary tree,
@@ -207,7 +206,6 @@ func getLeavesByNamespace(
 					// by passing the previous check, we know we will have one more node to process
 					// note: it is important to increase the counter before sending to the channel
 					wg.Add(1)
-
 					select {
 					case jobs <- newJob:
 						span.AddEvent("added-job", trace.WithAttributes(
@@ -220,7 +218,7 @@ func getLeavesByNamespace(
 				}
 			})
 		case <-ctx.Done():
-			return nil, retrievalErr
+			return nil, ctx.Err()
 		}
 	}
 }
