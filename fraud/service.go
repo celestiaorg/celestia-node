@@ -200,18 +200,19 @@ func (f *service) put(ctx context.Context, proofType ProofType, hash string, dat
 }
 
 func (f *service) handleFraudMessageRequest(stream network.Stream) {
-	msg := new(pb.FraudMessage)
-	_, err := serde.Read(stream, msg)
+	req := &pb.FraudMessageRequest{}
+	_, err := serde.Read(stream, req)
 	if err != nil {
 		stream.Reset() //nolint:errcheck
 		log.Warn(err)
 		return
 	}
 
+	resp := &pb.FraudMessageResponse{}
 	errg, ctx := errgroup.WithContext(context.Background())
 	mu := sync.Mutex{}
-	for _, p := range msg.RequestedProofType {
-		proofType := toProof(p)
+	for _, p := range req.RequestedProofType {
+		proofType := pbToProof(p)
 		errg.Go(func() error {
 			proofs, err := f.Get(ctx, proofType)
 			if err != nil {
@@ -227,9 +228,9 @@ func (f *service) handleFraudMessageRequest(stream network.Stream) {
 					log.Warn(err)
 					continue
 				}
-				resp := &pb.ProofResponse{Type: int32(proofType), Value: bin}
+				proof := &pb.ProofResponse{Type: proofToPb(proofType), Value: bin}
 				mu.Lock()
-				msg.Proofs = append(msg.Proofs, resp)
+				resp.Proofs = append(resp.Proofs, proof)
 				mu.Unlock()
 			}
 			return nil
@@ -241,7 +242,7 @@ func (f *service) handleFraudMessageRequest(stream network.Stream) {
 		log.Error(err)
 		return
 	}
-	_, err = serde.Write(stream, msg)
+	_, err = serde.Write(stream, resp)
 	if err != nil {
 		log.Error(err)
 	}
@@ -274,9 +275,9 @@ func (f *service) syncFraudProofs(ctx context.Context) {
 		go func(pid peer.ID) {
 			log.Debug("requesting proofs from peer ", pid)
 			f.topicsLk.RLock()
-			proofTypes := make([]int32, 0, len(f.topics))
+			proofTypes := make([]pb.ProofType, 0, len(f.topics))
 			for proofType := range f.topics {
-				proofTypes = append(proofTypes, int32(proofType))
+				proofTypes = append(proofTypes, proofToPb(proofType))
 			}
 			f.topicsLk.RUnlock()
 			respProofs, err := requestProofs(ctx, f.host, pid, proofTypes)
@@ -294,7 +295,7 @@ func (f *service) syncFraudProofs(ctx context.Context) {
 			for _, data := range respProofs {
 				go func(data *pb.ProofResponse) {
 					defer wg.Done()
-					proof, err := Unmarshal(toProof(data.Type), data.Value)
+					proof, err := Unmarshal(pbToProof(data.Type), data.Value)
 					if err != nil {
 						if !errors.Is(err, &errNoUnmarshaler{}) {
 							f.pubsub.BlacklistPeer(pid)

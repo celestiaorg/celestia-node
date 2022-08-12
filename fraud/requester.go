@@ -15,9 +15,9 @@ func requestProofs(
 	ctx context.Context,
 	host host.Host,
 	pid peer.ID,
-	proofTypes []int32,
+	proofTypes []pb.ProofType,
 ) ([]*pb.ProofResponse, error) {
-	msg := &pb.FraudMessage{RequestedProofType: proofTypes}
+	msg := &pb.FraudMessageRequest{RequestedProofType: proofTypes}
 	stream, err := host.NewStream(ctx, pid, fraudProtocolID)
 	if err != nil {
 		return nil, err
@@ -28,11 +28,12 @@ func requestProofs(
 		stream.Reset() //nolint:errcheck
 		return nil, err
 	}
-	_, err = serde.Read(stream, msg)
+	resp := &pb.FraudMessageResponse{}
+	_, err = serde.Read(stream, resp)
 	if err != nil {
 		stream.Reset() //nolint:errcheck
 		return nil, err
 	}
 
-	return msg.Proofs, stream.Close()
+	return resp.Proofs, stream.Close()
 }
