@@ -54,11 +54,6 @@ var bridgeCmd = &cobra.Command{
 			return err
 		}
 
-		ctx, err = cmdnode.ParseHeadersFlags(ctx, cmd)
-		if err != nil {
-			return err
-		}
-
 		ctx, err = cmdnode.ParseMiscFlags(ctx, cmd)
 		if err != nil {
 			return err

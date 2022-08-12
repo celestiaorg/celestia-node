@@ -14,7 +14,6 @@ import (
 
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
-	"github.com/celestiaorg/celestia-node/cmd"
 )
 
 var encodingConfig = encoding.MakeEncodingConfig(app.ModuleEncodingRegisters...)
@@ -65,5 +64,5 @@ func run() error {
 	cfg.Seal()
 
 	ctx := context.WithValue(context.Background(), client.ClientContextKey, &initClientCtx)
-	return rootCmd.ExecuteContext(cmd.WithEnv(ctx))
+	return rootCmd.ExecuteContext(ctx)
 }

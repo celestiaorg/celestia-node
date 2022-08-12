@@ -1,8 +1,9 @@
 package cmd
 
 import (
-	"context"
 	"github.com/celestiaorg/celestia-node/node"
+
+	"context"
 )
 
 // NodeType reads the node.Type from the context.
@@ -27,7 +28,11 @@ func SetStorePath(ctx context.Context, storePath string) context.Context {
 
 // Options returns Node Options parsed from Environment(Flags, ENV vars, etc)
 func Options(ctx context.Context) []node.Option {
-	return ctx.Value(optionsKey{}).([]node.Option)
+	options, ok := ctx.Value(optionsKey{}).([]node.Option)
+	if !ok {
+		return []node.Option{}
+	}
+	return options
 }
 
 // AddOptions add new options to Env.
