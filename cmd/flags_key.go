@@ -22,7 +22,7 @@ func KeyFlags() *flag.FlagSet {
 func ParseKeyFlags(ctx context.Context, cmd *cobra.Command) context.Context {
 	keyringAccName := cmd.Flag(keyringAccNameFlag).Value.String()
 	if keyringAccName != "" {
-		return AddNodeOptions(ctx, node.WithKeyringAccName(keyringAccName))
+		return WithNodeOptions(ctx, node.WithKeyringAccName(keyringAccName))
 	}
 	return ctx
 }

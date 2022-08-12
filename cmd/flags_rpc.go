@@ -36,11 +36,11 @@ func RPCFlags() *flag.FlagSet {
 func ParseRPCFlags(ctx context.Context, cmd *cobra.Command) (context.Context, error) {
 	addr := cmd.Flag(addrFlag).Value.String()
 	if addr != "" {
-		ctx = AddNodeOptions(ctx, node.WithRPCAddress(addr))
+		ctx = WithNodeOptions(ctx, node.WithRPCAddress(addr))
 	}
 	port := cmd.Flag(portFlag).Value.String()
 	if port != "" {
-		ctx = AddNodeOptions(ctx, node.WithRPCPort(port))
+		ctx = WithNodeOptions(ctx, node.WithRPCPort(port))
 	}
 	return ctx, nil
 }

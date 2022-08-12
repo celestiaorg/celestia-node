@@ -45,7 +45,7 @@ func ParseNodeFlags(ctx context.Context, cmd *cobra.Command) (context.Context, e
 			return ctx, fmt.Errorf("cmd: while parsing '%s': %w", nodeConfigFlag, err)
 		}
 
-		ctx = AddNodeOptions(ctx, node.WithConfig(cfg))
+		ctx = WithNodeOptions(ctx, node.WithConfig(cfg))
 	}
 
 	return ctx, nil

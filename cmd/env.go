@@ -35,8 +35,8 @@ func NodeOptions(ctx context.Context) []node.Option {
 	return options
 }
 
-// AddNodeOptions add new options to Env.
-func AddNodeOptions(ctx context.Context, opts ...node.Option) context.Context {
+// WithNodeOptions add new options to Env.
+func WithNodeOptions(ctx context.Context, opts ...node.Option) context.Context {
 	options := NodeOptions(ctx)
 	return context.WithValue(ctx, optionsKey{}, append(options, opts...))
 }
