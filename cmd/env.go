@@ -41,6 +41,8 @@ func AddOptions(ctx context.Context, opts ...node.Option) context.Context {
 	return context.WithValue(ctx, optionsKey{}, append(options, opts...))
 }
 
-type optionsKey struct{}
-type storePathKey struct{}
-type nodeTypeKey struct{}
+type (
+	optionsKey   struct{}
+	storePathKey struct{}
+	nodeTypeKey  struct{}
+)
