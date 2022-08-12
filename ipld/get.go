@@ -8,9 +8,6 @@ import (
 	ipld "github.com/ipfs/go-ipld-format"
 
 	"github.com/celestiaorg/celestia-node/ipld/plugin"
-	"github.com/celestiaorg/nmt"
-
-	"github.com/celestiaorg/nmt/namespace"
 )
 
 // GetShare fetches and returns the data for leaf `leafIndex` of root `rootCid`.
@@ -124,66 +121,6 @@ func GetProof(
 
 	// recursively walk down through selected children
 	return GetProof(ctx, bGetter, root, proof, leaf, total)
-}
-
-// GetSharesByNamespace returns all the shares from the given root
-// with the given namespace.ID.
-func GetSharesByNamespace(
-	ctx context.Context,
-	bGetter blockservice.BlockGetter,
-	root cid.Cid,
-	nID namespace.ID,
-) ([]Share, error) {
-	leaves, err := GetLeavesByNamespace(ctx, bGetter, root, nID)
-	if err != nil {
-		return nil, err
-	}
-
-	shares := make([]Share, len(leaves))
-	for i, leaf := range leaves {
-		shares[i] = leafToShare(leaf)
-	}
-
-	return shares, nil
-}
-
-// GetLeavesByNamespace returns all the leaves from the given root with the given namespace.ID.
-// If nothing is found it returns both data and err as nil.
-func GetLeavesByNamespace(
-	ctx context.Context,
-	bGetter blockservice.BlockGetter,
-	root cid.Cid,
-	nID namespace.ID,
-) ([]ipld.Node, error) {
-	err := SanityCheckNID(nID)
-	if err != nil {
-		return nil, err
-	}
-	rootH := plugin.NamespacedSha256FromCID(root)
-	if nID.Less(nmt.MinNamespace(rootH, nID.Size())) || !nID.LessOrEqual(nmt.MaxNamespace(rootH, nID.Size())) {
-		return nil, nil
-	}
-	// request the node
-	nd, err := plugin.GetNode(ctx, bGetter, root)
-	if err != nil {
-		return nil, err
-	}
-	// check links
-	lnks := nd.Links()
-	if len(lnks) == 1 {
-		// if there is one link, then this is a leaf node, so just return it
-		return []ipld.Node{nd}, nil
-	}
-	// if there are some links, then traverse them
-	var out []ipld.Node
-	for _, lnk := range nd.Links() {
-		nds, err := GetLeavesByNamespace(ctx, bGetter, lnk.Cid, nID)
-		if err != nil {
-			return out, err
-		}
-		out = append(out, nds...)
-	}
-	return out, nil
 }
 
 // leafToShare converts an NMT leaf into a Share.
