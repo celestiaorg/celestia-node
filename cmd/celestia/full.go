@@ -43,10 +43,15 @@ var fullCmd = &cobra.Command{
 	Args:  cobra.NoArgs,
 	Short: "Manage your Full node",
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-		ctx := cmd.Context()
+		var (
+			ctx = cmd.Context()
+			err error
+		)
+		defer cmd.SetContext(ctx)
+
 		ctx = cmdnode.SetNodeType(ctx, node.Full)
 
-		ctx, err := cmdnode.ParseNodeFlags(ctx, cmd)
+		ctx, err = cmdnode.ParseNodeFlags(ctx, cmd)
 		if err != nil {
 			return err
 		}
@@ -78,7 +83,6 @@ var fullCmd = &cobra.Command{
 
 		ctx = cmdnode.ParseKeyFlags(ctx, cmd)
 
-		cmd.SetContext(ctx)
 		return nil
 	},
 }

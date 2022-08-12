@@ -1,9 +1,9 @@
 package cmd
 
 import (
-	"github.com/celestiaorg/celestia-node/node"
-
 	"context"
+
+	"github.com/celestiaorg/celestia-node/node"
 )
 
 // NodeType reads the node.Type from the context.

@@ -43,10 +43,15 @@ var lightCmd = &cobra.Command{
 	Args:  cobra.NoArgs,
 	Short: "Manage your Light node",
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-		ctx := cmd.Context()
+		var (
+			ctx = cmd.Context()
+			err error
+		)
+		defer cmd.SetContext(ctx)
+
 		ctx = cmdnode.SetNodeType(ctx, node.Light)
 
-		ctx, err := cmdnode.ParseNodeFlags(ctx, cmd)
+		ctx, err = cmdnode.ParseNodeFlags(ctx, cmd)
 		if err != nil {
 			return err
 		}
@@ -78,7 +83,6 @@ var lightCmd = &cobra.Command{
 
 		ctx = cmdnode.ParseKeyFlags(ctx, cmd)
 
-		cmd.SetContext(ctx)
 		return nil
 	},
 }
