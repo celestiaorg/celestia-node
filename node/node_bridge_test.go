@@ -8,18 +8,20 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/celestiaorg/celestia-node/core"
+	"github.com/celestiaorg/celestia-node/node/config"
 	"github.com/celestiaorg/celestia-node/params"
 )
 
 func TestBridge_WithMockedCoreClient(t *testing.T) {
 	t.Skip("skipping") // consult https://github.com/celestiaorg/celestia-core/issues/667 for reasoning
-	repo := MockStore(t, DefaultConfig(Bridge))
+	repo := MockStore(t, config.DefaultConfig(config.Bridge))
 
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
 
 	_, client := core.StartTestClient(ctx, t)
-	node, err := New(Bridge, repo, WithCoreClient(client), WithNetwork(params.Private))
+	node, err := New(config.Bridge, repo, config.WithCoreClient(client),
+		config.WithNetwork(params.Private))
 	require.NoError(t, err)
 	require.NotNil(t, node)
 	assert.True(t, node.CoreClient.IsRunning())

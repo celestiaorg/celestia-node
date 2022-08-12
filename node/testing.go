@@ -13,12 +13,14 @@ import (
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
 	apptypes "github.com/celestiaorg/celestia-app/x/payment/types"
+
 	"github.com/celestiaorg/celestia-node/core"
+	"github.com/celestiaorg/celestia-node/node/config"
 	"github.com/celestiaorg/celestia-node/params"
 )
 
 // MockStore provides mock in memory Store for testing purposes.
-func MockStore(t *testing.T, cfg *Config) Store {
+func MockStore(t *testing.T, cfg *config.Config) Store {
 	t.Helper()
 	store := NewMemStore()
 	err := store.PutConfig(cfg)
@@ -26,22 +28,22 @@ func MockStore(t *testing.T, cfg *Config) Store {
 	return store
 }
 
-func TestNode(t *testing.T, tp Type, opts ...Option) *Node {
+func TestNode(t *testing.T, tp config.NodeType, opts ...config.Option) *Node {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	t.Cleanup(cancel)
 
-	store := MockStore(t, DefaultConfig(tp))
+	store := MockStore(t, config.DefaultConfig(tp))
 	_, _, cfg := core.StartTestKVApp(ctx, t)
 	endpoint, err := core.GetEndpoint(cfg)
 	require.NoError(t, err)
 	ip, port, err := net.SplitHostPort(endpoint)
 	require.NoError(t, err)
 	opts = append(opts,
-		WithRemoteCoreIP(ip),
-		WithRemoteCorePort(port),
-		WithNetwork(params.Private),
-		WithRPCPort("0"),
-		WithKeyringSigner(TestKeyringSigner(t)),
+		config.WithRemoteCoreIP(ip),
+		config.WithRemoteCorePort(port),
+		config.WithNetwork(params.Private),
+		config.WithRPCPort("0"),
+		config.WithKeyringSigner(TestKeyringSigner(t)),
 	)
 	nd, err := New(tp, store, opts...)
 	require.NoError(t, err)
