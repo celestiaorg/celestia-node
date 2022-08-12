@@ -1,12 +1,12 @@
 package ipld
 
 import (
-	"github.com/ipfs/go-cid"
-
 	"fmt"
+
+	"github.com/ipfs/go-cid"
 )
 
-// job represents an encountered node to investigate during the `GetShares` and `GetSharesByNamespace` routines
+// job represents an encountered node to investigate during the `GetShares` and `GetSharesByNamespace` routines.
 type job struct {
 	id  cid.Cid
 	pos int
