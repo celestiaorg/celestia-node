@@ -16,12 +16,12 @@ func StorePath(ctx context.Context) string {
 	return ctx.Value(storePathKey{}).(string)
 }
 
-// WithNodeType sets Node Type to the Env.
+// WithNodeType sets Node Type in the given context.
 func WithNodeType(ctx context.Context, tp node.Type) context.Context {
 	return context.WithValue(ctx, nodeTypeKey{}, tp)
 }
 
-// WithStorePath sets Store Path to the Env.
+// WithStorePath sets Store Path in the given context.
 func WithStorePath(ctx context.Context, storePath string) context.Context {
 	return context.WithValue(ctx, storePathKey{}, storePath)
 }

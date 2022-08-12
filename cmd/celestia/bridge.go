@@ -40,7 +40,6 @@ var bridgeCmd = &cobra.Command{
 			ctx = cmd.Context()
 			err error
 		)
-		defer cmd.SetContext(ctx)
 
 		ctx = cmdnode.WithNodeType(ctx, node.Bridge)
 
@@ -71,6 +70,7 @@ var bridgeCmd = &cobra.Command{
 
 		ctx = cmdnode.ParseKeyFlags(ctx, cmd)
 
+		cmd.SetContext(ctx)
 		return nil
 	},
 }
