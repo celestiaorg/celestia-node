@@ -114,20 +114,22 @@ func TestFraudProofSyncing(t *testing.T) {
 		node.WithAdvertiseInterval(defaultTimeInterval),
 	)
 
-	require.NoError(t, full.Start(ctx))
-	subscr, err := full.FraudServ.Subscribe(fraud.BadEncoding)
-	require.NoError(t, err)
-	_, err = subscr.Proof(ctx)
-	require.NoError(t, err)
-
 	ln := sw.NewLightNode(
 		node.WithBootstrappers([]peer.AddrInfo{*addr}),
 		node.WithRefreshRoutingTablePeriod(defaultTimeInterval),
 		node.WithDiscoveryInterval(defaultTimeInterval),
 	)
-	require.NoError(t, ln.Start(ctx))
+
+	subscr, err := full.FraudServ.Subscribe(fraud.BadEncoding)
+	require.NoError(t, err)
+	require.NoError(t, full.Start(ctx))
+	_, err = subscr.Proof(ctx)
+	require.NoError(t, err)
+
 	subsC, err := ln.FraudServ.Subscribe(fraud.BadEncoding)
 	require.NoError(t, err)
+	require.NoError(t, ln.Start(ctx))
+
 	_, err = subsC.Proof(ctx)
 	require.NoError(t, err)
 }

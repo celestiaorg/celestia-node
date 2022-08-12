@@ -127,7 +127,7 @@ func TestService_ReGossiping(t *testing.T) {
 	require.True(t, errors.As(err, &errByz))
 	errByz.Index = 2
 
-	fserviceA := serviceA.(*service)
+	fserviceA := serviceA.(*ProofService)
 	require.NotNil(t, fserviceA)
 
 	blackList, err := pubsub.NewTimeCachedBlacklist(time.Hour)
@@ -229,7 +229,7 @@ func createService(t *testing.T) (Service, *mockStore) {
 		pubsub.WithMessageSignaturePolicy(pubsub.StrictNoSign))
 	require.NoError(t, err)
 	store := createStore(t, 10)
-	return NewService(ps, net.Hosts()[0], store.GetByHeight, sync.MutexWrap(datastore.NewMapDatastore())), store
+	return NewService(ps, net.Hosts()[0], store.GetByHeight, sync.MutexWrap(datastore.NewMapDatastore()), false), store
 }
 
 func createServiceWithHost(ctx context.Context, t *testing.T, host host.Host) (Service, *mockStore) {
@@ -238,5 +238,5 @@ func createServiceWithHost(ctx context.Context, t *testing.T, host host.Host) (S
 		pubsub.WithMessageSignaturePolicy(pubsub.StrictNoSign))
 	require.NoError(t, err)
 	store := createStore(t, 10)
-	return NewService(ps, host, store.GetByHeight, sync.MutexWrap(datastore.NewMapDatastore())), store
+	return NewService(ps, host, store.GetByHeight, sync.MutexWrap(datastore.NewMapDatastore()), false), store
 }

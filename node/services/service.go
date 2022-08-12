@@ -162,13 +162,28 @@ func DASer(
 }
 
 // FraudService constructs fraud proof service.
-func FraudService(
+func FraudService[A share.Availability](
+	ctx context.Context,
+	lc fx.Lifecycle,
 	sub *pubsub.PubSub,
 	host host.Host,
 	hstore header.Store,
 	ds datastore.Batching,
+	avail A,
 ) fraud.Service {
-	return fraud.NewService(sub, host, hstore.GetByHeight, ds)
+	isEnabled := false
+	switch any(avail).(type) {
+	case *share.LightAvailability:
+		isEnabled = true
+	default:
+	}
+	fservice := fraud.NewService(sub, host, hstore.GetByHeight, ds, isEnabled)
+	lc.Append(fx.Hook{
+		OnStart: func(context.Context) error {
+			return fservice.Start(fxutil.WithLifecycle(ctx, lc))
+		},
+	})
+	return fservice
 }
 
 // LightAvailability constructs light share availability.
@@ -239,14 +254,6 @@ func CacheAvailability[A share.Availability](
 ) share.Availability {
 	ca := share.NewCacheAvailability(avail, ds)
 	lc.Append(fx.Hook{
-		OnStart: func(context.Context) error {
-			switch any(avail).(type) {
-			case *share.LightAvailability:
-				fservice.Sync(fxutil.WithLifecycle(ctx, lc))
-			default:
-			}
-			return nil
-		},
 		OnStop: ca.Close,
 	})
 	return ca
