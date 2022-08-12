@@ -69,12 +69,7 @@ func TestFullReconstructFromBridge(t *testing.T) {
 			return full.ShareServ.SharesAvailable(bctx, h.DAH)
 		})
 	}
-	select {
-	case <-ctx.Done():
-		t.Fatal("timeout reached")
-	case err = <-errCh:
-		require.NoError(t, err)
-	}
+	require.NoError(t, <-errCh)
 	require.NoError(t, errg.Wait())
 }
 
@@ -181,12 +176,7 @@ func TestFullReconstructFromLights(t *testing.T) {
 			return full.ShareServ.SharesAvailable(bctx, h.DAH)
 		})
 	}
-	select {
-	case <-ctx.Done():
-		t.Fatal("timeout reached")
-	case err = <-errCh:
-		require.NoError(t, err)
-	}
+	require.NoError(t, <-errCh)
 	require.NoError(t, errg.Wait())
 }
 
