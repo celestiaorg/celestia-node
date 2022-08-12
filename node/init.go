@@ -8,13 +8,14 @@ import (
 
 	"github.com/celestiaorg/celestia-node/libs/fslock"
 	"github.com/celestiaorg/celestia-node/libs/utils"
+	"github.com/celestiaorg/celestia-node/node/config"
 	"github.com/celestiaorg/celestia-node/params"
 )
 
 // Init initializes the Node FileSystem Store for the given Node Type 'tp' in the directory under 'path' with
 // default Config. Options are applied over default Config and persisted on disk.
-func Init(path string, tp Type, options ...Option) error {
-	sets := &settings{cfg: DefaultConfig(tp)}
+func Init(path string, tp config.NodeType, options ...config.Option) error {
+	sets := &config.Settings{Cfg: config.DefaultConfig(tp)}
 	for _, option := range options {
 		option(sets)
 	}
@@ -49,13 +50,13 @@ func Init(path string, tp Type, options ...Option) error {
 		return err
 	}
 
-	if sets.cfg == nil {
+	if sets.Cfg == nil {
 		return errors.New("configuration is missing for the node's initialisation")
 	}
 
 	cfgPath := configPath(path)
 	if !utils.Exists(cfgPath) {
-		err = SaveConfig(cfgPath, sets.cfg)
+		err = config.SaveConfig(cfgPath, sets.Cfg)
 		if err != nil {
 			return err
 		}
@@ -77,7 +78,7 @@ func IsInit(path string) bool {
 		return false
 	}
 
-	_, err = LoadConfig(configPath(path)) // load the Config and implicitly check for its existence
+	_, err = config.LoadConfig(configPath(path)) // load the Config and implicitly check for its existence
 	if err != nil {
 		log.Errorw("loading config", "path", path, "err", err)
 		return false
