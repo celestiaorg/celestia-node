@@ -7,17 +7,17 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/celestiaorg/celestia-node/node/node"
+	"github.com/celestiaorg/celestia-node/node/config"
 )
 
 func TestLifecycle(t *testing.T) {
 	var test = []struct {
-		tp           node.Type
+		tp           config.NodeType
 		coreExpected bool
 	}{
-		{tp: node.Bridge, coreExpected: true},
-		{tp: node.Full},
-		{tp: node.Light},
+		{tp: config.Bridge, coreExpected: true},
+		{tp: config.Full},
+		{tp: config.Light},
 	}
 
 	for i, tt := range test {

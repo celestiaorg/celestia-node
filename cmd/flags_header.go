@@ -9,7 +9,7 @@ import (
 	"github.com/spf13/cobra"
 	flag "github.com/spf13/pflag"
 
-	"github.com/celestiaorg/celestia-node/node/node"
+	"github.com/celestiaorg/celestia-node/node/config"
 )
 
 var (
@@ -65,7 +65,7 @@ func ParseTrustedPeerFlags(ctx context.Context, cmd *cobra.Command) (context.Con
 		}
 	}
 
-	ctx = WithNodeOptions(ctx, node.WithTrustedPeers(tpeers...))
+	ctx = WithNodeOptions(ctx, config.WithTrustedPeers(tpeers...))
 
 	return ctx, nil
 }
@@ -92,7 +92,7 @@ func ParseTrustedHashFlags(ctx context.Context, cmd *cobra.Command) (context.Con
 			return ctx, fmt.Errorf("cmd: while parsing '%s': %w", headersTrustedHashFlag, err)
 		}
 
-		ctx = WithNodeOptions(ctx, node.WithTrustedHash(hash))
+		ctx = WithNodeOptions(ctx, config.WithTrustedHash(hash))
 	}
 
 	return ctx, nil

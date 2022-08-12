@@ -13,7 +13,7 @@ import (
 
 	"github.com/celestiaorg/celestia-node/libs/fslock"
 	"github.com/celestiaorg/celestia-node/libs/keystore"
-	"github.com/celestiaorg/celestia-node/node/node"
+	"github.com/celestiaorg/celestia-node/node/config"
 )
 
 var (
@@ -36,10 +36,10 @@ type Store interface {
 	Datastore() (datastore.Batching, error)
 
 	// Config loads the stored Node config.
-	Config() (*node.Config, error)
+	Config() (*config.Config, error)
 
 	// PutConfig alters the stored Node config.
-	PutConfig(*node.Config) error
+	PutConfig(*config.Config) error
 
 	// Close closes the Store freeing up acquired resources and locks.
 	Close() error
@@ -79,8 +79,8 @@ func (f *fsStore) Path() string {
 	return f.path
 }
 
-func (f *fsStore) Config() (*node.Config, error) {
-	cfg, err := node.LoadConfig(configPath(f.path))
+func (f *fsStore) Config() (*config.Config, error) {
+	cfg, err := config.LoadConfig(configPath(f.path))
 	if err != nil {
 		return nil, fmt.Errorf("node: can't load Config: %w", err)
 	}
@@ -88,8 +88,8 @@ func (f *fsStore) Config() (*node.Config, error) {
 	return cfg, nil
 }
 
-func (f *fsStore) PutConfig(cfg *node.Config) error {
-	err := node.SaveConfig(configPath(f.path), cfg)
+func (f *fsStore) PutConfig(cfg *config.Config) error {
+	err := config.SaveConfig(configPath(f.path), cfg)
 	if err != nil {
 		return fmt.Errorf("node: can't save Config: %w", err)
 	}

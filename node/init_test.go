@@ -8,12 +8,12 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/celestiaorg/celestia-node/libs/fslock"
-	"github.com/celestiaorg/celestia-node/node/node"
+	"github.com/celestiaorg/celestia-node/node/config"
 )
 
 func TestInit(t *testing.T) {
 	dir := t.TempDir()
-	nodes := []node.Type{node.Light, node.Bridge}
+	nodes := []config.NodeType{config.Light, config.Bridge}
 
 	for _, node := range nodes {
 		require.NoError(t, Init(dir, node))
@@ -23,7 +23,7 @@ func TestInit(t *testing.T) {
 
 func TestInitErrForInvalidPath(t *testing.T) {
 	path := "/invalid_path"
-	nodes := []node.Type{node.Light, node.Bridge}
+	nodes := []config.NodeType{config.Light, config.Bridge}
 
 	for _, node := range nodes {
 		require.Error(t, Init(path, node))
@@ -53,7 +53,7 @@ func TestInitErrForLockedDir(t *testing.T) {
 	flock, err := fslock.Lock(lockPath(dir))
 	require.NoError(t, err)
 	defer flock.Unlock() //nolint:errcheck
-	nodes := []node.Type{node.Light, node.Bridge}
+	nodes := []config.NodeType{config.Light, config.Bridge}
 
 	for _, node := range nodes {
 		require.Error(t, Init(dir, node))

@@ -20,7 +20,7 @@ import (
 	"github.com/celestiaorg/celestia-node/header/local"
 	"github.com/celestiaorg/celestia-node/header/store"
 	"github.com/celestiaorg/celestia-node/header/sync"
-	"github.com/celestiaorg/celestia-node/node/node"
+	"github.com/celestiaorg/celestia-node/node/config"
 	service "github.com/celestiaorg/celestia-node/service/header"
 	"github.com/celestiaorg/celestia-node/service/rpc"
 	"github.com/celestiaorg/celestia-node/service/share"
@@ -91,7 +91,7 @@ func testGetNamespacedRequest(t *testing.T, endpointName string, assertResponseO
 			// check resp
 			if tt.expectedErr {
 				require.False(t, resp.StatusCode == http.StatusOK)
-				require.Equal(t, "application/json", resp.Header.Get("Content-Type"))
+				require.Equal(t, "application/json", resp.Header.Get("Content-NodeType"))
 
 				var errorMessage string
 				err := json.NewDecoder(resp.Body).Decode(&errorMessage)
@@ -203,10 +203,10 @@ func setupNodeWithModifiedRPC(t *testing.T) *Node {
 	hServ := setupHeaderService(ctx, t)
 	daser := setupDASer()
 	// create overrides
-	overrideHeaderServ := func(sets *node.Settings) {
+	overrideHeaderServ := func(sets *config.Settings) {
 		sets.Opts = append(sets.Opts, fx.Replace(hServ))
 	}
-	overrideDASer := func(sets *node.Settings) {
+	overrideDASer := func(sets *config.Settings) {
 		sets.Opts = append(sets.Opts, fx.Replace(func() func(lc fx.Lifecycle) *das.DASer {
 			return func(lc fx.Lifecycle) *das.DASer {
 				lc.Append(fx.Hook{
@@ -217,13 +217,13 @@ func setupNodeWithModifiedRPC(t *testing.T) *Node {
 			}
 		}))
 	}
-	overrideRPCHandler := func(sets *node.Settings) {
+	overrideRPCHandler := func(sets *config.Settings) {
 		sets.Opts = append(sets.Opts, fx.Invoke(func(srv *rpc.Server) {
 			handler := rpc.NewHandler(nil, nil, hServ, daser)
 			handler.RegisterEndpoints(srv)
 		}))
 	}
-	nd := TestNode(t, node.Full, overrideHeaderServ, overrideDASer, overrideRPCHandler)
+	nd := TestNode(t, config.Full, overrideHeaderServ, overrideDASer, overrideRPCHandler)
 	// start node
 	err := nd.Start(ctx)
 	require.NoError(t, err)

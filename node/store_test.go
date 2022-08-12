@@ -7,14 +7,14 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/celestiaorg/celestia-node/node/node"
+	"github.com/celestiaorg/celestia-node/node/config"
 )
 
 func TestRepo(t *testing.T) {
 	var tests = []struct {
-		tp node.Type
+		tp config.NodeType
 	}{
-		{tp: node.Bridge}, {tp: node.Light}, {tp: node.Full},
+		{tp: config.Bridge}, {tp: config.Light}, {tp: config.Full},
 	}
 
 	for i, tt := range tests {
