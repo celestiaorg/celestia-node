@@ -44,7 +44,10 @@ func TestFullReconstructFromBridge(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 	t.Cleanup(cancel)
 	sw := swamp.NewSwamp(t, swamp.WithBlockTime(btime))
-	go sw.FillBlocks(ctx, t, bsize, blocks)
+	errCh := make(chan error)
+	go func() {
+		errCh <- sw.FillBlocks(ctx, bsize, blocks)
+	}()
 
 	bridge := sw.NewBridgeNode()
 	err := bridge.Start(ctx)
@@ -66,9 +69,8 @@ func TestFullReconstructFromBridge(t *testing.T) {
 			return full.ShareServ.SharesAvailable(bctx, h.DAH)
 		})
 	}
-
-	err = errg.Wait()
-	require.NoError(t, err)
+	require.NoError(t, <-errCh)
+	require.NoError(t, errg.Wait())
 }
 
 /*
@@ -79,12 +81,13 @@ Pre-Reqs:
 Steps:
 1. Create a Bridge Node(BN)
 2. Start a BN
-3. Create 69 Light Nodes(LNs) with BN as a trusted peer
-4. Start 69 LNs
-5. Create a Full Node(FN) with 69 LNs as trusted peers
-6. Unlink FN connection to BN
-7. Start a FN
-8. Check that a FN can retrieve shares from 1 to 20 blocks
+3. Create a Full Node(FN) that will act as a bootstraper
+4. Create 69 Light Nodes(LNs) with BN as a trusted peer and a bootstaper
+5. Start 69 LNs
+6. Create a Full Node(FN) with a bootstraper
+7. Unlink FN connection to BN
+8. Start a FN
+9. Check that a FN can retrieve shares from 1 to 20 blocks
 */
 func TestFullReconstructFromLights(t *testing.T) {
 	ipld.RetrieveQuadrantTimeout = time.Millisecond * 100
@@ -96,27 +99,38 @@ func TestFullReconstructFromLights(t *testing.T) {
 		lnodes = 69
 	)
 
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
 	t.Cleanup(cancel)
 	sw := swamp.NewSwamp(t, swamp.WithBlockTime(btime))
-	go sw.FillBlocks(ctx, t, bsize, blocks)
+	errCh := make(chan error)
+	go func() {
+		errCh <- sw.FillBlocks(ctx, bsize, blocks)
+	}()
 
-	cfg := node.DefaultConfig(node.Bridge)
-	cfg.P2P.Bootstrapper = true
-	const defaultTimeInterval = time.Second * 10
+	const defaultTimeInterval = time.Second * 5
 	var defaultOptions = []node.Option{
 		node.WithRefreshRoutingTablePeriod(defaultTimeInterval),
 		node.WithDiscoveryInterval(defaultTimeInterval),
 		node.WithAdvertiseInterval(defaultTimeInterval),
 	}
 
-	bridgeConfig := append([]node.Option{node.WithConfig(cfg)}, defaultOptions...)
+	cfg := node.DefaultConfig(node.Full)
 	cfg.P2P.Bootstrapper = true
-	bridge := sw.NewBridgeNode(bridgeConfig...)
+	bridge := sw.NewBridgeNode()
+	addrsBridge, err := peer.AddrInfoToP2pAddrs(host.InfoFromHost(bridge.Host))
+	require.NoError(t, err)
+	bootstrapConfig := append([]node.Option{node.WithConfig(cfg)}, defaultOptions...)
+	bootstapFN := sw.NewFullNode(bootstrapConfig...)
+	require.NoError(t, bootstapFN.Start(ctx))
 	require.NoError(t, bridge.Start(ctx))
-	addr := host.InfoFromHost(bridge.Host)
+	addrBootstrapNode := host.InfoFromHost(bootstapFN.Host)
 
-	nodesConfig := append([]node.Option{node.WithBootstrappers([]peer.AddrInfo{*addr})}, defaultOptions...)
+	nodesConfig := append(
+		[]node.Option{
+			node.WithTrustedPeers(addrsBridge[0].String()),
+			node.WithBootstrappers([]peer.AddrInfo{*addrBootstrapNode})},
+		defaultOptions...,
+	)
 	full := sw.NewFullNode(nodesConfig...)
 	lights := make([]*node.Node, lnodes)
 	subs := make([]event.Subscription, lnodes)
@@ -124,8 +138,13 @@ func TestFullReconstructFromLights(t *testing.T) {
 	for i := 0; i < lnodes; i++ {
 		i := i
 		errg.Go(func() error {
-			light := sw.NewLightNode(nodesConfig...)
-			sub, err := light.Host.EventBus().Subscribe(&event.EvtPeerConnectednessChanged{})
+			lnConfig := append(
+				[]node.Option{
+					node.WithTrustedPeers(addrsBridge[0].String())},
+				nodesConfig...,
+			)
+			light := sw.NewLightNode(lnConfig...)
+			sub, err := light.Host.EventBus().Subscribe(&event.EvtPeerIdentificationCompleted{})
 			if err != nil {
 				return err
 			}
@@ -141,6 +160,7 @@ func TestFullReconstructFromLights(t *testing.T) {
 		case <-ctx.Done():
 			t.Fatal("peer was not found")
 		case <-subs[i].Out():
+			require.NoError(t, subs[i].Close())
 			continue
 		}
 	}
@@ -156,7 +176,7 @@ func TestFullReconstructFromLights(t *testing.T) {
 			return full.ShareServ.SharesAvailable(bctx, h.DAH)
 		})
 	}
-
+	require.NoError(t, <-errCh)
 	require.NoError(t, errg.Wait())
 }
 

@@ -44,11 +44,14 @@ func TestFraudProofBroadcasting(t *testing.T) {
 	store := node.MockStore(t, node.DefaultConfig(node.Full))
 	full := sw.NewNodeWithStore(node.Full, store, node.WithTrustedPeers(addrs[0].String()))
 
+	// subscribe to fraud proof before node starts helps
+	// to prevent flakiness when fraud proof is propagating before subscribing on it
+	subscr, err := full.FraudServ.Subscribe(fraud.BadEncoding)
+	require.NoError(t, err)
+
 	err = full.Start(ctx)
 	require.NoError(t, err)
 
-	subscr, err := full.FraudServ.Subscribe(fraud.BadEncoding)
-	require.NoError(t, err)
 	_, err = subscr.Proof(ctx)
 	require.NoError(t, err)
 
