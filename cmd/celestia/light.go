@@ -49,7 +49,7 @@ var lightCmd = &cobra.Command{
 		)
 		defer cmd.SetContext(ctx)
 
-		ctx = cmdnode.SetNodeType(ctx, node.Light)
+		ctx = cmdnode.WithNodeType(ctx, node.Light)
 
 		ctx, err = cmdnode.ParseNodeFlags(ctx, cmd)
 		if err != nil {

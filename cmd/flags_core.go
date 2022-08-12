@@ -63,7 +63,7 @@ func ParseCoreFlags(ctx context.Context, cmd *cobra.Command) (context.Context, e
 	if err != nil {
 		return ctx, err
 	}
-	ctx = AddOptions(ctx, node.WithRemoteCoreIP(ip), node.WithRemoteCorePort(rpc))
+	ctx = AddNodeOptions(ctx, node.WithRemoteCoreIP(ip), node.WithRemoteCorePort(rpc))
 
 	grpc := cmd.Flag(coreGRPCFlag).Value.String()
 	// sanity check gRPC endpoint
@@ -71,7 +71,7 @@ func ParseCoreFlags(ctx context.Context, cmd *cobra.Command) (context.Context, e
 	if err != nil {
 		return ctx, err
 	}
-	ctx = AddOptions(ctx, node.WithGRPCPort(grpc))
+	ctx = AddNodeOptions(ctx, node.WithGRPCPort(grpc))
 	return ctx, nil
 }
 

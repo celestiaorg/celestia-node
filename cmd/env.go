@@ -16,18 +16,18 @@ func StorePath(ctx context.Context) string {
 	return ctx.Value(storePathKey{}).(string)
 }
 
-// SetNodeType sets Node Type to the Env.
-func SetNodeType(ctx context.Context, tp node.Type) context.Context {
+// WithNodeType sets Node Type to the Env.
+func WithNodeType(ctx context.Context, tp node.Type) context.Context {
 	return context.WithValue(ctx, nodeTypeKey{}, tp)
 }
 
-// SetStorePath sets Store Path to the Env.
-func SetStorePath(ctx context.Context, storePath string) context.Context {
+// WithStorePath sets Store Path to the Env.
+func WithStorePath(ctx context.Context, storePath string) context.Context {
 	return context.WithValue(ctx, storePathKey{}, storePath)
 }
 
-// Options returns Node Options parsed from Environment(Flags, ENV vars, etc)
-func Options(ctx context.Context) []node.Option {
+// NodeOptions returns node options parsed from Environment(Flags, ENV vars, etc)
+func NodeOptions(ctx context.Context) []node.Option {
 	options, ok := ctx.Value(optionsKey{}).([]node.Option)
 	if !ok {
 		return []node.Option{}
@@ -35,9 +35,9 @@ func Options(ctx context.Context) []node.Option {
 	return options
 }
 
-// AddOptions add new options to Env.
-func AddOptions(ctx context.Context, opts ...node.Option) context.Context {
-	options := Options(ctx)
+// AddNodeOptions add new options to Env.
+func AddNodeOptions(ctx context.Context, opts ...node.Option) context.Context {
+	options := NodeOptions(ctx)
 	return context.WithValue(ctx, optionsKey{}, append(options, opts...))
 }
 

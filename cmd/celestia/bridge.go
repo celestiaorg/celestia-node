@@ -42,7 +42,7 @@ var bridgeCmd = &cobra.Command{
 		)
 		defer cmd.SetContext(ctx)
 
-		ctx = cmdnode.SetNodeType(ctx, node.Bridge)
+		ctx = cmdnode.WithNodeType(ctx, node.Bridge)
 
 		ctx, err = cmdnode.ParseNodeFlags(ctx, cmd)
 		if err != nil {

@@ -27,7 +27,7 @@ Options passed on start override configuration options only on start and are not
 				return err
 			}
 
-			nd, err := node.New(NodeType(ctx), store, Options(ctx)...)
+			nd, err := node.New(NodeType(ctx), store, NodeOptions(ctx)...)
 			if err != nil {
 				return err
 			}

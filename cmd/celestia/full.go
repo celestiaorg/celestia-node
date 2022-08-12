@@ -49,7 +49,7 @@ var fullCmd = &cobra.Command{
 		)
 		defer cmd.SetContext(ctx)
 
-		ctx = cmdnode.SetNodeType(ctx, node.Full)
+		ctx = cmdnode.WithNodeType(ctx, node.Full)
 
 		ctx, err = cmdnode.ParseNodeFlags(ctx, cmd)
 		if err != nil {

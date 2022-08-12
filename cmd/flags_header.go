@@ -65,7 +65,7 @@ func ParseTrustedPeerFlags(ctx context.Context, cmd *cobra.Command) (context.Con
 		}
 	}
 
-	ctx = AddOptions(ctx, node.WithTrustedPeers(tpeers...))
+	ctx = AddNodeOptions(ctx, node.WithTrustedPeers(tpeers...))
 
 	return ctx, nil
 }
@@ -92,7 +92,7 @@ func ParseTrustedHashFlags(ctx context.Context, cmd *cobra.Command) (context.Con
 			return ctx, fmt.Errorf("cmd: while parsing '%s': %w", headersTrustedHashFlag, err)
 		}
 
-		ctx = AddOptions(ctx, node.WithTrustedHash(hash))
+		ctx = AddNodeOptions(ctx, node.WithTrustedHash(hash))
 	}
 
 	return ctx, nil

@@ -224,7 +224,7 @@ func ParseMiscFlags(ctx context.Context, cmd *cobra.Command) (context.Context, e
 		}
 		global.SetMeterProvider(pusher)
 
-		ctx = AddOptions(ctx, node.WithMetrics(true))
+		ctx = AddNodeOptions(ctx, node.WithMetrics(true))
 	}
 
 	return ctx, err
