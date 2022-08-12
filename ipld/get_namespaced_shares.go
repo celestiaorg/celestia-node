@@ -17,7 +17,7 @@ import (
 	"github.com/celestiaorg/nmt/namespace"
 )
 
-// TODO(@distractedm1nd) Find a better figure than NumWorkersLimit for this pool.
+// TODO(@distractedm1nd) Find a better figure than NumWorkersLimit for this pool. Issue #970
 // namespacePool is a worker pool responsible for the goroutines spawned by getLeavesByNamespace
 var namespacePool = workerpool.New(NumWorkersLimit)
 
