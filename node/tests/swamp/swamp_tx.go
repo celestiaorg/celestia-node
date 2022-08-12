@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"math/rand"
-	"testing"
 	"time"
 
 	"github.com/celestiaorg/celestia-node/ipld"
@@ -25,7 +24,7 @@ func (s *Swamp) SubmitData(ctx context.Context, data []byte) error {
 	return nil
 }
 
-func (s *Swamp) FillBlocks(ctx context.Context, t *testing.T, bsize, blocks int) {
+func (s *Swamp) FillBlocks(ctx context.Context, bsize, blocks int) error {
 	btime := s.comps.CoreCfg.Consensus.CreateEmptyBlocksInterval
 	timer := time.NewTimer(btime)
 	defer timer.Stop()
@@ -34,13 +33,14 @@ func (s *Swamp) FillBlocks(ctx context.Context, t *testing.T, bsize, blocks int)
 	for range make([]int, blocks) {
 		rand.Read(data) //nolint:gosec
 		if err := s.SubmitData(ctx, data); err != nil {
-			t.Fatal(err)
+			return err
 		}
 		timer.Reset(btime)
 		select {
 		case <-timer.C:
 		case <-ctx.Done():
-			t.Fatal(ctx.Err())
+			return ctx.Err()
 		}
 	}
+	return nil
 }

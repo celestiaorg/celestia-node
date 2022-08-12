@@ -44,7 +44,10 @@ func TestFullReconstructFromBridge(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 	t.Cleanup(cancel)
 	sw := swamp.NewSwamp(t, swamp.WithBlockTime(btime))
-	go sw.FillBlocks(ctx, t, bsize, blocks)
+	errCh := make(chan error)
+	go func() {
+		errCh <- sw.FillBlocks(ctx, bsize, blocks)
+	}()
 
 	bridge := sw.NewBridgeNode()
 	err := bridge.Start(ctx)
@@ -66,9 +69,13 @@ func TestFullReconstructFromBridge(t *testing.T) {
 			return full.ShareServ.SharesAvailable(bctx, h.DAH)
 		})
 	}
-
-	err = errg.Wait()
-	require.NoError(t, err)
+	select {
+	case <-ctx.Done():
+		t.Fatal("timeout reached")
+	case err = <-errCh:
+		require.NoError(t, err)
+	}
+	require.NoError(t, errg.Wait())
 }
 
 /*
@@ -100,8 +107,10 @@ func TestFullReconstructFromLights(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
 	t.Cleanup(cancel)
 	sw := swamp.NewSwamp(t, swamp.WithBlockTime(btime))
-
-	go sw.FillBlocks(ctx, t, bsize, blocks)
+	errCh := make(chan error)
+	go func() {
+		errCh <- sw.FillBlocks(ctx, bsize, blocks)
+	}()
 
 	const defaultTimeInterval = time.Second * 5
 	var defaultOptions = []node.Option{
@@ -171,6 +180,12 @@ func TestFullReconstructFromLights(t *testing.T) {
 
 			return full.ShareServ.SharesAvailable(bctx, h.DAH)
 		})
+	}
+	select {
+	case <-ctx.Done():
+		t.Fatal("timeout reached")
+	case err = <-errCh:
+		require.NoError(t, err)
 	}
 	require.NoError(t, errg.Wait())
 }
