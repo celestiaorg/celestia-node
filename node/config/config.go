@@ -1,4 +1,4 @@
-package node
+package config
 
 import (
 	"io"
@@ -13,8 +13,8 @@ import (
 	"github.com/celestiaorg/celestia-node/service/rpc"
 )
 
-// ConfigLoader defines a function that loads a config from any source.
-type ConfigLoader func() (*Config, error)
+// Loader defines a function that loads a config from any source.
+type Loader func() (*Config, error)
 
 // Config is main configuration structure for a Node.
 // It combines configuration units for all Node subsystems.
@@ -28,7 +28,7 @@ type Config struct {
 
 // DefaultConfig provides a default Config for a given Node Type 'tp'.
 // NOTE: Currently, configs are identical, but this will change.
-func DefaultConfig(tp Type) *Config {
+func DefaultConfig(tp NodeType) *Config {
 	switch tp {
 	case Bridge:
 		return &Config{
@@ -53,7 +53,7 @@ func DefaultConfig(tp Type) *Config {
 			Services: services.DefaultConfig(),
 		}
 	default:
-		panic("node: unknown Node Type")
+		panic("node: unknown Node NodeType")
 	}
 }
 

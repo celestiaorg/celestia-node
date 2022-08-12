@@ -1,4 +1,4 @@
-package node
+package config
 
 import (
 	"encoding/hex"
@@ -18,100 +18,100 @@ import (
 	"github.com/celestiaorg/celestia-node/params"
 )
 
-// settings store values that can be augmented or changed for Node with Options.
-type settings struct {
-	cfg  *Config
-	opts []fx.Option
+// Settings store values that can be augmented or changed for Node with Options.
+type Settings struct {
+	Cfg  *Config
+	Opts []fx.Option
 }
 
 // Option for Node's Config.
-type Option func(*settings)
+type Option func(*Settings)
 
 // WithNetwork specifies the Network to which the Node should connect to.
 // WARNING: Use this option with caution and never run the Node with different networks over the same persisted Store.
 func WithNetwork(net params.Network) Option {
-	return func(sets *settings) {
-		sets.opts = append(sets.opts, fx.Replace(net))
+	return func(sets *Settings) {
+		sets.Opts = append(sets.Opts, fx.Replace(net))
 	}
 }
 
 // WithP2PKey sets custom Ed25519 private key for p2p networking.
 func WithP2PKey(key crypto.PrivKey) Option {
-	return func(sets *settings) {
-		sets.opts = append(sets.opts, fxutil.ReplaceAs(key, new(crypto.PrivKey)))
+	return func(sets *Settings) {
+		sets.Opts = append(sets.Opts, fxutil.ReplaceAs(key, new(crypto.PrivKey)))
 	}
 }
 
 // WithP2PKeyStr sets custom hex encoded Ed25519 private key for p2p networking.
 func WithP2PKeyStr(key string) Option {
-	return func(sets *settings) {
+	return func(sets *Settings) {
 		decKey, err := hex.DecodeString(key)
 		if err != nil {
-			sets.opts = append(sets.opts, fx.Error(err))
+			sets.Opts = append(sets.Opts, fx.Error(err))
 			return
 		}
 
 		key, err := crypto.UnmarshalEd25519PrivateKey(decKey)
 		if err != nil {
-			sets.opts = append(sets.opts, fx.Error(err))
+			sets.Opts = append(sets.Opts, fx.Error(err))
 			return
 		}
 
-		sets.opts = append(sets.opts, fxutil.ReplaceAs(key, new(crypto.PrivKey)))
+		sets.Opts = append(sets.Opts, fxutil.ReplaceAs(key, new(crypto.PrivKey)))
 	}
 
 }
 
 // WithHost sets custom Host's data for p2p networking.
 func WithHost(hst host.Host) Option {
-	return func(sets *settings) {
-		sets.opts = append(sets.opts, fxutil.ReplaceAs(hst, new(p2p.HostBase)))
+	return func(sets *Settings) {
+		sets.Opts = append(sets.Opts, fxutil.ReplaceAs(hst, new(p2p.HostBase)))
 	}
 }
 
 // WithCoreClient sets custom client for core process
 func WithCoreClient(client core.Client) Option {
-	return func(sets *settings) {
-		sets.opts = append(sets.opts, fxutil.ReplaceAs(client, new(core.Client)))
+	return func(sets *Settings) {
+		sets.Opts = append(sets.Opts, fxutil.ReplaceAs(client, new(core.Client)))
 	}
 }
 
 // WithHeaderConstructFn sets custom func that creates extended header
 func WithHeaderConstructFn(construct header.ConstructFn) Option {
-	return func(sets *settings) {
-		sets.opts = append(sets.opts, fx.Replace(construct))
+	return func(sets *Settings) {
+		sets.Opts = append(sets.Opts, fx.Replace(construct))
 	}
 }
 
 // WithKeyringSigner overrides the default keyring signer constructed
 // by the node.
 func WithKeyringSigner(signer *apptypes.KeyringSigner) Option {
-	return func(sets *settings) {
-		sets.opts = append(sets.opts, fx.Replace(signer))
+	return func(sets *Settings) {
+		sets.Opts = append(sets.Opts, fx.Replace(signer))
 	}
 }
 
 // WithBootstrappers sets custom bootstrap peers.
 func WithBootstrappers(peers params.Bootstrappers) Option {
-	return func(sets *settings) {
-		sets.opts = append(sets.opts, fx.Replace(peers))
+	return func(sets *Settings) {
+		sets.Opts = append(sets.Opts, fx.Replace(peers))
 	}
 }
 
 // WithRefreshRoutingTablePeriod sets custom refresh period for dht.
 // Currently, it is used to speed up tests.
 func WithRefreshRoutingTablePeriod(interval time.Duration) Option {
-	return func(sets *settings) {
-		sets.cfg.P2P.RoutingTableRefreshPeriod = interval
+	return func(sets *Settings) {
+		sets.Cfg.P2P.RoutingTableRefreshPeriod = interval
 	}
 }
 
 // WithMetrics enables metrics exporting for the node.
 func WithMetrics(enable bool) Option {
-	return func(sets *settings) {
+	return func(sets *Settings) {
 		if !enable {
 			return
 		}
-		sets.opts = append(sets.opts, services.Metrics())
+		sets.Opts = append(sets.Opts, services.Metrics())
 	}
 }

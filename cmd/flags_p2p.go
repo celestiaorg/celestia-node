@@ -8,7 +8,7 @@ import (
 	"github.com/spf13/cobra"
 	flag "github.com/spf13/pflag"
 
-	"github.com/celestiaorg/celestia-node/node"
+	"github.com/celestiaorg/celestia-node/node/config"
 )
 
 var (
@@ -46,7 +46,7 @@ func ParseP2PFlags(ctx context.Context, cmd *cobra.Command) (context.Context, er
 	}
 
 	if len(mutualPeers) != 0 {
-		ctx = WithNodeOptions(ctx, node.WithMutualPeers(mutualPeers))
+		ctx = WithNodeOptions(ctx, config.WithMutualPeers(mutualPeers))
 	}
 	return ctx, nil
 }
