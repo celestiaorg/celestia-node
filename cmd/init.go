@@ -14,12 +14,9 @@ func Init(fsets ...*flag.FlagSet) *cobra.Command {
 		Short: "Initialization for Celestia Node. Passed flags have persisted effect.",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			env, err := GetEnv(cmd.Context())
-			if err != nil {
-				return err
-			}
+			ctx := cmd.Context()
 
-			return node.Init(env.StorePath, env.NodeType, env.Options()...)
+			return node.Init(StorePath(ctx), NodeType(ctx), NodeOptions(ctx)...)
 		},
 	}
 	for _, set := range fsets {

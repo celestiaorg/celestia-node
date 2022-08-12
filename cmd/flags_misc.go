@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"net/http"
@@ -101,12 +102,12 @@ and their lower-case forms`,
 }
 
 // ParseMiscFlags parses miscellaneous flags from the given cmd and applies values to Env.
-func ParseMiscFlags(cmd *cobra.Command, env *Env) error {
+func ParseMiscFlags(ctx context.Context, cmd *cobra.Command) (context.Context, error) {
 	logLevel := cmd.Flag(logLevelFlag).Value.String()
 	if logLevel != "" {
 		level, err := logging.LevelFromString(logLevel)
 		if err != nil {
-			return fmt.Errorf("cmd: while parsing '%s': %w", logLevelFlag, err)
+			return ctx, fmt.Errorf("cmd: while parsing '%s': %w", logLevelFlag, err)
 		}
 
 		logs.SetAllLoggers(level)
@@ -119,12 +120,12 @@ func ParseMiscFlags(cmd *cobra.Command, env *Env) error {
 	for _, ll := range logModules {
 		params := strings.Split(ll, ":")
 		if len(params) != 2 {
-			return fmt.Errorf("cmd: %s arg must be in form <module>:<level>, e.g. pubsub:debug", logLevelModuleFlag)
+			return ctx, fmt.Errorf("cmd: %s arg must be in form <module>:<level>, e.g. pubsub:debug", logLevelModuleFlag)
 		}
 
 		err := logging.SetLogLevel(params[0], params[1])
 		if err != nil {
-			return err
+			return ctx, err
 		}
 	}
 
@@ -166,7 +167,7 @@ func ParseMiscFlags(cmd *cobra.Command, env *Env) error {
 
 		exp, err := otlptracehttp.New(cmd.Context(), opts...)
 		if err != nil {
-			return err
+			return ctx, err
 		}
 
 		tp := tracesdk.NewTracerProvider(
@@ -175,7 +176,7 @@ func ParseMiscFlags(cmd *cobra.Command, env *Env) error {
 			// Record information about this application in a Resource.
 			tracesdk.WithResource(resource.NewWithAttributes(
 				semconv.SchemaURL,
-				semconv.ServiceNameKey.String(fmt.Sprintf("Celestia-%s", env.NodeType.String())),
+				semconv.ServiceNameKey.String(fmt.Sprintf("Celestia-%s", NodeType(ctx).String())),
 				// TODO(@Wondertan): Versioning: semconv.ServiceVersionKey
 			)),
 		)
@@ -200,7 +201,7 @@ func ParseMiscFlags(cmd *cobra.Command, env *Env) error {
 
 		exp, err := otlpmetrichttp.New(cmd.Context(), opts...)
 		if err != nil {
-			return err
+			return ctx, err
 		}
 
 		pusher := controller.New(
@@ -212,19 +213,19 @@ func ParseMiscFlags(cmd *cobra.Command, env *Env) error {
 			controller.WithCollectPeriod(2*time.Second),
 			controller.WithResource(resource.NewWithAttributes(
 				semconv.SchemaURL,
-				semconv.ServiceNameKey.String(fmt.Sprintf("Celestia-%s", env.NodeType.String())),
+				semconv.ServiceNameKey.String(fmt.Sprintf("Celestia-%s", NodeType(ctx).String())),
 				// TODO(@Wondertan): Versioning: semconv.ServiceVersionKey
 			)),
 		)
 
 		err = pusher.Start(cmd.Context())
 		if err != nil {
-			return err
+			return ctx, err
 		}
 		global.SetMeterProvider(pusher)
 
-		env.AddOptions(node.WithMetrics(true))
+		ctx = WithNodeOptions(ctx, node.WithMetrics(true))
 	}
 
-	return err
+	return ctx, err
 }

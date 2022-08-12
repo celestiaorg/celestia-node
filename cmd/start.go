@@ -20,17 +20,14 @@ Options passed on start override configuration options only on start and are not
 		Args:         cobra.NoArgs,
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			env, err := GetEnv(cmd.Context())
+			ctx := cmd.Context()
+
+			store, err := node.OpenStore(StorePath(ctx))
 			if err != nil {
 				return err
 			}
 
-			store, err := node.OpenStore(env.StorePath)
-			if err != nil {
-				return err
-			}
-
-			nd, err := node.New(env.NodeType, store, env.Options()...)
+			nd, err := node.New(NodeType(ctx), store, NodeOptions(ctx)...)
 			if err != nil {
 				return err
 			}

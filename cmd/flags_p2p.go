@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/multiformats/go-multiaddr"
@@ -31,21 +32,21 @@ Peers must bidirectionally point to each other. (Format: multiformats.io/multiad
 }
 
 // ParseP2PFlags parses P2P flags from the given cmd and applies values to Env.
-func ParseP2PFlags(cmd *cobra.Command, env *Env) error {
+func ParseP2PFlags(ctx context.Context, cmd *cobra.Command) (context.Context, error) {
 	mutualPeers, err := cmd.Flags().GetStringSlice(p2pMutualFlag)
 	if err != nil {
-		return err
+		return ctx, err
 	}
 
 	for _, peer := range mutualPeers {
 		_, err := multiaddr.NewMultiaddr(peer)
 		if err != nil {
-			return fmt.Errorf("cmd: while parsing '%s': %w", p2pMutualFlag, err)
+			return ctx, fmt.Errorf("cmd: while parsing '%s': %w", p2pMutualFlag, err)
 		}
 	}
 
 	if len(mutualPeers) != 0 {
-		env.AddOptions(node.WithMutualPeers(mutualPeers))
+		ctx = WithNodeOptions(ctx, node.WithMutualPeers(mutualPeers))
 	}
-	return nil
+	return ctx, nil
 }

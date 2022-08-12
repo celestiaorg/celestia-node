@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"encoding/hex"
 	"fmt"
 
@@ -27,15 +28,15 @@ func HeadersFlags() *flag.FlagSet {
 }
 
 // ParseHeadersFlags parses Header package flags from the given cmd and applies values to Env.
-func ParseHeadersFlags(cmd *cobra.Command, env *Env) error {
-	if err := ParseTrustedHashFlags(cmd, env); err != nil {
-		return err
+func ParseHeadersFlags(ctx context.Context, cmd *cobra.Command) (context.Context, error) {
+	if ctx, err := ParseTrustedHashFlags(ctx, cmd); err != nil {
+		return ctx, err
 	}
-	if err := ParseTrustedPeerFlags(cmd, env); err != nil {
-		return err
+	if ctx, err := ParseTrustedPeerFlags(ctx, cmd); err != nil {
+		return ctx, err
 	}
 
-	return nil
+	return ctx, nil
 }
 
 // TrustedPeersFlags returns a set of flags.
@@ -51,22 +52,22 @@ func TrustedPeersFlags() *flag.FlagSet {
 }
 
 // ParseTrustedPeerFlags parses Header package flags from the given cmd and applies values to Env.
-func ParseTrustedPeerFlags(cmd *cobra.Command, env *Env) error {
+func ParseTrustedPeerFlags(ctx context.Context, cmd *cobra.Command) (context.Context, error) {
 	tpeers, err := cmd.Flags().GetStringSlice(headersTrustedPeersFlag)
 	if err != nil {
-		return err
+		return ctx, err
 	}
 
 	for _, tpeer := range tpeers {
 		_, err := multiaddr.NewMultiaddr(tpeer)
 		if err != nil {
-			return fmt.Errorf("cmd: while parsing '%s' with peer addr '%s': %w", headersTrustedPeersFlag, tpeer, err)
+			return ctx, fmt.Errorf("cmd: while parsing '%s' with peer addr '%s': %w", headersTrustedPeersFlag, tpeer, err)
 		}
 	}
 
-	env.AddOptions(node.WithTrustedPeers(tpeers...))
+	ctx = WithNodeOptions(ctx, node.WithTrustedPeers(tpeers...))
 
-	return nil
+	return ctx, nil
 }
 
 // TrustedHashFlags returns a set of flags related to configuring a `TrustedHash`.
@@ -83,16 +84,16 @@ func TrustedHashFlags() *flag.FlagSet {
 }
 
 // ParseTrustedHashFlags parses Header package flags from the given cmd and applies values to Env.
-func ParseTrustedHashFlags(cmd *cobra.Command, env *Env) error {
+func ParseTrustedHashFlags(ctx context.Context, cmd *cobra.Command) (context.Context, error) {
 	hash := cmd.Flag(headersTrustedHashFlag).Value.String()
 	if hash != "" {
 		_, err := hex.DecodeString(hash)
 		if err != nil {
-			return fmt.Errorf("cmd: while parsing '%s': %w", headersTrustedHashFlag, err)
+			return ctx, fmt.Errorf("cmd: while parsing '%s': %w", headersTrustedHashFlag, err)
 		}
 
-		env.AddOptions(node.WithTrustedHash(hash))
+		ctx = WithNodeOptions(ctx, node.WithTrustedHash(hash))
 	}
 
-	return nil
+	return ctx, nil
 }

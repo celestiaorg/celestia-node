@@ -43,45 +43,46 @@ var fullCmd = &cobra.Command{
 	Args:  cobra.NoArgs,
 	Short: "Manage your Full node",
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-		env, err := cmdnode.GetEnv(cmd.Context())
+		var (
+			ctx = cmd.Context()
+			err error
+		)
+
+		ctx = cmdnode.WithNodeType(ctx, node.Full)
+
+		ctx, err = cmdnode.ParseNodeFlags(ctx, cmd)
 		if err != nil {
 			return err
 		}
 
-		env.SetNodeType(node.Full)
-
-		err = cmdnode.ParseNodeFlags(cmd, env)
+		ctx, err = cmdnode.ParseP2PFlags(ctx, cmd)
 		if err != nil {
 			return err
 		}
 
-		err = cmdnode.ParseP2PFlags(cmd, env)
+		ctx, err = cmdnode.ParseCoreFlags(ctx, cmd)
 		if err != nil {
 			return err
 		}
 
-		err = cmdnode.ParseCoreFlags(cmd, env)
+		ctx, err = cmdnode.ParseHeadersFlags(ctx, cmd)
 		if err != nil {
 			return err
 		}
 
-		err = cmdnode.ParseHeadersFlags(cmd, env)
+		ctx, err = cmdnode.ParseMiscFlags(ctx, cmd)
 		if err != nil {
 			return err
 		}
 
-		err = cmdnode.ParseMiscFlags(cmd, env)
+		ctx, err = cmdnode.ParseRPCFlags(ctx, cmd)
 		if err != nil {
 			return err
 		}
 
-		err = cmdnode.ParseRPCFlags(cmd, env)
-		if err != nil {
-			return err
-		}
+		ctx = cmdnode.ParseKeyFlags(ctx, cmd)
 
-		cmdnode.ParseKeyFlags(cmd, env)
-
+		cmd.SetContext(ctx)
 		return nil
 	},
 }

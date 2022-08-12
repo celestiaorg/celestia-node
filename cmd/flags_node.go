@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
@@ -34,18 +35,18 @@ func NodeFlags(tp node.Type) *flag.FlagSet {
 }
 
 // ParseNodeFlags parses Node flags from the given cmd and applies values to Env.
-func ParseNodeFlags(cmd *cobra.Command, env *Env) error {
-	env.StorePath = cmd.Flag(nodeStoreFlag).Value.String()
+func ParseNodeFlags(ctx context.Context, cmd *cobra.Command) (context.Context, error) {
+	ctx = WithStorePath(ctx, cmd.Flag(nodeStoreFlag).Value.String())
 
 	nodeConfig := cmd.Flag(nodeConfigFlag).Value.String()
 	if nodeConfig != "" {
 		cfg, err := node.LoadConfig(nodeConfig)
 		if err != nil {
-			return fmt.Errorf("cmd: while parsing '%s': %w", nodeConfigFlag, err)
+			return ctx, fmt.Errorf("cmd: while parsing '%s': %w", nodeConfigFlag, err)
 		}
 
-		env.AddOptions(node.WithConfig(cfg))
+		ctx = WithNodeOptions(ctx, node.WithConfig(cfg))
 	}
 
-	return nil
+	return ctx, nil
 }

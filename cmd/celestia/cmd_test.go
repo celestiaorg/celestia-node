@@ -8,8 +8,6 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-
-	cmdnode "github.com/celestiaorg/celestia-node/cmd"
 )
 
 func TestLight(t *testing.T) {
@@ -29,7 +27,7 @@ func TestLight(t *testing.T) {
 			"--node.store", ".celestia-light",
 			"init",
 		})
-		err := rootCmd.ExecuteContext(cmdnode.WithEnv(context.Background()))
+		err := rootCmd.ExecuteContext(context.Background())
 		require.NoError(t, err)
 	})
 
@@ -76,7 +74,7 @@ func TestBridge(t *testing.T) {
 			"--node.store", ".celestia-bridge",
 			"init",
 		})
-		err := rootCmd.ExecuteContext(cmdnode.WithEnv(context.Background()))
+		err := rootCmd.ExecuteContext(context.Background())
 		require.NoError(t, err)
 	})
 

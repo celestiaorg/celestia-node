@@ -43,44 +43,46 @@ var lightCmd = &cobra.Command{
 	Args:  cobra.NoArgs,
 	Short: "Manage your Light node",
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-		env, err := cmdnode.GetEnv(cmd.Context())
-		if err != nil {
-			return err
-		}
-		env.SetNodeType(node.Light)
+		var (
+			ctx = cmd.Context()
+			err error
+		)
 
-		err = cmdnode.ParseNodeFlags(cmd, env)
-		if err != nil {
-			return err
-		}
+		ctx = cmdnode.WithNodeType(ctx, node.Light)
 
-		err = cmdnode.ParseP2PFlags(cmd, env)
+		ctx, err = cmdnode.ParseNodeFlags(ctx, cmd)
 		if err != nil {
 			return err
 		}
 
-		err = cmdnode.ParseCoreFlags(cmd, env)
+		ctx, err = cmdnode.ParseP2PFlags(ctx, cmd)
 		if err != nil {
 			return err
 		}
 
-		err = cmdnode.ParseHeadersFlags(cmd, env)
+		ctx, err = cmdnode.ParseCoreFlags(ctx, cmd)
 		if err != nil {
 			return err
 		}
 
-		err = cmdnode.ParseMiscFlags(cmd, env)
+		ctx, err = cmdnode.ParseHeadersFlags(ctx, cmd)
 		if err != nil {
 			return err
 		}
 
-		err = cmdnode.ParseRPCFlags(cmd, env)
+		ctx, err = cmdnode.ParseMiscFlags(ctx, cmd)
 		if err != nil {
 			return err
 		}
 
-		cmdnode.ParseKeyFlags(cmd, env)
+		ctx, err = cmdnode.ParseRPCFlags(ctx, cmd)
+		if err != nil {
+			return err
+		}
 
+		ctx = cmdnode.ParseKeyFlags(ctx, cmd)
+
+		cmd.SetContext(ctx)
 		return nil
 	},
 }
