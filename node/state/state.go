@@ -16,10 +16,11 @@ import (
 
 var log = logging.Logger("state-access-constructor")
 
-// Components provides all components necessary to construct the
+// Module provides all components necessary to construct the
 // state service.
-func Components(coreCfg core.Config, keyCfg key.Config) fx.Option {
-	return fx.Options(
+func Module(coreCfg core.Config, keyCfg key.Config) fx.Option {
+	return fx.Module(
+		"state",
 		fx.Provide(Keyring(keyCfg)),
 		fx.Provide(CoreAccessor(coreCfg.IP, coreCfg.RPCPort, coreCfg.GRPCPort)),
 		fx.Provide(Service),

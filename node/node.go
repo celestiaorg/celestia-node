@@ -19,6 +19,7 @@ import (
 	"github.com/celestiaorg/celestia-node/core"
 	"github.com/celestiaorg/celestia-node/das"
 	"github.com/celestiaorg/celestia-node/fraud"
+	"github.com/celestiaorg/celestia-node/node/config"
 	"github.com/celestiaorg/celestia-node/params"
 	"github.com/celestiaorg/celestia-node/service/header"
 	"github.com/celestiaorg/celestia-node/service/rpc"
@@ -39,10 +40,10 @@ var log = logging.Logger("node")
 type Node struct {
 	fx.In `ignore-unexported:"true"`
 
-	Type          Type
+	Type          config.NodeType
 	Network       params.Network
 	Bootstrappers params.Bootstrappers
-	Config        *Config
+	Config        *config.Config
 
 	// CoreClient provides access to a Core node process.
 	CoreClient core.Client `optional:"true"`
@@ -69,26 +70,26 @@ type Node struct {
 }
 
 // New assembles a new Node with the given type 'tp' over Store 'store'.
-func New(tp Type, store Store, options ...Option) (*Node, error) {
+func New(tp config.NodeType, store Store, options ...config.Option) (*Node, error) {
 	cfg, err := store.Config()
 	if err != nil {
 		return nil, err
 	}
 
-	s := &settings{cfg: cfg}
+	s := &config.Settings{Cfg: cfg}
 	for _, option := range options {
 		option(s)
 	}
 
 	switch tp {
-	case Bridge:
-		return newNode(bridgeComponents(s.cfg, store), fx.Options(s.opts...))
-	case Light:
-		return newNode(lightComponents(s.cfg, store), fx.Options(s.opts...))
-	case Full:
-		return newNode(fullComponents(s.cfg, store), fx.Options(s.opts...))
+	case config.Bridge:
+		return newNode(bridgeComponents(s.Cfg, store), fx.Options(s.Opts...))
+	case config.Light:
+		return newNode(lightComponents(s.Cfg, store), fx.Options(s.Opts...))
+	case config.Full:
+		return newNode(fullComponents(s.Cfg, store), fx.Options(s.Opts...))
 	default:
-		panic("node: unknown Node Type")
+		panic("node: unknown Node NodeType")
 	}
 }
 

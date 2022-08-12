@@ -6,7 +6,7 @@ import (
 
 	"context"
 
-	"github.com/celestiaorg/celestia-node/node"
+	"github.com/celestiaorg/celestia-node/node/state"
 )
 
 var keyringAccNameFlag = "keyring.accname"
@@ -22,7 +22,7 @@ func KeyFlags() *flag.FlagSet {
 func ParseKeyFlags(ctx context.Context, cmd *cobra.Command) context.Context {
 	keyringAccName := cmd.Flag(keyringAccNameFlag).Value.String()
 	if keyringAccName != "" {
-		return WithNodeOptions(ctx, node.WithKeyringAccName(keyringAccName))
+		return WithNodeOptions(ctx, state.WithKeyringAccName(keyringAccName))
 	}
 	return ctx
 }
