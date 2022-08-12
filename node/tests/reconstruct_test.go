@@ -118,13 +118,13 @@ func TestFullReconstructFromLights(t *testing.T) {
 	cfg.P2P.Bootstrapper = true
 	bridge := sw.NewBridgeNode()
 	addrsBridge, err := peer.AddrInfoToP2pAddrs(host.InfoFromHost(bridge.Host))
+	require.NoError(t, err)
 	bootstrapConfig := append([]node.Option{node.WithConfig(cfg)}, defaultOptions...)
 	bootstapFN := sw.NewFullNode(bootstrapConfig...)
 	require.NoError(t, bootstapFN.Start(ctx))
 	require.NoError(t, bridge.Start(ctx))
 	addrBootstrapNode := host.InfoFromHost(bootstapFN.Host)
 
-	require.NoError(t, err)
 	nodesConfig := append(
 		[]node.Option{
 			node.WithTrustedPeers(addrsBridge[0].String()),
