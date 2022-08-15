@@ -21,7 +21,6 @@ import (
 	tmtime "github.com/tendermint/tendermint/types/time"
 
 	"github.com/celestiaorg/celestia-node/core"
-
 	"github.com/celestiaorg/celestia-node/ipld"
 )
 
