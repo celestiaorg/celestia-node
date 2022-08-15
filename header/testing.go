@@ -9,7 +9,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/celestiaorg/celestia-node/core"
 	"github.com/ipfs/go-blockservice"
 	"github.com/stretchr/testify/require"
 	"github.com/tendermint/tendermint/crypto/tmhash"
@@ -20,6 +19,8 @@ import (
 	"github.com/tendermint/tendermint/proto/tendermint/version"
 	"github.com/tendermint/tendermint/types"
 	tmtime "github.com/tendermint/tendermint/types/time"
+
+	"github.com/celestiaorg/celestia-node/core"
 
 	"github.com/celestiaorg/celestia-node/ipld"
 )

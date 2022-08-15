@@ -1,6 +1,7 @@
 package state
 
 import (
+	"cosmossdk.io/math"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	coretypes "github.com/tendermint/tendermint/types"
 )
@@ -18,4 +19,4 @@ type TxResponse = sdk.TxResponse
 type Address = sdk.Address
 
 // Int is an alias to the Int type from Cosmos-SDK.
-type Int = sdk.Int
+type Int = math.Int
