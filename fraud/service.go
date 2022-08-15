@@ -11,12 +11,18 @@ import (
 	"github.com/ipfs/go-datastore"
 	"github.com/libp2p/go-libp2p-core/peer"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/trace"
 )
 
 const (
 	// fetchHeaderTimeout duration of GetByHeight request to fetch an ExtendedHeader.
 	fetchHeaderTimeout = time.Minute * 2
 )
+
+var tracer = otel.Tracer("fraud")
 
 // service is responsible for validating and propagating Fraud Proofs.
 // It implements the Service interface.
@@ -61,17 +67,26 @@ func (f *service) Subscribe(proofType ProofType) (_ Subscription, err error) {
 }
 
 func (f *service) Broadcast(ctx context.Context, p Proof) error {
+	ctx, span := tracer.Start(ctx, "broadcast")
+	defer span.End()
+
 	bin, err := p.MarshalBinary()
 	if err != nil {
+		span.RecordError(err)
 		return err
 	}
 	f.topicsLk.RLock()
 	t, ok := f.topics[p.Type()]
 	f.topicsLk.RUnlock()
 	if !ok {
+		span.RecordError(err)
 		return fmt.Errorf("fraud: unmarshaler for %s proof is not registered", p.Type())
 	}
-	return t.Publish(ctx, bin)
+	err = t.Publish(ctx, bin)
+	if err != nil {
+		span.RecordError(err)
+	}
+	return err
 }
 
 func (f *service) processIncoming(
@@ -80,8 +95,13 @@ func (f *service) processIncoming(
 	from peer.ID,
 	msg *pubsub.Message,
 ) pubsub.ValidationResult {
+	ctx, span := tracer.Start(ctx, "fraud proof validating", trace.WithAttributes(
+		attribute.String("proofType", proofType.String()),
+	))
+	defer span.End()
 	proof, err := Unmarshal(proofType, msg.Data)
 	if err != nil {
+		span.RecordError(err)
 		log.Error(err)
 		if !errors.Is(err, &errNoUnmarshaler{}) {
 			f.pubsub.BlacklistPeer(from)
@@ -93,6 +113,7 @@ func (f *service) processIncoming(
 	extHeader, err := f.getter(newCtx, proof.Height())
 	defer cancel()
 	if err != nil {
+		span.RecordError(err)
 		// Timeout means there is a problem with the network.
 		// As we cannot prove or discard Fraud Proof, user must restart the node.
 		if errors.Is(err, context.DeadlineExceeded) {
@@ -105,6 +126,7 @@ func (f *service) processIncoming(
 	}
 	err = proof.Validate(extHeader)
 	if err != nil {
+		span.RecordError(err)
 		log.Errorw("proof validation err: ",
 			"err", err, "proofType", proof.Type(), "height", proof.Height())
 		f.pubsub.BlacklistPeer(from)
@@ -128,6 +150,7 @@ func (f *service) processIncoming(
 		log.Error(err)
 	}
 	log.Warn("Shutting down services...")
+	span.SetStatus(codes.Ok, "fraud proof validated")
 	return pubsub.ValidationAccept
 }
 
