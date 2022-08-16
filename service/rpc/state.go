@@ -13,10 +13,14 @@ import (
 )
 
 const (
-	balanceEndpoint   = "/balance"
-	submitTxEndpoint  = "/submit_tx"
-	submitPFDEndpoint = "/submit_pfd"
-	transferEndpoint  = "/transfer"
+	balanceEndpoint           = "/balance"
+	submitTxEndpoint          = "/submit_tx"
+	submitPFDEndpoint         = "/submit_pfd"
+	transferEndpoint          = "/transfer"
+	delegationEndpoint        = "/delegate"
+	undelegationEndpoint      = "/begin_unbonding"
+	cancelUnbondingEndpoint   = "/cancel_unbond"
+	beginRedelegationEndpoint = "/begin_redelegate"
 )
 
 var addrKey = "address"
@@ -37,6 +41,37 @@ type submitPFDRequest struct {
 type transferRequest struct {
 	To       string `json:"to"`
 	Amount   int64  `json:"amount"`
+	GasLimit uint64 `json:"gas_limit"`
+}
+
+// delegationRequest represents a request for both delegation
+// and for beginning and canceling undelegation
+type delegationRequest struct {
+	To       string `json:"to"`
+	Amount   int64  `json:"amount"`
+	GasLimit uint64 `json:"gas_limit"`
+}
+
+// redelegationRequest represents a request for redelegation
+type redelegationRequest struct {
+	From     string `json:"from"`
+	To       string `json:"to"`
+	Amount   int64  `json:"amount"`
+	GasLimit uint64 `json:"gas_limit"`
+}
+
+// unbondRequest represents a request to begin unbonding
+type unbondRequest struct {
+	From     string `json:"from"`
+	Amount   int64  `json:"amount"`
+	GasLimit uint64 `json:"gas_limit"`
+}
+
+// cancelUnbondRequest represents a request to cancel unbonding
+type cancelUnbondRequest struct {
+	From     string `json:"from"`
+	Amount   int64  `json:"amount"`
+	Height   int64  `json:"height"`
 	GasLimit uint64 `json:"gas_limit"`
 }
 
@@ -170,5 +205,146 @@ func (h *Handler) handleTransfer(w http.ResponseWriter, r *http.Request) {
 	_, err = w.Write(resp)
 	if err != nil {
 		log.Errorw("writing response", "endpoint", transferEndpoint, "err", err)
+	}
+}
+
+func (h *Handler) handleDelegation(w http.ResponseWriter, r *http.Request) {
+	var req delegationRequest
+	err := json.NewDecoder(r.Body).Decode(&req)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, delegationEndpoint, err)
+		return
+	}
+	if req.Amount <= 0 {
+		writeError(w, http.StatusBadRequest, delegationEndpoint, errors.New("amount must be greater than 0"))
+		return
+	}
+	addr, err := types.ValAddressFromBech32(req.To)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, delegationEndpoint, err)
+		return
+	}
+	amount := types.NewInt(req.Amount)
+
+	txResp, err := h.state.Delegate(r.Context(), addr, amount, req.GasLimit)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, delegationEndpoint, err)
+		return
+	}
+	resp, err := json.Marshal(txResp)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, delegationEndpoint, err)
+		return
+	}
+	_, err = w.Write(resp)
+	if err != nil {
+		log.Errorw("writing response", "endpoint", delegationEndpoint, "err", err)
+	}
+}
+
+func (h *Handler) handleUndelegation(w http.ResponseWriter, r *http.Request) {
+	var req unbondRequest
+	err := json.NewDecoder(r.Body).Decode(&req)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, undelegationEndpoint, err)
+		return
+	}
+	if req.Amount <= 0 {
+		writeError(w, http.StatusBadRequest, undelegationEndpoint, errors.New("amount must be greater than 0"))
+		return
+	}
+	addr, err := types.ValAddressFromBech32(req.From)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, undelegationEndpoint, err)
+		return
+	}
+	amount := types.NewInt(req.Amount)
+
+	txResp, err := h.state.Undelegate(r.Context(), addr, amount, req.GasLimit)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, undelegationEndpoint, err)
+		return
+	}
+	resp, err := json.Marshal(txResp)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, undelegationEndpoint, err)
+		return
+	}
+	_, err = w.Write(resp)
+	if err != nil {
+		log.Errorw("writing response", "endpoint", undelegationEndpoint, "err", err)
+	}
+}
+
+func (h *Handler) handleCancelUnbonding(w http.ResponseWriter, r *http.Request) {
+	var req cancelUnbondRequest
+	err := json.NewDecoder(r.Body).Decode(&req)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, cancelUnbondingEndpoint, err)
+		return
+	}
+	if req.Amount <= 0 {
+		writeError(w, http.StatusBadRequest, cancelUnbondingEndpoint, errors.New("amount must be greater than 0"))
+		return
+	}
+	addr, err := types.ValAddressFromBech32(req.From)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, cancelUnbondingEndpoint, err)
+		return
+	}
+	amount := types.NewInt(req.Amount)
+	height := types.NewInt(req.Height)
+	txResp, err := h.state.CancelUnbondingDelegation(r.Context(), addr, amount, height, req.GasLimit)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, cancelUnbondingEndpoint, err)
+		return
+	}
+	resp, err := json.Marshal(txResp)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, cancelUnbondingEndpoint, err)
+		return
+	}
+	_, err = w.Write(resp)
+	if err != nil {
+		log.Errorw("writing response", "endpoint", cancelUnbondingEndpoint, "err", err)
+	}
+}
+
+func (h *Handler) handleRedelegation(w http.ResponseWriter, r *http.Request) {
+	var req redelegationRequest
+	err := json.NewDecoder(r.Body).Decode(&req)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, beginRedelegationEndpoint, err)
+		return
+	}
+	if req.Amount <= 0 {
+		writeError(w, http.StatusBadRequest, beginRedelegationEndpoint, errors.New("amount must be greater than 0"))
+		return
+	}
+	srcAddr, err := types.ValAddressFromBech32(req.From)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, beginRedelegationEndpoint, err)
+		return
+	}
+	dstAddr, err := types.ValAddressFromBech32(req.To)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, beginRedelegationEndpoint, err)
+		return
+	}
+	amount := types.NewInt(req.Amount)
+
+	txResp, err := h.state.BeginRedelegate(r.Context(), srcAddr, dstAddr, amount, req.GasLimit)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, beginRedelegationEndpoint, err)
+		return
+	}
+	resp, err := json.Marshal(txResp)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, beginRedelegationEndpoint, err)
+		return
+	}
+	_, err = w.Write(resp)
+	if err != nil {
+		log.Errorw("writing response", "endpoint", beginRedelegationEndpoint, "err", err)
 	}
 }

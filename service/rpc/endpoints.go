@@ -13,6 +13,10 @@ func (h *Handler) RegisterEndpoints(rpc *Server) {
 	rpc.RegisterHandlerFunc(submitTxEndpoint, h.handleSubmitTx, http.MethodPost)
 	rpc.RegisterHandlerFunc(submitPFDEndpoint, h.handleSubmitPFD, http.MethodPost)
 	rpc.RegisterHandlerFunc(transferEndpoint, h.handleTransfer, http.MethodPost)
+	rpc.RegisterHandlerFunc(delegationEndpoint, h.handleDelegation, http.MethodPost)
+	rpc.RegisterHandlerFunc(undelegationEndpoint, h.handleUndelegation, http.MethodPost)
+	rpc.RegisterHandlerFunc(cancelUnbondingEndpoint, h.handleCancelUnbonding, http.MethodPost)
+	rpc.RegisterHandlerFunc(beginRedelegationEndpoint, h.handleRedelegation, http.MethodPost)
 
 	// share endpoints
 	rpc.RegisterHandlerFunc(fmt.Sprintf("%s/{%s}/height/{%s}", namespacedSharesEndpoint, nIDKey, heightKey),

@@ -8,6 +8,7 @@ import (
 	sdktypes "github.com/cosmos/cosmos-sdk/types"
 	sdktx "github.com/cosmos/cosmos-sdk/types/tx"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
+	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 	proofutils "github.com/cosmos/ibc-go/v4/modules/core/23-commitment/types"
 	logging "github.com/ipfs/go-log/v2"
 	rpcclient "github.com/tendermint/tendermint/rpc/client"
@@ -227,6 +228,104 @@ func (ca *CoreAccessor) Transfer(
 	}
 	coins := sdktypes.NewCoins(sdktypes.NewCoin(app.BondDenom, amount))
 	msg := banktypes.NewMsgSend(from, to, coins)
+	signedTx, err := ca.constructSignedTx(ctx, msg, apptypes.SetGasLimit(gasLim))
+	if err != nil {
+		return nil, err
+	}
+	return ca.SubmitTx(ctx, signedTx)
+}
+
+func (ca *CoreAccessor) CancelUnbondingDelegation(
+	ctx context.Context,
+	valAddr Address,
+	amount,
+	height Int,
+	gasLim uint64,
+) (*TxResponse, error) {
+	validator, ok := valAddr.(sdktypes.ValAddress)
+	if !ok {
+		return nil, fmt.Errorf("state: unsupported address type")
+	}
+	from, err := ca.signer.GetSignerInfo().GetAddress()
+	if err != nil {
+		return nil, err
+	}
+	coins := sdktypes.NewCoin(app.BondDenom, amount)
+	msg := stakingtypes.NewMsgCancelUnbondingDelegation(from, validator, height.Int64(), coins)
+	signedTx, err := ca.constructSignedTx(ctx, msg, apptypes.SetGasLimit(gasLim))
+	if err != nil {
+		return nil, err
+	}
+	return ca.SubmitTx(ctx, signedTx)
+}
+
+func (ca *CoreAccessor) BeginRedelegate(
+	ctx context.Context,
+	srcValAddr,
+	dstValAddr Address,
+	amount Int,
+	gasLim uint64,
+) (*TxResponse, error) {
+	srcValidator, ok := srcValAddr.(sdktypes.ValAddress)
+	if !ok {
+		return nil, fmt.Errorf("state: unsupported address type")
+	}
+	dstValidator, ok := dstValAddr.(sdktypes.ValAddress)
+	if !ok {
+		return nil, fmt.Errorf("state: unsupported address type")
+	}
+	from, err := ca.signer.GetSignerInfo().GetAddress()
+	if err != nil {
+		return nil, err
+	}
+	coins := sdktypes.NewCoin(app.BondDenom, amount)
+	msg := stakingtypes.NewMsgBeginRedelegate(from, srcValidator, dstValidator, coins)
+	signedTx, err := ca.constructSignedTx(ctx, msg, apptypes.SetGasLimit(gasLim))
+	if err != nil {
+		return nil, err
+	}
+	return ca.SubmitTx(ctx, signedTx)
+}
+
+func (ca *CoreAccessor) Undelegate(
+	ctx context.Context,
+	delAddr Address,
+	amount Int,
+	gasLim uint64,
+) (*TxResponse, error) {
+	delegate, ok := delAddr.(sdktypes.ValAddress)
+	if !ok {
+		return nil, fmt.Errorf("state: unsupported address type")
+	}
+	from, err := ca.signer.GetSignerInfo().GetAddress()
+	if err != nil {
+		return nil, err
+	}
+	coins := sdktypes.NewCoin(app.BondDenom, amount)
+	msg := stakingtypes.NewMsgUndelegate(from, delegate, coins)
+	signedTx, err := ca.constructSignedTx(ctx, msg, apptypes.SetGasLimit(gasLim))
+	if err != nil {
+		return nil, err
+	}
+	return ca.SubmitTx(ctx, signedTx)
+}
+
+func (ca *CoreAccessor) Delegate(
+	ctx context.Context,
+	delAddr Address,
+	amount Int,
+	gasLim uint64,
+) (*TxResponse, error) {
+	delegate, ok := delAddr.(sdktypes.ValAddress)
+	if !ok {
+		return nil, fmt.Errorf("state: unsupported address type")
+	}
+	from, err := ca.signer.GetSignerInfo().GetAddress()
+	if err != nil {
+		return nil, err
+	}
+	coins := sdktypes.NewCoin(app.BondDenom, amount)
+	msg := stakingtypes.NewMsgDelegate(from, delegate, coins)
 	signedTx, err := ca.constructSignedTx(ctx, msg, apptypes.SetGasLimit(gasLim))
 	if err != nil {
 		return nil, err

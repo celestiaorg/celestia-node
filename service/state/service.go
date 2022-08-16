@@ -51,6 +51,34 @@ func (s *Service) Transfer(ctx context.Context, to Address, amount Int, gasLimit
 	return s.accessor.Transfer(ctx, to, amount, gasLimit)
 }
 
+func (s *Service) CancelUnbondingDelegation(
+	ctx context.Context,
+	valAddr Address,
+	amount,
+	height Int,
+	gasLim uint64,
+) (*TxResponse, error) {
+	return s.accessor.CancelUnbondingDelegation(ctx, valAddr, amount, height, gasLim)
+}
+
+func (s *Service) BeginRedelegate(
+	ctx context.Context,
+	srcValAddr,
+	dstValAddr Address,
+	amount Int,
+	gasLim uint64,
+) (*TxResponse, error) {
+	return s.accessor.BeginRedelegate(ctx, srcValAddr, dstValAddr, amount, gasLim)
+}
+
+func (s *Service) Undelegate(ctx context.Context, delAddr Address, amount Int, gasLim uint64) (*TxResponse, error) {
+	return s.accessor.Undelegate(ctx, delAddr, amount, gasLim)
+}
+
+func (s *Service) Delegate(ctx context.Context, delAddr Address, amount Int, gasLim uint64) (*TxResponse, error) {
+	return s.accessor.Delegate(ctx, delAddr, amount, gasLim)
+}
+
 func (s *Service) Start(context.Context) error {
 	s.ctx, s.cancel = context.WithCancel(context.Background())
 	return nil
