@@ -25,18 +25,18 @@ const defaultRetainBlocks int64 = 10000
 
 // StartTestNode starts a mock Core node background process and returns it.
 func StartTestNode(ctx context.Context, t *testing.T, app types.Application, cfg *config.Config) tmservice.Service {
-	nd, closer, err := rpctest.StartTendermint(ctx, cfg, app, rpctest.SuppressStdout)
-	require.NoError(t, err)
+	nd := rpctest.StartTendermint(app, rpctest.SuppressStdout, func(options *rpctest.Options) {
+		options.SpecificConfig = cfg
+	})
 	t.Cleanup(func() {
-		require.NoError(t, closer(ctx))
+		rpctest.StopTendermint(nd)
 	})
 	return nd
 }
 
 // StartTestKVApp starts Tendermint KVApp.
 func StartTestKVApp(ctx context.Context, t *testing.T) (tmservice.Service, types.Application, *config.Config) {
-	cfg, err := rpctest.CreateConfig("Dummy_TmNode")
-	require.NoError(t, err)
+	cfg := rpctest.GetConfig(true)
 	app := CreateKVStore(defaultRetainBlocks)
 	return StartTestNode(ctx, t, app, cfg), app, cfg
 }
@@ -88,7 +88,7 @@ func RandValidator(randPower bool, minPower int64) (*tmtypes.Validator, tmtypes.
 		// nolint:gosec // G404: Use of weak random number generator
 		votePower += int64(rand.Uint32())
 	}
-	pubKey, err := privVal.GetPubKey(context.Background())
+	pubKey, err := privVal.GetPubKey()
 	if err != nil {
 		panic(fmt.Errorf("could not retrieve pubkey %w", err))
 	}
@@ -118,7 +118,7 @@ func MakeCommit(blockID tmtypes.BlockID, height int64, round int32,
 
 	// all sign
 	for i := 0; i < len(validators); i++ {
-		pubKey, err := validators[i].GetPubKey(context.Background())
+		pubKey, err := validators[i].GetPubKey()
 		if err != nil {
 			return nil, fmt.Errorf("can't get pubkey: %w", err)
 		}
@@ -143,7 +143,7 @@ func MakeCommit(blockID tmtypes.BlockID, height int64, round int32,
 
 func signAddVote(privVal tmtypes.PrivValidator, vote *tmtypes.Vote, voteSet *tmtypes.VoteSet) (signed bool, err error) {
 	v := vote.ToProto()
-	err = privVal.SignVote(context.Background(), voteSet.ChainID(), v)
+	err = privVal.SignVote(voteSet.ChainID(), v)
 	if err != nil {
 		return false, err
 	}

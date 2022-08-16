@@ -73,7 +73,7 @@ func (ca *CoreAccessor) Start(ctx context.Context) error {
 	queryCli := banktypes.NewQueryClient(ca.coreConn)
 	ca.queryCli = queryCli
 	// create ABCI query client
-	cli, err := http.New(fmt.Sprintf("http://%s:%s", ca.coreIP, ca.rpcPort))
+	cli, err := http.New(fmt.Sprintf("http://%s:%s", ca.coreIP, ca.rpcPort), "/websocket")
 	if err != nil {
 		return err
 	}

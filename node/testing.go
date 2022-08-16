@@ -49,7 +49,7 @@ func TestNode(t *testing.T, tp Type, opts ...Option) *Node {
 }
 
 func TestKeyringSigner(t *testing.T) *apptypes.KeyringSigner {
-	encConf := encoding.MakeEncodingConfig(app.ModuleEncodingRegisters...)
+	encConf := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	ring := keyring.NewInMemory(encConf.Codec)
 	signer := apptypes.NewKeyringSigner(ring, "", string(params.Private))
 	_, _, err := signer.NewMnemonic("test_celes", keyring.English, "",

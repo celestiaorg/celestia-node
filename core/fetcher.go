@@ -13,7 +13,7 @@ const newBlockSubscriber = "NewBlock/Events"
 
 var (
 	log                = logging.Logger("core/fetcher")
-	newBlockEventQuery = types.QueryForEvent(types.EventNewBlockValue).String()
+	newBlockEventQuery = types.QueryForEvent(types.EventNewBlock).String()
 )
 
 type BlockFetcher struct {
