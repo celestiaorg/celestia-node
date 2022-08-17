@@ -2,6 +2,7 @@ package fraud
 
 import (
 	"context"
+	"encoding/hex"
 	"errors"
 	"testing"
 	"time"
@@ -78,10 +79,10 @@ func Test_GetByHash(t *testing.T) {
 	p := CreateBadEncodingProof(h.Hash(), uint64(faultDAH.Height), errByz)
 	bin, err := p.MarshalBinary()
 	require.NoError(t, err)
-	err = put(ctx, badEncodingStore, p.HeaderHash(), bin)
+	err = put(ctx, badEncodingStore, hex.EncodeToString(p.HeaderHash()), bin)
 	require.NoError(t, err)
 
-	rawData, err := getByHash(ctx, badEncodingStore, p.HeaderHash())
+	rawData, err := getByHash(ctx, badEncodingStore, hex.EncodeToString(p.HeaderHash()))
 	require.NoError(t, err)
 	require.NotEmpty(t, rawData)
 	befp, err := UnmarshalBEFP(rawData)

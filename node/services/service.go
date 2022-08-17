@@ -245,13 +245,7 @@ func FullAvailability(cfg Config) func(
 }
 
 // CacheAvailability wraps either Full or Light availability with a cache for result sampling.
-func CacheAvailability[A share.Availability](
-	ctx context.Context,
-	lc fx.Lifecycle,
-	ds datastore.Batching,
-	fservice fraud.Service,
-	avail A,
-) share.Availability {
+func CacheAvailability[A share.Availability](lc fx.Lifecycle, ds datastore.Batching, avail A) share.Availability {
 	ca := share.NewCacheAvailability(avail, ds)
 	lc.Append(fx.Hook{
 		OnStop: ca.Close,

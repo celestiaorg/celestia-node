@@ -3,6 +3,7 @@ package fraud
 import (
 	"bytes"
 	"context"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"sync"
@@ -116,8 +117,8 @@ func (f *ProofService) processIncoming(
 		}
 		return pubsub.ValidationReject
 	}
-	// we can skip incoming proof if it has been already stored locally
-	if f.verifyLocal(ctx, proofType, proof.HeaderHash(), msg.Data) {
+	// we can skip an incoming proof if it has been already stored locally
+	if f.verifyLocal(ctx, proofType, hex.EncodeToString(proof.HeaderHash()), msg.Data) {
 		return pubsub.ValidationIgnore
 	}
 
@@ -138,7 +139,7 @@ func (f *ProofService) processIncoming(
 		return pubsub.ValidationReject
 	}
 
-	err = f.put(ctx, proof.Type(), proof.HeaderHash(), msg.Data)
+	err = f.put(ctx, proof.Type(), hex.EncodeToString(proof.HeaderHash()), msg.Data)
 	if err != nil {
 		log.Error("error while adding a fraud proof to storage: ", err)
 	}
@@ -182,8 +183,13 @@ func (f *ProofService) handleFraudMessageRequest(stream network.Stream) {
 	errg, ctx := errgroup.WithContext(context.Background())
 	mu := sync.Mutex{}
 	for _, p := range req.RequestedProofType {
-		proofType := pbToProof(p)
+		p := p
 		errg.Go(func() error {
+			proofType, err := pbToProof(p)
+			if err != nil {
+				log.Warn(err)
+				return nil
+			}
 			proofs, err := f.Get(ctx, proofType)
 			if err != nil {
 				if errors.Is(err, datastore.ErrNotFound) {
@@ -198,7 +204,7 @@ func (f *ProofService) handleFraudMessageRequest(stream network.Stream) {
 					log.Warn(err)
 					continue
 				}
-				proof := &pb.ProofResponse{Type: proofToPb(proofType), Value: bin}
+				proof := &pb.ProofResponse{Type: p, Value: bin}
 				mu.Lock()
 				resp.Proofs = append(resp.Proofs, proof)
 				mu.Unlock()
@@ -229,7 +235,12 @@ func (f *ProofService) syncFraudProofs(ctx context.Context) {
 	f.topicsLk.RLock()
 	proofTypes := make([]pb.ProofType, 0, len(f.topics))
 	for proofType := range f.topics {
-		proofTypes = append(proofTypes, proofToPb(proofType))
+		p, err := proofToPb(proofType)
+		if err != nil {
+			log.Warn(err)
+			continue
+		}
+		proofTypes = append(proofTypes, p)
 	}
 	f.topicsLk.RUnlock()
 	connStatus := event.EvtPeerIdentificationCompleted{}
@@ -259,11 +270,16 @@ func (f *ProofService) syncFraudProofs(ctx context.Context) {
 			wg := sync.WaitGroup{}
 			wg.Add(len(respProofs))
 			for _, data := range respProofs {
+				proofType, err := pbToProof(data.Type)
+				if err != nil {
+					log.Warn(err)
+					continue
+				}
 				f.topicsLk.RLock()
-				topic, ok := f.topics[pbToProof(data.Type)]
+				topic, ok := f.topics[proofType]
 				f.topicsLk.RUnlock()
 				if !ok {
-					log.Errorf("topic for %s is not exist", pbToProof(data.Type))
+					log.Errorf("topic for %s is not exist", proofType)
 					continue
 				}
 				err = topic.Publish(

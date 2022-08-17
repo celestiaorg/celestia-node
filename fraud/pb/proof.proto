@@ -18,7 +18,8 @@ message BadEncoding {
 }
 
 enum proofType {
-  BADENCODING = 0;
+  INVALID = 0;
+  BADENCODING = 1;
 }
 
 message FraudMessageRequest {
