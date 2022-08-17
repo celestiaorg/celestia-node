@@ -27,7 +27,7 @@ var blackholeIP6 = net.ParseIP("100::")
 
 const subscriberID string = "NewBlockSwamp/Events"
 
-var queryEvent string = types.QueryForEvent(types.EventNewBlockValue).String()
+var queryEvent string = types.QueryForEvent(types.EventNewBlock).String()
 
 // Swamp represents the main functionality that is needed for the test-case:
 // - Network to link the nodes
@@ -70,6 +70,10 @@ func NewSwamp(t *testing.T, options ...Option) *Swamp {
 	require.NoError(t, err)
 	remote, err := core.NewRemote(ip, port)
 	require.NoError(t, err)
+	t.Cleanup(func() {
+		err := remote.Stop()
+		require.NoError(t, err)
+	})
 
 	err = remote.Start()
 	require.NoError(t, err)

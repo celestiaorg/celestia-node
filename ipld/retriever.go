@@ -189,7 +189,7 @@ func (rs *retrievalSession) Reconstruct(ctx context.Context) (*rsmt2d.ExtendedDa
 	defer span.End()
 
 	// and try to repair with what we have
-	err := rs.squareImported.Repair(rs.dah.RowsRoots, rs.dah.ColumnRoots, rs.codec, rs.treeFn)
+	err := rs.squareImported.Repair(rs.dah.RowsRoots, rs.dah.ColumnRoots)
 	if err != nil {
 		span.RecordError(err)
 		return nil, err

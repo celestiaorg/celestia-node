@@ -1,6 +1,8 @@
 package state
 
 import (
+	"cosmossdk.io/math"
+
 	"context"
 
 	"github.com/cosmos/cosmos-sdk/types"
@@ -29,7 +31,7 @@ type Accessor interface {
 	BalanceForAddress(ctx context.Context, addr Address) (*Balance, error)
 
 	// Transfer sends the given amount of coins from default wallet of the node to the given account address.
-	Transfer(ctx context.Context, to types.Address, amount types.Int, gasLimit uint64) (*TxResponse, error)
+	Transfer(ctx context.Context, to types.Address, amount math.Int, gasLimit uint64) (*TxResponse, error)
 	// SubmitTx submits the given transaction/message to the
 	// Celestia network and blocks until the tx is included in
 	// a block.

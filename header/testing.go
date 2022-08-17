@@ -14,11 +14,11 @@ import (
 	"github.com/tendermint/tendermint/crypto/tmhash"
 	"github.com/tendermint/tendermint/libs/bytes"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
-	tmtime "github.com/tendermint/tendermint/libs/time"
 	"github.com/tendermint/tendermint/pkg/da"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
+	"github.com/tendermint/tendermint/proto/tendermint/version"
 	"github.com/tendermint/tendermint/types"
-	"github.com/tendermint/tendermint/version"
+	tmtime "github.com/tendermint/tendermint/types/time"
 
 	"github.com/celestiaorg/celestia-node/core"
 
@@ -171,7 +171,7 @@ func RandExtendedHeader(t *testing.T) *ExtendedHeader {
 // RandRawHeader provides a RawHeader fixture.
 func RandRawHeader(t *testing.T) *RawHeader {
 	return &RawHeader{
-		Version:            version.Consensus{Block: uint64(11), App: uint64(1)},
+		Version:            version.Consensus{Block: 11, App: 1},
 		ChainID:            "test",
 		Height:             mrand.Int63(), //nolint:gosec
 		Time:               time.Now(),

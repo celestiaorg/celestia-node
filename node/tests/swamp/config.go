@@ -5,7 +5,6 @@ import (
 
 	"github.com/tendermint/tendermint/abci/types"
 	tn "github.com/tendermint/tendermint/config"
-	rpctest "github.com/tendermint/tendermint/rpc/test"
 
 	"github.com/celestiaorg/celestia-node/core"
 )
@@ -20,10 +19,7 @@ type Components struct {
 // In addition, the empty block interval is set to 200ms
 func DefaultComponents() *Components {
 	app := core.CreateKVStore(2000)
-	tnCfg, err := rpctest.CreateConfig("swamp_tm")
-	if err != nil {
-		panic(err)
-	}
+	tnCfg := tn.ResetTestRoot("swamp_tests")
 	tnCfg.Consensus.CreateEmptyBlocksInterval = 100 * time.Millisecond
 	return &Components{
 		App:     app,
