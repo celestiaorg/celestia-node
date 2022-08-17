@@ -12,10 +12,10 @@ help: Makefile
 .PHONY: help
 
 ## init: Install git-hooks from .githooks directory.
-init:
+init-hooks:
 	@echo "--> Installing git hooks"
 	@git config core.hooksPath .githooks
-.PHONY: init
+.PHONY: init-hooks
 
 ## build: Build celestia-node binary.
 build:
