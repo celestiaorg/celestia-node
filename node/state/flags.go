@@ -1,12 +1,10 @@
-package cmd
+package state
 
 import (
 	"github.com/spf13/cobra"
 	flag "github.com/spf13/pflag"
 
-	"context"
-
-	"github.com/celestiaorg/celestia-node/node/state"
+	"github.com/celestiaorg/celestia-node/node/node"
 )
 
 var keyringAccNameFlag = "keyring.accname"
@@ -19,10 +17,10 @@ func KeyFlags() *flag.FlagSet {
 	return flags
 }
 
-func ParseKeyFlags(ctx context.Context, cmd *cobra.Command) context.Context {
+func ParseKeyFlags(cmd *cobra.Command) []node.Option {
 	keyringAccName := cmd.Flag(keyringAccNameFlag).Value.String()
 	if keyringAccName != "" {
-		return WithNodeOptions(ctx, state.WithKeyringAccName(keyringAccName))
+		return []node.Option{WithKeyringAccName(keyringAccName)}
 	}
-	return ctx
+	return []node.Option{}
 }

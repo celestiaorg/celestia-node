@@ -6,6 +6,7 @@ import (
 
 	cmdnode "github.com/celestiaorg/celestia-node/cmd"
 	"github.com/celestiaorg/celestia-node/node/node"
+	"github.com/celestiaorg/celestia-node/node/state"
 )
 
 // NOTE: We should always ensure that the added Flags below are parsed somewhere, like in the PersistentPreRun func on
@@ -22,7 +23,7 @@ func init() {
 			// over an RPC connection with a celestia-core node.
 			cmdnode.CoreFlags(),
 			cmdnode.RPCFlags(),
-			cmdnode.KeyFlags(),
+			state.KeyFlags(),
 		),
 		cmdnode.Start(
 			cmdnode.NodeFlags(node.Light),
@@ -33,7 +34,7 @@ func init() {
 			// over an RPC connection with a celestia-core node.
 			cmdnode.CoreFlags(),
 			cmdnode.RPCFlags(),
-			cmdnode.KeyFlags(),
+			state.KeyFlags(),
 		),
 	)
 }
@@ -80,7 +81,10 @@ var lightCmd = &cobra.Command{
 			return err
 		}
 
-		ctx = cmdnode.ParseKeyFlags(ctx, cmd)
+		opts := state.ParseKeyFlags(cmd)
+		if len(opts) > 0 {
+			ctx = cmdnode.WithNodeOptions(ctx, opts...)
+		}
 
 		cmd.SetContext(ctx)
 		return nil
