@@ -9,7 +9,7 @@ import (
 
 	"github.com/celestiaorg/celestia-node/header/store"
 	"github.com/celestiaorg/celestia-node/node"
-	"github.com/celestiaorg/celestia-node/node/config"
+	nodeconf "github.com/celestiaorg/celestia-node/node/node"
 )
 
 func init() {
@@ -31,7 +31,7 @@ Custom store path is not supported yet.`,
 			return fmt.Errorf("not enough arguments")
 		}
 
-		tp := config.ParseType(args[0])
+		tp := nodeconf.ParseType(args[0])
 		if !tp.IsValid() {
 			return fmt.Errorf("invalid node-type")
 		}
