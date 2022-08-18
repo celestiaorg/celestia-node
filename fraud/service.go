@@ -9,7 +9,6 @@ import (
 	"sync"
 
 	"github.com/ipfs/go-datastore"
-	"github.com/libp2p/go-libp2p-core/event"
 	"github.com/libp2p/go-libp2p-core/host"
 	"github.com/libp2p/go-libp2p-core/network"
 	"github.com/libp2p/go-libp2p-core/peer"
@@ -63,6 +62,18 @@ func NewService(
 	}
 }
 
+func (f *ProofService) RegisterTopics(proofTypes ...ProofType) error {
+	for _, proofType := range proofTypes {
+		t, err := join(f.pubsub, proofType, f.processIncoming)
+		if err != nil {
+			return err
+		}
+		f.topicsLk.Lock()
+		f.topics[proofType] = t
+		f.topicsLk.Unlock()
+	}
+	return nil
+}
 func (f *ProofService) Start(ctx context.Context) error {
 	f.host.SetStreamHandler(fraudProtocolID, f.handleFraudMessageRequest)
 	if f.enabledSyncer {
@@ -76,11 +87,7 @@ func (f *ProofService) Subscribe(proofType ProofType) (_ Subscription, err error
 	defer f.topicsLk.Unlock()
 	t, ok := f.topics[proofType]
 	if !ok {
-		t, err = join(f.pubsub, proofType, f.processIncoming)
-		if err != nil {
-			return nil, err
-		}
-		f.topics[proofType] = t
+		return nil, fmt.Errorf("topic for %s does not exist", proofType)
 	}
 	subs, err := t.Subscribe()
 	if err != nil {
@@ -181,11 +188,13 @@ func (f *ProofService) handleFraudMessageRequest(stream network.Stream) {
 
 	resp := &pb.FraudMessageResponse{}
 	errg, ctx := errgroup.WithContext(context.Background())
-	mu := sync.Mutex{}
-	for _, p := range req.RequestedProofType {
+	resp.Proofs = make([]*pb.ProofResponse, len(req.RequestedProofType))
+	for i, p := range req.RequestedProofType {
 		p := p
+		i := i
 		errg.Go(func() error {
-			proofType, err := pbToProof(p)
+			resp.Proofs[i] = &pb.ProofResponse{Type: p}
+			proofType, err := pbToProofType(p)
 			if err != nil {
 				log.Warn(err)
 				return nil
@@ -204,10 +213,7 @@ func (f *ProofService) handleFraudMessageRequest(stream network.Stream) {
 					log.Warn(err)
 					continue
 				}
-				proof := &pb.ProofResponse{Type: p, Value: bin}
-				mu.Lock()
-				resp.Proofs = append(resp.Proofs, proof)
-				mu.Unlock()
+				resp.Proofs[i].Value = bin
 			}
 			return nil
 		})
@@ -220,82 +226,13 @@ func (f *ProofService) handleFraudMessageRequest(stream network.Stream) {
 	}
 	_, err = serde.Write(stream, resp)
 	if err != nil {
+		stream.Reset() //nolint:errcheck
 		log.Error("error while writing a response: %s", err)
-	}
-}
-
-func (f *ProofService) syncFraudProofs(ctx context.Context) {
-	log.Debug("start fetching Fraud Proofs")
-	sub, err := f.host.EventBus().Subscribe(&event.EvtPeerIdentificationCompleted{})
-	if err != nil {
-		log.Error(err)
 		return
 	}
-	defer sub.Close()
-	f.topicsLk.RLock()
-	proofTypes := make([]pb.ProofType, 0, len(f.topics))
-	for proofType := range f.topics {
-		p, err := proofToPb(proofType)
-		if err != nil {
-			log.Warn(err)
-			continue
-		}
-		proofTypes = append(proofTypes, p)
-	}
-	f.topicsLk.RUnlock()
-	connStatus := event.EvtPeerIdentificationCompleted{}
-	for i := 0; i < fraudRequests; i++ {
-		select {
-		case <-ctx.Done():
-			return
-		case e := <-sub.Out():
-			connStatus = e.(event.EvtPeerIdentificationCompleted)
-		}
-
-		if connStatus.Peer == f.host.ID() {
-			continue
-		}
-		go func(pid peer.ID) {
-			log.Debug("requesting proofs from the peer ", pid)
-			respProofs, err := requestProofs(ctx, f.host, pid, proofTypes)
-			if err != nil {
-				log.Errorw("error while requesting fraud proofs from the peer", "err", err, "peer", pid)
-				return
-			}
-			if len(respProofs) == 0 {
-				log.Debug("proofs were not found")
-				return
-			}
-			log.Debug("got fraud proofs from the peer: ", connStatus.Peer)
-			wg := sync.WaitGroup{}
-			wg.Add(len(respProofs))
-			for _, data := range respProofs {
-				proofType, err := pbToProof(data.Type)
-				if err != nil {
-					log.Warn(err)
-					continue
-				}
-				f.topicsLk.RLock()
-				topic, ok := f.topics[proofType]
-				f.topicsLk.RUnlock()
-				if !ok {
-					log.Errorf("topic for %s is not exist", proofType)
-					continue
-				}
-				err = topic.Publish(
-					ctx,
-					data.Value,
-					// broadcast across all local subscriptions in order to verify fraud proof and to stop services
-					pubsub.WithLocalPublication(true),
-					// key can be nil because it will not be verified in this case
-					pubsub.WithSecretKeyAndPeerId(nil, pid),
-				)
-				if err != nil {
-					log.Error(err)
-				}
-			}
-			wg.Wait()
-		}(connStatus.Peer)
+	err = stream.CloseWrite()
+	if err != nil {
+		log.Error("error while closing a writer in stream:", err)
 	}
 }
 

@@ -161,29 +161,48 @@ func DASer(
 	return das
 }
 
-// FraudService constructs fraud proof service.
-func FraudService[A share.Availability](
+// FraudService constructs fraud proof service with disabled syncer.
+func FraudService(
 	ctx context.Context,
 	lc fx.Lifecycle,
 	sub *pubsub.PubSub,
 	host host.Host,
 	hstore header.Store,
 	ds datastore.Batching,
-	avail A,
-) fraud.Service {
-	isEnabled := false
-	switch any(avail).(type) {
-	case *share.LightAvailability:
-		isEnabled = true
-	default:
-	}
+) (fraud.Service, error) {
+	return newFraudService(ctx, lc, sub, host, hstore, ds, false)
+}
+
+// FraudServiceWithSyncer constructs fraud proof service with enabled syncer.
+func FraudServiceWithSyncer(
+	ctx context.Context,
+	lc fx.Lifecycle,
+	sub *pubsub.PubSub,
+	host host.Host,
+	hstore header.Store,
+	ds datastore.Batching,
+) (fraud.Service, error) {
+
+	return newFraudService(ctx, lc, sub, host, hstore, ds, true)
+}
+
+func newFraudService(ctx context.Context,
+	lc fx.Lifecycle,
+	sub *pubsub.PubSub,
+	host host.Host,
+	hstore header.Store,
+	ds datastore.Batching,
+	isEnabled bool) (fraud.Service, error) {
 	fservice := fraud.NewService(sub, host, hstore.GetByHeight, ds, isEnabled)
+	if err := fservice.RegisterTopics(fraud.BadEncoding); err != nil {
+		return nil, err
+	}
 	lc.Append(fx.Hook{
 		OnStart: func(context.Context) error {
 			return fservice.Start(fxutil.WithLifecycle(ctx, lc))
 		},
 	})
-	return fservice
+	return fservice, nil
 }
 
 // LightAvailability constructs light share availability.

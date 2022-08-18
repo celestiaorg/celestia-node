@@ -33,7 +33,7 @@ func lightComponents(cfg *Config, store Store) fx.Option {
 		fx.Provide(services.HeaderExchangeP2P(cfg.Services)),
 		fx.Provide(services.LightAvailability(cfg.Services)),
 		fx.Provide(services.CacheAvailability[*share.LightAvailability]),
-		fxutil.ProvideAs(services.FraudService[*share.LightAvailability], new(fraud.Service), new(fraud.Subscriber)),
+		fxutil.ProvideAs(services.FraudServiceWithSyncer, new(fraud.Service), new(fraud.Subscriber)),
 		fx.Invoke(rpc.Handler),
 	)
 }
@@ -47,7 +47,7 @@ func bridgeComponents(cfg *Config, store Store) fx.Option {
 		fx.Supply(header.MakeExtendedHeader),
 		fx.Provide(services.FullAvailability(cfg.Services)),
 		fx.Provide(services.CacheAvailability[*share.FullAvailability]),
-		fxutil.ProvideAs(services.FraudService[*share.FullAvailability], new(fraud.Service), new(fraud.Subscriber)),
+		fxutil.ProvideAs(services.FraudService, new(fraud.Service), new(fraud.Subscriber)),
 		fx.Invoke(func(
 			state *state.Service,
 			share *share.Service,
@@ -68,7 +68,7 @@ func fullComponents(cfg *Config, store Store) fx.Option {
 		fx.Provide(services.HeaderExchangeP2P(cfg.Services)),
 		fx.Provide(services.FullAvailability(cfg.Services)),
 		fx.Provide(services.CacheAvailability[*share.FullAvailability]),
-		fxutil.ProvideAs(services.FraudService[*share.FullAvailability], new(fraud.Service), new(fraud.Subscriber)),
+		fxutil.ProvideAs(services.FraudService, new(fraud.Service), new(fraud.Subscriber)),
 		fx.Invoke(rpc.Handler),
 	)
 }

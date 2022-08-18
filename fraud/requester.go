@@ -34,6 +34,9 @@ func requestProofs(
 		stream.Reset() //nolint:errcheck
 		return nil, err
 	}
-
+	err = stream.CloseRead()
+	if err != nil {
+		log.Warn(err)
+	}
 	return resp.Proofs, stream.Close()
 }

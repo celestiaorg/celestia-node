@@ -273,6 +273,8 @@ func TestDASer_stopsAfter_BEFP(t *testing.T) {
 
 	// create fraud service and break one header
 	f := fraud.NewService(ps, net.Hosts()[0], mockGet.GetByHeight, ds, false)
+	require.NoError(t, f.Start(ctx))
+	require.NoError(t, f.RegisterTopics(fraud.BadEncoding))
 	mockGet.headers[1] = header.CreateFraudExtHeader(t, mockGet.headers[1], bServ)
 	newCtx := context.Background()
 

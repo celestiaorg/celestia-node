@@ -190,7 +190,7 @@ func TestService_ReGossiping(t *testing.T) {
 	_, err = subsB.Proof(newCtx)
 	require.NoError(t, err)
 
-	_, err = subsC.Proof(ctx)
+	_, err = fsubsC.Proof(ctx)
 	require.NoError(t, err)
 	// we cannot avoid sleep because it helps to avoid flakiness
 	time.Sleep(time.Millisecond * 100)
@@ -217,7 +217,7 @@ func TestService_Get(t *testing.T) {
 	require.NoError(t, err)
 }
 
-func createService(t *testing.T) (Service, *mockStore) {
+func createService(t *testing.T) (*ProofService, *mockStore) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*15)
 	t.Cleanup(cancel)
 
@@ -232,7 +232,7 @@ func createService(t *testing.T) (Service, *mockStore) {
 	return NewService(ps, net.Hosts()[0], store.GetByHeight, sync.MutexWrap(datastore.NewMapDatastore()), false), store
 }
 
-func createServiceWithHost(ctx context.Context, t *testing.T, host host.Host) (Service, *mockStore) {
+func createServiceWithHost(ctx context.Context, t *testing.T, host host.Host) (*ProofService, *mockStore) {
 	// create pubsub for host
 	ps, err := pubsub.NewGossipSub(ctx, host,
 		pubsub.WithMessageSignaturePolicy(pubsub.StrictNoSign))
