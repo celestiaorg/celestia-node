@@ -12,7 +12,7 @@ import (
 	"github.com/celestiaorg/celestia-node/fraud"
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/node"
-	"github.com/celestiaorg/celestia-node/node/config"
+	nodeconf "github.com/celestiaorg/celestia-node/node/node"
 	"github.com/celestiaorg/celestia-node/node/tests/swamp"
 )
 
@@ -32,7 +32,7 @@ import (
 func TestFraudProofBroadcasting(t *testing.T) {
 	sw := swamp.NewSwamp(t, swamp.WithBlockTime(time.Millisecond*100))
 
-	bridge := sw.NewBridgeNode(config.WithHeaderConstructFn(header.FraudMaker(t, 20)))
+	bridge := sw.NewBridgeNode(nodeconf.WithHeaderConstructFn(header.FraudMaker(t, 20)))
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 	t.Cleanup(cancel)
@@ -42,8 +42,8 @@ func TestFraudProofBroadcasting(t *testing.T) {
 	addrs, err := peer.AddrInfoToP2pAddrs(host.InfoFromHost(bridge.Host))
 	require.NoError(t, err)
 
-	store := node.MockStore(t, config.DefaultConfig(config.Full))
-	full := sw.NewNodeWithStore(config.Full, store, config.WithTrustedPeers(addrs[0].String()))
+	store := node.MockStore(t, nodeconf.DefaultConfig(nodeconf.Full))
+	full := sw.NewNodeWithStore(nodeconf.Full, store, nodeconf.WithTrustedPeers(addrs[0].String()))
 
 	err = full.Start(ctx)
 	require.NoError(t, err)
@@ -66,9 +66,9 @@ func TestFraudProofBroadcasting(t *testing.T) {
 	require.ErrorIs(t, err, context.DeadlineExceeded)
 
 	require.NoError(t, full.Stop(ctx))
-	require.NoError(t, sw.RemoveNode(full, config.Full))
+	require.NoError(t, sw.RemoveNode(full, nodeconf.Full))
 
-	full = sw.NewNodeWithStore(config.Full, store, config.WithTrustedPeers(addrs[0].String()))
+	full = sw.NewNodeWithStore(nodeconf.Full, store, nodeconf.WithTrustedPeers(addrs[0].String()))
 	require.Error(t, full.Start(ctx))
 	proofs, err := full.FraudServ.Get(ctx, fraud.BadEncoding)
 	require.NoError(t, err)

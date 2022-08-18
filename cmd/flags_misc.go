@@ -24,7 +24,7 @@ import (
 	semconv "go.opentelemetry.io/otel/semconv/v1.10.0"
 
 	"github.com/celestiaorg/celestia-node/logs"
-	"github.com/celestiaorg/celestia-node/node/config"
+	"github.com/celestiaorg/celestia-node/node/node"
 )
 
 var (
@@ -224,7 +224,7 @@ func ParseMiscFlags(ctx context.Context, cmd *cobra.Command) (context.Context, e
 		}
 		global.SetMeterProvider(pusher)
 
-		ctx = WithNodeOptions(ctx, config.WithMetrics(true))
+		ctx = WithNodeOptions(ctx, node.WithMetrics(true))
 	}
 
 	return ctx, err
