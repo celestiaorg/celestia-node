@@ -10,7 +10,7 @@
 
 ## Context
 
-Celestia Node is being built for almost a half of a year with the bottom-up approach to development. The core lower 
+Celestia Node has been built for almost half a year with a bottom-up approach to development. The core lower 
 level components are built first and public API around them is getting organically shaped. Now that the project is 
 maturing and its architecture is better defined, it's a good time to formally define a set of modules provided by the 
 node and their respective APIs.
@@ -40,11 +40,10 @@ It provides a more detailed step-by-step process for how the below described des
 
 ### Details
 #### Services Deprecation
-The initial step is to deprecate and remove our services in code and stop relying on services as the notion. Instead, 
-the Module should be used, e.g. HeaderService -> HeaderModule.
+The initial step is to deprecate services in favor of modules. Ex. `HeaderService` -> `HeaderModule`.
 
 * We're organically moving towards the direction of modularized libraries. That is, our `share`, `header` and `state`
-packages are getting shaped as independent sovereign modules which now lack their own API definition. 
+packages are getting shaped as independent modules which now lack their own API definition. 
 * Consistency. Semantically, modules are closer to what high level Celestia project goals and slogans.
 * Disassociate centralization. Services have always been associated with centralized infrastructure with older 
 monolithic services and newer distributed microservice architectures. 
@@ -55,22 +54,22 @@ monolithic services and newer distributed microservice architectures.
 ```go
 type HeaderModule interface {
 	// Head returns the node's local head (tip of the chain of the header store).
-    Head(ctx context.Context) (*header.ExtendedHeader, error)
+	Head(ctx context.Context) (*header.ExtendedHeader, error)
 	// Get returns the header of the given hash from the node's header store.
-    Get(ctx context.Context, hash tmbytes.HexBytes) (*header.ExtendedHeader, error)
+	Get(ctx context.Context, hash tmbytes.HexBytes) (*header.ExtendedHeader, error)
 	// GetByHeight returns the header of the given height from the node's header store.
 	// If the header of the given height is not yet available, the request will hang
 	// until it becomes available in the node's header store.
-    GetByHeight(ctx context.Context, height uint64) (*header.ExtendedHeader, error)
-    // GetRangeByHeight returns the given range [from:to) of ExtendedHeaders.
-    GetRangeByHeight(ctx context.Context, from, to uint64) ([]*ExtendedHeader, error)
-    // Subscribe creates long-living Subscription for validated ExtendedHeaders.
-    // Multiple Subscriptions can be created.
-    Subscribe() (Subscription, error)    
+	GetByHeight(ctx context.Context, height uint64) (*header.ExtendedHeader, error)
+	// GetRangeByHeight returns the given range [from:to) of ExtendedHeaders.
+	GetRangeByHeight(ctx context.Context, from, to uint64) ([]*ExtendedHeader, error)
+	// Subscribe creates long-living Subscription for validated ExtendedHeaders.
+	// Multiple Subscriptions can be created.
+	Subscribe() (Subscription, error)    
 	// SyncState returns the current state of the header Syncer. 
 	SyncState() sync.State
 	// SyncWait blocks until the header Syncer is synced to network head. 
-    SyncWait(ctx context.Context) error
+	SyncWait(ctx context.Context) error
 	// SyncHead provides the Syncer's view of the current network head.
 	SyncHead(ctx context.Context) (*header.ExtendedHeader, error)
 }
@@ -82,13 +81,13 @@ type SharesModule interface {
 	// GetShare returns the Share from the given data Root at the given row/col coordinates.
 	GetShare(ctx context.Context, dah *Root, row, col int) (Share, error)
 	// GetSharesByNamespace returns all shares of the given nID from the given data Root.
-    GetSharesByNamespace(ctx context.Context, root *Root, nID namespace.ID) ([]Share, error)
-    // SharesAvailable subjectively validates if Shares committed to the given data Root are 
+	GetSharesByNamespace(ctx context.Context, root *Root, nID namespace.ID) ([]Share, error)
+	// SharesAvailable subjectively validates if Shares committed to the given data Root are 
 	// available on the network. 
-    SharesAvailable(ctx context.Context, root *Root) error
-    // ProbabilityOfAvailability calculates the probability of the data square
-    // being available based on the number of samples collected.
-    ProbabilityOfAvailability() float64
+	SharesAvailable(ctx context.Context, root *Root) error
+	// ProbabilityOfAvailability calculates the probability of the data square
+	// being available based on the number of samples collected.
+	ProbabilityOfAvailability() float64
 }
 ```
 
@@ -182,7 +181,7 @@ type StateModule interface {
 	// the tx is included in a block.
     SubmitTx(ctx context.Context, tx state.Tx) (*state.TxResponse, error)
     // SubmitPayForData builds, signs and submits a PayForData transaction.
-    SubmitPayForData(ctx context.Context, nID namespace.ID, data []byte, gasLim uint64) (*state.TxResponse, error)
+    SubmitPayForData(ctx context.Context, nID namespace.ID, data []byte, gasLimit uint64) (*state.TxResponse, error)
     // Transfer sends the given amount of coins from default wallet of the node to the given account address.
     Transfer(ctx context.Context, to types.Address, amount types.Int, gasLimit uint64) (*state.TxResponse, error)
 }
