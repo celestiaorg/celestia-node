@@ -3,12 +3,12 @@ package cmd
 import (
 	"context"
 
-	"github.com/celestiaorg/celestia-node/node/config"
+	"github.com/celestiaorg/celestia-node/node/node"
 )
 
 // NodeType reads the node type from the context.
-func NodeType(ctx context.Context) config.NodeType {
-	return ctx.Value(nodeTypeKey{}).(config.NodeType)
+func NodeType(ctx context.Context) node.Type {
+	return ctx.Value(nodeTypeKey{}).(node.Type)
 }
 
 // StorePath reads the store path from the context.
@@ -17,7 +17,7 @@ func StorePath(ctx context.Context) string {
 }
 
 // WithNodeType sets the node type in the given context.
-func WithNodeType(ctx context.Context, tp config.NodeType) context.Context {
+func WithNodeType(ctx context.Context, tp node.Type) context.Context {
 	return context.WithValue(ctx, nodeTypeKey{}, tp)
 }
 
@@ -27,16 +27,16 @@ func WithStorePath(ctx context.Context, storePath string) context.Context {
 }
 
 // NodeOptions returns config options parsed from Environment(Flags, ENV vars, etc)
-func NodeOptions(ctx context.Context) []config.Option {
-	options, ok := ctx.Value(optionsKey{}).([]config.Option)
+func NodeOptions(ctx context.Context) []node.Option {
+	options, ok := ctx.Value(optionsKey{}).([]node.Option)
 	if !ok {
-		return []config.Option{}
+		return []node.Option{}
 	}
 	return options
 }
 
 // WithNodeOptions add new options to Env.
-func WithNodeOptions(ctx context.Context, opts ...config.Option) context.Context {
+func WithNodeOptions(ctx context.Context, opts ...node.Option) context.Context {
 	options := NodeOptions(ctx)
 	return context.WithValue(ctx, optionsKey{}, append(options, opts...))
 }

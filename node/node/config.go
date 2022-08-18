@@ -1,4 +1,4 @@
-package config
+package node
 
 import (
 	"io"
@@ -28,7 +28,7 @@ type Config struct {
 
 // DefaultConfig provides a default Config for a given Node Type 'tp'.
 // NOTE: Currently, configs are identical, but this will change.
-func DefaultConfig(tp NodeType) *Config {
+func DefaultConfig(tp Type) *Config {
 	switch tp {
 	case Bridge:
 		return &Config{
@@ -53,7 +53,7 @@ func DefaultConfig(tp NodeType) *Config {
 			Services: services.DefaultConfig(),
 		}
 	default:
-		panic("node: unknown Node NodeType")
+		panic("node: unknown Node Type")
 	}
 }
 
