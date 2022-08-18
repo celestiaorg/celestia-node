@@ -8,7 +8,7 @@ import (
 	"github.com/spf13/cobra"
 	flag "github.com/spf13/pflag"
 
-	"github.com/celestiaorg/celestia-node/node/config"
+	"github.com/celestiaorg/celestia-node/node/node"
 )
 
 var (
@@ -17,7 +17,7 @@ var (
 )
 
 // NodeFlags gives a set of hardcoded Node package flags.
-func NodeFlags(tp config.NodeType) *flag.FlagSet {
+func NodeFlags(tp node.Type) *flag.FlagSet {
 	flags := &flag.FlagSet{}
 
 	flags.String(
@@ -40,12 +40,12 @@ func ParseNodeFlags(ctx context.Context, cmd *cobra.Command) (context.Context, e
 
 	nodeConfig := cmd.Flag(nodeConfigFlag).Value.String()
 	if nodeConfig != "" {
-		cfg, err := config.LoadConfig(nodeConfig)
+		cfg, err := node.LoadConfig(nodeConfig)
 		if err != nil {
 			return ctx, fmt.Errorf("cmd: while parsing '%s': %w", nodeConfigFlag, err)
 		}
 
-		ctx = WithNodeOptions(ctx, config.WithConfig(cfg))
+		ctx = WithNodeOptions(ctx, node.WithConfig(cfg))
 	}
 
 	return ctx, nil
