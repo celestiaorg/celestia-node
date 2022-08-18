@@ -18,7 +18,7 @@ import (
 
 	"github.com/celestiaorg/celestia-node/ipld"
 	"github.com/celestiaorg/celestia-node/node"
-	"github.com/celestiaorg/celestia-node/node/config"
+	nodeconf "github.com/celestiaorg/celestia-node/node/node"
 	"github.com/celestiaorg/celestia-node/node/tests/swamp"
 	"github.com/celestiaorg/celestia-node/service/share"
 )
@@ -54,7 +54,7 @@ func TestFullReconstructFromBridge(t *testing.T) {
 	err := bridge.Start(ctx)
 	require.NoError(t, err)
 
-	full := sw.NewFullNode(config.WithTrustedPeers(getMultiAddr(t, bridge.Host)))
+	full := sw.NewFullNode(nodeconf.WithTrustedPeers(getMultiAddr(t, bridge.Host)))
 	err = full.Start(ctx)
 	require.NoError(t, err)
 
@@ -109,27 +109,27 @@ func TestFullReconstructFromLights(t *testing.T) {
 	}()
 
 	const defaultTimeInterval = time.Second * 5
-	var defaultOptions = []config.Option{
-		config.WithRefreshRoutingTablePeriod(defaultTimeInterval),
-		config.WithDiscoveryInterval(defaultTimeInterval),
-		config.WithAdvertiseInterval(defaultTimeInterval),
+	var defaultOptions = []nodeconf.Option{
+		nodeconf.WithRefreshRoutingTablePeriod(defaultTimeInterval),
+		nodeconf.WithDiscoveryInterval(defaultTimeInterval),
+		nodeconf.WithAdvertiseInterval(defaultTimeInterval),
 	}
 
-	cfg := config.DefaultConfig(config.Full)
+	cfg := nodeconf.DefaultConfig(nodeconf.Full)
 	cfg.P2P.Bootstrapper = true
 	bridge := sw.NewBridgeNode()
 	addrsBridge, err := peer.AddrInfoToP2pAddrs(host.InfoFromHost(bridge.Host))
 	require.NoError(t, err)
-	bootstrapConfig := append([]config.Option{config.WithConfig(cfg)}, defaultOptions...)
+	bootstrapConfig := append([]nodeconf.Option{nodeconf.WithConfig(cfg)}, defaultOptions...)
 	bootstapFN := sw.NewFullNode(bootstrapConfig...)
 	require.NoError(t, bootstapFN.Start(ctx))
 	require.NoError(t, bridge.Start(ctx))
 	addrBootstrapNode := host.InfoFromHost(bootstapFN.Host)
 
 	nodesConfig := append(
-		[]config.Option{
-			config.WithTrustedPeers(addrsBridge[0].String()),
-			config.WithBootstrappers([]peer.AddrInfo{*addrBootstrapNode})},
+		[]nodeconf.Option{
+			nodeconf.WithTrustedPeers(addrsBridge[0].String()),
+			nodeconf.WithBootstrappers([]peer.AddrInfo{*addrBootstrapNode})},
 		defaultOptions...,
 	)
 	full := sw.NewFullNode(nodesConfig...)
@@ -140,8 +140,8 @@ func TestFullReconstructFromLights(t *testing.T) {
 		i := i
 		errg.Go(func() error {
 			lnConfig := append(
-				[]config.Option{
-					config.WithTrustedPeers(addrsBridge[0].String())},
+				[]nodeconf.Option{
+					nodeconf.WithTrustedPeers(addrsBridge[0].String())},
 				nodesConfig...,
 			)
 			light := sw.NewLightNode(lnConfig...)

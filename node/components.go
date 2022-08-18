@@ -12,8 +12,8 @@ import (
 	"github.com/celestiaorg/celestia-node/fraud"
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/libs/fxutil"
-	"github.com/celestiaorg/celestia-node/node/config"
 	nodecore "github.com/celestiaorg/celestia-node/node/core"
+	"github.com/celestiaorg/celestia-node/node/node"
 	"github.com/celestiaorg/celestia-node/node/p2p"
 	"github.com/celestiaorg/celestia-node/node/rpc"
 	"github.com/celestiaorg/celestia-node/node/services"
@@ -26,9 +26,9 @@ import (
 )
 
 // lightComponents keeps all the components as DI options required to build a Light Node.
-func lightComponents(cfg *config.Config, store Store) fx.Option {
+func lightComponents(cfg *node.Config, store Store) fx.Option {
 	return fx.Options(
-		fx.Supply(config.Light),
+		fx.Supply(node.Light),
 		baseComponents(cfg, store),
 		fx.Provide(services.DASer),
 		fx.Provide(services.HeaderExchangeP2P(cfg.Services)),
@@ -39,9 +39,9 @@ func lightComponents(cfg *config.Config, store Store) fx.Option {
 }
 
 // bridgeComponents keeps all the components as DI options required to build a Bridge Node.
-func bridgeComponents(cfg *config.Config, store Store) fx.Option {
+func bridgeComponents(cfg *node.Config, store Store) fx.Option {
 	return fx.Options(
-		fx.Supply(config.Bridge),
+		fx.Supply(node.Bridge),
 		baseComponents(cfg, store),
 		nodecore.Components(cfg.Core),
 		fx.Supply(header.MakeExtendedHeader),
@@ -59,9 +59,9 @@ func bridgeComponents(cfg *config.Config, store Store) fx.Option {
 }
 
 // fullComponents keeps all the components as DI options required to build a Full Node.
-func fullComponents(cfg *config.Config, store Store) fx.Option {
+func fullComponents(cfg *node.Config, store Store) fx.Option {
 	return fx.Options(
-		fx.Supply(config.Full),
+		fx.Supply(node.Full),
 		baseComponents(cfg, store),
 		fx.Provide(services.DASer),
 		fx.Provide(services.HeaderExchangeP2P(cfg.Services)),
@@ -72,7 +72,7 @@ func fullComponents(cfg *config.Config, store Store) fx.Option {
 }
 
 // baseComponents keeps all the common components shared between different Node types.
-func baseComponents(cfg *config.Config, store Store) fx.Option {
+func baseComponents(cfg *node.Config, store Store) fx.Option {
 	return fx.Options(
 		fx.Provide(params.DefaultNetwork),
 		fx.Provide(params.BootstrappersFor),

@@ -5,7 +5,7 @@ import (
 	"github.com/spf13/cobra"
 
 	cmdnode "github.com/celestiaorg/celestia-node/cmd"
-	"github.com/celestiaorg/celestia-node/node/config"
+	"github.com/celestiaorg/celestia-node/node/node"
 )
 
 // NOTE: We should always ensure that the added Flags below are parsed somewhere, like in the PersistentPreRun func on
@@ -14,7 +14,7 @@ import (
 func init() {
 	fullCmd.AddCommand(
 		cmdnode.Init(
-			cmdnode.NodeFlags(config.Full),
+			cmdnode.NodeFlags(node.Full),
 			cmdnode.P2PFlags(),
 			cmdnode.HeadersFlags(),
 			cmdnode.MiscFlags(),
@@ -25,7 +25,7 @@ func init() {
 			cmdnode.KeyFlags(),
 		),
 		cmdnode.Start(
-			cmdnode.NodeFlags(config.Full),
+			cmdnode.NodeFlags(node.Full),
 			cmdnode.P2PFlags(),
 			cmdnode.HeadersFlags(),
 			cmdnode.MiscFlags(),
@@ -48,7 +48,7 @@ var fullCmd = &cobra.Command{
 			err error
 		)
 
-		ctx = cmdnode.WithNodeType(ctx, config.Full)
+		ctx = cmdnode.WithNodeType(ctx, node.Full)
 
 		ctx, err = cmdnode.ParseNodeFlags(ctx, cmd)
 		if err != nil {

@@ -1,4 +1,4 @@
-package config
+package node
 
 import (
 	"encoding/hex"
