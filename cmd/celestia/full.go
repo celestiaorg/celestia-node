@@ -5,6 +5,7 @@ import (
 	"github.com/spf13/cobra"
 
 	cmdnode "github.com/celestiaorg/celestia-node/cmd"
+	"github.com/celestiaorg/celestia-node/node/state"
 	"github.com/celestiaorg/celestia-node/node/config"
 )
 
@@ -22,7 +23,7 @@ func init() {
 			// over an RPC connection with a celestia-core node.
 			cmdnode.CoreFlags(),
 			cmdnode.RPCFlags(),
-			cmdnode.KeyFlags(),
+			state.KeyFlags(),
 		),
 		cmdnode.Start(
 			cmdnode.NodeFlags(config.Full),
@@ -33,7 +34,7 @@ func init() {
 			// over an RPC connection with a celestia-core node.
 			cmdnode.CoreFlags(),
 			cmdnode.RPCFlags(),
-			cmdnode.KeyFlags(),
+			state.KeyFlags(),
 		),
 	)
 }
@@ -80,7 +81,10 @@ var fullCmd = &cobra.Command{
 			return err
 		}
 
-		ctx = cmdnode.ParseKeyFlags(ctx, cmd)
+		opts := state.ParseKeyFlags(cmd)
+		if len(opts) > 0 {
+			ctx = cmdnode.WithNodeOptions(ctx, opts...)
+		}
 
 		cmd.SetContext(ctx)
 		return nil

@@ -4,6 +4,7 @@ import (
 	"github.com/spf13/cobra"
 
 	cmdnode "github.com/celestiaorg/celestia-node/cmd"
+	"github.com/celestiaorg/celestia-node/node/state"
 	"github.com/celestiaorg/celestia-node/node/config"
 )
 
@@ -18,7 +19,7 @@ func init() {
 			cmdnode.CoreFlags(),
 			cmdnode.MiscFlags(),
 			cmdnode.RPCFlags(),
-			cmdnode.KeyFlags(),
+			state.KeyFlags(),
 		),
 		cmdnode.Start(
 			cmdnode.NodeFlags(config.Bridge),
@@ -26,7 +27,7 @@ func init() {
 			cmdnode.CoreFlags(),
 			cmdnode.MiscFlags(),
 			cmdnode.RPCFlags(),
-			cmdnode.KeyFlags(),
+			state.KeyFlags(),
 		),
 	)
 }
@@ -68,7 +69,10 @@ var bridgeCmd = &cobra.Command{
 			return err
 		}
 
-		ctx = cmdnode.ParseKeyFlags(ctx, cmd)
+		opts := state.ParseKeyFlags(cmd)
+		if len(opts) > 0 {
+			ctx = cmdnode.WithNodeOptions(ctx, opts...)
+		}
 
 		cmd.SetContext(ctx)
 		return nil

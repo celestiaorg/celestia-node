@@ -11,6 +11,7 @@ import (
 	"github.com/celestiaorg/celestia-node/node/services"
 
 	apptypes "github.com/celestiaorg/celestia-app/x/payment/types"
+
 	"github.com/celestiaorg/celestia-node/core"
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/libs/fxutil"
