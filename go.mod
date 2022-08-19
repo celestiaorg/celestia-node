@@ -5,7 +5,7 @@ go 1.18
 replace github.com/ipfs/go-verifcid => github.com/celestiaorg/go-verifcid v0.0.1-lazypatch
 
 require (
-	cosmossdk.io/math v1.0.0-beta.2
+	cosmossdk.io/math v1.0.0-beta.3
 	github.com/BurntSushi/toml v1.2.0
 	github.com/celestiaorg/celestia-app v0.7.0-rc-1
 	github.com/celestiaorg/go-libp2p-messenger v0.1.0
