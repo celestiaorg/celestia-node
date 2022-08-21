@@ -10,6 +10,7 @@ import (
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
 	apptypes "github.com/celestiaorg/celestia-app/x/payment/types"
+
 	"github.com/celestiaorg/celestia-node/libs/keystore"
 	"github.com/celestiaorg/celestia-node/node/key"
 	"github.com/celestiaorg/celestia-node/params"
