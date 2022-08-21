@@ -1,8 +1,6 @@
 package state
 
 import (
-	"go.uber.org/fx"
-
 	apptypes "github.com/celestiaorg/celestia-app/x/payment/types"
 
 	"github.com/celestiaorg/celestia-node/header/sync"
@@ -15,13 +13,8 @@ func CoreAccessor(
 	coreIP,
 	coreRPC,
 	coreGRPC string,
-) func(fx.Lifecycle, *apptypes.KeyringSigner, *sync.Syncer) (state.Accessor, error) {
-	return func(lc fx.Lifecycle, signer *apptypes.KeyringSigner, syncer *sync.Syncer) (state.Accessor, error) {
-		ca := state.NewCoreAccessor(signer, syncer, coreIP, coreRPC, coreGRPC)
-		lc.Append(fx.Hook{
-			OnStart: ca.Start,
-			OnStop:  ca.Stop,
-		})
-		return ca, nil
+) func(*apptypes.KeyringSigner, *sync.Syncer) state.Accessor {
+	return func(signer *apptypes.KeyringSigner, sync *sync.Syncer) state.Accessor {
+		return state.NewCoreAccessor(signer, sync, coreIP, coreRPC, coreGRPC)
 	}
 }

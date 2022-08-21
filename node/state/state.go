@@ -22,26 +22,22 @@ func Module(coreCfg core.Config, keyCfg key.Config) fx.Option {
 	return fx.Module(
 		"state",
 		fx.Provide(Keyring(keyCfg)),
-		fx.Provide(CoreAccessor(coreCfg.IP, coreCfg.RPCPort, coreCfg.GRPCPort)),
-		fx.Provide(Service),
+		fx.Provide(fx.Annotate(CoreAccessor(coreCfg.IP, coreCfg.RPCPort, coreCfg.GRPCPort),
+			fx.OnStart(func(ctx context.Context, accessor state.Accessor) error {
+				return accessor.Start(ctx)
+			}),
+			fx.OnStop(func(ctx context.Context, accessor state.Accessor) error {
+				return accessor.Stop(ctx)
+			}),
+		)),
+		fx.Provide(fx.Annotate(state.NewService,
+			fx.OnStart(func(ctx context.Context, lc fx.Lifecycle, fservice fraud.Service, serv *state.Service) error {
+				lifecycleCtx := fxutil.WithLifecycle(ctx, lc)
+				return services.FraudLifecycle(ctx, lifecycleCtx, fraud.BadEncoding, fservice, serv.Start, serv.Stop)
+			}),
+			fx.OnStop(func(ctx context.Context, serv *state.Service) error {
+				return serv.Stop(ctx)
+			}),
+		)),
 	)
-}
-
-// Service constructs a new state.Service.
-func Service(
-	ctx context.Context,
-	lc fx.Lifecycle,
-	accessor state.Accessor,
-	fservice fraud.Service,
-) *state.Service {
-	serv := state.NewService(accessor)
-	lifecycleCtx := fxutil.WithLifecycle(ctx, lc)
-	lc.Append(fx.Hook{
-		OnStart: func(startCtx context.Context) error {
-			return services.FraudLifecycle(startCtx, lifecycleCtx, fraud.BadEncoding, fservice, serv.Start, serv.Stop)
-		},
-		OnStop: serv.Stop,
-	})
-
-	return serv
 }
