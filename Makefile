@@ -11,8 +11,8 @@ help: Makefile
 	@sed -n 's/^##//p' $< | column -t -s ':' |  sed -e 's/^/ /'
 .PHONY: help
 
-## init: Install git-hooks from .githooks directory.
-init-hooks:
+## install: Install git-hooks from .githooks directory.
+install-hooks:
 	@echo "--> Installing git hooks"
 	@git config core.hooksPath .githooks
 .PHONY: init-hooks
