@@ -2,6 +2,7 @@ package ipld
 
 import (
 	"context"
+	"go.opentelemetry.io/otel/codes"
 	"sync"
 	"sync/atomic"
 
@@ -155,8 +156,8 @@ func getLeavesByNamespace(
 			}
 			namespacePool.Submit(func() {
 				ctx, span := tracer.Start(ctx, "process-job")
-				defer span.End()
 				defer wg.done()
+				defer span.End()
 
 				// if an error is likely to be returned or not depends on
 				// the underlying impl of the blockservice, currently it is not a realistic probability
@@ -169,6 +170,7 @@ func getLeavesByNamespace(
 					span.RecordError(err, trace.WithAttributes(
 						attribute.Int("pos", j.pos),
 					))
+					span.SetStatus(codes.Error, err.Error())
 					// we still need to update the bounds
 					bounds.update(int64(j.pos))
 					return
@@ -178,7 +180,7 @@ func getLeavesByNamespace(
 				linkCount := uint64(len(links))
 				if linkCount == 1 {
 					// successfully fetched a leaf belonging to the namespace
-					span.AddEvent("found-leaf")
+					span.SetStatus(codes.Ok, "found-leaf")
 					leaves[j.pos] = nd
 					// we found a leaf, so we update the bounds
 					// the update routine is repeated until the atomic swap is successful

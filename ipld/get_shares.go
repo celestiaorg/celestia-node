@@ -1,16 +1,15 @@
 package ipld
 
 import (
-	"sync"
-
-	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/trace"
-
 	"context"
+	"go.opentelemetry.io/otel/codes"
+	"sync"
 
 	"github.com/gammazero/workerpool"
 	"github.com/ipfs/go-blockservice"
 	"github.com/ipfs/go-cid"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 
 	"github.com/celestiaorg/celestia-node/ipld/plugin"
 )
@@ -76,13 +75,15 @@ func GetShares(ctx context.Context, bGetter blockservice.BlockGetter, root cid.C
 			// processing of each other
 			pool.Submit(func() {
 				ctx, span := tracer.Start(ctx, "process-job")
-				defer span.End()
 				defer wg.Done()
+				defer span.End()
 
 				nd, err := plugin.GetNode(ctx, bGetter, j.id)
 				if err != nil {
 					// we don't really care about errors here
 					// just fetch as much as possible
+					span.RecordError(err)
+					span.SetStatus(codes.Error, err.Error())
 					return
 				}
 				// check links to know what we should do with the node
@@ -94,11 +95,12 @@ func GetShares(ctx context.Context, bGetter blockservice.BlockGetter, root cid.C
 					if err != nil {
 						// again, we don't really care much, just fetch as much as possible
 						span.RecordError(err)
+						span.SetStatus(codes.Error, err.Error())
 						return
 					}
 					// successfully fetched a share/leaf
 					// ladies and gentlemen, we got em!
-					span.AddEvent("found-leaf")
+					span.SetStatus(codes.Ok, "found-leaf")
 					put(j.pos, leafToShare(nd))
 					return
 				}
