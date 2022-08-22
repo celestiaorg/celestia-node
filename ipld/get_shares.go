@@ -60,7 +60,7 @@ func GetShares(ctx context.Context, bGetter blockservice.BlockGetter, root cid.C
 
 	// this buffer ensures writes to 'jobs' are never blocking (bin-tree-feat)
 	jobs := make(chan *job, (shares+1)/2) // +1 for the case where 'shares' is 1
-	jobs <- &job{id: root}
+	jobs <- &job{id: root, ctx: ctx}
 	// total is an amount of routines spawned and total amount of nodes we process (bin-tree-feat)
 	// so we can specify exact amount of loops we do, and wait for this amount
 	// of routines to finish processing
@@ -74,7 +74,7 @@ func GetShares(ctx context.Context, bGetter blockservice.BlockGetter, root cid.C
 			// work over each job concurrently, s.t. shares do not block
 			// processing of each other
 			pool.Submit(func() {
-				ctx, span := tracer.Start(ctx, "process-job")
+				ctx, span := tracer.Start(j.ctx, "process-job")
 				defer wg.Done()
 				defer span.End()
 
@@ -113,6 +113,9 @@ func GetShares(ctx context.Context, bGetter blockservice.BlockGetter, root cid.C
 						// calc position for children nodes (bin-tree-feat),
 						// s.t. 'if' above knows where to put a share
 						pos: j.pos*2 + i,
+						// we pass the context to job so that spans are tracked in a tree
+						// structure
+						ctx: ctx,
 					}:
 						span.AddEvent("added-job", trace.WithAttributes(
 							attribute.String("cid", lnk.Cid.String()),

@@ -127,7 +127,7 @@ func getLeavesByNamespace(
 	// buffer the jobs to avoid blocking, we only need as many
 	// queued as the number of shares in the second-to-last layer
 	jobs := make(chan *job, (maxShares+1)/2)
-	jobs <- &job{id: root}
+	jobs <- &job{id: root, ctx: ctx}
 
 	var wg wrappedWaitGroup
 	wg.jobs = jobs
@@ -155,7 +155,7 @@ func getLeavesByNamespace(
 				return leaves[bounds.lowest : bounds.highest+1], retrievalErr
 			}
 			namespacePool.Submit(func() {
-				ctx, span := tracer.Start(ctx, "process-job")
+				ctx, span := tracer.Start(j.ctx, "process-job")
 				defer wg.done()
 				defer span.End()
 
@@ -195,6 +195,9 @@ func getLeavesByNamespace(
 						// position represents the index in a flattened binary tree,
 						// so we can return a slice of leaves in order
 						pos: j.pos*2 + i,
+						// we pass the context to job so that spans are tracked in a tree
+						// structure
+						ctx: ctx,
 					}
 
 					// if the link's nID isn't in range we don't need to create a new job for it
