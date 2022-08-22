@@ -12,6 +12,7 @@ import (
 	"github.com/celestiaorg/celestia-node/fraud"
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/node"
+	headerconf "github.com/celestiaorg/celestia-node/node/header"
 	nodeconf "github.com/celestiaorg/celestia-node/node/node"
 	"github.com/celestiaorg/celestia-node/node/tests/swamp"
 )
@@ -32,7 +33,7 @@ import (
 func TestFraudProofBroadcasting(t *testing.T) {
 	sw := swamp.NewSwamp(t, swamp.WithBlockTime(time.Millisecond*100))
 
-	bridge := sw.NewBridgeNode(nodeconf.WithHeaderConstructFn(header.FraudMaker(t, 10)))
+	bridge := sw.NewBridgeNode(headerconf.WithHeaderConstructFn(header.FraudMaker(t, 10)))
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 	t.Cleanup(cancel)
@@ -43,7 +44,7 @@ func TestFraudProofBroadcasting(t *testing.T) {
 	require.NoError(t, err)
 
 	store := node.MockStore(t, nodeconf.DefaultConfig(nodeconf.Full))
-	full := sw.NewNodeWithStore(nodeconf.Full, store, nodeconf.WithTrustedPeers(addrs[0].String()))
+	full := sw.NewNodeWithStore(nodeconf.Full, store, headerconf.WithTrustedPeers(addrs[0].String()))
 
 	// subscribe to fraud proof before node starts helps
 	// to prevent flakiness when fraud proof is propagating before subscribing on it
@@ -68,7 +69,7 @@ func TestFraudProofBroadcasting(t *testing.T) {
 	require.NoError(t, full.Stop(ctx))
 	require.NoError(t, sw.RemoveNode(full, nodeconf.Full))
 
-	full = sw.NewNodeWithStore(nodeconf.Full, store, nodeconf.WithTrustedPeers(addrs[0].String()))
+	full = sw.NewNodeWithStore(nodeconf.Full, store, headerconf.WithTrustedPeers(addrs[0].String()))
 	require.Error(t, full.Start(ctx))
 	proofs, err := full.FraudServ.Get(ctx, fraud.BadEncoding)
 	require.NoError(t, err)

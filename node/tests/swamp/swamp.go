@@ -19,6 +19,7 @@ import (
 	"github.com/celestiaorg/celestia-node/libs/keystore"
 	"github.com/celestiaorg/celestia-node/logs"
 	"github.com/celestiaorg/celestia-node/node"
+	headerconf "github.com/celestiaorg/celestia-node/node/header"
 	nodeconf "github.com/celestiaorg/celestia-node/node/node"
 	"github.com/celestiaorg/celestia-node/node/p2p"
 	"github.com/celestiaorg/celestia-node/params"
@@ -249,7 +250,7 @@ func (s *Swamp) newNode(t nodeconf.Type, store node.Store, options ...nodeconf.O
 	// default that are set here
 	options = append(options,
 		nodeconf.WithHost(s.createPeer(ks)),
-		nodeconf.WithTrustedHash(s.trustedHash),
+		headerconf.WithTrustedHash(s.trustedHash),
 		nodeconf.WithNetwork(params.Private),
 		nodeconf.WithRPCPort("0"),
 	)

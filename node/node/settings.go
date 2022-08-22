@@ -13,7 +13,6 @@ import (
 	apptypes "github.com/celestiaorg/celestia-app/x/payment/types"
 
 	"github.com/celestiaorg/celestia-node/core"
-	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/libs/fxutil"
 	"github.com/celestiaorg/celestia-node/node/p2p"
 	"github.com/celestiaorg/celestia-node/params"
@@ -74,13 +73,6 @@ func WithHost(hst host.Host) Option {
 func WithCoreClient(client core.Client) Option {
 	return func(sets *Settings) {
 		sets.Opts = append(sets.Opts, fxutil.ReplaceAs(client, new(core.Client)))
-	}
-}
-
-// WithHeaderConstructFn sets custom func that creates extended header
-func WithHeaderConstructFn(construct header.ConstructFn) Option {
-	return func(sets *Settings) {
-		sets.Opts = append(sets.Opts, fx.Replace(construct))
 	}
 }
 

@@ -18,6 +18,7 @@ import (
 
 	"github.com/celestiaorg/celestia-node/ipld"
 	"github.com/celestiaorg/celestia-node/node"
+	headerconf "github.com/celestiaorg/celestia-node/node/header"
 	nodeconf "github.com/celestiaorg/celestia-node/node/node"
 	"github.com/celestiaorg/celestia-node/node/tests/swamp"
 	"github.com/celestiaorg/celestia-node/service/share"
@@ -54,7 +55,7 @@ func TestFullReconstructFromBridge(t *testing.T) {
 	err := bridge.Start(ctx)
 	require.NoError(t, err)
 
-	full := sw.NewFullNode(nodeconf.WithTrustedPeers(getMultiAddr(t, bridge.Host)))
+	full := sw.NewFullNode(headerconf.WithTrustedPeers(getMultiAddr(t, bridge.Host)))
 	err = full.Start(ctx)
 	require.NoError(t, err)
 
@@ -128,7 +129,7 @@ func TestFullReconstructFromLights(t *testing.T) {
 
 	nodesConfig := append(
 		[]nodeconf.Option{
-			nodeconf.WithTrustedPeers(addrsBridge[0].String()),
+			headerconf.WithTrustedPeers(addrsBridge[0].String()),
 			nodeconf.WithBootstrappers([]peer.AddrInfo{*addrBootstrapNode})},
 		defaultOptions...,
 	)
@@ -141,7 +142,7 @@ func TestFullReconstructFromLights(t *testing.T) {
 		errg.Go(func() error {
 			lnConfig := append(
 				[]nodeconf.Option{
-					nodeconf.WithTrustedPeers(addrsBridge[0].String())},
+					headerconf.WithTrustedPeers(addrsBridge[0].String())},
 				nodesConfig...,
 			)
 			light := sw.NewLightNode(lnConfig...)

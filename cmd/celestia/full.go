@@ -5,6 +5,7 @@ import (
 	"github.com/spf13/cobra"
 
 	cmdnode "github.com/celestiaorg/celestia-node/cmd"
+	"github.com/celestiaorg/celestia-node/node/header"
 	"github.com/celestiaorg/celestia-node/node/node"
 	"github.com/celestiaorg/celestia-node/node/state"
 )
@@ -17,7 +18,7 @@ func init() {
 		cmdnode.Init(
 			cmdnode.NodeFlags(node.Full),
 			cmdnode.P2PFlags(),
-			cmdnode.HeadersFlags(),
+			header.HeadersFlags(),
 			cmdnode.MiscFlags(),
 			// NOTE: for now, state-related queries can only be accessed
 			// over an RPC connection with a celestia-core node.
@@ -28,7 +29,7 @@ func init() {
 		cmdnode.Start(
 			cmdnode.NodeFlags(node.Full),
 			cmdnode.P2PFlags(),
-			cmdnode.HeadersFlags(),
+			header.HeadersFlags(),
 			cmdnode.MiscFlags(),
 			// NOTE: for now, state-related queries can only be accessed
 			// over an RPC connection with a celestia-core node.
@@ -66,7 +67,7 @@ var fullCmd = &cobra.Command{
 			return err
 		}
 
-		ctx, err = cmdnode.ParseHeadersFlags(ctx, cmd)
+		ctx, err = header.ParseHeadersFlags(ctx, cmd)
 		if err != nil {
 			return err
 		}
