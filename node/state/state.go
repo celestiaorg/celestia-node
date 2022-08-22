@@ -7,7 +7,6 @@ import (
 	"go.uber.org/fx"
 
 	"github.com/celestiaorg/celestia-node/fraud"
-	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/libs/fxutil"
 	"github.com/celestiaorg/celestia-node/node/core"
 	"github.com/celestiaorg/celestia-node/node/key"
@@ -31,7 +30,7 @@ func Module(coreCfg core.Config, keyCfg key.Config) fx.Option {
 				return accessor.Stop(ctx)
 			}),
 		)),
-		fx.Provide(fx.Annotate(Service,
+		fx.Provide(fx.Annotate(state.NewService,
 			fx.OnStart(func(ctx context.Context, lc fx.Lifecycle, fservice fraud.Service, serv *state.Service) error {
 				lifecycleCtx := fxutil.WithLifecycle(ctx, lc)
 				return services.FraudLifecycle(ctx, lifecycleCtx, fraud.BadEncoding, fservice, serv.Start, serv.Stop)
@@ -41,12 +40,4 @@ func Module(coreCfg core.Config, keyCfg key.Config) fx.Option {
 			}),
 		)),
 	)
-}
-
-// Service constructs a new state.Service.
-func Service(
-	accessor state.Accessor,
-	store header.Store,
-) *state.Service {
-	return state.NewService(accessor, store)
 }
