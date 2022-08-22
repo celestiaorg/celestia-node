@@ -62,11 +62,11 @@ func Test_GetAllFailed(t *testing.T) {
 	require.Nil(t, proofs)
 }
 
-func Test_GetByHash(t *testing.T) {
+func Test_getByHash(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*15)
 	defer t.Cleanup(cancel)
 	bServ := mdutils.Bserv()
-	_, store := createService(t)
+	_, store := createService(t, false)
 
 	ds := ds_sync.MutexWrap(datastore.NewMapDatastore())
 	badEncodingStore := namespace.Wrap(ds, makeKey(BadEncoding))

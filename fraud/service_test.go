@@ -190,7 +190,7 @@ func TestService_ReGossiping(t *testing.T) {
 	_, err = subsB.Proof(newCtx)
 	require.NoError(t, err)
 
-	_, err = fsubsC.Proof(ctx)
+	_, err = psubsC.Proof(ctx)
 	require.NoError(t, err)
 	// we cannot avoid sleep because it helps to avoid flakiness
 	time.Sleep(time.Millisecond * 100)
@@ -217,26 +217,32 @@ func TestService_Get(t *testing.T) {
 	require.NoError(t, err)
 }
 
-func createService(t *testing.T) (*ProofService, *mockStore) {
+func createService(t *testing.T, enabledSyncer bool) (*ProofService, *mockStore) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*15)
 	t.Cleanup(cancel)
 
 	// create mock network
 	net, err := mocknet.FullMeshLinked(1)
 	require.NoError(t, err)
-	// create pubsub for host
-	ps, err := pubsub.NewGossipSub(ctx, net.Hosts()[0],
-		pubsub.WithMessageSignaturePolicy(pubsub.StrictNoSign))
-	require.NoError(t, err)
-	store := createStore(t, 10)
-	return NewService(ps, net.Hosts()[0], store.GetByHeight, sync.MutexWrap(datastore.NewMapDatastore()), false), store
+	return createServiceWithHost(ctx, t, net.Hosts()[0], enabledSyncer)
 }
 
-func createServiceWithHost(ctx context.Context, t *testing.T, host host.Host) (*ProofService, *mockStore) {
+func createServiceWithHost(
+	ctx context.Context,
+	t *testing.T,
+	host host.Host,
+	enabledSyncer bool,
+) (*ProofService, *mockStore) {
 	// create pubsub for host
 	ps, err := pubsub.NewGossipSub(ctx, host,
 		pubsub.WithMessageSignaturePolicy(pubsub.StrictNoSign))
 	require.NoError(t, err)
 	store := createStore(t, 10)
-	return NewService(ps, host, store.GetByHeight, sync.MutexWrap(datastore.NewMapDatastore()), false), store
+	return NewProofService(
+		ps,
+		host,
+		store.GetByHeight,
+		sync.MutexWrap(datastore.NewMapDatastore()),
+		enabledSyncer,
+	), store
 }

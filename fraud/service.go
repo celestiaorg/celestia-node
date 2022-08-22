@@ -10,15 +10,10 @@ import (
 
 	"github.com/ipfs/go-datastore"
 	"github.com/libp2p/go-libp2p-core/host"
-	"github.com/libp2p/go-libp2p-core/network"
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/libp2p/go-libp2p-core/protocol"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
-	"golang.org/x/sync/errgroup"
 
-	"github.com/celestiaorg/go-libp2p-messenger/serde"
-
-	pb "github.com/celestiaorg/celestia-node/fraud/pb"
 	"github.com/celestiaorg/celestia-node/params"
 )
 
@@ -44,7 +39,7 @@ type ProofService struct {
 	enabledSyncer bool
 }
 
-func NewService(
+func NewProofService(
 	p *pubsub.PubSub,
 	host host.Host,
 	getter headerFetcher,
@@ -62,7 +57,7 @@ func NewService(
 	}
 }
 
-func (f *ProofService) RegisterTopics(proofTypes ...ProofType) error {
+func (f *ProofService) RegisterProofs(proofTypes ...ProofType) error {
 	for _, proofType := range proofTypes {
 		t, err := join(f.pubsub, proofType, f.processIncoming)
 		if err != nil {
@@ -74,11 +69,17 @@ func (f *ProofService) RegisterTopics(proofTypes ...ProofType) error {
 	}
 	return nil
 }
+
 func (f *ProofService) Start(ctx context.Context) error {
 	f.host.SetStreamHandler(fraudProtocolID, f.handleFraudMessageRequest)
 	if f.enabledSyncer {
 		go f.syncFraudProofs(ctx)
 	}
+	return nil
+}
+
+func (f *ProofService) Stop(context.Context) error {
+	f.host.RemoveStreamHandler(fraudProtocolID)
 	return nil
 }
 
@@ -148,7 +149,7 @@ func (f *ProofService) processIncoming(
 
 	err = f.put(ctx, proof.Type(), hex.EncodeToString(proof.HeaderHash()), msg.Data)
 	if err != nil {
-		log.Error("error while adding a fraud proof to storage: ", err)
+		log.Errorw("failed to store fraud proof", "err", err)
 	}
 
 	return pubsub.ValidationAccept
@@ -175,63 +176,6 @@ func (f *ProofService) put(ctx context.Context, proofType ProofType, hash string
 	}
 	f.storesLk.Unlock()
 	return put(ctx, store, hash, data)
-}
-
-func (f *ProofService) handleFraudMessageRequest(stream network.Stream) {
-	req := &pb.FraudMessageRequest{}
-	_, err := serde.Read(stream, req)
-	if err != nil {
-		stream.Reset() //nolint:errcheck
-		log.Warnf("error while handling fraud message request: %s ", err)
-		return
-	}
-
-	resp := &pb.FraudMessageResponse{}
-	errg, ctx := errgroup.WithContext(context.Background())
-	resp.Proofs = make([]*pb.ProofResponse, len(req.RequestedProofType))
-	for i, p := range req.RequestedProofType {
-		p, i := p, i
-		errg.Go(func() error {
-			resp.Proofs[i] = &pb.ProofResponse{Type: p}
-			if err != nil {
-				log.Warn(err)
-				return nil
-			}
-			proofs, err := f.Get(ctx, ProofType(p))
-			if err != nil {
-				if errors.Is(err, datastore.ErrNotFound) {
-					return nil
-				}
-				return err
-			}
-
-			for _, proof := range proofs {
-				bin, err := proof.MarshalBinary()
-				if err != nil {
-					log.Warn(err)
-					continue
-				}
-				resp.Proofs[i].Value = append(resp.Proofs[i].Value, bin)
-			}
-			return nil
-		})
-	}
-
-	if err = errg.Wait(); err != nil {
-		stream.Reset() //nolint:errcheck
-		log.Error(err)
-		return
-	}
-	_, err = serde.Write(stream, resp)
-	if err != nil {
-		stream.Reset() //nolint:errcheck
-		log.Error("error while writing a response: %s", err)
-		return
-	}
-	err = stream.CloseWrite()
-	if err != nil {
-		log.Error("error while closing a writer in stream:", err)
-	}
 }
 
 func (f *ProofService) verifyLocal(ctx context.Context, proofType ProofType, hash string, data []byte) bool {

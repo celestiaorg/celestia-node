@@ -2,10 +2,19 @@ package fraud
 
 import (
 	"context"
+	"errors"
 
+	"golang.org/x/sync/errgroup"
+
+	"github.com/ipfs/go-datastore"
 	"github.com/libp2p/go-libp2p-core/event"
+	"github.com/libp2p/go-libp2p-core/network"
 	"github.com/libp2p/go-libp2p-core/peer"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
+
+	"github.com/celestiaorg/go-libp2p-messenger/serde"
+
+	pb "github.com/celestiaorg/celestia-node/fraud/pb"
 )
 
 func (f *ProofService) syncFraudProofs(ctx context.Context) {
@@ -36,17 +45,17 @@ func (f *ProofService) syncFraudProofs(ctx context.Context) {
 			continue
 		}
 		go func(pid peer.ID) {
-			log.Debug("requesting proofs from the peer ", pid)
+			log.Debugw("requesting proofs from peer", "pid", pid)
 			respProofs, err := requestProofs(ctx, f.host, pid, proofTypes)
 			if err != nil {
-				log.Errorw("error while requesting fraud proofs from the peer", "err", err, "peer", pid)
+				log.Errorw("error while requesting fraud proofs", "err", err, "peer", pid)
 				return
 			}
 			if len(respProofs) == 0 {
-				log.Debug("proofs were not found")
+				log.Debugw("peer did not return any proofs", "pid", pid)
 				return
 			}
-			log.Debug("got fraud proofs from the peer: ", connStatus.Peer)
+			log.Debugw("got fraud proofs from peer", "pid", connStatus.Peer)
 			for _, data := range respProofs {
 				if err != nil {
 					log.Warn(err)
@@ -74,5 +83,64 @@ func (f *ProofService) syncFraudProofs(ctx context.Context) {
 				}
 			}
 		}(connStatus.Peer)
+	}
+}
+
+func (f *ProofService) handleFraudMessageRequest(stream network.Stream) {
+	req := &pb.FraudMessageRequest{}
+	_, err := serde.Read(stream, req)
+	if err != nil {
+		stream.Reset() //nolint:errcheck
+		log.Warnw("handling fraud message request failed", "err", err)
+		return
+	}
+	if err = stream.CloseRead(); err != nil {
+		log.Warn(err)
+	}
+
+	resp := &pb.FraudMessageResponse{}
+	errg, ctx := errgroup.WithContext(context.Background())
+	resp.Proofs = make([]*pb.ProofResponse, len(req.RequestedProofType))
+	for i, p := range req.RequestedProofType {
+		p, i := p, i
+		errg.Go(func() error {
+			resp.Proofs[i] = &pb.ProofResponse{Type: p}
+			if err != nil {
+				log.Warn(err)
+				return nil
+			}
+			proofs, err := f.Get(ctx, ProofType(p))
+			if err != nil {
+				if errors.Is(err, datastore.ErrNotFound) {
+					return nil
+				}
+				return err
+			}
+
+			for _, proof := range proofs {
+				bin, err := proof.MarshalBinary()
+				if err != nil {
+					log.Warn(err)
+					continue
+				}
+				resp.Proofs[i].Value = append(resp.Proofs[i].Value, bin)
+			}
+			return nil
+		})
+	}
+
+	if err = errg.Wait(); err != nil {
+		stream.Reset() //nolint:errcheck
+		log.Error(err)
+		return
+	}
+	_, err = serde.Write(stream, resp)
+	if err != nil {
+		stream.Reset() //nolint:errcheck
+		log.Errorw("error while writing a response", "err", err)
+		return
+	}
+	if err = stream.CloseWrite(); err != nil {
+		log.Error("error while closing a writer in stream", "err", err)
 	}
 }

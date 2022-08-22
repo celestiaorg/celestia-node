@@ -182,7 +182,6 @@ func FraudServiceWithSyncer(
 	hstore header.Store,
 	ds datastore.Batching,
 ) (fraud.Service, error) {
-
 	return newFraudService(ctx, lc, sub, host, hstore, ds, true)
 }
 
@@ -193,16 +192,17 @@ func newFraudService(ctx context.Context,
 	hstore header.Store,
 	ds datastore.Batching,
 	isEnabled bool) (fraud.Service, error) {
-	fservice := fraud.NewService(sub, host, hstore.GetByHeight, ds, isEnabled)
-	if err := fservice.RegisterTopics(fraud.BadEncoding); err != nil {
-		return nil, err
-	}
+	pservice := fraud.NewProofService(sub, host, hstore.GetByHeight, ds, isEnabled)
 	lc.Append(fx.Hook{
 		OnStart: func(context.Context) error {
-			return fservice.Start(fxutil.WithLifecycle(ctx, lc))
+			return pservice.Start(fxutil.WithLifecycle(ctx, lc))
 		},
+		OnStop: pservice.Stop,
 	})
-	return fservice, nil
+	if err := pservice.RegisterProofs(fraud.BadEncoding); err != nil {
+		return nil, err
+	}
+	return pservice, nil
 }
 
 // LightAvailability constructs light share availability.
@@ -289,13 +289,17 @@ func FraudLifecycle(
 		return &fraud.ErrFraudExists{Proof: proofs}
 	case datastore.ErrNotFound:
 	}
+	err = start(startCtx)
+	if err != nil {
+		return err
+	}
 	// handle incoming Fraud Proofs
 	go fraud.OnProof(lifecycleCtx, fservice, p, func(fraud.Proof) {
 		if err := stop(lifecycleCtx); err != nil {
 			log.Error(err)
 		}
 	})
-	return start(startCtx)
+	return nil
 }
 
 // Metrics enables metrics for services.
