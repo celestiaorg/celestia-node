@@ -6,8 +6,6 @@ import (
 	"github.com/libp2p/go-libp2p-core/event"
 	"github.com/libp2p/go-libp2p-core/peer"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
-
-	pb "github.com/celestiaorg/celestia-node/fraud/pb"
 )
 
 func (f *ProofService) syncFraudProofs(ctx context.Context) {
@@ -19,14 +17,9 @@ func (f *ProofService) syncFraudProofs(ctx context.Context) {
 	}
 	defer sub.Close()
 	f.topicsLk.RLock()
-	proofTypes := make([]pb.ProofType, 0, len(f.topics))
+	proofTypes := make([]uint32, 0, len(f.topics))
 	for proofType := range f.topics {
-		p, err := proofTypeToPb(proofType)
-		if err != nil {
-			log.Warn(err)
-			continue
-		}
-		proofTypes = append(proofTypes, p)
+		proofTypes = append(proofTypes, uint32(proofType))
 	}
 	f.topicsLk.RUnlock()
 	connStatus := event.EvtPeerIdentificationCompleted{}
@@ -55,28 +48,29 @@ func (f *ProofService) syncFraudProofs(ctx context.Context) {
 			}
 			log.Debug("got fraud proofs from the peer: ", connStatus.Peer)
 			for _, data := range respProofs {
-				proofType, err := pbToProofType(data.Type)
 				if err != nil {
 					log.Warn(err)
 					continue
 				}
 				f.topicsLk.RLock()
-				topic, ok := f.topics[proofType]
+				topic, ok := f.topics[ProofType(data.Type)]
 				f.topicsLk.RUnlock()
 				if !ok {
-					log.Errorf("topic for %s does not exist", proofType)
+					log.Errorf("topic for %s does not exist", ProofType(data.Type))
 					continue
 				}
-				err = topic.Publish(
-					ctx,
-					data.Value,
-					// broadcast across all local subscriptions in order to verify fraud proof and to stop services
-					pubsub.WithLocalPublication(true),
-					// key can be nil because it will not be verified in this case
-					pubsub.WithSecretKeyAndPeerId(nil, pid),
-				)
-				if err != nil {
-					log.Error(err)
+				for _, val := range data.Value {
+					err = topic.Publish(
+						ctx,
+						val,
+						// broadcast across all local subscriptions in order to verify fraud proof and to stop services
+						pubsub.WithLocalPublication(true),
+						// key can be nil because it will not be verified in this case
+						pubsub.WithSecretKeyAndPeerId(nil, pid),
+					)
+					if err != nil {
+						log.Error(err)
+					}
 				}
 			}
 		}(connStatus.Peer)

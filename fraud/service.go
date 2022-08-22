@@ -136,7 +136,7 @@ func (f *ProofService) processIncoming(
 		// TODO @vgonkivs: add retry mechanism to fetch header
 		log.Errorw("failed to fetch header to verify a fraud proof",
 			"err", err, "proofType", proof.Type(), "height", proof.Height())
-		return pubsub.ValidationReject
+		return pubsub.ValidationIgnore
 	}
 	err = proof.Validate(extHeader)
 	if err != nil {
@@ -190,16 +190,14 @@ func (f *ProofService) handleFraudMessageRequest(stream network.Stream) {
 	errg, ctx := errgroup.WithContext(context.Background())
 	resp.Proofs = make([]*pb.ProofResponse, len(req.RequestedProofType))
 	for i, p := range req.RequestedProofType {
-		p := p
-		i := i
+		p, i := p, i
 		errg.Go(func() error {
 			resp.Proofs[i] = &pb.ProofResponse{Type: p}
-			proofType, err := pbToProofType(p)
 			if err != nil {
 				log.Warn(err)
 				return nil
 			}
-			proofs, err := f.Get(ctx, proofType)
+			proofs, err := f.Get(ctx, ProofType(p))
 			if err != nil {
 				if errors.Is(err, datastore.ErrNotFound) {
 					return nil
@@ -213,7 +211,7 @@ func (f *ProofService) handleFraudMessageRequest(stream network.Stream) {
 					log.Warn(err)
 					continue
 				}
-				resp.Proofs[i].Value = bin
+				resp.Proofs[i].Value = append(resp.Proofs[i].Value, bin)
 			}
 			return nil
 		})
