@@ -2,7 +2,6 @@ package ipld
 
 import (
 	"context"
-	"go.opentelemetry.io/otel/codes"
 	"sync"
 	"sync/atomic"
 
@@ -11,6 +10,7 @@ import (
 	"github.com/ipfs/go-cid"
 	ipld "github.com/ipfs/go-ipld-format"
 	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
 
 	"github.com/celestiaorg/celestia-node/ipld/plugin"

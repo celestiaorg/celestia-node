@@ -2,13 +2,13 @@ package ipld
 
 import (
 	"context"
-	"go.opentelemetry.io/otel/codes"
 	"sync"
 
 	"github.com/gammazero/workerpool"
 	"github.com/ipfs/go-blockservice"
 	"github.com/ipfs/go-cid"
 	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
 
 	"github.com/celestiaorg/celestia-node/ipld/plugin"
