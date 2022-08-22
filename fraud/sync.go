@@ -2,12 +2,8 @@ package fraud
 
 import (
 	"context"
-	"errors"
 	"time"
 
-	"golang.org/x/sync/errgroup"
-
-	"github.com/ipfs/go-datastore"
 	"github.com/libp2p/go-libp2p-core/event"
 	"github.com/libp2p/go-libp2p-core/network"
 	"github.com/libp2p/go-libp2p-core/peer"
@@ -103,41 +99,26 @@ func (f *ProofService) handleFraudMessageRequest(stream network.Stream) {
 	}
 
 	resp := &pb.FraudMessageResponse{}
-	errg, ctx := errgroup.WithContext(f.ctx)
-	resp.Proofs = make([]*pb.ProofResponse, len(req.RequestedProofType))
-	for i, p := range req.RequestedProofType {
-		p, i := p, i
-		errg.Go(func() error {
-			resp.Proofs[i] = &pb.ProofResponse{Type: p}
+	resp.Proofs = make([]*pb.ProofResponse, 0, len(req.RequestedProofType))
+	for _, p := range req.RequestedProofType {
+		proofs, err := f.Get(f.ctx, ProofType(p))
+		if err != nil {
+			continue
+		}
+		pbProofs := &pb.ProofResponse{Type: p, Value: make([][]byte, 0, len(proofs))}
+		for _, proof := range proofs {
+			bin, err := proof.MarshalBinary()
 			if err != nil {
-				log.Warn(err)
-				return nil
+				log.Error(err)
+				continue
 			}
-			proofs, err := f.Get(ctx, ProofType(p))
-			if err != nil {
-				if errors.Is(err, datastore.ErrNotFound) {
-					return nil
-				}
-				return err
-			}
-			resp.Proofs[i].Value = make([][]byte, 0, len(proofs))
-			for _, proof := range proofs {
-				bin, err := proof.MarshalBinary()
-				if err != nil {
-					log.Error(err)
-					continue
-				}
-				resp.Proofs[i].Value = append(resp.Proofs[i].Value, bin)
-			}
-			return nil
-		})
+			pbProofs.Value = append(pbProofs.Value, bin)
+		}
+		if len(pbProofs.Value) > 0 {
+			resp.Proofs = append(resp.Proofs, pbProofs)
+		}
 	}
 
-	if err = errg.Wait(); err != nil {
-		stream.Reset() //nolint:errcheck
-		log.Error(err)
-		return
-	}
 	if err = stream.SetWriteDeadline(time.Now().Add(writeDeadline)); err != nil {
 		log.Warn(err)
 	}
