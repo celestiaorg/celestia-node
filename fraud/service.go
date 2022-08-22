@@ -25,6 +25,9 @@ var fraudProtocolID = protocol.ID(fmt.Sprintf("/fraud/v0.0.1/%s", params.Default
 // ProofService is responsible for validating and propagating Fraud Proofs.
 // It implements the Service interface.
 type ProofService struct {
+	ctx    context.Context
+	cancel context.CancelFunc
+
 	topicsLk sync.RWMutex
 	topics   map[ProofType]*pubsub.Topic
 
@@ -36,7 +39,6 @@ type ProofService struct {
 	getter headerFetcher
 	ds     datastore.Datastore
 
-	cancel        context.CancelFunc
 	enabledSyncer bool
 }
 
@@ -72,11 +74,10 @@ func (f *ProofService) RegisterProofs(proofTypes ...ProofType) error {
 }
 
 func (f *ProofService) Start(context.Context) error {
-	ctx, cancel := context.WithCancel(context.Background())
-	f.cancel = cancel
+	f.ctx, f.cancel = context.WithCancel(context.Background())
 	f.host.SetStreamHandler(fraudProtocolID, f.handleFraudMessageRequest)
 	if f.enabledSyncer {
-		go f.syncFraudProofs(ctx)
+		go f.syncFraudProofs(f.ctx)
 	}
 	return nil
 }
@@ -138,7 +139,6 @@ func (f *ProofService) processIncoming(
 
 	extHeader, err := f.getter(ctx, proof.Height())
 	if err != nil {
-		// TODO @vgonkivs: add retry mechanism to fetch header
 		log.Errorw("failed to fetch header to verify a fraud proof",
 			"err", err, "proofType", proof.Type(), "height", proof.Height())
 		return pubsub.ValidationIgnore

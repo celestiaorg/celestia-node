@@ -3,6 +3,7 @@ package fraud
 import (
 	"context"
 	"errors"
+	"time"
 
 	"golang.org/x/sync/errgroup"
 
@@ -88,6 +89,9 @@ func (f *ProofService) syncFraudProofs(ctx context.Context) {
 
 func (f *ProofService) handleFraudMessageRequest(stream network.Stream) {
 	req := &pb.FraudMessageRequest{}
+	if err := stream.SetReadDeadline(time.Now().Add(readDeadline)); err != nil {
+		log.Warn(err)
+	}
 	_, err := serde.Read(stream, req)
 	if err != nil {
 		stream.Reset() //nolint:errcheck
@@ -99,7 +103,7 @@ func (f *ProofService) handleFraudMessageRequest(stream network.Stream) {
 	}
 
 	resp := &pb.FraudMessageResponse{}
-	errg, ctx := errgroup.WithContext(context.Background())
+	errg, ctx := errgroup.WithContext(f.ctx)
 	resp.Proofs = make([]*pb.ProofResponse, len(req.RequestedProofType))
 	for i, p := range req.RequestedProofType {
 		p, i := p, i
@@ -116,7 +120,7 @@ func (f *ProofService) handleFraudMessageRequest(stream network.Stream) {
 				}
 				return err
 			}
-
+			resp.Proofs[i].Value = make([][]byte, 0, len(proofs))
 			for _, proof := range proofs {
 				bin, err := proof.MarshalBinary()
 				if err != nil {
@@ -133,6 +137,9 @@ func (f *ProofService) handleFraudMessageRequest(stream network.Stream) {
 		stream.Reset() //nolint:errcheck
 		log.Error(err)
 		return
+	}
+	if err = stream.SetWriteDeadline(time.Now().Add(writeDeadline)); err != nil {
+		log.Warn(err)
 	}
 	_, err = serde.Write(stream, resp)
 	if err != nil {
