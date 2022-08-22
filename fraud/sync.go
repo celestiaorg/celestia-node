@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/ipfs/go-datastore"
 	"github.com/libp2p/go-libp2p-core/event"
 	"github.com/libp2p/go-libp2p-core/network"
 	"github.com/libp2p/go-libp2p-core/peer"
@@ -103,6 +104,9 @@ func (f *ProofService) handleFraudMessageRequest(stream network.Stream) {
 	for _, p := range req.RequestedProofType {
 		proofs, err := f.Get(f.ctx, ProofType(p))
 		if err != nil {
+			if err != datastore.ErrNotFound {
+				log.Error(err)
+			}
 			continue
 		}
 		pbProofs := &pb.ProofResponse{Type: p, Value: make([][]byte, 0, len(proofs))}
@@ -114,9 +118,7 @@ func (f *ProofService) handleFraudMessageRequest(stream network.Stream) {
 			}
 			pbProofs.Value = append(pbProofs.Value, bin)
 		}
-		if len(pbProofs.Value) > 0 {
-			resp.Proofs = append(resp.Proofs, pbProofs)
-		}
+		resp.Proofs = append(resp.Proofs, pbProofs)
 	}
 
 	if err = stream.SetWriteDeadline(time.Now().Add(writeDeadline)); err != nil {
