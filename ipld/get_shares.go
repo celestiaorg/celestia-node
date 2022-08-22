@@ -100,7 +100,7 @@ func GetShares(ctx context.Context, bGetter blockservice.BlockGetter, root cid.C
 					}
 					// successfully fetched a share/leaf
 					// ladies and gentlemen, we got em!
-					span.SetStatus(codes.Ok, "found-leaf")
+					span.SetStatus(codes.Ok, "")
 					put(j.pos, leafToShare(nd))
 					return
 				}

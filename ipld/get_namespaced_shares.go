@@ -180,7 +180,7 @@ func getLeavesByNamespace(
 				linkCount := uint64(len(links))
 				if linkCount == 1 {
 					// successfully fetched a leaf belonging to the namespace
-					span.SetStatus(codes.Ok, "found-leaf")
+					span.SetStatus(codes.Ok, "")
 					leaves[j.pos] = nd
 					// we found a leaf, so we update the bounds
 					// the update routine is repeated until the atomic swap is successful
