@@ -163,29 +163,27 @@ func DASer(
 
 // FraudService constructs fraud proof service with disabled syncer.
 func FraudService(
-	ctx context.Context,
 	lc fx.Lifecycle,
 	sub *pubsub.PubSub,
 	host host.Host,
 	hstore header.Store,
 	ds datastore.Batching,
 ) (fraud.Service, error) {
-	return newFraudService(ctx, lc, sub, host, hstore, ds, false)
+	return newFraudService(lc, sub, host, hstore, ds, false)
 }
 
 // FraudServiceWithSyncer constructs fraud proof service with enabled syncer.
 func FraudServiceWithSyncer(
-	ctx context.Context,
 	lc fx.Lifecycle,
 	sub *pubsub.PubSub,
 	host host.Host,
 	hstore header.Store,
 	ds datastore.Batching,
 ) (fraud.Service, error) {
-	return newFraudService(ctx, lc, sub, host, hstore, ds, true)
+	return newFraudService(lc, sub, host, hstore, ds, true)
 }
 
-func newFraudService(ctx context.Context,
+func newFraudService(
 	lc fx.Lifecycle,
 	sub *pubsub.PubSub,
 	host host.Host,
@@ -194,10 +192,8 @@ func newFraudService(ctx context.Context,
 	isEnabled bool) (fraud.Service, error) {
 	pservice := fraud.NewProofService(sub, host, hstore.GetByHeight, ds, isEnabled)
 	lc.Append(fx.Hook{
-		OnStart: func(context.Context) error {
-			return pservice.Start(fxutil.WithLifecycle(ctx, lc))
-		},
-		OnStop: pservice.Stop,
+		OnStart: pservice.Start,
+		OnStop:  pservice.Stop,
 	})
 	if err := pservice.RegisterProofs(fraud.BadEncoding); err != nil {
 		return nil, err

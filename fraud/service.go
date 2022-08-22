@@ -36,6 +36,7 @@ type ProofService struct {
 	getter headerFetcher
 	ds     datastore.Datastore
 
+	cancel        context.CancelFunc
 	enabledSyncer bool
 }
 
@@ -70,7 +71,9 @@ func (f *ProofService) RegisterProofs(proofTypes ...ProofType) error {
 	return nil
 }
 
-func (f *ProofService) Start(ctx context.Context) error {
+func (f *ProofService) Start(context.Context) error {
+	ctx, cancel := context.WithCancel(context.Background())
+	f.cancel = cancel
 	f.host.SetStreamHandler(fraudProtocolID, f.handleFraudMessageRequest)
 	if f.enabledSyncer {
 		go f.syncFraudProofs(ctx)
@@ -80,6 +83,7 @@ func (f *ProofService) Start(ctx context.Context) error {
 
 func (f *ProofService) Stop(context.Context) error {
 	f.host.RemoveStreamHandler(fraudProtocolID)
+	f.cancel()
 	return nil
 }
 
