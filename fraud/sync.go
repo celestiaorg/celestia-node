@@ -91,7 +91,7 @@ func (f *ProofService) handleFraudMessageRequest(stream network.Stream) {
 	_, err := serde.Read(stream, req)
 	if err != nil {
 		stream.Reset() //nolint:errcheck
-		log.Warnw("handling fraud message request failed", "err", err)
+		log.Errorw("handling fraud message request failed", "err", err)
 		return
 	}
 	if err = stream.CloseRead(); err != nil {
@@ -120,7 +120,7 @@ func (f *ProofService) handleFraudMessageRequest(stream network.Stream) {
 			for _, proof := range proofs {
 				bin, err := proof.MarshalBinary()
 				if err != nil {
-					log.Warn(err)
+					log.Error(err)
 					continue
 				}
 				resp.Proofs[i].Value = append(resp.Proofs[i].Value, bin)
@@ -141,6 +141,6 @@ func (f *ProofService) handleFraudMessageRequest(stream network.Stream) {
 		return
 	}
 	if err = stream.CloseWrite(); err != nil {
-		log.Error("error while closing a writer in stream", "err", err)
+		log.Warnw("error while closing a writer in stream", "err", err)
 	}
 }
