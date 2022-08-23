@@ -18,8 +18,8 @@ import (
 	"github.com/celestiaorg/celestia-node/core"
 	"github.com/celestiaorg/celestia-node/libs/keystore"
 	"github.com/celestiaorg/celestia-node/logs"
-	"github.com/celestiaorg/celestia-node/node"
-	nodeconf "github.com/celestiaorg/celestia-node/node/node"
+	nodebuilder "github.com/celestiaorg/celestia-node/node"
+	"github.com/celestiaorg/celestia-node/node/node"
 	"github.com/celestiaorg/celestia-node/node/p2p"
 	"github.com/celestiaorg/celestia-node/params"
 )
@@ -39,9 +39,9 @@ type Swamp struct {
 	t           *testing.T
 	Network     mocknet.Mocknet
 	CoreClient  core.Client
-	BridgeNodes []*node.Node
-	FullNodes   []*node.Node
-	LightNodes  []*node.Node
+	BridgeNodes []*nodebuilder.Node
+	FullNodes   []*nodebuilder.Node
+	LightNodes  []*nodebuilder.Node
 	trustedHash string
 	comps       *Components
 }
@@ -98,7 +98,7 @@ func NewSwamp(t *testing.T, options ...Option) *Swamp {
 
 // stopAllNodes goes through all received slices of Nodes and stops one-by-one
 // this eliminates a manual clean-up in the test-cases itself in the end
-func (s *Swamp) stopAllNodes(ctx context.Context, allNodes ...[]*node.Node) {
+func (s *Swamp) stopAllNodes(ctx context.Context, allNodes ...[]*nodebuilder.Node) {
 	for _, nodes := range allNodes {
 		for _, node := range nodes {
 			require.NoError(s.t, node.Stop(ctx))
@@ -193,58 +193,58 @@ func (s *Swamp) getTrustedHash(ctx context.Context) (string, error) {
 
 // NewBridgeNode creates a new instance of a BridgeNode providing a default config
 // and a mockstore to the NewNodeWithStore method
-func (s *Swamp) NewBridgeNode(options ...nodeconf.Option) *node.Node {
-	cfg := nodeconf.DefaultConfig(nodeconf.Bridge)
-	store := node.MockStore(s.t, cfg)
+func (s *Swamp) NewBridgeNode(options ...node.Option) *nodebuilder.Node {
+	cfg := node.DefaultConfig(node.Bridge)
+	store := nodebuilder.MockStore(s.t, cfg)
 
-	return s.NewNodeWithStore(nodeconf.Bridge, store, options...)
+	return s.NewNodeWithStore(node.Bridge, store, options...)
 }
 
 // NewFullNode creates a new instance of a FullNode providing a default config
 // and a mockstore to the NewNodeWithStore method
-func (s *Swamp) NewFullNode(options ...nodeconf.Option) *node.Node {
-	cfg := nodeconf.DefaultConfig(nodeconf.Full)
-	store := node.MockStore(s.t, cfg)
+func (s *Swamp) NewFullNode(options ...node.Option) *nodebuilder.Node {
+	cfg := node.DefaultConfig(node.Full)
+	store := nodebuilder.MockStore(s.t, cfg)
 
-	return s.NewNodeWithStore(nodeconf.Full, store, options...)
+	return s.NewNodeWithStore(node.Full, store, options...)
 }
 
 // NewLightNode creates a new instance of a LightNode providing a default config
 // and a mockstore to the NewNodeWithStore method
-func (s *Swamp) NewLightNode(options ...nodeconf.Option) *node.Node {
-	cfg := nodeconf.DefaultConfig(nodeconf.Light)
-	store := node.MockStore(s.t, cfg)
+func (s *Swamp) NewLightNode(options ...node.Option) *nodebuilder.Node {
+	cfg := node.DefaultConfig(node.Light)
+	store := nodebuilder.MockStore(s.t, cfg)
 
-	return s.NewNodeWithStore(nodeconf.Light, store, options...)
+	return s.NewNodeWithStore(node.Light, store, options...)
 }
 
 // NewNodeWithStore creates a new instance of Node with predefined Store.
 // Afterwards, the instance is stored in the swamp's Nodes' slice according to the
 // node's type provided from the user.
-func (s *Swamp) NewNodeWithStore(t nodeconf.Type, store node.Store, options ...nodeconf.Option) *node.Node {
-	var n *node.Node
+func (s *Swamp) NewNodeWithStore(t node.Type, store nodebuilder.Store, options ...node.Option) *nodebuilder.Node {
+	var n *nodebuilder.Node
 
-	options = append(options, nodeconf.WithKeyringSigner(node.TestKeyringSigner(s.t)))
+	options = append(options, node.WithKeyringSigner(nodebuilder.TestKeyringSigner(s.t)))
 
 	switch t {
-	case nodeconf.Bridge:
+	case node.Bridge:
 		options = append(options,
-			nodeconf.WithCoreClient(s.CoreClient),
+			node.WithCoreClient(s.CoreClient),
 		)
-		n = s.newNode(nodeconf.Bridge, store, options...)
+		n = s.newNode(node.Bridge, store, options...)
 		s.BridgeNodes = append(s.BridgeNodes, n)
-	case nodeconf.Full:
-		n = s.newNode(nodeconf.Full, store, options...)
+	case node.Full:
+		n = s.newNode(node.Full, store, options...)
 		s.FullNodes = append(s.FullNodes, n)
-	case nodeconf.Light:
-		n = s.newNode(nodeconf.Light, store, options...)
+	case node.Light:
+		n = s.newNode(node.Light, store, options...)
 		s.LightNodes = append(s.LightNodes, n)
 	}
 
 	return n
 }
 
-func (s *Swamp) newNode(t nodeconf.Type, store node.Store, options ...nodeconf.Option) *node.Node {
+func (s *Swamp) newNode(t node.Type, store nodebuilder.Store, options ...node.Option) *nodebuilder.Node {
 	ks, err := store.Keystore()
 	require.NoError(s.t, err)
 
@@ -252,13 +252,13 @@ func (s *Swamp) newNode(t nodeconf.Type, store node.Store, options ...nodeconf.O
 	// like <core, host, hash> from the test case, we need to check them and not use
 	// default that are set here
 	options = append(options,
-		nodeconf.WithHost(s.createPeer(ks)),
-		nodeconf.WithTrustedHash(s.trustedHash),
-		nodeconf.WithNetwork(params.Private),
-		nodeconf.WithRPCPort("0"),
+		node.WithHost(s.createPeer(ks)),
+		node.WithTrustedHash(s.trustedHash),
+		node.WithNetwork(params.Private),
+		node.WithRPCPort("0"),
 	)
 
-	node, err := node.New(t, store, options...)
+	node, err := nodebuilder.New(t, store, options...)
 	require.NoError(s.t, err)
 
 	return node
@@ -267,16 +267,16 @@ func (s *Swamp) newNode(t nodeconf.Type, store node.Store, options ...nodeconf.O
 // RemoveNode removes a node from the swamp's node slice
 // this allows reusage of the same var in the test scenario
 // if the user needs to stop and start the same node
-func (s *Swamp) RemoveNode(n *node.Node, t nodeconf.Type) error {
+func (s *Swamp) RemoveNode(n *nodebuilder.Node, t node.Type) error {
 	var err error
 	switch t {
-	case nodeconf.Light:
+	case node.Light:
 		s.LightNodes, err = s.remove(n, s.LightNodes)
 		return err
-	case nodeconf.Bridge:
+	case node.Bridge:
 		s.BridgeNodes, err = s.remove(n, s.BridgeNodes)
 		return err
-	case nodeconf.Full:
+	case node.Full:
 		s.FullNodes, err = s.remove(n, s.FullNodes)
 		return err
 	default:
@@ -284,7 +284,7 @@ func (s *Swamp) RemoveNode(n *node.Node, t nodeconf.Type) error {
 	}
 }
 
-func (s *Swamp) remove(rn *node.Node, sn []*node.Node) ([]*node.Node, error) {
+func (s *Swamp) remove(rn *nodebuilder.Node, sn []*nodebuilder.Node) ([]*nodebuilder.Node, error) {
 	if len(sn) == 1 {
 		return nil, nil
 	}

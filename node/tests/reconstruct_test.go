@@ -17,8 +17,8 @@ import (
 	"golang.org/x/sync/errgroup"
 
 	"github.com/celestiaorg/celestia-node/ipld"
-	"github.com/celestiaorg/celestia-node/node"
-	nodeconf "github.com/celestiaorg/celestia-node/node/node"
+	nodebuilder "github.com/celestiaorg/celestia-node/node"
+	"github.com/celestiaorg/celestia-node/node/node"
 	"github.com/celestiaorg/celestia-node/node/tests/swamp"
 	"github.com/celestiaorg/celestia-node/service/share"
 )
@@ -54,7 +54,7 @@ func TestFullReconstructFromBridge(t *testing.T) {
 	err := bridge.Start(ctx)
 	require.NoError(t, err)
 
-	full := sw.NewFullNode(nodeconf.WithTrustedPeers(getMultiAddr(t, bridge.Host)))
+	full := sw.NewFullNode(node.WithTrustedPeers(getMultiAddr(t, bridge.Host)))
 	err = full.Start(ctx)
 	require.NoError(t, err)
 
@@ -109,39 +109,39 @@ func TestFullReconstructFromLights(t *testing.T) {
 	}()
 
 	const defaultTimeInterval = time.Second * 5
-	var defaultOptions = []nodeconf.Option{
-		nodeconf.WithRefreshRoutingTablePeriod(defaultTimeInterval),
-		nodeconf.WithDiscoveryInterval(defaultTimeInterval),
-		nodeconf.WithAdvertiseInterval(defaultTimeInterval),
+	var defaultOptions = []node.Option{
+		node.WithRefreshRoutingTablePeriod(defaultTimeInterval),
+		node.WithDiscoveryInterval(defaultTimeInterval),
+		node.WithAdvertiseInterval(defaultTimeInterval),
 	}
 
-	cfg := nodeconf.DefaultConfig(nodeconf.Full)
+	cfg := node.DefaultConfig(node.Full)
 	cfg.P2P.Bootstrapper = true
 	bridge := sw.NewBridgeNode()
 	addrsBridge, err := peer.AddrInfoToP2pAddrs(host.InfoFromHost(bridge.Host))
 	require.NoError(t, err)
-	bootstrapConfig := append([]nodeconf.Option{nodeconf.WithConfig(cfg)}, defaultOptions...)
+	bootstrapConfig := append([]node.Option{node.WithConfig(cfg)}, defaultOptions...)
 	bootstapFN := sw.NewFullNode(bootstrapConfig...)
 	require.NoError(t, bootstapFN.Start(ctx))
 	require.NoError(t, bridge.Start(ctx))
 	addrBootstrapNode := host.InfoFromHost(bootstapFN.Host)
 
 	nodesConfig := append(
-		[]nodeconf.Option{
-			nodeconf.WithTrustedPeers(addrsBridge[0].String()),
-			nodeconf.WithBootstrappers([]peer.AddrInfo{*addrBootstrapNode})},
+		[]node.Option{
+			node.WithTrustedPeers(addrsBridge[0].String()),
+			node.WithBootstrappers([]peer.AddrInfo{*addrBootstrapNode})},
 		defaultOptions...,
 	)
 	full := sw.NewFullNode(nodesConfig...)
-	lights := make([]*node.Node, lnodes)
+	lights := make([]*nodebuilder.Node, lnodes)
 	subs := make([]event.Subscription, lnodes)
 	errg, errCtx := errgroup.WithContext(ctx)
 	for i := 0; i < lnodes; i++ {
 		i := i
 		errg.Go(func() error {
 			lnConfig := append(
-				[]nodeconf.Option{
-					nodeconf.WithTrustedPeers(addrsBridge[0].String())},
+				[]node.Option{
+					node.WithTrustedPeers(addrsBridge[0].String())},
 				nodesConfig...,
 			)
 			light := sw.NewLightNode(lnConfig...)
