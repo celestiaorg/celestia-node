@@ -30,7 +30,7 @@ func query(ctx context.Context, ds datastore.Datastore, q q.Query) ([]q.Entry, e
 	return results.Rest()
 }
 
-// getByHash fetches Fraud Proof by its hash from local storage.
+// getByHash fetches a Fraud Proof by its hash from local storage.
 func getByHash(ctx context.Context, ds datastore.Datastore, hash string) ([]byte, error) {
 	return ds.Get(ctx, datastore.NewKey(hash))
 }

@@ -19,7 +19,6 @@ message BadEncoding {
 
 message FraudMessageRequest {
   repeated uint32 RequestedProofType = 1;
-
 }
 
 message ProofResponse {

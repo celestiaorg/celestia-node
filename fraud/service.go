@@ -17,7 +17,7 @@ import (
 	"github.com/celestiaorg/celestia-node/params"
 )
 
-// fraudRequests is amount of external requests that will be done in order to get fraud proofs from another peers.
+// fraudRequests is the amount of external requests that will be tried to get fraud proofs from other peers.
 const fraudRequests = 5
 
 var fraudProtocolID = protocol.ID(fmt.Sprintf("/fraud/v0.0.1/%s", params.DefaultNetwork()))

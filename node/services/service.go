@@ -161,7 +161,7 @@ func DASer(
 	return das
 }
 
-// FraudService constructs fraud proof service with disabled syncer.
+// FraudService constructs a fraud proof service with the syncer disabled.
 func FraudService(
 	lc fx.Lifecycle,
 	sub *pubsub.PubSub,
