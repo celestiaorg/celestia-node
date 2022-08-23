@@ -5,17 +5,15 @@ import (
 	"sync"
 	"sync/atomic"
 
+	"github.com/celestiaorg/celestia-node/ipld/plugin"
+	"github.com/celestiaorg/nmt"
+	"github.com/celestiaorg/nmt/namespace"
 	"github.com/gammazero/workerpool"
 	"github.com/ipfs/go-blockservice"
 	"github.com/ipfs/go-cid"
 	ipld "github.com/ipfs/go-ipld-format"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
-	"go.opentelemetry.io/otel/trace"
-
-	"github.com/celestiaorg/celestia-node/ipld/plugin"
-	"github.com/celestiaorg/nmt"
-	"github.com/celestiaorg/nmt/namespace"
 )
 
 // TODO(@distractedm1nd) Find a better figure than NumWorkersLimit for this pool. Issue #970
@@ -159,6 +157,11 @@ func getLeavesByNamespace(
 				defer wg.done()
 				defer span.End()
 
+				span.SetAttributes(
+					attribute.String("cid", j.id.String()),
+					attribute.Int("pos", j.pos),
+				)
+
 				// if an error is likely to be returned or not depends on
 				// the underlying impl of the blockservice, currently it is not a realistic probability
 				nd, err := plugin.GetNode(ctx, bGetter, j.id)
@@ -167,9 +170,6 @@ func getLeavesByNamespace(
 						retrievalErr = err
 					})
 					log.Errorw("getSharesByNamespace: could not retrieve node", "nID", nID, "pos", j.pos, "err", err)
-					span.RecordError(err, trace.WithAttributes(
-						attribute.Int("pos", j.pos),
-					))
 					span.SetStatus(codes.Error, err.Error())
 					// we still need to update the bounds
 					bounds.update(int64(j.pos))
@@ -211,10 +211,6 @@ func getLeavesByNamespace(
 					wg.add(1)
 					select {
 					case jobs <- newJob:
-						span.AddEvent("added-job", trace.WithAttributes(
-							attribute.String("cid", newJob.id.String()),
-							attribute.Int("pos", newJob.pos),
-						))
 					case <-ctx.Done():
 						return
 					}

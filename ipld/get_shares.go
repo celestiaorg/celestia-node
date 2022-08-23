@@ -2,16 +2,14 @@ package ipld
 
 import (
 	"context"
+	"go.opentelemetry.io/otel/attribute"
 	"sync"
 
+	"github.com/celestiaorg/celestia-node/ipld/plugin"
 	"github.com/gammazero/workerpool"
 	"github.com/ipfs/go-blockservice"
 	"github.com/ipfs/go-cid"
-	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
-	"go.opentelemetry.io/otel/trace"
-
-	"github.com/celestiaorg/celestia-node/ipld/plugin"
 )
 
 // NumWorkersLimit sets global limit for workers spawned by GetShares.
@@ -78,6 +76,11 @@ func GetShares(ctx context.Context, bGetter blockservice.BlockGetter, root cid.C
 				defer wg.Done()
 				defer span.End()
 
+				span.SetAttributes(
+					attribute.String("cid", j.id.String()),
+					attribute.Int("pos", j.pos),
+				)
+
 				nd, err := plugin.GetNode(ctx, bGetter, j.id)
 				if err != nil {
 					// we don't really care about errors here
@@ -117,10 +120,6 @@ func GetShares(ctx context.Context, bGetter blockservice.BlockGetter, root cid.C
 						// structure
 						ctx: ctx,
 					}:
-						span.AddEvent("added-job", trace.WithAttributes(
-							attribute.String("cid", lnk.Cid.String()),
-							attribute.Int("pos", j.pos*2+i),
-						))
 					case <-ctx.Done():
 						return
 					}
