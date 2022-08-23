@@ -19,7 +19,7 @@ type Service struct {
 }
 
 // NewService constructs a new state Service.
-func NewService(accessor Accessor, getter header.Getter) *Service {
+func NewService(accessor Accessor, getter header.Store) *Service {
 	return &Service{
 		accessor: accessor,
 		getter:   getter,

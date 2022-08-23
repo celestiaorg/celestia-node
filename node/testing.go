@@ -13,7 +13,6 @@ import (
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
 	apptypes "github.com/celestiaorg/celestia-app/x/payment/types"
-
 	"github.com/celestiaorg/celestia-node/core"
 	"github.com/celestiaorg/celestia-node/node/config"
 	"github.com/celestiaorg/celestia-node/params"
@@ -51,7 +50,7 @@ func TestNode(t *testing.T, tp config.NodeType, opts ...config.Option) *Node {
 }
 
 func TestKeyringSigner(t *testing.T) *apptypes.KeyringSigner {
-	encConf := encoding.MakeEncodingConfig(app.ModuleEncodingRegisters...)
+	encConf := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	ring := keyring.NewInMemory(encConf.Codec)
 	signer := apptypes.NewKeyringSigner(ring, "", string(params.Private))
 	_, _, err := signer.NewMnemonic("test_celes", keyring.English, "",
