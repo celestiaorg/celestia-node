@@ -5,15 +5,16 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"github.com/celestiaorg/celestia-node/ipld/plugin"
-	"github.com/celestiaorg/nmt"
-	"github.com/celestiaorg/nmt/namespace"
 	"github.com/gammazero/workerpool"
 	"github.com/ipfs/go-blockservice"
 	"github.com/ipfs/go-cid"
 	ipld "github.com/ipfs/go-ipld-format"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
+
+	"github.com/celestiaorg/celestia-node/ipld/plugin"
+	"github.com/celestiaorg/nmt"
+	"github.com/celestiaorg/nmt/namespace"
 )
 
 // TODO(@distractedm1nd) Find a better figure than NumWorkersLimit for this pool. Issue #970

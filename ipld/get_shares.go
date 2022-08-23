@@ -2,14 +2,15 @@ package ipld
 
 import (
 	"context"
-	"go.opentelemetry.io/otel/attribute"
 	"sync"
 
-	"github.com/celestiaorg/celestia-node/ipld/plugin"
 	"github.com/gammazero/workerpool"
 	"github.com/ipfs/go-blockservice"
 	"github.com/ipfs/go-cid"
+	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
+
+	"github.com/celestiaorg/celestia-node/ipld/plugin"
 )
 
 // NumWorkersLimit sets global limit for workers spawned by GetShares.
