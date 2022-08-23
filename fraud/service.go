@@ -60,6 +60,7 @@ func NewProofService(
 	}
 }
 
+// RegisterProofs allows to join pubsub topics for provided proofTypes.
 func (f *ProofService) RegisterProofs(proofTypes ...ProofType) error {
 	for _, proofType := range proofTypes {
 		t, err := join(f.pubsub, proofType, f.processIncoming)
@@ -73,6 +74,7 @@ func (f *ProofService) RegisterProofs(proofTypes ...ProofType) error {
 	return nil
 }
 
+// Start sets stream handler for fraudProtocolID and stars syncing if syncer is enabled.
 func (f *ProofService) Start(context.Context) error {
 	f.ctx, f.cancel = context.WithCancel(context.Background())
 	f.host.SetStreamHandler(fraudProtocolID, f.handleFraudMessageRequest)
@@ -82,6 +84,7 @@ func (f *ProofService) Start(context.Context) error {
 	return nil
 }
 
+// Stop removes stream handler.
 func (f *ProofService) Stop(context.Context) error {
 	f.host.RemoveStreamHandler(fraudProtocolID)
 	f.cancel()
@@ -116,12 +119,15 @@ func (f *ProofService) Broadcast(ctx context.Context, p Proof) error {
 	return t.Publish(ctx, bin)
 }
 
+// processIncoming encompasses the logic for validating fraud proofs.
 func (f *ProofService) processIncoming(
 	ctx context.Context,
 	proofType ProofType,
 	from peer.ID,
 	msg *pubsub.Message,
 ) pubsub.ValidationResult {
+	// unmarshal message to the Proof.
+	// Peer will be added to black list if unmarshalling fails.
 	proof, err := Unmarshal(proofType, msg.Data)
 	if err != nil {
 		log.Errorw("unmarshalling failed", "err", err)
@@ -130,19 +136,22 @@ func (f *ProofService) processIncoming(
 		}
 		return pubsub.ValidationReject
 	}
-	// we can skip an incoming proof if it has been already stored locally
+	// check the fraud proof locally and ignore if it has been already stored locally.
 	if f.verifyLocal(ctx, proofType, hex.EncodeToString(proof.HeaderHash()), msg.Data) {
 		return pubsub.ValidationIgnore
 	}
 
 	msg.ValidatorData = proof
 
+	// fetch extended header in order to verify the fraud proof.
 	extHeader, err := f.getter(ctx, proof.Height())
 	if err != nil {
 		log.Errorw("failed to fetch header to verify a fraud proof",
 			"err", err, "proofType", proof.Type(), "height", proof.Height())
 		return pubsub.ValidationIgnore
 	}
+	// validate the fraud proof.
+	// Peer will be added to black list if the validation fails.
 	err = proof.Validate(extHeader)
 	if err != nil {
 		log.Errorw("proof validation err: ",
@@ -151,6 +160,7 @@ func (f *ProofService) processIncoming(
 		return pubsub.ValidationReject
 	}
 
+	// add the fraud proof to storage.
 	err = f.put(ctx, proof.Type(), hex.EncodeToString(proof.HeaderHash()), msg.Data)
 	if err != nil {
 		log.Errorw("failed to store fraud proof", "err", err)
@@ -171,6 +181,7 @@ func (f *ProofService) Get(ctx context.Context, proofType ProofType) ([]Proof, e
 	return getAll(ctx, store, proofType)
 }
 
+// put adds a fraud proof to the local storage.
 func (f *ProofService) put(ctx context.Context, proofType ProofType, hash string, data []byte) error {
 	f.storesLk.Lock()
 	store, ok := f.stores[proofType]
@@ -182,6 +193,7 @@ func (f *ProofService) put(ctx context.Context, proofType ProofType, hash string
 	return put(ctx, store, hash, data)
 }
 
+// verifyLocal checks that fraud proofs has been stored locally.
 func (f *ProofService) verifyLocal(ctx context.Context, proofType ProofType, hash string, data []byte) bool {
 	f.storesLk.RLock()
 	storage, ok := f.stores[proofType]

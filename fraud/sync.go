@@ -15,6 +15,11 @@ import (
 	pb "github.com/celestiaorg/celestia-node/fraud/pb"
 )
 
+// syncFraudProofs encompasses the behavior for fetching fraud proofs from other peers.
+// syncFraudProofs subscribes to EvtPeerIdentificationCompleted in order to get newly connected peers
+// and request fraud proofs from them.
+// Once fraud proofs are received, they will be published across all local subscriptions in
+// order to be verified.
 func (f *ProofService) syncFraudProofs(ctx context.Context) {
 	log.Debug("start fetching Fraud Proofs")
 	sub, err := f.host.EventBus().Subscribe(&event.EvtPeerIdentificationCompleted{})
@@ -84,6 +89,7 @@ func (f *ProofService) syncFraudProofs(ctx context.Context) {
 	}
 }
 
+// handleFraudMessageRequest handles incoming FraudMessageRequest.
 func (f *ProofService) handleFraudMessageRequest(stream network.Stream) {
 	req := &pb.FraudMessageRequest{}
 	if err := stream.SetReadDeadline(time.Now().Add(readDeadline)); err != nil {
@@ -101,6 +107,7 @@ func (f *ProofService) handleFraudMessageRequest(stream network.Stream) {
 
 	resp := &pb.FraudMessageResponse{}
 	resp.Proofs = make([]*pb.ProofResponse, 0, len(req.RequestedProofType))
+	// retrieve fraud proofs by provided in FraudMessageRequest proofTypes.
 	for _, p := range req.RequestedProofType {
 		proofs, err := f.Get(f.ctx, ProofType(p))
 		if err != nil {
