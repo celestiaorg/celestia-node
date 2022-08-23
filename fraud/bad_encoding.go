@@ -17,8 +17,15 @@ import (
 	"github.com/celestiaorg/celestia-node/ipld/plugin"
 )
 
+const (
+	badEncodingTopic = "badencoding"
+)
+
 func init() {
-	Register(BadEncoding, UnmarshalBEFP)
+	err := Register(BadEncoding, badEncodingTopic, UnmarshalBEFP)
+	if err != nil {
+		panic(err)
+	}
 }
 
 type BadEncodingProof struct {

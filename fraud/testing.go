@@ -2,6 +2,8 @@ package fraud
 
 import (
 	"context"
+	"encoding/json"
+	"errors"
 	"testing"
 
 	"github.com/ipfs/go-blockservice"
@@ -65,4 +67,52 @@ func generateByzantineError(
 	rtrv := ipld.NewRetriever(bServ)
 	_, err := rtrv.Retrieve(ctx, faultHeader.DAH)
 	return faultHeader, err
+}
+
+type mockProof struct {
+	Valid bool
+}
+
+func newMockProof(valid bool) *mockProof {
+	p := &mockProof{valid}
+	p.registerProof()
+	return p
+}
+
+func (m *mockProof) Type() ProofType {
+	return ProofType(-1)
+}
+
+func (m *mockProof) HeaderHash() []byte {
+	return []byte("hash")
+}
+
+func (m *mockProof) Height() uint64 {
+	return 1
+}
+
+func (m *mockProof) Validate(*header.ExtendedHeader) error {
+	if m.Valid != true {
+		return errors.New("mockProof: proof is not valid")
+	}
+	return nil
+}
+
+func (m *mockProof) MarshalBinary() (data []byte, err error) {
+	return json.Marshal(m)
+}
+
+func UnmarshalMockProof(data []byte) (Proof, error) {
+	p := &mockProof{}
+	err := json.Unmarshal(data, p)
+	return p, err
+}
+
+func (m *mockProof) String() string {
+	return "mockProof"
+}
+
+func (m *mockProof) registerProof() {
+	supportedProofTypes[m.Type()] = m.String()
+	defaultUnmarshalers[m.Type()] = UnmarshalMockProof
 }

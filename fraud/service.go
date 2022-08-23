@@ -69,7 +69,7 @@ func (f *service) Broadcast(ctx context.Context, p Proof) error {
 	t, ok := f.topics[p.Type()]
 	f.topicsLk.RUnlock()
 	if !ok {
-		return fmt.Errorf("fraud: unmarshaler for %s proof is not registered", p.Type())
+		return fmt.Errorf("fraud: unmarshaler for %d proof is not registered", p.Type())
 	}
 	return t.Publish(ctx, bin)
 }
@@ -119,7 +119,12 @@ func (f *service) processIncoming(
 	f.storesLk.Lock()
 	store, ok := f.stores[proofType]
 	if !ok {
-		store = initStore(proofType, f.ds)
+		topic, err := GetTopic(proofType)
+		if err != nil {
+			log.Error(err)
+			return pubsub.ValidationReject
+		}
+		store = initStore(topic, f.ds)
 		f.stores[proofType] = store
 	}
 	f.storesLk.Unlock()
@@ -135,7 +140,11 @@ func (f *service) Get(ctx context.Context, proofType ProofType) ([]Proof, error)
 	f.storesLk.Lock()
 	store, ok := f.stores[proofType]
 	if !ok {
-		store = initStore(proofType, f.ds)
+		topic, err := GetTopic(proofType)
+		if err != nil {
+			return nil, err
+		}
+		store = initStore(topic, f.ds)
 		f.stores[proofType] = store
 	}
 	f.storesLk.Unlock()
