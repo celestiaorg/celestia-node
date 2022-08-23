@@ -27,11 +27,13 @@ func (e *errNoUnmarshaler) Error() string {
 type ProofType int
 
 const (
-	BadEncoding ProofType = iota
+	BadEncoding ProofType = 0xFF
 )
 
 // Proof is a generic interface that will be used for all types of fraud proofs in the network.
 type Proof interface {
+	// Name returns string representation of proof.
+	Name() string
 	// Type returns the exact type of fraud proof.
 	Type() ProofType
 	// HeaderHash returns the block hash.
@@ -44,6 +46,7 @@ type Proof interface {
 	Validate(*header.ExtendedHeader) error
 
 	encoding.BinaryMarshaler
+	encoding.BinaryUnmarshaler
 }
 
 // OnProof subscribes to the given Fraud Proof topic via the given Subscriber.

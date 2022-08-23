@@ -15,17 +15,20 @@ var (
 )
 
 // Register sets supported proofs with it string representation and unmarshalers in maps by provided ProofType.
-func Register(proofType ProofType, topic string, unmarshaler ProofUnmarshaler) error {
+func Register(p Proof) error {
 	proofsLk.Lock()
-	if _, ok := supportedProofTypes[proofType]; ok {
+	if _, ok := supportedProofTypes[p.Type()]; ok {
 		proofsLk.Unlock()
 		return errors.New("fraud: proofType is registered")
 	}
-	supportedProofTypes[proofType] = topic
+	supportedProofTypes[p.Type()] = p.Name()
 	proofsLk.Unlock()
 
 	unmarshalersLk.Lock()
-	defaultUnmarshalers[proofType] = unmarshaler
+	defaultUnmarshalers[p.Type()] = func(data []byte) (Proof, error) {
+		err := p.UnmarshalBinary(data)
+		return p, err
+	}
 	unmarshalersLk.Unlock()
 	return nil
 }

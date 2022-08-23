@@ -17,12 +17,8 @@ import (
 	"github.com/celestiaorg/celestia-node/ipld/plugin"
 )
 
-const (
-	badEncodingTopic = "badencoding"
-)
-
 func init() {
-	err := Register(BadEncoding, badEncodingTopic, UnmarshalBEFP)
+	err := Register(&BadEncodingProof{})
 	if err != nil {
 		panic(err)
 	}
@@ -58,6 +54,10 @@ func CreateBadEncodingProof(
 	}
 }
 
+func (p *BadEncodingProof) Name() string {
+	return "badencoding"
+}
+
 // Type returns type of fraud proof.
 func (p *BadEncodingProof) Type() ProofType {
 	return BadEncoding
@@ -88,15 +88,6 @@ func (p *BadEncodingProof) MarshalBinary() ([]byte, error) {
 		Axis:       pb.Axis(p.Axis),
 	}
 	return badEncodingFraudProof.Marshal()
-}
-
-// UnmarshalBEFP converts given data to BadEncodingProof.
-func UnmarshalBEFP(data []byte) (Proof, error) {
-	befp := &BadEncodingProof{}
-	if err := befp.UnmarshalBinary(data); err != nil {
-		return nil, err
-	}
-	return befp, nil
 }
 
 // UnmarshalBinary converts binary to BadEncodingProof.

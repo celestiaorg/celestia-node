@@ -102,17 +102,18 @@ func (m *mockProof) MarshalBinary() (data []byte, err error) {
 	return json.Marshal(m)
 }
 
-func UnmarshalMockProof(data []byte) (Proof, error) {
-	p := &mockProof{}
-	err := json.Unmarshal(data, p)
-	return p, err
+func (m *mockProof) UnmarshalBinary(data []byte) error {
+	return json.Unmarshal(data, m)
 }
 
-func (m *mockProof) String() string {
+func (m *mockProof) Name() string {
 	return "mockProof"
 }
 
 func (m *mockProof) registerProof() {
-	supportedProofTypes[m.Type()] = m.String()
-	defaultUnmarshalers[m.Type()] = UnmarshalMockProof
+	supportedProofTypes[m.Type()] = m.Name()
+	defaultUnmarshalers[m.Type()] = func(data []byte) (Proof, error) {
+		err := m.UnmarshalBinary(data)
+		return m, err
+	}
 }

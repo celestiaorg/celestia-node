@@ -19,7 +19,7 @@ func TestStore_Put(t *testing.T) {
 	bin, err := p.MarshalBinary()
 	require.NoError(t, err)
 	ds := ds_sync.MutexWrap(datastore.NewMapDatastore())
-	store := namespace.Wrap(ds, makeKey(p.String()))
+	store := namespace.Wrap(ds, makeKey(p.Name()))
 	err = put(ctx, store, string(p.HeaderHash()), bin)
 	require.NoError(t, err)
 }
@@ -32,7 +32,7 @@ func TestStore_GetAll(t *testing.T) {
 	bin, err := proof.MarshalBinary()
 	require.NoError(t, err)
 	ds := ds_sync.MutexWrap(datastore.NewMapDatastore())
-	proofStore := namespace.Wrap(ds, makeKey(proof.String()))
+	proofStore := namespace.Wrap(ds, makeKey(proof.Name()))
 
 	err = put(ctx, proofStore, string(proof.HeaderHash()), bin)
 	require.NoError(t, err)
@@ -50,7 +50,7 @@ func Test_GetAllFailed(t *testing.T) {
 
 	proof := newMockProof(true)
 	ds := ds_sync.MutexWrap(datastore.NewMapDatastore())
-	store := namespace.Wrap(ds, makeKey(proof.String()))
+	store := namespace.Wrap(ds, makeKey(proof.Name()))
 
 	proofs, err := getAll(ctx, store, proof.Type())
 	require.Error(t, err)
