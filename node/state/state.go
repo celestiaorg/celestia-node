@@ -1,9 +1,10 @@
 package state
 
 import (
-	"context"
 	logging "github.com/ipfs/go-log/v2"
 	"go.uber.org/fx"
+
+	"context"
 
 	"github.com/celestiaorg/celestia-node/fraud"
 	"github.com/celestiaorg/celestia-node/libs/fxutil"
