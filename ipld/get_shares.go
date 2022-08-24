@@ -7,6 +7,8 @@ import (
 	"github.com/gammazero/workerpool"
 	"github.com/ipfs/go-blockservice"
 	"github.com/ipfs/go-cid"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
 
 	"github.com/celestiaorg/celestia-node/ipld/plugin"
 )
@@ -52,9 +54,12 @@ var pool = workerpool.New(NumWorkersLimit)
 // implementation that rely on this property are explicitly tagged with
 // (bin-tree-feat).
 func GetShares(ctx context.Context, bGetter blockservice.BlockGetter, root cid.Cid, shares int, put func(int, Share)) {
+	ctx, span := tracer.Start(ctx, "get-shares")
+	defer span.End()
+
 	// this buffer ensures writes to 'jobs' are never blocking (bin-tree-feat)
 	jobs := make(chan *job, (shares+1)/2) // +1 for the case where 'shares' is 1
-	jobs <- &job{id: root}
+	jobs <- &job{id: root, ctx: ctx}
 	// total is an amount of routines spawned and total amount of nodes we process (bin-tree-feat)
 	// so we can specify exact amount of loops we do, and wait for this amount
 	// of routines to finish processing
@@ -68,11 +73,21 @@ func GetShares(ctx context.Context, bGetter blockservice.BlockGetter, root cid.C
 			// work over each job concurrently, s.t. shares do not block
 			// processing of each other
 			pool.Submit(func() {
+				ctx, span := tracer.Start(j.ctx, "process-job")
+				defer span.End()
 				defer wg.Done()
+
+				span.SetAttributes(
+					attribute.String("cid", j.id.String()),
+					attribute.Int("pos", j.pos),
+				)
+
 				nd, err := plugin.GetNode(ctx, bGetter, j.id)
 				if err != nil {
 					// we don't really care about errors here
 					// just fetch as much as possible
+					span.RecordError(err)
+					span.SetStatus(codes.Error, err.Error())
 					return
 				}
 				// check links to know what we should do with the node
@@ -82,11 +97,14 @@ func GetShares(ctx context.Context, bGetter blockservice.BlockGetter, root cid.C
 					// leaf has its own additional leaf(hack) so get it
 					nd, err := plugin.GetNode(ctx, bGetter, lnks[0].Cid)
 					if err != nil {
-						// again, we don't care
+						// again, we don't really care much, just fetch as much as possible
+						span.RecordError(err)
+						span.SetStatus(codes.Error, err.Error())
 						return
 					}
 					// successfully fetched a share/leaf
-					// ladies and gentlemen, we got em
+					// ladies and gentlemen, we got em!
+					span.SetStatus(codes.Ok, "")
 					put(j.pos, leafToShare(nd))
 					return
 				}
@@ -99,6 +117,9 @@ func GetShares(ctx context.Context, bGetter blockservice.BlockGetter, root cid.C
 						// calc position for children nodes (bin-tree-feat),
 						// s.t. 'if' above knows where to put a share
 						pos: j.pos*2 + i,
+						// we pass the context to job so that spans are tracked in a tree
+						// structure
+						ctx: ctx,
 					}:
 					case <-ctx.Done():
 						return

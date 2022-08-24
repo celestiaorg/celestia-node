@@ -1,6 +1,7 @@
 package ipld
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/ipfs/go-cid"
@@ -10,6 +11,7 @@ import (
 type job struct {
 	id  cid.Cid
 	pos int
+	ctx context.Context
 }
 
 func SanityCheckNID(nID []byte) error {

@@ -10,7 +10,7 @@ import (
 	"github.com/ipfs/go-cid"
 	ipld "github.com/ipfs/go-ipld-format"
 	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/trace"
+	"go.opentelemetry.io/otel/codes"
 
 	"github.com/celestiaorg/celestia-node/ipld/plugin"
 	"github.com/celestiaorg/nmt"
@@ -126,7 +126,7 @@ func getLeavesByNamespace(
 	// buffer the jobs to avoid blocking, we only need as many
 	// queued as the number of shares in the second-to-last layer
 	jobs := make(chan *job, (maxShares+1)/2)
-	jobs <- &job{id: root}
+	jobs <- &job{id: root, ctx: ctx}
 
 	var wg wrappedWaitGroup
 	wg.jobs = jobs
@@ -154,9 +154,14 @@ func getLeavesByNamespace(
 				return leaves[bounds.lowest : bounds.highest+1], retrievalErr
 			}
 			namespacePool.Submit(func() {
-				ctx, span := tracer.Start(ctx, "process-job")
+				ctx, span := tracer.Start(j.ctx, "process-job")
 				defer span.End()
 				defer wg.done()
+
+				span.SetAttributes(
+					attribute.String("cid", j.id.String()),
+					attribute.Int("pos", j.pos),
+				)
 
 				// if an error is likely to be returned or not depends on
 				// the underlying impl of the blockservice, currently it is not a realistic probability
@@ -166,9 +171,7 @@ func getLeavesByNamespace(
 						retrievalErr = err
 					})
 					log.Errorw("getSharesByNamespace: could not retrieve node", "nID", nID, "pos", j.pos, "err", err)
-					span.RecordError(err, trace.WithAttributes(
-						attribute.Int("pos", j.pos),
-					))
+					span.SetStatus(codes.Error, err.Error())
 					// we still need to update the bounds
 					bounds.update(int64(j.pos))
 					return
@@ -178,7 +181,7 @@ func getLeavesByNamespace(
 				linkCount := uint64(len(links))
 				if linkCount == 1 {
 					// successfully fetched a leaf belonging to the namespace
-					span.AddEvent("found-leaf")
+					span.SetStatus(codes.Ok, "")
 					leaves[j.pos] = nd
 					// we found a leaf, so we update the bounds
 					// the update routine is repeated until the atomic swap is successful
@@ -193,6 +196,9 @@ func getLeavesByNamespace(
 						// position represents the index in a flattened binary tree,
 						// so we can return a slice of leaves in order
 						pos: j.pos*2 + i,
+						// we pass the context to job so that spans are tracked in a tree
+						// structure
+						ctx: ctx,
 					}
 
 					// if the link's nID isn't in range we don't need to create a new job for it
@@ -206,10 +212,6 @@ func getLeavesByNamespace(
 					wg.add(1)
 					select {
 					case jobs <- newJob:
-						span.AddEvent("added-job", trace.WithAttributes(
-							attribute.String("cid", newJob.id.String()),
-							attribute.Int("pos", newJob.pos),
-						))
 					case <-ctx.Done():
 						return
 					}
