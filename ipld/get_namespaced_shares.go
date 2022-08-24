@@ -155,8 +155,8 @@ func getLeavesByNamespace(
 			}
 			namespacePool.Submit(func() {
 				ctx, span := tracer.Start(j.ctx, "process-job")
-				defer wg.done()
 				defer span.End()
+				defer wg.done()
 
 				span.SetAttributes(
 					attribute.String("cid", j.id.String()),

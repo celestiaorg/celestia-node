@@ -74,8 +74,8 @@ func GetShares(ctx context.Context, bGetter blockservice.BlockGetter, root cid.C
 			// processing of each other
 			pool.Submit(func() {
 				ctx, span := tracer.Start(j.ctx, "process-job")
-				defer wg.Done()
 				defer span.End()
+				defer wg.Done()
 
 				span.SetAttributes(
 					attribute.String("cid", j.id.String()),
