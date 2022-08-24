@@ -39,7 +39,7 @@ type ProofService struct {
 	getter headerFetcher
 	ds     datastore.Datastore
 
-	enabledSyncer bool
+	syncerEnabled bool
 }
 
 func NewProofService(
@@ -47,7 +47,7 @@ func NewProofService(
 	host host.Host,
 	getter headerFetcher,
 	ds datastore.Datastore,
-	enabledSyncer bool,
+	syncerEnabled bool,
 ) *ProofService {
 	return &ProofService{
 		pubsub:        p,
@@ -56,11 +56,11 @@ func NewProofService(
 		topics:        make(map[ProofType]*pubsub.Topic),
 		stores:        make(map[ProofType]datastore.Datastore),
 		ds:            ds,
-		enabledSyncer: enabledSyncer,
+		syncerEnabled: syncerEnabled,
 	}
 }
 
-// RegisterProofs allows to join pubsub topics for provided proofTypes.
+// RegisterProofs registers proofTypes as pubsub topics to be joined.
 func (f *ProofService) RegisterProofs(proofTypes ...ProofType) error {
 	for _, proofType := range proofTypes {
 		t, err := join(f.pubsub, proofType, f.processIncoming)
@@ -74,17 +74,17 @@ func (f *ProofService) RegisterProofs(proofTypes ...ProofType) error {
 	return nil
 }
 
-// Start sets stream handler for fraudProtocolID and stars syncing if syncer is enabled.
+// Start sets the stream handler for fraudProtocolID and starts syncing if syncer is enabled.
 func (f *ProofService) Start(context.Context) error {
 	f.ctx, f.cancel = context.WithCancel(context.Background())
 	f.host.SetStreamHandler(fraudProtocolID, f.handleFraudMessageRequest)
-	if f.enabledSyncer {
+	if f.syncerEnabled {
 		go f.syncFraudProofs(f.ctx)
 	}
 	return nil
 }
 
-// Stop removes stream handler.
+// Stop removes the stream handler.
 func (f *ProofService) Stop(context.Context) error {
 	f.host.RemoveStreamHandler(fraudProtocolID)
 	f.cancel()

@@ -16,12 +16,13 @@ import (
 )
 
 // syncFraudProofs encompasses the behavior for fetching fraud proofs from other peers.
-// syncFraudProofs subscribes to EvtPeerIdentificationCompleted in order to get newly connected peers
-// and request fraud proofs from them.
-// Once fraud proofs are received, they will be published across all local subscriptions in
+// syncFraudProofs subscribes to EvtPeerIdentificationCompleted to get newly connected peers
+// to request fraud proofs from and request fraud proofs from them.
+// After fraud proofs are received, they are published to all local subscriptions for verification
 // order to be verified.
 func (f *ProofService) syncFraudProofs(ctx context.Context) {
 	log.Debug("start fetching Fraud Proofs")
+	// subscribe to new peer connections that we can request fraud proofs from
 	sub, err := f.host.EventBus().Subscribe(&event.EvtPeerIdentificationCompleted{})
 	if err != nil {
 		log.Error(err)
@@ -29,12 +30,14 @@ func (f *ProofService) syncFraudProofs(ctx context.Context) {
 	}
 	defer sub.Close()
 	f.topicsLk.RLock()
+	// get proof types from subscribed pubsub topics
 	proofTypes := make([]uint32, 0, len(f.topics))
 	for proofType := range f.topics {
 		proofTypes = append(proofTypes, uint32(proofType))
 	}
 	f.topicsLk.RUnlock()
 	connStatus := event.EvtPeerIdentificationCompleted{}
+	// request proofs from `fraudRequests` many peers
 	for i := 0; i < fraudRequests; i++ {
 		select {
 		case <-ctx.Done():
@@ -43,10 +46,12 @@ func (f *ProofService) syncFraudProofs(ctx context.Context) {
 			connStatus = e.(event.EvtPeerIdentificationCompleted)
 		}
 
+		// ignore ourselves as a peer
 		if connStatus.Peer == f.host.ID() {
 			i--
 			continue
 		}
+		// valid peer found, so go send proof requests
 		go func(pid peer.ID) {
 			log.Debugw("requesting proofs from peer", "pid", pid)
 			respProofs, err := requestProofs(ctx, f.host, pid, proofTypes)
@@ -89,7 +94,7 @@ func (f *ProofService) syncFraudProofs(ctx context.Context) {
 	}
 }
 
-// handleFraudMessageRequest handles incoming FraudMessageRequest.
+// handleFraudMessageRequest handles an incoming FraudMessageRequest.
 func (f *ProofService) handleFraudMessageRequest(stream network.Stream) {
 	req := &pb.FraudMessageRequest{}
 	if err := stream.SetReadDeadline(time.Now().Add(readDeadline)); err != nil {
@@ -107,7 +112,7 @@ func (f *ProofService) handleFraudMessageRequest(stream network.Stream) {
 
 	resp := &pb.FraudMessageResponse{}
 	resp.Proofs = make([]*pb.ProofResponse, 0, len(req.RequestedProofType))
-	// retrieve fraud proofs by provided in FraudMessageRequest proofTypes.
+	// retrieve fraud proofs as provided by the FraudMessageRequest proofTypes.
 	for _, p := range req.RequestedProofType {
 		proofs, err := f.Get(f.ctx, ProofType(p))
 		if err != nil {
