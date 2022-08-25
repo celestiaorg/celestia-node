@@ -2,6 +2,7 @@ package fraud
 
 import (
 	"fmt"
+	"reflect"
 	"sync"
 )
 
@@ -22,10 +23,12 @@ func Register(p Proof) {
 	}
 	supportedProofTypes[p.Type()] = p.Name()
 	proofsLk.Unlock()
-
 	unmarshalersLk.Lock()
 	defaultUnmarshalers[p.Type()] = func(data []byte) (Proof, error) {
-		proof := p
+		// the underlying type of `p` is a pointer to a struct and assigning `p` to a new variable is not the
+		// case, because it could lead to data races.
+		// So, there is no easier way to create a hard copy of Proof other than using a reflection.
+		proof := reflect.New(reflect.ValueOf(p).Elem().Type()).Interface().(Proof)
 		err := proof.UnmarshalBinary(data)
 		return proof, err
 	}
