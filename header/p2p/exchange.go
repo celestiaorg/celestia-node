@@ -50,7 +50,7 @@ func (ex *Exchange) Head(ctx context.Context) (*header.ExtendedHeader, error) {
 	log.Debug("requesting head")
 	// create request
 	req := &p2p_pb.ExtendedHeaderRequest{
-		Origin: uint64(0),
+		Data:   &p2p_pb.ExtendedHeaderRequest_Origin{Origin: uint64(0)},
 		Amount: 1,
 	}
 	headers, err := ex.performRequest(ctx, req)
@@ -71,7 +71,7 @@ func (ex *Exchange) GetByHeight(ctx context.Context, height uint64) (*header.Ext
 	}
 	// create request
 	req := &p2p_pb.ExtendedHeaderRequest{
-		Origin: height,
+		Data:   &p2p_pb.ExtendedHeaderRequest_Origin{Origin: height},
 		Amount: 1,
 	}
 	headers, err := ex.performRequest(ctx, req)
@@ -87,7 +87,7 @@ func (ex *Exchange) GetRangeByHeight(ctx context.Context, from, amount uint64) (
 	log.Debugw("requesting headers", "from", from, "to", from+amount)
 	// create request
 	req := &p2p_pb.ExtendedHeaderRequest{
-		Origin: from,
+		Data:   &p2p_pb.ExtendedHeaderRequest_Origin{Origin: from},
 		Amount: amount,
 	}
 	return ex.performRequest(ctx, req)
@@ -99,7 +99,7 @@ func (ex *Exchange) Get(ctx context.Context, hash tmbytes.HexBytes) (*header.Ext
 	log.Debugw("requesting header", "hash", hash.String())
 	// create request
 	req := &p2p_pb.ExtendedHeaderRequest{
-		Hash:   hash.Bytes(),
+		Data:   &p2p_pb.ExtendedHeaderRequest_Hash{Hash: hash.Bytes()},
 		Amount: 1,
 	}
 	headers, err := ex.performRequest(ctx, req)

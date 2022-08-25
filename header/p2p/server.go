@@ -8,9 +8,10 @@ import (
 
 	tmbytes "github.com/tendermint/tendermint/libs/bytes"
 
+	"github.com/celestiaorg/go-libp2p-messenger/serde"
+
 	"github.com/celestiaorg/celestia-node/header"
 	p2p_pb "github.com/celestiaorg/celestia-node/header/p2p/pb"
-	"github.com/celestiaorg/go-libp2p-messenger/serde"
 )
 
 // ExchangeServer represents the server-side component for
@@ -61,10 +62,11 @@ func (serv *ExchangeServer) requestHandler(stream network.Stream) {
 		return
 	}
 	// retrieve and write ExtendedHeaders
-	if pbreq.Hash != nil {
-		serv.handleRequestByHash(pbreq.Hash, stream)
-	} else {
-		serv.handleRequest(pbreq.Origin, pbreq.Origin+pbreq.Amount, stream)
+	switch pbreq.Data.(type) {
+	case *p2p_pb.ExtendedHeaderRequest_Hash:
+		serv.handleRequestByHash(pbreq.GetHash(), stream)
+	case *p2p_pb.ExtendedHeaderRequest_Origin:
+		serv.handleRequest(pbreq.GetOrigin(), pbreq.GetOrigin()+pbreq.Amount, stream)
 	}
 
 	err = stream.Close()

@@ -3,7 +3,9 @@ syntax = "proto3";
 package p2p.pb;
 
 message ExtendedHeaderRequest {
-  uint64 origin = 1;
-  bytes hash = 2;
+  oneof data {
+    uint64 origin = 1;
+    bytes hash = 2;
+  }
   uint64 amount = 3;
 }

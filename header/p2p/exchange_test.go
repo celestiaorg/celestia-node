@@ -13,10 +13,11 @@ import (
 
 	tmbytes "github.com/tendermint/tendermint/libs/bytes"
 
+	"github.com/celestiaorg/go-libp2p-messenger/serde"
+
 	"github.com/celestiaorg/celestia-node/header"
 	p2p_pb "github.com/celestiaorg/celestia-node/header/p2p/pb"
 	header_pb "github.com/celestiaorg/celestia-node/header/pb"
-	"github.com/celestiaorg/go-libp2p-messenger/serde"
 )
 
 func TestExchange_RequestHead(t *testing.T) {
@@ -77,7 +78,7 @@ func TestExchange_RequestByHash(t *testing.T) {
 	// create request for a header at a random height
 	reqHeight := store.headHeight - 2
 	req := &p2p_pb.ExtendedHeaderRequest{
-		Hash:   store.headers[reqHeight].Hash(),
+		Data:   &p2p_pb.ExtendedHeaderRequest_Hash{Hash: store.headers[reqHeight].Hash()},
 		Amount: 1,
 	}
 	// send request
