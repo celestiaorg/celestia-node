@@ -2,6 +2,7 @@ package p2p
 
 import (
 	"context"
+	"time"
 
 	"github.com/libp2p/go-libp2p-core/host"
 	"github.com/libp2p/go-libp2p-core/network"
@@ -53,13 +54,20 @@ func (serv *ExchangeServer) Stop(context.Context) error {
 
 // requestHandler handles inbound ExtendedHeaderRequests.
 func (serv *ExchangeServer) requestHandler(stream network.Stream) {
+	err := stream.SetReadDeadline(time.Now().Add(readDeadline))
+	if err != nil {
+		log.Warn(err)
+	}
 	// unmarshal request
 	pbreq := new(p2p_pb.ExtendedHeaderRequest)
-	_, err := serde.Read(stream, pbreq)
+	_, err = serde.Read(stream, pbreq)
 	if err != nil {
 		log.Errorw("server: reading header request from stream", "err", err)
 		stream.Reset() //nolint:errcheck
 		return
+	}
+	if err = stream.CloseRead(); err != nil {
+		log.Warn(err)
 	}
 	// retrieve and write ExtendedHeaders
 	switch pbreq.Data.(type) {
@@ -91,6 +99,9 @@ func (serv *ExchangeServer) handleRequestByHash(hash []byte, stream network.Stre
 		log.Errorw("server: marshaling header to proto", "hash", tmbytes.HexBytes(hash).String(), "err", err)
 		stream.Reset() //nolint:errcheck
 		return
+	}
+	if err = stream.SetWriteDeadline(time.Now().Add(writeDeadline)); err != nil {
+		log.Warn(err)
 	}
 	_, err = serde.Write(stream, resp)
 	if err != nil {
@@ -125,6 +136,10 @@ func (serv *ExchangeServer) handleRequest(from, to uint64, stream network.Stream
 			return
 		}
 		headers = headersByRange
+	}
+
+	if err := stream.SetWriteDeadline(time.Now().Add(writeDeadline * time.Duration(len(headers)))); err != nil {
+		log.Warn(err)
 	}
 	// write all headers to stream
 	for _, h := range headers {

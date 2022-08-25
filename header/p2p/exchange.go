@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"math/rand"
+	"time"
 
 	logging "github.com/ipfs/go-log/v2"
 
@@ -22,6 +23,13 @@ import (
 )
 
 var log = logging.Logger("header/p2p")
+
+const (
+	// writeDeadline sets timeout for sending messages to the stream
+	writeDeadline = time.Second * 5
+	// readDeadline sets timeout for reading messages from the stream
+	readDeadline = time.Minute
+)
 
 // PubSubTopic hardcodes the name of the ExtendedHeader
 // gossipsub topic.
@@ -131,14 +139,24 @@ func (ex *Exchange) performRequest(
 	if err != nil {
 		return nil, err
 	}
+	if err = stream.SetWriteDeadline(time.Now().Add(writeDeadline)); err != nil {
+		log.Warn(err)
+	}
 	// send request
 	_, err = serde.Write(stream, req)
 	if err != nil {
 		stream.Reset() //nolint:errcheck
 		return nil, err
 	}
+	err = stream.CloseWrite()
+	if err != nil {
+		log.Warn(err)
+	}
 	// read responses
 	headers := make([]*header.ExtendedHeader, req.Amount)
+	if err = stream.SetReadDeadline(time.Now().Add(readDeadline * time.Duration(req.Amount))); err != nil {
+		log.Warn(err)
+	}
 	for i := 0; i < int(req.Amount); i++ {
 		resp := new(header_pb.ExtendedHeader)
 		_, err := serde.Read(stream, resp)
