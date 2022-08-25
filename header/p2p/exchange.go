@@ -154,6 +154,9 @@ func (ex *Exchange) performRequest(
 	}
 	// read responses
 	headers := make([]*header.ExtendedHeader, req.Amount)
+	if err = stream.SetReadDeadline(time.Now().Add(readDeadline * time.Duration(req.Amount))); err != nil {
+		log.Warn(err)
+	}
 	for i := 0; i < int(req.Amount); i++ {
 		resp := new(header_pb.ExtendedHeader)
 		if err = stream.SetReadDeadline(time.Now().Add(readDeadline)); err != nil {
