@@ -15,7 +15,7 @@ func TestStore_Put(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*15)
 	defer t.Cleanup(cancel)
 
-	p := newMockProof(true)
+	p := newValidProof()
 	bin, err := p.MarshalBinary()
 	require.NoError(t, err)
 	ds := ds_sync.MutexWrap(datastore.NewMapDatastore())
@@ -28,7 +28,7 @@ func TestStore_GetAll(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*15)
 	defer t.Cleanup(cancel)
 
-	proof := newMockProof(true)
+	proof := newValidProof()
 	bin, err := proof.MarshalBinary()
 	require.NoError(t, err)
 	ds := ds_sync.MutexWrap(datastore.NewMapDatastore())
@@ -48,7 +48,7 @@ func Test_GetAllFailed(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*15)
 	defer t.Cleanup(cancel)
 
-	proof := newMockProof(true)
+	proof := newValidProof()
 	ds := ds_sync.MutexWrap(datastore.NewMapDatastore())
 	store := namespace.Wrap(ds, makeKey(proof.Name()))
 

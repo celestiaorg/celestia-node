@@ -19,14 +19,14 @@ import (
 
 func TestService_Subscribe(t *testing.T) {
 	s, _ := createService(t)
-	proof := newMockProof(true)
+	proof := newValidProof()
 	_, err := s.Subscribe(proof.Type())
 	require.NoError(t, err)
 }
 
 func TestService_SubscribeFails(t *testing.T) {
 	s, _ := createService(t)
-	proof := newMockProof(true)
+	proof := newValidProof()
 	delete(defaultUnmarshalers, proof.Type())
 	_, err := s.Subscribe(proof.Type())
 	require.NoError(t, err)
@@ -34,7 +34,7 @@ func TestService_SubscribeFails(t *testing.T) {
 
 func TestService_BroadcastFails(t *testing.T) {
 	s, _ := createService(t)
-	p := newMockProof(true)
+	p := newValidProof()
 	require.Error(t, s.Broadcast(context.TODO(), p))
 }
 
@@ -44,7 +44,7 @@ func TestService_Broadcast(t *testing.T) {
 
 	s, _ := createService(t)
 
-	proof := newMockProof(true)
+	proof := newValidProof()
 	subs, err := s.Subscribe(proof.Type())
 	require.NoError(t, err)
 
@@ -69,26 +69,26 @@ func TestService_processIncoming(t *testing.T) {
 	}{
 		{
 			nil,
-			newMockProof(true),
+			newValidProof(),
 			pubsub.ValidationAccept,
 		},
 		{
 			nil,
-			newMockProof(false),
+			newInvalidProof(),
 			pubsub.ValidationReject,
 		},
 		{
 			func() {
 				delete(supportedProofTypes, ProofType(-1))
 			},
-			newMockProof(true),
+			newValidProof(),
 			pubsub.ValidationReject,
 		},
 		{
 			func() {
 				delete(defaultUnmarshalers, ProofType(-1))
 			},
-			newMockProof(false),
+			newInvalidProof(),
 			pubsub.ValidationReject,
 		},
 	}
@@ -138,7 +138,7 @@ func TestService_ReGossiping(t *testing.T) {
 	// connect peers: A -> B -> C, so A and C are not connected to each other
 	require.NoError(t, net.Hosts()[0].Connect(ctx, *addrB)) // host[0] is A
 	require.NoError(t, net.Hosts()[2].Connect(ctx, *addrB)) // host[2] is C
-	proof := newMockProof(true)
+	proof := newValidProof()
 	// subscribe to fraud proof
 	subsA, err := serviceA.Subscribe(proof.Type())
 	require.NoError(t, err)

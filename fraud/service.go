@@ -119,7 +119,7 @@ func (f *service) processIncoming(
 	f.storesLk.Lock()
 	store, ok := f.stores[proofType]
 	if !ok {
-		topic, err := GetTopic(proofType)
+		topic, err := getTopic(proofType)
 		if err != nil {
 			log.Error(err)
 			return pubsub.ValidationReject
@@ -140,7 +140,7 @@ func (f *service) Get(ctx context.Context, proofType ProofType) ([]Proof, error)
 	f.storesLk.Lock()
 	store, ok := f.stores[proofType]
 	if !ok {
-		topic, err := GetTopic(proofType)
+		topic, err := getTopic(proofType)
 		if err != nil {
 			return nil, err
 		}

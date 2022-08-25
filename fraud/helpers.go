@@ -9,7 +9,7 @@ import (
 
 func join(p *pubsub.PubSub, proofType ProofType,
 	validate func(context.Context, ProofType, peer.ID, *pubsub.Message) pubsub.ValidationResult) (*pubsub.Topic, error) {
-	topic, err := GetTopic(proofType)
+	topic, err := getTopic(proofType)
 	if err != nil {
 		return nil, err
 	}

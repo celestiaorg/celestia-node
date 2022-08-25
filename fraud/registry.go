@@ -1,7 +1,6 @@
 package fraud
 
 import (
-	"errors"
 	"fmt"
 	"sync"
 )
@@ -14,27 +13,27 @@ var (
 	supportedProofTypes = map[ProofType]string{}
 )
 
-// Register sets supported proofs with it string representation and unmarshalers in maps by provided ProofType.
-func Register(p Proof) error {
+// Register adds a string representation and unmarshaller for the provided ProofType.
+func Register(p Proof) {
 	proofsLk.Lock()
 	if _, ok := supportedProofTypes[p.Type()]; ok {
 		proofsLk.Unlock()
-		return errors.New("fraud: proofType is registered")
+		panic("fraud: proofType is registered")
 	}
 	supportedProofTypes[p.Type()] = p.Name()
 	proofsLk.Unlock()
 
 	unmarshalersLk.Lock()
 	defaultUnmarshalers[p.Type()] = func(data []byte) (Proof, error) {
-		err := p.UnmarshalBinary(data)
-		return p, err
+		proof := p
+		err := proof.UnmarshalBinary(data)
+		return proof, err
 	}
 	unmarshalersLk.Unlock()
-	return nil
 }
 
-// GetTopic returns string representation of topic by provided ProofType.
-func GetTopic(proofType ProofType) (string, error) {
+// getTopic returns string representation of topic by provided ProofType.
+func getTopic(proofType ProofType) (string, error) {
 	proofsLk.RLock()
 	topic, ok := supportedProofTypes[proofType]
 	proofsLk.RUnlock()

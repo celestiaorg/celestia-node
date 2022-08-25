@@ -73,6 +73,14 @@ type mockProof struct {
 	Valid bool
 }
 
+func newValidProof() *mockProof {
+	return newMockProof(true)
+}
+
+func newInvalidProof() *mockProof {
+	return newMockProof(false)
+}
+
 func newMockProof(valid bool) *mockProof {
 	p := &mockProof{valid}
 	p.registerProof()

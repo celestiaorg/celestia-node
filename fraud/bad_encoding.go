@@ -18,10 +18,7 @@ import (
 )
 
 func init() {
-	err := Register(&BadEncodingProof{})
-	if err != nil {
-		panic(err)
-	}
+	Register(&BadEncodingProof{})
 }
 
 type BadEncodingProof struct {
