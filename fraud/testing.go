@@ -69,6 +69,10 @@ func generateByzantineError(
 	return faultHeader, err
 }
 
+const (
+	mockProofType ProofType = "mockProof"
+)
+
 type mockProof struct {
 	Valid bool
 }
@@ -83,12 +87,12 @@ func newInvalidProof() *mockProof {
 
 func newMockProof(valid bool) *mockProof {
 	p := &mockProof{valid}
-	p.registerProof()
+	Register(&mockProof{})
 	return p
 }
 
 func (m *mockProof) Type() ProofType {
-	return ProofType(-1)
+	return mockProofType
 }
 
 func (m *mockProof) HeaderHash() []byte {
@@ -112,16 +116,4 @@ func (m *mockProof) MarshalBinary() (data []byte, err error) {
 
 func (m *mockProof) UnmarshalBinary(data []byte) error {
 	return json.Unmarshal(data, m)
-}
-
-func (m *mockProof) Name() string {
-	return "mockProof"
-}
-
-func (m *mockProof) registerProof() {
-	supportedProofTypes[m.Type()] = m.Name()
-	defaultUnmarshalers[m.Type()] = func(data []byte) (Proof, error) {
-		err := m.UnmarshalBinary(data)
-		return m, err
-	}
 }

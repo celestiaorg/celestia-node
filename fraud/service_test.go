@@ -79,16 +79,9 @@ func TestService_processIncoming(t *testing.T) {
 		},
 		{
 			func() {
-				delete(supportedProofTypes, ProofType(-1))
+				delete(defaultUnmarshalers, mockProofType)
 			},
 			newValidProof(),
-			pubsub.ValidationReject,
-		},
-		{
-			func() {
-				delete(defaultUnmarshalers, ProofType(-1))
-			},
-			newInvalidProof(),
 			pubsub.ValidationReject,
 		},
 	}

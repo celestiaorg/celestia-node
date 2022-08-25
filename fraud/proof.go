@@ -13,7 +13,7 @@ type ErrFraudExists struct {
 }
 
 func (e *ErrFraudExists) Error() string {
-	return fmt.Sprintf("fraud: %d proof exists\n", e.Proof[0].Type())
+	return fmt.Sprintf("fraud: %s proof exists\n", e.Proof[0].Type())
 }
 
 type errNoUnmarshaler struct {
@@ -21,19 +21,17 @@ type errNoUnmarshaler struct {
 }
 
 func (e *errNoUnmarshaler) Error() string {
-	return fmt.Sprintf("fraud: unmarshaler for %d type is not registered", e.proofType)
+	return fmt.Sprintf("fraud: unmarshaler for %s type is not registered", e.proofType)
 }
 
-type ProofType int
+type ProofType string
 
 const (
-	BadEncoding ProofType = 0xFF
+	BadEncoding ProofType = "badencoding"
 )
 
 // Proof is a generic interface that will be used for all types of fraud proofs in the network.
 type Proof interface {
-	// Name returns string representation of proof.
-	Name() string
 	// Type returns the exact type of fraud proof.
 	Type() ProofType
 	// HeaderHash returns the block hash.

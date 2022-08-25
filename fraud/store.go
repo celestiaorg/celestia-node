@@ -57,10 +57,10 @@ func getAll(ctx context.Context, ds datastore.Datastore, proofType ProofType) ([
 	return proofs, nil
 }
 
-func initStore(topic string, ds datastore.Datastore) datastore.Datastore {
+func initStore(topic ProofType, ds datastore.Datastore) datastore.Datastore {
 	return namespace.Wrap(ds, makeKey(topic))
 }
 
-func makeKey(topic string) datastore.Key {
+func makeKey(topic ProofType) datastore.Key {
 	return datastore.NewKey(fmt.Sprintf("%s/%s", storePrefix, topic))
 }

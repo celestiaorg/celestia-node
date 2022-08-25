@@ -51,10 +51,6 @@ func CreateBadEncodingProof(
 	}
 }
 
-func (p *BadEncodingProof) Name() string {
-	return "badencoding"
-}
-
 // Type returns type of fraud proof.
 func (p *BadEncodingProof) Type() ProofType {
 	return BadEncoding
