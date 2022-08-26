@@ -2,6 +2,7 @@ package fraud
 
 import (
 	"context"
+	"encoding/hex"
 	"testing"
 	"time"
 
@@ -13,8 +14,6 @@ import (
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	pubsubpb "github.com/libp2p/go-libp2p-pubsub/pb"
 	mocknet "github.com/libp2p/go-libp2p/p2p/net/mock"
-
-	"github.com/celestiaorg/celestia-node/header"
 )
 
 func TestService_Subscribe(t *testing.T) {
@@ -61,7 +60,6 @@ func TestService_processIncoming(t *testing.T) {
 	net, err := mocknet.FullMeshLinked(2)
 	require.NoError(t, err)
 
-	require.NoError(t, err)
 	var tests = []struct {
 		precondition     func()
 		proof            *mockProof
@@ -104,68 +102,30 @@ func TestService_processIncoming(t *testing.T) {
 		res := fserviceA.processIncoming(ctx, test.proof.Type(), net.Hosts()[1].ID(), msg)
 		require.True(t, res == test.validationResult)
 	}
-
 }
 
-func TestService_ReGossiping(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+func TestService_Get(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	t.Cleanup(cancel)
-	// create mock network
-	net, err := mocknet.FullMeshLinked(3)
-	require.NoError(t, err)
-
-	// create first fraud service that will broadcast incorrect Fraud Proof
-	serviceA, _ := createServiceWithHost(ctx, t, net.Hosts()[0])
-	serviceB, _ := createServiceWithHost(ctx, t, net.Hosts()[1])
-	serviceC, _ := createServiceWithHost(ctx, t, net.Hosts()[2])
-
-	fserviceA := serviceA.(*service)
-	require.NotNil(t, fserviceA)
-	fserviceB := serviceB.(*service)
-	require.NotNil(t, fserviceB)
-	fserviceC := serviceC.(*service)
-	require.NotNil(t, fserviceC)
-	addrB := host.InfoFromHost(net.Hosts()[1]) // -> B
-
-	// establish connections
-	// connect peers: A -> B -> C, so A and C are not connected to each other
-	require.NoError(t, net.Hosts()[0].Connect(ctx, *addrB)) // host[0] is A
-	require.NoError(t, net.Hosts()[2].Connect(ctx, *addrB)) // host[2] is C
 	proof := newValidProof()
-	// subscribe to fraud proof
-	subsA, err := serviceA.Subscribe(proof.Type())
-	require.NoError(t, err)
-	defer subsA.Cancel()
-
-	subsB, err := serviceB.Subscribe(proof.Type())
-	require.NoError(t, err)
-	defer subsB.Cancel()
-
-	subsC, err := serviceC.Subscribe(proof.Type())
-	require.NoError(t, err)
-	defer subsC.Cancel()
-
 	bin, err := proof.MarshalBinary()
 	require.NoError(t, err)
-	err = fserviceA.topics[proof.Type()].Publish(ctx, bin, pubsub.WithReadiness(pubsub.MinTopicSize(1)))
-	require.NoError(t, err)
+	pService, _ := createService(t)
+	service := pService.(*service)
+	require.NotNil(t, service)
 
-	newCtx, cancel := context.WithTimeout(ctx, time.Millisecond*100)
-	t.Cleanup(cancel)
+	// try to fetch proof
+	_, err = pService.Get(ctx, proof.Type())
+	// error is expected here because storage is empty
+	require.Error(t, err)
 
-	_, err = subsB.Proof(newCtx)
+	// create store
+	store := initStore(proof.Type(), service.ds)
+	// add proof to storage
+	require.NoError(t, put(ctx, store, hex.EncodeToString(proof.HeaderHash()), bin))
+	// fetch proof
+	_, err = pService.Get(ctx, proof.Type())
 	require.NoError(t, err)
-	require.NoError(t, nil)
-
-	_, err = subsC.Proof(ctx)
-	require.NoError(t, err)
-	require.NoError(t, nil)
-
-	proofs, err := serviceC.Get(ctx, proof.Type())
-	require.NoError(t, err)
-	require.NoError(t, proofs[0].Validate(&header.ExtendedHeader{}))
-	// we cannot avoid sleep because it helps to avoid flakiness
-	time.Sleep(time.Millisecond * 100)
 }
 
 func createService(t *testing.T) (Service, *mockStore) {

@@ -57,6 +57,8 @@ func (m *mockStore) GetByHeight(_ context.Context, height uint64) (*header.Exten
 	return m.headers[int64(height)], nil
 }
 
+func (m *mockStore) Close() error { return nil }
+
 func generateByzantineError(
 	ctx context.Context,
 	t *testing.T,
@@ -87,7 +89,9 @@ func newInvalidProof() *mockProof {
 
 func newMockProof(valid bool) *mockProof {
 	p := &mockProof{valid}
-	Register(&mockProof{})
+	if _, ok := defaultUnmarshalers[p.Type()]; !ok {
+		Register(&mockProof{})
+	}
 	return p
 }
 
