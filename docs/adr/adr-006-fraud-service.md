@@ -10,10 +10,13 @@
   - changed from NamespaceShareWithProof to ShareWithProof;
   - made ProofUnmarshaler public and extended return params;
   - fixed typo issues;
-- 2022.06.15 - Extend Proof interface with HeaderHash method
-- 2022.06.22 - Updated rsmt2d to change isRow to Axis
-- 2022.07.03 - Add storage description
-- 2022.07.23 - rework unmarshalers registration
+- 2022.06.15 - Extend Proof interface with HeaderHash method;
+- 2022.06.22 - Updated rsmt2d to change isRow to Axis;
+- 2022.07.03 - Added storage description;
+- 2022.07.23 - Reworked unmarshalers registration;
+- 2022.08.25 -
+  - Added BinaryUnmarshaller to Proof interface;
+  - Changed ProofType type from int to string;
 
 ## Authors
 
@@ -68,7 +71,7 @@ In addition, `das.Daser`:
     ```go
     // Currently, we support only one fraud proof. But this enum will be extended in the future with other
     const (
-    BadEncoding ProofType = 0
+    BadEncoding ProofType = "badencoding"
     )
 
     type BadEncodingProof struct {
@@ -126,7 +129,7 @@ In addition, `das.Daser`:
 
     ```go
     // ProofType is a enum type that represents a particular type of fraud proof.
-    type ProofType int
+    type ProofType string
 
     // Proof is a generic interface that will be used for all types of fraud proofs in the network.
     type Proof interface {
@@ -136,6 +139,7 @@ In addition, `das.Daser`:
     Validate(*header.ExtendedHeader) error
 
     encoding.BinaryMarshaller
+    encoding.BinaryUnmarshaler
     }
     ```
 

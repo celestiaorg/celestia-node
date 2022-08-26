@@ -2,6 +2,8 @@ package fraud
 
 import (
 	"context"
+	"encoding/json"
+	"errors"
 	"testing"
 
 	"github.com/ipfs/go-blockservice"
@@ -55,6 +57,8 @@ func (m *mockStore) GetByHeight(_ context.Context, height uint64) (*header.Exten
 	return m.headers[int64(height)], nil
 }
 
+func (m *mockStore) Close() error { return nil }
+
 func generateByzantineError(
 	ctx context.Context,
 	t *testing.T,
@@ -65,4 +69,55 @@ func generateByzantineError(
 	rtrv := ipld.NewRetriever(bServ)
 	_, err := rtrv.Retrieve(ctx, faultHeader.DAH)
 	return faultHeader, err
+}
+
+const (
+	mockProofType ProofType = "mockProof"
+)
+
+type mockProof struct {
+	Valid bool
+}
+
+func newValidProof() *mockProof {
+	return newMockProof(true)
+}
+
+func newInvalidProof() *mockProof {
+	return newMockProof(false)
+}
+
+func newMockProof(valid bool) *mockProof {
+	p := &mockProof{valid}
+	if _, ok := defaultUnmarshalers[p.Type()]; !ok {
+		Register(&mockProof{})
+	}
+	return p
+}
+
+func (m *mockProof) Type() ProofType {
+	return mockProofType
+}
+
+func (m *mockProof) HeaderHash() []byte {
+	return []byte("hash")
+}
+
+func (m *mockProof) Height() uint64 {
+	return 1
+}
+
+func (m *mockProof) Validate(*header.ExtendedHeader) error {
+	if m.Valid != true {
+		return errors.New("mockProof: proof is not valid")
+	}
+	return nil
+}
+
+func (m *mockProof) MarshalBinary() (data []byte, err error) {
+	return json.Marshal(m)
+}
+
+func (m *mockProof) UnmarshalBinary(data []byte) error {
+	return json.Unmarshal(data, m)
 }

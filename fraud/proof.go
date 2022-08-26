@@ -24,20 +24,11 @@ func (e *errNoUnmarshaler) Error() string {
 	return fmt.Sprintf("fraud: unmarshaler for %s type is not registered", e.proofType)
 }
 
-type ProofType int
+type ProofType string
 
 const (
-	BadEncoding ProofType = iota
+	BadEncoding ProofType = "badencoding"
 )
-
-func (p ProofType) String() string {
-	switch p {
-	case BadEncoding:
-		return "badencoding"
-	default:
-		panic(fmt.Sprintf("fraud: invalid proof type: %d", p))
-	}
-}
 
 // Proof is a generic interface that will be used for all types of fraud proofs in the network.
 type Proof interface {
@@ -53,6 +44,7 @@ type Proof interface {
 	Validate(*header.ExtendedHeader) error
 
 	encoding.BinaryMarshaler
+	encoding.BinaryUnmarshaler
 }
 
 // OnProof subscribes to the given Fraud Proof topic via the given Subscriber.

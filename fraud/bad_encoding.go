@@ -18,7 +18,7 @@ import (
 )
 
 func init() {
-	Register(BadEncoding, UnmarshalBEFP)
+	Register(&BadEncodingProof{})
 }
 
 type BadEncodingProof struct {
@@ -81,15 +81,6 @@ func (p *BadEncodingProof) MarshalBinary() ([]byte, error) {
 		Axis:       pb.Axis(p.Axis),
 	}
 	return badEncodingFraudProof.Marshal()
-}
-
-// UnmarshalBEFP converts given data to BadEncodingProof.
-func UnmarshalBEFP(data []byte) (Proof, error) {
-	befp := &BadEncodingProof{}
-	if err := befp.UnmarshalBinary(data); err != nil {
-		return nil, err
-	}
-	return befp, nil
 }
 
 // UnmarshalBinary converts binary to BadEncodingProof.
