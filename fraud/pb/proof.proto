@@ -18,11 +18,11 @@ message BadEncoding {
 }
 
 message FraudMessageRequest {
-  repeated uint32 RequestedProofType = 1;
+  repeated string RequestedProofType = 1;
 }
 
 message ProofResponse {
-  uint32 Type = 1;
+  string Type = 1;
   repeated bytes Value = 2;
 }
 

@@ -23,7 +23,7 @@ func requestProofs(
 	ctx context.Context,
 	host host.Host,
 	pid peer.ID,
-	proofTypes []uint32,
+	proofTypes []string,
 ) ([]*pb.ProofResponse, error) {
 	msg := &pb.FraudMessageRequest{RequestedProofType: proofTypes}
 	stream, err := host.NewStream(ctx, pid, fraudProtocolID)

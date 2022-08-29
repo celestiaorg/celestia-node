@@ -31,9 +31,9 @@ func (f *ProofService) syncFraudProofs(ctx context.Context) {
 	defer sub.Close()
 	f.topicsLk.RLock()
 	// get proof types from subscribed pubsub topics
-	proofTypes := make([]uint32, 0, len(f.topics))
+	proofTypes := make([]string, 0, len(f.topics))
 	for proofType := range f.topics {
-		proofTypes = append(proofTypes, uint32(proofType))
+		proofTypes = append(proofTypes, string(proofType))
 	}
 	f.topicsLk.RUnlock()
 	connStatus := event.EvtPeerIdentificationCompleted{}

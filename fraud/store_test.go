@@ -2,16 +2,12 @@ package fraud
 
 import (
 	"context"
-	"encoding/hex"
-	"errors"
 	"testing"
 	"time"
 
-	"github.com/celestiaorg/celestia-node/ipld"
 	"github.com/ipfs/go-datastore"
 	"github.com/ipfs/go-datastore/namespace"
 	ds_sync "github.com/ipfs/go-datastore/sync"
-	mdutils "github.com/ipfs/go-merkledag/test"
 	"github.com/stretchr/testify/require"
 )
 
@@ -65,27 +61,14 @@ func Test_GetAllFailed(t *testing.T) {
 func Test_getByHash(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*15)
 	defer t.Cleanup(cancel)
-	bServ := mdutils.Bserv()
-	_, store := createService(t, false)
 
+	proof := newValidProof()
 	ds := ds_sync.MutexWrap(datastore.NewMapDatastore())
-	badEncodingStore := namespace.Wrap(ds, makeKey(BadEncoding))
-	h, err := store.GetByHeight(ctx, 1)
+	store := namespace.Wrap(ds, makeKey(proof.Type()))
+	bin, err := proof.MarshalBinary()
 	require.NoError(t, err)
-	faultDAH, err := generateByzantineError(ctx, t, h, bServ)
-	var errByz *ipld.ErrByzantine
-	require.True(t, errors.As(err, &errByz))
-
-	p := CreateBadEncodingProof(h.Hash(), uint64(faultDAH.Height), errByz)
-	bin, err := p.MarshalBinary()
+	err = put(ctx, store, string(proof.HeaderHash()), bin)
 	require.NoError(t, err)
-	err = put(ctx, badEncodingStore, hex.EncodeToString(p.HeaderHash()), bin)
+	_, err = getByHash(ctx, store, string(proof.HeaderHash()))
 	require.NoError(t, err)
-
-	rawData, err := getByHash(ctx, badEncodingStore, hex.EncodeToString(p.HeaderHash()))
-	require.NoError(t, err)
-	require.NotEmpty(t, rawData)
-	befp, err := UnmarshalBEFP(rawData)
-	require.NoError(t, err)
-	require.NoError(t, befp.Validate(faultDAH))
 }
