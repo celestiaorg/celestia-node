@@ -77,6 +77,8 @@ func (serv *ExchangeServer) requestHandler(stream network.Stream) {
 		serv.handleRequest(pbreq.GetOrigin(), pbreq.GetOrigin()+pbreq.Amount, stream)
 	default:
 		log.Error("server: invalid data type received")
+		stream.Reset() //nolint:errcheck
+		return
 	}
 
 	err = stream.Close()
