@@ -5,7 +5,20 @@ import (
 	"encoding"
 	"fmt"
 
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/metric/global"
+	"go.opentelemetry.io/otel/metric/instrument"
+	"go.opentelemetry.io/otel/metric/unit"
+
+	"github.com/ipfs/go-datastore"
+
 	"github.com/celestiaorg/celestia-node/header"
+)
+
+var (
+	meter  = global.MeterProvider().Meter("fraud")
+	tracer = otel.Tracer("fraud")
 )
 
 type ErrFraudExists struct {
@@ -79,4 +92,40 @@ func Unmarshal(proofType ProofType, msg []byte) (Proof, error) {
 		return nil, &errNoUnmarshaler{proofType: proofType}
 	}
 	return unmarshaler(msg)
+}
+
+// MonitorProofs enables metrics to monitor fraud proofs.
+func MonitorProofs(proofTypes ...ProofType) func(Getter) {
+	return func(store Getter) {
+		for _, proofType := range proofTypes {
+			counter, _ := meter.AsyncInt64().Counter(string(proofType),
+				instrument.WithUnit(unit.Dimensionless),
+				instrument.WithDescription("Stored fraud proof"),
+			)
+			err := meter.RegisterCallback(
+				[]instrument.Asynchronous{
+					counter,
+				},
+				func(ctx context.Context) {
+					proofs, err := store.Get(ctx, proofType)
+					switch err {
+					case nil:
+						counter.Observe(ctx,
+							int64(len(proofs)),
+							attribute.String("proofType", string(proofType)),
+						)
+					case datastore.ErrNotFound:
+						counter.Observe(ctx, 0)
+						return
+					default:
+						counter.Observe(ctx, 0, attribute.String("err", err.Error()))
+					}
+				},
+			)
+
+			if err != nil {
+				panic(err)
+			}
+		}
+	}
 }
