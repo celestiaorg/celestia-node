@@ -44,6 +44,7 @@ func bridgeComponents(cfg *Config, store Store) fx.Option {
 		baseComponents(cfg, store),
 		nodecore.Components(cfg.Core),
 		fx.Supply(header.MakeExtendedHeader),
+		fx.Invoke(share.EnsureEmptySquareExists),
 		fx.Provide(services.FullAvailability(cfg.Services)),
 		fx.Provide(services.CacheAvailability[*share.FullAvailability]),
 		fx.Invoke(func(
@@ -81,7 +82,6 @@ func baseComponents(cfg *Config, store Store) fx.Option {
 		fx.Provide(store.Datastore),
 		fx.Provide(store.Keystore),
 		// share components
-		fx.Invoke(share.EnsureEmptySquareExists),
 		fx.Provide(services.ShareService),
 		// header components
 		fx.Provide(services.HeaderService),

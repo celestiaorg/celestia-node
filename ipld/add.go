@@ -26,7 +26,7 @@ func AddShares(
 	squareSize := int(math.Sqrt(float64(len(shares))))
 	// create nmt adder wrapping batch adder with calculated size
 	bs := batchSize(squareSize * 2)
-	batchAdder := NewNmtNodeAdder(ctx, adder, ipld.MaxSizeBatchOption(bs))
+	batchAdder := NewNmtNodeAdder(ctx, []byte{}, adder, ipld.MaxSizeBatchOption(bs))
 	// create the nmt wrapper to generate row and col commitments
 	tree := wrapper.NewErasuredNamespacedMerkleTree(uint64(squareSize), nmt.NodeVisitor(batchAdder.Visit))
 	// recompute the eds
@@ -51,7 +51,7 @@ func ImportShares(
 	squareSize := int(math.Sqrt(float64(len(shares))))
 	// create nmt adder wrapping batch adder with calculated size
 	bs := batchSize(squareSize * 2)
-	batchAdder := NewNmtNodeAdder(ctx, adder, ipld.MaxSizeBatchOption(bs))
+	batchAdder := NewBasicNmtNodeAdder(ctx, adder, ipld.MaxSizeBatchOption(bs))
 	// create the nmt wrapper to generate row and col commitments
 	tree := wrapper.NewErasuredNamespacedMerkleTree(uint64(squareSize/2), nmt.NodeVisitor(batchAdder.Visit))
 	// recompute the eds

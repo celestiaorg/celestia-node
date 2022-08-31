@@ -127,6 +127,7 @@ func (r *Retriever) newSession(ctx context.Context, dah *da.DataAvailabilityHead
 	size := len(dah.RowsRoots)
 	adder := NewNmtNodeAdder(
 		ctx,
+		dah.Hash(),
 		r.bServ,
 		format.MaxSizeBatchOption(batchSize(size)),
 	)

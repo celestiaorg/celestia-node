@@ -2,20 +2,22 @@ package ipld
 
 import (
 	"context"
-
+	"fmt"
+	"github.com/celestiaorg/celestia-node/dagblockstore"
+	"github.com/celestiaorg/celestia-node/ipld/plugin"
 	"github.com/ipfs/go-blockservice"
-	"github.com/ipfs/go-merkledag"
-
 	"github.com/ipfs/go-cid"
 	ipld "github.com/ipfs/go-ipld-format"
-
-	"github.com/celestiaorg/celestia-node/ipld/plugin"
+	"github.com/ipfs/go-merkledag"
+	"github.com/ipld/go-car/v2/blockstore"
 )
 
 // NmtNodeAdder adds ipld.Nodes to the underlying ipld.Batch if it is inserted
 // into a nmt tree.
 type NmtNodeAdder struct {
 	ctx    context.Context
+	bs     *dagblockstore.DAGBlockStore
+	rw     *blockstore.ReadWrite
 	add    *ipld.Batch
 	leaves *cid.Set
 	err    error
@@ -24,7 +26,23 @@ type NmtNodeAdder struct {
 // NewNmtNodeAdder returns a new NmtNodeAdder with the provided context and
 // batch. Note that the context provided should have a timeout
 // It is not thread-safe.
-func NewNmtNodeAdder(ctx context.Context, bs blockservice.BlockService, opts ...ipld.BatchOption) *NmtNodeAdder {
+func NewNmtNodeAdder(ctx context.Context, root []byte, bs blockservice.BlockService, opts ...ipld.BatchOption) *NmtNodeAdder {
+	fmt.Println(fmt.Sprintf("%X", root))
+	carBlockStore, err := blockstore.OpenReadWrite("/tmp/carexample/"+fmt.Sprintf("%X", root), []cid.Cid{}, blockstore.AllowDuplicatePuts(false))
+	if err != nil {
+		panic(err)
+	}
+	return &NmtNodeAdder{
+		add:    ipld.NewBatch(ctx, dagblockstore.New(carBlockStore, bs.Exchange()), opts...),
+		bs:     bs,
+		rw:     carBlockStore,
+		ctx:    ctx,
+		leaves: cid.NewSet(),
+	}
+}
+
+func NewBasicNmtNodeAdder(ctx context.Context, bs blockservice.BlockService, opts ...ipld.BatchOption) *NmtNodeAdder {
+	fmt.Println("Creating basic nmt node adder")
 	return &NmtNodeAdder{
 		add:    ipld.NewBatch(ctx, merkledag.NewDAGService(bs), opts...),
 		ctx:    ctx,
@@ -58,5 +76,10 @@ func (n *NmtNodeAdder) Commit() error {
 		return n.err
 	}
 
-	return n.add.Commit()
+	err := n.add.Commit()
+	if n.rw != nil {
+		return n.rw.Finalize()
+	} else {
+		return err
+	}
 }

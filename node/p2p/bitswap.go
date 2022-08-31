@@ -3,6 +3,7 @@ package p2p
 import (
 	"context"
 	"fmt"
+	"github.com/celestiaorg/celestia-node/dagblockstore"
 
 	"github.com/ipfs/go-bitswap"
 	"github.com/ipfs/go-bitswap/network"
@@ -31,18 +32,7 @@ const (
 func DataExchange(cfg Config) func(bitSwapParams) (exchange.Interface, blockstore.Blockstore, error) {
 	return func(params bitSwapParams) (exchange.Interface, blockstore.Blockstore, error) {
 		ctx := fxutil.WithLifecycle(params.Ctx, params.Lc)
-		bs, err := blockstore.CachedBlockstore(
-			ctx,
-			blockstore.NewBlockstore(params.Ds),
-			blockstore.CacheOpts{
-				HasBloomFilterSize:   defaultBloomFilterSize,
-				HasBloomFilterHashes: defaultBloomFilterHashes,
-				HasARCCacheSize:      defaultARCCacheSize,
-			},
-		)
-		if err != nil {
-			return nil, nil, err
-		}
+		bs := dagblockstore.NewDAGBlockStore(params.Ds)
 		prefix := protocol.ID(fmt.Sprintf("/celestia/%s", params.Net))
 		return bitswap.New(
 			ctx,
