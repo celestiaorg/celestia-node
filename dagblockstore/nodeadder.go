@@ -26,7 +26,6 @@ func (bs *CARBlockStore) Add(ctx context.Context, nd format.Node) error {
 	if bs == nil { // FIXME remove this assertion. protect with constructor invariant
 		return fmt.Errorf("dagService is nil")
 	}
-
 	return bs.AddBlock(ctx, nd)
 }
 
@@ -77,6 +76,7 @@ func (bs *CARBlockStore) AddBlocks(ctx context.Context, blks []blocks.Block) err
 
 	err := bs.blockstore.PutMany(ctx, toput)
 	if err != nil {
+		fmt.Println("Couldnt put blocks in blockstore")
 		return err
 	}
 

@@ -62,7 +62,7 @@ func generateByzantineError(
 	bServ blockservice.BlockService,
 ) (*header.ExtendedHeader, error) {
 	faultHeader := header.CreateFraudExtHeader(t, h, bServ)
-	rtrv := ipld.NewRetriever(bServ)
+	rtrv := ipld.NewBasicRetriever(bServ)
 	_, err := rtrv.Retrieve(ctx, faultHeader.DAH)
 	return faultHeader, err
 }

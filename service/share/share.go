@@ -60,7 +60,7 @@ type Service struct {
 // NewService creates new basic share.Service.
 func NewService(bServ blockservice.BlockService, avail Availability) *Service {
 	return &Service{
-		rtrv:         ipld.NewRetriever(bServ),
+		rtrv:         ipld.NewBasicRetriever(bServ),
 		Availability: avail,
 		bServ:        bServ,
 	}

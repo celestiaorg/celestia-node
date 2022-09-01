@@ -5,11 +5,15 @@ import (
 	"fmt"
 	"github.com/celestiaorg/celestia-node/dagblockstore"
 	"github.com/celestiaorg/celestia-node/ipld/plugin"
+	"github.com/filecoin-project/dagstore"
+	"github.com/filecoin-project/dagstore/mount"
+	"github.com/filecoin-project/dagstore/shard"
 	"github.com/ipfs/go-blockservice"
 	"github.com/ipfs/go-cid"
 	ipld "github.com/ipfs/go-ipld-format"
 	"github.com/ipfs/go-merkledag"
 	"github.com/ipld/go-car/v2/blockstore"
+	"os"
 )
 
 // NmtNodeAdder adds ipld.Nodes to the underlying ipld.Batch if it is inserted
@@ -17,6 +21,8 @@ import (
 type NmtNodeAdder struct {
 	ctx    context.Context
 	bs     *dagblockstore.DAGBlockStore
+	key    string
+	roots  []cid.Cid
 	rw     *blockstore.ReadWrite
 	add    *ipld.Batch
 	leaves *cid.Set
@@ -26,15 +32,16 @@ type NmtNodeAdder struct {
 // NewNmtNodeAdder returns a new NmtNodeAdder with the provided context and
 // batch. Note that the context provided should have a timeout
 // It is not thread-safe.
-func NewNmtNodeAdder(ctx context.Context, root []byte, bs blockservice.BlockService, opts ...ipld.BatchOption) *NmtNodeAdder {
-	fmt.Println(fmt.Sprintf("%X", root))
-	carBlockStore, err := blockstore.OpenReadWrite("/tmp/carexample/"+fmt.Sprintf("%X", root), []cid.Cid{}, blockstore.AllowDuplicatePuts(false))
+func NewNmtNodeAdder(ctx context.Context, roots []cid.Cid, key string, bs blockservice.BlockService, dagStr *dagblockstore.DAGBlockStore, opts ...ipld.BatchOption) *NmtNodeAdder {
+	carBlockStore, err := blockstore.OpenReadWrite("/tmp/carexample/"+key, roots, blockstore.AllowDuplicatePuts(true))
 	if err != nil {
 		panic(err)
 	}
 	return &NmtNodeAdder{
 		add:    ipld.NewBatch(ctx, dagblockstore.New(carBlockStore, bs.Exchange()), opts...),
-		bs:     bs,
+		bs:     dagStr,
+		key:    key,
+		roots:  roots,
 		rw:     carBlockStore,
 		ctx:    ctx,
 		leaves: cid.NewSet(),
@@ -73,12 +80,27 @@ func (n *NmtNodeAdder) Visit(hash []byte, children ...[]byte) {
 // Commit checks for errors happened during Visit and if absent commits data to inner Batch.
 func (n *NmtNodeAdder) Commit() error {
 	if n.err != nil {
+		fmt.Println("Error committing:", n.err)
 		return n.err
 	}
 
 	err := n.add.Commit()
+	if err != nil {
+		fmt.Println("Error committing batch:", err)
+	}
+
 	if n.rw != nil {
-		return n.rw.Finalize()
+		err = n.rw.Finalize()
+		if err != nil {
+			return err
+		}
+		for _, root := range n.roots {
+			err = n.bs.RegisterShard(context.Background(), shard.KeyFromCID(root), &mount.FSMount{
+				FS:   os.DirFS("/tmp/carexample/"),
+				Path: n.key,
+			}, nil, dagstore.RegisterOpts{})
+		}
+		return nil
 	} else {
 		return err
 	}

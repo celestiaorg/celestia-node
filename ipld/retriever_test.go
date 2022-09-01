@@ -30,7 +30,7 @@ func TestRetriever_Retrieve(t *testing.T) {
 	defer cancel()
 
 	bServ := mdutils.Bserv()
-	r := NewRetriever(bServ)
+	r := NewBasicRetriever(bServ)
 
 	type test struct {
 		name       string
@@ -89,7 +89,7 @@ func TestRetriever_ByzantineError(t *testing.T) {
 
 	// ensure we rcv an error
 	da := da.NewDataAvailabilityHeader(attackerEDS)
-	r := NewRetriever(bserv)
+	r := NewBasicRetriever(bserv)
 	_, err = r.Retrieve(ctx, &da)
 	var errByz *ErrByzantine
 	require.ErrorAs(t, err, &errByz)
@@ -104,7 +104,7 @@ func TestRetriever_MultipleRandQuadrants(t *testing.T) {
 	defer cancel()
 
 	bServ := mdutils.Bserv()
-	r := NewRetriever(bServ)
+	r := NewBasicRetriever(bServ)
 
 	// generate EDS
 	shares := RandShares(t, squareSize*squareSize)

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/hex"
 	"errors"
+	"github.com/celestiaorg/celestia-node/dagblockstore"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -40,12 +41,18 @@ var tracer = otel.Tracer("ipld")
 // Retriever randomly picks one of the data square quadrants and tries to request them one by one
 // until it is able to reconstruct the whole square.
 type Retriever struct {
-	bServ blockservice.BlockService
+	bServ  blockservice.BlockService
+	dagStr *dagblockstore.DAGBlockStore
+}
+
+// NewBasicRetriever creates a new instance of the Retriever over IPLD Service and rmst2d.Codec
+func NewBasicRetriever(bServ blockservice.BlockService) *Retriever {
+	return &Retriever{bServ: bServ}
 }
 
 // NewRetriever creates a new instance of the Retriever over IPLD Service and rmst2d.Codec
-func NewRetriever(bServ blockservice.BlockService) *Retriever {
-	return &Retriever{bServ: bServ}
+func NewRetriever(bServ blockservice.BlockService, dagStr *dagblockstore.DAGBlockStore) *Retriever {
+	return &Retriever{bServ: bServ, dagStr: dagStr}
 }
 
 // Retrieve retrieves all the data committed to DataAvailabilityHeader.
@@ -125,10 +132,19 @@ type retrievalSession struct {
 // newSession creates a new retrieval session and kicks off requesting process.
 func (r *Retriever) newSession(ctx context.Context, dah *da.DataAvailabilityHeader) (*retrievalSession, error) {
 	size := len(dah.RowsRoots)
+	roots := make([]cid.Cid, 0, size*2)
+	for _, row := range dah.RowsRoots {
+		roots = append(roots, plugin.MustCidFromNamespacedSha256(row))
+	}
+	for _, row := range dah.ColumnRoots {
+		roots = append(roots, plugin.MustCidFromNamespacedSha256(row))
+	}
 	adder := NewNmtNodeAdder(
 		ctx,
-		dah.Hash(),
+		roots,
+		dah.String(),
 		r.bServ,
+		r.dagStr,
 		format.MaxSizeBatchOption(batchSize(size)),
 	)
 	ses := &retrievalSession{

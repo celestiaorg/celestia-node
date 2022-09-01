@@ -29,8 +29,8 @@ const (
 )
 
 // DataExchange provides a constructor for IPFS block's DataExchange over BitSwap.
-func DataExchange(cfg Config) func(bitSwapParams) (exchange.Interface, blockstore.Blockstore, error) {
-	return func(params bitSwapParams) (exchange.Interface, blockstore.Blockstore, error) {
+func DataExchange(cfg Config) func(bitSwapParams) (exchange.Interface, blockstore.Blockstore, *dagblockstore.DAGBlockStore, error) {
+	return func(params bitSwapParams) (exchange.Interface, blockstore.Blockstore, *dagblockstore.DAGBlockStore, error) {
 		ctx := fxutil.WithLifecycle(params.Ctx, params.Lc)
 		bs := dagblockstore.NewDAGBlockStore(params.Ds)
 		prefix := protocol.ID(fmt.Sprintf("/celestia/%s", params.Net))
@@ -43,7 +43,7 @@ func DataExchange(cfg Config) func(bitSwapParams) (exchange.Interface, blockstor
 			// See https://github.com/celestiaorg/celestia-node/issues/732
 			bitswap.SetSendDontHaves(false),
 			bitswap.SetSimulateDontHavesOnTimeout(false),
-		), bs, nil
+		), bs, bs, nil
 	}
 }
 

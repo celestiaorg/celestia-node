@@ -3,6 +3,7 @@ package share
 import (
 	"context"
 	"errors"
+	"github.com/celestiaorg/celestia-node/dagblockstore"
 
 	"github.com/ipfs/go-blockservice"
 	format "github.com/ipfs/go-ipld-format"
@@ -21,9 +22,9 @@ type FullAvailability struct {
 }
 
 // NewFullAvailability creates a new full Availability.
-func NewFullAvailability(bServ blockservice.BlockService, disc *discovery) *FullAvailability {
+func NewFullAvailability(bServ blockservice.BlockService, dagStr *dagblockstore.DAGBlockStore, disc *discovery) *FullAvailability {
 	return &FullAvailability{
-		rtrv: ipld.NewRetriever(bServ),
+		rtrv: ipld.NewRetriever(bServ, dagStr),
 		disc: disc,
 	}
 }
