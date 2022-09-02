@@ -5,7 +5,7 @@ import (
 	"github.com/spf13/cobra"
 
 	cmdnode "github.com/celestiaorg/celestia-node/cmd"
-	"github.com/celestiaorg/celestia-node/node/node"
+	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 )
 
 // NOTE: We should always ensure that the added Flags below are parsed somewhere, like in the PersistentPreRun func on
@@ -50,22 +50,25 @@ var lightCmd = &cobra.Command{
 
 		ctx = cmdnode.WithNodeType(ctx, node.Light)
 
+		// loads existing config into the environment
 		ctx, err = cmdnode.ParseNodeFlags(ctx, cmd)
 		if err != nil {
 			return err
 		}
 
-		ctx, err = cmdnode.ParseP2PFlags(ctx, cmd)
+		cfg := cmdnode.NodeConfig(ctx)
+
+		ctx, err = cmdnode.ParseP2PFlags(ctx, cmd, &cfg)
 		if err != nil {
 			return err
 		}
 
-		ctx, err = cmdnode.ParseCoreFlags(ctx, cmd)
+		ctx, err = cmdnode.ParseCoreFlags(ctx, cmd, &cfg)
 		if err != nil {
 			return err
 		}
 
-		ctx, err = cmdnode.ParseHeadersFlags(ctx, cmd)
+		ctx, err = cmdnode.ParseHeadersFlags(ctx, cmd, &cfg)
 		if err != nil {
 			return err
 		}
@@ -75,12 +78,12 @@ var lightCmd = &cobra.Command{
 			return err
 		}
 
-		ctx, err = cmdnode.ParseRPCFlags(ctx, cmd)
+		ctx, err = cmdnode.ParseRPCFlags(ctx, cmd, &cfg)
 		if err != nil {
 			return err
 		}
 
-		ctx = cmdnode.ParseKeyFlags(ctx, cmd)
+		ctx = cmdnode.ParseKeyFlags(ctx, cmd, &cfg)
 
 		cmd.SetContext(ctx)
 		return nil

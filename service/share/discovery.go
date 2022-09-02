@@ -25,7 +25,7 @@ var waitF = func(ttl time.Duration) time.Duration {
 }
 
 // discovery combines advertise and discover services and allows to store discovered nodes.
-type discovery struct {
+type Discovery struct {
 	set       *limitedSet
 	host      host.Host
 	disc      core.Discovery
@@ -45,8 +45,8 @@ func NewDiscovery(
 	peersLimit uint,
 	discInterval,
 	advertiseInterval time.Duration,
-) *discovery { //nolint:revive
-	return &discovery{
+) *Discovery {
+	return &Discovery{
 		newLimitedSet(peersLimit),
 		h,
 		d,
@@ -59,7 +59,7 @@ func NewDiscovery(
 
 // handlePeersFound receives peers and tries to establish a connection with them.
 // Peer will be added to PeerCache if connection succeeds.
-func (d *discovery) handlePeerFound(ctx context.Context, topic string, peer peer.AddrInfo) {
+func (d *Discovery) handlePeerFound(ctx context.Context, topic string, peer peer.AddrInfo) {
 	if peer.ID == d.host.ID() || len(peer.Addrs) == 0 || d.set.Contains(peer.ID) {
 		return
 	}
@@ -83,7 +83,7 @@ func (d *discovery) handlePeerFound(ctx context.Context, topic string, peer peer
 // ensurePeers ensures we always have 'peerLimit' connected peers.
 // It starts peer discovery every 30 seconds until peer cache reaches peersLimit.
 // Discovery is restarted if any previously connected peers disconnect.
-func (d *discovery) ensurePeers(ctx context.Context) {
+func (d *Discovery) ensurePeers(ctx context.Context) {
 	if d.peersLimit == 0 {
 		log.Warn("peers limit is set to 0. Skipping discovery...")
 		return
@@ -138,7 +138,7 @@ func (d *discovery) ensurePeers(ctx context.Context) {
 }
 
 // advertise is a utility function that persistently advertises a service through an Advertiser.
-func (d *discovery) advertise(ctx context.Context) {
+func (d *Discovery) advertise(ctx context.Context) {
 	timer := time.NewTimer(d.advertiseInterval)
 	defer timer.Stop()
 	for {

@@ -6,7 +6,7 @@ import (
 	"github.com/spf13/cobra"
 	flag "github.com/spf13/pflag"
 
-	"github.com/celestiaorg/celestia-node/node/node"
+	"github.com/celestiaorg/celestia-node/nodebuilder"
 )
 
 var (
@@ -33,14 +33,21 @@ func RPCFlags() *flag.FlagSet {
 }
 
 // ParseRPCFlags parses RPC flags from the given cmd and applies values to Env.
-func ParseRPCFlags(ctx context.Context, cmd *cobra.Command) (context.Context, error) {
+func ParseRPCFlags(
+	ctx context.Context,
+	cmd *cobra.Command,
+	cfg *nodebuilder.Config,
+) (setCtx context.Context, err error) {
+	defer func() {
+		setCtx = WithNodeConfig(ctx, cfg)
+	}()
 	addr := cmd.Flag(addrFlag).Value.String()
 	if addr != "" {
-		ctx = WithNodeOptions(ctx, node.WithRPCAddress(addr))
+		cfg.RPC.Address = addr
 	}
 	port := cmd.Flag(portFlag).Value.String()
 	if port != "" {
-		ctx = WithNodeOptions(ctx, node.WithRPCPort(port))
+		cfg.RPC.Port = port
 	}
-	return ctx, nil
+	return
 }
