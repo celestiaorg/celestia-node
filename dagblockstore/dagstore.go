@@ -48,7 +48,7 @@ type DAGBlockStore struct {
 }
 
 // TODO: Return error. Take in cache size as parameter, added to a config.
-func NewDAGBlockStore(ds datastore.Batching) *DAGBlockStore {
+func NewDAGBlockStore(ds datastore.Batching) (*DAGBlockStore, blockstore.Blockstore) {
 	// instantiate the blockstore cache
 	bslru, err := lru.NewWithEvict(maxCacheSize, func(_ interface{}, val interface{}) {
 		// ensure we close the blockstore for a shard when it's evicted from the cache so dagstore can gc it.
@@ -86,10 +86,11 @@ func NewDAGBlockStore(ds datastore.Batching) *DAGBlockStore {
 	//if err != nil {
 	//	panic(err)
 	//}
-	return &DAGBlockStore{
+	bs := &DAGBlockStore{
 		DAGStore:        *dagStore,
 		blockstoreCache: bslru,
 	}
+	return bs, bs
 }
 
 func (dbs *DAGBlockStore) Has(ctx context.Context, c cid.Cid) (bool, error) {

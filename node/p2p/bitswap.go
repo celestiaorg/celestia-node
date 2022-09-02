@@ -3,8 +3,6 @@ package p2p
 import (
 	"context"
 	"fmt"
-	"github.com/celestiaorg/celestia-node/dagblockstore"
-
 	"github.com/ipfs/go-bitswap"
 	"github.com/ipfs/go-bitswap/network"
 	"github.com/ipfs/go-datastore"
@@ -28,23 +26,37 @@ const (
 	defaultARCCacheSize = 64 << 10
 )
 
-// DataExchange provides a constructor for IPFS block's DataExchange over BitSwap.
-func DataExchange(cfg Config) func(bitSwapParams) (exchange.Interface, blockstore.Blockstore, *dagblockstore.DAGBlockStore, error) {
-	return func(params bitSwapParams) (exchange.Interface, blockstore.Blockstore, *dagblockstore.DAGBlockStore, error) {
-		ctx := fxutil.WithLifecycle(params.Ctx, params.Lc)
-		bs := dagblockstore.NewDAGBlockStore(params.Ds)
-		prefix := protocol.ID(fmt.Sprintf("/celestia/%s", params.Net))
-		return bitswap.New(
-			ctx,
-			network.NewFromIpfsHost(params.Host, &routinghelpers.Null{}, network.Prefix(prefix)),
-			bs,
-			bitswap.ProvideEnabled(false),
-			// NOTE: These below ar required for our protocol to work reliably.
-			// See https://github.com/celestiaorg/celestia-node/issues/732
-			bitswap.SetSendDontHaves(false),
-			bitswap.SetSimulateDontHavesOnTimeout(false),
-		), bs, bs, nil
+func DefaultBlockstore(params bitSwapParams) (blockstore.Blockstore, error) {
+	ctx := fxutil.WithLifecycle(params.Ctx, params.Lc)
+	bs, err := blockstore.CachedBlockstore(
+		ctx,
+		blockstore.NewBlockstore(params.Ds),
+		blockstore.CacheOpts{
+			HasBloomFilterSize:   defaultBloomFilterSize,
+			HasBloomFilterHashes: defaultBloomFilterHashes,
+			HasARCCacheSize:      defaultARCCacheSize,
+		},
+	)
+	if err != nil {
+		return nil, err
 	}
+	return bs, nil
+}
+
+// DataExchange provides a constructor for IPFS block's DataExchange over BitSwap.
+func DataExchange(params bitSwapParams, bs blockstore.Blockstore) (exchange.Interface, error) {
+	ctx := fxutil.WithLifecycle(params.Ctx, params.Lc)
+	prefix := protocol.ID(fmt.Sprintf("/celestia/%s", params.Net))
+	return bitswap.New(
+		ctx,
+		network.NewFromIpfsHost(params.Host, &routinghelpers.Null{}, network.Prefix(prefix)),
+		bs,
+		bitswap.ProvideEnabled(false),
+		// NOTE: These below ar required for our protocol to work reliably.
+		// See https://github.com/celestiaorg/celestia-node/issues/732
+		bitswap.SetSendDontHaves(false),
+		bitswap.SetSimulateDontHavesOnTimeout(false),
+	), nil
 }
 
 type bitSwapParams struct {

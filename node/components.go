@@ -2,6 +2,7 @@ package node
 
 import (
 	"context"
+	"github.com/celestiaorg/celestia-node/dagblockstore"
 	"sync"
 	"time"
 
@@ -29,7 +30,9 @@ func lightComponents(cfg *Config, store Store) fx.Option {
 	return fx.Options(
 		fx.Supply(Light),
 		baseComponents(cfg, store),
+		fx.Provide(p2p.DefaultBlockstore),
 		fx.Provide(services.DASer),
+		fx.Invoke(share.EnsureEmptySquareExists),
 		fx.Provide(services.HeaderExchangeP2P(cfg.Services)),
 		fx.Provide(services.LightAvailability(cfg.Services)),
 		fx.Provide(services.CacheAvailability[*share.LightAvailability]),
@@ -42,6 +45,7 @@ func bridgeComponents(cfg *Config, store Store) fx.Option {
 	return fx.Options(
 		fx.Supply(Bridge),
 		baseComponents(cfg, store),
+		fx.Provide(p2p.DefaultBlockstore),
 		nodecore.Components(cfg.Core),
 		fx.Supply(header.MakeExtendedHeader),
 		fx.Invoke(share.EnsureEmptySquareExists),
@@ -63,6 +67,7 @@ func fullComponents(cfg *Config, store Store) fx.Option {
 	return fx.Options(
 		fx.Supply(Full),
 		baseComponents(cfg, store),
+		fx.Provide(dagblockstore.NewDAGBlockStore),
 		fx.Provide(services.DASer),
 		fx.Provide(services.HeaderExchangeP2P(cfg.Services)),
 		fx.Provide(services.FullAvailability(cfg.Services)),
