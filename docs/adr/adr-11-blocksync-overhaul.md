@@ -19,6 +19,7 @@
 - FN - Full Node
 - BN - Bridge Node
 - EDS(Extended Data Square) - plain Block data omitting headers and other metadata.
+- NMT - Namespaced Merkle Tree
 
 ## Context
 
@@ -86,6 +87,8 @@ or proposing custom Bitswap message extention.
 - __New libp2p based Exchange protocol is introduced for data/share exchange purposes.__ FNs/BNs servers LNs clients.
 
 ### Detailed Design
+
+> All the comments on the API definitions should be preserved and potentially improved by implementations.
 
 #### Block/EDS Storage
 
@@ -176,8 +179,8 @@ so this is out of scope of the document.
 // Put stores the given data square with DataRoot as key.
 //
 // The square is verified on the Exchange level and Put only stores the square trusting it.
-// Put serializes the full EDS into a CARv1 file internally and mounts it onto the DAGStore.
 // The resulting file stores all the shares and NMT Merkle Proofs of the EDS.
+// Additionally, the file gets indexed s.t. Store.Blockstore can access them. 
 func (s *Store) Put(context.Context, DataRoot, *rsmt2d.ExtendedDataSquare) error
 ```
 
@@ -247,10 +250,13 @@ To remove stored EDS `Remove` methods is introduced. Internally it:
   - `DAGStore` cleans up indices itself
 - Removes FS/File Mount of CARv1 file from disk
 
-NOTE: It's not necessary, but an API ergonomics/symmetry nice-to-have
+NOTES:
+
+- It's not necessary, but an API ergonomics/symmetry nice-to-have
+- GC logic on the DAGStore has to be investigated so that Removing is correctly implemented
 
 ```go
-// Remove removes EDS from Store by given DataRoot.
+// Remove removes EDS from Store by given DataRoot and cleans up all the indexing.
 func (s *Store) Remove(context.Context, DataRoot) error
 
 ```
