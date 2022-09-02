@@ -235,6 +235,30 @@ type mockGetter struct {
 	headers map[int64]*header.ExtendedHeader
 }
 
+func (m *mockGetter) Start(ctx context.Context) error {
+	panic("only exists to fulfill interface")
+}
+
+func (m *mockGetter) Stop(ctx context.Context) error {
+	panic("only exists to fulfill interface")
+}
+
+func (m *mockGetter) Init(ctx context.Context, extendedHeader *header.ExtendedHeader) error {
+	panic("only exists to fulfill interface")
+}
+
+func (m *mockGetter) Height() uint64 {
+	panic("only exists to fulfill interface")
+}
+
+func (m *mockGetter) Has(ctx context.Context, bytes tmbytes.HexBytes) (bool, error) {
+	panic("only exists to fulfill interface")
+}
+
+func (m *mockGetter) Append(ctx context.Context, extendedHeader ...*header.ExtendedHeader) (int, error) {
+	panic("only exists to fulfill interface")
+}
+
 func (m *mockGetter) generateHeaders(t *testing.T, bServ blockservice.BlockService, startHeight, endHeight int) {
 	for i := startHeight; i < endHeight; i++ {
 		dah := share.RandFillBS(t, 16, bServ)

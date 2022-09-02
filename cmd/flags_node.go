@@ -3,12 +3,14 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"path/filepath"
 	"strings"
 
+	"github.com/mitchellh/go-homedir"
 	"github.com/spf13/cobra"
 	flag "github.com/spf13/pflag"
 
-	"github.com/celestiaorg/celestia-node/node/node"
+	"github.com/celestiaorg/celestia-node/nodebuilder"
 	"github.com/celestiaorg/celestia-node/params"
 )
 
@@ -62,13 +64,23 @@ func ParseNodeFlags(ctx context.Context, cmd *cobra.Command) (context.Context, e
 
 	nodeConfig := cmd.Flag(nodeConfigFlag).Value.String()
 	if nodeConfig != "" {
-		cfg, err := node.LoadConfig(nodeConfig)
+		// try to load config from given path
+		cfg, err := nodebuilder.LoadConfig(nodeConfig)
 		if err != nil {
 			return ctx, fmt.Errorf("cmd: while parsing '%s': %w", nodeConfigFlag, err)
 		}
 
-		ctx = WithNodeOptions(ctx, node.WithConfig(cfg))
+		ctx = WithNodeConfig(ctx, cfg)
+	} else {
+		// check if config already exists at the store path and load it
+		expanded, err := homedir.Expand(filepath.Clean(path))
+		if err != nil {
+			return ctx, err
+		}
+		cfg, err := nodebuilder.LoadConfig(filepath.Join(expanded, "config.toml"))
+		if err == nil {
+			ctx = WithNodeConfig(ctx, cfg)
+		}
 	}
-
 	return ctx, nil
 }
