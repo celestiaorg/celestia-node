@@ -144,33 +144,55 @@ func ReadEDS(context.Context, io.Reader, DataRoot) (*rsmt2d.ExtendedDataSquare, 
 
 ##### `share.EDSStore`
 
-Mainly, a new addition is `EDSStore` type in `share` pkg, which manages every EDS on the
-disk a FNs/BNs keep. Each EDS together with its Merkle Proofs serializes into CARv1 file with a special
-traversal algorithm(TODO Explain here or refer as another section). All the serialized CARv1 file blobs are managed in
-OS FS via underlying DAGStore.
+To manage every EDS on the disk FNs/BNs keep `EDSStore` type is introduced in `share` pkg. Each EDS together with its
+Merkle Proofs serializes into CARv1 file. All the serialized CARv1 file blobs are stored as OS FS files as DAGStore
+[Mounts](https://github.com/filecoin-project/dagstore/blob/master/mount/mount.go).
 
-The introduced `EDSStore` also maintains a top-level index enabling granular and efficient random access to every share
-and/or Merkle proof over every registered CARv1 file. The `EDSStore` provides a custom `Blockstore`(TODO link) interface
-implementation to achieve the access. However, this comes with additional storage costs for indices. The main use-case
-is randomized sampling over the whole chain of EDS block data and getting data by namespace.
+The introduced `EDSStore` also maintains (via DAGStore) a top-level index enabling granular and efficient random access
+to every share and/or Merkle proof over every registered CARv1 file. The `EDSStore` provides a custom `Blockstore` interface
+implementation to achieve the access. The main use-case is randomized sampling over the whole chain of EDS block data
+and getting data by namespace.
+
+EDSStore constructor should instantiate
 
 ```go
 type EDSStore struct {
+ basepath string 
  dgstr dagstore.DAGStore
- idx index.FullIndexRepo
+ topIdx index.Inverted 
+ carIdx index.FullIndexRepo
  mounts  *mount.Registry
  ...
 }
+
+// NewEDSStore constructs EDStore over OS directory to store CARv1 files of EDSes and indices for them.
+// Datastore is used to keep inverted/top-level index.
+func NewEDSStore(basepath string, ds datastore.Batching) *EDSStore {
+ topIdx := index.NewInverted(datastore)
+ carIdx := index.NewFSRepo(basepath + "/index")
+ mounts := mount.NewRegistry()
+ return &EDSStore{
+  basepath: basepath,
+  dgst: dagstore.New(dagstore.Config{...}),
+  topIdx: index.NewInverted(datastore),
+  carIdx: index.NewFSRepo(basepath + "/index")
+  mounts: mounts,
+    }   
+}
+
 ```
 
 ##### `share.EDSStore.Put`
 
-To write an entire EDS `Put` method is introduced. Internally, it
+To write an entire EDS `Put` method is introduced. Internally it
 
-- Serializes the EDS into the CARv1 via `share.WriteEDS`
+- Opens a file under `storepath/DataRoot` path
+- Serializes the EDS into the file via `share.WriteEDS`
 - Wraps it with `DAGStore`'s [FileMount](https://github.com/filecoin-project/dagstore/blob/master/mount/file.go#L10)
 - Converts `DataRoot` into the [`shard.Key`](https://github.com/filecoin-project/dagstore/blob/master/shard/key.go#L12)
-- Registers the Mount as a Shard on the `DAGStore`
+- Registers the `Mount` as a `Shard` on the `DAGStore`
+  - This register the `Mount` in [`mount.Registry`](https://github.com/filecoin-project/dagstore/blob/master/mount/registry.go#L22)
+passed to `DAGStore`.
 
 NOTE: Registering on the DAGStore automatically populates top-level index with shares/proofs accessible from stored EDS
 so this is out of scope of the document.
@@ -189,11 +211,11 @@ func (s *Store) Put(context.Context, DataRoot, *rsmt2d.ExtendedDataSquare) error
 To read an EDS as a byte stream `GetCAR` method is introduced. Internally it
 
 - Converts `DataRoot` into the [`shard.Key`](<https://github.com/filecoin-project/dagstore/blob/master/shard/key.go#L12>
-- Gets Mount by Key from [`mount.Registry`](https://github.com/filecoin-project/dagstore/blob/master/mount/registry.go#L22)
-- Return Reader from [`Mount.Fetch`](https://github.com/filecoin-project/dagstore/blob/master/mount/mount.go#L71)
+- Gets Mount by `shard.Key` from [`mount.Registry`](https://github.com/filecoin-project/dagstore/blob/master/mount/registry.go#L22)
+- Returns `io.ReadeCloser` from [`Mount.Fetch`](https://github.com/filecoin-project/dagstore/blob/master/mount/mount.go#L71)
 
 NOTE: It might be necessary to acquire EDS mount via `DAGStore` keeping `ShardAccessor`
-and closing it when operation is done.
+and closing it when operation is done. This has to be confirmed.
 
 ```go
 // GetCAR takes DataRoot and returns a buffered reader to respective EDS serialized as CARv1 file.
@@ -228,7 +250,7 @@ func (s *Store) Blockstore() blockstore.Blockstore
 
 To read an entire EDS `Get` method is introduced. Internally it:
 
-- Gets serialized EDS Reader via `Store.GetCAR`
+- Gets serialized EDS `io.Reader` via `Store.GetCAR`
 - Deserializes EDS and validates it via `share.ReadEDS`
 
 NOTE: It's not necessary, but an API ergonomics/symmetry nice-to-have
@@ -246,9 +268,9 @@ func (s *Store) Get(context.Context, DataRoot) (*rsmt2d.ExtendedDataSquare, erro
 To remove stored EDS `Remove` methods is introduced. Internally it:
 
 - Converts `DataRoot` into the [`shard.Key`](<https://github.com/filecoin-project/dagstore/blob/master/shard/key.go#L12>
-- Removes Mount/Shard from `DAGStore`
-  - `DAGStore` cleans up indices itself
-- Removes FS/File Mount of CARv1 file from disk
+- Removes respective `Mount` and `Shard` from `DAGStore`
+  - `DAGStore` cleans up indices and `mount.Registery` itself
+- Removes `FileMount` file of CARv1 file from disk under `storepath/DataRoot` path
 
 NOTES:
 
@@ -275,13 +297,9 @@ Generally stays unchanged with minor edits:
 Alternatively, `share/ipld.GetByNamespace` can be modified to `share.CARByNamespace` returning
 CARv1 Reader with encoded shares and NMT Merkle Proofs.
 
-##### `node.Store`
+##### EDSStore Directory Path
 
-// TODO Elaborate on how FS/File DAGStore mounts work over `node.Store` + `index.FullIndexRepo`
-
-##### Relations with Node Types
-
-// TODO Elaborate on node relations
+The EDSStore expects a directory to store CAR files and indices to. The path should be gotten based on `node.Store.Path`
 
 ### Alternative Approaches
 
