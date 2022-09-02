@@ -2,7 +2,6 @@ package ipld
 
 import (
 	"context"
-	"fmt"
 	"github.com/celestiaorg/celestia-node/dagblockstore"
 	"github.com/celestiaorg/celestia-node/ipld/plugin"
 	"github.com/filecoin-project/dagstore"
@@ -49,7 +48,6 @@ func NewNmtNodeAdder(ctx context.Context, roots []cid.Cid, key string, bs blocks
 }
 
 func NewBasicNmtNodeAdder(ctx context.Context, bs blockservice.BlockService, opts ...ipld.BatchOption) *NmtNodeAdder {
-	fmt.Println("Creating basic nmt node adder")
 	return &NmtNodeAdder{
 		add:    ipld.NewBatch(ctx, merkledag.NewDAGService(bs), opts...),
 		ctx:    ctx,
@@ -80,25 +78,26 @@ func (n *NmtNodeAdder) Visit(hash []byte, children ...[]byte) {
 // Commit checks for errors happened during Visit and if absent commits data to inner Batch.
 func (n *NmtNodeAdder) Commit() error {
 	if n.err != nil {
-		fmt.Println("Error committing:", n.err)
 		return n.err
 	}
 
 	err := n.add.Commit()
 	if err != nil {
-		fmt.Println("Error committing batch:", err)
+		log.Errorw("error committing batch", "key", n.key, "err", err)
 	}
 
 	if n.rw != nil {
 		err = n.rw.Finalize()
 		if err != nil {
+			log.Errorw("couldn't finalize", "key", n.key, "err", err)
 			return err
 		}
-		for _, root := range n.roots {
-			err = n.bs.RegisterShard(context.Background(), shard.KeyFromCID(root), &mount.FSMount{
-				FS:   os.DirFS("/tmp/carexample/"),
-				Path: n.key,
-			}, nil, dagstore.RegisterOpts{})
+		err = n.bs.RegisterShard(context.Background(), shard.KeyFromString(n.key), &mount.FSMount{
+			FS:   os.DirFS("/tmp/carexample/"),
+			Path: n.key,
+		}, nil, dagstore.RegisterOpts{})
+		if err != nil {
+			log.Warnw("couldn't register shard", "key", n.key, "err", err)
 		}
 		return nil
 	} else {

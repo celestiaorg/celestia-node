@@ -3,22 +3,21 @@ package dagblockstore
 import (
 	"context"
 	"errors"
-	"fmt"
 	"github.com/filecoin-project/dagstore"
 	"github.com/filecoin-project/dagstore/index"
 	"github.com/filecoin-project/dagstore/mount"
 	blocks "github.com/ipfs/go-block-format"
 	"github.com/ipfs/go-cid"
 	"github.com/ipfs/go-datastore"
-	"github.com/ipfs/go-datastore/namespace"
 	blockstore "github.com/ipfs/go-ipfs-blockstore"
 	ipld "github.com/ipfs/go-ipld-format"
+	logging "github.com/ipfs/go-log/v2"
 	"os"
 )
 
 var (
-	_                   blockstore.Blockstore = (*DAGBlockStore)(nil)
-	invertedIndexPrefix                       = datastore.NewKey("/index/inverted")
+	_   blockstore.Blockstore = (*DAGBlockStore)(nil)
+	log                       = logging.Logger("dagblockstore")
 )
 
 type DAGBlockStore struct {
@@ -36,7 +35,7 @@ func NewDAGBlockStore(ds datastore.Batching) *DAGBlockStore {
 			TransientsDir: "/tmp/transients",
 			Datastore:     ds,
 			MountRegistry: r,
-			TopLevelIndex: index.NewInverted(namespace.Wrap(ds, invertedIndexPrefix)),
+			TopLevelIndex: index.NewInverted(ds),
 		},
 	)
 	if err != nil {
@@ -47,12 +46,14 @@ func NewDAGBlockStore(ds datastore.Batching) *DAGBlockStore {
 	if err != nil {
 		panic(err)
 	}
+	//err = logging.SetLogLevel("dagblockstore", "debug")
+	//if err != nil {
+	//	panic(err)
+	//}
 	return &DAGBlockStore{*dagStore}
 }
 
 func (dbs *DAGBlockStore) Has(ctx context.Context, c cid.Cid) (bool, error) {
-	//TODO should has return true only if the shard is available locally?
-	//fmt.Println("calling has")
 	keys, err := dbs.ShardsContainingMultihash(ctx, c.Hash())
 	if err != nil {
 		return false, err
@@ -61,8 +62,6 @@ func (dbs *DAGBlockStore) Has(ctx context.Context, c cid.Cid) (bool, error) {
 }
 
 func (dbs *DAGBlockStore) Get(ctx context.Context, c cid.Cid) (blocks.Block, error) {
-	//fmt.Println("calling get")
-	// We might need a top level index here that points from cid to the shard that contains it
 	bs, err := dbs.getReadOnlyBlockstore(ctx, c)
 	if err != nil {
 		return nil, ipld.ErrNotFound{Cid: c}
@@ -80,7 +79,6 @@ func (dbs *DAGBlockStore) GetSize(ctx context.Context, c cid.Cid) (int, error) {
 }
 
 func (dbs *DAGBlockStore) Put(ctx context.Context, block blocks.Block) error {
-	//  TODO create CAR
 	return nil
 }
 
@@ -90,7 +88,6 @@ func (dbs *DAGBlockStore) PutMany(ctx context.Context, blocks []blocks.Block) er
 }
 
 func (dbs *DAGBlockStore) AllKeysChan(ctx context.Context) (<-chan cid.Cid, error) {
-	fmt.Println("calling allkeyschan")
 	//TODO implement me
 	panic("implement me")
 }

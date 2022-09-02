@@ -67,8 +67,7 @@ func (bs *CARBlockStore) AddBlocks(ctx context.Context, blks []blocks.Block) err
 		}
 	}
 
-	var toput []blocks.Block
-	toput = blks
+	toput := blks
 
 	if len(toput) == 0 {
 		return nil
@@ -76,7 +75,7 @@ func (bs *CARBlockStore) AddBlocks(ctx context.Context, blks []blocks.Block) err
 
 	err := bs.blockstore.PutMany(ctx, toput)
 	if err != nil {
-		fmt.Println("Couldnt put blocks in blockstore")
+		log.Warn("failed to put blocks in CAR: ", err)
 		return err
 	}
 
