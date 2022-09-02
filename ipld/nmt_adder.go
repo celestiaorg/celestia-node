@@ -86,12 +86,13 @@ func (n *NmtNodeAdder) Commit() error {
 		log.Errorw("error committing batch", "key", n.key, "err", err)
 	}
 
-	if n.rw != nil {
+	if n.bs != nil {
 		err = n.rw.Finalize()
 		if err != nil {
 			log.Errorw("couldn't finalize", "key", n.key, "err", err)
 			return err
 		}
+		// TODO: context
 		err = n.bs.RegisterShard(context.Background(), shard.KeyFromString(n.key), &mount.FSMount{
 			FS:   os.DirFS("/tmp/carexample/"),
 			Path: n.key,

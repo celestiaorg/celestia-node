@@ -2,11 +2,14 @@ package das
 
 import (
 	"context"
+	"github.com/celestiaorg/celestia-node/dagblockstore"
+	offlineexchange "github.com/ipfs/go-ipfs-exchange-offline"
 	"sync"
 	"testing"
 	"time"
 
 	"github.com/ipfs/go-blockservice"
+	bsrv "github.com/ipfs/go-blockservice"
 	"github.com/ipfs/go-datastore"
 	ds_sync "github.com/ipfs/go-datastore/sync"
 	mdutils "github.com/ipfs/go-merkledag/test"
@@ -259,7 +262,8 @@ func TestDASer_stopsAfter_BEFP(t *testing.T) {
 	t.Cleanup(cancel)
 
 	ds := ds_sync.MutexWrap(datastore.NewMapDatastore())
-	bServ := mdutils.Bserv()
+	bstore, _ := dagblockstore.NewDAGBlockStore(ds)
+	bServ := bsrv.New(bstore, offlineexchange.Exchange(bstore))
 	// create mock network
 	net, err := mocknet.FullMeshLinked(1)
 	require.NoError(t, err)
@@ -267,7 +271,7 @@ func TestDASer_stopsAfter_BEFP(t *testing.T) {
 	ps, err := pubsub.NewGossipSub(ctx, net.Hosts()[0],
 		pubsub.WithMessageSignaturePolicy(pubsub.StrictNoSign))
 	require.NoError(t, err)
-	avail := share.TestFullAvailability(bServ)
+	avail := share.TestFullAvailability(bServ, bstore)
 	// 15 headers from the past and 15 future headers
 	mockGet, shareServ, sub, _ := createDASerSubcomponents(t, bServ, 15, 15, avail)
 

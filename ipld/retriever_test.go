@@ -80,7 +80,7 @@ func TestRetriever_ByzantineError(t *testing.T) {
 	copy(shares[14][8:], shares[15][8:])
 
 	// import corrupted eds
-	batchAdder := NewNmtNodeAdder(ctx, bserv, format.MaxSizeBatchOption(batchSize(width*2)))
+	batchAdder := NewBasicNmtNodeAdder(ctx, bserv, format.MaxSizeBatchOption(batchSize(width*2)))
 	tree := wrapper.NewErasuredNamespacedMerkleTree(uint64(width), nmt.NodeVisitor(batchAdder.Visit))
 	attackerEDS, err := rsmt2d.ImportExtendedDataSquare(shares, DefaultRSMT2DCodec(), tree.Constructor)
 	require.NoError(t, err)
