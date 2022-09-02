@@ -15,13 +15,13 @@ import (
 // to download enough shares to fully reconstruct the data square.
 type FullAvailability struct {
 	rtrv *ipld.Retriever
-	disc *discovery
+	disc *Discovery
 
 	cancel context.CancelFunc
 }
 
 // NewFullAvailability creates a new full Availability.
-func NewFullAvailability(bServ blockservice.BlockService, disc *discovery) *FullAvailability {
+func NewFullAvailability(bServ blockservice.BlockService, disc *Discovery) *FullAvailability {
 	return &FullAvailability{
 		rtrv: ipld.NewRetriever(bServ),
 		disc: disc,
