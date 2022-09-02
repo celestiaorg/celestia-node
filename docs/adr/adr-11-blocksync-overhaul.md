@@ -70,16 +70,16 @@ introduces pluggable indexes over the blob allowing efficient random access to s
 (if the index is cached in memory).
 
   - __EDSes as _CARv1_ files over _CARv2_.__ CARv2 encodes indexes into the file, however they should not be transferred
-in case of EDS, so keeping them separately is a better strategy which `DAGStore` provides out of the box.
-
-- __FNs/BNs run a single instance of `DAGStore` to manage CARv1 block files.__
+in case of EDS, so keeping them separately is a better strategy. Also CARv2 takes more space for metadata which is not
+needed in our case.
 
 - __FNs/BNs manage a top-level index for _hash_ to _CARv1 block file_ mapping.__ Current DASing for LNs requires FNs/BNs to serve
 simple hash to data requests. The top-level index maps any hash to any block CARv1file so that FNs/BNs can quickly
-serve requests. However, the indexing has a major consequence - data usage, so further, this index will have to be
-removed. LNs know which block they sample and can provide this data together with sample request over Bitswap. This
-requires us to either facilitate implementation of [Bitswap's auth extention](https://github.com/ipfs/specs/pull/270)
-or proposing custom Bitswap message extention.
+serve requests.
+
+- __FNs/BNs run a single instance of [`DAGStore`](https://github.com/filecoin-project/dagstore) to manage CARv1 block files.__
+DAGStore provides both the top-level indexing and CARv2 based indexing per each CARv1 file. In essence, it's an engine
+for managing any CAR files with indexing, convenient abstractions, tools, recovery mechanisms, etc.
 
 - __LNs DASing remains untouched__. Both the networking protocol and storage for LNs remains untouched as it fulfills
     the requirements. This includes Bitswap as backbone protocol for requesting samples and global Badger KVStore.
@@ -300,7 +300,12 @@ CARv1 Reader with encoded shares and NMT Merkle Proofs.
 
 ### Considerations
 
-- EDS to/from CARv2 converting performance
-Current sync design assumes two converts from CAR to EDS on the protocol layer and back to CAR when storing the EDS.
+- ___EDS to/from CARv2 converting performance.___ Current sync design assumes two converts from CAR to EDS on the protocol layer and back to CAR when storing the EDS.
 Rsmt2d allocates on most operations with individual shares and for bigger blocks during sync this allocs puts significant
 pressure on GC. One way to substantially alleviate this is to integrate bytes buffer pool into rmst2d
+
+- ___Disk usage increase from top-level index.___ This is temporary solution. The index will have to be removed.
+LNs know which block they sample and can provide DataRoot together with sample request over Bitswap, removing
+the need for hash-to-eds-file mapping. This requires us to either facilitate implementation of [Bitswap's auth extention](https://github.com/ipfs/specs/pull/270)
+or proposing custom Bitswap message extention. Subsequently, the Blockstore implementation provided via `EDSStore` would
+have to be changed to take expect DataRoot being passed through the `context.Context`.
