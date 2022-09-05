@@ -11,6 +11,12 @@ help: Makefile
 	@sed -n 's/^##//p' $< | column -t -s ':' |  sed -e 's/^/ /'
 .PHONY: help
 
+## install: Install git-hooks from .githooks directory.
+install-hooks:
+	@echo "--> Installing git hooks"
+	@git config core.hooksPath .githooks
+.PHONY: init-hooks
+
 ## build: Build celestia-node binary.
 build:
 	@echo "--> Building Celestia"
