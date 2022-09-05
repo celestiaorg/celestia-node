@@ -96,7 +96,8 @@ func FillBS(t *testing.T, bServ blockservice.BlockService, shares []Share) *Root
 
 // FillDagBS fills the given BlockService with the given shares.
 func FillDagBS(t *testing.T, bServ blockservice.BlockService, edsStr *edsstore.EDSStore, shares []Share) *Root {
-	eds, err := ipld.AddSharesToDAGStore(context.TODO(), shares, bServ, edsStr)
+	//eds, err := ipld.AddSharesToDAGStore(context.TODO(), shares, bServ, edsStr)
+	eds, err := ipld.AddShares(context.TODO(), shares, bServ)
 	require.NoError(t, err)
 	dah := da.NewDataAvailabilityHeader(eds)
 	return &dah
