@@ -10,10 +10,13 @@ import (
 )
 
 func Module(tp node.Type, cfg *Config, options ...fx.Option) fx.Option {
+	// sanitize config values before constructing module
+	cfgErr := cfg.ValidateBasic()
+
 	baseComponents := fx.Options(
-		fx.Supply(cfg),
+		fx.Supply(*cfg),
+		fx.Error(cfgErr),
 		fx.Options(options...),
-		fx.Invoke(cfg.ValidateBasic),
 		fx.Invoke(share.EnsureEmptySquareExists),
 		fx.Provide(Discovery(*cfg)),
 		fx.Provide(fx.Annotate(

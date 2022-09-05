@@ -13,8 +13,12 @@ import (
 )
 
 func Module(tp node.Type, cfg *rpcServ.Config) fx.Option {
+	// sanitize config values before constructing module
+	cfgErr := cfg.ValidateBasic()
+
 	baseComponents := fx.Options(
 		fx.Supply(*cfg),
+		fx.Error(cfgErr),
 		fx.Provide(fx.Annotate(
 			rpcServ.NewServer,
 			fx.OnStart(func(ctx context.Context, server *rpcServ.Server) error {

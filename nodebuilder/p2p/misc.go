@@ -31,29 +31,27 @@ func DefaultConnManagerConfig() ConnManagerConfig {
 }
 
 // ConnectionManager provides a constructor for ConnectionManager.
-func ConnectionManager(cfg Config) func(params.Bootstrappers) (coreconnmgr.ConnManager, error) {
-	return func(bpeers params.Bootstrappers) (coreconnmgr.ConnManager, error) {
-		fpeers, err := cfg.mutualPeers()
-		if err != nil {
-			return nil, err
-		}
-		cm, err := connmgr.NewConnManager(
-			cfg.ConnManager.Low,
-			cfg.ConnManager.High,
-			connmgr.WithGracePeriod(cfg.ConnManager.GracePeriod),
-		)
-		if err != nil {
-			return nil, err
-		}
-		for _, info := range fpeers {
-			cm.Protect(info.ID, "protected-mutual")
-		}
-		for _, info := range bpeers {
-			cm.Protect(info.ID, "protected-bootstrap")
-		}
-
-		return cm, nil
+func ConnectionManager(cfg Config, bpeers params.Bootstrappers) (coreconnmgr.ConnManager, error) {
+	fpeers, err := cfg.mutualPeers()
+	if err != nil {
+		return nil, err
 	}
+	cm, err := connmgr.NewConnManager(
+		cfg.ConnManager.Low,
+		cfg.ConnManager.High,
+		connmgr.WithGracePeriod(cfg.ConnManager.GracePeriod),
+	)
+	if err != nil {
+		return nil, err
+	}
+	for _, info := range fpeers {
+		cm.Protect(info.ID, "protected-mutual")
+	}
+	for _, info := range bpeers {
+		cm.Protect(info.ID, "protected-bootstrap")
+	}
+
+	return cm, nil
 }
 
 // ConnectionGater constructs a BasicConnectionGater.
