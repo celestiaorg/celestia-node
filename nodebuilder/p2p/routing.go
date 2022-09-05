@@ -25,42 +25,40 @@ func ContentRouting(r routing.PeerRouting) routing.ContentRouting {
 
 // PeerRouting provides constructor for PeerRouting over DHT.
 // Basically, this provides a way to discover peer addresses by respecting public keys.
-func PeerRouting(cfg Config) func(routingParams) (routing.PeerRouting, error) {
-	return func(params routingParams) (routing.PeerRouting, error) {
-		if cfg.RoutingTableRefreshPeriod <= 0 {
-			cfg.RoutingTableRefreshPeriod = defaultRoutingRefreshPeriod
-			log.Warnf("routingTableRefreshPeriod is not valid. restoring to default value: %d", cfg.RoutingTableRefreshPeriod)
-		}
-		opts := []dht.Option{
-			dht.Mode(dht.ModeAuto),
-			dht.BootstrapPeers(params.Peers...),
-			dht.ProtocolPrefix(protocol.ID(fmt.Sprintf("/celestia/%s", params.Net))),
-			dht.Datastore(params.DataStore),
-			dht.RoutingTableRefreshPeriod(cfg.RoutingTableRefreshPeriod),
-		}
-
-		if cfg.Bootstrapper {
-			// override options for bootstrapper
-			opts = append(opts,
-				dht.Mode(dht.ModeServer), // it must accept incoming connections
-				dht.BootstrapPeers(),     // no bootstrappers for a bootstrapper ¯\_(ツ)_/¯
-			)
-		}
-
-		d, err := dht.New(fxutil.WithLifecycle(params.Ctx, params.Lc), params.Host, opts...)
-		if err != nil {
-			return nil, err
-		}
-		params.Lc.Append(fx.Hook{
-			OnStart: func(ctx context.Context) error {
-				return d.Bootstrap(ctx)
-			},
-			OnStop: func(context.Context) error {
-				return d.Close()
-			},
-		})
-		return d, nil
+func PeerRouting(cfg Config, params routingParams) (routing.PeerRouting, error) {
+	if cfg.RoutingTableRefreshPeriod <= 0 {
+		cfg.RoutingTableRefreshPeriod = defaultRoutingRefreshPeriod
+		log.Warnf("routingTableRefreshPeriod is not valid. restoring to default value: %d", cfg.RoutingTableRefreshPeriod)
 	}
+	opts := []dht.Option{
+		dht.Mode(dht.ModeAuto),
+		dht.BootstrapPeers(params.Peers...),
+		dht.ProtocolPrefix(protocol.ID(fmt.Sprintf("/celestia/%s", params.Net))),
+		dht.Datastore(params.DataStore),
+		dht.RoutingTableRefreshPeriod(cfg.RoutingTableRefreshPeriod),
+	}
+
+	if cfg.Bootstrapper {
+		// override options for bootstrapper
+		opts = append(opts,
+			dht.Mode(dht.ModeServer), // it must accept incoming connections
+			dht.BootstrapPeers(),     // no bootstrappers for a bootstrapper ¯\_(ツ)_/¯
+		)
+	}
+
+	d, err := dht.New(fxutil.WithLifecycle(params.Ctx, params.Lc), params.Host, opts...)
+	if err != nil {
+		return nil, err
+	}
+	params.Lc.Append(fx.Hook{
+		OnStart: func(ctx context.Context) error {
+			return d.Bootstrap(ctx)
+		},
+		OnStop: func(context.Context) error {
+			return d.Close()
+		},
+	})
+	return d, nil
 }
 
 type routingParams struct {

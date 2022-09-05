@@ -19,9 +19,12 @@ import (
 var log = logging.Logger("header-module")
 
 func Module(tp node.Type, cfg *Config) fx.Option {
+	// sanitize config values before constructing module
+	cfgErr := cfg.ValidateBasic()
+
 	baseOptions := fx.Options(
-		fx.Supply(cfg),
-		fx.Invoke(cfg.ValidateBasic),
+		fx.Supply(*cfg),
+		fx.Error(cfgErr),
 		fx.Provide(headerservice.NewHeaderService),
 		fx.Provide(fx.Annotate(
 			store.NewStore,

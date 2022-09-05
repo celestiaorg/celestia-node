@@ -18,13 +18,16 @@ var log = logging.Logger("state-module")
 // Module provides all components necessary to construct the
 // state service.
 func Module(tp node.Type, cfg *Config) fx.Option {
+	// sanitize config values before constructing module
+	cfgErr := cfg.ValidateBasic()
+
 	switch tp {
 	case node.Light, node.Full, node.Bridge:
 		return fx.Module(
 			"state",
-			fx.Supply(cfg),
-			fx.Invoke(cfg.ValidateBasic),
-			fx.Provide(Keyring(cfg)),
+			fx.Supply(*cfg),
+			fx.Error(cfgErr),
+			fx.Provide(Keyring),
 			fx.Provide(fx.Annotate(CoreAccessor,
 				fx.OnStart(func(ctx context.Context, accessor state.Accessor) error {
 					return accessor.Start(ctx)
