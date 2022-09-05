@@ -3,9 +3,11 @@ package share
 import (
 	"context"
 	"errors"
-	"github.com/celestiaorg/celestia-node/edsstore"
+
 	"github.com/ipfs/go-blockservice"
 	format "github.com/ipfs/go-ipld-format"
+
+	"github.com/celestiaorg/celestia-node/edsstore"
 
 	"github.com/celestiaorg/celestia-node/ipld"
 )

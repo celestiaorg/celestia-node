@@ -2,7 +2,7 @@ package services
 
 import (
 	"context"
-	"github.com/celestiaorg/celestia-node/edsstore"
+
 	"github.com/ipfs/go-blockservice"
 	"github.com/ipfs/go-datastore"
 	blockstore "github.com/ipfs/go-ipfs-blockstore"
@@ -13,6 +13,8 @@ import (
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	routingdisc "github.com/libp2p/go-libp2p/p2p/discovery/routing"
 	"go.uber.org/fx"
+
+	"github.com/celestiaorg/celestia-node/edsstore"
 
 	"github.com/celestiaorg/celestia-node/das"
 	"github.com/celestiaorg/celestia-node/fraud"

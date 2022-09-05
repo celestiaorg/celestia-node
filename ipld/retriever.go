@@ -4,10 +4,12 @@ import (
 	"context"
 	"encoding/hex"
 	"errors"
-	"github.com/celestiaorg/celestia-node/edsstore"
+	"fmt"
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/celestiaorg/celestia-node/edsstore"
 
 	"github.com/ipfs/go-blockservice"
 	"github.com/ipfs/go-cid"
@@ -139,7 +141,7 @@ func (r *Retriever) newSession(ctx context.Context, dah *da.DataAvailabilityHead
 	for _, row := range dah.ColumnRoots {
 		roots = append(roots, plugin.MustCidFromNamespacedSha256(row))
 	}
-	adder := NewNmtNodeAdder(
+	adder, err := NewNmtNodeAdder(
 		ctx,
 		roots,
 		dah.String(),
@@ -147,6 +149,9 @@ func (r *Retriever) newSession(ctx context.Context, dah *da.DataAvailabilityHead
 		r.edsStr,
 		format.MaxSizeBatchOption(batchSize(size)),
 	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create NmtNodeAdder: %w", err)
+	}
 	ses := &retrievalSession{
 		bget:  blockservice.NewSession(ctx, r.bServ),
 		adder: adder,

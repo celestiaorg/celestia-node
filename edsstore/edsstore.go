@@ -3,9 +3,10 @@ package edsstore
 import (
 	"context"
 	"errors"
-	carBlockstore "github.com/ipld/go-car/v2/blockstore"
 	"os"
 	"sync"
+
+	carBlockstore "github.com/ipld/go-car/v2/blockstore"
 
 	"github.com/filecoin-project/dagstore"
 	"github.com/filecoin-project/dagstore/index"
@@ -100,6 +101,7 @@ func NewEDSStore(ctx context.Context, basePath string, ds datastore.Batching) (*
 	bs := &EDSStore{
 		DAGStore:        *dagStore,
 		ctx:             ctx,
+		basePath:        basePath,
 		blockstoreCache: bslru,
 	}
 	return bs, nil
@@ -121,7 +123,7 @@ func (edsStore *EDSStore) FinalizeCAR(car *carBlockstore.ReadWrite, key string) 
 		Path: key,
 	}, nil, dagstore.RegisterOpts{})
 	if err != nil {
-		edsStoreLog.Warnw("couldn't register shard", "key", n.key, "err", err)
+		edsStoreLog.Warnw("couldn't register shard", "key", key, "err", err)
 	}
 	return nil
 }

@@ -3,6 +3,7 @@ package edsstore
 import (
 	"context"
 	"fmt"
+
 	blocks "github.com/ipfs/go-block-format"
 	blockstore "github.com/ipfs/go-ipfs-blockstore"
 	exchange "github.com/ipfs/go-ipfs-exchange-interface"

@@ -3,8 +3,9 @@ package share
 import (
 	"bytes"
 	"context"
-	"github.com/celestiaorg/celestia-node/edsstore"
-	"github.com/celestiaorg/celestia-node/ipld"
+	"testing"
+	"time"
+
 	"github.com/ipfs/go-bitswap"
 	"github.com/ipfs/go-bitswap/network"
 	"github.com/ipfs/go-blockservice"
@@ -23,9 +24,12 @@ import (
 	mocknet "github.com/libp2p/go-libp2p/p2p/net/mock"
 	"github.com/stretchr/testify/require"
 	"github.com/tendermint/tendermint/pkg/da"
-	"testing"
-	"time"
+
+	"github.com/celestiaorg/celestia-node/edsstore"
+	"github.com/celestiaorg/celestia-node/ipld"
 )
+
+var testingPath = "/tmp/car"
 
 // RandLightServiceWithSquare provides a share.Service filled with 'n' NMT
 // trees of 'n' random shares, essentially storing a whole square.
@@ -44,7 +48,7 @@ func RandLightService() (*Service, blockservice.BlockService) {
 // RandFullServiceWithSquare provides a share.Service filled with 'n' NMT
 // trees of 'n' random shares, essentially storing a whole square.
 func RandFullServiceWithSquare(t *testing.T, n int) (*Service, *Root) {
-	bstore, _ := edsstore.NewEDSStore(dssync.MutexWrap(ds.NewMapDatastore()))
+	bstore, _ := edsstore.NewEDSStore(context.Background(), testingPath, dssync.MutexWrap(ds.NewMapDatastore()))
 	bServ := bsrv.New(bstore, offlineexchange.Exchange(bstore))
 	return NewService(bServ, TestFullAvailability(bServ, bstore)), RandFillDagBS(t, n, bServ, bstore)
 }
@@ -65,7 +69,7 @@ func RandLightLocalServiceWithSquare(t *testing.T, n int) (*Service, *Root) {
 // the Availability is wrapped with CacheAvailability.
 func RandFullLocalServiceWithSquare(t *testing.T, n int) (*Service, *Root) {
 	ds := dssync.MutexWrap(ds.NewMapDatastore())
-	bstore, _ := edsstore.NewEDSStore(ds)
+	bstore, _ := edsstore.NewEDSStore(context.Background(), testingPath, ds)
 	bServ := bsrv.New(bstore, offlineexchange.Exchange(bstore))
 	ca := NewCacheAvailability(
 		TestFullAvailability(bServ, bstore),
@@ -205,7 +209,7 @@ func (dn *dagNet) FNode() *fullNode {
 	hst, err := dn.net.GenPeer()
 	require.NoError(dn.t, err)
 	dstore := dssync.MutexWrap(ds.NewMapDatastore())
-	dagbs, _ := edsstore.NewEDSStore(dstore)
+	dagbs, _ := edsstore.NewEDSStore(context.Background(), testingPath, dstore)
 	routing := offline.NewOfflineRouter(dstore, record.NamespacedValidator{})
 	bs := bitswap.New(
 		dn.ctx,

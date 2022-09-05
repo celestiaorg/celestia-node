@@ -2,13 +2,15 @@ package ipld
 
 import (
 	"context"
-	"github.com/celestiaorg/celestia-node/edsstore"
-	"github.com/celestiaorg/celestia-node/ipld/plugin"
+
 	"github.com/ipfs/go-blockservice"
 	"github.com/ipfs/go-cid"
 	ipld "github.com/ipfs/go-ipld-format"
 	"github.com/ipfs/go-merkledag"
 	"github.com/ipld/go-car/v2/blockstore"
+
+	"github.com/celestiaorg/celestia-node/edsstore"
+	"github.com/celestiaorg/celestia-node/ipld/plugin"
 )
 
 // NmtNodeAdder adds ipld.Nodes to the underlying ipld.Batch if it is inserted

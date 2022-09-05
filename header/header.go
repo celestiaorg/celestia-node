@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+
 	"github.com/celestiaorg/celestia-node/ipld"
 
 	"github.com/ipfs/go-blockservice"
