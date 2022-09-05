@@ -2,7 +2,6 @@ package node
 
 import (
 	"context"
-	"github.com/celestiaorg/celestia-node/edsstore"
 	"sync"
 	"time"
 
@@ -67,7 +66,7 @@ func fullComponents(cfg *Config, store Store) fx.Option {
 	return fx.Options(
 		fx.Supply(Full),
 		baseComponents(cfg, store),
-		fx.Provide(edsstore.NewEDSStore),
+		fx.Provide(services.EDSStore(cfg.Services)),
 		fx.Provide(services.DASer),
 		fx.Provide(services.HeaderExchangeP2P(cfg.Services)),
 		fx.Provide(services.FullAvailability(cfg.Services)),

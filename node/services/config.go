@@ -15,6 +15,9 @@ import (
 var log = logging.Logger("node/services")
 
 type Config struct {
+	// BasePath is the path to EDSStore's base directory.
+	// TODO: this will obviously live somewhere else
+	BasePath string
 	// TrustedHash is the Block/Header hash that Nodes use as starting point for header synchronization.
 	// Only affects the node once on initial sync.
 	TrustedHash string
@@ -34,6 +37,7 @@ type Config struct {
 
 func DefaultConfig() Config {
 	return Config{
+		BasePath:          "/tmp/eds",
 		TrustedHash:       "",
 		TrustedPeers:      make([]string, 0),
 		PeersLimit:        3,

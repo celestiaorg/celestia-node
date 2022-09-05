@@ -5,6 +5,7 @@ import (
 	"github.com/celestiaorg/celestia-node/edsstore"
 	"github.com/ipfs/go-blockservice"
 	"github.com/ipfs/go-datastore"
+	blockstore "github.com/ipfs/go-ipfs-blockstore"
 	"github.com/libp2p/go-libp2p-core/host"
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/libp2p/go-libp2p-core/peerstore"
@@ -24,6 +25,24 @@ import (
 	headerservice "github.com/celestiaorg/celestia-node/service/header"
 	"github.com/celestiaorg/celestia-node/service/share"
 )
+
+// EDSStore creates and initializes a new EDSStore.
+// TODO(distractedm1nd): This will live elsewhere once the refactorings are merged
+func EDSStore(cfg Config) func(fx.Lifecycle, context.Context, datastore.Batching) (*edsstore.EDSStore, blockstore.Blockstore, error) {
+	return func(lc fx.Lifecycle, ctx context.Context, ds datastore.Batching) (*edsstore.EDSStore, blockstore.Blockstore, error) {
+		lifecycleCtx := fxutil.WithLifecycle(ctx, lc)
+		edsStore, err := edsstore.NewEDSStore(lifecycleCtx, cfg.BasePath, ds)
+		lc.Append(fx.Hook{
+			OnStart: func(ctx context.Context) error {
+				return edsStore.Start(lifecycleCtx)
+			},
+			OnStop: func(ctx context.Context) error {
+				return edsStore.Close()
+			},
+		})
+		return edsStore, edsStore, err
+	}
+}
 
 // HeaderSyncer creates a new Syncer.
 func HeaderSyncer(

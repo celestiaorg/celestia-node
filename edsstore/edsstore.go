@@ -3,6 +3,7 @@ package edsstore
 import (
 	"context"
 	"errors"
+	carBlockstore "github.com/ipld/go-car/v2/blockstore"
 	"os"
 	"sync"
 
@@ -22,7 +23,9 @@ import (
 var _ blockstore.Blockstore = (*EDSStore)(nil)
 
 var (
-	edsStoreLog             = logging.Logger("edsstore")
+	// TODO(distractedm1nd): Can probably merge this with share log
+	edsStoreLog = logging.Logger("edsstore")
+	// TODO(distractedm1nd): This should also be a config value
 	maxCacheSize            = 100
 	ErrUnsupportedOperation = errors.New("unsupported operation")
 	ErrMultipleShardsFound  = errors.New("found more than one shard with the provided cid")
@@ -41,6 +44,9 @@ type accessorWithBlockstore struct {
 // call GetSize directly on the underlying RO blockstore, and do not throw errors on Put/PutMany.
 type EDSStore struct {
 	DAGStore
+	// ctx tracks the running context of the underlying DAGStore
+	ctx      context.Context
+	basePath string
 
 	bsStripedLocks [256]sync.Mutex
 	// caches the blockstore for a given shard for shard read affinity i.e.
@@ -48,8 +54,7 @@ type EDSStore struct {
 	blockstoreCache *lru.Cache
 }
 
-// TODO: Return error. Take in cache size as parameter, added to a config.
-func NewEDSStore(ds datastore.Batching) (*EDSStore, blockstore.Blockstore) {
+func NewEDSStore(ctx context.Context, basePath string, ds datastore.Batching) (*EDSStore, error) {
 	// instantiate the blockstore cache
 	bslru, err := lru.NewWithEvict(maxCacheSize, func(_ interface{}, val interface{}) {
 		// ensure we close the blockstore for a shard when it's evicted from the cache so dagstore can gc it.
@@ -62,26 +67,31 @@ func NewEDSStore(ds datastore.Batching) (*EDSStore, blockstore.Blockstore) {
 
 	// create mount registry (what types of mounts are supported)
 	r := mount.NewRegistry()
-	err = r.Register("fs", &mount.FSMount{FS: os.DirFS("/tmp/carexample/")})
+	err = r.Register("fs", &mount.FSMount{FS: os.DirFS(basePath + "/blocks/")})
 
+	if err != nil {
+		panic(err)
+	}
+
+	fsRepo, err := index.NewFSRepo(basePath + "/index/")
 	if err != nil {
 		panic(err)
 	}
 	dagStore, err := dagstore.NewDAGStore(
 		dagstore.Config{
-			TransientsDir: "/tmp/transients",
+			TransientsDir: basePath + "/transients/",
+			IndexRepo:     fsRepo,
 			Datastore:     ds,
 			MountRegistry: r,
 			TopLevelIndex: index.NewInverted(ds),
 		},
 	)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
-	// TODO: ctx
-	err = dagStore.Start(context.Background())
+	err = dagStore.Start(ctx)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 	//err = logging.SetLogLevel("edsstore", "debug")
 	//if err != nil {
@@ -89,9 +99,31 @@ func NewEDSStore(ds datastore.Batching) (*EDSStore, blockstore.Blockstore) {
 	//}
 	bs := &EDSStore{
 		DAGStore:        *dagStore,
+		ctx:             ctx,
 		blockstoreCache: bslru,
 	}
-	return bs, bs
+	return bs, nil
+}
+
+func (edsStore *EDSStore) GetCARBlockstore(key string, roots []cid.Cid) (*carBlockstore.ReadWrite, error) {
+	return carBlockstore.OpenReadWrite(edsStore.basePath+"/blocks/"+key, roots, carBlockstore.AllowDuplicatePuts(true))
+}
+
+// TODO: key shouldnt be string, but is temporarily while I figure some things out
+func (edsStore *EDSStore) FinalizeCAR(car *carBlockstore.ReadWrite, key string) error {
+	err := car.Finalize()
+	if err != nil {
+		edsStoreLog.Errorw("couldn't finalize", "key", key, "err", err)
+		return err
+	}
+	err = edsStore.RegisterShard(context.Background(), shard.KeyFromString(key), &mount.FSMount{
+		FS:   os.DirFS(edsStore.basePath + "/blocks/"),
+		Path: key,
+	}, nil, dagstore.RegisterOpts{})
+	if err != nil {
+		edsStoreLog.Warnw("couldn't register shard", "key", n.key, "err", err)
+	}
+	return nil
 }
 
 func (edsStore *EDSStore) Has(ctx context.Context, c cid.Cid) (bool, error) {
