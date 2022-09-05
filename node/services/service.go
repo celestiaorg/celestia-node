@@ -2,8 +2,7 @@ package services
 
 import (
 	"context"
-	"github.com/celestiaorg/celestia-node/dagblockstore"
-
+	"github.com/celestiaorg/celestia-node/edsstore"
 	"github.com/ipfs/go-blockservice"
 	"github.com/ipfs/go-datastore"
 	"github.com/libp2p/go-libp2p-core/host"
@@ -204,14 +203,14 @@ func LightAvailability(cfg Config) func(
 func FullAvailability(cfg Config) func(
 	lc fx.Lifecycle,
 	bServ blockservice.BlockService,
-	dagStr *dagblockstore.DAGBlockStore,
+	edsStr *edsstore.EDSStore,
 	r routing.ContentRouting,
 	h host.Host,
 ) *share.FullAvailability {
 	return func(
 		lc fx.Lifecycle,
 		bServ blockservice.BlockService,
-		dagStr *dagblockstore.DAGBlockStore,
+		edsStr *edsstore.EDSStore,
 		r routing.ContentRouting,
 		h host.Host,
 	) *share.FullAvailability {
@@ -222,7 +221,7 @@ func FullAvailability(cfg Config) func(
 			cfg.DiscoveryInterval,
 			cfg.AdvertiseInterval,
 		)
-		fa := share.NewFullAvailability(bServ, dagStr, disc)
+		fa := share.NewFullAvailability(bServ, edsStr, disc)
 		lc.Append(fx.Hook{
 			OnStart: fa.Start,
 			OnStop:  fa.Stop,

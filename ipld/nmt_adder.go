@@ -2,7 +2,7 @@ package ipld
 
 import (
 	"context"
-	"github.com/celestiaorg/celestia-node/dagblockstore"
+	"github.com/celestiaorg/celestia-node/edsstore"
 	"github.com/celestiaorg/celestia-node/ipld/plugin"
 	"github.com/filecoin-project/dagstore"
 	"github.com/filecoin-project/dagstore/mount"
@@ -19,7 +19,7 @@ import (
 // into a nmt tree.
 type NmtNodeAdder struct {
 	ctx    context.Context
-	bs     *dagblockstore.DAGBlockStore
+	bs     *edsstore.EDSStore
 	key    string
 	roots  []cid.Cid
 	rw     *blockstore.ReadWrite
@@ -31,14 +31,14 @@ type NmtNodeAdder struct {
 // NewNmtNodeAdder returns a new NmtNodeAdder with the provided context and
 // batch. Note that the context provided should have a timeout
 // It is not thread-safe.
-func NewNmtNodeAdder(ctx context.Context, roots []cid.Cid, key string, bs blockservice.BlockService, dagStr *dagblockstore.DAGBlockStore, opts ...ipld.BatchOption) *NmtNodeAdder {
+func NewNmtNodeAdder(ctx context.Context, roots []cid.Cid, key string, bs blockservice.BlockService, edsStr *edsstore.EDSStore, opts ...ipld.BatchOption) *NmtNodeAdder {
 	carBlockStore, err := blockstore.OpenReadWrite("/tmp/carexample/"+key, roots, blockstore.AllowDuplicatePuts(true))
 	if err != nil {
 		panic(err)
 	}
 	return &NmtNodeAdder{
-		add:    ipld.NewBatch(ctx, dagblockstore.New(carBlockStore, bs.Exchange()), opts...),
-		bs:     dagStr,
+		add:    ipld.NewBatch(ctx, edsstore.New(carBlockStore, bs.Exchange()), opts...),
+		bs:     edsStr,
 		key:    key,
 		roots:  roots,
 		rw:     carBlockStore,

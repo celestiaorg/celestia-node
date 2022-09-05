@@ -1,8 +1,11 @@
-package dagblockstore
+package edsstore
 
 import (
 	"context"
 	"errors"
+	"os"
+	"sync"
+
 	"github.com/filecoin-project/dagstore"
 	"github.com/filecoin-project/dagstore/index"
 	"github.com/filecoin-project/dagstore/mount"
@@ -14,14 +17,12 @@ import (
 	blockstore "github.com/ipfs/go-ipfs-blockstore"
 	ipld "github.com/ipfs/go-ipld-format"
 	logging "github.com/ipfs/go-log/v2"
-	"os"
-	"sync"
 )
 
-var _ blockstore.Blockstore = (*DAGBlockStore)(nil)
+var _ blockstore.Blockstore = (*EDSStore)(nil)
 
 var (
-	log                     = logging.Logger("dagblockstore")
+	edsStoreLog             = logging.Logger("edsstore")
 	maxCacheSize            = 100
 	ErrUnsupportedOperation = errors.New("unsupported operation")
 	ErrMultipleShardsFound  = errors.New("found more than one shard with the provided cid")
@@ -34,11 +35,11 @@ type accessorWithBlockstore struct {
 	bs dagstore.ReadBlockstore
 }
 
-// DAGBlockStore implements the blockstore interface on a DAGStore.
+// EDSStore implements the blockstore interface on a DAGStore.
 // The lru cache approach is heavily inspired by the open PR filecoin-project/dagstore/116.
 // The main differences to the implementation here are that we do not support multiple shards per key,
 // call GetSize directly on the underlying RO blockstore, and do not throw errors on Put/PutMany.
-type DAGBlockStore struct {
+type EDSStore struct {
 	DAGStore
 
 	bsStripedLocks [256]sync.Mutex
@@ -48,7 +49,7 @@ type DAGBlockStore struct {
 }
 
 // TODO: Return error. Take in cache size as parameter, added to a config.
-func NewDAGBlockStore(ds datastore.Batching) (*DAGBlockStore, blockstore.Blockstore) {
+func NewEDSStore(ds datastore.Batching) (*EDSStore, blockstore.Blockstore) {
 	// instantiate the blockstore cache
 	bslru, err := lru.NewWithEvict(maxCacheSize, func(_ interface{}, val interface{}) {
 		// ensure we close the blockstore for a shard when it's evicted from the cache so dagstore can gc it.
@@ -82,27 +83,27 @@ func NewDAGBlockStore(ds datastore.Batching) (*DAGBlockStore, blockstore.Blockst
 	if err != nil {
 		panic(err)
 	}
-	//err = logging.SetLogLevel("dagblockstore", "debug")
+	//err = logging.SetLogLevel("edsstore", "debug")
 	//if err != nil {
 	//	panic(err)
 	//}
-	bs := &DAGBlockStore{
+	bs := &EDSStore{
 		DAGStore:        *dagStore,
 		blockstoreCache: bslru,
 	}
 	return bs, bs
 }
 
-func (dbs *DAGBlockStore) Has(ctx context.Context, c cid.Cid) (bool, error) {
-	keys, err := dbs.ShardsContainingMultihash(ctx, c.Hash())
+func (edsStore *EDSStore) Has(ctx context.Context, c cid.Cid) (bool, error) {
+	keys, err := edsStore.ShardsContainingMultihash(ctx, c.Hash())
 	if err != nil {
 		return false, err
 	}
 	return len(keys) > 0, nil
 }
 
-func (dbs *DAGBlockStore) Get(ctx context.Context, c cid.Cid) (blocks.Block, error) {
-	bs, err := dbs.getReadOnlyBlockstore(ctx, c)
+func (edsStore *EDSStore) Get(ctx context.Context, c cid.Cid) (blocks.Block, error) {
+	bs, err := edsStore.getReadOnlyBlockstore(ctx, c)
 	if err != nil {
 		return nil, ipld.ErrNotFound{Cid: c}
 	}
@@ -110,8 +111,8 @@ func (dbs *DAGBlockStore) Get(ctx context.Context, c cid.Cid) (blocks.Block, err
 	return bs.Get(ctx, c)
 }
 
-func (dbs *DAGBlockStore) GetSize(ctx context.Context, c cid.Cid) (int, error) {
-	bs, err := dbs.getReadOnlyBlockstore(ctx, c)
+func (edsStore *EDSStore) GetSize(ctx context.Context, c cid.Cid) (int, error) {
+	bs, err := edsStore.getReadOnlyBlockstore(ctx, c)
 	if err != nil {
 		return 0, err
 	}
@@ -119,29 +120,29 @@ func (dbs *DAGBlockStore) GetSize(ctx context.Context, c cid.Cid) (int, error) {
 }
 
 // Put needs to not return an error because it is called by the exchange
-func (dbs *DAGBlockStore) Put(ctx context.Context, block blocks.Block) error {
+func (edsStore *EDSStore) Put(ctx context.Context, block blocks.Block) error {
 	return nil
 }
 
 // PutMany needs to not return an error because it is called by the exchange
-func (dbs *DAGBlockStore) PutMany(ctx context.Context, blocks []blocks.Block) error {
+func (edsStore *EDSStore) PutMany(ctx context.Context, blocks []blocks.Block) error {
 	return nil
 }
 
-func (dbs *DAGBlockStore) AllKeysChan(ctx context.Context) (<-chan cid.Cid, error) {
+func (edsStore *EDSStore) AllKeysChan(ctx context.Context) (<-chan cid.Cid, error) {
 	return nil, ErrUnsupportedOperation
 }
 
-func (dbs *DAGBlockStore) HashOnRead(enabled bool) {
+func (edsStore *EDSStore) HashOnRead(enabled bool) {
 	panic(ErrUnsupportedOperation)
 }
 
-func (dbs *DAGBlockStore) DeleteBlock(context.Context, cid.Cid) error {
+func (edsStore *EDSStore) DeleteBlock(context.Context, cid.Cid) error {
 	return ErrUnsupportedOperation
 }
 
-func (dbs *DAGBlockStore) getReadOnlyBlockstore(ctx context.Context, c cid.Cid) (dagstore.ReadBlockstore, error) {
-	keys, err := dbs.ShardsContainingMultihash(ctx, c.Hash())
+func (edsStore *EDSStore) getReadOnlyBlockstore(ctx context.Context, c cid.Cid) (dagstore.ReadBlockstore, error) {
+	keys, err := edsStore.ShardsContainingMultihash(ctx, c.Hash())
 	if err != nil {
 		return nil, err
 	}
@@ -151,20 +152,20 @@ func (dbs *DAGBlockStore) getReadOnlyBlockstore(ctx context.Context, c cid.Cid) 
 
 	// try to fetch from cache
 	shardKey := keys[0]
-	bs, err := dbs.readFromBSCache(shardKey)
+	bs, err := edsStore.readFromBSCache(shardKey)
 	if err == nil && bs != nil {
 		return bs, nil
 	}
 
 	// wasn't found in cache, so acquire it and add to cache
 	ch := make(chan dagstore.ShardResult, 1)
-	err = dbs.AcquireShard(ctx, shardKey, ch, dagstore.AcquireOpts{})
+	err = edsStore.AcquireShard(ctx, shardKey, ch, dagstore.AcquireOpts{})
 	if err != nil {
 		return nil, err
 	}
 	result := <-ch
 
-	blockStore, err := dbs.addToBSCache(shardKey, result.Accessor)
+	blockStore, err := edsStore.addToBSCache(shardKey, result.Accessor)
 	if err != nil {
 		return nil, err
 	}
@@ -172,27 +173,27 @@ func (dbs *DAGBlockStore) getReadOnlyBlockstore(ctx context.Context, c cid.Cid) 
 	return blockStore, err
 }
 
-func (dbs *DAGBlockStore) readFromBSCache(shardContainingCid shard.Key) (dagstore.ReadBlockstore, error) {
-	lk := &dbs.bsStripedLocks[shardKeyToStriped(shardContainingCid)]
+func (edsStore *EDSStore) readFromBSCache(shardContainingCid shard.Key) (dagstore.ReadBlockstore, error) {
+	lk := &edsStore.bsStripedLocks[shardKeyToStriped(shardContainingCid)]
 	lk.Lock()
 	defer lk.Unlock()
 
 	// We've already ensured that the given shard has the cid/multihash we are looking for.
-	val, ok := dbs.blockstoreCache.Get(shardContainingCid)
+	val, ok := edsStore.blockstoreCache.Get(shardContainingCid)
 	if !ok {
 		return nil, errors.New("not found in cache")
 	}
 
 	rbs := val.(*accessorWithBlockstore).bs
-	log.Debugw("read blockstore from cache", "key", shardContainingCid)
+	edsStoreLog.Debugw("read blockstore from cache", "key", shardContainingCid)
 	return rbs, nil
 }
 
-func (dbs *DAGBlockStore) addToBSCache(
+func (edsStore *EDSStore) addToBSCache(
 	shardContainingCid shard.Key,
 	accessor *dagstore.ShardAccessor,
 ) (dagstore.ReadBlockstore, error) {
-	lk := &dbs.bsStripedLocks[shardKeyToStriped(shardContainingCid)]
+	lk := &edsStore.bsStripedLocks[shardKeyToStriped(shardContainingCid)]
 	lk.Lock()
 	defer lk.Unlock()
 
@@ -201,11 +202,11 @@ func (dbs *DAGBlockStore) addToBSCache(
 		return nil, err
 	}
 
-	dbs.blockstoreCache.Add(shardContainingCid, &accessorWithBlockstore{
+	edsStore.blockstoreCache.Add(shardContainingCid, &accessorWithBlockstore{
 		bs: blockStore,
 		sa: accessor,
 	})
-	log.Debugw("added blockstore to cache", "key", shardContainingCid)
+	edsStoreLog.Debugw("added blockstore to cache", "key", shardContainingCid)
 	return blockStore, nil
 }
 

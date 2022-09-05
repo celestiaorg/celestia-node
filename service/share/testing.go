@@ -3,7 +3,7 @@ package share
 import (
 	"bytes"
 	"context"
-	"github.com/celestiaorg/celestia-node/dagblockstore"
+	"github.com/celestiaorg/celestia-node/edsstore"
 	"github.com/celestiaorg/celestia-node/ipld"
 	"github.com/ipfs/go-bitswap"
 	"github.com/ipfs/go-bitswap/network"
@@ -44,7 +44,7 @@ func RandLightService() (*Service, blockservice.BlockService) {
 // RandFullServiceWithSquare provides a share.Service filled with 'n' NMT
 // trees of 'n' random shares, essentially storing a whole square.
 func RandFullServiceWithSquare(t *testing.T, n int) (*Service, *Root) {
-	bstore, _ := dagblockstore.NewDAGBlockStore(dssync.MutexWrap(ds.NewMapDatastore()))
+	bstore, _ := edsstore.NewEDSStore(dssync.MutexWrap(ds.NewMapDatastore()))
 	bServ := bsrv.New(bstore, offlineexchange.Exchange(bstore))
 	return NewService(bServ, TestFullAvailability(bServ, bstore)), RandFillDagBS(t, n, bServ, bstore)
 }
@@ -65,7 +65,7 @@ func RandLightLocalServiceWithSquare(t *testing.T, n int) (*Service, *Root) {
 // the Availability is wrapped with CacheAvailability.
 func RandFullLocalServiceWithSquare(t *testing.T, n int) (*Service, *Root) {
 	ds := dssync.MutexWrap(ds.NewMapDatastore())
-	bstore, _ := dagblockstore.NewDAGBlockStore(ds)
+	bstore, _ := edsstore.NewEDSStore(ds)
 	bServ := bsrv.New(bstore, offlineexchange.Exchange(bstore))
 	ca := NewCacheAvailability(
 		TestFullAvailability(bServ, bstore),
@@ -75,9 +75,9 @@ func RandFullLocalServiceWithSquare(t *testing.T, n int) (*Service, *Root) {
 }
 
 // RandFillBS fills the given BlockService with a random block of a given size.
-func RandFillDagBS(t *testing.T, n int, bServ blockservice.BlockService, dagStr *dagblockstore.DAGBlockStore) *Root {
+func RandFillDagBS(t *testing.T, n int, bServ blockservice.BlockService, edsStr *edsstore.EDSStore) *Root {
 	shares := RandShares(t, n*n)
-	return FillDagBS(t, bServ, dagStr, shares)
+	return FillDagBS(t, bServ, edsStr, shares)
 }
 
 // RandFillBS fills the given BlockService with a random block of a given size.
@@ -95,8 +95,8 @@ func FillBS(t *testing.T, bServ blockservice.BlockService, shares []Share) *Root
 }
 
 // FillDagBS fills the given BlockService with the given shares.
-func FillDagBS(t *testing.T, bServ blockservice.BlockService, dagStr *dagblockstore.DAGBlockStore, shares []Share) *Root {
-	eds, err := ipld.AddSharesToDAGStore(context.TODO(), shares, bServ, dagStr)
+func FillDagBS(t *testing.T, bServ blockservice.BlockService, edsStr *edsstore.EDSStore, shares []Share) *Root {
+	eds, err := ipld.AddSharesToDAGStore(context.TODO(), shares, bServ, edsStr)
 	require.NoError(t, err)
 	dah := da.NewDataAvailabilityHeader(eds)
 	return &dah
@@ -116,7 +116,7 @@ type node struct {
 
 type fullNode struct {
 	node
-	dagblockstore.DAGBlockStore
+	edsstore.EDSStore
 }
 
 // ClearStorage cleans up the storage of the node.
@@ -156,7 +156,7 @@ func (dn *dagNet) RandLightNode(squareSize int) (*node, *Root) {
 // RandFullNode creates a Full Node filled with a random block of the given size.
 func (dn *dagNet) RandFullNode(squareSize int) (*fullNode, *Root) {
 	nd := dn.FullNode()
-	return nd, RandFillDagBS(dn.t, squareSize, nd.BlockService, &nd.DAGBlockStore)
+	return nd, RandFillDagBS(dn.t, squareSize, nd.BlockService, &nd.EDSStore)
 }
 
 // LightNode creates a new empty LightAvailability Node.
@@ -169,7 +169,7 @@ func (dn *dagNet) LightNode() *node {
 // FullNode creates a new empty FullAvailability Node.
 func (dn *dagNet) FullNode() *fullNode {
 	nd := dn.FNode()
-	nd.Service = NewService(nd.BlockService, TestFullAvailability(nd.node.BlockService, &nd.DAGBlockStore))
+	nd.Service = NewService(nd.BlockService, TestFullAvailability(nd.node.BlockService, &nd.EDSStore))
 	return nd
 }
 
@@ -204,7 +204,7 @@ func (dn *dagNet) FNode() *fullNode {
 	hst, err := dn.net.GenPeer()
 	require.NoError(dn.t, err)
 	dstore := dssync.MutexWrap(ds.NewMapDatastore())
-	dagbs, _ := dagblockstore.NewDAGBlockStore(dstore)
+	dagbs, _ := edsstore.NewEDSStore(dstore)
 	routing := offline.NewOfflineRouter(dstore, record.NamespacedValidator{})
 	bs := bitswap.New(
 		dn.ctx,
@@ -223,7 +223,7 @@ func (dn *dagNet) FNode() *fullNode {
 			BlockService: blockservice.New(dagbs, bs),
 			Host:         hst,
 		},
-		DAGBlockStore: *dagbs,
+		EDSStore: *dagbs,
 	}
 	dn.nodes = append(dn.nodes, &nd.node)
 	return nd
@@ -323,9 +323,9 @@ func TestLightAvailability(bServ blockservice.BlockService) *LightAvailability {
 	return NewLightAvailability(bServ, disc)
 }
 
-func TestFullAvailability(bServ blockservice.BlockService, dagStr *dagblockstore.DAGBlockStore) *FullAvailability {
+func TestFullAvailability(bServ blockservice.BlockService, edsStr *edsstore.EDSStore) *FullAvailability {
 	disc := NewDiscovery(nil, routing.NewRoutingDiscovery(routinghelpers.Null{}), 0, time.Second, time.Second)
-	return NewFullAvailability(bServ, dagStr, disc)
+	return NewFullAvailability(bServ, edsStr, disc)
 }
 
 type TestSuccessfulAvailability struct {

@@ -1,4 +1,4 @@
-package dagblockstore
+package edsstore
 
 import (
 	"context"
@@ -10,36 +10,36 @@ import (
 	"github.com/ipfs/go-verifcid"
 )
 
-type CARBlockStore struct {
+// CARNodeAdder is needed to fulfill the NodeAdder interface
+type CARNodeAdder struct {
 	exchange   exchange.Interface
 	blockstore blockstore.Blockstore
 }
 
-func New(bs blockstore.Blockstore, ex exchange.Interface) *CARBlockStore {
-	return &CARBlockStore{
+func New(bs blockstore.Blockstore, ex exchange.Interface) *CARNodeAdder {
+	return &CARNodeAdder{
 		exchange:   ex,
 		blockstore: bs,
 	}
 }
 
-func (bs *CARBlockStore) Add(ctx context.Context, nd format.Node) error {
-	if bs == nil { // FIXME remove this assertion. protect with constructor invariant
+func (na *CARNodeAdder) Add(ctx context.Context, nd format.Node) error {
+	if na == nil { // FIXME remove this assertion. protect with constructor invariant
 		return fmt.Errorf("dagService is nil")
 	}
-	return bs.AddBlock(ctx, nd)
+	return na.AddBlock(ctx, nd)
 }
 
-func (bs *CARBlockStore) AddMany(ctx context.Context, nds []format.Node) error {
+func (na *CARNodeAdder) AddMany(ctx context.Context, nds []format.Node) error {
 	blks := make([]blocks.Block, len(nds))
 	for i, nd := range nds {
 		blks[i] = nd
 	}
-	return bs.AddBlocks(ctx, blks)
+	return na.AddBlocks(ctx, blks)
 }
 
 // AddBlock adds a particular block to the service, Putting it into the datastore.
-// TODO pass a context into this if the remote.HasBlock is going to remain here.
-func (bs *CARBlockStore) AddBlock(ctx context.Context, o blocks.Block) error {
+func (na *CARNodeAdder) AddBlock(ctx context.Context, o blocks.Block) error {
 	c := o.Cid()
 	// hash security
 	err := verifcid.ValidateCid(c)
@@ -47,18 +47,18 @@ func (bs *CARBlockStore) AddBlock(ctx context.Context, o blocks.Block) error {
 		return err
 	}
 
-	if err := bs.blockstore.Put(ctx, o); err != nil {
+	if err := na.blockstore.Put(ctx, o); err != nil {
 		return err
 	}
 
-	if err := bs.exchange.HasBlock(ctx, o); err != nil {
+	if err := na.exchange.HasBlock(ctx, o); err != nil {
 		panic("Couldnt add block")
 	}
 
 	return nil
 }
 
-func (bs *CARBlockStore) AddBlocks(ctx context.Context, blks []blocks.Block) error {
+func (na *CARNodeAdder) AddBlocks(ctx context.Context, blks []blocks.Block) error {
 	// hash security
 	for _, b := range blks {
 		err := verifcid.ValidateCid(b.Cid())
@@ -73,14 +73,14 @@ func (bs *CARBlockStore) AddBlocks(ctx context.Context, blks []blocks.Block) err
 		return nil
 	}
 
-	err := bs.blockstore.PutMany(ctx, toput)
+	err := na.blockstore.PutMany(ctx, toput)
 	if err != nil {
-		log.Warn("failed to put blocks in CAR: ", err)
+		edsStoreLog.Warn("failed to put blocks in CAR: ", err)
 		return err
 	}
 
 	for _, o := range toput {
-		if err := bs.exchange.HasBlock(ctx, o); err != nil {
+		if err := na.exchange.HasBlock(ctx, o); err != nil {
 			panic("Couldnt add block")
 		}
 	}

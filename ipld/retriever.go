@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/hex"
 	"errors"
-	"github.com/celestiaorg/celestia-node/dagblockstore"
+	"github.com/celestiaorg/celestia-node/edsstore"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -42,7 +42,7 @@ var tracer = otel.Tracer("ipld")
 // until it is able to reconstruct the whole square.
 type Retriever struct {
 	bServ  blockservice.BlockService
-	dagStr *dagblockstore.DAGBlockStore
+	edsStr *edsstore.EDSStore
 }
 
 // NewBasicRetriever creates a new instance of the Retriever over IPLD Service and rmst2d.Codec
@@ -51,8 +51,8 @@ func NewBasicRetriever(bServ blockservice.BlockService) *Retriever {
 }
 
 // NewRetriever creates a new instance of the Retriever over IPLD Service and rmst2d.Codec
-func NewRetriever(bServ blockservice.BlockService, dagStr *dagblockstore.DAGBlockStore) *Retriever {
-	return &Retriever{bServ: bServ, dagStr: dagStr}
+func NewRetriever(bServ blockservice.BlockService, edsStr *edsstore.EDSStore) *Retriever {
+	return &Retriever{bServ: bServ, edsStr: edsStr}
 }
 
 // Retrieve retrieves all the data committed to DataAvailabilityHeader.
@@ -144,7 +144,7 @@ func (r *Retriever) newSession(ctx context.Context, dah *da.DataAvailabilityHead
 		roots,
 		dah.String(),
 		r.bServ,
-		r.dagStr,
+		r.edsStr,
 		format.MaxSizeBatchOption(batchSize(size)),
 	)
 	ses := &retrievalSession{

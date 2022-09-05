@@ -2,7 +2,7 @@ package das
 
 import (
 	"context"
-	"github.com/celestiaorg/celestia-node/dagblockstore"
+	"github.com/celestiaorg/celestia-node/edsstore"
 	offlineexchange "github.com/ipfs/go-ipfs-exchange-offline"
 	"sync"
 	"testing"
@@ -262,7 +262,7 @@ func TestDASer_stopsAfter_BEFP(t *testing.T) {
 	t.Cleanup(cancel)
 
 	ds := ds_sync.MutexWrap(datastore.NewMapDatastore())
-	bstore, _ := dagblockstore.NewDAGBlockStore(ds)
+	bstore, _ := edsstore.NewEDSStore(ds)
 	bServ := bsrv.New(bstore, offlineexchange.Exchange(bstore))
 	// create mock network
 	net, err := mocknet.FullMeshLinked(1)
