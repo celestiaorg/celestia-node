@@ -8,6 +8,8 @@ import (
 
 // NOTE: Every time we add a new long-running network, it has to be added here.
 const (
+	// Arabica testnet. See: celestiaorg/networks.
+	Arabica Network = "arabica"
 	// Mamaki testnet. See: celestiaorg/networks.
 	Mamaki Network = "mamaki"
 	// Private can be used to set up any private network, including local testing setups.
@@ -34,6 +36,7 @@ func (n Network) Validate() error {
 
 // networksList is a strict list of all known long-standing networks.
 var networksList = map[Network]struct{}{
+	Arabica: {},
 	Mamaki:  {},
 	Private: {},
 }
