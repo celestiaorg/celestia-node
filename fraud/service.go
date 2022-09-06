@@ -74,9 +74,12 @@ func (f *ProofService) RegisterProofs(proofTypes ...ProofType) error {
 	return nil
 }
 
-// Start sets the stream handler for fraudProtocolID and starts syncing if syncer is enabled.
+// Start joins the BEFP topic, sets the stream handler for fraudProtocolID and starts syncing if syncer is enabled.
 func (f *ProofService) Start(context.Context) error {
 	f.ctx, f.cancel = context.WithCancel(context.Background())
+	if err := f.RegisterProofs(BadEncoding); err != nil {
+		return err
+	}
 	f.host.SetStreamHandler(fraudProtocolID, f.handleFraudMessageRequest)
 	if f.syncerEnabled {
 		go f.syncFraudProofs(f.ctx)

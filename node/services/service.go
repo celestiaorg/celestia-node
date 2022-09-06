@@ -195,9 +195,6 @@ func newFraudService(
 		OnStart: pservice.Start,
 		OnStop:  pservice.Stop,
 	})
-	if err := pservice.RegisterProofs(fraud.BadEncoding); err != nil {
-		return nil, err
-	}
 	return pservice, nil
 }
 

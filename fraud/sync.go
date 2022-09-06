@@ -48,7 +48,7 @@ func (f *ProofService) syncFraudProofs(ctx context.Context) {
 			connStatus = e.(event.EvtPeerIdentificationCompleted)
 		}
 
-		// ignore already discovered peers or ourselves as a peer
+		// ignore already requested peers or ourselves as a peer
 		if _, ok := peerCache[connStatus.Peer]; ok || connStatus.Peer == f.host.ID() {
 			i--
 			continue
