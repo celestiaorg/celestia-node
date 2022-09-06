@@ -31,6 +31,8 @@ func Keyring(cfg Config, ks keystore.Keystore, net params.Network) (*apptypes.Ke
 	if cfg.KeyringAccName != "" {
 		keyInfo, err := ring.Key(cfg.KeyringAccName)
 		if err != nil {
+			// this log exists because the fx error log returned is not readable for users
+			log.Errorf("failed to find account in keystore with name: %s", cfg.KeyringAccName)
 			return nil, err
 		}
 		info = keyInfo
