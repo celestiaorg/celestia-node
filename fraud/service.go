@@ -60,8 +60,8 @@ func NewProofService(
 	}
 }
 
-// RegisterProofs registers proofTypes as pubsub topics to be joined.
-func (f *ProofService) RegisterProofs(proofTypes ...ProofType) error {
+// registerProofTopics registers proofTypes as pubsub topics to be joined.
+func (f *ProofService) registerProofTopics(proofTypes ...ProofType) error {
 	for _, proofType := range proofTypes {
 		t, err := join(f.pubsub, proofType, f.processIncoming)
 		if err != nil {
@@ -74,10 +74,10 @@ func (f *ProofService) RegisterProofs(proofTypes ...ProofType) error {
 	return nil
 }
 
-// Start joins the BEFP topic, sets the stream handler for fraudProtocolID and starts syncing if syncer is enabled.
+// Start joins fraud proofs topics, sets the stream handler for fraudProtocolID and starts syncing if syncer is enabled.
 func (f *ProofService) Start(context.Context) error {
 	f.ctx, f.cancel = context.WithCancel(context.Background())
-	if err := f.RegisterProofs(BadEncoding); err != nil {
+	if err := f.registerProofTopics(getRegisteredProofTypes()...); err != nil {
 		return err
 	}
 	f.host.SetStreamHandler(fraudProtocolID, f.handleFraudMessageRequest)

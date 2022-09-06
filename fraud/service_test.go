@@ -21,8 +21,8 @@ import (
 
 func TestService_Subscribe(t *testing.T) {
 	s, _ := createService(t, false)
-	require.NoError(t, s.RegisterProofs(mockProofType))
 	proof := newValidProof()
+	require.NoError(t, s.Start(context.TODO()))
 	_, err := s.Subscribe(proof.Type())
 	require.NoError(t, err)
 }
@@ -45,8 +45,8 @@ func TestService_Broadcast(t *testing.T) {
 	t.Cleanup(cancel)
 
 	s, _ := createService(t, false)
-	require.NoError(t, s.RegisterProofs(mockProofType))
 	proof := newValidProof()
+	require.NoError(t, s.Start(ctx))
 	subs, err := s.Subscribe(proof.Type())
 	require.NoError(t, err)
 
@@ -91,7 +91,6 @@ func TestService_processIncoming(t *testing.T) {
 		require.NoError(t, err)
 		// create first fraud service that will broadcast incorrect Fraud Proof
 		service, _ := createServiceWithHost(ctx, t, net.Hosts()[0], false)
-		require.NoError(t, service.RegisterProofs(mockProofType))
 		msg := &pubsub.Message{
 			Message: &pubsubpb.Message{
 				Data: bin,
@@ -101,6 +100,7 @@ func TestService_processIncoming(t *testing.T) {
 		if test.precondition != nil {
 			test.precondition()
 		}
+		require.NoError(t, service.Start(ctx))
 		res := service.processIncoming(ctx, test.proof.Type(), net.Hosts()[1].ID(), msg)
 		require.True(t, res == test.validationResult)
 	}
@@ -116,7 +116,6 @@ func TestService_ReGossiping(t *testing.T) {
 	// create first fraud service that will broadcast incorrect Fraud Proof
 	pserviceA, _ := createServiceWithHost(ctx, t, net.Hosts()[0], false)
 	require.NoError(t, err)
-	require.NoError(t, pserviceA.RegisterProofs(mockProofType))
 	// create pub sub in order to listen for Fraud Proof
 	psB, err := pubsub.NewGossipSub(ctx, net.Hosts()[1], // -> B
 		pubsub.WithMessageSignaturePolicy(pubsub.StrictNoSign))
@@ -131,7 +130,6 @@ func TestService_ReGossiping(t *testing.T) {
 		sync.MutexWrap(datastore.NewMapDatastore()),
 		false,
 	)
-	require.NoError(t, pserviceB.RegisterProofs(mockProofType))
 	addrB := host.InfoFromHost(net.Hosts()[1]) // -> B
 
 	// create pub sub in order to listen for Fraud Proof
@@ -147,7 +145,6 @@ func TestService_ReGossiping(t *testing.T) {
 		sync.MutexWrap(datastore.NewMapDatastore()),
 		false,
 	)
-	require.NoError(t, pserviceC.RegisterProofs(mockProofType))
 	// establish connections
 	// connect peers: A -> B -> C, so A and C are not connected to each other
 	require.NoError(t, net.Hosts()[0].Connect(ctx, *addrB)) // host[0] is A
@@ -156,7 +153,9 @@ func TestService_ReGossiping(t *testing.T) {
 	befp := newValidProof()
 	bin, err := befp.MarshalBinary()
 	require.NoError(t, err)
-
+	require.NoError(t, pserviceA.Start(ctx))
+	require.NoError(t, pserviceB.Start(ctx))
+	require.NoError(t, pserviceC.Start(ctx))
 	subsA, err := pserviceA.Subscribe(mockProofType)
 	require.NoError(t, err)
 	defer subsA.Cancel()
@@ -193,7 +192,6 @@ func TestService_Get(t *testing.T) {
 	bin, err := proof.MarshalBinary()
 	require.NoError(t, err)
 	pService, _ := createService(t, false)
-	require.NoError(t, pService.RegisterProofs(mockProofType))
 	// try to fetch proof
 	_, err = pService.Get(ctx, proof.Type())
 	// error is expected here because storage is empty
@@ -216,14 +214,12 @@ func TestService_Sync(t *testing.T) {
 	require.NoError(t, err)
 
 	pserviceA, _ := createServiceWithHost(ctx, t, net.Hosts()[0], false)
-	require.NoError(t, pserviceA.RegisterProofs(mockProofType))
 	pserviceB, _ := createServiceWithHost(ctx, t, net.Hosts()[1], true)
-	require.NoError(t, pserviceB.RegisterProofs(mockProofType))
-	subs, _ := pserviceB.Subscribe(mockProofType)
+	proof := newValidProof()
 	require.NoError(t, pserviceA.Start(ctx))
 	require.NoError(t, pserviceB.Start(ctx))
-
-	proof := newValidProof()
+	subs, err := pserviceB.Subscribe(mockProofType)
+	require.NoError(t, err)
 	bin, err := proof.MarshalBinary()
 	require.NoError(t, err)
 	store := namespace.Wrap(pserviceA.ds, makeKey(mockProofType))
