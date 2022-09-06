@@ -21,7 +21,7 @@ import (
 // After fraud proofs are received, they are published to all local subscriptions for verification
 // order to be verified.
 func (f *ProofService) syncFraudProofs(ctx context.Context) {
-	log.Debug("start fetching Fraud Proofs")
+	log.Debug("start fetching fraud proofs")
 	// subscribe to new peer connections that we can request fraud proofs from
 	sub, err := f.host.EventBus().Subscribe(&event.EvtPeerIdentificationCompleted{})
 	if err != nil {
@@ -65,10 +65,6 @@ func (f *ProofService) syncFraudProofs(ctx context.Context) {
 			}
 			log.Debugw("got fraud proofs from peer", "pid", connStatus.Peer)
 			for _, data := range respProofs {
-				if err != nil {
-					log.Warn(err)
-					continue
-				}
 				f.topicsLk.RLock()
 				topic, ok := f.topics[ProofType(data.Type)]
 				f.topicsLk.RUnlock()

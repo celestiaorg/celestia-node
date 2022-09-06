@@ -128,6 +128,8 @@ func TestFraudProofSyncing(t *testing.T) {
 	require.NoError(t, err)
 
 	require.NoError(t, ln.Start(ctx))
+	// internal subscription for the fraud proof is done in order to ensure that light node
+	// receives the BEFP.
 	subsLn, err := ln.FraudServ.Subscribe(fraud.BadEncoding)
 	require.NoError(t, err)
 	_, err = subsLn.Proof(ctx)

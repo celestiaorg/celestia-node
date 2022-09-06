@@ -84,7 +84,7 @@ func (f *ProofService) Start(context.Context) error {
 	return nil
 }
 
-// Stop removes the stream handler.
+// Stop removes the stream handler and cancels the underlying ProofService
 func (f *ProofService) Stop(context.Context) error {
 	f.host.RemoveStreamHandler(fraudProtocolID)
 	f.cancel()
@@ -193,7 +193,7 @@ func (f *ProofService) put(ctx context.Context, proofType ProofType, hash string
 	return put(ctx, store, hash, data)
 }
 
-// verifyLocal checks that fraud proofs has been stored locally.
+// verifyLocal checks if a fraud proof has been stored locally.
 func (f *ProofService) verifyLocal(ctx context.Context, proofType ProofType, hash string, data []byte) bool {
 	f.storesLk.RLock()
 	storage, ok := f.stores[proofType]
@@ -205,7 +205,7 @@ func (f *ProofService) verifyLocal(ctx context.Context, proofType ProofType, has
 	proof, err := getByHash(ctx, storage, hash)
 	if err != nil {
 		if !errors.Is(err, datastore.ErrNotFound) {
-			log.Warn(err)
+			log.Error(err)
 		}
 		return false
 	}
