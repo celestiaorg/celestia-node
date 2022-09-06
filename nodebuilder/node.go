@@ -6,6 +6,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/celestiaorg/celestia-node/nodebuilder/header"
+
 	"github.com/ipfs/go-blockservice"
 	exchange "github.com/ipfs/go-ipfs-exchange-interface"
 	logging "github.com/ipfs/go-log/v2"
@@ -20,7 +22,6 @@ import (
 	"github.com/celestiaorg/celestia-node/fraud"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	"github.com/celestiaorg/celestia-node/params"
-	"github.com/celestiaorg/celestia-node/service/header"
 	"github.com/celestiaorg/celestia-node/service/rpc"
 	"github.com/celestiaorg/celestia-node/service/share"
 	"github.com/celestiaorg/celestia-node/service/state"
@@ -55,11 +56,11 @@ type Node struct {
 	// p2p protocols
 	PubSub *pubsub.PubSub
 	// services
-	ShareServ  *share.Service  // not optional
-	HeaderServ *header.Service // not optional
-	StateServ  *state.Service  // not optional
-	FraudServ  fraud.Service   // not optional
-	DASer      *das.DASer      `optional:"true"`
+	ShareServ  *share.Service // not optional
+	HeaderServ header.Service // not optional
+	StateServ  *state.Service // not optional
+	FraudServ  fraud.Service  // not optional
+	DASer      *das.DASer     `optional:"true"`
 
 	// start and stop control ref internal fx.App lifecycle funcs to be called from Start and Stop
 	start, stop lifecycleFunc

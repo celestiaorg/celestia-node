@@ -2,7 +2,7 @@ package rpc
 
 import (
 	"github.com/celestiaorg/celestia-node/das"
-	"github.com/celestiaorg/celestia-node/service/header"
+	"github.com/celestiaorg/celestia-node/nodebuilder/header"
 	"github.com/celestiaorg/celestia-node/service/rpc"
 	"github.com/celestiaorg/celestia-node/service/share"
 	"github.com/celestiaorg/celestia-node/service/state"
@@ -12,7 +12,7 @@ import (
 func Handler(
 	state *state.Service,
 	share *share.Service,
-	header *header.Service,
+	header header.Service,
 	serv *rpc.Server,
 	daser *das.DASer,
 ) {

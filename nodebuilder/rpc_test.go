@@ -18,9 +18,9 @@ import (
 	"github.com/celestiaorg/celestia-node/header/local"
 	"github.com/celestiaorg/celestia-node/header/store"
 	"github.com/celestiaorg/celestia-node/header/sync"
+	service "github.com/celestiaorg/celestia-node/nodebuilder/header"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	"github.com/celestiaorg/celestia-node/params"
-	service "github.com/celestiaorg/celestia-node/service/header"
 	"github.com/celestiaorg/celestia-node/service/rpc"
 )
 
@@ -211,7 +211,7 @@ func setupNodeWithModifiedRPC(t *testing.T) *Node {
 	return nd
 }
 
-func setupHeaderService(ctx context.Context, t *testing.T) *service.Service {
+func setupHeaderService(ctx context.Context, t *testing.T) service.Service {
 	suite := header.NewTestSuite(t, 1)
 	head := suite.Head()
 	// create header stores

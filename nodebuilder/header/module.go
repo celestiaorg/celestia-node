@@ -15,7 +15,6 @@ import (
 	fraudbuilder "github.com/celestiaorg/celestia-node/nodebuilder/fraud"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	"github.com/celestiaorg/celestia-node/params"
-	headerservice "github.com/celestiaorg/celestia-node/service/header"
 )
 
 var log = logging.Logger("header-module")
@@ -28,7 +27,7 @@ func Module(tp node.Type, cfg *Config) fx.Option {
 		fx.Supply(*cfg),
 		fx.Error(cfgErr),
 		fx.Supply(params.BlockTime),
-		fx.Provide(headerservice.NewHeaderService),
+		fx.Provide(NewHeaderService),
 		fx.Provide(fx.Annotate(
 			store.NewStore,
 			fx.OnStart(func(ctx context.Context, store header.Store) error {
