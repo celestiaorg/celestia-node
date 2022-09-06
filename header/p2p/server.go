@@ -56,7 +56,7 @@ func (serv *ExchangeServer) Stop(context.Context) error {
 func (serv *ExchangeServer) requestHandler(stream network.Stream) {
 	err := stream.SetReadDeadline(time.Now().Add(readDeadline))
 	if err != nil {
-		log.Warnf("error setting deadline: %s", err)
+		log.Debugf("error setting deadline: %s", err)
 	}
 	// unmarshal request
 	pbreq := new(p2p_pb.ExtendedHeaderRequest)
@@ -105,7 +105,7 @@ func (serv *ExchangeServer) handleRequestByHash(hash []byte, stream network.Stre
 		return
 	}
 	if err = stream.SetWriteDeadline(time.Now().Add(writeDeadline)); err != nil {
-		log.Warnf("error setting deadline: %s", err)
+		log.Debugf("error setting deadline: %s", err)
 	}
 	_, err = serde.Write(stream, resp)
 	if err != nil {
@@ -145,7 +145,7 @@ func (serv *ExchangeServer) handleRequest(from, to uint64, stream network.Stream
 	// write all headers to stream
 	for _, h := range headers {
 		if err := stream.SetWriteDeadline(time.Now().Add(writeDeadline)); err != nil {
-			log.Warnf("error setting deadline: %s", err)
+			log.Debugf("error setting deadline: %s", err)
 		}
 		resp, err := header.ExtendedHeaderToProto(h)
 		if err != nil {
@@ -162,7 +162,7 @@ func (serv *ExchangeServer) handleRequest(from, to uint64, stream network.Stream
 		}
 
 		if err = stream.SetWriteDeadline(time.Time{}); err != nil {
-			log.Warnf("error resetting deadline: %s", err)
+			log.Debugf("error resetting deadline: %s", err)
 		}
 	}
 }

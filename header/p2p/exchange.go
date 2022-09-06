@@ -140,7 +140,7 @@ func (ex *Exchange) performRequest(
 		return nil, err
 	}
 	if err = stream.SetWriteDeadline(time.Now().Add(writeDeadline)); err != nil {
-		log.Warnf("error setting deadline: %s", err)
+		log.Debugf("error setting deadline: %s", err)
 	}
 	// send request
 	_, err = serde.Write(stream, req)
@@ -157,7 +157,7 @@ func (ex *Exchange) performRequest(
 	for i := 0; i < int(req.Amount); i++ {
 		resp := new(header_pb.ExtendedHeader)
 		if err = stream.SetReadDeadline(time.Now().Add(readDeadline)); err != nil {
-			log.Warnf("error setting deadline: %s", err)
+			log.Debugf("error setting deadline: %s", err)
 		}
 		_, err := serde.Read(stream, resp)
 		if err != nil {
@@ -165,7 +165,7 @@ func (ex *Exchange) performRequest(
 			return nil, err
 		}
 		if err = stream.SetReadDeadline(time.Time{}); err != nil {
-			log.Warnf("error resetting deadline: %s", err)
+			log.Debugf("error resetting deadline: %s", err)
 		}
 		header, err := header.ProtoToExtendedHeader(resp)
 		if err != nil {
