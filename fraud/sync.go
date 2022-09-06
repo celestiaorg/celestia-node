@@ -37,6 +37,8 @@ func (f *ProofService) syncFraudProofs(ctx context.Context) {
 	}
 	f.topicsLk.RUnlock()
 	connStatus := event.EvtPeerIdentificationCompleted{}
+	// peerCache is used to store discovered peers to avoid sending multiple requests to the same peer
+	peerCache := make(map[peer.ID]struct{})
 	// request proofs from `fraudRequests` many peers
 	for i := 0; i < fraudRequests; i++ {
 		select {
@@ -46,11 +48,13 @@ func (f *ProofService) syncFraudProofs(ctx context.Context) {
 			connStatus = e.(event.EvtPeerIdentificationCompleted)
 		}
 
-		// ignore ourselves as a peer
-		if connStatus.Peer == f.host.ID() {
+		// ignore already discovered peers or ourselves as a peer
+		if _, ok := peerCache[connStatus.Peer]; ok || connStatus.Peer == f.host.ID() {
 			i--
 			continue
 		}
+
+		peerCache[connStatus.Peer] = struct{}{}
 		// valid peer found, so go send proof requests
 		go func(pid peer.ID) {
 			log.Debugw("requesting proofs from peer", "pid", pid)
