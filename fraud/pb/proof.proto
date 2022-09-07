@@ -16,3 +16,16 @@ message BadEncoding {
   uint32 Index    = 4;
   axis Axis    = 5;
 }
+
+message FraudMessageRequest {
+  repeated string RequestedProofType = 1;
+}
+
+message ProofResponse {
+  string Type = 1;
+  repeated bytes Value = 2;
+}
+
+message FraudMessageResponse {
+  repeated ProofResponse Proofs= 1;
+}

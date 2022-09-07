@@ -17,7 +17,7 @@ type headerFetcher func(context.Context, uint64) (*header.ExtendedHeader, error)
 type ProofUnmarshaler func([]byte) (Proof, error)
 
 // Service encompasses the behavior necessary to subscribe and broadcast
-// Fraud Proofs within the network.
+// fraud proofs within the network.
 type Service interface {
 	Subscriber
 	Broadcaster
@@ -39,8 +39,9 @@ type Subscriber interface {
 	Subscribe(ProofType) (Subscription, error)
 }
 
-// Getter encompasses the behavior to fetch stored FraudProofs.
+// Getter encompasses the behavior to fetch stored fraud proofs.
 type Getter interface {
+	// Get fetches fraud proofs from the disk by its type.
 	Get(context.Context, ProofType) ([]Proof, error)
 }
 

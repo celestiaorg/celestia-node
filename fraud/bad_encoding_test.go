@@ -16,7 +16,7 @@ func TestFraudProofValidation(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*15)
 	defer t.Cleanup(cancel)
 	bServ := mdutils.Bserv()
-	_, store := createService(t)
+	_, store := createService(t, false)
 	h, err := store.GetByHeight(ctx, 1)
 	require.NoError(t, err)
 

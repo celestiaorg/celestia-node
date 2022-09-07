@@ -161,13 +161,41 @@ func DASer(
 	return das
 }
 
-// FraudService constructs fraud proof service.
+// FraudService constructs a fraud proof service with the syncer disabled.
 func FraudService(
+	lc fx.Lifecycle,
 	sub *pubsub.PubSub,
+	host host.Host,
 	hstore header.Store,
 	ds datastore.Batching,
-) fraud.Service {
-	return fraud.NewService(sub, hstore.GetByHeight, ds)
+) (fraud.Service, error) {
+	return newFraudService(lc, sub, host, hstore, ds, false)
+}
+
+// FraudServiceWithSyncer constructs fraud proof service with enabled syncer.
+func FraudServiceWithSyncer(
+	lc fx.Lifecycle,
+	sub *pubsub.PubSub,
+	host host.Host,
+	hstore header.Store,
+	ds datastore.Batching,
+) (fraud.Service, error) {
+	return newFraudService(lc, sub, host, hstore, ds, true)
+}
+
+func newFraudService(
+	lc fx.Lifecycle,
+	sub *pubsub.PubSub,
+	host host.Host,
+	hstore header.Store,
+	ds datastore.Batching,
+	isEnabled bool) (fraud.Service, error) {
+	pservice := fraud.NewProofService(sub, host, hstore.GetByHeight, ds, isEnabled)
+	lc.Append(fx.Hook{
+		OnStart: pservice.Start,
+		OnStop:  pservice.Stop,
+	})
+	return pservice, nil
 }
 
 // LightAvailability constructs light share availability.

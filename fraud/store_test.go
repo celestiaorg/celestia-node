@@ -57,3 +57,18 @@ func Test_GetAllFailed(t *testing.T) {
 	require.ErrorIs(t, err, datastore.ErrNotFound)
 	require.Nil(t, proofs)
 }
+
+func Test_getByHash(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*15)
+	defer t.Cleanup(cancel)
+
+	proof := newValidProof()
+	ds := ds_sync.MutexWrap(datastore.NewMapDatastore())
+	store := namespace.Wrap(ds, makeKey(proof.Type()))
+	bin, err := proof.MarshalBinary()
+	require.NoError(t, err)
+	err = put(ctx, store, string(proof.HeaderHash()), bin)
+	require.NoError(t, err)
+	_, err = getByHash(ctx, store, string(proof.HeaderHash()))
+	require.NoError(t, err)
+}

@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/ipfs/go-datastore"
+	"github.com/ipfs/go-datastore/namespace"
 	"github.com/ipfs/go-datastore/sync"
 	"github.com/libp2p/go-libp2p-core/host"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
@@ -19,33 +20,37 @@ import (
 )
 
 func TestService_Subscribe(t *testing.T) {
-	s, _ := createService(t)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*1)
+	t.Cleanup(cancel)
+	s, _ := createService(t, false)
 	proof := newValidProof()
+	require.NoError(t, s.Start(ctx))
 	_, err := s.Subscribe(proof.Type())
 	require.NoError(t, err)
 }
 
 func TestService_SubscribeFails(t *testing.T) {
-	s, _ := createService(t)
+	s, _ := createService(t, false)
 	proof := newValidProof()
-	delete(defaultUnmarshalers, proof.Type())
 	_, err := s.Subscribe(proof.Type())
-	require.NoError(t, err)
+	require.Error(t, err)
 }
 
 func TestService_BroadcastFails(t *testing.T) {
-	s, _ := createService(t)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*1)
+	t.Cleanup(cancel)
+	s, _ := createService(t, false)
 	p := newValidProof()
-	require.Error(t, s.Broadcast(context.TODO(), p))
+	require.Error(t, s.Broadcast(ctx, p))
 }
 
 func TestService_Broadcast(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*15)
 	t.Cleanup(cancel)
 
-	s, _ := createService(t)
-
+	s, _ := createService(t, false)
 	proof := newValidProof()
+	require.NoError(t, s.Start(ctx))
 	subs, err := s.Subscribe(proof.Type())
 	require.NoError(t, err)
 
@@ -89,9 +94,7 @@ func TestService_processIncoming(t *testing.T) {
 		bin, err := test.proof.MarshalBinary()
 		require.NoError(t, err)
 		// create first fraud service that will broadcast incorrect Fraud Proof
-		serviceA, _ := createServiceWithHost(ctx, t, net.Hosts()[0])
-		fserviceA := serviceA.(*service)
-		require.NotNil(t, fserviceA)
+		service, _ := createServiceWithHost(ctx, t, net.Hosts()[0], false)
 		msg := &pubsub.Message{
 			Message: &pubsubpb.Message{
 				Data: bin,
@@ -101,7 +104,8 @@ func TestService_processIncoming(t *testing.T) {
 		if test.precondition != nil {
 			test.precondition()
 		}
-		res := fserviceA.processIncoming(ctx, test.proof.Type(), net.Hosts()[1].ID(), msg)
+		require.NoError(t, service.Start(ctx))
+		res := service.processIncoming(ctx, test.proof.Type(), net.Hosts()[1].ID(), msg)
 		require.True(t, res == test.validationResult)
 	}
 }
@@ -114,21 +118,21 @@ func TestService_ReGossiping(t *testing.T) {
 	require.NoError(t, err)
 
 	// create first fraud service that will broadcast incorrect Fraud Proof
-	pserviceA, _ := createServiceWithHost(ctx, t, net.Hosts()[0])
+	pserviceA, _ := createServiceWithHost(ctx, t, net.Hosts()[0], false)
 	require.NoError(t, err)
-	serviceA := pserviceA.(*service)
-
 	// create pub sub in order to listen for Fraud Proof
 	psB, err := pubsub.NewGossipSub(ctx, net.Hosts()[1], // -> B
 		pubsub.WithMessageSignaturePolicy(pubsub.StrictNoSign))
 	require.NoError(t, err)
 	// create second service that will receive and validate Fraud Proof
-	pserviceB := NewService(
+	pserviceB := NewProofService(
 		psB,
+		net.Hosts()[1],
 		func(ctx context.Context, u uint64) (*header.ExtendedHeader, error) {
 			return &header.ExtendedHeader{}, nil
 		},
 		sync.MutexWrap(datastore.NewMapDatastore()),
+		false,
 	)
 	addrB := host.InfoFromHost(net.Hosts()[1]) // -> B
 
@@ -136,14 +140,15 @@ func TestService_ReGossiping(t *testing.T) {
 	psC, err := pubsub.NewGossipSub(ctx, net.Hosts()[2], // -> C
 		pubsub.WithMessageSignaturePolicy(pubsub.StrictNoSign))
 	require.NoError(t, err)
-	pserviceC := NewService(
+	pserviceC := NewProofService(
 		psC,
+		net.Hosts()[2],
 		func(ctx context.Context, u uint64) (*header.ExtendedHeader, error) {
 			return &header.ExtendedHeader{}, nil
 		},
 		sync.MutexWrap(datastore.NewMapDatastore()),
+		false,
 	)
-
 	// establish connections
 	// connect peers: A -> B -> C, so A and C are not connected to each other
 	require.NoError(t, net.Hosts()[0].Connect(ctx, *addrB)) // host[0] is A
@@ -152,7 +157,9 @@ func TestService_ReGossiping(t *testing.T) {
 	befp := newValidProof()
 	bin, err := befp.MarshalBinary()
 	require.NoError(t, err)
-
+	require.NoError(t, pserviceA.Start(ctx))
+	require.NoError(t, pserviceB.Start(ctx))
+	require.NoError(t, pserviceC.Start(ctx))
 	subsA, err := pserviceA.Subscribe(mockProofType)
 	require.NoError(t, err)
 	defer subsA.Cancel()
@@ -167,7 +174,7 @@ func TestService_ReGossiping(t *testing.T) {
 	// we cannot avoid sleep because it helps to avoid flakiness
 	time.Sleep(time.Millisecond * 100)
 
-	err = serviceA.topics[mockProofType].Publish(ctx, bin, pubsub.WithReadiness(pubsub.MinTopicSize(1)))
+	err = pserviceA.topics[mockProofType].Publish(ctx, bin, pubsub.WithReadiness(pubsub.MinTopicSize(1)))
 	require.NoError(t, err)
 
 	newCtx, cancel := context.WithTimeout(ctx, time.Millisecond*100)
@@ -188,17 +195,14 @@ func TestService_Get(t *testing.T) {
 	proof := newValidProof()
 	bin, err := proof.MarshalBinary()
 	require.NoError(t, err)
-	pService, _ := createService(t)
-	service := pService.(*service)
-	require.NotNil(t, service)
-
+	pService, _ := createService(t, false)
 	// try to fetch proof
 	_, err = pService.Get(ctx, proof.Type())
 	// error is expected here because storage is empty
 	require.Error(t, err)
 
 	// create store
-	store := initStore(proof.Type(), service.ds)
+	store := initStore(proof.Type(), pService.ds)
 	// add proof to storage
 	require.NoError(t, put(ctx, store, hex.EncodeToString(proof.HeaderHash()), bin))
 	// fetch proof
@@ -206,26 +210,58 @@ func TestService_Get(t *testing.T) {
 	require.NoError(t, err)
 }
 
-func createService(t *testing.T) (Service, *mockStore) {
+func TestService_Sync(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+	t.Cleanup(cancel)
+	// create mock network
+	net, err := mocknet.FullMeshLinked(2)
+	require.NoError(t, err)
+
+	pserviceA, _ := createServiceWithHost(ctx, t, net.Hosts()[0], false)
+	pserviceB, _ := createServiceWithHost(ctx, t, net.Hosts()[1], true)
+	proof := newValidProof()
+	require.NoError(t, pserviceA.Start(ctx))
+	require.NoError(t, pserviceB.Start(ctx))
+	subs, err := pserviceB.Subscribe(mockProofType)
+	require.NoError(t, err)
+	bin, err := proof.MarshalBinary()
+	require.NoError(t, err)
+	store := namespace.Wrap(pserviceA.ds, makeKey(mockProofType))
+	require.NoError(t, put(ctx, store, string(proof.HeaderHash()), bin))
+
+	addrB := host.InfoFromHost(net.Hosts()[1])
+	require.NoError(t, net.Hosts()[0].Connect(ctx, *addrB))
+
+	_, err = subs.Proof(ctx)
+	require.NoError(t, err)
+}
+
+func createService(t *testing.T, enabledSyncer bool) (*ProofService, *mockStore) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*15)
 	t.Cleanup(cancel)
 
 	// create mock network
 	net, err := mocknet.FullMeshLinked(1)
 	require.NoError(t, err)
-	// create pubsub for host
-	ps, err := pubsub.NewGossipSub(ctx, net.Hosts()[0],
-		pubsub.WithMessageSignaturePolicy(pubsub.StrictNoSign))
-	require.NoError(t, err)
-	store := createStore(t, 10)
-	return NewService(ps, store.GetByHeight, sync.MutexWrap(datastore.NewMapDatastore())), store
+	return createServiceWithHost(ctx, t, net.Hosts()[0], enabledSyncer)
 }
 
-func createServiceWithHost(ctx context.Context, t *testing.T, host host.Host) (Service, *mockStore) {
+func createServiceWithHost(
+	ctx context.Context,
+	t *testing.T,
+	host host.Host,
+	enabledSyncer bool,
+) (*ProofService, *mockStore) {
 	// create pubsub for host
 	ps, err := pubsub.NewGossipSub(ctx, host,
 		pubsub.WithMessageSignaturePolicy(pubsub.StrictNoSign))
 	require.NoError(t, err)
 	store := createStore(t, 10)
-	return NewService(ps, store.GetByHeight, sync.MutexWrap(datastore.NewMapDatastore())), store
+	return NewProofService(
+		ps,
+		host,
+		store.GetByHeight,
+		sync.MutexWrap(datastore.NewMapDatastore()),
+		enabledSyncer,
+	), store
 }

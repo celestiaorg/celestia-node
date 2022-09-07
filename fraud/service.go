@@ -1,26 +1,33 @@
 package fraud
 
 import (
+	"bytes"
 	"context"
 	"encoding/hex"
 	"errors"
 	"fmt"
 	"sync"
-	"time"
 
 	"github.com/ipfs/go-datastore"
+	"github.com/libp2p/go-libp2p-core/host"
 	"github.com/libp2p/go-libp2p-core/peer"
+	"github.com/libp2p/go-libp2p-core/protocol"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
+
+	"github.com/celestiaorg/celestia-node/params"
 )
 
-const (
-	// fetchHeaderTimeout duration of GetByHeight request to fetch an ExtendedHeader.
-	fetchHeaderTimeout = time.Minute * 2
-)
+// fraudRequests is the amount of external requests that will be tried to get fraud proofs from other peers.
+const fraudRequests = 5
 
-// service is responsible for validating and propagating Fraud Proofs.
+var fraudProtocolID = protocol.ID(fmt.Sprintf("/fraud/v0.0.1/%s", params.DefaultNetwork()))
+
+// ProofService is responsible for validating and propagating Fraud Proofs.
 // It implements the Service interface.
-type service struct {
+type ProofService struct {
+	ctx    context.Context
+	cancel context.CancelFunc
+
 	topicsLk sync.RWMutex
 	topics   map[ProofType]*pubsub.Topic
 
@@ -28,30 +35,71 @@ type service struct {
 	stores   map[ProofType]datastore.Datastore
 
 	pubsub *pubsub.PubSub
+	host   host.Host
 	getter headerFetcher
 	ds     datastore.Datastore
+
+	syncerEnabled bool
 }
 
-func NewService(p *pubsub.PubSub, getter headerFetcher, ds datastore.Datastore) Service {
-	return &service{
-		pubsub: p,
-		getter: getter,
-		topics: make(map[ProofType]*pubsub.Topic),
-		stores: make(map[ProofType]datastore.Datastore),
-		ds:     ds,
+func NewProofService(
+	p *pubsub.PubSub,
+	host host.Host,
+	getter headerFetcher,
+	ds datastore.Datastore,
+	syncerEnabled bool,
+) *ProofService {
+	return &ProofService{
+		pubsub:        p,
+		host:          host,
+		getter:        getter,
+		topics:        make(map[ProofType]*pubsub.Topic),
+		stores:        make(map[ProofType]datastore.Datastore),
+		ds:            ds,
+		syncerEnabled: syncerEnabled,
 	}
 }
 
-func (f *service) Subscribe(proofType ProofType) (_ Subscription, err error) {
+// registerProofTopics registers proofTypes as pubsub topics to be joined.
+func (f *ProofService) registerProofTopics(proofTypes ...ProofType) error {
+	for _, proofType := range proofTypes {
+		t, err := join(f.pubsub, proofType, f.processIncoming)
+		if err != nil {
+			return err
+		}
+		f.topicsLk.Lock()
+		f.topics[proofType] = t
+		f.topicsLk.Unlock()
+	}
+	return nil
+}
+
+// Start joins fraud proofs topics, sets the stream handler for fraudProtocolID and starts syncing if syncer is enabled.
+func (f *ProofService) Start(context.Context) error {
+	f.ctx, f.cancel = context.WithCancel(context.Background())
+	if err := f.registerProofTopics(getRegisteredProofTypes()...); err != nil {
+		return err
+	}
+	f.host.SetStreamHandler(fraudProtocolID, f.handleFraudMessageRequest)
+	if f.syncerEnabled {
+		go f.syncFraudProofs(f.ctx)
+	}
+	return nil
+}
+
+// Stop removes the stream handler and cancels the underlying ProofService
+func (f *ProofService) Stop(context.Context) error {
+	f.host.RemoveStreamHandler(fraudProtocolID)
+	f.cancel()
+	return nil
+}
+
+func (f *ProofService) Subscribe(proofType ProofType) (_ Subscription, err error) {
 	f.topicsLk.Lock()
 	defer f.topicsLk.Unlock()
 	t, ok := f.topics[proofType]
 	if !ok {
-		t, err = join(f.pubsub, proofType, f.processIncoming)
-		if err != nil {
-			return nil, err
-		}
-		f.topics[proofType] = t
+		return nil, fmt.Errorf("topic for %s does not exist", proofType)
 	}
 	subs, err := t.Subscribe()
 	if err != nil {
@@ -60,7 +108,7 @@ func (f *service) Subscribe(proofType ProofType) (_ Subscription, err error) {
 	return &subscription{subs}, nil
 }
 
-func (f *service) Broadcast(ctx context.Context, p Proof) error {
+func (f *ProofService) Broadcast(ctx context.Context, p Proof) error {
 	bin, err := p.MarshalBinary()
 	if err != nil {
 		return err
@@ -74,12 +122,15 @@ func (f *service) Broadcast(ctx context.Context, p Proof) error {
 	return t.Publish(ctx, bin)
 }
 
-func (f *service) processIncoming(
+// processIncoming encompasses the logic for validating fraud proofs.
+func (f *ProofService) processIncoming(
 	ctx context.Context,
 	proofType ProofType,
 	from peer.ID,
 	msg *pubsub.Message,
 ) pubsub.ValidationResult {
+	// unmarshal message to the Proof.
+	// Peer will be added to black list if unmarshalling fails.
 	proof, err := Unmarshal(proofType, msg.Data)
 	if err != nil {
 		log.Errorw("unmarshalling failed", "err", err)
@@ -88,21 +139,22 @@ func (f *service) processIncoming(
 		}
 		return pubsub.ValidationReject
 	}
+	// check the fraud proof locally and ignore if it has been already stored locally.
+	if f.verifyLocal(ctx, proofType, hex.EncodeToString(proof.HeaderHash()), msg.Data) {
+		return pubsub.ValidationIgnore
+	}
 
-	newCtx, cancel := context.WithTimeout(ctx, fetchHeaderTimeout)
-	extHeader, err := f.getter(newCtx, proof.Height())
-	defer cancel()
+	msg.ValidatorData = proof
+
+	// fetch extended header in order to verify the fraud proof.
+	extHeader, err := f.getter(ctx, proof.Height())
 	if err != nil {
-		// Timeout means there is a problem with the network.
-		// As we cannot prove or discard Fraud Proof, user must restart the node.
-		if errors.Is(err, context.DeadlineExceeded) {
-			log.Errorw("failed to fetch header. Timeout reached.")
-			// TODO(@vgonkivs): add handling for this case. As we are not able to verify fraud proof.
-		}
 		log.Errorw("failed to fetch header to verify a fraud proof",
 			"err", err, "proofType", proof.Type(), "height", proof.Height())
 		return pubsub.ValidationIgnore
 	}
+	// validate the fraud proof.
+	// Peer will be added to black list if the validation fails.
 	err = proof.Validate(extHeader)
 	if err != nil {
 		log.Errorw("proof validation err: ",
@@ -110,28 +162,17 @@ func (f *service) processIncoming(
 		f.pubsub.BlacklistPeer(from)
 		return pubsub.ValidationReject
 	}
-	log.Warnw("received fraud proof", "proofType", proof.Type(),
-		"height", proof.Height(),
-		"hash", hex.EncodeToString(extHeader.DAH.Hash()),
-		"from", from.String(),
-	)
-	msg.ValidatorData = proof
-	f.storesLk.Lock()
-	store, ok := f.stores[proofType]
-	if !ok {
-		store = initStore(proofType, f.ds)
-		f.stores[proofType] = store
-	}
-	f.storesLk.Unlock()
-	err = put(ctx, store, string(proof.HeaderHash()), msg.Data)
+
+	// add the fraud proof to storage.
+	err = f.put(ctx, proof.Type(), hex.EncodeToString(proof.HeaderHash()), msg.Data)
 	if err != nil {
-		log.Error(err)
+		log.Errorw("failed to store fraud proof", "err", err)
 	}
-	log.Warn("Shutting down services...")
+
 	return pubsub.ValidationAccept
 }
 
-func (f *service) Get(ctx context.Context, proofType ProofType) ([]Proof, error) {
+func (f *ProofService) Get(ctx context.Context, proofType ProofType) ([]Proof, error) {
 	f.storesLk.Lock()
 	store, ok := f.stores[proofType]
 	if !ok {
@@ -141,4 +182,36 @@ func (f *service) Get(ctx context.Context, proofType ProofType) ([]Proof, error)
 	f.storesLk.Unlock()
 
 	return getAll(ctx, store, proofType)
+}
+
+// put adds a fraud proof to the local storage.
+func (f *ProofService) put(ctx context.Context, proofType ProofType, hash string, data []byte) error {
+	f.storesLk.Lock()
+	store, ok := f.stores[proofType]
+	if !ok {
+		store = initStore(proofType, f.ds)
+		f.stores[proofType] = store
+	}
+	f.storesLk.Unlock()
+	return put(ctx, store, hash, data)
+}
+
+// verifyLocal checks if a fraud proof has been stored locally.
+func (f *ProofService) verifyLocal(ctx context.Context, proofType ProofType, hash string, data []byte) bool {
+	f.storesLk.RLock()
+	storage, ok := f.stores[proofType]
+	f.storesLk.RUnlock()
+	if !ok {
+		return false
+	}
+
+	proof, err := getByHash(ctx, storage, hash)
+	if err != nil {
+		if !errors.Is(err, datastore.ErrNotFound) {
+			log.Error(err)
+		}
+		return false
+	}
+
+	return bytes.Equal(proof, data)
 }
