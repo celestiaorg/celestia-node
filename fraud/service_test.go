@@ -20,9 +20,11 @@ import (
 )
 
 func TestService_Subscribe(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*1)
+	t.Cleanup(cancel)
 	s, _ := createService(t, false)
 	proof := newValidProof()
-	require.NoError(t, s.Start(context.TODO()))
+	require.NoError(t, s.Start(ctx))
 	_, err := s.Subscribe(proof.Type())
 	require.NoError(t, err)
 }
@@ -35,9 +37,11 @@ func TestService_SubscribeFails(t *testing.T) {
 }
 
 func TestService_BroadcastFails(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*1)
+	t.Cleanup(cancel)
 	s, _ := createService(t, false)
 	p := newValidProof()
-	require.Error(t, s.Broadcast(context.TODO(), p))
+	require.Error(t, s.Broadcast(ctx, p))
 }
 
 func TestService_Broadcast(t *testing.T) {
