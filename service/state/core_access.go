@@ -31,8 +31,9 @@ type CoreAccessor struct {
 	signer *apptypes.KeyringSigner
 	getter header.Getter
 
-	queryCli banktypes.QueryClient
-	rpcCli   rpcclient.ABCIClient
+	queryCli   banktypes.QueryClient
+	stakingCli stakingtypes.QueryClient
+	rpcCli     rpcclient.ABCIClient
 
 	coreConn *grpc.ClientConn
 	coreIP   string
@@ -73,6 +74,9 @@ func (ca *CoreAccessor) Start(ctx context.Context) error {
 	// create the query client
 	queryCli := banktypes.NewQueryClient(ca.coreConn)
 	ca.queryCli = queryCli
+	// create the staking query client
+	stakingCli := stakingtypes.NewQueryClient(ca.coreConn)
+	ca.stakingCli = stakingCli
 	// create ABCI query client
 	cli, err := http.New(fmt.Sprintf("http://%s:%s", ca.coreIP, ca.rpcPort), "/websocket")
 	if err != nil {
@@ -331,4 +335,50 @@ func (ca *CoreAccessor) Delegate(
 		return nil, err
 	}
 	return ca.SubmitTx(ctx, signedTx)
+}
+
+func (ca *CoreAccessor) QueryDelegation(
+	ctx context.Context,
+	delAddr Address,
+	valAddr Address,
+) (*stakingtypes.QueryDelegationResponse, error) {
+	_, ok := valAddr.(sdktypes.ValAddress)
+	if !ok {
+		return nil, fmt.Errorf("state: unsupported address type")
+	}
+	return ca.stakingCli.Delegation(ctx, &stakingtypes.QueryDelegationRequest{
+		DelegatorAddr: delAddr.String(),
+		ValidatorAddr: valAddr.String(),
+	})
+}
+
+func (ca *CoreAccessor) QueryUnbonding(
+	ctx context.Context,
+	delAddr Address,
+	valAddr Address,
+) (*stakingtypes.QueryUnbondingDelegationResponse, error) {
+	_, ok := valAddr.(sdktypes.ValAddress)
+	if !ok {
+		return nil, fmt.Errorf("state: unsupported address type")
+	}
+	return ca.stakingCli.UnbondingDelegation(ctx, &stakingtypes.QueryUnbondingDelegationRequest{
+		DelegatorAddr: delAddr.String(),
+		ValidatorAddr: valAddr.String(),
+	})
+}
+func (ca *CoreAccessor) QueryRedelegations(
+	ctx context.Context,
+	delAddr,
+	srcValAddr,
+	dstValAddr Address,
+) (*stakingtypes.QueryRedelegationsResponse, error) {
+	_, ok := srcValAddr.(sdktypes.ValAddress)
+	if !ok {
+		return nil, fmt.Errorf("state: unsupported address type")
+	}
+	return ca.stakingCli.Redelegations(ctx, &stakingtypes.QueryRedelegationsRequest{
+		DelegatorAddr:    delAddr.String(),
+		SrcValidatorAddr: srcValAddr.String(),
+		DstValidatorAddr: dstValAddr.String(),
+	})
 }

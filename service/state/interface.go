@@ -1,11 +1,11 @@
 package state
 
 import (
-	"cosmossdk.io/math"
-
 	"context"
 
+	"cosmossdk.io/math"
 	"github.com/cosmos/cosmos-sdk/types"
+	staking "github.com/cosmos/cosmos-sdk/x/staking/types"
 
 	"github.com/celestiaorg/nmt/namespace"
 )
@@ -47,4 +47,16 @@ type Accessor interface {
 	Undelegate(ctx context.Context, delAddr Address, amount Int, gasLim uint64) (*TxResponse, error)
 	// Delegate sends a user's liquid tokens to a validator for delegation.
 	Delegate(ctx context.Context, delAddr Address, amount Int, gasLim uint64) (*TxResponse, error)
+
+	// QueryDelegation retrieves the delegation information between a delegator and a validator.
+	QueryDelegation(ctx context.Context, delAddr, valAddr Address) (*staking.QueryDelegationResponse, error)
+	// QueryUnbonding retrieves the unbonding status between a delegator and a validator.
+	QueryUnbonding(ctx context.Context, delAddr, valAddr Address) (*staking.QueryUnbondingDelegationResponse, error)
+	// QueryRedelegations retrieves the status of the redelegations between a delegator and a validator.
+	QueryRedelegations(
+		ctx context.Context,
+		delAddr,
+		srcValAddr,
+		dstValAddr Address,
+	) (*staking.QueryRedelegationsResponse, error)
 }

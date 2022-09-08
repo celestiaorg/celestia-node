@@ -3,6 +3,8 @@ package state
 import (
 	"context"
 
+	"github.com/cosmos/cosmos-sdk/x/staking/types"
+
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/nmt/namespace"
 )
@@ -77,6 +79,30 @@ func (s *Service) Undelegate(ctx context.Context, delAddr Address, amount Int, g
 
 func (s *Service) Delegate(ctx context.Context, delAddr Address, amount Int, gasLim uint64) (*TxResponse, error) {
 	return s.accessor.Delegate(ctx, delAddr, amount, gasLim)
+}
+
+func (s *Service) QueryDelegation(
+	ctx context.Context,
+	delAddr, valAddr Address,
+) (*types.QueryDelegationResponse, error) {
+	return s.accessor.QueryDelegation(ctx, delAddr, valAddr)
+}
+
+func (s *Service) QueryUnbonding(
+	ctx context.Context,
+	delAddr,
+	valAddr Address,
+) (*types.QueryUnbondingDelegationResponse, error) {
+	return s.accessor.QueryUnbonding(ctx, delAddr, valAddr)
+}
+
+func (s *Service) QueryRedelegations(
+	ctx context.Context,
+	delAddr,
+	srcValAddr,
+	dstValAddr Address,
+) (*types.QueryRedelegationsResponse, error) {
+	return s.accessor.QueryRedelegations(ctx, delAddr, srcValAddr, dstValAddr)
 }
 
 func (s *Service) Start(context.Context) error {

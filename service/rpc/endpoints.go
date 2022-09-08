@@ -37,6 +37,14 @@ func (h *Handler) RegisterEndpoints(rpc *Server) {
 		http.MethodGet)
 	rpc.RegisterHandlerFunc(headEndpoint, h.handleHeadRequest, http.MethodGet)
 
+	// staking reads
+	rpc.RegisterHandlerFunc(queryDelegationEndpoint, h.handleQueryDelegation,
+		http.MethodPost)
+	rpc.RegisterHandlerFunc(queryUnbondingEndpoint, h.handleQueryUnbonding,
+		http.MethodPost)
+	rpc.RegisterHandlerFunc(queryRedelegationsEndpoing, h.handleQueryRedelegations,
+		http.MethodPost)
+
 	// DASer endpoints
 	// only register if DASer service is available
 	if h.das != nil {
