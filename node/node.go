@@ -37,6 +37,8 @@ var log = logging.Logger("node")
 // * Light
 // * Full
 type Node struct {
+	fx.In `ignore-unexported:"true"`
+
 	Type          Type
 	Network       params.Network
 	Bootstrappers params.Bootstrappers
@@ -155,7 +157,7 @@ func newNode(opts ...fx.Option) (*Node, error) {
 	node := new(Node)
 	app := fx.New(
 		fx.NopLogger,
-		fx.Extract(node),
+		fx.Populate(node),
 		fx.Options(opts...),
 	)
 	if err := app.Err(); err != nil {

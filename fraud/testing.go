@@ -108,7 +108,7 @@ func (m *mockProof) Height() uint64 {
 }
 
 func (m *mockProof) Validate(*header.ExtendedHeader) error {
-	if m.Valid != true {
+	if !m.Valid {
 		return errors.New("mockProof: proof is not valid")
 	}
 	return nil
