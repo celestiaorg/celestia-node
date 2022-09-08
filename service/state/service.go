@@ -83,26 +83,24 @@ func (s *Service) Delegate(ctx context.Context, delAddr Address, amount Int, gas
 
 func (s *Service) QueryDelegation(
 	ctx context.Context,
-	delAddr, valAddr Address,
+	valAddr Address,
 ) (*types.QueryDelegationResponse, error) {
-	return s.accessor.QueryDelegation(ctx, delAddr, valAddr)
+	return s.accessor.QueryDelegation(ctx, valAddr)
 }
 
 func (s *Service) QueryUnbonding(
 	ctx context.Context,
-	delAddr,
 	valAddr Address,
 ) (*types.QueryUnbondingDelegationResponse, error) {
-	return s.accessor.QueryUnbonding(ctx, delAddr, valAddr)
+	return s.accessor.QueryUnbonding(ctx, valAddr)
 }
 
 func (s *Service) QueryRedelegations(
 	ctx context.Context,
-	delAddr,
 	srcValAddr,
 	dstValAddr Address,
 ) (*types.QueryRedelegationsResponse, error) {
-	return s.accessor.QueryRedelegations(ctx, delAddr, srcValAddr, dstValAddr)
+	return s.accessor.QueryRedelegations(ctx, srcValAddr, dstValAddr)
 }
 
 func (s *Service) Start(context.Context) error {

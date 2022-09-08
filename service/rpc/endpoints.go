@@ -18,6 +18,14 @@ func (h *Handler) RegisterEndpoints(rpc *Server) {
 	rpc.RegisterHandlerFunc(cancelUnbondingEndpoint, h.handleCancelUnbonding, http.MethodPost)
 	rpc.RegisterHandlerFunc(beginRedelegationEndpoint, h.handleRedelegation, http.MethodPost)
 
+	// staking queries
+	rpc.RegisterHandlerFunc(fmt.Sprintf("%s/{%s}", queryDelegationEndpoint, addrKey), h.handleQueryDelegation,
+		http.MethodGet)
+	rpc.RegisterHandlerFunc(fmt.Sprintf("%s/{%s}", queryUnbondingEndpoint, addrKey), h.handleQueryUnbonding,
+		http.MethodGet)
+	rpc.RegisterHandlerFunc(queryRedelegationEndpoint, h.handleQueryRedelegations,
+		http.MethodPost)
+
 	// share endpoints
 	rpc.RegisterHandlerFunc(fmt.Sprintf("%s/{%s}/height/{%s}", namespacedSharesEndpoint, nIDKey, heightKey),
 		h.handleSharesByNamespaceRequest, http.MethodGet)
@@ -36,14 +44,6 @@ func (h *Handler) RegisterEndpoints(rpc *Server) {
 	rpc.RegisterHandlerFunc(fmt.Sprintf("%s/{%s}", headerByHeightEndpoint, heightKey), h.handleHeaderRequest,
 		http.MethodGet)
 	rpc.RegisterHandlerFunc(headEndpoint, h.handleHeadRequest, http.MethodGet)
-
-	// staking reads
-	rpc.RegisterHandlerFunc(queryDelegationEndpoint, h.handleQueryDelegation,
-		http.MethodPost)
-	rpc.RegisterHandlerFunc(queryUnbondingEndpoint, h.handleQueryUnbonding,
-		http.MethodPost)
-	rpc.RegisterHandlerFunc(queryRedelegationsEndpoing, h.handleQueryRedelegations,
-		http.MethodPost)
 
 	// DASer endpoints
 	// only register if DASer service is available

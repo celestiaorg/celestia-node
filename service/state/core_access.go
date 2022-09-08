@@ -339,12 +339,15 @@ func (ca *CoreAccessor) Delegate(
 
 func (ca *CoreAccessor) QueryDelegation(
 	ctx context.Context,
-	delAddr Address,
 	valAddr Address,
 ) (*stakingtypes.QueryDelegationResponse, error) {
 	_, ok := valAddr.(sdktypes.ValAddress)
 	if !ok {
 		return nil, fmt.Errorf("state: unsupported address type")
+	}
+	delAddr, err := ca.signer.GetSignerInfo().GetAddress()
+	if err != nil {
+		return nil, err
 	}
 	return ca.stakingCli.Delegation(ctx, &stakingtypes.QueryDelegationRequest{
 		DelegatorAddr: delAddr.String(),
@@ -354,12 +357,15 @@ func (ca *CoreAccessor) QueryDelegation(
 
 func (ca *CoreAccessor) QueryUnbonding(
 	ctx context.Context,
-	delAddr Address,
 	valAddr Address,
 ) (*stakingtypes.QueryUnbondingDelegationResponse, error) {
 	_, ok := valAddr.(sdktypes.ValAddress)
 	if !ok {
 		return nil, fmt.Errorf("state: unsupported address type")
+	}
+	delAddr, err := ca.signer.GetSignerInfo().GetAddress()
+	if err != nil {
+		return nil, err
 	}
 	return ca.stakingCli.UnbondingDelegation(ctx, &stakingtypes.QueryUnbondingDelegationRequest{
 		DelegatorAddr: delAddr.String(),
@@ -368,13 +374,16 @@ func (ca *CoreAccessor) QueryUnbonding(
 }
 func (ca *CoreAccessor) QueryRedelegations(
 	ctx context.Context,
-	delAddr,
 	srcValAddr,
 	dstValAddr Address,
 ) (*stakingtypes.QueryRedelegationsResponse, error) {
 	_, ok := srcValAddr.(sdktypes.ValAddress)
 	if !ok {
 		return nil, fmt.Errorf("state: unsupported address type")
+	}
+	delAddr, err := ca.signer.GetSignerInfo().GetAddress()
+	if err != nil {
+		return nil, err
 	}
 	return ca.stakingCli.Redelegations(ctx, &stakingtypes.QueryRedelegationsRequest{
 		DelegatorAddr:    delAddr.String(),

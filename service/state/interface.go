@@ -49,14 +49,9 @@ type Accessor interface {
 	Delegate(ctx context.Context, delAddr Address, amount Int, gasLim uint64) (*TxResponse, error)
 
 	// QueryDelegation retrieves the delegation information between a delegator and a validator.
-	QueryDelegation(ctx context.Context, delAddr, valAddr Address) (*staking.QueryDelegationResponse, error)
+	QueryDelegation(ctx context.Context, valAddr Address) (*staking.QueryDelegationResponse, error)
 	// QueryUnbonding retrieves the unbonding status between a delegator and a validator.
-	QueryUnbonding(ctx context.Context, delAddr, valAddr Address) (*staking.QueryUnbondingDelegationResponse, error)
+	QueryUnbonding(ctx context.Context, valAddr Address) (*staking.QueryUnbondingDelegationResponse, error)
 	// QueryRedelegations retrieves the status of the redelegations between a delegator and a validator.
-	QueryRedelegations(
-		ctx context.Context,
-		delAddr,
-		srcValAddr,
-		dstValAddr Address,
-	) (*staking.QueryRedelegationsResponse, error)
+	QueryRedelegations(ctx context.Context, srcValAddr, dstValAddr Address) (*staking.QueryRedelegationsResponse, error)
 }
