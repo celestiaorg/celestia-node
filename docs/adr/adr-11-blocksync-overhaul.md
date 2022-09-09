@@ -20,7 +20,7 @@
 - BN - Bridge Node
 - EDS(Extended Data Square) - plain Block data omitting headers and other metadata.
 - NMT - Namespaced Merkle Tree
-- [DataRoot](https://github.com/celestiaorg/celestia-node/blob/main/service/share/share.go#L35) - alias for 
+- [DataRoot](https://github.com/celestiaorg/celestia-node/blob/main/service/share/share.go#L35) - alias for
 [DAHeader](https://github.com/celestiaorg/celestia-core/blob/v0.34.x-celestia/pkg/da/data_availability_header.go#L29)
 
 ## Context
@@ -72,7 +72,7 @@ introduces pluggable indexes over the blob allowing efficient random access to s
 (if the index is cached in memory).
 
 - __FNs/BNs manage a top-level index for _hash_ to _CAR block file_ mapping.__ Current DASing for LNs requires FNs/BNs
-to serve simple hash to data requests. The top-level index maps any hash of Share/NMT Proof to any block CARv1 file so 
+to serve simple hash to data requests. The top-level index maps any hash of Share/NMT Proof to any block CARv1 file so
 that FNs/BNs can quickly serve DA requests.
 
 - __FNs/BNs run a single instance of [`DAGStore`](https://github.com/filecoin-project/dagstore) to manage CAR block
@@ -221,6 +221,8 @@ To read an EDS as a byte stream `GetCAR` method is introduced. Internally it
 _NOTE: It might be necessary to acquire EDS mount via `DAGStore` keeping `ShardAccessor`
 and closing it when operation is done. This has to be confirmed._
 
+_NOTE2: The returned `io.Reader` represents actual EDS exchanged over the wire_
+
 ```go
 // GetCAR takes a DataRoot and returns a buffered reader to the respective EDS serialized as CARv1 file.
 // 
@@ -241,6 +243,8 @@ There is a [frozen/un-merged implementation](https://github.com/filecoin-project
 over `DAGStore` and CARv2 indexes.
 
 _NOTE: We can either use it(and finish if something is missing for our case) or implement custom optimized for our needs._
+
+_NOTE: NOTE: The Blockstore does not store full Celestia Blocks, but IPFS blocks._
 
 ```go
 // Blockstore returns an IPFS Blockstore providing access to individual shares/nodes of all EDS 
@@ -321,14 +325,14 @@ The EDSStore expects a directory to store CAR files and indices to. The path sho
 
 ### Considerations
 
-- ___EDS to/from CARv2 converting performance.___ Current sync design assumes two converts from CAR to EDS on the 
-protocol layer and back to CAR when storing the EDS. Rsmt2d allocates on most operations with individual shares and for 
-bigger blocks during sync this allocs puts significant pressure on GC. One way to substantially alleviate this is to 
+- ___EDS to/from CARv2 converting performance.___ Current sync design assumes two converts from CAR to EDS on the
+protocol layer and back to CAR when storing the EDS. Rsmt2d allocates on most operations with individual shares and for
+bigger blocks during sync this allocs puts significant pressure on GC. One way to substantially alleviate this is to
 integrate bytes buffer pool into rmst2d.
 
 - ___Disk usage increase from top-level index.___ This is temporary solution. The index will have to be removed.
 LNs know which block they sample and can provide `DataRoot`'s hash together with sample request over Bitswap, removing
 the need for hash-to-eds-file mapping. This requires us to either facilitate implementation of [Bitswap's auth extention
-](https://github.com/ipfs/specs/pull/270) or proposing custom Bitswap message extention. Subsequently, the Blockstore 
+](https://github.com/ipfs/specs/pull/270) or proposing custom Bitswap message extention. Subsequently, the Blockstore
 implementation provided via `EDSStore` would have to be changed to take expect `DataRoot`'s hash being passed through the
 `context.Context`.
