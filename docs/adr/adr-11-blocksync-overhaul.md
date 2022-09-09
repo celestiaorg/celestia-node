@@ -69,14 +69,14 @@ sequentially in one read and transferred over the wire. Additionally, [CARv2](ht
 introduces pluggable indexes over the blob allowing efficient random access to shares and NMT Proofs in one read
 (if the index is cached in memory).
 
-- __FNs/BNs manage a top-level index for _hash_ to _CAR block file_ mapping.__ Current DASing for LNs requires FNs/BNs 
-to serve simple hash to data requests. The top-level index maps any hash to any block CARv1file so that FNs/BNs can 
+- __FNs/BNs manage a top-level index for _hash_ to _CAR block file_ mapping.__ Current DASing for LNs requires FNs/BNs
+to serve simple hash to data requests. The top-level index maps any hash to any block CARv1file so that FNs/BNs can
 quickly serve requests.
 
-- __FNs/BNs run a single instance of [`DAGStore`](https://github.com/filecoin-project/dagstore) to manage CAR block 
+- __FNs/BNs run a single instance of [`DAGStore`](https://github.com/filecoin-project/dagstore) to manage CAR block
 files.__ DAGStore provides both the top-level indexing and CARv2 based indexing per each CAR file. In essence, it's an
 engine for managing any CAR files with indexing, convenient abstractions, tools, recovery mechanisms, etc.
-  - __EDSes as _CARv1_ files over _CARv2_.__ CARv2 encodes indexes into the file, while DAGStore maintains CARv2 based 
+  - __EDSes as _CARv1_ files over _CARv2_.__ CARv2 encodes indexes into the file, while DAGStore maintains CARv2 based
 indexing as well. Usage of CARv1 keeps only one copy of index, stores/transfers less metadata per EDS and simplifies
 reading EDS from file.
 
@@ -109,14 +109,14 @@ chosen.
 To write EDS into a stream/file `WriteEDS` is introduced.
 // TODO Describe logic
 
-NOTE: CAR provides [a utility](https://github.com/ipld/go-car/blob/master/car.go#L47) to serialize any DAG into the file
+_NOTE: CAR provides [a utility](https://github.com/ipld/go-car/blob/master/car.go#L47) to serialize any DAG into the file
 and there is a way to serialize EDS into DAG(`share/ipld.ImportShares`). This approach is the simplest and traverses
 shares and Merkle Proofs in depth-first manner packing them in a CAR file. However, this is incompatible with the
 requirement of being able to truncate the CAR file to read out __only__ the first quadrant out of it without NMT proofs,
-so serialization must be different from the utility to support that.
+so serialization must be different from the utility to support that._
 
-NOTE2: Alternatively to `WriteEDS`, and `EDSReader` could be introduced to make EDS-to-stream handling more idiomatic
-and efficient in some cases, with the cost of more complex implementation.
+_NOTE2: Alternatively to `WriteEDS`, and `EDSReader` could be introduced to make EDS-to-stream handling more idiomatic
+and efficient in some cases, with the cost of more complex implementation._
 
 ```go
 // WriteEDS writes whole EDS into given io.Writer as CARv1 file.
@@ -152,8 +152,6 @@ to every share and/or Merkle proof over every registered CARv1 file. The `EDSSto
 implementation to achieve the access. The main use-case is randomized sampling over the whole chain of EDS block data
 and getting data by namespace.
 
-EDSStore constructor should instantiate
-
 ```go
 type EDSStore struct {
  basepath string 
@@ -170,16 +168,23 @@ func NewEDSStore(basepath string, ds datastore.Batching) *EDSStore {
  topIdx := index.NewInverted(datastore)
  carIdx := index.NewFSRepo(basepath + "/index")
  mounts := mount.NewRegistry()
+ r := mount.NewRegistry()
+ err = r.Register("fs", &mount.FSMount{FS: os.DirFS(basePath + "/eds/")}) // registration is a must 
+ if err != nil {
+  panic(err)
+ }
+ 
  return &EDSStore{
   basepath: basepath,
   dgst: dagstore.New(dagstore.Config{...}),
   topIdx: index.NewInverted(datastore),
   carIdx: index.NewFSRepo(basepath + "/index")
   mounts: mounts,
-    }   
+ }   
 }
-
 ```
+
+_NOTE: EDSStore should have lifecycle methods(Start/Stop)._
 
 ##### `share.EDSStore.Put`
 
@@ -190,11 +195,9 @@ To write an entire EDS `Put` method is introduced. Internally it
 - Wraps it with `DAGStore`'s [FileMount](https://github.com/filecoin-project/dagstore/blob/master/mount/file.go#L10)
 - Converts `DataRoot` into the [`shard.Key`](https://github.com/filecoin-project/dagstore/blob/master/shard/key.go#L12)
 - Registers the `Mount` as a `Shard` on the `DAGStore`
-  - This register the `Mount` in [`mount.Registry`](https://github.com/filecoin-project/dagstore/blob/master/mount/registry.go#L22)
-passed to `DAGStore`.
 
-NOTE: Registering on the DAGStore automatically populates top-level index with shares/proofs accessible from stored EDS
-so this is out of scope of the document.
+_NOTE: Registering on the DAGStore automatically populates top-level index with shares/proofs accessible from stored EDS
+so this is out of scope of the document._
 
 ```go
 // Put stores the given data square with DataRoot as key.
@@ -213,8 +216,8 @@ To read an EDS as a byte stream `GetCAR` method is introduced. Internally it
 - Gets Mount by `shard.Key` from [`mount.Registry`](https://github.com/filecoin-project/dagstore/blob/master/mount/registry.go#L22)
 - Returns `io.ReadeCloser` from [`Mount.Fetch`](https://github.com/filecoin-project/dagstore/blob/master/mount/mount.go#L71)
 
-NOTE: It might be necessary to acquire EDS mount via `DAGStore` keeping `ShardAccessor`
-and closing it when operation is done. This has to be confirmed.
+_NOTE: It might be necessary to acquire EDS mount via `DAGStore` keeping `ShardAccessor`
+and closing it when operation is done. This has to be confirmed._
 
 ```go
 // GetCAR takes a DataRoot and returns a buffered reader to the respective EDS serialized as CARv1 file.
@@ -235,7 +238,7 @@ by namespace. // TODO Link to the section
 There is a [frozen/un-merged implementation](https://github.com/filecoin-project/dagstore/pull/116) of `Blockstore`
 over `DAGStore` and CARv2 indexes.
 
-NOTE: We can either use it(and finish if something is missing for our case) or implement custom optimized for our needs.
+_NOTE: We can either use it(and finish if something is missing for our case) or implement custom optimized for our needs._
 
 ```go
 // Blockstore returns an IPFS Blockstore providing access to individual shares/nodes of all EDS 
@@ -252,7 +255,7 @@ To read an entire EDS `Get` method is introduced. Internally it:
 - Gets a serialized EDS `io.Reader` via `Store.GetCAR`
 - Deserializes the EDS and validates it via `share.ReadEDS`
 
-NOTE: It's not necessary, but an API ergonomics/symmetry nice-to-have
+_NOTE: It's not necessary, but an API ergonomics/symmetry nice-to-have._
 
 ```go
 // Get reads EDS out of Store by given DataRoot.
@@ -268,13 +271,12 @@ To remove stored EDS `Remove` methods is introduced. Internally it:
 
 - Converts `DataRoot` into the [`shard.Key`](<https://github.com/filecoin-project/dagstore/blob/master/shard/key.go#L12>
 - Removes respective `Mount` and `Shard` from `DAGStore`
-  - `DAGStore` cleans up indices and `mount.Registery` itself
 - Removes `FileMount` file of CARv1 file from disk under `storepath/DataRoot` path
 
-NOTES:
+_NOTES:_
 
-- It's not necessary, but an API ergonomics/symmetry nice-to-have
-- GC logic on the DAGStore has to be investigated so that Removing is correctly implemented
+- _It's not necessary, but an API ergonomics/symmetry nice-to-have_
+- _GC logic on the DAGStore has to be investigated so that Removing is correctly implemented_
 
 ```go
 // Remove removes EDS from Store by given DataRoot and cleans up all the indexing.
