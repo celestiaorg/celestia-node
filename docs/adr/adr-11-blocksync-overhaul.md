@@ -69,17 +69,16 @@ sequentially in one read and transferred over the wire. Additionally, [CARv2](ht
 introduces pluggable indexes over the blob allowing efficient random access to shares and NMT Proofs in one read
 (if the index is cached in memory).
 
-  - __EDSes as _CARv1_ files over _CARv2_.__ CARv2 encodes indexes into the file, however they should not be transferred
-in case of EDS, so keeping them separately is a better strategy. Also CARv2 takes more space for metadata which is not
-needed in our case.
+- __FNs/BNs manage a top-level index for _hash_ to _CAR block file_ mapping.__ Current DASing for LNs requires FNs/BNs 
+to serve simple hash to data requests. The top-level index maps any hash to any block CARv1file so that FNs/BNs can 
+quickly serve requests.
 
-- __FNs/BNs manage a top-level index for _hash_ to _CARv1 block file_ mapping.__ Current DASing for LNs requires FNs/BNs to serve
-simple hash to data requests. The top-level index maps any hash to any block CARv1file so that FNs/BNs can quickly
-serve requests.
-
-- __FNs/BNs run a single instance of [`DAGStore`](https://github.com/filecoin-project/dagstore) to manage CARv1 block files.__
-DAGStore provides both the top-level indexing and CARv2 based indexing per each CARv1 file. In essence, it's an engine
-for managing any CAR files with indexing, convenient abstractions, tools, recovery mechanisms, etc.
+- __FNs/BNs run a single instance of [`DAGStore`](https://github.com/filecoin-project/dagstore) to manage CAR block 
+files.__ DAGStore provides both the top-level indexing and CARv2 based indexing per each CAR file. In essence, it's an
+engine for managing any CAR files with indexing, convenient abstractions, tools, recovery mechanisms, etc.
+  - __EDSes as _CARv1_ files over _CARv2_.__ CARv2 encodes indexes into the file, while DAGStore maintains CARv2 based 
+indexing as well. Usage of CARv1 keeps only one copy of index, stores/transfers less metadata per EDS and simplifies
+reading EDS from file.
 
 - __LNs DASing remains untouched__. Both the networking protocol and storage for LNs remains untouched as it fulfills
     the requirements. This includes Bitswap as backbone protocol for requesting samples and global Badger KVStore.
