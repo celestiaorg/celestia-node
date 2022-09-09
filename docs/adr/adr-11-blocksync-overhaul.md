@@ -20,6 +20,8 @@
 - BN - Bridge Node
 - EDS(Extended Data Square) - plain Block data omitting headers and other metadata.
 - NMT - Namespaced Merkle Tree
+- [DataRoot](https://github.com/celestiaorg/celestia-node/blob/main/service/share/share.go#L35) - alias for 
+[DAHeader](https://github.com/celestiaorg/celestia-core/blob/v0.34.x-celestia/pkg/da/data_availability_header.go#L29)
 
 ## Context
 
@@ -70,8 +72,8 @@ introduces pluggable indexes over the blob allowing efficient random access to s
 (if the index is cached in memory).
 
 - __FNs/BNs manage a top-level index for _hash_ to _CAR block file_ mapping.__ Current DASing for LNs requires FNs/BNs
-to serve simple hash to data requests. The top-level index maps any hash to any block CARv1file so that FNs/BNs can
-quickly serve requests.
+to serve simple hash to data requests. The top-level index maps any hash of Share/NMT Proof to any block CARv1 file so 
+that FNs/BNs can quickly serve DA requests.
 
 - __FNs/BNs run a single instance of [`DAGStore`](https://github.com/filecoin-project/dagstore) to manage CAR block
 files.__ DAGStore provides both the top-level indexing and CARv2 based indexing per each CAR file. In essence, it's an
@@ -128,13 +130,13 @@ func WriteEDS(context.Context, *rsmt2d.ExtendedDataSquare, io.Writer) error
 
 To read an EDS out of a stream/file, `ReadEDS` is introduced. Internally, it
 
-- Imports EDS with an empty pre-allocated slice. NOTE: Size can be taken from DataRoot
+- Imports EDS with an empty pre-allocated slice. _NOTE: Size can be taken from DataRoot Row/Col len_
 - Wraps given io.Reader with [`BlockReader`](https://github.com/ipld/go-car/blob/master/v2/block_reader.go#L16)
 - Reads out blocks one by one and fills up the EDS quadrant via `EDS.SetCell`
 - Recomputes and validates via `EDS.Repair`
 
 ```go
-// ReadEDS reads an EDS quadrant(1/4) from an io.Reader CAR file.//
+// ReadEDS reads an EDS quadrant(1/4) from an io.Reader CAR file.
 // It expects strictly first EDS quadrant(top left).
 // The returned EDS is guaranteed to be full and valid against the DataRoot, otherwise ReadEDS errors.
 func ReadEDS(context.Context, io.Reader, DataRoot) (*rsmt2d.ExtendedDataSquare, error)
@@ -190,17 +192,17 @@ _NOTE: EDSStore should have lifecycle methods(Start/Stop)._
 
 To write an entire EDS `Put` method is introduced. Internally it
 
-- Opens a file under `storepath/DataRoot` path
+- Opens a file under `storepath/DataRoot.Hash` path
 - Serializes the EDS into the file via `share.WriteEDS`
 - Wraps it with `DAGStore`'s [FileMount](https://github.com/filecoin-project/dagstore/blob/master/mount/file.go#L10)
-- Converts `DataRoot` into the [`shard.Key`](https://github.com/filecoin-project/dagstore/blob/master/shard/key.go#L12)
+- Converts `DataRoot`'s hash into the [`shard.Key`](https://github.com/filecoin-project/dagstore/blob/master/shard/key.go#L12)
 - Registers the `Mount` as a `Shard` on the `DAGStore`
 
 _NOTE: Registering on the DAGStore automatically populates top-level index with shares/proofs accessible from stored EDS
 so this is out of scope of the document._
 
 ```go
-// Put stores the given data square with DataRoot as key.
+// Put stores the given data square with DataRoot's hash as key.
 //
 // The square is verified on the Exchange level and Put only stores the square trusting it.
 // The resulting file stores all the shares and NMT Merkle Proofs of the EDS.
@@ -212,7 +214,7 @@ func (s *Store) Put(context.Context, DataRoot, *rsmt2d.ExtendedDataSquare) error
 
 To read an EDS as a byte stream `GetCAR` method is introduced. Internally it
 
-- Converts `DataRoot` into the [`shard.Key`](<https://github.com/filecoin-project/dagstore/blob/master/shard/key.go#L12>
+- Converts `DataRoot`'s hash into the [`shard.Key`](<https://github.com/filecoin-project/dagstore/blob/master/shard/key.go#L12>
 - Gets Mount by `shard.Key` from [`mount.Registry`](https://github.com/filecoin-project/dagstore/blob/master/mount/registry.go#L22)
 - Returns `io.ReadeCloser` from [`Mount.Fetch`](https://github.com/filecoin-project/dagstore/blob/master/mount/mount.go#L71)
 
@@ -269,9 +271,9 @@ func (s *Store) Get(context.Context, DataRoot) (*rsmt2d.ExtendedDataSquare, erro
 
 To remove stored EDS `Remove` methods is introduced. Internally it:
 
-- Converts `DataRoot` into the [`shard.Key`](<https://github.com/filecoin-project/dagstore/blob/master/shard/key.go#L12>
+- Converts `DataRoot`'s hash into the [`shard.Key`](<https://github.com/filecoin-project/dagstore/blob/master/shard/key.go#L12>
 - Removes respective `Mount` and `Shard` from `DAGStore`
-- Removes `FileMount` file of CARv1 file from disk under `storepath/DataRoot` path
+- Removes `FileMount` file of CARv1 file from disk under `storepath/DataRoot.Hash` path
 
 _NOTES:_
 
@@ -319,12 +321,14 @@ The EDSStore expects a directory to store CAR files and indices to. The path sho
 
 ### Considerations
 
-- ___EDS to/from CARv2 converting performance.___ Current sync design assumes two converts from CAR to EDS on the protocol layer and back to CAR when storing the EDS.
-Rsmt2d allocates on most operations with individual shares and for bigger blocks during sync this allocs puts significant
-pressure on GC. One way to substantially alleviate this is to integrate bytes buffer pool into rmst2d
+- ___EDS to/from CARv2 converting performance.___ Current sync design assumes two converts from CAR to EDS on the 
+protocol layer and back to CAR when storing the EDS. Rsmt2d allocates on most operations with individual shares and for 
+bigger blocks during sync this allocs puts significant pressure on GC. One way to substantially alleviate this is to 
+integrate bytes buffer pool into rmst2d.
 
 - ___Disk usage increase from top-level index.___ This is temporary solution. The index will have to be removed.
-LNs know which block they sample and can provide DataRoot together with sample request over Bitswap, removing
-the need for hash-to-eds-file mapping. This requires us to either facilitate implementation of [Bitswap's auth extention](https://github.com/ipfs/specs/pull/270)
-or proposing custom Bitswap message extention. Subsequently, the Blockstore implementation provided via `EDSStore` would
-have to be changed to take expect DataRoot being passed through the `context.Context`.
+LNs know which block they sample and can provide `DataRoot`'s hash together with sample request over Bitswap, removing
+the need for hash-to-eds-file mapping. This requires us to either facilitate implementation of [Bitswap's auth extention
+](https://github.com/ipfs/specs/pull/270) or proposing custom Bitswap message extention. Subsequently, the Blockstore 
+implementation provided via `EDSStore` would have to be changed to take expect `DataRoot`'s hash being passed through the
+`context.Context`.
