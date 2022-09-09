@@ -71,7 +71,7 @@ func (d *discovery) handlePeerFound(ctx context.Context, topic string, peer peer
 
 	err = d.connector.Connect(ctx, peer)
 	if err != nil {
-		log.Warn(err)
+		log.Debug(err)
 		d.set.Remove(peer.ID)
 		return
 	}
