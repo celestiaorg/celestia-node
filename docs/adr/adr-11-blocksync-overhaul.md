@@ -23,7 +23,7 @@
 
 ## Context
 
-### Status Qou
+### Status Quo
 
 Current block data synchronization is done over Bitswap, traversing NMT trees of rows and columns of data square quadrants.
 We know from empirical evidence that it takes more than 200 seconds(~65000 network requests) to download a 4MB block of
@@ -36,8 +36,8 @@ the same block, a DAS operation takes 50ms * 8(technically 9) blocking requests,
 (excluding disk IO). With higher latency and bigger block size(higher NMT trees), the DASIng operation could take much
 more(TODO type of the grow, e.g., quadratic/etc.), but is likely(TODO proof?) to be less than a block time.
 
-Getting data by namespace lies between BlockSync and DASing, where more data equals more requests and more time to
-fulfill the requests.
+Getting data by namespace also needs to be improved. The time it takes currently lies between BlockSync and DASing,
+where more data equals more requests and more time to fulfill the requests.
 
 ### Mini Node Offsite 2022 Berlin
 
@@ -49,9 +49,9 @@ in 2 days to match the following requirements:
 - Data by namespace less than block time(ideally sub-second)
 - Pragmatic timeframe
   - We need this done before incentivized testnet
-  - So we don't have time to redesign protocol from scratch
-- Keep Bitswap as it suffices DAS and solves data withholding attack
-  - Mainly keeping existing Bitswap logic as a fallback mechanism for reconstruction from light nodes case
+  - We don't have time to redesign the protocol from scratch
+- Keep Bitswap, as it suffices for DAS and solves the data withholding attack
+  - Existing Bitswap logic kept as a fallback mechanism for the case of reconstruction from light nodes
 - Keeping random hash-addressed access to shares for Bitswap to work
 
 ### Decision
@@ -110,11 +110,11 @@ chosen.
 To write EDS into a stream/file `WriteEDS` is introduced.
 // TODO Describe logic
 
-NOTE: CAR provides [a utility](https://github.com/ipld/go-car/blob/master/car.go#L47) to serialize any DAG into the file and
-there is a way to serialize EDS into DAG(`share/ipld.ImportShares`). This approach is the simplest and traverses shares
-and Merkle Proofs in depth-first manner packing them in a CAR file. However, this is incompatible with the requirement
-to truncate the CAR file to get strictly the first quadrant out of it without NMT proofs, so serialization must be
-different from the utility to support that.
+NOTE: CAR provides [a utility](https://github.com/ipld/go-car/blob/master/car.go#L47) to serialize any DAG into the file
+and there is a way to serialize EDS into DAG(`share/ipld.ImportShares`). This approach is the simplest and traverses
+shares and Merkle Proofs in depth-first manner packing them in a CAR file. However, this is incompatible with the
+requirement of being able to truncate the CAR file to read out __only__ the first quadrant out of it without NMT proofs,
+so serialization must be different from the utility to support that.
 
 NOTE2: Alternatively to `WriteEDS`, and `EDSReader` could be introduced to make EDS-to-stream handling more idiomatic
 and efficient in some cases, with the cost of more complex implementation.
@@ -127,7 +127,7 @@ func WriteEDS(context.Context, *rsmt2d.ExtendedDataSquare, io.Writer) error
 
 ###### `share.ReadEDS`
 
-To read EDS out of stream/file `ReadEDS` is introduced. Internally, it
+To read an EDS out of a stream/file, `ReadEDS` is introduced. Internally, it
 
 - Imports EDS with an empty pre-allocated slice. NOTE: Size can be taken from DataRoot
 - Wraps given io.Reader with [`BlockReader`](https://github.com/ipld/go-car/blob/master/v2/block_reader.go#L16)
@@ -135,18 +135,18 @@ To read EDS out of stream/file `ReadEDS` is introduced. Internally, it
 - Recomputes and validates via `EDS.Repair`
 
 ```go
-// ReadEDS reads EDS quadrant(1/4) from io.Reader CAR file.
-//
+// ReadEDS reads an EDS quadrant(1/4) from an io.Reader CAR file.//
 // It expects strictly first EDS quadrant(top left).
-// Returned EDS is guaranteed to be full and valid against DataRoot, otherwise ReadEDS errors.
+// The returned EDS is guaranteed to be full and valid against the DataRoot, otherwise ReadEDS errors.
 func ReadEDS(context.Context, io.Reader, DataRoot) (*rsmt2d.ExtendedDataSquare, error)
 ```
 
 ##### `share.EDSStore`
 
-To manage every EDS on the disk FNs/BNs keep `EDSStore` type is introduced in `share` pkg. Each EDS together with its
-Merkle Proofs serializes into CARv1 file. All the serialized CARv1 file blobs are stored as OS FS files as DAGStore
-[Mounts](https://github.com/filecoin-project/dagstore/blob/master/mount/mount.go).
+To manage every EDS on the disk, FNs/BNs keep an `EDSStore`. The `EDSStore` type is introduced in the `share` pkg.
+Each EDS together with its Merkle Proofs serializes into CARv1 file. All the serialized CARv1 file blobs are mounted on
+DAGStore via [Local FS Mounts](https://github.com/filecoin-project/dagstore/blob/master/docs/design.md#mounts) and registered
+as [Shards](https://github.com/filecoin-project/dagstore/blob/master/docs/design.md#shards).
 
 The introduced `EDSStore` also maintains (via DAGStore) a top-level index enabling granular and efficient random access
 to every share and/or Merkle proof over every registered CARv1 file. The `EDSStore` provides a custom `Blockstore` interface
@@ -218,7 +218,7 @@ NOTE: It might be necessary to acquire EDS mount via `DAGStore` keeping `ShardAc
 and closing it when operation is done. This has to be confirmed.
 
 ```go
-// GetCAR takes DataRoot and returns a buffered reader to respective EDS serialized as CARv1 file.
+// GetCAR takes a DataRoot and returns a buffered reader to the respective EDS serialized as CARv1 file.
 // 
 // The Reader strictly reads the first quadrant(1/4) of EDS omitting all the NMT Merkle proofs.
 // Integrity of the store data is not verified. 
@@ -250,8 +250,8 @@ func (s *Store) Blockstore() blockstore.Blockstore
 
 To read an entire EDS `Get` method is introduced. Internally it:
 
-- Gets serialized EDS `io.Reader` via `Store.GetCAR`
-- Deserializes EDS and validates it via `share.ReadEDS`
+- Gets a serialized EDS `io.Reader` via `Store.GetCAR`
+- Deserializes the EDS and validates it via `share.ReadEDS`
 
 NOTE: It's not necessary, but an API ergonomics/symmetry nice-to-have
 
