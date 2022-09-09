@@ -48,7 +48,7 @@ func (b *backoffConnector) Connect(ctx context.Context, p peer.AddrInfo) error {
 	cache := b.connectionData(p.ID)
 	if time.Now().Before(cache.nexttry) {
 		b.cacheLk.Unlock()
-		return fmt.Errorf("share/discovery: backoff period is not ended for peer=%s", p.ID.String())
+		return fmt.Errorf("share/discovery: backoff period has not ended for peer=%s", p.ID.String())
 	}
 	cache.nexttry = time.Now().Add(cache.backoff.Delay())
 	b.cacheLk.Unlock()
