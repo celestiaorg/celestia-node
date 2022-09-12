@@ -93,7 +93,7 @@ func testGetNamespacedRequest(t *testing.T, endpointName string, assertResponseO
 				require.Equal(t, "application/json", resp.Header.Get("Content-Type"))
 
 				errorMessage := new(rpc.JSONError)
-				err := json.NewDecoder(resp.Body).Decode(&errorMessage)
+				err := json.NewDecoder(resp.Body).Decode(errorMessage)
 
 				require.NoError(t, err)
 				require.Equal(t, tt.errMsg, errorMessage.Err)
