@@ -9,20 +9,22 @@ import (
 	flag "github.com/spf13/pflag"
 
 	"github.com/celestiaorg/celestia-node/node"
+	"github.com/celestiaorg/celestia-node/params"
 )
 
 var (
-	nodeStoreFlag  = "node.store"
-	nodeConfigFlag = "node.config"
+	nodeStoreFlag   = "node.store"
+	nodeConfigFlag  = "node.config"
+	nodeNetworkFlag = "node.network"
 )
 
 // NodeFlags gives a set of hardcoded Node package flags.
-func NodeFlags(tp node.Type) *flag.FlagSet {
+func NodeFlags() *flag.FlagSet {
 	flags := &flag.FlagSet{}
 
 	flags.String(
 		nodeStoreFlag,
-		fmt.Sprintf("~/.celestia-%s", strings.ToLower(tp.String())),
+		"",
 		"The path to root/home directory of your Celestia Node Store",
 	)
 	flags.String(
@@ -30,13 +32,30 @@ func NodeFlags(tp node.Type) *flag.FlagSet {
 		"",
 		"Path to a customized node config TOML file",
 	)
+	flags.String(
+		nodeNetworkFlag,
+		"",
+		"The name of the network to connect to",
+	)
 
 	return flags
 }
 
 // ParseNodeFlags parses Node flags from the given cmd and applies values to Env.
 func ParseNodeFlags(ctx context.Context, cmd *cobra.Command) (context.Context, error) {
-	ctx = WithStorePath(ctx, cmd.Flag(nodeStoreFlag).Value.String())
+	network := cmd.Flag(nodeNetworkFlag).Value.String()
+	if network != "" {
+		params.SetDefaultNetwork(params.Network(network))
+	} else {
+		network = string(params.DefaultNetwork())
+	}
+
+	store := cmd.Flag(nodeStoreFlag).Value.String()
+	if store == "" {
+		tp := NodeType(ctx)
+		store = fmt.Sprintf("~/.celestia-%s-%s", strings.ToLower(tp.String()), strings.ToLower(network))
+	}
+	ctx = WithStorePath(ctx, store)
 
 	nodeConfig := cmd.Flag(nodeConfigFlag).Value.String()
 	if nodeConfig != "" {

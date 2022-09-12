@@ -14,7 +14,7 @@ import (
 func init() {
 	fullCmd.AddCommand(
 		cmdnode.Init(
-			cmdnode.NodeFlags(node.Full),
+			cmdnode.NodeFlags(),
 			cmdnode.P2PFlags(),
 			cmdnode.HeadersFlags(),
 			cmdnode.MiscFlags(),
@@ -25,7 +25,7 @@ func init() {
 			cmdnode.KeyFlags(),
 		),
 		cmdnode.Start(
-			cmdnode.NodeFlags(node.Full),
+			cmdnode.NodeFlags(),
 			cmdnode.P2PFlags(),
 			cmdnode.HeadersFlags(),
 			cmdnode.MiscFlags(),

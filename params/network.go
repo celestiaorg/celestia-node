@@ -13,7 +13,6 @@ const (
 	// Mamaki testnet. See: celestiaorg/networks.
 	Mamaki Network = "mamaki"
 	// Private can be used to set up any private network, including local testing setups.
-	// Use CELESTIA_PRIVATE_GENESIS env var to enable Private by specifying its genesis block hash.
 	Private Network = "private"
 )
 

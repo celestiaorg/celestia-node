@@ -4,7 +4,6 @@ import "fmt"
 
 // GenesisFor reports a hash of a genesis block for a given network.
 // Genesis is strictly defined and can't be modified.
-// To run a custom genesis private network use CELESTIA_PRIVATE_GENESIS env var.
 func GenesisFor(net Network) (string, error) {
 	if err := net.Validate(); err != nil {
 		return "", err
