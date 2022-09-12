@@ -56,9 +56,9 @@ in 2 days to match the following requirements:
 
 ### Decision
 
-This ADR is intended to outline design decisions for block data storage. In a nutshell, the decision is to use 
-___[CAR format](https://ipld.io/specs/transport/car/carv2/)___ and ___[Dagstore](https://github.com/filecoin-project/dagstore)___ 
-for ___extended block storage___ and ___custom p2p Req/Resp protocol for block data syncing___(whole block and data by 
+This ADR is intended to outline design decisions for block data storage. In a nutshell, the decision is to use
+___[CAR format](https://ipld.io/specs/transport/car/carv2/)___ and ___[Dagstore](https://github.com/filecoin-project/dagstore)___
+for ___extended block storage___ and ___custom p2p Req/Resp protocol for block data syncing___(whole block and data by
 namespace id) in the happy path. The p2p portion of the document will come in the subsequent Part II document.
 
 #### Key Design Decisions
@@ -215,8 +215,7 @@ func (s *Store) Put(context.Context, DataRoot, *rsmt2d.ExtendedDataSquare) error
 
 To read an EDS as a byte stream `GetCAR` method is introduced. Internally it
 
-- Converts `DataRoot`'s hash into the [`shard.Key`](<https://github.com/filecoin-project/dagstore/blob/master/shard/key.go#L12>
-- Gets Mount by `shard.Key` from [`mount.Registry`](https://github.com/filecoin-project/dagstore/blob/master/mount/registry.go#L22)
+- Converts `DataRoot`'s hash into the [`shard.Key`](https://github.com/filecoin-project/dagstore/blob/master/shard/key.go#L12)
 - Acquires `ShardAccessor` and returns `io.ReadCloser` from it
 
 _NOTES:_
@@ -277,8 +276,9 @@ func (s *Store) Get(context.Context, DataRoot) (*rsmt2d.ExtendedDataSquare, erro
 
 To check if EDSStore keeps an EDS `Has` method is introduced. Internally it:
 
-- Converts `DataRoot`'s hash into the [`shard.Key`](<https://github.com/filecoin-project/dagstore/blob/master/shard/key.go#L12>
-- Tries to acquire `ShardAccessor` and on success closes it returning postive.
+- Converts `DataRoot`'s hash into the [`shard.Key`](https://github.com/filecoin-project/dagstore/blob/master/shard/key.go#L12)
+- Checks if [`GetShardInfo`](https://github.com/filecoin-project/dagstore/blob/master/dagstore.go#L483) does not return
+[ErrShardUnknown](https://github.com/filecoin-project/dagstore/blob/eac7733212fdd7c80be5078659f7450b3956d2a6/dagstore.go#L55)
 
 _NOTE: It's not necessary, but an API ergonomics/symmetry nice-to-have._
 
@@ -290,11 +290,12 @@ func (s *Store) Has(context.Context, DataRoot) (bool, error)
 
 ##### `share.EDSStore.Remove`
 
-To remove stored EDS `Remove` methods is introduced. Internally it:
+To remove stored EDS `Remove` method is introduced. Internally it:
 
-- Converts `DataRoot`'s hash into the [`shard.Key`](<https://github.com/filecoin-project/dagstore/blob/master/shard/key.go#L12>
-- Removes respective `Mount` and `Shard` from `DAGStore`
-- Removes `FileMount` file of CARv1 file from disk under `storepath/DataRoot.Hash` path
+- Converts `DataRoot`'s hash into the [`shard.Key`](https://github.com/filecoin-project/dagstore/blob/master/shard/key.go#L12)
+- Destroys `Shard` via `DAGStore`
+  - Internally removes it's `Mount` as well
+- Removes CARv1 file from disk under `storepath/DataRoot.Hash` path
 
 _NOTES:_
 
