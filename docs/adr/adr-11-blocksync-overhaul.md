@@ -1,4 +1,4 @@
-# ADR #011: Block Data Sync Overhaul
+# ADR #011: Block Data Sync Overhaul: Part I - Storage
 
 ## Changelog
 
@@ -56,10 +56,10 @@ in 2 days to match the following requirements:
 
 ### Decision
 
-This ADR is intended to outline design decisions for Block syncing mechanism/protocol improvements together with
-block data storage. In a nutshell, the decision is to use ___[CAR format](https://ipld.io/specs/transport/car/carv2/)___
-and ___[Dagstore](https://github.com/filecoin-project/dagstore)___ for ___extended block storage___
-and ___custom p2p Req/Resp protocol for block data syncing___(whole block and data by namespace id) in the happy path.
+This ADR is intended to outline design decisions for block data storage. In a nutshell, the decision is to use 
+___[CAR format](https://ipld.io/specs/transport/car/carv2/)___ and ___[Dagstore](https://github.com/filecoin-project/dagstore)___ 
+for ___extended block storage___ and ___custom p2p Req/Resp protocol for block data syncing___(whole block and data by 
+namespace id) in the happy path. The p2p portion of the document will come in the subsequent Part II document.
 
 #### Key Design Decisions
 
