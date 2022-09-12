@@ -31,8 +31,6 @@ Current block data synchronization is done over Bitswap, traversing NMT trees of
 We know from empirical evidence that it takes more than 200 seconds(~65000 network requests) to download a 4MB block of
 256kb shares, which is unacceptable and must be much less than the block time(15/30sec).
 
-TODO: Simple diagram with problem visualization
-
 The DASing, on the other hand, shows acceptable metrics for the block sizes we are aiming for initially. In the case of
 the same block, a DAS operation takes 50ms * 8(technically 9) blocking requests, which is ~400ms in an ideal scenario
 (excluding disk IO). With higher latency and bigger block size(higher NMT trees), the DASIng operation could take much
@@ -74,6 +72,9 @@ introduces pluggable indexes over the blob allowing efficient random access to s
 - __FNs/BNs manage a top-level index for _hash_ to _CAR block file_ mapping.__ Current DASing for LNs requires FNs/BNs
 to serve simple hash to data requests. The top-level index maps any hash of Share/NMT Proof to any block CARv1 file so
 that FNs/BNs can quickly serve DA requests.
+
+- __FNs/BNs addresses EDSes by `DataRoot.Hash`.__ The only alternative is by height, however, it does not allow block
+data deduplication in case EDSes are equal and couples Data layer with Header layer.
 
 - __FNs/BNs run a single instance of [`DAGStore`](https://github.com/filecoin-project/dagstore) to manage CAR block
 files.__ DAGStore provides both the top-level indexing and CARv2 based indexing per each CAR file. In essence, it's an
@@ -117,7 +118,7 @@ shares and Merkle Proofs in depth-first manner packing them in a CAR file. Howev
 requirement of being able to truncate the CAR file to read out __only__ the first quadrant out of it without NMT proofs,
 so serialization must be different from the utility to support that._
 
-_NOTE2: Alternatively to `WriteEDS`, and `EDSReader` could be introduced to make EDS-to-stream handling more idiomatic
+_NOTE2: Alternatively to `WriteEDS`, an `EDSReader` could be introduced to make EDS-to-stream handling more idiomatic
 and efficient in some cases, with the cost of more complex implementation._
 
 ```go
@@ -216,12 +217,13 @@ To read an EDS as a byte stream `GetCAR` method is introduced. Internally it
 
 - Converts `DataRoot`'s hash into the [`shard.Key`](<https://github.com/filecoin-project/dagstore/blob/master/shard/key.go#L12>
 - Gets Mount by `shard.Key` from [`mount.Registry`](https://github.com/filecoin-project/dagstore/blob/master/mount/registry.go#L22)
-- Returns `io.ReadeCloser` from [`Mount.Fetch`](https://github.com/filecoin-project/dagstore/blob/master/mount/mount.go#L71)
+- Acquires `ShardAccessor` and returns `io.ReadCloser` from it
 
-_NOTE: It might be necessary to acquire EDS mount via `DAGStore` keeping `ShardAccessor`
-and closing it when operation is done. This has to be confirmed._
+_NOTES:_
 
-_NOTE2: The returned `io.Reader` represents actual EDS exchanged over the wire_
+- _`DAGStores`'s `ShardAccessor` has to be extended to return a `io.ReadCloser`. Currently, it only returns
+a `Blockstore` of the CAR_
+- _The returned `io.Reader` represents actual EDS exchanged over the wire which should be limited to return a first quadrant_
 
 ```go
 // GetCAR takes a DataRoot and returns a buffered reader to the respective EDS serialized as CARv1 file.
@@ -271,6 +273,21 @@ func (s *Store) Get(context.Context, DataRoot) (*rsmt2d.ExtendedDataSquare, erro
 
 ```
 
+##### `share.EDSStore.Has`
+
+To check if EDSStore keeps an EDS `Has` method is introduced. Internally it:
+
+- Converts `DataRoot`'s hash into the [`shard.Key`](<https://github.com/filecoin-project/dagstore/blob/master/shard/key.go#L12>
+- Tries to acquire `ShardAccessor` and on success closes it returning postive.
+
+_NOTE: It's not necessary, but an API ergonomics/symmetry nice-to-have._
+
+```go
+// Has checks if EDS exists by given DataRoot.
+func (s *Store) Has(context.Context, DataRoot) (bool, error)
+
+```
+
 ##### `share.EDSStore.Remove`
 
 To remove stored EDS `Remove` methods is introduced. Internally it:
@@ -303,6 +320,16 @@ Generally stays unchanged with minor edits:
 
 Alternatively, `share/ipld.GetByNamespace` can be modified to `share.CARByNamespace` returning
 CARv1 Reader with encoded shares and NMT Merkle Proofs.
+
+#### EDS Deduplication
+
+Addressing EDS by DataRoot allows us to deduplicate equal EDSes. EDS equality is every unlikely to happen in practice,
+beside empty Block case, which always produces the same EDS.
+
+#### Empty Block/EDS
+
+The empty block is valid and small EDS. It can happen on early stage of the network. Its body is constant and to avoid
+transferring it over the wire the `EDSStore` should pre initialized with empty EDS value.
 
 ##### EDSStore Directory Path
 
