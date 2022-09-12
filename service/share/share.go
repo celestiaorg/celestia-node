@@ -37,15 +37,16 @@ type Root = da.DataAvailabilityHeader
 // Service provides access to any data square or block share on the network.
 //
 // All Get methods provided on Service follow the following flow:
-// 	* Check local storage for the requested Share.
-// 		* If exists
-// 			* Load from disk
-//			* Return
-//  	* If not
-//  		* Find provider on the network
-//      	* Fetch the Share from the provider
-//			* Store the Share
-//			* Return
+//  1. Check local storage for the requested Share.
+//  2. If exists
+//     * Load from disk
+//     * Return
+//  3. If not
+//     * Find provider on the network
+//     * Fetch the Share from the provider
+//     * Store the Share
+//     * Return
+//
 // TODO(@Wondertan): Simple thread safety for Start and Stop would not hurt.
 type Service struct {
 	Availability

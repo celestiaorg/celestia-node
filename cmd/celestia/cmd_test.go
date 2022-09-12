@@ -3,7 +3,6 @@ package main
 import (
 	"bytes"
 	"context"
-	"io/ioutil"
 	"os"
 	"testing"
 
@@ -12,7 +11,7 @@ import (
 
 func TestLight(t *testing.T) {
 	// Run the tests in a temporary directory
-	tmpDir, err := ioutil.TempDir("", "light")
+	tmpDir, err := os.MkdirTemp("", "light")
 	require.NoError(t, err, "error creating a temporary test directory")
 	testDir, err := os.Getwd()
 	require.NoError(t, err, "error getting the current working directory")
@@ -59,7 +58,7 @@ func TestLight(t *testing.T) {
 
 func TestBridge(t *testing.T) {
 	// Run the tests in a temporary directory
-	tmpDir, err := ioutil.TempDir("", "bridge")
+	tmpDir, err := os.MkdirTemp("", "bridge")
 	require.NoError(t, err, "error creating a temporary test directory")
 	testDir, err := os.Getwd()
 	require.NoError(t, err, "error getting the current working directory")

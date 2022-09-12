@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"strconv"
 	"testing"
@@ -169,7 +169,7 @@ func TestAvailabilityRequest(t *testing.T) {
 		require.NoError(t, err)
 	}()
 
-	buf, err := ioutil.ReadAll(resp.Body)
+	buf, err := io.ReadAll(resp.Body)
 	require.NoError(t, err)
 
 	availResp := new(rpc.AvailabilityResponse)

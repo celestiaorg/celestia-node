@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"time"
 
 	"github.com/gorilla/mux"
 )
@@ -30,6 +31,8 @@ func NewServer(cfg Config) *Server {
 	}
 	server.srv = &http.Server{
 		Handler: server,
+		// the amount of time allowed to read request headers. set to the default 2 seconds
+		ReadHeaderTimeout: 2 * time.Second,
 	}
 	return server
 }

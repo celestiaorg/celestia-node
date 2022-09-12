@@ -25,8 +25,8 @@ const (
 // starting to retrieve another quadrant.
 //
 // NOTE:
-//  * The whole data square must be retrieved in less than block time.
-//  * We have 4 quadrants from two sources(rows, cols) which equals to 8 in total.
+// - The whole data square must be retrieved in less than block time.
+// - We have 4 quadrants from two sources(rows, cols) which equals to 8 in total.
 var RetrieveQuadrantTimeout = blockTime / numQuadrants * 2
 
 type quadrant struct {
@@ -95,9 +95,10 @@ func newQuadrants(dah *da.DataAvailabilityHeader) []*quadrant {
 // index calculates index for a share in a data square slice flattened by rows.
 //
 // NOTE: The complexity of the formula below comes from:
-//  * Goal to avoid share copying
-//  * Goal to make formula generic for both rows and cols
-//  	* While data square is flattened by rows only
+//   - Goal to avoid share copying
+//   - Goal to make formula generic for both rows and cols
+//   - While data square is flattened by rows only
+//
 // TODO(@Wondertan): This can be simplified by making rsmt2d working over 3D byte slice(not flattened)
 func (q *quadrant) index(rootIdx, cellIdx int) int {
 	size := len(q.roots)
