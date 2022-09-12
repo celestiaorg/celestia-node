@@ -35,7 +35,7 @@ func NodeFlags() *flag.FlagSet {
 	flags.String(
 		nodeNetworkFlag,
 		"",
-		"The name of the network to connect to, e.g. arabica or mamaki",
+		"The name of the network to connect to, e.g. "+params.ListProvidedNetworks(),
 	)
 
 	return flags
