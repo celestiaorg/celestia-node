@@ -35,7 +35,7 @@ func NodeFlags() *flag.FlagSet {
 	flags.String(
 		nodeNetworkFlag,
 		"",
-		"The name of the network to connect to",
+		"The name of the network to connect to, e.g. arabica or mamaki",
 	)
 
 	return flags
@@ -45,7 +45,10 @@ func NodeFlags() *flag.FlagSet {
 func ParseNodeFlags(ctx context.Context, cmd *cobra.Command) (context.Context, error) {
 	network := cmd.Flag(nodeNetworkFlag).Value.String()
 	if network != "" {
-		params.SetDefaultNetwork(params.Network(network))
+		err := params.SetDefaultNetwork(params.Network(network))
+		if err != nil {
+			return ctx, err
+		}
 	} else {
 		network = string(params.DefaultNetwork())
 	}

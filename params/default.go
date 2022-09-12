@@ -18,8 +18,12 @@ func DefaultNetwork() Network {
 	return defaultNetwork
 }
 
-func SetDefaultNetwork(net Network) {
+func SetDefaultNetwork(net Network) error {
+	if err := net.Validate(); err != nil {
+		return err
+	}
 	defaultNetwork = net
+	return nil
 }
 
 func init() {
@@ -35,7 +39,7 @@ func init() {
 			panic("params: must provide at least <network_ID> to use a custom network")
 		}
 		netID := params[0]
-		SetDefaultNetwork(Network(netID))
+		defaultNetwork = Network(netID)
 		networksList[defaultNetwork] = struct{}{}
 		// check if genesis hash provided and register it if exists
 		if len(params) >= 2 {
