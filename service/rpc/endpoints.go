@@ -23,7 +23,7 @@ func (h *Handler) RegisterEndpoints(rpc *Server) {
 		http.MethodGet)
 	rpc.RegisterHandlerFunc(fmt.Sprintf("%s/{%s}", queryUnbondingEndpoint, addrKey), h.handleQueryUnbonding,
 		http.MethodGet)
-	rpc.RegisterHandlerFunc(queryRedelegationEndpoint, h.handleQueryRedelegations,
+	rpc.RegisterHandlerFunc(queryRedelegationsEndpoint, h.handleQueryRedelegations,
 		http.MethodPost)
 
 	// share endpoints
