@@ -2,25 +2,35 @@ package main
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/spf13/cobra"
 	flag "github.com/spf13/pflag"
+
+	"github.com/celestiaorg/celestia-node/params"
 
 	sdkflags "github.com/cosmos/cosmos-sdk/client/flags"
 )
 
 var (
-	nodeDirKey = "node.type"
-
-	bridgeDir = "~/.celestia-bridge/keys"
-	fullDir   = "~/.celestia-full/keys"
-	lightDir  = "~/.celestia-light/keys"
+	nodeDirKey     = "node.type"
+	nodeNetworkKey = "node.network"
 )
 
 func DirectoryFlags() *flag.FlagSet {
 	flags := &flag.FlagSet{}
-	flags.String(nodeDirKey, "", "Sets key utility to use the node type's directory (e.g. "+
-		"~/.celestia-light if --node.type light is passed).")
+	defaultNetwork := string(params.DefaultNetwork())
+
+	flags.String(
+		nodeDirKey,
+		"",
+		"Sets key utility to use the node type's directory (e.g. "+
+			"~/.celestia-light-"+strings.ToLower(defaultNetwork)+" if --node.type light is passed).")
+	flags.String(
+		nodeNetworkKey,
+		defaultNetwork,
+		"Sets key utility to use the node network's directory (e.g. "+
+			"~/.celestia-light-mynetwork if --node.network MyNetwork is passed).")
 
 	return flags
 }
@@ -31,17 +41,11 @@ func ParseDirectoryFlags(cmd *cobra.Command) error {
 		return nil
 	}
 
+	network := cmd.Flag(nodeNetworkKey).Value.String()
 	switch nodeType {
-	case "bridge":
-		if err := cmd.Flags().Set(sdkflags.FlagKeyringDir, bridgeDir); err != nil {
-			return err
-		}
-	case "full":
-		if err := cmd.Flags().Set(sdkflags.FlagKeyringDir, fullDir); err != nil {
-			return err
-		}
-	case "light":
-		if err := cmd.Flags().Set(sdkflags.FlagKeyringDir, lightDir); err != nil {
+	case "bridge", "full", "light":
+		keyPath := fmt.Sprintf("~/.celestia-%s-%s", nodeType, strings.ToLower(network))
+		if err := cmd.Flags().Set(sdkflags.FlagKeyringDir, keyPath); err != nil {
 			return err
 		}
 	default:

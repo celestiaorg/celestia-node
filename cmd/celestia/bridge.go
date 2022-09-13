@@ -13,7 +13,7 @@ import (
 func init() {
 	bridgeCmd.AddCommand(
 		cmdnode.Init(
-			cmdnode.NodeFlags(node.Bridge),
+			cmdnode.NodeFlags(),
 			cmdnode.P2PFlags(),
 			cmdnode.CoreFlags(),
 			cmdnode.MiscFlags(),
@@ -21,7 +21,7 @@ func init() {
 			cmdnode.KeyFlags(),
 		),
 		cmdnode.Start(
-			cmdnode.NodeFlags(node.Bridge),
+			cmdnode.NodeFlags(),
 			cmdnode.P2PFlags(),
 			cmdnode.CoreFlags(),
 			cmdnode.MiscFlags(),

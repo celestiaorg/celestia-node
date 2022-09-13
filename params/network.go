@@ -13,7 +13,6 @@ const (
 	// Mamaki testnet. See: celestiaorg/networks.
 	Mamaki Network = "mamaki"
 	// Private can be used to set up any private network, including local testing setups.
-	// Use CELESTIA_PRIVATE_GENESIS env var to enable Private by specifying its genesis block hash.
 	Private Network = "private"
 )
 
@@ -39,4 +38,17 @@ var networksList = map[Network]struct{}{
 	Arabica: {},
 	Mamaki:  {},
 	Private: {},
+}
+
+// ListProvidedNetworks provides a string listing all known long-standing networks for things like command hints.
+func ListProvidedNetworks() string {
+	var networks string
+	for net := range networksList {
+		// "private" network isn't really a choosable option, so skip
+		if net != Private {
+			networks += string(net) + ", "
+		}
+	}
+	// chop off trailing ", "
+	return networks[:len(networks)-2]
 }

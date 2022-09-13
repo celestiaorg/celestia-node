@@ -7,8 +7,7 @@ import (
 )
 
 const (
-	EnvCustomNetwork  = "CELESTIA_CUSTOM"
-	EnvPrivateGenesis = "CELESTIA_PRIVATE_GENESIS"
+	EnvCustomNetwork = "CELESTIA_CUSTOM"
 )
 
 // defaultNetwork defines a default network for the Celestia Node.
@@ -17,6 +16,14 @@ var defaultNetwork = Arabica
 // DefaultNetwork returns the network of the current build.
 func DefaultNetwork() Network {
 	return defaultNetwork
+}
+
+func SetDefaultNetwork(net Network) error {
+	if err := net.Validate(); err != nil {
+		return err
+	}
+	defaultNetwork = net
+	return nil
 }
 
 func init() {
@@ -51,10 +58,5 @@ func init() {
 			}
 			bootstrapList[Network(netID)] = bs
 		}
-	}
-	// check if private network option set
-	if genesis, ok := os.LookupEnv(EnvPrivateGenesis); ok {
-		defaultNetwork = Private
-		genesisList[Private] = strings.ToUpper(genesis)
 	}
 }

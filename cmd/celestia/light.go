@@ -14,7 +14,7 @@ import (
 func init() {
 	lightCmd.AddCommand(
 		cmdnode.Init(
-			cmdnode.NodeFlags(node.Light),
+			cmdnode.NodeFlags(),
 			cmdnode.P2PFlags(),
 			cmdnode.HeadersFlags(),
 			cmdnode.MiscFlags(),
@@ -25,7 +25,7 @@ func init() {
 			cmdnode.KeyFlags(),
 		),
 		cmdnode.Start(
-			cmdnode.NodeFlags(node.Light),
+			cmdnode.NodeFlags(),
 			cmdnode.P2PFlags(),
 			cmdnode.HeadersFlags(),
 			cmdnode.MiscFlags(),

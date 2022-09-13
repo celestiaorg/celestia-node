@@ -21,12 +21,12 @@ var headerCmd = &cobra.Command{
 }
 
 var headerStoreInit = &cobra.Command{
-	Use: "store-init [node-type] [height]",
+	Use: "store-init [node-type] [network] [height]",
 	Short: `Forcefully initialize header store head to be of the given height. Requires the node being stopped. 
 Custom store path is not supported yet.`,
 	SilenceUsage: true,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		if len(args) != 2 {
+		if len(args) != 3 {
 			return fmt.Errorf("not enough arguments")
 		}
 
@@ -35,12 +35,16 @@ Custom store path is not supported yet.`,
 			return fmt.Errorf("invalid node-type")
 		}
 
-		height, err := strconv.Atoi(args[1])
+		network := args[1]
+
+		height, err := strconv.Atoi(args[2])
 		if err != nil {
 			return fmt.Errorf("invalid height: %w", err)
 		}
 
-		s, err := node.OpenStore(fmt.Sprintf("~/.celestia-%s", strings.ToLower(tp.String())))
+		s, err := node.OpenStore(
+			fmt.Sprintf("~/.celestia-%s-%s", strings.ToLower(tp.String()), strings.ToLower(network)),
+		)
 		if err != nil {
 			return err
 		}
