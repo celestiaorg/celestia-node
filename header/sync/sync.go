@@ -16,19 +16,20 @@ var log = logging.Logger("header/sync")
 
 // Syncer implements efficient synchronization for headers.
 //
-// Subjective header - the latest known local header that is not expired(within trusting period)
-// Network header - the latest network header
+// Subjective header - the latest known header that is not expired (within trusting period)
+// Network header - the latest header received from the network
+
 //
 // There are two main processes running in Syncer:
 // 1. Main syncing loop(s.syncLoop)
-//    * Performs syncing from the known subjective header up to the network header
+//    * Performs syncing from the subjective header up to the network head
 //    * Syncs by requesting missing headers from Exchange or
 //    * By accessing cache of pending network headers received from PubSub
 // 2. Receives new headers from PubSub subnetwork (s.incomingNetHead)
 //    * Once received, tries to append it to the store
 //    * Or, if not adjacent to head of the store,
 //      * verifies against the latest known subjective header
-//    	* adds the header to pending cache(making it the latest known subjective header)
+//    	* adds the header to pending cache, thereby making it the latest known subjective header
 //      * and triggers syncing loop to catch up to that point.
 type Syncer struct {
 	sub      header.Subscriber
@@ -153,7 +154,7 @@ func (s *Syncer) syncLoop() {
 	}
 }
 
-// sync ensures we are synced from the local header Store's Head up to the new subjective head
+// sync ensures we are synced from the Store's head up to the new subjective head
 func (s *Syncer) sync(ctx context.Context) {
 	newHead := s.pending.Head()
 	if newHead == nil {
