@@ -11,8 +11,7 @@ import (
 
 func TestLight(t *testing.T) {
 	// Run the tests in a temporary directory
-	tmpDir, err := os.MkdirTemp("", "light")
-	require.NoError(t, err, "error creating a temporary test directory")
+	tmpDir := t.TempDir()
 	testDir, err := os.Getwd()
 	require.NoError(t, err, "error getting the current working directory")
 	err = os.Chdir(tmpDir)
@@ -58,8 +57,7 @@ func TestLight(t *testing.T) {
 
 func TestBridge(t *testing.T) {
 	// Run the tests in a temporary directory
-	tmpDir, err := os.MkdirTemp("", "bridge")
-	require.NoError(t, err, "error creating a temporary test directory")
+	tmpDir := t.TempDir()
 	testDir, err := os.Getwd()
 	require.NoError(t, err, "error getting the current working directory")
 	err = os.Chdir(tmpDir)

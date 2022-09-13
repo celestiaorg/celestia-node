@@ -146,7 +146,7 @@ func ParseMiscFlags(ctx context.Context, cmd *cobra.Command) (context.Context, e
 			mux.HandleFunc("/debug/pprof/trace", pprof.Trace)
 			err := http.ListenAndServe("0.0.0.0:6000", mux) //nolint:gosec
 			if err != nil {
-				log.Errorw("failed to start pprof server", "err", err)
+				log.Fatalw("failed to start pprof server", "err", err)
 			} else {
 				log.Info("started pprof server on port 6000")
 			}
