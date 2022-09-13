@@ -87,7 +87,7 @@ func (eh *ExtendedHeader) IsBefore(h *ExtendedHeader) bool {
 	return eh.Height < h.Height
 }
 
-// Equals returns whether the hash of the given header matches.
+// Equals returns whether the hash and height of the given header match.
 func (eh *ExtendedHeader) Equals(header *ExtendedHeader) bool {
 	return eh.Height == header.Height && bytes.Equal(eh.Hash(), header.Hash())
 }
