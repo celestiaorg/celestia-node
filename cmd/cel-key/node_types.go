@@ -45,7 +45,7 @@ func ParseDirectoryFlags(cmd *cobra.Command) error {
 	network := cmd.Flag(nodeNetworkKey).Value.String()
 	switch nodeType {
 	case "bridge", "full", "light":
-		keyPath := fmt.Sprintf("~/.celestia-%s-%s", nodeType, strings.ToLower(network))
+		keyPath := fmt.Sprintf("~/.celestia-%s-%s/keys", nodeType, strings.ToLower(network))
 		if err := cmd.Flags().Set(sdkflags.FlagKeyringDir, keyPath); err != nil {
 			return err
 		}
