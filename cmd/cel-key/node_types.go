@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 
@@ -38,7 +39,8 @@ func DirectoryFlags() *flag.FlagSet {
 func ParseDirectoryFlags(cmd *cobra.Command) error {
 	nodeType := cmd.Flag(nodeDirKey).Value.String()
 	if nodeType == "" {
-		return nil
+		err := errors.New("no node type provided")
+		return err
 	}
 
 	network := cmd.Flag(nodeNetworkKey).Value.String()
