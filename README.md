@@ -1,3 +1,13 @@
+# Table of Contents
+- [Celestia Node](#celestia-node)
+- [Minimum requirements](#minimum-requirements)
+- [System Requirements](#system-requirements)
+- [Installation](#installation)
+- [API docs](#api-docs)
+- [Node types](#node-types)
+- [Run a node](#run-a-node)
+- [Package-specific documentation](#package-specific-documentation)
+- [Code of Conduct](#code-of-conduct)
 # Celestia Node
 
 [![Go Reference](https://pkg.go.dev/badge/github.com/celestiaorg/celestia-node.svg)](https://pkg.go.dev/github.com/celestiaorg/celestia-node)
