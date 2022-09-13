@@ -28,7 +28,7 @@ func DirectoryFlags() *flag.FlagSet {
 func ParseDirectoryFlags(cmd *cobra.Command) error {
 	nodeType := cmd.Flag(nodeDirKey).Value.String()
 	if nodeType == "" {
-		return nil
+		panic("no node type provided")
 	}
 
 	switch nodeType {
