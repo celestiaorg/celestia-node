@@ -34,11 +34,22 @@ func HeaderSyncer(
 	sub header.Subscriber,
 	fservice fraud.Service,
 ) (*sync.Syncer, error) {
-	syncer := sync.NewSyncer(ex, store, sub)
+	syncer := sync.NewSyncer(ex, store, sub, params.BlockTime)
 	lifecycleCtx := fxutil.WithLifecycle(ctx, lc)
 	lc.Append(fx.Hook{
 		OnStart: func(startCtx context.Context) error {
-			return FraudLifecycle(startCtx, lifecycleCtx, fraud.BadEncoding, fservice, syncer.Start, syncer.Stop)
+			start := func(ctx context.Context) error {
+				err := syncer.Start(ctx)
+				switch err {
+				default:
+					return err
+				case header.ErrNoHead:
+					log.Warnw("Syncer running on uninitialized Store - headers won't be synced")
+				case nil:
+				}
+				return nil
+			}
+			return FraudLifecycle(startCtx, lifecycleCtx, fraud.BadEncoding, fservice, start, syncer.Stop)
 		},
 		OnStop: syncer.Stop,
 	})

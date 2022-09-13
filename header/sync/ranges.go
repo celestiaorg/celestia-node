@@ -9,14 +9,14 @@ import (
 // ranges keeps non-overlapping and non-adjacent header ranges which are used to cache headers (in ascending order).
 // This prevents unnecessary / duplicate network requests for additional headers during sync.
 type ranges struct {
+	lk     sync.RWMutex
 	ranges []*headerRange
-	lk     sync.Mutex // no need for RWMutex as there is only one reader
 }
 
 // Head returns the highest ExtendedHeader in all ranges if any.
 func (rs *ranges) Head() *header.ExtendedHeader {
-	rs.lk.Lock()
-	defer rs.lk.Unlock()
+	rs.lk.RLock()
+	defer rs.lk.RUnlock()
 
 	ln := len(rs.ranges)
 	if ln == 0 {
@@ -97,9 +97,9 @@ func (rs *ranges) First() (*headerRange, bool) {
 }
 
 type headerRange struct {
-	start   uint64
-	lk      sync.Mutex // no need for RWMutex as there is only one reader
+	lk      sync.RWMutex
 	headers []*header.ExtendedHeader
+	start   uint64
 }
 
 func newRange(h *header.ExtendedHeader) *headerRange {
@@ -118,15 +118,15 @@ func (r *headerRange) Append(h ...*header.ExtendedHeader) {
 
 // Empty reports if range is empty.
 func (r *headerRange) Empty() bool {
-	r.lk.Lock()
-	defer r.lk.Unlock()
+	r.lk.RLock()
+	defer r.lk.RUnlock()
 	return len(r.headers) == 0
 }
 
 // Head reports the head of range if any.
 func (r *headerRange) Head() *header.ExtendedHeader {
-	r.lk.Lock()
-	defer r.lk.Unlock()
+	r.lk.RLock()
+	defer r.lk.RUnlock()
 	ln := len(r.headers)
 	if ln == 0 {
 		return nil

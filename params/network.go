@@ -2,6 +2,7 @@ package params
 
 import (
 	"errors"
+	"time"
 
 	"github.com/libp2p/go-libp2p-core/peer"
 )
@@ -14,12 +15,15 @@ const (
 	Mamaki Network = "mamaki"
 	// Private can be used to set up any private network, including local testing setups.
 	Private Network = "private"
+	// BlockTime is a network block time.
+	// TODO @renaynay @Wondertan (#790)
+	BlockTime = time.Second * 30
 )
 
 // Network is a type definition for DA network run by Celestia Node.
 type Network string
 
-// Bootstrappers is a type definition for nodes that will be used as bootstrappers
+// Bootstrappers is a type definition for nodes that will be used as bootstrappers.
 type Bootstrappers []peer.AddrInfo
 
 // ErrInvalidNetwork is thrown when unknown network is used.

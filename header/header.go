@@ -82,6 +82,16 @@ func (eh *ExtendedHeader) LastHeader() bts.HexBytes {
 	return eh.RawHeader.LastBlockID.Hash
 }
 
+// IsBefore returns whether the given header is of a higher height.
+func (eh *ExtendedHeader) IsBefore(h *ExtendedHeader) bool {
+	return eh.Height < h.Height
+}
+
+// Equals returns whether the hash and height of the given header match.
+func (eh *ExtendedHeader) Equals(header *ExtendedHeader) bool {
+	return eh.Height == header.Height && bytes.Equal(eh.Hash(), header.Hash())
+}
+
 // ValidateBasic performs *basic* validation to check for missed/incorrect fields.
 func (eh *ExtendedHeader) ValidateBasic() error {
 	err := eh.RawHeader.ValidateBasic()

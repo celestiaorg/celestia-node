@@ -15,6 +15,8 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.uber.org/fx"
 
+	"github.com/celestiaorg/celestia-node/params"
+
 	"github.com/celestiaorg/celestia-node/das"
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/header/local"
@@ -242,7 +244,7 @@ func setupHeaderService(ctx context.Context, t *testing.T) *service.Service {
 	_, err := localStore.Append(ctx, suite.GenExtendedHeaders(5)...)
 	require.NoError(t, err)
 	// create syncer
-	syncer := sync.NewSyncer(local.NewExchange(remoteStore), localStore, &header.DummySubscriber{})
+	syncer := sync.NewSyncer(local.NewExchange(remoteStore), localStore, &header.DummySubscriber{}, params.BlockTime)
 
 	return service.NewHeaderService(syncer, nil, nil, nil, localStore)
 }
