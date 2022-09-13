@@ -39,8 +39,7 @@ func DirectoryFlags() *flag.FlagSet {
 func ParseDirectoryFlags(cmd *cobra.Command) error {
 	nodeType := cmd.Flag(nodeDirKey).Value.String()
 	if nodeType == "" {
-		err := errors.New("no node type provided")
-		return err
+		return errors.New("no node type provided")
 	}
 
 	network := cmd.Flag(nodeNetworkKey).Value.String()
