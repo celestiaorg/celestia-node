@@ -9,7 +9,8 @@ import (
 	"github.com/celestiaorg/celestia-node/header"
 )
 
-// Head returns the Syncer's latest known header.
+// Head returns the Syncer's latest known header. It calls 'networkHead' in order to
+// either return or eagerly fetch the most recent header.
 func (s *Syncer) Head(ctx context.Context) (*header.ExtendedHeader, error) {
 	return s.networkHead(ctx)
 }
