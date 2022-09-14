@@ -19,8 +19,9 @@ import (
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/x/payment"
 	apptypes "github.com/celestiaorg/celestia-app/x/payment/types"
-	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/nmt/namespace"
+
+	"github.com/celestiaorg/celestia-node/header"
 )
 
 var log = logging.Logger("state")
@@ -163,7 +164,7 @@ func (ca *CoreAccessor) BalanceForAddress(ctx context.Context, addr Address) (*B
 	value := result.Response.Value
 	// if the value returned is empty, the account balance does not yet exist
 	if len(value) == 0 {
-		log.Errorf("balance for account %s does not exist at block height %d", addr.String(), head.Height)
+		log.Errorf("balance for account %s does not exist at block height %d", addr.String(), head.Height-1)
 		return &Balance{
 			Denom:  app.BondDenom,
 			Amount: sdktypes.NewInt(0),
