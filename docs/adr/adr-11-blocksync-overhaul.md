@@ -3,13 +3,13 @@
 ## Changelog
 
 - 23.08.22: Initial unfinished draft
-- 14.09.22: First version finished
+- 14.09.22: The first finished version
 
 ## Authors
 
 - @Wondertan
 
-> I start to like writing ADRs, step-by-step. Also, there is a trick that helps: imagine like you are talking to a dev
+> I start to like writing ADRs step-by-step. Also, there is a trick that helps: imagine like you are talking to a dev
 > who just joined the team to onboard him.
 
 ## Glossary
@@ -40,8 +40,8 @@ where more data equals more requests and more time to fulfill the requests.
 
 ### Mini Node Offsite 2022 Berlin
 
-To facilitate and speedup the resolution of the problem we decided to make a team gathering in Berlin for 4 days. With
-the help of preliminary preparations by @Wondertan and invited guest @willscott, we were able to find a solution
+To facilitate and speed up the resolution of the problem, we decided to make the team gathering in Berlin for four days.
+With the help of preliminary preparations by @Wondertan and guest @willscott, we were able to find a solution
 in 2 days to match the following requirements:
 
 - Sync time less than block time(ideally sub-second)
@@ -55,7 +55,7 @@ in 2 days to match the following requirements:
 
 ### Decision
 
-This ADR is intended to outline design decisions for block data storage. In a nutshell, the decision is to use
+This ADR intends to outline design decisions for block data storage. In a nutshell, the decision is to use
 ___[CAR format](https://ipld.io/specs/transport/car/carv2/)___ and ___[Dagstore](https://github.com/filecoin-project/dagstore)___
 for ___extended block storage___ and ___custom p2p Req/Resp protocol for block data syncing___(whole block and data by
 namespace id) in the happy path. The p2p portion of the document will come in the subsequent Part II document.
@@ -69,52 +69,50 @@ introduces pluggable indexes over the blob allowing efficient random access to s
 (if the index is cached in memory).
 
 - __FNs/BNs manage a top-level index for _hash_ to _CAR block file_ mapping.__ Current DASing for LNs requires FNs/BNs
-to serve simple hash to data requests. The top-level index maps any hash of Share/NMT Proof to any block CARv1 file so
+to serve simple hash to data requests. The top-level index maps any Share/NMT Proof hash to any block CARv1 file so
 that FNs/BNs can quickly serve DA requests.
 
-- __FNs/BNs addresses EDSes by `DataRoot.Hash`.__ The only alternative is by height, however, it does not allow block
-data deduplication in case EDSes are equal and couples Data layer with Header layer.
+- __FNs/BNs address EDSes by `DataRoot.Hash`.__ The only alternative is by height; however, it does not allow block
+data deduplication in case EDSes are equal and couples the Data layer/pkg with the Header layer/pkg.
 
 - __FNs/BNs run a single instance of [`DAGStore`](https://github.com/filecoin-project/dagstore) to manage CAR block
-files.__ DAGStore provides both the top-level indexing and CARv2 based indexing per each CAR file. In essence, it's an
+files.__ DAGStore provides the top-level indexing and CARv2-based indexing per each CAR file. In essence, it's an
 engine for managing any CAR files with indexing, convenient abstractions, tools, recovery mechanisms, etc.
-  - __EDSes as _CARv1_ files over _CARv2_.__ CARv2 encodes indexes into the file, while DAGStore maintains CARv2 based
-indexing as well. Usage of CARv1 keeps only one copy of index, stores/transfers less metadata per EDS and simplifies
-reading EDS from file.
+  - __EDSes as _CARv1_ files over _CARv2_.__ CARv2 encodes indexes into the file, while DAGStore maintains CARv2-based
+indexing. Usage of CARv1 keeps only one copy of the index, stores/transfers less metadata per EDS, and simplifies
+reading EDS from a file.
 
-- __LNs DASing remains untouched__. Both the networking protocol and storage for LNs remains untouched as it fulfills
-    the requirements. This includes Bitswap as backbone protocol for requesting samples and global Badger KVStore.
-
-- __New libp2p based Exchange protocol is introduced for data/share exchange purposes.__ FNs/BNs servers LNs clients.
+- __LNs DASing remains untouched__. The networking protocol and storage for LNs remain intact as it fulfills the
+requirements. Bitswap usage as the backbone protocol for requesting samples and global Badger KVStore remain unaffected.
 
 ### Detailed Design
 
 > All the comments on the API definitions should be preserved and potentially improved by implementations.
 
-The new block storage design is solely additive. Meaning that all the existing storage related components and functionality
-are kept with additional components introduced. Altogether, existing and new components will be recomposed to serve the
+The new block storage design is solely additive. All the existing storage-related components and functionality
+are kept with additional components introduced. Altogether, existing and new components will be recomposed to serve as the
 foundation of our improved block storage subsystem.
 
-The central data structure representing Celestia block data is EDS(`rsmt2d.ExtendedDataSquare`) and the new storage design
-is focused around storing entire EDSes as a whole rather than a set of individual chunks s.t. storage subsystem
-can handle storing and streaming/serving blocks of 4mb sizes and more.
+The central data structure representing Celestia block data is EDS(`rsmt2d.ExtendedDataSquare`), and the new storage design
+is focused around storing entire EDSes as a whole rather than a set of individual chunks, s.t. storage subsystem
+can handle storing and streaming/serving blocks of 4MB and more.
 
 #### EDS Serde
 
-Storing EDS as a whole requires EDS (de)serialization. For this the [CAR format](https://ipld.io/specs/transport/car) is
+Storing EDS as a whole requires EDS (de)serialization. For this, the [CAR format](https://ipld.io/specs/transport/car) is
 chosen.
 
 ##### `share.WriteEDS`
 
-To write EDS into a stream/file `WriteEDS` is introduced. Internally, it
+To write EDS into a stream/file, `WriteEDS` is introduced. Internally, it
 
 - [Re-imports](https://github.com/celestiaorg/rsmt2d/blob/master/extendeddatasquare.go#L41) EDS similarly to
 [`ipld.ImportShares`](https://github.com/celestiaorg/celestia-node/blob/main/ipld/add.go#L51-L65)
   - Using [`Blockservice`](https://github.com/ipfs/go-blockservice/blob/master/blockservice.go#L46) with [offline
 exchange](https://github.com/ipfs/go-ipfs-exchange-offline/blob/master/offline.go#L16) and in-memory [`Blockstore`](https://github.com/ipfs/go-ipfs-blockstore/blob/master/blockstore.go#L33)
-  - With [`NodeVisitor`](https://github.com/celestiaorg/celestia-node/blob/main/ipld/add.go#L56) which saves to the
+  - With [`NodeVisitor`](https://github.com/celestiaorg/celestia-node/blob/main/ipld/add.go#L56), which saves to the
 `Blockstore` only NMT Merkle proofs(no shares) _NOTE: `len(node.Links()) == 2`_
-    - Actual shares are written further in a special way
+    - Actual shares are written further in a particular way explained further
 - Creates and [writes](https://github.com/ipld/go-car/blob/master/car.go#L86) header [`CARv1Header`](https://github.com/ipld/go-car/blob/master/car.go#L30)
   - Fills up `Roots` field with `EDS.RowRoots/EDS.ColRoots` roots converted into CIDs
 - Iterates over shares in quadrant-by-quadrant order via `EDS.GetCell`
@@ -122,18 +120,18 @@ exchange](https://github.com/ipfs/go-ipfs-exchange-offline/blob/master/offline.g
 - Iterates over in-memory Blockstore and [writes]((https://github.com/ipld/go-car/blob/master/car.go#L118)) NMT Merkle
 proofs stored in it
 
-_NOTES:_
+___NOTES:___
 
 - _CAR provides [a utility](https://github.com/ipld/go-car/blob/master/car.go#L47) to serialize any DAG into the file
 and there is a way to serialize EDS into DAG(`share/ipld.ImportShares`). This approach is the simplest and traverses
-shares and Merkle Proofs in depth-first manner packing them in a CAR file. However, this is incompatible with the
-requirement of being able to truncate the CAR file to read out __only__ the first quadrant out of it without NMT proofs,
+shares and Merkle Proofs in a depth-first manner packing them in a CAR file. However, this is incompatible with the
+requirement of being able to truncate the CAR file reading out __only__ the first quadrant out of it without NMT proofs,
 so serialization must be different from the utility to support that._
 - _Alternatively to `WriteEDS`, an `EDSReader` could be introduced to make EDS-to-stream handling more idiomatic
 and efficient in some cases, with the cost of more complex implementation._
 
 ```go
-// WriteEDS writes whole EDS into given io.Writer as CARv1 file.
+// WriteEDS writes the whole EDS into the given io.Writer as CARv1 file.
 // All its shares and recomputed NMT proofs.
 func WriteEDS(context.Context, *rsmt2d.ExtendedDataSquare, io.Writer) error
 ```
@@ -157,14 +155,14 @@ func ReadEDS(context.Context, io.Reader, DataRoot) (*rsmt2d.ExtendedDataSquare, 
 
 #### `share.EDSStore`
 
-To manage every EDS on the disk, FNs/BNs keep an `EDSStore`. The `EDSStore` type is introduced in the `share` pkg.
-Each EDS together with its Merkle Proofs serializes into CARv1 file. All the serialized CARv1 file blobs are mounted on
+FNs/BNs keep an `EDSStore` to manage every EDS on the disk. The `EDSStore` type is introduced in the `share` pkg.
+Each EDS together with its Merkle Proofs serializes into a CARv1 file. All the serialized CARv1 file blobs are mounted on
 DAGStore via [Local FS Mounts](https://github.com/filecoin-project/dagstore/blob/master/docs/design.md#mounts) and registered
 as [Shards](https://github.com/filecoin-project/dagstore/blob/master/docs/design.md#shards).
 
 The introduced `EDSStore` also maintains (via DAGStore) a top-level index enabling granular and efficient random access
 to every share and/or Merkle proof over every registered CARv1 file. The `EDSStore` provides a custom `Blockstore` interface
-implementation to achieve the access. The main use-case is randomized sampling over the whole chain of EDS block data
+implementation to achieve access. The main use-case is randomized sampling over the whole chain of EDS block data
 and getting data by namespace.
 
 ```go
@@ -178,7 +176,7 @@ type EDSStore struct {
 }
 
 // NewEDSStore constructs EDStore over OS directory to store CARv1 files of EDSes and indices for them.
-// Datastore is used to keep inverted/top-level index.
+// Datastore is used to keep the inverted/top-level index.
 func NewEDSStore(basepath string, ds datastore.Batching) *EDSStore {
  topIdx := index.NewInverted(datastore)
  carIdx := index.NewFSRepo(basepath + "/index")
@@ -199,23 +197,23 @@ func NewEDSStore(basepath string, ds datastore.Batching) *EDSStore {
 }
 ```
 
-_NOTE: EDSStore should have lifecycle methods(Start/Stop)._
+___NOTE:___ _EDSStore should have lifecycle methods(Start/Stop)._
 
 ##### `share.EDSStore.Put`
 
 To write an entire EDS `Put` method is introduced. Internally it
 
-- Opens a file under `storepath/DataRoot.Hash` path
+- Opens a file under `Store.Path/DataRoot.Hash` path
 - Serializes the EDS into the file via `share.WriteEDS`
 - Wraps it with `DAGStore`'s [FileMount](https://github.com/filecoin-project/dagstore/blob/master/mount/file.go#L10)
 - Converts `DataRoot`'s hash into the [`shard.Key`](https://github.com/filecoin-project/dagstore/blob/master/shard/key.go#L12)
 - Registers the `Mount` as a `Shard` on the `DAGStore`
 
-_NOTE: Registering on the DAGStore automatically populates top-level index with shares/proofs accessible from stored EDS
-so this is out of scope of the document._
+___NOTE:___ _Registering on the DAGStore populates the top-level index with shares/proofs accessible from stored EDS, which is
+out of the scope of the document._
 
 ```go
-// Put stores the given data square with DataRoot's hash as key.
+// Put stores the given data square with DataRoot's hash as a key.
 //
 // The square is verified on the Exchange level and Put only stores the square trusting it.
 // The resulting file stores all the shares and NMT Merkle Proofs of the EDS.
@@ -230,16 +228,16 @@ To read an EDS as a byte stream `GetCAR` method is introduced. Internally it
 - Converts `DataRoot`'s hash into the [`shard.Key`](https://github.com/filecoin-project/dagstore/blob/master/shard/key.go#L12)
 - Acquires `ShardAccessor` and returns `io.ReadCloser` from it
 
-_NOTES:_
+___NOTES:___
 
-- _`DAGStores`'s `ShardAccessor` has to be extended to return a `io.ReadCloser`. Currently, it only returns
-a `Blockstore` of the CAR_
-- _The returned `io.Reader` represents actual EDS exchanged over the wire which should be limited to return a first quadrant_
+- _`DAGStores`'s `ShardAccessor` has to be extended to return an `io.ReadCloser`. Currently, it only returns
+  a `Blockstore` of the CAR_
+- _The returned `io.Reader` represents actual EDS exchanged over the wire, which should be limited to return the first quadrant_
 
 ```go
-// GetCAR takes a DataRoot and returns a buffered reader to the respective EDS serialized as CARv1 file.
+// GetCAR takes a DataRoot and returns a buffered reader to the respective EDS serialized as a CARv1 file.
 // 
-// The Reader strictly reads the first quadrant(1/4) of EDS omitting all the NMT Merkle proofs.
+// The Reader strictly reads the first quadrant(1/4) of EDS, omitting all the NMT Merkle proofs.
 // Integrity of the store data is not verified. 
 // 
 // Caller must Close returned reader after reading.
@@ -248,23 +246,23 @@ func (s *Store) GetCAR(context.Context, DataRoot) (io.ReadCloser, error)
 
 ##### `share.EDSStore.Blockstore`
 
-`Blockstore` method return a [`Blockstore`](https://github.com/ipfs/go-ipfs-blockstore/blob/master/blockstore.go#L33)
+`Blockstore` method returns a [`Blockstore`](https://github.com/ipfs/go-ipfs-blockstore/blob/master/blockstore.go#L33)
 interface implementation instance, providing random access over share and NMT Merkle proof in every stored EDS. It is
 required for FNs/BNs to serve DAS requests over the Bitswap and for [reading data by namespace](#reading-data-by-namespace).
 
 There is a [frozen/un-merged implementation](https://github.com/filecoin-project/dagstore/pull/116) of `Blockstore`
 over `DAGStore` and CARv2 indexes.
 
-_NOTES:_
+___NOTES:___
 
 - _We can either use it(and finish if something is missing for our case) or implement custom optimized for our needs._
-- _The Blockstore does not store full Celestia Blocks, but IPFS blocks. We represent Merkle proofs and shares in IPFS
+- _The Blockstore does not store whole Celestia Blocks, but IPFS blocks. We represent Merkle proofs and shares in IPFS
 blocks._
 
 ```go
 // Blockstore returns an IPFS Blockstore providing access to individual shares/nodes of all EDS 
-// registered on the Store. NOTE: The Blockstore does not store full Celestia Blocks, but IPFS blocks. 
-// We represent `shares` and NMT Merkle proofs as IPFS blocks and IPLD nodes, so that Bitswap can access those.
+// registered on the Store. NOTE: The Blockstore does not store whole Celestia Blocks but IPFS blocks. 
+// We represent `shares` and NMT Merkle proofs as IPFS blocks and IPLD nodes so Bitswap can access those.
 func (s *Store) Blockstore() blockstore.Blockstore
 
 ```
@@ -276,12 +274,12 @@ To read an entire EDS `Get` method is introduced. Internally it:
 - Gets a serialized EDS `io.Reader` via `Store.GetCAR`
 - Deserializes the EDS and validates it via `share.ReadEDS`
 
-_NOTE: It's not necessary, but an API ergonomics/symmetry nice-to-have._
+___NOTE:___ _It's unnecessary, but an API ergonomics/symmetry nice-to-have._
 
 ```go
 // Get reads EDS out of Store by given DataRoot.
 // 
-// It reads only one quadrant(1/4) of the EDS and verifies integrity of the stored data by recomputing it.
+// It reads only one quadrant(1/4) of the EDS and verifies the integrity of the stored data by recomputing it.
 func (s *Store) Get(context.Context, DataRoot) (*rsmt2d.ExtendedDataSquare, error)
 
 ```
@@ -294,10 +292,10 @@ To check if EDSStore keeps an EDS `Has` method is introduced. Internally it:
 - Checks if [`GetShardInfo`](https://github.com/filecoin-project/dagstore/blob/master/dagstore.go#L483) does not return
 [ErrShardUnknown](https://github.com/filecoin-project/dagstore/blob/eac7733212fdd7c80be5078659f7450b3956d2a6/dagstore.go#L55)
 
-_NOTE: It's not necessary, but an API ergonomics/symmetry nice-to-have._
+___NOTE:___ _It's unnecessary, but an API ergonomics/symmetry nice-to-have._
 
 ```go
-// Has checks if EDS exists by given DataRoot.
+// Has checks if EDS exists by the given DataRoot.
 func (s *Store) Has(context.Context, DataRoot) (bool, error)
 
 ```
@@ -308,16 +306,16 @@ To remove stored EDS `Remove` method is introduced. Internally it:
 
 - Converts `DataRoot`'s hash into the [`shard.Key`](https://github.com/filecoin-project/dagstore/blob/master/shard/key.go#L12)
 - Destroys `Shard` via `DAGStore`
-  - Internally removes it's `Mount` as well
-- Removes CARv1 file from disk under `storepath/DataRoot.Hash` path
+  - Internally removes its `Mount` as well
+- Removes CARv1 file from disk under `Store.Path/DataRoot.Hash` path
 
-_NOTES:_
+___NOTES:___
 
-- _It's not necessary, but an API ergonomics/symmetry nice-to-have_
+- _It's unnecessary, but an API ergonomics/symmetry nice-to-have_
 - _GC logic on the DAGStore has to be investigated so that Removing is correctly implemented_
 
 ```go
-// Remove removes EDS from Store by given DataRoot and cleans up all the indexing.
+// Remove removes EDS from Store by the given DataRoot and cleans up all the indexing.
 func (s *Store) Remove(context.Context, DataRoot) error
 
 ```
@@ -326,34 +324,34 @@ func (s *Store) Remove(context.Context, DataRoot) error
 
 Generally stays unchanged with minor edits:
 
-- `share/ipld.GetByNamespace` is kept to load data from disk only and not from network anymore
+- `share/ipld.GetByNamespace` is kept to load data from disk only and not from the network anymore
   - Using [`Blockservice`](https://github.com/ipfs/go-blockservice/blob/master/blockservice.go#L46) with [offline exchange](https://github.com/ipfs/go-ipfs-exchange-offline/blob/master/offline.go#L16)
   - Using [`Blockstore`](https://github.com/ipfs/go-ipfs-blockstore/blob/master/blockstore.go#L33) provided by `EDSStore`
 - `share/ipld.GetByNamespace` is extended to return NMT Merkle proofs
   - Similar to `share/ipld.GetProofsForShares`
-  - Ensure merkle proofs are not duplicated!
+  - Ensure Merkle proofs are not duplicated!
 
-As an extention, `share/ipld.GetByNamespace` can be modified to `share.CARByNamespace` returning
-CARv1 Reader with encoded shares and NMT Merkle Proofs.
+As an extension, `share/ipld.GetByNamespace` can be modified to `share.CARByNamespace`, returning CARv1 Reader with
+encoded shares and NMT Merkle Proofs.
 
 #### EDS Deduplication
 
-Addressing EDS by DataRoot allows us to deduplicate equal EDSes. EDS equality is every unlikely to happen in practice,
+Addressing EDS by DataRoot allows us to deduplicate equal EDSes. EDS equality is very unlikely to happen in practice,
 beside empty Block case, which always produces the same EDS.
 
 #### Empty Block/EDS
 
-The empty block is valid and small EDS. It can happen on early stage of the network. Its body is constant and to avoid
-transferring it over the wire the `EDSStore` should pre initialized with empty EDS value.
+The empty block is valid and small EDS. It can happen in the early stage of the network. Its body is constant, and to avoid
+transferring it over the wire, the `EDSStore` should be pre-initialized with an empty EDS value.
 
 #### EDSStore Directory Path
 
-The EDSStore on construction expects a directory to store CAR files and indices to. The path should be gotten based
+The EDSStore on construction expects a directory to store CAR files and indices. The path should be gotten based
 on `node.Store.Path`.
 
 ### Alternative Approaches
 
-- Extended blocks as a set of share blobs and Merkle proofs in global store (_current approach with KVStore_)
+- Extended blocks as a set of share blobs and Merkle proofs in global Store (_current approach with KVStore_)
 - Extended block as a single blob only(computing Merkle proofs)
 - Extended block as a single blob and Merkle proofs
 - Extended block as a set of DAG/CAR blobs
@@ -362,13 +360,13 @@ on `node.Store.Path`.
 ### Considerations
 
 - ___EDS to/from CARv2 converting performance.___ Current sync design assumes two converts from CAR to EDS on the
-protocol layer and back to CAR when storing the EDS. Rsmt2d allocates on most operations with individual shares and for
-bigger blocks during sync this allocs puts significant pressure on GC. One way to substantially alleviate this is to
-integrate bytes buffer pool into rmst2d.
+protocol layer and back to CAR when storing the EDS. Rsmt2d allocates on most operations with individual shares, and for
+more giant blocks during sync, these allocations put significant pressure on GC. One way to substantially alleviate this
+is to integrate the bytes buffer pool into rmst2d.
 
-- ___Disk usage increase from top-level index.___ This is temporary solution. The index will have to be removed.
+- ___Disk usage increases from the top-level index.___ This is a temporary solution. The index will have to be removed.
 LNs know which block they sample and can provide `DataRoot`'s hash together with sample request over Bitswap, removing
-the need for hash-to-eds-file mapping. This requires us to either facilitate implementation of [Bitswap's auth extention
-](https://github.com/ipfs/specs/pull/270) or proposing custom Bitswap message extention. Subsequently, the Blockstore
-implementation provided via `EDSStore` would have to be changed to take expect `DataRoot`'s hash being passed through the
+the need for hash-to-eds-file mapping. This requires us to either facilitate implementation of [Bitswap's auth extension
+](https://github.com/ipfs/specs/pull/270) or proposing a custom Bitswap message extension. Subsequently, the Blockstore
+implementation provided via `EDSStore` would have to be changed to expect `DataRoot`'s hash to be passed through the
 `context.Context`.
