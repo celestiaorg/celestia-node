@@ -7,4 +7,6 @@
 # global owners are only requested if there isn't a more specific
 # codeowner specified below. For this reason, the global codeowners
 # are often repeated in package-level definitions.
-*       @liamsi @renaynay @Wondertan @vgonkivs @distractedm1nd
+* @renaynay @Wondertan @vgonkivs @distractedm1nd
+
+docs/adr @adlerjohn @liamsi
