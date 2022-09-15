@@ -94,16 +94,18 @@ func TestFraudProofBroadcasting(t *testing.T) {
 */
 func TestFraudProofSyncing(t *testing.T) {
 	sw := swamp.NewSwamp(t, swamp.WithBlockTime(time.Millisecond*100))
-	cfg := node.DefaultConfig(node.Bridge)
-	cfg.P2P.Bootstrapper = true
+
 	const defaultTimeInterval = time.Second * 5
-	bridge := sw.NewBridgeNode(
-		node.WithConfig(cfg),
-		node.WithRefreshRoutingTablePeriod(defaultTimeInterval),
-		node.WithDiscoveryInterval(defaultTimeInterval),
-		node.WithAdvertiseInterval(defaultTimeInterval),
-		node.WithHeaderConstructFn(header.FraudMaker(t, 10)),
-	)
+
+	cfg := nodebuilder.DefaultConfig(node.Bridge)
+	cfg.P2P.Bootstrapper = true
+	cfg.P2P.RoutingTableRefreshPeriod = defaultTimeInterval
+	cfg.Share.DiscoveryInterval = defaultTimeInterval
+	cfg.Share.AdvertiseInterval = defaultTimeInterval
+
+	store := nodebuilder.MockStore(t, cfg)
+	bridge := sw.NewNodeWithStore(node.Bridge, store, core.WithHeaderConstructFn(header.FraudMaker(t, 10)))
+
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 	t.Cleanup(cancel)
 
@@ -113,17 +115,15 @@ func TestFraudProofSyncing(t *testing.T) {
 	addrs, err := peer.AddrInfoToP2pAddrs(addr)
 	require.NoError(t, err)
 
-	full := sw.NewFullNode(
-		node.WithTrustedPeers(addrs[0].String()),
-		node.WithRefreshRoutingTablePeriod(defaultTimeInterval),
-		node.WithAdvertiseInterval(defaultTimeInterval),
-	)
+	fullCfg := nodebuilder.DefaultConfig(node.Full)
+	cfg.Header.TrustedPeers = append(cfg.Header.TrustedPeers, addrs[0].String())
+	full := sw.NewNodeWithStore(node.Full, nodebuilder.MockStore(t, fullCfg))
 
-	ln := sw.NewLightNode(
-		node.WithBootstrappers([]peer.AddrInfo{*addr}),
-		node.WithRefreshRoutingTablePeriod(defaultTimeInterval),
-		node.WithDiscoveryInterval(defaultTimeInterval),
-	)
+	lightCfg := nodebuilder.DefaultConfig(node.Light)
+	lightCfg.P2P.RoutingTableRefreshPeriod = defaultTimeInterval
+	lightCfg.Share.DiscoveryInterval = defaultTimeInterval
+	ln := sw.NewNodeWithStore(node.Light, nodebuilder.MockStore(t, lightCfg),
+		nodebuilder.WithBootstrappers([]peer.AddrInfo{*addr}))
 
 	require.NoError(t, full.Start(ctx))
 	subsFn, err := full.FraudServ.Subscribe(fraud.BadEncoding)
