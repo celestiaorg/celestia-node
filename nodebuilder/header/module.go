@@ -47,8 +47,19 @@ func Module(tp node.Type, cfg *Config) fx.Option {
 		fx.Provide(fx.Annotate(
 			sync.NewSyncer,
 			fx.OnStart(func(ctx context.Context, lc fx.Lifecycle, fservice fraud.Service, syncer *sync.Syncer) error {
+				syncerStartFunc := func(ctx context.Context) error {
+					err := syncer.Start(ctx)
+					switch err {
+					default:
+						return err
+					case header.ErrNoHead:
+						log.Warnw("Syncer running on uninitialized Store - headers won't be synced")
+					case nil:
+					}
+					return nil
+				}
 				lifecycleCtx := fxutil.WithLifecycle(ctx, lc)
-				return FraudLifecycle(ctx, lifecycleCtx, fraud.BadEncoding, fservice, syncer.Start, syncer.Stop)
+				return FraudLifecycle(ctx, lifecycleCtx, fraud.BadEncoding, fservice, syncerStartFunc, syncer.Stop)
 			}),
 			fx.OnStop(func(ctx context.Context, syncer *sync.Syncer) error {
 				return syncer.Stop(ctx)
