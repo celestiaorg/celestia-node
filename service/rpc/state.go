@@ -13,14 +13,17 @@ import (
 )
 
 const (
-	balanceEndpoint           = "/balance"
-	submitTxEndpoint          = "/submit_tx"
-	submitPFDEndpoint         = "/submit_pfd"
-	transferEndpoint          = "/transfer"
-	delegationEndpoint        = "/delegate"
-	undelegationEndpoint      = "/begin_unbonding"
-	cancelUnbondingEndpoint   = "/cancel_unbond"
-	beginRedelegationEndpoint = "/begin_redelegate"
+	balanceEndpoint            = "/balance"
+	submitTxEndpoint           = "/submit_tx"
+	submitPFDEndpoint          = "/submit_pfd"
+	transferEndpoint           = "/transfer"
+	delegationEndpoint         = "/delegate"
+	undelegationEndpoint       = "/begin_unbonding"
+	cancelUnbondingEndpoint    = "/cancel_unbond"
+	beginRedelegationEndpoint  = "/begin_redelegate"
+	queryDelegationEndpoint    = "/query_delegation"
+	queryUnbondingEndpoint     = "/query_unbonding"
+	queryRedelegationsEndpoint = "/query_redelegations"
 )
 
 var addrKey = "address"
@@ -73,6 +76,11 @@ type cancelUnbondRequest struct {
 	Amount   int64  `json:"amount"`
 	Height   int64  `json:"height"`
 	GasLimit uint64 `json:"gas_limit"`
+}
+
+type queryRedelegationsRequest struct {
+	From string `json:"from"`
+	To   string `json:"to"`
 }
 
 func (h *Handler) handleBalanceRequest(w http.ResponseWriter, r *http.Request) {
@@ -346,5 +354,100 @@ func (h *Handler) handleRedelegation(w http.ResponseWriter, r *http.Request) {
 	_, err = w.Write(resp)
 	if err != nil {
 		log.Errorw("writing response", "endpoint", beginRedelegationEndpoint, "err", err)
+	}
+}
+
+func (h *Handler) handleQueryDelegation(w http.ResponseWriter, r *http.Request) {
+	// read and parse request
+	vars := mux.Vars(r)
+	addrStr, exists := vars[addrKey]
+	if !exists {
+		writeError(w, http.StatusBadRequest, queryDelegationEndpoint, errors.New("address not specified"))
+		return
+	}
+
+	// convert address to Address type
+	addr, err := types.ValAddressFromBech32(addrStr)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, queryDelegationEndpoint, err)
+		return
+	}
+	delegation, err := h.state.QueryDelegation(r.Context(), addr)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, queryDelegationEndpoint, err)
+		return
+	}
+	resp, err := json.Marshal(delegation)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, queryDelegationEndpoint, err)
+		return
+	}
+	_, err = w.Write(resp)
+	if err != nil {
+		log.Errorw("writing response", "endpoint", queryDelegationEndpoint, "err", err)
+	}
+}
+
+func (h *Handler) handleQueryUnbonding(w http.ResponseWriter, r *http.Request) {
+	// read and parse request
+	vars := mux.Vars(r)
+	addrStr, exists := vars[addrKey]
+	if !exists {
+		writeError(w, http.StatusBadRequest, queryUnbondingEndpoint, errors.New("address not specified"))
+		return
+	}
+
+	// convert address to Address type
+	addr, err := types.ValAddressFromBech32(addrStr)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, queryUnbondingEndpoint, err)
+		return
+	}
+	unbonding, err := h.state.QueryUnbonding(r.Context(), addr)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, queryUnbondingEndpoint, err)
+		return
+	}
+	resp, err := json.Marshal(unbonding)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, queryUnbondingEndpoint, err)
+		return
+	}
+	_, err = w.Write(resp)
+	if err != nil {
+		log.Errorw("writing response", "endpoint", queryUnbondingEndpoint, "err", err)
+	}
+}
+
+func (h *Handler) handleQueryRedelegations(w http.ResponseWriter, r *http.Request) {
+	var req queryRedelegationsRequest
+	err := json.NewDecoder(r.Body).Decode(&req)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, queryRedelegationsEndpoint, err)
+		return
+	}
+	srcValAddr, err := types.ValAddressFromBech32(req.From)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, queryRedelegationsEndpoint, err)
+		return
+	}
+	dstValAddr, err := types.ValAddressFromBech32(req.To)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, queryRedelegationsEndpoint, err)
+		return
+	}
+	unbonding, err := h.state.QueryRedelegations(r.Context(), srcValAddr, dstValAddr)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, queryRedelegationsEndpoint, err)
+		return
+	}
+	resp, err := json.Marshal(unbonding)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, queryRedelegationsEndpoint, err)
+		return
+	}
+	_, err = w.Write(resp)
+	if err != nil {
+		log.Errorw("writing response", "endpoint", queryRedelegationsEndpoint, "err", err)
 	}
 }

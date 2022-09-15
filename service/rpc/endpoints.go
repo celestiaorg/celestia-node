@@ -18,6 +18,14 @@ func (h *Handler) RegisterEndpoints(rpc *Server) {
 	rpc.RegisterHandlerFunc(cancelUnbondingEndpoint, h.handleCancelUnbonding, http.MethodPost)
 	rpc.RegisterHandlerFunc(beginRedelegationEndpoint, h.handleRedelegation, http.MethodPost)
 
+	// staking queries
+	rpc.RegisterHandlerFunc(fmt.Sprintf("%s/{%s}", queryDelegationEndpoint, addrKey), h.handleQueryDelegation,
+		http.MethodGet)
+	rpc.RegisterHandlerFunc(fmt.Sprintf("%s/{%s}", queryUnbondingEndpoint, addrKey), h.handleQueryUnbonding,
+		http.MethodGet)
+	rpc.RegisterHandlerFunc(queryRedelegationsEndpoint, h.handleQueryRedelegations,
+		http.MethodPost)
+
 	// share endpoints
 	rpc.RegisterHandlerFunc(fmt.Sprintf("%s/{%s}/height/{%s}", namespacedSharesEndpoint, nIDKey, heightKey),
 		h.handleSharesByNamespaceRequest, http.MethodGet)

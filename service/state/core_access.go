@@ -32,8 +32,9 @@ type CoreAccessor struct {
 	signer *apptypes.KeyringSigner
 	getter header.Getter
 
-	queryCli banktypes.QueryClient
-	rpcCli   rpcclient.ABCIClient
+	queryCli   banktypes.QueryClient
+	stakingCli stakingtypes.QueryClient
+	rpcCli     rpcclient.ABCIClient
 
 	coreConn *grpc.ClientConn
 	coreIP   string
@@ -74,6 +75,9 @@ func (ca *CoreAccessor) Start(ctx context.Context) error {
 	// create the query client
 	queryCli := banktypes.NewQueryClient(ca.coreConn)
 	ca.queryCli = queryCli
+	// create the staking query client
+	stakingCli := stakingtypes.NewQueryClient(ca.coreConn)
+	ca.stakingCli = stakingCli
 	// create ABCI query client
 	cli, err := http.New(fmt.Sprintf("http://%s:%s", ca.coreIP, ca.rpcPort), "/websocket")
 	if err != nil {
@@ -132,7 +136,7 @@ func (ca *CoreAccessor) Balance(ctx context.Context) (*Balance, error) {
 	return ca.BalanceForAddress(ctx, addr)
 }
 
-func (ca *CoreAccessor) BalanceForAddress(ctx context.Context, addr Address) (*Balance, error) {
+func (ca *CoreAccessor) BalanceForAddress(ctx context.Context, addr AccAddress) (*Balance, error) {
 	head, err := ca.getter.Head(ctx)
 	if err != nil {
 		return nil, err
@@ -215,20 +219,16 @@ func (ca *CoreAccessor) SubmitTxWithBroadcastMode(
 
 func (ca *CoreAccessor) Transfer(
 	ctx context.Context,
-	addr Address,
+	addr AccAddress,
 	amount Int,
 	gasLim uint64,
 ) (*TxResponse, error) {
-	to, ok := addr.(sdktypes.AccAddress)
-	if !ok {
-		return nil, fmt.Errorf("state: unsupported address type")
-	}
 	from, err := ca.signer.GetSignerInfo().GetAddress()
 	if err != nil {
 		return nil, err
 	}
 	coins := sdktypes.NewCoins(sdktypes.NewCoin(app.BondDenom, amount))
-	msg := banktypes.NewMsgSend(from, to, coins)
+	msg := banktypes.NewMsgSend(from, addr, coins)
 	signedTx, err := ca.constructSignedTx(ctx, msg, apptypes.SetGasLimit(gasLim))
 	if err != nil {
 		return nil, err
@@ -238,21 +238,17 @@ func (ca *CoreAccessor) Transfer(
 
 func (ca *CoreAccessor) CancelUnbondingDelegation(
 	ctx context.Context,
-	valAddr Address,
+	valAddr ValAddress,
 	amount,
 	height Int,
 	gasLim uint64,
 ) (*TxResponse, error) {
-	validator, ok := valAddr.(sdktypes.ValAddress)
-	if !ok {
-		return nil, fmt.Errorf("state: unsupported address type")
-	}
 	from, err := ca.signer.GetSignerInfo().GetAddress()
 	if err != nil {
 		return nil, err
 	}
 	coins := sdktypes.NewCoin(app.BondDenom, amount)
-	msg := stakingtypes.NewMsgCancelUnbondingDelegation(from, validator, height.Int64(), coins)
+	msg := stakingtypes.NewMsgCancelUnbondingDelegation(from, valAddr, height.Int64(), coins)
 	signedTx, err := ca.constructSignedTx(ctx, msg, apptypes.SetGasLimit(gasLim))
 	if err != nil {
 		return nil, err
@@ -263,24 +259,16 @@ func (ca *CoreAccessor) CancelUnbondingDelegation(
 func (ca *CoreAccessor) BeginRedelegate(
 	ctx context.Context,
 	srcValAddr,
-	dstValAddr Address,
+	dstValAddr ValAddress,
 	amount Int,
 	gasLim uint64,
 ) (*TxResponse, error) {
-	srcValidator, ok := srcValAddr.(sdktypes.ValAddress)
-	if !ok {
-		return nil, fmt.Errorf("state: unsupported address type")
-	}
-	dstValidator, ok := dstValAddr.(sdktypes.ValAddress)
-	if !ok {
-		return nil, fmt.Errorf("state: unsupported address type")
-	}
 	from, err := ca.signer.GetSignerInfo().GetAddress()
 	if err != nil {
 		return nil, err
 	}
 	coins := sdktypes.NewCoin(app.BondDenom, amount)
-	msg := stakingtypes.NewMsgBeginRedelegate(from, srcValidator, dstValidator, coins)
+	msg := stakingtypes.NewMsgBeginRedelegate(from, srcValAddr, dstValAddr, coins)
 	signedTx, err := ca.constructSignedTx(ctx, msg, apptypes.SetGasLimit(gasLim))
 	if err != nil {
 		return nil, err
@@ -290,20 +278,16 @@ func (ca *CoreAccessor) BeginRedelegate(
 
 func (ca *CoreAccessor) Undelegate(
 	ctx context.Context,
-	delAddr Address,
+	delAddr ValAddress,
 	amount Int,
 	gasLim uint64,
 ) (*TxResponse, error) {
-	delegate, ok := delAddr.(sdktypes.ValAddress)
-	if !ok {
-		return nil, fmt.Errorf("state: unsupported address type")
-	}
 	from, err := ca.signer.GetSignerInfo().GetAddress()
 	if err != nil {
 		return nil, err
 	}
 	coins := sdktypes.NewCoin(app.BondDenom, amount)
-	msg := stakingtypes.NewMsgUndelegate(from, delegate, coins)
+	msg := stakingtypes.NewMsgUndelegate(from, delAddr, coins)
 	signedTx, err := ca.constructSignedTx(ctx, msg, apptypes.SetGasLimit(gasLim))
 	if err != nil {
 		return nil, err
@@ -313,23 +297,62 @@ func (ca *CoreAccessor) Undelegate(
 
 func (ca *CoreAccessor) Delegate(
 	ctx context.Context,
-	delAddr Address,
+	delAddr ValAddress,
 	amount Int,
 	gasLim uint64,
 ) (*TxResponse, error) {
-	delegate, ok := delAddr.(sdktypes.ValAddress)
-	if !ok {
-		return nil, fmt.Errorf("state: unsupported address type")
-	}
 	from, err := ca.signer.GetSignerInfo().GetAddress()
 	if err != nil {
 		return nil, err
 	}
 	coins := sdktypes.NewCoin(app.BondDenom, amount)
-	msg := stakingtypes.NewMsgDelegate(from, delegate, coins)
+	msg := stakingtypes.NewMsgDelegate(from, delAddr, coins)
 	signedTx, err := ca.constructSignedTx(ctx, msg, apptypes.SetGasLimit(gasLim))
 	if err != nil {
 		return nil, err
 	}
 	return ca.SubmitTx(ctx, signedTx)
+}
+
+func (ca *CoreAccessor) QueryDelegation(
+	ctx context.Context,
+	valAddr ValAddress,
+) (*stakingtypes.QueryDelegationResponse, error) {
+	delAddr, err := ca.signer.GetSignerInfo().GetAddress()
+	if err != nil {
+		return nil, err
+	}
+	return ca.stakingCli.Delegation(ctx, &stakingtypes.QueryDelegationRequest{
+		DelegatorAddr: delAddr.String(),
+		ValidatorAddr: valAddr.String(),
+	})
+}
+
+func (ca *CoreAccessor) QueryUnbonding(
+	ctx context.Context,
+	valAddr ValAddress,
+) (*stakingtypes.QueryUnbondingDelegationResponse, error) {
+	delAddr, err := ca.signer.GetSignerInfo().GetAddress()
+	if err != nil {
+		return nil, err
+	}
+	return ca.stakingCli.UnbondingDelegation(ctx, &stakingtypes.QueryUnbondingDelegationRequest{
+		DelegatorAddr: delAddr.String(),
+		ValidatorAddr: valAddr.String(),
+	})
+}
+func (ca *CoreAccessor) QueryRedelegations(
+	ctx context.Context,
+	srcValAddr,
+	dstValAddr ValAddress,
+) (*stakingtypes.QueryRedelegationsResponse, error) {
+	delAddr, err := ca.signer.GetSignerInfo().GetAddress()
+	if err != nil {
+		return nil, err
+	}
+	return ca.stakingCli.Redelegations(ctx, &stakingtypes.QueryRedelegationsRequest{
+		DelegatorAddr:    delAddr.String(),
+		SrcValidatorAddr: srcValAddr.String(),
+		DstValidatorAddr: dstValAddr.String(),
+	})
 }

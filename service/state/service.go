@@ -3,6 +3,8 @@ package state
 import (
 	"context"
 
+	"github.com/cosmos/cosmos-sdk/x/staking/types"
+
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/nmt/namespace"
 )
@@ -39,7 +41,7 @@ func (s *Service) Balance(ctx context.Context) (*Balance, error) {
 	return s.accessor.Balance(ctx)
 }
 
-func (s *Service) BalanceForAddress(ctx context.Context, addr Address) (*Balance, error) {
+func (s *Service) BalanceForAddress(ctx context.Context, addr AccAddress) (*Balance, error) {
 	return s.accessor.BalanceForAddress(ctx, addr)
 }
 
@@ -47,13 +49,13 @@ func (s *Service) SubmitTx(ctx context.Context, tx Tx) (*TxResponse, error) {
 	return s.accessor.SubmitTx(ctx, tx)
 }
 
-func (s *Service) Transfer(ctx context.Context, to Address, amount Int, gasLimit uint64) (*TxResponse, error) {
+func (s *Service) Transfer(ctx context.Context, to AccAddress, amount Int, gasLimit uint64) (*TxResponse, error) {
 	return s.accessor.Transfer(ctx, to, amount, gasLimit)
 }
 
 func (s *Service) CancelUnbondingDelegation(
 	ctx context.Context,
-	valAddr Address,
+	valAddr ValAddress,
 	amount,
 	height Int,
 	gasLim uint64,
@@ -64,19 +66,41 @@ func (s *Service) CancelUnbondingDelegation(
 func (s *Service) BeginRedelegate(
 	ctx context.Context,
 	srcValAddr,
-	dstValAddr Address,
+	dstValAddr ValAddress,
 	amount Int,
 	gasLim uint64,
 ) (*TxResponse, error) {
 	return s.accessor.BeginRedelegate(ctx, srcValAddr, dstValAddr, amount, gasLim)
 }
 
-func (s *Service) Undelegate(ctx context.Context, delAddr Address, amount Int, gasLim uint64) (*TxResponse, error) {
+func (s *Service) Undelegate(ctx context.Context, delAddr ValAddress, amount Int, gasLim uint64) (*TxResponse, error) {
 	return s.accessor.Undelegate(ctx, delAddr, amount, gasLim)
 }
 
-func (s *Service) Delegate(ctx context.Context, delAddr Address, amount Int, gasLim uint64) (*TxResponse, error) {
+func (s *Service) Delegate(ctx context.Context, delAddr ValAddress, amount Int, gasLim uint64) (*TxResponse, error) {
 	return s.accessor.Delegate(ctx, delAddr, amount, gasLim)
+}
+
+func (s *Service) QueryDelegation(
+	ctx context.Context,
+	valAddr ValAddress,
+) (*types.QueryDelegationResponse, error) {
+	return s.accessor.QueryDelegation(ctx, valAddr)
+}
+
+func (s *Service) QueryUnbonding(
+	ctx context.Context,
+	valAddr ValAddress,
+) (*types.QueryUnbondingDelegationResponse, error) {
+	return s.accessor.QueryUnbonding(ctx, valAddr)
+}
+
+func (s *Service) QueryRedelegations(
+	ctx context.Context,
+	srcValAddr,
+	dstValAddr ValAddress,
+) (*types.QueryRedelegationsResponse, error) {
+	return s.accessor.QueryRedelegations(ctx, srcValAddr, dstValAddr)
 }
 
 func (s *Service) Start(context.Context) error {
