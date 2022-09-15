@@ -13,6 +13,7 @@ import (
 	"github.com/celestiaorg/celestia-node/header/sync"
 	"github.com/celestiaorg/celestia-node/libs/fxutil"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
+	"github.com/celestiaorg/celestia-node/params"
 	headerservice "github.com/celestiaorg/celestia-node/service/header"
 )
 
@@ -25,6 +26,7 @@ func Module(tp node.Type, cfg *Config) fx.Option {
 	baseOptions := fx.Options(
 		fx.Supply(*cfg),
 		fx.Error(cfgErr),
+		fx.Supply(params.BlockTime),
 		fx.Provide(headerservice.NewHeaderService),
 		fx.Provide(fx.Annotate(
 			store.NewStore,
@@ -36,7 +38,6 @@ func Module(tp node.Type, cfg *Config) fx.Option {
 			}),
 		)),
 		fx.Invoke(InitStore),
-		fxutil.ProvideAs(FraudService, new(fraud.Service), new(fraud.Subscriber)),
 		fx.Provide(func(subscriber *p2p.Subscriber) header.Subscriber {
 			return subscriber
 		}),
@@ -75,17 +76,26 @@ func Module(tp node.Type, cfg *Config) fx.Option {
 	)
 
 	switch tp {
-	case node.Light, node.Full:
+	case node.Light:
 		return fx.Module(
 			"header",
 			baseOptions,
 			fx.Provide(P2PExchange(*cfg)),
+			fxutil.ProvideAs(FraudServiceWithSyncer, new(fraud.Service), new(fraud.Subscriber)),
+		)
+	case node.Full:
+		return fx.Module(
+			"header",
+			baseOptions,
+			fx.Provide(P2PExchange(*cfg)),
+			fxutil.ProvideAs(FraudService, new(fraud.Service), new(fraud.Subscriber)),
 		)
 	case node.Bridge:
 		return fx.Module(
 			"header",
 			baseOptions,
 			fx.Supply(header.MakeExtendedHeader),
+			fxutil.ProvideAs(FraudService, new(fraud.Service), new(fraud.Subscriber)),
 		)
 	default:
 		panic("invalid node type")
