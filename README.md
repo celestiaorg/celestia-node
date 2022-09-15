@@ -18,7 +18,7 @@ Continue reading [here](https://blog.celestia.org/celestia-mvp-release-data-avai
 
 | Requirement | Notes          |
 |-------------|----------------|
-| Go version  | 1.18 or higher |
+| Go version  | 1.19 or higher |
 
 ## System Requirements
 
