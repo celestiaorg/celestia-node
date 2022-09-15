@@ -93,10 +93,15 @@ func (h *Handler) handleBalanceRequest(w http.ResponseWriter, r *http.Request) {
 	addrStr, exists := vars[addrKey]
 	if exists {
 		// convert address to Address type
-		addr, addrerr := types.AccAddressFromBech32(addrStr)
-		if addrerr != nil {
-			writeError(w, http.StatusBadRequest, balanceEndpoint, addrerr)
-			return
+		addr, addrErr := types.AccAddressFromBech32(addrStr)
+		if addrErr != nil {
+			// first check if it is a validator address and can be converted
+			valAddr, valErr := types.ValAddressFromBech32(addrStr)
+			if valErr != nil {
+				writeError(w, http.StatusBadRequest, balanceEndpoint, addrErr)
+				return
+			}
+			addr = valAddr.Bytes()
 		}
 		bal, err = h.state.BalanceForAddress(r.Context(), addr)
 	} else {
@@ -195,8 +200,13 @@ func (h *Handler) handleTransfer(w http.ResponseWriter, r *http.Request) {
 	}
 	addr, err := types.AccAddressFromBech32(req.To)
 	if err != nil {
-		writeError(w, http.StatusBadRequest, transferEndpoint, err)
-		return
+		// first check if it is a validator address and can be converted
+		valAddr, valErr := types.ValAddressFromBech32(req.To)
+		if valErr != nil {
+			writeError(w, http.StatusBadRequest, transferEndpoint, err)
+			return
+		}
+		addr = valAddr.Bytes()
 	}
 	amount := types.NewInt(req.Amount)
 

@@ -27,7 +27,7 @@ type Accessor interface {
 	// NOTE: the balance returned is the balance reported by the block right before
 	// the node's current head (head-1). This is due to the fact that for block N, the block's
 	// `AppHash` is the result of applying the previous block's transaction list.
-	BalanceForAddress(ctx context.Context, addr AccAddress) (*Balance, error)
+	BalanceForAddress(ctx context.Context, addr Address) (*Balance, error)
 
 	// Transfer sends the given amount of coins from default wallet of the node to the given account address.
 	Transfer(ctx context.Context, to AccAddress, amount math.Int, gasLimit uint64) (*TxResponse, error)
