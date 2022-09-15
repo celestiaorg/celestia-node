@@ -73,6 +73,7 @@ func ParseNodeFlags(ctx context.Context, cmd *cobra.Command) (context.Context, e
 		ctx = WithNodeConfig(ctx, cfg)
 	} else {
 		// check if config already exists at the store path and load it
+		path := StorePath(ctx)
 		expanded, err := homedir.Expand(filepath.Clean(path))
 		if err != nil {
 			return ctx, err
