@@ -58,7 +58,7 @@ func FraudService(
 	hstore header.Store,
 	ds datastore.Batching,
 ) fraud.Service {
-	return fraud.NewService(sub, hstore.GetByHeight, ds)
+	return fraud.NewProofService(sub, hstore.GetByHeight, ds)
 }
 
 // FraudLifecycle controls the lifecycle of service depending on fraud proofs.
