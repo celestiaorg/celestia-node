@@ -1,12 +1,24 @@
 package nodebuilder
 
 import (
+	"context"
+	"fmt"
+	"time"
+
 	"go.uber.org/fx"
 
-	"github.com/celestiaorg/celestia-node/nodebuilder/daser"
+	"github.com/libp2p/go-libp2p-core/peer"
+	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetrichttp"
+	"go.opentelemetry.io/otel/metric/global"
+	controller "go.opentelemetry.io/otel/sdk/metric/controller/basic"
+	processor "go.opentelemetry.io/otel/sdk/metric/processor/basic"
+	selector "go.opentelemetry.io/otel/sdk/metric/selector/simple"
+	"go.opentelemetry.io/otel/sdk/resource"
+	semconv "go.opentelemetry.io/otel/semconv/v1.10.0"
 
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/header/core"
+	"github.com/celestiaorg/celestia-node/nodebuilder/daser"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	"github.com/celestiaorg/celestia-node/params"
 	"github.com/celestiaorg/celestia-node/state"
@@ -24,30 +36,35 @@ func WithBootstrappers(peers params.Bootstrappers) fx.Option {
 }
 
 // WithMetrics enables metrics exporting for the node.
-func WithMetrics(enable bool, nodeType node.Type) fx.Option {
+func WithMetrics(enable bool, metricOpts []otlpmetrichttp.Option, nodeType node.Type) fx.Option {
 	if !enable {
 		return fx.Options()
 	}
+
+	baseComponents := fx.Options(
+		fx.Supply(metricOpts),
+		fx.Invoke(InitializeMetrics),
+		fx.Invoke(header.MonitorHead),
+		fx.Invoke(state.MonitorPFDs),
+	)
+
 	var opts fx.Option
 	switch nodeType {
 	case node.Full:
 		opts = fx.Options(
-			fx.Invoke(header.MonitorHead),
-			fx.Invoke(state.MonitorPFDs),
+			baseComponents,
 			fx.Invoke(daser.MonitorDASer),
 			// add more monitoring here
 		)
 	case node.Bridge:
 		opts = fx.Options(
-			fx.Invoke(header.MonitorHead),
-			fx.Invoke(state.MonitorPFDs),
+			baseComponents,
 			fx.Invoke(core.MonitorBroadcasting),
 			// add more monitoring here
 		)
 	case node.Light:
 		opts = fx.Options(
-			fx.Invoke(header.MonitorHead),
-			fx.Invoke(state.MonitorPFDs),
+			baseComponents,
 			fx.Invoke(daser.MonitorDASer),
 			// add more monitoring here
 		)
@@ -55,4 +72,35 @@ func WithMetrics(enable bool, nodeType node.Type) fx.Option {
 		panic("invalid node type")
 	}
 	return opts
+}
+
+// InitializeMetrics initializes the global meter provider.
+func InitializeMetrics(ctx context.Context, peerID peer.ID, nodeType node.Type, opts []otlpmetrichttp.Option) error {
+	exp, err := otlpmetrichttp.New(ctx, opts...)
+	if err != nil {
+		return err
+	}
+
+	pusher := controller.New(
+		processor.NewFactory(
+			selector.NewWithHistogramDistribution(),
+			exp,
+		),
+		controller.WithExporter(exp),
+		controller.WithCollectPeriod(2*time.Second),
+		controller.WithResource(resource.NewWithAttributes(
+			semconv.SchemaURL,
+			semconv.ServiceNameKey.String(fmt.Sprintf("Celestia-%s", nodeType.String())),
+			// TODO(@Wondertan): Versioning: semconv.ServiceVersionKey
+			semconv.ServiceInstanceIDKey.String(peerID.String()),
+		)),
+	)
+
+	err = pusher.Start(ctx)
+	if err != nil {
+		return err
+	}
+	global.SetMeterProvider(pusher)
+
+	return nil
 }
