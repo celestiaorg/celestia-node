@@ -72,6 +72,11 @@ func New(tp node.Type, store Store, options ...fx.Option) (*Node, error) {
 		return nil, err
 	}
 
+	return NewWithConfig(tp, store, cfg, options...)
+}
+
+// NewWithConfig assembles a new Node with the given type 'tp' over Store 'store' and a custom config.
+func NewWithConfig(tp node.Type, store Store, cfg *Config, options ...fx.Option) (*Node, error) {
 	opts := append([]fx.Option{Module(tp, cfg, store)}, options...)
 	return newNode(opts...)
 }
