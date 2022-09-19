@@ -22,7 +22,7 @@ require (
 	github.com/ipfs/go-bitswap v0.8.0
 	github.com/ipfs/go-block-format v0.0.3
 	github.com/ipfs/go-blockservice v0.4.0
-	github.com/ipfs/go-cid v0.3.0
+	github.com/ipfs/go-cid v0.3.2
 	github.com/ipfs/go-datastore v0.6.0
 	github.com/ipfs/go-ds-badger2 v0.1.3
 	github.com/ipfs/go-ipfs-blockstore v1.2.0
