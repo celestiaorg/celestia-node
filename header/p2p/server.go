@@ -67,7 +67,7 @@ func (serv *ExchangeServer) requestHandler(stream network.Stream) {
 		return
 	}
 	if err = stream.CloseRead(); err != nil {
-		log.Warn(err)
+		log.Error(err)
 	}
 	// retrieve and write ExtendedHeaders
 	switch pbreq.Data.(type) {

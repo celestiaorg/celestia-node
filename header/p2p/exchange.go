@@ -150,7 +150,7 @@ func (ex *Exchange) performRequest(
 	}
 	err = stream.CloseWrite()
 	if err != nil {
-		log.Warn(err)
+		log.Error(err)
 	}
 	// read responses
 	headers := make([]*header.ExtendedHeader, req.Amount)
