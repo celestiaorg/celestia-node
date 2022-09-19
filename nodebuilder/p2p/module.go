@@ -1,16 +1,16 @@
 package p2p
 
 import (
+	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	"go.uber.org/fx"
 )
 
 // Module collects all the components and services related to p2p.
-func Module(cfg *Config) fx.Option {
+func Module(tp node.Type, cfg *Config) fx.Option {
 	// sanitize config values before constructing module
 	cfgErr := cfg.ValidateBasic()
 
-	return fx.Module(
-		"p2p",
+	baseComponents := fx.Options(
 		fx.Supply(*cfg),
 		fx.Error(cfgErr),
 		fx.Provide(Key),
@@ -28,4 +28,14 @@ func Module(cfg *Config) fx.Option {
 		fx.Provide(AddrsFactory(cfg.AnnounceAddresses, cfg.NoAnnounceAddresses)),
 		fx.Invoke(Listen(cfg.ListenAddresses)),
 	)
+
+	switch tp {
+	case node.Light, node.Full, node.Bridge:
+		return fx.Module(
+			"p2p",
+			baseComponents,
+		)
+	default:
+		panic("invalid node type")
+	}
 }

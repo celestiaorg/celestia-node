@@ -40,9 +40,9 @@ type DASer struct {
 func NewDASer(
 	da share.Availability,
 	hsub header.Subscriber,
-	getter header.Store,
-	cstore datastore.Batching,
-	bcast fraud.Service,
+	getter header.Getter,
+	cstore datastore.Datastore,
+	bcast fraud.Broadcaster,
 ) *DASer {
 	wrappedDS := wrapCheckpointStore(cstore)
 	return &DASer{
