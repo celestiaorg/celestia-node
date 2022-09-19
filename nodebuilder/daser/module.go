@@ -18,7 +18,7 @@ func Module(tp node.Type) fx.Option {
 		return fx.Module(
 			"daser",
 			fx.Provide(fx.Annotate(
-				das.NewDASer,
+				NewDASer,
 				fx.OnStart(func(ctx context.Context, lc fx.Lifecycle, fservice fraud.Service, das *das.DASer) error {
 					lifecycleCtx := fxutil.WithLifecycle(ctx, lc)
 					return header.FraudLifecycle(ctx, lifecycleCtx, fraud.BadEncoding, fservice, das.Start, das.Stop)

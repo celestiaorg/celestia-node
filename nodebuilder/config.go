@@ -15,8 +15,8 @@ import (
 	"github.com/celestiaorg/celestia-node/service/rpc"
 )
 
-// Loader defines a function that loads a config from any source.
-type Loader func() (*Config, error)
+// ConfigLoader defines a function that loads a config from any source.
+type ConfigLoader func() (*Config, error)
 
 // Config is main configuration structure for a Node.
 // It combines configuration units for all Node subsystems.
@@ -72,8 +72,9 @@ func LoadConfig(path string) (*Config, error) {
 
 // Encode encodes a given Config into w.
 // TODO(@Wondertan): We should have a description for each field written into w,
-//  so users can instantly understand purpose of each field. Ideally, we should have a utility program to parse comments
-//  from actual sources(*.go files) and generate docs from comments. Hint: use 'ast' package.
+//
+//	so users can instantly understand purpose of each field. Ideally, we should have a utility program to parse comments
+//	from actual sources(*.go files) and generate docs from comments. Hint: use 'ast' package.
 func (cfg *Config) Encode(w io.Writer) error {
 	return toml.NewEncoder(w).Encode(cfg)
 }

@@ -23,7 +23,7 @@ func Module(tp node.Type, cfg *Config) fx.Option {
 	// sanitize config values before constructing module
 	cfgErr := cfg.ValidateBasic()
 
-	baseOptions := fx.Options(
+	baseComponents := fx.Options(
 		fx.Supply(*cfg),
 		fx.Error(cfgErr),
 		fx.Supply(params.BlockTime),
@@ -90,21 +90,21 @@ func Module(tp node.Type, cfg *Config) fx.Option {
 	case node.Light:
 		return fx.Module(
 			"header",
-			baseOptions,
+			baseComponents,
 			fx.Provide(P2PExchange(*cfg)),
 			fxutil.ProvideAs(FraudServiceWithSyncer, new(fraud.Service), new(fraud.Subscriber)),
 		)
 	case node.Full:
 		return fx.Module(
 			"header",
-			baseOptions,
+			baseComponents,
 			fx.Provide(P2PExchange(*cfg)),
 			fxutil.ProvideAs(FraudService, new(fraud.Service), new(fraud.Subscriber)),
 		)
 	case node.Bridge:
 		return fx.Module(
 			"header",
-			baseOptions,
+			baseComponents,
 			fx.Supply(header.MakeExtendedHeader),
 			fxutil.ProvideAs(FraudService, new(fraud.Service), new(fraud.Subscriber)),
 		)

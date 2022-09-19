@@ -27,7 +27,7 @@ func Module(tp node.Type, cfg *Config, store Store) fx.Option {
 		fx.Provide(store.Keystore),
 		fx.Invoke(invokeWatchdog(store.Path())),
 		// modules provided by the node
-		p2p.Module(&cfg.P2P),
+		p2p.Module(tp, &cfg.P2P),
 		state.Module(tp, &cfg.State),
 		header.Module(tp, &cfg.Header),
 		share.Module(tp, &cfg.Share),
