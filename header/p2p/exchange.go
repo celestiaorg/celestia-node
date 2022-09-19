@@ -18,7 +18,6 @@ import (
 
 	"github.com/celestiaorg/celestia-node/header"
 	p2p_pb "github.com/celestiaorg/celestia-node/header/p2p/pb"
-	header_pb "github.com/celestiaorg/celestia-node/header/pb"
 	"github.com/celestiaorg/celestia-node/params"
 )
 
@@ -191,7 +190,7 @@ func request(
 	// read responses
 	headers := make([]*header.ExtendedHeader, req.Amount)
 	for i := 0; i < int(req.Amount); i++ {
-		resp := new(header_pb.ExtendedHeader)
+		resp := new(p2p_pb.ExtendedHeaderResponse)
 		if err = stream.SetReadDeadline(time.Now().Add(readDeadline)); err != nil {
 			log.Debugf("error setting deadline: %s", err)
 		}
@@ -200,7 +199,12 @@ func request(
 			stream.Reset() //nolint:errcheck
 			return nil, err
 		}
-		header, err := header.ProtoToExtendedHeader(resp)
+
+		if err = convertStatusCodeToError(resp.StatusCode); err != nil {
+			stream.Reset() //nolint:errcheck
+			return nil, err
+		}
+		header, err := header.UnmarshalExtendedHeader(resp.Body)
 		if err != nil {
 			stream.Reset() //nolint:errcheck
 			return nil, err
@@ -245,4 +249,16 @@ func bestHead(result []*header.ExtendedHeader) (*header.ExtendedHeader, error) {
 	log.Debug("could not find latest header received from at least two peers, returning header with the max height")
 	// otherwise return header with the max height
 	return result[0], nil
+}
+
+// convertStatusCodeToError converts passed status code into an error.
+func convertStatusCodeToError(code p2p_pb.StatusCode) error {
+	switch code {
+	case p2p_pb.StatusCode_OK:
+		return nil
+	case p2p_pb.StatusCode_NOT_FOUND:
+		return header.ErrNotFound
+	default:
+		return fmt.Errorf("unknown status code %d", code)
+	}
 }
