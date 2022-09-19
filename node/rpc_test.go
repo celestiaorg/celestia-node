@@ -189,11 +189,11 @@ func TestDASStateRequest(t *testing.T) {
 		err = resp.Body.Close()
 		require.NoError(t, err)
 	}()
-	dasStateResp := new(rpc.DasStateResponse)
+	dasStateResp := new(das.SamplingStats)
 	err = json.NewDecoder(resp.Body).Decode(dasStateResp)
 	require.NoError(t, err)
 	// ensure daser is running
-	assert.True(t, dasStateResp.SampleRoutine.IsRunning)
+	assert.True(t, dasStateResp.IsRunning)
 }
 
 func setupNodeWithModifiedRPC(t *testing.T) *Node {
