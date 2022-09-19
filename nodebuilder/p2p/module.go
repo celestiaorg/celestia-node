@@ -1,8 +1,9 @@
 package p2p
 
 import (
-	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	"go.uber.org/fx"
+
+	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 )
 
 // Module collects all the components and services related to p2p.
