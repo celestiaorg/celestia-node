@@ -7,7 +7,6 @@ import (
 	"go.uber.org/fx"
 
 	"github.com/celestiaorg/celestia-node/fraud"
-	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/libs/fxutil"
 	"github.com/celestiaorg/celestia-node/node/core"
 	"github.com/celestiaorg/celestia-node/node/key"
@@ -32,10 +31,9 @@ func Service(
 	ctx context.Context,
 	lc fx.Lifecycle,
 	accessor state.Accessor,
-	store header.Store,
 	fservice fraud.Service,
 ) *state.Service {
-	serv := state.NewService(accessor, store)
+	serv := state.NewService(accessor)
 	lifecycleCtx := fxutil.WithLifecycle(ctx, lc)
 	lc.Append(fx.Hook{
 		OnStart: func(startCtx context.Context) error {

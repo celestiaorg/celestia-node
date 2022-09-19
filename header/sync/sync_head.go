@@ -9,6 +9,12 @@ import (
 	"github.com/celestiaorg/celestia-node/header"
 )
 
+// Head returns the Syncer's latest known header. It calls 'networkHead' in order to
+// either return or eagerly fetch the most recent header.
+func (s *Syncer) Head(ctx context.Context) (*header.ExtendedHeader, error) {
+	return s.networkHead(ctx)
+}
+
 // subjectiveHead returns the latest known local header that is not expired(within trusting period).
 // If the header is expired, it is retrieved from a trusted peer without validation;
 // in other words, an automatic subjective initialization is performed.

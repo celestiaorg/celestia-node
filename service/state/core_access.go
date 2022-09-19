@@ -30,7 +30,7 @@ var log = logging.Logger("state")
 // with a celestia-core node.
 type CoreAccessor struct {
 	signer *apptypes.KeyringSigner
-	getter header.Getter
+	getter header.Head
 
 	queryCli   banktypes.QueryClient
 	stakingCli stakingtypes.QueryClient
@@ -47,7 +47,7 @@ type CoreAccessor struct {
 // connection.
 func NewCoreAccessor(
 	signer *apptypes.KeyringSigner,
-	getter header.Getter,
+	getter header.Head,
 	coreIP,
 	rpcPort string,
 	grpcPort string,
