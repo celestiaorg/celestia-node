@@ -164,9 +164,6 @@ func (ex *Exchange) performRequest(
 			stream.Reset() //nolint:errcheck
 			return nil, err
 		}
-		if err = stream.SetReadDeadline(time.Time{}); err != nil {
-			log.Debugf("error resetting deadline: %s", err)
-		}
 		header, err := header.ProtoToExtendedHeader(resp)
 		if err != nil {
 			stream.Reset() //nolint:errcheck

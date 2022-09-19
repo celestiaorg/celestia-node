@@ -160,9 +160,5 @@ func (serv *ExchangeServer) handleRequest(from, to uint64, stream network.Stream
 			stream.Reset() //nolint:errcheck
 			return
 		}
-
-		if err = stream.SetWriteDeadline(time.Time{}); err != nil {
-			log.Debugf("error resetting deadline: %s", err)
-		}
 	}
 }
