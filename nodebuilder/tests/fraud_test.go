@@ -18,17 +18,17 @@ import (
 )
 
 /*
- Test-Case: Full Node will propagate a fraud proof to the network, once ByzantineError will be received from sampling.
- Pre-Requisites:
- - CoreClient is started by swamp.
- Steps:
- 1. Create a Bridge Node(BN) with broken extended header at height 10.
- 2. Start a BN.
- 3. Create a Full Node(FN) with a connection to BN as a trusted peer.
- 4. Start a FN.
- 5. Subscribe to a fraud proof and wait when it will be received.
- 6. Check FN is not synced to 15.
- Note: 15 is not available because DASer will be stopped before reaching this height due to receiving a fraud proof.
+Test-Case: Full Node will propagate a fraud proof to the network, once ByzantineError will be received from sampling.
+Pre-Requisites:
+- CoreClient is started by swamp.
+Steps:
+1. Create a Bridge Node(BN) with broken extended header at height 10.
+2. Start a BN.
+3. Create a Full Node(FN) with a connection to BN as a trusted peer.
+4. Start a FN.
+5. Subscribe to a fraud proof and wait when it will be received.
+6. Check FN is not synced to 15.
+Note: 15 is not available because DASer will be stopped before reaching this height due to receiving a fraud proof.
 */
 func TestFraudProofBroadcasting(t *testing.T) {
 	sw := swamp.NewSwamp(t, swamp.WithBlockTime(time.Millisecond*100))
@@ -80,17 +80,17 @@ func TestFraudProofBroadcasting(t *testing.T) {
 }
 
 /*
- Test-Case: Light node receives a fraud proof using Fraud Sync
- Pre-Requisites:
- - CoreClient is started by swamp.
- Steps:
- 1. Create a Bridge Node(BN) with broken extended header at height 10.
- 2. Start a BN.
- 3. Create a Full Node(FN) with a connection to BN as a trusted peer.
- 4. Start a FN.
- 5. Subscribe to a fraud proof and wait when it will be received.
- 6. Start LN once a fraud proof is received and verified by FN.
- 7. Wait until LN will be connected to FN and fetch a fraud proof.
+Test-Case: Light node receives a fraud proof using Fraud Sync
+Pre-Requisites:
+- CoreClient is started by swamp.
+Steps:
+1. Create a Bridge Node(BN) with broken extended header at height 10.
+2. Start a BN.
+3. Create a Full Node(FN) with a connection to BN as a trusted peer.
+4. Start a FN.
+5. Subscribe to a fraud proof and wait when it will be received.
+6. Start LN once a fraud proof is received and verified by FN.
+7. Wait until LN will be connected to FN and fetch a fraud proof.
 */
 func TestFraudProofSyncing(t *testing.T) {
 	sw := swamp.NewSwamp(t, swamp.WithBlockTime(time.Millisecond*100))
@@ -116,7 +116,7 @@ func TestFraudProofSyncing(t *testing.T) {
 	require.NoError(t, err)
 
 	fullCfg := nodebuilder.DefaultConfig(node.Full)
-	cfg.Header.TrustedPeers = append(cfg.Header.TrustedPeers, addrs[0].String())
+	fullCfg.Header.TrustedPeers = append(fullCfg.Header.TrustedPeers, addrs[0].String())
 	full := sw.NewNodeWithStore(node.Full, nodebuilder.MockStore(t, fullCfg))
 
 	lightCfg := nodebuilder.DefaultConfig(node.Light)
