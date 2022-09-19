@@ -89,6 +89,10 @@ func (d *DASer) Start(ctx context.Context) error {
 		return err
 	}
 
+	if err = d.sampler.initMetrics(); err != nil {
+		return fmt.Errorf("init sampling coordinator metrics: %w", err)
+	}
+
 	// load latest DASed checkpoint
 	cp, err := d.store.load(ctx)
 	if err != nil {
