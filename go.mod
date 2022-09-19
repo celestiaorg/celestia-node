@@ -13,7 +13,6 @@ require (
 	github.com/celestiaorg/rsmt2d v0.6.0
 	github.com/cosmos/cosmos-sdk v0.46.0-beta2.0.20220418184507-c53157dd63f6
 	github.com/cosmos/cosmos-sdk/api v0.1.0
-	github.com/cosmos/ibc-go/v4 v4.0.0
 	github.com/dgraph-io/badger/v2 v2.2007.4
 	github.com/gammazero/workerpool v1.1.3
 	github.com/gogo/protobuf v1.3.3
