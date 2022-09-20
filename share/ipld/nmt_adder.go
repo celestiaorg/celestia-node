@@ -12,10 +12,11 @@ import (
 // NmtNodeAdder adds ipld.Nodes to the underlying ipld.Batch if it is inserted
 // into a nmt tree.
 type NmtNodeAdder struct {
-	ctx    context.Context
-	add    *ipld.Batch
-	leaves *cid.Set
-	err    error
+	ctx     context.Context
+	add     *ipld.Batch
+	leaves  *cid.Set
+	leafMap map[cid.Cid][]byte
+	err     error
 }
 
 // NewNmtNodeAdder returns a new NmtNodeAdder with the provided context and
@@ -23,9 +24,10 @@ type NmtNodeAdder struct {
 // It is not thread-safe.
 func NewNmtNodeAdder(ctx context.Context, bs blockservice.BlockService, opts ...ipld.BatchOption) *NmtNodeAdder {
 	return &NmtNodeAdder{
-		add:    ipld.NewBatch(ctx, merkledag.NewDAGService(bs), opts...),
-		ctx:    ctx,
-		leaves: cid.NewSet(),
+		add:     ipld.NewBatch(ctx, merkledag.NewDAGService(bs), opts...),
+		ctx:     ctx,
+		leafMap: make(map[cid.Cid][]byte),
+		leaves:  cid.NewSet(),
 	}
 }
 
@@ -46,6 +48,31 @@ func (n *NmtNodeAdder) Visit(hash []byte, children ...[]byte) {
 	default:
 		panic("expected a binary tree")
 	}
+}
+
+func (n *NmtNodeAdder) VisitInnerNodes(hash []byte, children ...[]byte) {
+	if n.err != nil {
+		return // protect from further visits if there is an error
+	}
+
+	id := plugin.MustCidFromNamespacedSha256(hash)
+	switch len(children) {
+	case 1:
+		n.leaves.Add(id)
+		n.leafMap[id] = children[0]
+	case 2:
+		n.err = n.add.Add(n.ctx, plugin.NewNMTNode(id, children[0], children[1]))
+	default:
+		panic("expected a binary tree")
+	}
+}
+
+func (n *NmtNodeAdder) LeafMap() map[cid.Cid][]byte {
+	return n.leafMap
+}
+
+func (n *NmtNodeAdder) Leaves() *cid.Set {
+	return n.leaves
 }
 
 // Commit checks for errors happened during Visit and if absent commits data to inner Batch.
