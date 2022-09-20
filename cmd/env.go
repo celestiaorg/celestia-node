@@ -3,8 +3,12 @@ package cmd
 import (
 	"context"
 
+	logging "github.com/ipfs/go-log/v2"
+
 	"github.com/celestiaorg/celestia-node/node"
 )
+
+var log = logging.Logger("cmd")
 
 // NodeType reads the node.Type from the context.
 func NodeType(ctx context.Context) node.Type {

@@ -124,7 +124,7 @@ func (ex *Exchange) performRequest(
 		return nil, fmt.Errorf("no trusted peers")
 	}
 
-	// nolint:gosec // G404: Use of weak random number generator
+	//nolint:gosec // G404: Use of weak random number generator
 	index := rand.Intn(len(ex.trustedPeers))
 	stream, err := ex.host.NewStream(ctx, ex.trustedPeers[index], exchangeProtocolID)
 	if err != nil {

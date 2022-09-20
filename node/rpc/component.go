@@ -11,8 +11,9 @@ import (
 )
 
 // Server constructs a new RPC Server from the given Config.
-// TODO @renaynay @Wondertan: this component is meant to be removed on implementation
-//  of https://github.com/celestiaorg/celestia-node/pull/506.
+//
+//	TODO(@renaynay/@Wondertan): this component is meant to be removed on implementation
+//	 of https://github.com/celestiaorg/celestia-node/pull/506.
 func Server(cfg rpc.Config) func(lc fx.Lifecycle) *rpc.Server {
 	return func(lc fx.Lifecycle) *rpc.Server {
 		serv := rpc.NewServer(cfg)

@@ -133,9 +133,10 @@ func invokeWatchdog(pprofdir string) func(lc fx.Lifecycle) error {
 	}
 }
 
-// TODO(@Wondetan): We must start watchdog only once. This is needed for tests where we run multiple instance
-//  of the Node. Ideally, the Node should have some testing options instead, so we can check for it and run without
-//  such utilities but it does not hurt to run one instance of watchdog per test.
+//	TODO(@Wondertan): We must start watchdog only once. This is needed for tests where we run multiple instance
+//   of the Node. Ideally, the Node should have some testing options instead, so we can check for it and run without
+//	 such utilities but it does not hurt to run one instance of watchdog per test.
+
 var onceWatchdog = sync.Once{}
 
 var logWatchdog = logging.Logger("watchdog")

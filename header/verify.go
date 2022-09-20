@@ -8,6 +8,9 @@ import (
 	"github.com/tendermint/tendermint/light"
 )
 
+// TODO(@Wondertan): We should request TrustingPeriod from the network's state params or
+//  listen for network params changes to always have a topical value.
+
 // TrustingPeriod is period through which we can trust a header's validators set.
 //
 // Should be significantly less than the unbonding period (e.g. unbonding
@@ -16,8 +19,6 @@ import (
 // More specifically, trusting period + time needed to check headers + time
 // needed to report and punish misbehavior should be less than the unbonding
 // period.
-// TODO(@Wondertan): We should request it from the network's state params
-//  or listen for network params changes to always have a topical value.
 var TrustingPeriod = 168 * time.Hour
 
 // IsExpired checks if header is expired against trusting period.

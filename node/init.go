@@ -37,7 +37,7 @@ func Init(path string, tp Type, options ...Option) error {
 		}
 		return err
 	}
-	defer flock.Unlock() // nolint: errcheck
+	defer flock.Unlock() //nolint: errcheck
 
 	err = initDir(keysPath(path))
 	if err != nil {

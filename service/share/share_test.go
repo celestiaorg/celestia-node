@@ -292,5 +292,6 @@ func TestSharesRoundTrip(t *testing.T) {
 }
 
 // this is a sample block from devnet-2 which originally showed the issue with share ordering
+//
 //go:embed "testdata/block-825320.json"
 var sampleBlock string

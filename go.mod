@@ -1,6 +1,6 @@
 module github.com/celestiaorg/celestia-node
 
-go 1.18
+go 1.19
 
 replace github.com/ipfs/go-verifcid => github.com/celestiaorg/go-verifcid v0.0.1-lazypatch
 
