@@ -1,15 +1,3 @@
-# Table of Contents
-
-- [Celestia Node](#celestia-node)
-- [Minimum requirements](#minimum-requirements)
-- [System Requirements](#system-requirements)
-- [Installation](#installation)
-- [API docs](#api-docs)
-- [Node types](#node-types)
-- [Run a node](#run-a-node)
-- [Package-specific documentation](#package-specific-documentation)
-- [Code of Conduct](#code-of-conduct)
-
 # Celestia Node
 
 [![Go Reference](https://pkg.go.dev/badge/github.com/celestiaorg/celestia-node.svg)](https://pkg.go.dev/github.com/celestiaorg/celestia-node)
@@ -25,6 +13,18 @@ The celestia-node types described above comprise the celestia data availability 
 The DA network wraps the celestia-core consensus network by listening for blocks from the consensus network and making them digestible for data availability sampling (DAS).
 
 Continue reading [here](https://blog.celestia.org/celestia-mvp-release-data-availability-sampling-light-clients) if you want to learn more about DAS and how it enables secure and scalable access to Celestia chain data.
+
+## Table of Contents
+
+- [Celestia Node](#celestia-node)
+- [Minimum requirements](#minimum-requirements)
+- [System Requirements](#system-requirements)
+- [Installation](#installation)
+- [API docs](#api-docs)
+- [Node types](#node-types)
+- [Run a node](#run-a-node)
+- [Package-specific documentation](#package-specific-documentation)
+- [Code of Conduct](#code-of-conduct)
 
 ## Minimum requirements
 
