@@ -27,8 +27,8 @@ type metrics struct {
 
 	busyWorkers        asyncint64.Gauge
 	isRunning          asyncint64.Gauge
-	headHeight         asyncint64.Gauge
-	headOfSampledChain asyncint64.Gauge
+	networkHead        asyncint64.Gauge
+	sampledChainHead   asyncint64.Gauge
 }
 
 func (sc *samplingCoordinator) initMetrics() error {
@@ -62,14 +62,14 @@ func (sc *samplingCoordinator) initMetrics() error {
 		return err
 	}
 
-	headHeight, err := meter.AsyncInt64().Gauge("das_network_head_height",
-		instrument.WithDescription("most recent network head height"))
+	headHeight, err := meter.AsyncInt64().Gauge("das_network_head",
+		instrument.WithDescription("most recent network head"))
 	if err != nil {
 		return err
 	}
 
-	headOfSampledChain, err := meter.AsyncInt64().Gauge("das_head_of_sampled_chain",
-		instrument.WithDescription("all headers before das_head_of_sampled_chain were successfully sampled"))
+	headOfSampledChain, err := meter.AsyncInt64().Gauge("das_sampled_chain_head",
+		instrument.WithDescription("height of the sampled chain - all previous headers have been successfully sampled"))
 	if err != nil {
 		return err
 	}
@@ -97,7 +97,7 @@ func (sc *samplingCoordinator) initMetrics() error {
 	)
 
 	if err != nil {
-		return fmt.Errorf("regestering metrics callback: %w", err)
+		return fmt.Errorf("das: regestering metrics callback: %w", err)
 	}
 
 	sc.metrics = &metrics{
