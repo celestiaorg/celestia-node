@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"math/rand"
+	"sort"
 	"time"
 
 	logging "github.com/ipfs/go-log/v2"
@@ -61,11 +62,34 @@ func (ex *Exchange) Head(ctx context.Context) (*header.ExtendedHeader, error) {
 		Data:   &p2p_pb.ExtendedHeaderRequest_Origin{Origin: uint64(0)},
 		Amount: 1,
 	}
-	headers, err := ex.performRequest(ctx, req)
-	if err != nil {
-		return nil, err
+
+	headerCh := make(chan *header.ExtendedHeader)
+	for _, from := range ex.trustedPeers {
+		go func(from peer.ID) {
+			headers, err := doRequest(ctx, from, ex.host, req)
+			if err != nil {
+				log.Errorw("head from trusted peer failed", "trustedPeer", from, "err", err)
+				headerCh <- nil
+				return
+			}
+			// doRequest ensures that the result slice will have at least one ExtendedHeader
+			headerCh <- headers[0]
+		}(from)
 	}
-	return headers[0], nil
+
+	result := make([]*header.ExtendedHeader, 0)
+	for range ex.trustedPeers {
+		select {
+		case h := <-headerCh:
+			if h != nil {
+				result = append(result, h)
+			}
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		}
+	}
+
+	return parseHeads(result)
 }
 
 // GetByHeight performs a request for the ExtendedHeader at the given
@@ -135,7 +159,17 @@ func (ex *Exchange) performRequest(
 
 	//nolint:gosec // G404: Use of weak random number generator
 	index := rand.Intn(len(ex.trustedPeers))
-	stream, err := ex.host.NewStream(ctx, ex.trustedPeers[index], exchangeProtocolID)
+	return doRequest(ctx, ex.trustedPeers[index], ex.host, req)
+}
+
+// doRequest sends the ExtendedHeaderRequest to a remote peer.
+func doRequest(
+	ctx context.Context,
+	to peer.ID,
+	host host.Host,
+	req *p2p_pb.ExtendedHeaderRequest,
+) ([]*header.ExtendedHeader, error) {
+	stream, err := host.NewStream(ctx, to, exchangeProtocolID)
 	if err != nil {
 		return nil, err
 	}
@@ -177,4 +211,32 @@ func (ex *Exchange) performRequest(
 		return nil, header.ErrNotFound
 	}
 	return headers, stream.Close()
+}
+
+// parseHeads chooses ExtendedHeader that matches the conditions:
+// * should have max height among received;
+// * should be received at least from 2 peers;
+// If both conditions are not met, then ExtendedHeader with the biggest Height will be returned.
+func parseHeads(result []*header.ExtendedHeader) (*header.ExtendedHeader, error) {
+	if len(result) == 0 {
+		return nil, header.ErrNotFound
+	}
+	counter := make(map[string]int)
+	// go through all of ExtendedHeaders and count the number of headers with a specific hash
+	for i := 0; i < len(result); i++ {
+		counter[result[i].Hash().String()]++
+	}
+	// sort results in a decreasing order
+	sort.Slice(result, func(i, j int) bool {
+		return result[i].Height > result[j].Height
+	})
+
+	// try to find ExtendedHeader with the maximum height that was received at least from 2 peers
+	for _, res := range result {
+		if counter[res.Hash().String()] >= 2 {
+			return res, nil
+		}
+	}
+	// otherwise return header with the max height
+	return result[0], nil
 }
