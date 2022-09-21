@@ -15,7 +15,7 @@ import (
 	nparams "github.com/celestiaorg/celestia-node/params"
 )
 
-var log = logging.Logger("node/p2p")
+var log = logging.Logger("p2p-module")
 
 // ContentRouting constructs nil content routing,
 // as for our use-case existing ContentRouting mechanisms, e.g DHT, are unsuitable
