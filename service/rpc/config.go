@@ -24,5 +24,5 @@ func (cfg *Config) ValidateBasic() error {
 		return fmt.Errorf("invalid listen address format: %s", cfg.Address)
 	}
 	_, err := strconv.Atoi(cfg.Port)
-	return err
+	return fmt.Errorf("invalid port: %s", err.Error())
 }
