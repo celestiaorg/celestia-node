@@ -2,6 +2,7 @@ package share
 
 import (
 	"errors"
+	"fmt"
 	"time"
 )
 
@@ -30,7 +31,7 @@ func DefaultConfig() Config {
 // ValidateBasic performs basic validation of the config.
 func (cfg *Config) ValidateBasic() error {
 	if cfg.DiscoveryInterval <= 0 || cfg.AdvertiseInterval <= 0 {
-		return ErrNegativeInterval
+		return fmt.Errorf("nodebuilder/share: %s", ErrNegativeInterval)
 	}
 	return nil
 }

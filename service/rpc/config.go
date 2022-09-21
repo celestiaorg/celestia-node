@@ -21,8 +21,8 @@ func DefaultConfig() Config {
 
 func (cfg *Config) ValidateBasic() error {
 	if ip := net.ParseIP(cfg.Address); ip == nil {
-		return fmt.Errorf("invalid listen address format: %s", cfg.Address)
+		return fmt.Errorf("service/rpc: invalid listen address format: %s", cfg.Address)
 	}
 	_, err := strconv.Atoi(cfg.Port)
-	return fmt.Errorf("invalid port: %s", err.Error())
+	return fmt.Errorf("service/rpc: invalid port: %s", err.Error())
 }

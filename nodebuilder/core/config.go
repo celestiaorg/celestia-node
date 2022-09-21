@@ -32,14 +32,13 @@ func (cfg *Config) ValidateBasic() error {
 	cfg.IP = ip
 	_, err = strconv.Atoi(cfg.RPCPort)
 	if err != nil {
-		return err
+		return fmt.Errorf("nodebuilder/core: invalid rpc port: %s", err.Error())
 	}
 	_, err = strconv.Atoi(cfg.GRPCPort)
 	if err != nil {
-		return err
+		return fmt.Errorf("nodebuilder/core: invalid grpc port: %s", err.Error())
 	}
-
-	return err
+	return nil
 }
 
 // sanitizeIP trims leading protocol scheme and port from the given
@@ -52,7 +51,7 @@ func sanitizeIP(ip string) (string, error) {
 	ip = strings.TrimSuffix(ip, "/")
 	ip = strings.Split(ip, ":")[0]
 	if ip == "" {
-		return "", fmt.Errorf("invalid IP addr given: %s", original)
+		return "", fmt.Errorf("nodebuilder/core: invalid IP addr given: %s", original)
 	}
 	return ip, nil
 }
