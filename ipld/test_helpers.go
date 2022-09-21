@@ -10,7 +10,7 @@ import (
 
 	"github.com/celestiaorg/rsmt2d"
 
-	"github.com/tendermint/tendermint/pkg/wrapper"
+	"github.com/celestiaorg/celestia-app/pkg/wrapper"
 )
 
 // EqualEDS check whether two given EDSes are equal.

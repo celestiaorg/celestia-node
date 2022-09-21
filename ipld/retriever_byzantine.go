@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/celestiaorg/celestia-app/pkg/da"
 	"github.com/ipfs/go-blockservice"
-	"github.com/tendermint/tendermint/pkg/da"
 
 	"github.com/celestiaorg/celestia-node/ipld/plugin"
 	"github.com/celestiaorg/rsmt2d"

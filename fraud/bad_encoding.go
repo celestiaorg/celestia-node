@@ -5,8 +5,8 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/tendermint/tendermint/pkg/consts"
-	"github.com/tendermint/tendermint/pkg/wrapper"
+	"github.com/celestiaorg/celestia-app/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/pkg/wrapper"
 
 	"github.com/celestiaorg/rsmt2d"
 
@@ -146,7 +146,7 @@ func (p *BadEncodingProof) Validate(header *header.ExtendedHeader) error {
 		}
 	}
 
-	codec := consts.DefaultCodec()
+	codec := appconsts.DefaultCodec()
 	// rebuild a row or col.
 	rebuiltShares, err := codec.Decode(shares)
 	if err != nil {

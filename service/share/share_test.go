@@ -11,9 +11,9 @@ import (
 	"strconv"
 	"testing"
 
+	"github.com/celestiaorg/celestia-app/pkg/da"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/tendermint/tendermint/pkg/da"
 	core "github.com/tendermint/tendermint/types"
 
 	"github.com/celestiaorg/celestia-node/ipld"

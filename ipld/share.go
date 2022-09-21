@@ -4,8 +4,8 @@ import (
 	"crypto/sha256"
 
 	"github.com/ipfs/go-cid"
-	"github.com/tendermint/tendermint/pkg/consts"
 
+	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-node/ipld/pb"
 	"github.com/celestiaorg/celestia-node/ipld/plugin"
 	"github.com/celestiaorg/nmt"
@@ -14,15 +14,15 @@ import (
 
 const (
 	// MaxSquareSize is currently the maximum size supported for unerasured data in rsmt2d.ExtendedDataSquare.
-	MaxSquareSize = consts.MaxSquareSize
+	MaxSquareSize = appconsts.MaxSquareSize
 	// NamespaceSize is a system-wide size for NMT namespaces.
-	NamespaceSize = consts.NamespaceSize
+	NamespaceSize = appconsts.NamespaceSize
 	// ShareSize is a system-wide size of a share, including both data and namespace ID
-	ShareSize = consts.ShareSize
+	ShareSize = appconsts.ShareSize
 )
 
 // DefaultRSMT2DCodec sets the default rsmt2d.Codec for shares.
-var DefaultRSMT2DCodec = consts.DefaultCodec
+var DefaultRSMT2DCodec = appconsts.DefaultCodec
 
 // Share contains the raw share data without the corresponding namespace.
 // NOTE: Alias for the byte is chosen to keep maximal compatibility, especially with rsmt2d. Ideally, we should define

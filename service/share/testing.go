@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/celestiaorg/celestia-app/pkg/da"
 	"github.com/ipfs/go-bitswap"
 	"github.com/ipfs/go-bitswap/network"
 	"github.com/ipfs/go-blockservice"
@@ -21,7 +22,6 @@ import (
 	"github.com/libp2p/go-libp2p/p2p/discovery/routing"
 	mocknet "github.com/libp2p/go-libp2p/p2p/net/mock"
 	"github.com/stretchr/testify/require"
-	"github.com/tendermint/tendermint/pkg/da"
 
 	"github.com/celestiaorg/celestia-node/ipld"
 )

@@ -5,10 +5,10 @@ import (
 	"context"
 	"sync"
 
+	"github.com/celestiaorg/celestia-app/pkg/da"
 	"github.com/ipfs/go-datastore"
 	"github.com/ipfs/go-datastore/autobatch"
 	"github.com/ipfs/go-datastore/namespace"
-	"github.com/tendermint/tendermint/pkg/da"
 )
 
 var (

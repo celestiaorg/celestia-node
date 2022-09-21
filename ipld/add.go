@@ -11,7 +11,7 @@ import (
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/rsmt2d"
 
-	"github.com/tendermint/tendermint/pkg/wrapper"
+	"github.com/celestiaorg/celestia-app/pkg/wrapper"
 )
 
 // AddShares erasures and extends shares to blockservice.BlockService using the provided ipld.NodeAdder.

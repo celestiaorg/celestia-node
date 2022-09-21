@@ -8,8 +8,8 @@ import (
 	"strconv"
 
 	"github.com/gorilla/mux"
-	"github.com/tendermint/tendermint/types"
 
+	s "github.com/celestiaorg/celestia-app/pkg/shares"
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/service/share"
 	"github.com/celestiaorg/nmt/namespace"
@@ -112,7 +112,7 @@ func (h *Handler) getShares(ctx context.Context, height uint64, nID namespace.ID
 }
 
 func dataFromShares(shares []share.Share) ([][]byte, error) {
-	messages, err := types.ParseMsgs(shares)
+	messages, err := s.ParseMsgs(shares)
 	if err != nil {
 		return nil, err
 	}

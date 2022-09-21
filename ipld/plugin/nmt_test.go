@@ -12,7 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/tendermint/tendermint/pkg/consts"
 
-	"github.com/tendermint/tendermint/pkg/da"
+	"github.com/celestiaorg/celestia-app/pkg/da"
 )
 
 // TestNamespaceFromCID checks that deriving the Namespaced hash from

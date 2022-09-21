@@ -8,8 +8,9 @@ import (
 	"github.com/ipfs/go-blockservice"
 	logging "github.com/ipfs/go-log/v2"
 
+	"github.com/celestiaorg/celestia-app/pkg/da"
+	"github.com/celestiaorg/celestia-app/pkg/shares"
 	bts "github.com/tendermint/tendermint/libs/bytes"
-	"github.com/tendermint/tendermint/pkg/da"
 	core "github.com/tendermint/tendermint/types"
 
 	"github.com/celestiaorg/celestia-node/ipld"
@@ -47,11 +48,11 @@ func MakeExtendedHeader(
 ) (*ExtendedHeader, error) {
 	var dah DataAvailabilityHeader
 	if len(b.Txs) > 0 {
-		namespacedShares, _, err := b.Data.ComputeShares(b.OriginalSquareSize)
+		shares, err := shares.Split(b.Data)
 		if err != nil {
 			return nil, err
 		}
-		extended, err := ipld.AddShares(ctx, namespacedShares.RawShares(), bServ)
+		extended, err := ipld.AddShares(ctx, shares, bServ)
 		if err != nil {
 			return nil, err
 		}

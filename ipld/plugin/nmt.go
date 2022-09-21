@@ -14,8 +14,8 @@ import (
 	ipld "github.com/ipfs/go-ipld-format"
 	mh "github.com/multiformats/go-multihash"
 	mhcore "github.com/multiformats/go-multihash/core"
-	"github.com/tendermint/tendermint/pkg/consts"
 
+	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/nmt"
 )
 
@@ -31,7 +31,7 @@ const (
 	Sha256Namespace8Flagged = 0x7701
 
 	// nmtHashSize is the size of a digest created by an NMT in bytes.
-	nmtHashSize = 2*consts.NamespaceSize + sha256.Size
+	nmtHashSize = 2*appconsts.NamespaceSize + sha256.Size
 )
 
 func init() {
@@ -54,7 +54,7 @@ func NewNamespaceHasher(hasher *nmt.Hasher) hash.Hash {
 
 func (n *namespaceHasher) Write(data []byte) (int, error) {
 	ln, nln, hln := len(data), int(n.NamespaceLen), n.Hash.Size()
-	innerNodeSize, leafNodeSize := (nln*2+hln)*2, nln+consts.ShareSize
+	innerNodeSize, leafNodeSize := (nln*2+hln)*2, nln+appconsts.ShareSize
 	switch ln {
 	default:
 		return 0, fmt.Errorf("wrong data size")
