@@ -66,10 +66,17 @@ var (
 
 	// ErrNoHead is returned when Store is empty (does not contain any known header).
 	ErrNoHead = fmt.Errorf("header/store: no chain head")
-
-	// ErrNonAdjacent is returned when Store is appended with a header not adjacent to the stored head.
-	ErrNonAdjacent = fmt.Errorf("header/store: non-adjacent")
 )
+
+// ErrNonAdjacent is returned when Store is appended with a header not adjacent to the stored head.
+type ErrNonAdjacent struct {
+	Head      int64
+	Attempted int64
+}
+
+func (ena *ErrNonAdjacent) Error() string {
+	return fmt.Sprintf("header/store: non-adjacent: head %d, attempted %d", ena.Head, ena.Attempted)
+}
 
 // Store encompasses the behavior necessary to store and retrieve ExtendedHeaders
 // from a node's local storage.
