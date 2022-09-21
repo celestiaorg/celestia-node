@@ -46,7 +46,6 @@ func WriteEDS(ctx context.Context, eds *rsmt2d.ExtendedDataSquare, w io.Writer) 
 	}
 	// compute roots
 	eds.RowRoots()
-	eds.ColRoots()
 	// commit the batch to DAG
 	err = batchAdder.Commit()
 	if err != nil {
@@ -68,12 +67,7 @@ func WriteEDS(ctx context.Context, eds *rsmt2d.ExtendedDataSquare, w io.Writer) 
 	}
 
 	// 3. Iterates over shares in quadrant order vis eds.GetCell
-	//    - Writes the shares in row-by-row order
-	shares, err = quadrantOrder(eds)
-	fmt.Println(shares)
-	if err != nil {
-		return fmt.Errorf("failure to get shares in quadrant order: %w", err)
-	}
+	shares = quadrantOrder(eds)
 	for _, share := range shares {
 		cid, err := plugin.CidFromNamespacedSha256(nmt.Sha256Namespace8FlaggedLeaf(share))
 		if err != nil {
@@ -95,7 +89,11 @@ func WriteEDS(ctx context.Context, eds *rsmt2d.ExtendedDataSquare, w io.Writer) 
 		if err != nil {
 			return fmt.Errorf("failure to get proof from the blockstore: %w", err)
 		}
-		err = util.LdWrite(w, proofCid.Bytes(), node.RawData())
+		cid, err := plugin.CidFromNamespacedSha256(nmt.Sha256Namespace8FlaggedInner(node.RawData()))
+		if err != nil {
+			return fmt.Errorf("failure to get cid: %w", err)
+		}
+		err = util.LdWrite(w, cid.Bytes(), node.RawData())
 		if err != nil {
 			return fmt.Errorf("failure to write proof to the car: %w", err)
 		}
@@ -104,21 +102,22 @@ func WriteEDS(ctx context.Context, eds *rsmt2d.ExtendedDataSquare, w io.Writer) 
 	return nil
 }
 
-func quadrantOrder(eds *rsmt2d.ExtendedDataSquare) ([][]byte, error) {
+func quadrantOrder(eds *rsmt2d.ExtendedDataSquare) [][]byte {
 	size := eds.Width() * eds.Width()
 	shares := make([][]byte, size)
 
-	rowCount := eds.Width() / 2
+	quadrantWidth := int(eds.Width() / 2)
+	quadrantSize := quadrantWidth * quadrantWidth
 	// TODO: Simplify this loop
-	for i := 0; i < int(rowCount); i++ {
-		for j := 0; j < int(rowCount); j++ {
-			shares[(0*int(eds.Width()))+i*int(rowCount)+j] = eds.GetCell(uint(i), uint(j))
-			shares[(1*int(eds.Width()))+i*int(rowCount)+j] = eds.GetCell(uint(i), uint(j)+rowCount)
-			shares[(2*int(eds.Width()))+i*int(rowCount)+j] = eds.GetCell(uint(i)+rowCount, uint(j))
-			shares[(3*int(eds.Width()))+i*int(rowCount)+j] = eds.GetCell(uint(i)+rowCount, uint(j)+rowCount)
+	for i := 0; i < quadrantWidth; i++ {
+		for j := 0; j < quadrantWidth; j++ {
+			shares[(0*quadrantSize)+i*quadrantWidth+j] = eds.GetCell(uint(i), uint(j))
+			shares[(1*quadrantSize)+i*quadrantWidth+j] = eds.GetCell(uint(i), uint(j+quadrantWidth))
+			shares[(2*quadrantSize)+i*quadrantWidth+j] = eds.GetCell(uint(i+quadrantWidth), uint(j))
+			shares[(3*quadrantSize)+i*quadrantWidth+j] = eds.GetCell(uint(i+quadrantWidth), uint(j+quadrantWidth))
 		}
 	}
-	return shares, nil
+	return shares
 }
 
 func rootsToCids(eds *rsmt2d.ExtendedDataSquare) ([]cid.Cid, error) {
