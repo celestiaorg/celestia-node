@@ -26,7 +26,12 @@ const (
 	queryRedelegationsEndpoint = "/query_redelegations"
 )
 
-var addrKey = "address"
+var (
+	addrKey                 = "address"
+	ErrInvalidAddressFormat = errors.New("address must be a valid account or validator address")
+	ErrMissingAddress       = errors.New("address not specified")
+	ErrInvalidAmount        = errors.New("amount must be greater than zero")
+)
 
 // submitTxRequest represents a request to submit a raw transaction
 type submitTxRequest struct {
@@ -78,6 +83,7 @@ type cancelUnbondRequest struct {
 	GasLimit uint64 `json:"gas_limit"`
 }
 
+// queryRedelegationsRequest represents a request to query redelegations
 type queryRedelegationsRequest struct {
 	From string `json:"from"`
 	To   string `json:"to"`
@@ -93,12 +99,12 @@ func (h *Handler) handleBalanceRequest(w http.ResponseWriter, r *http.Request) {
 	addrStr, exists := vars[addrKey]
 	if exists {
 		// convert address to Address type
-		addr, addrErr := types.AccAddressFromBech32(addrStr)
-		if addrErr != nil {
+		addr, err := types.AccAddressFromBech32(addrStr)
+		if err != nil {
 			// first check if it is a validator address and can be converted
-			valAddr, valErr := types.ValAddressFromBech32(addrStr)
-			if valErr != nil {
-				writeError(w, http.StatusBadRequest, balanceEndpoint, addrErr)
+			valAddr, err := types.ValAddressFromBech32(addrStr)
+			if err != nil {
+				writeError(w, http.StatusBadRequest, balanceEndpoint, ErrInvalidAddressFormat)
 				return
 			}
 			addr = valAddr.Bytes()
@@ -195,15 +201,15 @@ func (h *Handler) handleTransfer(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if req.Amount <= 0 {
-		writeError(w, http.StatusBadRequest, transferEndpoint, errors.New("amount must be greater than 0"))
+		writeError(w, http.StatusBadRequest, transferEndpoint, ErrInvalidAmount)
 		return
 	}
 	addr, err := types.AccAddressFromBech32(req.To)
 	if err != nil {
 		// first check if it is a validator address and can be converted
-		valAddr, valErr := types.ValAddressFromBech32(req.To)
-		if valErr != nil {
-			writeError(w, http.StatusBadRequest, transferEndpoint, err)
+		valAddr, err := types.ValAddressFromBech32(req.To)
+		if err != nil {
+			writeError(w, http.StatusBadRequest, transferEndpoint, ErrInvalidAddressFormat)
 			return
 		}
 		addr = valAddr.Bytes()
@@ -234,7 +240,7 @@ func (h *Handler) handleDelegation(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if req.Amount <= 0 {
-		writeError(w, http.StatusBadRequest, delegationEndpoint, errors.New("amount must be greater than 0"))
+		writeError(w, http.StatusBadRequest, delegationEndpoint, ErrInvalidAmount)
 		return
 	}
 	addr, err := types.ValAddressFromBech32(req.To)
@@ -268,7 +274,7 @@ func (h *Handler) handleUndelegation(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if req.Amount <= 0 {
-		writeError(w, http.StatusBadRequest, undelegationEndpoint, errors.New("amount must be greater than 0"))
+		writeError(w, http.StatusBadRequest, undelegationEndpoint, ErrInvalidAmount)
 		return
 	}
 	addr, err := types.ValAddressFromBech32(req.From)
@@ -302,7 +308,7 @@ func (h *Handler) handleCancelUnbonding(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	if req.Amount <= 0 {
-		writeError(w, http.StatusBadRequest, cancelUnbondingEndpoint, errors.New("amount must be greater than 0"))
+		writeError(w, http.StatusBadRequest, cancelUnbondingEndpoint, ErrInvalidAmount)
 		return
 	}
 	addr, err := types.ValAddressFromBech32(req.From)
@@ -336,7 +342,7 @@ func (h *Handler) handleRedelegation(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if req.Amount <= 0 {
-		writeError(w, http.StatusBadRequest, beginRedelegationEndpoint, errors.New("amount must be greater than 0"))
+		writeError(w, http.StatusBadRequest, beginRedelegationEndpoint, ErrInvalidAmount)
 		return
 	}
 	srcAddr, err := types.ValAddressFromBech32(req.From)
@@ -372,7 +378,7 @@ func (h *Handler) handleQueryDelegation(w http.ResponseWriter, r *http.Request) 
 	vars := mux.Vars(r)
 	addrStr, exists := vars[addrKey]
 	if !exists {
-		writeError(w, http.StatusBadRequest, queryDelegationEndpoint, errors.New("address not specified"))
+		writeError(w, http.StatusBadRequest, queryDelegationEndpoint, ErrMissingAddress)
 		return
 	}
 
@@ -403,7 +409,7 @@ func (h *Handler) handleQueryUnbonding(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	addrStr, exists := vars[addrKey]
 	if !exists {
-		writeError(w, http.StatusBadRequest, queryUnbondingEndpoint, errors.New("address not specified"))
+		writeError(w, http.StatusBadRequest, queryUnbondingEndpoint, ErrMissingAddress)
 		return
 	}
 
