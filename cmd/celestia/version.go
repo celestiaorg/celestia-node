@@ -17,13 +17,11 @@ var versionCmd = &cobra.Command{
 	Use:   "version",
 	Short: "Show information about the current binary build",
 	Args:  cobra.NoArgs,
-	Run:   printBuildInfo,
+	Run:   printVersionInfo,
 }
 
-func printBuildInfo(_ *cobra.Command, _ []string) {
+func printVersionInfo(_ *cobra.Command, _ []string) {
 	fmt.Printf("Semantic version: %s\n", semanticVersion)
-	fmt.Printf("Commit: %s\n", lastCommit)
-	fmt.Printf("Build Date: %s\n", buildTime)
 	fmt.Printf("System version: %s/%s\n", runtime.GOARCH, runtime.GOOS)
 	fmt.Printf("Golang version: %s\n", runtime.Version())
 }
