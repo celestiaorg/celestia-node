@@ -74,5 +74,9 @@ func (cfg *Config) mutualPeers() (_ []peer.AddrInfo, err error) {
 
 // Validate performs basic validation of the config.
 func (cfg *Config) Validate() error {
+	if cfg.RoutingTableRefreshPeriod <= 0 {
+		cfg.RoutingTableRefreshPeriod = defaultRoutingRefreshPeriod
+		log.Warnf("routingTableRefreshPeriod is not valid. restoring to default value: %d", cfg.RoutingTableRefreshPeriod)
+	}
 	return nil
 }

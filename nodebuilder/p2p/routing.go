@@ -26,10 +26,6 @@ func ContentRouting(r routing.PeerRouting) routing.ContentRouting {
 // PeerRouting provides constructor for PeerRouting over DHT.
 // Basically, this provides a way to discover peer addresses by respecting public keys.
 func PeerRouting(cfg Config, params routingParams) (routing.PeerRouting, error) {
-	if cfg.RoutingTableRefreshPeriod <= 0 {
-		cfg.RoutingTableRefreshPeriod = defaultRoutingRefreshPeriod
-		log.Warnf("routingTableRefreshPeriod is not valid. restoring to default value: %d", cfg.RoutingTableRefreshPeriod)
-	}
 	opts := []dht.Option{
 		dht.Mode(dht.ModeAuto),
 		dht.BootstrapPeers(params.Peers...),

@@ -24,5 +24,8 @@ func (cfg *Config) Validate() error {
 		return fmt.Errorf("service/rpc: invalid listen address format: %s", cfg.Address)
 	}
 	_, err := strconv.Atoi(cfg.Port)
-	return fmt.Errorf("service/rpc: invalid port: %s", err.Error())
+	if err != nil {
+		return fmt.Errorf("service/rpc: invalid port: %s", err.Error())
+	}
+	return nil
 }
