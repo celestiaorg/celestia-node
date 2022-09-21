@@ -69,19 +69,17 @@ func WriteEDS(ctx context.Context, eds *rsmt2d.ExtendedDataSquare, w io.Writer) 
 
 	// 3. Iterates over shares in quadrant order vis eds.GetCell
 	//    - Writes the shares in row-by-row order
-
-	// TODO: Write the shares in quadrant order. PROBLEM: Need the CIDs from the adder
-	//shares, err = quadrantOrder(eds)
-	//if err != nil {
-	//	return fmt.Errorf("failure to get shares in quadrant order: %w", err)
-	//}
-	leaves := batchAdder.Leaves()
-	leafMap := batchAdder.LeafMap()
-	for _, leafCid := range leaves.Keys() {
+	shares, err = quadrantOrder(eds)
+	fmt.Println(shares)
+	if err != nil {
+		return fmt.Errorf("failure to get shares in quadrant order: %w", err)
+	}
+	for _, share := range shares {
+		cid, err := plugin.CidFromNamespacedSha256(nmt.Sha256Namespace8FlaggedLeaf(share))
 		if err != nil {
 			return fmt.Errorf("failure to get cid from share: %w", err)
 		}
-		err = util.LdWrite(w, leafCid.Bytes(), leafMap[leafCid])
+		err = util.LdWrite(w, cid.Bytes(), share)
 		if err != nil {
 			return fmt.Errorf("failure to write share: %w", err)
 		}

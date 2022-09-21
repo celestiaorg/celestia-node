@@ -26,7 +26,7 @@ func TestWriteEDS(t *testing.T) {
 	}
 	defer f.Close()
 
-	eds := ipld.RandEDS(t, 4)
+	eds := ipld.RandEDS(t, 2)
 	err = WriteEDS(context.Background(), eds, f)
 	require.Nil(t, err)
 }
