@@ -15,7 +15,7 @@ import (
 // Module collects all the components and services related to managing the relationship with the Core node.
 func Module(tp node.Type, cfg *Config, options ...fx.Option) fx.Option {
 	// sanitize config values before constructing module
-	cfgErr := cfg.ValidateBasic()
+	cfgErr := cfg.Validate()
 
 	baseComponents := fx.Options(
 		fx.Supply(*cfg),

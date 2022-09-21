@@ -19,7 +19,7 @@ var log = logging.Logger("state-module")
 // state service.
 func Module(tp node.Type, cfg *Config) fx.Option {
 	// sanitize config values before constructing module
-	cfgErr := cfg.ValidateBasic()
+	cfgErr := cfg.Validate()
 
 	baseComponents := fx.Options(
 		fx.Supply(*cfg),

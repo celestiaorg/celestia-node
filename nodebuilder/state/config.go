@@ -12,7 +12,7 @@ func DefaultConfig() Config {
 	}
 }
 
-// ValidateBasic performs basic validation of the config.
-func (cfg *Config) ValidateBasic() error {
+// Validate performs basic validation of the config.
+func (cfg *Config) Validate() error {
 	return nil
 }

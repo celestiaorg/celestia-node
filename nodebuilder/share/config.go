@@ -28,8 +28,8 @@ func DefaultConfig() Config {
 	}
 }
 
-// ValidateBasic performs basic validation of the config.
-func (cfg *Config) ValidateBasic() error {
+// Validate performs basic validation of the config.
+func (cfg *Config) Validate() error {
 	if cfg.DiscoveryInterval <= 0 || cfg.AdvertiseInterval <= 0 {
 		return fmt.Errorf("nodebuilder/share: %s", ErrNegativeInterval)
 	}

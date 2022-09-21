@@ -60,7 +60,7 @@ func (cfg *Config) trustedHash(net params.Network) (tmbytes.HexBytes, error) {
 	return hex.DecodeString(cfg.TrustedHash)
 }
 
-// ValidateBasic performs basic validation of the config.
-func (cfg *Config) ValidateBasic() error {
+// Validate performs basic validation of the config.
+func (cfg *Config) Validate() error {
 	return nil
 }

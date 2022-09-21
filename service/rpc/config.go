@@ -19,7 +19,7 @@ func DefaultConfig() Config {
 	}
 }
 
-func (cfg *Config) ValidateBasic() error {
+func (cfg *Config) Validate() error {
 	if ip := net.ParseIP(cfg.Address); ip == nil {
 		return fmt.Errorf("service/rpc: invalid listen address format: %s", cfg.Address)
 	}
