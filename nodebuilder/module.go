@@ -7,6 +7,7 @@ import (
 
 	"github.com/celestiaorg/celestia-node/nodebuilder/core"
 	"github.com/celestiaorg/celestia-node/nodebuilder/daser"
+	"github.com/celestiaorg/celestia-node/nodebuilder/fraud"
 	"github.com/celestiaorg/celestia-node/nodebuilder/header"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
@@ -34,6 +35,7 @@ func Module(tp node.Type, cfg *Config, store Store) fx.Option {
 		rpc.Module(tp, &cfg.RPC),
 		core.Module(tp, &cfg.Core),
 		daser.Module(tp),
+		fraud.Module(tp),
 	)
 
 	return fx.Module(

@@ -8,7 +8,7 @@ import (
 
 	"github.com/celestiaorg/celestia-node/fraud"
 	"github.com/celestiaorg/celestia-node/libs/fxutil"
-	"github.com/celestiaorg/celestia-node/nodebuilder/header"
+	fraudbuilder "github.com/celestiaorg/celestia-node/nodebuilder/fraud"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	"github.com/celestiaorg/celestia-node/service/state"
 )
@@ -36,7 +36,8 @@ func Module(tp node.Type, cfg *Config) fx.Option {
 		fx.Provide(fx.Annotate(state.NewService,
 			fx.OnStart(func(ctx context.Context, lc fx.Lifecycle, fservice fraud.Service, serv *state.Service) error {
 				lifecycleCtx := fxutil.WithLifecycle(ctx, lc)
-				return header.FraudLifecycle(ctx, lifecycleCtx, fraud.BadEncoding, fservice, serv.Start, serv.Stop)
+				return fraudbuilder.Lifecycle(ctx, lifecycleCtx, fraud.BadEncoding, fservice,
+					serv.Start, serv.Stop)
 			}),
 			fx.OnStop(func(ctx context.Context, serv *state.Service) error {
 				return serv.Stop(ctx)

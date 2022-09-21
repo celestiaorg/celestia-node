@@ -12,6 +12,7 @@ import (
 	"github.com/celestiaorg/celestia-node/header/store"
 	"github.com/celestiaorg/celestia-node/header/sync"
 	"github.com/celestiaorg/celestia-node/libs/fxutil"
+	fraudbuilder "github.com/celestiaorg/celestia-node/nodebuilder/fraud"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	"github.com/celestiaorg/celestia-node/params"
 	headerservice "github.com/celestiaorg/celestia-node/service/header"
@@ -59,7 +60,8 @@ func Module(tp node.Type, cfg *Config) fx.Option {
 					return nil
 				}
 				lifecycleCtx := fxutil.WithLifecycle(ctx, lc)
-				return FraudLifecycle(ctx, lifecycleCtx, fraud.BadEncoding, fservice, syncerStartFunc, syncer.Stop)
+				return fraudbuilder.Lifecycle(ctx, lifecycleCtx, fraud.BadEncoding, fservice,
+					syncerStartFunc, syncer.Stop)
 			}),
 			fx.OnStop(func(ctx context.Context, syncer *sync.Syncer) error {
 				return syncer.Stop(ctx)
@@ -87,26 +89,17 @@ func Module(tp node.Type, cfg *Config) fx.Option {
 	)
 
 	switch tp {
-	case node.Light:
+	case node.Light, node.Full:
 		return fx.Module(
 			"header",
 			baseComponents,
 			fx.Provide(P2PExchange(*cfg)),
-			fxutil.ProvideAs(FraudServiceWithSyncer, new(fraud.Service), new(fraud.Subscriber)),
-		)
-	case node.Full:
-		return fx.Module(
-			"header",
-			baseComponents,
-			fx.Provide(P2PExchange(*cfg)),
-			fxutil.ProvideAs(FraudService, new(fraud.Service), new(fraud.Subscriber)),
 		)
 	case node.Bridge:
 		return fx.Module(
 			"header",
 			baseComponents,
 			fx.Supply(header.MakeExtendedHeader),
-			fxutil.ProvideAs(FraudService, new(fraud.Service), new(fraud.Subscriber)),
 		)
 	default:
 		panic("invalid node type")
