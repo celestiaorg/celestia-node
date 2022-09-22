@@ -43,13 +43,12 @@ func ParseP2PFlags(
 	for _, peer := range mutualPeers {
 		_, err = multiaddr.NewMultiaddr(peer)
 		if err != nil {
-			err = fmt.Errorf("cmd: while parsing '%s': %w", p2pMutualFlag, err)
-			return err
+			return fmt.Errorf("cmd: while parsing '%s': %w", p2pMutualFlag, err)
 		}
 	}
 
 	if len(mutualPeers) != 0 {
 		cfg.P2P.MutualPeers = mutualPeers
 	}
-	return err
+	return nil
 }
