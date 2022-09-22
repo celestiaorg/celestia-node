@@ -2,12 +2,11 @@ package share
 
 import (
 	"context"
+	"github.com/celestiaorg/celestia-node/ipld"
 	"os"
 	"testing"
 
 	"github.com/stretchr/testify/require"
-
-	"github.com/celestiaorg/celestia-node/ipld"
 )
 
 func TestQuadrantOrder(t *testing.T) {

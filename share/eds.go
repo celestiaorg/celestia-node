@@ -38,7 +38,7 @@ func WriteEDS(ctx context.Context, eds *rsmt2d.ExtendedDataSquare, w io.Writer) 
 	}
 	squareSize := int(math.Sqrt(float64(len(shares))))
 	// todo: batch size here
-	batchAdder := ipld.NewNmtNodeAdder(ctx, bs, format.MaxSizeBatchOption(squareSize))
+	batchAdder := ipld.NewNmtNodeAdder(ctx, bs, format.MaxSizeBatchOption(squareSize/2))
 	tree := wrapper.NewErasuredNamespacedMerkleTree(uint64(squareSize/2), nmt.NodeVisitor(batchAdder.VisitInnerNodes))
 	eds, err := rsmt2d.ImportExtendedDataSquare(shares, ipld.DefaultRSMT2DCodec(), tree.Constructor)
 	if err != nil {
@@ -89,7 +89,8 @@ func WriteEDS(ctx context.Context, eds *rsmt2d.ExtendedDataSquare, w io.Writer) 
 		if err != nil {
 			return fmt.Errorf("failure to get proof from the blockstore: %w", err)
 		}
-		cid, err := plugin.CidFromNamespacedSha256(nmt.Sha256Namespace8FlaggedInner(node.RawData()))
+		// TODO: Learn why this doesn't match proofCid or node.Cid()
+		cid, err := plugin.CidFromNamespacedSha256(nmt.Sha256Namespace8FlaggedInner(node.RawData()[1:]))
 		if err != nil {
 			return fmt.Errorf("failure to get cid: %w", err)
 		}
