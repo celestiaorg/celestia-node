@@ -3,12 +3,12 @@ package das
 import (
 	"context"
 	"fmt"
+	"sync/atomic"
 	"time"
 
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric/global"
 	"go.opentelemetry.io/otel/metric/instrument"
-	"go.opentelemetry.io/otel/metric/instrument/asyncint64"
 	"go.opentelemetry.io/otel/metric/instrument/syncfloat64"
 	"go.opentelemetry.io/otel/metric/instrument/syncint64"
 
@@ -20,63 +20,72 @@ var (
 )
 
 type metrics struct {
-	sampled    syncint64.Counter
-	sampleTime syncfloat64.Histogram
-
-	newHead syncint64.Counter
-
-	busyWorkers        asyncint64.Gauge
-	isRunning          asyncint64.Gauge
-	networkHead        asyncint64.Gauge
-	sampledChainHead   asyncint64.Gauge
+	sampled       syncint64.Counter
+	sampleTime    syncfloat64.Histogram
+	getHeaderTime syncfloat64.Histogram
+	newHead       syncint64.Counter
+	lastSampledTS int64
 }
 
 func (sc *samplingCoordinator) initMetrics() error {
-	sampled, err := meter.SyncInt64().Counter("das_sampled_headers_count",
+	sampled, err := meter.SyncInt64().Counter("das_sampled_headers_counter",
 		instrument.WithDescription("sampled headers counter"))
 	if err != nil {
 		return err
 	}
 
-	sampleTimeHist, err := meter.SyncFloat64().Histogram("das_sample_time_hist",
-		instrument.WithDescription("header sampling time"))
+	sampleTime, err := meter.SyncFloat64().Histogram("das_sample_time_hist",
+		instrument.WithDescription("duration of sampling a single header"))
 	if err != nil {
 		return err
 	}
 
-	newHead, err := meter.SyncInt64().Counter("das_head_updated",
+	getHeaderTime, err := meter.SyncFloat64().Histogram("das_get_header_time_hist",
+		instrument.WithDescription("duration of getting header from header store"))
+	if err != nil {
+		return err
+	}
+
+	newHead, err := meter.SyncInt64().Counter("das_head_updated_counter",
 		instrument.WithDescription("amount of times DAS'er advanced network head"))
 	if err != nil {
 		return err
 	}
 
-	busyWorkers, err := meter.AsyncInt64().Gauge("das_busy_workers_count",
+	lastSampledTS, err := meter.AsyncInt64().Gauge("das_latest_sampled_ts",
+		instrument.WithDescription("latest sampled timestamp"))
+	if err != nil {
+		return err
+	}
+
+	busyWorkers, err := meter.AsyncInt64().Gauge("das_busy_workers_amount",
 		instrument.WithDescription("number of active parallel workers in DAS'er"))
 	if err != nil {
 		return err
 	}
 
-	isRunning, err := meter.AsyncInt64().Gauge("das_is_running",
-		instrument.WithDescription("indicates whether das is running"))
-	if err != nil {
-		return err
-	}
-
-	headHeight, err := meter.AsyncInt64().Gauge("das_network_head",
+	networkHead, err := meter.AsyncInt64().Gauge("das_network_head",
 		instrument.WithDescription("most recent network head"))
 	if err != nil {
 		return err
 	}
 
-	headOfSampledChain, err := meter.AsyncInt64().Gauge("das_sampled_chain_head",
+	sampledChainHead, err := meter.AsyncInt64().Gauge("das_sampled_chain_head",
 		instrument.WithDescription("height of the sampled chain - all previous headers have been successfully sampled"))
 	if err != nil {
 		return err
 	}
 
+	sc.metrics = &metrics{
+		sampled:       sampled,
+		sampleTime:    sampleTime,
+		getHeaderTime: getHeaderTime,
+		newHead:       newHead,
+	}
+
 	err = meter.RegisterCallback(
 		[]instrument.Asynchronous{
-			busyWorkers, isRunning, headHeight, headOfSampledChain,
+			lastSampledTS, busyWorkers, networkHead, sampledChainHead,
 		},
 		func(ctx context.Context) {
 			stats, err := sc.stats(ctx)
@@ -85,30 +94,19 @@ func (sc *samplingCoordinator) initMetrics() error {
 			}
 
 			busyWorkers.Observe(ctx, int64(len(stats.Workers)))
-			headHeight.Observe(ctx, int64(stats.NetworkHead))
-			headOfSampledChain.Observe(ctx, int64(stats.SampledChainHead))
+			networkHead.Observe(ctx, int64(stats.NetworkHead))
+			sampledChainHead.Observe(ctx, int64(stats.SampledChainHead))
 
-			if stats.IsRunning {
-				isRunning.Observe(ctx, 1)
-			} else {
-				isRunning.Observe(ctx, 0)
+			if ts := atomic.LoadInt64(&sc.metrics.lastSampledTS); ts != 0 {
+				lastSampledTS.Observe(ctx, ts)
 			}
 		},
 	)
 
 	if err != nil {
-		return fmt.Errorf("das: regestering metrics callback: %w", err)
+		return fmt.Errorf("regestering metrics callback: %w", err)
 	}
 
-	sc.metrics = &metrics{
-		sampled:            sampled,
-		sampleTime:         sampleTimeHist,
-		newHead:            newHead,
-		busyWorkers:        busyWorkers,
-		isRunning:          isRunning,
-		headHeight:         headHeight,
-		headOfSampledChain: headOfSampledChain,
-	}
 	return nil
 }
 
@@ -122,6 +120,14 @@ func (m *metrics) observeSample(ctx context.Context, h *header.ExtendedHeader, s
 	m.sampled.Add(ctx, 1,
 		attribute.Bool("failed", err != nil),
 		attribute.Int("header_width", len(h.DAH.RowsRoots)))
+	atomic.StoreInt64(&m.lastSampledTS, time.Now().UTC().Unix())
+}
+
+func (m *metrics) observeGetHeader(ctx context.Context, d time.Duration) {
+	if m == nil {
+		return
+	}
+	m.getHeaderTime.Record(ctx, d.Seconds())
 }
 
 func (m *metrics) observeNewHead(ctx context.Context) {
