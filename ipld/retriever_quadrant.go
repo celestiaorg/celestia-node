@@ -5,8 +5,9 @@ import (
 	"math/rand"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/pkg/da"
 	"github.com/ipfs/go-cid"
+
+	"github.com/celestiaorg/celestia-app/pkg/da"
 
 	"github.com/celestiaorg/celestia-node/ipld/plugin"
 )

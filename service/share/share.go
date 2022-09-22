@@ -7,10 +7,11 @@ import (
 
 	"golang.org/x/sync/errgroup"
 
-	"github.com/celestiaorg/celestia-app/pkg/da"
 	"github.com/ipfs/go-blockservice"
 	"github.com/ipfs/go-cid"
 	logging "github.com/ipfs/go-log/v2"
+
+	"github.com/celestiaorg/celestia-app/pkg/da"
 
 	"github.com/celestiaorg/celestia-node/ipld"
 	"github.com/celestiaorg/celestia-node/ipld/plugin"

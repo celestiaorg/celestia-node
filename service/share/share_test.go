@@ -11,10 +11,12 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/pkg/da"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	core "github.com/tendermint/tendermint/types"
+
+	"github.com/celestiaorg/celestia-app/pkg/da"
+	s "github.com/celestiaorg/celestia-app/pkg/shares"
 
 	"github.com/celestiaorg/celestia-node/ipld"
 )
@@ -251,17 +253,21 @@ func TestSharesRoundTrip(t *testing.T) {
 				}
 			}
 
-			namespacedShares, _, _ := b.Data.ComputeShares(uint64(0))
+			shares, err := s.Split(b.Data)
+
+			if err != nil {
+				t.Fatal(err)
+			}
 
 			// test round trip using only encoding, without IPLD
 			{
 				myShares := make([][]byte, 0)
-				for _, sh := range namespacedShares.RawShares() {
+				for _, sh := range shares {
 					if bytes.Equal(namespace, sh[:8]) {
 						myShares = append(myShares, sh)
 					}
 				}
-				msgs, err := core.ParseMsgs(myShares)
+				msgs, err := s.ParseMsgs(myShares)
 				require.NoError(t, err)
 				assert.Len(t, msgs.MessagesList, len(msgsInNamespace))
 				for i := range msgs.MessagesList {
@@ -271,7 +277,7 @@ func TestSharesRoundTrip(t *testing.T) {
 
 			// test full round trip - with IPLD + decoding shares
 			{
-				extSquare, err := ipld.AddShares(ctx, namespacedShares.RawShares(), store)
+				extSquare, err := ipld.AddShares(ctx, shares, store)
 				require.NoError(t, err)
 
 				dah := da.NewDataAvailabilityHeader(extSquare)
@@ -279,7 +285,7 @@ func TestSharesRoundTrip(t *testing.T) {
 				require.NoError(t, err)
 				require.NotEmpty(t, shares)
 
-				msgs, err := core.ParseMsgs(shares)
+				msgs, err := s.ParseMsgs(shares)
 				require.NoError(t, err)
 				assert.Len(t, msgs.MessagesList, len(msgsInNamespace))
 				for i := range msgs.MessagesList {
