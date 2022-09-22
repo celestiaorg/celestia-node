@@ -46,6 +46,9 @@ func (w *worker) run(
 		// TODO: get headers in batches
 		h, err := getter.GetByHeight(ctx, curr)
 		if err == nil {
+			log.Debugw("got header from header store",
+				"height", h.Height, "hash", h.Hash().String(), "width", len(h.DAH.RowsRoots))
+
 			err = sample(ctx, h)
 		}
 
