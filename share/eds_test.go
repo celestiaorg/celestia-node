@@ -2,13 +2,15 @@ package share
 
 import (
 	"context"
-	"github.com/celestiaorg/celestia-node/ipld"
-	"github.com/celestiaorg/rsmt2d"
+	"os"
+	"testing"
+
 	ds "github.com/ipfs/go-datastore"
 	blockstore "github.com/ipfs/go-ipfs-blockstore"
 	carv1 "github.com/ipld/go-car"
-	"os"
-	"testing"
+
+	"github.com/celestiaorg/celestia-node/ipld"
+	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/stretchr/testify/require"
 )
@@ -19,10 +21,10 @@ func TestQuadrantOrder(t *testing.T) {
 		{1}, {2},
 		{3}, {4},
 	}, rsmt2d.NewRSGF8Codec(), rsmt2d.NewDefaultTree)
-	//{{1}, {2}, {7}, {13}},
-	//{{3}, {4}, {13}, {31}},
-	//{{5}, {14}, {19}, {41}},
-	//{{9}, {26}, {47}, {69}},
+	//  {{1}, {2}, {7}, {13}},
+	//  {{3}, {4}, {13}, {31}},
+	//  {{5}, {14}, {19}, {41}},
+	//  {{9}, {26}, {47}, {69}},
 	require.Equal(t,
 		[][]byte{
 			{1}, {2}, {3}, {4},

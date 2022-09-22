@@ -3,9 +3,10 @@ package share
 import (
 	"context"
 	"fmt"
-	"github.com/tendermint/tendermint/pkg/consts"
 	"io"
 	"math"
+
+	"github.com/tendermint/tendermint/pkg/consts"
 
 	"github.com/ipfs/go-blockservice"
 	"github.com/ipfs/go-cid"
@@ -171,9 +172,12 @@ func quadrantOrder(eds *rsmt2d.ExtendedDataSquare) [][]byte {
 		for j := 0; j < quadrantWidth; j++ {
 			q0Cell := eds.GetCell(uint(i), uint(j))
 			shares[(0*quadrantSize)+i*quadrantWidth+j] = append(q0Cell[:8], q0Cell...)
-			shares[(1*quadrantSize)+i*quadrantWidth+j] = append(consts.ParitySharesNamespaceID, eds.GetCell(uint(i), uint(j+quadrantWidth))...)
-			shares[(2*quadrantSize)+i*quadrantWidth+j] = append(consts.ParitySharesNamespaceID, eds.GetCell(uint(i+quadrantWidth), uint(j))...)
-			shares[(3*quadrantSize)+i*quadrantWidth+j] = append(consts.ParitySharesNamespaceID, eds.GetCell(uint(i+quadrantWidth), uint(j+quadrantWidth))...)
+			shares[(1*quadrantSize)+i*quadrantWidth+j] =
+				append(consts.ParitySharesNamespaceID, eds.GetCell(uint(i), uint(j+quadrantWidth))...)
+			shares[(2*quadrantSize)+i*quadrantWidth+j] =
+				append(consts.ParitySharesNamespaceID, eds.GetCell(uint(i+quadrantWidth), uint(j))...)
+			shares[(3*quadrantSize)+i*quadrantWidth+j] =
+				append(consts.ParitySharesNamespaceID, eds.GetCell(uint(i+quadrantWidth), uint(j+quadrantWidth))...)
 		}
 	}
 	return shares
