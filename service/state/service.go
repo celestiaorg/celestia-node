@@ -5,7 +5,6 @@ import (
 
 	"github.com/cosmos/cosmos-sdk/x/staking/types"
 
-	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/nmt/namespace"
 )
 
@@ -16,15 +15,12 @@ type Service struct {
 	cancel context.CancelFunc
 
 	accessor Accessor
-
-	getter header.Getter
 }
 
 // NewService constructs a new state Service.
-func NewService(accessor Accessor, getter header.Getter) *Service {
+func NewService(accessor Accessor) *Service {
 	return &Service{
 		accessor: accessor,
-		getter:   getter,
 	}
 }
 
@@ -41,7 +37,7 @@ func (s *Service) Balance(ctx context.Context) (*Balance, error) {
 	return s.accessor.Balance(ctx)
 }
 
-func (s *Service) BalanceForAddress(ctx context.Context, addr AccAddress) (*Balance, error) {
+func (s *Service) BalanceForAddress(ctx context.Context, addr Address) (*Balance, error) {
 	return s.accessor.BalanceForAddress(ctx, addr)
 }
 

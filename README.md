@@ -14,19 +14,31 @@ The DA network wraps the celestia-core consensus network by listening for blocks
 
 Continue reading [here](https://blog.celestia.org/celestia-mvp-release-data-availability-sampling-light-clients) if you want to learn more about DAS and how it enables secure and scalable access to Celestia chain data.
 
+## Table of Contents
+
+- [Celestia Node](#celestia-node)
+- [Minimum requirements](#minimum-requirements)
+- [System Requirements](#system-requirements)
+- [Installation](#installation)
+- [API docs](#api-docs)
+- [Node types](#node-types)
+- [Run a node](#run-a-node)
+- [Package-specific documentation](#package-specific-documentation)
+- [Code of Conduct](#code-of-conduct)
+
 ## Minimum requirements
 
 | Requirement | Notes          |
 |-------------|----------------|
-| Go version  | 1.18 or higher |
+| Go version  | 1.19 or higher |
 
 ## System Requirements
 
 See the official docs page for system requirements per node type:
 
-* [Bridge](https://docs.celestia.org/nodes/bridge-node#hardware-requirements)
-* [Light](https://docs.celestia.org/nodes/light-node#hardware-requirements)
-* [Full](https://docs.celestia.org/nodes/full-storage-node#hardware-requirements)
+- [Bridge](https://docs.celestia.org/nodes/bridge-node#hardware-requirements)
+- [Light](https://docs.celestia.org/nodes/light-node#hardware-requirements)
+- [Full](https://docs.celestia.org/nodes/full-storage-node#hardware-requirements)
 
 ## Installation
 
@@ -45,9 +57,9 @@ Celestia-node public API is documented [here](https://docs.celestia.org/develope
 
 ## Node types
 
-* **Bridge** nodes - relay blocks from the celestia consensus network to the celestia data availability (DA) network
-* **Full** nodes - fully reconstruct and store blocks by sampling the DA network for shares
-* **Light** nodes - verify the availability of block data by sampling the DA network for shares
+- **Bridge** nodes - relay blocks from the celestia consensus network to the celestia data availability (DA) network
+- **Full** nodes - fully reconstruct and store blocks by sampling the DA network for shares
+- **Light** nodes - verify the availability of block data by sampling the DA network for shares
 
 More information can be found [here](https://github.com/celestiaorg/celestia-node/blob/main/docs/adr/adr-003-march2022-testnet.md#legend).
 
@@ -65,9 +77,9 @@ celestia <node_type> start
 
 ## Package-specific documentation
 
-* [Header](./service/header/doc.go)
-* [Share](./service/share/doc.go)
-* [DAS](./das/doc.go)
+- [Header](./service/header/doc.go)
+- [Share](./service/share/doc.go)
+- [DAS](./das/doc.go)
 
 ## Code of Conduct
 

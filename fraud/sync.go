@@ -142,7 +142,7 @@ func (f *ProofService) handleFraudMessageRequest(stream network.Stream) {
 		log.Errorw("error while writing a response", "err", err)
 		return
 	}
-	if err = stream.CloseWrite(); err != nil {
-		log.Warnw("error while closing a writer in stream", "err", err)
+	if err = stream.Close(); err != nil {
+		log.Errorw("error while closing a writer in stream", "err", err)
 	}
 }

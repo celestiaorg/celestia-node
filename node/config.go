@@ -80,10 +80,11 @@ func LoadConfig(path string) (*Config, error) {
 	return &cfg, cfg.Decode(f)
 }
 
+//	TODO(@Wondertan): We should have a description for each field written into w,
+//   so users can instantly understand purpose of each field. Ideally, we should have a utility
+//	 program to parse comments from actual sources(*.go files) and generate docs from comments. Hint: use 'ast' package.
+
 // Encode encodes a given Config into w.
-// TODO(@Wondertan): We should have a description for each field written into w,
-//  so users can instantly understand purpose of each field. Ideally, we should have a utility program to parse comments
-//  from actual sources(*.go files) and generate docs from comments. Hint: use 'ast' package.
 func (cfg *Config) Encode(w io.Writer) error {
 	return toml.NewEncoder(w).Encode(cfg)
 }

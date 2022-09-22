@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"strconv"
 	"testing"
@@ -169,7 +169,7 @@ func TestAvailabilityRequest(t *testing.T) {
 		require.NoError(t, err)
 	}()
 
-	buf, err := ioutil.ReadAll(resp.Body)
+	buf, err := io.ReadAll(resp.Body)
 	require.NoError(t, err)
 
 	availResp := new(rpc.AvailabilityResponse)
@@ -189,11 +189,11 @@ func TestDASStateRequest(t *testing.T) {
 		err = resp.Body.Close()
 		require.NoError(t, err)
 	}()
-	dasStateResp := new(rpc.DasStateResponse)
+	dasStateResp := new(das.SamplingStats)
 	err = json.NewDecoder(resp.Body).Decode(dasStateResp)
 	require.NoError(t, err)
 	// ensure daser is running
-	assert.True(t, dasStateResp.SampleRoutine.IsRunning)
+	assert.True(t, dasStateResp.IsRunning)
 }
 
 func setupNodeWithModifiedRPC(t *testing.T) *Node {

@@ -1,5 +1,6 @@
 // TODO(@Wondertan): Ideally, we should move that into subpackage, so this does not get included into binary of
 //  production code, but that does not matter at the moment.
+
 package header
 
 import (
@@ -172,7 +173,7 @@ func RandRawHeader(t *testing.T) *RawHeader {
 	return &RawHeader{
 		Version:            version.Consensus{Block: 11, App: 1},
 		ChainID:            "test",
-		Height:             mrand.Int63(), //nolint:gosec
+		Height:             mrand.Int63(),
 		Time:               time.Now(),
 		LastBlockID:        RandBlockID(t),
 		LastCommitHash:     tmrand.Bytes(32),
@@ -196,8 +197,8 @@ func RandBlockID(t *testing.T) types.BlockID {
 			Hash:  make([]byte, 32),
 		},
 	}
-	mrand.Read(bid.Hash)               //nolint:gosec
-	mrand.Read(bid.PartSetHeader.Hash) //nolint:gosec
+	mrand.Read(bid.Hash)
+	mrand.Read(bid.PartSetHeader.Hash)
 	return bid
 }
 

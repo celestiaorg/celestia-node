@@ -15,6 +15,9 @@ type Tx = coretypes.Tx
 // TxResponse is an alias to the TxResponse type from Cosmos-SDK.
 type TxResponse = sdk.TxResponse
 
+// Address is an alias to the Address type from Cosmos-SDK.
+type Address = sdk.Address
+
 // ValAddress is an alias to the ValAddress type from Cosmos-SDK.
 type ValAddress = sdk.ValAddress
 

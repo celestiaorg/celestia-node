@@ -5,11 +5,11 @@ import (
 	"fmt"
 
 	"github.com/cosmos/cosmos-sdk/api/tendermint/abci"
+	"github.com/cosmos/cosmos-sdk/store/rootmulti"
 	sdktypes "github.com/cosmos/cosmos-sdk/types"
 	sdktx "github.com/cosmos/cosmos-sdk/types/tx"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
-	proofutils "github.com/cosmos/ibc-go/v4/modules/core/23-commitment/types"
 	logging "github.com/ipfs/go-log/v2"
 	rpcclient "github.com/tendermint/tendermint/rpc/client"
 	"github.com/tendermint/tendermint/rpc/client/http"
@@ -30,7 +30,7 @@ var log = logging.Logger("state")
 // with a celestia-core node.
 type CoreAccessor struct {
 	signer *apptypes.KeyringSigner
-	getter header.Getter
+	getter header.Head
 
 	queryCli   banktypes.QueryClient
 	stakingCli stakingtypes.QueryClient
@@ -47,7 +47,7 @@ type CoreAccessor struct {
 // connection.
 func NewCoreAccessor(
 	signer *apptypes.KeyringSigner,
-	getter header.Getter,
+	getter header.Head,
 	coreIP,
 	rpcPort string,
 	grpcPort string,
@@ -136,7 +136,7 @@ func (ca *CoreAccessor) Balance(ctx context.Context) (*Balance, error) {
 	return ca.BalanceForAddress(ctx, addr)
 }
 
-func (ca *CoreAccessor) BalanceForAddress(ctx context.Context, addr AccAddress) (*Balance, error) {
+func (ca *CoreAccessor) BalanceForAddress(ctx context.Context, addr Address) (*Balance, error) {
 	head, err := ca.getter.Head(ctx)
 	if err != nil {
 		return nil, err
@@ -178,19 +178,14 @@ func (ca *CoreAccessor) BalanceForAddress(ctx context.Context, addr AccAddress) 
 	if !ok {
 		return nil, fmt.Errorf("cannot convert %s into sdktypes.Int", string(value))
 	}
-	// convert proofs into a more digestible format
-	merkleproof, err := proofutils.ConvertProofs(result.Response.GetProofOps())
+	// verify balance
+	path := fmt.Sprintf("/%s/%s", banktypes.StoreKey, string(prefixedAccountKey))
+	prt := rootmulti.DefaultProofRuntime()
+	err = prt.VerifyValue(result.Response.GetProofOps(), head.AppHash, path, value)
 	if err != nil {
 		return nil, err
 	}
-	root := proofutils.NewMerkleRoot(head.AppHash)
-	// VerifyMembership expects the path as:
-	// []string{<store key of module>, <actual key corresponding to requested value>}
-	path := proofutils.NewMerklePath(banktypes.StoreKey, string(prefixedAccountKey))
-	err = merkleproof.VerifyMembership(proofutils.GetSDKSpecs(), root, path, value)
-	if err != nil {
-		return nil, err
-	}
+
 	return &Balance{
 		Denom:  app.BondDenom,
 		Amount: coin,

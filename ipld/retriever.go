@@ -32,11 +32,12 @@ var tracer = otel.Tracer("ipld")
 // Instead of requesting data 'share by share' it requests data by quadrants
 // minimizing bandwidth usage in the happy cases.
 //
-//  ---- ----
-// | 0  | 1  |
-//  ---- ----
-// | 2  | 3  |
-//  ---- ----
+//	 ---- ----
+//	| 0  | 1  |
+//	 ---- ----
+//	| 2  | 3  |
+//	 ---- ----
+//
 // Retriever randomly picks one of the data square quadrants and tries to request them one by one
 // until it is able to reconstruct the whole square.
 type Retriever struct {

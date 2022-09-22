@@ -104,8 +104,7 @@ type Store interface {
 // Getter contains the behavior necessary for a component to retrieve
 // headers that have been processed during header sync.
 type Getter interface {
-	// Head returns the ExtendedHeader of the chain head.
-	Head(context.Context) (*ExtendedHeader, error)
+	Head
 
 	// Get returns the ExtendedHeader corresponding to the given hash.
 	Get(context.Context, tmbytes.HexBytes) (*ExtendedHeader, error)
@@ -115,4 +114,12 @@ type Getter interface {
 
 	// GetRangeByHeight returns the given range [from:to) of ExtendedHeaders.
 	GetRangeByHeight(ctx context.Context, from, to uint64) ([]*ExtendedHeader, error)
+}
+
+// Head contains the behavior necessary for a component to retrieve
+// the chain head. Note that "chain head" is subjective to the component
+// reporting it.
+type Head interface {
+	// Head returns the latest known header.
+	Head(context.Context) (*ExtendedHeader, error)
 }

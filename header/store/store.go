@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"sync"
+	"sync/atomic"
 
 	logging "github.com/ipfs/go-log/v2"
 
@@ -53,13 +53,12 @@ type store struct {
 
 	// writing to datastore
 	//
-	writeLk sync.Mutex
 	// queue of headers to be written
 	writes chan []*header.ExtendedHeader
 	// signals when writes are finished
 	writesDn chan struct{}
 	// writeHead maintains the current write head
-	writeHead *header.ExtendedHeader
+	writeHead atomic.Pointer[header.ExtendedHeader]
 	// pending keeps headers pending to be written in one batch
 	pending *batch
 }
@@ -257,14 +256,10 @@ func (s *store) Append(ctx context.Context, headers ...*header.ExtendedHeader) (
 	if lh == 0 {
 		return 0, nil
 	}
-	// taking the ownership of append
-	// mainly, this is need to avoid race conditions for s.writeHead
-	s.writeLk.Lock()
-	defer s.writeLk.Unlock()
 
-	// take current write head to verify headers against
 	var err error
-	head := s.writeHead
+	// take current write head to verify headers against
+	head := s.writeHead.Load()
 	if head == nil {
 		head, err = s.Head(ctx)
 		if err != nil {
@@ -301,8 +296,9 @@ func (s *store) Append(ctx context.Context, headers ...*header.ExtendedHeader) (
 	select {
 	case s.writes <- verified:
 		ln := len(verified)
-		s.writeHead = verified[ln-1]
-		log.Infow("new head", "height", s.writeHead.Height, "hash", s.writeHead.Hash())
+		s.writeHead.Store(verified[ln-1])
+		wh := s.writeHead.Load()
+		log.Infow("new head", "height", wh.Height, "hash", wh.Hash())
 		// we return an error here after writing,
 		// as there might be an invalid header in between of a given range
 		return ln, err

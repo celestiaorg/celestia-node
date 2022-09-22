@@ -64,7 +64,7 @@ func OpenStore(path string) (Store, error) {
 
 	ok := IsInit(path)
 	if !ok {
-		flock.Unlock() // nolint: errcheck
+		flock.Unlock() //nolint: errcheck
 		return nil, ErrNotInited
 	}
 
@@ -160,7 +160,7 @@ func (f *fsStore) Datastore() (_ datastore.Batching, err error) {
 }
 
 func (f *fsStore) Close() error {
-	defer f.dirLock.Unlock() // nolint: errcheck
+	defer f.dirLock.Unlock() //nolint: errcheck
 	return f.data.Close()
 }
 

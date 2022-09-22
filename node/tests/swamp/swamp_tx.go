@@ -10,8 +10,7 @@ import (
 )
 
 // SubmitData submits given data in the block.
-// TODO(@Wondertan): This must be a real PFD using celestia-app, once we able to run App
-//  in the Swamp.
+// TODO(@Wondertan): This must be a real PFD using celestia-app, once we can run App in the Swamp.
 func (s *Swamp) SubmitData(ctx context.Context, data []byte) error {
 	result, err := s.CoreClient.BroadcastTxSync(ctx, append([]byte("key="), data...))
 	if err != nil {

@@ -53,14 +53,14 @@ func RandShares(t *testing.T, total int) []Share {
 	shares := make([]Share, total)
 	for i := range shares {
 		nid := make([]byte, ShareSize)
-		_, err := mrand.Read(nid[:NamespaceSize]) // nolint:gosec // G404: Use of weak random number generator
+		_, err := mrand.Read(nid[:NamespaceSize])
 		require.NoError(t, err)
 		shares[i] = nid
 	}
 	sort.Slice(shares, func(i, j int) bool { return bytes.Compare(shares[i], shares[j]) < 0 })
 
 	for i := range shares {
-		_, err := mrand.Read(shares[i][NamespaceSize:]) // nolint:gosec // G404: Use of weak random number generator
+		_, err := mrand.Read(shares[i][NamespaceSize:])
 		require.NoError(t, err)
 	}
 
