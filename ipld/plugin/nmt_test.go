@@ -10,8 +10,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/tendermint/tendermint/pkg/consts"
 
+	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/pkg/da"
 )
 
@@ -21,10 +21,10 @@ func TestNamespaceFromCID(t *testing.T) {
 	var tests = []struct {
 		randData [][]byte
 	}{
-		{randData: generateRandNamespacedRawData(4, consts.NamespaceSize, consts.ShareSize)},
-		{randData: generateRandNamespacedRawData(16, 16, consts.ShareSize)},
-		{randData: generateRandNamespacedRawData(4, 4, consts.ShareSize)},
-		{randData: generateRandNamespacedRawData(4, consts.NamespaceSize, consts.ShareSize/2)},
+		{randData: generateRandNamespacedRawData(4, appconsts.NamespaceSize, appconsts.ShareSize)},
+		{randData: generateRandNamespacedRawData(16, 16, appconsts.ShareSize)},
+		{randData: generateRandNamespacedRawData(4, 4, appconsts.ShareSize)},
+		{randData: generateRandNamespacedRawData(4, appconsts.NamespaceSize, appconsts.ShareSize/2)},
 	}
 
 	for i, tt := range tests {
