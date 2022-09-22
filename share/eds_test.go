@@ -8,6 +8,7 @@ import (
 	ds "github.com/ipfs/go-datastore"
 	blockstore "github.com/ipfs/go-ipfs-blockstore"
 	carv1 "github.com/ipld/go-car"
+	"github.com/tendermint/tendermint/pkg/consts"
 
 	"github.com/celestiaorg/celestia-node/ipld"
 	"github.com/celestiaorg/rsmt2d"
@@ -17,9 +18,12 @@ import (
 
 func TestQuadrantOrder(t *testing.T) {
 	// TODO: add more test cases
+	nID := []byte{0, 0, 0, 0, 0, 0, 0, 0}
+	parity := append(consts.ParitySharesNamespaceID, nID...) //nolint
+	doubleNID := append(nID, nID...)                         //nolint
 	result, _ := rsmt2d.ComputeExtendedDataSquare([][]byte{
-		{1}, {2},
-		{3}, {4},
+		append(nID, 1), append(nID, 2),
+		append(nID, 3), append(nID, 4),
 	}, rsmt2d.NewRSGF8Codec(), rsmt2d.NewDefaultTree)
 	//  {{1}, {2}, {7}, {13}},
 	//  {{3}, {4}, {13}, {31}},
@@ -27,10 +31,10 @@ func TestQuadrantOrder(t *testing.T) {
 	//  {{9}, {26}, {47}, {69}},
 	require.Equal(t,
 		[][]byte{
-			{1}, {2}, {3}, {4},
-			{7}, {13}, {13}, {31},
-			{5}, {14}, {9}, {26},
-			{19}, {41}, {47}, {69},
+			append(doubleNID, 1), append(doubleNID, 2), append(doubleNID, 3), append(doubleNID, 4),
+			append(parity, 7), append(parity, 13), append(parity, 13), append(parity, 31),
+			append(parity, 5), append(parity, 14), append(parity, 9), append(parity, 26),
+			append(parity, 19), append(parity, 41), append(parity, 47), append(parity, 69),
 		}, quadrantOrder(result),
 	)
 }
