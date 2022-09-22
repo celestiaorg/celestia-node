@@ -46,21 +46,6 @@ pkg: Concise title of PR
 service/header: Remove race in core_listener
 ```
 
-## Changelog
-
-Every *notable* fix, improvement, feature, or breaking change should be made in a
-pull-request that includes an update to the `CHANGELOG_PENDING.md` file.
-
-Changelog entries should be formatted as follows:
-
-```md
-- [module/pkg: Some description about the change #xxx](link to PR) [@contributor](link to contributer github) 
-```
-
-Here, `module` is the part of the code that changed (typically a
-top-level Go package), `xxx` is the pull-request number, and `contributor`
-is the author/s of the change.
-
 ## Branching Model and Release
 
 The main development branch is `main`.
