@@ -168,6 +168,8 @@ func (d *DASer) sample(ctx context.Context, h *header.ExtendedHeader) error {
 			"square width", len(h.DAH.RowsRoots), "data root", h.DAH.Hash(), "err", err)
 		return err
 	}
+	log.Debugw("sampled header", "height", h.Height, "hash", h.Hash(),
+		"square width", len(h.DAH.RowsRoots), "data root", h.DAH.Hash())
 
 	return nil
 }
