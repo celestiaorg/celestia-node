@@ -136,7 +136,7 @@ func (ca *CoreAccessor) Balance(ctx context.Context) (*Balance, error) {
 	return ca.BalanceForAddress(ctx, addr)
 }
 
-func (ca *CoreAccessor) BalanceForAddress(ctx context.Context, addr AccAddress) (*Balance, error) {
+func (ca *CoreAccessor) BalanceForAddress(ctx context.Context, addr Address) (*Balance, error) {
 	head, err := ca.getter.Head(ctx)
 	if err != nil {
 		return nil, err

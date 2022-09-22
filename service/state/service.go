@@ -37,7 +37,7 @@ func (s *Service) Balance(ctx context.Context) (*Balance, error) {
 	return s.accessor.Balance(ctx)
 }
 
-func (s *Service) BalanceForAddress(ctx context.Context, addr AccAddress) (*Balance, error) {
+func (s *Service) BalanceForAddress(ctx context.Context, addr Address) (*Balance, error) {
 	return s.accessor.BalanceForAddress(ctx, addr)
 }
 
