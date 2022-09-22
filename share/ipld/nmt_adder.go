@@ -47,6 +47,7 @@ func (n *NmtNodeAdder) Visit(hash []byte, children ...[]byte) {
 	}
 }
 
+// VisitInnerNodes is a NodeVisitor that does not store leaf nodes to the blockservice.
 func (n *NmtNodeAdder) VisitInnerNodes(hash []byte, children ...[]byte) {
 	if n.err != nil {
 		return // protect from further visits if there is an error

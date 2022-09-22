@@ -19,13 +19,14 @@ func TestQuadrantOrder(t *testing.T) {
 }
 
 func TestWriteEDS(t *testing.T) {
-	f, err := os.OpenFile("/tmp/123.car", os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0600)
-	if err != nil {
-		panic(err)
-	}
+	tmpDir := t.TempDir()
+	err := os.Chdir(tmpDir)
+	require.NoError(t, err, "error changing to the temporary test directory")
+	f, err := os.OpenFile("test.car", os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0600)
+	require.NoError(t, err, "error opening file")
 	defer f.Close()
 
-	eds := ipld.RandEDS(t, 2)
+	eds := ipld.RandEDS(t, 4)
 	err = WriteEDS(context.Background(), eds, f)
-	require.Nil(t, err)
+	require.NoError(t, err, "error writing EDS to file")
 }
