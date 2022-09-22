@@ -116,7 +116,10 @@ func Test_parseHeads(t *testing.T) {
 			headerHeight[2]=3 -> 1
 			result -> headerHeight[2]
 		*/
-		{precondition: gen, expectedHeight: 3},
+		{
+			precondition:   gen,
+			expectedHeight: 3,
+		},
 		/*
 			Height -> Amount
 			headerHeight[0]=1 -> 2
@@ -124,11 +127,12 @@ func Test_parseHeads(t *testing.T) {
 			headerHeight[2]=3 -> 1
 			result -> headerHeight[0]
 		*/
-		{precondition: func() []*header.ExtendedHeader {
-			res := gen()
-			res = append(res, res[0])
-			return res
-		},
+		{
+			precondition: func() []*header.ExtendedHeader {
+				res := gen()
+				res = append(res, res[0])
+				return res
+			},
 			expectedHeight: 1,
 		},
 		/*
@@ -138,19 +142,20 @@ func Test_parseHeads(t *testing.T) {
 			headerHeight[2]=3 -> 1
 			result -> headerHeight[1]
 		*/
-		{precondition: func() []*header.ExtendedHeader {
-			res := gen()
-			res = append(res, res[0])
-			res = append(res, res[0])
-			res = append(res, res[1])
-			return res
-		},
+		{
+			precondition: func() []*header.ExtendedHeader {
+				res := gen()
+				res = append(res, res[0])
+				res = append(res, res[0])
+				res = append(res, res[1])
+				return res
+			},
 			expectedHeight: 2,
 		},
 	}
 	for _, tt := range testCases {
 		res := tt.precondition()
-		header, err := parseHeads(res)
+		header, err := bestHead(res)
 		require.NoError(t, err)
 		require.True(t, header.Height == tt.expectedHeight)
 	}
