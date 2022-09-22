@@ -108,3 +108,7 @@ package](https://golang.org/pkg/testing/). If you're adding or removing a
 function, please check there's a `TestType_Method` test for it.
 
 Run: `make test`
+
+## Protobuf
+
+If your PR modifies `*.proto` files, you will need to regenerate protobuf files with `make pb-gen`. Note this command assumes you have installed [protoc](https://grpc.io/docs/protoc-installation/).
