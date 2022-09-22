@@ -3,6 +3,7 @@ package share
 import (
 	"context"
 	"fmt"
+	"github.com/tendermint/tendermint/pkg/consts"
 	"io"
 	"math"
 
@@ -118,7 +119,10 @@ func (w *writingSession) writeHeader() error {
 func (w *writingSession) writeShares() error {
 	shares := quadrantOrder(w.eds)
 	for _, share := range shares {
-		cid, err := plugin.CidFromNamespacedSha256(nmt.Sha256Namespace8FlaggedLeaf(share))
+		// TODO: Okay. this is really weird and I don't understand:
+		// We need to cut off the first byte like we do for inner nodes, but this share doesn't even have the prefix...
+		// So what is going on? If we don't do this, the cid doesn't match on read.
+		cid, err := plugin.CidFromNamespacedSha256(nmt.Sha256Namespace8FlaggedLeaf(share[1:]))
 		if err != nil {
 			return fmt.Errorf("failure to get cid from share: %w", err)
 		}
@@ -155,6 +159,7 @@ func (w *writingSession) writeProofs(ctx context.Context) error {
 	return nil
 }
 
+// quadrantOrder reorders the shares in the EDS to quadrant row-by-row order, adding the wrapped namespace
 func quadrantOrder(eds *rsmt2d.ExtendedDataSquare) [][]byte {
 	size := eds.Width() * eds.Width()
 	shares := make([][]byte, size)
@@ -164,10 +169,11 @@ func quadrantOrder(eds *rsmt2d.ExtendedDataSquare) [][]byte {
 	// TODO: Simplify this loop
 	for i := 0; i < quadrantWidth; i++ {
 		for j := 0; j < quadrantWidth; j++ {
-			shares[(0*quadrantSize)+i*quadrantWidth+j] = eds.GetCell(uint(i), uint(j))
-			shares[(1*quadrantSize)+i*quadrantWidth+j] = eds.GetCell(uint(i), uint(j+quadrantWidth))
-			shares[(2*quadrantSize)+i*quadrantWidth+j] = eds.GetCell(uint(i+quadrantWidth), uint(j))
-			shares[(3*quadrantSize)+i*quadrantWidth+j] = eds.GetCell(uint(i+quadrantWidth), uint(j+quadrantWidth))
+			q0Cell := eds.GetCell(uint(i), uint(j))
+			shares[(0*quadrantSize)+i*quadrantWidth+j] = append(q0Cell[:8], q0Cell...)
+			shares[(1*quadrantSize)+i*quadrantWidth+j] = append(consts.ParitySharesNamespaceID, eds.GetCell(uint(i), uint(j+quadrantWidth))...)
+			shares[(2*quadrantSize)+i*quadrantWidth+j] = append(consts.ParitySharesNamespaceID, eds.GetCell(uint(i+quadrantWidth), uint(j))...)
+			shares[(3*quadrantSize)+i*quadrantWidth+j] = append(consts.ParitySharesNamespaceID, eds.GetCell(uint(i+quadrantWidth), uint(j+quadrantWidth))...)
 		}
 	}
 	return shares
