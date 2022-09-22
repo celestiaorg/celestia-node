@@ -57,12 +57,12 @@ var fullCmd = &cobra.Command{
 
 		cfg := cmdnode.NodeConfig(ctx)
 
-		ctx, err = cmdnode.ParseP2PFlags(ctx, cmd, &cfg)
+		err = cmdnode.ParseP2PFlags(cmd, &cfg)
 		if err != nil {
 			return err
 		}
 
-		ctx, err = cmdnode.ParseCoreFlags(ctx, cmd, &cfg)
+		err = cmdnode.ParseCoreFlags(cmd, &cfg)
 		if err != nil {
 			return err
 		}
@@ -77,13 +77,11 @@ var fullCmd = &cobra.Command{
 			return err
 		}
 
-		ctx, err = cmdnode.ParseRPCFlags(ctx, cmd, &cfg)
-		if err != nil {
-			return err
-		}
+		cmdnode.ParseRPCFlags(cmd, &cfg)
+		cmdnode.ParseKeyFlags(cmd, &cfg)
 
-		ctx = cmdnode.ParseKeyFlags(ctx, cmd, &cfg)
-
+		// set config
+		ctx = cmdnode.WithNodeConfig(ctx, &cfg)
 		cmd.SetContext(ctx)
 		return nil
 	},

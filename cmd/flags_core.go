@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"context"
 	"fmt"
 
 	"github.com/spf13/cobra"
@@ -41,19 +40,15 @@ func CoreFlags() *flag.FlagSet {
 
 // ParseCoreFlags parses Core flags from the given cmd and applies values to Env.
 func ParseCoreFlags(
-	ctx context.Context,
 	cmd *cobra.Command,
 	cfg *nodebuilder.Config,
-) (setCtx context.Context, err error) {
-	defer func() {
-		setCtx = WithNodeConfig(ctx, cfg)
-	}()
+) error {
 	coreIP := cmd.Flag(coreFlag).Value.String()
 	if coreIP == "" {
 		if cmd.Flag(coreGRPCFlag).Changed || cmd.Flag(coreRPCFlag).Changed {
-			err = fmt.Errorf("cannot specify RPC/gRPC ports without specifying an IP address for --core.ip")
+			return fmt.Errorf("cannot specify RPC/gRPC ports without specifying an IP address for --core.ip")
 		}
-		return
+		return nil
 	}
 
 	rpc := cmd.Flag(coreRPCFlag).Value.String()
@@ -62,5 +57,5 @@ func ParseCoreFlags(
 	cfg.Core.IP = coreIP
 	cfg.Core.RPCPort = rpc
 	cfg.Core.GRPCPort = grpc
-	return
+	return nil
 }
