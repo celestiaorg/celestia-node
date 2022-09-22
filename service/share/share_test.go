@@ -244,6 +244,7 @@ func TestSharesRoundTrip(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// prepare data
 			b.Data.Messages.MessagesList = make([]core.Message, len(tc.messages))
+			b.OriginalSquareSize = 16
 			var msgsInNamespace [][]byte
 			require.Equal(t, len(tc.namespaces), len(tc.messages))
 			for i := range tc.messages {
