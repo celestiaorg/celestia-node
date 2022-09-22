@@ -26,8 +26,9 @@ const (
 	queryRedelegationsEndpoint = "/query_redelegations"
 )
 
+const addrKey = "address"
+
 var (
-	addrKey                 = "address"
 	ErrInvalidAddressFormat = errors.New("address must be a valid account or validator address")
 	ErrMissingAddress       = errors.New("address not specified")
 	ErrInvalidAmount        = errors.New("amount must be greater than zero")
@@ -99,7 +100,8 @@ func (h *Handler) handleBalanceRequest(w http.ResponseWriter, r *http.Request) {
 	addrStr, exists := vars[addrKey]
 	if exists {
 		// convert address to Address type
-		addr, err := types.AccAddressFromBech32(addrStr)
+		var addr state.AccAddress
+		addr, err = types.AccAddressFromBech32(addrStr)
 		if err != nil {
 			// first check if it is a validator address and can be converted
 			valAddr, err := types.ValAddressFromBech32(addrStr)
