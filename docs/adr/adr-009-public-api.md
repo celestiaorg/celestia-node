@@ -72,6 +72,8 @@ type HeaderModule interface {
 	SyncWait(ctx context.Context) error
 	// SyncHead provides the Syncer's view of the current network head.
 	SyncHead(ctx context.Context) (*header.ExtendedHeader, error)
+
+    EnableMetrics()
 }
 ```
 
@@ -88,6 +90,8 @@ type SharesModule interface {
 	// ProbabilityOfAvailability calculates the probability of the data square
 	// being available based on the number of samples collected.
 	ProbabilityOfAvailability() float64
+	
+    EnableMetrics()
 }
 ```
 
@@ -139,7 +143,6 @@ type WalletModule interface {
     Sign
     Export
     Import
-    // TODO: Mnemonics stuff?
 }
 ```
 
@@ -154,8 +157,6 @@ type NodeModule interface {
 
 	Start(ctx context.Context) error
 	Stop(ctx context.Context) error
-
-    // TODO: Auth
 }
 ```
 
@@ -164,7 +165,8 @@ type NodeModule interface {
 ```go
 type DASModule interface {
 	// State reports the current state of the DASer.
-    State() das.State
+    State() das.SamplingState
+	EnableMetrics()
 }
 ```
 
@@ -210,17 +212,9 @@ type FraudModule interface {
     Subscribe(type)
 	Get(type)
     List(type)
+	EnableMetrics()
 }
 ```
-
-##### Metrics
-
-```go
-type MetricsModule interface {
- // TODO	
-}
-```
-
 
 ## Status
 
