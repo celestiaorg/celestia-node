@@ -50,15 +50,15 @@ func TestUseBridgeNodeAsBootstraper(t *testing.T) {
 }
 
 /*
- Test-Case: Add peer to blacklist
- Steps:
- 1. Create a Full Node(BN)
- 2. Start a FN
- 3. Create a Light Node(LN)
- 5. Start a LN
- 6. Explicitly block FN id by LN
- 7. Check FN is allowed to dial with LN
- 8. Check LN is not allowed to dial with FN
+Test-Case: Add peer to blacklist
+Steps:
+1. Create a Full Node(BN)
+2. Start a FN
+3. Create a Light Node(LN)
+5. Start a LN
+6. Explicitly block FN id by LN
+7. Check FN is allowed to dial with LN
+8. Check LN is not allowed to dial with FN
 */
 func TestAddPeerToBlackList(t *testing.T) {
 	sw := swamp.NewSwamp(t)
@@ -79,14 +79,14 @@ func TestAddPeerToBlackList(t *testing.T) {
 /*
 Test-Case: Connect Full And Light using Bridge node as a bootstrapper
 Steps:
-1. Create a Bridge Node(BN)
-2. Start a BN
-3. Create full/light nodes with bridge node as bootsrapped peer
-4. Start full/light nodes
-5. Ensure that nodes are connected to bridge
-6. Wait until light will find full node
-7. Check that full and light nodes are connected to each other
-8. Stop FN and ensure that it's not connected to LN
+ 1. Create a Bridge Node(BN)
+ 2. Start a BN
+ 3. Create full/light nodes with bridge node as bootsrapped peer
+ 4. Start full/light nodes
+ 5. Ensure that nodes are connected to bridge
+ 6. Wait until light will find full node
+ 7. Check that full and light nodes are connected to each other
+ 8. Stop FN and ensure that it's not connected to LN
 */
 func TestBootstrapNodesFromBridgeNode(t *testing.T) {
 	sw := swamp.NewSwamp(t)

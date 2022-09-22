@@ -22,8 +22,8 @@ import (
 //
 // NOTE: This value only limits amount of simultaneously running workers that
 // are spawned as the load increases and are killed, once the load declines.
-// TODO(@Wondertan): This assumes we have parallelized DASer implemented.
-//  Sync the values once it is shipped.
+//
+// TODO(@Wondertan): This assumes we have parallelized DASer implemented. Sync the values once it is shipped.
 // TODO(@Wondertan): Allow configuration of values without global state.
 var NumWorkersLimit = MaxSquareSize * MaxSquareSize / 2 * NumConcurrentSquares
 
@@ -33,8 +33,9 @@ var NumConcurrentSquares = 8
 
 // Global worker pool that globally controls and limits goroutines spawned by
 // GetShares.
-// TODO(@Wondertan): Idle timeout for workers needs to be configured to around block time,
-// 	so that workers spawned between each reconstruction for every new block are reused.
+//
+//	TODO(@Wondertan): Idle timeout for workers needs to be configured to around block time,
+//		so that workers spawned between each reconstruction for every new block are reused.
 var pool = workerpool.New(NumWorkersLimit)
 
 // GetShares gets shares from either local storage, or, if not found, requests

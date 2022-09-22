@@ -31,7 +31,7 @@ func Init(cfg Config, path string, tp node.Type) error {
 		}
 		return err
 	}
-	defer flock.Unlock() // nolint: errcheck
+	defer flock.Unlock() //nolint: errcheck
 
 	err = initDir(keysPath(path))
 	if err != nil {

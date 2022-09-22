@@ -3,7 +3,7 @@ package rpc
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"testing"
 
@@ -32,7 +32,7 @@ func TestServer(t *testing.T) {
 	resp, err := http.Get(url)
 	require.NoError(t, err)
 
-	buf, err := ioutil.ReadAll(resp.Body)
+	buf, err := io.ReadAll(resp.Body)
 	require.NoError(t, err)
 	t.Cleanup(func() {
 		resp.Body.Close()
