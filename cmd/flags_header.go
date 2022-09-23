@@ -9,7 +9,7 @@ import (
 	"github.com/spf13/cobra"
 	flag "github.com/spf13/pflag"
 
-	"github.com/celestiaorg/celestia-node/node"
+	"github.com/celestiaorg/celestia-node/nodebuilder"
 )
 
 var (
@@ -28,11 +28,11 @@ func HeadersFlags() *flag.FlagSet {
 }
 
 // ParseHeadersFlags parses Header package flags from the given cmd and applies values to Env.
-func ParseHeadersFlags(ctx context.Context, cmd *cobra.Command) (context.Context, error) {
-	if ctx, err := ParseTrustedHashFlags(ctx, cmd); err != nil {
+func ParseHeadersFlags(ctx context.Context, cmd *cobra.Command, cfg *nodebuilder.Config) (context.Context, error) {
+	if ctx, err := ParseTrustedHashFlags(ctx, cmd, cfg); err != nil {
 		return ctx, err
 	}
-	if ctx, err := ParseTrustedPeerFlags(ctx, cmd); err != nil {
+	if ctx, err := ParseTrustedPeerFlags(ctx, cmd, cfg); err != nil {
 		return ctx, err
 	}
 
@@ -47,12 +47,18 @@ func TrustedPeersFlags() *flag.FlagSet {
 		nil,
 		"Multiaddresses of a reliable peers to fetch headers from. (Format: multiformats.io/multiaddr)",
 	)
-
 	return flags
 }
 
 // ParseTrustedPeerFlags parses Header package flags from the given cmd and applies values to Env.
-func ParseTrustedPeerFlags(ctx context.Context, cmd *cobra.Command) (context.Context, error) {
+func ParseTrustedPeerFlags(
+	ctx context.Context,
+	cmd *cobra.Command,
+	cfg *nodebuilder.Config,
+) (setCtx context.Context, err error) {
+	defer func() {
+		setCtx = WithNodeConfig(ctx, cfg)
+	}()
 	tpeers, err := cmd.Flags().GetStringSlice(headersTrustedPeersFlag)
 	if err != nil {
 		return ctx, err
@@ -64,10 +70,8 @@ func ParseTrustedPeerFlags(ctx context.Context, cmd *cobra.Command) (context.Con
 			return ctx, fmt.Errorf("cmd: while parsing '%s' with peer addr '%s': %w", headersTrustedPeersFlag, tpeer, err)
 		}
 	}
-
-	ctx = WithNodeOptions(ctx, node.WithTrustedPeers(tpeers...))
-
-	return ctx, nil
+	cfg.Header.TrustedPeers = append(cfg.Header.TrustedPeers, tpeers...)
+	return
 }
 
 // TrustedHashFlags returns a set of flags related to configuring a `TrustedHash`.
@@ -79,12 +83,18 @@ func TrustedHashFlags() *flag.FlagSet {
 		"",
 		"Hex encoded header hash. Used to subjectively initialize header synchronization",
 	)
-
 	return flags
 }
 
 // ParseTrustedHashFlags parses Header package flags from the given cmd and applies values to Env.
-func ParseTrustedHashFlags(ctx context.Context, cmd *cobra.Command) (context.Context, error) {
+func ParseTrustedHashFlags(
+	ctx context.Context,
+	cmd *cobra.Command,
+	cfg *nodebuilder.Config,
+) (setCtx context.Context, err error) {
+	defer func() {
+		setCtx = WithNodeConfig(ctx, cfg)
+	}()
 	hash := cmd.Flag(headersTrustedHashFlag).Value.String()
 	if hash != "" {
 		_, err := hex.DecodeString(hash)
@@ -92,8 +102,7 @@ func ParseTrustedHashFlags(ctx context.Context, cmd *cobra.Command) (context.Con
 			return ctx, fmt.Errorf("cmd: while parsing '%s': %w", headersTrustedHashFlag, err)
 		}
 
-		ctx = WithNodeOptions(ctx, node.WithTrustedHash(hash))
+		cfg.Header.TrustedHash = hash
 	}
-
-	return ctx, nil
+	return
 }

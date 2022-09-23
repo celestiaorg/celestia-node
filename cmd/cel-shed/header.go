@@ -8,7 +8,8 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/celestiaorg/celestia-node/header/store"
-	"github.com/celestiaorg/celestia-node/node"
+	"github.com/celestiaorg/celestia-node/nodebuilder"
+	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 )
 
 func init() {
@@ -42,9 +43,8 @@ Custom store path is not supported yet.`,
 			return fmt.Errorf("invalid height: %w", err)
 		}
 
-		s, err := node.OpenStore(
-			fmt.Sprintf("~/.celestia-%s-%s", strings.ToLower(tp.String()), strings.ToLower(network)),
-		)
+		s, err := nodebuilder.OpenStore(fmt.Sprintf("~/.celestia-%s-%s", strings.ToLower(tp.String()),
+			strings.ToLower(network)))
 		if err != nil {
 			return err
 		}
