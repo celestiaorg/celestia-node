@@ -51,6 +51,7 @@ monolithic services and newer distributed microservice architectures.
 #### Modules Definition
 
 ##### Header
+
 ```go
 type HeaderModule interface {
 	// Head returns the node's local head (tip of the chain of the header store).
@@ -76,6 +77,7 @@ type HeaderModule interface {
 ```
 
 ##### Shares
+
 ```go
 type SharesModule interface {
 	// GetShare returns the Share from the given data Root at the given row/col coordinates.
@@ -92,6 +94,7 @@ type SharesModule interface {
 ```
 
 ##### P2P
+
 ```go
 type P2PModule interface {
     Info
@@ -130,6 +133,7 @@ type P2PModule interface {
 ```
 
 ##### Wallet
+
 ```go
 type WalletModule interface {
     New
@@ -143,6 +147,7 @@ type WalletModule interface {
 ```
 
 ### NodeModule
+
 ```go
 type NodeModule interface {
     Type
@@ -157,7 +162,9 @@ type NodeModule interface {
 ```
 
 ##### DAS
+
 // TODO: Should we rebrand DASer to ShareSync?
+
 ```go
 type DASModule interface {
 	// State reports the current state of the DASer.
@@ -166,6 +173,7 @@ type DASModule interface {
 ```
 
 ##### State
+
 ```go
 type StateModule interface {
     // Balance retrieves the Celestia coin balance for the node's account/signer
@@ -188,6 +196,7 @@ Ideally all the state modules below should be implemented on top of only StateMo
 an abstract state requesting method, yet.
 
 ###### Staking
+
 ```go
 type StakingModule interface {
     Delegate
@@ -202,6 +211,7 @@ type StakingModule interface {
 ```
 
 ##### Fraud
+
 ```go
 type FraudModule interface {
     Subscribe(type)
@@ -211,6 +221,7 @@ type FraudModule interface {
 ```
 
 ##### Metrics
+
 ```go
 type MetricsModule interface {
     // List shows all the registered meters.
