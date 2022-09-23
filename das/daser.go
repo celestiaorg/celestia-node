@@ -22,7 +22,7 @@ var log = logging.Logger("das")
 // TODO: parameters needs performance testing on real network to define optimal values
 const (
 	//  samplingRange is the maximum amount of headers processed in one job.
-	samplingRange = 100
+	samplingRange = 1
 
 	// concurrencyLimit defines the maximum amount of sampling workers running in parallel.
 	concurrencyLimit = 16
