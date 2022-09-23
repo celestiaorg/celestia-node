@@ -27,7 +27,7 @@ type metrics struct {
 	lastSampledTS int64
 }
 
-func (sc *samplingCoordinator) initMetrics() error {
+func (d *DASer) InitMetrics() error {
 	sampled, err := meter.SyncInt64().Counter("das_sampled_headers_counter",
 		instrument.WithDescription("sampled headers counter"))
 	if err != nil {
@@ -76,7 +76,7 @@ func (sc *samplingCoordinator) initMetrics() error {
 		return err
 	}
 
-	sc.metrics = &metrics{
+	d.sampler.metrics = &metrics{
 		sampled:       sampled,
 		sampleTime:    sampleTime,
 		getHeaderTime: getHeaderTime,
@@ -88,7 +88,7 @@ func (sc *samplingCoordinator) initMetrics() error {
 			lastSampledTS, busyWorkers, networkHead, sampledChainHead,
 		},
 		func(ctx context.Context) {
-			stats, err := sc.stats(ctx)
+			stats, err := d.sampler.stats(ctx)
 			if err != nil {
 				log.Errorf("observing stats: %s", err.Error())
 			}
@@ -97,7 +97,7 @@ func (sc *samplingCoordinator) initMetrics() error {
 			networkHead.Observe(ctx, int64(stats.NetworkHead))
 			sampledChainHead.Observe(ctx, int64(stats.SampledChainHead))
 
-			if ts := atomic.LoadInt64(&sc.metrics.lastSampledTS); ts != 0 {
+			if ts := atomic.LoadInt64(&d.sampler.metrics.lastSampledTS); ts != 0 {
 				lastSampledTS.Observe(ctx, ts)
 			}
 		},
