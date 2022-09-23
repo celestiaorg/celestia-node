@@ -41,7 +41,7 @@ func (w *worker) run(
 	metrics *metrics,
 	resultCh chan<- result) {
 	jobStart := time.Now()
-	log.Debugw("start sampling worker", "from", w.state.From, "to", w.state.To)
+	log.Infow("start sampling worker", "from", w.state.From, "to", w.state.To)
 
 	for curr := w.state.From; curr <= w.state.To; curr++ {
 		startGet := time.Now()
