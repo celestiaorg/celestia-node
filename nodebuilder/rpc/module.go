@@ -3,14 +3,13 @@ package rpc
 import (
 	"context"
 
-	headerServ "github.com/celestiaorg/celestia-node/nodebuilder/header"
-
 	"go.uber.org/fx"
 
+	headerServ "github.com/celestiaorg/celestia-node/nodebuilder/header"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
+	stateServ "github.com/celestiaorg/celestia-node/nodebuilder/state"
 	rpcServ "github.com/celestiaorg/celestia-node/service/rpc"
 	shareServ "github.com/celestiaorg/celestia-node/service/share"
-	stateServ "github.com/celestiaorg/celestia-node/service/state"
 )
 
 func Module(tp node.Type, cfg *rpcServ.Config) fx.Option {
@@ -43,7 +42,7 @@ func Module(tp node.Type, cfg *rpcServ.Config) fx.Option {
 			"rpc",
 			baseComponents,
 			fx.Invoke(func(
-				state *stateServ.Service,
+				state stateServ.Service,
 				share *shareServ.Service,
 				header headerServ.Service,
 				rpcSrv *rpcServ.Server,

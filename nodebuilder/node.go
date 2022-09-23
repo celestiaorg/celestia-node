@@ -21,10 +21,10 @@ import (
 	"github.com/celestiaorg/celestia-node/das"
 	"github.com/celestiaorg/celestia-node/fraud"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
+	"github.com/celestiaorg/celestia-node/nodebuilder/state"
 	"github.com/celestiaorg/celestia-node/params"
 	"github.com/celestiaorg/celestia-node/service/rpc"
 	"github.com/celestiaorg/celestia-node/service/share"
-	"github.com/celestiaorg/celestia-node/service/state"
 )
 
 const Timeout = time.Second * 15
@@ -58,7 +58,7 @@ type Node struct {
 	// services
 	ShareServ  *share.Service // not optional
 	HeaderServ header.Service // not optional
-	StateServ  *state.Service // not optional
+	StateServ  state.Service  // not optional
 	FraudServ  fraud.Service  // not optional
 	DASer      *das.DASer     `optional:"true"`
 

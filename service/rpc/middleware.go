@@ -6,7 +6,7 @@ import (
 
 	"github.com/gorilla/mux"
 
-	"github.com/celestiaorg/celestia-node/service/state"
+	"github.com/celestiaorg/celestia-node/nodebuilder/state"
 )
 
 func (h *Handler) RegisterMiddleware(rpc *Server) {
@@ -22,7 +22,7 @@ func setContentType(next http.Handler) http.Handler {
 }
 
 // checkPostDisabled ensures that context was canceled and prohibit POST requests.
-func checkPostDisabled(state *state.Service) mux.MiddlewareFunc {
+func checkPostDisabled(state state.Service) mux.MiddlewareFunc {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			// check if state service was halted and deny the transaction

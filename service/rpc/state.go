@@ -6,10 +6,10 @@ import (
 	"errors"
 	"net/http"
 
+	"github.com/celestiaorg/celestia-node/state"
+
 	"github.com/cosmos/cosmos-sdk/types"
 	"github.com/gorilla/mux"
-
-	"github.com/celestiaorg/celestia-node/service/state"
 )
 
 const (
