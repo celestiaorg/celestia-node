@@ -43,20 +43,30 @@ func (w *worker) run(
 	log.Debugw("start sampling worker", "from", w.state.From, "to", w.state.To)
 
 	for curr := w.state.From; curr <= w.state.To; curr++ {
+		startGet := time.Now()
 		// TODO: get headers in batches
 		h, err := getter.GetByHeight(ctx, curr)
-		if err == nil {
-			log.Debugw("got header from header store",
-				"height", h.Height, "hash", h.Hash().String(), "width", len(h.DAH.RowsRoots))
-
-			err = sample(ctx, h)
+		if err != nil {
+			if errors.Is(err, context.Canceled) {
+				// sampling worker will resume upon restart
+				break
+			}
+			w.setResult(curr, err)
+			continue
 		}
+		log.Debugw("got header from header store", "height", h.Height, "hash", h.Hash(),
+			"square width", len(h.DAH.RowsRoots), "data root", h.DAH.Hash(), "finished (s)", time.Since(startGet))
 
+		startSample := time.Now()
+		err = sample(ctx, h)
 		if errors.Is(err, context.Canceled) {
 			// sampling worker will resume upon restart
 			break
 		}
 		w.setResult(curr, err)
+
+		log.Debugw("sampled header", "height", h.Height, "hash", h.Hash(),
+			"square width", len(h.DAH.RowsRoots), "data root", h.DAH.Hash(), "finished (s)", time.Since(startSample))
 	}
 
 	if w.state.Curr > w.state.From {
