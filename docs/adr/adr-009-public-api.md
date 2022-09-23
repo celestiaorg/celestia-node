@@ -103,7 +103,11 @@ SyncHead(ctx context.Context) (*header.ExtendedHeader, error)
     GetShare(ctx context.Context, dah *Root, row, col int) (Share, error)
     // GetSharesByNamespace returns all shares of the given nID from the given data
     // Root.
-    GetSharesByNamespace(ctx context.Context, root *Root, nID namespace.ID) ([]Share, error)
+    GetSharesByNamespace(
+      ctx context.Context,
+      root *Root, 
+      nID namespace.ID, 
+    ) ([]Share, error)
     // SharesAvailable subjectively validates if Shares committed to the given data
     // Root are available on the network. 
     SharesAvailable(ctx context.Context, root *Root) error
@@ -117,38 +121,38 @@ SyncHead(ctx context.Context) (*header.ExtendedHeader, error)
 
 ```go
   type P2PModule interface {
-	Info
-	Peers
-	PeerInfo
-	
-	Connect
-	Disconnect
-	Connectedness
-	NATStatus
-	
-	BlockAdd
-	BlockRm
-	BlockList
-	
-	MutualAdd
-	MutualRm
-	MutualList
-	
-	BandwidthStats
-	BandwidthPeer
-	BandwidthProtocol
-	
-	ResourceState
-	ResourceLimit
-	ResourceSetLimit
-	
-	PubSubPeers
-	PubSubScore
-	
-	BitSwapStats
-	BitSwapLedger
-	
-	DHTFindPeer
+    Info
+    Peers
+    PeerInfo
+    
+    Connect
+    Disconnect
+    Connectedness
+    NATStatus
+    
+    BlockAdd
+    BlockRm
+    BlockList
+    
+    MutualAdd
+    MutualRm
+    MutualList
+    
+    BandwidthStats
+    BandwidthPeer
+    BandwidthProtocol
+    
+    ResourceState
+    ResourceLimit
+    ResourceSetLimit
+    
+    PubSubPeers
+    PubSubScore
+    
+    BitSwapStats
+    BitSwapLedger
+    
+    DHTFindPeer
   }
 ```
 
@@ -199,16 +203,28 @@ SyncHead(ctx context.Context) (*header.ExtendedHeader, error)
     // Balance retrieves the Celestia coin balance for the node's account/signer
     // and verifies it against the corresponding block's AppHash.
     Balance(ctx context.Context) (*state.Balance, error)
-    // BalanceForAddress retrieves the Celestia coin balance for the given address and verifies
-    // the returned balance against the corresponding block's AppHash.
+    // BalanceForAddress retrieves the Celestia coin balance for the given 
+    // address and verifies the returned balance against the corresponding
+    // block's AppHash.
     BalanceForAddress(ctx context.Context, addr state.Address) (*state.Balance, error)
-    // SubmitTx submits the given transaction/message to the Celestia network and blocks until 
-    // the tx is included in a block.
+    // SubmitTx submits the given transaction/message to the Celestia network
+    // and blocks until the tx is included in a block.
     SubmitTx(ctx context.Context, tx state.Tx) (*state.TxResponse, error)
     // SubmitPayForData builds, signs and submits a PayForData transaction.
-    SubmitPayForData(ctx context.Context, nID namespace.ID, data []byte, gasLimit uint64) (*state.TxResponse, error)
-    // Transfer sends the given amount of coins from default wallet of the node to the given account address.
-    Transfer(ctx context.Context, to types.Address, amount types.Int, gasLimit uint64) (*state.TxResponse, error)
+    SubmitPayForData(
+      ctx context.Context, 
+      nID namespace.ID, 
+      data []byte, 
+      gasLimit uint64,
+    ) (*state.TxResponse, error)
+    // Transfer sends the given amount of coins from default wallet of the node 
+    // to the given account address.
+    Transfer(
+      ctx context.Context, 
+      to types.Address, 
+      amount types.Int, 
+      gasLimit uint64,
+    ) (*state.TxResponse, error)
   }
 ```
 
