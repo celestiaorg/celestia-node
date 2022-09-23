@@ -105,6 +105,8 @@ func (s *Syncer) incomingNetHead(ctx context.Context, netHead *header.ExtendedHe
 	var nonAdj *header.ErrNonAdjacent
 	if errors.As(err, &nonAdj) {
 		// not adjacent, maybe we've missed a few headers or its from the past
+		log.Debugw("attempted to append non-adjacent header", "store head",
+			nonAdj.Head, "attempted", nonAdj.Attempted)
 	} else {
 		var verErr *header.VerifyError
 		if errors.As(err, &verErr) {
