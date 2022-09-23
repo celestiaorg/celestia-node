@@ -6,7 +6,7 @@ import (
 	"go.uber.org/fx"
 
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
-	"github.com/celestiaorg/celestia-node/service/share"
+	"github.com/celestiaorg/celestia-node/share"
 )
 
 func Module(tp node.Type, cfg *Config, options ...fx.Option) fx.Option {
@@ -20,11 +20,11 @@ func Module(tp node.Type, cfg *Config, options ...fx.Option) fx.Option {
 		fx.Invoke(share.EnsureEmptySquareExists),
 		fx.Provide(Discovery(*cfg)),
 		fx.Provide(fx.Annotate(
-			share.NewService,
-			fx.OnStart(func(ctx context.Context, service *share.Service) error {
+			NewService,
+			fx.OnStart(func(ctx context.Context, service Service) error {
 				return service.Start(ctx)
 			}),
-			fx.OnStop(func(ctx context.Context, service *share.Service) error {
+			fx.OnStop(func(ctx context.Context, service Service) error {
 				return service.Stop(ctx)
 			}),
 		)),

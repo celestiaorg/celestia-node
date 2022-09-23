@@ -12,14 +12,14 @@ import (
 	"github.com/celestiaorg/celestia-node/header"
 )
 
-// Subscriber manages the lifecycle and relationship of header Service
+// Subscriber manages the lifecycle and relationship of header service
 // with the "header-sub" gossipsub topic.
 type Subscriber struct {
 	pubsub *pubsub.PubSub
 	topic  *pubsub.Topic
 }
 
-// NewSubscriber returns a Subscriber that manages the header Service's
+// NewSubscriber returns a Subscriber that manages the header service's
 // relationship with the "header-sub" gossipsub topic.
 func NewSubscriber(ps *pubsub.PubSub) *Subscriber {
 	return &Subscriber{

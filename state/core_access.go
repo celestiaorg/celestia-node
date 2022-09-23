@@ -26,7 +26,7 @@ import (
 
 var log = logging.Logger("state")
 
-// coreAccessor implements Service over a gRPC connection
+// coreAccessor implements service over a gRPC connection
 // with a celestia-core node.
 type coreAccessor struct {
 	ctx    context.Context
@@ -46,7 +46,7 @@ type coreAccessor struct {
 }
 
 // NewCoreAccessor dials the given celestia-core endpoint and
-// constructs and returns a new coreAccessor (state Service) with the active
+// constructs and returns a new coreAccessor (state service) with the active
 // connection.
 func NewCoreAccessor(
 	signer *apptypes.KeyringSigner,

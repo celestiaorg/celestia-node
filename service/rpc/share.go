@@ -11,7 +11,7 @@ import (
 	"github.com/tendermint/tendermint/types"
 
 	"github.com/celestiaorg/celestia-node/header"
-	"github.com/celestiaorg/celestia-node/service/share"
+	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/nmt/namespace"
 )
 

@@ -24,7 +24,7 @@ There are 5 main components in the header package:
     connection (bridge nodes only).
  5. Store manages storing ExtendedHeaders and making them available for access by other dependent services.
 
-For bridge nodes, the general flow of the header Service is as follows:
+For bridge nodes, the general flow of the header service is as follows:
  1. core.Listener listens for new blocks from the celestia-core connection
  2. core.Listener validates the block and generates the ExtendedHeader, simultaneously storing the
     extended block shares to disk
@@ -37,7 +37,7 @@ For bridge nodes, the general flow of the header Service is as follows:
     - If the celestia-core connection is already synced to the network, the Syncer handles requesting past
     headers up to the network head from the celestia-core connection (using core.Exchange rather than p2p.Exchange).
 
-For full and light nodes, the general flow of the header Service is as follows:
+For full and light nodes, the general flow of the header service is as follows:
  1. Syncer listens for new ExtendedHeaders from HeaderSub
  2. If there is a gap between the local head of chain and the new, validated network head, the Syncer
     kicks off a sync routine to request all ExtendedHeaders between local head and network head.

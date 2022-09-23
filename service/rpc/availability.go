@@ -7,7 +7,7 @@ import (
 
 	"github.com/gorilla/mux"
 
-	"github.com/celestiaorg/celestia-node/service/share"
+	"github.com/celestiaorg/celestia-node/share"
 )
 
 const heightAvailabilityEndpoint = "/data_available"
@@ -38,7 +38,7 @@ func (h *Handler) handleHeightAvailabilityRequest(w http.ResponseWriter, r *http
 			h.share.ProbabilityOfAvailability(), 'g', -1, 64),
 	}
 
-	err = h.share.Availability.SharesAvailable(r.Context(), header.DAH)
+	err = h.share.SharesAvailable(r.Context(), header.DAH)
 	switch err {
 	case nil:
 		availResp.Available = true

@@ -7,9 +7,9 @@ import (
 
 	headerServ "github.com/celestiaorg/celestia-node/nodebuilder/header"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
+	shareServ "github.com/celestiaorg/celestia-node/nodebuilder/share"
 	stateServ "github.com/celestiaorg/celestia-node/nodebuilder/state"
 	rpcServ "github.com/celestiaorg/celestia-node/service/rpc"
-	shareServ "github.com/celestiaorg/celestia-node/service/share"
 )
 
 func Module(tp node.Type, cfg *rpcServ.Config) fx.Option {
@@ -43,7 +43,7 @@ func Module(tp node.Type, cfg *rpcServ.Config) fx.Option {
 			baseComponents,
 			fx.Invoke(func(
 				state stateServ.Service,
-				share *shareServ.Service,
+				share shareServ.Service,
 				header headerServ.Service,
 				rpcSrv *rpcServ.Server,
 			) {

@@ -44,7 +44,7 @@ type Retriever struct {
 	bServ blockservice.BlockService
 }
 
-// NewRetriever creates a new instance of the Retriever over IPLD Service and rmst2d.Codec
+// NewRetriever creates a new instance of the Retriever over IPLD service and rmst2d.Codec
 func NewRetriever(bServ blockservice.BlockService) *Retriever {
 	return &Retriever{bServ: bServ}
 }

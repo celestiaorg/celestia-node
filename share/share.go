@@ -34,21 +34,8 @@ var GetData = ipld.ShareData
 // In practice, it is a commitment to all the Data in a square.
 type Root = da.DataAvailabilityHeader
 
-// Service provides access to any data square or block share on the network.
-//
-// All Get methods provided on Service follow the following flow:
-//  1. Check local storage for the requested Share.
-//  2. If exists
-//     * Load from disk
-//     * Return
-//  3. If not
-//     * Find provider on the network
-//     * Fetch the Share from the provider
-//     * Store the Share
-//     * Return
-//
 // TODO(@Wondertan): Simple thread safety for Start and Stop would not hurt.
-type Service struct {
+type service struct {
 	Availability
 	rtrv  *ipld.Retriever
 	bServ blockservice.BlockService
@@ -58,18 +45,18 @@ type Service struct {
 	cancel  context.CancelFunc
 }
 
-// NewService creates new basic share.Service.
-func NewService(bServ blockservice.BlockService, avail Availability) *Service {
-	return &Service{
+// NewService creates a new basic share.Service.
+func NewService(bServ blockservice.BlockService, avail Availability) *service { //nolint:revive
+	return &service{
 		rtrv:         ipld.NewRetriever(bServ),
 		Availability: avail,
 		bServ:        bServ,
 	}
 }
 
-func (s *Service) Start(context.Context) error {
+func (s *service) Start(context.Context) error {
 	if s.session != nil || s.cancel != nil {
-		return fmt.Errorf("share: Service already started")
+		return fmt.Errorf("share: service already started")
 	}
 
 	// NOTE: The ctx given as param is used to control Start flow and only needed when Start is blocking,
@@ -82,9 +69,9 @@ func (s *Service) Start(context.Context) error {
 	return nil
 }
 
-func (s *Service) Stop(context.Context) error {
+func (s *service) Stop(context.Context) error {
 	if s.session == nil || s.cancel == nil {
-		return fmt.Errorf("share: Service already stopped")
+		return fmt.Errorf("share: service already stopped")
 	}
 
 	s.cancel()
@@ -93,7 +80,7 @@ func (s *Service) Stop(context.Context) error {
 	return nil
 }
 
-func (s *Service) GetShare(ctx context.Context, dah *Root, row, col int) (Share, error) {
+func (s *service) GetShare(ctx context.Context, dah *Root, row, col int) (Share, error) {
 	root, leaf := translate(dah, row, col)
 	nd, err := ipld.GetShare(ctx, s.bServ, root, leaf, len(dah.RowsRoots))
 	if err != nil {
@@ -103,7 +90,7 @@ func (s *Service) GetShare(ctx context.Context, dah *Root, row, col int) (Share,
 	return nd, nil
 }
 
-func (s *Service) GetShares(ctx context.Context, root *Root) ([][]Share, error) {
+func (s *service) GetShares(ctx context.Context, root *Root) ([][]Share, error) {
 	eds, err := s.rtrv.Retrieve(ctx, root)
 	if err != nil {
 		return nil, err
@@ -124,7 +111,7 @@ func (s *Service) GetShares(ctx context.Context, root *Root) ([][]Share, error) 
 }
 
 // GetSharesByNamespace iterates over a square's row roots and accumulates the found shares in the given namespace.ID.
-func (s *Service) GetSharesByNamespace(ctx context.Context, root *Root, nID namespace.ID) ([]Share, error) {
+func (s *service) GetSharesByNamespace(ctx context.Context, root *Root, nID namespace.ID) ([]Share, error) {
 	err := ipld.SanityCheckNID(nID)
 	if err != nil {
 		return nil, err

@@ -19,7 +19,8 @@ import (
 
 	"github.com/celestiaorg/celestia-node/fraud"
 	"github.com/celestiaorg/celestia-node/header"
-	"github.com/celestiaorg/celestia-node/service/share"
+	"github.com/celestiaorg/celestia-node/nodebuilder/share"
+	service "github.com/celestiaorg/celestia-node/share"
 )
 
 var timeout = time.Second * 15
@@ -29,7 +30,7 @@ var timeout = time.Second * 15
 func TestDASerLifecycle(t *testing.T) {
 	ds := ds_sync.MutexWrap(datastore.NewMapDatastore())
 	bServ := mdutils.Bserv()
-	avail := share.TestLightAvailability(bServ)
+	avail := service.TestLightAvailability(bServ)
 	// 15 headers from the past and 15 future headers
 	mockGet, shareServ, sub, mockService := createDASerSubcomponents(t, bServ, 15, 15, avail)
 
@@ -63,7 +64,7 @@ func TestDASerLifecycle(t *testing.T) {
 func TestDASer_Restart(t *testing.T) {
 	ds := ds_sync.MutexWrap(datastore.NewMapDatastore())
 	bServ := mdutils.Bserv()
-	avail := share.TestLightAvailability(bServ)
+	avail := service.TestLightAvailability(bServ)
 	// 15 headers from the past and 15 future headers
 	mockGet, shareServ, sub, mockService := createDASerSubcomponents(t, bServ, 15, 15, avail)
 
@@ -132,7 +133,7 @@ func TestDASer_stopsAfter_BEFP(t *testing.T) {
 	ps, err := pubsub.NewGossipSub(ctx, net.Hosts()[0],
 		pubsub.WithMessageSignaturePolicy(pubsub.StrictNoSign))
 	require.NoError(t, err)
-	avail := share.TestFullAvailability(bServ)
+	avail := service.TestFullAvailability(bServ)
 	// 15 headers from the past and 15 future headers
 	mockGet, shareServ, sub, _ := createDASerSubcomponents(t, bServ, 15, 15, avail)
 
@@ -165,14 +166,14 @@ func TestDASer_stopsAfter_BEFP(t *testing.T) {
 // createDASerSubcomponents takes numGetter (number of headers
 // to store in mockGetter) and numSub (number of headers to store
 // in the mock header.Subscriber), returning a newly instantiated
-// mockGetter, share.Service, and mock header.Subscriber.
+// mockGetter, share.service, and mock header.Subscriber.
 func createDASerSubcomponents(
 	t *testing.T,
 	bServ blockservice.BlockService,
 	numGetter,
 	numSub int,
-	availability share.Availability,
-) (*mockGetter, *share.Service, *header.DummySubscriber, *fraud.DummyService) {
+	availability service.Availability,
+) (*mockGetter, share.Service, *header.DummySubscriber, *fraud.DummyService) {
 	shareServ := share.NewService(bServ, availability)
 	mockGet, sub := createMockGetterAndSub(t, bServ, numGetter, numSub)
 	fraud := new(fraud.DummyService)
@@ -211,7 +212,7 @@ func (m *mockGetter) fillSubWithHeaders(
 
 	index := 0
 	for i := startHeight; i < endHeight; i++ {
-		dah := share.RandFillBS(t, 16, bServ)
+		dah := service.RandFillBS(t, 16, bServ)
 
 		randHeader := header.RandExtendedHeader(t)
 		randHeader.DataHash = dah.Hash()
@@ -239,7 +240,7 @@ type mockGetter struct {
 
 func (m *mockGetter) generateHeaders(t *testing.T, bServ blockservice.BlockService, startHeight, endHeight int) {
 	for i := startHeight; i < endHeight; i++ {
-		dah := share.RandFillBS(t, 16, bServ)
+		dah := service.RandFillBS(t, 16, bServ)
 
 		randHeader := header.RandExtendedHeader(t)
 		randHeader.DataHash = dah.Hash()

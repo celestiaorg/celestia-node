@@ -14,7 +14,7 @@ import (
 	"github.com/celestiaorg/celestia-node/header"
 )
 
-// TestSubscriber tests the header Service's implementation of Subscriber.
+// TestSubscriber tests the header service's implementation of Subscriber.
 func TestSubscriber(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*15)
 	defer cancel()
