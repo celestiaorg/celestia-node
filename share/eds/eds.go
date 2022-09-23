@@ -1,6 +1,7 @@
 package eds
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -17,6 +18,7 @@ import (
 	"github.com/ipld/go-car/util"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/pkg/da"
 	"github.com/celestiaorg/celestia-app/pkg/wrapper"
 
 	"github.com/celestiaorg/celestia-node/share"
@@ -192,7 +194,7 @@ func getQuadrantCells(eds *rsmt2d.ExtendedDataSquare, i, j uint) [][]byte {
 func prependNamespace(quadrant int, share []byte) []byte {
 	switch quadrant {
 	case 0:
-		return append(share[:8], share...)
+		return append(share[:appconsts.NamespaceSize], share...)
 	case 1, 2, 3:
 		return append(appconsts.ParitySharesNamespaceID, share...)
 	default:
@@ -212,6 +214,43 @@ func rootsToCids(eds *rsmt2d.ExtendedDataSquare) ([]cid.Cid, error) {
 		}
 	}
 	return rootCids, nil
+}
+
+// ReadEDS reads the first EDS quadrant (1/4) from an io.Reader CAR file.
+// Only the first quadrant will be read, which represents the original data.
+// The returned EDS is guaranteed to be full and valid against the DataRoot, otherwise ReadEDS errors.
+func ReadEDS(ctx context.Context, r io.Reader, root share.Root) (*rsmt2d.ExtendedDataSquare, error) {
+	carReader, err := car.NewCarReader(r)
+	if err != nil {
+		return nil, fmt.Errorf("failure to read car file: %w", err)
+	}
+
+	odsWidth := len(root.RowsRoots) / 2
+	odsSquareSize := odsWidth * odsWidth
+	shares := make([][]byte, odsSquareSize)
+	// the first quadrant is stored directly after the header,
+	// so we can just read the first odsSquareSize blocks
+	for i := 0; i < odsSquareSize; i++ {
+		block, err := carReader.Next()
+		if err != nil {
+			return nil, fmt.Errorf("failure to read next car entry: %w", err)
+		}
+		// the stored first quadrant shares are wrapped with the namespace twice.
+		// we cut it off here, because it is added again while importing to the tree below
+		shares[i] = block.RawData()[ipld.NamespaceSize:]
+	}
+
+	tree := wrapper.NewErasuredNamespacedMerkleTree(uint64(odsWidth))
+	eds, err := rsmt2d.ComputeExtendedDataSquare(shares, share.DefaultRSMT2DCodec(), tree.Constructor)
+	if err != nil {
+		return nil, fmt.Errorf("failure to compute eds: %w", err)
+	}
+
+	newDah := da.NewDataAvailabilityHeader(eds)
+	if !bytes.Equal(newDah.Hash(), root.Hash()) {
+		return nil, fmt.Errorf("content integrity mismatch: imported root doesn't match expected root")
+	}
+	return eds, err
 }
 
 // innerNodeBatchSize calculates the total number of inner nodes in an EDS,

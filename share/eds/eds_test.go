@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/pkg/da"
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/share"
@@ -128,6 +129,28 @@ func TestInnerNodeBatchSize(t *testing.T) {
 			)
 		})
 	}
+}
+
+func TestReadEDS(t *testing.T) {
+	eds := writeRandomEDS(t)
+	dah := da.NewDataAvailabilityHeader(eds)
+	f := openWrittenEDS(t)
+	defer f.Close()
+
+	loaded, err := ReadEDS(context.Background(), f, dah)
+	require.NoError(t, err, "error reading EDS from file")
+	require.Equal(t, eds.RowRoots(), loaded.RowRoots())
+	require.Equal(t, eds.ColRoots(), loaded.ColRoots())
+}
+
+func TestReadEDSContentIntegrityMismatch(t *testing.T) {
+	writeRandomEDS(t)
+	dah := da.NewDataAvailabilityHeader(share.RandEDS(t, 4))
+	f := openWrittenEDS(t)
+	defer f.Close()
+
+	_, err := ReadEDS(context.Background(), f, dah)
+	require.Error(t, err)
 }
 
 func writeRandomEDS(t *testing.T) *rsmt2d.ExtendedDataSquare {
