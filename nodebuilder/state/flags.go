@@ -1,15 +1,14 @@
-package cmd
+package state
 
 import (
 	"github.com/spf13/cobra"
 	flag "github.com/spf13/pflag"
-
-	"github.com/celestiaorg/celestia-node/nodebuilder"
 )
 
 var keyringAccNameFlag = "keyring.accname"
 
-func KeyFlags() *flag.FlagSet {
+// Flags gives a set of hardcoded State flags.
+func Flags() *flag.FlagSet {
 	flags := &flag.FlagSet{}
 
 	flags.String(keyringAccNameFlag, "", "Directs node's keyring signer to use the key prefixed with the "+
@@ -17,9 +16,10 @@ func KeyFlags() *flag.FlagSet {
 	return flags
 }
 
-func ParseKeyFlags(cmd *cobra.Command, cfg *nodebuilder.Config) {
+// ParseFlags parses State flags from the given cmd and saves them to the passed config.
+func ParseFlags(cmd *cobra.Command, cfg *Config) {
 	keyringAccName := cmd.Flag(keyringAccNameFlag).Value.String()
 	if keyringAccName != "" {
-		cfg.State.KeyringAccName = keyringAccName
+		cfg.KeyringAccName = keyringAccName
 	}
 }

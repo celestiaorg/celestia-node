@@ -3,6 +3,11 @@ package main
 import (
 	"github.com/spf13/cobra"
 
+	"github.com/celestiaorg/celestia-node/nodebuilder/core"
+	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
+	"github.com/celestiaorg/celestia-node/nodebuilder/rpc"
+	"github.com/celestiaorg/celestia-node/nodebuilder/state"
+
 	cmdnode "github.com/celestiaorg/celestia-node/cmd"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 )
@@ -14,19 +19,19 @@ func init() {
 	bridgeCmd.AddCommand(
 		cmdnode.Init(
 			cmdnode.NodeFlags(),
-			cmdnode.P2PFlags(),
-			cmdnode.CoreFlags(),
+			p2p.Flags(),
+			core.Flags(),
 			cmdnode.MiscFlags(),
-			cmdnode.RPCFlags(),
-			cmdnode.KeyFlags(),
+			rpc.Flags(),
+			state.Flags(),
 		),
 		cmdnode.Start(
 			cmdnode.NodeFlags(),
-			cmdnode.P2PFlags(),
-			cmdnode.CoreFlags(),
+			p2p.Flags(),
+			core.Flags(),
 			cmdnode.MiscFlags(),
-			cmdnode.RPCFlags(),
-			cmdnode.KeyFlags(),
+			rpc.Flags(),
+			state.Flags(),
 		),
 	)
 }
@@ -50,12 +55,12 @@ var bridgeCmd = &cobra.Command{
 
 		cfg := cmdnode.NodeConfig(ctx)
 
-		err = cmdnode.ParseP2PFlags(cmd, &cfg)
+		err = p2p.ParseFlags(cmd, &cfg.P2P)
 		if err != nil {
 			return err
 		}
 
-		err = cmdnode.ParseCoreFlags(cmd, &cfg)
+		err = core.ParseFlags(cmd, &cfg.Core)
 		if err != nil {
 			return err
 		}
@@ -65,8 +70,8 @@ var bridgeCmd = &cobra.Command{
 			return err
 		}
 
-		cmdnode.ParseRPCFlags(cmd, &cfg)
-		cmdnode.ParseKeyFlags(cmd, &cfg)
+		rpc.ParseFlags(cmd, &cfg.RPC)
+		state.ParseFlags(cmd, &cfg.State)
 
 		// set config
 		ctx = cmdnode.WithNodeConfig(ctx, &cfg)
