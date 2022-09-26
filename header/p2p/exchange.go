@@ -35,7 +35,7 @@ const (
 // gossipsub topic.
 const PubSubTopic = "header-sub"
 
-var exchangeProtocolID = protocol.ID(fmt.Sprintf("/header-ex/v0.0.2/%s", params.DefaultNetwork()))
+var exchangeProtocolID = protocol.ID(fmt.Sprintf("/header-ex/v0.0.3/%s", params.DefaultNetwork()))
 
 // Exchange enables sending outbound ExtendedHeaderRequests to the network as well as
 // handling inbound ExtendedHeaderRequests from the network.
