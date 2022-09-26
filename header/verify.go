@@ -50,7 +50,10 @@ func (eh *ExtendedHeader) VerifyNonAdjacent(untrst *ExtendedHeader) error {
 // VerifyAdjacent validates adjacent untrusted header against trusted 'eh'.
 func (eh *ExtendedHeader) VerifyAdjacent(untrst *ExtendedHeader) error {
 	if untrst.Height != eh.Height+1 {
-		return ErrNonAdjacent
+		return &ErrNonAdjacent{
+			Head:      eh.Height,
+			Attempted: untrst.Height,
+		}
 	}
 
 	if err := eh.verify(untrst); err != nil {
