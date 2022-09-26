@@ -167,20 +167,40 @@ func quadrantOrder(eds *rsmt2d.ExtendedDataSquare) [][]byte {
 
 	quadrantWidth := int(eds.Width() / 2)
 	quadrantSize := quadrantWidth * quadrantWidth
-	// TODO: Simplify this loop
 	for i := 0; i < quadrantWidth; i++ {
 		for j := 0; j < quadrantWidth; j++ {
-			q0Cell := eds.GetCell(uint(i), uint(j))
-			shares[(0*quadrantSize)+i*quadrantWidth+j] = append(q0Cell[:8], q0Cell...)
-			shares[(1*quadrantSize)+i*quadrantWidth+j] =
-				append(consts.ParitySharesNamespaceID, eds.GetCell(uint(i), uint(j+quadrantWidth))...)
-			shares[(2*quadrantSize)+i*quadrantWidth+j] =
-				append(consts.ParitySharesNamespaceID, eds.GetCell(uint(i+quadrantWidth), uint(j))...)
-			shares[(3*quadrantSize)+i*quadrantWidth+j] =
-				append(consts.ParitySharesNamespaceID, eds.GetCell(uint(i+quadrantWidth), uint(j+quadrantWidth))...)
+			cells := getQuadrantCells(eds, uint(i), uint(j))
+			innerOffset := i*quadrantWidth + j
+			for quadrant := 0; quadrant < 4; quadrant++ {
+				shares[(quadrant*quadrantSize)+innerOffset] = prependNamespace(quadrant, cells[quadrant])
+			}
 		}
 	}
 	return shares
+}
+
+// getQuadrantCells returns the cell of each EDS quadrant with the passed inner-quadrant coordinates
+func getQuadrantCells(eds *rsmt2d.ExtendedDataSquare, i, j uint) [][]byte {
+	cells := make([][]byte, 4)
+	quadrantWidth := eds.Width() / 2
+	cells[0] = eds.GetCell(i, j)
+	cells[1] = eds.GetCell(i, j+quadrantWidth)
+	cells[2] = eds.GetCell(i+quadrantWidth, j)
+	cells[3] = eds.GetCell(i+quadrantWidth, j+quadrantWidth)
+	return cells
+}
+
+// prependNamespace adds the namespace to the passed share if in the first quadrant,
+// otherwise it adds the ParitySharesNamespace to the beginning.
+func prependNamespace(quadrant int, share []byte) []byte {
+	switch quadrant {
+	case 0:
+		return append(share[:8], share...)
+	case 1, 2, 3:
+		return append(consts.ParitySharesNamespaceID, share...)
+	default:
+		panic("invalid quadrant")
+	}
 }
 
 // rootsToCids converts the EDS's Row and Column roots to CIDs.
