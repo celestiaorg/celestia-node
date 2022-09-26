@@ -13,12 +13,12 @@ import (
 	"github.com/celestiaorg/celestia-node/header/p2p"
 	"github.com/celestiaorg/celestia-node/header/store"
 	"github.com/celestiaorg/celestia-node/header/sync"
-	"github.com/celestiaorg/celestia-node/params"
+	modp2p "github.com/celestiaorg/celestia-node/nodebuilder/p2p"
 )
 
 // newP2PExchange constructs new Exchange for headers.
-func newP2PExchange(cfg Config) func(params.Bootstrappers, host.Host) (header.Exchange, error) {
-	return func(bpeers params.Bootstrappers, host host.Host) (header.Exchange, error) {
+func newP2PExchange(cfg Config) func(modp2p.Bootstrappers, host.Host) (header.Exchange, error) {
+	return func(bpeers modp2p.Bootstrappers, host host.Host) (header.Exchange, error) {
 		peers, err := cfg.trustedPeers(bpeers)
 		if err != nil {
 			return nil, err
@@ -45,7 +45,7 @@ type initStore header.Store
 func newInitStore(
 	lc fx.Lifecycle,
 	cfg Config,
-	net params.Network,
+	net modp2p.Network,
 	s header.Store,
 	ex header.Exchange,
 ) (initStore, error) {

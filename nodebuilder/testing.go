@@ -17,8 +17,8 @@ import (
 
 	"github.com/celestiaorg/celestia-node/core"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
+	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
 	"github.com/celestiaorg/celestia-node/nodebuilder/state"
-	"github.com/celestiaorg/celestia-node/params"
 )
 
 // MockStore provides mock in memory Store for testing purposes.
@@ -49,10 +49,9 @@ func TestNodeWithConfig(t *testing.T, tp node.Type, cfg *Config, opts ...fx.Opti
 	cfg.RPC.Port = "0"
 
 	opts = append(opts,
-		WithNetwork(params.Private),
 		state.WithKeyringSigner(TestKeyringSigner(t)),
 	)
-	nd, err := New(tp, store, opts...)
+	nd, err := New(tp, p2p.Private, store, opts...)
 	require.NoError(t, err)
 	return nd
 }
@@ -60,7 +59,7 @@ func TestNodeWithConfig(t *testing.T, tp node.Type, cfg *Config, opts ...fx.Opti
 func TestKeyringSigner(t *testing.T) *apptypes.KeyringSigner {
 	encConf := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	ring := keyring.NewInMemory(encConf.Codec)
-	signer := apptypes.NewKeyringSigner(ring, "", string(params.Private))
+	signer := apptypes.NewKeyringSigner(ring, "", string(p2p.Private))
 	_, _, err := signer.NewMnemonic("test_celes", keyring.English, "",
 		"", hd.Secp256k1)
 	require.NoError(t, err)

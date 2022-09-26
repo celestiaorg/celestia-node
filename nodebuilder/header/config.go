@@ -7,7 +7,7 @@ import (
 	"github.com/multiformats/go-multiaddr"
 	tmbytes "github.com/tendermint/tendermint/libs/bytes"
 
-	"github.com/celestiaorg/celestia-node/params"
+	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
 )
 
 // Config contains configuration parameters for header retrieval and management.
@@ -28,7 +28,7 @@ func DefaultConfig() Config {
 	}
 }
 
-func (cfg *Config) trustedPeers(bpeers params.Bootstrappers) (infos []peer.AddrInfo, err error) {
+func (cfg *Config) trustedPeers(bpeers p2p.Bootstrappers) (infos []peer.AddrInfo, err error) {
 	if len(cfg.TrustedPeers) == 0 {
 		log.Infof("No trusted peers in config, initializing with default bootstrappers as trusted peers")
 		return bpeers, nil
@@ -49,9 +49,9 @@ func (cfg *Config) trustedPeers(bpeers params.Bootstrappers) (infos []peer.AddrI
 	return
 }
 
-func (cfg *Config) trustedHash(net params.Network) (tmbytes.HexBytes, error) {
+func (cfg *Config) trustedHash(net p2p.Network) (tmbytes.HexBytes, error) {
 	if cfg.TrustedHash == "" {
-		gen, err := params.GenesisFor(net)
+		gen, err := p2p.GenesisFor(net)
 		if err != nil {
 			return nil, err
 		}

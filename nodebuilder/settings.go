@@ -19,18 +19,18 @@ import (
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/nodebuilder/daser"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
-	"github.com/celestiaorg/celestia-node/params"
+	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
 	"github.com/celestiaorg/celestia-node/state"
 )
 
 // WithNetwork specifies the Network to which the Node should connect to.
 // WARNING: Use this option with caution and never run the Node with different networks over the same persisted Store.
-func WithNetwork(net params.Network) fx.Option {
+func WithNetwork(net p2p.Network) fx.Option {
 	return fx.Replace(net)
 }
 
 // WithBootstrappers sets custom bootstrap peers.
-func WithBootstrappers(peers params.Bootstrappers) fx.Option {
+func WithBootstrappers(peers p2p.Bootstrappers) fx.Option {
 	return fx.Replace(peers)
 }
 

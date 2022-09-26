@@ -1,4 +1,4 @@
-package params
+package p2p
 
 import (
 	"errors"
@@ -44,8 +44,8 @@ var networksList = map[Network]struct{}{
 	Private: {},
 }
 
-// ListProvidedNetworks provides a string listing all known long-standing networks for things like command hints.
-func ListProvidedNetworks() string {
+// listProvidedNetworks provides a string listing all known long-standing networks for things like command hints.
+func listProvidedNetworks() string {
 	var networks string
 	for net := range networksList {
 		// "private" network isn't really a choosable option, so skip

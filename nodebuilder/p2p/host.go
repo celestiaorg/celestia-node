@@ -15,8 +15,6 @@ import (
 	routedhost "github.com/libp2p/go-libp2p/p2p/host/routed"
 	"github.com/libp2p/go-libp2p/p2p/net/conngater"
 	"go.uber.org/fx"
-
-	nparams "github.com/celestiaorg/celestia-node/params"
 )
 
 // RoutedHost constructs a wrapped Host that may fallback to address discovery,
@@ -65,7 +63,7 @@ type HostBase host.Host
 type hostParams struct {
 	fx.In
 
-	Net       nparams.Network
+	Net       Network
 	Lc        fx.Lifecycle
 	ID        peer.ID
 	Key       crypto.PrivKey

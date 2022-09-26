@@ -25,7 +25,6 @@ import (
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
 	"github.com/celestiaorg/celestia-node/nodebuilder/state"
-	"github.com/celestiaorg/celestia-node/params"
 )
 
 var blackholeIP6 = net.ParseIP("100::")
@@ -261,10 +260,9 @@ func (s *Swamp) newNode(t node.Type, store nodebuilder.Store, options ...fx.Opti
 	cfg.RPC.Port = "0"
 	options = append(options,
 		p2p.WithHost(s.createPeer(ks)),
-		nodebuilder.WithNetwork(params.Private),
 	)
 
-	node, err := nodebuilder.New(t, store, options...)
+	node, err := nodebuilder.New(t, p2p.Private, store, options...)
 	require.NoError(s.t, err)
 
 	return node

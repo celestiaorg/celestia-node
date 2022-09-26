@@ -139,7 +139,7 @@ func TestDASer_stopsAfter_BEFP(t *testing.T) {
 	// 15 headers from the past and 15 future headers
 	mockGet, sub, _ := createDASerSubcomponents(t, bServ, 15, 15)
 
-	// create fraud share and break one header
+	// create fraud service and break one header
 	f := fraud.NewProofService(ps, net.Hosts()[0], mockGet.GetByHeight, ds, false)
 	require.NoError(t, f.Start(ctx))
 	mockGet.headers[1] = header.CreateFraudExtHeader(t, mockGet.headers[1], bServ)
