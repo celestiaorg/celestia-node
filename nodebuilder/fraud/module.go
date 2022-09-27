@@ -4,8 +4,6 @@ import (
 	logging "github.com/ipfs/go-log/v2"
 	"go.uber.org/fx"
 
-	"github.com/celestiaorg/celestia-node/fraud"
-	"github.com/celestiaorg/celestia-node/libs/fxutil"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 )
 
@@ -16,12 +14,12 @@ func Module(tp node.Type) fx.Option {
 	case node.Light:
 		return fx.Module(
 			"fraud",
-			fxutil.ProvideAs(ServiceWithSyncer, new(fraud.Service), new(fraud.Subscriber)),
+			fx.Provide(ServiceWithSyncer),
 		)
 	case node.Full, node.Bridge:
 		return fx.Module(
 			"fraud",
-			fxutil.ProvideAs(Service, new(fraud.Service), new(fraud.Subscriber)),
+			fx.Provide(Service),
 		)
 	default:
 		panic("invalid node type")
