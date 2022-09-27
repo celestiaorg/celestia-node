@@ -23,6 +23,7 @@ type samplingCoordinator struct {
 	waitCh chan *sync.WaitGroup
 
 	workersWg sync.WaitGroup
+	metrics   *metrics
 	done
 }
 
@@ -67,8 +68,10 @@ func (sc *samplingCoordinator) run(ctx context.Context, cp checkpoint) {
 		}
 
 		select {
-		case max := <-sc.updHeadCh:
-			sc.state.updateHead(max)
+		case head := <-sc.updHeadCh:
+			if sc.state.updateHead(head) {
+				sc.metrics.observeNewHead(ctx)
+			}
 		case res := <-sc.resultCh:
 			sc.state.handleResult(res)
 		case wg := <-sc.waitCh:
@@ -90,7 +93,7 @@ func (sc *samplingCoordinator) runWorker(ctx context.Context, j job) {
 	sc.workersWg.Add(1)
 	go func() {
 		defer sc.workersWg.Done()
-		w.run(ctx, sc.getter, sc.sampleFn, sc.resultCh)
+		w.run(ctx, sc.getter, sc.sampleFn, sc.metrics, sc.resultCh)
 	}()
 }
 

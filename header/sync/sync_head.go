@@ -104,13 +104,16 @@ func (s *Syncer) networkHead(ctx context.Context) (*header.ExtendedHeader, error
 func (s *Syncer) incomingNetHead(ctx context.Context, netHead *header.ExtendedHeader) pubsub.ValidationResult {
 	// Try to short-circuit netHead with append. If not adjacent/from future - try it as new network header
 	_, err := s.store.Append(ctx, netHead)
-	switch err {
-	case nil:
+	if err == nil {
 		// a happy case where we appended maybe head directly, so accept
 		return pubsub.ValidationAccept
-	case header.ErrNonAdjacent:
+	}
+	var nonAdj *header.ErrNonAdjacent
+	if errors.As(err, &nonAdj) {
 		// not adjacent, maybe we've missed a few headers or its from the past
-	default:
+		log.Debugw("attempted to append non-adjacent header", "store head",
+			nonAdj.Head, "attempted", nonAdj.Attempted)
+	} else {
 		var verErr *header.VerifyError
 		if errors.As(err, &verErr) {
 			return pubsub.ValidationReject

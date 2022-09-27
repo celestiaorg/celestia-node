@@ -38,6 +38,7 @@ func (w *worker) run(
 	ctx context.Context,
 	getter header.Getter,
 	sample sampleFn,
+	metrics *metrics,
 	resultCh chan<- result) {
 	jobStart := time.Now()
 	log.Debugw("start sampling worker", "from", w.state.From, "to", w.state.To)
@@ -52,8 +53,12 @@ func (w *worker) run(
 				break
 			}
 			w.setResult(curr, err)
+			log.Errorw("failed to get header from header store", "height", curr,
+				"finished (s)", time.Since(startGet))
 			continue
 		}
+
+		metrics.observeGetHeader(ctx, time.Since(startGet))
 		log.Debugw("got header from header store", "height", h.Height, "hash", h.Hash(),
 			"square width", len(h.DAH.RowsRoots), "data root", h.DAH.Hash(), "finished (s)", time.Since(startGet))
 
@@ -64,7 +69,7 @@ func (w *worker) run(
 			break
 		}
 		w.setResult(curr, err)
-
+		metrics.observeSample(ctx, h, time.Since(startSample), err)
 		log.Debugw("sampled header", "height", h.Height, "hash", h.Hash(),
 			"square width", len(h.DAH.RowsRoots), "data root", h.DAH.Hash(), "finished (s)", time.Since(startSample))
 	}

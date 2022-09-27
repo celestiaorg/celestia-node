@@ -22,14 +22,14 @@ type LightAvailability struct {
 	bserv blockservice.BlockService
 	// disc discovers new full nodes in the network.
 	// it is not allowed to call advertise for light nodes (Full nodes only).
-	disc   *discovery
+	disc   *Discovery
 	cancel context.CancelFunc
 }
 
 // NewLightAvailability creates a new light Availability.
 func NewLightAvailability(
 	bserv blockservice.BlockService,
-	disc *discovery,
+	disc *Discovery,
 ) *LightAvailability {
 	la := &LightAvailability{
 		bserv: bserv,
