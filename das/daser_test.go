@@ -5,6 +5,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/tendermint/tendermint/types"
+
 	"github.com/ipfs/go-blockservice"
 	"github.com/ipfs/go-datastore"
 	ds_sync "github.com/ipfs/go-datastore/sync"
@@ -297,6 +299,7 @@ func (m getterStub) Head(context.Context) (*header.ExtendedHeader, error) {
 
 func (m getterStub) GetByHeight(_ context.Context, height uint64) (*header.ExtendedHeader, error) {
 	return &header.ExtendedHeader{
+		Commit:    &types.Commit{},
 		RawHeader: header.RawHeader{Height: int64(height)},
 		DAH:       &header.DataAvailabilityHeader{RowsRoots: make([][]byte, 0)}}, nil
 }
