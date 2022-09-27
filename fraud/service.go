@@ -81,7 +81,7 @@ func (f *ProofService) registerProofTopics(proofTypes ...ProofType) error {
 // Start joins fraud proofs topics, sets the stream handler for fraudProtocolID and starts syncing if syncer is enabled.
 func (f *ProofService) Start(context.Context) error {
 	f.ctx, f.cancel = context.WithCancel(context.Background())
-	if err := f.registerProofTopics(GetRegisteredProofTypes()...); err != nil {
+	if err := f.registerProofTopics(RegisteredProofTypes()...); err != nil {
 		return err
 	}
 	f.host.SetStreamHandler(fraudProtocolID, f.handleFraudMessageRequest)

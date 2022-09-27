@@ -11,5 +11,5 @@ func WithMetrics(enable bool) fx.Option {
 	if !enable {
 		return fx.Options()
 	}
-	return fx.Options(fx.Invoke(fraud.MonitorProofs(fraud.GetRegisteredProofTypes()...)))
+	return fx.Options(fx.Invoke(fraud.MonitorProofs(fraud.RegisteredProofTypes()...)))
 }
