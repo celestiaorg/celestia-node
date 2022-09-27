@@ -9,10 +9,6 @@ import (
 )
 
 type Service interface {
-	// Start starts the header service.
-	Start(context.Context) error
-	// Stop stops the header service.
-	Stop(context.Context) error
 	// GetByHeight returns the ExtendedHeader at the given height, blocking
 	// until header has been processed by the store or context deadline is exceeded.
 	GetByHeight(context.Context, uint64) (*header.ExtendedHeader, error)
@@ -48,16 +44,6 @@ func NewHeaderService(
 		ex:        ex,
 		store:     store,
 	}
-}
-
-func (s *service) Start(context.Context) error {
-	log.Info("starting header service")
-	return nil
-}
-
-func (s *service) Stop(context.Context) error {
-	log.Info("stopping header service")
-	return nil
 }
 
 func (s *service) GetByHeight(ctx context.Context, height uint64) (*header.ExtendedHeader, error) {
