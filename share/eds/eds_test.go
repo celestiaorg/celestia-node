@@ -2,6 +2,8 @@ package eds
 
 import (
 	"context"
+	"embed"
+	"encoding/json"
 	"os"
 	"testing"
 
@@ -18,6 +20,12 @@ import (
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/ipld"
 )
+
+//go:embed "testdata/example-root.json"
+var exampleRoot string
+
+//go:embed "testdata/example.car"
+var f embed.FS
 
 func TestQuadrantOrder(t *testing.T) {
 	// TODO: add more test cases
@@ -131,7 +139,7 @@ func TestInnerNodeBatchSize(t *testing.T) {
 	}
 }
 
-func TestReadEDS(t *testing.T) {
+func TestReadWriteRoundtrip(t *testing.T) {
 	eds := writeRandomEDS(t)
 	dah := da.NewDataAvailabilityHeader(eds)
 	f := openWrittenEDS(t)
@@ -141,6 +149,20 @@ func TestReadEDS(t *testing.T) {
 	require.NoError(t, err, "error reading EDS from file")
 	require.Equal(t, eds.RowRoots(), loaded.RowRoots())
 	require.Equal(t, eds.ColRoots(), loaded.ColRoots())
+}
+
+func TestReadEDS(t *testing.T) {
+	f, err := f.Open("testdata/example.car")
+	require.NoError(t, err, "error opening file")
+
+	var dah da.DataAvailabilityHeader
+	err = json.Unmarshal([]byte(exampleRoot), &dah)
+	require.NoError(t, err, "error unmarshaling example root")
+
+	loaded, err := ReadEDS(context.Background(), f, dah)
+	require.NoError(t, err, "error reading EDS from file")
+	require.Equal(t, dah.RowsRoots, loaded.RowRoots())
+	require.Equal(t, dah.ColumnRoots, loaded.ColRoots())
 }
 
 func TestReadEDSContentIntegrityMismatch(t *testing.T) {
