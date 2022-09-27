@@ -3,6 +3,8 @@ package nodebuilder
 import (
 	"go.uber.org/fx"
 
+	"github.com/celestiaorg/celestia-node/nodebuilder/daser"
+
 	headermodule "github.com/celestiaorg/celestia-node/nodebuilder/header"
 	"github.com/celestiaorg/celestia-node/params"
 )
@@ -23,5 +25,6 @@ func WithMetrics(enable bool) fx.Option {
 	return fx.Options(
 		// TODO: Add metrics to more modules and enable here.
 		headermodule.WithMetrics(enable),
+		daser.WithMetrics(enable),
 	)
 }

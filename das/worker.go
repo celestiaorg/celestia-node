@@ -38,6 +38,7 @@ func (w *worker) run(
 	ctx context.Context,
 	getter header.Getter,
 	sample sampleFn,
+	metrics *metrics,
 	resultCh chan<- result) {
 	jobStart := time.Now()
 	log.Debugw("start sampling worker", "from", w.state.From, "to", w.state.To)
@@ -45,6 +46,7 @@ func (w *worker) run(
 	for curr := w.state.From; curr <= w.state.To; curr++ {
 		startGet := time.Now()
 		// TODO: get headers in batches
+		getHeaderStart := time.Now()
 		h, err := getter.GetByHeight(ctx, curr)
 		if err != nil {
 			if errors.Is(err, context.Canceled) {
