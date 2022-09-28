@@ -12,7 +12,7 @@ import (
 	rpcServ "github.com/celestiaorg/celestia-node/service/rpc"
 )
 
-func Module(tp node.Type, cfg *rpcServ.Config) fx.Option {
+func ConstructModule(tp node.Type, cfg *rpcServ.Config) fx.Option {
 	// sanitize config values before constructing module
 	cfgErr := cfg.Validate()
 
@@ -42,9 +42,9 @@ func Module(tp node.Type, cfg *rpcServ.Config) fx.Option {
 			"rpc",
 			baseComponents,
 			fx.Invoke(func(
-				state stateServ.Service,
-				share shareServ.Service,
-				header headerServ.Service,
+				state stateServ.Module,
+				share shareServ.Module,
+				header headerServ.Module,
 				rpcSrv *rpcServ.Server,
 			) {
 				Handler(state, share, header, rpcSrv, nil)

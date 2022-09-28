@@ -9,9 +9,9 @@ import (
 	"github.com/celestiaorg/nmt/namespace"
 )
 
-// Service provides access to any data square or block share on the network.
+// Module provides access to any data square or block share on the network.
 //
-// All Get methods provided on Service follow the following flow:
+// All Get methods provided on Module follow the following flow:
 //  1. Check local storage for the requested Share.
 //  2. If exists
 //     * Load from disk
@@ -21,7 +21,7 @@ import (
 //     * Fetch the Share from the provider
 //     * Store the Share
 //     * Return
-type Service interface {
+type Module interface {
 	share.Availability
 	Start(ctx context.Context) error
 	Stop(ctx context.Context) error
@@ -30,6 +30,6 @@ type Service interface {
 	GetSharesByNamespace(ctx context.Context, root *share.Root, namespace namespace.ID) ([]share.Share, error)
 }
 
-func NewService(bServ blockservice.BlockService, avail share.Availability) Service {
+func NewModule(bServ blockservice.BlockService, avail share.Availability) Module {
 	return share.NewService(bServ, avail)
 }

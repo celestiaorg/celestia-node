@@ -19,7 +19,7 @@ import (
 
 var log = logging.Logger("header-module")
 
-func Module(tp node.Type, cfg *Config) fx.Option {
+func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 	// sanitize config values before constructing module
 	cfgErr := cfg.Validate()
 
@@ -46,7 +46,7 @@ func Module(tp node.Type, cfg *Config) fx.Option {
 		}),
 		fx.Provide(fx.Annotate(
 			sync.NewSyncer,
-			fx.OnStart(func(ctx context.Context, lc fx.Lifecycle, fservice fraudServ.Service, syncer *sync.Syncer) error {
+			fx.OnStart(func(ctx context.Context, lc fx.Lifecycle, fservice fraudServ.Module, syncer *sync.Syncer) error {
 				syncerStartFunc := func(ctx context.Context) error {
 					err := syncer.Start(ctx)
 					switch err {

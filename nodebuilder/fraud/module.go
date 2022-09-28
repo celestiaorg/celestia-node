@@ -9,17 +9,17 @@ import (
 
 var log = logging.Logger("fraud-module")
 
-func Module(tp node.Type) fx.Option {
+func ConstructModule(tp node.Type) fx.Option {
 	switch tp {
 	case node.Light:
 		return fx.Module(
 			"fraud",
-			fx.Provide(ServiceWithSyncer),
+			fx.Provide(ModuleWithSyncer),
 		)
 	case node.Full, node.Bridge:
 		return fx.Module(
 			"fraud",
-			fx.Provide(NewService),
+			fx.Provide(NewModule),
 		)
 	default:
 		panic("invalid node type")

@@ -14,7 +14,7 @@ func NewDASer(
 	hsub header.Subscriber,
 	store header.Store,
 	batching datastore.Batching,
-	fraudService fraud.Service,
+	fraudService fraud.Module,
 ) *das.DASer {
 	return das.NewDASer(da, hsub, store, batching, fraudService)
 }

@@ -45,7 +45,7 @@ type service struct {
 	cancel  context.CancelFunc
 }
 
-// NewService creates a new basic share.Service.
+// NewService creates a new basic share.Module.
 func NewService(bServ blockservice.BlockService, avail Availability) *service { //nolint:revive
 	return &service{
 		rtrv:         ipld.NewRetriever(bServ),

@@ -12,16 +12,16 @@ import (
 var log = logging.Logger("rpc")
 
 type Handler struct {
-	state  state.Service
-	share  share.Service
-	header header.Service
+	state  state.Module
+	share  share.Module
+	header header.Module
 	das    *das.DASer
 }
 
 func NewHandler(
-	state state.Service,
-	share share.Service,
-	header header.Service,
+	state state.Module,
+	share share.Module,
+	header header.Module,
 	das *das.DASer,
 ) *Handler {
 	return &Handler{

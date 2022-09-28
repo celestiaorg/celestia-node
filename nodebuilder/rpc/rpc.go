@@ -10,9 +10,9 @@ import (
 
 // Handler constructs a new RPC Handler from the given services.
 func Handler(
-	state state.Service,
-	share share.Service,
-	header header.Service,
+	state state.Module,
+	share share.Module,
+	header header.Module,
 	serv *rpc.Server,
 	daser *das.DASer,
 ) {

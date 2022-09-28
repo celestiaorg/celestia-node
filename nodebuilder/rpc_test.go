@@ -221,7 +221,7 @@ func setupNodeWithModifiedRPC(t *testing.T) *Node {
 			return daser.Stop(ctx)
 		}),
 	))
-	overrideRPCHandler := fx.Invoke(func(srv *rpc.Server, state state.Service, share shareServ.Service) {
+	overrideRPCHandler := fx.Invoke(func(srv *rpc.Server, state state.Module, share shareServ.Module) {
 		handler := rpc.NewHandler(state, share, hServ, daser)
 		handler.RegisterEndpoints(srv)
 	})
@@ -236,7 +236,7 @@ func setupNodeWithModifiedRPC(t *testing.T) *Node {
 	return nd
 }
 
-func setupHeaderService(ctx context.Context, t *testing.T) headerServ.Service {
+func setupHeaderService(ctx context.Context, t *testing.T) headerServ.Module {
 	suite := header.NewTestSuite(t, 1)
 	head := suite.Head()
 	// create header stores

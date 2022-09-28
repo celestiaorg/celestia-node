@@ -15,9 +15,9 @@ import (
 
 var log = logging.Logger("state-module")
 
-// Module provides all components necessary to construct the
+// ConstructModule provides all components necessary to construct the
 // state service.
-func Module(tp node.Type, cfg *Config) fx.Option {
+func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 	// sanitize config values before constructing module
 	cfgErr := cfg.Validate()
 
@@ -26,12 +26,12 @@ func Module(tp node.Type, cfg *Config) fx.Option {
 		fx.Error(cfgErr),
 		fx.Provide(Keyring),
 		fx.Provide(fx.Annotate(CoreAccessor,
-			fx.OnStart(func(ctx context.Context, lc fx.Lifecycle, fservice fraudServ.Service, serv Service) error {
+			fx.OnStart(func(ctx context.Context, lc fx.Lifecycle, fservice fraudServ.Module, serv Module) error {
 				lifecycleCtx := fxutil.WithLifecycle(ctx, lc)
 				return fraudServ.Lifecycle(ctx, lifecycleCtx, fraud.BadEncoding, fservice,
 					serv.Start, serv.Stop)
 			}),
-			fx.OnStop(func(ctx context.Context, serv Service) error {
+			fx.OnStop(func(ctx context.Context, serv Module) error {
 				return serv.Stop(ctx)
 			}),
 		)),

@@ -6,8 +6,8 @@ import (
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 )
 
-// Module collects all the components and services related to p2p.
-func Module(tp node.Type, cfg *Config) fx.Option {
+// ConstructModule collects all the components and services related to p2p.
+func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 	// sanitize config values before constructing module
 	cfgErr := cfg.Validate()
 

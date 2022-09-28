@@ -8,7 +8,7 @@ import (
 	"github.com/celestiaorg/celestia-node/header/sync"
 )
 
-type Service interface {
+type Module interface {
 	// GetByHeight returns the ExtendedHeader at the given height, blocking
 	// until header has been processed by the store or context deadline is exceeded.
 	GetByHeight(context.Context, uint64) (*header.ExtendedHeader, error)
@@ -36,7 +36,7 @@ func NewHeaderService(
 	sub header.Subscriber,
 	p2pServer *p2p.ExchangeServer,
 	ex header.Exchange,
-	store header.Store) Service {
+	store header.Store) Module {
 	return &service{
 		syncer:    syncer,
 		sub:       sub,

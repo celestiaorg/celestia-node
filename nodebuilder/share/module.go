@@ -9,7 +9,7 @@ import (
 	"github.com/celestiaorg/celestia-node/share"
 )
 
-func Module(tp node.Type, cfg *Config, options ...fx.Option) fx.Option {
+func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option {
 	// sanitize config values before constructing module
 	cfgErr := cfg.Validate()
 
@@ -20,12 +20,12 @@ func Module(tp node.Type, cfg *Config, options ...fx.Option) fx.Option {
 		fx.Invoke(share.EnsureEmptySquareExists),
 		fx.Provide(Discovery(*cfg)),
 		fx.Provide(fx.Annotate(
-			NewService,
-			fx.OnStart(func(ctx context.Context, service Service) error {
-				return service.Start(ctx)
+			NewModule,
+			fx.OnStart(func(ctx context.Context, module Module) error {
+				return module.Start(ctx)
 			}),
-			fx.OnStop(func(ctx context.Context, service Service) error {
-				return service.Stop(ctx)
+			fx.OnStop(func(ctx context.Context, module Module) error {
+				return module.Stop(ctx)
 			}),
 		)),
 	)

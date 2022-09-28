@@ -17,7 +17,7 @@ import (
 	"github.com/celestiaorg/celestia-node/params"
 )
 
-func Module(tp node.Type, cfg *Config, store Store) fx.Option {
+func ConstructModule(tp node.Type, cfg *Config, store Store) fx.Option {
 	baseComponents := fx.Options(
 		fx.Provide(params.DefaultNetwork),
 		fx.Provide(params.BootstrappersFor),
@@ -28,14 +28,14 @@ func Module(tp node.Type, cfg *Config, store Store) fx.Option {
 		fx.Provide(store.Keystore),
 		fx.Invoke(invokeWatchdog(store.Path())),
 		// modules provided by the node
-		p2p.Module(tp, &cfg.P2P),
-		state.Module(tp, &cfg.State),
-		header.Module(tp, &cfg.Header),
-		share.Module(tp, &cfg.Share),
-		rpc.Module(tp, &cfg.RPC),
-		core.Module(tp, &cfg.Core),
-		daser.Module(tp),
-		fraud.Module(tp),
+		p2p.ConstructModule(tp, &cfg.P2P),
+		state.ConstructModule(tp, &cfg.State),
+		header.ConstructModule(tp, &cfg.Header),
+		share.ConstructModule(tp, &cfg.Share),
+		rpc.ConstructModule(tp, &cfg.RPC),
+		core.ConstructModule(tp, &cfg.Core),
+		daser.ConstructModule(tp),
+		fraud.ConstructModule(tp),
 	)
 
 	return fx.Module(
