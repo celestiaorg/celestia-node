@@ -1,13 +1,13 @@
 package eds
 
 import (
-	"math"
 	"math/rand"
 	"time"
 
 	"github.com/ipfs/go-cid"
 
 	"github.com/celestiaorg/celestia-app/pkg/da"
+	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/share/ipld"
 )
@@ -42,10 +42,8 @@ type quadrant struct {
 	// |(0;1)| |(1;1)|
 	// ------  -------
 	x, y int
-	// source defines the axis for quadrant
-	// it can be either 1 or 0 similar to x and y
-	// where 0 is Row source and 1 is Col respectively
-	source int
+	// source defines the axis(Row or Col) to fetch the quadrant from
+	source rsmt2d.Axis
 }
 
 // newQuadrants constructs a slice of quadrants from DAHeader.
@@ -70,17 +68,13 @@ func newQuadrants(dah *da.DataAvailabilityHeader) []*quadrant {
 		}
 
 		for i := range quadrants {
-			// convert quadrant index into coordinates
+			// convert quadrant 1D into into 2D coordinates
 			x, y := i%2, i/2
-			if source == 1 { // swap coordinates for column
-				x, y = y, x
-			}
-
 			quadrants[i] = &quadrant{
 				roots:  roots[qsize*y : qsize*(y+1)],
 				x:      x,
 				y:      y,
-				source: source,
+				source: rsmt2d.Axis(source),
 			}
 		}
 	}
@@ -93,31 +87,16 @@ func newQuadrants(dah *da.DataAvailabilityHeader) []*quadrant {
 	return quadrants
 }
 
-// index calculates index for a share in a data square slice flattened by rows.
-//
-// NOTE: The complexity of the formula below comes from:
-//   - Goal to avoid share copying
-//   - Goal to make formula generic for both rows and cols
-//   - While data square is flattened by rows only
-//
-// TODO(@Wondertan): This can be simplified by making rsmt2d working over 3D byte slice(not
-// flattened)
-func (q *quadrant) index(rootIdx, cellIdx int) int {
-	size := len(q.roots)
-	// half square offsets, e.g. share is from Q3,
-	// so we add to index Q1+Q2
-	halfSquareOffsetCol := pow(size*2, q.source)
-	halfSquareOffsetRow := pow(size*2, q.source^1)
-	// offsets for the axis, e.g. share is from Q4.
-	// so we add to index Q3
-	offsetX := q.x * halfSquareOffsetCol * size
-	offsetY := q.y * halfSquareOffsetRow * size
-
-	rootIdx *= halfSquareOffsetRow
-	cellIdx *= halfSquareOffsetCol
-	return rootIdx + cellIdx + offsetX + offsetY
-}
-
-func pow(x, y int) int {
-	return int(math.Pow(float64(x), float64(y)))
+// pos calculates position of a share in a data square.
+func (q *quadrant) pos(rootIdx, cellIdx int) (int, int) {
+	cellIdx += len(q.roots) * q.x
+	rootIdx += len(q.roots) * q.y
+	switch q.source {
+	case rsmt2d.Row:
+		return rootIdx, cellIdx
+	case rsmt2d.Col:
+		return cellIdx, rootIdx
+	default:
+		panic("unknown axis")
+	}
 }
