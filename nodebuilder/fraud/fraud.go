@@ -12,14 +12,14 @@ import (
 	"github.com/celestiaorg/celestia-node/header"
 )
 
-// Service constructs a fraud proof service with the syncer disabled.
-func Service(
+// NewService constructs a fraud proof service with the syncer disabled.
+func NewService(
 	lc fx.Lifecycle,
 	sub *pubsub.PubSub,
 	host host.Host,
 	hstore header.Store,
 	ds datastore.Batching,
-) (fraud.Service, error) {
+) (Service, error) {
 	return newFraudService(lc, sub, host, hstore, ds, false)
 }
 
@@ -30,7 +30,7 @@ func ServiceWithSyncer(
 	host host.Host,
 	hstore header.Store,
 	ds datastore.Batching,
-) (fraud.Service, error) {
+) (Service, error) {
 	return newFraudService(lc, sub, host, hstore, ds, true)
 }
 
@@ -40,7 +40,7 @@ func newFraudService(
 	host host.Host,
 	hstore header.Store,
 	ds datastore.Batching,
-	isEnabled bool) (fraud.Service, error) {
+	isEnabled bool) (Service, error) {
 	pservice := fraud.NewProofService(sub, host, hstore.GetByHeight, ds, isEnabled)
 	lc.Append(fx.Hook{
 		OnStart: pservice.Start,
@@ -55,7 +55,7 @@ func newFraudService(
 func Lifecycle(
 	startCtx, lifecycleCtx context.Context,
 	p fraud.ProofType,
-	fservice fraud.Service,
+	fservice Service,
 	start, stop func(context.Context) error,
 ) error {
 	proofs, err := fservice.Get(startCtx, p)

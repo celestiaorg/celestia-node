@@ -16,14 +16,6 @@ type headerFetcher func(context.Context, uint64) (*header.ExtendedHeader, error)
 // ProofUnmarshaler aliases a function that parses data to `Proof`.
 type ProofUnmarshaler func([]byte) (Proof, error)
 
-// Service encompasses the behavior necessary to subscribe and broadcast
-// fraud proofs within the network.
-type Service interface {
-	Subscriber
-	Broadcaster
-	Getter
-}
-
 // Broadcaster is a generic interface that sends a `Proof` to all nodes subscribed on the Broadcaster's topic.
 type Broadcaster interface {
 	// Broadcast takes a fraud `Proof` data structure that implements standard BinaryMarshal

@@ -5,11 +5,11 @@ import (
 
 	"github.com/celestiaorg/celestia-node/fraud"
 	"github.com/celestiaorg/celestia-node/libs/fxutil"
-	fraudbuilder "github.com/celestiaorg/celestia-node/nodebuilder/fraud"
 
 	logging "github.com/ipfs/go-log/v2"
 	"go.uber.org/fx"
 
+	fraudServ "github.com/celestiaorg/celestia-node/nodebuilder/fraud"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 )
 
@@ -26,9 +26,9 @@ func Module(tp node.Type, cfg *Config) fx.Option {
 		fx.Error(cfgErr),
 		fx.Provide(Keyring),
 		fx.Provide(fx.Annotate(CoreAccessor,
-			fx.OnStart(func(ctx context.Context, lc fx.Lifecycle, fservice fraud.Service, serv Service) error {
+			fx.OnStart(func(ctx context.Context, lc fx.Lifecycle, fservice fraudServ.Service, serv Service) error {
 				lifecycleCtx := fxutil.WithLifecycle(ctx, lc)
-				return fraudbuilder.Lifecycle(ctx, lifecycleCtx, fraud.BadEncoding, fservice,
+				return fraudServ.Lifecycle(ctx, lifecycleCtx, fraud.BadEncoding, fservice,
 					serv.Start, serv.Stop)
 			}),
 			fx.OnStop(func(ctx context.Context, serv Service) error {

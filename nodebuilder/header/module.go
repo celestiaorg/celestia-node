@@ -12,7 +12,7 @@ import (
 	"github.com/celestiaorg/celestia-node/header/store"
 	"github.com/celestiaorg/celestia-node/header/sync"
 	"github.com/celestiaorg/celestia-node/libs/fxutil"
-	fraudbuilder "github.com/celestiaorg/celestia-node/nodebuilder/fraud"
+	fraudServ "github.com/celestiaorg/celestia-node/nodebuilder/fraud"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	"github.com/celestiaorg/celestia-node/params"
 )
@@ -46,7 +46,7 @@ func Module(tp node.Type, cfg *Config) fx.Option {
 		}),
 		fx.Provide(fx.Annotate(
 			sync.NewSyncer,
-			fx.OnStart(func(ctx context.Context, lc fx.Lifecycle, fservice fraud.Service, syncer *sync.Syncer) error {
+			fx.OnStart(func(ctx context.Context, lc fx.Lifecycle, fservice fraudServ.Service, syncer *sync.Syncer) error {
 				syncerStartFunc := func(ctx context.Context) error {
 					err := syncer.Start(ctx)
 					switch err {
@@ -59,7 +59,7 @@ func Module(tp node.Type, cfg *Config) fx.Option {
 					return nil
 				}
 				lifecycleCtx := fxutil.WithLifecycle(ctx, lc)
-				return fraudbuilder.Lifecycle(ctx, lifecycleCtx, fraud.BadEncoding, fservice,
+				return fraudServ.Lifecycle(ctx, lifecycleCtx, fraud.BadEncoding, fservice,
 					syncerStartFunc, syncer.Stop)
 			}),
 			fx.OnStop(func(ctx context.Context, syncer *sync.Syncer) error {

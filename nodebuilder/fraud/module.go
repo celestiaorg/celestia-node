@@ -19,7 +19,7 @@ func Module(tp node.Type) fx.Option {
 	case node.Full, node.Bridge:
 		return fx.Module(
 			"fraud",
-			fx.Provide(Service),
+			fx.Provide(NewService),
 		)
 	default:
 		panic("invalid node type")
