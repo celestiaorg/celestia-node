@@ -93,7 +93,7 @@ func InitializeMetrics(ctx context.Context, peerID peer.ID, nodeType node.Type, 
 	if err != nil {
 		return err
 	}
-	global.SetMeterProvider(pusher)
 
+	global.SetMeterProvider(pusher)
 	return nil
 }
