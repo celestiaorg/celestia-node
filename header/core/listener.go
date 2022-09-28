@@ -27,8 +27,8 @@ type Listener struct {
 	construct header.ConstructFn
 	cancel    context.CancelFunc
 
-	// lastHeaderBroadcasted is the timestamp of the last block served by the broadcaster, used for metrics.
-	lastHeaderBroadcasted int64
+	// lastHeaderBroadcast is the timestamp of the last block served by the broadcaster, used for metrics.
+	lastHeaderBroadcast int64
 }
 
 func NewListener(
@@ -101,7 +101,7 @@ func (cl *Listener) listen(ctx context.Context, sub <-chan *types.Block) {
 
 			// broadcast new ExtendedHeader, but if core is still syncing, notify only local subscribers
 			err = cl.bcast.Broadcast(ctx, eh, pubsub.WithLocalPublication(syncing))
-			cl.lastHeaderBroadcasted = time.Now().UnixMilli()
+			cl.lastHeaderBroadcast = time.Now().UnixMilli()
 			if err != nil {
 				log.Errorw("listener: broadcasting next header", "height", eh.Height,
 					"err", err)

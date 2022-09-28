@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"go.uber.org/fx"
-
 	"github.com/libp2p/go-libp2p-core/peer"
 	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetrichttp"
 	"go.opentelemetry.io/otel/metric/global"
@@ -50,7 +49,7 @@ func WithMetrics(enable bool, metricOpts []otlpmetrichttp.Option, nodeType node.
 
 	var opts fx.Option
 	switch nodeType {
-	case node.Full:
+	case node.Full, node.Light:
 		opts = fx.Options(
 			baseComponents,
 			fx.Invoke(daser.MonitorDASer),
@@ -60,12 +59,6 @@ func WithMetrics(enable bool, metricOpts []otlpmetrichttp.Option, nodeType node.
 		opts = fx.Options(
 			baseComponents,
 			fx.Invoke(core.MonitorBroadcasting),
-			// add more monitoring here
-		)
-	case node.Light:
-		opts = fx.Options(
-			baseComponents,
-			fx.Invoke(daser.MonitorDASer),
 			// add more monitoring here
 		)
 	default:

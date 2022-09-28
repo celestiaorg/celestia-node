@@ -22,7 +22,7 @@ func MonitorBroadcasting(listener *Listener) {
 			lastHeaderBroadcasted,
 		},
 		func(ctx context.Context) {
-			lastHeaderBroadcasted.Observe(ctx, listener.lastHeaderBroadcasted)
+			lastHeaderBroadcasted.Observe(ctx, listener.lastHeaderBroadcast)
 		},
 	)
 	if err != nil {
