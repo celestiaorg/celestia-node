@@ -19,15 +19,7 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 		fx.Options(options...),
 		fx.Invoke(share.EnsureEmptySquareExists),
 		fx.Provide(Discovery(*cfg)),
-		fx.Provide(fx.Annotate(
-			NewModule,
-			fx.OnStart(func(ctx context.Context, module Module) error {
-				return module.Start(ctx)
-			}),
-			fx.OnStop(func(ctx context.Context, module Module) error {
-				return module.Stop(ctx)
-			}),
-		)),
+		fx.Provide(NewModule),
 	)
 
 	switch tp {

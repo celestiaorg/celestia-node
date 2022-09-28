@@ -26,30 +26,30 @@ import (
 	"github.com/celestiaorg/celestia-node/ipld"
 )
 
-// randLightServiceWithSquare provides a share.service filled with 'n' NMT
+// randLightServiceWithSquare provides a share.Service filled with 'n' NMT
 // trees of 'n' random shares, essentially storing a whole square.
-func randLightServiceWithSquare(t *testing.T, n int) (*service, *Root) {
+func randLightServiceWithSquare(t *testing.T, n int) (*Service, *Root) {
 	bServ := mdutils.Bserv()
 	return NewService(bServ, TestLightAvailability(bServ)), RandFillBS(t, n, bServ)
 }
 
-// randLightService provides an unfilled share.service with corresponding
+// randLightService provides an unfilled share.Service with corresponding
 // blockservice.BlockService than can be filled by the test.
-func randLightService() (*service, blockservice.BlockService) {
+func randLightService() (*Service, blockservice.BlockService) {
 	bServ := mdutils.Bserv()
 	return NewService(bServ, TestLightAvailability(bServ)), bServ
 }
 
-// randFullServiceWithSquare provides a share.service filled with 'n' NMT
+// randFullServiceWithSquare provides a share.Service filled with 'n' NMT
 // trees of 'n' random shares, essentially storing a whole square.
-func randFullServiceWithSquare(t *testing.T, n int) (*service, *Root) {
+func randFullServiceWithSquare(t *testing.T, n int) (*Service, *Root) {
 	bServ := mdutils.Bserv()
 	return NewService(bServ, TestFullAvailability(bServ)), RandFillBS(t, n, bServ)
 }
 
 // randLightLocalServiceWithSquare is the same as randLightServiceWithSquare, except
 // the Availability is wrapped with CacheAvailability.
-func randLightLocalServiceWithSquare(t *testing.T, n int) (*service, *Root) {
+func randLightLocalServiceWithSquare(t *testing.T, n int) (*Service, *Root) {
 	bServ := mdutils.Bserv()
 	ds := dssync.MutexWrap(ds.NewMapDatastore())
 	ca := NewCacheAvailability(
@@ -61,7 +61,7 @@ func randLightLocalServiceWithSquare(t *testing.T, n int) (*service, *Root) {
 
 // randFullLocalServiceWithSquare is the same as randFullServiceWithSquare, except
 // the Availability is wrapped with CacheAvailability.
-func randFullLocalServiceWithSquare(t *testing.T, n int) (*service, *Root) {
+func randFullLocalServiceWithSquare(t *testing.T, n int) (*Service, *Root) {
 	bServ := mdutils.Bserv()
 	ds := dssync.MutexWrap(ds.NewMapDatastore())
 	ca := NewCacheAvailability(
@@ -92,7 +92,7 @@ func RandShares(t *testing.T, n int) []Share {
 
 type node struct {
 	net *dagNet
-	*service
+	*Service
 	blockservice.BlockService
 	host.Host
 }
@@ -140,14 +140,14 @@ func (dn *dagNet) RandFullNode(squareSize int) (*node, *Root) {
 // LightNode creates a new empty LightAvailability Node.
 func (dn *dagNet) LightNode() *node {
 	nd := dn.Node()
-	nd.service = NewService(nd.BlockService, TestLightAvailability(nd.BlockService))
+	nd.Service = NewService(nd.BlockService, TestLightAvailability(nd.BlockService))
 	return nd
 }
 
 // FullNode creates a new empty FullAvailability Node.
 func (dn *dagNet) FullNode() *node {
 	nd := dn.Node()
-	nd.service = NewService(nd.BlockService, TestFullAvailability(nd.BlockService))
+	nd.Service = NewService(nd.BlockService, TestFullAvailability(nd.BlockService))
 	return nd
 }
 

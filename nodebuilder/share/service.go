@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/ipfs/go-blockservice"
+	"go.uber.org/fx"
 
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/nmt/namespace"
@@ -23,13 +24,20 @@ import (
 //     * Return
 type Module interface {
 	share.Availability
-	Start(ctx context.Context) error
-	Stop(ctx context.Context) error
 	GetShare(ctx context.Context, dah *share.Root, row, col int) (share.Share, error)
 	GetShares(ctx context.Context, root *share.Root) ([][]share.Share, error)
 	GetSharesByNamespace(ctx context.Context, root *share.Root, namespace namespace.ID) ([]share.Share, error)
 }
 
-func NewModule(bServ blockservice.BlockService, avail share.Availability) Module {
-	return share.NewService(bServ, avail)
+func NewModule(lc fx.Lifecycle, bServ blockservice.BlockService, avail share.Availability) Module {
+	service := share.NewService(bServ, avail)
+	lc.Append(fx.Hook{
+		OnStart: func(ctx context.Context) error {
+			return service.Start(ctx)
+		},
+		OnStop: func(ctx context.Context) error {
+			return service.Stop(ctx)
+		},
+	})
+	return service
 }

@@ -25,7 +25,7 @@ func TestCacheAvailability(t *testing.T) {
 	lightLocalServ, dah1 := randLightLocalServiceWithSquare(t, 16)
 
 	var tests = []struct {
-		service *service
+		service *Service
 		root    *Root
 	}{
 		{

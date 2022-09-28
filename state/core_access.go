@@ -26,9 +26,9 @@ import (
 
 var log = logging.Logger("state")
 
-// coreAccessor implements service over a gRPC connection
+// CoreAccessor implements service over a gRPC connection
 // with a celestia-core node.
-type coreAccessor struct {
+type CoreAccessor struct {
 	ctx    context.Context
 	cancel context.CancelFunc
 
@@ -46,7 +46,7 @@ type coreAccessor struct {
 }
 
 // NewCoreAccessor dials the given celestia-core endpoint and
-// constructs and returns a new coreAccessor (state service) with the active
+// constructs and returns a new CoreAccessor (state service) with the active
 // connection.
 func NewCoreAccessor(
 	signer *apptypes.KeyringSigner,
@@ -54,8 +54,8 @@ func NewCoreAccessor(
 	coreIP,
 	rpcPort string,
 	grpcPort string,
-) *coreAccessor { //nolint:revive
-	return &coreAccessor{
+) *CoreAccessor {
+	return &CoreAccessor{
 		signer:   signer,
 		getter:   getter,
 		coreIP:   coreIP,
@@ -64,7 +64,7 @@ func NewCoreAccessor(
 	}
 }
 
-func (ca *coreAccessor) Start(ctx context.Context) error {
+func (ca *CoreAccessor) Start(ctx context.Context) error {
 	ca.ctx, ca.cancel = context.WithCancel(ctx)
 	if ca.coreConn != nil {
 		return fmt.Errorf("core-access: already connected to core endpoint")
@@ -91,7 +91,7 @@ func (ca *coreAccessor) Start(ctx context.Context) error {
 	return nil
 }
 
-func (ca *coreAccessor) Stop(context.Context) error {
+func (ca *CoreAccessor) Stop(context.Context) error {
 	defer ca.cancel()
 	if ca.coreConn == nil {
 		return fmt.Errorf("core-access: no connection found to close")
@@ -106,7 +106,7 @@ func (ca *coreAccessor) Stop(context.Context) error {
 	return nil
 }
 
-func (ca *coreAccessor) constructSignedTx(
+func (ca *CoreAccessor) constructSignedTx(
 	ctx context.Context,
 	msg sdktypes.Msg,
 	opts ...apptypes.TxBuilderOption,
@@ -124,7 +124,7 @@ func (ca *coreAccessor) constructSignedTx(
 	return ca.signer.EncodeTx(tx)
 }
 
-func (ca *coreAccessor) SubmitPayForData(
+func (ca *CoreAccessor) SubmitPayForData(
 	ctx context.Context,
 	nID namespace.ID,
 	data []byte,
@@ -133,7 +133,7 @@ func (ca *coreAccessor) SubmitPayForData(
 	return payment.SubmitPayForData(ctx, ca.signer, ca.coreConn, nID, data, gasLim)
 }
 
-func (ca *coreAccessor) Balance(ctx context.Context) (*Balance, error) {
+func (ca *CoreAccessor) Balance(ctx context.Context) (*Balance, error) {
 	addr, err := ca.signer.GetSignerInfo().GetAddress()
 	if err != nil {
 		return nil, err
@@ -141,7 +141,7 @@ func (ca *coreAccessor) Balance(ctx context.Context) (*Balance, error) {
 	return ca.BalanceForAddress(ctx, addr)
 }
 
-func (ca *coreAccessor) BalanceForAddress(ctx context.Context, addr Address) (*Balance, error) {
+func (ca *CoreAccessor) BalanceForAddress(ctx context.Context, addr Address) (*Balance, error) {
 	head, err := ca.getter.Head(ctx)
 	if err != nil {
 		return nil, err
@@ -197,7 +197,7 @@ func (ca *coreAccessor) BalanceForAddress(ctx context.Context, addr Address) (*B
 	}, nil
 }
 
-func (ca *coreAccessor) SubmitTx(ctx context.Context, tx Tx) (*TxResponse, error) {
+func (ca *CoreAccessor) SubmitTx(ctx context.Context, tx Tx) (*TxResponse, error) {
 	txResp, err := apptypes.BroadcastTx(ctx, ca.coreConn, sdktx.BroadcastMode_BROADCAST_MODE_BLOCK, tx)
 	if err != nil {
 		return nil, err
@@ -205,7 +205,7 @@ func (ca *coreAccessor) SubmitTx(ctx context.Context, tx Tx) (*TxResponse, error
 	return txResp.TxResponse, nil
 }
 
-func (ca *coreAccessor) SubmitTxWithBroadcastMode(
+func (ca *CoreAccessor) SubmitTxWithBroadcastMode(
 	ctx context.Context,
 	tx Tx,
 	mode sdktx.BroadcastMode,
@@ -217,7 +217,7 @@ func (ca *coreAccessor) SubmitTxWithBroadcastMode(
 	return txResp.TxResponse, nil
 }
 
-func (ca *coreAccessor) Transfer(
+func (ca *CoreAccessor) Transfer(
 	ctx context.Context,
 	addr AccAddress,
 	amount Int,
@@ -236,7 +236,7 @@ func (ca *coreAccessor) Transfer(
 	return ca.SubmitTx(ctx, signedTx)
 }
 
-func (ca *coreAccessor) CancelUnbondingDelegation(
+func (ca *CoreAccessor) CancelUnbondingDelegation(
 	ctx context.Context,
 	valAddr ValAddress,
 	amount,
@@ -256,7 +256,7 @@ func (ca *coreAccessor) CancelUnbondingDelegation(
 	return ca.SubmitTx(ctx, signedTx)
 }
 
-func (ca *coreAccessor) BeginRedelegate(
+func (ca *CoreAccessor) BeginRedelegate(
 	ctx context.Context,
 	srcValAddr,
 	dstValAddr ValAddress,
@@ -276,7 +276,7 @@ func (ca *coreAccessor) BeginRedelegate(
 	return ca.SubmitTx(ctx, signedTx)
 }
 
-func (ca *coreAccessor) Undelegate(
+func (ca *CoreAccessor) Undelegate(
 	ctx context.Context,
 	delAddr ValAddress,
 	amount Int,
@@ -295,7 +295,7 @@ func (ca *coreAccessor) Undelegate(
 	return ca.SubmitTx(ctx, signedTx)
 }
 
-func (ca *coreAccessor) Delegate(
+func (ca *CoreAccessor) Delegate(
 	ctx context.Context,
 	delAddr ValAddress,
 	amount Int,
@@ -314,7 +314,7 @@ func (ca *coreAccessor) Delegate(
 	return ca.SubmitTx(ctx, signedTx)
 }
 
-func (ca *coreAccessor) QueryDelegation(
+func (ca *CoreAccessor) QueryDelegation(
 	ctx context.Context,
 	valAddr ValAddress,
 ) (*stakingtypes.QueryDelegationResponse, error) {
@@ -328,7 +328,7 @@ func (ca *coreAccessor) QueryDelegation(
 	})
 }
 
-func (ca *coreAccessor) QueryUnbonding(
+func (ca *CoreAccessor) QueryUnbonding(
 	ctx context.Context,
 	valAddr ValAddress,
 ) (*stakingtypes.QueryUnbondingDelegationResponse, error) {
@@ -341,7 +341,7 @@ func (ca *coreAccessor) QueryUnbonding(
 		ValidatorAddr: valAddr.String(),
 	})
 }
-func (ca *coreAccessor) QueryRedelegations(
+func (ca *CoreAccessor) QueryRedelegations(
 	ctx context.Context,
 	srcValAddr,
 	dstValAddr ValAddress,
@@ -357,6 +357,6 @@ func (ca *coreAccessor) QueryRedelegations(
 	})
 }
 
-func (ca *coreAccessor) IsStopped() bool {
+func (ca *CoreAccessor) IsStopped() bool {
 	return ca.ctx.Err() != nil
 }

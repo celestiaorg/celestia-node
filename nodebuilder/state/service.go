@@ -15,10 +15,6 @@ import (
 // query for state-related information and submit transactions/
 // messages to the Celestia network.
 type Module interface {
-	// Start starts the state Module.
-	Start(context.Context) error
-	// Stop stops the state Module.
-	Stop(context.Context) error
 	// IsStopped checks if the Module's context has been stopped
 	IsStopped() bool
 

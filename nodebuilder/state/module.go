@@ -1,15 +1,9 @@
 package state
 
 import (
-	"context"
-
-	"github.com/celestiaorg/celestia-node/fraud"
-	"github.com/celestiaorg/celestia-node/libs/fxutil"
-
 	logging "github.com/ipfs/go-log/v2"
 	"go.uber.org/fx"
 
-	fraudServ "github.com/celestiaorg/celestia-node/nodebuilder/fraud"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 )
 
@@ -25,16 +19,7 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 		fx.Supply(*cfg),
 		fx.Error(cfgErr),
 		fx.Provide(Keyring),
-		fx.Provide(fx.Annotate(CoreAccessor,
-			fx.OnStart(func(ctx context.Context, lc fx.Lifecycle, fservice fraudServ.Module, serv Module) error {
-				lifecycleCtx := fxutil.WithLifecycle(ctx, lc)
-				return fraudServ.Lifecycle(ctx, lifecycleCtx, fraud.BadEncoding, fservice,
-					serv.Start, serv.Stop)
-			}),
-			fx.OnStop(func(ctx context.Context, serv Module) error {
-				return serv.Stop(ctx)
-			}),
-		)),
+		fx.Provide(CoreAccessor),
 	)
 
 	switch tp {
