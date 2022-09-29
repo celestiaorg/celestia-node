@@ -81,16 +81,16 @@ func (serv *ExchangeServer) requestHandler(stream network.Stream) {
 		stream.Reset() //nolint:errcheck
 		return
 	}
-	code := p2p_pb.StatusCode_OK
-	if err != nil {
-		switch err {
-		case header.ErrNotFound:
-			headers = make([]*header.ExtendedHeader, 1)
-			code = p2p_pb.StatusCode_NOT_FOUND
-		default:
-			stream.Reset() //nolint:errcheck
-			return
-		}
+	var code p2p_pb.StatusCode
+	switch err {
+	case nil:
+		code = p2p_pb.StatusCode_OK
+	case header.ErrNotFound:
+		headers = make([]*header.ExtendedHeader, 1)
+		code = p2p_pb.StatusCode_NOT_FOUND
+	default:
+		stream.Reset() //nolint:errcheck
+		return
 	}
 
 	// write all headers to stream
