@@ -207,7 +207,7 @@ func request(
 		headers[i] = header
 	}
 	if err = stream.Close(); err != nil {
-		log.Errorw("while closing stream", err)
+		log.Errorw("closing stream", "err", err)
 	}
 	// ensure at least one header was retrieved
 	if len(headers) == 0 {
@@ -240,7 +240,7 @@ func bestHead(result []*header.ExtendedHeader) (*header.ExtendedHeader, error) {
 			return res, nil
 		}
 	}
-	log.Debug("could not find header received from at least two peers.Returning header with the max height")
+	log.Debug("could not find latest header received from at least two peers, returning header with the max height")
 	// otherwise return header with the max height
 	return result[0], nil
 }
