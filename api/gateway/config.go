@@ -1,4 +1,4 @@
-package rpc
+package gateway
 
 import (
 	"fmt"
@@ -21,11 +21,11 @@ func DefaultConfig() Config {
 
 func (cfg *Config) Validate() error {
 	if ip := net.ParseIP(cfg.Address); ip == nil {
-		return fmt.Errorf("service/rpc: invalid listen address format: %s", cfg.Address)
+		return fmt.Errorf("service/gateway: invalid listen address format: %s", cfg.Address)
 	}
 	_, err := strconv.Atoi(cfg.Port)
 	if err != nil {
-		return fmt.Errorf("service/rpc: invalid port: %s", err.Error())
+		return fmt.Errorf("service/gateway: invalid port: %s", err.Error())
 	}
 	return nil
 }

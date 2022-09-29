@@ -1,4 +1,4 @@
-package rpc
+package gateway
 
 import (
 	"encoding/json"

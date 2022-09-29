@@ -16,6 +16,7 @@ import (
 	"github.com/libp2p/go-libp2p/p2p/net/conngater"
 	"go.uber.org/fx"
 
+	"github.com/celestiaorg/celestia-node/api/gateway"
 	"github.com/celestiaorg/celestia-node/das"
 	"github.com/celestiaorg/celestia-node/nodebuilder/fraud"
 	"github.com/celestiaorg/celestia-node/nodebuilder/header"
@@ -23,7 +24,6 @@ import (
 	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
 	"github.com/celestiaorg/celestia-node/nodebuilder/share"
 	"github.com/celestiaorg/celestia-node/nodebuilder/state"
-	"github.com/celestiaorg/celestia-node/service/rpc"
 )
 
 const Timeout = time.Second * 15
@@ -44,8 +44,8 @@ type Node struct {
 	Bootstrappers p2p.Bootstrappers
 	Config        *Config
 
-	// rpc components
-	RPCServer *rpc.Server `optional:"true"`
+	// gateway components
+	RPCServer *gateway.Server `optional:"true"`
 	// p2p components
 	Host         host.Host
 	ConnGater    *conngater.BasicConnectionGater

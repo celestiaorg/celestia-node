@@ -5,14 +5,14 @@ import (
 
 	"go.uber.org/fx"
 
+	"github.com/celestiaorg/celestia-node/api/gateway"
 	headerServ "github.com/celestiaorg/celestia-node/nodebuilder/header"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	shareServ "github.com/celestiaorg/celestia-node/nodebuilder/share"
 	stateServ "github.com/celestiaorg/celestia-node/nodebuilder/state"
-	rpcServ "github.com/celestiaorg/celestia-node/service/rpc"
 )
 
-func ConstructModule(tp node.Type, cfg *rpcServ.Config) fx.Option {
+func ConstructModule(tp node.Type, cfg *gateway.Config) fx.Option {
 	// sanitize config values before constructing module
 	cfgErr := cfg.Validate()
 
@@ -20,11 +20,11 @@ func ConstructModule(tp node.Type, cfg *rpcServ.Config) fx.Option {
 		fx.Supply(*cfg),
 		fx.Error(cfgErr),
 		fx.Provide(fx.Annotate(
-			rpcServ.NewServer,
-			fx.OnStart(func(ctx context.Context, server *rpcServ.Server) error {
+			gateway.NewServer,
+			fx.OnStart(func(ctx context.Context, server *gateway.Server) error {
 				return server.Start(ctx)
 			}),
-			fx.OnStop(func(ctx context.Context, server *rpcServ.Server) error {
+			fx.OnStop(func(ctx context.Context, server *gateway.Server) error {
 				return server.Stop(ctx)
 			}),
 		)),
@@ -33,19 +33,19 @@ func ConstructModule(tp node.Type, cfg *rpcServ.Config) fx.Option {
 	switch tp {
 	case node.Light, node.Full:
 		return fx.Module(
-			"rpc",
+			"gateway",
 			baseComponents,
 			fx.Invoke(Handler),
 		)
 	case node.Bridge:
 		return fx.Module(
-			"rpc",
+			"gateway",
 			baseComponents,
 			fx.Invoke(func(
 				state stateServ.Module,
 				share shareServ.Module,
 				header headerServ.Module,
-				rpcSrv *rpcServ.Server,
+				rpcSrv *gateway.Server,
 			) {
 				Handler(state, share, header, rpcSrv, nil)
 			}),
