@@ -4,7 +4,7 @@ import (
 	"io"
 	"os"
 
-	"github.com/celestiaorg/celestia-node/api/gateway"
+	"github.com/celestiaorg/celestia-node/nodebuilder/rpc"
 
 	"github.com/BurntSushi/toml"
 
@@ -25,7 +25,7 @@ type Config struct {
 	Core   core.Config
 	State  state.Config
 	P2P    p2p.Config
-	RPC    gateway.Config
+	RPC    rpc.Config
 	Share  share.Config
 	Header header.Config
 }
@@ -39,7 +39,7 @@ func DefaultConfig(tp node.Type) *Config {
 			Core:   core.DefaultConfig(),
 			State:  state.DefaultConfig(),
 			P2P:    p2p.DefaultConfig(),
-			RPC:    gateway.DefaultConfig(),
+			RPC:    rpc.DefaultConfig(),
 			Share:  share.DefaultConfig(),
 			Header: header.DefaultConfig(),
 		}

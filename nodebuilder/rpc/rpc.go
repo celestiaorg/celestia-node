@@ -1,7 +1,7 @@
 package rpc
 
 import (
-	"github.com/celestiaorg/celestia-node/api/gateway"
+	"github.com/celestiaorg/celestia-node/api/rpc"
 	"github.com/celestiaorg/celestia-node/das"
 	"github.com/celestiaorg/celestia-node/nodebuilder/header"
 	"github.com/celestiaorg/celestia-node/nodebuilder/share"
@@ -13,10 +13,13 @@ func Handler(
 	state state.Module,
 	share share.Module,
 	header header.Module,
-	serv *gateway.Server,
+	serv *rpc.Server,
 	daser *das.DASer,
 ) {
-	handler := gateway.NewHandler(state, share, header, daser)
+	handler := rpc.NewHandler(state, share, header, daser)
 	handler.RegisterEndpoints(serv)
-	handler.RegisterMiddleware(serv)
+}
+
+func Server(cfg *Config) *rpc.Server {
+	return rpc.NewServer(cfg.Address, cfg.Port)
 }

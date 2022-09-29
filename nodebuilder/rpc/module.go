@@ -3,28 +3,29 @@ package rpc
 import (
 	"context"
 
+	"github.com/celestiaorg/celestia-node/api/rpc"
+
 	"go.uber.org/fx"
 
-	"github.com/celestiaorg/celestia-node/api/gateway"
 	headerServ "github.com/celestiaorg/celestia-node/nodebuilder/header"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	shareServ "github.com/celestiaorg/celestia-node/nodebuilder/share"
 	stateServ "github.com/celestiaorg/celestia-node/nodebuilder/state"
 )
 
-func ConstructModule(tp node.Type, cfg *gateway.Config) fx.Option {
+func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 	// sanitize config values before constructing module
 	cfgErr := cfg.Validate()
 
 	baseComponents := fx.Options(
-		fx.Supply(*cfg),
+		fx.Supply(cfg),
 		fx.Error(cfgErr),
 		fx.Provide(fx.Annotate(
-			gateway.NewServer,
-			fx.OnStart(func(ctx context.Context, server *gateway.Server) error {
+			Server,
+			fx.OnStart(func(ctx context.Context, server *rpc.Server) error {
 				return server.Start(ctx)
 			}),
-			fx.OnStop(func(ctx context.Context, server *gateway.Server) error {
+			fx.OnStop(func(ctx context.Context, server *rpc.Server) error {
 				return server.Stop(ctx)
 			}),
 		)),
@@ -45,7 +46,7 @@ func ConstructModule(tp node.Type, cfg *gateway.Config) fx.Option {
 				state stateServ.Module,
 				share shareServ.Module,
 				header headerServ.Module,
-				rpcSrv *gateway.Server,
+				rpcSrv *rpc.Server,
 			) {
 				Handler(state, share, header, rpcSrv, nil)
 			}),
