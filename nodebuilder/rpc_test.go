@@ -9,10 +9,8 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/ipfs/go-blockservice"
 	"github.com/ipfs/go-datastore"
 	ds_sync "github.com/ipfs/go-datastore/sync"
-	mdutils "github.com/ipfs/go-merkledag/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	tmbytes "github.com/tendermint/tendermint/libs/bytes"
@@ -253,22 +251,23 @@ func setupHeaderService(ctx context.Context, t *testing.T) headerServ.Module {
 func setupDASer(t *testing.T) *das.DASer {
 	suite := header.NewTestSuite(t, 1)
 	ds := ds_sync.MutexWrap(datastore.NewMapDatastore())
-	sub := &header.DummySubscriber{Headers: suite.GenExtendedHeaders(10)}
-
-	bServ := mdutils.Bserv()
+	// store has 10 headers
 	mockGet := &mockGetter{
 		headers:        make(map[int64]*header.ExtendedHeader),
 		doneCh:         make(chan struct{}),
 		brokenHeightCh: make(chan struct{}),
 	}
-
-	mockGet.generateHeaders(t, bServ, 0, 10)
+	for _, h := range suite.GenExtendedHeaders(10) {
+		mockGet.headers[h.Height] = h
+		mockGet.head = h.Height
+	}
+	// subscription has 10 "new" headers
+	sub := &header.DummySubscriber{Headers: suite.GenExtendedHeaders(10)}
 	return das.NewDASer(share.NewTestSuccessfulAvailability(), sub, mockGet, ds, nil)
 }
 
 // taken from daser_test.go
 type mockGetter struct {
-	getterStub
 	doneCh chan struct{} // signals all stored headers have been retrieved
 
 	brokenHeightCh chan struct{}
@@ -277,41 +276,22 @@ type mockGetter struct {
 	headers map[int64]*header.ExtendedHeader
 }
 
-func (m *mockGetter) generateHeaders(t *testing.T, bServ blockservice.BlockService, startHeight, endHeight int) {
-	for i := startHeight; i < endHeight; i++ {
-		dah := share.RandFillBS(t, 16, bServ)
-
-		randHeader := header.RandExtendedHeader(t)
-		randHeader.DataHash = dah.Hash()
-		randHeader.DAH = dah
-		randHeader.Height = int64(i + 1)
-
-		m.headers[int64(i+1)] = randHeader
-	}
-	// set network head
-	m.head = int64(startHeight + endHeight)
-}
-
 func (m *mockGetter) Head(context.Context) (*header.ExtendedHeader, error) {
 	return m.headers[m.head], nil
 }
 
-type getterStub struct{}
-
-func (m getterStub) Head(context.Context) (*header.ExtendedHeader, error) {
-	return nil, nil
+func (m *mockGetter) GetByHeight(_ context.Context, height uint64) (*header.ExtendedHeader, error) {
+	h, ok := m.headers[int64(height)]
+	if !ok {
+		return nil, header.ErrNotFound
+	}
+	return h, nil
 }
 
-func (m getterStub) GetByHeight(_ context.Context, height uint64) (*header.ExtendedHeader, error) {
-	return &header.ExtendedHeader{
-		RawHeader: header.RawHeader{Height: int64(height)},
-		DAH:       &header.DataAvailabilityHeader{RowsRoots: make([][]byte, 0)}}, nil
+func (m *mockGetter) GetRangeByHeight(ctx context.Context, from, to uint64) ([]*header.ExtendedHeader, error) {
+	panic("implement me")
 }
 
-func (m getterStub) GetRangeByHeight(ctx context.Context, from, to uint64) ([]*header.ExtendedHeader, error) {
-	return nil, nil
-}
-
-func (m getterStub) Get(context.Context, tmbytes.HexBytes) (*header.ExtendedHeader, error) {
-	return nil, nil
+func (m *mockGetter) Get(context.Context, tmbytes.HexBytes) (*header.ExtendedHeader, error) {
+	panic("implement me")
 }
