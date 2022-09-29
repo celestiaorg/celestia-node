@@ -24,7 +24,7 @@ func Flags() *flag.FlagSet {
 	return flags
 }
 
-// ParseFlags parses Header package flags from the given cmd and saves them to the passed config.
+// ParseFlags parses Header package flags from the given cmd and applies them to the passed config.
 func ParseFlags(cmd *cobra.Command, cfg *Config) error {
 	if err := ParseTrustedHashFlags(cmd, cfg); err != nil {
 		return err
@@ -47,7 +47,7 @@ func TrustedPeersFlags() *flag.FlagSet {
 	return flags
 }
 
-// ParseTrustedPeerFlags parses Header package flags from the given cmd and saves them to the passed config.
+// ParseTrustedPeerFlags parses Header package flags from the given cmd and applies them to the passed config.
 func ParseTrustedPeerFlags(
 	cmd *cobra.Command,
 	cfg *Config,
