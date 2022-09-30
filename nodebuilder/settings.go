@@ -41,7 +41,7 @@ func WithMetrics(enable bool, metricOpts []otlpmetrichttp.Option, nodeType node.
 
 	baseComponents := fx.Options(
 		fx.Supply(metricOpts),
-		fx.Invoke(InitializeMetrics),
+		fx.Invoke(initializeMetrics),
 		fx.Invoke(header.WithMetrics),
 		fx.Invoke(state.WithMetrics),
 	)
@@ -65,8 +65,8 @@ func WithMetrics(enable bool, metricOpts []otlpmetrichttp.Option, nodeType node.
 	return opts
 }
 
-// InitializeMetrics initializes the global meter provider.
-func InitializeMetrics(
+// initializeMetrics initializes the global meter provider.
+func initializeMetrics(
 	ctx context.Context,
 	lc fx.Lifecycle,
 	peerID peer.ID,
