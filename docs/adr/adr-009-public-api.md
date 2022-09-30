@@ -231,6 +231,9 @@ SyncHead(ctx context.Context) (*header.ExtendedHeader, error)
       amount types.Int, 
       gasLimit uint64,
     ) (*state.TxResponse, error)
+
+	// StateModule also provides StakingModule
+	StakingModule
   }
 ```
 
@@ -279,15 +282,75 @@ yet.
   }
 ```
 
-### Nice to have eventually
+### Nice to have (post-mainnet)
 
-##### Wallet
+#### State
+
+Eventually, it would be nice to break up `StateModule` into `StateModule`, `BankModule` and `StakingModule`.
+
+##### State
 
 ```go
-  type WalletModule interface {
-    New
-    Del
-    Has
+type StateModule interface {
+  // QueryABCI proxies a generic ABCI query to the core endpoint.
+  QueryABCI(ctx context.Context, request abci.RequestQuery) (*coretypes.ResultABCIQuery, error)
+  // SubmitTx submits the given transaction/message to the Celestia network
+  // and blocks until the tx is included in a block.
+  SubmitTx(ctx context.Context, tx state.Tx) (*state.TxResponse, error)
+}
+```
+
+##### Bank
+
+```go
+type BankModule interface {
+  // Balance retrieves the Celestia coin balance for the node's account/signer
+  // and verifies it against the corresponding block's AppHash.
+  Balance(ctx context.Context) (*state.Balance, error)
+  // BalanceForAddress retrieves the Celestia coin balance for the given 
+  // address and verifies the returned balance against the corresponding
+  // block's AppHash.
+  BalanceForAddress(ctx context.Context, addr state.Address) (*state.Balance, error)
+  // SubmitPayForData builds, signs and submits a PayForData transaction.
+  SubmitPayForData(
+    ctx context.Context,
+    nID namespace.ID,
+    data []byte,
+    gasLimit uint64,
+  ) (*state.TxResponse, error)
+  // Transfer sends the given amount of coins from default wallet of the node 
+  // to the given account address.
+  Transfer(
+    ctx context.Context,
+    to types.Address,
+    amount types.Int,
+    gasLimit uint64,
+  ) (*state.TxResponse, error)
+}
+```
+
+##### Staking
+
+```go
+  type StakingModule interface {
+    Delegate
+    Redelegate
+    Unbond
+    CancelUnbond
+    
+    QueryDelegation
+    QueryRedelegation
+    QueryUnbondingDelegation
+  }
+```
+
+##### Account
+
+```go
+  type AccountModule interface {
+    Add
+    Delete
+    Show
     List
     Sign
     Export
