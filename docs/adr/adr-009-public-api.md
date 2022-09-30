@@ -68,7 +68,7 @@ celestia data availability network will be the responsibility of the **bridge**
 node type. However, that interaction will not be exposed on a public level
 (meaning a **bridge** node will not expose the same API as the
 celestia-core node to which it is connected). A **bridge** node, for all intents
-and purposes, will provide the same API as that of a **full** node.
+and purposes, will provide the same API as that of a **full** node (without the DAS module).
 
 ### Details
 
