@@ -176,20 +176,6 @@ SyncHead(ctx context.Context) (*header.ExtendedHeader, error)
   }
 ```
 
-##### Wallet
-
-```go
-  type WalletModule interface {
-    New
-    Del
-    Has
-    List
-    Sign
-    Export
-    Import
-  }
-```
-
 ### NodeModule
 
 ```go
@@ -290,6 +276,22 @@ yet.
     
     // ExportTo  sets the endpoint the metrics should be exported to
     ExportTo(string)
+  }
+```
+
+### Nice to have eventually
+
+##### Wallet
+
+```go
+  type WalletModule interface {
+    New
+    Del
+    Has
+    List
+    Sign
+    Export
+    Import
   }
 ```
 
