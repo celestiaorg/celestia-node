@@ -11,7 +11,7 @@
 ## Context
 
 DAS is the process of verifying the availability of
-block data by sampling chunks or shares of those blocks. The `das` package implements an engine to continuously ensure the availability of the chain's block data via the `Availability` interface.
+block data by sampling chunks or shares of those blocks. The `das` package implements an engine to ensure the availability of the chain's block data via the `Availability` interface.
 Verifying the availability of block data is a priority functionality for celestia-node. Its performance could benefit significantly from parallelization optimisation to make it able to fully utilise network bandwidth.
 
 ## Previous approach
