@@ -133,8 +133,8 @@ func (f *ProofService) processIncoming(
 	from peer.ID,
 	msg *pubsub.Message,
 ) pubsub.ValidationResult {
-	ctx, span := tracer.Start(ctx, "process-proof", trace.WithAttributes(
-		attribute.String("proofType", string(proofType)),
+	ctx, span := tracer.Start(ctx, "process_proof", trace.WithAttributes(
+		attribute.String("proof_type", string(proofType)),
 	))
 	defer span.End()
 
@@ -151,11 +151,11 @@ func (f *ProofService) processIncoming(
 	}
 	// check the fraud proof locally and ignore if it has been already stored locally.
 	if f.verifyLocal(ctx, proofType, hex.EncodeToString(proof.HeaderHash()), msg.Data) {
-		span.AddEvent("received-known-fraud-proof", trace.WithAttributes(
-			attribute.String("proofType", string(proof.Type())),
-			attribute.Int("block-height", int(proof.Height())),
-			attribute.String("block-hash", hex.EncodeToString(proof.HeaderHash())),
-			attribute.String("from-peer", from.String()),
+		span.AddEvent("received_known_fraud_proof", trace.WithAttributes(
+			attribute.String("proof_type", string(proof.Type())),
+			attribute.Int("block_height", int(proof.Height())),
+			attribute.String("block_hash", hex.EncodeToString(proof.HeaderHash())),
+			attribute.String("from_peer", from.String()),
 		))
 		return pubsub.ValidationIgnore
 	}
@@ -180,11 +180,11 @@ func (f *ProofService) processIncoming(
 		return pubsub.ValidationReject
 	}
 
-	span.AddEvent("received-valid-proof", trace.WithAttributes(
-		attribute.String("proofType", string(proof.Type())),
-		attribute.Int("block-height", int(proof.Height())),
-		attribute.String("block-hash", hex.EncodeToString(proof.HeaderHash())),
-		attribute.String("from-peer", from.String()),
+	span.AddEvent("received_valid_proof", trace.WithAttributes(
+		attribute.String("proof_type", string(proof.Type())),
+		attribute.Int("block_height", int(proof.Height())),
+		attribute.String("block_hash", hex.EncodeToString(proof.HeaderHash())),
+		attribute.String("from_peer", from.String()),
 	))
 
 	// add the fraud proof to storage.

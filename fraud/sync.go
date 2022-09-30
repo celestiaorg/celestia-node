@@ -59,12 +59,12 @@ func (f *ProofService) syncFraudProofs(ctx context.Context) {
 		peerCache[connStatus.Peer] = struct{}{}
 		// valid peer found, so go send proof requests
 		go func(pid peer.ID) {
-			ctx, span := tracer.Start(ctx, "sync-proofs")
+			ctx, span := tracer.Start(ctx, "sync_proofs")
 			defer span.End()
 
 			span.SetAttributes(
 				attribute.String("peerID", pid.String()),
-				attribute.StringSlice("proofTypes", proofTypes),
+				attribute.StringSlice("proof_types", proofTypes),
 			)
 			log.Debugw("requesting proofs from peer", "pid", pid)
 			respProofs, err := requestProofs(ctx, f.host, pid, proofTypes)

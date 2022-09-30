@@ -112,13 +112,13 @@ func MonitorProofs(proofTypes ...ProofType) func(Getter) {
 					case nil:
 						counter.Observe(ctx,
 							int64(len(proofs)),
-							attribute.String("proofType", string(proofType)),
+							attribute.String("proof_type", string(proofType)),
 						)
 					case datastore.ErrNotFound:
-						counter.Observe(ctx, 0)
+						counter.Observe(ctx, 1, attribute.String("err", "not_found"))
 						return
 					default:
-						counter.Observe(ctx, 0, attribute.String("err", err.Error()))
+						counter.Observe(ctx, 1, attribute.String("err", "unknown"))
 					}
 				},
 			)
