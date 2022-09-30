@@ -40,26 +40,26 @@ func WriteEDS(ctx context.Context, eds *rsmt2d.ExtendedDataSquare, w io.Writer) 
 	// 1. Reimport EDS. This is needed to traverse the NMT tree and cache the inner nodes (proofs)
 	writer, err := initializeWriter(ctx, eds, w)
 	if err != nil {
-		return fmt.Errorf("failure creating eds writer: %w", err)
+                return fmt.Errorf("share: failure creating eds writer: %w", err)
 	}
 
 	// 2. Creates and writes Carv1Header
 	//    - Roots are the eds Row + Col roots
 	err = writer.writeHeader()
 	if err != nil {
-		return fmt.Errorf("failure writing carv1 header: %w", err)
+                return fmt.Errorf("share: failure writing carv1 header: %w", err)
 	}
 
 	// 3. Iterates over shares in quadrant order vis eds.GetCell
 	err = writer.writeShares()
 	if err != nil {
-		return fmt.Errorf("failure writing shares: %w", err)
+                return fmt.Errorf("share: failure writing shares: %w", err)
 	}
 
 	// 4. Iterates over in-memory Blockstore and writes proofs to the CAR
 	err = writer.writeProofs(ctx)
 	if err != nil {
-		return fmt.Errorf("failure writing proofs: %w", err)
+                return fmt.Errorf("share: failure writing proofs: %w", err)
 	}
 
 	return nil
