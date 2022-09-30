@@ -11,8 +11,8 @@ import (
 var log = logging.Logger("fraud-module")
 
 func ConstructModule(tp node.Type) fx.Option {
-	baseComponent := fx.Provide(func(service fraud.Service) fraud.Getter {
-		return service
+	baseComponent := fx.Provide(func(module Module) fraud.Getter {
+		return module
 	})
 	switch tp {
 	case node.Light:
