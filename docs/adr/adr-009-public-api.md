@@ -183,8 +183,8 @@ SyncHead(ctx context.Context) (*header.ExtendedHeader, error)
     Type
     Version
     
-    LogList
-    LogLevelSet
+    LogLevelList(ctx context.Context) (map[string]string, error)
+    LogLevelSet(ctx context.Context, name, level string) error
     
     Start(ctx context.Context) error
     Stop(ctx context.Context) error
