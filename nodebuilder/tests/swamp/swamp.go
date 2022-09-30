@@ -26,6 +26,7 @@ import (
 	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
 	"github.com/celestiaorg/celestia-node/nodebuilder/state"
 	"github.com/celestiaorg/celestia-node/params"
+	tmrand "github.com/tendermint/tendermint/libs/rand"
 )
 
 var blackholeIP6 = net.ParseIP("100::")
@@ -66,21 +67,30 @@ func NewSwamp(t *testing.T, options ...Option) *Swamp {
 	var err error
 	ctx := context.Background()
 
+	// we create an arbitray number of funded accounts
+	accounts := make([]string, 10000)
+	for i := 0; i < 10000; i++ {
+		accounts = append(accounts, tmrand.Str(9))
+	}
+
 	// TODO(@Bidon15): CoreClient(limitation)
 	// Now, we are making an assumption that consensus mechanism is already tested out
 	// so, we are not creating bridge nodes with each one containing its own core client
 	// instead we are assigning all created BNs to 1 Core from the swamp
-	tmNode, _, cctx, err := testnode.New(t, ic.CoreCfg, false, "taco", "salad")
+	tmNode, app, cctx, err := testnode.New(t, ic.CoreCfg, false, accounts...)
 	require.NoError(t, err)
 
 	cctx, cleanupCoreNode, err := testnode.StartNode(tmNode, cctx)
 	require.NoError(t, err)
+
+	cctx, cleanupGRPCServer, err := testnode.StartGRPCServer(app, testnode.DefaultAppConfig(), cctx)
 
 	swp := &Swamp{
 		t:             t,
 		Network:       mocknet.New(),
 		ClientContext: cctx,
 		comps:         ic,
+		accounts:      accounts,
 	}
 
 	swp.trustedHash, err = swp.getTrustedHash(ctx)
@@ -89,6 +99,7 @@ func NewSwamp(t *testing.T, options ...Option) *Swamp {
 	swp.t.Cleanup(func() {
 		swp.stopAllNodes(ctx, swp.BridgeNodes, swp.FullNodes, swp.LightNodes)
 		cleanupCoreNode()
+		cleanupGRPCServer()
 	})
 
 	return swp
