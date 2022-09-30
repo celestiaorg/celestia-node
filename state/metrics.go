@@ -10,7 +10,7 @@ import (
 
 var meter = global.MeterProvider().Meter("state")
 
-func MonitorPFDs(ca *CoreAccessor) {
+func WithMetrics(ca *CoreAccessor) {
 	pfdCounter, _ := meter.AsyncInt64().Counter(
 		"pfd_count",
 		instrument.WithUnit(unit.Dimensionless),

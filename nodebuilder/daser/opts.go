@@ -6,7 +6,7 @@ import (
 	"github.com/celestiaorg/celestia-node/das"
 )
 
-func MonitorDASer() fx.Option {
+func WithMetrics() fx.Option {
 	return fx.Invoke(func(d *das.DASer) error {
 		return d.InitMetrics()
 	})

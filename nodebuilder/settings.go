@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"time"
 
-	"go.uber.org/fx"
 	"github.com/libp2p/go-libp2p-core/peer"
 	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetrichttp"
 	"go.opentelemetry.io/otel/metric/global"
@@ -14,9 +13,9 @@ import (
 	selector "go.opentelemetry.io/otel/sdk/metric/selector/simple"
 	"go.opentelemetry.io/otel/sdk/resource"
 	semconv "go.opentelemetry.io/otel/semconv/v1.10.0"
+	"go.uber.org/fx"
 
 	"github.com/celestiaorg/celestia-node/header"
-	"github.com/celestiaorg/celestia-node/header/core"
 	"github.com/celestiaorg/celestia-node/nodebuilder/daser"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	"github.com/celestiaorg/celestia-node/params"
@@ -43,8 +42,8 @@ func WithMetrics(enable bool, metricOpts []otlpmetrichttp.Option, nodeType node.
 	baseComponents := fx.Options(
 		fx.Supply(metricOpts),
 		fx.Invoke(InitializeMetrics),
-		fx.Invoke(header.MonitorHead),
-		fx.Invoke(state.MonitorPFDs),
+		fx.Invoke(header.WithMetrics),
+		fx.Invoke(state.WithMetrics),
 	)
 
 	var opts fx.Option
@@ -52,13 +51,12 @@ func WithMetrics(enable bool, metricOpts []otlpmetrichttp.Option, nodeType node.
 	case node.Full, node.Light:
 		opts = fx.Options(
 			baseComponents,
-			fx.Invoke(daser.MonitorDASer),
+			fx.Invoke(daser.WithMetrics),
 			// add more monitoring here
 		)
 	case node.Bridge:
 		opts = fx.Options(
 			baseComponents,
-			fx.Invoke(core.MonitorBroadcasting),
 			// add more monitoring here
 		)
 	default:
@@ -68,7 +66,13 @@ func WithMetrics(enable bool, metricOpts []otlpmetrichttp.Option, nodeType node.
 }
 
 // InitializeMetrics initializes the global meter provider.
-func InitializeMetrics(ctx context.Context, peerID peer.ID, nodeType node.Type, opts []otlpmetrichttp.Option) error {
+func InitializeMetrics(
+	ctx context.Context,
+	lc fx.Lifecycle,
+	peerID peer.ID,
+	nodeType node.Type,
+	opts []otlpmetrichttp.Option,
+) error {
 	exp, err := otlpmetrichttp.New(ctx, opts...)
 	if err != nil {
 		return err
@@ -89,10 +93,14 @@ func InitializeMetrics(ctx context.Context, peerID peer.ID, nodeType node.Type, 
 		)),
 	)
 
-	err = pusher.Start(ctx)
-	if err != nil {
-		return err
-	}
+	lc.Append(fx.Hook{
+		OnStart: func(ctx context.Context) error {
+			return pusher.Start(ctx)
+		},
+		OnStop: func(ctx context.Context) error {
+			return pusher.Stop(ctx)
+		},
+	})
 
 	global.SetMeterProvider(pusher)
 	return nil
