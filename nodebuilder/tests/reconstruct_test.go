@@ -102,7 +102,7 @@ func TestFullReconstructFromLights(t *testing.T) {
 		lnodes = 69
 	)
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Minute*5)
 	t.Cleanup(cancel)
 	sw := swamp.NewSwamp(t, swamp.WithBlockTime(btime))
 	errCh := make(chan error)
