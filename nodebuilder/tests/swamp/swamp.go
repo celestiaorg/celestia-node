@@ -7,7 +7,6 @@ import (
 	"net"
 	"testing"
 
-	"github.com/99designs/keyring"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/libp2p/go-libp2p-core/host"
 	"github.com/libp2p/go-libp2p-core/peer"
@@ -49,7 +48,6 @@ type Swamp struct {
 	trustedHash string
 	comps       *Components
 
-	kr            keyring.Keyring
 	ClientContext client.Context
 	accounts      []string
 }
@@ -118,7 +116,7 @@ func (s *Swamp) GetCoreBlockHashByHeight(ctx context.Context, height int64) byte
 func (s *Swamp) WaitTillHeight(_ context.Context, height int64) {
 	require.Greater(s.t, height, int64(0))
 
-	testnode.WaitForHeight(s.ClientContext, height)
+	_, _ = testnode.WaitForHeight(s.ClientContext, height)
 }
 
 // createPeer is a helper for celestia nodes to initialize
