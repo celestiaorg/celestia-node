@@ -9,19 +9,25 @@ import (
 	"strconv"
 	"testing"
 
+	"github.com/ipfs/go-datastore"
+	ds_sync "github.com/ipfs/go-datastore/sync"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	tmbytes "github.com/tendermint/tendermint/libs/bytes"
 	"go.uber.org/fx"
 
-	"github.com/celestiaorg/celestia-node/das"
+	das "github.com/celestiaorg/celestia-node/das"
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/header/local"
 	"github.com/celestiaorg/celestia-node/header/store"
 	"github.com/celestiaorg/celestia-node/header/sync"
+	headerServ "github.com/celestiaorg/celestia-node/nodebuilder/header"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
+	shareServ "github.com/celestiaorg/celestia-node/nodebuilder/share"
+	"github.com/celestiaorg/celestia-node/nodebuilder/state"
 	"github.com/celestiaorg/celestia-node/params"
-	service "github.com/celestiaorg/celestia-node/service/header"
 	"github.com/celestiaorg/celestia-node/service/rpc"
+	"github.com/celestiaorg/celestia-node/share"
 )
 
 // NOTE: The following tests are against common RPC endpoints provided by
@@ -189,18 +195,35 @@ func TestDASStateRequest(t *testing.T) {
 	dasStateResp := new(das.SamplingStats)
 	err = json.NewDecoder(resp.Body).Decode(dasStateResp)
 	require.NoError(t, err)
-	// ensure daser is running
-	assert.True(t, dasStateResp.IsRunning)
+	// ensure daser has run (or is still running)
+	assert.True(t, dasStateResp.SampledChainHead == 10 || dasStateResp.IsRunning)
 }
 
 func setupNodeWithModifiedRPC(t *testing.T) *Node {
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
-	// create test node with a dummy header service, manually add a dummy header
+	// create test node with a dummy header headerServ, manually add a dummy header
+	daser := setupDASer(t)
 	hServ := setupHeaderService(ctx, t)
 	// create overrides
 	overrideHeaderServ := fx.Replace(hServ)
-	nd := TestNode(t, node.Full, overrideHeaderServ)
+	// fx.Decorate(func() *das.DASer {return daser}) == fx.Replace(daser)
+	overrideDASer := fx.Decorate(fx.Annotate(
+		func() *das.DASer {
+			return daser
+		},
+		fx.OnStart(func(ctx context.Context) error {
+			return daser.Start(ctx)
+		}),
+		fx.OnStop(func(ctx context.Context) error {
+			return daser.Stop(ctx)
+		}),
+	))
+	overrideRPCHandler := fx.Invoke(func(srv *rpc.Server, state state.Module, share shareServ.Module) {
+		handler := rpc.NewHandler(state, share, hServ, daser)
+		handler.RegisterEndpoints(srv)
+	})
+	nd := TestNode(t, node.Full, overrideHeaderServ, overrideDASer, overrideRPCHandler)
 	// start node
 	err := nd.Start(ctx)
 	require.NoError(t, err)
@@ -211,7 +234,7 @@ func setupNodeWithModifiedRPC(t *testing.T) *Node {
 	return nd
 }
 
-func setupHeaderService(ctx context.Context, t *testing.T) *service.Service {
+func setupHeaderService(ctx context.Context, t *testing.T) headerServ.Module {
 	suite := header.NewTestSuite(t, 1)
 	head := suite.Head()
 	// create header stores
@@ -222,5 +245,53 @@ func setupHeaderService(ctx context.Context, t *testing.T) *service.Service {
 	// create syncer
 	syncer := sync.NewSyncer(local.NewExchange(remoteStore), localStore, &header.DummySubscriber{}, params.BlockTime)
 
-	return service.NewHeaderService(syncer, nil, nil, nil, localStore)
+	return headerServ.NewHeaderService(syncer, nil, nil, nil, localStore)
+}
+
+func setupDASer(t *testing.T) *das.DASer {
+	suite := header.NewTestSuite(t, 1)
+	ds := ds_sync.MutexWrap(datastore.NewMapDatastore())
+	// store has 10 headers
+	mockGet := &mockGetter{
+		headers:        make(map[int64]*header.ExtendedHeader),
+		doneCh:         make(chan struct{}),
+		brokenHeightCh: make(chan struct{}),
+	}
+	for _, h := range suite.GenExtendedHeaders(10) {
+		mockGet.headers[h.Height] = h
+		mockGet.head = h.Height
+	}
+	// subscription has 10 "new" headers
+	sub := &header.DummySubscriber{Headers: suite.GenExtendedHeaders(10)}
+	return das.NewDASer(share.NewTestSuccessfulAvailability(), sub, mockGet, ds, nil)
+}
+
+// taken from daser_test.go
+type mockGetter struct {
+	doneCh chan struct{} // signals all stored headers have been retrieved
+
+	brokenHeightCh chan struct{}
+
+	head    int64
+	headers map[int64]*header.ExtendedHeader
+}
+
+func (m *mockGetter) Head(context.Context) (*header.ExtendedHeader, error) {
+	return m.headers[m.head], nil
+}
+
+func (m *mockGetter) GetByHeight(_ context.Context, height uint64) (*header.ExtendedHeader, error) {
+	h, ok := m.headers[int64(height)]
+	if !ok {
+		return nil, header.ErrNotFound
+	}
+	return h, nil
+}
+
+func (m *mockGetter) GetRangeByHeight(ctx context.Context, from, to uint64) ([]*header.ExtendedHeader, error) {
+	panic("implement me")
+}
+
+func (m *mockGetter) Get(context.Context, tmbytes.HexBytes) (*header.ExtendedHeader, error) {
+	panic("implement me")
 }

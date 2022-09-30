@@ -26,9 +26,12 @@ import (
 
 var log = logging.Logger("state")
 
-// CoreAccessor implements Accessor over a gRPC connection
+// CoreAccessor implements service over a gRPC connection
 // with a celestia-core node.
 type CoreAccessor struct {
+	ctx    context.Context
+	cancel context.CancelFunc
+
 	signer *apptypes.KeyringSigner
 	getter header.Head
 
@@ -43,7 +46,7 @@ type CoreAccessor struct {
 }
 
 // NewCoreAccessor dials the given celestia-core endpoint and
-// constructs and returns a new CoreAccessor with the active
+// constructs and returns a new CoreAccessor (state service) with the active
 // connection.
 func NewCoreAccessor(
 	signer *apptypes.KeyringSigner,
@@ -62,6 +65,7 @@ func NewCoreAccessor(
 }
 
 func (ca *CoreAccessor) Start(ctx context.Context) error {
+	ca.ctx, ca.cancel = context.WithCancel(ctx)
 	if ca.coreConn != nil {
 		return fmt.Errorf("core-access: already connected to core endpoint")
 	}
@@ -88,6 +92,7 @@ func (ca *CoreAccessor) Start(ctx context.Context) error {
 }
 
 func (ca *CoreAccessor) Stop(context.Context) error {
+	defer ca.cancel()
 	if ca.coreConn == nil {
 		return fmt.Errorf("core-access: no connection found to close")
 	}
@@ -350,4 +355,8 @@ func (ca *CoreAccessor) QueryRedelegations(
 		SrcValidatorAddr: srcValAddr.String(),
 		DstValidatorAddr: dstValAddr.String(),
 	})
+}
+
+func (ca *CoreAccessor) IsStopped() bool {
+	return ca.ctx.Err() != nil
 }

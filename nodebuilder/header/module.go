@@ -12,15 +12,14 @@ import (
 	"github.com/celestiaorg/celestia-node/header/store"
 	"github.com/celestiaorg/celestia-node/header/sync"
 	"github.com/celestiaorg/celestia-node/libs/fxutil"
-	fraudbuilder "github.com/celestiaorg/celestia-node/nodebuilder/fraud"
+	fraudServ "github.com/celestiaorg/celestia-node/nodebuilder/fraud"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	"github.com/celestiaorg/celestia-node/params"
-	headerservice "github.com/celestiaorg/celestia-node/service/header"
 )
 
 var log = logging.Logger("header-module")
 
-func Module(tp node.Type, cfg *Config) fx.Option {
+func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 	// sanitize config values before constructing module
 	cfgErr := cfg.Validate()
 
@@ -28,7 +27,7 @@ func Module(tp node.Type, cfg *Config) fx.Option {
 		fx.Supply(*cfg),
 		fx.Error(cfgErr),
 		fx.Supply(params.BlockTime),
-		fx.Provide(headerservice.NewHeaderService),
+		fx.Provide(NewHeaderService),
 		fx.Provide(fx.Annotate(
 			store.NewStore,
 			fx.OnStart(func(ctx context.Context, store header.Store) error {
@@ -47,7 +46,7 @@ func Module(tp node.Type, cfg *Config) fx.Option {
 		}),
 		fx.Provide(fx.Annotate(
 			sync.NewSyncer,
-			fx.OnStart(func(ctx context.Context, lc fx.Lifecycle, fservice fraud.Service, syncer *sync.Syncer) error {
+			fx.OnStart(func(ctx context.Context, lc fx.Lifecycle, fservice fraudServ.Module, syncer *sync.Syncer) error {
 				syncerStartFunc := func(ctx context.Context) error {
 					err := syncer.Start(ctx)
 					switch err {
@@ -60,7 +59,7 @@ func Module(tp node.Type, cfg *Config) fx.Option {
 					return nil
 				}
 				lifecycleCtx := fxutil.WithLifecycle(ctx, lc)
-				return fraudbuilder.Lifecycle(ctx, lifecycleCtx, fraud.BadEncoding, fservice,
+				return fraudServ.Lifecycle(ctx, lifecycleCtx, fraud.BadEncoding, fservice,
 					syncerStartFunc, syncer.Stop)
 			}),
 			fx.OnStop(func(ctx context.Context, syncer *sync.Syncer) error {

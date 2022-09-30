@@ -34,19 +34,6 @@ var GetData = ipld.ShareData
 // In practice, it is a commitment to all the Data in a square.
 type Root = da.DataAvailabilityHeader
 
-// Service provides access to any data square or block share on the network.
-//
-// All Get methods provided on Service follow the following flow:
-//  1. Check local storage for the requested Share.
-//  2. If exists
-//     * Load from disk
-//     * Return
-//  3. If not
-//     * Find provider on the network
-//     * Fetch the Share from the provider
-//     * Store the Share
-//     * Return
-//
 // TODO(@Wondertan): Simple thread safety for Start and Stop would not hurt.
 type Service struct {
 	Availability
@@ -58,7 +45,7 @@ type Service struct {
 	cancel  context.CancelFunc
 }
 
-// NewService creates new basic share.Service.
+// NewService creates a new basic share.Module.
 func NewService(bServ blockservice.BlockService, avail Availability) *Service {
 	return &Service{
 		rtrv:         ipld.NewRetriever(bServ),
@@ -69,7 +56,7 @@ func NewService(bServ blockservice.BlockService, avail Availability) *Service {
 
 func (s *Service) Start(context.Context) error {
 	if s.session != nil || s.cancel != nil {
-		return fmt.Errorf("share: Service already started")
+		return fmt.Errorf("share: service already started")
 	}
 
 	// NOTE: The ctx given as param is used to control Start flow and only needed when Start is blocking,
@@ -84,7 +71,7 @@ func (s *Service) Start(context.Context) error {
 
 func (s *Service) Stop(context.Context) error {
 	if s.session == nil || s.cancel == nil {
-		return fmt.Errorf("share: Service already stopped")
+		return fmt.Errorf("share: service already stopped")
 	}
 
 	s.cancel()

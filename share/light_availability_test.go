@@ -13,8 +13,8 @@ func TestSharesAvailable(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	// RandLightServiceWithSquare creates a NewLightAvailability inside, so we can test it
-	service, dah := RandLightServiceWithSquare(t, 16)
+	// randLightServiceWithSquare creates a NewLightAvailability inside, so we can test it
+	service, dah := randLightServiceWithSquare(t, 16)
 	err := service.SharesAvailable(ctx, dah)
 	assert.NoError(t, err)
 }
@@ -23,8 +23,8 @@ func TestSharesAvailableFailed(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	// RandLightServiceWithSquare creates a NewLightAvailability inside, so we can test it
-	s, _ := RandLightServiceWithSquare(t, 16)
+	// randLightServiceWithSquare creates a NewLightAvailability inside, so we can test it
+	s, _ := randLightServiceWithSquare(t, 16)
 	empty := header.EmptyDAH()
 	err := s.SharesAvailable(ctx, &empty)
 	assert.Error(t, err)

@@ -7,7 +7,7 @@ import (
 	routingdisc "github.com/libp2p/go-libp2p/p2p/discovery/routing"
 	"go.uber.org/fx"
 
-	"github.com/celestiaorg/celestia-node/service/share"
+	"github.com/celestiaorg/celestia-node/share"
 )
 
 func Discovery(cfg Config) func(routing.ContentRouting, host.Host) *share.Discovery {

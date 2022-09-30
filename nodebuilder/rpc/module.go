@@ -5,14 +5,14 @@ import (
 
 	"go.uber.org/fx"
 
+	headerServ "github.com/celestiaorg/celestia-node/nodebuilder/header"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
-	headerServ "github.com/celestiaorg/celestia-node/service/header"
+	shareServ "github.com/celestiaorg/celestia-node/nodebuilder/share"
+	stateServ "github.com/celestiaorg/celestia-node/nodebuilder/state"
 	rpcServ "github.com/celestiaorg/celestia-node/service/rpc"
-	shareServ "github.com/celestiaorg/celestia-node/service/share"
-	stateServ "github.com/celestiaorg/celestia-node/service/state"
 )
 
-func Module(tp node.Type, cfg *rpcServ.Config) fx.Option {
+func ConstructModule(tp node.Type, cfg *rpcServ.Config) fx.Option {
 	// sanitize config values before constructing module
 	cfgErr := cfg.Validate()
 
@@ -42,9 +42,9 @@ func Module(tp node.Type, cfg *rpcServ.Config) fx.Option {
 			"rpc",
 			baseComponents,
 			fx.Invoke(func(
-				state *stateServ.Service,
-				share *shareServ.Service,
-				header *headerServ.Service,
+				state stateServ.Module,
+				share shareServ.Module,
+				header headerServ.Module,
 				rpcSrv *rpcServ.Server,
 			) {
 				Handler(state, share, header, rpcSrv, nil)

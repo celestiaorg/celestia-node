@@ -4,9 +4,9 @@ import (
 	"github.com/ipfs/go-datastore"
 
 	"github.com/celestiaorg/celestia-node/das"
-	"github.com/celestiaorg/celestia-node/fraud"
 	"github.com/celestiaorg/celestia-node/header"
-	"github.com/celestiaorg/celestia-node/service/share"
+	"github.com/celestiaorg/celestia-node/nodebuilder/fraud"
+	"github.com/celestiaorg/celestia-node/share"
 )
 
 func NewDASer(
@@ -14,7 +14,7 @@ func NewDASer(
 	hsub header.Subscriber,
 	store header.Store,
 	batching datastore.Batching,
-	fraudService fraud.Service,
+	fraudService fraud.Module,
 ) *das.DASer {
 	return das.NewDASer(da, hsub, store, batching, fraudService)
 }

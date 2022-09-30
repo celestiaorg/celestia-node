@@ -6,6 +6,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/celestiaorg/celestia-node/nodebuilder/header"
+
 	"github.com/ipfs/go-blockservice"
 	exchange "github.com/ipfs/go-ipfs-exchange-interface"
 	logging "github.com/ipfs/go-log/v2"
@@ -17,13 +19,12 @@ import (
 	"go.uber.org/fx"
 
 	"github.com/celestiaorg/celestia-node/das"
-	"github.com/celestiaorg/celestia-node/fraud"
+	"github.com/celestiaorg/celestia-node/nodebuilder/fraud"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
+	"github.com/celestiaorg/celestia-node/nodebuilder/share"
+	"github.com/celestiaorg/celestia-node/nodebuilder/state"
 	"github.com/celestiaorg/celestia-node/params"
-	"github.com/celestiaorg/celestia-node/service/header"
 	"github.com/celestiaorg/celestia-node/service/rpc"
-	"github.com/celestiaorg/celestia-node/service/share"
-	"github.com/celestiaorg/celestia-node/service/state"
 )
 
 const Timeout = time.Second * 15
@@ -55,11 +56,11 @@ type Node struct {
 	// p2p protocols
 	PubSub *pubsub.PubSub
 	// services
-	ShareServ  *share.Service  // not optional
-	HeaderServ *header.Service // not optional
-	StateServ  *state.Service  // not optional
-	FraudServ  fraud.Service   // not optional
-	DASer      *das.DASer      `optional:"true"`
+	ShareServ  share.Module  // not optional
+	HeaderServ header.Module // not optional
+	StateServ  state.Module  // not optional
+	FraudServ  fraud.Module  // not optional
+	DASer      *das.DASer    `optional:"true"`
 
 	// start and stop control ref internal fx.App lifecycle funcs to be called from Start and Stop
 	start, stop lifecycleFunc
@@ -77,7 +78,7 @@ func New(tp node.Type, store Store, options ...fx.Option) (*Node, error) {
 
 // NewWithConfig assembles a new Node with the given type 'tp' over Store 'store' and a custom config.
 func NewWithConfig(tp node.Type, store Store, cfg *Config, options ...fx.Option) (*Node, error) {
-	opts := append([]fx.Option{Module(tp, cfg, store)}, options...)
+	opts := append([]fx.Option{ConstructModule(tp, cfg, store)}, options...)
 	return newNode(opts...)
 }
 
