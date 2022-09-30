@@ -1,0 +1,69 @@
+name: CI and Release
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+  workflow_dispatch:
+    # Inputs the workflow accepts.
+    inputs:
+      version:
+        # Friendly description to be shown in the UI instead of 'name'
+        description: "Semver type of new version (major / minor / patch)"
+        # Input has to be provided for the workflow to run
+        required: true
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+
+jobs:
+  # Dockerfile Linting
+  hadolint:
+    uses: celestiaorg/.github/.github/workflows/reusable_dockerfile_lint.yml@main
+    with:
+      dockerfile: docker/Dockerfile
+
+  yamllint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: celestiaorg/.github/.github/actions/yamllint@main
+
+  markdown-lint:
+    name: Markdown Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-node@v3
+        with:
+          node-version: 18
+      - run: |
+          npm install -g markdownlint-cli@0.32.1
+          markdownlint --config .markdownlint.yaml '**/*.md'
+
+  go-ci:
+    # NOTE: branch should be updated to main, little bit of a chicken and egg,
+    # have to test it like this and then update to main after.
+    uses: ./.github/workflows/go-ci.yml@sevey/github-action-updates
+
+  # Make a release if this is a manually trigger job, i.e. workflow_dispatch
+  release:
+    needs: [hadolint, yamllint, markdown-lint, go-ci]
+    runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'workflow_dispatch' }}
+    permissions: "write-all"
+    steps:
+      - uses: actions/checkout@v3
+      - name: Version Release
+        uses: celestiaorg/.github/.github/actions/version-release@main
+        with:
+          github-token: ${{secrets.GITHUB_TOKEN}}
+          version-bump: ${{inputs.version}}
+
+  docker:
+    needs: [release]
+    # NOTE: branch should be updated to main, little bit of a chicken and egg,
+    # have to test it like this and then update to main after.
+    uses: ./.github/workflows/docker-build.yml@sevey/github-action-updates
