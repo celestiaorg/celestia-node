@@ -5,6 +5,12 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/celestiaorg/celestia-node/share/ipld"
+
+	"github.com/celestiaorg/celestia-node/share"
+
+	"github.com/celestiaorg/celestia-node/share/retriever"
+
 	"github.com/tendermint/tendermint/pkg/consts"
 	"github.com/tendermint/tendermint/pkg/wrapper"
 
@@ -12,9 +18,7 @@ import (
 
 	pb "github.com/celestiaorg/celestia-node/fraud/pb"
 	"github.com/celestiaorg/celestia-node/header"
-	"github.com/celestiaorg/celestia-node/ipld"
-	ipld_pb "github.com/celestiaorg/celestia-node/ipld/pb"
-	"github.com/celestiaorg/celestia-node/ipld/plugin"
+	ipld_pb "github.com/celestiaorg/celestia-node/share/pb"
 )
 
 func init() {
@@ -27,7 +31,7 @@ type BadEncodingProof struct {
 	// ShareWithProof contains all shares from row or col.
 	// Shares that did not pass verification in rsmt2d will be nil.
 	// For non-nil shares MerkleProofs are computed.
-	Shares []*ipld.ShareWithProof
+	Shares []*share.ShareWithProof
 	// Index represents the row/col index where ErrByzantineRow/ErrByzantineColl occurred.
 	Index uint32
 	// Axis represents the axis that verification failed on.
@@ -39,7 +43,7 @@ type BadEncodingProof struct {
 func CreateBadEncodingProof(
 	hash []byte,
 	height uint64,
-	errByzantine *ipld.ErrByzantine,
+	errByzantine *retriever.ErrByzantine,
 ) Proof {
 
 	return &BadEncodingProof{
@@ -92,7 +96,7 @@ func (p *BadEncodingProof) UnmarshalBinary(data []byte) error {
 	befp := &BadEncodingProof{
 		headerHash:  in.HeaderHash,
 		BlockHeight: in.Height,
-		Shares:      ipld.ProtoToShare(in.Shares),
+		Shares:      share.ProtoToShare(in.Shares),
 		Index:       in.Index,
 		Axis:        rsmt2d.Axis(in.Axis),
 	}
@@ -141,7 +145,7 @@ func (p *BadEncodingProof) Validate(header *header.ExtendedHeader) error {
 			continue
 		}
 		shares[index] = share.Share
-		if ok := share.Validate(plugin.MustCidFromNamespacedSha256(root)); !ok {
+		if ok := share.Validate(ipld.MustCidFromNamespacedSha256(root)); !ok {
 			return fmt.Errorf("fraud: invalid proof: incorrect share received at index %d", index)
 		}
 	}

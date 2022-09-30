@@ -5,6 +5,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/celestiaorg/celestia-node/share/availability/full"
+	"github.com/celestiaorg/celestia-node/share/availability/light"
+	availability_test "github.com/celestiaorg/celestia-node/share/availability/test"
+
 	"github.com/tendermint/tendermint/types"
 
 	"github.com/ipfs/go-blockservice"
@@ -19,7 +23,6 @@ import (
 
 	"github.com/celestiaorg/celestia-node/fraud"
 	"github.com/celestiaorg/celestia-node/header"
-	"github.com/celestiaorg/celestia-node/share"
 )
 
 var timeout = time.Second * 15
@@ -29,7 +32,7 @@ var timeout = time.Second * 15
 func TestDASerLifecycle(t *testing.T) {
 	ds := ds_sync.MutexWrap(datastore.NewMapDatastore())
 	bServ := mdutils.Bserv()
-	avail := share.TestLightAvailability(bServ)
+	avail := light.TestLightAvailability(bServ)
 	// 15 headers from the past and 15 future headers
 	mockGet, sub, mockService := createDASerSubcomponents(t, bServ, 15, 15)
 
@@ -63,7 +66,7 @@ func TestDASerLifecycle(t *testing.T) {
 func TestDASer_Restart(t *testing.T) {
 	ds := ds_sync.MutexWrap(datastore.NewMapDatastore())
 	bServ := mdutils.Bserv()
-	avail := share.TestLightAvailability(bServ)
+	avail := light.TestLightAvailability(bServ)
 	// 15 headers from the past and 15 future headers
 	mockGet, sub, mockService := createDASerSubcomponents(t, bServ, 15, 15)
 
@@ -132,7 +135,7 @@ func TestDASer_stopsAfter_BEFP(t *testing.T) {
 	ps, err := pubsub.NewGossipSub(ctx, net.Hosts()[0],
 		pubsub.WithMessageSignaturePolicy(pubsub.StrictNoSign))
 	require.NoError(t, err)
-	avail := share.TestFullAvailability(bServ)
+	avail := full.TestFullAvailability(bServ)
 	// 15 headers from the past and 15 future headers
 	mockGet, sub, _ := createDASerSubcomponents(t, bServ, 15, 15)
 
@@ -209,7 +212,7 @@ func (m *mockGetter) fillSubWithHeaders(
 
 	index := 0
 	for i := startHeight; i < endHeight; i++ {
-		dah := share.RandFillBS(t, 16, bServ)
+		dah := availability_test.RandFillBS(t, 16, bServ)
 
 		randHeader := header.RandExtendedHeader(t)
 		randHeader.DataHash = dah.Hash()
@@ -237,7 +240,7 @@ type mockGetter struct {
 
 func (m *mockGetter) generateHeaders(t *testing.T, bServ blockservice.BlockService, startHeight, endHeight int) {
 	for i := startHeight; i < endHeight; i++ {
-		dah := share.RandFillBS(t, 16, bServ)
+		dah := availability_test.RandFillBS(t, 16, bServ)
 
 		randHeader := header.RandExtendedHeader(t)
 		randHeader.DataHash = dah.Hash()

@@ -3,10 +3,13 @@ package share
 import (
 	"context"
 
+	"github.com/celestiaorg/celestia-node/share/availability"
+	"github.com/celestiaorg/celestia-node/share/availability/full"
+	"github.com/celestiaorg/celestia-node/share/availability/light"
+
 	"go.uber.org/fx"
 
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
-	"github.com/celestiaorg/celestia-node/share"
 )
 
 func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option {
@@ -17,7 +20,7 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 		fx.Supply(*cfg),
 		fx.Error(cfgErr),
 		fx.Options(options...),
-		fx.Invoke(share.EnsureEmptySquareExists),
+		fx.Invoke(availability.EnsureEmptySquareExists),
 		fx.Provide(Discovery(*cfg)),
 		fx.Provide(NewModule),
 	)
@@ -28,34 +31,34 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 			"share",
 			baseComponents,
 			fx.Provide(fx.Annotate(
-				share.NewLightAvailability,
-				fx.OnStart(func(ctx context.Context, avail *share.LightAvailability) error {
+				light.NewLightAvailability,
+				fx.OnStart(func(ctx context.Context, avail *light.ShareAvailability) error {
 					return avail.Start(ctx)
 				}),
-				fx.OnStop(func(ctx context.Context, avail *share.LightAvailability) error {
+				fx.OnStop(func(ctx context.Context, avail *light.ShareAvailability) error {
 					return avail.Stop(ctx)
 				}),
 			)),
 			// CacheAvailability's lifecycle continues to use a fx hook,
 			// since the LC requires a CacheAvailability but the constructor returns a share.Availability
-			fx.Provide(CacheAvailability[*share.LightAvailability]),
+			fx.Provide(CacheAvailability[*light.ShareAvailability]),
 		)
 	case node.Bridge, node.Full:
 		return fx.Module(
 			"share",
 			baseComponents,
 			fx.Provide(fx.Annotate(
-				share.NewFullAvailability,
-				fx.OnStart(func(ctx context.Context, avail *share.FullAvailability) error {
+				full.NewShareAvailability,
+				fx.OnStart(func(ctx context.Context, avail *full.ShareAvailability) error {
 					return avail.Start(ctx)
 				}),
-				fx.OnStop(func(ctx context.Context, avail *share.FullAvailability) error {
+				fx.OnStop(func(ctx context.Context, avail *full.ShareAvailability) error {
 					return avail.Stop(ctx)
 				}),
 			)),
 			// CacheAvailability's lifecycle continues to use a fx hook,
 			// since the LC requires a CacheAvailability but the constructor returns a share.Availability
-			fx.Provide(CacheAvailability[*share.FullAvailability]),
+			fx.Provide(CacheAvailability[*full.ShareAvailability]),
 		)
 	default:
 		panic("invalid node type")

@@ -6,10 +6,11 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/celestiaorg/celestia-node/share/retriever"
+
 	"github.com/ipfs/go-blockservice"
 
 	"github.com/celestiaorg/celestia-node/header"
-	"github.com/celestiaorg/celestia-node/ipld"
 )
 
 type DummyService struct {
@@ -66,7 +67,7 @@ func generateByzantineError(
 	bServ blockservice.BlockService,
 ) (*header.ExtendedHeader, error) {
 	faultHeader := header.CreateFraudExtHeader(t, h, bServ)
-	rtrv := ipld.NewRetriever(bServ)
+	rtrv := retriever.NewRetriever(bServ)
 	_, err := rtrv.Retrieve(ctx, faultHeader.DAH)
 	return faultHeader, err
 }
