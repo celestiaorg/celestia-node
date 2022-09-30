@@ -50,6 +50,26 @@ The tracking issue can be found
 more detailed step-by-step process for how the below described design will be
 implemented.
 
+### High-level description
+
+All node types in `celestia-node` will be referred to as `data availability
+nodes (DA nodes)` whose sole purpose is to interact with the `data availability
+network layer (DA layer)` such that the node contains all functionality
+necessary to post and retrieve messages from the DA layer.
+
+
+This means that DA nodes will be able to query for / modify celestia state such
+that the DA nodes are able to pay for posting their messages on the network.
+The state-related API will be documented below in detail.
+
+
+Furthermore, interaction between the celestia consensus network and the
+celestia data availability network will be the responsibility of the **bridge**
+node type. However, that interaction will not be exposed on a public level
+(meaning a **bridge** node will not expose the same API as the
+celestia-core node to which it is connected). A **bridge** node, for all intents
+and purposes, will provide the same API as that of a **full** node.
+
 ### Details
 
 #### Services Deprecation
@@ -60,7 +80,7 @@ The initial step is to deprecate services in favor of modules. Ex.
 - We're organically moving towards the direction of modularized libraries. That
 is, our `share`, `header` and `state` packages are getting shaped as independent
 modules which now lack their own API definition.
-- Consistency. Semantically, modules are closer to what high level Celestia
+- Consistency. Semantically, modules are closer to what Celestia's overarching
 project goals and slogans.
 - Disassociate centralization. Services have always been associated with
 centralized infrastructure with older monolithic services and newer distributed
