@@ -7,6 +7,8 @@ import (
 	"net"
 	"testing"
 
+	"github.com/99designs/keyring"
+	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/libp2p/go-libp2p-core/host"
 	"github.com/libp2p/go-libp2p-core/peer"
 	mocknet "github.com/libp2p/go-libp2p/p2p/net/mock"
@@ -16,7 +18,7 @@ import (
 	"github.com/tendermint/tendermint/types"
 	"go.uber.org/fx"
 
-	"github.com/celestiaorg/celestia-node/core"
+	"github.com/celestiaorg/celestia-app/testutil/testnode"
 	"github.com/celestiaorg/celestia-node/libs/keystore"
 	"github.com/celestiaorg/celestia-node/logs"
 	"github.com/celestiaorg/celestia-node/nodebuilder"
@@ -41,12 +43,15 @@ var queryEvent string = types.QueryForEvent(types.EventNewBlock).String()
 type Swamp struct {
 	t           *testing.T
 	Network     mocknet.Mocknet
-	CoreClient  core.Client
 	BridgeNodes []*nodebuilder.Node
 	FullNodes   []*nodebuilder.Node
 	LightNodes  []*nodebuilder.Node
 	trustedHash string
 	comps       *Components
+
+	kr            keyring.Keyring
+	ClientContext client.Context
+	accounts      []string
 }
 
 // NewSwamp creates a new instance of Swamp.
@@ -67,26 +72,17 @@ func NewSwamp(t *testing.T, options ...Option) *Swamp {
 	// Now, we are making an assumption that consensus mechanism is already tested out
 	// so, we are not creating bridge nodes with each one containing its own core client
 	// instead we are assigning all created BNs to 1 Core from the swamp
-	core.StartTestNode(ctx, t, ic.App, ic.CoreCfg)
-	endpoint, err := core.GetEndpoint(ic.CoreCfg)
+	tmNode, _, cctx, err := testnode.New(t, ic.CoreCfg, false, "taco", "salad")
 	require.NoError(t, err)
-	ip, port, err := net.SplitHostPort(endpoint)
-	require.NoError(t, err)
-	remote, err := core.NewRemote(ip, port)
-	require.NoError(t, err)
-	t.Cleanup(func() {
-		err := remote.Stop()
-		require.NoError(t, err)
-	})
 
-	err = remote.Start()
+	cctx, cleanupCoreNode, err := testnode.StartNode(tmNode, cctx)
 	require.NoError(t, err)
 
 	swp := &Swamp{
-		t:          t,
-		Network:    mocknet.New(),
-		CoreClient: remote,
-		comps:      ic,
+		t:             t,
+		Network:       mocknet.New(),
+		ClientContext: cctx,
+		comps:         ic,
 	}
 
 	swp.trustedHash, err = swp.getTrustedHash(ctx)
@@ -94,6 +90,7 @@ func NewSwamp(t *testing.T, options ...Option) *Swamp {
 
 	swp.t.Cleanup(func() {
 		swp.stopAllNodes(ctx, swp.BridgeNodes, swp.FullNodes, swp.LightNodes)
+		cleanupCoreNode()
 	})
 
 	return swp
@@ -111,40 +108,17 @@ func (s *Swamp) stopAllNodes(ctx context.Context, allNodes ...[]*nodebuilder.Nod
 
 // GetCoreBlockHashByHeight returns a tendermint block's hash by provided height
 func (s *Swamp) GetCoreBlockHashByHeight(ctx context.Context, height int64) bytes.HexBytes {
-	b, err := s.CoreClient.Block(ctx, &height)
+	b, err := s.ClientContext.Client.Block(ctx, &height)
 	require.NoError(s.t, err)
 	return b.BlockID.Hash
 }
 
 // WaitTillHeight holds the test execution until the given amount of blocks
 // has been produced by the CoreClient.
-func (s *Swamp) WaitTillHeight(ctx context.Context, height int64) {
+func (s *Swamp) WaitTillHeight(_ context.Context, height int64) {
 	require.Greater(s.t, height, int64(0))
 
-	ctx, cancel := context.WithCancel(ctx)
-	defer cancel()
-	results, err := s.CoreClient.Subscribe(ctx, subscriberID, queryEvent)
-	require.NoError(s.t, err)
-
-	defer func() {
-		// TODO(@Wondertan): For some reason, the Unsubscribe does not work and we have to do
-		//  an UnsubscribeAll as a hack. There is somewhere a bug in the Tendermint which should be
-		//  investigated
-		err = s.CoreClient.UnsubscribeAll(ctx, subscriberID)
-		require.NoError(s.t, err)
-	}()
-
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case block := <-results:
-			newBlock := block.Data.(types.EventDataNewBlock)
-			if height <= newBlock.Block.Height {
-				return
-			}
-		}
-	}
+	testnode.WaitForHeight(s.ClientContext, height)
 }
 
 // createPeer is a helper for celestia nodes to initialize
@@ -177,11 +151,11 @@ func (s *Swamp) getTrustedHash(ctx context.Context) (string, error) {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	results, err := s.CoreClient.Subscribe(ctx, subscriberID, queryEvent)
+	results, err := s.ClientContext.Client.Subscribe(ctx, subscriberID, queryEvent)
 	require.NoError(s.t, err)
 
 	defer func() {
-		err := s.CoreClient.UnsubscribeAll(ctx, subscriberID)
+		err := s.ClientContext.Client.UnsubscribeAll(ctx, subscriberID)
 		require.NoError(s.t, err)
 	}()
 
@@ -243,7 +217,7 @@ func (s *Swamp) NewNodeWithStore(
 	switch t {
 	case node.Bridge:
 		options = append(options,
-			coremodule.WithClient(s.CoreClient),
+			coremodule.WithClient(s.ClientContext.Client),
 		)
 		n = s.newNode(node.Bridge, store, options...)
 		s.BridgeNodes = append(s.BridgeNodes, n)
