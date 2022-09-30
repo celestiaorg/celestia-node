@@ -1,10 +1,10 @@
-package cmd
+package rpc
 
 import (
 	"github.com/spf13/cobra"
 	flag "github.com/spf13/pflag"
 
-	"github.com/celestiaorg/celestia-node/nodebuilder"
+	"github.com/celestiaorg/celestia-node/service/rpc"
 )
 
 var (
@@ -12,8 +12,8 @@ var (
 	portFlag = "rpc.port"
 )
 
-// RPCFlags gives a set of hardcoded node/rpc package flags.
-func RPCFlags() *flag.FlagSet {
+// Flags gives a set of hardcoded node/rpc package flags.
+func Flags() *flag.FlagSet {
 	flags := &flag.FlagSet{}
 
 	flags.String(
@@ -30,14 +30,14 @@ func RPCFlags() *flag.FlagSet {
 	return flags
 }
 
-// ParseRPCFlags parses RPC flags from the given cmd and applies values to Env.
-func ParseRPCFlags(cmd *cobra.Command, cfg *nodebuilder.Config) {
+// ParseFlags parses RPC flags from the given cmd and saves them to the passed config.
+func ParseFlags(cmd *cobra.Command, cfg *rpc.Config) {
 	addr := cmd.Flag(addrFlag).Value.String()
 	if addr != "" {
-		cfg.RPC.Address = addr
+		cfg.Address = addr
 	}
 	port := cmd.Flag(portFlag).Value.String()
 	if port != "" {
-		cfg.RPC.Port = port
+		cfg.Port = port
 	}
 }

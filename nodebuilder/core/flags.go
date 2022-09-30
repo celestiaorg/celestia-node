@@ -1,12 +1,10 @@
-package cmd
+package core
 
 import (
 	"fmt"
 
 	"github.com/spf13/cobra"
 	flag "github.com/spf13/pflag"
-
-	"github.com/celestiaorg/celestia-node/nodebuilder"
 )
 
 var (
@@ -15,8 +13,8 @@ var (
 	coreGRPCFlag = "core.grpc.port"
 )
 
-// CoreFlags gives a set of hardcoded Core flags.
-func CoreFlags() *flag.FlagSet {
+// Flags gives a set of hardcoded Core flags.
+func Flags() *flag.FlagSet {
 	flags := &flag.FlagSet{}
 
 	flags.String(
@@ -38,10 +36,10 @@ func CoreFlags() *flag.FlagSet {
 	return flags
 }
 
-// ParseCoreFlags parses Core flags from the given cmd and applies values to Env.
-func ParseCoreFlags(
+// ParseFlags parses Core flags from the given cmd and saves them to the passed config.
+func ParseFlags(
 	cmd *cobra.Command,
-	cfg *nodebuilder.Config,
+	cfg *Config,
 ) error {
 	coreIP := cmd.Flag(coreFlag).Value.String()
 	if coreIP == "" {
@@ -54,8 +52,8 @@ func ParseCoreFlags(
 	rpc := cmd.Flag(coreRPCFlag).Value.String()
 	grpc := cmd.Flag(coreGRPCFlag).Value.String()
 
-	cfg.Core.IP = coreIP
-	cfg.Core.RPCPort = rpc
-	cfg.Core.GRPCPort = grpc
+	cfg.IP = coreIP
+	cfg.RPCPort = rpc
+	cfg.GRPCPort = grpc
 	return nil
 }
