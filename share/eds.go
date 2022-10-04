@@ -73,7 +73,7 @@ func initializeWriter(ctx context.Context, eds *rsmt2d.ExtendedDataSquare, w io.
 	// shares are extracted from the eds so that we can reimport them to traverse
 	shares := ipld.ExtractEDS(eds)
 	if len(shares) == 0 {
-		return nil, fmt.Errorf("ipld: importing empty share")
+		return nil, fmt.Errorf("share: importing empty data")
 	}
 	// todo: add correct batch size here
 	squareSize := int(math.Sqrt(float64(len(shares))))
@@ -120,9 +120,6 @@ func (w *writingSession) writeHeader() error {
 func (w *writingSession) writeQuadrants() error {
 	shares := quadrantOrder(w.eds)
 	for _, share := range shares {
-		// TODO: Okay. this is really weird and I don't understand:
-		// We need to cut off the first byte like we do for inner nodes, but this share doesn't even have the prefix...
-		// So what is going on? If we don't do this, the cid doesn't match on read.
 		cid, err := plugin.CidFromNamespacedSha256(nmt.Sha256Namespace8FlaggedLeaf(share[1:]))
 		if err != nil {
 			return fmt.Errorf("failure to get cid from share: %w", err)
@@ -147,7 +144,7 @@ func (w *writingSession) writeProofs(ctx context.Context) error {
 		if err != nil {
 			return fmt.Errorf("failure to get proof from the blockstore: %w", err)
 		}
-		// TODO: Learn why this doesn't match proofCid or node.Cid()
+		// we chop off the first byte, as it is an unnecessary type byte.
 		cid, err := plugin.CidFromNamespacedSha256(nmt.Sha256Namespace8FlaggedInner(node.RawData()[1:]))
 		if err != nil {
 			return fmt.Errorf("failure to get cid: %w", err)
