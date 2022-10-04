@@ -2,7 +2,7 @@ package rpc
 
 import (
 	"github.com/celestiaorg/celestia-node/api/rpc"
-	"github.com/celestiaorg/celestia-node/das"
+	"github.com/celestiaorg/celestia-node/nodebuilder/daser"
 	"github.com/celestiaorg/celestia-node/nodebuilder/header"
 	"github.com/celestiaorg/celestia-node/nodebuilder/share"
 	"github.com/celestiaorg/celestia-node/nodebuilder/state"
@@ -13,13 +13,13 @@ func RegisterEndpoints(
 	state state.Module,
 	share share.Module,
 	header header.Module,
+	daser daser.Module,
 	serv *rpc.Server,
-	daser *das.DASer,
 ) {
-	serv.RegisterService("state", state)
-	serv.RegisterService("share", share)
-	serv.RegisterService("header", header)
-	serv.RegisterService("daser", daser)
+	serv.RegisterService("handler", state)
+	serv.RegisterService("handler", share)
+	serv.RegisterService("handler", header)
+	serv.RegisterService("handler", daser)
 }
 
 func Server(cfg *Config) *rpc.Server {
