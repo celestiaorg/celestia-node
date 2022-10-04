@@ -77,7 +77,7 @@ celestia <node_type> start
 
 ## Package-specific documentation
 
-- [Header](./service/header/doc.go)
+- [Header](./header/doc.go)
 - [Share](./share/doc.go)
 - [DAS](./das/doc.go)
 
