@@ -34,11 +34,7 @@ func WithBootstrappers(peers params.Bootstrappers) fx.Option {
 }
 
 // WithMetrics enables metrics exporting for the node.
-func WithMetrics(enable bool, metricOpts []otlpmetrichttp.Option, nodeType node.Type) fx.Option {
-	if !enable {
-		return fx.Options()
-	}
-
+func WithMetrics(metricOpts []otlpmetrichttp.Option, nodeType node.Type) fx.Option {
 	baseComponents := fx.Options(
 		fx.Supply(metricOpts),
 		fx.Invoke(initializeMetrics),
