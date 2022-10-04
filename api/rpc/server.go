@@ -53,3 +53,8 @@ func (s *Server) Stop(context.Context) error {
 	log.Info("RPC server stopped")
 	return nil
 }
+
+// ListenAddr returns the listen address of the server.
+func (s *Server) ListenAddr() string {
+	return s.listener.Addr().String()
+}

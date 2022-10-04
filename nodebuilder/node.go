@@ -16,9 +16,9 @@ import (
 	"github.com/libp2p/go-libp2p/p2p/net/conngater"
 	"go.uber.org/fx"
 
-	"github.com/celestiaorg/celestia-node/api/gateway"
 	"github.com/celestiaorg/celestia-node/das"
 	"github.com/celestiaorg/celestia-node/nodebuilder/fraud"
+	"github.com/celestiaorg/celestia-node/api/rpc"
 	"github.com/celestiaorg/celestia-node/nodebuilder/header"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
@@ -44,8 +44,8 @@ type Node struct {
 	Bootstrappers p2p.Bootstrappers
 	Config        *Config
 
-	// gateway components
-	RPCServer *gateway.Server `optional:"true"`
+	// rpc components
+	RPCServer *rpc.Server `optional:"true"`
 	// p2p components
 	Host         host.Host
 	ConnGater    *conngater.BasicConnectionGater
