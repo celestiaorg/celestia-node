@@ -65,3 +65,24 @@ func RandShares(t *testing.T, total int) []Share {
 
 	return shares
 }
+
+func RandBenchmarkEDS(b *testing.B, size int) *rsmt2d.ExtendedDataSquare {
+	total := size * size
+
+	shares := make([]Share, total)
+	for i := range shares {
+		nid := make([]byte, Size)
+		mrand.Read(nid[:NamespaceSize])
+		shares[i] = nid
+	}
+	sort.Slice(shares, func(i, j int) bool { return bytes.Compare(shares[i], shares[j]) < 0 })
+
+	for i := range shares {
+		mrand.Read(shares[i][NamespaceSize:])
+	}
+	// create the nmt wrapper to generate row and col commitments
+	tree := wrapper.NewErasuredNamespacedMerkleTree(uint64(size))
+	// recompute the eds
+	eds, _ := rsmt2d.ComputeExtendedDataSquare(shares, DefaultRSMT2DCodec(), tree.Constructor)
+	return eds
+}

@@ -4,6 +4,7 @@ import (
 	"context"
 	"embed"
 	"encoding/json"
+	"fmt"
 	"os"
 	"testing"
 
@@ -173,6 +174,34 @@ func TestReadEDSContentIntegrityMismatch(t *testing.T) {
 
 	_, err := ReadEDS(context.Background(), f, dah)
 	require.ErrorContains(t, err, "share: content integrity mismatch: imported root")
+}
+
+func BenchmarkReadWriteEDS(b *testing.B) {
+	ctx, cancel := context.WithCancel(context.Background())
+	for originalDataWidth := 4; originalDataWidth <= 64; originalDataWidth *= 2 {
+		tmpDir := b.TempDir()
+		err := os.Chdir(tmpDir)
+		require.NoError(b, err)
+		eds := share.RandBenchmarkEDS(b, originalDataWidth)
+		dah := da.NewDataAvailabilityHeader(eds)
+		b.Run(fmt.Sprintf("Writing %dx%d", originalDataWidth, originalDataWidth), func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				f, _ := os.OpenFile(fmt.Sprintf("%d.car", originalDataWidth), os.O_WRONLY|os.O_CREATE, 0600)
+				err := WriteEDS(ctx, eds, f)
+				require.NoError(b, err)
+				f.Close()
+			}
+		})
+		b.Run(fmt.Sprintf("Reading %dx%d", originalDataWidth, originalDataWidth), func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				f, _ := os.OpenFile(fmt.Sprintf("%d.car", originalDataWidth), os.O_RDONLY, 0600)
+				_, err = ReadEDS(ctx, f, dah)
+				require.NoError(b, err)
+				f.Close()
+			}
+		})
+	}
+	b.Cleanup(cancel)
 }
 
 func writeRandomEDS(t *testing.T) *rsmt2d.ExtendedDataSquare {
