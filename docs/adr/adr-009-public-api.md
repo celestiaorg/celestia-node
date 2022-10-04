@@ -57,18 +57,17 @@ nodes (DA nodes)` whose sole purpose is to interact with the `data availability
 network layer (DA layer)` such that the node contains all functionality
 necessary to post and retrieve messages from the DA layer.
 
-
 This means that DA nodes will be able to query for / modify celestia state such
 that the DA nodes are able to pay for posting their messages on the network.
 The state-related API will be documented below in detail.
-
 
 Furthermore, interaction between the celestia consensus network and the
 celestia data availability network will be the responsibility of the **bridge**
 node type. However, that interaction will not be exposed on a public level
 (meaning a **bridge** node will not expose the same API as the
 celestia-core node to which it is connected). A **bridge** node, for all intents
-and purposes, will provide the same API as that of a **full** node (without the DAS module).
+and purposes, will provide the same API as that of a **full** node (without the
+DAS module).
 
 ### Details
 
@@ -188,7 +187,19 @@ SyncHead(ctx context.Context) (*header.ExtendedHeader, error)
     
     Start(ctx context.Context) error
     Stop(ctx context.Context) error
+
+    // NodeModule provides AuthModule 
+    AuthModule
   }
+```
+
+#### AuthModule
+
+```go
+type AuthModule interface {
+    SetModuleAuth(ctx context.Context, module string) error  // TODO
+    UnsetModuleAuth(ctx context.Context, module string) error // TODO
+}
 ```
 
 #### DAS
@@ -232,8 +243,8 @@ SyncHead(ctx context.Context) (*header.ExtendedHeader, error)
       gasLimit uint64,
     ) (*state.TxResponse, error)
 
-	// StateModule also provides StakingModule
-	StakingModule
+    // StateModule also provides StakingModule
+    StakingModule
   }
 ```
 
@@ -284,19 +295,21 @@ yet.
 
 ### Nice to have (post-mainnet)
 
-#### State
+#### State-related modules
 
-Eventually, it would be nice to break up `StateModule` into `StateModule`, `BankModule` and `StakingModule`.
+Eventually, it would be nice to break up `StateModule` into `StateModule`,
+`BankModule` and `StakingModule`.
 
-##### State
+##### State (general)
 
 ```go
 type StateModule interface {
-  // QueryABCI proxies a generic ABCI query to the core endpoint.
-  QueryABCI(ctx context.Context, request abci.RequestQuery) (*coretypes.ResultABCIQuery, error)
-  // SubmitTx submits the given transaction/message to the Celestia network
-  // and blocks until the tx is included in a block.
-  SubmitTx(ctx context.Context, tx state.Tx) (*state.TxResponse, error)
+    // QueryABCI proxies a generic ABCI query to the core endpoint.
+    QueryABCI(ctx context.Context, request abci.RequestQuery) 
+      (*coretypes.ResultABCIQuery, error)
+    // SubmitTx submits the given transaction/message to the Celestia network
+    // and blocks until the tx is included in a block.
+    SubmitTx(ctx context.Context, tx state.Tx) (*state.TxResponse, error)
 }
 ```
 
@@ -329,7 +342,7 @@ type BankModule interface {
 }
 ```
 
-##### Staking
+##### Staking (same as pre-mainnet staking module)
 
 ```go
   type StakingModule interface {
