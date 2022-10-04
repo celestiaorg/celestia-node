@@ -63,7 +63,7 @@ jobs:
       - name: Test & Coverage
         run: |
           go install github.com/ory/go-acc@v0.2.6
-          go-acc -o coverage.txt `go list ./... | grep -v node/tests` -- -v
+          go-acc -o coverage.txt `go list ./... | grep -v nodebuilder/tests` -- -v
       - uses: codecov/codecov-action@v3.1.1
         with:
           file: ./coverage.txt
