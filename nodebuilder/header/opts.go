@@ -12,5 +12,5 @@ func WithMetrics(enable bool) fx.Option {
 	if !enable {
 		return fx.Options()
 	}
-	return fx.Options(fx.Invoke(header.MonitorHead))
+	return fx.Options(fx.Invoke(header.WithMetrics))
 }

@@ -11,8 +11,8 @@ import (
 
 var meter = global.MeterProvider().Meter("header")
 
-// MonitorHead enables Otel metrics to monitor head.
-func MonitorHead(store Store) {
+// WithMetrics enables Otel metrics to monitor head.
+func WithMetrics(store Store) {
 	headC, _ := meter.AsyncInt64().Counter(
 		"head",
 		instrument.WithUnit(unit.Dimensionless),
