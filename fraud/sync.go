@@ -63,7 +63,7 @@ func (f *ProofService) syncFraudProofs(ctx context.Context) {
 			defer span.End()
 
 			span.SetAttributes(
-				attribute.String("peer-id", pid.String()),
+				attribute.String("peer_id", pid.String()),
 				attribute.StringSlice("proof_types", proofTypes),
 			)
 			log.Debugw("requesting proofs from peer", "pid", pid)

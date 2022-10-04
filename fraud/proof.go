@@ -98,7 +98,7 @@ func Unmarshal(proofType ProofType, msg []byte) (Proof, error) {
 func MonitorProofs(proofTypes ...ProofType) func(Getter) {
 	return func(store Getter) {
 		for _, proofType := range proofTypes {
-			counter, _ := meter.AsyncInt64().Counter(string(proofType),
+			counter, _ := meter.AsyncInt64().Gauge(string(proofType),
 				instrument.WithUnit(unit.Dimensionless),
 				instrument.WithDescription("Stored fraud proof"),
 			)
@@ -115,10 +115,10 @@ func MonitorProofs(proofTypes ...ProofType) func(Getter) {
 							attribute.String("proof_type", string(proofType)),
 						)
 					case datastore.ErrNotFound:
-						counter.Observe(ctx, 1, attribute.String("err", "not_found"))
+						counter.Observe(ctx, 0, attribute.String("err", "not_found"))
 						return
 					default:
-						counter.Observe(ctx, 1, attribute.String("err", "unknown"))
+						counter.Observe(ctx, 0, attribute.String("err", "unknown"))
 					}
 				},
 			)
