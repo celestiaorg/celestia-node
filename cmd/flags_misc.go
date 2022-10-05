@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"net/http/pprof"
 	"strings"
-	"time"
 
 	logging "github.com/ipfs/go-log/v2"
 	"github.com/spf13/cobra"
@@ -14,10 +13,6 @@ import (
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetrichttp"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
-	"go.opentelemetry.io/otel/metric/global"
-	controller "go.opentelemetry.io/otel/sdk/metric/controller/basic"
-	processor "go.opentelemetry.io/otel/sdk/metric/processor/basic"
-	selector "go.opentelemetry.io/otel/sdk/metric/selector/simple"
 	"go.opentelemetry.io/otel/sdk/resource"
 	tracesdk "go.opentelemetry.io/otel/sdk/trace"
 	semconv "go.opentelemetry.io/otel/semconv/v1.10.0"
@@ -203,32 +198,7 @@ func ParseMiscFlags(ctx context.Context, cmd *cobra.Command) (context.Context, e
 			opts = append(opts, otlpmetrichttp.WithInsecure())
 		}
 
-		exp, err := otlpmetrichttp.New(cmd.Context(), opts...)
-		if err != nil {
-			return ctx, err
-		}
-
-		pusher := controller.New(
-			processor.NewFactory(
-				selector.NewWithHistogramDistribution(),
-				exp,
-			),
-			controller.WithExporter(exp),
-			controller.WithCollectPeriod(2*time.Second),
-			controller.WithResource(resource.NewWithAttributes(
-				semconv.SchemaURL,
-				semconv.ServiceNameKey.String(fmt.Sprintf("Celestia-%s", NodeType(ctx).String())),
-				// TODO(@Wondertan): Versioning: semconv.ServiceVersionKey
-			)),
-		)
-
-		err = pusher.Start(cmd.Context())
-		if err != nil {
-			return ctx, err
-		}
-		global.SetMeterProvider(pusher)
-
-		ctx = WithNodeOptions(ctx, nodebuilder.WithMetrics(true))
+		ctx = WithNodeOptions(ctx, nodebuilder.WithMetrics(opts, NodeType(ctx)))
 	}
 
 	return ctx, err

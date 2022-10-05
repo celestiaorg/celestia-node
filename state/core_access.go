@@ -3,6 +3,7 @@ package state
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/cosmos/cosmos-sdk/api/tendermint/abci"
 	"github.com/cosmos/cosmos-sdk/store/rootmulti"
@@ -43,6 +44,9 @@ type CoreAccessor struct {
 	coreIP   string
 	rpcPort  string
 	grpcPort string
+
+	lastPayForData  int64
+	payForDataCount int64
 }
 
 // NewCoreAccessor dials the given celestia-core endpoint and
@@ -130,6 +134,8 @@ func (ca *CoreAccessor) SubmitPayForData(
 	data []byte,
 	gasLim uint64,
 ) (*TxResponse, error) {
+	ca.lastPayForData = time.Now().UnixMilli()
+	ca.payForDataCount++
 	return payment.SubmitPayForData(ctx, ca.signer, ca.coreConn, nID, data, gasLim)
 }
 
