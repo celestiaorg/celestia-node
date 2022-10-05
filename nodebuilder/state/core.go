@@ -23,7 +23,7 @@ func CoreAccessor(
 	corecfg core.Config,
 	signer *apptypes.KeyringSigner,
 	sync *sync.Syncer,
-) Module {
+) (Module, *state.CoreAccessor) {
 	service := state.NewCoreAccessor(signer, sync, corecfg.IP, corecfg.RPCPort, corecfg.GRPCPort)
 	lc.Append(fx.Hook{
 		OnStart: func(ctx context.Context) error {
@@ -34,5 +34,5 @@ func CoreAccessor(
 			return service.Stop(ctx)
 		},
 	})
-	return service
+	return service, service
 }
