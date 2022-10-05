@@ -90,7 +90,9 @@ func initializeMetrics(
 	)
 
 	lc.Append(fx.Hook{
-		OnStart: func(ctx context.Context) error {
+		// here we take the context from fx.Invoke because pusher uses it for its entire lifetime,
+		// instead of only for the Start operation
+		OnStart: func(context.Context) error {
 			return pusher.Start(ctx)
 		},
 		OnStop: func(ctx context.Context) error {
