@@ -10,8 +10,7 @@
 
 ## Context
 
-DAS is the process of verifying the availability of
-block data by sampling chunks or shares of those blocks. The `das` package implements an engine to ensure the availability of the chain's block data via the `Availability` interface.
+DAS is the process of verifying the availability of block data by sampling chunks or shares of those blocks. The `das` package implements an engine to ensure the availability of the chain's block data via the `Availability` interface.
 Verifying the availability of block data is a priority functionality for celestia-node. Its performance could benefit significantly from parallelization optimisation to make it able to fully utilise network bandwidth.
 
 ## Previous approach
@@ -50,7 +49,7 @@ Sampling flow:
 ## Concurrency limit
 
 The maximum amount of concurrently running workers is defined by the const `concurrencyLimit` = 16. This value is an approximation that came from the first basic performance tests.
-During the test, samples/sec rate was observed with moving average over 30 sec window for period of 5min. The metric was triggered only by sampled header with width > 2.
+During the test, samples/sec rate was observed with moving average over 30 sec window for a period of 5min. The metric was triggered only by a sampled header with width > 2.
 
 ```text
 amount of workers: 8, speed: 8.66
@@ -63,7 +62,7 @@ amount of workers: 64, speed: 11.83
 ```
 
 Based on basic experiment results, values higher than 16 don’t bring much benefit. At the same time, increased parallelization comes with a cost of higher memory consumption.  
-Future improvements discussed later.
+Future improvements will discussed later and are out of scope of this ADR.
 
 ## Status
 
@@ -71,7 +70,7 @@ Implemented
 
 ## Future plans
 
-Several params values that come hardcoded in DASer (`samplingRange`, `concurrencyLimit`, `priorityQueueSize`, `genesisHeight`, `backgroundStoreInterval`) should become configurable so the node runner can define them based on the specific node setup. Default values should be optimized by performance testing for most common setups and could potentially vary for different node types.  
+Several params values that come hardcoded in DASer (`samplingRange`, `concurrencyLimit`, `priorityQueueSize`, `genesisHeight`, `backgroundStoreInterval`) should become configurable, so the node runner can define them based on the specific node setup. Default values should be optimized by performance testing for most common setups, and could potentially vary for different node types.  
 
 ## References
 
