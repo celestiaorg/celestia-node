@@ -6,14 +6,12 @@ import (
 	"crypto/sha256"
 	"errors"
 	"fmt"
-	"hash"
 
 	blocks "github.com/ipfs/go-block-format"
 	"github.com/ipfs/go-blockservice"
 	"github.com/ipfs/go-cid"
 	ipld "github.com/ipfs/go-ipld-format"
 	mh "github.com/multiformats/go-multihash"
-	mhcore "github.com/multiformats/go-multihash/core"
 	"github.com/tendermint/tendermint/pkg/consts"
 
 	"github.com/celestiaorg/nmt"
@@ -23,61 +21,19 @@ const (
 	// Below used multiformats (one codec, one multihash) seem free:
 	// https://github.com/multiformats/multicodec/blob/master/table.csv
 
-	// NmtCodec is the codec used for leaf and inner nodes of a Namespaced Merkle Tree.
-	NmtCodec = 0x7700
+	// nmtCodec is the codec used for leaf and inner nodes of a Namespaced Merkle Tree.
+	nmtCodec = 0x7700
 
 	// Sha256Namespace8Flagged is the multihash code used to hash blocks
 	// that contain an NMT node (inner and leaf nodes).
-	Sha256Namespace8Flagged = 0x7701
+	sha256Namespace8Flagged = 0x7701
 
 	// nmtHashSize is the size of a digest created by an NMT in bytes.
 	nmtHashSize = 2*consts.NamespaceSize + sha256.Size
+
+	// typeSize defines the size of the serialized NMT Node type
+	typeSize = 1
 )
-
-func init() {
-	mhcore.Register(Sha256Namespace8Flagged, func() hash.Hash {
-		return NewNamespaceHasher(nmt.NewNmtHasher(sha256.New(), nmt.DefaultNamespaceIDLen, true))
-	})
-}
-
-type namespaceHasher struct {
-	*nmt.Hasher
-	tp   byte
-	data []byte
-}
-
-func NewNamespaceHasher(hasher *nmt.Hasher) hash.Hash {
-	return &namespaceHasher{
-		Hasher: hasher,
-	}
-}
-
-func (n *namespaceHasher) Write(data []byte) (int, error) {
-	ln, nln, hln := len(data), int(n.NamespaceLen), n.Hash.Size()
-	innerNodeSize, leafNodeSize := (nln*2+hln)*2, nln+consts.ShareSize
-	switch ln {
-	default:
-		return 0, fmt.Errorf("wrong data size")
-	case innerNodeSize, innerNodeSize + 1: // w/ and w/o additional type byte
-		n.tp = nmt.NodePrefix
-	case leafNodeSize, leafNodeSize + 1: // w/ and w/o additional type byte
-		n.tp = nmt.LeafPrefix
-	}
-
-	n.data = data[1:]
-	return ln, nil
-}
-
-func (n *namespaceHasher) Sum([]byte) []byte {
-	isLeafData := n.tp == nmt.LeafPrefix
-	if isLeafData {
-		return n.Hasher.HashLeaf(n.data)
-	}
-
-	flagLen := int(n.NamespaceLen * 2)
-	sha256Len := n.Hasher.Size()
-	return n.Hasher.HashNode(n.data[:flagLen+sha256Len], n.data[flagLen+sha256Len:])
-}
 
 func GetNode(ctx context.Context, bGetter blockservice.BlockGetter, root cid.Cid) (ipld.Node, error) {
 	block, err := bGetter.GetBlock(ctx, root)
@@ -93,8 +49,6 @@ func GetNode(ctx context.Context, bGetter blockservice.BlockGetter, root cid.Cid
 }
 
 func decodeBlock(block blocks.Block) (ipld.Node, error) {
-	// length of the domain separator for leaf and inner nodes:
-	const prefixOffset = 1
 	var (
 		leafPrefix  = []byte{nmt.LeafPrefix}
 		innerPrefix = []byte{nmt.NodePrefix}
@@ -106,18 +60,18 @@ func decodeBlock(block blocks.Block) (ipld.Node, error) {
 			Data: nil,
 		}, nil
 	}
-	domainSeparator := data[:prefixOffset]
+	domainSeparator := data[:typeSize]
 	if bytes.Equal(domainSeparator, leafPrefix) {
 		return &nmtLeafNode{
 			cid:  block.Cid(),
-			Data: data[prefixOffset:],
+			Data: data[typeSize:],
 		}, nil
 	}
 	if bytes.Equal(domainSeparator, innerPrefix) {
 		return &nmtNode{
 			cid: block.Cid(),
-			l:   data[prefixOffset : prefixOffset+nmtHashSize],
-			r:   data[prefixOffset+nmtHashSize:],
+			l:   data[typeSize : typeSize+nmtHashSize],
+			r:   data[typeSize+nmtHashSize:],
 		}, nil
 	}
 	return nil, fmt.Errorf(
@@ -132,7 +86,6 @@ var _ ipld.Node = (*nmtNode)(nil)
 var _ ipld.Node = (*nmtLeafNode)(nil)
 
 type nmtNode struct {
-	// TODO(ismail): we might want to export these later
 	cid  cid.Cid
 	l, r []byte
 }
@@ -305,11 +258,11 @@ func CidFromNamespacedSha256(namespacedHash []byte) (cid.Cid, error) {
 	if got, want := len(namespacedHash), nmtHashSize; got != want {
 		return cid.Cid{}, fmt.Errorf("invalid namespaced hash length, got: %v, want: %v", got, want)
 	}
-	buf, err := mh.Encode(namespacedHash, Sha256Namespace8Flagged)
+	buf, err := mh.Encode(namespacedHash, sha256Namespace8Flagged)
 	if err != nil {
 		return cid.Undef, err
 	}
-	return cid.NewCidV1(NmtCodec, buf), nil
+	return cid.NewCidV1(nmtCodec, buf), nil
 }
 
 // MustCidFromNamespacedSha256 is a wrapper around cidFromNamespacedSha256 that panics
@@ -320,7 +273,7 @@ func MustCidFromNamespacedSha256(hash []byte) cid.Cid {
 		panic(
 			fmt.Sprintf("malformed hash: %s, codec: %v",
 				err,
-				mh.Codes[Sha256Namespace8Flagged]),
+				mh.Codes[sha256Namespace8Flagged]),
 		)
 	}
 	return cidFromHash
