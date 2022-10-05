@@ -22,8 +22,6 @@ import (
 func init() {
 	// randomize quadrant fetching, otherwise quadrant sampling is deterministic
 	rand.Seed(time.Now().UnixNano())
-	// TODO: figure worker pool
-	//// limit the amount of workers for tests
 }
 
 func TestRetriever_Retrieve(t *testing.T) {
@@ -92,7 +90,7 @@ func TestRetriever_ByzantineError(t *testing.T) {
 	dah := da.NewDataAvailabilityHeader(attackerEDS)
 	r := NewRetriever(bserv)
 	_, err = r.Retrieve(ctx, &dah)
-	var errByz *ErrByzantine
+	var errByz *share.ErrByzantine
 	require.ErrorAs(t, err, &errByz)
 }
 

@@ -9,8 +9,6 @@ import (
 
 	"github.com/celestiaorg/celestia-node/share"
 
-	"github.com/celestiaorg/celestia-node/share/retriever"
-
 	"github.com/tendermint/tendermint/pkg/consts"
 	"github.com/tendermint/tendermint/pkg/wrapper"
 
@@ -43,7 +41,7 @@ type BadEncodingProof struct {
 func CreateBadEncodingProof(
 	hash []byte,
 	height uint64,
-	errByzantine *retriever.ErrByzantine,
+	errByzantine *share.ErrByzantine,
 ) Proof {
 
 	return &BadEncodingProof{

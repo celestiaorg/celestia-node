@@ -5,8 +5,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/celestiaorg/celestia-node/share"
-	"github.com/celestiaorg/celestia-node/share/availability"
+	"github.com/celestiaorg/celestia-node/share/service"
 
 	"github.com/ipfs/go-bitswap"
 	"github.com/ipfs/go-bitswap/network"
@@ -21,6 +20,8 @@ import (
 	mocknet "github.com/libp2p/go-libp2p/p2p/net/mock"
 	"github.com/stretchr/testify/require"
 	"github.com/tendermint/tendermint/pkg/da"
+
+	"github.com/celestiaorg/celestia-node/share"
 )
 
 // RandFillBS fills the given BlockService with a random block of a given size.
@@ -44,7 +45,7 @@ func RandShares(t *testing.T, n int) []share.Share {
 
 type Node struct {
 	net *DagNet
-	*availability.Service
+	*service.ShareService
 	blockservice.BlockService
 	host.Host
 }

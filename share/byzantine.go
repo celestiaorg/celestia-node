@@ -1,10 +1,8 @@
-package retriever
+package share
 
 import (
 	"context"
 	"fmt"
-
-	"github.com/celestiaorg/celestia-node/share"
 
 	"github.com/ipfs/go-blockservice"
 	"github.com/tendermint/tendermint/pkg/da"
@@ -20,7 +18,7 @@ import (
 // Merkle Proof for each share.
 type ErrByzantine struct {
 	Index  uint32
-	Shares []*share.ShareWithProof
+	Shares []*ShareWithProof
 	Axis   rsmt2d.Axis
 }
 
@@ -40,7 +38,7 @@ func NewErrByzantine(
 		dah.RowsRoots,
 		dah.ColumnRoots,
 	}[errByz.Axis][errByz.Index]
-	sharesWithProof, err := share.GetProofsForShares(
+	sharesWithProof, err := GetProofsForShares(
 		ctx,
 		bGetter,
 		ipld.MustCidFromNamespacedSha256(root),

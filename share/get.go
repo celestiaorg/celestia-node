@@ -28,8 +28,12 @@ func GetShare(
 
 // GetLeaf fetches and returns the raw leaf.
 // It walks down the IPLD NMT tree until it finds the requested one.
-func GetLeaf(ctx context.Context, bGetter blockservice.BlockGetter, root cid.Cid, leaf, total int) (
-	format.Node, error) {
+func GetLeaf(
+	ctx context.Context,
+	bGetter blockservice.BlockGetter,
+	root cid.Cid,
+	leaf, total int,
+) (format.Node, error) {
 	// request the node
 	nd, err := ipld.GetNode(ctx, bGetter, root)
 	if err != nil {

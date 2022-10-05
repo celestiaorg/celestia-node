@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/celestiaorg/celestia-node/share/retriever"
+	"github.com/celestiaorg/celestia-node/share"
 
 	mdutils "github.com/ipfs/go-merkledag/test"
 	"github.com/stretchr/testify/require"
@@ -21,7 +21,7 @@ func TestFraudProofValidation(t *testing.T) {
 	require.NoError(t, err)
 
 	faultDAH, err := generateByzantineError(ctx, t, h, bServ)
-	var errByz *retriever.ErrByzantine
+	var errByz *share.ErrByzantine
 	require.True(t, errors.As(err, &errByz))
 	p := CreateBadEncodingProof([]byte("hash"), uint64(faultDAH.Height), errByz)
 	err = p.Validate(faultDAH)

@@ -7,8 +7,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/celestiaorg/celestia-node/share/retriever"
-
 	"github.com/ipfs/go-datastore"
 	logging "github.com/ipfs/go-log/v2"
 
@@ -155,7 +153,7 @@ func (d *DASer) sample(ctx context.Context, h *header.ExtendedHeader) error {
 		if err == context.Canceled {
 			return err
 		}
-		var byzantineErr *retriever.ErrByzantine
+		var byzantineErr *share.ErrByzantine
 		if errors.As(err, &byzantineErr) {
 			log.Warn("Propagating proof...")
 			sendErr := d.bcast.Broadcast(ctx, fraud.CreateBadEncodingProof(h.Hash(), uint64(h.Height), byzantineErr))

@@ -7,8 +7,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/celestiaorg/celestia-node/share/service"
+
 	"github.com/celestiaorg/celestia-node/share"
-	"github.com/celestiaorg/celestia-node/share/availability"
 	availability_test "github.com/celestiaorg/celestia-node/share/availability/test"
 
 	"github.com/ipfs/go-datastore"
@@ -29,7 +30,7 @@ func TestCacheAvailability(t *testing.T) {
 	lightLocalServ, dah1 := randLightLocalServiceWithSquare(t, 16)
 
 	var tests = []struct {
-		service *availability.Service
+		service *service.ShareService
 		root    *share.Root
 	}{
 		{
@@ -70,7 +71,7 @@ func TestCacheAvailability_Failed(t *testing.T) {
 	defer cancel()
 
 	ca := NewShareAvailability(&dummyAvailability{}, sync.MutexWrap(datastore.NewMapDatastore()))
-	serv := availability.NewService(mdutils.Bserv(), ca)
+	serv := service.NewShareService(mdutils.Bserv(), ca)
 
 	err := serv.SharesAvailable(ctx, &invalidHeader)
 	require.Error(t, err)

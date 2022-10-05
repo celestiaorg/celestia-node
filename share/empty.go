@@ -1,4 +1,4 @@
-package availability
+package share
 
 import (
 	"bytes"
@@ -6,8 +6,6 @@ import (
 
 	"github.com/ipfs/go-blockservice"
 	"github.com/tendermint/tendermint/pkg/consts"
-
-	"github.com/celestiaorg/celestia-node/share"
 )
 
 //TODO: remove?
@@ -22,7 +20,7 @@ func EnsureEmptySquareExists(ctx context.Context, bServ blockservice.BlockServic
 		shares[i] = tailPaddingShare
 	}
 
-	_, err := share.AddShares(ctx, shares, bServ)
+	_, err := AddShares(ctx, shares, bServ)
 	return err
 }
 

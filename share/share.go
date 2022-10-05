@@ -38,7 +38,7 @@ type Share = []byte
 
 // ShareID gets the namespace ID from the share.
 func ShareID(s Share) namespace.ID { //nolint:revive
-	return namespace.ID(s)[:NamespaceSize]
+	return s[:NamespaceSize]
 }
 
 // ShareData gets data from the share.
