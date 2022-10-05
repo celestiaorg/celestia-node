@@ -15,9 +15,9 @@ import (
 	semconv "go.opentelemetry.io/otel/semconv/v1.10.0"
 	"go.uber.org/fx"
 
+	"github.com/celestiaorg/celestia-node/fraud"
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/nodebuilder/daser"
-	fraudmodule "github.com/celestiaorg/celestia-node/nodebuilder/fraud"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	"github.com/celestiaorg/celestia-node/params"
 	"github.com/celestiaorg/celestia-node/state"
@@ -41,7 +41,7 @@ func WithMetrics(metricOpts []otlpmetrichttp.Option, nodeType node.Type) fx.Opti
 		fx.Invoke(initializeMetrics),
 		fx.Invoke(header.WithMetrics),
 		fx.Invoke(state.WithMetrics),
-		fx.Invoke(fraudmodule.WithMetrics),
+		fx.Invoke(fraud.WithMetrics),
 	)
 
 	var opts fx.Option
