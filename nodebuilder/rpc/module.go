@@ -34,13 +34,13 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 	switch tp {
 	case node.Light, node.Full:
 		return fx.Module(
-			"gateway",
+			"rpc",
 			baseComponents,
 			fx.Invoke(Handler),
 		)
 	case node.Bridge:
 		return fx.Module(
-			"gateway",
+			"rpc",
 			baseComponents,
 			fx.Invoke(func(
 				state stateServ.Module,
