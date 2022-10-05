@@ -44,9 +44,7 @@ jobs:
           markdownlint --config .markdownlint.yaml '**/*.md'
 
   go-ci:
-    # NOTE: branch should be updated to main, little bit of a chicken and egg,
-    # have to test it like this and then update to main after.
-    uses: ./.github/workflows/go-ci.yml@sevey/github-action-updates
+    uses: ./.github/workflows/go-ci.yml
 
   # Make a release if this is a manually trigger job, i.e. workflow_dispatch
   release:
@@ -64,6 +62,4 @@ jobs:
 
   docker:
     needs: [release]
-    # NOTE: branch should be updated to main, little bit of a chicken and egg,
-    # have to test it like this and then update to main after.
-    uses: ./.github/workflows/docker-build.yml@sevey/github-action-updates
+    uses: ./.github/workflows/docker-build.yml
