@@ -5,10 +5,11 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/tendermint/tendermint/pkg/consts"
+
 	"github.com/celestiaorg/celestia-app/testutil/testnode"
 	"github.com/celestiaorg/celestia-app/x/payment"
 	paytypes "github.com/celestiaorg/celestia-app/x/payment/types"
-	"github.com/tendermint/tendermint/pkg/consts"
 )
 
 // SubmitData submits given data in the block.

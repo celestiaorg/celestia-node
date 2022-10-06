@@ -14,8 +14,8 @@ type Components struct {
 // DefaultComponents creates a KvStore with a block retention of 200
 // In addition, the empty block interval is set to 200ms
 func DefaultComponents() *Components {
-	tnCfg := tn.ResetTestRoot("swamp_tests")
-	tnCfg.Consensus.CreateEmptyBlocksInterval = 100 * time.Millisecond
+	tnCfg := tn.TestConfig()
+	tnCfg.Consensus.TimeoutCommit = 50 * time.Millisecond
 	return &Components{
 		CoreCfg: tnCfg,
 	}
@@ -31,6 +31,6 @@ func WithBlockTime(t time.Duration) Option {
 		c.CoreCfg.Consensus.CreateEmptyBlocksInterval = t
 		// for filled block
 		c.CoreCfg.Consensus.TimeoutCommit = t
-		c.CoreCfg.Consensus.SkipTimeoutCommit = true
+		c.CoreCfg.Consensus.SkipTimeoutCommit = false
 	}
 }

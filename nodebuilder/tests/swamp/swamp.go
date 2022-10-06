@@ -6,6 +6,7 @@ import (
 	"math/rand"
 	"net"
 	"testing"
+	"time"
 
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/libp2p/go-libp2p-core/host"
@@ -14,6 +15,7 @@ import (
 	ma "github.com/multiformats/go-multiaddr"
 	"github.com/stretchr/testify/require"
 	"github.com/tendermint/tendermint/libs/bytes"
+	tmrand "github.com/tendermint/tendermint/libs/rand"
 	"github.com/tendermint/tendermint/types"
 	"go.uber.org/fx"
 
@@ -26,12 +28,9 @@ import (
 	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
 	"github.com/celestiaorg/celestia-node/nodebuilder/state"
 	"github.com/celestiaorg/celestia-node/params"
-	tmrand "github.com/tendermint/tendermint/libs/rand"
 )
 
 var blackholeIP6 = net.ParseIP("100::")
-
-const subscriberID string = "NewBlockSwamp/Events"
 
 var queryEvent string = types.QueryForEvent(types.EventNewBlock).String()
 
@@ -68,8 +67,8 @@ func NewSwamp(t *testing.T, options ...Option) *Swamp {
 	ctx := context.Background()
 
 	// we create an arbitray number of funded accounts
-	accounts := make([]string, 10000)
-	for i := 0; i < 10000; i++ {
+	accounts := make([]string, 10)
+	for i := 0; i < 10; i++ {
 		accounts = append(accounts, tmrand.Str(9))
 	}
 
@@ -92,9 +91,7 @@ func NewSwamp(t *testing.T, options ...Option) *Swamp {
 		comps:         ic,
 		accounts:      accounts,
 	}
-
-	swp.trustedHash, err = swp.getTrustedHash(ctx)
-	require.NoError(t, err)
+	swp.trustedHash = swp.getTrustedHash(ctx)
 
 	swp.t.Cleanup(func() {
 		swp.stopAllNodes(ctx, swp.BridgeNodes, swp.FullNodes, swp.LightNodes)
@@ -124,10 +121,30 @@ func (s *Swamp) GetCoreBlockHashByHeight(ctx context.Context, height int64) byte
 
 // WaitTillHeight holds the test execution until the given amount of blocks
 // has been produced by the CoreClient.
-func (s *Swamp) WaitTillHeight(_ context.Context, height int64) {
+func (s *Swamp) WaitTillHeight(ctx context.Context, height int64) bytes.HexBytes {
 	require.Greater(s.t, height, int64(0))
 
-	_, _ = testnode.WaitForHeight(s.ClientContext, height)
+	t := time.NewTicker(time.Millisecond * 50)
+	defer t.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			require.NoError(s.t, ctx.Err())
+		case <-t.C:
+			status, err := s.ClientContext.Client.Status(ctx)
+			require.NoError(s.t, err)
+
+			latest := status.SyncInfo.LatestBlockHeight
+			switch {
+			case latest == height:
+				return status.SyncInfo.LatestBlockHash
+			case latest > height:
+				res, err := s.ClientContext.Client.Block(ctx, &height)
+				require.NoError(s.t, err)
+				return res.BlockID.Hash
+			}
+		}
+	}
 }
 
 // createPeer is a helper for celestia nodes to initialize
@@ -156,25 +173,8 @@ func (s *Swamp) createPeer(ks keystore.Keystore) host.Host {
 
 // getTrustedHash is needed for celestia nodes to get the trustedhash
 // from CoreClient. This is required to initialize and start correctly.
-func (s *Swamp) getTrustedHash(ctx context.Context) (string, error) {
-	ctx, cancel := context.WithCancel(ctx)
-	defer cancel()
-
-	results, err := s.ClientContext.Client.Subscribe(ctx, subscriberID, queryEvent)
-	require.NoError(s.t, err)
-
-	defer func() {
-		err := s.ClientContext.Client.UnsubscribeAll(ctx, subscriberID)
-		require.NoError(s.t, err)
-	}()
-
-	select {
-	case <-ctx.Done():
-		return "", fmt.Errorf("can't get trusted hash as the channel is closed")
-	case block := <-results:
-		newBlock := block.Data.(types.EventDataNewBlock).Block
-		return newBlock.Hash().String(), nil
-	}
+func (s *Swamp) getTrustedHash(ctx context.Context) string {
+	return s.WaitTillHeight(ctx, 1).String()
 }
 
 // NewBridgeNode creates a new instance of a BridgeNode providing a default config
