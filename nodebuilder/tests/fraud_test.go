@@ -56,17 +56,18 @@ func TestFraudProofBroadcasting(t *testing.T) {
 	subscr, err := full.FraudServ.Subscribe(fraud.BadEncoding)
 	require.NoError(t, err)
 
-	_, err = subscr.Proof(ctx)
+	p, err := subscr.Proof(ctx)
 	require.NoError(t, err)
+	require.Equal(t, 20, int(p.Height()))
 
-	// Since GetByHeight is a blocking operation for headers that is not received, we
-	// should set a timeout because all daser/syncer are stopped at this point
-	newCtx, cancel := context.WithTimeout(context.Background(), time.Millisecond*500)
-	// rework this after https://github.com/celestiaorg/celestia-node/issues/427
-	t.Cleanup(cancel)
-
-	_, err = full.HeaderServ.GetByHeight(newCtx, 25)
+	// This is an obscure way to check if the Syncer was stopped.
+	// If we cannot get a height header within a timeframe it means the syncer was stopped
+	// FIXME: Eventually, this should be a check on service registry managing and keeping
+	//  lifecycles of each Module.
+	syncCtx, syncCancel := context.WithTimeout(context.Background(), time.Millisecond*600)
+	_, err = full.HeaderServ.GetByHeight(syncCtx, 100)
 	require.ErrorIs(t, err, context.DeadlineExceeded)
+	syncCancel()
 
 	require.NoError(t, full.Stop(ctx))
 	require.NoError(t, sw.RemoveNode(full, node.Full))
@@ -93,7 +94,7 @@ Steps:
 7. Wait until LN will be connected to FN and fetch a fraud proof.
 */
 func TestFraudProofSyncing(t *testing.T) {
-	sw := swamp.NewSwamp(t, swamp.WithBlockTime(time.Millisecond*100))
+	sw := swamp.NewSwamp(t, swamp.WithBlockTime(time.Millisecond*300))
 
 	const defaultTimeInterval = time.Second * 5
 
