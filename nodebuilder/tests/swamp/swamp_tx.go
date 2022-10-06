@@ -3,7 +3,6 @@ package swamp
 import (
 	"context"
 	"fmt"
-	"time"
 
 	"github.com/tendermint/tendermint/pkg/consts"
 
@@ -26,19 +25,17 @@ func (s *Swamp) SubmitData(ctx context.Context, data []byte) error {
 	return nil
 }
 
-func (s *Swamp) FillBlocks(ctx context.Context, bsize, blocks int) error {
-	btime := s.comps.CoreCfg.Consensus.CreateEmptyBlocksInterval
-	timer := time.NewTimer(btime)
-	defer timer.Stop()
-	for i := 0; i < blocks; i++ {
-		_, err := testnode.FillBlock(s.ClientContext, bsize, s.accounts)
-		if err != nil {
-			return err
+// FillBlocks produces the given amount of contiguous blocks with customizable size.
+// The returned channel reports when the process is finished.
+func (s *Swamp) FillBlocks(ctx context.Context, bsize, blocks int) chan error {
+	errCh := make(chan error)
+	go func() {
+		// TODO: FillBlock must respect the context
+		_, err := testnode.FillBlock(s.ClientContext, bsize, s.accounts[:blocks+1])
+		select {
+		case errCh <- err:
+		case <-ctx.Done():
 		}
-		err = testnode.WaitForNextBlock(s.ClientContext)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
+	}()
+	return errCh
 }
