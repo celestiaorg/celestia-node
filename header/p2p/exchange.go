@@ -13,11 +13,12 @@ import (
 	"github.com/libp2p/go-libp2p-core/protocol"
 	tmbytes "github.com/tendermint/tendermint/libs/bytes"
 
+	"github.com/celestiaorg/go-libp2p-messenger/serde"
+
 	"github.com/celestiaorg/celestia-node/header"
 	p2p_pb "github.com/celestiaorg/celestia-node/header/p2p/pb"
 	header_pb "github.com/celestiaorg/celestia-node/header/pb"
 	"github.com/celestiaorg/celestia-node/params"
-	"github.com/celestiaorg/go-libp2p-messenger/serde"
 )
 
 var log = logging.Logger("header/p2p")
