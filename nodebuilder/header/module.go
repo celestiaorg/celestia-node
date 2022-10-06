@@ -41,9 +41,6 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 		fx.Provide(func(subscriber *p2p.Subscriber) header.Subscriber {
 			return subscriber
 		}),
-		fx.Provide(func(subscriber *p2p.Subscriber) header.Broadcaster {
-			return subscriber
-		}),
 		fx.Provide(fx.Annotate(
 			sync.NewSyncer,
 			fx.OnStart(func(ctx context.Context, lc fx.Lifecycle, fservice fraudServ.Module, syncer *sync.Syncer) error {
@@ -75,7 +72,6 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 				return sub.Stop(ctx)
 			}),
 		)),
-
 		fx.Provide(fx.Annotate(
 			p2p.NewExchangeServer,
 			fx.OnStart(func(ctx context.Context, server *p2p.ExchangeServer) error {
@@ -98,6 +94,9 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 		return fx.Module(
 			"header",
 			baseComponents,
+			fx.Provide(func(subscriber *p2p.Subscriber) header.Broadcaster {
+				return subscriber
+			}),
 			fx.Supply(header.MakeExtendedHeader),
 		)
 	default:

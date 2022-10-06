@@ -3,7 +3,6 @@ package sync
 import (
 	"context"
 	"errors"
-
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 
 	"github.com/celestiaorg/celestia-node/header"
