@@ -3,6 +3,8 @@ package share
 import (
 	"context"
 
+	"github.com/celestiaorg/nmt/namespace"
+
 	"github.com/celestiaorg/celestia-node/share/ipld"
 
 	"github.com/ipfs/go-blockservice"
@@ -18,7 +20,7 @@ func GetShare(
 	leafIndex int,
 	totalLeafs int, // this corresponds to the extended square width
 ) (Share, error) {
-	nd, err := GetLeaf(ctx, bGetter, rootCid, leafIndex, totalLeafs)
+	nd, err := ipld.GetLeaf(ctx, bGetter, rootCid, leafIndex, totalLeafs)
 	if err != nil {
 		return nil, err
 	}
@@ -26,37 +28,51 @@ func GetShare(
 	return leafToShare(nd), nil
 }
 
-// GetLeaf fetches and returns the raw leaf.
-// It walks down the IPLD NMT tree until it finds the requested one.
-func GetLeaf(
+// GetShares walks the tree of a given root and puts shares into the given 'put' func.
+// Does not return any error, and returns/unblocks only on success
+// (got all shares) or on context cancellation.
+func GetShares(ctx context.Context, bGetter blockservice.BlockGetter, root cid.Cid, shares int, put func(int, Share)) {
+	ctx, span := tracer.Start(ctx, "get-shares")
+	defer span.End()
+
+	leaves := ipld.GetLeaves(ctx, bGetter, root, shares)
+	if len(leaves) == 0 {
+		return
+	}
+
+	for i, leaf := range leaves {
+		if leaf != nil {
+			put(i, leafToShare(leaf))
+		}
+	}
+}
+
+// GetSharesByNamespace walks the tree of a given root and returns its shares within the given namespace.ID.
+// If a share could not be retrieved, err is not nil, and the returned array
+// contains nil shares in place of the shares it was unable to retrieve.
+func GetSharesByNamespace(
 	ctx context.Context,
 	bGetter blockservice.BlockGetter,
 	root cid.Cid,
-	leaf, total int,
-) (format.Node, error) {
-	// request the node
-	nd, err := ipld.GetNode(ctx, bGetter, root)
-	if err != nil {
+	nID namespace.ID,
+	maxShares int,
+) ([]Share, error) {
+	ctx, span := tracer.Start(ctx, "get-shares-by-namespace")
+	defer span.End()
+
+	leaves, err := ipld.GetLeavesByNamespace(ctx, bGetter, root, nID, maxShares)
+	if err != nil && leaves == nil {
 		return nil, err
 	}
 
-	// look for links
-	lnks := nd.Links()
-	if len(lnks) == 1 {
-		// in case there is only one we reached tree's bottom, so finally request the leaf.
-		return ipld.GetNode(ctx, bGetter, lnks[0].Cid)
+	shares := make([]Share, len(leaves))
+	for i, leaf := range leaves {
+		if leaf != nil {
+			shares[i] = leafToShare(leaf)
+		}
 	}
 
-	// route walk to appropriate children
-	total /= 2 // as we are using binary tree, every step decreases total leaves in a half
-	if leaf < total {
-		root = lnks[0].Cid // if target leave on the left, go with walk down the first children
-	} else {
-		root, leaf = lnks[1].Cid, leaf-total // otherwise go down the second
-	}
-
-	// recursively walk down through selected children
-	return GetLeaf(ctx, bGetter, root, leaf, total)
+	return shares, err
 }
 
 // GetProofsForShares fetches Merkle proofs for the given shares
@@ -73,7 +89,7 @@ func GetProofsForShares(
 			proof := make([]cid.Cid, 0)
 			// TODO(@vgonkivs): Combine GetLeafData and GetProof in one function as the are traversing the same tree.
 			// Add options that will control what data will be fetched.
-			s, err := GetLeaf(ctx, bGetter, root, index, len(shares))
+			s, err := ipld.GetLeaf(ctx, bGetter, root, index, len(shares))
 			if err != nil {
 				return nil, err
 			}

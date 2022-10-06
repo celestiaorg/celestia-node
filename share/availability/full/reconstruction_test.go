@@ -7,17 +7,17 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/require"
+	"golang.org/x/sync/errgroup"
+
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/availability/light"
 	availability_test "github.com/celestiaorg/celestia-node/share/availability/test"
-	"github.com/celestiaorg/celestia-node/share/retriever"
-
-	"github.com/stretchr/testify/require"
-	"golang.org/x/sync/errgroup"
+	"github.com/celestiaorg/celestia-node/share/eds"
 )
 
 func init() {
-	retriever.RetrieveQuadrantTimeout = time.Millisecond * 100 // to speed up tests
+	eds.RetrieveQuadrantTimeout = time.Millisecond * 100 // to speed up tests
 }
 
 // TestShareAvailable_OneFullNode asserts that a Full node can ensure
@@ -35,8 +35,8 @@ func TestShareAvailable_OneFullNode(t *testing.T) {
 	defer cancel()
 
 	net := availability_test.NewTestDAGNet(ctx, t)
-	source, root := RandFullNode(net, origSquareSize) // make a source node, a.k.a bridge
-	full := Node(net)                                 // make a full availability service which reconstructs data
+	source, root := RandNode(net, origSquareSize) // make a source node, a.k.a bridge
+	full := Node(net)                             // make a full availability service which reconstructs data
 
 	// ensure there is no connection between source and full nodes
 	// so that full reconstructs from the light nodes only
@@ -87,7 +87,7 @@ func TestShareAvailable_ConnectedFullNodes(t *testing.T) {
 	defer cancel()
 
 	net := availability_test.NewTestDAGNet(ctx, t)
-	source, root := RandFullNode(net, origSquareSize)
+	source, root := RandNode(net, origSquareSize)
 
 	// create two full nodes and ensure they are disconnected
 	full1 := Node(net)
@@ -182,7 +182,7 @@ func TestShareAvailable_DisconnectedFullNodes(t *testing.T) {
 	defer cancel()
 
 	net := availability_test.NewTestDAGNet(ctx, t)
-	source, root := RandFullNode(net, origSquareSize)
+	source, root := RandNode(net, origSquareSize)
 
 	// create two full nodes and ensure they are disconnected
 	full1 := Node(net)
@@ -195,7 +195,7 @@ func TestShareAvailable_DisconnectedFullNodes(t *testing.T) {
 	net.Disconnect(full2.ID(), source.ID())
 
 	// start reconstruction for fulls that should fail
-	ctxErr, cancelErr := context.WithTimeout(ctx, retriever.RetrieveQuadrantTimeout*8)
+	ctxErr, cancelErr := context.WithTimeout(ctx, eds.RetrieveQuadrantTimeout*8)
 	errg, errCtx := errgroup.WithContext(ctxErr)
 	errg.Go(func() error {
 		return full1.SharesAvailable(errCtx, root)

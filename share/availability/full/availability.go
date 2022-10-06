@@ -4,15 +4,16 @@ import (
 	"context"
 	"errors"
 
-	"github.com/celestiaorg/celestia-node/share/availability/discovery"
-	"github.com/celestiaorg/celestia-node/share/retriever"
+	"github.com/celestiaorg/celestia-node/share/eds"
+	"github.com/celestiaorg/celestia-node/share/ipld"
 
 	logging "github.com/ipfs/go-log/v2"
+
+	"github.com/celestiaorg/celestia-node/share/availability/discovery"
 
 	"github.com/celestiaorg/celestia-node/share"
 
 	"github.com/ipfs/go-blockservice"
-	format "github.com/ipfs/go-ipld-format"
 )
 
 var log = logging.Logger("share/availability/full")
@@ -21,7 +22,7 @@ var log = logging.Logger("share/availability/full")
 // recovery technique. It is considered "full" because it is required
 // to download enough shares to fully reconstruct the data square.
 type ShareAvailability struct {
-	rtrv *retriever.Retriever
+	rtrv *eds.Retriever
 	disc *discovery.Discovery
 
 	cancel context.CancelFunc
@@ -30,7 +31,7 @@ type ShareAvailability struct {
 // NewShareAvailability creates a new full ShareAvailability.
 func NewShareAvailability(bServ blockservice.BlockService, disc *discovery.Discovery) *ShareAvailability {
 	return &ShareAvailability{
-		rtrv: retriever.NewRetriever(bServ),
+		rtrv: eds.NewRetriever(bServ),
 		disc: disc,
 	}
 }
@@ -65,7 +66,7 @@ func (fa *ShareAvailability) SharesAvailable(ctx context.Context, root *share.Ro
 	_, err := fa.rtrv.Retrieve(ctx, root)
 	if err != nil {
 		log.Errorw("availability validation failed", "root", root.Hash(), "err", err)
-		if format.IsNotFound(err) || errors.Is(err, context.DeadlineExceeded) {
+		if ipld.IsNotFound(err) || errors.Is(err, context.DeadlineExceeded) {
 			return share.ErrNotAvailable
 		}
 

@@ -21,7 +21,7 @@ func TestShareAvailableOverMocknet_Full(t *testing.T) {
 	defer cancel()
 
 	net := availability_test.NewTestDAGNet(ctx, t)
-	_, root := RandFullNode(net, 32)
+	_, root := RandNode(net, 32)
 	nd := Node(net)
 	net.ConnectAll()
 
@@ -33,8 +33,8 @@ func TestSharesAvailable_Full(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	// randFullServiceWithSquare creates a NewShareAvailability inside, so we can test it
-	service, dah := randFullServiceWithSquare(t, 16)
+	// RandServiceWithSquare creates a NewShareAvailability inside, so we can test it
+	service, dah := RandServiceWithSquare(t, 16)
 	err := service.SharesAvailable(ctx, dah)
 	assert.NoError(t, err)
 }

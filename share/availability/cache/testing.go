@@ -15,9 +15,9 @@ import (
 	availability_test "github.com/celestiaorg/celestia-node/share/availability/test"
 )
 
-// randLightLocalServiceWithSquare is the same as randLightServiceWithSquare, except
+// RandLightLocalServiceWithSquare is the same as randLightServiceWithSquare, except
 // the share.Availability is wrapped with cache availability.
-func randLightLocalServiceWithSquare(t *testing.T, n int) (*service.ShareService, *share.Root) {
+func RandLightLocalServiceWithSquare(t *testing.T, n int) (*service.ShareService, *share.Root) {
 	bServ := mdutils.Bserv()
 	store := dssync.MutexWrap(ds.NewMapDatastore())
 	ca := NewShareAvailability(
@@ -27,13 +27,13 @@ func randLightLocalServiceWithSquare(t *testing.T, n int) (*service.ShareService
 	return service.NewShareService(bServ, ca), availability_test.RandFillBS(t, n, bServ)
 }
 
-// randFullLocalServiceWithSquare is the same as randFullServiceWithSquare, except
+// RandFullLocalServiceWithSquare is the same as randFullServiceWithSquare, except
 // the share.Availability is wrapped with cache availability.
-func randFullLocalServiceWithSquare(t *testing.T, n int) (*service.ShareService, *share.Root) {
+func RandFullLocalServiceWithSquare(t *testing.T, n int) (*service.ShareService, *share.Root) {
 	bServ := mdutils.Bserv()
 	store := dssync.MutexWrap(ds.NewMapDatastore())
 	ca := NewShareAvailability(
-		full.TestFullAvailability(bServ),
+		full.TestAvailability(bServ),
 		store,
 	)
 	return service.NewShareService(bServ, ca), availability_test.RandFillBS(t, n, bServ)

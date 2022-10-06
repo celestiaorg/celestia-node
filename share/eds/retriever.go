@@ -1,4 +1,4 @@
-package retriever
+package eds
 
 import (
 	"context"
@@ -13,7 +13,6 @@ import (
 
 	"github.com/ipfs/go-blockservice"
 	"github.com/ipfs/go-cid"
-	format "github.com/ipfs/go-ipld-format"
 	logging "github.com/ipfs/go-log/v2"
 	"github.com/tendermint/tendermint/pkg/da"
 	"github.com/tendermint/tendermint/pkg/wrapper"
@@ -26,10 +25,9 @@ import (
 	"github.com/celestiaorg/rsmt2d"
 )
 
-// TODO: fix tracer and loggegr everywhere
-var log = logging.Logger("ipld")
+var log = logging.Logger("eds")
 
-var tracer = otel.Tracer("ipld")
+var tracer = otel.Tracer("eds")
 
 // Retriever retrieves rsmt2d.ExtendedDataSquares from the IPLD network.
 // Instead of requesting data 'share by share' it requests data by quadrants
@@ -106,7 +104,7 @@ func (r *Retriever) Retrieve(ctx context.Context, dah *da.DataAvailabilityHeader
 // to reconstruct the block once enough shares are fetched.
 type retrievalSession struct {
 	bget  blockservice.BlockGetter
-	adder *share.NmtNodeAdder
+	adder *ipld.NmtNodeAdder
 
 	treeFn rsmt2d.TreeConstructorFn
 	codec  rsmt2d.Codec
@@ -129,10 +127,10 @@ type retrievalSession struct {
 // newSession creates a new retrieval session and kicks off requesting process.
 func (r *Retriever) newSession(ctx context.Context, dah *da.DataAvailabilityHeader) (*retrievalSession, error) {
 	size := len(dah.RowsRoots)
-	adder := share.NewNmtNodeAdder(
+	adder := ipld.NewNmtNodeAdder(
 		ctx,
 		r.bServ,
-		format.MaxSizeBatchOption(share.BatchSize(size)),
+		ipld.MaxSizeBatchOption(ipld.BatchSize(size)),
 	)
 	ses := &retrievalSession{
 		bget:  blockservice.NewSession(ctx, r.bServ),

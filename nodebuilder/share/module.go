@@ -4,7 +4,6 @@ import (
 	"context"
 
 	"github.com/celestiaorg/celestia-node/share"
-
 	"github.com/celestiaorg/celestia-node/share/availability/full"
 	"github.com/celestiaorg/celestia-node/share/availability/light"
 

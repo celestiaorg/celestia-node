@@ -7,6 +7,9 @@ import (
 	"errors"
 	"fmt"
 
+	logging "github.com/ipfs/go-log/v2"
+	"go.opentelemetry.io/otel"
+
 	blocks "github.com/ipfs/go-block-format"
 	"github.com/ipfs/go-blockservice"
 	"github.com/ipfs/go-cid"
@@ -16,6 +19,10 @@ import (
 
 	"github.com/celestiaorg/nmt"
 )
+
+var tracer = otel.Tracer("ipld")
+
+var log = logging.Logger("ipld")
 
 const (
 	// Below used multiformats (one codec, one multihash) seem free:
@@ -30,6 +37,55 @@ const (
 
 	// nmtHashSize is the size of a digest created by an NMT in bytes.
 	nmtHashSize = 2*consts.NamespaceSize + sha256.Size
+
+	// MaxSquareSize is currently the maximum size supported for unerasured data in rsmt2d.ExtendedDataSquare.
+	MaxSquareSize = consts.MaxSquareSize
+	// NamespaceSize is a system-wide size for NMT namespaces.
+	NamespaceSize = consts.NamespaceSize
+
+	// typeSize defines the size of the serialized NMT Node type
+	typeSize = 1
+)
+
+func init() {
+	mhcore.Register(Sha256Namespace8Flagged, func() hash.Hash {
+		return NewNamespaceHasher(nmt.NewNmtHasher(sha256.New(), nmt.DefaultNamespaceIDLen, true))
+	})
+}
+
+type namespaceHasher struct {
+	*nmt.Hasher
+	tp   byte
+	data []byte
+}
+
+func NewNamespaceHasher(hasher *nmt.Hasher) hash.Hash {
+	return &namespaceHasher{
+		Hasher: hasher,
+	}
+}
+
+func (n *namespaceHasher) Write(data []byte) (int, error) {
+	ln, nln, hln := len(data), int(n.NamespaceLen), n.Hash.Size()
+	innerNodeSize, leafNodeSize := (nln*2+hln)*2, nln+consts.ShareSize
+	switch ln {
+	default:
+		return 0, fmt.Errorf("wrong data size")
+	case innerNodeSize, innerNodeSize + 1: // w/ and w/o additional type byte
+		n.tp = nmt.NodePrefix
+	case leafNodeSize, leafNodeSize + 1: // w/ and w/o additional type byte
+		n.tp = nmt.LeafPrefix
+	}
+
+	n.data = data[1:]
+	return ln, nil
+}
+
+func (n *namespaceHasher) Sum([]byte) []byte {
+	isLeafData := n.tp == nmt.LeafPrefix
+	if isLeafData {
+		return n.Hasher.HashLeaf(n.data)
+	}
 
 	// typeSize defines the size of the serialized NMT Node type
 	typeSize = 1

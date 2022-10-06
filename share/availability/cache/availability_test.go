@@ -26,8 +26,8 @@ func TestCacheAvailability(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	fullLocalServ, dah0 := randFullLocalServiceWithSquare(t, 16)
-	lightLocalServ, dah1 := randLightLocalServiceWithSquare(t, 16)
+	fullLocalServ, dah0 := RandFullLocalServiceWithSquare(t, 16)
+	lightLocalServ, dah1 := RandLightLocalServiceWithSquare(t, 16)
 
 	var tests = []struct {
 		service *service.ShareService
@@ -111,7 +111,7 @@ func TestCacheAvailability_MinRoot(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	fullLocalServ, _ := randFullLocalServiceWithSquare(t, 16)
+	fullLocalServ, _ := RandFullLocalServiceWithSquare(t, 16)
 	minDAH := da.MinDataAvailabilityHeader()
 
 	err := fullLocalServ.SharesAvailable(ctx, &minDAH)

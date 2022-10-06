@@ -8,8 +8,6 @@ import (
 	"github.com/tendermint/tendermint/pkg/consts"
 )
 
-//TODO: remove?
-
 // EnsureEmptySquareExists checks if the given DAG contains an empty block data square.
 // If it does not, it stores an empty block. This optimization exists to prevent
 // redundant storing of empty block data so that it is only stored once and returned

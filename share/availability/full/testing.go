@@ -16,15 +16,15 @@ import (
 	availability_test "github.com/celestiaorg/celestia-node/share/availability/test"
 )
 
-// randFullServiceWithSquare provides an service.ShareService filled with 'n' NMT
+// RandServiceWithSquare provides an service.ShareService filled with 'n' NMT
 // trees of 'n' random shares, essentially storing a whole square.
-func randFullServiceWithSquare(t *testing.T, n int) (*service.ShareService, *share.Root) {
+func RandServiceWithSquare(t *testing.T, n int) (*service.ShareService, *share.Root) {
 	bServ := mdutils.Bserv()
-	return service.NewShareService(bServ, TestFullAvailability(bServ)), availability_test.RandFillBS(t, n, bServ)
+	return service.NewShareService(bServ, TestAvailability(bServ)), availability_test.RandFillBS(t, n, bServ)
 }
 
-// RandFullNode creates a Full Node filled with a random block of the given size.
-func RandFullNode(dn *availability_test.DagNet, squareSize int) (*availability_test.Node, *share.Root) {
+// RandNode creates a Full Node filled with a random block of the given size.
+func RandNode(dn *availability_test.DagNet, squareSize int) (*availability_test.Node, *share.Root) {
 	nd := Node(dn)
 	return nd, availability_test.RandFillBS(dn.T, squareSize, nd.BlockService)
 }
@@ -32,11 +32,11 @@ func RandFullNode(dn *availability_test.DagNet, squareSize int) (*availability_t
 // Node creates a new empty Full Node.
 func Node(dn *availability_test.DagNet) *availability_test.Node {
 	nd := dn.Node()
-	nd.ShareService = service.NewShareService(nd.BlockService, TestFullAvailability(nd.BlockService))
+	nd.ShareService = service.NewShareService(nd.BlockService, TestAvailability(nd.BlockService))
 	return nd
 }
 
-func TestFullAvailability(bServ blockservice.BlockService) *ShareAvailability {
+func TestAvailability(bServ blockservice.BlockService) *ShareAvailability {
 	disc := discovery.NewDiscovery(nil, routing.NewRoutingDiscovery(routinghelpers.Null{}), 0, time.Second, time.Second)
 	return NewShareAvailability(bServ, disc)
 }

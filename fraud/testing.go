@@ -6,7 +6,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/celestiaorg/celestia-node/share/retriever"
+	"github.com/celestiaorg/celestia-node/share/eds"
 
 	"github.com/ipfs/go-blockservice"
 
@@ -67,7 +67,7 @@ func generateByzantineError(
 	bServ blockservice.BlockService,
 ) (*header.ExtendedHeader, error) {
 	faultHeader := header.CreateFraudExtHeader(t, h, bServ)
-	rtrv := retriever.NewRetriever(bServ)
+	rtrv := eds.NewRetriever(bServ)
 	_, err := rtrv.Retrieve(ctx, faultHeader.DAH)
 	return faultHeader, err
 }

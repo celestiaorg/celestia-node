@@ -16,23 +16,23 @@ import (
 	availability_test "github.com/celestiaorg/celestia-node/share/availability/test"
 )
 
-// randLightServiceWithSquare provides a share.Service filled with 'n' NMT
+// RandServiceWithSquare provides a share.Service filled with 'n' NMT
 // trees of 'n' random shares, essentially storing a whole square.
-func randLightServiceWithSquare(t *testing.T, n int) (*service.ShareService, *share.Root) {
+func RandServiceWithSquare(t *testing.T, n int) (*service.ShareService, *share.Root) {
 	bServ := mdutils.Bserv()
 
 	return service.NewShareService(bServ, TestLightAvailability(bServ)), availability_test.RandFillBS(t, n, bServ)
 }
 
-// randLightService provides an unfilled share.Service with corresponding
+// RandService provides an unfilled share.Service with corresponding
 // blockservice.BlockService than can be filled by the test.
-func randLightService() (*service.ShareService, blockservice.BlockService) {
+func RandService() (*service.ShareService, blockservice.BlockService) {
 	bServ := mdutils.Bserv()
 	return service.NewShareService(bServ, TestLightAvailability(bServ)), bServ
 }
 
-// randLightNode creates a Light Node filled with a random block of the given size.
-func randLightNode(dn *availability_test.DagNet, squareSize int) (*availability_test.Node, *share.Root) {
+// RandNode creates a Light Node filled with a random block of the given size.
+func RandNode(dn *availability_test.DagNet, squareSize int) (*availability_test.Node, *share.Root) {
 	nd := Node(dn)
 	return nd, availability_test.RandFillBS(dn.T, squareSize, nd.BlockService)
 }

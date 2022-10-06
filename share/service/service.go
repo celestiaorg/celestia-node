@@ -4,9 +4,9 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/celestiaorg/celestia-node/share"
+	"github.com/celestiaorg/celestia-node/share/eds"
 
-	"github.com/celestiaorg/celestia-node/share/retriever"
+	"github.com/celestiaorg/celestia-node/share"
 
 	"golang.org/x/sync/errgroup"
 
@@ -18,14 +18,10 @@ import (
 	"github.com/celestiaorg/nmt/namespace"
 )
 
-// Share is a fixed-size data chunk associated with a namespace ID, whose data will be erasure-coded and committed
-// to in Namespace Merkle trees.
-type Share = share.Share
-
 // TODO(@Wondertan): Simple thread safety for Start and Stop would not hurt.
 type ShareService struct {
 	share.Availability
-	rtrv  *retriever.Retriever
+	rtrv  *eds.Retriever
 	bServ blockservice.BlockService
 	// session is blockservice sub-session that applies optimization for fetching/loading related nodes, like shares
 	// prefer session over blockservice for fetching nodes.
@@ -36,7 +32,7 @@ type ShareService struct {
 // NewService creates a new basic share.Module.
 func NewShareService(bServ blockservice.BlockService, avail share.Availability) *ShareService {
 	return &ShareService{
-		rtrv:         retriever.NewRetriever(bServ),
+		rtrv:         eds.NewRetriever(bServ),
 		Availability: avail,
 		bServ:        bServ,
 	}
@@ -68,7 +64,7 @@ func (s *ShareService) Stop(context.Context) error {
 	return nil
 }
 
-func (s *ShareService) GetShare(ctx context.Context, dah *share.Root, row, col int) (Share, error) {
+func (s *ShareService) GetShare(ctx context.Context, dah *share.Root, row, col int) (share.Share, error) {
 	root, leaf := share.Translate(dah, row, col)
 	nd, err := share.GetShare(ctx, s.bServ, root, leaf, len(dah.RowsRoots))
 	if err != nil {
@@ -78,18 +74,18 @@ func (s *ShareService) GetShare(ctx context.Context, dah *share.Root, row, col i
 	return nd, nil
 }
 
-func (s *ShareService) GetShares(ctx context.Context, root *share.Root) ([][]Share, error) {
+func (s *ShareService) GetShares(ctx context.Context, root *share.Root) ([][]share.Share, error) {
 	eds, err := s.rtrv.Retrieve(ctx, root)
 	if err != nil {
 		return nil, err
 	}
 
 	origWidth := int(eds.Width() / 2)
-	shares := make([][]Share, origWidth)
+	shares := make([][]share.Share, origWidth)
 
 	for i := 0; i < origWidth; i++ {
 		row := eds.Row(uint(i))
-		shares[i] = make([]Share, origWidth)
+		shares[i] = make([]share.Share, origWidth)
 		for j := 0; j < origWidth; j++ {
 			shares[i][j] = row[j]
 		}
@@ -99,8 +95,12 @@ func (s *ShareService) GetShares(ctx context.Context, root *share.Root) ([][]Sha
 }
 
 // GetSharesByNamespace iterates over a square's row roots and accumulates the found shares in the given namespace.ID.
-func (s *ShareService) GetSharesByNamespace(ctx context.Context, root *share.Root, nID namespace.ID) ([]Share, error) {
-	err := share.SanityCheckNID(nID)
+func (s *ShareService) GetSharesByNamespace(
+	ctx context.Context,
+	root *share.Root,
+	nID namespace.ID,
+) ([]share.Share, error) {
+	err := ipld.SanityCheckNID(nID)
 	if err != nil {
 		return nil, err
 	}
@@ -115,7 +115,7 @@ func (s *ShareService) GetSharesByNamespace(ctx context.Context, root *share.Roo
 	}
 
 	errGroup, ctx := errgroup.WithContext(ctx)
-	shares := make([][]Share, len(rowRootCIDs))
+	shares := make([][]share.Share, len(rowRootCIDs))
 	for i, rootCID := range rowRootCIDs {
 		// shadow loop variables, to ensure correct values are captured
 		i, rootCID := i, rootCID
@@ -133,7 +133,7 @@ func (s *ShareService) GetSharesByNamespace(ctx context.Context, root *share.Roo
 	// TODO(@Wondertan): Consider improving encoding schema for data in the shares that will also include metadata
 	// 	with the amount of shares. If we are talking about plenty of data here, proper preallocation would make a
 	// 	difference
-	var out []Share
+	var out []share.Share
 	for i := 0; i < len(rowRootCIDs); i++ {
 		out = append(out, shares[i]...)
 	}

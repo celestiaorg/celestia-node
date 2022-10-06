@@ -221,7 +221,7 @@ func TestGetLeavesByNamespace_IncompleteData(t *testing.T) {
 	err = bServ.DeleteBlock(ctx, r.Cid())
 	require.NoError(t, err)
 
-	nodes, err := getLeavesByNamespace(ctx, bServ, rcid, nid, len(shares))
+	nodes, err := ipld.GetLeavesByNamespace(ctx, bServ, rcid, nid, len(shares))
 	assert.Equal(t, nil, nodes[1])
 	// TODO(distractedm1nd): Decide if we should return an array containing nil
 	assert.Equal(t, 4, len(nodes))
@@ -303,7 +303,7 @@ func TestGetLeavesByNamespace_MultipleRowsContainingSameNamespaceId(t *testing.T
 
 	for _, row := range eds.RowRoots() {
 		rcid := ipld.MustCidFromNamespacedSha256(row)
-		nodes, err := getLeavesByNamespace(ctx, bServ, rcid, nid, len(shares))
+		nodes, err := ipld.GetLeavesByNamespace(ctx, bServ, rcid, nid, len(shares))
 		assert.Nil(t, err)
 
 		for _, node := range nodes {
@@ -346,7 +346,7 @@ func TestBatchSize(t *testing.T) {
 				count++
 			}
 			extendedWidth := tt.origWidth * 2
-			assert.Equalf(t, count, BatchSize(extendedWidth), "batchSize(%v)", extendedWidth)
+			assert.Equalf(t, count, ipld.BatchSize(extendedWidth), "batchSize(%v)", extendedWidth)
 		})
 	}
 }
@@ -366,7 +366,7 @@ func assertNoRowContainsNID(
 
 	// for each row root cid check if the minNID exists
 	for _, rowCID := range rowRootCIDs {
-		data, err := getLeavesByNamespace(context.Background(), bServ, rowCID, nID, rowRootCount)
+		data, err := ipld.GetLeavesByNamespace(context.Background(), bServ, rowCID, nID, rowRootCount)
 		assert.Nil(t, data)
 		assert.Nil(t, err)
 	}
@@ -399,7 +399,7 @@ func TestGetProof(t *testing.T) {
 					proof := make([]cid.Cid, 0)
 					proof, err = GetProof(ctx, bServ, rootCid, proof, index, int(in.Width()))
 					require.NoError(t, err)
-					node, err := GetLeaf(ctx, bServ, rootCid, index, int(in.Width()))
+					node, err := ipld.GetLeaf(ctx, bServ, rootCid, index, int(in.Width()))
 					require.NoError(t, err)
 					inclusion := NewShareWithProof(index, node.RawData()[1:], proof)
 					require.True(t, inclusion.Validate(rootCid))
@@ -424,7 +424,7 @@ func TestGetProofs(t *testing.T) {
 		rootCid := ipld.MustCidFromNamespacedSha256(root)
 		data := make([][]byte, 0, in.Width())
 		for index := 0; uint(index) < in.Width(); index++ {
-			node, err := GetLeaf(ctx, bServ, rootCid, index, int(in.Width()))
+			node, err := ipld.GetLeaf(ctx, bServ, rootCid, index, int(in.Width()))
 			require.NoError(t, err)
 			data = append(data, node.RawData()[9:])
 		}

@@ -5,13 +5,14 @@ import (
 	"errors"
 	"math"
 
+	"github.com/celestiaorg/celestia-node/share/ipld"
+
 	logging "github.com/ipfs/go-log/v2"
 
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/availability/discovery"
 
 	"github.com/ipfs/go-blockservice"
-	format "github.com/ipfs/go-ipld-format"
 )
 
 var log = logging.Logger("share/availability/light")
@@ -99,7 +100,7 @@ func (la *ShareAvailability) SharesAvailable(ctx context.Context, dah *share.Roo
 			if !errors.Is(err, context.Canceled) {
 				log.Errorw("availability validation failed", "root", dah.Hash(), "err", err)
 			}
-			if format.IsNotFound(err) || errors.Is(err, context.DeadlineExceeded) {
+			if ipld.IsNotFound(err) || errors.Is(err, context.DeadlineExceeded) {
 				return share.ErrNotAvailable
 			}
 

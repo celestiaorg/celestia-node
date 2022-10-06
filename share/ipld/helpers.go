@@ -1,8 +1,10 @@
-package share
+package ipld
 
 import (
 	"context"
 	"fmt"
+
+	ipld "github.com/ipfs/go-ipld-format"
 
 	"github.com/ipfs/go-cid"
 )
@@ -13,6 +15,16 @@ type job struct {
 	id  cid.Cid
 	pos int
 	ctx context.Context
+}
+
+func MaxSizeBatchOption(size int) ipld.BatchOption {
+	return ipld.MaxSizeBatchOption(size)
+}
+
+// IsNotFound returns if the given error is or wraps an ErrNotFound
+// (equivalent to errors.Is(err, ErrNotFound{}))
+func IsNotFound(err error) bool {
+	return ipld.IsNotFound(err)
 }
 
 func SanityCheckNID(nID []byte) error {

@@ -26,7 +26,7 @@ import (
 
 // RandFillBS fills the given BlockService with a random block of a given size.
 func RandFillBS(t *testing.T, n int, bServ blockservice.BlockService) *share.Root {
-	shares := RandShares(t, n*n)
+	shares := share.RandShares(t, n*n)
 	return FillBS(t, bServ, shares)
 }
 
@@ -36,11 +36,6 @@ func FillBS(t *testing.T, bServ blockservice.BlockService, shares []share.Share)
 	require.NoError(t, err)
 	dah := da.NewDataAvailabilityHeader(eds)
 	return &dah
-}
-
-// RandShares provides 'n' randomized shares prefixed with random namespaces.
-func RandShares(t *testing.T, n int) []share.Share {
-	return share.RandShares(t, n)
 }
 
 type Node struct {

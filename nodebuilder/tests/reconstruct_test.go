@@ -10,14 +10,14 @@ import (
 	"testing"
 	"time"
 
-	"github.com/celestiaorg/celestia-node/share/availability/light"
-	"github.com/celestiaorg/celestia-node/share/retriever"
-
 	"github.com/libp2p/go-libp2p-core/event"
 	"github.com/libp2p/go-libp2p-core/host"
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/sync/errgroup"
+
+	"github.com/celestiaorg/celestia-node/share/availability/light"
+	"github.com/celestiaorg/celestia-node/share/eds"
 
 	"github.com/celestiaorg/celestia-node/nodebuilder"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
@@ -91,7 +91,7 @@ Steps:
 9. Check that the FN can retrieve shares from 1 to 20 blocks
 */
 func TestFullReconstructFromLights(t *testing.T) {
-	retriever.RetrieveQuadrantTimeout = time.Millisecond * 100
+	eds.RetrieveQuadrantTimeout = time.Millisecond * 100
 	light.DefaultSampleAmount = 20
 	const (
 		blocks = 20

@@ -68,7 +68,7 @@ install-key:
 fmt:
 	@find . -name '*.go' -type f -not -path "*.git*" -not -name '*.pb.go' -not -name '*pb_test.go' | xargs gofmt -w -s
 	@find . -name '*.go' -type f -not -path "*.git*"  -not -name '*.pb.go' -not -name '*pb_test.go' | xargs goimports -w -local github.com/celestiaorg
-	@go mod tidy -compat=1.17
+	@go mod tidy -compat=1.19
 	@markdownlint --fix --quiet --config .markdownlint.yaml .
 .PHONY: fmt
 

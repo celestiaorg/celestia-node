@@ -1,4 +1,4 @@
-package retriever
+package eds
 
 import (
 	"context"
@@ -6,9 +6,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/celestiaorg/celestia-node/share/ipld"
+
 	"github.com/celestiaorg/celestia-node/share"
 
-	format "github.com/ipfs/go-ipld-format"
 	mdutils "github.com/ipfs/go-merkledag/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -79,7 +80,7 @@ func TestRetriever_ByzantineError(t *testing.T) {
 	copy(shares[14][8:], shares[15][8:])
 
 	// import corrupted eds
-	batchAdder := share.NewNmtNodeAdder(ctx, bserv, format.MaxSizeBatchOption(share.BatchSize(width*2)))
+	batchAdder := ipld.NewNmtNodeAdder(ctx, bserv, ipld.MaxSizeBatchOption(ipld.BatchSize(width*2)))
 	tree := wrapper.NewErasuredNamespacedMerkleTree(uint64(width), nmt.NodeVisitor(batchAdder.Visit))
 	attackerEDS, err := rsmt2d.ImportExtendedDataSquare(shares, share.DefaultRSMT2DCodec(), tree.Constructor)
 	require.NoError(t, err)
