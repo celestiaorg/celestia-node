@@ -62,7 +62,7 @@ amount of workers: 64, speed: 11.83
 ```
 
 Based on basic experiment results, values higher than 16 don’t bring much benefit. At the same time, increased parallelization comes with a cost of higher memory consumption.  
-Future improvements will discussed later and are out of scope of this ADR.
+Future improvements will be discussed later and are out of the scope of this ADR.
 
 ## Status
 
