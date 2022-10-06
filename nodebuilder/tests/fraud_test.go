@@ -64,7 +64,7 @@ func TestFraudProofBroadcasting(t *testing.T) {
 	// If we cannot get a height header within a timeframe it means the syncer was stopped
 	// FIXME: Eventually, this should be a check on service registry managing and keeping
 	//  lifecycles of each Module.
-	syncCtx, syncCancel := context.WithTimeout(context.Background(), time.Millisecond*600)
+	syncCtx, syncCancel := context.WithTimeout(context.Background(), time.Millisecond*100)
 	_, err = full.HeaderServ.GetByHeight(syncCtx, 100)
 	require.ErrorIs(t, err, context.DeadlineExceeded)
 	syncCancel()

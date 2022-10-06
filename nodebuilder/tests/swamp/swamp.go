@@ -16,7 +16,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/tendermint/tendermint/libs/bytes"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
-	"github.com/tendermint/tendermint/types"
 	"go.uber.org/fx"
 
 	"github.com/celestiaorg/celestia-app/testutil/testnode"
@@ -31,8 +30,6 @@ import (
 )
 
 var blackholeIP6 = net.ParseIP("100::")
-
-var queryEvent string = types.QueryForEvent(types.EventNewBlock).String()
 
 // Swamp represents the main functionality that is needed for the test-case:
 // - Network to link the nodes
@@ -66,7 +63,7 @@ func NewSwamp(t *testing.T, options ...Option) *Swamp {
 	var err error
 	ctx := context.Background()
 
-	// we create an arbitray number of funded accounts
+	// we create an arbitrary number of funded accounts
 	accounts := make([]string, 100)
 	for i := 0; i < 10; i++ {
 		accounts = append(accounts, tmrand.Str(9))
@@ -83,6 +80,7 @@ func NewSwamp(t *testing.T, options ...Option) *Swamp {
 	require.NoError(t, err)
 
 	cctx, cleanupGRPCServer, err := testnode.StartGRPCServer(app, testnode.DefaultAppConfig(), cctx)
+	require.NoError(t, err)
 
 	swp := &Swamp{
 		t:             t,
