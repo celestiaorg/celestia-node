@@ -34,16 +34,10 @@ func GetShares(ctx context.Context, bGetter blockservice.BlockGetter, root cid.C
 	ctx, span := tracer.Start(ctx, "get-shares")
 	defer span.End()
 
-	leaves := ipld.GetLeaves(ctx, bGetter, root, shares)
-	if len(leaves) == 0 {
-		return
+	putNode := func(i int, leaf format.Node) {
+		put(i, leafToShare(leaf))
 	}
-
-	for i, leaf := range leaves {
-		if leaf != nil {
-			put(i, leafToShare(leaf))
-		}
-	}
+	ipld.GetLeaves(ctx, bGetter, root, shares, putNode)
 }
 
 // GetSharesByNamespace walks the tree of a given root and returns its shares within the given namespace.ID.

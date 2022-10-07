@@ -95,7 +95,8 @@ func GetLeaves(ctx context.Context,
 	bGetter blockservice.BlockGetter,
 	root cid.Cid,
 	maxShares int,
-) []ipld.Node {
+	put func(int, ipld.Node),
+) {
 	ctx, span := tracer.Start(ctx, "get-leaves")
 	defer span.End()
 
@@ -108,10 +109,6 @@ func GetLeaves(ctx context.Context,
 	total := maxShares*2 - 1
 	wg := sync.WaitGroup{}
 	wg.Add(total)
-
-	// we overallocate space for leaves since we do not know how many we will find
-	// on the level above, the length of the Row is passed in as maxShares
-	leaves := make([]ipld.Node, maxShares)
 
 	// all preparations are done, so begin processing jobs
 	for i := 0; i < total; i++ {
@@ -152,7 +149,7 @@ func GetLeaves(ctx context.Context,
 					// successfully fetched a share/leaf
 					// ladies and gentlemen, we got em!
 					span.SetStatus(codes.Ok, "")
-					leaves[j.pos] = nd
+					put(j.pos, nd)
 					return
 				}
 				// ok, we found more links
@@ -174,12 +171,12 @@ func GetLeaves(ctx context.Context,
 				}
 			})
 		case <-ctx.Done():
-			return nil
+			return
 		}
 	}
 	// "tick-tack, how much more should I wait before you get those shares?" - the goroutine
 	wg.Wait()
-	return leaves
+	return
 }
 
 // GetLeavesByNamespace returns as many leaves from the given root with the given namespace.ID as it can retrieve.
