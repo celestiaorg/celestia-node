@@ -1,6 +1,6 @@
 name: Bug Report
 description: File a bug report to inform the community on your awesome finding!
-labels: ["bug",]
+labels: ["bug"]
 body:
   - type: markdown
     attributes:
@@ -8,13 +8,15 @@ body:
         Thank you for filling out this bug report!
   - type: input
     id: version
-    attributes: 
+    attributes:
       label: Celestia Node version
-      description: use 'celestia version' or 'git rev-parse --verify HEAD' if installed from source code
+      description: >
+        use 'celestia version' or 'git rev-parse --verify HEAD' if installed
+        from source code
     validations:
       required: true
   - type: markdown
-    attributes: 
+    attributes:
       value: |
         Environment
   - type: input
@@ -33,52 +35,48 @@ body:
     id: others
     attributes:
       label: Others
-      description: e.g. flag options, celestia config file changes, resources limitation(like cpu, ram limit, swap etc.)
+      description: >
+        e.g. flag options, celestia config file changes, resources
+        limitation(like cpu, ram limit, swap etc.)
   - type: textarea
     id: steps
     attributes:
       label: Steps to reproduce it
-      description: What steps have you made to reproduce it? 
+      description: What steps have you made to reproduce it?
       placeholder: Tell us what you see!
-      value:
     validations:
       required: true
   - type: textarea
     id: expectation
     attributes:
       label: Expected result
-      description: What do you expect to happen as a final result? 
+      description: What do you expect to happen as a final result?
       placeholder: Let us know what is expected
-      value:
     validations:
       required: true
   - type: textarea
     id: actual
     attributes:
       label: Actual result
-      description: What do you see happened instead as a final result? 
-      placeholder: This is the crucial part in detecting the root cause of the issue
-      value:
+      description: What do you see happened instead as a final result?
+      placeholder: >
+        This is the crucial part in detecting the root cause of the issue
     validations:
       required: true
   - type: textarea
     id: logs
     attributes:
       label: Relevant log output
-      description: Please copy and paste any relevant log(max 20 lines) output. This will be automatically formatted into code, so no need for backticks. Or paste gists, pastebins links here
-      render: shell
+      description: >
+        Please copy and paste any relevant log(max 20 lines) output. This will
+        be automatically formatted into code, so no need for backticks. Or paste
+        gists, pastebins links here
+      render: Shell
   - type: textarea
     id: misc
     attributes:
       label: Notes
-      description: Is there anything else we need to know? 
-      placeholder: Maybe, you have other ways to repro or what side effects there are if changing steps
-  #75 
-  # - type: checkboxes
-  #   id: terms
-  #   attributes:
-  #     label: Code of Conduct
-  #     description: By submitting this issue, you agree to follow our [Code of Conduct](https://example.com)
-  #     options:
-  #       - label: I agree to follow this project's Code of Conduct
-  #         required: true
+      description: Is there anything else we need to know?
+      placeholder: >
+        Maybe, you have other ways to repro or what side effects there are if
+        changing steps
