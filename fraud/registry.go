@@ -28,8 +28,8 @@ func Register(p Proof) {
 	}
 }
 
-// getRegisteredProofTypes returns all available proofTypes.
-func getRegisteredProofTypes() []ProofType {
+// registeredProofTypes returns all available proofTypes.
+func registeredProofTypes() []ProofType {
 	unmarshalersLk.Lock()
 	defer unmarshalersLk.Unlock()
 	proofs := make([]ProofType, 0, len(defaultUnmarshalers))

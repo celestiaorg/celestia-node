@@ -139,6 +139,14 @@ func (ca *CoreAccessor) SubmitPayForData(
 	return payment.SubmitPayForData(ctx, ca.signer, ca.coreConn, nID, data, gasLim)
 }
 
+func (ca *CoreAccessor) AccountAddress(ctx context.Context) (Address, error) {
+	addr, err := ca.signer.GetSignerInfo().GetAddress()
+	if err != nil {
+		return nil, err
+	}
+	return addr, nil
+}
+
 func (ca *CoreAccessor) Balance(ctx context.Context) (*Balance, error) {
 	addr, err := ca.signer.GetSignerInfo().GetAddress()
 	if err != nil {

@@ -15,6 +15,10 @@ import (
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 
 	"github.com/celestiaorg/celestia-node/params"
+
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // fraudRequests is the amount of external requests that will be tried to get fraud proofs from other peers.
@@ -77,7 +81,7 @@ func (f *ProofService) registerProofTopics(proofTypes ...ProofType) error {
 // Start joins fraud proofs topics, sets the stream handler for fraudProtocolID and starts syncing if syncer is enabled.
 func (f *ProofService) Start(context.Context) error {
 	f.ctx, f.cancel = context.WithCancel(context.Background())
-	if err := f.registerProofTopics(getRegisteredProofTypes()...); err != nil {
+	if err := f.registerProofTopics(registeredProofTypes()...); err != nil {
 		return err
 	}
 	f.host.SetStreamHandler(fraudProtocolID, f.handleFraudMessageRequest)
@@ -129,6 +133,11 @@ func (f *ProofService) processIncoming(
 	from peer.ID,
 	msg *pubsub.Message,
 ) pubsub.ValidationResult {
+	ctx, span := tracer.Start(ctx, "process_proof", trace.WithAttributes(
+		attribute.String("proof_type", string(proofType)),
+	))
+	defer span.End()
+
 	// unmarshal message to the Proof.
 	// Peer will be added to black list if unmarshalling fails.
 	proof, err := Unmarshal(proofType, msg.Data)
@@ -137,10 +146,17 @@ func (f *ProofService) processIncoming(
 		if !errors.Is(err, &errNoUnmarshaler{}) {
 			f.pubsub.BlacklistPeer(from)
 		}
+		span.RecordError(err)
 		return pubsub.ValidationReject
 	}
 	// check the fraud proof locally and ignore if it has been already stored locally.
 	if f.verifyLocal(ctx, proofType, hex.EncodeToString(proof.HeaderHash()), msg.Data) {
+		span.AddEvent("received_known_fraud_proof", trace.WithAttributes(
+			attribute.String("proof_type", string(proof.Type())),
+			attribute.Int("block_height", int(proof.Height())),
+			attribute.String("block_hash", hex.EncodeToString(proof.HeaderHash())),
+			attribute.String("from_peer", from.String()),
+		))
 		return pubsub.ValidationIgnore
 	}
 
@@ -160,15 +176,25 @@ func (f *ProofService) processIncoming(
 		log.Errorw("proof validation err: ",
 			"err", err, "proofType", proof.Type(), "height", proof.Height())
 		f.pubsub.BlacklistPeer(from)
+		span.RecordError(err)
 		return pubsub.ValidationReject
 	}
+
+	span.AddEvent("received_valid_proof", trace.WithAttributes(
+		attribute.String("proof_type", string(proof.Type())),
+		attribute.Int("block_height", int(proof.Height())),
+		attribute.String("block_hash", hex.EncodeToString(proof.HeaderHash())),
+		attribute.String("from_peer", from.String()),
+	))
 
 	// add the fraud proof to storage.
 	err = f.put(ctx, proof.Type(), hex.EncodeToString(proof.HeaderHash()), msg.Data)
 	if err != nil {
 		log.Errorw("failed to store fraud proof", "err", err)
+		span.RecordError(err)
 	}
 
+	span.SetStatus(codes.Ok, "")
 	return pubsub.ValidationAccept
 }
 

@@ -9,6 +9,8 @@ import (
 	"github.com/libp2p/go-libp2p-core/network"
 	"github.com/libp2p/go-libp2p-core/peer"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
 
 	"github.com/celestiaorg/go-libp2p-messenger/serde"
 
@@ -57,14 +59,24 @@ func (f *ProofService) syncFraudProofs(ctx context.Context) {
 		peerCache[connStatus.Peer] = struct{}{}
 		// valid peer found, so go send proof requests
 		go func(pid peer.ID) {
+			ctx, span := tracer.Start(ctx, "sync_proofs")
+			defer span.End()
+
+			span.SetAttributes(
+				attribute.String("peer_id", pid.String()),
+				attribute.StringSlice("proof_types", proofTypes),
+			)
 			log.Debugw("requesting proofs from peer", "pid", pid)
 			respProofs, err := requestProofs(ctx, f.host, pid, proofTypes)
 			if err != nil {
 				log.Errorw("error while requesting fraud proofs", "err", err, "peer", pid)
+				span.RecordError(err)
+				span.SetStatus(codes.Error, err.Error())
 				return
 			}
 			if len(respProofs) == 0 {
 				log.Debugw("peer did not return any proofs", "pid", pid)
+				span.SetStatus(codes.Ok, "")
 				return
 			}
 			log.Debugw("got fraud proofs from peer", "pid", connStatus.Peer)
@@ -87,9 +99,11 @@ func (f *ProofService) syncFraudProofs(ctx context.Context) {
 					)
 					if err != nil {
 						log.Error(err)
+						span.RecordError(err)
 					}
 				}
 			}
+			span.SetStatus(codes.Ok, "")
 		}(connStatus.Peer)
 	}
 }
