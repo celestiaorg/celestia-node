@@ -12,6 +12,15 @@ import (
 	"github.com/celestiaorg/celestia-node/nodebuilder/state"
 )
 
+//go:generate go run github.com/golang/mock/mockgen -destination=../../mocks/api.go -package=mocks . API
+type API interface {
+	fraud.Module
+	header.Module
+	state.Module
+	share.Module
+	daser.Module
+}
+
 type Client struct {
 	Fraud  fraud.API
 	Header header.API
