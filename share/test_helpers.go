@@ -51,7 +51,7 @@ func RandShares(t *testing.T, total int) []Share {
 
 	shares := make([]Share, total)
 	for i := range shares {
-		nid := make([]byte, ShareSize)
+		nid := make([]byte, Size)
 		_, err := mrand.Read(nid[:NamespaceSize])
 		require.NoError(t, err)
 		shares[i] = nid

@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"errors"
 	"fmt"
+	"math/rand"
 
 	blocks "github.com/ipfs/go-block-format"
 	"github.com/ipfs/go-blockservice"
@@ -14,6 +15,7 @@ import (
 	logging "github.com/ipfs/go-log/v2"
 	mh "github.com/multiformats/go-multihash"
 	"github.com/tendermint/tendermint/pkg/consts"
+	"github.com/tendermint/tendermint/pkg/da"
 	"go.opentelemetry.io/otel"
 
 	"github.com/celestiaorg/nmt"
@@ -31,9 +33,9 @@ const (
 	// nmtCodec is the codec used for leaf and inner nodes of a Namespaced Merkle Tree.
 	nmtCodec = 0x7700
 
-	// Sha256Namespace8Flagged is the multihash code used to hash blocks
+	// sha256Namespace8Flagged is the multihash code used to hash blocks
 	// that contain an NMT node (inner and leaf nodes).
-	Sha256Namespace8Flagged = 0x7701
+	sha256Namespace8Flagged = 0x7701
 
 	// nmtHashSize is the size of a digest created by an NMT in bytes.
 	nmtHashSize = 2*consts.NamespaceSize + sha256.Size
@@ -276,7 +278,7 @@ func CidFromNamespacedSha256(namespacedHash []byte) (cid.Cid, error) {
 	if got, want := len(namespacedHash), nmtHashSize; got != want {
 		return cid.Cid{}, fmt.Errorf("invalid namespaced hash length, got: %v, want: %v", got, want)
 	}
-	buf, err := mh.Encode(namespacedHash, Sha256Namespace8Flagged)
+	buf, err := mh.Encode(namespacedHash, sha256Namespace8Flagged)
 	if err != nil {
 		return cid.Undef, err
 	}
@@ -291,10 +293,20 @@ func MustCidFromNamespacedSha256(hash []byte) cid.Cid {
 		panic(
 			fmt.Sprintf("malformed hash: %s, codec: %v",
 				err,
-				mh.Codes[Sha256Namespace8Flagged]),
+				mh.Codes[sha256Namespace8Flagged]),
 		)
 	}
 	return cidFromHash
+}
+
+// Translate transforms square coordinates into IPLD NMT tree path to a leaf node.
+// It also adds randomization to evenly spread fetching from Rows and Columns.
+func Translate(dah *da.DataAvailabilityHeader, row, col int) (cid.Cid, int) {
+	if rand.Intn(2) == 0 { //nolint:gosec
+		return MustCidFromNamespacedSha256(dah.ColumnRoots[col]), row
+	}
+
+	return MustCidFromNamespacedSha256(dah.RowsRoots[row]), col
 }
 
 // NamespacedSha256FromCID derives the Namespaced hash from the given CID.

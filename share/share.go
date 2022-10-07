@@ -27,8 +27,8 @@ const (
 	MaxSquareSize = consts.MaxSquareSize
 	// NamespaceSize is a system-wide size for NMT namespaces.
 	NamespaceSize = consts.NamespaceSize
-	// ShareSize is a system-wide size of a share, including both data and namespace ID
-	ShareSize = consts.ShareSize
+	// Size is a system-wide size of a share, including both data and namespace ID
+	Size = consts.ShareSize
 )
 
 // Share contains the raw share data without the corresponding namespace.
@@ -36,13 +36,13 @@ const (
 // reusable type elsewhere and make everyone(Core, rsmt2d, ipld) to rely on it.
 type Share = []byte
 
-// ShareID gets the namespace ID from the share.
-func ShareID(s Share) namespace.ID { //nolint:revive
+// ID gets the namespace ID from the share.
+func ID(s Share) namespace.ID {
 	return s[:NamespaceSize]
 }
 
-// ShareData gets data from the share.
-func ShareData(s Share) []byte { //nolint:revive
+// Data gets data from the share.
+func Data(s Share) []byte {
 	return s[NamespaceSize:]
 }
 
@@ -74,8 +74,8 @@ func NewShareWithProof(index int, share Share, pathToLeaf []cid.Cid) *ShareWithP
 func (s *ShareWithProof) Validate(root cid.Cid) bool {
 	return s.Proof.VerifyInclusion(
 		sha256.New(), // TODO(@Wondertan): This should be defined somewhere globally
-		ShareID(s.Share),
-		[][]byte{ShareData(s.Share)},
+		ID(s.Share),
+		[][]byte{Data(s.Share)},
 		ipld.NamespacedSha256FromCID(root),
 	)
 }

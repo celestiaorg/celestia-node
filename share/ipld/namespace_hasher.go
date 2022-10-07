@@ -14,7 +14,7 @@ import (
 func init() {
 	// Register custom hasher in the multihash register.
 	// Required for the Bitswap to hash and verify inbound data correctly
-	mhcore.Register(Sha256Namespace8Flagged, func() hash.Hash {
+	mhcore.Register(sha256Namespace8Flagged, func() hash.Hash {
 		return defaultHasher()
 	})
 }

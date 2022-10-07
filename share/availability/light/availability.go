@@ -5,6 +5,8 @@ import (
 	"errors"
 	"math"
 
+	"github.com/celestiaorg/celestia-node/share/ipld"
+
 	"github.com/ipfs/go-blockservice"
 	ipldFormat "github.com/ipfs/go-ipld-format"
 	logging "github.com/ipfs/go-log/v2"
@@ -75,7 +77,7 @@ func (la *ShareAvailability) SharesAvailable(ctx context.Context, dah *share.Roo
 	errs := make(chan error, len(samples))
 	for _, s := range samples {
 		go func(s Sample) {
-			root, leaf := share.Translate(dah, s.Row, s.Col)
+			root, leaf := ipld.Translate(dah, s.Row, s.Col)
 			_, err := share.GetShare(ctx, ses, root, leaf, len(dah.RowsRoots))
 			// we don't really care about Share bodies at this point
 			// it also means we now saved the Share in local storage

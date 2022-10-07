@@ -62,7 +62,7 @@ func (s *ShareService) Stop(context.Context) error {
 }
 
 func (s *ShareService) GetShare(ctx context.Context, dah *share.Root, row, col int) (share.Share, error) {
-	root, leaf := share.Translate(dah, row, col)
+	root, leaf := ipld.Translate(dah, row, col)
 	nd, err := share.GetShare(ctx, s.bServ, root, leaf, len(dah.RowsRoots))
 	if err != nil {
 		return nil, err
@@ -97,10 +97,10 @@ func (s *ShareService) GetSharesByNamespace(
 	root *share.Root,
 	nID namespace.ID,
 ) ([]share.Share, error) {
-	err := ipld.SanityCheckNID(nID)
-	if err != nil {
-		return nil, err
+	if len(nID) != share.NamespaceSize {
+		return nil, fmt.Errorf("expected namespace ID of size %d, got %d", share.NamespaceSize, len(nID))
 	}
+
 	rowRootCIDs := make([]cid.Cid, 0)
 	for _, row := range root.RowsRoots {
 		if !nID.Less(nmt.MinNamespace(row, nID.Size())) && nID.LessOrEqual(nmt.MaxNamespace(row, nID.Size())) {

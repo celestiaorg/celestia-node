@@ -2,6 +2,7 @@ package ipld
 
 import (
 	"context"
+	"fmt"
 	"sync"
 	"sync/atomic"
 
@@ -176,7 +177,6 @@ func GetLeaves(ctx context.Context,
 	}
 	// "tick-tack, how much more should I wait before you get those shares?" - the goroutine
 	wg.Wait()
-	return
 }
 
 // GetLeavesByNamespace returns as many leaves from the given root with the given namespace.ID as it can retrieve.
@@ -190,9 +190,8 @@ func GetLeavesByNamespace(
 	nID namespace.ID,
 	maxShares int,
 ) ([]ipld.Node, error) {
-	err := SanityCheckNID(nID)
-	if err != nil {
-		return nil, err
+	if len(nID) != NamespaceSize {
+		return nil, fmt.Errorf("expected namespace ID of size %d, got %d", NamespaceSize, len(nID))
 	}
 
 	ctx, span := tracer.Start(ctx, "get-leaves-by-namespace")

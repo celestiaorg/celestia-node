@@ -111,7 +111,7 @@ func TestService_GetSharesByNamespace(t *testing.T) {
 			require.NoError(t, err)
 			assert.Len(t, shares, tt.expectedShareCount)
 			for _, value := range shares {
-				assert.Equal(t, randNID, []byte(share.ShareID(value)))
+				assert.Equal(t, randNID, []byte(share.ID(value)))
 			}
 			if tt.expectedShareCount > 1 {
 				// idx1 is always smaller than idx2
