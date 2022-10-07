@@ -31,7 +31,7 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 			"share",
 			baseComponents,
 			fx.Provide(fx.Annotate(
-				light.NewLightAvailability,
+				light.NewShareAvailability,
 				fx.OnStart(func(ctx context.Context, avail *light.ShareAvailability) error {
 					return avail.Start(ctx)
 				}),

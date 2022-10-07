@@ -5,17 +5,15 @@ import (
 	"sync"
 	"sync/atomic"
 
+	"github.com/gammazero/workerpool"
+	"github.com/ipfs/go-blockservice"
+	"github.com/ipfs/go-cid"
 	ipld "github.com/ipfs/go-ipld-format"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/nmt/namespace"
-
-	"github.com/gammazero/workerpool"
-
-	"github.com/ipfs/go-blockservice"
-	"github.com/ipfs/go-cid"
 )
 
 // NumWorkersLimit sets global limit for workers spawned by GetShares.
@@ -114,12 +112,6 @@ func GetLeaves(ctx context.Context,
 	// we overallocate space for leaves since we do not know how many we will find
 	// on the level above, the length of the Row is passed in as maxShares
 	leaves := make([]ipld.Node, maxShares)
-	var m *sync.Mutex
-	put := func(idx int, nd ipld.Node) {
-		m.Lock()
-		defer m.Unlock()
-		leaves[idx] = nd
-	}
 
 	// all preparations are done, so begin processing jobs
 	for i := 0; i < total; i++ {
@@ -160,7 +152,7 @@ func GetLeaves(ctx context.Context,
 					// successfully fetched a share/leaf
 					// ladies and gentlemen, we got em!
 					span.SetStatus(codes.Ok, "")
-					put(j.pos, nd)
+					leaves[j.pos] = nd
 					return
 				}
 				// ok, we found more links
@@ -362,4 +354,12 @@ func (b *fetchedBounds) update(index int64) {
 	for index > highest && !atomic.CompareAndSwapInt64(&b.highest, highest, index) {
 		highest = atomic.LoadInt64(&b.highest)
 	}
+}
+
+// job represents an encountered node to investigate during the `GetLeaves`
+// and `GetLeavesByNamespace` routines.
+type job struct {
+	id  cid.Cid
+	pos int
+	ctx context.Context
 }

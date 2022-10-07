@@ -5,14 +5,12 @@ import (
 	"errors"
 	"math"
 
-	"github.com/celestiaorg/celestia-node/share/ipld"
-
+	"github.com/ipfs/go-blockservice"
+	ipldFormat "github.com/ipfs/go-ipld-format"
 	logging "github.com/ipfs/go-log/v2"
 
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/availability/discovery"
-
-	"github.com/ipfs/go-blockservice"
 )
 
 var log = logging.Logger("share/availability/light")
@@ -29,8 +27,8 @@ type ShareAvailability struct {
 	cancel context.CancelFunc
 }
 
-// NewLightAvailability creates a new light Availability.
-func NewLightAvailability(
+// NewShareAvailability creates a new light Availability.
+func NewShareAvailability(
 	bserv blockservice.BlockService,
 	disc *discovery.Discovery,
 ) *ShareAvailability {
@@ -100,7 +98,7 @@ func (la *ShareAvailability) SharesAvailable(ctx context.Context, dah *share.Roo
 			if !errors.Is(err, context.Canceled) {
 				log.Errorw("availability validation failed", "root", dah.Hash(), "err", err)
 			}
-			if ipld.IsNotFound(err) || errors.Is(err, context.DeadlineExceeded) {
+			if ipldFormat.IsNotFound(err) || errors.Is(err, context.DeadlineExceeded) {
 				return share.ErrNotAvailable
 			}
 

@@ -9,8 +9,9 @@ import (
 	math "math"
 	math_bits "math/bits"
 
-	pb "github.com/celestiaorg/celestia-node/share/pb"
 	proto "github.com/gogo/protobuf/proto"
+
+	pb "github.com/celestiaorg/celestia-node/share/pb"
 )
 
 // Reference imports to suppress errors if they are not otherwise used.

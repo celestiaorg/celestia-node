@@ -7,17 +7,16 @@ import (
 	"testing"
 	"time"
 
-	"github.com/celestiaorg/celestia-node/share/service"
-
-	"github.com/celestiaorg/celestia-node/share"
-	availability_test "github.com/celestiaorg/celestia-node/share/availability/test"
-
 	"github.com/ipfs/go-datastore"
 	"github.com/ipfs/go-datastore/sync"
 	mdutils "github.com/ipfs/go-merkledag/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/tendermint/tendermint/pkg/da"
+
+	"github.com/celestiaorg/celestia-node/share"
+	availability_test "github.com/celestiaorg/celestia-node/share/availability/test"
+	"github.com/celestiaorg/celestia-node/share/service"
 )
 
 // TestCacheAvailability tests to ensure that the successful result of a

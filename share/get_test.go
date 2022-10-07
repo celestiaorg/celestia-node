@@ -8,8 +8,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/celestiaorg/celestia-node/share/ipld"
-
 	"github.com/ipfs/go-blockservice"
 	"github.com/ipfs/go-cid"
 	ds "github.com/ipfs/go-datastore"
@@ -22,6 +20,7 @@ import (
 	"github.com/tendermint/tendermint/pkg/da"
 	"github.com/tendermint/tendermint/pkg/wrapper"
 
+	"github.com/celestiaorg/celestia-node/share/ipld"
 	"github.com/celestiaorg/nmt/namespace"
 	"github.com/celestiaorg/rsmt2d"
 )

@@ -4,8 +4,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/celestiaorg/celestia-node/share/service"
-
 	"github.com/ipfs/go-blockservice"
 	mdutils "github.com/ipfs/go-merkledag/test"
 	routinghelpers "github.com/libp2p/go-libp2p-routing-helpers"
@@ -14,6 +12,7 @@ import (
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/availability/discovery"
 	availability_test "github.com/celestiaorg/celestia-node/share/availability/test"
+	"github.com/celestiaorg/celestia-node/share/service"
 )
 
 // RandServiceWithSquare provides a share.Service filled with 'n' NMT
@@ -46,7 +45,7 @@ func Node(dn *availability_test.DagNet) *availability_test.Node {
 
 func TestLightAvailability(bServ blockservice.BlockService) *ShareAvailability {
 	disc := discovery.NewDiscovery(nil, routing.NewRoutingDiscovery(routinghelpers.Null{}), 0, time.Second, time.Second)
-	return NewLightAvailability(bServ, disc)
+	return NewShareAvailability(bServ, disc)
 }
 
 func SubNetNode(sn *availability_test.SubNet) *availability_test.Node {

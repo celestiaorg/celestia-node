@@ -6,9 +6,9 @@ import (
 	"testing"
 	"time"
 
-	availability_test "github.com/celestiaorg/celestia-node/share/availability/test"
-
 	"github.com/stretchr/testify/assert"
+
+	availability_test "github.com/celestiaorg/celestia-node/share/availability/test"
 )
 
 func init() {

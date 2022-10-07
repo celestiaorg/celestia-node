@@ -12,17 +12,15 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/tendermint/tendermint/libs/rand"
 	"github.com/tendermint/tendermint/pkg/da"
 	core "github.com/tendermint/tendermint/types"
 
+	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/share"
 	availability_test "github.com/celestiaorg/celestia-node/share/availability/test"
-
-	"github.com/stretchr/testify/assert"
-
-	"github.com/celestiaorg/celestia-node/header"
 )
 
 func init() {

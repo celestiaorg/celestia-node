@@ -5,14 +5,13 @@ import (
 	"context"
 	"sync"
 
-	logging "github.com/ipfs/go-log/v2"
-
-	"github.com/celestiaorg/celestia-node/share"
-
 	"github.com/ipfs/go-datastore"
 	"github.com/ipfs/go-datastore/autobatch"
 	"github.com/ipfs/go-datastore/namespace"
+	logging "github.com/ipfs/go-log/v2"
 	"github.com/tendermint/tendermint/pkg/da"
+
+	"github.com/celestiaorg/celestia-node/share"
 )
 
 var log = logging.Logger("share/availability/cache")

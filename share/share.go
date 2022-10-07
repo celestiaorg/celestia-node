@@ -3,11 +3,10 @@ package share
 import (
 	"crypto/sha256"
 
-	logging "github.com/ipfs/go-log/v2"
-	"go.opentelemetry.io/otel"
-
 	"github.com/ipfs/go-cid"
+	logging "github.com/ipfs/go-log/v2"
 	"github.com/tendermint/tendermint/pkg/consts"
+	"go.opentelemetry.io/otel"
 
 	"github.com/celestiaorg/celestia-node/share/ipld"
 	"github.com/celestiaorg/celestia-node/share/pb"
@@ -15,9 +14,13 @@ import (
 	"github.com/celestiaorg/nmt/namespace"
 )
 
-var log = logging.Logger("share")
+var (
+	log    = logging.Logger("share")
+	tracer = otel.Tracer("share")
 
-var tracer = otel.Tracer("share")
+	// DefaultRSMT2DCodec sets the default rsmt2d.Codec for shares.
+	DefaultRSMT2DCodec = consts.DefaultCodec
+)
 
 const (
 	// MaxSquareSize is currently the maximum size supported for unerasured data in rsmt2d.ExtendedDataSquare.
@@ -27,9 +30,6 @@ const (
 	// ShareSize is a system-wide size of a share, including both data and namespace ID
 	ShareSize = consts.ShareSize
 )
-
-// DefaultRSMT2DCodec sets the default rsmt2d.Codec for shares.
-var DefaultRSMT2DCodec = consts.DefaultCodec
 
 // Share contains the raw share data without the corresponding namespace.
 // NOTE: Alias for the byte is chosen to keep maximal compatibility, especially with rsmt2d. Ideally, we should define

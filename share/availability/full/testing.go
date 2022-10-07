@@ -4,8 +4,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/celestiaorg/celestia-node/share/service"
-
 	"github.com/ipfs/go-blockservice"
 	mdutils "github.com/ipfs/go-merkledag/test"
 	routinghelpers "github.com/libp2p/go-libp2p-routing-helpers"
@@ -14,6 +12,7 @@ import (
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/availability/discovery"
 	availability_test "github.com/celestiaorg/celestia-node/share/availability/test"
+	"github.com/celestiaorg/celestia-node/share/service"
 )
 
 // RandServiceWithSquare provides an service.ShareService filled with 'n' NMT

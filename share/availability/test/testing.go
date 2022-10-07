@@ -5,8 +5,6 @@ import (
 	"context"
 	"testing"
 
-	"github.com/celestiaorg/celestia-node/share/service"
-
 	"github.com/ipfs/go-bitswap"
 	"github.com/ipfs/go-bitswap/network"
 	"github.com/ipfs/go-blockservice"
@@ -22,6 +20,7 @@ import (
 	"github.com/tendermint/tendermint/pkg/da"
 
 	"github.com/celestiaorg/celestia-node/share"
+	"github.com/celestiaorg/celestia-node/share/service"
 )
 
 // RandFillBS fills the given BlockService with a random block of a given size.

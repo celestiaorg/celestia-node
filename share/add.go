@@ -5,14 +5,12 @@ import (
 	"fmt"
 	"math"
 
-	"github.com/celestiaorg/celestia-node/share/ipld"
-
 	"github.com/ipfs/go-blockservice"
+	"github.com/tendermint/tendermint/pkg/wrapper"
 
+	"github.com/celestiaorg/celestia-node/share/ipld"
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/rsmt2d"
-
-	"github.com/tendermint/tendermint/pkg/wrapper"
 )
 
 // AddShares erasures and extends shares to blockservice.BlockService using the provided ipld.NodeAdder.
@@ -26,8 +24,7 @@ func AddShares(
 	}
 	squareSize := int(math.Sqrt(float64(len(shares))))
 	// create nmt adder wrapping batch adder with calculated size
-	bs := ipld.BatchSize(squareSize * 2)
-	batchAdder := ipld.NewNmtNodeAdder(ctx, adder, ipld.MaxSizeBatchOption(bs))
+	batchAdder := ipld.NewNmtNodeAdder(ctx, adder, ipld.MaxSizeBatchOption(squareSize*2))
 	// create the nmt wrapper to generate row and col commitments
 	tree := wrapper.NewErasuredNamespacedMerkleTree(uint64(squareSize), nmt.NodeVisitor(batchAdder.Visit))
 	// recompute the eds
@@ -51,8 +48,7 @@ func ImportShares(
 	}
 	squareSize := int(math.Sqrt(float64(len(shares))))
 	// create nmt adder wrapping batch adder with calculated size
-	bs := ipld.BatchSize(squareSize * 2)
-	batchAdder := ipld.NewNmtNodeAdder(ctx, adder, ipld.MaxSizeBatchOption(bs))
+	batchAdder := ipld.NewNmtNodeAdder(ctx, adder, ipld.MaxSizeBatchOption(squareSize*2))
 	// create the nmt wrapper to generate row and col commitments
 	tree := wrapper.NewErasuredNamespacedMerkleTree(uint64(squareSize/2), nmt.NodeVisitor(batchAdder.Visit))
 	// recompute the eds

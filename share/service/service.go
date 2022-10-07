@@ -4,15 +4,12 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/celestiaorg/celestia-node/share/eds"
-
-	"github.com/celestiaorg/celestia-node/share"
-
-	"golang.org/x/sync/errgroup"
-
 	"github.com/ipfs/go-blockservice"
 	"github.com/ipfs/go-cid"
+	"golang.org/x/sync/errgroup"
 
+	"github.com/celestiaorg/celestia-node/share"
+	"github.com/celestiaorg/celestia-node/share/eds"
 	"github.com/celestiaorg/celestia-node/share/ipld"
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/nmt/namespace"

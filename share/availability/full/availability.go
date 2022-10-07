@@ -4,16 +4,13 @@ import (
 	"context"
 	"errors"
 
-	"github.com/celestiaorg/celestia-node/share/eds"
-	"github.com/celestiaorg/celestia-node/share/ipld"
-
+	"github.com/ipfs/go-blockservice"
+	ipldFormat "github.com/ipfs/go-ipld-format"
 	logging "github.com/ipfs/go-log/v2"
 
-	"github.com/celestiaorg/celestia-node/share/availability/discovery"
-
 	"github.com/celestiaorg/celestia-node/share"
-
-	"github.com/ipfs/go-blockservice"
+	"github.com/celestiaorg/celestia-node/share/availability/discovery"
+	"github.com/celestiaorg/celestia-node/share/eds"
 )
 
 var log = logging.Logger("share/availability/full")
@@ -66,7 +63,7 @@ func (fa *ShareAvailability) SharesAvailable(ctx context.Context, root *share.Ro
 	_, err := fa.rtrv.Retrieve(ctx, root)
 	if err != nil {
 		log.Errorw("availability validation failed", "root", root.Hash(), "err", err)
-		if ipld.IsNotFound(err) || errors.Is(err, context.DeadlineExceeded) {
+		if ipldFormat.IsNotFound(err) || errors.Is(err, context.DeadlineExceeded) {
 			return share.ErrNotAvailable
 		}
 

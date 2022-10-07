@@ -6,10 +6,10 @@ import (
 	"math/rand"
 	"time"
 
-	"github.com/celestiaorg/celestia-node/share/ipld"
-
 	"github.com/ipfs/go-cid"
 	"github.com/tendermint/tendermint/pkg/da"
+
+	"github.com/celestiaorg/celestia-node/share/ipld"
 )
 
 // ErrNotAvailable is returned whenever DA sampling fails.
@@ -34,7 +34,7 @@ type Availability interface {
 	ProbabilityOfAvailability() float64
 }
 
-// translate transforms square coordinates into IPLD NMT tree path to a leaf node.
+// Translate transforms square coordinates into IPLD NMT tree path to a leaf node.
 // It also adds randomization to evenly spread fetching from Rows and Columns.
 func Translate(dah *Root, row, col int) (cid.Cid, int) {
 	if rand.Intn(2) == 0 { //nolint:gosec

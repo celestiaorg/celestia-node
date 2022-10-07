@@ -8,9 +8,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/celestiaorg/celestia-node/share"
-	"github.com/celestiaorg/celestia-node/share/ipld"
-
 	"github.com/ipfs/go-blockservice"
 	"github.com/ipfs/go-cid"
 	logging "github.com/ipfs/go-log/v2"
@@ -21,13 +18,16 @@ import (
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
 
+	"github.com/celestiaorg/celestia-node/share"
+	"github.com/celestiaorg/celestia-node/share/ipld"
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/rsmt2d"
 )
 
-var log = logging.Logger("eds")
-
-var tracer = otel.Tracer("eds")
+var (
+	log    = logging.Logger("eds")
+	tracer = otel.Tracer("eds")
+)
 
 // Retriever retrieves rsmt2d.ExtendedDataSquares from the IPLD network.
 // Instead of requesting data 'share by share' it requests data by quadrants
@@ -130,7 +130,7 @@ func (r *Retriever) newSession(ctx context.Context, dah *da.DataAvailabilityHead
 	adder := ipld.NewNmtNodeAdder(
 		ctx,
 		r.bServ,
-		ipld.MaxSizeBatchOption(ipld.BatchSize(size)),
+		ipld.MaxSizeBatchOption(size),
 	)
 	ses := &retrievalSession{
 		bget:  blockservice.NewSession(ctx, r.bServ),

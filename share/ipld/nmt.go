@@ -7,22 +7,22 @@ import (
 	"errors"
 	"fmt"
 
-	logging "github.com/ipfs/go-log/v2"
-	"go.opentelemetry.io/otel"
-
 	blocks "github.com/ipfs/go-block-format"
 	"github.com/ipfs/go-blockservice"
 	"github.com/ipfs/go-cid"
 	ipld "github.com/ipfs/go-ipld-format"
+	logging "github.com/ipfs/go-log/v2"
 	mh "github.com/multiformats/go-multihash"
 	"github.com/tendermint/tendermint/pkg/consts"
+	"go.opentelemetry.io/otel"
 
 	"github.com/celestiaorg/nmt"
 )
 
-var tracer = otel.Tracer("ipld")
-
-var log = logging.Logger("ipld")
+var (
+	tracer = otel.Tracer("ipld")
+	log    = logging.Logger("ipld")
+)
 
 const (
 	// Below used multiformats (one codec, one multihash) seem free:
@@ -33,59 +33,21 @@ const (
 
 	// Sha256Namespace8Flagged is the multihash code used to hash blocks
 	// that contain an NMT node (inner and leaf nodes).
-	sha256Namespace8Flagged = 0x7701
+	Sha256Namespace8Flagged = 0x7701
 
 	// nmtHashSize is the size of a digest created by an NMT in bytes.
 	nmtHashSize = 2*consts.NamespaceSize + sha256.Size
 
 	// MaxSquareSize is currently the maximum size supported for unerasured data in rsmt2d.ExtendedDataSquare.
 	MaxSquareSize = consts.MaxSquareSize
+
 	// NamespaceSize is a system-wide size for NMT namespaces.
 	NamespaceSize = consts.NamespaceSize
 
-	// typeSize defines the size of the serialized NMT Node type
-	typeSize = 1
-)
-
-func init() {
-	mhcore.Register(Sha256Namespace8Flagged, func() hash.Hash {
-		return NewNamespaceHasher(nmt.NewNmtHasher(sha256.New(), nmt.DefaultNamespaceIDLen, true))
-	})
-}
-
-type namespaceHasher struct {
-	*nmt.Hasher
-	tp   byte
-	data []byte
-}
-
-func NewNamespaceHasher(hasher *nmt.Hasher) hash.Hash {
-	return &namespaceHasher{
-		Hasher: hasher,
-	}
-}
-
-func (n *namespaceHasher) Write(data []byte) (int, error) {
-	ln, nln, hln := len(data), int(n.NamespaceLen), n.Hash.Size()
-	innerNodeSize, leafNodeSize := (nln*2+hln)*2, nln+consts.ShareSize
-	switch ln {
-	default:
-		return 0, fmt.Errorf("wrong data size")
-	case innerNodeSize, innerNodeSize + 1: // w/ and w/o additional type byte
-		n.tp = nmt.NodePrefix
-	case leafNodeSize, leafNodeSize + 1: // w/ and w/o additional type byte
-		n.tp = nmt.LeafPrefix
-	}
-
-	n.data = data[1:]
-	return ln, nil
-}
-
-func (n *namespaceHasher) Sum([]byte) []byte {
-	isLeafData := n.tp == nmt.LeafPrefix
-	if isLeafData {
-		return n.Hasher.HashLeaf(n.data)
-	}
+	// cidPrefixSize is the size of the prepended buffer of the CID encoding
+	// for NamespacedSha256. For more information, see:
+	// https://multiformats.io/multihash/#the-multihash-format
+	cidPrefixSize = 4
 
 	// typeSize defines the size of the serialized NMT Node type
 	typeSize = 1
@@ -314,7 +276,7 @@ func CidFromNamespacedSha256(namespacedHash []byte) (cid.Cid, error) {
 	if got, want := len(namespacedHash), nmtHashSize; got != want {
 		return cid.Cid{}, fmt.Errorf("invalid namespaced hash length, got: %v, want: %v", got, want)
 	}
-	buf, err := mh.Encode(namespacedHash, sha256Namespace8Flagged)
+	buf, err := mh.Encode(namespacedHash, Sha256Namespace8Flagged)
 	if err != nil {
 		return cid.Undef, err
 	}
@@ -329,16 +291,11 @@ func MustCidFromNamespacedSha256(hash []byte) cid.Cid {
 		panic(
 			fmt.Sprintf("malformed hash: %s, codec: %v",
 				err,
-				mh.Codes[sha256Namespace8Flagged]),
+				mh.Codes[Sha256Namespace8Flagged]),
 		)
 	}
 	return cidFromHash
 }
-
-// cidPrefixSize is the size of the prepended buffer of the CID encoding
-// for NamespacedSha256. For more information, see:
-// https://multiformats.io/multihash/#the-multihash-format
-const cidPrefixSize = 4
 
 // NamespacedSha256FromCID derives the Namespaced hash from the given CID.
 func NamespacedSha256FromCID(cid cid.Cid) []byte {

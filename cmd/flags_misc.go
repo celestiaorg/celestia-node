@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/pprof"
 	"strings"
+	"time"
 
 	logging "github.com/ipfs/go-log/v2"
 	"github.com/spf13/cobra"
