@@ -67,6 +67,11 @@ require (
 )
 
 require (
+	github.com/etclabscore/go-openrpc-reflect v0.0.37
+	github.com/open-rpc/meta-schema v0.0.0-20201029221707-1b72ef2ea333
+)
+
+require (
 	cloud.google.com/go v0.100.2 // indirect
 	cloud.google.com/go/compute v1.6.1 // indirect
 	cloud.google.com/go/iam v0.3.0 // indirect
@@ -75,8 +80,11 @@ require (
 	filippo.io/edwards25519 v1.0.0-rc.1 // indirect
 	github.com/99designs/go-keychain v0.0.0-20191008050251-8e49817e8af4 // indirect
 	github.com/ChainSafe/go-schnorrkel v0.0.0-20200405005733-88cbf1b4c40d // indirect
+	github.com/PuerkitoBio/purell v1.1.1 // indirect
+	github.com/PuerkitoBio/urlesc v0.0.0-20170810143723-de5bf2ad4578 // indirect
 	github.com/StackExchange/wmi v1.2.1 // indirect
 	github.com/Workiva/go-datastructures v1.0.53 // indirect
+	github.com/alecthomas/jsonschema v0.0.0-20200530073317-71f438968921 // indirect
 	github.com/armon/go-metrics v0.4.0 // indirect
 	github.com/aws/aws-sdk-go v1.40.45 // indirect
 	github.com/benbjohnson/clock v1.3.0 // indirect
@@ -118,6 +126,7 @@ require (
 	github.com/dustin/go-humanize v1.0.1-0.20200219035652-afde56e7acac // indirect
 	github.com/dvsekhvalnov/jose2go v1.5.0 // indirect
 	github.com/elastic/gosigar v0.14.2 // indirect
+	github.com/etclabscore/go-jsonschema-walk v0.0.6 // indirect
 	github.com/ethereum/go-ethereum v1.10.17 // indirect
 	github.com/felixge/httpsnoop v1.0.1 // indirect
 	github.com/flynn/noise v1.0.0 // indirect
@@ -130,6 +139,10 @@ require (
 	github.com/go-logr/logr v1.2.3 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/go-ole/go-ole v1.2.6 // indirect
+	github.com/go-openapi/jsonpointer v0.19.5 // indirect
+	github.com/go-openapi/jsonreference v0.19.4 // indirect
+	github.com/go-openapi/spec v0.19.11 // indirect
+	github.com/go-openapi/swag v0.19.11 // indirect
 	github.com/go-stack/stack v1.8.0 // indirect
 	github.com/go-task/slim-sprig v0.0.0-20210107165309-348f09dbbbc0 // indirect
 	github.com/godbus/dbus v0.0.0-20190726142602-4481cbc300e2 // indirect
@@ -162,6 +175,7 @@ require (
 	github.com/hashicorp/hcl v1.0.0 // indirect
 	github.com/hdevalence/ed25519consensus v0.0.0-20220222234857-c00d1f31bab3 // indirect
 	github.com/huin/goupnp v1.0.3 // indirect
+	github.com/iancoleman/orderedmap v0.1.0 // indirect
 	github.com/improbable-eng/grpc-web v0.15.0 // indirect
 	github.com/inconshreveable/mousetrap v1.0.1 // indirect
 	github.com/ipfs/bbloom v0.0.4 // indirect
@@ -183,6 +197,7 @@ require (
 	github.com/jbenet/goprocess v0.1.4 // indirect
 	github.com/jmespath/go-jmespath v0.4.0 // indirect
 	github.com/jmhodges/levigo v1.0.0 // indirect
+	github.com/josharian/intern v1.0.0 // indirect
 	github.com/klauspost/compress v1.15.6 // indirect
 	github.com/klauspost/cpuid/v2 v2.1.1 // indirect
 	github.com/klauspost/reedsolomon v1.11.1 // indirect
@@ -204,6 +219,7 @@ require (
 	github.com/libp2p/go-yamux/v3 v3.1.2 // indirect
 	github.com/lucas-clemente/quic-go v0.28.0 // indirect
 	github.com/magiconair/properties v1.8.6 // indirect
+	github.com/mailru/easyjson v0.7.6 // indirect
 	github.com/marten-seemann/qtls-go1-16 v0.1.5 // indirect
 	github.com/marten-seemann/qtls-go1-17 v0.1.2 // indirect
 	github.com/marten-seemann/qtls-go1-18 v0.1.2 // indirect

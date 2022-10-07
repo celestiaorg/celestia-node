@@ -30,10 +30,10 @@ type API struct {
 	IsSyncing   func() bool
 }
 
-// service represents the header service that can be started / stopped on a node.
-// service's main function is to manage its sub-services. service can contain several
+// Service represents the header service that can be started / stopped on a node.
+// Service's main function is to manage its sub-services. Service can contain several
 // sub-services, such as Exchange, ExchangeServer, Syncer, and so forth.
-type service struct {
+type Service struct {
 	ex header.Exchange
 
 	syncer    *sync.Syncer
@@ -42,14 +42,14 @@ type service struct {
 	store     header.Store
 }
 
-// NewHeaderService creates a new instance of header service.
+// NewHeaderService creates a new instance of header Service.
 func NewHeaderService(
 	syncer *sync.Syncer,
 	sub header.Subscriber,
 	p2pServer *p2p.ExchangeServer,
 	ex header.Exchange,
 	store header.Store) Module {
-	return &service{
+	return &Service{
 		syncer:    syncer,
 		sub:       sub,
 		p2pServer: p2pServer,
@@ -58,14 +58,14 @@ func NewHeaderService(
 	}
 }
 
-func (s *service) GetByHeight(ctx context.Context, height uint64) (*header.ExtendedHeader, error) {
+func (s *Service) GetByHeight(ctx context.Context, height uint64) (*header.ExtendedHeader, error) {
 	return s.store.GetByHeight(ctx, height)
 }
 
-func (s *service) Head(ctx context.Context) (*header.ExtendedHeader, error) {
+func (s *Service) Head(ctx context.Context) (*header.ExtendedHeader, error) {
 	return s.store.Head(ctx)
 }
 
-func (s *service) IsSyncing() bool {
+func (s *Service) IsSyncing() bool {
 	return !s.syncer.State().Finished()
 }
