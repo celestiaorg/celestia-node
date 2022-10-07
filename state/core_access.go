@@ -75,11 +75,7 @@ func (ca *CoreAccessor) Start(ctx context.Context) error {
 	}
 	// dial given celestia-core endpoint
 	endpoint := fmt.Sprintf("%s:%s", ca.coreIP, ca.grpcPort)
-	client, err := grpc.DialContext(
-		ctx,
-		endpoint,
-		grpc.WithTransportCredentials(insecure.NewCredentials()),
-	)
+	client, err := grpc.DialContext(ctx, endpoint, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		return err
 	}
@@ -168,9 +164,7 @@ func (ca *CoreAccessor) BalanceForAddress(ctx context.Context, addr Address) (*B
 	// the AppHash contained in the head is actually the state root
 	// after applying the transactions contained in the previous block.
 	// TODO @renaynay: once https://github.com/cosmos/cosmos-sdk/pull/12674 is merged, use this method instead
-	prefixedAccountKey := append(
-		banktypes.CreateAccountBalancesPrefix(addr.Bytes()),
-		[]byte(app.BondDenom)...)
+	prefixedAccountKey := append(banktypes.CreateAccountBalancesPrefix(addr.Bytes()), []byte(app.BondDenom)...)
 	abciReq := abci.RequestQuery{
 		// TODO @renayay: once https://github.com/cosmos/cosmos-sdk/pull/12674 is merged, use const instead
 		Path:   fmt.Sprintf("store/%s/key", banktypes.StoreKey),
@@ -193,11 +187,7 @@ func (ca *CoreAccessor) BalanceForAddress(ctx context.Context, addr Address) (*B
 	value := result.Response.Value
 	// if the value returned is empty, the account balance does not yet exist
 	if len(value) == 0 {
-		log.Errorf(
-			"balance for account %s does not exist at block height %d",
-			addr.String(),
-			head.Height-1,
-		)
+		log.Errorf("balance for account %s does not exist at block height %d", addr.String(), head.Height-1)
 		return &Balance{
 			Denom:  app.BondDenom,
 			Amount: sdktypes.NewInt(0),
@@ -222,12 +212,7 @@ func (ca *CoreAccessor) BalanceForAddress(ctx context.Context, addr Address) (*B
 }
 
 func (ca *CoreAccessor) SubmitTx(ctx context.Context, tx Tx) (*TxResponse, error) {
-	txResp, err := apptypes.BroadcastTx(
-		ctx,
-		ca.coreConn,
-		sdktx.BroadcastMode_BROADCAST_MODE_BLOCK,
-		tx,
-	)
+	txResp, err := apptypes.BroadcastTx(ctx, ca.coreConn, sdktx.BroadcastMode_BROADCAST_MODE_BLOCK, tx)
 	if err != nil {
 		return nil, err
 	}
