@@ -60,6 +60,10 @@ jobs:
           github-token: ${{secrets.GITHUB_TOKEN}}
           version-bump: ${{inputs.version}}
 
-  docker:
-    needs: [release]
-    uses: ./.github/workflows/docker-build.yml
+  # TODO: permission issue, but not worth fixing as this should be refactored
+  # into the celestiaorg/.github repo, at which point any permission issues will
+  # be resolved.
+  #
+  # docker:
+  #   needs: [release]
+  #   uses: ./.github/workflows/docker-build.yml

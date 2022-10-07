@@ -1,7 +1,10 @@
 name: "docker-build"
 
 on:
-  workflow_call:
+  push:
+    branches:
+      - "**"
+  workflow_dispatch:
 
 env:
   GO_VERSION: 1.19
