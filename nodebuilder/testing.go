@@ -46,7 +46,7 @@ func TestNodeWithConfig(t *testing.T, tp node.Type, cfg *Config, opts ...fx.Opti
 	require.NoError(t, err)
 	cfg.Core.IP = ip
 	cfg.Core.RPCPort = port
-	cfg.RPC.Port = "0"
+	cfg.RPC.Port = "26655"
 
 	opts = append(opts,
 		state.WithKeyringSigner(TestKeyringSigner(t)),

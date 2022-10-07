@@ -21,8 +21,7 @@ import (
 func TestRPCCallsUnderlyingNode(t *testing.T) {
 	nd, server := setupNodeWithModifiedRPC(t)
 	url := nd.RPCServer.ListenAddr()
-	port := url[len(url)-6:]
-	client, closer, err := client.NewClient(context.Background(), "http://0.0.0.0"+port)
+	client, closer, err := client.NewClient(context.Background(), "http://"+url)
 	require.NoError(t, err)
 	defer closer()
 	ctx := context.Background()
@@ -104,8 +103,7 @@ func setupNodeWithModifiedRPC(t *testing.T) (*Node, *mocks.MockAPI) {
 	server := mocks.NewMockAPI(ctrl)
 
 	overrideRPCHandler := fx.Invoke(func(srv *rpc.Server) {
-		handler := rpc.NewHandler(server, server, server, server, server)
-		handler.RegisterEndpoints(srv)
+		srv.RegisterService("Handler", server)
 	})
 	nd := TestNode(t, node.Full, overrideRPCHandler)
 	// start node
