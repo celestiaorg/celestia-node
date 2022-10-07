@@ -33,8 +33,8 @@ func NewHandler(
 }
 
 func (h *Handler) RegisterEndpoints(rpc *Server) {
-	rpc.handler.Register("State", h.state)
-	rpc.handler.Register("Share", h.share)
-	rpc.handler.Register("Header", h.header)
-	rpc.handler.Register("DAS", h.das)
+	rpc.rpc.Register("State", h.state)
+	rpc.rpc.Register("Share", h.share)
+	rpc.rpc.Register("Header", h.header)
+	rpc.rpc.Register("DAS", h.das)
 }

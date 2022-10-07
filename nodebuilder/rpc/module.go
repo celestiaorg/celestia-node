@@ -3,10 +3,9 @@ package rpc
 import (
 	"context"
 
-	"github.com/celestiaorg/celestia-node/api/rpc"
-
 	"go.uber.org/fx"
 
+	"github.com/celestiaorg/celestia-node/api/rpc"
 	headerServ "github.com/celestiaorg/celestia-node/nodebuilder/header"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	shareServ "github.com/celestiaorg/celestia-node/nodebuilder/share"

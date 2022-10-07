@@ -10,16 +10,16 @@ import (
 )
 
 type Server struct {
-	srv      *http.Server
-	handler  *jsonrpc.RPCServer
+	http     *http.Server
+	rpc      *jsonrpc.RPCServer
 	listener net.Listener
 }
 
 func NewServer(address string, port string) *Server {
 	handler := jsonrpc.NewServer()
 	return &Server{
-		handler: handler,
-		srv: &http.Server{
+		rpc: handler,
+		http: &http.Server{
 			Addr:    address + ":" + port,
 			Handler: handler,
 			// the amount of time allowed to read request headers. set to the default 2 seconds
@@ -28,15 +28,16 @@ func NewServer(address string, port string) *Server {
 	}
 }
 
+// Start starts the RPC Server.
 func (s *Server) Start(context.Context) error {
-	listener, err := net.Listen("tcp", s.srv.Addr)
+	listener, err := net.Listen("tcp", s.http.Addr)
 	if err != nil {
 		return err
 	}
 	s.listener = listener
 	log.Infow("RPC server started", "listening on", listener.Addr().String())
 	//nolint:errcheck
-	go s.srv.Serve(listener)
+	go s.http.Serve(listener)
 	return nil
 }
 
