@@ -30,10 +30,10 @@ func ConstructModule(tp node.Type, cfg *Config, store Store) fx.Option {
 		// modules provided by the node
 		p2p.ConstructModule(tp, &cfg.P2P),
 		state.ConstructModule(tp, &cfg.State),
-		header.ConstructModule(tp, &cfg.Header),
 		share.ConstructModule(tp, &cfg.Share),
 		rpc.ConstructModule(tp, &cfg.RPC),
 		core.ConstructModule(tp, &cfg.Core),
+		header.ConstructModule(tp, &cfg.Header),
 		daser.ConstructModule(tp),
 		fraud.ConstructModule(tp),
 	)
