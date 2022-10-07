@@ -35,7 +35,7 @@ func TestFraudProofBroadcasting(t *testing.T) {
 
 	bridge := sw.NewBridgeNode(core.WithHeaderConstructFn(header.FraudMaker(t, 20)))
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+	ctx, cancel := context.WithTimeout(context.Background(), swamp.DefaultTestTimeout)
 	t.Cleanup(cancel)
 
 	err := bridge.Start(ctx)
@@ -107,7 +107,7 @@ func TestFraudProofSyncing(t *testing.T) {
 	store := nodebuilder.MockStore(t, cfg)
 	bridge := sw.NewNodeWithStore(node.Bridge, store, core.WithHeaderConstructFn(header.FraudMaker(t, 10)))
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Minute*5)
 	t.Cleanup(cancel)
 
 	err := bridge.Start(ctx)
