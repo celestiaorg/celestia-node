@@ -1,5 +1,4 @@
 FROM --platform=$BUILDPLATFORM golang:1.19 as builder
-RUN apt-get -y --no-install-recommends install make
 WORKDIR /src
 COPY go.mod go.sum ./
 RUN go mod download
