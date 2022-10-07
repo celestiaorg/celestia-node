@@ -18,6 +18,8 @@ type Module interface {
 	// IsStopped checks if the Module's context has been stopped
 	IsStopped() bool
 
+	// AccountAddress retrieves the address of the node's account/signer
+	AccountAddress(ctx context.Context) (state.Address, error)
 	// Balance retrieves the Celestia coin balance for the node's account/signer
 	// and verifies it against the corresponding block's AppHash.
 	Balance(ctx context.Context) (*state.Balance, error)
