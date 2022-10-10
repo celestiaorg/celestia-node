@@ -37,12 +37,12 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 				return store.Stop(ctx)
 			}),
 		)),
-		fx.Invoke(InitStore),
+		fx.Provide(newInitStore),
 		fx.Provide(func(subscriber *p2p.Subscriber) header.Subscriber {
 			return subscriber
 		}),
 		fx.Provide(fx.Annotate(
-			sync.NewSyncer,
+			newSyncer,
 			fx.OnStart(func(ctx context.Context, lc fx.Lifecycle, fservice fraudServ.Module, syncer *sync.Syncer) error {
 				syncerStartFunc := func(ctx context.Context) error {
 					err := syncer.Start(ctx)
@@ -88,7 +88,7 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 		return fx.Module(
 			"header",
 			baseComponents,
-			fx.Provide(P2PExchange(*cfg)),
+			fx.Provide(newP2PExchange(*cfg)),
 		)
 	case node.Bridge:
 		return fx.Module(
