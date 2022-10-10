@@ -396,7 +396,7 @@ func TestGetProof(t *testing.T) {
 				rootCid := ipld.MustCidFromNamespacedSha256(root)
 				for index := 0; uint(index) < in.Width(); index++ {
 					proof := make([]cid.Cid, 0)
-					proof, err = GetProof(ctx, bServ, rootCid, proof, index, int(in.Width()))
+					proof, err = ipld.GetProof(ctx, bServ, rootCid, proof, index, int(in.Width()))
 					require.NoError(t, err)
 					node, err := ipld.GetLeaf(ctx, bServ, rootCid, index, int(in.Width()))
 					require.NoError(t, err)
