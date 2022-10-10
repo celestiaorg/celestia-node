@@ -28,7 +28,7 @@ import (
 
 var (
 	log              = logging.Logger("state")
-	ErrInvalidAmount = errors.New("amount must be greater than zero")
+	ErrInvalidAmount = errors.New("state: amount must be greater than zero")
 )
 
 // CoreAccessor implements service over a gRPC connection
