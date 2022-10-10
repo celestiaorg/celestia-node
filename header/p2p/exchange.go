@@ -29,6 +29,8 @@ const (
 	writeDeadline = time.Second * 5
 	// readDeadline sets timeout for reading messages from the stream
 	readDeadline = time.Minute
+	// minimum amount of responses with the same ExtendedHeader
+	minResponses = 2
 )
 
 // PubSubTopic hardcodes the name of the ExtendedHeader
@@ -77,7 +79,7 @@ func (ex *Exchange) Head(ctx context.Context) (*header.ExtendedHeader, error) {
 		}(from)
 	}
 
-	result := make([]*header.ExtendedHeader, 0)
+	result := make([]*header.ExtendedHeader, 0, len(ex.trustedPeers))
 	for range ex.trustedPeers {
 		select {
 		case h := <-headerCh:
@@ -226,8 +228,8 @@ func bestHead(result []*header.ExtendedHeader) (*header.ExtendedHeader, error) {
 	}
 	counter := make(map[string]int)
 	// go through all of ExtendedHeaders and count the number of headers with a specific hash
-	for i := 0; i < len(result); i++ {
-		counter[result[i].Hash().String()]++
+	for _, res := range result {
+		counter[res.Hash().String()]++
 	}
 	// sort results in a decreasing order
 	sort.Slice(result, func(i, j int) bool {
@@ -236,7 +238,7 @@ func bestHead(result []*header.ExtendedHeader) (*header.ExtendedHeader, error) {
 
 	// try to find ExtendedHeader with the maximum height that was received at least from 2 peers
 	for _, res := range result {
-		if counter[res.Hash().String()] >= 2 {
+		if counter[res.Hash().String()] >= minResponses {
 			return res, nil
 		}
 	}
