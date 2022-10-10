@@ -8,7 +8,7 @@ require (
 	cosmossdk.io/math v1.0.0-beta.3
 	github.com/99designs/keyring v1.2.1 // indirect
 	github.com/BurntSushi/toml v1.2.0
-	// github.com/celestiaorg/celestia-app v0.7.0-rc-1
+	github.com/celestiaorg/celestia-app v0.7.0-rc-1
 	github.com/celestiaorg/go-libp2p-messenger v0.1.0
 	github.com/celestiaorg/nmt v0.10.0
 	github.com/celestiaorg/rsmt2d v0.6.0
@@ -63,8 +63,6 @@ require (
 	golang.org/x/sync v0.0.0-20220601150217-0de741cfad7f
 	google.golang.org/grpc v1.49.0
 )
-
-require github.com/celestiaorg/celestia-app v0.0.0-00010101000000-000000000000
 
 require (
 	cloud.google.com/go v0.100.2 // indirect
@@ -295,5 +293,5 @@ replace (
 	github.com/cosmos/cosmos-sdk => github.com/celestiaorg/cosmos-sdk v1.2.0-sdk-v0.46.0
 	github.com/gogo/protobuf => github.com/regen-network/protobuf v1.3.3-alpha.regen.1
 	github.com/libp2p/go-libp2p-pubsub v0.7.0 => github.com/celestiaorg/go-libp2p-pubsub v0.6.2-0.20220812132010-46b2a019f2f2
-	github.com/tendermint/tendermint => github.com/celestiaorg/celestia-core v1.3.1-tm-v0.34.20
+	github.com/tendermint/tendermint => github.com/celestiaorg/celestia-core v1.3.3-tm-v0.34.20-celestia-node-patch
 )
