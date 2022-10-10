@@ -23,9 +23,11 @@ var _ = math.Inf
 const _ = proto.GoGoProtoPackageIsVersion3 // please upgrade the proto package
 
 type ExtendedHeaderRequest struct {
-	Origin uint64 `protobuf:"varint,1,opt,name=origin,proto3" json:"origin,omitempty"`
-	Hash   []byte `protobuf:"bytes,2,opt,name=hash,proto3" json:"hash,omitempty"`
-	Amount uint64 `protobuf:"varint,3,opt,name=amount,proto3" json:"amount,omitempty"`
+	// Types that are valid to be assigned to Data:
+	//	*ExtendedHeaderRequest_Origin
+	//	*ExtendedHeaderRequest_Hash
+	Data   isExtendedHeaderRequest_Data `protobuf_oneof:"data"`
+	Amount uint64                       `protobuf:"varint,3,opt,name=amount,proto3" json:"amount,omitempty"`
 }
 
 func (m *ExtendedHeaderRequest) Reset()         { *m = ExtendedHeaderRequest{} }
@@ -61,16 +63,39 @@ func (m *ExtendedHeaderRequest) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_ExtendedHeaderRequest proto.InternalMessageInfo
 
-func (m *ExtendedHeaderRequest) GetOrigin() uint64 {
+type isExtendedHeaderRequest_Data interface {
+	isExtendedHeaderRequest_Data()
+	MarshalTo([]byte) (int, error)
+	Size() int
+}
+
+type ExtendedHeaderRequest_Origin struct {
+	Origin uint64 `protobuf:"varint,1,opt,name=origin,proto3,oneof" json:"origin,omitempty"`
+}
+type ExtendedHeaderRequest_Hash struct {
+	Hash []byte `protobuf:"bytes,2,opt,name=hash,proto3,oneof" json:"hash,omitempty"`
+}
+
+func (*ExtendedHeaderRequest_Origin) isExtendedHeaderRequest_Data() {}
+func (*ExtendedHeaderRequest_Hash) isExtendedHeaderRequest_Data()   {}
+
+func (m *ExtendedHeaderRequest) GetData() isExtendedHeaderRequest_Data {
 	if m != nil {
-		return m.Origin
+		return m.Data
+	}
+	return nil
+}
+
+func (m *ExtendedHeaderRequest) GetOrigin() uint64 {
+	if x, ok := m.GetData().(*ExtendedHeaderRequest_Origin); ok {
+		return x.Origin
 	}
 	return 0
 }
 
 func (m *ExtendedHeaderRequest) GetHash() []byte {
-	if m != nil {
-		return m.Hash
+	if x, ok := m.GetData().(*ExtendedHeaderRequest_Hash); ok {
+		return x.Hash
 	}
 	return nil
 }
@@ -82,6 +107,14 @@ func (m *ExtendedHeaderRequest) GetAmount() uint64 {
 	return 0
 }
 
+// XXX_OneofWrappers is for the internal use of the proto package.
+func (*ExtendedHeaderRequest) XXX_OneofWrappers() []interface{} {
+	return []interface{}{
+		(*ExtendedHeaderRequest_Origin)(nil),
+		(*ExtendedHeaderRequest_Hash)(nil),
+	}
+}
+
 func init() {
 	proto.RegisterType((*ExtendedHeaderRequest)(nil), "p2p.pb.ExtendedHeaderRequest")
 }
@@ -91,18 +124,19 @@ func init() {
 }
 
 var fileDescriptor_ea2a1467b965216e = []byte{
-	// 168 bytes of a gzipped FileDescriptorProto
+	// 183 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xe2, 0xd2, 0xce, 0x48, 0x4d, 0x4c,
 	0x49, 0x2d, 0xd2, 0x2f, 0x30, 0x2a, 0xd0, 0x2f, 0x48, 0xd2, 0x4f, 0xad, 0x28, 0x49, 0xcd, 0x4b,
 	0x49, 0x4d, 0x89, 0x87, 0x08, 0xc7, 0x17, 0xa5, 0x16, 0x96, 0xa6, 0x16, 0x97, 0xe8, 0x15, 0x14,
-	0xe5, 0x97, 0xe4, 0x0b, 0xb1, 0x15, 0x18, 0x15, 0xe8, 0x15, 0x24, 0x29, 0x45, 0x73, 0x89, 0xba,
-	0x42, 0x15, 0x7a, 0x80, 0xd5, 0x05, 0x41, 0x94, 0x09, 0x89, 0x71, 0xb1, 0xe5, 0x17, 0x65, 0xa6,
-	0x67, 0xe6, 0x49, 0x30, 0x2a, 0x30, 0x6a, 0xb0, 0x04, 0x41, 0x79, 0x42, 0x42, 0x5c, 0x2c, 0x19,
-	0x89, 0xc5, 0x19, 0x12, 0x4c, 0x0a, 0x8c, 0x1a, 0x3c, 0x41, 0x60, 0x36, 0x48, 0x6d, 0x62, 0x6e,
-	0x7e, 0x69, 0x5e, 0x89, 0x04, 0x33, 0x44, 0x2d, 0x84, 0xe7, 0x24, 0x71, 0xe2, 0x91, 0x1c, 0xe3,
-	0x85, 0x47, 0x72, 0x8c, 0x0f, 0x1e, 0xc9, 0x31, 0x4e, 0x78, 0x2c, 0xc7, 0x70, 0xe1, 0xb1, 0x1c,
-	0xc3, 0x8d, 0xc7, 0x72, 0x0c, 0x49, 0x6c, 0x60, 0x57, 0x18, 0x03, 0x02, 0x00, 0x00, 0xff, 0xff,
-	0x58, 0x4e, 0x0f, 0x06, 0xb4, 0x00, 0x00, 0x00,
+	0xe5, 0x97, 0xe4, 0x0b, 0xb1, 0x15, 0x18, 0x15, 0xe8, 0x15, 0x24, 0x29, 0xa5, 0x73, 0x89, 0xba,
+	0x42, 0x15, 0x7a, 0x80, 0xd5, 0x05, 0x41, 0x94, 0x09, 0x49, 0x70, 0xb1, 0xe5, 0x17, 0x65, 0xa6,
+	0x67, 0xe6, 0x49, 0x30, 0x2a, 0x30, 0x6a, 0xb0, 0x78, 0x30, 0x04, 0x41, 0xf9, 0x42, 0x22, 0x5c,
+	0x2c, 0x19, 0x89, 0xc5, 0x19, 0x12, 0x4c, 0x0a, 0x8c, 0x1a, 0x3c, 0x1e, 0x0c, 0x41, 0x60, 0x9e,
+	0x90, 0x18, 0x17, 0x5b, 0x62, 0x6e, 0x7e, 0x69, 0x5e, 0x89, 0x04, 0x33, 0x48, 0x7d, 0x10, 0x94,
+	0xe7, 0xc4, 0xc6, 0xc5, 0x92, 0x92, 0x58, 0x92, 0xe8, 0x24, 0x71, 0xe2, 0x91, 0x1c, 0xe3, 0x85,
+	0x47, 0x72, 0x8c, 0x0f, 0x1e, 0xc9, 0x31, 0x4e, 0x78, 0x2c, 0xc7, 0x70, 0xe1, 0xb1, 0x1c, 0xc3,
+	0x8d, 0xc7, 0x72, 0x0c, 0x49, 0x6c, 0x60, 0x17, 0x19, 0x03, 0x02, 0x00, 0x00, 0xff, 0xff, 0x45,
+	0xbf, 0x56, 0x8c, 0xc0, 0x00, 0x00, 0x00,
 }
 
 func (m *ExtendedHeaderRequest) Marshal() (dAtA []byte, err error) {
@@ -130,21 +164,46 @@ func (m *ExtendedHeaderRequest) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 		i--
 		dAtA[i] = 0x18
 	}
-	if len(m.Hash) > 0 {
+	if m.Data != nil {
+		{
+			size := m.Data.Size()
+			i -= size
+			if _, err := m.Data.MarshalTo(dAtA[i:]); err != nil {
+				return 0, err
+			}
+		}
+	}
+	return len(dAtA) - i, nil
+}
+
+func (m *ExtendedHeaderRequest_Origin) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *ExtendedHeaderRequest_Origin) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	i = encodeVarintExtendedHeaderRequest(dAtA, i, uint64(m.Origin))
+	i--
+	dAtA[i] = 0x8
+	return len(dAtA) - i, nil
+}
+func (m *ExtendedHeaderRequest_Hash) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *ExtendedHeaderRequest_Hash) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	if m.Hash != nil {
 		i -= len(m.Hash)
 		copy(dAtA[i:], m.Hash)
 		i = encodeVarintExtendedHeaderRequest(dAtA, i, uint64(len(m.Hash)))
 		i--
 		dAtA[i] = 0x12
 	}
-	if m.Origin != 0 {
-		i = encodeVarintExtendedHeaderRequest(dAtA, i, uint64(m.Origin))
-		i--
-		dAtA[i] = 0x8
-	}
 	return len(dAtA) - i, nil
 }
-
 func encodeVarintExtendedHeaderRequest(dAtA []byte, offset int, v uint64) int {
 	offset -= sovExtendedHeaderRequest(v)
 	base := offset
@@ -162,15 +221,33 @@ func (m *ExtendedHeaderRequest) Size() (n int) {
 	}
 	var l int
 	_ = l
-	if m.Origin != 0 {
-		n += 1 + sovExtendedHeaderRequest(uint64(m.Origin))
-	}
-	l = len(m.Hash)
-	if l > 0 {
-		n += 1 + l + sovExtendedHeaderRequest(uint64(l))
+	if m.Data != nil {
+		n += m.Data.Size()
 	}
 	if m.Amount != 0 {
 		n += 1 + sovExtendedHeaderRequest(uint64(m.Amount))
+	}
+	return n
+}
+
+func (m *ExtendedHeaderRequest_Origin) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	n += 1 + sovExtendedHeaderRequest(uint64(m.Origin))
+	return n
+}
+func (m *ExtendedHeaderRequest_Hash) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	if m.Hash != nil {
+		l = len(m.Hash)
+		n += 1 + l + sovExtendedHeaderRequest(uint64(l))
 	}
 	return n
 }
@@ -214,7 +291,7 @@ func (m *ExtendedHeaderRequest) Unmarshal(dAtA []byte) error {
 			if wireType != 0 {
 				return fmt.Errorf("proto: wrong wireType = %d for field Origin", wireType)
 			}
-			m.Origin = 0
+			var v uint64
 			for shift := uint(0); ; shift += 7 {
 				if shift >= 64 {
 					return ErrIntOverflowExtendedHeaderRequest
@@ -224,11 +301,12 @@ func (m *ExtendedHeaderRequest) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				m.Origin |= uint64(b&0x7F) << shift
+				v |= uint64(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
 			}
+			m.Data = &ExtendedHeaderRequest_Origin{v}
 		case 2:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field Hash", wireType)
@@ -258,10 +336,9 @@ func (m *ExtendedHeaderRequest) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			m.Hash = append(m.Hash[:0], dAtA[iNdEx:postIndex]...)
-			if m.Hash == nil {
-				m.Hash = []byte{}
-			}
+			v := make([]byte, postIndex-iNdEx)
+			copy(v, dAtA[iNdEx:postIndex])
+			m.Data = &ExtendedHeaderRequest_Hash{v}
 			iNdEx = postIndex
 		case 3:
 			if wireType != 0 {

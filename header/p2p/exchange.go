@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"math/rand"
+	"time"
 
 	logging "github.com/ipfs/go-log/v2"
 
@@ -23,11 +24,18 @@ import (
 
 var log = logging.Logger("header/p2p")
 
+const (
+	// writeDeadline sets timeout for sending messages to the stream
+	writeDeadline = time.Second * 5
+	// readDeadline sets timeout for reading messages from the stream
+	readDeadline = time.Minute
+)
+
 // PubSubTopic hardcodes the name of the ExtendedHeader
 // gossipsub topic.
 const PubSubTopic = "header-sub"
 
-var exchangeProtocolID = protocol.ID(fmt.Sprintf("/header-ex/v0.0.2/%s", params.DefaultNetwork()))
+var exchangeProtocolID = protocol.ID(fmt.Sprintf("/header-ex/v0.0.3/%s", params.DefaultNetwork()))
 
 // Exchange enables sending outbound ExtendedHeaderRequests to the network as well as
 // handling inbound ExtendedHeaderRequests from the network.
@@ -50,7 +58,7 @@ func (ex *Exchange) Head(ctx context.Context) (*header.ExtendedHeader, error) {
 	log.Debug("requesting head")
 	// create request
 	req := &p2p_pb.ExtendedHeaderRequest{
-		Origin: uint64(0),
+		Data:   &p2p_pb.ExtendedHeaderRequest_Origin{Origin: uint64(0)},
 		Amount: 1,
 	}
 	headers, err := ex.performRequest(ctx, req)
@@ -71,7 +79,7 @@ func (ex *Exchange) GetByHeight(ctx context.Context, height uint64) (*header.Ext
 	}
 	// create request
 	req := &p2p_pb.ExtendedHeaderRequest{
-		Origin: height,
+		Data:   &p2p_pb.ExtendedHeaderRequest_Origin{Origin: height},
 		Amount: 1,
 	}
 	headers, err := ex.performRequest(ctx, req)
@@ -87,7 +95,7 @@ func (ex *Exchange) GetRangeByHeight(ctx context.Context, from, amount uint64) (
 	log.Debugw("requesting headers", "from", from, "to", from+amount)
 	// create request
 	req := &p2p_pb.ExtendedHeaderRequest{
-		Origin: from,
+		Data:   &p2p_pb.ExtendedHeaderRequest_Origin{Origin: from},
 		Amount: amount,
 	}
 	return ex.performRequest(ctx, req)
@@ -99,7 +107,7 @@ func (ex *Exchange) Get(ctx context.Context, hash tmbytes.HexBytes) (*header.Ext
 	log.Debugw("requesting header", "hash", hash.String())
 	// create request
 	req := &p2p_pb.ExtendedHeaderRequest{
-		Hash:   hash.Bytes(),
+		Data:   &p2p_pb.ExtendedHeaderRequest_Hash{Hash: hash.Bytes()},
 		Amount: 1,
 	}
 	headers, err := ex.performRequest(ctx, req)
@@ -131,22 +139,31 @@ func (ex *Exchange) performRequest(
 	if err != nil {
 		return nil, err
 	}
+	if err = stream.SetWriteDeadline(time.Now().Add(writeDeadline)); err != nil {
+		log.Debugf("error setting deadline: %s", err)
+	}
 	// send request
 	_, err = serde.Write(stream, req)
 	if err != nil {
 		stream.Reset() //nolint:errcheck
 		return nil, err
 	}
+	err = stream.CloseWrite()
+	if err != nil {
+		log.Error(err)
+	}
 	// read responses
 	headers := make([]*header.ExtendedHeader, req.Amount)
 	for i := 0; i < int(req.Amount); i++ {
 		resp := new(header_pb.ExtendedHeader)
+		if err = stream.SetReadDeadline(time.Now().Add(readDeadline)); err != nil {
+			log.Debugf("error setting deadline: %s", err)
+		}
 		_, err := serde.Read(stream, resp)
 		if err != nil {
 			stream.Reset() //nolint:errcheck
 			return nil, err
 		}
-
 		header, err := header.ProtoToExtendedHeader(resp)
 		if err != nil {
 			stream.Reset() //nolint:errcheck
