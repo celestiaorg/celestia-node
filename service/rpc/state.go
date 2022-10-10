@@ -31,7 +31,6 @@ const addrKey = "address"
 var (
 	ErrInvalidAddressFormat = errors.New("address must be a valid account or validator address")
 	ErrMissingAddress       = errors.New("address not specified")
-	ErrInvalidAmount        = errors.New("amount must be greater than zero")
 )
 
 // submitTxRequest represents a request to submit a raw transaction
@@ -202,10 +201,6 @@ func (h *Handler) handleTransfer(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, transferEndpoint, err)
 		return
 	}
-	if req.Amount <= 0 {
-		writeError(w, http.StatusBadRequest, transferEndpoint, ErrInvalidAmount)
-		return
-	}
 	addr, err := types.AccAddressFromBech32(req.To)
 	if err != nil {
 		// first check if it is a validator address and can be converted
@@ -241,10 +236,6 @@ func (h *Handler) handleDelegation(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, delegationEndpoint, err)
 		return
 	}
-	if req.Amount <= 0 {
-		writeError(w, http.StatusBadRequest, delegationEndpoint, ErrInvalidAmount)
-		return
-	}
 	addr, err := types.ValAddressFromBech32(req.To)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, delegationEndpoint, err)
@@ -273,10 +264,6 @@ func (h *Handler) handleUndelegation(w http.ResponseWriter, r *http.Request) {
 	err := json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, undelegationEndpoint, err)
-		return
-	}
-	if req.Amount <= 0 {
-		writeError(w, http.StatusBadRequest, undelegationEndpoint, ErrInvalidAmount)
 		return
 	}
 	addr, err := types.ValAddressFromBech32(req.From)
@@ -309,10 +296,6 @@ func (h *Handler) handleCancelUnbonding(w http.ResponseWriter, r *http.Request) 
 		writeError(w, http.StatusBadRequest, cancelUnbondingEndpoint, err)
 		return
 	}
-	if req.Amount <= 0 {
-		writeError(w, http.StatusBadRequest, cancelUnbondingEndpoint, ErrInvalidAmount)
-		return
-	}
 	addr, err := types.ValAddressFromBech32(req.From)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, cancelUnbondingEndpoint, err)
@@ -341,10 +324,6 @@ func (h *Handler) handleRedelegation(w http.ResponseWriter, r *http.Request) {
 	err := json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, beginRedelegationEndpoint, err)
-		return
-	}
-	if req.Amount <= 0 {
-		writeError(w, http.StatusBadRequest, beginRedelegationEndpoint, ErrInvalidAmount)
 		return
 	}
 	srcAddr, err := types.ValAddressFromBech32(req.From)
