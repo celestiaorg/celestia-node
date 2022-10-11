@@ -14,10 +14,15 @@ import (
 )
 
 func TestCoordinator(t *testing.T) {
-	concurrency := 10
-	samplingRange := uint64(10)
+
+	config := DefaultConfig()
+
+	config.ConcurrencyLimit = 10
+	config.SamplingRange = uint64(10)
+	config.GenesisHeight = 1
+
 	networkHead := uint64(500)
-	sampleFrom := uint64(genesisHeight)
+	sampleFrom := uint64(config.GenesisHeight)
 	timeoutDelay := 125 * time.Second
 
 	t.Run("test run", func(t *testing.T) {
@@ -25,7 +30,7 @@ func TestCoordinator(t *testing.T) {
 
 		sampler := newMockSampler(sampleFrom, networkHead)
 
-		coordinator := newSamplingCoordinator(concurrency, samplingRange, getterStub{}, onceMiddleWare(sampler.sample))
+		coordinator := newSamplingCoordinator(config, getterStub{}, onceMiddleWare(sampler.sample))
 		go coordinator.run(ctx, sampler.checkpoint)
 
 		// check if all jobs were sampled successfully
@@ -47,7 +52,7 @@ func TestCoordinator(t *testing.T) {
 
 		sampler := newMockSampler(sampleFrom, networkHead)
 
-		coordinator := newSamplingCoordinator(concurrency, samplingRange, getterStub{}, sampler.sample)
+		coordinator := newSamplingCoordinator(config, getterStub{}, sampler.sample)
 		go coordinator.run(ctx, sampler.checkpoint)
 
 		time.Sleep(50 * time.Millisecond)
@@ -72,11 +77,14 @@ func TestCoordinator(t *testing.T) {
 	})
 
 	t.Run("prioritize newly discovered over known", func(t *testing.T) {
+
+		config := DefaultConfig()
+		config.ConcurrencyLimit = 1
+		config.SamplingRange = 4
+
 		sampleFrom := uint64(1)
 		networkHead := uint64(10)
 		toBeDiscovered := uint64(20)
-		samplingRange := uint64(4)
-		concurrency := 1
 
 		sampler := newMockSampler(sampleFrom, networkHead)
 
@@ -86,15 +94,15 @@ func TestCoordinator(t *testing.T) {
 		lk := newLock(sampleFrom, sampleFrom)
 
 		// expect worker to prioritize newly discovered  (20 -> 10) and then old (0 -> 10)
-		order := newCheckOrder().addInterval(sampleFrom, samplingRange) // worker will pick up first job before discovery
-		order.addStacks(networkHead+1, toBeDiscovered, samplingRange)
-		order.addInterval(samplingRange+1, toBeDiscovered)
+		order := newCheckOrder().addInterval(sampleFrom, config.SamplingRange) // worker will pick up first job before discovery
+		order.addStacks(networkHead+1, toBeDiscovered, config.SamplingRange)
+		order.addInterval(config.SamplingRange+1, toBeDiscovered)
 
 		// start coordinator
-		coordinator := newSamplingCoordinator(concurrency, samplingRange, getterStub{},
+		coordinator := newSamplingCoordinator(config, getterStub{},
 			lk.middleWare(
-				order.middleWare(
-					sampler.sample)),
+				order.middleWare(sampler.sample),
+			),
 		)
 		go coordinator.run(ctx, sampler.checkpoint)
 
@@ -131,7 +139,7 @@ func TestCoordinator(t *testing.T) {
 		sampler := newMockSampler(sampleFrom, networkHead)
 
 		lk := newLock(sampleFrom, networkHead) // lock all workers before start
-		coordinator := newSamplingCoordinator(concurrency, samplingRange, getterStub{},
+		coordinator := newSamplingCoordinator(config, getterStub{},
 			lk.middleWare(sampler.sample))
 		go coordinator.run(ctx, sampler.checkpoint)
 
@@ -178,7 +186,7 @@ func TestCoordinator(t *testing.T) {
 		bornToFail := []uint64{4, 8, 15, 16, 23, 42}
 		sampler := newMockSampler(sampleFrom, networkHead, bornToFail...)
 
-		coordinator := newSamplingCoordinator(concurrency, samplingRange, getterStub{}, onceMiddleWare(sampler.sample))
+		coordinator := newSamplingCoordinator(config, getterStub{}, onceMiddleWare(sampler.sample))
 		go coordinator.run(ctx, sampler.checkpoint)
 
 		// wait for coordinator to indicateDone catchup
@@ -207,7 +215,7 @@ func TestCoordinator(t *testing.T) {
 		sampler := newMockSampler(sampleFrom, networkHead, failedAgain...)
 		sampler.checkpoint.Failed = failedLastRun
 
-		coordinator := newSamplingCoordinator(concurrency, samplingRange, getterStub{}, onceMiddleWare(sampler.sample))
+		coordinator := newSamplingCoordinator(config, getterStub{}, onceMiddleWare(sampler.sample))
 		go coordinator.run(ctx, sampler.checkpoint)
 
 		// check if all jobs were sampled successfully
@@ -231,13 +239,14 @@ func TestCoordinator(t *testing.T) {
 }
 
 func BenchmarkCoordinator(b *testing.B) {
-	concurrency := 100
-	samplingRange := uint64(10)
 	timeoutDelay := 5 * time.Second
+	config := DefaultConfig()
+	config.ConcurrencyLimit = 100
+	config.SamplingRange = uint64(10)
 
 	b.Run("bench run", func(b *testing.B) {
 		ctx, cancel := context.WithTimeout(context.Background(), timeoutDelay)
-		coordinator := newSamplingCoordinator(concurrency, samplingRange, newBenchGetter(),
+		coordinator := newSamplingCoordinator(config, newBenchGetter(),
 			func(ctx context.Context, h *header.ExtendedHeader) error { return nil })
 		go coordinator.run(ctx, checkpoint{
 			SampleFrom:  1,

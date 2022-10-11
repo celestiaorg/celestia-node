@@ -9,9 +9,10 @@ import (
 
 // samplingCoordinator runs and coordinates sampling workers and updates current sampling state
 type samplingCoordinator struct {
-	concurrencyLimit int
-	getter           header.Getter
-	sampleFn         sampleFn
+	daserCfg Config
+
+	getter   header.Getter
+	sampleFn sampleFn
 
 	state coordinatorState
 
@@ -35,19 +36,19 @@ type result struct {
 }
 
 func newSamplingCoordinator(
-	concurrency int,
-	samplingRange uint64,
+	cfg Config,
 	getter header.Getter,
-	sample sampleFn) *samplingCoordinator {
+	sample sampleFn,
+) *samplingCoordinator {
 	return &samplingCoordinator{
-		concurrencyLimit: concurrency,
-		getter:           getter,
-		sampleFn:         sample,
-		state:            newCoordinatorState(samplingRange),
-		resultCh:         make(chan result),
-		updHeadCh:        make(chan uint64),
-		waitCh:           make(chan *sync.WaitGroup),
-		done:             newDone("sampling coordinator"),
+		daserCfg:  cfg,
+		getter:    getter,
+		sampleFn:  sample,
+		state:     newCoordinatorState(cfg),
+		resultCh:  make(chan result),
+		updHeadCh: make(chan uint64),
+		waitCh:    make(chan *sync.WaitGroup),
+		done:      newDone("sampling coordinator"),
 	}
 }
 
@@ -130,5 +131,5 @@ func (sc *samplingCoordinator) getCheckpoint(ctx context.Context) (checkpoint, e
 
 // concurrencyLimitReached indicates whether concurrencyLimit has been reached
 func (sc *samplingCoordinator) concurrencyLimitReached() bool {
-	return len(sc.state.inProgress) >= sc.concurrencyLimit
+	return uint(len(sc.state.inProgress)) >= sc.daserCfg.ConcurrencyLimit
 }

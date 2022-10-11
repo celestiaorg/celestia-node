@@ -17,28 +17,73 @@ import (
 	"github.com/celestiaorg/celestia-node/share"
 )
 
+// TODO(@team): Should we DI this?
 var log = logging.Logger("das")
 
-// TODO: parameters needs performance testing on real network to define optimal values
-const (
+type Config struct {
 	//  samplingRange is the maximum amount of headers processed in one job.
-	samplingRange = 100
+	SamplingRange uint64 // TODO(@derrandz): Question to @vlad, why is this uint64?
 
 	// concurrencyLimit defines the maximum amount of sampling workers running in parallel.
-	concurrencyLimit = 16
+	ConcurrencyLimit uint
 
 	// backgroundStoreInterval is the period of time for background checkpointStore to perform a checkpoint backup.
-	backgroundStoreInterval = 10 * time.Minute
+	BackgroundStoreInterval time.Duration
 
 	// priorityQueueSize defines the size limit of the priority queue
-	priorityQueueSize = concurrencyLimit * 4
+	PriorityQueueSize uint
 
 	// genesisHeight is the height sampling will start from
-	genesisHeight = 1
-)
+	GenesisHeight uint
+}
+
+// TODO(@derrandz): parameters needs performance testing on real network to define optimal values
+func DefaultConfig() Config {
+	return Config{
+		SamplingRange:           100,
+		ConcurrencyLimit:        16,
+		BackgroundStoreInterval: 10 * time.Minute,
+		PriorityQueueSize:       16 * 4,
+		GenesisHeight:           1,
+	}
+}
+
+type Option func(*DASer)
+
+func WithParamSamplingRange(samplingRange int) Option {
+	return func(d *DASer) {
+		d.config.SamplingRange = uint64(samplingRange)
+	}
+}
+
+func WithParamConcurrencyLimit(concurrencyLimit int) Option {
+	return func(d *DASer) {
+		d.config.ConcurrencyLimit = uint(concurrencyLimit)
+	}
+}
+
+func WithParamBackgroundStoreInterval(bgStoreInterval time.Duration) Option {
+	return func(d *DASer) {
+		d.config.BackgroundStoreInterval = bgStoreInterval
+	}
+}
+
+func WithParamPriorityQueueSize(priorityQueueSize int) Option {
+	return func(d *DASer) {
+		d.config.PriorityQueueSize = uint(priorityQueueSize)
+	}
+}
+
+func WithParamGenesisHeight(genesisHeight uint) Option {
+	return func(d *DASer) {
+		d.config.GenesisHeight = genesisHeight
+	}
+}
 
 // DASer continuously validates availability of data committed to headers.
 type DASer struct {
+	config Config
+
 	da     share.Availability
 	bcast  fraud.Broadcaster
 	hsub   header.Subscriber // listens for new headers in the network
@@ -63,8 +108,10 @@ func NewDASer(
 	getter header.Getter,
 	dstore datastore.Datastore,
 	bcast fraud.Broadcaster,
+	options ...Option,
 ) *DASer {
 	d := &DASer{
+		config:         DefaultConfig(),
 		da:             da,
 		bcast:          bcast,
 		hsub:           hsub,
@@ -73,7 +120,12 @@ func NewDASer(
 		subscriber:     newSubscriber(),
 		subscriberDone: make(chan struct{}),
 	}
-	d.sampler = newSamplingCoordinator(concurrencyLimit, samplingRange, getter, d.sample)
+
+	for _, applyOpt := range options {
+		applyOpt(d)
+	}
+
+	d.sampler = newSamplingCoordinator(d.config, getter, d.sample)
 
 	return d
 }
@@ -95,8 +147,8 @@ func (d *DASer) Start(ctx context.Context) error {
 		log.Warnw("checkpoint not found, initializing with height 1")
 
 		cp = checkpoint{
-			SampleFrom:  genesisHeight,
-			NetworkHead: genesisHeight,
+			SampleFrom:  uint64(d.config.GenesisHeight),
+			NetworkHead: uint64(d.config.GenesisHeight),
 		}
 
 		// attempt to get head info. No need to handle error, later DASer
@@ -112,7 +164,7 @@ func (d *DASer) Start(ctx context.Context) error {
 
 	go d.sampler.run(runCtx, cp)
 	go d.subscriber.run(runCtx, sub, d.sampler.listen)
-	go d.store.runBackgroundStore(runCtx, backgroundStoreInterval, d.sampler.getCheckpoint)
+	go d.store.runBackgroundStore(runCtx, d.config.BackgroundStoreInterval, d.sampler.getCheckpoint)
 
 	return nil
 }

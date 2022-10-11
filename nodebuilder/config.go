@@ -6,6 +6,7 @@ import (
 
 	"github.com/BurntSushi/toml"
 
+	"github.com/celestiaorg/celestia-node/das"
 	"github.com/celestiaorg/celestia-node/nodebuilder/core"
 	"github.com/celestiaorg/celestia-node/nodebuilder/header"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
@@ -27,6 +28,7 @@ type Config struct {
 	RPC    rpc.Config
 	Share  share.Config
 	Header header.Config
+	DASer  das.Config
 }
 
 // DefaultConfig provides a default Config for a given Node Type 'tp'.
@@ -41,6 +43,7 @@ func DefaultConfig(tp node.Type) *Config {
 			RPC:    rpc.DefaultConfig(),
 			Share:  share.DefaultConfig(),
 			Header: header.DefaultConfig(),
+			DASer:  das.DefaultConfig(),
 		}
 	default:
 		panic("node: invalid node type")

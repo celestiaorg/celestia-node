@@ -60,8 +60,8 @@ func NewFullAvailability(
 	}
 
 	// assign options if applicable
-	for _, opt := range options {
-		opt(fa)
+	for _, applyOpt := range options {
+		applyOpt(fa)
 	}
 
 	return fa

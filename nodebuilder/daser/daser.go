@@ -15,6 +15,7 @@ func NewDASer(
 	store header.Store,
 	batching datastore.Batching,
 	fraudService fraud.Module,
+	options ...das.Option,
 ) *das.DASer {
-	return das.NewDASer(da, hsub, store, batching, fraudService)
+	return das.NewDASer(da, hsub, store, batching, fraudService, options...)
 }

@@ -35,7 +35,7 @@ func ConstructModule(tp node.Type, cfg *Config, store Store) fx.Option {
 		share.ConstructModule(tp, &cfg.Share),
 		rpc.ConstructModule(tp, &cfg.RPC),
 		core.ConstructModule(tp, &cfg.Core),
-		daser.ConstructModule(tp),
+		daser.ConstructModule(tp, &cfg.DASer),
 		fraud.ConstructModule(tp),
 	)
 
