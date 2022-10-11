@@ -29,7 +29,7 @@ const (
 	writeDeadline = time.Second * 5
 	// readDeadline sets timeout for reading messages from the stream
 	readDeadline = time.Minute
-	// minimum amount of responses with the same ExtendedHeader
+	// the target minimum amount of responses with the same chain head
 	minResponses = 2
 )
 

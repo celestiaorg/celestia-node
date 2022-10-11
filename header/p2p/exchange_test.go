@@ -96,7 +96,7 @@ func TestExchange_RequestByHash(t *testing.T) {
 	assert.Equal(t, store.headers[reqHeight].Hash(), eh.Hash())
 }
 
-func Test_parseHeads(t *testing.T) {
+func Test_bestHead(t *testing.T) {
 	gen := func() []*header.ExtendedHeader {
 		suite := header.NewTestSuite(t, 3)
 		res := make([]*header.ExtendedHeader, 0)
