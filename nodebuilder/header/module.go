@@ -43,9 +43,13 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 		}),
 		fx.Provide(fx.Annotate(
 			newSyncer,
-			// we skip the first passed context which only lives for the OnStart operation,
-			// because fraudServ.Lifecycle needs a long living context.
-			fx.OnStart(func(_, ctx context.Context, lc fx.Lifecycle, fservice fraudServ.Module, syncer *sync.Syncer) error {
+			fx.OnStart(func(
+				startCtx context.Context,
+				ctx context.Context,
+				lc fx.Lifecycle,
+				fservice fraudServ.Module,
+				syncer *sync.Syncer,
+			) error {
 				syncerStartFunc := func(ctx context.Context) error {
 					err := syncer.Start(ctx)
 					switch err {
@@ -58,7 +62,7 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 					return nil
 				}
 				lifecycleCtx := fxutil.WithLifecycle(ctx, lc)
-				return fraudServ.Lifecycle(ctx, lifecycleCtx, fraud.BadEncoding, fservice,
+				return fraudServ.Lifecycle(startCtx, lifecycleCtx, fraud.BadEncoding, fservice,
 					syncerStartFunc, syncer.Stop)
 			}),
 			fx.OnStop(func(ctx context.Context, syncer *sync.Syncer) error {
