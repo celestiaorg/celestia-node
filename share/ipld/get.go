@@ -58,9 +58,9 @@ func GetLeaf(
 
 	// look for links
 	lnks := nd.Links()
-	if len(lnks) == 1 {
-		// in case there is only one we reached tree's bottom, so finally request the leaf.
-		return GetNode(ctx, bGetter, lnks[0].Cid)
+	if len(lnks) == 0 {
+		// in case there is none, we reached tree's bottom, so finally return the leaf.
+		return nd, err
 	}
 
 	// route walk to appropriate children
@@ -137,16 +137,7 @@ func GetLeaves(ctx context.Context,
 				}
 				// check links to know what we should do with the node
 				lnks := nd.Links()
-				if len(lnks) == 1 { // so we are almost there
-					// the reason why the comment on 'total' is lying, as each
-					// leaf has its own additional leaf(hack) so get it
-					nd, err := GetNode(ctx, bGetter, lnks[0].Cid)
-					if err != nil {
-						// again, we don't really care much, just fetch as much as possible
-						span.RecordError(err)
-						span.SetStatus(codes.Error, err.Error())
-						return
-					}
+				if len(lnks) == 0 {
 					// successfully fetched a share/leaf
 					// ladies and gentlemen, we got em!
 					span.SetStatus(codes.Ok, "")
@@ -262,8 +253,7 @@ func GetLeavesByNamespace(
 				}
 
 				links := nd.Links()
-				linkCount := uint64(len(links))
-				if linkCount == 1 {
+				if len(links) == 0 {
 					// successfully fetched a leaf belonging to the namespace
 					span.SetStatus(codes.Ok, "")
 					leaves[j.pos] = nd
@@ -323,7 +313,7 @@ func GetProof(
 	}
 	// look for links
 	lnks := nd.Links()
-	if len(lnks) == 1 {
+	if len(lnks) == 0 {
 		p := make([]cid.Cid, len(proof))
 		copy(p, proof)
 		return p, nil
