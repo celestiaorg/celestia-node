@@ -45,17 +45,11 @@ func (n *namespaceHasher) Write(data []byte) (int, error) {
 	innerNodeSize, leafNodeSize := (nln*2+hln)*2, nln+appconsts.ShareSize
 	switch ln {
 	default:
-		return 0, fmt.Errorf("ipld: wrong sized data written to the hasher")
+		return 0, fmt.Errorf("ipld: wrong sized data written to the hasher, len: %v", ln)
 	case innerNodeSize:
 		n.tp = nmt.NodePrefix
 	case leafNodeSize:
 		n.tp = nmt.LeafPrefix
-	case innerNodeSize + typeSize: // w/ additional type byte
-		n.tp = nmt.NodePrefix
-		data = data[typeSize:]
-	case leafNodeSize + typeSize: // w/ additional type byte
-		n.tp = nmt.LeafPrefix
-		data = data[typeSize:]
 	}
 
 	n.data = data

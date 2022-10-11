@@ -1,7 +1,6 @@
 package ipld
 
 import (
-	"bytes"
 	"context"
 	"crypto/sha256"
 	"errors"
@@ -69,37 +68,23 @@ func GetNode(ctx context.Context, bGetter blockservice.BlockGetter, root cid.Cid
 }
 
 func decodeBlock(block blocks.Block) (ipld.Node, error) {
-	var (
-		leafPrefix  = []byte{nmt.LeafPrefix}
-		innerPrefix = []byte{nmt.NodePrefix}
-	)
 	data := block.RawData()
-	if len(data) == 0 {
-		return &nmtLeafNode{
-			cid:  cid.Undef,
-			Data: nil,
-		}, nil
-	}
-	domainSeparator := data[:typeSize]
-	if bytes.Equal(domainSeparator, leafPrefix) {
-		return &nmtLeafNode{
-			cid:  block.Cid(),
-			Data: data[typeSize:],
-		}, nil
-	}
-	if bytes.Equal(domainSeparator, innerPrefix) {
+	innerNodeSize, leafNodeSize := (nmtHashSize)*2, NamespaceSize+consts.ShareSize
+	switch len(data) {
+	default:
+		return nil, fmt.Errorf("ipld: wrong sized data carried in block")
+	case innerNodeSize:
 		return &nmtNode{
 			cid: block.Cid(),
-			l:   data[typeSize : typeSize+nmtHashSize],
-			r:   data[typeSize+nmtHashSize:],
+			l:   data[:nmtHashSize],
+			r:   data[nmtHashSize:],
+		}, nil
+	case leafNodeSize:
+		return &nmtLeafNode{
+			cid:  block.Cid(),
+			Data: data,
 		}, nil
 	}
-	return nil, fmt.Errorf(
-		"expected first byte of block to be either the leaf or inner node prefix: (%x, %x), got: %x)",
-		leafPrefix,
-		innerPrefix,
-		domainSeparator,
-	)
 }
 
 var _ ipld.Node = (*nmtNode)(nil)
@@ -115,7 +100,7 @@ func NewNMTNode(id cid.Cid, l, r []byte) ipld.Node {
 }
 
 func (n nmtNode) RawData() []byte {
-	return append([]byte{nmt.NodePrefix}, append(n.l, n.r...)...)
+	return append(n.l, n.r...)
 }
 
 func (n nmtNode) Cid() cid.Cid {
@@ -217,7 +202,7 @@ func NewNMTLeafNode(id cid.Cid, data []byte) ipld.Node {
 }
 
 func (l nmtLeafNode) RawData() []byte {
-	return append([]byte{nmt.LeafPrefix}, l.Data...)
+	return l.Data
 }
 
 func (l nmtLeafNode) Cid() cid.Cid {
