@@ -18,6 +18,7 @@ type Accessor interface {
 	// Stop stops the state Accessor.
 	Stop(context.Context) error
 
+	AccountAddress(ctx context.Context) (Address, error)
 	// Balance retrieves the Celestia coin balance for the node's account/signer
 	// and verifies it against the corresponding block's AppHash.
 	Balance(ctx context.Context) (*Balance, error)
