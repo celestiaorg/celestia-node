@@ -1,4 +1,4 @@
-package daser
+package das
 
 import (
 	"github.com/ipfs/go-datastore"
@@ -15,6 +15,7 @@ func NewDASer(
 	store header.Store,
 	batching datastore.Batching,
 	fraudService fraud.Module,
-) *das.DASer {
-	return das.NewDASer(da, hsub, store, batching, fraudService)
+	options ...das.Option,
+) (*das.DASer, error) {
+	return das.NewDASer(da, hsub, store, batching, fraudService, options...)
 }

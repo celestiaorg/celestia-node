@@ -1,4 +1,4 @@
-package daser
+package das
 
 import (
 	"go.uber.org/fx"

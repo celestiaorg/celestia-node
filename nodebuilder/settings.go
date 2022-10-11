@@ -17,7 +17,7 @@ import (
 
 	"github.com/celestiaorg/celestia-node/fraud"
 	"github.com/celestiaorg/celestia-node/header"
-	"github.com/celestiaorg/celestia-node/nodebuilder/daser"
+	"github.com/celestiaorg/celestia-node/nodebuilder/das"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
 	"github.com/celestiaorg/celestia-node/state"
@@ -49,7 +49,7 @@ func WithMetrics(metricOpts []otlpmetrichttp.Option, nodeType node.Type) fx.Opti
 	case node.Full, node.Light:
 		opts = fx.Options(
 			baseComponents,
-			fx.Invoke(daser.WithMetrics),
+			fx.Invoke(das.WithMetrics),
 			// add more monitoring here
 		)
 	case node.Bridge:

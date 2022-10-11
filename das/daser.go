@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"sync/atomic"
-	"time"
 
 	"github.com/ipfs/go-datastore"
 	logging "github.com/ipfs/go-log/v2"
@@ -17,26 +16,10 @@ import (
 
 var log = logging.Logger("das")
 
-// TODO: parameters needs performance testing on real network to define optimal values
-const (
-	//  samplingRange is the maximum amount of headers processed in one job.
-	samplingRange = 100
-
-	// concurrencyLimit defines the maximum amount of sampling workers running in parallel.
-	concurrencyLimit = 16
-
-	// backgroundStoreInterval is the period of time for background checkpointStore to perform a checkpoint backup.
-	backgroundStoreInterval = 10 * time.Minute
-
-	// priorityQueueSize defines the size limit of the priority queue
-	priorityQueueSize = concurrencyLimit * 4
-
-	// genesisHeight is the height sampling will start from
-	genesisHeight = 1
-)
-
 // DASer continuously validates availability of data committed to headers.
 type DASer struct {
+	params Parameters
+
 	da     share.Availability
 	bcast  fraud.Broadcaster
 	hsub   header.Subscriber // listens for new headers in the network
@@ -61,8 +44,10 @@ func NewDASer(
 	getter header.Getter,
 	dstore datastore.Datastore,
 	bcast fraud.Broadcaster,
-) *DASer {
+	options ...Option,
+) (*DASer, error) {
 	d := &DASer{
+		params:         DefaultParameters(),
 		da:             da,
 		bcast:          bcast,
 		hsub:           hsub,
@@ -71,9 +56,18 @@ func NewDASer(
 		subscriber:     newSubscriber(),
 		subscriberDone: make(chan struct{}),
 	}
-	d.sampler = newSamplingCoordinator(concurrencyLimit, samplingRange, getter, d.sample)
 
-	return d
+	for _, applyOpt := range options {
+		applyOpt(d)
+	}
+
+	err := d.params.Validate()
+	if err != nil {
+		return nil, err
+	}
+
+	d.sampler = newSamplingCoordinator(d.params, getter, d.sample)
+	return d, nil
 }
 
 // Start initiates subscription for new ExtendedHeaders and spawns a sampling routine.
@@ -93,8 +87,8 @@ func (d *DASer) Start(ctx context.Context) error {
 		log.Warnw("checkpoint not found, initializing with height 1")
 
 		cp = checkpoint{
-			SampleFrom:  genesisHeight,
-			NetworkHead: genesisHeight,
+			SampleFrom:  d.params.SampleFrom,
+			NetworkHead: d.params.SampleFrom,
 		}
 
 		// attempt to get head info. No need to handle error, later DASer
@@ -110,7 +104,7 @@ func (d *DASer) Start(ctx context.Context) error {
 
 	go d.sampler.run(runCtx, cp)
 	go d.subscriber.run(runCtx, sub, d.sampler.listen)
-	go d.store.runBackgroundStore(runCtx, backgroundStoreInterval, d.sampler.getCheckpoint)
+	go d.store.runBackgroundStore(runCtx, d.params.BackgroundStoreInterval, d.sampler.getCheckpoint)
 
 	return nil
 }
