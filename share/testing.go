@@ -269,12 +269,17 @@ func (b *TestBrokenAvailability) ProbabilityOfAvailability() float64 {
 
 func TestLightAvailability(bServ blockservice.BlockService) *LightAvailability {
 	disc := NewDiscovery(nil, routing.NewRoutingDiscovery(routinghelpers.Null{}), 0, time.Second, time.Second)
-	return NewLightAvailability(bServ, disc)
+	return NewLightAvailability(bServ, disc, []LAOption{
+		WithDefaultSampleAmount(),
+		WithLightAvailabilityTimeoutDefault(),
+	}...)
 }
 
 func TestFullAvailability(bServ blockservice.BlockService) *FullAvailability {
 	disc := NewDiscovery(nil, routing.NewRoutingDiscovery(routinghelpers.Null{}), 0, time.Second, time.Second)
-	return NewFullAvailability(bServ, disc)
+	return NewFullAvailability(bServ, disc, []FAOption{
+		WithFullAvailabilityTimeoutDefault(),
+	}...)
 }
 
 type TestSuccessfulAvailability struct {

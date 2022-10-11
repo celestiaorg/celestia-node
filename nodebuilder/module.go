@@ -18,6 +18,7 @@ import (
 )
 
 func ConstructModule(tp node.Type, cfg *Config, store Store) fx.Option {
+
 	baseComponents := fx.Options(
 		fx.Provide(params.DefaultNetwork),
 		fx.Provide(params.BootstrappersFor),

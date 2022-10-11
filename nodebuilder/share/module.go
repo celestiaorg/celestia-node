@@ -19,6 +19,21 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 		fx.Options(options...),
 		fx.Invoke(share.EnsureEmptySquareExists),
 		fx.Provide(Discovery(*cfg)),
+		fx.Provide(
+			fx.Annotate(func() []share.LAOption {
+				return []share.LAOption{
+					share.WithLightAvailabilityTimeout(cfg.AvailabilityTimeout),
+					share.WithSampleAmount(int(cfg.SampleAmount)),
+				}
+			}, fx.ResultTags(`group:"LAOptions"`)),
+		),
+		fx.Provide(
+			fx.Annotate(func() []share.FAOption {
+				return []share.FAOption{
+					share.WithFullAvailabilityTimeout(cfg.AvailabilityTimeout),
+				}
+			}, fx.ResultTags(`group:"FAOptions"`)),
+		),
 		fx.Provide(NewModule),
 	)
 
@@ -29,6 +44,7 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 			baseComponents,
 			fx.Provide(fx.Annotate(
 				share.NewLightAvailability,
+				fx.ParamTags(``, ``, `group:"LAOptions"`),
 				fx.OnStart(func(ctx context.Context, avail *share.LightAvailability) error {
 					return avail.Start(ctx)
 				}),
@@ -46,6 +62,7 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 			baseComponents,
 			fx.Provide(fx.Annotate(
 				share.NewFullAvailability,
+				fx.ParamTags(``, ``, `group:"FAOptions"`),
 				fx.OnStart(func(ctx context.Context, avail *share.FullAvailability) error {
 					return avail.Start(ctx)
 				}),

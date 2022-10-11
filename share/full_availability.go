@@ -3,6 +3,7 @@ package share
 import (
 	"context"
 	"errors"
+	"time"
 
 	"github.com/ipfs/go-blockservice"
 	format "github.com/ipfs/go-ipld-format"
@@ -10,10 +11,37 @@ import (
 	"github.com/celestiaorg/celestia-node/ipld"
 )
 
+type FAOption func(*FullAvailability)
+
+// To be used with the construction
+// example:
+//
+// NewFullAvailability(
+//
+//	bServ,
+//	disc,
+//	WithFullAvailabilityTimeout(10 * time.Minute),
+//
+// )
+func WithFullAvailabilityTimeout(timeout time.Duration) FAOption {
+	return func(fa *FullAvailability) {
+		fa.timeout = timeout
+	}
+}
+
+// Use for default timeout value
+func WithFullAvailabilityTimeoutDefault() FAOption {
+	return func(fa *FullAvailability) {
+		fa.timeout = DefaultAvailabilityTimeout
+	}
+}
+
 // FullAvailability implements Availability using the full data square
 // recovery technique. It is considered "full" because it is required
 // to download enough shares to fully reconstruct the data square.
 type FullAvailability struct {
+	timeout time.Duration
+
 	rtrv *ipld.Retriever
 	disc *Discovery
 
@@ -21,11 +49,22 @@ type FullAvailability struct {
 }
 
 // NewFullAvailability creates a new full Availability.
-func NewFullAvailability(bServ blockservice.BlockService, disc *Discovery) *FullAvailability {
-	return &FullAvailability{
+func NewFullAvailability(
+	bServ blockservice.BlockService,
+	disc *Discovery,
+	options ...FAOption,
+) *FullAvailability {
+	fa := &FullAvailability{
 		rtrv: ipld.NewRetriever(bServ),
 		disc: disc,
 	}
+
+	// assign options if applicable
+	for _, opt := range options {
+		opt(fa)
+	}
+
+	return fa
 }
 
 func (fa *FullAvailability) Start(context.Context) error {
@@ -45,7 +84,7 @@ func (fa *FullAvailability) Stop(context.Context) error {
 // SharesAvailable reconstructs the data committed to the given Root by requesting
 // enough Shares from the network.
 func (fa *FullAvailability) SharesAvailable(ctx context.Context, root *Root) error {
-	ctx, cancel := context.WithTimeout(ctx, AvailabilityTimeout)
+	ctx, cancel := context.WithTimeout(ctx, fa.timeout) // timeout is configurable through functional options passed to the constructor
 	defer cancel()
 	// we assume the caller of this method has already performed basic validation on the
 	// given dah/root. If for some reason this has not happened, the node should panic.

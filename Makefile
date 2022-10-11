@@ -28,6 +28,11 @@ clean:
 	@echo "--> Cleaning up ./build"
 	@rm -rf build/*
 
+## clean-cache: removes all go cache, useful for when your tests aren't passing due to cached old code
+clean-cache:
+	@go clean -r -testcache -cache -modcache .
+.PHONY: clean-cache
+
 ## install: Build and install the celestia-node binary into the $PREFIX (/usr/local/ by default) directory.
 install: build
 	@echo "--> Installing Celestia"
