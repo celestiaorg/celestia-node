@@ -6,17 +6,19 @@ import (
 	"math/rand"
 	"net"
 	"testing"
+	"time"
 
+	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/libp2p/go-libp2p-core/host"
 	"github.com/libp2p/go-libp2p-core/peer"
 	mocknet "github.com/libp2p/go-libp2p/p2p/net/mock"
 	ma "github.com/multiformats/go-multiaddr"
 	"github.com/stretchr/testify/require"
 	"github.com/tendermint/tendermint/libs/bytes"
-	"github.com/tendermint/tendermint/types"
+	tmrand "github.com/tendermint/tendermint/libs/rand"
 	"go.uber.org/fx"
 
-	"github.com/celestiaorg/celestia-node/core"
+	"github.com/celestiaorg/celestia-app/testutil/testnode"
 	"github.com/celestiaorg/celestia-node/libs/keystore"
 	"github.com/celestiaorg/celestia-node/logs"
 	"github.com/celestiaorg/celestia-node/nodebuilder"
@@ -29,9 +31,9 @@ import (
 
 var blackholeIP6 = net.ParseIP("100::")
 
-const subscriberID string = "NewBlockSwamp/Events"
-
-var queryEvent string = types.QueryForEvent(types.EventNewBlock).String()
+// DefaultTestTimeout should be used as the default timout on all the Swamp tests.
+// It's generously set to 5 minutes to give enough time for CI.
+const DefaultTestTimeout = time.Minute * 5
 
 // Swamp represents the main functionality that is needed for the test-case:
 // - Network to link the nodes
@@ -41,12 +43,14 @@ var queryEvent string = types.QueryForEvent(types.EventNewBlock).String()
 type Swamp struct {
 	t           *testing.T
 	Network     mocknet.Mocknet
-	CoreClient  core.Client
 	BridgeNodes []*nodebuilder.Node
 	FullNodes   []*nodebuilder.Node
 	LightNodes  []*nodebuilder.Node
 	trustedHash string
 	comps       *Components
+
+	ClientContext client.Context
+	accounts      []string
 }
 
 // NewSwamp creates a new instance of Swamp.
@@ -63,37 +67,38 @@ func NewSwamp(t *testing.T, options ...Option) *Swamp {
 	var err error
 	ctx := context.Background()
 
+	// we create an arbitrary number of funded accounts
+	accounts := make([]string, 100)
+	for i := 0; i < 10; i++ {
+		accounts = append(accounts, tmrand.Str(9))
+	}
+
 	// TODO(@Bidon15): CoreClient(limitation)
 	// Now, we are making an assumption that consensus mechanism is already tested out
 	// so, we are not creating bridge nodes with each one containing its own core client
 	// instead we are assigning all created BNs to 1 Core from the swamp
-	core.StartTestNode(ctx, t, ic.App, ic.CoreCfg)
-	endpoint, err := core.GetEndpoint(ic.CoreCfg)
+	tmNode, app, cctx, err := testnode.New(t, ic.CoreCfg, false, accounts...)
 	require.NoError(t, err)
-	ip, port, err := net.SplitHostPort(endpoint)
-	require.NoError(t, err)
-	remote, err := core.NewRemote(ip, port)
-	require.NoError(t, err)
-	t.Cleanup(func() {
-		err := remote.Stop()
-		require.NoError(t, err)
-	})
 
-	err = remote.Start()
+	cctx, cleanupCoreNode, err := testnode.StartNode(tmNode, cctx)
+	require.NoError(t, err)
+
+	cctx, cleanupGRPCServer, err := testnode.StartGRPCServer(app, testnode.DefaultAppConfig(), cctx)
 	require.NoError(t, err)
 
 	swp := &Swamp{
-		t:          t,
-		Network:    mocknet.New(),
-		CoreClient: remote,
-		comps:      ic,
+		t:             t,
+		Network:       mocknet.New(),
+		ClientContext: cctx,
+		comps:         ic,
+		accounts:      accounts,
 	}
-
-	swp.trustedHash, err = swp.getTrustedHash(ctx)
-	require.NoError(t, err)
+	swp.trustedHash = swp.getTrustedHash(ctx)
 
 	swp.t.Cleanup(func() {
 		swp.stopAllNodes(ctx, swp.BridgeNodes, swp.FullNodes, swp.LightNodes)
+		cleanupCoreNode()
+		cleanupGRPCServer()
 	})
 
 	return swp
@@ -111,37 +116,34 @@ func (s *Swamp) stopAllNodes(ctx context.Context, allNodes ...[]*nodebuilder.Nod
 
 // GetCoreBlockHashByHeight returns a tendermint block's hash by provided height
 func (s *Swamp) GetCoreBlockHashByHeight(ctx context.Context, height int64) bytes.HexBytes {
-	b, err := s.CoreClient.Block(ctx, &height)
+	b, err := s.ClientContext.Client.Block(ctx, &height)
 	require.NoError(s.t, err)
 	return b.BlockID.Hash
 }
 
 // WaitTillHeight holds the test execution until the given amount of blocks
 // has been produced by the CoreClient.
-func (s *Swamp) WaitTillHeight(ctx context.Context, height int64) {
+func (s *Swamp) WaitTillHeight(ctx context.Context, height int64) bytes.HexBytes {
 	require.Greater(s.t, height, int64(0))
 
-	ctx, cancel := context.WithCancel(ctx)
-	defer cancel()
-	results, err := s.CoreClient.Subscribe(ctx, subscriberID, queryEvent)
-	require.NoError(s.t, err)
-
-	defer func() {
-		// TODO(@Wondertan): For some reason, the Unsubscribe does not work and we have to do
-		//  an UnsubscribeAll as a hack. There is somewhere a bug in the Tendermint which should be
-		//  investigated
-		err = s.CoreClient.UnsubscribeAll(ctx, subscriberID)
-		require.NoError(s.t, err)
-	}()
-
+	t := time.NewTicker(time.Millisecond * 50)
+	defer t.Stop()
 	for {
 		select {
 		case <-ctx.Done():
-			return
-		case block := <-results:
-			newBlock := block.Data.(types.EventDataNewBlock)
-			if height <= newBlock.Block.Height {
-				return
+			require.NoError(s.t, ctx.Err())
+		case <-t.C:
+			status, err := s.ClientContext.Client.Status(ctx)
+			require.NoError(s.t, err)
+
+			latest := status.SyncInfo.LatestBlockHeight
+			switch {
+			case latest == height:
+				return status.SyncInfo.LatestBlockHash
+			case latest > height:
+				res, err := s.ClientContext.Client.Block(ctx, &height)
+				require.NoError(s.t, err)
+				return res.BlockID.Hash
 			}
 		}
 	}
@@ -173,25 +175,8 @@ func (s *Swamp) createPeer(ks keystore.Keystore) host.Host {
 
 // getTrustedHash is needed for celestia nodes to get the trustedhash
 // from CoreClient. This is required to initialize and start correctly.
-func (s *Swamp) getTrustedHash(ctx context.Context) (string, error) {
-	ctx, cancel := context.WithCancel(ctx)
-	defer cancel()
-
-	results, err := s.CoreClient.Subscribe(ctx, subscriberID, queryEvent)
-	require.NoError(s.t, err)
-
-	defer func() {
-		err := s.CoreClient.UnsubscribeAll(ctx, subscriberID)
-		require.NoError(s.t, err)
-	}()
-
-	select {
-	case <-ctx.Done():
-		return "", fmt.Errorf("can't get trusted hash as the channel is closed")
-	case block := <-results:
-		newBlock := block.Data.(types.EventDataNewBlock).Block
-		return newBlock.Hash().String(), nil
-	}
+func (s *Swamp) getTrustedHash(ctx context.Context) string {
+	return s.WaitTillHeight(ctx, 1).String()
 }
 
 // NewBridgeNode creates a new instance of a BridgeNode providing a default config
@@ -243,7 +228,7 @@ func (s *Swamp) NewNodeWithStore(
 	switch t {
 	case node.Bridge:
 		options = append(options,
-			coremodule.WithClient(s.CoreClient),
+			coremodule.WithClient(s.ClientContext.Client),
 		)
 		n = s.newNode(node.Bridge, store, options...)
 		s.BridgeNodes = append(s.BridgeNodes, n)

@@ -39,16 +39,13 @@ func TestFullReconstructFromBridge(t *testing.T) {
 	const (
 		blocks = 20
 		bsize  = 16
-		btime  = time.Millisecond * 100
+		btime  = time.Millisecond * 300
 	)
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	ctx, cancel := context.WithTimeout(context.Background(), swamp.DefaultTestTimeout)
 	t.Cleanup(cancel)
 	sw := swamp.NewSwamp(t, swamp.WithBlockTime(btime))
-	errCh := make(chan error)
-	go func() {
-		errCh <- sw.FillBlocks(ctx, bsize, blocks)
-	}()
+	fillDn := sw.FillBlocks(ctx, bsize, blocks)
 
 	bridge := sw.NewBridgeNode()
 	err := bridge.Start(ctx)
@@ -72,7 +69,7 @@ func TestFullReconstructFromBridge(t *testing.T) {
 			return full.ShareServ.SharesAvailable(bctx, h.DAH)
 		})
 	}
-	require.NoError(t, <-errCh)
+	require.NoError(t, <-fillDn)
 	require.NoError(t, errg.Wait())
 }
 
@@ -97,18 +94,16 @@ func TestFullReconstructFromLights(t *testing.T) {
 	share.DefaultSampleAmount = 20
 	const (
 		blocks = 20
-		btime  = time.Millisecond * 100
+		btime  = time.Millisecond * 300
 		bsize  = 16
 		lnodes = 69
 	)
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Minute*5)
+	ctx, cancel := context.WithTimeout(context.Background(), swamp.DefaultTestTimeout)
+
 	t.Cleanup(cancel)
 	sw := swamp.NewSwamp(t, swamp.WithBlockTime(btime))
-	errCh := make(chan error)
-	go func() {
-		errCh <- sw.FillBlocks(ctx, bsize, blocks)
-	}()
+	fillDn := sw.FillBlocks(ctx, bsize, blocks)
 
 	const defaultTimeInterval = time.Second * 5
 	cfg := nodebuilder.DefaultConfig(node.Full)
@@ -171,7 +166,7 @@ func TestFullReconstructFromLights(t *testing.T) {
 			return full.ShareServ.SharesAvailable(bctx, h.DAH)
 		})
 	}
-	require.NoError(t, <-errCh)
+	require.NoError(t, <-fillDn)
 	require.NoError(t, errg.Wait())
 }
 
