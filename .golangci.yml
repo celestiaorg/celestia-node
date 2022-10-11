@@ -4,7 +4,6 @@ run:
 linters:
   enable:
     - bodyclose
-    - deadcode
     - depguard
     - dogsled
     - dupl
@@ -33,13 +32,11 @@ linters:
     # - scopelint - deprecated since v1.39. exportloopref will be used instead
     - exportloopref
     - staticcheck
-    - structcheck
     - stylecheck
     - typecheck
     - unconvert
     # - unparam
     - unused
-    - varcheck
     # - whitespace
     # - wsl
     # - gocognit

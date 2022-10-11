@@ -13,10 +13,11 @@ import (
 
 	tmbytes "github.com/tendermint/tendermint/libs/bytes"
 
+	"github.com/celestiaorg/go-libp2p-messenger/serde"
+
 	"github.com/celestiaorg/celestia-node/header"
 	p2p_pb "github.com/celestiaorg/celestia-node/header/p2p/pb"
 	header_pb "github.com/celestiaorg/celestia-node/header/pb"
-	"github.com/celestiaorg/go-libp2p-messenger/serde"
 )
 
 func TestExchange_RequestHead(t *testing.T) {
@@ -77,7 +78,7 @@ func TestExchange_RequestByHash(t *testing.T) {
 	// create request for a header at a random height
 	reqHeight := store.headHeight - 2
 	req := &p2p_pb.ExtendedHeaderRequest{
-		Hash:   store.headers[reqHeight].Hash(),
+		Data:   &p2p_pb.ExtendedHeaderRequest_Hash{Hash: store.headers[reqHeight].Hash()},
 		Amount: 1,
 	}
 	// send request
@@ -93,6 +94,71 @@ func TestExchange_RequestByHash(t *testing.T) {
 
 	assert.Equal(t, store.headers[reqHeight].Height, eh.Height)
 	assert.Equal(t, store.headers[reqHeight].Hash(), eh.Hash())
+}
+
+func Test_bestHead(t *testing.T) {
+	gen := func() []*header.ExtendedHeader {
+		suite := header.NewTestSuite(t, 3)
+		res := make([]*header.ExtendedHeader, 0)
+		for i := 0; i < 3; i++ {
+			res = append(res, suite.GenExtendedHeader())
+		}
+		return res
+	}
+	testCases := []struct {
+		precondition   func() []*header.ExtendedHeader
+		expectedHeight int64
+	}{
+		/*
+			Height -> Amount
+			headerHeight[0]=1 -> 1
+			headerHeight[1]=2 -> 1
+			headerHeight[2]=3 -> 1
+			result -> headerHeight[2]
+		*/
+		{
+			precondition:   gen,
+			expectedHeight: 3,
+		},
+		/*
+			Height -> Amount
+			headerHeight[0]=1 -> 2
+			headerHeight[1]=2 -> 1
+			headerHeight[2]=3 -> 1
+			result -> headerHeight[0]
+		*/
+		{
+			precondition: func() []*header.ExtendedHeader {
+				res := gen()
+				res = append(res, res[0])
+				return res
+			},
+			expectedHeight: 1,
+		},
+		/*
+			Height -> Amount
+			headerHeight[0]=1 -> 3
+			headerHeight[1]=2 -> 2
+			headerHeight[2]=3 -> 1
+			result -> headerHeight[1]
+		*/
+		{
+			precondition: func() []*header.ExtendedHeader {
+				res := gen()
+				res = append(res, res[0])
+				res = append(res, res[0])
+				res = append(res, res[1])
+				return res
+			},
+			expectedHeight: 2,
+		},
+	}
+	for _, tt := range testCases {
+		res := tt.precondition()
+		header, err := bestHead(res)
+		require.NoError(t, err)
+		require.True(t, header.Height == tt.expectedHeight)
+	}
 }
 
 func createMocknet(t *testing.T) (libhost.Host, libhost.Host) {

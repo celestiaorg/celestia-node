@@ -4,8 +4,14 @@ package main
 import (
 	"github.com/spf13/cobra"
 
+	"github.com/celestiaorg/celestia-node/nodebuilder/core"
+	"github.com/celestiaorg/celestia-node/nodebuilder/header"
+	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
+	"github.com/celestiaorg/celestia-node/nodebuilder/rpc"
+	"github.com/celestiaorg/celestia-node/nodebuilder/state"
+
 	cmdnode "github.com/celestiaorg/celestia-node/cmd"
-	"github.com/celestiaorg/celestia-node/node"
+	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 )
 
 // NOTE: We should always ensure that the added Flags below are parsed somewhere, like in the PersistentPreRun func on
@@ -15,25 +21,25 @@ func init() {
 	lightCmd.AddCommand(
 		cmdnode.Init(
 			cmdnode.NodeFlags(),
-			cmdnode.P2PFlags(),
-			cmdnode.HeadersFlags(),
+			p2p.Flags(),
+			header.Flags(),
 			cmdnode.MiscFlags(),
 			// NOTE: for now, state-related queries can only be accessed
 			// over an RPC connection with a celestia-core node.
-			cmdnode.CoreFlags(),
-			cmdnode.RPCFlags(),
-			cmdnode.KeyFlags(),
+			core.Flags(),
+			rpc.Flags(),
+			state.Flags(),
 		),
 		cmdnode.Start(
 			cmdnode.NodeFlags(),
-			cmdnode.P2PFlags(),
-			cmdnode.HeadersFlags(),
+			p2p.Flags(),
+			header.Flags(),
 			cmdnode.MiscFlags(),
 			// NOTE: for now, state-related queries can only be accessed
 			// over an RPC connection with a celestia-core node.
-			cmdnode.CoreFlags(),
-			cmdnode.RPCFlags(),
-			cmdnode.KeyFlags(),
+			core.Flags(),
+			rpc.Flags(),
+			state.Flags(),
 		),
 	)
 }
@@ -50,22 +56,25 @@ var lightCmd = &cobra.Command{
 
 		ctx = cmdnode.WithNodeType(ctx, node.Light)
 
+		// loads existing config into the environment
 		ctx, err = cmdnode.ParseNodeFlags(ctx, cmd)
 		if err != nil {
 			return err
 		}
 
-		ctx, err = cmdnode.ParseP2PFlags(ctx, cmd)
+		cfg := cmdnode.NodeConfig(ctx)
+
+		err = p2p.ParseFlags(cmd, &cfg.P2P)
 		if err != nil {
 			return err
 		}
 
-		ctx, err = cmdnode.ParseCoreFlags(ctx, cmd)
+		err = core.ParseFlags(cmd, &cfg.Core)
 		if err != nil {
 			return err
 		}
 
-		ctx, err = cmdnode.ParseHeadersFlags(ctx, cmd)
+		err = header.ParseFlags(cmd, &cfg.Header)
 		if err != nil {
 			return err
 		}
@@ -74,14 +83,11 @@ var lightCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
+		rpc.ParseFlags(cmd, &cfg.RPC)
+		state.ParseFlags(cmd, &cfg.State)
 
-		ctx, err = cmdnode.ParseRPCFlags(ctx, cmd)
-		if err != nil {
-			return err
-		}
-
-		ctx = cmdnode.ParseKeyFlags(ctx, cmd)
-
+		// set config
+		ctx = cmdnode.WithNodeConfig(ctx, &cfg)
 		cmd.SetContext(ctx)
 		return nil
 	},

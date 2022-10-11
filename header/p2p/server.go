@@ -2,15 +2,17 @@ package p2p
 
 import (
 	"context"
+	"time"
 
 	"github.com/libp2p/go-libp2p-core/host"
 	"github.com/libp2p/go-libp2p-core/network"
 
 	tmbytes "github.com/tendermint/tendermint/libs/bytes"
 
+	"github.com/celestiaorg/go-libp2p-messenger/serde"
+
 	"github.com/celestiaorg/celestia-node/header"
 	p2p_pb "github.com/celestiaorg/celestia-node/header/p2p/pb"
-	"github.com/celestiaorg/go-libp2p-messenger/serde"
 )
 
 // ExchangeServer represents the server-side component for
@@ -52,19 +54,31 @@ func (serv *ExchangeServer) Stop(context.Context) error {
 
 // requestHandler handles inbound ExtendedHeaderRequests.
 func (serv *ExchangeServer) requestHandler(stream network.Stream) {
+	err := stream.SetReadDeadline(time.Now().Add(readDeadline))
+	if err != nil {
+		log.Debugf("error setting deadline: %s", err)
+	}
 	// unmarshal request
 	pbreq := new(p2p_pb.ExtendedHeaderRequest)
-	_, err := serde.Read(stream, pbreq)
+	_, err = serde.Read(stream, pbreq)
 	if err != nil {
 		log.Errorw("server: reading header request from stream", "err", err)
 		stream.Reset() //nolint:errcheck
 		return
 	}
+	if err = stream.CloseRead(); err != nil {
+		log.Error(err)
+	}
 	// retrieve and write ExtendedHeaders
-	if pbreq.Hash != nil {
-		serv.handleRequestByHash(pbreq.Hash, stream)
-	} else {
-		serv.handleRequest(pbreq.Origin, pbreq.Origin+pbreq.Amount, stream)
+	switch pbreq.Data.(type) {
+	case *p2p_pb.ExtendedHeaderRequest_Hash:
+		serv.handleRequestByHash(pbreq.GetHash(), stream)
+	case *p2p_pb.ExtendedHeaderRequest_Origin:
+		serv.handleRequest(pbreq.GetOrigin(), pbreq.GetOrigin()+pbreq.Amount, stream)
+	default:
+		log.Error("server: invalid data type received")
+		stream.Reset() //nolint:errcheck
+		return
 	}
 
 	err = stream.Close()
@@ -89,6 +103,9 @@ func (serv *ExchangeServer) handleRequestByHash(hash []byte, stream network.Stre
 		log.Errorw("server: marshaling header to proto", "hash", tmbytes.HexBytes(hash).String(), "err", err)
 		stream.Reset() //nolint:errcheck
 		return
+	}
+	if err = stream.SetWriteDeadline(time.Now().Add(writeDeadline)); err != nil {
+		log.Debugf("error setting deadline: %s", err)
 	}
 	_, err = serde.Write(stream, resp)
 	if err != nil {
@@ -124,8 +141,12 @@ func (serv *ExchangeServer) handleRequest(from, to uint64, stream network.Stream
 		}
 		headers = headersByRange
 	}
+
 	// write all headers to stream
 	for _, h := range headers {
+		if err := stream.SetWriteDeadline(time.Now().Add(writeDeadline)); err != nil {
+			log.Debugf("error setting deadline: %s", err)
+		}
 		resp, err := header.ExtendedHeaderToProto(h)
 		if err != nil {
 			log.Errorw("server: marshaling header to proto", "height", h.Height, "err", err)

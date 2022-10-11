@@ -4,24 +4,24 @@ import (
 	logging "github.com/ipfs/go-log/v2"
 
 	"github.com/celestiaorg/celestia-node/das"
-	"github.com/celestiaorg/celestia-node/service/header"
-	"github.com/celestiaorg/celestia-node/service/share"
-	"github.com/celestiaorg/celestia-node/service/state"
+	"github.com/celestiaorg/celestia-node/nodebuilder/header"
+	"github.com/celestiaorg/celestia-node/nodebuilder/share"
+	"github.com/celestiaorg/celestia-node/nodebuilder/state"
 )
 
 var log = logging.Logger("rpc")
 
 type Handler struct {
-	state  *state.Service
-	share  *share.Service
-	header *header.Service
+	state  state.Module
+	share  share.Module
+	header header.Module
 	das    *das.DASer
 }
 
 func NewHandler(
-	state *state.Service,
-	share *share.Service,
-	header *header.Service,
+	state state.Module,
+	share share.Module,
+	header header.Module,
 	das *das.DASer,
 ) *Handler {
 	return &Handler{

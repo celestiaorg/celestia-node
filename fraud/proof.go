@@ -5,7 +5,15 @@ import (
 	"encoding"
 	"fmt"
 
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/metric/global"
+
 	"github.com/celestiaorg/celestia-node/header"
+)
+
+var (
+	meter  = global.MeterProvider().Meter("fraud")
+	tracer = otel.Tracer("fraud")
 )
 
 type ErrFraudExists struct {

@@ -5,6 +5,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/tendermint/tendermint/types"
+
 	"github.com/ipfs/go-blockservice"
 	"github.com/ipfs/go-datastore"
 	ds_sync "github.com/ipfs/go-datastore/sync"
@@ -17,7 +19,7 @@ import (
 
 	"github.com/celestiaorg/celestia-node/fraud"
 	"github.com/celestiaorg/celestia-node/header"
-	"github.com/celestiaorg/celestia-node/service/share"
+	"github.com/celestiaorg/celestia-node/share"
 )
 
 var timeout = time.Second * 15
@@ -29,12 +31,12 @@ func TestDASerLifecycle(t *testing.T) {
 	bServ := mdutils.Bserv()
 	avail := share.TestLightAvailability(bServ)
 	// 15 headers from the past and 15 future headers
-	mockGet, shareServ, sub, mockService := createDASerSubcomponents(t, bServ, 15, 15, avail)
+	mockGet, sub, mockService := createDASerSubcomponents(t, bServ, 15, 15)
 
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	t.Cleanup(cancel)
 
-	daser := NewDASer(shareServ, sub, mockGet, ds, mockService)
+	daser := NewDASer(avail, sub, mockGet, ds, mockService)
 
 	err := daser.Start(ctx)
 	require.NoError(t, err)
@@ -63,12 +65,12 @@ func TestDASer_Restart(t *testing.T) {
 	bServ := mdutils.Bserv()
 	avail := share.TestLightAvailability(bServ)
 	// 15 headers from the past and 15 future headers
-	mockGet, shareServ, sub, mockService := createDASerSubcomponents(t, bServ, 15, 15, avail)
+	mockGet, sub, mockService := createDASerSubcomponents(t, bServ, 15, 15)
 
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	t.Cleanup(cancel)
 
-	daser := NewDASer(shareServ, sub, mockGet, ds, mockService)
+	daser := NewDASer(avail, sub, mockGet, ds, mockService)
 
 	err := daser.Start(ctx)
 	require.NoError(t, err)
@@ -95,7 +97,7 @@ func TestDASer_Restart(t *testing.T) {
 	restartCtx, restartCancel := context.WithTimeout(context.Background(), timeout)
 	t.Cleanup(restartCancel)
 
-	daser = NewDASer(shareServ, sub, mockGet, ds, mockService)
+	daser = NewDASer(avail, sub, mockGet, ds, mockService)
 	err = daser.Start(restartCtx)
 	require.NoError(t, err)
 
@@ -132,16 +134,16 @@ func TestDASer_stopsAfter_BEFP(t *testing.T) {
 	require.NoError(t, err)
 	avail := share.TestFullAvailability(bServ)
 	// 15 headers from the past and 15 future headers
-	mockGet, shareServ, sub, _ := createDASerSubcomponents(t, bServ, 15, 15, avail)
+	mockGet, sub, _ := createDASerSubcomponents(t, bServ, 15, 15)
 
-	// create fraud service and break one header
+	// create fraud share and break one header
 	f := fraud.NewProofService(ps, net.Hosts()[0], mockGet.GetByHeight, ds, false)
 	require.NoError(t, f.Start(ctx))
 	mockGet.headers[1] = header.CreateFraudExtHeader(t, mockGet.headers[1], bServ)
 	newCtx := context.Background()
 
 	// create and start DASer
-	daser := NewDASer(shareServ, sub, mockGet, ds, f)
+	daser := NewDASer(avail, sub, mockGet, ds, f)
 	resultCh := make(chan error)
 	go fraud.OnProof(newCtx, f, fraud.BadEncoding,
 		func(fraud.Proof) {
@@ -163,18 +165,16 @@ func TestDASer_stopsAfter_BEFP(t *testing.T) {
 // createDASerSubcomponents takes numGetter (number of headers
 // to store in mockGetter) and numSub (number of headers to store
 // in the mock header.Subscriber), returning a newly instantiated
-// mockGetter, share.Service, and mock header.Subscriber.
+// mockGetter, share.Availability, and mock header.Subscriber.
 func createDASerSubcomponents(
 	t *testing.T,
 	bServ blockservice.BlockService,
 	numGetter,
 	numSub int,
-	availability share.Availability,
-) (*mockGetter, *share.Service, *header.DummySubscriber, *fraud.DummyService) {
-	shareServ := share.NewService(bServ, availability)
+) (*mockGetter, *header.DummySubscriber, *fraud.DummyService) {
 	mockGet, sub := createMockGetterAndSub(t, bServ, numGetter, numSub)
 	fraud := new(fraud.DummyService)
-	return mockGet, shareServ, sub, fraud
+	return mockGet, sub, fraud
 }
 
 func createMockGetterAndSub(
@@ -297,6 +297,7 @@ func (m getterStub) Head(context.Context) (*header.ExtendedHeader, error) {
 
 func (m getterStub) GetByHeight(_ context.Context, height uint64) (*header.ExtendedHeader, error) {
 	return &header.ExtendedHeader{
+		Commit:    &types.Commit{},
 		RawHeader: header.RawHeader{Height: int64(height)},
 		DAH:       &header.DataAvailabilityHeader{RowsRoots: make([][]byte, 0)}}, nil
 }
