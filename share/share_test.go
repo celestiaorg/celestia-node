@@ -16,7 +16,7 @@ import (
 	core "github.com/tendermint/tendermint/types"
 
 	"github.com/celestiaorg/celestia-app/pkg/da"
-	s "github.com/celestiaorg/celestia-app/pkg/shares"
+	appshares "github.com/celestiaorg/celestia-app/pkg/shares"
 
 	"github.com/celestiaorg/celestia-node/ipld"
 )
@@ -254,7 +254,7 @@ func TestSharesRoundTrip(t *testing.T) {
 				}
 			}
 
-			shares, err := s.Split(b.Data)
+			shares, err := appshares.Split(b.Data, true)
 
 			if err != nil {
 				t.Fatal(err)
@@ -268,7 +268,7 @@ func TestSharesRoundTrip(t *testing.T) {
 						myShares = append(myShares, sh)
 					}
 				}
-				msgs, err := s.ParseMsgs(myShares)
+				msgs, err := appshares.ParseMsgs(myShares)
 				require.NoError(t, err)
 				assert.Len(t, msgs.MessagesList, len(msgsInNamespace))
 				for i := range msgs.MessagesList {
@@ -278,7 +278,7 @@ func TestSharesRoundTrip(t *testing.T) {
 
 			// test full round trip - with IPLD + decoding shares
 			{
-				extSquare, err := ipld.AddShares(ctx, shares, store)
+				extSquare, err := ipld.AddShares(ctx, appshares.ToBytes(shares), store)
 				require.NoError(t, err)
 
 				dah := da.NewDataAvailabilityHeader(extSquare)
@@ -286,7 +286,7 @@ func TestSharesRoundTrip(t *testing.T) {
 				require.NoError(t, err)
 				require.NotEmpty(t, shares)
 
-				msgs, err := s.ParseMsgs(shares)
+				msgs, err := appshares.ParseMsgs(shares)
 				require.NoError(t, err)
 				assert.Len(t, msgs.MessagesList, len(msgsInNamespace))
 				for i := range msgs.MessagesList {

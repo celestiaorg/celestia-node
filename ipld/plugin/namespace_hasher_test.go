@@ -3,12 +3,12 @@ package plugin
 import (
 	"testing"
 
+	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/stretchr/testify/assert"
-	"github.com/tendermint/tendermint/pkg/consts"
 )
 
 func TestNamespaceHasherWrite(t *testing.T) {
-	leafSize := consts.ShareSize + consts.NamespaceSize
+	leafSize := appconsts.ShareSize + appconsts.NamespaceSize
 	innerSize := nmtHashSize * 2
 	tt := []struct {
 		name         string

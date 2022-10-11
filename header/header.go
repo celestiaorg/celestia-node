@@ -12,7 +12,7 @@ import (
 	core "github.com/tendermint/tendermint/types"
 
 	"github.com/celestiaorg/celestia-app/pkg/da"
-	"github.com/celestiaorg/celestia-app/pkg/shares"
+	appshares "github.com/celestiaorg/celestia-app/pkg/shares"
 
 	"github.com/celestiaorg/celestia-node/ipld"
 )
@@ -49,11 +49,11 @@ func MakeExtendedHeader(
 ) (*ExtendedHeader, error) {
 	var dah DataAvailabilityHeader
 	if len(b.Txs) > 0 {
-		shares, err := shares.Split(b.Data)
+		shares, err := appshares.Split(b.Data, true)
 		if err != nil {
 			return nil, err
 		}
-		extended, err := ipld.AddShares(ctx, shares, bServ)
+		extended, err := ipld.AddShares(ctx, appshares.ToBytes(shares), bServ)
 		if err != nil {
 			return nil, err
 		}
