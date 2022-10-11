@@ -74,7 +74,6 @@ func BatchSize(squareSize int) int {
 	// ---X
 	// -X---X
 	// X-X-X-X
-	// X-X-X-X
 	// here we count leaves only once: the CIDs are the same for columns and rows
 	// and for the last two layers as well:
 	return (squareSize*2-1)*squareSize*2 - (squareSize * squareSize)

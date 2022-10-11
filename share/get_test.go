@@ -309,8 +309,7 @@ func TestGetLeavesByNamespace_MultipleRowsContainingSameNamespaceId(t *testing.T
 		for _, node := range nodes {
 			// test that the data returned by getLeavesByNamespace for nid
 			// matches the commonNamespaceData that was copied across almost all data
-			share := node.RawData()[1:]
-			assert.Equal(t, commonNamespaceData, share[NamespaceSize:])
+			assert.Equal(t, commonNamespaceData, node.RawData()[NamespaceSize:])
 		}
 	}
 }
@@ -401,7 +400,7 @@ func TestGetProof(t *testing.T) {
 					require.NoError(t, err)
 					node, err := ipld.GetLeaf(ctx, bServ, rootCid, index, int(in.Width()))
 					require.NoError(t, err)
-					inclusion := NewShareWithProof(index, node.RawData()[1:], proof)
+					inclusion := NewShareWithProof(index, node.RawData(), proof)
 					require.True(t, inclusion.Validate(rootCid))
 				}
 			}
