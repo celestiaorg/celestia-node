@@ -14,7 +14,7 @@ var ErrNotAvailable = errors.New("share: data not available")
 // AvailabilityTimeout specifies timeout for DA validation during which data have to be found on the network,
 // otherwise ErrNotAvailable is fired.
 // TODO: https://github.com/celestiaorg/celestia-node/issues/10
-const AvailabilityTimeout = 20 * time.Minute
+const DefaultAvailabilityTimeout = 20 * time.Minute
 
 // Root represents root commitment to multiple Shares.
 // In practice, it is a commitment to all the Data in a square.

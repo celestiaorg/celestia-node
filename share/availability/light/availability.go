@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"math"
+	"time"
 
 	"github.com/celestiaorg/celestia-node/share/ipld"
 
@@ -17,11 +18,55 @@ import (
 
 var log = logging.Logger("share/light")
 
+type LAOption func(*ShareAvailability)
+
+// To be used with the construction
+// example:
+//
+// NewLightvailability(
+//
+//	bServ,
+//	disc,
+//	WithTimeout(10 * time.Minute),
+//
+// )
+func WithShareAvailabilityTimeout(timeout time.Duration) LAOption {
+	return func(la *ShareAvailability) {
+		la.timeout = timeout
+	}
+}
+
+// Use for default timeout value
+func WithShareAvailabilityTimeoutDefault() LAOption {
+	return func(la *ShareAvailability) {
+		la.timeout = DefaultAvailabilityTimeout
+	}
+}
+
+// DefaultSampleAmount sets the default amount of samples to be sampled from the network by lightAvailability.
+var DefaultSampleAmount = 16
+
+func WithSampleAmount(sampleAmount int) LAOption {
+	return func(la *ShareAvailability) {
+		la.sampleAmount = sampleAmount
+	}
+}
+
+func WithDefaultSampleAmount() LAOption {
+	return func(la *ShareAvailability) {
+		la.sampleAmount = DefaultSampleAmount
+	}
+}
+
 // ShareAvailability implements share.Availability using Data Availability Sampling technique.
 // It is light because it does not require the downloading of all the data to verify
 // its availability. It is assumed that there are a lot of lightAvailability instances
 // on the network doing sampling over the same Root to collectively verify its availability.
 type ShareAvailability struct {
+	// configuration parameters
+	timeout      time.Duration
+	sampleAmount int
+
 	bserv blockservice.BlockService
 	// disc discovers new full nodes in the network.
 	// it is not allowed to call advertise for light nodes (Full nodes only).
@@ -32,12 +77,18 @@ type ShareAvailability struct {
 // NewShareAvailability creates a new light Availability.
 func NewShareAvailability(
 	bserv blockservice.BlockService,
-	disc *discovery.Discovery,
+	disc *Discovery,
+	options ...LAOption,
 ) *ShareAvailability {
 	la := &ShareAvailability{
 		bserv: bserv,
 		disc:  disc,
 	}
+
+	for _, applyOpt := range options {
+		applyOpt(la)
+	}
+
 	return la
 }
 
@@ -65,12 +116,12 @@ func (la *ShareAvailability) SharesAvailable(ctx context.Context, dah *share.Roo
 			"err", err)
 		panic(err)
 	}
-	samples, err := SampleSquare(len(dah.RowsRoots), DefaultSampleAmount)
+	samples, err := SampleSquare(len(dah.RowsRoots), la.sampleAmount)
 	if err != nil {
 		return err
 	}
 
-	ctx, cancel := context.WithTimeout(ctx, share.AvailabilityTimeout)
+	ctx, cancel := context.WithTimeout(ctx, la.timeout) // timeout is configurable through functional options passed to the constructor
 	defer cancel()
 
 	ses := blockservice.NewSession(ctx, la.bserv)
@@ -117,5 +168,5 @@ func (la *ShareAvailability) SharesAvailable(ctx context.Context, dah *share.Roo
 //
 // Formula: 1 - (0.75 ** amount of samples)
 func (la *ShareAvailability) ProbabilityOfAvailability() float64 {
-	return 1 - math.Pow(0.75, float64(DefaultSampleAmount))
+	return 1 - math.Pow(0.75, float64(la.sampleAmount))
 }
