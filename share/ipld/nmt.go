@@ -49,9 +49,6 @@ const (
 	// for NamespacedSha256. For more information, see:
 	// https://multiformats.io/multihash/#the-multihash-format
 	cidPrefixSize = 4
-
-	// typeSize defines the size of the serialized NMT Node type
-	typeSize = 1
 )
 
 func GetNode(ctx context.Context, bGetter blockservice.BlockGetter, root cid.Cid) (ipld.Node, error) {
@@ -80,10 +77,7 @@ func decodeBlock(block blocks.Block) (ipld.Node, error) {
 			r:   data[nmtHashSize:],
 		}, nil
 	case leafNodeSize:
-		return &nmtLeafNode{
-			cid:  block.Cid(),
-			Data: data,
-		}, nil
+		return &nmtLeafNode{block}, nil
 	}
 }
 
@@ -193,32 +187,15 @@ func (n nmtNode) Size() (uint64, error) {
 }
 
 type nmtLeafNode struct {
-	cid  cid.Cid
-	Data []byte
+	blocks.Block
 }
 
 func NewNMTLeafNode(id cid.Cid, data []byte) ipld.Node {
-	return &nmtLeafNode{id, data}
-}
-
-func (l nmtLeafNode) RawData() []byte {
-	return l.Data
-}
-
-func (l nmtLeafNode) Cid() cid.Cid {
-	return l.cid
-}
-
-func (l nmtLeafNode) String() string {
-	return fmt.Sprintf(`
-leaf {
-	hash: 		%x,
-	len(Data): 	%v
-}`, l.cid.Hash(), len(l.Data))
-}
-
-func (l nmtLeafNode) Loggable() map[string]interface{} {
-	return nil
+	b, err := blocks.NewBlockWithCid(data, id)
+	if err != nil {
+		log.Warn("wrong hash for block", "cid", id)
+	}
+	return &nmtLeafNode{b}
 }
 
 func (l nmtLeafNode) Resolve(path []string) (interface{}, []string, error) {
@@ -247,7 +224,7 @@ func (l nmtLeafNode) Copy() ipld.Node {
 }
 
 func (l nmtLeafNode) Links() []*ipld.Link {
-	return []*ipld.Link{{Cid: l.Cid()}}
+	return nil
 }
 
 func (l nmtLeafNode) Stat() (*ipld.NodeStat, error) {
