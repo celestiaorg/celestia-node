@@ -33,6 +33,10 @@ func (s *Service) SubmitPayForData(
 	return s.accessor.SubmitPayForData(ctx, nID, data, gasLim)
 }
 
+func (s *Service) AccountAddress(ctx context.Context) (Address, error) {
+	return s.accessor.AccountAddress(ctx)
+}
+
 func (s *Service) Balance(ctx context.Context) (*Balance, error) {
 	return s.accessor.Balance(ctx)
 }
