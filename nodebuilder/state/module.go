@@ -27,9 +27,14 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 		fx.Provide(Keyring),
 		fx.Provide(fx.Annotate(
 			CoreAccessor,
-			fx.OnStart(func(ctx context.Context, lc fx.Lifecycle, fservice fraudServ.Module, ca *state.CoreAccessor) error {
+			fx.OnStart(func(
+				startCtx, ctx context.Context,
+				lc fx.Lifecycle,
+				fservice fraudServ.Module,
+				ca *state.CoreAccessor,
+			) error {
 				lifecycleCtx := fxutil.WithLifecycle(ctx, lc)
-				return fraudServ.Lifecycle(ctx, lifecycleCtx, fraud.BadEncoding, fservice, ca.Start, ca.Stop)
+				return fraudServ.Lifecycle(startCtx, lifecycleCtx, fraud.BadEncoding, fservice, ca.Start, ca.Stop)
 			}),
 			fx.OnStop(func(ctx context.Context, ca *state.CoreAccessor) error {
 				return ca.Stop(ctx)
