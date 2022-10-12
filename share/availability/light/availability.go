@@ -15,7 +15,7 @@ import (
 	"github.com/celestiaorg/celestia-node/share/availability/discovery"
 )
 
-var log = logging.Logger("share/availability/light")
+var log = logging.Logger("share/light")
 
 // ShareAvailability implements share.Availability using Data Availability Sampling technique.
 // It is light because it does not require the downloading of all the data to verify

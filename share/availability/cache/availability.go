@@ -14,7 +14,7 @@ import (
 	"github.com/celestiaorg/celestia-node/share"
 )
 
-var log = logging.Logger("share/availability/cache")
+var log = logging.Logger("share/cache")
 
 var (
 	// DefaultWriteBatchSize defines the size of the batched header write.

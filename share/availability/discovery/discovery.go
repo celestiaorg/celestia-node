@@ -12,7 +12,7 @@ import (
 	"github.com/libp2p/go-libp2p-core/peer"
 )
 
-var log = logging.Logger("share/availability/discovery")
+var log = logging.Logger("share/discovery")
 
 const (
 	// peerWeight is a weight of discovered peers.

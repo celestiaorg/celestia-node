@@ -13,7 +13,7 @@ import (
 	"github.com/celestiaorg/celestia-node/share/eds"
 )
 
-var log = logging.Logger("share/availability/full")
+var log = logging.Logger("share/full")
 
 // ShareAvailability implements share.Availability using the full data square
 // recovery technique. It is considered "full" because it is required
