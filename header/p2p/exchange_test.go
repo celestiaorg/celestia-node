@@ -17,7 +17,6 @@ import (
 
 	"github.com/celestiaorg/celestia-node/header"
 	p2p_pb "github.com/celestiaorg/celestia-node/header/p2p/pb"
-	header_pb "github.com/celestiaorg/celestia-node/header/pb"
 )
 
 func TestExchange_RequestHead(t *testing.T) {
@@ -53,6 +52,17 @@ func TestExchange_RequestHeaders(t *testing.T) {
 	}
 }
 
+// TestExchange_RequestHeadersFails tests that the Exchange instance will return
+// header.ErrNotFound if it will not have requested header.
+func TestExchange_RequestHeadersFails(t *testing.T) {
+	host, peer := createMocknet(t)
+	exchg, _ := createP2PExAndServer(t, host, peer)
+	// perform expected request
+	_, err := exchg.GetRangeByHeight(context.Background(), 5, 3)
+	require.Error(t, err)
+	require.ErrorAs(t, err, &header.ErrNotFound)
+}
+
 // TestExchange_RequestByHash tests that the Exchange instance can
 // respond to an ExtendedHeaderRequest for a hash instead of a height.
 func TestExchange_RequestByHash(t *testing.T) {
@@ -85,11 +95,11 @@ func TestExchange_RequestByHash(t *testing.T) {
 	_, err = serde.Write(stream, req)
 	require.NoError(t, err)
 	// read resp
-	resp := new(header_pb.ExtendedHeader)
+	resp := new(p2p_pb.ExtendedHeaderResponse)
 	_, err = serde.Read(stream, resp)
 	require.NoError(t, err)
 	// compare
-	eh, err := header.ProtoToExtendedHeader(resp)
+	eh, err := header.UnmarshalExtendedHeader(resp.Body)
 	require.NoError(t, err)
 
 	assert.Equal(t, store.headers[reqHeight].Height, eh.Height)
@@ -161,6 +171,39 @@ func Test_bestHead(t *testing.T) {
 	}
 }
 
+// TestExchange_RequestByHashFails tests that the Exchange instance can
+// respond with a StatusCode_NOT_FOUND if it will not have requested header.
+func TestExchange_RequestByHashFails(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	net, err := mocknet.FullMeshConnected(2)
+	require.NoError(t, err)
+	// get host and peer
+	host, peer := net.Hosts()[0], net.Hosts()[1]
+	serv := NewExchangeServer(host, createStore(t, 0))
+	err = serv.Start(ctx)
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		serv.Stop(context.Background()) //nolint:errcheck
+	})
+
+	stream, err := peer.NewStream(context.Background(), libhost.InfoFromHost(host).ID, exchangeProtocolID)
+	require.NoError(t, err)
+	req := &p2p_pb.ExtendedHeaderRequest{
+		Data:   &p2p_pb.ExtendedHeaderRequest_Hash{Hash: []byte("dummy_hash")},
+		Amount: 1,
+	}
+	// send request
+	_, err = serde.Write(stream, req)
+	require.NoError(t, err)
+	// read resp
+	resp := new(p2p_pb.ExtendedHeaderResponse)
+	_, err = serde.Read(stream, resp)
+	require.NoError(t, err)
+	require.Equal(t, resp.StatusCode, p2p_pb.StatusCode_NOT_FOUND)
+}
+
 func createMocknet(t *testing.T) (libhost.Host, libhost.Host) {
 	net, err := mocknet.FullMeshConnected(2)
 	require.NoError(t, err)
@@ -226,7 +269,7 @@ func (m *mockStore) Get(ctx context.Context, hash tmbytes.HexBytes) (*header.Ext
 			return header, nil
 		}
 	}
-	return nil, nil
+	return nil, header.ErrNotFound
 }
 
 func (m *mockStore) GetByHeight(ctx context.Context, height uint64) (*header.ExtendedHeader, error) {
@@ -235,6 +278,12 @@ func (m *mockStore) GetByHeight(ctx context.Context, height uint64) (*header.Ext
 
 func (m *mockStore) GetRangeByHeight(ctx context.Context, from, to uint64) ([]*header.ExtendedHeader, error) {
 	headers := make([]*header.ExtendedHeader, to-from)
+	// As the requested range is [from; to),
+	// check that (to-1) height in request is less than
+	// the biggest header height in store.
+	if to-1 > m.Height() {
+		return nil, header.ErrNotFound
+	}
 	for i := range headers {
 		headers[i] = m.headers[int64(from)]
 		from++
