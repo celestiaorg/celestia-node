@@ -6,8 +6,6 @@ import (
 
 	"github.com/ipfs/go-blockservice"
 	"github.com/tendermint/tendermint/pkg/consts"
-
-	"github.com/celestiaorg/celestia-node/ipld"
 )
 
 // EnsureEmptySquareExists checks if the given DAG contains an empty block data square.
@@ -20,7 +18,7 @@ func EnsureEmptySquareExists(ctx context.Context, bServ blockservice.BlockServic
 		shares[i] = tailPaddingShare
 	}
 
-	_, err := ipld.AddShares(ctx, shares, bServ)
+	_, err := AddShares(ctx, shares, bServ)
 	return err
 }
 
