@@ -3,7 +3,6 @@ package tests
 import (
 	"context"
 	"testing"
-	"time"
 
 	"github.com/libp2p/go-libp2p-core/host"
 	"github.com/libp2p/go-libp2p-core/peer"
@@ -14,9 +13,6 @@ import (
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	"github.com/celestiaorg/celestia-node/nodebuilder/tests/swamp"
 )
-
-// a default timeout for the context that is used in tests
-const defaultTimeout = 40 * time.Second
 
 /*
 Test-Case: Sync a Light Node with a Bridge Node
@@ -33,7 +29,7 @@ func TestSyncLightWithBridge(t *testing.T) {
 
 	bridge := sw.NewBridgeNode()
 
-	ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), swamp.DefaultTestTimeout)
 	t.Cleanup(cancel)
 
 	sw.WaitTillHeight(ctx, 20)
@@ -83,7 +79,7 @@ func TestSyncStartStopLightWithBridge(t *testing.T) {
 
 	bridge := sw.NewBridgeNode()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	ctx, cancel := context.WithTimeout(context.Background(), swamp.DefaultTestTimeout)
 	t.Cleanup(cancel)
 
 	sw.WaitTillHeight(ctx, 50)
@@ -138,7 +134,7 @@ func TestSyncFullWithBridge(t *testing.T) {
 
 	bridge := sw.NewBridgeNode()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	ctx, cancel := context.WithTimeout(context.Background(), swamp.DefaultTestTimeout)
 	t.Cleanup(cancel)
 
 	sw.WaitTillHeight(ctx, 20)
@@ -186,7 +182,7 @@ func TestSyncLightWithFull(t *testing.T) {
 
 	bridge := sw.NewBridgeNode()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	ctx, cancel := context.WithTimeout(context.Background(), swamp.DefaultTestTimeout)
 	t.Cleanup(cancel)
 
 	sw.WaitTillHeight(ctx, 20)
@@ -252,7 +248,7 @@ func TestSyncLightWithTrustedPeers(t *testing.T) {
 
 	bridge := sw.NewBridgeNode()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	ctx, cancel := context.WithTimeout(context.Background(), swamp.DefaultTestTimeout)
 	t.Cleanup(cancel)
 
 	sw.WaitTillHeight(ctx, 20)

@@ -26,7 +26,6 @@ func ConstructModule(tp node.Type, cfg *Config, store Store) fx.Option {
 		fx.Supply(store.Config),
 		fx.Provide(store.Datastore),
 		fx.Provide(store.Keystore),
-		fx.Invoke(invokeWatchdog(store.Path())),
 		// modules provided by the node
 		p2p.ConstructModule(tp, &cfg.P2P),
 		state.ConstructModule(tp, &cfg.State),

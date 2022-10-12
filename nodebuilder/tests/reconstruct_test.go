@@ -16,11 +16,12 @@ import (
 	"github.com/stretchr/testify/require"
 	"golang.org/x/sync/errgroup"
 
-	"github.com/celestiaorg/celestia-node/ipld"
+	"github.com/celestiaorg/celestia-node/share/availability/light"
+	"github.com/celestiaorg/celestia-node/share/eds"
+
 	"github.com/celestiaorg/celestia-node/nodebuilder"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	"github.com/celestiaorg/celestia-node/nodebuilder/tests/swamp"
-	"github.com/celestiaorg/celestia-node/share"
 )
 
 /*
@@ -39,16 +40,13 @@ func TestFullReconstructFromBridge(t *testing.T) {
 	const (
 		blocks = 20
 		bsize  = 16
-		btime  = time.Millisecond * 100
+		btime  = time.Millisecond * 300
 	)
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	ctx, cancel := context.WithTimeout(context.Background(), swamp.DefaultTestTimeout)
 	t.Cleanup(cancel)
 	sw := swamp.NewSwamp(t, swamp.WithBlockTime(btime))
-	errCh := make(chan error)
-	go func() {
-		errCh <- sw.FillBlocks(ctx, bsize, blocks)
-	}()
+	fillDn := sw.FillBlocks(ctx, bsize, blocks)
 
 	bridge := sw.NewBridgeNode()
 	err := bridge.Start(ctx)
@@ -72,7 +70,7 @@ func TestFullReconstructFromBridge(t *testing.T) {
 			return full.ShareServ.SharesAvailable(bctx, h.DAH)
 		})
 	}
-	require.NoError(t, <-errCh)
+	require.NoError(t, <-fillDn)
 	require.NoError(t, errg.Wait())
 }
 
@@ -93,22 +91,20 @@ Steps:
 9. Check that the FN can retrieve shares from 1 to 20 blocks
 */
 func TestFullReconstructFromLights(t *testing.T) {
-	ipld.RetrieveQuadrantTimeout = time.Millisecond * 100
-	share.DefaultSampleAmount = 20
+	eds.RetrieveQuadrantTimeout = time.Millisecond * 100
+	light.DefaultSampleAmount = 20
 	const (
 		blocks = 20
-		btime  = time.Millisecond * 100
+		btime  = time.Millisecond * 300
 		bsize  = 16
 		lnodes = 69
 	)
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Minute*5)
+	ctx, cancel := context.WithTimeout(context.Background(), swamp.DefaultTestTimeout)
+
 	t.Cleanup(cancel)
 	sw := swamp.NewSwamp(t, swamp.WithBlockTime(btime))
-	errCh := make(chan error)
-	go func() {
-		errCh <- sw.FillBlocks(ctx, bsize, blocks)
-	}()
+	fillDn := sw.FillBlocks(ctx, bsize, blocks)
 
 	const defaultTimeInterval = time.Second * 5
 	cfg := nodebuilder.DefaultConfig(node.Full)
@@ -171,7 +167,7 @@ func TestFullReconstructFromLights(t *testing.T) {
 			return full.ShareServ.SharesAvailable(bctx, h.DAH)
 		})
 	}
-	require.NoError(t, <-errCh)
+	require.NoError(t, <-fillDn)
 	require.NoError(t, errg.Wait())
 }
 
