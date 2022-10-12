@@ -14,11 +14,10 @@ import (
 	"github.com/libp2p/go-libp2p-core/protocol"
 	tmbytes "github.com/tendermint/tendermint/libs/bytes"
 
-	"github.com/celestiaorg/go-libp2p-messenger/serde"
-
 	"github.com/celestiaorg/celestia-node/header"
 	p2p_pb "github.com/celestiaorg/celestia-node/header/p2p/pb"
 	"github.com/celestiaorg/celestia-node/params"
+	"github.com/celestiaorg/go-libp2p-messenger/serde"
 )
 
 var log = logging.Logger("header/p2p")
@@ -258,6 +257,8 @@ func convertStatusCodeToError(code p2p_pb.StatusCode) error {
 		return nil
 	case p2p_pb.StatusCode_NOT_FOUND:
 		return header.ErrNotFound
+	case p2p_pb.StatusCode_LIMIT_EXCEEDED:
+		return header.ErrHeadersLimitExceeded
 	default:
 		return fmt.Errorf("unknown status code %d", code)
 	}

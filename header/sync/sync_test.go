@@ -20,7 +20,7 @@ var blockTime = 30 * time.Second
 func TestSyncSimpleRequestingHead(t *testing.T) {
 	// this way we force local head of Syncer to expire, so it requests a new one from trusted peer
 	header.TrustingPeriod = time.Microsecond
-	requestSize = 13 // just some random number
+	header.RequestSize = 13 // just some random number
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	t.Cleanup(cancel)
