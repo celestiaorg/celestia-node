@@ -77,7 +77,13 @@ func NewSwamp(t *testing.T, options ...Option) *Swamp {
 	// Now, we are making an assumption that consensus mechanism is already tested out
 	// so, we are not creating bridge nodes with each one containing its own core client
 	// instead we are assigning all created BNs to 1 Core from the swamp
-	tmNode, app, cctx, err := testnode.New(t, testnode.DefaultParams(), testnode.DefaultTendermintConfig(), false, accounts...)
+	tmNode, app, cctx, err := testnode.New(
+		t,
+		testnode.DefaultParams(),
+		testnode.DefaultTendermintConfig(),
+		false,
+		accounts...,
+	)
 
 	require.NoError(t, err)
 

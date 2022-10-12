@@ -3,8 +3,9 @@ package plugin
 import (
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 )
 
 func TestNamespaceHasherWrite(t *testing.T) {
