@@ -45,17 +45,16 @@ require (
 	github.com/multiformats/go-base32 v0.1.0
 	github.com/multiformats/go-multiaddr v0.7.0
 	github.com/multiformats/go-multihash v0.2.0
-	github.com/raulk/go-watchdog v1.3.0
 	github.com/spf13/cobra v1.5.0
 	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/testify v1.8.0
 	github.com/tendermint/tendermint v0.35.4
 	go.opentelemetry.io/otel v1.10.0
-	go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetrichttp v0.31.0
+	go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetrichttp v0.32.2
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp v1.10.0
-	go.opentelemetry.io/otel/metric v0.32.1
+	go.opentelemetry.io/otel/metric v0.32.2
 	go.opentelemetry.io/otel/sdk v1.10.0
-	go.opentelemetry.io/otel/sdk/metric v0.31.0
+	go.opentelemetry.io/otel/sdk/metric v0.32.2 // indirect
 	go.opentelemetry.io/otel/trace v1.10.0
 	go.uber.org/fx v1.18.2
 	go.uber.org/multierr v1.8.0
@@ -235,6 +234,7 @@ require (
 	github.com/prometheus/common v0.35.0 // indirect
 	github.com/prometheus/procfs v0.7.3 // indirect
 	github.com/rakyll/statik v0.1.7 // indirect
+	github.com/raulk/go-watchdog v1.3.0 // indirect
 	github.com/rcrowley/go-metrics v0.0.0-20200313005456-10cdbea86bc0 // indirect
 	github.com/regen-network/cosmos-proto v0.3.1 // indirect
 	github.com/rs/cors v1.8.2 // indirect
@@ -261,7 +261,7 @@ require (
 	go.etcd.io/bbolt v1.3.6 // indirect
 	go.opencensus.io v0.23.0 // indirect
 	go.opentelemetry.io/otel/exporters/otlp/internal/retry v1.10.0 // indirect
-	go.opentelemetry.io/otel/exporters/otlp/otlpmetric v0.31.0 // indirect
+	go.opentelemetry.io/otel/exporters/otlp/otlpmetric v0.32.2 // indirect
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace v1.10.0 // indirect
 	go.opentelemetry.io/proto/otlp v0.19.0 // indirect
 	go.uber.org/atomic v1.9.0 // indirect
@@ -270,7 +270,7 @@ require (
 	golang.org/x/mod v0.6.0-dev.0.20220419223038-86c51ed26bb4 // indirect
 	golang.org/x/net v0.0.0-20220630215102-69896b714898 // indirect
 	golang.org/x/oauth2 v0.0.0-20220411215720-9780585627b5 // indirect
-	golang.org/x/sys v0.0.0-20220702020025-31831981b65f // indirect
+	golang.org/x/sys v0.0.0-20220919091848-fb04ddd9f9c8 // indirect
 	golang.org/x/term v0.0.0-20220526004731-065cf7ba2467 // indirect
 	golang.org/x/text v0.3.7 // indirect
 	golang.org/x/tools v0.1.12-0.20220628192153-7743d1d949f1 // indirect
