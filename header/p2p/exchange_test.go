@@ -52,6 +52,8 @@ func TestExchange_RequestHeaders(t *testing.T) {
 	}
 }
 
+// TestExchange_RequestHeadersFails tests that the Exchange instance will return
+// header.ErrNotFound if it will not have requested header.
 func TestExchange_RequestHeadersFails(t *testing.T) {
 	host, peer := createMocknet(t)
 	exchg, _ := createP2PExAndServer(t, host, peer)
@@ -169,8 +171,8 @@ func Test_bestHead(t *testing.T) {
 	}
 }
 
-// TestExchange_RequestByHash tests that the Exchange instance can
-// respond to an ExtendedHeaderRequest for a hash instead of a height.
+// TestExchange_RequestByHashFails tests that the Exchange instance can
+// respond with a StatusCode_NOT_FOUND if it will not have requested header.
 func TestExchange_RequestByHashFails(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -276,6 +278,9 @@ func (m *mockStore) GetByHeight(ctx context.Context, height uint64) (*header.Ext
 
 func (m *mockStore) GetRangeByHeight(ctx context.Context, from, to uint64) ([]*header.ExtendedHeader, error) {
 	headers := make([]*header.ExtendedHeader, to-from)
+	// As the requested range is [from; to),
+	// check that (to-1) height in request is less than
+	// the biggest header height in store.
 	if to-1 > m.Height() {
 		return nil, header.ErrNotFound
 	}

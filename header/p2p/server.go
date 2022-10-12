@@ -86,6 +86,7 @@ func (serv *ExchangeServer) requestHandler(stream network.Stream) {
 	case nil:
 		code = p2p_pb.StatusCode_OK
 	case header.ErrNotFound:
+		// reallocate headers with 1 nil ExtendedHeader
 		headers = make([]*header.ExtendedHeader, 1)
 		code = p2p_pb.StatusCode_NOT_FOUND
 	default:
@@ -99,6 +100,8 @@ func (serv *ExchangeServer) requestHandler(stream network.Stream) {
 			log.Debugf("error setting deadline: %s", err)
 		}
 		var bin []byte
+		// if header is not nil, then marshal it to []byte.
+		// if header is nil, then error was received,so we will set empty []byte to proto.
 		if h != nil {
 			bin, err = h.MarshalBinary()
 			if err != nil {
