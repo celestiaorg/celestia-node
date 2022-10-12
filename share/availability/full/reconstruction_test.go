@@ -20,7 +20,7 @@ func init() {
 	eds.RetrieveQuadrantTimeout = time.Millisecond * 100 // to speed up tests
 }
 
-// TestShareAvailable_OneFullNode asserts that a Full node can ensure
+// TestShareAvailable_OneFullNode asserts that a full node can ensure
 // data is available (reconstruct data square) while being connected to
 // light nodes only.
 func TestShareAvailable_OneFullNode(t *testing.T) {
@@ -70,8 +70,8 @@ func TestShareAvailable_OneFullNode(t *testing.T) {
 	require.NoError(t, err)
 }
 
-// TestShareAvailable_ConnectedFullNodes asserts that two connected Full nodes
-// can ensure data availability via two isolated Light node subnetworks. Full nodes
+// TestShareAvailable_ConnectedFullNodes asserts that two connected full nodes
+// can ensure data availability via two isolated light node subnetworks. Full nodes
 // start their availability process first, then Lights start availability process and connect to
 // Fulls and only after Lights connect to the source node which has the data. After Lights connect
 // to the source, Full must be able to finish the availability process started in the beginning.

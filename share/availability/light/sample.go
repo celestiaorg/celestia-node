@@ -6,7 +6,7 @@ import (
 	"math/big"
 )
 
-// DefaultSampleAmount sets the default amount of samples to be sampled from the network by lightAvailability.
+// DefaultSampleAmount sets the default amount of samples to be sampled from the network by ShareAvailability.
 var DefaultSampleAmount = 16
 
 // Sample is a point in 2D space over square.

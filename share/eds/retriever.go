@@ -25,8 +25,8 @@ import (
 )
 
 var (
-	log    = logging.Logger("eds")
-	tracer = otel.Tracer("eds")
+	log    = logging.Logger("share/eds")
+	tracer = otel.Tracer("share/eds")
 )
 
 // Retriever retrieves rsmt2d.ExtendedDataSquares from the IPLD network.
