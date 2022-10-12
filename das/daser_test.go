@@ -32,7 +32,7 @@ var timeout = time.Second * 15
 func TestDASerLifecycle(t *testing.T) {
 	ds := ds_sync.MutexWrap(datastore.NewMapDatastore())
 	bServ := mdutils.Bserv()
-	avail := light.TestLightAvailability(bServ)
+	avail := light.TestAvailability(bServ)
 	// 15 headers from the past and 15 future headers
 	mockGet, sub, mockService := createDASerSubcomponents(t, bServ, 15, 15)
 
@@ -66,7 +66,7 @@ func TestDASerLifecycle(t *testing.T) {
 func TestDASer_Restart(t *testing.T) {
 	ds := ds_sync.MutexWrap(datastore.NewMapDatastore())
 	bServ := mdutils.Bserv()
-	avail := light.TestLightAvailability(bServ)
+	avail := light.TestAvailability(bServ)
 	// 15 headers from the past and 15 future headers
 	mockGet, sub, mockService := createDASerSubcomponents(t, bServ, 15, 15)
 

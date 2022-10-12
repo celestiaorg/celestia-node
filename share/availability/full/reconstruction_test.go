@@ -71,10 +71,12 @@ func TestShareAvailable_OneFullNode(t *testing.T) {
 }
 
 // TestShareAvailable_ConnectedFullNodes asserts that two connected full nodes
-// can ensure data availability via two isolated light node subnetworks. Full nodes
-// start their availability process first, then Lights start availability process and connect to
-// Fulls and only after Lights connect to the source node which has the data. After Lights connect
-// to the source, Full must be able to finish the availability process started in the beginning.
+// can ensure data availability via two isolated light node subnetworks. Full
+// nodes start their availability process first, then light node start
+// availability process and connect to full node and only after light node
+// connect to the source node which has the data. After light node connect to the
+// source, full node must be able to finish the availability process started in
+// the beginning.
 func TestShareAvailable_ConnectedFullNodes(t *testing.T) {
 	// NOTE: Numbers are taken from the original 'Fraud and Data Availability Proofs' paper
 	light.DefaultSampleAmount = 20 // s
@@ -149,10 +151,11 @@ func TestShareAvailable_ConnectedFullNodes(t *testing.T) {
 	require.NoError(t, err)
 }
 
-// TestShareAvailable_DisconnectedFullNodes asserts that two disconnected Full nodes
-// cannot ensure data is available (reconstruct data square) while being connected to isolated
-// Light nodes subnetworks, which do not have enough nodes to reconstruct the data,
-// but once ShareAvailability nodes connect, they can collectively reconstruct it.
+// TestShareAvailable_DisconnectedFullNodes asserts that two disconnected full
+// nodes cannot ensure data is available (reconstruct data square) while being
+// connected to isolated light nodes subnetworks, which do not have enough nodes
+// to reconstruct the data, but once ShareAvailability nodes connect, they can
+// collectively reconstruct it.
 func TestShareAvailable_DisconnectedFullNodes(t *testing.T) {
 	// S - Source
 	// L - Light Node

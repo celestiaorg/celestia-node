@@ -20,14 +20,14 @@ import (
 func RandServiceWithSquare(t *testing.T, n int) (*service.ShareService, *share.Root) {
 	bServ := mdutils.Bserv()
 
-	return service.NewShareService(bServ, TestLightAvailability(bServ)), availability_test.RandFillBS(t, n, bServ)
+	return service.NewShareService(bServ, TestAvailability(bServ)), availability_test.RandFillBS(t, n, bServ)
 }
 
 // RandService provides an unfilled share.Service with corresponding
 // blockservice.BlockService than can be filled by the test.
 func RandService() (*service.ShareService, blockservice.BlockService) {
 	bServ := mdutils.Bserv()
-	return service.NewShareService(bServ, TestLightAvailability(bServ)), bServ
+	return service.NewShareService(bServ, TestAvailability(bServ)), bServ
 }
 
 // RandNode creates a Light Node filled with a random block of the given size.
@@ -39,11 +39,11 @@ func RandNode(dn *availability_test.DagNet, squareSize int) (*availability_test.
 // Node creates a new empty Light Node.
 func Node(dn *availability_test.DagNet) *availability_test.Node {
 	nd := dn.Node()
-	nd.ShareService = service.NewShareService(nd.BlockService, TestLightAvailability(nd.BlockService))
+	nd.ShareService = service.NewShareService(nd.BlockService, TestAvailability(nd.BlockService))
 	return nd
 }
 
-func TestLightAvailability(bServ blockservice.BlockService) *ShareAvailability {
+func TestAvailability(bServ blockservice.BlockService) *ShareAvailability {
 	disc := discovery.NewDiscovery(nil, routing.NewRoutingDiscovery(routinghelpers.Null{}), 0, time.Second, time.Second)
 	return NewShareAvailability(bServ, disc)
 }

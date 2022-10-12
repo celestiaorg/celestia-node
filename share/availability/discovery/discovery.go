@@ -12,7 +12,7 @@ import (
 	"github.com/libp2p/go-libp2p-core/peer"
 )
 
-var log = logging.Logger("share/discovery")
+var log = logging.Logger("share/availability/discovery")
 
 const (
 	// peerWeight is a weight of discovered peers.
@@ -27,7 +27,7 @@ var waitF = func(ttl time.Duration) time.Duration {
 	return 7 * ttl / 8
 }
 
-// discovery combines advertise and discover services and allows to store discovered nodes.
+// Discovery combines advertise and discover services and allows to store discovered nodes.
 type Discovery struct {
 	set       *limitedSet
 	host      host.Host

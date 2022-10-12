@@ -6,10 +6,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/celestiaorg/celestia-node/share"
-
 	mdutils "github.com/ipfs/go-merkledag/test"
 	"github.com/stretchr/testify/require"
+
+	"github.com/celestiaorg/celestia-node/share"
 )
 
 func TestFraudProofValidation(t *testing.T) {

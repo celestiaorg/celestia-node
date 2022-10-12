@@ -32,14 +32,14 @@ type Module interface {
 }
 
 func NewModule(lc fx.Lifecycle, bServ blockservice.BlockService, avail share.Availability) Module {
-	svc := service.NewShareService(bServ, avail)
+	serv := service.NewShareService(bServ, avail)
 	lc.Append(fx.Hook{
 		OnStart: func(ctx context.Context) error {
-			return svc.Start(ctx)
+			return serv.Start(ctx)
 		},
 		OnStop: func(ctx context.Context) error {
-			return svc.Stop(ctx)
+			return serv.Stop(ctx)
 		},
 	})
-	return svc
+	return serv
 }

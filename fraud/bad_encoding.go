@@ -5,18 +5,15 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/celestiaorg/celestia-node/share/ipld"
-
-	"github.com/celestiaorg/celestia-node/share"
-
 	"github.com/tendermint/tendermint/pkg/consts"
 	"github.com/tendermint/tendermint/pkg/wrapper"
 
-	"github.com/celestiaorg/rsmt2d"
-
 	pb "github.com/celestiaorg/celestia-node/fraud/pb"
 	"github.com/celestiaorg/celestia-node/header"
+	"github.com/celestiaorg/celestia-node/share"
+	"github.com/celestiaorg/celestia-node/share/ipld"
 	ipld_pb "github.com/celestiaorg/celestia-node/share/pb"
+	"github.com/celestiaorg/rsmt2d"
 )
 
 func init() {

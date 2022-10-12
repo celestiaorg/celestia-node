@@ -15,7 +15,7 @@ import (
 	"github.com/celestiaorg/celestia-node/share/service"
 )
 
-// RandServiceWithSquare provides an service.ShareService filled with 'n' NMT
+// RandServiceWithSquare provides a service.ShareService filled with 'n' NMT
 // trees of 'n' random shares, essentially storing a whole square.
 func RandServiceWithSquare(t *testing.T, n int) (*service.ShareService, *share.Root) {
 	bServ := mdutils.Bserv()
