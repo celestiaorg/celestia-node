@@ -299,7 +299,6 @@ func TestSharesRoundTrip(t *testing.T) {
 			// TODO: set useShareIndexes to true. This requires updating the
 			// transaction data in this test to include share indexes.
 			shares, err := appshares.Split(b.Data, false)
-
 			if err != nil {
 				t.Fatal(err)
 			}
