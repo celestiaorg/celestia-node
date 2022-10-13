@@ -68,8 +68,8 @@ func NewSwamp(t *testing.T, options ...Option) *Swamp {
 
 	// we create an arbitrary number of funded accounts
 	accounts := make([]string, 100)
-	for i := 0; i < 10; i++ {
-		accounts = append(accounts, tmrand.Str(9))
+	for i := 0; i < 100; i++ {
+		accounts[i] = tmrand.Str(9)
 	}
 
 	// TODO(@Bidon15): CoreClient(limitation)
