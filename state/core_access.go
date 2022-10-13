@@ -172,6 +172,7 @@ func (ca *CoreAccessor) BalanceForAddress(ctx context.Context, addr Address) (*B
 		Data:   prefixedAccountKey,
 		Prove:  true,
 	}
+	fmt.Println("\n--- CREATED ABCI REQUEST QUERY: ", abciReq, " ---")
 	opts := rpcclient.ABCIQueryOptions{
 		Height: abciReq.Height,
 		Prove:  abciReq.Prove,
@@ -180,6 +181,8 @@ func (ca *CoreAccessor) BalanceForAddress(ctx context.Context, addr Address) (*B
 	if err != nil {
 		return nil, err
 	}
+
+	fmt.Println("\n--- GOT ABCI RESULT: ", result.Response.IsOK(), " ---")
 	if !result.Response.IsOK() {
 		return nil, sdkErrorToGRPCError(result.Response)
 	}
@@ -197,14 +200,16 @@ func (ca *CoreAccessor) BalanceForAddress(ctx context.Context, addr Address) (*B
 	if !ok {
 		return nil, fmt.Errorf("cannot convert %s into sdktypes.Int", string(value))
 	}
+	fmt.Println("\n--- COIN: ", coin, " ---")
 	// verify balance
 	path := fmt.Sprintf("/%s/%s", banktypes.StoreKey, string(prefixedAccountKey))
+	fmt.Println("\n--- PATH TO STORE: ", path, " ---")
 	prt := rootmulti.DefaultProofRuntime()
 	err = prt.VerifyValue(result.Response.GetProofOps(), head.AppHash, path, value)
 	if err != nil {
 		return nil, err
 	}
-
+	fmt.Println("\n--- ERR FROM VERIFY VLUE ON DEFAULTPROOFRUNTIME: ", err, " ---")
 	return &Balance{
 		Denom:  app.BondDenom,
 		Amount: coin,
