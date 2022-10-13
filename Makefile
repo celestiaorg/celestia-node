@@ -28,6 +28,19 @@ clean:
 	@echo "--> Cleaning up ./build"
 	@rm -rf build/*
 
+## cover: generate to code coverage report.
+cover:
+	@echo "--> Generating Code Coverage"
+	@go install github.com/ory/go-acc@v0.2.6
+	@go-acc -o coverage.txt `go list ./... | grep -v nodebuilder/tests` -- -v
+.PHONY: cover
+
+## deps: install dependencies.
+deps:
+	@echo "--> Installing Dependencies"
+	@go mod download
+.PHONY: deps
+
 ## install: Build and install the celestia-node binary into the $PREFIX (/usr/local/ by default) directory.
 install: build
 	@echo "--> Installing Celestia"
