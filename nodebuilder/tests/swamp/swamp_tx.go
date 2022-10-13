@@ -12,7 +12,14 @@ func (s *Swamp) FillBlocks(ctx context.Context, bsize, blocks int) chan error {
 	errCh := make(chan error)
 	go func() {
 		// TODO: FillBlock must respect the context
-		_, err := s.ClientContext.FillBlock(bsize, s.accounts, flags.BroadcastBlock)
+		var err error
+		for i := 0; i < blocks; i++ {
+			_, err = s.ClientContext.FillBlock(bsize, s.accounts, flags.BroadcastBlock)
+			if err != nil {
+				break
+			}
+		}
+
 		select {
 		case errCh <- err:
 		case <-ctx.Done():
