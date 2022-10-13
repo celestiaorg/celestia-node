@@ -78,8 +78,8 @@ func NewSwamp(t *testing.T, options ...Option) *Swamp {
 	// instead we are assigning all created BNs to 1 Core from the swamp
 	tmNode, app, cctx, err := testnode.New(
 		t,
-		testnode.DefaultParams(),
-		testnode.DefaultTendermintConfig(),
+		ic.ConsensusParams,
+		ic.CoreCfg,
 		false,
 		accounts...,
 	)
