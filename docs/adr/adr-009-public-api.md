@@ -140,38 +140,68 @@ SyncHead(ctx context.Context) (*header.ExtendedHeader, error)
 
 ```go
   type P2PModule interface {
-    Info
-    Peers
-    PeerInfo
+    // Info returns basic information about the node's p2p host/operations.
+    Info() p2p.Info
+    // Peers returns all peer IDs used across all inner stores. // TODO should we return the entire peerstore or just peers that are actively connected?
+    Peers() peer.IDSlice 
+    // PeerInfo returns a small slice of information Peerstore has on the
+    // given peer.
+    PeerInfo(id peer.ID) peer.AddrInfo
+   
+    // Connect ensures there is a connection between this host and the peer with
+    // given peer.ID. 
+    Connect(ctx context.Context, pi peer.AddrInfo) error
+    // ClosePeer closes the connection to a given peer. 
+    ClosePeer(id peer.ID) error
+    // Connectedness returns a state signaling connection capabilities.
+    Connectedness(id peer.ID) network.Connectedness
+    // NATStatus returns the current NAT status.
+    NATStatus() network.Reachability
+   
+    // BlockPeer adds a peer to the set of blocked peers. // TODO should we wrap BlockPeer so that it 1. disconnects from peer, then 2. adds to blocklist?
+    BlockPeer(p peer.ID) error
+    // UnblockPeer removes a peer from the set of blocked peers.
+    UnblockPeer(p peer.ID) error
+    // ListBlockedPeers returns a list of blocked peers.
+    ListBlockedPeers() []peer.ID
+
+    // MutualAdd adds a peer to the list of peers who have a bidirectional
+    // peering agreement that they are protected from being trimmed, dropped
+    // or negatively scored.
+    MutualAdd(id peer.ID, tag string)
+    // MutualAdd removes a peer from the list of peers who have a bidirectional
+    // peering agreement that they are protected from being trimmed, dropped
+    // or negatively scored, returning a bool representing whether the given
+    // peer is protected or not. // TODO should we represent this bool as an error? For example, if it's still protected after the call, we can return error that it was unsuccessful.
+    MutualRm(id peer.ID, tag string) bool
+    // IsMutual returns whether the given peer is a mutual peer.
+    IsMutual(id peer.ID, tag string) bool
+  
+    // BandwidthStats returns a Stats struct with bandwidth metrics for all
+    // data sent/received by the local peer, regardless of protocol or remote 
+    // peer IDs.
+    BandwidthStats() Stats
+    // BandwidthForPeer returns a Stats struct with bandwidth metrics associated with the given peer.ID.
+    // The metrics returned include all traffic sent / received for the peer, regardless of protocol.
+    BandwidthForPeer(id peer.ID) Stats
+    // BandwidthForProtocol returns a Stats struct with bandwidth metrics associated with the given protocol.ID.	
+    BandwidthForProtocol(proto protocol.ID) Stats
+   
+    // ResourceState returns the state of the resource manager.
+    ResourceState() rcmgr.ResourceManagerStat
+    // ResourceLimit returns the limit of the resource scope. 
+    ResourceLimit() rcmgr.Limit
+    // ResourceSetLimit sets the limit of the resource scope.
+    ResourceSetLimit(rcmgr.Limit)
+   
+    // PubSubPeers returns the peer IDs of the peers joined on
+    // the given topic.
+    PubSubPeers(topic string) ([]peer.ID, error)
+
+    BitSwapStats // TODO ?
+    BitSwapLedger // TODO ? 
     
-    Connect
-    Disconnect
-    Connectedness
-    NATStatus
-    
-    BlockAdd
-    BlockRm
-    BlockList
-    
-    MutualAdd
-    MutualRm
-    MutualList
-    
-    BandwidthStats
-    BandwidthPeer
-    BandwidthProtocol
-    
-    ResourceState
-    ResourceLimit
-    ResourceSetLimit
-    
-    PubSubPeers
-    PubSubScore
-    
-    BitSwapStats
-    BitSwapLedger
-    
-    DHTFindPeer
+    DHTFindPeer // TODO ?
   }
 ```
 
@@ -179,13 +209,19 @@ SyncHead(ctx context.Context) (*header.ExtendedHeader, error)
 
 ```go
   type NodeModule interface {
-    Type
-    Version
-    
+    // Type returns the node type.
+    Type() node.Type
+    // Version returns information about the current binary build.
+    Version() string
+   
+    // LogLevelList lists all the log levels per component.
     LogLevelList(ctx context.Context) (map[string]string, error)
+    // LogLevelSet sets the given component log level to the given level.
     LogLevelSet(ctx context.Context, name, level string) error
-    
+   
+    // Start starts the node.
     Start(ctx context.Context) error
+    // Stop stops the node.
     Stop(ctx context.Context) error
 
     // NodeModule provides AuthModule 
@@ -197,19 +233,21 @@ SyncHead(ctx context.Context) (*header.ExtendedHeader, error)
 
 ```go
 type AuthModule interface {
-    SetModuleAuth(ctx context.Context, module string) error  // TODO
-    UnsetModuleAuth(ctx context.Context, module string) error // TODO
+    // SetModuleAuth makes the given module endpoints accessible only 
+    // with authentication.
+    SetModuleAuth(ctx context.Context, module string) error 
+    // UnsetModuleAuth makes the given module endpoints accessible without
+    // authentication.
+    UnsetModuleAuth(ctx context.Context, module string) error
 }
 ```
 
 #### DAS
 
-// TODO: Should we rebrand DASer to ShareSync?
-
 ```go
   type DASModule interface {
-    // State reports the current state of the DASer.
-    State() das.SamplingState
+    // Stats returns current stats of the DASer.
+    Stats() (das.SamplingStats, error)
   }
 ```
 
@@ -217,6 +255,8 @@ type AuthModule interface {
 
 ```go
   type StateModule interface {
+    // AccountAddress retrieves the address of the node's account/signer
+    AccountAddress(ctx context.Context) (state.Address, error)
     // Balance retrieves the Celestia coin balance for the node's account/signer
     // and verifies it against the corresponding block's AppHash.
     Balance(ctx context.Context) (*state.Balance, error)
@@ -256,14 +296,39 @@ yet.
 
 ```go
   type StakingModule interface {
-    Delegate
-    Redelegate
-    Unbond
-    CancelUnbond
-    
-    QueryDelegation
-    QueryRedelegation
-    QueryUnbondingDelegation
+	// Delegate sends a user's liquid tokens to a validator for delegation.
+    Delegate(ctx context.Context, delAddr state.ValAddress, amount state.Int, gasLim uint64) (*state.TxResponse, error)
+    // BeginRedelegate sends a user's delegated tokens to a new validator for redelegation.
+    BeginRedelegate(
+        ctx context.Context,
+        srcValAddr,
+        dstValAddr state.ValAddress,
+        amount state.Int,
+        gasLim uint64,
+    ) (*state.TxResponse, error)
+    // Undelegate undelegates a user's delegated tokens, unbonding them from the current validator.
+    Undelegate(ctx context.Context, delAddr state.ValAddress, amount state.Int, gasLim uint64) (*state.TxResponse, error)
+	
+    // CancelUnbondingDelegation cancels a user's pending undelegation from a validator.
+    CancelUnbondingDelegation(
+        ctx context.Context,
+        valAddr state.ValAddress,
+        amount,
+        height state.Int,
+        gasLim uint64,
+    ) (*state.TxResponse, error)
+
+    // QueryDelegation retrieves the delegation information between a delegator and a validator.
+    QueryDelegation(ctx context.Context, valAddr state.ValAddress) (*types.QueryDelegationResponse, error)
+    // QueryRedelegations retrieves the status of the redelegations between a delegator and a validator.
+    QueryRedelegations(
+        ctx context.Context,
+        srcValAddr,
+        dstValAddr state.ValAddress,
+    ) (*types.QueryRedelegationsResponse, error)
+    // QueryUnbonding retrieves the unbonding status between a delegator and a validator.
+    QueryUnbonding(ctx context.Context, valAddr state.ValAddress) (*types.QueryUnbondingDelegationResponse, error)
+
   }
 ```
 
@@ -271,9 +336,10 @@ yet.
 
 ```go
   type FraudModule interface {
-    Subscribe(type)
-    Get(type)
-    List(type)
+    // Subscribe subscribes to the given fraud proof type.
+    Subscribe(proof fraud.ProofType) error
+    // Get returns any stored fraud proofs of the given type.
+    Get(proof fraud.ProofType) ([]Proof, error)
   }
 ```
 
