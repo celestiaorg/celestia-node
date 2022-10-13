@@ -39,10 +39,10 @@ func (n *NmtNodeAdder) Visit(hash []byte, children ...[]byte) {
 	switch len(children) {
 	case 1:
 		if n.leaves.Visit(id) {
-			n.err = n.add.Add(n.ctx, NewNMTLeafNode(id, children[0]))
+			n.err = n.add.Add(n.ctx, newNMTLeafNode(id, children[0]))
 		}
 	case 2:
-		n.err = n.add.Add(n.ctx, NewNMTNode(id, children[0], children[1]))
+		n.err = n.add.Add(n.ctx, newNMTNode(id, append(children[0], children[1]...)))
 	default:
 		panic("expected a binary tree")
 	}
