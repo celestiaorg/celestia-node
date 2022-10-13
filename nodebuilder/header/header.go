@@ -21,9 +21,19 @@ func newP2PServer(host host.Host, store header.Store, network modp2p.Network) *p
 	return p2p.NewExchangeServer(host, store, string(network))
 }
 
-// newP2PExchange constructs a new Exchange for headers.
-func newP2PExchange(cfg Config) func(modp2p.Bootstrappers, modp2p.Network, host.Host) (header.Exchange, error) {
-	return func(bpeers modp2p.Bootstrappers, network modp2p.Network, host host.Host) (header.Exchange, error) {
+// newP2PExchange constructs new Exchange for headers.
+func newP2PExchange(cfg Config) func(
+	fx.Lifecycle,
+	modp2p.Bootstrappers,
+	modp2p.Network,
+	host.Host,
+) (header.Exchange, error) {
+	return func(
+		lc fx.Lifecycle,
+		bpeers modp2p.Bootstrappers,
+		network modp2p.Network,
+		host host.Host,
+	) (header.Exchange, error) {
 		peers, err := cfg.trustedPeers(bpeers)
 		if err != nil {
 			return nil, err
@@ -33,7 +43,16 @@ func newP2PExchange(cfg Config) func(modp2p.Bootstrappers, modp2p.Network, host.
 			ids[index] = peer.ID
 			host.Peerstore().AddAddrs(peer.ID, peer.Addrs, peerstore.PermanentAddrTTL)
 		}
-		return p2p.NewExchange(host, ids, string(network)), nil
+		exchange := p2p.NewExchange(host, ids, string(network))
+		lc.Append(fx.Hook{
+			OnStart: func(ctx context.Context) error {
+				return exchange.Start(ctx)
+			},
+			OnStop: func(ctx context.Context) error {
+				return exchange.Stop(ctx)
+			},
+		})
+		return exchange, nil
 	}
 }
 

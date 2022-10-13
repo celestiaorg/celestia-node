@@ -80,15 +80,6 @@ func TestExchange_RequestHeadersFails(t *testing.T) {
 	}
 }
 
-func TestExchange_RequestHeadersLimitExceed(t *testing.T) {
-	host, peer := createMocknet(t)
-	exchg, _ := createP2PExAndServer(t, host, peer)
-	// perform expected request
-	_, err := exchg.GetRangeByHeight(context.Background(), 1, 600)
-	require.Error(t, err)
-	require.ErrorAs(t, err, &header.ErrHeadersLimitExceeded)
-}
-
 // TestExchange_RequestByHash tests that the Exchange instance can
 // respond to an ExtendedHeaderRequest for a hash instead of a height.
 func TestExchange_RequestByHash(t *testing.T) {
@@ -244,11 +235,15 @@ func createP2PExAndServer(t *testing.T, host, tpeer libhost.Host) (header.Exchan
 	err := serverSideEx.Start(context.Background())
 	require.NoError(t, err)
 
+	exchange := NewExchange(host, []peer.ID{tpeer.ID()}, "private")
+	exchange.peerTracker.stats = append(exchange.peerTracker.stats, &peerStat{peerID: tpeer.ID()})
+	exchange.Start(context.Background()) //nolint:errcheck
+
 	t.Cleanup(func() {
 		serverSideEx.Stop(context.Background()) //nolint:errcheck
+		exchange.Stop(context.Background())     //nolint:errcheck
 	})
-
-	return NewExchange(host, []peer.ID{tpeer.ID()}, "private"), store
+	return exchange, store
 }
 
 type mockStore struct {
