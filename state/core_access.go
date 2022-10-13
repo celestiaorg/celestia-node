@@ -172,7 +172,7 @@ func (ca *CoreAccessor) BalanceForAddress(ctx context.Context, addr Address) (*B
 		Data:   prefixedAccountKey,
 		Prove:  true,
 	}
-	fmt.Println("\n--- CREATED ABCI REQUEST QUERY: ", abciReq, " ---")
+	fmt.Println("\n--- CREATED ABCI REQUEST QUERY: data ", abciReq.Data, " ---", "path: ", abciReq.Path)
 	opts := rpcclient.ABCIQueryOptions{
 		Height: abciReq.Height,
 		Prove:  abciReq.Prove,
@@ -202,7 +202,10 @@ func (ca *CoreAccessor) BalanceForAddress(ctx context.Context, addr Address) (*B
 	}
 	fmt.Println("\n--- COIN: ", coin, " ---")
 	// verify balance
-	path := fmt.Sprintf("/%s/%s", banktypes.StoreKey, string(prefixedAccountKey))
+	prfxdAcctKey := string(prefixedAccountKey)
+	fmt.Printf("\n--- PATH TO STORE: formatted %X, ---- unformatted: %s", prfxdAcctKey, prfxdAcctKey)
+	path := fmt.Sprintf("/%s/%s", banktypes.StoreKey, prfxdAcctKey)
+	fmt.Printf("\n--- PATH TO STORE: %s --------", path)
 	fmt.Println("\n--- PATH TO STORE: ", path, " ---")
 	prt := rootmulti.DefaultProofRuntime()
 	err = prt.VerifyValue(result.Response.GetProofOps(), head.AppHash, path, value)
