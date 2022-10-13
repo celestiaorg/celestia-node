@@ -154,7 +154,7 @@ func (serv *ExchangeServer) handleRequest(from, to uint64) ([]*header.ExtendedHe
 		return []*header.ExtendedHeader{head}, nil
 	}
 
-	if to-from > header.RequestSize {
+	if to-from > maxRequestSize {
 		log.Errorw("server: skip request for too many headers.", "amount", to-from)
 		return nil, header.ErrHeadersLimitExceeded
 	}

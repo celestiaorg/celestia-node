@@ -14,10 +14,11 @@ import (
 	"github.com/libp2p/go-libp2p-core/protocol"
 	tmbytes "github.com/tendermint/tendermint/libs/bytes"
 
+	"github.com/celestiaorg/go-libp2p-messenger/serde"
+
 	"github.com/celestiaorg/celestia-node/header"
 	p2p_pb "github.com/celestiaorg/celestia-node/header/p2p/pb"
 	"github.com/celestiaorg/celestia-node/params"
-	"github.com/celestiaorg/go-libp2p-messenger/serde"
 )
 
 var log = logging.Logger("header/p2p")
@@ -29,6 +30,8 @@ const (
 	readDeadline = time.Minute
 	// the target minimum amount of responses with the same chain head
 	minResponses = 2
+	// requestSize defines the max amount of headers that can be requested/handled at once.
+	maxRequestSize uint64 = 512
 )
 
 // PubSubTopic hardcodes the name of the ExtendedHeader

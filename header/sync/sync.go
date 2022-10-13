@@ -237,11 +237,18 @@ func (s *Syncer) processHeaders(ctx context.Context, from, to uint64) (int, erro
 	return s.store.Append(ctx, headers...)
 }
 
+// TODO(@Wondertan): Number of headers that can be requested at once. Either make this configurable or,
+//
+//	find a proper rationale for constant.
+//
+// TODO(@Wondertan): Make configurable
+var requestSize uint64 = 512
+
 // findHeaders gets headers from either remote peers or from local cache of headers received by PubSub - [from:to]
 func (s *Syncer) findHeaders(ctx context.Context, from, to uint64) ([]*header.ExtendedHeader, error) {
 	amount := to - from + 1 // + 1 to include 'to' height as well
-	if amount > header.RequestSize {
-		to, amount = from+header.RequestSize, header.RequestSize
+	if amount > requestSize {
+		to, amount = from+requestSize, requestSize
 	}
 
 	out := make([]*header.ExtendedHeader, 0, amount)

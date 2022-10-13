@@ -60,9 +60,6 @@ type Exchange interface {
 	Getter
 }
 
-// RequestSize defines the max amount of headers that can be requested/handled at once.
-var RequestSize uint64 = 512
-
 var (
 	// ErrNotFound is returned when there is no requested header.
 	ErrNotFound = errors.New("header: not found")
@@ -70,7 +67,8 @@ var (
 	// ErrNoHead is returned when Store is empty (does not contain any known header).
 	ErrNoHead = fmt.Errorf("header/store: no chain head")
 
-	// ErrHeadersLimitExceeded is returned when ExchangeServer receives header request for more then RequestSize headers.
+	// ErrHeadersLimitExceeded is returned when ExchangeServer receives header request for more
+	// than maxRequestSize headers.
 	ErrHeadersLimitExceeded = errors.New("header/p2p: header limit per 1 request exceeded")
 )
 
