@@ -338,7 +338,11 @@ yet.
   type FraudModule interface {
     // Subscribe subscribes to the given fraud proof type.
     Subscribe(proof fraud.ProofType) error
-    // Get returns any stored fraud proofs of the given type.
+    // List lists all proof types to which the fraud module is currently
+    // subscribed.
+    List() []fraud.ProofType
+
+	// Get returns any stored fraud proofs of the given type.
     Get(proof fraud.ProofType) ([]Proof, error)
   }
 ```
