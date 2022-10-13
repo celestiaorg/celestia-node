@@ -30,6 +30,8 @@ const (
 	readDeadline = time.Minute
 	// the target minimum amount of responses with the same chain head
 	minResponses = 2
+	// requestSize defines the max amount of headers that can be requested/handled at once.
+	maxRequestSize uint64 = 512
 )
 
 // PubSubTopic hardcodes the name of the ExtendedHeader
@@ -258,6 +260,8 @@ func convertStatusCodeToError(code p2p_pb.StatusCode) error {
 		return nil
 	case p2p_pb.StatusCode_NOT_FOUND:
 		return header.ErrNotFound
+	case p2p_pb.StatusCode_LIMIT_EXCEEDED:
+		return header.ErrHeadersLimitExceeded
 	default:
 		return fmt.Errorf("unknown status code %d", code)
 	}

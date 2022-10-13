@@ -57,10 +57,34 @@ func TestExchange_RequestHeaders(t *testing.T) {
 func TestExchange_RequestHeadersFails(t *testing.T) {
 	host, peer := createMocknet(t)
 	exchg, _ := createP2PExAndServer(t, host, peer)
+	tt := []struct {
+		amount      uint64
+		expectedErr *error
+	}{
+		{
+			amount:      10,
+			expectedErr: &header.ErrNotFound,
+		},
+		{
+			amount:      600,
+			expectedErr: &header.ErrHeadersLimitExceeded,
+		},
+	}
+	for _, test := range tt {
+		// perform expected request
+		_, err := exchg.GetRangeByHeight(context.Background(), 1, test.amount)
+		require.Error(t, err)
+		require.ErrorAs(t, err, test.expectedErr)
+	}
+}
+
+func TestExchange_RequestHeadersLimitExceed(t *testing.T) {
+	host, peer := createMocknet(t)
+	exchg, _ := createP2PExAndServer(t, host, peer)
 	// perform expected request
-	_, err := exchg.GetRangeByHeight(context.Background(), 5, 3)
+	_, err := exchg.GetRangeByHeight(context.Background(), 1, 600)
 	require.Error(t, err)
-	require.ErrorAs(t, err, &header.ErrNotFound)
+	require.ErrorAs(t, err, &header.ErrHeadersLimitExceeded)
 }
 
 // TestExchange_RequestByHash tests that the Exchange instance can

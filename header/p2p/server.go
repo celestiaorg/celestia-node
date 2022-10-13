@@ -86,14 +86,18 @@ func (serv *ExchangeServer) requestHandler(stream network.Stream) {
 	case nil:
 		code = p2p_pb.StatusCode_OK
 	case header.ErrNotFound:
-		// reallocate headers with 1 nil ExtendedHeader
-		headers = make([]*header.ExtendedHeader, 1)
 		code = p2p_pb.StatusCode_NOT_FOUND
+	case header.ErrHeadersLimitExceeded:
+		code = p2p_pb.StatusCode_LIMIT_EXCEEDED
 	default:
 		stream.Reset() //nolint:errcheck
 		return
 	}
 
+	// reallocate headers with 1 nil ExtendedHeader if code is not StatusCode_OK
+	if code != p2p_pb.StatusCode_OK {
+		headers = make([]*header.ExtendedHeader, 1)
+	}
 	// write all headers to stream
 	for _, h := range headers {
 		if err := stream.SetWriteDeadline(time.Now().Add(writeDeadline)); err != nil {
@@ -150,6 +154,10 @@ func (serv *ExchangeServer) handleRequest(from, to uint64) ([]*header.ExtendedHe
 		return []*header.ExtendedHeader{head}, nil
 	}
 
+	if to-from > maxRequestSize {
+		log.Errorw("server: skip request for too many headers.", "amount", to-from)
+		return nil, header.ErrHeadersLimitExceeded
+	}
 	log.Debugw("server: handling headers request", "from", from, "to", to)
 	headersByRange, err := serv.store.GetRangeByHeight(serv.ctx, from, to)
 	if err != nil {

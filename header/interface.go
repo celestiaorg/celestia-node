@@ -66,6 +66,10 @@ var (
 
 	// ErrNoHead is returned when Store is empty (does not contain any known header).
 	ErrNoHead = fmt.Errorf("header/store: no chain head")
+
+	// ErrHeadersLimitExceeded is returned when ExchangeServer receives header request for more
+	// than maxRequestSize headers.
+	ErrHeadersLimitExceeded = errors.New("header/p2p: header limit per 1 request exceeded")
 )
 
 // ErrNonAdjacent is returned when Store is appended with a header not adjacent to the stored head.
