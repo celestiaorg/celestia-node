@@ -6,7 +6,6 @@ import (
 
 	"github.com/libp2p/go-libp2p-core/host"
 	"github.com/libp2p/go-libp2p-core/network"
-
 	tmbytes "github.com/tendermint/tendermint/libs/bytes"
 
 	"github.com/celestiaorg/go-libp2p-messenger/serde"
@@ -69,16 +68,54 @@ func (serv *ExchangeServer) requestHandler(stream network.Stream) {
 	if err = stream.CloseRead(); err != nil {
 		log.Error(err)
 	}
+
+	var headers []*header.ExtendedHeader
 	// retrieve and write ExtendedHeaders
 	switch pbreq.Data.(type) {
 	case *p2p_pb.ExtendedHeaderRequest_Hash:
-		serv.handleRequestByHash(pbreq.GetHash(), stream)
+		headers, err = serv.handleRequestByHash(pbreq.GetHash())
 	case *p2p_pb.ExtendedHeaderRequest_Origin:
-		serv.handleRequest(pbreq.GetOrigin(), pbreq.GetOrigin()+pbreq.Amount, stream)
+		headers, err = serv.handleRequest(pbreq.GetOrigin(), pbreq.GetOrigin()+pbreq.Amount)
 	default:
 		log.Error("server: invalid data type received")
 		stream.Reset() //nolint:errcheck
 		return
+	}
+	var code p2p_pb.StatusCode
+	switch err {
+	case nil:
+		code = p2p_pb.StatusCode_OK
+	case header.ErrNotFound:
+		// reallocate headers with 1 nil ExtendedHeader
+		headers = make([]*header.ExtendedHeader, 1)
+		code = p2p_pb.StatusCode_NOT_FOUND
+	default:
+		stream.Reset() //nolint:errcheck
+		return
+	}
+
+	// write all headers to stream
+	for _, h := range headers {
+		if err := stream.SetWriteDeadline(time.Now().Add(writeDeadline)); err != nil {
+			log.Debugf("error setting deadline: %s", err)
+		}
+		var bin []byte
+		// if header is not nil, then marshal it to []byte.
+		// if header is nil, then error was received,so we will set empty []byte to proto.
+		if h != nil {
+			bin, err = h.MarshalBinary()
+			if err != nil {
+				log.Errorw("server: marshaling header to proto", "height", h.Height, "err", err)
+				stream.Reset() //nolint:errcheck
+				return
+			}
+		}
+		_, err = serde.Write(stream, &p2p_pb.ExtendedHeaderResponse{Body: bin, StatusCode: code})
+		if err != nil {
+			log.Errorw("server: writing header to stream", "height", h.Height, "err", err)
+			stream.Reset() //nolint:errcheck
+			return
+		}
 	}
 
 	err = stream.Close()
@@ -89,76 +126,35 @@ func (serv *ExchangeServer) requestHandler(stream network.Stream) {
 
 // handleRequestByHash returns the ExtendedHeader at the given hash
 // if it exists.
-func (serv *ExchangeServer) handleRequestByHash(hash []byte, stream network.Stream) {
+func (serv *ExchangeServer) handleRequestByHash(hash []byte) ([]*header.ExtendedHeader, error) {
 	log.Debugw("server: handling header request", "hash", tmbytes.HexBytes(hash).String())
 
 	h, err := serv.store.Get(serv.ctx, hash)
 	if err != nil {
 		log.Errorw("server: getting header by hash", "hash", tmbytes.HexBytes(hash).String(), "err", err)
-		stream.Reset() //nolint:errcheck
-		return
+		return nil, err
 	}
-	resp, err := header.ExtendedHeaderToProto(h)
-	if err != nil {
-		log.Errorw("server: marshaling header to proto", "hash", tmbytes.HexBytes(hash).String(), "err", err)
-		stream.Reset() //nolint:errcheck
-		return
-	}
-	if err = stream.SetWriteDeadline(time.Now().Add(writeDeadline)); err != nil {
-		log.Debugf("error setting deadline: %s", err)
-	}
-	_, err = serde.Write(stream, resp)
-	if err != nil {
-		log.Errorw("server: writing header to stream", "hash", tmbytes.HexBytes(hash).String(), "err", err)
-		stream.Reset() //nolint:errcheck
-		return
-	}
+	return []*header.ExtendedHeader{h}, nil
 }
 
 // handleRequest fetches the ExtendedHeader at the given origin and
 // writes it to the stream.
-func (serv *ExchangeServer) handleRequest(from, to uint64, stream network.Stream) {
-	var headers []*header.ExtendedHeader
+func (serv *ExchangeServer) handleRequest(from, to uint64) ([]*header.ExtendedHeader, error) {
 	if from == uint64(0) {
 		log.Debug("server: handling head request")
-
 		head, err := serv.store.Head(serv.ctx)
 		if err != nil {
 			log.Errorw("server: getting head", "err", err)
-			stream.Reset() //nolint:errcheck
-			return
+			return nil, err
 		}
-		headers = make([]*header.ExtendedHeader, 1)
-		headers[0] = head
-	} else {
-		log.Debugw("server: handling headers request", "from", from, "to", to)
-
-		headersByRange, err := serv.store.GetRangeByHeight(serv.ctx, from, to)
-		if err != nil {
-			log.Errorw("server: getting headers", "from", from, "to", to, "err", err)
-			stream.Reset() //nolint:errcheck
-			return
-		}
-		headers = headersByRange
+		return []*header.ExtendedHeader{head}, nil
 	}
 
-	// write all headers to stream
-	for _, h := range headers {
-		if err := stream.SetWriteDeadline(time.Now().Add(writeDeadline)); err != nil {
-			log.Debugf("error setting deadline: %s", err)
-		}
-		resp, err := header.ExtendedHeaderToProto(h)
-		if err != nil {
-			log.Errorw("server: marshaling header to proto", "height", h.Height, "err", err)
-			stream.Reset() //nolint:errcheck
-			return
-		}
-
-		_, err = serde.Write(stream, resp)
-		if err != nil {
-			log.Errorw("server: writing header to stream", "height", h.Height, "err", err)
-			stream.Reset() //nolint:errcheck
-			return
-		}
+	log.Debugw("server: handling headers request", "from", from, "to", to)
+	headersByRange, err := serv.store.GetRangeByHeight(serv.ctx, from, to)
+	if err != nil {
+		log.Errorw("server: getting headers", "from", from, "to", to, "err", err)
+		return nil, err
 	}
+	return headersByRange, nil
 }

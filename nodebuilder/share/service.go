@@ -3,6 +3,8 @@ package share
 import (
 	"context"
 
+	"github.com/celestiaorg/celestia-node/share/service"
+
 	"github.com/ipfs/go-blockservice"
 	"go.uber.org/fx"
 
@@ -30,14 +32,14 @@ type Module interface {
 }
 
 func NewModule(lc fx.Lifecycle, bServ blockservice.BlockService, avail share.Availability) Module {
-	service := share.NewService(bServ, avail)
+	serv := service.NewShareService(bServ, avail)
 	lc.Append(fx.Hook{
 		OnStart: func(ctx context.Context) error {
-			return service.Start(ctx)
+			return serv.Start(ctx)
 		},
 		OnStop: func(ctx context.Context) error {
-			return service.Stop(ctx)
+			return serv.Stop(ctx)
 		},
 	})
-	return service
+	return serv
 }

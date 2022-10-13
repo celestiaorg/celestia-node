@@ -9,7 +9,7 @@ import (
 	mdutils "github.com/ipfs/go-merkledag/test"
 	"github.com/stretchr/testify/require"
 
-	"github.com/celestiaorg/celestia-node/ipld"
+	"github.com/celestiaorg/celestia-node/share"
 )
 
 func TestFraudProofValidation(t *testing.T) {
@@ -21,7 +21,7 @@ func TestFraudProofValidation(t *testing.T) {
 	require.NoError(t, err)
 
 	faultDAH, err := generateByzantineError(ctx, t, h, bServ)
-	var errByz *ipld.ErrByzantine
+	var errByz *share.ErrByzantine
 	require.True(t, errors.As(err, &errByz))
 	p := CreateBadEncodingProof([]byte("hash"), uint64(faultDAH.Height), errByz)
 	err = p.Validate(faultDAH)

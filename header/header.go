@@ -5,6 +5,8 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/celestiaorg/celestia-node/share"
+
 	"github.com/ipfs/go-blockservice"
 	logging "github.com/ipfs/go-log/v2"
 
@@ -13,8 +15,6 @@ import (
 
 	"github.com/celestiaorg/celestia-app/pkg/da"
 	appshares "github.com/celestiaorg/celestia-app/pkg/shares"
-
-	"github.com/celestiaorg/celestia-node/ipld"
 )
 
 var log = logging.Logger("header")
@@ -53,7 +53,7 @@ func MakeExtendedHeader(
 		if err != nil {
 			return nil, err
 		}
-		extended, err := ipld.AddShares(ctx, appshares.ToBytes(shares), bServ)
+		extended, err := share.AddShares(ctx, appshares.ToBytes(shares), bServ)
 		if err != nil {
 			return nil, err
 		}

@@ -6,6 +6,8 @@ package header
 import (
 	"context"
 
+	"github.com/celestiaorg/celestia-node/share"
+
 	mrand "math/rand"
 	"testing"
 	"time"
@@ -23,7 +25,6 @@ import (
 	"github.com/celestiaorg/celestia-app/pkg/da"
 
 	"github.com/celestiaorg/celestia-node/core"
-	"github.com/celestiaorg/celestia-node/ipld"
 )
 
 // TestSuite provides everything you need to test chain of Headers.
@@ -226,10 +227,10 @@ func FraudMaker(t *testing.T, faultHeight int64) ConstructFn {
 }
 
 func CreateFraudExtHeader(t *testing.T, eh *ExtendedHeader, dag blockservice.BlockService) *ExtendedHeader {
-	extended := ipld.RandEDS(t, 2)
-	shares := ipld.ExtractEDS(extended)
-	copy(shares[0][ipld.NamespaceSize:], shares[1][ipld.NamespaceSize:])
-	extended, err := ipld.ImportShares(context.Background(), shares, dag)
+	extended := share.RandEDS(t, 2)
+	shares := share.ExtractEDS(extended)
+	copy(shares[0][share.NamespaceSize:], shares[1][share.NamespaceSize:])
+	extended, err := share.ImportShares(context.Background(), shares, dag)
 	require.NoError(t, err)
 	dah := da.NewDataAvailabilityHeader(extended)
 	eh.DAH = &dah
