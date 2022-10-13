@@ -128,6 +128,25 @@ func (ex *Exchange) GetByHeight(ctx context.Context, height uint64) (*header.Ext
 // GetRangeByHeight performs a request for the given range of ExtendedHeaders
 // to the network. Note that the ExtendedHeaders must be verified thereafter.
 func (ex *Exchange) GetRangeByHeight(ctx context.Context, from, amount uint64) ([]*header.ExtendedHeader, error) {
+	// session := newSession(ex.host, nil)
+	// headers := make([]*header.ExtendedHeader, 0, amount)
+	// result := session.GetRangeByHeight(ctx, from, amount)
+	// for i := 0; i < cap(result); i++ {
+	// 	select {
+	// 	case <-ctx.Done():
+	// 		return nil, ctx.Err()
+	// 	case err := <-session.errCh:
+	// 		return nil, err
+	// 	case res := <-result:
+
+	// 		headers = append(headers, res...)
+	// 	}
+	// }
+	// sort.Slice(headers, func(i, j int) bool {
+	// 	return headers[i].Height < headers[j].Height
+	// })
+	// return headers, nil
+
 	log.Debugw("requesting headers", "from", from, "to", from+amount)
 	// create request
 	req := &p2p_pb.ExtendedHeaderRequest{
