@@ -4,8 +4,9 @@ import (
 	"bytes"
 	"context"
 
-	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/ipfs/go-blockservice"
+
+	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 )
 
 // EnsureEmptySquareExists checks if the given DAG contains an empty block data square.
