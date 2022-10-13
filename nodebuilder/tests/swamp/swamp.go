@@ -80,7 +80,7 @@ func NewSwamp(t *testing.T, options ...Option) *Swamp {
 		t,
 		ic.ConsensusParams,
 		ic.CoreCfg,
-		false,
+		ic.SupressLogs,
 		accounts...,
 	)
 

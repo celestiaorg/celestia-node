@@ -12,6 +12,7 @@ import (
 type Components struct {
 	CoreCfg         *tn.Config
 	ConsensusParams *tmproto.ConsensusParams
+	SupressLogs     bool
 }
 
 // DefaultComponents creates a KvStore with a block retention of 200
@@ -22,6 +23,7 @@ func DefaultComponents() *Components {
 	return &Components{
 		CoreCfg:         tnCfg,
 		ConsensusParams: testnode.DefaultParams(),
+		SupressLogs:     true,
 	}
 }
 
