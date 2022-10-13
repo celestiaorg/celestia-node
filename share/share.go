@@ -5,9 +5,9 @@ import (
 
 	"github.com/ipfs/go-cid"
 	logging "github.com/ipfs/go-log/v2"
-	"github.com/tendermint/tendermint/pkg/consts"
 	"go.opentelemetry.io/otel"
 
+	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-node/share/ipld"
 	"github.com/celestiaorg/celestia-node/share/pb"
 	"github.com/celestiaorg/nmt"
@@ -19,16 +19,16 @@ var (
 	tracer = otel.Tracer("share")
 
 	// DefaultRSMT2DCodec sets the default rsmt2d.Codec for shares.
-	DefaultRSMT2DCodec = consts.DefaultCodec
+	DefaultRSMT2DCodec = appconsts.DefaultCodec
 )
 
 const (
 	// MaxSquareSize is currently the maximum size supported for unerasured data in rsmt2d.ExtendedDataSquare.
-	MaxSquareSize = consts.MaxSquareSize
+	MaxSquareSize = appconsts.MaxSquareSize
 	// NamespaceSize is a system-wide size for NMT namespaces.
-	NamespaceSize = consts.NamespaceSize
+	NamespaceSize = appconsts.NamespaceSize
 	// Size is a system-wide size of a share, including both data and namespace ID
-	Size = consts.ShareSize
+	Size = appconsts.ShareSize
 )
 
 // Share contains the raw share data without the corresponding namespace.

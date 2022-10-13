@@ -3,6 +3,7 @@ package store
 import (
 	"context"
 	"errors"
+	golog "log"
 	"sync"
 	"sync/atomic"
 
@@ -79,7 +80,7 @@ func (hs *heightSub) Pub(headers ...*header.ExtendedHeader) {
 	height := hs.Height()
 	from, to := uint64(headers[0].Height), uint64(headers[ln-1].Height)
 	if height+1 != from {
-		log.Fatal("PLEASE FILE A BUG REPORT: headers given to the heightSub are in the wrong order")
+		golog.Fatal("PLEASE FILE A BUG REPORT: headers given to the heightSub are in the wrong order")
 		return
 	}
 	hs.SetHeight(to)

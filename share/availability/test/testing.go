@@ -17,8 +17,8 @@ import (
 	record "github.com/libp2p/go-libp2p-record"
 	mocknet "github.com/libp2p/go-libp2p/p2p/net/mock"
 	"github.com/stretchr/testify/require"
-	"github.com/tendermint/tendermint/pkg/da"
 
+	"github.com/celestiaorg/celestia-app/pkg/da"
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/service"
 )

@@ -9,8 +9,8 @@ import (
 	"github.com/ipfs/go-datastore/autobatch"
 	"github.com/ipfs/go-datastore/namespace"
 	logging "github.com/ipfs/go-log/v2"
-	"github.com/tendermint/tendermint/pkg/da"
 
+	"github.com/celestiaorg/celestia-app/pkg/da"
 	"github.com/celestiaorg/celestia-node/share"
 )
 

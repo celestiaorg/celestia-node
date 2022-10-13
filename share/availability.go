@@ -5,7 +5,7 @@ import (
 	"errors"
 	"time"
 
-	"github.com/tendermint/tendermint/pkg/da"
+	"github.com/celestiaorg/celestia-app/pkg/da"
 )
 
 // ErrNotAvailable is returned whenever DA sampling fails.

@@ -4,20 +4,27 @@ import (
 	"time"
 
 	tn "github.com/tendermint/tendermint/config"
+	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
+
+	"github.com/celestiaorg/celestia-app/testutil/testnode"
 )
 
 // Components struct represents a set of pre-requisite attributes from the test scenario
 type Components struct {
-	CoreCfg *tn.Config
+	CoreCfg         *tn.Config
+	ConsensusParams *tmproto.ConsensusParams
+	SupressLogs     bool
 }
 
 // DefaultComponents creates a KvStore with a block retention of 200
-// In addition, the empty block interval is set to 200ms
+// In addition, the empty block interval is set to 50ms
 func DefaultComponents() *Components {
 	tnCfg := tn.TestConfig()
 	tnCfg.Consensus.TimeoutCommit = 50 * time.Millisecond
 	return &Components{
-		CoreCfg: tnCfg,
+		CoreCfg:         tnCfg,
+		ConsensusParams: testnode.DefaultParams(),
+		SupressLogs:     true,
 	}
 }
 

@@ -8,7 +8,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/libp2p/go-libp2p-core/host"
 	"github.com/libp2p/go-libp2p-core/peer"
 	mocknet "github.com/libp2p/go-libp2p/p2p/net/mock"
@@ -49,7 +48,7 @@ type Swamp struct {
 	trustedHash string
 	comps       *Components
 
-	ClientContext client.Context
+	ClientContext testnode.Context
 	accounts      []string
 }
 
@@ -69,15 +68,22 @@ func NewSwamp(t *testing.T, options ...Option) *Swamp {
 
 	// we create an arbitrary number of funded accounts
 	accounts := make([]string, 100)
-	for i := 0; i < 10; i++ {
-		accounts = append(accounts, tmrand.Str(9))
+	for i := 0; i < 100; i++ {
+		accounts[i] = tmrand.Str(9)
 	}
 
 	// TODO(@Bidon15): CoreClient(limitation)
 	// Now, we are making an assumption that consensus mechanism is already tested out
 	// so, we are not creating bridge nodes with each one containing its own core client
 	// instead we are assigning all created BNs to 1 Core from the swamp
-	tmNode, app, cctx, err := testnode.New(t, ic.CoreCfg, false, accounts...)
+	tmNode, app, cctx, err := testnode.New(
+		t,
+		ic.ConsensusParams,
+		ic.CoreCfg,
+		ic.SupressLogs,
+		accounts...,
+	)
+
 	require.NoError(t, err)
 
 	cctx, cleanupCoreNode, err := testnode.StartNode(tmNode, cctx)

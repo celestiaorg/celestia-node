@@ -6,8 +6,8 @@ import (
 	"math"
 
 	"github.com/ipfs/go-blockservice"
-	"github.com/tendermint/tendermint/pkg/wrapper"
 
+	"github.com/celestiaorg/celestia-app/pkg/wrapper"
 	"github.com/celestiaorg/celestia-node/share/ipld"
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/rsmt2d"

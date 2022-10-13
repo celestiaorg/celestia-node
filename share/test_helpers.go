@@ -7,8 +7,8 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"github.com/tendermint/tendermint/pkg/wrapper"
 
+	"github.com/celestiaorg/celestia-app/pkg/wrapper"
 	"github.com/celestiaorg/rsmt2d"
 )
 
