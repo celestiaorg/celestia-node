@@ -8,7 +8,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/libp2p/go-libp2p-core/host"
 	"github.com/libp2p/go-libp2p-core/peer"
 	mocknet "github.com/libp2p/go-libp2p/p2p/net/mock"
@@ -49,7 +48,7 @@ type Swamp struct {
 	trustedHash string
 	comps       *Components
 
-	ClientContext client.Context
+	ClientContext testnode.Context
 	accounts      []string
 }
 
@@ -96,7 +95,7 @@ func NewSwamp(t *testing.T, options ...Option) *Swamp {
 	swp := &Swamp{
 		t:             t,
 		Network:       mocknet.New(),
-		ClientContext: cctx.Context,
+		ClientContext: cctx,
 		comps:         ic,
 		accounts:      accounts,
 	}
