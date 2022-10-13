@@ -65,19 +65,14 @@ func GetNode(ctx context.Context, bGetter blockservice.BlockGetter, root cid.Cid
 }
 
 func decodeBlock(block blocks.Block) (ipld.Node, error) {
-	data := block.RawData()
 	innerNodeSize, leafNodeSize := (nmtHashSize)*2, NamespaceSize+consts.ShareSize
-	switch len(data) {
+	switch len(block.RawData()) {
 	default:
 		return nil, fmt.Errorf("ipld: wrong sized data carried in block")
 	case innerNodeSize:
-		return &nmtNode{
-			cid: block.Cid(),
-			l:   data[:nmtHashSize],
-			r:   data[nmtHashSize:],
-		}, nil
+		return &nmtNode{block}, nil
 	case leafNodeSize:
-		return &nmtLeafNode{block}, nil
+		return &nmtLeafNode{nmtNode{block}}, nil
 	}
 }
 
@@ -85,45 +80,27 @@ var _ ipld.Node = (*nmtNode)(nil)
 var _ ipld.Node = (*nmtLeafNode)(nil)
 
 type nmtNode struct {
-	cid  cid.Cid
-	l, r []byte
+	blocks.Block
 }
 
-func NewNMTNode(id cid.Cid, l, r []byte) ipld.Node {
-	return nmtNode{id, l, r}
-}
-
-func (n nmtNode) RawData() []byte {
-	return append(n.l, n.r...)
-}
-
-func (n nmtNode) Cid() cid.Cid {
-	return n.cid
-}
-
-func (n nmtNode) String() string {
-	return fmt.Sprintf(`
-node {
-	hash: %x,
-	l: %x,
-	r: %x"
-}`, n.cid.Hash(), n.l, n.r)
-}
-
-func (n nmtNode) Loggable() map[string]interface{} {
-	return nil
+func newNMTNode(id cid.Cid, data []byte) nmtNode {
+	b, err := blocks.NewBlockWithCid(data, id)
+	if err != nil {
+		panic(fmt.Sprintf("wrong hash for block, cid: %s", id))
+	}
+	return nmtNode{b}
 }
 
 func (n nmtNode) Resolve(path []string) (interface{}, []string, error) {
 	switch path[0] {
 	case "0":
-		left, err := CidFromNamespacedSha256(n.l)
+		left, err := CidFromNamespacedSha256(n.left())
 		if err != nil {
 			return nil, nil, err
 		}
 		return &ipld.Link{Cid: left}, path[1:], nil
 	case "1":
-		right, err := CidFromNamespacedSha256(n.r)
+		right, err := CidFromNamespacedSha256(n.right())
 		if err != nil {
 			return nil, nil, err
 		}
@@ -159,21 +136,14 @@ func (n nmtNode) ResolveLink(path []string) (*ipld.Link, []string, error) {
 }
 
 func (n nmtNode) Copy() ipld.Node {
-	l := make([]byte, len(n.l))
-	copy(l, n.l)
-	r := make([]byte, len(n.r))
-	copy(r, n.r)
-
-	return &nmtNode{
-		cid: n.cid,
-		l:   l,
-		r:   r,
-	}
+	d := make([]byte, len(n.RawData()))
+	copy(d, n.RawData())
+	return newNMTNode(n.Cid(), d)
 }
 
 func (n nmtNode) Links() []*ipld.Link {
-	leftCid := MustCidFromNamespacedSha256(n.l)
-	rightCid := MustCidFromNamespacedSha256(n.r)
+	leftCid := MustCidFromNamespacedSha256(n.left())
+	rightCid := MustCidFromNamespacedSha256(n.right())
 
 	return []*ipld.Link{{Cid: leftCid}, {Cid: rightCid}}
 }
@@ -186,16 +156,20 @@ func (n nmtNode) Size() (uint64, error) {
 	return 0, nil
 }
 
-type nmtLeafNode struct {
-	blocks.Block
+func (n nmtNode) left() []byte {
+	return n.RawData()[:nmtHashSize]
 }
 
-func NewNMTLeafNode(id cid.Cid, data []byte) ipld.Node {
-	b, err := blocks.NewBlockWithCid(data, id)
-	if err != nil {
-		log.Warn("wrong hash for block", "cid", id)
-	}
-	return &nmtLeafNode{b}
+func (n nmtNode) right() []byte {
+	return n.RawData()[nmtHashSize:]
+}
+
+type nmtLeafNode struct {
+	nmtNode
+}
+
+func newNMTLeafNode(id cid.Cid, data []byte) nmtLeafNode {
+	return nmtLeafNode{newNMTNode(id, data)}
 }
 
 func (l nmtLeafNode) Resolve(path []string) (interface{}, []string, error) {
@@ -206,33 +180,8 @@ func (l nmtLeafNode) Tree(_path string, _depth int) []string {
 	return nil
 }
 
-func (l nmtLeafNode) ResolveLink(path []string) (*ipld.Link, []string, error) {
-	obj, rest, err := l.Resolve(path)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	lnk, ok := obj.(*ipld.Link)
-	if !ok {
-		return nil, nil, errors.New("was not a link")
-	}
-	return lnk, rest, nil
-}
-
-func (l nmtLeafNode) Copy() ipld.Node {
-	panic("implement me")
-}
-
 func (l nmtLeafNode) Links() []*ipld.Link {
 	return nil
-}
-
-func (l nmtLeafNode) Stat() (*ipld.NodeStat, error) {
-	return &ipld.NodeStat{}, nil
-}
-
-func (l nmtLeafNode) Size() (uint64, error) {
-	return 0, nil
 }
 
 // CidFromNamespacedSha256 uses a hash from an nmt tree to create a CID
