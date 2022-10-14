@@ -123,20 +123,23 @@ func TestFraudProofSyncing(t *testing.T) {
 	lightCfg := nodebuilder.DefaultConfig(node.Light)
 	lightCfg.P2P.RoutingTableRefreshPeriod = defaultTimeInterval
 	lightCfg.Share.DiscoveryInterval = defaultTimeInterval
-	ln := sw.NewNodeWithStore(node.Light, nodebuilder.MockStore(t, lightCfg),
-		nodebuilder.WithBootstrappers([]peer.AddrInfo{*addr}))
+	lightCfg.Header.TrustedPeers = append(lightCfg.Header.TrustedPeers, addrs[0].String())
+	ln := sw.NewNodeWithStore(node.Light, nodebuilder.MockStore(t, lightCfg))
 
 	require.NoError(t, full.Start(ctx))
+	require.NoError(t, ln.Start(ctx))
 	subsFn, err := full.FraudServ.Subscribe(fraud.BadEncoding)
 	require.NoError(t, err)
 	defer subsFn.Cancel()
 	_, err = subsFn.Proof(ctx)
 	require.NoError(t, err)
 
-	require.NoError(t, ln.Start(ctx))
 	// internal subscription for the fraud proof is done in order to ensure that light node
 	// receives the BEFP.
 	subsLn, err := ln.FraudServ.Subscribe(fraud.BadEncoding)
+	require.NoError(t, err)
+
+	err = ln.Host.Connect(ctx, *host.InfoFromHost(full.Host))
 	require.NoError(t, err)
 	_, err = subsLn.Proof(ctx)
 	require.NoError(t, err)
