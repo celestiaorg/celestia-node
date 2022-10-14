@@ -121,6 +121,9 @@ func (s *EDSStore) GetCAR(ctx context.Context, root share.Root) (io.ReadCloser, 
 	}
 
 	result := <-ch
+	if result.Error != nil {
+		return nil, result.Error
+	}
 	return result.Accessor, nil
 }
 
@@ -129,4 +132,21 @@ func (s *EDSStore) GetCAR(ctx context.Context, root share.Root) (io.ReadCloser, 
 // We represent `shares` and NMT Merkle proofs as IPFS blocks and IPLD nodes so Bitswap can access those.
 func (s *EDSStore) Blockstore() blockstore.Blockstore {
 	return s.bs
+}
+
+// Remove removes EDS from Store by the given share.Root and cleans up all the indexing.
+func (s *EDSStore) Remove(ctx context.Context, root share.Root) error {
+	key := root.String()
+	ch := make(chan dagstore.ShardResult, 1)
+	err := s.dgstr.DestroyShard(ctx, shard.KeyFromString(key), ch, dagstore.DestroyOpts{})
+	if err != nil {
+		return err
+	}
+
+	result := <-ch
+	if result.Error != nil {
+		return result.Error
+	}
+
+	return os.Remove(s.basepath + blocksPath + key)
 }
