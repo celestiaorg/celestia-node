@@ -1,4 +1,4 @@
-package share
+package eds
 
 import (
 	"context"
@@ -18,9 +18,8 @@ import (
 	"github.com/ipld/go-car/util"
 	"github.com/tendermint/tendermint/pkg/wrapper"
 
-	"github.com/celestiaorg/celestia-node/ipld"
-	"github.com/celestiaorg/celestia-node/ipld/plugin"
-
+	"github.com/celestiaorg/celestia-node/share"
+	"github.com/celestiaorg/celestia-node/share/ipld"
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/rsmt2d"
 )
@@ -71,7 +70,7 @@ func initializeWriter(ctx context.Context, eds *rsmt2d.ExtendedDataSquare, w io.
 	store := blockstore.NewBlockstore(dssync.MutexWrap(ds.NewMapDatastore()))
 	bs := blockservice.New(store, nil)
 	// shares are extracted from the eds so that we can reimport them to traverse
-	shares := ipld.ExtractEDS(eds)
+	shares := share.ExtractEDS(eds)
 	if len(shares) == 0 {
 		return nil, fmt.Errorf("share: importing empty data")
 	}
@@ -80,7 +79,7 @@ func initializeWriter(ctx context.Context, eds *rsmt2d.ExtendedDataSquare, w io.
 	batchAdder := ipld.NewNmtNodeAdder(ctx, bs, format.MaxSizeBatchOption(squareSize/2))
 	// this adder ignores leaves, so that they are not added to the store we iterate through in writeProofs
 	tree := wrapper.NewErasuredNamespacedMerkleTree(uint64(squareSize/2), nmt.NodeVisitor(batchAdder.VisitInnerNodes))
-	eds, err := rsmt2d.ImportExtendedDataSquare(shares, ipld.DefaultRSMT2DCodec(), tree.Constructor)
+	eds, err := rsmt2d.ImportExtendedDataSquare(shares, share.DefaultRSMT2DCodec(), tree.Constructor)
 	if err != nil {
 		return nil, fmt.Errorf("failure to recompute the extended data square: %w", err)
 	}
@@ -120,7 +119,7 @@ func (w *writingSession) writeHeader() error {
 func (w *writingSession) writeQuadrants() error {
 	shares := quadrantOrder(w.eds)
 	for _, share := range shares {
-		cid, err := plugin.CidFromNamespacedSha256(nmt.Sha256Namespace8FlaggedLeaf(share))
+		cid, err := ipld.CidFromNamespacedSha256(nmt.Sha256Namespace8FlaggedLeaf(share))
 		if err != nil {
 			return fmt.Errorf("failure to get cid from share: %w", err)
 		}
@@ -145,7 +144,7 @@ func (w *writingSession) writeProofs(ctx context.Context) error {
 			return fmt.Errorf("failure to get proof from the blockstore: %w", err)
 		}
 		// we chop off the first byte, as it is an unnecessary type byte.
-		cid, err := plugin.CidFromNamespacedSha256(nmt.Sha256Namespace8FlaggedInner(node.RawData()[1:]))
+		cid, err := ipld.CidFromNamespacedSha256(nmt.Sha256Namespace8FlaggedInner(node.RawData()[1:]))
 		if err != nil {
 			return fmt.Errorf("failure to get cid: %w", err)
 		}
@@ -206,7 +205,7 @@ func rootsToCids(eds *rsmt2d.ExtendedDataSquare) ([]cid.Cid, error) {
 	roots := append(eds.RowRoots(), eds.ColRoots()...)
 	rootCids := make([]cid.Cid, len(roots))
 	for i, r := range roots {
-		rootCids[i], err = plugin.CidFromNamespacedSha256(r)
+		rootCids[i], err = ipld.CidFromNamespacedSha256(r)
 		if err != nil {
 			return nil, fmt.Errorf("failure to get cid from root: %w", err)
 		}

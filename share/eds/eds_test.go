@@ -1,4 +1,4 @@
-package share
+package eds
 
 import (
 	"context"
@@ -8,12 +8,13 @@ import (
 	ds "github.com/ipfs/go-datastore"
 	blockstore "github.com/ipfs/go-ipfs-blockstore"
 	carv1 "github.com/ipld/go-car"
+	"github.com/stretchr/testify/require"
 	"github.com/tendermint/tendermint/pkg/consts"
 
-	"github.com/celestiaorg/celestia-node/ipld"
-	"github.com/celestiaorg/rsmt2d"
+	"github.com/celestiaorg/celestia-node/share"
+	"github.com/celestiaorg/celestia-node/share/ipld"
 
-	"github.com/stretchr/testify/require"
+	"github.com/celestiaorg/rsmt2d"
 )
 
 func TestQuadrantOrder(t *testing.T) {
@@ -106,7 +107,7 @@ func writeRandomEDS(t *testing.T) *rsmt2d.ExtendedDataSquare {
 	f, err := os.OpenFile("test.car", os.O_WRONLY|os.O_CREATE, 0600)
 	require.NoError(t, err, "error opening file")
 
-	eds := ipld.RandEDS(t, 4)
+	eds := share.RandEDS(t, 4)
 	err = WriteEDS(context.Background(), eds, f)
 	require.NoError(t, err, "error writing EDS to file")
 	f.Close()

@@ -54,12 +54,12 @@ func (n *NmtNodeAdder) VisitInnerNodes(hash []byte, children ...[]byte) {
 		return // protect from further visits if there is an error
 	}
 
-	id := plugin.MustCidFromNamespacedSha256(hash)
+	id := MustCidFromNamespacedSha256(hash)
 	switch len(children) {
 	case 1:
 		break
 	case 2:
-		n.err = n.add.Add(n.ctx, plugin.NewNMTNode(id, children[0], children[1]))
+		n.err = n.add.Add(n.ctx, NewNMTNode(id, children[0], children[1]))
 	default:
 		panic("expected a binary tree")
 	}
