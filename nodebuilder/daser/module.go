@@ -7,7 +7,6 @@ import (
 
 	"github.com/celestiaorg/celestia-node/das"
 	"github.com/celestiaorg/celestia-node/fraud"
-	"github.com/celestiaorg/celestia-node/libs/fxutil"
 	fraudServ "github.com/celestiaorg/celestia-node/nodebuilder/fraud"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 )
@@ -19,9 +18,8 @@ func ConstructModule(tp node.Type) fx.Option {
 			"daser",
 			fx.Provide(fx.Annotate(
 				NewDASer,
-				fx.OnStart(func(startCtx, ctx context.Context, lc fx.Lifecycle, fservice fraudServ.Module, das *das.DASer) error {
-					lifecycleCtx := fxutil.WithLifecycle(ctx, lc)
-					return fraudServ.Lifecycle(startCtx, lifecycleCtx, fraud.BadEncoding, fservice,
+				fx.OnStart(func(startCtx, ctx context.Context, fservice fraudServ.Module, das *das.DASer) error {
+					return fraudServ.Lifecycle(startCtx, ctx, fraud.BadEncoding, fservice,
 						das.Start, das.Stop)
 				}),
 				fx.OnStop(func(ctx context.Context, das *das.DASer) error {
