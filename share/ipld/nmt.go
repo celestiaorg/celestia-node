@@ -17,7 +17,6 @@ import (
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/pkg/da"
-	"github.com/celestiaorg/nmt"
 )
 
 var (
@@ -38,6 +37,12 @@ const (
 
 	// nmtHashSize is the size of a digest created by an NMT in bytes.
 	nmtHashSize = 2*appconsts.NamespaceSize + sha256.Size
+
+	// innerNodeSize is the size of data in inner nodes.
+	innerNodeSize = nmtHashSize * 2
+
+	// leafNodeSize is the size of data in leaf nodes.
+	leafNodeSize = NamespaceSize + appconsts.ShareSize
 
 	// MaxSquareSize is currently the maximum size supported for unerasured data in rsmt2d.ExtendedDataSquare.
 	MaxSquareSize = appconsts.MaxSquareSize
@@ -61,23 +66,8 @@ func GetNode(ctx context.Context, bGetter blockservice.BlockGetter, root cid.Cid
 		return nil, err
 	}
 
-	return decodeBlock(block)
+	return nmtNode{Block: block}, nil
 }
-
-func decodeBlock(block blocks.Block) (ipld.Node, error) {
-	innerNodeSize, leafNodeSize := (nmtHashSize)*2, NamespaceSize+consts.ShareSize
-	switch len(block.RawData()) {
-	default:
-		return nil, fmt.Errorf("ipld: wrong sized data carried in block")
-	case innerNodeSize:
-		return &nmtNode{block}, nil
-	case leafNodeSize:
-		return &nmtLeafNode{nmtNode{block}}, nil
-	}
-}
-
-var _ ipld.Node = (*nmtNode)(nil)
-var _ ipld.Node = (*nmtLeafNode)(nil)
 
 type nmtNode struct {
 	blocks.Block
@@ -86,53 +76,9 @@ type nmtNode struct {
 func newNMTNode(id cid.Cid, data []byte) nmtNode {
 	b, err := blocks.NewBlockWithCid(data, id)
 	if err != nil {
-		panic(fmt.Sprintf("wrong hash for block, cid: %s", id))
+		panic(fmt.Sprintf("wrong hash for block, cid: %s", id.String()))
 	}
-	return nmtNode{b}
-}
-
-func (n nmtNode) Resolve(path []string) (interface{}, []string, error) {
-	switch path[0] {
-	case "0":
-		left, err := CidFromNamespacedSha256(n.left())
-		if err != nil {
-			return nil, nil, err
-		}
-		return &ipld.Link{Cid: left}, path[1:], nil
-	case "1":
-		right, err := CidFromNamespacedSha256(n.right())
-		if err != nil {
-			return nil, nil, err
-		}
-		return &ipld.Link{Cid: right}, path[1:], nil
-	default:
-		return nil, nil, errors.New("invalid path for inner node")
-	}
-}
-
-func (n nmtNode) Tree(path string, depth int) []string {
-	if path != "" || depth != -1 {
-		panic("proper tree not yet implemented")
-	}
-
-	return []string{
-		"0",
-		"1",
-	}
-}
-
-func (n nmtNode) ResolveLink(path []string) (*ipld.Link, []string, error) {
-	obj, rest, err := n.Resolve(path)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	lnk, ok := obj.(*ipld.Link)
-	if !ok {
-		return nil, nil, errors.New("was not a link")
-	}
-
-	return lnk, rest, nil
+	return nmtNode{Block: b}
 }
 
 func (n nmtNode) Copy() ipld.Node {
@@ -142,46 +88,37 @@ func (n nmtNode) Copy() ipld.Node {
 }
 
 func (n nmtNode) Links() []*ipld.Link {
-	leftCid := MustCidFromNamespacedSha256(n.left())
-	rightCid := MustCidFromNamespacedSha256(n.right())
+	switch len(n.RawData()) {
+	default:
+		panic(fmt.Sprintf("unexpected size %v", len(n.RawData())))
+	case innerNodeSize:
+		leftCid := MustCidFromNamespacedSha256(n.RawData()[:nmtHashSize])
+		rightCid := MustCidFromNamespacedSha256(n.RawData()[nmtHashSize:])
 
-	return []*ipld.Link{{Cid: leftCid}, {Cid: rightCid}}
+		return []*ipld.Link{{Cid: leftCid}, {Cid: rightCid}}
+	case leafNodeSize:
+		return nil
+	}
+}
+
+func (n nmtNode) Resolve(path []string) (interface{}, []string, error) {
+	panic("method not implemented")
+}
+
+func (n nmtNode) Tree(path string, depth int) []string {
+	panic("method not implemented")
+}
+
+func (n nmtNode) ResolveLink(path []string) (*ipld.Link, []string, error) {
+	panic("method not implemented")
 }
 
 func (n nmtNode) Stat() (*ipld.NodeStat, error) {
-	return &ipld.NodeStat{}, nil
+	panic("method not implemented")
 }
 
 func (n nmtNode) Size() (uint64, error) {
-	return 0, nil
-}
-
-func (n nmtNode) left() []byte {
-	return n.RawData()[:nmtHashSize]
-}
-
-func (n nmtNode) right() []byte {
-	return n.RawData()[nmtHashSize:]
-}
-
-type nmtLeafNode struct {
-	nmtNode
-}
-
-func newNMTLeafNode(id cid.Cid, data []byte) nmtLeafNode {
-	return nmtLeafNode{newNMTNode(id, data)}
-}
-
-func (l nmtLeafNode) Resolve(path []string) (interface{}, []string, error) {
-	return nil, nil, errors.New("invalid path for leaf node")
-}
-
-func (l nmtLeafNode) Tree(_path string, _depth int) []string {
-	return nil
-}
-
-func (l nmtLeafNode) Links() []*ipld.Link {
-	return nil
+	panic("method not implemented")
 }
 
 // CidFromNamespacedSha256 uses a hash from an nmt tree to create a CID
