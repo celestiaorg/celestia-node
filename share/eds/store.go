@@ -2,9 +2,8 @@ package eds
 
 import (
 	"context"
+	"io"
 	"os"
-
-	"github.com/filecoin-project/dagstore/shard"
 
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/rsmt2d"
@@ -12,6 +11,7 @@ import (
 	"github.com/filecoin-project/dagstore"
 	"github.com/filecoin-project/dagstore/index"
 	"github.com/filecoin-project/dagstore/mount"
+	"github.com/filecoin-project/dagstore/shard"
 	"github.com/ipfs/go-datastore"
 )
 
@@ -93,4 +93,23 @@ func (s *EDSStore) Put(ctx context.Context, root share.Root, square *rsmt2d.Exte
 		return err
 	}
 	return nil
+}
+
+// GetCAR takes a DataRoot and returns a buffered reader to the respective EDS serialized as a CARv1 file.
+//
+// The Reader strictly reads the first quadrant(1/4) of EDS, omitting all the NMT Merkle proofs.
+// Integrity of the store data is not verified.
+//
+// Caller must Close returned reader after reading.
+func (s *EDSStore) GetCAR(ctx context.Context, root share.Root) (io.ReadCloser, error) {
+	key := root.String()
+
+	ch := make(chan dagstore.ShardResult, 1)
+	err := s.dgstr.AcquireShard(ctx, shard.KeyFromString(key), ch, dagstore.AcquireOpts{})
+	if err != nil {
+		return nil, err
+	}
+
+	result := <-ch
+	return result.Accessor, nil
 }
