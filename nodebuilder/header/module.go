@@ -42,12 +42,7 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 		}),
 		fx.Provide(fx.Annotate(
 			newSyncer,
-			fx.OnStart(func(
-				startCtx context.Context,
-				ctx context.Context,
-				fservice fraudServ.Module,
-				syncer *sync.Syncer,
-			) error {
+			fx.OnStart(func(startCtx, ctx context.Context, fservice fraudServ.Module, syncer *sync.Syncer) error {
 				syncerStartFunc := func(ctx context.Context) error {
 					err := syncer.Start(ctx)
 					switch err {
