@@ -162,3 +162,14 @@ func (s *EDSStore) Get(ctx context.Context, root share.Root) (*rsmt2d.ExtendedDa
 	}
 	return ReadEDS(ctx, f, root)
 }
+
+// Has checks if EDS exists by the given share.Root.
+func (s *EDSStore) Has(ctx context.Context, root share.Root) (bool, error) {
+	key := root.String()
+	info, err := s.dgstr.GetShardInfo(shard.KeyFromString(key))
+	if err == dagstore.ErrShardUnknown {
+		return false, err
+	}
+
+	return true, info.Error
+}
