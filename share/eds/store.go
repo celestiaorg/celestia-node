@@ -150,3 +150,15 @@ func (s *EDSStore) Remove(ctx context.Context, root share.Root) error {
 
 	return os.Remove(s.basepath + blocksPath + key)
 }
+
+// Get reads EDS out of Store by given DataRoot.
+//
+// It reads only one quadrant(1/4) of the EDS and verifies the integrity of the stored data by recomputing it.
+func (s *EDSStore) Get(ctx context.Context, root share.Root) (*rsmt2d.ExtendedDataSquare, error) {
+	key := root.String()
+	f, err := os.OpenFile(s.basepath+blocksPath+key, os.O_RDONLY, 0600)
+	if err != nil {
+		return nil, err
+	}
+	return ReadEDS(ctx, f, root)
+}
