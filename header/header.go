@@ -11,8 +11,10 @@ import (
 	logging "github.com/ipfs/go-log/v2"
 
 	bts "github.com/tendermint/tendermint/libs/bytes"
-	"github.com/tendermint/tendermint/pkg/da"
 	core "github.com/tendermint/tendermint/types"
+
+	"github.com/celestiaorg/celestia-app/pkg/da"
+	appshares "github.com/celestiaorg/celestia-app/pkg/shares"
 )
 
 var log = logging.Logger("header")
@@ -47,11 +49,11 @@ func MakeExtendedHeader(
 ) (*ExtendedHeader, error) {
 	var dah DataAvailabilityHeader
 	if len(b.Txs) > 0 {
-		namespacedShares, _, err := b.Data.ComputeShares(b.OriginalSquareSize)
+		shares, err := appshares.Split(b.Data, true)
 		if err != nil {
 			return nil, err
 		}
-		extended, err := share.AddShares(ctx, namespacedShares.RawShares(), bServ)
+		extended, err := share.AddShares(ctx, appshares.ToBytes(shares), bServ)
 		if err != nil {
 			return nil, err
 		}

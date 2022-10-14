@@ -6,7 +6,8 @@ import (
 	"time"
 
 	"github.com/ipfs/go-cid"
-	"github.com/tendermint/tendermint/pkg/da"
+
+	"github.com/celestiaorg/celestia-app/pkg/da"
 
 	"github.com/celestiaorg/celestia-node/share/ipld"
 )

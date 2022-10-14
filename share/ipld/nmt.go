@@ -14,10 +14,10 @@ import (
 	ipld "github.com/ipfs/go-ipld-format"
 	logging "github.com/ipfs/go-log/v2"
 	mh "github.com/multiformats/go-multihash"
-	"github.com/tendermint/tendermint/pkg/consts"
-	"github.com/tendermint/tendermint/pkg/da"
 	"go.opentelemetry.io/otel"
 
+	"github.com/celestiaorg/celestia-app/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/pkg/da"
 	"github.com/celestiaorg/nmt"
 )
 
@@ -38,13 +38,13 @@ const (
 	sha256Namespace8Flagged = 0x7701
 
 	// nmtHashSize is the size of a digest created by an NMT in bytes.
-	nmtHashSize = 2*consts.NamespaceSize + sha256.Size
+	nmtHashSize = 2*appconsts.NamespaceSize + sha256.Size
 
 	// MaxSquareSize is currently the maximum size supported for unerasured data in rsmt2d.ExtendedDataSquare.
-	MaxSquareSize = consts.MaxSquareSize
+	MaxSquareSize = appconsts.MaxSquareSize
 
 	// NamespaceSize is a system-wide size for NMT namespaces.
-	NamespaceSize = consts.NamespaceSize
+	NamespaceSize = appconsts.NamespaceSize
 
 	// cidPrefixSize is the size of the prepended buffer of the CID encoding
 	// for NamespacedSha256. For more information, see:

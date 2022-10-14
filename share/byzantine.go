@@ -5,7 +5,8 @@ import (
 	"fmt"
 
 	"github.com/ipfs/go-blockservice"
-	"github.com/tendermint/tendermint/pkg/da"
+
+	"github.com/celestiaorg/celestia-app/pkg/da"
 
 	"github.com/celestiaorg/celestia-node/share/ipld"
 	"github.com/celestiaorg/rsmt2d"

@@ -15,9 +15,10 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/tendermint/tendermint/libs/rand"
-	"github.com/tendermint/tendermint/pkg/da"
 	core "github.com/tendermint/tendermint/types"
 
+	"github.com/celestiaorg/celestia-app/pkg/da"
+	appshares "github.com/celestiaorg/celestia-app/pkg/shares"
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/share"
 	availability_test "github.com/celestiaorg/celestia-node/share/availability/test"
@@ -285,6 +286,7 @@ func TestSharesRoundTrip(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// prepare data
 			b.Data.Messages.MessagesList = make([]core.Message, len(tc.messages))
+			b.OriginalSquareSize = 16
 			var msgsInNamespace [][]byte
 			require.Equal(t, len(tc.namespaces), len(tc.messages))
 			for i := range tc.messages {
@@ -294,17 +296,22 @@ func TestSharesRoundTrip(t *testing.T) {
 				}
 			}
 
-			namespacedShares, _, _ := b.Data.ComputeShares(uint64(0))
+			// TODO: set useShareIndexes to true. This requires updating the
+			// transaction data in this test to include share indexes.
+			shares, err := appshares.Split(b.Data, false)
+			if err != nil {
+				t.Fatal(err)
+			}
 
 			// test round trip using only encoding, without IPLD
 			{
 				myShares := make([][]byte, 0)
-				for _, sh := range namespacedShares.RawShares() {
+				for _, sh := range shares {
 					if bytes.Equal(namespace, sh[:8]) {
 						myShares = append(myShares, sh)
 					}
 				}
-				msgs, err := core.ParseMsgs(myShares)
+				msgs, err := appshares.ParseMsgs(myShares)
 				require.NoError(t, err)
 				assert.Len(t, msgs.MessagesList, len(msgsInNamespace))
 				for i := range msgs.MessagesList {
@@ -314,7 +321,7 @@ func TestSharesRoundTrip(t *testing.T) {
 
 			// test full round trip - with IPLD + decoding shares
 			{
-				extSquare, err := share.AddShares(ctx, namespacedShares.RawShares(), store)
+				extSquare, err := share.AddShares(ctx, appshares.ToBytes(shares), store)
 				require.NoError(t, err)
 
 				dah := da.NewDataAvailabilityHeader(extSquare)
@@ -322,7 +329,7 @@ func TestSharesRoundTrip(t *testing.T) {
 				require.NoError(t, err)
 				require.NotEmpty(t, shares)
 
-				msgs, err := core.ParseMsgs(shares)
+				msgs, err := appshares.ParseMsgs(shares)
 				require.NoError(t, err)
 				assert.Len(t, msgs.MessagesList, len(msgsInNamespace))
 				for i := range msgs.MessagesList {
