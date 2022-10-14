@@ -5,14 +5,16 @@ import (
 	"io"
 	"os"
 
-	"github.com/celestiaorg/celestia-node/share"
-	"github.com/celestiaorg/rsmt2d"
-
 	"github.com/filecoin-project/dagstore"
 	"github.com/filecoin-project/dagstore/index"
 	"github.com/filecoin-project/dagstore/mount"
 	"github.com/filecoin-project/dagstore/shard"
 	"github.com/ipfs/go-datastore"
+	blockstore "github.com/ipfs/go-ipfs-blockstore"
+
+	"github.com/celestiaorg/celestia-node/share"
+
+	"github.com/celestiaorg/rsmt2d"
 )
 
 const (
@@ -23,6 +25,7 @@ const (
 
 type EDSStore struct { //nolint:revive
 	dgstr  *dagstore.DAGStore
+	bs     blockstore.Blockstore
 	mounts *mount.Registry
 
 	topIdx index.Inverted
@@ -59,13 +62,20 @@ func NewEDSStore(basepath string, ds datastore.Batching) (*EDSStore, error) {
 		return nil, err
 	}
 
-	return &EDSStore{
+	s := &EDSStore{
 		basepath: basepath,
 		dgstr:    dagStore,
 		topIdx:   invertedRepo,
 		carIdx:   fsRepo,
 		mounts:   r,
-	}, nil
+	}
+
+	s.bs, err = NewEDSBlockstore(s)
+	if err != nil {
+		return nil, err
+	}
+
+	return s, nil
 }
 
 // Put stores the given data square with DataRoot's hash as a key.
@@ -112,4 +122,11 @@ func (s *EDSStore) GetCAR(ctx context.Context, root share.Root) (io.ReadCloser, 
 
 	result := <-ch
 	return result.Accessor, nil
+}
+
+// Blockstore returns an IPFS Blockstore providing access to individual shares/nodes of all EDS
+// registered on the Store. NOTE: The Blockstore does not store whole Celestia Blocks but IPFS blocks.
+// We represent `shares` and NMT Merkle proofs as IPFS blocks and IPLD nodes so Bitswap can access those.
+func (s *EDSStore) Blockstore() blockstore.Blockstore {
+	return s.bs
 }
