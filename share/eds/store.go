@@ -35,8 +35,13 @@ type EDSStore struct { //nolint:revive
 }
 
 func NewEDSStore(basepath string, ds datastore.Batching) (*EDSStore, error) {
+	err := setupPath(basepath)
+	if err != nil {
+		return nil, err
+	}
+
 	r := mount.NewRegistry()
-	err := r.Register("fs", &mount.FSMount{FS: os.DirFS(basepath + blocksPath)})
+	err = r.Register("fs", &mount.FSMount{FS: os.DirFS(basepath + blocksPath)})
 
 	if err != nil {
 		return nil, err
@@ -78,11 +83,19 @@ func NewEDSStore(basepath string, ds datastore.Batching) (*EDSStore, error) {
 	return s, nil
 }
 
+func (s *EDSStore) Start(ctx context.Context) error {
+	return s.dgstr.Start(ctx)
+}
+
+func (s *EDSStore) Stop() error {
+	return s.dgstr.Close()
+}
+
 // Put stores the given data square with DataRoot's hash as a key.
 //
 // The square is verified on the Exchange level, and Put only stores the square trusting it.
 // The resulting file stores all the shares and NMT Merkle Proofs of the EDS.
-// Additionally, the file gets indexed s.t. Store.Blockstore can access them.
+// Additionally, the file gets indexed s.t. store.Blockstore can access them.
 func (s *EDSStore) Put(ctx context.Context, root share.Root, square *rsmt2d.ExtendedDataSquare) error {
 	key := root.String()
 	f, err := os.OpenFile(s.basepath+blocksPath+key, os.O_CREATE|os.O_WRONLY, 0600)
@@ -95,13 +108,21 @@ func (s *EDSStore) Put(ctx context.Context, root share.Root, square *rsmt2d.Exte
 		return err
 	}
 
+	ch := make(chan dagstore.ShardResult, 1)
 	err = s.dgstr.RegisterShard(ctx, shard.KeyFromString(key), &mount.FSMount{
 		FS:   os.DirFS(s.basepath + blocksPath),
 		Path: key,
-	}, nil, dagstore.RegisterOpts{})
+	}, ch, dagstore.RegisterOpts{})
+
 	if err != nil {
 		return err
 	}
+
+	result := <-ch
+	if result.Error != nil {
+		return result.Error
+	}
+
 	return nil
 }
 
@@ -148,7 +169,11 @@ func (s *EDSStore) Remove(ctx context.Context, root share.Root) error {
 		return result.Error
 	}
 
-	return os.Remove(s.basepath + blocksPath + key)
+	dropped, err := s.carIdx.DropFullIndex(shard.KeyFromString(key))
+	if !dropped {
+		log.Warnf("failed to drop index for %s", key)
+	}
+	return err
 }
 
 // Get reads EDS out of Store by given DataRoot.
@@ -172,4 +197,16 @@ func (s *EDSStore) Has(ctx context.Context, root share.Root) (bool, error) {
 	}
 
 	return true, info.Error
+}
+
+func setupPath(basepath string) error {
+	err := os.Mkdir(basepath+blocksPath, 0755)
+	if err != nil {
+		return err
+	}
+	err = os.Mkdir(basepath+transientsPath, 0755)
+	if err != nil {
+		return err
+	}
+	return os.Mkdir(basepath+indexPath, 0755)
 }
