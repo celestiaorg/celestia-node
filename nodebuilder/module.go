@@ -5,6 +5,7 @@ import (
 
 	"go.uber.org/fx"
 
+	"github.com/celestiaorg/celestia-node/libs/fxutil"
 	"github.com/celestiaorg/celestia-node/nodebuilder/core"
 	"github.com/celestiaorg/celestia-node/nodebuilder/daser"
 	"github.com/celestiaorg/celestia-node/nodebuilder/fraud"
@@ -21,7 +22,9 @@ func ConstructModule(tp node.Type, cfg *Config, store Store) fx.Option {
 	baseComponents := fx.Options(
 		fx.Provide(params.DefaultNetwork),
 		fx.Provide(params.BootstrappersFor),
-		fx.Provide(context.Background),
+		fx.Provide(func(lc fx.Lifecycle) context.Context {
+			return fxutil.WithLifecycle(context.Background(), lc)
+		}),
 		fx.Supply(cfg),
 		fx.Supply(store.Config),
 		fx.Provide(store.Datastore),

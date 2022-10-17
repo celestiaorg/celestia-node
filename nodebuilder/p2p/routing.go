@@ -11,7 +11,6 @@ import (
 	dht "github.com/libp2p/go-libp2p-kad-dht"
 	"go.uber.org/fx"
 
-	"github.com/celestiaorg/celestia-node/libs/fxutil"
 	nparams "github.com/celestiaorg/celestia-node/params"
 )
 
@@ -42,7 +41,7 @@ func PeerRouting(cfg Config, params routingParams) (routing.PeerRouting, error) 
 		)
 	}
 
-	d, err := dht.New(fxutil.WithLifecycle(params.Ctx, params.Lc), params.Host, opts...)
+	d, err := dht.New(params.Ctx, params.Host, opts...)
 	if err != nil {
 		return nil, err
 	}

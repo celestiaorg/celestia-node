@@ -98,7 +98,8 @@ func (ca *CoreAccessor) Start(ctx context.Context) error {
 func (ca *CoreAccessor) Stop(context.Context) error {
 	defer ca.cancel()
 	if ca.coreConn == nil {
-		return fmt.Errorf("core-access: no connection found to close")
+		log.Warn("no connection found to close")
+		return nil
 	}
 	// close out core connection
 	err := ca.coreConn.Close()
