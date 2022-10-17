@@ -9,19 +9,19 @@ import (
 	blockstore "github.com/ipfs/go-ipfs-blockstore"
 	carv1 "github.com/ipld/go-car"
 	"github.com/stretchr/testify/require"
-	"github.com/tendermint/tendermint/pkg/consts"
+
+	"github.com/celestiaorg/celestia-app/pkg/appconsts"
+	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/ipld"
-
-	"github.com/celestiaorg/rsmt2d"
 )
 
 func TestQuadrantOrder(t *testing.T) {
 	// TODO: add more test cases
 	nID := []byte{0, 0, 0, 0, 0, 0, 0, 0}
-	parity := append(consts.ParitySharesNamespaceID, nID...) //nolint
-	doubleNID := append(nID, nID...)                         //nolint
+	parity := append(appconsts.ParitySharesNamespaceID, nID...) //nolint
+	doubleNID := append(nID, nID...)                            //nolint
 	result, _ := rsmt2d.ComputeExtendedDataSquare([][]byte{
 		append(nID, 1), append(nID, 2),
 		append(nID, 3), append(nID, 4),

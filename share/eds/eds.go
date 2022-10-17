@@ -6,8 +6,6 @@ import (
 	"io"
 	"math"
 
-	"github.com/tendermint/tendermint/pkg/consts"
-
 	"github.com/ipfs/go-blockservice"
 	"github.com/ipfs/go-cid"
 	ds "github.com/ipfs/go-datastore"
@@ -16,7 +14,9 @@ import (
 	format "github.com/ipfs/go-ipld-format"
 	"github.com/ipld/go-car"
 	"github.com/ipld/go-car/util"
-	"github.com/tendermint/tendermint/pkg/wrapper"
+
+	"github.com/celestiaorg/celestia-app/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/pkg/wrapper"
 
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/ipld"
@@ -193,7 +193,7 @@ func prependNamespace(quadrant int, share []byte) []byte {
 	case 0:
 		return append(share[:8], share...)
 	case 1, 2, 3:
-		return append(consts.ParitySharesNamespaceID, share...)
+		return append(appconsts.ParitySharesNamespaceID, share...)
 	default:
 		panic("invalid quadrant")
 	}
