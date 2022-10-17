@@ -59,7 +59,7 @@ func (n *NmtNodeAdder) VisitInnerNodes(hash []byte, children ...[]byte) {
 	case 1:
 		break
 	case 2:
-		n.err = n.add.Add(n.ctx, NewNMTNode(id, children[0], children[1]))
+		n.err = n.add.Add(n.ctx, newNMTNode(id, append(children[0], children[1]...)))
 	default:
 		panic("expected a binary tree")
 	}
