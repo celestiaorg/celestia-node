@@ -8,8 +8,6 @@ import (
 	pubsub_pb "github.com/libp2p/go-libp2p-pubsub/pb"
 	"go.uber.org/fx"
 	"golang.org/x/crypto/blake2b"
-
-	"github.com/celestiaorg/celestia-node/libs/fxutil"
 )
 
 // PubSub provides a constructor for PubSub protocol with GossipSub routing.
@@ -34,7 +32,7 @@ func PubSub(cfg Config, params pubSubParams) (*pubsub.PubSub, error) {
 	}
 
 	return pubsub.NewGossipSub(
-		fxutil.WithLifecycle(params.Ctx, params.Lc),
+		params.Ctx,
 		params.Host,
 		opts...,
 	)
@@ -49,6 +47,5 @@ type pubSubParams struct {
 	fx.In
 
 	Ctx  context.Context
-	Lc   fx.Lifecycle
 	Host host.Host
 }

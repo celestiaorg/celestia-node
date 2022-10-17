@@ -14,7 +14,6 @@ import (
 	routinghelpers "github.com/libp2p/go-libp2p-routing-helpers"
 	"go.uber.org/fx"
 
-	"github.com/celestiaorg/celestia-node/libs/fxutil"
 	nparams "github.com/celestiaorg/celestia-node/params"
 )
 
@@ -29,9 +28,8 @@ const (
 
 // DataExchange provides a constructor for IPFS block's DataExchange over BitSwap.
 func DataExchange(params bitSwapParams) (exchange.Interface, blockstore.Blockstore, error) {
-	ctx := fxutil.WithLifecycle(params.Ctx, params.Lc)
 	bs, err := blockstore.CachedBlockstore(
-		ctx,
+		params.Ctx,
 		blockstore.NewBlockstore(params.Ds),
 		blockstore.CacheOpts{
 			HasBloomFilterSize:   defaultBloomFilterSize,
@@ -44,7 +42,7 @@ func DataExchange(params bitSwapParams) (exchange.Interface, blockstore.Blocksto
 	}
 	prefix := protocol.ID(fmt.Sprintf("/celestia/%s", params.Net))
 	return bitswap.New(
-		ctx,
+		params.Ctx,
 		network.NewFromIpfsHost(params.Host, &routinghelpers.Null{}, network.Prefix(prefix)),
 		bs,
 		bitswap.ProvideEnabled(false),
@@ -60,7 +58,6 @@ type bitSwapParams struct {
 
 	Ctx  context.Context
 	Net  nparams.Network
-	Lc   fx.Lifecycle
 	Host host.Host
 	Ds   datastore.Batching
 }
