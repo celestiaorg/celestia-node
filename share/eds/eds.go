@@ -144,7 +144,7 @@ func (w *writingSession) writeProofs(ctx context.Context) error {
 			return fmt.Errorf("failure to get proof from the blockstore: %w", err)
 		}
 		// we chop off the first byte, as it is an unnecessary type byte.
-		cid, err := ipld.CidFromNamespacedSha256(nmt.Sha256Namespace8FlaggedInner(node.RawData()[1:]))
+		cid, err := ipld.CidFromNamespacedSha256(nmt.Sha256Namespace8FlaggedInner(node.RawData()))
 		if err != nil {
 			return fmt.Errorf("failure to get cid: %w", err)
 		}
