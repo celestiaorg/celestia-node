@@ -8,7 +8,7 @@ require (
 	cosmossdk.io/math v1.0.0-beta.3
 	github.com/99designs/keyring v1.2.1 // indirect
 	github.com/BurntSushi/toml v1.2.0
-	github.com/celestiaorg/celestia-app v0.7.0
+	github.com/celestiaorg/celestia-app v0.8.0
 	github.com/celestiaorg/go-libp2p-messenger v0.1.0
 	github.com/celestiaorg/nmt v0.10.0
 	github.com/celestiaorg/rsmt2d v0.6.0

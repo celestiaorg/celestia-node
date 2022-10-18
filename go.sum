@@ -204,8 +204,8 @@ github.com/buger/jsonparser v0.0.0-20181115193947-bf1c66bbce23/go.mod h1:bbYlZJ7
 github.com/bwesterb/go-ristretto v1.2.0/go.mod h1:fUIoIZaG73pV5biE2Blr2xEzDoMj7NFEuV9ekS419A0=
 github.com/c-bata/go-prompt v0.2.2/go.mod h1:VzqtzE2ksDBcdln8G7mk2RX9QyGjH+OVqOCSiVIqS34=
 github.com/casbin/casbin/v2 v2.1.2/go.mod h1:YcPU1XXisHhLzuxH9coDNf2FbKpjGlbCg3n9yuLkIJQ=
-github.com/celestiaorg/celestia-app v0.7.0 h1:+x/5FWg5yQazJ5qsWomtzzHbp4HuIHNUEm6gha0alAw=
-github.com/celestiaorg/celestia-app v0.7.0/go.mod h1:LitlWqDQLq8z8UatKsa2BZbXlQ/dtOW887yf6m6lmVQ=
+github.com/celestiaorg/celestia-app v0.8.0 h1:qhOyngszjz7LkjBAJV1WNcwo0K/wjh/vwCAzGYMKLx0=
+github.com/celestiaorg/celestia-app v0.8.0/go.mod h1:LitlWqDQLq8z8UatKsa2BZbXlQ/dtOW887yf6m6lmVQ=
 github.com/celestiaorg/celestia-core v1.5.0-tm-v0.34.20 h1:BqlcOQqL2UqdDTcdCtrOLXDlmwxIA8DiKiY79oahxkQ=
 github.com/celestiaorg/celestia-core v1.5.0-tm-v0.34.20/go.mod h1:f4R8qNJrP1CDH0SNwj4jA3NymBLQM4lNdx6Ijmfllbw=
 github.com/celestiaorg/cosmos-sdk v1.3.0-sdk-v0.46.0 h1:VbIMBHFhaFgjHBccQ+Kyfz4tyzpaxVkad3Vei9O4KL4=
