@@ -32,7 +32,7 @@ var blackholeIP6 = net.ParseIP("100::")
 
 // DefaultTestTimeout should be used as the default timout on all the Swamp tests.
 // It's generously set to 5 minutes to give enough time for CI.
-const DefaultTestTimeout = time.Minute * 5
+const DefaultTestTimeout = time.Minute * 10
 
 // Swamp represents the main functionality that is needed for the test-case:
 // - Network to link the nodes

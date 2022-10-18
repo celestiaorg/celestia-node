@@ -31,7 +31,8 @@ Steps:
 Note: 15 is not available because DASer will be stopped before reaching this height due to receiving a fraud proof.
 */
 func TestFraudProofBroadcasting(t *testing.T) {
-	sw := swamp.NewSwamp(t, swamp.WithBlockTime(time.Millisecond*100))
+	testTimeout := time.Millisecond * 200
+	sw := swamp.NewSwamp(t, swamp.WithBlockTime(testTimeout))
 
 	bridge := sw.NewBridgeNode(core.WithHeaderConstructFn(header.FraudMaker(t, 20)))
 
@@ -64,7 +65,7 @@ func TestFraudProofBroadcasting(t *testing.T) {
 	// If we cannot get a height header within a timeframe it means the syncer was stopped
 	// FIXME: Eventually, this should be a check on service registry managing and keeping
 	//  lifecycles of each Module.
-	syncCtx, syncCancel := context.WithTimeout(context.Background(), time.Millisecond*100)
+	syncCtx, syncCancel := context.WithTimeout(context.Background(), testTimeout)
 	_, err = full.HeaderServ.GetByHeight(syncCtx, 100)
 	require.ErrorIs(t, err, context.DeadlineExceeded)
 	syncCancel()

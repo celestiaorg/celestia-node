@@ -20,7 +20,7 @@ type Components struct {
 // In addition, the empty block interval is set to 50ms
 func DefaultComponents() *Components {
 	tnCfg := tn.TestConfig()
-	tnCfg.Consensus.TimeoutCommit = 50 * time.Millisecond
+	tnCfg.Consensus.TimeoutCommit = 100 * time.Millisecond
 	return &Components{
 		CoreCfg:         tnCfg,
 		ConsensusParams: testnode.DefaultParams(),
