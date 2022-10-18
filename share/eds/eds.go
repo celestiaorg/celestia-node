@@ -2,6 +2,7 @@ package eds
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"math"
@@ -24,6 +25,8 @@ import (
 	"github.com/celestiaorg/rsmt2d"
 )
 
+var ErrEmptySquare = errors.New("share: importing empty data")
+
 // writingSession contains the components needed to write an EDS to a CARv1 file with our custom node order.
 type writingSession struct {
 	eds *rsmt2d.ExtendedDataSquare
@@ -34,7 +37,8 @@ type writingSession struct {
 
 // WriteEDS writes the entire EDS into the given io.Writer as CARv1 file.
 // This includes all shares in quadrant order, followed by all inner nodes of the NMT tree.
-// Order: Carv1Header - Q1 - Q2 - Q3 - Q4 - InnerNodes
+// Order: [ Carv1Header | Q1 |  Q2 | Q3 | Q4 | inner nodes ]
+// For more information about the header: https://ipld.io/specs/transport/car/carv1/#header
 func WriteEDS(ctx context.Context, eds *rsmt2d.ExtendedDataSquare, w io.Writer) error {
 	// 1. Reimport EDS. This is needed to traverse the NMT tree and cache the inner nodes (proofs)
 	writer, err := initializeWriter(ctx, eds, w)
@@ -49,7 +53,7 @@ func WriteEDS(ctx context.Context, eds *rsmt2d.ExtendedDataSquare, w io.Writer) 
 		return fmt.Errorf("share: failure writing carv1 header: %w", err)
 	}
 
-	// 3. Iterates over shares in quadrant order vis eds.GetCell
+	// 3. Iterates over shares in quadrant order via eds.GetCell
 	err = writer.writeQuadrants()
 	if err != nil {
 		return fmt.Errorf("share: failure writing shares: %w", err)
@@ -60,7 +64,6 @@ func WriteEDS(ctx context.Context, eds *rsmt2d.ExtendedDataSquare, w io.Writer) 
 	if err != nil {
 		return fmt.Errorf("share: failure writing proofs: %w", err)
 	}
-
 	return nil
 }
 
@@ -71,14 +74,15 @@ func initializeWriter(ctx context.Context, eds *rsmt2d.ExtendedDataSquare, w io.
 	bs := blockservice.New(store, nil)
 	// shares are extracted from the eds so that we can reimport them to traverse
 	shares := share.ExtractEDS(eds)
-	if len(shares) == 0 {
-		return nil, fmt.Errorf("share: importing empty data")
+	shareCount := len(shares)
+	if shareCount == 0 {
+		return nil, ErrEmptySquare
 	}
-	// todo: add correct batch size here
-	squareSize := int(math.Sqrt(float64(len(shares))))
-	batchAdder := ipld.NewNmtNodeAdder(ctx, bs, format.MaxSizeBatchOption(squareSize/2))
+	odsWidth := int(math.Sqrt(float64(shareCount)) / 2)
+	// (shareCount*2) - (odsWidth*4) is the amount of inner nodes visited
+	batchAdder := ipld.NewNmtNodeAdder(ctx, bs, format.MaxSizeBatchOption(innerNodeBatchSize(shareCount, odsWidth)))
 	// this adder ignores leaves, so that they are not added to the store we iterate through in writeProofs
-	tree := wrapper.NewErasuredNamespacedMerkleTree(uint64(squareSize/2), nmt.NodeVisitor(batchAdder.VisitInnerNodes))
+	tree := wrapper.NewErasuredNamespacedMerkleTree(uint64(odsWidth), nmt.NodeVisitor(batchAdder.VisitInnerNodes))
 	eds, err := rsmt2d.ImportExtendedDataSquare(shares, share.DefaultRSMT2DCodec(), tree.Constructor)
 	if err != nil {
 		return nil, fmt.Errorf("failure to recompute the extended data square: %w", err)
@@ -105,14 +109,10 @@ func (w *writingSession) writeHeader() error {
 		return fmt.Errorf("failure getting root cids: %w", err)
 	}
 
-	err = car.WriteHeader(&car.CarHeader{
+	return car.WriteHeader(&car.CarHeader{
 		Roots:   rootCids,
 		Version: 1,
 	}, w.w)
-	if err != nil {
-		return fmt.Errorf("failure writing carv1 header: %w", err)
-	}
-	return nil
 }
 
 // writeQuadrants reorders the shares to quadrant order and writes them to the CARv1 file.
@@ -143,7 +143,6 @@ func (w *writingSession) writeProofs(ctx context.Context) error {
 		if err != nil {
 			return fmt.Errorf("failure to get proof from the blockstore: %w", err)
 		}
-		// we chop off the first byte, as it is an unnecessary type byte.
 		cid, err := ipld.CidFromNamespacedSha256(nmt.Sha256Namespace8FlaggedInner(node.RawData()))
 		if err != nil {
 			return fmt.Errorf("failure to get cid: %w", err)
@@ -156,7 +155,9 @@ func (w *writingSession) writeProofs(ctx context.Context) error {
 	return nil
 }
 
-// quadrantOrder reorders the shares in the EDS to quadrant row-by-row order, adding the wrapped namespace
+// quadrantOrder reorders the shares in the EDS to quadrant row-by-row order, prepending the respective namespace
+// to the shares.
+// e.g. [ Q1 R1 | Q1 R2 | Q1 R3 | Q1 R4 | Q2 R1 | Q2 R2 .... ]
 func quadrantOrder(eds *rsmt2d.ExtendedDataSquare) [][]byte {
 	size := eds.Width() * eds.Width()
 	shares := make([][]byte, size)
@@ -211,4 +212,10 @@ func rootsToCids(eds *rsmt2d.ExtendedDataSquare) ([]cid.Cid, error) {
 		}
 	}
 	return rootCids, nil
+}
+
+// innerNodeBatchSize calculates the total number of inner nodes in an EDS,
+// to be flushed to the dagstore in a single write.
+func innerNodeBatchSize(shareCount int, odsWidth int) int {
+	return (shareCount * 2) - (odsWidth * 4)
 }
