@@ -222,7 +222,7 @@ func rootsToCids(eds *rsmt2d.ExtendedDataSquare) ([]cid.Cid, error) {
 func ReadEDS(ctx context.Context, r io.Reader, root share.Root) (*rsmt2d.ExtendedDataSquare, error) {
 	carReader, err := car.NewCarReader(r)
 	if err != nil {
-		return nil, fmt.Errorf("failure to read car file: %w", err)
+		return nil, fmt.Errorf("share: failure to read car file: %w", err)
 	}
 
 	odsWidth := len(root.RowsRoots) / 2
@@ -233,7 +233,7 @@ func ReadEDS(ctx context.Context, r io.Reader, root share.Root) (*rsmt2d.Extende
 	for i := 0; i < odsSquareSize; i++ {
 		block, err := carReader.Next()
 		if err != nil {
-			return nil, fmt.Errorf("failure to read next car entry: %w", err)
+			return nil, fmt.Errorf("share: failure to read next car entry: %w", err)
 		}
 		// the stored first quadrant shares are wrapped with the namespace twice.
 		// we cut it off here, because it is added again while importing to the tree below
@@ -243,12 +243,12 @@ func ReadEDS(ctx context.Context, r io.Reader, root share.Root) (*rsmt2d.Extende
 	tree := wrapper.NewErasuredNamespacedMerkleTree(uint64(odsWidth))
 	eds, err := rsmt2d.ComputeExtendedDataSquare(shares, share.DefaultRSMT2DCodec(), tree.Constructor)
 	if err != nil {
-		return nil, fmt.Errorf("failure to compute eds: %w", err)
+		return nil, fmt.Errorf("share: failure to compute eds: %w", err)
 	}
 
 	newDah := da.NewDataAvailabilityHeader(eds)
 	if !bytes.Equal(newDah.Hash(), root.Hash()) {
-		return nil, fmt.Errorf("content integrity mismatch: imported root doesn't match expected root")
+		return nil, fmt.Errorf("share: content integrity mismatch: imported root doesn't match expected root")
 	}
 	return eds, err
 }
