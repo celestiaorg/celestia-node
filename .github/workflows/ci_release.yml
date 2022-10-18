@@ -3,6 +3,9 @@ on:
   push:
     branches:
       - main
+    # Trigger on version tags
+    tags:
+      - "v*"
   pull_request:
   workflow_dispatch:
     # Inputs the workflow accepts.
