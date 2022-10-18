@@ -49,27 +49,9 @@ var lightCmd = &cobra.Command{
 	Args:  cobra.NoArgs,
 	Short: "Manage your Light node",
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-		var (
-			ctx = cmd.Context()
-			err error
-		)
+		ctx := cmdnode.WithNodeType(cmd.Context(), node.Light)
 
-		ctx = cmdnode.WithNodeType(ctx, node.Light)
-
-		// loads existing config into the environment
-		ctx, err = cmdnode.ParseNodeFlags(ctx, cmd)
-		if err != nil {
-			return err
-		}
-
-		cfg := cmdnode.NodeConfig(ctx)
-
-		err = p2p.ParseFlags(cmd, &cfg.P2P)
-		if err != nil {
-			return err
-		}
-
-		err = core.ParseFlags(cmd, &cfg.Core)
+		ctx, cfg, err := parseBaseFlags(ctx, cmd)
 		if err != nil {
 			return err
 		}
@@ -79,15 +61,8 @@ var lightCmd = &cobra.Command{
 			return err
 		}
 
-		ctx, err = cmdnode.ParseMiscFlags(ctx, cmd)
-		if err != nil {
-			return err
-		}
-		rpc.ParseFlags(cmd, &cfg.RPC)
-		state.ParseFlags(cmd, &cfg.State)
-
 		// set config
-		ctx = cmdnode.WithNodeConfig(ctx, &cfg)
+		ctx = cmdnode.WithNodeConfig(ctx, cfg)
 		cmd.SetContext(ctx)
 		return nil
 	},
