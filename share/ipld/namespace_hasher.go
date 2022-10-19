@@ -28,7 +28,7 @@ type namespaceHasher struct {
 
 // defaultHasher constructs the namespaceHasher with default configuration
 func defaultHasher() *namespaceHasher {
-	return &namespaceHasher{Hasher: nmt.NewNmtHasher(sha256.New(), nmt.DefaultNamespaceIDLen, true)}
+	return &namespaceHasher{Hasher: nmt.NewNmtHasher(sha256.New(), NamespaceSize, true)}
 }
 
 // Write writes the namespaced data to be hashed.
