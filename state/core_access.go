@@ -2,6 +2,7 @@ package state
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -25,7 +26,10 @@ import (
 	"github.com/celestiaorg/celestia-node/header"
 )
 
-var log = logging.Logger("state")
+var (
+	log              = logging.Logger("state")
+	ErrInvalidAmount = errors.New("state: amount must be greater than zero")
+)
 
 // CoreAccessor implements service over a gRPC connection
 // with a celestia-core node.
@@ -238,6 +242,10 @@ func (ca *CoreAccessor) Transfer(
 	amount Int,
 	gasLim uint64,
 ) (*TxResponse, error) {
+	if amount.IsNil() || amount.Int64() <= 0 {
+		return nil, ErrInvalidAmount
+	}
+
 	from, err := ca.signer.GetSignerInfo().GetAddress()
 	if err != nil {
 		return nil, err
@@ -258,6 +266,10 @@ func (ca *CoreAccessor) CancelUnbondingDelegation(
 	height Int,
 	gasLim uint64,
 ) (*TxResponse, error) {
+	if amount.IsNil() || amount.Int64() <= 0 {
+		return nil, ErrInvalidAmount
+	}
+
 	from, err := ca.signer.GetSignerInfo().GetAddress()
 	if err != nil {
 		return nil, err
@@ -278,6 +290,10 @@ func (ca *CoreAccessor) BeginRedelegate(
 	amount Int,
 	gasLim uint64,
 ) (*TxResponse, error) {
+	if amount.IsNil() || amount.Int64() <= 0 {
+		return nil, ErrInvalidAmount
+	}
+
 	from, err := ca.signer.GetSignerInfo().GetAddress()
 	if err != nil {
 		return nil, err
@@ -297,6 +313,10 @@ func (ca *CoreAccessor) Undelegate(
 	amount Int,
 	gasLim uint64,
 ) (*TxResponse, error) {
+	if amount.IsNil() || amount.Int64() <= 0 {
+		return nil, ErrInvalidAmount
+	}
+
 	from, err := ca.signer.GetSignerInfo().GetAddress()
 	if err != nil {
 		return nil, err
@@ -316,6 +336,10 @@ func (ca *CoreAccessor) Delegate(
 	amount Int,
 	gasLim uint64,
 ) (*TxResponse, error) {
+	if amount.IsNil() || amount.Int64() <= 0 {
+		return nil, ErrInvalidAmount
+	}
+
 	from, err := ca.signer.GetSignerInfo().GetAddress()
 	if err != nil {
 		return nil, err
