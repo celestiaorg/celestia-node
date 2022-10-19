@@ -2,6 +2,7 @@ package eds
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"os"
 
@@ -37,23 +38,21 @@ type EDSStore struct { //nolint:revive
 func NewEDSStore(basepath string, ds datastore.Batching) (*EDSStore, error) {
 	err := setupPath(basepath)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to setup EDSStore directories: %w", err)
 	}
 
 	r := mount.NewRegistry()
 	err = r.Register("fs", &mount.FSMount{FS: os.DirFS(basepath + blocksPath)})
-
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to register FS mount on the registry: %w", err)
 	}
 
 	fsRepo, err := index.NewFSRepo(basepath + indexPath)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to create index repository: %w", err)
 	}
 
 	invertedRepo := index.NewInverted(ds)
-
 	dagStore, err := dagstore.NewDAGStore(
 		dagstore.Config{
 			TransientsDir: basepath + transientsPath,
@@ -64,7 +63,7 @@ func NewEDSStore(basepath string, ds datastore.Batching) (*EDSStore, error) {
 		},
 	)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to create DAGStore: %w", err)
 	}
 
 	s := &EDSStore{
@@ -77,7 +76,7 @@ func NewEDSStore(basepath string, ds datastore.Batching) (*EDSStore, error) {
 
 	s.bs, err = NewEDSBlockstore(s)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to create EDSBlockstore: %w", err)
 	}
 
 	return s, nil

@@ -31,6 +31,7 @@ type accessorWithBlockstore struct {
 // The lru cache approach is heavily inspired by the open PR filecoin-project/dagstore/116.
 // The main differences to the implementation here are that we do not support multiple shards per key,
 // call GetSize directly on the underlying RO blockstore, and do not throw errors on Put/PutMany.
+// Also, we do not abstract away the blockstore operations.
 type Blockstore struct {
 	store *EDSStore
 
