@@ -43,6 +43,7 @@ func (n *namespaceHasher) Write(data []byte) (int, error) {
 	ln := len(data)
 	switch ln {
 	default:
+		log.Warnf("ipld: unexpected data size: %d", ln)
 		return 0, fmt.Errorf("ipld: wrong sized data written to the hasher, len: %v", ln)
 	case innerNodeSize:
 		n.tp = nmt.NodePrefix
@@ -57,6 +58,11 @@ func (n *namespaceHasher) Write(data []byte) (int, error) {
 // Sum computes the hash.
 // Does not append the given suffix and violating the interface.
 func (n *namespaceHasher) Sum([]byte) []byte {
+	// if n.data is empty, it hit the default case in Write
+	if len(n.data) == 0 {
+		return nil
+	}
+
 	isLeafData := n.tp == nmt.LeafPrefix
 	if isLeafData {
 		return n.Hasher.HashLeaf(n.data)
