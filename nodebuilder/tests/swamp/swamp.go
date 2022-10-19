@@ -67,8 +67,8 @@ func NewSwamp(t *testing.T, options ...Option) *Swamp {
 	ctx := context.Background()
 
 	// we create an arbitrary number of funded accounts
-	accounts := make([]string, 100)
-	for i := 0; i < 100; i++ {
+	accounts := make([]string, 10)
+	for i := range accounts {
 		accounts[i] = tmrand.Str(9)
 	}
 
