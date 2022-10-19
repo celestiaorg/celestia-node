@@ -7,7 +7,6 @@ import (
 	"github.com/minio/sha256-simd"
 	mhcore "github.com/multiformats/go-multihash/core"
 
-	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/nmt"
 )
 
@@ -41,8 +40,7 @@ func (n *namespaceHasher) Write(data []byte) (int, error) {
 		return 0, fmt.Errorf("ipld: only one write to hasher is allowed")
 	}
 
-	ln, nln, hln := len(data), int(n.NamespaceLen), n.Hash.Size()
-	innerNodeSize, leafNodeSize := (nln*2+hln)*2, nln+appconsts.ShareSize
+	ln := len(data)
 	switch ln {
 	default:
 		return 0, fmt.Errorf("ipld: wrong sized data written to the hasher, len: %v", ln)
