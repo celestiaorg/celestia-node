@@ -73,10 +73,11 @@ func NewCoreAccessor(
 }
 
 func (ca *CoreAccessor) Start(ctx context.Context) error {
-	ca.ctx, ca.cancel = context.WithCancel(ctx)
 	if ca.coreConn != nil {
 		return fmt.Errorf("core-access: already connected to core endpoint")
 	}
+	ca.ctx, ca.cancel = context.WithCancel(context.Background())
+
 	// dial given celestia-core endpoint
 	endpoint := fmt.Sprintf("%s:%s", ca.coreIP, ca.grpcPort)
 	client, err := grpc.DialContext(ctx, endpoint, grpc.WithTransportCredentials(insecure.NewCredentials()))
@@ -100,16 +101,25 @@ func (ca *CoreAccessor) Start(ctx context.Context) error {
 }
 
 func (ca *CoreAccessor) Stop(context.Context) error {
-	defer ca.cancel()
+	if ca.cancel == nil {
+		log.Warn("core accessor already stopped")
+		return nil
+	}
 	if ca.coreConn == nil {
 		log.Warn("no connection found to close")
 		return nil
 	}
+	defer func() {
+		ca.cancel()
+		ca.cancel = nil
+	}()
+
 	// close out core connection
 	err := ca.coreConn.Close()
 	if err != nil {
 		return err
 	}
+
 	ca.coreConn = nil
 	ca.queryCli = nil
 	return nil
