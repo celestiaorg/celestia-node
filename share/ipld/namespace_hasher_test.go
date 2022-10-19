@@ -56,3 +56,43 @@ func TestNamespaceHasherWrite(t *testing.T) {
 		assert.Equal(t, 0, n)
 	})
 }
+
+func TestNamespaceHasherSum(t *testing.T) {
+	leafSize := appconsts.ShareSize + appconsts.NamespaceSize
+	innerSize := nmtHashSize * 2
+	tt := []struct {
+		name         string
+		expectedSize int
+		writtenSize  int
+	}{
+		{
+			"Leaf",
+			nmtHashSize,
+			leafSize,
+		},
+		{
+			"Inner",
+			nmtHashSize,
+			innerSize,
+		},
+		{
+			"ShortGarbage",
+			0,
+			13,
+		},
+		{
+			"LongGarbage",
+			0,
+			500,
+		},
+	}
+
+	for _, ts := range tt {
+		t.Run("Success"+ts.name, func(t *testing.T) {
+			h := defaultHasher()
+			_, _ = h.Write(make([]byte, ts.writtenSize))
+			sum := h.Sum(nil)
+			assert.Equal(t, len(sum), ts.expectedSize)
+		})
+	}
+}
