@@ -109,10 +109,7 @@ func (ca *CoreAccessor) Stop(context.Context) error {
 		log.Warn("no connection found to close")
 		return nil
 	}
-	defer func() {
-		ca.cancel()
-		ca.cancel = nil
-	}()
+	defer ca.cancelCtx()
 
 	// close out core connection
 	err := ca.coreConn.Close()
@@ -123,6 +120,11 @@ func (ca *CoreAccessor) Stop(context.Context) error {
 	ca.coreConn = nil
 	ca.queryCli = nil
 	return nil
+}
+
+func (ca *CoreAccessor) cancelCtx() {
+	ca.cancel()
+	ca.cancel = nil
 }
 
 func (ca *CoreAccessor) constructSignedTx(
