@@ -51,7 +51,7 @@ func (n *namespaceHasher) Write(data []byte) (int, error) {
 	}
 
 	n.data = data
-	return len(n.data), nil
+	return ln, nil
 }
 
 // Sum computes the hash.
