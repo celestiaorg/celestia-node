@@ -43,7 +43,7 @@ func (n *namespaceHasher) Write(data []byte) (int, error) {
 	ln := len(data)
 	switch ln {
 	default:
-		log.Warnf("ipld: unexpected data size: %d", ln)
+		log.Warnf("unexpected data size: %d", ln)
 		return 0, fmt.Errorf("ipld: wrong sized data written to the hasher, len: %v", ln)
 	case innerNodeSize:
 		n.tp = nmt.NodePrefix
