@@ -172,12 +172,13 @@ func TestReadEDSContentIntegrityMismatch(t *testing.T) {
 	defer f.Close()
 
 	_, err := ReadEDS(context.Background(), f, dah)
-	require.Error(t, err)
+	require.ErrorContains(t, err, "share: content integrity mismatch: imported root")
 }
 
 func writeRandomEDS(t *testing.T) *rsmt2d.ExtendedDataSquare {
 	t.Helper()
 	ctx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(cancel)
 	tmpDir := t.TempDir()
 	err := os.Chdir(tmpDir)
 	require.NoError(t, err, "error changing to the temporary test directory")
@@ -187,7 +188,6 @@ func writeRandomEDS(t *testing.T) *rsmt2d.ExtendedDataSquare {
 	eds := share.RandEDS(t, 4)
 	err = WriteEDS(ctx, eds, f)
 	require.NoError(t, err, "error writing EDS to file")
-	t.Cleanup(cancel)
 	f.Close()
 	return eds
 }
