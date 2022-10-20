@@ -49,6 +49,8 @@ type CoreAccessor struct {
 	rpcPort  string
 	grpcPort string
 
+	readOnly bool // indicates whether `CoreAccessor` has restricted write access
+
 	lastPayForData  int64
 	payForDataCount int64
 }
@@ -69,6 +71,7 @@ func NewCoreAccessor(
 		coreIP:   coreIP,
 		rpcPort:  rpcPort,
 		grpcPort: grpcPort,
+		readOnly: false,
 	}
 }
 
@@ -101,13 +104,8 @@ func (ca *CoreAccessor) Start(ctx context.Context) error {
 }
 
 func (ca *CoreAccessor) Stop(context.Context) error {
-	if ca.cancel == nil {
-		log.Warn("core accessor already stopped")
-		return nil
-	}
-	if ca.coreConn == nil {
-		log.Warn("no connection found to close")
-		return nil
+	if ca.cancel == nil || ca.coreConn == nil {
+		return fmt.Errorf("core accessor already stopped")
 	}
 	defer ca.cancelCtx()
 
@@ -125,6 +123,14 @@ func (ca *CoreAccessor) Stop(context.Context) error {
 func (ca *CoreAccessor) cancelCtx() {
 	ca.cancel()
 	ca.cancel = nil
+}
+
+// RestrictWrites restricts write access to Celestia's state, meaning any
+// state-modifying methods (e.g. Transfer) will be restricted and only reads
+// will be allowed.
+func (ca *CoreAccessor) RestrictWrites(context.Context) error {
+	ca.readOnly = true
+	return nil
 }
 
 func (ca *CoreAccessor) constructSignedTx(
@@ -412,6 +418,14 @@ func (ca *CoreAccessor) QueryRedelegations(
 	})
 }
 
+// ReadOnly indicates whether access to state-changing methods has been
+// restricted.
+func (ca *CoreAccessor) ReadOnly() bool {
+	return ca.readOnly
+}
+
+// IsStopped indicates whether the connection to the CoreAccessor's
+// core endpoint has been closed.
 func (ca *CoreAccessor) IsStopped() bool {
 	return ca.ctx.Err() != nil
 }
