@@ -72,12 +72,9 @@ func NewTestDAGNet(ctx context.Context, t *testing.T) *DagNet {
 	}
 }
 
-// Node create a plain network node that can serve and request data.
-func (dn *DagNet) Node() *Node {
+func (dn *DagNet) NodeWithBlockStore(dstore ds.Datastore, bstore blockstore.Blockstore) *Node {
 	hst, err := dn.net.GenPeer()
 	require.NoError(dn.T, err)
-	dstore := dssync.MutexWrap(ds.NewMapDatastore())
-	bstore := blockstore.NewBlockstore(dstore)
 	routing := offline.NewOfflineRouter(dstore, record.NamespacedValidator{})
 	bs := bitswap.New(
 		dn.ctx,
@@ -97,6 +94,13 @@ func (dn *DagNet) Node() *Node {
 	}
 	dn.nodes = append(dn.nodes, nd)
 	return nd
+}
+
+// Node create a plain network node that can serve and request data.
+func (dn *DagNet) Node() *Node {
+	dstore := dssync.MutexWrap(ds.NewMapDatastore())
+	bstore := blockstore.NewBlockstore(dstore)
+	return dn.NodeWithBlockStore(dstore, bstore)
 }
 
 // ConnectAll connects all the peers on registered on the DagNet.
