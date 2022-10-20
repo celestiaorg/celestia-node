@@ -27,7 +27,7 @@ func TestLifecycle(t *testing.T) {
 	require.NoError(t, err)
 	// ensure accessor is stopped
 	require.True(t, ca.IsStopped())
-	// ensure that stopping the accessor again does not return an error
+	// ensure that stopping the accessor again returns an error
 	err = ca.Stop(stopCtx)
-	require.NoError(t, err)
+	require.Error(t, err)
 }
