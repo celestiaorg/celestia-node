@@ -203,7 +203,7 @@ func GetLeavesByNamespace(
 	jobs := make(chan *job, (maxShares+1)/2)
 	jobs <- &job{id: root, ctx: ctx}
 
-	var wg wrappedWaitGroup
+	var wg chanGroup
 	wg.jobs = jobs
 	wg.add(1)
 
@@ -337,21 +337,18 @@ func GetProof(
 	return GetProof(ctx, bGetter, root, proof, leaf, total)
 }
 
-// wrappedWaitGroup is needed because waitgroups do not expose their internal counter,
-// and we don't know in advance how many jobs we will have to wait for.
-type wrappedWaitGroup struct {
-	wg      sync.WaitGroup
+// chanGroup implements an atomic wait group closing a jobs chan
+// when fully done.
+type chanGroup struct {
 	jobs    chan *job
 	counter int64
 }
 
-func (w *wrappedWaitGroup) add(count int64) {
-	w.wg.Add(int(count))
+func (w *chanGroup) add(count int64) {
 	atomic.AddInt64(&w.counter, count)
 }
 
-func (w *wrappedWaitGroup) done() {
-	w.wg.Done()
+func (w *chanGroup) done() {
 	numRemaining := atomic.AddInt64(&w.counter, -1)
 
 	// Close channel if this job was the last one
