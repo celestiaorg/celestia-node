@@ -55,6 +55,33 @@ func TestLight(t *testing.T) {
 	*/
 }
 
+func TestFull(t *testing.T) {
+	// Run the tests in a temporary directory
+	tmpDir := t.TempDir()
+	testDir, err := os.Getwd()
+	require.NoError(t, err, "error getting the current working directory")
+	err = os.Chdir(tmpDir)
+	require.NoError(t, err, "error changing to the temporary test directory")
+
+	t.Run("init", func(t *testing.T) {
+		output := &bytes.Buffer{}
+		rootCmd.SetOut(output)
+		rootCmd.SetArgs([]string{
+			"full",
+			"--node.store", ".celestia-full",
+			"init",
+		})
+		err := rootCmd.ExecuteContext(context.Background())
+		require.NoError(t, err)
+	})
+
+	t.Cleanup(func() {
+		if err := os.Chdir(testDir); err != nil {
+			t.Error("error resetting:", err)
+		}
+	})
+}
+
 func TestBridge(t *testing.T) {
 	// Run the tests in a temporary directory
 	tmpDir := t.TempDir()
