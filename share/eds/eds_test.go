@@ -178,6 +178,7 @@ func TestReadEDSContentIntegrityMismatch(t *testing.T) {
 
 func BenchmarkReadWriteEDS(b *testing.B) {
 	ctx, cancel := context.WithCancel(context.Background())
+	b.Cleanup(cancel)
 	for originalDataWidth := 4; originalDataWidth <= 64; originalDataWidth *= 2 {
 		tmpDir := b.TempDir()
 		err := os.Chdir(tmpDir)
@@ -201,7 +202,6 @@ func BenchmarkReadWriteEDS(b *testing.B) {
 			}
 		})
 	}
-	b.Cleanup(cancel)
 }
 
 func writeRandomEDS(t *testing.T) *rsmt2d.ExtendedDataSquare {
