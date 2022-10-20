@@ -2,6 +2,8 @@ package eds
 
 import (
 	"context"
+	"embed"
+	"encoding/json"
 	"os"
 	"testing"
 
@@ -12,11 +14,18 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/pkg/da"
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/ipld"
 )
+
+//go:embed "testdata/example-root.json"
+var exampleRoot string
+
+//go:embed "testdata/example.car"
+var f embed.FS
 
 func TestQuadrantOrder(t *testing.T) {
 	// TODO: add more test cases
@@ -130,9 +139,46 @@ func TestInnerNodeBatchSize(t *testing.T) {
 	}
 }
 
+func TestReadWriteRoundtrip(t *testing.T) {
+	eds := writeRandomEDS(t)
+	dah := da.NewDataAvailabilityHeader(eds)
+	f := openWrittenEDS(t)
+	defer f.Close()
+
+	loaded, err := ReadEDS(context.Background(), f, dah)
+	require.NoError(t, err, "error reading EDS from file")
+	require.Equal(t, eds.RowRoots(), loaded.RowRoots())
+	require.Equal(t, eds.ColRoots(), loaded.ColRoots())
+}
+
+func TestReadEDS(t *testing.T) {
+	f, err := f.Open("testdata/example.car")
+	require.NoError(t, err, "error opening file")
+
+	var dah da.DataAvailabilityHeader
+	err = json.Unmarshal([]byte(exampleRoot), &dah)
+	require.NoError(t, err, "error unmarshaling example root")
+
+	loaded, err := ReadEDS(context.Background(), f, dah)
+	require.NoError(t, err, "error reading EDS from file")
+	require.Equal(t, dah.RowsRoots, loaded.RowRoots())
+	require.Equal(t, dah.ColumnRoots, loaded.ColRoots())
+}
+
+func TestReadEDSContentIntegrityMismatch(t *testing.T) {
+	writeRandomEDS(t)
+	dah := da.NewDataAvailabilityHeader(share.RandEDS(t, 4))
+	f := openWrittenEDS(t)
+	defer f.Close()
+
+	_, err := ReadEDS(context.Background(), f, dah)
+	require.ErrorContains(t, err, "share: content integrity mismatch: imported root")
+}
+
 func writeRandomEDS(t *testing.T) *rsmt2d.ExtendedDataSquare {
 	t.Helper()
 	ctx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(cancel)
 	tmpDir := t.TempDir()
 	err := os.Chdir(tmpDir)
 	require.NoError(t, err, "error changing to the temporary test directory")
@@ -142,7 +188,6 @@ func writeRandomEDS(t *testing.T) *rsmt2d.ExtendedDataSquare {
 	eds := share.RandEDS(t, 4)
 	err = WriteEDS(ctx, eds, f)
 	require.NoError(t, err, "error writing EDS to file")
-	t.Cleanup(cancel)
 	f.Close()
 	return eds
 }
