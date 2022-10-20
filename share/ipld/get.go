@@ -337,7 +337,7 @@ func GetProof(
 	return GetProof(ctx, bGetter, root, proof, leaf, total)
 }
 
-// chanGroup implements an atomic wait group closing a jobs chan
+// chanGroup implements an atomic wait group, closing a jobs chan
 // when fully done.
 type chanGroup struct {
 	jobs    chan *job
