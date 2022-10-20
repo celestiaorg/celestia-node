@@ -17,6 +17,8 @@ import (
 type Module interface {
 	// IsStopped checks if the Module's context has been stopped
 	IsStopped() bool
+	// ReadOnly checks if the Module has disabled write access
+	ReadOnly() bool
 
 	// AccountAddress retrieves the address of the node's account/signer
 	AccountAddress(ctx context.Context) (state.Address, error)
