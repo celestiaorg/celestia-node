@@ -151,9 +151,13 @@ func (ca *CoreAccessor) SubmitPayForData(
 	data []byte,
 	gasLim uint64,
 ) (*TxResponse, error) {
-	ca.lastPayForData = time.Now().UnixMilli()
-	ca.payForDataCount++
-	return payment.SubmitPayForData(ctx, ca.signer, ca.coreConn, nID, data, gasLim)
+	response, err := payment.SubmitPayForData(ctx, ca.signer, ca.coreConn, nID, data, gasLim)
+	// metrics should only be counted on a successful PFD tx
+	if response.Code == 0 && err == nil {
+		ca.lastPayForData = time.Now().UnixMilli()
+		ca.payForDataCount++
+	}
+	return response, err
 }
 
 func (ca *CoreAccessor) AccountAddress(ctx context.Context) (Address, error) {
