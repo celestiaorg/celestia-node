@@ -61,7 +61,7 @@ var fullCmd = &cobra.Command{
 		}
 		ctx = cmdnode.WithNetwork(ctx, parsedNetwork)
 
-		ctx, err = cmdnode.ParseNodeFlags(ctx, cmd)
+		ctx, err = cmdnode.ParseNodeFlags(ctx, cmd, cmdnode.Network(ctx))
 		if err != nil {
 			return err
 		}

@@ -11,6 +11,7 @@ import (
 	flag "github.com/spf13/pflag"
 
 	"github.com/celestiaorg/celestia-node/nodebuilder"
+	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
 )
 
 var (
@@ -37,8 +38,7 @@ func NodeFlags() *flag.FlagSet {
 }
 
 // ParseNodeFlags parses Node flags from the given cmd and applies values to Env.
-func ParseNodeFlags(ctx context.Context, cmd *cobra.Command) (context.Context, error) {
-	network := Network(ctx)
+func ParseNodeFlags(ctx context.Context, cmd *cobra.Command, network p2p.Network) (context.Context, error) {
 	store := cmd.Flag(nodeStoreFlag).Value.String()
 	if store == "" {
 		tp := NodeType(ctx)

@@ -14,8 +14,8 @@ const (
 	// DefaultNetwork is the default network of the current build.
 	DefaultNetwork   = Arabica
 	EnvCustomNetwork = "CELESTIA_CUSTOM"
-	nodeNetworkFlag  = "node.network"
-	p2pMutualFlag    = "p2p.mutual"
+	networkFlag      = "p2p.network"
+	mutualFlag       = "p2p.mutual"
 )
 
 // Flags gives a set of p2p flags.
@@ -23,7 +23,7 @@ func Flags() *flag.FlagSet {
 	flags := &flag.FlagSet{}
 
 	flags.StringSlice(
-		p2pMutualFlag,
+		mutualFlag,
 		nil,
 		`Comma-separated multiaddresses of mutual peers to keep a prioritized connection with.
 Such connection is immune to peer scoring slashing and connection manager trimming.
@@ -31,9 +31,11 @@ Peers must bidirectionally point to each other. (Format: multiformats.io/multiad
 `,
 	)
 	flags.String(
-		nodeNetworkFlag,
+		networkFlag,
 		"",
-		"The name of the network to connect to, e.g. "+listProvidedNetworks(),
+		"The name of the network to connect to, e.g. "+
+			listProvidedNetworks()+
+			". Is only effective for the start command, and has no effect on init.",
 	)
 
 	return flags
@@ -44,7 +46,7 @@ func ParseFlags(
 	cmd *cobra.Command,
 	cfg *Config,
 ) error {
-	mutualPeers, err := cmd.Flags().GetStringSlice(p2pMutualFlag)
+	mutualPeers, err := cmd.Flags().GetStringSlice(mutualFlag)
 	if err != nil {
 		return err
 	}
@@ -52,7 +54,7 @@ func ParseFlags(
 	for _, peer := range mutualPeers {
 		_, err = multiaddr.NewMultiaddr(peer)
 		if err != nil {
-			return fmt.Errorf("cmd: while parsing '%s': %w", p2pMutualFlag, err)
+			return fmt.Errorf("cmd: while parsing '%s': %w", mutualFlag, err)
 		}
 	}
 
@@ -65,18 +67,23 @@ func ParseFlags(
 // ParseNetwork tries to parse the network from the flags and environment,
 // and returns either the parsed network or the build's default network
 func ParseNetwork(cmd *cobra.Command) (Network, error) {
-	parsedNetwork := cmd.Flag(nodeNetworkFlag).Value.String()
+	parsedNetwork := cmd.Flag(networkFlag).Value.String()
 	// no network set through the flags, so check if there is an override in the env
 	if parsedNetwork == "" {
-		return ParseNetworkFromEnv()
+		envNetwork, err := parseNetworkFromEnv()
+		// no network found in env, so use the default network
+		if envNetwork == "" {
+			return DefaultNetwork, err
+		}
+		return envNetwork, err
 	}
 	return Network(parsedNetwork), nil
 }
 
-// ParseNetworkFromEnv tries to parse the network from the environment,
-// and returns either the parsed network or the build's default network
-func ParseNetworkFromEnv() (Network, error) {
-	network := DefaultNetwork
+// parseNetworkFromEnv tries to parse the network from the environment.
+// If no network is set, it returns an empty string.
+func parseNetworkFromEnv() (Network, error) {
+	var network Network
 	// check if custom network option set
 	// format: CELESTIA_CUSTOM=<netID>:<genesisHash>:<bootstrapPeerList>
 	if custom, ok := os.LookupEnv(EnvCustomNetwork); ok {
@@ -86,7 +93,7 @@ func ParseNetworkFromEnv() (Network, error) {
 		// ensure at least custom network is set
 		params := strings.Split(custom, ":")
 		if len(params) == 0 {
-			return DefaultNetwork, fmt.Errorf("params: must provide at least <network_ID> to use a custom network")
+			return network, fmt.Errorf("params: must provide at least <network_ID> to use a custom network")
 		}
 		netID := params[0]
 		network = Network(netID)
