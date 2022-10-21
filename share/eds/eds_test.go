@@ -176,6 +176,8 @@ func TestReadEDSContentIntegrityMismatch(t *testing.T) {
 	require.ErrorContains(t, err, "share: content integrity mismatch: imported root")
 }
 
+// BenchmarkReadWriteEDS benchmarks the time it takes to write and read an EDS from disk.
+// The benchmark is run with a 4x4 ODS to a 64x64 ODS - a higher value can be used but it will run for much longer.
 func BenchmarkReadWriteEDS(b *testing.B) {
 	ctx, cancel := context.WithCancel(context.Background())
 	b.Cleanup(cancel)

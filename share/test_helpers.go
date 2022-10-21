@@ -66,6 +66,8 @@ func RandShares(t *testing.T, total int) []Share {
 	return shares
 }
 
+// RandBenchmarkEDS generates an EDS filled with random data using size as the ODS width.
+// It is used for benchmarking purposes, and does not check any errors.
 func RandBenchmarkEDS(b *testing.B, size int) *rsmt2d.ExtendedDataSquare {
 	total := size * size
 
