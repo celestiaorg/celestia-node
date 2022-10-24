@@ -44,7 +44,8 @@ func newFraudService(
 	hstore header.Store,
 	ds datastore.Batching,
 	isEnabled bool,
-	protocolSuffix string) (Module, error) {
+	protocolSuffix string,
+) (Module, error) {
 	pservice := fraud.NewProofService(sub, host, hstore.GetByHeight, ds, isEnabled, protocolSuffix)
 	lc.Append(fx.Hook{
 		OnStart: pservice.Start,

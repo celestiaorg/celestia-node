@@ -23,6 +23,7 @@ import (
 
 	"github.com/celestiaorg/celestia-node/fraud"
 	"github.com/celestiaorg/celestia-node/header"
+	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
 )
 
 var timeout = time.Second * 15
@@ -140,7 +141,7 @@ func TestDASer_stopsAfter_BEFP(t *testing.T) {
 	mockGet, sub, _ := createDASerSubcomponents(t, bServ, 15, 15)
 
 	// create fraud service and break one header
-	f := fraud.NewProofService(ps, net.Hosts()[0], mockGet.GetByHeight, ds, false, "private")
+	f := fraud.NewProofService(ps, net.Hosts()[0], mockGet.GetByHeight, ds, false, string(p2p.Private))
 	require.NoError(t, f.Start(ctx))
 	mockGet.headers[1] = header.CreateFraudExtHeader(t, mockGet.headers[1], bServ)
 	newCtx := context.Background()
