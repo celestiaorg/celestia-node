@@ -12,6 +12,10 @@ import (
 	"github.com/celestiaorg/celestia-node/share/service"
 )
 
+// timeout is an arbitrarily picked interval of time in which a TestNode is expected to be able to complete a
+// SharesAvailable request from a connected peer in a TestDagNet.
+const sharesAvailableTimeout = 2 * time.Second
+
 // TestNamespaceHasher_CorruptedData is an integration test that verifies that the NamespaceHasher of a recipient of
 // corrupted data will not panic, and will throw away the corrupted data.
 func TestNamespaceHasher_CorruptedData(t *testing.T) {
@@ -24,17 +28,18 @@ func TestNamespaceHasher_CorruptedData(t *testing.T) {
 	provider.ShareService = service.NewShareService(provider.BlockService, full.TestAvailability(provider.BlockService))
 	net.ConnectAll()
 
-	// before the provider starts attacking, we should be able to retrieve successfully
+	// before the provider starts attacking, we should be able to retrieve successfully. We pass a size 16 block, but
+	// this is not important to the test and any valid block size behaves the same.
 	root := availability_test.RandFillBS(t, 16, provider.BlockService)
-	getCtx, cancelGet := context.WithTimeout(ctx, 2*time.Second)
+	getCtx, cancelGet := context.WithTimeout(ctx, sharesAvailableTimeout)
 	t.Cleanup(cancelGet)
 	err := requestor.SharesAvailable(getCtx, root)
 	require.NoError(t, err)
 
-	// clear the storage of the requestor so that it must retrieve again, then start attacking
+	// clear the storage of the requester so that it must retrieve again, then start attacking
 	requestor.ClearStorage()
 	mockBS.Attacking = true
-	getCtx, cancelGet = context.WithTimeout(ctx, 2*time.Second)
+	getCtx, cancelGet = context.WithTimeout(ctx, sharesAvailableTimeout)
 	t.Cleanup(cancelGet)
 	err = requestor.SharesAvailable(getCtx, root)
 	require.Error(t, err, "availability validation failed")

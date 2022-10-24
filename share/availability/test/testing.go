@@ -61,8 +61,8 @@ type TestDagNet struct {
 	nodes []*TestNode
 }
 
-// NewTestDAGNet creates a new testing swarm utility to spawn different nodes
-// and test how they interact and/or exchange data.
+// NewTestDAGNet creates a new testing swarm utility to spawn different nodes and test how they interact and/or exchange
+// data.
 func NewTestDAGNet(ctx context.Context, t *testing.T) *TestDagNet {
 	return &TestDagNet{
 		ctx: ctx,

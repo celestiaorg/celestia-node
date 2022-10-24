@@ -15,8 +15,7 @@ import (
 
 var _ blockstore.Blockstore = (*MockBlockstore)(nil)
 
-// CorruptBlock is a block where the cid doesn't match the data.
-// It fulfills the blocks.Block interface.
+// CorruptBlock is a block where the cid doesn't match the data. It fulfills the blocks.Block interface.
 type CorruptBlock struct {
 	cid  cid.Cid
 	data []byte
