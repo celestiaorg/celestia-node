@@ -71,7 +71,7 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 			}),
 		)),
 		fx.Provide(fx.Annotate(
-			p2p.NewExchangeServer,
+			newP2PServer,
 			fx.OnStart(func(ctx context.Context, server *p2p.ExchangeServer) error {
 				return server.Start(ctx)
 			}),

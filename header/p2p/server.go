@@ -6,6 +6,7 @@ import (
 
 	"github.com/libp2p/go-libp2p-core/host"
 	"github.com/libp2p/go-libp2p-core/network"
+	"github.com/libp2p/go-libp2p-core/protocol"
 	tmbytes "github.com/tendermint/tendermint/libs/bytes"
 
 	"github.com/celestiaorg/go-libp2p-messenger/serde"
@@ -17,6 +18,8 @@ import (
 // ExchangeServer represents the server-side component for
 // responding to inbound header-related requests.
 type ExchangeServer struct {
+	protocolID protocol.ID
+
 	host  host.Host
 	store header.Store
 
@@ -26,10 +29,11 @@ type ExchangeServer struct {
 
 // NewExchangeServer returns a new P2P server that handles inbound
 // header-related requests.
-func NewExchangeServer(host host.Host, store header.Store) *ExchangeServer {
+func NewExchangeServer(host host.Host, store header.Store, protocolSuffix string) *ExchangeServer {
 	return &ExchangeServer{
-		host:  host,
-		store: store,
+		protocolID: protocolID(protocolSuffix),
+		host:       host,
+		store:      store,
 	}
 }
 
@@ -38,7 +42,7 @@ func (serv *ExchangeServer) Start(context.Context) error {
 	serv.ctx, serv.cancel = context.WithCancel(context.Background())
 	log.Info("server: listening for inbound header requests")
 
-	serv.host.SetStreamHandler(exchangeProtocolID, serv.requestHandler)
+	serv.host.SetStreamHandler(serv.protocolID, serv.requestHandler)
 
 	return nil
 }
@@ -47,7 +51,7 @@ func (serv *ExchangeServer) Start(context.Context) error {
 func (serv *ExchangeServer) Stop(context.Context) error {
 	log.Info("server: stopping server")
 	serv.cancel()
-	serv.host.RemoveStreamHandler(exchangeProtocolID)
+	serv.host.RemoveStreamHandler(serv.protocolID)
 	return nil
 }
 
