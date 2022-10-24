@@ -10,6 +10,7 @@ import (
 
 	"github.com/celestiaorg/celestia-node/fraud"
 	"github.com/celestiaorg/celestia-node/header"
+	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
 )
 
 // NewModule constructs a fraud proof service with the syncer disabled.
@@ -19,8 +20,9 @@ func NewModule(
 	host host.Host,
 	hstore header.Store,
 	ds datastore.Batching,
+	network p2p.Network,
 ) (Module, error) {
-	return newFraudService(lc, sub, host, hstore, ds, false)
+	return newFraudService(lc, sub, host, hstore, ds, false, string(network))
 }
 
 // ModuleWithSyncer constructs fraud proof service with enabled syncer.
@@ -30,8 +32,9 @@ func ModuleWithSyncer(
 	host host.Host,
 	hstore header.Store,
 	ds datastore.Batching,
+	network p2p.Network,
 ) (Module, error) {
-	return newFraudService(lc, sub, host, hstore, ds, true)
+	return newFraudService(lc, sub, host, hstore, ds, true, string(network))
 }
 
 func newFraudService(
@@ -40,8 +43,9 @@ func newFraudService(
 	host host.Host,
 	hstore header.Store,
 	ds datastore.Batching,
-	isEnabled bool) (Module, error) {
-	pservice := fraud.NewProofService(sub, host, hstore.GetByHeight, ds, isEnabled)
+	isEnabled bool,
+	protocolSuffix string) (Module, error) {
+	pservice := fraud.NewProofService(sub, host, hstore.GetByHeight, ds, isEnabled, protocolSuffix)
 	lc.Append(fx.Hook{
 		OnStart: pservice.Start,
 		OnStop:  pservice.Stop,

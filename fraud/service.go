@@ -16,18 +16,16 @@ import (
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
-
-	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
 )
 
 // fraudRequests is the amount of external requests that will be tried to get fraud proofs from other peers.
 const fraudRequests = 5
 
-var fraudProtocolID = protocol.ID(fmt.Sprintf("/fraud/v0.0.1/%s", p2p.DefaultNetwork))
-
 // ProofService is responsible for validating and propagating Fraud Proofs.
 // It implements the Service interface.
 type ProofService struct {
+	protocolID protocol.ID
+
 	ctx    context.Context
 	cancel context.CancelFunc
 
@@ -51,6 +49,7 @@ func NewProofService(
 	getter headerFetcher,
 	ds datastore.Datastore,
 	syncerEnabled bool,
+	protocolSuffix string,
 ) *ProofService {
 	return &ProofService{
 		pubsub:        p,
@@ -59,6 +58,7 @@ func NewProofService(
 		topics:        make(map[ProofType]*pubsub.Topic),
 		stores:        make(map[ProofType]datastore.Datastore),
 		ds:            ds,
+		protocolID:    protocol.ID(fmt.Sprintf("/fraud/v0.0.1/%s", protocolSuffix)),
 		syncerEnabled: syncerEnabled,
 	}
 }
@@ -83,7 +83,7 @@ func (f *ProofService) Start(context.Context) error {
 	if err := f.registerProofTopics(registeredProofTypes()...); err != nil {
 		return err
 	}
-	f.host.SetStreamHandler(fraudProtocolID, f.handleFraudMessageRequest)
+	f.host.SetStreamHandler(f.protocolID, f.handleFraudMessageRequest)
 	if f.syncerEnabled {
 		go f.syncFraudProofs(f.ctx)
 	}
@@ -92,7 +92,7 @@ func (f *ProofService) Start(context.Context) error {
 
 // Stop removes the stream handler and cancels the underlying ProofService
 func (f *ProofService) Stop(context.Context) error {
-	f.host.RemoveStreamHandler(fraudProtocolID)
+	f.host.RemoveStreamHandler(f.protocolID)
 	f.cancel()
 	return nil
 }
