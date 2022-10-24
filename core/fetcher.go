@@ -34,7 +34,7 @@ func NewBlockFetcher(client Client) *BlockFetcher {
 func (f *BlockFetcher) GetBlockInfo(ctx context.Context, height *int64) (*types.Commit, *types.ValidatorSet, error) {
 	commit, err := f.Commit(ctx, height)
 	if err != nil {
-		return nil, nil, fmt.Errorf("core/fetcher: getting commit: %w", err)
+		return nil, nil, fmt.Errorf("core/fetcher: getting commit at height %d: %w", height, err)
 	}
 
 	// If a nil `height` is given as a parameter, there is a chance
@@ -44,7 +44,7 @@ func (f *BlockFetcher) GetBlockInfo(ctx context.Context, height *int64) (*types.
 	// prevent this potential inconsistency.
 	valSet, err := f.ValidatorSet(ctx, &commit.Height)
 	if err != nil {
-		return nil, nil, fmt.Errorf("core/fetcher: getting validator set: %w", err)
+		return nil, nil, fmt.Errorf("core/fetcher: getting validator set at height %d: %w", height, err)
 	}
 
 	return commit, valSet, nil
@@ -58,7 +58,7 @@ func (f *BlockFetcher) GetBlock(ctx context.Context, height *int64) (*types.Bloc
 	}
 
 	if res != nil && res.Block == nil {
-		return nil, fmt.Errorf("core/fetcher: block not found")
+		return nil, fmt.Errorf("core/fetcher: block not found, height: %d", height)
 	}
 
 	return res.Block, nil
@@ -71,7 +71,7 @@ func (f *BlockFetcher) GetBlockByHash(ctx context.Context, hash tmbytes.HexBytes
 	}
 
 	if res != nil && res.Block == nil {
-		return nil, fmt.Errorf("core/fetcher: block not found")
+		return nil, fmt.Errorf("core/fetcher: block not found, hash: %s", hash.String())
 	}
 
 	return res.Block, nil
@@ -86,7 +86,7 @@ func (f *BlockFetcher) Commit(ctx context.Context, height *int64) (*types.Commit
 	}
 
 	if res != nil && res.Commit == nil {
-		return nil, fmt.Errorf("core/fetcher: commit not found")
+		return nil, fmt.Errorf("core/fetcher: commit not found at height %d", height)
 	}
 
 	return res.Commit, nil
@@ -105,7 +105,7 @@ func (f *BlockFetcher) ValidatorSet(ctx context.Context, height *int64) (*types.
 		}
 
 		if res != nil && len(res.Validators) == 0 {
-			return nil, fmt.Errorf("core/fetcher: validators not found")
+			return nil, fmt.Errorf("core/fetcher: validator set not found at height %d", height)
 		}
 
 		total = res.Total
