@@ -16,9 +16,14 @@ import (
 	modp2p "github.com/celestiaorg/celestia-node/nodebuilder/p2p"
 )
 
-// newP2PExchange constructs new Exchange for headers.
-func newP2PExchange(cfg Config) func(modp2p.Bootstrappers, host.Host) (header.Exchange, error) {
-	return func(bpeers modp2p.Bootstrappers, host host.Host) (header.Exchange, error) {
+// newP2PServer constructs a new ExchangeServer using the given Network as a protocolID suffix.
+func newP2PServer(host host.Host, store header.Store, network modp2p.Network) *p2p.ExchangeServer {
+	return p2p.NewExchangeServer(host, store, string(network))
+}
+
+// newP2PExchange constructs a new Exchange for headers.
+func newP2PExchange(cfg Config) func(modp2p.Bootstrappers, modp2p.Network, host.Host) (header.Exchange, error) {
+	return func(bpeers modp2p.Bootstrappers, network modp2p.Network, host host.Host) (header.Exchange, error) {
 		peers, err := cfg.trustedPeers(bpeers)
 		if err != nil {
 			return nil, err
@@ -28,7 +33,7 @@ func newP2PExchange(cfg Config) func(modp2p.Bootstrappers, host.Host) (header.Ex
 			ids[index] = peer.ID
 			host.Peerstore().AddAddrs(peer.ID, peer.Addrs, peerstore.PermanentAddrTTL)
 		}
-		return p2p.NewExchange(host, ids), nil
+		return p2p.NewExchange(host, ids, string(network)), nil
 	}
 }
 

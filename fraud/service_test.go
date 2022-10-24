@@ -133,6 +133,7 @@ func TestService_ReGossiping(t *testing.T) {
 		},
 		sync.MutexWrap(datastore.NewMapDatastore()),
 		false,
+		"private",
 	)
 	addrB := host.InfoFromHost(net.Hosts()[1]) // -> B
 
@@ -148,6 +149,7 @@ func TestService_ReGossiping(t *testing.T) {
 		},
 		sync.MutexWrap(datastore.NewMapDatastore()),
 		false,
+		"private",
 	)
 	// establish connections
 	// connect peers: A -> B -> C, so A and C are not connected to each other
@@ -263,5 +265,6 @@ func createServiceWithHost(
 		store.GetByHeight,
 		sync.MutexWrap(datastore.NewMapDatastore()),
 		enabledSyncer,
+		"private",
 	), store
 }

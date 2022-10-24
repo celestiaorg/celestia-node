@@ -18,7 +18,6 @@ import (
 
 	"github.com/celestiaorg/celestia-node/header"
 	p2p_pb "github.com/celestiaorg/celestia-node/header/p2p/pb"
-	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
 )
 
 var log = logging.Logger("header/p2p")
@@ -38,19 +37,24 @@ const (
 // gossipsub topic.
 const PubSubTopic = "header-sub"
 
-var exchangeProtocolID = protocol.ID(fmt.Sprintf("/header-ex/v0.0.3/%s", p2p.DefaultNetwork))
-
 // Exchange enables sending outbound ExtendedHeaderRequests to the network as well as
 // handling inbound ExtendedHeaderRequests from the network.
 type Exchange struct {
+	protocolID protocol.ID
+
 	host host.Host
 
 	trustedPeers peer.IDSlice
 }
 
-func NewExchange(host host.Host, peers peer.IDSlice) *Exchange {
+func protocolID(protocolSuffix string) protocol.ID {
+	return protocol.ID(fmt.Sprintf("/header-ex/v0.0.3/%s", protocolSuffix))
+}
+
+func NewExchange(host host.Host, peers peer.IDSlice, protocolSuffix string) *Exchange {
 	return &Exchange{
 		host:         host,
+		protocolID:   protocolID(protocolSuffix),
 		trustedPeers: peers,
 	}
 }
@@ -69,7 +73,7 @@ func (ex *Exchange) Head(ctx context.Context) (*header.ExtendedHeader, error) {
 	// request head from each trusted peer
 	for _, from := range ex.trustedPeers {
 		go func(from peer.ID) {
-			headers, err := request(ctx, from, ex.host, req)
+			headers, err := ex.request(ctx, from, req)
 			if err != nil {
 				log.Errorw("head request to trusted peer failed", "trustedPeer", from, "err", err)
 				headerCh <- nil
@@ -162,17 +166,16 @@ func (ex *Exchange) performRequest(
 
 	//nolint:gosec // G404: Use of weak random number generator
 	index := rand.Intn(len(ex.trustedPeers))
-	return request(ctx, ex.trustedPeers[index], ex.host, req)
+	return ex.request(ctx, ex.trustedPeers[index], req)
 }
 
 // request sends the ExtendedHeaderRequest to a remote peer.
-func request(
+func (ex *Exchange) request(
 	ctx context.Context,
 	to peer.ID,
-	host host.Host,
 	req *p2p_pb.ExtendedHeaderRequest,
 ) ([]*header.ExtendedHeader, error) {
-	stream, err := host.NewStream(ctx, to, exchangeProtocolID)
+	stream, err := ex.host.NewStream(ctx, to, ex.protocolID)
 	if err != nil {
 		return nil, err
 	}
