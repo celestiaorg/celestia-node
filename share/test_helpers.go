@@ -31,7 +31,8 @@ func EqualEDS(a *rsmt2d.ExtendedDataSquare, b *rsmt2d.ExtendedDataSquare) bool {
 	return true
 }
 
-// RandEDS generates EDS filled with the random data with the given size for original square.
+// RandEDS generates EDS filled with the random data with the given size for original square. It uses require.TestingT
+// to be able to take both a *testing.T and a *testing.B.
 func RandEDS(t require.TestingT, size int) *rsmt2d.ExtendedDataSquare {
 	shares := RandShares(t, size*size)
 	// create the nmt wrapper to generate row and col commitments
@@ -42,10 +43,11 @@ func RandEDS(t require.TestingT, size int) *rsmt2d.ExtendedDataSquare {
 	return eds
 }
 
-// RandShares generate 'total' amount of shares filled with random data.
+// RandShares generate 'total' amount of shares filled with random data. It uses require.TestingT to be able to take
+// both a *testing.T and a *testing.B.
 func RandShares(t require.TestingT, total int) []Share {
 	if total&(total-1) != 0 {
-		t.Errorf("Namespace total must be power of 2")
+		t.Errorf("Namespace total must be power of 2: %d", total)
 		t.FailNow()
 	}
 
