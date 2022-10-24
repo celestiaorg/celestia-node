@@ -1,28 +1,22 @@
-package ipld_test
+package availability_test
 
 import (
 	"context"
 	"fmt"
-	"testing"
-	"time"
-
 	mrand "math/rand"
+	"testing"
 
 	blocks "github.com/ipfs/go-block-format"
 	"github.com/ipfs/go-cid"
 	ds "github.com/ipfs/go-datastore"
 	dssync "github.com/ipfs/go-datastore/sync"
 	blockstore "github.com/ipfs/go-ipfs-blockstore"
-	"github.com/stretchr/testify/require"
-
-	"github.com/celestiaorg/celestia-node/share/availability/full"
-	availability_test "github.com/celestiaorg/celestia-node/share/availability/test"
-	"github.com/celestiaorg/celestia-node/share/service"
 )
 
 var _ blockstore.Blockstore = (*MockBlockstore)(nil)
 
 // CorruptBlock is a block where the cid doesn't match the data.
+// It fulfills the blocks.Block interface.
 type CorruptBlock struct {
 	cid  cid.Cid
 	data []byte
@@ -53,9 +47,11 @@ func NewCorruptBlock(data []byte, fakeCID cid.Cid) *CorruptBlock {
 	}
 }
 
+// MockBlockstore is a mock blockstore.Blockstore that saves both corrupted and original data for every block it
+// receives. If MockBlockstore.Attacking is true, it will serve the corrupted data on requests.
 type MockBlockstore struct {
 	ds.Datastore
-	attacking bool
+	Attacking bool
 }
 
 func (m MockBlockstore) Has(ctx context.Context, cid cid.Cid) (bool, error) {
@@ -64,7 +60,7 @@ func (m MockBlockstore) Has(ctx context.Context, cid cid.Cid) (bool, error) {
 
 func (m MockBlockstore) Get(ctx context.Context, cid cid.Cid) (blocks.Block, error) {
 	key := cid.String()
-	if m.attacking {
+	if m.Attacking {
 		key = "corrupt" + key
 	}
 
@@ -77,7 +73,7 @@ func (m MockBlockstore) Get(ctx context.Context, cid cid.Cid) (blocks.Block, err
 
 func (m MockBlockstore) GetSize(ctx context.Context, cid cid.Cid) (int, error) {
 	key := cid.String()
-	if m.attacking {
+	if m.Attacking {
 		key = "corrupt" + key
 	}
 
@@ -121,42 +117,14 @@ func (m MockBlockstore) HashOnRead(enabled bool) {
 	panic("implement me")
 }
 
-func MockNode(t *testing.T, net *availability_test.DagNet) (*availability_test.Node, *MockBlockstore) {
+// MockNode creates a TestNode that uses a MockBlockstore to simulate serving corrupted data.
+func MockNode(t *testing.T, net *TestDagNet) (*TestNode, *MockBlockstore) {
 	t.Helper()
 	dstore := dssync.MutexWrap(ds.NewMapDatastore())
 	mockBS := &MockBlockstore{
 		Datastore: dstore,
-		attacking: false,
+		Attacking: false,
 	}
-	provider := net.NodeWithBlockStore(dstore, mockBS)
-	provider.ShareService = service.NewShareService(provider.BlockService, full.TestAvailability(provider.BlockService))
+	provider := net.NewTestNodeWithBlockstore(dstore, mockBS)
 	return provider, mockBS
-}
-
-// TestNamespaceHasher_CorruptedData is an integration test that
-// verifies that the NamespaceHasher of a recipient of corrupted data will not panic,
-// and will throw away the corrupted data.
-func TestNamespaceHasher_CorruptedData(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	t.Cleanup(cancel)
-	net := availability_test.NewTestDAGNet(ctx, t)
-
-	requestor := full.Node(net)
-	provider, mockBS := MockNode(t, net)
-	net.ConnectAll()
-
-	// before the provider starts attacking, we should be able to retrieve successfully
-	root := availability_test.RandFillBS(t, 16, provider.BlockService)
-	getCtx, cancelGet := context.WithTimeout(ctx, 2*time.Second)
-	t.Cleanup(cancelGet)
-	err := requestor.SharesAvailable(getCtx, root)
-	require.NoError(t, err)
-
-	// clear the storage of the requestor so that it must retrieve again, then start attacking
-	requestor.ClearStorage()
-	mockBS.attacking = true
-	getCtx, cancelGet = context.WithTimeout(ctx, 2*time.Second)
-	t.Cleanup(cancelGet)
-	err = requestor.SharesAvailable(getCtx, root)
-	require.Error(t, err, "availability vailidation failed")
 }
