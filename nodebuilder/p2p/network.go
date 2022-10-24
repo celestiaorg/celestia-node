@@ -9,6 +9,8 @@ import (
 
 // NOTE: Every time we add a new long-running network, it has to be added here.
 const (
+	// DefaultNetwork is the default network of the current build.
+	DefaultNetwork = Arabica
 	// Arabica testnet. See: celestiaorg/networks.
 	Arabica Network = "arabica"
 	// Mamaki testnet. See: celestiaorg/networks.

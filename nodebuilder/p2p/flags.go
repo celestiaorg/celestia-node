@@ -10,12 +10,12 @@ import (
 	flag "github.com/spf13/pflag"
 )
 
+// EnvCustomNetwork is the environment variable name used for setting a custom network.
+const EnvCustomNetwork = "CELESTIA_CUSTOM"
+
 const (
-	// DefaultNetwork is the default network of the current build.
-	DefaultNetwork   = Arabica
-	EnvCustomNetwork = "CELESTIA_CUSTOM"
-	networkFlag      = "p2p.network"
-	mutualFlag       = "p2p.mutual"
+	networkFlag = "p2p.network"
+	mutualFlag  = "p2p.mutual"
 )
 
 // Flags gives a set of p2p flags.
@@ -35,7 +35,7 @@ Peers must bidirectionally point to each other. (Format: multiformats.io/multiad
 		"",
 		"The name of the network to connect to, e.g. "+
 			listProvidedNetworks()+
-			". Is only effective for the start command, and has no effect on init.",
+			". Must be passed on both init and start to take effect.",
 	)
 
 	return flags
