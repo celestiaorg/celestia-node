@@ -4,7 +4,6 @@ import (
 	"bytes"
 	mrand "math/rand"
 	"sort"
-	"testing"
 
 	"github.com/stretchr/testify/require"
 
@@ -33,7 +32,7 @@ func EqualEDS(a *rsmt2d.ExtendedDataSquare, b *rsmt2d.ExtendedDataSquare) bool {
 }
 
 // RandEDS generates EDS filled with the random data with the given size for original square.
-func RandEDS(t *testing.T, size int) *rsmt2d.ExtendedDataSquare {
+func RandEDS(t require.TestingT, size int) *rsmt2d.ExtendedDataSquare {
 	shares := RandShares(t, size*size)
 	// create the nmt wrapper to generate row and col commitments
 	tree := wrapper.NewErasuredNamespacedMerkleTree(uint64(size))
@@ -44,9 +43,10 @@ func RandEDS(t *testing.T, size int) *rsmt2d.ExtendedDataSquare {
 }
 
 // RandShares generate 'total' amount of shares filled with random data.
-func RandShares(t *testing.T, total int) []Share {
+func RandShares(t require.TestingT, total int) []Share {
 	if total&(total-1) != 0 {
-		t.Fatal("Namespace total must be power of 2")
+		t.Errorf("Namespace total must be power of 2")
+		t.FailNow()
 	}
 
 	shares := make([]Share, total)
@@ -64,27 +64,4 @@ func RandShares(t *testing.T, total int) []Share {
 	}
 
 	return shares
-}
-
-// RandBenchmarkEDS generates an EDS filled with random data using size as the ODS width.
-// It is used for benchmarking purposes, and does not check any errors.
-func RandBenchmarkEDS(b *testing.B, size int) *rsmt2d.ExtendedDataSquare {
-	total := size * size
-
-	shares := make([]Share, total)
-	for i := range shares {
-		nid := make([]byte, Size)
-		mrand.Read(nid[:NamespaceSize])
-		shares[i] = nid
-	}
-	sort.Slice(shares, func(i, j int) bool { return bytes.Compare(shares[i], shares[j]) < 0 })
-
-	for i := range shares {
-		mrand.Read(shares[i][NamespaceSize:])
-	}
-	// create the nmt wrapper to generate row and col commitments
-	tree := wrapper.NewErasuredNamespacedMerkleTree(uint64(size))
-	// recompute the eds
-	eds, _ := rsmt2d.ComputeExtendedDataSquare(shares, DefaultRSMT2DCodec(), tree.Constructor)
-	return eds
 }

@@ -1,6 +1,7 @@
 package eds
 
 import (
+	"bytes"
 	"context"
 	"embed"
 	"encoding/json"
@@ -185,22 +186,25 @@ func BenchmarkReadWriteEDS(b *testing.B) {
 		tmpDir := b.TempDir()
 		err := os.Chdir(tmpDir)
 		require.NoError(b, err)
-		eds := share.RandBenchmarkEDS(b, originalDataWidth)
+		eds := share.RandEDS(b, originalDataWidth)
 		dah := da.NewDataAvailabilityHeader(eds)
 		b.Run(fmt.Sprintf("Writing %dx%d", originalDataWidth, originalDataWidth), func(b *testing.B) {
+			b.ReportAllocs()
 			for i := 0; i < b.N; i++ {
-				f, _ := os.OpenFile(fmt.Sprintf("%d.car", originalDataWidth), os.O_WRONLY|os.O_CREATE, 0600)
+				f := new(bytes.Buffer)
 				err := WriteEDS(ctx, eds, f)
 				require.NoError(b, err)
-				f.Close()
 			}
 		})
 		b.Run(fmt.Sprintf("Reading %dx%d", originalDataWidth, originalDataWidth), func(b *testing.B) {
+			b.ReportAllocs()
 			for i := 0; i < b.N; i++ {
-				f, _ := os.OpenFile(fmt.Sprintf("%d.car", originalDataWidth), os.O_RDONLY, 0600)
+				b.StopTimer()
+				f := new(bytes.Buffer)
+				_ = WriteEDS(ctx, eds, f)
+				b.StartTimer()
 				_, err = ReadEDS(ctx, f, dah)
 				require.NoError(b, err)
-				f.Close()
 			}
 		})
 	}
