@@ -8,6 +8,7 @@ import (
 
 	"github.com/celestiaorg/celestia-node/nodebuilder"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
+	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
 )
 
 var log = logging.Logger("cmd")
@@ -15,6 +16,11 @@ var log = logging.Logger("cmd")
 // NodeType reads the node type from the context.
 func NodeType(ctx context.Context) node.Type {
 	return ctx.Value(nodeTypeKey{}).(node.Type)
+}
+
+// Network reads the node type from the context.
+func Network(ctx context.Context) p2p.Network {
+	return ctx.Value(networkKey{}).(p2p.Network)
 }
 
 // StorePath reads the store path from the context.
@@ -35,6 +41,11 @@ func NodeConfig(ctx context.Context) nodebuilder.Config {
 // WithNodeType sets the node type in the given context.
 func WithNodeType(ctx context.Context, tp node.Type) context.Context {
 	return context.WithValue(ctx, nodeTypeKey{}, tp)
+}
+
+// WithNetwork sets the network in the given context.
+func WithNetwork(ctx context.Context, network p2p.Network) context.Context {
+	return context.WithValue(ctx, networkKey{}, network)
 }
 
 // WithStorePath sets Store Path in the given context.
@@ -67,4 +78,5 @@ type (
 	configKey    struct{}
 	storePathKey struct{}
 	nodeTypeKey  struct{}
+	networkKey   struct{}
 )

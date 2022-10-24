@@ -1,12 +1,9 @@
-package params
+package p2p
 
 import (
-	logging "github.com/ipfs/go-log/v2"
 	"github.com/libp2p/go-libp2p-core/peer"
 	ma "github.com/multiformats/go-multiaddr"
 )
-
-var log = logging.Logger("params")
 
 // BootstrappersFor returns address information of bootstrap peers for a given network.
 func BootstrappersFor(net Network) (Bootstrappers, error) {

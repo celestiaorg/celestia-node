@@ -12,10 +12,10 @@ import (
 	apptypes "github.com/celestiaorg/celestia-app/x/payment/types"
 
 	"github.com/celestiaorg/celestia-node/libs/keystore"
-	"github.com/celestiaorg/celestia-node/params"
+	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
 )
 
-func Keyring(cfg Config, ks keystore.Keystore, net params.Network) (*apptypes.KeyringSigner, error) {
+func Keyring(cfg Config, ks keystore.Keystore, net p2p.Network) (*apptypes.KeyringSigner, error) {
 	// TODO @renaynay: Include option for setting custom `userInput` parameter with
 	//  implementation of https://github.com/celestiaorg/celestia-node/issues/415.
 	// TODO @renaynay @Wondertan: ensure that keyring backend from config is passed

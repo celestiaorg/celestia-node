@@ -15,13 +15,13 @@ import (
 	"github.com/celestiaorg/celestia-node/nodebuilder/rpc"
 	"github.com/celestiaorg/celestia-node/nodebuilder/share"
 	"github.com/celestiaorg/celestia-node/nodebuilder/state"
-	"github.com/celestiaorg/celestia-node/params"
 )
 
-func ConstructModule(tp node.Type, cfg *Config, store Store) fx.Option {
+func ConstructModule(tp node.Type, network p2p.Network, cfg *Config, store Store) fx.Option {
 	baseComponents := fx.Options(
-		fx.Provide(params.DefaultNetwork),
-		fx.Provide(params.BootstrappersFor),
+		fx.Supply(tp),
+		fx.Supply(network),
+		fx.Provide(p2p.BootstrappersFor),
 		fx.Provide(func(lc fx.Lifecycle) context.Context {
 			return fxutil.WithLifecycle(context.Background(), lc)
 		}),
@@ -42,7 +42,6 @@ func ConstructModule(tp node.Type, cfg *Config, store Store) fx.Option {
 
 	return fx.Module(
 		"node",
-		fx.Supply(tp),
 		baseComponents,
 	)
 }

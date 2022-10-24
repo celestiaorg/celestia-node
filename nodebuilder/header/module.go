@@ -13,7 +13,7 @@ import (
 	"github.com/celestiaorg/celestia-node/header/sync"
 	fraudServ "github.com/celestiaorg/celestia-node/nodebuilder/fraud"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
-	"github.com/celestiaorg/celestia-node/params"
+	modp2p "github.com/celestiaorg/celestia-node/nodebuilder/p2p"
 )
 
 var log = logging.Logger("header-module")
@@ -25,7 +25,7 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 	baseComponents := fx.Options(
 		fx.Supply(*cfg),
 		fx.Error(cfgErr),
-		fx.Supply(params.BlockTime),
+		fx.Supply(modp2p.BlockTime),
 		fx.Provide(NewHeaderService),
 		fx.Provide(fx.Annotate(
 			store.NewStore,

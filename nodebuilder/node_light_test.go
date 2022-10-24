@@ -11,7 +11,6 @@ import (
 
 	nodebuilder "github.com/celestiaorg/celestia-node/nodebuilder/node"
 	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
-	"github.com/celestiaorg/celestia-node/params"
 )
 
 func TestNewLightWithP2PKey(t *testing.T) {
@@ -43,5 +42,5 @@ func TestLight_WithMutualPeers(t *testing.T) {
 func TestLight_WithNetwork(t *testing.T) {
 	node := TestNode(t, nodebuilder.Light)
 	require.NotNil(t, node)
-	assert.Equal(t, params.Private, node.Network)
+	assert.Equal(t, p2p.Private, node.Network)
 }

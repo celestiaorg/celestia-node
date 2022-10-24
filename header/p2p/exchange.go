@@ -18,7 +18,7 @@ import (
 
 	"github.com/celestiaorg/celestia-node/header"
 	p2p_pb "github.com/celestiaorg/celestia-node/header/p2p/pb"
-	"github.com/celestiaorg/celestia-node/params"
+	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
 )
 
 var log = logging.Logger("header/p2p")
@@ -38,7 +38,7 @@ const (
 // gossipsub topic.
 const PubSubTopic = "header-sub"
 
-var exchangeProtocolID = protocol.ID(fmt.Sprintf("/header-ex/v0.0.3/%s", params.DefaultNetwork()))
+var exchangeProtocolID = protocol.ID(fmt.Sprintf("/header-ex/v0.0.3/%s", p2p.DefaultNetwork))
 
 // Exchange enables sending outbound ExtendedHeaderRequests to the network as well as
 // handling inbound ExtendedHeaderRequests from the network.

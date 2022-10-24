@@ -1,6 +1,8 @@
-package params
+package p2p
 
-import "fmt"
+import (
+	"fmt"
+)
 
 // GenesisFor reports a hash of a genesis block for a given network.
 // Genesis is strictly defined and can't be modified.

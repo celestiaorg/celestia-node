@@ -8,9 +8,9 @@ import (
 	"github.com/spf13/cobra"
 	flag "github.com/spf13/pflag"
 
-	"github.com/celestiaorg/celestia-node/params"
-
 	sdkflags "github.com/cosmos/cosmos-sdk/client/flags"
+
+	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
 )
 
 var (
@@ -20,7 +20,7 @@ var (
 
 func DirectoryFlags() *flag.FlagSet {
 	flags := &flag.FlagSet{}
-	defaultNetwork := string(params.DefaultNetwork())
+	defaultNetwork := string(p2p.DefaultNetwork)
 
 	flags.String(
 		nodeDirKey,

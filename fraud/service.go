@@ -13,18 +13,17 @@ import (
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/libp2p/go-libp2p-core/protocol"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
-
-	"github.com/celestiaorg/celestia-node/params"
-
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
+
+	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
 )
 
 // fraudRequests is the amount of external requests that will be tried to get fraud proofs from other peers.
 const fraudRequests = 5
 
-var fraudProtocolID = protocol.ID(fmt.Sprintf("/fraud/v0.0.1/%s", params.DefaultNetwork()))
+var fraudProtocolID = protocol.ID(fmt.Sprintf("/fraud/v0.0.1/%s", p2p.DefaultNetwork))
 
 // ProofService is responsible for validating and propagating Fraud Proofs.
 // It implements the Service interface.

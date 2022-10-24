@@ -10,8 +10,6 @@ import (
 	"github.com/libp2p/go-libp2p-core/routing"
 	dht "github.com/libp2p/go-libp2p-kad-dht"
 	"go.uber.org/fx"
-
-	nparams "github.com/celestiaorg/celestia-node/params"
 )
 
 var log = logging.Logger("p2p-module")
@@ -60,8 +58,8 @@ type routingParams struct {
 	fx.In
 
 	Ctx       context.Context
-	Net       nparams.Network
-	Peers     nparams.Bootstrappers
+	Net       Network
+	Peers     Bootstrappers
 	Lc        fx.Lifecycle
 	Host      HostBase
 	DataStore datastore.Batching

@@ -4,14 +4,13 @@ package main
 import (
 	"github.com/spf13/cobra"
 
+	cmdnode "github.com/celestiaorg/celestia-node/cmd"
 	"github.com/celestiaorg/celestia-node/nodebuilder/core"
 	"github.com/celestiaorg/celestia-node/nodebuilder/header"
+	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
 	"github.com/celestiaorg/celestia-node/nodebuilder/rpc"
 	"github.com/celestiaorg/celestia-node/nodebuilder/state"
-
-	cmdnode "github.com/celestiaorg/celestia-node/cmd"
-	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 )
 
 // NOTE: We should always ensure that the added Flags below are parsed somewhere, like in the PersistentPreRun func on
@@ -56,8 +55,14 @@ var lightCmd = &cobra.Command{
 
 		ctx = cmdnode.WithNodeType(ctx, node.Light)
 
+		parsedNetwork, err := p2p.ParseNetwork(cmd)
+		if err != nil {
+			return err
+		}
+		ctx = cmdnode.WithNetwork(ctx, parsedNetwork)
+
 		// loads existing config into the environment
-		ctx, err = cmdnode.ParseNodeFlags(ctx, cmd)
+		ctx, err = cmdnode.ParseNodeFlags(ctx, cmd, cmdnode.Network(ctx))
 		if err != nil {
 			return err
 		}

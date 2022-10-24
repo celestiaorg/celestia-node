@@ -1,4 +1,4 @@
-package params
+package p2p
 
 import (
 	"errors"
@@ -9,6 +9,8 @@ import (
 
 // NOTE: Every time we add a new long-running network, it has to be added here.
 const (
+	// DefaultNetwork is the default network of the current build.
+	DefaultNetwork = Arabica
 	// Arabica testnet. See: celestiaorg/networks.
 	Arabica Network = "arabica"
 	// Mamaki testnet. See: celestiaorg/networks.
@@ -44,8 +46,8 @@ var networksList = map[Network]struct{}{
 	Private: {},
 }
 
-// ListProvidedNetworks provides a string listing all known long-standing networks for things like command hints.
-func ListProvidedNetworks() string {
+// listProvidedNetworks provides a string listing all known long-standing networks for things like command hints.
+func listProvidedNetworks() string {
 	var networks string
 	for net := range networksList {
 		// "private" network isn't really a choosable option, so skip

@@ -13,8 +13,6 @@ import (
 	"github.com/libp2p/go-libp2p-core/protocol"
 	routinghelpers "github.com/libp2p/go-libp2p-routing-helpers"
 	"go.uber.org/fx"
-
-	nparams "github.com/celestiaorg/celestia-node/params"
 )
 
 const (
@@ -57,7 +55,7 @@ type bitSwapParams struct {
 	fx.In
 
 	Ctx  context.Context
-	Net  nparams.Network
+	Net  Network
 	Host host.Host
 	Ds   datastore.Batching
 }
