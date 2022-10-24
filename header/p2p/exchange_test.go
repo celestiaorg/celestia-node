@@ -17,10 +17,9 @@ import (
 
 	"github.com/celestiaorg/celestia-node/header"
 	p2p_pb "github.com/celestiaorg/celestia-node/header/p2p/pb"
-	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
 )
 
-var privateProtocolID = protocolID(string(p2p.Private))
+var privateProtocolID = protocolID("private")
 
 func TestExchange_RequestHead(t *testing.T) {
 	host, peer := createMocknet(t)
@@ -102,7 +101,7 @@ func TestExchange_RequestByHash(t *testing.T) {
 	host, peer := net.Hosts()[0], net.Hosts()[1]
 	// create and start the ExchangeServer
 	store := createStore(t, 5)
-	serv := NewExchangeServer(host, store, string(p2p.Private))
+	serv := NewExchangeServer(host, store, "private")
 	err = serv.Start(ctx)
 	require.NoError(t, err)
 	t.Cleanup(func() {
@@ -208,7 +207,7 @@ func TestExchange_RequestByHashFails(t *testing.T) {
 	require.NoError(t, err)
 	// get host and peer
 	host, peer := net.Hosts()[0], net.Hosts()[1]
-	serv := NewExchangeServer(host, createStore(t, 0), string(p2p.Private))
+	serv := NewExchangeServer(host, createStore(t, 0), "private")
 	err = serv.Start(ctx)
 	require.NoError(t, err)
 	t.Cleanup(func() {
@@ -241,7 +240,7 @@ func createMocknet(t *testing.T) (libhost.Host, libhost.Host) {
 // createP2PExAndServer creates a Exchange with 5 headers already in its store.
 func createP2PExAndServer(t *testing.T, host, tpeer libhost.Host) (header.Exchange, *mockStore) {
 	store := createStore(t, 5)
-	serverSideEx := NewExchangeServer(tpeer, store, string(p2p.Private))
+	serverSideEx := NewExchangeServer(tpeer, store, "private")
 	err := serverSideEx.Start(context.Background())
 	require.NoError(t, err)
 
@@ -249,7 +248,7 @@ func createP2PExAndServer(t *testing.T, host, tpeer libhost.Host) (header.Exchan
 		serverSideEx.Stop(context.Background()) //nolint:errcheck
 	})
 
-	return NewExchange(host, []peer.ID{tpeer.ID()}, string(p2p.Private)), store
+	return NewExchange(host, []peer.ID{tpeer.ID()}, "private"), store
 }
 
 type mockStore struct {
