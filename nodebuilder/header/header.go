@@ -69,7 +69,7 @@ func newInitStore(
 				//   * Having some test/dev/offline mode for Node that mocks out all the networking
 				//   * Hardcoding full extended header in params pkg, instead of hashes, so we avoid requesting step
 				//   * Or removing explicit initialization in favor of automated initialization by Syncer
-				log.Errorf("initializing store failed: %s", err)
+				log.Errorf("initializing header store failed: %s", err)
 			}
 			return nil
 		},
