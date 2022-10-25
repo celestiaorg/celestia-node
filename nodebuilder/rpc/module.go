@@ -35,7 +35,7 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 		return fx.Module(
 			"rpc",
 			baseComponents,
-			fx.Invoke(Handler),
+			fx.Invoke(RegisterEndpoints),
 		)
 	case node.Bridge:
 		return fx.Module(
@@ -47,7 +47,7 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 				header headerServ.Module,
 				rpcSrv *rpc.Server,
 			) {
-				Handler(state, share, header, rpcSrv, nil)
+				RegisterEndpoints(state, share, header, rpcSrv, nil)
 			}),
 		)
 	default:
