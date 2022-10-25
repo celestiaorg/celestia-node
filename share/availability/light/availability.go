@@ -18,46 +18,6 @@ import (
 
 var log = logging.Logger("share/light")
 
-type LAOption func(*ShareAvailability)
-
-// To be used with the construction
-// example:
-//
-// NewLightvailability(
-//
-//	bServ,
-//	disc,
-//	WithTimeout(10 * time.Minute),
-//
-// )
-func WithShareAvailabilityTimeout(timeout time.Duration) LAOption {
-	return func(la *ShareAvailability) {
-		la.timeout = timeout
-	}
-}
-
-// Use for default timeout value
-func WithShareAvailabilityTimeoutDefault() LAOption {
-	return func(la *ShareAvailability) {
-		la.timeout = DefaultAvailabilityTimeout
-	}
-}
-
-// DefaultSampleAmount sets the default amount of samples to be sampled from the network by lightAvailability.
-var DefaultSampleAmount = 16
-
-func WithSampleAmount(sampleAmount int) LAOption {
-	return func(la *ShareAvailability) {
-		la.sampleAmount = sampleAmount
-	}
-}
-
-func WithDefaultSampleAmount() LAOption {
-	return func(la *ShareAvailability) {
-		la.sampleAmount = DefaultSampleAmount
-	}
-}
-
 // ShareAvailability implements share.Availability using Data Availability Sampling technique.
 // It is light because it does not require the downloading of all the data to verify
 // its availability. It is assumed that there are a lot of lightAvailability instances
@@ -77,12 +37,19 @@ type ShareAvailability struct {
 // NewShareAvailability creates a new light Availability.
 func NewShareAvailability(
 	bserv blockservice.BlockService,
-	disc *Discovery,
-	options ...LAOption,
+	disc *discovery.Discovery,
+	options ...Option,
 ) *ShareAvailability {
 	la := &ShareAvailability{
 		bserv: bserv,
 		disc:  disc,
+	}
+
+	if len(options) == 0 {
+		options = []Option{
+			WithSampleAmountDefault(),
+			WithTimeoutDefault(),
+		}
 	}
 
 	for _, applyOpt := range options {

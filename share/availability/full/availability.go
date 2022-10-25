@@ -3,6 +3,7 @@ package full
 import (
 	"context"
 	"errors"
+	"time"
 
 	"github.com/ipfs/go-blockservice"
 	ipldFormat "github.com/ipfs/go-ipld-format"
@@ -19,6 +20,8 @@ var log = logging.Logger("share/full")
 // recovery technique. It is considered "full" because it is required
 // to download enough shares to fully reconstruct the data square.
 type ShareAvailability struct {
+	timeout time.Duration // The availability timeout
+
 	rtrv *eds.Retriever
 	disc *discovery.Discovery
 
@@ -26,11 +29,27 @@ type ShareAvailability struct {
 }
 
 // NewShareAvailability creates a new full ShareAvailability.
-func NewShareAvailability(bServ blockservice.BlockService, disc *discovery.Discovery) *ShareAvailability {
-	return &ShareAvailability{
+func NewShareAvailability(
+	bServ blockservice.BlockService,
+	disc *discovery.Discovery,
+	options ...Option,
+) *ShareAvailability {
+	fa := &ShareAvailability{
 		rtrv: eds.NewRetriever(bServ),
 		disc: disc,
 	}
+
+	if len(options) == 0 {
+		options = []Option{
+			WithTimeoutDefault(),
+		}
+	}
+
+	for _, applyOpt := range options {
+		applyOpt(fa)
+	}
+
+	return fa
 }
 
 func (fa *ShareAvailability) Start(context.Context) error {
@@ -50,7 +69,7 @@ func (fa *ShareAvailability) Stop(context.Context) error {
 // SharesAvailable reconstructs the data committed to the given Root by requesting
 // enough Shares from the network.
 func (fa *ShareAvailability) SharesAvailable(ctx context.Context, root *share.Root) error {
-	ctx, cancel := context.WithTimeout(ctx, share.AvailabilityTimeout)
+	ctx, cancel := context.WithTimeout(ctx, fa.timeout)
 	defer cancel()
 	// we assume the caller of this method has already performed basic validation on the
 	// given dah/root. If for some reason this has not happened, the node should panic.

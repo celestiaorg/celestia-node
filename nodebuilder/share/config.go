@@ -21,7 +21,7 @@ type Config struct {
 	// Availability Timeout Duration
 	AvailabilityTimeout time.Duration // TODO(team): should we define a unique timeout for each type of availability?
 	// Amount of Samples to perform
-	SampleAmount uint
+	SampleAmount int
 }
 
 func DefaultConfig() Config {
@@ -36,7 +36,7 @@ func DefaultConfig() Config {
 
 // Validate performs basic validation of the config.
 func (cfg *Config) Validate() error {
-	if cfg.DiscoveryInterval <= 0 || cfg.AdvertiseInterval <= 0 || cfg.AvailabilityTimeout <= 0 {
+	if cfg.DiscoveryInterval <= 0 || cfg.AdvertiseInterval <= 0 || cfg.AvailabilityTimeout <= 0 || cfg.SampleAmount <= 0 {
 		return fmt.Errorf("nodebuilder/share: %s", ErrNegativeInterval)
 	}
 	return nil

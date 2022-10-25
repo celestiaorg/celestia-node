@@ -22,15 +22,15 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 		fx.Options(options...),
 		fx.Invoke(share.EnsureEmptySquareExists),
 		fx.Provide(Discovery(*cfg)),
-		fx.Provide(func() []share.LAOption {
-			return []share.LAOption{
-				share.WithLightAvailabilityTimeout(cfg.AvailabilityTimeout),
-				share.WithSampleAmount(int(cfg.SampleAmount)),
+		fx.Provide(func() []light.Option {
+			return []light.Option{
+				light.WithTimeout(cfg.AvailabilityTimeout),
+				light.WithSampleAmount(int(cfg.SampleAmount)),
 			}
 		}),
-		fx.Provide(func() []share.FAOption {
-			return []share.FAOption{
-				share.WithFullAvailabilityTimeout(cfg.AvailabilityTimeout),
+		fx.Provide(func() []full.Option {
+			return []full.Option{
+				full.WithTimeout(cfg.AvailabilityTimeout),
 			}
 		}),
 		fx.Provide(NewModule),
