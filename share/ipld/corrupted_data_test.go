@@ -7,6 +7,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/availability/full"
 	availability_test "github.com/celestiaorg/celestia-node/share/availability/test"
 	"github.com/celestiaorg/celestia-node/share/service"
@@ -42,5 +43,5 @@ func TestNamespaceHasher_CorruptedData(t *testing.T) {
 	getCtx, cancelGet = context.WithTimeout(ctx, sharesAvailableTimeout)
 	t.Cleanup(cancelGet)
 	err = requestor.SharesAvailable(getCtx, root)
-	require.Error(t, err, "availability validation failed")
+	require.ErrorIs(t, err, share.ErrNotAvailable)
 }
