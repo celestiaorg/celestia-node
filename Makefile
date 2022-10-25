@@ -32,7 +32,7 @@ clean:
 cover:
 	@echo "--> Generating Code Coverage"
 	@go install github.com/ory/go-acc@latest
-	@go-acc -o coverage.txt -tags='testing' `go list ./... | grep -v nodebuilder/tests` -- -v
+	@go-acc -o coverage.txt `go list ./... | grep -v nodebuilder/tests` -- -v -tags='testing'
 .PHONY: cover
 
 ## deps: install dependencies.
