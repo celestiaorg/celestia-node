@@ -45,7 +45,7 @@ type Node struct {
 	Config        *Config
 
 	// rpc components
-	RPCServer *rpc.Server `optional:"true"`
+	RPCServer *rpc.Server // not optional
 	// p2p components
 	Host         host.Host
 	ConnGater    *conngater.BasicConnectionGater
