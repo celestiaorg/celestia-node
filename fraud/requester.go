@@ -8,12 +8,19 @@ import (
 
 	"github.com/celestiaorg/go-libp2p-messenger/serde"
 
+	"github.com/celestiaorg/celestia-node/env"
 	pb "github.com/celestiaorg/celestia-node/fraud/pb"
 )
 
-const (
+var (
 	// writeDeadline sets timeout for sending messages to the stream
-	writeDeadline = time.Second * 5
+	writeDeadline = env.Select(env.Var{
+		Standard: time.Second * 5,
+		Testing:  time.Millisecond * 100,
+	}).(time.Duration)
+)
+
+const (
 	// readDeadline sets timeout for reading messages from the stream
 	readDeadline = time.Minute
 )
