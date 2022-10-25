@@ -18,6 +18,7 @@ import (
 	"go.uber.org/fx"
 
 	"github.com/celestiaorg/celestia-app/testutil/testnode"
+
 	"github.com/celestiaorg/celestia-node/libs/keystore"
 	"github.com/celestiaorg/celestia-node/logs"
 	"github.com/celestiaorg/celestia-node/nodebuilder"
