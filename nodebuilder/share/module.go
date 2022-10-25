@@ -25,7 +25,7 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 		fx.Provide(func() []light.Option {
 			return []light.Option{
 				light.WithTimeout(cfg.AvailabilityTimeout),
-				light.WithSampleAmount(int(cfg.SampleAmount)),
+				light.WithSampleAmount(cfg.SampleAmount),
 			}
 		}),
 		fx.Provide(func() []full.Option {

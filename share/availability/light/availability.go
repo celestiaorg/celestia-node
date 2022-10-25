@@ -88,7 +88,8 @@ func (la *ShareAvailability) SharesAvailable(ctx context.Context, dah *share.Roo
 		return err
 	}
 
-	ctx, cancel := context.WithTimeout(ctx, la.timeout) // timeout is configurable through functional options passed to the constructor
+	// timeout is configurable through functional options passed to the constructor
+	ctx, cancel := context.WithTimeout(ctx, la.timeout)
 	defer cancel()
 
 	ses := blockservice.NewSession(ctx, la.bserv)
