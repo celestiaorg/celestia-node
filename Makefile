@@ -95,39 +95,39 @@ lint:
 ## test-unit: Running unit tests
 test-unit:
 	@echo "--> Running unit tests"
-	@go test `go list ./... | grep -v nodebuilder/tests` -covermode=atomic -coverprofile=coverage.out
+	@go test -tags='testing' `go list ./... | grep -v nodebuilder/tests` -covermode=atomic -coverprofile=coverage.out
 .PHONY: test-unit
 
 ## test-unit-race: Running unit tests with data race detector
 test-unit-race:
 	@echo "--> Running unit tests with data race detector"
-	@go test -race `go list ./... | grep -v nodebuilder/tests`
+	@go test -tags='testing' -race `go list ./... | grep -v nodebuilder/tests`
 .PHONY: test-unit-race
 
 ## test-swamp: Running swamp tests located in nodebuilder/tests
 test-swamp:
 	@echo "--> Running swamp tests"
-	@go test ./nodebuilder/tests
+	@go test -tags='testing' ./nodebuilder/tests
 .PHONY: test-swamp
 
 ## test-swamp: Running swamp tests with data race detector located in node/tests
 test-swamp-race:
 	@echo "--> Running swamp tests with data race detector"
-	@go test -race ./nodebuilder/tests
+	@go test -tags='testing' -race ./nodebuilder/tests
 .PHONY: test-swamp-race
 
 ## test-all: Running both unit and swamp tests
 test:
 	@echo "--> Running all tests without data race detector"
-	@go test ./...
+	@go test -tags='testing' ./...
 	@echo "--> Running all tests with data race detector"
-	@go test -race ./...
+	@go test -tags='testing' -race ./...
 .PHONY: test
 
 ## benchmark: Running all benchmarks
 benchmark:
 	@echo "--> Running benchmarks"
-	@go test -run="none" -bench=. -benchtime=100x -benchmem ./...
+	@go test -tags='testing' -run="none" -bench=. -benchtime=100x -benchmem ./...
 .PHONY: benchmark
 
 PB_PKGS=$(shell find . -name 'pb' -type d)
