@@ -1,22 +1,27 @@
 package rpc
 
 import (
+	"github.com/celestiaorg/celestia-node/api/rpc"
 	"github.com/celestiaorg/celestia-node/das"
 	"github.com/celestiaorg/celestia-node/nodebuilder/header"
 	"github.com/celestiaorg/celestia-node/nodebuilder/share"
 	"github.com/celestiaorg/celestia-node/nodebuilder/state"
-	"github.com/celestiaorg/celestia-node/service/rpc"
 )
 
-// Handler constructs a new RPC Handler from the given services.
-func Handler(
+// RegisterEndpoints registers the given services on the rpc.
+func RegisterEndpoints(
 	state state.Module,
 	share share.Module,
 	header header.Module,
 	serv *rpc.Server,
 	daser *das.DASer,
 ) {
-	handler := rpc.NewHandler(state, share, header, daser)
-	handler.RegisterEndpoints(serv)
-	handler.RegisterMiddleware(serv)
+	serv.RegisterService("state", state)
+	serv.RegisterService("share", share)
+	serv.RegisterService("header", header)
+	serv.RegisterService("daser", daser)
+}
+
+func Server(cfg *Config) *rpc.Server {
+	return rpc.NewServer(cfg.Address, cfg.Port)
 }

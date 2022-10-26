@@ -1,4 +1,4 @@
-package rpc
+package gateway
 
 import (
 	"context"
@@ -11,7 +11,7 @@ import (
 )
 
 // Server represents an RPC server on the Node.
-// TODO @renaynay: eventually, rpc server should be able to be toggled on and off.
+// TODO @renaynay: eventually, gateway server should be able to be toggled on and off.
 type Server struct {
 	cfg Config
 

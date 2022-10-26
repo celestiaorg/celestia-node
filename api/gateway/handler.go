@@ -1,4 +1,4 @@
-package rpc
+package gateway
 
 import (
 	logging "github.com/ipfs/go-log/v2"
@@ -9,7 +9,7 @@ import (
 	"github.com/celestiaorg/celestia-node/nodebuilder/state"
 )
 
-var log = logging.Logger("rpc")
+var log = logging.Logger("gateway")
 
 type Handler struct {
 	state  state.Module

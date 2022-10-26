@@ -15,6 +15,7 @@ require (
 	github.com/cosmos/cosmos-sdk v0.46.0
 	github.com/cosmos/cosmos-sdk/api v0.1.0
 	github.com/dgraph-io/badger/v2 v2.2007.4
+	github.com/filecoin-project/go-jsonrpc v0.1.8
 	github.com/gammazero/workerpool v1.1.3
 	github.com/gogo/protobuf v1.3.3
 	github.com/gorilla/mux v1.8.0

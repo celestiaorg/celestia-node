@@ -3,8 +3,6 @@ package rpc
 import (
 	"github.com/spf13/cobra"
 	flag "github.com/spf13/pflag"
-
-	"github.com/celestiaorg/celestia-node/service/rpc"
 )
 
 var (
@@ -31,7 +29,7 @@ func Flags() *flag.FlagSet {
 }
 
 // ParseFlags parses RPC flags from the given cmd and saves them to the passed config.
-func ParseFlags(cmd *cobra.Command, cfg *rpc.Config) {
+func ParseFlags(cmd *cobra.Command, cfg *Config) {
 	addr := cmd.Flag(addrFlag).Value.String()
 	if addr != "" {
 		cfg.Address = addr
