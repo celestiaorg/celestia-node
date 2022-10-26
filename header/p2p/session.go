@@ -21,7 +21,8 @@ const (
 	chunkSize uint64 = 64
 )
 
-// session aims to divide a range of headers into several chunks and to request this chunks from different peers.
+// session aims to divide a range of headers
+// into several chunks and to request this chunks from different peers.
 type session struct {
 	ctx        context.Context
 	host       host.Host
@@ -103,7 +104,7 @@ func (s *session) GetRangeByHeight(ctx context.Context, from, amount uint64) ([]
 	for i := 0; i < cap(result); i++ {
 		select {
 		case <-s.ctx.Done():
-			return nil, s.ctx.Err()
+			return nil, s.ctx.Err() // "service was stopped"
 		case <-ctx.Done():
 			return nil, ctx.Err()
 		case err := <-s.errCh:

@@ -16,13 +16,13 @@ type peerStat struct {
 	peerScore float32
 }
 
-// updateStats recalculates peer.score
-func (p *peerStat) updateStats(amount uint64, t uint64) {
+// updateStats recalculates peer.score by averaging the last score
+func (p *peerStat) updateStats(amount uint64, time uint64) {
 	p.pLk.Lock()
 	defer p.pLk.Unlock()
 	var averageSpeed float32
-	if t != 0 {
-		averageSpeed = float32(amount / t)
+	if time != 0 {
+		averageSpeed = float32(amount / time)
 	}
 	if p.peerScore == 0.0 {
 		p.peerScore = averageSpeed
@@ -40,15 +40,15 @@ func (p *peerStat) score() float32 {
 
 type peerStats []*peerStat
 
-func newPeerStats() *peerStats {
+func newPeerStats() peerStats {
 	ps := make(peerStats, 0)
 	heap.Init(&ps)
-	return &ps
+	return ps
 }
 
 // peerQueue wraps peerStats
 type peerQueue struct {
-	stats   *peerStats
+	stats   peerStats
 	statsLk sync.RWMutex
 
 	havePeer chan struct{}
@@ -81,7 +81,7 @@ func (p *peerQueue) calculateBestPeer() *peerStat {
 func (p *peerQueue) push(stat *peerStat) {
 	p.statsLk.Lock()
 	defer p.statsLk.Unlock()
-	heap.Push(p.stats, stat)
+	heap.Push(&p.stats, stat)
 	// notify that peer is available in the queue, so it can be popped out
 	if p.wantPeer.Load() {
 		p.havePeer <- struct{}{}
@@ -92,7 +92,7 @@ func (p *peerQueue) push(stat *peerStat) {
 func (p *peerQueue) pop() *peerStat {
 	p.statsLk.Lock()
 	defer p.statsLk.Unlock()
-	return heap.Pop(p.stats).(*peerStat)
+	return heap.Pop(&p.stats).(*peerStat)
 }
 
 func (p *peerQueue) len() int {
