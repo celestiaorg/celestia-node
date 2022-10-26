@@ -13,7 +13,7 @@ import (
 	"github.com/celestiaorg/celestia-node/share/service"
 )
 
-// timeout is an arbitrarily picked interval of time in which a TestNode is expected to be able to complete a
+// sharesAvailableTimeout is an arbitrarily picked interval of time in which a TestNode is expected to be able to complete a
 // SharesAvailable request from a connected peer in a TestDagNet.
 const sharesAvailableTimeout = 2 * time.Second
 
