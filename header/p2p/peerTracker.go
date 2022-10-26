@@ -11,17 +11,23 @@ import (
 )
 
 type peerTracker struct {
-	host         host.Host
-	pLk          sync.RWMutex
-	notAvailable map[peer.ID]*peerStat
-	stats        []*peerStat
+	pLk            sync.RWMutex
+	connectedPeers map[peer.ID]*peerStat
+	// we should store peer to cache when it will be disconnected,
+	// so we can guarantee that peerQueue will return only active peer
+	disconnectedPeers map[peer.ID]*peerStat
+	host              host.Host
 }
 
 func newPeerTracker(h host.Host) *peerTracker {
-	return &peerTracker{host: h, notAvailable: make(map[peer.ID]*peerStat), stats: make([]*peerStat, 0)}
+	return &peerTracker{
+		host:              h,
+		disconnectedPeers: make(map[peer.ID]*peerStat),
+		connectedPeers:    make(map[peer.ID]*peerStat),
+	}
 }
 
-func (p *peerTracker) findPeers(ctx context.Context) {
+func (p *peerTracker) track(ctx context.Context) {
 	// store peers that has been already connected
 	for _, peer := range p.host.Peerstore().Peers() {
 		p.connected(peer)
@@ -56,39 +62,39 @@ func (p *peerTracker) connected(pID peer.ID) {
 	if p.host.ID() == pID {
 		return
 	}
+	for _, c := range p.host.Network().ConnsToPeer(pID) {
+		if c.Stat().Transient {
+			return
+		}
+	}
 	p.pLk.Lock()
 	defer p.pLk.Unlock()
-	stats, ok := p.notAvailable[pID]
+	stats, ok := p.disconnectedPeers[pID]
 	if !ok {
 		stats = &peerStat{peerID: pID}
 	} else {
-		delete(p.notAvailable, pID)
+		delete(p.disconnectedPeers, pID)
 	}
-	p.stats = append(p.stats, stats)
+	p.connectedPeers[pID] = stats
 }
 
 func (p *peerTracker) disconnected(pID peer.ID) {
 	p.pLk.Lock()
 	defer p.pLk.Unlock()
-	stats, ok := p.findPeer(pID)
-	if ok {
-		p.notAvailable[pID] = stats
+	stats, ok := p.connectedPeers[pID]
+	if !ok {
+		return
 	}
-}
-
-func (p *peerTracker) findPeer(pID peer.ID) (stats *peerStat, ok bool) {
-	for _, stat := range p.stats {
-		if stat.peerID == pID {
-			stats = stat
-			ok = true
-			break
-		}
-	}
-	return
+	p.disconnectedPeers[pID] = stats
+	delete(p.connectedPeers, pID)
 }
 
 func (p *peerTracker) peers() []*peerStat {
 	p.pLk.RLock()
 	defer p.pLk.RUnlock()
-	return p.stats
+	peers := make([]*peerStat, 0, len(p.connectedPeers))
+	for _, stat := range p.connectedPeers {
+		peers = append(peers, stat)
+	}
+	return peers
 }

@@ -236,7 +236,7 @@ func createP2PExAndServer(t *testing.T, host, tpeer libhost.Host) (header.Exchan
 	require.NoError(t, err)
 
 	exchange := NewExchange(host, []peer.ID{tpeer.ID()}, "private")
-	exchange.peerTracker.stats = append(exchange.peerTracker.stats, &peerStat{peerID: tpeer.ID()})
+	exchange.peerTracker.connectedPeers[tpeer.ID()] = &peerStat{peerID: tpeer.ID()}
 	exchange.Start(context.Background()) //nolint:errcheck
 
 	t.Cleanup(func() {

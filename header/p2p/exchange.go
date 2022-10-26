@@ -64,7 +64,7 @@ func NewExchange(host host.Host, peers peer.IDSlice, protocolSuffix string) *Exc
 
 func (ex *Exchange) Start(context.Context) error {
 	ex.ctx, ex.cancel = context.WithCancel(context.Background())
-	go ex.peerTracker.findPeers(ex.ctx)
+	go ex.peerTracker.track(ex.ctx)
 	return nil
 }
 
