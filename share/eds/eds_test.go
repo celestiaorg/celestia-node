@@ -1,9 +1,11 @@
 package eds
 
 import (
+	"bytes"
 	"context"
 	"embed"
 	"encoding/json"
+	"fmt"
 	"os"
 	"testing"
 
@@ -173,6 +175,36 @@ func TestReadEDSContentIntegrityMismatch(t *testing.T) {
 
 	_, err := ReadEDS(context.Background(), f, dah)
 	require.ErrorContains(t, err, "share: content integrity mismatch: imported root")
+}
+
+// BenchmarkReadWriteEDS benchmarks the time it takes to write and read an EDS from disk. The benchmark is run with a
+// 4x4 ODS to a 64x64 ODS - a higher value can be used, but it will run for much longer.
+func BenchmarkReadWriteEDS(b *testing.B) {
+	ctx, cancel := context.WithCancel(context.Background())
+	b.Cleanup(cancel)
+	for originalDataWidth := 4; originalDataWidth <= 64; originalDataWidth *= 2 {
+		eds := share.RandEDS(b, originalDataWidth)
+		dah := da.NewDataAvailabilityHeader(eds)
+		b.Run(fmt.Sprintf("Writing %dx%d", originalDataWidth, originalDataWidth), func(b *testing.B) {
+			b.ReportAllocs()
+			for i := 0; i < b.N; i++ {
+				f := new(bytes.Buffer)
+				err := WriteEDS(ctx, eds, f)
+				require.NoError(b, err)
+			}
+		})
+		b.Run(fmt.Sprintf("Reading %dx%d", originalDataWidth, originalDataWidth), func(b *testing.B) {
+			b.ReportAllocs()
+			for i := 0; i < b.N; i++ {
+				b.StopTimer()
+				f := new(bytes.Buffer)
+				_ = WriteEDS(ctx, eds, f)
+				b.StartTimer()
+				_, err := ReadEDS(ctx, f, dah)
+				require.NoError(b, err)
+			}
+		})
+	}
 }
 
 func writeRandomEDS(t *testing.T) *rsmt2d.ExtendedDataSquare {
