@@ -47,7 +47,7 @@ func TestShareAvailable_OneFullNode(t *testing.T) {
 		return full.SharesAvailable(errCtx, root)
 	})
 
-	lights := make([]*availability_test.Node, lightNodes)
+	lights := make([]*availability_test.TestNode, lightNodes)
 	for i := 0; i < len(lights); i++ {
 		lights[i] = light.Node(net)
 		go func(i int) {
@@ -112,7 +112,9 @@ func TestShareAvailable_ConnectedFullNodes(t *testing.T) {
 	})
 
 	// create light nodes and start sampling for them immediately
-	lights1, lights2 := make([]*availability_test.Node, lightNodes/2), make([]*availability_test.Node, lightNodes/2)
+	lights1, lights2 := make(
+		[]*availability_test.TestNode, lightNodes/2),
+		make([]*availability_test.TestNode, lightNodes/2)
 	for i := 0; i < len(lights1); i++ {
 		lights1[i] = light.Node(net)
 		go func(i int) {
@@ -208,7 +210,9 @@ func TestShareAvailable_DisconnectedFullNodes(t *testing.T) {
 	})
 
 	// create light nodes and start sampling for them immediately
-	lights1, lights2 := make([]*availability_test.Node, lightNodes/2), make([]*availability_test.Node, lightNodes/2)
+	lights1, lights2 := make(
+		[]*availability_test.TestNode, lightNodes/2),
+		make([]*availability_test.TestNode, lightNodes/2)
 	for i := 0; i < len(lights1); i++ {
 		lights1[i] = light.Node(net)
 		go func(i int) {
