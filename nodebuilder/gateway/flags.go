@@ -28,7 +28,7 @@ func Flags() *flag.FlagSet {
 	flags.String(
 		portFlag,
 		"",
-		"Set a custom gateway port (default: 26658)",
+		"Set a custom gateway port (default: 26659)",
 	)
 
 	return flags
