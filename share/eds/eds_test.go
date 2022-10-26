@@ -183,9 +183,6 @@ func BenchmarkReadWriteEDS(b *testing.B) {
 	ctx, cancel := context.WithCancel(context.Background())
 	b.Cleanup(cancel)
 	for originalDataWidth := 4; originalDataWidth <= 64; originalDataWidth *= 2 {
-		tmpDir := b.TempDir()
-		err := os.Chdir(tmpDir)
-		require.NoError(b, err)
 		eds := share.RandEDS(b, originalDataWidth)
 		dah := da.NewDataAvailabilityHeader(eds)
 		b.Run(fmt.Sprintf("Writing %dx%d", originalDataWidth, originalDataWidth), func(b *testing.B) {
@@ -203,7 +200,7 @@ func BenchmarkReadWriteEDS(b *testing.B) {
 				f := new(bytes.Buffer)
 				_ = WriteEDS(ctx, eds, f)
 				b.StartTimer()
-				_, err = ReadEDS(ctx, f, dah)
+				_, err := ReadEDS(ctx, f, dah)
 				require.NoError(b, err)
 			}
 		})
