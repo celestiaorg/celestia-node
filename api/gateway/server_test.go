@@ -12,10 +12,8 @@ import (
 )
 
 func TestServer(t *testing.T) {
-	server := NewServer(Config{
-		Address: "0.0.0.0",
-		Port:    "0",
-	})
+	address, port := "0.0.0.0", "0"
+	server := NewServer(address, port)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)

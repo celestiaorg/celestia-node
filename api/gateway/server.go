@@ -2,7 +2,6 @@ package gateway
 
 import (
 	"context"
-	"fmt"
 	"net"
 	"net/http"
 	"time"
@@ -13,23 +12,21 @@ import (
 // Server represents an RPC server on the Node.
 // TODO @renaynay: eventually, gateway server should be able to be toggled on and off.
 type Server struct {
-	cfg Config
-
 	srv      *http.Server
 	srvMux   *mux.Router // http request multiplexer
 	listener net.Listener
 }
 
 // NewServer returns a new RPC Server.
-func NewServer(cfg Config) *Server {
+func NewServer(address string, port string) *Server {
 	srvMux := mux.NewRouter()
 	srvMux.Use(setContentType)
 
 	server := &Server{
-		cfg:    cfg,
 		srvMux: srvMux,
 	}
 	server.srv = &http.Server{
+		Addr:    address + ":" + port,
 		Handler: server,
 		// the amount of time allowed to read request headers. set to the default 2 seconds
 		ReadHeaderTimeout: 2 * time.Second,
@@ -37,21 +34,20 @@ func NewServer(cfg Config) *Server {
 	return server
 }
 
-// Start starts the RPC Server, listening on the given address.
+// Start starts the gateway Server, listening on the given address.
 func (s *Server) Start(context.Context) error {
-	listenAddr := fmt.Sprintf("%s:%s", s.cfg.Address, s.cfg.Port)
-	listener, err := net.Listen("tcp", listenAddr)
+	listener, err := net.Listen("tcp", s.srv.Addr)
 	if err != nil {
 		return err
 	}
 	s.listener = listener
-	log.Infow("RPC server started", "listening on", listener.Addr().String())
+	log.Infow("Gateway server started", "listening on", listener.Addr().String())
 	//nolint:errcheck
 	go s.srv.Serve(listener)
 	return nil
 }
 
-// Stop stops the RPC Server.
+// Stop stops the gateway Server.
 func (s *Server) Stop(context.Context) error {
 	// if server already stopped, return
 	if s.listener == nil {
@@ -61,7 +57,7 @@ func (s *Server) Stop(context.Context) error {
 		return err
 	}
 	s.listener = nil
-	log.Info("RPC server stopped")
+	log.Info("Gateway server stopped")
 	return nil
 }
 

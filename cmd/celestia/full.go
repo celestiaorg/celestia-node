@@ -6,6 +6,7 @@ import (
 
 	cmdnode "github.com/celestiaorg/celestia-node/cmd"
 	"github.com/celestiaorg/celestia-node/nodebuilder/core"
+	"github.com/celestiaorg/celestia-node/nodebuilder/gateway"
 	"github.com/celestiaorg/celestia-node/nodebuilder/header"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
@@ -27,6 +28,7 @@ func init() {
 			// over an RPC connection with a celestia-core node.
 			core.Flags(),
 			rpc.Flags(),
+			gateway.Flags(),
 			state.Flags(),
 		),
 		cmdnode.Start(
@@ -38,6 +40,7 @@ func init() {
 			// over an RPC connection with a celestia-core node.
 			core.Flags(),
 			rpc.Flags(),
+			gateway.Flags(),
 			state.Flags(),
 		),
 	)
@@ -89,6 +92,7 @@ var fullCmd = &cobra.Command{
 		}
 
 		rpc.ParseFlags(cmd, &cfg.RPC)
+		gateway.ParseFlags(cmd, &cfg.Gateway)
 		state.ParseFlags(cmd, &cfg.State)
 
 		// set config

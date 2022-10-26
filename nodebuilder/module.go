@@ -9,6 +9,7 @@ import (
 	"github.com/celestiaorg/celestia-node/nodebuilder/core"
 	"github.com/celestiaorg/celestia-node/nodebuilder/das"
 	"github.com/celestiaorg/celestia-node/nodebuilder/fraud"
+	"github.com/celestiaorg/celestia-node/nodebuilder/gateway"
 	"github.com/celestiaorg/celestia-node/nodebuilder/header"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
@@ -35,6 +36,7 @@ func ConstructModule(tp node.Type, network p2p.Network, cfg *Config, store Store
 		header.ConstructModule(tp, &cfg.Header),
 		share.ConstructModule(tp, &cfg.Share),
 		rpc.ConstructModule(tp, &cfg.RPC),
+		gateway.ConstructModule(tp, &cfg.Gateway),
 		core.ConstructModule(tp, &cfg.Core),
 		das.ConstructModule(tp, &cfg.DASer),
 		fraud.ConstructModule(tp),

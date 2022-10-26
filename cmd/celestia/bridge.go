@@ -5,6 +5,7 @@ import (
 
 	cmdnode "github.com/celestiaorg/celestia-node/cmd"
 	"github.com/celestiaorg/celestia-node/nodebuilder/core"
+	"github.com/celestiaorg/celestia-node/nodebuilder/gateway"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
 	"github.com/celestiaorg/celestia-node/nodebuilder/rpc"
@@ -22,6 +23,7 @@ func init() {
 			core.Flags(),
 			cmdnode.MiscFlags(),
 			rpc.Flags(),
+			gateway.Flags(),
 			state.Flags(),
 		),
 		cmdnode.Start(
@@ -30,6 +32,7 @@ func init() {
 			core.Flags(),
 			cmdnode.MiscFlags(),
 			rpc.Flags(),
+			gateway.Flags(),
 			state.Flags(),
 		),
 	)
@@ -76,6 +79,7 @@ var bridgeCmd = &cobra.Command{
 		}
 
 		rpc.ParseFlags(cmd, &cfg.RPC)
+		gateway.ParseFlags(cmd, &cfg.Gateway)
 		state.ParseFlags(cmd, &cfg.State)
 
 		// set config
