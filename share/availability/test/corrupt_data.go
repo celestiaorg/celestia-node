@@ -13,7 +13,7 @@ import (
 	blockstore "github.com/ipfs/go-ipfs-blockstore"
 )
 
-var _ blockstore.Blockstore = (*MockBlockstore)(nil)
+var _ blockstore.Blockstore = (*FraudulentBlockstore)(nil)
 
 // CorruptBlock is a block where the cid doesn't match the data. It fulfills the blocks.Block interface.
 type CorruptBlock struct {
@@ -46,41 +46,41 @@ func NewCorruptBlock(data []byte, fakeCID cid.Cid) *CorruptBlock {
 	}
 }
 
-// MockBlockstore is a mock blockstore.Blockstore that saves both corrupted and original data for every block it
-// receives. If MockBlockstore.Attacking is true, it will serve the corrupted data on requests.
-type MockBlockstore struct {
+// FraudulentBlockstore is a mock blockstore.Blockstore that saves both corrupted and original data for every block it
+// receives. If FraudulentBlockstore.Attacking is true, it will serve the corrupted data on requests.
+type FraudulentBlockstore struct {
 	ds.Datastore
 	Attacking bool
 }
 
-func (m MockBlockstore) Has(ctx context.Context, cid cid.Cid) (bool, error) {
+func (fb FraudulentBlockstore) Has(ctx context.Context, cid cid.Cid) (bool, error) {
 	return false, nil
 }
 
-func (m MockBlockstore) Get(ctx context.Context, cid cid.Cid) (blocks.Block, error) {
+func (fb FraudulentBlockstore) Get(ctx context.Context, cid cid.Cid) (blocks.Block, error) {
 	key := cid.String()
-	if m.Attacking {
+	if fb.Attacking {
 		key = "corrupt" + key
 	}
 
-	data, err := m.Datastore.Get(ctx, ds.NewKey(key))
+	data, err := fb.Datastore.Get(ctx, ds.NewKey(key))
 	if err != nil {
 		return nil, err
 	}
 	return NewCorruptBlock(data, cid), nil
 }
 
-func (m MockBlockstore) GetSize(ctx context.Context, cid cid.Cid) (int, error) {
+func (fb FraudulentBlockstore) GetSize(ctx context.Context, cid cid.Cid) (int, error) {
 	key := cid.String()
-	if m.Attacking {
+	if fb.Attacking {
 		key = "corrupt" + key
 	}
 
-	return m.Datastore.GetSize(ctx, ds.NewKey(key))
+	return fb.Datastore.GetSize(ctx, ds.NewKey(key))
 }
 
-func (m MockBlockstore) Put(ctx context.Context, block blocks.Block) error {
-	err := m.Datastore.Put(ctx, ds.NewKey(block.Cid().String()), block.RawData())
+func (fb FraudulentBlockstore) Put(ctx context.Context, block blocks.Block) error {
+	err := fb.Datastore.Put(ctx, ds.NewKey(block.Cid().String()), block.RawData())
 	if err != nil {
 		return err
 	}
@@ -88,12 +88,12 @@ func (m MockBlockstore) Put(ctx context.Context, block blocks.Block) error {
 	// create data that doesn't match the CID with arbitrary lengths between 0 and len(block.RawData())*2
 	corrupted := make([]byte, mrand.Int()%(len(block.RawData())*2))
 	mrand.Read(corrupted)
-	return m.Datastore.Put(ctx, ds.NewKey("corrupt"+block.Cid().String()), corrupted)
+	return fb.Datastore.Put(ctx, ds.NewKey("corrupt"+block.Cid().String()), corrupted)
 }
 
-func (m MockBlockstore) PutMany(ctx context.Context, blocks []blocks.Block) error {
+func (fb FraudulentBlockstore) PutMany(ctx context.Context, blocks []blocks.Block) error {
 	for _, b := range blocks {
-		err := m.Put(ctx, b)
+		err := fb.Put(ctx, b)
 		if err != nil {
 			return err
 		}
@@ -101,26 +101,23 @@ func (m MockBlockstore) PutMany(ctx context.Context, blocks []blocks.Block) erro
 	return nil
 }
 
-func (m MockBlockstore) DeleteBlock(ctx context.Context, cid cid.Cid) error {
-	// TODO implement me
+func (fb FraudulentBlockstore) DeleteBlock(ctx context.Context, cid cid.Cid) error {
 	panic("implement me")
 }
 
-func (m MockBlockstore) AllKeysChan(ctx context.Context) (<-chan cid.Cid, error) {
-	// TODO implement me
+func (fb FraudulentBlockstore) AllKeysChan(ctx context.Context) (<-chan cid.Cid, error) {
 	panic("implement me")
 }
 
-func (m MockBlockstore) HashOnRead(enabled bool) {
-	// TODO implement me
+func (fb FraudulentBlockstore) HashOnRead(enabled bool) {
 	panic("implement me")
 }
 
-// MockNode creates a TestNode that uses a MockBlockstore to simulate serving corrupted data.
-func MockNode(t *testing.T, net *TestDagNet) (*TestNode, *MockBlockstore) {
+// MockNode creates a TestNode that uses a FraudulentBlockstore to simulate serving corrupted data.
+func MockNode(t *testing.T, net *TestDagNet) (*TestNode, *FraudulentBlockstore) {
 	t.Helper()
 	dstore := dssync.MutexWrap(ds.NewMapDatastore())
-	mockBS := &MockBlockstore{
+	mockBS := &FraudulentBlockstore{
 		Datastore: dstore,
 		Attacking: false,
 	}
