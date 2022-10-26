@@ -5,7 +5,7 @@ import (
 
 	"github.com/filecoin-project/go-jsonrpc"
 
-	"github.com/celestiaorg/celestia-node/nodebuilder/daser"
+	"github.com/celestiaorg/celestia-node/nodebuilder/das"
 	"github.com/celestiaorg/celestia-node/nodebuilder/fraud"
 	"github.com/celestiaorg/celestia-node/nodebuilder/header"
 	"github.com/celestiaorg/celestia-node/nodebuilder/share"
@@ -18,7 +18,7 @@ type API interface {
 	header.Module
 	state.Module
 	share.Module
-	daser.Module
+	das.Module
 }
 
 type Client struct {
@@ -26,17 +26,54 @@ type Client struct {
 	Header header.API
 	State  state.API
 	Share  share.API
-	DAS    daser.API
+	DAS    das.API
 }
 
-func NewClient(ctx context.Context, addr string) (*Client, jsonrpc.ClientCloser, error) {
+// MultiClientCloser is a wrapper struct to close clients across multiple namespaces.
+type MultiClientCloser struct {
+	closers map[string]jsonrpc.ClientCloser
+}
+
+// Register adds a new closer to the MultiClientCloser under the given namespace.
+func (m *MultiClientCloser) Register(namespace string, closer jsonrpc.ClientCloser) {
+	if m.closers == nil {
+		m.closers = make(map[string]jsonrpc.ClientCloser)
+	}
+	m.closers[namespace] = closer
+}
+
+// CloseNamespace closes the client for the given namespace.
+func (m *MultiClientCloser) CloseNamespace(namespace string) {
+	m.closers[namespace]()
+}
+
+// CloseAll closes all saved clients.
+func (m *MultiClientCloser) CloseAll() {
+	for _, closer := range m.closers {
+		closer()
+	}
+}
+
+// NewClient creates a new Client with one connection per namespace.
+func NewClient(ctx context.Context, addr string) (*Client, *MultiClientCloser, error) {
 	var client Client
-	closer, err := jsonrpc.NewMergeClient(
-		ctx,
-		addr,
-		"Handler",
-		[]interface{}{&client.Share, &client.State, &client.Header, &client.Fraud, &client.DAS},
-		nil,
-	)
-	return &client, closer, err
+	var multiCloser MultiClientCloser
+
+	// TODO: this duplication of strings many times across the codebase can be avoided with issue #1176
+	var modules = map[string]interface{}{
+		"share":  &client.Share,
+		"state":  &client.State,
+		"header": &client.Header,
+		"fraud":  &client.Fraud,
+		"das":    &client.DAS,
+	}
+	for name, module := range modules {
+		closer, err := jsonrpc.NewClient(ctx, addr, name, module, nil)
+		if err != nil {
+			return nil, &multiCloser, err
+		}
+		multiCloser.Register(name, closer)
+	}
+
+	return &client, &multiCloser, nil
 }
