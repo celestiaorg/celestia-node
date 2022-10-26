@@ -13,8 +13,8 @@ import (
 	"github.com/celestiaorg/celestia-node/share/service"
 )
 
-// timeout is an arbitrarily picked interval of time in which a TestNode is expected to be able to complete a
-// SharesAvailable request from a connected peer in a TestDagNet.
+// sharesAvailableTimeout is an arbitrarily picked interval of time in which a TestNode is expected to be able to
+// complete a SharesAvailable request from a connected peer in a TestDagNet.
 const sharesAvailableTimeout = 2 * time.Second
 
 // TestNamespaceHasher_CorruptedData is an integration test that verifies that the NamespaceHasher of a recipient of
