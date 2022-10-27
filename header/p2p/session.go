@@ -2,6 +2,7 @@ package p2p
 
 import (
 	"context"
+	"errors"
 	"io"
 	"sort"
 	"time"
@@ -56,6 +57,8 @@ func (s *session) doRequest(
 		if err == context.Canceled {
 			return
 		}
+		log.Errorw("requesting headers from peer failed."+
+			"Retrying the request from different peer", "pID", stat.peerID, "err", err)
 		s.reqCh <- req
 		return
 	}
@@ -104,7 +107,7 @@ func (s *session) GetRangeByHeight(ctx context.Context, from, amount uint64) ([]
 	for i := 0; i < cap(result); i++ {
 		select {
 		case <-s.ctx.Done():
-			return nil, s.ctx.Err() // "service was stopped"
+			return nil, errors.New("header/p2p: exchange service was stopped")
 		case <-ctx.Done():
 			return nil, ctx.Err()
 		case err := <-s.errCh:
