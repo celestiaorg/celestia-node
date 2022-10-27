@@ -6,15 +6,10 @@ import (
 	"go/token"
 	"net"
 	"reflect"
+	"strings"
 
 	go_openrpc_reflect "github.com/etclabscore/go-openrpc-reflect"
 	meta_schema "github.com/open-rpc/meta-schema"
-
-	"github.com/celestiaorg/celestia-node/das"
-	"github.com/celestiaorg/celestia-node/fraud"
-	"github.com/celestiaorg/celestia-node/nodebuilder/header"
-	"github.com/celestiaorg/celestia-node/share/availability/light"
-	"github.com/celestiaorg/celestia-node/state"
 )
 
 type Visitor struct {
@@ -42,17 +37,6 @@ func (v *Visitor) Visit(node ast.Node) ast.Visitor {
 }
 
 type Comments = map[string]string
-
-// PackageToDefaultImpl is a map that points the package name to an implementation. This is necessary for now for the
-// document to be able to discover the methods. TODO: This is a temporary solution for the first prototype. The next
-// version of the prototype should use mock implementations of the interfaces.
-var PackageToDefaultImpl = map[string]interface{}{
-	"fraud":  &fraud.ProofService{},
-	"state":  &state.CoreAccessor{},
-	"share":  &light.ShareAvailability{},
-	"header": &header.Service{},
-	"daser":  &das.DASer{},
-}
 
 func ParseCommentsFromNodebuilderModules(moduleNames ...string) Comments {
 	fset := token.NewFileSet()
@@ -92,21 +76,49 @@ func NewOpenRPCDocument(comments Comments) *go_openrpc_reflect.Document {
 		},
 		GetInfoFn: func() (info *meta_schema.InfoObject) {
 			info = &meta_schema.InfoObject{}
-			title := "Bikini Bottom API"
+			title := "Celestia Node API"
 			info.Title = (*meta_schema.InfoObjectProperties)(&title)
 
-			// TODO(@distractedm1nd): build time variable of celestia node version?
-			version := "0.0.1"
+			version := "v0.0.1"
 			info.Version = (*meta_schema.InfoObjectVersion)(&version)
+
+			description := "The Celestia Node API is the collection of RPC methods that " +
+				"can be used to interact with the services provided by Celestia Data Availability Nodes."
+			info.Description = (*meta_schema.InfoObjectDescription)(&description)
+
 			return info
 		},
 		GetExternalDocsFn: func() (exdocs *meta_schema.ExternalDocumentationObject) {
-			// TODO(@distractedm1nd): update
-			return nil // FIXME
+			url := "https://github.com/celestiaorg/celestia-node/"
+			description := "Celestia Node GitHub"
+
+			return &meta_schema.ExternalDocumentationObject{
+				Url:         (*meta_schema.ExternalDocumentationObjectUrl)(&url),
+				Description: (*meta_schema.ExternalDocumentationObjectDescription)(&description),
+			}
 		},
 	})
 
 	appReflector := &go_openrpc_reflect.EthereumReflectorT{}
+
+	appReflector.FnGetMethodExternalDocs = func(
+		r reflect.Value,
+		m reflect.Method,
+		funcDecl *ast.FuncDecl,
+	) (*meta_schema.ExternalDocumentationObject, error) {
+		extDocs, err := go_openrpc_reflect.EthereumReflector.GetMethodExternalDocs(r, m, funcDecl)
+		if err != nil {
+			return nil, err
+		}
+
+		desc := "Source of the default service's implementation of this method."
+		extDocs.Description = (*meta_schema.ExternalDocumentationObjectDescription)(&desc)
+
+		url := strings.Replace(string(*extDocs.Url), "/master/", "/main/", 1)
+		extDocs.Url = (*meta_schema.ExternalDocumentationObjectUrl)(&url)
+		//
+		return extDocs, nil
+	}
 
 	appReflector.FnIsMethodEligible = func(m reflect.Method) bool {
 		// methods are only eligible if they were found in the Module interface
@@ -115,13 +127,19 @@ func NewOpenRPCDocument(comments Comments) *go_openrpc_reflect.Document {
 			return false
 		}
 
-		// TODO(@distractedm1nd): find out why chans are excluded in lotus. is this a must?
+		/* TODO(@distractedm1nd): find out why chans are excluded in lotus. is this a must?
 		for i := 0; i < m.Func.Type().NumOut(); i++ {
 			if m.Func.Type().Out(i).Kind() == reflect.Chan {
 				return false
 			}
 		}
+		*/
 		return go_openrpc_reflect.EthereumReflector.IsMethodEligible(m)
+	}
+
+	// remove the default implementation from the method descriptions
+	appReflector.FnGetMethodDescription = func(r reflect.Value, m reflect.Method, funcDecl *ast.FuncDecl) (string, error) {
+		return "", nil // noComment
 	}
 
 	appReflector.FnGetMethodName = func(

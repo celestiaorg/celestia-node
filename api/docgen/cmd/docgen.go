@@ -6,6 +6,7 @@ import (
 	"os"
 
 	"github.com/celestiaorg/celestia-node/api/docgen"
+	"github.com/celestiaorg/celestia-node/nodebuilder"
 )
 
 func main() {
@@ -19,7 +20,7 @@ func main() {
 	doc := docgen.NewOpenRPCDocument(nodeComments)
 
 	// 4. Register the client wrapper interface on the document
-	for moduleName, module := range docgen.PackageToDefaultImpl {
+	for moduleName, module := range nodebuilder.PackageToDefaultImpl {
 		doc.RegisterReceiverName(moduleName, module)
 	}
 
