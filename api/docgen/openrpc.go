@@ -1,6 +1,10 @@
+// Package docgen generates an OpenRPC spec for the Celestia Node. It has been inspired by and adapted from Filecoin's
+// Lotus API implementation.
 package docgen
 
 import (
+	"encoding/json"
+	"fmt"
 	"go/ast"
 	"go/parser"
 	"go/token"
@@ -8,6 +12,7 @@ import (
 	"reflect"
 	"strings"
 
+	"github.com/alecthomas/jsonschema"
 	go_openrpc_reflect "github.com/etclabscore/go-openrpc-reflect"
 	meta_schema "github.com/open-rpc/meta-schema"
 )
@@ -101,6 +106,10 @@ func NewOpenRPCDocument(comments Comments) *go_openrpc_reflect.Document {
 
 	appReflector := &go_openrpc_reflect.EthereumReflectorT{}
 
+	appReflector.FnSchemaTypeMap = func() func(ty reflect.Type) *jsonschema.Type {
+		return OpenRPCSchemaTypeMapper
+	}
+
 	appReflector.FnGetMethodExternalDocs = func(
 		r reflect.Value,
 		m reflect.Method,
@@ -158,6 +167,59 @@ func NewOpenRPCDocument(comments Comments) *go_openrpc_reflect.Document {
 		return "", nil // noComment
 	}
 
+	appReflector.FnSchemaExamples = func(ty reflect.Type) (examples *meta_schema.Examples, err error) {
+		v, err := ExampleValue(ty, ty) // This isn't ideal, but seems to work well enough.
+		if err != nil {
+			fmt.Println(err)
+		}
+		return &meta_schema.Examples{
+			meta_schema.AlwaysTrue(v),
+		}, nil
+	}
+
 	d.WithReflector(appReflector)
 	return d
+}
+
+const integerD = `{ "title": "number", "type": "number", "description": "Number is a number" }`
+
+func OpenRPCSchemaTypeMapper(ty reflect.Type) *jsonschema.Type {
+	unmarshalJSONToJSONSchemaType := func(input string) *jsonschema.Type {
+		var js jsonschema.Type
+		err := json.Unmarshal([]byte(input), &js)
+		if err != nil {
+			panic(err)
+		}
+		return &js
+	}
+
+	if ty.Kind() == reflect.Ptr {
+		ty = ty.Elem()
+	}
+
+	if ty == reflect.TypeOf((*interface{})(nil)).Elem() {
+		return &jsonschema.Type{Type: "object", AdditionalProperties: []byte("true")}
+	}
+
+	// Handle primitive types in case there are generic cases
+	// specific to our services.
+	switch ty.Kind() {
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
+		reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+		// Return all integer types as the hex representation integer schemea.
+		ret := unmarshalJSONToJSONSchemaType(integerD)
+		return ret
+	case reflect.Uintptr:
+		return &jsonschema.Type{Type: "number", Title: "uintptr-title"}
+	case reflect.Struct:
+	case reflect.Map:
+	case reflect.Slice, reflect.Array:
+	case reflect.Float32, reflect.Float64:
+	case reflect.Bool:
+	case reflect.String:
+	case reflect.Ptr, reflect.Interface:
+	default:
+	}
+
+	return nil
 }
