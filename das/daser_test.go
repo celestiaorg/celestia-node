@@ -150,8 +150,8 @@ func TestDASer_stopsAfter_BEFP(t *testing.T) {
 	newCtx := context.Background()
 
 	// create and start DASer
-	daser, dErr := NewDASer(avail, sub, mockGet, ds, f)
-	require.NoError(t, dErr)
+	daser, err := NewDASer(avail, sub, mockGet, ds, f)
+	require.NoError(t, err)
 
 	resultCh := make(chan error)
 	go fraud.OnProof(newCtx, f, fraud.BadEncoding,

@@ -6,10 +6,6 @@ import (
 	"github.com/celestiaorg/celestia-node/das"
 )
 
-// ErrMisConfig is an error that is returned by (*Config).Validate
-// when supplied with invalid values.
-var ErrMisConfig = fmt.Errorf("moddas misconfiguration")
-
 // Config contains configuration parameters for the DASer (or DASing process)
 type Config das.Parameters
 
@@ -27,9 +23,8 @@ func DefaultConfig() Config {
 // Upon encountering an invalid value, Validate returns an error of type: ErrMisConfig
 func (cfg *Config) Validate() error {
 	err := (*das.Parameters)(cfg).Validate()
-
 	if err != nil {
-		return fmt.Errorf("%w: %s", ErrMisConfig, err)
+		return fmt.Errorf("moddas misconfiguration: %w", err)
 	}
 
 	return nil
