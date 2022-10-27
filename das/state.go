@@ -6,7 +6,7 @@ import (
 
 // coordinatorState represents the current state of sampling
 type coordinatorState struct {
-	sampleFrom    uint64
+	sampleFrom    uint64 // is the height from which the DASer will start sampling
 	samplingRange uint64 // is the maximum amount of headers processed in one job.
 
 	priorityQueueSize int                        // the size of the priority queue
@@ -81,7 +81,6 @@ func (s *coordinatorState) updateHead(last uint64) bool {
 		return false
 	}
 
-	// TODO(@derrandz): question to @walldiss, why is networkHead uint64 to begin with?
 	if s.networkHead == s.sampleFrom {
 		s.networkHead = last
 		log.Infow("found first header, starting sampling")

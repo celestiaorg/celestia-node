@@ -5,18 +5,22 @@ import (
 	"time"
 )
 
-var (
-	ErrInvalidOption = fmt.Errorf("das: invalid option")
-)
+// ErrInvalidOption is an error that is returned by Parameters.Validate
+// when supplied with invalid values.
+// This error will also be returned by NewDASer if supplied with an invalid option
+var ErrInvalidOption = fmt.Errorf("das: invalid option")
 
+// errInvalidOptionValue is a utility function to dedup code for error-returning
+// when dealing with invalid parameter values
 func errInvalidOptionValue(optionName string, value string) error {
 	return fmt.Errorf("%w: value %s cannot be %s", ErrInvalidOption, optionName, value)
 }
 
-// Type Option is the functional option that is applied to the daser instance for parameters configuration.
+// Option is the functional option that is applied to the daser instance
+// to configure DASing parameters (the Parameters struct)
 type Option func(*DASer)
 
-// Type parameters is the set of parameters that must be configured for the daser
+// Parameters is the set of parameters that must be configured for the daser
 type Parameters struct {
 	//  SamplingRange is the maximum amount of headers processed in one job.
 	SamplingRange uint64
@@ -36,7 +40,7 @@ type Parameters struct {
 
 // DefaultParameters returns the default configuration values for the daser parameters
 func DefaultParameters() Parameters {
-	// TODO(@derrandz): parameters needs performance testing on real network to define optimal values
+	// TODO(@derrandz): parameters needs performance testing on real network to define optimal values (#1261)
 	return Parameters{
 		SamplingRange:           100,
 		ConcurrencyLimit:        16,
@@ -48,10 +52,9 @@ func DefaultParameters() Parameters {
 
 // Validate validates the values in Parameters
 //
-// All parameters must be positive and non-zero, except:
-//
-// BackgroundStoreInterval = 0 disables background storer,
-// PriorityQueueSize = 0 disables prioritization of recently produced blocks for sampling
+//	All parameters must be positive and non-zero, except:
+//		BackgroundStoreInterval = 0 disables background storer,
+//		PriorityQueueSize = 0 disables prioritization of recently produced blocks for sampling
 func (p *Parameters) Validate() error {
 	// SamplingRange = 0 will cause the jobs' queue to be empty
 	// Therefore no sampling jobs will be reserved and more importantly the DASer will break
@@ -84,18 +87,18 @@ func (p *Parameters) Validate() error {
 }
 
 // WithSamplingRange is a functional option to configure the daser's `SamplingRange` parameter
-// ```
 //
-//	WithSamplingRange(10)(daser)
-//
-// ```
+//	Usage:
+//	```
+//		WithSamplingRange(10)(daser)
+//	```
 //
 // or
-// ```
 //
-//	option := WithSamplingRange(10)
-//	// shenanigans to create daser
-//	option(daser)
+//	```
+//		option := WithSamplingRange(10)
+//		// shenanigans to create daser
+//		option(daser)
 //
 // ```
 func WithSamplingRange(samplingRange uint64) Option {
