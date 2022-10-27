@@ -110,26 +110,26 @@ Further methods make peerStats implements heap.Interface:
 		Pop() any
 	}
 */
-func (pq peerStats) Len() int { return len(pq) }
+func (ps peerStats) Len() int { return len(ps) }
 
-func (pq peerStats) Less(i, j int) bool {
-	return pq[i].score() > pq[j].score()
+func (ps peerStats) Less(i, j int) bool {
+	return ps[i].score() > ps[j].score()
 }
 
-func (pq peerStats) Swap(i, j int) {
-	pq[i], pq[j] = pq[j], pq[i]
+func (ps peerStats) Swap(i, j int) {
+	ps[i], ps[j] = ps[j], ps[i]
 }
 
-func (pq *peerStats) Push(x any) {
+func (ps *peerStats) Push(x any) {
 	item := x.(*peerStat)
-	*pq = append(*pq, item)
+	*ps = append(*ps, item)
 }
 
-func (pq *peerStats) Pop() any {
-	old := *pq
+func (ps *peerStats) Pop() any {
+	old := *ps
 	n := len(old)
 	item := old[n-1]
 	old[n-1] = nil
-	*pq = old[0 : n-1]
+	*ps = old[0 : n-1]
 	return item
 }

@@ -40,8 +40,9 @@ const PubSubTopic = "header-sub"
 // Exchange enables sending outbound ExtendedHeaderRequests to the network as well as
 // handling inbound ExtendedHeaderRequests from the network.
 type Exchange struct {
-	ctx        context.Context
-	cancel     context.CancelFunc
+	ctx    context.Context
+	cancel context.CancelFunc
+
 	protocolID protocol.ID
 	host       host.Host
 
