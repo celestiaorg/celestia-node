@@ -36,7 +36,7 @@ const (
 	sha256Namespace8Flagged = 0x7701
 
 	// nmtHashSize is the size of a digest created by an NMT in bytes.
-	nmtHashSize = 2*appconsts.NamespaceSize + sha256.Size
+	nmtHashSize = 2*NamespaceSize + sha256.Size
 
 	// innerNodeSize is the size of data in inner nodes.
 	innerNodeSize = nmtHashSize * 2
