@@ -70,8 +70,13 @@ func (w *worker) run(
 		}
 		w.setResult(curr, err)
 		metrics.observeSample(ctx, h, time.Since(startSample), err)
-		log.Debugw("sampled header", "height", h.Height, "hash", h.Hash(),
-			"square width", len(h.DAH.RowsRoots), "data root", h.DAH.Hash(), "finished (s)", time.Since(startSample))
+		if err != nil {
+			log.Debugw("sampled header", "height", h.Height, "hash", h.Hash(),
+				"square width", len(h.DAH.RowsRoots), "data root", h.DAH.Hash(), "finished (s)", time.Since(startSample))
+		} else {
+			log.Debugw("failed to sampled header", "height", h.Height, "hash", h.Hash(),
+				"square width", len(h.DAH.RowsRoots), "data root", h.DAH.Hash(), "err", err)
+		}
 	}
 
 	if w.state.Curr > w.state.From {
