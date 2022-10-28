@@ -10,8 +10,9 @@ import (
 // samplingCoordinator runs and coordinates sampling workers and updates current sampling state
 type samplingCoordinator struct {
 	concurrencyLimit int
-	getter           header.Getter
-	sampleFn         sampleFn
+
+	getter   header.Getter
+	sampleFn sampleFn
 
 	state coordinatorState
 
@@ -35,15 +36,15 @@ type result struct {
 }
 
 func newSamplingCoordinator(
-	concurrency int,
-	samplingRange uint64,
+	params Parameters,
 	getter header.Getter,
-	sample sampleFn) *samplingCoordinator {
+	sample sampleFn,
+) *samplingCoordinator {
 	return &samplingCoordinator{
-		concurrencyLimit: concurrency,
+		concurrencyLimit: params.ConcurrencyLimit,
 		getter:           getter,
 		sampleFn:         sample,
-		state:            newCoordinatorState(samplingRange),
+		state:            newCoordinatorState(params),
 		resultCh:         make(chan result),
 		updHeadCh:        make(chan uint64),
 		waitCh:           make(chan *sync.WaitGroup),

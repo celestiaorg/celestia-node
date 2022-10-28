@@ -1,4 +1,4 @@
-package daser
+package das
 
 import (
 	"context"
@@ -11,11 +11,30 @@ import (
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 )
 
-func ConstructModule(tp node.Type) fx.Option {
+func ConstructModule(tp node.Type, cfg *Config) fx.Option {
+	err := cfg.Validate()
+
+	baseComponents := fx.Options(
+		fx.Supply(*cfg),
+		fx.Error(err),
+		fx.Provide(
+			func(c Config) []das.Option {
+				return []das.Option{
+					das.WithSamplingRange(c.SamplingRange),
+					das.WithConcurrencyLimit(c.ConcurrencyLimit),
+					das.WithPriorityQueueSize(c.PriorityQueueSize),
+					das.WithBackgroundStoreInterval(c.BackgroundStoreInterval),
+					das.WithSampleFrom(c.SampleFrom),
+				}
+			},
+		),
+	)
+
 	switch tp {
 	case node.Light, node.Full:
 		return fx.Module(
 			"daser",
+			baseComponents,
 			fx.Provide(fx.Annotate(
 				NewDASer,
 				fx.OnStart(func(startCtx, ctx context.Context, fservice fraudServ.Module, das *das.DASer) error {

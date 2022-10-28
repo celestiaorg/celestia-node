@@ -7,7 +7,7 @@ import (
 
 	"github.com/celestiaorg/celestia-node/libs/fxutil"
 	"github.com/celestiaorg/celestia-node/nodebuilder/core"
-	"github.com/celestiaorg/celestia-node/nodebuilder/daser"
+	"github.com/celestiaorg/celestia-node/nodebuilder/das"
 	"github.com/celestiaorg/celestia-node/nodebuilder/fraud"
 	"github.com/celestiaorg/celestia-node/nodebuilder/header"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
@@ -36,7 +36,7 @@ func ConstructModule(tp node.Type, network p2p.Network, cfg *Config, store Store
 		share.ConstructModule(tp, &cfg.Share),
 		rpc.ConstructModule(tp, &cfg.RPC),
 		core.ConstructModule(tp, &cfg.Core),
-		daser.ConstructModule(tp),
+		das.ConstructModule(tp, &cfg.DASer),
 		fraud.ConstructModule(tp),
 	)
 
