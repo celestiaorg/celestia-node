@@ -19,7 +19,7 @@ func GenesisFor(net Network) (string, error) {
 
 // NOTE: Every time we add a new long-running network, its genesis hash has to be added here.
 var genesisList = map[Network]string{
-	Arabica: "C364B5937805342009408F7D44DBBF43C02AE227F968CF14C5001613B18CE419",
+	Arabica: "FAAA4B939173B4F8567E812FDC570FF186355326879017A611C58267A5D6EF17",
 	Mamaki:  "41BBFD05779719E826C4D68C4CCBBC84B2B761EB52BC04CFDE0FF8603C9AA3CA",
 	Private: "",
 }
