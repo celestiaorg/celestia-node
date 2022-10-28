@@ -39,29 +39,29 @@ func (s *Server) RegisterService(namespace string, service interface{}) {
 
 // Start starts the RPC Server.
 func (s *Server) Start(context.Context) error {
-	if s.started.CompareAndSwap(false, true) {
-		//nolint:errcheck
-		go s.http.ListenAndServe()
-		s.started.Store(true)
-		log.Infow("rpc: server started", "listening on", s.http.Addr)
+	couldStart := s.started.CompareAndSwap(false, true)
+	if !couldStart {
+		log.Warn("cannot start server: already started")
 		return nil
 	}
-	log.Warn("rpc: cannot start server: already started")
+	//nolint:errcheck
+	go s.http.ListenAndServe()
+	log.Infow("server started", "listening on", s.http.Addr)
 	return nil
 }
 
 // Stop stops the RPC Server.
 func (s *Server) Stop(ctx context.Context) error {
-	if s.started.CompareAndSwap(true, false) {
-		err := s.http.Shutdown(ctx)
-		if err != nil {
-			return err
-		}
-		log.Info("rpc: server stopped")
-		s.started.Store(false)
+	couldStop := s.started.CompareAndSwap(true, false)
+	if !couldStop {
+		log.Warn("cannot stop server: already stopped")
 		return nil
 	}
-	log.Warn("rpc: cannot stop server: already stopped")
+	err := s.http.Shutdown(ctx)
+	if err != nil {
+		return err
+	}
+	log.Info("server stopped")
 	return nil
 }
 

@@ -37,33 +37,35 @@ func NewServer(address string, port string) *Server {
 
 // Start starts the gateway Server, listening on the given address.
 func (s *Server) Start(context.Context) error {
-	if s.started.CompareAndSwap(false, true) {
-		listener, err := net.Listen("tcp", s.srv.Addr)
-		if err != nil {
-			return err
-		}
-		s.listener = listener
-		log.Infow("gateway: server started", "listening on", listener.Addr().String())
-		//nolint:errcheck
-		go s.srv.Serve(listener)
+	couldStart := s.started.CompareAndSwap(false, true)
+	if !couldStart {
+		log.Warn("cannot start server: already started")
 		return nil
 	}
-	log.Warn("gateway: cannot start server: already started")
+
+	listener, err := net.Listen("tcp", s.srv.Addr)
+	if err != nil {
+		return err
+	}
+	s.listener = listener
+	log.Infow("server started", "listening on", listener.Addr().String())
+	//nolint:errcheck
+	go s.srv.Serve(listener)
 	return nil
 }
 
 // Stop stops the gateway Server.
 func (s *Server) Stop(ctx context.Context) error {
-	if s.started.CompareAndSwap(true, false) {
-		err := s.srv.Shutdown(ctx)
-		if err != nil {
-			return err
-		}
-		log.Info("gateway: server stopped")
-		s.started.Store(false)
+	couldStop := s.started.CompareAndSwap(true, false)
+	if !couldStop {
+		log.Warn("cannot stop server: already stopped")
 		return nil
 	}
-	log.Warn("gateway: cannot stop server: already stopped")
+	err := s.srv.Shutdown(ctx)
+	if err != nil {
+		return err
+	}
+	log.Info("server stopped")
 	return nil
 }
 

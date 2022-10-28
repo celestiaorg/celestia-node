@@ -45,7 +45,7 @@ func ParseFlags(cmd *cobra.Command, cfg *Config) {
 	}
 	addr, port := cmd.Flag(addrFlag), cmd.Flag(portFlag)
 	if !enabled && (addr.Changed || port.Changed) {
-		log.Warn("gateway: cannot set custom address or port: gateway is disabled")
+		log.Warn("custom address or port provided without enabling gateway, setting config values")
 	}
 	addrVal := addr.Value.String()
 	if addrVal != "" {
