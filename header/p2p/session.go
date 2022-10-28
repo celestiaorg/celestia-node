@@ -195,6 +195,9 @@ func prepareRequests(from, amount, chunkSize uint64) []*p2p_pb.ExtendedHeaderReq
 	requests := make([]*p2p_pb.ExtendedHeaderRequest, 0)
 	for amount > uint64(0) {
 		var requestSize uint64
+		request := &p2p_pb.ExtendedHeaderRequest{
+			Data: &p2p_pb.ExtendedHeaderRequest_Origin{Origin: from},
+		}
 		if amount < chunkSize {
 			requestSize = amount
 			amount = 0
@@ -203,10 +206,8 @@ func prepareRequests(from, amount, chunkSize uint64) []*p2p_pb.ExtendedHeaderReq
 			from += chunkSize
 			requestSize = chunkSize
 		}
-		requests = append(requests, &p2p_pb.ExtendedHeaderRequest{
-			Data:   &p2p_pb.ExtendedHeaderRequest_Origin{Origin: from},
-			Amount: requestSize,
-		})
+		request.Amount = requestSize
+		requests = append(requests, request)
 	}
 	return requests
 }
