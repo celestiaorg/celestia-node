@@ -4,20 +4,21 @@ import (
 	"context"
 	"net"
 	"net/http"
+	"sync/atomic"
 	"time"
 
 	"github.com/gorilla/mux"
 )
 
-// Server represents an RPC server on the Node.
-// TODO @renaynay: eventually, gateway server should be able to be toggled on and off.
+// Server represents a gateway server on the Node.
 type Server struct {
 	srv      *http.Server
 	srvMux   *mux.Router // http request multiplexer
 	listener net.Listener
+	started  atomic.Bool
 }
 
-// NewServer returns a new RPC Server.
+// NewServer returns a new gateway Server.
 func NewServer(address string, port string) *Server {
 	srvMux := mux.NewRouter()
 	srvMux.Use(setContentType)
@@ -36,28 +37,33 @@ func NewServer(address string, port string) *Server {
 
 // Start starts the gateway Server, listening on the given address.
 func (s *Server) Start(context.Context) error {
-	listener, err := net.Listen("tcp", s.srv.Addr)
-	if err != nil {
-		return err
+	if s.started.CompareAndSwap(false, true) {
+		listener, err := net.Listen("tcp", s.srv.Addr)
+		if err != nil {
+			return err
+		}
+		s.listener = listener
+		log.Infow("gateway: server started", "listening on", listener.Addr().String())
+		//nolint:errcheck
+		go s.srv.Serve(listener)
+		return nil
 	}
-	s.listener = listener
-	log.Infow("Gateway server started", "listening on", listener.Addr().String())
-	//nolint:errcheck
-	go s.srv.Serve(listener)
+	log.Warn("gateway: cannot start server: already started")
 	return nil
 }
 
 // Stop stops the gateway Server.
-func (s *Server) Stop(context.Context) error {
-	// if server already stopped, return
-	if s.listener == nil {
+func (s *Server) Stop(ctx context.Context) error {
+	if s.started.CompareAndSwap(true, false) {
+		err := s.srv.Shutdown(ctx)
+		if err != nil {
+			return err
+		}
+		log.Info("gateway: server stopped")
+		s.started.Store(false)
 		return nil
 	}
-	if err := s.listener.Close(); err != nil {
-		return err
-	}
-	s.listener = nil
-	log.Info("Gateway server stopped")
+	log.Warn("gateway: cannot stop server: already stopped")
 	return nil
 }
 

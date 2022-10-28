@@ -13,8 +13,8 @@ func Handler(
 	state state.Module,
 	share share.Module,
 	header header.Module,
-	serv *gateway.Server,
 	daser *das.DASer,
+	serv *gateway.Server,
 ) {
 	handler := gateway.NewHandler(state, share, header, daser)
 	handler.RegisterEndpoints(serv)

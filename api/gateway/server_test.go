@@ -12,7 +12,7 @@ import (
 )
 
 func TestServer(t *testing.T) {
-	address, port := "0.0.0.0", "0"
+	address, port := "localhost", "0"
 	server := NewServer(address, port)
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -25,7 +25,7 @@ func TestServer(t *testing.T) {
 	ping := new(ping)
 	server.RegisterHandlerFunc("/ping", ping.ServeHTTP, http.MethodGet)
 
-	url := fmt.Sprintf("http://%s/ping", server.listener.Addr().String())
+	url := fmt.Sprintf("http://%s/ping", server.ListenAddr())
 
 	resp, err := http.Get(url)
 	require.NoError(t, err)

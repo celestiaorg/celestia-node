@@ -15,7 +15,6 @@ import (
 func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 	// sanitize config values before constructing module
 	cfgErr := cfg.Validate()
-
 	if !cfg.Enabled {
 		return fx.Options()
 	}
@@ -51,7 +50,7 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 				header headerServ.Module,
 				serv *gateway.Server,
 			) {
-				Handler(state, share, header, serv, nil)
+				Handler(state, share, header, nil, serv)
 			}),
 		)
 	default:

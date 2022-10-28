@@ -3,6 +3,7 @@ package rpc
 import (
 	"context"
 	"net/http"
+	"sync/atomic"
 	"time"
 
 	"github.com/filecoin-project/go-jsonrpc"
@@ -12,8 +13,9 @@ import (
 var log = logging.Logger("rpc")
 
 type Server struct {
-	http *http.Server
-	rpc  *jsonrpc.RPCServer
+	http    *http.Server
+	rpc     *jsonrpc.RPCServer
+	started atomic.Bool
 }
 
 func NewServer(address string, port string) *Server {
@@ -37,20 +39,29 @@ func (s *Server) RegisterService(namespace string, service interface{}) {
 
 // Start starts the RPC Server.
 func (s *Server) Start(context.Context) error {
-	//nolint:errcheck
-	go s.http.ListenAndServe()
-	log.Infow("RPC server started", "listening on", s.http.Addr)
+	if s.started.CompareAndSwap(false, true) {
+		//nolint:errcheck
+		go s.http.ListenAndServe()
+		s.started.Store(true)
+		log.Infow("rpc: server started", "listening on", s.http.Addr)
+		return nil
+	}
+	log.Warn("rpc: cannot start server: already started")
 	return nil
 }
 
 // Stop stops the RPC Server.
 func (s *Server) Stop(ctx context.Context) error {
-	// if server already stopped, return
-	err := s.http.Shutdown(ctx)
-	if err != nil {
-		return err
+	if s.started.CompareAndSwap(true, false) {
+		err := s.http.Shutdown(ctx)
+		if err != nil {
+			return err
+		}
+		log.Info("rpc: server stopped")
+		s.started.Store(false)
+		return nil
 	}
-	log.Info("RPC server stopped")
+	log.Warn("rpc: cannot stop server: already stopped")
 	return nil
 }
 
