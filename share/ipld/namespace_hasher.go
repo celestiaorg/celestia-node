@@ -45,12 +45,8 @@ func (n *namespaceHasher) Write(data []byte) (int, error) {
 	innerNodeSize, leafNodeSize := (nln*2+hln)*2, nln+appconsts.ShareSize
 	switch ln {
 	default:
-<<<<<<< HEAD
 		log.Infof("CYKA BLYAT")
 		return 0, fmt.Errorf("ipld: wrong sized data written to the hasher")
-=======
-		return 0, fmt.Errorf("ipld: wrong sized data written to the hasher, len: %v", ln)
->>>>>>> 7d8c2f8... remove prepending byte indication node type from nmtNode
 	case innerNodeSize:
 		n.tp = nmt.NodePrefix
 	case leafNodeSize:
