@@ -58,12 +58,6 @@ func (n *namespaceHasher) Write(data []byte) (int, error) {
 // Sum computes the hash.
 // Does not append the given suffix and violating the interface.
 func (n *namespaceHasher) Sum([]byte) []byte {
-	// if n.data is empty, it hit the default case in Write.
-	// this will be seen by multihash.encodeHash, where it will be caught and an error will be returned.
-	if len(n.data) == 0 {
-		return nil
-	}
-
 	isLeafData := n.tp == nmt.LeafPrefix
 	if isLeafData {
 		return n.Hasher.HashLeaf(n.data)
