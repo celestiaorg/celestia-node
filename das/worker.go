@@ -71,11 +71,11 @@ func (w *worker) run(
 		w.setResult(curr, err)
 		metrics.observeSample(ctx, h, time.Since(startSample), err)
 		if err != nil {
+                        log.Debugw("failed to sampled header", "height", h.Height, "hash", h.Hash(),
+				"square width", len(h.DAH.RowsRoots), "data root", h.DAH.Hash(), "err", err)
+		} else {
 			log.Debugw("sampled header", "height", h.Height, "hash", h.Hash(),
 				"square width", len(h.DAH.RowsRoots), "data root", h.DAH.Hash(), "finished (s)", time.Since(startSample))
-		} else {
-			log.Debugw("failed to sampled header", "height", h.Height, "hash", h.Hash(),
-				"square width", len(h.DAH.RowsRoots), "data root", h.DAH.Hash(), "err", err)
 		}
 	}
 
