@@ -45,6 +45,7 @@ func (n *namespaceHasher) Write(data []byte) (int, error) {
 	innerNodeSize, leafNodeSize := (nln*2+hln)*2, nln+appconsts.ShareSize
 	switch ln {
 	default:
+		log.Infof("CYKA BLYAT")
 		return 0, fmt.Errorf("ipld: wrong sized data written to the hasher")
 	case innerNodeSize:
 		n.tp = nmt.NodePrefix
