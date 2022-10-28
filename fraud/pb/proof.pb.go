@@ -5,13 +5,10 @@ package fraud_pb
 
 import (
 	fmt "fmt"
+	proto "github.com/gogo/protobuf/proto"
 	io "io"
 	math "math"
 	math_bits "math/bits"
-
-	proto "github.com/gogo/protobuf/proto"
-
-	pb "github.com/celestiaorg/celestia-node/share/pb"
 )
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -25,107 +22,6 @@ var _ = math.Inf
 // proto package needs to be updated.
 const _ = proto.GoGoProtoPackageIsVersion3 // please upgrade the proto package
 
-type Axis int32
-
-const (
-	Axis_ROW Axis = 0
-	Axis_COL Axis = 1
-)
-
-var Axis_name = map[int32]string{
-	0: "ROW",
-	1: "COL",
-}
-
-var Axis_value = map[string]int32{
-	"ROW": 0,
-	"COL": 1,
-}
-
-func (x Axis) String() string {
-	return proto.EnumName(Axis_name, int32(x))
-}
-
-func (Axis) EnumDescriptor() ([]byte, []int) {
-	return fileDescriptor_318cb87a8bb2d394, []int{0}
-}
-
-type BadEncoding struct {
-	HeaderHash []byte      `protobuf:"bytes,1,opt,name=HeaderHash,proto3" json:"HeaderHash,omitempty"`
-	Height     uint64      `protobuf:"varint,2,opt,name=Height,proto3" json:"Height,omitempty"`
-	Shares     []*pb.Share `protobuf:"bytes,3,rep,name=Shares,proto3" json:"Shares,omitempty"`
-	Index      uint32      `protobuf:"varint,4,opt,name=Index,proto3" json:"Index,omitempty"`
-	Axis       Axis        `protobuf:"varint,5,opt,name=Axis,proto3,enum=fraud.pb.Axis" json:"Axis,omitempty"`
-}
-
-func (m *BadEncoding) Reset()         { *m = BadEncoding{} }
-func (m *BadEncoding) String() string { return proto.CompactTextString(m) }
-func (*BadEncoding) ProtoMessage()    {}
-func (*BadEncoding) Descriptor() ([]byte, []int) {
-	return fileDescriptor_318cb87a8bb2d394, []int{0}
-}
-func (m *BadEncoding) XXX_Unmarshal(b []byte) error {
-	return m.Unmarshal(b)
-}
-func (m *BadEncoding) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	if deterministic {
-		return xxx_messageInfo_BadEncoding.Marshal(b, m, deterministic)
-	} else {
-		b = b[:cap(b)]
-		n, err := m.MarshalToSizedBuffer(b)
-		if err != nil {
-			return nil, err
-		}
-		return b[:n], nil
-	}
-}
-func (m *BadEncoding) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_BadEncoding.Merge(m, src)
-}
-func (m *BadEncoding) XXX_Size() int {
-	return m.Size()
-}
-func (m *BadEncoding) XXX_DiscardUnknown() {
-	xxx_messageInfo_BadEncoding.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_BadEncoding proto.InternalMessageInfo
-
-func (m *BadEncoding) GetHeaderHash() []byte {
-	if m != nil {
-		return m.HeaderHash
-	}
-	return nil
-}
-
-func (m *BadEncoding) GetHeight() uint64 {
-	if m != nil {
-		return m.Height
-	}
-	return 0
-}
-
-func (m *BadEncoding) GetShares() []*pb.Share {
-	if m != nil {
-		return m.Shares
-	}
-	return nil
-}
-
-func (m *BadEncoding) GetIndex() uint32 {
-	if m != nil {
-		return m.Index
-	}
-	return 0
-}
-
-func (m *BadEncoding) GetAxis() Axis {
-	if m != nil {
-		return m.Axis
-	}
-	return Axis_ROW
-}
-
 type FraudMessageRequest struct {
 	RequestedProofType []string `protobuf:"bytes,1,rep,name=RequestedProofType,proto3" json:"RequestedProofType,omitempty"`
 }
@@ -134,7 +30,7 @@ func (m *FraudMessageRequest) Reset()         { *m = FraudMessageRequest{} }
 func (m *FraudMessageRequest) String() string { return proto.CompactTextString(m) }
 func (*FraudMessageRequest) ProtoMessage()    {}
 func (*FraudMessageRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_318cb87a8bb2d394, []int{1}
+	return fileDescriptor_318cb87a8bb2d394, []int{0}
 }
 func (m *FraudMessageRequest) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -179,7 +75,7 @@ func (m *ProofResponse) Reset()         { *m = ProofResponse{} }
 func (m *ProofResponse) String() string { return proto.CompactTextString(m) }
 func (*ProofResponse) ProtoMessage()    {}
 func (*ProofResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_318cb87a8bb2d394, []int{2}
+	return fileDescriptor_318cb87a8bb2d394, []int{1}
 }
 func (m *ProofResponse) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -230,7 +126,7 @@ func (m *FraudMessageResponse) Reset()         { *m = FraudMessageResponse{} }
 func (m *FraudMessageResponse) String() string { return proto.CompactTextString(m) }
 func (*FraudMessageResponse) ProtoMessage()    {}
 func (*FraudMessageResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_318cb87a8bb2d394, []int{3}
+	return fileDescriptor_318cb87a8bb2d394, []int{2}
 }
 func (m *FraudMessageResponse) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -267,8 +163,6 @@ func (m *FraudMessageResponse) GetProofs() []*ProofResponse {
 }
 
 func init() {
-	proto.RegisterEnum("fraud.pb.Axis", Axis_name, Axis_value)
-	proto.RegisterType((*BadEncoding)(nil), "fraud.pb.BadEncoding")
 	proto.RegisterType((*FraudMessageRequest)(nil), "fraud.pb.FraudMessageRequest")
 	proto.RegisterType((*ProofResponse)(nil), "fraud.pb.ProofResponse")
 	proto.RegisterType((*FraudMessageResponse)(nil), "fraud.pb.FraudMessageResponse")
@@ -277,88 +171,20 @@ func init() {
 func init() { proto.RegisterFile("fraud/pb/proof.proto", fileDescriptor_318cb87a8bb2d394) }
 
 var fileDescriptor_318cb87a8bb2d394 = []byte{
-	// 350 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x6c, 0x51, 0xcd, 0x4a, 0xeb, 0x40,
-	0x18, 0xcd, 0x34, 0x69, 0xee, 0xed, 0xd7, 0x1f, 0xca, 0xb4, 0xdc, 0x3b, 0xb8, 0x08, 0x21, 0x0b,
-	0x19, 0x5c, 0x4c, 0xa1, 0xae, 0x5c, 0x5a, 0xa9, 0x56, 0x50, 0x2a, 0xa3, 0xe8, 0x7a, 0x62, 0xa6,
-	0x6d, 0xa0, 0x24, 0x63, 0xa6, 0x85, 0xfa, 0x16, 0xbe, 0x85, 0xaf, 0xe2, 0xb2, 0x4b, 0x97, 0xd2,
-	0xbe, 0x88, 0xcc, 0x34, 0xa2, 0x05, 0x77, 0xe7, 0x27, 0x39, 0xe7, 0x7c, 0x0c, 0x74, 0x27, 0x85,
-	0x58, 0x26, 0x3d, 0x15, 0xf7, 0x54, 0x91, 0xe7, 0x13, 0xa6, 0x8a, 0x7c, 0x91, 0xe3, 0xbf, 0x56,
-	0x65, 0x2a, 0x3e, 0xe8, 0xa4, 0x6a, 0x6e, 0x6d, 0x3d, 0x13, 0x85, 0xdc, 0xd9, 0xd1, 0x2b, 0x82,
-	0xfa, 0x40, 0x24, 0xc3, 0xec, 0x31, 0x4f, 0xd2, 0x6c, 0x8a, 0x03, 0x80, 0x91, 0x14, 0x89, 0x2c,
-	0x46, 0x42, 0xcf, 0x08, 0x0a, 0x11, 0x6d, 0xf0, 0x1f, 0x0a, 0xfe, 0x07, 0xfe, 0x48, 0xa6, 0xd3,
-	0xd9, 0x82, 0x54, 0x42, 0x44, 0x3d, 0x5e, 0x32, 0x7c, 0x08, 0xfe, 0xad, 0x89, 0xd5, 0xc4, 0x0d,
-	0x5d, 0x5a, 0xef, 0xb7, 0x98, 0x69, 0x63, 0x2a, 0x66, 0x56, 0xe6, 0xa5, 0x8b, 0xbb, 0x50, 0xbd,
-	0xcc, 0x12, 0xb9, 0x22, 0x5e, 0x88, 0x68, 0x93, 0xef, 0x08, 0x8e, 0xc0, 0x3b, 0x5d, 0xa5, 0x9a,
-	0x54, 0x43, 0x44, 0x5b, 0xfd, 0x16, 0xfb, 0xda, 0xcc, 0xc4, 0x2a, 0xd5, 0xdc, 0x7a, 0xd1, 0x10,
-	0x3a, 0xe7, 0x46, 0xbe, 0x96, 0x5a, 0x8b, 0xa9, 0xe4, 0xf2, 0x69, 0x29, 0xf5, 0x02, 0x33, 0xc0,
-	0x25, 0x94, 0xc9, 0x8d, 0xb9, 0xfb, 0xee, 0x59, 0x49, 0x82, 0x42, 0x97, 0xd6, 0xf8, 0x2f, 0x4e,
-	0x74, 0x02, 0x4d, 0x4b, 0xb8, 0xd4, 0x2a, 0xcf, 0xb4, 0xc4, 0x18, 0xbc, 0xf2, 0x17, 0x44, 0x6b,
-	0xdc, 0x62, 0xb3, 0xf2, 0x5e, 0xcc, 0x97, 0x92, 0x54, 0x42, 0x97, 0x36, 0xf8, 0x8e, 0x44, 0x17,
-	0xd0, 0xdd, 0x5f, 0x50, 0x26, 0xf4, 0xc0, 0xb7, 0x91, 0xda, 0xd6, 0xd6, 0xfb, 0xff, 0xbf, 0xf7,
-	0xef, 0x55, 0xf1, 0xf2, 0xb3, 0x23, 0x02, 0x9e, 0x39, 0x0c, 0xff, 0x01, 0x97, 0x8f, 0x1f, 0xda,
-	0x8e, 0x01, 0x67, 0xe3, 0xab, 0x36, 0x1a, 0x90, 0xb7, 0x4d, 0x80, 0xd6, 0x9b, 0x00, 0x7d, 0x6c,
-	0x02, 0xf4, 0xb2, 0x0d, 0x9c, 0xf5, 0x36, 0x70, 0xde, 0xb7, 0x81, 0x13, 0xfb, 0xf6, 0xbd, 0x8e,
-	0x3f, 0x03, 0x00, 0x00, 0xff, 0xff, 0x5b, 0x6e, 0x3b, 0x05, 0xe6, 0x01, 0x00, 0x00,
-}
-
-func (m *BadEncoding) Marshal() (dAtA []byte, err error) {
-	size := m.Size()
-	dAtA = make([]byte, size)
-	n, err := m.MarshalToSizedBuffer(dAtA[:size])
-	if err != nil {
-		return nil, err
-	}
-	return dAtA[:n], nil
-}
-
-func (m *BadEncoding) MarshalTo(dAtA []byte) (int, error) {
-	size := m.Size()
-	return m.MarshalToSizedBuffer(dAtA[:size])
-}
-
-func (m *BadEncoding) MarshalToSizedBuffer(dAtA []byte) (int, error) {
-	i := len(dAtA)
-	_ = i
-	var l int
-	_ = l
-	if m.Axis != 0 {
-		i = encodeVarintProof(dAtA, i, uint64(m.Axis))
-		i--
-		dAtA[i] = 0x28
-	}
-	if m.Index != 0 {
-		i = encodeVarintProof(dAtA, i, uint64(m.Index))
-		i--
-		dAtA[i] = 0x20
-	}
-	if len(m.Shares) > 0 {
-		for iNdEx := len(m.Shares) - 1; iNdEx >= 0; iNdEx-- {
-			{
-				size, err := m.Shares[iNdEx].MarshalToSizedBuffer(dAtA[:i])
-				if err != nil {
-					return 0, err
-				}
-				i -= size
-				i = encodeVarintProof(dAtA, i, uint64(size))
-			}
-			i--
-			dAtA[i] = 0x1a
-		}
-	}
-	if m.Height != 0 {
-		i = encodeVarintProof(dAtA, i, uint64(m.Height))
-		i--
-		dAtA[i] = 0x10
-	}
-	if len(m.HeaderHash) > 0 {
-		i -= len(m.HeaderHash)
-		copy(dAtA[i:], m.HeaderHash)
-		i = encodeVarintProof(dAtA, i, uint64(len(m.HeaderHash)))
-		i--
-		dAtA[i] = 0xa
-	}
-	return len(dAtA) - i, nil
+	// 203 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xe2, 0x12, 0x49, 0x2b, 0x4a, 0x2c,
+	0x4d, 0xd1, 0x2f, 0x48, 0xd2, 0x2f, 0x28, 0xca, 0xcf, 0x4f, 0xd3, 0x2b, 0x28, 0xca, 0x2f, 0xc9,
+	0x17, 0xe2, 0x00, 0x8b, 0xea, 0x15, 0x24, 0x29, 0xb9, 0x72, 0x09, 0xbb, 0x81, 0xd8, 0xbe, 0xa9,
+	0xc5, 0xc5, 0x89, 0xe9, 0xa9, 0x41, 0xa9, 0x85, 0xa5, 0xa9, 0xc5, 0x25, 0x42, 0x7a, 0x5c, 0x42,
+	0x50, 0x66, 0x6a, 0x4a, 0x00, 0x48, 0x63, 0x48, 0x65, 0x41, 0xaa, 0x04, 0xa3, 0x02, 0xb3, 0x06,
+	0x67, 0x10, 0x16, 0x19, 0x25, 0x4b, 0x2e, 0x5e, 0x30, 0x27, 0x28, 0xb5, 0xb8, 0x20, 0x3f, 0xaf,
+	0x38, 0x55, 0x48, 0x88, 0x8b, 0x05, 0xaa, 0x85, 0x51, 0x83, 0x33, 0x08, 0xcc, 0x16, 0x12, 0xe1,
+	0x62, 0x0d, 0x4b, 0xcc, 0x29, 0x4d, 0x95, 0x60, 0x52, 0x60, 0xd6, 0xe0, 0x09, 0x82, 0x70, 0x94,
+	0xdc, 0xb9, 0x44, 0x50, 0x5d, 0x00, 0x35, 0x41, 0x9f, 0x8b, 0x0d, 0x6c, 0x64, 0x31, 0xd8, 0x5a,
+	0x6e, 0x23, 0x71, 0x3d, 0x98, 0xa3, 0xf5, 0x50, 0xac, 0x0a, 0x82, 0x2a, 0x73, 0x92, 0x38, 0xf1,
+	0x48, 0x8e, 0xf1, 0xc2, 0x23, 0x39, 0xc6, 0x07, 0x8f, 0xe4, 0x18, 0x27, 0x3c, 0x96, 0x63, 0xb8,
+	0xf0, 0x58, 0x8e, 0xe1, 0xc6, 0x63, 0x39, 0x86, 0x24, 0x36, 0xb0, 0xaf, 0x8d, 0x01, 0x01, 0x00,
+	0x00, 0xff, 0xff, 0xa2, 0xc2, 0x65, 0x25, 0x0d, 0x01, 0x00, 0x00,
 }
 
 func (m *FraudMessageRequest) Marshal() (dAtA []byte, err error) {
@@ -480,34 +306,6 @@ func encodeVarintProof(dAtA []byte, offset int, v uint64) int {
 	dAtA[offset] = uint8(v)
 	return base
 }
-func (m *BadEncoding) Size() (n int) {
-	if m == nil {
-		return 0
-	}
-	var l int
-	_ = l
-	l = len(m.HeaderHash)
-	if l > 0 {
-		n += 1 + l + sovProof(uint64(l))
-	}
-	if m.Height != 0 {
-		n += 1 + sovProof(uint64(m.Height))
-	}
-	if len(m.Shares) > 0 {
-		for _, e := range m.Shares {
-			l = e.Size()
-			n += 1 + l + sovProof(uint64(l))
-		}
-	}
-	if m.Index != 0 {
-		n += 1 + sovProof(uint64(m.Index))
-	}
-	if m.Axis != 0 {
-		n += 1 + sovProof(uint64(m.Axis))
-	}
-	return n
-}
-
 func (m *FraudMessageRequest) Size() (n int) {
 	if m == nil {
 		return 0
@@ -562,181 +360,6 @@ func sovProof(x uint64) (n int) {
 }
 func sozProof(x uint64) (n int) {
 	return sovProof(uint64((x << 1) ^ uint64((int64(x) >> 63))))
-}
-func (m *BadEncoding) Unmarshal(dAtA []byte) error {
-	l := len(dAtA)
-	iNdEx := 0
-	for iNdEx < l {
-		preIndex := iNdEx
-		var wire uint64
-		for shift := uint(0); ; shift += 7 {
-			if shift >= 64 {
-				return ErrIntOverflowProof
-			}
-			if iNdEx >= l {
-				return io.ErrUnexpectedEOF
-			}
-			b := dAtA[iNdEx]
-			iNdEx++
-			wire |= uint64(b&0x7F) << shift
-			if b < 0x80 {
-				break
-			}
-		}
-		fieldNum := int32(wire >> 3)
-		wireType := int(wire & 0x7)
-		if wireType == 4 {
-			return fmt.Errorf("proto: BadEncoding: wiretype end group for non-group")
-		}
-		if fieldNum <= 0 {
-			return fmt.Errorf("proto: BadEncoding: illegal tag %d (wire type %d)", fieldNum, wire)
-		}
-		switch fieldNum {
-		case 1:
-			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field HeaderHash", wireType)
-			}
-			var byteLen int
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowProof
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				byteLen |= int(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			if byteLen < 0 {
-				return ErrInvalidLengthProof
-			}
-			postIndex := iNdEx + byteLen
-			if postIndex < 0 {
-				return ErrInvalidLengthProof
-			}
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			m.HeaderHash = append(m.HeaderHash[:0], dAtA[iNdEx:postIndex]...)
-			if m.HeaderHash == nil {
-				m.HeaderHash = []byte{}
-			}
-			iNdEx = postIndex
-		case 2:
-			if wireType != 0 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Height", wireType)
-			}
-			m.Height = 0
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowProof
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				m.Height |= uint64(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-		case 3:
-			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Shares", wireType)
-			}
-			var msglen int
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowProof
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				msglen |= int(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			if msglen < 0 {
-				return ErrInvalidLengthProof
-			}
-			postIndex := iNdEx + msglen
-			if postIndex < 0 {
-				return ErrInvalidLengthProof
-			}
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			m.Shares = append(m.Shares, &pb.Share{})
-			if err := m.Shares[len(m.Shares)-1].Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
-				return err
-			}
-			iNdEx = postIndex
-		case 4:
-			if wireType != 0 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Index", wireType)
-			}
-			m.Index = 0
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowProof
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				m.Index |= uint32(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-		case 5:
-			if wireType != 0 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Axis", wireType)
-			}
-			m.Axis = 0
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowProof
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				m.Axis |= Axis(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-		default:
-			iNdEx = preIndex
-			skippy, err := skipProof(dAtA[iNdEx:])
-			if err != nil {
-				return err
-			}
-			if (skippy < 0) || (iNdEx+skippy) < 0 {
-				return ErrInvalidLengthProof
-			}
-			if (iNdEx + skippy) > l {
-				return io.ErrUnexpectedEOF
-			}
-			iNdEx += skippy
-		}
-	}
-
-	if iNdEx > l {
-		return io.ErrUnexpectedEOF
-	}
-	return nil
 }
 func (m *FraudMessageRequest) Unmarshal(dAtA []byte) error {
 	l := len(dAtA)

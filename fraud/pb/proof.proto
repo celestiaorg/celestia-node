@@ -2,21 +2,6 @@ syntax = "proto3";
 
 package fraud.pb;
 
-import "ipld/pb/share.proto";
-
-enum axis {
-  ROW = 0;
-  COL = 1;
-}
-
-message BadEncoding {
-  bytes HeaderHash = 1;
-  uint64 Height   = 2;
-  repeated ipld.pb.Share Shares = 3;
-  uint32 Index    = 4;
-  axis Axis    = 5;
-}
-
 message FraudMessageRequest {
   repeated string RequestedProofType = 1;
 }

@@ -1,8 +1,8 @@
 syntax = "proto3";
 
-package ipld.pb;
+package share.eds.byzantine.pb;
 
-option go_package="github.com/celestiaorg/celestia-node/ipld/pb";
+option go_package="github.com/celestiaorg/celestia-node/share/eds/byzantine/pb";
 
 message MerkleProof {
   int64 start     = 1;
@@ -14,4 +14,17 @@ message MerkleProof {
 message Share {
   bytes Data = 1;
   MerkleProof Proof = 2;
+}
+
+enum axis {
+  ROW = 0;
+  COL = 1;
+}
+
+message BadEncoding {
+  bytes HeaderHash = 1;
+  uint64 Height   = 2;
+  repeated Share Shares = 3;
+  uint32 Index    = 4;
+  axis Axis    = 5;
 }

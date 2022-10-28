@@ -19,6 +19,7 @@ import (
 	"github.com/celestiaorg/celestia-app/pkg/da"
 	"github.com/celestiaorg/celestia-app/pkg/wrapper"
 	"github.com/celestiaorg/celestia-node/share"
+	"github.com/celestiaorg/celestia-node/share/eds/byzantine"
 	"github.com/celestiaorg/celestia-node/share/ipld"
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/rsmt2d"
@@ -88,7 +89,7 @@ func (r *Retriever) Retrieve(ctx context.Context, dah *da.DataAvailabilityHeader
 			var errByz *rsmt2d.ErrByzantineData
 			if errors.As(err, &errByz) {
 				span.RecordError(err)
-				return nil, share.NewErrByzantine(ctx, r.bServ, dah, errByz)
+				return nil, byzantine.NewErrByzantine(ctx, r.bServ, dah, errByz)
 			}
 
 			log.Warnw("not enough shares to reconstruct data square, requesting more...", "err", err)

@@ -7,6 +7,8 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/celestiaorg/celestia-node/share/eds/byzantine"
+
 	"github.com/ipfs/go-datastore"
 	logging "github.com/ipfs/go-log/v2"
 
@@ -153,10 +155,10 @@ func (d *DASer) sample(ctx context.Context, h *header.ExtendedHeader) error {
 		if err == context.Canceled {
 			return err
 		}
-		var byzantineErr *share.ErrByzantine
+		var byzantineErr *byzantine.ErrByzantine
 		if errors.As(err, &byzantineErr) {
 			log.Warn("Propagating proof...")
-			sendErr := d.bcast.Broadcast(ctx, fraud.CreateBadEncodingProof(h.Hash(), uint64(h.Height), byzantineErr))
+			sendErr := d.bcast.Broadcast(ctx, byzantine.CreateBadEncodingProof(h.Hash(), uint64(h.Height), byzantineErr))
 			if sendErr != nil {
 				log.Errorw("fraud proof propagating failed", "err", sendErr)
 			}
