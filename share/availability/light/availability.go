@@ -73,12 +73,18 @@ func (la *ShareAvailability) SharesAvailable(ctx context.Context, dah *share.Roo
 	ctx, cancel := context.WithTimeout(ctx, share.AvailabilityTimeout)
 	defer cancel()
 
+	log.Debugw("starting sampling session", "root", dah.Hash())
 	ses := blockservice.NewSession(ctx, la.bserv)
 	errs := make(chan error, len(samples))
 	for _, s := range samples {
 		go func(s Sample) {
 			root, leaf := ipld.Translate(dah, s.Row, s.Col)
+
+			log.Debugw("fetching share", "root", dah.Hash(), "leaf CID", leaf)
 			_, err := share.GetShare(ctx, ses, root, leaf, len(dah.RowsRoots))
+			if err != nil {
+				log.Debugw("error fetching share", "root", dah.Hash(), "leaf CID", leaf)
+			}
 			// we don't really care about Share bodies at this point
 			// it also means we now saved the Share in local storage
 			select {
