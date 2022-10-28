@@ -14,7 +14,7 @@ import (
 	"github.com/celestiaorg/nmt"
 )
 
-var log = logging.Logger("share/validation")
+var log = logging.Logger("share/byzantine")
 
 // ShareWithProof contains data with corresponding Merkle Proof
 type ShareWithProof struct {

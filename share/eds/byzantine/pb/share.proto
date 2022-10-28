@@ -2,8 +2,6 @@ syntax = "proto3";
 
 package share.eds.byzantine.pb;
 
-option go_package="github.com/celestiaorg/celestia-node/share/eds/byzantine/pb";
-
 message MerkleProof {
   int64 start     = 1;
   int64 end       = 2;

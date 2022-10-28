@@ -7,14 +7,13 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/celestiaorg/celestia-node/share/eds/byzantine"
-
 	"github.com/ipfs/go-datastore"
 	logging "github.com/ipfs/go-log/v2"
 
 	"github.com/celestiaorg/celestia-node/fraud"
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/share"
+	"github.com/celestiaorg/celestia-node/share/eds/byzantine"
 )
 
 var log = logging.Logger("das")
