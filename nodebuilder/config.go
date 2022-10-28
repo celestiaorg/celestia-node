@@ -8,6 +8,7 @@ import (
 
 	"github.com/celestiaorg/celestia-node/nodebuilder/core"
 	"github.com/celestiaorg/celestia-node/nodebuilder/das"
+	"github.com/celestiaorg/celestia-node/nodebuilder/gateway"
 	"github.com/celestiaorg/celestia-node/nodebuilder/header"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
@@ -22,13 +23,14 @@ type ConfigLoader func() (*Config, error)
 // Config is main configuration structure for a Node.
 // It combines configuration units for all Node subsystems.
 type Config struct {
-	Core   core.Config
-	State  state.Config
-	P2P    p2p.Config
-	RPC    rpc.Config
-	Share  share.Config
-	Header header.Config
-	DASer  das.Config
+	Core    core.Config
+	State   state.Config
+	P2P     p2p.Config
+	RPC     rpc.Config
+	Gateway gateway.Config
+	Share   share.Config
+	Header  header.Config
+	DASer   das.Config
 }
 
 // DefaultConfig provides a default Config for a given Node Type 'tp'.
@@ -37,13 +39,14 @@ func DefaultConfig(tp node.Type) *Config {
 	switch tp {
 	case node.Bridge, node.Light, node.Full:
 		return &Config{
-			Core:   core.DefaultConfig(),
-			State:  state.DefaultConfig(),
-			P2P:    p2p.DefaultConfig(),
-			RPC:    rpc.DefaultConfig(),
-			Share:  share.DefaultConfig(),
-			Header: header.DefaultConfig(),
-			DASer:  das.DefaultConfig(),
+			Core:    core.DefaultConfig(),
+			State:   state.DefaultConfig(),
+			P2P:     p2p.DefaultConfig(),
+			RPC:     rpc.DefaultConfig(),
+			Gateway: gateway.DefaultConfig(),
+			Share:   share.DefaultConfig(),
+			Header:  header.DefaultConfig(),
+			DASer:   das.DefaultConfig(),
 		}
 	default:
 		panic("node: invalid node type")
