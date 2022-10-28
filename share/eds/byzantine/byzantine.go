@@ -1,4 +1,4 @@
-package share
+package byzantine
 
 import (
 	"context"
@@ -7,7 +7,6 @@ import (
 	"github.com/ipfs/go-blockservice"
 
 	"github.com/celestiaorg/celestia-app/pkg/da"
-
 	"github.com/celestiaorg/celestia-node/share/ipld"
 	"github.com/celestiaorg/rsmt2d"
 )
