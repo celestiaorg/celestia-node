@@ -1,0 +1,28 @@
+syntax = "proto3";
+
+package share.eds.byzantine.pb;
+
+message MerkleProof {
+  int64 start     = 1;
+  int64 end       = 2;
+  repeated bytes nodes = 3;
+  bytes leaf_hash = 4;
+}
+
+message Share {
+  bytes Data = 1;
+  MerkleProof Proof = 2;
+}
+
+enum axis {
+  ROW = 0;
+  COL = 1;
+}
+
+message BadEncoding {
+  bytes HeaderHash = 1;
+  uint64 Height   = 2;
+  repeated Share Shares = 3;
+  uint32 Index    = 4;
+  axis Axis    = 5;
+}

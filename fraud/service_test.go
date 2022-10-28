@@ -6,8 +6,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/require"
-
 	"github.com/ipfs/go-datastore"
 	"github.com/ipfs/go-datastore/namespace"
 	"github.com/ipfs/go-datastore/sync"
@@ -15,6 +13,7 @@ import (
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	pubsubpb "github.com/libp2p/go-libp2p-pubsub/pb"
 	mocknet "github.com/libp2p/go-libp2p/p2p/net/mock"
+	"github.com/stretchr/testify/require"
 
 	"github.com/celestiaorg/celestia-node/header"
 )
@@ -22,7 +21,7 @@ import (
 func TestService_Subscribe(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*1)
 	t.Cleanup(cancel)
-	s, _ := createService(t, false)
+	s, _ := CreateTestService(t, false)
 	proof := newValidProof()
 	require.NoError(t, s.Start(ctx))
 	_, err := s.Subscribe(proof.Type())
@@ -30,7 +29,7 @@ func TestService_Subscribe(t *testing.T) {
 }
 
 func TestService_SubscribeFails(t *testing.T) {
-	s, _ := createService(t, false)
+	s, _ := CreateTestService(t, false)
 	proof := newValidProof()
 	_, err := s.Subscribe(proof.Type())
 	require.Error(t, err)
@@ -39,7 +38,7 @@ func TestService_SubscribeFails(t *testing.T) {
 func TestService_BroadcastFails(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*1)
 	t.Cleanup(cancel)
-	s, _ := createService(t, false)
+	s, _ := CreateTestService(t, false)
 	p := newValidProof()
 	require.Error(t, s.Broadcast(ctx, p))
 }
@@ -48,7 +47,7 @@ func TestService_Broadcast(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*15)
 	t.Cleanup(cancel)
 
-	s, _ := createService(t, false)
+	s, _ := CreateTestService(t, false)
 	proof := newValidProof()
 	require.NoError(t, s.Start(ctx))
 	subs, err := s.Subscribe(proof.Type())
@@ -94,7 +93,7 @@ func TestService_processIncoming(t *testing.T) {
 		bin, err := test.proof.MarshalBinary()
 		require.NoError(t, err)
 		// create first fraud service that will broadcast incorrect Fraud Proof
-		service, _ := createServiceWithHost(ctx, t, net.Hosts()[0], false)
+		service, _ := createTestServiceWithHost(ctx, t, net.Hosts()[0], false)
 		msg := &pubsub.Message{
 			Message: &pubsubpb.Message{
 				Data: bin,
@@ -118,7 +117,7 @@ func TestService_ReGossiping(t *testing.T) {
 	require.NoError(t, err)
 
 	// create first fraud service that will broadcast incorrect Fraud Proof
-	pserviceA, _ := createServiceWithHost(ctx, t, net.Hosts()[0], false)
+	pserviceA, _ := createTestServiceWithHost(ctx, t, net.Hosts()[0], false)
 	require.NoError(t, err)
 	// create pub sub in order to listen for Fraud Proof
 	psB, err := pubsub.NewGossipSub(ctx, net.Hosts()[1], // -> B
@@ -197,7 +196,7 @@ func TestService_Get(t *testing.T) {
 	proof := newValidProof()
 	bin, err := proof.MarshalBinary()
 	require.NoError(t, err)
-	pService, _ := createService(t, false)
+	pService, _ := CreateTestService(t, false)
 	// try to fetch proof
 	_, err = pService.Get(ctx, proof.Type())
 	// error is expected here because storage is empty
@@ -219,8 +218,8 @@ func TestService_Sync(t *testing.T) {
 	net, err := mocknet.FullMeshLinked(2)
 	require.NoError(t, err)
 
-	pserviceA, _ := createServiceWithHost(ctx, t, net.Hosts()[0], false)
-	pserviceB, _ := createServiceWithHost(ctx, t, net.Hosts()[1], true)
+	pserviceA, _ := createTestServiceWithHost(ctx, t, net.Hosts()[0], false)
+	pserviceB, _ := createTestServiceWithHost(ctx, t, net.Hosts()[1], true)
 	proof := newValidProof()
 	require.NoError(t, pserviceA.Start(ctx))
 	require.NoError(t, pserviceB.Start(ctx))
@@ -236,35 +235,4 @@ func TestService_Sync(t *testing.T) {
 
 	_, err = subs.Proof(ctx)
 	require.NoError(t, err)
-}
-
-func createService(t *testing.T, enabledSyncer bool) (*ProofService, *mockStore) {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*15)
-	t.Cleanup(cancel)
-
-	// create mock network
-	net, err := mocknet.FullMeshLinked(1)
-	require.NoError(t, err)
-	return createServiceWithHost(ctx, t, net.Hosts()[0], enabledSyncer)
-}
-
-func createServiceWithHost(
-	ctx context.Context,
-	t *testing.T,
-	host host.Host,
-	enabledSyncer bool,
-) (*ProofService, *mockStore) {
-	// create pubsub for host
-	ps, err := pubsub.NewGossipSub(ctx, host,
-		pubsub.WithMessageSignaturePolicy(pubsub.StrictNoSign))
-	require.NoError(t, err)
-	store := createStore(t, 10)
-	return NewProofService(
-		ps,
-		host,
-		store.GetByHeight,
-		sync.MutexWrap(datastore.NewMapDatastore()),
-		enabledSyncer,
-		"private",
-	), store
 }

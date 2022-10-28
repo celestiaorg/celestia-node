@@ -1,4 +1,4 @@
-package fraud
+package byzantine
 
 import (
 	"bytes"
@@ -7,17 +7,15 @@ import (
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/pkg/wrapper"
-
-	pb "github.com/celestiaorg/celestia-node/fraud/pb"
+	"github.com/celestiaorg/celestia-node/fraud"
 	"github.com/celestiaorg/celestia-node/header"
-	"github.com/celestiaorg/celestia-node/share"
+	"github.com/celestiaorg/celestia-node/share/eds/byzantine/pb"
 	"github.com/celestiaorg/celestia-node/share/ipld"
-	ipld_pb "github.com/celestiaorg/celestia-node/share/pb"
 	"github.com/celestiaorg/rsmt2d"
 )
 
 func init() {
-	Register(&BadEncodingProof{})
+	fraud.Register(&BadEncodingProof{})
 }
 
 type BadEncodingProof struct {
@@ -26,7 +24,7 @@ type BadEncodingProof struct {
 	// ShareWithProof contains all shares from row or col.
 	// Shares that did not pass verification in rsmt2d will be nil.
 	// For non-nil shares MerkleProofs are computed.
-	Shares []*share.ShareWithProof
+	Shares []*ShareWithProof
 	// Index represents the row/col index where ErrByzantineRow/ErrByzantineColl occurred.
 	Index uint32
 	// Axis represents the axis that verification failed on.
@@ -38,8 +36,8 @@ type BadEncodingProof struct {
 func CreateBadEncodingProof(
 	hash []byte,
 	height uint64,
-	errByzantine *share.ErrByzantine,
-) Proof {
+	errByzantine *ErrByzantine,
+) fraud.Proof {
 
 	return &BadEncodingProof{
 		headerHash:  hash,
@@ -51,8 +49,8 @@ func CreateBadEncodingProof(
 }
 
 // Type returns type of fraud proof.
-func (p *BadEncodingProof) Type() ProofType {
-	return BadEncoding
+func (p *BadEncodingProof) Type() fraud.ProofType {
+	return fraud.BadEncoding
 }
 
 // HeaderHash returns block hash.
@@ -67,7 +65,7 @@ func (p *BadEncodingProof) Height() uint64 {
 
 // MarshalBinary converts BadEncodingProof to binary.
 func (p *BadEncodingProof) MarshalBinary() ([]byte, error) {
-	shares := make([]*ipld_pb.Share, 0, len(p.Shares))
+	shares := make([]*pb.Share, 0, len(p.Shares))
 	for _, share := range p.Shares {
 		shares = append(shares, share.ShareWithProofToProto())
 	}
@@ -91,7 +89,7 @@ func (p *BadEncodingProof) UnmarshalBinary(data []byte) error {
 	befp := &BadEncodingProof{
 		headerHash:  in.HeaderHash,
 		BlockHeight: in.Height,
-		Shares:      share.ProtoToShare(in.Shares),
+		Shares:      ProtoToShare(in.Shares),
 		Index:       in.Index,
 		Axis:        rsmt2d.Axis(in.Axis),
 	}
