@@ -155,9 +155,9 @@ func (p *BadEncodingProof) Validate(header *header.ExtendedHeader) error {
 	}
 	rebuiltShares = append(rebuiltShares, rebuiltExtendedShares...)
 
-	tree := wrapper.NewErasuredNamespacedMerkleTree(uint64(len(shares) / 2))
-	for i, share := range rebuiltShares {
-		tree.Push(share, rsmt2d.SquareIndex{Axis: uint(p.Index), Cell: uint(i)})
+	tree := wrapper.NewErasuredNamespacedMerkleTree(uint64(len(shares)/2), uint(p.Index))
+	for _, share := range rebuiltShares {
+		tree.Push(share)
 	}
 
 	// comparing rebuilt Merkle Root of bad row/col with respective Merkle Root of row/col from block.
