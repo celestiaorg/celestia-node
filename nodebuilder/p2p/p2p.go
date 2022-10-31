@@ -37,6 +37,8 @@ type API struct {
 	PubSubPeers          func(topic string) []peer.ID
 }
 
+// Module represents all accessible methods related to the node's p2p
+// host / operations.
 type Module interface {
 	// Info returns basic information about the node's p2p host/operations.
 	Info() Info
