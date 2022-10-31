@@ -68,7 +68,10 @@ require (
 	google.golang.org/grpc v1.49.0
 )
 
-require github.com/golang/mock v1.6.0
+require (
+	github.com/golang/mock v1.6.0
+	github.com/libp2p/go-libp2p-resource-manager v0.5.1
+)
 
 require (
 	cloud.google.com/go v0.100.2 // indirect
@@ -209,7 +212,6 @@ require (
 	github.com/libp2p/go-libp2p-asn-util v0.2.0 // indirect
 	github.com/libp2p/go-libp2p-kbucket v0.4.7 // indirect
 	github.com/libp2p/go-libp2p-loggables v0.1.0 // indirect
-	github.com/libp2p/go-libp2p-resource-manager v0.5.1 // indirect
 	github.com/libp2p/go-msgio v0.2.0 // indirect
 	github.com/libp2p/go-nat v0.1.0 // indirect
 	github.com/libp2p/go-netroute v0.2.0 // indirect

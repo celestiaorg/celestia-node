@@ -3,7 +3,6 @@ package p2p
 import (
 	"context"
 	"fmt"
-	ma "github.com/multiformats/go-multiaddr"
 
 	"github.com/libp2p/go-libp2p-core/host"
 	"github.com/libp2p/go-libp2p-core/metrics"
@@ -14,6 +13,7 @@ import (
 	rcmgr "github.com/libp2p/go-libp2p-resource-manager"
 	"github.com/libp2p/go-libp2p/p2p/host/autonat"
 	"github.com/libp2p/go-libp2p/p2p/net/conngater"
+	ma "github.com/multiformats/go-multiaddr"
 )
 
 type API struct {
@@ -133,7 +133,6 @@ type Info struct {
 }
 
 func (m *manager) Info() Info {
-	m.host.Network().
 	return Info{
 		ID:    m.host.ID(),
 		Addrs: m.host.Addrs(),

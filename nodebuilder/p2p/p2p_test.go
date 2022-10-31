@@ -2,6 +2,7 @@ package p2p
 
 import (
 	"context"
+	"math/rand"
 	"testing"
 	"time"
 
@@ -14,37 +15,58 @@ import (
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	"github.com/libp2p/go-libp2p/p2p/host/autonat"
 	mocknet "github.com/libp2p/go-libp2p/p2p/net/mock"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-// TestP2PModule_methodsOnHost TODO
+// TestP2PModule_methodsOnHost tests P2P Module methods on
+// the instance of Host.
 func TestP2PModule_methodsOnHost(t *testing.T) {
 	net, err := mocknet.FullMeshConnected(2)
 	require.NoError(t, err)
 	host, peer := net.Hosts()[0], net.Hosts()[1]
 
 	mgr := newManager(host, nil, nil, nil, nil, nil)
+
+	// test all methods on `manager.host`
+	assert.Equal(t, host.ID(), mgr.Info().ID)
+	assert.Equal(t, host.Peerstore().Peers(), mgr.Peers())
+	assert.Equal(t, libhost.InfoFromHost(peer).ID, mgr.PeerInfo(peer.ID()).ID)
+
+	assert.Equal(t, host.Network().Connectedness(peer.ID()), mgr.Connectedness(peer.ID()))
+	// now disconnect using manager and check for connectedness match again
+	assert.NoError(t, mgr.ClosePeer(peer.ID()))
+	assert.Equal(t, host.Network().Connectedness(peer.ID()), mgr.Connectedness(peer.ID()))
+}
+
+// TestP2PModule_methodsOnHostConnManager tests P2P Module methods on
+// the Host's ConnManager. Note that this test is constructed differently
+// than the one above because mocknet does not provide a ConnManager to its
+// mock peers.
+func TestP2PModule_methodsOnHostConnManager(t *testing.T) {
+	// make two full peers and connect them
+	host, err := libp2p.New()
+	require.NoError(t, err)
+
+	peer, err := libp2p.New()
+	require.NoError(t, err)
+
+	mgr := newManager(host, nil, nil, nil, nil, nil)
+
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
 
-	// test all methods on `manager.host`
-	require.Equal(t, host.ID(), mgr.Info().ID)
-	require.Equal(t, host.Peerstore().Peers(), mgr.Peers())
-	require.Equal(t, libhost.InfoFromHost(peer).ID, mgr.PeerInfo(peer.ID()).ID)
+	err = mgr.Connect(ctx, *libhost.InfoFromHost(peer))
+	require.NoError(t, err)
 
-	require.Equal(t, host.Network().Connectedness(peer.ID()), mgr.Connectedness(peer.ID()))
-	// now disconnect using manager and check for connectedness match again
-	require.NoError(t, mgr.ClosePeer(peer.ID()))
-	require.Equal(t, host.Network().Connectedness(peer.ID()), mgr.Connectedness(peer.ID()))
-	// reconnect using manager
-	require.NoError(t, mgr.Connect(ctx, *libhost.InfoFromHost(peer)))
 	mgr.MutualAdd(peer.ID(), "test")
-	isMutual := mgr.IsMutual(peer.ID(), "test") // TODO why fails?
-	// require.True(t, isMutual) // tODO why fails?
-	require.Equal(t, host.ConnManager().IsProtected(peer.ID(), "test"), isMutual)
+	assert.True(t, mgr.IsMutual(peer.ID(), "test"))
+	mgr.MutualRm(peer.ID(), "test")
+	assert.False(t, mgr.IsMutual(peer.ID(), "test"))
 }
 
-// TestP2PModule_methodsOnAutonat TODO
+// TestP2PModule_methodsOnAutonat tests P2P Module methods on
+// the node's instance of AutoNAT.
 func TestP2PModule_methodsOnAutonat(t *testing.T) {
 	net, err := mocknet.FullMeshConnected(2)
 	require.NoError(t, err)
@@ -55,30 +77,32 @@ func TestP2PModule_methodsOnAutonat(t *testing.T) {
 
 	mgr := newManager(host, nil, nat, nil, nil, nil)
 
-	// test all methods on `manager.nat`
-	require.Equal(t, nat.Status(), mgr.NATStatus())
+	assert.Equal(t, nat.Status(), mgr.NATStatus())
 }
 
-// TestP2PModule_methodsOnBandwidth // TODO
+// TestP2PModule_methodsOnBandwidth tests P2P Module methods on
+// the Host's bandwidth reporter.
 func TestP2PModule_methodsOnBandwidth(t *testing.T) {
 	bw := metrics.NewBandwidthCounter()
 	host, err := libp2p.New(libp2p.BandwidthReporter(bw))
 	require.NoError(t, err)
 
 	protoID := protocol.ID("test")
-
-	// define a buf size, so we know how many bytes
-	// to read
-	writeSize := 10000
+	// define a buf size, so we know how many bytes to read
+	bufSize := 1000
 
 	// create a peer to connect to
-	peer, err := libp2p.New()
+	peer, err := libp2p.New(libp2p.BandwidthReporter(bw))
 	require.NoError(t, err)
-	peer.SetStreamHandler(protoID, func(stream network.Stream) {
-		buf := make([]byte, writeSize)
+
+	// set stream handler on the host
+	host.SetStreamHandler(protoID, func(stream network.Stream) {
+		buf := make([]byte, bufSize)
 		_, err := stream.Read(buf)
 		require.NoError(t, err)
-		t.Log("HITTING!") // TODO remove
+
+		_, err = stream.Write(buf)
+		require.NoError(t, err)
 	})
 
 	mgr := newManager(host, nil, nil, nil, bw, nil)
@@ -92,25 +116,37 @@ func TestP2PModule_methodsOnBandwidth(t *testing.T) {
 	// check to ensure they're actually connected
 	require.Equal(t, network.Connected, mgr.Connectedness(peer.ID()))
 
-	// open stream with peer (have to do it on the host as there's
-	// no public method to do so via the p2p Module)
-	stream, err := host.NewStream(ctx, peer.ID(), protoID)
+	// open stream with host
+	stream, err := peer.NewStream(ctx, mgr.Info().ID, protoID)
 	require.NoError(t, err)
 
-	// read from stream to increase bandwidth usage get some substantive
+	// write to stream to increase bandwidth usage get some substantive
 	// data to read from the bandwidth counter
-	buf := make([]byte, writeSize)
+	buf := make([]byte, bufSize)
+	_, err = rand.Read(buf)
+	require.NoError(t, err)
 	_, err = stream.Write(buf)
 	require.NoError(t, err)
 
-	stats := mgr.BandwidthStats() // TODO why 0?
-	t.Log(stats)                  // TODO assert
+	_, err = stream.Read(buf)
+	require.NoError(t, err)
+
+	// has to be a ~second for the metrics reporter to collect the stats
+	// in the background process
+	time.Sleep(time.Second)
+
+	stats := mgr.BandwidthStats()
+	assert.NotNil(t, stats)
 	peerStat := mgr.BandwidthForPeer(peer.ID())
-	t.Log(peerStat)
+	assert.NotZero(t, peerStat.TotalIn)
+	assert.Greater(t, int(peerStat.TotalIn), bufSize) // should be slightly more than buf size due negotiations, etc
 	protoStat := mgr.BandwidthForProtocol(protoID)
-	t.Log(protoStat) // TODO
+	assert.NotZero(t, protoStat.TotalIn)
+	assert.Greater(t, int(protoStat.TotalIn), bufSize) // should be slightly more than buf size due negotiations, etc
 }
 
+// TestP2PModule_methodsOnPubsub tests P2P Module methods on
+// the instance of pubsub.
 func TestP2PModule_methodsOnPubsub(t *testing.T) {
 	net, err := mocknet.FullMeshConnected(5)
 	require.NoError(t, err)
@@ -144,32 +180,37 @@ func TestP2PModule_methodsOnPubsub(t *testing.T) {
 	err = topic.Publish(ctx, []byte("test"))
 	require.NoError(t, err)
 
-	// give for some peers to properly join the topic
+	// give for some peers to properly join the topic (this is necessary
+	// anywhere where gossipsub is used in tests)
 	time.Sleep(1 * time.Second)
 
-	require.Equal(t, len(topic.ListPeers()), len(mgr.PubSubPeers(topicStr)))
+	assert.Equal(t, len(topic.ListPeers()), len(mgr.PubSubPeers(topicStr)))
 }
 
-// TestP2PModule_methodsOnConnGater // TODO doc
+// TestP2PModule_methodsOnConnGater tests P2P Module methods on
+// the instance of ConnectionGater.
 func TestP2PModule_methodsOnConnGater(t *testing.T) {
 	gater, err := ConnectionGater(datastore.NewMapDatastore())
 	require.NoError(t, err)
 
 	mgr := newManager(nil, nil, nil, gater, nil, nil)
 
-	require.NoError(t, mgr.BlockPeer("badpeer"))
-	require.Len(t, mgr.ListBlockedPeers(), 1)
-	require.NoError(t, mgr.UnblockPeer("badpeer"))
-	require.Len(t, mgr.ListBlockedPeers(), 0)
+	assert.NoError(t, mgr.BlockPeer("badpeer"))
+	assert.Len(t, mgr.ListBlockedPeers(), 1)
+	assert.NoError(t, mgr.UnblockPeer("badpeer"))
+	assert.Len(t, mgr.ListBlockedPeers(), 0)
 }
 
-// TestP2PModule_methodsOnResourceManager // TODO doc
+// TestP2PModule_methodsOnResourceManager tests P2P Module methods on
+// the ResourceManager.
 func TestP2PModule_methodsOnResourceManager(t *testing.T) {
 	rm, err := ResourceManager()
 	require.NoError(t, err)
 
 	mgr := newManager(nil, nil, nil, nil, nil, rm)
+
 	state, err := mgr.ResourceState()
 	require.NoError(t, err)
-	require.NotNil(t, state)
+
+	assert.NotNil(t, state)
 }
