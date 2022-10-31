@@ -84,7 +84,12 @@ func TestRetriever_ByzantineError(t *testing.T) {
 
 	// import corrupted eds
 	batchAdder := ipld.NewNmtNodeAdder(ctx, bserv, ipld.MaxSizeBatchOption(width*2))
-	attackerEDS, err := rsmt2d.ImportExtendedDataSquare(shares, share.DefaultRSMT2DCodec(), wrapper.NewConstructor(uint64(width), nmt.NodeVisitor(batchAdder.Visit)))
+	attackerEDS, err := rsmt2d.ImportExtendedDataSquare(
+		shares,
+		share.DefaultRSMT2DCodec(),
+		wrapper.NewConstructor(uint64(width),
+			nmt.NodeVisitor(batchAdder.Visit)),
+	)
 	require.NoError(t, err)
 	err = batchAdder.Commit()
 	require.NoError(t, err)

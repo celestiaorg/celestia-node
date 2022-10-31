@@ -38,9 +38,7 @@ func (n *NmtNodeAdder) Visit(hash []byte, children ...[]byte) {
 	id := MustCidFromNamespacedSha256(hash)
 	switch len(children) {
 	case 1:
-		if n.leaves.Visit(id) {
-			n.err = n.add.Add(n.ctx, newNMTNode(id, children[0]))
-		}
+		n.err = n.add.Add(n.ctx, newNMTNode(id, children[0]))
 	case 2:
 		n.err = n.add.Add(n.ctx, newNMTNode(id, append(children[0], children[1]...)))
 	default:

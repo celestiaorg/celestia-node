@@ -112,7 +112,11 @@ func Test_ConvertEDStoShares(t *testing.T) {
 	shares := RandShares(t, squareWidth*squareWidth)
 
 	// compute extended square
-	eds, err := rsmt2d.ComputeExtendedDataSquare(shares, rsmt2d.NewRSGF8Codec(), wrapper.NewConstructor(uint64(squareWidth)))
+	eds, err := rsmt2d.ComputeExtendedDataSquare(
+		shares,
+		rsmt2d.NewRSGF8Codec(),
+		wrapper.NewConstructor(uint64(squareWidth)),
+	)
 	require.NoError(t, err)
 
 	resshares := ExtractODS(eds)
