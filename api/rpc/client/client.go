@@ -12,7 +12,6 @@ import (
 	"github.com/celestiaorg/celestia-node/nodebuilder/state"
 )
 
-//go:generate go run github.com/golang/mock/mockgen -destination=../../mocks/api.go -package=mocks . API
 type API interface {
 	fraud.Module
 	header.Module
@@ -27,37 +26,36 @@ type Client struct {
 	State  state.API
 	Share  share.API
 	DAS    das.API
+
+	closer multiClientCloser
 }
 
-// MultiClientCloser is a wrapper struct to close clients across multiple namespaces.
-type MultiClientCloser struct {
-	closers map[string]jsonrpc.ClientCloser
+// multiClientCloser is a wrapper struct to close clients across multiple namespaces.
+type multiClientCloser struct {
+	closers []jsonrpc.ClientCloser
 }
 
-// Register adds a new closer to the MultiClientCloser under the given namespace.
-func (m *MultiClientCloser) Register(namespace string, closer jsonrpc.ClientCloser) {
-	if m.closers == nil {
-		m.closers = make(map[string]jsonrpc.ClientCloser)
-	}
-	m.closers[namespace] = closer
+// register adds a new closer to the multiClientCloser
+func (m *multiClientCloser) register(closer jsonrpc.ClientCloser) {
+	m.closers = append(m.closers, closer)
 }
 
-// CloseNamespace closes the client for the given namespace.
-func (m *MultiClientCloser) CloseNamespace(namespace string) {
-	m.closers[namespace]()
-}
-
-// CloseAll closes all saved clients.
-func (m *MultiClientCloser) CloseAll() {
+// closeAll closes all saved clients.
+func (m *multiClientCloser) closeAll() {
 	for _, closer := range m.closers {
 		closer()
 	}
 }
 
+// Close closes the connections to all namespaces registered on the client.
+func (c *Client) Close() {
+	c.closer.closeAll()
+}
+
 // NewClient creates a new Client with one connection per namespace.
-func NewClient(ctx context.Context, addr string) (*Client, *MultiClientCloser, error) {
+func NewClient(ctx context.Context, addr string) (*Client, error) {
 	var client Client
-	var multiCloser MultiClientCloser
+	var multiCloser multiClientCloser
 
 	// TODO: this duplication of strings many times across the codebase can be avoided with issue #1176
 	var modules = map[string]interface{}{
@@ -70,10 +68,10 @@ func NewClient(ctx context.Context, addr string) (*Client, *MultiClientCloser, e
 	for name, module := range modules {
 		closer, err := jsonrpc.NewClient(ctx, addr, name, module, nil)
 		if err != nil {
-			return nil, &multiCloser, err
+			return nil, err
 		}
-		multiCloser.Register(name, closer)
+		multiCloser.register(closer)
 	}
 
-	return &client, &multiCloser, nil
+	return &client, nil
 }

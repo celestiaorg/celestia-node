@@ -1,4 +1,4 @@
-package nodebuilder
+package api
 
 import (
 	"context"
@@ -11,27 +11,33 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.uber.org/fx"
 
-	"github.com/celestiaorg/celestia-node/api/mocks"
 	"github.com/celestiaorg/celestia-node/api/rpc"
 	"github.com/celestiaorg/celestia-node/api/rpc/client"
+	"github.com/celestiaorg/celestia-node/nodebuilder"
+	dasMock "github.com/celestiaorg/celestia-node/nodebuilder/das/mocks"
+	fraudMock "github.com/celestiaorg/celestia-node/nodebuilder/fraud/mocks"
+	headerMock "github.com/celestiaorg/celestia-node/nodebuilder/header/mocks"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
+	shareMock "github.com/celestiaorg/celestia-node/nodebuilder/share/mocks"
+	stateMock "github.com/celestiaorg/celestia-node/nodebuilder/state/mocks"
 	"github.com/celestiaorg/celestia-node/state"
 )
 
 func TestRPCCallsUnderlyingNode(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(cancel)
 	nd, server := setupNodeWithModifiedRPC(t)
 	url := nd.RPCServer.ListenAddr()
-	client, closer, err := client.NewClient(context.Background(), "http://"+url)
+	client, err := client.NewClient(context.Background(), "http://"+url)
+	t.Cleanup(client.Close)
 	require.NoError(t, err)
-	defer closer.CloseAll()
-	ctx := context.Background()
 
 	expectedBalance := &state.Balance{
 		Amount: sdk.NewInt(100),
 		Denom:  "utia",
 	}
 
-	server.EXPECT().Balance(gomock.Any()).Return(expectedBalance, nil).Times(1)
+	server.State.EXPECT().Balance(gomock.Any()).Return(expectedBalance, nil).Times(1)
 
 	balance, err := client.State.Balance(ctx)
 	require.NoError(t, err)
@@ -46,7 +52,10 @@ func TestModulesImplementFullAPI(t *testing.T) {
 		for j := 0; j < module.Type.NumField(); j++ {
 			impl := module.Type.Field(j)
 			method, _ := api.MethodByName(impl.Name)
-			require.Equal(t, method.Type, impl.Type)
+			// closers is the only thing on the Client struct that doesn't exist in the API
+			if impl.Name != "closers" {
+				require.Equal(t, method.Type, impl.Type, "method %s does not match", impl.Name)
+			}
 		}
 	}
 }
@@ -95,21 +104,28 @@ func implementsMarshaler(t *testing.T, typ reflect.Type) { //nolint:unused
 
 }
 
-func setupNodeWithModifiedRPC(t *testing.T) (*Node, *mocks.MockAPI) {
+func setupNodeWithModifiedRPC(t *testing.T) (*nodebuilder.Node, *mockAPI) {
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
 
 	ctrl := gomock.NewController(t)
-	server := mocks.NewMockAPI(ctrl)
+
+	mockAPI := &mockAPI{
+		stateMock.NewMockModule(ctrl),
+		shareMock.NewMockModule(ctrl),
+		fraudMock.NewMockModule(ctrl),
+		headerMock.NewMockModule(ctrl),
+		dasMock.NewMockModule(ctrl),
+	}
 
 	overrideRPCHandler := fx.Invoke(func(srv *rpc.Server) {
-		srv.RegisterService("state", server)
-		srv.RegisterService("share", server)
-		srv.RegisterService("fraud", server)
-		srv.RegisterService("header", server)
-		srv.RegisterService("das", server)
+		srv.RegisterService("state", mockAPI.State)
+		srv.RegisterService("share", mockAPI.Share)
+		srv.RegisterService("fraud", mockAPI.Fraud)
+		srv.RegisterService("header", mockAPI.Header)
+		srv.RegisterService("das", mockAPI.Das)
 	})
-	nd := TestNode(t, node.Full, overrideRPCHandler)
+	nd := nodebuilder.TestNode(t, node.Full, overrideRPCHandler)
 	// start node
 	err := nd.Start(ctx)
 	require.NoError(t, err)
@@ -117,5 +133,13 @@ func setupNodeWithModifiedRPC(t *testing.T) (*Node, *mocks.MockAPI) {
 		err = nd.Stop(ctx)
 		require.NoError(t, err)
 	})
-	return nd, server
+	return nd, mockAPI
+}
+
+type mockAPI struct {
+	State  *stateMock.MockModule
+	Share  *shareMock.MockModule
+	Fraud  *fraudMock.MockModule
+	Header *headerMock.MockModule
+	Das    *dasMock.MockModule
 }
