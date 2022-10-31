@@ -48,6 +48,23 @@ func (n *NmtNodeAdder) Visit(hash []byte, children ...[]byte) {
 	}
 }
 
+// VisitInnerNodes is a NodeVisitor that does not store leaf nodes to the blockservice.
+func (n *NmtNodeAdder) VisitInnerNodes(hash []byte, children ...[]byte) {
+	if n.err != nil {
+		return // protect from further visits if there is an error
+	}
+
+	id := MustCidFromNamespacedSha256(hash)
+	switch len(children) {
+	case 1:
+		break
+	case 2:
+		n.err = n.add.Add(n.ctx, newNMTNode(id, append(children[0], children[1]...)))
+	default:
+		panic("expected a binary tree")
+	}
+}
+
 // Commit checks for errors happened during Visit and if absent commits data to inner Batch.
 func (n *NmtNodeAdder) Commit() error {
 	if n.err != nil {

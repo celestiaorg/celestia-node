@@ -35,20 +35,20 @@ const (
 	// that contain an NMT node (inner and leaf nodes).
 	sha256Namespace8Flagged = 0x7701
 
+	// MaxSquareSize is currently the maximum size supported for unerasured data in rsmt2d.ExtendedDataSquare.
+	MaxSquareSize = appconsts.MaxSquareSize
+
+	// NamespaceSize is a system-wide size for NMT namespaces.
+	NamespaceSize = appconsts.NamespaceSize
+
 	// nmtHashSize is the size of a digest created by an NMT in bytes.
-	nmtHashSize = 2*appconsts.NamespaceSize + sha256.Size
+	nmtHashSize = 2*NamespaceSize + sha256.Size
 
 	// innerNodeSize is the size of data in inner nodes.
 	innerNodeSize = nmtHashSize * 2
 
 	// leafNodeSize is the size of data in leaf nodes.
 	leafNodeSize = NamespaceSize + appconsts.ShareSize
-
-	// MaxSquareSize is currently the maximum size supported for unerasured data in rsmt2d.ExtendedDataSquare.
-	MaxSquareSize = appconsts.MaxSquareSize
-
-	// NamespaceSize is a system-wide size for NMT namespaces.
-	NamespaceSize = appconsts.NamespaceSize
 
 	// cidPrefixSize is the size of the prepended buffer of the CID encoding
 	// for NamespacedSha256. For more information, see:

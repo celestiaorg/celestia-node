@@ -67,7 +67,7 @@ func (f *ProofService) syncFraudProofs(ctx context.Context) {
 				attribute.StringSlice("proof_types", proofTypes),
 			)
 			log.Debugw("requesting proofs from peer", "pid", pid)
-			respProofs, err := requestProofs(ctx, f.host, pid, proofTypes)
+			respProofs, err := f.requestProofs(ctx, pid, proofTypes)
 			if err != nil {
 				log.Errorw("error while requesting fraud proofs", "err", err, "peer", pid)
 				span.RecordError(err)

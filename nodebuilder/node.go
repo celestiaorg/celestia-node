@@ -6,8 +6,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/celestiaorg/celestia-node/nodebuilder/header"
-
 	"github.com/ipfs/go-blockservice"
 	exchange "github.com/ipfs/go-ipfs-exchange-interface"
 	logging "github.com/ipfs/go-log/v2"
@@ -18,13 +16,15 @@ import (
 	"github.com/libp2p/go-libp2p/p2p/net/conngater"
 	"go.uber.org/fx"
 
+	"github.com/celestiaorg/celestia-node/api/gateway"
+	"github.com/celestiaorg/celestia-node/api/rpc"
 	"github.com/celestiaorg/celestia-node/das"
 	"github.com/celestiaorg/celestia-node/nodebuilder/fraud"
+	"github.com/celestiaorg/celestia-node/nodebuilder/header"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
+	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
 	"github.com/celestiaorg/celestia-node/nodebuilder/share"
 	"github.com/celestiaorg/celestia-node/nodebuilder/state"
-	"github.com/celestiaorg/celestia-node/params"
-	"github.com/celestiaorg/celestia-node/service/rpc"
 )
 
 const Timeout = time.Second * 15
@@ -41,12 +41,14 @@ type Node struct {
 	fx.In `ignore-unexported:"true"`
 
 	Type          node.Type
-	Network       params.Network
-	Bootstrappers params.Bootstrappers
+	Network       p2p.Network
+	Bootstrappers p2p.Bootstrappers
 	Config        *Config
 
 	// rpc components
-	RPCServer *rpc.Server `optional:"true"`
+	RPCServer     *rpc.Server     // not optional
+	GatewayServer *gateway.Server `optional:"true"`
+
 	// p2p components
 	Host         host.Host
 	ConnGater    *conngater.BasicConnectionGater
@@ -67,18 +69,18 @@ type Node struct {
 }
 
 // New assembles a new Node with the given type 'tp' over Store 'store'.
-func New(tp node.Type, store Store, options ...fx.Option) (*Node, error) {
+func New(tp node.Type, network p2p.Network, store Store, options ...fx.Option) (*Node, error) {
 	cfg, err := store.Config()
 	if err != nil {
 		return nil, err
 	}
 
-	return NewWithConfig(tp, store, cfg, options...)
+	return NewWithConfig(tp, network, store, cfg, options...)
 }
 
 // NewWithConfig assembles a new Node with the given type 'tp' over Store 'store' and a custom config.
-func NewWithConfig(tp node.Type, store Store, cfg *Config, options ...fx.Option) (*Node, error) {
-	opts := append([]fx.Option{ConstructModule(tp, cfg, store)}, options...)
+func NewWithConfig(tp node.Type, network p2p.Network, store Store, cfg *Config, options ...fx.Option) (*Node, error) {
+	opts := append([]fx.Option{ConstructModule(tp, network, cfg, store)}, options...)
 	return newNode(opts...)
 }
 

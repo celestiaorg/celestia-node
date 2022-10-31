@@ -1,7 +1,6 @@
 package availability_test
 
 import (
-	"bytes"
 	"context"
 	"testing"
 
@@ -37,15 +36,15 @@ func FillBS(t *testing.T, bServ blockservice.BlockService, shares []share.Share)
 	return &dah
 }
 
-type Node struct {
-	net *DagNet
+type TestNode struct {
+	net *TestDagNet
 	*service.ShareService
 	blockservice.BlockService
 	host.Host
 }
 
 // ClearStorage cleans up the storage of the node.
-func (n *Node) ClearStorage() {
+func (n *TestNode) ClearStorage() {
 	keys, err := n.Blockstore().AllKeysChan(n.net.ctx)
 	require.NoError(n.net.T, err)
 
@@ -55,29 +54,27 @@ func (n *Node) ClearStorage() {
 	}
 }
 
-type DagNet struct {
+type TestDagNet struct {
 	ctx   context.Context
 	T     *testing.T
 	net   mocknet.Mocknet
-	nodes []*Node
+	nodes []*TestNode
 }
 
-// NewTestDAGNet creates a new testing swarm utility to spawn different nodes
-// and test how they interact and/or exchange data.
-func NewTestDAGNet(ctx context.Context, t *testing.T) *DagNet {
-	return &DagNet{
+// NewTestDAGNet creates a new testing swarm utility to spawn different nodes and test how they interact and/or exchange
+// data.
+func NewTestDAGNet(ctx context.Context, t *testing.T) *TestDagNet {
+	return &TestDagNet{
 		ctx: ctx,
 		T:   t,
 		net: mocknet.New(),
 	}
 }
 
-// Node create a plain network node that can serve and request data.
-func (dn *DagNet) Node() *Node {
+// NewTestNodeWithBlockstore creates a new plain TestNode with the given blockstore that can serve and request data.
+func (dn *TestDagNet) NewTestNodeWithBlockstore(dstore ds.Datastore, bstore blockstore.Blockstore) *TestNode {
 	hst, err := dn.net.GenPeer()
 	require.NoError(dn.T, err)
-	dstore := dssync.MutexWrap(ds.NewMapDatastore())
-	bstore := blockstore.NewBlockstore(dstore)
 	routing := offline.NewOfflineRouter(dstore, record.NamespacedValidator{})
 	bs := bitswap.New(
 		dn.ctx,
@@ -90,7 +87,7 @@ func (dn *DagNet) Node() *Node {
 		bitswap.SetSimulateDontHavesOnTimeout(false),
 		bitswap.SetSendDontHaves(false),
 	)
-	nd := &Node{
+	nd := &TestNode{
 		net:          dn,
 		BlockService: blockservice.New(bstore, bs),
 		Host:         hst,
@@ -99,8 +96,15 @@ func (dn *DagNet) Node() *Node {
 	return nd
 }
 
-// ConnectAll connects all the peers on registered on the DagNet.
-func (dn *DagNet) ConnectAll() {
+// NewTestNode creates a plain network node that can serve and request data.
+func (dn *TestDagNet) NewTestNode() *TestNode {
+	dstore := dssync.MutexWrap(ds.NewMapDatastore())
+	bstore := blockstore.NewBlockstore(dstore)
+	return dn.NewTestNodeWithBlockstore(dstore, bstore)
+}
+
+// ConnectAll connects all the peers on registered on the TestDagNet.
+func (dn *TestDagNet) ConnectAll() {
 	err := dn.net.LinkAll()
 	require.NoError(dn.T, err)
 
@@ -108,8 +112,8 @@ func (dn *DagNet) ConnectAll() {
 	require.NoError(dn.T, err)
 }
 
-// Connect connects two given peer.
-func (dn *DagNet) Connect(peerA, peerB peer.ID) {
+// Connect connects two given peers.
+func (dn *TestDagNet) Connect(peerA, peerB peer.ID) {
 	_, err := dn.net.LinkPeers(peerA, peerB)
 	require.NoError(dn.T, err)
 	_, err = dn.net.ConnectPeers(peerA, peerB)
@@ -118,8 +122,8 @@ func (dn *DagNet) Connect(peerA, peerB peer.ID) {
 
 // Disconnect disconnects two peers.
 // It does a hard disconnect, meaning that disconnected peers won't be able to reconnect on their own
-// but only with DagNet.Connect or DagNet.ConnectAll.
-func (dn *DagNet) Disconnect(peerA, peerB peer.ID) {
+// but only with DagNet.Connect or TestDagNet.ConnectAll.
+func (dn *TestDagNet) Disconnect(peerA, peerB peer.ID) {
 	err := dn.net.UnlinkPeers(peerA, peerB)
 	require.NoError(dn.T, err)
 	err = dn.net.DisconnectPeers(peerA, peerB)
@@ -127,15 +131,15 @@ func (dn *DagNet) Disconnect(peerA, peerB peer.ID) {
 }
 
 type SubNet struct {
-	*DagNet
-	nodes []*Node
+	*TestDagNet
+	nodes []*TestNode
 }
 
-func (dn *DagNet) SubNet() *SubNet {
+func (dn *TestDagNet) SubNet() *SubNet {
 	return &SubNet{dn, nil}
 }
 
-func (sn *SubNet) AddNode(nd *Node) {
+func (sn *SubNet) AddNode(nd *TestNode) {
 	sn.nodes = append(sn.nodes, nd)
 }
 
@@ -153,46 +157,4 @@ func (sn *SubNet) ConnectAll() {
 			require.NoError(sn.T, err)
 		}
 	}
-}
-
-type TestBrokenAvailability struct {
-	Root *share.Root
-}
-
-// NewTestBrokenAvailability returns an instance of Availability that
-// allows for testing error cases during sampling.
-//
-// If the share.Root field is empty, it will return share.ErrNotAvailable on every call
-// to SharesAvailable. Otherwise, it will only return ErrNotAvailable if the
-// given Root hash matches the stored Root hash.
-func NewTestBrokenAvailability() share.Availability {
-	return &TestBrokenAvailability{}
-}
-
-func (b *TestBrokenAvailability) SharesAvailable(_ context.Context, root *share.Root) error {
-	if b.Root == nil || bytes.Equal(b.Root.Hash(), root.Hash()) {
-		return share.ErrNotAvailable
-	}
-	return nil
-}
-
-func (b *TestBrokenAvailability) ProbabilityOfAvailability() float64 {
-	return 0
-}
-
-type TestSuccessfulAvailability struct {
-}
-
-// NewTestSuccessfulAvailability returns an Availability that always
-// returns successfully when SharesAvailable is called.
-func NewTestSuccessfulAvailability() share.Availability {
-	return &TestSuccessfulAvailability{}
-}
-
-func (tsa *TestSuccessfulAvailability) SharesAvailable(context.Context, *share.Root) error {
-	return nil
-}
-
-func (tsa *TestSuccessfulAvailability) ProbabilityOfAvailability() float64 {
-	return 0
 }

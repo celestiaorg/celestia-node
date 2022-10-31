@@ -5,26 +5,26 @@ import (
 
 	"go.uber.org/fx"
 
+	"github.com/celestiaorg/celestia-node/api/rpc"
 	headerServ "github.com/celestiaorg/celestia-node/nodebuilder/header"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	shareServ "github.com/celestiaorg/celestia-node/nodebuilder/share"
 	stateServ "github.com/celestiaorg/celestia-node/nodebuilder/state"
-	rpcServ "github.com/celestiaorg/celestia-node/service/rpc"
 )
 
-func ConstructModule(tp node.Type, cfg *rpcServ.Config) fx.Option {
+func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 	// sanitize config values before constructing module
 	cfgErr := cfg.Validate()
 
 	baseComponents := fx.Options(
-		fx.Supply(*cfg),
+		fx.Supply(cfg),
 		fx.Error(cfgErr),
 		fx.Provide(fx.Annotate(
-			rpcServ.NewServer,
-			fx.OnStart(func(ctx context.Context, server *rpcServ.Server) error {
+			Server,
+			fx.OnStart(func(ctx context.Context, server *rpc.Server) error {
 				return server.Start(ctx)
 			}),
-			fx.OnStop(func(ctx context.Context, server *rpcServ.Server) error {
+			fx.OnStop(func(ctx context.Context, server *rpc.Server) error {
 				return server.Stop(ctx)
 			}),
 		)),
@@ -35,7 +35,7 @@ func ConstructModule(tp node.Type, cfg *rpcServ.Config) fx.Option {
 		return fx.Module(
 			"rpc",
 			baseComponents,
-			fx.Invoke(Handler),
+			fx.Invoke(RegisterEndpoints),
 		)
 	case node.Bridge:
 		return fx.Module(
@@ -45,9 +45,9 @@ func ConstructModule(tp node.Type, cfg *rpcServ.Config) fx.Option {
 				state stateServ.Module,
 				share shareServ.Module,
 				header headerServ.Module,
-				rpcSrv *rpcServ.Server,
+				rpcSrv *rpc.Server,
 			) {
-				Handler(state, share, header, rpcSrv, nil)
+				RegisterEndpoints(state, share, header, rpcSrv, nil)
 			}),
 		)
 	default:

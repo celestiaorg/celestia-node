@@ -4,14 +4,14 @@ package main
 import (
 	"github.com/spf13/cobra"
 
+	cmdnode "github.com/celestiaorg/celestia-node/cmd"
 	"github.com/celestiaorg/celestia-node/nodebuilder/core"
+	"github.com/celestiaorg/celestia-node/nodebuilder/gateway"
 	"github.com/celestiaorg/celestia-node/nodebuilder/header"
+	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
 	"github.com/celestiaorg/celestia-node/nodebuilder/rpc"
 	"github.com/celestiaorg/celestia-node/nodebuilder/state"
-
-	cmdnode "github.com/celestiaorg/celestia-node/cmd"
-	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 )
 
 // NOTE: We should always ensure that the added Flags below are parsed somewhere, like in the PersistentPreRun func on
@@ -28,6 +28,7 @@ func init() {
 			// over an RPC connection with a celestia-core node.
 			core.Flags(),
 			rpc.Flags(),
+			gateway.Flags(),
 			state.Flags(),
 		),
 		cmdnode.Start(
@@ -39,6 +40,7 @@ func init() {
 			// over an RPC connection with a celestia-core node.
 			core.Flags(),
 			rpc.Flags(),
+			gateway.Flags(),
 			state.Flags(),
 		),
 	)
@@ -56,8 +58,14 @@ var lightCmd = &cobra.Command{
 
 		ctx = cmdnode.WithNodeType(ctx, node.Light)
 
+		parsedNetwork, err := p2p.ParseNetwork(cmd)
+		if err != nil {
+			return err
+		}
+		ctx = cmdnode.WithNetwork(ctx, parsedNetwork)
+
 		// loads existing config into the environment
-		ctx, err = cmdnode.ParseNodeFlags(ctx, cmd)
+		ctx, err = cmdnode.ParseNodeFlags(ctx, cmd, cmdnode.Network(ctx))
 		if err != nil {
 			return err
 		}
@@ -83,7 +91,9 @@ var lightCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
+
 		rpc.ParseFlags(cmd, &cfg.RPC)
+		gateway.ParseFlags(cmd, &cfg.Gateway)
 		state.ParseFlags(cmd, &cfg.State)
 
 		// set config

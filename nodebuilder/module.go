@@ -7,21 +7,22 @@ import (
 
 	"github.com/celestiaorg/celestia-node/libs/fxutil"
 	"github.com/celestiaorg/celestia-node/nodebuilder/core"
-	"github.com/celestiaorg/celestia-node/nodebuilder/daser"
+	"github.com/celestiaorg/celestia-node/nodebuilder/das"
 	"github.com/celestiaorg/celestia-node/nodebuilder/fraud"
+	"github.com/celestiaorg/celestia-node/nodebuilder/gateway"
 	"github.com/celestiaorg/celestia-node/nodebuilder/header"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
 	"github.com/celestiaorg/celestia-node/nodebuilder/rpc"
 	"github.com/celestiaorg/celestia-node/nodebuilder/share"
 	"github.com/celestiaorg/celestia-node/nodebuilder/state"
-	"github.com/celestiaorg/celestia-node/params"
 )
 
-func ConstructModule(tp node.Type, cfg *Config, store Store) fx.Option {
+func ConstructModule(tp node.Type, network p2p.Network, cfg *Config, store Store) fx.Option {
 	baseComponents := fx.Options(
-		fx.Provide(params.DefaultNetwork),
-		fx.Provide(params.BootstrappersFor),
+		fx.Supply(tp),
+		fx.Supply(network),
+		fx.Provide(p2p.BootstrappersFor),
 		fx.Provide(func(lc fx.Lifecycle) context.Context {
 			return fxutil.WithLifecycle(context.Background(), lc)
 		}),
@@ -35,14 +36,14 @@ func ConstructModule(tp node.Type, cfg *Config, store Store) fx.Option {
 		header.ConstructModule(tp, &cfg.Header),
 		share.ConstructModule(tp, &cfg.Share),
 		rpc.ConstructModule(tp, &cfg.RPC),
+		gateway.ConstructModule(tp, &cfg.Gateway),
 		core.ConstructModule(tp, &cfg.Core),
-		daser.ConstructModule(tp),
+		das.ConstructModule(tp, &cfg.DASer),
 		fraud.ConstructModule(tp),
 	)
 
 	return fx.Module(
 		"node",
-		fx.Supply(tp),
 		baseComponents,
 	)
 }

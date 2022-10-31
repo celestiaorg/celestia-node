@@ -68,35 +68,6 @@ func GetSharesByNamespace(
 	return shares, err
 }
 
-// GetProofsForShares fetches Merkle proofs for the given shares
-// and returns the result as an array of ShareWithProof.
-func GetProofsForShares(
-	ctx context.Context,
-	bGetter blockservice.BlockGetter,
-	root cid.Cid,
-	shares [][]byte,
-) ([]*ShareWithProof, error) {
-	proofs := make([]*ShareWithProof, len(shares))
-	for index, share := range shares {
-		if share != nil {
-			proof := make([]cid.Cid, 0)
-			// TODO(@vgonkivs): Combine GetLeafData and GetProof in one function as the are traversing the same tree.
-			// Add options that will control what data will be fetched.
-			s, err := ipld.GetLeaf(ctx, bGetter, root, index, len(shares))
-			if err != nil {
-				return nil, err
-			}
-			proof, err = ipld.GetProof(ctx, bGetter, root, proof, index, len(shares))
-			if err != nil {
-				return nil, err
-			}
-			proofs[index] = NewShareWithProof(index, s.RawData(), proof)
-		}
-	}
-
-	return proofs, nil
-}
-
 // leafToShare converts an NMT leaf into a Share.
 func leafToShare(nd format.Node) Share {
 	// * Additional namespace is prepended so that parity data can be identified with a parity namespace, which we cut off

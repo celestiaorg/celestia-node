@@ -39,9 +39,10 @@ func TestDASerLifecycle(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	t.Cleanup(cancel)
 
-	daser := NewDASer(avail, sub, mockGet, ds, mockService)
+	daser, err := NewDASer(avail, sub, mockGet, ds, mockService)
+	require.NoError(t, err)
 
-	err := daser.Start(ctx)
+	err = daser.Start(ctx)
 	require.NoError(t, err)
 	defer func() {
 		err = daser.Stop(ctx)
@@ -73,9 +74,10 @@ func TestDASer_Restart(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	t.Cleanup(cancel)
 
-	daser := NewDASer(avail, sub, mockGet, ds, mockService)
+	daser, err := NewDASer(avail, sub, mockGet, ds, mockService)
+	require.NoError(t, err)
 
-	err := daser.Start(ctx)
+	err = daser.Start(ctx)
 	require.NoError(t, err)
 
 	// wait for dasing catch-up routine to indicateDone
@@ -100,7 +102,9 @@ func TestDASer_Restart(t *testing.T) {
 	restartCtx, restartCancel := context.WithTimeout(context.Background(), timeout)
 	t.Cleanup(restartCancel)
 
-	daser = NewDASer(avail, sub, mockGet, ds, mockService)
+	daser, err = NewDASer(avail, sub, mockGet, ds, mockService)
+	require.NoError(t, err)
+
 	err = daser.Start(restartCtx)
 	require.NoError(t, err)
 
@@ -139,14 +143,16 @@ func TestDASer_stopsAfter_BEFP(t *testing.T) {
 	// 15 headers from the past and 15 future headers
 	mockGet, sub, _ := createDASerSubcomponents(t, bServ, 15, 15)
 
-	// create fraud share and break one header
-	f := fraud.NewProofService(ps, net.Hosts()[0], mockGet.GetByHeight, ds, false)
+	// create fraud service and break one header
+	f := fraud.NewProofService(ps, net.Hosts()[0], mockGet.GetByHeight, ds, false, "private")
 	require.NoError(t, f.Start(ctx))
 	mockGet.headers[1] = header.CreateFraudExtHeader(t, mockGet.headers[1], bServ)
 	newCtx := context.Background()
 
 	// create and start DASer
-	daser := NewDASer(avail, sub, mockGet, ds, f)
+	daser, err := NewDASer(avail, sub, mockGet, ds, f)
+	require.NoError(t, err)
+
 	resultCh := make(chan error)
 	go fraud.OnProof(newCtx, f, fraud.BadEncoding,
 		func(fraud.Proof) {

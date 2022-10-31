@@ -31,14 +31,14 @@ func RandService() (*service.ShareService, blockservice.BlockService) {
 }
 
 // RandNode creates a Light Node filled with a random block of the given size.
-func RandNode(dn *availability_test.DagNet, squareSize int) (*availability_test.Node, *share.Root) {
+func RandNode(dn *availability_test.TestDagNet, squareSize int) (*availability_test.TestNode, *share.Root) {
 	nd := Node(dn)
 	return nd, availability_test.RandFillBS(dn.T, squareSize, nd.BlockService)
 }
 
 // Node creates a new empty Light Node.
-func Node(dn *availability_test.DagNet) *availability_test.Node {
-	nd := dn.Node()
+func Node(dn *availability_test.TestDagNet) *availability_test.TestNode {
+	nd := dn.NewTestNode()
 	nd.ShareService = service.NewShareService(nd.BlockService, TestAvailability(nd.BlockService))
 	return nd
 }
@@ -48,8 +48,8 @@ func TestAvailability(bServ blockservice.BlockService) *ShareAvailability {
 	return NewShareAvailability(bServ, disc)
 }
 
-func SubNetNode(sn *availability_test.SubNet) *availability_test.Node {
-	nd := Node(sn.DagNet)
+func SubNetNode(sn *availability_test.SubNet) *availability_test.TestNode {
+	nd := Node(sn.TestDagNet)
 	sn.AddNode(nd)
 	return nd
 }

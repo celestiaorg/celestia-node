@@ -2,6 +2,7 @@ package state
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -25,7 +26,10 @@ import (
 	"github.com/celestiaorg/celestia-node/header"
 )
 
-var log = logging.Logger("state")
+var (
+	log              = logging.Logger("state")
+	ErrInvalidAmount = errors.New("state: amount must be greater than zero")
+)
 
 // CoreAccessor implements service over a gRPC connection
 // with a celestia-core node.
@@ -69,10 +73,11 @@ func NewCoreAccessor(
 }
 
 func (ca *CoreAccessor) Start(ctx context.Context) error {
-	ca.ctx, ca.cancel = context.WithCancel(ctx)
 	if ca.coreConn != nil {
 		return fmt.Errorf("core-access: already connected to core endpoint")
 	}
+	ca.ctx, ca.cancel = context.WithCancel(context.Background())
+
 	// dial given celestia-core endpoint
 	endpoint := fmt.Sprintf("%s:%s", ca.coreIP, ca.grpcPort)
 	client, err := grpc.DialContext(ctx, endpoint, grpc.WithTransportCredentials(insecure.NewCredentials()))
@@ -96,19 +101,30 @@ func (ca *CoreAccessor) Start(ctx context.Context) error {
 }
 
 func (ca *CoreAccessor) Stop(context.Context) error {
-	defer ca.cancel()
+	if ca.cancel == nil {
+		log.Warn("core accessor already stopped")
+		return nil
+	}
 	if ca.coreConn == nil {
 		log.Warn("no connection found to close")
 		return nil
 	}
+	defer ca.cancelCtx()
+
 	// close out core connection
 	err := ca.coreConn.Close()
 	if err != nil {
 		return err
 	}
+
 	ca.coreConn = nil
 	ca.queryCli = nil
 	return nil
+}
+
+func (ca *CoreAccessor) cancelCtx() {
+	ca.cancel()
+	ca.cancel = nil
 }
 
 func (ca *CoreAccessor) constructSignedTx(
@@ -135,9 +151,13 @@ func (ca *CoreAccessor) SubmitPayForData(
 	data []byte,
 	gasLim uint64,
 ) (*TxResponse, error) {
-	ca.lastPayForData = time.Now().UnixMilli()
-	ca.payForDataCount++
-	return payment.SubmitPayForData(ctx, ca.signer, ca.coreConn, nID, data, gasLim)
+	response, err := payment.SubmitPayForData(ctx, ca.signer, ca.coreConn, nID, data, gasLim)
+	// metrics should only be counted on a successful PFD tx
+	if response.Code == 0 && err == nil {
+		ca.lastPayForData = time.Now().UnixMilli()
+		ca.payForDataCount++
+	}
+	return response, err
 }
 
 func (ca *CoreAccessor) AccountAddress(ctx context.Context) (Address, error) {
@@ -238,6 +258,10 @@ func (ca *CoreAccessor) Transfer(
 	amount Int,
 	gasLim uint64,
 ) (*TxResponse, error) {
+	if amount.IsNil() || amount.Int64() <= 0 {
+		return nil, ErrInvalidAmount
+	}
+
 	from, err := ca.signer.GetSignerInfo().GetAddress()
 	if err != nil {
 		return nil, err
@@ -258,6 +282,10 @@ func (ca *CoreAccessor) CancelUnbondingDelegation(
 	height Int,
 	gasLim uint64,
 ) (*TxResponse, error) {
+	if amount.IsNil() || amount.Int64() <= 0 {
+		return nil, ErrInvalidAmount
+	}
+
 	from, err := ca.signer.GetSignerInfo().GetAddress()
 	if err != nil {
 		return nil, err
@@ -278,6 +306,10 @@ func (ca *CoreAccessor) BeginRedelegate(
 	amount Int,
 	gasLim uint64,
 ) (*TxResponse, error) {
+	if amount.IsNil() || amount.Int64() <= 0 {
+		return nil, ErrInvalidAmount
+	}
+
 	from, err := ca.signer.GetSignerInfo().GetAddress()
 	if err != nil {
 		return nil, err
@@ -297,6 +329,10 @@ func (ca *CoreAccessor) Undelegate(
 	amount Int,
 	gasLim uint64,
 ) (*TxResponse, error) {
+	if amount.IsNil() || amount.Int64() <= 0 {
+		return nil, ErrInvalidAmount
+	}
+
 	from, err := ca.signer.GetSignerInfo().GetAddress()
 	if err != nil {
 		return nil, err
@@ -316,6 +352,10 @@ func (ca *CoreAccessor) Delegate(
 	amount Int,
 	gasLim uint64,
 ) (*TxResponse, error) {
+	if amount.IsNil() || amount.Int64() <= 0 {
+		return nil, ErrInvalidAmount
+	}
+
 	from, err := ca.signer.GetSignerInfo().GetAddress()
 	if err != nil {
 		return nil, err

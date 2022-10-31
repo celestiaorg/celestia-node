@@ -5,10 +5,14 @@ import (
 	"encoding/json"
 	"errors"
 	"testing"
+	"time"
 
-	"github.com/celestiaorg/celestia-node/share/eds"
-
-	"github.com/ipfs/go-blockservice"
+	"github.com/ipfs/go-datastore"
+	"github.com/ipfs/go-datastore/sync"
+	"github.com/libp2p/go-libp2p-core/host"
+	pubsub "github.com/libp2p/go-libp2p-pubsub"
+	mocknet "github.com/libp2p/go-libp2p/p2p/net/mock"
+	"github.com/stretchr/testify/require"
 
 	"github.com/celestiaorg/celestia-node/header"
 )
@@ -60,18 +64,6 @@ func (m *mockStore) GetByHeight(_ context.Context, height uint64) (*header.Exten
 
 func (m *mockStore) Close() error { return nil }
 
-func generateByzantineError(
-	ctx context.Context,
-	t *testing.T,
-	h *header.ExtendedHeader,
-	bServ blockservice.BlockService,
-) (*header.ExtendedHeader, error) {
-	faultHeader := header.CreateFraudExtHeader(t, h, bServ)
-	rtrv := eds.NewRetriever(bServ)
-	_, err := rtrv.Retrieve(ctx, faultHeader.DAH)
-	return faultHeader, err
-}
-
 const (
 	mockProofType ProofType = "mockProof"
 )
@@ -121,4 +113,35 @@ func (m *mockProof) MarshalBinary() (data []byte, err error) {
 
 func (m *mockProof) UnmarshalBinary(data []byte) error {
 	return json.Unmarshal(data, m)
+}
+
+func CreateTestService(t *testing.T, enabledSyncer bool) (*ProofService, *mockStore) { //nolint:revive
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*15)
+	t.Cleanup(cancel)
+
+	// create mock network
+	net, err := mocknet.FullMeshLinked(1)
+	require.NoError(t, err)
+	return createTestServiceWithHost(ctx, t, net.Hosts()[0], enabledSyncer)
+}
+
+func createTestServiceWithHost(
+	ctx context.Context,
+	t *testing.T,
+	host host.Host,
+	enabledSyncer bool,
+) (*ProofService, *mockStore) {
+	// create pubsub for host
+	ps, err := pubsub.NewGossipSub(ctx, host,
+		pubsub.WithMessageSignaturePolicy(pubsub.StrictNoSign))
+	require.NoError(t, err)
+	store := createStore(t, 10)
+	return NewProofService(
+		ps,
+		host,
+		store.GetByHeight,
+		sync.MutexWrap(datastore.NewMapDatastore()),
+		enabledSyncer,
+		"private",
+	), store
 }

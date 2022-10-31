@@ -23,14 +23,14 @@ func RandServiceWithSquare(t *testing.T, n int) (*service.ShareService, *share.R
 }
 
 // RandNode creates a Full Node filled with a random block of the given size.
-func RandNode(dn *availability_test.DagNet, squareSize int) (*availability_test.Node, *share.Root) {
+func RandNode(dn *availability_test.TestDagNet, squareSize int) (*availability_test.TestNode, *share.Root) {
 	nd := Node(dn)
 	return nd, availability_test.RandFillBS(dn.T, squareSize, nd.BlockService)
 }
 
 // Node creates a new empty Full Node.
-func Node(dn *availability_test.DagNet) *availability_test.Node {
-	nd := dn.Node()
+func Node(dn *availability_test.TestDagNet) *availability_test.TestNode {
+	nd := dn.NewTestNode()
 	nd.ShareService = service.NewShareService(nd.BlockService, TestAvailability(nd.BlockService))
 	return nd
 }
@@ -38,10 +38,4 @@ func Node(dn *availability_test.DagNet) *availability_test.Node {
 func TestAvailability(bServ blockservice.BlockService) *ShareAvailability {
 	disc := discovery.NewDiscovery(nil, routing.NewRoutingDiscovery(routinghelpers.Null{}), 0, time.Second, time.Second)
 	return NewShareAvailability(bServ, disc)
-}
-
-func SubNetNode(sn *availability_test.SubNet) *availability_test.Node {
-	nd := Node(sn.DagNet)
-	sn.AddNode(nd)
-	return nd
 }

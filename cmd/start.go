@@ -29,7 +29,7 @@ Options passed on start override configuration options only on start and are not
 			// override config with all modifiers passed on start
 			cfg := NodeConfig(ctx)
 
-			nd, err := nodebuilder.NewWithConfig(NodeType(ctx), store, &cfg, NodeOptions(ctx)...)
+			nd, err := nodebuilder.NewWithConfig(NodeType(ctx), Network(ctx), store, &cfg, NodeOptions(ctx)...)
 			if err != nil {
 				return err
 			}

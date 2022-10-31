@@ -7,7 +7,6 @@ import (
 	"github.com/minio/sha256-simd"
 	mhcore "github.com/multiformats/go-multihash/core"
 
-	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/nmt"
 )
 
@@ -29,7 +28,7 @@ type namespaceHasher struct {
 
 // defaultHasher constructs the namespaceHasher with default configuration
 func defaultHasher() *namespaceHasher {
-	return &namespaceHasher{Hasher: nmt.NewNmtHasher(sha256.New(), nmt.DefaultNamespaceIDLen, true)}
+	return &namespaceHasher{Hasher: nmt.NewNmtHasher(sha256.New(), NamespaceSize, true)}
 }
 
 // Write writes the namespaced data to be hashed.
@@ -41,10 +40,10 @@ func (n *namespaceHasher) Write(data []byte) (int, error) {
 		return 0, fmt.Errorf("ipld: only one write to hasher is allowed")
 	}
 
-	ln, nln, hln := len(data), int(n.NamespaceLen), n.Hash.Size()
-	innerNodeSize, leafNodeSize := (nln*2+hln)*2, nln+appconsts.ShareSize
+	ln := len(data)
 	switch ln {
 	default:
+		log.Warnf("unexpected data size: %d", ln)
 		return 0, fmt.Errorf("ipld: wrong sized data written to the hasher, len: %v", ln)
 	case innerNodeSize:
 		n.tp = nmt.NodePrefix
@@ -53,12 +52,18 @@ func (n *namespaceHasher) Write(data []byte) (int, error) {
 	}
 
 	n.data = data
-	return len(n.data), nil
+	return ln, nil
 }
 
 // Sum computes the hash.
 // Does not append the given suffix and violating the interface.
 func (n *namespaceHasher) Sum([]byte) []byte {
+	// if n.data is empty, it hit the default case in Write.
+	// this will be seen by multihash.encodeHash, where it will be caught and an error will be returned.
+	if len(n.data) == 0 {
+		return nil
+	}
+
 	isLeafData := n.tp == nmt.LeafPrefix
 	if isLeafData {
 		return n.Hasher.HashLeaf(n.data)

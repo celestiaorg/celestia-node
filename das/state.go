@@ -6,11 +6,13 @@ import (
 
 // coordinatorState represents the current state of sampling
 type coordinatorState struct {
-	rangeSize uint64
+	sampleFrom    uint64 // is the height from which the DASer will start sampling
+	samplingRange uint64 // is the maximum amount of headers processed in one job.
 
-	priority   []job                      // list of headers heights that will be sampled with higher priority
-	inProgress map[int]func() workerState // keeps track of running workers
-	failed     map[uint64]int             // stores heights of failed headers with amount of attempt as value
+	priorityQueueSize int                        // the size of the priority queue
+	priority          []job                      // list of headers heights that will be sampled with higher priority
+	inProgress        map[int]func() workerState // keeps track of running workers
+	failed            map[uint64]int             // stores heights of failed headers with amount of attempt as value
 
 	nextJobID   int
 	next        uint64 // all headers before next were sent to workers
@@ -21,17 +23,19 @@ type coordinatorState struct {
 }
 
 // newCoordinatorState initiates state for samplingCoordinator
-func newCoordinatorState(samplingRangeSize uint64) coordinatorState {
+func newCoordinatorState(params Parameters) coordinatorState {
 	return coordinatorState{
-		rangeSize:     samplingRangeSize,
-		priority:      make([]job, 0),
-		inProgress:    make(map[int]func() workerState),
-		failed:        make(map[uint64]int),
-		nextJobID:     0,
-		next:          genesisHeight,
-		networkHead:   genesisHeight,
-		catchUpDone:   false,
-		catchUpDoneCh: make(chan struct{}),
+		sampleFrom:        params.SampleFrom,
+		samplingRange:     params.SamplingRange,
+		priorityQueueSize: params.PriorityQueueSize,
+		priority:          make([]job, 0),
+		inProgress:        make(map[int]func() workerState),
+		failed:            make(map[uint64]int),
+		nextJobID:         0,
+		next:              params.SampleFrom,
+		networkHead:       params.SampleFrom,
+		catchUpDone:       false,
+		catchUpDoneCh:     make(chan struct{}),
 	}
 }
 
@@ -77,7 +81,7 @@ func (s *coordinatorState) updateHead(last uint64) bool {
 		return false
 	}
 
-	if s.networkHead == genesisHeight {
+	if s.networkHead == s.sampleFrom {
 		s.networkHead = last
 		log.Infow("found first header, starting sampling")
 		return true
@@ -85,9 +89,9 @@ func (s *coordinatorState) updateHead(last uint64) bool {
 
 	// add most recent headers into priority queue
 	from := s.networkHead + 1
-	for from <= last && len(s.priority) < priorityQueueSize {
+	for from <= last && len(s.priority) < s.priorityQueueSize {
 		s.priority = append(s.priority, s.newJob(from, last))
-		from += s.rangeSize
+		from += s.samplingRange
 	}
 
 	log.Debugw("added recent headers to DASer priority queue", "from_height", s.networkHead, "to_height", last)
@@ -110,7 +114,7 @@ func (s *coordinatorState) nextJob() (next job, found bool) {
 
 	j := s.newJob(s.next, s.networkHead)
 
-	s.next += s.rangeSize
+	s.next += s.samplingRange
 	if s.next > s.networkHead {
 		s.next = s.networkHead + 1
 	}
@@ -139,7 +143,7 @@ func (s *coordinatorState) putInProgress(jobID int, getState func() workerState)
 
 func (s *coordinatorState) newJob(from, max uint64) job {
 	s.nextJobID++
-	to := from + s.rangeSize - 1
+	to := from + s.samplingRange - 1
 	if to > max {
 		to = max
 	}

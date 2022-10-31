@@ -13,12 +13,17 @@ import (
 	"github.com/celestiaorg/celestia-node/header/p2p"
 	"github.com/celestiaorg/celestia-node/header/store"
 	"github.com/celestiaorg/celestia-node/header/sync"
-	"github.com/celestiaorg/celestia-node/params"
+	modp2p "github.com/celestiaorg/celestia-node/nodebuilder/p2p"
 )
 
-// newP2PExchange constructs new Exchange for headers.
-func newP2PExchange(cfg Config) func(params.Bootstrappers, host.Host) (header.Exchange, error) {
-	return func(bpeers params.Bootstrappers, host host.Host) (header.Exchange, error) {
+// newP2PServer constructs a new ExchangeServer using the given Network as a protocolID suffix.
+func newP2PServer(host host.Host, store header.Store, network modp2p.Network) *p2p.ExchangeServer {
+	return p2p.NewExchangeServer(host, store, string(network))
+}
+
+// newP2PExchange constructs a new Exchange for headers.
+func newP2PExchange(cfg Config) func(modp2p.Bootstrappers, modp2p.Network, host.Host) (header.Exchange, error) {
+	return func(bpeers modp2p.Bootstrappers, network modp2p.Network, host host.Host) (header.Exchange, error) {
 		peers, err := cfg.trustedPeers(bpeers)
 		if err != nil {
 			return nil, err
@@ -28,7 +33,7 @@ func newP2PExchange(cfg Config) func(params.Bootstrappers, host.Host) (header.Ex
 			ids[index] = peer.ID
 			host.Peerstore().AddAddrs(peer.ID, peer.Addrs, peerstore.PermanentAddrTTL)
 		}
-		return p2p.NewExchange(host, ids), nil
+		return p2p.NewExchange(host, ids, string(network)), nil
 	}
 }
 
@@ -45,7 +50,7 @@ type initStore header.Store
 func newInitStore(
 	lc fx.Lifecycle,
 	cfg Config,
-	net params.Network,
+	net modp2p.Network,
 	s header.Store,
 	ex header.Exchange,
 ) (initStore, error) {
@@ -64,7 +69,7 @@ func newInitStore(
 				//   * Having some test/dev/offline mode for Node that mocks out all the networking
 				//   * Hardcoding full extended header in params pkg, instead of hashes, so we avoid requesting step
 				//   * Or removing explicit initialization in favor of automated initialization by Syncer
-				log.Errorf("initializing store failed: %s", err)
+				log.Errorf("initializing header store failed: %s", err)
 			}
 			return nil
 		},

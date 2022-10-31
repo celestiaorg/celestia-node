@@ -31,7 +31,7 @@ clean:
 ## cover: generate to code coverage report.
 cover:
 	@echo "--> Generating Code Coverage"
-	@go install github.com/ory/go-acc@v0.2.6
+	@go install github.com/ory/go-acc@latest
 	@go-acc -o coverage.txt `go list ./... | grep -v nodebuilder/tests` -- -v
 .PHONY: cover
 
