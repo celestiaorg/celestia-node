@@ -39,7 +39,8 @@ func TestRPCCallsUnderlyingNode(t *testing.T) {
 
 	server.State.EXPECT().Balance(gomock.Any()).Return(expectedBalance, nil).Times(1)
 
-	// TODO(@team): No waiting mechanism is in place to wait for the RPC server to start listening, this causes a race condition
+	// TODO(@team): No waiting mechanism is in place to wait for the RPC server
+	// 				to start listening, this causes a race condition
 	// 				Referrecing https://github.com/celestiaorg/celestia-node/issues/1306
 	balance, err := client.State.Balance(ctx)
 	require.NoError(t, err)

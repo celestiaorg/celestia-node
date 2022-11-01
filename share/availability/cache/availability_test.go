@@ -25,7 +25,8 @@ func TestCacheAvailability(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	fullLocalServ, dah0 := RandFullLocalServiceWithSquare(t, 16)
+	fullLocalServ, dah0, err := RandFullLocalServiceWithSquare(t, 16)
+	require.NoError(t, err)
 	lightLocalServ, dah1, err := RandLightLocalServiceWithSquare(t, 16)
 	require.NoError(t, err)
 
@@ -70,10 +71,11 @@ func TestCacheAvailability_Failed(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 
-	ca := NewShareAvailability(&dummyAvailability{}, sync.MutexWrap(datastore.NewMapDatastore()))
+	ca, err := NewShareAvailability(&dummyAvailability{}, sync.MutexWrap(datastore.NewMapDatastore()))
+	require.NoError(t, err)
 	serv := service.NewShareService(mdutils.Bserv(), ca)
 
-	err := serv.SharesAvailable(ctx, &invalidHeader)
+	err = serv.SharesAvailable(ctx, &invalidHeader)
 	require.Error(t, err)
 	// ensure the dah was NOT cached
 	exists, err := ca.ds.Has(ctx, rootKey(&invalidHeader))
@@ -91,9 +93,10 @@ func TestCacheAvailability_NoDuplicateSampling(t *testing.T) {
 	root := availability_test.RandFillBS(t, 16, mdutils.Bserv())
 	// wrap dummyAvailability with a datastore
 	ds := sync.MutexWrap(datastore.NewMapDatastore())
-	ca := NewShareAvailability(&dummyAvailability{counter: 0}, ds)
+	ca, err := NewShareAvailability(&dummyAvailability{counter: 0}, ds)
+	require.NoError(t, err)
 	// sample the root
-	err := ca.SharesAvailable(ctx, root)
+	err = ca.SharesAvailable(ctx, root)
 	require.NoError(t, err)
 	// ensure root was cached
 	exists, err := ca.ds.Has(ctx, rootKey(root))
@@ -111,10 +114,11 @@ func TestCacheAvailability_MinRoot(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	fullLocalServ, _ := RandFullLocalServiceWithSquare(t, 16)
+	fullLocalServ, _, err := RandFullLocalServiceWithSquare(t, 16)
+	require.NoError(t, err)
 	minDAH := da.MinDataAvailabilityHeader()
 
-	err := fullLocalServ.SharesAvailable(ctx, &minDAH)
+	err = fullLocalServ.SharesAvailable(ctx, &minDAH)
 	assert.NoError(t, err)
 }
 
@@ -137,4 +141,8 @@ func (da *dummyAvailability) SharesAvailable(_ context.Context, root *share.Root
 
 func (da *dummyAvailability) ProbabilityOfAvailability() float64 {
 	return 0
+}
+
+func (da *dummyAvailability) SetParam(key string, value any) {
+
 }

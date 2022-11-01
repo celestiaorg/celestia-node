@@ -12,6 +12,7 @@ import (
 
 	"github.com/celestiaorg/celestia-app/pkg/da"
 	"github.com/celestiaorg/celestia-node/share"
+	"github.com/celestiaorg/celestia-node/share/availability"
 )
 
 var log = logging.Logger("share/cache")
@@ -31,6 +32,8 @@ var (
 // and stores the results of a successful sampling routine over a given Root's hash
 // to disk.
 type ShareAvailability struct {
+	params availability.CacheAvailParamaters
+
 	avail share.Availability
 
 	// TODO(@Wondertan): Once we come to parallelized DASer, this lock becomes a contention point
@@ -41,14 +44,29 @@ type ShareAvailability struct {
 
 // NewShareAvailability wraps the given share.Availability with an additional datastore
 // for sampling result caching.
-func NewShareAvailability(avail share.Availability, ds datastore.Batching) *ShareAvailability {
+func NewShareAvailability(
+	avail share.Availability,
+	ds datastore.Batching,
+	options ...availability.AvailOption,
+) (*ShareAvailability, error) {
 	ds = namespace.Wrap(ds, cacheAvailabilityPrefix)
 	autoDS := autobatch.NewAutoBatching(ds, DefaultWriteBatchSize)
-
-	return &ShareAvailability{
-		avail: avail,
-		ds:    autoDS,
+	ca := &ShareAvailability{
+		params: availability.DefaultCacheAvailParameters(),
+		avail:  avail,
+		ds:     autoDS,
 	}
+
+	for _, applyOpt := range options {
+		applyOpt(ca)
+	}
+
+	err := ca.params.Validate()
+	if err != nil {
+		return nil, err
+	}
+
+	return ca, nil
 }
 
 // SharesAvailable will store, upon success, the hash of the given Root to disk.
@@ -98,4 +116,7 @@ func rootKey(root *share.Root) datastore.Key {
 // DataAvailabilityHeader (DAH).
 func isMinRoot(root *share.Root) bool {
 	return bytes.Equal(minRoot.Hash(), root.Hash())
+}
+
+func (ca *ShareAvailability) SetParam(key string, value any) {
 }

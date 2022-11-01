@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/celestiaorg/celestia-node/share"
+	"github.com/celestiaorg/celestia-node/share/availability"
 	"github.com/celestiaorg/celestia-node/share/availability/full"
 	"github.com/celestiaorg/celestia-node/share/availability/light"
 
@@ -22,15 +23,10 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 		fx.Options(options...),
 		fx.Invoke(share.EnsureEmptySquareExists),
 		fx.Provide(Discovery(*cfg)),
-		fx.Provide(func() []light.Option {
-			return []light.Option{
-				light.WithTimeout(cfg.AvailabilityTimeout),
-				light.WithSampleAmount(cfg.SampleAmount),
-			}
-		}),
-		fx.Provide(func() []full.Option {
-			return []full.Option{
-				full.WithTimeout(cfg.AvailabilityTimeout),
+		fx.Provide(func() []availability.AvailOption {
+			return []availability.AvailOption{
+				availability.WithAvailabilityTimeout(cfg.AvailabilityTimeout),
+				availability.WithSampleAmount(cfg.SampleAmount),
 			}
 		}),
 		fx.Provide(NewModule),

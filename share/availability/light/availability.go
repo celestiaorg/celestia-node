@@ -4,7 +4,9 @@ import (
 	"context"
 	"errors"
 	"math"
+	"time"
 
+	"github.com/celestiaorg/celestia-node/share/availability"
 	"github.com/celestiaorg/celestia-node/share/ipld"
 
 	"github.com/ipfs/go-blockservice"
@@ -23,7 +25,7 @@ var log = logging.Logger("share/light")
 // on the network doing sampling over the same Root to collectively verify its availability.
 type ShareAvailability struct {
 	// configuration parameters
-	params Parameters
+	params availability.LightAvailParameters
 
 	bserv blockservice.BlockService
 	// disc discovers new full nodes in the network.
@@ -36,10 +38,10 @@ type ShareAvailability struct {
 func NewShareAvailability(
 	bserv blockservice.BlockService,
 	disc *discovery.Discovery,
-	options ...Option,
+	options ...availability.AvailOption,
 ) (*ShareAvailability, error) {
 	la := &ShareAvailability{
-		params: DefaultParameters(),
+		params: availability.DefaultLightAvailParameters(),
 		bserv:  bserv,
 		disc:   disc,
 	}
@@ -80,13 +82,13 @@ func (la *ShareAvailability) SharesAvailable(ctx context.Context, dah *share.Roo
 			"err", err)
 		panic(err)
 	}
-	samples, err := SampleSquare(len(dah.RowsRoots), la.params.SampleAmount)
+	samples, err := SampleSquare(len(dah.RowsRoots), int(la.params.SampleAmount))
 	if err != nil {
 		return err
 	}
 
 	// timeout is configurable through functional options passed to the constructor
-	ctx, cancel := context.WithTimeout(ctx, la.params.Timeout)
+	ctx, cancel := context.WithTimeout(ctx, la.params.AvailabilityTimeout)
 	defer cancel()
 
 	ses := blockservice.NewSession(ctx, la.bserv)
@@ -134,4 +136,21 @@ func (la *ShareAvailability) SharesAvailable(ctx context.Context, dah *share.Roo
 // Formula: 1 - (0.75 ** amount of samples)
 func (la *ShareAvailability) ProbabilityOfAvailability() float64 {
 	return 1 - math.Pow(0.75, float64(la.params.SampleAmount))
+}
+
+// SetParam sets configurable parameters for the light availability implementation
+// per the Parameterizable interface
+func (la *ShareAvailability) SetParam(key string, value any) {
+	switch key {
+	case "SampleAmount":
+		ivalue, _ := value.(uint)
+		la.params.SampleAmount = ivalue
+
+	case "AvailabilityTimeout":
+		ivalue, _ := value.(time.Duration)
+		la.params.AvailabilityTimeout = ivalue
+
+	default:
+		log.Warn("LightAvailability tried to SetParam for unknown configuration key: %s", key)
+	}
 }

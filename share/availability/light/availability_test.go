@@ -70,7 +70,9 @@ func TestShareAvailableOverMocknet_Light(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-func TestGetShare(t *testing.T) { // TODO(@team): question, why are we using `require.NoRequire` in here, but the rest of the test case we are using `assert.NoError`
+func TestGetShare(t *testing.T) {
+	// TODO(@team): question, why are we using `require.NoRequire` in here,
+	// 				but the rest of the test case we are using `assert.NoError` ?
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 

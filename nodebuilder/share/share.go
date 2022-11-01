@@ -29,10 +29,19 @@ func Discovery(cfg Config) func(routing.ContentRouting, host.Host) *discovery.Di
 }
 
 // CacheAvailability wraps either Full or Light availability with a cache for result sampling.
-func CacheAvailability[A share.Availability](lc fx.Lifecycle, ds datastore.Batching, avail A) share.Availability {
-	ca := cache.NewShareAvailability(avail, ds)
+func CacheAvailability[A share.Availability](
+	lc fx.Lifecycle,
+	ds datastore.Batching,
+	avail A,
+) (share.Availability, error) {
+	ca, err := cache.NewShareAvailability(avail, ds)
+	if err != nil {
+		return nil, err
+	}
+
 	lc.Append(fx.Hook{
 		OnStop: ca.Close,
 	})
-	return ca
+
+	return ca, nil
 }

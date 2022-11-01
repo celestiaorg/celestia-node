@@ -23,21 +23,25 @@ func RandLightLocalServiceWithSquare(t *testing.T, n int) (*service.ShareService
 	if err != nil {
 		return nil, nil, err
 	}
-	avail := NewShareAvailability(
-		la,
-		store,
-	)
+	avail, err := NewShareAvailability(la, store)
+	if err != nil {
+		return nil, nil, err
+	}
 	return service.NewShareService(bServ, avail), availability_test.RandFillBS(t, n, bServ), nil
 }
 
 // RandFullLocalServiceWithSquare is the same as full.RandServiceWithSquare, except
 // the share.Availability is wrapped with cache availability.
-func RandFullLocalServiceWithSquare(t *testing.T, n int) (*service.ShareService, *share.Root) {
+func RandFullLocalServiceWithSquare(t *testing.T, n int) (*service.ShareService, *share.Root, error) {
 	bServ := mdutils.Bserv()
 	store := dssync.MutexWrap(ds.NewMapDatastore())
-	avail := NewShareAvailability(
-		full.TestAvailability(bServ),
-		store,
-	)
-	return service.NewShareService(bServ, avail), availability_test.RandFillBS(t, n, bServ)
+	fa, err := full.TestAvailability(bServ)
+	if err != nil {
+		return nil, nil, err
+	}
+	avail, err := NewShareAvailability(fa, store)
+	if err != nil {
+		return nil, nil, err
+	}
+	return service.NewShareService(bServ, avail), availability_test.RandFillBS(t, n, bServ), nil
 }

@@ -35,8 +35,10 @@ func TestShareAvailable_OneFullNode(t *testing.T) {
 	defer cancel()
 
 	net := availability_test.NewTestDAGNet(ctx, t)
-	source, root := RandNode(net, origSquareSize) // make a source node, a.k.a bridge
-	full := Node(net)                             // make a full availability service which reconstructs data
+	source, root, err := RandNode(net, origSquareSize) // make a source node, a.k.a bridge
+	require.NoError(t, err)
+	full, err := Node(net) // make a full availability service which reconstructs data
+	require.NoError(t, err)
 
 	// ensure there is no connection between source and full nodes
 	// so that full reconstructs from the light nodes only
@@ -68,7 +70,7 @@ func TestShareAvailable_OneFullNode(t *testing.T) {
 		net.Connect(lights[i].ID(), full.ID())
 	}
 
-	err := errg.Wait()
+	err = errg.Wait()
 	require.NoError(t, err)
 }
 
@@ -91,11 +93,14 @@ func TestShareAvailable_ConnectedFullNodes(t *testing.T) {
 	defer cancel()
 
 	net := availability_test.NewTestDAGNet(ctx, t)
-	source, root := RandNode(net, origSquareSize)
+	source, root, err := RandNode(net, origSquareSize)
+	require.NoError(t, err)
 
 	// create two full nodes and ensure they are disconnected
-	full1 := Node(net)
-	full2 := Node(net)
+	full1, err := Node(net)
+	require.NoError(t, err)
+	full2, err := Node(net)
+	require.NoError(t, err)
 
 	// pre-connect fulls
 	net.Connect(full1.ID(), full2.ID())
@@ -155,7 +160,7 @@ func TestShareAvailable_ConnectedFullNodes(t *testing.T) {
 		net.Connect(lights2[i].ID(), source.ID())
 	}
 
-	err := errg.Wait()
+	err = errg.Wait()
 	require.NoError(t, err)
 }
 
@@ -193,11 +198,14 @@ func TestShareAvailable_DisconnectedFullNodes(t *testing.T) {
 	defer cancel()
 
 	net := availability_test.NewTestDAGNet(ctx, t)
-	source, root := RandNode(net, origSquareSize)
+	source, root, err := RandNode(net, origSquareSize)
+	require.NoError(t, err)
 
 	// create two full nodes and ensure they are disconnected
-	full1 := Node(net)
-	full2 := Node(net)
+	full1, err := Node(net)
+	require.NoError(t, err)
+	full2, err := Node(net)
+	require.NoError(t, err)
 	net.Disconnect(full1.ID(), full2.ID())
 
 	// ensure fulls and source are not connected
@@ -259,7 +267,7 @@ func TestShareAvailable_DisconnectedFullNodes(t *testing.T) {
 	}
 
 	// check that any of the fulls cannot reconstruct on their own
-	err := errg.Wait()
+	err = errg.Wait()
 	require.ErrorIs(t, err, share.ErrNotAvailable)
 	cancelErr()
 

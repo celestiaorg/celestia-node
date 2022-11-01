@@ -17,25 +17,36 @@ import (
 
 // RandServiceWithSquare provides a service.ShareService filled with 'n' NMT
 // trees of 'n' random shares, essentially storing a whole square.
-func RandServiceWithSquare(t *testing.T, n int) (*service.ShareService, *share.Root) {
+func RandServiceWithSquare(t *testing.T, n int) (*service.ShareService, *share.Root, error) {
 	bServ := mdutils.Bserv()
-	return service.NewShareService(bServ, TestAvailability(bServ)), availability_test.RandFillBS(t, n, bServ)
+	fa, err := TestAvailability(bServ)
+	if err != nil {
+		return nil, nil, err
+	}
+	return service.NewShareService(bServ, fa), availability_test.RandFillBS(t, n, bServ), nil
 }
 
 // RandNode creates a Full Node filled with a random block of the given size.
-func RandNode(dn *availability_test.TestDagNet, squareSize int) (*availability_test.TestNode, *share.Root) {
-	nd := Node(dn)
-	return nd, availability_test.RandFillBS(dn.T, squareSize, nd.BlockService)
+func RandNode(dn *availability_test.TestDagNet, squareSize int) (*availability_test.TestNode, *share.Root, error) {
+	nd, err := Node(dn)
+	if err != nil {
+		return nil, nil, err
+	}
+	return nd, availability_test.RandFillBS(dn.T, squareSize, nd.BlockService), nil
 }
 
 // Node creates a new empty Full Node.
-func Node(dn *availability_test.TestDagNet) *availability_test.TestNode {
+func Node(dn *availability_test.TestDagNet) (*availability_test.TestNode, error) {
 	nd := dn.NewTestNode()
-	nd.ShareService = service.NewShareService(nd.BlockService, TestAvailability(nd.BlockService))
-	return nd
+	fa, err := TestAvailability(nd.BlockService)
+	if err != nil {
+		return nil, err
+	}
+	nd.ShareService = service.NewShareService(nd.BlockService, fa)
+	return nd, nil
 }
 
-func TestAvailability(bServ blockservice.BlockService) *ShareAvailability {
+func TestAvailability(bServ blockservice.BlockService) (*ShareAvailability, error) {
 	disc := discovery.NewDiscovery(nil, routing.NewRoutingDiscovery(routinghelpers.Null{}), 0, time.Second, time.Second)
 	return NewShareAvailability(bServ, disc)
 }

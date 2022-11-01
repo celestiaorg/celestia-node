@@ -10,6 +10,7 @@ import (
 	logging "github.com/ipfs/go-log/v2"
 
 	"github.com/celestiaorg/celestia-node/share"
+	"github.com/celestiaorg/celestia-node/share/availability"
 	"github.com/celestiaorg/celestia-node/share/availability/discovery"
 	"github.com/celestiaorg/celestia-node/share/eds"
 )
@@ -20,7 +21,7 @@ var log = logging.Logger("share/full")
 // recovery technique. It is considered "full" because it is required
 // to download enough shares to fully reconstruct the data square.
 type ShareAvailability struct {
-	timeout time.Duration // The availability timeout
+	params availability.FullAvailParameters
 
 	rtrv *eds.Retriever
 	disc *discovery.Discovery
@@ -32,24 +33,24 @@ type ShareAvailability struct {
 func NewShareAvailability(
 	bServ blockservice.BlockService,
 	disc *discovery.Discovery,
-	options ...Option,
-) *ShareAvailability {
+	options ...availability.AvailOption,
+) (*ShareAvailability, error) {
 	fa := &ShareAvailability{
-		rtrv: eds.NewRetriever(bServ),
-		disc: disc,
-	}
-
-	if len(options) == 0 {
-		options = []Option{
-			WithTimeoutDefault(),
-		}
+		params: availability.DefaultFullAvailParameters(),
+		rtrv:   eds.NewRetriever(bServ),
+		disc:   disc,
 	}
 
 	for _, applyOpt := range options {
 		applyOpt(fa)
 	}
 
-	return fa
+	err := fa.params.Validate()
+	if err != nil {
+		return nil, err
+	}
+
+	return fa, nil
 }
 
 func (fa *ShareAvailability) Start(context.Context) error {
@@ -69,7 +70,7 @@ func (fa *ShareAvailability) Stop(context.Context) error {
 // SharesAvailable reconstructs the data committed to the given Root by requesting
 // enough Shares from the network.
 func (fa *ShareAvailability) SharesAvailable(ctx context.Context, root *share.Root) error {
-	ctx, cancel := context.WithTimeout(ctx, fa.timeout)
+	ctx, cancel := context.WithTimeout(ctx, fa.params.AvailabilityTimeout)
 	defer cancel()
 	// we assume the caller of this method has already performed basic validation on the
 	// given dah/root. If for some reason this has not happened, the node should panic.
@@ -93,4 +94,15 @@ func (fa *ShareAvailability) SharesAvailable(ctx context.Context, root *share.Ro
 
 func (fa *ShareAvailability) ProbabilityOfAvailability() float64 {
 	return 1
+}
+
+func (fa *ShareAvailability) SetParam(key string, value any) {
+	switch key {
+	case "AvailabilityTimeout":
+		ivalue, _ := value.(time.Duration)
+		fa.params.AvailabilityTimeout = ivalue
+
+	default:
+		log.Warn("LightAvailability tried to SetParam for unknown configuration key: %s", key)
+	}
 }

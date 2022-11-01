@@ -24,9 +24,12 @@ func TestNamespaceHasher_CorruptedData(t *testing.T) {
 	t.Cleanup(cancel)
 	net := availability_test.NewTestDAGNet(ctx, t)
 
-	requestor := full.Node(net)
+	requestor, err := full.Node(net)
+	require.NoError(t, err)
 	provider, mockBS := availability_test.MockNode(t, net)
-	provider.ShareService = service.NewShareService(provider.BlockService, full.TestAvailability(provider.BlockService))
+	fa, err := full.TestAvailability(provider.BlockService)
+	require.NoError(t, err)
+	provider.ShareService = service.NewShareService(provider.BlockService, fa)
 	net.ConnectAll()
 
 	// before the provider starts attacking, we should be able to retrieve successfully. We pass a size 16 block, but
@@ -34,7 +37,7 @@ func TestNamespaceHasher_CorruptedData(t *testing.T) {
 	root := availability_test.RandFillBS(t, 16, provider.BlockService)
 	getCtx, cancelGet := context.WithTimeout(ctx, sharesAvailableTimeout)
 	t.Cleanup(cancelGet)
-	err := requestor.SharesAvailable(getCtx, root)
+	err = requestor.SharesAvailable(getCtx, root)
 	require.NoError(t, err)
 
 	// clear the storage of the requester so that it must retrieve again, then start attacking
