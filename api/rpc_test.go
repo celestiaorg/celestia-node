@@ -19,6 +19,7 @@ import (
 	fraudMock "github.com/celestiaorg/celestia-node/nodebuilder/fraud/mocks"
 	headerMock "github.com/celestiaorg/celestia-node/nodebuilder/header/mocks"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
+	nodeMock "github.com/celestiaorg/celestia-node/nodebuilder/node/mocks"
 	p2pMock "github.com/celestiaorg/celestia-node/nodebuilder/p2p/mocks"
 	shareMock "github.com/celestiaorg/celestia-node/nodebuilder/share/mocks"
 	stateMock "github.com/celestiaorg/celestia-node/nodebuilder/state/mocks"
@@ -145,6 +146,7 @@ func setupNodeWithModifiedRPC(t *testing.T) (*nodebuilder.Node, *mockAPI) {
 		headerMock.NewMockModule(ctrl),
 		dasMock.NewMockModule(ctrl),
 		p2pMock.NewMockModule(ctrl),
+		nodeMock.NewMockModule(ctrl),
 	}
 
 	// given the behavior of fx.Invoke, this invoke will be called last as it is added at the root
@@ -156,6 +158,7 @@ func setupNodeWithModifiedRPC(t *testing.T) (*nodebuilder.Node, *mockAPI) {
 		srv.RegisterService("header", mockAPI.Header)
 		srv.RegisterService("das", mockAPI.Das)
 		srv.RegisterService("p2p", mockAPI.P2P)
+		srv.RegisterService("node", mockAPI.Node)
 	})
 	nd := nodebuilder.TestNode(t, node.Full, invokeRPC)
 	// start node
@@ -175,4 +178,5 @@ type mockAPI struct {
 	Header *headerMock.MockModule
 	Das    *dasMock.MockModule
 	P2P    *p2pMock.MockModule
+	Node   *nodeMock.MockModule
 }
