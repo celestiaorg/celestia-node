@@ -11,25 +11,25 @@ import (
 )
 
 type peerTracker struct {
-	host host.Host
-
-	peerLk         sync.RWMutex
+	sync.RWMutex
 	connectedPeers map[peer.ID]*peerStat
 	// we should store peer to cache when it will be disconnected,
 	// so we can guarantee that peerQueue will return only active peer
 	disconnectedPeers map[peer.ID]*peerStat
+
+	host host.Host
 }
 
 func newPeerTracker(h host.Host) *peerTracker {
 	return &peerTracker{
-		host:              h,
 		disconnectedPeers: make(map[peer.ID]*peerStat),
 		connectedPeers:    make(map[peer.ID]*peerStat),
+		host:              h,
 	}
 }
 
 func (p *peerTracker) track(ctx context.Context) {
-	// store peers that has been already connected
+	// store peers that have been already connected
 	for _, peer := range p.host.Peerstore().Peers() {
 		p.connected(peer)
 	}
@@ -68,8 +68,8 @@ func (p *peerTracker) connected(pID peer.ID) {
 			return
 		}
 	}
-	p.peerLk.Lock()
-	defer p.peerLk.Unlock()
+	p.Lock()
+	defer p.Unlock()
 	stats, ok := p.disconnectedPeers[pID]
 	if !ok {
 		stats = &peerStat{peerID: pID}
@@ -80,8 +80,8 @@ func (p *peerTracker) connected(pID peer.ID) {
 }
 
 func (p *peerTracker) disconnected(pID peer.ID) {
-	p.peerLk.Lock()
-	defer p.peerLk.Unlock()
+	p.Lock()
+	defer p.Unlock()
 	stats, ok := p.connectedPeers[pID]
 	if !ok {
 		return
@@ -91,8 +91,8 @@ func (p *peerTracker) disconnected(pID peer.ID) {
 }
 
 func (p *peerTracker) peers() []*peerStat {
-	p.peerLk.RLock()
-	defer p.peerLk.RUnlock()
+	p.RLock()
+	defer p.RUnlock()
 	peers := make([]*peerStat, 0, len(p.connectedPeers))
 	for _, stat := range p.connectedPeers {
 		peers = append(peers, stat)

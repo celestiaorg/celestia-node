@@ -147,8 +147,7 @@ func (ex *Exchange) GetRangeByHeight(ctx context.Context, from, amount uint64) (
 		return nil, header.ErrHeadersLimitExceeded
 	}
 	session := newSession(ex.ctx, ex.host, ex.peerTracker.peers(), ex.protocolID)
-
-	return session.GetRangeByHeight(ctx, from, amount)
+	return session.getRangeByHeight(ctx, from, amount)
 }
 
 // Get performs a request for the ExtendedHeader by the given hash corresponding

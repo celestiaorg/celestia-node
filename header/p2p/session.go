@@ -18,27 +18,27 @@ import (
 )
 
 const (
-	// chunkSize is a maximum amount of headers that will be requested per peer
-	chunkSize uint64 = 64
+	// headersPerPeer is a maximum amount of headers that will be requested per peer
+	headersPerPeer uint64 = 64
 )
 
 // session aims to divide a range of headers
-// into several chunks and to request this chunks from different peers.
+// into several smaller requests among different peers.
 type session struct {
 	ctx        context.Context
 	host       host.Host
 	protocolID protocol.ID
-	// peerTracker contains discovered peer with records that describes peers activity.
+	// peerTracker contains discovered peer with records that describes peer's activity.
 	queue *peerQueue
 
 	reqCh chan *p2p_pb.ExtendedHeaderRequest
 	errCh chan error
 }
 
-func newSession(ctx context.Context, h host.Host, peerTracker []*peerStat, protocoID protocol.ID) *session {
+func newSession(ctx context.Context, h host.Host, peerTracker []*peerStat, protocolID protocol.ID) *session {
 	return &session{
 		ctx:        ctx,
-		protocolID: protocoID,
+		protocolID: protocolID,
 		host:       h,
 		queue:      newPeerQueue(peerTracker),
 		errCh:      make(chan error),
@@ -51,14 +51,13 @@ func (s *session) doRequest(
 	req *p2p_pb.ExtendedHeaderRequest,
 	headers chan []*header.ExtendedHeader,
 ) {
-	// request headers from the remote peer
 	r, size, duration, err := s.requestHeaders(s.ctx, stat.peerID, req)
 	if err != nil {
 		if err == context.Canceled {
 			return
 		}
 		log.Errorw("requesting headers from peer failed."+
-			"Retrying the request from different peer", "pID", stat.peerID, "err", err)
+			"Retrying the request from different peer", "failed peer", stat.peerID, "err", err)
 		s.reqCh <- req
 		return
 	}
@@ -92,9 +91,9 @@ func (s *session) handeOutgoingRequest(ctx context.Context, result chan []*heade
 }
 
 // GetRangeByHeight requests headers from different peers.
-func (s *session) GetRangeByHeight(ctx context.Context, from, amount uint64) ([]*header.ExtendedHeader, error) {
+func (s *session) getRangeByHeight(ctx context.Context, from, amount uint64) ([]*header.ExtendedHeader, error) {
 	log.Debugw("requesting headers", "from", from, "to", from+amount)
-	requests := prepareRequests(from, amount, chunkSize)
+	requests := prepareRequests(from, amount, headersPerPeer)
 	result := make(chan []*header.ExtendedHeader, len(requests))
 	headers := make([]*header.ExtendedHeader, 0, amount)
 	s.reqCh = make(chan *p2p_pb.ExtendedHeaderRequest, len(requests))
@@ -129,7 +128,7 @@ func (s *session) requestHeaders(
 	to peer.ID,
 	req *p2p_pb.ExtendedHeaderRequest,
 ) ([]*p2p_pb.ExtendedHeaderResponse, uint64, uint64, error) {
-	now := time.Now()
+	startTime := time.Now()
 	stream, err := s.host.NewStream(ctx, to, s.protocolID)
 	if err != nil {
 		return nil, 0, 0, err
@@ -147,8 +146,8 @@ func (s *session) requestHeaders(
 	if err != nil {
 		log.Error(err)
 	}
-	responses := make([]*p2p_pb.ExtendedHeaderResponse, 0)
-	size := uint64(0)
+	headers := make([]*p2p_pb.ExtendedHeaderResponse, 0)
+	totalRequestSize := uint64(0)
 	for i := 0; i < int(req.Amount); i++ {
 		resp := new(p2p_pb.ExtendedHeaderResponse)
 		if err = stream.SetReadDeadline(time.Now().Add(readDeadline)); err != nil {
@@ -162,14 +161,14 @@ func (s *session) requestHeaders(
 			}
 			return nil, 0, 0, err
 		}
-		size += uint64(msgSize)
-		responses = append(responses, resp)
+		totalRequestSize += uint64(msgSize)
+		headers = append(headers, resp)
 	}
-	duration := time.Since(now).Milliseconds()
+	duration := time.Since(startTime).Milliseconds()
 	if err = stream.Close(); err != nil {
 		log.Errorw("closing stream", "err", err)
 	}
-	return responses, size, uint64(duration), nil
+	return headers, totalRequestSize, uint64(duration), nil
 }
 
 // processResponse converts ExtendedHeaderResponse to ExtendedHeader.
@@ -191,20 +190,20 @@ func (s *session) processResponse(responses []*p2p_pb.ExtendedHeaderResponse) ([
 }
 
 // prepareRequests converts incoming range into separate ExtendedHeaderRequest.
-func prepareRequests(from, amount, chunkSize uint64) []*p2p_pb.ExtendedHeaderRequest {
+func prepareRequests(from, amount, headersPerPeer uint64) []*p2p_pb.ExtendedHeaderRequest {
 	requests := make([]*p2p_pb.ExtendedHeaderRequest, 0)
 	for amount > uint64(0) {
 		var requestSize uint64
 		request := &p2p_pb.ExtendedHeaderRequest{
 			Data: &p2p_pb.ExtendedHeaderRequest_Origin{Origin: from},
 		}
-		if amount < chunkSize {
+		if amount < headersPerPeer {
 			requestSize = amount
 			amount = 0
 		} else {
-			amount -= chunkSize
-			from += chunkSize
-			requestSize = chunkSize
+			amount -= headersPerPeer
+			from += headersPerPeer
+			requestSize = headersPerPeer
 		}
 		request.Amount = requestSize
 		requests = append(requests, request)

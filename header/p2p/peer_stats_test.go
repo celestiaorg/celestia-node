@@ -56,13 +56,39 @@ func Test_PeerQueueRemovePeer(t *testing.T) {
 
 func Test_StatsUpdateStats(t *testing.T) {
 	pQueue := newPeerQueue([]*peerStat{})
-	stat := &peerStat{peerID: "peerID3", peerScore: 4}
+	stat := &peerStat{peerID: "peerID", peerScore: 0}
 	pQueue.push(stat)
+	testCases := []struct {
+		inputTime   uint64
+		inputBytes  uint64
+		resultScore float32
+	}{
+		// common case, where time and bytes is not equal to 0
+		{
+			inputTime:   16,
+			inputBytes:  4,
+			resultScore: 4,
+		},
+		// in case if bytes is equal to 0,
+		// then the request was failed and previous score will be
+		// decreased
+		{
+			inputTime:   10,
+			inputBytes:  0,
+			resultScore: 2,
+		},
+		// testing case with time=0, to ensure that dividing by 0 is handled properly
+		{
+			inputTime:   0,
+			inputBytes:  0,
+			resultScore: 1,
+		},
+	}
 
-	stat.peerScore = 10
-	updatedStat := pQueue.pop()
-	require.Equal(t, stat.peerScore, updatedStat.peerScore)
-
-	updatedStat.peerScore = 20
-	require.Equal(t, stat.peerScore, updatedStat.peerScore)
+	for _, tt := range testCases {
+		stat.updateStats(tt.inputBytes, tt.inputTime)
+		updatedStat := pQueue.pop()
+		require.Equal(t, updatedStat.score(), stat.score())
+		pQueue.push(updatedStat)
+	}
 }

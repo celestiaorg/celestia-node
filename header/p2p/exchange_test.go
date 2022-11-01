@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"testing"
+	"time"
 
 	libhost "github.com/libp2p/go-libp2p-core/host"
 	"github.com/libp2p/go-libp2p-core/peer"
@@ -56,12 +57,11 @@ func TestExchange_RequestHeaders(t *testing.T) {
 
 func TestExchange_RequestFullRangeHeaders(t *testing.T) {
 	hosts := createMocknet(t, 9)
-	store := createStore(t, 512)
-	ctx, cancel := context.WithCancel(context.Background())
+	store := createStore(t, int(maxRequestSize))
 	protocolSuffix := "private"
 	exchange := NewExchange(hosts[len(hosts)-1], []peer.ID{}, protocolSuffix)
-	exchange.ctx = ctx
-	exchange.cancel = cancel
+	exchange.ctx, exchange.cancel = context.WithCancel(context.Background())
+	t.Cleanup(exchange.cancel)
 	servers := make([]*ExchangeServer, len(hosts)-1) // amount of servers is len(hosts)-1 because one peer acts as a client
 	for index := range servers {
 		servers[index] = NewExchangeServer(hosts[index], store, protocolSuffix)
@@ -69,9 +69,11 @@ func TestExchange_RequestFullRangeHeaders(t *testing.T) {
 		exchange.peerTracker.connectedPeers[hosts[index].ID()] = &peerStat{peerID: hosts[index].ID()}
 	}
 
-	headers, err := exchange.GetRangeByHeight(context.Background(), 1, 512)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+	t.Cleanup(cancel)
+	headers, err := exchange.GetRangeByHeight(ctx, 1, maxRequestSize)
 	require.NoError(t, err)
-	require.Len(t, headers, 512)
+	require.Len(t, headers, int(maxRequestSize))
 }
 
 // TestExchange_RequestHeadersFails tests that the Exchange instance will return
@@ -239,13 +241,6 @@ func TestExchange_RequestByHashFails(t *testing.T) {
 	_, err = serde.Read(stream, resp)
 	require.NoError(t, err)
 	require.Equal(t, resp.StatusCode, p2p_pb.StatusCode_NOT_FOUND)
-}
-
-func Test_PrepareRequests(t *testing.T) {
-	requests := prepareRequests(1, 10, 5)
-	require.Len(t, requests, 2)
-	require.Equal(t, requests[0].GetOrigin(), uint64(1))
-	require.Equal(t, requests[1].GetOrigin(), uint64(6))
 }
 
 func createMocknet(t *testing.T, amount int) []libhost.Host {

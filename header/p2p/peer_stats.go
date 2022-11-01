@@ -10,16 +10,21 @@ import (
 
 // peerStat represents peer's average statistic.
 type peerStat struct {
-	pLk    sync.RWMutex
+	sync.RWMutex
 	peerID peer.ID
 	// score is average speed per 1 request
 	peerScore float32
 }
 
 // updateStats recalculates peer.score by averaging the last score
+// updateStats takes total amount of bytes that were requested from the peer
+// and total request duration(in milliseconds). The final score is calculated
+// by dividing amount on time, so the result score will represent how many bytes
+// were retrieved during 1 millisecond. Then this value will be averaged relative to the
+// previous peerScore.
 func (p *peerStat) updateStats(amount uint64, time uint64) {
-	p.pLk.Lock()
-	defer p.pLk.Unlock()
+	p.Lock()
+	defer p.Unlock()
 	var averageSpeed float32
 	if time != 0 {
 		averageSpeed = float32(amount / time)
@@ -33,11 +38,20 @@ func (p *peerStat) updateStats(amount uint64, time uint64) {
 
 // score peer latest score in the queue
 func (p *peerStat) score() float32 {
-	p.pLk.RLock()
-	defer p.pLk.RUnlock()
+	p.RLock()
+	defer p.RUnlock()
 	return p.peerScore
 }
 
+/*
+peerStats implements heap.Interface, so we can be sure that we are getting the peer
+with the highest score, each time we call Pop.
+
+Methods/Interfaces that peerStats should implement:
+  - sort.Interface
+  - Push(x any)
+  - Pop() any
+*/
 type peerStats []*peerStat
 
 func newPeerStats() peerStats {
@@ -46,10 +60,34 @@ func newPeerStats() peerStats {
 	return ps
 }
 
-// peerQueue wraps peerStats
+func (ps peerStats) Len() int { return len(ps) }
+
+func (ps peerStats) Less(i, j int) bool {
+	return ps[i].score() > ps[j].score()
+}
+
+func (ps peerStats) Swap(i, j int) {
+	ps[i], ps[j] = ps[j], ps[i]
+}
+
+func (ps *peerStats) Push(x any) {
+	item := x.(*peerStat)
+	*ps = append(*ps, item)
+}
+
+func (ps *peerStats) Pop() any {
+	old := *ps
+	n := len(old)
+	item := old[n-1]
+	old[n-1] = nil
+	*ps = old[0 : n-1]
+	return item
+}
+
+// peerQueue wraps peerStats and guards it with a mutex.
 type peerQueue struct {
-	stats   peerStats
 	statsLk sync.RWMutex
+	stats   peerStats
 
 	havePeer chan struct{}
 	wantPeer atomic.Bool
@@ -99,37 +137,4 @@ func (p *peerQueue) len() int {
 	p.statsLk.Lock()
 	defer p.statsLk.Unlock()
 	return p.stats.Len()
-}
-
-/*
-Further methods make peerStats implements heap.Interface:
-
-	type Interface interface {
-		sort.Interface
-		Push(x any)
-		Pop() any
-	}
-*/
-func (ps peerStats) Len() int { return len(ps) }
-
-func (ps peerStats) Less(i, j int) bool {
-	return ps[i].score() > ps[j].score()
-}
-
-func (ps peerStats) Swap(i, j int) {
-	ps[i], ps[j] = ps[j], ps[i]
-}
-
-func (ps *peerStats) Push(x any) {
-	item := x.(*peerStat)
-	*ps = append(*ps, item)
-}
-
-func (ps *peerStats) Pop() any {
-	old := *ps
-	n := len(old)
-	item := old[n-1]
-	old[n-1] = nil
-	*ps = old[0 : n-1]
-	return item
 }
