@@ -165,6 +165,7 @@ func (d *DASer) sample(ctx context.Context, h *header.ExtendedHeader) error {
 	return nil
 }
 
+// SamplingStats returns the current statistics over the DA sampling process.
 func (d *DASer) SamplingStats(ctx context.Context) (SamplingStats, error) {
 	return d.sampler.stats(ctx)
 }

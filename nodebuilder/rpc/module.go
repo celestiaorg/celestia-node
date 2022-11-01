@@ -6,6 +6,7 @@ import (
 	"go.uber.org/fx"
 
 	"github.com/celestiaorg/celestia-node/api/rpc"
+	fraudServ "github.com/celestiaorg/celestia-node/nodebuilder/fraud"
 	headerServ "github.com/celestiaorg/celestia-node/nodebuilder/header"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	shareServ "github.com/celestiaorg/celestia-node/nodebuilder/share"
@@ -44,10 +45,11 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 			fx.Invoke(func(
 				state stateServ.Module,
 				share shareServ.Module,
+				fraud fraudServ.Module,
 				header headerServ.Module,
 				rpcSrv *rpc.Server,
 			) {
-				RegisterEndpoints(state, share, header, rpcSrv, nil)
+				RegisterEndpoints(state, share, fraud, header, nil, rpcSrv)
 			}),
 		)
 	default:
