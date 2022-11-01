@@ -55,11 +55,10 @@ func TestFraudProofBroadcasting(t *testing.T) {
 
 	// subscribe to fraud proof before node starts helps
 	// to prevent flakiness when fraud proof is propagating before subscribing on it
-	subscr, err := full.FraudServ.Subscribe(fraud.BadEncoding)
+	subscr, err := full.FraudServ.Subscribe(ctx, fraud.BadEncoding)
 	require.NoError(t, err)
 
-	p, err := subscr.Proof(ctx)
-	require.NoError(t, err)
+	p := <-subscr
 	require.Equal(t, 20, int(p.Height()))
 
 	// This is an obscure way to check if the Syncer was stopped.
@@ -130,20 +129,18 @@ func TestFraudProofSyncing(t *testing.T) {
 
 	require.NoError(t, full.Start(ctx))
 	require.NoError(t, ln.Start(ctx))
-	subsFn, err := full.FraudServ.Subscribe(fraud.BadEncoding)
+	subsFn, err := full.FraudServ.Subscribe(ctx, fraud.BadEncoding)
 	require.NoError(t, err)
-	defer subsFn.Cancel()
-	_, err = subsFn.Proof(ctx)
-	require.NoError(t, err)
+	<-subsFn
+	defer close(subsFn)
 
 	// internal subscription for the fraud proof is done in order to ensure that light node
 	// receives the BEFP.
-	subsLn, err := ln.FraudServ.Subscribe(fraud.BadEncoding)
+	subsLn, err := ln.FraudServ.Subscribe(ctx, fraud.BadEncoding)
 	require.NoError(t, err)
 
 	err = ln.Host.Connect(ctx, *host.InfoFromHost(full.Host))
 	require.NoError(t, err)
-	_, err = subsLn.Proof(ctx)
-	require.NoError(t, err)
-	subsLn.Cancel()
+	<-subsLn
+	close(subsLn)
 }

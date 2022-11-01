@@ -135,8 +135,8 @@ func setupNodeWithModifiedRPC(t *testing.T) (*nodebuilder.Node, *mockAPI) {
 		dasMock.NewMockModule(ctrl),
 	}
 
-	// given the behavior of fx.Invoke, this invoke will be called last as it is added at the root level module. For
-	// further information, check the documentation on fx.Invoke.
+	// given the behavior of fx.Invoke, this invoke will be called last as it is added at the root
+	// level module. For further information, check the documentation on fx.Invoke.
 	invokeRPC := fx.Invoke(func(srv *rpc.Server) {
 		srv.RegisterService("state", mockAPI.State)
 		srv.RegisterService("share", mockAPI.Share)

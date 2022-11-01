@@ -26,7 +26,7 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 		fx.Provide(Keyring),
 		fx.Provide(fx.Annotate(
 			CoreAccessor,
-			fx.OnStart(func(startCtx, ctx context.Context, fservice fraudServ.Module, ca *state.CoreAccessor) error {
+			fx.OnStart(func(startCtx, ctx context.Context, fservice fraud.Service, ca *state.CoreAccessor) error {
 				return fraudServ.Lifecycle(startCtx, ctx, fraud.BadEncoding, fservice, ca.Start, ca.Stop)
 			}),
 			fx.OnStop(func(ctx context.Context, ca *state.CoreAccessor) error {
