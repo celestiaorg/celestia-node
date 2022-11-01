@@ -49,7 +49,9 @@ func TestShareAvailable_OneFullNode(t *testing.T) {
 
 	lights := make([]*availability_test.TestNode, lightNodes)
 	for i := 0; i < len(lights); i++ {
-		lights[i] = light.Node(net)
+		l, err := light.Node(net)
+		require.NoError(t, err)
+		lights[i] = l
 		go func(i int) {
 			err := lights[i].SharesAvailable(ctx, root)
 			if err != nil {
@@ -116,7 +118,9 @@ func TestShareAvailable_ConnectedFullNodes(t *testing.T) {
 		[]*availability_test.TestNode, lightNodes/2),
 		make([]*availability_test.TestNode, lightNodes/2)
 	for i := 0; i < len(lights1); i++ {
-		lights1[i] = light.Node(net)
+		l, err := light.Node(net)
+		require.NoError(t, err)
+		lights1[i] = l
 		go func(i int) {
 			err := lights1[i].SharesAvailable(ctx, root)
 			if err != nil {
@@ -124,7 +128,9 @@ func TestShareAvailable_ConnectedFullNodes(t *testing.T) {
 			}
 		}(i)
 
-		lights2[i] = light.Node(net)
+		l, err = light.Node(net)
+		require.NoError(t, err)
+		lights2[i] = l
 		go func(i int) {
 			err := lights2[i].SharesAvailable(ctx, root)
 			if err != nil {
@@ -214,7 +220,12 @@ func TestShareAvailable_DisconnectedFullNodes(t *testing.T) {
 		[]*availability_test.TestNode, lightNodes/2),
 		make([]*availability_test.TestNode, lightNodes/2)
 	for i := 0; i < len(lights1); i++ {
-		lights1[i] = light.Node(net)
+		l, err := light.Node(net)
+		require.NoError(t, err)
+		lights1[i] = l
+		// TODO(@team): (closure-ref-talk) I think the lights slice should be copied and passed to the closure as well.
+		// 				Otherwise (as in now) multiple goroutines will try to dereference it concurrenctly
+		//				Referecing https://github.com/celestiaorg/celestia-node/issues/1306
 		go func(i int) {
 			err := lights1[i].SharesAvailable(ctx, root)
 			if err != nil {
@@ -222,7 +233,11 @@ func TestShareAvailable_DisconnectedFullNodes(t *testing.T) {
 			}
 		}(i)
 
-		lights2[i] = light.Node(net)
+		l, err = light.Node(net)
+		require.NoError(t, err)
+		lights2[i] = l
+		// TODO(@team): (closure-ref-talk) same here, reference my comment up (line:226)
+		//				Referencing https://github.com/celestiaorg/celestia-node/issues/1306
 		go func(i int) {
 			err := lights2[i].SharesAvailable(ctx, root)
 			if err != nil {

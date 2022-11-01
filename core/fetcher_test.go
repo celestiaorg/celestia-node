@@ -41,6 +41,7 @@ func TestBlockFetcher_GetBlock_and_SubscribeNewBlockEvent(t *testing.T) {
 // TestBlockFetcherHeaderValues tests that both the Commit and ValidatorSet
 // endpoints are working as intended.
 func TestBlockFetcherHeaderValues(t *testing.T) {
+	// TODO(@team): https://github.com/celestiaorg/celestia-node/issues/1306
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
 	t.Cleanup(cancel)
 

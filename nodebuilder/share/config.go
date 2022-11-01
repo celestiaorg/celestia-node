@@ -4,6 +4,9 @@ import (
 	"errors"
 	"fmt"
 	"time"
+
+	"github.com/celestiaorg/celestia-node/share"
+	"github.com/celestiaorg/celestia-node/share/availability/light"
 )
 
 var (
@@ -25,12 +28,13 @@ type Config struct {
 }
 
 func DefaultConfig() Config {
+	defaultLightParams := light.DefaultParameters()
 	return Config{
 		PeersLimit:          3,
 		DiscoveryInterval:   time.Second * 30,
 		AdvertiseInterval:   time.Second * 30,
-		AvailabilityTimeout: time.Minute * 20,
-		SampleAmount:        16,
+		AvailabilityTimeout: share.DefaultAvailabilityTimeout,
+		SampleAmount:        defaultLightParams.SampleAmount,
 	}
 }
 

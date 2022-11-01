@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"math"
-	"time"
 
 	"github.com/celestiaorg/celestia-node/share/ipld"
 
@@ -24,8 +23,7 @@ var log = logging.Logger("share/light")
 // on the network doing sampling over the same Root to collectively verify its availability.
 type ShareAvailability struct {
 	// configuration parameters
-	timeout      time.Duration
-	sampleAmount int
+	params Parameters
 
 	bserv blockservice.BlockService
 	// disc discovers new full nodes in the network.
@@ -39,24 +37,23 @@ func NewShareAvailability(
 	bserv blockservice.BlockService,
 	disc *discovery.Discovery,
 	options ...Option,
-) *ShareAvailability {
+) (*ShareAvailability, error) {
 	la := &ShareAvailability{
-		bserv: bserv,
-		disc:  disc,
-	}
-
-	if len(options) == 0 {
-		options = []Option{
-			WithSampleAmountDefault(),
-			WithTimeoutDefault(),
-		}
+		params: DefaultParameters(),
+		bserv:  bserv,
+		disc:   disc,
 	}
 
 	for _, applyOpt := range options {
 		applyOpt(la)
 	}
 
-	return la
+	err := la.params.Validate()
+	if err != nil {
+		return nil, err
+	}
+
+	return la, nil
 }
 
 func (la *ShareAvailability) Start(context.Context) error {
@@ -83,13 +80,13 @@ func (la *ShareAvailability) SharesAvailable(ctx context.Context, dah *share.Roo
 			"err", err)
 		panic(err)
 	}
-	samples, err := SampleSquare(len(dah.RowsRoots), la.sampleAmount)
+	samples, err := SampleSquare(len(dah.RowsRoots), la.params.SampleAmount)
 	if err != nil {
 		return err
 	}
 
 	// timeout is configurable through functional options passed to the constructor
-	ctx, cancel := context.WithTimeout(ctx, la.timeout)
+	ctx, cancel := context.WithTimeout(ctx, la.params.Timeout)
 	defer cancel()
 
 	ses := blockservice.NewSession(ctx, la.bserv)
@@ -136,5 +133,5 @@ func (la *ShareAvailability) SharesAvailable(ctx context.Context, dah *share.Roo
 //
 // Formula: 1 - (0.75 ** amount of samples)
 func (la *ShareAvailability) ProbabilityOfAvailability() float64 {
-	return 1 - math.Pow(0.75, float64(la.sampleAmount))
+	return 1 - math.Pow(0.75, float64(la.params.SampleAmount))
 }

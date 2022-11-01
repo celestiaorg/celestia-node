@@ -16,14 +16,18 @@ import (
 
 // RandLightLocalServiceWithSquare is the same as light.RandServiceWithSquare, except
 // the share.Availability is wrapped with cache availability.
-func RandLightLocalServiceWithSquare(t *testing.T, n int) (*service.ShareService, *share.Root) {
+func RandLightLocalServiceWithSquare(t *testing.T, n int) (*service.ShareService, *share.Root, error) {
 	bServ := mdutils.Bserv()
 	store := dssync.MutexWrap(ds.NewMapDatastore())
+	la, err := light.TestAvailability(bServ)
+	if err != nil {
+		return nil, nil, err
+	}
 	avail := NewShareAvailability(
-		light.TestAvailability(bServ),
+		la,
 		store,
 	)
-	return service.NewShareService(bServ, avail), availability_test.RandFillBS(t, n, bServ)
+	return service.NewShareService(bServ, avail), availability_test.RandFillBS(t, n, bServ), nil
 }
 
 // RandFullLocalServiceWithSquare is the same as full.RandServiceWithSquare, except

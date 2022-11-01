@@ -20,6 +20,7 @@ func TestRemoteClient_Status(t *testing.T) {
 }
 
 func TestRemoteClient_StartBlockSubscription_And_GetBlock(t *testing.T) {
+	// TODO(@team): Referencing https://github.com/celestiaorg/celestia-node/issues/1306
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	t.Cleanup(cancel)
 

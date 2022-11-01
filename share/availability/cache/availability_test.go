@@ -26,7 +26,8 @@ func TestCacheAvailability(t *testing.T) {
 	defer cancel()
 
 	fullLocalServ, dah0 := RandFullLocalServiceWithSquare(t, 16)
-	lightLocalServ, dah1 := RandLightLocalServiceWithSquare(t, 16)
+	lightLocalServ, dah1, err := RandLightLocalServiceWithSquare(t, 16)
+	require.NoError(t, err)
 
 	var tests = []struct {
 		service *service.ShareService
