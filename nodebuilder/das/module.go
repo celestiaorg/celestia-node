@@ -51,7 +51,11 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 			}),
 		)
 	case node.Bridge:
-		return fx.Options()
+		return fx.Module(
+			"daser",
+			baseComponents,
+			fx.Provide(newDaserStub),
+		)
 	default:
 		panic("invalid node type")
 	}
