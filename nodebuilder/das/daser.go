@@ -2,7 +2,7 @@ package das
 
 import (
 	"context"
-	"errors"
+	"fmt"
 
 	"github.com/ipfs/go-datastore"
 
@@ -19,7 +19,7 @@ var _ Module = (*daserStub)(nil)
 type daserStub struct{}
 
 func (d daserStub) SamplingStats(context.Context) (das.SamplingStats, error) {
-	return das.SamplingStats{}, errors.New("daser: dasing is not available on bridge nodes")
+	return das.SamplingStats{}, fmt.Errorf("daser: dasing is not available on bridge nodes")
 }
 
 func newDaserStub() Module {
