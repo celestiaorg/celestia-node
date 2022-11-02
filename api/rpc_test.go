@@ -73,6 +73,10 @@ func TestAllReturnValuesAreMarshalable(t *testing.T) {
 }
 
 func implementsMarshaler(t *testing.T, typ reflect.Type) { //nolint:unused
+	if typ.Implements(reflect.TypeOf(new(json.Marshaler)).Elem()) {
+		return
+	}
+
 	switch typ.Kind() {
 	case reflect.Struct:
 		for i := 0; i < typ.NumField(); i++ {

@@ -3,18 +3,20 @@ package header
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
-
-	"github.com/celestiaorg/celestia-node/share"
 
 	"github.com/ipfs/go-blockservice"
 	logging "github.com/ipfs/go-log/v2"
 
 	bts "github.com/tendermint/tendermint/libs/bytes"
+	amino "github.com/tendermint/tendermint/libs/json"
 	core "github.com/tendermint/tendermint/types"
 
-	"github.com/celestiaorg/celestia-app/pkg/da"
 	appshares "github.com/celestiaorg/celestia-app/pkg/shares"
+
+	"github.com/celestiaorg/celestia-app/pkg/da"
+	"github.com/celestiaorg/celestia-node/share"
 )
 
 var log = logging.Logger("header")
@@ -142,5 +144,45 @@ func (eh *ExtendedHeader) UnmarshalBinary(data []byte) error {
 	}
 
 	*eh = *out
+	return nil
+}
+
+// MarshalJSON marshals an ExtendedHeader to JSON. The ValidatorSet is wrapped with amino encoding, to be able to
+// unmarshal the crypto.PubKey type back from JSON.
+func (eh *ExtendedHeader) MarshalJSON() ([]byte, error) {
+	type Alias ExtendedHeader
+	validatorSet, err := amino.Marshal(eh.ValidatorSet)
+	if err != nil {
+		return nil, err
+	}
+	return json.Marshal(&struct {
+		ValidatorSet json.RawMessage `json:"validator_set"`
+		*Alias
+	}{
+		ValidatorSet: validatorSet,
+		Alias:        (*Alias)(eh),
+	})
+}
+
+// UnmarshalJSON unmarshals an ExtendedHeader from JSON. The ValidatorSet is wrapped with amino encoding, to be able to
+// unmarshal the crypto.PubKey type back from JSON.
+func (eh *ExtendedHeader) UnmarshalJSON(data []byte) error {
+	type Alias ExtendedHeader
+	aux := &struct {
+		ValidatorSet json.RawMessage `json:"validator_set"`
+		*Alias
+	}{
+		Alias: (*Alias)(eh),
+	}
+	if err := json.Unmarshal(data, &aux); err != nil {
+		return err
+	}
+
+	valSet := new(core.ValidatorSet)
+	if err := amino.Unmarshal(aux.ValidatorSet, valSet); err != nil {
+		return err
+	}
+
+	eh.ValidatorSet = valSet
 	return nil
 }
