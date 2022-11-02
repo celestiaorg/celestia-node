@@ -18,7 +18,7 @@ type Server struct {
 	started atomic.Bool
 }
 
-func NewServer(address string, port string) *Server {
+func NewServer(address, port string) *Server {
 	rpc := jsonrpc.NewServer()
 	return &Server{
 		rpc: rpc,
