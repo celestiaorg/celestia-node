@@ -47,7 +47,7 @@ func TestBridge_HasStubDaser(t *testing.T) {
 	require.NoError(t, err)
 
 	stats, err := node.DASer.SamplingStats(ctx)
-	require.EqualError(t, err, "daser: dasing is not available on bridge nodes")
+	require.EqualError(t, err, "moddas: dasing is not available on bridge nodes")
 	require.Equal(t, stats, das.SamplingStats{})
 
 	err = node.Stop(ctx)
