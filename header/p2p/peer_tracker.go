@@ -17,7 +17,8 @@ type peerTracker struct {
 	// so we can guarantee that peerQueue will return only active peer
 	disconnectedPeers map[peer.ID]*peerStat
 
-	host host.Host
+	host     host.Host
+	finished chan struct{}
 }
 
 func newPeerTracker(h host.Host) *peerTracker {
@@ -25,6 +26,7 @@ func newPeerTracker(h host.Host) *peerTracker {
 		disconnectedPeers: make(map[peer.ID]*peerStat),
 		connectedPeers:    make(map[peer.ID]*peerStat),
 		host:              h,
+		finished:          make(chan struct{}),
 	}
 }
 
@@ -46,6 +48,7 @@ func (p *peerTracker) track(ctx context.Context) {
 			if err != nil {
 				log.Errorw("closing subscription", "err", err)
 			}
+			p.finished <- struct{}{}
 			return
 		case subscription := <-subs.Out():
 			ev := subscription.(event.EvtPeerConnectednessChanged)

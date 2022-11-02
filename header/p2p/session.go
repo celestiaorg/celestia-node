@@ -17,7 +17,8 @@ import (
 	p2p_pb "github.com/celestiaorg/celestia-node/header/p2p/pb"
 )
 
-const (
+// TODO(@vgonkivs): make it configurable
+var (
 	// headersPerPeer is a maximum amount of headers that will be requested per peer
 	headersPerPeer uint64 = 64
 )
@@ -75,8 +76,8 @@ func (s *session) doRequest(
 	s.queue.push(stat)
 }
 
-// handeOutgoingRequest pops peer from the queue and sends a prepared request to the peer.
-func (s *session) handeOutgoingRequest(ctx context.Context, result chan []*header.ExtendedHeader) {
+// handleOutgoingRequest pops peer from the queue and sends a prepared request to the peer.
+func (s *session) handleOutgoingRequest(ctx context.Context, result chan []*header.ExtendedHeader) {
 	for {
 		select {
 		case <-ctx.Done():
@@ -98,7 +99,7 @@ func (s *session) getRangeByHeight(ctx context.Context, from, amount uint64) ([]
 	headers := make([]*header.ExtendedHeader, 0, amount)
 	s.reqCh = make(chan *p2p_pb.ExtendedHeaderRequest, len(requests))
 
-	go s.handeOutgoingRequest(ctx, result)
+	go s.handleOutgoingRequest(ctx, result)
 	for _, req := range requests {
 		s.reqCh <- req
 	}

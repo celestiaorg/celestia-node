@@ -57,7 +57,9 @@ func TestExchange_RequestHeaders(t *testing.T) {
 
 func TestExchange_RequestFullRangeHeaders(t *testing.T) {
 	hosts := createMocknet(t, 9)
-	store := createStore(t, int(maxRequestSize))
+	headersPerPeer = 10
+	totalAmount := 80
+	store := createStore(t, totalAmount)
 	protocolSuffix := "private"
 	exchange := NewExchange(hosts[len(hosts)-1], []peer.ID{}, protocolSuffix)
 	exchange.ctx, exchange.cancel = context.WithCancel(context.Background())
@@ -71,9 +73,9 @@ func TestExchange_RequestFullRangeHeaders(t *testing.T) {
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 	t.Cleanup(cancel)
-	headers, err := exchange.GetRangeByHeight(ctx, 1, maxRequestSize)
+	headers, err := exchange.GetRangeByHeight(ctx, 1, uint64(totalAmount))
 	require.NoError(t, err)
-	require.Len(t, headers, int(maxRequestSize))
+	require.Len(t, headers, 80)
 }
 
 // TestExchange_RequestHeadersFails tests that the Exchange instance will return
