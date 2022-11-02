@@ -145,11 +145,9 @@ func (la *ShareAvailability) SetParam(key string, value any) {
 	case "SampleAmount":
 		ivalue, _ := value.(uint)
 		la.params.SampleAmount = ivalue
-
 	case "AvailabilityTimeout":
 		ivalue, _ := value.(time.Duration)
 		la.params.AvailabilityTimeout = ivalue
-
 	default:
 		log.Warn("LightAvailability tried to SetParam for unknown configuration key: %s", key)
 	}

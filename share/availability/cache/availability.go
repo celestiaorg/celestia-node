@@ -18,13 +18,6 @@ import (
 var log = logging.Logger("share/cache")
 
 var (
-	// DefaultWriteBatchSize defines the size of the batched header write.
-	// Headers are written in batches not to thrash the underlying Datastore with writes.
-	// TODO(@Wondertan, @renaynay): Those values must be configurable and proper defaults should be set for specific node
-	//  type. (#709)
-	DefaultWriteBatchSize   = 2048
-	cacheAvailabilityPrefix = datastore.NewKey("sampling_result")
-
 	minRoot = da.MinDataAvailabilityHeader()
 )
 
@@ -49,12 +42,9 @@ func NewShareAvailability(
 	ds datastore.Batching,
 	options ...availability.AvailOption,
 ) (*ShareAvailability, error) {
-	ds = namespace.Wrap(ds, cacheAvailabilityPrefix)
-	autoDS := autobatch.NewAutoBatching(ds, DefaultWriteBatchSize)
+	params := availability.DefaultCacheAvailParameters()
 	ca := &ShareAvailability{
-		params: availability.DefaultCacheAvailParameters(),
-		avail:  avail,
-		ds:     autoDS,
+		params: params,
 	}
 
 	for _, applyOpt := range options {
@@ -65,6 +55,15 @@ func NewShareAvailability(
 	if err != nil {
 		return nil, err
 	}
+
+	ds = namespace.Wrap(
+		ds,
+		datastore.NewKey(
+			ca.params.CacheAvailabilityPrefix,
+		),
+	)
+	ca.avail = avail
+	ca.ds = autobatch.NewAutoBatching(ds, int(ca.params.WriteBatchSize))
 
 	return ca, nil
 }
@@ -118,5 +117,17 @@ func isMinRoot(root *share.Root) bool {
 	return bytes.Equal(minRoot.Hash(), root.Hash())
 }
 
+// SetParam sets configurable parameters for the cache availability implementation
+// per the Parameterizable interface
 func (ca *ShareAvailability) SetParam(key string, value any) {
+	switch key {
+	case "WriteBatchSize":
+		ivalue, _ := value.(uint)
+		ca.params.WriteBatchSize = ivalue
+	case "CacheAvailabilityPrefix":
+		svalue, _ := value.(string)
+		ca.params.CacheAvailabilityPrefix = svalue
+	default:
+		log.Warn("CacheAvailability tried to SetParam for unknown configuration key: %s", key)
+	}
 }

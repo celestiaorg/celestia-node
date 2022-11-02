@@ -9,22 +9,27 @@ import (
 	routingdisc "github.com/libp2p/go-libp2p/p2p/discovery/routing"
 
 	"github.com/celestiaorg/celestia-node/share"
+	"github.com/celestiaorg/celestia-node/share/availability"
 	"github.com/celestiaorg/celestia-node/share/availability/cache"
 	"github.com/celestiaorg/celestia-node/share/availability/discovery"
 )
 
-func Discovery(cfg Config) func(routing.ContentRouting, host.Host) *discovery.Discovery {
+func Discovery(cfg Config) func(routing.ContentRouting, host.Host) (*discovery.Discovery, error) {
 	return func(
 		r routing.ContentRouting,
 		h host.Host,
-	) *discovery.Discovery {
-		return discovery.NewDiscovery(
+	) (*discovery.Discovery, error) {
+		disc, err := discovery.NewDiscovery(
 			h,
 			routingdisc.NewRoutingDiscovery(r),
-			cfg.PeersLimit,
-			cfg.DiscoveryInterval,
-			cfg.AdvertiseInterval,
+			availability.WithPeersLimit(cfg.PeersLimit),
+			availability.WithDiscoveryInterval(cfg.DiscoveryInterval),
+			availability.WithAdvertiseInterval(cfg.AdvertiseInterval),
 		)
+		if err != nil {
+			return nil, err
+		}
+		return disc, nil
 	}
 }
 

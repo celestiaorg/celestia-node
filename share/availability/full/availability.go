@@ -101,8 +101,7 @@ func (fa *ShareAvailability) SetParam(key string, value any) {
 	case "AvailabilityTimeout":
 		ivalue, _ := value.(time.Duration)
 		fa.params.AvailabilityTimeout = ivalue
-
 	default:
-		log.Warn("LightAvailability tried to SetParam for unknown configuration key: %s", key)
+		log.Warn("FullAvailability tried to SetParam for unknown configuration key: %s", key)
 	}
 }

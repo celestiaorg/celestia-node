@@ -64,14 +64,20 @@ type CacheAvailParamaters struct {
 
 // DiscoveryParameters is the set of parameters that must be configured for the discovery module
 type DiscoveryParameters struct {
-	PeersLimit        uint
+	// peersLimit is max amount of peers that will be discovered during a discovery session.
+	PeersLimit uint
+
+	// discInterval is an interval between discovery sessions.
 	DiscoveryInterval time.Duration
+
+	// advertiseInterval is an interval between advertising sessions.
 	AdvertiseInterval time.Duration
 }
 
 // ShareParameters is the aggergation of all configuration parameters of the the share module
 type ShareParameters struct {
 	LightAvailParameters
+	CacheAvailParamaters
 	DiscoveryParameters
 }
 
@@ -127,8 +133,8 @@ func (p *LightAvailParameters) Validate() error {
 // for the light availability implementation
 func DefaultCacheAvailParameters() CacheAvailParamaters {
 	return CacheAvailParamaters{
-		WriteBatchSize:          2048,
-		CacheAvailabilityPrefix: "sampling_result",
+		WriteBatchSize:          share.DefaultWriteBatchSize,
+		CacheAvailabilityPrefix: share.DefaultCacheAvailabilityPrefix,
 	}
 }
 
@@ -192,6 +198,7 @@ func (p *DiscoveryParameters) Validate() error {
 func DefaultShareParameters() ShareParameters {
 	return ShareParameters{
 		LightAvailParameters: DefaultLightAvailParameters(),
+		CacheAvailParamaters: DefaultCacheAvailParameters(),
 		DiscoveryParameters:  DefaultDiscoveryParameters(),
 	}
 }
@@ -199,6 +206,11 @@ func DefaultShareParameters() ShareParameters {
 // Validate validates the values in ShareParameters
 func (p *ShareParameters) Validate() error {
 	err := p.LightAvailParameters.Validate()
+	if err != nil {
+		return err
+	}
+
+	err = p.CacheAvailParamaters.Validate()
 	if err != nil {
 		return err
 	}

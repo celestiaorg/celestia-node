@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/celestiaorg/celestia-node/share/availability"
 	logging "github.com/ipfs/go-log/v2"
 	core "github.com/libp2p/go-libp2p-core/discovery"
 	"github.com/libp2p/go-libp2p-core/event"
@@ -29,35 +30,39 @@ var waitF = func(ttl time.Duration) time.Duration {
 
 // Discovery combines advertise and discover services and allows to store discovered nodes.
 type Discovery struct {
+	params availability.DiscoveryParameters
+
 	set       *limitedSet
 	host      host.Host
 	disc      core.Discovery
 	connector *backoffConnector
-	// peersLimit is max amount of peers that will be discovered during a discovery session.
-	peersLimit uint
-	// discInterval is an interval between discovery sessions.
-	discoveryInterval time.Duration
-	// advertiseInterval is an interval between advertising sessions.
-	advertiseInterval time.Duration
 }
 
 // NewDiscovery constructs a new discovery.
 func NewDiscovery(
 	h host.Host,
 	d core.Discovery,
-	peersLimit uint,
-	discInterval,
-	advertiseInterval time.Duration,
-) *Discovery {
-	return &Discovery{
-		newLimitedSet(peersLimit),
-		h,
-		d,
-		newBackoffConnector(h, defaultBackoffFactory),
-		peersLimit,
-		discInterval,
-		advertiseInterval,
+	options ...availability.DiscOption,
+) (*Discovery, error) {
+	disc := &Discovery{
+		params:    availability.DefaultDiscoveryParameters(),
+		host:      h,
+		disc:      d,
+		connector: newBackoffConnector(h, defaultBackoffFactory),
 	}
+
+	for _, applyOpt := range options {
+		applyOpt(disc)
+	}
+
+	err := disc.params.Validate()
+	if err != nil {
+		return nil, err
+	}
+
+	disc.set = newLimitedSet(disc.params.PeersLimit)
+
+	return disc, nil
 }
 
 // handlePeersFound receives peers and tries to establish a connection with them.
@@ -87,7 +92,7 @@ func (d *Discovery) handlePeerFound(ctx context.Context, topic string, peer peer
 // It starts peer discovery every 30 seconds until peer cache reaches peersLimit.
 // Discovery is restarted if any previously connected peers disconnect.
 func (d *Discovery) EnsurePeers(ctx context.Context) {
-	if d.peersLimit == 0 {
+	if d.params.PeersLimit == 0 {
 		log.Warn("peers limit is set to 0. Skipping discovery...")
 		return
 	}
@@ -99,7 +104,7 @@ func (d *Discovery) EnsurePeers(ctx context.Context) {
 	}
 	go d.connector.GC(ctx)
 
-	t := time.NewTicker(d.discoveryInterval)
+	t := time.NewTicker(d.params.DiscoveryInterval)
 	defer func() {
 		t.Stop()
 		if err = sub.Close(); err != nil {
@@ -111,7 +116,7 @@ func (d *Discovery) EnsurePeers(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		case <-t.C:
-			if uint(d.set.Size()) == d.peersLimit {
+			if uint(d.set.Size()) == d.params.PeersLimit {
 				// stop ticker if we have reached the limit
 				t.Stop()
 				continue
@@ -133,7 +138,7 @@ func (d *Discovery) EnsurePeers(ctx context.Context) {
 					d.connector.RestartBackoff(connStatus.Peer)
 					d.set.Remove(connStatus.Peer)
 					d.host.ConnManager().UntagPeer(connStatus.Peer, topic)
-					t.Reset(d.discoveryInterval)
+					t.Reset(d.params.DiscoveryInterval)
 				}
 			}
 		}
@@ -142,7 +147,7 @@ func (d *Discovery) EnsurePeers(ctx context.Context) {
 
 // Advertise is a utility function that persistently advertises a service through an Advertiser.
 func (d *Discovery) Advertise(ctx context.Context) {
-	timer := time.NewTimer(d.advertiseInterval)
+	timer := time.NewTimer(d.params.AdvertiseInterval)
 	defer timer.Stop()
 	for {
 		ttl, err := d.disc.Advertise(ctx, topic)
@@ -154,7 +159,7 @@ func (d *Discovery) Advertise(ctx context.Context) {
 
 			select {
 			case <-timer.C:
-				timer.Reset(d.advertiseInterval)
+				timer.Reset(d.params.AdvertiseInterval)
 				continue
 			case <-ctx.Done():
 				return
@@ -167,5 +172,23 @@ func (d *Discovery) Advertise(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		}
+	}
+}
+
+// SetParam sets configurable parameters for the Discovery implementation of `Discoverable`
+// per the Parameterizable interface
+func (d *Discovery) SetParam(key string, value any) {
+	switch key {
+	case "PeersList":
+		ivalue, _ := value.(uint)
+		d.params.PeersLimit = ivalue
+	case "DiscoveryInterval":
+		ivalue, _ := value.(time.Duration)
+		d.params.DiscoveryInterval = ivalue
+	case "AdvertiseInterval":
+		ivalue, _ := value.(time.Duration)
+		d.params.AdvertiseInterval = ivalue
+	default:
+		log.Warn("LightAvailability tried to SetParam for unknown configuration key: %s", key)
 	}
 }

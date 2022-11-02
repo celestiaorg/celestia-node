@@ -10,10 +10,17 @@ import (
 	"github.com/libp2p/go-libp2p/p2p/discovery/routing"
 
 	"github.com/celestiaorg/celestia-node/share"
+	"github.com/celestiaorg/celestia-node/share/availability"
 	"github.com/celestiaorg/celestia-node/share/availability/discovery"
 	availability_test "github.com/celestiaorg/celestia-node/share/availability/test"
 	"github.com/celestiaorg/celestia-node/share/service"
 )
+
+// TODO(@team): This file seems redundant across
+// 		share/availability/light
+// 		share/availability/full
+//
+// We should DRY this code
 
 // RandServiceWithSquare provides a share.Service filled with 'n' NMT
 // trees of 'n' random shares, essentially storing a whole square.
@@ -58,7 +65,16 @@ func Node(dn *availability_test.TestDagNet) (*availability_test.TestNode, error)
 }
 
 func TestAvailability(bServ blockservice.BlockService) (*ShareAvailability, error) {
-	disc := discovery.NewDiscovery(nil, routing.NewRoutingDiscovery(routinghelpers.Null{}), 0, time.Second, time.Second)
+	disc, err := discovery.NewDiscovery(
+		nil,
+		routing.NewRoutingDiscovery(routinghelpers.Null{}),
+		availability.WithPeersLimit(0),
+		availability.WithDiscoveryInterval(time.Second),
+		availability.WithAdvertiseInterval(time.Second),
+	)
+	if err != nil {
+		return nil, err
+	}
 	return NewShareAvailability(bServ, disc)
 }
 
