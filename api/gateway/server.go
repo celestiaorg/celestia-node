@@ -2,7 +2,6 @@ package gateway
 
 import (
 	"context"
-	"net"
 	"net/http"
 	"sync/atomic"
 	"time"
@@ -12,14 +11,13 @@ import (
 
 // Server represents a gateway server on the Node.
 type Server struct {
-	srv      *http.Server
-	srvMux   *mux.Router // http request multiplexer
-	listener net.Listener
-	started  atomic.Bool
+	srv     *http.Server
+	srvMux  *mux.Router // http request multiplexer
+	started atomic.Bool
 }
 
 // NewServer returns a new gateway Server.
-func NewServer(address string, port string) *Server {
+func NewServer(address, port string) *Server {
 	srvMux := mux.NewRouter()
 	srvMux.Use(setContentType)
 
@@ -42,15 +40,9 @@ func (s *Server) Start(context.Context) error {
 		log.Warn("cannot start server: already started")
 		return nil
 	}
-
-	listener, err := net.Listen("tcp", s.srv.Addr)
-	if err != nil {
-		return err
-	}
-	s.listener = listener
-	log.Infow("server started", "listening on", listener.Addr().String())
 	//nolint:errcheck
-	go s.srv.Serve(listener)
+	go s.srv.ListenAndServe()
+	log.Infow("server started", "listening on", s.srv.Addr)
 	return nil
 }
 
@@ -88,5 +80,5 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 // ListenAddr returns the listen address of the server.
 func (s *Server) ListenAddr() string {
-	return s.listener.Addr().String()
+	return s.srv.Addr
 }

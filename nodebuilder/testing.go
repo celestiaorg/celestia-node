@@ -3,12 +3,14 @@ package nodebuilder
 import (
 	"context"
 	"net"
+	"strconv"
 	"testing"
 	"time"
 
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	"github.com/stretchr/testify/require"
+	tennet "github.com/tendermint/tendermint/libs/net"
 	"go.uber.org/fx"
 
 	"github.com/celestiaorg/celestia-app/app"
@@ -46,7 +48,9 @@ func TestNodeWithConfig(t *testing.T, tp node.Type, cfg *Config, opts ...fx.Opti
 	require.NoError(t, err)
 	cfg.Core.IP = ip
 	cfg.Core.RPCPort = port
-	cfg.RPC.Port = "26655"
+	freePort, err := tennet.GetFreePort()
+	require.NoError(t, err)
+	cfg.RPC.Port = strconv.Itoa(freePort)
 
 	opts = append(opts,
 		state.WithKeyringSigner(TestKeyringSigner(t)),

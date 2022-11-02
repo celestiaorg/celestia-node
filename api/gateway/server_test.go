@@ -5,20 +5,24 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strconv"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/tendermint/tendermint/libs/net"
 )
 
 func TestServer(t *testing.T) {
-	address, port := "localhost", "0"
-	server := NewServer(address, port)
+	address := "localhost"
+	port, err := net.GetFreePort()
+	require.NoError(t, err)
+	server := NewServer(address, strconv.Itoa(port))
 
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
 
-	err := server.Start(ctx)
+	err = server.Start(ctx)
 	require.NoError(t, err)
 
 	// register ping handler
