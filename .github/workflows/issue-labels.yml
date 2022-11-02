@@ -9,7 +9,7 @@
 name: Label issues
 on:
   issues:
-    types: [opened]
+    types: [ opened ]
 
 jobs:
   label_issues:
