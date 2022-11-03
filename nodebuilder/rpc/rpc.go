@@ -22,9 +22,7 @@ func RegisterEndpoints(
 	serv.RegisterService("share", share)
 	serv.RegisterService("fraud", fraud)
 	serv.RegisterService("header", header)
-	if daser != nil {
-		serv.RegisterService("das", daser)
-	}
+	serv.RegisterService("das", daser)
 }
 
 func Server(cfg *Config) *rpc.Server {
