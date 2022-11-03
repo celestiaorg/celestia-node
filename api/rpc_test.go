@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"reflect"
 	"testing"
+	"time"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/golang/mock/gomock"
@@ -34,6 +35,7 @@ func TestRPCCallsUnderlyingNode(t *testing.T) {
 		err       error
 	)
 	for i := 0; i < 3; i++ {
+		time.Sleep(time.Second * 1)
 		rpcClient, err = client.NewClient(ctx, "http://"+url)
 		if err == nil {
 			break
