@@ -85,6 +85,7 @@ func (ex *Exchange) Head(ctx context.Context) (*header.ExtendedHeader, error) {
 	}
 
 	result := make([]*header.ExtendedHeader, 0, len(ex.trustedPeers))
+LOOP:
 	for range ex.trustedPeers {
 		select {
 		case h := <-headerCh:
@@ -92,7 +93,7 @@ func (ex *Exchange) Head(ctx context.Context) (*header.ExtendedHeader, error) {
 				result = append(result, h)
 			}
 		case <-ctx.Done():
-			return nil, ctx.Err()
+			break LOOP
 		}
 	}
 
