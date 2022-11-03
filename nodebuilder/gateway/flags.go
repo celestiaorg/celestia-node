@@ -6,7 +6,7 @@ import (
 	flag "github.com/spf13/pflag"
 )
 
-var log = logging.Logger("gateway-module")
+var log = logging.Logger("constructor/gateway")
 
 var (
 	enabledFlag = "gateway"

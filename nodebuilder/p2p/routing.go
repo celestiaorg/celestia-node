@@ -12,7 +12,7 @@ import (
 	"go.uber.org/fx"
 )
 
-var log = logging.Logger("p2p-module")
+var log = logging.Logger("constructor/p2p")
 
 // ContentRouting constructs nil content routing,
 // as for our use-case existing ContentRouting mechanisms, e.g DHT, are unsuitable
