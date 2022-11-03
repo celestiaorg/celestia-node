@@ -71,8 +71,6 @@ func (ex *Exchange) Start(context.Context) error {
 
 func (ex *Exchange) Stop(context.Context) error {
 	ex.cancel()
-	// wait until peerTracker will be stopped
-	<-ex.peerTracker.finished
 	return nil
 }
 

@@ -17,8 +17,7 @@ type peerTracker struct {
 	// so we can guarantee that peerQueue will return only active peer
 	disconnectedPeers map[peer.ID]*peerStat
 
-	host     host.Host
-	finished chan struct{}
+	host host.Host
 }
 
 func newPeerTracker(h host.Host) *peerTracker {
@@ -26,7 +25,6 @@ func newPeerTracker(h host.Host) *peerTracker {
 		disconnectedPeers: make(map[peer.ID]*peerStat),
 		connectedPeers:    make(map[peer.ID]*peerStat),
 		host:              h,
-		finished:          make(chan struct{}),
 	}
 }
 
@@ -48,7 +46,6 @@ func (p *peerTracker) track(ctx context.Context) {
 			if err != nil {
 				log.Errorw("closing subscription", "err", err)
 			}
-			p.finished <- struct{}{}
 			return
 		case subscription := <-subs.Out():
 			ev := subscription.(event.EvtPeerConnectednessChanged)
@@ -73,6 +70,8 @@ func (p *peerTracker) connected(pID peer.ID) {
 	}
 	p.Lock()
 	defer p.Unlock()
+	// additional check in p.connectedPeers should be done,
+	// because libp2p does not emit multiple Connected events per 1 peer
 	stats, ok := p.disconnectedPeers[pID]
 	if !ok {
 		stats = &peerStat{peerID: pID}
