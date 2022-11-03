@@ -45,9 +45,17 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 					return das.Stop(ctx)
 				}),
 			)),
+			// Module is needed for the RPC handler
+			fx.Provide(func(das *das.DASer) Module {
+				return das
+			}),
 		)
 	case node.Bridge:
-		return fx.Options()
+		return fx.Module(
+			"daser",
+			baseComponents,
+			fx.Provide(newDaserStub),
+		)
 	default:
 		panic("invalid node type")
 	}

@@ -6,10 +6,7 @@ import (
 	"go.uber.org/fx"
 
 	"github.com/celestiaorg/celestia-node/api/rpc"
-	headerServ "github.com/celestiaorg/celestia-node/nodebuilder/header"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
-	shareServ "github.com/celestiaorg/celestia-node/nodebuilder/share"
-	stateServ "github.com/celestiaorg/celestia-node/nodebuilder/state"
 )
 
 func ConstructModule(tp node.Type, cfg *Config) fx.Option {
@@ -31,24 +28,11 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 	)
 
 	switch tp {
-	case node.Light, node.Full:
+	case node.Light, node.Full, node.Bridge:
 		return fx.Module(
 			"rpc",
 			baseComponents,
 			fx.Invoke(RegisterEndpoints),
-		)
-	case node.Bridge:
-		return fx.Module(
-			"rpc",
-			baseComponents,
-			fx.Invoke(func(
-				state stateServ.Module,
-				share shareServ.Module,
-				header headerServ.Module,
-				rpcSrv *rpc.Server,
-			) {
-				RegisterEndpoints(state, share, header, rpcSrv, nil)
-			}),
 		)
 	default:
 		panic("invalid node type")

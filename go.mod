@@ -18,6 +18,7 @@ require (
 	github.com/filecoin-project/go-jsonrpc v0.1.8
 	github.com/gammazero/workerpool v1.1.3
 	github.com/gogo/protobuf v1.3.3
+	github.com/golang/mock v1.6.0
 	github.com/gorilla/mux v1.8.0
 	github.com/hashicorp/go-retryablehttp v0.7.1-0.20211018174820-ff6d014e72d9
 	github.com/hashicorp/golang-lru v0.5.5-0.20210104140557-80c98217689d
