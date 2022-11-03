@@ -230,3 +230,40 @@ func openWrittenEDS(t *testing.T) *os.File {
 	require.NoError(t, err, "error opening file")
 	return f
 }
+
+/*
+use this function as needed to create new test data.
+
+example:
+
+	func Test_CreateData(t *testing.T) {
+		createTestData(t, "celestia-node/share/eds/testdata")
+	}
+*/
+func createTestData(t *testing.T, testDir string) { //nolint:unused
+	t.Helper()
+	ctx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(cancel)
+	err := os.Chdir(testDir)
+	require.NoError(t, err, "changing to the directory")
+	os.RemoveAll("example.car")
+	require.NoError(t, err, "removing old file")
+	f, err := os.OpenFile("example.car", os.O_WRONLY|os.O_CREATE, 0600)
+	require.NoError(t, err, "opening file")
+
+	eds := share.RandEDS(t, 4)
+	err = WriteEDS(ctx, eds, f)
+	require.NoError(t, err, "writing EDS to file")
+	f.Close()
+	dah := da.NewDataAvailabilityHeader(eds)
+
+	header, err := json.MarshalIndent(dah, "", "")
+	require.NoError(t, err, "marshaling example root")
+	os.RemoveAll("example-root.json")
+	require.NoError(t, err, "removing old file")
+	f, err = os.OpenFile("example-root.json", os.O_WRONLY|os.O_CREATE, 0600)
+	require.NoError(t, err, "opening file")
+	_, err = f.Write(header)
+	require.NoError(t, err, "writing example root to file")
+	f.Close()
+}
