@@ -28,13 +28,18 @@ func TestRPCCallsUnderlyingNode(t *testing.T) {
 	t.Cleanup(cancel)
 	nd, server := setupNodeWithModifiedRPC(t)
 	url := nd.RPCServer.ListenAddr()
-	rpcClient, err := client.NewClient(ctx, "http://"+url)
 	// we need to run this a few times to prevent the race where the server is not yet started
+	var (
+		rpcClient *client.Client
+		err       error
+	)
 	for i := 0; i < 3; i++ {
-		if err != nil {
-			rpcClient, err = client.NewClient(ctx, "http://"+url)
+		rpcClient, err = client.NewClient(ctx, "http://"+url)
+		if err == nil {
+			break
 		}
 	}
+	require.NotNil(t, rpcClient)
 	require.NoError(t, err)
 	t.Cleanup(rpcClient.Close)
 
