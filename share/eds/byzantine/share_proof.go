@@ -108,8 +108,5 @@ func ProtoToShare(protoShares []*pb.Share) []*ShareWithProof {
 }
 
 func ProtoToProof(protoProof *pb.MerkleProof) nmt.Proof {
-	if protoProof == nil {
-		return nmt.Proof{}
-	}
 	return nmt.NewInclusionProof(int(protoProof.Start), int(protoProof.End), protoProof.Nodes, true)
 }
