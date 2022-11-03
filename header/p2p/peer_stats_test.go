@@ -1,7 +1,6 @@
 package p2p
 
 import (
-	"sort"
 	"testing"
 
 	"github.com/libp2p/go-libp2p-core/peer"
@@ -30,11 +29,16 @@ func Test_PeerQueuePopBestPeer(t *testing.T) {
 		{peerID: "peerID3", peerScore: 4},
 		{peerID: "peerID4"}, // score = 0
 	}
+	wantStat := peerStats{
+		{peerID: "peerID3", peerScore: 4},
+		{peerID: "peerID2", peerScore: 2},
+		{peerID: "peerID1", peerScore: 1},
+		{peerID: "peerID4"}, // score = 0
+	}
 	pQueue := newPeerQueue(peersStat)
-	sort.Sort(peersStat)
 	for index := 0; index < pQueue.len(); index++ {
 		stats := pQueue.pop()
-		require.Equal(t, stats, peersStat[index])
+		require.Equal(t, stats, wantStat[index])
 	}
 }
 

@@ -27,6 +27,7 @@ var (
 // into several smaller requests among different peers.
 type session struct {
 	ctx        context.Context
+	cancel     context.CancelFunc
 	host       host.Host
 	protocolID protocol.ID
 	// peerTracker contains discovered peer with records that describes peer's activity.
@@ -37,8 +38,10 @@ type session struct {
 }
 
 func newSession(ctx context.Context, h host.Host, peerTracker []*peerStat, protocolID protocol.ID) *session {
+	ctx, cancel := context.WithTimeout(ctx, time.Minute*2)
 	return &session{
 		ctx:        ctx,
+		cancel:     cancel,
 		protocolID: protocolID,
 		host:       h,
 		queue:      newPeerQueue(peerTracker),
@@ -48,11 +51,12 @@ func newSession(ctx context.Context, h host.Host, peerTracker []*peerStat, proto
 
 // doRequest chooses the best peer to fetch headers and sends a request in range of available maxRetryAttempts
 func (s *session) doRequest(
+	ctx context.Context,
 	stat *peerStat,
 	req *p2p_pb.ExtendedHeaderRequest,
 	headers chan []*header.ExtendedHeader,
 ) {
-	r, size, duration, err := s.requestHeaders(s.ctx, stat.peerID, req)
+	r, size, duration, err := s.requestHeaders(ctx, stat.peerID, req)
 	if err != nil {
 		if err == context.Canceled {
 			return
@@ -86,7 +90,7 @@ func (s *session) handleOutgoingRequest(ctx context.Context, result chan []*head
 			return
 		case req := <-s.reqCh:
 			stats := s.queue.calculateBestPeer()
-			go s.doRequest(stats, req, result)
+			go s.doRequest(ctx, stats, req, result)
 		}
 	}
 }
@@ -107,7 +111,7 @@ func (s *session) getRangeByHeight(ctx context.Context, from, amount uint64) ([]
 	for i := 0; i < cap(result); i++ {
 		select {
 		case <-s.ctx.Done():
-			return nil, errors.New("header/p2p: exchange service was stopped")
+			return nil, errors.New("header/p2p: session was stopped")
 		case <-ctx.Done():
 			return nil, ctx.Err()
 		case err := <-s.errCh:
@@ -116,10 +120,10 @@ func (s *session) getRangeByHeight(ctx context.Context, from, amount uint64) ([]
 			headers = append(headers, res...)
 		}
 	}
+	s.cancel()
 	sort.Slice(headers, func(i, j int) bool {
 		return headers[i].Height < headers[j].Height
 	})
-
 	return headers, nil
 }
 
