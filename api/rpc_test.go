@@ -28,9 +28,15 @@ func TestRPCCallsUnderlyingNode(t *testing.T) {
 	t.Cleanup(cancel)
 	nd, server := setupNodeWithModifiedRPC(t)
 	url := nd.RPCServer.ListenAddr()
-	client, err := client.NewClient(context.Background(), "http://"+url)
-	t.Cleanup(client.Close)
+	rpcClient, err := client.NewClient(ctx, "http://"+url)
+	// we need to run this a few times to prevent the race where the server is not yet started
+	for i := 0; i < 3; i++ {
+		if err != nil {
+			rpcClient, err = client.NewClient(ctx, "http://"+url)
+		}
+	}
 	require.NoError(t, err)
+	t.Cleanup(rpcClient.Close)
 
 	expectedBalance := &state.Balance{
 		Amount: sdk.NewInt(100),
@@ -39,7 +45,7 @@ func TestRPCCallsUnderlyingNode(t *testing.T) {
 
 	server.State.EXPECT().Balance(gomock.Any()).Return(expectedBalance, nil).Times(1)
 
-	balance, err := client.State.Balance(ctx)
+	balance, err := rpcClient.State.Balance(ctx)
 	require.NoError(t, err)
 	require.Equal(t, expectedBalance, balance)
 }
@@ -118,14 +124,15 @@ func setupNodeWithModifiedRPC(t *testing.T) (*nodebuilder.Node, *mockAPI) {
 		dasMock.NewMockModule(ctrl),
 	}
 
-	overrideRPCHandler := fx.Invoke(func(srv *rpc.Server) {
+	// given the behavior of fx.Invoke, this invoke will be called last as it is outside a module
+	invokeRPC := fx.Invoke(func(srv *rpc.Server) {
 		srv.RegisterService("state", mockAPI.State)
 		srv.RegisterService("share", mockAPI.Share)
 		srv.RegisterService("fraud", mockAPI.Fraud)
 		srv.RegisterService("header", mockAPI.Header)
 		srv.RegisterService("das", mockAPI.Das)
 	})
-	nd := nodebuilder.TestNode(t, node.Full, overrideRPCHandler)
+	nd := nodebuilder.TestNode(t, node.Full, invokeRPC)
 	// start node
 	err := nd.Start(ctx)
 	require.NoError(t, err)
