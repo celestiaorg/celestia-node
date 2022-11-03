@@ -4,14 +4,21 @@ import (
 	"context"
 	"net"
 	"net/http"
+	"reflect"
 	"sync/atomic"
 	"time"
 
 	"github.com/filecoin-project/go-jsonrpc"
+	"github.com/filecoin-project/go-jsonrpc/auth"
 	logging "github.com/ipfs/go-log/v2"
 )
 
 var log = logging.Logger("rpc")
+
+var (
+	AllPerms     = []auth.Permission{"read", "write", "admin"}
+	DefaultPerms = []auth.Permission{"read"}
+)
 
 type Server struct {
 	srv      *http.Server
@@ -23,11 +30,19 @@ type Server struct {
 
 func NewServer(address, port string) *Server {
 	rpc := jsonrpc.NewServer()
+	authHandler := &auth.Handler{
+		Verify: func(ctx context.Context, token string) ([]auth.Permission, error) {
+			// TODO(distractedm1nd/renaynay): implement auth
+			log.Warn("auth not implemented, token: ", token)
+			return DefaultPerms, nil
+		},
+		Next: rpc.ServeHTTP,
+	}
 	return &Server{
 		rpc: rpc,
 		srv: &http.Server{
 			Addr:    address + ":" + port,
-			Handler: rpc,
+			Handler: authHandler,
 			// the amount of time allowed to read request headers. set to the default 2 seconds
 			ReadHeaderTimeout: 2 * time.Second,
 		},
@@ -38,6 +53,17 @@ func NewServer(address, port string) *Server {
 // exposed over the RPC.
 func (s *Server) RegisterService(namespace string, service interface{}) {
 	s.rpc.Register(namespace, service)
+}
+
+// RegisterAuthedService registers a service onto the RPC server. All methods on the service will then be exposed over
+// the RPC.
+func (s *Server) RegisterAuthedService(namespace string, service interface{}, out interface{}) {
+	auth.PermissionedProxy(AllPerms, DefaultPerms, service, getInternalStruct(out))
+	s.RegisterService(namespace, out)
+}
+
+func getInternalStruct(api interface{}) interface{} {
+	return reflect.ValueOf(api).Elem().FieldByName("Internal").Addr().Interface()
 }
 
 // Start starts the RPC Server.
