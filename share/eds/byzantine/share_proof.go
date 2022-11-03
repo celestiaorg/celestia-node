@@ -51,6 +51,10 @@ func (s *ShareWithProof) Validate(root cid.Cid) bool {
 }
 
 func (s *ShareWithProof) ShareWithProofToProto() *pb.Share {
+	if s == nil {
+		return &pb.Share{}
+	}
+
 	return &pb.Share{
 		Data: s.Share,
 		Proof: &pb.MerkleProof{
@@ -94,6 +98,9 @@ func GetProofsForShares(
 func ProtoToShare(protoShares []*pb.Share) []*ShareWithProof {
 	shares := make([]*ShareWithProof, len(protoShares))
 	for i, share := range protoShares {
+		if share.Proof == nil {
+			continue
+		}
 		proof := ProtoToProof(share.Proof)
 		shares[i] = &ShareWithProof{share.Data, &proof}
 	}
@@ -101,5 +108,8 @@ func ProtoToShare(protoShares []*pb.Share) []*ShareWithProof {
 }
 
 func ProtoToProof(protoProof *pb.MerkleProof) nmt.Proof {
+	if protoProof == nil {
+		return nmt.Proof{}
+	}
 	return nmt.NewInclusionProof(int(protoProof.Start), int(protoProof.End), protoProof.Nodes, true)
 }
