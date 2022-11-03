@@ -131,7 +131,6 @@ func TestFraudProofSyncing(t *testing.T) {
 	require.NoError(t, ln.Start(ctx))
 	subsFn, err := full.FraudServ.Subscribe(ctx, fraud.BadEncoding)
 	require.NoError(t, err)
-	<-subsFn
 	defer close(subsFn)
 
 	// internal subscription for the fraud proof is done in order to ensure that light node
@@ -141,6 +140,5 @@ func TestFraudProofSyncing(t *testing.T) {
 
 	err = ln.Host.Connect(ctx, *host.InfoFromHost(full.Host))
 	require.NoError(t, err)
-	<-subsLn
 	close(subsLn)
 }

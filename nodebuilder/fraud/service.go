@@ -21,24 +21,42 @@ func (s *Service) Subscribe(ctx context.Context, proofType fraud.ProofType) (cha
 	if err != nil {
 		return nil, err
 	}
-	concreteProofs := make(chan Proof)
+	proofs := make(chan Proof)
 	go func() {
-		proof, _ := subscription.Proof(ctx)
-		concreteProofs <- Proof{Proof: proof}
+		defer func() {
+			_, ok := <-proofs
+			if ok {
+				close(proofs)
+			}
+		}()
+		for {
+			proof, err := subscription.Proof(ctx)
+			if err != nil {
+				if err != context.DeadlineExceeded && err != context.Canceled {
+					log.Errorw("fetching proof from subscription", "err", err)
+				}
+				return
+			}
+			select {
+			case <-ctx.Done():
+				return
+			case proofs <- Proof{Proof: proof}:
+			}
+		}
 	}()
-	return concreteProofs, nil
+	return proofs, nil
 }
 
 func (s *Service) Get(ctx context.Context, proofType fraud.ProofType) ([]Proof, error) {
-	proofs, err := s.Service.Get(ctx, proofType)
+	originalProofs, err := s.Service.Get(ctx, proofType)
 	if err != nil {
 		return nil, err
 	}
-	concreteProofs := make([]Proof, len(proofs))
-	for i, proof := range proofs {
-		concreteProofs[i].Proof = proof
+	proofs := make([]Proof, len(originalProofs))
+	for i, originalProof := range originalProofs {
+		proofs[i].Proof = originalProof
 	}
-	return concreteProofs, nil
+	return proofs, nil
 }
 
 // Proof embeds the fraud.Proof interface type to provide a concrete type for JSON serialization.

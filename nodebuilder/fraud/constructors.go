@@ -2,6 +2,7 @@ package fraud
 
 import (
 	"context"
+	"time"
 
 	"github.com/ipfs/go-datastore"
 	"github.com/libp2p/go-libp2p-core/host"
@@ -25,8 +26,8 @@ func NewModule(
 	return newFraudService(lc, sub, host, hstore, ds, false, string(network))
 }
 
-// ModuleWithSyncer constructs fraud proof service with enabled syncer.
-func ModuleWithSyncer(
+// NewModuleWithSyncer constructs fraud proof service with enabled syncer.
+func NewModuleWithSyncer(
 	lc fx.Lifecycle,
 	sub *pubsub.PubSub,
 	host host.Host,
@@ -62,10 +63,10 @@ func newFraudService(
 func Lifecycle(
 	startCtx, lifecycleCtx context.Context,
 	p fraud.ProofType,
-	fraudModule fraud.Service,
+	fraudServ fraud.Service,
 	start, stop func(context.Context) error,
 ) error {
-	proofs, err := fraudModule.Get(startCtx, p)
+	proofs, err := fraudServ.Get(startCtx, p)
 	switch err {
 	default:
 		return err
@@ -78,8 +79,10 @@ func Lifecycle(
 		return err
 	}
 	// handle incoming Fraud Proofs
-	go fraud.OnProof(lifecycleCtx, fraudModule, p, func(fraud.Proof) {
-		if err := stop(lifecycleCtx); err != nil {
+	go fraud.OnProof(lifecycleCtx, fraudServ, p, func(fraud.Proof) {
+		ctx, cancel := context.WithTimeout(lifecycleCtx, time.Minute)
+		defer cancel()
+		if err := stop(ctx); err != nil {
 			log.Error(err)
 		}
 	})

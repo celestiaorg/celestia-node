@@ -19,7 +19,7 @@ func ConstructModule(tp node.Type) fx.Option {
 		return fx.Module(
 			"fraud",
 			baseComponent,
-			fx.Provide(ModuleWithSyncer),
+			fx.Provide(NewModuleWithSyncer),
 		)
 	case node.Full, node.Bridge:
 		return fx.Module(
