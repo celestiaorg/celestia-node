@@ -80,12 +80,12 @@ func (n *NmtNodeAdder) Commit() error {
 	defer n.lock.Unlock()
 
 	if n.err != nil {
-		return fmt.Errorf("before commit: %w", n.err)
+		return fmt.Errorf("before batch commit: %w", n.err)
 	}
 
 	n.err = n.add.Commit()
 	if n.err != nil {
-		return fmt.Errorf("after commit: %w", n.err)
+		return fmt.Errorf("after batch commit: %w", n.err)
 	}
 	return nil
 }
