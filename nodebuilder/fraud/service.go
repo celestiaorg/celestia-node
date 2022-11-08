@@ -16,19 +16,14 @@ type Service struct {
 	fraud.Service
 }
 
-func (s *Service) Subscribe(ctx context.Context, proofType fraud.ProofType) (chan Proof, error) {
+func (s *Service) Subscribe(ctx context.Context, proofType fraud.ProofType) (<-chan Proof, error) {
 	subscription, err := s.Service.Subscribe(proofType)
 	if err != nil {
 		return nil, err
 	}
 	proofs := make(chan Proof)
 	go func() {
-		defer func() {
-			_, ok := <-proofs
-			if ok {
-				close(proofs)
-			}
-		}()
+		defer close(proofs)
 		for {
 			proof, err := subscription.Proof(ctx)
 			if err != nil {

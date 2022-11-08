@@ -129,16 +129,21 @@ func TestFraudProofSyncing(t *testing.T) {
 
 	require.NoError(t, full.Start(ctx))
 	require.NoError(t, ln.Start(ctx))
-	subsFn, err := full.FraudServ.Subscribe(ctx, fraud.BadEncoding)
+	subsFN, err := full.FraudServ.Subscribe(ctx, fraud.BadEncoding)
 	require.NoError(t, err)
-	defer close(subsFn)
 
 	// internal subscription for the fraud proof is done in order to ensure that light node
 	// receives the BEFP.
-	subsLn, err := ln.FraudServ.Subscribe(ctx, fraud.BadEncoding)
+	subsLN, err := ln.FraudServ.Subscribe(ctx, fraud.BadEncoding)
 	require.NoError(t, err)
 
-	err = ln.Host.Connect(ctx, *host.InfoFromHost(full.Host))
-	require.NoError(t, err)
-	close(subsLn)
+	// wait for BEFP to come through both subscriptions
+	for i := 0; i < 2; i++ {
+		select {
+		case <-subsFN:
+		case <-subsLN:
+		case <-ctx.Done():
+			t.Fatal(ctx.Err())
+		}
+	}
 }

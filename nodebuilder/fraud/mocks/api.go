@@ -8,10 +8,9 @@ import (
 	context "context"
 	reflect "reflect"
 
-	gomock "github.com/golang/mock/gomock"
-
 	fraud "github.com/celestiaorg/celestia-node/fraud"
 	fraud0 "github.com/celestiaorg/celestia-node/nodebuilder/fraud"
+	gomock "github.com/golang/mock/gomock"
 )
 
 // MockModule is a mock of Module interface.
@@ -53,10 +52,10 @@ func (mr *MockModuleMockRecorder) Get(arg0, arg1 interface{}) *gomock.Call {
 }
 
 // Subscribe mocks base method.
-func (m *MockModule) Subscribe(arg0 context.Context, arg1 fraud.ProofType) (chan fraud0.Proof, error) {
+func (m *MockModule) Subscribe(arg0 context.Context, arg1 fraud.ProofType) (<-chan fraud0.Proof, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Subscribe", arg0, arg1)
-	ret0, _ := ret[0].(chan fraud0.Proof)
+	ret0, _ := ret[0].(<-chan fraud0.Proof)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
