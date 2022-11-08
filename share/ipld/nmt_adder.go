@@ -14,6 +14,7 @@ import (
 // NmtNodeAdder adds ipld.Nodes to the underlying ipld.Batch if it is inserted
 // into a nmt tree.
 type NmtNodeAdder struct {
+	// lock protects Batch, Set and error from parallel writes / reads
 	lock   sync.Mutex
 	ctx    context.Context
 	add    *ipld.Batch
