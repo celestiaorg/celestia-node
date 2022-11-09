@@ -1,4 +1,4 @@
-name: "docker-build"
+name: "arm-docker-build"
 
 on:
   push:
