@@ -16,6 +16,6 @@ jobs:
       - name: Label issues
         uses: mheap/github-action-required-labels@v2
         with:
-          add-labels: "needs-triage"
+          add-labels: "needs:triage"
           ignore-if-labeled: true
           repo-token: ${{ secrets.GITHUB_TOKEN }}
