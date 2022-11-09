@@ -4,6 +4,8 @@ on:
   push:
     branches:
       - "**"
+    tags:
+      - "v*"
   workflow_dispatch:
 
 env:
@@ -37,9 +39,7 @@ jobs:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
             type=sha
-            type=semver,pattern={{major}}.{{minor}}.{{patch}}
-            type=semver,pattern={{major}}.{{minor}}
-            type=semver,pattern={{major}}
+            type=semver,pattern={{version}}
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
@@ -55,6 +55,6 @@ jobs:
         uses: docker/build-push-action@v3
         with:
           platforms: linux/amd64, linux/arm64
-          push: true
+          push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           file: docker/Dockerfile
