@@ -3,6 +3,7 @@ package gateway
 import (
 	"context"
 
+	logging "github.com/ipfs/go-log/v2"
 	"go.uber.org/fx"
 
 	"github.com/celestiaorg/celestia-node/api/gateway"
@@ -11,6 +12,8 @@ import (
 	shareServ "github.com/celestiaorg/celestia-node/nodebuilder/share"
 	stateServ "github.com/celestiaorg/celestia-node/nodebuilder/state"
 )
+
+var log = logging.Logger("module/gateway")
 
 func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 	// sanitize config values before constructing module

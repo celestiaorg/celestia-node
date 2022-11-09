@@ -5,14 +5,11 @@ import (
 	"fmt"
 
 	"github.com/ipfs/go-datastore"
-	logging "github.com/ipfs/go-log/v2"
 	"github.com/libp2p/go-libp2p-core/protocol"
 	"github.com/libp2p/go-libp2p-core/routing"
 	dht "github.com/libp2p/go-libp2p-kad-dht"
 	"go.uber.org/fx"
 )
-
-var log = logging.Logger("p2p-module")
 
 // ContentRouting constructs nil content routing,
 // as for our use-case existing ContentRouting mechanisms, e.g DHT, are unsuitable

@@ -1,10 +1,13 @@
 package p2p
 
 import (
+	logging "github.com/ipfs/go-log/v2"
 	"go.uber.org/fx"
 
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 )
+
+var log = logging.Logger("module/p2p")
 
 // ConstructModule collects all the components and services related to p2p.
 func ConstructModule(tp node.Type, cfg *Config) fx.Option {

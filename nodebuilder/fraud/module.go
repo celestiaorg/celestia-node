@@ -8,7 +8,7 @@ import (
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 )
 
-var log = logging.Logger("fraud-module")
+var log = logging.Logger("module/fraud")
 
 func ConstructModule(tp node.Type) fx.Option {
 	baseComponent := fx.Provide(func(module Module) fraud.Getter {

@@ -1,12 +1,9 @@
 package gateway
 
 import (
-	logging "github.com/ipfs/go-log/v2"
 	"github.com/spf13/cobra"
 	flag "github.com/spf13/pflag"
 )
-
-var log = logging.Logger("gateway-module")
 
 var (
 	enabledFlag = "gateway"
