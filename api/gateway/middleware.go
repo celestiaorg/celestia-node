@@ -11,6 +11,8 @@ import (
 	"github.com/celestiaorg/celestia-node/nodebuilder/state"
 )
 
+const timeout = time.Minute
+
 func (h *Handler) RegisterMiddleware(srv *Server) {
 	srv.RegisterMiddleware(setContentType)
 	srv.RegisterMiddleware(checkPostDisabled(h.state))
@@ -42,7 +44,7 @@ func checkPostDisabled(state state.Module) mux.MiddlewareFunc {
 // via the gateway server-side to prevent context leaks.
 func wrapRequestContext(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx, cancel := context.WithTimeout(r.Context(), time.Minute)
+		ctx, cancel := context.WithTimeout(r.Context(), timeout)
 		defer cancel()
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
