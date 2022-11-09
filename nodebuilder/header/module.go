@@ -16,7 +16,7 @@ import (
 	modp2p "github.com/celestiaorg/celestia-node/nodebuilder/p2p"
 )
 
-var log = logging.Logger("constructor/header")
+var log = logging.Logger("module/header")
 
 func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 	// sanitize config values before constructing module

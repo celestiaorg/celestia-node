@@ -12,7 +12,7 @@ import (
 	"github.com/celestiaorg/celestia-node/state"
 )
 
-var log = logging.Logger("constructor/state")
+var log = logging.Logger("module/state")
 
 // ConstructModule provides all components necessary to construct the
 // state service.
