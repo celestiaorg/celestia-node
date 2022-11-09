@@ -4,13 +4,14 @@ import (
 	"context"
 	"time"
 
-	"github.com/celestiaorg/celestia-node/share/availability"
 	logging "github.com/ipfs/go-log/v2"
 	core "github.com/libp2p/go-libp2p-core/discovery"
 	"github.com/libp2p/go-libp2p-core/event"
 	"github.com/libp2p/go-libp2p-core/host"
 	"github.com/libp2p/go-libp2p-core/network"
 	"github.com/libp2p/go-libp2p-core/peer"
+
+	"github.com/celestiaorg/celestia-node/share/availability"
 )
 
 var log = logging.Logger("share/discovery")
