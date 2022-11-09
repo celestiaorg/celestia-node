@@ -1,4 +1,4 @@
-name: "arm-docker-build"
+name: "main-docker-build"
 
 on:
   push:
@@ -44,7 +44,7 @@ jobs:
       - name: Build and push
         uses: docker/build-push-action@v3
         with:
-          platforms: linux/arm64
+          platforms: linux/arm64, linux/amd64
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           file: docker/Dockerfile
