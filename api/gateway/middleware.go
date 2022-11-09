@@ -14,9 +14,11 @@ import (
 const timeout = time.Minute
 
 func (h *Handler) RegisterMiddleware(srv *Server) {
-	srv.RegisterMiddleware(setContentType)
-	srv.RegisterMiddleware(checkPostDisabled(h.state))
-	srv.RegisterMiddleware(wrapRequestContext)
+	srv.RegisterMiddleware(
+		setContentType,
+		checkPostDisabled(h.state),
+		wrapRequestContext,
+	)
 }
 
 func setContentType(next http.Handler) http.Handler {
