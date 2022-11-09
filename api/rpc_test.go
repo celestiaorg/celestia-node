@@ -38,12 +38,12 @@ func TestRPCCallsUnderlyingNode(t *testing.T) {
 		time.Sleep(time.Second * 1)
 		rpcClient, err = client.NewClient(ctx, "http://"+url)
 		if err == nil {
+			t.Cleanup(rpcClient.Close)
 			break
 		}
 	}
 	require.NotNil(t, rpcClient)
 	require.NoError(t, err)
-	t.Cleanup(rpcClient.Close)
 
 	expectedBalance := &state.Balance{
 		Amount: sdk.NewInt(100),
