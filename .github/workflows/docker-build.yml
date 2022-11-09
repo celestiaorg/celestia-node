@@ -8,6 +8,8 @@ on:
       - "v*"
   workflow_dispatch:
 
+## Some bullshit so I can create a PR
+
 env:
   GO_VERSION: 1.19
   IMAGE_NAME: ${{ github.repository }}
