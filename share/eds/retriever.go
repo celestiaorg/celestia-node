@@ -136,8 +136,8 @@ func (r *Retriever) newSession(ctx context.Context, dah *da.DataAvailabilityHead
 	ses := &retrievalSession{
 		bget:  blockservice.NewSession(ctx, r.bServ),
 		adder: adder,
-		treeFn: func() rsmt2d.Tree {
-			tree := wrapper.NewErasuredNamespacedMerkleTree(uint64(size)/2, nmt.NodeVisitor(adder.Visit))
+		treeFn: func(_ rsmt2d.Axis, index uint) rsmt2d.Tree {
+			tree := wrapper.NewErasuredNamespacedMerkleTree(uint64(size)/2, index, nmt.NodeVisitor(adder.Visit))
 			return &tree
 		},
 		codec:     share.DefaultRSMT2DCodec(),

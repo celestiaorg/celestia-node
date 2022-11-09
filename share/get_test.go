@@ -73,11 +73,7 @@ func TestBlockRecovery(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			squareSize := uint64(math.Sqrt(float64(len(tc.shares))))
 
-			// create trees for creating roots
-			tree := wrapper.NewErasuredNamespacedMerkleTree(squareSize)
-			recoverTree := wrapper.NewErasuredNamespacedMerkleTree(squareSize)
-
-			eds, err := rsmt2d.ComputeExtendedDataSquare(tc.shares, rsmt2d.NewRSGF8Codec(), tree.Constructor)
+			eds, err := rsmt2d.ComputeExtendedDataSquare(tc.shares, rsmt2d.NewRSGF8Codec(), wrapper.NewConstructor(squareSize))
 			require.NoError(t, err)
 
 			// calculate roots using the first complete square
@@ -91,7 +87,7 @@ func TestBlockRecovery(t *testing.T) {
 			eds, err = rsmt2d.ImportExtendedDataSquare(
 				rdata,
 				rsmt2d.NewRSGF8Codec(),
-				recoverTree.Constructor,
+				wrapper.NewConstructor(squareSize),
 			)
 			require.NoError(t, err)
 
@@ -103,7 +99,7 @@ func TestBlockRecovery(t *testing.T) {
 			}
 			assert.NoError(t, err)
 
-			reds, err := rsmt2d.ImportExtendedDataSquare(rdata, rsmt2d.NewRSGF8Codec(), tree.Constructor)
+			reds, err := rsmt2d.ImportExtendedDataSquare(rdata, rsmt2d.NewRSGF8Codec(), wrapper.NewConstructor(squareSize))
 			require.NoError(t, err)
 			// check that the squares are equal
 			assert.Equal(t, ExtractEDS(eds), ExtractEDS(reds))
@@ -115,11 +111,12 @@ func Test_ConvertEDStoShares(t *testing.T) {
 	squareWidth := 16
 	shares := RandShares(t, squareWidth*squareWidth)
 
-	// create the nmt wrapper to generate row and col commitments
-	tree := wrapper.NewErasuredNamespacedMerkleTree(uint64(squareWidth))
-
 	// compute extended square
-	eds, err := rsmt2d.ComputeExtendedDataSquare(shares, rsmt2d.NewRSGF8Codec(), tree.Constructor)
+	eds, err := rsmt2d.ComputeExtendedDataSquare(
+		shares,
+		rsmt2d.NewRSGF8Codec(),
+		wrapper.NewConstructor(uint64(squareWidth)),
+	)
 	require.NoError(t, err)
 
 	resshares := ExtractODS(eds)

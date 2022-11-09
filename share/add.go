@@ -26,9 +26,13 @@ func AddShares(
 	// create nmt adder wrapping batch adder with calculated size
 	batchAdder := ipld.NewNmtNodeAdder(ctx, adder, ipld.MaxSizeBatchOption(squareSize*2))
 	// create the nmt wrapper to generate row and col commitments
-	tree := wrapper.NewErasuredNamespacedMerkleTree(uint64(squareSize), nmt.NodeVisitor(batchAdder.Visit))
 	// recompute the eds
-	eds, err := rsmt2d.ComputeExtendedDataSquare(shares, DefaultRSMT2DCodec(), tree.Constructor)
+	eds, err := rsmt2d.ComputeExtendedDataSquare(
+		shares,
+		DefaultRSMT2DCodec(),
+		wrapper.NewConstructor(uint64(squareSize),
+			nmt.NodeVisitor(batchAdder.Visit)),
+	)
 	if err != nil {
 		return nil, fmt.Errorf("failure to recompute the extended data square: %w", err)
 	}
@@ -49,10 +53,13 @@ func ImportShares(
 	squareSize := int(math.Sqrt(float64(len(shares))))
 	// create nmt adder wrapping batch adder with calculated size
 	batchAdder := ipld.NewNmtNodeAdder(ctx, adder, ipld.MaxSizeBatchOption(squareSize*2))
-	// create the nmt wrapper to generate row and col commitments
-	tree := wrapper.NewErasuredNamespacedMerkleTree(uint64(squareSize/2), nmt.NodeVisitor(batchAdder.Visit))
 	// recompute the eds
-	eds, err := rsmt2d.ImportExtendedDataSquare(shares, DefaultRSMT2DCodec(), tree.Constructor)
+	eds, err := rsmt2d.ImportExtendedDataSquare(
+		shares,
+		DefaultRSMT2DCodec(),
+		wrapper.NewConstructor(uint64(squareSize/2),
+			nmt.NodeVisitor(batchAdder.Visit)),
+	)
 	if err != nil {
 		return nil, fmt.Errorf("failure to recompute the extended data square: %w", err)
 	}

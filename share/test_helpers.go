@@ -35,10 +35,8 @@ func EqualEDS(a *rsmt2d.ExtendedDataSquare, b *rsmt2d.ExtendedDataSquare) bool {
 // to be able to take both a *testing.T and a *testing.B.
 func RandEDS(t require.TestingT, size int) *rsmt2d.ExtendedDataSquare {
 	shares := RandShares(t, size*size)
-	// create the nmt wrapper to generate row and col commitments
-	tree := wrapper.NewErasuredNamespacedMerkleTree(uint64(size))
 	// recompute the eds
-	eds, err := rsmt2d.ComputeExtendedDataSquare(shares, DefaultRSMT2DCodec(), tree.Constructor)
+	eds, err := rsmt2d.ComputeExtendedDataSquare(shares, DefaultRSMT2DCodec(), wrapper.NewConstructor(uint64(size)))
 	require.NoError(t, err, "failure to recompute the extended data square")
 	return eds
 }

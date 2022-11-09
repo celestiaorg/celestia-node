@@ -2,6 +2,8 @@ package ipld
 
 import (
 	"context"
+	"fmt"
+	"sync"
 
 	"github.com/ipfs/go-blockservice"
 	"github.com/ipfs/go-cid"
@@ -12,6 +14,8 @@ import (
 // NmtNodeAdder adds ipld.Nodes to the underlying ipld.Batch if it is inserted
 // into a nmt tree.
 type NmtNodeAdder struct {
+	// lock protects Batch, Set and error from parallel writes / reads
+	lock   sync.Mutex
 	ctx    context.Context
 	add    *ipld.Batch
 	leaves *cid.Set
@@ -32,6 +36,9 @@ func NewNmtNodeAdder(ctx context.Context, bs blockservice.BlockService, opts ...
 // Visit is a NodeVisitor that can be used during the creation of a new NMT to
 // create and add ipld.Nodes to the Batch while computing the root of the NMT.
 func (n *NmtNodeAdder) Visit(hash []byte, children ...[]byte) {
+	n.lock.Lock()
+	defer n.lock.Unlock()
+
 	if n.err != nil {
 		return // protect from further visits if there is an error
 	}
@@ -50,6 +57,9 @@ func (n *NmtNodeAdder) Visit(hash []byte, children ...[]byte) {
 
 // VisitInnerNodes is a NodeVisitor that does not store leaf nodes to the blockservice.
 func (n *NmtNodeAdder) VisitInnerNodes(hash []byte, children ...[]byte) {
+	n.lock.Lock()
+	defer n.lock.Unlock()
+
 	if n.err != nil {
 		return // protect from further visits if there is an error
 	}
@@ -67,11 +77,18 @@ func (n *NmtNodeAdder) VisitInnerNodes(hash []byte, children ...[]byte) {
 
 // Commit checks for errors happened during Visit and if absent commits data to inner Batch.
 func (n *NmtNodeAdder) Commit() error {
+	n.lock.Lock()
+	defer n.lock.Unlock()
+
 	if n.err != nil {
-		return n.err
+		return fmt.Errorf("before batch commit: %w", n.err)
 	}
 
-	return n.add.Commit()
+	n.err = n.add.Commit()
+	if n.err != nil {
+		return fmt.Errorf("after batch commit: %w", n.err)
+	}
+	return nil
 }
 
 // MaxSizeBatchOption sets the maximum amount of buffered data before writing

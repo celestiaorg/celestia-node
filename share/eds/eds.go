@@ -84,8 +84,12 @@ func initializeWriter(ctx context.Context, eds *rsmt2d.ExtendedDataSquare, w io.
 	// (shareCount*2) - (odsWidth*4) is the amount of inner nodes visited
 	batchAdder := ipld.NewNmtNodeAdder(ctx, bs, format.MaxSizeBatchOption(innerNodeBatchSize(shareCount, odsWidth)))
 	// this adder ignores leaves, so that they are not added to the store we iterate through in writeProofs
-	tree := wrapper.NewErasuredNamespacedMerkleTree(uint64(odsWidth), nmt.NodeVisitor(batchAdder.VisitInnerNodes))
-	eds, err := rsmt2d.ImportExtendedDataSquare(shares, share.DefaultRSMT2DCodec(), tree.Constructor)
+	eds, err := rsmt2d.ImportExtendedDataSquare(
+		shares,
+		share.DefaultRSMT2DCodec(),
+		wrapper.NewConstructor(uint64(odsWidth),
+			nmt.NodeVisitor(batchAdder.VisitInnerNodes)),
+	)
 	if err != nil {
 		return nil, fmt.Errorf("recomputing data square: %w", err)
 	}
@@ -242,8 +246,11 @@ func ReadEDS(ctx context.Context, r io.Reader, root share.Root) (*rsmt2d.Extende
 		shares[i] = block.RawData()[appconsts.NamespaceSize:]
 	}
 
-	tree := wrapper.NewErasuredNamespacedMerkleTree(uint64(odsWidth))
-	eds, err := rsmt2d.ComputeExtendedDataSquare(shares, share.DefaultRSMT2DCodec(), tree.Constructor)
+	eds, err := rsmt2d.ComputeExtendedDataSquare(
+		shares,
+		share.DefaultRSMT2DCodec(),
+		wrapper.NewConstructor(uint64(odsWidth)),
+	)
 	if err != nil {
 		return nil, fmt.Errorf("share: computing eds: %w", err)
 	}

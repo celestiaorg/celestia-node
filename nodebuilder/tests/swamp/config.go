@@ -16,11 +16,11 @@ type Components struct {
 	SupressLogs     bool
 }
 
-// DefaultComponents creates a KvStore with a block retention of 200
-// In addition, the empty block interval is set to 50ms
+// DefaultComponents creates a celestia-app instance with a block time of around
+// 100ms
 func DefaultComponents() *Components {
 	tnCfg := tn.TestConfig()
-	tnCfg.Consensus.TimeoutCommit = 50 * time.Millisecond
+	tnCfg.Consensus.TimeoutCommit = 100 * time.Millisecond
 	return &Components{
 		CoreCfg:         tnCfg,
 		ConsensusParams: testnode.DefaultParams(),
