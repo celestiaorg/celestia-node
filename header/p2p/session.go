@@ -56,6 +56,13 @@ func (s *session) doRequest(
 	req *p2p_pb.ExtendedHeaderRequest,
 	headers chan []*header.ExtendedHeader,
 ) {
+	select {
+	case <-ctx.Done():
+		return
+	case <-s.ctx.Done():
+		return
+	default:
+	}
 	r, size, duration, err := s.requestHeaders(ctx, stat.peerID, req)
 	if err != nil {
 		if err == context.Canceled {
@@ -89,7 +96,7 @@ func (s *session) handleOutgoingRequest(ctx context.Context, result chan []*head
 		case <-s.ctx.Done():
 			return
 		case req := <-s.reqCh:
-			stats := s.queue.calculateBestPeer()
+			stats := s.queue.calculateBestPeer(ctx)
 			go s.doRequest(ctx, stats, req, result)
 		}
 	}

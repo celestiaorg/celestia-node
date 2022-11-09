@@ -36,7 +36,7 @@ func Test_PeerQueuePopBestPeer(t *testing.T) {
 		{peerID: "peerID4"}, // score = 0
 	}
 	pQueue := newPeerQueue(peersStat)
-	for index := 0; index < pQueue.len(); index++ {
+	for index := 0; index < pQueue.stats.Len(); index++ {
 		stats := pQueue.pop()
 		require.Equal(t, stats, wantStat[index])
 	}

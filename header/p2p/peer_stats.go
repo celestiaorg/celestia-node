@@ -2,8 +2,8 @@ package p2p
 
 import (
 	"container/heap"
+	"context"
 	"sync"
-	"sync/atomic"
 
 	"github.com/libp2p/go-libp2p-core/peer"
 )
@@ -43,15 +43,8 @@ func (p *peerStat) score() float32 {
 	return p.peerScore
 }
 
-/*
-peerStats implements heap.Interface, so we can be sure that we are getting the peer
-with the highest score, each time we call Pop.
-
-Methods/Interfaces that peerStats should implement:
-  - sort.Interface
-  - Push(x any)
-  - Pop() any
-*/
+// peerStats implements heap.Interface, so we can be sure that we are getting the peer
+// with the highest score, each time we call Pop.
 type peerStats []*peerStat
 
 func newPeerStats() peerStats {
@@ -62,6 +55,8 @@ func newPeerStats() peerStats {
 
 func (ps peerStats) Len() int { return len(ps) }
 
+// Less compares two peerScores.
+// Less is used by heap.Interface to build the queue in a decreasing order.
 func (ps peerStats) Less(i, j int) bool {
 	return ps[i].score() > ps[j].score()
 }
@@ -70,27 +65,28 @@ func (ps peerStats) Swap(i, j int) {
 	ps[i], ps[j] = ps[j], ps[i]
 }
 
+// Push adds peerStat to the queue.
 func (ps *peerStats) Push(x any) {
 	item := x.(*peerStat)
 	*ps = append(*ps, item)
 }
 
+// Pop returns the peer with the highest score from the queue.
 func (ps *peerStats) Pop() any {
 	old := *ps
 	n := len(old)
 	item := old[n-1]
 	old[n-1] = nil
-	*ps = old[0 : n-1]
+	*ps = old[:n-1]
 	return item
 }
 
-// peerQueue wraps peerStats and guards it with a mutex.
+// peerQueue wraps peerStats and guards it with the mutex.
 type peerQueue struct {
 	statsLk sync.RWMutex
 	stats   peerStats
 
 	havePeer chan struct{}
-	wantPeer atomic.Bool
 }
 
 func newPeerQueue(stats []*peerStat) *peerQueue {
@@ -105,12 +101,16 @@ func newPeerQueue(stats []*peerStat) *peerQueue {
 
 // calculateBestPeer pops the peer with the biggest score.
 // in case if there are no peer available in current session, it blocks until
-// a peer will be pushed in.
-func (p *peerQueue) calculateBestPeer() *peerStat {
-	if p.len() == 0 {
-		p.wantPeer.Store(true)
-		defer p.wantPeer.Store(false)
-		<-p.havePeer
+// the peer will be pushed in.
+func (p *peerQueue) calculateBestPeer(ctx context.Context) *peerStat {
+	p.statsLk.Lock()
+	defer p.statsLk.Unlock()
+	if p.stats.Len() == 0 {
+		select {
+		case <-ctx.Done():
+			return &peerStat{}
+		case <-p.havePeer:
+		}
 	}
 	return p.pop()
 }
@@ -120,9 +120,10 @@ func (p *peerQueue) push(stat *peerStat) {
 	p.statsLk.Lock()
 	defer p.statsLk.Unlock()
 	heap.Push(&p.stats, stat)
-	// notify that peer is available in the queue, so it can be popped out
-	if p.wantPeer.Load() {
-		p.havePeer <- struct{}{}
+	// notify that the peer is available in the queue, so it can be popped out
+	select {
+	case p.havePeer <- struct{}{}:
+	default:
 	}
 }
 
@@ -131,10 +132,4 @@ func (p *peerQueue) pop() *peerStat {
 	p.statsLk.Lock()
 	defer p.statsLk.Unlock()
 	return heap.Pop(&p.stats).(*peerStat)
-}
-
-func (p *peerQueue) len() int {
-	p.statsLk.Lock()
-	defer p.statsLk.Unlock()
-	return p.stats.Len()
 }
