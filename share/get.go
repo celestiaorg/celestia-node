@@ -40,8 +40,8 @@ func GetShares(ctx context.Context, bGetter blockservice.BlockGetter, root cid.C
 	ipld.GetLeaves(ctx, bGetter, root, shares, putNode)
 }
 
-// GetSharesByNamespace walks the tree of a given root and returns its shares within the given namespace.ID.
-// If a share could not be retrieved, err is not nil, and the returned array
+// GetSharesByNamespace walks the tree of a given root and returns its shares within the given
+// namespace.ID. If a share could not be retrieved, err is not nil, and the returned array
 // contains nil shares in place of the shares it was unable to retrieve.
 func GetSharesByNamespace(
 	ctx context.Context,
@@ -70,6 +70,7 @@ func GetSharesByNamespace(
 
 // leafToShare converts an NMT leaf into a Share.
 func leafToShare(nd format.Node) Share {
-	// * Additional namespace is prepended so that parity data can be identified with a parity namespace, which we cut off
+	// * Additional namespace is prepended so that parity data can be identified with a parity
+	// namespace, which we cut off
 	return nd.RawData()[NamespaceSize:]
 }

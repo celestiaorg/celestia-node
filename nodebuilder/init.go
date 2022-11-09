@@ -9,7 +9,8 @@ import (
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 )
 
-// Init initializes the Node FileSystem Store for the given Node Type 'tp' in the directory under 'path'.
+// Init initializes the Node FileSystem Store for the given Node Type 'tp' in the directory under
+// 'path'.
 func Init(cfg Config, path string, tp node.Type) error {
 	path, err := storePath(path)
 	if err != nil {

@@ -6,8 +6,9 @@ import (
 	"github.com/celestiaorg/celestia-node/header"
 )
 
-// ranges keeps non-overlapping and non-adjacent header ranges which are used to cache headers (in ascending order).
-// This prevents unnecessary / duplicate network requests for additional headers during sync.
+// ranges keeps non-overlapping and non-adjacent header ranges which are used to cache headers (in
+// ascending order). This prevents unnecessary / duplicate network requests for additional headers
+// during sync.
 type ranges struct {
 	lk     sync.RWMutex
 	ranges []*headerRange

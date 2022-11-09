@@ -46,7 +46,8 @@ var networksList = map[Network]struct{}{
 	Private: {},
 }
 
-// listProvidedNetworks provides a string listing all known long-standing networks for things like command hints.
+// listProvidedNetworks provides a string listing all known long-standing networks for things like
+// command hints.
 func listProvidedNetworks() string {
 	var networks string
 	for net := range networksList {

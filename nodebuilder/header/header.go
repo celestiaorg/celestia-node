@@ -64,8 +64,8 @@ func newInitStore(
 			err = store.Init(ctx, s, ex, trustedHash)
 			if err != nil {
 				// TODO(@Wondertan): Error is ignored, as otherwise unit tests for Node construction fail.
-				// 	This is due to requesting step of initialization, which fetches initial Header by trusted hash from
-				//  the network. The step can't be done during unit tests and fixing it would require either
+				// 	This is due to requesting step of initialization, which fetches initial Header by trusted hash
+				// from  the network. The step can't be done during unit tests and fixing it would require either
 				//   * Having some test/dev/offline mode for Node that mocks out all the networking
 				//   * Hardcoding full extended header in params pkg, instead of hashes, so we avoid requesting step
 				//   * Or removing explicit initialization in favor of automated initialization by Syncer

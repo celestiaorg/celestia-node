@@ -35,7 +35,8 @@ const (
 	// that contain an NMT node (inner and leaf nodes).
 	sha256Namespace8Flagged = 0x7701
 
-	// MaxSquareSize is currently the maximum size supported for unerasured data in rsmt2d.ExtendedDataSquare.
+	// MaxSquareSize is currently the maximum size supported for unerasured data in
+	// rsmt2d.ExtendedDataSquare.
 	MaxSquareSize = appconsts.MaxSquareSize
 
 	// NamespaceSize is a system-wide size for NMT namespaces.

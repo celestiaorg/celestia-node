@@ -24,7 +24,8 @@ import (
 )
 
 // WithNetwork specifies the Network to which the Node should connect to.
-// WARNING: Use this option with caution and never run the Node with different networks over the same persisted Store.
+// WARNING: Use this option with caution and never run the Node with different networks over the
+// same persisted Store.
 func WithNetwork(net p2p.Network) fx.Option {
 	return fx.Replace(net)
 }

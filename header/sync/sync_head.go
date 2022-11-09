@@ -59,9 +59,9 @@ func (s *Syncer) subjectiveHead(ctx context.Context) (*header.ExtendedHeader, er
 }
 
 // networkHead returns the latest network header.
-// Known subjective head is considered network head if it is recent enough(now-timestamp<=blocktime).
-// Otherwise, network header is requested from a trusted peer and set as the new subjective head,
-// assuming that trusted peer is always synced.
+// Known subjective head is considered network head if it is recent
+// enough(now-timestamp<=blocktime). Otherwise, network header is requested from a trusted peer and
+// set as the new subjective head, assuming that trusted peer is always synced.
 func (s *Syncer) networkHead(ctx context.Context) (*header.ExtendedHeader, error) {
 	sbjHead, err := s.subjectiveHead(ctx)
 	if err != nil {
@@ -102,7 +102,8 @@ func (s *Syncer) networkHead(ctx context.Context) (*header.ExtendedHeader, error
 
 // incomingNetHead processes new gossiped network headers.
 func (s *Syncer) incomingNetHead(ctx context.Context, netHead *header.ExtendedHeader) pubsub.ValidationResult {
-	// Try to short-circuit netHead with append. If not adjacent/from future - try it as new network header
+	// Try to short-circuit netHead with append. If not adjacent/from future - try it as new network
+	// header
 	_, err := s.store.Append(ctx, netHead)
 	if err == nil {
 		// a happy case where we appended maybe head directly, so accept
@@ -128,7 +129,8 @@ func (s *Syncer) incomingNetHead(ctx context.Context, netHead *header.ExtendedHe
 	return s.newNetHead(ctx, netHead, false)
 }
 
-// newNetHead sets the network header as the new subjective head with preceding validation(per request).
+// newNetHead sets the network header as the new subjective head with preceding validation(per
+// request).
 func (s *Syncer) newNetHead(ctx context.Context, netHead *header.ExtendedHeader, trust bool) pubsub.ValidationResult {
 	// validate netHead against subjective head
 	if !trust {

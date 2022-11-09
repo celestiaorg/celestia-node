@@ -76,7 +76,8 @@ func MakeExtendedHeader(
 }
 
 // Hash returns Hash of the wrapped RawHeader.
-// NOTE: It purposely overrides Hash method of RawHeader to get it directly from Commit without recomputing.
+// NOTE: It purposely overrides Hash method of RawHeader to get it directly from Commit without
+// recomputing.
 func (eh *ExtendedHeader) Hash() bts.HexBytes {
 	return eh.Commit.BlockID.Hash
 }
@@ -147,8 +148,8 @@ func (eh *ExtendedHeader) UnmarshalBinary(data []byte) error {
 	return nil
 }
 
-// MarshalJSON marshals an ExtendedHeader to JSON. The ValidatorSet is wrapped with amino encoding, to be able to
-// unmarshal the crypto.PubKey type back from JSON.
+// MarshalJSON marshals an ExtendedHeader to JSON. The ValidatorSet is wrapped with amino encoding,
+// to be able to unmarshal the crypto.PubKey type back from JSON.
 func (eh *ExtendedHeader) MarshalJSON() ([]byte, error) {
 	type Alias ExtendedHeader
 	validatorSet, err := amino.Marshal(eh.ValidatorSet)
@@ -164,8 +165,8 @@ func (eh *ExtendedHeader) MarshalJSON() ([]byte, error) {
 	})
 }
 
-// UnmarshalJSON unmarshals an ExtendedHeader from JSON. The ValidatorSet is wrapped with amino encoding, to be able to
-// unmarshal the crypto.PubKey type back from JSON.
+// UnmarshalJSON unmarshals an ExtendedHeader from JSON. The ValidatorSet is wrapped with amino
+// encoding, to be able to unmarshal the crypto.PubKey type back from JSON.
 func (eh *ExtendedHeader) UnmarshalJSON(data []byte) error {
 	type Alias ExtendedHeader
 	aux := &struct {

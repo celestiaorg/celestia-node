@@ -19,7 +19,8 @@ func Keyring(cfg Config, ks keystore.Keystore, net p2p.Network) (*apptypes.Keyri
 	// TODO @renaynay: Include option for setting custom `userInput` parameter with
 	//  implementation of https://github.com/celestiaorg/celestia-node/issues/415.
 	// TODO @renaynay @Wondertan: ensure that keyring backend from config is passed
-	//  here instead of hardcoded `BackendTest`: https://github.com/celestiaorg/celestia-node/issues/603.
+	//  here instead of hardcoded `BackendTest`:
+	// https://github.com/celestiaorg/celestia-node/issues/603.
 	encConf := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	ring, err := keyring.New(app.Name, keyring.BackendTest, ks.Path(), os.Stdin, encConf.Codec)
 	if err != nil {

@@ -29,10 +29,12 @@ import (
 
 var ErrEmptySquare = errors.New("share: importing empty data")
 
-// writingSession contains the components needed to write an EDS to a CARv1 file with our custom node order.
+// writingSession contains the components needed to write an EDS to a CARv1 file with our custom
+// node order.
 type writingSession struct {
 	eds *rsmt2d.ExtendedDataSquare
-	// store is an in-memory blockstore, used to cache the inner nodes (proofs) while we walk the nmt tree.
+	// store is an in-memory blockstore, used to cache the inner nodes (proofs) while we walk the nmt
+	// tree.
 	store blockstore.Blockstore
 	w     io.Writer
 }
@@ -137,9 +139,11 @@ func (w *writingSession) writeQuadrants() error {
 	return nil
 }
 
-// writeProofs iterates over the in-memory blockstore's keys and writes all inner nodes to the CARv1 file.
+// writeProofs iterates over the in-memory blockstore's keys and writes all inner nodes to the
+// CARv1 file.
 func (w *writingSession) writeProofs(ctx context.Context) error {
-	// we only stored proofs to the store, so we can just iterate over them here without getting any leaves
+	// we only stored proofs to the store, so we can just iterate over them here without getting any
+	// leaves
 	proofs, err := w.store.AllKeysChan(ctx)
 	if err != nil {
 		return fmt.Errorf("getting all keys from the blockstore: %w", err)
@@ -161,8 +165,8 @@ func (w *writingSession) writeProofs(ctx context.Context) error {
 	return nil
 }
 
-// quadrantOrder reorders the shares in the EDS to quadrant row-by-row order, prepending the respective namespace
-// to the shares.
+// quadrantOrder reorders the shares in the EDS to quadrant row-by-row order, prepending the
+// respective namespace to the shares.
 // e.g. [ Q1 R1 | Q1 R2 | Q1 R3 | Q1 R4 | Q2 R1 | Q2 R2 .... ]
 func quadrantOrder(eds *rsmt2d.ExtendedDataSquare) [][]byte {
 	size := eds.Width() * eds.Width()
@@ -223,7 +227,8 @@ func rootsToCids(eds *rsmt2d.ExtendedDataSquare) ([]cid.Cid, error) {
 
 // ReadEDS reads the first EDS quadrant (1/4) from an io.Reader CAR file.
 // Only the first quadrant will be read, which represents the original data.
-// The returned EDS is guaranteed to be full and valid against the DataRoot, otherwise ReadEDS errors.
+// The returned EDS is guaranteed to be full and valid against the DataRoot, otherwise ReadEDS
+// errors.
 func ReadEDS(ctx context.Context, r io.Reader, root share.Root) (*rsmt2d.ExtendedDataSquare, error) {
 	carReader, err := car.NewCarReader(r)
 	if err != nil {

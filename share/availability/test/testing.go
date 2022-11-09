@@ -61,8 +61,8 @@ type TestDagNet struct {
 	nodes []*TestNode
 }
 
-// NewTestDAGNet creates a new testing swarm utility to spawn different nodes and test how they interact and/or exchange
-// data.
+// NewTestDAGNet creates a new testing swarm utility to spawn different nodes and test how they
+// interact and/or exchange data.
 func NewTestDAGNet(ctx context.Context, t *testing.T) *TestDagNet {
 	return &TestDagNet{
 		ctx: ctx,
@@ -71,7 +71,8 @@ func NewTestDAGNet(ctx context.Context, t *testing.T) *TestDagNet {
 	}
 }
 
-// NewTestNodeWithBlockstore creates a new plain TestNode with the given blockstore that can serve and request data.
+// NewTestNodeWithBlockstore creates a new plain TestNode with the given blockstore that can serve
+// and request data.
 func (dn *TestDagNet) NewTestNodeWithBlockstore(dstore ds.Datastore, bstore blockstore.Blockstore) *TestNode {
 	hst, err := dn.net.GenPeer()
 	require.NoError(dn.T, err)
@@ -121,8 +122,8 @@ func (dn *TestDagNet) Connect(peerA, peerB peer.ID) {
 }
 
 // Disconnect disconnects two peers.
-// It does a hard disconnect, meaning that disconnected peers won't be able to reconnect on their own
-// but only with DagNet.Connect or TestDagNet.ConnectAll.
+// It does a hard disconnect, meaning that disconnected peers won't be able to reconnect on their
+// own but only with DagNet.Connect or TestDagNet.ConnectAll.
 func (dn *TestDagNet) Disconnect(peerA, peerB peer.ID) {
 	err := dn.net.UnlinkPeers(peerA, peerB)
 	require.NoError(dn.T, err)

@@ -32,8 +32,8 @@ func TestBridge_WithMockedCoreClient(t *testing.T) {
 	require.NoError(t, err)
 }
 
-// TestBridge_HasStubDaser verifies that a bridge node implements a stub daser that returns an error and empty
-// das.SamplingStats
+// TestBridge_HasStubDaser verifies that a bridge node implements a stub daser that returns an
+// error and empty das.SamplingStats
 func TestBridge_HasStubDaser(t *testing.T) {
 	repo := MockStore(t, DefaultConfig(node.Bridge))
 

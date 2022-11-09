@@ -15,7 +15,8 @@ var (
 )
 
 const (
-	// MaxSquareSize is currently the maximum size supported for unerasured data in rsmt2d.ExtendedDataSquare.
+	// MaxSquareSize is currently the maximum size supported for unerasured data in
+	// rsmt2d.ExtendedDataSquare.
 	MaxSquareSize = appconsts.MaxSquareSize
 	// NamespaceSize is a system-wide size for NMT namespaces.
 	NamespaceSize = appconsts.NamespaceSize
@@ -24,8 +25,9 @@ const (
 )
 
 // Share contains the raw share data without the corresponding namespace.
-// NOTE: Alias for the byte is chosen to keep maximal compatibility, especially with rsmt2d. Ideally, we should define
-// reusable type elsewhere and make everyone(Core, rsmt2d, ipld) to rely on it.
+// NOTE: Alias for the byte is chosen to keep maximal compatibility, especially with rsmt2d.
+// Ideally, we should define reusable type elsewhere and make everyone(Core, rsmt2d, ipld) to rely
+// on it.
 type Share = []byte
 
 // ID gets the namespace ID from the share.

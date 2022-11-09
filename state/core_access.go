@@ -184,7 +184,8 @@ func (ca *CoreAccessor) BalanceForAddress(ctx context.Context, addr Address) (*B
 	// construct an ABCI query for the height at head-1 because
 	// the AppHash contained in the head is actually the state root
 	// after applying the transactions contained in the previous block.
-	// TODO @renaynay: once https://github.com/cosmos/cosmos-sdk/pull/12674 is merged, use this method instead
+	// TODO @renaynay: once https://github.com/cosmos/cosmos-sdk/pull/12674 is merged, use this method
+	// instead
 	prefixedAccountKey := append(banktypes.CreateAccountBalancesPrefix(addr.Bytes()), []byte(app.BondDenom)...)
 	abciReq := abci.RequestQuery{
 		// TODO @renayay: once https://github.com/cosmos/cosmos-sdk/pull/12674 is merged, use const instead

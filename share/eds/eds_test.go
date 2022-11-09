@@ -114,7 +114,8 @@ func TestWriteEDSInQuadrantOrder(t *testing.T) {
 	}
 }
 
-// TestInnerNodeBatchSize verifies that the number of unique inner nodes is equal to ipld.BatchSize - shareCount.
+// TestInnerNodeBatchSize verifies that the number of unique inner nodes is equal to ipld.BatchSize
+// - shareCount.
 func TestInnerNodeBatchSize(t *testing.T) {
 	tests := []struct {
 		name      string
@@ -177,8 +178,9 @@ func TestReadEDSContentIntegrityMismatch(t *testing.T) {
 	require.ErrorContains(t, err, "share: content integrity mismatch: imported root")
 }
 
-// BenchmarkReadWriteEDS benchmarks the time it takes to write and read an EDS from disk. The benchmark is run with a
-// 4x4 ODS to a 64x64 ODS - a higher value can be used, but it will run for much longer.
+// BenchmarkReadWriteEDS benchmarks the time it takes to write and read an EDS from disk. The
+// benchmark is run with a 4x4 ODS to a 64x64 ODS - a higher value can be used, but it will run for
+// much longer.
 func BenchmarkReadWriteEDS(b *testing.B) {
 	ctx, cancel := context.WithCancel(context.Background())
 	b.Cleanup(cancel)

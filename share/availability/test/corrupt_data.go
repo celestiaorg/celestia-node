@@ -15,7 +15,8 @@ import (
 
 var _ blockstore.Blockstore = (*FraudulentBlockstore)(nil)
 
-// CorruptBlock is a block where the cid doesn't match the data. It fulfills the blocks.Block interface.
+// CorruptBlock is a block where the cid doesn't match the data. It fulfills the blocks.Block
+// interface.
 type CorruptBlock struct {
 	cid  cid.Cid
 	data []byte
@@ -46,8 +47,9 @@ func NewCorruptBlock(data []byte, fakeCID cid.Cid) *CorruptBlock {
 	}
 }
 
-// FraudulentBlockstore is a mock blockstore.Blockstore that saves both corrupted and original data for every block it
-// receives. If FraudulentBlockstore.Attacking is true, it will serve the corrupted data on requests.
+// FraudulentBlockstore is a mock blockstore.Blockstore that saves both corrupted and original data
+// for every block it receives. If FraudulentBlockstore.Attacking is true, it will serve the
+// corrupted data on requests.
 type FraudulentBlockstore struct {
 	ds.Datastore
 	Attacking bool
@@ -85,7 +87,8 @@ func (fb FraudulentBlockstore) Put(ctx context.Context, block blocks.Block) erro
 		return err
 	}
 
-	// create data that doesn't match the CID with arbitrary lengths between 0 and len(block.RawData())*2
+	// create data that doesn't match the CID with arbitrary lengths between 0 and
+	// len(block.RawData())*2
 	corrupted := make([]byte, mrand.Int()%(len(block.RawData())*2))
 	mrand.Read(corrupted)
 	return fb.Datastore.Put(ctx, ds.NewKey("corrupt"+block.Cid().String()), corrupted)

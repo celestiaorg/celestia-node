@@ -125,8 +125,9 @@ func (s State) Duration() time.Duration {
 }
 
 // State reports state of the current (if in progress), or last sync (if finished).
-// Note that throughout the whole Syncer lifetime there might an initial sync and multiple catch-ups.
-// All of them are treated as different syncs with different state IDs and other information.
+// Note that throughout the whole Syncer lifetime there might an initial sync and multiple
+// catch-ups. All of them are treated as different syncs with different state IDs and other
+// information.
 func (s *Syncer) State() State {
 	s.stateLk.RLock()
 	state := s.state
@@ -227,7 +228,8 @@ func (s *Syncer) doSync(ctx context.Context, fromHead, toHead *header.ExtendedHe
 	return err
 }
 
-// processHeaders gets and stores headers starting at the given 'from' height up to 'to' height - [from:to]
+// processHeaders gets and stores headers starting at the given 'from' height up to 'to' height -
+// [from:to]
 func (s *Syncer) processHeaders(ctx context.Context, from, to uint64) (int, error) {
 	headers, err := s.findHeaders(ctx, from, to)
 	if err != nil {
@@ -237,14 +239,16 @@ func (s *Syncer) processHeaders(ctx context.Context, from, to uint64) (int, erro
 	return s.store.Append(ctx, headers...)
 }
 
-// TODO(@Wondertan): Number of headers that can be requested at once. Either make this configurable or,
+// TODO(@Wondertan): Number of headers that can be requested at once. Either make this configurable
+// or,
 //
 //	find a proper rationale for constant.
 //
 // TODO(@Wondertan): Make configurable
 var requestSize uint64 = 512
 
-// findHeaders gets headers from either remote peers or from local cache of headers received by PubSub - [from:to]
+// findHeaders gets headers from either remote peers or from local cache of headers received by
+// PubSub - [from:to]
 func (s *Syncer) findHeaders(ctx context.Context, from, to uint64) ([]*header.ExtendedHeader, error) {
 	amount := to - from + 1 // + 1 to include 'to' height as well
 	if amount > requestSize {

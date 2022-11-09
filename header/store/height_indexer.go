@@ -10,8 +10,9 @@ import (
 	"github.com/celestiaorg/celestia-node/header"
 )
 
-// TODO(@Wondertan): There should be a more clever way to index heights, than just storing HeightToHash pair...
-// heightIndexer simply stores and cashes mappings between header Height and Hash.
+// TODO(@Wondertan): There should be a more clever way to index heights, than just storing
+// HeightToHash pair... heightIndexer simply stores and cashes mappings between header Height and
+// Hash.
 type heightIndexer struct {
 	ds    datastore.Batching
 	cache *lru.ARCCache

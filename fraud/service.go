@@ -18,7 +18,8 @@ import (
 	"go.opentelemetry.io/otel/trace"
 )
 
-// fraudRequests is the amount of external requests that will be tried to get fraud proofs from other peers.
+// fraudRequests is the amount of external requests that will be tried to get fraud proofs from
+// other peers.
 const fraudRequests = 5
 
 // ProofService is responsible for validating and propagating Fraud Proofs.
@@ -77,7 +78,8 @@ func (f *ProofService) registerProofTopics(proofTypes ...ProofType) error {
 	return nil
 }
 
-// Start joins fraud proofs topics, sets the stream handler for fraudProtocolID and starts syncing if syncer is enabled.
+// Start joins fraud proofs topics, sets the stream handler for fraudProtocolID and starts syncing
+// if syncer is enabled.
 func (f *ProofService) Start(context.Context) error {
 	f.ctx, f.cancel = context.WithCancel(context.Background())
 	if err := f.registerProofTopics(registeredProofTypes()...); err != nil {
