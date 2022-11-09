@@ -2,6 +2,7 @@ package rpc
 
 import (
 	"context"
+	"net"
 	"net/http"
 	"sync/atomic"
 	"time"
@@ -13,16 +14,18 @@ import (
 var log = logging.Logger("rpc")
 
 type Server struct {
-	http    *http.Server
-	rpc     *jsonrpc.RPCServer
+	srv      *http.Server
+	rpc      *jsonrpc.RPCServer
+	listener net.Listener
+
 	started atomic.Bool
 }
 
-func NewServer(address string, port string) *Server {
+func NewServer(address, port string) *Server {
 	rpc := jsonrpc.NewServer()
 	return &Server{
 		rpc: rpc,
-		http: &http.Server{
+		srv: &http.Server{
 			Addr:    address + ":" + port,
 			Handler: rpc,
 			// the amount of time allowed to read request headers. set to the default 2 seconds
@@ -44,9 +47,14 @@ func (s *Server) Start(context.Context) error {
 		log.Warn("cannot start server: already started")
 		return nil
 	}
+	listener, err := net.Listen("tcp", s.srv.Addr)
+	if err != nil {
+		return err
+	}
+	s.listener = listener
+	log.Infow("server started", "listening on", s.srv.Addr)
 	//nolint:errcheck
-	go s.http.ListenAndServe()
-	log.Infow("server started", "listening on", s.http.Addr)
+	go s.srv.Serve(listener)
 	return nil
 }
 
@@ -57,15 +65,19 @@ func (s *Server) Stop(ctx context.Context) error {
 		log.Warn("cannot stop server: already stopped")
 		return nil
 	}
-	err := s.http.Shutdown(ctx)
+	err := s.srv.Shutdown(ctx)
 	if err != nil {
 		return err
 	}
+	s.listener = nil
 	log.Info("server stopped")
 	return nil
 }
 
 // ListenAddr returns the listen address of the server.
 func (s *Server) ListenAddr() string {
-	return s.http.Addr
+	if s.listener == nil {
+		return ""
+	}
+	return s.listener.Addr().String()
 }

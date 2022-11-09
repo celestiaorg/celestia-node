@@ -15,11 +15,12 @@ type Server struct {
 	srv      *http.Server
 	srvMux   *mux.Router // http request multiplexer
 	listener net.Listener
-	started  atomic.Bool
+
+	started atomic.Bool
 }
 
 // NewServer returns a new gateway Server.
-func NewServer(address string, port string) *Server {
+func NewServer(address, port string) *Server {
 	srvMux := mux.NewRouter()
 	srvMux.Use(setContentType)
 
@@ -42,13 +43,12 @@ func (s *Server) Start(context.Context) error {
 		log.Warn("cannot start server: already started")
 		return nil
 	}
-
 	listener, err := net.Listen("tcp", s.srv.Addr)
 	if err != nil {
 		return err
 	}
 	s.listener = listener
-	log.Infow("server started", "listening on", listener.Addr().String())
+	log.Infow("server started", "listening on", s.srv.Addr)
 	//nolint:errcheck
 	go s.srv.Serve(listener)
 	return nil
@@ -65,6 +65,7 @@ func (s *Server) Stop(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+	s.listener = nil
 	log.Info("server stopped")
 	return nil
 }
@@ -88,5 +89,8 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 // ListenAddr returns the listen address of the server.
 func (s *Server) ListenAddr() string {
+	if s.listener == nil {
+		return ""
+	}
 	return s.listener.Addr().String()
 }

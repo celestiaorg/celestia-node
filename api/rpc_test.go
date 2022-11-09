@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"reflect"
 	"testing"
+	"time"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/golang/mock/gomock"
@@ -28,8 +29,20 @@ func TestRPCCallsUnderlyingNode(t *testing.T) {
 	t.Cleanup(cancel)
 	nd, server := setupNodeWithModifiedRPC(t)
 	url := nd.RPCServer.ListenAddr()
-	client, err := client.NewClient(context.Background(), "http://"+url)
-	t.Cleanup(client.Close)
+	// we need to run this a few times to prevent the race where the server is not yet started
+	var (
+		rpcClient *client.Client
+		err       error
+	)
+	for i := 0; i < 3; i++ {
+		time.Sleep(time.Second * 1)
+		rpcClient, err = client.NewClient(ctx, "http://"+url)
+		if err == nil {
+			t.Cleanup(rpcClient.Close)
+			break
+		}
+	}
+	require.NotNil(t, rpcClient)
 	require.NoError(t, err)
 
 	expectedBalance := &state.Balance{
@@ -39,7 +52,7 @@ func TestRPCCallsUnderlyingNode(t *testing.T) {
 
 	server.State.EXPECT().Balance(gomock.Any()).Return(expectedBalance, nil).Times(1)
 
-	balance, err := client.State.Balance(ctx)
+	balance, err := rpcClient.State.Balance(ctx)
 	require.NoError(t, err)
 	require.Equal(t, expectedBalance, balance)
 }
@@ -122,14 +135,16 @@ func setupNodeWithModifiedRPC(t *testing.T) (*nodebuilder.Node, *mockAPI) {
 		dasMock.NewMockModule(ctrl),
 	}
 
-	overrideRPCHandler := fx.Invoke(func(srv *rpc.Server) {
+	// given the behavior of fx.Invoke, this invoke will be called last as it is added at the root level module. For
+	// further information, check the documentation on fx.Invoke.
+	invokeRPC := fx.Invoke(func(srv *rpc.Server) {
 		srv.RegisterService("state", mockAPI.State)
 		srv.RegisterService("share", mockAPI.Share)
 		srv.RegisterService("fraud", mockAPI.Fraud)
 		srv.RegisterService("header", mockAPI.Header)
 		srv.RegisterService("das", mockAPI.Das)
 	})
-	nd := nodebuilder.TestNode(t, node.Full, overrideRPCHandler)
+	nd := nodebuilder.TestNode(t, node.Full, invokeRPC)
 	// start node
 	err := nd.Start(ctx)
 	require.NoError(t, err)
