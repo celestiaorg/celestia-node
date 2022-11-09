@@ -158,19 +158,22 @@ func TestGetSharesByNamespace(t *testing.T) {
 
 			// change rawData to contain several shares with same nID
 			tt.rawData[(len(tt.rawData)/2)+1] = expected
-
 			// put raw data in BlockService
 			eds, err := AddShares(ctx, tt.rawData, bServ)
 			require.NoError(t, err)
 
+			var shares []Share
 			for _, row := range eds.RowRoots() {
 				rcid := ipld.MustCidFromNamespacedSha256(row)
-				shares, err := GetSharesByNamespace(ctx, bServ, rcid, nID, len(eds.RowRoots()))
+				rowShares, err := GetSharesByNamespace(ctx, bServ, rcid, nID, len(eds.RowRoots()))
 				require.NoError(t, err)
 
-				for _, share := range shares {
-					assert.Equal(t, expected, share)
-				}
+				shares = append(shares, rowShares...)
+			}
+
+			assert.Equal(t, 2, len(shares))
+			for _, share := range shares {
+				assert.Equal(t, expected, share)
 			}
 		})
 	}
