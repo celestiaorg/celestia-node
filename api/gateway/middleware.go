@@ -1,17 +1,24 @@
 package gateway
 
 import (
+	"context"
 	"errors"
 	"net/http"
+	"time"
 
 	"github.com/gorilla/mux"
 
 	"github.com/celestiaorg/celestia-node/nodebuilder/state"
 )
 
-func (h *Handler) RegisterMiddleware(rpc *Server) {
-	rpc.RegisterMiddleware(setContentType)
-	rpc.RegisterMiddleware(checkPostDisabled(h.state))
+const timeout = time.Minute
+
+func (h *Handler) RegisterMiddleware(srv *Server) {
+	srv.RegisterMiddleware(
+		setContentType,
+		checkPostDisabled(h.state),
+		wrapRequestContext,
+	)
 }
 
 func setContentType(next http.Handler) http.Handler {
@@ -33,4 +40,14 @@ func checkPostDisabled(state state.Module) mux.MiddlewareFunc {
 			next.ServeHTTP(w, r)
 		})
 	}
+}
+
+// wrapRequestContext ensures we implement a deadline on serving requests
+// via the gateway server-side to prevent context leaks.
+func wrapRequestContext(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx, cancel := context.WithTimeout(r.Context(), timeout)
+		defer cancel()
+		next.ServeHTTP(w, r.WithContext(ctx))
+	})
 }

@@ -71,9 +71,11 @@ func (s *Server) Stop(ctx context.Context) error {
 }
 
 // RegisterMiddleware allows to register a custom middleware that will be called before http.Request will reach handler.
-func (s *Server) RegisterMiddleware(m mux.MiddlewareFunc) {
-	// `router.Use` appends new middleware to existing
-	s.srvMux.Use(m)
+func (s *Server) RegisterMiddleware(middlewareFuncs ...mux.MiddlewareFunc) {
+	for _, m := range middlewareFuncs {
+		// `router.Use` appends new middleware to existing
+		s.srvMux.Use(m)
+	}
 }
 
 // RegisterHandlerFunc registers the given http.HandlerFunc on the Server's multiplexer
