@@ -220,7 +220,6 @@ func (ex *Exchange) request(
 	if err = stream.Close(); err != nil {
 		log.Errorw("closing stream", "err", err)
 	}
-	// ensure at least one header was retrieved
 	if len(headers) == 0 {
 		return nil, header.ErrNotFound
 	}
