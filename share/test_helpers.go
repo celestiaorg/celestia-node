@@ -13,7 +13,8 @@ import (
 
 // EqualEDS check whether two given EDSes are equal.
 // TODO(Wondertan): Move to rsmt2d
-// TODO(Wondertan): Propose use of int by default instead of uint for the sake convenience and Golang practices
+// TODO(Wondertan): Propose use of int by default instead of uint for the sake convenience and
+// Golang practices
 func EqualEDS(a *rsmt2d.ExtendedDataSquare, b *rsmt2d.ExtendedDataSquare) bool {
 	if a.Width() != b.Width() {
 		return false
@@ -31,8 +32,8 @@ func EqualEDS(a *rsmt2d.ExtendedDataSquare, b *rsmt2d.ExtendedDataSquare) bool {
 	return true
 }
 
-// RandEDS generates EDS filled with the random data with the given size for original square. It uses require.TestingT
-// to be able to take both a *testing.T and a *testing.B.
+// RandEDS generates EDS filled with the random data with the given size for original square. It
+// uses require.TestingT to be able to take both a *testing.T and a *testing.B.
 func RandEDS(t require.TestingT, size int) *rsmt2d.ExtendedDataSquare {
 	shares := RandShares(t, size*size)
 	// recompute the eds
@@ -41,8 +42,8 @@ func RandEDS(t require.TestingT, size int) *rsmt2d.ExtendedDataSquare {
 	return eds
 }
 
-// RandShares generate 'total' amount of shares filled with random data. It uses require.TestingT to be able to take
-// both a *testing.T and a *testing.B.
+// RandShares generate 'total' amount of shares filled with random data. It uses require.TestingT
+// to be able to take both a *testing.T and a *testing.B.
 func RandShares(t require.TestingT, total int) []Share {
 	if total&(total-1) != 0 {
 		t.Errorf("Namespace total must be power of 2: %d", total)

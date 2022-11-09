@@ -16,8 +16,8 @@ type Config struct {
 	// Only affects the node once on initial sync.
 	TrustedHash string
 	// TrustedPeers are the peers we trust to fetch headers from.
-	// Note: The trusted does *not* imply Headers are not verified, but trusted as reliable to fetch headers
-	// at any moment.
+	// Note: The trusted does *not* imply Headers are not verified, but trusted as reliable to fetch
+	// headers at any moment.
 	TrustedPeers []string
 }
 

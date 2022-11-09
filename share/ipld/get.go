@@ -170,10 +170,10 @@ func GetLeaves(ctx context.Context,
 	wg.Wait()
 }
 
-// GetLeavesByNamespace returns as many leaves from the given root with the given namespace.ID as it can retrieve.
-// If no shares are found, it returns both data and error as nil.
-// A non-nil error means that only partial data is returned, because at least one share retrieval failed
-// The following implementation is based on `GetShares`.
+// GetLeavesByNamespace returns as many leaves from the given root with the given namespace.ID as
+// it can retrieve. If no shares are found, it returns both data and error as nil.
+// A non-nil error means that only partial data is returned, because at least one share retrieval
+// failed The following implementation is based on `GetShares`.
 func GetLeavesByNamespace(
 	ctx context.Context,
 	bGetter blockservice.BlockGetter,
@@ -367,7 +367,8 @@ type fetchedBounds struct {
 func (b *fetchedBounds) update(index int64) {
 	lowest := atomic.LoadInt64(&b.lowest)
 	// try to write index to the lower bound if appropriate, and retry until the atomic op is successful
-	// CAS ensures that we don't overwrite if the bound has been updated in another goroutine after the comparison here
+	// CAS ensures that we don't overwrite if the bound has been updated in another goroutine after the
+	// comparison here
 	for index < lowest && !atomic.CompareAndSwapInt64(&b.lowest, lowest, index) {
 		lowest = atomic.LoadInt64(&b.lowest)
 	}

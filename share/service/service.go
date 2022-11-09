@@ -20,8 +20,8 @@ type ShareService struct {
 	share.Availability
 	rtrv  *eds.Retriever
 	bServ blockservice.BlockService
-	// session is blockservice sub-session that applies optimization for fetching/loading related nodes, like shares
-	// prefer session over blockservice for fetching nodes.
+	// session is blockservice sub-session that applies optimization for fetching/loading related
+	// nodes, like shares prefer session over blockservice for fetching nodes.
 	session blockservice.BlockGetter
 	cancel  context.CancelFunc
 }
@@ -40,8 +40,8 @@ func (s *ShareService) Start(context.Context) error {
 		return fmt.Errorf("share: service already started")
 	}
 
-	// NOTE: The ctx given as param is used to control Start flow and only needed when Start is blocking,
-	// but this one is not.
+	// NOTE: The ctx given as param is used to control Start flow and only needed when Start is
+	// blocking, but this one is not.
 	//
 	// The newer context here is created to control lifecycle of the session and peer discovery.
 	ctx, cancel := context.WithCancel(context.Background())
@@ -91,7 +91,8 @@ func (s *ShareService) GetShares(ctx context.Context, root *share.Root) ([][]sha
 	return shares, nil
 }
 
-// GetSharesByNamespace iterates over a square's row roots and accumulates the found shares in the given namespace.ID.
+// GetSharesByNamespace iterates over a square's row roots and accumulates the found shares in the
+// given namespace.ID.
 func (s *ShareService) GetSharesByNamespace(
 	ctx context.Context,
 	root *share.Root,
@@ -127,9 +128,9 @@ func (s *ShareService) GetSharesByNamespace(
 	}
 
 	// we don't know the amount of shares in the namespace, so we cannot preallocate properly
-	// TODO(@Wondertan): Consider improving encoding schema for data in the shares that will also include metadata
-	// 	with the amount of shares. If we are talking about plenty of data here, proper preallocation would make a
-	// 	difference
+	// TODO(@Wondertan): Consider improving encoding schema for data in the shares that will also
+	// include metadata 	with the amount of shares. If we are talking about plenty of data here, proper
+	// preallocation would make a 	difference
 	var out []share.Share
 	for i := 0; i < len(rowRootCIDs); i++ {
 		out = append(out, shares[i]...)

@@ -19,8 +19,8 @@ func Register(p Proof) {
 		panic(fmt.Sprintf("fraud: unmarshaler for %s proof is registered", p.Type()))
 	}
 	defaultUnmarshalers[p.Type()] = func(data []byte) (Proof, error) {
-		// the underlying type of `p` is a pointer to a struct and assigning `p` to a new variable is not the
-		// case, because it could lead to data races.
+		// the underlying type of `p` is a pointer to a struct and assigning `p` to a new variable is not
+		// the case, because it could lead to data races.
 		// So, there is no easier way to create a hard copy of Proof other than using a reflection.
 		proof := reflect.New(reflect.ValueOf(p).Elem().Type()).Interface().(Proof)
 		err := proof.UnmarshalBinary(data)

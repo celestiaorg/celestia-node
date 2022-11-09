@@ -230,7 +230,8 @@ func (ex *Exchange) request(
 // bestHead chooses ExtendedHeader that matches the conditions:
 // * should have max height among received;
 // * should be received at least from 2 peers;
-// If neither condition is met, then latest ExtendedHeader will be returned (header of the highest height).
+// If neither condition is met, then latest ExtendedHeader will be returned (header of the highest
+// height).
 func bestHead(result []*header.ExtendedHeader) (*header.ExtendedHeader, error) {
 	if len(result) == 0 {
 		return nil, header.ErrNotFound

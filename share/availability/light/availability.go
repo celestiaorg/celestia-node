@@ -54,8 +54,8 @@ func (la *ShareAvailability) Stop(context.Context) error {
 	return nil
 }
 
-// SharesAvailable randomly samples DefaultSampleAmount amount of Shares committed to the given Root.
-// This way SharesAvailable subjectively verifies that Shares are available.
+// SharesAvailable randomly samples DefaultSampleAmount amount of Shares committed to the given
+// Root. This way SharesAvailable subjectively verifies that Shares are available.
 func (la *ShareAvailability) SharesAvailable(ctx context.Context, dah *share.Root) error {
 	log.Debugw("Validate availability", "root", dah.Hash())
 	// We assume the caller of this method has already performed basic validation on the

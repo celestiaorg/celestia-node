@@ -42,8 +42,8 @@ func newBackoffConnector(h host.Host, factory backoff.BackoffFactory) *backoffCo
 
 // Connect puts peer to the backoffCache and tries to establish a connection with it.
 func (b *backoffConnector) Connect(ctx context.Context, p peer.AddrInfo) error {
-	// we should lock the mutex before calling connectionData and not inside because otherwise it could be modified
-	// from another goroutine as it returns a pointer
+	// we should lock the mutex before calling connectionData and not inside because otherwise it could
+	// be modified from another goroutine as it returns a pointer
 	b.cacheLk.Lock()
 	cache := b.connectionData(p.ID)
 	if time.Now().Before(cache.nexttry) {
@@ -67,8 +67,9 @@ func (b *backoffConnector) connectionData(p peer.ID) *backoffData {
 	return cache
 }
 
-// RestartBackoff resets delay time between attempts and adds a delay for the next connection attempt to remote peer.
-// It will mostly be called when host receives a notification that remote peer was disconnected.
+// RestartBackoff resets delay time between attempts and adds a delay for the next connection
+// attempt to remote peer. It will mostly be called when host receives a notification that remote
+// peer was disconnected.
 func (b *backoffConnector) RestartBackoff(p peer.ID) {
 	b.cacheLk.Lock()
 	defer b.cacheLk.Unlock()

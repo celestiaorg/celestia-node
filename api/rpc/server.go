@@ -34,8 +34,8 @@ func NewServer(address, port string) *Server {
 	}
 }
 
-// RegisterService registers a service onto the RPC server. All methods on the service will then be exposed over the
-// RPC.
+// RegisterService registers a service onto the RPC server. All methods on the service will then be
+// exposed over the RPC.
 func (s *Server) RegisterService(namespace string, service interface{}) {
 	s.rpc.Register(namespace, service)
 }

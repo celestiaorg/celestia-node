@@ -28,7 +28,8 @@ type Parameters struct {
 	// ConcurrencyLimit defines the maximum amount of sampling workers running in parallel.
 	ConcurrencyLimit int
 
-	// BackgroundStoreInterval is the period of time for background checkpointStore to perform a checkpoint backup.
+	// BackgroundStoreInterval is the period of time for background checkpointStore to perform a
+	// checkpoint backup.
 	BackgroundStoreInterval time.Duration
 
 	// PriorityQueueSize defines the size limit of the priority queue
@@ -40,7 +41,8 @@ type Parameters struct {
 
 // DefaultParameters returns the default configuration values for the daser parameters
 func DefaultParameters() Parameters {
-	// TODO(@derrandz): parameters needs performance testing on real network to define optimal values (#1261)
+	// TODO(@derrandz): parameters needs performance testing on real network to define optimal values
+	// (#1261)
 	return Parameters{
 		SamplingRange:           100,
 		ConcurrencyLimit:        16,
@@ -115,16 +117,17 @@ func WithConcurrencyLimit(concurrencyLimit int) Option {
 	}
 }
 
-// WithBackgroundStoreInterval is a functional option to configure the daser's `backgroundStoreInterval` parameter
-// Refer to WithSamplingRange documentation to see an example of how to use this
+// WithBackgroundStoreInterval is a functional option to configure the daser's
+// `backgroundStoreInterval` parameter Refer to WithSamplingRange documentation to see an example
+// of how to use this
 func WithBackgroundStoreInterval(backgroundStoreInterval time.Duration) Option {
 	return func(d *DASer) {
 		d.params.BackgroundStoreInterval = backgroundStoreInterval
 	}
 }
 
-// WithPriorityQueueSize is a functional option to configure the daser's `priorityQueuSize` parameter
-// Refer to WithSamplingRange documentation to see an example of how to use this
+// WithPriorityQueueSize is a functional option to configure the daser's `priorityQueuSize`
+// parameter Refer to WithSamplingRange documentation to see an example of how to use this
 func WithPriorityQueueSize(priorityQueueSize int) Option {
 	return func(d *DASer) {
 		d.params.PriorityQueueSize = priorityQueueSize

@@ -53,10 +53,10 @@ func NewRetriever(bServ blockservice.BlockService) *Retriever {
 
 // Retrieve retrieves all the data committed to DataAvailabilityHeader.
 //
-// If not available locally, it aims to request from the network only one quadrant (1/4) of the data square
-// and reconstructs the other three quadrants (3/4). If the requested quadrant is not available within
-// RetrieveQuadrantTimeout, it starts requesting another quadrant until either the data is
-// reconstructed, context is canceled or ErrByzantine is generated.
+// If not available locally, it aims to request from the network only one quadrant (1/4) of the
+// data square and reconstructs the other three quadrants (3/4). If the requested quadrant is not
+// available within RetrieveQuadrantTimeout, it starts requesting another quadrant until either the
+// data is reconstructed, context is canceled or ErrByzantine is generated.
 func (r *Retriever) Retrieve(ctx context.Context, dah *da.DataAvailabilityHeader) (*rsmt2d.ExtendedDataSquare, error) {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel() // cancels all the ongoing requests if reconstruction succeeds early
@@ -178,8 +178,8 @@ func (rs *retrievalSession) Reconstruct(ctx context.Context) (*rsmt2d.ExtendedDa
 
 	// TODO(@Wondertan): This is bad!
 	//  * We should not reimport the square multiple times
-	//  * We should set shares into imported square via SetShare(https://github.com/celestiaorg/rsmt2d/issues/83)
-	//  to accomplish the above point.
+	//  * We should set shares into imported square via
+	// SetShare(https://github.com/celestiaorg/rsmt2d/issues/83)  to accomplish the above point.
 	{
 		squareImported, err := rsmt2d.ImportExtendedDataSquare(rs.square, rs.codec, rs.treeFn)
 		if err != nil {

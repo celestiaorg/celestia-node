@@ -19,8 +19,8 @@ var log = logging.Logger("share/cache")
 var (
 	// DefaultWriteBatchSize defines the size of the batched header write.
 	// Headers are written in batches not to thrash the underlying Datastore with writes.
-	// TODO(@Wondertan, @renaynay): Those values must be configurable and proper defaults should be set for specific node
-	//  type. (#709)
+	// TODO(@Wondertan, @renaynay): Those values must be configurable and proper defaults should be set
+	// for specific node  type. (#709)
 	DefaultWriteBatchSize   = 2048
 	cacheAvailabilityPrefix = datastore.NewKey("sampling_result")
 

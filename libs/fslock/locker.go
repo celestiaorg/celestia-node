@@ -21,8 +21,8 @@ func Lock(path string) (*Locker, error) {
 }
 
 // Locker is a simple utility meant to create lock files.
-// This is to prevent multiple processes from managing the same working directory by purpose or accident.
-// NOTE: Windows is not supported.
+// This is to prevent multiple processes from managing the same working directory by purpose or
+// accident. NOTE: Windows is not supported.
 type Locker struct {
 	file *os.File
 	path string

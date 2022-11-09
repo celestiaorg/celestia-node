@@ -31,9 +31,9 @@ const Timeout = time.Second * 15
 
 var log = logging.Logger("node")
 
-// Node represents the core structure of a Celestia node. It keeps references to all Celestia-specific
-// components and services in one place and provides flexibility to run a Celestia node in different modes.
-// Currently supported modes:
+// Node represents the core structure of a Celestia node. It keeps references to all
+// Celestia-specific components and services in one place and provides flexibility to run a
+// Celestia node in different modes. Currently supported modes:
 // * Bridge
 // * Light
 // * Full
@@ -78,7 +78,8 @@ func New(tp node.Type, network p2p.Network, store Store, options ...fx.Option) (
 	return NewWithConfig(tp, network, store, cfg, options...)
 }
 
-// NewWithConfig assembles a new Node with the given type 'tp' over Store 'store' and a custom config.
+// NewWithConfig assembles a new Node with the given type 'tp' over Store 'store' and a custom
+// config.
 func NewWithConfig(tp node.Type, network p2p.Network, store Store, cfg *Config, options ...fx.Option) (*Node, error) {
 	opts := append([]fx.Option{ConstructModule(tp, network, cfg, store)}, options...)
 	return newNode(opts...)
@@ -125,8 +126,8 @@ func (n *Node) Run(ctx context.Context) error {
 }
 
 // Stop shuts down the Node, all its running Modules/Services and returns.
-// Canceling the given context earlier 'ctx' unblocks the Stop and aborts graceful shutdown forcing remaining
-// Modules/Services to close immediately.
+// Canceling the given context earlier 'ctx' unblocks the Stop and aborts graceful shutdown forcing
+// remaining Modules/Services to close immediately.
 func (n *Node) Stop(ctx context.Context) error {
 	ctx, cancel := context.WithTimeout(ctx, Timeout)
 	defer cancel()
@@ -143,8 +144,8 @@ func (n *Node) Stop(ctx context.Context) error {
 
 // newNode creates a new Node from given DI options.
 // DI options allow initializing the Node with a customized set of components and services.
-// NOTE: newNode is currently meant to be used privately to create various custom Node types e.g. Light, unless we
-// decide to give package users the ability to create custom node types themselves.
+// NOTE: newNode is currently meant to be used privately to create various custom Node types e.g.
+// Light, unless we decide to give package users the ability to create custom node types themselves.
 func newNode(opts ...fx.Option) (*Node, error) {
 	node := new(Node)
 	app := fx.New(

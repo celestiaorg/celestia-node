@@ -80,7 +80,8 @@ func (p *Subscriber) Broadcast(ctx context.Context, header *header.ExtendedHeade
 }
 
 // msgID computes an id for a pubsub message
-// TODO(@Wondertan): This cause additional allocations per each recvd message in the topic. Find a way to avoid those.
+// TODO(@Wondertan): This cause additional allocations per each recvd message in the topic. Find a
+// way to avoid those.
 func msgID(pmsg *pb.Message) string {
 	mID := func(data []byte) string {
 		hash := blake2b.Sum256(data)
@@ -95,13 +96,13 @@ func msgID(pmsg *pb.Message) string {
 	}
 
 	// IMPORTANT NOTE:
-	// Due to the nature of the Tendermint consensus, validators don't necessarily collect commit signatures from the
-	// entire validator set, but only the minimum required amount of them (>2/3 of voting power). In addition,
-	// signatures are collected asynchronously. Therefore, each validator may have a different set of signatures that
-	// pass the minimum required voting power threshold, causing nondeterminism in the header message gossiped over the
-	// network. Subsequently, this causes message duplicates as each Bridge Node, connected to a personal validator,
-	// sends the validator's own view of commits of effectively the same header.
-	//
+	// Due to the nature of the Tendermint consensus, validators don't necessarily collect commit
+	// signatures from the entire validator set, but only the minimum required amount of them (>2/3 of
+	// voting power). In addition, signatures are collected asynchronously. Therefore, each validator
+	// may have a different set of signatures that pass the minimum required voting power threshold,
+	// causing nondeterminism in the header message gossiped over the network. Subsequently, this
+	// causes message duplicates as each Bridge Node, connected to a personal validator, sends the
+	// validator's own view of commits of effectively the same header.
 	// To solve the problem above, we exclude nondeterministic value from message id calculation
 	h.Commit.Signatures = nil
 

@@ -31,8 +31,9 @@ type BadEncodingProof struct {
 	Axis rsmt2d.Axis
 }
 
-// CreateBadEncodingProof creates a new Bad Encoding Fraud Proof that should be propagated through network.
-// The fraud proof will contain shares that did not pass verification and their relevant Merkle proofs.
+// CreateBadEncodingProof creates a new Bad Encoding Fraud Proof that should be propagated through
+// network. The fraud proof will contain shares that did not pass verification and their relevant
+// Merkle proofs.
 func CreateBadEncodingProof(
 	hash []byte,
 	height uint64,

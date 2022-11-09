@@ -1,5 +1,5 @@
-// TODO(@Wondertan): Ideally, we should move that into subpackage, so this does not get included into binary of
-//  production code, but that does not matter at the moment.
+// TODO(@Wondertan): Ideally, we should move that into subpackage, so this does not get included
+// into binary of  production code, but that does not matter at the moment.
 
 package header
 

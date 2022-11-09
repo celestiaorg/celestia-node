@@ -14,8 +14,8 @@ import (
 
 var _ Module = (*daserStub)(nil)
 
-// daserStub is a stub implementation of the DASer that is used on bridge nodes, so that we can provide a friendlier
-// error when users try to access the daser over the API.
+// daserStub is a stub implementation of the DASer that is used on bridge nodes, so that we can
+// provide a friendlier error when users try to access the daser over the API.
 type daserStub struct{}
 
 func (d daserStub) SamplingStats(context.Context) (das.SamplingStats, error) {

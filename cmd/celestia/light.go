@@ -14,8 +14,8 @@ import (
 	"github.com/celestiaorg/celestia-node/nodebuilder/state"
 )
 
-// NOTE: We should always ensure that the added Flags below are parsed somewhere, like in the PersistentPreRun func on
-// parent command.
+// NOTE: We should always ensure that the added Flags below are parsed somewhere, like in the
+// PersistentPreRun func on parent command.
 
 func init() {
 	lightCmd.AddCommand(

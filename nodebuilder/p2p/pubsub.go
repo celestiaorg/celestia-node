@@ -21,8 +21,8 @@ func PubSub(cfg Config, params pubSubParams) (*pubsub.PubSub, error) {
 	//  * Hash-based MsgId function.
 	//  * Validate default peer scoring params for our use-case.
 	//  * Strict subscription filter
-	//  * For different network types(mainnet/testnet/devnet) we should have different network topic names.
-	//  * Hardcode positive score for bootstrap peers
+	//  * For different network types(mainnet/testnet/devnet) we should have different network topic
+	// names.  * Hardcode positive score for bootstrap peers
 	//  * Bootstrappers should only gossip and PX
 	//  * Peers should trust boostrappers, so peerscore for them should always be high.
 	opts := []pubsub.Option{

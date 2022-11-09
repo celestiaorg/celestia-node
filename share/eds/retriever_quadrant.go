@@ -100,7 +100,8 @@ func newQuadrants(dah *da.DataAvailabilityHeader) []*quadrant {
 //   - Goal to make formula generic for both rows and cols
 //   - While data square is flattened by rows only
 //
-// TODO(@Wondertan): This can be simplified by making rsmt2d working over 3D byte slice(not flattened)
+// TODO(@Wondertan): This can be simplified by making rsmt2d working over 3D byte slice(not
+// flattened)
 func (q *quadrant) index(rootIdx, cellIdx int) int {
 	size := len(q.roots)
 	// half square offsets, e.g. share is from Q3,

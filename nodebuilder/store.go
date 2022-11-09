@@ -46,8 +46,8 @@ type Store interface {
 
 // OpenStore creates new FS Store under the given 'path'.
 // To be opened the Store must be initialized first, otherwise ErrNotInited is thrown.
-// OpenStore takes a file Lock on directory, hence only one Store can be opened at a time under the given 'path',
-// otherwise ErrOpened is thrown.
+// OpenStore takes a file Lock on directory, hence only one Store can be opened at a time under the
+// given 'path', otherwise ErrOpened is thrown.
 func OpenStore(path string) (Store, error) {
 	path, err := storePath(path)
 	if err != nil {
@@ -139,8 +139,8 @@ func (f *fsStore) Datastore() (_ datastore.Batching, err error) {
 	opts.TableLoadingMode = options.MemoryMap
 	// Truncate set to true will truncate corrupted data on start if there is any.
 	// If we don't truncate, the node will refuse to start and will beg for recovering, etc.
-	// If we truncate, the node will start with any uncorrupted data and reliably sync again what was corrupted
-	// in most cases.
+	// If we truncate, the node will start with any uncorrupted data and reliably sync again what was
+	// corrupted in most cases.
 	opts.Truncate = true
 	// MaxTableSize defines in memory and on disk size of LSM tree
 	// Bigger values constantly takes more RAM
