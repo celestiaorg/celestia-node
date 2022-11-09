@@ -31,6 +31,7 @@ Steps:
 Note: 15 is not available because DASer will be stopped before reaching this height due to receiving a fraud proof.
 */
 func TestFraudProofBroadcasting(t *testing.T) {
+	// we increase the timeout for this test to decrease flakiness in CI
 	testTimeout := time.Millisecond * 200
 	sw := swamp.NewSwamp(t, swamp.WithBlockTime(testTimeout))
 
