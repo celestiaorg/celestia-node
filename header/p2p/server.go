@@ -163,7 +163,9 @@ func (serv *ExchangeServer) handleRequest(from, to uint64) ([]*header.ExtendedHe
 		return nil, header.ErrHeadersLimitExceeded
 	}
 	log.Debugw("server: handling headers request", "from", from, "to", to)
-	headersByRange, err := serv.store.GetRangeByHeight(serv.ctx, from, to)
+	ctx, cancel := context.WithTimeout(serv.ctx, time.Second*5)
+	defer cancel()
+	headersByRange, err := serv.store.GetRangeByHeight(ctx, from, to)
 	if err != nil {
 		log.Errorw("server: getting headers", "from", from, "to", to, "err", err)
 		return nil, err
