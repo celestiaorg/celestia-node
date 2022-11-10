@@ -3,6 +3,8 @@
 # separate terms of service, privacy policy, and support
 # documentation.
 name: Label issues
+uses: andymckay/labeler@1.0.4
+
 on:
   issues:
     types: [opened]
