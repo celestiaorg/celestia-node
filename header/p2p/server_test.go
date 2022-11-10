@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	"github.com/ipfs/go-datastore"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/celestiaorg/celestia-node/header/store"
@@ -14,10 +13,10 @@ import (
 func TestExchangeServer_handleRequestTimeout(t *testing.T) {
 	_, peer := createMocknet(t)
 	s, err := store.NewStore(datastore.NewMapDatastore())
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	server := NewExchangeServer(peer, s, "private")
 	err = server.Start(context.Background())
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	t.Cleanup(func() {
 		server.Stop(context.Background()) //nolint:errcheck
 	})
