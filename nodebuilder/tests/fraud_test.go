@@ -137,6 +137,10 @@ func TestFraudProofSyncing(t *testing.T) {
 	subsLN, err := ln.FraudServ.Subscribe(ctx, fraud.BadEncoding)
 	require.NoError(t, err)
 
+	// ensure that the full and light node are connected to preempt flakiness
+	err = ln.Host.Connect(ctx, *host.InfoFromHost(full.Host))
+	require.NoError(t, err)
+
 	// wait for BEFP to come through both subscriptions
 	for i := 0; i < 2; i++ {
 		select {
