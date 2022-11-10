@@ -1,0 +1,16 @@
+name: issue-automation
+on:
+  issues:
+    types: [opened]
+jobs:
+  automate-issues-labels:
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+    steps:
+      - name: Triage labeling
+        uses: andymckay/labeler@master
+        with:
+          add-labels: "needs:triage"
+          ignore-if-labeled: true
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
