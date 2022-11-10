@@ -153,13 +153,16 @@ func (p *BadEncodingProof) Validate(header *header.ExtendedHeader) error {
 	if err != nil {
 		return err
 	}
-	rebuiltExtendedShares, err := codec.Encode(rebuiltShares[0 : len(shares)/2])
+
+	squareWidth := uint64(len(header.DAH.RowsRoots) / 2)
+
+	rebuiltExtendedShares, err := codec.Encode(rebuiltShares[0:squareWidth])
 	if err != nil {
 		return err
 	}
-	rebuiltShares = append(rebuiltShares, rebuiltExtendedShares...)
+	copy(rebuiltShares[squareWidth:], rebuiltExtendedShares)
 
-	tree := wrapper.NewErasuredNamespacedMerkleTree(uint64(len(shares)/2), uint(p.Index))
+	tree := wrapper.NewErasuredNamespacedMerkleTree(squareWidth, uint(p.Index))
 	for _, share := range rebuiltShares {
 		tree.Push(share)
 	}
