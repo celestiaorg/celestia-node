@@ -42,7 +42,7 @@ jobs:
           username: ${{ github.repository_owner }}
           password: ${{ secrets.GITHUB_TOKEN }}
       - name: Build and Push amd64 Image
-        if: ${{ github.event_name != 'pull_request' }}
+        if: ${{ github.event_name == 'pull_request' }}
         uses: docker/build-push-action@v3
         with:
           platforms: linux/amd64
@@ -50,7 +50,7 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           file: docker/Dockerfile
       - name: Build and Push amd64+arm64 Images
-        if: ${{ github.event_name == 'pull_request' }}
+        if: ${{ github.event_name != 'pull_request' }}
         uses: docker/build-push-action@v3
         with:
           platforms: linux/arm64, linux/amd64
