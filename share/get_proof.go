@@ -11,7 +11,7 @@ import (
 	"github.com/celestiaorg/nmt/namespace"
 )
 
-// ShareWithProof contains data with corresponding Merkle Proof
+// SharesWithProofs contains data with corresponding Merkle Proof
 type SharesWithProofs struct {
 	// Share is a full data including namespace
 	Shares []Share
@@ -44,17 +44,8 @@ func GetSharesWithProofsByNamespace(
 		}
 	}
 
-	// pack proofs for nmt.Proof
-	rangeProofs := make([][]byte, 0, len(nodes.Proofs))
-	for i := len(nodes.Proofs) - 1; i >= 0; i-- {
-		if nodes.Proofs[i] != nil {
-			rangeProofs = append(rangeProofs, nodes.Proofs[i])
-		}
-
-	}
-
 	return &SharesWithProofs{
 		Shares: shares,
-		Proof:  nmt.NewInclusionProof(nodes.ProofStart, nodes.ProofEnd, rangeProofs, true),
+		Proof:  nmt.NewInclusionProof(nodes.ProofStart, nodes.ProofEnd, nodes.Proofs, true),
 	}, nil
 }
