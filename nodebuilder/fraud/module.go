@@ -19,13 +19,13 @@ func ConstructModule(tp node.Type) fx.Option {
 		return fx.Module(
 			"fraud",
 			baseComponent,
-			fx.Provide(NewModuleWithSyncer),
+			fx.Provide(newFraudService(true)),
 		)
 	case node.Full, node.Bridge:
 		return fx.Module(
 			"fraud",
 			baseComponent,
-			fx.Provide(NewModule),
+			fx.Provide(newFraudService(false)),
 		)
 	default:
 		panic("invalid node type")
