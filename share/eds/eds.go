@@ -85,7 +85,8 @@ func initializeWriter(ctx context.Context, eds *rsmt2d.ExtendedDataSquare, w io.
 	odsWidth := int(math.Sqrt(float64(shareCount)) / 2)
 	// (shareCount*2) - (odsWidth*4) is the amount of inner nodes visited
 	batchAdder := ipld.NewNmtNodeAdder(ctx, bs, format.MaxSizeBatchOption(innerNodeBatchSize(shareCount, odsWidth)))
-	// this adder ignores leaves, so that they are not added to the store we iterate through in writeProofs
+	// this adder ignores leaves, so that they are not added to the store we iterate through in
+	// writeProofs
 	eds, err := rsmt2d.ImportExtendedDataSquare(
 		shares,
 		share.DefaultRSMT2DCodec(),
