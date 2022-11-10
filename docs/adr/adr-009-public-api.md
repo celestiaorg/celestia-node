@@ -189,19 +189,10 @@ SyncHead(ctx context.Context) (*header.ExtendedHeader, error)
    
     // ResourceState returns the state of the resource manager.
     ResourceState() rcmgr.ResourceManagerStat
-    // ResourceLimit returns the limit of the resource scope. 
-    ResourceLimit() rcmgr.Limit
-    // ResourceSetLimit sets the limit of the resource scope.
-    ResourceSetLimit(rcmgr.Limit)
    
     // PubSubPeers returns the peer IDs of the peers joined on
     // the given topic.
     PubSubPeers(topic string) ([]peer.ID, error)
-
-    BitSwapStats // TODO ?
-    BitSwapLedger // TODO ? 
-    
-    DHTFindPeer // TODO ?
   }
 ```
 
@@ -214,15 +205,8 @@ SyncHead(ctx context.Context) (*header.ExtendedHeader, error)
     // Version returns information about the current binary build.
     Version() string
    
-    // LogLevelList lists all the log levels per component.
-    LogLevelList(ctx context.Context) (map[string]string, error)
     // LogLevelSet sets the given component log level to the given level.
     LogLevelSet(ctx context.Context, name, level string) error
-   
-    // Start starts the node.
-    Start(ctx context.Context) error
-    // Stop stops the node.
-    Stop(ctx context.Context) error
   }
 ```
 #### DAS
