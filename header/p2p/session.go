@@ -30,7 +30,7 @@ type session struct {
 	cancel     context.CancelFunc
 	host       host.Host
 	protocolID protocol.ID
-	// peerTracker contains discovered peer with records that describes peer's activity.
+	// peerTracker contains discovered peers with records that describes their activity.
 	queue *peerQueue
 
 	reqCh chan *p2p_pb.ExtendedHeaderRequest

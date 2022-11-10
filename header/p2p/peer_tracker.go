@@ -13,8 +13,8 @@ import (
 type peerTracker struct {
 	sync.RWMutex
 	connectedPeers map[peer.ID]*peerStat
-	// we should store peer to cache when it will be disconnected,
-	// so we can guarantee that peerQueue will return only active peer
+	// we cache the peer once they disconnect,
+	// so we can guarantee that peerQueue will only contain active peers
 	disconnectedPeers map[peer.ID]*peerStat
 
 	host host.Host

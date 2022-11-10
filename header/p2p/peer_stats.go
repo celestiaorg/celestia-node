@@ -8,19 +8,19 @@ import (
 	"github.com/libp2p/go-libp2p-core/peer"
 )
 
-// peerStat represents peer's average statistic.
+// peerStat represents a peer's average statistics.
 type peerStat struct {
 	sync.RWMutex
 	peerID peer.ID
-	// score is average speed per 1 request
+	// score is the average speed per single request
 	peerScore float32
 }
 
 // updateStats recalculates peer.score by averaging the last score
-// updateStats takes total amount of bytes that were requested from the peer
-// and total request duration(in milliseconds). The final score is calculated
-// by dividing amount on time, so the result score will represent how many bytes
-// were retrieved during 1 millisecond. Then this value will be averaged relative to the
+// updateStats takes the total amount of bytes that were requested from the peer
+// and the total request duration(in milliseconds). The final score is calculated
+// by dividing the amount by time, so the result score will represent how many bytes
+// were retrieved in 1 millisecond. This value will then be averaged relative to the
 // previous peerScore.
 func (p *peerStat) updateStats(amount uint64, time uint64) {
 	p.Lock()
@@ -36,7 +36,7 @@ func (p *peerStat) updateStats(amount uint64, time uint64) {
 	p.peerScore = (p.peerScore + averageSpeed) / 2
 }
 
-// score peer latest score in the queue
+// score reads a peer's latest score from the queue
 func (p *peerStat) score() float32 {
 	p.RLock()
 	defer p.RUnlock()
