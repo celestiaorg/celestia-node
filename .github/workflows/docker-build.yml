@@ -1,6 +1,7 @@
-name: "main-docker-build"
+name: "docker-build"
 
 on:
+  pull_request:
   push:
     branches:
       - "main"
@@ -9,7 +10,6 @@ on:
   workflow_dispatch:
 
 env:
-  GO_VERSION: 1.19
   IMAGE_NAME: ${{ github.repository }}
   REGISTRY: ghcr.io
 
@@ -41,7 +41,16 @@ jobs:
           registry: ghcr.io
           username: ${{ github.repository_owner }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Build and push
+      - name: Build and Push amd64 Image
+        if: ${{ github.event_name != 'pull_request' }}
+        uses: docker/build-push-action@v3
+        with:
+          platforms: linux/amd64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          file: docker/Dockerfile
+      - name: Build and Push amd64+arm64 Images
+        if: ${{ github.event_name == 'pull_request' }}
         uses: docker/build-push-action@v3
         with:
           platforms: linux/arm64, linux/amd64
