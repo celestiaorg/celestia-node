@@ -59,22 +59,19 @@ type Proof struct {
 	fraud.Proof
 }
 
-type fraudProof struct {
+type fraudProofJSON struct {
 	ProofType fraud.ProofType `json:"proof_type"`
 	Data      []byte          `json:"data"`
 }
 
 func (f *Proof) UnmarshalJSON(data []byte) error {
-	var fp fraudProof
+	var fp fraudProofJSON
 	err := json.Unmarshal(data, &fp)
 	if err != nil {
 		return err
 	}
 	f.Proof, err = fraud.Unmarshal(fp.ProofType, fp.Data)
-	if err != nil {
-		return err
-	}
-	return nil
+	return err
 }
 
 func (f *Proof) MarshalJSON() ([]byte, error) {
@@ -82,7 +79,7 @@ func (f *Proof) MarshalJSON() ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	fraudProof := &fraudProof{
+	fraudProof := &fraudProofJSON{
 		ProofType: f.Type(),
 		Data:      marshaledProof,
 	}
