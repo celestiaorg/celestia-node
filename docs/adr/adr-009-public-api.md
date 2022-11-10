@@ -223,25 +223,8 @@ SyncHead(ctx context.Context) (*header.ExtendedHeader, error)
     Start(ctx context.Context) error
     // Stop stops the node.
     Stop(ctx context.Context) error
-
-    // NodeModule provides AuthModule 
-    AuthModule
   }
 ```
-
-#### AuthModule
-
-```go
-type AuthModule interface {
-    // SetModuleAuth makes the given module endpoints accessible only 
-    // with authentication.
-    SetModuleAuth(ctx context.Context, module string) error 
-    // UnsetModuleAuth makes the given module endpoints accessible without
-    // authentication.
-    UnsetModuleAuth(ctx context.Context, module string) error
-}
-```
-
 #### DAS
 
 ```go
