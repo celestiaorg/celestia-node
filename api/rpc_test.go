@@ -73,9 +73,7 @@ func TestModulesImplementFullAPI(t *testing.T) {
 	}
 }
 
-// TODO(@distractedm1nd): Blocked by issues #1208 and #1207
 func TestAllReturnValuesAreMarshalable(t *testing.T) {
-	t.Skip()
 	ra := reflect.TypeOf(new(client.API)).Elem()
 	for i := 0; i < ra.NumMethod(); i++ {
 		m := ra.Method(i)
@@ -85,13 +83,22 @@ func TestAllReturnValuesAreMarshalable(t *testing.T) {
 	}
 }
 
-func implementsMarshaler(t *testing.T, typ reflect.Type) { //nolint:unused
+func implementsMarshaler(t *testing.T, typ reflect.Type) {
+	// the passed type may already implement json.Marshaler and we don't need to go deeper
 	if typ.Implements(reflect.TypeOf(new(json.Marshaler)).Elem()) {
 		return
 	}
 
 	switch typ.Kind() {
 	case reflect.Struct:
+		// a user defined struct could implement json.Marshaler on the pointer receiver, so check there first.
+		// note that the "non-pointer" receiver is checked before the switch.
+		pointerType := reflect.TypeOf(reflect.New(typ).Elem().Addr().Interface())
+		if pointerType.Implements(reflect.TypeOf(new(json.Marshaler)).Elem()) {
+			return
+		}
+		// struct doesn't implement the interface itself, check all individual fields
+		reflect.New(typ).Pointer()
 		for i := 0; i < typ.NumField(); i++ {
 			implementsMarshaler(t, typ.Field(i).Type)
 		}
@@ -135,8 +142,8 @@ func setupNodeWithModifiedRPC(t *testing.T) (*nodebuilder.Node, *mockAPI) {
 		dasMock.NewMockModule(ctrl),
 	}
 
-	// given the behavior of fx.Invoke, this invoke will be called last as it is added at the root level module. For
-	// further information, check the documentation on fx.Invoke.
+	// given the behavior of fx.Invoke, this invoke will be called last as it is added at the root
+	// level module. For further information, check the documentation on fx.Invoke.
 	invokeRPC := fx.Invoke(func(srv *rpc.Server) {
 		srv.RegisterService("state", mockAPI.State)
 		srv.RegisterService("share", mockAPI.Share)

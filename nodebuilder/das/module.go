@@ -37,7 +37,7 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 			baseComponents,
 			fx.Provide(fx.Annotate(
 				NewDASer,
-				fx.OnStart(func(startCtx, ctx context.Context, fservice fraudServ.Module, das *das.DASer) error {
+				fx.OnStart(func(startCtx, ctx context.Context, fservice fraud.Service, das *das.DASer) error {
 					return fraudServ.Lifecycle(startCtx, ctx, fraud.BadEncoding, fservice,
 						das.Start, das.Stop)
 				}),
