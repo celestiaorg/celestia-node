@@ -32,7 +32,7 @@ func GetSharesWithProofsByNamespace(
 	ctx, span := tracer.Start(ctx, "get-shares-by-namespace")
 	defer span.End()
 
-	nodes, err := ipld.GetLeavesWithProofsByNamespace(ctx, bGetter, root, nID, maxShares)
+	nodes, err := ipld.GetLeavesByNamespace(ctx, bGetter, root, nID, maxShares, true)
 	if nodes == nil {
 		return nil, err
 	}

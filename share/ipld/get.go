@@ -177,7 +177,8 @@ func GetLeaves(ctx context.Context,
 	wg.Wait()
 }
 
-// GetLeavesByNamespace returns as many leaves from the given root with the given namespace.ID as it can retrieve.
+// GetLeavesByNamespace returns leaves and corresponding proof that could be used to verify leaves inclusion.
+// It as many leaves from the given root with the given namespace.ID as it can retrieve.
 // If no shares are found, it returns both data and error as nil.
 // A non-nil error means that only partial data is returned, because at least one share retrieval failed
 // The following implementation is based on `GetShares`.
@@ -187,230 +188,7 @@ func GetLeavesByNamespace(
 	root cid.Cid,
 	nID namespace.ID,
 	maxShares int,
-) ([]ipld.Node, error) {
-	if len(nID) != NamespaceSize {
-		return nil, fmt.Errorf("expected namespace ID of size %d, got %d", NamespaceSize, len(nID))
-	}
-
-	ctx, span := tracer.Start(ctx, "get-leaves-by-namespace")
-	defer span.End()
-
-	span.SetAttributes(
-		attribute.String("namespace", nID.String()),
-		attribute.String("root", root.String()),
-	)
-
-	// we don't know where in the tree the leaves in the namespace are,
-	// so we keep track of the bounds to return the correct slice
-	// maxShares acts as a sentinel to know if we find any leaves
-	bounds := fetchedBounds{int64(maxShares), 0}
-
-	// buffer the jobs to avoid blocking, we only need as many
-	// queued as the number of shares in the second-to-last layer
-	jobs := make(chan *job, (maxShares+1)/2)
-	jobs <- &job{id: root, ctx: ctx}
-
-	var wg chanGroup
-	wg.jobs = jobs
-	wg.add(1)
-
-	var (
-		singleErr    sync.Once
-		retrievalErr error
-	)
-
-	// we overallocate space for leaves since we do not know how many we will find
-	// on the level above, the length of the Row is passed in as maxShares
-	leaves := make([]ipld.Node, maxShares)
-
-	for {
-		select {
-		case j, ok := <-jobs:
-			if !ok {
-				// if there were no leaves under the given root in the given namespace,
-				// both return values are nil. otherwise, the error will also be non-nil.
-				if bounds.lowest == int64(maxShares) {
-					return nil, retrievalErr
-				}
-
-				return leaves[bounds.lowest : bounds.highest+1], retrievalErr
-			}
-			pool.Submit(func() {
-				ctx, span := tracer.Start(j.ctx, "process-job")
-				defer span.End()
-				defer wg.done()
-
-				span.SetAttributes(
-					attribute.String("cid", j.id.String()),
-					attribute.Int("pos", j.sharePos),
-				)
-
-				// if an error is likely to be returned or not depends on
-				// the underlying impl of the blockservice, currently it is not a realistic probability
-				nd, err := GetNode(ctx, bGetter, j.id)
-				if err != nil {
-					singleErr.Do(func() {
-						retrievalErr = err
-					})
-					log.Errorw("getSharesByNamespace: could not retrieve node", "nID", nID, "pos", j.sharePos, "err", err)
-					span.SetStatus(codes.Error, err.Error())
-					// we still need to update the bounds
-					bounds.update(int64(j.sharePos))
-					return
-				}
-
-				links := nd.Links()
-				if len(links) == 0 {
-					// successfully fetched a leaf belonging to the namespace
-					span.SetStatus(codes.Ok, "")
-					leaves[j.sharePos] = nd
-					// we found a leaf, so we update the bounds
-					// the update routine is repeated until the atomic swap is successful
-					bounds.update(int64(j.sharePos))
-					return
-				}
-
-				// this node has links in the namespace, so keep walking
-				for i, lnk := range links {
-					newJob := &job{
-						id: lnk.Cid,
-						// position represents the index in a flattened binary tree,
-						// so we can return a slice of leaves in order
-						sharePos: j.sharePos*2 + i,
-						// we pass the context to job so that spans are tracked in a tree
-						// structure
-						ctx: ctx,
-					}
-
-					// if the link's nID isn't in range we don't need to create a new job for it
-					jobNid := NamespacedSha256FromCID(newJob.id)
-					if nID.Less(nmt.MinNamespace(jobNid, nID.Size())) || !nID.LessOrEqual(nmt.MaxNamespace(jobNid, nID.Size())) {
-						continue
-					}
-
-					// by passing the previous check, we know we will have one more node to process
-					// note: it is important to increase the counter before sending to the channel
-					wg.add(1)
-					select {
-					case jobs <- newJob:
-					case <-ctx.Done():
-						return
-					}
-				}
-			})
-		case <-ctx.Done():
-			return nil, ctx.Err()
-		}
-	}
-}
-
-// GetProof fetches and returns the leaf's Merkle Proof.
-// It walks down the IPLD NMT tree until it reaches the leaf and returns collected proof
-func GetProof(
-	ctx context.Context,
-	bGetter blockservice.BlockGetter,
-	root cid.Cid,
-	proof []cid.Cid,
-	leaf, total int,
-) ([]cid.Cid, error) {
-	// request the node
-	nd, err := GetNode(ctx, bGetter, root)
-	if err != nil {
-		return nil, err
-	}
-	// look for links
-	lnks := nd.Links()
-	if len(lnks) == 0 {
-		p := make([]cid.Cid, len(proof))
-		copy(p, proof)
-		return p, nil
-	}
-
-	// route walk to appropriate children
-	total /= 2 // as we are using binary tree, every step decreases total leaves in a half
-	if leaf < total {
-		root = lnks[0].Cid // if target leave on the left, go with walk down the first children
-		proof = append(proof, lnks[1].Cid)
-	} else {
-		root, leaf = lnks[1].Cid, leaf-total // otherwise go down the second
-		proof, err = GetProof(ctx, bGetter, root, proof, leaf, total)
-		if err != nil {
-			return nil, err
-		}
-		return append(proof, lnks[0].Cid), nil
-	}
-
-	// recursively walk down through selected children
-	return GetProof(ctx, bGetter, root, proof, leaf, total)
-}
-
-// chanGroup implements an atomic wait group, closing a jobs chan
-// when fully done.
-type chanGroup struct {
-	jobs    chan *job
-	counter int64
-}
-
-func (w *chanGroup) add(count int64) {
-	atomic.AddInt64(&w.counter, count)
-}
-
-func (w *chanGroup) done() {
-	numRemaining := atomic.AddInt64(&w.counter, -1)
-
-	// Close channel if this job was the last one
-	if numRemaining == 0 {
-		close(w.jobs)
-	}
-}
-
-type fetchedBounds struct {
-	lowest  int64
-	highest int64
-}
-
-// update checks if the passed index is outside the current bounds,
-// and updates the bounds atomically if it extends them.
-func (b *fetchedBounds) update(index int64) {
-	lowest := atomic.LoadInt64(&b.lowest)
-	// try to write index to the lower bound if appropriate, and retry until the atomic op is successful
-	// CAS ensures that we don't overwrite if the bound has been updated in another goroutine after the
-	// comparison here
-	for index < lowest && !atomic.CompareAndSwapInt64(&b.lowest, lowest, index) {
-		lowest = atomic.LoadInt64(&b.lowest)
-	}
-	// we always run both checks because element can be both the lower and higher bound
-	// for example, if there is only one share in the namespace
-	highest := atomic.LoadInt64(&b.highest)
-	for index > highest && !atomic.CompareAndSwapInt64(&b.highest, highest, index) {
-		highest = atomic.LoadInt64(&b.highest)
-	}
-}
-
-// job represents an encountered node to investigate during the `GetLeaves`
-// and `GetLeavesByNamespace` routines.
-type job struct {
-	id       cid.Cid
-	sharePos int
-	pos      int
-	ctx      context.Context
-}
-
-// LeavesWithProofs contains data with corresponding Merkle Proof
-type LeavesWithProofs struct {
-	Leaves               []ipld.Node
-	Proofs               [][]byte
-	ProofStart, ProofEnd int
-}
-
-// GetLeavesWithProofsByNamespace works same as GetLeavesByNamespace,
-// but also returns inclusion proof
-func GetLeavesWithProofsByNamespace(
-	ctx context.Context,
-	bGetter blockservice.BlockGetter,
-	root cid.Cid,
-	nID namespace.ID,
-	maxShares int,
+	collectProofs bool,
 ) (*LeavesWithProofs, error) {
 	if len(nID) != NamespaceSize {
 		return nil, fmt.Errorf("expected namespace ID of size %d, got %d", NamespaceSize, len(nID))
@@ -447,9 +225,13 @@ func GetLeavesWithProofsByNamespace(
 	// on the level above, the length of the Row is passed in as maxShares
 	leaves := make([]ipld.Node, maxShares)
 
-	// TODO: (@walldiss) this is massively overallocating and should be optimized with clever append later
-	leftProofs := make([][]byte, BatchSize((maxShares)))
-	rightProofs := make([][]byte, BatchSize((maxShares)))
+	var leftProofs, rightProofs [][]byte
+	if collectProofs {
+		// TODO: (@walldiss) this is massively overallocating and should be optimized later with clever append
+		leftProofs = make([][]byte, BatchSize((maxShares)))
+		rightProofs = make([][]byte, BatchSize((maxShares)))
+	}
+
 	for {
 		select {
 		case j, ok := <-jobs:
@@ -457,7 +239,7 @@ func GetLeavesWithProofsByNamespace(
 				// if there were no leaves under the given root in the given namespace,
 				// both return values are nil. otherwise, the error will also be non-nil.
 				if bounds.lowest == int64(maxShares) {
-					return nil, retrievalErr
+					return &LeavesWithProofs{}, retrievalErr
 				}
 
 				var proofs [][]byte
@@ -476,7 +258,7 @@ func GetLeavesWithProofsByNamespace(
 				}
 
 				return &LeavesWithProofs{
-					Leaves:     leaves,
+					Leaves:     leaves[bounds.lowest : bounds.highest+1],
 					Proofs:     proofs,
 					ProofStart: int(bounds.lowest),
 					ProofEnd:   int(bounds.highest) + 1,
@@ -530,14 +312,19 @@ func GetLeavesWithProofsByNamespace(
 						// structure
 						ctx: ctx,
 					}
-					// if the link's nID isn't in range we don't need to create a new job for it
+					// if the link's nID isn't in range we don't need to create a new job for it,
+					// but need to collect a proof
 					jobNid := NamespacedSha256FromCID(newJob.id)
 					if nID.Less(nmt.MinNamespace(jobNid, nID.Size())) {
-						rightProofs[newJob.pos] = jobNid
+						if collectProofs {
+							rightProofs[newJob.pos] = jobNid
+						}
 						continue
 					}
 					if !nID.LessOrEqual(nmt.MaxNamespace(jobNid, nID.Size())) {
-						leftProofs[newJob.pos] = jobNid
+						if collectProofs {
+							leftProofs[newJob.pos] = jobNid
+						}
 						continue
 					}
 
