@@ -77,7 +77,11 @@ func ParseNetwork(cmd *cobra.Command) (Network, error) {
 		}
 		return envNetwork, err
 	}
-	return Network(parsedNetwork), nil
+	parsed := Network(parsedNetwork)
+	if err := parsed.Validate(); err != nil {
+		return "", err
+	}
+	return parsed, nil
 }
 
 // parseNetworkFromEnv tries to parse the network from the environment.
