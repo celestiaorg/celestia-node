@@ -3,7 +3,7 @@ name: "docker-build"
 on:
   push:
     branches:
-      - "*"
+      - "**"
     tags:
       - "v*"
   workflow_dispatch:
