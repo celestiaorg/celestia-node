@@ -22,9 +22,9 @@ func RegisterEndpoints(
 ) {
 	serv.RegisterService("state", state)
 	serv.RegisterService("share", share)
+	serv.RegisterService("fraud", fraud)
 	serv.RegisterService("header", header)
 	serv.RegisterService("das", daser)
-	serv.RegisterService("fraud", fraud)
 	serv.RegisterService("p2p", p2p)
 }
 

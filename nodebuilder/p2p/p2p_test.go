@@ -19,9 +19,9 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TestP2PModule_methodsOnHost tests P2P Module methods on
+// TestP2PModule_Host tests P2P Module methods on
 // the instance of Host.
-func TestP2PModule_methodsOnHost(t *testing.T) {
+func TestP2PModule_Host(t *testing.T) {
 	net, err := mocknet.FullMeshConnected(2)
 	require.NoError(t, err)
 	host, peer := net.Hosts()[0], net.Hosts()[1]
@@ -39,11 +39,11 @@ func TestP2PModule_methodsOnHost(t *testing.T) {
 	assert.Equal(t, host.Network().Connectedness(peer.ID()), mgr.Connectedness(peer.ID()))
 }
 
-// TestP2PModule_methodsOnHostConnManager tests P2P Module methods on
+// TestP2PModule_ConnManager tests P2P Module methods on
 // the Host's ConnManager. Note that this test is constructed differently
 // than the one above because mocknet does not provide a ConnManager to its
 // mock peers.
-func TestP2PModule_methodsOnHostConnManager(t *testing.T) {
+func TestP2PModule_ConnManager(t *testing.T) {
 	// make two full peers and connect them
 	host, err := libp2p.New()
 	require.NoError(t, err)
@@ -65,9 +65,9 @@ func TestP2PModule_methodsOnHostConnManager(t *testing.T) {
 	assert.False(t, mgr.IsMutual(peer.ID(), "test"))
 }
 
-// TestP2PModule_methodsOnAutonat tests P2P Module methods on
+// TestP2PModule_Autonat tests P2P Module methods on
 // the node's instance of AutoNAT.
-func TestP2PModule_methodsOnAutonat(t *testing.T) {
+func TestP2PModule_Autonat(t *testing.T) {
 	net, err := mocknet.FullMeshConnected(2)
 	require.NoError(t, err)
 	host := net.Hosts()[0]
@@ -80,9 +80,9 @@ func TestP2PModule_methodsOnAutonat(t *testing.T) {
 	assert.Equal(t, nat.Status(), mgr.NATStatus())
 }
 
-// TestP2PModule_methodsOnBandwidth tests P2P Module methods on
+// TestP2PModule_Bandwidth tests P2P Module methods on
 // the Host's bandwidth reporter.
-func TestP2PModule_methodsOnBandwidth(t *testing.T) {
+func TestP2PModule_Bandwidth(t *testing.T) {
 	bw := metrics.NewBandwidthCounter()
 	host, err := libp2p.New(libp2p.BandwidthReporter(bw))
 	require.NoError(t, err)
@@ -145,9 +145,9 @@ func TestP2PModule_methodsOnBandwidth(t *testing.T) {
 	assert.Greater(t, int(protoStat.TotalIn), bufSize) // should be slightly more than buf size due negotiations, etc
 }
 
-// TestP2PModule_methodsOnPubsub tests P2P Module methods on
+// TestP2PModule_Pubsub tests P2P Module methods on
 // the instance of pubsub.
-func TestP2PModule_methodsOnPubsub(t *testing.T) {
+func TestP2PModule_Pubsub(t *testing.T) {
 	net, err := mocknet.FullMeshConnected(5)
 	require.NoError(t, err)
 
@@ -187,9 +187,9 @@ func TestP2PModule_methodsOnPubsub(t *testing.T) {
 	assert.Equal(t, len(topic.ListPeers()), len(mgr.PubSubPeers(topicStr)))
 }
 
-// TestP2PModule_methodsOnConnGater tests P2P Module methods on
+// TestP2PModule_ConnGater tests P2P Module methods on
 // the instance of ConnectionGater.
-func TestP2PModule_methodsOnConnGater(t *testing.T) {
+func TestP2PModule_ConnGater(t *testing.T) {
 	gater, err := ConnectionGater(datastore.NewMapDatastore())
 	require.NoError(t, err)
 
@@ -201,9 +201,9 @@ func TestP2PModule_methodsOnConnGater(t *testing.T) {
 	assert.Len(t, mgr.ListBlockedPeers(), 0)
 }
 
-// TestP2PModule_methodsOnResourceManager tests P2P Module methods on
+// TestP2PModule_ResourceManager tests P2P Module methods on
 // the ResourceManager.
-func TestP2PModule_methodsOnResourceManager(t *testing.T) {
+func TestP2PModule_ResourceManager(t *testing.T) {
 	rm, err := ResourceManager()
 	require.NoError(t, err)
 
