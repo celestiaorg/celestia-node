@@ -7,14 +7,15 @@ import (
 	"sort"
 	"testing"
 
+	mdutils "github.com/ipfs/go-merkledag/test"
+	"github.com/stretchr/testify/require"
+	core "github.com/tendermint/tendermint/types"
+
 	"github.com/celestiaorg/celestia-app/pkg/da"
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/ipld"
 	"github.com/celestiaorg/rsmt2d"
-	mdutils "github.com/ipfs/go-merkledag/test"
-	"github.com/stretchr/testify/require"
-	core "github.com/tendermint/tendermint/types"
 )
 
 func TestFalsePositiveBadEncodingFraudProof(t *testing.T) {
@@ -31,12 +32,13 @@ func TestFalsePositiveBadEncodingFraudProof(t *testing.T) {
 
 	dah := da.NewDataAvailabilityHeader(eds)
 
-	// get an arbitary row
+	// get an arbitrary row
 	row := uint(squareSize / 2)
 	rowShares := eds.Row(row)
 	rowRoot := dah.RowsRoots[row]
 
 	shareProofs, err := GetProofsForShares(ctx, bServ, ipld.MustCidFromNamespacedSha256(rowRoot), rowShares)
+	require.NoError(t, err)
 
 	// create a fake error for data that was encoded correctly
 	fakeError := ErrByzantine{
@@ -71,14 +73,14 @@ func generateRandNamespacedRawData(total, nidSize, leafSize uint32) [][]byte {
 	for i := uint32(0); i < total; i++ {
 		nid := make([]byte, nidSize)
 
-		rand.Read(nid)
+		_, _ = rand.Read(nid)
 		data[i] = nid
 	}
 	sortByteArrays(data)
 	for i := uint32(0); i < total; i++ {
 		d := make([]byte, leafSize)
 
-		rand.Read(d)
+		_, _ = rand.Read(d)
 		data[i] = append(data[i], d...)
 	}
 
