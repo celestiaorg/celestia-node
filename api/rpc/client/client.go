@@ -69,7 +69,6 @@ func NewClient(ctx context.Context, addr string) (*Client, error) {
 		"das":    &client.DAS,
 		"p2p":    &client.P2P,
 	}
-	// TODO @distractedm1nd @renaynay: how does client know if daser is nil?
 	for name, module := range modules {
 		closer, err := jsonrpc.NewClient(ctx, addr, name, module, nil)
 		if err != nil {

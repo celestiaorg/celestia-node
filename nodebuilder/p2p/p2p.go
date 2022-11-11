@@ -58,8 +58,7 @@ type Module interface {
 	// NATStatus returns the current NAT status.
 	NATStatus() network.Reachability
 
-	// BlockPeer adds a peer to the set of blocked peers. // TODO should we wrap BlockPeer so
-	//  that it 1. disconnects from peer, then 2. adds to blocklist? cc @Wondertan
+	// BlockPeer adds a peer to the set of blocked peers.
 	BlockPeer(p peer.ID) error
 	// UnblockPeer removes a peer from the set of blocked peers.
 	UnblockPeer(p peer.ID) error
@@ -97,7 +96,7 @@ type Module interface {
 
 // manager contains all components necessary to access information and
 // perform actions related to the node's p2p Host / operations.
-type manager struct { // TODO @renaynay: rename ?
+type manager struct {
 	host      HostBase
 	ps        *pubsub.PubSub
 	nat       autonat.AutoNAT
@@ -203,7 +202,7 @@ func (m *manager) ResourceState() (rcmgr.ResourceManagerStat, error) {
 	rms, ok := m.rm.(rcmgr.ResourceManagerState)
 	if !ok {
 		return rcmgr.ResourceManagerStat{}, fmt.Errorf("network.ResourceManager does not implement " +
-			"rcmgr.ResourceManagerState") // TODO err msg?
+			"rcmgr.ResourceManagerState")
 	}
 	return rms.Stat(), nil
 }
