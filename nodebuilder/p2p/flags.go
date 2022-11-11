@@ -79,7 +79,7 @@ func ParseNetwork(cmd *cobra.Command) (Network, error) {
 	}
 	parsed := Network(parsedNetwork)
 	if err := parsed.Validate(); err != nil {
-		return "", err
+		return "", fmt.Errorf("invalid network specified: %w", err)
 	}
 	return parsed, nil
 }
