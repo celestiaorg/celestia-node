@@ -6,8 +6,8 @@ replace github.com/ipfs/go-verifcid => github.com/celestiaorg/go-verifcid v0.0.1
 
 require (
 	cosmossdk.io/math v1.0.0-beta.3
-	github.com/99designs/keyring v1.2.1 // indirect
 	github.com/BurntSushi/toml v1.2.0
+	github.com/alecthomas/jsonschema v0.0.0-20200530073317-71f438968921
 	github.com/celestiaorg/celestia-app v0.10.0-rc1
 	github.com/celestiaorg/go-libp2p-messenger v0.1.0
 	github.com/celestiaorg/nmt v0.11.0
@@ -15,6 +15,7 @@ require (
 	github.com/cosmos/cosmos-sdk v0.46.0
 	github.com/cosmos/cosmos-sdk/api v0.1.0
 	github.com/dgraph-io/badger/v2 v2.2007.4
+	github.com/etclabscore/go-openrpc-reflect v0.0.37
 	github.com/filecoin-project/go-jsonrpc v0.1.8
 	github.com/gammazero/workerpool v1.1.3
 	github.com/gogo/protobuf v1.3.3
@@ -48,6 +49,7 @@ require (
 	github.com/multiformats/go-base32 v0.1.0
 	github.com/multiformats/go-multiaddr v0.7.0
 	github.com/multiformats/go-multihash v0.2.0
+	github.com/open-rpc/meta-schema v0.0.0-20201029221707-1b72ef2ea333
 	github.com/spf13/cobra v1.6.0
 	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/testify v1.8.1
@@ -63,14 +65,8 @@ require (
 	go.uber.org/multierr v1.8.0
 	golang.org/x/crypto v0.0.0-20220525230936-793ad666bf5e
 	golang.org/x/sync v0.0.0-20220929204114-8fcdb60fdcc0
-	google.golang.org/grpc v1.49.0
-)
-
-require (
-	github.com/alecthomas/jsonschema v0.0.0-20200530073317-71f438968921
-	github.com/etclabscore/go-openrpc-reflect v0.0.37
-	github.com/open-rpc/meta-schema v0.0.0-20201029221707-1b72ef2ea333
 	golang.org/x/text v0.3.7
+	google.golang.org/grpc v1.49.0
 )
 
 require (
@@ -81,6 +77,7 @@ require (
 	cosmossdk.io/errors v1.0.0-beta.7 // indirect
 	filippo.io/edwards25519 v1.0.0-rc.1 // indirect
 	github.com/99designs/go-keychain v0.0.0-20191008050251-8e49817e8af4 // indirect
+	github.com/99designs/keyring v1.2.1 // indirect
 	github.com/ChainSafe/go-schnorrkel v0.0.0-20200405005733-88cbf1b4c40d // indirect
 	github.com/PuerkitoBio/purell v1.1.1 // indirect
 	github.com/PuerkitoBio/urlesc v0.0.0-20170810143723-de5bf2ad4578 // indirect

@@ -17,6 +17,15 @@ import (
 	meta_schema "github.com/open-rpc/meta-schema"
 )
 
+const (
+	APIVersion     = "v0.0.1"
+	APIDescription = "The Celestia Node API is the collection of RPC methods that " +
+		"can be used to interact with the services provided by Celestia Data Availability Nodes."
+	APIName  = "Celestia Node API"
+	DocsURL  = "https://github.com/celestiaorg/celestia-node"
+	DocsName = "Celestia Node GitHub"
+)
+
 type Visitor struct {
 	Methods map[string]ast.Node
 }
@@ -81,21 +90,19 @@ func NewOpenRPCDocument(comments Comments) *go_openrpc_reflect.Document {
 		},
 		GetInfoFn: func() (info *meta_schema.InfoObject) {
 			info = &meta_schema.InfoObject{}
-			title := "Celestia Node API"
+			title := APIName
 			info.Title = (*meta_schema.InfoObjectProperties)(&title)
 
-			version := "v0.0.1"
+			version := APIVersion
 			info.Version = (*meta_schema.InfoObjectVersion)(&version)
 
-			description := "The Celestia Node API is the collection of RPC methods that " +
-				"can be used to interact with the services provided by Celestia Data Availability Nodes."
+			description := APIDescription
 			info.Description = (*meta_schema.InfoObjectDescription)(&description)
 
 			return info
 		},
 		GetExternalDocsFn: func() (exdocs *meta_schema.ExternalDocumentationObject) {
-			url := "https://github.com/celestiaorg/celestia-node/"
-			description := "Celestia Node GitHub"
+			url, description := DocsURL, DocsName
 
 			return &meta_schema.ExternalDocumentationObject{
 				Url:         (*meta_schema.ExternalDocumentationObjectUrl)(&url),
