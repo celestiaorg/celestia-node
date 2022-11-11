@@ -24,11 +24,6 @@ var ExampleValues = map[reflect.Type]interface{}{
 }
 
 func ExampleValue(t, parent reflect.Type) (interface{}, error) {
-	// TODO(@distractedm1nd): fraud.Proof is not serializable until #1208 is fixed.
-	if t.Name() == "Proof" {
-		return nil, fmt.Errorf("unserializable type: %s on parent %s", t, parent)
-	}
-
 	v, ok := ExampleValues[t]
 	if ok {
 		return v, nil
