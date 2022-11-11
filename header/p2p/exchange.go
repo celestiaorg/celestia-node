@@ -61,6 +61,10 @@ func NewExchange(host host.Host, peers peer.IDSlice, protocolSuffix string) *Exc
 
 // Head requests the latest ExtendedHeader. Note that the ExtendedHeader
 // must be verified thereafter.
+// NOTE:
+// It is fine to continue handling head request if the timeout will be reached.
+// As we are requesting head from multiple trusted peers,
+// we may already have some headers when the timeout will be reached.
 func (ex *Exchange) Head(ctx context.Context) (*header.ExtendedHeader, error) {
 	log.Debug("requesting head")
 	// create request
@@ -85,6 +89,7 @@ func (ex *Exchange) Head(ctx context.Context) (*header.ExtendedHeader, error) {
 	}
 
 	result := make([]*header.ExtendedHeader, 0, len(ex.trustedPeers))
+LOOP:
 	for range ex.trustedPeers {
 		select {
 		case h := <-headerCh:
@@ -92,7 +97,7 @@ func (ex *Exchange) Head(ctx context.Context) (*header.ExtendedHeader, error) {
 				result = append(result, h)
 			}
 		case <-ctx.Done():
-			return nil, ctx.Err()
+			break LOOP
 		}
 	}
 
