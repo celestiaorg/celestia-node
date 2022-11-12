@@ -119,7 +119,7 @@ SyncHead(ctx context.Context) (*header.ExtendedHeader, error)
   type SharesModule interface {
     // GetShare returns the Share from the given data Root at the given row/col
     // coordinates.
-    GetShare(ctx context.Context, dah *Root, row, col int) (Share, error)
+    GetShare(ctx context.Context, root *Root, row, col int) (Share, error)
     // GetSharesByNamespace returns all shares of the given nID from the given data
     // Root.
     GetSharesByNamespace(
@@ -149,7 +149,7 @@ SyncHead(ctx context.Context) (*header.ExtendedHeader, error)
     PeerInfo(id peer.ID) peer.AddrInfo
    
     // Connect ensures there is a connection between this host and the peer with
-    // given peer.ID. 
+    // given peer.
     Connect(ctx context.Context, pi peer.AddrInfo) error
     // ClosePeer closes the connection to a given peer. 
     ClosePeer(id peer.ID) error
