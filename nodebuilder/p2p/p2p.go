@@ -55,7 +55,7 @@ type Module interface {
 	PeerInfo(id peer.ID) peer.AddrInfo
 
 	// Connect ensures there is a connection between this host and the peer with
-	// given peer.ID.
+	// given peer.
 	Connect(ctx context.Context, pi peer.AddrInfo) error
 	// ClosePeer closes the connection to a given peer.
 	ClosePeer(id peer.ID) error
