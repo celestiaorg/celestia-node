@@ -92,7 +92,7 @@ func (s *EDSStore) Stop() error {
 
 // Put stores the given data square with DataRoot's hash as a key.
 //
-// The square is verified on the Exchange level, and Put only stores the square trusting it.
+// The square is verified on the Exchange level, and Put only stores the square, trusting it.
 // The resulting file stores all the shares and NMT Merkle Proofs of the EDS.
 // Additionally, the file gets indexed s.t. store.Blockstore can access them.
 func (s *EDSStore) Put(ctx context.Context, root share.Root, square *rsmt2d.ExtendedDataSquare) error {
@@ -112,22 +112,17 @@ func (s *EDSStore) Put(ctx context.Context, root share.Root, square *rsmt2d.Exte
 		FS:   os.DirFS(s.basepath + blocksPath),
 		Path: key,
 	}, ch, dagstore.RegisterOpts{})
-
 	if err != nil {
 		return err
 	}
 
 	result := <-ch
-	if result.Error != nil {
-		return result.Error
-	}
-
-	return nil
+	return result.Error
 }
 
 // GetCAR takes a DataRoot and returns a buffered reader to the respective EDS serialized as a CARv1 file.
 //
-// The Reader strictly reads the first quadrant(1/4) of EDS, omitting all the NMT Merkle proofs.
+// The Reader strictly reads the CAR header and first quadrant (1/4) of the EDS, omitting all the NMT Merkle proofs.
 // Integrity of the store data is not verified.
 //
 // Caller must Close returned reader after reading.
@@ -157,6 +152,7 @@ func (s *EDSStore) Blockstore() blockstore.Blockstore {
 // Remove removes EDS from Store by the given share.Root and cleans up all the indexing.
 func (s *EDSStore) Remove(ctx context.Context, root share.Root) error {
 	key := root.String()
+
 	ch := make(chan dagstore.ShardResult, 1)
 	err := s.dgstr.DestroyShard(ctx, shard.KeyFromString(key), ch, dagstore.DestroyOpts{})
 	if err != nil {
