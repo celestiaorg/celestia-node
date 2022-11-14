@@ -50,7 +50,7 @@ func WithMetrics(metricOpts []otlpmetrichttp.Option, nodeType node.Type) fx.Opti
 	case node.Full, node.Light:
 		opts = fx.Options(
 			baseComponents,
-			fx.Invoke(das.WithMetrics),
+			das.WithMetrics(),
 			// add more monitoring here
 		)
 	case node.Bridge:
