@@ -64,6 +64,7 @@ func (p *peerTracker) connected(pID peer.ID) {
 		return
 	}
 	for _, c := range p.host.Network().ConnsToPeer(pID) {
+		// check if connection is short-termed and skip this peer
 		if c.Stat().Transient {
 			return
 		}

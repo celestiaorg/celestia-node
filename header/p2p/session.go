@@ -19,8 +19,10 @@ import (
 
 // TODO(@vgonkivs): make it configurable
 var (
-	// headersPerPeer is a maximum amount of headers that will be requested per peer
+	// headersPerPeer is a maximum amount of headers that will be requested per peer.
 	headersPerPeer uint64 = 64
+	// sessionDuration is an amount of time after which session will be closed.
+	sessionDuration = time.Minute * 2
 )
 
 // session aims to divide a range of headers
@@ -38,7 +40,7 @@ type session struct {
 }
 
 func newSession(ctx context.Context, h host.Host, peerTracker []*peerStat, protocolID protocol.ID) *session {
-	ctx, cancel := context.WithTimeout(ctx, time.Minute*2)
+	ctx, cancel := context.WithTimeout(ctx, sessionDuration)
 	return &session{
 		ctx:        ctx,
 		cancel:     cancel,
@@ -49,28 +51,81 @@ func newSession(ctx context.Context, h host.Host, peerTracker []*peerStat, proto
 	}
 }
 
-// doRequest chooses the best peer to fetch headers and sends a request in range of available maxRetryAttempts
+// GetRangeByHeight requests headers from different peers.
+func (s *session) getRangeByHeight(ctx context.Context, from, amount uint64) ([]*header.ExtendedHeader, error) {
+	log.Debugw("requesting headers", "from", from, "to", from+amount)
+	requests := prepareRequests(from, amount, headersPerPeer)
+	result := make(chan []*header.ExtendedHeader, len(requests))
+	headers := make([]*header.ExtendedHeader, 0, amount)
+	s.reqCh = make(chan *p2p_pb.ExtendedHeaderRequest, len(requests))
+
+	go s.handleOutgoingRequests(ctx, result)
+	for _, req := range requests {
+		s.reqCh <- req
+	}
+	for i := 0; i < cap(result); i++ {
+		select {
+		case <-s.ctx.Done():
+			return nil, errors.New("header/p2p: session was stopped")
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		case err := <-s.errCh:
+			return nil, err
+		case res := <-result:
+			headers = append(headers, res...)
+		}
+	}
+	sort.Slice(headers, func(i, j int) bool {
+		return headers[i].Height < headers[j].Height
+	})
+	return headers, nil
+}
+
+// close stops the session.
+func (s *session) close() {
+	if s.cancel != nil {
+		s.cancel()
+		s.cancel = nil
+	}
+}
+
+// handleOutgoingRequests pops a peer from the queue and sends a prepared request to the peer.
+func (s *session) handleOutgoingRequests(ctx context.Context, result chan []*header.ExtendedHeader) {
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-s.ctx.Done():
+			return
+		case req := <-s.reqCh:
+			stats := s.queue.waitPop(ctx)
+			go s.doRequest(ctx, stats, req, result)
+		}
+	}
+}
+
+// doRequest chooses the best peer to fetch headers and sends a request in range of available maxRetryAttempts.
 func (s *session) doRequest(
 	ctx context.Context,
 	stat *peerStat,
 	req *p2p_pb.ExtendedHeaderRequest,
 	headers chan []*header.ExtendedHeader,
 ) {
-	select {
-	case <-ctx.Done():
+	if stat.peerID == "" {
 		return
-	case <-s.ctx.Done():
-		return
-	default:
 	}
 	r, size, duration, err := s.requestHeaders(ctx, stat.peerID, req)
 	if err != nil {
-		if err == context.Canceled {
+		if err == context.Canceled || err == context.DeadlineExceeded {
 			return
 		}
 		log.Errorw("requesting headers from peer failed."+
 			"Retrying the request from different peer", "failed peer", stat.peerID, "err", err)
-		s.reqCh <- req
+		select {
+		case <-ctx.Done():
+		case <-s.ctx.Done():
+		case s.reqCh <- req:
+		}
 		return
 	}
 
@@ -87,53 +142,6 @@ func (s *session) doRequest(
 	s.queue.push(stat)
 }
 
-// handleOutgoingRequest pops peer from the queue and sends a prepared request to the peer.
-func (s *session) handleOutgoingRequest(ctx context.Context, result chan []*header.ExtendedHeader) {
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case <-s.ctx.Done():
-			return
-		case req := <-s.reqCh:
-			stats := s.queue.calculateBestPeer(ctx)
-			go s.doRequest(ctx, stats, req, result)
-		}
-	}
-}
-
-// GetRangeByHeight requests headers from different peers.
-func (s *session) getRangeByHeight(ctx context.Context, from, amount uint64) ([]*header.ExtendedHeader, error) {
-	log.Debugw("requesting headers", "from", from, "to", from+amount)
-	requests := prepareRequests(from, amount, headersPerPeer)
-	result := make(chan []*header.ExtendedHeader, len(requests))
-	headers := make([]*header.ExtendedHeader, 0, amount)
-	s.reqCh = make(chan *p2p_pb.ExtendedHeaderRequest, len(requests))
-
-	go s.handleOutgoingRequest(ctx, result)
-	for _, req := range requests {
-		s.reqCh <- req
-	}
-
-	for i := 0; i < cap(result); i++ {
-		select {
-		case <-s.ctx.Done():
-			return nil, errors.New("header/p2p: session was stopped")
-		case <-ctx.Done():
-			return nil, ctx.Err()
-		case err := <-s.errCh:
-			return nil, err
-		case res := <-result:
-			headers = append(headers, res...)
-		}
-	}
-	s.cancel()
-	sort.Slice(headers, func(i, j int) bool {
-		return headers[i].Height < headers[j].Height
-	})
-	return headers, nil
-}
-
 // requestHeaders sends the ExtendedHeaderRequest to a remote peer.
 func (s *session) requestHeaders(
 	ctx context.Context,
@@ -144,9 +152,6 @@ func (s *session) requestHeaders(
 	stream, err := s.host.NewStream(ctx, to, s.protocolID)
 	if err != nil {
 		return nil, 0, 0, err
-	}
-	if err = stream.SetWriteDeadline(time.Now().Add(writeDeadline)); err != nil {
-		log.Debugf("error setting deadline: %s", err)
 	}
 	// send request
 	_, err = serde.Write(stream, req)
@@ -162,15 +167,12 @@ func (s *session) requestHeaders(
 	totalRequestSize := uint64(0)
 	for i := 0; i < int(req.Amount); i++ {
 		resp := new(p2p_pb.ExtendedHeaderResponse)
-		if err = stream.SetReadDeadline(time.Now().Add(readDeadline)); err != nil {
-			log.Debugf("error setting deadline: %s", err)
-		}
 		msgSize, err := serde.Read(stream, resp)
 		if err != nil {
-			stream.Reset() //nolint:errcheck
 			if err == io.EOF {
 				break
 			}
+			stream.Reset() //nolint:errcheck
 			return nil, 0, 0, err
 		}
 		totalRequestSize += uint64(msgSize)
@@ -203,7 +205,7 @@ func (s *session) processResponse(responses []*p2p_pb.ExtendedHeaderResponse) ([
 
 // prepareRequests converts incoming range into separate ExtendedHeaderRequest.
 func prepareRequests(from, amount, headersPerPeer uint64) []*p2p_pb.ExtendedHeaderRequest {
-	requests := make([]*p2p_pb.ExtendedHeaderRequest, 0)
+	requests := make([]*p2p_pb.ExtendedHeaderRequest, 0, amount/headersPerPeer)
 	for amount > uint64(0) {
 		var requestSize uint64
 		request := &p2p_pb.ExtendedHeaderRequest{

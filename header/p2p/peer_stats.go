@@ -99,10 +99,10 @@ func newPeerQueue(stats []*peerStat) *peerQueue {
 	return pq
 }
 
-// calculateBestPeer pops the peer with the biggest score.
+// waitPop pops the peer with the biggest score.
 // in case if there are no peer available in current session, it blocks until
 // the peer will be pushed in.
-func (p *peerQueue) calculateBestPeer(ctx context.Context) *peerStat {
+func (p *peerQueue) waitPop(ctx context.Context) *peerStat {
 	p.statsLk.Lock()
 	defer p.statsLk.Unlock()
 	if p.stats.Len() == 0 {
