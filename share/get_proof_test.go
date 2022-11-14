@@ -17,7 +17,7 @@ import (
 
 func TestGetSharesWithProofsByNamespace(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	t.Cleanup(cancel)
 	bServ := mdutils.Bserv()
 
 	var tests = []struct {
@@ -36,13 +36,13 @@ func TestGetSharesWithProofsByNamespace(t *testing.T) {
 			to := rand.Intn(len(tt.rawData) - 1)
 
 			//
-			expected := tt.rawData[from]
-			nID := expected[:NamespaceSize]
-
 			if to < from {
 				tmp := from
 				from, to = to, tmp
 			}
+			
+			expected := tt.rawData[from]
+			nID := expected[:NamespaceSize]
 
 			// change rawData to contain several shares with same nID
 			for i := from; i <= to; i++ {
@@ -63,7 +63,7 @@ func TestGetSharesWithProofsByNamespace(t *testing.T) {
 					shares = append(shares, rowShares.Shares...)
 
 					// construct nodes from shares by prepending namespace
-					var leafs [][]byte
+					var leaves [][]byte
 					for _, sh := range rowShares.Shares {
 						leafs = append(leafs, append(sh[:NamespaceSize], sh...))
 					}

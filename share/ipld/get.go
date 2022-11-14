@@ -249,7 +249,7 @@ func GetLeavesByNamespace(
 						proofs = append(proofs, leftProofs[i])
 					}
 				}
-				// right side of the tree will be traversed from up to bottom,
+				// right side of the tree will be traversed from top to bottom,
 				// so append in reversed order
 				for i := range rightProofs {
 					if rightProofs[len(rightProofs)-i-1] != nil {
