@@ -218,13 +218,13 @@ func FraudMaker(t *testing.T, faultHeight int64) ConstructFn {
 		comm *types.Commit,
 		vals *types.ValidatorSet,
 		bServ blockservice.BlockService) (*ExtendedHeader, error) {
-		eh := &ExtendedHeader{
-			RawHeader:    b.Header,
-			Commit:       comm,
-			ValidatorSet: vals,
-		}
-
 		if b.Height == faultHeight {
+			eh := &ExtendedHeader{
+				RawHeader:    b.Header,
+				Commit:       comm,
+				ValidatorSet: vals,
+			}
+
 			eh = CreateFraudExtHeader(t, eh, bServ)
 			return eh, nil
 		}
@@ -240,6 +240,7 @@ func CreateFraudExtHeader(t *testing.T, eh *ExtendedHeader, dag blockservice.Blo
 	require.NoError(t, err)
 	dah := da.NewDataAvailabilityHeader(extended)
 	eh.DAH = &dah
+	eh.RawHeader.DataHash = dah.Hash()
 	return eh
 }
 
