@@ -35,12 +35,10 @@ func TestGetSharesWithProofsByNamespace(t *testing.T) {
 			from := rand.Intn(len(tt.rawData) - 1)
 			to := rand.Intn(len(tt.rawData) - 1)
 
-			//
 			if to < from {
-				tmp := from
-				from, to = to, tmp
+				from, to = to, from
 			}
-			
+
 			expected := tt.rawData[from]
 			nID := expected[:NamespaceSize]
 
@@ -65,14 +63,14 @@ func TestGetSharesWithProofsByNamespace(t *testing.T) {
 					// construct nodes from shares by prepending namespace
 					var leaves [][]byte
 					for _, sh := range rowShares.Shares {
-						leafs = append(leafs, append(sh[:NamespaceSize], sh...))
+						leaves = append(leaves, append(sh[:NamespaceSize], sh...))
 					}
 
 					// validate proof
 					verified := rowShares.Proof.VerifyNamespace(
 						sha256.New(),
 						nID,
-						leafs,
+						leaves,
 						ipld.NamespacedSha256FromCID(rcid))
 					require.True(t, verified)
 				}

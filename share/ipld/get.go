@@ -44,7 +44,9 @@ var pool = workerpool.New(NumWorkersLimit)
 
 // LeavesWithProofs contains data with corresponding Merkle Proof
 type LeavesWithProofs struct {
-	Leaves               []ipld.Node
+	Leaves []ipld.Node
+	// Proofs contains nodes required for Leaves inclusion validation. Will be nil, if
+	// GetLeavesByNamespace was called with collectProofs = false option.
 	Proofs               [][]byte
 	ProofStart, ProofEnd int
 }
@@ -177,11 +179,12 @@ func GetLeaves(ctx context.Context,
 	wg.Wait()
 }
 
-// GetLeavesByNamespace returns leaves and corresponding proof that could be used to verify leaves inclusion.
-// It as many leaves from the given root with the given namespace.ID as it can retrieve.
-// If no shares are found, it returns both data and error as nil.
-// A non-nil error means that only partial data is returned, because at least one share retrieval failed
-// The following implementation is based on `GetShares`.
+// GetLeavesByNamespace returns leaves and corresponding proof that could be used to verify leaves
+// inclusion. It as many leaves from the given root with the given namespace.ID as it can retrieve.
+// If no shares are found, it returns both data and error as nil. collectProofs param indicates
+// whether proofs should be collected for shares inclusion verification. A non-nil error means that
+// only partial data is returned, because at least one share retrieval failed The following
+// implementation is based on `GetShares`.
 func GetLeavesByNamespace(
 	ctx context.Context,
 	bGetter blockservice.BlockGetter,
@@ -227,7 +230,8 @@ func GetLeavesByNamespace(
 
 	var leftProofs, rightProofs [][]byte
 	if collectProofs {
-		// TODO: (@walldiss) this is massively overallocating and should be optimized later with clever append
+		// TODO: (@walldiss) this is massively overallocating and should be optimized later with clever
+		// append
 		leftProofs = make([][]byte, BatchSize((maxShares)))
 		rightProofs = make([][]byte, BatchSize((maxShares)))
 	}
@@ -251,9 +255,9 @@ func GetLeavesByNamespace(
 				}
 				// right side of the tree will be traversed from top to bottom,
 				// so append in reversed order
-				for i := range rightProofs {
-					if rightProofs[len(rightProofs)-i-1] != nil {
-						proofs = append(proofs, rightProofs[len(rightProofs)-i-1])
+				for i := len(rightProofs) - 1; i >= 0; i-- {
+					if rightProofs[i] != nil {
+						proofs = append(proofs, rightProofs[i])
 					}
 				}
 
@@ -414,7 +418,8 @@ type fetchedBounds struct {
 func (b *fetchedBounds) update(index int64) {
 	lowest := atomic.LoadInt64(&b.lowest)
 	// try to write index to the lower bound if appropriate, and retry until the atomic op is successful
-	// CAS ensures that we don't overwrite if the bound has been updated in another goroutine after the comparison here
+	// CAS ensures that we don't overwrite if the bound has been updated in another goroutine after the
+	// comparison here
 	for index < lowest && !atomic.CompareAndSwapInt64(&b.lowest, lowest, index) {
 		lowest = atomic.LoadInt64(&b.lowest)
 	}

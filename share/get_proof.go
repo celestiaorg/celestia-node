@@ -19,8 +19,8 @@ type SharesWithProofs struct {
 	Proof nmt.Proof
 }
 
-// GetSharesWithProofsByNamespace walks the tree of a given root and returns its shares within the given namespace.ID.
-// If a share could not be retrieved, err is not nil, and the returned array
+// GetSharesWithProofsByNamespace walks the tree of a given root and returns its shares within the
+// given namespace.ID. If a share could not be retrieved, err is not nil, and the returned array
 // contains nil shares in place of the shares it was unable to retrieve.
 func GetSharesWithProofsByNamespace(
 	ctx context.Context,

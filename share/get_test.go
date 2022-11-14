@@ -221,7 +221,6 @@ func TestGetLeavesByNamespace_IncompleteData(t *testing.T) {
 
 	nodes, err := ipld.GetLeavesByNamespace(ctx, bServ, rcid, nid, len(shares), false)
 	assert.Equal(t, nil, nodes.Leaves[1])
-	// TODO(distractedm1nd): Decide if we should return an array containing nil
 	assert.Equal(t, 4, len(nodes.Leaves))
 	require.Error(t, err)
 }
