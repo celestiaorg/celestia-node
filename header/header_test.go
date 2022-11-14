@@ -41,31 +41,11 @@ func TestMakeExtendedHeaderForEmptyBlock(t *testing.T) {
 }
 
 func TestMismatchedDataHash_ComputedRoot(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	t.Cleanup(cancel)
-
-	_, client := core.StartTestCoreWithApp(t)
-	fetcher := core.NewBlockFetcher(client)
-
-	store := mdutils.Bserv()
-
-	sub, err := fetcher.SubscribeNewBlockEvent(ctx)
-	require.NoError(t, err)
-	<-sub
-
-	height := int64(1)
-	b, err := fetcher.GetBlock(ctx, &height)
-	require.NoError(t, err)
-
-	comm, val, err := fetcher.GetBlockInfo(ctx, &height)
-	require.NoError(t, err)
-
-	headerExt, err := MakeExtendedHeader(ctx, b, comm, val, store)
-	require.NoError(t, err)
+	header := RandExtendedHeader(t)
 
 	dah := da.NewDataAvailabilityHeader(share.RandEDS(t, 4))
-	headerExt.DAH = &dah
+	header.DAH = &dah
 
-	err = headerExt.ValidateBasic()
+	err := header.ValidateBasic()
 	assert.ErrorContains(t, err, "mismatch between data hash")
 }

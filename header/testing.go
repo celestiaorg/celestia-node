@@ -52,8 +52,9 @@ func NewTestSuite(t *testing.T, num int) *TestSuite {
 func (s *TestSuite) genesis() *ExtendedHeader {
 	dah := EmptyDAH()
 
-	gen := RandRawHeader(s.t, dah.Hash())
+	gen := RandRawHeader(s.t)
 
+	gen.DataHash = dah.Hash()
 	gen.ValidatorsHash = s.valSet.Hash()
 	gen.NextValidatorsHash = s.valSet.Hash()
 	gen.Height = 1
@@ -107,7 +108,7 @@ func (s *TestSuite) GenExtendedHeader() *ExtendedHeader {
 
 func (s *TestSuite) GenRawHeader(
 	height int64, lastHeader, lastCommit, dataHash bytes.HexBytes) *RawHeader {
-	rh := RandRawHeader(s.t, dataHash)
+	rh := RandRawHeader(s.t)
 	rh.Height = height
 	rh.Time = time.Now()
 	rh.LastBlockID = types.BlockID{Hash: lastHeader}
@@ -160,7 +161,8 @@ func (s *TestSuite) nextProposer() *types.Validator {
 func RandExtendedHeader(t *testing.T) *ExtendedHeader {
 	dah := EmptyDAH()
 
-	rh := RandRawHeader(t, dah.Hash())
+	rh := RandRawHeader(t)
+	rh.DataHash = dah.Hash()
 
 	valSet, vals := core.RandValidatorSet(3, 1)
 	rh.ValidatorsHash = valSet.Hash()
@@ -177,7 +179,7 @@ func RandExtendedHeader(t *testing.T) *ExtendedHeader {
 }
 
 // RandRawHeader provides a RawHeader fixture.
-func RandRawHeader(t *testing.T, dataHash []byte) *RawHeader {
+func RandRawHeader(t *testing.T) *RawHeader {
 	return &RawHeader{
 		Version:            version.Consensus{Block: 11, App: 1},
 		ChainID:            "test",
@@ -185,7 +187,7 @@ func RandRawHeader(t *testing.T, dataHash []byte) *RawHeader {
 		Time:               time.Now(),
 		LastBlockID:        RandBlockID(t),
 		LastCommitHash:     tmrand.Bytes(32),
-		DataHash:           dataHash,
+		DataHash:           tmrand.Bytes(32),
 		ValidatorsHash:     tmrand.Bytes(32),
 		NextValidatorsHash: tmrand.Bytes(32),
 		ConsensusHash:      tmrand.Bytes(32),
