@@ -14,10 +14,13 @@ import (
 	"github.com/tendermint/tendermint/abci/example/kvstore"
 	"github.com/tendermint/tendermint/abci/types"
 	"github.com/tendermint/tendermint/config"
+	tmrand "github.com/tendermint/tendermint/libs/rand"
 	tmservice "github.com/tendermint/tendermint/libs/service"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	rpctest "github.com/tendermint/tendermint/rpc/test"
 	tmtypes "github.com/tendermint/tendermint/types"
+
+	"github.com/celestiaorg/celestia-app/testutil/testnode"
 )
 
 // so that we never hit an issue where we request blocks that are removed
@@ -57,15 +60,57 @@ func StartTestClient(ctx context.Context, t *testing.T) (tmservice.Service, Clie
 	require.NoError(t, err)
 	ip, port, err := net.SplitHostPort(endpoint)
 	require.NoError(t, err)
+
 	client, err := NewRemote(ip, port)
+	require.NoError(t, err)
+
+	err = client.Start()
 	require.NoError(t, err)
 	t.Cleanup(func() {
 		err := client.Stop()
 		require.NoError(t, err)
 	})
+
+	return nd, client
+}
+
+func StartTestCoreWithApp(t *testing.T) (tmservice.Service, Client) {
+	// we create an arbitrary number of funded accounts
+	accounts := make([]string, 10)
+	for i := range accounts {
+		accounts[i] = tmrand.Str(9)
+	}
+
+	tmNode, _, cctx, err := testnode.New(
+		t,
+		testnode.DefaultParams(),
+		testnode.DefaultTendermintConfig(),
+		true,
+		accounts...,
+	)
+	require.NoError(t, err)
+
+	_, cleanupCoreNode, err := testnode.StartNode(tmNode, cctx)
+	require.NoError(t, err)
+	t.Cleanup(cleanupCoreNode)
+
+	endpoint, err := GetEndpoint(tmNode.Config())
+	require.NoError(t, err)
+
+	ip, port, err := net.SplitHostPort(endpoint)
+	require.NoError(t, err)
+
+	client, err := NewRemote(ip, port)
+	require.NoError(t, err)
+
 	err = client.Start()
 	require.NoError(t, err)
-	return nd, client
+	t.Cleanup(func() {
+		err := client.Stop()
+		require.NoError(t, err)
+	})
+
+	return tmNode, client
 }
 
 // GetEndpoint returns the remote node's RPC endpoint.
