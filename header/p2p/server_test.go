@@ -11,10 +11,10 @@ import (
 )
 
 func TestExchangeServer_handleRequestTimeout(t *testing.T) {
-	_, peer := createMocknet(t)
+	peer := createMocknet(t, 1)
 	s, err := store.NewStore(datastore.NewMapDatastore())
 	require.NoError(t, err)
-	server := NewExchangeServer(peer, s, "private")
+	server := NewExchangeServer(peer[0], s, "private")
 	err = server.Start(context.Background())
 	require.NoError(t, err)
 	t.Cleanup(func() {
