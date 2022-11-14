@@ -50,14 +50,17 @@ func NewTestSuite(t *testing.T, num int) *TestSuite {
 }
 
 func (s *TestSuite) genesis() *ExtendedHeader {
-	gen := RandRawHeader(s.t)
+	dah := EmptyDAH()
+
+	gen := RandRawHeader(s.t, dah.Hash())
+
 	gen.ValidatorsHash = s.valSet.Hash()
 	gen.NextValidatorsHash = s.valSet.Hash()
 	gen.Height = 1
 	voteSet := types.NewVoteSet(gen.ChainID, gen.Height, 0, tmproto.PrecommitType, s.valSet)
 	commit, err := core.MakeCommit(RandBlockID(s.t), gen.Height, 0, voteSet, s.vals, time.Now())
 	require.NoError(s.t, err)
-	dah := EmptyDAH()
+
 	eh := &ExtendedHeader{
 		RawHeader:    *gen,
 		Commit:       commit,
@@ -104,7 +107,7 @@ func (s *TestSuite) GenExtendedHeader() *ExtendedHeader {
 
 func (s *TestSuite) GenRawHeader(
 	height int64, lastHeader, lastCommit, dataHash bytes.HexBytes) *RawHeader {
-	rh := RandRawHeader(s.t)
+	rh := RandRawHeader(s.t, dataHash)
 	rh.Height = height
 	rh.Time = time.Now()
 	rh.LastBlockID = types.BlockID{Hash: lastHeader}
@@ -155,13 +158,16 @@ func (s *TestSuite) nextProposer() *types.Validator {
 
 // RandExtendedHeader provides an ExtendedHeader fixture.
 func RandExtendedHeader(t *testing.T) *ExtendedHeader {
-	rh := RandRawHeader(t)
+	dah := EmptyDAH()
+
+	rh := RandRawHeader(t, dah.Hash())
+
 	valSet, vals := core.RandValidatorSet(3, 1)
 	rh.ValidatorsHash = valSet.Hash()
 	voteSet := types.NewVoteSet(rh.ChainID, rh.Height, 0, tmproto.PrecommitType, valSet)
 	commit, err := core.MakeCommit(RandBlockID(t), rh.Height, 0, voteSet, vals, time.Now())
 	require.NoError(t, err)
-	dah := EmptyDAH()
+
 	return &ExtendedHeader{
 		RawHeader:    *rh,
 		Commit:       commit,
@@ -171,7 +177,7 @@ func RandExtendedHeader(t *testing.T) *ExtendedHeader {
 }
 
 // RandRawHeader provides a RawHeader fixture.
-func RandRawHeader(t *testing.T) *RawHeader {
+func RandRawHeader(t *testing.T, dataHash []byte) *RawHeader {
 	return &RawHeader{
 		Version:            version.Consensus{Block: 11, App: 1},
 		ChainID:            "test",
@@ -179,7 +185,7 @@ func RandRawHeader(t *testing.T) *RawHeader {
 		Time:               time.Now(),
 		LastBlockID:        RandBlockID(t),
 		LastCommitHash:     tmrand.Bytes(32),
-		DataHash:           tmrand.Bytes(32),
+		DataHash:           dataHash,
 		ValidatorsHash:     tmrand.Bytes(32),
 		NextValidatorsHash: tmrand.Bytes(32),
 		ConsensusHash:      tmrand.Bytes(32),
