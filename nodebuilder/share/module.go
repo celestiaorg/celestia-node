@@ -3,13 +3,14 @@ package share
 import (
 	"context"
 
-	"github.com/celestiaorg/celestia-node/share"
-	"github.com/celestiaorg/celestia-node/share/availability/full"
-	"github.com/celestiaorg/celestia-node/share/availability/light"
-
+	"github.com/ipfs/go-datastore"
 	"go.uber.org/fx"
 
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
+	"github.com/celestiaorg/celestia-node/share"
+	"github.com/celestiaorg/celestia-node/share/availability/full"
+	"github.com/celestiaorg/celestia-node/share/availability/light"
+	"github.com/celestiaorg/celestia-node/share/eds"
 )
 
 func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option {
@@ -47,6 +48,17 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 		return fx.Module(
 			"share",
 			baseComponents,
+			fx.Provide(fx.Annotate(
+				func(path node.ConfigPath, ds datastore.Batching) (*eds.Store, error) {
+					return eds.NewStore(string(path), ds)
+				},
+				fx.OnStart(func(ctx context.Context, eds *eds.Store) error {
+					return eds.Start(ctx)
+				}),
+				fx.OnStop(func(ctx context.Context, eds *eds.Store) error {
+					return eds.Stop(ctx)
+				}),
+			)),
 			fx.Provide(fx.Annotate(
 				full.NewShareAvailability,
 				fx.OnStart(func(ctx context.Context, avail *full.ShareAvailability) error {

@@ -84,7 +84,7 @@ func (s *Store) Start(ctx context.Context) error {
 }
 
 // Stop stops the underlying DAGStore.
-func (s *Store) Stop() error {
+func (s *Store) Stop(context.Context) error {
 	return s.dgstr.Close()
 }
 
