@@ -77,12 +77,6 @@ install-key:
 	@go install ./cmd/cel-key
 .PHONY: install-key
 
-## docgen: Build docgen binary.
-docgen:
-	@echo "--> Building docgen"
-	@go build ./cmd/docgen
-.PHONY: docgen
-
 ## fmt: Formats only *.go (excluding *.pb.go *pb_test.go). Runs `gofmt & goimports` internally.
 fmt:
 	@find . -name '*.go' -type f -not -path "*.git*" -not -name '*.pb.go' -not -name '*pb_test.go' | xargs gofmt -w -s
