@@ -7,11 +7,9 @@ import (
 	mdutils "github.com/ipfs/go-merkledag/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	"github.com/celestiaorg/celestia-app/pkg/da"
+	"github.com/tendermint/tendermint/libs/rand"
 
 	"github.com/celestiaorg/celestia-node/core"
-	"github.com/celestiaorg/celestia-node/share"
 )
 
 func TestMakeExtendedHeaderForEmptyBlock(t *testing.T) {
@@ -43,8 +41,7 @@ func TestMakeExtendedHeaderForEmptyBlock(t *testing.T) {
 func TestMismatchedDataHash_ComputedRoot(t *testing.T) {
 	header := RandExtendedHeader(t)
 
-	dah := da.NewDataAvailabilityHeader(share.RandEDS(t, 4))
-	header.DAH = &dah
+	header.DataHash = rand.Bytes(32)
 
 	err := header.ValidateBasic()
 	assert.ErrorContains(t, err, "mismatch between data hash")
