@@ -232,8 +232,8 @@ func GetLeavesByNamespace(
 	if collectProofs {
 		// TODO: (@walldiss) this is massively overallocating and should be optimized later with clever
 		// append
-		leftProofs = make([][]byte, BatchSize((maxShares)))
-		rightProofs = make([][]byte, BatchSize((maxShares)))
+		leftProofs = make([][]byte, BatchSize(maxShares))
+		rightProofs = make([][]byte, BatchSize(maxShares))
 	}
 
 	for {
