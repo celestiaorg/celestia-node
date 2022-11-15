@@ -154,7 +154,7 @@ func (p *BadEncodingProof) Validate(header *header.ExtendedHeader) error {
 		return err
 	}
 
-	squareWidth := uint64(len(header.DAH.RowsRoots) / 2)
+	squareWidth := uint64(len(shares) / 2)
 
 	rebuiltExtendedShares, err := codec.Encode(rebuiltShares[0:squareWidth])
 	if err != nil {
