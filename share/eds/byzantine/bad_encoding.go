@@ -138,10 +138,13 @@ func (p *BadEncodingProof) Validate(header *header.ExtendedHeader) error {
 		if share == nil {
 			continue
 		}
-		shares[index] = share.Share
+		// validate inclusion of the share into one of the DAHeader roots
 		if ok := share.Validate(ipld.MustCidFromNamespacedSha256(root)); !ok {
 			return fmt.Errorf("fraud: invalid proof: incorrect share received at index %d", index)
 		}
+		// NMTree commits the additional namespace while rsmt2d does not know about, so we trim it
+		// this is ugliness from NMTWrapper that we have to embrace ¯\_(ツ)_/¯
+		shares[index] = share.Share[ipld.NamespaceSize:]
 	}
 
 	codec := appconsts.DefaultCodec()
