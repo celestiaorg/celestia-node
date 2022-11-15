@@ -18,6 +18,7 @@ import (
 	"github.com/celestiaorg/celestia-node/fraud"
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/nodebuilder/das"
+	hdr "github.com/celestiaorg/celestia-node/nodebuilder/header"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
 	"github.com/celestiaorg/celestia-node/state"
@@ -62,6 +63,19 @@ func WithMetrics(metricOpts []otlpmetrichttp.Option, nodeType node.Type) fx.Opti
 		panic("invalid node type")
 	}
 	return opts
+}
+
+func WithBlackboxMetrics() fx.Option {
+	return fx.Options(
+		fx.Invoke(func(n *Node) {
+			hs, err := hdr.WithBlackBoxMetrics(n.HeaderServ)
+			if err != nil {
+				n.HeaderServ = hs
+			} else {
+				log.Warn("Ignoring blackbox metrics, encountered error:", err)
+			}
+		}),
+	)
 }
 
 // initializeMetrics initializes the global meter provider.
