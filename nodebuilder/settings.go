@@ -67,13 +67,13 @@ func WithMetrics(metricOpts []otlpmetrichttp.Option, nodeType node.Type) fx.Opti
 
 func WithBlackboxMetrics() fx.Option {
 	return fx.Options(
-		fx.Invoke(func(n *Node) {
-			hs, err := hdr.WithBlackBoxMetrics(n.HeaderServ)
+		fx.Decorate(func(mod hdr.Module) hdr.Module {
+			hdr, err := hdr.WithBlackBoxMetrics(mod)
 			if err != nil {
-				n.HeaderServ = hs
-			} else {
-				log.Warn("Ignoring blackbox metrics, encountered error:", err)
+				log.Warn("[WithBlackBoxMetrics] encountered error while providing header.Module:", err)
+				return mod
 			}
+			return hdr
 		}),
 	)
 }
