@@ -2,7 +2,7 @@ package header
 
 import (
 	"context"
-	"fmt"
+	"math/rand"
 	"time"
 
 	"github.com/celestiaorg/celestia-node/header"
@@ -41,7 +41,7 @@ func newBlackBoxInstrument(next Module) (Module, error) {
 		SyncInt64().
 		Histogram(
 			"node.header.blackbox.request_duration",
-			instrument.WithDescription("duration of sampling a single header"),
+			instrument.WithDescription("duration of a single get header request"),
 		)
 	if err != nil {
 		return nil, err
@@ -50,8 +50,8 @@ func newBlackBoxInstrument(next Module) (Module, error) {
 	requestSize, err := meter.
 		SyncInt64().
 		Histogram(
-			"node.header.blackbox.request_duration",
-			instrument.WithDescription("duration of sampling a single header"),
+			"node.header.blackbox.request_size",
+			instrument.WithDescription("size of a get header response"),
 		)
 	if err != nil {
 		return nil, err
@@ -71,7 +71,7 @@ func newBlackBoxInstrument(next Module) (Module, error) {
 // until header has been processed by the store or context deadline is exceeded.
 func (bbi *blackBoxInstrument) GetByHeight(ctx context.Context, height uint64) (*header.ExtendedHeader, error) {
 	now := time.Now()
-	requestTs := fmt.Sprintf("%d", now.UnixMilli())
+	requestId := RandStringBytes(5)
 
 	// defer recording the duration until the request has received a response and finished
 	defer func(ctx context.Context, begin time.Time) {
@@ -88,7 +88,7 @@ func (bbi *blackBoxInstrument) GetByHeight(ctx context.Context, height uint64) (
 		bbi.requestsNum.Add(
 			ctx,
 			1,
-			attribute.String("request-ts", requestTs),
+			attribute.String("request-id", requestId),
 			attribute.String("state", "failed"),
 		)
 		return eh, err
@@ -98,7 +98,7 @@ func (bbi *blackBoxInstrument) GetByHeight(ctx context.Context, height uint64) (
 	bbi.requestsNum.Add(
 		ctx,
 		1,
-		attribute.String("request-ts", requestTs),
+		attribute.String("request-id", requestId),
 		attribute.String("state", "succeeded"),
 	)
 
@@ -126,4 +126,15 @@ func (bbi *blackBoxInstrument) Head(ctx context.Context) (*header.ExtendedHeader
 // IsSyncing returns the status of sync
 func (bbi *blackBoxInstrument) IsSyncing() bool {
 	return bbi.next.IsSyncing()
+}
+
+// utility
+const letterBytes = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+
+func RandStringBytes(n int) string {
+	b := make([]byte, n)
+	for i := range b {
+		b[i] = letterBytes[rand.Intn(len(letterBytes))]
+	}
+	return string(b)
 }
