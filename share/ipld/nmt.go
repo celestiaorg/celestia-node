@@ -55,6 +55,11 @@ const (
 	// for NamespacedSha256. For more information, see:
 	// https://multiformats.io/multihash/#the-multihash-format
 	cidPrefixSize = 4
+
+	// NMTIgnoreMaxNamespace is currently used value for IgnoreMaxNamespace option in NMT.
+	// IgnoreMaxNamespace defines whether the largest possible namespace.ID MAX_NID should be 'ignored'.
+	// If set to true, this allows for shorter proofs in particular use-cases.
+	NMTIgnoreMaxNamespace = true
 )
 
 func GetNode(ctx context.Context, bGetter blockservice.BlockGetter, root cid.Cid) (ipld.Node, error) {

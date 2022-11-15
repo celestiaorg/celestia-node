@@ -31,7 +31,7 @@ func TestGetSharesWithProofsByNamespace(t *testing.T) {
 	for i, tt := range tests {
 		t.Run(strconv.Itoa(i), func(t *testing.T) {
 			rand.Seed(time.Now().UnixNano())
-			// choose random range in shares f
+			// choose random range in shares slice
 			from := rand.Intn(len(tt.rawData) - 1)
 			to := rand.Intn(len(tt.rawData) - 1)
 

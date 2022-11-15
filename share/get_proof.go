@@ -46,6 +46,6 @@ func GetSharesWithProofsByNamespace(
 
 	return &SharesWithProofs{
 		Shares: shares,
-		Proof:  nmt.NewInclusionProof(nodes.ProofStart, nodes.ProofEnd, nodes.Proofs, true),
+		Proof:  nmt.NewInclusionProof(nodes.ProofStart, nodes.ProofEnd, nodes.Proofs, ipld.NMTIgnoreMaxNamespace),
 	}, nil
 }
