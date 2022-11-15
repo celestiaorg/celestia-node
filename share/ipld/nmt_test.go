@@ -21,10 +21,8 @@ func TestNamespaceFromCID(t *testing.T) {
 	var tests = []struct {
 		randData [][]byte
 	}{
-		{randData: generateRandNamespacedRawData(4, appconsts.NamespaceSize, appconsts.ShareSize)},
-		{randData: generateRandNamespacedRawData(16, 16, appconsts.ShareSize)},
-		{randData: generateRandNamespacedRawData(4, 4, appconsts.ShareSize)},
-		{randData: generateRandNamespacedRawData(4, appconsts.NamespaceSize, appconsts.ShareSize/2)},
+		{randData: generateRandNamespacedRawData(4, appconsts.NamespaceSize, appconsts.ShareSize-appconsts.NamespaceSize)},
+		{randData: generateRandNamespacedRawData(16, appconsts.NamespaceSize, appconsts.ShareSize-appconsts.NamespaceSize)},
 	}
 
 	for i, tt := range tests {
