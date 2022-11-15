@@ -12,7 +12,7 @@ const (
 	// DefaultNetwork is the default network of the current build.
 	DefaultNetwork = Arabica
 	// Arabica testnet. See: celestiaorg/networks.
-	Arabica Network = "arabica-1"
+	Arabica Network = "arabica-2"
 	// Mamaki testnet. See: celestiaorg/networks.
 	Mamaki Network = "mamaki"
 	// Private can be used to set up any private network, including local testing setups.
