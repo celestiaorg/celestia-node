@@ -15,7 +15,8 @@ import (
 	"github.com/celestiaorg/rsmt2d"
 )
 
-func TestFalsePositiveBadEncodingFraudProof(t *testing.T) {
+// TestIncorrectBadEncodingFraudProof asserts that BEFP is not generated for the correct data
+func TestIncorrectBadEncodingFraudProof(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -44,7 +45,7 @@ func TestFalsePositiveBadEncodingFraudProof(t *testing.T) {
 		Axis:   rsmt2d.Row,
 	}
 
-	h := header.ExtendedHeader{
+	h := &header.ExtendedHeader{
 		RawHeader: core.Header{
 			Height: 420,
 		},
@@ -56,10 +57,7 @@ func TestFalsePositiveBadEncodingFraudProof(t *testing.T) {
 		},
 	}
 
-	hhash := h.Hash()
-
-	proof := CreateBadEncodingProof(hhash, uint64(h.Height), &fakeError)
-
-	err = proof.Validate(&h)
+	proof := CreateBadEncodingProof(h.Hash(), uint64(h.Height), &fakeError)
+	err = proof.Validate(h)
 	require.Error(t, err)
 }
