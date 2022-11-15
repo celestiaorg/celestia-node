@@ -157,8 +157,11 @@ func (bs *Blockstore) readFromBSCache(shardContainingCid shard.Key) (dagstore.Re
 		return nil, errors.New("not found in cache")
 	}
 
-	rbs := val.(*accessorWithBlockstore).bs
-	return rbs, nil
+	rbs, ok := val.(*accessorWithBlockstore)
+	if !ok {
+		return nil, errors.New("couldn't cast value from cache to accessor with blockstore")
+	}
+	return rbs.bs, nil
 }
 
 func (bs *Blockstore) addToBSCache(
