@@ -13,9 +13,9 @@ import (
 
 // SharesWithProofs contains data with corresponding Merkle Proof
 type SharesWithProofs struct {
-	// Share is a full data including namespace
+	// Shares are the full data including namespace
 	Shares []Share
-	// Proof is a Merkle Proof of current share
+	// Proof is a Merkle Proof for the corresponding Shares
 	Proof nmt.Proof
 }
 
@@ -29,7 +29,7 @@ func GetSharesWithProofsByNamespace(
 	nID namespace.ID,
 	maxShares int,
 ) (*SharesWithProofs, error) {
-	ctx, span := tracer.Start(ctx, "get-shares-by-namespace")
+	ctx, span := tracer.Start(ctx, "get-shares-by-namespace-with-proof")
 	defer span.End()
 
 	nodes, err := ipld.GetLeavesByNamespace(ctx, bGetter, root, nID, maxShares, true)
