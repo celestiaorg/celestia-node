@@ -1,10 +1,7 @@
 package byzantine
 
 import (
-	"bytes"
 	"context"
-	"crypto/rand"
-	"sort"
 	"testing"
 
 	mdutils "github.com/ipfs/go-merkledag/test"
@@ -25,9 +22,9 @@ func TestFalsePositiveBadEncodingFraudProof(t *testing.T) {
 	bServ := mdutils.Bserv()
 
 	squareSize := 8
-	ss := generateRandNamespacedRawData(uint32(squareSize*squareSize), 8, 504)
+	shares := share.RandShares(t, squareSize*squareSize)
 
-	eds, err := share.AddShares(ctx, ss, bServ)
+	eds, err := share.AddShares(ctx, shares, bServ)
 	require.NoError(t, err)
 
 	dah := da.NewDataAvailabilityHeader(eds)
@@ -65,28 +62,4 @@ func TestFalsePositiveBadEncodingFraudProof(t *testing.T) {
 
 	err = proof.Validate(&h)
 	require.Error(t, err)
-}
-
-// generateRandNamespacedRawData returns random namespaced raw data for testing purposes.
-func generateRandNamespacedRawData(total, nidSize, leafSize uint32) [][]byte {
-	data := make([][]byte, total)
-	for i := uint32(0); i < total; i++ {
-		nid := make([]byte, nidSize)
-
-		_, _ = rand.Read(nid)
-		data[i] = nid
-	}
-	sortByteArrays(data)
-	for i := uint32(0); i < total; i++ {
-		d := make([]byte, leafSize)
-
-		_, _ = rand.Read(d)
-		data[i] = append(data[i], d...)
-	}
-
-	return data
-}
-
-func sortByteArrays(src [][]byte) {
-	sort.Slice(src, func(i, j int) bool { return bytes.Compare(src[i], src[j]) < 0 })
 }
