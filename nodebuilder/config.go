@@ -37,7 +37,7 @@ type Config struct {
 // NOTE: Currently, configs are identical, but this will change.
 func DefaultConfig(tp node.Type) *Config {
 	switch tp {
-	case node.Bridge, node.Light, node.Full:
+	case node.Light, node.Full:
 		return &Config{
 			Core:    core.DefaultConfig(),
 			State:   state.DefaultConfig(),
@@ -47,6 +47,16 @@ func DefaultConfig(tp node.Type) *Config {
 			Share:   share.DefaultConfig(),
 			Header:  header.DefaultConfig(),
 			DASer:   das.DefaultConfig(),
+		}
+	case node.Bridge:
+		return &Config{
+			Core:    core.DefaultConfig(),
+			State:   state.DefaultConfig(),
+			P2P:     p2p.DefaultConfig(),
+			RPC:     rpc.DefaultConfig(),
+			Gateway: gateway.DefaultConfig(),
+			Share:   share.DefaultConfig(),
+			Header:  header.DefaultConfig(),
 		}
 	default:
 		panic("node: invalid node type")
