@@ -5,13 +5,13 @@ import (
 	"fmt"
 	"os"
 	"testing"
-
-	"github.com/stretchr/testify/assert"
+	"time"
 
 	"github.com/filecoin-project/dagstore/shard"
 	"github.com/ipfs/go-datastore"
 	ds_sync "github.com/ipfs/go-datastore/sync"
 	"github.com/ipld/go-car"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/celestiaorg/celestia-node/share"
@@ -154,6 +154,33 @@ func TestEDSStore_Has(t *testing.T) {
 	ok, err = edsStore.Has(ctx, dah)
 	assert.NoError(t, err)
 	assert.True(t, ok)
+}
+
+// TestEDSStore_GC verifies that unused transient shards are collected by the GC periodically.
+func TestEDSStore_GC(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(cancel)
+
+	gcInterval = time.Second
+	edsStore, err := newStore(t)
+	require.NoError(t, err)
+	// kicks off the gc goroutine
+	err = edsStore.Start(ctx)
+	require.NoError(t, err)
+
+	eds, dah := randomEDS(t)
+
+	err = edsStore.Put(ctx, dah, eds)
+	assert.NoError(t, err)
+
+	// doesn't exist yet
+	assert.NotContains(t, edsStore.lastGCResult.Shards, shard.KeyFromString(dah.String()))
+
+	time.Sleep(time.Second)
+	assert.Contains(t, edsStore.lastGCResult.Shards, shard.KeyFromString(dah.String()))
+
+	// assert nil in this context means there was no error re-acquiring the shard during GC
+	assert.Nil(t, edsStore.lastGCResult.Shards[shard.KeyFromString(dah.String())])
 }
 
 func newStore(t *testing.T) (*Store, error) {

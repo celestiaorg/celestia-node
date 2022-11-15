@@ -41,7 +41,8 @@ type Store struct {
 	topIdx index.Inverted
 	carIdx index.FullIndexRepo
 
-	basepath string
+	basepath     string
+	lastGCResult *dagstore.GCResult
 }
 
 // NewStore creates a new EDS Store under the given basepath and datastore.
@@ -78,6 +79,10 @@ func NewStore(basepath string, ds datastore.Batching) (*Store, error) {
 
 	return &Store{
 		basepath: basepath,
+		// initialize empty gc result to avoid panic on access
+		lastGCResult: &dagstore.GCResult{
+			Shards: make(map[shard.Key]error),
+		},
 		dgstr:    dagStore,
 		topIdx:   invertedRepo,
 		carIdx:   fsRepo,
@@ -108,11 +113,12 @@ func (s *Store) gc(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
-			_, err := s.dgstr.GC(ctx)
+			res, err := s.dgstr.GC(ctx)
 			if err != nil {
 				log.Errorf("garbage collecting dagstore: %v", err)
 				return
 			}
+			s.lastGCResult = res
 		}
 
 	}
