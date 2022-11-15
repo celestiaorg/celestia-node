@@ -50,14 +50,18 @@ func NewTestSuite(t *testing.T, num int) *TestSuite {
 }
 
 func (s *TestSuite) genesis() *ExtendedHeader {
+	dah := EmptyDAH()
+
 	gen := RandRawHeader(s.t)
+
+	gen.DataHash = dah.Hash()
 	gen.ValidatorsHash = s.valSet.Hash()
 	gen.NextValidatorsHash = s.valSet.Hash()
 	gen.Height = 1
 	voteSet := types.NewVoteSet(gen.ChainID, gen.Height, 0, tmproto.PrecommitType, s.valSet)
 	commit, err := core.MakeCommit(RandBlockID(s.t), gen.Height, 0, voteSet, s.vals, time.Now())
 	require.NoError(s.t, err)
-	dah := EmptyDAH()
+
 	eh := &ExtendedHeader{
 		RawHeader:    *gen,
 		Commit:       commit,
@@ -155,13 +159,17 @@ func (s *TestSuite) nextProposer() *types.Validator {
 
 // RandExtendedHeader provides an ExtendedHeader fixture.
 func RandExtendedHeader(t *testing.T) *ExtendedHeader {
+	dah := EmptyDAH()
+
 	rh := RandRawHeader(t)
+	rh.DataHash = dah.Hash()
+
 	valSet, vals := core.RandValidatorSet(3, 1)
 	rh.ValidatorsHash = valSet.Hash()
 	voteSet := types.NewVoteSet(rh.ChainID, rh.Height, 0, tmproto.PrecommitType, valSet)
 	commit, err := core.MakeCommit(RandBlockID(t), rh.Height, 0, voteSet, vals, time.Now())
 	require.NoError(t, err)
-	dah := EmptyDAH()
+
 	return &ExtendedHeader{
 		RawHeader:    *rh,
 		Commit:       commit,
@@ -212,13 +220,13 @@ func FraudMaker(t *testing.T, faultHeight int64) ConstructFn {
 		comm *types.Commit,
 		vals *types.ValidatorSet,
 		bServ blockservice.BlockService) (*ExtendedHeader, error) {
-		eh := &ExtendedHeader{
-			RawHeader:    b.Header,
-			Commit:       comm,
-			ValidatorSet: vals,
-		}
-
 		if b.Height == faultHeight {
+			eh := &ExtendedHeader{
+				RawHeader:    b.Header,
+				Commit:       comm,
+				ValidatorSet: vals,
+			}
+
 			eh = CreateFraudExtHeader(t, eh, bServ)
 			return eh, nil
 		}
@@ -234,6 +242,7 @@ func CreateFraudExtHeader(t *testing.T, eh *ExtendedHeader, dag blockservice.Blo
 	require.NoError(t, err)
 	dah := da.NewDataAvailabilityHeader(extended)
 	eh.DAH = &dah
+	eh.RawHeader.DataHash = dah.Hash()
 	return eh
 }
 

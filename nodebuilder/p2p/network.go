@@ -46,6 +46,15 @@ var networksList = map[Network]struct{}{
 	Private: {},
 }
 
+// networkAliases is a strict list of all known long-standing networks
+// mapped from the string representation of their *alias* (rather than
+// their actual value) to the Network.
+var networkAliases = map[string]Network{
+	"arabica": Arabica,
+	"mamaki":  Mamaki,
+	"private": Private,
+}
+
 // listProvidedNetworks provides a string listing all known long-standing networks for things like
 // command hints.
 func listProvidedNetworks() string {

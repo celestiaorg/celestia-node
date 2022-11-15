@@ -153,7 +153,7 @@ func (ca *CoreAccessor) SubmitPayForData(
 ) (*TxResponse, error) {
 	response, err := payment.SubmitPayForData(ctx, ca.signer, ca.coreConn, nID, data, gasLim)
 	// metrics should only be counted on a successful PFD tx
-	if response.Code == 0 && err == nil {
+	if err == nil && response.Code == 0 {
 		ca.lastPayForData = time.Now().UnixMilli()
 		ca.payForDataCount++
 	}

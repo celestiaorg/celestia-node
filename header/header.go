@@ -16,6 +16,7 @@ import (
 	appshares "github.com/celestiaorg/celestia-app/pkg/shares"
 
 	"github.com/celestiaorg/celestia-app/pkg/da"
+
 	"github.com/celestiaorg/celestia-node/share"
 )
 
@@ -123,6 +124,12 @@ func (eh *ExtendedHeader) ValidateBasic() error {
 
 	if err := eh.ValidatorSet.VerifyCommitLight(eh.ChainID, eh.Commit.BlockID, eh.Height, eh.Commit); err != nil {
 		return err
+	}
+
+	// ensure data root from raw header matches computed root
+	if !bytes.Equal(eh.DAH.Hash(), eh.DataHash) {
+		return fmt.Errorf("mismatch between data hash commitment from core header and computed data root: "+
+			"data hash: %X, computed root: %X", eh.DataHash, eh.DAH.Hash())
 	}
 
 	return eh.DAH.ValidateBasic()

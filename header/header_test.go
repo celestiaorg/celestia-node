@@ -7,6 +7,7 @@ import (
 	mdutils "github.com/ipfs/go-merkledag/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/tendermint/tendermint/libs/rand"
 
 	"github.com/celestiaorg/celestia-node/core"
 )
@@ -15,7 +16,7 @@ func TestMakeExtendedHeaderForEmptyBlock(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
 
-	_, client := core.StartTestClient(ctx, t)
+	_, client := core.StartTestCoreWithApp(t)
 	fetcher := core.NewBlockFetcher(client)
 
 	store := mdutils.Bserv()
@@ -35,4 +36,13 @@ func TestMakeExtendedHeaderForEmptyBlock(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.Equal(t, EmptyDAH(), *headerExt.DAH)
+}
+
+func TestMismatchedDataHash_ComputedRoot(t *testing.T) {
+	header := RandExtendedHeader(t)
+
+	header.DataHash = rand.Bytes(32)
+
+	err := header.ValidateBasic()
+	assert.ErrorContains(t, err, "mismatch between data hash")
 }

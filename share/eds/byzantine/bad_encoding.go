@@ -131,32 +131,36 @@ func (p *BadEncodingProof) Validate(header *header.ExtendedHeader) error {
 		root = merkleColRoots[p.Index]
 	}
 
-	shares := make([][]byte, len(merkleRowRoots))
-
 	// verify that Merkle proofs correspond to particular shares.
+	shares := make([][]byte, len(merkleRowRoots))
 	for index, share := range p.Shares {
 		if share == nil {
 			continue
 		}
-		shares[index] = share.Share
+		// validate inclusion of the share into one of the DAHeader roots
 		if ok := share.Validate(ipld.MustCidFromNamespacedSha256(root)); !ok {
 			return fmt.Errorf("fraud: invalid proof: incorrect share received at index %d", index)
 		}
+		// NMTree commits the additional namespace while rsmt2d does not know about, so we trim it
+		// this is ugliness from NMTWrapper that we have to embrace ¯\_(ツ)_/¯
+		shares[index] = share.Share[ipld.NamespaceSize:]
 	}
 
+	odsWidth := uint64(len(merkleRowRoots) / 2)
 	codec := appconsts.DefaultCodec()
+
 	// rebuild a row or col.
 	rebuiltShares, err := codec.Decode(shares)
 	if err != nil {
 		return err
 	}
-	rebuiltExtendedShares, err := codec.Encode(rebuiltShares[0 : len(shares)/2])
+	rebuiltExtendedShares, err := codec.Encode(rebuiltShares[0:odsWidth])
 	if err != nil {
 		return err
 	}
-	rebuiltShares = append(rebuiltShares, rebuiltExtendedShares...)
+	copy(rebuiltShares[odsWidth:], rebuiltExtendedShares)
 
-	tree := wrapper.NewErasuredNamespacedMerkleTree(uint64(len(shares)/2), uint(p.Index))
+	tree := wrapper.NewErasuredNamespacedMerkleTree(odsWidth, uint(p.Index))
 	for _, share := range rebuiltShares {
 		tree.Push(share)
 	}
