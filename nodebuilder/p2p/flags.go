@@ -67,9 +67,9 @@ func ParseFlags(
 // ParseNetwork tries to parse the network from the flags and environment,
 // and returns either the parsed network or the build's default network
 func ParseNetwork(cmd *cobra.Command) (Network, error) {
-	parsedNetwork := cmd.Flag(networkFlag).Value.String()
+	parsed := cmd.Flag(networkFlag).Value.String()
 	// no network set through the flags, so check if there is an override in the env
-	if parsedNetwork == "" {
+	if parsed == "" {
 		envNetwork, err := parseNetworkFromEnv()
 		// no network found in env, so use the default network
 		if envNetwork == "" {
@@ -77,7 +77,16 @@ func ParseNetwork(cmd *cobra.Command) (Network, error) {
 		}
 		return envNetwork, err
 	}
-	return Network(parsedNetwork), nil
+	// check if user provided an alias
+	parsedNetwork, ok := networkAliases[parsed]
+	if ok {
+		return parsedNetwork, nil
+	}
+	// check if user provided the actual network value
+	if err := Network(parsed).Validate(); err == nil {
+		return Network(parsed), nil
+	}
+	return "", fmt.Errorf("invalid network specified: %s", parsed)
 }
 
 // parseNetworkFromEnv tries to parse the network from the environment.
