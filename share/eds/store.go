@@ -24,7 +24,7 @@ const (
 	transientsPath = "/transients/"
 )
 
-type EDSStore struct { //nolint:revive
+type Store struct {
 	dgstr  *dagstore.DAGStore
 	bs     blockstore.Blockstore
 	mounts *mount.Registry
@@ -35,7 +35,7 @@ type EDSStore struct { //nolint:revive
 	basepath string
 }
 
-func NewEDSStore(basepath string, ds datastore.Batching) (*EDSStore, error) {
+func NewStore(basepath string, ds datastore.Batching) (*Store, error) {
 	err := setupPath(basepath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to setup EDSStore directories: %w", err)
@@ -66,7 +66,7 @@ func NewEDSStore(basepath string, ds datastore.Batching) (*EDSStore, error) {
 		return nil, fmt.Errorf("failed to create DAGStore: %w", err)
 	}
 
-	s := &EDSStore{
+	s := &Store{
 		basepath: basepath,
 		dgstr:    dagStore,
 		topIdx:   invertedRepo,
@@ -82,11 +82,11 @@ func NewEDSStore(basepath string, ds datastore.Batching) (*EDSStore, error) {
 	return s, nil
 }
 
-func (s *EDSStore) Start(ctx context.Context) error {
+func (s *Store) Start(ctx context.Context) error {
 	return s.dgstr.Start(ctx)
 }
 
-func (s *EDSStore) Stop() error {
+func (s *Store) Stop() error {
 	return s.dgstr.Close()
 }
 
@@ -95,7 +95,7 @@ func (s *EDSStore) Stop() error {
 // The square is verified on the Exchange level, and Put only stores the square, trusting it.
 // The resulting file stores all the shares and NMT Merkle Proofs of the EDS.
 // Additionally, the file gets indexed s.t. store.Blockstore can access them.
-func (s *EDSStore) Put(ctx context.Context, root share.Root, square *rsmt2d.ExtendedDataSquare) error {
+func (s *Store) Put(ctx context.Context, root share.Root, square *rsmt2d.ExtendedDataSquare) error {
 	key := root.String()
 	f, err := os.OpenFile(s.basepath+blocksPath+key, os.O_CREATE|os.O_WRONLY, 0600)
 	if err != nil {
@@ -116,8 +116,12 @@ func (s *EDSStore) Put(ctx context.Context, root share.Root, square *rsmt2d.Exte
 		return err
 	}
 
-	result := <-ch
-	return result.Error
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case result := <-ch:
+		return result.Error
+	}
 }
 
 // GetCAR takes a DataRoot and returns a buffered reader to the respective EDS serialized as a CARv1 file.
@@ -126,7 +130,7 @@ func (s *EDSStore) Put(ctx context.Context, root share.Root, square *rsmt2d.Exte
 // Integrity of the store data is not verified.
 //
 // Caller must Close returned reader after reading.
-func (s *EDSStore) GetCAR(ctx context.Context, root share.Root) (io.ReadCloser, error) {
+func (s *Store) GetCAR(ctx context.Context, root share.Root) (io.ReadCloser, error) {
 	key := root.String()
 
 	ch := make(chan dagstore.ShardResult, 1)
@@ -135,22 +139,26 @@ func (s *EDSStore) GetCAR(ctx context.Context, root share.Root) (io.ReadCloser, 
 		return nil, err
 	}
 
-	result := <-ch
-	if result.Error != nil {
-		return nil, result.Error
+	select {
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	case result := <-ch:
+		if result.Error != nil {
+			return nil, result.Error
+		}
+		return result.Accessor, nil
 	}
-	return result.Accessor, nil
 }
 
 // Blockstore returns an IPFS Blockstore providing access to individual shares/nodes of all EDS
 // registered on the Store. NOTE: The Blockstore does not store whole Celestia Blocks but IPFS blocks.
 // We represent `shares` and NMT Merkle proofs as IPFS blocks and IPLD nodes so Bitswap can access those.
-func (s *EDSStore) Blockstore() blockstore.Blockstore {
+func (s *Store) Blockstore() blockstore.Blockstore {
 	return s.bs
 }
 
 // Remove removes EDS from Store by the given share.Root and cleans up all the indexing.
-func (s *EDSStore) Remove(ctx context.Context, root share.Root) error {
+func (s *Store) Remove(ctx context.Context, root share.Root) error {
 	key := root.String()
 
 	ch := make(chan dagstore.ShardResult, 1)
@@ -159,9 +167,13 @@ func (s *EDSStore) Remove(ctx context.Context, root share.Root) error {
 		return err
 	}
 
-	result := <-ch
-	if result.Error != nil {
-		return result.Error
+	select {
+	case result := <-ch:
+		if result.Error != nil {
+			return result.Error
+		}
+	case <-ctx.Done():
+		return ctx.Err()
 	}
 
 	dropped, err := s.carIdx.DropFullIndex(shard.KeyFromString(key))
@@ -174,7 +186,7 @@ func (s *EDSStore) Remove(ctx context.Context, root share.Root) error {
 // Get reads EDS out of Store by given DataRoot.
 //
 // It reads only one quadrant(1/4) of the EDS and verifies the integrity of the stored data by recomputing it.
-func (s *EDSStore) Get(ctx context.Context, root share.Root) (*rsmt2d.ExtendedDataSquare, error) {
+func (s *Store) Get(ctx context.Context, root share.Root) (*rsmt2d.ExtendedDataSquare, error) {
 	key := root.String()
 	f, err := os.OpenFile(s.basepath+blocksPath+key, os.O_RDONLY, 0600)
 	if err != nil {
@@ -184,7 +196,7 @@ func (s *EDSStore) Get(ctx context.Context, root share.Root) (*rsmt2d.ExtendedDa
 }
 
 // Has checks if EDS exists by the given share.Root.
-func (s *EDSStore) Has(ctx context.Context, root share.Root) (bool, error) {
+func (s *Store) Has(ctx context.Context, root share.Root) (bool, error) {
 	key := root.String()
 	info, err := s.dgstr.GetShardInfo(shard.KeyFromString(key))
 	if err == dagstore.ErrShardUnknown {

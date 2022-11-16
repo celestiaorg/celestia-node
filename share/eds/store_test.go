@@ -24,7 +24,7 @@ func TestEDSStore_PutRegistersShard(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
 
-	edsStore, err := newEDSStore(t)
+	edsStore, err := newStore(t)
 	require.NoError(t, err)
 	err = edsStore.Start(ctx)
 	require.NoError(t, err)
@@ -48,7 +48,7 @@ func TestEDSStore_PutIndexesEDS(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
 
-	edsStore, err := newEDSStore(t)
+	edsStore, err := newStore(t)
 	require.NoError(t, err)
 	err = edsStore.Start(ctx)
 	require.NoError(t, err)
@@ -70,7 +70,7 @@ func TestEDSStore_GetCAR(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
 
-	edsStore, err := newEDSStore(t)
+	edsStore, err := newStore(t)
 	require.NoError(t, err)
 	err = edsStore.Start(ctx)
 	require.NoError(t, err)
@@ -108,7 +108,7 @@ func TestEDSStore_Remove(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
 
-	edsStore, err := newEDSStore(t)
+	edsStore, err := newStore(t)
 	require.NoError(t, err)
 	err = edsStore.Start(ctx)
 	require.NoError(t, err)
@@ -135,7 +135,7 @@ func TestEDSStore_Has(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
 
-	edsStore, err := newEDSStore(t)
+	edsStore, err := newStore(t)
 	require.NoError(t, err)
 	err = edsStore.Start(ctx)
 	require.NoError(t, err)
@@ -154,12 +154,12 @@ func TestEDSStore_Has(t *testing.T) {
 	assert.True(t, ok)
 }
 
-func newEDSStore(t *testing.T) (*EDSStore, error) {
+func newStore(t *testing.T) (*Store, error) {
 	t.Helper()
 
 	tmpDir := t.TempDir()
 	ds := ds_sync.MutexWrap(datastore.NewMapDatastore())
-	return NewEDSStore(tmpDir, ds)
+	return NewStore(tmpDir, ds)
 }
 
 func randomEDS(t *testing.T) (*rsmt2d.ExtendedDataSquare, share.Root) {

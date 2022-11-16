@@ -33,7 +33,7 @@ type accessorWithBlockstore struct {
 // call GetSize directly on the underlying RO blockstore, and do not throw errors on Put/PutMany.
 // Also, we do not abstract away the blockstore operations.
 type Blockstore struct {
-	store *EDSStore
+	store *Store
 
 	// bsStripedLocks prevents simultaneous RW access to the blockstore cache for a shard. Instead of using only one
 	// lock or one lock per key, we stripe the shard keys across 256 locks
@@ -43,7 +43,7 @@ type Blockstore struct {
 	blockstoreCache *lru.Cache
 }
 
-func NewEDSBlockstore(s *EDSStore) (*Blockstore, error) {
+func NewEDSBlockstore(s *Store) (*Blockstore, error) {
 	// instantiate the blockstore cache
 	bslru, err := lru.NewWithEvict(maxCacheSize, func(_ interface{}, val interface{}) {
 		// ensure we close the blockstore for a shard when it's evicted from the cache so dagstore can gc it.
@@ -138,12 +138,16 @@ func (bs *Blockstore) getReadOnlyBlockstore(ctx context.Context, cid cid.Cid) (d
 	if err != nil {
 		return nil, err
 	}
-	result := <-ch
-	if result.Error != nil {
-		return nil, result.Error
-	}
 
-	return bs.addToBSCache(shardKey, result.Accessor)
+	select {
+	case res := <-ch:
+		if res.Error != nil {
+			return nil, res.Error
+		}
+		return bs.addToBSCache(shardKey, res.Accessor)
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	}
 }
 
 func (bs *Blockstore) readFromBSCache(shardContainingCid shard.Key) (dagstore.ReadBlockstore, error) {
