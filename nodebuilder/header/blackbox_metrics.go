@@ -5,11 +5,12 @@ import (
 	"math/rand"
 	"time"
 
-	"github.com/celestiaorg/celestia-node/header"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric/global"
 	"go.opentelemetry.io/otel/metric/instrument"
 	"go.opentelemetry.io/otel/metric/instrument/syncint64"
+
+	"github.com/celestiaorg/celestia-node/header"
 )
 
 var (
@@ -71,7 +72,7 @@ func newBlackBoxInstrument(next Module) (Module, error) {
 // until header has been processed by the store or context deadline is exceeded.
 func (bbi *blackBoxInstrument) GetByHeight(ctx context.Context, height uint64) (*header.ExtendedHeader, error) {
 	now := time.Now()
-	requestId := RandStringBytes(5)
+	requestID := RandStringBytes(5)
 
 	// defer recording the duration until the request has received a response and finished
 	defer func(ctx context.Context, begin time.Time) {
@@ -88,7 +89,7 @@ func (bbi *blackBoxInstrument) GetByHeight(ctx context.Context, height uint64) (
 		bbi.requestsNum.Add(
 			ctx,
 			1,
-			attribute.String("request-id", requestId),
+			attribute.String("request-id", requestID),
 			attribute.String("state", "failed"),
 		)
 		return eh, err
@@ -98,7 +99,7 @@ func (bbi *blackBoxInstrument) GetByHeight(ctx context.Context, height uint64) (
 	bbi.requestsNum.Add(
 		ctx,
 		1,
-		attribute.String("request-id", requestId),
+		attribute.String("request-id", requestID),
 		attribute.String("state", "succeeded"),
 	)
 
@@ -128,7 +129,8 @@ func (bbi *blackBoxInstrument) IsSyncing() bool {
 	return bbi.next.IsSyncing()
 }
 
-// utility
+// utility: copy-pasta from the internet to get this working
+// TODO(@derrandz): find a better way for generating random unique IDs for requests
 const letterBytes = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
 
 func RandStringBytes(n int) string {

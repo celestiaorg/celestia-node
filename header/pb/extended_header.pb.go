@@ -5,12 +5,14 @@ package header_pb
 
 import (
 	fmt "fmt"
-	da "github.com/celestiaorg/celestia-app/proto/da"
-	proto "github.com/gogo/protobuf/proto"
-	types "github.com/tendermint/tendermint/proto/tendermint/types"
 	io "io"
 	math "math"
 	math_bits "math/bits"
+
+	proto "github.com/gogo/protobuf/proto"
+	types "github.com/tendermint/tendermint/proto/tendermint/types"
+
+	da "github.com/celestiaorg/celestia-app/proto/da"
 )
 
 // Reference imports to suppress errors if they are not otherwise used.
