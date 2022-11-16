@@ -53,13 +53,13 @@ func GetSharesByNamespace(
 	ctx, span := tracer.Start(ctx, "get-shares-by-namespace")
 	defer span.End()
 
-	nodes, err := ipld.GetLeavesByNamespace(ctx, bGetter, root, nID, maxShares, false)
-	if err != nil && nodes == nil {
+	leaves, err := ipld.GetLeavesByNamespace(ctx, bGetter, root, nID, maxShares, nil)
+	if err != nil && leaves == nil {
 		return nil, err
 	}
 
 	shares := make([]Share, 0, maxShares)
-	for _, leaf := range nodes.Leaves {
+	for _, leaf := range leaves {
 		if leaf != nil {
 			shares = append(shares, leafToShare(leaf))
 		}

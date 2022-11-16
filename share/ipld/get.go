@@ -42,13 +42,10 @@ var NumConcurrentSquares = 8
 //		so that workers spawned between each reconstruction for every new block are reused.
 var pool = workerpool.New(NumWorkersLimit)
 
-// LeavesWithProofs contains data with corresponding Merkle Proof
-type LeavesWithProofs struct {
-	Leaves []ipld.Node
-	// Proofs contains nodes required for Leaves inclusion validation. Will be nil, if
-	// GetLeavesByNamespace was called with collectProofs = false option.
-	Proofs               [][]byte
-	ProofStart, ProofEnd int
+// Proof contains information required for Leaves inclusion validation. Will be nil, if
+type Proof struct {
+	Nodes      [][]byte
+	Start, End int
 }
 
 // GetLeaf fetches and returns the raw leaf.
@@ -181,23 +178,25 @@ func GetLeaves(ctx context.Context,
 
 // GetLeavesByNamespace returns leaves and corresponding proof that could be used to verify leaves
 // inclusion. It as many leaves from the given root with the given namespace.ID as it can retrieve.
-// If no shares are found, it returns both data and error as nil. collectProofs param indicates
-// whether proofs should be collected for shares inclusion verification. A non-nil error means that
-// only partial data is returned, because at least one share retrieval failed The following
-// implementation is based on `GetShares`.
+// If no shares are found, it returns both data and error as nil. If non-nil proofToFill param
+// passed, it will be filled with data required for inclusion verification. A non-nil error means
+// that only partial data is returned, because at least one share retrieval failed The following
+// implementation is based on
+
+// `GetShares`.
 func GetLeavesByNamespace(
 	ctx context.Context,
 	bGetter blockservice.BlockGetter,
 	root cid.Cid,
 	nID namespace.ID,
 	maxShares int,
-	collectProofs bool,
-) (*LeavesWithProofs, error) {
+	proofToFill *Proof,
+) ([]ipld.Node, error) {
 	if len(nID) != NamespaceSize {
 		return nil, fmt.Errorf("expected namespace ID of size %d, got %d", NamespaceSize, len(nID))
 	}
 
-	ctx, span := tracer.Start(ctx, "get-leaves-with-proofs-by-namespace")
+	ctx, span := tracer.Start(ctx, "get-leaves-by-namespace")
 	defer span.End()
 
 	span.SetAttributes(
@@ -228,6 +227,8 @@ func GetLeavesByNamespace(
 	// on the level above, the length of the Row is passed in as maxShares
 	leaves := make([]ipld.Node, maxShares)
 
+	// if non-nil proof container provided, fill it while traversing the tree
+	var collectProofs = proofToFill != nil
 	var leftProofs, rightProofs [][]byte
 	if collectProofs {
 		// TODO: (@walldiss) this is massively overallocating and should be optimized later with clever
@@ -243,30 +244,29 @@ func GetLeavesByNamespace(
 				// if there were no leaves under the given root in the given namespace,
 				// both return values are nil. otherwise, the error will also be non-nil.
 				if bounds.lowest == int64(maxShares) {
-					return &LeavesWithProofs{}, retrievalErr
+					return nil, retrievalErr
 				}
 
-				var proofs [][]byte
-				// left side traversed in bottom-up order
-				for i := range leftProofs {
-					if leftProofs[i] != nil {
-						proofs = append(proofs, leftProofs[i])
+				if collectProofs {
+					proofToFill.Start = int(bounds.lowest)
+					proofToFill.End = int(bounds.highest) + 1
+
+					// left side traversed in bottom-up order
+					for i := range leftProofs {
+						if leftProofs[i] != nil {
+							proofToFill.Nodes = append(proofToFill.Nodes, leftProofs[i])
+						}
 					}
-				}
-				// right side of the tree will be traversed from top to bottom,
-				// so append in reversed order
-				for i := len(rightProofs) - 1; i >= 0; i-- {
-					if rightProofs[i] != nil {
-						proofs = append(proofs, rightProofs[i])
+					// right side of the tree will be traversed from top to bottom,
+					// so append in reversed order
+					for i := len(rightProofs) - 1; i >= 0; i-- {
+						if rightProofs[i] != nil {
+							proofToFill.Nodes = append(proofToFill.Nodes, rightProofs[i])
+						}
 					}
 				}
 
-				return &LeavesWithProofs{
-					Leaves:     leaves[bounds.lowest : bounds.highest+1],
-					Proofs:     proofs,
-					ProofStart: int(bounds.lowest),
-					ProofEnd:   int(bounds.highest) + 1,
-				}, retrievalErr
+				return leaves[bounds.lowest : bounds.highest+1], retrievalErr
 			}
 			pool.Submit(func() {
 				ctx, span := tracer.Start(j.ctx, "process-job")

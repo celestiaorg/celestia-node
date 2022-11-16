@@ -219,9 +219,9 @@ func TestGetLeavesByNamespace_IncompleteData(t *testing.T) {
 	err = bServ.DeleteBlock(ctx, r.Cid())
 	require.NoError(t, err)
 
-	nodes, err := ipld.GetLeavesByNamespace(ctx, bServ, rcid, nid, len(shares), false)
-	assert.Equal(t, nil, nodes.Leaves[1])
-	assert.Equal(t, 4, len(nodes.Leaves))
+	leaves, err := ipld.GetLeavesByNamespace(ctx, bServ, rcid, nid, len(shares), nil)
+	assert.Equal(t, nil, leaves[1])
+	assert.Equal(t, 4, len(leaves))
 	require.Error(t, err)
 }
 
@@ -300,10 +300,10 @@ func TestGetLeavesByNamespace_MultipleRowsContainingSameNamespaceId(t *testing.T
 
 	for _, row := range eds.RowRoots() {
 		rcid := ipld.MustCidFromNamespacedSha256(row)
-		nodes, err := ipld.GetLeavesByNamespace(ctx, bServ, rcid, nid, len(shares), false)
+		leaves, err := ipld.GetLeavesByNamespace(ctx, bServ, rcid, nid, len(shares), nil)
 		assert.Nil(t, err)
 
-		for _, node := range nodes.Leaves {
+		for _, node := range leaves {
 			// test that the data returned by getLeavesByNamespace for nid
 			// matches the commonNamespaceData that was copied across almost all data
 			assert.Equal(t, commonNamespaceData, node.RawData()[NamespaceSize:])
@@ -362,8 +362,8 @@ func assertNoRowContainsNID(
 
 	// for each row root cid check if the minNID exists
 	for _, rowCID := range rowRootCIDs {
-		data, err := ipld.GetLeavesByNamespace(context.Background(), bServ, rowCID, nID, rowRootCount, false)
-		assert.Nil(t, data.Leaves)
+		leaves, err := ipld.GetLeavesByNamespace(context.Background(), bServ, rowCID, nID, rowRootCount, nil)
+		assert.Nil(t, leaves)
 		assert.Nil(t, err)
 	}
 }

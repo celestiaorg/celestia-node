@@ -32,13 +32,14 @@ func GetSharesWithProofsByNamespace(
 	ctx, span := tracer.Start(ctx, "get-shares-by-namespace-with-proof")
 	defer span.End()
 
-	nodes, err := ipld.GetLeavesByNamespace(ctx, bGetter, root, nID, maxShares, true)
-	if nodes == nil {
+	proof := new(ipld.Proof)
+	leaves, err := ipld.GetLeavesByNamespace(ctx, bGetter, root, nID, maxShares, proof)
+	if err != nil {
 		return nil, err
 	}
 
-	shares := make([]Share, 0, nodes.ProofEnd-nodes.ProofStart)
-	for _, leaf := range nodes.Leaves {
+	shares := make([]Share, 0, proof.End-proof.Start)
+	for _, leaf := range leaves {
 		if leaf != nil {
 			shares = append(shares, leafToShare(leaf))
 		}
@@ -46,6 +47,6 @@ func GetSharesWithProofsByNamespace(
 
 	return &SharesWithProofs{
 		Shares: shares,
-		Proof:  nmt.NewInclusionProof(nodes.ProofStart, nodes.ProofEnd, nodes.Proofs, ipld.NMTIgnoreMaxNamespace),
+		Proof:  nmt.NewInclusionProof(proof.Start, proof.End, proof.Nodes, ipld.NMTIgnoreMaxNamespace),
 	}, nil
 }
