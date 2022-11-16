@@ -3,6 +3,7 @@ package p2p
 import (
 	"context"
 	"fmt"
+	"reflect"
 
 	"github.com/libp2p/go-libp2p-core/metrics"
 	"github.com/libp2p/go-libp2p-core/network"
@@ -163,13 +164,12 @@ func (m *manager) Connectedness(id peer.ID) network.Connectedness {
 func (m *manager) NATStatus() (network.Reachability, error) {
 	basic, ok := m.host.(*basichost.BasicHost)
 	if !ok {
-		return 0, fmt.Errorf("does not impl") // todo
+		return 0, fmt.Errorf("unexpected implementation of host.Host, expected %s, got %T",
+			reflect.TypeOf(&basichost.BasicHost{}).String(), m.host)
 	}
-	// return a nice error if autonat is not enabled (e.g. light nodes
-	// do not have autonat enabled)
-	// TODO does this even happen where autonat is nil?
+	// light nodes do not provide AutoNAT services by default
 	if basic.GetAutoNat() == nil {
-		return 0, fmt.Errorf("does not have") // todo
+		return 0, fmt.Errorf("host does not provide AutoNAT services")
 	}
 	return basic.GetAutoNat().Status(), nil
 }
