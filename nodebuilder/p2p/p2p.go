@@ -4,14 +4,13 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/libp2p/go-libp2p-core/host"
 	"github.com/libp2p/go-libp2p-core/metrics"
 	"github.com/libp2p/go-libp2p-core/network"
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/libp2p/go-libp2p-core/protocol"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	rcmgr "github.com/libp2p/go-libp2p-resource-manager"
-	"github.com/libp2p/go-libp2p/p2p/host/autonat"
+	basichost "github.com/libp2p/go-libp2p/p2p/host/basic"
 	"github.com/libp2p/go-libp2p/p2p/net/conngater"
 	ma "github.com/multiformats/go-multiaddr"
 )
@@ -27,7 +26,7 @@ type API struct {
 	Connect              func(ctx context.Context, pi peer.AddrInfo) error
 	ClosePeer            func(id peer.ID) error
 	Connectedness        func(id peer.ID) network.Connectedness
-	NATStatus            func() network.Reachability
+	NATStatus            func() (network.Reachability, error)
 	BlockPeer            func(p peer.ID) error
 	UnblockPeer          func(p peer.ID) error
 	ListBlockedPeers     func() []peer.ID
@@ -62,7 +61,7 @@ type Module interface {
 	// Connectedness returns a state signaling connection capabilities.
 	Connectedness(id peer.ID) network.Connectedness
 	// NATStatus returns the current NAT status.
-	NATStatus() network.Reachability
+	NATStatus() (network.Reachability, error)
 
 	// BlockPeer adds a peer to the set of blocked peers.
 	BlockPeer(p peer.ID) error
@@ -105,16 +104,14 @@ type Module interface {
 type manager struct {
 	host      HostBase
 	ps        *pubsub.PubSub
-	nat       autonat.AutoNAT
 	connGater *conngater.BasicConnectionGater
 	bw        *metrics.BandwidthCounter
 	rm        network.ResourceManager
 }
 
 func newManager(
-	host host.Host,
+	host HostBase,
 	ps *pubsub.PubSub,
-	nat autonat.AutoNAT,
 	cg *conngater.BasicConnectionGater,
 	bw *metrics.BandwidthCounter,
 	rm network.ResourceManager,
@@ -122,7 +119,6 @@ func newManager(
 	return &manager{
 		host:      host,
 		ps:        ps,
-		nat:       nat,
 		connGater: cg,
 		bw:        bw,
 		rm:        rm,
@@ -164,8 +160,18 @@ func (m *manager) Connectedness(id peer.ID) network.Connectedness {
 	return m.host.Network().Connectedness(id)
 }
 
-func (m *manager) NATStatus() network.Reachability {
-	return m.nat.Status()
+func (m *manager) NATStatus() (network.Reachability, error) {
+	basic, ok := m.host.(*basichost.BasicHost)
+	if !ok {
+		return 0, fmt.Errorf("does not impl") // todo
+	}
+	// return a nice error if autonat is not enabled (e.g. light nodes
+	// do not have autonat enabled)
+	// TODO does this even happen where autonat is nil?
+	if basic.GetAutoNat() == nil {
+		return 0, fmt.Errorf("does not have") // todo
+	}
+	return basic.GetAutoNat().Status(), nil
 }
 
 func (m *manager) BlockPeer(p peer.ID) error {

@@ -17,6 +17,8 @@ import (
 	routedhost "github.com/libp2p/go-libp2p/p2p/host/routed"
 	"github.com/libp2p/go-libp2p/p2p/net/conngater"
 	"go.uber.org/fx"
+
+	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 )
 
 // RoutedHost constructs a wrapped Host that may fallback to address discovery,
@@ -45,9 +47,8 @@ func Host(cfg Config, params hostParams, bw *metrics.BandwidthCounter, rm networ
 		libp2p.DefaultMuxers,
 	}
 
-	// TODO(@Wondertan): Other, non Celestia bootstrapper may also enable NATService to contribute the
-	// network.
-	if cfg.Bootstrapper {
+	// All node types except light (bridge, full) will enable NATService
+	if params.Tp != node.Light {
 		opts = append(opts, libp2p.EnableNATService())
 	}
 
@@ -76,4 +77,6 @@ type hostParams struct {
 	PStore    peerstore.Peerstore
 	ConnMngr  connmgr.ConnManager
 	ConnGater *conngater.BasicConnectionGater
+
+	Tp node.Type
 }
