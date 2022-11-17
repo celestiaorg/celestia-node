@@ -32,7 +32,7 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 		fx.Provide(ContentRouting),
 		fx.Provide(AddrsFactory(cfg.AnnounceAddresses, cfg.NoAnnounceAddresses)),
 		fx.Provide(metrics.NewBandwidthCounter),
-		fx.Provide(ResourceManager),
+		fx.Provide(resourceManager),
 		fx.Provide(newModule),
 		fx.Invoke(Listen(cfg.ListenAddresses)),
 	)

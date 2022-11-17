@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"reflect"
 
+	libhost "github.com/libp2p/go-libp2p-core/host"
 	"github.com/libp2p/go-libp2p-core/metrics"
 	"github.com/libp2p/go-libp2p-core/network"
 	"github.com/libp2p/go-libp2p-core/peer"
@@ -13,7 +14,6 @@ import (
 	rcmgr "github.com/libp2p/go-libp2p-resource-manager"
 	basichost "github.com/libp2p/go-libp2p/p2p/host/basic"
 	"github.com/libp2p/go-libp2p/p2p/net/conngater"
-	ma "github.com/multiformats/go-multiaddr"
 )
 
 // API is a wrapper around Module for the RPC.
@@ -22,7 +22,7 @@ import (
 //nolint:dupl
 type API struct {
 	Info                 func() Info
-	Peers                func() peer.IDSlice
+	Peers                func() []peer.ID
 	PeerInfo             func(id peer.ID) peer.AddrInfo
 	Connect              func(ctx context.Context, pi peer.AddrInfo) error
 	ClosePeer            func(id peer.ID) error
@@ -31,9 +31,9 @@ type API struct {
 	BlockPeer            func(p peer.ID) error
 	UnblockPeer          func(p peer.ID) error
 	ListBlockedPeers     func() []peer.ID
-	MutualAdd            func(id peer.ID, tag string)
-	MutualRm             func(id peer.ID, tag string) bool
-	IsMutual             func(id peer.ID, tag string) bool
+	Protect              func(id peer.ID, tag string)
+	Unprotect            func(id peer.ID, tag string) bool
+	IsProtected          func(id peer.ID, tag string) bool
 	BandwidthStats       func() metrics.Stats
 	BandwidthForPeer     func(id peer.ID) metrics.Stats
 	BandwidthForProtocol func(proto protocol.ID) metrics.Stats
@@ -49,7 +49,7 @@ type Module interface {
 	// Info returns basic information about the node's p2p host/operations.
 	Info() Info
 	// Peers returns all peer IDs used across all inner stores.
-	Peers() peer.IDSlice
+	Peers() []peer.ID
 	// PeerInfo returns a small slice of information Peerstore has on the
 	// given peer.
 	PeerInfo(id peer.ID) peer.AddrInfo
@@ -70,17 +70,17 @@ type Module interface {
 	UnblockPeer(p peer.ID) error
 	// ListBlockedPeers returns a list of blocked peers.
 	ListBlockedPeers() []peer.ID
-	// MutualAdd adds a peer to the list of peers who have a bidirectional
+	// Protect adds a peer to the list of peers who have a bidirectional
 	// peering agreement that they are protected from being trimmed, dropped
 	// or negatively scored.
-	MutualAdd(id peer.ID, tag string)
-	// MutualRm removes a peer from the list of peers who have a bidirectional
+	Protect(id peer.ID, tag string)
+	// Unprotect removes a peer from the list of peers who have a bidirectional
 	// peering agreement that they are protected from being trimmed, dropped
 	// or negatively scored, returning a bool representing whether the given
 	// peer is protected or not.
-	MutualRm(id peer.ID, tag string) bool
-	// IsMutual returns whether the given peer is a mutual peer.
-	IsMutual(id peer.ID, tag string) bool
+	Unprotect(id peer.ID, tag string) bool
+	// IsProtected returns whether the given peer is protected.
+	IsProtected(id peer.ID, tag string) bool
 
 	// BandwidthStats returns a Stats struct with bandwidth metrics for all
 	// data sent/received by the local peer, regardless of protocol or remote
@@ -130,18 +130,18 @@ func newModule(
 type Info struct {
 	// ID is the node's peer ID
 	ID peer.ID `json:"id"`
-	// Addrs is the node's
-	Addrs []ma.Multiaddr `json:"addrs"`
+	// AddrInfo is the node's
+	AddrInfo peer.AddrInfo `json:"addr_info"`
 }
 
 func (m *module) Info() Info {
 	return Info{
-		ID:    m.host.ID(),
-		Addrs: m.host.Addrs(),
+		ID:       m.host.ID(),
+		AddrInfo: *libhost.InfoFromHost(m.host),
 	}
 }
 
-func (m *module) Peers() peer.IDSlice {
+func (m *module) Peers() []peer.ID {
 	return m.host.Peerstore().Peers()
 }
 
@@ -186,15 +186,15 @@ func (m *module) ListBlockedPeers() []peer.ID {
 	return m.connGater.ListBlockedPeers()
 }
 
-func (m *module) MutualAdd(id peer.ID, tag string) {
+func (m *module) Protect(id peer.ID, tag string) {
 	m.host.ConnManager().Protect(id, tag)
 }
 
-func (m *module) MutualRm(id peer.ID, tag string) bool {
+func (m *module) Unprotect(id peer.ID, tag string) bool {
 	return m.host.ConnManager().Unprotect(id, tag)
 }
 
-func (m *module) IsMutual(id peer.ID, tag string) bool {
+func (m *module) IsProtected(id peer.ID, tag string) bool {
 	return m.host.ConnManager().IsProtected(id, tag)
 }
 

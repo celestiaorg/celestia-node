@@ -5,6 +5,6 @@ import (
 	rcmgr "github.com/libp2p/go-libp2p-resource-manager"
 )
 
-func ResourceManager() (network.ResourceManager, error) {
+func resourceManager() (network.ResourceManager, error) {
 	return rcmgr.NewResourceManager(rcmgr.NewFixedLimiter(rcmgr.DefaultLimits.AutoScale()))
 }

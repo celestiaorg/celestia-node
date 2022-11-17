@@ -11,6 +11,7 @@ import (
 	libhost "github.com/libp2p/go-libp2p-core/host"
 	"github.com/libp2p/go-libp2p-core/metrics"
 	"github.com/libp2p/go-libp2p-core/network"
+	libpeer "github.com/libp2p/go-libp2p-core/peer"
 	"github.com/libp2p/go-libp2p-core/protocol"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	mocknet "github.com/libp2p/go-libp2p/p2p/net/mock"
@@ -29,7 +30,7 @@ func TestP2PModule_Host(t *testing.T) {
 
 	// test all methods on `manager.host`
 	assert.Equal(t, host.ID(), mgr.Info().ID)
-	assert.Equal(t, host.Peerstore().Peers(), mgr.Peers())
+	assert.Equal(t, []libpeer.ID(host.Peerstore().Peers()), mgr.Peers())
 	assert.Equal(t, libhost.InfoFromHost(peer).ID, mgr.PeerInfo(peer.ID()).ID)
 
 	assert.Equal(t, host.Network().Connectedness(peer.ID()), mgr.Connectedness(peer.ID()))
@@ -58,10 +59,10 @@ func TestP2PModule_ConnManager(t *testing.T) {
 	err = mgr.Connect(ctx, *libhost.InfoFromHost(peer))
 	require.NoError(t, err)
 
-	mgr.MutualAdd(peer.ID(), "test")
-	assert.True(t, mgr.IsMutual(peer.ID(), "test"))
-	mgr.MutualRm(peer.ID(), "test")
-	assert.False(t, mgr.IsMutual(peer.ID(), "test"))
+	mgr.Protect(peer.ID(), "test")
+	assert.True(t, mgr.IsProtected(peer.ID(), "test"))
+	mgr.Unprotect(peer.ID(), "test")
+	assert.False(t, mgr.IsProtected(peer.ID(), "test"))
 }
 
 // TestP2PModule_Autonat tests P2P Module methods on
@@ -74,8 +75,7 @@ func TestP2PModule_Autonat(t *testing.T) {
 
 	status, err := mgr.NATStatus()
 	assert.NoError(t, err)
-	// TODO ??????
-	t.Log(status)
+	assert.Equal(t, network.ReachabilityUnknown, status)
 }
 
 // TestP2PModule_Bandwidth tests P2P Module methods on
@@ -129,9 +129,9 @@ func TestP2PModule_Bandwidth(t *testing.T) {
 	_, err = stream.Read(buf)
 	require.NoError(t, err)
 
-	// has to be a ~second for the metrics reporter to collect the stats
+	// has to be ~2 seconds for the metrics reporter to collect the stats
 	// in the background process
-	time.Sleep(time.Second)
+	time.Sleep(time.Second * 2)
 
 	stats := mgr.BandwidthStats()
 	assert.NotNil(t, stats)
@@ -202,7 +202,7 @@ func TestP2PModule_ConnGater(t *testing.T) {
 // TestP2PModule_ResourceManager tests P2P Module methods on
 // the ResourceManager.
 func TestP2PModule_ResourceManager(t *testing.T) {
-	rm, err := ResourceManager()
+	rm, err := resourceManager()
 	require.NoError(t, err)
 
 	mgr := newModule(nil, nil, nil, nil, rm)
