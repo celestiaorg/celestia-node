@@ -221,7 +221,7 @@ func (s *coordinatorState) checkDone() {
 	}
 }
 
-// waitCatchUp waits for sampling process to indicateDone catchup
+// waitCatchUp waits for sampling process to indicate catchup is done
 func (s *coordinatorState) waitCatchUp(ctx context.Context) error {
 	select {
 	case <-s.catchUpDoneCh:

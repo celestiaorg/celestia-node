@@ -169,3 +169,8 @@ func (d *DASer) sample(ctx context.Context, h *header.ExtendedHeader) error {
 func (d *DASer) SamplingStats(ctx context.Context) (SamplingStats, error) {
 	return d.sampler.stats(ctx)
 }
+
+// WaitCatchUp waits for DASer to indicate catchup is done
+func (d *DASer) WaitCatchUp(ctx context.Context) error {
+	return d.sampler.state.waitCatchUp(ctx)
+}
