@@ -21,8 +21,8 @@ func SanitizeAddr(addr string) (string, error) {
 	return addr, nil
 }
 
-// ValidateAddr sanitizes the given address and verifies that it is a valid IP or hostname. The sanitized address is
-// returned.
+// ValidateAddr sanitizes the given address and verifies that it is a valid IP or hostname. The
+// sanitized address is returned.
 func ValidateAddr(addr string) (string, error) {
 	addr, err := SanitizeAddr(addr)
 	if err != nil {
