@@ -12,7 +12,7 @@ import (
 // EnsureEmptySquareExists checks if the given DAG contains an empty block data square.
 // If it does not, it stores an empty block. This optimization exists to prevent
 // redundant storing of empty block data so that it is only stored once and returned
-// upon request for a block with an empty data square. Ref: header/header.go#L56
+// upon request for a block with an empty data square. Ref: header/constructors.go#L56
 func EnsureEmptySquareExists(ctx context.Context, bServ blockservice.BlockService) error {
 	shares := make([][]byte, appconsts.MinShareCount)
 	for i := 0; i < appconsts.MinShareCount; i++ {
