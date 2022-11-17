@@ -65,7 +65,8 @@ func TestEDSStore_PutIndexesEDS(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-// TestEDSStore_GetCAR ensures that the reader returned from GetCAR is capable of reading the CAR header and ODS.
+// TestEDSStore_GetCAR ensures that the reader returned from GetCAR is capable of reading the CAR
+// header and ODS.
 func TestEDSStore_GetCAR(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)

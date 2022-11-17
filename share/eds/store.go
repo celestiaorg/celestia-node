@@ -124,10 +124,10 @@ func (s *Store) Put(ctx context.Context, root share.Root, square *rsmt2d.Extende
 	}
 }
 
-// GetCAR takes a DataRoot and returns a buffered reader to the respective EDS serialized as a CARv1 file.
-//
-// The Reader strictly reads the CAR header and first quadrant (1/4) of the EDS, omitting all the NMT Merkle proofs.
-// Integrity of the store data is not verified.
+// GetCAR takes a DataRoot and returns a buffered reader to the respective EDS serialized as a
+// CARv1 file.
+// The Reader strictly reads the CAR header and first quadrant (1/4) of the EDS, omitting all the
+// NMT Merkle proofs. Integrity of the store data is not verified.
 //
 // Caller must Close returned reader after reading.
 func (s *Store) GetCAR(ctx context.Context, root share.Root) (io.ReadCloser, error) {
@@ -151,8 +151,9 @@ func (s *Store) GetCAR(ctx context.Context, root share.Root) (io.ReadCloser, err
 }
 
 // Blockstore returns an IPFS Blockstore providing access to individual shares/nodes of all EDS
-// registered on the Store. NOTE: The Blockstore does not store whole Celestia Blocks but IPFS blocks.
-// We represent `shares` and NMT Merkle proofs as IPFS blocks and IPLD nodes so Bitswap can access those.
+// registered on the Store. NOTE: The Blockstore does not store whole Celestia Blocks but IPFS
+// blocks. We represent `shares` and NMT Merkle proofs as IPFS blocks and IPLD nodes so Bitswap can
+// access those.
 func (s *Store) Blockstore() blockstore.Blockstore {
 	return s.bs
 }
@@ -185,7 +186,8 @@ func (s *Store) Remove(ctx context.Context, root share.Root) error {
 
 // Get reads EDS out of Store by given DataRoot.
 //
-// It reads only one quadrant(1/4) of the EDS and verifies the integrity of the stored data by recomputing it.
+// It reads only one quadrant(1/4) of the EDS and verifies the integrity of the stored data by
+// recomputing it.
 func (s *Store) Get(ctx context.Context, root share.Root) (*rsmt2d.ExtendedDataSquare, error) {
 	key := root.String()
 	f, err := os.OpenFile(s.basepath+blocksPath+key, os.O_RDONLY, 0600)

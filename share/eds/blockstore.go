@@ -29,14 +29,14 @@ type accessorWithBlockstore struct {
 
 // Blockstore implements the blockstore.Blockstore interface on an EDSStore.
 // The lru cache approach is heavily inspired by the open PR filecoin-project/dagstore/116.
-// The main differences to the implementation here are that we do not support multiple shards per key,
-// call GetSize directly on the underlying RO blockstore, and do not throw errors on Put/PutMany.
-// Also, we do not abstract away the blockstore operations.
+// The main differences to the implementation here are that we do not support multiple shards per
+// key, call GetSize directly on the underlying RO blockstore, and do not throw errors on
+// Put/PutMany. Also, we do not abstract away the blockstore operations.
 type Blockstore struct {
 	store *Store
 
-	// bsStripedLocks prevents simultaneous RW access to the blockstore cache for a shard. Instead of using only one
-	// lock or one lock per key, we stripe the shard keys across 256 locks
+	// bsStripedLocks prevents simultaneous RW access to the blockstore cache for a shard. Instead of
+	// using only one lock or one lock per key, we stripe the shard keys across 256 locks
 	bsStripedLocks [256]sync.Mutex
 	// caches the blockstore for a given shard for shard read affinity i.e.
 	// further reads will likely be from the same shard. Maps (shard key -> blockstore).
@@ -46,7 +46,8 @@ type Blockstore struct {
 func NewEDSBlockstore(s *Store) (*Blockstore, error) {
 	// instantiate the blockstore cache
 	bslru, err := lru.NewWithEvict(maxCacheSize, func(_ interface{}, val interface{}) {
-		// ensure we close the blockstore for a shard when it's evicted from the cache so dagstore can gc it.
+		// ensure we close the blockstore for a shard when it's evicted from the cache so dagstore can gc
+		// it.
 		abs, ok := val.(*accessorWithBlockstore)
 		if ok {
 			abs.sa.Close()
@@ -91,16 +92,16 @@ func (bs *Blockstore) GetSize(ctx context.Context, cid cid.Cid) (int, error) {
 	return blockstr.GetSize(ctx, cid)
 }
 
-// Put is a noop on the EDS blockstore, but it does not return an error because it is called by bitswap. For
-// clarification, an implementation of Put does not make sense in this context because it is unclear which CAR file the
-// block should be written to.
+// Put is a noop on the EDS blockstore, but it does not return an error because it is called by
+// bitswap. For clarification, an implementation of Put does not make sense in this context because
+// it is unclear which CAR file the block should be written to.
 func (bs *Blockstore) Put(ctx context.Context, block blocks.Block) error {
 	return nil
 }
 
-// PutMany is a noop on the EDS blockstore, but it does not return an error because it is called by bitswap. For
-// clarification, an implementation of PutMany does not make sense in this context because it is unclear which CAR file
-// the blocks should be written to.
+// PutMany is a noop on the EDS blockstore, but it does not return an error because it is called by
+// bitswap. For clarification, an implementation of PutMany does not make sense in this context
+// because it is unclear which CAR file the blocks should be written to.
 func (bs *Blockstore) PutMany(ctx context.Context, blocks []blocks.Block) error {
 	return nil
 }
@@ -110,8 +111,8 @@ func (bs *Blockstore) AllKeysChan(ctx context.Context) (<-chan cid.Cid, error) {
 	return nil, ErrUnsupportedOperation
 }
 
-// HashOnRead is a noop on the EDS blockstore but an error cannot be returned due to the method signature from the
-// blockstore interface.
+// HashOnRead is a noop on the EDS blockstore but an error cannot be returned due to the method
+// signature from the blockstore interface.
 func (bs *Blockstore) HashOnRead(bool) {
 	log.Warnf("HashOnRead is a noop on the EDS blockstore")
 }
@@ -188,8 +189,8 @@ func (bs *Blockstore) addToBSCache(
 	return blockStore, nil
 }
 
-// shardKeyToStriped returns the index of the lock to use for a given shard key. We use the last byte of the
-// shard key as the pseudo-random index.
+// shardKeyToStriped returns the index of the lock to use for a given shard key. We use the last
+// byte of the shard key as the pseudo-random index.
 func shardKeyToStriped(sk shard.Key) byte {
 	return sk.String()[len(sk.String())-1]
 }
