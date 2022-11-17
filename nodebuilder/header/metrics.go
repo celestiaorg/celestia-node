@@ -1,3 +1,8 @@
+// This file contains the definition of blackbox metrics for the header pkg under nodebuilder
+// We adopt as a pattern the definition of a metrics.go file under nodebuidler/<pkg>/metrics.go
+// to be the definition of the blackbox metrics only.
+// Whitebox metrics that deal with the internals should be defined in the original package
+// and not under nodebuilder/<pkg>/metrics.go
 package header
 
 import (
@@ -17,6 +22,10 @@ var (
 	meter = global.MeterProvider().Meter("blackbox-header")
 )
 
+// blackBoxInstrument is the proxy struct
+// used to perform measurements of blackbox metrics
+// for the header.Module interface (i.e: the header service)
+// check <insert documentation file here> for more info.
 type blackBoxInstrument struct {
 	// metrics
 	requestsNum     syncint64.Counter
@@ -27,6 +36,8 @@ type blackBoxInstrument struct {
 	next Module
 }
 
+// constructor that returns a proxied
+// interface for blackbox metrics
 func newBlackBoxInstrument(next Module) (Module, error) {
 	requestsNum, err := meter.
 		SyncInt64().
