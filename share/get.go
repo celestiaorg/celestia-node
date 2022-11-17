@@ -49,11 +49,12 @@ func GetSharesByNamespace(
 	root cid.Cid,
 	nID namespace.ID,
 	maxShares int,
+	proofToFill *ipld.Proof,
 ) ([]Share, error) {
 	ctx, span := tracer.Start(ctx, "get-shares-by-namespace")
 	defer span.End()
 
-	leaves, err := ipld.GetLeavesByNamespace(ctx, bGetter, root, nID, maxShares, nil)
+	leaves, err := ipld.GetLeavesByNamespace(ctx, bGetter, root, nID, maxShares, proofToFill)
 	if err != nil && leaves == nil {
 		return nil, err
 	}

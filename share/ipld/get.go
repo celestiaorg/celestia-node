@@ -42,7 +42,7 @@ var NumConcurrentSquares = 8
 //		so that workers spawned between each reconstruction for every new block are reused.
 var pool = workerpool.New(NumWorkersLimit)
 
-// Proof contains information required for Leaves inclusion validation. Will be nil, if
+// Proof contains information required for Leaves inclusion validation.
 type Proof struct {
 	Nodes      [][]byte
 	Start, End int
@@ -177,13 +177,11 @@ func GetLeaves(ctx context.Context,
 }
 
 // GetLeavesByNamespace returns leaves and corresponding proof that could be used to verify leaves
-// inclusion. It as many leaves from the given root with the given namespace.ID as it can retrieve.
-// If no shares are found, it returns both data and error as nil. If non-nil proofToFill param
-// passed, it will be filled with data required for inclusion verification. A non-nil error means
-// that only partial data is returned, because at least one share retrieval failed The following
-// implementation is based on
-
-// `GetShares`.
+// inclusion. It returns as many leaves from the given root with the given namespace.ID as it can
+// retrieve. If no shares are found, it returns both data and error as nil. If non-nil proofToFill
+// param passed, it will be filled with data required for inclusion verification. A non-nil error
+// means that only partial data is returned, because at least one share retrieval failed. The
+// following implementation is based on `GetShares`.
 func GetLeavesByNamespace(
 	ctx context.Context,
 	bGetter blockservice.BlockGetter,
