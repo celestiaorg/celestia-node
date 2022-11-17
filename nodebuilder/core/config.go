@@ -3,7 +3,8 @@ package core
 import (
 	"fmt"
 	"strconv"
-	"strings"
+
+	"github.com/celestiaorg/celestia-node/libs/utils"
 )
 
 // Config combines all configuration fields for managing the relationship with a Core node.
@@ -25,7 +26,7 @@ func DefaultConfig() Config {
 
 // Validate performs basic validation of the config.
 func (cfg *Config) Validate() error {
-	ip, err := sanitizeIP(cfg.IP)
+	ip, err := utils.ValidateAddr(cfg.IP)
 	if err != nil {
 		return err
 	}
@@ -39,19 +40,4 @@ func (cfg *Config) Validate() error {
 		return fmt.Errorf("nodebuilder/core: invalid grpc port: %s", err.Error())
 	}
 	return nil
-}
-
-// sanitizeIP trims leading protocol scheme and port from the given
-// IP address if present.
-func sanitizeIP(ip string) (string, error) {
-	original := ip
-	ip = strings.TrimPrefix(ip, "http://")
-	ip = strings.TrimPrefix(ip, "https://")
-	ip = strings.TrimPrefix(ip, "tcp://")
-	ip = strings.TrimSuffix(ip, "/")
-	ip = strings.Split(ip, ":")[0]
-	if ip == "" {
-		return "", fmt.Errorf("nodebuilder/core: invalid IP addr given: %s", original)
-	}
-	return ip, nil
 }
