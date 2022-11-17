@@ -100,9 +100,9 @@ type Module interface {
 	PubSubPeers(topic string) []peer.ID
 }
 
-// manager contains all components necessary to access information and
+// module contains all components necessary to access information and
 // perform actions related to the node's p2p Host / operations.
-type manager struct {
+type module struct {
 	host      HostBase
 	ps        *pubsub.PubSub
 	connGater *conngater.BasicConnectionGater
@@ -110,14 +110,14 @@ type manager struct {
 	rm        network.ResourceManager
 }
 
-func newManager(
+func newModule(
 	host HostBase,
 	ps *pubsub.PubSub,
 	cg *conngater.BasicConnectionGater,
 	bw *metrics.BandwidthCounter,
 	rm network.ResourceManager,
 ) Module {
-	return &manager{
+	return &module{
 		host:      host,
 		ps:        ps,
 		connGater: cg,
@@ -134,34 +134,34 @@ type Info struct {
 	Addrs []ma.Multiaddr `json:"addrs"`
 }
 
-func (m *manager) Info() Info {
+func (m *module) Info() Info {
 	return Info{
 		ID:    m.host.ID(),
 		Addrs: m.host.Addrs(),
 	}
 }
 
-func (m *manager) Peers() peer.IDSlice {
+func (m *module) Peers() peer.IDSlice {
 	return m.host.Peerstore().Peers()
 }
 
-func (m *manager) PeerInfo(id peer.ID) peer.AddrInfo {
+func (m *module) PeerInfo(id peer.ID) peer.AddrInfo {
 	return m.host.Peerstore().PeerInfo(id)
 }
 
-func (m *manager) Connect(ctx context.Context, pi peer.AddrInfo) error {
+func (m *module) Connect(ctx context.Context, pi peer.AddrInfo) error {
 	return m.host.Connect(ctx, pi)
 }
 
-func (m *manager) ClosePeer(id peer.ID) error {
+func (m *module) ClosePeer(id peer.ID) error {
 	return m.host.Network().ClosePeer(id)
 }
 
-func (m *manager) Connectedness(id peer.ID) network.Connectedness {
+func (m *module) Connectedness(id peer.ID) network.Connectedness {
 	return m.host.Network().Connectedness(id)
 }
 
-func (m *manager) NATStatus() (network.Reachability, error) {
+func (m *module) NATStatus() (network.Reachability, error) {
 	basic, ok := m.host.(*basichost.BasicHost)
 	if !ok {
 		return 0, fmt.Errorf("unexpected implementation of host.Host, expected %s, got %T",
@@ -174,43 +174,43 @@ func (m *manager) NATStatus() (network.Reachability, error) {
 	return basic.GetAutoNat().Status(), nil
 }
 
-func (m *manager) BlockPeer(p peer.ID) error {
+func (m *module) BlockPeer(p peer.ID) error {
 	return m.connGater.BlockPeer(p)
 }
 
-func (m *manager) UnblockPeer(p peer.ID) error {
+func (m *module) UnblockPeer(p peer.ID) error {
 	return m.connGater.UnblockPeer(p)
 }
 
-func (m *manager) ListBlockedPeers() []peer.ID {
+func (m *module) ListBlockedPeers() []peer.ID {
 	return m.connGater.ListBlockedPeers()
 }
 
-func (m *manager) MutualAdd(id peer.ID, tag string) {
+func (m *module) MutualAdd(id peer.ID, tag string) {
 	m.host.ConnManager().Protect(id, tag)
 }
 
-func (m *manager) MutualRm(id peer.ID, tag string) bool {
+func (m *module) MutualRm(id peer.ID, tag string) bool {
 	return m.host.ConnManager().Unprotect(id, tag)
 }
 
-func (m *manager) IsMutual(id peer.ID, tag string) bool {
+func (m *module) IsMutual(id peer.ID, tag string) bool {
 	return m.host.ConnManager().IsProtected(id, tag)
 }
 
-func (m *manager) BandwidthStats() metrics.Stats {
+func (m *module) BandwidthStats() metrics.Stats {
 	return m.bw.GetBandwidthTotals()
 }
 
-func (m *manager) BandwidthForPeer(id peer.ID) metrics.Stats {
+func (m *module) BandwidthForPeer(id peer.ID) metrics.Stats {
 	return m.bw.GetBandwidthForPeer(id)
 }
 
-func (m *manager) BandwidthForProtocol(proto protocol.ID) metrics.Stats {
+func (m *module) BandwidthForProtocol(proto protocol.ID) metrics.Stats {
 	return m.bw.GetBandwidthForProtocol(proto)
 }
 
-func (m *manager) ResourceState() (rcmgr.ResourceManagerStat, error) {
+func (m *module) ResourceState() (rcmgr.ResourceManagerStat, error) {
 	rms, ok := m.rm.(rcmgr.ResourceManagerState)
 	if !ok {
 		return rcmgr.ResourceManagerStat{}, fmt.Errorf("network.ResourceManager does not implement " +
@@ -219,6 +219,6 @@ func (m *manager) ResourceState() (rcmgr.ResourceManagerStat, error) {
 	return rms.Stat(), nil
 }
 
-func (m *manager) PubSubPeers(topic string) []peer.ID {
+func (m *module) PubSubPeers(topic string) []peer.ID {
 	return m.ps.ListPeers(topic)
 }
