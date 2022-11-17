@@ -21,6 +21,7 @@ import (
 	hdr "github.com/celestiaorg/celestia-node/nodebuilder/header"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
+	shr "github.com/celestiaorg/celestia-node/nodebuilder/share"
 	"github.com/celestiaorg/celestia-node/state"
 )
 
@@ -74,6 +75,14 @@ func WithBlackboxMetrics() fx.Option {
 				return mod
 			}
 			return hdr
+		}),
+		fx.Decorate(func(mod shr.Module) shr.Module {
+			shr, err := shr.WithBlackBoxMetrics(mod)
+			if err != nil {
+				log.Warn("[WithBlackBoxMetrics] encountered error while providing share.Module:", err)
+				return mod
+			}
+			return shr
 		}),
 	)
 }
