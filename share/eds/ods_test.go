@@ -2,7 +2,6 @@ package eds
 
 import (
 	"context"
-	"fmt"
 	"io"
 	"testing"
 
@@ -18,35 +17,44 @@ func TestODSReader(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
 
+	// launch eds store
 	edsStore, err := newStore(t)
 	require.NoError(t, err)
 	err = edsStore.Start(ctx)
 	require.NoError(t, err)
 
+	// generate random eds data and put it into the store
 	eds, dah := randomEDS(t)
 	err = edsStore.Put(ctx, dah, eds)
 	require.NoError(t, err)
 
+	// get Car reader from store
 	r, err := edsStore.GetCAR(ctx, dah)
 	assert.NoError(t, err)
 
+	// create ODSReader wrapper based on car reader to limit reads to ODS only
 	odsR := ODSReader(r)
+
+	// create Car reader from ODSReader
 	carReader, err := car.NewCarReader(odsR)
 	assert.NoError(t, err)
-	header := carReader.Header
-	fmt.Println(header.Version)
 
+	// validate ODS could be obtained from  reader
 	for i := 0; i < 4; i++ {
 		for j := 0; j < 4; j++ {
+			// pick share from original eds
 			original := eds.GetCell(uint(i), uint(j))
-			fmt.Println(i, j)
+
+			// read block from odsReader based reader
 			block, err := carReader.Next()
 			assert.NoError(t, err)
+
+			// check that original data from eds is same as data from reader
 			assert.Equal(t, original, block.RawData()[share.NamespaceSize:])
 		}
 	}
 
-	// no more data should be available from reader
+	// Make sure no excess data is available to get from reader
 	_, err = carReader.Next()
 	assert.Error(t, io.EOF, err)
 }
