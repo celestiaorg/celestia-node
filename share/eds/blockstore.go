@@ -35,8 +35,9 @@ type accessorWithBlockstore struct {
 type Blockstore struct {
 	store *Store
 
-	// bsStripedLocks prevents simultaneous RW access to the blockstore cache for a shard. Instead of
-	// using only one lock or one lock per key, we stripe the shard keys across 256 locks
+	// bsStripedLocks prevents simultaneous RW access to the blockstore cache for a shard. Instead
+	// of using only one lock or one lock per key, we stripe the shard keys across 256 locks. 256 is
+	// chosen because it 0-255 is the range of values we get looking at the last byte of the key.
 	bsStripedLocks [256]sync.Mutex
 	// caches the blockstore for a given shard for shard read affinity i.e.
 	// further reads will likely be from the same shard. Maps (shard key -> blockstore).

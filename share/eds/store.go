@@ -24,6 +24,10 @@ const (
 	transientsPath = "/transients/"
 )
 
+// Store maintains (via DAGStore) a top-level index enabling granular and efficient random access to
+// every share and/or Merkle proof over every registered CARv1 file. The EDSStore provides a custom
+// Blockstore interface implementation to achieve access. The main use-case is randomized sampling
+// over the whole chain of EDS block data and getting data by namespace.
 type Store struct {
 	dgstr  *dagstore.DAGStore
 	bs     blockstore.Blockstore
@@ -35,6 +39,7 @@ type Store struct {
 	basepath string
 }
 
+// NewStore creates a new EDS Store under the given basepath and datastore.
 func NewStore(basepath string, ds datastore.Batching) (*Store, error) {
 	err := setupPath(basepath)
 	if err != nil {
@@ -82,10 +87,12 @@ func NewStore(basepath string, ds datastore.Batching) (*Store, error) {
 	return s, nil
 }
 
+// Start starts the underlying DAGStore.
 func (s *Store) Start(ctx context.Context) error {
 	return s.dgstr.Start(ctx)
 }
 
+// Stop stops the underlying DAGStore.
 func (s *Store) Stop() error {
 	return s.dgstr.Close()
 }
