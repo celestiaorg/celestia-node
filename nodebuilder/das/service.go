@@ -10,6 +10,7 @@ import (
 type Module interface {
 	// SamplingStats returns the current statistics over the DA sampling process.
 	SamplingStats(ctx context.Context) (das.SamplingStats, error)
+	// WaitCatchUp blocks until DASer finishes catching up to the network head.
 	WaitCatchUp(ctx context.Context) error
 }
 
