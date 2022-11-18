@@ -54,12 +54,17 @@ func TestDASerLifecycle(t *testing.T) {
 		// ensure checkpoint is stored at 30
 		assert.EqualValues(t, 30, checkpoint.SampleFrom-1)
 	}()
-	// wait for dasing catch-up routine to indicateDone
+
+	// wait for mock to indicate that catchup is done
 	select {
 	case <-ctx.Done():
 		t.Fatal(ctx.Err())
 	case <-mockGet.doneCh:
 	}
+
+	// wait for DASer to indicate done
+	assert.NoError(t, daser.WaitCatchUp(ctx))
+
 	// give catch-up routine a second to finish up sampling last header
 	assert.NoError(t, daser.sampler.state.waitCatchUp(ctx))
 }
@@ -80,12 +85,15 @@ func TestDASer_Restart(t *testing.T) {
 	err = daser.Start(ctx)
 	require.NoError(t, err)
 
-	// wait for dasing catch-up routine to indicateDone
+	// wait for mock to indicate that catchup is done
 	select {
 	case <-ctx.Done():
 		t.Fatal(ctx.Err())
 	case <-mockGet.doneCh:
 	}
+
+	// wait for DASer to indicate done
+	assert.NoError(t, daser.WaitCatchUp(ctx))
 
 	err = daser.Stop(ctx)
 	require.NoError(t, err)
