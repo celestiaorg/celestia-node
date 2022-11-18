@@ -29,16 +29,14 @@ import (
 //
 //go:generate mockgen -destination=mocks/api.go -package=mocks . Module
 type Module interface {
-	// SharesAvailable subjectively validates if Shares committed to the given Root are available on
-	// the Network.
+	// SharesAvailable subjectively validates if Shares committed to the given Root are available on the Network.
 	SharesAvailable(context.Context, *share.Root) error
 	// ProbabilityOfAvailability calculates the probability of the data square
 	// being available based on the number of samples collected.
 	ProbabilityOfAvailability() float64
 	GetShare(ctx context.Context, dah *share.Root, row, col int) (share.Share, error)
 	GetShares(ctx context.Context, root *share.Root) ([][]share.Share, error)
-	// GetSharesByNamespace iterates over a square's row roots and accumulates the found shares in the
-	// given namespace.ID.
+	// GetSharesByNamespace iterates over a square's row roots and accumulates the found shares in the given namespace.ID.
 	GetSharesByNamespace(ctx context.Context, root *share.Root, namespace namespace.ID) ([]share.Share, error)
 }
 

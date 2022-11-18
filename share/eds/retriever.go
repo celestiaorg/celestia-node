@@ -108,8 +108,7 @@ type retrievalSession struct {
 	bget  blockservice.BlockGetter
 	adder *ipld.NmtNodeAdder
 
-	// TODO(@Wondertan): Extract into a separate data structure
-	// https://github.com/celestiaorg/rsmt2d/issues/135
+	// TODO(@Wondertan): Extract into a separate data structure https://github.com/celestiaorg/rsmt2d/issues/135
 	squareQuadrants  []*quadrant
 	squareCellsLks   [][]sync.Mutex
 	squareCellsCount uint32
