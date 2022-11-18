@@ -63,11 +63,6 @@ func NewEDSBlockstore(s *Store) (*Blockstore, error) {
 	}, nil
 }
 
-func (bs *Blockstore) DeleteBlock(ctx context.Context, cid cid.Cid) error {
-	// TODO: Should we delete the CAR containing this cid, or should it remain a noop?
-	return ErrUnsupportedOperation
-}
-
 func (bs *Blockstore) Has(ctx context.Context, cid cid.Cid) (bool, error) {
 	keys, err := bs.store.dgstr.ShardsContainingMultihash(ctx, cid.Hash())
 	if err != nil {
@@ -81,7 +76,6 @@ func (bs *Blockstore) Get(ctx context.Context, cid cid.Cid) (blocks.Block, error
 	if err != nil {
 		return nil, ipld.ErrNotFound{Cid: cid}
 	}
-	// TODO: if bs.Get returns an error and it is from the cache, we should remove it from the cache
 	return blockstr.Get(ctx, cid)
 }
 
@@ -93,22 +87,27 @@ func (bs *Blockstore) GetSize(ctx context.Context, cid cid.Cid) (int, error) {
 	return blockstr.GetSize(ctx, cid)
 }
 
+// DeleteBlock is a noop on the EDS Blockstore that returns an ErrUnsupportedOperation when called.
+func (bs *Blockstore) DeleteBlock(context.Context, cid.Cid) error {
+	return ErrUnsupportedOperation
+}
+
 // Put is a noop on the EDS blockstore, but it does not return an error because it is called by
 // bitswap. For clarification, an implementation of Put does not make sense in this context because
 // it is unclear which CAR file the block should be written to.
-func (bs *Blockstore) Put(ctx context.Context, block blocks.Block) error {
+func (bs *Blockstore) Put(context.Context, blocks.Block) error {
 	return nil
 }
 
 // PutMany is a noop on the EDS blockstore, but it does not return an error because it is called by
 // bitswap. For clarification, an implementation of PutMany does not make sense in this context
 // because it is unclear which CAR file the blocks should be written to.
-func (bs *Blockstore) PutMany(ctx context.Context, blocks []blocks.Block) error {
+func (bs *Blockstore) PutMany(context.Context, []blocks.Block) error {
 	return nil
 }
 
 // AllKeysChan is a noop on the EDS blockstore because the keys are not stored in a single CAR file.
-func (bs *Blockstore) AllKeysChan(ctx context.Context) (<-chan cid.Cid, error) {
+func (bs *Blockstore) AllKeysChan(context.Context) (<-chan cid.Cid, error) {
 	return nil, ErrUnsupportedOperation
 }
 
