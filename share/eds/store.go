@@ -193,8 +193,7 @@ func (s *Store) Remove(ctx context.Context, root share.Root) error {
 // It reads only one quadrant(1/4) of the EDS and verifies the integrity of the stored data by
 // recomputing it.
 func (s *Store) Get(ctx context.Context, root share.Root) (*rsmt2d.ExtendedDataSquare, error) {
-	key := root.String()
-	f, err := os.OpenFile(s.basepath+blocksPath+key, os.O_RDONLY, 0600)
+	f, err := s.GetCAR(ctx, root)
 	if err != nil {
 		return nil, err
 	}
