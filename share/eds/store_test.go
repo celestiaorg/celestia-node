@@ -3,6 +3,7 @@ package eds
 import (
 	"context"
 	"fmt"
+	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -119,6 +120,10 @@ func TestEDSStore_Remove(t *testing.T) {
 	err = edsStore.Put(ctx, dah, eds)
 	require.NoError(t, err)
 
+	// assert that file now exists
+	_, err = os.Stat(edsStore.basepath + blocksPath + dah.String())
+	assert.NoError(t, err)
+
 	err = edsStore.Remove(ctx, dah)
 	assert.NoError(t, err)
 
@@ -126,10 +131,14 @@ func TestEDSStore_Remove(t *testing.T) {
 	_, err = edsStore.dgstr.GetShardInfo(shard.KeyFromString(dah.String()))
 	assert.Error(t, err, "shard not found")
 
-	// shard should have been dropped from the index, which also removes the file
-	stat, err := edsStore.carIdx.StatFullIndex(shard.KeyFromString(dah.String()))
+	// shard should have been dropped from the index, which also removes the file under /index/
+	indexStat, err := edsStore.carIdx.StatFullIndex(shard.KeyFromString(dah.String()))
 	assert.NoError(t, err)
-	assert.False(t, stat.Exists)
+	assert.False(t, indexStat.Exists)
+
+	// file no longer exists
+	_, err = os.Stat(edsStore.basepath + blocksPath + dah.String())
+	assert.ErrorContains(t, err, "no such file or directory")
 }
 
 func TestEDSStore_Has(t *testing.T) {

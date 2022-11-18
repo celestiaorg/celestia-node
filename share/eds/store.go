@@ -181,7 +181,11 @@ func (s *Store) Remove(ctx context.Context, root share.Root) error {
 	if !dropped {
 		log.Warnf("failed to drop index for %s", key)
 	}
-	return err
+	if err != nil {
+		return err
+	}
+
+	return os.Remove(s.basepath + blocksPath + key)
 }
 
 // Get reads EDS out of Store by given DataRoot.
