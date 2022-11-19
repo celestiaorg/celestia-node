@@ -143,7 +143,7 @@ SyncHead(ctx context.Context) (*header.ExtendedHeader, error)
     // Info returns basic information about the node's p2p host/operations.
     Info() p2p.Info
     // Peers returns all peer IDs used across all inner stores.
-    Peers() peer.IDSlice 
+    Peers() []peer.ID
     // PeerInfo returns a small slice of information Peerstore has on the
     // given peer.
     PeerInfo(id peer.ID) peer.AddrInfo
