@@ -3,6 +3,8 @@ package eds
 import (
 	"context"
 	"errors"
+	"fmt"
+	"reflect"
 	"sync"
 
 	"github.com/filecoin-project/dagstore"
@@ -164,7 +166,10 @@ func (bs *Blockstore) readFromBSCache(shardContainingCid shard.Key) (dagstore.Re
 
 	rbs, ok := val.(*accessorWithBlockstore)
 	if !ok {
-		return nil, errors.New("couldn't cast value from cache to accessor with blockstore")
+		return nil, fmt.Errorf(
+			"casting value from cache to accessorWithBlockstore: %s",
+			reflect.TypeOf(val),
+		)
 	}
 	return rbs.bs, nil
 }
@@ -173,14 +178,14 @@ func (bs *Blockstore) addToBSCache(
 	shardContainingCid shard.Key,
 	accessor *dagstore.ShardAccessor,
 ) (dagstore.ReadBlockstore, error) {
-	lk := &bs.bsStripedLocks[shardKeyToStriped(shardContainingCid)]
-	lk.Lock()
-	defer lk.Unlock()
-
 	blockStore, err := accessor.Blockstore()
 	if err != nil {
 		return nil, err
 	}
+
+	lk := &bs.bsStripedLocks[shardKeyToStriped(shardContainingCid)]
+	lk.Lock()
+	defer lk.Unlock()
 
 	bs.blockstoreCache.Add(shardContainingCid, &accessorWithBlockstore{
 		bs: blockStore,
