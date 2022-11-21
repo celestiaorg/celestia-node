@@ -18,19 +18,6 @@ import (
 
 var log = logging.Logger("header/store")
 
-// TODO(@Wondertan): Those values must be configurable and proper defaults should be set for
-// specific node type. (#709)
-var (
-	// DefaultStoreCacheSize defines the amount of max entries allowed in the Header Store cache.
-	DefaultStoreCacheSize = 4096
-	// DefaultIndexCacheSize defines the amount of max entries allowed in the Height to Hash index
-	// cache.
-	DefaultIndexCacheSize = 16384
-	// DefaultWriteBatchSize defines the size of the batched header write.
-	// Headers are written in batches not to thrash the underlying Datastore with writes.
-	DefaultWriteBatchSize = 2048
-)
-
 var (
 	// errStoppedStore is returned for attempted operations on a stopped store
 	errStoppedStore = errors.New("stopped store")
@@ -63,18 +50,25 @@ type store struct {
 	writeHead atomic.Pointer[header.ExtendedHeader]
 	// pending keeps headers pending to be written in one batch
 	pending *batch
+
+	params Parameters
 }
 
 // NewStore constructs a Store over datastore.
 // The datastore must have a head there otherwise Start will error.
 // For first initialization of Store use NewStoreWithHead.
-func NewStore(ds datastore.Batching) (header.Store, error) {
-	return newStore(ds)
+func NewStore(ds datastore.Batching, opts ...Option) (header.Store, error) {
+	return newStore(ds, opts...)
 }
 
 // NewStoreWithHead initiates a new Store and forcefully sets a given trusted header as head.
-func NewStoreWithHead(ctx context.Context, ds datastore.Batching, head *header.ExtendedHeader) (header.Store, error) {
-	store, err := newStore(ds)
+func NewStoreWithHead(
+	ctx context.Context,
+	ds datastore.Batching,
+	head *header.ExtendedHeader,
+	opts ...Option,
+) (header.Store, error) {
+	store, err := newStore(ds, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -82,27 +76,33 @@ func NewStoreWithHead(ctx context.Context, ds datastore.Batching, head *header.E
 	return store, store.Init(ctx, head)
 }
 
-func newStore(ds datastore.Batching) (*store, error) {
-	ds = namespace.Wrap(ds, storePrefix)
-	cache, err := lru.NewARC(DefaultStoreCacheSize)
+func newStore(ds datastore.Batching, opts ...Option) (*store, error) {
+	store := &store{
+		params:    DefaultParameters(),
+		ds:        namespace.Wrap(ds, storePrefix),
+		heightSub: newHeightSub(),
+		writes:    make(chan []*header.ExtendedHeader, 16),
+		writesDn:  make(chan struct{}),
+	}
+
+	for _, opt := range opts {
+		opt(store)
+	}
+
+	cache, err := lru.NewARC(store.params.StoreCacheSize)
 	if err != nil {
 		return nil, err
 	}
 
-	index, err := newHeightIndexer(ds)
+	index, err := newHeightIndexer(store.ds, store.params.IndexCacheSize)
 	if err != nil {
 		return nil, err
 	}
+	store.cache = cache
+	store.heightIndex = index
+	store.pending = newBatch(store.params.WriteBatchSize)
 
-	return &store{
-		ds:          ds,
-		cache:       cache,
-		heightIndex: index,
-		heightSub:   newHeightSub(),
-		writes:      make(chan []*header.ExtendedHeader, 16),
-		writesDn:    make(chan struct{}),
-		pending:     newBatch(DefaultWriteBatchSize),
-	}, nil
+	return store, nil
 }
 
 func (s *store) Init(ctx context.Context, initial *header.ExtendedHeader) error {
@@ -327,7 +327,7 @@ func (s *store) flushLoop() {
 		s.heightSub.Pub(headers...)
 		// don't flush and continue if pending batch is not grown enough,
 		// and Store is not stopping(headers == nil)
-		if s.pending.Len() < DefaultWriteBatchSize && headers != nil {
+		if s.pending.Len() < s.params.WriteBatchSize && headers != nil {
 			continue
 		}
 

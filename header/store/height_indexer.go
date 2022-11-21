@@ -19,8 +19,8 @@ type heightIndexer struct {
 }
 
 // newHeightIndexer creates new heightIndexer.
-func newHeightIndexer(ds datastore.Batching) (*heightIndexer, error) {
-	cache, err := lru.NewARC(DefaultIndexCacheSize)
+func newHeightIndexer(ds datastore.Batching, indexCacheSize int) (*heightIndexer, error) {
+	cache, err := lru.NewARC(indexCacheSize)
 	if err != nil {
 		return nil, err
 	}

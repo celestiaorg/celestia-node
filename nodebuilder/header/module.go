@@ -12,20 +12,31 @@ import (
 	"github.com/celestiaorg/celestia-node/header/store"
 	"github.com/celestiaorg/celestia-node/header/sync"
 	fraudServ "github.com/celestiaorg/celestia-node/nodebuilder/fraud"
+	storecfg "github.com/celestiaorg/celestia-node/nodebuilder/header/store"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	modp2p "github.com/celestiaorg/celestia-node/nodebuilder/p2p"
 )
 
 var log = logging.Logger("module/header")
 
-func ConstructModule(tp node.Type, cfg *Config) fx.Option {
+func ConstructModule(tp node.Type, headerCfg *Config, storeCfg *storecfg.Config) fx.Option {
 	// sanitize config values before constructing module
-	cfgErr := cfg.Validate()
+	headerCfgErr := headerCfg.Validate()
+	storeCfgErr := storeCfg.Validate()
 
 	baseComponents := fx.Options(
-		fx.Supply(*cfg),
-		fx.Error(cfgErr),
+		fx.Supply(*headerCfg, *storeCfg),
+		fx.Error(headerCfgErr, storeCfgErr),
 		fx.Supply(modp2p.BlockTime),
+		fx.Provide(
+			func(cfg storecfg.Config) []store.Option {
+				return []store.Option{
+					store.WithDefaultStoreCacheSize(cfg.StoreCacheSize),
+					store.WithDefaultIndexCacheSize(cfg.IndexCacheSize),
+					store.WithDefaultWriteBatchSize(cfg.WriteBatchSize),
+				}
+			},
+		),
 		fx.Provide(NewHeaderService),
 		fx.Provide(fx.Annotate(
 			store.NewStore,
@@ -86,7 +97,7 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 		return fx.Module(
 			"header",
 			baseComponents,
-			fx.Provide(newP2PExchange(*cfg)),
+			fx.Provide(newP2PExchange(*headerCfg)),
 		)
 	case node.Bridge:
 		return fx.Module(
