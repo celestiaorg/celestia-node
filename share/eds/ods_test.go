@@ -33,7 +33,8 @@ func TestODSReader(t *testing.T) {
 	assert.NoError(t, err)
 
 	// create ODSReader wrapper based on car reader to limit reads to ODS only
-	odsR := ODSReader(r)
+	odsR, err := ODSReader(r)
+	assert.NoError(t, err)
 
 	// create Car reader from ODSReader
 	carReader, err := car.NewCarReader(odsR)
