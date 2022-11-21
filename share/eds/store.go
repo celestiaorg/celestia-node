@@ -11,7 +11,6 @@ import (
 	"github.com/filecoin-project/dagstore/mount"
 	"github.com/filecoin-project/dagstore/shard"
 	"github.com/ipfs/go-datastore"
-	blockstore "github.com/ipfs/go-ipfs-blockstore"
 
 	"github.com/celestiaorg/celestia-node/share"
 
@@ -30,7 +29,6 @@ const (
 // over the whole chain of EDS block data and getting data by namespace.
 type Store struct {
 	dgstr  *dagstore.DAGStore
-	bs     blockstore.Blockstore
 	mounts *mount.Registry
 
 	topIdx index.Inverted
@@ -77,11 +75,6 @@ func NewStore(basepath string, ds datastore.Batching) (*Store, error) {
 		topIdx:   invertedRepo,
 		carIdx:   fsRepo,
 		mounts:   r,
-	}
-
-	s.bs, err = NewEDSBlockstore(s)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create EDSBlockstore: %w", err)
 	}
 
 	return s, nil
@@ -155,14 +148,6 @@ func (s *Store) GetCAR(ctx context.Context, root share.Root) (io.ReadCloser, err
 		}
 		return result.Accessor, nil
 	}
-}
-
-// Blockstore returns an IPFS Blockstore providing access to individual shares/nodes of all EDS
-// registered on the Store. NOTE: The Blockstore does not store whole Celestia Blocks but IPFS
-// blocks. We represent `shares` and NMT Merkle proofs as IPFS blocks and IPLD nodes so Bitswap can
-// access those.
-func (s *Store) Blockstore() blockstore.Blockstore {
-	return s.bs
 }
 
 // Remove removes EDS from Store by the given share.Root and cleans up all the indexing.
