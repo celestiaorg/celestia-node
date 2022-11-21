@@ -2,8 +2,9 @@ package rpc
 
 import (
 	"fmt"
-	"net"
 	"strconv"
+
+	"github.com/celestiaorg/celestia-node/libs/utils"
 )
 
 type Config struct {
@@ -20,10 +21,13 @@ func DefaultConfig() Config {
 }
 
 func (cfg *Config) Validate() error {
-	if ip := net.ParseIP(cfg.Address); ip == nil {
-		return fmt.Errorf("service/rpc: invalid listen address format: %s", cfg.Address)
+	sanitizedAddress, err := utils.ValidateAddr(cfg.Address)
+	if err != nil {
+		return fmt.Errorf("service/rpc: invalid address: %w", err)
 	}
-	_, err := strconv.Atoi(cfg.Port)
+	cfg.Address = sanitizedAddress
+
+	_, err = strconv.Atoi(cfg.Port)
 	if err != nil {
 		return fmt.Errorf("service/rpc: invalid port: %s", err.Error())
 	}
