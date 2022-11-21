@@ -28,7 +28,6 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 		fx.Error(cfgErr),
 		fx.Options(options...),
 		fx.Provide(discovery(*cfg)),
-		fx.Provide(newModule),
 		fx.Invoke(share.EnsureEmptySquareExists),
 		fxutil.ProvideAs(getters.NewIPLDGetter, new(share.Getter)),
 	)

@@ -45,11 +45,15 @@ func (la *ShareAvailability) Start(context.Context) error {
 	la.cancel = cancel
 
 	go la.disc.EnsurePeers(ctx)
+
+	la.shareServ.Start(ctx)
+
 	return nil
 }
 
-func (la *ShareAvailability) Stop(context.Context) error {
+func (la *ShareAvailability) Stop(ctx context.Context) error {
 	la.cancel()
+	la.shareServ.Stop(ctx)
 	return nil
 }
 
