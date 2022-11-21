@@ -84,6 +84,7 @@ func WithBlackboxMetrics() fx.Option {
 			}
 			return shr
 		}),
+		fx.Decorate(shr.WithBlackBoxShareServiceMetrics),
 	)
 }
 
