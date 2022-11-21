@@ -54,19 +54,21 @@ func newSession(ctx context.Context, h host.Host, peerTracker []*peerStat, proto
 // GetRangeByHeight requests headers from different peers.
 func (s *session) getRangeByHeight(ctx context.Context, from, amount uint64) ([]*header.ExtendedHeader, error) {
 	log.Debugw("requesting headers", "from", from, "to", from+amount)
+
 	requests := prepareRequests(from, amount, headersPerPeer)
 	result := make(chan []*header.ExtendedHeader, len(requests))
-	headers := make([]*header.ExtendedHeader, 0, amount)
 	s.reqCh = make(chan *p2p_pb.ExtendedHeaderRequest, len(requests))
 
 	go s.handleOutgoingRequests(ctx, result)
 	for _, req := range requests {
 		s.reqCh <- req
 	}
+
+	headers := make([]*header.ExtendedHeader, 0, amount)
 	for i := 0; i < cap(result); i++ {
 		select {
 		case <-s.ctx.Done():
-			return nil, errors.New("header/p2p: session was stopped")
+			return nil, errors.New("header/p2p: session timeout reached")
 		case <-ctx.Done():
 			return nil, ctx.Err()
 		case err := <-s.errCh:

@@ -55,12 +55,17 @@ func TestExchange_RequestHeaders(t *testing.T) {
 	}
 }
 
+// TestExchange_RequestFullRangeHeaders requests max amount of headers
+// to verify how session will parallelize all requests.
 func TestExchange_RequestFullRangeHeaders(t *testing.T) {
+	// create mocknet with 9 peers
 	hosts := createMocknet(t, 9)
+	// set max amount of headers per 1 peer
 	headersPerPeer = 10
 	totalAmount := 80
 	store := createStore(t, totalAmount)
 	protocolSuffix := "private"
+	// create new exchange
 	exchange := NewExchange(hosts[len(hosts)-1], []peer.ID{}, protocolSuffix)
 	exchange.ctx, exchange.cancel = context.WithCancel(context.Background())
 	t.Cleanup(exchange.cancel)
@@ -73,6 +78,7 @@ func TestExchange_RequestFullRangeHeaders(t *testing.T) {
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 	t.Cleanup(cancel)
+	// request headers from 1 to totalAmount(80)
 	headers, err := exchange.GetRangeByHeight(ctx, 1, uint64(totalAmount))
 	require.NoError(t, err)
 	require.Len(t, headers, 80)
