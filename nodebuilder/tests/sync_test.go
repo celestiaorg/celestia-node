@@ -15,6 +15,13 @@ import (
 	"github.com/celestiaorg/celestia-node/nodebuilder/tests/swamp"
 )
 
+// Common consts for tests producing filled blocks
+const (
+	blocks = 20
+	bsize  = 16
+	btime  = time.Millisecond * 300
+)
+
 /*
 Test-Case: Sync a Light Node with a Bridge Node(includes DASing of non-empty blocks)
 Steps:
@@ -28,12 +35,6 @@ Steps:
 func TestSyncLightWithBridge(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), swamp.DefaultTestTimeout)
 	t.Cleanup(cancel)
-
-	const (
-		blocks = 20
-		bsize  = 16
-		btime  = time.Millisecond * 300
-	)
 
 	sw := swamp.NewSwamp(t, swamp.WithBlockTime(btime))
 	fillDn := sw.FillBlocks(ctx, bsize, blocks)
@@ -66,16 +67,8 @@ func TestSyncLightWithBridge(t *testing.T) {
 	err = light.ShareServ.SharesAvailable(ctx, h.DAH)
 	assert.NoError(t, err)
 
-	for {
-		s, err := light.DASer.SamplingStats(ctx)
-		assert.NoError(t, err)
-
-		// TODO(@Wondertan): should be subscription instead
-		time.Sleep(time.Millisecond * 10)
-		if s.CatchUpDone {
-			break
-		}
-	}
+	err = light.DASer.WaitCatchUp(ctx)
+	require.NoError(t, err)
 
 	assert.EqualValues(t, h.Commit.BlockID.Hash, sw.GetCoreBlockHashByHeight(ctx, 30))
 	require.NoError(t, <-fillDn)
@@ -156,12 +149,6 @@ func TestSyncFullWithBridge(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), swamp.DefaultTestTimeout)
 	t.Cleanup(cancel)
 
-	const (
-		blocks = 20
-		bsize  = 16
-		btime  = time.Millisecond * 300
-	)
-
 	sw := swamp.NewSwamp(t, swamp.WithBlockTime(btime))
 	fillDn := sw.FillBlocks(ctx, bsize, blocks)
 
@@ -193,16 +180,8 @@ func TestSyncFullWithBridge(t *testing.T) {
 	err = full.ShareServ.SharesAvailable(ctx, h.DAH)
 	assert.NoError(t, err)
 
-	for {
-		s, err := full.DASer.SamplingStats(ctx)
-		assert.NoError(t, err)
-
-		// TODO(@Wondertan): should be subscription instead
-		time.Sleep(time.Millisecond * 10)
-		if s.CatchUpDone {
-			break
-		}
-	}
+	err = full.DASer.WaitCatchUp(ctx)
+	require.NoError(t, err)
 
 	assert.EqualValues(t, h.Commit.BlockID.Hash, sw.GetCoreBlockHashByHeight(ctx, 30))
 	require.NoError(t, <-fillDn)
