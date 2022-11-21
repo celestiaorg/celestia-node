@@ -3,6 +3,7 @@ package tests
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/libp2p/go-libp2p-core/host"
 	"github.com/libp2p/go-libp2p-core/peer"
@@ -14,8 +15,15 @@ import (
 	"github.com/celestiaorg/celestia-node/nodebuilder/tests/swamp"
 )
 
+// Common consts for tests producing filled blocks
+const (
+	blocks = 20
+	bsize  = 16
+	btime  = time.Millisecond * 300
+)
+
 /*
-Test-Case: Sync a Light Node with a Bridge Node
+Test-Case: Sync a Light Node with a Bridge Node(includes DASing of non-empty blocks)
 Steps:
 1. Create a Bridge Node(BN)
 2. Start a BN
@@ -25,12 +33,13 @@ Steps:
 6. Check LN is synced to height 30
 */
 func TestSyncLightWithBridge(t *testing.T) {
-	sw := swamp.NewSwamp(t)
-
-	bridge := sw.NewBridgeNode()
-
 	ctx, cancel := context.WithTimeout(context.Background(), swamp.DefaultTestTimeout)
 	t.Cleanup(cancel)
+
+	sw := swamp.NewSwamp(t, swamp.WithBlockTime(btime))
+	fillDn := sw.FillBlocks(ctx, bsize, blocks)
+
+	bridge := sw.NewBridgeNode()
 
 	sw.WaitTillHeight(ctx, 20)
 
@@ -55,7 +64,14 @@ func TestSyncLightWithBridge(t *testing.T) {
 	h, err = light.HeaderServ.GetByHeight(ctx, 30)
 	require.NoError(t, err)
 
+	err = light.ShareServ.SharesAvailable(ctx, h.DAH)
+	assert.NoError(t, err)
+
+	err = light.DASer.WaitCatchUp(ctx)
+	require.NoError(t, err)
+
 	assert.EqualValues(t, h.Commit.BlockID.Hash, sw.GetCoreBlockHashByHeight(ctx, 30))
+	require.NoError(t, <-fillDn)
 }
 
 /*
@@ -120,7 +136,7 @@ func TestSyncStartStopLightWithBridge(t *testing.T) {
 }
 
 /*
-Test-Case: Sync a Full Node with a Bridge Node
+Test-Case: Sync a Full Node with a Bridge Node(includes DASing of non-empty blocks)
 Steps:
 1. Create a Bridge Node(BN)
 2. Start a BN
@@ -130,12 +146,13 @@ Steps:
 6. Check FN is synced to height 30
 */
 func TestSyncFullWithBridge(t *testing.T) {
-	sw := swamp.NewSwamp(t)
-
-	bridge := sw.NewBridgeNode()
-
 	ctx, cancel := context.WithTimeout(context.Background(), swamp.DefaultTestTimeout)
 	t.Cleanup(cancel)
+
+	sw := swamp.NewSwamp(t, swamp.WithBlockTime(btime))
+	fillDn := sw.FillBlocks(ctx, bsize, blocks)
+
+	bridge := sw.NewBridgeNode()
 
 	sw.WaitTillHeight(ctx, 20)
 
@@ -159,6 +176,15 @@ func TestSyncFullWithBridge(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.EqualValues(t, h.Commit.BlockID.Hash, sw.GetCoreBlockHashByHeight(ctx, 30))
+
+	err = full.ShareServ.SharesAvailable(ctx, h.DAH)
+	assert.NoError(t, err)
+
+	err = full.DASer.WaitCatchUp(ctx)
+	require.NoError(t, err)
+
+	assert.EqualValues(t, h.Commit.BlockID.Hash, sw.GetCoreBlockHashByHeight(ctx, 30))
+	require.NoError(t, <-fillDn)
 }
 
 /*
