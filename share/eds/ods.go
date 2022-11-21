@@ -12,7 +12,7 @@ import (
 	"github.com/ipld/go-car/util"
 )
 
-var errNilReader = errors.New("odsReader: can't create ODSReadr over nil reader")
+var errNilReader = errors.New("ods-reader: can't create ODSReader over nil reader")
 
 type odsReaderBuffered struct {
 	reader                 *bufio.Reader
@@ -45,6 +45,8 @@ func ODSReader(r io.ReadCloser) io.Reader {
 		return odsR
 	}
 
+        // car header contains both row roots and col roots which is why
+        // we divide by 4 to get the ODSWidth
 	odsWidth := len(ch.Roots) / 4
 	odsR.odsSquareSize = odsWidth * odsWidth
 
