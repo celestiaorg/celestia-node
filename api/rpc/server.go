@@ -55,8 +55,8 @@ func (s *Server) RegisterService(namespace string, service interface{}) {
 	s.rpc.Register(namespace, service)
 }
 
-// RegisterAuthedService registers a service onto the RPC server. All methods on the service will then be exposed over
-// the RPC.
+// RegisterAuthedService registers a service onto the RPC server. All methods on the service will
+// then be exposed over the RPC.
 func (s *Server) RegisterAuthedService(namespace string, service interface{}, out interface{}) {
 	auth.PermissionedProxy(AllPerms, DefaultPerms, service, getInternalStruct(out))
 	s.RegisterService(namespace, out)

@@ -8,8 +8,8 @@ import (
 
 var _ Module = (*API)(nil)
 
-// Module encompasses the behavior necessary to subscribe and broadcast fraud proofs within the network.
-// Any method signature changed here needs to also be changed in the API struct.
+// Module encompasses the behavior necessary to subscribe and broadcast fraud proofs within the
+// network. Any method signature changed here needs to also be changed in the API struct.
 //
 //go:generate mockgen -destination=mocks/api.go -package=mocks . Module
 type Module interface {
