@@ -65,8 +65,8 @@ require (
 	go.uber.org/multierr v1.8.0
 	golang.org/x/crypto v0.0.0-20220525230936-793ad666bf5e
 	golang.org/x/sync v0.0.0-20220929204114-8fcdb60fdcc0
-	golang.org/x/text v0.3.7
-	google.golang.org/grpc v1.49.0
+	golang.org/x/text v0.4.0
+	google.golang.org/grpc v1.51.0
 )
 
 require (
