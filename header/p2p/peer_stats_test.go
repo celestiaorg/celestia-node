@@ -37,7 +37,7 @@ func Test_PeerQueuePopBestPeer(t *testing.T) {
 	}
 	pQueue := newPeerQueue(peersStat)
 	for index := 0; index < pQueue.stats.Len(); index++ {
-		stats := pQueue.pop()
+		stats := pQueue.stats.Pop()
 		require.Equal(t, stats, wantStat[index])
 	}
 }
@@ -51,8 +51,8 @@ func Test_PeerQueueRemovePeer(t *testing.T) {
 	}
 	pQueue := newPeerQueue(peersStat)
 
-	_ = pQueue.pop()
-	stat := pQueue.pop()
+	_ = pQueue.stats.Pop()
+	stat := pQueue.stats.Pop().(*peerStat)
 	require.Equal(t, stat.peerID, peer.ID("peerID2"))
 }
 
@@ -89,7 +89,7 @@ func Test_StatsUpdateStats(t *testing.T) {
 
 	for _, tt := range testCases {
 		stat.updateStats(tt.inputBytes, tt.inputTime)
-		updatedStat := pQueue.pop()
+		updatedStat := pQueue.stats.Pop().(*peerStat)
 		require.Equal(t, updatedStat.score(), stat.score())
 		pQueue.push(updatedStat)
 	}

@@ -112,7 +112,7 @@ func (p *peerQueue) waitPop(ctx context.Context) *peerStat {
 		case <-p.havePeer:
 		}
 	}
-	return p.pop()
+	return heap.Pop(&p.stats).(*peerStat)
 }
 
 // push adds the peer to the queue.
@@ -125,11 +125,4 @@ func (p *peerQueue) push(stat *peerStat) {
 	case p.havePeer <- struct{}{}:
 	default:
 	}
-}
-
-// pop removes the peer with the biggest score from the queue.
-func (p *peerQueue) pop() *peerStat {
-	p.statsLk.Lock()
-	defer p.statsLk.Unlock()
-	return heap.Pop(&p.stats).(*peerStat)
 }
