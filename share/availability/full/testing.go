@@ -17,9 +17,9 @@ import (
 
 // RandServiceWithSquare provides a service.ShareService filled with 'n' NMT
 // trees of 'n' random shares, essentially storing a whole square.
-func RandServiceWithSquare(t *testing.T, n int) (*service.ShareService, *share.Root) {
+func RandServiceWithSquare(t *testing.T, n int) (*ShareAvailability, *share.Root) {
 	bServ := mdutils.Bserv()
-	return service.NewShareService(bServ, TestAvailability(bServ)), availability_test.RandFillBS(t, n, bServ)
+	return TestAvailability(bServ), availability_test.RandFillBS(t, n, bServ)
 }
 
 // RandNode creates a Full Node filled with a random block of the given size.
@@ -31,7 +31,8 @@ func RandNode(dn *availability_test.TestDagNet, squareSize int) (*availability_t
 // Node creates a new empty Full Node.
 func Node(dn *availability_test.TestDagNet) *availability_test.TestNode {
 	nd := dn.NewTestNode()
-	nd.ShareService = service.NewShareService(nd.BlockService, TestAvailability(nd.BlockService))
+	nd.ShareService = service.NewShareService(nd.BlockService)
+	nd.Availability = TestAvailability(nd.BlockService)
 	return nd
 }
 

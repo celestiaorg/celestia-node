@@ -34,8 +34,8 @@ func TestSharesAvailable(t *testing.T) {
 	defer cancel()
 
 	// RandServiceWithSquare creates a Light ShareAvailability inside, so we can test it
-	service, dah := RandServiceWithSquare(t, 16)
-	err := service.SharesAvailable(ctx, dah)
+	lightAvail, dah := RandServiceWithSquare(t, 16)
+	err := lightAvail.SharesAvailable(ctx, dah)
 	assert.NoError(t, err)
 }
 
@@ -74,7 +74,7 @@ func TestGetShare(t *testing.T) {
 
 	for i := range make([]bool, n) {
 		for j := range make([]bool, n) {
-			sh, err := serv.GetShare(ctx, dah, i, j)
+			sh, err := serv.shareServ.GetShare(ctx, dah, i, j)
 			assert.NotNil(t, sh)
 			assert.NoError(t, err)
 		}
@@ -132,7 +132,7 @@ func TestGetShares(t *testing.T) {
 	err := serv.Start(ctx)
 	require.NoError(t, err)
 
-	shares, err := serv.GetShares(ctx, dah)
+	shares, err := serv.shareServ.GetShares(ctx, dah)
 	require.NoError(t, err)
 
 	flattened := make([][]byte, 0, len(shares)*2)
@@ -156,7 +156,7 @@ func TestService_GetSharesByNamespaceNotFound(t *testing.T) {
 	serv, root := RandServiceWithSquare(t, 1)
 	root.RowsRoots = nil
 
-	shares, err := serv.GetSharesByNamespace(context.Background(), root, []byte{1, 1, 1, 1, 1, 1, 1, 1})
+	shares, err := serv.shareServ.GetSharesByNamespace(context.Background(), root, []byte{1, 1, 1, 1, 1, 1, 1, 1})
 	assert.Len(t, shares, 0)
 	assert.NoError(t, err)
 }
@@ -178,7 +178,7 @@ func BenchmarkService_GetSharesByNamespace(b *testing.B) {
 			root.RowsRoots[(len(root.RowsRoots) / 2)] = root.RowsRoots[(len(root.RowsRoots)-1)/2]
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
-				_, err := serv.GetSharesByNamespace(context.Background(), root, randNID)
+				_, err := serv.shareServ.GetSharesByNamespace(context.Background(), root, randNID)
 				require.NoError(t, err)
 			}
 		})

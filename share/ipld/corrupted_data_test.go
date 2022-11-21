@@ -26,7 +26,7 @@ func TestNamespaceHasher_CorruptedData(t *testing.T) {
 
 	requestor := full.Node(net)
 	provider, mockBS := availability_test.MockNode(t, net)
-	provider.ShareService = service.NewShareService(provider.BlockService, full.TestAvailability(provider.BlockService))
+	provider.ShareService = service.NewShareService(provider.BlockService)
 	net.ConnectAll()
 
 	// before the provider starts attacking, we should be able to retrieve successfully. We pass a size

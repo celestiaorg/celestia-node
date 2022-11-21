@@ -37,9 +37,11 @@ func FillBS(t *testing.T, bServ blockservice.BlockService, shares []share.Share)
 }
 
 type TestNode struct {
-	net *TestDagNet
-	*service.ShareService
+	service.ShareService
+	share.Availability
 	blockservice.BlockService
+
+	net *TestDagNet
 	host.Host
 }
 
@@ -71,9 +73,7 @@ func NewTestDAGNet(ctx context.Context, t *testing.T) *TestDagNet {
 	}
 }
 
-// NewTestNodeWithBlockstore creates a new plain TestNode with the given blockstore that can serve
-// and request data.
-func (dn *TestDagNet) NewTestNodeWithBlockstore(dstore ds.Datastore, bstore blockstore.Blockstore) *TestNode {
+func (dn *TestDagNet) NewBlockService(dstore ds.Datastore, bstore blockstore.Blockstore) blockservice.BlockService {
 	hst, err := dn.net.GenPeer()
 	require.NoError(dn.T, err)
 	routing := offline.NewOfflineRouter(dstore, record.NamespacedValidator{})
@@ -88,9 +88,21 @@ func (dn *TestDagNet) NewTestNodeWithBlockstore(dstore ds.Datastore, bstore bloc
 		bitswap.SetSimulateDontHavesOnTimeout(false),
 		bitswap.SetSendDontHaves(false),
 	)
+	return blockservice.New(bstore, bs)
+}
+
+// NewTestNodeWithBlockstore creates a new plain TestNode with the given blockstore that can serve
+// and request data.
+func (dn *TestDagNet) NewTestNodeWithBlockstore(dstore ds.Datastore, bstore blockstore.Blockstore) *TestNode {
+	hst, err := dn.net.GenPeer()
+	require.NoError(dn.T, err)
+	bserv := dn.NewBlockService(dstore, bstore)
+	shrSrv := service.NewShareService(bserv)
+
 	nd := &TestNode{
+		ShareService: shrSrv,
 		net:          dn,
-		BlockService: blockservice.New(bstore, bs),
+		BlockService: bserv,
 		Host:         hst,
 	}
 	dn.nodes = append(dn.nodes, nd)

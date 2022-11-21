@@ -17,17 +17,22 @@ import (
 
 // RandServiceWithSquare provides a share.Service filled with 'n' NMT
 // trees of 'n' random shares, essentially storing a whole square.
-func RandServiceWithSquare(t *testing.T, n int) (*service.ShareService, *share.Root) {
+func RandServiceWithSquare(t *testing.T, n int) (*ShareAvailability, *share.Root) {
 	bServ := mdutils.Bserv()
 
-	return service.NewShareService(bServ, TestAvailability(bServ)), availability_test.RandFillBS(t, n, bServ)
+	shareServ, dah := service.NewShareService(bServ), availability_test.RandFillBS(t, n, bServ)
+	return NewShareAvailability(shareServ, bServ, RandDisc()), dah
+}
+
+func RandDisc() *discovery.Discovery {
+	return &discovery.Discovery{}
 }
 
 // RandService provides an unfilled share.Service with corresponding
 // blockservice.BlockService than can be filled by the test.
-func RandService() (*service.ShareService, blockservice.BlockService) {
+func RandService() (service.ShareService, blockservice.BlockService) {
 	bServ := mdutils.Bserv()
-	return service.NewShareService(bServ, TestAvailability(bServ)), bServ
+	return service.NewShareService(bServ), bServ
 }
 
 // RandNode creates a Light Node filled with a random block of the given size.
@@ -39,13 +44,14 @@ func RandNode(dn *availability_test.TestDagNet, squareSize int) (*availability_t
 // Node creates a new empty Light Node.
 func Node(dn *availability_test.TestDagNet) *availability_test.TestNode {
 	nd := dn.NewTestNode()
-	nd.ShareService = service.NewShareService(nd.BlockService, TestAvailability(nd.BlockService))
+	nd.ShareService = service.NewShareService(nd.BlockService)
+	nd.Availability = NewShareAvailability(nd.ShareService, nd.BlockService, RandDisc())
 	return nd
 }
 
 func TestAvailability(bServ blockservice.BlockService) *ShareAvailability {
 	disc := discovery.NewDiscovery(nil, routing.NewRoutingDiscovery(routinghelpers.Null{}), 0, time.Second, time.Second)
-	return NewShareAvailability(bServ, disc)
+	return NewShareAvailability(service.NewShareService(bServ), bServ, disc)
 }
 
 func SubNetNode(sn *availability_test.SubNet) *availability_test.TestNode {

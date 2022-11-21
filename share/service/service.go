@@ -8,6 +8,8 @@ import (
 	"github.com/ipfs/go-cid"
 	"golang.org/x/sync/errgroup"
 
+	logging "github.com/ipfs/go-log/v2"
+
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/eds"
 	"github.com/celestiaorg/celestia-node/share/ipld"
@@ -15,27 +17,39 @@ import (
 	"github.com/celestiaorg/nmt/namespace"
 )
 
+var (
+	log = logging.Logger("share.service")
+)
+
 // TODO(@Wondertan): Simple thread safety for Start and Stop would not hurt.
-type ShareService struct {
-	share.Availability
-	rtrv  *eds.Retriever
-	bServ blockservice.BlockService
-	// session is blockservice sub-session that applies optimization for fetching/loading related
-	// nodes, like shares prefer session over blockservice for fetching nodes.
-	session blockservice.BlockGetter
-	cancel  context.CancelFunc
-}
+type (
+	ShareService interface {
+		Start(context.Context) error
+		Stop(context.Context) error
+		GetShare(context.Context, *share.Root, int, int) (share.Share, error)
+		GetShares(context.Context, *share.Root) ([][]share.Share, error)
+		GetSharesByNamespace(context.Context, *share.Root, namespace.ID) ([]share.Share, error)
+	}
+
+	shareService struct {
+		rtrv  *eds.Retriever
+		bServ blockservice.BlockService
+		// session is blockservice sub-session that applies optimization for fetching/loading related
+		// nodes, like shares prefer session over blockservice for fetching nodes.
+		session blockservice.BlockGetter
+		cancel  context.CancelFunc
+	}
+)
 
 // NewService creates a new basic share.Module.
-func NewShareService(bServ blockservice.BlockService, avail share.Availability) *ShareService {
-	return &ShareService{
-		rtrv:         eds.NewRetriever(bServ),
-		Availability: avail,
-		bServ:        bServ,
+func NewShareService(bServ blockservice.BlockService) ShareService {
+	return &shareService{
+		rtrv:  eds.NewRetriever(bServ),
+		bServ: bServ,
 	}
 }
 
-func (s *ShareService) Start(context.Context) error {
+func (s *shareService) Start(context.Context) error {
 	if s.session != nil || s.cancel != nil {
 		return fmt.Errorf("share: service already started")
 	}
@@ -50,7 +64,7 @@ func (s *ShareService) Start(context.Context) error {
 	return nil
 }
 
-func (s *ShareService) Stop(context.Context) error {
+func (s *shareService) Stop(context.Context) error {
 	if s.session == nil || s.cancel == nil {
 		return fmt.Errorf("share: service already stopped")
 	}
@@ -61,17 +75,19 @@ func (s *ShareService) Stop(context.Context) error {
 	return nil
 }
 
-func (s *ShareService) GetShare(ctx context.Context, dah *share.Root, row, col int) (share.Share, error) {
+func (s *shareService) GetShare(ctx context.Context, dah *share.Root, row, col int) (share.Share, error) {
 	root, leaf := ipld.Translate(dah, row, col)
+	log.Debugw("fetching share", "root", dah.Hash(), "leaf CID", leaf)
 	nd, err := share.GetShare(ctx, s.bServ, root, leaf, len(dah.RowsRoots))
 	if err != nil {
+		log.Debugw("error fetching share", "root", dah.Hash(), "leaf CID", leaf)
 		return nil, err
 	}
 
 	return nd, nil
 }
 
-func (s *ShareService) GetShares(ctx context.Context, root *share.Root) ([][]share.Share, error) {
+func (s *shareService) GetShares(ctx context.Context, root *share.Root) ([][]share.Share, error) {
 	eds, err := s.rtrv.Retrieve(ctx, root)
 	if err != nil {
 		return nil, err
@@ -93,7 +109,7 @@ func (s *ShareService) GetShares(ctx context.Context, root *share.Root) ([][]sha
 
 // GetSharesByNamespace iterates over a square's row roots and accumulates the found shares in the
 // given namespace.ID.
-func (s *ShareService) GetSharesByNamespace(
+func (s *shareService) GetSharesByNamespace(
 	ctx context.Context,
 	root *share.Root,
 	nID namespace.ID,

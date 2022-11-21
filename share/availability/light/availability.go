@@ -7,14 +7,13 @@ import (
 
 	"github.com/libp2p/go-libp2p/core/peer"
 
-	"github.com/celestiaorg/celestia-node/share/ipld"
-
 	"github.com/ipfs/go-blockservice"
 	ipldFormat "github.com/ipfs/go-ipld-format"
 	logging "github.com/ipfs/go-log/v2"
 
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/availability/discovery"
+	shr "github.com/celestiaorg/celestia-node/share/service"
 )
 
 var log = logging.Logger("share/light")
@@ -24,7 +23,8 @@ var log = logging.Logger("share/light")
 // its availability. It is assumed that there are a lot of lightAvailability instances
 // on the network doing sampling over the same Root to collectively verify its availability.
 type ShareAvailability struct {
-	bserv blockservice.BlockService
+	shareServ shr.ShareService
+	bserv     blockservice.BlockService
 	// disc discovers new full nodes in the network.
 	// it is not allowed to call advertise for light nodes (Full nodes only).
 	disc   *discovery.Discovery
@@ -33,12 +33,14 @@ type ShareAvailability struct {
 
 // NewShareAvailability creates a new light Availability.
 func NewShareAvailability(
+	shareService shr.ShareService,
 	bserv blockservice.BlockService,
 	disc *discovery.Discovery,
 ) *ShareAvailability {
 	la := &ShareAvailability{
-		bserv: bserv,
-		disc:  disc,
+		shareServ: shareService,
+		bserv:     bserv,
+		disc:      disc,
 	}
 	return la
 }
@@ -48,11 +50,15 @@ func (la *ShareAvailability) Start(context.Context) error {
 	la.cancel = cancel
 
 	go la.disc.EnsurePeers(ctx)
+
+	la.shareServ.Start(ctx)
+
 	return nil
 }
 
-func (la *ShareAvailability) Stop(context.Context) error {
+func (la *ShareAvailability) Stop(ctx context.Context) error {
 	la.cancel()
+	la.shareServ.Stop(ctx)
 	return nil
 }
 
@@ -76,17 +82,10 @@ func (la *ShareAvailability) SharesAvailable(ctx context.Context, dah *share.Roo
 	defer cancel()
 
 	log.Debugw("starting sampling session", "root", dah.Hash())
-	ses := blockservice.NewSession(ctx, la.bserv)
 	errs := make(chan error, len(samples))
 	for _, s := range samples {
 		go func(s Sample) {
-			root, leaf := ipld.Translate(dah, s.Row, s.Col)
-
-			log.Debugw("fetching share", "root", dah.Hash(), "leaf CID", leaf)
-			_, err := share.GetShare(ctx, ses, root, leaf, len(dah.RowsRoots))
-			if err != nil {
-				log.Debugw("error fetching share", "root", dah.Hash(), "leaf CID", leaf)
-			}
+			_, err := la.shareServ.GetShare(ctx, dah, s.Row, s.Col)
 			// we don't really care about Share bodies at this point
 			// it also means we now saved the Share in local storage
 			select {
