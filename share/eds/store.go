@@ -104,7 +104,7 @@ func (s *Store) Put(ctx context.Context, root share.Root, square *rsmt2d.Extende
 
 	err = WriteEDS(ctx, square, f)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to write EDS to file: %w", err)
 	}
 
 	ch := make(chan dagstore.ShardResult, 1)
@@ -113,14 +113,17 @@ func (s *Store) Put(ctx context.Context, root share.Root, square *rsmt2d.Extende
 		Path: key,
 	}, ch, dagstore.RegisterOpts{})
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to initiate shard registration: %w", err)
 	}
 
 	select {
 	case <-ctx.Done():
 		return ctx.Err()
 	case result := <-ch:
-		return result.Error
+		if result.Error != nil {
+			return fmt.Errorf("failed to register shard: %w", result.Error)
+		}
+		return nil
 	}
 }
 
@@ -136,7 +139,7 @@ func (s *Store) GetCAR(ctx context.Context, root share.Root) (io.ReadCloser, err
 	ch := make(chan dagstore.ShardResult, 1)
 	err := s.dgstr.AcquireShard(ctx, shard.KeyFromString(key), ch, dagstore.AcquireOpts{})
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to initiate shard acquisition: %w", err)
 	}
 
 	select {
@@ -144,7 +147,7 @@ func (s *Store) GetCAR(ctx context.Context, root share.Root) (io.ReadCloser, err
 		return nil, ctx.Err()
 	case result := <-ch:
 		if result.Error != nil {
-			return nil, result.Error
+			return nil, fmt.Errorf("failed to acquire shard: %w", result.Error)
 		}
 		return result.Accessor, nil
 	}
@@ -157,13 +160,13 @@ func (s *Store) Remove(ctx context.Context, root share.Root) error {
 	ch := make(chan dagstore.ShardResult, 1)
 	err := s.dgstr.DestroyShard(ctx, shard.KeyFromString(key), ch, dagstore.DestroyOpts{})
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to initiate shard destruction: %w", err)
 	}
 
 	select {
 	case result := <-ch:
 		if result.Error != nil {
-			return result.Error
+			return fmt.Errorf("failed to destroy shard: %w", result.Error)
 		}
 	case <-ctx.Done():
 		return ctx.Err()
@@ -174,10 +177,14 @@ func (s *Store) Remove(ctx context.Context, root share.Root) error {
 		log.Warnf("failed to drop index for %s", key)
 	}
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to drop index for %s: %w", key, err)
 	}
 
-	return os.Remove(s.basepath + blocksPath + key)
+	err = os.Remove(s.basepath + blocksPath + key)
+	if err != nil {
+		return fmt.Errorf("failed to remove CAR file: %w", err)
+	}
+	return nil
 }
 
 // Get reads EDS out of Store by given DataRoot.
@@ -187,9 +194,13 @@ func (s *Store) Remove(ctx context.Context, root share.Root) error {
 func (s *Store) Get(ctx context.Context, root share.Root) (*rsmt2d.ExtendedDataSquare, error) {
 	f, err := s.GetCAR(ctx, root)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get CAR file: %w", err)
 	}
-	return ReadEDS(ctx, f, root)
+	eds, err := ReadEDS(ctx, f, root)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read EDS from CAR file: %w", err)
+	}
+	return eds, nil
 }
 
 // Has checks if EDS exists by the given share.Root.
@@ -206,11 +217,15 @@ func (s *Store) Has(ctx context.Context, root share.Root) (bool, error) {
 func setupPath(basepath string) error {
 	err := os.Mkdir(basepath+blocksPath, 0755)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to create blocks directory: %w", err)
 	}
 	err = os.Mkdir(basepath+transientsPath, 0755)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to create transients directory: %w", err)
 	}
-	return os.Mkdir(basepath+indexPath, 0755)
+	err = os.Mkdir(basepath+indexPath, 0755)
+	if err != nil {
+		return fmt.Errorf("failed to create index directory: %w", err)
+	}
+	return nil
 }

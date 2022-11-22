@@ -98,14 +98,6 @@ func TestEDSStore_GetCAR(t *testing.T) {
 	}
 }
 
-func TestEDSStore_GetCARRestrictsToODS(t *testing.T) {
-	t.Skip()
-}
-
-func TestEDSStore_ContainsEmptyRoot(t *testing.T) {
-	t.Skip()
-}
-
 func TestEDSStore_Remove(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
