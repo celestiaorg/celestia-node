@@ -5,6 +5,8 @@ import (
 	"math/rand"
 	"time"
 
+	logging "github.com/ipfs/go-log/v2"
+
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/service"
 	"github.com/celestiaorg/nmt/namespace"
@@ -15,6 +17,7 @@ import (
 )
 
 var (
+	log   = logging.Logger("share-facade")
 	meter = global.MeterProvider().Meter("blackbox-share")
 )
 
@@ -96,6 +99,7 @@ func (bbi *shareServiceBlackboxInstru) Stop(ctx context.Context) error {
 }
 
 func (bbi *shareServiceBlackboxInstru) GetShare(ctx context.Context, dah *share.Root, row, col int) (share.Share, error) {
+	log.Debug("GetShare is being called through the facade")
 	now := time.Now()
 	requestID := RandStringBytes(5)
 

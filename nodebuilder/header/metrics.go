@@ -7,7 +7,6 @@ package header
 
 import (
 	"context"
-	"math/rand"
 	"time"
 
 	"go.opentelemetry.io/otel/attribute"
@@ -31,6 +30,10 @@ type blackBoxInstrument struct {
 	requestsNum     syncint64.Counter
 	requestDuration syncint64.Histogram
 	requestSize     syncint64.Histogram
+	blockTime       syncint64.Histogram
+
+	lastHeadTS time.Time
+	lastHead   int64
 
 	// pointer to mod
 	next Module
@@ -69,10 +72,26 @@ func newBlackBoxInstrument(next Module) (Module, error) {
 		return nil, err
 	}
 
+	blockTime, err := meter.
+		SyncInt64().
+		Histogram(
+			"node.header.blackbox.block_time",
+			instrument.WithDescription("test block time"),
+		)
+	if err != nil {
+		return nil, err
+	}
+
+	lastHeadTS := time.Now()
+	lastHead := int64(0)
+
 	bbinstrument := &blackBoxInstrument{
 		requestsNum,
 		requestDuration,
 		requestSize,
+		blockTime,
+		lastHeadTS,
+		lastHead,
 		next,
 	}
 
@@ -135,19 +154,28 @@ func (bbi *blackBoxInstrument) Head(ctx context.Context) (*header.ExtendedHeader
 	return bbi.next.Head(ctx)
 }
 
-// IsSyncing returns the status of sync
-func (bbi *blackBoxInstrument) IsSyncing() bool {
-	return bbi.next.IsSyncing()
+// Head returns the ExtendedHeader of the chain head.
+func (bbi *blackBoxInstrument) SyncerHead(ctx context.Context) (*header.ExtendedHeader, error) {
+	header, err := bbi.next.Head(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	if header.RawHeader.Height > bbi.lastHead {
+		bbi.lastHead = header.RawHeader.Height
+		bbi.blockTime.Record(
+			ctx,
+			time.Since(bbi.lastHeadTS).Milliseconds(),
+			attribute.Int("height", int(header.RawHeader.Height)),
+			attribute.String("state", "failed"),
+		)
+		bbi.lastHeadTS = time.Now()
+	}
+
+	return header, err
 }
 
-// utility: copy-pasta from the internet to get this working
-// TODO(@derrandz): find a better way for generating random unique IDs for requests
-const letterBytes = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
-
-func RandStringBytes(n int) string {
-	b := make([]byte, n)
-	for i := range b {
-		b[i] = letterBytes[rand.Intn(len(letterBytes))]
-	}
-	return string(b)
+// IsSyncing returns the status of sync
+func (bbi *blackBoxInstrument) IsSyncing(ctx context.Context) bool {
+	return bbi.next.IsSyncing(ctx)
 }

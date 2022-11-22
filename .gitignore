@@ -20,3 +20,4 @@ vendor
 /cel-key
 coverage.txt
 go.work
+nodebuilder/keyring-test/

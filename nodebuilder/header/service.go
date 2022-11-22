@@ -8,7 +8,7 @@ import (
 	"github.com/celestiaorg/celestia-node/header/sync"
 )
 
-// Service represents the header Service that can be started / stopped on a node.
+// Service represents the header service that can be started / stopped on a node.
 // Service's main function is to manage its sub-services. Service can contain several
 // sub-services, such as Exchange, ExchangeServer, Syncer, and so forth.
 type Service struct {
@@ -44,6 +44,10 @@ func (s *Service) Head(ctx context.Context) (*header.ExtendedHeader, error) {
 	return s.store.Head(ctx)
 }
 
-func (s *Service) IsSyncing(context.Context) bool {
+func (s *Service) SyncerHead(ctx context.Context) (*header.ExtendedHeader, error) {
+	return s.syncer.Head(ctx)
+}
+
+func (s *Service) IsSyncing(ctx context.Context) bool {
 	return !s.syncer.State().Finished()
 }

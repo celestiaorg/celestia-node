@@ -5,7 +5,6 @@ import (
 	"errors"
 
 	"github.com/filecoin-project/dagstore"
-	"github.com/ipfs/go-blockservice"
 	"github.com/ipfs/go-datastore"
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/routing"
@@ -44,17 +43,11 @@ func cacheAvailability[A share.Availability](lc fx.Lifecycle, ds datastore.Batch
 	return ca
 }
 
-func newModule(lc fx.Lifecycle, bServ blockservice.BlockService, avail share.Availability) Module {
-	serv := service.NewShareService(bServ, avail)
-	lc.Append(fx.Hook{
-		OnStart: func(ctx context.Context) error {
-			return serv.Start(ctx)
-		},
-		OnStop: func(ctx context.Context) error {
-			return serv.Stop(ctx)
-		},
-	})
-	return &module{serv}
+func newModule(shrSrv service.ShareService, avail share.Availability) Module {
+	return &module{
+		Availability: avail,
+		ShareService: shrSrv,
+	}
 }
 
 // ensureEmptyCARExists adds an empty EDS to the provided EDS store.
