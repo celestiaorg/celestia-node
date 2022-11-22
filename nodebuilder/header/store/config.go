@@ -10,7 +10,7 @@ import (
 type Config store.Parameters
 
 func DefaultConfig() Config {
-	return Config(store.DefaultParameters())
+	return Config(*store.DefaultParameters())
 }
 
 // Validate performs basic validation of the config.
@@ -18,7 +18,7 @@ func DefaultConfig() Config {
 func (cfg *Config) Validate() error {
 	err := (*store.Parameters)(cfg).Validate()
 	if err != nil {
-		return fmt.Errorf("moddas misconfiguration: %w", err)
+		return fmt.Errorf("module/header: misconfiguration: %w", err)
 	}
 
 	return nil

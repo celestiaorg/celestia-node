@@ -51,7 +51,7 @@ type store struct {
 	// pending keeps headers pending to be written in one batch
 	pending *batch
 
-	params Parameters
+	params *Parameters
 }
 
 // NewStore constructs a Store over datastore.
@@ -86,7 +86,7 @@ func newStore(ds datastore.Batching, opts ...Option) (*store, error) {
 	}
 
 	for _, opt := range opts {
-		opt(store)
+		opt(store.params)
 	}
 
 	cache, err := lru.NewARC(store.params.StoreCacheSize)

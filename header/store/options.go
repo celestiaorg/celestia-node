@@ -4,7 +4,7 @@ import "errors"
 
 // Option is the functional option that is applied to the store instance
 // to configure store parameters.
-type Option func(*store)
+type Option func(*Parameters)
 
 // Parameters is the set of parameters that must be configured for the store.
 type Parameters struct {
@@ -21,8 +21,8 @@ type Parameters struct {
 }
 
 // DefaultParameters returns default params to configure store.
-func DefaultParameters() Parameters {
-	return Parameters{
+func DefaultParameters() *Parameters {
+	return &Parameters{
 		StoreCacheSize: 4096,
 		IndexCacheSize: 16384,
 		WriteBatchSize: 2048,
@@ -45,23 +45,23 @@ func (p *Parameters) Validate() error {
 // WithDefaultStoreCacheSize is a functional option that allows to configure
 // `StoreCacheSize` parameter.
 func WithDefaultStoreCacheSize(size int) Option {
-	return func(s *store) {
-		s.params.StoreCacheSize = size
+	return func(p *Parameters) {
+		p.StoreCacheSize = size
 	}
 }
 
 // WithDefaultIndexCacheSize is a functional option that allows to configure
 // `IndexCacheSize` parameter.
 func WithDefaultIndexCacheSize(size int) Option {
-	return func(s *store) {
-		s.params.IndexCacheSize = size
+	return func(p *Parameters) {
+		p.IndexCacheSize = size
 	}
 }
 
 // WithDefaultWriteBatchSize is a functional option that allows to configure
 // `WriteBatchSize` parameter.
 func WithDefaultWriteBatchSize(size int) Option {
-	return func(s *store) {
-		s.params.WriteBatchSize = size
+	return func(p *Parameters) {
+		p.WriteBatchSize = size
 	}
 }
