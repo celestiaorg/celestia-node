@@ -10,7 +10,6 @@ import (
 	"github.com/celestiaorg/celestia-node/nodebuilder/das"
 	"github.com/celestiaorg/celestia-node/nodebuilder/gateway"
 	"github.com/celestiaorg/celestia-node/nodebuilder/header"
-	"github.com/celestiaorg/celestia-node/nodebuilder/header/store"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
 	"github.com/celestiaorg/celestia-node/nodebuilder/rpc"
@@ -31,7 +30,6 @@ type Config struct {
 	Gateway gateway.Config
 	Share   share.Config
 	Header  header.Config
-	Store   store.Config
 	DASer   das.Config
 }
 
@@ -48,7 +46,6 @@ func DefaultConfig(tp node.Type) *Config {
 			Gateway: gateway.DefaultConfig(),
 			Share:   share.DefaultConfig(),
 			Header:  header.DefaultConfig(),
-			Store:   store.DefaultConfig(),
 			DASer:   das.DefaultConfig(),
 		}
 	default:

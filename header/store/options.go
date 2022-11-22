@@ -31,13 +31,13 @@ func DefaultParameters() *Parameters {
 
 func (p *Parameters) Validate() error {
 	if p.StoreCacheSize <= 0 {
-		return errors.New("header/p2p: invalid store cache size")
+		return errors.New("invalid store cache size")
 	}
 	if p.IndexCacheSize <= 0 {
-		return errors.New("header/p2p: invalid indexer cache size")
+		return errors.New("invalid indexer cache size")
 	}
 	if p.WriteBatchSize <= 0 {
-		return errors.New("header/p2p: invalid batch size")
+		return errors.New("invalid batch size")
 	}
 	return nil
 }

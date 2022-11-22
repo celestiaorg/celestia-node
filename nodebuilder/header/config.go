@@ -2,11 +2,13 @@ package header
 
 import (
 	"encoding/hex"
+	"fmt"
 
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/multiformats/go-multiaddr"
 	tmbytes "github.com/tendermint/tendermint/libs/bytes"
 
+	"github.com/celestiaorg/celestia-node/header/store"
 	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
 )
 
@@ -19,12 +21,15 @@ type Config struct {
 	// Note: The trusted does *not* imply Headers are not verified, but trusted as reliable to fetch
 	// headers at any moment.
 	TrustedPeers []string
+
+	Store *store.Parameters
 }
 
 func DefaultConfig() Config {
 	return Config{
 		TrustedHash:  "",
 		TrustedPeers: make([]string, 0),
+		Store:        store.DefaultParameters(),
 	}
 }
 
@@ -62,5 +67,9 @@ func (cfg *Config) trustedHash(net p2p.Network) (tmbytes.HexBytes, error) {
 
 // Validate performs basic validation of the config.
 func (cfg *Config) Validate() error {
+	err := cfg.Store.Validate()
+	if err != nil {
+		return fmt.Errorf("module/header: misconfiguration of store: %w", err)
+	}
 	return nil
 }
