@@ -114,12 +114,18 @@ func (m *metrics) observeSample(ctx context.Context, h *header.ExtendedHeader, s
 	if m == nil {
 		return
 	}
+
 	m.sampleTime.Record(ctx, sampleTime.Seconds(),
 		attribute.Bool("failed", err != nil),
-		attribute.Int("header_width", len(h.DAH.RowsRoots)))
+		attribute.Int("header_width", len(h.DAH.RowsRoots)),
+		attribute.Int("header", int(h.RawHeader.Height)),
+	)
+
 	m.sampled.Add(ctx, 1,
 		attribute.Bool("failed", err != nil),
-		attribute.Int("header_width", len(h.DAH.RowsRoots)))
+		attribute.Int("header_width", len(h.DAH.RowsRoots)),
+	)
+
 	atomic.StoreInt64(&m.lastSampledTS, time.Now().UTC().Unix())
 }
 
