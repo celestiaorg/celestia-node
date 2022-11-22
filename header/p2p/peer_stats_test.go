@@ -1,6 +1,8 @@
 package p2p
 
 import (
+	"container/heap"
+	"context"
 	"testing"
 
 	"github.com/libp2p/go-libp2p-core/peer"
@@ -16,10 +18,8 @@ func Test_PeerStatsPush(t *testing.T) {
 func Test_PeerStatsPop(t *testing.T) {
 	pQueue := newPeerStats()
 	pQueue.Push(&peerStat{peerID: "peerID"})
-	stats := pQueue.Pop()
-	pStat, ok := stats.(*peerStat)
-	require.True(t, ok)
-	require.Equal(t, pStat.peerID, peer.ID("peerID"))
+	stats := heap.Pop(&pQueue).(*peerStat)
+	require.Equal(t, stats.peerID, peer.ID("peerID"))
 }
 
 func Test_PeerQueuePopBestPeer(t *testing.T) {
@@ -35,9 +35,11 @@ func Test_PeerQueuePopBestPeer(t *testing.T) {
 		{peerID: "peerID1", peerScore: 1},
 		{peerID: "peerID4"}, // score = 0
 	}
-	pQueue := newPeerQueue(peersStat)
+
+	// we do not need timeout/cancel functionality here
+	pQueue := newPeerQueue(context.Background(), peersStat)
 	for index := 0; index < pQueue.stats.Len(); index++ {
-		stats := pQueue.stats.Pop()
+		stats := heap.Pop(&pQueue.stats).(*peerStat)
 		require.Equal(t, stats, wantStat[index])
 	}
 }
@@ -49,15 +51,18 @@ func Test_PeerQueueRemovePeer(t *testing.T) {
 		{peerID: "peerID3", peerScore: 4},
 		{peerID: "peerID4"}, // score = 0
 	}
-	pQueue := newPeerQueue(peersStat)
 
-	_ = pQueue.stats.Pop()
-	stat := pQueue.stats.Pop().(*peerStat)
+	// we do not need timeout/cancel functionality here
+	pQueue := newPeerQueue(context.Background(), peersStat)
+
+	_ = heap.Pop(&pQueue.stats)
+	stat := heap.Pop(&pQueue.stats).(*peerStat)
 	require.Equal(t, stat.peerID, peer.ID("peerID2"))
 }
 
 func Test_StatsUpdateStats(t *testing.T) {
-	pQueue := newPeerQueue([]*peerStat{})
+	// we do not need timeout/cancel functionality here
+	pQueue := newPeerQueue(context.Background(), []*peerStat{})
 	stat := &peerStat{peerID: "peerID", peerScore: 0}
 	pQueue.push(stat)
 	testCases := []struct {
@@ -89,7 +94,7 @@ func Test_StatsUpdateStats(t *testing.T) {
 
 	for _, tt := range testCases {
 		stat.updateStats(tt.inputBytes, tt.inputTime)
-		updatedStat := pQueue.stats.Pop().(*peerStat)
+		updatedStat := heap.Pop(&pQueue.stats).(*peerStat)
 		require.Equal(t, updatedStat.score(), stat.score())
 		pQueue.push(updatedStat)
 	}
