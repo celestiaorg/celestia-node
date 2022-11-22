@@ -83,14 +83,17 @@ func (ps *peerStats) Pop() any {
 
 // peerQueue wraps peerStats and guards it with the mutex.
 type peerQueue struct {
+	ctx context.Context
+
 	statsLk sync.RWMutex
 	stats   peerStats
 
 	havePeer chan struct{}
 }
 
-func newPeerQueue(stats []*peerStat) *peerQueue {
+func newPeerQueue(ctx context.Context, stats []*peerStat) *peerQueue {
 	pq := &peerQueue{
+		ctx:   ctx,
 		stats: newPeerStats(),
 	}
 	for _, stat := range stats {
@@ -108,6 +111,8 @@ func (p *peerQueue) waitPop(ctx context.Context) *peerStat {
 	if p.stats.Len() == 0 {
 		select {
 		case <-ctx.Done():
+			return &peerStat{}
+		case <-p.ctx.Done():
 			return &peerStat{}
 		case <-p.havePeer:
 		}

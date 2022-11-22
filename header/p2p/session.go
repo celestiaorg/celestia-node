@@ -21,8 +21,6 @@ import (
 var (
 	// headersPerPeer is a maximum amount of headers that will be requested per peer.
 	headersPerPeer uint64 = 64
-	// sessionDuration is an amount of time after which session will be closed.
-	sessionDuration = time.Minute * 2
 )
 
 // session aims to divide a range of headers
@@ -40,13 +38,13 @@ type session struct {
 }
 
 func newSession(ctx context.Context, h host.Host, peerTracker []*peerStat, protocolID protocol.ID) *session {
-	ctx, cancel := context.WithTimeout(ctx, sessionDuration)
+	ctx, cancel := context.WithCancel(ctx)
 	return &session{
 		ctx:        ctx,
 		cancel:     cancel,
 		protocolID: protocolID,
 		host:       h,
-		queue:      newPeerQueue(peerTracker),
+		queue:      newPeerQueue(ctx, peerTracker),
 		errCh:      make(chan error),
 	}
 }
@@ -68,7 +66,7 @@ func (s *session) getRangeByHeight(ctx context.Context, from, amount uint64) ([]
 	for i := 0; i < cap(result); i++ {
 		select {
 		case <-s.ctx.Done():
-			return nil, errors.New("header/p2p: session timeout reached")
+			return nil, errors.New("header/p2p: exchange is closed")
 		case <-ctx.Done():
 			return nil, ctx.Err()
 		case err := <-s.errCh:
@@ -101,6 +99,9 @@ func (s *session) handleOutgoingRequests(ctx context.Context, result chan []*hea
 			return
 		case req := <-s.reqCh:
 			stats := s.queue.waitPop(ctx)
+			if stats.peerID != "" {
+				return
+			}
 			go s.doRequest(ctx, stats, req, result)
 		}
 	}
@@ -113,9 +114,6 @@ func (s *session) doRequest(
 	req *p2p_pb.ExtendedHeaderRequest,
 	headers chan []*header.ExtendedHeader,
 ) {
-	if stat.peerID == "" {
-		return
-	}
 	r, size, duration, err := s.requestHeaders(ctx, stat.peerID, req)
 	if err != nil {
 		if err == context.Canceled || err == context.DeadlineExceeded {
