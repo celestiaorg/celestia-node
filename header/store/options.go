@@ -8,11 +8,10 @@ type Option func(*Parameters)
 
 // Parameters is the set of parameters that must be configured for the store.
 type Parameters struct {
-	// StoreCacheSize defines the amount of max entries allowed in the Header Store cache.
+	// StoreCacheSize defines the maximum amount of entries in the Header Store cache.
 	StoreCacheSize int
 
-	// IndexCacheSize defines the amount of max entries allowed in the Height to Hash index
-	// cache.
+	// IndexCacheSize defines the maximum amount of entries in the Height to Hash index cache.
 	IndexCacheSize int
 
 	// WriteBatchSize defines the size of the batched header write.
@@ -20,7 +19,7 @@ type Parameters struct {
 	WriteBatchSize int
 }
 
-// DefaultParameters returns default params to configure store.
+// DefaultParameters returns the default params to configure the store.
 func DefaultParameters() *Parameters {
 	return &Parameters{
 		StoreCacheSize: 4096,
@@ -42,7 +41,7 @@ func (p *Parameters) Validate() error {
 	return nil
 }
 
-// WithDefaultStoreCacheSize is a functional option that allows to configure
+// WithDefaultStoreCacheSize is a functional option that configures the
 // `StoreCacheSize` parameter.
 func WithDefaultStoreCacheSize(size int) Option {
 	return func(p *Parameters) {
@@ -50,7 +49,7 @@ func WithDefaultStoreCacheSize(size int) Option {
 	}
 }
 
-// WithDefaultIndexCacheSize is a functional option that allows to configure
+// WithDefaultIndexCacheSize is a functional option that configures the
 // `IndexCacheSize` parameter.
 func WithDefaultIndexCacheSize(size int) Option {
 	return func(p *Parameters) {
@@ -58,7 +57,7 @@ func WithDefaultIndexCacheSize(size int) Option {
 	}
 }
 
-// WithDefaultWriteBatchSize is a functional option that allows to configure
+// WithDefaultWriteBatchSize is a functional option that configures the
 // `WriteBatchSize` parameter.
 func WithDefaultWriteBatchSize(size int) Option {
 	return func(p *Parameters) {

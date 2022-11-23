@@ -77,32 +77,32 @@ func NewStoreWithHead(
 }
 
 func newStore(ds datastore.Batching, opts ...Option) (*store, error) {
-	store := &store{
-		params:    DefaultParameters(),
-		ds:        namespace.Wrap(ds, storePrefix),
-		heightSub: newHeightSub(),
-		writes:    make(chan []*header.ExtendedHeader, 16),
-		writesDn:  make(chan struct{}),
-	}
-
+	params := DefaultParameters()
 	for _, opt := range opts {
-		opt(store.params)
+		opt(params)
 	}
 
-	cache, err := lru.NewARC(store.params.StoreCacheSize)
+	cache, err := lru.NewARC(params.StoreCacheSize)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to create index cache: %w", err)
 	}
 
-	index, err := newHeightIndexer(store.ds, store.params.IndexCacheSize)
+	wrappedStore := namespace.Wrap(ds, storePrefix)
+	index, err := newHeightIndexer(wrappedStore, params.IndexCacheSize)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to create height indexer: %w", err)
 	}
-	store.cache = cache
-	store.heightIndex = index
-	store.pending = newBatch(store.params.WriteBatchSize)
 
-	return store, nil
+	return &store{
+		params:      params,
+		ds:          wrappedStore,
+		heightSub:   newHeightSub(),
+		writes:      make(chan []*header.ExtendedHeader, 16),
+		writesDn:    make(chan struct{}),
+		cache:       cache,
+		heightIndex: index,
+		pending:     newBatch(params.WriteBatchSize),
+	}, nil
 }
 
 func (s *store) Init(ctx context.Context, initial *header.ExtendedHeader) error {
