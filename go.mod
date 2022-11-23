@@ -19,6 +19,7 @@ require (
 	github.com/filecoin-project/go-jsonrpc v0.1.8
 	github.com/gammazero/workerpool v1.1.3
 	github.com/gogo/protobuf v1.3.3
+	github.com/golang/mock v1.6.0
 	github.com/gorilla/mux v1.8.0
 	github.com/hashicorp/go-retryablehttp v0.7.1-0.20211018174820-ff6d014e72d9
 	github.com/hashicorp/golang-lru v0.5.5-0.20210104140557-80c98217689d
@@ -42,6 +43,7 @@ require (
 	github.com/libp2p/go-libp2p-peerstore v0.7.1
 	github.com/libp2p/go-libp2p-pubsub v0.7.0
 	github.com/libp2p/go-libp2p-record v0.1.3
+	github.com/libp2p/go-libp2p-resource-manager v0.5.1
 	github.com/libp2p/go-libp2p-routing-helpers v0.2.3
 	github.com/minio/sha256-simd v1.0.0
 	github.com/mitchellh/go-homedir v1.1.0
@@ -66,11 +68,6 @@ require (
 	golang.org/x/sync v0.0.0-20220929204114-8fcdb60fdcc0
 	golang.org/x/text v0.3.7
 	google.golang.org/grpc v1.49.0
-)
-
-require (
-	github.com/golang/mock v1.6.0
-	github.com/libp2p/go-libp2p-resource-manager v0.5.1
 )
 
 require (

@@ -167,10 +167,6 @@ func (m *module) NATStatus() (network.Reachability, error) {
 		return 0, fmt.Errorf("unexpected implementation of host.Host, expected %s, got %T",
 			reflect.TypeOf(&basichost.BasicHost{}).String(), m.host)
 	}
-	// light nodes do not provide AutoNAT services by default
-	if basic.GetAutoNat() == nil {
-		return 0, fmt.Errorf("host does not provide AutoNAT services")
-	}
 	return basic.GetAutoNat().Status(), nil
 }
 

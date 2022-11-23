@@ -14,6 +14,7 @@ import (
 	libpeer "github.com/libp2p/go-libp2p-core/peer"
 	"github.com/libp2p/go-libp2p-core/protocol"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
+	rcmgr "github.com/libp2p/go-libp2p-resource-manager"
 	mocknet "github.com/libp2p/go-libp2p/p2p/net/mock"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -202,7 +203,7 @@ func TestP2PModule_ConnGater(t *testing.T) {
 // TestP2PModule_ResourceManager tests P2P Module methods on
 // the ResourceManager.
 func TestP2PModule_ResourceManager(t *testing.T) {
-	rm, err := resourceManager()
+	rm, err := rcmgr.NewResourceManager(rcmgr.NewFixedLimiter(rcmgr.DefaultLimits.AutoScale()))
 	require.NoError(t, err)
 
 	mgr := newModule(nil, nil, nil, nil, rm)
