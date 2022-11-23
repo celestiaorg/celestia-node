@@ -2,6 +2,9 @@ package p2p
 
 import (
 	logging "github.com/ipfs/go-log/v2"
+	"github.com/libp2p/go-libp2p-core/metrics"
+	"github.com/libp2p/go-libp2p-core/network"
+	rcmgr "github.com/libp2p/go-libp2p-resource-manager"
 	"go.uber.org/fx"
 
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
@@ -30,6 +33,11 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 		fx.Provide(PeerRouting),
 		fx.Provide(ContentRouting),
 		fx.Provide(AddrsFactory(cfg.AnnounceAddresses, cfg.NoAnnounceAddresses)),
+		fx.Provide(metrics.NewBandwidthCounter),
+		fx.Provide(func() (network.ResourceManager, error) {
+			return rcmgr.NewResourceManager(rcmgr.NewFixedLimiter(rcmgr.DefaultLimits.AutoScale()))
+		}),
+		fx.Provide(newModule),
 		fx.Invoke(Listen(cfg.ListenAddresses)),
 	)
 
