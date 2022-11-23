@@ -69,7 +69,7 @@ func NewStore(basepath string, ds datastore.Batching) (*Store, error) {
 		return nil, fmt.Errorf("failed to create DAGStore: %w", err)
 	}
 
-	rerturn &Store{
+	return &Store{
 		basepath: basepath,
 		dgstr:    dagStore,
 		topIdx:   invertedRepo,
@@ -213,15 +213,16 @@ func (s *Store) Has(ctx context.Context, root share.Root) (bool, error) {
 }
 
 func setupPath(basepath string) error {
-	err := os.Mkdir(basepath+blocksPath, 0755)
+	perms := os.FileMode(0755)
+	err := os.Mkdir(basepath+blocksPath, perms)
 	if err != nil {
 		return fmt.Errorf("failed to create blocks directory: %w", err)
 	}
-	err = os.Mkdir(basepath+transientsPath, 0755)
+	err = os.Mkdir(basepath+transientsPath, perms)
 	if err != nil {
 		return fmt.Errorf("failed to create transients directory: %w", err)
 	}
-	err = os.Mkdir(basepath+indexPath, 0755)
+	err = os.Mkdir(basepath+indexPath, perms)
 	if err != nil {
 		return fmt.Errorf("failed to create index directory: %w", err)
 	}
