@@ -21,8 +21,8 @@ import (
 //
 //nolint:dupl
 type Module interface {
-	// Info returns basic information about the node's p2p host/operations.
-	Info() Info
+	// Info returns address information about the host.
+	Info() peer.AddrInfo
 	// Peers returns all peer IDs used across all inner stores.
 	Peers() []peer.ID
 	// PeerInfo returns a small slice of information Peerstore has on the
@@ -101,16 +101,8 @@ func newModule(
 	}
 }
 
-// Info contains basic information about the node's p2p host/operations.
-type Info struct {
-	// AddrInfo is the node's
-	AddrInfo peer.AddrInfo `json:"addr_info"`
-}
-
-func (m *module) Info() Info {
-	return Info{
-		AddrInfo: *libhost.InfoFromHost(m.host),
-	}
+func (m *module) Info() peer.AddrInfo {
+	return *libhost.InfoFromHost(m.host)
 }
 
 func (m *module) Peers() []peer.ID {
@@ -196,7 +188,7 @@ func (m *module) PubSubPeers(topic string) []peer.ID {
 //
 //nolint:dupl
 type API struct {
-	Info                 func() Info
+	Info                 func() peer.AddrInfo
 	Peers                func() []peer.ID
 	PeerInfo             func(id peer.ID) peer.AddrInfo
 	Connect              func(ctx context.Context, pi peer.AddrInfo) error
