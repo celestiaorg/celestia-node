@@ -69,15 +69,13 @@ func NewStore(basepath string, ds datastore.Batching) (*Store, error) {
 		return nil, fmt.Errorf("failed to create DAGStore: %w", err)
 	}
 
-	s := &Store{
+	rerturn &Store{
 		basepath: basepath,
 		dgstr:    dagStore,
 		topIdx:   invertedRepo,
 		carIdx:   fsRepo,
 		mounts:   r,
-	}
-
-	return s, nil
+	}, nil
 }
 
 // Start starts the underlying DAGStore.
