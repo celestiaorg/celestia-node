@@ -30,7 +30,6 @@ func TestP2PModule_Host(t *testing.T) {
 	mgr := newModule(host, nil, nil, nil, nil)
 
 	// test all methods on `manager.host`
-	assert.Equal(t, host.ID(), mgr.Info().ID)
 	assert.Equal(t, []libpeer.ID(host.Peerstore().Peers()), mgr.Peers())
 	assert.Equal(t, libhost.InfoFromHost(peer).ID, mgr.PeerInfo(peer.ID()).ID)
 
@@ -116,7 +115,7 @@ func TestP2PModule_Bandwidth(t *testing.T) {
 	require.Equal(t, network.Connected, mgr.Connectedness(peer.ID()))
 
 	// open stream with host
-	stream, err := peer.NewStream(ctx, mgr.Info().ID, protoID)
+	stream, err := peer.NewStream(ctx, mgr.Info().AddrInfo.ID, protoID)
 	require.NoError(t, err)
 
 	// write to stream to increase bandwidth usage get some substantive
