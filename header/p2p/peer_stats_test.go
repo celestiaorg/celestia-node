@@ -64,7 +64,7 @@ func Test_StatsUpdateStats(t *testing.T) {
 	// we do not need timeout/cancel functionality here
 	pQueue := newPeerQueue(context.Background(), []*peerStat{})
 	stat := &peerStat{peerID: "peerID", peerScore: 0}
-	pQueue.push(stat)
+	heap.Push(&pQueue.stats, stat)
 	testCases := []struct {
 		inputTime   uint64
 		inputBytes  uint64
@@ -96,6 +96,6 @@ func Test_StatsUpdateStats(t *testing.T) {
 		stat.updateStats(tt.inputBytes, tt.inputTime)
 		updatedStat := heap.Pop(&pQueue.stats).(*peerStat)
 		require.Equal(t, updatedStat.score(), stat.score())
-		pQueue.push(updatedStat)
+		heap.Push(&pQueue.stats, updatedStat)
 	}
 }

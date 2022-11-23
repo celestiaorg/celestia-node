@@ -99,7 +99,7 @@ func (s *session) handleOutgoingRequests(ctx context.Context, result chan []*hea
 			return
 		case req := <-s.reqCh:
 			stats := s.queue.waitPop(ctx)
-			if stats.peerID != "" {
+			if stats.peerID == "" {
 				return
 			}
 			go s.doRequest(ctx, stats, req, result)

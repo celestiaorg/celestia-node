@@ -58,8 +58,8 @@ func TestExchange_RequestHeaders(t *testing.T) {
 // TestExchange_RequestFullRangeHeaders requests max amount of headers
 // to verify how session will parallelize all requests.
 func TestExchange_RequestFullRangeHeaders(t *testing.T) {
-	// create mocknet with 9 peers
-	hosts := createMocknet(t, 9)
+	// create mocknet with 5 peers
+	hosts := createMocknet(t, 5)
 	// set max amount of headers per 1 peer
 	headersPerPeer = 10
 	totalAmount := 80

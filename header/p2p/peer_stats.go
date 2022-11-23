@@ -92,9 +92,11 @@ type peerQueue struct {
 }
 
 func newPeerQueue(ctx context.Context, stats []*peerStat) *peerQueue {
+	statsCh := make(chan struct{}, len(stats))
 	pq := &peerQueue{
-		ctx:   ctx,
-		stats: newPeerStats(),
+		ctx:      ctx,
+		stats:    newPeerStats(),
+		havePeer: statsCh,
 	}
 	for _, stat := range stats {
 		pq.push(stat)
@@ -106,28 +108,23 @@ func newPeerQueue(ctx context.Context, stats []*peerStat) *peerQueue {
 // in case if there are no peer available in current session, it blocks until
 // the peer will be pushed in.
 func (p *peerQueue) waitPop(ctx context.Context) *peerStat {
+	select {
+	case <-ctx.Done():
+		return &peerStat{}
+	case <-p.ctx.Done():
+		return &peerStat{}
+	case <-p.havePeer:
+	}
 	p.statsLk.Lock()
 	defer p.statsLk.Unlock()
-	if p.stats.Len() == 0 {
-		select {
-		case <-ctx.Done():
-			return &peerStat{}
-		case <-p.ctx.Done():
-			return &peerStat{}
-		case <-p.havePeer:
-		}
-	}
 	return heap.Pop(&p.stats).(*peerStat)
 }
 
 // push adds the peer to the queue.
 func (p *peerQueue) push(stat *peerStat) {
 	p.statsLk.Lock()
-	defer p.statsLk.Unlock()
 	heap.Push(&p.stats, stat)
+	p.statsLk.Unlock()
 	// notify that the peer is available in the queue, so it can be popped out
-	select {
-	case p.havePeer <- struct{}{}:
-	default:
-	}
+	p.havePeer <- struct{}{}
 }
