@@ -97,8 +97,8 @@ func TestStorePendingCacheMiss(t *testing.T) {
 	ds := sync.MutexWrap(datastore.NewMapDatastore())
 
 	store, err := NewStoreWithHead(ctx, ds, suite.Head(),
-		WithDefaultWriteBatchSize(100),
-		WithDefaultStoreCacheSize(100),
+		WithWriteBatchSize(100),
+		WithStoreCacheSize(100),
 	)
 	require.NoError(t, err)
 

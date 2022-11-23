@@ -41,25 +41,25 @@ func (p *Parameters) Validate() error {
 	return nil
 }
 
-// WithDefaultStoreCacheSize is a functional option that configures the
+// WithStoreCacheSize is a functional option that configures the
 // `StoreCacheSize` parameter.
-func WithDefaultStoreCacheSize(size int) Option {
+func WithStoreCacheSize(size int) Option {
 	return func(p *Parameters) {
 		p.StoreCacheSize = size
 	}
 }
 
-// WithDefaultIndexCacheSize is a functional option that configures the
+// WithIndexCacheSize is a functional option that configures the
 // `IndexCacheSize` parameter.
-func WithDefaultIndexCacheSize(size int) Option {
+func WithIndexCacheSize(size int) Option {
 	return func(p *Parameters) {
 		p.IndexCacheSize = size
 	}
 }
 
-// WithDefaultWriteBatchSize is a functional option that configures the
+// WithWriteBatchSize is a functional option that configures the
 // `WriteBatchSize` parameter.
-func WithDefaultWriteBatchSize(size int) Option {
+func WithWriteBatchSize(size int) Option {
 	return func(p *Parameters) {
 		p.WriteBatchSize = size
 	}

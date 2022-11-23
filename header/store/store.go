@@ -82,6 +82,10 @@ func newStore(ds datastore.Batching, opts ...Option) (*store, error) {
 		opt(params)
 	}
 
+	if err := params.Validate(); err != nil {
+		return nil, fmt.Errorf("header/store: store creation failed: %w", err)
+	}
+
 	cache, err := lru.NewARC(params.StoreCacheSize)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create index cache: %w", err)

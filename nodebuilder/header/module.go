@@ -27,11 +27,11 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 		fx.Error(cfgErr),
 		fx.Supply(modp2p.BlockTime),
 		fx.Provide(
-			func(cfg *Config) []store.Option {
+			func(cfg Config) []store.Option {
 				return []store.Option{
-					store.WithDefaultStoreCacheSize(cfg.Store.StoreCacheSize),
-					store.WithDefaultIndexCacheSize(cfg.Store.IndexCacheSize),
-					store.WithDefaultWriteBatchSize(cfg.Store.WriteBatchSize),
+					store.WithStoreCacheSize(cfg.Store.StoreCacheSize),
+					store.WithIndexCacheSize(cfg.Store.IndexCacheSize),
+					store.WithWriteBatchSize(cfg.Store.WriteBatchSize),
 				}
 			},
 		),
