@@ -16,6 +16,7 @@ require (
 	github.com/cosmos/cosmos-sdk/api v0.1.0
 	github.com/dgraph-io/badger/v2 v2.2007.4
 	github.com/etclabscore/go-openrpc-reflect v0.0.37
+	github.com/filecoin-project/dagstore v0.5.6
 	github.com/filecoin-project/go-jsonrpc v0.1.8
 	github.com/gammazero/workerpool v1.1.3
 	github.com/gogo/protobuf v1.3.3
@@ -188,6 +189,7 @@ require (
 	github.com/ipfs/go-metrics-interface v0.0.1 // indirect
 	github.com/ipfs/go-peertaskqueue v0.7.0 // indirect
 	github.com/ipfs/go-verifcid v0.0.1 // indirect
+	github.com/ipld/go-car/v2 v2.4.1 // indirect
 	github.com/ipld/go-codec-dagpb v1.3.1 // indirect
 	github.com/ipld/go-ipld-prime v0.16.0 // indirect
 	github.com/jackpal/go-nat-pmp v1.0.2 // indirect
@@ -249,6 +251,7 @@ require (
 	github.com/pbnjay/memory v0.0.0-20210728143218-7b4eea64cf58 // indirect
 	github.com/pelletier/go-toml v1.9.5 // indirect
 	github.com/pelletier/go-toml/v2 v2.0.2 // indirect
+	github.com/petar/GoLLRB v0.0.0-20210522233825-ae3b015fd3e9 // indirect
 	github.com/petermattis/goid v0.0.0-20180202154549-b0b1615b78e5 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
@@ -283,6 +286,7 @@ require (
 	github.com/tklauser/numcpus v0.4.0 // indirect
 	github.com/ulikunitz/xz v0.5.8 // indirect
 	github.com/vivint/infectious v0.0.0-20200605153912-25a574ae18a3 // indirect
+	github.com/whyrusleeping/cbor v0.0.0-20171005072247-63513f603b11 // indirect
 	github.com/whyrusleeping/cbor-gen v0.0.0-20200123233031-1cdf64d27158 // indirect
 	github.com/whyrusleeping/go-keyspace v0.0.0-20160322163242-5b898ac5add1 // indirect
 	github.com/whyrusleeping/timecache v0.0.0-20160911033111-cfcb2f1abfee // indirect
@@ -320,6 +324,7 @@ require (
 
 replace (
 	github.com/cosmos/cosmos-sdk => github.com/celestiaorg/cosmos-sdk v1.4.0-sdk-v0.46.0
+	github.com/filecoin-project/dagstore => github.com/celestiaorg/dagstore v0.0.0-20221014072825-395797efb659
 	github.com/gogo/protobuf => github.com/regen-network/protobuf v1.3.3-alpha.regen.1
 	github.com/libp2p/go-libp2p-pubsub v0.7.0 => github.com/celestiaorg/go-libp2p-pubsub v0.6.2-0.20220812132010-46b2a019f2f2
 	github.com/tendermint/tendermint => github.com/celestiaorg/celestia-core v1.5.0-tm-v0.34.20

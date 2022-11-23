@@ -1,5 +1,5 @@
-// Package docgen generates an OpenRPC spec for the Celestia Node. It has been inspired by and adapted from Filecoin's
-// Lotus API implementation.
+// Package docgen generates an OpenRPC spec for the Celestia Node. It has been inspired by and
+// adapted from Filecoin's Lotus API implementation.
 package docgen
 
 import (
@@ -66,7 +66,8 @@ func ParseCommentsFromNodebuilderModules(moduleNames ...string) Comments {
 		v := &Visitor{make(map[string]ast.Node)}
 		ast.Walk(v, f)
 
-		// TODO(@distractedm1nd): An issue with this could be two methods with the same name in different modules
+		// TODO(@distractedm1nd): An issue with this could be two methods with the same name in different
+		// modules
 		for mn, node := range v.Methods {
 			filteredComments := cmap.Filter(node).Comments()
 			if len(filteredComments) == 0 {
