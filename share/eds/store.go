@@ -41,7 +41,7 @@ type Store struct {
 func NewStore(basepath string, ds datastore.Batching) (*Store, error) {
 	err := setupPath(basepath)
 	if err != nil {
-		return nil, fmt.Errorf("failed to setup EDSStore directories: %w", err)
+		return nil, fmt.Errorf("failed to setup eds.Store directories: %w", err)
 	}
 
 	r := mount.NewRegistry()
