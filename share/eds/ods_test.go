@@ -12,7 +12,8 @@ import (
 	"github.com/celestiaorg/celestia-node/share"
 )
 
-// TestODSReader ensures that the reader returned from DSReader is capable of reading the CAR header and ODS.
+// TestODSReader ensures that the reader returned from DSReader is capable of reading the CAR
+// header and ODS.
 func TestODSReader(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)

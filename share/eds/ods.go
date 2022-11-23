@@ -15,25 +15,30 @@ import (
 
 var errNilReader = errors.New("ods-reader: can't create ODSReader over nil reader")
 
-type odsReaderBuffered struct {
-	reader                 *bufio.Reader
+// bufferedOdsReader will read odsSquareSize amount of leaves from reader into the buffer.
+// It exposes the buffer to be read by io.Reader interface implementation
+type bufferedOdsReader struct {
+	carReader *bufio.Reader
+	// current is the amount of CARv1 encoded leaves that has been read from reader. After current
+	// reached odsSquareSize, bufferedOdsReader will prevent further reads by returning io.EOF
 	current, odsSquareSize int
 	buf                    *bytes.Buffer
 }
 
-// ODSReader reads data from io.ReadCloser and limits the reader to the CAR header and first quadrant (ODS)
-func ODSReader(r io.ReadCloser) (io.Reader, error) {
-	if r == nil {
+// ODSReader reads CARv1 encoded data from io.ReadCloser and limits the reader to the CAR header
+// and first quadrant (ODS)
+func ODSReader(carReader io.ReadCloser) (io.Reader, error) {
+	if carReader == nil {
 		return nil, errNilReader
 	}
 
-	odsR := &odsReaderBuffered{
-		reader: bufio.NewReaderSize(r, 4),
-		buf:    new(bytes.Buffer),
+	odsR := &bufferedOdsReader{
+		carReader: bufio.NewReaderSize(carReader, 4),
+		buf:       new(bytes.Buffer),
 	}
 
 	// first LdRead reads the full CAR header to determine amount of shares in the ODS
-	data, err := util.LdRead(odsR.reader)
+	data, err := util.LdRead(odsR.carReader)
 	if err != nil {
 		return nil, fmt.Errorf("reading header: %v", err)
 	}
@@ -53,7 +58,8 @@ func ODSReader(r io.ReadCloser) (io.Reader, error) {
 	return odsR, util.LdWrite(odsR.buf, data)
 }
 
-func (r *odsReaderBuffered) Read(p []byte) (n int, err error) {
+func (r *bufferedOdsReader) Read(p []byte) (n int, err error) {
+	// provided slice could be fully filled from buffer without extra reads
 	if r.buf.Len() > len(p) {
 		return r.buf.Read(p)
 	}
@@ -70,12 +76,13 @@ func (r *odsReaderBuffered) Read(p []byte) (n int, err error) {
 	return r.buf.Read(p)
 }
 
-func (r *odsReaderBuffered) readLeaf() error {
-	if _, err := r.reader.Peek(1); err != nil { // no more blocks, likely clean io.EOF
+// readLeaf reads one leaf from reader into bufferedOdsReader buffer
+func (r *bufferedOdsReader) readLeaf() error {
+	if _, err := r.carReader.Peek(1); err != nil { // no more blocks, likely clean io.EOF
 		return err
 	}
 
-	l, err := binary.ReadUvarint(r.reader)
+	l, err := binary.ReadUvarint(r.carReader)
 	if err != nil {
 		if err == io.EOF {
 			return io.ErrUnexpectedEOF // don't silently pretend this is a clean EOF
@@ -91,7 +98,7 @@ func (r *odsReaderBuffered) readLeaf() error {
 	n := binary.PutUvarint(buf, l)
 	r.buf.Write(buf[:n])
 
-	_, err = r.buf.ReadFrom(io.LimitReader(r.reader, int64(l)))
+	_, err = r.buf.ReadFrom(io.LimitReader(r.carReader, int64(l)))
 
 	return err
 }
