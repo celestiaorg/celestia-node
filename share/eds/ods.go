@@ -32,10 +32,10 @@ func ODSReader(r io.ReadCloser) (io.Reader, error) {
 		buf:    new(bytes.Buffer),
 	}
 
-	// read full header to determine amount of shares needed
+	// first LdRead reads the full CAR header to determine amount of shares in the ODS
 	data, err := util.LdRead(odsR.reader)
 	if err != nil {
-		return nil, fmt.Errorf("read header: %v", err)
+		return nil, fmt.Errorf("reading header: %v", err)
 	}
 
 	var header car.CarHeader
