@@ -12,7 +12,7 @@ import (
 	"github.com/celestiaorg/celestia-node/share"
 )
 
-// TestODSReader ensures that the reader returned from DSReader is capable of reading the CAR
+// TestODSReader ensures that the reader returned from ODSReader is capable of reading the CAR
 // header and ODS.
 func TestODSReader(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
@@ -29,7 +29,7 @@ func TestODSReader(t *testing.T) {
 	err = edsStore.Put(ctx, dah, eds)
 	require.NoError(t, err)
 
-	// get Car reader from store
+	// get CAR reader from store
 	r, err := edsStore.GetCAR(ctx, dah)
 	assert.NoError(t, err)
 
@@ -37,11 +37,11 @@ func TestODSReader(t *testing.T) {
 	odsR, err := ODSReader(r)
 	assert.NoError(t, err)
 
-	// create Car reader from ODSReader
+	// create CAR reader from ODSReader
 	carReader, err := car.NewCarReader(odsR)
 	assert.NoError(t, err)
 
-	// validate ODS could be obtained from  reader
+	// validate ODS could be obtained from reader
 	for i := 0; i < 4; i++ {
 		for j := 0; j < 4; j++ {
 			// pick share from original eds
