@@ -15,12 +15,12 @@ import (
 
 var errNilReader = errors.New("ods-reader: can't create ODSReader over nil reader")
 
-// bufferedOdsReader will read odsSquareSize amount of leaves from reader into the buffer.
+// bufferedODSReader will read odsSquareSize amount of leaves from reader into the buffer.
 // It exposes the buffer to be read by io.Reader interface implementation
-type bufferedOdsReader struct {
+type bufferedODSReader struct {
 	carReader *bufio.Reader
 	// current is the amount of CARv1 encoded leaves that have been read from reader. When current
-	// reaches odsSquareSize, bufferedOdsReader will prevent further reads by returning io.EOF
+	// reaches odsSquareSize, bufferedODSReader will prevent further reads by returning io.EOF
 	current, odsSquareSize int
 	buf                    *bytes.Buffer
 }
@@ -32,7 +32,7 @@ func ODSReader(carReader io.ReadCloser) (io.Reader, error) {
 		return nil, errNilReader
 	}
 
-	odsR := &bufferedOdsReader{
+	odsR := &bufferedODSReader{
 		carReader: bufio.NewReaderSize(carReader, 4),
 		buf:       new(bytes.Buffer),
 	}
@@ -58,7 +58,7 @@ func ODSReader(carReader io.ReadCloser) (io.Reader, error) {
 	return odsR, util.LdWrite(odsR.buf, data)
 }
 
-func (r *bufferedOdsReader) Read(p []byte) (n int, err error) {
+func (r *bufferedODSReader) Read(p []byte) (n int, err error) {
 	// provided slice could be fully filled from buffer without extra reads
 	if r.buf.Len() > len(p) {
 		return r.buf.Read(p)
@@ -76,8 +76,8 @@ func (r *bufferedOdsReader) Read(p []byte) (n int, err error) {
 	return r.buf.Read(p)
 }
 
-// readLeaf reads one leaf from reader into bufferedOdsReader buffer
-func (r *bufferedOdsReader) readLeaf() error {
+// readLeaf reads one leaf from reader into bufferedODSReader buffer
+func (r *bufferedODSReader) readLeaf() error {
 	if _, err := r.carReader.Peek(1); err != nil { // no more blocks, likely clean io.EOF
 		return err
 	}
@@ -91,7 +91,7 @@ func (r *bufferedOdsReader) readLeaf() error {
 	}
 
 	if l > uint64(util.MaxAllowedSectionSize) { // Don't OOM
-		return errors.New("malformed car; header is bigger than util.MaxAllowedSectionSize")
+		return fmt.Errorf("malformed car; header `length`: %v is bigger than %v", l, util.MaxAllowedSectionSize)
 	}
 
 	buf := make([]byte, 8)
