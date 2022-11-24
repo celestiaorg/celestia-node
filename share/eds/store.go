@@ -18,8 +18,8 @@ import (
 	"github.com/celestiaorg/rsmt2d"
 )
 
-// TODO(@distractedm1nd): this probably shouldn't be a var. it could be configured next to the blockstore's path and bs
-// cache size.
+// TODO(@distractedm1nd): this probably shouldn't be a var. it could be configured next to the
+// blockstore's path and bs cache size.
 var gcInterval = time.Hour
 
 const (
@@ -83,10 +83,10 @@ func NewStore(basepath string, ds datastore.Batching) (*Store, error) {
 		lastGCResult: &dagstore.GCResult{
 			Shards: make(map[shard.Key]error),
 		},
-		dgstr:    dagStore,
-		topIdx:   invertedRepo,
-		carIdx:   fsRepo,
-		mounts:   r,
+		dgstr:  dagStore,
+		topIdx: invertedRepo,
+		carIdx: fsRepo,
+		mounts: r,
 	}, nil
 }
 
