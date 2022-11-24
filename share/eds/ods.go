@@ -19,8 +19,8 @@ var errNilReader = errors.New("ods-reader: can't create ODSReader over nil reade
 // It exposes the buffer to be read by io.Reader interface implementation
 type bufferedOdsReader struct {
 	carReader *bufio.Reader
-	// current is the amount of CARv1 encoded leaves that has been read from reader. After current
-	// reached odsSquareSize, bufferedOdsReader will prevent further reads by returning io.EOF
+	// current is the amount of CARv1 encoded leaves that have been read from reader. When current
+	// reaches odsSquareSize, bufferedOdsReader will prevent further reads by returning io.EOF
 	current, odsSquareSize int
 	buf                    *bytes.Buffer
 }
@@ -46,7 +46,7 @@ func ODSReader(carReader io.ReadCloser) (io.Reader, error) {
 	var header car.CarHeader
 	err = cbor.DecodeInto(data, &header)
 	if err != nil {
-		return nil, fmt.Errorf("invalid header: %v", err)
+		return nil, fmt.Errorf("invalid header: %w", err)
 	}
 
 	// car header contains both row roots and col roots which is why
@@ -54,7 +54,7 @@ func ODSReader(carReader io.ReadCloser) (io.Reader, error) {
 	odsWidth := len(header.Roots) / 4
 	odsR.odsSquareSize = odsWidth * odsWidth
 
-	// NewCarReader will expect read header first, so save header for further reads
+	// NewCarReader will expect to read the header first, so write it first
 	return odsR, util.LdWrite(odsR.buf, data)
 }
 
