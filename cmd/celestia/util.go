@@ -12,7 +12,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func persistentPreRunE(cmd *cobra.Command, nodeType node.Type, args []string) error {
+func persistentPreRunEnv(cmd *cobra.Command, nodeType node.Type, args []string) error {
 	var (
 		ctx = cmd.Context()
 		err error
@@ -26,6 +26,7 @@ func persistentPreRunE(cmd *cobra.Command, nodeType node.Type, args []string) er
 	}
 	ctx = cmdnode.WithNetwork(ctx, parsedNetwork)
 
+	// loads existing config into the environment
 	ctx, err = cmdnode.ParseNodeFlags(ctx, cmd, cmdnode.Network(ctx))
 	if err != nil {
 		return err

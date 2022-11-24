@@ -51,6 +51,6 @@ var lightCmd = &cobra.Command{
 	Args:  cobra.NoArgs,
 	Short: "Manage your Light node",
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-		return persistentPreRunE(cmd, node.Light, args)
+		return persistentPreRunEnv(cmd, node.Light, args)
 	},
 }
