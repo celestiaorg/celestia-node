@@ -212,7 +212,8 @@ and vise-versa. This will enable precise traffic routing control and balancing l
 ## API
 
 For the above protocols we define the following API and components. All them should land into `eds` pkg, as
-tt contains all the content related to the EDS domain.
+it contains all the content related to the EDS domain. At later point, if `eds` pkg will seem bloated, we will break it
+into subpkgs.
 
 ### `Client`
 
@@ -261,7 +262,7 @@ The  EDS `NDServer` is introduced to serve `NDClient`'s `NDRequest`s over `ShrEx
 The EDS `PubSub` implements `ShrEx/Sub` protocol. It enables subscribing for notifications regarding new EDSes.
 It embeds a private `FloodSub` instance.
 
-The `PubSub` follows the existing network pubsubbing semantics in `celestia-node` for consistency and simplicity.
+The `PubSub` follows the existing network "pubsubbing" semantics in `celestia-node` for consistency and simplicity.
 
 #### `PubSub.Broadcast`
 
@@ -308,6 +309,35 @@ func (s *Subscriber) AddValidator(Validator) error
 // * Closes the internal FloodSub instance
 func (s *Subscriber) Close()
 ```
+
+## Implementation Details
+
+### Discovery
+
+We decided to rely on existing discovery primitives(TODO Link). It is a single purpose mechanism providing the API for 
+FN/BNs to advertise themselves, s.t. other LN/FN/BNs can discover and ensure N connections to them. However, the 
+current API does not allow us to know our discovered FN/BN peers connections. This is required for `ShrEx/EDS` and 
+`ShrEx/ND`, as their clients do not discover servers automatically and expect them to be provided.
+
+Subsequently, we extend `Discovery` with the following method:
+```go
+
+// Peers provides list of discovered peers in the "full" topic.
+// If Discovery haven't found any peers, it blocks until at least one peer is found.
+func (d *Discovery) Peers(context.Context) ([]peer.ID, error)
+```
+
+## Hardening
+
+### Rate Limiting
+
+Both `ShrEx/EDS` and `ShrEx/ND` has a server side that serves data. To prevent trivial DOS vector rate limiting should
+be introduced. Both protocols should have a configurable amount of data requests they serve at any given moment. If any 
+new request exceeds the limit, the server responds with `REFUSED` status code to client, so that client can act accordingly
+and try another peer.
+
+The alternative is to queue clients' requests  and make client wait until it's request can be processed.
+
 
 ## Alternative approaches
 
