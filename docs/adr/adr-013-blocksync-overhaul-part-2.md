@@ -320,12 +320,21 @@ current API does not allow us to know our discovered FN/BN peers connections. Th
 `ShrEx/ND`, as their clients do not discover servers automatically and expect them to be provided.
 
 Subsequently, we extend `Discovery` with the following method:
-```go
 
+```go
 // Peers provides list of discovered peers in the "full" topic.
 // If Discovery haven't found any peers, it blocks until at least one peer is found.
 func (d *Discovery) Peers(context.Context) ([]peer.ID, error)
 ```
+
+### Full Availability
+
+Celestia-node has central `share.Availability` interface, which guarantees certain level of EDS data availability depending
+on the implementation. The `FullAvailability` implementation is responsible for checking the availability of the whole
+EDS by retrieving and reconstructing it. As we're improving our EDS retrieval logic, the new __happy path__ over `ShrEx/EDS` 
+protocol will be integrated in there.
+
+
 
 ## Hardening
 
@@ -336,8 +345,7 @@ be introduced. Both protocols should have a configurable amount of data requests
 new request exceeds the limit, the server responds with `REFUSED` status code to client, so that client can act accordingly
 and try another peer.
 
-The alternative is to queue clients' requests  and make client wait until it's request can be processed.
-
+The alternative is to queue clients' requests and make client wait until it's request can be processed.
 
 ## Alternative approaches
 
