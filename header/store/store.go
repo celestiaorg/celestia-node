@@ -57,7 +57,7 @@ type Store struct {
 // NewStore constructs a Store over datastore.
 // The datastore must have a head there otherwise Start will error.
 // For first initialization of Store use NewStoreWithHead.
-func NewStore(ds datastore.Batching, opts ...Option) (header.Store, error) {
+func NewStore(ds datastore.Batching, opts ...Option) (*Store, error) {
 	return newStore(ds, opts...)
 }
 
@@ -67,7 +67,7 @@ func NewStoreWithHead(
 	ds datastore.Batching,
 	head *header.ExtendedHeader,
 	opts ...Option,
-) (header.Store, error) {
+) (*Store, error) {
 	store, err := newStore(ds, opts...)
 	if err != nil {
 		return nil, err
