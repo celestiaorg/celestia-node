@@ -3,11 +3,6 @@ package share
 import (
 	"context"
 
-	"github.com/celestiaorg/celestia-node/share/service"
-
-	"github.com/ipfs/go-blockservice"
-	"go.uber.org/fx"
-
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/nmt/namespace"
 )
@@ -38,19 +33,6 @@ type Module interface {
 	GetShares(ctx context.Context, root *share.Root) ([][]share.Share, error)
 	// GetSharesByNamespace iterates over a square's row roots and accumulates the found shares in the given namespace.ID.
 	GetSharesByNamespace(ctx context.Context, root *share.Root, namespace namespace.ID) ([]share.Share, error)
-}
-
-func NewModule(lc fx.Lifecycle, bServ blockservice.BlockService, avail share.Availability) Module {
-	serv := service.NewShareService(bServ, avail)
-	lc.Append(fx.Hook{
-		OnStart: func(ctx context.Context) error {
-			return serv.Start(ctx)
-		},
-		OnStop: func(ctx context.Context) error {
-			return serv.Stop(ctx)
-		},
-	})
-	return serv
 }
 
 // API is a wrapper around Module for the RPC.
