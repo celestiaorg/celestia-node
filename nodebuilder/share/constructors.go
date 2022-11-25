@@ -12,16 +12,16 @@ import (
 
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/availability/cache"
-	"github.com/celestiaorg/celestia-node/share/availability/discovery"
+	disc "github.com/celestiaorg/celestia-node/share/availability/discovery"
 	"github.com/celestiaorg/celestia-node/share/service"
 )
 
-func Discovery(cfg Config) func(routing.ContentRouting, host.Host) *discovery.Discovery {
+func discovery(cfg Config) func(routing.ContentRouting, host.Host) *disc.Discovery {
 	return func(
 		r routing.ContentRouting,
 		h host.Host,
-	) *discovery.Discovery {
-		return discovery.NewDiscovery(
+	) *disc.Discovery {
+		return disc.NewDiscovery(
 			h,
 			routingdisc.NewRoutingDiscovery(r),
 			cfg.PeersLimit,
@@ -31,8 +31,8 @@ func Discovery(cfg Config) func(routing.ContentRouting, host.Host) *discovery.Di
 	}
 }
 
-// CacheAvailability wraps either Full or Light availability with a cache for result sampling.
-func CacheAvailability[A share.Availability](lc fx.Lifecycle, ds datastore.Batching, avail A) share.Availability {
+// cacheAvailability wraps either Full or Light availability with a cache for result sampling.
+func cacheAvailability[A share.Availability](lc fx.Lifecycle, ds datastore.Batching, avail A) share.Availability {
 	ca := cache.NewShareAvailability(avail, ds)
 	lc.Append(fx.Hook{
 		OnStop: ca.Close,
@@ -40,7 +40,7 @@ func CacheAvailability[A share.Availability](lc fx.Lifecycle, ds datastore.Batch
 	return ca
 }
 
-func NewModule(lc fx.Lifecycle, bServ blockservice.BlockService, avail share.Availability) Module {
+func newModule(lc fx.Lifecycle, bServ blockservice.BlockService, avail share.Availability) Module {
 	serv := service.NewShareService(bServ, avail)
 	lc.Append(fx.Hook{
 		OnStart: func(ctx context.Context) error {
