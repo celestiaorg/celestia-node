@@ -21,7 +21,7 @@ type Module interface {
 type API struct {
 	Internal struct {
 		SamplingStats func(ctx context.Context) (das.SamplingStats, error) `perm:"read"`
-		WaitCatchUp   func(ctx context.Context) error
+		WaitCatchUp   func(ctx context.Context) error                      `perm:"write"`
 	}
 }
 
