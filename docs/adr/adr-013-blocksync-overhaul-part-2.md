@@ -93,6 +93,7 @@ message EDSRequest {
 syntax = "proto3";
 
 enum Status {
+  INVALID = 0;
   OK = 100; // data found
   NOT_FOUND = 200; // data not found
   REFUSED = 201; // request refused
@@ -149,16 +150,28 @@ message NDRequest {
 syntax = "proto3";
 
 enum Status {
+  INVALID = 0;
   OK = 100; // data found
   NOT_FOUND = 200; // data not found
   REFUSED = 201; // request refused
 }
 
+message Proof {
+  int64 start = 1;
+  int64 end = 2;
+  repeated bytes Nodes = 3;
+}
+
+message Row {
+  repeated bytes shares = 3;
+  Proof proof = 4;
+}
+
 message NDResponse {
   Status status = 1;
-  bytes  data = 2;
-  bytes  proof = 3;
+  repeated Row rows = 2;
 }
+
 ```
 
 #### Streaming
