@@ -8,6 +8,7 @@ import (
 	"github.com/multiformats/go-multiaddr"
 	tmbytes "github.com/tendermint/tendermint/libs/bytes"
 
+	p2p_exchange "github.com/celestiaorg/celestia-node/header/p2p"
 	"github.com/celestiaorg/celestia-node/header/store"
 	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
 )
@@ -23,6 +24,8 @@ type Config struct {
 	TrustedPeers []string
 
 	Store *store.Parameters
+
+	P2PExchange *p2p_exchange.Parameters
 }
 
 func DefaultConfig() Config {
@@ -30,6 +33,7 @@ func DefaultConfig() Config {
 		TrustedHash:  "",
 		TrustedPeers: make([]string, 0),
 		Store:        store.DefaultParameters(),
+		P2PExchange:  p2p_exchange.DefaultParameters(),
 	}
 }
 
@@ -71,5 +75,10 @@ func (cfg *Config) Validate() error {
 	if err != nil {
 		return fmt.Errorf("module/header: misconfiguration of store: %w", err)
 	}
+	err = cfg.P2PExchange.Validate()
+	if err != nil {
+		return fmt.Errorf("module/header: misconfiguration of p2p exchange: %w", err)
+	}
+
 	return nil
 }

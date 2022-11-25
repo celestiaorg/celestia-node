@@ -36,6 +36,16 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 				}
 			},
 		),
+		fx.Provide(
+			func(cfg Config) []p2p.Option {
+				return []p2p.Option{
+					p2p.WithWriteDeadline(cfg.P2PExchange.WriteDeadline),
+					p2p.WithReadDeadline(cfg.P2PExchange.ReadDeadline),
+					p2p.WithMinResponses(cfg.P2PExchange.MinResponses),
+					p2p.WithMaxRequestSize(cfg.P2PExchange.MaxRequestSize),
+				}
+			},
+		),
 		fx.Provide(NewHeaderService),
 		fx.Provide(fx.Annotate(
 			func(ds datastore.Batching, opts []store.Option) (header.Store, error) {
