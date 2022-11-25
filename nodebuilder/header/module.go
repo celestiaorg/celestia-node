@@ -3,6 +3,7 @@ package header
 import (
 	"context"
 
+	"github.com/ipfs/go-datastore"
 	logging "github.com/ipfs/go-log/v2"
 	"go.uber.org/fx"
 
@@ -26,9 +27,20 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 		fx.Supply(*cfg),
 		fx.Error(cfgErr),
 		fx.Supply(modp2p.BlockTime),
+		fx.Provide(
+			func(cfg Config) []store.Option {
+				return []store.Option{
+					store.WithStoreCacheSize(cfg.Store.StoreCacheSize),
+					store.WithIndexCacheSize(cfg.Store.IndexCacheSize),
+					store.WithWriteBatchSize(cfg.Store.WriteBatchSize),
+				}
+			},
+		),
 		fx.Provide(NewHeaderService),
 		fx.Provide(fx.Annotate(
-			store.NewStore,
+			func(ds datastore.Batching, opts []store.Option) (header.Store, error) {
+				return store.NewStore(ds, opts...)
+			},
 			fx.OnStart(func(ctx context.Context, store header.Store) error {
 				return store.Start(ctx)
 			}),
