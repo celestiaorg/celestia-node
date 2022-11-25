@@ -128,7 +128,7 @@ congested links.
 ShrEx/ND is a pull-based protocol with client-server model, where LNs are clients and BNs/FNs are servers.
 The protocol has only one request-response interaction to get all the data/shares addressed by namespace
 
-The protocol is designed over plain libp2p streams with `/shrex/eds/0.0.1` as the protocol ID.
+The protocol is designed over plain libp2p streams with `/shrex/nd/0.0.1` as the protocol ID.
 
 #### Protobuf Schema
 
@@ -178,7 +178,7 @@ data and proofs in real time, while they are read from the disk.
 `ShrEx/Sub` is push-based notification protocol with PubSub model, where LNs are subscribers, BNs are publishers and
 FNs are both.
 
-The protocol is based on libp2p's `FloodSub`(TODO Link) with `/ShrEx/Sub/0.0.1` as topic ID.
+The protocol is based on libp2p's `FloodSub`(TODO Link) with `/ShrEx/sub/0.0.1` as topic ID.
 
 #### Message Schema
 
