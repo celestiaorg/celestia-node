@@ -70,7 +70,8 @@ to Bitswap's wantlist.(TODO link)
 ### ShrEx/EDS Protocol
 
 ShrEx/EDS is a pull-based protocol with client-server model, where LNs are clients, BNs are servers
-and FNs are both. The protocol has only one request-response interaction followed by EDS stream.
+and FNs are both. The protocol has only one request-response interaction followed by ODS stream, which is then
+reconstructed into EDS
 
 The protocol is designed over plain libp2p streams with `/shrex/eds/0.0.1` as the protocol ID.
 
@@ -104,7 +105,7 @@ message EDSResponse {
 
 #### Streaming
 
-After flushing `EDSResponse`, server starts streaming EDS file to client over the libp2p stream.
+After flushing `EDSResponse`, server starts streaming ODS file to client over the libp2p stream.
 
 #### Backpressure
 
@@ -190,9 +191,10 @@ In celestia-node we use libp2p's `GossipSub` router extensively, which provides 
 dissemination over the Celestia's DA p2p network. However, it does not fit well in the Recent EDS use case.
 
 `GossipSub`'s efficacy comes from overlay mesh network based over "physical" connections. Peers form logical links to
-up to constant DHi(12)(TODO Link) number of peers. Every gossiped message goes only to these peers in the mesh. A new
-logical link is established on every new "physical" connection. When there are too many logical links (>DHi), random
-logical links are pruned. However, there is no differentiation between peer types, so pruning can happen to any peer.
+up to constant DHi(12)(TODO Link) number of peers. Every gossiped message goes only to these peers in the mesh
+(the [fanout][gs-fanout] case is out of scope in this explanation). A new logical link is established on every new "physical" 
+connection. When there are too many logical links (>DHi), random logical links are pruned. However, there is no 
+differentiation between peer types, so pruning can happen to any peer.
 
 Subsequently, with `GossipSub` any FN may prune all other BNs/FNs and end up being connected only to LNs, missing any new
 EDS notifications. Additionally, `GossipSub` implements peer exchange with pruned peers, e.g. when a FN has too many links,
@@ -242,7 +244,7 @@ The EDS Client implements client-side of the `ShrEx/NS` protocol.
 // Blocks forever until the context is canceled and/or valid response is given.
 func (c *Client) RequestND(context.Context, share.Root, peer.IDSlice, namespace.ID) ([][]byte, error)
 ```
-
+EDS
 ### `Server`
 
 The EDS `Server` implements server side of `ShrEx/EDS` protocol. It serves `Client`s' `EDSRequest`s, responses with
@@ -366,6 +368,7 @@ The alternative is to queue clients' requests and make client wait until it's re
 [go-libp2p]: https://github.com/libp2p/go-libp2p
 [proto]: https://developers.google.com/protocol-buffers
 [backpressure-quic]: https://datatracker.ietf.org/doc/html/draft-ietf-quic-transport-19#section-4
+[gs-fanout]: https://docs.libp2p.io/concepts/pubsub/overview/#fan-out
 
 ## ToBeRemoved/Refactored
 
