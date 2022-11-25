@@ -90,6 +90,7 @@ func (s *session) close() {
 }
 
 // handleOutgoingRequests pops a peer from the queue and sends a prepared request to the peer.
+// Will exit via canceled session context or when all request are processed.
 func (s *session) handleOutgoingRequests(ctx context.Context, result chan []*header.ExtendedHeader) {
 	for {
 		select {
@@ -98,6 +99,7 @@ func (s *session) handleOutgoingRequests(ctx context.Context, result chan []*hea
 		case <-s.ctx.Done():
 			return
 		case req := <-s.reqCh:
+			// select peer with the highest score among the available ones for the request
 			stats := s.queue.waitPop(ctx)
 			if stats.peerID == "" {
 				return
@@ -134,7 +136,7 @@ func (s *session) doRequest(
 		s.errCh <- err
 		return
 	}
-	log.Debugw("request headers from peer succeed", "from", s.host.ID(), "pID", stat.peerID, "amount", req.Amount)
+	log.Debugw("request headers from peer succeed ", "from", s.host.ID(), "pID", stat.peerID, "amount", req.Amount)
 	// send headers to the channel, update peer stats and return peer to the queue, so it can be re-used in case
 	// if there are other requests awaiting
 	headers <- h
