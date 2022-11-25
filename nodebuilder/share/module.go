@@ -21,8 +21,8 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 		fx.Error(cfgErr),
 		fx.Options(options...),
 		fx.Invoke(share.EnsureEmptySquareExists),
-		fx.Provide(Discovery(*cfg)),
-		fx.Provide(NewModule),
+		fx.Provide(discovery(*cfg)),
+		fx.Provide(newModule),
 	)
 
 	switch tp {
@@ -39,9 +39,9 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 					return avail.Stop(ctx)
 				}),
 			)),
-			// CacheAvailability's lifecycle continues to use a fx hook,
-			// since the LC requires a CacheAvailability but the constructor returns a share.Availability
-			fx.Provide(CacheAvailability[*light.ShareAvailability]),
+			// cacheAvailability's lifecycle continues to use a fx hook,
+			// since the LC requires a cacheAvailability but the constructor returns a share.Availability
+			fx.Provide(cacheAvailability[*light.ShareAvailability]),
 		)
 	case node.Bridge, node.Full:
 		return fx.Module(
@@ -56,9 +56,9 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 					return avail.Stop(ctx)
 				}),
 			)),
-			// CacheAvailability's lifecycle continues to use a fx hook,
-			// since the LC requires a CacheAvailability but the constructor returns a share.Availability
-			fx.Provide(CacheAvailability[*full.ShareAvailability]),
+			// cacheAvailability's lifecycle continues to use a fx hook,
+			// since the LC requires a cacheAvailability but the constructor returns a share.Availability
+			fx.Provide(cacheAvailability[*full.ShareAvailability]),
 		)
 	default:
 		panic("invalid node type")

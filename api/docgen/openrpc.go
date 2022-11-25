@@ -56,7 +56,8 @@ func ParseCommentsFromNodebuilderModules(moduleNames ...string) Comments {
 	fset := token.NewFileSet()
 	nodeComments := make(Comments)
 	for _, moduleName := range moduleNames {
-		f, err := parser.ParseFile(fset, "nodebuilder/"+moduleName+"/service.go", nil, parser.AllErrors|parser.ParseComments)
+		fileName := fmt.Sprintf("nodebuilder/%s/%s.go", moduleName, moduleName)
+		f, err := parser.ParseFile(fset, fileName, nil, parser.AllErrors|parser.ParseComments)
 		if err != nil {
 			panic(err)
 		}
