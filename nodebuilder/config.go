@@ -30,24 +30,28 @@ type Config struct {
 	Gateway gateway.Config
 	Share   share.Config
 	Header  header.Config
-	DASer   das.Config
+	DASer   das.Config `toml:",omitempty"`
 }
 
 // DefaultConfig provides a default Config for a given Node Type 'tp'.
 // NOTE: Currently, configs are identical, but this will change.
 func DefaultConfig(tp node.Type) *Config {
+	commonConfig := &Config{
+		Core:    core.DefaultConfig(),
+		State:   state.DefaultConfig(),
+		P2P:     p2p.DefaultConfig(),
+		RPC:     rpc.DefaultConfig(),
+		Gateway: gateway.DefaultConfig(),
+		Share:   share.DefaultConfig(),
+		Header:  header.DefaultConfig(),
+	}
+
 	switch tp {
-	case node.Bridge, node.Light, node.Full:
-		return &Config{
-			Core:    core.DefaultConfig(),
-			State:   state.DefaultConfig(),
-			P2P:     p2p.DefaultConfig(),
-			RPC:     rpc.DefaultConfig(),
-			Gateway: gateway.DefaultConfig(),
-			Share:   share.DefaultConfig(),
-			Header:  header.DefaultConfig(),
-			DASer:   das.DefaultConfig(),
-		}
+	case node.Bridge:
+		return commonConfig
+	case node.Light, node.Full:
+		commonConfig.DASer = das.DefaultConfig()
+		return commonConfig
 	default:
 		panic("node: invalid node type")
 	}

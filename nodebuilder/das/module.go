@@ -12,7 +12,12 @@ import (
 )
 
 func ConstructModule(tp node.Type, cfg *Config) fx.Option {
-	err := cfg.Validate()
+	var err error
+	// do not validate daser config for bridge node as it
+	// does not need it
+	if tp != node.Bridge {
+		err = cfg.Validate()
+	}
 
 	baseComponents := fx.Options(
 		fx.Supply(*cfg),
