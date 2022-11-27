@@ -52,26 +52,16 @@ func CreateKVStore(retainBlocks int64) *kvstore.Application {
 	return app
 }
 
-// StartTestClient returns a started remote Core node process, as well its
-// mock Core Client.
-func StartTestClient(ctx context.Context, t *testing.T) (tmservice.Service, Client) {
-	nd, _, cfg := StartTestKVApp(ctx, t)
-	endpoint, err := GetEndpoint(cfg)
-	require.NoError(t, err)
-	ip, port, err := net.SplitHostPort(endpoint)
-	require.NoError(t, err)
-
-	client, err := NewRemote(ip, port)
-	require.NoError(t, err)
-
-	err = client.Start()
-	require.NoError(t, err)
-	t.Cleanup(func() {
-		err := client.Stop()
-		require.NoError(t, err)
-	})
-
-	return nd, client
+func getFreePort() (port int, err error) {
+	var a *net.TCPAddr
+	if a, err = net.ResolveTCPAddr("tcp", "localhost:0"); err == nil {
+		var l *net.TCPListener
+		if l, err = net.ListenTCP("tcp", a); err == nil {
+			defer l.Close()
+			return l.Addr().(*net.TCPAddr).Port, nil
+		}
+	}
+	return
 }
 
 func StartTestCoreWithApp(t *testing.T) (tmservice.Service, Client) {
@@ -89,6 +79,13 @@ func StartTestCoreWithApp(t *testing.T) (tmservice.Service, Client) {
 		accounts...,
 	)
 	require.NoError(t, err)
+	// get a random port for running test in parallel
+	freePort, err := getFreePort()
+	require.NoError(t, err)
+	tmNode.Config().RPC.ListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", freePort)
+	freePort, err = getFreePort()
+	require.NoError(t, err)
+	tmNode.Config().P2P.ListenAddress = fmt.Sprintf("tcp://0.0.0.0:%d", freePort)
 
 	_, cleanupCoreNode, err := testnode.StartNode(tmNode, cctx)
 	require.NoError(t, err)
