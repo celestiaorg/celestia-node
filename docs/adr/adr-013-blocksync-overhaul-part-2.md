@@ -71,7 +71,7 @@ dissemination properties and turns out to be simpler than technics similar to Bi
 
 ShrEx/EDS is a pull-based protocol with client-server model, where LNs are clients, BNs are servers
 and FNs are both. The protocol has only one request-response interaction followed by ODS stream, which is then
-reconstructed into EDS
+reconstructed into EDS.
 
 The protocol is designed over plain libp2p streams with `/shrex/eds/0.0.1` as the protocol ID.
 
@@ -150,6 +150,11 @@ congested links.
                     └──────┘          └──────┘          
 
 ```
+
+### Misbehavior
+
+* Server sends ODS CAR file that fails EDS reconstruction.
+* Client terminates stream after receiving the EDSResponse.
 
 ### ShrEx/ND Protocol
 
