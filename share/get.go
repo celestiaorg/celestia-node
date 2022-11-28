@@ -59,10 +59,10 @@ func GetSharesByNamespace(
 		return nil, err
 	}
 
-	shares := make([]Share, 0, maxShares)
-	for _, leaf := range leaves {
+	shares := make([]Share, len(leaves))
+	for i, leaf := range leaves {
 		if leaf != nil {
-			shares = append(shares, leafToShare(leaf))
+			shares[i] = leafToShare(leaf)
 		}
 	}
 
