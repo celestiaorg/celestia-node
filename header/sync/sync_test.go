@@ -215,3 +215,8 @@ func (e *exchangeCountingHead) GetByHeight(ctx context.Context, u uint64) (*head
 func (e *exchangeCountingHead) GetRangeByHeight(c context.Context, from, to uint64) ([]*header.ExtendedHeader, error) {
 	panic("implement me")
 }
+
+func (e *exchangeCountingHead) GetVerifiedRangeByHeight(c context.Context, from *header.ExtendedHeader, to uint64,
+) ([]*header.ExtendedHeader, error) {
+	panic("implement me")
+}

@@ -8,6 +8,7 @@ import (
 	"github.com/libp2p/go-libp2p-core/host"
 	"github.com/libp2p/go-libp2p-core/network"
 	"github.com/libp2p/go-libp2p-core/peer"
+	"github.com/libp2p/go-libp2p/p2p/net/conngater"
 )
 
 type peerTracker struct {
@@ -17,14 +18,16 @@ type peerTracker struct {
 	// so we can guarantee that peerQueue will only contain active peers
 	disconnectedPeers map[peer.ID]*peerStat
 
-	host host.Host
+	host      host.Host
+	connGater *conngater.BasicConnectionGater
 }
 
-func newPeerTracker(h host.Host) *peerTracker {
+func newPeerTracker(h host.Host, c *conngater.BasicConnectionGater) *peerTracker {
 	return &peerTracker{
 		disconnectedPeers: make(map[peer.ID]*peerStat),
 		connectedPeers:    make(map[peer.ID]*peerStat),
 		host:              h,
+		connGater:         c,
 	}
 }
 
@@ -101,4 +104,28 @@ func (p *peerTracker) peers() []*peerStat {
 		peers = append(peers, stat)
 	}
 	return peers
+}
+
+// blockPeer removes peer from cache and blocks peer on the networking level.
+func (p *peerTracker) blockPeer(pID peer.ID) {
+	p.Lock()
+	defer p.Unlock()
+
+	for _, pid := range p.connectedPeers {
+		if pid.peerID == pID {
+			delete(p.connectedPeers, pID)
+			return
+		}
+	}
+
+	for _, pid := range p.disconnectedPeers {
+		if pid.peerID == pID {
+			delete(p.disconnectedPeers, pID)
+			return
+		}
+	}
+
+	if err := p.connGater.BlockPeer(pID); err != nil {
+		log.Errorw("blocking peer err", "blockedPid", pID, "err", err)
+	}
 }

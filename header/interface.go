@@ -58,6 +58,7 @@ type Broadcaster interface {
 // from the network.
 type Exchange interface {
 	Getter
+	GetVerifiedRangeByHeight(context.Context, *ExtendedHeader, uint64) ([]*ExtendedHeader, error)
 }
 
 var (

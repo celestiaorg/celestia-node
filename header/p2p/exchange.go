@@ -3,6 +3,7 @@ package p2p
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"math/rand"
 	"sort"
@@ -12,6 +13,7 @@ import (
 	"github.com/libp2p/go-libp2p-core/host"
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/libp2p/go-libp2p-core/protocol"
+	"github.com/libp2p/go-libp2p/p2p/net/conngater"
 	tmbytes "github.com/tendermint/tendermint/libs/bytes"
 
 	"github.com/celestiaorg/go-libp2p-messenger/serde"
@@ -54,12 +56,17 @@ func protocolID(protocolSuffix string) protocol.ID {
 	return protocol.ID(fmt.Sprintf("/header-ex/v0.0.3/%s", protocolSuffix))
 }
 
-func NewExchange(host host.Host, peers peer.IDSlice, protocolSuffix string) *Exchange {
+func NewExchange(
+	host host.Host,
+	connGater *conngater.BasicConnectionGater,
+	peers peer.IDSlice,
+	protocolSuffix string,
+) *Exchange {
 	return &Exchange{
 		host:         host,
 		protocolID:   protocolID(protocolSuffix),
 		trustedPeers: peers,
-		peerTracker:  newPeerTracker(host),
+		peerTracker:  newPeerTracker(host, connGater),
 	}
 }
 
@@ -149,6 +156,37 @@ func (ex *Exchange) GetRangeByHeight(ctx context.Context, from, amount uint64) (
 	session := newSession(ex.ctx, ex.host, ex.peerTracker.peers(), ex.protocolID)
 	defer session.close()
 	return session.getRangeByHeight(ctx, from, amount)
+}
+
+// GetVerifiedRangeByHeight performs a request for the given range of ExtendedHeaders to the network and ensures
+// that returned headers are correct against the passed one.
+func (ex *Exchange) GetVerifiedRangeByHeight(
+	ctx context.Context,
+	from *header.ExtendedHeader,
+	amount uint64,
+) ([]*header.ExtendedHeader, error) {
+	session := newSession(ex.ctx, ex.host, ex.peerTracker.peers(), ex.protocolID)
+	defer session.close()
+	headers, err := session.getRangeByHeight(ctx, uint64(from.Height+1), amount)
+	if err != nil {
+		return nil, err
+	}
+	fromHeight := from.Height + 1
+	for _, h := range headers {
+		if fromHeight != h.Height {
+			pid := session.peerByHeaderHeight(h.Height)
+			ex.peerTracker.blockPeer(pid)
+			return nil, errors.New("header/p2p: returned headers are not contiguous")
+		}
+		fromHeight++
+		err := from.VerifyNonAdjacent(h)
+		if err != nil {
+			pid := session.peerByHeaderHeight(h.Height)
+			ex.peerTracker.blockPeer(pid)
+			return nil, err
+		}
+	}
+	return headers, nil
 }
 
 // Get performs a request for the ExtendedHeader by the given hash corresponding

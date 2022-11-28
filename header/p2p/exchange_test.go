@@ -66,7 +66,7 @@ func TestExchange_RequestFullRangeHeaders(t *testing.T) {
 	store := createStore(t, totalAmount)
 	protocolSuffix := "private"
 	// create new exchange
-	exchange := NewExchange(hosts[len(hosts)-1], []peer.ID{}, protocolSuffix)
+	exchange := NewExchange(hosts[len(hosts)-1], nil, []peer.ID{}, protocolSuffix)
 	exchange.ctx, exchange.cancel = context.WithCancel(context.Background())
 	t.Cleanup(exchange.cancel)
 	servers := make([]*ExchangeServer, len(hosts)-1) // amount of servers is len(hosts)-1 because one peer acts as a client
@@ -265,7 +265,7 @@ func createP2PExAndServer(t *testing.T, host, tpeer libhost.Host) (header.Exchan
 	err := serverSideEx.Start(context.Background())
 	require.NoError(t, err)
 
-	exchange := NewExchange(host, []peer.ID{tpeer.ID()}, "private")
+	exchange := NewExchange(host, nil, []peer.ID{tpeer.ID()}, "private")
 	exchange.peerTracker.connectedPeers[tpeer.ID()] = &peerStat{peerID: tpeer.ID()}
 	exchange.Start(context.Background()) //nolint:errcheck
 
