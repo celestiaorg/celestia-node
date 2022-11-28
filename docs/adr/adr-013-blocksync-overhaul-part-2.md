@@ -106,7 +106,7 @@ message EDSResponse {
 
 #### Streaming
 
-After flushing `EDSResponse`, server starts streaming ODS file to client over the libp2p stream.
+After flushing `EDSResponse`, server starts streaming ODS as CAR file (TODO link) to client over the libp2p stream.
 
 #### Backpressure
 
@@ -122,7 +122,34 @@ congested links.
 
 #### Flow
 
-// TODO Make a simple sequence diagram
+```
+                    ┌──────┐          ┌──────┐          
+                    │Client│          │Server│          
+                    └──┬───┘          └──┬───┘          
+                       │   Open Stream   │              
+                       │ ────────────────>              
+                       │                 │              
+                       │    EDSRequest   │              
+                       │ ────────────────>              
+                       │                 │              
+                       │   EDSResponse   │              
+                       │ <────────────────              
+                       │                 │              
+                       │                 │              
+          ╔══════╤═════╪═════════════════╪═════════════╗
+          ║ ALT  │  STATUS:OK            │             ║
+          ╟──────┘     │                 │             ║
+          ║            │     CAR File    │             ║
+          ║            │ <────────────────             ║
+          ╚════════════╪═════════════════╪════════════z═╝
+                       │                 │              
+                       │   Stream Close  │              
+                       │ <────────────────              
+                    ┌──┴───┐          ┌──┴───┐          
+                    │Client│          │Server│          
+                    └──────┘          └──────┘          
+
+```
 
 ### ShrEx/ND Protocol
 
@@ -184,7 +211,24 @@ data and proofs in real time, while they are read from the disk.
 
 #### Flow
 
-// TODO Make a simple sequence diagram
+     ┌──────┐          ┌──────┐
+     │Client│          │Server│
+     └──┬───┘          └──┬───┘
+        │   Open Stream   │    
+        │ ────────────────>    
+        │                 │    
+        │    NDRequest    │    
+        │ ────────────────>    
+        │                 │    
+        │    NDResponse   │    
+        │ <────────────────    
+        │                 │    
+        │   Stream Close  │    
+        │ <────────────────    
+     ┌──┴───┐          ┌──┴───┐
+     │Client│          │Server│
+     └──────┘          └──────┘
+
 
 ### ShrEx/Sub Protocol
 

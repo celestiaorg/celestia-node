@@ -1,0 +1,13 @@
+@startuml shrex/eds
+participant Client
+participant Server
+
+Client -> Server: Open Stream
+
+Client -> Server: NDRequest
+
+Client <- Server: NDResponse
+
+Client <- Server: Stream Close
+
+@enduml
