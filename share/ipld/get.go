@@ -306,7 +306,7 @@ func GetLeavesByNamespace(
 				// proof is on the right side, if the nID is less than min namespace of jobNid
 				if nID.Less(nmt.MinNamespace(jobNid, nID.Size())) {
 					if collectProofs {
-						proofs.addRight(jobNid)
+						proofs.addRight(lnk.Cid)
 					}
 					continue
 				}
@@ -314,7 +314,7 @@ func GetLeavesByNamespace(
 				// proof is on the left side, if the nID is bigger than max namespace of jobNid
 				if !nID.LessOrEqual(nmt.MaxNamespace(jobNid, nID.Size())) {
 					if collectProofs {
-						proofs.addLeft(jobNid)
+						proofs.addLeft(lnk.Cid)
 					}
 					continue
 				}

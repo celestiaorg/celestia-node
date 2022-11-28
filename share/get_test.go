@@ -365,11 +365,16 @@ func TestGetSharesWithProofsByNamespace(t *testing.T) {
 						leaves = append(leaves, append(sh[:NamespaceSize], sh...))
 					}
 
+					proofNodes := make([][]byte, 0, len(proof.Nodes))
+					for _, n := range proof.Nodes {
+						proofNodes = append(proofNodes, ipld.NamespacedSha256FromCID(n))
+					}
+
 					// construct new proof
 					inclusionProof := nmt.NewInclusionProof(
 						proof.Start,
 						proof.End,
-						proof.Nodes,
+						proofNodes,
 						ipld.NMTIgnoreMaxNamespace)
 
 					// verify inclusion
