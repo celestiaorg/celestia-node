@@ -57,7 +57,7 @@ func ODSReader(carReader io.Reader) (io.Reader, error) {
 }
 
 func (r *bufferedODSReader) Read(p []byte) (n int, err error) {
-	// read leafs to the buffer until it has sufficient data to fill provided container or full eds is
+	// read leafs to the buffer until it has sufficient data to fill provided container or full ods is
 	// read
 	for r.current < r.odsSquareSize && r.buf.Len() < len(p) {
 		if err := r.readLeaf(); err != nil {
