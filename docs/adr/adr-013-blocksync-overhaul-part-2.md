@@ -341,23 +341,23 @@ The `PubSub` follows the existing network "pubsubbing" semantics in `celestia-no
 
 ```go
 // Broadcast sends the EDS notification(data hash) to every connected peer.
-func (s *Subscriber) Broadcast(context.Context, datahash []byte) error
+func (s *PubSub) Broadcast(context.Context, datahash []byte) error
 ```
 
 #### `PubSub.Subscribe`
 
 ```go
 // Subscribe provides a new Subscription for EDS notifications.
-func (s *Subscriber) Subscribe() *Subsription
+func (s *PubSub) Subscribe() *Subsription
 
 type Subscription struct {}
 
 // Next blocks the callee until any new EDS notification(data hash) arrives.
 // Returns only notifications which successfully went through validation pipeline.
-func (s *Subscription) Next(context.Context) ([]byte, error)
+func (s *PubSub) Next(context.Context) ([]byte, error)
 
 // Cancel cancels stops the subscription. 
-func (s *Subscription) Cancel()
+func (s *PubSub) Cancel()
 ```
 
 #### `PubSub.AddValidator`
@@ -370,7 +370,7 @@ type Validator func(context.Context, peer.ID, []byte) pubsub.ValidationResult
 
 // AddValidator registers given Validator for EDS notifications(datahash).
 // Any amount of Validators can be registered.
-func (s *Subscriber) AddValidator(Validator) error
+func (s *PubSub) AddValidator(Validator) error
 ```
 
 #### `PubSub.Close`
@@ -380,7 +380,7 @@ func (s *Subscriber) AddValidator(Validator) error
 // * Unregisters all the added Validators
 // * Stop the `ShrEx/Sub` topic
 // * Closes the internal FloodSub instance
-func (s *Subscriber) Close()
+func (s *PubSub) Close()
 ```
 
 ## Implementation Details
