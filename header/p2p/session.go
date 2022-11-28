@@ -63,7 +63,7 @@ func (s *session) getRangeByHeight(ctx context.Context, from, amount uint64) ([]
 	}
 
 	headers := make([]*header.ExtendedHeader, 0, amount)
-	for i := 0; i < cap(result); i++ {
+	for i := 0; i < len(requests); i++ {
 		select {
 		case <-s.ctx.Done():
 			return nil, errors.New("header/p2p: exchange is closed")
@@ -154,6 +154,15 @@ func (s *session) requestHeaders(
 	stream, err := s.host.NewStream(ctx, to, s.protocolID)
 	if err != nil {
 		return nil, 0, 0, err
+	}
+
+	// set stream deadline from the context deadline.
+	// if it is empty, then we assume that it will
+	// hang until the server will close the stream by the timeout.
+	if dl, ok := ctx.Deadline(); ok {
+		if err = stream.SetDeadline(dl); err != nil {
+			log.Debugw("error setting deadline: %s", err)
+		}
 	}
 	// send request
 	_, err = serde.Write(stream, req)
