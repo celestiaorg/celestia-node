@@ -62,8 +62,8 @@ with FN-subnetwork. This ensures the node will receive new notifications from `S
 `ShrEx/EDS` and `ShrEx/ND`.
 
 - __FN/BNs notify connected LN/FNs when they are ready to serve a recent EDS using via [`ShrEx/Sub`](#ShrEx/Sub Protocol).__
-This lazy-push approach provides reliable EDS dissemination properties and turns out to be simpler than technics similar
-to Bitswap's wantlist.(TODO link)
+The push notification means "I have this data, request it from me". This lazy-push approach provides reliable EDS 
+dissemination properties and turns out to be simpler than technics similar to Bitswap's wantlist.(TODO link)
 
 ## Protocols Specs
 
@@ -141,7 +141,7 @@ congested links.
           ╟──────┘     │                 │             ║
           ║            │     CAR File    │             ║
           ║            │ <────────────────             ║
-          ╚════════════╪═════════════════╪════════════z═╝
+          ╚════════════╪═════════════════╪═════════════╝
                        │                 │              
                        │   Stream Close  │              
                        │ <────────────────              
@@ -248,7 +248,7 @@ In celestia-node we use libp2p's `GossipSub` router extensively, which provides 
 dissemination over the Celestia's DA p2p network. However, it does not fit well in the Recent EDS use case.
 
 `GossipSub`'s efficacy comes from overlay mesh network based over "physical" connections. Peers form logical links to
-up to constant DHi(12)(TODO Link) number of peers. Every gossiped message goes only to these peers in the mesh
+up to constant DHi(12)(TODO Link) number of peers. Every gossip is __pushed__ only to these peers in the mesh
 (the [fanout][gs-fanout] case is out of scope in this explanation). A new logical link is established on every new "physical" 
 connection. When there are too many logical links (>DHi), random logical links are pruned. However, there is no 
 differentiation between peer types, so pruning can happen to any peer.
@@ -263,10 +263,17 @@ which solves the problem with the cost of higher message duplication factor on t
 duplicates coming from different peers are useful in this case. If the primary message sender peer does not serve data,
 the senders of duplicates are requested instead.
 
-In the future when the network reaches scale of ~5000 peers, we may want to design custom PubSub router in favour of basic
+In the future when the network reaches scale to ~5000 peers, we may want to design custom PubSub router in favour of basic
 `FloodSub`. The router will be based on `GossipSub` and almost kept entirely untouched for the FN <-> FN interactions.
 The innovation will come on the FN <-> LN front, where FNs will maintain an additional overlay mesh for connected LNs
 and vise-versa. This will enable precise traffic routing control and balancing load for FNs during spikes of LNs activity.
+
+P.S. Besides __pushing__ gossips, GossipSub has an internal __lazy-push__ mechanism. Random connected peers outside
+the overlay mesh are selected(GossipFactor(TODO Link)) and sent with `IHAVE` message(hash of the actual message) and can
+respond with `IWANT`. In the case of an isolated FN/LN there is chance that it will still receive the data via the 
+lazy-pull mechanism, however, it's randomized and thus the isolated node can miss notifications. We could increase 
+GossipFactor to 1, which means always send `IHAVE` to every connected peer outside the overlay mesh, but the notification 
+message itself is a hash and there no reason to pull hash be its hash compared to direct push.
 
 ## API
 
@@ -392,8 +399,6 @@ Celestia-node has central `share.Availability` interface, which guarantees certa
 on the implementation. The `FullAvailability` implementation is responsible for checking the availability of the whole
 EDS by retrieving and reconstructing it. As we're improving our EDS retrieval logic, the new __happy path__ over `ShrEx/EDS` 
 protocol will be integrated in there.
-
-
 
 ## Hardening
 
