@@ -42,12 +42,6 @@ var NumConcurrentSquares = 8
 //		so that workers spawned between each reconstruction for every new block are reused.
 var pool = workerpool.New(NumWorkersLimit)
 
-// Proof contains information required for Leaves inclusion validation.
-type Proof struct {
-	Nodes      [][]byte
-	Start, End int
-}
-
 // GetLeaf fetches and returns the raw leaf.
 // It walks down the IPLD NMT tree until it finds the requested one.
 func GetLeaf(
@@ -178,10 +172,10 @@ func GetLeaves(ctx context.Context,
 
 // GetLeavesByNamespace returns leaves and corresponding proof that could be used to verify leaves
 // inclusion. It returns as many leaves from the given root with the given namespace.ID as it can
-// retrieve. If no shares are found, it returns both data and error as nil. If non-nil proofContainer
-// param passed, it will be filled with data required for inclusion verification. A non-nil error
-// means that only partial data is returned, because at least one share retrieval failed. The
-// following implementation is based on `GetShares`.
+// retrieve. If no shares are found, it returns both data and error as nil. If non-nil
+// proofContainer param passed, it will be filled with data required for inclusion verification. A
+// non-nil error means that only partial data is returned, because at least one share retrieval
+// failed. The following implementation is based on `GetShares`.
 func GetLeavesByNamespace(
 	ctx context.Context,
 	bGetter blockservice.BlockGetter,
@@ -225,14 +219,11 @@ func GetLeavesByNamespace(
 	// on the level above, the length of the Row is passed in as maxShares
 	leaves := make([]ipld.Node, maxShares)
 
-	// if non-nil proof container provided, fill it while traversing the tree
+	// if non-nil proof container provided, collect proofs while traversing the tree and fill it after
 	var collectProofs = proofContainer != nil
-	var leftProofs, rightProofs [][]byte
+	var proofs *proofCollector
 	if collectProofs {
-		// TODO: (@walldiss) this is massively overallocating and should be optimized later with clever
-		// append
-		leftProofs = make([][]byte, BatchSize(maxShares))
-		rightProofs = make([][]byte, BatchSize(maxShares))
+		proofs = newProofCollector(maxShares)
 	}
 
 	for {
@@ -254,20 +245,7 @@ func GetLeavesByNamespace(
 			if collectProofs {
 				proofContainer.Start = int(bounds.lowest)
 				proofContainer.End = int(bounds.highest) + 1
-
-				// left side traversed in bottom-up order
-				for i := range leftProofs {
-					if leftProofs[i] != nil {
-						proofContainer.Nodes = append(proofContainer.Nodes, leftProofs[i])
-					}
-				}
-				// right side of the tree will be traversed from top to bottom,
-				// so append in reversed order
-				for i := len(rightProofs) - 1; i >= 0; i-- {
-					if rightProofs[i] != nil {
-						proofContainer.Nodes = append(proofContainer.Nodes, rightProofs[i])
-					}
-				}
+				proofContainer.Nodes = proofs.Nodes()
 			}
 
 			return leaves[bounds.lowest : bounds.highest+1], retrievalErr
@@ -327,7 +305,7 @@ func GetLeavesByNamespace(
 				// proof is on the right side, if the nID is less than min namespace of jobNid
 				if nID.Less(nmt.MinNamespace(jobNid, nID.Size())) {
 					if collectProofs {
-						rightProofs[newJob.pos] = jobNid
+						proofs.addRight(newJob.pos, jobNid)
 					}
 					continue
 				}
@@ -335,7 +313,7 @@ func GetLeavesByNamespace(
 				// proof is on the left side, if the nID is bigger than max namespace of jobNid
 				if !nID.LessOrEqual(nmt.MaxNamespace(jobNid, nID.Size())) {
 					if collectProofs {
-						leftProofs[newJob.pos] = jobNid
+						proofs.addLeft(newJob.pos, jobNid)
 					}
 					continue
 				}
