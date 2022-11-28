@@ -437,6 +437,9 @@ EDS by retrieving and reconstructing it. As we're improving our EDS retrieval lo
 one of the paths finishes.
 * Store EDS in `eds.Store`
 
+Additionally, `FullAvailability` should provide `OnlyReconstruction` mode to allow testing the ___fallback path___ 
+in isolation.
+
 ## Hardening
 
 ### Rate Limiting
