@@ -219,7 +219,8 @@ func GetLeavesByNamespace(
 	// on the level above, the length of the Row is passed in as maxShares
 	leaves := make([]ipld.Node, maxShares)
 
-	// if non-nil proof container provided, collect proofs while traversing the tree and fill it after
+	// if non-nil proof container provided, collect proofs while traversing the tree and fill put them
+	// into container after
 	var collectProofs = proofContainer != nil
 	var proofs *proofCollector
 	if collectProofs {
@@ -293,7 +294,7 @@ func GetLeavesByNamespace(
 					sharePos: j.sharePos*2 + i,
 					// position represents the index in a flattened binary tree,
 					// so we can return a slice of leaves in order
-					pos: j.pos*2 + i + 1,
+					depth: j.depth + 1,
 					// we pass the context to job so that spans are tracked in a tree
 					// structure
 					ctx: ctx,
@@ -305,7 +306,7 @@ func GetLeavesByNamespace(
 				// proof is on the right side, if the nID is less than min namespace of jobNid
 				if nID.Less(nmt.MinNamespace(jobNid, nID.Size())) {
 					if collectProofs {
-						proofs.addRight(newJob.pos, jobNid)
+						proofs.addRight(jobNid)
 					}
 					continue
 				}
@@ -313,7 +314,7 @@ func GetLeavesByNamespace(
 				// proof is on the left side, if the nID is bigger than max namespace of jobNid
 				if !nID.LessOrEqual(nmt.MaxNamespace(jobNid, nID.Size())) {
 					if collectProofs {
-						proofs.addLeft(newJob.pos, jobNid)
+						proofs.addLeft(jobNid)
 					}
 					continue
 				}
@@ -419,6 +420,6 @@ func (b *fetchedBounds) update(index int64) {
 type job struct {
 	id       cid.Cid
 	sharePos int
-	pos      int
+	depth    int
 	ctx      context.Context
 }
