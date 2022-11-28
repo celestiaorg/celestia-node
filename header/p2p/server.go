@@ -31,7 +31,12 @@ type ExchangeServer struct {
 
 // NewExchangeServer returns a new P2P server that handles inbound
 // header-related requests.
-func NewExchangeServer(host host.Host, store header.Store, protocolSuffix string, opts ...Option) (*ExchangeServer, error) {
+func NewExchangeServer(
+	host host.Host,
+	store header.Store,
+	protocolSuffix string,
+	opts ...Option,
+) (*ExchangeServer, error) {
 	params := DefaultParameters()
 	for _, opt := range opts {
 		opt(params)

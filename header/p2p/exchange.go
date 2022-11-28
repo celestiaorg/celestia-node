@@ -137,7 +137,7 @@ func (ex *Exchange) GetByHeight(ctx context.Context, height uint64) (*header.Ext
 // GetRangeByHeight performs a request for the given range of ExtendedHeaders
 // to the network. Note that the ExtendedHeaders must be verified thereafter.
 func (ex *Exchange) GetRangeByHeight(ctx context.Context, from, amount uint64) ([]*header.ExtendedHeader, error) {
-	if amount > maxRequestSize {
+	if amount > ex.Params.MaxRequestSize {
 		return nil, header.ErrHeadersLimitExceeded
 	}
 	session := newSession(ex.ctx, ex.host, ex.peerTracker.peers(), ex.protocolID)

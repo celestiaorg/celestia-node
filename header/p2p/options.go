@@ -35,16 +35,16 @@ const errSuffix = "value should be positive and non-zero"
 
 func (p *Parameters) Validate() error {
 	if p.WriteDeadline == 0 {
-		return fmt.Errorf("invalid write time duretion:%s", errSuffix)
+		return fmt.Errorf("invalid write time duration: %s", errSuffix)
 	}
 	if p.ReadDeadline == 0 {
-		return fmt.Errorf("invalid read time duration:%s", errSuffix)
+		return fmt.Errorf("invalid read time duration: %s", errSuffix)
 	}
 	if p.MinResponses <= 0 {
-		return fmt.Errorf("invalid minimal amount of responses:%s", errSuffix)
+		return fmt.Errorf("invalid minimal amount of responses: %s", errSuffix)
 	}
 	if p.MaxRequestSize == 0 {
-		return fmt.Errorf("invalid max request size:%s", errSuffix)
+		return fmt.Errorf("invalid max request size: %s", errSuffix)
 	}
 	return nil
 }
@@ -66,13 +66,15 @@ func WithReadDeadline(deadline time.Duration) Option {
 }
 
 // WithMinResponses is a functional option that configures the
-// `WithMinResponses` parameter.
+// `MinResponses` parameter.
 func WithMinResponses(responses int) Option {
 	return func(p *Parameters) {
 		p.MinResponses = responses
 	}
 }
 
+// WithMaxRequestSize is a functional option that configures the
+// // `MaxRequestSize` parameter.
 func WithMaxRequestSize(size uint64) Option {
 	return func(p *Parameters) {
 		p.MaxRequestSize = size
