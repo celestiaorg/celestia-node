@@ -311,22 +311,24 @@ The EDS Client implements client-side of the `ShrEx/NS` protocol.
 //
 // The peers are requested in round-robin manner with retries until one of them gives a valid response.
 // Blocks forever until the context is canceled and/or valid response is given.
+//
+// Returns only valid data with verified inclusion against share.Root.
 func (c *Client) RequestND(context.Context, share.Root, peer.IDSlice, namespace.ID) ([][]byte, error)
 ```
-EDS
+
 ### `Server`
 
 The EDS `Server` implements server side of `ShrEx/EDS` protocol. It serves `Client`s' `EDSRequest`s, responses with
 `EDSResponse` and streams ODS data coming from `eds.Store.GetCAR` wrapped in `ODSReader`.
 
-`Server` may not provide any API.
+`Server` may not provide any API, besides constructor and lifecycle methods.
 
 ### `NDServer`
 
 The  EDS `NDServer` is introduced to serve `NDClient`'s `NDRequest`s over `ShrEx/ND` protocol and respond
 `NDResponse`s with data and proofs coming from `eds.Store.Blockstore`.
 
-`NDServer` may not provide any API.
+`NDServer` may not provide any API, besides constructor and lifecycle methods.
 
 ### `PubSub`
 
@@ -390,7 +392,7 @@ FN/BNs to advertise themselves, s.t. other LN/FN/BNs can discover and ensure N c
 current API does not allow us to know our discovered FN/BN peers connections. This is required for `ShrEx/EDS` and 
 `ShrEx/ND`, as their clients do not discover servers automatically and expect them to be provided.
 
-Subsequently, we extend `Discovery` with the following method:
+Subsequently, we extend `discovery.Discovery` with the following method:
 
 ```go
 // Peers provides list of discovered peers in the "full" topic.
@@ -398,12 +400,42 @@ Subsequently, we extend `Discovery` with the following method:
 func (d *Discovery) Peers(context.Context) ([]peer.ID, error)
 ```
 
-### Full Availability
+### DASer
+
+The `das.DASer` engine keeps the chain sampled and availability checked and provided. Currently, it relies on 
+`header.Subscribtion` to get every newly produced header from the network. Once a header received it could reliably check its 
+availability with `share.Availability` interface. However, as we are changing the protocol, usage of `share.Availability`
+has to be synchronized with EDS notifications coming from our peers via `eds.PubSub`. 
+
+To synchronise them we:
+* Cache headers coming from `header.Subscribtion`, instead of calling `SharesAvailable` with `DataHash` as key.
+* Add validator to `eds.PubSub` which
+  * Gets the header out of the cache by `DataHash` message body
+    * If not found, waits for it within configurable timeout
+    * If nothing, rejects message
+  * Calls `SharesAvailable` with the DAH from the header and the peer the message received from
+
+### Availability
 
 Celestia-node has central `share.Availability` interface, which guarantees certain level of EDS data availability depending
-on the implementation. The `FullAvailability` implementation is responsible for checking the availability of the whole
-EDS by retrieving and reconstructing it. As we're improving our EDS retrieval logic, the new __happy path__ over `ShrEx/EDS` 
-protocol will be integrated in there.
+on the implementation. Its `SharesAvailable` method has to be extended with an additional variadic `peer.ID` param.
+Previously, the interface was generic enough and abstracted away peering details from the user. However, with the 
+introduction of `eds.Pubsub`, the higher level component `das.DASer` points the peers(s) to get EDSes from, and thus 
+peering details of one `FullAvailability` implementation has to pollute the interface.
+
+#### FullAvailability
+
+The `FullAvailability` implementation is responsible for checking the availability of the whole
+EDS by retrieving and reconstructing it. As we're improving our EDS retrieval logic, the new ___happy path___ over 
+`eds.Client` integrates into the ___fallback path___ with the following flow:
+* ___happy path___ EDS
+  * Take peers passed to the `ShareAvailable`
+    * If no peers were given, use discovered peers via `Discovery.Peers`
+  * Request peers using `eds.Client`
+* ___fallback path___ EDS
+  * If ___happy path___ EDS operation does not finish within `BlockTime` timeout -- run `eds.Retriever` and wait until 
+one of the paths finishes.
+* Store EDS in `eds.Store`
 
 ## Hardening
 
