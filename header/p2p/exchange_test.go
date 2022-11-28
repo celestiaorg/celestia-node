@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"testing"
+	"time"
 
 	libhost "github.com/libp2p/go-libp2p-core/host"
 	"github.com/libp2p/go-libp2p-core/peer"
@@ -22,8 +23,8 @@ import (
 var privateProtocolID = protocolID("private")
 
 func TestExchange_RequestHead(t *testing.T) {
-	host, peer := createMocknet(t)
-	exchg, store := createP2PExAndServer(t, host, peer)
+	hosts := createMocknet(t, 2)
+	exchg, store := createP2PExAndServer(t, hosts[0], hosts[1])
 	// perform header request
 	header, err := exchg.Head(context.Background())
 	require.NoError(t, err)
@@ -33,8 +34,8 @@ func TestExchange_RequestHead(t *testing.T) {
 }
 
 func TestExchange_RequestHeader(t *testing.T) {
-	host, peer := createMocknet(t)
-	exchg, store := createP2PExAndServer(t, host, peer)
+	hosts := createMocknet(t, 2)
+	exchg, store := createP2PExAndServer(t, hosts[0], hosts[1])
 	// perform expected request
 	header, err := exchg.GetByHeight(context.Background(), 5)
 	require.NoError(t, err)
@@ -43,8 +44,8 @@ func TestExchange_RequestHeader(t *testing.T) {
 }
 
 func TestExchange_RequestHeaders(t *testing.T) {
-	host, peer := createMocknet(t)
-	exchg, store := createP2PExAndServer(t, host, peer)
+	hosts := createMocknet(t, 2)
+	exchg, store := createP2PExAndServer(t, hosts[0], hosts[1])
 	// perform expected request
 	gotHeaders, err := exchg.GetRangeByHeight(context.Background(), 1, 5)
 	require.NoError(t, err)
@@ -54,11 +55,40 @@ func TestExchange_RequestHeaders(t *testing.T) {
 	}
 }
 
+// TestExchange_RequestFullRangeHeaders requests max amount of headers
+// to verify how session will parallelize all requests.
+func TestExchange_RequestFullRangeHeaders(t *testing.T) {
+	// create mocknet with 5 peers
+	hosts := createMocknet(t, 5)
+	// set max amount of headers per 1 peer
+	headersPerPeer = 10
+	totalAmount := 80
+	store := createStore(t, totalAmount)
+	protocolSuffix := "private"
+	// create new exchange
+	exchange := NewExchange(hosts[len(hosts)-1], []peer.ID{}, protocolSuffix)
+	exchange.ctx, exchange.cancel = context.WithCancel(context.Background())
+	t.Cleanup(exchange.cancel)
+	servers := make([]*ExchangeServer, len(hosts)-1) // amount of servers is len(hosts)-1 because one peer acts as a client
+	for index := range servers {
+		servers[index] = NewExchangeServer(hosts[index], store, protocolSuffix)
+		servers[index].Start(context.Background()) //nolint:errcheck
+		exchange.peerTracker.connectedPeers[hosts[index].ID()] = &peerStat{peerID: hosts[index].ID()}
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+	t.Cleanup(cancel)
+	// request headers from 1 to totalAmount(80)
+	headers, err := exchange.GetRangeByHeight(ctx, 1, uint64(totalAmount))
+	require.NoError(t, err)
+	require.Len(t, headers, 80)
+}
+
 // TestExchange_RequestHeadersFails tests that the Exchange instance will return
 // header.ErrNotFound if it will not have requested header.
 func TestExchange_RequestHeadersFails(t *testing.T) {
-	host, peer := createMocknet(t)
-	exchg, _ := createP2PExAndServer(t, host, peer)
+	hosts := createMocknet(t, 2)
+	exchg, _ := createP2PExAndServer(t, hosts[0], hosts[1])
 	tt := []struct {
 		amount      uint64
 		expectedErr *error
@@ -78,15 +108,6 @@ func TestExchange_RequestHeadersFails(t *testing.T) {
 		require.Error(t, err)
 		require.ErrorAs(t, err, test.expectedErr)
 	}
-}
-
-func TestExchange_RequestHeadersLimitExceed(t *testing.T) {
-	host, peer := createMocknet(t)
-	exchg, _ := createP2PExAndServer(t, host, peer)
-	// perform expected request
-	_, err := exchg.GetRangeByHeight(context.Background(), 1, 600)
-	require.Error(t, err)
-	require.ErrorAs(t, err, &header.ErrHeadersLimitExceeded)
 }
 
 // TestExchange_RequestByHash tests that the Exchange instance can
@@ -230,11 +251,11 @@ func TestExchange_RequestByHashFails(t *testing.T) {
 	require.Equal(t, resp.StatusCode, p2p_pb.StatusCode_NOT_FOUND)
 }
 
-func createMocknet(t *testing.T) (libhost.Host, libhost.Host) {
-	net, err := mocknet.FullMeshConnected(2)
+func createMocknet(t *testing.T, amount int) []libhost.Host {
+	net, err := mocknet.FullMeshConnected(amount)
 	require.NoError(t, err)
 	// get host and peer
-	return net.Hosts()[0], net.Hosts()[1]
+	return net.Hosts()
 }
 
 // createP2PExAndServer creates a Exchange with 5 headers already in its store.
@@ -244,11 +265,15 @@ func createP2PExAndServer(t *testing.T, host, tpeer libhost.Host) (header.Exchan
 	err := serverSideEx.Start(context.Background())
 	require.NoError(t, err)
 
+	exchange := NewExchange(host, []peer.ID{tpeer.ID()}, "private")
+	exchange.peerTracker.connectedPeers[tpeer.ID()] = &peerStat{peerID: tpeer.ID()}
+	exchange.Start(context.Background()) //nolint:errcheck
+
 	t.Cleanup(func() {
 		serverSideEx.Stop(context.Background()) //nolint:errcheck
+		exchange.Stop(context.Background())     //nolint:errcheck
 	})
-
-	return NewExchange(host, []peer.ID{tpeer.ID()}, "private"), store
+	return exchange, store
 }
 
 type mockStore struct {

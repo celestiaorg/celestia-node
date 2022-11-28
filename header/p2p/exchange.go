@@ -40,11 +40,14 @@ const PubSubTopic = "header-sub"
 // Exchange enables sending outbound ExtendedHeaderRequests to the network as well as
 // handling inbound ExtendedHeaderRequests from the network.
 type Exchange struct {
-	protocolID protocol.ID
+	ctx    context.Context
+	cancel context.CancelFunc
 
-	host host.Host
+	protocolID protocol.ID
+	host       host.Host
 
 	trustedPeers peer.IDSlice
+	peerTracker  *peerTracker
 }
 
 func protocolID(protocolSuffix string) protocol.ID {
@@ -56,7 +59,19 @@ func NewExchange(host host.Host, peers peer.IDSlice, protocolSuffix string) *Exc
 		host:         host,
 		protocolID:   protocolID(protocolSuffix),
 		trustedPeers: peers,
+		peerTracker:  newPeerTracker(host),
 	}
+}
+
+func (ex *Exchange) Start(context.Context) error {
+	ex.ctx, ex.cancel = context.WithCancel(context.Background())
+	go ex.peerTracker.track(ex.ctx)
+	return nil
+}
+
+func (ex *Exchange) Stop(context.Context) error {
+	ex.cancel()
+	return nil
 }
 
 // Head requests the latest ExtendedHeader. Note that the ExtendedHeader
@@ -128,13 +143,12 @@ func (ex *Exchange) GetByHeight(ctx context.Context, height uint64) (*header.Ext
 // GetRangeByHeight performs a request for the given range of ExtendedHeaders
 // to the network. Note that the ExtendedHeaders must be verified thereafter.
 func (ex *Exchange) GetRangeByHeight(ctx context.Context, from, amount uint64) ([]*header.ExtendedHeader, error) {
-	log.Debugw("requesting headers", "from", from, "to", from+amount)
-	// create request
-	req := &p2p_pb.ExtendedHeaderRequest{
-		Data:   &p2p_pb.ExtendedHeaderRequest_Origin{Origin: from},
-		Amount: amount,
+	if amount > maxRequestSize {
+		return nil, header.ErrHeadersLimitExceeded
 	}
-	return ex.performRequest(ctx, req)
+	session := newSession(ex.ctx, ex.host, ex.peerTracker.peers(), ex.protocolID)
+	defer session.close()
+	return session.getRangeByHeight(ctx, from, amount)
 }
 
 // Get performs a request for the ExtendedHeader by the given hash corresponding
