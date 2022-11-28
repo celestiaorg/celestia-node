@@ -60,14 +60,13 @@ func TestExchange_RequestHeaders(t *testing.T) {
 func TestExchange_RequestFullRangeHeaders(t *testing.T) {
 	// create mocknet with 5 peers
 	hosts := createMocknet(t, 5)
-	// set max amount of headers per 1 peer
-	headersPerPeer = 10
 	totalAmount := 80
 	store := createStore(t, totalAmount)
 	protocolSuffix := "private"
 	// create new exchange
 	exchange, err := NewExchange(hosts[len(hosts)-1], []peer.ID{}, protocolSuffix)
 	require.NoError(t, err)
+	exchange.Params.MaxHeadersPerRequest = 10
 	exchange.ctx, exchange.cancel = context.WithCancel(context.Background())
 	t.Cleanup(exchange.cancel)
 	servers := make([]*ExchangeServer, len(hosts)-1) // amount of servers is len(hosts)-1 because one peer acts as a client

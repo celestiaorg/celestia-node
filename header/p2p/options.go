@@ -11,23 +11,26 @@ type Option func(*Parameters)
 
 // Parameters is the set of parameters that must be configured for the exchange.
 type Parameters struct {
-	// writeDeadline sets timeout for sending messages to the stream
+	// WriteDeadline sets timeout for sending messages to the stream
 	WriteDeadline time.Duration
-	// readDeadline sets timeout for reading messages from the stream
+	// ReadDeadline sets timeout for reading messages from the stream
 	ReadDeadline time.Duration
 	// the target minimum amount of responses with the same chain head
 	MinResponses int
-	// requestSize defines the max amount of headers that can be requested/handled at once.
+	// MaxRequestSize defines the max amount of headers that can be handled at once.
 	MaxRequestSize uint64
+	// MaxHeadersPerRequest defines the max amount of headers that can be requested per 1 request.
+	MaxHeadersPerRequest uint64
 }
 
 // DefaultParameters returns the default params to configure the store.
 func DefaultParameters() *Parameters {
 	return &Parameters{
-		WriteDeadline:  time.Second * 5,
-		ReadDeadline:   time.Minute,
-		MinResponses:   2,
-		MaxRequestSize: 512,
+		WriteDeadline:        time.Second * 5,
+		ReadDeadline:         time.Minute,
+		MinResponses:         2,
+		MaxRequestSize:       512,
+		MaxHeadersPerRequest: 64,
 	}
 }
 
@@ -45,6 +48,9 @@ func (p *Parameters) Validate() error {
 	}
 	if p.MaxRequestSize == 0 {
 		return fmt.Errorf("invalid max request size: %s", errSuffix)
+	}
+	if p.MaxHeadersPerRequest == 0 || p.MaxHeadersPerRequest > p.MaxRequestSize {
+		return fmt.Errorf("invalid max headers per request: %s", errSuffix)
 	}
 	return nil
 }
@@ -78,5 +84,13 @@ func WithMinResponses(responses int) Option {
 func WithMaxRequestSize(size uint64) Option {
 	return func(p *Parameters) {
 		p.MaxRequestSize = size
+	}
+}
+
+// WithMaxRequestSize is a functional option that configures the
+// // `MaxRequestSize` parameter.
+func WithMaxHeadersPerRequest(amount uint64) Option {
+	return func(p *Parameters) {
+		p.MaxHeadersPerRequest = amount
 	}
 }

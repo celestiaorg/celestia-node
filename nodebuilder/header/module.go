@@ -43,6 +43,7 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 					p2p.WithReadDeadline(cfg.P2PExchange.ReadDeadline),
 					p2p.WithMinResponses(cfg.P2PExchange.MinResponses),
 					p2p.WithMaxRequestSize(cfg.P2PExchange.MaxRequestSize),
+					p2p.WithMaxHeadersPerRequest(cfg.P2PExchange.MaxHeadersPerRequest),
 				}
 			},
 		),
