@@ -3,15 +3,10 @@ package p2p
 import (
 	"context"
 	"errors"
-	"io"
 	"sort"
-	"time"
 
 	"github.com/libp2p/go-libp2p-core/host"
-	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/libp2p/go-libp2p-core/protocol"
-
-	"github.com/celestiaorg/go-libp2p-messenger/serde"
 
 	"github.com/celestiaorg/celestia-node/header"
 	p2p_pb "github.com/celestiaorg/celestia-node/header/p2p/pb"
@@ -116,7 +111,7 @@ func (s *session) doRequest(
 	req *p2p_pb.ExtendedHeaderRequest,
 	headers chan []*header.ExtendedHeader,
 ) {
-	r, size, duration, err := s.requestHeaders(ctx, stat.peerID, req)
+	r, size, duration, err := sendMessage(ctx, s.host, stat.peerID, s.protocolID, req)
 	if err != nil {
 		if err == context.Canceled || err == context.DeadlineExceeded {
 			return
@@ -142,58 +137,6 @@ func (s *session) doRequest(
 	headers <- h
 	stat.updateStats(size, duration)
 	s.queue.push(stat)
-}
-
-// requestHeaders sends the ExtendedHeaderRequest to a remote peer.
-func (s *session) requestHeaders(
-	ctx context.Context,
-	to peer.ID,
-	req *p2p_pb.ExtendedHeaderRequest,
-) ([]*p2p_pb.ExtendedHeaderResponse, uint64, uint64, error) {
-	startTime := time.Now()
-	stream, err := s.host.NewStream(ctx, to, s.protocolID)
-	if err != nil {
-		return nil, 0, 0, err
-	}
-
-	// set stream deadline from the context deadline.
-	// if it is empty, then we assume that it will
-	// hang until the server will close the stream by the timeout.
-	if dl, ok := ctx.Deadline(); ok {
-		if err = stream.SetDeadline(dl); err != nil {
-			log.Debugw("error setting deadline: %s", err)
-		}
-	}
-	// send request
-	_, err = serde.Write(stream, req)
-	if err != nil {
-		stream.Reset() //nolint:errcheck
-		return nil, 0, 0, err
-	}
-	err = stream.CloseWrite()
-	if err != nil {
-		log.Error(err)
-	}
-	headers := make([]*p2p_pb.ExtendedHeaderResponse, 0)
-	totalRequestSize := uint64(0)
-	for i := 0; i < int(req.Amount); i++ {
-		resp := new(p2p_pb.ExtendedHeaderResponse)
-		msgSize, err := serde.Read(stream, resp)
-		if err != nil {
-			if err == io.EOF {
-				break
-			}
-			stream.Reset() //nolint:errcheck
-			return nil, 0, 0, err
-		}
-		totalRequestSize += uint64(msgSize)
-		headers = append(headers, resp)
-	}
-	duration := time.Since(startTime).Milliseconds()
-	if err = stream.Close(); err != nil {
-		log.Errorw("closing stream", "err", err)
-	}
-	return headers, totalRequestSize, uint64(duration), nil
 }
 
 // processResponse converts ExtendedHeaderResponse to ExtendedHeader.

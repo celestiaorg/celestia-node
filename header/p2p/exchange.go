@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"math/rand"
 	"sort"
 	"time"
@@ -194,53 +195,23 @@ func (ex *Exchange) request(
 	to peer.ID,
 	req *p2p_pb.ExtendedHeaderRequest,
 ) ([]*header.ExtendedHeader, error) {
-	stream, err := ex.host.NewStream(ctx, to, ex.protocolID)
+	responses, _, _, err := sendMessage(ctx, ex.host, to, ex.protocolID, req)
 	if err != nil {
 		return nil, err
 	}
-	if err = stream.SetWriteDeadline(time.Now().Add(writeDeadline)); err != nil {
-		log.Debugf("error setting deadline: %s", err)
-	}
-	// send request
-	_, err = serde.Write(stream, req)
-	if err != nil {
-		stream.Reset() //nolint:errcheck
-		return nil, err
-	}
-	err = stream.CloseWrite()
-	if err != nil {
-		log.Error(err)
-	}
-	// read responses
-	headers := make([]*header.ExtendedHeader, req.Amount)
-	for i := 0; i < int(req.Amount); i++ {
-		resp := new(p2p_pb.ExtendedHeaderResponse)
-		if err = stream.SetReadDeadline(time.Now().Add(readDeadline)); err != nil {
-			log.Debugf("error setting deadline: %s", err)
-		}
-		_, err := serde.Read(stream, resp)
-		if err != nil {
-			stream.Reset() //nolint:errcheck
-			return nil, err
-		}
-
-		if err = convertStatusCodeToError(resp.StatusCode); err != nil {
-			stream.Reset() //nolint:errcheck
-			return nil, err
-		}
-		header, err := header.UnmarshalExtendedHeader(resp.Body)
-		if err != nil {
-			stream.Reset() //nolint:errcheck
-			return nil, err
-		}
-
-		headers[i] = header
-	}
-	if err = stream.Close(); err != nil {
-		log.Errorw("closing stream", "err", err)
-	}
-	if len(headers) == 0 {
+	if len(responses) == 0 {
 		return nil, header.ErrNotFound
+	}
+	headers := make([]*header.ExtendedHeader, 0, len(responses))
+	for _, response := range responses {
+		if err = convertStatusCodeToError(response.StatusCode); err != nil {
+			return nil, err
+		}
+		header, err := header.UnmarshalExtendedHeader(response.Body)
+		if err != nil {
+			return nil, err
+		}
+		headers = append(headers, header)
 	}
 	return headers, nil
 }
@@ -287,4 +258,58 @@ func convertStatusCodeToError(code p2p_pb.StatusCode) error {
 	default:
 		return fmt.Errorf("unknown status code %d", code)
 	}
+}
+
+// sendMessage opens the stream to the given peers and sends ExtendedHeaderRequest to fetch ExtendedHeaders.
+func sendMessage(
+	ctx context.Context,
+	host host.Host,
+	to peer.ID,
+	protocol protocol.ID,
+	req *p2p_pb.ExtendedHeaderRequest,
+) ([]*p2p_pb.ExtendedHeaderResponse, uint64, uint64, error) {
+	startTime := time.Now()
+	stream, err := host.NewStream(ctx, to, protocol)
+	if err != nil {
+		return nil, 0, 0, err
+	}
+
+	// set stream deadline from the context deadline.
+	// if it is empty, then we assume that it will
+	// hang until the server will close the stream by the timeout.
+	if dl, ok := ctx.Deadline(); ok {
+		if err = stream.SetDeadline(dl); err != nil {
+			log.Debugw("error setting deadline: %s", err)
+		}
+	}
+	// send request
+	_, err = serde.Write(stream, req)
+	if err != nil {
+		stream.Reset() //nolint:errcheck
+		return nil, 0, 0, err
+	}
+	err = stream.CloseWrite()
+	if err != nil {
+		log.Error(err)
+	}
+	headers := make([]*p2p_pb.ExtendedHeaderResponse, 0)
+	totalRequestSize := uint64(0)
+	for i := 0; i < int(req.Amount); i++ {
+		resp := new(p2p_pb.ExtendedHeaderResponse)
+		msgSize, err := serde.Read(stream, resp)
+		if err != nil {
+			if err == io.EOF {
+				break
+			}
+			stream.Reset() //nolint:errcheck
+			return nil, 0, 0, err
+		}
+		totalRequestSize += uint64(msgSize)
+		headers = append(headers, resp)
+	}
+	duration := time.Since(startTime).Milliseconds()
+	if err = stream.Close(); err != nil {
+		log.Errorw("closing stream", "err", err)
+	}
+	return headers, totalRequestSize, uint64(duration), nil
 }
