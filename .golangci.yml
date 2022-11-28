@@ -16,7 +16,7 @@ linters:
     # - gocyclo
     # - godox
     - gofmt
-    - goimports
+#    - goimports
     # - golint - deprecated since v1.41. revive will be used instead
     - revive
     - gosec
