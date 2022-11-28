@@ -13,8 +13,6 @@ import (
 	"github.com/ipld/go-car/util"
 )
 
-var errNilReader = errors.New("ods-reader: can't create ODSReader over nil reader")
-
 // bufferedODSReader will read odsSquareSize amount of leaves from reader into the buffer.
 // It exposes the buffer to be read by io.Reader interface implementation
 type bufferedODSReader struct {
@@ -27,13 +25,13 @@ type bufferedODSReader struct {
 
 // ODSReader reads CARv1 encoded data from io.ReadCloser and limits the reader to the CAR header
 // and first quadrant (ODS)
-func ODSReader(carReader io.ReadCloser) (io.Reader, error) {
+func ODSReader(carReader io.Reader) (io.Reader, error) {
 	if carReader == nil {
-		return nil, errNilReader
+		return nil, errors.New("eds: can't create ODSReader over nil reader")
 	}
 
 	odsR := &bufferedODSReader{
-		carReader: bufio.NewReaderSize(carReader, 4),
+		carReader: bufio.NewReader(carReader),
 		buf:       new(bytes.Buffer),
 	}
 
@@ -59,12 +57,9 @@ func ODSReader(carReader io.ReadCloser) (io.Reader, error) {
 }
 
 func (r *bufferedODSReader) Read(p []byte) (n int, err error) {
-	// provided slice could be fully filled from buffer without extra reads
-	if r.buf.Len() > len(p) {
-		return r.buf.Read(p)
-	}
-
-	if r.current < r.odsSquareSize && r.buf.Len() < len(p) {
+	// read leafs to the buffer until it has sufficient data to fill provided container or full eds is
+	// read
+	for r.current < r.odsSquareSize && r.buf.Len() < len(p) {
 		if err := r.readLeaf(); err != nil {
 			return 0, err
 		}
@@ -99,6 +94,5 @@ func (r *bufferedODSReader) readLeaf() error {
 	r.buf.Write(buf[:n])
 
 	_, err = r.buf.ReadFrom(io.LimitReader(r.carReader, int64(l)))
-
 	return err
 }

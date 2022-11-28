@@ -60,3 +60,35 @@ func TestODSReader(t *testing.T) {
 	_, err = carReader.Next()
 	assert.Error(t, io.EOF, err)
 }
+
+// TestODSReaderReconstruction ensures that the reader returned from ODSReader provides sufficient
+// data for EDS reconstruction
+func TestODSReaderReconstruction(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(cancel)
+
+	// launch eds store
+	edsStore, err := newStore(t)
+	require.NoError(t, err)
+	err = edsStore.Start(ctx)
+	require.NoError(t, err)
+
+	// generate random eds data and put it into the store
+	eds, dah := randomEDS(t)
+	err = edsStore.Put(ctx, dah, eds)
+	require.NoError(t, err)
+
+	// get CAR reader from store
+	r, err := edsStore.GetCAR(ctx, dah)
+	assert.NoError(t, err)
+
+	// create ODSReader wrapper based on car reader to limit reads to ODS only
+	odsR, err := ODSReader(r)
+	assert.NoError(t, err)
+
+	// reconstruct EDS from ODSReader
+	loaded, err := ReadEDS(ctx, odsR, dah)
+	assert.NoError(t, err)
+	require.Equal(t, eds.RowRoots(), loaded.RowRoots())
+	require.Equal(t, eds.ColRoots(), loaded.ColRoots())
+}
