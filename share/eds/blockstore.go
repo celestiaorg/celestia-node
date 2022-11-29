@@ -34,6 +34,9 @@ type accessorWithBlockstore struct {
 // The main differences to the implementation here are that we do not support multiple shards per
 // key, call GetSize directly on the underlying RO blockstore, and do not throw errors on
 // Put/PutMany. Also, we do not abstract away the blockstore operations.
+//
+// The intuition here is that each CAR file is its own blockstore, so we need this top level
+// implementation to allow for the blockstore operations to be routed to the underlying stores.
 type Blockstore struct {
 	store *Store
 
@@ -57,7 +60,7 @@ func NewEDSBlockstore(s *Store) (*Blockstore, error) {
 		}
 	})
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to instantiate blockstore cache: %w", err)
 	}
 	return &Blockstore{
 		store:           s,
@@ -68,7 +71,7 @@ func NewEDSBlockstore(s *Store) (*Blockstore, error) {
 func (bs *Blockstore) Has(ctx context.Context, cid cid.Cid) (bool, error) {
 	keys, err := bs.store.dgstr.ShardsContainingMultihash(ctx, cid.Hash())
 	if err != nil {
-		return false, err
+		return false, fmt.Errorf("failed to find shards containing multihash: %w", err)
 	}
 	return len(keys) > 0, nil
 }
@@ -76,6 +79,8 @@ func (bs *Blockstore) Has(ctx context.Context, cid cid.Cid) (bool, error) {
 func (bs *Blockstore) Get(ctx context.Context, cid cid.Cid) (blocks.Block, error) {
 	blockstr, err := bs.getReadOnlyBlockstore(ctx, cid)
 	if err != nil {
+		log.Debugf("failed to get blockstore for cid %s: %s", cid, err)
+		// nmt's GetNode expects an ipld.ErrNotFound when a cid is not found.
 		return nil, ipld.ErrNotFound{Cid: cid}
 	}
 	return blockstr.Get(ctx, cid)
@@ -119,10 +124,11 @@ func (bs *Blockstore) HashOnRead(bool) {
 	log.Warnf("HashOnRead is a noop on the EDS blockstore")
 }
 
+// getReadOnlyBlockstore finds the underlying blockstore of the shard that contains the given CID.
 func (bs *Blockstore) getReadOnlyBlockstore(ctx context.Context, cid cid.Cid) (dagstore.ReadBlockstore, error) {
 	keys, err := bs.store.dgstr.ShardsContainingMultihash(ctx, cid.Hash())
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to find shards containing multihash: %w", err)
 	}
 	if len(keys) != 1 {
 		return nil, ErrInvalidShardCount
@@ -131,6 +137,9 @@ func (bs *Blockstore) getReadOnlyBlockstore(ctx context.Context, cid cid.Cid) (d
 	// try to fetch from cache
 	shardKey := keys[0]
 	blockstr, err := bs.readFromBSCache(shardKey)
+	if err != nil {
+		log.Debugf("blockstore cache miss for key %s: %s", shardKey, err)
+	}
 	if err == nil && blockstr != nil {
 		return blockstr, nil
 	}
@@ -139,13 +148,13 @@ func (bs *Blockstore) getReadOnlyBlockstore(ctx context.Context, cid cid.Cid) (d
 	ch := make(chan dagstore.ShardResult, 1)
 	err = bs.store.dgstr.AcquireShard(ctx, shardKey, ch, dagstore.AcquireOpts{})
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to initialize shard acquisition: %w", err)
 	}
 
 	select {
 	case res := <-ch:
 		if res.Error != nil {
-			return nil, res.Error
+			return nil, fmt.Errorf("failed to acquire shard: %w", res.Error)
 		}
 		return bs.addToBSCache(shardKey, res.Accessor)
 	case <-ctx.Done():
@@ -180,7 +189,7 @@ func (bs *Blockstore) addToBSCache(
 ) (dagstore.ReadBlockstore, error) {
 	blockStore, err := accessor.Blockstore()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get blockstore from accessor: %w", err)
 	}
 
 	lk := &bs.bsStripedLocks[shardKeyToStriped(shardContainingCid)]
