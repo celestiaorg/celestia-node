@@ -184,9 +184,6 @@ func (s *session) requestHeaders(
 				break
 			}
 			stream.Reset() //nolint:errcheck
-			if err == io.EOF {
-				break
-			}
 			return nil, 0, 0, err
 		}
 		totalRequestSize += uint64(msgSize)

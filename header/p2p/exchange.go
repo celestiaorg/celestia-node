@@ -3,7 +3,6 @@ package p2p
 import (
 	"bytes"
 	"context"
-	"errors"
 	"fmt"
 	"math/rand"
 	"sort"
@@ -156,26 +155,25 @@ func (ex *Exchange) GetRangeByHeight(ctx context.Context, from, amount uint64) (
 // that returned headers are correct against the passed one.
 func (ex *Exchange) GetVerifiedRange(
 	ctx context.Context,
-	from *header.ExtendedHeader,
+	origin *header.ExtendedHeader,
 	amount uint64,
 ) ([]*header.ExtendedHeader, error) {
 	session := newSession(ex.ctx, ex.host, ex.peerTracker.peers(), ex.protocolID)
 	defer session.close()
-	headers, err := session.getRangeByHeight(ctx, uint64(from.Height), amount)
+
+	headers, err := session.getRangeByHeight(ctx, uint64(origin.Height)+1, amount)
 	if err != nil {
 		return nil, err
 	}
-	nextHeight := from.Height + 1
+
 	for _, h := range headers {
-		if nextHeight != h.Height {
-			return nil, errors.New("header/p2p: returned headers are not contiguous")
-		}
-		nextHeight++
-		err := from.VerifyNonAdjacent(h)
+		err := origin.VerifyAdjacent(h)
 		if err != nil {
 			return nil, err
 		}
+		origin = h
 	}
+
 	return headers, nil
 }
 

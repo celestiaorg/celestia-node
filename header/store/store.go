@@ -253,16 +253,17 @@ func (s *Store) GetVerifiedRange(
 	if uint64(from.Height) >= to {
 		return nil, fmt.Errorf("header/store: invalid range(%d,%d)", from.Height, to)
 	}
-	headers, err := s.GetRangeByHeight(ctx, uint64(from.Height), to)
+	headers, err := s.GetRangeByHeight(ctx, uint64(from.Height)+1, to)
 	if err != nil {
 		return nil, err
 	}
 
 	for _, h := range headers {
-		err := from.VerifyNonAdjacent(h)
+		err := from.VerifyAdjacent(h)
 		if err != nil {
 			return nil, err
 		}
+		from = h
 	}
 
 	return headers, nil
