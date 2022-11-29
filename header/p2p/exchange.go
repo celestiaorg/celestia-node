@@ -13,7 +13,6 @@ import (
 	"github.com/libp2p/go-libp2p-core/host"
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/libp2p/go-libp2p-core/protocol"
-	"github.com/libp2p/go-libp2p/p2p/net/conngater"
 	tmbytes "github.com/tendermint/tendermint/libs/bytes"
 
 	"github.com/celestiaorg/go-libp2p-messenger/serde"
@@ -58,7 +57,6 @@ func protocolID(protocolSuffix string) protocol.ID {
 
 func NewExchange(
 	host host.Host,
-	connGater *conngater.BasicConnectionGater,
 	peers peer.IDSlice,
 	protocolSuffix string,
 ) *Exchange {
@@ -66,7 +64,7 @@ func NewExchange(
 		host:         host,
 		protocolID:   protocolID(protocolSuffix),
 		trustedPeers: peers,
-		peerTracker:  newPeerTracker(host, connGater),
+		peerTracker:  newPeerTracker(host),
 	}
 }
 
@@ -171,18 +169,14 @@ func (ex *Exchange) GetVerifiedRangeByHeight(
 	if err != nil {
 		return nil, err
 	}
-	fromHeight := from.Height + 1
+	nextHeight := from.Height + 1
 	for _, h := range headers {
-		if fromHeight != h.Height {
-			pid := session.peerByHeaderHeight(h.Height)
-			ex.peerTracker.blockPeer(pid)
+		if nextHeight != h.Height {
 			return nil, errors.New("header/p2p: returned headers are not contiguous")
 		}
-		fromHeight++
+		nextHeight++
 		err := from.VerifyNonAdjacent(h)
 		if err != nil {
-			pid := session.peerByHeaderHeight(h.Height)
-			ex.peerTracker.blockPeer(pid)
 			return nil, err
 		}
 	}

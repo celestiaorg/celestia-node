@@ -5,7 +5,6 @@ import (
 	"errors"
 	"io"
 	"sort"
-	"sync"
 	"time"
 
 	"github.com/libp2p/go-libp2p-core/host"
@@ -24,12 +23,6 @@ var (
 	headersPerPeer uint64 = 64
 )
 
-// requestStat contains a range [from;to] that was requested from the peer.
-type requestStat struct {
-	from int64
-	to   int64
-}
-
 // session aims to divide a range of headers
 // into several smaller requests among different peers.
 type session struct {
@@ -42,10 +35,6 @@ type session struct {
 
 	reqCh chan *p2p_pb.ExtendedHeaderRequest
 	errCh chan error
-
-	cacheLk sync.Mutex
-	// requestsCache used to store ranges that will be requested from the peer.
-	requestsCache map[peer.ID][]requestStat
 }
 
 func newSession(ctx context.Context, h host.Host, peerTracker []*peerStat, protocolID protocol.ID) *session {
@@ -228,19 +217,6 @@ func (s *session) processResponse(responses []*p2p_pb.ExtendedHeaderResponse) ([
 		return nil, header.ErrNotFound
 	}
 	return headers, nil
-}
-
-func (s *session) peerByHeaderHeight(height int64) peer.ID {
-	s.cacheLk.Lock()
-	defer s.cacheLk.Lock()
-	for pID, stat := range s.requestsCache {
-		for _, req := range stat {
-			if req.from >= height && req.to <= height {
-				return pID
-			}
-		}
-	}
-	panic("could not found in range")
 }
 
 // prepareRequests converts incoming range into separate ExtendedHeaderRequest.
