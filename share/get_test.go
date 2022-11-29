@@ -15,11 +15,13 @@ import (
 	blockstore "github.com/ipfs/go-ipfs-blockstore"
 	offline "github.com/ipfs/go-ipfs-exchange-offline"
 	mdutils "github.com/ipfs/go-merkledag/test"
+	"github.com/minio/sha256-simd"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/celestiaorg/celestia-app/pkg/wrapper"
 	"github.com/celestiaorg/celestia-node/share/ipld"
+	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/nmt/namespace"
 	"github.com/celestiaorg/rsmt2d"
 )
@@ -165,7 +167,7 @@ func TestGetSharesByNamespace(t *testing.T) {
 			var shares []Share
 			for _, row := range eds.RowRoots() {
 				rcid := ipld.MustCidFromNamespacedSha256(row)
-				rowShares, err := GetSharesByNamespace(ctx, bServ, rcid, nID, len(eds.RowRoots()))
+				rowShares, err := GetSharesByNamespace(ctx, bServ, rcid, nID, len(eds.RowRoots()), nil)
 				require.NoError(t, err)
 
 				shares = append(shares, rowShares...)
@@ -219,10 +221,9 @@ func TestGetLeavesByNamespace_IncompleteData(t *testing.T) {
 	err = bServ.DeleteBlock(ctx, r.Cid())
 	require.NoError(t, err)
 
-	nodes, err := ipld.GetLeavesByNamespace(ctx, bServ, rcid, nid, len(shares))
-	assert.Equal(t, nil, nodes[1])
-	// TODO(distractedm1nd): Decide if we should return an array containing nil
-	assert.Equal(t, 4, len(nodes))
+	leaves, err := ipld.GetLeavesByNamespace(ctx, bServ, rcid, nid, len(shares), nil)
+	assert.Nil(t, leaves[1])
+	assert.Equal(t, 4, len(leaves))
 	require.Error(t, err)
 }
 
@@ -301,14 +302,97 @@ func TestGetLeavesByNamespace_MultipleRowsContainingSameNamespaceId(t *testing.T
 
 	for _, row := range eds.RowRoots() {
 		rcid := ipld.MustCidFromNamespacedSha256(row)
-		nodes, err := ipld.GetLeavesByNamespace(ctx, bServ, rcid, nid, len(shares))
+		leaves, err := ipld.GetLeavesByNamespace(ctx, bServ, rcid, nid, len(shares), nil)
 		assert.Nil(t, err)
 
-		for _, node := range nodes {
+		for _, node := range leaves {
 			// test that the data returned by getLeavesByNamespace for nid
 			// matches the commonNamespaceData that was copied across almost all data
 			assert.Equal(t, commonNamespaceData, node.RawData()[NamespaceSize:])
 		}
+	}
+}
+
+func TestGetSharesWithProofsByNamespace(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(cancel)
+	bServ := mdutils.Bserv()
+
+	var tests = []struct {
+		rawData []Share
+	}{
+		{rawData: RandShares(t, 4)},
+		{rawData: RandShares(t, 16)},
+		{rawData: RandShares(t, 64)},
+	}
+
+	for i, tt := range tests {
+		t.Run(strconv.Itoa(i), func(t *testing.T) {
+			rand.Seed(time.Now().UnixNano())
+			// choose random range in shares slice
+			from := rand.Intn(len(tt.rawData))
+			to := rand.Intn(len(tt.rawData))
+
+			if to < from {
+				from, to = to, from
+			}
+
+			expected := tt.rawData[from]
+			nID := expected[:NamespaceSize]
+
+			// change rawData to contain several shares with same nID
+			for i := from; i <= to; i++ {
+				tt.rawData[i] = expected
+			}
+
+			// put raw data in BlockService
+			eds, err := AddShares(ctx, tt.rawData, bServ)
+			require.NoError(t, err)
+
+			var shares []Share
+			for _, row := range eds.RowRoots() {
+				rcid := ipld.MustCidFromNamespacedSha256(row)
+				proof := new(ipld.Proof)
+				rowShares, err := GetSharesByNamespace(ctx, bServ, rcid, nID, len(eds.RowRoots()), proof)
+				require.NoError(t, err)
+				if rowShares != nil {
+					// append shares to check integrity later
+					shares = append(shares, rowShares...)
+
+					// construct nodes from shares by prepending namespace
+					var leaves [][]byte
+					for _, sh := range rowShares {
+						leaves = append(leaves, append(sh[:NamespaceSize], sh...))
+					}
+
+					proofNodes := make([][]byte, 0, len(proof.Nodes))
+					for _, n := range proof.Nodes {
+						proofNodes = append(proofNodes, ipld.NamespacedSha256FromCID(n))
+					}
+
+					// construct new proof
+					inclusionProof := nmt.NewInclusionProof(
+						proof.Start,
+						proof.End,
+						proofNodes,
+						ipld.NMTIgnoreMaxNamespace)
+
+					// verify inclusion
+					verified := inclusionProof.VerifyNamespace(
+						sha256.New(),
+						nID,
+						leaves,
+						ipld.NamespacedSha256FromCID(rcid))
+					require.True(t, verified)
+				}
+			}
+
+			// validate shares
+			assert.Equal(t, to-from+1, len(shares))
+			for _, share := range shares {
+				assert.Equal(t, expected, share)
+			}
+		})
 	}
 }
 
@@ -363,8 +447,8 @@ func assertNoRowContainsNID(
 
 	// for each row root cid check if the minNID exists
 	for _, rowCID := range rowRootCIDs {
-		data, err := ipld.GetLeavesByNamespace(context.Background(), bServ, rowCID, nID, rowRootCount)
-		assert.Nil(t, data)
+		leaves, err := ipld.GetLeavesByNamespace(context.Background(), bServ, rowCID, nID, rowRootCount, nil)
+		assert.Nil(t, leaves)
 		assert.Nil(t, err)
 	}
 }

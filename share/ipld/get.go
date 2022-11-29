@@ -124,7 +124,7 @@ func GetLeaves(ctx context.Context,
 
 				span.SetAttributes(
 					attribute.String("cid", j.id.String()),
-					attribute.Int("pos", j.pos),
+					attribute.Int("pos", j.sharePos),
 				)
 
 				nd, err := GetNode(ctx, bGetter, j.id)
@@ -141,7 +141,7 @@ func GetLeaves(ctx context.Context,
 					// successfully fetched a share/leaf
 					// ladies and gentlemen, we got em!
 					span.SetStatus(codes.Ok, "")
-					put(j.pos, nd)
+					put(j.sharePos, nd)
 					return
 				}
 				// ok, we found more links
@@ -152,7 +152,7 @@ func GetLeaves(ctx context.Context,
 						id: lnk.Cid,
 						// calc position for children nodes (bin-tree-feat),
 						// s.t. 'if' above knows where to put a share
-						pos: j.pos*2 + i,
+						sharePos: j.sharePos*2 + i,
 						// we pass the context to job so that spans are tracked in a tree
 						// structure
 						ctx: ctx,
@@ -170,16 +170,19 @@ func GetLeaves(ctx context.Context,
 	wg.Wait()
 }
 
-// GetLeavesByNamespace returns as many leaves from the given root with the given namespace.ID as
-// it can retrieve. If no shares are found, it returns both data and error as nil.
-// A non-nil error means that only partial data is returned, because at least one share retrieval
-// failed The following implementation is based on `GetShares`.
+// GetLeavesByNamespace returns leaves and corresponding proof that could be used to verify leaves
+// inclusion. It returns as many leaves from the given root with the given namespace.ID as it can
+// retrieve. If no shares are found, it returns both data and error as nil. If non-nil
+// proofContainer param passed, it will be filled with data required for inclusion verification. A
+// non-nil error means that only partial data is returned, because at least one share retrieval
+// failed. The following implementation is based on `GetShares`.
 func GetLeavesByNamespace(
 	ctx context.Context,
 	bGetter blockservice.BlockGetter,
 	root cid.Cid,
 	nID namespace.ID,
 	maxShares int,
+	proofContainer *Proof,
 ) ([]ipld.Node, error) {
 	if len(nID) != NamespaceSize {
 		return nil, fmt.Errorf("expected namespace ID of size %d, got %d", NamespaceSize, len(nID))
@@ -216,84 +219,116 @@ func GetLeavesByNamespace(
 	// on the level above, the length of the Row is passed in as maxShares
 	leaves := make([]ipld.Node, maxShares)
 
+	// if non-nil proof container provided, collect proofs while traversing the tree and fill put them
+	// into container after
+	var collectProofs = proofContainer != nil
+	var proofs *proofCollector
+	if collectProofs {
+		proofs = newProofCollector(maxShares)
+	}
+
 	for {
+		var j *job
+		var ok bool
 		select {
-		case j, ok := <-jobs:
-			if !ok {
-				// if there were no leaves under the given root in the given namespace,
-				// both return values are nil. otherwise, the error will also be non-nil.
-				if bounds.lowest == int64(maxShares) {
-					return nil, retrievalErr
-				}
-
-				return leaves[bounds.lowest : bounds.highest+1], retrievalErr
-			}
-			pool.Submit(func() {
-				ctx, span := tracer.Start(j.ctx, "process-job")
-				defer span.End()
-				defer wg.done()
-
-				span.SetAttributes(
-					attribute.String("cid", j.id.String()),
-					attribute.Int("pos", j.pos),
-				)
-
-				// if an error is likely to be returned or not depends on
-				// the underlying impl of the blockservice, currently it is not a realistic probability
-				nd, err := GetNode(ctx, bGetter, j.id)
-				if err != nil {
-					singleErr.Do(func() {
-						retrievalErr = err
-					})
-					log.Errorw("getSharesByNamespace: could not retrieve node", "nID", nID, "pos", j.pos, "err", err)
-					span.SetStatus(codes.Error, err.Error())
-					// we still need to update the bounds
-					bounds.update(int64(j.pos))
-					return
-				}
-
-				links := nd.Links()
-				if len(links) == 0 {
-					// successfully fetched a leaf belonging to the namespace
-					span.SetStatus(codes.Ok, "")
-					leaves[j.pos] = nd
-					// we found a leaf, so we update the bounds
-					// the update routine is repeated until the atomic swap is successful
-					bounds.update(int64(j.pos))
-					return
-				}
-
-				// this node has links in the namespace, so keep walking
-				for i, lnk := range links {
-					newJob := &job{
-						id: lnk.Cid,
-						// position represents the index in a flattened binary tree,
-						// so we can return a slice of leaves in order
-						pos: j.pos*2 + i,
-						// we pass the context to job so that spans are tracked in a tree
-						// structure
-						ctx: ctx,
-					}
-
-					// if the link's nID isn't in range we don't need to create a new job for it
-					jobNid := NamespacedSha256FromCID(newJob.id)
-					if nID.Less(nmt.MinNamespace(jobNid, nID.Size())) || !nID.LessOrEqual(nmt.MaxNamespace(jobNid, nID.Size())) {
-						continue
-					}
-
-					// by passing the previous check, we know we will have one more node to process
-					// note: it is important to increase the counter before sending to the channel
-					wg.add(1)
-					select {
-					case jobs <- newJob:
-					case <-ctx.Done():
-						return
-					}
-				}
-			})
+		case j, ok = <-jobs:
 		case <-ctx.Done():
 			return nil, ctx.Err()
 		}
+
+		if !ok {
+			// if there were no leaves under the given root in the given namespace,
+			// both return values are nil. otherwise, the error will also be non-nil.
+			if bounds.lowest == int64(maxShares) {
+				return nil, retrievalErr
+			}
+
+			if collectProofs {
+				proofContainer.Start = int(bounds.lowest)
+				proofContainer.End = int(bounds.highest) + 1
+				proofContainer.Nodes = proofs.Nodes()
+			}
+
+			return leaves[bounds.lowest : bounds.highest+1], retrievalErr
+		}
+		pool.Submit(func() {
+			ctx, span := tracer.Start(j.ctx, "process-job")
+			defer span.End()
+			defer wg.done()
+
+			span.SetAttributes(
+				attribute.String("cid", j.id.String()),
+				attribute.Int("pos", j.sharePos),
+			)
+
+			// if an error is likely to be returned or not depends on
+			// the underlying impl of the blockservice, currently it is not a realistic probability
+			nd, err := GetNode(ctx, bGetter, j.id)
+			if err != nil {
+				singleErr.Do(func() {
+					retrievalErr = err
+				})
+				log.Errorw("getLeavesWithProofsByNamespace: could not retrieve node", "nID", nID, "pos", j.sharePos, "err", err)
+				span.SetStatus(codes.Error, err.Error())
+				// we still need to update the bounds
+				bounds.update(int64(j.sharePos))
+				return
+			}
+
+			links := nd.Links()
+			if len(links) == 0 {
+				// successfully fetched a leaf belonging to the namespace
+				span.SetStatus(codes.Ok, "")
+				leaves[j.sharePos] = nd
+				// we found a leaf, so we update the bounds
+				// the update routine is repeated until the atomic swap is successful
+				bounds.update(int64(j.sharePos))
+				return
+			}
+
+			// this node has links in the namespace, so keep walking
+			for i, lnk := range links {
+				newJob := &job{
+					id: lnk.Cid,
+					// sharePos represents potential share position in share slice
+					sharePos: j.sharePos*2 + i,
+					// position represents the index in a flattened binary tree,
+					// so we can return a slice of leaves in order
+					depth: j.depth + 1,
+					// we pass the context to job so that spans are tracked in a tree
+					// structure
+					ctx: ctx,
+				}
+				// if the link's nID isn't in range we don't need to create a new job for it,
+				// but need to collect a proof
+				jobNid := NamespacedSha256FromCID(newJob.id)
+
+				// proof is on the right side, if the nID is less than min namespace of jobNid
+				if nID.Less(nmt.MinNamespace(jobNid, nID.Size())) {
+					if collectProofs {
+						proofs.addRight(lnk.Cid)
+					}
+					continue
+				}
+
+				// proof is on the left side, if the nID is bigger than max namespace of jobNid
+				if !nID.LessOrEqual(nmt.MaxNamespace(jobNid, nID.Size())) {
+					if collectProofs {
+						proofs.addLeft(lnk.Cid)
+					}
+					continue
+				}
+
+				// by passing the previous check, we know we will have one more node to process
+				// note: it is important to increase the counter before sending to the channel
+				wg.add(1)
+				select {
+				case jobs <- newJob:
+				case <-ctx.Done():
+					return
+				}
+			}
+		})
 	}
 }
 
@@ -383,7 +418,8 @@ func (b *fetchedBounds) update(index int64) {
 // job represents an encountered node to investigate during the `GetLeaves`
 // and `GetLeavesByNamespace` routines.
 type job struct {
-	id  cid.Cid
-	pos int
-	ctx context.Context
+	id       cid.Cid
+	sharePos int
+	depth    int
+	ctx      context.Context
 }
