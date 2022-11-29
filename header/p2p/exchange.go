@@ -14,8 +14,6 @@ import (
 	"github.com/libp2p/go-libp2p-core/protocol"
 	tmbytes "github.com/tendermint/tendermint/libs/bytes"
 
-	"github.com/celestiaorg/go-libp2p-messenger/serde"
-
 	"github.com/celestiaorg/celestia-node/header"
 	p2p_pb "github.com/celestiaorg/celestia-node/header/p2p/pb"
 )
@@ -48,10 +46,6 @@ type Exchange struct {
 
 	trustedPeers peer.IDSlice
 	peerTracker  *peerTracker
-}
-
-func protocolID(protocolSuffix string) protocol.ID {
-	return protocol.ID(fmt.Sprintf("/header-ex/v0.0.3/%s", protocolSuffix))
 }
 
 func NewExchange(host host.Host, peers peer.IDSlice, protocolSuffix string) *Exchange {
@@ -194,53 +188,23 @@ func (ex *Exchange) request(
 	to peer.ID,
 	req *p2p_pb.ExtendedHeaderRequest,
 ) ([]*header.ExtendedHeader, error) {
-	stream, err := ex.host.NewStream(ctx, to, ex.protocolID)
+	responses, _, _, err := sendMessage(ctx, ex.host, to, ex.protocolID, req)
 	if err != nil {
 		return nil, err
 	}
-	if err = stream.SetWriteDeadline(time.Now().Add(writeDeadline)); err != nil {
-		log.Debugf("error setting deadline: %s", err)
-	}
-	// send request
-	_, err = serde.Write(stream, req)
-	if err != nil {
-		stream.Reset() //nolint:errcheck
-		return nil, err
-	}
-	err = stream.CloseWrite()
-	if err != nil {
-		log.Error(err)
-	}
-	// read responses
-	headers := make([]*header.ExtendedHeader, req.Amount)
-	for i := 0; i < int(req.Amount); i++ {
-		resp := new(p2p_pb.ExtendedHeaderResponse)
-		if err = stream.SetReadDeadline(time.Now().Add(readDeadline)); err != nil {
-			log.Debugf("error setting deadline: %s", err)
-		}
-		_, err := serde.Read(stream, resp)
-		if err != nil {
-			stream.Reset() //nolint:errcheck
-			return nil, err
-		}
-
-		if err = convertStatusCodeToError(resp.StatusCode); err != nil {
-			stream.Reset() //nolint:errcheck
-			return nil, err
-		}
-		header, err := header.UnmarshalExtendedHeader(resp.Body)
-		if err != nil {
-			stream.Reset() //nolint:errcheck
-			return nil, err
-		}
-
-		headers[i] = header
-	}
-	if err = stream.Close(); err != nil {
-		log.Errorw("closing stream", "err", err)
-	}
-	if len(headers) == 0 {
+	if len(responses) == 0 {
 		return nil, header.ErrNotFound
+	}
+	headers := make([]*header.ExtendedHeader, 0, len(responses))
+	for _, response := range responses {
+		if err = convertStatusCodeToError(response.StatusCode); err != nil {
+			return nil, err
+		}
+		header, err := header.UnmarshalExtendedHeader(response.Body)
+		if err != nil {
+			return nil, err
+		}
+		headers = append(headers, header)
 	}
 	return headers, nil
 }
@@ -273,18 +237,4 @@ func bestHead(result []*header.ExtendedHeader) (*header.ExtendedHeader, error) {
 	log.Debug("could not find latest header received from at least two peers, returning header with the max height")
 	// otherwise return header with the max height
 	return result[0], nil
-}
-
-// convertStatusCodeToError converts passed status code into an error.
-func convertStatusCodeToError(code p2p_pb.StatusCode) error {
-	switch code {
-	case p2p_pb.StatusCode_OK:
-		return nil
-	case p2p_pb.StatusCode_NOT_FOUND:
-		return header.ErrNotFound
-	case p2p_pb.StatusCode_LIMIT_EXCEEDED:
-		return header.ErrHeadersLimitExceeded
-	default:
-		return fmt.Errorf("unknown status code %d", code)
-	}
 }
