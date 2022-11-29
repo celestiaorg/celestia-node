@@ -179,7 +179,7 @@ func NewOpenRPCDocument(comments Comments) *go_openrpc_reflect.Document {
 	appReflector.FnSchemaExamples = func(ty reflect.Type) (examples *meta_schema.Examples, err error) {
 		v, err := ExampleValue(ty, ty) // This isn't ideal, but seems to work well enough.
 		if err != nil {
-			fmt.Println(err)
+			panic(err)
 		}
 		return &meta_schema.Examples{
 			meta_schema.AlwaysTrue(v),
