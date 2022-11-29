@@ -323,6 +323,14 @@ func (m getterStub) GetRangeByHeight(ctx context.Context, from, to uint64) ([]*h
 	return nil, nil
 }
 
+func (m getterStub) GetVerifiedRange(
+	context.Context,
+	*header.ExtendedHeader,
+	uint64,
+) ([]*header.ExtendedHeader, error) {
+	return nil, nil
+}
+
 func (m getterStub) Get(context.Context, tmbytes.HexBytes) (*header.ExtendedHeader, error) {
 	return nil, nil
 }

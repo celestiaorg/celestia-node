@@ -245,6 +245,29 @@ func (s *Store) GetRangeByHeight(ctx context.Context, from, to uint64) ([]*heade
 	return headers, nil
 }
 
+func (s *Store) GetVerifiedRange(
+	ctx context.Context,
+	from *header.ExtendedHeader,
+	to uint64,
+) ([]*header.ExtendedHeader, error) {
+	if uint64(from.Height) >= to {
+		return nil, fmt.Errorf("header/store: invalid range(%d,%d)", from.Height, to)
+	}
+	headers, err := s.GetRangeByHeight(ctx, uint64(from.Height), to)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, h := range headers {
+		err := from.VerifyNonAdjacent(h)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return headers, nil
+}
+
 func (s *Store) Has(ctx context.Context, hash tmbytes.HexBytes) (bool, error) {
 	if ok := s.cache.Contains(hash.String()); ok {
 		return ok, nil

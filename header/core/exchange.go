@@ -55,6 +55,21 @@ func (ce *Exchange) GetRangeByHeight(ctx context.Context, from, amount uint64) (
 	return headers, nil
 }
 
+func (ce *Exchange) GetVerifiedRange(ctx context.Context, origin *header.ExtendedHeader, amount uint64,
+) ([]*header.ExtendedHeader, error) {
+	headers, err := ce.GetRangeByHeight(ctx, uint64(origin.Height), amount)
+	if err != nil {
+		return nil, err
+	}
+	for _, h := range headers {
+		err := origin.VerifyNonAdjacent(h)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return headers, nil
+}
+
 func (ce *Exchange) Get(ctx context.Context, hash tmbytes.HexBytes) (*header.ExtendedHeader, error) {
 	log.Debugw("requesting header", "hash", hash.String())
 	block, err := ce.fetcher.GetBlockByHash(ctx, hash)

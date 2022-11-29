@@ -55,11 +55,7 @@ func protocolID(protocolSuffix string) protocol.ID {
 	return protocol.ID(fmt.Sprintf("/header-ex/v0.0.3/%s", protocolSuffix))
 }
 
-func NewExchange(
-	host host.Host,
-	peers peer.IDSlice,
-	protocolSuffix string,
-) *Exchange {
+func NewExchange(host host.Host, peers peer.IDSlice, protocolSuffix string) *Exchange {
 	return &Exchange{
 		host:         host,
 		protocolID:   protocolID(protocolSuffix),
@@ -156,16 +152,16 @@ func (ex *Exchange) GetRangeByHeight(ctx context.Context, from, amount uint64) (
 	return session.getRangeByHeight(ctx, from, amount)
 }
 
-// GetVerifiedRangeByHeight performs a request for the given range of ExtendedHeaders to the network and ensures
+// GetVerifiedRange performs a request for the given range of ExtendedHeaders to the network and ensures
 // that returned headers are correct against the passed one.
-func (ex *Exchange) GetVerifiedRangeByHeight(
+func (ex *Exchange) GetVerifiedRange(
 	ctx context.Context,
 	from *header.ExtendedHeader,
 	amount uint64,
 ) ([]*header.ExtendedHeader, error) {
 	session := newSession(ex.ctx, ex.host, ex.peerTracker.peers(), ex.protocolID)
 	defer session.close()
-	headers, err := session.getRangeByHeight(ctx, uint64(from.Height+1), amount)
+	headers, err := session.getRangeByHeight(ctx, uint64(from.Height), amount)
 	if err != nil {
 		return nil, err
 	}

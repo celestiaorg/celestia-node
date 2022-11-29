@@ -342,6 +342,14 @@ func (m *mockStore) GetRangeByHeight(ctx context.Context, from, to uint64) ([]*h
 	return headers, nil
 }
 
+func (m *mockStore) GetVerifiedRange(
+	ctx context.Context,
+	h *header.ExtendedHeader,
+	to uint64,
+) ([]*header.ExtendedHeader, error) {
+	return m.GetRangeByHeight(ctx, uint64(h.Height)+1, to)
+}
+
 func (m *mockStore) Has(context.Context, tmbytes.HexBytes) (bool, error) {
 	return false, nil
 }

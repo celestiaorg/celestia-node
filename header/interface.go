@@ -58,7 +58,6 @@ type Broadcaster interface {
 // from the network.
 type Exchange interface {
 	Getter
-	GetVerifiedRangeByHeight(context.Context, *ExtendedHeader, uint64) ([]*ExtendedHeader, error)
 }
 
 var (
@@ -126,6 +125,9 @@ type Getter interface {
 
 	// GetRangeByHeight returns the given range [from:to) of ExtendedHeaders.
 	GetRangeByHeight(ctx context.Context, from, to uint64) ([]*ExtendedHeader, error)
+
+	// GetVerifiedRange returns verified range from the provided ExtendedHeader to the provided height.
+	GetVerifiedRange(context.Context, *ExtendedHeader, uint64) ([]*ExtendedHeader, error)
 }
 
 // Head contains the behavior necessary for a component to retrieve
