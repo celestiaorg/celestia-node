@@ -44,16 +44,19 @@ func sendMessage(
 			log.Debugw("error setting deadline: %s", err)
 		}
 	}
+
 	// send request
 	_, err = serde.Write(stream, req)
 	if err != nil {
 		stream.Reset() //nolint:errcheck
 		return nil, 0, 0, err
 	}
+
 	err = stream.CloseWrite()
 	if err != nil {
 		return nil, 0, 0, nil
 	}
+
 	headers := make([]*p2p_pb.ExtendedHeaderResponse, 0)
 	totalRequestSize := uint64(0)
 	for i := 0; i < int(req.Amount); i++ {
@@ -66,13 +69,16 @@ func sendMessage(
 			stream.Reset() //nolint:errcheck
 			return nil, 0, 0, err
 		}
+
 		totalRequestSize += uint64(msgSize)
 		headers = append(headers, resp)
 	}
+
 	duration := time.Since(startTime).Milliseconds()
 	if err = stream.Close(); err != nil {
 		log.Errorw("closing stream", "err", err)
 	}
+
 	return headers, totalRequestSize, uint64(duration), nil
 }
 
