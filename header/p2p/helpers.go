@@ -21,6 +21,8 @@ func protocolID(protocolSuffix string) protocol.ID {
 }
 
 // sendMessage opens the stream to the given peers and sends ExtendedHeaderRequest to fetch ExtendedHeaders.
+// As a result sendMessage returns ExtendedHeaderResponse, the size of fetched data,
+// the duration of the request and an error.
 func sendMessage(
 	ctx context.Context,
 	host host.Host,
@@ -50,7 +52,7 @@ func sendMessage(
 	}
 	err = stream.CloseWrite()
 	if err != nil {
-		log.Error(err)
+		return nil, 0, 0, nil
 	}
 	headers := make([]*p2p_pb.ExtendedHeaderResponse, 0)
 	totalRequestSize := uint64(0)
