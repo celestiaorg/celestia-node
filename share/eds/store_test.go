@@ -176,7 +176,13 @@ func TestEDSStore_GC(t *testing.T) {
 	// doesn't exist yet
 	assert.NotContains(t, edsStore.lastGCResult.Shards, shard.KeyFromString(dah.String()))
 
-	time.Sleep(time.Second)
+	// wait for gc to run, retry three times
+	for i := 0; i < 3; i++ {
+		time.Sleep(time.Second)
+		if _, ok := edsStore.lastGCResult.Shards[shard.KeyFromString(dah.String())]; ok {
+			break
+		}
+	}
 	assert.Contains(t, edsStore.lastGCResult.Shards, shard.KeyFromString(dah.String()))
 
 	// assert nil in this context means there was no error re-acquiring the shard during GC

@@ -41,7 +41,8 @@ type Store struct {
 	topIdx index.Inverted
 	carIdx index.FullIndexRepo
 
-	basepath     string
+	basepath string
+	// lastGCResult is only stored on the store for testing purposes.
 	lastGCResult *dagstore.GCResult
 }
 
@@ -90,8 +91,7 @@ func NewStore(basepath string, ds datastore.Batching) (*Store, error) {
 	}, nil
 }
 
-// Start starts the underlying DAGStore and gc routine.
-func (s *Store) Start(context.Context) error {
+func (s *Store) Start(ctx context.Context) error {
 	ctx, cancel := context.WithCancel(context.Background())
 	s.cancel = cancel
 
