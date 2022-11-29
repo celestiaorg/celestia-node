@@ -56,7 +56,7 @@ func (s *Server) verifyAuth(_ context.Context, token string) ([]auth.Permission,
 		return nil, err
 	}
 	p := new(permissions.JWTPayload)
-	err = json.Unmarshal(tk.Payload(), p)
+	err = json.Unmarshal(tk.RawClaims(), p)
 	if err != nil {
 		return nil, err
 	}
