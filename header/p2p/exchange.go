@@ -35,11 +35,16 @@ type Exchange struct {
 	trustedPeers peer.IDSlice
 	peerTracker  *peerTracker
 
-	Params *Parameters
+	Params *ClientParameters
 }
 
-func NewExchange(host host.Host, peers peer.IDSlice, protocolSuffix string, opts ...Option) (*Exchange, error) {
-	params := DefaultParameters()
+func NewExchange(
+	host host.Host,
+	peers peer.IDSlice,
+	protocolSuffix string,
+	opts ...Option[ClientParameters],
+) (*Exchange, error) {
+	params := DefaultClientParameters()
 	for _, opt := range opts {
 		opt(params)
 	}

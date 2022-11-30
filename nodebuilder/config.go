@@ -43,7 +43,7 @@ func DefaultConfig(tp node.Type) *Config {
 		RPC:     rpc.DefaultConfig(),
 		Gateway: gateway.DefaultConfig(),
 		Share:   share.DefaultConfig(),
-		Header:  header.DefaultConfig(),
+		Header:  header.DefaultConfig(tp),
 	}
 
 	switch tp {

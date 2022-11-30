@@ -10,6 +10,7 @@ import (
 
 	p2p_exchange "github.com/celestiaorg/celestia-node/header/p2p"
 	"github.com/celestiaorg/celestia-node/header/store"
+	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
 )
 
@@ -25,15 +26,26 @@ type Config struct {
 
 	Store *store.Parameters
 
-	P2PExchange *p2p_exchange.Parameters
+	ServerParameters *p2p_exchange.ServerParameters
+	ClientParameters *p2p_exchange.ClientParameters `toml:",omitempty"`
 }
 
-func DefaultConfig() Config {
-	return Config{
-		TrustedHash:  "",
-		TrustedPeers: make([]string, 0),
-		Store:        store.DefaultParameters(),
-		P2PExchange:  p2p_exchange.DefaultParameters(),
+func DefaultConfig(tp node.Type) Config {
+	cfg := Config{
+		TrustedHash:      "",
+		TrustedPeers:     make([]string, 0),
+		Store:            store.DefaultParameters(),
+		ServerParameters: p2p_exchange.DefaultServerParameters(),
+	}
+
+	switch tp {
+	case node.Bridge:
+		return cfg
+	case node.Light, node.Full:
+		cfg.ClientParameters = p2p_exchange.DefaultClientParameters()
+		return cfg
+	default:
+		panic("header: invalid node type")
 	}
 }
 
@@ -70,15 +82,22 @@ func (cfg *Config) trustedHash(net p2p.Network) (tmbytes.HexBytes, error) {
 }
 
 // Validate performs basic validation of the config.
-func (cfg *Config) Validate() error {
+func (cfg *Config) Validate(tp node.Type) error {
 	err := cfg.Store.Validate()
 	if err != nil {
 		return fmt.Errorf("module/header: misconfiguration of store: %w", err)
 	}
-	err = cfg.P2PExchange.Validate()
+
+	err = cfg.ServerParameters.Validate()
 	if err != nil {
-		return fmt.Errorf("module/header: misconfiguration of p2p exchange: %w", err)
+		return fmt.Errorf("module/header: misconfiguration of p2p exchange server: %w", err)
 	}
 
+	if tp != node.Bridge {
+		err = cfg.ClientParameters.Validate()
+		if err != nil {
+			return fmt.Errorf("module/header: misconfiguration of p2p exchange client: %w", err)
+		}
+	}
 	return nil
 }

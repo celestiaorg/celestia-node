@@ -156,7 +156,7 @@ func TestExchange_RequestByHash(t *testing.T) {
 }
 
 func Test_bestHead(t *testing.T) {
-	params := DefaultParameters()
+	params := DefaultClientParameters()
 	gen := func() []*header.ExtendedHeader {
 		suite := header.NewTestSuite(t, 3)
 		res := make([]*header.ExtendedHeader, 0)
@@ -270,17 +270,15 @@ func createP2PExAndServer(t *testing.T, host, tpeer libhost.Host) (header.Exchan
 	err = serverSideEx.Start(context.Background())
 	require.NoError(t, err)
 
-	exchange, err := NewExchange(host, []peer.ID{tpeer.ID()}, "private")
+	ex, err := NewExchange(host, []peer.ID{tpeer.ID()}, "private")
 	require.NoError(t, err)
-	exchange.peerTracker.connectedPeers[tpeer.ID()] = &peerStat{peerID: tpeer.ID()}
-	exchange.Start(context.Background()) //nolint:errcheck
+	ex.peerTracker.connectedPeers[tpeer.ID()] = &peerStat{peerID: tpeer.ID()}
+	require.NoError(t, ex.Start(context.Background()))
 
 	t.Cleanup(func() {
 		serverSideEx.Stop(context.Background()) //nolint:errcheck
-		exchange.Stop(context.Background())     //nolint:errcheck
+		ex.Stop(context.Background())           //nolint:errcheck
 	})
-	ex, err := NewExchange(host, []peer.ID{tpeer.ID()}, "private")
-	require.NoError(t, err)
 	return ex, store
 }
 

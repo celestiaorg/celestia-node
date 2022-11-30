@@ -21,7 +21,7 @@ func newP2PServer(
 	host host.Host,
 	store header.Store,
 	network modp2p.Network,
-	opts []p2p.Option,
+	opts []p2p.Option[p2p.ServerParameters],
 ) (*p2p.ExchangeServer, error) {
 	return p2p.NewExchangeServer(host, store, string(network), opts...)
 }
@@ -32,14 +32,14 @@ func newP2PExchange(cfg Config) func(
 	modp2p.Bootstrappers,
 	modp2p.Network,
 	host.Host,
-	[]p2p.Option,
+	[]p2p.Option[p2p.ClientParameters],
 ) (header.Exchange, error) {
 	return func(
 		lc fx.Lifecycle,
 		bpeers modp2p.Bootstrappers,
 		network modp2p.Network,
 		host host.Host,
-		opts []p2p.Option,
+		opts []p2p.Option[p2p.ClientParameters],
 	) (header.Exchange, error) {
 		peers, err := cfg.trustedPeers(bpeers)
 		if err != nil {

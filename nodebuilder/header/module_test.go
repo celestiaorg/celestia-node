@@ -2,7 +2,6 @@ package header
 
 import (
 	"testing"
-	"time"
 
 	"github.com/ipfs/go-datastore"
 	"github.com/libp2p/go-libp2p"
@@ -20,7 +19,7 @@ import (
 // TestConstructModule_StoreParams ensures that all passed via functional options
 // params are set in store correctly.
 func TestConstructModule_StoreParams(t *testing.T) {
-	cfg := DefaultConfig()
+	cfg := DefaultConfig(node.Light)
 	cfg.Store.StoreCacheSize = 15
 	cfg.Store.IndexCacheSize = 25
 	cfg.Store.WriteBatchSize = 35
@@ -46,11 +45,10 @@ func TestConstructModule_StoreParams(t *testing.T) {
 // TestConstructModule_ExchangeParams ensures that all passed via functional options
 // params are set in store correctly.
 func TestConstructModule_ExchangeParams(t *testing.T) {
-	cfg := DefaultConfig()
-	cfg.P2PExchange.WriteDeadline = time.Minute
-	cfg.P2PExchange.ReadDeadline = time.Minute * 2
-	cfg.P2PExchange.MinResponses = 10
-	cfg.P2PExchange.MaxRequestSize = 200
+	cfg := DefaultConfig(node.Light)
+	cfg.ClientParameters.MinResponses = 10
+	cfg.ClientParameters.MaxRequestSize = 200
+	cfg.ClientParameters.MaxHeadersPerRequest = 15
 	var exchange *p2p.Exchange
 	var exchangeServer *p2p.ExchangeServer
 
@@ -70,13 +68,11 @@ func TestConstructModule_ExchangeParams(t *testing.T) {
 			}),
 	)
 	require.NoError(t, app.Err())
-	require.Equal(t, exchange.Params.WriteDeadline, cfg.P2PExchange.WriteDeadline)
-	require.Equal(t, exchange.Params.ReadDeadline, cfg.P2PExchange.ReadDeadline)
-	require.Equal(t, exchange.Params.MinResponses, cfg.P2PExchange.MinResponses)
-	require.Equal(t, exchange.Params.MaxRequestSize, cfg.P2PExchange.MaxRequestSize)
+	require.Equal(t, exchange.Params.MinResponses, cfg.ClientParameters.MinResponses)
+	require.Equal(t, exchange.Params.MaxRequestSize, cfg.ClientParameters.MaxRequestSize)
+	require.Equal(t, exchange.Params.MaxHeadersPerRequest, cfg.ClientParameters.MaxHeadersPerRequest)
 
-	require.Equal(t, exchangeServer.Params.WriteDeadline, cfg.P2PExchange.WriteDeadline)
-	require.Equal(t, exchangeServer.Params.ReadDeadline, cfg.P2PExchange.ReadDeadline)
-	require.Equal(t, exchangeServer.Params.MinResponses, cfg.P2PExchange.MinResponses)
-	require.Equal(t, exchangeServer.Params.MaxRequestSize, cfg.P2PExchange.MaxRequestSize)
+	require.Equal(t, exchangeServer.Params.WriteDeadline, cfg.ServerParameters.WriteDeadline)
+	require.Equal(t, exchangeServer.Params.ReadDeadline, cfg.ServerParameters.ReadDeadline)
+	require.Equal(t, exchangeServer.Params.MaxRequestSize, cfg.ServerParameters.MaxRequestSize)
 }
