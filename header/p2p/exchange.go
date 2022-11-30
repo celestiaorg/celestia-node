@@ -173,7 +173,6 @@ func (ex *Exchange) GetVerifiedRange(
 		}
 		origin = h
 	}
-
 	return headers, nil
 }
 

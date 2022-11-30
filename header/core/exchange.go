@@ -69,7 +69,6 @@ func (ce *Exchange) GetVerifiedRange(ctx context.Context, origin *header.Extende
 		}
 		origin = h
 	}
-
 	return headers, nil
 }
 

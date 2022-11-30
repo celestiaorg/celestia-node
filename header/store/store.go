@@ -265,7 +265,6 @@ func (s *Store) GetVerifiedRange(
 		}
 		from = h
 	}
-
 	return headers, nil
 }
 
