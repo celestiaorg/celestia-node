@@ -57,7 +57,7 @@ func NewExchange(
 		host:         host,
 		protocolID:   protocolID(protocolSuffix),
 		trustedPeers: peers,
-		peerTracker:  newPeerTracker(host),
+		peerTracker:  newPeerTracker(host, params.GC, params.MaxAwaitingTime, params.DefaultScore),
 		Params:       params,
 	}, nil
 }

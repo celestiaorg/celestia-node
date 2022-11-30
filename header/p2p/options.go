@@ -1,6 +1,7 @@
 package p2p
 
 import (
+	"errors"
 	"fmt"
 	"time"
 )
@@ -34,17 +35,15 @@ func DefaultServerParameters() *ServerParameters {
 	}
 }
 
-const errSuffix = "value should be positive and non-zero"
-
 func (p *ServerParameters) Validate() error {
 	if p.WriteDeadline == 0 {
-		return fmt.Errorf("invalid write time duration: %s", errSuffix)
+		return fmt.Errorf("invalid write time duration: %v", p.WriteDeadline)
 	}
 	if p.ReadDeadline == 0 {
-		return fmt.Errorf("invalid read time duration: %s", errSuffix)
+		return fmt.Errorf("invalid read time duration: %v", p.ReadDeadline)
 	}
 	if p.MaxRequestSize == 0 {
-		return fmt.Errorf("invalid max request size: %s", errSuffix)
+		return fmt.Errorf("invalid max request size: %d", p.MaxRequestSize)
 	}
 	return nil
 }
@@ -92,6 +91,13 @@ type ClientParameters struct {
 	MaxRequestSize uint64
 	// MaxHeadersPerRequest defines the max amount of headers that can be requested per 1 request.
 	MaxHeadersPerRequest uint64
+	// GC defines the duration after which the peerTracker starts removing peers.
+	GC time.Duration
+	// MaxAwaitingTime specifies the duration that gives to the disconnected peer to be back online,
+	// otherwise it will be removed on the next GC cycle.
+	MaxAwaitingTime time.Duration
+	// DefaultScore specifies the score for newly connected peers.
+	DefaultScore float32
 }
 
 // DefaultClientParameters returns the default params to configure the store.
@@ -100,18 +106,30 @@ func DefaultClientParameters() *ClientParameters {
 		MinResponses:         2,
 		MaxRequestSize:       512,
 		MaxHeadersPerRequest: 64,
+		GC:                   time.Minute * 30,
+		MaxAwaitingTime:      time.Hour,
+		DefaultScore:         1,
 	}
 }
 
 func (p *ClientParameters) Validate() error {
 	if p.MinResponses <= 0 {
-		return fmt.Errorf("invalid minimum amount of responses: %s", errSuffix)
+		return errors.New("invalid minimum amount of responses: value should be positive and non-zero")
 	}
 	if p.MaxRequestSize == 0 {
-		return fmt.Errorf("invalid max request size: %s", errSuffix)
+		return fmt.Errorf("invalid max request size: %d", p.MaxRequestSize)
 	}
 	if p.MaxHeadersPerRequest == 0 || p.MaxHeadersPerRequest > p.MaxRequestSize {
-		return fmt.Errorf("invalid max headers per request: %s", errSuffix)
+		return errors.New("invalid max headers per request")
+	}
+	if p.GC == 0 {
+		return fmt.Errorf("invalid gc period for peerTracker: %v", p.GC)
+	}
+	if p.MaxAwaitingTime == 0 {
+		return fmt.Errorf("invalid gc maxAwaitingTime for peerTracker: %s", p.MaxAwaitingTime)
+	}
+	if p.DefaultScore < 0 {
+		return fmt.Errorf("invalid default score %f", p.DefaultScore)
 	}
 	return nil
 }
@@ -136,5 +154,38 @@ func WithMaxHeadersPerRequest[T ClientParameters](amount uint64) Option[T] {
 			t.MaxHeadersPerRequest = amount
 		}
 
+	}
+}
+
+// WithGCCycle is a functional option that configures the
+// `GC` parameter.
+func WithGCCycle[T ClientParameters](cycle time.Duration) Option[T] {
+	return func(p *T) {
+		switch t := any(p).(type) { //nolint:gocritic
+		case *ClientParameters:
+			t.GC = cycle
+		}
+	}
+}
+
+// WithMaxAwaitingTime is a functional option that configures the
+// `MaxAwaitingTime` parameter.
+func WithMaxAwaitingTime[T ClientParameters](duration time.Duration) Option[T] {
+	return func(p *T) {
+		switch t := any(p).(type) { //nolint:gocritic
+		case *ClientParameters:
+			t.MaxAwaitingTime = duration
+		}
+	}
+}
+
+// WithDefaultScore is a functional option that configures the
+// `DefaultScore` parameter.
+func WithDefaultScore[T ClientParameters](score float32) Option[T] {
+	return func(p *T) {
+		switch t := any(p).(type) { //nolint:gocritic
+		case *ClientParameters:
+			t.DefaultScore = score
+		}
 	}
 }

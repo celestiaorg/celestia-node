@@ -19,13 +19,20 @@ type peerTracker struct {
 	disconnectedPeers map[peer.ID]*peerStat
 
 	host host.Host
+
+	gcPeriod        time.Duration
+	maxAwaitingTime time.Duration
+	defaultScore    float32
 }
 
-func newPeerTracker(h host.Host) *peerTracker {
+func newPeerTracker(h host.Host, gcPeriod, maxAwaitingTime time.Duration, defaultScore float32) *peerTracker {
 	return &peerTracker{
 		disconnectedPeers: make(map[peer.ID]*peerStat),
 		connectedPeers:    make(map[peer.ID]*peerStat),
 		host:              h,
+		gcPeriod:          gcPeriod,
+		maxAwaitingTime:   maxAwaitingTime,
+		defaultScore:      defaultScore,
 	}
 }
 
@@ -77,7 +84,7 @@ func (p *peerTracker) connected(pID peer.ID) {
 	// because libp2p does not emit multiple Connected events per 1 peer
 	stats, ok := p.disconnectedPeers[pID]
 	if !ok {
-		stats = &peerStat{peerID: pID, peerScore: 1}
+		stats = &peerStat{peerID: pID, peerScore: p.defaultScore}
 	} else {
 		delete(p.disconnectedPeers, pID)
 	}
@@ -91,7 +98,7 @@ func (p *peerTracker) disconnected(pID peer.ID) {
 	if !ok {
 		return
 	}
-	stats.removedAt = time.Now().Add(time.Hour * 1)
+	stats.removedAt = time.Now().Add(p.maxAwaitingTime)
 	p.disconnectedPeers[pID] = stats
 	delete(p.connectedPeers, pID)
 }
@@ -111,7 +118,7 @@ func (p *peerTracker) peers() []*peerStat {
 // * disconnected peer will be removed if it is being disconnected for more than 1 hour;
 // * connected peer will be removed if it scores less or equal than 1;
 func (p *peerTracker) gc(ctx context.Context) {
-	ticker := time.NewTicker(time.Minute * 30)
+	ticker := time.NewTicker(p.gcPeriod)
 	for {
 		select {
 		case <-ctx.Done():
