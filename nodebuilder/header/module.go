@@ -39,9 +39,9 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 		fx.Provide(
 			func(cfg Config) []p2p.Option[p2p.ServerParameters] {
 				return []p2p.Option[p2p.ServerParameters]{
-					p2p.WithWriteDeadline(cfg.ServerParameters.WriteDeadline),
-					p2p.WithReadDeadline(cfg.ServerParameters.ReadDeadline),
-					p2p.WithMaxRequestSize[p2p.ServerParameters](cfg.ServerParameters.MaxRequestSize),
+					p2p.WithWriteDeadline(cfg.Server.WriteDeadline),
+					p2p.WithReadDeadline(cfg.Server.ReadDeadline),
+					p2p.WithMaxRequestSize[p2p.ServerParameters](cfg.Server.MaxRequestSize),
 				}
 			}),
 		fx.Provide(NewHeaderService),
@@ -109,9 +109,9 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 			fx.Provide(
 				func(cfg Config) []p2p.Option[p2p.ClientParameters] {
 					return []p2p.Option[p2p.ClientParameters]{
-						p2p.WithMinResponses(cfg.ClientParameters.MinResponses),
-						p2p.WithMaxRequestSize[p2p.ClientParameters](cfg.ClientParameters.MaxRequestSize),
-						p2p.WithMaxHeadersPerRequest(cfg.ClientParameters.MaxHeadersPerRequest),
+						p2p.WithMinResponses(cfg.Client.MinResponses),
+						p2p.WithMaxRequestSize[p2p.ClientParameters](cfg.Client.MaxRequestSize),
+						p2p.WithMaxHeadersPerRequest(cfg.Client.MaxHeadersPerRequest),
 					}
 				},
 			),

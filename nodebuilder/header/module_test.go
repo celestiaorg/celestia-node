@@ -46,9 +46,9 @@ func TestConstructModule_StoreParams(t *testing.T) {
 // params are set in store correctly.
 func TestConstructModule_ExchangeParams(t *testing.T) {
 	cfg := DefaultConfig(node.Light)
-	cfg.ClientParameters.MinResponses = 10
-	cfg.ClientParameters.MaxRequestSize = 200
-	cfg.ClientParameters.MaxHeadersPerRequest = 15
+	cfg.Client.MinResponses = 10
+	cfg.Client.MaxRequestSize = 200
+	cfg.Client.MaxHeadersPerRequest = 15
 	var exchange *p2p.Exchange
 	var exchangeServer *p2p.ExchangeServer
 
@@ -68,11 +68,11 @@ func TestConstructModule_ExchangeParams(t *testing.T) {
 			}),
 	)
 	require.NoError(t, app.Err())
-	require.Equal(t, exchange.Params.MinResponses, cfg.ClientParameters.MinResponses)
-	require.Equal(t, exchange.Params.MaxRequestSize, cfg.ClientParameters.MaxRequestSize)
-	require.Equal(t, exchange.Params.MaxHeadersPerRequest, cfg.ClientParameters.MaxHeadersPerRequest)
+	require.Equal(t, exchange.Params.MinResponses, cfg.Client.MinResponses)
+	require.Equal(t, exchange.Params.MaxRequestSize, cfg.Client.MaxRequestSize)
+	require.Equal(t, exchange.Params.MaxHeadersPerRequest, cfg.Client.MaxHeadersPerRequest)
 
-	require.Equal(t, exchangeServer.Params.WriteDeadline, cfg.ServerParameters.WriteDeadline)
-	require.Equal(t, exchangeServer.Params.ReadDeadline, cfg.ServerParameters.ReadDeadline)
-	require.Equal(t, exchangeServer.Params.MaxRequestSize, cfg.ServerParameters.MaxRequestSize)
+	require.Equal(t, exchangeServer.Params.WriteDeadline, cfg.Server.WriteDeadline)
+	require.Equal(t, exchangeServer.Params.ReadDeadline, cfg.Server.ReadDeadline)
+	require.Equal(t, exchangeServer.Params.MaxRequestSize, cfg.Server.MaxRequestSize)
 }

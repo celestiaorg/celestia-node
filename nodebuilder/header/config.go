@@ -26,23 +26,23 @@ type Config struct {
 
 	Store *store.Parameters
 
-	ServerParameters *p2p_exchange.ServerParameters
-	ClientParameters *p2p_exchange.ClientParameters `toml:",omitempty"`
+	Server *p2p_exchange.ServerParameters
+	Client *p2p_exchange.ClientParameters `toml:",omitempty"`
 }
 
 func DefaultConfig(tp node.Type) Config {
 	cfg := Config{
-		TrustedHash:      "",
-		TrustedPeers:     make([]string, 0),
-		Store:            store.DefaultParameters(),
-		ServerParameters: p2p_exchange.DefaultServerParameters(),
+		TrustedHash:  "",
+		TrustedPeers: make([]string, 0),
+		Store:        store.DefaultParameters(),
+		Server:       p2p_exchange.DefaultServerParameters(),
 	}
 
 	switch tp {
 	case node.Bridge:
 		return cfg
 	case node.Light, node.Full:
-		cfg.ClientParameters = p2p_exchange.DefaultClientParameters()
+		cfg.Client = p2p_exchange.DefaultClientParameters()
 		return cfg
 	default:
 		panic("header: invalid node type")
@@ -88,13 +88,13 @@ func (cfg *Config) Validate() error {
 		return fmt.Errorf("module/header: misconfiguration of store: %w", err)
 	}
 
-	err = cfg.ServerParameters.Validate()
+	err = cfg.Server.Validate()
 	if err != nil {
 		return fmt.Errorf("module/header: misconfiguration of p2p exchange server: %w", err)
 	}
 
-	if cfg.ClientParameters != nil {
-		err = cfg.ClientParameters.Validate()
+	if cfg.Client != nil {
+		err = cfg.Client.Validate()
 		if err != nil {
 			return fmt.Errorf("module/header: misconfiguration of p2p exchange client: %w", err)
 		}

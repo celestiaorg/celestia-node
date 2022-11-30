@@ -5,9 +5,15 @@ import (
 	"time"
 )
 
+// optional is an interface that encompasses all params needed for
+// client and server parameters to protect `optional functions` from this package.
+type optional interface {
+	ServerParameters | ClientParameters
+}
+
 // Option is the functional option that is applied to the exchange instance
 // to configure parameters.
-type Option[T any] func(*T)
+type Option[T optional] func(*T)
 
 // ServerParameters is the set of parameters that must be configured for the exchange.
 type ServerParameters struct {
@@ -47,7 +53,7 @@ func (p *ServerParameters) Validate() error {
 // `WriteDeadline` parameter.
 func WithWriteDeadline[T ServerParameters](deadline time.Duration) Option[T] {
 	return func(p *T) {
-		switch t := any(p).(type) { //nolint:gocritic
+		switch t := optional(p).(type) { //nolint:gocritic
 		case *ServerParameters:
 			t.WriteDeadline = deadline
 		}
@@ -58,7 +64,7 @@ func WithWriteDeadline[T ServerParameters](deadline time.Duration) Option[T] {
 // `WithReadDeadline` parameter.
 func WithReadDeadline[T ServerParameters](deadline time.Duration) Option[T] {
 	return func(p *T) {
-		switch t := any(p).(type) { //nolint:gocritic
+		switch t := optional(p).(type) { //nolint:gocritic
 		case *ServerParameters:
 			t.ReadDeadline = deadline
 		}
@@ -67,9 +73,9 @@ func WithReadDeadline[T ServerParameters](deadline time.Duration) Option[T] {
 
 // WithMaxRequestSize is a functional option that configures the
 // `MaxRequestSize` parameter.
-func WithMaxRequestSize[T any](size uint64) Option[T] {
+func WithMaxRequestSize[T optional](size uint64) Option[T] {
 	return func(p *T) {
-		switch t := any(p).(type) {
+		switch t := optional(p).(type) {
 		case *ClientParameters:
 			t.MaxRequestSize = size
 		case *ServerParameters:
@@ -114,7 +120,7 @@ func (p *ClientParameters) Validate() error {
 // `MinResponses` parameter.
 func WithMinResponses[T ClientParameters](responses int) Option[T] {
 	return func(p *T) {
-		switch t := any(p).(type) { //nolint:gocritic
+		switch t := optional(p).(type) { //nolint:gocritic
 		case *ClientParameters:
 			t.MinResponses = responses
 		}
@@ -125,7 +131,7 @@ func WithMinResponses[T ClientParameters](responses int) Option[T] {
 // // `MaxRequestSize` parameter.
 func WithMaxHeadersPerRequest[T ClientParameters](amount uint64) Option[T] {
 	return func(p *T) {
-		switch t := any(p).(type) { //nolint:gocritic
+		switch t := optional(p).(type) { //nolint:gocritic
 		case *ClientParameters:
 			t.MaxHeadersPerRequest = amount
 		}
