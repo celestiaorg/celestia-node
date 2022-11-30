@@ -21,7 +21,7 @@ var log = logging.Logger("module/header")
 
 func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 	// sanitize config values before constructing module
-	cfgErr := cfg.Validate(tp)
+	cfgErr := cfg.Validate()
 
 	baseComponents := fx.Options(
 		fx.Supply(*cfg),

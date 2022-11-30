@@ -82,7 +82,7 @@ func (cfg *Config) trustedHash(net p2p.Network) (tmbytes.HexBytes, error) {
 }
 
 // Validate performs basic validation of the config.
-func (cfg *Config) Validate(tp node.Type) error {
+func (cfg *Config) Validate() error {
 	err := cfg.Store.Validate()
 	if err != nil {
 		return fmt.Errorf("module/header: misconfiguration of store: %w", err)
@@ -93,7 +93,7 @@ func (cfg *Config) Validate(tp node.Type) error {
 		return fmt.Errorf("module/header: misconfiguration of p2p exchange server: %w", err)
 	}
 
-	if tp != node.Bridge {
+	if cfg.ClientParameters != nil {
 		err = cfg.ClientParameters.Validate()
 		if err != nil {
 			return fmt.Errorf("module/header: misconfiguration of p2p exchange client: %w", err)
