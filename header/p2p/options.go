@@ -5,15 +5,15 @@ import (
 	"time"
 )
 
-// optional is an interface that encompasses all params needed for
+// parameters is an interface that encompasses all params needed for
 // client and server parameters to protect `optional functions` from this package.
-type optional interface {
+type parameters interface {
 	ServerParameters | ClientParameters
 }
 
 // Option is the functional option that is applied to the exchange instance
 // to configure parameters.
-type Option[T optional] func(*T)
+type Option[T parameters] func(*T)
 
 // ServerParameters is the set of parameters that must be configured for the exchange.
 type ServerParameters struct {
@@ -73,7 +73,7 @@ func WithReadDeadline[T ServerParameters](deadline time.Duration) Option[T] {
 
 // WithMaxRequestSize is a functional option that configures the
 // `MaxRequestSize` parameter.
-func WithMaxRequestSize[T optional](size uint64) Option[T] {
+func WithMaxRequestSize[T parameters](size uint64) Option[T] {
 	return func(p *T) {
 		switch t := any(p).(type) {
 		case *ClientParameters:
