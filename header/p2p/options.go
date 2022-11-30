@@ -53,7 +53,7 @@ func (p *ServerParameters) Validate() error {
 // `WriteDeadline` parameter.
 func WithWriteDeadline[T ServerParameters](deadline time.Duration) Option[T] {
 	return func(p *T) {
-		switch t := optional(p).(type) { //nolint:gocritic
+		switch t := any(p).(type) { //nolint:gocritic
 		case *ServerParameters:
 			t.WriteDeadline = deadline
 		}
@@ -64,7 +64,7 @@ func WithWriteDeadline[T ServerParameters](deadline time.Duration) Option[T] {
 // `WithReadDeadline` parameter.
 func WithReadDeadline[T ServerParameters](deadline time.Duration) Option[T] {
 	return func(p *T) {
-		switch t := optional(p).(type) { //nolint:gocritic
+		switch t := any(p).(type) { //nolint:gocritic
 		case *ServerParameters:
 			t.ReadDeadline = deadline
 		}
@@ -75,7 +75,7 @@ func WithReadDeadline[T ServerParameters](deadline time.Duration) Option[T] {
 // `MaxRequestSize` parameter.
 func WithMaxRequestSize[T optional](size uint64) Option[T] {
 	return func(p *T) {
-		switch t := optional(p).(type) {
+		switch t := any(p).(type) {
 		case *ClientParameters:
 			t.MaxRequestSize = size
 		case *ServerParameters:
@@ -120,7 +120,7 @@ func (p *ClientParameters) Validate() error {
 // `MinResponses` parameter.
 func WithMinResponses[T ClientParameters](responses int) Option[T] {
 	return func(p *T) {
-		switch t := optional(p).(type) { //nolint:gocritic
+		switch t := any(p).(type) { //nolint:gocritic
 		case *ClientParameters:
 			t.MinResponses = responses
 		}
@@ -131,7 +131,7 @@ func WithMinResponses[T ClientParameters](responses int) Option[T] {
 // // `MaxRequestSize` parameter.
 func WithMaxHeadersPerRequest[T ClientParameters](amount uint64) Option[T] {
 	return func(p *T) {
-		switch t := optional(p).(type) { //nolint:gocritic
+		switch t := any(p).(type) { //nolint:gocritic
 		case *ClientParameters:
 			t.MaxHeadersPerRequest = amount
 		}
