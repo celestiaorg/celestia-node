@@ -63,7 +63,7 @@ func (ce *Exchange) GetVerifiedRange(ctx context.Context, origin *header.Extende
 	}
 
 	for _, h := range headers {
-		err := origin.VerifyNonAdjacent(h)
+		err := origin.VerifyAdjacent(h)
 		if err != nil {
 			return nil, err
 		}
