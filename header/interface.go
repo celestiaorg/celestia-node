@@ -123,8 +123,12 @@ type Getter interface {
 	// GetByHeight returns the ExtendedHeader corresponding to the given block height.
 	GetByHeight(context.Context, uint64) (*ExtendedHeader, error)
 
-	// GetRangeByHeight returns the given range [from:to) of ExtendedHeaders.
-	GetRangeByHeight(ctx context.Context, from, to uint64) ([]*ExtendedHeader, error)
+	// GetRangeByHeight returns the given range of ExtendedHeaders.
+	GetRangeByHeight(ctx context.Context, from, amount uint64) ([]*ExtendedHeader, error)
+
+	// GetVerifiedRange requests the header range from the provided ExtendedHeader and
+	// verifies that the returned headers are adjacent to each other.
+	GetVerifiedRange(ctx context.Context, from *ExtendedHeader, amount uint64) ([]*ExtendedHeader, error)
 }
 
 // Head contains the behavior necessary for a component to retrieve

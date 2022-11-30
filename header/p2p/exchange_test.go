@@ -55,6 +55,25 @@ func TestExchange_RequestHeaders(t *testing.T) {
 	}
 }
 
+func TestExchange_RequestVerifiedHeaders(t *testing.T) {
+	hosts := createMocknet(t, 2)
+	exchg, store := createP2PExAndServer(t, hosts[0], hosts[1])
+	// perform expected request
+	h := store.headers[1]
+	_, err := exchg.GetVerifiedRange(context.Background(), h, 3)
+	require.NoError(t, err)
+}
+
+func TestExchange_RequestVerifiedHeadersFails(t *testing.T) {
+	hosts := createMocknet(t, 2)
+	exchg, store := createP2PExAndServer(t, hosts[0], hosts[1])
+	store.headers[2] = store.headers[3]
+	// perform expected request
+	h := store.headers[1]
+	_, err := exchg.GetVerifiedRange(context.Background(), h, 3)
+	require.Error(t, err)
+}
+
 // TestExchange_RequestFullRangeHeaders requests max amount of headers
 // to verify how session will parallelize all requests.
 func TestExchange_RequestFullRangeHeaders(t *testing.T) {
@@ -340,6 +359,14 @@ func (m *mockStore) GetRangeByHeight(ctx context.Context, from, to uint64) ([]*h
 		from++
 	}
 	return headers, nil
+}
+
+func (m *mockStore) GetVerifiedRange(
+	ctx context.Context,
+	h *header.ExtendedHeader,
+	to uint64,
+) ([]*header.ExtendedHeader, error) {
+	return m.GetRangeByHeight(ctx, uint64(h.Height)+1, to)
 }
 
 func (m *mockStore) Has(context.Context, tmbytes.HexBytes) (bool, error) {

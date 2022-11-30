@@ -319,7 +319,15 @@ func (m getterStub) GetByHeight(_ context.Context, height uint64) (*header.Exten
 		DAH:       &header.DataAvailabilityHeader{RowsRoots: make([][]byte, 0)}}, nil
 }
 
-func (m getterStub) GetRangeByHeight(ctx context.Context, from, to uint64) ([]*header.ExtendedHeader, error) {
+func (m getterStub) GetRangeByHeight(ctx context.Context, from, amount uint64) ([]*header.ExtendedHeader, error) {
+	return nil, nil
+}
+
+func (m getterStub) GetVerifiedRange(
+	context.Context,
+	*header.ExtendedHeader,
+	uint64,
+) ([]*header.ExtendedHeader, error) {
 	return nil, nil
 }
 

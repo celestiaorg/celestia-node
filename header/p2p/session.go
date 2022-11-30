@@ -153,7 +153,9 @@ func (s *session) processResponse(responses []*p2p_pb.ExtendedHeaderResponse) ([
 		}
 		headers = append(headers, header)
 	}
-
+	if len(headers) == 0 {
+		return nil, header.ErrNotFound
+	}
 	return headers, nil
 }
 

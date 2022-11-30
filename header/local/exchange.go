@@ -43,6 +43,11 @@ func (l *Exchange) GetRangeByHeight(ctx context.Context, origin, amount uint64) 
 	return l.store.GetRangeByHeight(ctx, origin, origin+amount)
 }
 
+func (l *Exchange) GetVerifiedRange(ctx context.Context, from *header.ExtendedHeader, amount uint64,
+) ([]*header.ExtendedHeader, error) {
+	return l.store.GetVerifiedRange(ctx, from, uint64(from.Height)+amount)
+}
+
 func (l *Exchange) Get(ctx context.Context, hash bytes.HexBytes) (*header.ExtendedHeader, error) {
 	return l.store.Get(ctx, hash)
 }

@@ -145,6 +145,31 @@ func (ex *Exchange) GetRangeByHeight(ctx context.Context, from, amount uint64) (
 	return session.getRangeByHeight(ctx, from, amount)
 }
 
+// GetVerifiedRange performs a request for the given range of ExtendedHeaders to the network and ensures
+// that returned headers are correct against the passed one.
+func (ex *Exchange) GetVerifiedRange(
+	ctx context.Context,
+	from *header.ExtendedHeader,
+	amount uint64,
+) ([]*header.ExtendedHeader, error) {
+	session := newSession(ex.ctx, ex.host, ex.peerTracker.peers(), ex.protocolID)
+	defer session.close()
+
+	headers, err := session.getRangeByHeight(ctx, uint64(from.Height)+1, amount)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, h := range headers {
+		err := from.VerifyAdjacent(h)
+		if err != nil {
+			return nil, err
+		}
+		from = h
+	}
+	return headers, nil
+}
+
 // Get performs a request for the ExtendedHeader by the given hash corresponding
 // to the RawHeader. Note that the ExtendedHeader must be verified thereafter.
 func (ex *Exchange) Get(ctx context.Context, hash tmbytes.HexBytes) (*header.ExtendedHeader, error) {
