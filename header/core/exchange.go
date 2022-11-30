@@ -55,19 +55,19 @@ func (ce *Exchange) GetRangeByHeight(ctx context.Context, from, amount uint64) (
 	return headers, nil
 }
 
-func (ce *Exchange) GetVerifiedRange(ctx context.Context, origin *header.ExtendedHeader, amount uint64,
+func (ce *Exchange) GetVerifiedRange(ctx context.Context, from *header.ExtendedHeader, amount uint64,
 ) ([]*header.ExtendedHeader, error) {
-	headers, err := ce.GetRangeByHeight(ctx, uint64(origin.Height)+1, amount)
+	headers, err := ce.GetRangeByHeight(ctx, uint64(from.Height)+1, amount)
 	if err != nil {
 		return nil, err
 	}
 
 	for _, h := range headers {
-		err := origin.VerifyAdjacent(h)
+		err := from.VerifyAdjacent(h)
 		if err != nil {
 			return nil, err
 		}
-		origin = h
+		from = h
 	}
 	return headers, nil
 }

@@ -155,23 +155,23 @@ func (ex *Exchange) GetRangeByHeight(ctx context.Context, from, amount uint64) (
 // that returned headers are correct against the passed one.
 func (ex *Exchange) GetVerifiedRange(
 	ctx context.Context,
-	origin *header.ExtendedHeader,
+	from *header.ExtendedHeader,
 	amount uint64,
 ) ([]*header.ExtendedHeader, error) {
 	session := newSession(ex.ctx, ex.host, ex.peerTracker.peers(), ex.protocolID)
 	defer session.close()
 
-	headers, err := session.getRangeByHeight(ctx, uint64(origin.Height)+1, amount)
+	headers, err := session.getRangeByHeight(ctx, uint64(from.Height)+1, amount)
 	if err != nil {
 		return nil, err
 	}
 
 	for _, h := range headers {
-		err := origin.VerifyAdjacent(h)
+		err := from.VerifyAdjacent(h)
 		if err != nil {
 			return nil, err
 		}
-		origin = h
+		from = h
 	}
 	return headers, nil
 }
