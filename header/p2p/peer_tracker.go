@@ -3,6 +3,7 @@ package p2p
 import (
 	"context"
 	"sync"
+	"time"
 
 	"github.com/libp2p/go-libp2p-core/event"
 	"github.com/libp2p/go-libp2p-core/host"
@@ -30,6 +31,7 @@ func newPeerTracker(h host.Host) *peerTracker {
 
 func (p *peerTracker) track(ctx context.Context) {
 	// store peers that have been already connected
+	go p.gc(ctx)
 	for _, peer := range p.host.Peerstore().Peers() {
 		p.connected(peer)
 	}
@@ -75,7 +77,7 @@ func (p *peerTracker) connected(pID peer.ID) {
 	// because libp2p does not emit multiple Connected events per 1 peer
 	stats, ok := p.disconnectedPeers[pID]
 	if !ok {
-		stats = &peerStat{peerID: pID}
+		stats = &peerStat{peerID: pID, peerScore: 1}
 	} else {
 		delete(p.disconnectedPeers, pID)
 	}
@@ -89,6 +91,7 @@ func (p *peerTracker) disconnected(pID peer.ID) {
 	if !ok {
 		return
 	}
+	stats.removedAt = time.Now().Add(time.Hour * 1)
 	p.disconnectedPeers[pID] = stats
 	delete(p.connectedPeers, pID)
 }
@@ -101,4 +104,41 @@ func (p *peerTracker) peers() []*peerStat {
 		peers = append(peers, stat)
 	}
 	return peers
+}
+
+// gc goes through connected and disconnected peers every 30 minutes
+// and removes every peer that meets conditions:
+// * disconnected peer will be removed if it is being disconnected for more than 1 hour;
+// * connected peer will be removed if it scores less or equal than 1;
+func (p *peerTracker) gc(ctx context.Context) {
+	ticker := time.NewTicker(time.Minute * 30)
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			wg := sync.WaitGroup{}
+			p.Lock()
+			go func() {
+				wg.Add(1)
+				defer wg.Done()
+				for id, peer := range p.disconnectedPeers {
+					if peer.removedAt.Before(time.Now()) {
+						delete(p.disconnectedPeers, id)
+					}
+				}
+			}()
+			go func() {
+				wg.Add(1)
+				defer wg.Done()
+				for id, peer := range p.connectedPeers {
+					if peer.peerScore <= 1.0 {
+						delete(p.connectedPeers, id)
+					}
+				}
+			}()
+			wg.Wait()
+			p.Unlock()
+		}
+	}
 }
