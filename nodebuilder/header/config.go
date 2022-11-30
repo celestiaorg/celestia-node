@@ -8,7 +8,9 @@ import (
 	"github.com/multiformats/go-multiaddr"
 	tmbytes "github.com/tendermint/tendermint/libs/bytes"
 
+	p2p_exchange "github.com/celestiaorg/celestia-node/header/p2p"
 	"github.com/celestiaorg/celestia-node/header/store"
+	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
 )
 
@@ -23,13 +25,27 @@ type Config struct {
 	TrustedPeers []string
 
 	Store *store.Parameters
+
+	Server *p2p_exchange.ServerParameters
+	Client *p2p_exchange.ClientParameters `toml:",omitempty"`
 }
 
-func DefaultConfig() Config {
-	return Config{
+func DefaultConfig(tp node.Type) Config {
+	cfg := Config{
 		TrustedHash:  "",
 		TrustedPeers: make([]string, 0),
 		Store:        store.DefaultParameters(),
+		Server:       p2p_exchange.DefaultServerParameters(),
+	}
+
+	switch tp {
+	case node.Bridge:
+		return cfg
+	case node.Light, node.Full:
+		cfg.Client = p2p_exchange.DefaultClientParameters()
+		return cfg
+	default:
+		panic("header: invalid node type")
 	}
 }
 
@@ -70,6 +86,18 @@ func (cfg *Config) Validate() error {
 	err := cfg.Store.Validate()
 	if err != nil {
 		return fmt.Errorf("module/header: misconfiguration of store: %w", err)
+	}
+
+	err = cfg.Server.Validate()
+	if err != nil {
+		return fmt.Errorf("module/header: misconfiguration of p2p exchange server: %w", err)
+	}
+
+	if cfg.Client != nil {
+		err = cfg.Client.Validate()
+		if err != nil {
+			return fmt.Errorf("module/header: misconfiguration of p2p exchange client: %w", err)
+		}
 	}
 	return nil
 }

@@ -12,12 +12,6 @@ import (
 	p2p_pb "github.com/celestiaorg/celestia-node/header/p2p/pb"
 )
 
-// TODO(@vgonkivs): make it configurable
-var (
-	// headersPerPeer is a maximum amount of headers that will be requested per peer.
-	headersPerPeer uint64 = 64
-)
-
 // session aims to divide a range of headers
 // into several smaller requests among different peers.
 type session struct {
@@ -45,7 +39,10 @@ func newSession(ctx context.Context, h host.Host, peerTracker []*peerStat, proto
 }
 
 // GetRangeByHeight requests headers from different peers.
-func (s *session) getRangeByHeight(ctx context.Context, from, amount uint64) ([]*header.ExtendedHeader, error) {
+func (s *session) getRangeByHeight(
+	ctx context.Context,
+	from, amount, headersPerPeer uint64,
+) ([]*header.ExtendedHeader, error) {
 	log.Debugw("requesting headers", "from", from, "to", from+amount)
 
 	requests := prepareRequests(from, amount, headersPerPeer)

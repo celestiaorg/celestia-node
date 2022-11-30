@@ -36,6 +36,14 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 				}
 			},
 		),
+		fx.Provide(
+			func(cfg Config) []p2p.Option[p2p.ServerParameters] {
+				return []p2p.Option[p2p.ServerParameters]{
+					p2p.WithWriteDeadline(cfg.Server.WriteDeadline),
+					p2p.WithReadDeadline(cfg.Server.ReadDeadline),
+					p2p.WithMaxRequestSize[p2p.ServerParameters](cfg.Server.MaxRequestSize),
+				}
+			}),
 		fx.Provide(NewHeaderService),
 		fx.Provide(fx.Annotate(
 			func(ds datastore.Batching, opts []store.Option) (header.Store, error) {
@@ -98,6 +106,15 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 		return fx.Module(
 			"header",
 			baseComponents,
+			fx.Provide(
+				func(cfg Config) []p2p.Option[p2p.ClientParameters] {
+					return []p2p.Option[p2p.ClientParameters]{
+						p2p.WithMinResponses(cfg.Client.MinResponses),
+						p2p.WithMaxRequestSize[p2p.ClientParameters](cfg.Client.MaxRequestSize),
+						p2p.WithMaxHeadersPerRequest(cfg.Client.MaxHeadersPerRequest),
+					}
+				},
+			),
 			fx.Provide(newP2PExchange(*cfg)),
 		)
 	case node.Bridge:

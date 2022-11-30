@@ -79,18 +79,19 @@ func TestExchange_RequestVerifiedHeadersFails(t *testing.T) {
 func TestExchange_RequestFullRangeHeaders(t *testing.T) {
 	// create mocknet with 5 peers
 	hosts := createMocknet(t, 5)
-	// set max amount of headers per 1 peer
-	headersPerPeer = 10
 	totalAmount := 80
 	store := createStore(t, totalAmount)
 	protocolSuffix := "private"
 	// create new exchange
-	exchange := NewExchange(hosts[len(hosts)-1], []peer.ID{}, protocolSuffix)
+	exchange, err := NewExchange(hosts[len(hosts)-1], []peer.ID{}, protocolSuffix)
+	require.NoError(t, err)
+	exchange.Params.MaxHeadersPerRequest = 10
 	exchange.ctx, exchange.cancel = context.WithCancel(context.Background())
 	t.Cleanup(exchange.cancel)
 	servers := make([]*ExchangeServer, len(hosts)-1) // amount of servers is len(hosts)-1 because one peer acts as a client
 	for index := range servers {
-		servers[index] = NewExchangeServer(hosts[index], store, protocolSuffix)
+		servers[index], err = NewExchangeServer(hosts[index], store, protocolSuffix)
+		require.NoError(t, err)
 		servers[index].Start(context.Background()) //nolint:errcheck
 		exchange.peerTracker.connectedPeers[hosts[index].ID()] = &peerStat{peerID: hosts[index].ID()}
 	}
@@ -141,7 +142,8 @@ func TestExchange_RequestByHash(t *testing.T) {
 	host, peer := net.Hosts()[0], net.Hosts()[1]
 	// create and start the ExchangeServer
 	store := createStore(t, 5)
-	serv := NewExchangeServer(host, store, "private")
+	serv, err := NewExchangeServer(host, store, "private")
+	require.NoError(t, err)
 	err = serv.Start(ctx)
 	require.NoError(t, err)
 	t.Cleanup(func() {
@@ -173,6 +175,7 @@ func TestExchange_RequestByHash(t *testing.T) {
 }
 
 func Test_bestHead(t *testing.T) {
+	params := DefaultClientParameters()
 	gen := func() []*header.ExtendedHeader {
 		suite := header.NewTestSuite(t, 3)
 		res := make([]*header.ExtendedHeader, 0)
@@ -231,7 +234,7 @@ func Test_bestHead(t *testing.T) {
 	}
 	for _, tt := range testCases {
 		res := tt.precondition()
-		header, err := bestHead(res)
+		header, err := bestHead(res, params.MinResponses)
 		require.NoError(t, err)
 		require.True(t, header.Height == tt.expectedHeight)
 	}
@@ -247,7 +250,8 @@ func TestExchange_RequestByHashFails(t *testing.T) {
 	require.NoError(t, err)
 	// get host and peer
 	host, peer := net.Hosts()[0], net.Hosts()[1]
-	serv := NewExchangeServer(host, createStore(t, 0), "private")
+	serv, err := NewExchangeServer(host, createStore(t, 0), "private")
+	require.NoError(t, err)
 	err = serv.Start(ctx)
 	require.NoError(t, err)
 	t.Cleanup(func() {
@@ -280,19 +284,21 @@ func createMocknet(t *testing.T, amount int) []libhost.Host {
 // createP2PExAndServer creates a Exchange with 5 headers already in its store.
 func createP2PExAndServer(t *testing.T, host, tpeer libhost.Host) (header.Exchange, *mockStore) {
 	store := createStore(t, 5)
-	serverSideEx := NewExchangeServer(tpeer, store, "private")
-	err := serverSideEx.Start(context.Background())
+	serverSideEx, err := NewExchangeServer(tpeer, store, "private")
+	require.NoError(t, err)
+	err = serverSideEx.Start(context.Background())
 	require.NoError(t, err)
 
-	exchange := NewExchange(host, []peer.ID{tpeer.ID()}, "private")
-	exchange.peerTracker.connectedPeers[tpeer.ID()] = &peerStat{peerID: tpeer.ID()}
-	exchange.Start(context.Background()) //nolint:errcheck
+	ex, err := NewExchange(host, []peer.ID{tpeer.ID()}, "private")
+	require.NoError(t, err)
+	ex.peerTracker.connectedPeers[tpeer.ID()] = &peerStat{peerID: tpeer.ID()}
+	require.NoError(t, ex.Start(context.Background()))
 
 	t.Cleanup(func() {
 		serverSideEx.Stop(context.Background()) //nolint:errcheck
-		exchange.Stop(context.Background())     //nolint:errcheck
+		ex.Stop(context.Background())           //nolint:errcheck
 	})
-	return exchange, store
+	return ex, store
 }
 
 type mockStore struct {

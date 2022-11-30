@@ -17,8 +17,13 @@ import (
 )
 
 // newP2PServer constructs a new ExchangeServer using the given Network as a protocolID suffix.
-func newP2PServer(host host.Host, store header.Store, network modp2p.Network) *p2p.ExchangeServer {
-	return p2p.NewExchangeServer(host, store, string(network))
+func newP2PServer(
+	host host.Host,
+	store header.Store,
+	network modp2p.Network,
+	opts []p2p.Option[p2p.ServerParameters],
+) (*p2p.ExchangeServer, error) {
+	return p2p.NewExchangeServer(host, store, string(network), opts...)
 }
 
 // newP2PExchange constructs a new Exchange for headers.
@@ -27,12 +32,14 @@ func newP2PExchange(cfg Config) func(
 	modp2p.Bootstrappers,
 	modp2p.Network,
 	host.Host,
+	[]p2p.Option[p2p.ClientParameters],
 ) (header.Exchange, error) {
 	return func(
 		lc fx.Lifecycle,
 		bpeers modp2p.Bootstrappers,
 		network modp2p.Network,
 		host host.Host,
+		opts []p2p.Option[p2p.ClientParameters],
 	) (header.Exchange, error) {
 		peers, err := cfg.trustedPeers(bpeers)
 		if err != nil {
@@ -43,7 +50,10 @@ func newP2PExchange(cfg Config) func(
 			ids[index] = peer.ID
 			host.Peerstore().AddAddrs(peer.ID, peer.Addrs, peerstore.PermanentAddrTTL)
 		}
-		exchange := p2p.NewExchange(host, ids, string(network))
+		exchange, err := p2p.NewExchange(host, ids, string(network), opts...)
+		if err != nil {
+			return nil, err
+		}
 		lc.Append(fx.Hook{
 			OnStart: func(ctx context.Context) error {
 				return exchange.Start(ctx)

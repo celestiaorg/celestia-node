@@ -25,16 +25,32 @@ type ExchangeServer struct {
 
 	ctx    context.Context
 	cancel context.CancelFunc
+
+	Params *ServerParameters
 }
 
 // NewExchangeServer returns a new P2P server that handles inbound
 // header-related requests.
-func NewExchangeServer(host host.Host, store header.Store, protocolSuffix string) *ExchangeServer {
+func NewExchangeServer(
+	host host.Host,
+	store header.Store,
+	protocolSuffix string,
+	opts ...Option[ServerParameters],
+) (*ExchangeServer, error) {
+	params := DefaultServerParameters()
+	for _, opt := range opts {
+		opt(params)
+	}
+	if err := params.Validate(); err != nil {
+		return nil, err
+	}
+
 	return &ExchangeServer{
 		protocolID: protocolID(protocolSuffix),
 		host:       host,
 		store:      store,
-	}
+		Params:     params,
+	}, nil
 }
 
 // Start sets the stream handler for inbound header-related requests.
@@ -57,7 +73,7 @@ func (serv *ExchangeServer) Stop(context.Context) error {
 
 // requestHandler handles inbound ExtendedHeaderRequests.
 func (serv *ExchangeServer) requestHandler(stream network.Stream) {
-	err := stream.SetReadDeadline(time.Now().Add(readDeadline))
+	err := stream.SetReadDeadline(time.Now().Add(serv.Params.ReadDeadline))
 	if err != nil {
 		log.Debugf("error setting deadline: %s", err)
 	}
@@ -104,7 +120,7 @@ func (serv *ExchangeServer) requestHandler(stream network.Stream) {
 	}
 	// write all headers to stream
 	for _, h := range headers {
-		if err := stream.SetWriteDeadline(time.Now().Add(writeDeadline)); err != nil {
+		if err := stream.SetWriteDeadline(time.Now().Add(serv.Params.ReadDeadline)); err != nil {
 			log.Debugf("error setting deadline: %s", err)
 		}
 		var bin []byte
@@ -158,7 +174,7 @@ func (serv *ExchangeServer) handleRequest(from, to uint64) ([]*header.ExtendedHe
 		return []*header.ExtendedHeader{head}, nil
 	}
 
-	if to-from > maxRequestSize {
+	if to-from > serv.Params.MaxRequestSize {
 		log.Errorw("server: skip request for too many headers.", "amount", to-from)
 		return nil, header.ErrHeadersLimitExceeded
 	}

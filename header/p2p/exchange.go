@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"math/rand"
 	"sort"
-	"time"
 
 	logging "github.com/ipfs/go-log/v2"
 	"github.com/libp2p/go-libp2p-core/host"
@@ -19,17 +18,6 @@ import (
 )
 
 var log = logging.Logger("header/p2p")
-
-const (
-	// writeDeadline sets timeout for sending messages to the stream
-	writeDeadline = time.Second * 5
-	// readDeadline sets timeout for reading messages from the stream
-	readDeadline = time.Minute
-	// the target minimum amount of responses with the same chain head
-	minResponses = 2
-	// requestSize defines the max amount of headers that can be requested/handled at once.
-	maxRequestSize uint64 = 512
-)
 
 // PubSubTopic hardcodes the name of the ExtendedHeader
 // gossipsub topic.
@@ -46,15 +34,32 @@ type Exchange struct {
 
 	trustedPeers peer.IDSlice
 	peerTracker  *peerTracker
+
+	Params *ClientParameters
 }
 
-func NewExchange(host host.Host, peers peer.IDSlice, protocolSuffix string) *Exchange {
+func NewExchange(
+	host host.Host,
+	peers peer.IDSlice,
+	protocolSuffix string,
+	opts ...Option[ClientParameters],
+) (*Exchange, error) {
+	params := DefaultClientParameters()
+	for _, opt := range opts {
+		opt(params)
+	}
+
+	err := params.Validate()
+	if err != nil {
+		return nil, err
+	}
 	return &Exchange{
 		host:         host,
 		protocolID:   protocolID(protocolSuffix),
 		trustedPeers: peers,
 		peerTracker:  newPeerTracker(host),
-	}
+		Params:       params,
+	}, nil
 }
 
 func (ex *Exchange) Start(context.Context) error {
@@ -110,7 +115,7 @@ LOOP:
 		}
 	}
 
-	return bestHead(result)
+	return bestHead(result, ex.Params.MinResponses)
 }
 
 // GetByHeight performs a request for the ExtendedHeader at the given
@@ -137,12 +142,12 @@ func (ex *Exchange) GetByHeight(ctx context.Context, height uint64) (*header.Ext
 // GetRangeByHeight performs a request for the given range of ExtendedHeaders
 // to the network. Note that the ExtendedHeaders must be verified thereafter.
 func (ex *Exchange) GetRangeByHeight(ctx context.Context, from, amount uint64) ([]*header.ExtendedHeader, error) {
-	if amount > maxRequestSize {
+	if amount > ex.Params.MaxRequestSize {
 		return nil, header.ErrHeadersLimitExceeded
 	}
 	session := newSession(ex.ctx, ex.host, ex.peerTracker.peers(), ex.protocolID)
 	defer session.close()
-	return session.getRangeByHeight(ctx, from, amount)
+	return session.getRangeByHeight(ctx, from, amount, ex.Params.MaxHeadersPerRequest)
 }
 
 // GetVerifiedRange performs a request for the given range of ExtendedHeaders to the network and ensures
@@ -239,7 +244,7 @@ func (ex *Exchange) request(
 // * should be received at least from 2 peers;
 // If neither condition is met, then latest ExtendedHeader will be returned (header of the highest
 // height).
-func bestHead(result []*header.ExtendedHeader) (*header.ExtendedHeader, error) {
+func bestHead(result []*header.ExtendedHeader, minResponses int) (*header.ExtendedHeader, error) {
 	if len(result) == 0 {
 		return nil, header.ErrNotFound
 	}
