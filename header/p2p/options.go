@@ -11,9 +11,9 @@ type Option[T any] func(*T)
 
 // ServerParameters is the set of parameters that must be configured for the exchange.
 type ServerParameters struct {
-	// WriteDeadline sets timeout for sending messages to the stream
+	// WriteDeadline sets the timeout for sending messages to the stream
 	WriteDeadline time.Duration
-	// ReadDeadline sets timeout for reading messages from the stream
+	// ReadDeadline sets the timeout for reading messages from the stream
 	ReadDeadline time.Duration
 	// MaxRequestSize defines the max amount of headers that can be handled at once.
 	MaxRequestSize uint64
@@ -99,7 +99,7 @@ func DefaultClientParameters() *ClientParameters {
 
 func (p *ClientParameters) Validate() error {
 	if p.MinResponses <= 0 {
-		return fmt.Errorf("invalid minimal amount of responses: %s", errSuffix)
+		return fmt.Errorf("invalid minimum amount of responses: %s", errSuffix)
 	}
 	if p.MaxRequestSize == 0 {
 		return fmt.Errorf("invalid max request size: %s", errSuffix)
