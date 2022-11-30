@@ -126,8 +126,8 @@ func (p *peerTracker) gc(ctx context.Context) {
 		case <-ticker.C:
 			wg := sync.WaitGroup{}
 			p.Lock()
+			wg.Add(1)
 			go func() {
-				wg.Add(1)
 				defer wg.Done()
 				for id, peer := range p.disconnectedPeers {
 					if peer.removedAt.Before(time.Now()) {
@@ -135,8 +135,8 @@ func (p *peerTracker) gc(ctx context.Context) {
 					}
 				}
 			}()
+			wg.Add(1)
 			go func() {
-				wg.Add(1)
 				defer wg.Done()
 				for id, peer := range p.connectedPeers {
 					if peer.peerScore <= 1.0 {
