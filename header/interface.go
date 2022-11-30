@@ -126,7 +126,8 @@ type Getter interface {
 	// GetRangeByHeight returns the given range [from:to) of ExtendedHeaders.
 	GetRangeByHeight(ctx context.Context, from, to uint64) ([]*ExtendedHeader, error)
 
-	// GetVerifiedRange returns verified range from the provided ExtendedHeader to the provided height.
+	// GetVerifiedRange requests the header range from the provided ExtendedHeader and
+	// verifies that the returned headers are adjacent to each other.
 	GetVerifiedRange(ctx context.Context, origin *ExtendedHeader, to uint64) ([]*ExtendedHeader, error)
 }
 
