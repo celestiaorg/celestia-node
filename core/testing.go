@@ -83,9 +83,7 @@ func StartTestCoreWithApp(t *testing.T) (tmservice.Service, Client) {
 	freePort, err := getFreePort()
 	require.NoError(t, err)
 	tmNode.Config().RPC.ListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", freePort)
-	freePort, err = getFreePort()
-	require.NoError(t, err)
-	tmNode.Config().P2P.ListenAddress = fmt.Sprintf("tcp://0.0.0.0:%d", freePort)
+	tmNode.Config().P2P.ListenAddress = "tcp://0.0.0.0:0"
 
 	_, cleanupCoreNode, err := testnode.StartNode(tmNode, cctx)
 	require.NoError(t, err)

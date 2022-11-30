@@ -10,7 +10,7 @@ import (
 )
 
 func TestRemoteClient_Status(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
 	t.Cleanup(cancel)
 
 	_, client := StartTestCoreWithApp(t)
@@ -20,7 +20,7 @@ func TestRemoteClient_Status(t *testing.T) {
 }
 
 func TestRemoteClient_StartBlockSubscription_And_GetBlock(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
 	t.Cleanup(cancel)
 
 	_, client := StartTestCoreWithApp(t)
