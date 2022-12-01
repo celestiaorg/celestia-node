@@ -16,7 +16,7 @@ vendor
 .bak
 .idea/
 .vscode/
-/celestia
+celestia
 cel-shed
 cel-key
 coverage.txt
