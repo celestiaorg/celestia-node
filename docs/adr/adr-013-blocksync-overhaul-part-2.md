@@ -38,11 +38,11 @@ paying a slower retrieval time price.
 ## Decision
 
 The decision is to design three protocols:
-- [`ShrEx/EDS`](#ShrEx/EDS Protocol) - Pull-based EDS retrieval protocol
-- 
-- [`ShrEx/ND`](#ShrEx/ND Protocol) - Pull-based ND retrieval protocol
-- 
-- [`ShrEx/Sub`](#ShrEx/Sub Protocol) - Push-based _notification_ protocol for the newly produced EDSes
+- [`ShrEx/EDS`](#ShrEx/EDS-Protocol) - Pull-based EDS retrieval protocol
+
+- [`ShrEx/ND`](#ShrEx/ND-Protocol) - Pull-based ND retrieval protocol
+
+- [`ShrEx/Sub`](#ShrEx/Sub-Protocol) - Push-based _notification_ protocol for the newly produced EDSes
 
 ### Key Design Decisions
 
@@ -383,7 +383,7 @@ func (s *PubSub) AddValidator(Validator) error
 func (s *PubSub) Close()
 ```
 
-## Implementation Details
+## Integration Details
 
 ### Discovery
 
