@@ -115,8 +115,8 @@ func (p *peerTracker) peers() []*peerStat {
 
 // gc goes through connected and disconnected peers once in gcPeriod
 // and removes every peer that meets conditions:
-// * disconnected peer will be removed if it is being disconnected for more than 1 hour;
-// * connected peer will be removed if it scores less or equal than 1;
+// * disconnected peer will be removed if it is being disconnected for more than maxAwaitingTime;
+// * connected peer will be removed if it scores less or equal than defaultScore;
 func (p *peerTracker) gc(ctx context.Context) {
 	ticker := time.NewTicker(p.gcPeriod)
 	for {
@@ -139,7 +139,7 @@ func (p *peerTracker) gc(ctx context.Context) {
 			go func() {
 				defer wg.Done()
 				for id, peer := range p.connectedPeers {
-					if peer.peerScore <= p. defaultScore {
+					if peer.peerScore <= p.defaultScore {
 						delete(p.connectedPeers, id)
 					}
 				}

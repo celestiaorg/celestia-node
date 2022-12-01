@@ -1,7 +1,6 @@
 package p2p
 
 import (
-	"errors"
 	"fmt"
 	"time"
 )
@@ -112,24 +111,36 @@ func DefaultClientParameters() *ClientParameters {
 	}
 }
 
+const (
+	greaterThenZero = "should be greater than 0"
+	nonZero         = "should be non-zero"
+	providedSuffix  = "Provided value"
+)
+
 func (p *ClientParameters) Validate() error {
 	if p.MinResponses <= 0 {
-		return errors.New("invalid minimum amount of responses: value should be positive and non-zero")
+		return fmt.Errorf("invalid minimum amount of responses: %s and %s. %s: %v",
+			greaterThenZero, nonZero, providedSuffix, p.MinResponses)
 	}
 	if p.MaxRequestSize == 0 {
-		return fmt.Errorf("invalid max request size: %d", p.MaxRequestSize)
+		return fmt.Errorf("invalid max request size: %s. %s: %v", nonZero, providedSuffix, p.MaxRequestSize)
 	}
-	if p.MaxHeadersPerRequest == 0 || p.MaxHeadersPerRequest > p.MaxRequestSize {
-		return errors.New("invalid max headers per request")
+	if p.MaxHeadersPerRequest == 0 {
+		return fmt.Errorf("invalid max headers per request: %s. %s: %v", nonZero, providedSuffix, p.MaxRequestSize)
+	}
+	if p.MaxHeadersPerRequest > p.MaxRequestSize {
+		return fmt.Errorf("MaxHeadersPerRequest should not be more than MaxRequestSize."+
+			"MaxHeadersPerRequest: %v, MaxRequestSize: %v", p.MaxHeadersPerRequest, p.MaxRequestSize)
 	}
 	if p.GC == 0 {
-		return fmt.Errorf("invalid gc period for peerTracker: %v", p.GC)
+		return fmt.Errorf("invalid gc period for peerTracker: %s. %s: %v", nonZero, providedSuffix, p.GC)
 	}
 	if p.MaxAwaitingTime == 0 {
-		return fmt.Errorf("invalid gc maxAwaitingTime for peerTracker: %s", p.MaxAwaitingTime)
+		return fmt.Errorf("invalid gc maxAwaitingTime for peerTracker: "+
+			"%s. %s: %v", nonZero, providedSuffix, p.MaxAwaitingTime)
 	}
 	if p.DefaultScore < 0 {
-		return fmt.Errorf("invalid default score %f", p.DefaultScore)
+		return fmt.Errorf("invalid default score: %s. %s: %f", greaterThenZero, providedSuffix, p.DefaultScore)
 	}
 	return nil
 }
