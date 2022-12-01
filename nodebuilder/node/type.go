@@ -4,8 +4,8 @@ package node
 // The zero value for Type is invalid.
 type Type uint8
 
-// ConfigPath is an alias used in order to pass the base path of the node store to nodebuilder modules.
-type ConfigPath string
+// StorePath is an alias used in order to pass the base path of the node store to nodebuilder modules.
+type StorePath string
 
 const (
 	// Bridge is a Celestia Node that bridges the Celestia consensus network and data availability

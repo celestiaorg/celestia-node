@@ -49,7 +49,7 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 			"share",
 			baseComponents,
 			fx.Provide(fx.Annotate(
-				func(path node.ConfigPath, ds datastore.Batching) (*eds.Store, error) {
+				func(path node.StorePath, ds datastore.Batching) (*eds.Store, error) {
 					return eds.NewStore(string(path), ds)
 				},
 				fx.OnStart(func(ctx context.Context, eds *eds.Store) error {
