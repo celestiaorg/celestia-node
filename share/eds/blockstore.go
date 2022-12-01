@@ -19,9 +19,10 @@ import (
 var _ blockstore.Blockstore = (*Blockstore)(nil)
 
 var (
-	maxCacheSize            = 100
-	ErrUnsupportedOperation = errors.New("unsupported operation")
-	ErrInvalidShardCount    = errors.New("the provided cid does not map to exactly one shard")
+	maxCacheSize            = 128
+	errUnsupportedOperation = errors.New("unsupported operation")
+	errShardNotFound        = errors.New("the provided cid does not map to any shard")
+	errCacheMiss            = errors.New("accessor not found in blockstore cache")
 )
 
 type accessorWithBlockstore struct {
@@ -30,10 +31,10 @@ type accessorWithBlockstore struct {
 }
 
 // Blockstore implements the blockstore.Blockstore interface on an EDSStore.
-// The lru cache approach is heavily inspired by the open PR filecoin-project/dagstore/116.
-// The main differences to the implementation here are that we do not support multiple shards per
-// key, call GetSize directly on the underlying RO blockstore, and do not throw errors on
-// Put/PutMany. Also, we do not abstract away the blockstore operations.
+// The lru cache approach is heavily inspired by the existing implementation upstream.
+// We simplified the design to not support multiple shards per key, call GetSize directly on the
+// underlying RO blockstore, and do not throw errors on Put/PutMany. Also, we do not abstract away
+// the blockstore operations.
 //
 // The intuition here is that each CAR file is its own blockstore, so we need this top level
 // implementation to allow for the blockstore operations to be routed to the underlying stores.
@@ -52,11 +53,18 @@ type Blockstore struct {
 func NewEDSBlockstore(s *Store) (*Blockstore, error) {
 	// instantiate the blockstore cache
 	bslru, err := lru.NewWithEvict(maxCacheSize, func(_ interface{}, val interface{}) {
-		// ensure we close the blockstore for a shard when it's evicted from the cache so dagstore can gc
-		// it.
+		// ensure we close the blockstore for a shard when it's evicted so dagstore can gc it.
 		abs, ok := val.(*accessorWithBlockstore)
-		if ok {
-			abs.sa.Close()
+		if !ok {
+			log.Errorf(
+				"casting value from cache to accessorWithBlockstore: %s",
+				reflect.TypeOf(val),
+			)
+			return
+		}
+
+		if err := abs.sa.Close(); err != nil {
+			log.Errorf("couldn't close accessor after cache eviction: %s", err)
 		}
 	})
 	if err != nil {
@@ -94,9 +102,9 @@ func (bs *Blockstore) GetSize(ctx context.Context, cid cid.Cid) (int, error) {
 	return blockstr.GetSize(ctx, cid)
 }
 
-// DeleteBlock is a noop on the EDS Blockstore that returns an ErrUnsupportedOperation when called.
+// DeleteBlock is a noop on the EDS Blockstore that returns an errUnsupportedOperation when called.
 func (bs *Blockstore) DeleteBlock(context.Context, cid.Cid) error {
-	return ErrUnsupportedOperation
+	return errUnsupportedOperation
 }
 
 // Put is a noop on the EDS blockstore, but it does not return an error because it is called by
@@ -115,7 +123,7 @@ func (bs *Blockstore) PutMany(context.Context, []blocks.Block) error {
 
 // AllKeysChan is a noop on the EDS blockstore because the keys are not stored in a single CAR file.
 func (bs *Blockstore) AllKeysChan(context.Context) (<-chan cid.Cid, error) {
-	return nil, ErrUnsupportedOperation
+	return nil, errUnsupportedOperation
 }
 
 // HashOnRead is a noop on the EDS blockstore but an error cannot be returned due to the method
@@ -130,17 +138,18 @@ func (bs *Blockstore) getReadOnlyBlockstore(ctx context.Context, cid cid.Cid) (d
 	if err != nil {
 		return nil, fmt.Errorf("failed to find shards containing multihash: %w", err)
 	}
-	if len(keys) != 1 {
-		return nil, ErrInvalidShardCount
+	if len(keys) == 0 {
+		return nil, errShardNotFound
 	}
 
-	// try to fetch from cache
+	// a share can exist in multiple EDSes, so just take the first one.
 	shardKey := keys[0]
+	// try to fetch from cache
 	blockstr, err := bs.readFromBSCache(shardKey)
-	if err != nil {
-		log.Debugf("blockstore cache miss for key %s: %s", shardKey, err)
+	if err != nil && err != errCacheMiss {
+		log.Errorw("unexpected error while reading key from bs cache %s: %s", shardKey, err)
 	}
-	if err == nil && blockstr != nil {
+	if blockstr != nil {
 		return blockstr, nil
 	}
 
@@ -170,7 +179,7 @@ func (bs *Blockstore) readFromBSCache(shardContainingCid shard.Key) (dagstore.Re
 	// We've already ensured that the given shard has the cid/multihash we are looking for.
 	val, ok := bs.blockstoreCache.Get(shardContainingCid)
 	if !ok {
-		return nil, errors.New("not found in cache")
+		return nil, errCacheMiss
 	}
 
 	rbs, ok := val.(*accessorWithBlockstore)
