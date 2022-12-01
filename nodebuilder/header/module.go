@@ -115,6 +115,7 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 						p2p.WithGCCycle(cfg.Client.GC),
 						p2p.WithMaxAwaitingTime(cfg.Client.MaxAwaitingTime),
 						p2p.WithDefaultScore(cfg.Client.DefaultScore),
+						p2p.WithMaxTrackerSize(cfg.Client.MaxPeerTrackerSize),
 					}
 				},
 			),

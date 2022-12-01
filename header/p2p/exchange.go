@@ -53,23 +53,35 @@ func NewExchange(
 	if err != nil {
 		return nil, err
 	}
+
+	ctx, cancel := context.WithCancel(context.Background())
 	return &Exchange{
+		ctx:          ctx,
+		cancel:       cancel,
 		host:         host,
 		protocolID:   protocolID(protocolSuffix),
 		trustedPeers: peers,
-		peerTracker:  newPeerTracker(host, params.GC, params.MaxAwaitingTime, params.DefaultScore),
-		Params:       params,
+		peerTracker: newPeerTracker(
+			host,
+			params.GC,
+			params.MaxAwaitingTime,
+			params.DefaultScore,
+			params.MaxPeerTrackerSize,
+		),
+		Params: params,
 	}, nil
 }
 
 func (ex *Exchange) Start(context.Context) error {
-	ex.ctx, ex.cancel = context.WithCancel(context.Background())
-	go ex.peerTracker.track(ex.ctx)
+	go ex.peerTracker.track()
 	return nil
 }
 
 func (ex *Exchange) Stop(context.Context) error {
+	// cancel the session if it exists
 	ex.cancel()
+	// stop the peerTracker
+	ex.peerTracker.stop()
 	return nil
 }
 

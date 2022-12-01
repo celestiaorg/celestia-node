@@ -13,6 +13,10 @@ import (
 
 type peerTracker struct {
 	sync.RWMutex
+
+	ctx    context.Context
+	cancel context.CancelFunc
+
 	connectedPeers map[peer.ID]*peerStat
 	// we cache the peer once they disconnect,
 	// so we can guarantee that peerQueue will only contain active peers
@@ -20,25 +24,38 @@ type peerTracker struct {
 
 	host host.Host
 
-	gcPeriod        time.Duration
-	maxAwaitingTime time.Duration
-	defaultScore    float32
+	gcPeriod           time.Duration
+	maxAwaitingTime    time.Duration
+	defaultScore       float32
+	maxPeerTrackerSize int
+
+	done chan struct{}
 }
 
-func newPeerTracker(h host.Host, gcPeriod, maxAwaitingTime time.Duration, defaultScore float32) *peerTracker {
+func newPeerTracker(
+	h host.Host,
+	gcPeriod, maxAwaitingTime time.Duration,
+	defaultScore float32,
+	maxPeerTrackerSize int,
+) *peerTracker {
+	ctx, cancel := context.WithCancel(context.Background())
 	return &peerTracker{
-		disconnectedPeers: make(map[peer.ID]*peerStat),
-		connectedPeers:    make(map[peer.ID]*peerStat),
-		host:              h,
-		gcPeriod:          gcPeriod,
-		maxAwaitingTime:   maxAwaitingTime,
-		defaultScore:      defaultScore,
+		ctx:                ctx,
+		cancel:             cancel,
+		disconnectedPeers:  make(map[peer.ID]*peerStat),
+		connectedPeers:     make(map[peer.ID]*peerStat),
+		host:               h,
+		gcPeriod:           gcPeriod,
+		maxAwaitingTime:    maxAwaitingTime,
+		defaultScore:       defaultScore,
+		maxPeerTrackerSize: maxPeerTrackerSize,
+		done:               make(chan struct{}, 2),
 	}
 }
 
-func (p *peerTracker) track(ctx context.Context) {
+func (p *peerTracker) track() {
+	go p.gc()
 	// store peers that have been already connected
-	go p.gc(ctx)
 	for _, peer := range p.host.Peerstore().Peers() {
 		p.connected(peer)
 	}
@@ -46,15 +63,18 @@ func (p *peerTracker) track(ctx context.Context) {
 	subs, err := p.host.EventBus().Subscribe(&event.EvtPeerConnectednessChanged{})
 	if err != nil {
 		log.Errorw("subscribing to EvtPeerConnectednessChanged", "err", err)
+		p.done <- struct{}{}
 		return
 	}
+
 	for {
 		select {
-		case <-ctx.Done():
+		case <-p.ctx.Done():
 			err = subs.Close()
 			if err != nil {
 				log.Errorw("closing subscription", "err", err)
 			}
+			p.done <- struct{}{}
 			return
 		case subscription := <-subs.Out():
 			ev := subscription.(event.EvtPeerConnectednessChanged)
@@ -72,14 +92,22 @@ func (p *peerTracker) connected(pID peer.ID) {
 	if p.host.ID() == pID {
 		return
 	}
+	p.Lock()
+	defer p.Unlock()
+	// skip adding the peer to avoid overfilling of the peerTracker with unused peers if:
+	// peerTracker reaches the maxTrackerSize and the size of the connected peers
+	// is more than the size of the disconnected peers.
+	if len(p.connectedPeers)+len(p.disconnectedPeers) > p.maxPeerTrackerSize &&
+		len(p.connectedPeers) > len(p.disconnectedPeers) {
+		return
+	}
 	for _, c := range p.host.Network().ConnsToPeer(pID) {
 		// check if connection is short-termed and skip this peer
 		if c.Stat().Transient {
 			return
 		}
 	}
-	p.Lock()
-	defer p.Unlock()
+
 	// additional check in p.connectedPeers should be done,
 	// because libp2p does not emit multiple Connected events per 1 peer
 	stats, ok := p.disconnectedPeers[pID]
@@ -117,11 +145,12 @@ func (p *peerTracker) peers() []*peerStat {
 // and removes every peer that meets conditions:
 // * disconnected peer will be removed if it is being disconnected for more than maxAwaitingTime;
 // * connected peer will be removed if it scores less or equal than defaultScore;
-func (p *peerTracker) gc(ctx context.Context) {
+func (p *peerTracker) gc() {
 	ticker := time.NewTicker(p.gcPeriod)
 	for {
 		select {
-		case <-ctx.Done():
+		case <-p.ctx.Done():
+			p.done <- struct{}{}
 			return
 		case <-ticker.C:
 			wg := sync.WaitGroup{}
@@ -147,5 +176,14 @@ func (p *peerTracker) gc(ctx context.Context) {
 			wg.Wait()
 			p.Unlock()
 		}
+	}
+}
+
+// stop waits until all background routines will be finished.
+func (p *peerTracker) stop() {
+	p.cancel()
+
+	for i := 0; i < cap(p.done); i++ {
+		<-p.done
 	}
 }

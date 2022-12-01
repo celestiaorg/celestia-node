@@ -97,6 +97,9 @@ type ClientParameters struct {
 	MaxAwaitingTime time.Duration
 	// DefaultScore specifies the score for newly connected peers.
 	DefaultScore float32
+
+	// MaxTrackerSize specifies the max amount of peers that can be added to the peerTracker.
+	MaxPeerTrackerSize int
 }
 
 // DefaultClientParameters returns the default params to configure the store.
@@ -108,6 +111,7 @@ func DefaultClientParameters() *ClientParameters {
 		GC:                   time.Minute * 30,
 		MaxAwaitingTime:      time.Hour,
 		DefaultScore:         1,
+		MaxPeerTrackerSize:   100,
 	}
 }
 
@@ -119,14 +123,14 @@ const (
 
 func (p *ClientParameters) Validate() error {
 	if p.MinResponses <= 0 {
-		return fmt.Errorf("invalid minimum amount of responses: %s and %s. %s: %v",
-			greaterThenZero, nonZero, providedSuffix, p.MinResponses)
+		return fmt.Errorf("invalid MinResponses: %s. %s: %v",
+			greaterThenZero, providedSuffix, p.MinResponses)
 	}
 	if p.MaxRequestSize == 0 {
-		return fmt.Errorf("invalid max request size: %s. %s: %v", nonZero, providedSuffix, p.MaxRequestSize)
+		return fmt.Errorf("invalid MaxRequestSize: %s. %s: %v", nonZero, providedSuffix, p.MaxRequestSize)
 	}
 	if p.MaxHeadersPerRequest == 0 {
-		return fmt.Errorf("invalid max headers per request: %s. %s: %v", nonZero, providedSuffix, p.MaxRequestSize)
+		return fmt.Errorf("invalid MaxHeadersPerRequest: %s. %s: %v", nonZero, providedSuffix, p.MaxHeadersPerRequest)
 	}
 	if p.MaxHeadersPerRequest > p.MaxRequestSize {
 		return fmt.Errorf("MaxHeadersPerRequest should not be more than MaxRequestSize."+
@@ -136,11 +140,14 @@ func (p *ClientParameters) Validate() error {
 		return fmt.Errorf("invalid gc period for peerTracker: %s. %s: %v", nonZero, providedSuffix, p.GC)
 	}
 	if p.MaxAwaitingTime == 0 {
-		return fmt.Errorf("invalid gc maxAwaitingTime for peerTracker: "+
+		return fmt.Errorf("invalid MaxAwaitingTime for peerTracker: "+
 			"%s. %s: %v", nonZero, providedSuffix, p.MaxAwaitingTime)
 	}
 	if p.DefaultScore < 0 {
-		return fmt.Errorf("invalid default score: %s. %s: %f", greaterThenZero, providedSuffix, p.DefaultScore)
+		return fmt.Errorf("invalid DefaultScore: %s. %s: %f", greaterThenZero, providedSuffix, p.DefaultScore)
+	}
+	if p.MaxPeerTrackerSize <= 0 {
+		return fmt.Errorf("invalid MaxTrackerSize: %s. %s: %d", greaterThenZero, providedSuffix, p.MaxPeerTrackerSize)
 	}
 	return nil
 }
@@ -197,6 +204,17 @@ func WithDefaultScore[T ClientParameters](score float32) Option[T] {
 		switch t := any(p).(type) { //nolint:gocritic
 		case *ClientParameters:
 			t.DefaultScore = score
+		}
+	}
+}
+
+// WithMaxTrackerSize is a functional option that configures the
+// `MaxTrackerSize` parameter.
+func WithMaxTrackerSize[T ClientParameters](size int) Option[T] {
+	return func(p *T) {
+		switch t := any(p).(type) { //nolint:gocritic
+		case *ClientParameters:
+			t.MaxPeerTrackerSize = size
 		}
 	}
 }
