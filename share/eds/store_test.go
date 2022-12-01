@@ -161,32 +161,34 @@ func TestEDSStore_GC(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
 
-	gcInterval = time.Second
 	edsStore, err := newStore(t)
+	edsStore.gcInterval = time.Second
 	require.NoError(t, err)
+
 	// kicks off the gc goroutine
 	err = edsStore.Start(ctx)
 	require.NoError(t, err)
 
 	eds, dah := randomEDS(t)
+	shardKey := shard.KeyFromString(dah.String())
 
 	err = edsStore.Put(ctx, dah, eds)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	// doesn't exist yet
-	assert.NotContains(t, edsStore.lastGCResult.Shards, shard.KeyFromString(dah.String()))
+	assert.NotContains(t, edsStore.lastGCResult.Load().Shards, shardKey)
 
 	// wait for gc to run, retry three times
 	for i := 0; i < 3; i++ {
-		time.Sleep(time.Second)
-		if _, ok := edsStore.lastGCResult.Shards[shard.KeyFromString(dah.String())]; ok {
+		time.Sleep(edsStore.gcInterval)
+		if _, ok := edsStore.lastGCResult.Load().Shards[shardKey]; ok {
 			break
 		}
 	}
-	assert.Contains(t, edsStore.lastGCResult.Shards, shard.KeyFromString(dah.String()))
+	assert.Contains(t, edsStore.lastGCResult.Load().Shards, shardKey)
 
 	// assert nil in this context means there was no error re-acquiring the shard during GC
-	assert.Nil(t, edsStore.lastGCResult.Shards[shard.KeyFromString(dah.String())])
+	assert.Nil(t, edsStore.lastGCResult.Load().Shards[shardKey])
 }
 
 func newStore(t *testing.T) (*Store, error) {

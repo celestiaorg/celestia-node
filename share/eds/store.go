@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"sync/atomic"
 	"time"
 
 	"github.com/filecoin-project/dagstore"
@@ -18,14 +19,11 @@ import (
 	"github.com/celestiaorg/rsmt2d"
 )
 
-// TODO(@distractedm1nd): this probably shouldn't be a var. it could be configured next to the
-// blockstore's path and bs cache size.
-var gcInterval = time.Hour
-
 const (
-	blocksPath     = "/blocks/"
-	indexPath      = "/index/"
-	transientsPath = "/transients/"
+	blocksPath        = "/blocks/"
+	indexPath         = "/index/"
+	transientsPath    = "/transients/"
+	defaultGCInterval = time.Hour
 )
 
 // Store maintains (via DAGStore) a top-level index enabling granular and efficient random access to
@@ -41,9 +39,10 @@ type Store struct {
 	topIdx index.Inverted
 	carIdx index.FullIndexRepo
 
-	basepath string
+	basepath   string
+	gcInterval time.Duration
 	// lastGCResult is only stored on the store for testing purposes.
-	lastGCResult *dagstore.GCResult
+	lastGCResult atomic.Pointer[dagstore.GCResult]
 }
 
 // NewStore creates a new EDS Store under the given basepath and datastore.
@@ -79,15 +78,12 @@ func NewStore(basepath string, ds datastore.Batching) (*Store, error) {
 	}
 
 	return &Store{
-		basepath: basepath,
-		// initialize empty gc result to avoid panic on access
-		lastGCResult: &dagstore.GCResult{
-			Shards: make(map[shard.Key]error),
-		},
-		dgstr:  dagStore,
-		topIdx: invertedRepo,
-		carIdx: fsRepo,
-		mounts: r,
+		basepath:   basepath,
+		dgstr:      dagStore,
+		topIdx:     invertedRepo,
+		carIdx:     fsRepo,
+		gcInterval: defaultGCInterval,
+		mounts:     r,
 	}, nil
 }
 
@@ -101,13 +97,17 @@ func (s *Store) Start(ctx context.Context) error {
 
 // Stop stops the underlying DAGStore.
 func (s *Store) Stop(context.Context) error {
-	s.cancel()
+	defer s.cancel()
 	return s.dgstr.Close()
 }
 
 // gc periodically removes all inactive or errored shards.
 func (s *Store) gc(ctx context.Context) {
-	ticker := time.NewTicker(gcInterval)
+	ticker := time.NewTicker(s.gcInterval)
+	// initialize empty gc result to avoid panic on access
+	s.lastGCResult.Store(&dagstore.GCResult{
+		Shards: make(map[shard.Key]error),
+	})
 	for {
 		select {
 		case <-ctx.Done():
@@ -118,7 +118,7 @@ func (s *Store) gc(ctx context.Context) {
 				log.Errorf("garbage collecting dagstore: %v", err)
 				return
 			}
-			s.lastGCResult = res
+			s.lastGCResult.Store(res)
 		}
 
 	}
