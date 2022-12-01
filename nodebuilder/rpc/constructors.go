@@ -20,12 +20,13 @@ func RegisterEndpoints(
 	p2pMod p2p.Module,
 	serv *rpc.Server,
 ) {
+	serv.RegisterAuthedService("fraud", fraudMod, &fraud.API{})
+	serv.RegisterAuthedService("das", daserMod, &das.API{})
+	serv.RegisterAuthedService("header", headerMod, &header.API{})
 	serv.RegisterAuthedService("state", stateMod, &state.API{})
 	serv.RegisterAuthedService("share", shareMod, &share.API{})
-	serv.RegisterAuthedService("fraud", fraudMod, &fraud.API{})
-	serv.RegisterAuthedService("header", headerMod, &header.API{})
-	serv.RegisterAuthedService("das", daserMod, &das.API{})
-	serv.RegisterAuthedService("p2p", p2pMod, &p2p.API{})
+	// @TODO(renaynay): add context to all p2p methods so we can activate auth
+	serv.RegisterService("p2p", p2pMod)
 }
 
 func Server(cfg *Config) *rpc.Server {

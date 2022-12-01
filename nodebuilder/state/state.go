@@ -20,7 +20,7 @@ var _ Module = (*API)(nil)
 //go:generate mockgen -destination=mocks/api.go -package=mocks . Module
 type Module interface {
 	// IsStopped checks if the Module's context has been stopped
-	IsStopped() bool
+	IsStopped(ctx context.Context) bool
 
 	// AccountAddress retrieves the address of the node's account/signer
 	AccountAddress(ctx context.Context) (state.Address, error)
@@ -83,7 +83,7 @@ type Module interface {
 type API struct {
 	Internal struct {
 		AccountAddress    func(ctx context.Context) (state.Address, error)                      `perm:"read"`
-		IsStopped         func() bool                                                           `perm:"read"`
+		IsStopped         func(ctx context.Context) bool                                        `perm:"read"`
 		Balance           func(ctx context.Context) (*state.Balance, error)                     `perm:"read"`
 		BalanceForAddress func(ctx context.Context, addr state.Address) (*state.Balance, error) `perm:"read"`
 		Transfer          func(
@@ -145,8 +145,8 @@ func (api *API) AccountAddress(ctx context.Context) (state.Address, error) {
 	return api.Internal.AccountAddress(ctx)
 }
 
-func (api *API) IsStopped() bool {
-	return api.Internal.IsStopped()
+func (api *API) IsStopped(ctx context.Context) bool {
+	return api.Internal.IsStopped(ctx)
 }
 
 func (api *API) BalanceForAddress(ctx context.Context, addr state.Address) (*state.Balance, error) {

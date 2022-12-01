@@ -122,6 +122,6 @@ func (la *ShareAvailability) SharesAvailable(ctx context.Context, dah *share.Roo
 // (DefaultSampleAmount).
 //
 // Formula: 1 - (0.75 ** amount of samples)
-func (la *ShareAvailability) ProbabilityOfAvailability() float64 {
+func (la *ShareAvailability) ProbabilityOfAvailability(context.Context) float64 {
 	return 1 - math.Pow(0.75, float64(DefaultSampleAmount))
 }

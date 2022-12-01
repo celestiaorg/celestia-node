@@ -17,7 +17,7 @@ type Module interface {
 	// Head returns the ExtendedHeader of the chain head.
 	Head(context.Context) (*header.ExtendedHeader, error)
 	// IsSyncing returns the status of sync
-	IsSyncing() bool
+	IsSyncing(context.Context) bool
 }
 
 // API is a wrapper around Module for the RPC.
@@ -26,7 +26,7 @@ type API struct {
 	Internal struct {
 		GetByHeight func(context.Context, uint64) (*header.ExtendedHeader, error) `perm:"read"`
 		Head        func(context.Context) (*header.ExtendedHeader, error)         `perm:"read"`
-		IsSyncing   func() bool                                                   `perm:"read"`
+		IsSyncing   func(context.Context) bool                                    `perm:"read"`
 	}
 }
 
@@ -38,6 +38,6 @@ func (api *API) Head(ctx context.Context) (*header.ExtendedHeader, error) {
 	return api.Internal.Head(ctx)
 }
 
-func (api *API) IsSyncing() bool {
-	return api.Internal.IsSyncing()
+func (api *API) IsSyncing(ctx context.Context) bool {
+	return api.Internal.IsSyncing(ctx)
 }

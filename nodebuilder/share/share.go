@@ -31,7 +31,7 @@ type Module interface {
 	SharesAvailable(context.Context, *share.Root) error
 	// ProbabilityOfAvailability calculates the probability of the data square
 	// being available based on the number of samples collected.
-	ProbabilityOfAvailability() float64
+	ProbabilityOfAvailability(context.Context) float64
 	GetShare(ctx context.Context, dah *share.Root, row, col int) (share.Share, error)
 	GetShares(ctx context.Context, root *share.Root) ([][]share.Share, error)
 	// GetSharesByNamespace iterates over a square's row roots and accumulates the found shares in the
@@ -44,7 +44,7 @@ type Module interface {
 type API struct {
 	Internal struct {
 		SharesAvailable           func(context.Context, *share.Root) error `perm:"read"`
-		ProbabilityOfAvailability func() float64                           `perm:"read"`
+		ProbabilityOfAvailability func(context.Context) float64            `perm:"read"`
 		GetShare                  func(
 			ctx context.Context,
 			dah *share.Root,
@@ -66,8 +66,8 @@ func (api *API) SharesAvailable(ctx context.Context, root *share.Root) error {
 	return api.Internal.SharesAvailable(ctx, root)
 }
 
-func (api *API) ProbabilityOfAvailability() float64 {
-	return api.Internal.ProbabilityOfAvailability()
+func (api *API) ProbabilityOfAvailability(ctx context.Context) float64 {
+	return api.Internal.ProbabilityOfAvailability(ctx)
 }
 
 func (api *API) GetShare(ctx context.Context, dah *share.Root, row, col int) (share.Share, error) {
