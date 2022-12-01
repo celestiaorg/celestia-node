@@ -25,8 +25,7 @@ func RegisterEndpoints(
 	serv.RegisterAuthedService("header", headerMod, &header.API{})
 	serv.RegisterAuthedService("state", stateMod, &state.API{})
 	serv.RegisterAuthedService("share", shareMod, &share.API{})
-	// @TODO(renaynay): add context to all p2p methods so we can activate auth
-	serv.RegisterService("p2p", p2pMod)
+	serv.RegisterAuthedService("p2p", p2pMod, &p2p.API{})
 }
 
 func Server(cfg *Config) *rpc.Server {

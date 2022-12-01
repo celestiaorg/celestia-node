@@ -40,73 +40,73 @@ func (m *MockModule) EXPECT() *MockModuleMockRecorder {
 }
 
 // BandwidthForPeer mocks base method.
-func (m *MockModule) BandwidthForPeer(arg0 peer.ID) metrics.Stats {
+func (m *MockModule) BandwidthForPeer(arg0 context.Context, arg1 peer.ID) metrics.Stats {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "BandwidthForPeer", arg0)
+	ret := m.ctrl.Call(m, "BandwidthForPeer", arg0, arg1)
 	ret0, _ := ret[0].(metrics.Stats)
 	return ret0
 }
 
 // BandwidthForPeer indicates an expected call of BandwidthForPeer.
-func (mr *MockModuleMockRecorder) BandwidthForPeer(arg0 interface{}) *gomock.Call {
+func (mr *MockModuleMockRecorder) BandwidthForPeer(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BandwidthForPeer", reflect.TypeOf((*MockModule)(nil).BandwidthForPeer), arg0)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BandwidthForPeer", reflect.TypeOf((*MockModule)(nil).BandwidthForPeer), arg0, arg1)
 }
 
 // BandwidthForProtocol mocks base method.
-func (m *MockModule) BandwidthForProtocol(arg0 protocol.ID) metrics.Stats {
+func (m *MockModule) BandwidthForProtocol(arg0 context.Context, arg1 protocol.ID) metrics.Stats {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "BandwidthForProtocol", arg0)
+	ret := m.ctrl.Call(m, "BandwidthForProtocol", arg0, arg1)
 	ret0, _ := ret[0].(metrics.Stats)
 	return ret0
 }
 
 // BandwidthForProtocol indicates an expected call of BandwidthForProtocol.
-func (mr *MockModuleMockRecorder) BandwidthForProtocol(arg0 interface{}) *gomock.Call {
+func (mr *MockModuleMockRecorder) BandwidthForProtocol(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BandwidthForProtocol", reflect.TypeOf((*MockModule)(nil).BandwidthForProtocol), arg0)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BandwidthForProtocol", reflect.TypeOf((*MockModule)(nil).BandwidthForProtocol), arg0, arg1)
 }
 
 // BandwidthStats mocks base method.
-func (m *MockModule) BandwidthStats() metrics.Stats {
+func (m *MockModule) BandwidthStats(arg0 context.Context) metrics.Stats {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "BandwidthStats")
+	ret := m.ctrl.Call(m, "BandwidthStats", arg0)
 	ret0, _ := ret[0].(metrics.Stats)
 	return ret0
 }
 
 // BandwidthStats indicates an expected call of BandwidthStats.
-func (mr *MockModuleMockRecorder) BandwidthStats() *gomock.Call {
+func (mr *MockModuleMockRecorder) BandwidthStats(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BandwidthStats", reflect.TypeOf((*MockModule)(nil).BandwidthStats))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BandwidthStats", reflect.TypeOf((*MockModule)(nil).BandwidthStats), arg0)
 }
 
 // BlockPeer mocks base method.
-func (m *MockModule) BlockPeer(arg0 peer.ID) error {
+func (m *MockModule) BlockPeer(arg0 context.Context, arg1 peer.ID) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "BlockPeer", arg0)
+	ret := m.ctrl.Call(m, "BlockPeer", arg0, arg1)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // BlockPeer indicates an expected call of BlockPeer.
-func (mr *MockModuleMockRecorder) BlockPeer(arg0 interface{}) *gomock.Call {
+func (mr *MockModuleMockRecorder) BlockPeer(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BlockPeer", reflect.TypeOf((*MockModule)(nil).BlockPeer), arg0)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BlockPeer", reflect.TypeOf((*MockModule)(nil).BlockPeer), arg0, arg1)
 }
 
 // ClosePeer mocks base method.
-func (m *MockModule) ClosePeer(arg0 peer.ID) error {
+func (m *MockModule) ClosePeer(arg0 context.Context, arg1 peer.ID) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ClosePeer", arg0)
+	ret := m.ctrl.Call(m, "ClosePeer", arg0, arg1)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // ClosePeer indicates an expected call of ClosePeer.
-func (mr *MockModuleMockRecorder) ClosePeer(arg0 interface{}) *gomock.Call {
+func (mr *MockModuleMockRecorder) ClosePeer(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ClosePeer", reflect.TypeOf((*MockModule)(nil).ClosePeer), arg0)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ClosePeer", reflect.TypeOf((*MockModule)(nil).ClosePeer), arg0, arg1)
 }
 
 // Connect mocks base method.
@@ -124,169 +124,169 @@ func (mr *MockModuleMockRecorder) Connect(arg0, arg1 interface{}) *gomock.Call {
 }
 
 // Connectedness mocks base method.
-func (m *MockModule) Connectedness(arg0 peer.ID) network.Connectedness {
+func (m *MockModule) Connectedness(arg0 context.Context, arg1 peer.ID) network.Connectedness {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Connectedness", arg0)
+	ret := m.ctrl.Call(m, "Connectedness", arg0, arg1)
 	ret0, _ := ret[0].(network.Connectedness)
 	return ret0
 }
 
 // Connectedness indicates an expected call of Connectedness.
-func (mr *MockModuleMockRecorder) Connectedness(arg0 interface{}) *gomock.Call {
+func (mr *MockModuleMockRecorder) Connectedness(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Connectedness", reflect.TypeOf((*MockModule)(nil).Connectedness), arg0)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Connectedness", reflect.TypeOf((*MockModule)(nil).Connectedness), arg0, arg1)
 }
 
 // Info mocks base method.
-func (m *MockModule) Info() peer.AddrInfo {
+func (m *MockModule) Info(arg0 context.Context) peer.AddrInfo {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Info")
+	ret := m.ctrl.Call(m, "Info", arg0)
 	ret0, _ := ret[0].(peer.AddrInfo)
 	return ret0
 }
 
 // Info indicates an expected call of Info.
-func (mr *MockModuleMockRecorder) Info() *gomock.Call {
+func (mr *MockModuleMockRecorder) Info(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Info", reflect.TypeOf((*MockModule)(nil).Info))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Info", reflect.TypeOf((*MockModule)(nil).Info), arg0)
 }
 
 // IsProtected mocks base method.
-func (m *MockModule) IsProtected(arg0 peer.ID, arg1 string) bool {
+func (m *MockModule) IsProtected(arg0 context.Context, arg1 peer.ID, arg2 string) bool {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "IsProtected", arg0, arg1)
+	ret := m.ctrl.Call(m, "IsProtected", arg0, arg1, arg2)
 	ret0, _ := ret[0].(bool)
 	return ret0
 }
 
 // IsProtected indicates an expected call of IsProtected.
-func (mr *MockModuleMockRecorder) IsProtected(arg0, arg1 interface{}) *gomock.Call {
+func (mr *MockModuleMockRecorder) IsProtected(arg0, arg1, arg2 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsProtected", reflect.TypeOf((*MockModule)(nil).IsProtected), arg0, arg1)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsProtected", reflect.TypeOf((*MockModule)(nil).IsProtected), arg0, arg1, arg2)
 }
 
 // ListBlockedPeers mocks base method.
-func (m *MockModule) ListBlockedPeers() []peer.ID {
+func (m *MockModule) ListBlockedPeers(arg0 context.Context) []peer.ID {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ListBlockedPeers")
+	ret := m.ctrl.Call(m, "ListBlockedPeers", arg0)
 	ret0, _ := ret[0].([]peer.ID)
 	return ret0
 }
 
 // ListBlockedPeers indicates an expected call of ListBlockedPeers.
-func (mr *MockModuleMockRecorder) ListBlockedPeers() *gomock.Call {
+func (mr *MockModuleMockRecorder) ListBlockedPeers(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListBlockedPeers", reflect.TypeOf((*MockModule)(nil).ListBlockedPeers))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListBlockedPeers", reflect.TypeOf((*MockModule)(nil).ListBlockedPeers), arg0)
 }
 
 // NATStatus mocks base method.
-func (m *MockModule) NATStatus() (network.Reachability, error) {
+func (m *MockModule) NATStatus(arg0 context.Context) (network.Reachability, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "NATStatus")
+	ret := m.ctrl.Call(m, "NATStatus", arg0)
 	ret0, _ := ret[0].(network.Reachability)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // NATStatus indicates an expected call of NATStatus.
-func (mr *MockModuleMockRecorder) NATStatus() *gomock.Call {
+func (mr *MockModuleMockRecorder) NATStatus(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "NATStatus", reflect.TypeOf((*MockModule)(nil).NATStatus))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "NATStatus", reflect.TypeOf((*MockModule)(nil).NATStatus), arg0)
 }
 
 // PeerInfo mocks base method.
-func (m *MockModule) PeerInfo(arg0 peer.ID) peer.AddrInfo {
+func (m *MockModule) PeerInfo(arg0 context.Context, arg1 peer.ID) peer.AddrInfo {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "PeerInfo", arg0)
+	ret := m.ctrl.Call(m, "PeerInfo", arg0, arg1)
 	ret0, _ := ret[0].(peer.AddrInfo)
 	return ret0
 }
 
 // PeerInfo indicates an expected call of PeerInfo.
-func (mr *MockModuleMockRecorder) PeerInfo(arg0 interface{}) *gomock.Call {
+func (mr *MockModuleMockRecorder) PeerInfo(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PeerInfo", reflect.TypeOf((*MockModule)(nil).PeerInfo), arg0)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PeerInfo", reflect.TypeOf((*MockModule)(nil).PeerInfo), arg0, arg1)
 }
 
 // Peers mocks base method.
-func (m *MockModule) Peers() []peer.ID {
+func (m *MockModule) Peers(arg0 context.Context) []peer.ID {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Peers")
+	ret := m.ctrl.Call(m, "Peers", arg0)
 	ret0, _ := ret[0].([]peer.ID)
 	return ret0
 }
 
 // Peers indicates an expected call of Peers.
-func (mr *MockModuleMockRecorder) Peers() *gomock.Call {
+func (mr *MockModuleMockRecorder) Peers(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Peers", reflect.TypeOf((*MockModule)(nil).Peers))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Peers", reflect.TypeOf((*MockModule)(nil).Peers), arg0)
 }
 
 // Protect mocks base method.
-func (m *MockModule) Protect(arg0 peer.ID, arg1 string) {
+func (m *MockModule) Protect(arg0 context.Context, arg1 peer.ID, arg2 string) {
 	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "Protect", arg0, arg1)
+	m.ctrl.Call(m, "Protect", arg0, arg1, arg2)
 }
 
 // Protect indicates an expected call of Protect.
-func (mr *MockModuleMockRecorder) Protect(arg0, arg1 interface{}) *gomock.Call {
+func (mr *MockModuleMockRecorder) Protect(arg0, arg1, arg2 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Protect", reflect.TypeOf((*MockModule)(nil).Protect), arg0, arg1)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Protect", reflect.TypeOf((*MockModule)(nil).Protect), arg0, arg1, arg2)
 }
 
 // PubSubPeers mocks base method.
-func (m *MockModule) PubSubPeers(arg0 string) []peer.ID {
+func (m *MockModule) PubSubPeers(arg0 context.Context, arg1 string) []peer.ID {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "PubSubPeers", arg0)
+	ret := m.ctrl.Call(m, "PubSubPeers", arg0, arg1)
 	ret0, _ := ret[0].([]peer.ID)
 	return ret0
 }
 
 // PubSubPeers indicates an expected call of PubSubPeers.
-func (mr *MockModuleMockRecorder) PubSubPeers(arg0 interface{}) *gomock.Call {
+func (mr *MockModuleMockRecorder) PubSubPeers(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PubSubPeers", reflect.TypeOf((*MockModule)(nil).PubSubPeers), arg0)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PubSubPeers", reflect.TypeOf((*MockModule)(nil).PubSubPeers), arg0, arg1)
 }
 
 // ResourceState mocks base method.
-func (m *MockModule) ResourceState() (rcmgr.ResourceManagerStat, error) {
+func (m *MockModule) ResourceState(arg0 context.Context) (rcmgr.ResourceManagerStat, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ResourceState")
+	ret := m.ctrl.Call(m, "ResourceState", arg0)
 	ret0, _ := ret[0].(rcmgr.ResourceManagerStat)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // ResourceState indicates an expected call of ResourceState.
-func (mr *MockModuleMockRecorder) ResourceState() *gomock.Call {
+func (mr *MockModuleMockRecorder) ResourceState(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ResourceState", reflect.TypeOf((*MockModule)(nil).ResourceState))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ResourceState", reflect.TypeOf((*MockModule)(nil).ResourceState), arg0)
 }
 
 // UnblockPeer mocks base method.
-func (m *MockModule) UnblockPeer(arg0 peer.ID) error {
+func (m *MockModule) UnblockPeer(arg0 context.Context, arg1 peer.ID) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "UnblockPeer", arg0)
+	ret := m.ctrl.Call(m, "UnblockPeer", arg0, arg1)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // UnblockPeer indicates an expected call of UnblockPeer.
-func (mr *MockModuleMockRecorder) UnblockPeer(arg0 interface{}) *gomock.Call {
+func (mr *MockModuleMockRecorder) UnblockPeer(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UnblockPeer", reflect.TypeOf((*MockModule)(nil).UnblockPeer), arg0)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UnblockPeer", reflect.TypeOf((*MockModule)(nil).UnblockPeer), arg0, arg1)
 }
 
 // Unprotect mocks base method.
-func (m *MockModule) Unprotect(arg0 peer.ID, arg1 string) bool {
+func (m *MockModule) Unprotect(arg0 context.Context, arg1 peer.ID, arg2 string) bool {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Unprotect", arg0, arg1)
+	ret := m.ctrl.Call(m, "Unprotect", arg0, arg1, arg2)
 	ret0, _ := ret[0].(bool)
 	return ret0
 }
 
 // Unprotect indicates an expected call of Unprotect.
-func (mr *MockModuleMockRecorder) Unprotect(arg0, arg1 interface{}) *gomock.Call {
+func (mr *MockModuleMockRecorder) Unprotect(arg0, arg1, arg2 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Unprotect", reflect.TypeOf((*MockModule)(nil).Unprotect), arg0, arg1)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Unprotect", reflect.TypeOf((*MockModule)(nil).Unprotect), arg0, arg1, arg2)
 }

@@ -29,14 +29,16 @@ func TestP2PModule_Host(t *testing.T) {
 
 	mgr := newModule(host, nil, nil, nil, nil)
 
-	// test all methods on `manager.host`
-	assert.Equal(t, []libpeer.ID(host.Peerstore().Peers()), mgr.Peers())
-	assert.Equal(t, libhost.InfoFromHost(peer).ID, mgr.PeerInfo(peer.ID()).ID)
+	ctx := context.Background()
 
-	assert.Equal(t, host.Network().Connectedness(peer.ID()), mgr.Connectedness(peer.ID()))
+	// test all methods on `manager.host`
+	assert.Equal(t, []libpeer.ID(host.Peerstore().Peers()), mgr.Peers(ctx))
+	assert.Equal(t, libhost.InfoFromHost(peer).ID, mgr.PeerInfo(ctx, peer.ID()).ID)
+
+	assert.Equal(t, host.Network().Connectedness(peer.ID()), mgr.Connectedness(ctx, peer.ID()))
 	// now disconnect using manager and check for connectedness match again
-	assert.NoError(t, mgr.ClosePeer(peer.ID()))
-	assert.Equal(t, host.Network().Connectedness(peer.ID()), mgr.Connectedness(peer.ID()))
+	assert.NoError(t, mgr.ClosePeer(ctx, peer.ID()))
+	assert.Equal(t, host.Network().Connectedness(peer.ID()), mgr.Connectedness(ctx, peer.ID()))
 }
 
 // TestP2PModule_ConnManager tests P2P Module methods on
@@ -59,10 +61,10 @@ func TestP2PModule_ConnManager(t *testing.T) {
 	err = mgr.Connect(ctx, *libhost.InfoFromHost(peer))
 	require.NoError(t, err)
 
-	mgr.Protect(peer.ID(), "test")
-	assert.True(t, mgr.IsProtected(peer.ID(), "test"))
-	mgr.Unprotect(peer.ID(), "test")
-	assert.False(t, mgr.IsProtected(peer.ID(), "test"))
+	mgr.Protect(ctx, peer.ID(), "test")
+	assert.True(t, mgr.IsProtected(ctx, peer.ID(), "test"))
+	mgr.Unprotect(ctx, peer.ID(), "test")
+	assert.False(t, mgr.IsProtected(ctx, peer.ID(), "test"))
 }
 
 // TestP2PModule_Autonat tests P2P Module methods on
@@ -73,7 +75,7 @@ func TestP2PModule_Autonat(t *testing.T) {
 
 	mgr := newModule(host, nil, nil, nil, nil)
 
-	status, err := mgr.NATStatus()
+	status, err := mgr.NATStatus(context.Background())
 	assert.NoError(t, err)
 	assert.Equal(t, network.ReachabilityUnknown, status)
 }
@@ -111,11 +113,12 @@ func TestP2PModule_Bandwidth(t *testing.T) {
 	// connect to the peer
 	err = mgr.Connect(ctx, *libhost.InfoFromHost(peer))
 	require.NoError(t, err)
+
 	// check to ensure they're actually connected
-	require.Equal(t, network.Connected, mgr.Connectedness(peer.ID()))
+	require.Equal(t, network.Connected, mgr.Connectedness(ctx, peer.ID()))
 
 	// open stream with host
-	stream, err := peer.NewStream(ctx, mgr.Info().ID, protoID)
+	stream, err := peer.NewStream(ctx, mgr.Info(ctx).ID, protoID)
 	require.NoError(t, err)
 
 	// write to stream to increase bandwidth usage get some substantive
@@ -133,12 +136,12 @@ func TestP2PModule_Bandwidth(t *testing.T) {
 	// in the background process
 	time.Sleep(time.Second * 2)
 
-	stats := mgr.BandwidthStats()
+	stats := mgr.BandwidthStats(ctx)
 	assert.NotNil(t, stats)
-	peerStat := mgr.BandwidthForPeer(peer.ID())
+	peerStat := mgr.BandwidthForPeer(ctx, peer.ID())
 	assert.NotZero(t, peerStat.TotalIn)
 	assert.Greater(t, int(peerStat.TotalIn), bufSize) // should be slightly more than buf size due negotiations, etc
-	protoStat := mgr.BandwidthForProtocol(protoID)
+	protoStat := mgr.BandwidthForProtocol(ctx, protoID)
 	assert.NotZero(t, protoStat.TotalIn)
 	assert.Greater(t, int(protoStat.TotalIn), bufSize) // should be slightly more than buf size due negotiations, etc
 }
@@ -182,7 +185,7 @@ func TestP2PModule_Pubsub(t *testing.T) {
 	// anywhere where gossipsub is used in tests)
 	time.Sleep(1 * time.Second)
 
-	assert.Equal(t, len(topic.ListPeers()), len(mgr.PubSubPeers(topicStr)))
+	assert.Equal(t, len(topic.ListPeers()), len(mgr.PubSubPeers(context.Background(), topicStr)))
 }
 
 // TestP2PModule_ConnGater tests P2P Module methods on
@@ -193,10 +196,12 @@ func TestP2PModule_ConnGater(t *testing.T) {
 
 	mgr := newModule(nil, nil, gater, nil, nil)
 
-	assert.NoError(t, mgr.BlockPeer("badpeer"))
-	assert.Len(t, mgr.ListBlockedPeers(), 1)
-	assert.NoError(t, mgr.UnblockPeer("badpeer"))
-	assert.Len(t, mgr.ListBlockedPeers(), 0)
+	ctx := context.Background()
+
+	assert.NoError(t, mgr.BlockPeer(ctx, "badpeer"))
+	assert.Len(t, mgr.ListBlockedPeers(ctx), 1)
+	assert.NoError(t, mgr.UnblockPeer(ctx, "badpeer"))
+	assert.Len(t, mgr.ListBlockedPeers(ctx), 0)
 }
 
 // TestP2PModule_ResourceManager tests P2P Module methods on
@@ -207,7 +212,7 @@ func TestP2PModule_ResourceManager(t *testing.T) {
 
 	mgr := newModule(nil, nil, nil, nil, rm)
 
-	state, err := mgr.ResourceState()
+	state, err := mgr.ResourceState(context.Background())
 	require.NoError(t, err)
 
 	assert.NotNil(t, state)
