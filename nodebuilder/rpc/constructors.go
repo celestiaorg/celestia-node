@@ -28,6 +28,7 @@ func RegisterEndpoints(
 	serv.RegisterAuthedService("state", stateMod, &state.API{})
 	serv.RegisterAuthedService("share", shareMod, &share.API{})
 	serv.RegisterAuthedService("p2p", p2pMod, &p2p.API{})
+	serv.RegisterAuthedService("node", nodeMod, &node.API{})
 }
 
 func Server(cfg *Config) *rpc.Server {

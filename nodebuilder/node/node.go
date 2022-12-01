@@ -21,12 +21,12 @@ var (
 //go:generate mockgen -destination=mocks/api.go -package=mocks . Module
 type Module interface {
 	// Type returns the node type.
-	Type() Type
+	Type(context.Context) Type
 	// Version returns information about the current binary build.
-	Version() Version
+	Version(context.Context) Version
 
 	// LogLevelSet sets the given component log level to the given level.
-	LogLevelSet(name, level string) error
+	LogLevelSet(ctx context.Context, name, level string) error
 
 	// AuthVerify returns the permissions assigned to the given token.
 	AuthVerify(ctx context.Context, token string) ([]auth.Permission, error)
@@ -36,24 +36,24 @@ type Module interface {
 
 type API struct {
 	Internal struct {
-		Type        func() Type                                                        `perm:"admin"`
-		Version     func() Version                                                     `perm:"admin"`
-		LogLevelSet func(name, level string) error                                     `perm:"admin"`
+		Type        func(context.Context) Type                                         `perm:"admin"`
+		Version     func(context.Context) Version                                      `perm:"admin"`
+		LogLevelSet func(ctx context.Context, name, level string) error                `perm:"admin"`
 		AuthVerify  func(ctx context.Context, token string) ([]auth.Permission, error) `perm:"admin"`
 		AuthNew     func(ctx context.Context, perms []auth.Permission) ([]byte, error) `perm:"admin"`
 	}
 }
 
-func (api *API) Type() Type {
-	return api.Internal.Type()
+func (api *API) Type(ctx context.Context) Type {
+	return api.Internal.Type(ctx)
 }
 
-func (api *API) Version() Version {
-	return api.Internal.Version()
+func (api *API) Version(ctx context.Context) Version {
+	return api.Internal.Version(ctx)
 }
 
-func (api *API) LogLevelSet(name, level string) error {
-	return api.Internal.LogLevelSet(name, level)
+func (api *API) LogLevelSet(ctx context.Context, name, level string) error {
+	return api.Internal.LogLevelSet(ctx, name, level)
 }
 
 func (api *API) AuthVerify(ctx context.Context, token string) ([]auth.Permission, error) {
@@ -74,7 +74,7 @@ func newAdmin(tp Type) Module {
 	}
 }
 
-func (a *admin) Type() Type {
+func (a *admin) Type(context.Context) Type {
 	return a.tp
 }
 
@@ -87,7 +87,7 @@ type Version struct {
 	GoVersion       string `json:"go_version"`
 }
 
-func (a *admin) Version() Version {
+func (a *admin) Version(context.Context) Version {
 	return Version{
 		SemanticVersion: semanticVersion,
 		LastCommit:      lastCommit,
@@ -97,7 +97,7 @@ func (a *admin) Version() Version {
 	}
 }
 
-func (a *admin) LogLevelSet(name, level string) error {
+func (a *admin) LogLevelSet(_ context.Context, name, level string) error {
 	return logging.SetLogLevel(name, level)
 }
 
