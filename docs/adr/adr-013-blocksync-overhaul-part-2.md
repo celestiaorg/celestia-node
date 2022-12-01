@@ -1,4 +1,4 @@
-# ADR #011: Block Data Sync Overhaul: Part II - Network
+# ADR #013: Block Data Sync Overhaul: Part II - Network
 
 ## Authors
 
@@ -400,7 +400,7 @@ Subsequently, we extend `discovery.Discovery` with the following method:
 func (d *Discovery) Peers(context.Context) ([]peer.ID, error)
 ```
 
-### DASer
+### das.DASer
 
 The `das.DASer` engine keeps the chain sampled and availability checked and provided. Currently, it relies on 
 `header.Subscribtion` to get every newly produced header from the network. Once a header received it could reliably check its 
@@ -415,7 +415,7 @@ To synchronise them we:
     * If nothing, rejects message
   * Calls `SharesAvailable` with the DAH from the header and the peer the message received from
 
-### Availability
+### share.Availability
 
 Celestia-node has central `share.Availability` interface, which guarantees certain level of EDS data availability depending
 on the implementation. Its `SharesAvailable` method has to be extended with an additional variadic `peer.ID` param.
@@ -439,6 +439,13 @@ one of the paths finishes.
 
 Additionally, `FullAvailability` should provide `OnlyReconstruction` mode to allow testing the ___fallback path___ 
 in isolation.
+
+### core.Listener
+
+The `core.Listener` is the component that exists only in BN. It listens for new blocks coming from the Core Network, 
+computes EDS with `ExtendedHeader` and broadcasts it to the network. With the introduction of `ShrEx/Sub` BNs sends
+notifications once it ready to serve the new block, thus we make `core.Listener` additionally broadcast the notification
+via `eds.PubSub`.
 
 ## Hardening
 
