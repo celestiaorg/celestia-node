@@ -160,7 +160,7 @@ func (ex *Exchange) GetVerifiedRange(
 	session := newSession(ex.ctx, ex.host, ex.peerTracker.peers(), ex.protocolID)
 	defer session.close()
 
-	headers, err := session.getRangeByHeight(ctx, uint64(from.Height)+1, amount)
+	headers, err := session.getRangeByHeight(ctx, uint64(from.Height)+1, amount, ex.Params.MaxHeadersPerRequest)
 	if err != nil {
 		return nil, err
 	}
