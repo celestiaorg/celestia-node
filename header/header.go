@@ -89,9 +89,6 @@ func (eh *ExtendedHeader) LastHeader() headerpkg.Hash {
 }
 
 // IsBefore returns whether the given header is of a higher height.
-func (eh *ExtendedHeader) IsBefore(h *ExtendedHeader) bool {
-	return eh.Height < h.Height
-}
 
 // Equals returns whether the hash and height of the given header match.
 func (eh *ExtendedHeader) Equals(header *ExtendedHeader) bool {

@@ -154,7 +154,7 @@ func (s *Syncer) validate(ctx context.Context, new *header.ExtendedHeader) pubsu
 		return pubsub.ValidationIgnore // local error, so ignore
 	}
 	// ignore header if it's from the past
-	if !sbjHead.IsBefore(new) {
+	if new.Height <= sbjHead.Height {
 		log.Warnw("received known network header",
 			"current_height", sbjHead.Height,
 			"header_height", new.Height,
