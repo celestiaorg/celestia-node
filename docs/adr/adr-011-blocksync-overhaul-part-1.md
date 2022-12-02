@@ -373,6 +373,7 @@ on `node.Store.Path`.
   `context.Context`.
 
 [dah]: https://github.com/celestiaorg/celestia-app/blob/86c9bf6b981a8b25033357fddc89ef70abf80681/pkg/da/data_availability_header.go#L28
+[dh]: https://github.com/celestiaorg/celestia-core/blob/f76d026f3525d2d4fa309c62df29d42d33d0e9c6/types/block.go#L354
 [dar]: https://github.com/celestiaorg/celestia-node/blob/da4f54bca1bfef86f53880ced569d37ffb4b8b84/share/availability.go#L21
 [eds]: https://github.com/celestiaorg/rsmt2d/blob/76b270f80f0b9ac966c6f6b043e31514574f90f3/extendeddatasquare.go#L10
 [nmt]: https://github.com/celestiaorg/nmt
