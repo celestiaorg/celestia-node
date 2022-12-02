@@ -252,15 +252,14 @@ func (s *Store) GetCAR(context.Context, DataHash) (io.ReadCloser, error)
 
 ##### `eds.Store.Blockstore`
 
-`Blockstore` method returns a [`Blockstore`][blockstore]
-interface implementation instance, providing random access over share and NMT Merkle proof in every stored EDS. It is
-required for FNs/BNs to serve DAS requests over the Bitswap and for [reading data by namespace](#reading-data-by-namespace).
+`Blockstore` method returns a [`Blockstore`][blockstore] interface implementation instance, providing random access over
+share and NMT Merkle proof in every stored EDS. It is required for FNs/BNs to serve DAS requests over the Bitswap.
 
 There is a `Blockstore` over [`DAGStore`][dagstore] and [`CARv2`][carv2] indexes.
 
 ___NOTES:___
 
-- _We can either use it(and finish if something is missing for our case) or implement custom optimized for our needs._
+- _We can either use DAGStore's one or implement custom optimized for our needs._
 - _The Blockstore does not store whole Celestia Blocks, but IPFS blocks. We represent Merkle proofs and shares in IPFS
   blocks._
 - EDIT: We went with custom implementation.
@@ -270,6 +269,24 @@ ___NOTES:___
 // registered on the Store. NOTE: The Blockstore does not store whole Celestia Blocks but IPFS blocks. 
 // We represent `shares` and NMT Merkle proofs as IPFS blocks and IPLD nodes so Bitswap can access those.
 func (s *Store) Blockstore() blockstore.Blockstore
+```
+
+##### `eds.Store.CARBlockstore`
+
+`CARBlockstore` method returns a [`Blockstore`][blockstore] interface implementation instance, providing random access 
+over share and NMT Merkle proof in a specific EDS identified by DataHash. It is required for FNs/BNs to enable [reading
+data by namespace](#reading-data-by-namespace).
+
+___NOTES:___
+
+- _The Blockstore does not store whole Celestia Blocks, but IPFS blocks. We represent Merkle proofs and shares in IPFS
+  blocks._
+
+```go
+// Blockstore returns an IPFS Blockstore providing access to individual shares/nodes of a specific EDS identified by 
+// DataHash and registered on the Store. NOTE: The Blockstore does not store whole Celestia Blocks but IPFS blocks. 
+// We represent `shares` and NMT Merkle proofs as IPFS blocks and IPLD nodes so Bitswap can access those.
+func (s *Store) Blockstore(DataHash) (blockstore.Blockstore, error)
 ```
 
 ##### `eds.Store.Get`
