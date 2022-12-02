@@ -2,17 +2,16 @@ package sync
 
 import (
 	"context"
+	headerpkg "github.com/celestiaorg/celestia-node/pkg/header"
 	"testing"
 	"time"
-
-	pubsub "github.com/libp2p/go-libp2p-pubsub"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-	"github.com/tendermint/tendermint/libs/bytes"
 
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/header/local"
 	"github.com/celestiaorg/celestia-node/header/store"
+	pubsub "github.com/libp2p/go-libp2p-pubsub"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestSyncSimpleRequestingHead(t *testing.T) {
@@ -212,7 +211,7 @@ func (e *exchangeCountingHead) Head(context.Context) (*header.ExtendedHeader, er
 	return e.header, nil
 }
 
-func (e *exchangeCountingHead) Get(ctx context.Context, bytes bytes.HexBytes) (*header.ExtendedHeader, error) {
+func (e *exchangeCountingHead) Get(ctx context.Context, bytes headerpkg.Hash) (*header.ExtendedHeader, error) {
 	panic("implement me")
 }
 

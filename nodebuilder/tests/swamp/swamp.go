@@ -14,7 +14,6 @@ import (
 	mocknet "github.com/libp2p/go-libp2p/p2p/net/mock"
 	ma "github.com/multiformats/go-multiaddr"
 	"github.com/stretchr/testify/require"
-	"github.com/tendermint/tendermint/libs/bytes"
 	"go.uber.org/fx"
 
 	"github.com/celestiaorg/celestia-app/testutil/testnode"
@@ -29,6 +28,7 @@ import (
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
 	"github.com/celestiaorg/celestia-node/nodebuilder/state"
+	headerpkg "github.com/celestiaorg/celestia-node/pkg/header"
 )
 
 var blackholeIP6 = net.ParseIP("100::")
@@ -101,15 +101,15 @@ func (s *Swamp) stopAllNodes(ctx context.Context, allNodes ...[]*nodebuilder.Nod
 }
 
 // GetCoreBlockHashByHeight returns a tendermint block's hash by provided height
-func (s *Swamp) GetCoreBlockHashByHeight(ctx context.Context, height int64) bytes.HexBytes {
+func (s *Swamp) GetCoreBlockHashByHeight(ctx context.Context, height int64) headerpkg.Hash {
 	b, err := s.ClientContext.Client.Block(ctx, &height)
 	require.NoError(s.t, err)
-	return b.BlockID.Hash
+	return headerpkg.Hash(b.BlockID.Hash)
 }
 
 // WaitTillHeight holds the test execution until the given amount of blocks
 // has been produced by the CoreClient.
-func (s *Swamp) WaitTillHeight(ctx context.Context, height int64) bytes.HexBytes {
+func (s *Swamp) WaitTillHeight(ctx context.Context, height int64) headerpkg.Hash {
 	require.Greater(s.t, height, int64(0))
 
 	t := time.NewTicker(time.Millisecond * 50)
@@ -125,11 +125,11 @@ func (s *Swamp) WaitTillHeight(ctx context.Context, height int64) bytes.HexBytes
 			latest := status.SyncInfo.LatestBlockHeight
 			switch {
 			case latest == height:
-				return status.SyncInfo.LatestBlockHash
+				return headerpkg.Hash(status.SyncInfo.LatestBlockHash)
 			case latest > height:
 				res, err := s.ClientContext.Client.Block(ctx, &height)
 				require.NoError(s.t, err)
-				return res.BlockID.Hash
+				return headerpkg.Hash(res.BlockID.Hash)
 			}
 		}
 	}

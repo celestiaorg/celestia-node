@@ -4,11 +4,9 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-
+	headerpkg "github.com/celestiaorg/celestia-node/pkg/header"
 	"github.com/ipfs/go-blockservice"
 	logging "github.com/ipfs/go-log/v2"
-
-	tmbytes "github.com/tendermint/tendermint/libs/bytes"
 
 	"github.com/celestiaorg/celestia-node/core"
 	"github.com/celestiaorg/celestia-node/header"
@@ -72,7 +70,7 @@ func (ce *Exchange) GetVerifiedRange(ctx context.Context, from *header.ExtendedH
 	return headers, nil
 }
 
-func (ce *Exchange) Get(ctx context.Context, hash tmbytes.HexBytes) (*header.ExtendedHeader, error) {
+func (ce *Exchange) Get(ctx context.Context, hash headerpkg.Hash) (*header.ExtendedHeader, error) {
 	log.Debugw("requesting header", "hash", hash.String())
 	block, err := ce.fetcher.GetBlockByHash(ctx, hash)
 	if err != nil {

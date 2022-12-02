@@ -2,8 +2,7 @@ package local
 
 import (
 	"context"
-
-	"github.com/tendermint/tendermint/libs/bytes"
+	headerpkg "github.com/celestiaorg/celestia-node/pkg/header"
 
 	"github.com/celestiaorg/celestia-node/header"
 )
@@ -48,6 +47,6 @@ func (l *Exchange) GetVerifiedRange(ctx context.Context, from *header.ExtendedHe
 	return l.store.GetVerifiedRange(ctx, from, uint64(from.Height)+amount)
 }
 
-func (l *Exchange) Get(ctx context.Context, hash bytes.HexBytes) (*header.ExtendedHeader, error) {
+func (l *Exchange) Get(ctx context.Context, hash headerpkg.Hash) (*header.ExtendedHeader, error) {
 	return l.store.Get(ctx, hash)
 }

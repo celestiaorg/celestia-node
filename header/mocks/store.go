@@ -5,9 +5,8 @@ import (
 	"context"
 	"testing"
 
-	tmbytes "github.com/tendermint/tendermint/libs/bytes"
-
 	"github.com/celestiaorg/celestia-node/header"
+	headerpkg "github.com/celestiaorg/celestia-node/pkg/header"
 )
 
 type MockStore struct {
@@ -48,7 +47,7 @@ func (m *MockStore) Head(context.Context) (*header.ExtendedHeader, error) {
 	return m.Headers[m.HeadHeight], nil
 }
 
-func (m *MockStore) Get(ctx context.Context, hash tmbytes.HexBytes) (*header.ExtendedHeader, error) {
+func (m *MockStore) Get(ctx context.Context, hash headerpkg.Hash) (*header.ExtendedHeader, error) {
 	for _, header := range m.Headers {
 		if bytes.Equal(header.Hash(), hash) {
 			return header, nil
@@ -84,7 +83,7 @@ func (m *MockStore) GetVerifiedRange(
 	return m.GetRangeByHeight(ctx, uint64(h.Height)+1, to)
 }
 
-func (m *MockStore) Has(context.Context, tmbytes.HexBytes) (bool, error) {
+func (m *MockStore) Has(context.Context, headerpkg.Hash) (bool, error) {
 	return false, nil
 }
 

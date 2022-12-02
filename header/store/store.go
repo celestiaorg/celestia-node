@@ -4,16 +4,15 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	headerpkg "github.com/celestiaorg/celestia-node/pkg/header"
 	"sync/atomic"
 
 	logging "github.com/ipfs/go-log/v2"
 
+	"github.com/celestiaorg/celestia-node/header"
 	lru "github.com/hashicorp/golang-lru"
 	"github.com/ipfs/go-datastore"
 	"github.com/ipfs/go-datastore/namespace"
-	tmbytes "github.com/tendermint/tendermint/libs/bytes"
-
-	"github.com/celestiaorg/celestia-node/header"
 )
 
 var log = logging.Logger("header/store")
@@ -168,7 +167,7 @@ func (s *Store) Head(ctx context.Context) (*header.ExtendedHeader, error) {
 	}
 }
 
-func (s *Store) Get(ctx context.Context, hash tmbytes.HexBytes) (*header.ExtendedHeader, error) {
+func (s *Store) Get(ctx context.Context, hash headerpkg.Hash) (*header.ExtendedHeader, error) {
 	if v, ok := s.cache.Get(hash.String()); ok {
 		return v.(*header.ExtendedHeader), nil
 	}
@@ -268,7 +267,7 @@ func (s *Store) GetVerifiedRange(
 	return headers, nil
 }
 
-func (s *Store) Has(ctx context.Context, hash tmbytes.HexBytes) (bool, error) {
+func (s *Store) Has(ctx context.Context, hash headerpkg.Hash) (bool, error) {
 	if ok := s.cache.Contains(hash.String()); ok {
 		return ok, nil
 	}
@@ -428,7 +427,7 @@ func (s *Store) readHead(ctx context.Context) (*header.ExtendedHeader, error) {
 		return nil, err
 	}
 
-	var head tmbytes.HexBytes
+	var head headerpkg.Hash
 	err = head.UnmarshalJSON(b)
 	if err != nil {
 		return nil, err

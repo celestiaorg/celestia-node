@@ -5,6 +5,7 @@ package header
 
 import (
 	"context"
+	headerpkg "github.com/celestiaorg/celestia-node/pkg/header"
 
 	"github.com/celestiaorg/celestia-node/share"
 
@@ -95,7 +96,7 @@ func (s *TestSuite) GenExtendedHeader() *ExtendedHeader {
 
 	dah := da.MinDataAvailabilityHeader()
 	height := s.Head().Height + 1
-	rh := s.GenRawHeader(height, s.Head().Hash(), s.Head().Commit.Hash(), dah.Hash())
+	rh := s.GenRawHeader(height, s.Head().Hash(), headerpkg.Hash(s.Head().Commit.Hash()), dah.Hash())
 	s.head = &ExtendedHeader{
 		RawHeader:    *rh,
 		Commit:       s.Commit(rh),
@@ -107,13 +108,13 @@ func (s *TestSuite) GenExtendedHeader() *ExtendedHeader {
 }
 
 func (s *TestSuite) GenRawHeader(
-	height int64, lastHeader, lastCommit, dataHash bytes.HexBytes) *RawHeader {
+	height int64, lastHeader, lastCommit, dataHash headerpkg.Hash) *RawHeader {
 	rh := RandRawHeader(s.t)
 	rh.Height = height
 	rh.Time = time.Now()
-	rh.LastBlockID = types.BlockID{Hash: lastHeader}
-	rh.LastCommitHash = lastCommit
-	rh.DataHash = dataHash
+	rh.LastBlockID = types.BlockID{Hash: bytes.HexBytes(lastHeader)}
+	rh.LastCommitHash = bytes.HexBytes(lastCommit)
+	rh.DataHash = bytes.HexBytes(dataHash)
 	rh.ValidatorsHash = s.valSet.Hash()
 	rh.NextValidatorsHash = s.valSet.Hash()
 	rh.ProposerAddress = s.nextProposer().Address

@@ -7,9 +7,9 @@ import (
 	"time"
 
 	logging "github.com/ipfs/go-log/v2"
-	tmbytes "github.com/tendermint/tendermint/libs/bytes"
 
 	"github.com/celestiaorg/celestia-node/header"
+	headerpkg "github.com/celestiaorg/celestia-node/pkg/header"
 )
 
 var log = logging.Logger("header/sync")
@@ -115,7 +115,7 @@ type State struct {
 	ID                   uint64 // incrementing ID of a sync
 	Height               uint64 // height at the moment when State is requested for a sync
 	FromHeight, ToHeight uint64 // the starting and the ending point of a sync
-	FromHash, ToHash     tmbytes.HexBytes
+	FromHash, ToHash     headerpkg.Hash
 	Start, End           time.Time
 	Error                error // the error that might happen within a sync
 }

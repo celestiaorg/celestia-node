@@ -2,12 +2,11 @@ package store
 
 import (
 	"context"
-
-	lru "github.com/hashicorp/golang-lru"
-	"github.com/ipfs/go-datastore"
-	tmbytes "github.com/tendermint/tendermint/libs/bytes"
+	headerpkg "github.com/celestiaorg/celestia-node/pkg/header"
 
 	"github.com/celestiaorg/celestia-node/header"
+	lru "github.com/hashicorp/golang-lru"
+	"github.com/ipfs/go-datastore"
 )
 
 // TODO(@Wondertan): There should be a more clever way to index heights, than just storing
@@ -32,9 +31,9 @@ func newHeightIndexer(ds datastore.Batching, indexCacheSize int) (*heightIndexer
 }
 
 // HashByHeight loads a header hash corresponding to the given height.
-func (hi *heightIndexer) HashByHeight(ctx context.Context, h uint64) (tmbytes.HexBytes, error) {
+func (hi *heightIndexer) HashByHeight(ctx context.Context, h uint64) (headerpkg.Hash, error) {
 	if v, ok := hi.cache.Get(h); ok {
-		return v.(tmbytes.HexBytes), nil
+		return v.(headerpkg.Hash), nil
 	}
 
 	val, err := hi.ds.Get(ctx, heightKey(h))
@@ -42,7 +41,7 @@ func (hi *heightIndexer) HashByHeight(ctx context.Context, h uint64) (tmbytes.He
 		return nil, err
 	}
 
-	hi.cache.Add(h, tmbytes.HexBytes(val))
+	hi.cache.Add(h, headerpkg.Hash(val))
 	return val, nil
 }
 

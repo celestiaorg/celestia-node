@@ -1,9 +1,8 @@
 package store
 
 import (
+	headerpkg "github.com/celestiaorg/celestia-node/pkg/header"
 	"sync"
-
-	tmbytes "github.com/tendermint/tendermint/libs/bytes"
 
 	"github.com/celestiaorg/celestia-node/header"
 )
@@ -44,7 +43,7 @@ func (b *batch) GetAll() []*header.ExtendedHeader {
 }
 
 // Get returns a header by its hash.
-func (b *batch) Get(hash tmbytes.HexBytes) *header.ExtendedHeader {
+func (b *batch) Get(hash headerpkg.Hash) *header.ExtendedHeader {
 	b.lk.RLock()
 	defer b.lk.RUnlock()
 	height, ok := b.heights[hash.String()]
@@ -88,7 +87,7 @@ func (b *batch) Append(headers ...*header.ExtendedHeader) {
 }
 
 // Has checks whether header by the hash is present in the batch.
-func (b *batch) Has(hash tmbytes.HexBytes) bool {
+func (b *batch) Has(hash headerpkg.Hash) bool {
 	b.lk.RLock()
 	defer b.lk.RUnlock()
 	_, ok := b.heights[hash.String()]

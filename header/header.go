@@ -5,11 +5,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	headerpkg "github.com/celestiaorg/celestia-node/pkg/header"
 
 	"github.com/ipfs/go-blockservice"
 	logging "github.com/ipfs/go-log/v2"
 
-	bts "github.com/tendermint/tendermint/libs/bytes"
 	amino "github.com/tendermint/tendermint/libs/json"
 	core "github.com/tendermint/tendermint/types"
 
@@ -79,13 +79,13 @@ func MakeExtendedHeader(
 // Hash returns Hash of the wrapped RawHeader.
 // NOTE: It purposely overrides Hash method of RawHeader to get it directly from Commit without
 // recomputing.
-func (eh *ExtendedHeader) Hash() bts.HexBytes {
-	return eh.Commit.BlockID.Hash
+func (eh *ExtendedHeader) Hash() headerpkg.Hash {
+	return headerpkg.Hash(eh.Commit.BlockID.Hash)
 }
 
 // LastHeader returns the Hash of the last wrapped RawHeader.
-func (eh *ExtendedHeader) LastHeader() bts.HexBytes {
-	return eh.RawHeader.LastBlockID.Hash
+func (eh *ExtendedHeader) LastHeader() headerpkg.Hash {
+	return headerpkg.Hash(eh.RawHeader.LastBlockID.Hash)
 }
 
 // IsBefore returns whether the given header is of a higher height.

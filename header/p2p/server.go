@@ -8,7 +8,6 @@ import (
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/network"
 	"github.com/libp2p/go-libp2p/core/protocol"
-	tmbytes "github.com/tendermint/tendermint/libs/bytes"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
@@ -18,6 +17,7 @@ import (
 
 	"github.com/celestiaorg/celestia-node/header"
 	p2p_pb "github.com/celestiaorg/celestia-node/header/p2p/pb"
+	headerpkg "github.com/celestiaorg/celestia-node/pkg/header"
 )
 
 var (
@@ -158,23 +158,23 @@ func (serv *ExchangeServer) requestHandler(stream network.Stream) {
 // handleRequestByHash returns the ExtendedHeader at the given hash
 // if it exists.
 func (serv *ExchangeServer) handleRequestByHash(hash []byte) ([]*header.ExtendedHeader, error) {
-	log.Debugw("server: handling header request", "hash", tmbytes.HexBytes(hash).String())
+	log.Debugw("server: handling header request", "hash", headerpkg.Hash(hash).String())
 	ctx, cancel := context.WithTimeout(serv.ctx, serv.Params.RequestTimeout)
 	defer cancel()
 	ctx, span := tracer.Start(ctx, "request-by-hash", trace.WithAttributes(
-		attribute.String("hash", tmbytes.HexBytes(hash).String()),
+		attribute.String("hash", headerpkg.Hash(hash).String()),
 	))
 	defer span.End()
 
 	h, err := serv.getter.Get(ctx, hash)
 	if err != nil {
-		log.Errorw("server: getting header by hash", "hash", tmbytes.HexBytes(hash).String(), "err", err)
+		log.Errorw("server: getting header by hash", "hash", headerpkg.Hash(hash).String(), "err", err)
 		span.SetStatus(codes.Error, err.Error())
 		return nil, err
 	}
 
 	span.AddEvent("fetched-header-from-store", trace.WithAttributes(
-		attribute.String("hash", tmbytes.HexBytes(hash).String()),
+		attribute.String("hash", headerpkg.Hash(hash).String()),
 		attribute.Int64("height", h.Height)),
 	)
 	span.SetStatus(codes.Ok, "")

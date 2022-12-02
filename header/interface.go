@@ -4,10 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	headerpkg "github.com/celestiaorg/celestia-node/pkg/header"
 
 	"github.com/ipfs/go-blockservice"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
-	tmbytes "github.com/tendermint/tendermint/libs/bytes"
 	core "github.com/tendermint/tendermint/types"
 )
 
@@ -100,7 +100,7 @@ type Store interface {
 	Height() uint64
 
 	// Has checks whether ExtendedHeader is already stored.
-	Has(context.Context, tmbytes.HexBytes) (bool, error)
+	Has(context.Context, headerpkg.Hash) (bool, error)
 
 	// Append stores and verifies the given ExtendedHeader(s).
 	// It requires them to be adjacent and in ascending order,
@@ -116,7 +116,7 @@ type Getter interface {
 	Head
 
 	// Get returns the ExtendedHeader corresponding to the given hash.
-	Get(context.Context, tmbytes.HexBytes) (*ExtendedHeader, error)
+	Get(context.Context, headerpkg.Hash) (*ExtendedHeader, error)
 
 	// GetByHeight returns the ExtendedHeader corresponding to the given block height.
 	GetByHeight(context.Context, uint64) (*ExtendedHeader, error)

@@ -12,10 +12,10 @@ import (
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/libp2p/go-libp2p/core/protocol"
 	"github.com/libp2p/go-libp2p/p2p/net/conngater"
-	tmbytes "github.com/tendermint/tendermint/libs/bytes"
 
 	"github.com/celestiaorg/celestia-node/header"
 	p2p_pb "github.com/celestiaorg/celestia-node/header/p2p/pb"
+	headerpkg "github.com/celestiaorg/celestia-node/pkg/header"
 )
 
 var log = logging.Logger("header/p2p")
@@ -187,11 +187,11 @@ func (ex *Exchange) GetVerifiedRange(
 
 // Get performs a request for the ExtendedHeader by the given hash corresponding
 // to the RawHeader. Note that the ExtendedHeader must be verified thereafter.
-func (ex *Exchange) Get(ctx context.Context, hash tmbytes.HexBytes) (*header.ExtendedHeader, error) {
+func (ex *Exchange) Get(ctx context.Context, hash headerpkg.Hash) (*header.ExtendedHeader, error) {
 	log.Debugw("requesting header", "hash", hash.String())
 	// create request
 	req := &p2p_pb.ExtendedHeaderRequest{
-		Data:   &p2p_pb.ExtendedHeaderRequest_Hash{Hash: hash.Bytes()},
+		Data:   &p2p_pb.ExtendedHeaderRequest_Hash{Hash: hash},
 		Amount: 1,
 	}
 	headers, err := ex.performRequest(ctx, req)
@@ -199,8 +199,8 @@ func (ex *Exchange) Get(ctx context.Context, hash tmbytes.HexBytes) (*header.Ext
 		return nil, err
 	}
 
-	if !bytes.Equal(headers[0].Hash().Bytes(), hash) {
-		return nil, fmt.Errorf("incorrect hash in header: expected %x, got %x", hash, headers[0].Hash().Bytes())
+	if !bytes.Equal(headers[0].Hash(), hash) {
+		return nil, fmt.Errorf("incorrect hash in header: expected %x, got %x", hash, headers[0].Hash())
 	}
 	return headers[0], nil
 }
