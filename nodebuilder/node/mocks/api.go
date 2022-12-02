@@ -67,43 +67,43 @@ func (mr *MockModuleMockRecorder) AuthVerify(arg0, arg1 interface{}) *gomock.Cal
 }
 
 // LogLevelSet mocks base method.
-func (m *MockModule) LogLevelSet(arg0, arg1 string) error {
+func (m *MockModule) LogLevelSet(arg0 context.Context, arg1, arg2 string) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "LogLevelSet", arg0, arg1)
+	ret := m.ctrl.Call(m, "LogLevelSet", arg0, arg1, arg2)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // LogLevelSet indicates an expected call of LogLevelSet.
-func (mr *MockModuleMockRecorder) LogLevelSet(arg0, arg1 interface{}) *gomock.Call {
+func (mr *MockModuleMockRecorder) LogLevelSet(arg0, arg1, arg2 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "LogLevelSet", reflect.TypeOf((*MockModule)(nil).LogLevelSet), arg0, arg1)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "LogLevelSet", reflect.TypeOf((*MockModule)(nil).LogLevelSet), arg0, arg1, arg2)
 }
 
 // Type mocks base method.
-func (m *MockModule) Type() node.Type {
+func (m *MockModule) Type(arg0 context.Context) node.Type {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Type")
+	ret := m.ctrl.Call(m, "Type", arg0)
 	ret0, _ := ret[0].(node.Type)
 	return ret0
 }
 
 // Type indicates an expected call of Type.
-func (mr *MockModuleMockRecorder) Type() *gomock.Call {
+func (mr *MockModuleMockRecorder) Type(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Type", reflect.TypeOf((*MockModule)(nil).Type))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Type", reflect.TypeOf((*MockModule)(nil).Type), arg0)
 }
 
 // Version mocks base method.
-func (m *MockModule) Version() node.Version {
+func (m *MockModule) Version(arg0 context.Context) node.Version {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Version")
+	ret := m.ctrl.Call(m, "Version", arg0)
 	ret0, _ := ret[0].(node.Version)
 	return ret0
 }
 
 // Version indicates an expected call of Version.
-func (mr *MockModuleMockRecorder) Version() *gomock.Call {
+func (mr *MockModuleMockRecorder) Version(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Version", reflect.TypeOf((*MockModule)(nil).Version))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Version", reflect.TypeOf((*MockModule)(nil).Version), arg0)
 }
