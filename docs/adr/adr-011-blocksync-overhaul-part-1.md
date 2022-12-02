@@ -21,7 +21,7 @@
 - [EDS(Extended Data Square)][eds] - plain Block
   data omitting headers and other block metadata.
 - [NMT][nmt] - Namespaced Merkle Tree
-- [DataHash][] - Hash commitment over [DAHeader][dah]
+- [DataHash][dh] - Hash commitment over [DAHeader][dah]
 - [DataRoot][dar] - alias for [DAHeader][dah]
 
 ## Context
@@ -98,7 +98,7 @@ The central data structure representing Celestia block data is EDS(`rsmt2d.Exten
 is focused around storing entire EDSes as a whole rather than a set of individual chunks, s.t. storage subsystem
 can handle storing and streaming/serving blocks of 4MB and more.
 
-#### EDS Serde
+#### EDS (De-)Serialization
 
 Storing EDS as a whole requires EDS (de)serialization. For this, the [CAR format][car] is chosen.
 
@@ -308,7 +308,7 @@ To remove stored EDS `Remove` method is introduced. Internally it:
 - Destroys `Shard` via `DAGStore`
   - Internally removes its `Mount` as well
 - Removes CARv1 file from disk under `Store.Path/DataRoot.Hash` path
-- Drops index 
+- Drops indecies
 
 ___NOTES:___
 
@@ -372,9 +372,7 @@ on `node.Store.Path`.
   implementation provided via `eds.Store` would have to be changed to expect `DataRoot`'s hash to be passed through the
   `context.Context`.
 
-
 [dah]: https://github.com/celestiaorg/celestia-app/blob/86c9bf6b981a8b25033357fddc89ef70abf80681/pkg/da/data_availability_header.go#L28
-[dh]: https://github.com/celestiaorg/celestia-core/blob/f76d026f3525d2d4fa309c62df29d42d33d0e9c6/types/block.go#L354
 [dar]: https://github.com/celestiaorg/celestia-node/blob/da4f54bca1bfef86f53880ced569d37ffb4b8b84/share/availability.go#L21
 [eds]: https://github.com/celestiaorg/rsmt2d/blob/76b270f80f0b9ac966c6f6b043e31514574f90f3/extendeddatasquare.go#L10
 [nmt]: https://github.com/celestiaorg/nmt
