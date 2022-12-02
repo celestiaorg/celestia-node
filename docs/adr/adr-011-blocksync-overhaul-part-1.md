@@ -279,11 +279,11 @@ data by namespace](#reading-data-by-namespace).
 
 ___NOTES:___
 
-- _The Blockstore does not store whole Celestia Blocks, but IPFS blocks. We represent Merkle proofs and shares in IPFS
+- _The returned Blockstore does not store whole Celestia Blocks, but IPFS blocks. We represent Merkle proofs and shares in IPFS
   blocks._
 
 ```go
-// Blockstore returns an IPFS Blockstore providing access to individual shares/nodes of a specific EDS identified by 
+// CARBlockstore returns an IPFS Blockstore providing access to individual shares/nodes of a specific EDS identified by 
 // DataHash and registered on the Store. NOTE: The Blockstore does not store whole Celestia Blocks but IPFS blocks. 
 // We represent `shares` and NMT Merkle proofs as IPFS blocks and IPLD nodes so Bitswap can access those.
 func (s *Store) CARBlockstore(DataHash) (blockstore.Blockstore, error)
