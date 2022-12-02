@@ -4,8 +4,8 @@ import (
 	"context"
 
 	"github.com/celestiaorg/celestia-node/header"
-	"github.com/celestiaorg/celestia-node/header/p2p"
-	"github.com/celestiaorg/celestia-node/header/sync"
+	"github.com/celestiaorg/celestia-node/pkg/header/p2p"
+	"github.com/celestiaorg/celestia-node/pkg/header/sync"
 )
 
 // Service represents the header Service that can be started / stopped on a node.

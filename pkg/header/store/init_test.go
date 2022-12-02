@@ -2,6 +2,7 @@ package store
 
 import (
 	"context"
+	"github.com/celestiaorg/celestia-node/pkg/header/local"
 	"testing"
 	"time"
 
@@ -11,7 +12,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/celestiaorg/celestia-node/header"
-	"github.com/celestiaorg/celestia-node/header/local"
 )
 
 func TestInitStore_NoReinit(t *testing.T) {

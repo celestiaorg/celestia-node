@@ -2,12 +2,12 @@ package main
 
 import (
 	"fmt"
+	"github.com/celestiaorg/celestia-node/pkg/header/store"
 	"strconv"
 	"strings"
 
 	"github.com/spf13/cobra"
 
-	"github.com/celestiaorg/celestia-node/header/store"
 	"github.com/celestiaorg/celestia-node/nodebuilder"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 )

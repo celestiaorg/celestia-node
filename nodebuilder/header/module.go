@@ -9,12 +9,12 @@ import (
 
 	"github.com/celestiaorg/celestia-node/fraud"
 	"github.com/celestiaorg/celestia-node/header"
-	"github.com/celestiaorg/celestia-node/header/p2p"
-	"github.com/celestiaorg/celestia-node/header/store"
-	"github.com/celestiaorg/celestia-node/header/sync"
 	modfraud "github.com/celestiaorg/celestia-node/nodebuilder/fraud"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	modp2p "github.com/celestiaorg/celestia-node/nodebuilder/p2p"
+	"github.com/celestiaorg/celestia-node/pkg/header/p2p"
+	"github.com/celestiaorg/celestia-node/pkg/header/store"
+	"github.com/celestiaorg/celestia-node/pkg/header/sync"
 )
 
 var log = logging.Logger("module/header")

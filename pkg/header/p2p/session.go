@@ -10,7 +10,7 @@ import (
 	"github.com/libp2p/go-libp2p/core/protocol"
 
 	"github.com/celestiaorg/celestia-node/header"
-	p2p_pb "github.com/celestiaorg/celestia-node/header/p2p/pb"
+	p2p_pb "github.com/celestiaorg/celestia-node/pkg/header/p2p/pb"
 )
 
 type option func(*session)

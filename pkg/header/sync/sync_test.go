@@ -3,12 +3,12 @@ package sync
 import (
 	"context"
 	headerpkg "github.com/celestiaorg/celestia-node/pkg/header"
+	"github.com/celestiaorg/celestia-node/pkg/header/local"
+	"github.com/celestiaorg/celestia-node/pkg/header/store"
 	"testing"
 	"time"
 
 	"github.com/celestiaorg/celestia-node/header"
-	"github.com/celestiaorg/celestia-node/header/local"
-	"github.com/celestiaorg/celestia-node/header/store"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

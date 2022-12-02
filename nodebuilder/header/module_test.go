@@ -15,11 +15,11 @@ import (
 
 	"github.com/celestiaorg/celestia-node/fraud"
 	"github.com/celestiaorg/celestia-node/header"
-	"github.com/celestiaorg/celestia-node/header/p2p"
-	"github.com/celestiaorg/celestia-node/header/store"
-	"github.com/celestiaorg/celestia-node/header/sync"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	modp2p "github.com/celestiaorg/celestia-node/nodebuilder/p2p"
+	"github.com/celestiaorg/celestia-node/pkg/header/p2p"
+	"github.com/celestiaorg/celestia-node/pkg/header/store"
+	"github.com/celestiaorg/celestia-node/pkg/header/sync"
 )
 
 // TestConstructModule_StoreParams ensures that all passed via functional options
