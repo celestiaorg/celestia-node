@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/tendermint/tendermint/abci/example/kvstore"
 	"github.com/tendermint/tendermint/abci/types"
@@ -92,7 +93,10 @@ func StartTestCoreWithApp(t *testing.T) (tmservice.Service, Client) {
 
 	_, cleanupCoreNode, err := testnode.StartNode(tmNode, cctx)
 	require.NoError(t, err)
-	t.Cleanup(cleanupCoreNode)
+	t.Cleanup(func() {
+		err := cleanupCoreNode()
+		assert.NoError(t, err)
+	})
 
 	endpoint, err := GetEndpoint(tmNode.Config())
 	require.NoError(t, err)
