@@ -182,7 +182,7 @@ func (ex *Exchange) GetVerifiedRange(
 	session := newSession(ex.ctx, ex.host, ex.peerTracker, ex.protocolID, ex.Params.RequestTimeout, withValidation(from))
 	defer session.close()
 
-	return session.getRangeByHeight(ctx, uint64(from.Height)+1, amount, ex.Params.MaxHeadersPerRequest)
+	return session.getRangeByHeight(ctx, uint64(from.Height())+1, amount, ex.Params.MaxHeadersPerRequest)
 }
 
 // Get performs a request for the ExtendedHeader by the given hash corresponding
@@ -267,7 +267,7 @@ func bestHead(result []*header.ExtendedHeader, minResponses int) (*header.Extend
 	}
 	// sort results in a decreasing order
 	sort.Slice(result, func(i, j int) bool {
-		return result[i].Height > result[j].Height
+		return result[i].Height() > result[j].Height()
 	})
 
 	// try to find ExtendedHeader with the maximum height that was received at least from 2 peers

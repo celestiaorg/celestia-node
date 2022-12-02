@@ -35,7 +35,7 @@ func TestExchange_RequestHead(t *testing.T) {
 	header, err := exchg.Head(context.Background())
 	require.NoError(t, err)
 
-	assert.Equal(t, store.Headers[store.HeadHeight].Height, header.Height)
+	assert.Equal(t, store.Headers[store.HeadHeight].Height(), header.Height())
 	assert.Equal(t, store.Headers[store.HeadHeight].Hash(), header.Hash())
 }
 
@@ -45,7 +45,7 @@ func TestExchange_RequestHeader(t *testing.T) {
 	// perform expected request
 	header, err := exchg.GetByHeight(context.Background(), 5)
 	require.NoError(t, err)
-	assert.Equal(t, store.Headers[5].Height, header.Height)
+	assert.Equal(t, store.Headers[5].Height(), header.Height())
 	assert.Equal(t, store.Headers[5].Hash(), header.Hash())
 }
 
@@ -56,8 +56,8 @@ func TestExchange_RequestHeaders(t *testing.T) {
 	gotHeaders, err := exchg.GetRangeByHeight(context.Background(), 1, 5)
 	require.NoError(t, err)
 	for _, got := range gotHeaders {
-		assert.Equal(t, store.Headers[got.Height].Height, got.Height)
-		assert.Equal(t, store.Headers[got.Height].Hash(), got.Hash())
+		assert.Equal(t, store.Headers[got.Height()].Height(), got.Height())
+		assert.Equal(t, store.Headers[got.Height()].Hash(), got.Hash())
 	}
 }
 
@@ -194,7 +194,7 @@ func TestExchange_RequestByHash(t *testing.T) {
 	eh, err := header.UnmarshalExtendedHeader(resp.Body)
 	require.NoError(t, err)
 
-	assert.Equal(t, store.Headers[reqHeight].Height, eh.Height)
+	assert.Equal(t, store.Headers[reqHeight].Height(), eh.Height())
 	assert.Equal(t, store.Headers[reqHeight].Hash(), eh.Hash())
 }
 
@@ -260,7 +260,7 @@ func Test_bestHead(t *testing.T) {
 		res := tt.precondition()
 		header, err := bestHead(res, params.MinResponses)
 		require.NoError(t, err)
-		require.True(t, header.Height == tt.expectedHeight)
+		require.True(t, header.Height() == tt.expectedHeight)
 	}
 }
 

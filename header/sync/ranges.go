@@ -34,7 +34,7 @@ func (rs *ranges) Add(h *header.ExtendedHeader) {
 	head := rs.Head()
 
 	// short-circuit if header is from the past
-	if head != nil && head.Height >= h.Height {
+	if head != nil && head.Height() >= h.Height() {
 		// TODO(@Wondertan): Technically, we can still apply the header:
 		//  * Headers here are verified, so we can trust them
 		//  * PubSub does not guarantee the ordering of msgs
@@ -50,7 +50,7 @@ func (rs *ranges) Add(h *header.ExtendedHeader) {
 	defer rs.lk.Unlock()
 
 	// if the new header is adjacent to head
-	if head != nil && h.Height == head.Height+1 {
+	if head != nil && h.Height() == head.Height()+1 {
 		// append it to the last known range
 		rs.ranges[len(rs.ranges)-1].Append(h)
 	} else {
@@ -105,7 +105,7 @@ type headerRange struct {
 
 func newRange(h *header.ExtendedHeader) *headerRange {
 	return &headerRange{
-		start:   uint64(h.Height),
+		start:   uint64(h.Height()),
 		headers: []*header.ExtendedHeader{h},
 	}
 }
@@ -148,7 +148,7 @@ func (r *headerRange) Before(end uint64) ([]*header.ExtendedHeader, uint64) {
 	out := r.headers[:amnt]
 	r.headers = r.headers[amnt:]
 	if len(r.headers) != 0 {
-		r.start = uint64(r.headers[0].Height)
+		r.start = uint64(r.headers[0].Height())
 	}
 	return out, amnt
 }

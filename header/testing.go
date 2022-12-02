@@ -95,7 +95,7 @@ func (s *TestSuite) GenExtendedHeader() *ExtendedHeader {
 	}
 
 	dah := da.MinDataAvailabilityHeader()
-	height := s.Head().Height + 1
+	height := s.Head().Height() + 1
 	rh := s.GenRawHeader(height, s.Head().Hash(), headerpkg.Hash(s.Head().Commit.Hash()), dah.Hash())
 	s.head = &ExtendedHeader{
 		RawHeader:    *rh,

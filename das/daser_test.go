@@ -232,7 +232,7 @@ func (m *mockGetter) fillSubWithHeaders(
 		randHeader := header.RandExtendedHeader(t)
 		randHeader.DataHash = dah.Hash()
 		randHeader.DAH = dah
-		randHeader.Height = int64(i + 1)
+		randHeader.RawHeader.Height = int64(i + 1)
 
 		sub.Headers[index] = randHeader
 		// also checkpointStore to mock getter for duplicate sampling
@@ -260,7 +260,7 @@ func (m *mockGetter) generateHeaders(t *testing.T, bServ blockservice.BlockServi
 		randHeader := header.RandExtendedHeader(t)
 		randHeader.DataHash = dah.Hash()
 		randHeader.DAH = dah
-		randHeader.Height = int64(i + 1)
+		randHeader.RawHeader.Height = int64(i + 1)
 
 		m.headers[int64(i+1)] = randHeader
 	}

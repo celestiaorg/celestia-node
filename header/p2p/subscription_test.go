@@ -83,7 +83,7 @@ func TestSubscriber(t *testing.T) {
 	header, err := subscription.NextHeader(ctx)
 	require.NoError(t, err)
 
-	assert.Equal(t, expectedHeader.Height, header.Height)
+	assert.Equal(t, expectedHeader.Height(), header.Height())
 	assert.Equal(t, expectedHeader.Hash(), header.Hash())
 	assert.Equal(t, expectedHeader.DAH.Hash(), header.DAH.Hash())
 }

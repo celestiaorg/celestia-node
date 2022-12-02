@@ -30,8 +30,8 @@ func (s *subscriber) run(ctx context.Context, sub header.Subscription, emit list
 			log.Errorw("failed to get next header", "err", err)
 			continue
 		}
-		log.Infow("new header received via subscription", "height", h.Height)
+		log.Infow("new header received via subscription", "height", h.Height())
 
-		emit(ctx, uint64(h.Height))
+		emit(ctx, uint64(h.Height()))
 	}
 }

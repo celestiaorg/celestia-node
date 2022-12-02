@@ -93,7 +93,7 @@ func (s *session) getRangeByHeight(
 		}
 	}
 	sort.Slice(headers, func(i, j int) bool {
-		return headers[i].Height < headers[j].Height
+		return headers[i].Height() < headers[j].Height()
 	})
 	return headers, nil
 }

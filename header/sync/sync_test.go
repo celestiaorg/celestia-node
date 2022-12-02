@@ -50,13 +50,13 @@ func TestSyncSimpleRequestingHead(t *testing.T) {
 
 	have, err := localStore.Head(ctx)
 	require.NoError(t, err)
-	assert.Equal(t, exp.Height, have.Height)
+	assert.Equal(t, exp.Height(), have.Height())
 	assert.Empty(t, syncer.pending.Head())
 
 	state := syncer.State()
-	assert.Equal(t, uint64(exp.Height), state.Height)
+	assert.Equal(t, uint64(exp.Height()), state.Height)
 	assert.Equal(t, uint64(2), state.FromHeight)
-	assert.Equal(t, uint64(exp.Height), state.ToHeight)
+	assert.Equal(t, uint64(exp.Height()), state.ToHeight)
 	assert.True(t, state.Finished(), state)
 }
 
@@ -98,13 +98,13 @@ func TestSyncCatchUp(t *testing.T) {
 	// 4. assert syncer caught-up
 	have, err := localStore.Head(ctx)
 	require.NoError(t, err)
-	assert.Equal(t, exp.Height+1, have.Height) // plus one as we didn't add last header to remoteStore
+	assert.Equal(t, exp.Height()+1, have.Height()) // plus one as we didn't add last header to remoteStore
 	assert.Empty(t, syncer.pending.Head())
 
 	state := syncer.State()
-	assert.Equal(t, uint64(exp.Height+1), state.Height)
+	assert.Equal(t, uint64(exp.Height()+1), state.Height)
 	assert.Equal(t, uint64(2), state.FromHeight)
-	assert.Equal(t, uint64(exp.Height+1), state.ToHeight)
+	assert.Equal(t, uint64(exp.Height()+1), state.ToHeight)
 	assert.True(t, state.Finished(), state)
 }
 
@@ -162,7 +162,7 @@ func TestSyncPendingRangesWithMisses(t *testing.T) {
 	have, err := localStore.Head(ctx)
 	require.NoError(t, err)
 
-	assert.Equal(t, exp.Height, have.Height)
+	assert.Equal(t, exp.Height(), have.Height())
 	assert.Empty(t, syncer.pending.Head()) // assert all cache from pending is used
 }
 

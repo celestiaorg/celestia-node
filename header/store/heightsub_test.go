@@ -19,7 +19,7 @@ func TestHeightSub(t *testing.T) {
 	// assert subscription returns nil for past heights
 	{
 		h := header.RandExtendedHeader(t)
-		h.Height = 100
+		h.RawHeader.Height = 100
 		hs.SetHeight(99)
 		hs.Pub(h)
 
@@ -35,9 +35,9 @@ func TestHeightSub(t *testing.T) {
 			time.Sleep(time.Millisecond)
 
 			h1 := header.RandExtendedHeader(t)
-			h1.Height = 101
+			h1.RawHeader.Height = 101
 			h2 := header.RandExtendedHeader(t)
-			h2.Height = 102
+			h2.RawHeader.Height = 102
 			hs.Pub(h1, h2)
 		}()
 

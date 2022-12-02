@@ -49,10 +49,10 @@ func createStore(t *testing.T, numHeaders int) *mockStore {
 
 	for i := 0; i < numHeaders; i++ {
 		header := suite.GenExtendedHeader()
-		store.headers[header.Height] = header
+		store.headers[header.Height()] = header
 
-		if header.Height > store.headHeight {
-			store.headHeight = header.Height
+		if header.Height() > store.headHeight {
+			store.headHeight = header.Height()
 		}
 	}
 	return store

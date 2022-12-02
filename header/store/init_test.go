@@ -51,8 +51,8 @@ func TestInitStore_NoReinit(t *testing.T) {
 	require.NoError(t, err)
 
 	// check that reopened head changed and the store wasn't reinitialized
-	assert.Equal(t, suite.Head().Height, reopenedHead.Height)
-	assert.NotEqual(t, head.Height, reopenedHead.Height)
+	assert.Equal(t, suite.Head().Height(), reopenedHead.Height())
+	assert.NotEqual(t, head.Height(), reopenedHead.Height())
 
 	err = reopenedStore.Stop(ctx)
 	require.NoError(t, err)

@@ -115,7 +115,7 @@ func (s *Store) Init(ctx context.Context, initial *header.ExtendedHeader) error 
 		return err
 	}
 
-	log.Infow("initialized head", "height", initial.Height, "hash", initial.Hash())
+	log.Infow("initialized head", "height", initial.Height(), "hash", initial.Hash())
 	return nil
 }
 
@@ -161,8 +161,8 @@ func (s *Store) Head(ctx context.Context) (*header.ExtendedHeader, error) {
 	case datastore.ErrNotFound, header.ErrNotFound:
 		return nil, header.ErrNoHead
 	case nil:
-		s.heightSub.SetHeight(uint64(head.Height))
-		log.Infow("loaded head", "height", head.Height, "hash", head.Hash())
+		s.heightSub.SetHeight(uint64(head.Height()))
+		log.Infow("loaded head", "height", head.Height(), "hash", head.Hash())
 		return head, nil
 	}
 }
@@ -249,10 +249,10 @@ func (s *Store) GetVerifiedRange(
 	from *header.ExtendedHeader,
 	to uint64,
 ) ([]*header.ExtendedHeader, error) {
-	if uint64(from.Height) >= to {
-		return nil, fmt.Errorf("header/store: invalid range(%d,%d)", from.Height, to)
+	if uint64(from.Height()) >= to {
+		return nil, fmt.Errorf("header/store: invalid range(%d,%d)", from.Height(), to)
 	}
-	headers, err := s.GetRangeByHeight(ctx, uint64(from.Height)+1, to)
+	headers, err := s.GetRangeByHeight(ctx, uint64(from.Height())+1, to)
 	if err != nil {
 		return nil, err
 	}
@@ -303,9 +303,9 @@ func (s *Store) Append(ctx context.Context, headers ...*header.ExtendedHeader) (
 			var verErr *header.VerifyError
 			if errors.As(err, &verErr) {
 				log.Errorw("invalid header",
-					"height_of_head", head.Height,
+					"height_of_head", head.Height(),
 					"hash_of_head", head.Hash(),
-					"height_of_invalid", h.Height,
+					"height_of_invalid", h.Height(),
 					"hash_of_invalid", h.Hash(),
 					"reason", verErr.Reason)
 			}
@@ -326,7 +326,7 @@ func (s *Store) Append(ctx context.Context, headers ...*header.ExtendedHeader) (
 		ln := len(verified)
 		s.writeHead.Store(verified[ln-1])
 		wh := s.writeHead.Load()
-		log.Infow("new head", "height", wh.Height, "hash", wh.Hash())
+		log.Infow("new head", "height", wh.Height(), "hash", wh.Hash())
 		// we return an error here after writing,
 		// as there might be an invalid header in between of a given range
 		return ln, err
@@ -360,7 +360,7 @@ func (s *Store) flushLoop() {
 		err := s.flush(ctx, s.pending.GetAll()...)
 		if err != nil {
 			// TODO(@Wondertan): Should this be a fatal error case with os.Exit?
-			from, to := uint64(headers[0].Height), uint64(headers[len(headers)-1].Height)
+			from, to := uint64(headers[0].Height()), uint64(headers[len(headers)-1].Height())
 			log.Errorw("writing header batch", "from", from, "to", to)
 			continue
 		}

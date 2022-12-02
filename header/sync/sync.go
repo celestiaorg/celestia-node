@@ -175,18 +175,18 @@ func (s *Syncer) sync(ctx context.Context) {
 		return
 	}
 
-	if head.Height >= newHead.Height {
+	if head.Height() >= newHead.Height() {
 		log.Warnw("sync attempt to an already synced header",
-			"synced_height", head.Height,
-			"attempted_height", newHead.Height,
+			"synced_height", head.Height(),
+			"attempted_height", newHead.Height(),
 		)
 		log.Warn("PLEASE REPORT THIS AS A BUG")
 		return // should never happen, but just in case
 	}
 
 	log.Infow("syncing headers",
-		"from", head.Height,
-		"to", newHead.Height)
+		"from", head.Height(),
+		"to", newHead.Height())
 	err = s.doSync(ctx, head, newHead)
 	if err != nil {
 		if errors.Is(err, context.Canceled) {
@@ -195,21 +195,21 @@ func (s *Syncer) sync(ctx context.Context) {
 		}
 
 		log.Errorw("syncing headers",
-			"from", head.Height,
-			"to", newHead.Height,
+			"from", head.Height(),
+			"to", newHead.Height(),
 			"err", err)
 		return
 	}
 
 	log.Infow("finished syncing",
-		"from", head.Height,
-		"to", newHead.Height,
+		"from", head.Height(),
+		"to", newHead.Height(),
 		"elapsed time", s.state.End.Sub(s.state.Start))
 }
 
 // doSync performs actual syncing updating the internal State
 func (s *Syncer) doSync(ctx context.Context, fromHead, toHead *header.ExtendedHeader) (err error) {
-	from, to := uint64(fromHead.Height)+1, uint64(toHead.Height)
+	from, to := uint64(fromHead.Height())+1, uint64(toHead.Height())
 
 	s.stateLk.Lock()
 	s.state.ID++

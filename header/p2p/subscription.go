@@ -41,7 +41,7 @@ func (s *subscription) NextHeader(ctx context.Context) (*header.ExtendedHeader, 
 		panic(fmt.Sprintf("invalid type received %s", reflect.TypeOf(msg.ValidatorData)))
 	}
 
-	log.Debugw("received new ExtendedHeader", "height", header.Height, "hash", header.Hash())
+	log.Debugw("received new ExtendedHeader", "height", header.Height(), "hash", header.Hash())
 	return header, nil
 }
 

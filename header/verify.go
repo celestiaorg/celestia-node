@@ -2,8 +2,11 @@ package header
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"time"
+
+	headerpkg "github.com/celestiaorg/celestia-node/pkg/header"
 
 	"github.com/tendermint/tendermint/light"
 )
@@ -13,17 +16,21 @@ import (
 
 // IsExpired checks if header is expired against trusting period.
 func (eh *ExtendedHeader) IsExpired(period time.Duration) bool {
-	expirationTime := eh.Time.Add(period)
+	expirationTime := eh.Time().Add(period)
 	return !expirationTime.After(time.Now())
 }
 
 // IsRecent checks if header is recent against the given blockTime.
 func (eh *ExtendedHeader) IsRecent(blockTime time.Duration) bool {
-	return time.Since(eh.Time) <= blockTime // TODO @renaynay: should we allow for a 5-10 block drift here?
+	return time.Since(eh.Time()) <= blockTime // TODO @renaynay: should we allow for a 5-10 block drift here?
 }
 
 // VerifyNonAdjacent validates non-adjacent untrusted header against trusted 'eh'.
-func (eh *ExtendedHeader) VerifyNonAdjacent(untrst *ExtendedHeader) error {
+func (eh *ExtendedHeader) VerifyNonAdjacent(untrusted headerpkg.Header) error {
+	untrst, ok := untrusted.(*ExtendedHeader)
+	if !ok {
+		return &VerifyError{errors.New("invalid header type: expected *ExtendedHeader")}
+	}
 	if err := eh.verify(untrst); err != nil {
 		return &VerifyError{Reason: err}
 	}
@@ -38,11 +45,15 @@ func (eh *ExtendedHeader) VerifyNonAdjacent(untrst *ExtendedHeader) error {
 }
 
 // VerifyAdjacent validates adjacent untrusted header against trusted 'eh'.
-func (eh *ExtendedHeader) VerifyAdjacent(untrst *ExtendedHeader) error {
-	if untrst.Height != eh.Height+1 {
+func (eh *ExtendedHeader) VerifyAdjacent(untrusted headerpkg.Header) error {
+	untrst, ok := untrusted.(*ExtendedHeader)
+	if !ok {
+		return &VerifyError{errors.New("invalid header type: expected *ExtendedHeader")}
+	}
+	if untrst.Height() != eh.Height()+1 {
 		return &ErrNonAdjacent{
-			Head:      eh.Height,
-			Attempted: untrst.Height,
+			Head:      eh.Height(),
+			Attempted: untrst.Height(),
 		}
 	}
 
@@ -73,14 +84,14 @@ func (eh *ExtendedHeader) verify(untrst *ExtendedHeader) error {
 		return fmt.Errorf("new untrusted header has different chain %s, not %s", untrst.ChainID, eh.ChainID)
 	}
 
-	if !untrst.Time.After(eh.Time) {
-		return fmt.Errorf("expected new untrusted header time %v to be after old header time %v", untrst.Time, eh.Time)
+	if !untrst.Time().After(eh.Time()) {
+		return fmt.Errorf("expected new untrusted header time %v to be after old header time %v", untrst.Time(), eh.Time())
 	}
 
 	now := time.Now()
-	if !untrst.Time.Before(now.Add(clockDrift)) {
+	if !untrst.Time().Before(now.Add(clockDrift)) {
 		return fmt.Errorf(
-			"new untrusted header has a time from the future %v (now: %v, clockDrift: %v)", untrst.Time, now, clockDrift)
+			"new untrusted header has a time from the future %v (now: %v, clockDrift: %v)", untrst.Time(), now, clockDrift)
 	}
 
 	return nil

@@ -36,7 +36,7 @@ func (s *Syncer) subjectiveHead(ctx context.Context) (*header.ExtendedHeader, er
 	if !netHead.IsExpired(s.Params.TrustingPeriod) {
 		return netHead, nil
 	}
-	log.Infow("subjective header expired", "height", netHead.Height)
+	log.Infow("subjective header expired", "height", netHead.Height())
 	// otherwise, request network head from a trusted peer
 	netHead, err = s.exchange.Head(ctx)
 	if err != nil {
@@ -47,12 +47,12 @@ func (s *Syncer) subjectiveHead(ctx context.Context) (*header.ExtendedHeader, er
 	s.newNetHead(ctx, netHead, true)
 	switch {
 	default:
-		log.Infow("subjective initialization finished", "height", netHead.Height)
+		log.Infow("subjective initialization finished", "height", netHead.Height())
 		return netHead, nil
 	case netHead.IsExpired(s.Params.TrustingPeriod):
-		log.Warnw("subjective initialization with an expired header", "height", netHead.Height)
+		log.Warnw("subjective initialization with an expired header", "height", netHead.Height())
 	case !netHead.IsRecent(s.Params.blockTime):
-		log.Warnw("subjective initialization with an old header", "height", netHead.Height)
+		log.Warnw("subjective initialization with an old header", "height", netHead.Height())
 	}
 	log.Warn("trusted peer is out of sync")
 	return netHead, nil
@@ -121,7 +121,7 @@ func (s *Syncer) incomingNetHead(ctx context.Context, netHead *header.ExtendedHe
 		}
 		// might be a storage error or something else, but we can still try to continue processing netHead
 		log.Errorw("appending network header",
-			"height", netHead.Height,
+			"height", netHead.Height(),
 			"hash", netHead.Hash().String(),
 			"err", err)
 	}
@@ -142,7 +142,7 @@ func (s *Syncer) newNetHead(ctx context.Context, netHead *header.ExtendedHeader,
 	// and if valid, set it as new subjective head
 	s.pending.Add(netHead)
 	s.wantSync()
-	log.Infow("new network head", "height", netHead.Height, "hash", netHead.Hash())
+	log.Infow("new network head", "height", netHead.Height(), "hash", netHead.Hash())
 	return pubsub.ValidationAccept
 }
 
@@ -154,10 +154,10 @@ func (s *Syncer) validate(ctx context.Context, new *header.ExtendedHeader) pubsu
 		return pubsub.ValidationIgnore // local error, so ignore
 	}
 	// ignore header if it's from the past
-	if new.Height <= sbjHead.Height {
+	if new.Height() <= sbjHead.Height() {
 		log.Warnw("received known network header",
-			"current_height", sbjHead.Height,
-			"header_height", new.Height,
+			"current_height", sbjHead.Height(),
+			"header_height", new.Height(),
 			"header_hash", new.Hash())
 		return pubsub.ValidationIgnore
 	}
@@ -166,9 +166,9 @@ func (s *Syncer) validate(ctx context.Context, new *header.ExtendedHeader) pubsu
 	var verErr *header.VerifyError
 	if errors.As(err, &verErr) {
 		log.Errorw("invalid network header",
-			"height_of_invalid", new.Height,
+			"height_of_invalid", new.Height(),
 			"hash_of_invalid", new.Hash(),
-			"height_of_subjective", sbjHead.Height,
+			"height_of_subjective", sbjHead.Height(),
 			"hash_of_subjective", sbjHead.Hash(),
 			"reason", verErr.Reason)
 		return pubsub.ValidationReject

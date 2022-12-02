@@ -4,8 +4,10 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	headerpkg "github.com/celestiaorg/celestia-node/pkg/header"
+	"time"
 
 	"github.com/ipfs/go-blockservice"
 	logging "github.com/ipfs/go-log/v2"
@@ -41,6 +43,33 @@ type ExtendedHeader struct {
 	ValidatorSet *core.ValidatorSet      `json:"validator_set"`
 	DAH          *DataAvailabilityHeader `json:"dah"`
 }
+
+func (eh *ExtendedHeader) New() headerpkg.Header {
+	return new(ExtendedHeader)
+}
+
+func (eh *ExtendedHeader) Height() int64 {
+	return eh.RawHeader.Height
+}
+
+func (eh *ExtendedHeader) Time() time.Time {
+	return eh.RawHeader.Time
+}
+
+func (eh *ExtendedHeader) Verify(header headerpkg.Header) error {
+	hdr, ok := header.(*ExtendedHeader)
+	if !ok {
+		return &VerifyError{errors.New("invalid header type: expected *ExtendedHeader")}
+	}
+	return eh.verify(hdr)
+}
+
+func (eh *ExtendedHeader) Validate() error {
+	// TODO(tzdybal): rename ValidateBasic to Validate
+	return eh.ValidateBasic()
+}
+
+var _ headerpkg.Header = &ExtendedHeader{}
 
 // MakeExtendedHeader assembles new ExtendedHeader.
 func MakeExtendedHeader(
@@ -92,7 +121,7 @@ func (eh *ExtendedHeader) LastHeader() headerpkg.Hash {
 
 // Equals returns whether the hash and height of the given header match.
 func (eh *ExtendedHeader) Equals(header *ExtendedHeader) bool {
-	return eh.Height == header.Height && bytes.Equal(eh.Hash(), header.Hash())
+	return eh.Height() == header.Height() && bytes.Equal(eh.Hash(), header.Hash())
 }
 
 // ValidateBasic performs *basic* validation to check for missed/incorrect fields.
@@ -119,7 +148,7 @@ func (eh *ExtendedHeader) ValidateBasic() error {
 		)
 	}
 
-	if err := eh.ValidatorSet.VerifyCommitLight(eh.ChainID, eh.Commit.BlockID, eh.Height, eh.Commit); err != nil {
+	if err := eh.ValidatorSet.VerifyCommitLight(eh.ChainID, eh.Commit.BlockID, eh.Height(), eh.Commit); err != nil {
 		return err
 	}
 

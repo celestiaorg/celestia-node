@@ -98,7 +98,7 @@ func (cl *Listener) listen(ctx context.Context, sub <-chan *types.Block) {
 			// broadcast new ExtendedHeader, but if core is still syncing, notify only local subscribers
 			err = cl.bcast.Broadcast(ctx, eh, pubsub.WithLocalPublication(syncing))
 			if err != nil {
-				log.Errorw("listener: broadcasting next header", "height", eh.Height,
+				log.Errorw("listener: broadcasting next header", "height", eh.Height(),
 					"err", err)
 			}
 		case <-ctx.Done():

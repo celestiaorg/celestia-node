@@ -32,7 +32,7 @@ func WithMetrics(store Store) {
 
 			headC.Observe(
 				ctx,
-				head.Height,
+				head.Height(),
 				attribute.Int("square_size", len(head.DAH.RowsRoots)),
 			)
 		},

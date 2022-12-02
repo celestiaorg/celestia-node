@@ -26,10 +26,10 @@ func NewStore(t *testing.T, numHeaders int) *MockStore {
 
 	for i := 0; i < numHeaders; i++ {
 		header := suite.GenExtendedHeader()
-		store.Headers[header.Height] = header
+		store.Headers[header.Height()] = header
 
-		if header.Height > store.HeadHeight {
-			store.HeadHeight = header.Height
+		if header.Height() > store.HeadHeight {
+			store.HeadHeight = header.Height()
 		}
 	}
 	return store
@@ -80,7 +80,7 @@ func (m *MockStore) GetVerifiedRange(
 	h *header.ExtendedHeader,
 	to uint64,
 ) ([]*header.ExtendedHeader, error) {
-	return m.GetRangeByHeight(ctx, uint64(h.Height)+1, to)
+	return m.GetRangeByHeight(ctx, uint64(h.Height())+1, to)
 }
 
 func (m *MockStore) Has(context.Context, headerpkg.Hash) (bool, error) {
@@ -89,10 +89,10 @@ func (m *MockStore) Has(context.Context, headerpkg.Hash) (bool, error) {
 
 func (m *MockStore) Append(ctx context.Context, headers ...*header.ExtendedHeader) (int, error) {
 	for _, header := range headers {
-		m.Headers[header.Height] = header
+		m.Headers[header.Height()] = header
 		// set head
-		if header.Height > m.HeadHeight {
-			m.HeadHeight = header.Height
+		if header.Height() > m.HeadHeight {
+			m.HeadHeight = header.Height()
 		}
 	}
 	return len(headers), nil

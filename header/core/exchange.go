@@ -55,7 +55,7 @@ func (ce *Exchange) GetRangeByHeight(ctx context.Context, from, amount uint64) (
 
 func (ce *Exchange) GetVerifiedRange(ctx context.Context, from *header.ExtendedHeader, amount uint64,
 ) ([]*header.ExtendedHeader, error) {
-	headers, err := ce.GetRangeByHeight(ctx, uint64(from.Height)+1, amount)
+	headers, err := ce.GetRangeByHeight(ctx, uint64(from.Height())+1, amount)
 	if err != nil {
 		return nil, err
 	}
