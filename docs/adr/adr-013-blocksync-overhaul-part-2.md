@@ -38,11 +38,11 @@ paying a slower retrieval time price.
 ## Decision
 
 The decision is to design three protocols:
-- [`ShrEx/EDS`](#ShrEx/EDS-Protocol) - Pull-based EDS retrieval protocol
+- [`ShrEx/EDS`](shrex/eds-protocol) - Pull-based EDS retrieval protocol
 
-- [`ShrEx/ND`](#ShrEx/ND-Protocol) - Pull-based ND retrieval protocol
+- [`ShrEx/ND`](#shrex/nd-protocol) - Pull-based ND retrieval protocol
 
-- [`ShrEx/Sub`](#ShrEx/Sub-Protocol) - Push-based _notification_ protocol for the newly produced EDSes
+- [`ShrEx/Sub`](#shrex/sub-protocol) - Push-based _notification_ protocol for the newly produced EDSes
 
 ### Key Design Decisions
 
