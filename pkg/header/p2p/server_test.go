@@ -2,12 +2,13 @@ package p2p
 
 import (
 	"context"
-	"github.com/celestiaorg/celestia-node/pkg/header"
-	"github.com/celestiaorg/celestia-node/pkg/header/store"
 	"testing"
 
 	"github.com/ipfs/go-datastore"
 	"github.com/stretchr/testify/require"
+
+	"github.com/celestiaorg/celestia-node/pkg/header"
+	"github.com/celestiaorg/celestia-node/pkg/header/store"
 )
 
 func TestExchangeServer_handleRequestTimeout(t *testing.T) {

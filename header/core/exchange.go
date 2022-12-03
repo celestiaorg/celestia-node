@@ -4,12 +4,13 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	headerpkg "github.com/celestiaorg/celestia-node/pkg/header"
+
 	"github.com/ipfs/go-blockservice"
 	logging "github.com/ipfs/go-log/v2"
 
 	"github.com/celestiaorg/celestia-node/core"
 	"github.com/celestiaorg/celestia-node/header"
+	headerpkg "github.com/celestiaorg/celestia-node/pkg/header"
 )
 
 var log = logging.Logger("header/core")

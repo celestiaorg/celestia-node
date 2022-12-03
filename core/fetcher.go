@@ -3,9 +3,11 @@ package core
 import (
 	"context"
 	"fmt"
-	headerpkg "github.com/celestiaorg/celestia-node/pkg/header"
+
 	logging "github.com/ipfs/go-log/v2"
 	"github.com/tendermint/tendermint/types"
+
+	headerpkg "github.com/celestiaorg/celestia-node/pkg/header"
 )
 
 const newBlockSubscriber = "NewBlock/Events"

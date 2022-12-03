@@ -86,5 +86,3 @@ func TestSubscriber(t *testing.T) {
 	assert.Equal(t, expectedHeader.Height(), header.Height())
 	assert.Equal(t, expectedHeader.Hash(), header.Hash())
 }
-
-

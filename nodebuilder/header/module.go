@@ -2,6 +2,7 @@ package header
 
 import (
 	"context"
+
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 
 	"github.com/ipfs/go-datastore"
@@ -75,7 +76,7 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 				return modfraud.Lifecycle(startCtx, ctx, fraud.BadEncoding, fservice,
 					syncer.Start, syncer.Stop)
 			}),
-			fx.OnStop(func(ctx context.Context, syncer *sync.Syncer[*header.ExtendedHeader]) error {
+			fx.OnStop(func(ctx context.Context, syncer *header.Syncer) error {
 				return syncer.Stop(ctx)
 			}),
 		)),

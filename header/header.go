@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	headerpkg "github.com/celestiaorg/celestia-node/pkg/header"
 	"time"
 
 	"github.com/ipfs/go-blockservice"
@@ -19,6 +18,7 @@ import (
 
 	"github.com/celestiaorg/celestia-app/pkg/da"
 
+	headerpkg "github.com/celestiaorg/celestia-node/pkg/header"
 	"github.com/celestiaorg/celestia-node/share"
 )
 

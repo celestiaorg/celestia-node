@@ -5,16 +5,13 @@ package header
 
 import (
 	"context"
-	headerpkg "github.com/celestiaorg/celestia-node/pkg/header"
-	pubsub "github.com/libp2p/go-libp2p-pubsub"
-
-	"github.com/celestiaorg/celestia-node/share"
 
 	mrand "math/rand"
 	"testing"
 	"time"
 
 	"github.com/ipfs/go-blockservice"
+	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	"github.com/stretchr/testify/require"
 	"github.com/tendermint/tendermint/crypto/tmhash"
 	"github.com/tendermint/tendermint/libs/bytes"
@@ -27,6 +24,8 @@ import (
 	"github.com/celestiaorg/celestia-app/pkg/da"
 
 	"github.com/celestiaorg/celestia-node/core"
+	headerpkg "github.com/celestiaorg/celestia-node/pkg/header"
+	"github.com/celestiaorg/celestia-node/share"
 )
 
 // ConstructFn aliases a function that creates a Header.

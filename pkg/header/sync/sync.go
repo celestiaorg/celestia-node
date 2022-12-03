@@ -54,7 +54,12 @@ type Syncer[H header.Header] struct {
 }
 
 // NewSyncer creates a new instance of Syncer.
-func NewSyncer[H header.Header](exchange header.Exchange[H], store header.Store[H], sub header.Subscriber[H], opts ...Options) (*Syncer[H], error) {
+func NewSyncer[H header.Header](
+	exchange header.Exchange[H],
+	store header.Store[H],
+	sub header.Subscriber[H],
+	opts ...Options,
+) (*Syncer[H], error) {
 	params := DefaultParameters()
 	for _, opt := range opts {
 		opt(&params)

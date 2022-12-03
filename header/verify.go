@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"time"
 
-	headerpkg "github.com/celestiaorg/celestia-node/pkg/header"
-
 	"github.com/tendermint/tendermint/light"
+
+	headerpkg "github.com/celestiaorg/celestia-node/pkg/header"
 )
 
 // TODO(@Wondertan): We should request TrustingPeriod from the network's state params or

@@ -5,17 +5,6 @@ import (
 	"testing"
 	"time"
 
-	headerpkg "github.com/celestiaorg/celestia-node/pkg/header"
-
-	"github.com/celestiaorg/celestia-node/share/availability/full"
-	"github.com/celestiaorg/celestia-node/share/availability/light"
-	availability_test "github.com/celestiaorg/celestia-node/share/availability/test"
-	"github.com/celestiaorg/celestia-node/share/getters"
-
-	"github.com/tendermint/tendermint/types"
-
-	"github.com/celestiaorg/celestia-node/fraud"
-	"github.com/celestiaorg/celestia-node/header"
 	"github.com/ipfs/go-blockservice"
 	"github.com/ipfs/go-datastore"
 	ds_sync "github.com/ipfs/go-datastore/sync"
@@ -24,6 +13,15 @@ import (
 	mocknet "github.com/libp2p/go-libp2p/p2p/net/mock"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/tendermint/tendermint/types"
+
+	"github.com/celestiaorg/celestia-node/fraud"
+	"github.com/celestiaorg/celestia-node/header"
+	headerpkg "github.com/celestiaorg/celestia-node/pkg/header"
+	"github.com/celestiaorg/celestia-node/share/availability/full"
+	"github.com/celestiaorg/celestia-node/share/availability/light"
+	availability_test "github.com/celestiaorg/celestia-node/share/availability/test"
+	"github.com/celestiaorg/celestia-node/share/getters"
 )
 
 var timeout = time.Second * 15

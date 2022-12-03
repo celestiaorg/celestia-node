@@ -3,10 +3,12 @@ package header
 import (
 	"bytes"
 	"context"
+	"crypto/rand"
+	"encoding/binary"
 	"encoding/gob"
 	"errors"
 	"fmt"
-	"math/rand"
+	"math"
 	"testing"
 	"time"
 
@@ -152,6 +154,17 @@ func randBytes(n int) []byte {
 	return buf
 }
 
+func randInt63() int64 {
+	var buf [8]byte
+
+	_, err := rand.Read(buf[:])
+	if err != nil {
+		return math.MaxInt64
+	}
+
+	return int64(binary.BigEndian.Uint64(buf[:]) & math.MaxInt64)
+}
+
 func RandDummyHeader(t *testing.T) *DummyHeader {
 	t.Helper()
 	dh, err := randDummyHeader()
@@ -165,7 +178,7 @@ func randDummyHeader() (*DummyHeader, error) {
 	dh := &DummyHeader{
 		Raw{
 			PreviousHash: randBytes(32),
-			Height:       rand.Int63(),
+			Height:       randInt63(),
 			Time:         time.Now().UTC(),
 		},
 		nil,
