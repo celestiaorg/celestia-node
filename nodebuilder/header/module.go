@@ -2,6 +2,7 @@ package header
 
 import (
 	"context"
+	pubsub "github.com/libp2p/go-libp2p-pubsub"
 
 	"github.com/ipfs/go-datastore"
 	logging "github.com/ipfs/go-log/v2"
@@ -87,6 +88,9 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 				return sub.Stop(ctx)
 			}),
 		)),
+		fx.Provide(func() pubsub.MsgIdFunction {
+			return header.MsgID
+		}),
 		fx.Provide(fx.Annotate(
 			newP2PServer,
 			fx.OnStart(func(ctx context.Context, server *p2p.ExchangeServer[*header.ExtendedHeader]) error {
