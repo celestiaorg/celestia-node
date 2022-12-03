@@ -2,6 +2,7 @@ package p2p
 
 import (
 	"context"
+	"github.com/celestiaorg/celestia-node/pkg/header"
 	"github.com/celestiaorg/celestia-node/pkg/header/store"
 	"testing"
 
@@ -11,9 +12,9 @@ import (
 
 func TestExchangeServer_handleRequestTimeout(t *testing.T) {
 	peer := createMocknet(t, 1)
-	s, err := store.NewStore(datastore.NewMapDatastore())
+	s, err := store.NewStore[*header.DummyHeader](datastore.NewMapDatastore())
 	require.NoError(t, err)
-	server, err := NewExchangeServer(peer[0], s, "private")
+	server, err := NewExchangeServer[*header.DummyHeader](peer[0], s, "private")
 	require.NoError(t, err)
 	err = server.Start(context.Background())
 	require.NoError(t, err)

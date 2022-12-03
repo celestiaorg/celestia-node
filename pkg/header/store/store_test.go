@@ -12,14 +12,14 @@ import (
 
 	tmrand "github.com/tendermint/tendermint/libs/rand"
 
-	"github.com/celestiaorg/celestia-node/header"
+	"github.com/celestiaorg/celestia-node/pkg/header"
 )
 
 func TestStore(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	t.Cleanup(cancel)
 
-	suite := header.NewTestSuite(t, 3)
+	suite := header.NewTestSuite(t)
 
 	ds := sync.MutexWrap(datastore.NewMapDatastore())
 	store, err := NewStoreWithHead(ctx, ds, suite.Head())
@@ -32,7 +32,7 @@ func TestStore(t *testing.T) {
 	require.NoError(t, err)
 	assert.EqualValues(t, suite.Head().Hash(), head.Hash())
 
-	in := suite.GenExtendedHeaders(10)
+	in := suite.GenDummyHeaders(10)
 	ln, err := store.Append(ctx, in...)
 	require.NoError(t, err)
 	assert.Equal(t, 10, ln)
@@ -56,7 +56,7 @@ func TestStore(t *testing.T) {
 	assert.False(t, ok)
 
 	go func() {
-		ln, err := store.Append(ctx, suite.GenExtendedHeaders(1)...)
+		ln, err := store.Append(ctx, suite.GenDummyHeaders(1)...)
 		require.NoError(t, err)
 		assert.Equal(t, 1, ln)
 	}()
@@ -70,7 +70,7 @@ func TestStore(t *testing.T) {
 
 	// check that the store can be successfully started after previous stop
 	// with all data being flushed.
-	store, err = NewStore[*header.ExtendedHeader](ds)
+	store, err = NewStore[*header.DummyHeader](ds)
 	require.NoError(t, err)
 
 	err = store.Start(ctx)
@@ -92,7 +92,7 @@ func TestStorePendingCacheMiss(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	t.Cleanup(cancel)
 
-	suite := header.NewTestSuite(t, 3)
+	suite := header.NewTestSuite(t)
 
 	ds := sync.MutexWrap(datastore.NewMapDatastore())
 
@@ -104,10 +104,10 @@ func TestStorePendingCacheMiss(t *testing.T) {
 
 	err = store.Start(ctx)
 	require.NoError(t, err)
-	_, err = store.Append(ctx, suite.GenExtendedHeaders(100)...)
+	_, err = store.Append(ctx, suite.GenDummyHeaders(100)...)
 	require.NoError(t, err)
 
-	_, err = store.Append(ctx, suite.GenExtendedHeaders(50)...)
+	_, err = store.Append(ctx, suite.GenDummyHeaders(50)...)
 	require.NoError(t, err)
 
 	_, err = store.GetRangeByHeight(ctx, 1, 101)

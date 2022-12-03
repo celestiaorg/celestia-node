@@ -8,11 +8,11 @@ import (
 	"github.com/ipfs/go-datastore/sync"
 	"github.com/stretchr/testify/require"
 
-	"github.com/celestiaorg/celestia-node/header"
+	"github.com/celestiaorg/celestia-node/pkg/header"
 )
 
 // NewTestStore creates initialized and started in memory header Store which is useful for testing.
-func NewTestStore(ctx context.Context, t *testing.T, head *header.ExtendedHeader) header.Store {
+func NewTestStore(ctx context.Context, t *testing.T, head *header.DummyHeader) header.Store[*header.DummyHeader] {
 	store, err := NewStoreWithHead(ctx, sync.MutexWrap(datastore.NewMapDatastore()), head)
 	require.NoError(t, err)
 
