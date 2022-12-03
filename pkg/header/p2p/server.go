@@ -133,7 +133,7 @@ func (serv *ExchangeServer[H]) requestHandler(stream network.Stream) {
 		var bin []byte
 		// if header is not nil, then marshal it to []byte.
 		// if header is nil, then error was received,so we will set empty []byte to proto.
-		if header.Header(h) != header.Header(*new(H)) {
+		if header.Header(h) != header.Header(*new(H)) { //nolint:gocritic
 			bin, err = h.MarshalBinary()
 			if err != nil {
 				log.Errorw("server: marshaling header to proto", "height", h.Height, "err", err)

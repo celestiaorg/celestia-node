@@ -112,7 +112,7 @@ func (ex *Exchange[H]) Head(ctx context.Context) (H, error) {
 			headers, err := ex.request(ctx, from, req)
 			if err != nil {
 				log.Errorw("head request to trusted peer failed", "trustedPeer", from, "err", err)
-				headerCh <- *new(H)
+				headerCh <- *new(H) //nolint:gocritic
 				return
 			}
 			// doRequest ensures that the result slice will have at least one Header
@@ -125,7 +125,7 @@ LOOP:
 	for range ex.trustedPeers {
 		select {
 		case h := <-headerCh:
-			if header.Header(h) != header.Header(*new(H)) {
+			if header.Header(h) != header.Header(*new(H)) { //nolint:gocritic
 				result = append(result, h)
 			}
 		case <-ctx.Done():
@@ -145,7 +145,7 @@ func (ex *Exchange[H]) GetByHeight(ctx context.Context, height uint64) (H, error
 	log.Debugw("requesting header", "height", height)
 	// sanity check height
 	if height == 0 {
-		return *new(H), fmt.Errorf("specified request height must be greater than 0")
+		return *new(H), fmt.Errorf("specified request height must be greater than 0") //nolint:gocritic
 	}
 	// create request
 	req := &p2p_pb.ExtendedHeaderRequest{
@@ -154,7 +154,7 @@ func (ex *Exchange[H]) GetByHeight(ctx context.Context, height uint64) (H, error
 	}
 	headers, err := ex.performRequest(ctx, req)
 	if err != nil {
-		return *new(H), err
+		return *new(H), err //nolint:gocritic
 	}
 	return headers[0], nil
 }
@@ -194,11 +194,11 @@ func (ex *Exchange[H]) Get(ctx context.Context, hash header.Hash) (H, error) {
 	}
 	headers, err := ex.performRequest(ctx, req)
 	if err != nil {
-		return *new(H), err
+		return *new(H), err //nolint:gocritic
 	}
 
 	if !bytes.Equal(headers[0].Hash(), hash) {
-		return *new(H), fmt.Errorf("incorrect hash in header: expected %x, got %x", hash, headers[0].Hash())
+		return *new(H), fmt.Errorf("incorrect hash in header: expected %x, got %x", hash, headers[0].Hash()) //nolint:gocritic
 	}
 	return headers[0], nil
 }
@@ -258,7 +258,7 @@ func (ex *Exchange[H]) request(
 // height).
 func bestHead[H header.Header](result []H, minResponses int) (H, error) {
 	if len(result) == 0 {
-		return *new(H), header.ErrNotFound
+		return *new(H), header.ErrNotFound //nolint:gocritic
 	}
 	counter := make(map[string]int)
 	// go through all of ExtendedHeaders and count the number of headers with a specific hash

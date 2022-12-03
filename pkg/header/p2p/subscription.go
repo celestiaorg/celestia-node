@@ -34,7 +34,7 @@ func newSubscription[H header.Header](topic *pubsub.Topic) (*subscription[H], er
 func (s *subscription[H]) NextHeader(ctx context.Context) (H, error) {
 	msg, err := s.subscription.Next(ctx)
 	if err != nil {
-		return *new(H), err
+		return *new(H), err //nolint:gocritic
 	}
 	log.Debugw("received message", "topic", msg.Message.GetTopic(), "sender", msg.ReceivedFrom)
 

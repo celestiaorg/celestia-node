@@ -21,7 +21,7 @@ func (rs *ranges[H]) Head() H {
 
 	ln := len(rs.ranges)
 	if ln == 0 {
-		return *new(H)
+		return *new(H) //nolint:gocritic
 	}
 
 	head := rs.ranges[ln-1]
@@ -34,7 +34,7 @@ func (rs *ranges[H]) Add(h H) {
 	head := rs.Head()
 
 	// short-circuit if header is from the past
-	if header.Header(head) != header.Header(*new(H)) && head.Height() >= h.Height() {
+	if header.Header(head) != header.Header(*new(H)) && head.Height() >= h.Height() { //nolint:gocritic
 		// TODO(@Wondertan): Technically, we can still apply the header:
 		//  * Headers here are verified, so we can trust them
 		//  * PubSub does not guarantee the ordering of msgs
@@ -50,7 +50,7 @@ func (rs *ranges[H]) Add(h H) {
 	defer rs.lk.Unlock()
 
 	// if the new header is adjacent to head
-	if header.Header(head) != header.Header(*new(H)) && h.Height() == head.Height()+1 {
+	if header.Header(head) != header.Header(*new(H)) && h.Height() == head.Height()+1 { //nolint:gocritic
 		// append it to the last known range
 		rs.ranges[len(rs.ranges)-1].Append(h)
 	} else {
@@ -130,7 +130,7 @@ func (r *headerRange[H]) Head() H {
 	defer r.lk.RUnlock()
 	ln := len(r.headers)
 	if ln == 0 {
-		return *new(H)
+		return *new(H) //nolint:gocritic
 	}
 	return r.headers[ln-1]
 }
