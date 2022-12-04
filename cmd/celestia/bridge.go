@@ -35,6 +35,15 @@ func init() {
 			gateway.Flags(),
 			state.Flags(),
 		),
+		authCmd(
+			cmdnode.NodeFlags(),
+			p2p.Flags(),
+			core.Flags(),
+			cmdnode.MiscFlags(),
+			rpc.Flags(),
+			gateway.Flags(),
+			state.Flags(),
+		),
 	)
 }
 

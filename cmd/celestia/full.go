@@ -42,6 +42,18 @@ func init() {
 			gateway.Flags(),
 			state.Flags(),
 		),
+		authCmd(
+			cmdnode.NodeFlags(),
+			p2p.Flags(),
+			header.Flags(),
+			cmdnode.MiscFlags(),
+			// NOTE: for now, state-related queries can only be accessed
+			// over an RPC connection with a celestia-core node.
+			core.Flags(),
+			rpc.Flags(),
+			gateway.Flags(),
+			state.Flags(),
+		),
 	)
 }
 
