@@ -326,7 +326,7 @@ The EDS `Server` implements server side of `ShrEx/EDS` protocol. It serves `Clie
 ### `NDServer`
 
 The  EDS `NDServer` is introduced to serve `NDClient`'s `NDRequest`s over `ShrEx/ND` protocol and respond
-`NDResponse`s with data and proofs coming from `eds.Store.Blockstore`.
+`NDResponse`s with data and proofs coming from `eds.Store.CARBlockstore`.
 
 `NDServer` may not provide any API, besides constructor and lifecycle methods.
 
