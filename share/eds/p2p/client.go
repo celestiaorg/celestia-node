@@ -75,11 +75,7 @@ func (c *Client) RequestEDS(
 			log.Warn(err)
 		}
 		_, err = serde.Read(stream, resp)
-		if err != nil {
-			// TODO(@distractedm1nd): is this EOF check really necessary here?
-			if err == io.EOF {
-				break
-			}
+		if err != nil && err != io.EOF {
 			stream.Reset() //nolint:errcheck
 			return nil, fmt.Errorf("client: failed to read status from stream %s: %w", to, err)
 		}

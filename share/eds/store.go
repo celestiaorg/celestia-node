@@ -178,7 +178,7 @@ func (s *Store) Put(ctx context.Context, root share.DataHash, square *rsmt2d.Ext
 func (s *Store) GetCARTemp(ctx context.Context, dataHash []byte) (io.ReadCloser, error) {
 
 	ch := make(chan dagstore.ShardResult, 1)
-	err := s.dgstr.AcquireShard(ctx, shard.KeyFromBytes(dataHash), ch, dagstore.AcquireOpts{})
+	err := s.dgstr.AcquireShard(ctx, shard.KeyFromString(fmt.Sprintf("%X", dataHash)), ch, dagstore.AcquireOpts{})
 	if err != nil {
 		return nil, fmt.Errorf("failed to initiate shard acquisition: %w", err)
 	}
