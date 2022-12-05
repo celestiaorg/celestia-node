@@ -3,6 +3,7 @@ package p2p
 import (
 	"context"
 	"io"
+	"time"
 
 	"github.com/libp2p/go-libp2p-core/host"
 	"github.com/libp2p/go-libp2p-core/network"
@@ -11,6 +12,13 @@ import (
 	"github.com/celestiaorg/celestia-node/share/eds"
 	p2p_pb "github.com/celestiaorg/celestia-node/share/eds/p2p/pb"
 	"github.com/celestiaorg/go-libp2p-messenger/serde"
+)
+
+const (
+	// writeDeadline sets timeout for sending messages to the stream
+	writeDeadline = time.Second * 5
+	// readDeadline sets timeout for reading messages from the stream
+	readDeadline = time.Minute
 )
 
 type Server struct {
@@ -35,8 +43,11 @@ func (s *Server) Stop(context.Context) error {
 }
 
 func (s *Server) handleStream(stream network.Stream) {
-	// TODO(@distractedm1nd): set read deadline
+	log.Debug("server: handling eds request")
 	req := new(p2p_pb.EDSRequest)
+	if err := stream.SetReadDeadline(time.Now().Add(readDeadline)); err != nil {
+		log.Warn(err)
+	}
 	_, err := serde.Read(stream, req)
 	if err != nil {
 		log.Errorw("server: reading header request from stream", "err", err)
@@ -52,8 +63,10 @@ func (s *Server) handleStream(stream network.Stream) {
 	edsReader, err := s.store.GetCARTemp(ctx, dataHash)
 	if err != nil {
 		// TODO(@distractedm1nd): handle INVALID, REFUSED status codes
-		// TODO(@distractedm1nd): write deadline
 		resp := &p2p_pb.EDSResponse{Status: p2p_pb.Status_NOT_FOUND}
+		if err = stream.SetWriteDeadline(time.Now().Add(writeDeadline)); err != nil {
+			log.Warn(err)
+		}
 		_, err := serde.Write(stream, resp)
 		if err != nil {
 			log.Errorw("server: writing response to stream", "err", err, "dataHash", dataHash)
@@ -62,7 +75,10 @@ func (s *Server) handleStream(stream network.Stream) {
 		}
 	}
 
-	// TODO(@distractedm1nd): write deadline
+	// TODO(@distractedm1nd): question: do you set the write deadline for every single write?
+	if err = stream.SetWriteDeadline(time.Now().Add(writeDeadline)); err != nil {
+		log.Warn(err)
+	}
 	odsReader, err := eds.ODSReader(edsReader)
 	if err != nil {
 		log.Errorw("server: creating ODS reader", "err", err, "dataHash", dataHash)
