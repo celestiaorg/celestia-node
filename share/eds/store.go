@@ -179,9 +179,32 @@ func (s *Store) Put(ctx context.Context, root share.Root, square *rsmt2d.Extende
 // Caller must Close returned reader after reading.
 func (s *Store) GetCAR(ctx context.Context, root share.Root) (io.ReadCloser, error) {
 	key := root.String()
+	return s.getAccessor(ctx, shard.KeyFromString(key))
+}
 
+// Blockstore returns an IPFS Blockstore providing access to individual shares/nodes of all EDS
+// registered on the Store. NOTE: The Blockstore does not store whole Celestia Blocks but IPFS
+// blocks. We represent `shares` and NMT Merkle proofs as IPFS blocks and IPLD nodes so Bitswap can
+// access those.
+func (s *Store) Blockstore() blockstore.Blockstore {
+	return s.bs
+}
+
+// CARBlockstore returns the IPFS Blockstore that provides access to the IPLD blocks stored in an
+// individual CAR file.
+func (s *Store) CARBlockstore(ctx context.Context, dataHash []byte) (dagstore.ReadBlockstore, error) {
+	key := shard.KeyFromBytes(dataHash)
+	accessor, err := s.getAccessor(ctx, key)
+	if err != nil {
+		return nil, err
+	}
+
+	return accessor.Blockstore()
+}
+
+func (s *Store) getAccessor(ctx context.Context, key shard.Key) (*dagstore.ShardAccessor, error) {
 	ch := make(chan dagstore.ShardResult, 1)
-	err := s.dgstr.AcquireShard(ctx, shard.KeyFromString(key), ch, dagstore.AcquireOpts{})
+	err := s.dgstr.AcquireShard(ctx, key, ch, dagstore.AcquireOpts{})
 	if err != nil {
 		return nil, fmt.Errorf("failed to initiate shard acquisition: %w", err)
 	}
@@ -195,14 +218,6 @@ func (s *Store) GetCAR(ctx context.Context, root share.Root) (io.ReadCloser, err
 		}
 		return result.Accessor, nil
 	}
-}
-
-// Blockstore returns an IPFS Blockstore providing access to individual shares/nodes of all EDS
-// registered on the Store. NOTE: The Blockstore does not store whole Celestia Blocks but IPFS
-// blocks. We represent `shares` and NMT Merkle proofs as IPFS blocks and IPLD nodes so Bitswap can
-// access those.
-func (s *Store) Blockstore() blockstore.Blockstore {
-	return s.bs
 }
 
 // Remove removes EDS from Store by the given share.Root and cleans up all the indexing.
