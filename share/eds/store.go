@@ -36,8 +36,10 @@ type Store struct {
 	cancel context.CancelFunc
 
 	dgstr  *dagstore.DAGStore
-	bs     blockstore.Blockstore
 	mounts *mount.Registry
+
+	cache *blockstoreCache
+	bs    blockstore.Blockstore
 
 	topIdx index.Inverted
 	carIdx index.FullIndexRepo
@@ -80,6 +82,11 @@ func NewStore(basepath string, ds datastore.Batching) (*Store, error) {
 		return nil, fmt.Errorf("failed to create DAGStore: %w", err)
 	}
 
+	cache, err := newBlockstoreCache()
+	if err != nil {
+		return nil, fmt.Errorf("failed to create blockstore cache: %w", err)
+	}
+
 	store := &Store{
 		basepath: basepath,
 		dgstr:    dagStore,
@@ -87,13 +94,9 @@ func NewStore(basepath string, ds datastore.Batching) (*Store, error) {
 		carIdx:   fsRepo,
 		gcInterval: defaultGCInterval,
 		mounts:   r,
+		cache:    cache,
 	}
-
-	store.bs, err = NewEDSBlockstore(store)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create EDSBlockstore: %w", err)
-	}
-
+	store.bs = NewEDSBlockstore(store, cache)
 	return store, nil
 }
 
@@ -179,7 +182,11 @@ func (s *Store) Put(ctx context.Context, root share.Root, square *rsmt2d.Extende
 // Caller must Close returned reader after reading.
 func (s *Store) GetCAR(ctx context.Context, root share.Root) (io.ReadCloser, error) {
 	key := root.String()
-	return s.getAccessor(ctx, shard.KeyFromString(key))
+	accessor, err := s.getAccessor(ctx, shard.KeyFromString(key))
+	if err != nil {
+		return nil, fmt.Errorf("failed to get accessor: %w", err)
+	}
+	return accessor.sa, nil
 }
 
 // Blockstore returns an IPFS Blockstore providing access to individual shares/nodes of all EDS
@@ -199,24 +206,34 @@ func (s *Store) CARBlockstore(ctx context.Context, dataHash []byte) (dagstore.Re
 		return nil, err
 	}
 
-	return accessor.Blockstore()
+	return accessor.bs, nil
 }
 
-func (s *Store) getAccessor(ctx context.Context, key shard.Key) (*dagstore.ShardAccessor, error) {
+func (s *Store) getAccessor(ctx context.Context, key shard.Key) (*accessorWithBlockstore, error) {
+	// try to fetch from cache
+	accessor, err := s.cache.Read(key)
+	if err != nil && err != errCacheMiss {
+		log.Errorw("unexpected error while reading key from bs cache %s: %s", key, err)
+	}
+	if accessor != nil {
+		return accessor, nil
+	}
+
+	// wasn't found in cache, so acquire it and add to cache
 	ch := make(chan dagstore.ShardResult, 1)
-	err := s.dgstr.AcquireShard(ctx, key, ch, dagstore.AcquireOpts{})
+	err = s.dgstr.AcquireShard(ctx, key, ch, dagstore.AcquireOpts{})
 	if err != nil {
-		return nil, fmt.Errorf("failed to initiate shard acquisition: %w", err)
+		return nil, fmt.Errorf("failed to initialize shard acquisition: %w", err)
 	}
 
 	select {
+	case res := <-ch:
+		if res.Error != nil {
+			return nil, fmt.Errorf("failed to acquire shard: %w", res.Error)
+		}
+		return s.cache.Write(key, res.Accessor)
 	case <-ctx.Done():
 		return nil, ctx.Err()
-	case result := <-ch:
-		if result.Error != nil {
-			return nil, fmt.Errorf("failed to acquire shard: %w", result.Error)
-		}
-		return result.Accessor, nil
 	}
 }
 

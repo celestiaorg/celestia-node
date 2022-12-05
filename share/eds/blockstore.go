@@ -4,12 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"reflect"
-	"sync"
 
 	"github.com/filecoin-project/dagstore"
-	"github.com/filecoin-project/dagstore/shard"
-	lru "github.com/hashicorp/golang-lru"
 	blocks "github.com/ipfs/go-block-format"
 	"github.com/ipfs/go-cid"
 	blockstore "github.com/ipfs/go-ipfs-blockstore"
@@ -19,16 +15,9 @@ import (
 var _ blockstore.Blockstore = (*Blockstore)(nil)
 
 var (
-	maxCacheSize            = 128
 	errUnsupportedOperation = errors.New("unsupported operation")
 	errShardNotFound        = errors.New("the provided cid does not map to any shard")
-	errCacheMiss            = errors.New("accessor not found in blockstore cache")
 )
-
-type accessorWithBlockstore struct {
-	sa *dagstore.ShardAccessor
-	bs dagstore.ReadBlockstore
-}
 
 // Blockstore implements the blockstore.Blockstore interface on an EDSStore.
 // The lru cache approach is heavily inspired by the existing implementation upstream.
@@ -40,40 +29,14 @@ type accessorWithBlockstore struct {
 // implementation to allow for the blockstore operations to be routed to the underlying stores.
 type Blockstore struct {
 	store *Store
-
-	// bsStripedLocks prevents simultaneous RW access to the blockstore cache for a shard. Instead
-	// of using only one lock or one lock per key, we stripe the shard keys across 256 locks. 256 is
-	// chosen because it 0-255 is the range of values we get looking at the last byte of the key.
-	bsStripedLocks [256]sync.Mutex
-	// caches the blockstore for a given shard for shard read affinity i.e.
-	// further reads will likely be from the same shard. Maps (shard key -> blockstore).
-	blockstoreCache *lru.Cache
+	cache *blockstoreCache
 }
 
-func NewEDSBlockstore(s *Store) (*Blockstore, error) {
-	// instantiate the blockstore cache
-	bslru, err := lru.NewWithEvict(maxCacheSize, func(_ interface{}, val interface{}) {
-		// ensure we close the blockstore for a shard when it's evicted so dagstore can gc it.
-		abs, ok := val.(*accessorWithBlockstore)
-		if !ok {
-			log.Errorf(
-				"casting value from cache to accessorWithBlockstore: %s",
-				reflect.TypeOf(val),
-			)
-			return
-		}
-
-		if err := abs.sa.Close(); err != nil {
-			log.Errorf("couldn't close accessor after cache eviction: %s", err)
-		}
-	})
-	if err != nil {
-		return nil, fmt.Errorf("failed to instantiate blockstore cache: %w", err)
-	}
+func NewEDSBlockstore(store *Store, cache *blockstoreCache) *Blockstore {
 	return &Blockstore{
-		store:           s,
-		blockstoreCache: bslru,
-	}, nil
+		store: store,
+		cache: cache,
+	}
 }
 
 func (bs *Blockstore) Has(ctx context.Context, cid cid.Cid) (bool, error) {
@@ -144,76 +107,9 @@ func (bs *Blockstore) getReadOnlyBlockstore(ctx context.Context, cid cid.Cid) (d
 
 	// a share can exist in multiple EDSes, so just take the first one.
 	shardKey := keys[0]
-	// try to fetch from cache
-	blockstr, err := bs.readFromBSCache(shardKey)
-	if err != nil && err != errCacheMiss {
-		log.Errorw("unexpected error while reading key from bs cache %s: %s", shardKey, err)
-	}
-	if blockstr != nil {
-		return blockstr, nil
-	}
-
-	// wasn't found in cache, so acquire it and add to cache
-	ch := make(chan dagstore.ShardResult, 1)
-	err = bs.store.dgstr.AcquireShard(ctx, shardKey, ch, dagstore.AcquireOpts{})
+	accessor, err := bs.store.getAccessor(ctx, shardKey)
 	if err != nil {
-		return nil, fmt.Errorf("failed to initialize shard acquisition: %w", err)
+		return nil, fmt.Errorf("failed to get accessor for shard %s: %w", shardKey, err)
 	}
-
-	select {
-	case res := <-ch:
-		if res.Error != nil {
-			return nil, fmt.Errorf("failed to acquire shard: %w", res.Error)
-		}
-		return bs.addToBSCache(shardKey, res.Accessor)
-	case <-ctx.Done():
-		return nil, ctx.Err()
-	}
-}
-
-func (bs *Blockstore) readFromBSCache(shardContainingCid shard.Key) (dagstore.ReadBlockstore, error) {
-	lk := &bs.bsStripedLocks[shardKeyToStriped(shardContainingCid)]
-	lk.Lock()
-	defer lk.Unlock()
-
-	// We've already ensured that the given shard has the cid/multihash we are looking for.
-	val, ok := bs.blockstoreCache.Get(shardContainingCid)
-	if !ok {
-		return nil, errCacheMiss
-	}
-
-	rbs, ok := val.(*accessorWithBlockstore)
-	if !ok {
-		return nil, fmt.Errorf(
-			"casting value from cache to accessorWithBlockstore: %s",
-			reflect.TypeOf(val),
-		)
-	}
-	return rbs.bs, nil
-}
-
-func (bs *Blockstore) addToBSCache(
-	shardContainingCid shard.Key,
-	accessor *dagstore.ShardAccessor,
-) (dagstore.ReadBlockstore, error) {
-	blockStore, err := accessor.Blockstore()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get blockstore from accessor: %w", err)
-	}
-
-	lk := &bs.bsStripedLocks[shardKeyToStriped(shardContainingCid)]
-	lk.Lock()
-	defer lk.Unlock()
-
-	bs.blockstoreCache.Add(shardContainingCid, &accessorWithBlockstore{
-		bs: blockStore,
-		sa: accessor,
-	})
-	return blockStore, nil
-}
-
-// shardKeyToStriped returns the index of the lock to use for a given shard key. We use the last
-// byte of the shard key as the pseudo-random index.
-func shardKeyToStriped(sk shard.Key) byte {
-	return sk.String()[len(sk.String())-1]
+	return accessor.bs, nil
 }
