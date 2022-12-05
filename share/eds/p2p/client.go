@@ -20,9 +20,10 @@ import (
 	"github.com/celestiaorg/rsmt2d"
 )
 
+var log = logging.Logger("shrex/eds")
+
 // TODO(@distractedm1nd): make version suffix configurable
 var protocolID = protocol.ID("/shrex/eds/0.0.1")
-var log = logging.Logger("shrex/eds-client")
 
 type Client struct {
 	protocolID protocol.ID
@@ -38,8 +39,10 @@ func NewClient(host host.Host) *Client {
 
 // RequestEDS requests the full EDS from one of the given peers.
 //
-// The peers are requested in a round-robin manner with retries until one of them gives a valid response.
-// Blocks forever until the context is canceled or a valid response is given.
+// The peers are requested in a round-robin manner with retries until one of them gives a valid
+// response. Blocks forever until the context is canceled or a valid response is given.
+//
+// TODO(@distractedm1nd): add read/write deadlines, wrapp errors better, more logging
 func (c *Client) RequestEDS(
 	ctx context.Context,
 	root share.Root,
@@ -67,6 +70,7 @@ func (c *Client) RequestEDS(
 		resp := new(p2p_pb.EDSResponse)
 		_, err = serde.Read(stream, resp)
 		if err != nil {
+			// TODO(@distractedm1nd): is this EOF check really necessary here?
 			if err == io.EOF {
 				break
 			}
