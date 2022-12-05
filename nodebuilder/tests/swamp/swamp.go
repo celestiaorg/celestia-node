@@ -12,7 +12,6 @@ import (
 	"github.com/libp2p/go-libp2p-core/peer"
 	mocknet "github.com/libp2p/go-libp2p/p2p/net/mock"
 	ma "github.com/multiformats/go-multiaddr"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/tendermint/tendermint/libs/bytes"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
@@ -105,9 +104,9 @@ func NewSwamp(t *testing.T, options ...Option) *Swamp {
 	swp.t.Cleanup(func() {
 		swp.stopAllNodes(ctx, swp.BridgeNodes, swp.FullNodes, swp.LightNodes)
 		err = cleanupCoreNode()
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		err = cleanupGRPCServer()
-		assert.NoError(t, err)
+		require.NoError(t, err)
 	})
 
 	return swp
