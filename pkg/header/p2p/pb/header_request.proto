@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package p2p.pb;
 
-message ExtendedHeaderRequest {
+message HeaderRequest {
   oneof data {
     uint64 origin = 1;
     bytes hash = 2;
@@ -16,7 +16,7 @@ enum StatusCode {
   NOT_FOUND = 2;
 };
 
-message ExtendedHeaderResponse {
+message HeaderResponse {
   bytes body = 1;
   StatusCode statusCode = 2;
 }

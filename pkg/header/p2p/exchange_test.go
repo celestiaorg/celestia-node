@@ -179,15 +179,15 @@ func TestExchange_RequestByHash(t *testing.T) {
 	require.NoError(t, err)
 	// create request for a header at a random height
 	reqHeight := store.HeadHeight - 2
-	req := &p2p_pb.ExtendedHeaderRequest{
-		Data:   &p2p_pb.ExtendedHeaderRequest_Hash{Hash: store.Headers[reqHeight].Hash()},
+	req := &p2p_pb.HeaderRequest{
+		Data:   &p2p_pb.HeaderRequest_Hash{Hash: store.Headers[reqHeight].Hash()},
 		Amount: 1,
 	}
 	// send request
 	_, err = serde.Write(stream, req)
 	require.NoError(t, err)
 	// read resp
-	resp := new(p2p_pb.ExtendedHeaderResponse)
+	resp := new(p2p_pb.HeaderResponse)
 	_, err = serde.Read(stream, resp)
 	require.NoError(t, err)
 	// compare
@@ -285,15 +285,15 @@ func TestExchange_RequestByHashFails(t *testing.T) {
 
 	stream, err := peer.NewStream(context.Background(), libhost.InfoFromHost(host).ID, privateProtocolID)
 	require.NoError(t, err)
-	req := &p2p_pb.ExtendedHeaderRequest{
-		Data:   &p2p_pb.ExtendedHeaderRequest_Hash{Hash: []byte("dummy_hash")},
+	req := &p2p_pb.HeaderRequest{
+		Data:   &p2p_pb.HeaderRequest_Hash{Hash: []byte("dummy_hash")},
 		Amount: 1,
 	}
 	// send request
 	_, err = serde.Write(stream, req)
 	require.NoError(t, err)
 	// read resp
-	resp := new(p2p_pb.ExtendedHeaderResponse)
+	resp := new(p2p_pb.HeaderResponse)
 	_, err = serde.Read(stream, resp)
 	require.NoError(t, err)
 	require.Equal(t, resp.StatusCode, p2p_pb.StatusCode_NOT_FOUND)

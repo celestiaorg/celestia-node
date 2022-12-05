@@ -20,16 +20,16 @@ func protocolID(protocolSuffix string) protocol.ID {
 	return protocol.ID(fmt.Sprintf("/header-ex/v0.0.3/%s", protocolSuffix))
 }
 
-// sendMessage opens the stream to the given peers and sends ExtendedHeaderRequest to fetch
-// ExtendedHeaders. As a result sendMessage returns ExtendedHeaderResponse, the size of fetched
+// sendMessage opens the stream to the given peers and sends HeaderRequest to fetch
+// Headers. As a result sendMessage returns HeaderResponse, the size of fetched
 // data, the duration of the request and an error.
 func sendMessage(
 	ctx context.Context,
 	host host.Host,
 	to peer.ID,
 	protocol protocol.ID,
-	req *p2p_pb.ExtendedHeaderRequest,
-) ([]*p2p_pb.ExtendedHeaderResponse, uint64, uint64, error) {
+	req *p2p_pb.HeaderRequest,
+) ([]*p2p_pb.HeaderResponse, uint64, uint64, error) {
 	startTime := time.Now()
 	stream, err := host.NewStream(ctx, to, protocol)
 	if err != nil {
@@ -57,10 +57,10 @@ func sendMessage(
 		return nil, 0, 0, err
 	}
 
-	headers := make([]*p2p_pb.ExtendedHeaderResponse, 0)
+	headers := make([]*p2p_pb.HeaderResponse, 0)
 	totalRequestSize := uint64(0)
 	for i := 0; i < int(req.Amount); i++ {
-		resp := new(p2p_pb.ExtendedHeaderResponse)
+		resp := new(p2p_pb.HeaderResponse)
 		msgSize, err := serde.Read(stream, resp)
 		if err != nil {
 			if err == io.EOF {

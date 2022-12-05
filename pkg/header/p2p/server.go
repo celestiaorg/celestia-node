@@ -80,14 +80,14 @@ func (serv *ExchangeServer[H]) Stop(context.Context) error {
 	return nil
 }
 
-// requestHandler handles inbound ExtendedHeaderRequests.
+// requestHandler handles inbound HeaderRequests.
 func (serv *ExchangeServer[H]) requestHandler(stream network.Stream) {
 	err := stream.SetReadDeadline(time.Now().Add(serv.Params.ReadDeadline))
 	if err != nil {
 		log.Debugf("error setting deadline: %s", err)
 	}
 	// unmarshal request
-	pbreq := new(p2p_pb.ExtendedHeaderRequest)
+	pbreq := new(p2p_pb.HeaderRequest)
 	_, err = serde.Read(stream, pbreq)
 	if err != nil {
 		log.Errorw("server: reading header request from stream", "err", err)
@@ -101,9 +101,9 @@ func (serv *ExchangeServer[H]) requestHandler(stream network.Stream) {
 	var headers []H
 	// retrieve and write ExtendedHeaders
 	switch pbreq.Data.(type) {
-	case *p2p_pb.ExtendedHeaderRequest_Hash:
+	case *p2p_pb.HeaderRequest_Hash:
 		headers, err = serv.handleRequestByHash(pbreq.GetHash())
-	case *p2p_pb.ExtendedHeaderRequest_Origin:
+	case *p2p_pb.HeaderRequest_Origin:
 		headers, err = serv.handleRequest(pbreq.GetOrigin(), pbreq.GetOrigin()+pbreq.Amount)
 	default:
 		log.Error("server: invalid data type received")
@@ -141,7 +141,7 @@ func (serv *ExchangeServer[H]) requestHandler(stream network.Stream) {
 				return
 			}
 		}
-		_, err = serde.Write(stream, &p2p_pb.ExtendedHeaderResponse{Body: bin, StatusCode: code})
+		_, err = serde.Write(stream, &p2p_pb.HeaderResponse{Body: bin, StatusCode: code})
 		if err != nil {
 			log.Errorw("server: writing header to stream", "err", err)
 			stream.Reset() //nolint:errcheck

@@ -23,8 +23,8 @@ var log = logging.Logger("header/p2p")
 // gossipsub topic.
 const PubSubTopic = "header-sub"
 
-// Exchange enables sending outbound ExtendedHeaderRequests to the network as well as
-// handling inbound ExtendedHeaderRequests from the network.
+// Exchange enables sending outbound HeaderRequests to the network as well as
+// handling inbound HeaderRequests from the network.
 type Exchange[H header.Header] struct {
 	ctx    context.Context
 	cancel context.CancelFunc
@@ -100,8 +100,8 @@ func (ex *Exchange[H]) Stop(context.Context) error {
 func (ex *Exchange[H]) Head(ctx context.Context) (H, error) {
 	log.Debug("requesting head")
 	// create request
-	req := &p2p_pb.ExtendedHeaderRequest{
-		Data:   &p2p_pb.ExtendedHeaderRequest_Origin{Origin: uint64(0)},
+	req := &p2p_pb.HeaderRequest{
+		Data:   &p2p_pb.HeaderRequest_Origin{Origin: uint64(0)},
 		Amount: 1,
 	}
 
@@ -148,8 +148,8 @@ func (ex *Exchange[H]) GetByHeight(ctx context.Context, height uint64) (H, error
 		return *new(H), fmt.Errorf("specified request height must be greater than 0") //nolint:gocritic
 	}
 	// create request
-	req := &p2p_pb.ExtendedHeaderRequest{
-		Data:   &p2p_pb.ExtendedHeaderRequest_Origin{Origin: height},
+	req := &p2p_pb.HeaderRequest{
+		Data:   &p2p_pb.HeaderRequest_Origin{Origin: height},
 		Amount: 1,
 	}
 	headers, err := ex.performRequest(ctx, req)
@@ -188,8 +188,8 @@ func (ex *Exchange[H]) GetVerifiedRange(
 func (ex *Exchange[H]) Get(ctx context.Context, hash header.Hash) (H, error) {
 	log.Debugw("requesting header", "hash", hash.String())
 	// create request
-	req := &p2p_pb.ExtendedHeaderRequest{
-		Data:   &p2p_pb.ExtendedHeaderRequest_Hash{Hash: hash},
+	req := &p2p_pb.HeaderRequest{
+		Data:   &p2p_pb.HeaderRequest_Hash{Hash: hash},
 		Amount: 1,
 	}
 	headers, err := ex.performRequest(ctx, req)
@@ -205,7 +205,7 @@ func (ex *Exchange[H]) Get(ctx context.Context, hash header.Hash) (H, error) {
 
 func (ex *Exchange[H]) performRequest(
 	ctx context.Context,
-	req *p2p_pb.ExtendedHeaderRequest,
+	req *p2p_pb.HeaderRequest,
 ) ([]H, error) {
 	if req.Amount == 0 {
 		return make([]H, 0), nil
@@ -220,11 +220,11 @@ func (ex *Exchange[H]) performRequest(
 	return ex.request(ctx, ex.trustedPeers[index], req)
 }
 
-// request sends the ExtendedHeaderRequest to a remote peer.
+// request sends the HeaderRequest to a remote peer.
 func (ex *Exchange[H]) request(
 	ctx context.Context,
 	to peer.ID,
-	req *p2p_pb.ExtendedHeaderRequest,
+	req *p2p_pb.HeaderRequest,
 ) ([]H, error) {
 	log.Debugw("requesting peer", "peer", to)
 	responses, _, _, err := sendMessage(ctx, ex.host, to, ex.protocolID, req)
