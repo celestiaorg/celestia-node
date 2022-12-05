@@ -61,24 +61,22 @@ func (s *Server) handleStream(stream network.Stream) {
 	ctx := context.Background()
 	dataHash := req.Hash
 	edsReader, err := s.store.GetCARTemp(ctx, dataHash)
+	resp := &p2p_pb.EDSResponse{Status: p2p_pb.Status_OK}
 	if err != nil {
 		// TODO(@distractedm1nd): handle INVALID, REFUSED status codes
-		resp := &p2p_pb.EDSResponse{Status: p2p_pb.Status_NOT_FOUND}
-		if err = stream.SetWriteDeadline(time.Now().Add(writeDeadline)); err != nil {
-			log.Warn(err)
-		}
-		_, err := serde.Write(stream, resp)
-		if err != nil {
-			log.Errorw("server: writing response to stream", "err", err, "dataHash", dataHash)
-			stream.Reset() //nolint:errcheck
-			return
-		}
+		resp = &p2p_pb.EDSResponse{Status: p2p_pb.Status_NOT_FOUND}
 	}
-
-	// TODO(@distractedm1nd): question: do you set the write deadline for every single write?
 	if err = stream.SetWriteDeadline(time.Now().Add(writeDeadline)); err != nil {
 		log.Warn(err)
 	}
+	_, err = serde.Write(stream, resp)
+	if err != nil {
+		log.Errorw("server: writing response to stream", "err", err, "dataHash", dataHash)
+		stream.Reset() //nolint:errcheck
+		return
+	}
+
+	// TODO(@distractedm1nd): question: do you set the write deadline for every single write?
 	odsReader, err := eds.ODSReader(edsReader)
 	if err != nil {
 		log.Errorw("server: creating ODS reader", "err", err, "dataHash", dataHash)
