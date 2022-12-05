@@ -214,7 +214,6 @@ func (s *Store) Has(ctx context.Context, root share.Root) (bool, error) {
 }
 
 func setupPath(basepath string) error {
-	fmt.Println(basepath)
 	err := os.MkdirAll(basepath+blocksPath, os.ModePerm)
 	if err != nil {
 		return fmt.Errorf("failed to create blocks directory: %w", err)
