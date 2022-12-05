@@ -24,11 +24,17 @@ type peerTracker struct {
 
 	host host.Host
 
-	gcPeriod           time.Duration
-	maxAwaitingTime    time.Duration
-	defaultScore       float32
+	// gcPeriod defines the duration after which the peerTracker starts removing peers
+	gcPeriod time.Duration
+	// maxAwaitingTime specifies the duration that gives to the disconnected peer to be back online,
+	// otherwise it will be removed on the next GC cycle.
+	maxAwaitingTime time.Duration
+	// defaultScore specifies the score for newly connected peers.
+	defaultScore float32
+	// maxPeerTrackerSize specifies the max amount of peers that can be added to the peerTracker.
 	maxPeerTrackerSize int
 
+	// done is used to stop background routines in peerTracker.
 	done chan struct{}
 }
 
@@ -96,8 +102,8 @@ func (p *peerTracker) connected(pID peer.ID) {
 	p.Lock()
 	defer p.Unlock()
 	// skip adding the peer to avoid overfilling of the peerTracker with unused peers if:
-	// peerTracker reaches the maxTrackerSize and the size of the connected peers
-	// is more than the size of the disconnected peers.
+	// peerTracker reaches the maxTrackerSize and there are more connected peers
+	// than disconnected peers.
 	if len(p.connectedPeers)+len(p.disconnectedPeers) > p.maxPeerTrackerSize &&
 		len(p.connectedPeers) > len(p.disconnectedPeers) {
 		return
@@ -143,10 +149,10 @@ func (p *peerTracker) peers() []*peerStat {
 	return peers
 }
 
-// gc goes through connected and disconnected peers once in gcPeriod
-// and removes every peer that meets conditions:
-// * disconnected peer will be removed if it is being disconnected for more than maxAwaitingTime;
-// * connected peer will be removed if it scores less or equal than defaultScore;
+// gc goes through connected and disconnected peers once every gcPeriod
+// and removes:
+// * disconnected peers which have been disconnected for more than maxAwaitingTime;
+// * connected peers whose scores are less than or equal than defaultScore;
 func (p *peerTracker) gc() {
 	ticker := time.NewTicker(p.gcPeriod)
 	for {
@@ -156,14 +162,12 @@ func (p *peerTracker) gc() {
 			return
 		case <-ticker.C:
 			p.Lock()
-			// disconnectedPeers will be removed it removedAt < time.Now
 			for id, peer := range p.disconnectedPeers {
 				if peer.removedAt.Before(time.Now()) {
 					delete(p.disconnectedPeers, id)
 				}
 			}
 
-			// connectedPeers will be removed if their score is less of equal to defaultScore
 			for id, peer := range p.connectedPeers {
 				if peer.peerScore <= p.defaultScore {
 					delete(p.connectedPeers, id)
