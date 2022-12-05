@@ -12,7 +12,6 @@ import (
 
 // subscription handles retrieving ExtendedHeaders from the header pubsub topic.
 type subscription struct {
-	topic        *pubsub.Topic
 	subscription *pubsub.Subscription
 }
 
@@ -25,7 +24,6 @@ func newSubscription(topic *pubsub.Topic) (*subscription, error) {
 	}
 
 	return &subscription{
-		topic:        topic,
 		subscription: sub,
 	}, nil
 }
