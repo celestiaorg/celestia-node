@@ -213,15 +213,16 @@ func (s *Store) Has(ctx context.Context, root share.Root) (bool, error) {
 }
 
 func setupPath(basepath string) error {
-	err := os.MkdirAll(basepath+blocksPath, os.ModePerm)
+	perms := os.FileMode(0755)
+	err := os.MkdirAll(basepath+blocksPath, perms)
 	if err != nil {
 		return fmt.Errorf("failed to create blocks directory: %w", err)
 	}
-	err = os.MkdirAll(basepath+transientsPath, os.ModePerm)
+	err = os.MkdirAll(basepath+transientsPath, perms)
 	if err != nil {
 		return fmt.Errorf("failed to create transients directory: %w", err)
 	}
-	err = os.MkdirAll(basepath+indexPath, os.ModePerm)
+	err = os.MkdirAll(basepath+indexPath, perms)
 	if err != nil {
 		return fmt.Errorf("failed to create index directory: %w", err)
 	}
