@@ -3,7 +3,7 @@ package local
 import (
 	"context"
 
-	"github.com/celestiaorg/celestia-node/pkg/header"
+	"github.com/celestiaorg/celestia-node/libs/header"
 )
 
 // NewExchange is a simple Exchange that reads Headers from Store without any networking.

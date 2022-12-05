@@ -5,7 +5,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/celestiaorg/celestia-node/pkg/header"
+	"github.com/celestiaorg/celestia-node/libs/header"
 )
 
 type MockStore struct {

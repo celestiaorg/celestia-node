@@ -6,7 +6,7 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"github.com/celestiaorg/celestia-node/pkg/header"
+	"github.com/celestiaorg/celestia-node/libs/header"
 )
 
 // errElapsedHeight is thrown when a requested height was already provided to heightSub.

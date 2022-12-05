@@ -7,7 +7,7 @@ import (
 	logging "github.com/ipfs/go-log/v2"
 	"github.com/tendermint/tendermint/types"
 
-	headerpkg "github.com/celestiaorg/celestia-node/pkg/header"
+	headerpkg "github.com/celestiaorg/celestia-node/libs/header"
 )
 
 const newBlockSubscriber = "NewBlock/Events"

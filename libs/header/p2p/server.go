@@ -15,9 +15,8 @@ import (
 
 	"github.com/celestiaorg/go-libp2p-messenger/serde"
 
-	"github.com/celestiaorg/celestia-node/pkg/header"
-	headerpkg "github.com/celestiaorg/celestia-node/pkg/header"
-	p2p_pb "github.com/celestiaorg/celestia-node/pkg/header/p2p/pb"
+	"github.com/celestiaorg/celestia-node/libs/header"
+	p2p_pb "github.com/celestiaorg/celestia-node/libs/header/p2p/pb"
 )
 
 var (
@@ -158,23 +157,23 @@ func (serv *ExchangeServer[H]) requestHandler(stream network.Stream) {
 // handleRequestByHash returns the ExtendedHeader at the given hash
 // if it exists.
 func (serv *ExchangeServer[H]) handleRequestByHash(hash []byte) ([]H, error) {
-	log.Debugw("server: handling header request", "hash", headerpkg.Hash(hash).String())
+	log.Debugw("server: handling header request", "hash", header.Hash(hash).String())
 	ctx, cancel := context.WithTimeout(serv.ctx, serv.Params.RequestTimeout)
 	defer cancel()
 	ctx, span := tracer.Start(ctx, "request-by-hash", trace.WithAttributes(
-		attribute.String("hash", headerpkg.Hash(hash).String()),
+		attribute.String("hash", header.Hash(hash).String()),
 	))
 	defer span.End()
 
 	h, err := serv.getter.Get(ctx, hash)
 	if err != nil {
-		log.Errorw("server: getting header by hash", "hash", headerpkg.Hash(hash).String(), "err", err)
+		log.Errorw("server: getting header by hash", "hash", header.Hash(hash).String(), "err", err)
 		span.SetStatus(codes.Error, err.Error())
 		return nil, err
 	}
 
 	span.AddEvent("fetched-header-from-store", trace.WithAttributes(
-		attribute.String("hash", headerpkg.Hash(hash).String()),
+		attribute.String("hash", header.Hash(hash).String()),
 		attribute.Int64("height", h.Height())),
 	)
 	span.SetStatus(codes.Ok, "")

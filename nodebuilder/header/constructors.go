@@ -10,10 +10,10 @@ import (
 	"go.uber.org/fx"
 
 	"github.com/celestiaorg/celestia-node/header"
+	"github.com/celestiaorg/celestia-node/libs/header/p2p"
+	"github.com/celestiaorg/celestia-node/libs/header/store"
+	"github.com/celestiaorg/celestia-node/libs/header/sync"
 	modp2p "github.com/celestiaorg/celestia-node/nodebuilder/p2p"
-	"github.com/celestiaorg/celestia-node/pkg/header/p2p"
-	"github.com/celestiaorg/celestia-node/pkg/header/store"
-	"github.com/celestiaorg/celestia-node/pkg/header/sync"
 )
 
 // newP2PServer constructs a new ExchangeServer using the given Network as a protocolID suffix.

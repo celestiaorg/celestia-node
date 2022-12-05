@@ -5,7 +5,7 @@ import (
 
 	"github.com/ipfs/go-datastore"
 
-	"github.com/celestiaorg/celestia-node/pkg/header"
+	"github.com/celestiaorg/celestia-node/libs/header"
 )
 
 var (

@@ -6,9 +6,9 @@ import (
 	"github.com/ipfs/go-blockservice"
 	"github.com/tendermint/tendermint/types"
 
-	"github.com/celestiaorg/celestia-node/pkg/header"
-	"github.com/celestiaorg/celestia-node/pkg/header/p2p"
-	"github.com/celestiaorg/celestia-node/pkg/header/sync"
+	"github.com/celestiaorg/celestia-node/libs/header"
+	"github.com/celestiaorg/celestia-node/libs/header/p2p"
+	"github.com/celestiaorg/celestia-node/libs/header/sync"
 )
 
 type Subscriber = header.Subscriber[*ExtendedHeader]

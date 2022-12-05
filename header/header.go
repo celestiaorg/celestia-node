@@ -18,7 +18,7 @@ import (
 
 	"github.com/celestiaorg/celestia-app/pkg/da"
 
-	headerpkg "github.com/celestiaorg/celestia-node/pkg/header"
+	headerpkg "github.com/celestiaorg/celestia-node/libs/header"
 	"github.com/celestiaorg/celestia-node/share"
 )
 

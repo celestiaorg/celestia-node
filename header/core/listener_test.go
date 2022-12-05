@@ -14,7 +14,7 @@ import (
 
 	"github.com/celestiaorg/celestia-node/core"
 	"github.com/celestiaorg/celestia-node/header"
-	"github.com/celestiaorg/celestia-node/pkg/header/p2p"
+	"github.com/celestiaorg/celestia-node/libs/header/p2p"
 )
 
 // TestListener tests the lifecycle of the core listener.

@@ -20,9 +20,9 @@ import (
 
 	swarm "github.com/libp2p/go-libp2p/p2p/net/swarm/testing"
 
-	"github.com/celestiaorg/celestia-node/pkg/header"
-	headerMock "github.com/celestiaorg/celestia-node/pkg/header/mocks"
-	p2p_pb "github.com/celestiaorg/celestia-node/pkg/header/p2p/pb"
+	"github.com/celestiaorg/celestia-node/libs/header"
+	headerMock "github.com/celestiaorg/celestia-node/libs/header/mocks"
+	p2p_pb "github.com/celestiaorg/celestia-node/libs/header/p2p/pb"
 )
 
 var privateProtocolID = protocolID("private")

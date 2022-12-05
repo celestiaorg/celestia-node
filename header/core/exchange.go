@@ -10,7 +10,7 @@ import (
 
 	"github.com/celestiaorg/celestia-node/core"
 	"github.com/celestiaorg/celestia-node/header"
-	headerpkg "github.com/celestiaorg/celestia-node/pkg/header"
+	headerpkg "github.com/celestiaorg/celestia-node/libs/header"
 )
 
 var log = logging.Logger("header/core")

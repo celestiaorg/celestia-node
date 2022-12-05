@@ -9,8 +9,8 @@ import (
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/protocol"
 
-	"github.com/celestiaorg/celestia-node/pkg/header"
-	p2p_pb "github.com/celestiaorg/celestia-node/pkg/header/p2p/pb"
+	"github.com/celestiaorg/celestia-node/libs/header"
+	p2p_pb "github.com/celestiaorg/celestia-node/libs/header/p2p/pb"
 )
 
 type option[H header.Header] func(*session[H])
