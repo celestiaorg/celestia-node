@@ -73,6 +73,7 @@ func NewExchange(
 }
 
 func (ex *Exchange) Start(context.Context) error {
+	go ex.peerTracker.gc()
 	go ex.peerTracker.track()
 	return nil
 }

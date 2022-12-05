@@ -54,7 +54,10 @@ func newPeerTracker(
 }
 
 func (p *peerTracker) track() {
-	go p.gc()
+	defer func() {
+		p.done <- struct{}{}
+	}()
+
 	// store peers that have been already connected
 	for _, peer := range p.host.Peerstore().Peers() {
 		p.connected(peer)
@@ -63,7 +66,6 @@ func (p *peerTracker) track() {
 	subs, err := p.host.EventBus().Subscribe(&event.EvtPeerConnectednessChanged{})
 	if err != nil {
 		log.Errorw("subscribing to EvtPeerConnectednessChanged", "err", err)
-		p.done <- struct{}{}
 		return
 	}
 
@@ -74,7 +76,6 @@ func (p *peerTracker) track() {
 			if err != nil {
 				log.Errorw("closing subscription", "err", err)
 			}
-			p.done <- struct{}{}
 			return
 		case subscription := <-subs.Out():
 			ev := subscription.(event.EvtPeerConnectednessChanged)
@@ -101,6 +102,7 @@ func (p *peerTracker) connected(pID peer.ID) {
 		len(p.connectedPeers) > len(p.disconnectedPeers) {
 		return
 	}
+
 	for _, c := range p.host.Network().ConnsToPeer(pID) {
 		// check if connection is short-termed and skip this peer
 		if c.Stat().Transient {
@@ -153,27 +155,20 @@ func (p *peerTracker) gc() {
 			p.done <- struct{}{}
 			return
 		case <-ticker.C:
-			wg := sync.WaitGroup{}
 			p.Lock()
-			wg.Add(1)
-			go func() {
-				defer wg.Done()
-				for id, peer := range p.disconnectedPeers {
-					if peer.removedAt.Before(time.Now()) {
-						delete(p.disconnectedPeers, id)
-					}
+			// disconnectedPeers will be removed it removedAt < time.Now
+			for id, peer := range p.disconnectedPeers {
+				if peer.removedAt.Before(time.Now()) {
+					delete(p.disconnectedPeers, id)
 				}
-			}()
-			wg.Add(1)
-			go func() {
-				defer wg.Done()
-				for id, peer := range p.connectedPeers {
-					if peer.peerScore <= p.defaultScore {
-						delete(p.connectedPeers, id)
-					}
+			}
+
+			// connectedPeers will be removed if their score is less of equal to defaultScore
+			for id, peer := range p.connectedPeers {
+				if peer.peerScore <= p.defaultScore {
+					delete(p.connectedPeers, id)
 				}
-			}()
-			wg.Wait()
+			}
 			p.Unlock()
 		}
 	}
