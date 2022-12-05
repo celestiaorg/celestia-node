@@ -28,15 +28,6 @@ import (
 	"github.com/celestiaorg/celestia-node/share"
 )
 
-// ConstructFn aliases a function that creates a Header.
-type ConstructFn = func(
-	context.Context,
-	*types.Block,
-	*types.Commit,
-	*types.ValidatorSet,
-	blockservice.BlockService,
-) (*ExtendedHeader, error)
-
 // Validator aliases a func that validates Header.
 type Validator = func(context.Context, *ExtendedHeader) pubsub.ValidationResult
 
