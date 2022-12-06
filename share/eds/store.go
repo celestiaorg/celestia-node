@@ -146,7 +146,7 @@ func (s *Store) Put(ctx context.Context, root DataHash, square *rsmt2d.ExtendedD
 		return err
 	}
 
-	key := fmt.Sprintf("%X", root)
+	key := root.String()
 	f, err := os.OpenFile(s.basepath+blocksPath+key, os.O_CREATE|os.O_WRONLY, 0600)
 	if err != nil {
 		return err
@@ -243,7 +243,7 @@ func (s *Store) getAccessor(ctx context.Context, key shard.Key) (*accessorWithBl
 // Remove removes EDS from Store by the given share.Root hash and cleans up all
 // the indexing.
 func (s *Store) Remove(ctx context.Context, root DataHash) error {
-	key := fmt.Sprintf("%X", root)
+	key := root.String()
 
 	ch := make(chan dagstore.ShardResult, 1)
 	err := s.dgstr.DestroyShard(ctx, shard.KeyFromString(key), ch, dagstore.DestroyOpts{})
@@ -298,7 +298,7 @@ func (s *Store) Get(ctx context.Context, root DataHash) (*rsmt2d.ExtendedDataSqu
 
 // Has checks if EDS exists by the given share.Root hash.
 func (s *Store) Has(ctx context.Context, root DataHash) (bool, error) {
-	key := fmt.Sprintf("%X", root)
+	key := root.String()
 	info, err := s.dgstr.GetShardInfo(shard.KeyFromString(key))
 	if err == dagstore.ErrShardUnknown {
 		return false, err
