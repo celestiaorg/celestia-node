@@ -54,10 +54,7 @@ func NewExchange(
 		return nil, err
 	}
 
-	ctx, cancel := context.WithCancel(context.Background())
 	return &Exchange{
-		ctx:          ctx,
-		cancel:       cancel,
 		host:         host,
 		protocolID:   protocolID(protocolSuffix),
 		trustedPeers: peers,
@@ -73,6 +70,8 @@ func NewExchange(
 }
 
 func (ex *Exchange) Start(context.Context) error {
+	ex.ctx, ex.cancel = context.WithCancel(context.Background())
+
 	go ex.peerTracker.gc()
 	go ex.peerTracker.track()
 	return nil

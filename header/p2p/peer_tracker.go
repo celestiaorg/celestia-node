@@ -17,7 +17,7 @@ type peerTracker struct {
 	ctx    context.Context
 	cancel context.CancelFunc
 
-	connectedPeers map[peer.ID]*peerStat
+	trackedPeers map[peer.ID]*peerStat
 	// we cache the peer once they disconnect,
 	// so we can guarantee that peerQueue will only contain active peers
 	disconnectedPeers map[peer.ID]*peerStat
@@ -49,7 +49,7 @@ func newPeerTracker(
 		ctx:                ctx,
 		cancel:             cancel,
 		disconnectedPeers:  make(map[peer.ID]*peerStat),
-		connectedPeers:     make(map[peer.ID]*peerStat),
+		trackedPeers:       make(map[peer.ID]*peerStat),
 		host:               h,
 		gcPeriod:           gcPeriod,
 		maxAwaitingTime:    maxAwaitingTime,
@@ -104,8 +104,8 @@ func (p *peerTracker) connected(pID peer.ID) {
 	// skip adding the peer to avoid overfilling of the peerTracker with unused peers if:
 	// peerTracker reaches the maxTrackerSize and there are more connected peers
 	// than disconnected peers.
-	if len(p.connectedPeers)+len(p.disconnectedPeers) > p.maxPeerTrackerSize &&
-		len(p.connectedPeers) > len(p.disconnectedPeers) {
+	if len(p.trackedPeers)+len(p.disconnectedPeers) > p.maxPeerTrackerSize &&
+		len(p.trackedPeers) > len(p.disconnectedPeers) {
 		return
 	}
 
@@ -116,7 +116,7 @@ func (p *peerTracker) connected(pID peer.ID) {
 		}
 	}
 
-	// additional check in p.connectedPeers should be done,
+	// additional check in p.trackedPeers should be done,
 	// because libp2p does not emit multiple Connected events per 1 peer
 	stats, ok := p.disconnectedPeers[pID]
 	if !ok {
@@ -124,26 +124,26 @@ func (p *peerTracker) connected(pID peer.ID) {
 	} else {
 		delete(p.disconnectedPeers, pID)
 	}
-	p.connectedPeers[pID] = stats
+	p.trackedPeers[pID] = stats
 }
 
 func (p *peerTracker) disconnected(pID peer.ID) {
 	p.Lock()
 	defer p.Unlock()
-	stats, ok := p.connectedPeers[pID]
+	stats, ok := p.trackedPeers[pID]
 	if !ok {
 		return
 	}
 	stats.pruneDeadline = time.Now().Add(p.maxAwaitingTime)
 	p.disconnectedPeers[pID] = stats
-	delete(p.connectedPeers, pID)
+	delete(p.trackedPeers, pID)
 }
 
 func (p *peerTracker) peers() []*peerStat {
 	p.RLock()
 	defer p.RUnlock()
-	peers := make([]*peerStat, 0, len(p.connectedPeers))
-	for _, stat := range p.connectedPeers {
+	peers := make([]*peerStat, 0, len(p.trackedPeers))
+	for _, stat := range p.trackedPeers {
 		peers = append(peers, stat)
 	}
 	return peers
@@ -162,15 +162,16 @@ func (p *peerTracker) gc() {
 			return
 		case <-ticker.C:
 			p.Lock()
+			now := time.Now()
 			for id, peer := range p.disconnectedPeers {
-				if peer.pruneDeadline.Before(time.Now()) {
+				if peer.pruneDeadline.Before(now) {
 					delete(p.disconnectedPeers, id)
 				}
 			}
 
-			for id, peer := range p.connectedPeers {
+			for id, peer := range p.trackedPeers {
 				if peer.peerScore <= p.defaultScore {
-					delete(p.connectedPeers, id)
+					delete(p.trackedPeers, id)
 				}
 			}
 			p.Unlock()
