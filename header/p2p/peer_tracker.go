@@ -34,7 +34,8 @@ type peerTracker struct {
 	// maxPeerTrackerSize specifies the max amount of peers that can be added to the peerTracker.
 	maxPeerTrackerSize int
 
-	// done is used to stop background routines in peerTracker.
+	// done is used to gracefully stop the peerTracker.
+	// It allows to wait until track() and gc() will be stopped.
 	done chan struct{}
 }
 
