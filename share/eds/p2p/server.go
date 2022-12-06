@@ -2,6 +2,7 @@ package p2p
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"time"
 
@@ -21,80 +22,73 @@ const (
 	readDeadline = time.Minute
 )
 
+// Server is responsible for serving EDSs for blocksync over the ShrEx/EDS protocol.
+// This client is run by bridge nodes and full nodes. For more information, see ADR #13
 type Server struct {
+	ctx    context.Context
+	cancel context.CancelFunc
+
 	host       host.Host
 	protocolID protocol.ID
 
 	store *eds.Store
 }
 
+// NewServer creates a new ShrEx/EDS server.
 func NewServer(host host.Host, store *eds.Store) *Server {
-	return &Server{host: host, protocolID: protocolID, store: store}
+	return &Server{
+		host:       host,
+		protocolID: protocolID,
+		store:      store,
+	}
 }
 
 func (s *Server) Start(context.Context) error {
+	s.ctx, s.cancel = context.WithCancel(context.Background())
 	s.host.SetStreamHandler(s.protocolID, s.handleStream)
 	return nil
 }
 
 func (s *Server) Stop(context.Context) error {
+	defer s.cancel()
 	s.host.RemoveStreamHandler(s.protocolID)
 	return nil
 }
 
 func (s *Server) handleStream(stream network.Stream) {
 	log.Debug("server: handling eds request")
-	req := new(p2p_pb.EDSRequest)
-	if err := stream.SetReadDeadline(time.Now().Add(readDeadline)); err != nil {
-		log.Warn(err)
-	}
-	_, err := serde.Read(stream, req)
-	if err != nil {
-		log.Errorw("server: reading header request from stream", "err", err)
-		stream.Reset() //nolint:errcheck
-		return
-	}
-	if err = stream.CloseRead(); err != nil {
-		log.Error(err)
-	}
 
-	ctx := context.Background()
-	dataHash := req.Hash
-	edsReader, err := s.store.GetCARTemp(ctx, dataHash)
-	resp := &p2p_pb.EDSResponse{Status: p2p_pb.Status_OK}
+	// read request from stream to get the dataHash for store lookup
+	req, err := s.readRequest(stream)
 	if err != nil {
-		// TODO(@distractedm1nd): handle INVALID, REFUSED status codes
-		resp = &p2p_pb.EDSResponse{Status: p2p_pb.Status_NOT_FOUND}
-	}
-	if err = stream.SetWriteDeadline(time.Now().Add(writeDeadline)); err != nil {
-		log.Warn(err)
-	}
-	_, err = serde.Write(stream, resp)
-	if err != nil {
-		log.Errorw("server: writing response to stream", "err", err, "dataHash", dataHash)
-		stream.Reset() //nolint:errcheck
+		log.Errorw("server: reading request from stream", "err", err)
 		return
 	}
 
-	// TODO(@distractedm1nd): question: do you set the write deadline for every single write?
-	odsReader, err := eds.ODSReader(edsReader)
+	// determine whether the EDS is available in our store
+	edsReader, err := s.store.GetCARTemp(s.ctx, req.Hash)
+	// TODO(@distractedm1nd): handle INVALID, REFUSED status codes
+	var status p2p_pb.Status
 	if err != nil {
-		log.Errorw("server: creating ODS reader", "err", err, "dataHash", dataHash)
-		stream.Reset() //nolint:errcheck
+		status = p2p_pb.Status_NOT_FOUND
+	} else {
+		status = p2p_pb.Status_OK
+	}
+
+	// inform the client of our status
+	if err = s.writeStatus(status, stream); err != nil {
+		log.Errorw("server: writing status to stream", "err", err)
 		return
 	}
-	odsBytes, err := io.ReadAll(odsReader)
-	if err != nil {
-		log.Errorw("server: reading ODS bytes", "err", err, "dataHash", dataHash)
-		stream.Reset() //nolint:errcheck
+	// if we cannot serve the EDS, we are done
+	if status != p2p_pb.Status_OK {
+		stream.Close()
 		return
 	}
-	// TODO(@distractedm1nd): we either need to send size first, or probably sending EOF after
-	// writing the bytes if it doesn't already happen
-	_, err = stream.Write(odsBytes)
-	if err != nil {
-		log.Errorw("server: writing ODS bytes", "err", err, "dataHash", dataHash)
-		stream.Reset() //nolint:errcheck
+
+	// start streaming the ODS to the client
+	if err = s.writeODS(edsReader, stream); err != nil {
+		log.Errorw("server: writing ods to stream", "err", err)
 		return
 	}
 
@@ -103,4 +97,58 @@ func (s *Server) handleStream(stream network.Stream) {
 		log.Errorw("server: closing stream", "err", err)
 		return
 	}
+}
+
+func (s *Server) readRequest(stream network.Stream) (*p2p_pb.EDSRequest, error) {
+	if err := stream.SetReadDeadline(time.Now().Add(readDeadline)); err != nil {
+		log.Warn(err)
+	}
+	req := new(p2p_pb.EDSRequest)
+	_, err := serde.Read(stream, req)
+	if err != nil {
+		stream.Reset() //nolint:errcheck
+		return nil, err
+	}
+	if err = stream.CloseRead(); err != nil {
+		log.Error(err)
+	}
+
+	return req, err
+}
+
+func (s *Server) writeStatus(status p2p_pb.Status, stream network.Stream) error {
+	if err := stream.SetWriteDeadline(time.Now().Add(writeDeadline)); err != nil {
+		log.Warn(err)
+	}
+	resp := &p2p_pb.EDSResponse{Status: status}
+	_, err := serde.Write(stream, resp)
+	if err != nil {
+		stream.Reset() //nolint:errcheck
+		return err
+	}
+
+	return nil
+}
+
+func (s *Server) writeODS(edsReader io.ReadCloser, stream network.Stream) error {
+	if err := stream.SetWriteDeadline(time.Now().Add(writeDeadline)); err != nil {
+		log.Warn(err)
+	}
+	odsReader, err := eds.ODSReader(edsReader)
+	if err != nil {
+		stream.Reset() //nolint:errcheck
+		return fmt.Errorf("creating ODS reader: %w", err)
+	}
+	odsBytes, err := io.ReadAll(odsReader)
+	if err != nil {
+		stream.Reset() //nolint:errcheck
+		return fmt.Errorf("reading ODS bytes: %w", err)
+	}
+	_, err = stream.Write(odsBytes)
+	if err != nil {
+		stream.Reset() //nolint:errcheck
+		return fmt.Errorf("writing ODS bytes: %w", err)
+	}
+
+	return nil
 }

@@ -26,11 +26,14 @@ var log = logging.Logger("shrex/eds")
 // TODO(@distractedm1nd): make version suffix configurable
 var protocolID = protocol.ID("/shrex/eds/0.0.1")
 
+// Client is responsible for requesting EDSs for blocksync over the ShrEx/EDS protocol.
+// This client is run by light nodes and full nodes. For more information, see ADR #13
 type Client struct {
 	protocolID protocol.ID
 	host       host.Host
 }
 
+// NewClient creates a new ShrEx/EDS client.
 func NewClient(host host.Host) *Client {
 	return &Client{
 		host:       host,
@@ -49,58 +52,92 @@ func (c *Client) RequestEDS(
 ) (*rsmt2d.ExtendedDataSquare, error) {
 	req := &p2p_pb.EDSRequest{Hash: root.Hash()}
 
-	for _, to := range peers {
-		log.Debugf("client: requesting eds %s from peer %s", root.Hash(), to)
-		stream, err := c.host.NewStream(ctx, to, c.protocolID)
-		if err != nil {
-			return nil, fmt.Errorf("client: failed to open stream with peer %s: %w", to, err)
-		}
+	// requests are retried for every peer until a valid response is received
+	edsCh := make(chan *rsmt2d.ExtendedDataSquare)
+	go func() {
+		for {
+			for _, to := range peers {
+				eds, err := c.doRequest(ctx, req, root, to)
+				if err != nil {
+					// TODO: should we exclude the peer from retries if we get an error?
+					log.Errorw("client: eds request to peer failed", "peer", to, "hash", root.String())
+				}
 
-		if err = stream.SetWriteDeadline(time.Now().Add(writeDeadline)); err != nil {
-			log.Warn(err)
-		}
-		_, err = serde.Write(stream, req)
-		if err != nil {
-			stream.Reset() //nolint:errcheck
-			return nil, fmt.Errorf("client: failed to write request to stream with peer %s: %w", to, err)
-		}
-
-		err = stream.CloseWrite()
-		if err != nil {
-			return nil, fmt.Errorf("client: failed to close write on stream with peer %s: %w", to, err)
-		}
-
-		resp := new(p2p_pb.EDSResponse)
-		if err := stream.SetReadDeadline(time.Now().Add(readDeadline)); err != nil {
-			log.Warn(err)
-		}
-		_, err = serde.Read(stream, resp)
-		if err != nil && err != io.EOF {
-			stream.Reset() //nolint:errcheck
-			return nil, fmt.Errorf("client: failed to read status from stream %s: %w", to, err)
-		}
-
-		switch resp.Status {
-		case p2p_pb.Status_OK:
-			odsBytes, err := io.ReadAll(stream)
-			if err != nil && err != io.EOF {
-				return nil, fmt.Errorf("client: unexpected error while reading ods from stream: %w", err)
+				edsCh <- eds
 			}
-			carReader := bytes.NewReader(odsBytes)
-			eds, err := eds.ReadEDS(ctx, carReader, root)
-			if err != nil {
-				return nil, fmt.Errorf("client: failed to read eds from ods bytes: %w", err)
-			}
+		}
+	}()
 
-			return eds, nil
-		case p2p_pb.Status_NOT_FOUND, p2p_pb.Status_REFUSED:
-			log.Debug("client: peer %s refused to serve eds %s with status", to, root.Hash(), resp.Status)
-		case p2p_pb.Status_INVALID:
-			log.Errorf("client: peer %s marked your request for root %s as invalid", to, root.Hash())
-		default:
-			log.Errorf("client: peer %s returned unimplemented status: %s", to, resp.Status)
+	for {
+		select {
+		case eds := <-edsCh:
+			// eds is nil when the request was valid but couldn't be served
+			if eds != nil {
+				return eds, nil
+			}
+		case <-ctx.Done():
+			return nil, ctx.Err()
 		}
 	}
+}
 
-	return nil, fmt.Errorf("client: no successful response was attained by any of the given peers")
+func (c *Client) doRequest(
+	ctx context.Context,
+	req *p2p_pb.EDSRequest,
+	root share.Root,
+	to peer.ID,
+) (*rsmt2d.ExtendedDataSquare, error) {
+	log.Debugf("client: requesting eds %s from peer %s", root.String(), to)
+	stream, err := c.host.NewStream(ctx, to, c.protocolID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to open stream: %w", err)
+	}
+
+	if err = stream.SetWriteDeadline(time.Now().Add(writeDeadline)); err != nil {
+		log.Warn(err)
+	}
+	_, err = serde.Write(stream, req)
+	if err != nil {
+		stream.Reset() //nolint:errcheck
+		return nil, fmt.Errorf("failed to write request to stream: %w", err)
+	}
+
+	err = stream.CloseWrite()
+	if err != nil {
+		return nil, fmt.Errorf("failed to close write on stream: %w", err)
+	}
+
+	resp := new(p2p_pb.EDSResponse)
+	if err := stream.SetReadDeadline(time.Now().Add(readDeadline)); err != nil {
+		log.Warn(err)
+	}
+	_, err = serde.Read(stream, resp)
+	if err != nil && err != io.EOF {
+		stream.Reset() //nolint:errcheck
+		return nil, fmt.Errorf("failed to read status from stream: %w", err)
+	}
+
+	switch resp.Status {
+	case p2p_pb.Status_OK:
+		odsBytes, err := io.ReadAll(stream)
+		if err != nil && err != io.EOF {
+			return nil, fmt.Errorf("unexpected error while reading ods from stream: %w", err)
+		}
+		carReader := bytes.NewReader(odsBytes)
+		eds, err := eds.ReadEDS(ctx, carReader, root)
+		if err != nil {
+			return nil, fmt.Errorf("failed to read eds from ods bytes: %w", err)
+		}
+
+		return eds, nil
+
+	case p2p_pb.Status_NOT_FOUND, p2p_pb.Status_REFUSED:
+		log.Debug("client: peer %s refused to serve eds %s with status", to, root.String(), resp.GetStatus())
+	case p2p_pb.Status_INVALID:
+		// TODO: if a peer marks a request as invalid, should we not request from them again?
+		return nil, fmt.Errorf("request for root %s marked as invalid by peer", root.String())
+	}
+
+	// no eds was returned, but the request was valid and should be retried
+	return nil, nil
 }
