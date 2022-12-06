@@ -200,7 +200,7 @@ func (s *Store) Blockstore() bstore.Blockstore {
 // CARBlockstore returns the IPFS blockstore that provides access to the IPLD blocks stored in an
 // individual CAR file.
 func (s *Store) CARBlockstore(ctx context.Context, dataHash []byte) (dagstore.ReadBlockstore, error) {
-	key := shard.KeyFromBytes(dataHash)
+	key := shard.KeyFromString(fmt.Sprintf("%X", dataHash))
 	accessor, err := s.getAccessor(ctx, key)
 	if err != nil {
 		return nil, err

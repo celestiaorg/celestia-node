@@ -191,6 +191,31 @@ func TestEDSStore_GC(t *testing.T) {
 	assert.Nil(t, edsStore.lastGCResult.Load().Shards[shardKey])
 }
 
+func Test_BlockstoreCache(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(cancel)
+
+	edsStore, err := newStore(t)
+	require.NoError(t, err)
+	err = edsStore.Start(ctx)
+	require.NoError(t, err)
+
+	eds, dah := randomEDS(t)
+	err = edsStore.Put(ctx, dah, eds)
+	require.NoError(t, err)
+
+	// key isnt in cache yet, so get returns errCacheMiss
+	shardKey := shard.KeyFromString(dah.String())
+	_, err = edsStore.cache.Get(shardKey)
+	assert.ErrorIs(t, err, errCacheMiss)
+
+	// now get it, so that the key is in the cache
+	_, err = edsStore.CARBlockstore(ctx, dah.Hash())
+	assert.NoError(t, err)
+	_, err = edsStore.cache.Get(shardKey)
+	assert.NoError(t, err, errCacheMiss)
+}
+
 func newStore(t *testing.T) (*Store, error) {
 	t.Helper()
 

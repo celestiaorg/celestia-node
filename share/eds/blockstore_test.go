@@ -5,6 +5,7 @@ import (
 	"io"
 	"testing"
 
+	"github.com/filecoin-project/dagstore"
 	"github.com/ipld/go-car"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -30,7 +31,11 @@ func TestBlockstore_Operations(t *testing.T) {
 	carReader, err := car.NewCarReader(r)
 	require.NoError(t, err)
 
-	blockstore := edsStore.Blockstore()
+	topLevelBS := edsStore.Blockstore()
+	carBS, err := edsStore.CARBlockstore(ctx, dah.Hash())
+	require.NoError(t, err)
+
+	blockstores := []dagstore.ReadBlockstore{topLevelBS, carBS}
 
 	for {
 		next, err := carReader.Next()
@@ -40,20 +45,22 @@ func TestBlockstore_Operations(t *testing.T) {
 		}
 		blockCid := next.Cid()
 
-		// test Has
-		has, err := blockstore.Has(ctx, blockCid)
-		require.NoError(t, err, "blockstore.Has could not find root CID")
-		require.True(t, has)
+		for _, bs := range blockstores {
+			// test GetSize
+			has, err := bs.Has(ctx, blockCid)
+			require.NoError(t, err, "blockstore.Has could not find root CID")
+			require.True(t, has)
 
-		// test Get
-		block, err := blockstore.Get(ctx, blockCid)
-		assert.NoError(t, err, "blockstore.Get could not get a leaf CID")
-		assert.Equal(t, block.Cid(), blockCid)
-		assert.Equal(t, block.RawData(), next.RawData())
+			// test GetSize
+			block, err := bs.Get(ctx, blockCid)
+			assert.NoError(t, err, "blockstore.Get could not get a leaf CID")
+			assert.Equal(t, block.Cid(), blockCid)
+			assert.Equal(t, block.RawData(), next.RawData())
 
-		// test GetSize
-		size, err := blockstore.GetSize(ctx, blockCid)
-		assert.NotZerof(t, size, "blocksize.GetSize reported a root block from blockstore was empty")
-		assert.NoError(t, err)
+			// test GetSize
+			size, err := bs.GetSize(ctx, blockCid)
+			assert.NotZerof(t, size, "blocksize.GetSize reported a root block from blockstore was empty")
+			assert.NoError(t, err)
+		}
 	}
 }
