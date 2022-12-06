@@ -2,9 +2,9 @@
 
 ## Authors
 
-@Wondertan @renenay
+@Wondertan @renaynay
 
-> This ADR took a while to get through all the necessary details. Special thanks to awesome @renenay for dozens of
+> This ADR took a while to get through all the necessary details. Special thanks to awesome @renaynay for dozens of
 > deep dive call, note-taking, thoughts and ideas.
 > Similarly, the time was spent on the experiments with the format of the documents was refactored 3 times.
 
@@ -14,7 +14,7 @@
 - FN - Full Node
 - BN - Bridge Node
 - Core Network - Consensus Network of Validators/Proposers producing new Celestia Blocks
-- [EDS(Extended Data Square)](https://github.com/celestiaorg/rsmt2d/blob/master/extendeddatasquare.go#L10) - plain Block
+- [EDS(Extended Data Square)](https://github.com/celestiaorg/rsmt2d/blob/80d231f733e9dd8ca166c3d670470ed9a1c165d9/extendeddatasquare.go#L13) - plain Block
   data omitting headers and other block metadata
 - ODS - Original Data Square or the first quadrant of the EDS. Contains real user data and padding
 - Recent EDS - Newly produced EDS coming from the Core consensus network
@@ -195,8 +195,8 @@ message Proof {
 }
 
 message Row {
-  repeated bytes shares = 3;
-  Proof proof = 4;
+  repeated bytes shares = 1;
+  Proof proof = 2;
 }
 
 message NDResponse {
@@ -240,7 +240,7 @@ data and proofs in real time, while they are read from the disk.
 `ShrEx/Sub` is push-based notification protocol with PubSub model, where LNs are subscribers, BNs are publishers and
 FNs are both.
 
-The protocol is based on libp2p's `FloodSub`(TODO Link) with `/ShrEx/sub/0.0.1` as topic ID.
+The protocol is based on libp2p's `FloodSub`(TODO Link) with `/eds-sub/0.0.1` as topic ID.
 
 #### Message Schema
 
@@ -347,7 +347,7 @@ func (s *PubSub) Broadcast(context.Context, datahash []byte) error
 #### `PubSub.Subscribe`
 
 ```go
-// Subscribe provides a new Subscription for EDS notifications.
+// Subscribe provides a new Subscription to EDS notifications.
 func (s *PubSub) Subscribe() *Subsription
 
 type Subscription struct {}
@@ -363,12 +363,12 @@ func (s *PubSub) Cancel()
 #### `PubSub.AddValidator`
 
 ```go
-// Validator is an injectable func and governs EDS notification or datahash validity.
-// It receives the notification and sender peer and expects the result of the validation.
-// Validator is allowed to be blocking for indefinite time or until the context is canceled.
+// Validator is an injectable func and governs EDS notification or DataHash validity.
+// It receives the notification and sender peer and expects the validation result.
+// Validator is allowed to be blocking for an indefinite time or until the context is canceled.
 type Validator func(context.Context, peer.ID, []byte) pubsub.ValidationResult
 
-// AddValidator registers given Validator for EDS notifications(datahash).
+// AddValidator registers given Validator for EDS notifications(DataHash).
 // Any amount of Validators can be registered.
 func (s *PubSub) AddValidator(Validator) error
 ```
