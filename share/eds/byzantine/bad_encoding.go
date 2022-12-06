@@ -9,7 +9,7 @@ import (
 	"github.com/celestiaorg/celestia-app/pkg/wrapper"
 	"github.com/celestiaorg/celestia-node/fraud"
 	"github.com/celestiaorg/celestia-node/header"
-	"github.com/celestiaorg/celestia-node/share/eds/byzantine/pb"
+	pb "github.com/celestiaorg/celestia-node/share/eds/byzantine/pb"
 	"github.com/celestiaorg/celestia-node/share/ipld"
 	"github.com/celestiaorg/rsmt2d"
 )
