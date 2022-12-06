@@ -20,9 +20,10 @@ import (
 )
 
 const (
-	blocksPath        = "/blocks/"
-	indexPath         = "/index/"
-	transientsPath    = "/transients/"
+	blocksPath     = "/blocks/"
+	indexPath      = "/index/"
+	transientsPath = "/transients/"
+
 	defaultGCInterval = time.Hour
 )
 
@@ -87,7 +88,7 @@ func NewStore(basepath string, ds datastore.Batching) (*Store, error) {
 	}, nil
 }
 
-func (s *Store) Start(ctx context.Context) error {
+func (s *Store) Start(context.Context) error {
 	ctx, cancel := context.WithCancel(context.Background())
 	s.cancel = cancel
 
