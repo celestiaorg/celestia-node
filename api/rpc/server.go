@@ -16,8 +16,8 @@ import (
 var log = logging.Logger("rpc")
 
 var (
-	AllPerms     = []auth.Permission{"read", "write", "admin"}
-	DefaultPerms = []auth.Permission{"read"}
+	AllPerms     = []auth.Permission{"public", "read", "write", "admin"}
+	DefaultPerms = []auth.Permission{"public"}
 )
 
 type Server struct {
