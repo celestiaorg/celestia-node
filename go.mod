@@ -8,7 +8,7 @@ require (
 	cosmossdk.io/math v1.0.0-beta.3
 	github.com/BurntSushi/toml v1.2.1
 	github.com/alecthomas/jsonschema v0.0.0-20200530073317-71f438968921
-	github.com/celestiaorg/celestia-app v0.10.0-rc1
+	github.com/celestiaorg/celestia-app v0.10.0
 	github.com/celestiaorg/go-libp2p-messenger v0.1.0
 	github.com/celestiaorg/nmt v0.11.0
 	github.com/celestiaorg/rsmt2d v0.7.0

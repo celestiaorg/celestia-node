@@ -103,8 +103,10 @@ func NewSwamp(t *testing.T, options ...Option) *Swamp {
 
 	swp.t.Cleanup(func() {
 		swp.stopAllNodes(ctx, swp.BridgeNodes, swp.FullNodes, swp.LightNodes)
-		cleanupCoreNode()
-		cleanupGRPCServer()
+		err = cleanupCoreNode()
+		require.NoError(t, err)
+		err = cleanupGRPCServer()
+		require.NoError(t, err)
 	})
 
 	return swp
