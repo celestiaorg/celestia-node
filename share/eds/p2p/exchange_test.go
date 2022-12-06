@@ -3,6 +3,7 @@ package p2p
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/ipfs/go-datastore"
 	ds_sync "github.com/ipfs/go-datastore/sync"
@@ -28,6 +29,7 @@ func TestExchange_RequestEDS(t *testing.T) {
 	err = server.Start(ctx)
 	require.NoError(t, err)
 
+	// Testcase: EDS is immediately available
 	eds := share.RandEDS(t, 4)
 	dah := da.NewDataAvailabilityHeader(eds)
 	err = store.Put(ctx, dah, eds)
@@ -36,10 +38,24 @@ func TestExchange_RequestEDS(t *testing.T) {
 	requestedEDS, err := client.RequestEDS(ctx, dah, []peer.ID{server.host.ID()})
 	assert.Nil(t, err)
 	assert.Equal(t, eds.Flattened(), requestedEDS.Flattened())
-}
 
-func TestExchange_RequestUnavailableEDS(t *testing.T) {
-	t.Skip("TODO")
+	// Testcase: EDS is unavailable initially, but is found after multiple requests
+	storageDelay := time.Second * 3
+	eds = share.RandEDS(t, 4)
+	dah = da.NewDataAvailabilityHeader(eds)
+	go func() {
+		time.Sleep(storageDelay)
+		err = store.Put(ctx, dah, eds)
+		// require.NoError(t, err)
+	}()
+
+	now := time.Now()
+	requestedEDS, err = client.RequestEDS(ctx, dah, []peer.ID{server.host.ID()})
+	finished := time.Now()
+
+	assert.Greater(t, finished.Sub(now), storageDelay)
+	assert.Nil(t, err)
+	assert.Equal(t, eds.Flattened(), requestedEDS.Flattened())
 }
 
 func newStore(t *testing.T) *eds.Store {
