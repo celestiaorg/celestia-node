@@ -73,6 +73,8 @@ func (bs *blockstore) DeleteBlock(context.Context, cid.Cid) error {
 // Put is a noop on the EDS blockstore, but it does not return an error because it is called by
 // bitswap. For clarification, an implementation of Put does not make sense in this context because
 // it is unclear which CAR file the block should be written to.
+//
+// TODO: throw errUnsupportedOperation after issue #1440
 func (bs *blockstore) Put(context.Context, blocks.Block) error {
 	return nil
 }
@@ -80,6 +82,8 @@ func (bs *blockstore) Put(context.Context, blocks.Block) error {
 // PutMany is a noop on the EDS blockstore, but it does not return an error because it is called by
 // bitswap. For clarification, an implementation of PutMany does not make sense in this context
 // because it is unclear which CAR file the blocks should be written to.
+//
+// TODO: throw errUnsupportedOperation after issue #1440
 func (bs *blockstore) PutMany(context.Context, []blocks.Block) error {
 	return nil
 }
