@@ -98,6 +98,40 @@ func (s *ShareService) GetSharesByNamespace(
 	root *share.Root,
 	nID namespace.ID,
 ) ([]share.Share, error) {
+	sharesWithProof, err := s.getSharesWithProofsByNamespace(ctx, root, nID, true)
+	if err != nil {
+		return nil, err
+	}
+
+	// we don't know the amount of shares in the namespace, so we cannot preallocate properly
+	// TODO(@Wondertan): Consider improving encoding schema for data in the shares that will also
+	// include metadata 	with the amount of shares. If we are talking about plenty of data here, proper
+	// preallocation would make a 	difference
+	var out []share.Share
+	for _, row := range sharesWithProof {
+		out = append(out, row.Shares...)
+	}
+	return out, nil
+}
+
+// GetSharesWithProofsByNamespace iterates over a square's row roots and accumulates the found shares in the
+// given namespace.ID.
+func (s *ShareService) GetSharesWithProofsByNamespace(
+	ctx context.Context,
+	root *share.Root,
+	nID namespace.ID,
+) ([]share.SharesWithProof, error) {
+	return s.getSharesWithProofsByNamespace(ctx, root, nID, true)
+}
+
+// GetSharesWithProofsByNamespace iterates over a square's row roots and accumulates the found shares in the
+// given namespace.ID.
+func (s *ShareService) getSharesWithProofsByNamespace(
+	ctx context.Context,
+	root *share.Root,
+	nID namespace.ID,
+	collectProofs bool,
+) ([]share.SharesWithProof, error) {
 	if len(nID) != share.NamespaceSize {
 		return nil, fmt.Errorf("expected namespace ID of size %d, got %d", share.NamespaceSize, len(nID))
 	}
@@ -113,12 +147,22 @@ func (s *ShareService) GetSharesByNamespace(
 	}
 
 	errGroup, ctx := errgroup.WithContext(ctx)
-	shares := make([][]share.Share, len(rowRootCIDs))
-	for i, rootCID := range rowRootCIDs {
+	sharesWithProof := make([]share.SharesWithProof, 0, len(rowRootCIDs))
+	for _, rootCID := range rowRootCIDs {
 		// shadow loop variables, to ensure correct values are captured
-		i, rootCID := i, rootCID
+		rootCID := rootCID
 		errGroup.Go(func() (err error) {
-			shares[i], err = share.GetSharesByNamespace(ctx, s.bServ, rootCID, nID, len(root.RowsRoots), nil)
+			var proof *ipld.Proof
+			if collectProofs {
+				proof = new(ipld.Proof)
+			}
+			shares, err := share.GetSharesByNamespace(ctx, s.bServ, rootCID, nID, len(root.RowsRoots), proof)
+			if len(shares) > 0 {
+				sharesWithProof = append(sharesWithProof, share.SharesWithProof{
+					Shares: shares,
+					Proof:  proof,
+				})
+			}
 			return
 		})
 	}
@@ -127,14 +171,5 @@ func (s *ShareService) GetSharesByNamespace(
 		return nil, err
 	}
 
-	// we don't know the amount of shares in the namespace, so we cannot preallocate properly
-	// TODO(@Wondertan): Consider improving encoding schema for data in the shares that will also
-	// include metadata 	with the amount of shares. If we are talking about plenty of data here, proper
-	// preallocation would make a 	difference
-	var out []share.Share
-	for i := 0; i < len(rowRootCIDs); i++ {
-		out = append(out, shares[i]...)
-	}
-
-	return out, nil
+	return sharesWithProof, nil
 }

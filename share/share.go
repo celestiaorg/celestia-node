@@ -1,6 +1,7 @@
 package share
 
 import (
+	"github.com/celestiaorg/celestia-node/share/ipld"
 	"go.opentelemetry.io/otel"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
@@ -38,4 +39,9 @@ func ID(s Share) namespace.ID {
 // Data gets data from the share.
 func Data(s Share) []byte {
 	return s[NamespaceSize:]
+}
+
+type SharesWithProof struct {
+	Shares []Share
+	Proof  *ipld.Proof
 }
