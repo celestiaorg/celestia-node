@@ -12,8 +12,8 @@ import (
 )
 
 var (
-	maxCacheSize = 128
-	errCacheMiss = errors.New("accessor not found in blockstore cache")
+	defaultCacheSize = 128
+	errCacheMiss     = errors.New("accessor not found in blockstore cache")
 )
 
 // accessorWithBlockstore is the value that we store in the blockstore cache
@@ -34,17 +34,16 @@ type blockstoreCache struct {
 	cache *lru.Cache
 }
 
-func newBlockstoreCache() (*blockstoreCache, error) {
+func newBlockstoreCache(cacheSize int) (*blockstoreCache, error) {
 	// instantiate the blockstore cache
-	bslru, err := lru.NewWithEvict(maxCacheSize, func(_ interface{}, val interface{}) {
+	bslru, err := lru.NewWithEvict(cacheSize, func(_ interface{}, val interface{}) {
 		// ensure we close the blockstore for a shard when it's evicted so dagstore can gc it.
 		abs, ok := val.(*accessorWithBlockstore)
 		if !ok {
-			log.Errorf(
+			panic(fmt.Sprintf(
 				"casting value from cache to accessorWithBlockstore: %s",
 				reflect.TypeOf(val),
-			)
-			return
+			))
 		}
 
 		if err := abs.sa.Close(); err != nil {
@@ -72,10 +71,10 @@ func (bc *blockstoreCache) Get(shardContainingCid shard.Key) (*accessorWithBlock
 
 	accessor, ok := val.(*accessorWithBlockstore)
 	if !ok {
-		return nil, fmt.Errorf(
+		panic(fmt.Sprintf(
 			"casting value from cache to accessorWithBlockstore: %s",
 			reflect.TypeOf(val),
-		)
+		))
 	}
 	return accessor, nil
 }

@@ -82,7 +82,7 @@ func NewStore(basepath string, ds datastore.Batching) (*Store, error) {
 		return nil, fmt.Errorf("failed to create DAGStore: %w", err)
 	}
 
-	cache, err := newBlockstoreCache()
+	cache, err := newBlockstoreCache(defaultCacheSize)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create blockstore cache: %w", err)
 	}
