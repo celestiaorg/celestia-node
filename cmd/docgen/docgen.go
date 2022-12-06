@@ -23,7 +23,7 @@ var rootCmd = &cobra.Command{
 		doc := docgen.NewOpenRPCDocument(nodeComments)
 
 		// 3. Register the client wrapper interface on the document
-		for moduleName, module := range nodebuilder.PackageToDefaultImpl {
+		for moduleName, module := range nodebuilder.PackageToAPI {
 			doc.RegisterReceiverName(moduleName, module)
 		}
 

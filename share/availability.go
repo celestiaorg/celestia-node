@@ -28,5 +28,5 @@ type Availability interface {
 	// ProbabilityOfAvailability calculates the probability of the data square
 	// being available based on the number of samples collected.
 	// TODO(@Wondertan): Merge with SharesAvailable method, eventually
-	ProbabilityOfAvailability() float64
+	ProbabilityOfAvailability(context.Context) float64
 }

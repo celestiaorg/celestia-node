@@ -134,6 +134,6 @@ func (da *dummyAvailability) SharesAvailable(_ context.Context, root *share.Root
 	return nil
 }
 
-func (da *dummyAvailability) ProbabilityOfAvailability() float64 {
+func (da *dummyAvailability) ProbabilityOfAvailability(context.Context) float64 {
 	return 0
 }

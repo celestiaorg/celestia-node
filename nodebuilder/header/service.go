@@ -44,6 +44,6 @@ func (s *Service) Head(ctx context.Context) (*header.ExtendedHeader, error) {
 	return s.store.Head(ctx)
 }
 
-func (s *Service) IsSyncing() bool {
+func (s *Service) IsSyncing(context.Context) bool {
 	return !s.syncer.State().Finished()
 }

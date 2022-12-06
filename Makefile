@@ -151,6 +151,6 @@ pb-gen:
 ## openrpc-gen: Generate OpenRPC spec for Celestia-Node's RPC api
 openrpc-gen:
 	@echo "--> Generating OpenRPC spec"
-	@go run ./cmd/docgen fraud header state share das
+	@go run ./cmd/docgen fraud header state share das p2p
 .PHONY: openrpc-gen
 

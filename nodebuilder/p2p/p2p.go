@@ -16,10 +16,13 @@ import (
 	"github.com/libp2p/go-libp2p/p2p/net/conngater"
 )
 
+var _ Module = (*API)(nil)
+
 // Module represents all accessible methods related to the node's p2p
 // host / operations.
 //
 //nolint:dupl
+//go:generate mockgen -destination=mocks/api.go -package=mocks . Module
 type Module interface {
 	// Info returns address information about the host.
 	Info() peer.AddrInfo
@@ -188,22 +191,96 @@ func (m *module) PubSubPeers(topic string) []peer.ID {
 //
 //nolint:dupl
 type API struct {
-	Info                 func() peer.AddrInfo
-	Peers                func() []peer.ID
-	PeerInfo             func(id peer.ID) peer.AddrInfo
-	Connect              func(ctx context.Context, pi peer.AddrInfo) error
-	ClosePeer            func(id peer.ID) error
-	Connectedness        func(id peer.ID) network.Connectedness
-	NATStatus            func() (network.Reachability, error)
-	BlockPeer            func(p peer.ID) error
-	UnblockPeer          func(p peer.ID) error
-	ListBlockedPeers     func() []peer.ID
-	Protect              func(id peer.ID, tag string)
-	Unprotect            func(id peer.ID, tag string) bool
-	IsProtected          func(id peer.ID, tag string) bool
-	BandwidthStats       func() metrics.Stats
-	BandwidthForPeer     func(id peer.ID) metrics.Stats
-	BandwidthForProtocol func(proto protocol.ID) metrics.Stats
-	ResourceState        func() (rcmgr.ResourceManagerStat, error)
-	PubSubPeers          func(topic string) []peer.ID
+	Internal struct {
+		Info                 func() peer.AddrInfo                              `perm:"admin"`
+		Peers                func() []peer.ID                                  `perm:"admin"`
+		PeerInfo             func(id peer.ID) peer.AddrInfo                    `perm:"admin"`
+		Connect              func(ctx context.Context, pi peer.AddrInfo) error `perm:"admin"`
+		ClosePeer            func(id peer.ID) error                            `perm:"admin"`
+		Connectedness        func(id peer.ID) network.Connectedness            `perm:"admin"`
+		NATStatus            func() (network.Reachability, error)              `perm:"admin"`
+		BlockPeer            func(p peer.ID) error                             `perm:"admin"`
+		UnblockPeer          func(p peer.ID) error                             `perm:"admin"`
+		ListBlockedPeers     func() []peer.ID                                  `perm:"admin"`
+		Protect              func(id peer.ID, tag string)                      `perm:"admin"`
+		Unprotect            func(id peer.ID, tag string) bool                 `perm:"admin"`
+		IsProtected          func(id peer.ID, tag string) bool                 `perm:"admin"`
+		BandwidthStats       func() metrics.Stats                              `perm:"admin"`
+		BandwidthForPeer     func(id peer.ID) metrics.Stats                    `perm:"admin"`
+		BandwidthForProtocol func(proto protocol.ID) metrics.Stats             `perm:"admin"`
+		ResourceState        func() (rcmgr.ResourceManagerStat, error)         `perm:"admin"`
+		PubSubPeers          func(topic string) []peer.ID                      `perm:"admin"`
+	}
+}
+
+func (api *API) Info() peer.AddrInfo {
+	return api.Internal.Info()
+}
+
+func (api *API) Peers() []peer.ID {
+	return api.Internal.Peers()
+}
+
+func (api *API) PeerInfo(id peer.ID) peer.AddrInfo {
+	return api.Internal.PeerInfo(id)
+}
+
+func (api *API) Connect(ctx context.Context, pi peer.AddrInfo) error {
+	return api.Internal.Connect(ctx, pi)
+}
+
+func (api *API) ClosePeer(id peer.ID) error {
+	return api.Internal.ClosePeer(id)
+}
+
+func (api *API) Connectedness(id peer.ID) network.Connectedness {
+	return api.Internal.Connectedness(id)
+}
+
+func (api *API) NATStatus() (network.Reachability, error) {
+	return api.Internal.NATStatus()
+}
+
+func (api *API) BlockPeer(p peer.ID) error {
+	return api.Internal.BlockPeer(p)
+}
+
+func (api *API) UnblockPeer(p peer.ID) error {
+	return api.Internal.UnblockPeer(p)
+}
+
+func (api *API) ListBlockedPeers() []peer.ID {
+	return api.Internal.ListBlockedPeers()
+}
+
+func (api *API) Protect(id peer.ID, tag string) {
+	api.Internal.Protect(id, tag)
+}
+
+func (api *API) Unprotect(id peer.ID, tag string) bool {
+	return api.Internal.Unprotect(id, tag)
+}
+
+func (api *API) IsProtected(id peer.ID, tag string) bool {
+	return api.Internal.IsProtected(id, tag)
+}
+
+func (api *API) BandwidthStats() metrics.Stats {
+	return api.Internal.BandwidthStats()
+}
+
+func (api *API) BandwidthForPeer(id peer.ID) metrics.Stats {
+	return api.Internal.BandwidthForPeer(id)
+}
+
+func (api *API) BandwidthForProtocol(proto protocol.ID) metrics.Stats {
+	return api.Internal.BandwidthForProtocol(proto)
+}
+
+func (api *API) ResourceState() (rcmgr.ResourceManagerStat, error) {
+	return api.Internal.ResourceState()
+}
+
+func (api *API) PubSubPeers(topic string) []peer.ID {
+	return api.Internal.PubSubPeers(topic)
 }
