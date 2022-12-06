@@ -231,7 +231,7 @@ func rootsToCids(eds *rsmt2d.ExtendedDataSquare) ([]cid.Cid, error) {
 // Only the first quadrant will be read, which represents the original data.
 // The returned EDS is guaranteed to be full and valid against the DataRoot, otherwise ReadEDS
 // errors.
-func ReadEDS(ctx context.Context, r io.Reader, root DataHash) (*rsmt2d.ExtendedDataSquare, error) {
+func ReadEDS(ctx context.Context, r io.Reader, root share.DataHash) (*rsmt2d.ExtendedDataSquare, error) {
 	carReader, err := car.NewCarReader(r)
 	if err != nil {
 		return nil, fmt.Errorf("share: reading car file: %w", err)
