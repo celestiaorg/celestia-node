@@ -62,6 +62,7 @@ func (s *Server) handleStream(stream network.Stream) {
 	req, err := s.readRequest(stream)
 	if err != nil {
 		log.Errorw("server: reading request from stream", "err", err)
+		stream.Reset() //nolint:errcheck
 		return
 	}
 
@@ -76,19 +77,23 @@ func (s *Server) handleStream(stream network.Stream) {
 	}
 
 	// inform the client of our status
-	if err = s.writeStatus(status, stream); err != nil {
+	err = s.writeStatus(status, stream)
+	if err != nil {
 		log.Errorw("server: writing status to stream", "err", err)
+		stream.Reset() //nolint:errcheck
 		return
 	}
-	// if we cannot serve the EDS, we are done
+	// if we cannot serve the EDS, we are already done
 	if status != p2p_pb.Status_OK {
 		stream.Close()
 		return
 	}
 
 	// start streaming the ODS to the client
-	if err = s.writeODS(edsReader, stream); err != nil {
+	err = s.writeODS(edsReader, stream)
+	if err != nil {
 		log.Errorw("server: writing ods to stream", "err", err)
+		stream.Reset() //nolint:errcheck
 		return
 	}
 
@@ -100,30 +105,30 @@ func (s *Server) handleStream(stream network.Stream) {
 }
 
 func (s *Server) readRequest(stream network.Stream) (*p2p_pb.EDSRequest, error) {
-	if err := stream.SetReadDeadline(time.Now().Add(readDeadline)); err != nil {
+	err := stream.SetReadDeadline(time.Now().Add(readDeadline))
+	if err != nil {
 		log.Warn(err)
 	}
 	req := new(p2p_pb.EDSRequest)
-	_, err := serde.Read(stream, req)
+	_, err = serde.Read(stream, req)
 	if err != nil {
-		stream.Reset() //nolint:errcheck
 		return nil, err
 	}
 	if err = stream.CloseRead(); err != nil {
 		log.Error(err)
 	}
 
-	return req, err
+	return req, nil
 }
 
 func (s *Server) writeStatus(status p2p_pb.Status, stream network.Stream) error {
-	if err := stream.SetWriteDeadline(time.Now().Add(writeDeadline)); err != nil {
+	err := stream.SetWriteDeadline(time.Now().Add(writeDeadline))
+	if err != nil {
 		log.Warn(err)
 	}
 	resp := &p2p_pb.EDSResponse{Status: status}
-	_, err := serde.Write(stream, resp)
+	_, err = serde.Write(stream, resp)
 	if err != nil {
-		stream.Reset() //nolint:errcheck
 		return err
 	}
 
@@ -131,22 +136,20 @@ func (s *Server) writeStatus(status p2p_pb.Status, stream network.Stream) error 
 }
 
 func (s *Server) writeODS(edsReader io.ReadCloser, stream network.Stream) error {
-	if err := stream.SetWriteDeadline(time.Now().Add(writeDeadline)); err != nil {
+	err := stream.SetWriteDeadline(time.Now().Add(writeDeadline))
+	if err != nil {
 		log.Warn(err)
 	}
 	odsReader, err := eds.ODSReader(edsReader)
 	if err != nil {
-		stream.Reset() //nolint:errcheck
 		return fmt.Errorf("creating ODS reader: %w", err)
 	}
 	odsBytes, err := io.ReadAll(odsReader)
 	if err != nil {
-		stream.Reset() //nolint:errcheck
 		return fmt.Errorf("reading ODS bytes: %w", err)
 	}
 	_, err = stream.Write(odsBytes)
 	if err != nil {
-		stream.Reset() //nolint:errcheck
 		return fmt.Errorf("writing ODS bytes: %w", err)
 	}
 
