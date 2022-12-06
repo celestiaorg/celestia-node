@@ -10,6 +10,7 @@ import (
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 )
 
+// PubSubTopic hardcodes the name of EDS floodsub topic.
 const PubSubTopic = "eds-sub"
 
 // Validator is an injectable func and governs EDS notification or DataHash validity.
