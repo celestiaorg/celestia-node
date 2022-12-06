@@ -26,11 +26,11 @@ func TestODSReader(t *testing.T) {
 
 	// generate random eds data and put it into the store
 	eds, dah := randomEDS(t)
-	err = edsStore.Put(ctx, dah, eds)
+	err = edsStore.Put(ctx, dah.Hash(), eds)
 	require.NoError(t, err)
 
 	// get CAR reader from store
-	r, err := edsStore.GetCAR(ctx, dah)
+	r, err := edsStore.GetCAR(ctx, dah.Hash())
 	assert.NoError(t, err)
 
 	// create ODSReader wrapper based on car reader to limit reads to ODS only
@@ -75,11 +75,11 @@ func TestODSReaderReconstruction(t *testing.T) {
 
 	// generate random eds data and put it into the store
 	eds, dah := randomEDS(t)
-	err = edsStore.Put(ctx, dah, eds)
+	err = edsStore.Put(ctx, dah.Hash(), eds)
 	require.NoError(t, err)
 
 	// get CAR reader from store
-	r, err := edsStore.GetCAR(ctx, dah)
+	r, err := edsStore.GetCAR(ctx, dah.Hash())
 	assert.NoError(t, err)
 
 	// create ODSReader wrapper based on car reader to limit reads to ODS only
@@ -87,7 +87,7 @@ func TestODSReaderReconstruction(t *testing.T) {
 	assert.NoError(t, err)
 
 	// reconstruct EDS from ODSReader
-	loaded, err := ReadEDS(ctx, odsR, dah)
+	loaded, err := ReadEDS(ctx, odsR, dah.Hash())
 	assert.NoError(t, err)
 	require.Equal(t, eds.RowRoots(), loaded.RowRoots())
 	require.Equal(t, eds.ColRoots(), loaded.ColRoots())

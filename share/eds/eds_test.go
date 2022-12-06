@@ -148,7 +148,7 @@ func TestReadWriteRoundtrip(t *testing.T) {
 	f := openWrittenEDS(t)
 	defer f.Close()
 
-	loaded, err := ReadEDS(context.Background(), f, dah)
+	loaded, err := ReadEDS(context.Background(), f, dah.Hash())
 	require.NoError(t, err, "error reading EDS from file")
 	require.Equal(t, eds.RowRoots(), loaded.RowRoots())
 	require.Equal(t, eds.ColRoots(), loaded.ColRoots())
@@ -162,7 +162,7 @@ func TestReadEDS(t *testing.T) {
 	err = json.Unmarshal([]byte(exampleRoot), &dah)
 	require.NoError(t, err, "error unmarshaling example root")
 
-	loaded, err := ReadEDS(context.Background(), f, dah)
+	loaded, err := ReadEDS(context.Background(), f, dah.Hash())
 	require.NoError(t, err, "error reading EDS from file")
 	require.Equal(t, dah.RowsRoots, loaded.RowRoots())
 	require.Equal(t, dah.ColumnRoots, loaded.ColRoots())
@@ -174,7 +174,7 @@ func TestReadEDSContentIntegrityMismatch(t *testing.T) {
 	f := openWrittenEDS(t)
 	defer f.Close()
 
-	_, err := ReadEDS(context.Background(), f, dah)
+	_, err := ReadEDS(context.Background(), f, dah.Hash())
 	require.ErrorContains(t, err, "share: content integrity mismatch: imported root")
 }
 
@@ -202,7 +202,7 @@ func BenchmarkReadWriteEDS(b *testing.B) {
 				f := new(bytes.Buffer)
 				_ = WriteEDS(ctx, eds, f)
 				b.StartTimer()
-				_, err := ReadEDS(ctx, f, dah)
+				_, err := ReadEDS(ctx, f, dah.Hash())
 				require.NoError(b, err)
 			}
 		})
