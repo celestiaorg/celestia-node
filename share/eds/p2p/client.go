@@ -54,16 +54,24 @@ func (c *Client) RequestEDS(
 
 	// requests are retried for every peer until a valid response is received
 	edsCh := make(chan *rsmt2d.ExtendedDataSquare)
+	reqContext, cancel := context.WithCancel(context.Background())
 	go func() {
+		// cancel all requests once a valid response is received
+		defer cancel()
+
 		for {
 			for _, to := range peers {
-				eds, err := c.doRequest(ctx, req, root, to)
+				eds, err := c.doRequest(reqContext, req, root, to)
 				if err != nil {
 					// TODO: should we exclude the peer from retries if we get an error?
 					log.Errorw("client: eds request to peer failed", "peer", to, "hash", root.String())
 				}
 
-				edsCh <- eds
+				// eds is nil when the request was valid but couldn't be served
+				if eds != nil {
+					edsCh <- eds
+					return
+				}
 			}
 		}
 	}()
@@ -71,11 +79,10 @@ func (c *Client) RequestEDS(
 	for {
 		select {
 		case eds := <-edsCh:
-			// eds is nil when the request was valid but couldn't be served
-			if eds != nil {
-				return eds, nil
-			}
+			return eds, nil
 		case <-ctx.Done():
+			// no response was received before the context was canceled
+			cancel()
 			return nil, ctx.Err()
 		}
 	}
@@ -93,7 +100,8 @@ func (c *Client) doRequest(
 		return nil, fmt.Errorf("failed to open stream: %w", err)
 	}
 
-	if err = stream.SetWriteDeadline(time.Now().Add(writeDeadline)); err != nil {
+	err = stream.SetWriteDeadline(time.Now().Add(writeDeadline))
+	if err != nil {
 		log.Warn(err)
 	}
 	_, err = serde.Write(stream, req)
@@ -108,7 +116,8 @@ func (c *Client) doRequest(
 	}
 
 	resp := new(p2p_pb.EDSResponse)
-	if err := stream.SetReadDeadline(time.Now().Add(readDeadline)); err != nil {
+	err = stream.SetReadDeadline(time.Now().Add(readDeadline))
+	if err != nil {
 		log.Warn(err)
 	}
 	_, err = serde.Read(stream, resp)
