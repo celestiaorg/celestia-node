@@ -13,7 +13,7 @@ import (
 	"github.com/filecoin-project/dagstore/mount"
 	"github.com/filecoin-project/dagstore/shard"
 	"github.com/ipfs/go-datastore"
-	blockstore "github.com/ipfs/go-ipfs-blockstore"
+	bstore "github.com/ipfs/go-ipfs-blockstore"
 
 	"github.com/celestiaorg/celestia-node/share"
 
@@ -30,7 +30,7 @@ const (
 
 // Store maintains (via DAGStore) a top-level index enabling granular and efficient random access to
 // every share and/or Merkle proof over every registered CARv1 file. The EDSStore provides a custom
-// Blockstore interface implementation to achieve access. The main use-case is randomized sampling
+// blockstore interface implementation to achieve access. The main use-case is randomized sampling
 // over the whole chain of EDS block data and getting data by namespace.
 type Store struct {
 	cancel context.CancelFunc
@@ -39,7 +39,7 @@ type Store struct {
 	mounts *mount.Registry
 
 	cache *blockstoreCache
-	bs    blockstore.Blockstore
+	bs    bstore.Blockstore
 
 	topIdx index.Inverted
 	carIdx index.FullIndexRepo
@@ -96,7 +96,7 @@ func NewStore(basepath string, ds datastore.Batching) (*Store, error) {
 		mounts:   r,
 		cache:    cache,
 	}
-	store.bs = NewEDSBlockstore(store, cache)
+	store.bs = newBlockstore(store, cache)
 	return store, nil
 }
 
@@ -141,7 +141,7 @@ func (s *Store) gc(ctx context.Context) {
 //
 // The square is verified on the Exchange level, and Put only stores the square, trusting it.
 // The resulting file stores all the shares and NMT Merkle Proofs of the EDS.
-// Additionally, the file gets indexed s.t. store.Blockstore can access them.
+// Additionally, the file gets indexed s.t. store.blockstore can access them.
 func (s *Store) Put(ctx context.Context, root share.Root, square *rsmt2d.ExtendedDataSquare) error {
 	key := root.String()
 	f, err := os.OpenFile(s.basepath+blocksPath+key, os.O_CREATE|os.O_WRONLY, 0600)
@@ -189,15 +189,15 @@ func (s *Store) GetCAR(ctx context.Context, root share.Root) (io.ReadCloser, err
 	return accessor.sa, nil
 }
 
-// Blockstore returns an IPFS Blockstore providing access to individual shares/nodes of all EDS
-// registered on the Store. NOTE: The Blockstore does not store whole Celestia Blocks but IPFS
+// Blockstore returns an IPFS blockstore providing access to individual shares/nodes of all EDS
+// registered on the Store. NOTE: The blockstore does not store whole Celestia Blocks but IPFS
 // blocks. We represent `shares` and NMT Merkle proofs as IPFS blocks and IPLD nodes so Bitswap can
 // access those.
-func (s *Store) Blockstore() blockstore.Blockstore {
+func (s *Store) Blockstore() bstore.Blockstore {
 	return s.bs
 }
 
-// CARBlockstore returns the IPFS Blockstore that provides access to the IPLD blocks stored in an
+// CARBlockstore returns the IPFS blockstore that provides access to the IPLD blocks stored in an
 // individual CAR file.
 func (s *Store) CARBlockstore(ctx context.Context, dataHash []byte) (dagstore.ReadBlockstore, error) {
 	key := shard.KeyFromBytes(dataHash)
@@ -211,7 +211,7 @@ func (s *Store) CARBlockstore(ctx context.Context, dataHash []byte) (dagstore.Re
 
 func (s *Store) getAccessor(ctx context.Context, key shard.Key) (*accessorWithBlockstore, error) {
 	// try to fetch from cache
-	accessor, err := s.cache.Read(key)
+	accessor, err := s.cache.Get(key)
 	if err != nil && err != errCacheMiss {
 		log.Errorw("unexpected error while reading key from bs cache %s: %s", key, err)
 	}
@@ -231,7 +231,7 @@ func (s *Store) getAccessor(ctx context.Context, key shard.Key) (*accessorWithBl
 		if res.Error != nil {
 			return nil, fmt.Errorf("failed to acquire shard: %w", res.Error)
 		}
-		return s.cache.Write(key, res.Accessor)
+		return s.cache.Add(key, res.Accessor)
 	case <-ctx.Done():
 		return nil, ctx.Err()
 	}

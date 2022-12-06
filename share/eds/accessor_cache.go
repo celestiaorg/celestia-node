@@ -57,7 +57,9 @@ func newBlockstoreCache() (*blockstoreCache, error) {
 	return &blockstoreCache{cache: bslru}, nil
 }
 
-func (bc *blockstoreCache) Read(shardContainingCid shard.Key) (*accessorWithBlockstore, error) {
+// Get retrieves the blockstore for a given shard key from the cache. If the blockstore is not in
+// the cache, it returns an errCacheMiss
+func (bc *blockstoreCache) Get(shardContainingCid shard.Key) (*accessorWithBlockstore, error) {
 	lk := &bc.stripedLocks[shardKeyToStriped(shardContainingCid)]
 	lk.Lock()
 	defer lk.Unlock()
@@ -78,7 +80,8 @@ func (bc *blockstoreCache) Read(shardContainingCid shard.Key) (*accessorWithBloc
 	return accessor, nil
 }
 
-func (bc *blockstoreCache) Write(
+// Add adds a blockstore for a given shard key to the cache.
+func (bc *blockstoreCache) Add(
 	shardContainingCid shard.Key,
 	accessor *dagstore.ShardAccessor,
 ) (*accessorWithBlockstore, error) {
