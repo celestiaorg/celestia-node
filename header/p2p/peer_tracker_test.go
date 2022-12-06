@@ -18,8 +18,8 @@ func TestPeerTracker_GC(t *testing.T) {
 	pid4 := peer.ID("peer4")
 	p.connectedPeers[pid1] = &peerStat{peerID: pid1, peerScore: 0.5}
 	p.connectedPeers[pid2] = &peerStat{peerID: pid2, peerScore: 10}
-	p.disconnectedPeers[pid3] = &peerStat{peerID: pid3, removedAt: time.Now()}
-	p.disconnectedPeers[pid4] = &peerStat{peerID: pid4, removedAt: time.Now().Add(time.Minute * 10)}
+	p.disconnectedPeers[pid3] = &peerStat{peerID: pid3, pruneDeadline: time.Now()}
+	p.disconnectedPeers[pid4] = &peerStat{peerID: pid4, pruneDeadline: time.Now().Add(time.Minute * 10)}
 	assert.True(t, len(p.connectedPeers) > 0)
 	assert.True(t, len(p.disconnectedPeers) > 0)
 

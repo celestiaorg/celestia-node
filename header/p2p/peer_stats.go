@@ -15,9 +15,9 @@ type peerStat struct {
 	peerID peer.ID
 	// score is the average speed per single request
 	peerScore float32
-	// removedAt specifies when disconnected peer will be removed if
+	// pruneDeadline specifies when disconnected peer will be removed if
 	// it does not return online.
-	removedAt time.Time
+	pruneDeadline time.Time
 }
 
 // updateStats recalculates peer.score by averaging the last score

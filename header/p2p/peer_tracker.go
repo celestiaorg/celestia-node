@@ -134,7 +134,7 @@ func (p *peerTracker) disconnected(pID peer.ID) {
 	if !ok {
 		return
 	}
-	stats.removedAt = time.Now().Add(p.maxAwaitingTime)
+	stats.pruneDeadline = time.Now().Add(p.maxAwaitingTime)
 	p.disconnectedPeers[pID] = stats
 	delete(p.connectedPeers, pID)
 }
@@ -163,7 +163,7 @@ func (p *peerTracker) gc() {
 		case <-ticker.C:
 			p.Lock()
 			for id, peer := range p.disconnectedPeers {
-				if peer.removedAt.Before(time.Now()) {
+				if peer.pruneDeadline.Before(time.Now()) {
 					delete(p.disconnectedPeers, id)
 				}
 			}

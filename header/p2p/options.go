@@ -117,7 +117,6 @@ func DefaultClientParameters() *ClientParameters {
 
 const (
 	greaterThenZero = "should be greater than 0"
-	nonZero         = "should be non-zero"
 	providedSuffix  = "Provided value"
 )
 
@@ -127,21 +126,21 @@ func (p *ClientParameters) Validate() error {
 			greaterThenZero, providedSuffix, p.MinResponses)
 	}
 	if p.MaxRequestSize == 0 {
-		return fmt.Errorf("invalid MaxRequestSize: %s. %s: %v", nonZero, providedSuffix, p.MaxRequestSize)
+		return fmt.Errorf("invalid MaxRequestSize: %s. %s: %v", greaterThenZero, providedSuffix, p.MaxRequestSize)
 	}
 	if p.MaxHeadersPerRequest == 0 {
-		return fmt.Errorf("invalid MaxHeadersPerRequest: %s. %s: %v", nonZero, providedSuffix, p.MaxHeadersPerRequest)
+		return fmt.Errorf("invalid MaxHeadersPerRequest: %s. %s: %v", greaterThenZero, providedSuffix, p.MaxHeadersPerRequest)
 	}
 	if p.MaxHeadersPerRequest > p.MaxRequestSize {
 		return fmt.Errorf("MaxHeadersPerRequest should not be more than MaxRequestSize."+
 			"MaxHeadersPerRequest: %v, MaxRequestSize: %v", p.MaxHeadersPerRequest, p.MaxRequestSize)
 	}
 	if p.GC == 0 {
-		return fmt.Errorf("invalid gc period for peerTracker: %s. %s: %v", nonZero, providedSuffix, p.GC)
+		return fmt.Errorf("invalid gc period for peerTracker: %s. %s: %v", greaterThenZero, providedSuffix, p.GC)
 	}
 	if p.MaxAwaitingTime == 0 {
 		return fmt.Errorf("invalid MaxAwaitingTime for peerTracker: "+
-			"%s. %s: %v", nonZero, providedSuffix, p.MaxAwaitingTime)
+			"%s. %s: %v", greaterThenZero, providedSuffix, p.MaxAwaitingTime)
 	}
 	if p.DefaultScore < 0 {
 		return fmt.Errorf("invalid DefaultScore: %s. %s: %f", greaterThenZero, providedSuffix, p.DefaultScore)
