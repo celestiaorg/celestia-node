@@ -67,7 +67,8 @@ type Module interface {
 	// BandwidthForPeer returns a Stats struct with bandwidth metrics associated with the given peer.ID.
 	// The metrics returned include all traffic sent / received for the peer, regardless of protocol.
 	BandwidthForPeer(id peer.ID) metrics.Stats
-	// BandwidthForProtocol returns a Stats struct with bandwidth metrics associated with the given protocol.ID.
+	// BandwidthForProtocol returns a Stats struct with bandwidth metrics associated with the given
+	// protocol.ID.
 	BandwidthForProtocol(proto protocol.ID) metrics.Stats
 
 	// ResourceState returns the state of the resource manager.

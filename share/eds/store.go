@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"sync/atomic"
+	"time"
 
 	"github.com/filecoin-project/dagstore"
 	"github.com/filecoin-project/dagstore/index"
@@ -21,6 +23,8 @@ const (
 	blocksPath     = "/blocks/"
 	indexPath      = "/index/"
 	transientsPath = "/transients/"
+
+	defaultGCInterval = time.Hour
 )
 
 // Store maintains (via DAGStore) a top-level index enabling granular and efficient random access to
@@ -28,13 +32,18 @@ const (
 // Blockstore interface implementation to achieve access. The main use-case is randomized sampling
 // over the whole chain of EDS block data and getting data by namespace.
 type Store struct {
+	cancel context.CancelFunc
+
 	dgstr  *dagstore.DAGStore
 	mounts *mount.Registry
 
 	topIdx index.Inverted
 	carIdx index.FullIndexRepo
 
-	basepath string
+	basepath   string
+	gcInterval time.Duration
+	// lastGCResult is only stored on the store for testing purposes.
+	lastGCResult atomic.Pointer[dagstore.GCResult]
 }
 
 // NewStore creates a new EDS Store under the given basepath and datastore.
@@ -70,23 +79,50 @@ func NewStore(basepath string, ds datastore.Batching) (*Store, error) {
 	}
 
 	return &Store{
-		basepath: basepath,
-		dgstr:    dagStore,
-		topIdx:   invertedRepo,
-		carIdx:   fsRepo,
-		mounts:   r,
+		basepath:   basepath,
+		dgstr:      dagStore,
+		topIdx:     invertedRepo,
+		carIdx:     fsRepo,
+		gcInterval: defaultGCInterval,
+		mounts:     r,
 	}, nil
 }
 
-// Start starts the underlying DAGStore.
 func (s *Store) Start(context.Context) error {
-	ctx := context.Background()
+	ctx, cancel := context.WithCancel(context.Background())
+	s.cancel = cancel
+
+	go s.gc(ctx)
 	return s.dgstr.Start(ctx)
 }
 
 // Stop stops the underlying DAGStore.
 func (s *Store) Stop(context.Context) error {
+	defer s.cancel()
 	return s.dgstr.Close()
+}
+
+// gc periodically removes all inactive or errored shards.
+func (s *Store) gc(ctx context.Context) {
+	ticker := time.NewTicker(s.gcInterval)
+	// initialize empty gc result to avoid panic on access
+	s.lastGCResult.Store(&dagstore.GCResult{
+		Shards: make(map[shard.Key]error),
+	})
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			res, err := s.dgstr.GC(ctx)
+			if err != nil {
+				log.Errorf("garbage collecting dagstore: %v", err)
+				return
+			}
+			s.lastGCResult.Store(res)
+		}
+
+	}
 }
 
 // Put stores the given data square with DataRoot's hash as a key.

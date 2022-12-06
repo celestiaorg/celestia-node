@@ -5,13 +5,13 @@ import (
 	"fmt"
 	"os"
 	"testing"
-
-	"github.com/stretchr/testify/assert"
+	"time"
 
 	"github.com/filecoin-project/dagstore/shard"
 	"github.com/ipfs/go-datastore"
 	ds_sync "github.com/ipfs/go-datastore/sync"
 	"github.com/ipld/go-car"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/celestiaorg/celestia-node/share"
@@ -154,6 +154,41 @@ func TestEDSStore_Has(t *testing.T) {
 	ok, err = edsStore.Has(ctx, dah)
 	assert.NoError(t, err)
 	assert.True(t, ok)
+}
+
+// TestEDSStore_GC verifies that unused transient shards are collected by the GC periodically.
+func TestEDSStore_GC(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(cancel)
+
+	edsStore, err := newStore(t)
+	edsStore.gcInterval = time.Second
+	require.NoError(t, err)
+
+	// kicks off the gc goroutine
+	err = edsStore.Start(ctx)
+	require.NoError(t, err)
+
+	eds, dah := randomEDS(t)
+	shardKey := shard.KeyFromString(dah.String())
+
+	err = edsStore.Put(ctx, dah, eds)
+	require.NoError(t, err)
+
+	// doesn't exist yet
+	assert.NotContains(t, edsStore.lastGCResult.Load().Shards, shardKey)
+
+	// wait for gc to run, retry three times
+	for i := 0; i < 3; i++ {
+		time.Sleep(edsStore.gcInterval)
+		if _, ok := edsStore.lastGCResult.Load().Shards[shardKey]; ok {
+			break
+		}
+	}
+	assert.Contains(t, edsStore.lastGCResult.Load().Shards, shardKey)
+
+	// assert nil in this context means there was no error re-acquiring the shard during GC
+	assert.Nil(t, edsStore.lastGCResult.Load().Shards[shardKey])
 }
 
 func newStore(t *testing.T) (*Store, error) {
