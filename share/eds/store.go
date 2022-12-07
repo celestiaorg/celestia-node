@@ -13,6 +13,7 @@ import (
 	"github.com/filecoin-project/dagstore/mount"
 	"github.com/filecoin-project/dagstore/shard"
 	"github.com/ipfs/go-datastore"
+	bstore "github.com/ipfs/go-ipfs-blockstore"
 
 	"github.com/celestiaorg/celestia-node/share"
 
@@ -29,13 +30,16 @@ const (
 
 // Store maintains (via DAGStore) a top-level index enabling granular and efficient random access to
 // every share and/or Merkle proof over every registered CARv1 file. The EDSStore provides a custom
-// Blockstore interface implementation to achieve access. The main use-case is randomized sampling
+// blockstore interface implementation to achieve access. The main use-case is randomized sampling
 // over the whole chain of EDS block data and getting data by namespace.
 type Store struct {
 	cancel context.CancelFunc
 
 	dgstr  *dagstore.DAGStore
 	mounts *mount.Registry
+
+	cache *blockstoreCache
+	bs    bstore.Blockstore
 
 	topIdx index.Inverted
 	carIdx index.FullIndexRepo
@@ -78,14 +82,22 @@ func NewStore(basepath string, ds datastore.Batching) (*Store, error) {
 		return nil, fmt.Errorf("failed to create DAGStore: %w", err)
 	}
 
-	return &Store{
-		basepath:   basepath,
-		dgstr:      dagStore,
-		topIdx:     invertedRepo,
-		carIdx:     fsRepo,
+	cache, err := newBlockstoreCache(defaultCacheSize)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create blockstore cache: %w", err)
+	}
+
+	store := &Store{
+		basepath: basepath,
+		dgstr:    dagStore,
+		topIdx:   invertedRepo,
+		carIdx:   fsRepo,
 		gcInterval: defaultGCInterval,
-		mounts:     r,
-	}, nil
+		mounts:   r,
+		cache:    cache,
+	}
+	store.bs = newBlockstore(store, cache)
+	return store, nil
 }
 
 func (s *Store) Start(context.Context) error {
@@ -129,7 +141,7 @@ func (s *Store) gc(ctx context.Context) {
 //
 // The square is verified on the Exchange level, and Put only stores the square, trusting it.
 // The resulting file stores all the shares and NMT Merkle Proofs of the EDS.
-// Additionally, the file gets indexed s.t. store.Blockstore can access them.
+// Additionally, the file gets indexed s.t. store.blockstore can access them.
 func (s *Store) Put(ctx context.Context, root share.Root, square *rsmt2d.ExtendedDataSquare) error {
 	key := root.String()
 	f, err := os.OpenFile(s.basepath+blocksPath+key, os.O_CREATE|os.O_WRONLY, 0600)
@@ -170,21 +182,58 @@ func (s *Store) Put(ctx context.Context, root share.Root, square *rsmt2d.Extende
 // Caller must Close returned reader after reading.
 func (s *Store) GetCAR(ctx context.Context, root share.Root) (io.ReadCloser, error) {
 	key := root.String()
-
-	ch := make(chan dagstore.ShardResult, 1)
-	err := s.dgstr.AcquireShard(ctx, shard.KeyFromString(key), ch, dagstore.AcquireOpts{})
+	accessor, err := s.getAccessor(ctx, shard.KeyFromString(key))
 	if err != nil {
-		return nil, fmt.Errorf("failed to initiate shard acquisition: %w", err)
+		return nil, fmt.Errorf("failed to get accessor: %w", err)
+	}
+	return accessor.sa, nil
+}
+
+// Blockstore returns an IPFS blockstore providing access to individual shares/nodes of all EDS
+// registered on the Store. NOTE: The blockstore does not store whole Celestia Blocks but IPFS
+// blocks. We represent `shares` and NMT Merkle proofs as IPFS blocks and IPLD nodes so Bitswap can
+// access those.
+func (s *Store) Blockstore() bstore.Blockstore {
+	return s.bs
+}
+
+// CARBlockstore returns the IPFS blockstore that provides access to the IPLD blocks stored in an
+// individual CAR file.
+func (s *Store) CARBlockstore(ctx context.Context, dataHash []byte) (dagstore.ReadBlockstore, error) {
+	key := shard.KeyFromString(fmt.Sprintf("%X", dataHash))
+	accessor, err := s.getAccessor(ctx, key)
+	if err != nil {
+		return nil, err
+	}
+
+	return accessor.bs, nil
+}
+
+func (s *Store) getAccessor(ctx context.Context, key shard.Key) (*accessorWithBlockstore, error) {
+	// try to fetch from cache
+	accessor, err := s.cache.Get(key)
+	if err != nil && err != errCacheMiss {
+		log.Errorw("unexpected error while reading key from bs cache %s: %s", key, err)
+	}
+	if accessor != nil {
+		return accessor, nil
+	}
+
+	// wasn't found in cache, so acquire it and add to cache
+	ch := make(chan dagstore.ShardResult, 1)
+	err = s.dgstr.AcquireShard(ctx, key, ch, dagstore.AcquireOpts{})
+	if err != nil {
+		return nil, fmt.Errorf("failed to initialize shard acquisition: %w", err)
 	}
 
 	select {
+	case res := <-ch:
+		if res.Error != nil {
+			return nil, fmt.Errorf("failed to acquire shard: %w", res.Error)
+		}
+		return s.cache.Add(key, res.Accessor)
 	case <-ctx.Done():
 		return nil, ctx.Err()
-	case result := <-ch:
-		if result.Error != nil {
-			return nil, fmt.Errorf("failed to acquire shard: %w", result.Error)
-		}
-		return result.Accessor, nil
 	}
 }
 

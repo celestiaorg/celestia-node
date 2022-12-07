@@ -10,7 +10,7 @@ import (
 	"testing"
 
 	ds "github.com/ipfs/go-datastore"
-	blockstore "github.com/ipfs/go-ipfs-blockstore"
+	bstore "github.com/ipfs/go-ipfs-blockstore"
 	carv1 "github.com/ipld/go-car"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -86,7 +86,7 @@ func TestWriteEDSIncludesRoots(t *testing.T) {
 	f := openWrittenEDS(t)
 	defer f.Close()
 
-	bs := blockstore.NewBlockstore(ds.NewMapDatastore())
+	bs := bstore.NewBlockstore(ds.NewMapDatastore())
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
 	loaded, err := carv1.LoadCar(ctx, bs, f)

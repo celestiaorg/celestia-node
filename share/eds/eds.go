@@ -12,7 +12,7 @@ import (
 	"github.com/ipfs/go-cid"
 	ds "github.com/ipfs/go-datastore"
 	dssync "github.com/ipfs/go-datastore/sync"
-	blockstore "github.com/ipfs/go-ipfs-blockstore"
+	bstore "github.com/ipfs/go-ipfs-blockstore"
 	format "github.com/ipfs/go-ipld-format"
 	"github.com/ipld/go-car"
 	"github.com/ipld/go-car/util"
@@ -35,7 +35,7 @@ type writingSession struct {
 	eds *rsmt2d.ExtendedDataSquare
 	// store is an in-memory blockstore, used to cache the inner nodes (proofs) while we walk the nmt
 	// tree.
-	store blockstore.Blockstore
+	store bstore.Blockstore
 	w     io.Writer
 }
 
@@ -63,7 +63,7 @@ func WriteEDS(ctx context.Context, eds *rsmt2d.ExtendedDataSquare, w io.Writer) 
 		return fmt.Errorf("share: writing shares: %w", err)
 	}
 
-	// 4. Iterates over in-memory Blockstore and writes proofs to the CAR
+	// 4. Iterates over in-memory blockstore and writes proofs to the CAR
 	err = writer.writeProofs(ctx)
 	if err != nil {
 		return fmt.Errorf("share: writing proofs: %w", err)
@@ -74,7 +74,7 @@ func WriteEDS(ctx context.Context, eds *rsmt2d.ExtendedDataSquare, w io.Writer) 
 // initializeWriter reimports the EDS into an in-memory blockstore in order to cache the proofs.
 func initializeWriter(ctx context.Context, eds *rsmt2d.ExtendedDataSquare, w io.Writer) (*writingSession, error) {
 	// we use an in-memory blockstore and an offline exchange
-	store := blockstore.NewBlockstore(dssync.MutexWrap(ds.NewMapDatastore()))
+	store := bstore.NewBlockstore(dssync.MutexWrap(ds.NewMapDatastore()))
 	bs := blockservice.New(store, nil)
 	// shares are extracted from the eds so that we can reimport them to traverse
 	shares := share.ExtractEDS(eds)
