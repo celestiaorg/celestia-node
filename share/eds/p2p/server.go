@@ -10,6 +10,7 @@ import (
 	"github.com/libp2p/go-libp2p-core/network"
 	"github.com/libp2p/go-libp2p-core/protocol"
 
+	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/eds"
 	p2p_pb "github.com/celestiaorg/celestia-node/share/eds/p2p/pb"
 	"github.com/celestiaorg/go-libp2p-messenger/serde"
@@ -66,14 +67,19 @@ func (s *Server) handleStream(stream network.Stream) {
 		return
 	}
 
-	// determine whether the EDS is available in our store
-	edsReader, err := s.store.GetCAR(s.ctx, req.Hash)
-	// TODO(@distractedm1nd): handle INVALID, REFUSED status codes
-	var status p2p_pb.Status
+	var edsReader io.ReadCloser
+	status := p2p_pb.Status_OK
+	err = share.DataHash(req.Hash).Validate()
 	if err != nil {
-		status = p2p_pb.Status_NOT_FOUND
+		status = p2p_pb.Status_INVALID
 	} else {
-		status = p2p_pb.Status_OK
+		// determine whether the EDS is available in our store
+		edsReader, err = s.store.GetCAR(s.ctx, req.Hash)
+		if err != nil {
+			status = p2p_pb.Status_NOT_FOUND
+		} else {
+			defer edsReader.Close()
+		}
 	}
 
 	// inform the client of our status
