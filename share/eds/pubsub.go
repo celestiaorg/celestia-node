@@ -17,7 +17,7 @@ const PubSubTopic = "eds-sub"
 // Validator is an injectable func and governs EDS notification or DataHash validity.
 // It receives the notification and sender peer and expects the validation result.
 // Validator is allowed to be blocking for an indefinite time or until the context is canceled.
-type validator func(context.Context, peer.ID, share.DataHash) pubsub.ValidationResult
+type Validator func(context.Context, peer.ID, share.DataHash) pubsub.ValidationResult
 
 // PubSub manages receiving and propagating the EDS from/to the network
 // over "eds-sub" subscription.
@@ -62,7 +62,7 @@ func (s *PubSub) Stop(context.Context) error {
 
 // AddValidator registers given Validator for EDS notifications(DataHash).
 // Any amount of Validators can be registered.
-func (s *PubSub) AddValidator(validate validator) error {
+func (s *PubSub) AddValidator(validate Validator) error {
 	return s.pubSub.RegisterTopicValidator(PubSubTopic,
 		func(ctx context.Context, p peer.ID, msg *pubsub.Message) pubsub.ValidationResult {
 			return validate(ctx, p, msg.Data)
@@ -72,7 +72,7 @@ func (s *PubSub) AddValidator(validate validator) error {
 // Subscribe provides a new Subscription for EDS notifications.
 func (s *PubSub) Subscribe() (*Subscription, error) {
 	if s.topic == nil {
-		return nil, fmt.Errorf("share/p2p: topic is not instantiated")
+		return nil, fmt.Errorf("share/eds: topic is not started")
 	}
 	return newSubscription(s.topic)
 }
