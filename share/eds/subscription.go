@@ -21,7 +21,7 @@ func newSubscription(t *pubsub.Topic) (*Subscription, error) {
 	return &Subscription{subscription: subs}, nil
 }
 
-// Next blocks the callee until any new EDS notification(data hash) arrives.
+// Next blocks the caller until any new EDS dataHash notification arrives.
 // Returns only notifications which successfully went through validation pipeline.
 func (subs *Subscription) Next(ctx context.Context) ([]byte, error) {
 	msg, err := subs.subscription.Next(ctx)
