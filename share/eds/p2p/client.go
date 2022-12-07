@@ -70,6 +70,10 @@ func (c *Client) RequestEDS(
 			}
 
 			for _, to := range peers {
+				if reqContext.Err() != nil {
+					return
+				}
+
 				// skip over excluded peers
 				if _, ok := excludedPeers[to]; ok {
 					continue

@@ -115,12 +115,14 @@ func (s *Server) readRequest(stream network.Stream) (*p2p_pb.EDSRequest, error) 
 	if err != nil {
 		log.Warn(err)
 	}
+
 	req := new(p2p_pb.EDSRequest)
 	_, err = serde.Read(stream, req)
 	if err != nil {
 		return nil, err
 	}
-	if err = stream.CloseRead(); err != nil {
+	err = stream.CloseRead()
+	if err != nil {
 		log.Error(err)
 	}
 
@@ -132,6 +134,7 @@ func (s *Server) writeStatus(status p2p_pb.Status, stream network.Stream) error 
 	if err != nil {
 		log.Warn(err)
 	}
+
 	resp := &p2p_pb.EDSResponse{Status: status}
 	_, err = serde.Write(stream, resp)
 	if err != nil {
@@ -146,15 +149,12 @@ func (s *Server) writeODS(edsReader io.ReadCloser, stream network.Stream) error 
 	if err != nil {
 		log.Warn(err)
 	}
+
 	odsReader, err := eds.ODSReader(edsReader)
 	if err != nil {
 		return fmt.Errorf("creating ODS reader: %w", err)
 	}
-	odsBytes, err := io.ReadAll(odsReader)
-	if err != nil {
-		return fmt.Errorf("reading ODS bytes: %w", err)
-	}
-	_, err = stream.Write(odsBytes)
+	_, err = io.Copy(stream, odsReader)
 	if err != nil {
 		return fmt.Errorf("writing ODS bytes: %w", err)
 	}
