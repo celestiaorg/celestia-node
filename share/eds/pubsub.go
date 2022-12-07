@@ -2,7 +2,6 @@ package eds
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
 	"github.com/libp2p/go-libp2p-core/host"
@@ -40,10 +39,6 @@ func NewPubSub(ctx context.Context, h host.Host) (*PubSub, error) {
 
 // Start creates an instances of FloodSub and joins specified topic.
 func (s *PubSub) Start(context.Context) error {
-	if s.pubSub == nil {
-		return errors.New("share/eds: pubsub is not instantiated")
-	}
-
 	topic, err := s.pubSub.Join(PubSubTopic)
 	if err != nil {
 		return err

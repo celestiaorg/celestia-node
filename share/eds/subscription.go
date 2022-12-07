@@ -28,7 +28,7 @@ func newSubscription(t *pubsub.Topic) (*Subscription, error) {
 func (subs *Subscription) Next(ctx context.Context) (share.DataHash, error) {
 	msg, err := subs.subscription.Next(ctx)
 	if err != nil {
-		log.Errorw("listening to the next eds", "err", err)
+		log.Errorw("listening for the next eds", "err", err)
 		return nil, err
 	}
 
