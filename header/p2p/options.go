@@ -90,8 +90,6 @@ type ClientParameters struct {
 	MaxRequestSize uint64
 	// MaxHeadersPerRequest defines the max amount of headers that can be requested per 1 request.
 	MaxHeadersPerRequest uint64
-	// GC defines the duration after which the peerTracker starts removing peers.
-	GC time.Duration
 	// MaxAwaitingTime specifies the duration that gives to the disconnected peer to be back online,
 	// otherwise it will be removed on the next GC cycle.
 	MaxAwaitingTime time.Duration
@@ -108,7 +106,6 @@ func DefaultClientParameters() *ClientParameters {
 		MinResponses:         2,
 		MaxRequestSize:       512,
 		MaxHeadersPerRequest: 64,
-		GC:                   time.Minute * 30,
 		MaxAwaitingTime:      time.Hour,
 		DefaultScore:         1,
 		MaxPeerTrackerSize:   100,
@@ -134,9 +131,6 @@ func (p *ClientParameters) Validate() error {
 	if p.MaxHeadersPerRequest > p.MaxRequestSize {
 		return fmt.Errorf("MaxHeadersPerRequest should not be more than MaxRequestSize."+
 			"MaxHeadersPerRequest: %v, MaxRequestSize: %v", p.MaxHeadersPerRequest, p.MaxRequestSize)
-	}
-	if p.GC == 0 {
-		return fmt.Errorf("invalid gc period for peerTracker: %s. %s: %v", greaterThenZero, providedSuffix, p.GC)
 	}
 	if p.MaxAwaitingTime == 0 {
 		return fmt.Errorf("invalid MaxAwaitingTime for peerTracker: "+
@@ -171,17 +165,6 @@ func WithMaxHeadersPerRequest[T ClientParameters](amount uint64) Option[T] {
 			t.MaxHeadersPerRequest = amount
 		}
 
-	}
-}
-
-// WithGCCycle is a functional option that configures the
-// `GC` parameter.
-func WithGCCycle[T ClientParameters](cycle time.Duration) Option[T] {
-	return func(p *T) {
-		switch t := any(p).(type) { //nolint:gocritic
-		case *ClientParameters:
-			t.GC = cycle
-		}
 	}
 }
 

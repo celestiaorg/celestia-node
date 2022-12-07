@@ -11,6 +11,9 @@ import (
 	"github.com/libp2p/go-libp2p-core/peer"
 )
 
+// gcCycle defines the duration after which the peerTracker starts removing peers.
+var gcCycle = time.Minute * 30
+
 type peerTracker struct {
 	sync.RWMutex
 
@@ -24,8 +27,6 @@ type peerTracker struct {
 
 	host host.Host
 
-	// gcPeriod defines the duration after which the peerTracker starts removing peers
-	gcPeriod time.Duration
 	// maxAwaitingTime specifies the duration that gives to the disconnected peer to be back online,
 	// otherwise it will be removed on the next GC cycle.
 	maxAwaitingTime time.Duration
@@ -41,7 +42,7 @@ type peerTracker struct {
 
 func newPeerTracker(
 	h host.Host,
-	gcPeriod, maxAwaitingTime time.Duration,
+	maxAwaitingTime time.Duration,
 	defaultScore float32,
 	maxPeerTrackerSize int,
 ) *peerTracker {
@@ -52,7 +53,6 @@ func newPeerTracker(
 		disconnectedPeers:  make(map[peer.ID]*peerStat),
 		trackedPeers:       make(map[peer.ID]*peerStat),
 		host:               h,
-		gcPeriod:           gcPeriod,
 		maxAwaitingTime:    maxAwaitingTime,
 		defaultScore:       defaultScore,
 		maxPeerTrackerSize: maxPeerTrackerSize,
@@ -155,7 +155,7 @@ func (p *peerTracker) peers() []*peerStat {
 // * disconnected peers which have been disconnected for more than maxAwaitingTime;
 // * connected peers whose scores are less than or equal than defaultScore;
 func (p *peerTracker) gc() {
-	ticker := time.NewTicker(p.gcPeriod)
+	ticker := time.NewTicker(gcCycle)
 	for {
 		select {
 		case <-p.ctx.Done():

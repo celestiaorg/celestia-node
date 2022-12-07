@@ -11,7 +11,8 @@ import (
 
 func TestPeerTracker_GC(t *testing.T) {
 	h := createMocknet(t, 1)
-	p := newPeerTracker(h[0], time.Millisecond*200, time.Millisecond*1, 1, 5)
+	gcCycle = time.Millisecond * 200
+	p := newPeerTracker(h[0], time.Millisecond*1, 1, 5)
 	pid1 := peer.ID("peer1")
 	pid2 := peer.ID("peer2")
 	pid3 := peer.ID("peer3")

@@ -60,7 +60,6 @@ func NewExchange(
 		trustedPeers: peers,
 		peerTracker: newPeerTracker(
 			host,
-			params.GC,
 			params.MaxAwaitingTime,
 			params.DefaultScore,
 			params.MaxPeerTrackerSize,

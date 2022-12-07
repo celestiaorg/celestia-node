@@ -71,7 +71,6 @@ func TestConstructModule_ExchangeParams(t *testing.T) {
 	require.Equal(t, exchange.Params.MinResponses, cfg.Client.MinResponses)
 	require.Equal(t, exchange.Params.MaxRequestSize, cfg.Client.MaxRequestSize)
 	require.Equal(t, exchange.Params.MaxHeadersPerRequest, cfg.Client.MaxHeadersPerRequest)
-	require.Equal(t, exchange.Params.GC, cfg.Client.GC)
 	require.Equal(t, exchange.Params.MaxAwaitingTime, cfg.Client.MaxAwaitingTime)
 	require.Equal(t, exchange.Params.DefaultScore, cfg.Client.DefaultScore)
 	require.Equal(t, exchange.Params.MaxPeerTrackerSize, cfg.Client.MaxPeerTrackerSize)
