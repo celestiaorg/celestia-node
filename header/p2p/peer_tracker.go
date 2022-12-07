@@ -19,13 +19,15 @@ type peerTracker struct {
 
 	ctx    context.Context
 	cancel context.CancelFunc
+	host   host.Host
 
-	trackedPeers map[peer.ID]*peerStat
+	// trackedPeers contains active peers that we can request to.
 	// we cache the peer once they disconnect,
 	// so we can guarantee that peerQueue will only contain active peers
+	trackedPeers map[peer.ID]*peerStat
+	// disconnectedPeers contains disconnected peers. In case if peer does not return
+	// online until pruneDeadline, it will be removed and its score will be lost.
 	disconnectedPeers map[peer.ID]*peerStat
-
-	host host.Host
 
 	// maxAwaitingTime specifies the duration that gives to the disconnected peer to be back online,
 	// otherwise it will be removed on the next GC cycle.
@@ -100,6 +102,14 @@ func (p *peerTracker) connected(pID peer.ID) {
 	if p.host.ID() == pID {
 		return
 	}
+
+	for _, c := range p.host.Network().ConnsToPeer(pID) {
+		// check if connection is short-termed and skip this peer
+		if c.Stat().Transient {
+			return
+		}
+	}
+
 	p.Lock()
 	defer p.Unlock()
 	// skip adding the peer to avoid overfilling of the peerTracker with unused peers if:
@@ -108,13 +118,6 @@ func (p *peerTracker) connected(pID peer.ID) {
 	if len(p.trackedPeers)+len(p.disconnectedPeers) > p.maxPeerTrackerSize &&
 		len(p.trackedPeers) > len(p.disconnectedPeers) {
 		return
-	}
-
-	for _, c := range p.host.Network().ConnsToPeer(pID) {
-		// check if connection is short-termed and skip this peer
-		if c.Stat().Transient {
-			return
-		}
 	}
 
 	// additional check in p.trackedPeers should be done,
