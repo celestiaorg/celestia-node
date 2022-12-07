@@ -12,14 +12,14 @@ import (
 
 	tmrand "github.com/tendermint/tendermint/libs/rand"
 
-	"github.com/celestiaorg/celestia-node/libs/header"
+	"github.com/celestiaorg/celestia-node/libs/header/test"
 )
 
 func TestStore(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	t.Cleanup(cancel)
 
-	suite := header.NewTestSuite(t)
+	suite := test.NewTestSuite(t)
 
 	ds := sync.MutexWrap(datastore.NewMapDatastore())
 	store, err := NewStoreWithHead(ctx, ds, suite.Head())
@@ -70,7 +70,7 @@ func TestStore(t *testing.T) {
 
 	// check that the store can be successfully started after previous stop
 	// with all data being flushed.
-	store, err = NewStore[*header.DummyHeader](ds)
+	store, err = NewStore[*test.DummyHeader](ds)
 	require.NoError(t, err)
 
 	err = store.Start(ctx)
@@ -92,7 +92,7 @@ func TestStorePendingCacheMiss(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	t.Cleanup(cancel)
 
-	suite := header.NewTestSuite(t)
+	suite := test.NewTestSuite(t)
 
 	ds := sync.MutexWrap(datastore.NewMapDatastore())
 

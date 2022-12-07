@@ -23,6 +23,7 @@ import (
 	"github.com/celestiaorg/celestia-node/libs/header"
 	headerMock "github.com/celestiaorg/celestia-node/libs/header/mocks"
 	p2p_pb "github.com/celestiaorg/celestia-node/libs/header/p2p/pb"
+	"github.com/celestiaorg/celestia-node/libs/header/test"
 )
 
 var privateProtocolID = protocolID("private")
@@ -97,15 +98,15 @@ func TestExchange_RequestFullRangeHeaders(t *testing.T) {
 	connGater, err := conngater.NewBasicConnectionGater(sync.MutexWrap(datastore.NewMapDatastore()))
 	require.NoError(t, err)
 	// create new exchange
-	exchange, err := NewExchange[*header.DummyHeader](hosts[len(hosts)-1], []peer.ID{}, protocolSuffix, connGater)
+	exchange, err := NewExchange[*test.DummyHeader](hosts[len(hosts)-1], []peer.ID{}, protocolSuffix, connGater)
 	require.NoError(t, err)
 	exchange.Params.MaxHeadersPerRequest = 10
 	exchange.ctx, exchange.cancel = context.WithCancel(context.Background())
 	t.Cleanup(exchange.cancel)
 	// amount of servers is len(hosts)-1 because one peer acts as a client
-	servers := make([]*ExchangeServer[*header.DummyHeader], len(hosts)-1)
+	servers := make([]*ExchangeServer[*test.DummyHeader], len(hosts)-1)
 	for index := range servers {
-		servers[index], err = NewExchangeServer[*header.DummyHeader](hosts[index], store, protocolSuffix)
+		servers[index], err = NewExchangeServer[*test.DummyHeader](hosts[index], store, protocolSuffix)
 		require.NoError(t, err)
 		servers[index].Start(context.Background()) //nolint:errcheck
 		exchange.peerTracker.peerLk.Lock()
@@ -138,7 +139,7 @@ func TestExchange_RequestHeadersFromAnotherPeer(t *testing.T) {
 	// create client + server(it does not have needed headers)
 	exchg, _ := createP2PExAndServer(t, hosts[0], hosts[1])
 	// create one more server(with more headers in the store)
-	serverSideEx, err := NewExchangeServer[*header.DummyHeader](hosts[2], headerMock.NewStore(t, 10), "private")
+	serverSideEx, err := NewExchangeServer[*test.DummyHeader](hosts[2], headerMock.NewStore(t, 10), "private")
 	require.NoError(t, err)
 	require.NoError(t, serverSideEx.Start(context.Background()))
 	t.Cleanup(func() {
@@ -166,7 +167,7 @@ func TestExchange_RequestByHash(t *testing.T) {
 	host, peer := net.Hosts()[0], net.Hosts()[1]
 	// create and start the ExchangeServer
 	store := headerMock.NewStore(t, 5)
-	serv, err := NewExchangeServer[*header.DummyHeader](host, store, "private")
+	serv, err := NewExchangeServer[*test.DummyHeader](host, store, "private")
 	require.NoError(t, err)
 	err = serv.Start(ctx)
 	require.NoError(t, err)
@@ -191,7 +192,7 @@ func TestExchange_RequestByHash(t *testing.T) {
 	_, err = serde.Read(stream, resp)
 	require.NoError(t, err)
 	// compare
-	var eh header.DummyHeader
+	var eh test.DummyHeader
 	err = eh.UnmarshalBinary(resp.Body)
 	require.NoError(t, err)
 
@@ -201,16 +202,16 @@ func TestExchange_RequestByHash(t *testing.T) {
 
 func Test_bestHead(t *testing.T) {
 	params := DefaultClientParameters()
-	gen := func() []*header.DummyHeader {
-		suite := header.NewTestSuite(t)
-		res := make([]*header.DummyHeader, 0)
+	gen := func() []*test.DummyHeader {
+		suite := test.NewTestSuite(t)
+		res := make([]*test.DummyHeader, 0)
 		for i := 0; i < 3; i++ {
 			res = append(res, suite.GenDummyHeader())
 		}
 		return res
 	}
 	testCases := []struct {
-		precondition   func() []*header.DummyHeader
+		precondition   func() []*test.DummyHeader
 		expectedHeight int64
 	}{
 		/*
@@ -232,7 +233,7 @@ func Test_bestHead(t *testing.T) {
 			result -> headerHeight[0]
 		*/
 		{
-			precondition: func() []*header.DummyHeader {
+			precondition: func() []*test.DummyHeader {
 				res := gen()
 				res = append(res, res[0])
 				return res
@@ -247,7 +248,7 @@ func Test_bestHead(t *testing.T) {
 			result -> headerHeight[1]
 		*/
 		{
-			precondition: func() []*header.DummyHeader {
+			precondition: func() []*test.DummyHeader {
 				res := gen()
 				res = append(res, res[0])
 				res = append(res, res[0])
@@ -275,7 +276,7 @@ func TestExchange_RequestByHashFails(t *testing.T) {
 	require.NoError(t, err)
 	// get host and peer
 	host, peer := net.Hosts()[0], net.Hosts()[1]
-	serv, err := NewExchangeServer[*header.DummyHeader](host, headerMock.NewStore(t, 0), "private")
+	serv, err := NewExchangeServer[*test.DummyHeader](host, headerMock.NewStore(t, 0), "private")
 	require.NoError(t, err)
 	err = serv.Start(ctx)
 	require.NoError(t, err)
@@ -324,7 +325,9 @@ func TestExchange_RequestHeadersFromAnotherPeerWhenTimeout(t *testing.T) {
 	exchg, _ := createP2PExAndServer(t, host0, host1)
 	exchg.Params.RequestTimeout = time.Millisecond * 100
 	// create one more server(with more headers in the store)
-	serverSideEx, err := NewExchangeServer[*header.DummyHeader](host2, headerMock.NewStore(t, 10), "private")
+	serverSideEx, err := NewExchangeServer[*test.DummyHeader](
+		host2, headerMock.NewStore[*test.DummyHeader](t, test.NewTestSuite(t), 10), "private",
+	)
 	require.NoError(t, err)
 	// change store implementation
 	serverSideEx.getter = &timedOutStore{exchg.Params.RequestTimeout}
@@ -350,15 +353,15 @@ func createMocknet(t *testing.T, amount int) []libhost.Host {
 }
 
 // createP2PExAndServer creates a Exchange with 5 headers already in its store.
-func createP2PExAndServer(t *testing.T, host, tpeer libhost.Host) (*Exchange[*header.DummyHeader], *headerMock.MockStore) {
+func createP2PExAndServer(t *testing.T, host, tpeer libhost.Host) (*Exchange[*test.DummyHeader], *headerMock.MockStore) {
 	store := headerMock.NewStore(t, 5)
-	serverSideEx, err := NewExchangeServer[*header.DummyHeader](tpeer, store, "private")
+	serverSideEx, err := NewExchangeServer[*test.DummyHeader](tpeer, store, "private")
 	require.NoError(t, err)
 	err = serverSideEx.Start(context.Background())
 	require.NoError(t, err)
 	connGater, err := conngater.NewBasicConnectionGater(sync.MutexWrap(datastore.NewMapDatastore()))
 	require.NoError(t, err)
-	ex, err := NewExchange[*header.DummyHeader](host, []peer.ID{tpeer.ID()}, "private", connGater)
+	ex, err := NewExchange[*test.DummyHeader](host, []peer.ID{tpeer.ID()}, "private", connGater)
 	require.NoError(t, err)
 	require.NoError(t, ex.Start(context.Background()))
 	time.Sleep(time.Millisecond * 100) // give peerTracker time to add a trusted peer
@@ -376,31 +379,31 @@ type timedOutStore struct {
 	timeout time.Duration
 }
 
-func (t *timedOutStore) Head(context.Context) (*header.DummyHeader, error) {
+func (t *timedOutStore) Head(context.Context) (*test.DummyHeader, error) {
 	// TODO implement me
 	panic("implement me")
 }
 
-func (t *timedOutStore) Get(context.Context, header.Hash) (*header.DummyHeader, error) {
+func (t *timedOutStore) Get(context.Context, header.Hash) (*test.DummyHeader, error) {
 	// TODO implement me
 	panic("implement me")
 }
 
-func (t *timedOutStore) GetByHeight(context.Context, uint64) (*header.DummyHeader, error) {
+func (t *timedOutStore) GetByHeight(context.Context, uint64) (*test.DummyHeader, error) {
 	// TODO implement me
 	panic("implement me")
 }
 
-func (t *timedOutStore) GetRangeByHeight(_ context.Context, _, _ uint64) ([]*header.DummyHeader, error) {
+func (t *timedOutStore) GetRangeByHeight(_ context.Context, _, _ uint64) ([]*test.DummyHeader, error) {
 	time.Sleep(t.timeout + 1)
-	return []*header.DummyHeader{}, nil
+	return []*test.DummyHeader{}, nil
 }
 
 func (t *timedOutStore) GetVerifiedRange(
 	context.Context,
-	*header.DummyHeader,
+	*test.DummyHeader,
 	uint64,
-) ([]*header.DummyHeader, error) {
+) ([]*test.DummyHeader, error) {
 	// TODO implement me
 	panic("implement me")
 }

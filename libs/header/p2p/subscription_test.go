@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/celestiaorg/celestia-node/libs/header"
+	"github.com/celestiaorg/celestia-node/libs/header/test"
 )
 
 // TestSubscriber tests the header Module's implementation of Subscriber.
@@ -23,14 +23,14 @@ func TestSubscriber(t *testing.T) {
 	net, err := mocknet.FullMeshLinked(2)
 	require.NoError(t, err)
 
-	suite := header.NewTestSuite(t)
+	suite := test.NewTestSuite(t)
 
 	// get mock host and create new gossipsub on it
 	pubsub1, err := pubsub.NewGossipSub(ctx, net.Hosts()[0], pubsub.WithMessageSignaturePolicy(pubsub.StrictNoSign))
 	require.NoError(t, err)
 
 	// create sub-service lifecycles for header service 1
-	p2pSub1 := NewSubscriber[*header.DummyHeader](pubsub1, pubsub.DefaultMsgIdFn)
+	p2pSub1 := NewSubscriber[*test.DummyHeader](pubsub1, pubsub.DefaultMsgIdFn)
 	err = p2pSub1.Start(context.Background())
 	require.NoError(t, err)
 
@@ -40,7 +40,7 @@ func TestSubscriber(t *testing.T) {
 	require.NoError(t, err)
 
 	// create sub-service lifecycles for header service 2
-	p2pSub2 := NewSubscriber[*header.DummyHeader](pubsub2, pubsub.DefaultMsgIdFn)
+	p2pSub2 := NewSubscriber[*test.DummyHeader](pubsub2, pubsub.DefaultMsgIdFn)
 	err = p2pSub2.Start(context.Background())
 	require.NoError(t, err)
 
@@ -66,7 +66,7 @@ func TestSubscriber(t *testing.T) {
 	_, err = p2pSub2.Subscribe()
 	require.NoError(t, err)
 
-	p2pSub1.AddValidator(func(context.Context, *header.DummyHeader) pubsub.ValidationResult { //nolint:errcheck
+	p2pSub1.AddValidator(func(context.Context, *test.DummyHeader) pubsub.ValidationResult { //nolint:errcheck
 		return pubsub.ValidationAccept
 	})
 	subscription, err := p2pSub1.Subscribe()

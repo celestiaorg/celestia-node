@@ -1,4 +1,4 @@
-package header
+package test
 
 import (
 	"bytes"
@@ -14,10 +14,12 @@ import (
 
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	"golang.org/x/crypto/sha3"
+
+	"github.com/celestiaorg/celestia-node/libs/header"
 )
 
 type Raw struct {
-	PreviousHash Hash
+	PreviousHash header.Hash
 
 	Height int64
 	Time   time.Time
@@ -26,14 +28,14 @@ type Raw struct {
 type DummyHeader struct {
 	Raw
 
-	hash Hash
+	hash header.Hash
 }
 
-func (d *DummyHeader) New() Header {
+func (d *DummyHeader) New() header.Header {
 	return new(DummyHeader)
 }
 
-func (d *DummyHeader) Hash() Hash {
+func (d *DummyHeader) Hash() header.Hash {
 	if len(d.hash) == 0 {
 		if err := d.rehash(); err != nil {
 			panic(err)
@@ -56,7 +58,7 @@ func (d *DummyHeader) Height() int64 {
 	return d.Raw.Height
 }
 
-func (d *DummyHeader) LastHeader() Hash {
+func (d *DummyHeader) LastHeader() header.Hash {
 	return d.Raw.PreviousHash
 }
 
@@ -84,7 +86,7 @@ func (d *DummyHeader) IsExpired(period time.Duration) bool {
 	return expirationTime.Before(time.Now())
 }
 
-func (d *DummyHeader) VerifyAdjacent(other Header) error {
+func (d *DummyHeader) VerifyAdjacent(other header.Header) error {
 	if other.Height() != d.Height()+1 {
 		return fmt.Errorf("invalid Height, expected: %d, got: %d", d.Height()+1, other.Height())
 	}
@@ -96,11 +98,11 @@ func (d *DummyHeader) VerifyAdjacent(other Header) error {
 	return nil
 }
 
-func (d *DummyHeader) VerifyNonAdjacent(other Header) error {
+func (d *DummyHeader) VerifyNonAdjacent(other header.Header) error {
 	return d.Verify(other)
 }
 
-func (d *DummyHeader) Verify(header Header) error {
+func (d *DummyHeader) Verify(header header.Header) error {
 	// wee1
 	epsilon := 10 * time.Second
 	if header.Time().After(time.Now().Add(epsilon)) {
@@ -195,22 +197,22 @@ func mustRandDummyHeader() *DummyHeader {
 	return dh
 }
 
-// TestSuite provides everything you need to test chain of Headers.
+// Suite provides everything you need to test chain of Headers.
 // If not, please don't hesitate to extend it for your case.
-type TestSuite struct {
+type Suite struct {
 	t *testing.T
 
 	head *DummyHeader
 }
 
 // NewTestSuite setups a new test suite.
-func NewTestSuite(t *testing.T) *TestSuite {
-	return &TestSuite{
+func NewTestSuite(t *testing.T) *Suite {
+	return &Suite{
 		t: t,
 	}
 }
 
-func (s *TestSuite) genesis() *DummyHeader {
+func (s *Suite) genesis() *DummyHeader {
 	return &DummyHeader{
 		hash: nil,
 		Raw: Raw{
@@ -221,14 +223,14 @@ func (s *TestSuite) genesis() *DummyHeader {
 	}
 }
 
-func (s *TestSuite) Head() *DummyHeader {
+func (s *Suite) Head() *DummyHeader {
 	if s.head == nil {
 		s.head = s.genesis()
 	}
 	return s.head
 }
 
-func (s *TestSuite) GenDummyHeaders(num int) []*DummyHeader {
+func (s *Suite) GenDummyHeaders(num int) []*DummyHeader {
 	headers := make([]*DummyHeader, num)
 	for i := range headers {
 		headers[i] = s.GenDummyHeader()
@@ -236,7 +238,7 @@ func (s *TestSuite) GenDummyHeaders(num int) []*DummyHeader {
 	return headers
 }
 
-func (s *TestSuite) GenDummyHeader() *DummyHeader {
+func (s *Suite) GenDummyHeader() *DummyHeader {
 	if s.head == nil {
 		s.head = s.genesis()
 		return s.head
@@ -258,7 +260,7 @@ func (mhs *DummySubscriber) AddValidator(func(context.Context, *DummyHeader) pub
 	return nil
 }
 
-func (mhs *DummySubscriber) Subscribe() (Subscription[*DummyHeader], error) {
+func (mhs *DummySubscriber) Subscribe() (header.Subscription[*DummyHeader], error) {
 	return mhs, nil
 }
 

@@ -12,13 +12,14 @@ import (
 	"github.com/celestiaorg/celestia-node/libs/header"
 	"github.com/celestiaorg/celestia-node/libs/header/local"
 	"github.com/celestiaorg/celestia-node/libs/header/store"
+	"github.com/celestiaorg/celestia-node/libs/header/test"
 )
 
 func TestSyncSimpleRequestingHead(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	t.Cleanup(cancel)
 
-	suite := header.NewTestSuite(t)
+	suite := test.NewTestSuite(t)
 	head := suite.Head()
 
 	remoteStore := store.NewTestStore(ctx, t, head)
@@ -29,10 +30,10 @@ func TestSyncSimpleRequestingHead(t *testing.T) {
 	require.NoError(t, err)
 
 	localStore := store.NewTestStore(ctx, t, head)
-	syncer, err := NewSyncer[*header.DummyHeader](
+	syncer, err := NewSyncer[*test.DummyHeader](
 		local.NewExchange(remoteStore),
 		localStore,
-		&header.DummySubscriber{},
+		&test.DummySubscriber{},
 		WithBlockTime(time.Second*30),
 		WithTrustingPeriod(time.Microsecond),
 		WithMaxRequestSize(13),
@@ -64,15 +65,15 @@ func TestSyncCatchUp(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	t.Cleanup(cancel)
 
-	suite := header.NewTestSuite(t)
+	suite := test.NewTestSuite(t)
 	head := suite.Head()
 
 	remoteStore := store.NewTestStore(ctx, t, head)
 	localStore := store.NewTestStore(ctx, t, head)
-	syncer, err := NewSyncer[*header.DummyHeader](
+	syncer, err := NewSyncer[*test.DummyHeader](
 		local.NewExchange(remoteStore),
 		localStore,
-		&header.DummySubscriber{},
+		&test.DummySubscriber{},
 		WithTrustingPeriod(time.Minute),
 	)
 	require.NoError(t, err)
@@ -112,15 +113,15 @@ func TestSyncPendingRangesWithMisses(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	t.Cleanup(cancel)
 
-	suite := header.NewTestSuite(t)
+	suite := test.NewTestSuite(t)
 	head := suite.Head()
 
 	remoteStore := store.NewTestStore(ctx, t, head)
 	localStore := store.NewTestStore(ctx, t, head)
-	syncer, err := NewSyncer[*header.DummyHeader](
+	syncer, err := NewSyncer[*test.DummyHeader](
 		local.NewExchange(remoteStore),
 		localStore,
-		&header.DummySubscriber{},
+		&test.DummySubscriber{},
 		WithTrustingPeriod(time.Minute),
 	)
 	require.NoError(t, err)
@@ -171,14 +172,14 @@ func TestSyncer_OnlyOneRecentRequest(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	t.Cleanup(cancel)
 
-	suite := header.NewTestSuite(t)
+	suite := test.NewTestSuite(t)
 	store := store.NewTestStore(ctx, t, suite.Head())
 	newHead := suite.GenDummyHeader()
 	exchange := &exchangeCountingHead{header: newHead}
-	syncer, err := NewSyncer[*header.DummyHeader](exchange, store, &header.DummySubscriber{}, WithBlockTime(time.Nanosecond))
+	syncer, err := NewSyncer[*test.DummyHeader](exchange, store, &test.DummySubscriber{}, WithBlockTime(time.Nanosecond))
 	require.NoError(t, err)
 
-	res := make(chan *header.DummyHeader)
+	res := make(chan *test.DummyHeader)
 	for i := 0; i < 10; i++ {
 		go func() {
 			head, err := syncer.networkHead(ctx)
@@ -201,32 +202,32 @@ func TestSyncer_OnlyOneRecentRequest(t *testing.T) {
 }
 
 type exchangeCountingHead struct {
-	header  *header.DummyHeader
+	header  *test.DummyHeader
 	counter int
 }
 
-func (e *exchangeCountingHead) Head(context.Context) (*header.DummyHeader, error) {
+func (e *exchangeCountingHead) Head(context.Context) (*test.DummyHeader, error) {
 	e.counter++
 	time.Sleep(time.Millisecond * 100) // simulate requesting something
 	return e.header, nil
 }
 
-func (e *exchangeCountingHead) Get(ctx context.Context, bytes header.Hash) (*header.DummyHeader, error) {
+func (e *exchangeCountingHead) Get(ctx context.Context, bytes header.Hash) (*test.DummyHeader, error) {
 	panic("implement me")
 }
 
-func (e *exchangeCountingHead) GetByHeight(ctx context.Context, u uint64) (*header.DummyHeader, error) {
+func (e *exchangeCountingHead) GetByHeight(ctx context.Context, u uint64) (*test.DummyHeader, error) {
 	panic("implement me")
 }
 
 func (e *exchangeCountingHead) GetRangeByHeight(
 	c context.Context,
 	from, amount uint64,
-) ([]*header.DummyHeader, error) {
+) ([]*test.DummyHeader, error) {
 	panic("implement me")
 }
 
-func (e *exchangeCountingHead) GetVerifiedRange(c context.Context, from *header.DummyHeader, amount uint64,
-) ([]*header.DummyHeader, error) {
+func (e *exchangeCountingHead) GetVerifiedRange(c context.Context, from *test.DummyHeader, amount uint64,
+) ([]*test.DummyHeader, error) {
 	panic("implement me")
 }

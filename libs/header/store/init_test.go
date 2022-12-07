@@ -10,23 +10,23 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/celestiaorg/celestia-node/libs/header"
 	"github.com/celestiaorg/celestia-node/libs/header/local"
+	"github.com/celestiaorg/celestia-node/libs/header/test"
 )
 
 func TestInitStore_NoReinit(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	t.Cleanup(cancel)
 
-	suite := header.NewTestSuite(t)
+	suite := test.NewTestSuite(t)
 	head := suite.Head()
 	exchange := local.NewExchange(NewTestStore(ctx, t, head))
 
 	ds := sync.MutexWrap(datastore.NewMapDatastore())
-	store, err := NewStore[*header.DummyHeader](ds)
+	store, err := NewStore[*test.DummyHeader](ds)
 	require.NoError(t, err)
 
-	err = Init[*header.DummyHeader](ctx, store, exchange, head.Hash())
+	err = Init[*test.DummyHeader](ctx, store, exchange, head.Hash())
 	assert.NoError(t, err)
 
 	err = store.Start(ctx)
@@ -38,7 +38,7 @@ func TestInitStore_NoReinit(t *testing.T) {
 	err = store.Stop(ctx)
 	require.NoError(t, err)
 
-	reopenedStore, err := NewStore[*header.DummyHeader](ds)
+	reopenedStore, err := NewStore[*test.DummyHeader](ds)
 	assert.NoError(t, err)
 
 	err = reopenedStore.Start(ctx)
