@@ -15,9 +15,9 @@ import (
 	"github.com/ipfs/go-datastore"
 	bstore "github.com/ipfs/go-ipfs-blockstore"
 
-	"github.com/celestiaorg/celestia-node/share"
-
 	"github.com/celestiaorg/rsmt2d"
+
+	"github.com/celestiaorg/celestia-node/share"
 )
 
 const (
@@ -88,13 +88,13 @@ func NewStore(basepath string, ds datastore.Batching) (*Store, error) {
 	}
 
 	store := &Store{
-		basepath: basepath,
-		dgstr:    dagStore,
-		topIdx:   invertedRepo,
-		carIdx:   fsRepo,
+		basepath:   basepath,
+		dgstr:      dagStore,
+		topIdx:     invertedRepo,
+		carIdx:     fsRepo,
 		gcInterval: defaultGCInterval,
-		mounts:   r,
-		cache:    cache,
+		mounts:     r,
+		cache:      cache,
 	}
 	store.bs = newBlockstore(store, cache)
 	return store, nil
@@ -141,8 +141,8 @@ func (s *Store) gc(ctx context.Context) {
 //
 // The square is verified on the Exchange level, and Put only stores the square, trusting it.
 // The resulting file stores all the shares and NMT Merkle Proofs of the EDS.
-// Additionally, the file gets indexed s.t. store.blockstore can access them.
-func (s *Store) Put(ctx context.Context, root share.Root, square *rsmt2d.ExtendedDataSquare) error {
+// Additionally, the file gets indexed s.t. store.Blockstore can access them.
+func (s *Store) Put(ctx context.Context, root share.DataHash, square *rsmt2d.ExtendedDataSquare) error {
 	key := root.String()
 	f, err := os.OpenFile(s.basepath+blocksPath+key, os.O_CREATE|os.O_WRONLY, 0600)
 	if err != nil {
@@ -180,7 +180,7 @@ func (s *Store) Put(ctx context.Context, root share.Root, square *rsmt2d.Extende
 // NMT Merkle proofs. Integrity of the store data is not verified.
 //
 // Caller must Close returned reader after reading.
-func (s *Store) GetCAR(ctx context.Context, root share.Root) (io.ReadCloser, error) {
+func (s *Store) GetCAR(ctx context.Context, root share.DataHash) (io.ReadCloser, error) {
 	key := root.String()
 	accessor, err := s.getAccessor(ctx, shard.KeyFromString(key))
 	if err != nil {
@@ -237,8 +237,9 @@ func (s *Store) getAccessor(ctx context.Context, key shard.Key) (*accessorWithBl
 	}
 }
 
-// Remove removes EDS from Store by the given share.Root and cleans up all the indexing.
-func (s *Store) Remove(ctx context.Context, root share.Root) error {
+// Remove removes EDS from Store by the given share.Root hash and cleans up all
+// the indexing.
+func (s *Store) Remove(ctx context.Context, root share.DataHash) error {
 	key := root.String()
 
 	ch := make(chan dagstore.ShardResult, 1)
@@ -275,7 +276,7 @@ func (s *Store) Remove(ctx context.Context, root share.Root) error {
 //
 // It reads only one quadrant(1/4) of the EDS and verifies the integrity of the stored data by
 // recomputing it.
-func (s *Store) Get(ctx context.Context, root share.Root) (*rsmt2d.ExtendedDataSquare, error) {
+func (s *Store) Get(ctx context.Context, root share.DataHash) (*rsmt2d.ExtendedDataSquare, error) {
 	f, err := s.GetCAR(ctx, root)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get CAR file: %w", err)
@@ -287,8 +288,8 @@ func (s *Store) Get(ctx context.Context, root share.Root) (*rsmt2d.ExtendedDataS
 	return eds, nil
 }
 
-// Has checks if EDS exists by the given share.Root.
-func (s *Store) Has(ctx context.Context, root share.Root) (bool, error) {
+// Has checks if EDS exists by the given share.Root hash.
+func (s *Store) Has(ctx context.Context, root share.DataHash) (bool, error) {
 	key := root.String()
 	info, err := s.dgstr.GetShardInfo(shard.KeyFromString(key))
 	if err == dagstore.ErrShardUnknown {

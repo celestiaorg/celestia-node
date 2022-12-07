@@ -23,10 +23,10 @@ func TestBlockstore_Operations(t *testing.T) {
 	require.NoError(t, err)
 
 	eds, dah := randomEDS(t)
-	err = edsStore.Put(ctx, dah, eds)
+	err = edsStore.Put(ctx, dah.Hash(), eds)
 	require.NoError(t, err)
 
-	r, err := edsStore.GetCAR(ctx, dah)
+	r, err := edsStore.GetCAR(ctx, dah.Hash())
 	require.NoError(t, err)
 	carReader, err := car.NewCarReader(r)
 	require.NoError(t, err)
