@@ -143,11 +143,6 @@ func (s *Store) gc(ctx context.Context) {
 // The resulting file stores all the shares and NMT Merkle Proofs of the EDS.
 // Additionally, the file gets indexed s.t. store.Blockstore can access them.
 func (s *Store) Put(ctx context.Context, root share.DataHash, square *rsmt2d.ExtendedDataSquare) error {
-	// sanity check the root
-	if err := root.Validate(); err != nil {
-		return err
-	}
-
 	key := root.String()
 	f, err := os.OpenFile(s.basepath+blocksPath+key, os.O_CREATE|os.O_WRONLY, 0600)
 	if err != nil {
@@ -282,11 +277,6 @@ func (s *Store) Remove(ctx context.Context, root share.DataHash) error {
 // It reads only one quadrant(1/4) of the EDS and verifies the integrity of the stored data by
 // recomputing it.
 func (s *Store) Get(ctx context.Context, root share.DataHash) (*rsmt2d.ExtendedDataSquare, error) {
-	// sanity check the root
-	if err := root.Validate(); err != nil {
-		return nil, err
-	}
-
 	f, err := s.GetCAR(ctx, root)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get CAR file: %w", err)
