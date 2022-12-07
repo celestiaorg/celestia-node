@@ -145,7 +145,8 @@ func (d *DummyHeader) UnmarshalBinary(data []byte) error {
 	return nil
 }
 
-func randBytes(n int) []byte {
+// RandBytes returns slice of n-bytes, or nil in case of error
+func RandBytes(n int) []byte {
 	buf := make([]byte, n)
 
 	c, err := rand.Read(buf)
@@ -179,7 +180,7 @@ func RandDummyHeader(t *testing.T) *DummyHeader {
 func randDummyHeader() (*DummyHeader, error) {
 	dh := &DummyHeader{
 		Raw{
-			PreviousHash: randBytes(32),
+			PreviousHash: RandBytes(32),
 			Height:       randInt63(),
 			Time:         time.Now().UTC(),
 		},

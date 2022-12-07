@@ -10,8 +10,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	tmrand "github.com/tendermint/tendermint/libs/rand"
-
 	"github.com/celestiaorg/celestia-node/libs/header/test"
 )
 
@@ -51,7 +49,7 @@ func TestStore(t *testing.T) {
 	require.NoError(t, err)
 	assert.True(t, ok)
 
-	ok, err = store.Has(ctx, tmrand.Bytes(32))
+	ok, err = store.Has(ctx, test.RandBytes(32))
 	require.NoError(t, err)
 	assert.False(t, ok)
 
