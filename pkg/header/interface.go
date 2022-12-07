@@ -4,58 +4,43 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	headerpkg "github.com/celestiaorg/celestia-node/pkg/header"
 
-	"github.com/ipfs/go-blockservice"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
-	core "github.com/tendermint/tendermint/types"
 )
 
-// ConstructFn aliases a function that creates an ExtendedHeader.
-type ConstructFn = func(
-	context.Context,
-	*core.Block,
-	*core.Commit,
-	*core.ValidatorSet,
-	blockservice.BlockService,
-) (*ExtendedHeader, error)
-
-// Validator aliases a func that validates ExtendedHeader.
-type Validator = func(context.Context, *ExtendedHeader) pubsub.ValidationResult
-
 // Subscriber encompasses the behavior necessary to
-// subscribe/unsubscribe from new ExtendedHeader events from the
+// subscribe/unsubscribe from new Header events from the
 // network.
-type Subscriber interface {
-	// Subscribe creates long-living Subscription for validated ExtendedHeaders.
+type Subscriber[H Header] interface {
+	// Subscribe creates long-living Subscription for validated Headers.
 	// Multiple Subscriptions can be created.
-	Subscribe() (Subscription, error)
+	Subscribe() (Subscription[H], error)
 	// AddValidator registers a Validator for all Subscriptions.
-	// Registered Validators screen ExtendedHeaders for their validity
+	// Registered Validators screen Headers for their validity
 	// before they are sent through Subscriptions.
 	// Multiple validators can be registered.
-	AddValidator(Validator) error
+	AddValidator(func(context.Context, H) pubsub.ValidationResult) error
 }
 
-// Subscription can retrieve the next ExtendedHeader from the
+// Subscription can retrieve the next Header from the
 // network.
-type Subscription interface {
-	// NextHeader returns the newest verified and valid ExtendedHeader
+type Subscription[H Header] interface {
+	// NextHeader returns the newest verified and valid Header
 	// in the network.
-	NextHeader(ctx context.Context) (*ExtendedHeader, error)
+	NextHeader(ctx context.Context) (H, error)
 	// Cancel cancels the subscription.
 	Cancel()
 }
 
-// Broadcaster broadcasts an ExtendedHeader to the network.
-type Broadcaster interface {
-	Broadcast(ctx context.Context, header *ExtendedHeader, opts ...pubsub.PubOpt) error
+// Broadcaster broadcasts a Header to the network.
+type Broadcaster[H Header] interface {
+	Broadcast(ctx context.Context, header H, opts ...pubsub.PubOpt) error
 }
 
-// Exchange encompasses the behavior necessary to request ExtendedHeaders
+// Exchange encompasses the behavior necessary to request Headers
 // from the network.
-type Exchange interface {
-	Getter
+type Exchange[H Header] interface {
+	Getter[H]
 }
 
 var (
@@ -80,9 +65,9 @@ func (ena *ErrNonAdjacent) Error() string {
 	return fmt.Sprintf("header/store: non-adjacent: head %d, attempted %d", ena.Head, ena.Attempted)
 }
 
-// Store encompasses the behavior necessary to store and retrieve ExtendedHeaders
+// Store encompasses the behavior necessary to store and retrieve Headers
 // from a node's local storage.
-type Store interface {
+type Store[H Header] interface {
 	// Start starts the store.
 	Start(context.Context) error
 
@@ -91,48 +76,48 @@ type Store interface {
 	Stop(context.Context) error
 
 	// Getter encompasses all getter methods for headers.
-	Getter
+	Getter[H]
 
 	// Init initializes Store with the given head, meaning it is initialized with the genesis header.
-	Init(context.Context, *ExtendedHeader) error
+	Init(context.Context, H) error
 
 	// Height reports current height of the chain head.
 	Height() uint64
 
-	// Has checks whether ExtendedHeader is already stored.
-	Has(context.Context, headerpkg.Hash) (bool, error)
+	// Has checks whether Header is already stored.
+	Has(context.Context, Hash) (bool, error)
 
-	// Append stores and verifies the given ExtendedHeader(s).
+	// Append stores and verifies the given Header(s).
 	// It requires them to be adjacent and in ascending order,
 	// as it applies them contiguously on top of the current head height.
 	// It returns the amount of successfully applied headers,
 	// so caller can understand what given header was invalid, if any.
-	Append(context.Context, ...*ExtendedHeader) (int, error)
+	Append(context.Context, ...H) (int, error)
 }
 
 // Getter contains the behavior necessary for a component to retrieve
 // headers that have been processed during header sync.
-type Getter interface {
-	Head
+type Getter[H Header] interface {
+	Head[H]
 
-	// Get returns the ExtendedHeader corresponding to the given hash.
-	Get(context.Context, headerpkg.Hash) (*ExtendedHeader, error)
+	// Get returns the Header corresponding to the given hash.
+	Get(context.Context, Hash) (H, error)
 
-	// GetByHeight returns the ExtendedHeader corresponding to the given block height.
-	GetByHeight(context.Context, uint64) (*ExtendedHeader, error)
+	// GetByHeight returns the Header corresponding to the given block height.
+	GetByHeight(context.Context, uint64) (H, error)
 
-	// GetRangeByHeight returns the given range of ExtendedHeaders.
-	GetRangeByHeight(ctx context.Context, from, amount uint64) ([]*ExtendedHeader, error)
+	// GetRangeByHeight returns the given range of Headers.
+	GetRangeByHeight(ctx context.Context, from, amount uint64) ([]H, error)
 
-	// GetVerifiedRange requests the header range from the provided ExtendedHeader and
+	// GetVerifiedRange requests the header range from the provided Header and
 	// verifies that the returned headers are adjacent to each other.
-	GetVerifiedRange(ctx context.Context, from *ExtendedHeader, amount uint64) ([]*ExtendedHeader, error)
+	GetVerifiedRange(ctx context.Context, from H, amount uint64) ([]H, error)
 }
 
 // Head contains the behavior necessary for a component to retrieve
 // the chain head. Note that "chain head" is subjective to the component
 // reporting it.
-type Head interface {
+type Head[H Header] interface {
 	// Head returns the latest known header.
-	Head(context.Context) (*ExtendedHeader, error)
+	Head(context.Context) (H, error)
 }

@@ -51,7 +51,7 @@ func (eh *ExtendedHeader) VerifyAdjacent(untrusted headerpkg.Header) error {
 		return &VerifyError{errors.New("invalid header type: expected *ExtendedHeader")}
 	}
 	if untrst.Height() != eh.Height()+1 {
-		return &ErrNonAdjacent{
+		return &headerpkg.ErrNonAdjacent{
 			Head:      eh.Height(),
 			Attempted: untrst.Height(),
 		}

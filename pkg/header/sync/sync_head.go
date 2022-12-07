@@ -6,31 +6,31 @@ import (
 
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 
-	"github.com/celestiaorg/celestia-node/header"
+	"github.com/celestiaorg/celestia-node/pkg/header"
 )
 
 // Head returns the Syncer's latest known header. It calls 'networkHead' in order to
 // either return or eagerly fetch the most recent header.
-func (s *Syncer) Head(ctx context.Context) (*header.ExtendedHeader, error) {
+func (s *Syncer[H]) Head(ctx context.Context) (H, error) {
 	return s.networkHead(ctx)
 }
 
 // subjectiveHead returns the latest known local header that is not expired(within trusting period).
 // If the header is expired, it is retrieved from a trusted peer without validation;
 // in other words, an automatic subjective initialization is performed.
-func (s *Syncer) subjectiveHead(ctx context.Context) (*header.ExtendedHeader, error) {
+func (s *Syncer[H]) subjectiveHead(ctx context.Context) (H, error) {
 	// pending head is the latest known subjective head Syncer syncs to, so try to get it
 	// NOTES:
 	// * Empty when no sync is in progress
 	// * Pending cannot be expired, guaranteed
 	pendHead := s.pending.Head()
-	if pendHead != nil {
+	if header.Header(pendHead) != header.Header(*new(H)) {
 		return pendHead, nil
 	}
 	// if empty, get subjective head out of the store
 	netHead, err := s.store.Head(ctx)
 	if err != nil {
-		return nil, err
+		return *new(H), err
 	}
 	// check if our subjective header is not expired and use it
 	if !netHead.IsExpired(s.Params.TrustingPeriod) {
@@ -40,7 +40,7 @@ func (s *Syncer) subjectiveHead(ctx context.Context) (*header.ExtendedHeader, er
 	// otherwise, request network head from a trusted peer
 	netHead, err = s.exchange.Head(ctx)
 	if err != nil {
-		return nil, err
+		return *new(H), err
 	}
 	// and set as the new subjective head without validation,
 	// or, in other words, do 'automatic subjective initialization'
@@ -62,10 +62,10 @@ func (s *Syncer) subjectiveHead(ctx context.Context) (*header.ExtendedHeader, er
 // Known subjective head is considered network head if it is recent
 // enough(now-timestamp<=blocktime). Otherwise, network header is requested from a trusted peer and
 // set as the new subjective head, assuming that trusted peer is always synced.
-func (s *Syncer) networkHead(ctx context.Context) (*header.ExtendedHeader, error) {
+func (s *Syncer[H]) networkHead(ctx context.Context) (H, error) {
 	sbjHead, err := s.subjectiveHead(ctx)
 	if err != nil {
-		return nil, err
+		return *new(H), err
 	}
 	// if subjective header is recent enough (relative to the network's block time) - just use it
 	if sbjHead.IsRecent(s.Params.blockTime) {
@@ -88,7 +88,7 @@ func (s *Syncer) networkHead(ctx context.Context) (*header.ExtendedHeader, error
 	//  * This way we don't request as we know the new network header arrives exactly
 	netHead, err := s.exchange.Head(ctx)
 	if err != nil {
-		return nil, err
+		return *new(H), err
 	}
 	// process netHead returned from the trusted peer and validate against the subjective head
 	// NOTE: We could trust the netHead like we do during 'automatic subjective initialization'
@@ -101,7 +101,7 @@ func (s *Syncer) networkHead(ctx context.Context) (*header.ExtendedHeader, error
 }
 
 // incomingNetHead processes new gossiped network headers.
-func (s *Syncer) incomingNetHead(ctx context.Context, netHead *header.ExtendedHeader) pubsub.ValidationResult {
+func (s *Syncer[H]) incomingNetHead(ctx context.Context, netHead H) pubsub.ValidationResult {
 	// Try to short-circuit netHead with append. If not adjacent/from future - try it as new network
 	// header
 	_, err := s.store.Append(ctx, netHead)
@@ -131,7 +131,7 @@ func (s *Syncer) incomingNetHead(ctx context.Context, netHead *header.ExtendedHe
 
 // newNetHead sets the network header as the new subjective head with preceding validation(per
 // request).
-func (s *Syncer) newNetHead(ctx context.Context, netHead *header.ExtendedHeader, trust bool) pubsub.ValidationResult {
+func (s *Syncer[H]) newNetHead(ctx context.Context, netHead H, trust bool) pubsub.ValidationResult {
 	// validate netHead against subjective head
 	if !trust {
 		if res := s.validate(ctx, netHead); res != pubsub.ValidationAccept {
@@ -147,7 +147,7 @@ func (s *Syncer) newNetHead(ctx context.Context, netHead *header.ExtendedHeader,
 }
 
 // validate checks validity of the given header against the subjective head.
-func (s *Syncer) validate(ctx context.Context, new *header.ExtendedHeader) pubsub.ValidationResult {
+func (s *Syncer[H]) validate(ctx context.Context, new H) pubsub.ValidationResult {
 	sbjHead, err := s.subjectiveHead(ctx)
 	if err != nil {
 		log.Errorw("getting subjective head during validation", "err", err)

@@ -14,7 +14,7 @@ func TestHeightSub(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 
-	hs := newHeightSub()
+	hs := newHeightSub[*header.ExtendedHeader]()
 
 	// assert subscription returns nil for past heights
 	{

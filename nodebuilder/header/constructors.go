@@ -22,8 +22,8 @@ func newP2PServer(
 	store header.Store,
 	network modp2p.Network,
 	opts []p2p.Option[p2p.ServerParameters],
-) (*p2p.ExchangeServer, error) {
-	return p2p.NewExchangeServer(host, store, string(network), opts...)
+) (*header.ExchangeServer, error) {
+	return p2p.NewExchangeServer[*header.ExtendedHeader](host, store, string(network), opts...)
 }
 
 // newP2PExchange constructs a new Exchange for headers.
@@ -52,7 +52,7 @@ func newP2PExchange(cfg Config) func(
 			ids[index] = peer.ID
 			host.Peerstore().AddAddrs(peer.ID, peer.Addrs, peerstore.PermanentAddrTTL)
 		}
-		exchange, err := p2p.NewExchange(host, ids, string(network), conngater, opts...)
+		exchange, err := p2p.NewExchange[*header.ExtendedHeader](host, ids, string(network), conngater, opts...)
 		if err != nil {
 			return nil, err
 		}
@@ -69,8 +69,8 @@ func newP2PExchange(cfg Config) func(
 }
 
 // newSyncer constructs new Syncer for headers.
-func newSyncer(ex header.Exchange, store InitStore, sub header.Subscriber, opts []sync.Options) (*sync.Syncer, error) {
-	return sync.NewSyncer(ex, store, sub, opts...)
+func newSyncer(ex header.Exchange, store InitStore, sub header.Subscriber, opts []sync.Options) (*sync.Syncer[*header.ExtendedHeader], error) {
+	return sync.NewSyncer[*header.ExtendedHeader](ex, store, sub, opts...)
 }
 
 // InitStore is a type representing initialized header store.

@@ -4,15 +4,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	headerpkg "github.com/celestiaorg/celestia-node/pkg/header"
 	"sync/atomic"
 
-	logging "github.com/ipfs/go-log/v2"
-
-	"github.com/celestiaorg/celestia-node/header"
 	lru "github.com/hashicorp/golang-lru"
 	"github.com/ipfs/go-datastore"
 	"github.com/ipfs/go-datastore/namespace"
+	logging "github.com/ipfs/go-log/v2"
+
+	"github.com/celestiaorg/celestia-node/pkg/header"
 )
 
 var log = logging.Logger("header/store")
@@ -23,7 +22,7 @@ var (
 )
 
 // Store implements the Store interface for ExtendedHeaders over Datastore.
-type Store struct {
+type Store[H header.Header] struct {
 	// header storing
 	//
 	// underlying KV store
@@ -34,21 +33,21 @@ type Store struct {
 	// header heights management
 	//
 	// maps heights to hashes
-	heightIndex *heightIndexer
+	heightIndex *heightIndexer[H]
 	// manages current store read head height (1) and
 	// allows callers to wait until header for a height is stored (2)
-	heightSub *heightSub
+	heightSub *heightSub[H]
 
 	// writing to datastore
 	//
 	// queue of headers to be written
-	writes chan []*header.ExtendedHeader
+	writes chan []H
 	// signals when writes are finished
 	writesDn chan struct{}
 	// writeHead maintains the current write head
-	writeHead atomic.Pointer[header.ExtendedHeader]
+	writeHead atomic.Pointer[H]
 	// pending keeps headers pending to be written in one batch
-	pending *batch
+	pending *batch[H]
 
 	Params Parameters
 }
@@ -56,18 +55,18 @@ type Store struct {
 // NewStore constructs a Store over datastore.
 // The datastore must have a head there otherwise Start will error.
 // For first initialization of Store use NewStoreWithHead.
-func NewStore(ds datastore.Batching, opts ...Option) (*Store, error) {
-	return newStore(ds, opts...)
+func NewStore[H header.Header](ds datastore.Batching, opts ...Option) (*Store[H], error) {
+	return newStore[H](ds, opts...)
 }
 
 // NewStoreWithHead initiates a new Store and forcefully sets a given trusted header as head.
-func NewStoreWithHead(
+func NewStoreWithHead[H header.Header](
 	ctx context.Context,
 	ds datastore.Batching,
-	head *header.ExtendedHeader,
+	head H,
 	opts ...Option,
-) (*Store, error) {
-	store, err := newStore(ds, opts...)
+) (*Store[H], error) {
+	store, err := newStore[H](ds, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -75,7 +74,7 @@ func NewStoreWithHead(
 	return store, store.Init(ctx, head)
 }
 
-func newStore(ds datastore.Batching, opts ...Option) (*Store, error) {
+func newStore[H header.Header](ds datastore.Batching, opts ...Option) (*Store[H], error) {
 	params := DefaultParameters()
 	for _, opt := range opts {
 		opt(&params)
@@ -91,24 +90,24 @@ func newStore(ds datastore.Batching, opts ...Option) (*Store, error) {
 	}
 
 	wrappedStore := namespace.Wrap(ds, storePrefix)
-	index, err := newHeightIndexer(wrappedStore, params.IndexCacheSize)
+	index, err := newHeightIndexer[H](wrappedStore, params.IndexCacheSize)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create height indexer: %w", err)
 	}
 
-	return &Store{
+	return &Store[H]{
 		Params:      params,
 		ds:          wrappedStore,
-		heightSub:   newHeightSub(),
-		writes:      make(chan []*header.ExtendedHeader, 16),
+		heightSub:   newHeightSub[H](),
+		writes:      make(chan []H, 16),
 		writesDn:    make(chan struct{}),
 		cache:       cache,
 		heightIndex: index,
-		pending:     newBatch(params.WriteBatchSize),
+		pending:     newBatch[H](params.WriteBatchSize),
 	}, nil
 }
 
-func (s *Store) Init(ctx context.Context, initial *header.ExtendedHeader) error {
+func (s *Store[H]) Init(ctx context.Context, initial H) error {
 	// trust the given header as the initial head
 	err := s.flush(ctx, initial)
 	if err != nil {
@@ -119,12 +118,12 @@ func (s *Store) Init(ctx context.Context, initial *header.ExtendedHeader) error 
 	return nil
 }
 
-func (s *Store) Start(context.Context) error {
+func (s *Store[H]) Start(context.Context) error {
 	go s.flushLoop()
 	return nil
 }
 
-func (s *Store) Stop(ctx context.Context) error {
+func (s *Store[H]) Stop(ctx context.Context) error {
 	select {
 	case <-s.writesDn:
 		return errStoppedStore
@@ -144,11 +143,11 @@ func (s *Store) Stop(ctx context.Context) error {
 	return nil
 }
 
-func (s *Store) Height() uint64 {
+func (s *Store[H]) Height() uint64 {
 	return s.heightSub.Height()
 }
 
-func (s *Store) Head(ctx context.Context) (*header.ExtendedHeader, error) {
+func (s *Store[H]) Head(ctx context.Context) (H, error) {
 	head, err := s.GetByHeight(ctx, s.heightSub.Height())
 	if err == nil {
 		return head, nil
@@ -157,9 +156,9 @@ func (s *Store) Head(ctx context.Context) (*header.ExtendedHeader, error) {
 	head, err = s.readHead(ctx)
 	switch err {
 	default:
-		return nil, err
+		return *new(H), err
 	case datastore.ErrNotFound, header.ErrNotFound:
-		return nil, header.ErrNoHead
+		return *new(H), header.ErrNoHead
 	case nil:
 		s.heightSub.SetHeight(uint64(head.Height()))
 		log.Infow("loaded head", "height", head.Height(), "hash", head.Hash())
@@ -167,36 +166,38 @@ func (s *Store) Head(ctx context.Context) (*header.ExtendedHeader, error) {
 	}
 }
 
-func (s *Store) Get(ctx context.Context, hash headerpkg.Hash) (*header.ExtendedHeader, error) {
+func (s *Store[H]) Get(ctx context.Context, hash header.Hash) (H, error) {
 	if v, ok := s.cache.Get(hash.String()); ok {
-		return v.(*header.ExtendedHeader), nil
+		return v.(H), nil
 	}
 	// check if the requested header is not yet written on disk
-	if h := s.pending.Get(hash); h != nil {
+	if h := s.pending.Get(hash); header.Header(h) != header.Header(*new(H)) {
 		return h, nil
 	}
 
 	b, err := s.ds.Get(ctx, datastore.NewKey(hash.String()))
 	if err != nil {
 		if err == datastore.ErrNotFound {
-			return nil, header.ErrNotFound
+			return *new(H), header.ErrNotFound
 		}
 
-		return nil, err
+		return *new(H), err
 	}
 
-	h, err := header.UnmarshalExtendedHeader(b)
+	var empty H
+	h := empty.New()
+	err = h.UnmarshalBinary(b)
 	if err != nil {
-		return nil, err
+		return *new(H), err
 	}
 
 	s.cache.Add(h.Hash().String(), h)
-	return h, nil
+	return h.(H), nil
 }
 
-func (s *Store) GetByHeight(ctx context.Context, height uint64) (*header.ExtendedHeader, error) {
+func (s *Store[H]) GetByHeight(ctx context.Context, height uint64) (H, error) {
 	if height == 0 {
-		return nil, fmt.Errorf("header/store: height must be bigger than zero")
+		return *new(H), fmt.Errorf("header/store: height must be bigger than zero")
 	}
 	// if the requested 'height' was not yet published
 	// we subscribe to it
@@ -208,30 +209,30 @@ func (s *Store) GetByHeight(ctx context.Context, height uint64) (*header.Extende
 	// which means the requested 'height' should be present
 	//
 	// check if the requested header is not yet written on disk
-	if h := s.pending.GetByHeight(height); h != nil {
+	if h := s.pending.GetByHeight(height); header.Header(h) != header.Header(*new(H)) {
 		return h, nil
 	}
 
 	hash, err := s.heightIndex.HashByHeight(ctx, height)
 	if err != nil {
 		if err == datastore.ErrNotFound {
-			return nil, header.ErrNotFound
+			return *new(H), header.ErrNotFound
 		}
 
-		return nil, err
+		return *new(H), err
 	}
 
 	return s.Get(ctx, hash)
 }
 
-func (s *Store) GetRangeByHeight(ctx context.Context, from, to uint64) ([]*header.ExtendedHeader, error) {
+func (s *Store[H]) GetRangeByHeight(ctx context.Context, from, to uint64) ([]H, error) {
 	h, err := s.GetByHeight(ctx, to-1)
 	if err != nil {
 		return nil, err
 	}
 
 	ln := to - from
-	headers := make([]*header.ExtendedHeader, ln)
+	headers := make([]H, ln)
 	for i := ln - 1; i > 0; i-- {
 		headers[i] = h
 		h, err = s.Get(ctx, h.LastHeader())
@@ -244,11 +245,11 @@ func (s *Store) GetRangeByHeight(ctx context.Context, from, to uint64) ([]*heade
 	return headers, nil
 }
 
-func (s *Store) GetVerifiedRange(
+func (s *Store[H]) GetVerifiedRange(
 	ctx context.Context,
-	from *header.ExtendedHeader,
+	from H,
 	to uint64,
-) ([]*header.ExtendedHeader, error) {
+) ([]H, error) {
 	if uint64(from.Height()) >= to {
 		return nil, fmt.Errorf("header/store: invalid range(%d,%d)", from.Height(), to)
 	}
@@ -267,7 +268,7 @@ func (s *Store) GetVerifiedRange(
 	return headers, nil
 }
 
-func (s *Store) Has(ctx context.Context, hash headerpkg.Hash) (bool, error) {
+func (s *Store[H]) Has(ctx context.Context, hash header.Hash) (bool, error) {
 	if ok := s.cache.Contains(hash.String()); ok {
 		return ok, nil
 	}
@@ -279,7 +280,7 @@ func (s *Store) Has(ctx context.Context, hash headerpkg.Hash) (bool, error) {
 	return s.ds.Has(ctx, datastore.NewKey(hash.String()))
 }
 
-func (s *Store) Append(ctx context.Context, headers ...*header.ExtendedHeader) (int, error) {
+func (s *Store[H]) Append(ctx context.Context, headers ...H) (int, error) {
 	lh := len(headers)
 	if lh == 0 {
 		return 0, nil
@@ -287,16 +288,19 @@ func (s *Store) Append(ctx context.Context, headers ...*header.ExtendedHeader) (
 
 	var err error
 	// take current write head to verify headers against
-	head := s.writeHead.Load()
-	if head == nil {
+	var head H
+	headPtr := s.writeHead.Load()
+	if headPtr == nil {
 		head, err = s.Head(ctx)
 		if err != nil {
 			return 0, err
 		}
+	} else {
+		head = *headPtr
 	}
 
 	// collect valid headers
-	verified := make([]*header.ExtendedHeader, 0, lh)
+	verified := make([]H, 0, lh)
 	for i, h := range headers {
 		err = head.VerifyAdjacent(h)
 		if err != nil {
@@ -324,8 +328,8 @@ func (s *Store) Append(ctx context.Context, headers ...*header.ExtendedHeader) (
 	select {
 	case s.writes <- verified:
 		ln := len(verified)
-		s.writeHead.Store(verified[ln-1])
-		wh := s.writeHead.Load()
+		s.writeHead.Store(&verified[ln-1])
+		wh := *s.writeHead.Load()
 		log.Infow("new head", "height", wh.Height(), "hash", wh.Hash())
 		// we return an error here after writing,
 		// as there might be an invalid header in between of a given range
@@ -341,7 +345,7 @@ func (s *Store) Append(ctx context.Context, headers ...*header.ExtendedHeader) (
 // This way writes are controlled and manageable from one place allowing
 // (1) Appends not to be blocked on long disk IO writes and underlying DB compactions
 // (2) Batching header writes
-func (s *Store) flushLoop() {
+func (s *Store[H]) flushLoop() {
 	defer close(s.writesDn)
 	ctx := context.Background()
 	for headers := range s.writes {
@@ -375,7 +379,7 @@ func (s *Store) flushLoop() {
 }
 
 // flush writes the given batch to datastore.
-func (s *Store) flush(ctx context.Context, headers ...*header.ExtendedHeader) error {
+func (s *Store[H]) flush(ctx context.Context, headers ...H) error {
 	ln := len(headers)
 	if ln == 0 {
 		return nil
@@ -421,16 +425,16 @@ func (s *Store) flush(ctx context.Context, headers ...*header.ExtendedHeader) er
 }
 
 // readHead loads the head from the datastore.
-func (s *Store) readHead(ctx context.Context) (*header.ExtendedHeader, error) {
+func (s *Store[H]) readHead(ctx context.Context) (H, error) {
 	b, err := s.ds.Get(ctx, headKey)
 	if err != nil {
-		return nil, err
+		return *new(H), err
 	}
 
-	var head headerpkg.Hash
+	var head header.Hash
 	err = head.UnmarshalJSON(b)
 	if err != nil {
-		return nil, err
+		return *new(H), err
 	}
 
 	return s.Get(ctx, head)

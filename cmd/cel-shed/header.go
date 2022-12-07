@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/pkg/header/store"
 	"strconv"
 	"strings"
@@ -54,7 +55,7 @@ Custom store path is not supported yet.`,
 			return err
 		}
 
-		hstore, err := store.NewStore(ds)
+		hstore, err := store.NewStore[*header.ExtendedHeader](ds)
 		if err != nil {
 			return err
 		}

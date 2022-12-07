@@ -7,36 +7,38 @@ import (
 
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 
-	"github.com/celestiaorg/celestia-node/header"
+	"github.com/celestiaorg/celestia-node/pkg/header"
 )
 
 // subscription handles retrieving ExtendedHeaders from the header pubsub topic.
-type subscription struct {
+type subscription[H header.Header] struct {
+	topic        *pubsub.Topic
 	subscription *pubsub.Subscription
 }
 
 // newSubscription creates a new ExtendedHeader event subscription
 // on the given host.
-func newSubscription(topic *pubsub.Topic) (*subscription, error) {
+func newSubscription[H header.Header](topic *pubsub.Topic) (*subscription[H], error) {
 	sub, err := topic.Subscribe()
 	if err != nil {
 		return nil, err
 	}
 
-	return &subscription{
+	return &subscription[H]{
+		topic:        topic,
 		subscription: sub,
 	}, nil
 }
 
 // NextHeader returns the next (latest) verified ExtendedHeader from the network.
-func (s *subscription) NextHeader(ctx context.Context) (*header.ExtendedHeader, error) {
+func (s *subscription[H]) NextHeader(ctx context.Context) (H, error) {
 	msg, err := s.subscription.Next(ctx)
 	if err != nil {
-		return nil, err
+		return *new(H), err
 	}
 	log.Debugw("received message", "topic", msg.Message.GetTopic(), "sender", msg.ReceivedFrom)
 
-	header, ok := msg.ValidatorData.(*header.ExtendedHeader)
+	header, ok := msg.ValidatorData.(H)
 	if !ok {
 		panic(fmt.Sprintf("invalid type received %s", reflect.TypeOf(msg.ValidatorData)))
 	}
@@ -46,6 +48,6 @@ func (s *subscription) NextHeader(ctx context.Context) (*header.ExtendedHeader, 
 }
 
 // Cancel cancels the subscription to new ExtendedHeaders from the network.
-func (s *subscription) Cancel() {
+func (s *subscription[H]) Cancel() {
 	s.subscription.Cancel()
 }

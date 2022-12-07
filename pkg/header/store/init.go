@@ -2,14 +2,13 @@ package store
 
 import (
 	"context"
-	headerpkg "github.com/celestiaorg/celestia-node/pkg/header"
 
-	"github.com/celestiaorg/celestia-node/header"
+	"github.com/celestiaorg/celestia-node/pkg/header"
 )
 
 // Init ensures a Store is initialized. If it is not already initialized,
 // it initializes the Store by requesting the header with the given hash.
-func Init(ctx context.Context, store header.Store, ex header.Exchange, hash headerpkg.Hash) error {
+func Init[H header.Header](ctx context.Context, store header.Store[H], ex header.Exchange[H], hash header.Hash) error {
 	_, err := store.Head(ctx)
 	switch err {
 	default:

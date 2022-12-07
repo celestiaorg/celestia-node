@@ -94,7 +94,7 @@ func createListener(
 	fetcher *core.BlockFetcher,
 	ps *pubsub.PubSub,
 ) *Listener {
-	p2pSub := p2p.NewSubscriber(ps)
+	p2pSub := p2p.NewSubscriber[*header.ExtendedHeader](ps, header.MsgID)
 	err := p2pSub.Start(ctx)
 	require.NoError(t, err)
 	t.Cleanup(func() {

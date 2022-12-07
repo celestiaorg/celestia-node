@@ -6,6 +6,7 @@ package header
 import (
 	"context"
 	headerpkg "github.com/celestiaorg/celestia-node/pkg/header"
+	pubsub "github.com/libp2p/go-libp2p-pubsub"
 
 	"github.com/celestiaorg/celestia-node/share"
 
@@ -27,6 +28,18 @@ import (
 
 	"github.com/celestiaorg/celestia-node/core"
 )
+
+// ConstructFn aliases a function that creates a Header.
+type ConstructFn = func(
+	context.Context,
+	*types.Block,
+	*types.Commit,
+	*types.ValidatorSet,
+	blockservice.BlockService,
+) (*ExtendedHeader, error)
+
+// Validator aliases a func that validates Header.
+type Validator = func(context.Context, *ExtendedHeader) pubsub.ValidationResult
 
 // TestSuite provides everything you need to test chain of Headers.
 // If not, please don't hesitate to extend it for your case.

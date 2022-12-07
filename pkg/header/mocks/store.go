@@ -53,7 +53,7 @@ func (m *MockStore) Get(ctx context.Context, hash headerpkg.Hash) (*header.Exten
 			return header, nil
 		}
 	}
-	return nil, header.ErrNotFound
+	return nil, headerpkg.ErrNotFound
 }
 
 func (m *MockStore) GetByHeight(ctx context.Context, height uint64) (*header.ExtendedHeader, error) {
@@ -66,7 +66,7 @@ func (m *MockStore) GetRangeByHeight(ctx context.Context, from, to uint64) ([]*h
 	// check that (to-1) height in request is less than
 	// the biggest header height in store.
 	if to-1 > m.Height() {
-		return nil, header.ErrNotFound
+		return nil, headerpkg.ErrNotFound
 	}
 	for i := range headers {
 		headers[i] = m.Headers[int64(from)]

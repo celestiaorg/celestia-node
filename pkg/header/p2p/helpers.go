@@ -12,7 +12,7 @@ import (
 
 	"github.com/celestiaorg/go-libp2p-messenger/serde"
 
-	"github.com/celestiaorg/celestia-node/header"
+	"github.com/celestiaorg/celestia-node/pkg/header"
 	p2p_pb "github.com/celestiaorg/celestia-node/pkg/header/p2p/pb"
 )
 

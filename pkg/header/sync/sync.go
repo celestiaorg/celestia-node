@@ -8,8 +8,7 @@ import (
 
 	logging "github.com/ipfs/go-log/v2"
 
-	"github.com/celestiaorg/celestia-node/header"
-	headerpkg "github.com/celestiaorg/celestia-node/pkg/header"
+	"github.com/celestiaorg/celestia-node/pkg/header"
 )
 
 var log = logging.Logger("header/sync")
@@ -32,10 +31,10 @@ var log = logging.Logger("header/sync")
 //     verifies against the latest known trusted header
 //     adds the header to pending cache(making it the latest known trusted header)
 //     and triggers syncing loop to catch up to that point.
-type Syncer struct {
-	sub      header.Subscriber
-	exchange header.Exchange
-	store    header.Store
+type Syncer[H header.Header] struct {
+	sub      header.Subscriber[H]
+	exchange header.Exchange[H]
+	store    header.Store[H]
 
 	// stateLk protects state which represents the current or latest sync
 	stateLk sync.RWMutex
@@ -43,7 +42,7 @@ type Syncer struct {
 	// signals to start syncing
 	triggerSync chan struct{}
 	// pending keeps ranges of valid new network headers awaiting to be appended to store
-	pending ranges
+	pending ranges[H]
 	// netReqLk ensures only one network head is requested at any moment
 	netReqLk sync.RWMutex
 
@@ -55,7 +54,7 @@ type Syncer struct {
 }
 
 // NewSyncer creates a new instance of Syncer.
-func NewSyncer(exchange header.Exchange, store header.Store, sub header.Subscriber, opts ...Options) (*Syncer, error) {
+func NewSyncer[H header.Header](exchange header.Exchange[H], store header.Store[H], sub header.Subscriber[H], opts ...Options) (*Syncer[H], error) {
 	params := DefaultParameters()
 	for _, opt := range opts {
 		opt(&params)
@@ -64,7 +63,7 @@ func NewSyncer(exchange header.Exchange, store header.Store, sub header.Subscrib
 		return nil, err
 	}
 
-	return &Syncer{
+	return &Syncer[H]{
 		sub:         sub,
 		exchange:    exchange,
 		store:       store,
@@ -74,7 +73,7 @@ func NewSyncer(exchange header.Exchange, store header.Store, sub header.Subscrib
 }
 
 // Start starts the syncing routine.
-func (s *Syncer) Start(ctx context.Context) error {
+func (s *Syncer[H]) Start(ctx context.Context) error {
 	s.ctx, s.cancel = context.WithCancel(context.Background())
 	// register validator for header subscriptions
 	// syncer does not subscribe itself and syncs headers together with validation
@@ -93,13 +92,13 @@ func (s *Syncer) Start(ctx context.Context) error {
 }
 
 // Stop stops Syncer.
-func (s *Syncer) Stop(context.Context) error {
+func (s *Syncer[H]) Stop(context.Context) error {
 	s.cancel()
 	return nil
 }
 
 // WaitSync blocks until ongoing sync is done.
-func (s *Syncer) WaitSync(ctx context.Context) error {
+func (s *Syncer[H]) WaitSync(ctx context.Context) error {
 	state := s.State()
 	if state.Finished() {
 		return nil
@@ -115,7 +114,7 @@ type State struct {
 	ID                   uint64 // incrementing ID of a sync
 	Height               uint64 // height at the moment when State is requested for a sync
 	FromHeight, ToHeight uint64 // the starting and the ending point of a sync
-	FromHash, ToHash     headerpkg.Hash
+	FromHash, ToHash     header.Hash
 	Start, End           time.Time
 	Error                error // the error that might happen within a sync
 }
@@ -134,7 +133,7 @@ func (s State) Duration() time.Duration {
 // Note that throughout the whole Syncer lifetime there might an initial sync and multiple
 // catch-ups. All of them are treated as different syncs with different state IDs and other
 // information.
-func (s *Syncer) State() State {
+func (s *Syncer[H]) State() State {
 	s.stateLk.RLock()
 	state := s.state
 	s.stateLk.RUnlock()
@@ -143,7 +142,7 @@ func (s *Syncer) State() State {
 }
 
 // wantSync will trigger the syncing loop (non-blocking).
-func (s *Syncer) wantSync() {
+func (s *Syncer[H]) wantSync() {
 	select {
 	case s.triggerSync <- struct{}{}:
 	default:
@@ -151,7 +150,7 @@ func (s *Syncer) wantSync() {
 }
 
 // syncLoop controls syncing process.
-func (s *Syncer) syncLoop() {
+func (s *Syncer[H]) syncLoop() {
 	for {
 		select {
 		case <-s.triggerSync:
@@ -163,9 +162,9 @@ func (s *Syncer) syncLoop() {
 }
 
 // sync ensures we are synced from the Store's head up to the new subjective head
-func (s *Syncer) sync(ctx context.Context) {
+func (s *Syncer[H]) sync(ctx context.Context) {
 	newHead := s.pending.Head()
-	if newHead == nil {
+	if header.Header(newHead) == header.Header(*new(H)) {
 		return
 	}
 
@@ -208,7 +207,7 @@ func (s *Syncer) sync(ctx context.Context) {
 }
 
 // doSync performs actual syncing updating the internal State
-func (s *Syncer) doSync(ctx context.Context, fromHead, toHead *header.ExtendedHeader) (err error) {
+func (s *Syncer[H]) doSync(ctx context.Context, fromHead, toHead H) (err error) {
 	from, to := uint64(fromHead.Height())+1, uint64(toHead.Height())
 
 	s.stateLk.Lock()
@@ -236,7 +235,7 @@ func (s *Syncer) doSync(ctx context.Context, fromHead, toHead *header.ExtendedHe
 
 // processHeaders gets and stores headers starting at the given 'from' height up to 'to' height -
 // [from:to]
-func (s *Syncer) processHeaders(ctx context.Context, from, to uint64) (int, error) {
+func (s *Syncer[H]) processHeaders(ctx context.Context, from, to uint64) (int, error) {
 	headers, err := s.findHeaders(ctx, from, to)
 	if err != nil {
 		return 0, err
@@ -247,13 +246,13 @@ func (s *Syncer) processHeaders(ctx context.Context, from, to uint64) (int, erro
 
 // findHeaders gets headers from either remote peers or from local cache of headers received by
 // PubSub - [from:to]
-func (s *Syncer) findHeaders(ctx context.Context, from, to uint64) ([]*header.ExtendedHeader, error) {
+func (s *Syncer[H]) findHeaders(ctx context.Context, from, to uint64) ([]H, error) {
 	amount := to - from + 1 // + 1 to include 'to' height as well
 	if amount > s.Params.MaxRequestSize {
 		to, amount = from+s.Params.MaxRequestSize, s.Params.MaxRequestSize
 	}
 
-	out := make([]*header.ExtendedHeader, 0, amount)
+	out := make([]H, 0, amount)
 	for from < to {
 		// if we have some range cached - use it
 		r, ok := s.pending.FirstRangeWithin(from, to)

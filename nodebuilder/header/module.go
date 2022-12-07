@@ -48,7 +48,7 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 		fx.Provide(NewHeaderService),
 		fx.Provide(fx.Annotate(
 			func(ds datastore.Batching, opts []store.Option) (header.Store, error) {
-				return store.NewStore(ds, opts...)
+				return store.NewStore[*header.ExtendedHeader](ds, opts...)
 			},
 			fx.OnStart(func(ctx context.Context, store header.Store) error {
 				return store.Start(ctx)
@@ -58,7 +58,7 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 			}),
 		)),
 		fx.Provide(newInitStore),
-		fx.Provide(func(subscriber *p2p.Subscriber) header.Subscriber {
+		fx.Provide(func(subscriber *p2p.Subscriber[*header.ExtendedHeader]) header.Subscriber {
 			return subscriber
 		}),
 		fx.Provide(func(cfg Config) []sync.Options {
@@ -70,29 +70,29 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 		}),
 		fx.Provide(fx.Annotate(
 			newSyncer,
-			fx.OnStart(func(startCtx, ctx context.Context, fservice fraud.Service, syncer *sync.Syncer) error {
+			fx.OnStart(func(startCtx, ctx context.Context, fservice fraud.Service, syncer *sync.Syncer[*header.ExtendedHeader]) error {
 				return modfraud.Lifecycle(startCtx, ctx, fraud.BadEncoding, fservice,
 					syncer.Start, syncer.Stop)
 			}),
-			fx.OnStop(func(ctx context.Context, syncer *sync.Syncer) error {
+			fx.OnStop(func(ctx context.Context, syncer *sync.Syncer[*header.ExtendedHeader]) error {
 				return syncer.Stop(ctx)
 			}),
 		)),
 		fx.Provide(fx.Annotate(
-			p2p.NewSubscriber,
-			fx.OnStart(func(ctx context.Context, sub *p2p.Subscriber) error {
+			p2p.NewSubscriber[*header.ExtendedHeader],
+			fx.OnStart(func(ctx context.Context, sub *p2p.Subscriber[*header.ExtendedHeader]) error {
 				return sub.Start(ctx)
 			}),
-			fx.OnStop(func(ctx context.Context, sub *p2p.Subscriber) error {
+			fx.OnStop(func(ctx context.Context, sub *p2p.Subscriber[*header.ExtendedHeader]) error {
 				return sub.Stop(ctx)
 			}),
 		)),
 		fx.Provide(fx.Annotate(
 			newP2PServer,
-			fx.OnStart(func(ctx context.Context, server *p2p.ExchangeServer) error {
+			fx.OnStart(func(ctx context.Context, server *p2p.ExchangeServer[*header.ExtendedHeader]) error {
 				return server.Start(ctx)
 			}),
-			fx.OnStop(func(ctx context.Context, server *p2p.ExchangeServer) error {
+			fx.OnStop(func(ctx context.Context, server *p2p.ExchangeServer[*header.ExtendedHeader]) error {
 				return server.Stop(ctx)
 			}),
 		)),
@@ -122,7 +122,7 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 		return fx.Module(
 			"header",
 			baseComponents,
-			fx.Provide(func(subscriber *p2p.Subscriber) header.Broadcaster {
+			fx.Provide(func(subscriber *p2p.Subscriber[*header.ExtendedHeader]) header.Broadcaster {
 				return subscriber
 			}),
 			fx.Supply(header.MakeExtendedHeader),

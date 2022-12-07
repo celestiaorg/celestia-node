@@ -2,51 +2,50 @@ package local
 
 import (
 	"context"
-	headerpkg "github.com/celestiaorg/celestia-node/pkg/header"
 
-	"github.com/celestiaorg/celestia-node/header"
+	"github.com/celestiaorg/celestia-node/pkg/header"
 )
 
 // NewExchange is a simple Exchange that reads Headers from Store without any networking.
-type Exchange struct {
-	store header.Store
+type Exchange[H header.Header] struct {
+	store header.Store[H]
 }
 
 // NewExchange creates a new local Exchange.
-func NewExchange(store header.Store) header.Exchange {
-	return &Exchange{
+func NewExchange[H header.Header](store header.Store[H]) header.Exchange[H] {
+	return &Exchange[H]{
 		store: store,
 	}
 }
 
-func (l *Exchange) Start(context.Context) error {
+func (l *Exchange[H]) Start(context.Context) error {
 	return nil
 }
 
-func (l *Exchange) Stop(context.Context) error {
+func (l *Exchange[H]) Stop(context.Context) error {
 	return nil
 }
 
-func (l *Exchange) Head(ctx context.Context) (*header.ExtendedHeader, error) {
+func (l *Exchange[H]) Head(ctx context.Context) (H, error) {
 	return l.store.Head(ctx)
 }
 
-func (l *Exchange) GetByHeight(ctx context.Context, height uint64) (*header.ExtendedHeader, error) {
+func (l *Exchange[H]) GetByHeight(ctx context.Context, height uint64) (H, error) {
 	return l.store.GetByHeight(ctx, height)
 }
 
-func (l *Exchange) GetRangeByHeight(ctx context.Context, origin, amount uint64) ([]*header.ExtendedHeader, error) {
+func (l *Exchange[H]) GetRangeByHeight(ctx context.Context, origin, amount uint64) ([]H, error) {
 	if amount == 0 {
 		return nil, nil
 	}
 	return l.store.GetRangeByHeight(ctx, origin, origin+amount)
 }
 
-func (l *Exchange) GetVerifiedRange(ctx context.Context, from *header.ExtendedHeader, amount uint64,
-) ([]*header.ExtendedHeader, error) {
+func (l *Exchange[H]) GetVerifiedRange(ctx context.Context, from H, amount uint64,
+) ([]H, error) {
 	return l.store.GetVerifiedRange(ctx, from, uint64(from.Height())+amount)
 }
 
-func (l *Exchange) Get(ctx context.Context, hash headerpkg.Hash) (*header.ExtendedHeader, error) {
+func (l *Exchange[H]) Get(ctx context.Context, hash header.Hash) (H, error) {
 	return l.store.Get(ctx, hash)
 }

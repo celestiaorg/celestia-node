@@ -6,44 +6,44 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"github.com/celestiaorg/celestia-node/header"
+	"github.com/celestiaorg/celestia-node/pkg/header"
 )
 
 // errElapsedHeight is thrown when a requested height was already provided to heightSub.
 var errElapsedHeight = errors.New("elapsed height")
 
 // heightSub provides a minimalistic mechanism to wait till header for a height becomes available.
-type heightSub struct {
+type heightSub[H header.Header] struct {
 	// height refers to the latest locally available header height
 	// that has been fully verified and inserted into the subjective chain
 	height       uint64 // atomic
 	heightReqsLk sync.Mutex
-	heightReqs   map[uint64][]chan *header.ExtendedHeader
+	heightReqs   map[uint64][]chan H
 }
 
 // newHeightSub instantiates new heightSub.
-func newHeightSub() *heightSub {
-	return &heightSub{
-		heightReqs: make(map[uint64][]chan *header.ExtendedHeader),
+func newHeightSub[H header.Header]() *heightSub[H] {
+	return &heightSub[H]{
+		heightReqs: make(map[uint64][]chan H),
 	}
 }
 
 // Height reports current height.
-func (hs *heightSub) Height() uint64 {
+func (hs *heightSub[H]) Height() uint64 {
 	return atomic.LoadUint64(&hs.height)
 }
 
 // SetHeight sets the new head height for heightSub.
-func (hs *heightSub) SetHeight(height uint64) {
+func (hs *heightSub[H]) SetHeight(height uint64) {
 	atomic.StoreUint64(&hs.height, height)
 }
 
 // Sub subscribes for a header of a given height.
 // It can return errElapsedHeight, which means a requested header was already provided
 // and caller should get it elsewhere.
-func (hs *heightSub) Sub(ctx context.Context, height uint64) (*header.ExtendedHeader, error) {
+func (hs *heightSub[H]) Sub(ctx context.Context, height uint64) (H, error) {
 	if hs.Height() >= height {
-		return nil, errElapsedHeight
+		return *new(H), errElapsedHeight
 	}
 
 	hs.heightReqsLk.Lock()
@@ -52,9 +52,9 @@ func (hs *heightSub) Sub(ctx context.Context, height uint64) (*header.ExtendedHe
 		// The lock above can park a goroutine long enough for hs.height to change for a requested height,
 		// leaving the request never fulfilled and the goroutine deadlocked.
 		hs.heightReqsLk.Unlock()
-		return nil, errElapsedHeight
+		return *new(H), errElapsedHeight
 	}
-	resp := make(chan *header.ExtendedHeader, 1)
+	resp := make(chan H, 1)
 	hs.heightReqs[height] = append(hs.heightReqs[height], resp)
 	hs.heightReqsLk.Unlock()
 
@@ -66,7 +66,7 @@ func (hs *heightSub) Sub(ctx context.Context, height uint64) (*header.ExtendedHe
 		hs.heightReqsLk.Lock()
 		delete(hs.heightReqs, height)
 		hs.heightReqsLk.Unlock()
-		return nil, ctx.Err()
+		return *new(H), ctx.Err()
 	}
 }
 
@@ -74,7 +74,7 @@ func (hs *heightSub) Sub(ctx context.Context, height uint64) (*header.ExtendedHe
 // Pub is only safe when called from one goroutine.
 // For Pub to work correctly, heightSub has to be initialized with SetHeight
 // so that given headers are contiguous to the height on heightSub.
-func (hs *heightSub) Pub(headers ...*header.ExtendedHeader) {
+func (hs *heightSub[H]) Pub(headers ...H) {
 	ln := len(headers)
 	if ln == 0 {
 		return

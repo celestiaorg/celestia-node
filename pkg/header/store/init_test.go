@@ -2,9 +2,10 @@ package store
 
 import (
 	"context"
-	"github.com/celestiaorg/celestia-node/pkg/header/local"
 	"testing"
 	"time"
+
+	"github.com/celestiaorg/celestia-node/pkg/header/local"
 
 	"github.com/ipfs/go-datastore"
 	"github.com/ipfs/go-datastore/sync"
@@ -23,10 +24,10 @@ func TestInitStore_NoReinit(t *testing.T) {
 	exchange := local.NewExchange(NewTestStore(ctx, t, head))
 
 	ds := sync.MutexWrap(datastore.NewMapDatastore())
-	store, err := NewStore(ds)
+	store, err := NewStore[*header.ExtendedHeader](ds)
 	require.NoError(t, err)
 
-	err = Init(ctx, store, exchange, head.Hash())
+	err = Init[*header.ExtendedHeader](ctx, store, exchange, head.Hash())
 	assert.NoError(t, err)
 
 	err = store.Start(ctx)
@@ -38,10 +39,10 @@ func TestInitStore_NoReinit(t *testing.T) {
 	err = store.Stop(ctx)
 	require.NoError(t, err)
 
-	reopenedStore, err := NewStore(ds)
+	reopenedStore, err := NewStore[*header.ExtendedHeader](ds)
 	require.NoError(t, err)
 
-	err = Init(ctx, reopenedStore, exchange, head.Hash())
+	err = Init[*header.ExtendedHeader](ctx, reopenedStore, exchange, head.Hash())
 	assert.NoError(t, err)
 
 	err = reopenedStore.Start(ctx)

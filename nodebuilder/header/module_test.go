@@ -29,7 +29,7 @@ func TestConstructModule_StoreParams(t *testing.T) {
 	cfg.Store.StoreCacheSize = 15
 	cfg.Store.IndexCacheSize = 25
 	cfg.Store.WriteBatchSize = 35
-	var headerStore *store.Store
+	var headerStore *store.Store[*header.ExtendedHeader]
 
 	app := fxtest.New(t,
 		fx.Provide(func() datastore.Batching {
@@ -38,7 +38,7 @@ func TestConstructModule_StoreParams(t *testing.T) {
 		ConstructModule(node.Light, &cfg),
 		fx.Invoke(
 			func(s header.Store) {
-				ss := s.(*store.Store)
+				ss := s.(*store.Store[*header.ExtendedHeader])
 				headerStore = ss
 			}),
 	)
@@ -54,7 +54,7 @@ func TestConstructModule_SyncerParams(t *testing.T) {
 	cfg := DefaultConfig(node.Light)
 	cfg.Syncer.TrustingPeriod = time.Hour
 	cfg.Syncer.MaxRequestSize = 1
-	var syncer *sync.Syncer
+	var syncer *sync.Syncer[*header.ExtendedHeader]
 	app := fxtest.New(t,
 		fx.Supply(modp2p.Private),
 		fx.Supply(modp2p.Bootstrappers{}),
@@ -73,7 +73,7 @@ func TestConstructModule_SyncerParams(t *testing.T) {
 			return nil
 		}),
 		ConstructModule(node.Light, &cfg),
-		fx.Invoke(func(s *sync.Syncer) {
+		fx.Invoke(func(s *sync.Syncer[*header.ExtendedHeader]) {
 			syncer = s
 		}),
 	)
@@ -89,8 +89,8 @@ func TestConstructModule_ExchangeParams(t *testing.T) {
 	cfg.Client.MinResponses = 10
 	cfg.Client.MaxRequestSize = 200
 	cfg.Client.MaxHeadersPerRequest = 15
-	var exchange *p2p.Exchange
-	var exchangeServer *p2p.ExchangeServer
+	var exchange *p2p.Exchange[*header.ExtendedHeader]
+	var exchangeServer *p2p.ExchangeServer[*header.ExtendedHeader]
 
 	app := fxtest.New(t,
 		fx.Supply(modp2p.Private),
@@ -104,8 +104,8 @@ func TestConstructModule_ExchangeParams(t *testing.T) {
 			return conngater.NewBasicConnectionGater(b)
 		}),
 		fx.Invoke(
-			func(e header.Exchange, server *p2p.ExchangeServer) {
-				ex := e.(*p2p.Exchange)
+			func(e header.Exchange, server *p2p.ExchangeServer[*header.ExtendedHeader]) {
+				ex := e.(*p2p.Exchange[*header.ExtendedHeader])
 				exchange = ex
 				exchangeServer = server
 			}),

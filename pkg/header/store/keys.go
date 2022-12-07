@@ -5,7 +5,7 @@ import (
 
 	"github.com/ipfs/go-datastore"
 
-	"github.com/celestiaorg/celestia-node/header"
+	"github.com/celestiaorg/celestia-node/pkg/header"
 )
 
 var (
@@ -17,6 +17,6 @@ func heightKey(h uint64) datastore.Key {
 	return datastore.NewKey(strconv.Itoa(int(h)))
 }
 
-func headerKey(h *header.ExtendedHeader) datastore.Key {
+func headerKey(h header.Header) datastore.Key {
 	return datastore.NewKey(h.Hash().String())
 }

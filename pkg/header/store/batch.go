@@ -1,10 +1,9 @@
 package store
 
 import (
-	headerpkg "github.com/celestiaorg/celestia-node/pkg/header"
 	"sync"
 
-	"github.com/celestiaorg/celestia-node/header"
+	"github.com/celestiaorg/celestia-node/pkg/header"
 )
 
 // batch keeps an adjacent range of headers and loosely mimics the Store
@@ -14,70 +13,70 @@ import (
 // unlike the Store which keeps 'hash -> header' and 'height -> hash'.
 // The approach simplifies implementation for the batch and
 // makes it better optimized for the GetByHeight case which is what we need.
-type batch struct {
+type batch[H header.Header] struct {
 	lk      sync.RWMutex
 	heights map[string]uint64
-	headers []*header.ExtendedHeader
+	headers []H
 }
 
 // newBatch creates the batch with the given pre-allocated size.
-func newBatch(size int) *batch {
-	return &batch{
+func newBatch[H header.Header](size int) *batch[H] {
+	return &batch[H]{
 		heights: make(map[string]uint64, size),
-		headers: make([]*header.ExtendedHeader, 0, size),
+		headers: make([]H, 0, size),
 	}
 }
 
 // Len gives current length of the batch.
-func (b *batch) Len() int {
+func (b *batch[H]) Len() int {
 	b.lk.RLock()
 	defer b.lk.RUnlock()
 	return len(b.headers)
 }
 
 // GetAll returns a slice of all the headers in the batch.
-func (b *batch) GetAll() []*header.ExtendedHeader {
+func (b *batch[H]) GetAll() []H {
 	b.lk.RLock()
 	defer b.lk.RUnlock()
 	return b.headers
 }
 
 // Get returns a header by its hash.
-func (b *batch) Get(hash headerpkg.Hash) *header.ExtendedHeader {
+func (b *batch[H]) Get(hash header.Hash) H {
 	b.lk.RLock()
 	defer b.lk.RUnlock()
 	height, ok := b.heights[hash.String()]
 	if !ok {
-		return nil
+		return *new(H)
 	}
 
 	return b.getByHeight(height)
 }
 
 // GetByHeight returns a header by its height.
-func (b *batch) GetByHeight(height uint64) *header.ExtendedHeader {
+func (b *batch[H]) GetByHeight(height uint64) H {
 	b.lk.RLock()
 	defer b.lk.RUnlock()
 	return b.getByHeight(height)
 }
 
-func (b *batch) getByHeight(height uint64) *header.ExtendedHeader {
+func (b *batch[H]) getByHeight(height uint64) H {
 	ln := uint64(len(b.headers))
 	if ln == 0 {
-		return nil
+		return *new(H)
 	}
 
 	head := uint64(b.headers[ln-1].Height())
 	base := head - ln
 	if height > head || height <= base {
-		return nil
+		return *new(H)
 	}
 
 	return b.headers[height-base-1]
 }
 
 // Append appends new headers to the batch.
-func (b *batch) Append(headers ...*header.ExtendedHeader) {
+func (b *batch[H]) Append(headers ...H) {
 	b.lk.Lock()
 	defer b.lk.Unlock()
 	for _, h := range headers {
@@ -87,7 +86,7 @@ func (b *batch) Append(headers ...*header.ExtendedHeader) {
 }
 
 // Has checks whether header by the hash is present in the batch.
-func (b *batch) Has(hash headerpkg.Hash) bool {
+func (b *batch[H]) Has(hash header.Hash) bool {
 	b.lk.RLock()
 	defer b.lk.RUnlock()
 	_, ok := b.heights[hash.String()]
@@ -95,7 +94,7 @@ func (b *batch) Has(hash headerpkg.Hash) bool {
 }
 
 // Reset cleans references to batched headers.
-func (b *batch) Reset() {
+func (b *batch[H]) Reset() {
 	b.lk.Lock()
 	defer b.lk.Unlock()
 	b.headers = b.headers[:0]

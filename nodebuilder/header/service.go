@@ -4,8 +4,6 @@ import (
 	"context"
 
 	"github.com/celestiaorg/celestia-node/header"
-	"github.com/celestiaorg/celestia-node/pkg/header/p2p"
-	"github.com/celestiaorg/celestia-node/pkg/header/sync"
 )
 
 // Service represents the header Service that can be started / stopped on a node.
@@ -14,17 +12,17 @@ import (
 type Service struct {
 	ex header.Exchange
 
-	syncer    *sync.Syncer
+	syncer    *header.Syncer
 	sub       header.Subscriber
-	p2pServer *p2p.ExchangeServer
+	p2pServer *header.ExchangeServer
 	store     header.Store
 }
 
 // NewHeaderService creates a new instance of header Service.
 func NewHeaderService(
-	syncer *sync.Syncer,
+	syncer *header.Syncer,
 	sub header.Subscriber,
-	p2pServer *p2p.ExchangeServer,
+	p2pServer *header.ExchangeServer,
 	ex header.Exchange,
 	store header.Store) Module {
 	return &Service{

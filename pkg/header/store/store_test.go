@@ -70,7 +70,7 @@ func TestStore(t *testing.T) {
 
 	// check that the store can be successfully started after previous stop
 	// with all data being flushed.
-	store, err = NewStore(ds)
+	store, err = NewStore[*header.ExtendedHeader](ds)
 	require.NoError(t, err)
 
 	err = store.Start(ctx)
