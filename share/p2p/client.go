@@ -2,72 +2,77 @@ package p2p
 
 import (
 	"context"
-	"github.com/libp2p/go-libp2p-core/event"
+	"errors"
 	"github.com/libp2p/go-libp2p-core/host"
-	"github.com/libp2p/go-libp2p-core/network"
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/libp2p/go-libp2p-core/protocol"
 	"time"
+)
+
+const (
+	connected state = iota
+	disconnected
+	idle
 )
 
 type Client struct {
 	ctx                       context.Context
 	host                      host.Host
 	readTimeout, writeTimeout time.Duration
-	connManager               peerTracker
+	resolver                  Resolver
+	balancer                  Balancer
 	interceptorsChain         Interceptor
 }
 
-type peerTracker interface {
-	Get(protocol.ID) peer.ID
-	Add(protocol.ID, peer.ID)
-	Remove(protocol.ID, peer.ID)
-	Score(protocol.ID, peer.ID, int64)
+// Resolver runs discovery of new peers and notifies balancer when connectivity changes happens
+type Resolver interface {
+	Run(Balancer)
+	Subscribe(id protocol.ID)
+	Stop(context.Context)
+}
+
+// Balancer maintains ready for use connection and provides logic for connection selection
+type Balancer interface {
+	// Update is called by Resolver when connectivity changes
+	Update(state connState)
+	// Pick selects peer for communication. If no connection is ready returns errConnNotReady
+	Pick(protocol.ID) peer.ID
+	// Score updates peers score
+	Score(pid protocol.ID, peer peer.ID, score int64)
+}
+
+var errConnNotReady = errors.New("no ready connection")
+
+type state int
+
+type connState struct {
+	peer  peer.ID
+	state state
+}
+
+type Requestor interface {
+	ProtocolID() protocol.ID
+	Do(*Session) error
 }
 
 func newCLient(ctx context.Context, host host.Host) {}
 
-func (c *Client) Subscribe(id protocol.ID) error {
-	connected, err := c.host.EventBus().Subscribe(&event.EvtPeerIdentificationCompleted{})
-	if err != nil {
-		return err
+func (c *Client) Subscribe(ids ...protocol.ID) error {
+	for _, id := range ids {
+		c.resolver.Subscribe(id)
 	}
-
-	changed, err := c.host.EventBus().Subscribe(&event.EvtPeerConnectednessChanged{})
-	if err != nil {
-		return err
-	}
-
-	go func(ctx context.Context) {
-		defer connected.Close()
-		defer changed.Close()
-
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			case e := <-connected.Out():
-				connStatus := e.(event.EvtPeerIdentificationCompleted)
-				c.connManager.Add(id, connStatus.Peer)
-			case e := <-changed.Out():
-				connStatus := e.(event.EvtPeerConnectednessChanged)
-				if connStatus.Connectedness == network.NotConnected {
-					c.connManager.Remove(id, connStatus.Peer)
-				}
-			}
-		}
-	}(c.ctx)
-
 	return nil
 }
 
-func (c *Client) Do(ctx context.Context, pid protocol.ID) (*Session, error) {
-	peer := c.connManager.Get(pid)
+func (c *Client) Do(ctx context.Context, req Requestor) error {
+	pid := req.ProtocolID()
+	peer := c.balancer.Pick(pid)
 
 	stream, err := c.host.NewStream(ctx, peer, pid)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	return NewSession(ctx, stream, c.writeTimeout, c.readTimeout), nil
+	session := NewSession(ctx, stream, c.writeTimeout, c.readTimeout)
+	return c.interceptorsChain(session, req.Do)
 }

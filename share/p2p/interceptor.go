@@ -3,7 +3,7 @@ package p2p
 import logging "github.com/ipfs/go-log/v2"
 
 func logIntercepter(logger *logging.ZapEventLogger) Interceptor {
-	return func(session *Session, handle Handle) error {
+	return func(session *Session, handle Do) error {
 		log.Info("incoming request", "protocol_id", session.Stream.ID())
 		err := handle(session)
 		if err != nil {

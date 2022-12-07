@@ -25,12 +25,17 @@ type Server struct {
 	interceptorsChain         Interceptor
 }
 
+type Handler interface {
+	ProtocolID() protocol.ID
+	Handle(*Session) error
+}
+
 func NewServer(cfg Config, host host.Host) Server {
-	chain := func(s *Session, handle Handle) error {
+	chain := func(s *Session, handle Do) error {
 		return handle(s)
 	}
 	for _, i := range cfg.interceptors {
-		chain = func(s *Session, handle Handle) error {
+		chain = func(s *Session, handle Do) error {
 			return i(s, handle)
 		}
 	}
@@ -70,13 +75,4 @@ func (srv *Server) newSession(stream network.Stream) *Session {
 		readTimeout:  srv.readTimeout,
 		Stream:       stream,
 	}
-}
-
-type Interceptor func(session *Session, handle Handle) error
-
-type Handle func(*Session) error
-
-type Handler interface {
-	ProtocolID() protocol.ID
-	Handle(*Session) error
 }

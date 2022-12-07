@@ -16,6 +16,10 @@ type Session struct {
 
 }
 
+type Interceptor func(session *Session, handle Do) error
+
+type Do func(*Session) error
+
 func NewSession(
 	ctx context.Context,
 	stream network.Stream,
