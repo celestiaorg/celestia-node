@@ -59,15 +59,16 @@ func (c *Client) RequestEDS(
 	edsCh := make(chan *rsmt2d.ExtendedDataSquare)
 	reqContext, cancel := context.WithCancel(context.Background())
 	go func() {
-		excludedPeers := make(map[peer.ID]struct{})
 		// cancel all requests once a valid response is received
 		defer cancel()
 
+		excludedPeers := make(map[peer.ID]struct{})
 		for {
 			// if no peers are left, return
 			if len(peers) == len(excludedPeers) {
 				return
 			}
+
 			for _, to := range peers {
 				// skip over excluded peers
 				if _, ok := excludedPeers[to]; ok {
