@@ -4,6 +4,8 @@ import (
 	"context"
 
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
+
+	"github.com/celestiaorg/celestia-node/share"
 )
 
 // Subscription is a wrapper over pubsub.Subscription that handles
@@ -23,7 +25,7 @@ func newSubscription(t *pubsub.Topic) (*Subscription, error) {
 
 // Next blocks the caller until any new EDS dataHash notification arrives.
 // Returns only notifications which successfully went through validation pipeline.
-func (subs *Subscription) Next(ctx context.Context) ([]byte, error) {
+func (subs *Subscription) Next(ctx context.Context) (share.DataHash, error) {
 	msg, err := subs.subscription.Next(ctx)
 	if err != nil {
 		log.Errorw("listening to the next eds", "err", err)

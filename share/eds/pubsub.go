@@ -8,6 +8,8 @@ import (
 	"github.com/libp2p/go-libp2p-core/host"
 	"github.com/libp2p/go-libp2p-core/peer"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
+
+	"github.com/celestiaorg/celestia-node/share"
 )
 
 // PubSubTopic hardcodes the name of the EDS floodsub topic.
@@ -16,7 +18,7 @@ const PubSubTopic = "eds-sub"
 // Validator is an injectable func and governs EDS notification or DataHash validity.
 // It receives the notification and sender peer and expects the validation result.
 // Validator is allowed to be blocking for an indefinite time or until the context is canceled.
-type validator func(context.Context, peer.ID, []byte) pubsub.ValidationResult
+type validator func(context.Context, peer.ID, share.DataHash) pubsub.ValidationResult
 
 // PubSub manages receiving and propagating the EDS from/to the network
 // over "eds-sub" subscription.
@@ -81,6 +83,6 @@ func (s *PubSub) Subscribe() (*Subscription, error) {
 }
 
 // Broadcast sends the EDS notification(data hash) to every connected peer.
-func (s *PubSub) Broadcast(ctx context.Context, data []byte) error {
+func (s *PubSub) Broadcast(ctx context.Context, data share.DataHash) error {
 	return s.topic.Publish(ctx, data)
 }
