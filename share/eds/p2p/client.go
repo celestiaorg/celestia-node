@@ -70,6 +70,12 @@ func (c *Client) RequestEDS(
 		}
 
 		for _, to := range peers {
+			select {
+			case <-ctx.Done():
+				return nil, ctx.Err()
+			default:
+			}
+
 			// skip over excluded peers
 			if _, ok := excludedPeers[to]; ok {
 				continue
