@@ -172,7 +172,7 @@ func TestEDSStore_GC(t *testing.T) {
 	eds, dah := randomEDS(t)
 	shardKey := shard.KeyFromString(dah.String())
 
-	err = edsStore.Put(ctx, dah, eds)
+	err = edsStore.Put(ctx, dah.Hash(), eds)
 	require.NoError(t, err)
 
 	// doesn't exist yet
@@ -201,7 +201,7 @@ func Test_BlockstoreCache(t *testing.T) {
 	require.NoError(t, err)
 
 	eds, dah := randomEDS(t)
-	err = edsStore.Put(ctx, dah, eds)
+	err = edsStore.Put(ctx, dah.Hash(), eds)
 	require.NoError(t, err)
 
 	// key isnt in cache yet, so get returns errCacheMiss

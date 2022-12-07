@@ -53,5 +53,5 @@ func (dh DataHash) Validate() error {
 }
 
 func (dh DataHash) String() string {
-	return fmt.Sprintf("%X", string(dh))
+	return fmt.Sprintf("%X", []byte(dh))
 }
