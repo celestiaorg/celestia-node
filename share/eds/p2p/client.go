@@ -56,55 +56,36 @@ func (c *Client) RequestEDS(
 	req := &p2p_pb.EDSRequest{Hash: dataHash}
 
 	// requests are retried for every peer until a valid response is received
-	edsCh := make(chan *rsmt2d.ExtendedDataSquare)
-	reqContext, cancel := context.WithCancel(context.Background())
-	go func() {
-		// cancel all requests once a valid response is received
-		defer cancel()
-
-		excludedPeers := make(map[peer.ID]struct{})
-		for {
-			// if no peers are left, return
-			if len(peers) == len(excludedPeers) {
-				return
-			}
-
-			for _, to := range peers {
-				if reqContext.Err() != nil {
-					return
-				}
-
-				// skip over excluded peers
-				if _, ok := excludedPeers[to]; ok {
-					continue
-				}
-
-				eds, err := c.doRequest(reqContext, req, dataHash, to)
-				if err != nil {
-					// peer has misbehaved, exclude them from round-robin
-					excludedPeers[to] = struct{}{}
-					log.Errorw("client: eds request to peer failed", "peer", to, "hash", dataHash.String())
-				}
-
-				// eds is nil when the request was valid but couldn't be served
-				if eds != nil {
-					edsCh <- eds
-					return
-				}
-			}
-		}
-	}()
-
+	excludedPeers := make(map[peer.ID]struct{})
 	for {
 		select {
-		case eds := <-edsCh:
-			return eds, nil
-		case <-reqContext.Done():
-			return nil, errNoMorePeers
 		case <-ctx.Done():
-			// no response was received before the context was canceled
-			cancel()
 			return nil, ctx.Err()
+		default:
+		}
+
+		// if no peers are left, return
+		if len(peers) == len(excludedPeers) {
+			return nil, errNoMorePeers
+		}
+
+		for _, to := range peers {
+			// skip over excluded peers
+			if _, ok := excludedPeers[to]; ok {
+				continue
+			}
+
+			eds, err := c.doRequest(ctx, req, dataHash, to)
+			if err != nil {
+				// peer has misbehaved, exclude them from round-robin
+				excludedPeers[to] = struct{}{}
+				log.Errorw("client: eds request to peer failed", "peer", to, "hash", dataHash.String())
+			}
+
+			// eds is nil when the request was valid but couldn't be served
+			if eds != nil {
+				return eds, nil
+			}
 		}
 	}
 }
