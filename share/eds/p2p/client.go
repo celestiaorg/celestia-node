@@ -3,6 +3,7 @@ package p2p
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"time"
@@ -22,6 +23,8 @@ import (
 )
 
 var log = logging.Logger("shrex/eds")
+
+var errNoMorePeers = errors.New("all peers returned invalid responses")
 
 // TODO(@distractedm1nd): make version suffix configurable
 var protocolID = protocol.ID("/shrex/eds/0.0.1")
@@ -47,24 +50,35 @@ func NewClient(host host.Host) *Client {
 // response. Blocks forever until the context is canceled or a valid response is given.
 func (c *Client) RequestEDS(
 	ctx context.Context,
-	root share.Root,
+	dataHash share.DataHash,
 	peers peer.IDSlice,
 ) (*rsmt2d.ExtendedDataSquare, error) {
-	req := &p2p_pb.EDSRequest{Hash: root.Hash()}
+	req := &p2p_pb.EDSRequest{Hash: dataHash}
 
 	// requests are retried for every peer until a valid response is received
 	edsCh := make(chan *rsmt2d.ExtendedDataSquare)
 	reqContext, cancel := context.WithCancel(context.Background())
 	go func() {
+		excludedPeers := make(map[peer.ID]struct{})
 		// cancel all requests once a valid response is received
 		defer cancel()
 
 		for {
+			// if no peers are left, return
+			if len(peers) == len(excludedPeers) {
+				return
+			}
 			for _, to := range peers {
-				eds, err := c.doRequest(reqContext, req, root, to)
+				// skip over excluded peers
+				if _, ok := excludedPeers[to]; ok {
+					continue
+				}
+
+				eds, err := c.doRequest(reqContext, req, dataHash, to)
 				if err != nil {
-					// TODO: should we exclude the peer from retries if we get an error?
-					log.Errorw("client: eds request to peer failed", "peer", to, "hash", root.String())
+					// peer has misbehaved, exclude them from round-robin
+					excludedPeers[to] = struct{}{}
+					log.Errorw("client: eds request to peer failed", "peer", to, "hash", dataHash.String())
 				}
 
 				// eds is nil when the request was valid but couldn't be served
@@ -80,6 +94,8 @@ func (c *Client) RequestEDS(
 		select {
 		case eds := <-edsCh:
 			return eds, nil
+		case <-reqContext.Done():
+			return nil, errNoMorePeers
 		case <-ctx.Done():
 			// no response was received before the context was canceled
 			cancel()
@@ -91,10 +107,10 @@ func (c *Client) RequestEDS(
 func (c *Client) doRequest(
 	ctx context.Context,
 	req *p2p_pb.EDSRequest,
-	root share.Root,
+	dataHash share.DataHash,
 	to peer.ID,
 ) (*rsmt2d.ExtendedDataSquare, error) {
-	log.Debugf("client: requesting eds %s from peer %s", root.String(), to)
+	log.Debugf("client: requesting eds %s from peer %s", dataHash.String(), to)
 	stream, err := c.host.NewStream(ctx, to, c.protocolID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open stream: %w", err)
@@ -133,7 +149,7 @@ func (c *Client) doRequest(
 			return nil, fmt.Errorf("unexpected error while reading ods from stream: %w", err)
 		}
 		carReader := bytes.NewReader(odsBytes)
-		eds, err := eds.ReadEDS(ctx, carReader, root.Hash())
+		eds, err := eds.ReadEDS(ctx, carReader, dataHash)
 		if err != nil {
 			return nil, fmt.Errorf("failed to read eds from ods bytes: %w", err)
 		}
@@ -141,10 +157,10 @@ func (c *Client) doRequest(
 		return eds, nil
 
 	case p2p_pb.Status_NOT_FOUND, p2p_pb.Status_REFUSED:
-		log.Debug("client: peer %s refused to serve eds %s with status", to, root.String(), resp.GetStatus())
+		log.Debug("client: peer %s refused to serve eds %s with status", to, dataHash.String(), resp.GetStatus())
 	case p2p_pb.Status_INVALID:
 		// TODO: if a peer marks a request as invalid, should we not request from them again?
-		return nil, fmt.Errorf("request for root %s marked as invalid by peer", root.String())
+		return nil, fmt.Errorf("request for root %s marked as invalid by peer", dataHash.String())
 	}
 
 	// no eds was returned, but the request was valid and should be retried
