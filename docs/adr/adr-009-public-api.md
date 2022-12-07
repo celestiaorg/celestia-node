@@ -141,60 +141,60 @@ SyncHead(ctx context.Context) (*header.ExtendedHeader, error)
 ```go
   type P2PModule interface {
     // Info returns address information about the host.
-    Info() peer.AddrInfo
+    Info(context.Context) peer.AddrInfo
     // Peers returns all peer IDs used across all inner stores.
-    Peers() []peer.ID
+    Peers(context.Context) []peer.ID
     // PeerInfo returns a small slice of information Peerstore has on the
     // given peer.
-    PeerInfo(id peer.ID) peer.AddrInfo
+    PeerInfo(context.Context, peer.ID) peer.AddrInfo
    
     // Connect ensures there is a connection between this host and the peer with
     // given peer.
     Connect(ctx context.Context, pi peer.AddrInfo) error
     // ClosePeer closes the connection to a given peer. 
-    ClosePeer(id peer.ID) error
+    ClosePeer(ctx context.Context, id peer.ID) error
     // Connectedness returns a state signaling connection capabilities.
-    Connectedness(id peer.ID) network.Connectedness
+    Connectedness(ctx context.Context, id peer.ID) network.Connectedness
     // NATStatus returns the current NAT status.
-    NATStatus() network.Reachability
+    NATStatus(context.Context) network.Reachability
    
     // BlockPeer adds a peer to the set of blocked peers.
-    BlockPeer(p peer.ID) error
+    BlockPeer(ctx context.Context, p peer.ID) error
     // UnblockPeer removes a peer from the set of blocked peers.
-    UnblockPeer(p peer.ID) error
+    UnblockPeer(ctx context.Context, p peer.ID) error
     // ListBlockedPeers returns a list of blocked peers.
-    ListBlockedPeers() []peer.ID
+    ListBlockedPeers(context.Context) []peer.ID
 
     // MutualAdd adds a peer to the list of peers who have a bidirectional
     // peering agreement that they are protected from being trimmed, dropped
     // or negatively scored.
-    MutualAdd(id peer.ID, tag string)
+    MutualAdd(ctx context.Context, id peer.ID, tag string)
     // MutualAdd removes a peer from the list of peers who have a bidirectional
     // peering agreement that they are protected from being trimmed, dropped
     // or negatively scored, returning a bool representing whether the given
     // peer is protected or not.
-    MutualRm(id peer.ID, tag string) bool
+    MutualRm(ctx context.Context, id peer.ID, tag string) bool
     // IsMutual returns whether the given peer is a mutual peer.
-    IsMutual(id peer.ID, tag string) bool
+    IsMutual(ctx context.Context, id peer.ID, tag string) bool
   
     // BandwidthStats returns a Stats struct with bandwidth metrics for all
     // data sent/received by the local peer, regardless of protocol or remote 
     // peer IDs.
-    BandwidthStats() Stats
+    BandwidthStats(context.Context) Stats
     // BandwidthForPeer returns a Stats struct with bandwidth metrics associated
     // with the given peer.ID. The metrics returned include all traffic sent /
     // received for the peer, regardless of protocol.
-    BandwidthForPeer(id peer.ID) Stats
+    BandwidthForPeer(ctx context.Context, id peer.ID) Stats
     // BandwidthForProtocol returns a Stats struct with bandwidth metrics 
     // associated with the given protocol.ID.
-    BandwidthForProtocol(proto protocol.ID) Stats
+    BandwidthForProtocol(ctx context.Context, proto protocol.ID) Stats
    
     // ResourceState returns the state of the resource manager.
-    ResourceState() rcmgr.ResourceManagerStat
+    ResourceState(context.Context) rcmgr.ResourceManagerStat
    
     // PubSubPeers returns the peer IDs of the peers joined on
     // the given topic.
-    PubSubPeers(topic string) ([]peer.ID, error)
+    PubSubPeers(ctx context.Context, topic string) ([]peer.ID, error)
   }
 ```
 
