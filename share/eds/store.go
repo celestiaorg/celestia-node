@@ -174,26 +174,6 @@ func (s *Store) Put(ctx context.Context, root share.DataHash, square *rsmt2d.Ext
 	}
 }
 
-// TODO(@distractedm1nd): remove once GetCAR takes dataHash
-func (s *Store) GetCARTemp(ctx context.Context, dataHash []byte) (io.ReadCloser, error) {
-
-	ch := make(chan dagstore.ShardResult, 1)
-	err := s.dgstr.AcquireShard(ctx, shard.KeyFromString(fmt.Sprintf("%X", dataHash)), ch, dagstore.AcquireOpts{})
-	if err != nil {
-		return nil, fmt.Errorf("failed to initiate shard acquisition: %w", err)
-	}
-
-	select {
-	case <-ctx.Done():
-		return nil, ctx.Err()
-	case result := <-ch:
-		if result.Error != nil {
-			return nil, fmt.Errorf("failed to acquire shard: %w", result.Error)
-		}
-		return result.Accessor, nil
-	}
-}
-
 // GetCAR takes a DataRoot and returns a buffered reader to the respective EDS serialized as a
 // CARv1 file.
 // The Reader strictly reads the CAR header and first quadrant (1/4) of the EDS, omitting all the
