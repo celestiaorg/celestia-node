@@ -32,7 +32,7 @@ func TestExchange_RequestEDS(t *testing.T) {
 	// Testcase: EDS is immediately available
 	eds := share.RandEDS(t, 4)
 	dah := da.NewDataAvailabilityHeader(eds)
-	err = store.Put(ctx, dah, eds)
+	err = store.Put(ctx, dah.Hash(), eds)
 	require.NoError(t, err)
 
 	requestedEDS, err := client.RequestEDS(ctx, dah, []peer.ID{server.host.ID()})
@@ -45,7 +45,7 @@ func TestExchange_RequestEDS(t *testing.T) {
 	dah = da.NewDataAvailabilityHeader(eds)
 	go func() {
 		time.Sleep(storageDelay)
-		err = store.Put(ctx, dah, eds)
+		err = store.Put(ctx, dah.Hash(), eds)
 		// require.NoError(t, err)
 	}()
 

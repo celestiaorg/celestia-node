@@ -67,7 +67,7 @@ func (s *Server) handleStream(stream network.Stream) {
 	}
 
 	// determine whether the EDS is available in our store
-	edsReader, err := s.store.GetCARTemp(s.ctx, req.Hash)
+	edsReader, err := s.store.GetCAR(s.ctx, req.Hash)
 	// TODO(@distractedm1nd): handle INVALID, REFUSED status codes
 	var status p2p_pb.Status
 	if err != nil {

@@ -133,7 +133,7 @@ func (c *Client) doRequest(
 			return nil, fmt.Errorf("unexpected error while reading ods from stream: %w", err)
 		}
 		carReader := bytes.NewReader(odsBytes)
-		eds, err := eds.ReadEDS(ctx, carReader, root)
+		eds, err := eds.ReadEDS(ctx, carReader, root.Hash())
 		if err != nil {
 			return nil, fmt.Errorf("failed to read eds from ods bytes: %w", err)
 		}
