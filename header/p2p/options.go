@@ -136,7 +136,7 @@ func (p *ClientParameters) Validate() error {
 		return fmt.Errorf("invalid MaxAwaitingTime for peerTracker: "+
 			"%s. %s: %v", greaterThenZero, providedSuffix, p.MaxAwaitingTime)
 	}
-	if p.DefaultScore < 0 {
+	if p.DefaultScore <= 0 {
 		return fmt.Errorf("invalid DefaultScore: %s. %s: %f", greaterThenZero, providedSuffix, p.DefaultScore)
 	}
 	if p.MaxPeerTrackerSize <= 0 {
