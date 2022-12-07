@@ -108,6 +108,7 @@ func (c *Client) doRequest(
 		return nil, fmt.Errorf("failed to open stream: %w", err)
 	}
 
+	// request status from peer to provide the requested EDS
 	err = stream.SetWriteDeadline(time.Now().Add(writeDeadline))
 	if err != nil {
 		log.Warn(err)
@@ -117,12 +118,12 @@ func (c *Client) doRequest(
 		stream.Reset() //nolint:errcheck
 		return nil, fmt.Errorf("failed to write request to stream: %w", err)
 	}
-
 	err = stream.CloseWrite()
 	if err != nil {
 		return nil, fmt.Errorf("failed to close write on stream: %w", err)
 	}
 
+	// read and parse status from peer
 	resp := new(p2p_pb.EDSResponse)
 	err = stream.SetReadDeadline(time.Now().Add(readDeadline))
 	if err != nil {
@@ -136,25 +137,25 @@ func (c *Client) doRequest(
 
 	switch resp.Status {
 	case p2p_pb.Status_OK:
-		odsBytes, err := io.ReadAll(stream)
+		// read all CARv1 header and ODS bytes from stream
+		carBytes, err := io.ReadAll(stream)
 		if err != nil && err != io.EOF {
 			return nil, fmt.Errorf("unexpected error while reading ods from stream: %w", err)
 		}
-		carReader := bytes.NewReader(odsBytes)
-		eds, err := eds.ReadEDS(ctx, carReader, dataHash)
+		// use header and ODS bytes to construct EDS and verify it against dataHash
+		eds, err := eds.ReadEDS(ctx, bytes.NewReader(carBytes), dataHash)
 		if err != nil {
 			return nil, fmt.Errorf("failed to read eds from ods bytes: %w", err)
 		}
 
 		return eds, nil
-
 	case p2p_pb.Status_NOT_FOUND, p2p_pb.Status_REFUSED:
-		log.Debug("client: peer %s refused to serve eds %s with status", to, dataHash.String(), resp.GetStatus())
+		log.Debug("client: peer %s couldn't serve eds %s with status", to, dataHash.String(), resp.GetStatus())
+		// no eds was returned, but the request was valid and should be retried
+		return nil, nil
 	case p2p_pb.Status_INVALID:
-		// TODO: if a peer marks a request as invalid, should we not request from them again?
 		return nil, fmt.Errorf("request for root %s marked as invalid by peer", dataHash.String())
+	default:
+		return nil, fmt.Errorf("peer responded with unknown status %s", resp.GetStatus())
 	}
-
-	// no eds was returned, but the request was valid and should be retried
-	return nil, nil
 }
