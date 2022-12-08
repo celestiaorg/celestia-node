@@ -12,13 +12,8 @@ type Session struct {
 	writeTimeout, readTimeout time.Duration
 	Stream                    network.Stream
 
-	//optionally
-
+	// optionally session level middleware.
 }
-
-type Interceptor func(session *Session, handle Do) error
-
-type Do func(*Session) error
 
 func NewSession(
 	ctx context.Context,

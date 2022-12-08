@@ -6,7 +6,6 @@ import (
 	header_svc "github.com/celestiaorg/celestia-node/nodebuilder/header"
 	"github.com/celestiaorg/celestia-node/nodebuilder/share"
 	share2 "github.com/celestiaorg/celestia-node/share"
-	"github.com/celestiaorg/celestia-node/share/ipld"
 	"github.com/celestiaorg/celestia-node/share/p2p"
 	share_p2p_v1 "github.com/celestiaorg/celestia-node/share/p2p/v1/pb"
 	logging "github.com/ipfs/go-log/v2"
@@ -17,23 +16,23 @@ const protocolID = "shrEx/nd"
 
 var log = logging.Logger("share/server")
 
-type availbility struct {
+type Handler struct {
 	share  share.Module
 	header header_svc.Module
 }
 
-func NewAvailabilityHandler(share share.Module, header header_svc.Module) *availbility {
-	return &availbility{
+func NewAvailabilityHandler(share share.Module, header header_svc.Module) *Handler {
+	return &Handler{
 		share:  share,
 		header: header,
 	}
 }
 
-func (a *availbility) ProtocolID() protocol.ID {
+func (h *Handler) ProtocolID() protocol.ID {
 	return protocolID
 }
 
-func (a *availbility) Handle(s *p2p.Session) error {
+func (h *Handler) Handle(s *p2p.Session) error {
 	var req share_p2p_v1.GetSharesByNamespaceRequest
 	err := s.Read(&req)
 	if err != nil {
@@ -44,18 +43,18 @@ func (a *availbility) Handle(s *p2p.Session) error {
 	var header *header.ExtendedHeader
 	switch req.Height {
 	case 0:
-		header, err = a.header.Head(s.Ctx)
+		header, err = h.header.Head(s.Ctx)
 	default:
-		header, err = a.header.GetByHeight(s.Ctx, uint64(req.Height))
+		header, err = h.header.GetByHeight(s.Ctx, uint64(req.Height))
 	}
 	if err != nil {
-		a.respondInternal(s)
+		h.respondInternal(s)
 		return fmt.Errorf("getting header: %w", err)
 	}
 
-	sharesWithProofs, err := a.share.GetSharesWithProofsByNamespace(s.Ctx, header.DAH, req.NamespaceId)
+	sharesWithProofs, err := h.share.GetSharesWithProofsByNamespace(s.Ctx, header.DAH, req.NamespaceId)
 	if err != nil {
-		a.respondInternal(s)
+		h.respondInternal(s)
 		return fmt.Errorf("getting shares: %w", err)
 	}
 
@@ -67,7 +66,7 @@ func (a *availbility) Handle(s *p2p.Session) error {
 	return nil
 }
 
-func (a *availbility) respondInternal(s *p2p.Session) {
+func (h *Handler) respondInternal(s *p2p.Session) {
 	resp := &share_p2p_v1.GetSharesByNamespaceResponse{
 		Status: share_p2p_v1.StatusCode_INTERNAL,
 	}
@@ -82,7 +81,7 @@ func prepareResponse(shares []share2.SharesWithProof) *share_p2p_v1.GetSharesByN
 	for _, sh := range shares {
 		nodes := make([][]byte, 0, len(sh.Proof.Nodes))
 		for _, cid := range sh.Proof.Nodes {
-			nodes = append(nodes, ipld.NamespacedSha256FromCID(cid))
+			nodes = append(nodes, cid.Bytes())
 		}
 
 		proof := &share_p2p_v1.Proof{

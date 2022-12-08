@@ -2,77 +2,63 @@ package p2p
 
 import (
 	"context"
-	"errors"
 	"github.com/libp2p/go-libp2p-core/host"
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/libp2p/go-libp2p-core/protocol"
 	"time"
 )
 
-const (
-	connected state = iota
-	disconnected
-	idle
-)
+type ClientConfig struct {
+	readTimeout, writeTimeout time.Duration
+	interceptors              []ClientInterceptor
+}
 
 type Client struct {
 	ctx                       context.Context
 	host                      host.Host
 	readTimeout, writeTimeout time.Duration
-	resolver                  Resolver
-	balancer                  Balancer
-	interceptorsChain         Interceptor
+	interceptorsChain         ClientInterceptor
 }
 
-// Resolver runs discovery of new peers and notifies balancer when connectivity changes happens
-type Resolver interface {
-	Run(Balancer)
-	Subscribe(id protocol.ID)
-	Stop(context.Context)
-}
+type DoFn func(context.Context, *Session) error
 
-// Balancer maintains ready for use connection and provides logic for connection selection
-type Balancer interface {
-	// Update is called by Resolver when connectivity changes
-	Update(state connState)
-	// Pick selects peer for communication. If no connection is ready returns errConnNotReady
-	Pick(protocol.ID) peer.ID
-	// Score updates peers score
-	Score(pid protocol.ID, peer peer.ID, score int64)
-}
+type ClientInterceptor func(context.Context, *Session, DoFn) error
 
-var errConnNotReady = errors.New("no ready connection")
-
-type state int
-
-type connState struct {
-	peer  peer.ID
-	state state
-}
-
-type Requestor interface {
-	ProtocolID() protocol.ID
-	Do(*Session) error
-}
-
-func newCLient(ctx context.Context, host host.Host) {}
-
-func (c *Client) Subscribe(ids ...protocol.ID) error {
-	for _, id := range ids {
-		c.resolver.Subscribe(id)
+func NewCLient(ctx context.Context, cfg ClientConfig, host host.Host) *Client {
+	return &Client{
+		ctx:               ctx,
+		host:              host,
+		readTimeout:       cfg.readTimeout,
+		writeTimeout:      cfg.writeTimeout,
+		interceptorsChain: chainClientInterceptors(cfg.interceptors...),
 	}
-	return nil
 }
 
-func (c *Client) Do(ctx context.Context, req Requestor) error {
-	pid := req.ProtocolID()
-	peer := c.balancer.Pick(pid)
+func chainClientInterceptors(interceptors ...ClientInterceptor) ClientInterceptor {
+	n := len(interceptors)
+	return func(ctx context.Context, session *Session, do DoFn) error {
+		chainer := func(currentInter ClientInterceptor, currentRequestor DoFn) DoFn {
+			return func(ctx context.Context, s *Session) error {
+				return currentInter(ctx, s, currentRequestor)
+			}
+		}
 
-	stream, err := c.host.NewStream(ctx, peer, pid)
+		chainedHandler := do
+		for i := n - 1; i >= 0; i-- {
+			chainedHandler = chainer(interceptors[i], chainedHandler)
+		}
+
+		return chainedHandler(ctx, session)
+	}
+}
+
+func (c *Client) Do(ctx context.Context, peer peer.ID, protocol protocol.ID, do DoFn) error {
+	stream, err := c.host.NewStream(ctx, peer, protocol)
 	if err != nil {
 		return err
 	}
+	defer stream.Close()
 
 	session := NewSession(ctx, stream, c.writeTimeout, c.readTimeout)
-	return c.interceptorsChain(session, req.Do)
+	return c.interceptorsChain(ctx, session, do)
 }

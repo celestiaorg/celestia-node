@@ -15,52 +15,60 @@ var log = logging.Logger("p2p/server")
 type Config struct {
 	writeTimeout time.Duration
 	readTimeout  time.Duration
-	interceptors []Interceptor
+	interceptors []ServerInterceptor
 }
 
 type Server struct {
 	ctx                       context.Context
 	host                      host.Host
 	writeTimeout, readTimeout time.Duration
-	interceptorsChain         Interceptor
+	interceptorsChain         ServerInterceptor
 }
 
-type Handler interface {
-	ProtocolID() protocol.ID
-	Handle(*Session) error
-}
+type Handle func(context.Context, *Session) error
+
+type ServerInterceptor func(context.Context, *Session, Handle) error
 
 func NewServer(cfg Config, host host.Host) Server {
-	chain := func(s *Session, handle Do) error {
-		return handle(s)
-	}
-	for _, i := range cfg.interceptors {
-		chain = func(s *Session, handle Do) error {
-			return i(s, handle)
-		}
-	}
-
 	return Server{
 		host:              host,
 		writeTimeout:      cfg.writeTimeout,
 		readTimeout:       cfg.readTimeout,
-		interceptorsChain: chain,
+		interceptorsChain: chainServerInterceptors(cfg.interceptors...),
 	}
 }
 
-func (srv *Server) RegisterHandler(h Handler) {
-	handler := srv.sessionHandler(h)
-	srv.host.SetStreamHandler(h.ProtocolID(), handler)
+func chainServerInterceptors(interceptors ...ServerInterceptor) ServerInterceptor {
+	n := len(interceptors)
+	return func(ctx context.Context, session *Session, handler Handle) error {
+		chainer := func(currentInter ServerInterceptor, currentHandler Handle) Handle {
+			return func(ctx context.Context, s *Session) error {
+				return currentInter(ctx, s, currentHandler)
+			}
+		}
+
+		chainedHandler := handler
+		for i := n - 1; i >= 0; i-- {
+			chainedHandler = chainer(interceptors[i], chainedHandler)
+		}
+
+		return chainedHandler(ctx, session)
+	}
 }
 
-func (srv *Server) RemoveHandler(h Handler) {
-	srv.host.RemoveStreamHandler(h.ProtocolID())
+func (srv *Server) RegisterHandler(pid protocol.ID, handler Handle) {
+	h := srv.sessionHandler(handler)
+	srv.host.SetStreamHandler(pid, h)
 }
 
-func (srv *Server) sessionHandler(h Handler) network.StreamHandler {
+func (srv *Server) RemoveHandler(pid protocol.ID) {
+	srv.host.RemoveStreamHandler(pid)
+}
+
+func (srv *Server) sessionHandler(h Handle) network.StreamHandler {
 	return func(stream network.Stream) {
 		s := srv.newSession(stream)
-		err := srv.interceptorsChain(s, h.Handle)
+		err := srv.interceptorsChain(context.TODO(), s, h)
 		if err != nil {
 			log.Errorf("handle session: %s", err.Error())
 			s.Stream.Reset() //nolint:errcheck
