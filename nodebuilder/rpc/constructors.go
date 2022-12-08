@@ -12,20 +12,20 @@ import (
 
 // RegisterEndpoints registers the given services on the rpc.
 func RegisterEndpoints(
-	state state.Module,
-	share share.Module,
-	fraud fraud.Module,
-	header header.Module,
-	daser das.Module,
-	p2p p2p.Module,
+	stateMod state.Module,
+	shareMod share.Module,
+	fraudMod fraud.Module,
+	headerMod header.Module,
+	daserMod das.Module,
+	p2pMod p2p.Module,
 	serv *rpc.Server,
 ) {
-	serv.RegisterService("state", state)
-	serv.RegisterService("share", share)
-	serv.RegisterService("fraud", fraud)
-	serv.RegisterService("header", header)
-	serv.RegisterService("das", daser)
-	serv.RegisterService("p2p", p2p)
+	serv.RegisterAuthedService("fraud", fraudMod, &fraud.API{})
+	serv.RegisterAuthedService("das", daserMod, &das.API{})
+	serv.RegisterAuthedService("header", headerMod, &header.API{})
+	serv.RegisterAuthedService("state", stateMod, &state.API{})
+	serv.RegisterAuthedService("share", shareMod, &share.API{})
+	serv.RegisterAuthedService("p2p", p2pMod, &p2p.API{})
 }
 
 func Server(cfg *Config) *rpc.Server {

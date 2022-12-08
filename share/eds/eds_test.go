@@ -10,7 +10,7 @@ import (
 	"testing"
 
 	ds "github.com/ipfs/go-datastore"
-	blockstore "github.com/ipfs/go-ipfs-blockstore"
+	bstore "github.com/ipfs/go-ipfs-blockstore"
 	carv1 "github.com/ipld/go-car"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -86,7 +86,7 @@ func TestWriteEDSIncludesRoots(t *testing.T) {
 	f := openWrittenEDS(t)
 	defer f.Close()
 
-	bs := blockstore.NewBlockstore(ds.NewMapDatastore())
+	bs := bstore.NewBlockstore(ds.NewMapDatastore())
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
 	loaded, err := carv1.LoadCar(ctx, bs, f)
@@ -148,7 +148,7 @@ func TestReadWriteRoundtrip(t *testing.T) {
 	f := openWrittenEDS(t)
 	defer f.Close()
 
-	loaded, err := ReadEDS(context.Background(), f, dah)
+	loaded, err := ReadEDS(context.Background(), f, dah.Hash())
 	require.NoError(t, err, "error reading EDS from file")
 	require.Equal(t, eds.RowRoots(), loaded.RowRoots())
 	require.Equal(t, eds.ColRoots(), loaded.ColRoots())
@@ -162,7 +162,7 @@ func TestReadEDS(t *testing.T) {
 	err = json.Unmarshal([]byte(exampleRoot), &dah)
 	require.NoError(t, err, "error unmarshaling example root")
 
-	loaded, err := ReadEDS(context.Background(), f, dah)
+	loaded, err := ReadEDS(context.Background(), f, dah.Hash())
 	require.NoError(t, err, "error reading EDS from file")
 	require.Equal(t, dah.RowsRoots, loaded.RowRoots())
 	require.Equal(t, dah.ColumnRoots, loaded.ColRoots())
@@ -174,7 +174,7 @@ func TestReadEDSContentIntegrityMismatch(t *testing.T) {
 	f := openWrittenEDS(t)
 	defer f.Close()
 
-	_, err := ReadEDS(context.Background(), f, dah)
+	_, err := ReadEDS(context.Background(), f, dah.Hash())
 	require.ErrorContains(t, err, "share: content integrity mismatch: imported root")
 }
 
@@ -202,7 +202,7 @@ func BenchmarkReadWriteEDS(b *testing.B) {
 				f := new(bytes.Buffer)
 				_ = WriteEDS(ctx, eds, f)
 				b.StartTimer()
-				_, err := ReadEDS(ctx, f, dah)
+				_, err := ReadEDS(ctx, f, dah.Hash())
 				require.NoError(b, err)
 			}
 		})

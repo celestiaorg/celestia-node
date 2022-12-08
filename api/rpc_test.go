@@ -19,6 +19,7 @@ import (
 	fraudMock "github.com/celestiaorg/celestia-node/nodebuilder/fraud/mocks"
 	headerMock "github.com/celestiaorg/celestia-node/nodebuilder/header/mocks"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
+	p2pMock "github.com/celestiaorg/celestia-node/nodebuilder/p2p/mocks"
 	shareMock "github.com/celestiaorg/celestia-node/nodebuilder/share/mocks"
 	stateMock "github.com/celestiaorg/celestia-node/nodebuilder/state/mocks"
 	"github.com/celestiaorg/celestia-node/state"
@@ -62,13 +63,16 @@ func TestModulesImplementFullAPI(t *testing.T) {
 	client := reflect.TypeOf(new(client.Client)).Elem()
 	for i := 0; i < client.NumField(); i++ {
 		module := client.Field(i)
-		for j := 0; j < module.Type.NumField(); j++ {
-			impl := module.Type.Field(j)
+		// the "closers" field is not an actual module
+		if module.Name == "closer" {
+			continue
+		}
+		internal, ok := module.Type.FieldByName("Internal")
+		require.True(t, ok, "module %s's API does not have an Internal field", module.Name)
+		for j := 0; j < internal.Type.NumField(); j++ {
+			impl := internal.Type.Field(j)
 			method, _ := api.MethodByName(impl.Name)
-			// closers is the only thing on the Client struct that doesn't exist in the API
-			if impl.Name != "closers" {
-				require.Equal(t, method.Type, impl.Type, "method %s does not match", impl.Name)
-			}
+			require.Equal(t, method.Type, impl.Type, "method %s does not match", impl.Name)
 		}
 	}
 }
@@ -140,6 +144,7 @@ func setupNodeWithModifiedRPC(t *testing.T) (*nodebuilder.Node, *mockAPI) {
 		fraudMock.NewMockModule(ctrl),
 		headerMock.NewMockModule(ctrl),
 		dasMock.NewMockModule(ctrl),
+		p2pMock.NewMockModule(ctrl),
 	}
 
 	// given the behavior of fx.Invoke, this invoke will be called last as it is added at the root
@@ -150,6 +155,7 @@ func setupNodeWithModifiedRPC(t *testing.T) (*nodebuilder.Node, *mockAPI) {
 		srv.RegisterService("fraud", mockAPI.Fraud)
 		srv.RegisterService("header", mockAPI.Header)
 		srv.RegisterService("das", mockAPI.Das)
+		srv.RegisterService("p2p", mockAPI.P2P)
 	})
 	nd := nodebuilder.TestNode(t, node.Full, invokeRPC)
 	// start node
@@ -168,4 +174,5 @@ type mockAPI struct {
 	Fraud  *fraudMock.MockModule
 	Header *headerMock.MockModule
 	Das    *dasMock.MockModule
+	P2P    *p2pMock.MockModule
 }

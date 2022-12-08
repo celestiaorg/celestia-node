@@ -103,8 +103,10 @@ func NewSwamp(t *testing.T, options ...Option) *Swamp {
 
 	swp.t.Cleanup(func() {
 		swp.stopAllNodes(ctx, swp.BridgeNodes, swp.FullNodes, swp.LightNodes)
-		cleanupCoreNode()
-		cleanupGRPCServer()
+		err = cleanupCoreNode()
+		require.NoError(t, err)
+		err = cleanupGRPCServer()
+		require.NoError(t, err)
 	})
 
 	return swp
@@ -259,8 +261,12 @@ func (s *Swamp) newNode(t node.Type, store nodebuilder.Store, options ...fx.Opti
 	cfg, _ := store.Config()
 	cfg.Header.TrustedHash = s.trustedHash
 	cfg.RPC.Port = "0"
+
+	// tempDir is used for the eds.Store
+	tempDir := s.t.TempDir()
 	options = append(options,
 		p2p.WithHost(s.createPeer(ks)),
+		fx.Replace(node.StorePath(tempDir)),
 	)
 
 	node, err := nodebuilder.New(t, p2p.Private, store, options...)

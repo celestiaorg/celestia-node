@@ -81,8 +81,8 @@ func (ca *ShareAvailability) SharesAvailable(ctx context.Context, root *share.Ro
 	return err
 }
 
-func (ca *ShareAvailability) ProbabilityOfAvailability() float64 {
-	return ca.avail.ProbabilityOfAvailability()
+func (ca *ShareAvailability) ProbabilityOfAvailability(ctx context.Context) float64 {
+	return ca.avail.ProbabilityOfAvailability(ctx)
 }
 
 // Close flushes all queued writes to disk.

@@ -413,6 +413,6 @@ func (ca *CoreAccessor) QueryRedelegations(
 	})
 }
 
-func (ca *CoreAccessor) IsStopped() bool {
+func (ca *CoreAccessor) IsStopped(context.Context) bool {
 	return ca.ctx.Err() != nil
 }

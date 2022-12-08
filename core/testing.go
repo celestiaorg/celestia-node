@@ -92,7 +92,10 @@ func StartTestCoreWithApp(t *testing.T) (tmservice.Service, Client) {
 
 	_, cleanupCoreNode, err := testnode.StartNode(tmNode, cctx)
 	require.NoError(t, err)
-	t.Cleanup(cleanupCoreNode)
+	t.Cleanup(func() {
+		err := cleanupCoreNode()
+		require.NoError(t, err)
+	})
 
 	endpoint, err := GetEndpoint(tmNode.Config())
 	require.NoError(t, err)

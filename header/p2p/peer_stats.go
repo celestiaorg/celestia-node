@@ -4,6 +4,7 @@ import (
 	"container/heap"
 	"context"
 	"sync"
+	"time"
 
 	"github.com/libp2p/go-libp2p-core/peer"
 )
@@ -14,6 +15,9 @@ type peerStat struct {
 	peerID peer.ID
 	// score is the average speed per single request
 	peerScore float32
+	// pruneDeadline specifies when disconnected peer will be removed if
+	// it does not return online.
+	pruneDeadline time.Time
 }
 
 // updateStats recalculates peer.score by averaging the last score

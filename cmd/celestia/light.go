@@ -1,4 +1,3 @@
-//nolint:dupl
 package main
 
 import (
@@ -51,54 +50,6 @@ var lightCmd = &cobra.Command{
 	Args:  cobra.NoArgs,
 	Short: "Manage your Light node",
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-		var (
-			ctx = cmd.Context()
-			err error
-		)
-
-		ctx = cmdnode.WithNodeType(ctx, node.Light)
-
-		parsedNetwork, err := p2p.ParseNetwork(cmd)
-		if err != nil {
-			return err
-		}
-		ctx = cmdnode.WithNetwork(ctx, parsedNetwork)
-
-		// loads existing config into the environment
-		ctx, err = cmdnode.ParseNodeFlags(ctx, cmd, cmdnode.Network(ctx))
-		if err != nil {
-			return err
-		}
-
-		cfg := cmdnode.NodeConfig(ctx)
-
-		err = p2p.ParseFlags(cmd, &cfg.P2P)
-		if err != nil {
-			return err
-		}
-
-		err = core.ParseFlags(cmd, &cfg.Core)
-		if err != nil {
-			return err
-		}
-
-		err = header.ParseFlags(cmd, &cfg.Header)
-		if err != nil {
-			return err
-		}
-
-		ctx, err = cmdnode.ParseMiscFlags(ctx, cmd)
-		if err != nil {
-			return err
-		}
-
-		rpc.ParseFlags(cmd, &cfg.RPC)
-		gateway.ParseFlags(cmd, &cfg.Gateway)
-		state.ParseFlags(cmd, &cfg.State)
-
-		// set config
-		ctx = cmdnode.WithNodeConfig(ctx, &cfg)
-		cmd.SetContext(ctx)
-		return nil
+		return persistentPreRunEnv(cmd, node.Light, args)
 	},
 }

@@ -12,7 +12,7 @@ import (
 	"github.com/ipfs/go-cid"
 	ds "github.com/ipfs/go-datastore"
 	dssync "github.com/ipfs/go-datastore/sync"
-	blockstore "github.com/ipfs/go-ipfs-blockstore"
+	bstore "github.com/ipfs/go-ipfs-blockstore"
 	format "github.com/ipfs/go-ipld-format"
 	"github.com/ipld/go-car"
 	"github.com/ipld/go-car/util"
@@ -21,10 +21,11 @@ import (
 	"github.com/celestiaorg/celestia-app/pkg/da"
 	"github.com/celestiaorg/celestia-app/pkg/wrapper"
 
-	"github.com/celestiaorg/celestia-node/share"
-	"github.com/celestiaorg/celestia-node/share/ipld"
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/rsmt2d"
+
+	"github.com/celestiaorg/celestia-node/share"
+	"github.com/celestiaorg/celestia-node/share/ipld"
 )
 
 var ErrEmptySquare = errors.New("share: importing empty data")
@@ -35,7 +36,7 @@ type writingSession struct {
 	eds *rsmt2d.ExtendedDataSquare
 	// store is an in-memory blockstore, used to cache the inner nodes (proofs) while we walk the nmt
 	// tree.
-	store blockstore.Blockstore
+	store bstore.Blockstore
 	w     io.Writer
 }
 
@@ -63,7 +64,7 @@ func WriteEDS(ctx context.Context, eds *rsmt2d.ExtendedDataSquare, w io.Writer) 
 		return fmt.Errorf("share: writing shares: %w", err)
 	}
 
-	// 4. Iterates over in-memory Blockstore and writes proofs to the CAR
+	// 4. Iterates over in-memory blockstore and writes proofs to the CAR
 	err = writer.writeProofs(ctx)
 	if err != nil {
 		return fmt.Errorf("share: writing proofs: %w", err)
@@ -74,7 +75,7 @@ func WriteEDS(ctx context.Context, eds *rsmt2d.ExtendedDataSquare, w io.Writer) 
 // initializeWriter reimports the EDS into an in-memory blockstore in order to cache the proofs.
 func initializeWriter(ctx context.Context, eds *rsmt2d.ExtendedDataSquare, w io.Writer) (*writingSession, error) {
 	// we use an in-memory blockstore and an offline exchange
-	store := blockstore.NewBlockstore(dssync.MutexWrap(ds.NewMapDatastore()))
+	store := bstore.NewBlockstore(dssync.MutexWrap(ds.NewMapDatastore()))
 	bs := blockservice.New(store, nil)
 	// shares are extracted from the eds so that we can reimport them to traverse
 	shares := share.ExtractEDS(eds)
@@ -230,13 +231,14 @@ func rootsToCids(eds *rsmt2d.ExtendedDataSquare) ([]cid.Cid, error) {
 // Only the first quadrant will be read, which represents the original data.
 // The returned EDS is guaranteed to be full and valid against the DataRoot, otherwise ReadEDS
 // errors.
-func ReadEDS(ctx context.Context, r io.Reader, root share.Root) (*rsmt2d.ExtendedDataSquare, error) {
+func ReadEDS(ctx context.Context, r io.Reader, root share.DataHash) (*rsmt2d.ExtendedDataSquare, error) {
 	carReader, err := car.NewCarReader(r)
 	if err != nil {
 		return nil, fmt.Errorf("share: reading car file: %w", err)
 	}
 
-	odsWidth := len(root.RowsRoots) / 2
+	// car header includes both row and col roots in header
+	odsWidth := len(carReader.Header.Roots) / 4
 	odsSquareSize := odsWidth * odsWidth
 	shares := make([][]byte, odsSquareSize)
 	// the first quadrant is stored directly after the header,
@@ -262,11 +264,11 @@ func ReadEDS(ctx context.Context, r io.Reader, root share.Root) (*rsmt2d.Extende
 	}
 
 	newDah := da.NewDataAvailabilityHeader(eds)
-	if !bytes.Equal(newDah.Hash(), root.Hash()) {
+	if !bytes.Equal(newDah.Hash(), root) {
 		return nil, fmt.Errorf(
 			"share: content integrity mismatch: imported root %s doesn't match expected root %s",
 			newDah.Hash(),
-			root.Hash(),
+			root,
 		)
 	}
 	return eds, nil

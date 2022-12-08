@@ -4,6 +4,9 @@ package node
 // The zero value for Type is invalid.
 type Type uint8
 
+// StorePath is an alias used in order to pass the base path of the node store to nodebuilder modules.
+type StorePath string
+
 const (
 	// Bridge is a Celestia Node that bridges the Celestia consensus network and data availability
 	// network. It maintains a trusted channel/connection to a Celestia Core node via the core.Client

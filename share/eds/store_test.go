@@ -5,13 +5,13 @@ import (
 	"fmt"
 	"os"
 	"testing"
-
-	"github.com/stretchr/testify/assert"
+	"time"
 
 	"github.com/filecoin-project/dagstore/shard"
 	"github.com/ipfs/go-datastore"
 	ds_sync "github.com/ipfs/go-datastore/sync"
 	"github.com/ipld/go-car"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/celestiaorg/celestia-node/share"
@@ -33,11 +33,11 @@ func TestEDSStore_PutRegistersShard(t *testing.T) {
 	eds, dah := randomEDS(t)
 
 	// shard hasn't been registered yet
-	has, err := edsStore.Has(ctx, dah)
+	has, err := edsStore.Has(ctx, dah.Hash())
 	assert.False(t, has)
 	assert.Error(t, err, "shard not found")
 
-	err = edsStore.Put(ctx, dah, eds)
+	err = edsStore.Put(ctx, dah.Hash(), eds)
 	assert.NoError(t, err)
 
 	_, err = edsStore.dgstr.GetShardInfo(shard.KeyFromString(dah.String()))
@@ -58,7 +58,7 @@ func TestEDSStore_PutIndexesEDS(t *testing.T) {
 	stat, _ := edsStore.carIdx.StatFullIndex(shard.KeyFromString(dah.String()))
 	assert.False(t, stat.Exists)
 
-	err = edsStore.Put(ctx, dah, eds)
+	err = edsStore.Put(ctx, dah.Hash(), eds)
 	assert.NoError(t, err)
 
 	stat, err = edsStore.carIdx.StatFullIndex(shard.KeyFromString(dah.String()))
@@ -78,10 +78,10 @@ func TestEDSStore_GetCAR(t *testing.T) {
 	require.NoError(t, err)
 
 	eds, dah := randomEDS(t)
-	err = edsStore.Put(ctx, dah, eds)
+	err = edsStore.Put(ctx, dah.Hash(), eds)
 	require.NoError(t, err)
 
-	r, err := edsStore.GetCAR(ctx, dah)
+	r, err := edsStore.GetCAR(ctx, dah.Hash())
 	assert.NoError(t, err)
 	carReader, err := car.NewCarReader(r)
 
@@ -109,14 +109,14 @@ func TestEDSStore_Remove(t *testing.T) {
 
 	eds, dah := randomEDS(t)
 
-	err = edsStore.Put(ctx, dah, eds)
+	err = edsStore.Put(ctx, dah.Hash(), eds)
 	require.NoError(t, err)
 
 	// assert that file now exists
 	_, err = os.Stat(edsStore.basepath + blocksPath + dah.String())
 	assert.NoError(t, err)
 
-	err = edsStore.Remove(ctx, dah)
+	err = edsStore.Remove(ctx, dah.Hash())
 	assert.NoError(t, err)
 
 	// shard should no longer be registered on the dagstore
@@ -144,16 +144,76 @@ func TestEDSStore_Has(t *testing.T) {
 
 	eds, dah := randomEDS(t)
 
-	ok, err := edsStore.Has(ctx, dah)
+	ok, err := edsStore.Has(ctx, dah.Hash())
 	assert.Error(t, err, "shard not found")
 	assert.False(t, ok)
 
-	err = edsStore.Put(ctx, dah, eds)
+	err = edsStore.Put(ctx, dah.Hash(), eds)
 	assert.NoError(t, err)
 
-	ok, err = edsStore.Has(ctx, dah)
+	ok, err = edsStore.Has(ctx, dah.Hash())
 	assert.NoError(t, err)
 	assert.True(t, ok)
+}
+
+// TestEDSStore_GC verifies that unused transient shards are collected by the GC periodically.
+func TestEDSStore_GC(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(cancel)
+
+	edsStore, err := newStore(t)
+	edsStore.gcInterval = time.Second
+	require.NoError(t, err)
+
+	// kicks off the gc goroutine
+	err = edsStore.Start(ctx)
+	require.NoError(t, err)
+
+	eds, dah := randomEDS(t)
+	shardKey := shard.KeyFromString(dah.String())
+
+	err = edsStore.Put(ctx, dah.Hash(), eds)
+	require.NoError(t, err)
+
+	// doesn't exist yet
+	assert.NotContains(t, edsStore.lastGCResult.Load().Shards, shardKey)
+
+	// wait for gc to run, retry three times
+	for i := 0; i < 3; i++ {
+		time.Sleep(edsStore.gcInterval)
+		if _, ok := edsStore.lastGCResult.Load().Shards[shardKey]; ok {
+			break
+		}
+	}
+	assert.Contains(t, edsStore.lastGCResult.Load().Shards, shardKey)
+
+	// assert nil in this context means there was no error re-acquiring the shard during GC
+	assert.Nil(t, edsStore.lastGCResult.Load().Shards[shardKey])
+}
+
+func Test_BlockstoreCache(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(cancel)
+
+	edsStore, err := newStore(t)
+	require.NoError(t, err)
+	err = edsStore.Start(ctx)
+	require.NoError(t, err)
+
+	eds, dah := randomEDS(t)
+	err = edsStore.Put(ctx, dah.Hash(), eds)
+	require.NoError(t, err)
+
+	// key isnt in cache yet, so get returns errCacheMiss
+	shardKey := shard.KeyFromString(dah.String())
+	_, err = edsStore.cache.Get(shardKey)
+	assert.ErrorIs(t, err, errCacheMiss)
+
+	// now get it, so that the key is in the cache
+	_, err = edsStore.CARBlockstore(ctx, dah.Hash())
+	assert.NoError(t, err)
+	_, err = edsStore.cache.Get(shardKey)
+	assert.NoError(t, err, errCacheMiss)
 }
 
 func newStore(t *testing.T) (*Store, error) {

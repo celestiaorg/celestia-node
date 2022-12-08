@@ -1,6 +1,8 @@
 package share
 
 import (
+	"fmt"
+
 	"github.com/celestiaorg/celestia-node/share/ipld"
 	"go.opentelemetry.io/otel"
 
@@ -39,6 +41,20 @@ func ID(s Share) namespace.ID {
 // Data gets data from the share.
 func Data(s Share) []byte {
 	return s[NamespaceSize:]
+}
+
+// DataHash is a representation of the Root hash.
+type DataHash []byte
+
+func (dh DataHash) Validate() error {
+	if len(dh) != 32 {
+		return fmt.Errorf("invalid hash size, expected 32, got %d", len(dh))
+	}
+	return nil
+}
+
+func (dh DataHash) String() string {
+	return fmt.Sprintf("%X", []byte(dh))
 }
 
 type SharesWithProof struct {

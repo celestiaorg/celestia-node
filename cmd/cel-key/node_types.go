@@ -14,8 +14,8 @@ import (
 )
 
 var (
-	nodeDirKey     = "node.type"
-	nodeNetworkKey = "node.network"
+	nodeDirKey = "node.type"
+	networkKey = "p2p.network"
 )
 
 func DirectoryFlags() *flag.FlagSet {
@@ -28,7 +28,7 @@ func DirectoryFlags() *flag.FlagSet {
 		"Sets key utility to use the node type's directory (e.g. "+
 			"~/.celestia-light-"+strings.ToLower(defaultNetwork)+" if --node.type light is passed).")
 	flags.String(
-		nodeNetworkKey,
+		networkKey,
 		defaultNetwork,
 		"Sets key utility to use the node network's directory (e.g. "+
 			"~/.celestia-light-mynetwork if --node.network MyNetwork is passed).")
@@ -42,7 +42,7 @@ func ParseDirectoryFlags(cmd *cobra.Command) error {
 		return errors.New("no node type provided")
 	}
 
-	network := cmd.Flag(nodeNetworkKey).Value.String()
+	network := cmd.Flag(networkKey).Value.String()
 	switch nodeType {
 	case "bridge", "full", "light":
 		keyPath := fmt.Sprintf("~/.celestia-%s-%s/keys", nodeType, strings.ToLower(network))

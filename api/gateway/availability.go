@@ -35,7 +35,7 @@ func (h *Handler) handleHeightAvailabilityRequest(w http.ResponseWriter, r *http
 
 	availResp := &AvailabilityResponse{
 		Probability: strconv.FormatFloat(
-			h.share.ProbabilityOfAvailability(), 'g', -1, 64),
+			h.share.ProbabilityOfAvailability(r.Context()), 'g', -1, 64),
 	}
 
 	err = h.share.SharesAvailable(r.Context(), header.DAH)

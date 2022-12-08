@@ -93,7 +93,7 @@ func TestExchange_RequestFullRangeHeaders(t *testing.T) {
 		servers[index], err = NewExchangeServer(hosts[index], store, protocolSuffix)
 		require.NoError(t, err)
 		servers[index].Start(context.Background()) //nolint:errcheck
-		exchange.peerTracker.connectedPeers[hosts[index].ID()] = &peerStat{peerID: hosts[index].ID()}
+		exchange.peerTracker.trackedPeers[hosts[index].ID()] = &peerStat{peerID: hosts[index].ID()}
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
@@ -291,7 +291,7 @@ func createP2PExAndServer(t *testing.T, host, tpeer libhost.Host) (header.Exchan
 
 	ex, err := NewExchange(host, []peer.ID{tpeer.ID()}, "private")
 	require.NoError(t, err)
-	ex.peerTracker.connectedPeers[tpeer.ID()] = &peerStat{peerID: tpeer.ID()}
+	ex.peerTracker.trackedPeers[tpeer.ID()] = &peerStat{peerID: tpeer.ID()}
 	require.NoError(t, ex.Start(context.Background()))
 
 	t.Cleanup(func() {

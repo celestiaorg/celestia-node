@@ -48,8 +48,11 @@ func TestNodeWithConfig(t *testing.T, tp node.Type, cfg *Config, opts ...fx.Opti
 	cfg.Core.RPCPort = port
 	cfg.RPC.Port = "0"
 
+	// storePath is used for the eds blockstore
+	storePath := t.TempDir()
 	opts = append(opts,
 		state.WithKeyringSigner(TestKeyringSigner(t)),
+		fx.Replace(node.StorePath(storePath)),
 	)
 	nd, err := New(tp, p2p.Private, store, opts...)
 	require.NoError(t, err)
