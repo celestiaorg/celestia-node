@@ -2,7 +2,9 @@ package share
 
 import (
 	"context"
+	"errors"
 
+	"github.com/filecoin-project/dagstore"
 	"github.com/ipfs/go-blockservice"
 	"github.com/ipfs/go-datastore"
 	"github.com/libp2p/go-libp2p-core/host"
@@ -10,9 +12,11 @@ import (
 	routingdisc "github.com/libp2p/go-libp2p/p2p/discovery/routing"
 	"go.uber.org/fx"
 
+	"github.com/celestiaorg/celestia-app/pkg/da"
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/availability/cache"
 	disc "github.com/celestiaorg/celestia-node/share/availability/discovery"
+	"github.com/celestiaorg/celestia-node/share/eds"
 	"github.com/celestiaorg/celestia-node/share/service"
 )
 
@@ -51,4 +55,20 @@ func newModule(lc fx.Lifecycle, bServ blockservice.BlockService, avail share.Ava
 		},
 	})
 	return &module{serv}
+}
+
+// ensureEmptyCARExists adds the empty EDS from share.EnsureEmptySquareExists to the provided EDS store.
+func ensureEmptyCARExists(ctx context.Context, store *eds.Store) error {
+	bServ := blockservice.New(store.Blockstore(), nil)
+	// we ignore the error because we know that the batchAdder will not be able to commit to our
+	// Blockstore, which is not meant for writes.
+	eds, _ := share.EnsureEmptySquareExists(ctx, bServ)
+
+	dah := da.NewDataAvailabilityHeader(eds)
+
+	err := store.Put(ctx, dah.Hash(), eds)
+	if errors.Is(err, dagstore.ErrShardExists) {
+		return nil
+	}
+	return err
 }

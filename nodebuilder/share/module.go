@@ -52,11 +52,16 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 				func(path node.StorePath, ds datastore.Batching) (*eds.Store, error) {
 					return eds.NewStore(string(path), ds)
 				},
-				fx.OnStart(func(ctx context.Context, eds *eds.Store) error {
-					return eds.Start(ctx)
+				fx.OnStart(func(ctx context.Context, store *eds.Store) error {
+					err := store.Start(ctx)
+					if err != nil {
+						return err
+					}
+
+					return ensureEmptyCARExists(ctx, store)
 				}),
-				fx.OnStop(func(ctx context.Context, eds *eds.Store) error {
-					return eds.Stop(ctx)
+				fx.OnStop(func(ctx context.Context, store *eds.Store) error {
+					return store.Stop(ctx)
 				}),
 			)),
 			// this invoke exists because eds.Store will not be added to the application until it is

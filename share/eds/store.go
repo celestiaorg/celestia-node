@@ -12,11 +12,9 @@ import (
 	"github.com/filecoin-project/dagstore/index"
 	"github.com/filecoin-project/dagstore/mount"
 	"github.com/filecoin-project/dagstore/shard"
-	"github.com/ipfs/go-blockservice"
 	"github.com/ipfs/go-datastore"
 	bstore "github.com/ipfs/go-ipfs-blockstore"
 
-	"github.com/celestiaorg/celestia-app/pkg/da"
 	"github.com/celestiaorg/celestia-node/share"
 
 	"github.com/celestiaorg/rsmt2d"
@@ -107,11 +105,7 @@ func (s *Store) Start(context.Context) error {
 	s.cancel = cancel
 
 	go s.gc(ctx)
-	err := s.dgstr.Start(ctx)
-	if err != nil {
-		return fmt.Errorf("failed to start DAGStore: %w", err)
-	}
-	return s.ensureEmptyCARExists(ctx)
+	return s.dgstr.Start(ctx)
 }
 
 // Stop stops the underlying DAGStore.
@@ -303,17 +297,6 @@ func (s *Store) Has(ctx context.Context, root share.DataHash) (bool, error) {
 	}
 
 	return true, info.Error
-}
-
-// ensureEmptyCARExists adds the empty EDS from share.EnsureEmptySquareExists
-func (s *Store) ensureEmptyCARExists(ctx context.Context) error {
-	bServ := blockservice.New(s.Blockstore(), nil)
-	// we ignore the error because we know that the batchAdder will not be able to commit to our
-	// Blockstore, which is not meant for writes.
-	eds, _ := share.EnsureEmptySquareExists(ctx, bServ)
-
-	dah := da.NewDataAvailabilityHeader(eds)
-	return s.Put(ctx, dah, eds)
 }
 
 func setupPath(basepath string) error {
