@@ -173,14 +173,5 @@ func (d *Discovery) Advertise(ctx context.Context) {
 // Peers provides a list of discovered peers in the "full" topic.
 // If Discovery hasn't found any peers, it blocks until at least one peer is found.
 func (d *Discovery) Peers(ctx context.Context) ([]peer.ID, error) {
-	if d.set.Size() > 0 {
-		return d.set.Peers(), nil
-	}
-
-	select {
-	case <-ctx.Done():
-		return nil, ctx.Err()
-	case p := <-d.set.waitPeer:
-		return []peer.ID{p}, nil
-	}
+	return d.set.Peers(ctx)
 }

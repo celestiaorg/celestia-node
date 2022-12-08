@@ -1,6 +1,7 @@
 package discovery
 
 import (
+	"context"
 	"errors"
 	"sync"
 
@@ -68,12 +69,24 @@ func (ps *limitedSet) Remove(id peer.ID) {
 	}
 }
 
-func (ps *limitedSet) Peers() []peer.ID {
+// Peers returns all discovered peers from the set.
+func (ps *limitedSet) Peers(ctx context.Context) ([]peer.ID, error) {
 	ps.lk.Lock()
-	out := make([]peer.ID, 0, len(ps.ps))
-	for p := range ps.ps {
-		out = append(out, p)
+	if len(ps.ps) > 0 {
+		out := make([]peer.ID, 0, len(ps.ps))
+		for p := range ps.ps {
+			out = append(out, p)
+		}
+		ps.lk.Unlock()
+		return out, nil
 	}
 	ps.lk.Unlock()
-	return out
+
+	// block until a new peer will be discovered
+	select {
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	case p := <-ps.waitPeer:
+		return []peer.ID{p}, nil
+	}
 }

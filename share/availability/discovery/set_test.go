@@ -1,7 +1,9 @@
 package discovery
 
 import (
+	"context"
 	"testing"
+	"time"
 
 	mocknet "github.com/libp2p/go-libp2p/p2p/net/mock"
 	"github.com/stretchr/testify/require"
@@ -50,7 +52,13 @@ func TestSet_Peers(t *testing.T) {
 	set := newLimitedSet(2)
 	require.NoError(t, set.TryAdd(h1.ID()))
 	require.NoError(t, set.TryAdd(h2.ID()))
-	require.True(t, len(set.Peers()) == 2)
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*1)
+	t.Cleanup(cancel)
+
+	peers, err := set.Peers(ctx)
+	require.NoError(t, err)
+	require.True(t, len(peers) == 2)
 }
 
 func TestSet_Size(t *testing.T) {
