@@ -78,7 +78,6 @@ func TestSet_WaitPeers(t *testing.T) {
 	peers, err := set.Peers(ctx)
 	require.NoError(t, err)
 	require.True(t, len(peers) == 1)
-
 }
 
 func TestSet_Size(t *testing.T) {
