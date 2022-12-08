@@ -60,7 +60,7 @@ func (s *PubSub) Stop(context.Context) error {
 	return s.topic.Close()
 }
 
-// AddValidator registers given Validator for EDS notifications(DataHash).
+// AddValidator registers given Validator for EDS notifications (DataHash).
 // Any amount of Validators can be registered.
 func (s *PubSub) AddValidator(validate Validator) error {
 	return s.pubSub.RegisterTopicValidator(PubSubTopic,
@@ -77,7 +77,7 @@ func (s *PubSub) Subscribe() (*Subscription, error) {
 	return newSubscription(s.topic)
 }
 
-// Broadcast sends the EDS notification(data hash) to every connected peer.
+// Broadcast sends the EDS notification (DataHash) to every connected peer.
 func (s *PubSub) Broadcast(ctx context.Context, data share.DataHash) error {
 	return s.topic.Publish(ctx, data)
 }
