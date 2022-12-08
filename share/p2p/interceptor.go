@@ -2,6 +2,7 @@ package p2p
 
 import (
 	"context"
+
 	logging "github.com/ipfs/go-log/v2"
 )
 

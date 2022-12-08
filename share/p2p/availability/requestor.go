@@ -2,18 +2,20 @@ package availability
 
 import (
 	"fmt"
+
+	"github.com/ipfs/go-cid"
+	"github.com/libp2p/go-libp2p-core/peer"
+	"golang.org/x/net/context"
+
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/ipld"
 	"github.com/celestiaorg/celestia-node/share/p2p"
 	share_p2p_v1 "github.com/celestiaorg/celestia-node/share/p2p/v1/pb"
 	"github.com/celestiaorg/nmt/namespace"
-	"github.com/ipfs/go-cid"
-	"github.com/libp2p/go-libp2p-core/peer"
-	"golang.org/x/net/context"
 )
 
 type Client struct {
-	client p2p.Client
+	client *p2p.Client
 }
 
 func (c *Client) GetSharesWithProofs(
@@ -36,8 +38,8 @@ func (c *Client) GetSharesWithProofs(
 			return err
 		}
 
-		resp := new(share_p2p_v1.GetSharesByNamespaceResponse)
-		err = session.Read(resp)
+		var resp share_p2p_v1.GetSharesByNamespaceResponse
+		err = session.Read(&resp)
 		if err != nil {
 			return err
 		}

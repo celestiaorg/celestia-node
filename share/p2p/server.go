@@ -2,20 +2,21 @@ package p2p
 
 import (
 	"context"
+	"time"
+
 	logging "github.com/ipfs/go-log/v2"
 	"github.com/libp2p/go-libp2p-core/host"
 	"github.com/libp2p/go-libp2p-core/network"
 	"github.com/libp2p/go-libp2p-core/protocol"
-	"time"
 )
 
 var log = logging.Logger("p2p/server")
 
 // TODO: make functional
 type Config struct {
-	writeTimeout time.Duration
-	readTimeout  time.Duration
-	interceptors []ServerInterceptor
+	WriteTimeout time.Duration
+	ReadTimeout  time.Duration
+	Interceptors []ServerInterceptor
 }
 
 type Server struct {
@@ -32,9 +33,9 @@ type ServerInterceptor func(context.Context, *Session, Handle) error
 func NewServer(cfg Config, host host.Host) Server {
 	return Server{
 		host:              host,
-		writeTimeout:      cfg.writeTimeout,
-		readTimeout:       cfg.readTimeout,
-		interceptorsChain: chainServerInterceptors(cfg.interceptors...),
+		writeTimeout:      cfg.WriteTimeout,
+		readTimeout:       cfg.ReadTimeout,
+		interceptorsChain: chainServerInterceptors(cfg.Interceptors...),
 	}
 }
 
@@ -78,7 +79,6 @@ func (srv *Server) sessionHandler(h Handle) network.StreamHandler {
 
 func (srv *Server) newSession(stream network.Stream) *Session {
 	return &Session{
-		Ctx:          srv.ctx,
 		writeTimeout: srv.writeTimeout,
 		readTimeout:  srv.readTimeout,
 		Stream:       stream,

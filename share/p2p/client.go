@@ -2,15 +2,16 @@ package p2p
 
 import (
 	"context"
+	"time"
+
 	"github.com/libp2p/go-libp2p-core/host"
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/libp2p/go-libp2p-core/protocol"
-	"time"
 )
 
 type ClientConfig struct {
-	readTimeout, writeTimeout time.Duration
-	interceptors              []ClientInterceptor
+	ReadTimeout, WriteTimeout time.Duration
+	Interceptors              []ClientInterceptor
 }
 
 type Client struct {
@@ -24,13 +25,12 @@ type DoFn func(context.Context, *Session) error
 
 type ClientInterceptor func(context.Context, *Session, DoFn) error
 
-func NewCLient(ctx context.Context, cfg ClientConfig, host host.Host) *Client {
+func NewCLient(cfg ClientConfig, host host.Host) *Client {
 	return &Client{
-		ctx:               ctx,
 		host:              host,
-		readTimeout:       cfg.readTimeout,
-		writeTimeout:      cfg.writeTimeout,
-		interceptorsChain: chainClientInterceptors(cfg.interceptors...),
+		readTimeout:       cfg.ReadTimeout,
+		writeTimeout:      cfg.WriteTimeout,
+		interceptorsChain: chainClientInterceptors(cfg.Interceptors...),
 	}
 }
 
@@ -59,6 +59,6 @@ func (c *Client) Do(ctx context.Context, peer peer.ID, protocol protocol.ID, do 
 	}
 	defer stream.Close()
 
-	session := NewSession(ctx, stream, c.writeTimeout, c.readTimeout)
+	session := NewSession(stream, c.writeTimeout, c.readTimeout)
 	return c.interceptorsChain(ctx, session, do)
 }

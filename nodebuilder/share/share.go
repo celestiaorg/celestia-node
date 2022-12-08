@@ -37,7 +37,8 @@ type Module interface {
 	// GetSharesByNamespace iterates over a square's row roots and accumulates the found shares in the
 	// given namespace.ID.
 	GetSharesByNamespace(ctx context.Context, root *share.Root, namespace namespace.ID) ([]share.Share, error)
-	// GetSharesWithProofsByNamespace is same as GetSharesByNamespace but also collects nmt.Proof for collected shares
+	// GetSharesWithProofsByNamespace is same as GetSharesByNamespace but also collects nmt.Proof for
+	// collected shares
 	GetSharesWithProofsByNamespace(ctx context.Context, root *share.Root, nID namespace.ID) ([]share.SharesWithProof, error)
 }
 
@@ -61,6 +62,11 @@ type API struct {
 			root *share.Root,
 			namespace namespace.ID,
 		) ([]share.Share, error) `perm:"public"`
+		GetSharesWithProofsByNamespace func(
+			ctx context.Context,
+			root *share.Root,
+			nID namespace.ID,
+		) ([]share.SharesWithProof, error) `perm:"public"`
 	}
 }
 
@@ -86,4 +92,12 @@ func (api *API) GetSharesByNamespace(
 	namespace namespace.ID,
 ) ([]share.Share, error) {
 	return api.Internal.GetSharesByNamespace(ctx, root, namespace)
+}
+
+func (api *API) GetSharesWithProofsByNamespace(
+	ctx context.Context,
+	root *share.Root,
+	nID namespace.ID,
+) ([]share.SharesWithProof, error) {
+	return api.Internal.GetSharesWithProofsByNamespace(ctx, root, nID)
 }

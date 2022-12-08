@@ -1,14 +1,14 @@
 package p2p
 
 import (
-	"context"
-	"github.com/celestiaorg/go-libp2p-messenger/serde"
-	"github.com/libp2p/go-libp2p-core/network"
 	"time"
+
+	"github.com/libp2p/go-libp2p-core/network"
+
+	"github.com/celestiaorg/go-libp2p-messenger/serde"
 )
 
 type Session struct {
-	Ctx                       context.Context
 	writeTimeout, readTimeout time.Duration
 	Stream                    network.Stream
 
@@ -16,11 +16,9 @@ type Session struct {
 }
 
 func NewSession(
-	ctx context.Context,
 	stream network.Stream,
 	writeTimeout, readTimeout time.Duration) *Session {
 	return &Session{
-		Ctx:          ctx,
 		writeTimeout: writeTimeout,
 		readTimeout:  readTimeout,
 		Stream:       stream,
