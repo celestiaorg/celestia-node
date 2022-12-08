@@ -3,7 +3,6 @@ package node
 import (
 	"context"
 	"fmt"
-	"runtime"
 
 	"github.com/filecoin-project/go-jsonrpc/auth"
 	logging "github.com/ipfs/go-log/v2"
@@ -19,26 +18,17 @@ func newAdmin(tp Type) Module {
 	}
 }
 
-func (a *admin) Type(context.Context) Type {
-	return a.tp
+// Info contains information related to the administrative
+// node.
+type Info struct {
+	Type       Type   `json:"type"`
+	APIVersion string `json:"api_version"`
 }
 
-// Version represents all binary build information.
-type Version struct {
-	SemanticVersion string `json:"semantic_version"`
-	LastCommit      string `json:"last_commit"`
-	BuildTime       string `json:"build_time"`
-	SystemVersion   string `json:"system_version"`
-	GoVersion       string `json:"go_version"`
-}
-
-func (a *admin) Version(context.Context) Version {
-	return Version{
-		SemanticVersion: semanticVersion,
-		LastCommit:      lastCommit,
-		BuildTime:       buildTime,
-		SystemVersion:   fmt.Sprintf("%s/%s", runtime.GOARCH, runtime.GOOS),
-		GoVersion:       runtime.Version(),
+func (a *admin) AdminInfo(context.Context) Info {
+	return Info{
+		Type: a.tp,
+		// TODO @renaynay @distractedm1nd: Implement versioning in API and way to extract that into this struct
 	}
 }
 

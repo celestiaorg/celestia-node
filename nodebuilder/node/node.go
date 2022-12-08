@@ -6,21 +6,13 @@ import (
 	"github.com/filecoin-project/go-jsonrpc/auth"
 )
 
-var (
-	buildTime       string
-	lastCommit      string
-	semanticVersion string
-)
-
 // Module defines the API related to interacting with the "administrative"
 // node.
 //
 //go:generate mockgen -destination=mocks/api.go -package=mocks . Module
 type Module interface {
-	// Type returns the node type.
-	Type(context.Context) Type
-	// Version returns information about the current binary build.
-	Version(context.Context) Version
+	// AdminInfo returns administrative information about the node.
+	AdminInfo(context.Context) Info
 
 	// LogLevelSet sets the given component log level to the given level.
 	LogLevelSet(ctx context.Context, name, level string) error
@@ -35,20 +27,15 @@ var _ Module = (*API)(nil)
 
 type API struct {
 	Internal struct {
-		Type        func(context.Context) Type                                         `perm:"admin"`
-		Version     func(context.Context) Version                                      `perm:"admin"`
+		AdminInfo   func(context.Context) Info                                         `perm:"admin"`
 		LogLevelSet func(ctx context.Context, name, level string) error                `perm:"admin"`
 		AuthVerify  func(ctx context.Context, token string) ([]auth.Permission, error) `perm:"admin"`
 		AuthNew     func(ctx context.Context, perms []auth.Permission) ([]byte, error) `perm:"admin"`
 	}
 }
 
-func (api *API) Type(ctx context.Context) Type {
-	return api.Internal.Type(ctx)
-}
-
-func (api *API) Version(ctx context.Context) Version {
-	return api.Internal.Version(ctx)
+func (api *API) AdminInfo(ctx context.Context) Info {
+	return api.Internal.AdminInfo(ctx)
 }
 
 func (api *API) LogLevelSet(ctx context.Context, name, level string) error {

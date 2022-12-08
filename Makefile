@@ -1,6 +1,6 @@
 SHELL=/usr/bin/env bash
 PROJECTNAME=$(shell basename "$(PWD)")
-LDFLAGS="-X 'main.buildTime=$(shell date)' -X 'main.lastCommit=$(shell git rev-parse HEAD)' -X 'main.semanticVersion=$(shell git describe --tags --dirty=-dev)' -X 'github.com/celestiaorg/celestia-node/nodebuilder/node.buildTime=$(shell date)' -X 'github.com/celestiaorg/celestia-node/nodebuilder/node.lastCommit=$(shell git rev-parse HEAD)' -X 'github.com/celestiaorg/celestia-node/nodebuilder/node.semanticVersion=$(shell git describe --tags --dirty=-dev)'"
+LDFLAGS="-X 'main.buildTime=$(shell date)' -X 'main.lastCommit=$(shell git rev-parse HEAD)' -X 'main.semanticVersion=$(shell git describe --tags --dirty=-dev)'"
 ifeq (${PREFIX},)
 	PREFIX := /usr/local
 endif

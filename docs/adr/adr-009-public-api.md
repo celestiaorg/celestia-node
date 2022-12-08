@@ -203,11 +203,9 @@ SyncHead(ctx context.Context) (*header.ExtendedHeader, error)
 ```go
 
   type NodeModule interface {
-    // Type returns the node type.
-    Type(context.Context) Type
-    // Version returns information about the current binary build.
-    Version(context.Context) Version
-   
+    // AdminInfo returns administrative information about the node.
+    AdminInfo(context.Context) Info
+ 
     // LogLevelSet sets the given component log level to the given level.
     LogLevelSet(ctx context.Context, name, level string) error
 

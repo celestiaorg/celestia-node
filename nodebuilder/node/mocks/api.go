@@ -36,6 +36,20 @@ func (m *MockModule) EXPECT() *MockModuleMockRecorder {
 	return m.recorder
 }
 
+// AdminInfo mocks base method.
+func (m *MockModule) AdminInfo(arg0 context.Context) node.Info {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "AdminInfo", arg0)
+	ret0, _ := ret[0].(node.Info)
+	return ret0
+}
+
+// AdminInfo indicates an expected call of AdminInfo.
+func (mr *MockModuleMockRecorder) AdminInfo(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AdminInfo", reflect.TypeOf((*MockModule)(nil).AdminInfo), arg0)
+}
+
 // AuthNew mocks base method.
 func (m *MockModule) AuthNew(arg0 context.Context, arg1 []auth.Permission) ([]byte, error) {
 	m.ctrl.T.Helper()
@@ -78,32 +92,4 @@ func (m *MockModule) LogLevelSet(arg0 context.Context, arg1, arg2 string) error 
 func (mr *MockModuleMockRecorder) LogLevelSet(arg0, arg1, arg2 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "LogLevelSet", reflect.TypeOf((*MockModule)(nil).LogLevelSet), arg0, arg1, arg2)
-}
-
-// Type mocks base method.
-func (m *MockModule) Type(arg0 context.Context) node.Type {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Type", arg0)
-	ret0, _ := ret[0].(node.Type)
-	return ret0
-}
-
-// Type indicates an expected call of Type.
-func (mr *MockModuleMockRecorder) Type(arg0 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Type", reflect.TypeOf((*MockModule)(nil).Type), arg0)
-}
-
-// Version mocks base method.
-func (m *MockModule) Version(arg0 context.Context) node.Version {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Version", arg0)
-	ret0, _ := ret[0].(node.Version)
-	return ret0
-}
-
-// Version indicates an expected call of Version.
-func (mr *MockModuleMockRecorder) Version(arg0 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Version", reflect.TypeOf((*MockModule)(nil).Version), arg0)
 }
