@@ -61,6 +61,26 @@ func TestSet_Peers(t *testing.T) {
 	require.True(t, len(peers) == 2)
 }
 
+func TestSet_WaitPeers(t *testing.T) {
+	m := mocknet.New()
+	h1, err := m.GenPeer()
+	require.NoError(t, err)
+
+	set := newLimitedSet(2)
+	go func() {
+		time.Sleep(time.Millisecond * 500)
+		set.TryAdd(h1.ID()) //nolint:errcheck
+	}()
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*2)
+	t.Cleanup(cancel)
+
+	peers, err := set.Peers(ctx)
+	require.NoError(t, err)
+	require.True(t, len(peers) == 1)
+
+}
+
 func TestSet_Size(t *testing.T) {
 	m := mocknet.New()
 	h1, err := m.GenPeer()
