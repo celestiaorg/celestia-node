@@ -88,28 +88,9 @@ func (api *API) GetSharesByNamespace(
 }
 
 type module struct {
-	shareService *service.ShareService
+	*service.ShareService
 }
 
 func (m *module) SharesAvailable(ctx context.Context, root *share.Root) error {
-	return m.shareService.SharesAvailable(ctx, root)
-}
-
-func (m *module) ProbabilityOfAvailability(ctx context.Context) float64 {
-	return m.shareService.ProbabilityOfAvailability(ctx)
-}
-
-func (m *module) GetShare(ctx context.Context, dah *share.Root, row, col int) (share.Share, error) {
-	return m.shareService.GetShare(ctx, dah, row, col)
-}
-func (m *module) GetShares(ctx context.Context, root *share.Root) ([][]share.Share, error) {
-	return m.shareService.GetShares(ctx, root)
-}
-
-func (m *module) GetSharesByNamespace(
-	ctx context.Context,
-	root *share.Root,
-	namespace namespace.ID,
-) ([]share.Share, error) {
-	return m.shareService.GetSharesByNamespace(ctx, root, namespace)
+	return m.ShareService.SharesAvailable(ctx, root)
 }

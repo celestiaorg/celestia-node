@@ -50,5 +50,5 @@ func newModule(lc fx.Lifecycle, bServ blockservice.BlockService, avail share.Ava
 			return serv.Stop(ctx)
 		},
 	})
-	return &module{shareService: serv}
+	return &module{serv}
 }
