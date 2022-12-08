@@ -11,8 +11,10 @@ import (
 	"github.com/celestiaorg/celestia-node/share"
 )
 
-// PubSubTopic hardcodes the name of the EDS floodsub topic.
-const PubSubTopic = "eds-sub"
+// pubSubTopic hardcodes the name of the EDS floodsub topic with the provided suffix.
+func pubSubTopic(suffix string) string {
+	return "eds-sub/v0.0.1/" + suffix
+}
 
 // Validator is an injectable func and governs EDS notification or DataHash validity.
 // It receives the notification and sender peer and expects the validation result.
@@ -24,22 +26,25 @@ type Validator func(context.Context, peer.ID, share.DataHash) pubsub.ValidationR
 type PubSub struct {
 	pubSub *pubsub.PubSub
 	topic  *pubsub.Topic
+
+	pubSubTopic string
 }
 
 // NewPubSub creates a libp2p.PubSub wrapper.
-func NewPubSub(ctx context.Context, h host.Host) (*PubSub, error) {
+func NewPubSub(ctx context.Context, h host.Host, suffix string) (*PubSub, error) {
 	pubsub, err := pubsub.NewFloodSub(ctx, h)
 	if err != nil {
 		return nil, err
 	}
 	return &PubSub{
-		pubSub: pubsub,
+		pubSub:      pubsub,
+		pubSubTopic: pubSubTopic(suffix),
 	}, nil
 }
 
 // Start creates an instances of FloodSub and joins specified topic.
 func (s *PubSub) Start(context.Context) error {
-	topic, err := s.pubSub.Join(PubSubTopic)
+	topic, err := s.pubSub.Join(s.pubSubTopic)
 	if err != nil {
 		return err
 	}
@@ -52,7 +57,7 @@ func (s *PubSub) Start(context.Context) error {
 // * Unregisters all the added Validators
 // * Closes the `ShrEx/Sub` topic
 func (s *PubSub) Stop(context.Context) error {
-	err := s.pubSub.UnregisterTopicValidator(PubSubTopic)
+	err := s.pubSub.UnregisterTopicValidator(s.pubSubTopic)
 	if err != nil {
 		return err
 	}
@@ -63,7 +68,7 @@ func (s *PubSub) Stop(context.Context) error {
 // AddValidator registers given Validator for EDS notifications (DataHash).
 // Any amount of Validators can be registered.
 func (s *PubSub) AddValidator(validate Validator) error {
-	return s.pubSub.RegisterTopicValidator(PubSubTopic,
+	return s.pubSub.RegisterTopicValidator(s.pubSubTopic,
 		func(ctx context.Context, p peer.ID, msg *pubsub.Message) pubsub.ValidationResult {
 			return validate(ctx, p, msg.Data)
 		})

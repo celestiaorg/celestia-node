@@ -18,10 +18,10 @@ func TestPubSub(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	t.Cleanup(cancel)
 
-	pSub1, err := NewPubSub(ctx, h.Hosts()[0])
+	pSub1, err := NewPubSub(ctx, h.Hosts()[0], "test")
 	require.NoError(t, err)
 
-	pSub2, err := NewPubSub(ctx, h.Hosts()[1])
+	pSub2, err := NewPubSub(ctx, h.Hosts()[1], "test")
 	require.NoError(t, err)
 
 	require.NoError(t, pSub1.Start(ctx))
