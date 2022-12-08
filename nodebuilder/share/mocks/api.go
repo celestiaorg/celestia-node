@@ -8,11 +8,9 @@ import (
 	context "context"
 	reflect "reflect"
 
-	gomock "github.com/golang/mock/gomock"
-	peer "github.com/libp2p/go-libp2p-core/peer"
-
 	da "github.com/celestiaorg/celestia-app/pkg/da"
 	namespace "github.com/celestiaorg/nmt/namespace"
+	gomock "github.com/golang/mock/gomock"
 )
 
 // MockModule is a mock of Module interface.
@@ -84,34 +82,29 @@ func (mr *MockModuleMockRecorder) GetSharesByNamespace(arg0, arg1, arg2 interfac
 }
 
 // ProbabilityOfAvailability mocks base method.
-func (m *MockModule) ProbabilityOfAvailability() float64 {
+func (m *MockModule) ProbabilityOfAvailability(arg0 context.Context) float64 {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ProbabilityOfAvailability")
+	ret := m.ctrl.Call(m, "ProbabilityOfAvailability", arg0)
 	ret0, _ := ret[0].(float64)
 	return ret0
 }
 
 // ProbabilityOfAvailability indicates an expected call of ProbabilityOfAvailability.
-func (mr *MockModuleMockRecorder) ProbabilityOfAvailability() *gomock.Call {
+func (mr *MockModuleMockRecorder) ProbabilityOfAvailability(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ProbabilityOfAvailability", reflect.TypeOf((*MockModule)(nil).ProbabilityOfAvailability))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ProbabilityOfAvailability", reflect.TypeOf((*MockModule)(nil).ProbabilityOfAvailability), arg0)
 }
 
 // SharesAvailable mocks base method.
-func (m *MockModule) SharesAvailable(arg0 context.Context, arg1 *da.DataAvailabilityHeader, arg2 ...peer.ID) error {
+func (m *MockModule) SharesAvailable(arg0 context.Context, arg1 *da.DataAvailabilityHeader) error {
 	m.ctrl.T.Helper()
-	varargs := []interface{}{arg0, arg1}
-	for _, a := range arg2 {
-		varargs = append(varargs, a)
-	}
-	ret := m.ctrl.Call(m, "SharesAvailable", varargs...)
+	ret := m.ctrl.Call(m, "SharesAvailable", arg0, arg1)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // SharesAvailable indicates an expected call of SharesAvailable.
-func (mr *MockModuleMockRecorder) SharesAvailable(arg0, arg1 interface{}, arg2 ...interface{}) *gomock.Call {
+func (mr *MockModuleMockRecorder) SharesAvailable(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	varargs := append([]interface{}{arg0, arg1}, arg2...)
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SharesAvailable", reflect.TypeOf((*MockModule)(nil).SharesAvailable), varargs...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SharesAvailable", reflect.TypeOf((*MockModule)(nil).SharesAvailable), arg0, arg1)
 }
