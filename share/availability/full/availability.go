@@ -7,6 +7,7 @@ import (
 	"github.com/ipfs/go-blockservice"
 	ipldFormat "github.com/ipfs/go-ipld-format"
 	logging "github.com/ipfs/go-log/v2"
+	"github.com/libp2p/go-libp2p-core/peer"
 
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/availability/discovery"
@@ -49,7 +50,7 @@ func (fa *ShareAvailability) Stop(context.Context) error {
 
 // SharesAvailable reconstructs the data committed to the given Root by requesting
 // enough Shares from the network.
-func (fa *ShareAvailability) SharesAvailable(ctx context.Context, root *share.Root) error {
+func (fa *ShareAvailability) SharesAvailable(ctx context.Context, root *share.Root, _ ...peer.ID) error {
 	ctx, cancel := context.WithTimeout(ctx, share.AvailabilityTimeout)
 	defer cancel()
 	// we assume the caller of this method has already performed basic validation on the

@@ -5,6 +5,8 @@ import (
 	"errors"
 	"time"
 
+	"github.com/libp2p/go-libp2p-core/peer"
+
 	"github.com/celestiaorg/celestia-app/pkg/da"
 )
 
@@ -24,7 +26,7 @@ type Root = da.DataAvailabilityHeader
 type Availability interface {
 	// SharesAvailable subjectively validates if Shares committed to the given Root are available on
 	// the Network.
-	SharesAvailable(context.Context, *Root) error
+	SharesAvailable(context.Context, *Root, ...peer.ID) error
 	// ProbabilityOfAvailability calculates the probability of the data square
 	// being available based on the number of samples collected.
 	// TODO(@Wondertan): Merge with SharesAvailable method, eventually
