@@ -10,7 +10,7 @@ import (
 // NOTE: Every time we add a new long-running network, it has to be added here.
 const (
 	// DefaultNetwork is the default network of the current build.
-	DefaultNetwork = Arabica
+	DefaultNetwork = Mocha
 	// Arabica testnet. See: celestiaorg/networks.
 	Arabica Network = "arabica-2"
 	// Mocha testnet. See: celestiaorg/networks.
