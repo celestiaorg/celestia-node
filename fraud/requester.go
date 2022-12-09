@@ -24,7 +24,7 @@ func (f *ProofService) requestProofs(
 	proofTypes []string,
 ) ([]*pb.ProofResponse, error) {
 	msg := &pb.FraudMessageRequest{RequestedProofType: proofTypes}
-	stream, err := f.host.NewStream(ctx, pid, f.protocolID)
+	stream, err := f.host.NewStream(ctx, pid, protocolID(f.protocolSuffix))
 	if err != nil {
 		return nil, err
 	}
