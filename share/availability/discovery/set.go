@@ -1,6 +1,7 @@
 package discovery
 
 import (
+	"context"
 	"errors"
 	"sync"
 
@@ -13,7 +14,8 @@ type limitedSet struct {
 	lk sync.RWMutex
 	ps map[peer.ID]struct{}
 
-	limit uint
+	limit    uint
+	waitPeer chan peer.ID
 }
 
 // newLimitedSet constructs a set with the maximum peers amount.
@@ -21,6 +23,7 @@ func newLimitedSet(limit uint) *limitedSet {
 	ps := new(limitedSet)
 	ps.ps = make(map[peer.ID]struct{})
 	ps.limit = limit
+	ps.waitPeer = make(chan peer.ID)
 	return ps
 }
 
@@ -47,6 +50,13 @@ func (ps *limitedSet) TryAdd(p peer.ID) error {
 	}
 	if len(ps.ps) < int(ps.limit) {
 		ps.ps[p] = struct{}{}
+
+		// peer will be pushed to the channel only when somebody is reading from it.
+		// this is done to handle case when Peers() was called on empty set.
+		select {
+		case ps.waitPeer <- p:
+		default:
+		}
 		return nil
 	}
 
@@ -61,12 +71,24 @@ func (ps *limitedSet) Remove(id peer.ID) {
 	}
 }
 
-func (ps *limitedSet) Peers() []peer.ID {
+// Peers returns all discovered peers from the set.
+func (ps *limitedSet) Peers(ctx context.Context) ([]peer.ID, error) {
 	ps.lk.Lock()
-	out := make([]peer.ID, 0, len(ps.ps))
-	for p := range ps.ps {
-		out = append(out, p)
+	if len(ps.ps) > 0 {
+		out := make([]peer.ID, 0, len(ps.ps))
+		for p := range ps.ps {
+			out = append(out, p)
+		}
+		ps.lk.Unlock()
+		return out, nil
 	}
 	ps.lk.Unlock()
-	return out
+
+	// block until a new peer will be discovered
+	select {
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	case p := <-ps.waitPeer:
+		return []peer.ID{p}, nil
+	}
 }
