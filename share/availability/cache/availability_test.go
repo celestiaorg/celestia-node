@@ -10,10 +10,12 @@ import (
 	"github.com/ipfs/go-datastore"
 	"github.com/ipfs/go-datastore/sync"
 	mdutils "github.com/ipfs/go-merkledag/test"
+	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/celestiaorg/celestia-app/pkg/da"
+
 	"github.com/celestiaorg/celestia-node/share"
 	availability_test "github.com/celestiaorg/celestia-node/share/availability/test"
 	"github.com/celestiaorg/celestia-node/share/service"
@@ -123,7 +125,7 @@ type dummyAvailability struct {
 
 // SharesAvailable should only be called once, if called more than once, return
 // error.
-func (da *dummyAvailability) SharesAvailable(_ context.Context, root *share.Root) error {
+func (da *dummyAvailability) SharesAvailable(_ context.Context, root *share.Root, _ ...peer.ID) error {
 	if root == &invalidHeader {
 		return fmt.Errorf("invalid header")
 	}

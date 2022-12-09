@@ -3,8 +3,10 @@ package share
 import (
 	"context"
 
-	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/nmt/namespace"
+
+	"github.com/celestiaorg/celestia-node/share"
+	"github.com/celestiaorg/celestia-node/share/service"
 )
 
 var _ Module = (*API)(nil)
@@ -26,8 +28,7 @@ var _ Module = (*API)(nil)
 //
 //go:generate mockgen -destination=mocks/api.go -package=mocks . Module
 type Module interface {
-	// SharesAvailable subjectively validates if Shares committed to the given Root are available on
-	// the Network.
+	// SharesAvailable subjectively validates if Shares committed to the given Root are available on the Network.
 	SharesAvailable(context.Context, *share.Root) error
 	// ProbabilityOfAvailability calculates the probability of the data square
 	// being available based on the number of samples collected.
@@ -84,4 +85,12 @@ func (api *API) GetSharesByNamespace(
 	namespace namespace.ID,
 ) ([]share.Share, error) {
 	return api.Internal.GetSharesByNamespace(ctx, root, namespace)
+}
+
+type module struct {
+	*service.ShareService
+}
+
+func (m *module) SharesAvailable(ctx context.Context, root *share.Root) error {
+	return m.ShareService.SharesAvailable(ctx, root)
 }
