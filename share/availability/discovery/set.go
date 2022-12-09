@@ -48,19 +48,22 @@ func (ps *limitedSet) TryAdd(p peer.ID) error {
 	if _, ok := ps.ps[p]; ok {
 		return errors.New("share: discovery: peer already added")
 	}
-	if len(ps.ps) < int(ps.limit) {
-		ps.ps[p] = struct{}{}
+	if len(ps.ps) >= int(ps.limit) {
+		return errors.New("share: discovery: peers limit reached")
+	}
 
+	ps.ps[p] = struct{}{}
+LOOP:
+	for {
 		// peer will be pushed to the channel only when somebody is reading from it.
 		// this is done to handle case when Peers() was called on empty set.
 		select {
 		case ps.waitPeer <- p:
 		default:
+			break LOOP
 		}
-		return nil
 	}
-
-	return errors.New("share: discovery: peers limit reached")
+	return nil
 }
 
 func (ps *limitedSet) Remove(id peer.ID) {
