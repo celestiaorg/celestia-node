@@ -111,15 +111,22 @@ func (h *Handler) getShares(ctx context.Context, height uint64, nID namespace.ID
 	return shares, header.Height, err
 }
 
-func dataFromShares(shares []share.Share) ([][]byte, error) {
-	messages, err := appshares.ParseMsgs(shares)
+func dataFromShares(shares []share.Share) (data [][]byte, err error) {
+	sequences, err := appshares.ParseShares(shares)
 	if err != nil {
-		return nil, err
+		return data, err
 	}
-	data := make([][]byte, len(messages.MessagesList))
-	for i := range messages.MessagesList {
-		data[i] = messages.MessagesList[i].Data
+
+	for _, sequence := range sequences {
+		for _, share := range sequence.Shares {
+			rawData, err := share.RawData()
+			if err != nil {
+				return data, err
+			}
+			data = append(data, rawData)
+		}
 	}
+
 	return data, nil
 }
 
