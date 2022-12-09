@@ -15,6 +15,8 @@ import (
 	"github.com/celestiaorg/celestia-node/core"
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/header/p2p"
+
+	network "github.com/celestiaorg/celestia-node/nodebuilder/p2p"
 )
 
 // TestListener tests the lifecycle of the core listener.
@@ -25,11 +27,14 @@ func TestListener(t *testing.T) {
 	// create mocknet with two pubsub endpoints
 	ps0, ps1 := createMocknetWithTwoPubsubEndpoints(ctx, t)
 	// create second subscription endpoint to listen for Listener's pubsub messages
-	topic, err := ps1.Join(p2p.PubSubTopic)
+	subsriber := p2p.NewSubscriber(ps1, string(network.Private))
+	err := subsriber.AddValidator(func(context.Context, *header.ExtendedHeader) pubsub.ValidationResult {
+		return pubsub.ValidationAccept
+	})
 	require.NoError(t, err)
-	sub, err := topic.Subscribe()
+	require.NoError(t, subsriber.Start(ctx))
+	subs, err := subsriber.Subscribe()
 	require.NoError(t, err)
-
 	// create one block to store as Head in local store and then unsubscribe from block events
 	fetcher := createCoreFetcher(t)
 
@@ -40,11 +45,7 @@ func TestListener(t *testing.T) {
 
 	// ensure headers are getting broadcasted to the gossipsub topic
 	for i := 1; i < 6; i++ {
-		msg, err := sub.Next(ctx)
-		require.NoError(t, err)
-
-		var resp header.ExtendedHeader
-		err = resp.UnmarshalBinary(msg.Data)
+		_, err = subs.NextHeader(ctx)
 		require.NoError(t, err)
 	}
 
@@ -94,7 +95,7 @@ func createListener(
 	fetcher *core.BlockFetcher,
 	ps *pubsub.PubSub,
 ) *Listener {
-	p2pSub := p2p.NewSubscriber(ps)
+	p2pSub := p2p.NewSubscriber(ps, string(network.Private))
 	err := p2pSub.Start(ctx)
 	require.NoError(t, err)
 	t.Cleanup(func() {

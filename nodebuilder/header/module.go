@@ -79,7 +79,7 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 			}),
 		)),
 		fx.Provide(fx.Annotate(
-			p2p.NewSubscriber,
+			newSubscriber,
 			fx.OnStart(func(ctx context.Context, sub *p2p.Subscriber) error {
 				return sub.Start(ctx)
 			}),

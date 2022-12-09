@@ -17,26 +17,29 @@ import (
 type Subscriber struct {
 	pubsub *pubsub.PubSub
 	topic  *pubsub.Topic
+
+	pubSubTopicID string
 }
 
 // NewSubscriber returns a Subscriber that manages the header Module's
 // relationship with the "header-sub" gossipsub topic.
-func NewSubscriber(ps *pubsub.PubSub) *Subscriber {
+func NewSubscriber(ps *pubsub.PubSub, protocolSuffix string) *Subscriber {
 	return &Subscriber{
-		pubsub: ps,
+		pubsub:        ps,
+		pubSubTopicID: pubSubTopicID(protocolSuffix),
 	}
 }
 
 // Start starts the Subscriber, registering a topic validator for the "header-sub"
 // topic and joining it.
 func (p *Subscriber) Start(context.Context) (err error) {
-	p.topic, err = p.pubsub.Join(PubSubTopic, pubsub.WithTopicMessageIdFn(msgID))
+	p.topic, err = p.pubsub.Join(p.pubSubTopicID, pubsub.WithTopicMessageIdFn(msgID))
 	return err
 }
 
 // Stop closes the topic and unregisters its validator.
 func (p *Subscriber) Stop(context.Context) error {
-	err := p.pubsub.UnregisterTopicValidator(PubSubTopic)
+	err := p.pubsub.UnregisterTopicValidator(p.pubSubTopicID)
 	if err != nil {
 		log.Warnf("unregistering validator: %s", err)
 	}
@@ -57,7 +60,7 @@ func (p *Subscriber) AddValidator(val header.Validator) error {
 		msg.ValidatorData = maybeHead
 		return val(ctx, maybeHead)
 	}
-	return p.pubsub.RegisterTopicValidator(PubSubTopic, pval)
+	return p.pubsub.RegisterTopicValidator(p.pubSubTopicID, pval)
 }
 
 // Subscribe returns a new subscription to the Subscriber's

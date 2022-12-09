@@ -20,6 +20,10 @@ func protocolID(protocolSuffix string) protocol.ID {
 	return protocol.ID(fmt.Sprintf("/header-ex/v0.0.3/%s", protocolSuffix))
 }
 
+func pubSubTopicID(protocolSuffix string) string {
+	return "header-sub/v0.0.1/" + protocolSuffix
+}
+
 // sendMessage opens the stream to the given peers and sends ExtendedHeaderRequest to fetch
 // ExtendedHeaders. As a result sendMessage returns ExtendedHeaderResponse, the size of fetched
 // data, the duration of the request and an error.
