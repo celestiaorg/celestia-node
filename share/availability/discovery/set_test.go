@@ -61,6 +61,8 @@ func TestSet_Peers(t *testing.T) {
 	require.True(t, len(peers) == 2)
 }
 
+// TestSet_WaitPeers ensures that `Peers` will be unblocked once
+// a new peer was discovered.
 func TestSet_WaitPeers(t *testing.T) {
 	m := mocknet.New()
 	h1, err := m.GenPeer()
@@ -75,6 +77,7 @@ func TestSet_WaitPeers(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*2)
 	t.Cleanup(cancel)
 
+	// call `Peers` on empty set will block until a new peer will be discovered
 	peers, err := set.Peers(ctx)
 	require.NoError(t, err)
 	require.True(t, len(peers) == 1)

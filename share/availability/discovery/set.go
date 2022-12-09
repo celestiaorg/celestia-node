@@ -51,6 +51,8 @@ func (ps *limitedSet) TryAdd(p peer.ID) error {
 	if len(ps.ps) < int(ps.limit) {
 		ps.ps[p] = struct{}{}
 
+		// peer will be pushed to the channel only when somebody is reading from it.
+		// this is done to handle case when Peers() was called on empty set.
 		select {
 		case ps.waitPeer <- p:
 		default:
