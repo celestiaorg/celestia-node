@@ -1,11 +1,10 @@
-package availability
+package shrex
 
 import (
 	"context"
 	"fmt"
 
 	logging "github.com/ipfs/go-log/v2"
-	"github.com/libp2p/go-libp2p-core/protocol"
 
 	"github.com/celestiaorg/celestia-node/header"
 	header_svc "github.com/celestiaorg/celestia-node/nodebuilder/header"
@@ -16,7 +15,7 @@ import (
 	share_p2p_v1 "github.com/celestiaorg/celestia-node/share/p2p/v1/pb"
 )
 
-const protocolID = "shrEx/nd"
+const ndProtocolID = "shrEx/nd"
 
 var log = logging.Logger("share/server")
 
@@ -32,15 +31,12 @@ func NewAvailabilityHandler(share share_svc.Module, header header_svc.Module) *H
 	}
 }
 
-func (h *Handler) ProtocolID() protocol.ID {
-	return protocolID
-}
-
 func (h *Handler) Handle(ctx context.Context, s *p2p.Session) error {
 	var req share_p2p_v1.GetSharesByNamespaceRequest
 	err := s.Read(&req)
 	if err != nil {
-		// TODO: handle unmarshall errors as incorrect input
+		// TODO: do not try to respond if stream is already down
+		h.respondInvalidArgument(s)
 		return fmt.Errorf("reading msg: %w", err)
 	}
 
@@ -71,6 +67,7 @@ func (h *Handler) Handle(ctx context.Context, s *p2p.Session) error {
 	return respondOK(s, sharesWithProofs)
 }
 
+// validateRequest checks correctness of the request
 func validateRequest(req share_p2p_v1.GetSharesByNamespaceRequest) error {
 	if req.Height < 0 {
 		return fmt.Errorf("height could not be less than zero: %v", req.Height)
@@ -81,6 +78,7 @@ func validateRequest(req share_p2p_v1.GetSharesByNamespaceRequest) error {
 	return nil
 }
 
+// respondInvalidArgument sends invalid argument response to client
 func (h *Handler) respondInvalidArgument(s *p2p.Session) {
 	resp := &share_p2p_v1.GetSharesByNamespaceResponse{
 		Status: share_p2p_v1.StatusCode_INVALID_ARGUMENT,
@@ -91,6 +89,7 @@ func (h *Handler) respondInvalidArgument(s *p2p.Session) {
 	}
 }
 
+// respondInternal sends internal error response to client
 func (h *Handler) respondInternal(s *p2p.Session) {
 	resp := &share_p2p_v1.GetSharesByNamespaceResponse{
 		Status: share_p2p_v1.StatusCode_INTERNAL,
@@ -101,6 +100,7 @@ func (h *Handler) respondInternal(s *p2p.Session) {
 	}
 }
 
+// respondOK encodes shares into proto and sends it to client with OK status code
 func respondOK(s *p2p.Session, shares []share.SharesWithProof) error {
 	rows := make([]*share_p2p_v1.Row, 0, len(shares))
 	for _, sh := range shares {

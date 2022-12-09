@@ -1,4 +1,4 @@
-package availability
+package shrex
 
 import (
 	"testing"
@@ -35,8 +35,8 @@ func TestGetSharesWithProofByNamespace(t *testing.T) {
 
 	availSvc := &availStub{}
 	availability := NewAvailabilityHandler(availSvc, getterStub{})
-	server.RegisterHandler(protocolID, availability.Handle)
-	defer server.RemoveHandler(protocolID)
+	server.RegisterHandler(ndProtocolID, availability.Handle)
+	defer server.RemoveHandler(ndProtocolID)
 
 	clHost, err := net.GenPeer()
 	require.NoError(t, err)
@@ -67,7 +67,7 @@ func TestGetSharesWithProofByNamespace(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			"happy path",
+			"get by height",
 			client,
 			args{
 				ctx:           context.TODO(),

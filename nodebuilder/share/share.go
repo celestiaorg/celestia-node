@@ -39,7 +39,8 @@ type Module interface {
 	GetSharesByNamespace(ctx context.Context, root *share.Root, namespace namespace.ID) ([]share.Share, error)
 	// GetSharesWithProofsByNamespace is same as GetSharesByNamespace but also collects nmt.Proof for
 	// collected shares
-	GetSharesWithProofsByNamespace(ctx context.Context, root *share.Root, nID namespace.ID) ([]share.SharesWithProof, error)
+	GetSharesWithProofsByNamespace(
+		ctx context.Context, root *share.Root, nID namespace.ID) ([]share.SharesWithProof, error)
 }
 
 // API is a wrapper around Module for the RPC.

@@ -19,6 +19,8 @@ type Config struct {
 	Interceptors []ServerInterceptor
 }
 
+// Server is a utility wrapper around libp2p host that abstracts away common server functionality.
+// Execution order of interceptors is from last to first
 type Server struct {
 	ctx                       context.Context
 	host                      host.Host
@@ -26,8 +28,10 @@ type Server struct {
 	interceptorsChain         ServerInterceptor
 }
 
+// Handle handles server side of communication
 type Handle func(context.Context, *Session) error
 
+// ServerInterceptor is the server side middleware
 type ServerInterceptor func(context.Context, *Session, Handle) error
 
 func NewServer(cfg Config, host host.Host) Server {
@@ -39,6 +43,8 @@ func NewServer(cfg Config, host host.Host) Server {
 	}
 }
 
+// chainServerInterceptors reduces multiple interceptors to one chain.Execution order of
+// interceptors is from last to first.
 func chainServerInterceptors(interceptors ...ServerInterceptor) ServerInterceptor {
 	n := len(interceptors)
 	return func(ctx context.Context, session *Session, handler Handle) error {
@@ -57,19 +63,23 @@ func chainServerInterceptors(interceptors ...ServerInterceptor) ServerIntercepto
 	}
 }
 
+// RegisterHandler sets the handler on the Host's Mux
 func (srv *Server) RegisterHandler(pid protocol.ID, handler Handle) {
 	h := srv.sessionHandler(handler)
 	srv.host.SetStreamHandler(pid, h)
 }
 
+// RemoveHandler removes a handler from the stream mux that was set by
+// RegisterHandler
 func (srv *Server) RemoveHandler(pid protocol.ID) {
 	srv.host.RemoveStreamHandler(pid)
 }
 
+// sessionHandler creates handler with interceptors and session
 func (srv *Server) sessionHandler(h Handle) network.StreamHandler {
 	return func(stream network.Stream) {
 		s := srv.newSession(stream)
-		err := srv.interceptorsChain(context.TODO(), s, h)
+		err := srv.interceptorsChain(context.Background(), s, h)
 		if err != nil {
 			log.Errorf("handle session: %s", err.Error())
 			s.Stream.Reset() //nolint:errcheck

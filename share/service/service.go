@@ -114,8 +114,8 @@ func (s *ShareService) GetSharesByNamespace(
 	return out, nil
 }
 
-// GetSharesWithProofsByNamespace iterates over a square's row roots and accumulates the found shares in the
-// given namespace.ID.
+// GetSharesWithProofsByNamespace iterates over a square's row roots and accumulates the found
+// shares in the given namespace.ID.
 func (s *ShareService) GetSharesWithProofsByNamespace(
 	ctx context.Context,
 	root *share.Root,
@@ -124,8 +124,8 @@ func (s *ShareService) GetSharesWithProofsByNamespace(
 	return s.getSharesWithProofsByNamespace(ctx, root, nID, true)
 }
 
-// GetSharesWithProofsByNamespace iterates over a square's row roots and accumulates the found shares in the
-// given namespace.ID.
+// GetSharesWithProofsByNamespace iterates over a square's row roots and accumulates the found
+// shares in the given namespace.ID.
 func (s *ShareService) getSharesWithProofsByNamespace(
 	ctx context.Context,
 	root *share.Root,

@@ -1,4 +1,4 @@
-package availability
+package shrex
 
 import (
 	"fmt"
@@ -45,14 +45,14 @@ func (c *Client) GetSharesWithProofs(
 		}
 
 		if resp.Status != share_p2p_v1.StatusCode_OK {
-			return fmt.Errorf("response code is not OK: %v", resp.Status)
+			return fmt.Errorf("response code is not OK: %s", statusToString(resp.Status))
 		}
 
 		shares, err = responseToShares(resp.Rows)
 		return err
 	}
 
-	err := c.client.Do(ctx, peerID, protocolID, doRequest)
+	err := c.client.Do(ctx, doRequest, ndProtocolID, peerID)
 	return shares, err
 }
 
@@ -79,4 +79,18 @@ func responseToShares(rows []*share_p2p_v1.Row) ([]share.SharesWithProof, error)
 		})
 	}
 	return shares, nil
+}
+
+func statusToString(code share_p2p_v1.StatusCode) string {
+	switch code {
+	case share_p2p_v1.StatusCode_INVALID:
+		return "INVALID"
+	case share_p2p_v1.StatusCode_OK:
+		return "OK"
+	case share_p2p_v1.StatusCode_NOT_FOUND:
+		return "NOT_FOUND"
+	case share_p2p_v1.StatusCode_INTERNAL:
+		return "INTERNAL_ERR"
+	}
+	return ""
 }
