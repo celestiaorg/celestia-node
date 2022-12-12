@@ -203,8 +203,8 @@ SyncHead(ctx context.Context) (*header.ExtendedHeader, error)
 ```go
 
   type NodeModule interface {
-    // AdminInfo returns administrative information about the node.
-    AdminInfo(context.Context) Info
+    // Info returns administrative information about the node.
+    Info(context.Context) (Info, error)
  
     // LogLevelSet sets the given component log level to the given level.
     LogLevelSet(ctx context.Context, name, level string) error
