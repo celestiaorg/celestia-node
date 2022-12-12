@@ -3,6 +3,8 @@ package p2p
 import (
 	"fmt"
 	"time"
+
+	modp2p "github.com/celestiaorg/celestia-node/nodebuilder/p2p"
 )
 
 // parameters is an interface that encompasses all params needed for
@@ -26,6 +28,8 @@ type ServerParameters struct {
 	// RequestTimeout defines a timeout after which the session will try to re-request headers
 	// from another peer.
 	RequestTimeout time.Duration
+	// ProtocolSuffix is a network suffix that will be used to create a protocol.ID
+	ProtocolSuffix string
 }
 
 // DefaultServerParameters returns the default params to configure the store.
@@ -35,6 +39,7 @@ func DefaultServerParameters() ServerParameters {
 		ReadDeadline:   time.Minute,
 		MaxRequestSize: 512,
 		RequestTimeout: time.Second * 5,
+		ProtocolSuffix: string(modp2p.DefaultNetwork),
 	}
 }
 
@@ -51,6 +56,9 @@ func (p *ServerParameters) Validate() error {
 	if p.RequestTimeout == 0 {
 		return fmt.Errorf("invalid request timeout for session: "+
 			"%s. %s: %v", greaterThenZero, providedSuffix, p.RequestTimeout)
+	}
+	if p.ProtocolSuffix == "" {
+		return fmt.Errorf("protocol suffix should not be empty")
 	}
 	return nil
 }
@@ -103,6 +111,17 @@ func WithRequestTimeout[T parameters](duration time.Duration) Option[T] {
 	}
 }
 
+func WithProtocolSuffix[T parameters](protocolSuffix string) Option[T] {
+	return func(p *T) {
+		switch t := any(p).(type) {
+		case *ClientParameters:
+			t.ProtocolSuffix = protocolSuffix
+		case *ServerParameters:
+			t.ProtocolSuffix = protocolSuffix
+		}
+	}
+}
+
 // ClientParameters is the set of parameters that must be configured for the exchange.
 type ClientParameters struct {
 	// the target minimum amount of responses with the same chain head
@@ -121,6 +140,8 @@ type ClientParameters struct {
 	RequestTimeout time.Duration
 	// MaxTrackerSize specifies the max amount of peers that can be added to the peerTracker.
 	MaxPeerTrackerSize int
+	// ProtocolSuffix is a network suffix that will be used to create a protocol.ID
+	ProtocolSuffix string
 }
 
 // DefaultClientParameters returns the default params to configure the store.
@@ -133,6 +154,7 @@ func DefaultClientParameters() ClientParameters {
 		DefaultScore:         1,
 		RequestTimeout:       time.Second * 3,
 		MaxPeerTrackerSize:   100,
+		ProtocolSuffix:       string(modp2p.DefaultNetwork),
 	}
 }
 
@@ -169,6 +191,9 @@ func (p *ClientParameters) Validate() error {
 	}
 	if p.MaxPeerTrackerSize <= 0 {
 		return fmt.Errorf("invalid MaxTrackerSize: %s. %s: %d", greaterThenZero, providedSuffix, p.MaxPeerTrackerSize)
+	}
+	if p.ProtocolSuffix == "" {
+		return fmt.Errorf("protocol suffix should not be empty")
 	}
 	return nil
 }

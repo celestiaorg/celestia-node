@@ -25,7 +25,7 @@ func TestListener(t *testing.T) {
 	// create mocknet with two pubsub endpoints
 	ps0, ps1 := createMocknetWithTwoPubsubEndpoints(ctx, t)
 	// create second subscription endpoint to listen for Listener's pubsub messages
-	subsriber := p2p.NewSubscriber(ps1, "test")
+	subsriber := p2p.NewSubscriber(ps1, "private")
 	err := subsriber.AddValidator(func(context.Context, *header.ExtendedHeader) pubsub.ValidationResult {
 		return pubsub.ValidationAccept
 	})
@@ -93,7 +93,7 @@ func createListener(
 	fetcher *core.BlockFetcher,
 	ps *pubsub.PubSub,
 ) *Listener {
-	p2pSub := p2p.NewSubscriber(ps, "test")
+	p2pSub := p2p.NewSubscriber(ps, "private")
 	err := p2pSub.Start(ctx)
 	require.NoError(t, err)
 	t.Cleanup(func() {

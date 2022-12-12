@@ -43,7 +43,6 @@ type ExchangeServer struct {
 func NewExchangeServer(
 	host host.Host,
 	getter header.Getter,
-	protocolSuffix string,
 	opts ...Option[ServerParameters],
 ) (*ExchangeServer, error) {
 	params := DefaultServerParameters()
@@ -55,7 +54,7 @@ func NewExchangeServer(
 	}
 
 	return &ExchangeServer{
-		protocolID: protocolID(protocolSuffix),
+		protocolID: protocolID(params.ProtocolSuffix),
 		host:       host,
 		getter:     getter,
 		Params:     params,

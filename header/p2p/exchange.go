@@ -38,7 +38,6 @@ type Exchange struct {
 func NewExchange(
 	host host.Host,
 	peers peer.IDSlice,
-	protocolSuffix string,
 	connGater *conngater.BasicConnectionGater,
 	opts ...Option[ClientParameters],
 ) (*Exchange, error) {
@@ -54,7 +53,7 @@ func NewExchange(
 
 	return &Exchange{
 		host:         host,
-		protocolID:   protocolID(protocolSuffix),
+		protocolID:   protocolID(params.ProtocolSuffix),
 		trustedPeers: peers,
 		peerTracker: newPeerTracker(
 			host,
