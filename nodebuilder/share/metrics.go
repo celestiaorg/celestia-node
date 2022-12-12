@@ -2,18 +2,19 @@ package share
 
 import (
 	"context"
-	"math/rand"
 	"time"
 
 	logging "github.com/ipfs/go-log/v2"
 
-	"github.com/celestiaorg/celestia-node/share"
-	"github.com/celestiaorg/celestia-node/share/service"
-	"github.com/celestiaorg/nmt/namespace"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric/global"
 	"go.opentelemetry.io/otel/metric/instrument"
 	"go.opentelemetry.io/otel/metric/instrument/syncint64"
+
+	"github.com/celestiaorg/celestia-node/share"
+	"github.com/celestiaorg/celestia-node/share/service"
+	"github.com/celestiaorg/nmt/namespace"
+	"github.com/celestiaorg/utils/misc"
 )
 
 var (
@@ -98,10 +99,17 @@ func (bbi *shareServiceBlackboxInstru) Stop(ctx context.Context) error {
 	return bbi.next.Stop(ctx)
 }
 
-func (bbi *shareServiceBlackboxInstru) GetShare(ctx context.Context, dah *share.Root, row, col int) (share.Share, error) {
+func (bbi *shareServiceBlackboxInstru) GetShare(
+	ctx context.Context,
+	dah *share.Root,
+	row, col int,
+) (share.Share, error) {
 	log.Debug("GetShare is being called through the facade")
 	now := time.Now()
-	requestID := RandStringBytes(5)
+	requestID, err := misc.RandString(5)
+	if err != nil {
+		return nil, err
+	}
 
 	// defer recording the duration until the request has received a response and finished
 	defer func(ctx context.Context, begin time.Time) {
@@ -141,24 +149,18 @@ func (bbi *shareServiceBlackboxInstru) GetShare(ctx context.Context, dah *share.
 	return share, err
 }
 
-func (bbi *shareServiceBlackboxInstru) GetShares(ctx context.Context, root *share.Root) ([][]share.Share, error) {
+func (bbi *shareServiceBlackboxInstru) GetShares(
+	ctx context.Context,
+	root *share.Root,
+) ([][]share.Share, error) {
 	return bbi.next.GetShares(ctx, root)
 }
 
 // GetSharesByNamespace iterates over a square's row roots and accumulates the found shares in the given namespace.ID.
-func (bbi *shareServiceBlackboxInstru) GetSharesByNamespace(ctx context.Context, root *share.Root, namespace namespace.ID) ([]share.Share, error) {
+func (bbi *shareServiceBlackboxInstru) GetSharesByNamespace(
+	ctx context.Context,
+	root *share.Root,
+	namespace namespace.ID,
+) ([]share.Share, error) {
 	return bbi.next.GetSharesByNamespace(ctx, root, namespace)
-}
-
-// this is currently duplicated (look in nodebuilder/header/metric.go) until I find a good place to factor it in
-// utility: copy-pasta from the internet to get this working
-// TODO(@derrandz): find a better way for generating random unique IDs for requests
-const letterBytes = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
-
-func RandStringBytes(n int) string {
-	b := make([]byte, n)
-	for i := range b {
-		b[i] = letterBytes[rand.Intn(len(letterBytes))]
-	}
-	return string(b)
 }

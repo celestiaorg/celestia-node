@@ -7,7 +7,7 @@ import (
 )
 
 func WithBlackBoxMetrics(ss Module) (Module, error) {
-	mod, ok := ss.(module)
+	mod, ok := ss.(*module)
 	if !ok {
 		return nil, fmt.Errorf("[WithBlackBoxMetrics]: encountered an error while type-casting share.Module to `module` ")
 	}
