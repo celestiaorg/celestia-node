@@ -52,6 +52,55 @@ func Init(cfg Config, path string, tp node.Type) error {
 	return nil
 }
 
+func Remove(path string) error {
+	strPath, err := storePath(path)
+	if err != nil {
+		return err
+	}
+
+	cfgPath := configPath(strPath)
+	return RemoveConfig(cfgPath)
+}
+
+func Reinit(cfg Config, path string, newConfigPath string, tp node.Type) error {
+	path, err := storePath(path)
+	if err != nil {
+		return err
+	}
+	cfgPath := configPath(path)
+	exist := utils.Exists(cfgPath)
+
+	// if config exist make changes
+	if exist {
+		log.Infof("Reinitializing %s Node Store Config over '%s'", tp, path)
+
+		flock, err := fslock.Lock(lockPath(path))
+		if err != nil {
+			if err == fslock.ErrLocked {
+				return ErrOpened
+			}
+			return err
+		}
+		defer flock.Unlock() //nolint: errcheck
+
+		newConf, err := LoadConfig(newConfigPath)
+		if err != nil {
+			return err
+		}
+
+		err = SaveConfig(cfgPath, newConf)
+		if err != nil {
+			return err
+		}
+
+		log.Infow("Saving config", "path", cfgPath)
+		return nil
+	}
+
+	log.Infof("%s Node store not found '%s'", tp, path)
+	return Init(cfg, path, tp)
+}
+
 // IsInit checks whether FileSystem Store was setup under given 'path'.
 // If any required file/subdirectory does not exist, then false is reported.
 func IsInit(path string) bool {

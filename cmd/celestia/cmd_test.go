@@ -22,6 +22,7 @@ func TestLight(t *testing.T) {
 		rootCmd.SetOut(output)
 		rootCmd.SetArgs([]string{
 			"bridge",
+			"config",
 			"--node.store", ".celestia-light",
 			"init",
 		})
@@ -68,6 +69,7 @@ func TestBridge(t *testing.T) {
 		rootCmd.SetOut(output)
 		rootCmd.SetArgs([]string{
 			"bridge",
+			"config",
 			"--node.store", ".celestia-bridge",
 			"init",
 		})

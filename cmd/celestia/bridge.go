@@ -17,15 +17,7 @@ import (
 
 func init() {
 	bridgeCmd.AddCommand(
-		cmdnode.Init(
-			cmdnode.NodeFlags(),
-			p2p.Flags(),
-			core.Flags(),
-			cmdnode.MiscFlags(),
-			rpc.Flags(),
-			gateway.Flags(),
-			state.Flags(),
-		),
+		cmdnode.ConfigCmd,
 		cmdnode.Start(
 			cmdnode.NodeFlags(),
 			p2p.Flags(),
