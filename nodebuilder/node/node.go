@@ -12,7 +12,7 @@ import (
 //go:generate mockgen -destination=mocks/api.go -package=mocks . Module
 type Module interface {
 	// Info returns administrative information about the node.
-	Info(context.Context) Info
+	Info(context.Context) (Info, error)
 
 	// LogLevelSet sets the given component log level to the given level.
 	LogLevelSet(ctx context.Context, name, level string) error
@@ -27,14 +27,14 @@ var _ Module = (*API)(nil)
 
 type API struct {
 	Internal struct {
-		Info        func(context.Context) Info                                         `perm:"admin"`
+		Info        func(context.Context) (Info, error)                                `perm:"admin"`
 		LogLevelSet func(ctx context.Context, name, level string) error                `perm:"admin"`
 		AuthVerify  func(ctx context.Context, token string) ([]auth.Permission, error) `perm:"admin"`
 		AuthNew     func(ctx context.Context, perms []auth.Permission) ([]byte, error) `perm:"admin"`
 	}
 }
 
-func (api *API) Info(ctx context.Context) Info {
+func (api *API) Info(ctx context.Context) (Info, error) {
 	return api.Internal.Info(ctx)
 }
 

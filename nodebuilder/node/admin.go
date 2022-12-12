@@ -25,11 +25,11 @@ type Info struct {
 	APIVersion string `json:"api_version"`
 }
 
-func (a *admin) Info(context.Context) Info {
+func (a *admin) Info(context.Context) (Info, error) {
 	return Info{
 		Type: a.tp,
 		// TODO @renaynay @distractedm1nd: Implement versioning in API and way to extract that into this struct
-	}
+	}, nil
 }
 
 func (a *admin) LogLevelSet(_ context.Context, name, level string) error {
