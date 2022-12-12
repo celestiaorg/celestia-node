@@ -36,10 +36,10 @@ type Server struct {
 }
 
 // NewServer creates a new ShrEx/EDS server.
-func NewServer(host host.Host, store *eds.Store) *Server {
+func NewServer(host host.Host, store *eds.Store, protocolSuffix string) *Server {
 	return &Server{
 		host:       host,
-		protocolID: protocolID,
+		protocolID: protocolID(protocolSuffix),
 		store:      store,
 	}
 }
