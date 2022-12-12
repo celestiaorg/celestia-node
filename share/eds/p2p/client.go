@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io"
 
 	logging "github.com/ipfs/go-log/v2"
 	"github.com/libp2p/go-libp2p-core/host"
@@ -22,6 +21,10 @@ import (
 var log = logging.Logger("shrex/eds")
 
 var errNoMorePeers = errors.New("all peers returned invalid responses")
+
+func protocolID(protocolSuffix string) protocol.ID {
+	return protocol.ID(fmt.Sprintf("/shrex/eds/v0.0.1/%s", protocolSuffix))
+}
 
 // Client is responsible for requesting EDSs for blocksync over the ShrEx/EDS protocol.
 // This client is run by light nodes and full nodes. For more information, see ADR #13
@@ -63,7 +66,7 @@ func (c *Client) RequestEDS(
 				continue
 			}
 
-			eds, err := c.doRequest(ctx, req, dataHash, to)
+			eds, err := c.doRequest(ctx, req, to)
 			if eds != nil {
 				return eds, nil
 			}
@@ -84,9 +87,9 @@ func (c *Client) RequestEDS(
 func (c *Client) doRequest(
 	ctx context.Context,
 	req *p2p_pb.EDSRequest,
-	dataHash share.DataHash,
 	to peer.ID,
 ) (*rsmt2d.ExtendedDataSquare, error) {
+	dataHash := share.DataHash(req.Hash)
 	log.Debugf("client: requesting eds %s from peer %s", dataHash.String(), to)
 	stream, err := c.host.NewStream(ctx, to, c.protocolID)
 	if err != nil {
@@ -113,7 +116,7 @@ func (c *Client) doRequest(
 	// read and parse status from peer
 	resp := new(p2p_pb.EDSResponse)
 	_, err = serde.Read(stream, resp)
-	if err != nil && err != io.EOF {
+	if err != nil {
 		stream.Reset() //nolint:errcheck
 		return nil, fmt.Errorf("failed to read status from stream: %w", err)
 	}
@@ -132,12 +135,8 @@ func (c *Client) doRequest(
 		// no eds was returned, but the request was valid and should be retried
 		return nil, nil
 	case p2p_pb.Status_INVALID:
-		return nil, fmt.Errorf("request for root %s marked as invalid by peer", dataHash.String())
+		fallthrough
 	default:
-		return nil, fmt.Errorf("peer responded with unknown status %s", resp.GetStatus())
+		return nil, fmt.Errorf("request status for root %s marked as invalid", dataHash.String())
 	}
-}
-
-func protocolID(protocolSuffix string) protocol.ID {
-	return protocol.ID(fmt.Sprintf("/shrex/eds/v0.0.1/%s", protocolSuffix))
 }

@@ -67,19 +67,20 @@ func (s *Server) handleStream(stream network.Stream) {
 		return
 	}
 
-	var edsReader io.ReadCloser
-	status := p2p_pb.Status_OK
+	// ensure the requested dataHash is a valid root
 	err = share.DataHash(req.Hash).Validate()
 	if err != nil {
-		status = p2p_pb.Status_INVALID
+		stream.Reset() //nolint:errcheck
+		return
+	}
+
+	status := p2p_pb.Status_OK
+	// determine whether the EDS is available in our store
+	edsReader, err := s.store.GetCAR(s.ctx, req.Hash)
+	if err != nil {
+		status = p2p_pb.Status_NOT_FOUND
 	} else {
-		// determine whether the EDS is available in our store
-		edsReader, err = s.store.GetCAR(s.ctx, req.Hash)
-		if err != nil {
-			status = p2p_pb.Status_NOT_FOUND
-		} else {
-			defer edsReader.Close()
-		}
+		defer edsReader.Close()
 	}
 
 	// inform the client of our status
@@ -137,11 +138,7 @@ func (s *Server) writeStatus(status p2p_pb.Status, stream network.Stream) error 
 
 	resp := &p2p_pb.EDSResponse{Status: status}
 	_, err = serde.Write(stream, resp)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return err
 }
 
 func (s *Server) writeODS(edsReader io.ReadCloser, stream network.Stream) error {
