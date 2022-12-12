@@ -44,7 +44,7 @@ func TestExchange_RequestEDS(t *testing.T) {
 
 	// Testcase: EDS is unavailable initially, but is found after multiple requests
 	t.Run("EDS_AvailableAfterDelay", func(t *testing.T) {
-		storageDelay := time.Second * 3
+		storageDelay := time.Second
 		eds := share.RandEDS(t, 4)
 		dah := da.NewDataAvailabilityHeader(eds)
 		go func() {
@@ -72,7 +72,7 @@ func TestExchange_RequestEDS(t *testing.T) {
 
 	// Testcase: Valid request, which server cannot serve, waits forever
 	t.Run("EDS_ValidTimeout", func(t *testing.T) {
-		timeoutCtx, cancel := context.WithTimeout(ctx, time.Second*3)
+		timeoutCtx, cancel := context.WithTimeout(ctx, time.Second)
 		t.Cleanup(cancel)
 		eds := share.RandEDS(t, 4)
 		dah := da.NewDataAvailabilityHeader(eds)

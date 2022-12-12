@@ -58,40 +58,31 @@ func (c *Client) RequestEDS(
 	// requests are retried for every peer until a valid response is received
 	excludedPeers := make(map[peer.ID]struct{})
 	for {
-		select {
-		case <-ctx.Done():
-			return nil, ctx.Err()
-		default:
-		}
-
 		// if no peers are left, return
 		if len(peers) == len(excludedPeers) {
 			return nil, errNoMorePeers
 		}
 
 		for _, to := range peers {
-			select {
-			case <-ctx.Done():
-				return nil, ctx.Err()
-			default:
-			}
-
 			// skip over excluded peers
 			if _, ok := excludedPeers[to]; ok {
 				continue
 			}
 
 			eds, err := c.doRequest(ctx, req, dataHash, to)
+			if eds != nil {
+				return eds, nil
+			}
+			if errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) {
+				return nil, ctx.Err()
+			}
 			if err != nil {
 				// peer has misbehaved, exclude them from round-robin
 				excludedPeers[to] = struct{}{}
 				log.Errorw("client: eds request to peer failed", "peer", to, "hash", dataHash.String())
 			}
 
-			// eds is nil when the request was valid but couldn't be served
-			if eds != nil {
-				return eds, nil
-			}
+			// no eds was found, continue
 		}
 	}
 }
@@ -150,7 +141,7 @@ func (c *Client) doRequest(
 
 		return eds, nil
 	case p2p_pb.Status_NOT_FOUND, p2p_pb.Status_REFUSED:
-		log.Debug("client: peer %s couldn't serve eds %s with status", to, dataHash.String(), resp.GetStatus())
+		log.Debugf("client: peer %s couldn't serve eds %s with status %s", to.String(), dataHash.String(), resp.GetStatus())
 		// no eds was returned, but the request was valid and should be retried
 		return nil, nil
 	case p2p_pb.Status_INVALID:
