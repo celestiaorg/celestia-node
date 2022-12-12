@@ -51,14 +51,15 @@ func (la *ShareAvailability) Start(context.Context) error {
 
 	go la.disc.EnsurePeers(ctx)
 
-	la.shareServ.Start(ctx)
-
+	// the share's service will be already started thanks
+	// to fx lifecycle
 	return nil
 }
 
 func (la *ShareAvailability) Stop(ctx context.Context) error {
 	la.cancel()
-	la.shareServ.Stop(ctx)
+	// the share's service will be already stopped thanks
+	// to fx lifecycle
 	return nil
 }
 

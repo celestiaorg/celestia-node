@@ -61,6 +61,8 @@ func (s *shareService) Start(context.Context) error {
 	ctx, cancel := context.WithCancel(context.Background())
 	s.cancel = cancel
 	s.session = blockservice.NewSession(ctx, s.bServ)
+
+	fmt.Printf("Service started")
 	return nil
 }
 

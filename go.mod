@@ -12,6 +12,7 @@ require (
 	github.com/celestiaorg/go-libp2p-messenger v0.1.0
 	github.com/celestiaorg/nmt v0.11.0
 	github.com/celestiaorg/rsmt2d v0.7.0
+	github.com/celestiaorg/utils v0.0.0-00010101000000-000000000000
 	github.com/cosmos/cosmos-sdk v0.46.0
 	github.com/cosmos/cosmos-sdk/api v0.1.0
 	github.com/cristalhq/jwt v1.2.0
@@ -316,6 +317,7 @@ require (
 )
 
 replace (
+	github.com/celestiaorg/utils => github.com/celestiaorg/utils v0.0.0-20221212222936-167db0d57129 // uses an unmerged PR, delete when celestiaorg/utils PR#5 is merged
 	github.com/cosmos/cosmos-sdk => github.com/celestiaorg/cosmos-sdk v1.4.0-sdk-v0.46.0
 	github.com/filecoin-project/dagstore => github.com/celestiaorg/dagstore v0.0.0-20221014072825-395797efb659
 	github.com/gogo/protobuf => github.com/regen-network/protobuf v1.3.3-alpha.regen.1

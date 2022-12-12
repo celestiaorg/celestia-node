@@ -15,6 +15,7 @@ import (
 	"go.opentelemetry.io/otel/metric/instrument/syncint64"
 
 	"github.com/celestiaorg/celestia-node/header"
+	"github.com/celestiaorg/utils/misc"
 )
 
 var (
@@ -102,7 +103,10 @@ func newBlackBoxInstrument(next Module) (Module, error) {
 // until header has been processed by the store or context deadline is exceeded.
 func (bbi *blackBoxInstrument) GetByHeight(ctx context.Context, height uint64) (*header.ExtendedHeader, error) {
 	now := time.Now()
-	requestID := RandStringBytes(5)
+	requestID, err := misc.RandString(5)
+	if err != nil {
+		return nil, err
+	}
 
 	// defer recording the duration until the request has received a response and finished
 	defer func(ctx context.Context, begin time.Time) {
