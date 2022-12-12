@@ -106,5 +106,5 @@ func makeExchange(t *testing.T) (*eds.Store, *Client, *Server) {
 	store := newStore(t)
 	hosts := createMocknet(t, 2)
 
-	return store, NewClient(hosts[0]), NewServer(hosts[1], store)
+	return store, NewClient(hosts[0], ""), NewServer(hosts[1], store, "")
 }

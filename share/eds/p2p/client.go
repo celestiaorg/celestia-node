@@ -1,33 +1,27 @@
 package p2p
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"fmt"
 	"io"
-	"time"
 
 	logging "github.com/ipfs/go-log/v2"
 	"github.com/libp2p/go-libp2p-core/host"
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/libp2p/go-libp2p-core/protocol"
 
-	"github.com/celestiaorg/go-libp2p-messenger/serde"
-
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/eds"
 	p2p_pb "github.com/celestiaorg/celestia-node/share/eds/p2p/pb"
 
+	"github.com/celestiaorg/go-libp2p-messenger/serde"
 	"github.com/celestiaorg/rsmt2d"
 )
 
 var log = logging.Logger("shrex/eds")
 
 var errNoMorePeers = errors.New("all peers returned invalid responses")
-
-// TODO(@distractedm1nd): make version suffix configurable
-var protocolID = protocol.ID("/shrex/eds/0.0.1")
 
 // Client is responsible for requesting EDSs for blocksync over the ShrEx/EDS protocol.
 // This client is run by light nodes and full nodes. For more information, see ADR #13
@@ -37,10 +31,10 @@ type Client struct {
 }
 
 // NewClient creates a new ShrEx/EDS client.
-func NewClient(host host.Host) *Client {
+func NewClient(host host.Host, protocolSuffix string) *Client {
 	return &Client{
 		host:       host,
-		protocolID: protocolID,
+		protocolID: protocolID(protocolSuffix),
 	}
 }
 
@@ -98,12 +92,13 @@ func (c *Client) doRequest(
 	if err != nil {
 		return nil, fmt.Errorf("failed to open stream: %w", err)
 	}
+	if dl, ok := ctx.Deadline(); ok {
+		if err = stream.SetDeadline(dl); err != nil {
+			log.Debugw("error setting deadline: %s", err)
+		}
+	}
 
 	// request status from peer to provide the requested EDS
-	err = stream.SetWriteDeadline(time.Now().Add(writeDeadline))
-	if err != nil {
-		log.Warn(err)
-	}
 	_, err = serde.Write(stream, req)
 	if err != nil {
 		stream.Reset() //nolint:errcheck
@@ -111,15 +106,12 @@ func (c *Client) doRequest(
 	}
 	err = stream.CloseWrite()
 	if err != nil {
+		stream.Reset() //nolint:errcheck
 		return nil, fmt.Errorf("failed to close write on stream: %w", err)
 	}
 
 	// read and parse status from peer
 	resp := new(p2p_pb.EDSResponse)
-	err = stream.SetReadDeadline(time.Now().Add(readDeadline))
-	if err != nil {
-		log.Warn(err)
-	}
 	_, err = serde.Read(stream, resp)
 	if err != nil && err != io.EOF {
 		stream.Reset() //nolint:errcheck
@@ -128,13 +120,8 @@ func (c *Client) doRequest(
 
 	switch resp.Status {
 	case p2p_pb.Status_OK:
-		// read all CARv1 header and ODS bytes from stream
-		carBytes, err := io.ReadAll(stream)
-		if err != nil && err != io.EOF {
-			return nil, fmt.Errorf("unexpected error while reading ods from stream: %w", err)
-		}
 		// use header and ODS bytes to construct EDS and verify it against dataHash
-		eds, err := eds.ReadEDS(ctx, bytes.NewReader(carBytes), dataHash)
+		eds, err := eds.ReadEDS(ctx, stream, dataHash)
 		if err != nil {
 			return nil, fmt.Errorf("failed to read eds from ods bytes: %w", err)
 		}
@@ -149,4 +136,8 @@ func (c *Client) doRequest(
 	default:
 		return nil, fmt.Errorf("peer responded with unknown status %s", resp.GetStatus())
 	}
+}
+
+func protocolID(protocolSuffix string) protocol.ID {
+	return protocol.ID(fmt.Sprintf("/shrex/eds/v0.0.1/%s", protocolSuffix))
 }
