@@ -15,6 +15,7 @@ import (
 	"github.com/celestiaorg/celestia-node/core"
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/libs/header/p2p"
+	"github.com/celestiaorg/celestia-node/share/eds"
 )
 
 // TestListener tests the lifecycle of the core listener.
@@ -97,10 +98,17 @@ func createListener(
 	p2pSub := p2p.NewSubscriber[*header.ExtendedHeader](ps, header.MsgID)
 	err := p2pSub.Start(ctx)
 	require.NoError(t, err)
+
+	net, err := mocknet.FullMeshLinked(1)
+	require.NoError(t, err)
+	edsSub, err := eds.NewPubSub(ctx, net.Hosts()[0], "eds-test")
+	require.NoError(t, err)
+	require.NoError(t, edsSub.Start(ctx))
+
 	t.Cleanup(func() {
-		err := p2pSub.Stop(ctx)
-		require.NoError(t, err)
+		require.NoError(t, p2pSub.Stop(ctx))
+		require.NoError(t, edsSub.Stop(ctx))
 	})
 
-	return NewListener(p2pSub, fetcher, mdutils.Bserv(), header.MakeExtendedHeader)
+	return NewListener(p2pSub, fetcher, edsSub, mdutils.Bserv(), header.MakeExtendedHeader)
 }

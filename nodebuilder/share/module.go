@@ -97,6 +97,7 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 					return avail.Stop(ctx)
 				}),
 			)),
+			fx.Provide(newEdsSub),
 			// cacheAvailability's lifecycle continues to use a fx hook,
 			// since the LC requires a cacheAvailability but the constructor returns a share.Availability
 			fx.Provide(cacheAvailability[*full.ShareAvailability]),

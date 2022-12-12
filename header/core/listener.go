@@ -11,6 +11,7 @@ import (
 	"github.com/celestiaorg/celestia-node/core"
 	"github.com/celestiaorg/celestia-node/header"
 	libhead "github.com/celestiaorg/celestia-node/libs/header"
+	"github.com/celestiaorg/celestia-node/share/eds"
 )
 
 // Listener is responsible for listening to Core for
@@ -23,6 +24,7 @@ import (
 type Listener struct {
 	bcast     libhead.Broadcaster[*header.ExtendedHeader]
 	fetcher   *core.BlockFetcher
+	pubsub    *eds.PubSub
 	bServ     blockservice.BlockService
 	construct header.ConstructFn
 	cancel    context.CancelFunc
@@ -31,12 +33,14 @@ type Listener struct {
 func NewListener(
 	bcast libhead.Broadcaster[*header.ExtendedHeader],
 	fetcher *core.BlockFetcher,
+	pubsub *eds.PubSub,
 	bServ blockservice.BlockService,
 	construct header.ConstructFn,
 ) *Listener {
 	return &Listener{
 		bcast:     bcast,
 		fetcher:   fetcher,
+		pubsub:    pubsub,
 		bServ:     bServ,
 		construct: construct,
 	}
@@ -100,6 +104,12 @@ func (cl *Listener) listen(ctx context.Context, sub <-chan *types.Block) {
 			err = cl.bcast.Broadcast(ctx, eh, pubsub.WithLocalPublication(syncing))
 			if err != nil {
 				log.Errorw("listener: broadcasting next header", "height", eh.Height(),
+					"err", err)
+			}
+
+			err = cl.pubsub.Broadcast(ctx, eh.DataHash.Bytes())
+			if err != nil {
+				log.Errorw("listener: broadcasting data hash", "height", eh.Height,
 					"err", err)
 			}
 		case <-ctx.Done():
