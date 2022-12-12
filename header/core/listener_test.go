@@ -15,8 +15,6 @@ import (
 	"github.com/celestiaorg/celestia-node/core"
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/header/p2p"
-
-	network "github.com/celestiaorg/celestia-node/nodebuilder/p2p"
 )
 
 // TestListener tests the lifecycle of the core listener.
@@ -27,7 +25,7 @@ func TestListener(t *testing.T) {
 	// create mocknet with two pubsub endpoints
 	ps0, ps1 := createMocknetWithTwoPubsubEndpoints(ctx, t)
 	// create second subscription endpoint to listen for Listener's pubsub messages
-	subsriber := p2p.NewSubscriber(ps1, string(network.Private))
+	subsriber := p2p.NewSubscriber(ps1, "test")
 	err := subsriber.AddValidator(func(context.Context, *header.ExtendedHeader) pubsub.ValidationResult {
 		return pubsub.ValidationAccept
 	})
@@ -95,7 +93,7 @@ func createListener(
 	fetcher *core.BlockFetcher,
 	ps *pubsub.PubSub,
 ) *Listener {
-	p2pSub := p2p.NewSubscriber(ps, string(network.Private))
+	p2pSub := p2p.NewSubscriber(ps, "test")
 	err := p2pSub.Start(ctx)
 	require.NoError(t, err)
 	t.Cleanup(func() {

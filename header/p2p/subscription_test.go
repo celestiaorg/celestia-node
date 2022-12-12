@@ -12,7 +12,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/celestiaorg/celestia-node/header"
-	network "github.com/celestiaorg/celestia-node/nodebuilder/p2p"
 )
 
 // TestSubscriber tests the header Module's implementation of Subscriber.
@@ -31,7 +30,7 @@ func TestSubscriber(t *testing.T) {
 	require.NoError(t, err)
 
 	// create sub-service lifecycles for header service 1
-	p2pSub1 := NewSubscriber(pubsub1, string(network.Private))
+	p2pSub1 := NewSubscriber(pubsub1, "test")
 	err = p2pSub1.Start(context.Background())
 	require.NoError(t, err)
 
@@ -41,7 +40,7 @@ func TestSubscriber(t *testing.T) {
 	require.NoError(t, err)
 
 	// create sub-service lifecycles for header service 2
-	p2pSub2 := NewSubscriber(pubsub2, string(network.Private))
+	p2pSub2 := NewSubscriber(pubsub2, "test")
 	err = p2pSub2.Start(context.Background())
 	require.NoError(t, err)
 
