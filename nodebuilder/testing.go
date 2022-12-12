@@ -16,6 +16,9 @@ import (
 	apptypes "github.com/celestiaorg/celestia-app/x/payment/types"
 
 	"github.com/celestiaorg/celestia-node/core"
+	"github.com/celestiaorg/celestia-node/libs/fxutil"
+	"github.com/celestiaorg/celestia-node/nodebuilder/header"
+	"github.com/celestiaorg/celestia-node/nodebuilder/header/mocks"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
 	"github.com/celestiaorg/celestia-node/nodebuilder/state"
@@ -53,6 +56,7 @@ func TestNodeWithConfig(t *testing.T, tp node.Type, cfg *Config, opts ...fx.Opti
 	opts = append(opts,
 		state.WithKeyringSigner(TestKeyringSigner(t)),
 		fx.Replace(node.StorePath(storePath)),
+		fxutil.ReplaceAs(mocks.NewStore(t, 20), new(header.InitStore)),
 	)
 	nd, err := New(tp, p2p.Private, store, opts...)
 	require.NoError(t, err)
