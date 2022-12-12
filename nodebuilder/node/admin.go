@@ -8,12 +8,12 @@ import (
 	logging "github.com/ipfs/go-log/v2"
 )
 
-type admin struct {
+type module struct {
 	tp Type
 }
 
-func newAdmin(tp Type) Module {
-	return &admin{
+func newModule(tp Type) Module {
+	return &module{
 		tp: tp,
 	}
 }
@@ -25,21 +25,21 @@ type Info struct {
 	APIVersion string `json:"api_version"`
 }
 
-func (a *admin) Info(context.Context) (Info, error) {
+func (m *module) Info(context.Context) (Info, error) {
 	return Info{
-		Type: a.tp,
+		Type: m.tp,
 		// TODO @renaynay @distractedm1nd: Implement versioning in API and way to extract that into this struct
 	}, nil
 }
 
-func (a *admin) LogLevelSet(_ context.Context, name, level string) error {
+func (m *module) LogLevelSet(_ context.Context, name, level string) error {
 	return logging.SetLogLevel(name, level)
 }
 
-func (a *admin) AuthVerify(ctx context.Context, token string) ([]auth.Permission, error) {
+func (m *module) AuthVerify(ctx context.Context, token string) ([]auth.Permission, error) {
 	return []auth.Permission{}, fmt.Errorf("not implemented")
 }
 
-func (a *admin) AuthNew(ctx context.Context, perms []auth.Permission) ([]byte, error) {
+func (m *module) AuthNew(ctx context.Context, perms []auth.Permission) ([]byte, error) {
 	return nil, fmt.Errorf("not implemented")
 }
