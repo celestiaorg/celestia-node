@@ -94,6 +94,7 @@ func (s *session) handleOutgoingRequests(ctx context.Context, result chan []*hea
 			// select peer with the highest score among the available ones for the request
 			stats := s.queue.waitPop(ctx)
 			if stats.peerID == "" {
+				s.errCh <- header.ErrNoHead
 				return
 			}
 			go s.doRequest(ctx, stats, req, result)
@@ -116,6 +117,7 @@ func (s *session) doRequest(
 		}
 		log.Errorw("requesting headers from peer failed."+
 			"Retrying the request from different peer", "failed peer", stat.peerID, "err", err)
+		s.queue.reduceSize()
 		select {
 		case <-ctx.Done():
 		case <-s.ctx.Done():
@@ -126,7 +128,12 @@ func (s *session) doRequest(
 
 	h, err := s.processResponse(r)
 	if err != nil {
-		s.errCh <- err
+		s.queue.reduceSize()
+		select {
+		case <-ctx.Done():
+		case <-s.ctx.Done():
+		case s.reqCh <- req:
+		}
 		return
 	}
 	log.Debugw("request headers from peer succeed ", "from", s.host.ID(), "pID", stat.peerID, "amount", req.Amount)

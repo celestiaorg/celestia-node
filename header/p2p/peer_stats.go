@@ -4,6 +4,7 @@ import (
 	"container/heap"
 	"context"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/libp2p/go-libp2p-core/peer"
@@ -91,6 +92,7 @@ type peerQueue struct {
 
 	statsLk sync.RWMutex
 	stats   peerStats
+	maxSize uint32
 
 	havePeer chan struct{}
 }
@@ -105,6 +107,7 @@ func newPeerQueue(ctx context.Context, stats []*peerStat) *peerQueue {
 	for _, stat := range stats {
 		pq.push(stat)
 	}
+	atomic.AddUint32(&pq.maxSize, uint32(len(stats)))
 	return pq
 }
 
@@ -112,6 +115,10 @@ func newPeerQueue(ctx context.Context, stats []*peerStat) *peerQueue {
 // in case if there are no peer available in current session, it blocks until
 // the peer will be pushed in.
 func (p *peerQueue) waitPop(ctx context.Context) *peerStat {
+	if atomic.LoadUint32(&p.maxSize) == 0 {
+		return &peerStat{}
+	}
+
 	select {
 	case <-ctx.Done():
 		return &peerStat{}
@@ -131,4 +138,8 @@ func (p *peerQueue) push(stat *peerStat) {
 	p.statsLk.Unlock()
 	// notify that the peer is available in the queue, so it can be popped out
 	p.havePeer <- struct{}{}
+}
+
+func (p *peerQueue) reduceSize() {
+	atomic.AddUint32(&p.maxSize, ^uint32(0)) // decrease counter
 }
