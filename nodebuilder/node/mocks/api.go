@@ -36,20 +36,6 @@ func (m *MockModule) EXPECT() *MockModuleMockRecorder {
 	return m.recorder
 }
 
-// AdminInfo mocks base method.
-func (m *MockModule) AdminInfo(arg0 context.Context) node.Info {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "AdminInfo", arg0)
-	ret0, _ := ret[0].(node.Info)
-	return ret0
-}
-
-// AdminInfo indicates an expected call of AdminInfo.
-func (mr *MockModuleMockRecorder) AdminInfo(arg0 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AdminInfo", reflect.TypeOf((*MockModule)(nil).AdminInfo), arg0)
-}
-
 // AuthNew mocks base method.
 func (m *MockModule) AuthNew(arg0 context.Context, arg1 []auth.Permission) ([]byte, error) {
 	m.ctrl.T.Helper()
@@ -78,6 +64,21 @@ func (m *MockModule) AuthVerify(arg0 context.Context, arg1 string) ([]auth.Permi
 func (mr *MockModuleMockRecorder) AuthVerify(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AuthVerify", reflect.TypeOf((*MockModule)(nil).AuthVerify), arg0, arg1)
+}
+
+// Info mocks base method.
+func (m *MockModule) Info(arg0 context.Context) (node.Info, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Info", arg0)
+	ret0, _ := ret[0].(node.Info)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// Info indicates an expected call of Info.
+func (mr *MockModuleMockRecorder) Info(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Info", reflect.TypeOf((*MockModule)(nil).Info), arg0)
 }
 
 // LogLevelSet mocks base method.
