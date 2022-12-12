@@ -15,13 +15,19 @@ import (
 	"github.com/celestiaorg/celestia-node/api/rpc"
 	"github.com/celestiaorg/celestia-node/api/rpc/client"
 	"github.com/celestiaorg/celestia-node/nodebuilder"
+	"github.com/celestiaorg/celestia-node/nodebuilder/das"
 	dasMock "github.com/celestiaorg/celestia-node/nodebuilder/das/mocks"
+	"github.com/celestiaorg/celestia-node/nodebuilder/fraud"
 	fraudMock "github.com/celestiaorg/celestia-node/nodebuilder/fraud/mocks"
+	"github.com/celestiaorg/celestia-node/nodebuilder/header"
 	headerMock "github.com/celestiaorg/celestia-node/nodebuilder/header/mocks"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	nodeMock "github.com/celestiaorg/celestia-node/nodebuilder/node/mocks"
+	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
 	p2pMock "github.com/celestiaorg/celestia-node/nodebuilder/p2p/mocks"
+	"github.com/celestiaorg/celestia-node/nodebuilder/share"
 	shareMock "github.com/celestiaorg/celestia-node/nodebuilder/share/mocks"
+	statemod "github.com/celestiaorg/celestia-node/nodebuilder/state"
 	stateMock "github.com/celestiaorg/celestia-node/nodebuilder/state/mocks"
 	"github.com/celestiaorg/celestia-node/state"
 )
@@ -59,29 +65,63 @@ func TestRPCCallsUnderlyingNode(t *testing.T) {
 	require.Equal(t, expectedBalance, balance)
 }
 
+// api contains all modules that are made available as the node's
+// public API surface (except for the `node` module as the node
+// module contains a method `Info` that is also contained in the
+// p2p module).
+type api interface {
+	fraud.Module
+	header.Module
+	statemod.Module
+	share.Module
+	das.Module
+	p2p.Module
+}
+
 func TestModulesImplementFullAPI(t *testing.T) {
-	api := reflect.TypeOf(new(client.API)).Elem()
+	api := reflect.TypeOf(new(api)).Elem()
+	nodeapi := reflect.TypeOf(new(node.Module)).Elem() // TODO @renaynay: explain
 	client := reflect.TypeOf(new(client.Client)).Elem()
 	for i := 0; i < client.NumField(); i++ {
 		module := client.Field(i)
-		// the "closers" field is not an actual module
-		if module.Name == "closer" {
+		switch module.Name {
+		case "closer":
+			// the "closers" field is not an actual module
 			continue
-		}
-		internal, ok := module.Type.FieldByName("Internal")
-		require.True(t, ok, "module %s's API does not have an Internal field", module.Name)
-		for j := 0; j < internal.Type.NumField(); j++ {
-			impl := internal.Type.Field(j)
-			method, _ := api.MethodByName(impl.Name)
-			require.Equal(t, method.Type, impl.Type, "method %s does not match", impl.Name)
+		case "Node":
+			// node module contains a duplicate method to the p2p module
+			// and must be tested separately.
+			internal, ok := module.Type.FieldByName("Internal")
+			require.True(t, ok, "module %s's API does not have an Internal field", module.Name)
+			for j := 0; j < internal.Type.NumField(); j++ {
+				impl := internal.Type.Field(j)
+				method, _ := nodeapi.MethodByName(impl.Name)
+				require.Equal(t, method.Type, impl.Type, "method %s does not match", impl.Name)
+			}
+		default:
+			internal, ok := module.Type.FieldByName("Internal")
+			require.True(t, ok, "module %s's API does not have an Internal field", module.Name)
+			for j := 0; j < internal.Type.NumField(); j++ {
+				impl := internal.Type.Field(j)
+				method, _ := api.MethodByName(impl.Name)
+				require.Equal(t, method.Type, impl.Type, "method %s does not match", impl.Name)
+			}
 		}
 	}
 }
 
 func TestAllReturnValuesAreMarshalable(t *testing.T) {
-	ra := reflect.TypeOf(new(client.API)).Elem()
+	ra := reflect.TypeOf(new(api)).Elem()
 	for i := 0; i < ra.NumMethod(); i++ {
 		m := ra.Method(i)
+		for j := 0; j < m.Type.NumOut(); j++ {
+			implementsMarshaler(t, m.Type.Out(j))
+		}
+	}
+	// NOTE: see comment above api interface definition.
+	na := reflect.TypeOf(new(node.Module)).Elem()
+	for i := 0; i < na.NumMethod(); i++ {
+		m := na.Method(i)
 		for j := 0; j < m.Type.NumOut(); j++ {
 			implementsMarshaler(t, m.Type.Out(j))
 		}

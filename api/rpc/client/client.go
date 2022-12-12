@@ -14,16 +14,6 @@ import (
 	"github.com/celestiaorg/celestia-node/nodebuilder/state"
 )
 
-type API interface {
-	fraud.Module
-	header.Module
-	state.Module
-	share.Module
-	das.Module
-	p2p.Module
-	node.Module
-}
-
 type Client struct {
 	Fraud  fraud.API
 	Header header.API

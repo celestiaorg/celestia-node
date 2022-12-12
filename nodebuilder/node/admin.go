@@ -25,7 +25,7 @@ type Info struct {
 	APIVersion string `json:"api_version"`
 }
 
-func (a *admin) AdminInfo(context.Context) Info {
+func (a *admin) Info(context.Context) Info {
 	return Info{
 		Type: a.tp,
 		// TODO @renaynay @distractedm1nd: Implement versioning in API and way to extract that into this struct
