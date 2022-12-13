@@ -116,12 +116,35 @@ func TestExchange_RequestFullRangeHeaders(t *testing.T) {
 
 // TestExchange_RequestHeadersFails tests that the Exchange instance will return
 // header.ErrNotFound if it will not have requested header.
-func TestExchange_RequestHeadersFails(t *testing.T) {
+func TestExchange_RequestHeadersLimitExceeded(t *testing.T) {
 	hosts := createMocknet(t, 2)
 	exchg, _ := createP2PExAndServer(t, hosts[0], hosts[1])
 	_, err := exchg.GetRangeByHeight(context.Background(), 1, 600)
 	require.Error(t, err)
 	require.ErrorAs(t, err, &header.ErrHeadersLimitExceeded)
+}
+
+// TestExchange_RequestHeadersFromAnotherPeer tests that the Exchange instance will request range
+// from another peer with lower score after receiving header.ErrNotFound
+func TestExchange_RequestHeadersFromAnotherPeer(t *testing.T) {
+	hosts := createMocknet(t, 3)
+	// create client + server(it does not have needed headers)
+	exchg, _ := createP2PExAndServer(t, hosts[0], hosts[1])
+	// create one more server(with more headers in the store)
+	serverSideEx, err := NewExchangeServer(hosts[2], createStore(t, 10), "private")
+	require.NoError(t, err)
+	require.NoError(t, serverSideEx.Start(context.Background()))
+	t.Cleanup(func() {
+		serverSideEx.Stop(context.Background()) //nolint:errcheck
+	})
+	// add higher score to peer that does not have the requesting range.
+	exchg.peerTracker.trackedPeers[hosts[1].ID()] = &peerStat{peerID: hosts[1].ID(), peerScore: 100}
+	exchg.peerTracker.trackedPeers[hosts[2].ID()] = &peerStat{peerID: hosts[2].ID(), peerScore: 20}
+	_, err = exchg.GetRangeByHeight(context.Background(), 5, 3)
+	require.NoError(t, err)
+	// ensure that peerScore for the second peer is changed
+	newPeerScore := exchg.peerTracker.trackedPeers[hosts[2].ID()].peerScore
+	require.NotEqual(t, 20, newPeerScore)
 }
 
 // TestExchange_RequestByHash tests that the Exchange instance can
@@ -286,7 +309,6 @@ func createP2PExAndServer(t *testing.T, host, tpeer libhost.Host) (header.Exchan
 	require.NoError(t, err)
 	ex, err := NewExchange(host, []peer.ID{tpeer.ID()}, "private", connGater)
 	require.NoError(t, err)
-	ex.peerTracker.trackedPeers[tpeer.ID()] = &peerStat{peerID: tpeer.ID()}
 	require.NoError(t, ex.Start(context.Background()))
 
 	t.Cleanup(func() {

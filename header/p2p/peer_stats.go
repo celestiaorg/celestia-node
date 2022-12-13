@@ -29,9 +29,9 @@ type peerStat struct {
 func (p *peerStat) updateStats(amount uint64, time uint64) {
 	p.Lock()
 	defer p.Unlock()
-	var averageSpeed float32
+	averageSpeed := float32(amount)
 	if time != 0 {
-		averageSpeed = float32(amount / time)
+		averageSpeed /= float32(time)
 	}
 	if p.peerScore == 0.0 {
 		p.peerScore = averageSpeed
