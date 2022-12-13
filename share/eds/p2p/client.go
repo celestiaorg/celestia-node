@@ -137,6 +137,6 @@ func (c *Client) doRequest(
 	case p2p_pb.Status_INVALID:
 		fallthrough
 	default:
-		return nil, fmt.Errorf("request status for root %s marked as invalid", dataHash.String())
+		return nil, fmt.Errorf("request status %s returned for root %s", resp.GetStatus(), dataHash.String())
 	}
 }

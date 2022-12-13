@@ -23,7 +23,7 @@ const (
 	readDeadline = time.Minute
 )
 
-// Server is responsible for serving EDSs for blocksync over the ShrEx/EDS protocol.
+// Server is responsible for serving ODSs for blocksync over the ShrEx/EDS protocol.
 // This server is run by bridge nodes and full nodes. For more information, see ADR #13
 type Server struct {
 	ctx    context.Context
@@ -39,8 +39,8 @@ type Server struct {
 func NewServer(host host.Host, store *eds.Store, protocolSuffix string) *Server {
 	return &Server{
 		host:       host,
-		protocolID: protocolID(protocolSuffix),
 		store:      store,
+		protocolID: protocolID(protocolSuffix),
 	}
 }
 
@@ -74,9 +74,11 @@ func (s *Server) handleStream(stream network.Stream) {
 		return
 	}
 
+	ctx, cancel := context.WithTimeout(s.ctx, readDeadline)
+	defer cancel()
 	status := p2p_pb.Status_OK
 	// determine whether the EDS is available in our store
-	edsReader, err := s.store.GetCAR(s.ctx, req.Hash)
+	edsReader, err := s.store.GetCAR(ctx, req.Hash)
 	if err != nil {
 		status = p2p_pb.Status_NOT_FOUND
 	} else {
