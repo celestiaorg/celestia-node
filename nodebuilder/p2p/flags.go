@@ -78,7 +78,7 @@ func ParseNetwork(cmd *cobra.Command) (Network, error) {
 		return envNetwork, err
 	}
 	// check if user provided an alias
-	parsedNetwork, ok := networkAliases[parsed]
+	parsedNetwork, ok := NetworkAliases[parsed]
 	if ok {
 		return parsedNetwork, nil
 	}

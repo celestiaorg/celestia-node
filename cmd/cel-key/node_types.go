@@ -5,10 +5,9 @@ import (
 	"fmt"
 	"strings"
 
+	sdkflags "github.com/cosmos/cosmos-sdk/client/flags"
 	"github.com/spf13/cobra"
 	flag "github.com/spf13/pflag"
-
-	sdkflags "github.com/cosmos/cosmos-sdk/client/flags"
 
 	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
 )
@@ -43,9 +42,18 @@ func ParseDirectoryFlags(cmd *cobra.Command) error {
 	}
 
 	network := cmd.Flag(networkKey).Value.String()
+	err := p2p.Network(network).Validate()
+	if err != nil {
+		if net, ok := p2p.NetworkAliases[network]; ok {
+			network = string(net)
+		} else {
+			fmt.Println("WARNING: unknown network specified: ", network)
+		}
+	}
 	switch nodeType {
 	case "bridge", "full", "light":
 		keyPath := fmt.Sprintf("~/.celestia-%s-%s/keys", nodeType, strings.ToLower(network))
+		fmt.Println("using directory: ", keyPath)
 		if err := cmd.Flags().Set(sdkflags.FlagKeyringDir, keyPath); err != nil {
 			return err
 		}
