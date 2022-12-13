@@ -34,6 +34,9 @@ const (
 	// requestSize metric attributes
 	requestSizeMetricName = "node.share.blackbox.request_size"
 	requestSizeMetricDesc = "size of a get share response"
+
+	squareSizeMetricName = "node.share.blackbox.square_size"
+	squareSizeMetricDesc = "size of the erasure coded block"
 )
 
 // shareServiceBlackboxInstru is the proxy struct
@@ -45,6 +48,7 @@ type shareServiceBlackboxInstru struct {
 	requestsNum     syncint64.Counter
 	requestDuration syncint64.Histogram
 	requestSize     syncint64.Histogram
+	squareSize      syncint64.UpDownCounter
 
 	// pointer to mod
 	next service.ShareService
@@ -81,10 +85,21 @@ func newBlackBoxInstrument(next service.ShareService) (service.ShareService, err
 		return nil, err
 	}
 
+	squareSize, err := meter.
+		SyncInt64().
+		UpDownCounter(
+			squareSizeMetricName,
+			instrument.WithDescription(squareSizeMetricDesc),
+		)
+	if err != nil {
+		return nil, err
+	}
+
 	bbinstrument := &shareServiceBlackboxInstru{
 		requestsNum,
 		requestDuration,
 		requestSize,
+		squareSize,
 		next,
 	}
 
@@ -97,6 +112,10 @@ func (bbi *shareServiceBlackboxInstru) Start(ctx context.Context) error {
 
 func (bbi *shareServiceBlackboxInstru) Stop(ctx context.Context) error {
 	return bbi.next.Stop(ctx)
+}
+
+func (bbi *shareServiceBlackboxInstru) RenewSession(ctx context.Context) {
+	bbi.next.RenewSession(ctx)
 }
 
 func (bbi *shareServiceBlackboxInstru) GetShare(
@@ -118,6 +137,8 @@ func (bbi *shareServiceBlackboxInstru) GetShare(
 			time.Since(begin).Milliseconds(),
 		)
 	}(ctx, now)
+
+	bbi.squareSize.Add(ctx, int64(len(dah.RowsRoots)))
 
 	// perform the actual request
 	share, err := bbi.next.GetShare(ctx, dah, row, col)

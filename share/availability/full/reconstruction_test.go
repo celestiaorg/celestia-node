@@ -20,10 +20,10 @@ func init() {
 	eds.RetrieveQuadrantTimeout = time.Millisecond * 100 // to speed up tests
 }
 
-// TestShareAvailable_OneFullNode asserts that a full node can ensure
+// TestSharesAvailable_OneFullNode asserts that a full node can ensure
 // data is available (reconstruct data square) while being connected to
 // light nodes only.
-func TestShareAvailable_OneFullNode(t *testing.T) {
+func TestSharesAvailable_OneFullNode(t *testing.T) {
 	// NOTE: Numbers are taken from the original 'Fraud and Data Availability Proofs' paper
 	light.DefaultSampleAmount = 20 // s
 	const (
