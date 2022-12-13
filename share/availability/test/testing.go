@@ -73,7 +73,9 @@ func NewTestDAGNet(ctx context.Context, t *testing.T) *TestDagNet {
 	}
 }
 
-func (dn *TestDagNet) NewBlockService(dstore ds.Datastore, bstore blockstore.Blockstore) blockservice.BlockService {
+// NewTestNodeWithBlockstore creates a new plain TestNode with the given blockstore that can serve
+// and request data.
+func (dn *TestDagNet) NewTestNodeWithBlockstore(dstore ds.Datastore, bstore blockstore.Blockstore) *TestNode {
 	hst, err := dn.net.GenPeer()
 	require.NoError(dn.T, err)
 	routing := offline.NewOfflineRouter(dstore, record.NamespacedValidator{})
@@ -88,15 +90,7 @@ func (dn *TestDagNet) NewBlockService(dstore ds.Datastore, bstore blockstore.Blo
 		bitswap.SetSimulateDontHavesOnTimeout(false),
 		bitswap.SetSendDontHaves(false),
 	)
-	return blockservice.New(bstore, bs)
-}
-
-// NewTestNodeWithBlockstore creates a new plain TestNode with the given blockstore that can serve
-// and request data.
-func (dn *TestDagNet) NewTestNodeWithBlockstore(dstore ds.Datastore, bstore blockstore.Blockstore) *TestNode {
-	hst, err := dn.net.GenPeer()
-	require.NoError(dn.T, err)
-	bserv := dn.NewBlockService(dstore, bstore)
+	bserv := blockservice.New(bstore, bs)
 	shrSrv := service.NewShareService(bserv)
 
 	nd := &TestNode{

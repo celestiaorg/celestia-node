@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"sync"
 
 	"github.com/ipfs/go-blockservice"
 	"github.com/ipfs/go-cid"
@@ -26,12 +27,14 @@ type (
 	ShareService interface {
 		Start(context.Context) error
 		Stop(context.Context) error
+		RenewSession(context.Context)
 		GetShare(context.Context, *share.Root, int, int) (share.Share, error)
 		GetShares(context.Context, *share.Root) ([][]share.Share, error)
 		GetSharesByNamespace(context.Context, *share.Root, namespace.ID) ([]share.Share, error)
 	}
 
 	shareService struct {
+		lock  sync.Mutex
 		rtrv  *eds.Retriever
 		bServ blockservice.BlockService
 		// session is blockservice sub-session that applies optimization for fetching/loading related
@@ -62,8 +65,13 @@ func (s *shareService) Start(context.Context) error {
 	s.cancel = cancel
 	s.session = blockservice.NewSession(ctx, s.bServ)
 
-	fmt.Printf("Service started")
 	return nil
+}
+
+func (s *shareService) RenewSession(ctx context.Context) {
+	defer s.lock.Unlock()
+	s.lock.Lock()
+	s.session = blockservice.NewSession(ctx, s.bServ)
 }
 
 func (s *shareService) Stop(context.Context) error {

@@ -1,8 +1,6 @@
 package share
 
 import (
-	"context"
-
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	"github.com/celestiaorg/celestia-node/share/service"
 
@@ -19,14 +17,6 @@ type module struct {
 
 func NewShareService(lc fx.Lifecycle, bServ blockservice.BlockService) service.ShareService {
 	serv := service.NewShareService(bServ)
-	lc.Append(fx.Hook{
-		OnStart: func(ctx context.Context) error {
-			return serv.Start(ctx)
-		},
-		OnStop: func(ctx context.Context) error {
-			return serv.Stop(ctx)
-		},
-	})
 	return serv
 }
 

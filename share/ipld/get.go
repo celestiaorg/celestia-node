@@ -60,7 +60,7 @@ func GetLeaf(
 	lnks := nd.Links()
 	if len(lnks) == 0 {
 		// in case there is none, we reached tree's bottom, so finally return the leaf.
-		return nd, err
+		return nd, nil
 	}
 
 	// route walk to appropriate children
