@@ -24,7 +24,7 @@ const (
 )
 
 // Server is responsible for serving EDSs for blocksync over the ShrEx/EDS protocol.
-// This client is run by bridge nodes and full nodes. For more information, see ADR #13
+// This server is run by bridge nodes and full nodes. For more information, see ADR #13
 type Server struct {
 	ctx    context.Context
 	cancel context.CancelFunc
