@@ -41,10 +41,10 @@ func NewClient(host host.Host, protocolSuffix string) *Client {
 	}
 }
 
-// RequestEDS requests the full EDS from one of the given peers.
+// RequestEDS requests the full ODS from one of the given peers and returns the EDS.
 //
 // The peers are requested in a round-robin manner with retries until one of them gives a valid
-// response. Blocks forever until the context is canceled or a valid response is given.
+// response, blocking until the context is canceled or a valid response is given.
 func (c *Client) RequestEDS(
 	ctx context.Context,
 	dataHash share.DataHash,
