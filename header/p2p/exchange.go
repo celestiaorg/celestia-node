@@ -171,7 +171,7 @@ func (ex *Exchange) GetVerifiedRange(
 	from *header.ExtendedHeader,
 	amount uint64,
 ) ([]*header.ExtendedHeader, error) {
-	session := newSession(ex.ctx, ex.host, ex.peerTracker, ex.protocolID, WithValidation(from))
+	session := newSession(ex.ctx, ex.host, ex.peerTracker, ex.protocolID, withValidation(from))
 	defer session.close()
 
 	return session.getRangeByHeight(ctx, uint64(from.Height)+1, amount, ex.Params.MaxHeadersPerRequest)

@@ -4,7 +4,6 @@ import (
 	"container/heap"
 	"context"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"github.com/libp2p/go-libp2p-core/peer"
@@ -92,7 +91,6 @@ type peerQueue struct {
 
 	statsLk sync.RWMutex
 	stats   peerStats
-	maxSize uint32
 
 	havePeer chan struct{}
 }
@@ -107,7 +105,6 @@ func newPeerQueue(ctx context.Context, stats []*peerStat) *peerQueue {
 	for _, stat := range stats {
 		pq.push(stat)
 	}
-	atomic.AddUint32(&pq.maxSize, uint32(len(stats)))
 	return pq
 }
 
@@ -115,10 +112,10 @@ func newPeerQueue(ctx context.Context, stats []*peerStat) *peerQueue {
 // in case if there are no peer available in current session, it blocks until
 // the peer will be pushed in.
 func (p *peerQueue) waitPop(ctx context.Context) *peerStat {
-	if atomic.LoadUint32(&p.maxSize) == 0 {
-		return &peerStat{}
-	}
-
+	// TODO(vgonkivs): implement fallback solution for cases when peer queue is empty.
+	// As we discussed with @Wondertan there could be 2 possible solutions:
+	// * use libp2p.Discovery to find new peers outside peerTracker to request headers;
+	// * implement IWANT/IHAVE messaging system and start requesting ranges from the Peerstore;
 	select {
 	case <-ctx.Done():
 		return &peerStat{}
@@ -138,10 +135,4 @@ func (p *peerQueue) push(stat *peerStat) {
 	p.statsLk.Unlock()
 	// notify that the peer is available in the queue, so it can be popped out
 	p.havePeer <- struct{}{}
-}
-
-// reduceSize allows to track how many active peers are available.
-// The size decreases in case of network,unmarshalling or another unexpected errors.
-func (p *peerQueue) reduceSize() {
-	atomic.AddUint32(&p.maxSize, ^uint32(0)) // decrease counter
 }

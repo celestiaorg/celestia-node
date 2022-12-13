@@ -70,9 +70,16 @@ func TestExchange_RequestVerifiedHeadersFails(t *testing.T) {
 	exchg, store := createP2PExAndServer(t, hosts[0], hosts[1])
 	store.Headers[2] = store.Headers[3]
 	// perform expected request
-	h := store.Headers[1]
-	_, err := exchg.GetVerifiedRange(context.Background(), h, 3)
+	h := store.headers[1]
+	ctx, cancel := context.WithTimeout(context.Background(), time.Millisecond*500)
+	t.Cleanup(cancel)
+	_, err := exchg.GetVerifiedRange(ctx, h, 3)
 	require.Error(t, err)
+
+	// ensure that peer was added to the blacklist
+	peers := exchg.peerTracker.connGater.ListBlockedPeers()
+	require.Len(t, peers, 1)
+	require.True(t, hosts[1].ID() == peers[0])
 }
 
 // TestExchange_RequestFullRangeHeaders requests max amount of headers
@@ -112,25 +119,9 @@ func TestExchange_RequestFullRangeHeaders(t *testing.T) {
 func TestExchange_RequestHeadersFails(t *testing.T) {
 	hosts := createMocknet(t, 2)
 	exchg, _ := createP2PExAndServer(t, hosts[0], hosts[1])
-	tt := []struct {
-		amount      uint64
-		expectedErr *error
-	}{
-		{
-			amount:      10,
-			expectedErr: &header.ErrNotFound,
-		},
-		{
-			amount:      600,
-			expectedErr: &header.ErrHeadersLimitExceeded,
-		},
-	}
-	for _, test := range tt {
-		// perform expected request
-		_, err := exchg.GetRangeByHeight(context.Background(), 1, test.amount)
-		require.Error(t, err)
-		require.ErrorAs(t, err, test.expectedErr)
-	}
+	_, err := exchg.GetRangeByHeight(context.Background(), 1, 600)
+	require.Error(t, err)
+	require.ErrorAs(t, err, &header.ErrHeadersLimitExceeded)
 }
 
 // TestExchange_RequestByHash tests that the Exchange instance can

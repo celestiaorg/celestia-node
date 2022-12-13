@@ -12,11 +12,11 @@ import (
 	p2p_pb "github.com/celestiaorg/celestia-node/header/p2p/pb"
 )
 
-var unmarshallingErr = errors.New("unmarshalling error")
+var errUnmarshalling = errors.New("unmarshalling error")
 
 type option func(*session)
 
-func WithValidation(from *header.ExtendedHeader) option {
+func withValidation(from *header.ExtendedHeader) option {
 	return func(s *session) {
 		s.from = from
 	}
@@ -36,10 +36,15 @@ type session struct {
 	ctx    context.Context
 	cancel context.CancelFunc
 	reqCh  chan *p2p_pb.ExtendedHeaderRequest
-	errCh  chan error
 }
 
-func newSession(ctx context.Context, h host.Host, peerTracker *peerTracker, protocolID protocol.ID, options ...option) *session {
+func newSession(
+	ctx context.Context,
+	h host.Host,
+	peerTracker *peerTracker,
+	protocolID protocol.ID,
+	options ...option,
+) *session {
 	ctx, cancel := context.WithCancel(ctx)
 	ses := &session{
 		ctx:         ctx,
@@ -48,7 +53,6 @@ func newSession(ctx context.Context, h host.Host, peerTracker *peerTracker, prot
 		host:        h,
 		queue:       newPeerQueue(ctx, peerTracker.peers()),
 		peerTracker: peerTracker,
-		errCh:       make(chan error),
 	}
 
 	for _, opt := range options {
@@ -80,8 +84,6 @@ func (s *session) getRangeByHeight(
 			return nil, errors.New("header/p2p: exchange is closed")
 		case <-ctx.Done():
 			return nil, ctx.Err()
-		case err := <-s.errCh:
-			return nil, err
 		case res := <-result:
 			headers = append(headers, res...)
 		}
@@ -113,7 +115,6 @@ func (s *session) handleOutgoingRequests(ctx context.Context, result chan []*hea
 			// select peer with the highest score among the available ones for the request
 			stats := s.queue.waitPop(ctx)
 			if stats.peerID == "" {
-				s.errCh <- header.ErrNoHead
 				return
 			}
 			go s.doRequest(ctx, stats, req, result)
@@ -136,7 +137,6 @@ func (s *session) doRequest(
 		}
 		log.Errorw("requesting headers from peer failed."+
 			"Retrying the request from different peer", "failed peer", stat.peerID, "err", err)
-		s.queue.reduceSize()
 		select {
 		case <-ctx.Done():
 		case <-s.ctx.Done():
@@ -147,7 +147,6 @@ func (s *session) doRequest(
 
 	h, err := s.processResponse(r)
 	if err != nil {
-		s.queue.reduceSize()
 		switch err {
 		case header.ErrNotFound:
 		default:
@@ -179,7 +178,7 @@ func (s *session) processResponse(responses []*p2p_pb.ExtendedHeaderResponse) ([
 		}
 		header, err := header.UnmarshalExtendedHeader(resp.Body)
 		if err != nil {
-			return nil, unmarshallingErr
+			return nil, errUnmarshalling
 		}
 		headers = append(headers, header)
 	}
@@ -191,7 +190,7 @@ func (s *session) processResponse(responses []*p2p_pb.ExtendedHeaderResponse) ([
 	return headers, err
 }
 
-// validate ensures that received range of headers is valid against provided header.
+// validate checks that the received range of headers is valid against the provided header.
 func (s *session) validate(headers []*header.ExtendedHeader) error {
 	if s.from == nil {
 		return nil
@@ -212,6 +211,7 @@ func (s *session) validate(headers []*header.ExtendedHeader) error {
 		if err != nil {
 			return err
 		}
+		trusted = headers[i]
 	}
 	return nil
 }

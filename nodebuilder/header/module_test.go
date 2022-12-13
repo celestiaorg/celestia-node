@@ -60,6 +60,9 @@ func TestConstructModule_ExchangeParams(t *testing.T) {
 		fx.Provide(func() datastore.Batching {
 			return datastore.NewMapDatastore()
 		}),
+		fx.Provide(func(b datastore.Batching) (*conngater.BasicConnectionGater, error) {
+			return conngater.NewBasicConnectionGater(b)
+		}),
 		ConstructModule(node.Light, &cfg),
 		fx.Provide(func(b datastore.Batching) (*conngater.BasicConnectionGater, error) {
 			return conngater.NewBasicConnectionGater(b)
