@@ -147,7 +147,7 @@ func TestDASer_stopsAfter_BEFP(t *testing.T) {
 	ps, err := pubsub.NewGossipSub(ctx, net.Hosts()[0],
 		pubsub.WithMessageSignaturePolicy(pubsub.StrictNoSign))
 	require.NoError(t, err)
-	avail := full.TestAvailability(bServ)
+	avail := full.TestAvailability(t, bServ, net.Hosts()[0])
 	// 15 headers from the past and 15 future headers
 	mockGet, sub, _ := createDASerSubcomponents(t, bServ, 15, 15)
 
