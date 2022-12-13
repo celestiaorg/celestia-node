@@ -203,13 +203,16 @@ SyncHead(ctx context.Context) (*header.ExtendedHeader, error)
 ```go
 
   type NodeModule interface {
-    // Type returns the node type.
-    Type() node.Type
-    // Version returns information about the current binary build.
-    Version() string
-   
+    // Info returns administrative information about the node.
+    Info(context.Context) (Info, error)
+ 
     // LogLevelSet sets the given component log level to the given level.
     LogLevelSet(ctx context.Context, name, level string) error
+
+    // AuthVerify returns the permissions assigned to the given token.
+    AuthVerify(ctx context.Context, token string) ([]auth.Permission, error)
+    // AuthNew signs and returns a new token with the given permissions.
+    AuthNew(ctx context.Context, perms []auth.Permission) ([]byte, error)
   }
   
 ```
