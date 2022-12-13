@@ -37,7 +37,7 @@ func TestExchange_RequestEDS(t *testing.T) {
 		require.NoError(t, err)
 
 		requestedEDS, err := client.RequestEDS(ctx, dah.Hash(), []peer.ID{server.host.ID()})
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 		assert.Equal(t, eds.Flattened(), requestedEDS.Flattened())
 
 	})
@@ -58,7 +58,7 @@ func TestExchange_RequestEDS(t *testing.T) {
 		finished := time.Now()
 
 		assert.Greater(t, finished.Sub(now), storageDelay)
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 		assert.Equal(t, eds.Flattened(), requestedEDS.Flattened())
 	})
 
