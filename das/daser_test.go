@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/celestiaorg/celestia-node/share/availability/full"
-	"github.com/celestiaorg/celestia-node/share/availability/light"
+	"github.com/celestiaorg/rsmt2d"
+
 	availability_test "github.com/celestiaorg/celestia-node/share/availability/test"
 
 	"github.com/tendermint/tendermint/types"
@@ -23,6 +23,9 @@ import (
 
 	"github.com/celestiaorg/celestia-node/fraud"
 	"github.com/celestiaorg/celestia-node/header"
+	"github.com/celestiaorg/celestia-node/share"
+	"github.com/celestiaorg/celestia-node/share/availability/full"
+	"github.com/celestiaorg/celestia-node/share/availability/light"
 )
 
 var timeout = time.Second * 15
@@ -154,7 +157,13 @@ func TestDASer_stopsAfter_BEFP(t *testing.T) {
 	// create fraud service and break one header
 	f := fraud.NewProofService(ps, net.Hosts()[0], mockGet.GetByHeight, ds, false, "private")
 	require.NoError(t, f.Start(ctx))
-	mockGet.headers[1] = header.CreateFraudExtHeader(t, mockGet.headers[1], bServ)
+
+	storeFn := func(ctx context.Context, root []byte, eds *rsmt2d.ExtendedDataSquare) error {
+		_, err := share.ImportShares(ctx, share.ExtractEDS(eds), bServ)
+		return err
+	}
+
+	mockGet.headers[1] = header.CreateFraudExtHeader(t, mockGet.headers[1], storeFn)
 	newCtx := context.Background()
 
 	// create and start DASer

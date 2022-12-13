@@ -2,7 +2,6 @@ package share
 
 import (
 	"context"
-	"math"
 	"math/rand"
 	"strconv"
 	"testing"
@@ -20,10 +19,12 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/celestiaorg/celestia-app/pkg/wrapper"
-	"github.com/celestiaorg/celestia-node/share/ipld"
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/nmt/namespace"
 	"github.com/celestiaorg/rsmt2d"
+
+	"github.com/celestiaorg/celestia-node/libs/utils"
+	"github.com/celestiaorg/celestia-node/share/ipld"
 )
 
 func TestGetShare(t *testing.T) {
@@ -73,7 +74,7 @@ func TestBlockRecovery(t *testing.T) {
 		tc := tc
 
 		t.Run(tc.name, func(t *testing.T) {
-			squareSize := uint64(math.Sqrt(float64(len(tc.shares))))
+			squareSize := utils.SquareSize(len(tc.shares))
 
 			eds, err := rsmt2d.ComputeExtendedDataSquare(tc.shares, rsmt2d.NewRSGF8Codec(), wrapper.NewConstructor(squareSize))
 			require.NoError(t, err)

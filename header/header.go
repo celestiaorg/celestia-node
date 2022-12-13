@@ -6,18 +6,16 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/ipfs/go-blockservice"
 	logging "github.com/ipfs/go-log/v2"
-
 	bts "github.com/tendermint/tendermint/libs/bytes"
 	amino "github.com/tendermint/tendermint/libs/json"
 	core "github.com/tendermint/tendermint/types"
 
-	appshares "github.com/celestiaorg/celestia-app/pkg/shares"
-
 	"github.com/celestiaorg/celestia-app/pkg/da"
+	appshares "github.com/celestiaorg/celestia-app/pkg/shares"
+	"github.com/celestiaorg/rsmt2d"
 
-	"github.com/celestiaorg/celestia-node/share"
+	"github.com/celestiaorg/celestia-node/libs/utils"
 )
 
 var log = logging.Logger("header")
@@ -42,25 +40,31 @@ type ExtendedHeader struct {
 	DAH          *DataAvailabilityHeader `json:"dah"`
 }
 
+type StoreFn = func(ctx context.Context, root []byte, square *rsmt2d.ExtendedDataSquare) error
+
 // MakeExtendedHeader assembles new ExtendedHeader.
 func MakeExtendedHeader(
 	ctx context.Context,
 	b *core.Block,
 	comm *core.Commit,
 	vals *core.ValidatorSet,
-	bServ blockservice.BlockService,
+	store StoreFn,
 ) (*ExtendedHeader, error) {
-	var dah DataAvailabilityHeader
+	var (
+		dah DataAvailabilityHeader
+		err error
+	)
 	if len(b.Txs) > 0 {
-		shares, err := appshares.Split(b.Data, true)
+		// extend and store block data
+		var eds *rsmt2d.ExtendedDataSquare
+		dah, eds, err = extendData(b.Data)
 		if err != nil {
 			return nil, err
 		}
-		extended, err := share.AddShares(ctx, appshares.ToBytes(shares), bServ)
+		err = store(ctx, dah.Hash(), eds)
 		if err != nil {
 			return nil, err
 		}
-		dah = da.NewDataAvailabilityHeader(extended)
 	} else {
 		// use MinDataAvailabilityHeader for empty block
 		dah = EmptyDAH()
@@ -74,6 +78,28 @@ func MakeExtendedHeader(
 		ValidatorSet: vals,
 	}
 	return eh, eh.ValidateBasic()
+}
+
+// extendAndStoreData extends the given block data and stores it in the
+// given eds.Store, returning the resulting DataAvailabilityHeader.
+func extendData(data core.Data) (da.DataAvailabilityHeader, *rsmt2d.ExtendedDataSquare, error) {
+	shares, err := appshares.Split(data, true)
+	if err != nil {
+		return da.DataAvailabilityHeader{}, nil, err
+	}
+	size := utils.SquareSize(len(shares))
+	// flatten shares // TODO @renaynay: I wish appshares.Split returned shares as [][]byte instead of the alias.
+	flattened := make([][]byte, len(shares))
+	for i, share := range shares {
+		copy(flattened[i], share)
+	}
+	eds, err := da.ExtendShares(size, flattened)
+	if err != nil {
+		return da.DataAvailabilityHeader{}, nil, err
+	}
+	// generate dah
+	dah := da.NewDataAvailabilityHeader(eds)
+	return dah, eds, nil
 }
 
 // Hash returns Hash of the wrapped RawHeader.

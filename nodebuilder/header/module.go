@@ -7,6 +7,8 @@ import (
 	logging "github.com/ipfs/go-log/v2"
 	"go.uber.org/fx"
 
+	"github.com/celestiaorg/rsmt2d"
+
 	"github.com/celestiaorg/celestia-node/fraud"
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/header/p2p"
@@ -15,6 +17,7 @@ import (
 	fraudServ "github.com/celestiaorg/celestia-node/nodebuilder/fraud"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	modp2p "github.com/celestiaorg/celestia-node/nodebuilder/p2p"
+	"github.com/celestiaorg/celestia-node/share/eds"
 )
 
 var log = logging.Logger("module/header")
@@ -126,6 +129,11 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 			baseComponents,
 			fx.Provide(func(subscriber *p2p.Subscriber) header.Broadcaster {
 				return subscriber
+			}),
+			fx.Provide(func(store *eds.Store) header.StoreFn {
+				return func(ctx context.Context, root []byte, eds *rsmt2d.ExtendedDataSquare) error {
+					return store.Put(ctx, root, eds)
+				}
 			}),
 			fx.Supply(header.MakeExtendedHeader),
 		)

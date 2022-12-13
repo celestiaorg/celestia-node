@@ -5,9 +5,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/ipfs/go-blockservice"
 	logging "github.com/ipfs/go-log/v2"
-
 	tmbytes "github.com/tendermint/tendermint/libs/bytes"
 
 	"github.com/celestiaorg/celestia-node/core"
@@ -17,16 +15,17 @@ import (
 var log = logging.Logger("header/core")
 
 type Exchange struct {
-	fetcher    *core.BlockFetcher
-	shareStore blockservice.BlockService
-	construct  header.ConstructFn
+	fetcher *core.BlockFetcher
+
+	construct header.ConstructFn
+	storeFn   header.StoreFn
 }
 
-func NewExchange(fetcher *core.BlockFetcher, bServ blockservice.BlockService, construct header.ConstructFn) *Exchange {
+func NewExchange(fetcher *core.BlockFetcher, construct header.ConstructFn, storeFn header.StoreFn) *Exchange {
 	return &Exchange{
-		fetcher:    fetcher,
-		shareStore: bServ,
-		construct:  construct,
+		fetcher:   fetcher,
+		construct: construct,
+		storeFn:   storeFn,
 	}
 }
 
@@ -84,7 +83,7 @@ func (ce *Exchange) Get(ctx context.Context, hash tmbytes.HexBytes) (*header.Ext
 		return nil, err
 	}
 
-	eh, err := ce.construct(ctx, block, comm, vals, ce.shareStore)
+	eh, err := ce.construct(ctx, block, comm, vals, ce.storeFn)
 	if err != nil {
 		return nil, err
 	}
@@ -113,5 +112,5 @@ func (ce *Exchange) getExtendedHeaderByHeight(ctx context.Context, height *int64
 		return nil, err
 	}
 
-	return ce.construct(ctx, b, comm, vals, ce.shareStore)
+	return ce.construct(ctx, b, comm, vals, ce.storeFn)
 }

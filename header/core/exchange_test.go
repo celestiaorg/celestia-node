@@ -5,9 +5,10 @@ import (
 	"context"
 	"testing"
 
-	mdutils "github.com/ipfs/go-merkledag/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/core"
 	"github.com/celestiaorg/celestia-node/header"
@@ -15,12 +16,11 @@ import (
 
 func TestCoreExchange_RequestHeaders(t *testing.T) {
 	fetcher := createCoreFetcher(t)
-	store := mdutils.Bserv()
 
 	// generate 10 blocks
 	generateBlocks(t, fetcher)
 
-	ce := NewExchange(fetcher, store, header.MakeExtendedHeader)
+	ce := NewExchange(fetcher, header.MakeExtendedHeader, noopStore)
 	headers, err := ce.GetRangeByHeight(context.Background(), 1, 10)
 	require.NoError(t, err)
 
@@ -46,4 +46,8 @@ func generateBlocks(t *testing.T, fetcher *core.BlockFetcher) {
 	for i := 0; i < 10; i++ {
 		<-sub
 	}
+}
+
+func noopStore(context.Context, []byte, *rsmt2d.ExtendedDataSquare) error {
+	return nil
 }

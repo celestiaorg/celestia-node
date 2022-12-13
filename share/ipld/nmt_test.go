@@ -2,7 +2,6 @@ package ipld
 
 import (
 	"bytes"
-	"math"
 	"math/rand"
 	"sort"
 	"strconv"
@@ -13,6 +12,8 @@ import (
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/pkg/da"
+
+	"github.com/celestiaorg/celestia-node/libs/utils"
 )
 
 // TestNamespaceFromCID checks that deriving the Namespaced hash from
@@ -28,7 +29,7 @@ func TestNamespaceFromCID(t *testing.T) {
 	for i, tt := range tests {
 		t.Run(strconv.Itoa(i), func(t *testing.T) {
 			// create DAH from rand data
-			squareSize := uint64(math.Sqrt(float64(len(tt.randData))))
+			squareSize := utils.SquareSize(len(tt.randData))
 			eds, err := da.ExtendShares(squareSize, tt.randData)
 			require.NoError(t, err)
 			dah := da.NewDataAvailabilityHeader(eds)

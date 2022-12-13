@@ -6,7 +6,6 @@ import (
 	_ "embed"
 	"encoding/hex"
 	"encoding/json"
-	"math"
 	mrand "math/rand"
 	"strconv"
 	"testing"
@@ -19,7 +18,9 @@ import (
 
 	"github.com/celestiaorg/celestia-app/pkg/da"
 	appshares "github.com/celestiaorg/celestia-app/pkg/shares"
+
 	"github.com/celestiaorg/celestia-node/header"
+	"github.com/celestiaorg/celestia-node/libs/utils"
 	"github.com/celestiaorg/celestia-node/share"
 	availability_test "github.com/celestiaorg/celestia-node/share/availability/test"
 )
@@ -141,7 +142,7 @@ func TestGetShares(t *testing.T) {
 	}
 	// generate DAH from shares returned by `share.GetShares` to compare
 	// calculated DAH to expected DAH
-	squareSize := uint64(math.Sqrt(float64(len(flattened))))
+	squareSize := utils.SquareSize(len(flattened))
 	eds, err := da.ExtendShares(squareSize, flattened)
 	require.NoError(t, err)
 	gotDAH := da.NewDataAvailabilityHeader(eds)

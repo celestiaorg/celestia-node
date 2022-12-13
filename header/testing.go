@@ -5,14 +5,11 @@ package header
 
 import (
 	"context"
-
-	"github.com/celestiaorg/celestia-node/share"
-
 	mrand "math/rand"
 	"testing"
 	"time"
 
-	"github.com/ipfs/go-blockservice"
+	mdutils "github.com/ipfs/go-merkledag/test"
 	"github.com/stretchr/testify/require"
 	"github.com/tendermint/tendermint/crypto/tmhash"
 	"github.com/tendermint/tendermint/libs/bytes"
@@ -25,6 +22,7 @@ import (
 	"github.com/celestiaorg/celestia-app/pkg/da"
 
 	"github.com/celestiaorg/celestia-node/core"
+	"github.com/celestiaorg/celestia-node/share"
 )
 
 // TestSuite provides everything you need to test chain of Headers.
@@ -219,7 +217,7 @@ func FraudMaker(t *testing.T, faultHeight int64) ConstructFn {
 		b *types.Block,
 		comm *types.Commit,
 		vals *types.ValidatorSet,
-		bServ blockservice.BlockService) (*ExtendedHeader, error) {
+		storeFn StoreFn) (*ExtendedHeader, error) {
 		if b.Height == faultHeight {
 			eh := &ExtendedHeader{
 				RawHeader:    b.Header,
@@ -227,22 +225,27 @@ func FraudMaker(t *testing.T, faultHeight int64) ConstructFn {
 				ValidatorSet: vals,
 			}
 
-			eh = CreateFraudExtHeader(t, eh, bServ)
+			eh = CreateFraudExtHeader(t, eh, storeFn)
 			return eh, nil
 		}
-		return MakeExtendedHeader(ctx, b, comm, vals, bServ)
+		return MakeExtendedHeader(ctx, b, comm, vals, storeFn)
 	}
 }
 
-func CreateFraudExtHeader(t *testing.T, eh *ExtendedHeader, dag blockservice.BlockService) *ExtendedHeader {
+func CreateFraudExtHeader(t *testing.T, eh *ExtendedHeader, storeFn StoreFn) *ExtendedHeader {
 	extended := share.RandEDS(t, 2)
 	shares := share.ExtractEDS(extended)
+	// corrupt shares and import into square
 	copy(shares[0][share.NamespaceSize:], shares[1][share.NamespaceSize:])
-	extended, err := share.ImportShares(context.Background(), shares, dag)
+	extended, err := share.ImportShares(context.Background(), shares, mdutils.Bserv())
 	require.NoError(t, err)
+	// generate DAH
 	dah := da.NewDataAvailabilityHeader(extended)
 	eh.DAH = &dah
 	eh.RawHeader.DataHash = dah.Hash()
+	// store corrupted square
+	err = storeFn(context.Background(), dah.Hash(), extended)
+	require.NoError(t, err)
 	return eh
 }
 

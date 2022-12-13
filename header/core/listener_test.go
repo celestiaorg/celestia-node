@@ -5,7 +5,6 @@ import (
 	"testing"
 	"time"
 
-	mdutils "github.com/ipfs/go-merkledag/test"
 	"github.com/libp2p/go-libp2p-core/event"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	mocknet "github.com/libp2p/go-libp2p/p2p/net/mock"
@@ -102,5 +101,5 @@ func createListener(
 		require.NoError(t, err)
 	})
 
-	return NewListener(p2pSub, fetcher, mdutils.Bserv(), header.MakeExtendedHeader)
+	return NewListener(p2pSub, fetcher, header.MakeExtendedHeader, noopStore)
 }

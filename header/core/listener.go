@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/ipfs/go-blockservice"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	"github.com/tendermint/tendermint/types"
 
@@ -20,24 +19,26 @@ import (
 // broadcasts the new `ExtendedHeader` to the header-sub gossipsub
 // network.
 type Listener struct {
-	bcast     header.Broadcaster
-	fetcher   *core.BlockFetcher
-	bServ     blockservice.BlockService
+	bcast   header.Broadcaster
+	fetcher *core.BlockFetcher
+
 	construct header.ConstructFn
-	cancel    context.CancelFunc
+	storeFn   header.StoreFn
+
+	cancel context.CancelFunc
 }
 
 func NewListener(
 	bcast header.Broadcaster,
 	fetcher *core.BlockFetcher,
-	bServ blockservice.BlockService,
 	construct header.ConstructFn,
+	storeFn header.StoreFn,
 ) *Listener {
 	return &Listener{
 		bcast:     bcast,
 		fetcher:   fetcher,
-		bServ:     bServ,
 		construct: construct,
+		storeFn:   storeFn,
 	}
 }
 
@@ -58,7 +59,7 @@ func (cl *Listener) Start(ctx context.Context) error {
 	return nil
 }
 
-// Stop stops the Listener listener loop.
+// Stop stops the listen loop.
 func (cl *Listener) Stop(ctx context.Context) error {
 	cl.cancel()
 	cl.cancel = nil
@@ -89,7 +90,7 @@ func (cl *Listener) listen(ctx context.Context, sub <-chan *types.Block) {
 				return
 			}
 
-			eh, err := cl.construct(ctx, b, comm, vals, cl.bServ)
+			eh, err := cl.construct(ctx, b, comm, vals, cl.storeFn)
 			if err != nil {
 				log.Errorw("listener: making extended header", "err", err)
 				return
