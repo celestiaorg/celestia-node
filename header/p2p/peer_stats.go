@@ -140,6 +140,8 @@ func (p *peerQueue) push(stat *peerStat) {
 	p.havePeer <- struct{}{}
 }
 
+// reduceSize allows to track how many active peers are available.
+// The size decreases in case of network,unmarshalling or another unexpected errors.
 func (p *peerQueue) reduceSize() {
 	atomic.AddUint32(&p.maxSize, ^uint32(0)) // decrease counter
 }

@@ -12,30 +12,49 @@ import (
 	p2p_pb "github.com/celestiaorg/celestia-node/header/p2p/pb"
 )
 
+var unmarshallingErr = errors.New("unmarshalling error")
+
+type option func(*session)
+
+func WithValidation(from *header.ExtendedHeader) option {
+	return func(s *session) {
+		s.from = from
+	}
+}
+
 // session aims to divide a range of headers
 // into several smaller requests among different peers.
 type session struct {
-	ctx        context.Context
-	cancel     context.CancelFunc
 	host       host.Host
 	protocolID protocol.ID
+	queue      *peerQueue
 	// peerTracker contains discovered peers with records that describes their activity.
-	queue *peerQueue
+	peerTracker *peerTracker
 
-	reqCh chan *p2p_pb.ExtendedHeaderRequest
-	errCh chan error
+	from *header.ExtendedHeader
+
+	ctx    context.Context
+	cancel context.CancelFunc
+	reqCh  chan *p2p_pb.ExtendedHeaderRequest
+	errCh  chan error
 }
 
-func newSession(ctx context.Context, h host.Host, peerTracker []*peerStat, protocolID protocol.ID) *session {
+func newSession(ctx context.Context, h host.Host, peerTracker *peerTracker, protocolID protocol.ID, options ...option) *session {
 	ctx, cancel := context.WithCancel(ctx)
-	return &session{
-		ctx:        ctx,
-		cancel:     cancel,
-		protocolID: protocolID,
-		host:       h,
-		queue:      newPeerQueue(ctx, peerTracker),
-		errCh:      make(chan error),
+	ses := &session{
+		ctx:         ctx,
+		cancel:      cancel,
+		protocolID:  protocolID,
+		host:        h,
+		queue:       newPeerQueue(ctx, peerTracker.peers()),
+		peerTracker: peerTracker,
+		errCh:       make(chan error),
 	}
+
+	for _, opt := range options {
+		opt(ses)
+	}
+	return ses
 }
 
 // GetRangeByHeight requests headers from different peers.
@@ -129,6 +148,12 @@ func (s *session) doRequest(
 	h, err := s.processResponse(r)
 	if err != nil {
 		s.queue.reduceSize()
+		switch err {
+		case header.ErrNotFound:
+		default:
+			s.peerTracker.blockPeer(stat.peerID)
+			log.Errorw("header/p2p: unexpected error received", "err", err, "pID", stat.peerID)
+		}
 		select {
 		case <-ctx.Done():
 		case <-s.ctx.Done():
@@ -154,14 +179,41 @@ func (s *session) processResponse(responses []*p2p_pb.ExtendedHeaderResponse) ([
 		}
 		header, err := header.UnmarshalExtendedHeader(resp.Body)
 		if err != nil {
-			return nil, err
+			return nil, unmarshallingErr
 		}
 		headers = append(headers, header)
 	}
 	if len(headers) == 0 {
 		return nil, header.ErrNotFound
 	}
-	return headers, nil
+
+	err := s.validate(headers)
+	return headers, err
+}
+
+// validate ensures that received range of headers is valid against provided header.
+func (s *session) validate(headers []*header.ExtendedHeader) error {
+	if s.from == nil {
+		return nil
+	}
+
+	err := s.from.VerifyNonAdjacent(headers[0])
+	if err != nil {
+		return nil
+	}
+
+	if len(headers) == 1 {
+		return nil
+	}
+
+	trusted := headers[0]
+	for i := 1; i < len(headers); i++ {
+		err = trusted.VerifyAdjacent(headers[i])
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // prepareRequests converts incoming range into separate ExtendedHeaderRequest.
