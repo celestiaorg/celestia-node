@@ -13,8 +13,8 @@ const (
 	DefaultNetwork = Arabica
 	// Arabica testnet. See: celestiaorg/networks.
 	Arabica Network = "arabica-2"
-	// Mamaki testnet. See: celestiaorg/networks.
-	Mamaki Network = "mamaki"
+	// Mocha testnet. See: celestiaorg/networks.
+	Mocha Network = "mocha"
 	// Private can be used to set up any private network, including local testing setups.
 	Private Network = "private"
 	// BlockTime is a network block time.
@@ -42,7 +42,7 @@ func (n Network) Validate() error {
 // networksList is a strict list of all known long-standing networks.
 var networksList = map[Network]struct{}{
 	Arabica: {},
-	Mamaki:  {},
+	Mocha:   {},
 	Private: {},
 }
 
@@ -51,7 +51,7 @@ var networksList = map[Network]struct{}{
 // their actual value) to the Network.
 var networkAliases = map[string]Network{
 	"arabica": Arabica,
-	"mamaki":  Mamaki,
+	"mocha":   Mocha,
 	"private": Private,
 }
 
