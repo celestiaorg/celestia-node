@@ -4,6 +4,7 @@ import (
 	"github.com/celestiaorg/celestia-node/nodebuilder/das"
 	"github.com/celestiaorg/celestia-node/nodebuilder/fraud"
 	"github.com/celestiaorg/celestia-node/nodebuilder/header"
+	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
 	"github.com/celestiaorg/celestia-node/nodebuilder/share"
 	"github.com/celestiaorg/celestia-node/nodebuilder/state"
@@ -18,4 +19,5 @@ var PackageToAPI = map[string]interface{}{
 	"header": &header.API{},
 	"daser":  &das.API{},
 	"p2p":    &p2p.API{},
+	"node":   &node.API{},
 }

@@ -5,6 +5,7 @@ import (
 	"github.com/celestiaorg/celestia-node/nodebuilder/das"
 	"github.com/celestiaorg/celestia-node/nodebuilder/fraud"
 	"github.com/celestiaorg/celestia-node/nodebuilder/header"
+	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
 	"github.com/celestiaorg/celestia-node/nodebuilder/share"
 	"github.com/celestiaorg/celestia-node/nodebuilder/state"
@@ -18,6 +19,7 @@ func RegisterEndpoints(
 	headerMod header.Module,
 	daserMod das.Module,
 	p2pMod p2p.Module,
+	nodeMod node.Module,
 	serv *rpc.Server,
 ) {
 	serv.RegisterAuthedService("fraud", fraudMod, &fraud.API{})
@@ -26,6 +28,7 @@ func RegisterEndpoints(
 	serv.RegisterAuthedService("state", stateMod, &state.API{})
 	serv.RegisterAuthedService("share", shareMod, &share.API{})
 	serv.RegisterAuthedService("p2p", p2pMod, &p2p.API{})
+	serv.RegisterAuthedService("node", nodeMod, &node.API{})
 }
 
 func Server(cfg *Config) *rpc.Server {
