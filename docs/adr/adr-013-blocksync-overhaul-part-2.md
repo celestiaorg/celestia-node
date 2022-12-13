@@ -31,13 +31,14 @@ parity data forming EDS. A similar approach is taken for ND retrieval. The main 
 consistently outpace EDS production for the max EDS size for historical and recent EDSes.
 
 The existing EDS retrieval logic(TODO: Link something) remains a __fallback path__ if the __happy path__ fails due to a
-lack of connected peers or the coordinated data withholding attack. With the __fallback path__, retrieval leverages all 
-connected peers, including LNs, and granularly requests EDS pieces - __shares__, increasing the likelihood of EDS 
+lack of connected peers or the coordinated data withholding attack. With the __fallback path__, retrieval leverages all
+connected peers, including LNs, and granularly requests EDS pieces - __shares__, increasing the likelihood of EDS
 reconstruction while paying a slower retrieval time price.
 
 ## Decision
 
 The decision is to design three protocols:
+
 - [`ShrEx/EDS`](#shrexeds-protocol) - Pull-based EDS retrieval protocol
 
 - [`ShrEx/ND`](#shrexnd-protocol) - Pull-based ND retrieval protocol
@@ -49,28 +50,28 @@ The decision is to design three protocols:
 - __Use [go-libp2p][go-libp2p]'s software stack to build the protocols.__ It has been extensively used in `celestia-node`
   already, proven to be robust and provides all the required components and tools for the new protocols.
 
-- __Use [protobuf][proto] schema for protocol(TODO Link) message (de)serialization.__ Protobuf is a common 
+- __Use [protobuf][proto] schema for protocol(TODO Link) message (de)serialization.__ Protobuf is a common
   (de)serialization standard used in celestia-node. Even though there are better alternatives in speed, encoding
-  footprint, and determinism, their benefits are negligible compared with continuing Protobuf usage for consistency and 
+  footprint, and determinism, their benefits are negligible compared with continuing Protobuf usage for consistency and
   simplicity.
 
 - __FN/LNs keep existing EDS retrieval logic(TODO Link?).__ `celestia-node` already provides means to get EDS from
   the network. It is slower than block production for the EDS sizes __>128__ but has higher retrieval guarantees during
   data withholding attacks. (link)
 
-- __FN/LN/BNs leverage implemented discovery mechanism outlined in ADR-008(TODO Link).__ The discovery in a node 
-  maintains connections with FN-subnetwork. The mechanism ensures the node will receive new notifications from 
+- __FN/LN/BNs leverage implemented discovery mechanism outlined in ADR-008(TODO Link).__ The discovery in a node
+  maintains connections with FN-subnetwork. The mechanism ensures the node will receive new notifications from
   `ShrEx/Sub` and can request data via `ShrEx/EDS` and `ShrEx/ND`.
 
-- __FN/BNs notify connected LN/FNs when they are ready to serve a recent EDS using via [`ShrEx/Sub`](#ShrEx/Sub 
-  Protocol).__ The push notification means, "I have this data; request it from me." This lazy-push approach provides 
+- __FN/BNs notify connected LN/FNs when they are ready to serve a recent EDS using via [`ShrEx/Sub`](#ShrEx/Sub
+  Protocol).__ The push notification means, "I have this data; request it from me." This lazy-push approach provides
   reliable EDS dissemination properties and is simpler than technics similar to Bitswap's want list.(TODO link)
 
 ## Protocols Specs
 
 ### ShrEx/EDS Protocol
 
-ShrEx/EDS is a pull-based protocol with a client-server model, where LNs are clients, BNs are servers, and FNs are both. 
+ShrEx/EDS is a pull-based protocol with a client-server model, where LNs are clients, BNs are servers, and FNs are both.
 The protocol has only one request-response interaction followed by the ODS stream, which then reconstructs into EDS.
 
 The protocol is designed over plain libp2p streams with `/shrex/eds/0.0.1` as the protocol ID.
@@ -83,7 +84,7 @@ The protocol is designed over plain libp2p streams with `/shrex/eds/0.0.1` as th
 syntax = "proto3";
 
 message EDSRequest {
-  bytes hash = 1; // identifies the requested EDS.
+  bytes data_hash = 1; // identifies the requested EDS.
 }
 ```
 
@@ -106,7 +107,7 @@ message EDSResponse {
 
 #### Streaming
 
-After flushing `EDSResponse`, a server starts streaming an ODS as a CAR file (TODO link) to a client over a libp2p 
+After flushing `EDSResponse`, a server starts streaming an ODS as a CAR file (TODO link) to a client over a libp2p
 stream.
 
 #### Backpressure
@@ -123,39 +124,38 @@ congested links.
 
 #### Flow
 
-```
-                    ┌──────┐          ┌──────┐          
-                    │Client│          │Server│          
-                    └──┬───┘          └──┬───┘          
-                       │   Open Stream   │              
-                       │ ────────────────>              
-                       │                 │              
-                       │    EDSRequest   │              
-                       │ ────────────────>              
-                       │                 │              
-                       │   EDSResponse   │              
-                       │ <────────────────              
-                       │                 │              
-                       │                 │              
-          ╔══════╤═════╪═════════════════╪═════════════╗
-          ║ ALT  │  STATUS:OK            │             ║
-          ╟──────┘     │                 │             ║
-          ║            │     CAR File    │             ║
-          ║            │ <────────────────             ║
-          ╚════════════╪═════════════════╪═════════════╝
-                       │                 │              
-                       │   Stream Close  │              
-                       │ <────────────────              
-                    ┌──┴───┐          ┌──┴───┐          
-                    │Client│          │Server│          
-                    └──────┘          └──────┘          
-
+```text
+              ┌──────┐          ┌──────┐          
+              │Client│          │Server│          
+              └──┬───┘          └──┬───┘          
+                 │   Open Stream   │              
+                 │ ────────────────>              
+                 │                 │              
+                 │    EDSRequest   │              
+                 │ ────────────────>              
+                 │                 │              
+                 │   EDSResponse   │              
+                 │ <────────────────              
+                 │                 │              
+                 │                 │              
+    ╔══════╤═════╪═════════════════╪═════════════╗
+    ║ ALT  │  STATUS:OK            │             ║
+    ╟──────┘     │                 │             ║
+    ║            │     CAR File    │             ║
+    ║            │ <────────────────             ║
+    ╚════════════╪═════════════════╪═════════════╝
+                 │                 │              
+                 │   Stream Close  │              
+                 │ <────────────────              
+              ┌──┴───┐          ┌──┴───┐          
+              │Client│          │Server│          
+              └──────┘          └──────┘          
 ```
 
 ### Misbehavior
 
-* Server sends ODS CAR file that fails EDS reconstruction.
-* Client terminates stream after receiving the EDSResponse.
+- Server streams back ODS CAR file that fails EDS reconstruction and/or is not committed to the requested `data_hash`
+- Client sends an invalid `data_hash` with size != 32B
 
 ### ShrEx/ND Protocol
 
@@ -172,8 +172,9 @@ The protocol is designed over plain libp2p streams with `/shrex/nd/0.0.1` as the
 syntax = "proto3";
 
 message NDRequest {
-  bytes hash = 1; // identifies the EDS to get ND from
-  bytes namespace = 2; // namespace of ND
+  bytes data_hash = 1;          // identifies the EDS to get ND from
+  bytes namespace = 2;          // namespace of ND
+  repeated bytes row_roots = 3; // row roots from share.Root/DAH containing requested namespace
 }
 ```
 
@@ -184,9 +185,9 @@ syntax = "proto3";
 
 enum Status {
   INVALID = 0;
-  OK = 100; // data found
+  OK = 100;        // data found
   NOT_FOUND = 200; // data not found
-  REFUSED = 201; // request refused
+  REFUSED = 201;   // request refused
 }
 
 message Proof {
@@ -217,6 +218,7 @@ data and proofs in real-time while they are read from the disk.
 
 #### Flow
 
+```text
      ┌──────┐          ┌──────┐
      │Client│          │Server│
      └──┬───┘          └──┬───┘
@@ -234,11 +236,20 @@ data and proofs in real-time while they are read from the disk.
      ┌──┴───┐          ┌──┴───┐
      │Client│          │Server│
      └──────┘          └──────┘
+```
 
+#### Misbehavior
+
+- Client requests not corresponding data
+  - `row_roots` are committed to the `data_hash`
+  - Each `row_roots` element contains `namespace`
+    > __NOTE__: In the implementation, if `eds.Store.CARBlockstore` contains the EDS by `data_hash`, but the `row_roots` are not found
+    > in there, we can conclude that either of conditions fails and peer misbehaves/
+- Server responds with `rows` failing Merkle inclusion verification
 
 ### ShrEx/Sub Protocol
 
-`ShrEx/Sub` is a push-based notification protocol with the publish-subscribe model, where LNs are subscribers, BNs are 
+`ShrEx/Sub` is a push-based notification protocol with the publish-subscribe model, where LNs are subscribers, BNs are
 publishers and FNs are both.
 
 The protocol is based on libp2p's `FloodSub`(TODO Link) with `/eds-sub/0.0.1` as the topic ID.
@@ -255,32 +266,32 @@ dissemination over Celestia's DA p2p network. However, it does not fit well in t
 
 `GossipSub`'s efficacy comes from an overlay mesh network based on "physical" connections. Peers form logical links to
 up to a constant DHi(12)(TODO Link) number of peers. Every gossip is __pushed__ only to these peers in the mesh
-(the [fanout][gs-fanout] case is out of scope in this explanation). A new logical link is established on every new 
-"physical" connection. When there are too many logical links (>DHi), random logical links are pruned. However, there is 
+(the [fanout][gs-fanout] case is out of scope in this explanation). A new logical link is established on every new
+"physical" connection. When there are too many logical links (>DHi), random logical links are pruned. However, there is
 no differentiation between peer types so pruning can happen to any peer.
 
-Subsequently, with `GossipSub`, any FN may prune all other BNs/FNs and end up being connected only to LNs, missing any 
-new EDS notifications. Additionally, `GossipSub` implements peer exchange with pruned peers, e.g., when an FN has too 
-many links, it may prune an LN and then send it a bunch of peers that are not guaranteed to be FNs. Therefore, the LN 
+Subsequently, with `GossipSub`, any FN may prune all other BNs/FNs and end up being connected only to LNs, missing any
+new EDS notifications. Additionally, `GossipSub` implements peer exchange with pruned peers, e.g., when an FN has too
+many links, it may prune an LN and then send it a bunch of peers that are not guaranteed to be FNs. Therefore, the LN
 can end up isolated with other LNs from new EDS notifications.
 
 The `FloodSub`, on the other hand, sends messages to every "physical" connection without overlay mesh of logical links,
-which solves the problem with the cost of higher message duplication factor on the network. Although, a moderate amount 
+which solves the problem with the cost of higher message duplication factor on the network. Although, a moderate amount
 of duplicates from different peers are helpful in this case. If the primary message sender peer does not serve data,
 the senders of duplicates are requested instead.
 
 In the future, when the network reaches a scale of ~5000 peers, we may want to design a custom PubSub router in favor of
 basic`FloodSub`. The router will be based on `GossipSub` and almost untouched for the FN <-> FN interactions.
 The innovation will come on the FN <-> LN front, where FNs will maintain an additional overlay mesh for connected LNs
-and vise-versa. The mechanism will enable precise traffic routing control and balancing load for FNs during spikes of 
+and vise-versa. The mechanism will enable precise traffic routing control and balancing load for FNs during spikes of
 LNs activity.
 
 PS. Besides __pushing__ gossip, GossipSub has an internal __lazy-push__ mechanism. Randomly connected peers outside
 the overlay mesh are selected(GossipFactor(TODO Link)) and sent with `IHAVE` message(hash of the actual message) and can
 respond with `IWANT`. In the case of an isolated FN/LN, there is a chance that it will still receive the data via the
-lazy-pull mechanism; however, it is randomized, and thus the isolated node can miss notifications. We could increase 
-GossipFactor to 1, which means always sending `IHAVE` to every connected peer outside the overlay mesh. However, the 
-notification message is a hash, and there is no reason to pull the hash by its hash compared to a direct push of the 
+lazy-pull mechanism; however, it is randomized, and thus the isolated node can miss notifications. We could increase
+GossipFactor to 1, which means always sending `IHAVE` to every connected peer outside the overlay mesh. However, the
+notification message is a hash, and there is no reason to pull the hash by its hash compared to a direct push of the
 hash.
 
 ## API
@@ -321,7 +332,7 @@ func (c *Client) RequestND(context.Context, share.Root, peer.IDSlice, namespace.
 
 ### `Server`
 
-The EDS `Server` implements the server side of the `ShrEx/EDS` protocol. It serves `Client`s' `EDSRequest`s, responses 
+The EDS `Server` implements the server side of the `ShrEx/EDS` protocol. It serves `Client`s' `EDSRequest`s, responses
 with `EDSResponse` and streams ODS data from `eds.Store.GetCAR` wrapped in `ODSReader`.
 
 `Server` may not provide any API besides constructor and lifecycle methods.
@@ -339,7 +350,6 @@ The EDS `PubSub` implements the `ShrEx/Sub` protocol. It enables subscribing to 
 It embeds a private `FloodSub` instance.
 
 The `PubSub` follows the existing network publish-subscribe semantics in `celestia-node` for consistency and simplicity.
-
 
 #### `PubSub.Broadcast`
 
@@ -393,7 +403,7 @@ func (s *PubSub) Close()
 
 We decided to rely on existing discovery primitives(TODO Link). It is a single-purpose mechanism providing the API for
 FN/BNs to advertise themselves, s.t. other LN/FN/BNs can discover and ensure N connections to them. However, the
-current API does not let us know our discovered FN/BN peers' connections. Listing of discovered peers is required for 
+current API does not let us know our discovered FN/BN peers' connections. Listing of discovered peers is required for
 `ShrEx/EDS` and `ShrEx/ND`, as their clients do not discover servers automatically and expect them to be provided.
 
 Subsequently, we extend `discovery.Discovery` with the following method:
@@ -407,22 +417,23 @@ func (d *Discovery) Peers(context.Context) ([]peer.ID, error)
 ### das.DASer
 
 The `das.DASer` engine keeps the chain sampled and availability checked and provided. Currently, it relies on
-`header.Subscribtion` to get every newly produced header from the network. Once a header is received, it can reliably 
-check its availability with `share.Availability` interface. However, as we are changing the protocol, the usage of 
+`header.Subscribtion` to get every newly produced header from the network. Once a header is received, it can reliably
+check its availability with `share.Availability` interface. However, as we are changing the protocol, the usage of
 `share.Availability` has to be synchronized with EDS notifications from our peers via `eds.PubSub`.
 
 To synchronize them we:
-* Cache headers coming from `header.Subscribtion`, instead of calling `SharesAvailable` with `DataHash` as the key.
-* Add validator to `eds.PubSub` which
-  * Gets the header out of the cache by `DataHash` message body
-    * If not found, waits for it within the configurable timeout
-    * If nothing, rejects the message
-  * Calls `SharesAvailable` with the DAH from the header and the peer the message received from
+
+- Cache headers coming from `header.Subscribtion`, instead of calling `SharesAvailable` with `DataHash` as the key.
+- Add validator to `eds.PubSub` which
+  - Gets the header out of the cache by `DataHash` message body
+    - If not found, waits for it within the configurable timeout
+    - If nothing, rejects the message
+  - Calls `SharesAvailable` with the DAH from the header and the peer the message received from
 
 ### share.Availability
 
-Celestia-node has a central `share.Availability` interface, which guarantees a certain level of EDS data availability 
-depending on the implementation. Its `SharesAvailable` method has to be extended with an additional variadic `peer.ID` 
+Celestia-node has a central `share.Availability` interface, which guarantees a certain level of EDS data availability
+depending on the implementation. Its `SharesAvailable` method has to be extended with an additional variadic `peer.ID`
 param. Previously, the interface was generic enough and abstracted away peering details from the user. However, with the
 introduction of `eds.Pubsub`, the higher level component `das.DASer` points the peers(s) to get EDSes from, and thus
 peering details of one `FullAvailability` implementation has to pollute the interface.
@@ -432,14 +443,16 @@ peering details of one `FullAvailability` implementation has to pollute the inte
 The `FullAvailability` implementation is responsible for checking the availability of the whole
 EDS by retrieving and reconstructing it. As we are improving our EDS retrieval logic, the new ___happy path___ over
 `eds.Client` integrates into the ___fallback path___ with the following flow:
-* ___happy path___ EDS
-  * Take peers passed to the `ShareAvailable`
-    * If no peers were given, use discovered peers via `Discovery.Peers`
-  * Request peers using `eds.Client`
-* ___fallback path___ EDS
-  * If ___happy path___ EDS operation does not finish within `BlockTime` timeout -- run `eds.Retriever` and wait until
+
+- Check if `eds.Store` contains the data already. If not, we fetch it with one of the ___paths___.
+- ___happy path___ EDS
+  - Take peers passed to the `ShareAvailable`
+    - If no peers were given, use discovered peers via `Discovery.Peers`
+  - Request peers using `eds.Client`
+- ___fallback path___ EDS
+  - If ___happy path___ EDS operation does not finish within `BlockTime` timeout -- run `eds.Retriever` and wait until
     one of the paths finishes.
-* Store EDS in `eds.Store`
+- Store EDS in `eds.Store`
 
 Additionally, `FullAvailability` should provide `OnlyReconstruction` mode to allow testing the ___fallback path___
 in isolation.
@@ -448,20 +461,24 @@ in isolation.
 
 The `core.Listener` is the component that exists only in BN. It listens for new blocks coming from the Core Network,
 computes EDS with `ExtendedHeader`, and broadcasts it to the network. With the introduction of `ShrEx/Sub` BNs sends
-notifications once it is ready to serve the new block; thus, we make `core.Listener` additionally broadcast the 
+notifications once it is ready to serve the new block; thus, we make `core.Listener` additionally broadcast the
 notification via `eds.PubSub`.
 
 ## Hardening
 
 ### Rate Limiting
 
-Both `ShrEx/EDS` and `ShrEx/ND` has a server-side that serves data. In order to prevent trivial DOS vectors, rate 
-limiting should be introduced. Both protocols should have a configurable amount of data requests they serve at any 
-moment. If any new request exceeds the limit, the server responds with a `REFUSED` status code to the client, so that 
+Both `ShrEx/EDS` and `ShrEx/ND` has a server-side that serves data. In order to prevent trivial DOS vectors, rate
+limiting should be introduced. Both protocols should have a configurable amount of data requests they serve at any
+moment. If any new request exceeds the limit, the server responds with a `REFUSED` status code to the client, so that
 client can act accordingly and try another peer.
 
 The alternative is to queue clients' requests and make the client wait until their request is processed.
 
+### Blacklisting
+
+Each protocol describes a set of misbehavior. In case a misbehavior is detected for a peer, the peer should be immediately
+blacklisted via libp2p's PeerGater.
 
 ## Alternative approaches
 
