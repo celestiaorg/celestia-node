@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-
 	"github.com/ipfs/go-blockservice"
 	ipldFormat "github.com/ipfs/go-ipld-format"
 	logging "github.com/ipfs/go-log/v2"
@@ -71,7 +70,7 @@ func (fa *ShareAvailability) SharesAvailable(ctx context.Context, root *share.Ro
 	// given dah/root. If for some reason this has not happened, the node should panic.
 	err := root.ValidateBasic()
 	if err != nil {
-		log.Errorw("Availability validation cannot be performed on a malformed DataAvailabilityHeader",
+		log.Errorw("availability validation cannot be performed on a malformed DataAvailabilityHeader",
 			"err", err)
 		panic(err)
 	}
@@ -80,7 +79,7 @@ func (fa *ShareAvailability) SharesAvailable(ctx context.Context, root *share.Ro
 	if len(peers) == 0 {
 		peers, err = fa.disc.Peers(ctx)
 		if err != nil {
-			return fmt.Errorf("no peers were given and discovery service failed: %w", err)
+			log.Errorw("no peers were given and the discovery service failed", "err", err)
 		}
 	}
 

@@ -28,7 +28,7 @@ func TestNamespaceHasher_CorruptedData(t *testing.T) {
 	provider, mockBS := availability_test.MockNode(t, net)
 	provider.ShareService = service.NewShareService(
 		provider.BlockService,
-		full.TestAvailability(t, provider.BlockService, requestor.Host),
+		full.TestAvailability(t, provider.BlockService, provider.Host),
 	)
 	net.ConnectAll()
 
@@ -37,7 +37,7 @@ func TestNamespaceHasher_CorruptedData(t *testing.T) {
 	root := availability_test.RandFillBS(t, 16, provider.BlockService)
 	getCtx, cancelGet := context.WithTimeout(ctx, sharesAvailableTimeout)
 	t.Cleanup(cancelGet)
-	err := requestor.SharesAvailable(getCtx, root)
+	err := requestor.SharesAvailable(getCtx, root, provider.ID())
 	require.NoError(t, err)
 
 	// clear the storage of the requester so that it must retrieve again, then start attacking
@@ -45,6 +45,6 @@ func TestNamespaceHasher_CorruptedData(t *testing.T) {
 	mockBS.Attacking = true
 	getCtx, cancelGet = context.WithTimeout(ctx, sharesAvailableTimeout)
 	t.Cleanup(cancelGet)
-	err = requestor.SharesAvailable(getCtx, root)
+	err = requestor.SharesAvailable(getCtx, root, provider.ID())
 	require.ErrorIs(t, err, share.ErrNotAvailable)
 }

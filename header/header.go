@@ -64,7 +64,7 @@ func MakeExtendedHeader(
 	} else {
 		// use MinDataAvailabilityHeader for empty block
 		dah = EmptyDAH()
-		log.Debugw("empty block received", "height", "blockID", "time", b.Height, b.Time.String(), comm.BlockID)
+		log.Debugw("empty block received", "height", b.Height, "time", b.Time.String(), "blockID", comm.BlockID)
 	}
 
 	eh := &ExtendedHeader{

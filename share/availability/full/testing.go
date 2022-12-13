@@ -1,6 +1,7 @@
 package full
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -41,12 +42,13 @@ func Node(dn *availability_test.TestDagNet) *availability_test.TestNode {
 	return nd
 }
 
-// TODO(@distractedm1nd): this is temporary for linter, still needs to be fixed
 func TestAvailability(t *testing.T, bServ blockservice.BlockService, host host.Host) *ShareAvailability {
-	disc := discovery.NewDiscovery(nil, routing.NewRoutingDiscovery(routinghelpers.Null{}), 0, time.Second, time.Second)
+	disc := discovery.NewDiscovery(host, routing.NewRoutingDiscovery(routinghelpers.Null{}), 0, time.Second, time.Second)
 
 	ds := ds_sync.MutexWrap(datastore.NewMapDatastore())
 	store, err := eds.NewStore(t.TempDir(), ds)
+	require.NoError(t, err)
+	err = store.Start(context.Background())
 	require.NoError(t, err)
 
 	client := p2p.NewClient(host, "")

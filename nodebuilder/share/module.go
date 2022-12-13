@@ -41,6 +41,11 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 				return server.Stop(ctx)
 			}),
 		)),
+		fx.Provide(
+			func(host host.Host, path node.StorePath) *p2p.Client {
+				return p2p.NewClient(host, string(path))
+			},
+		),
 		fx.Provide(fx.Annotate(
 			func(path node.StorePath, ds datastore.Batching) (*eds.Store, error) {
 				return eds.NewStore(string(path), ds)
@@ -93,11 +98,6 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 		return fx.Module(
 			"share",
 			bridgeFullSharedComponents,
-			fx.Provide(
-				func(host host.Host, path node.StorePath) *p2p.Client {
-					return p2p.NewClient(host, string(path))
-				},
-			),
 		)
 	default:
 		panic("invalid node type")

@@ -32,7 +32,7 @@ func RandFullLocalServiceWithSquare(t *testing.T, n int) (*service.ShareService,
 	bServ := mdutils.Bserv()
 	store := dssync.MutexWrap(ds.NewMapDatastore())
 	avail := NewShareAvailability(
-		full.TestAvailability(bServ),
+		full.TestAvailability(t, bServ, nil),
 		store,
 	)
 	return service.NewShareService(bServ, avail), availability_test.RandFillBS(t, n, bServ)

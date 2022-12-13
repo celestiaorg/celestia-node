@@ -86,6 +86,9 @@ func (ps *limitedSet) Peers(ctx context.Context) ([]peer.ID, error) {
 		return out, nil
 	}
 	ps.lk.Unlock()
+	if ps.limit == 0 {
+		return nil, errors.New("share: discovery: peers limit is 0")
+	}
 
 	// block until a new peer will be discovered
 	select {
