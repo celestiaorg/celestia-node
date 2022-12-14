@@ -45,6 +45,8 @@ type CoreAccessor struct {
 	stakingCli stakingtypes.QueryClient
 	rpcCli     rpcclient.ABCIClient
 
+	prt *merkle.ProofRuntime
+
 	coreConn *grpc.ClientConn
 	coreIP   string
 	rpcPort  string
@@ -64,12 +66,17 @@ func NewCoreAccessor(
 	rpcPort string,
 	grpcPort string,
 ) *CoreAccessor {
+	// create verifier
+	prt := merkle.DefaultProofRuntime()
+	prt.RegisterOpDecoder(storetypes.ProofOpIAVLCommitment, storetypes.CommitmentOpDecoder)
+	prt.RegisterOpDecoder(storetypes.ProofOpSimpleMerkleCommitment, storetypes.CommitmentOpDecoder)
 	return &CoreAccessor{
 		signer:   signer,
 		getter:   getter,
 		coreIP:   coreIP,
 		rpcPort:  rpcPort,
 		grpcPort: grpcPort,
+		prt:      prt,
 	}
 }
 
@@ -98,6 +105,7 @@ func (ca *CoreAccessor) Start(ctx context.Context) error {
 		return err
 	}
 	ca.rpcCli = cli
+
 	return nil
 }
 
@@ -221,10 +229,7 @@ func (ca *CoreAccessor) BalanceForAddress(ctx context.Context, addr Address) (*B
 		return nil, fmt.Errorf("cannot convert %s into sdktypes.Int", string(value))
 	}
 	// verify balance
-	prt := merkle.DefaultProofRuntime()
-	prt.RegisterOpDecoder(storetypes.ProofOpIAVLCommitment, storetypes.CommitmentOpDecoder)
-	prt.RegisterOpDecoder(storetypes.ProofOpSimpleMerkleCommitment, storetypes.CommitmentOpDecoder)
-	err = prt.VerifyValueKeys(
+	err = ca.prt.VerifyValueKeys(
 		result.Response.GetProofOps(),
 		head.AppHash,
 		[][]byte{[]byte(banktypes.StoreKey),
