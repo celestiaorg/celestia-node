@@ -246,15 +246,17 @@ SyncHead(ctx context.Context) (*header.ExtendedHeader, error)
     SubmitPayForData(
       ctx context.Context, 
       nID namespace.ID, 
-      data []byte, 
+      data []byte,
+      fee types.Int,
       gasLimit uint64,
     ) (*state.TxResponse, error)
     // Transfer sends the given amount of coins from default wallet of the node 
     // to the given account address.
     Transfer(
       ctx context.Context, 
-      to types.Address, 
-      amount types.Int, 
+      to types.Address,
+      amount types.Int,
+      fee types.Int,
       gasLimit uint64,
     ) (*state.TxResponse, error)
 
@@ -275,7 +277,8 @@ yet.
     Delegate(
         ctx context.Context, 
         delAddr state.ValAddress, 
-        amount state.Int, 
+        amount state.Int,
+        fee types.Int,
         gasLim uint64,
     ) (*state.TxResponse, error)
     // BeginRedelegate sends a user's delegated tokens to a new validator for redelegation.
@@ -284,6 +287,7 @@ yet.
         srcValAddr,
         dstValAddr state.ValAddress,
         amount state.Int,
+        fee types.Int,
         gasLim uint64, 
     ) (*state.TxResponse, error)
     // Undelegate undelegates a user's delegated tokens, unbonding them from the
@@ -292,6 +296,7 @@ yet.
         ctx context.Context, 
         delAddr state.ValAddress,
         amount state.Int,
+        fee types.Int,
         gasLim uint64,
     ) (*state.TxResponse, error)
 
@@ -300,8 +305,9 @@ yet.
     CancelUnbondingDelegation(
         ctx context.Context,
         valAddr state.ValAddress,
-        amount,
-        height state.Int,
+        amount types.Int,
+        height types.Int,
+        fee types.Int,
         gasLim uint64,
     ) (*state.TxResponse, error)
 
