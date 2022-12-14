@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/cosmos/cosmos-sdk/api/tendermint/abci"
-	"github.com/cosmos/cosmos-sdk/store/rootmulti"
 	sdktypes "github.com/cosmos/cosmos-sdk/types"
 	sdktx "github.com/cosmos/cosmos-sdk/types/tx"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
@@ -99,18 +98,6 @@ func (ca *CoreAccessor) Start(ctx context.Context) error {
 	}
 	ca.rpcCli = cli
 	return nil
-}
-
-func (ca *CoreAccessor) setClients(conn *grpc.ClientConn, abciCli rpcclient.ABCIClient) {
-	ca.coreConn = conn
-	// create the query client
-	queryCli := banktypes.NewQueryClient(ca.coreConn)
-	ca.queryCli = queryCli
-	// create the staking query client
-	stakingCli := stakingtypes.NewQueryClient(ca.coreConn)
-	ca.stakingCli = stakingCli
-
-	ca.rpcCli = abciCli
 }
 
 func (ca *CoreAccessor) Stop(context.Context) error {
@@ -234,7 +221,6 @@ func (ca *CoreAccessor) BalanceForAddress(ctx context.Context, addr Address) (*B
 	}
 	// verify balance
 	prt := prover.DefaultProofRuntime()
-	rootmulti.DefaultProofRuntime()
 	err = prt.VerifyValue(
 		result.Response.GetProofOps(),
 		head.AppHash,

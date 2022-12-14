@@ -5,13 +5,17 @@ import (
 	"testing"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
+	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 	"github.com/stretchr/testify/suite"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
 	rpcclient "github.com/tendermint/tendermint/rpc/client"
+	"google.golang.org/grpc"
 
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/testutil/testnode"
 	blobtypes "github.com/celestiaorg/celestia-app/x/payment/types"
+
 	"github.com/celestiaorg/celestia-node/header"
 )
 
@@ -65,8 +69,20 @@ func (s *IntegrationTestSuite) SetupSuite() {
 	signer := blobtypes.NewKeyringSigner(s.cctx.Keyring, s.accounts[0], cctx.ChainID)
 
 	accessor := NewCoreAccessor(signer, localHeader{s.cctx.Client}, "", "", "")
-	accessor.setClients(s.cctx.GRPCClient, s.cctx.Client)
+	setClients(accessor, s.cctx.GRPCClient, s.cctx.Client)
 	s.accessor = accessor
+}
+
+func setClients(ca *CoreAccessor, conn *grpc.ClientConn, abciCli rpcclient.ABCIClient) {
+	ca.coreConn = conn
+	// create the query client
+	queryCli := banktypes.NewQueryClient(ca.coreConn)
+	ca.queryCli = queryCli
+	// create the staking query client
+	stakingCli := stakingtypes.NewQueryClient(ca.coreConn)
+	ca.stakingCli = stakingCli
+
+	ca.rpcCli = abciCli
 }
 
 func (s *IntegrationTestSuite) TearDownSuite() {
