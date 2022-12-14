@@ -10,6 +10,11 @@ import (
 	tmcrypto "github.com/tendermint/tendermint/proto/tendermint/crypto"
 )
 
+// TODO @renaynay @evan-forbes: this file is CPed from tendermint, it only
+//  modifies which decoders get registered, and then changes the api to accept
+//  [][]byte instead of a string so we don't have to do any processing on the
+//  keypath.
+
 //----------------------------------------
 // ProofOp gets converted to an instance of ProofOperator:
 
