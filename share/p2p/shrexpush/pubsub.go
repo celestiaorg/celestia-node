@@ -62,21 +62,8 @@ func (s *PubSub) Start(context.Context) error {
 // * Unregisters all the added Validators
 // * Closes the `ShrEx/Sub` topic
 func (s *PubSub) Stop(context.Context) error {
-	err := s.pubSub.UnregisterTopicValidator(s.pubSubTopic)
-	if err != nil {
-		return err
-	}
-
+	// TODO(@vgonkivs): unregister the topic validator
 	return s.topic.Close()
-}
-
-// AddValidator registers given Validator for EDS notifications (DataHash).
-// Any amount of Validators can be registered.
-func (s *PubSub) AddValidator(validate Validator) error {
-	return s.pubSub.RegisterTopicValidator(s.pubSubTopic,
-		func(ctx context.Context, p peer.ID, msg *pubsub.Message) pubsub.ValidationResult {
-			return validate(ctx, p, msg.Data)
-		})
 }
 
 // Subscribe provides a new Subscription for EDS notifications.

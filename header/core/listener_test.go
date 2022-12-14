@@ -36,10 +36,15 @@ func TestListener(t *testing.T) {
 
 	// create Listener and start listening
 	cl := createListener(ctx, t, fetcher, ps0)
+	require.NoError(t, err)
 	err = cl.Start(ctx)
 	require.NoError(t, err)
 
-	// ensure headers are getting broadcasted to the gossipsub topic
+	edsSubs, err := cl.pubsub.Subscribe()
+	require.NoError(t, err)
+	defer edsSubs.Cancel()
+
+	// ensure headers and dataHash are getting broadcasted to the relevant topics
 	for i := 1; i < 6; i++ {
 		msg, err := sub.Next(ctx)
 		require.NoError(t, err)
@@ -47,6 +52,11 @@ func TestListener(t *testing.T) {
 		var resp header.ExtendedHeader
 		err = resp.UnmarshalBinary(msg.Data)
 		require.NoError(t, err)
+
+		dataHash, err := edsSubs.Next(ctx)
+		require.NoError(t, err)
+
+		require.Equal(t, resp.DataHash.Bytes(), []byte(dataHash))
 	}
 
 	err = cl.Stop(ctx)
