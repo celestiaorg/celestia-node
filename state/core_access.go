@@ -12,6 +12,7 @@ import (
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 	logging "github.com/ipfs/go-log/v2"
+	"github.com/tendermint/tendermint/crypto/merkle"
 	rpcclient "github.com/tendermint/tendermint/rpc/client"
 	"github.com/tendermint/tendermint/rpc/client/http"
 	"google.golang.org/grpc"
@@ -23,7 +24,7 @@ import (
 	"github.com/celestiaorg/nmt/namespace"
 
 	"github.com/celestiaorg/celestia-node/header"
-	"github.com/celestiaorg/celestia-node/state/prover"
+	storetypes "github.com/cosmos/cosmos-sdk/store/types"
 )
 
 var (
@@ -220,8 +221,10 @@ func (ca *CoreAccessor) BalanceForAddress(ctx context.Context, addr Address) (*B
 		return nil, fmt.Errorf("cannot convert %s into sdktypes.Int", string(value))
 	}
 	// verify balance
-	prt := prover.DefaultProofRuntime()
-	err = prt.VerifyValue(
+	prt := merkle.DefaultProofRuntime()
+	prt.RegisterOpDecoder(storetypes.ProofOpIAVLCommitment, storetypes.CommitmentOpDecoder)
+	prt.RegisterOpDecoder(storetypes.ProofOpSimpleMerkleCommitment, storetypes.CommitmentOpDecoder)
+	err = prt.VerifyValueKeys(
 		result.Response.GetProofOps(),
 		head.AppHash,
 		[][]byte{[]byte(banktypes.StoreKey),
