@@ -150,9 +150,10 @@ func (ca *CoreAccessor) SubmitPayForData(
 	ctx context.Context,
 	nID namespace.ID,
 	data []byte,
+	fee Int,
 	gasLim uint64,
 ) (*TxResponse, error) {
-	response, err := payment.SubmitPayForData(ctx, ca.signer, ca.coreConn, nID, data, gasLim)
+	response, err := payment.SubmitPayForData(ctx, ca.signer, ca.coreConn, nID, data, gasLim, withFee(fee))
 	// metrics should only be counted on a successful PFD tx
 	if err == nil && response.Code == 0 {
 		ca.lastPayForData = time.Now().UnixMilli()
@@ -263,7 +264,8 @@ func (ca *CoreAccessor) SubmitTxWithBroadcastMode(
 func (ca *CoreAccessor) Transfer(
 	ctx context.Context,
 	addr AccAddress,
-	amount Int,
+	amount,
+	fee Int,
 	gasLim uint64,
 ) (*TxResponse, error) {
 	if amount.IsNil() || amount.Int64() <= 0 {
@@ -276,7 +278,7 @@ func (ca *CoreAccessor) Transfer(
 	}
 	coins := sdktypes.NewCoins(sdktypes.NewCoin(app.BondDenom, amount))
 	msg := banktypes.NewMsgSend(from, addr, coins)
-	signedTx, err := ca.constructSignedTx(ctx, msg, apptypes.SetGasLimit(gasLim))
+	signedTx, err := ca.constructSignedTx(ctx, msg, apptypes.SetGasLimit(gasLim), withFee(fee))
 	if err != nil {
 		return nil, err
 	}
@@ -287,7 +289,8 @@ func (ca *CoreAccessor) CancelUnbondingDelegation(
 	ctx context.Context,
 	valAddr ValAddress,
 	amount,
-	height Int,
+	height,
+	fee Int,
 	gasLim uint64,
 ) (*TxResponse, error) {
 	if amount.IsNil() || amount.Int64() <= 0 {
@@ -300,7 +303,7 @@ func (ca *CoreAccessor) CancelUnbondingDelegation(
 	}
 	coins := sdktypes.NewCoin(app.BondDenom, amount)
 	msg := stakingtypes.NewMsgCancelUnbondingDelegation(from, valAddr, height.Int64(), coins)
-	signedTx, err := ca.constructSignedTx(ctx, msg, apptypes.SetGasLimit(gasLim))
+	signedTx, err := ca.constructSignedTx(ctx, msg, apptypes.SetGasLimit(gasLim), withFee(fee))
 	if err != nil {
 		return nil, err
 	}
@@ -311,7 +314,8 @@ func (ca *CoreAccessor) BeginRedelegate(
 	ctx context.Context,
 	srcValAddr,
 	dstValAddr ValAddress,
-	amount Int,
+	amount,
+	fee Int,
 	gasLim uint64,
 ) (*TxResponse, error) {
 	if amount.IsNil() || amount.Int64() <= 0 {
@@ -324,7 +328,7 @@ func (ca *CoreAccessor) BeginRedelegate(
 	}
 	coins := sdktypes.NewCoin(app.BondDenom, amount)
 	msg := stakingtypes.NewMsgBeginRedelegate(from, srcValAddr, dstValAddr, coins)
-	signedTx, err := ca.constructSignedTx(ctx, msg, apptypes.SetGasLimit(gasLim))
+	signedTx, err := ca.constructSignedTx(ctx, msg, apptypes.SetGasLimit(gasLim), withFee(fee))
 	if err != nil {
 		return nil, err
 	}
@@ -334,7 +338,8 @@ func (ca *CoreAccessor) BeginRedelegate(
 func (ca *CoreAccessor) Undelegate(
 	ctx context.Context,
 	delAddr ValAddress,
-	amount Int,
+	amount,
+	fee Int,
 	gasLim uint64,
 ) (*TxResponse, error) {
 	if amount.IsNil() || amount.Int64() <= 0 {
@@ -347,7 +352,7 @@ func (ca *CoreAccessor) Undelegate(
 	}
 	coins := sdktypes.NewCoin(app.BondDenom, amount)
 	msg := stakingtypes.NewMsgUndelegate(from, delAddr, coins)
-	signedTx, err := ca.constructSignedTx(ctx, msg, apptypes.SetGasLimit(gasLim))
+	signedTx, err := ca.constructSignedTx(ctx, msg, apptypes.SetGasLimit(gasLim), withFee(fee))
 	if err != nil {
 		return nil, err
 	}
@@ -358,6 +363,7 @@ func (ca *CoreAccessor) Delegate(
 	ctx context.Context,
 	delAddr ValAddress,
 	amount Int,
+	fee Int,
 	gasLim uint64,
 ) (*TxResponse, error) {
 	if amount.IsNil() || amount.Int64() <= 0 {
@@ -370,7 +376,7 @@ func (ca *CoreAccessor) Delegate(
 	}
 	coins := sdktypes.NewCoin(app.BondDenom, amount)
 	msg := stakingtypes.NewMsgDelegate(from, delAddr, coins)
-	signedTx, err := ca.constructSignedTx(ctx, msg, apptypes.SetGasLimit(gasLim))
+	signedTx, err := ca.constructSignedTx(ctx, msg, apptypes.SetGasLimit(gasLim), withFee(fee))
 	if err != nil {
 		return nil, err
 	}
@@ -422,4 +428,9 @@ func (ca *CoreAccessor) QueryRedelegations(
 
 func (ca *CoreAccessor) IsStopped(context.Context) bool {
 	return ca.ctx.Err() != nil
+}
+
+func withFee(fee Int) apptypes.TxBuilderOption {
+	gasFee := sdktypes.NewCoins(sdktypes.NewCoin(app.BondDenom, fee))
+	return apptypes.SetFeeAmount(gasFee)
 }

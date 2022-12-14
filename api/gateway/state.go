@@ -43,12 +43,14 @@ type submitTxRequest struct {
 type submitPFDRequest struct {
 	NamespaceID string `json:"namespace_id"`
 	Data        string `json:"data"`
+	Fee         int64  `json:"fee"`
 	GasLimit    uint64 `json:"gas_limit"`
 }
 
 type transferRequest struct {
 	To       string `json:"to"`
 	Amount   int64  `json:"amount"`
+	Fee      int64  `json:"fee"`
 	GasLimit uint64 `json:"gas_limit"`
 }
 
@@ -57,6 +59,7 @@ type transferRequest struct {
 type delegationRequest struct {
 	To       string `json:"to"`
 	Amount   int64  `json:"amount"`
+	Fee      int64  `json:"fee"`
 	GasLimit uint64 `json:"gas_limit"`
 }
 
@@ -65,6 +68,7 @@ type redelegationRequest struct {
 	From     string `json:"from"`
 	To       string `json:"to"`
 	Amount   int64  `json:"amount"`
+	Fee      int64  `json:"fee"`
 	GasLimit uint64 `json:"gas_limit"`
 }
 
@@ -72,6 +76,7 @@ type redelegationRequest struct {
 type unbondRequest struct {
 	From     string `json:"from"`
 	Amount   int64  `json:"amount"`
+	Fee      int64  `json:"fee"`
 	GasLimit uint64 `json:"gas_limit"`
 }
 
@@ -80,6 +85,7 @@ type cancelUnbondRequest struct {
 	From     string `json:"from"`
 	Amount   int64  `json:"amount"`
 	Height   int64  `json:"height"`
+	Fee      int64  `json:"fee"`
 	GasLimit uint64 `json:"gas_limit"`
 }
 
@@ -177,8 +183,9 @@ func (h *Handler) handleSubmitPFD(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, submitPFDEndpoint, err)
 		return
 	}
+	fee := types.NewInt(req.Fee)
 	// perform request
-	txResp, err := h.state.SubmitPayForData(r.Context(), nID, data, req.GasLimit)
+	txResp, err := h.state.SubmitPayForData(r.Context(), nID, data, fee, req.GasLimit)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, submitPFDEndpoint, err)
 		return
@@ -212,8 +219,9 @@ func (h *Handler) handleTransfer(w http.ResponseWriter, r *http.Request) {
 		addr = valAddr.Bytes()
 	}
 	amount := types.NewInt(req.Amount)
+	fee := types.NewInt(req.Fee)
 
-	txResp, err := h.state.Transfer(r.Context(), addr, amount, req.GasLimit)
+	txResp, err := h.state.Transfer(r.Context(), addr, amount, fee, req.GasLimit)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, transferEndpoint, err)
 		return
@@ -242,8 +250,9 @@ func (h *Handler) handleDelegation(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	amount := types.NewInt(req.Amount)
+	fee := types.NewInt(req.Fee)
 
-	txResp, err := h.state.Delegate(r.Context(), addr, amount, req.GasLimit)
+	txResp, err := h.state.Delegate(r.Context(), addr, amount, fee, req.GasLimit)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, delegationEndpoint, err)
 		return
@@ -272,8 +281,9 @@ func (h *Handler) handleUndelegation(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	amount := types.NewInt(req.Amount)
+	fee := types.NewInt(req.Fee)
 
-	txResp, err := h.state.Undelegate(r.Context(), addr, amount, req.GasLimit)
+	txResp, err := h.state.Undelegate(r.Context(), addr, amount, fee, req.GasLimit)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, undelegationEndpoint, err)
 		return
@@ -303,7 +313,8 @@ func (h *Handler) handleCancelUnbonding(w http.ResponseWriter, r *http.Request) 
 	}
 	amount := types.NewInt(req.Amount)
 	height := types.NewInt(req.Height)
-	txResp, err := h.state.CancelUnbondingDelegation(r.Context(), addr, amount, height, req.GasLimit)
+	fee := types.NewInt(req.Fee)
+	txResp, err := h.state.CancelUnbondingDelegation(r.Context(), addr, amount, height, fee, req.GasLimit)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, cancelUnbondingEndpoint, err)
 		return
@@ -337,8 +348,9 @@ func (h *Handler) handleRedelegation(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	amount := types.NewInt(req.Amount)
+	fee := types.NewInt(req.Fee)
 
-	txResp, err := h.state.BeginRedelegate(r.Context(), srcAddr, dstAddr, amount, req.GasLimit)
+	txResp, err := h.state.BeginRedelegate(r.Context(), srcAddr, dstAddr, amount, fee, req.GasLimit)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, beginRedelegationEndpoint, err)
 		return
