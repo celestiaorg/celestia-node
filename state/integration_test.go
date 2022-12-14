@@ -42,7 +42,13 @@ func (s *IntegrationTestSuite) SetupSuite() {
 		s.accounts = append(s.accounts, tmrand.Str(9))
 	}
 
-	tmNode, app, cctx, err := testnode.New(s.T(), testnode.DefaultParams(), testnode.DefaultTendermintConfig(), false, s.accounts...)
+	tmNode, app, cctx, err := testnode.New(
+		s.T(),
+		testnode.DefaultParams(),
+		testnode.DefaultTendermintConfig(),
+		false,
+		s.accounts...,
+	)
 	require.NoError(err)
 
 	cctx, stopNode, err := testnode.StartNode(tmNode, cctx)

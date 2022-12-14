@@ -235,7 +235,12 @@ func (ca *CoreAccessor) BalanceForAddress(ctx context.Context, addr Address) (*B
 	// verify balance
 	prt := prover.DefaultProofRuntime()
 	rootmulti.DefaultProofRuntime()
-	err = prt.VerifyValue(result.Response.GetProofOps(), head.AppHash, [][]byte{[]byte(banktypes.StoreKey), prefixedAccountKey}, value)
+	err = prt.VerifyValue(
+		result.Response.GetProofOps(),
+		head.AppHash,
+		[][]byte{[]byte(banktypes.StoreKey),
+			prefixedAccountKey,
+		}, value)
 	if err != nil {
 		return nil, err
 	}
