@@ -7,6 +7,7 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
+	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
 	rpcclient "github.com/tendermint/tendermint/rpc/client"
@@ -42,7 +43,7 @@ func (s *IntegrationTestSuite) SetupSuite() {
 	require := s.Require()
 
 	// we create an arbitrary number of funded accounts
-	for i := 0; i < 300; i++ {
+	for i := 0; i < 25; i++ {
 		s.accounts = append(s.accounts, tmrand.Str(9))
 	}
 
@@ -97,14 +98,10 @@ func (s *IntegrationTestSuite) TearDownSuite() {
 
 func (s *IntegrationTestSuite) getAddress(acc string) sdk.Address {
 	rec, err := s.cctx.Keyring.Key(acc)
-	if err != nil {
-		panic(err)
-	}
+	require.NoError(s.T(), err)
 
 	addr, err := rec.GetAddress()
-	if err != nil {
-		panic(err)
-	}
+	require.NoError(s.T(), err)
 
 	return addr
 }
