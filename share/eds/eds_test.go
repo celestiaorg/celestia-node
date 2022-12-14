@@ -150,6 +150,7 @@ func TestReadWriteRoundtrip(t *testing.T) {
 
 	loaded, err := ReadEDS(context.Background(), f, dah.Hash())
 	require.NoError(t, err, "error reading EDS from file")
+	require.Equal(t, eds.Flattened(), loaded.Flattened())
 	require.Equal(t, eds.RowRoots(), loaded.RowRoots())
 	require.Equal(t, eds.ColRoots(), loaded.ColRoots())
 }

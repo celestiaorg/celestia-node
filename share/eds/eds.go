@@ -3,6 +3,7 @@ package eds
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
 	"errors"
 	"fmt"
 	"io"
@@ -36,8 +37,9 @@ type writingSession struct {
 	eds *rsmt2d.ExtendedDataSquare
 	// store is an in-memory blockstore, used to cache the inner nodes (proofs) while we walk the nmt
 	// tree.
-	store bstore.Blockstore
-	w     io.Writer
+	store  bstore.Blockstore
+	hasher *nmt.Hasher
+	w      io.Writer
 }
 
 // WriteEDS writes the entire EDS into the given io.Writer as CARv1 file.
@@ -106,9 +108,10 @@ func initializeWriter(ctx context.Context, eds *rsmt2d.ExtendedDataSquare, w io.
 	}
 
 	return &writingSession{
-		eds:   eds,
-		store: store,
-		w:     w,
+		eds:    eds,
+		store:  store,
+		hasher: nmt.NewNmtHasher(sha256.New(), appconsts.NamespaceSize, true),
+		w:      w,
 	}, nil
 }
 
@@ -129,7 +132,7 @@ func (w *writingSession) writeHeader() error {
 func (w *writingSession) writeQuadrants() error {
 	shares := quadrantOrder(w.eds)
 	for _, share := range shares {
-		cid, err := ipld.CidFromNamespacedSha256(nmt.Sha256Namespace8FlaggedLeaf(share))
+		cid, err := ipld.CidFromNamespacedSha256(w.hasher.HashLeaf(share))
 		if err != nil {
 			return fmt.Errorf("getting cid from share: %w", err)
 		}
@@ -155,7 +158,8 @@ func (w *writingSession) writeProofs(ctx context.Context) error {
 		if err != nil {
 			return fmt.Errorf("getting proof from the blockstore: %w", err)
 		}
-		cid, err := ipld.CidFromNamespacedSha256(nmt.Sha256Namespace8FlaggedInner(node.RawData()))
+		left, right := w.splitInnerNode(node.RawData())
+		cid, err := ipld.CidFromNamespacedSha256(w.hasher.HashNode(left, right))
 		if err != nil {
 			return fmt.Errorf("getting cid: %w", err)
 		}
@@ -271,6 +275,15 @@ func ReadEDS(ctx context.Context, r io.Reader, root share.DataHash) (*rsmt2d.Ext
 		)
 	}
 	return eds, nil
+}
+
+func (w *writingSession) splitInnerNode(node []byte) ([]byte, []byte) {
+	const flagLen = appconsts.NamespaceSize * 2
+	sha256Len := w.hasher.Size()
+
+	left := node[:flagLen+sha256Len]
+	right := node[flagLen+sha256Len:]
+	return left, right
 }
 
 // innerNodeBatchSize calculates the total number of inner nodes in an EDS,

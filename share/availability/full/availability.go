@@ -3,7 +3,6 @@ package full
 import (
 	"context"
 	"errors"
-	"fmt"
 
 	"github.com/ipfs/go-blockservice"
 	ipldFormat "github.com/ipfs/go-ipld-format"
@@ -93,7 +92,8 @@ func (fa *ShareAvailability) SharesAvailable(ctx context.Context, root *share.Ro
 	// happy path: try to retrieve the EDS using the ShrEx/EDS protocol within p2p.BlockTime
 	retrievedEDS = fa.retrieve(ctx, root, peers...)
 	if retrievedEDS != nil {
-		return fa.storeEDS(ctx, root, retrievedEDS)
+		fa.storeEDS(ctx, root, retrievedEDS)
+		return nil
 	}
 
 	// fallback path: try to retrieve the EDS using IPLD network
@@ -101,7 +101,8 @@ func (fa *ShareAvailability) SharesAvailable(ctx context.Context, root *share.Ro
 	if err != nil {
 		return err
 	}
-	return fa.storeEDS(ctx, root, retrievedEDS)
+	fa.storeEDS(ctx, root, retrievedEDS)
+	return nil
 }
 
 // retrieve attempts to retrieve the EDS using the ShrEx/EDS protocol within p2p.BlockTime.
@@ -141,12 +142,13 @@ func (fa *ShareAvailability) retrieveOverIPLD(
 }
 
 // storeEDS stores a retrieved EDS in the local EDS dagstore.
-func (fa *ShareAvailability) storeEDS(ctx context.Context, root *share.Root, eds *rsmt2d.ExtendedDataSquare) error {
+func (fa *ShareAvailability) storeEDS(ctx context.Context, root *share.Root, eds *rsmt2d.ExtendedDataSquare) {
 	err := fa.store.Put(ctx, root.Hash(), eds)
 	if err != nil {
-		return fmt.Errorf("failed to store retrieved EDS: %w", err)
+		// errors are logged but not returned, because a failure to store the retrieved EDS doesn't
+		// mean the shares were not available.
+		log.Errorw("failed to store retrieved EDS", "err", err)
 	}
-	return nil
 }
 
 func (fa *ShareAvailability) ProbabilityOfAvailability(context.Context) float64 {
