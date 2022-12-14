@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+
 	"github.com/ipfs/go-blockservice"
 	ipldFormat "github.com/ipfs/go-ipld-format"
 	logging "github.com/ipfs/go-log/v2"
@@ -75,6 +76,11 @@ func (fa *ShareAvailability) SharesAvailable(ctx context.Context, root *share.Ro
 		panic(err)
 	}
 
+	// don't retrieve from network if we already have it locally
+	if ok, _ := fa.store.Has(ctx, root.Hash()); ok {
+		return nil
+	}
+
 	// if no peers were given, use the discovery service
 	if len(peers) == 0 {
 		peers, err = fa.disc.Peers(ctx)
@@ -109,7 +115,7 @@ func (fa *ShareAvailability) retrieve(
 	retrievedEDS, err := fa.client.RequestEDS(reqCtx, root.Hash(), peers)
 	if err != nil {
 		// errors are logged but not returned to pass retrieval to the fallback method.
-		log.Errorw("availability validation failed over ShrEx/EDS", "root", root.Hash(), "err", err)
+		log.Errorw("availability validation failed over ShrEx/EDS", "root", root.String(), "err", err)
 	}
 
 	return retrievedEDS
@@ -123,7 +129,7 @@ func (fa *ShareAvailability) retrieveOverIPLD(
 ) (*rsmt2d.ExtendedDataSquare, error) {
 	retrievedEDS, err := fa.ipldRetriever.Retrieve(ctx, root)
 	if err != nil {
-		log.Errorw("availability validation failed over IPLD", "root", root.Hash(), "err", err)
+		log.Errorw("availability validation failed over IPLD", "root", root.String(), "err", err)
 		if ipldFormat.IsNotFound(err) || errors.Is(err, context.DeadlineExceeded) {
 			return nil, share.ErrNotAvailable
 		}
