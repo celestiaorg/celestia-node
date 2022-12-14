@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/cosmos/cosmos-sdk/api/tendermint/abci"
+	storetypes "github.com/cosmos/cosmos-sdk/store/types"
 	sdktypes "github.com/cosmos/cosmos-sdk/types"
 	sdktx "github.com/cosmos/cosmos-sdk/types/tx"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
@@ -24,7 +25,6 @@ import (
 	"github.com/celestiaorg/nmt/namespace"
 
 	"github.com/celestiaorg/celestia-node/header"
-	storetypes "github.com/cosmos/cosmos-sdk/store/types"
 )
 
 var (
