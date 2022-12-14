@@ -9,12 +9,11 @@ import (
 	reflect "reflect"
 
 	math "cosmossdk.io/math"
+	namespace "github.com/celestiaorg/nmt/namespace"
 	types "github.com/cosmos/cosmos-sdk/types"
 	types0 "github.com/cosmos/cosmos-sdk/x/staking/types"
 	gomock "github.com/golang/mock/gomock"
 	types1 "github.com/tendermint/tendermint/types"
-
-	namespace "github.com/celestiaorg/nmt/namespace"
 )
 
 // MockModule is a mock of Module interface.
@@ -86,62 +85,62 @@ func (mr *MockModuleMockRecorder) BalanceForAddress(arg0, arg1 interface{}) *gom
 }
 
 // BeginRedelegate mocks base method.
-func (m *MockModule) BeginRedelegate(arg0 context.Context, arg1, arg2 types.ValAddress, arg3 math.Int, arg4 uint64) (*types.TxResponse, error) {
+func (m *MockModule) BeginRedelegate(arg0 context.Context, arg1, arg2 types.ValAddress, arg3, arg4 math.Int, arg5 uint64) (*types.TxResponse, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "BeginRedelegate", arg0, arg1, arg2, arg3, arg4)
+	ret := m.ctrl.Call(m, "BeginRedelegate", arg0, arg1, arg2, arg3, arg4, arg5)
 	ret0, _ := ret[0].(*types.TxResponse)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // BeginRedelegate indicates an expected call of BeginRedelegate.
-func (mr *MockModuleMockRecorder) BeginRedelegate(arg0, arg1, arg2, arg3, arg4 interface{}) *gomock.Call {
+func (mr *MockModuleMockRecorder) BeginRedelegate(arg0, arg1, arg2, arg3, arg4, arg5 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BeginRedelegate", reflect.TypeOf((*MockModule)(nil).BeginRedelegate), arg0, arg1, arg2, arg3, arg4)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BeginRedelegate", reflect.TypeOf((*MockModule)(nil).BeginRedelegate), arg0, arg1, arg2, arg3, arg4, arg5)
 }
 
 // CancelUnbondingDelegation mocks base method.
-func (m *MockModule) CancelUnbondingDelegation(arg0 context.Context, arg1 types.ValAddress, arg2, arg3 math.Int, arg4 uint64) (*types.TxResponse, error) {
+func (m *MockModule) CancelUnbondingDelegation(arg0 context.Context, arg1 types.ValAddress, arg2, arg3, arg4 math.Int, arg5 uint64) (*types.TxResponse, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "CancelUnbondingDelegation", arg0, arg1, arg2, arg3, arg4)
+	ret := m.ctrl.Call(m, "CancelUnbondingDelegation", arg0, arg1, arg2, arg3, arg4, arg5)
 	ret0, _ := ret[0].(*types.TxResponse)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // CancelUnbondingDelegation indicates an expected call of CancelUnbondingDelegation.
-func (mr *MockModuleMockRecorder) CancelUnbondingDelegation(arg0, arg1, arg2, arg3, arg4 interface{}) *gomock.Call {
+func (mr *MockModuleMockRecorder) CancelUnbondingDelegation(arg0, arg1, arg2, arg3, arg4, arg5 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CancelUnbondingDelegation", reflect.TypeOf((*MockModule)(nil).CancelUnbondingDelegation), arg0, arg1, arg2, arg3, arg4)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CancelUnbondingDelegation", reflect.TypeOf((*MockModule)(nil).CancelUnbondingDelegation), arg0, arg1, arg2, arg3, arg4, arg5)
 }
 
 // Delegate mocks base method.
-func (m *MockModule) Delegate(arg0 context.Context, arg1 types.ValAddress, arg2 math.Int, arg3 uint64) (*types.TxResponse, error) {
+func (m *MockModule) Delegate(arg0 context.Context, arg1 types.ValAddress, arg2, arg3 math.Int, arg4 uint64) (*types.TxResponse, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Delegate", arg0, arg1, arg2, arg3)
+	ret := m.ctrl.Call(m, "Delegate", arg0, arg1, arg2, arg3, arg4)
 	ret0, _ := ret[0].(*types.TxResponse)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // Delegate indicates an expected call of Delegate.
-func (mr *MockModuleMockRecorder) Delegate(arg0, arg1, arg2, arg3 interface{}) *gomock.Call {
+func (mr *MockModuleMockRecorder) Delegate(arg0, arg1, arg2, arg3, arg4 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Delegate", reflect.TypeOf((*MockModule)(nil).Delegate), arg0, arg1, arg2, arg3)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Delegate", reflect.TypeOf((*MockModule)(nil).Delegate), arg0, arg1, arg2, arg3, arg4)
 }
 
 // IsStopped mocks base method.
-func (m *MockModule) IsStopped() bool {
+func (m *MockModule) IsStopped(arg0 context.Context) bool {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "IsStopped")
+	ret := m.ctrl.Call(m, "IsStopped", arg0)
 	ret0, _ := ret[0].(bool)
 	return ret0
 }
 
 // IsStopped indicates an expected call of IsStopped.
-func (mr *MockModuleMockRecorder) IsStopped() *gomock.Call {
+func (mr *MockModuleMockRecorder) IsStopped(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsStopped", reflect.TypeOf((*MockModule)(nil).IsStopped))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsStopped", reflect.TypeOf((*MockModule)(nil).IsStopped), arg0)
 }
 
 // QueryDelegation mocks base method.
@@ -190,18 +189,18 @@ func (mr *MockModuleMockRecorder) QueryUnbonding(arg0, arg1 interface{}) *gomock
 }
 
 // SubmitPayForData mocks base method.
-func (m *MockModule) SubmitPayForData(arg0 context.Context, arg1 namespace.ID, arg2 []byte, arg3 uint64) (*types.TxResponse, error) {
+func (m *MockModule) SubmitPayForData(arg0 context.Context, arg1 namespace.ID, arg2 []byte, arg3 math.Int, arg4 uint64) (*types.TxResponse, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "SubmitPayForData", arg0, arg1, arg2, arg3)
+	ret := m.ctrl.Call(m, "SubmitPayForData", arg0, arg1, arg2, arg3, arg4)
 	ret0, _ := ret[0].(*types.TxResponse)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // SubmitPayForData indicates an expected call of SubmitPayForData.
-func (mr *MockModuleMockRecorder) SubmitPayForData(arg0, arg1, arg2, arg3 interface{}) *gomock.Call {
+func (mr *MockModuleMockRecorder) SubmitPayForData(arg0, arg1, arg2, arg3, arg4 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SubmitPayForData", reflect.TypeOf((*MockModule)(nil).SubmitPayForData), arg0, arg1, arg2, arg3)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SubmitPayForData", reflect.TypeOf((*MockModule)(nil).SubmitPayForData), arg0, arg1, arg2, arg3, arg4)
 }
 
 // SubmitTx mocks base method.
@@ -220,31 +219,31 @@ func (mr *MockModuleMockRecorder) SubmitTx(arg0, arg1 interface{}) *gomock.Call 
 }
 
 // Transfer mocks base method.
-func (m *MockModule) Transfer(arg0 context.Context, arg1 types.AccAddress, arg2 math.Int, arg3 uint64) (*types.TxResponse, error) {
+func (m *MockModule) Transfer(arg0 context.Context, arg1 types.AccAddress, arg2, arg3 math.Int, arg4 uint64) (*types.TxResponse, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Transfer", arg0, arg1, arg2, arg3)
+	ret := m.ctrl.Call(m, "Transfer", arg0, arg1, arg2, arg3, arg4)
 	ret0, _ := ret[0].(*types.TxResponse)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // Transfer indicates an expected call of Transfer.
-func (mr *MockModuleMockRecorder) Transfer(arg0, arg1, arg2, arg3 interface{}) *gomock.Call {
+func (mr *MockModuleMockRecorder) Transfer(arg0, arg1, arg2, arg3, arg4 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Transfer", reflect.TypeOf((*MockModule)(nil).Transfer), arg0, arg1, arg2, arg3)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Transfer", reflect.TypeOf((*MockModule)(nil).Transfer), arg0, arg1, arg2, arg3, arg4)
 }
 
 // Undelegate mocks base method.
-func (m *MockModule) Undelegate(arg0 context.Context, arg1 types.ValAddress, arg2 math.Int, arg3 uint64) (*types.TxResponse, error) {
+func (m *MockModule) Undelegate(arg0 context.Context, arg1 types.ValAddress, arg2, arg3 math.Int, arg4 uint64) (*types.TxResponse, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Undelegate", arg0, arg1, arg2, arg3)
+	ret := m.ctrl.Call(m, "Undelegate", arg0, arg1, arg2, arg3, arg4)
 	ret0, _ := ret[0].(*types.TxResponse)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // Undelegate indicates an expected call of Undelegate.
-func (mr *MockModuleMockRecorder) Undelegate(arg0, arg1, arg2, arg3 interface{}) *gomock.Call {
+func (mr *MockModuleMockRecorder) Undelegate(arg0, arg1, arg2, arg3, arg4 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Undelegate", reflect.TypeOf((*MockModule)(nil).Undelegate), arg0, arg1, arg2, arg3)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Undelegate", reflect.TypeOf((*MockModule)(nil).Undelegate), arg0, arg1, arg2, arg3, arg4)
 }
