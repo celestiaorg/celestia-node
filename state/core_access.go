@@ -24,6 +24,7 @@ import (
 	"github.com/celestiaorg/nmt/namespace"
 
 	"github.com/celestiaorg/celestia-node/header"
+	"github.com/celestiaorg/celestia-node/state/prover"
 )
 
 var (
@@ -98,6 +99,18 @@ func (ca *CoreAccessor) Start(ctx context.Context) error {
 	}
 	ca.rpcCli = cli
 	return nil
+}
+
+func (ca *CoreAccessor) setClients(conn *grpc.ClientConn, abciCli rpcclient.ABCIClient) {
+	ca.coreConn = conn
+	// create the query client
+	queryCli := banktypes.NewQueryClient(ca.coreConn)
+	ca.queryCli = queryCli
+	// create the staking query client
+	stakingCli := stakingtypes.NewQueryClient(ca.coreConn)
+	ca.stakingCli = stakingCli
+
+	ca.rpcCli = abciCli
 }
 
 func (ca *CoreAccessor) Stop(context.Context) error {
@@ -220,9 +233,9 @@ func (ca *CoreAccessor) BalanceForAddress(ctx context.Context, addr Address) (*B
 		return nil, fmt.Errorf("cannot convert %s into sdktypes.Int", string(value))
 	}
 	// verify balance
-	path := fmt.Sprintf("/%s/%s", banktypes.StoreKey, string(prefixedAccountKey))
-	prt := rootmulti.DefaultProofRuntime()
-	err = prt.VerifyValue(result.Response.GetProofOps(), head.AppHash, path, value)
+	prt := prover.DefaultProofRuntime()
+	rootmulti.DefaultProofRuntime()
+	err = prt.VerifyValue(result.Response.GetProofOps(), head.AppHash, [][]byte{[]byte(banktypes.StoreKey), prefixedAccountKey}, value)
 	if err != nil {
 		return nil, err
 	}

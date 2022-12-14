@@ -2,7 +2,6 @@ package eds
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"testing"
 	"time"
@@ -85,7 +84,6 @@ func TestEDSStore_GetCAR(t *testing.T) {
 	assert.NoError(t, err)
 	carReader, err := car.NewCarReader(r)
 
-	fmt.Println(car.HeaderSize(carReader.Header))
 	assert.NoError(t, err)
 
 	for i := 0; i < 4; i++ {
