@@ -4,15 +4,15 @@ import (
 	"context"
 	"testing"
 
+	sdk "github.com/cosmos/cosmos-sdk/types"
+	"github.com/stretchr/testify/suite"
+	tmrand "github.com/tendermint/tendermint/libs/rand"
+	rpcclient "github.com/tendermint/tendermint/rpc/client"
+
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/testutil/testnode"
 	blobtypes "github.com/celestiaorg/celestia-app/x/payment/types"
 	"github.com/celestiaorg/celestia-node/header"
-	sdk "github.com/cosmos/cosmos-sdk/types"
-	"github.com/stretchr/testify/suite"
-	rpcclient "github.com/tendermint/tendermint/rpc/client"
-
-	tmrand "github.com/tendermint/tendermint/libs/rand"
 )
 
 func TestIntegrationTestSuite(t *testing.T) {
