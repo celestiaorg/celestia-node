@@ -7,12 +7,13 @@ import (
 	"time"
 
 	"github.com/cosmos/cosmos-sdk/api/tendermint/abci"
-	"github.com/cosmos/cosmos-sdk/store/rootmulti"
+	storetypes "github.com/cosmos/cosmos-sdk/store/types"
 	sdktypes "github.com/cosmos/cosmos-sdk/types"
 	sdktx "github.com/cosmos/cosmos-sdk/types/tx"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 	logging "github.com/ipfs/go-log/v2"
+	"github.com/tendermint/tendermint/crypto/merkle"
 	rpcclient "github.com/tendermint/tendermint/rpc/client"
 	"github.com/tendermint/tendermint/rpc/client/http"
 	"google.golang.org/grpc"
@@ -44,6 +45,8 @@ type CoreAccessor struct {
 	stakingCli stakingtypes.QueryClient
 	rpcCli     rpcclient.ABCIClient
 
+	prt *merkle.ProofRuntime
+
 	coreConn *grpc.ClientConn
 	coreIP   string
 	rpcPort  string
@@ -63,12 +66,17 @@ func NewCoreAccessor(
 	rpcPort string,
 	grpcPort string,
 ) *CoreAccessor {
+	// create verifier
+	prt := merkle.DefaultProofRuntime()
+	prt.RegisterOpDecoder(storetypes.ProofOpIAVLCommitment, storetypes.CommitmentOpDecoder)
+	prt.RegisterOpDecoder(storetypes.ProofOpSimpleMerkleCommitment, storetypes.CommitmentOpDecoder)
 	return &CoreAccessor{
 		signer:   signer,
 		getter:   getter,
 		coreIP:   coreIP,
 		rpcPort:  rpcPort,
 		grpcPort: grpcPort,
+		prt:      prt,
 	}
 }
 
@@ -97,6 +105,7 @@ func (ca *CoreAccessor) Start(ctx context.Context) error {
 		return err
 	}
 	ca.rpcCli = cli
+
 	return nil
 }
 
@@ -221,9 +230,12 @@ func (ca *CoreAccessor) BalanceForAddress(ctx context.Context, addr Address) (*B
 		return nil, fmt.Errorf("cannot convert %s into sdktypes.Int", string(value))
 	}
 	// verify balance
-	path := fmt.Sprintf("/%s/%s", banktypes.StoreKey, string(prefixedAccountKey))
-	prt := rootmulti.DefaultProofRuntime()
-	err = prt.VerifyValue(result.Response.GetProofOps(), head.AppHash, path, value)
+	err = ca.prt.VerifyValueKeys(
+		result.Response.GetProofOps(),
+		head.AppHash,
+		[][]byte{[]byte(banktypes.StoreKey),
+			prefixedAccountKey,
+		}, value)
 	if err != nil {
 		return nil, err
 	}
