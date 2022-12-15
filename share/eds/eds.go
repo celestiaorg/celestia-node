@@ -3,7 +3,6 @@ package eds
 import (
 	"bytes"
 	"context"
-	"crypto/sha256"
 	"errors"
 	"fmt"
 	"io"
@@ -17,6 +16,7 @@ import (
 	format "github.com/ipfs/go-ipld-format"
 	"github.com/ipld/go-car"
 	"github.com/ipld/go-car/util"
+	"github.com/minio/sha256-simd"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/pkg/da"
