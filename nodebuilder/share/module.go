@@ -23,6 +23,7 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 		fx.Options(options...),
 		fx.Provide(discovery(*cfg)),
 		fx.Provide(newModule),
+		fx.Invoke(share.EnsureEmptySquareExists),
 	)
 
 	switch tp {
@@ -30,7 +31,6 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 		return fx.Module(
 			"share",
 			baseComponents,
-			fx.Invoke(share.EnsureEmptySquareExists),
 			fx.Provide(fx.Annotate(
 				light.NewShareAvailability,
 				fx.OnStart(func(ctx context.Context, avail *light.ShareAvailability) error {

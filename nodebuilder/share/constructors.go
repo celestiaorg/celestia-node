@@ -59,14 +59,10 @@ func newModule(lc fx.Lifecycle, bServ blockservice.BlockService, avail share.Ava
 
 // ensureEmptyCARExists adds the empty EDS from share.EnsureEmptySquareExists to the provided EDS store.
 func ensureEmptyCARExists(ctx context.Context, store *eds.Store) error {
-	bServ := blockservice.New(store.Blockstore(), nil)
-	// we ignore the error because we know that the batchAdder will not be able to commit to our
-	// Blockstore, which is not meant for writes.
-	eds, _ := share.EnsureEmptySquareExists(ctx, bServ)
+	emptyEDS := share.EmptyExtendedDataSquare()
+	emptyDAH := da.NewDataAvailabilityHeader(emptyEDS)
 
-	dah := da.NewDataAvailabilityHeader(eds)
-
-	err := store.Put(ctx, dah.Hash(), eds)
+	err := store.Put(ctx, emptyDAH.Hash(), emptyEDS)
 	if errors.Is(err, dagstore.ErrShardExists) {
 		return nil
 	}
