@@ -3,6 +3,8 @@ package share
 import (
 	"fmt"
 
+	"github.com/celestiaorg/celestia-node/share/ipld"
+
 	"go.opentelemetry.io/otel"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
@@ -54,4 +56,9 @@ func (dh DataHash) Validate() error {
 
 func (dh DataHash) String() string {
 	return fmt.Sprintf("%X", []byte(dh))
+}
+
+type SharesWithProof struct {
+	Shares []Share
+	Proof  *ipld.Proof
 }

@@ -1,0 +1,35 @@
+syntax = "proto3";
+
+package share.p2p.v1;
+
+message GetSharesByNamespaceRequest{
+  bytes root_hash = 1;
+  repeated bytes row_roots = 2;
+  bytes namespace_id = 3;
+  int64 max_shares = 4;
+  bool collect_proofs = 5;
+}
+
+message GetSharesByNamespaceResponse{
+  StatusCode status = 1;
+  repeated Row rows = 2;
+}
+
+enum StatusCode {
+  INVALID = 0;
+  OK = 1;
+  NOT_FOUND = 2;
+  INVALID_ARGUMENT = 3;
+  INTERNAL = 4;
+};
+
+message Row {
+  repeated bytes shares = 1;
+  Proof proof = 2;
+}
+
+message Proof {
+  int64 start = 1;
+  int64 end = 2;
+  repeated bytes Nodes = 3;
+}
