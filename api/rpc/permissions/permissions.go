@@ -3,9 +3,9 @@ package permissions
 import "github.com/filecoin-project/go-jsonrpc/auth"
 
 var (
-	DefaultPerms   = []auth.Permission{"read"}
-	ReadWritePerms = []auth.Permission{"read", "write"}
-	AllPerms       = []auth.Permission{"read", "write", "admin"}
+	DefaultPerms   = []auth.Permission{"public"}
+	ReadWritePerms = []auth.Permission{"public", "read", "write"}
+	AllPerms       = []auth.Permission{"public", "read", "write", "admin"}
 )
 
 // JWTPayload is a utility struct for marshaling/unmarshalling
