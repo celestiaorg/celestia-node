@@ -3,6 +3,7 @@ package eds
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
 	"errors"
 	"fmt"
 	"io"
@@ -28,16 +29,19 @@ import (
 	"github.com/celestiaorg/celestia-node/share/ipld"
 )
 
+// childHashLen is the length of each half of an inner node's data. It consists of the respective
+// min and max namespaces, followed by a sha256 hash.
+const childHashLen = (appconsts.NamespaceSize * 2) + sha256.Size
+
 var ErrEmptySquare = errors.New("share: importing empty data")
 
 // writingSession contains the components needed to write an EDS to a CARv1 file with our custom
 // node order.
 type writingSession struct {
-	eds *rsmt2d.ExtendedDataSquare
-	// store is an in-memory blockstore, used to cache the inner nodes (proofs) while we walk the nmt
-	// tree.
-	store bstore.Blockstore
-	w     io.Writer
+	eds    *rsmt2d.ExtendedDataSquare
+	store  bstore.Blockstore // caches inner nodes (proofs) while we walk the nmt tree.
+	hasher *nmt.Hasher
+	w      io.Writer
 }
 
 // WriteEDS writes the entire EDS into the given io.Writer as CARv1 file.
@@ -106,9 +110,10 @@ func initializeWriter(ctx context.Context, eds *rsmt2d.ExtendedDataSquare, w io.
 	}
 
 	return &writingSession{
-		eds:   eds,
-		store: store,
-		w:     w,
+		eds:    eds,
+		store:  store,
+		hasher: nmt.NewNmtHasher(sha256.New(), appconsts.NamespaceSize, true),
+		w:      w,
 	}, nil
 }
 
@@ -129,7 +134,7 @@ func (w *writingSession) writeHeader() error {
 func (w *writingSession) writeQuadrants() error {
 	shares := quadrantOrder(w.eds)
 	for _, share := range shares {
-		cid, err := ipld.CidFromNamespacedSha256(nmt.Sha256Namespace8FlaggedLeaf(share))
+		cid, err := ipld.CidFromNamespacedSha256(w.hasher.HashLeaf(share))
 		if err != nil {
 			return fmt.Errorf("getting cid from share: %w", err)
 		}
@@ -151,15 +156,18 @@ func (w *writingSession) writeProofs(ctx context.Context) error {
 		return fmt.Errorf("getting all keys from the blockstore: %w", err)
 	}
 	for proofCid := range proofs {
-		node, err := w.store.Get(ctx, proofCid)
+		block, err := w.store.Get(ctx, proofCid)
 		if err != nil {
 			return fmt.Errorf("getting proof from the blockstore: %w", err)
 		}
-		cid, err := ipld.CidFromNamespacedSha256(nmt.Sha256Namespace8FlaggedInner(node.RawData()))
+
+		node := block.RawData()
+		left, right := node[:childHashLen], node[childHashLen:]
+		cid, err := ipld.CidFromNamespacedSha256(w.hasher.HashNode(left, right))
 		if err != nil {
 			return fmt.Errorf("getting cid: %w", err)
 		}
-		err = util.LdWrite(w.w, cid.Bytes(), node.RawData())
+		err = util.LdWrite(w.w, cid.Bytes(), node)
 		if err != nil {
 			return fmt.Errorf("writing proof to the car: %w", err)
 		}
