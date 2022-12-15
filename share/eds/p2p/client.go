@@ -74,7 +74,8 @@ func (c *Client) RequestEDS(
 			}
 			// some net.Errors also mean the context deadline was exceeded, but yamux/mocknet do not
 			// unwrap to a ctx err
-			if ne, ok := err.(net.Error); ok && ne.Timeout() {
+			var ne net.Error
+			if errors.As(err, &ne) && ne.Timeout() {
 				return nil, context.DeadlineExceeded
 			}
 			if err != nil {
