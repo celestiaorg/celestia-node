@@ -64,9 +64,6 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 					return store.Stop(ctx)
 				}),
 			)),
-			// this invoke exists because eds.Store will not be added to the application until it is
-			// used, so we have to invoke it to test it.
-			fx.Invoke(func(eds *eds.Store) {}),
 			fx.Provide(fx.Annotate(
 				full.NewShareAvailability,
 				fx.OnStart(func(ctx context.Context, avail *full.ShareAvailability) error {
