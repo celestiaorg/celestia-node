@@ -53,7 +53,7 @@ func NewExchange(
 
 	return &Exchange{
 		host:         host,
-		protocolID:   protocolID(params.ProtocolSuffix),
+		protocolID:   protocolID(params.protocolSuffix),
 		trustedPeers: peers,
 		peerTracker: newPeerTracker(
 			host,

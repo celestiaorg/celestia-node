@@ -54,7 +54,7 @@ func NewExchangeServer(
 	}
 
 	return &ExchangeServer{
-		protocolID: protocolID(params.ProtocolSuffix),
+		protocolID: protocolID(params.protocolSuffix),
 		host:       host,
 		getter:     getter,
 		Params:     params,

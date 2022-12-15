@@ -58,8 +58,8 @@ func NewProofService(
 		topics:         make(map[ProofType]*pubsub.Topic),
 		stores:         make(map[ProofType]datastore.Datastore),
 		ds:             ds,
-		protocolSuffix: protocolSuffix,
 		syncerEnabled:  syncerEnabled,
+		protocolSuffix: protocolSuffix,
 	}
 }
 

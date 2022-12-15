@@ -3,8 +3,6 @@ package p2p
 import (
 	"fmt"
 	"time"
-
-	modp2p "github.com/celestiaorg/celestia-node/nodebuilder/p2p"
 )
 
 // parameters is an interface that encompasses all params needed for
@@ -28,8 +26,9 @@ type ServerParameters struct {
 	// RequestTimeout defines a timeout after which the session will try to re-request headers
 	// from another peer.
 	RequestTimeout time.Duration
-	// ProtocolSuffix is a network suffix that will be used to create a protocol.ID
-	ProtocolSuffix string
+	// protocolSuffix is a network suffix that will be used to create a protocol.ID
+	// Is empty by default
+	protocolSuffix string
 }
 
 // DefaultServerParameters returns the default params to configure the store.
@@ -39,7 +38,7 @@ func DefaultServerParameters() ServerParameters {
 		ReadDeadline:   time.Minute,
 		MaxRequestSize: 512,
 		RequestTimeout: time.Second * 5,
-		ProtocolSuffix: string(modp2p.DefaultNetwork),
+		protocolSuffix: "",
 	}
 }
 
@@ -57,7 +56,7 @@ func (p *ServerParameters) Validate() error {
 		return fmt.Errorf("invalid request timeout for session: "+
 			"%s. %s: %v", greaterThenZero, providedSuffix, p.RequestTimeout)
 	}
-	if p.ProtocolSuffix == "" {
+	if p.protocolSuffix == "" {
 		return fmt.Errorf("protocol suffix should not be empty")
 	}
 	return nil
@@ -111,13 +110,15 @@ func WithRequestTimeout[T parameters](duration time.Duration) Option[T] {
 	}
 }
 
+// WithProtocolSuffix is a functional option that configures the
+// `protocolSuffix` parameter.
 func WithProtocolSuffix[T parameters](protocolSuffix string) Option[T] {
 	return func(p *T) {
 		switch t := any(p).(type) {
 		case *ClientParameters:
-			t.ProtocolSuffix = protocolSuffix
+			t.protocolSuffix = protocolSuffix
 		case *ServerParameters:
-			t.ProtocolSuffix = protocolSuffix
+			t.protocolSuffix = protocolSuffix
 		}
 	}
 }
@@ -140,8 +141,8 @@ type ClientParameters struct {
 	RequestTimeout time.Duration
 	// MaxTrackerSize specifies the max amount of peers that can be added to the peerTracker.
 	MaxPeerTrackerSize int
-	// ProtocolSuffix is a network suffix that will be used to create a protocol.ID
-	ProtocolSuffix string
+	// protocolSuffix is a network suffix that will be used to create a protocol.ID
+	protocolSuffix string
 }
 
 // DefaultClientParameters returns the default params to configure the store.
@@ -154,7 +155,7 @@ func DefaultClientParameters() ClientParameters {
 		DefaultScore:         1,
 		RequestTimeout:       time.Second * 3,
 		MaxPeerTrackerSize:   100,
-		ProtocolSuffix:       string(modp2p.DefaultNetwork),
+		protocolSuffix:       "",
 	}
 }
 
@@ -191,9 +192,6 @@ func (p *ClientParameters) Validate() error {
 	}
 	if p.MaxPeerTrackerSize <= 0 {
 		return fmt.Errorf("invalid MaxTrackerSize: %s. %s: %d", greaterThenZero, providedSuffix, p.MaxPeerTrackerSize)
-	}
-	if p.ProtocolSuffix == "" {
-		return fmt.Errorf("protocol suffix should not be empty")
 	}
 	return nil
 }
