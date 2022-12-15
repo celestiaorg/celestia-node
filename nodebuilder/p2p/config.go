@@ -20,9 +20,8 @@ type Config struct {
 	// announced/advertised, as undialable from WAN
 	NoAnnounceAddresses []string
 	// TODO(@Wondertan): This should be a build-time parameter. See
-	// https://github.com/celestiaorg/celestia-node/issues/63 Bootstrapper is flag telling this node is
-
-	// a bootstrapper.
+	// https://github.com/celestiaorg/celestia-node/issues/63
+	// Bootstrapper is flag telling this node is a bootstrapper.
 	Bootstrapper bool
 	// MutualPeers are peers which have a bidirectional peering agreement with the configured node.
 	// Connections with those peers are protected from being trimmed, dropped or negatively scored.
