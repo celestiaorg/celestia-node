@@ -12,8 +12,6 @@ import (
 	"go.uber.org/fx"
 
 	"github.com/celestiaorg/celestia-app/pkg/da"
-	"github.com/celestiaorg/celestia-node/libs/fxutil"
-	modp2p "github.com/celestiaorg/celestia-node/nodebuilder/p2p"
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/availability/cache"
 	disc "github.com/celestiaorg/celestia-node/share/availability/discovery"
@@ -58,25 +56,4 @@ func ensureEmptyCARExists(ctx context.Context, store *eds.Store) error {
 		return nil
 	}
 	return err
-}
-
-func newEdsSub(lc fx.Lifecycle, h host.Host, network modp2p.Network) (*eds.PubSub, error) {
-	pubsub, err := eds.NewPubSub(
-		fxutil.WithLifecycle(context.Background(), lc),
-		h,
-		string(network),
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	lc.Append(fx.Hook{
-		OnStart: func(ctx context.Context) error {
-			return pubsub.Start(ctx)
-		},
-		OnStop: func(ctx context.Context) error {
-			return pubsub.Stop(ctx)
-		},
-	})
-	return pubsub, err
 }

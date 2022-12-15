@@ -33,14 +33,14 @@ func TestListener(t *testing.T) {
 
 	// create one block to store as Head in local store and then unsubscribe from block events
 	fetcher := createCoreFetcher(t)
-
+	eds := createEdsPubSub(ctx, t)
 	// create Listener and start listening
-	cl := createListener(ctx, t, fetcher, ps0)
+	cl := createListener(ctx, t, fetcher, ps0, eds)
 	require.NoError(t, err)
 	err = cl.Start(ctx)
 	require.NoError(t, err)
 
-	edsSubs, err := cl.pubsub.Subscribe()
+	edsSubs, err := eds.Subscribe()
 	require.NoError(t, err)
 	defer edsSubs.Cancel()
 
@@ -104,21 +104,26 @@ func createListener(
 	t *testing.T,
 	fetcher *core.BlockFetcher,
 	ps *pubsub.PubSub,
+	edsSub *eds.PubSub,
 ) *Listener {
 	p2pSub := p2p.NewSubscriber[*header.ExtendedHeader](ps, header.MsgID)
 	err := p2pSub.Start(ctx)
 	require.NoError(t, err)
+	t.Cleanup(func() {
+		require.NoError(t, p2pSub.Stop(ctx))
+	})
 
+	return NewListener(p2pSub, fetcher, edsSub.Broadcast, mdutils.Bserv(), header.MakeExtendedHeader)
+}
+
+func createEdsPubSub(ctx context.Context, t *testing.T) *eds.PubSub {
 	net, err := mocknet.FullMeshLinked(1)
 	require.NoError(t, err)
 	edsSub, err := eds.NewPubSub(ctx, net.Hosts()[0], "eds-test")
 	require.NoError(t, err)
 	require.NoError(t, edsSub.Start(ctx))
-
 	t.Cleanup(func() {
-		require.NoError(t, p2pSub.Stop(ctx))
 		require.NoError(t, edsSub.Stop(ctx))
 	})
-
-	return NewListener(p2pSub, fetcher, edsSub, mdutils.Bserv(), header.MakeExtendedHeader)
+	return edsSub
 }

@@ -24,7 +24,7 @@ import (
 type Listener struct {
 	bcast     libhead.Broadcaster[*header.ExtendedHeader]
 	fetcher   *core.BlockFetcher
-	pubsub    *eds.PubSub
+	broadcast eds.BroadcastFn
 	bServ     blockservice.BlockService
 	construct header.ConstructFn
 	cancel    context.CancelFunc
@@ -33,14 +33,14 @@ type Listener struct {
 func NewListener(
 	bcast libhead.Broadcaster[*header.ExtendedHeader],
 	fetcher *core.BlockFetcher,
-	pubsub *eds.PubSub,
+	broadcastFn eds.BroadcastFn,
 	bServ blockservice.BlockService,
 	construct header.ConstructFn,
 ) *Listener {
 	return &Listener{
 		bcast:     bcast,
 		fetcher:   fetcher,
-		pubsub:    pubsub,
+		broadcast: broadcastFn,
 		bServ:     bServ,
 		construct: construct,
 	}
@@ -107,7 +107,8 @@ func (cl *Listener) listen(ctx context.Context, sub <-chan *types.Block) {
 					"err", err)
 			}
 
-			err = cl.pubsub.Broadcast(ctx, eh.DataHash.Bytes())
+			// notify network of new EDS hash
+			err = cl.broadcast(ctx, eh.DataHash.Bytes())
 			if err != nil {
 				log.Errorw("listener: broadcasting data hash", "height", eh.Height,
 					"err", err)

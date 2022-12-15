@@ -7,6 +7,7 @@ import (
 	"github.com/libp2p/go-libp2p/core/host"
 	"go.uber.org/fx"
 
+	"github.com/celestiaorg/celestia-node/libs/fxutil"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	modp2p "github.com/celestiaorg/celestia-node/nodebuilder/p2p"
 	"github.com/celestiaorg/celestia-node/share"
@@ -97,7 +98,25 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 					return avail.Stop(ctx)
 				}),
 			)),
-			fx.Provide(newEdsSub),
+			fx.Provide(fx.Annotate(
+				func(lc fx.Lifecycle, h host.Host, network modp2p.Network) (*eds.PubSub, error) {
+					pubsub, err := eds.NewPubSub(
+						fxutil.WithLifecycle(context.Background(), lc),
+						h,
+						string(network),
+					)
+					if err != nil {
+						return nil, err
+					}
+					return pubsub, err
+				},
+				fx.OnStart(func(ctx context.Context, pubsub *eds.PubSub) error {
+					return pubsub.Start(ctx)
+				}),
+				fx.OnStop(func(ctx context.Context, pubsub *eds.PubSub) error {
+					return pubsub.Stop(ctx)
+				}),
+			)),
 			// cacheAvailability's lifecycle continues to use a fx hook,
 			// since the LC requires a cacheAvailability but the constructor returns a share.Availability
 			fx.Provide(cacheAvailability[*full.ShareAvailability]),
