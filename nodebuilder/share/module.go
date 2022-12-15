@@ -8,6 +8,7 @@ import (
 	"go.uber.org/fx"
 
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
+	modp2p "github.com/celestiaorg/celestia-node/nodebuilder/p2p"
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/availability/full"
 	"github.com/celestiaorg/celestia-node/share/availability/light"
@@ -51,8 +52,8 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 			"share",
 			baseComponents,
 			fx.Provide(fx.Annotate(
-				func(host host.Host, store *eds.Store, path node.StorePath) *p2p.Server {
-					return p2p.NewServer(host, store, string(path))
+				func(host host.Host, store *eds.Store, network modp2p.Network) *p2p.Server {
+					return p2p.NewServer(host, store, string(network))
 				},
 				fx.OnStart(func(ctx context.Context, server *p2p.Server) error {
 					return server.Start(ctx)
@@ -63,8 +64,8 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 			)),
 			// Bridge Nodes need a client as well, for requests over FullAvailability
 			fx.Provide(
-				func(host host.Host, path node.StorePath) *p2p.Client {
-					return p2p.NewClient(host, string(path))
+				func(host host.Host, network modp2p.Network) *p2p.Client {
+					return p2p.NewClient(host, string(network))
 				},
 			),
 			fx.Provide(fx.Annotate(
