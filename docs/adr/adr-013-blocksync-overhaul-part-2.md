@@ -8,6 +8,10 @@
 > deep dive calls, note-taking, thoughts, and ideas.
 > Similarly, the time spent on the experiments with the format of the documents was refactored three times.
 
+## Status
+
+Accepted
+
 ## Glossary
 
 - LN - Light Node
@@ -397,7 +401,94 @@ func (s *PubSub) AddValidator(Validator) error
 func (s *PubSub) Close()
 ```
 
+### `share.Getter`
+
+In celestia-node, we have various sources to get the data from, and in order to compose them, we introduce
+the `Getter` interface.
+
+```go
+// Getter interface provides a set of accessors for shares by the Root.
+type Getter interface {
+  // GetShare gets a Share by coordinates in EDS.
+  GetShare(context.Context, *Root, row, col int) (Share, error)
+  
+  // GetShares gets all the shares.
+  GetShares(context.Context, *Root) ([][]Share, error)
+  
+  // GetSharesByNamespace gets all the shares of the given namespace.
+  GetSharesByNamespace(context.Context, *Root, namespace.ID) ([]Share, error)
+}
+```
+
+#### IPLDGetter
+
+`IPLDGetter` stems from the existing implementation of `ShareService`, but omits to embed of `Availability` and optionally
+caches EDSes to `eds.Store`.
+
+The `eds.Store` might be abstracted with a private interface for testing. The mode might be configured depending on
+interface being nil or not.
+
+#### ShrExGetter
+
+`ShrExGetter` implements `Getter` over `ShrEx/ND` and `ShrEx/EDS` and their respective clients. It relies on `Discovery`
+to get data providers/peers. Additionally, it works in two modes w/ and w/o EDS caching over `eds.Store`.
+
+The `eds.Store` might be abstracted with a private interface for testing. The mode might be configured depending on
+interface being nil or not.
+
+```go
+// GetShare is no-op.
+func (shrg *ShrExGetter) GetShare(context.Context, *Root, row, col int) (share.Share, error)
+
+// GetShares fetches all the shares committed to the given root over `ShrEx/EDS`.
+// Caches data if ShrExGetter, if in the caching mode.
+func (shrg *ShrExGetter) GetShares(context.Context, *Root) ([][]share.Share, error)
+
+// GetShareByNamespace fetches all the namespaced shares committed to the given root over `ShrEx/ND`.
+func (shrg *ShrExGetter) GetShareByNamespace(context.Context, *Root, namespace.ID) ([]share.Share, error)
+
+// WithProvider hints ShrExGetter to fetch data from the given peers instead of Discovery.
+func WithProvider(context.Context, ...peer.ID) ctx
+```
+
+#### StoreGetter
+
+`StoreGetter` implements `Getter` over `eds.Store`.
+
+```go
+// GetShare reads up the share from stored EDS. 
+func (sg *StoreGetter) GetShare(context.Context, *Root, row, col int) (share.Share, error)
+
+// GetShares reads up all the shares from the stored EDS.
+func (sg *StoreGetter) GetShares(context.Context, *Root) ([][]share.Share, error)
+
+// GetShareByNamespace fetches all the namespaced shares from the stored EDS.
+func (sg *StoreGetter) GetShareByNamespace(context.Context, *Root, namespace.ID) ([]share.Share, error)
+```
+
+#### CascadeGetter
+
+`CascadeGetter` implements `Getter` that composes multiple `Getters`. The composition is ordered with priority.
+For every `Getter` operation, the first registered `Getter` is used. If it fails with an error or timeout from a configured
+deadline controlled by context, the following `Getter` is used, and so forth, until one of them succeeds.
+
 ## Integration Details
+
+### Getters
+
+The table below describes composition of different Getters per node type.
+
+|     | StoreGetter | ShrExGetter    | IPLDGetter | CascadeGetter |
+|-----|-------------|----------------|------------|---------------|
+| LN  |             | X(w/o caching) | X          | X             |
+| FN  | X           | X(w/ caching)  | X          | X             |
+| BN  | X           |                |            |               |
+
+___NOTES___:
+
+- `X` - node type uses `Getter`
+- Columns are ordered by priority and should be supplied to CascadeGetter in the order, if applicable
+- FN should have a configuration option to be run with IPLDGetter only to enable more experiments with reconstruction.
 
 ### Discovery
 
@@ -454,8 +545,8 @@ EDS by retrieving and reconstructing it. As we are improving our EDS retrieval l
     one of the paths finishes.
 - Store EDS in `eds.Store`
 
-Additionally, `FullAvailability` should provide `OnlyReconstruction` mode to allow testing the ___fallback path___
-in isolation.
+The flow should be implemented by composing specified `Getter`s. In essence, `FullAvailability` should only depend
+on correctly composed `Getter` and call `GetShares` method, awaiting its success and verifying availability.
 
 ### core.Listener
 
