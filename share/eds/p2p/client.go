@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net"
 
 	logging "github.com/ipfs/go-log/v2"
 	"github.com/libp2p/go-libp2p-core/host"
@@ -27,7 +28,6 @@ func protocolID(protocolSuffix string) protocol.ID {
 }
 
 // Client is responsible for requesting EDSs for blocksync over the ShrEx/EDS protocol.
-// This client is run by light nodes and full nodes. For more information, see ADR #13
 type Client struct {
 	protocolID protocol.ID
 	host       host.Host
@@ -65,13 +65,17 @@ func (c *Client) RequestEDS(
 			if _, ok := excludedPeers[to]; ok {
 				continue
 			}
-
 			eds, err := c.doRequest(ctx, req, to)
 			if eds != nil {
 				return eds, nil
 			}
 			if errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) {
 				return nil, ctx.Err()
+			}
+			// some net.Errors also mean the context deadline was exceeded, but yamux/mocknet do not
+			// unwrap to a ctx err
+			if ne, ok := err.(net.Error); ok && ne.Timeout() {
+				return nil, context.DeadlineExceeded
 			}
 			if err != nil {
 				// peer has misbehaved, exclude them from round-robin
