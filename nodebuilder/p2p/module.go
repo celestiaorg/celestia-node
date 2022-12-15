@@ -34,7 +34,7 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 		fx.Provide(ContentRouting),
 		fx.Provide(AddrsFactory(cfg.AnnounceAddresses, cfg.NoAnnounceAddresses)),
 		fx.Provide(metrics.NewBandwidthCounter),
-		fx.Provide(func(cfg *Config) (network.ResourceManager, error) {
+		fx.Provide(func(cfg Config) (network.ResourceManager, error) {
 			if cfg.Bootstrapper {
 				return rcmgr.NewResourceManager(rcmgr.NewFixedLimiter(rcmgr.InfiniteLimits))
 			}
