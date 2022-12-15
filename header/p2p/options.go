@@ -56,9 +56,6 @@ func (p *ServerParameters) Validate() error {
 		return fmt.Errorf("invalid request timeout for session: "+
 			"%s. %s: %v", greaterThenZero, providedSuffix, p.RequestTimeout)
 	}
-	if p.protocolSuffix == "" {
-		return fmt.Errorf("protocol suffix should not be empty")
-	}
 	return nil
 }
 
