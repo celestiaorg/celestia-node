@@ -75,7 +75,7 @@ type hostParams struct {
 	PStore    peerstore.Peerstore
 	ConnMngr  connmgr.ConnManager
 	ConnGater *conngater.BasicConnectionGater
-	Bandwidth  *metrics.BandwidthCounter
+	Bandwidth *metrics.BandwidthCounter
 
 	Tp node.Type
 }
