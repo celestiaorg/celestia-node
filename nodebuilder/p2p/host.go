@@ -38,7 +38,7 @@ func Host(cfg Config, params hostParams) (HostBase, error) {
 		libp2p.UserAgent(fmt.Sprintf("celestia-%s", params.Net)),
 		libp2p.NATPortMap(), // enables upnp
 		libp2p.DisableRelay(),
-		libp2p.BandwidthReporter(params.Bandwith),
+		libp2p.BandwidthReporter(params.Bandwidth),
 		// to clearly define what defaults we rely upon
 		libp2p.DefaultSecurity,
 		libp2p.DefaultTransports,
@@ -75,7 +75,7 @@ type hostParams struct {
 	PStore    peerstore.Peerstore
 	ConnMngr  connmgr.ConnManager
 	ConnGater *conngater.BasicConnectionGater
-	Bandwith  *metrics.BandwidthCounter
+	Bandwidth  *metrics.BandwidthCounter
 
 	Tp node.Type
 }
