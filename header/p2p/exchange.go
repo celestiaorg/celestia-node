@@ -161,8 +161,8 @@ func (ex *Exchange) GetRangeByHeight(ctx context.Context, from, amount uint64) (
 	return session.getRangeByHeight(ctx, from, amount, ex.Params.MaxHeadersPerRequest)
 }
 
-// GetVerifiedRange performs a request for the given range of ExtendedHeaders to the network and ensures
-// that returned headers are correct against the passed one.
+// GetVerifiedRange performs a request for the given range of ExtendedHeaders to the network and
+// ensures that returned headers are correct against the passed one.
 func (ex *Exchange) GetVerifiedRange(
 	ctx context.Context,
 	from *header.ExtendedHeader,

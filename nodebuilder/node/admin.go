@@ -28,7 +28,8 @@ type Info struct {
 func (m *module) Info(context.Context) (Info, error) {
 	return Info{
 		Type: m.tp,
-		// TODO @renaynay @distractedm1nd: Implement versioning in API and way to extract that into this struct
+		// TODO @renaynay @distractedm1nd: Implement versioning in API and way to extract that into this
+		// struct
 	}, nil
 }
 

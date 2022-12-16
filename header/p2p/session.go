@@ -101,7 +101,8 @@ func (s *session) handleOutgoingRequests(ctx context.Context, result chan []*hea
 	}
 }
 
-// doRequest chooses the best peer to fetch headers and sends a request in range of available maxRetryAttempts.
+// doRequest chooses the best peer to fetch headers and sends a request in range of available
+// maxRetryAttempts.
 func (s *session) doRequest(
 	ctx context.Context,
 	stat *peerStat,
@@ -129,8 +130,8 @@ func (s *session) doRequest(
 		return
 	}
 	log.Debugw("request headers from peer succeed ", "from", s.host.ID(), "pID", stat.peerID, "amount", req.Amount)
-	// send headers to the channel, update peer stats and return peer to the queue, so it can be re-used in case
-	// if there are other requests awaiting
+	// send headers to the channel, update peer stats and return peer to the queue, so it can be
+	// re-used in case if there are other requests awaiting
 	headers <- h
 	stat.updateStats(size, duration)
 	s.queue.push(stat)
