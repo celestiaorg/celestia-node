@@ -12,7 +12,8 @@ type Proof struct {
 	Start, End int
 }
 
-// proofCollector collects proof nodes' CIDs for the construction of a shares inclusion validation nmt.Proof.
+// proofCollector collects proof nodes' CIDs for the construction of a shares inclusion validation
+// nmt.Proof.
 type proofCollector struct {
 	left, right []cid.Cid
 }

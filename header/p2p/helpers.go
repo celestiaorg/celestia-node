@@ -20,9 +20,9 @@ func protocolID(protocolSuffix string) protocol.ID {
 	return protocol.ID(fmt.Sprintf("/header-ex/v0.0.3/%s", protocolSuffix))
 }
 
-// sendMessage opens the stream to the given peers and sends ExtendedHeaderRequest to fetch ExtendedHeaders.
-// As a result sendMessage returns ExtendedHeaderResponse, the size of fetched data,
-// the duration of the request and an error.
+// sendMessage opens the stream to the given peers and sends ExtendedHeaderRequest to fetch
+// ExtendedHeaders. As a result sendMessage returns ExtendedHeaderResponse, the size of fetched
+// data, the duration of the request and an error.
 func sendMessage(
 	ctx context.Context,
 	host host.Host,

@@ -4,7 +4,8 @@ package node
 // The zero value for Type is invalid.
 type Type uint8
 
-// StorePath is an alias used in order to pass the base path of the node store to nodebuilder modules.
+// StorePath is an alias used in order to pass the base path of the node store to nodebuilder
+// modules.
 type StorePath string
 
 const (
