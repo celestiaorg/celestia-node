@@ -83,15 +83,27 @@ func (srv *Server) handleNamespacedData(stream network.Stream) {
 	ctx, cancel := context.WithTimeout(context.Background(), srv.serveTimeout)
 	defer cancel()
 
+	// select rows that contain shares for given namespaceID
+	nID := namespace.ID(req.NamespaceId)
+	selectedRoots := make([][]byte, 0)
+	for _, row := range req.RowRoots {
+		if !nID.Less(nmt.MinNamespace(row, nID.Size())) && nID.LessOrEqual(nmt.MaxNamespace(row, nID.Size())) {
+			selectedRoots = append(selectedRoots, row)
+		}
+	}
+	if len(selectedRoots) == 0 {
+		srv.respond(stream, sharesWithProofsToResponse(nil))
+	}
+
 	sharesWithProofs, err := srv.getter.GetSharesWithProofsByNamespace(
-		ctx, req.RootHash, req.RowRoots, int(req.MaxShares), req.NamespaceId, req.CollectProofs)
+		ctx, req.RootHash, selectedRoots, len(selectedRoots), req.NamespaceId, req.CollectProofs)
 	if err != nil {
 		log.Errorw("get shares", "err", err)
 		srv.respondInternal(stream)
 		return
 	}
 
-	resp := srv.sharesWithProofsToResponse(sharesWithProofs)
+	resp := sharesWithProofsToResponse(sharesWithProofs)
 	srv.respond(stream, resp)
 }
 
@@ -110,13 +122,6 @@ func validateRequest(req share_p2p_v1.GetSharesByNamespaceRequest) error {
 	for _, row := range req.RowRoots {
 		if len(row) != ipld.NmtHashSize {
 			return fmt.Errorf("incorrect row root length: %v", len(row))
-		}
-		nID := namespace.ID(req.NamespaceId)
-
-		lessThanMin := nID.Less(nmt.MinNamespace(row, nID.Size()))
-		greaterThanMax := !nID.LessOrEqual(nmt.MaxNamespace(row, nID.Size()))
-		if lessThanMin || greaterThanMax {
-			return fmt.Errorf("namespaceID do not belong to rows namespace range: %v", len(row))
 		}
 	}
 	return nil
@@ -138,8 +143,8 @@ func (srv *Server) respondInternal(stream network.Stream) {
 	srv.respond(stream, resp)
 }
 
-// respondOK encodes shares into proto and sends it to client with OK status code
-func (srv *Server) sharesWithProofsToResponse(
+// sharesWithProofsToResponse encodes shares into proto and sends it to client with OK status code
+func sharesWithProofsToResponse(
 	shares []share.SharesWithProof,
 ) *share_p2p_v1.GetSharesByNamespaceResponse {
 	rows := make([]*share_p2p_v1.Row, 0, len(shares))
