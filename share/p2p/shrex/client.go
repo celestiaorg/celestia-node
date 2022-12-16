@@ -1,6 +1,7 @@
 package shrex
 
 import (
+	"errors"
 	"fmt"
 	"time"
 
@@ -17,13 +18,61 @@ import (
 	"github.com/celestiaorg/nmt/namespace"
 )
 
+var (
+	errInvalidStatusCode = errors.New("INVALID")
+	errNotFound          = errors.New("NOT_FOUND")
+	errInvalidRequest    = errors.New("INVALID_REQUEST")
+	errServerInternal    = errors.New("SERVER_INTERNAL")
+	errNotAvailable      = errors.New("none of the peers has requested data")
+)
+
+// Client implements Getter interface, requesting data from remote peers
 type Client struct {
 	host           host.Host
 	defaultTimeout time.Duration
+
+	// fake peers for testing purposes
+	testPeers []peer.ID
+}
+
+// NewClient creates a new shrEx client
+func NewClient(host host.Host, defaultTimeout time.Duration) *Client {
+	return &Client{
+		host:           host,
+		defaultTimeout: defaultTimeout,
+	}
+}
+
+// GetSharesWithProofs request shares with option to collect proofs from remote peers using shrex protocol
+func (c *Client) GetSharesWithProofs(
+	ctx context.Context,
+	rootHash []byte,
+	rowRoots [][]byte,
+	maxShares int,
+	nID namespace.ID,
+	collectProofs bool,
+) ([]share.SharesWithProof, error) {
+	peers := c.testPeers
+	if len(peers) == 0 { //nolint:staticcheck
+		//TODO: collect peers from discovery here
+	}
+
+	for _, peer := range peers {
+		sharesWithProof, err := c.getSharesWithProofs(
+			ctx, rootHash, rowRoots, maxShares, nID, collectProofs, peer)
+		if err != nil {
+			log.Debugw("peer returned err", "peer_id", peer.String(), "err", err)
+			continue
+		}
+
+		return sharesWithProof, nil
+	}
+
+	return nil, errNotAvailable
 }
 
 // GetSharesWithProofs gets shares with option to collect Merkle proofs from remote host
-func (c *Client) GetSharesWithProofs(
+func (c *Client) getSharesWithProofs(
 	ctx context.Context,
 	rootHash []byte,
 	rowRoots [][]byte,
@@ -63,7 +112,7 @@ func (c *Client) GetSharesWithProofs(
 		deadline = time.Now().Add(c.defaultTimeout)
 	}
 
-	err = stream.SetWriteDeadline(deadline)
+	err = stream.SetDeadline(deadline)
 	if err != nil {
 		log.Debugf("set write deadline: %s", err)
 	}
@@ -78,22 +127,38 @@ func (c *Client) GetSharesWithProofs(
 		log.Debugf("close write: %s", err)
 	}
 
-	err = stream.SetReadDeadline(deadline)
-	if err != nil {
-		log.Debugf("set read deadline: %s", err)
-	}
-
 	var resp share_p2p_v1.GetSharesByNamespaceResponse
 	_, err = serde.Read(stream, &resp)
 	if err != nil {
 		return nil, fmt.Errorf("read resp: %w", err)
 	}
 
-	if resp.Status != share_p2p_v1.StatusCode_OK {
-		return nil, fmt.Errorf("response code is not OK: %s", statusToString(resp.Status))
+	if err := statusToErr(resp.Status); err != nil {
+		return nil, fmt.Errorf("response code is not OK: %w", err)
 	}
 
-	return responseToShares(resp.Rows)
+	sharesWithProof, err := responseToShares(resp.Rows)
+	if err != nil {
+		return nil, fmt.Errorf("converting resp proto: %w", err)
+	}
+
+	if collectProofs {
+		// check if returned data is correct size
+		if len(sharesWithProof) != len(rowRoots) {
+			return nil, fmt.Errorf("resp has incorrect returned amount of rows: %v, expected: %v",
+				len(sharesWithProof), len(rowRoots))
+		}
+
+		// verify with inclusion proof
+		for i, root := range rowRoots {
+			rcid := ipld.MustCidFromNamespacedSha256(root)
+			if !sharesWithProof[i].Verify(rcid, nID) {
+				return nil, errors.New("shares failed verification")
+			}
+		}
+	}
+
+	return sharesWithProof, nil
 }
 
 // responseToShares converts proto Rows to SharesWithProof
@@ -126,16 +191,18 @@ func responseToShares(rows []*share_p2p_v1.Row) ([]share.SharesWithProof, error)
 	return shares, nil
 }
 
-func statusToString(code share_p2p_v1.StatusCode) string {
+func statusToErr(code share_p2p_v1.StatusCode) error {
 	switch code {
 	case share_p2p_v1.StatusCode_INVALID:
-		return "INVALID"
+		return errInvalidStatusCode
 	case share_p2p_v1.StatusCode_OK:
-		return "OK"
+		return nil
 	case share_p2p_v1.StatusCode_NOT_FOUND:
-		return "NOT_FOUND"
+		return errNotFound
+	case share_p2p_v1.StatusCode_INVALID_ARGUMENT:
+		return errInvalidRequest
 	case share_p2p_v1.StatusCode_INTERNAL:
-		return "INTERNAL_ERR"
+		return errServerInternal
 	}
-	return ""
+	return errInvalidStatusCode
 }

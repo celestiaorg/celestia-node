@@ -15,13 +15,11 @@ import (
 	blockstore "github.com/ipfs/go-ipfs-blockstore"
 	offline "github.com/ipfs/go-ipfs-exchange-offline"
 	mdutils "github.com/ipfs/go-merkledag/test"
-	"github.com/minio/sha256-simd"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/celestiaorg/celestia-app/pkg/wrapper"
 	"github.com/celestiaorg/celestia-node/share/ipld"
-	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/nmt/namespace"
 	"github.com/celestiaorg/rsmt2d"
 )
@@ -355,35 +353,21 @@ func TestGetSharesWithProofsByNamespace(t *testing.T) {
 				proof := new(ipld.Proof)
 				rowShares, err := GetSharesByNamespace(ctx, bServ, rcid, nID, len(eds.RowRoots()), proof)
 				require.NoError(t, err)
+
 				if rowShares != nil {
 					// append shares to check integrity later
 					shares = append(shares, rowShares...)
 
-					// construct nodes from shares by prepending namespace
-					var leaves [][]byte
-					for _, sh := range rowShares {
-						leaves = append(leaves, append(sh[:NamespaceSize], sh...))
+					sharesWithProofs := SharesWithProof{
+						Shares: rowShares,
+						Proof: &ipld.Proof{
+							Nodes: proof.Nodes,
+							Start: proof.Start,
+							End:   proof.End,
+						},
 					}
 
-					proofNodes := make([][]byte, 0, len(proof.Nodes))
-					for _, n := range proof.Nodes {
-						proofNodes = append(proofNodes, ipld.NamespacedSha256FromCID(n))
-					}
-
-					// construct new proof
-					inclusionProof := nmt.NewInclusionProof(
-						proof.Start,
-						proof.End,
-						proofNodes,
-						ipld.NMTIgnoreMaxNamespace)
-
-					// verify inclusion
-					verified := inclusionProof.VerifyNamespace(
-						sha256.New(),
-						nID,
-						leaves,
-						ipld.NamespacedSha256FromCID(rcid))
-					require.True(t, verified)
+					require.True(t, sharesWithProofs.Verify(rcid, nID))
 				}
 			}
 

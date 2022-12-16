@@ -3,11 +3,13 @@ package share
 import (
 	"fmt"
 
-	"github.com/celestiaorg/celestia-node/share/ipld"
-
+	"github.com/ipfs/go-cid"
+	"github.com/minio/sha256-simd"
 	"go.opentelemetry.io/otel"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
+	"github.com/celestiaorg/celestia-node/share/ipld"
+	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/nmt/namespace"
 )
 
@@ -61,4 +63,32 @@ func (dh DataHash) String() string {
 type SharesWithProof struct {
 	Shares []Share
 	Proof  *ipld.Proof
+}
+
+// Verify verifies inclusion of the namespaced shares under the given root CID.
+func (sp SharesWithProof) Verify(rootCID cid.Cid, nID namespace.ID) bool {
+	// construct nodes from shares by prepending namespace
+	leaves := make([][]byte, 0, len(sp.Shares))
+	for _, sh := range sp.Shares {
+		leaves = append(leaves, append(sh[:NamespaceSize], sh...))
+	}
+
+	proofNodes := make([][]byte, 0, len(sp.Proof.Nodes))
+	for _, n := range sp.Proof.Nodes {
+		proofNodes = append(proofNodes, ipld.NamespacedSha256FromCID(n))
+	}
+
+	// construct new proof
+	inclusionProof := nmt.NewInclusionProof(
+		sp.Proof.Start,
+		sp.Proof.End,
+		proofNodes,
+		ipld.NMTIgnoreMaxNamespace)
+
+	// verify inclusion
+	return inclusionProof.VerifyNamespace(
+		sha256.New(),
+		nID,
+		leaves,
+		ipld.NamespacedSha256FromCID(rootCID))
 }

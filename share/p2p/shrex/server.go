@@ -2,22 +2,26 @@ package shrex
 
 import (
 	"context"
+	"crypto/sha256"
 	"errors"
 	"fmt"
 	"time"
 
 	logging "github.com/ipfs/go-log/v2"
+	"github.com/libp2p/go-libp2p-core/host"
 	"github.com/libp2p/go-libp2p-core/network"
 
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/ipld"
 	share_p2p_v1 "github.com/celestiaorg/celestia-node/share/p2p/v1/pb"
 	"github.com/celestiaorg/go-libp2p-messenger/serde"
+	"github.com/celestiaorg/nmt"
+	"github.com/celestiaorg/nmt/namespace"
 )
 
-const ndProtocolID = "shrEx/nd"
+const ndProtocolID = "/shrex/nd/0.0.1"
 
-var log = logging.Logger("share/server")
+var log = logging.Logger("shrex/nd")
 
 const (
 	writeTimeout = time.Second * 10
@@ -25,24 +29,33 @@ const (
 	serveTimeout = time.Second * 10
 )
 
-type Handler struct {
+type Server struct {
 	getter       Getter
+	host         host.Host
 	writeTimeout time.Duration
 	readTimeout  time.Duration
 	serveTimeout time.Duration
 }
 
-func NewAvailabilityHandler(getter Getter) *Handler {
-	return &Handler{
+func StartServer(host host.Host, getter Getter) *Server {
+	srv := &Server{
 		getter:       getter,
+		host:         host,
 		writeTimeout: writeTimeout,
 		readTimeout:  readTimeout,
 		serveTimeout: serveTimeout,
 	}
+	host.SetStreamHandler(ndProtocolID, srv.handleNamespacedData)
+	return srv
 }
 
-func (h *Handler) Handle(stream network.Stream) {
-	err := stream.SetReadDeadline(time.Now().Add(h.readTimeout))
+// Stop stops the server
+func (srv *Server) Stop() {
+	srv.host.RemoveStreamHandler(ndProtocolID)
+}
+
+func (srv *Server) handleNamespacedData(stream network.Stream) {
+	err := stream.SetReadDeadline(time.Now().Add(srv.readTimeout))
 	if err != nil {
 		log.Debugf("set read deadline: %s", err)
 	}
@@ -50,8 +63,8 @@ func (h *Handler) Handle(stream network.Stream) {
 	_, err = serde.Read(stream, &req)
 	if err != nil {
 		log.Errorw("reading msg", "err", err)
-		// TODO: do not respond if error from network
-		h.respondInvalidArgument(stream)
+		// TODO: do not respond if error is from network
+		srv.respondInvalidArgument(stream)
 		return
 	}
 
@@ -63,22 +76,23 @@ func (h *Handler) Handle(stream network.Stream) {
 	err = validateRequest(req)
 	if err != nil {
 		log.Errorw("invalid request", "err", err)
-		h.respondInvalidArgument(stream)
+		srv.respondInvalidArgument(stream)
 		return
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), h.serveTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), srv.serveTimeout)
 	defer cancel()
 
-	sharesWithProofs, err := h.getter.GetSharesWithProofsByNamespace(
+	sharesWithProofs, err := srv.getter.GetSharesWithProofsByNamespace(
 		ctx, req.RootHash, req.RowRoots, int(req.MaxShares), req.NamespaceId, req.CollectProofs)
 	if err != nil {
 		log.Errorw("get shares", "err", err)
-		h.respondInternal(stream)
+		srv.respondInternal(stream)
 		return
 	}
 
-	h.respondOK(stream, sharesWithProofs)
+	resp := srv.sharesWithProofsToResponse(sharesWithProofs)
+	srv.respond(stream, resp)
 }
 
 // validateRequest checks correctness of the request
@@ -89,27 +103,45 @@ func validateRequest(req share_p2p_v1.GetSharesByNamespaceRequest) error {
 	if len(req.NamespaceId) != ipld.NamespaceSize {
 		return fmt.Errorf("incorrect namespace id length: %v", len(req.NamespaceId))
 	}
+	if len(req.RootHash) != sha256.Size {
+		return fmt.Errorf("incorrect root hash length: %v", len(req.RootHash))
+	}
+
+	for _, row := range req.RowRoots {
+		if len(row) != ipld.NmtHashSize {
+			return fmt.Errorf("incorrect row root length: %v", len(row))
+		}
+		nID := namespace.ID(req.NamespaceId)
+
+		lessThanMin := nID.Less(nmt.MinNamespace(row, nID.Size()))
+		greaterThanMax := !nID.LessOrEqual(nmt.MaxNamespace(row, nID.Size()))
+		if lessThanMin || greaterThanMax {
+			return fmt.Errorf("namespaceID do not belong to rows namespace range: %v", len(row))
+		}
+	}
 	return nil
 }
 
 // respondInvalidArgument sends invalid argument response to client
-func (h *Handler) respondInvalidArgument(stream network.Stream) {
+func (srv *Server) respondInvalidArgument(stream network.Stream) {
 	resp := &share_p2p_v1.GetSharesByNamespaceResponse{
 		Status: share_p2p_v1.StatusCode_INVALID_ARGUMENT,
 	}
-	h.respond(stream, resp)
+	srv.respond(stream, resp)
 }
 
 // respondInternal sends internal error response to client
-func (h *Handler) respondInternal(stream network.Stream) {
+func (srv *Server) respondInternal(stream network.Stream) {
 	resp := &share_p2p_v1.GetSharesByNamespaceResponse{
 		Status: share_p2p_v1.StatusCode_INTERNAL,
 	}
-	h.respond(stream, resp)
+	srv.respond(stream, resp)
 }
 
 // respondOK encodes shares into proto and sends it to client with OK status code
-func (h *Handler) respondOK(stream network.Stream, shares []share.SharesWithProof) {
+func (srv *Server) sharesWithProofsToResponse(
+	shares []share.SharesWithProof,
+) *share_p2p_v1.GetSharesByNamespaceResponse {
 	rows := make([]*share_p2p_v1.Row, 0, len(shares))
 	for _, sh := range shares {
 		// construct proof
@@ -135,15 +167,14 @@ func (h *Handler) respondOK(stream network.Stream, shares []share.SharesWithProo
 		rows = append(rows, row)
 	}
 
-	resp := &share_p2p_v1.GetSharesByNamespaceResponse{
+	return &share_p2p_v1.GetSharesByNamespaceResponse{
 		Status: share_p2p_v1.StatusCode_OK,
 		Rows:   rows,
 	}
-	h.respond(stream, resp)
 }
 
-func (h *Handler) respond(stream network.Stream, resp *share_p2p_v1.GetSharesByNamespaceResponse) {
-	err := stream.SetWriteDeadline(time.Now().Add(h.writeTimeout))
+func (srv *Server) respond(stream network.Stream, resp *share_p2p_v1.GetSharesByNamespaceResponse) {
+	err := stream.SetWriteDeadline(time.Now().Add(srv.writeTimeout))
 	if err != nil {
 		log.Debugf("set write deadline: %s", err)
 	}

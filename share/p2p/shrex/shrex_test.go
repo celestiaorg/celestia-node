@@ -1,18 +1,20 @@
 package shrex
 
 import (
+	"math/rand"
 	"testing"
 	"time"
 
-	"github.com/ipfs/go-cid"
-	"github.com/libp2p/go-libp2p-core/peer"
+	mdutils "github.com/ipfs/go-merkledag/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/net/context"
 
+	"github.com/celestiaorg/celestia-app/pkg/da"
 	"github.com/celestiaorg/celestia-node/share"
 	availability_test "github.com/celestiaorg/celestia-node/share/availability/test"
 	"github.com/celestiaorg/celestia-node/share/ipld"
+	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/nmt/namespace"
 )
 
@@ -26,9 +28,8 @@ func TestGetSharesWithProofByNamespace(t *testing.T) {
 	// create server and register handler
 	srvNode := net.NewTestNode()
 	getter := &mockGetter{}
-	availability := NewAvailabilityHandler(getter)
-	srvNode.Host.SetStreamHandler(ndProtocolID, availability.Handle)
-	defer srvNode.Host.RemoveStreamHandler(ndProtocolID)
+	srv := StartServer(srvNode.Host, getter)
+	t.Cleanup(srv.Stop)
 
 	// create client
 	clNode := net.NewTestNode()
@@ -36,119 +37,105 @@ func TestGetSharesWithProofByNamespace(t *testing.T) {
 
 	net.ConnectAll()
 
-	type args struct {
-		ctx           context.Context
-		rootHash      []byte
-		rowRoots      [][]byte
-		maxShares     int
-		namespace     namespace.ID
-		collectProofs bool
-		peerID        peer.ID
-	}
+	t.Run("with proofs", func(t *testing.T) {
+		shares, dah, nID := randomSharesWithProof(t, true)
 
-	tests := []struct {
-		name    string
-		client  Client
-		args    args
-		want    []share.SharesWithProof
-		wantErr bool
-	}{
-		{
-			"with proofs",
-			client,
-			args{
-				ctx:           context.TODO(),
-				rootHash:      []byte{},
-				rowRoots:      [][]byte{make([]byte, share.NamespaceSize*2)},
-				namespace:     make([]byte, share.NamespaceSize),
-				collectProofs: true,
-				peerID:        srvNode.ID(),
-			},
-			randomSharesWithProof(t, true),
-			false,
-		},
-		{
-			"no proofs, thanks",
-			client,
-			args{
-				ctx:           context.TODO(),
-				rootHash:      []byte{},
-				rowRoots:      [][]byte{make([]byte, share.NamespaceSize*2)},
-				namespace:     make([]byte, share.NamespaceSize),
-				collectProofs: false,
-				peerID:        srvNode.ID(),
-			},
-			randomSharesWithProof(t, false),
-			false,
-		},
-		{
-			"incorrect namespaceID",
-			client,
-			args{
-				ctx:           context.TODO(),
-				rootHash:      []byte{},
-				rowRoots:      [][]byte{make([]byte, share.NamespaceSize*2)},
-				namespace:     nil,
-				collectProofs: false,
-				peerID:        srvNode.ID(),
-			},
-			randomSharesWithProof(t, false),
+		selectedRoots := make([][]byte, 0)
+		for _, row := range dah.RowsRoots {
+			if !nID.Less(nmt.MinNamespace(row, nID.Size())) && nID.LessOrEqual(nmt.MaxNamespace(row, nID.Size())) {
+				selectedRoots = append(selectedRoots, row)
+			}
+		}
+		getter.sharesWithProof = shares
+		got, err := client.getSharesWithProofs(
+			ctx,
+			dah.Hash(),
+			selectedRoots,
+			len(dah.RowsRoots),
+			nID,
 			true,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			getter.sharesWithProof = tt.want
-			got, err := tt.client.GetSharesWithProofs(
-				tt.args.ctx,
-				tt.args.rootHash,
-				tt.args.rowRoots,
-				tt.args.maxShares,
-				tt.args.namespace,
-				tt.args.collectProofs,
-				tt.args.peerID)
-			if err != nil {
-				if tt.wantErr {
-					return
-				}
-				t.Errorf("GetSharesWithProofs() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
+			srv.host.ID())
 
-			require.Equal(t, len(tt.want), len(got))
-			for i := range tt.want {
-				assert.Equal(t, tt.want[i].Shares, got[i].Shares)
-				assert.Equal(t, tt.want[i].Proof, got[i].Proof)
+		require.NoError(t, err)
+
+		require.Equal(t, len(shares), len(got))
+		for i := range shares {
+			assert.Equal(t, shares[i].Shares, got[i].Shares)
+			assert.Equal(t, shares[i].Proof, got[i].Proof)
+		}
+	})
+
+	t.Run("without proofs", func(t *testing.T) {
+		shares, dah, nID := randomSharesWithProof(t, false)
+
+		selectedRoots := make([][]byte, 0)
+		for _, row := range dah.RowsRoots {
+			if !nID.Less(nmt.MinNamespace(row, nID.Size())) && nID.LessOrEqual(nmt.MaxNamespace(row, nID.Size())) {
+				selectedRoots = append(selectedRoots, row)
 			}
-		})
-	}
+		}
+		getter.sharesWithProof = shares
+		got, err := client.getSharesWithProofs(
+			ctx,
+			dah.Hash(),
+			selectedRoots,
+			len(dah.RowsRoots),
+			nID,
+			false,
+			srv.host.ID())
+
+		require.NoError(t, err)
+
+		require.Equal(t, len(shares), len(got))
+		for i := range shares {
+			assert.Equal(t, shares[i].Shares, got[i].Shares)
+			assert.Nil(t, got[i].Proof)
+		}
+	})
 }
 
-func randomSharesWithProof(t *testing.T, withProof bool) []share.SharesWithProof {
+func randomSharesWithProof(t *testing.T, collectProof bool,
+) ([]share.SharesWithProof, da.DataAvailabilityHeader, namespace.ID) {
 	shares := share.RandShares(t, 16)
-	// set all shares to the same namespace and data but the last one
-	nid := shares[0][:ipld.NamespaceSize]
 
-	for _, sh := range shares {
-		copy(sh[:ipld.NamespaceSize], nid)
+	from := rand.Intn(len(shares))
+	to := rand.Intn(len(shares))
+
+	if to < from {
+		from, to = to, from
 	}
 
-	var proof *ipld.Proof
+	nID := shares[from][:share.NamespaceSize]
+	// change some shares to have same nID
+	for i := from; i <= to; i++ {
+		copy(shares[i][:share.NamespaceSize], nID)
+	}
 
-	if withProof {
-		proof = &ipld.Proof{
-			Nodes: []cid.Cid{},
-			Start: 1,
-			End:   2,
+	bServ := mdutils.Bserv()
+	eds, err := share.AddShares(context.Background(), shares, bServ)
+	require.NoError(t, err)
+
+	var sharesWithProof []share.SharesWithProof
+	for _, row := range eds.RowRoots() {
+		rcid := ipld.MustCidFromNamespacedSha256(row)
+
+		var proof *ipld.Proof
+		if collectProof {
+			proof = new(ipld.Proof)
+		}
+		rowShares, err := share.GetSharesByNamespace(context.Background(), bServ, rcid, nID, len(eds.RowRoots()), proof)
+		require.NoError(t, err)
+
+		if len(rowShares) != 0 {
+			sharesWithProof = append(sharesWithProof, share.SharesWithProof{
+				Shares: rowShares,
+				Proof:  proof,
+			})
 		}
 	}
 
-	return []share.SharesWithProof{
-		{
-			Shares: shares,
-			Proof:  proof,
-		},
-	}
+	dah := da.NewDataAvailabilityHeader(eds)
+	return sharesWithProof, dah, nID
 }
 
 type mockGetter struct {
