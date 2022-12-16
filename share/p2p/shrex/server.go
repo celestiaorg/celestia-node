@@ -2,9 +2,9 @@ package shrex
 
 import (
 	"context"
-	"crypto/sha256"
 	"errors"
 	"fmt"
+	"github.com/minio/sha256-simd"
 	"time"
 
 	logging "github.com/ipfs/go-log/v2"
@@ -63,8 +63,7 @@ func (srv *Server) handleNamespacedData(stream network.Stream) {
 	_, err = serde.Read(stream, &req)
 	if err != nil {
 		log.Errorw("reading msg", "err", err)
-		// TODO: do not respond if error is from network
-		srv.respondInvalidArgument(stream)
+		stream.Reset() //nolint:errcheck
 		return
 	}
 
@@ -76,7 +75,7 @@ func (srv *Server) handleNamespacedData(stream network.Stream) {
 	err = validateRequest(req)
 	if err != nil {
 		log.Errorw("invalid request", "err", err)
-		srv.respondInvalidArgument(stream)
+		stream.Reset() //nolint:errcheck
 		return
 	}
 
@@ -125,14 +124,6 @@ func validateRequest(req share_p2p_v1.GetSharesByNamespaceRequest) error {
 		}
 	}
 	return nil
-}
-
-// respondInvalidArgument sends invalid argument response to client
-func (srv *Server) respondInvalidArgument(stream network.Stream) {
-	resp := &share_p2p_v1.GetSharesByNamespaceResponse{
-		Status: share_p2p_v1.StatusCode_INVALID_ARGUMENT,
-	}
-	srv.respond(stream, resp)
 }
 
 // respondInternal sends internal error response to client
