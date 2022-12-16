@@ -18,8 +18,8 @@ enum StatusCode {
   INVALID = 0;
   OK = 1;
   NOT_FOUND = 2;
-  INVALID_ARGUMENT = 3;
-  INTERNAL = 4;
+  INTERNAL = 3;
+  REFUSE = 4;
 };
 
 message Row {

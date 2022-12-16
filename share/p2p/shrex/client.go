@@ -22,8 +22,8 @@ import (
 var (
 	errInvalidStatusCode = errors.New("INVALID")
 	errNotFound          = errors.New("NOT_FOUND")
-	errInvalidRequest    = errors.New("INVALID_REQUEST")
 	errServerInternal    = errors.New("SERVER_INTERNAL")
+	errConnRefused       = errors.New("CONN_REFUSED")
 	errNotAvailable      = errors.New("none of the peers has requested data")
 )
 
@@ -205,10 +205,10 @@ func statusToErr(code share_p2p_v1.StatusCode) error {
 		return nil
 	case share_p2p_v1.StatusCode_NOT_FOUND:
 		return errNotFound
-	case share_p2p_v1.StatusCode_INVALID_ARGUMENT:
-		return errInvalidRequest
 	case share_p2p_v1.StatusCode_INTERNAL:
 		return errServerInternal
+	case share_p2p_v1.StatusCode_REFUSE:
+		return errConnRefused
 	}
 	return errInvalidStatusCode
 }
