@@ -66,7 +66,8 @@ type Module interface {
 	// BandwidthForPeer returns a Stats struct with bandwidth metrics associated with the given peer.ID.
 	// The metrics returned include all traffic sent / received for the peer, regardless of protocol.
 	BandwidthForPeer(ctx context.Context, id peer.ID) metrics.Stats
-	// BandwidthForProtocol returns a Stats struct with bandwidth metrics associated with the given protocol.ID.
+	// BandwidthForProtocol returns a Stats struct with bandwidth metrics associated with the given
+	// protocol.ID.
 	BandwidthForProtocol(ctx context.Context, proto protocol.ID) metrics.Stats
 
 	// PubSubPeers returns the peer IDs of the peers joined on
