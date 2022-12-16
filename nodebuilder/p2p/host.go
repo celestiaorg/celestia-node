@@ -9,7 +9,6 @@ import (
 	"github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/libp2p/go-libp2p-core/host"
 	"github.com/libp2p/go-libp2p-core/metrics"
-	"github.com/libp2p/go-libp2p-core/network"
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/libp2p/go-libp2p-core/peerstore"
 	"github.com/libp2p/go-libp2p-core/routing"
@@ -28,7 +27,7 @@ func RoutedHost(base HostBase, r routing.PeerRouting) host.Host {
 }
 
 // Host returns constructor for Host.
-func Host(cfg Config, params hostParams, bw *metrics.BandwidthCounter, rm network.ResourceManager) (HostBase, error) {
+func Host(cfg Config, params hostParams) (HostBase, error) {
 	opts := []libp2p.Option{
 		libp2p.NoListenAddrs, // do not listen automatically
 		libp2p.AddrsFactory(params.AddrF),
@@ -39,8 +38,7 @@ func Host(cfg Config, params hostParams, bw *metrics.BandwidthCounter, rm networ
 		libp2p.UserAgent(fmt.Sprintf("celestia-%s", params.Net)),
 		libp2p.NATPortMap(), // enables upnp
 		libp2p.DisableRelay(),
-		libp2p.BandwidthReporter(bw),
-		libp2p.ResourceManager(rm),
+		libp2p.BandwidthReporter(params.Bandwith),
 		// to clearly define what defaults we rely upon
 		libp2p.DefaultSecurity,
 		libp2p.DefaultTransports,
@@ -77,6 +75,7 @@ type hostParams struct {
 	PStore    peerstore.Peerstore
 	ConnMngr  connmgr.ConnManager
 	ConnGater *conngater.BasicConnectionGater
+	Bandwith *metrics.BandwidthCounter
 
 	Tp node.Type
 }

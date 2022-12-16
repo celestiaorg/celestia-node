@@ -13,7 +13,6 @@ import (
 	network "github.com/libp2p/go-libp2p-core/network"
 	peer "github.com/libp2p/go-libp2p-core/peer"
 	protocol "github.com/libp2p/go-libp2p-core/protocol"
-	rcmgr "github.com/libp2p/go-libp2p-resource-manager"
 )
 
 // MockModule is a mock of Module interface.
@@ -246,21 +245,6 @@ func (m *MockModule) PubSubPeers(arg0 context.Context, arg1 string) []peer.ID {
 func (mr *MockModuleMockRecorder) PubSubPeers(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PubSubPeers", reflect.TypeOf((*MockModule)(nil).PubSubPeers), arg0, arg1)
-}
-
-// ResourceState mocks base method.
-func (m *MockModule) ResourceState(arg0 context.Context) (rcmgr.ResourceManagerStat, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ResourceState", arg0)
-	ret0, _ := ret[0].(rcmgr.ResourceManagerStat)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// ResourceState indicates an expected call of ResourceState.
-func (mr *MockModuleMockRecorder) ResourceState(arg0 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ResourceState", reflect.TypeOf((*MockModule)(nil).ResourceState), arg0)
 }
 
 // UnblockPeer mocks base method.
