@@ -3,6 +3,7 @@ package shrex
 import (
 	"errors"
 	"fmt"
+
 	"time"
 
 	"github.com/ipfs/go-cid"
@@ -48,7 +49,7 @@ func (c *Client) GetSharesWithProofs(
 	ctx context.Context,
 	rootHash []byte,
 	rowRoots [][]byte,
-	maxShares int,
+	_ int,
 	nID namespace.ID,
 	collectProofs bool,
 ) ([]share.SharesWithProof, error) {
@@ -59,7 +60,7 @@ func (c *Client) GetSharesWithProofs(
 
 	for _, peer := range peers {
 		sharesWithProof, err := c.getSharesWithProofs(
-			ctx, rootHash, rowRoots, maxShares, nID, collectProofs, peer)
+			ctx, rootHash, rowRoots, nID, collectProofs, peer)
 		if err != nil {
 			log.Debugw("peer returned err", "peer_id", peer.String(), "err", err)
 			continue
@@ -76,22 +77,10 @@ func (c *Client) getSharesWithProofs(
 	ctx context.Context,
 	rootHash []byte,
 	rowRoots [][]byte,
-	maxShares int,
 	nID namespace.ID,
 	collectProofs bool,
 	peerID peer.ID,
 ) ([]share.SharesWithProof, error) {
-	// select rows that contain shares for given namespaceID
-	selectedRoots := make([][]byte, 0)
-	for _, row := range rowRoots {
-		if !nID.Less(nmt.MinNamespace(row, nID.Size())) && nID.LessOrEqual(nmt.MaxNamespace(row, nID.Size())) {
-			selectedRoots = append(selectedRoots, row)
-		}
-	}
-	if len(selectedRoots) == 0 {
-		return nil, nil
-	}
-
 	stream, err := c.host.NewStream(ctx, peerID, ndProtocolID)
 	if err != nil {
 		return nil, err
@@ -100,9 +89,8 @@ func (c *Client) getSharesWithProofs(
 
 	req := &share_p2p_v1.GetSharesByNamespaceRequest{
 		RootHash:      rootHash,
-		RowRoots:      selectedRoots,
+		RowRoots:      rowRoots,
 		NamespaceId:   nID,
-		MaxShares:     int64(maxShares),
 		CollectProofs: collectProofs,
 	}
 
@@ -143,18 +131,9 @@ func (c *Client) getSharesWithProofs(
 	}
 
 	if collectProofs {
-		// check if returned data is correct size
-		if len(sharesWithProof) != len(rowRoots) {
-			return nil, fmt.Errorf("resp has incorrect returned amount of rows: %v, expected: %v",
-				len(sharesWithProof), len(rowRoots))
-		}
-
-		// verify with inclusion proof
-		for i, root := range rowRoots {
-			rcid := ipld.MustCidFromNamespacedSha256(root)
-			if !sharesWithProof[i].Verify(rcid, nID) {
-				return nil, errors.New("shares failed verification")
-			}
+		err = verifySharesWithProof(nID, rowRoots, sharesWithProof)
+		if err != nil {
+			return nil, err
 		}
 	}
 
@@ -189,6 +168,33 @@ func responseToShares(rows []*share_p2p_v1.Row) ([]share.SharesWithProof, error)
 		})
 	}
 	return shares, nil
+}
+
+func verifySharesWithProof(nID namespace.ID, rowRoots [][]byte, sharesWithProof []share.SharesWithProof) error {
+	// select rows that contain shares for given namespaceID
+	selectedRoots := make([][]byte, 0)
+	for _, row := range rowRoots {
+		if !nID.Less(nmt.MinNamespace(row, nID.Size())) && nID.LessOrEqual(nmt.MaxNamespace(row, nID.Size())) {
+			selectedRoots = append(selectedRoots, row)
+		}
+	}
+
+	// check if returned data is correct size
+	if len(sharesWithProof) != len(selectedRoots) {
+		return fmt.Errorf("resp has incorrect returned amount of rows: %v, expected: %v",
+			len(sharesWithProof), len(rowRoots))
+	}
+
+	// verify with inclusion proof
+	for i := range sharesWithProof {
+		root := selectedRoots[i]
+		rcid := ipld.MustCidFromNamespacedSha256(root)
+		if !sharesWithProof[i].Verify(rcid, nID) {
+			return errors.New("shares failed verification")
+		}
+	}
+
+	return nil
 }
 
 func statusToErr(code share_p2p_v1.StatusCode) error {

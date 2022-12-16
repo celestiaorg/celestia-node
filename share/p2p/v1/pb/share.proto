@@ -6,8 +6,7 @@ message GetSharesByNamespaceRequest{
   bytes root_hash = 1;
   repeated bytes row_roots = 2;
   bytes namespace_id = 3;
-  int64 max_shares = 4;
-  bool collect_proofs = 5;
+  bool collect_proofs = 4;
 }
 
 message GetSharesByNamespaceResponse{

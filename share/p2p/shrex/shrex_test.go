@@ -14,7 +14,6 @@ import (
 	"github.com/celestiaorg/celestia-node/share"
 	availability_test "github.com/celestiaorg/celestia-node/share/availability/test"
 	"github.com/celestiaorg/celestia-node/share/ipld"
-	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/nmt/namespace"
 )
 
@@ -26,32 +25,23 @@ func TestGetSharesWithProofByNamespace(t *testing.T) {
 	net := availability_test.NewTestDAGNet(ctx, t)
 
 	// create server and register handler
-	srvNode := net.NewTestNode()
 	getter := &mockGetter{}
-	srv := StartServer(srvNode.Host, getter)
+	srv := StartServer(net.NewTestNode().Host, getter)
 	t.Cleanup(srv.Stop)
 
 	// create client
-	clNode := net.NewTestNode()
-	client := Client{host: clNode.Host, defaultTimeout: readTimeout}
+	client := NewClient(net.NewTestNode().Host, readTimeout)
 
 	net.ConnectAll()
 
 	t.Run("with proofs", func(t *testing.T) {
 		shares, dah, nID := randomSharesWithProof(t, true)
 
-		selectedRoots := make([][]byte, 0)
-		for _, row := range dah.RowsRoots {
-			if !nID.Less(nmt.MinNamespace(row, nID.Size())) && nID.LessOrEqual(nmt.MaxNamespace(row, nID.Size())) {
-				selectedRoots = append(selectedRoots, row)
-			}
-		}
 		getter.sharesWithProof = shares
 		got, err := client.getSharesWithProofs(
 			ctx,
 			dah.Hash(),
-			selectedRoots,
-			len(dah.RowsRoots),
+			dah.RowsRoots,
 			nID,
 			true,
 			srv.host.ID())
@@ -68,18 +58,11 @@ func TestGetSharesWithProofByNamespace(t *testing.T) {
 	t.Run("without proofs", func(t *testing.T) {
 		shares, dah, nID := randomSharesWithProof(t, false)
 
-		selectedRoots := make([][]byte, 0)
-		for _, row := range dah.RowsRoots {
-			if !nID.Less(nmt.MinNamespace(row, nID.Size())) && nID.LessOrEqual(nmt.MaxNamespace(row, nID.Size())) {
-				selectedRoots = append(selectedRoots, row)
-			}
-		}
 		getter.sharesWithProof = shares
 		got, err := client.getSharesWithProofs(
 			ctx,
 			dah.Hash(),
-			selectedRoots,
-			len(dah.RowsRoots),
+			dah.RowsRoots,
 			nID,
 			false,
 			srv.host.ID())
