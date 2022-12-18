@@ -35,7 +35,7 @@ type Exchange struct {
 	trustedPeers peer.IDSlice
 	peerTracker  *peerTracker
 
-	Params *ClientParameters
+	Params ClientParameters
 }
 
 func NewExchange(
@@ -46,7 +46,7 @@ func NewExchange(
 ) (*Exchange, error) {
 	params := DefaultClientParameters()
 	for _, opt := range opts {
-		opt(params)
+		opt(&params)
 	}
 
 	err := params.Validate()

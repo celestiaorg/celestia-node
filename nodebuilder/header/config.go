@@ -24,10 +24,10 @@ type Config struct {
 	// headers at any moment.
 	TrustedPeers []string
 
-	Store *store.Parameters
+	Store store.Parameters
 
-	Server *p2p_exchange.ServerParameters
-	Client *p2p_exchange.ClientParameters `toml:",omitempty"`
+	Server p2p_exchange.ServerParameters
+	Client p2p_exchange.ClientParameters `toml:",omitempty"`
 }
 
 func DefaultConfig(tp node.Type) Config {
@@ -93,7 +93,7 @@ func (cfg *Config) Validate() error {
 		return fmt.Errorf("module/header: misconfiguration of p2p exchange server: %w", err)
 	}
 
-	if cfg.Client != nil {
+	if !cfg.Client.Empty() {
 		err = cfg.Client.Validate()
 		if err != nil {
 			return fmt.Errorf("module/header: misconfiguration of p2p exchange client: %w", err)

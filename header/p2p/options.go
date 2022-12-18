@@ -26,8 +26,8 @@ type ServerParameters struct {
 }
 
 // DefaultServerParameters returns the default params to configure the store.
-func DefaultServerParameters() *ServerParameters {
-	return &ServerParameters{
+func DefaultServerParameters() ServerParameters {
+	return ServerParameters{
 		WriteDeadline:  time.Second * 5,
 		ReadDeadline:   time.Minute,
 		MaxRequestSize: 512,
@@ -101,8 +101,8 @@ type ClientParameters struct {
 }
 
 // DefaultClientParameters returns the default params to configure the store.
-func DefaultClientParameters() *ClientParameters {
-	return &ClientParameters{
+func DefaultClientParameters() ClientParameters {
+	return ClientParameters{
 		MinResponses:         2,
 		MaxRequestSize:       512,
 		MaxHeadersPerRequest: 64,
@@ -110,6 +110,13 @@ func DefaultClientParameters() *ClientParameters {
 		DefaultScore:         1,
 		MaxPeerTrackerSize:   100,
 	}
+}
+
+// Empty checks if config was initialized.
+func (p *ClientParameters) Empty() bool {
+	return p.MinResponses == 0 && p.MaxRequestSize == 0 &&
+		p.MaxHeadersPerRequest == 0 && p.MaxAwaitingTime == 0 &&
+		p.DefaultScore == 0 && p.MaxPeerTrackerSize == 0
 }
 
 const (
