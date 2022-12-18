@@ -21,8 +21,7 @@ func TestLight(t *testing.T) {
 		output := &bytes.Buffer{}
 		rootCmd.SetOut(output)
 		rootCmd.SetArgs([]string{
-			"bridge",
-			"config",
+			"light",
 			"--node.store", ".celestia-light",
 			"init",
 		})
@@ -75,6 +74,39 @@ func TestBridge(t *testing.T) {
 		})
 		err := rootCmd.ExecuteContext(context.Background())
 		require.NoError(t, err)
+	})
+
+	t.Run("remove", func(t *testing.T) {
+		output := &bytes.Buffer{}
+		rootCmd.SetOut(output)
+
+		rootCmd.SetArgs([]string{
+			"bridge",
+			"config",
+			"--node.store", ".celestia-bridge",
+			"init",
+		})
+		err = rootCmd.ExecuteContext(context.Background())
+
+		rootCmd.SetArgs([]string{
+			"bridge",
+			"config",
+			"--node.store", ".celestia-bridge",
+			"remove",
+		})
+		err = rootCmd.ExecuteContext(context.Background())
+		require.NoError(t, err)
+
+		// file does not exist
+		rootCmd.SetArgs([]string{
+			"bridge",
+			"config",
+			"--node.store", ".celestia-bridge",
+			"remove",
+		})
+
+		err = rootCmd.ExecuteContext(context.Background())
+		require.Error(t, err)
 	})
 
 	t.Cleanup(func() {

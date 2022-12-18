@@ -4,6 +4,8 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/r3labs/diff/v3"
+
 	"github.com/celestiaorg/celestia-node/libs/fslock"
 	"github.com/celestiaorg/celestia-node/libs/utils"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
@@ -88,7 +90,12 @@ func Reinit(cfg Config, path string, newConfigPath string, tp node.Type) error {
 			return err
 		}
 
-		err = SaveConfig(cfgPath, newConf)
+		err = diffConfig(&cfg, newConf)
+		if err != nil {
+			return err
+		}
+
+		err = SaveConfig(cfgPath, &cfg)
 		if err != nil {
 			return err
 		}
@@ -153,4 +160,14 @@ func initDir(path string) error {
 		return nil
 	}
 	return os.Mkdir(path, perms)
+}
+
+func diffConfig(cfg, newConf *Config) error {
+	changelog, err := diff.Diff(cfg, newConf)
+	if err != nil {
+		return err
+	}
+
+	diff.Patch(changelog, &cfg)
+	return nil
 }
