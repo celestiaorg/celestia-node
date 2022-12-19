@@ -350,6 +350,11 @@ func (s *Store) Has(ctx context.Context, root share.DataHash) (bool, error) {
 	return true, info.Error
 }
 
+// TODO: implement me
+func (s *Store) GetDAH(ctx context.Context, dataHash []byte) (*share.Root, error) {
+	return nil, nil
+}
+
 func setupPath(basepath string) error {
 	err := os.MkdirAll(basepath+blocksPath, os.ModePerm)
 	if err != nil {

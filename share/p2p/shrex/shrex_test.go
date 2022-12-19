@@ -5,16 +5,19 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ipfs/go-datastore"
+	ds_sync "github.com/ipfs/go-datastore/sync"
 	mdutils "github.com/ipfs/go-merkledag/test"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/net/context"
 
 	"github.com/celestiaorg/celestia-app/pkg/da"
 	"github.com/celestiaorg/celestia-node/share"
 	availability_test "github.com/celestiaorg/celestia-node/share/availability/test"
+	"github.com/celestiaorg/celestia-node/share/eds"
 	"github.com/celestiaorg/celestia-node/share/ipld"
 	"github.com/celestiaorg/nmt/namespace"
+	"github.com/celestiaorg/rsmt2d"
 )
 
 func TestGetSharesWithProofByNamespace(t *testing.T) {
@@ -24,9 +27,15 @@ func TestGetSharesWithProofByNamespace(t *testing.T) {
 	// create test net
 	net := availability_test.NewTestDAGNet(ctx, t)
 
+	edsStore, err := newStore(t)
+	require.NoError(t, err)
+	err = edsStore.Start(ctx)
+	require.NoError(t, err)
+
 	// create server and register handler
 	getter := &mockGetter{}
-	srv := StartServer(net.NewTestNode().Host, getter)
+	srv := StartServer(net.NewTestNode().Host, edsStore)
+	srv.getter = getter
 	t.Cleanup(srv.Stop)
 
 	// create client
@@ -34,51 +43,34 @@ func TestGetSharesWithProofByNamespace(t *testing.T) {
 
 	net.ConnectAll()
 
-	t.Run("with proofs", func(t *testing.T) {
-		shares, dah, nID := randomSharesWithProof(t, true)
+	// generate test data
+	blob, eds, nID := generateTest(t)
+	dah := da.NewDataAvailabilityHeader(eds)
 
-		getter.sharesWithProof = shares
-		got, err := client.getSharesWithProofs(
-			ctx,
-			dah.Hash(),
-			dah.RowsRoots,
-			nID,
-			true,
-			srv.host.ID())
+	// put data into the store and getter mock
+	getter.blob = blob
+	err = edsStore.Put(ctx, dah.Hash(), eds)
+	require.NoError(t, err)
 
-		require.NoError(t, err)
+	got, err := client.getBlobByNamespace(
+		ctx,
+		&dah,
+		nID,
+		srv.host.ID())
 
-		require.Equal(t, len(shares), len(got))
-		for i := range shares {
-			assert.Equal(t, shares[i].Shares, got[i].Shares)
-			assert.Equal(t, shares[i].Proof, got[i].Proof)
-		}
-	})
-
-	t.Run("without proofs", func(t *testing.T) {
-		shares, dah, nID := randomSharesWithProof(t, false)
-
-		getter.sharesWithProof = shares
-		got, err := client.getSharesWithProofs(
-			ctx,
-			dah.Hash(),
-			dah.RowsRoots,
-			nID,
-			false,
-			srv.host.ID())
-
-		require.NoError(t, err)
-
-		require.Equal(t, len(shares), len(got))
-		for i := range shares {
-			assert.Equal(t, shares[i].Shares, got[i].Shares)
-			assert.Nil(t, got[i].Proof)
-		}
-	})
+	require.NoError(t, err)
+	require.NoError(t, got.Verify(&dah, nID))
 }
 
-func randomSharesWithProof(t *testing.T, collectProof bool,
-) ([]share.SharesWithProof, da.DataAvailabilityHeader, namespace.ID) {
+func newStore(t *testing.T) (*eds.Store, error) {
+	t.Helper()
+
+	tmpDir := t.TempDir()
+	ds := ds_sync.MutexWrap(datastore.NewMapDatastore())
+	return eds.NewStore(tmpDir, ds)
+}
+
+func generateTest(t *testing.T) (*share.Blob, *rsmt2d.ExtendedDataSquare, namespace.ID) {
 	shares := share.RandShares(t, 16)
 
 	from := rand.Intn(len(shares))
@@ -98,40 +90,29 @@ func randomSharesWithProof(t *testing.T, collectProof bool,
 	eds, err := share.AddShares(context.Background(), shares, bServ)
 	require.NoError(t, err)
 
-	var sharesWithProof []share.SharesWithProof
+	var rows []share.VerifiedShares
 	for _, row := range eds.RowRoots() {
 		rcid := ipld.MustCidFromNamespacedSha256(row)
 
-		var proof *ipld.Proof
-		if collectProof {
-			proof = new(ipld.Proof)
-		}
+		proof := new(ipld.Proof)
 		rowShares, err := share.GetSharesByNamespace(context.Background(), bServ, rcid, nID, len(eds.RowRoots()), proof)
 		require.NoError(t, err)
 
 		if len(rowShares) != 0 {
-			sharesWithProof = append(sharesWithProof, share.SharesWithProof{
+			rows = append(rows, share.VerifiedShares{
 				Shares: rowShares,
 				Proof:  proof,
 			})
 		}
 	}
 
-	dah := da.NewDataAvailabilityHeader(eds)
-	return sharesWithProof, dah, nID
+	return &share.Blob{Rows: rows}, eds, nID
 }
 
 type mockGetter struct {
-	sharesWithProof []share.SharesWithProof
+	blob *share.Blob
 }
 
-func (m *mockGetter) GetSharesWithProofsByNamespace(
-	ctx context.Context,
-	rootHash []byte,
-	rowRoots [][]byte,
-	maxShares int,
-	nID namespace.ID,
-	collectProofs bool,
-) ([]share.SharesWithProof, error) {
-	return m.sharesWithProof, nil
+func (m *mockGetter) GetBlobByNamespace(context.Context, *share.Root, namespace.ID) (*share.Blob, error) {
+	return m.blob, nil
 }

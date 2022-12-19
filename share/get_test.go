@@ -358,7 +358,7 @@ func TestGetSharesWithProofsByNamespace(t *testing.T) {
 					// append shares to check integrity later
 					shares = append(shares, rowShares...)
 
-					sharesWithProofs := SharesWithProof{
+					verifiedShares := VerifiedShares{
 						Shares: rowShares,
 						Proof: &ipld.Proof{
 							Nodes: proof.Nodes,
@@ -367,7 +367,7 @@ func TestGetSharesWithProofsByNamespace(t *testing.T) {
 						},
 					}
 
-					require.True(t, sharesWithProofs.Verify(rcid, nID))
+					require.True(t, verifiedShares.verify(row, nID))
 				}
 			}
 
