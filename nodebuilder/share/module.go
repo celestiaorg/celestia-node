@@ -100,15 +100,11 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 			)),
 			fx.Provide(fx.Annotate(
 				func(lc fx.Lifecycle, h host.Host, network modp2p.Network) (*eds.PubSub, error) {
-					pubsub, err := eds.NewPubSub(
+					return eds.NewPubSub(
 						fxutil.WithLifecycle(context.Background(), lc),
 						h,
 						string(network),
 					)
-					if err != nil {
-						return nil, err
-					}
-					return pubsub, err
 				},
 				fx.OnStart(func(ctx context.Context, pubsub *eds.PubSub) error {
 					return pubsub.Start(ctx)
