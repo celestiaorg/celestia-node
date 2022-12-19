@@ -24,10 +24,10 @@ type Config struct {
 	// headers at any moment.
 	TrustedPeers []string
 
-	Store *store.Parameters
+	Store store.Parameters
 
-	Server *p2p_exchange.ServerParameters
-	Client *p2p_exchange.ClientParameters `toml:",omitempty"`
+	Server p2p_exchange.ServerParameters
+	Client p2p_exchange.ClientParameters `toml:",omitempty"`
 }
 
 func DefaultConfig(tp node.Type) Config {
@@ -82,7 +82,7 @@ func (cfg *Config) trustedHash(net p2p.Network) (tmbytes.HexBytes, error) {
 }
 
 // Validate performs basic validation of the config.
-func (cfg *Config) Validate() error {
+func (cfg *Config) Validate(tp node.Type) error {
 	err := cfg.Store.Validate()
 	if err != nil {
 		return fmt.Errorf("module/header: misconfiguration of store: %w", err)
@@ -93,11 +93,15 @@ func (cfg *Config) Validate() error {
 		return fmt.Errorf("module/header: misconfiguration of p2p exchange server: %w", err)
 	}
 
-	if cfg.Client != nil {
-		err = cfg.Client.Validate()
-		if err != nil {
-			return fmt.Errorf("module/header: misconfiguration of p2p exchange client: %w", err)
-		}
+	// we do not create a client for bridge nodes
+	if tp == node.Bridge {
+		return nil
 	}
+
+	err = cfg.Client.Validate()
+	if err != nil {
+		return fmt.Errorf("module/header: misconfiguration of p2p exchange client: %w", err)
+	}
+
 	return nil
 }

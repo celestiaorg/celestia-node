@@ -26,8 +26,8 @@ type ServerParameters struct {
 }
 
 // DefaultServerParameters returns the default params to configure the store.
-func DefaultServerParameters() *ServerParameters {
-	return &ServerParameters{
+func DefaultServerParameters() ServerParameters {
+	return ServerParameters{
 		WriteDeadline:  time.Second * 5,
 		ReadDeadline:   time.Minute,
 		MaxRequestSize: 512,
@@ -101,8 +101,8 @@ type ClientParameters struct {
 }
 
 // DefaultClientParameters returns the default params to configure the store.
-func DefaultClientParameters() *ClientParameters {
-	return &ClientParameters{
+func DefaultClientParameters() ClientParameters {
+	return ClientParameters{
 		MinResponses:         2,
 		MaxRequestSize:       512,
 		MaxHeadersPerRequest: 64,
