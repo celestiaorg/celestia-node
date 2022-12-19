@@ -204,9 +204,9 @@ func (s *Store) Blockstore() bstore.Blockstore {
 // in an individual CAR file.
 func (s *Store) CARBlockstore(
 	ctx context.Context,
-	dataHash []byte,
-) (dagstore.ReadBlockstore, *header.DataAvailabilityHeader, error) {
-	key := shard.KeyFromString(fmt.Sprintf("%X", dataHash))
+	dataHash share.DataHash,
+) (dagstore.ReadBlockstore, *share.Root, error) {
+	key := shard.KeyFromString(dataHash.String())
 	accessor, err := s.getAccessor(ctx, key)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to get accessor: %w", err)
