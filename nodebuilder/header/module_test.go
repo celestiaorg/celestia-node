@@ -35,7 +35,7 @@ func TestConstructModule_StoreParams(t *testing.T) {
 		fx.Provide(func() datastore.Batching {
 			return datastore.NewMapDatastore()
 		}),
-		ConstructModule(node.Light, &cfg),
+		ConstructModule(node.Light, modp2p.Private, &cfg),
 		fx.Invoke(
 			func(s header.Store) {
 				ss := s.(*store.Store)
@@ -91,15 +91,16 @@ func TestConstructModule_ExchangeParams(t *testing.T) {
 	cfg.Client.MaxHeadersPerRequest = 15
 	var exchange *p2p.Exchange
 	var exchangeServer *p2p.ExchangeServer
+	network := modp2p.Private
 
 	app := fxtest.New(t,
-		fx.Supply(modp2p.Private),
+		fx.Supply(network),
 		fx.Supply(modp2p.Bootstrappers{}),
 		fx.Provide(libp2p.New),
 		fx.Provide(func() datastore.Batching {
 			return datastore.NewMapDatastore()
 		}),
-		ConstructModule(node.Light, &cfg),
+		ConstructModule(node.Light, network, &cfg),
 		fx.Provide(func(b datastore.Batching) (*conngater.BasicConnectionGater, error) {
 			return conngater.NewBasicConnectionGater(b)
 		}),

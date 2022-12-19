@@ -19,7 +19,7 @@ import (
 
 var log = logging.Logger("module/header")
 
-func ConstructModule(tp node.Type, cfg *Config) fx.Option {
+func ConstructModule(tp node.Type, network modp2p.Network, cfg *Config) fx.Option {
 	// sanitize config values before constructing module
 	cfgErr := cfg.Validate(tp)
 
@@ -43,7 +43,7 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 					p2p.WithReadDeadline(cfg.Server.ReadDeadline),
 					p2p.WithMaxRequestSize[p2p.ServerParameters](cfg.Server.MaxRequestSize),
 					p2p.WithRequestTimeout[p2p.ServerParameters](cfg.Server.RequestTimeout),
-					p2p.WithProtocolSuffix[p2p.ServerParameters](string(modp2p.DefaultNetwork)),
+					p2p.WithProtocolSuffix[p2p.ServerParameters](string(network)),
 				}
 			}),
 		fx.Provide(NewHeaderService),
@@ -114,7 +114,7 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 						p2p.WithDefaultScore(cfg.Client.DefaultScore),
 						p2p.WithRequestTimeout[p2p.ClientParameters](cfg.Client.RequestTimeout),
 						p2p.WithMaxTrackerSize(cfg.Client.MaxPeerTrackerSize),
-						p2p.WithProtocolSuffix[p2p.ClientParameters](string(modp2p.DefaultNetwork)),
+						p2p.WithProtocolSuffix[p2p.ClientParameters](string(network)),
 					}
 				},
 			),
