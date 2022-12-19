@@ -185,11 +185,11 @@ func (s *Store) Put(ctx context.Context, root share.DataHash, square *rsmt2d.Ext
 // Caller must Close returned reader after reading.
 func (s *Store) GetCAR(ctx context.Context, root share.DataHash) (io.ReadCloser, error) {
 	key := root.String()
-	accessor, err := s.getAccessor(ctx, shard.KeyFromString(key))
+	accessor, err := s.acquireShard(ctx, shard.KeyFromString(key))
 	if err != nil {
 		return nil, fmt.Errorf("failed to get accessor: %w", err)
 	}
-	return accessor.sa, nil
+	return accessor, nil
 }
 
 // Blockstore returns an IPFS blockstore providing access to individual shares/nodes of all EDS
@@ -200,29 +200,31 @@ func (s *Store) Blockstore() bstore.Blockstore {
 	return s.bs
 }
 
-// CARBlockstore returns the IPFS blockstore and DAH that provides access to the IPLD blocks stored
-// in an individual CAR file.
+// CARBlockstore returns an IPFS Blockstore providing access to individual shares/nodes of a specific EDS identified by
+// DataHash and registered on the Store. NOTE: The Blockstore does not store whole Celestia Blocks but IPFS blocks.
+// We represent `shares` and NMT Merkle proofs as IPFS blocks and IPLD nodes so Bitswap can access those.
 func (s *Store) CARBlockstore(
 	ctx context.Context,
 	dataHash share.DataHash,
 ) (dagstore.ReadBlockstore, *share.Root, error) {
 	key := shard.KeyFromString(dataHash.String())
-	accessor, err := s.getAccessor(ctx, key)
+	shardAccessor, err := s.acquireShard(ctx, key)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to get accessor: %w", err)
 	}
 
-	reader, err := carv1.NewCarReader(accessor.sa)
+	reader, err := carv1.NewCarReader(shardAccessor)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to read DAH from car reader: %w", err)
 	}
 	dah := dahFromCARHeader(reader.Header)
-	err = accessor.sa.Close()
+
+	bs, err := shardAccessor.Blockstore()
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to close car reader after DAH retrieval: %w", err)
+		return nil, nil, fmt.Errorf("failed to get blockstore from shard accessor: %w", err)
 	}
 
-	return accessor.bs, dah, nil
+	return bs, dah, nil
 }
 
 // dahFromCARHeader returns the DataAvailabilityHeader stored in the CIDs of a CARv1 header.
@@ -238,6 +240,24 @@ func dahFromCARHeader(carHeader *carv1.CarHeader) *header.DataAvailabilityHeader
 	}
 }
 
+func (s *Store) acquireShard(ctx context.Context, key shard.Key) (*dagstore.ShardAccessor, error) {
+	ch := make(chan dagstore.ShardResult, 1)
+	err := s.dgstr.AcquireShard(ctx, key, ch, dagstore.AcquireOpts{})
+	if err != nil {
+		return nil, fmt.Errorf("failed to initialize shard acquisition: %w", err)
+	}
+
+	select {
+	case res := <-ch:
+		if res.Error != nil {
+			return nil, fmt.Errorf("failed to acquire shard: %w", res.Error)
+		}
+		return res.Accessor, nil
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	}
+}
+
 func (s *Store) getAccessor(ctx context.Context, key shard.Key) (*accessorWithBlockstore, error) {
 	// try to fetch from cache
 	accessor, err := s.cache.Get(key)
@@ -249,21 +269,11 @@ func (s *Store) getAccessor(ctx context.Context, key shard.Key) (*accessorWithBl
 	}
 
 	// wasn't found in cache, so acquire it and add to cache
-	ch := make(chan dagstore.ShardResult, 1)
-	err = s.dgstr.AcquireShard(ctx, key, ch, dagstore.AcquireOpts{})
+	shardAccessor, err := s.acquireShard(ctx, key)
 	if err != nil {
-		return nil, fmt.Errorf("failed to initialize shard acquisition: %w", err)
+		return nil, err
 	}
-
-	select {
-	case res := <-ch:
-		if res.Error != nil {
-			return nil, fmt.Errorf("failed to acquire shard: %w", res.Error)
-		}
-		return s.cache.Add(key, res.Accessor)
-	case <-ctx.Done():
-		return nil, ctx.Err()
-	}
+	return s.cache.Add(key, shardAccessor)
 }
 
 // Remove removes EDS from Store by the given share.Root hash and cleans up all
