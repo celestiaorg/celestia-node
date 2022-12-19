@@ -32,7 +32,7 @@ func TestBlockstore_Operations(t *testing.T) {
 	require.NoError(t, err)
 
 	topLevelBS := edsStore.Blockstore()
-	carBS, err := edsStore.CARBlockstore(ctx, dah.Hash())
+	carBS, _, err := edsStore.CARBlockstore(ctx, dah.Hash())
 	require.NoError(t, err)
 
 	blockstores := []dagstore.ReadBlockstore{topLevelBS, carBS}

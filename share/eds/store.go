@@ -14,10 +14,13 @@ import (
 	"github.com/filecoin-project/dagstore/shard"
 	"github.com/ipfs/go-datastore"
 	bstore "github.com/ipfs/go-ipfs-blockstore"
+	carv1 "github.com/ipld/go-car"
 
 	"github.com/celestiaorg/rsmt2d"
 
+	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/share"
+	"github.com/celestiaorg/celestia-node/share/ipld"
 )
 
 const (
@@ -197,16 +200,42 @@ func (s *Store) Blockstore() bstore.Blockstore {
 	return s.bs
 }
 
-// CARBlockstore returns the IPFS blockstore that provides access to the IPLD blocks stored in an
-// individual CAR file.
-func (s *Store) CARBlockstore(ctx context.Context, dataHash []byte) (dagstore.ReadBlockstore, error) {
+// CARBlockstore returns the IPFS blockstore and DAH that provides access to the IPLD blocks stored
+// in an individual CAR file.
+func (s *Store) CARBlockstore(
+	ctx context.Context,
+	dataHash []byte,
+) (dagstore.ReadBlockstore, *header.DataAvailabilityHeader, error) {
 	key := shard.KeyFromString(fmt.Sprintf("%X", dataHash))
 	accessor, err := s.getAccessor(ctx, key)
 	if err != nil {
-		return nil, err
+		return nil, nil, fmt.Errorf("failed to get accessor: %w", err)
 	}
 
-	return accessor.bs, nil
+	reader, err := carv1.NewCarReader(accessor.sa)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to read DAH from car reader: %w", err)
+	}
+	dah := dahFromCARHeader(reader.Header)
+	err = accessor.sa.Close()
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to close car reader after DAH retrieval: %w", err)
+	}
+
+	return accessor.bs, dah, nil
+}
+
+// dahFromCARHeader returns the DataAvailabilityHeader stored in the CIDs of a CARv1 header.
+func dahFromCARHeader(carHeader *carv1.CarHeader) *header.DataAvailabilityHeader {
+	rootCount := len(carHeader.Roots)
+	rootBytes := make([][]byte, rootCount)
+	for i, root := range carHeader.Roots {
+		rootBytes[i] = ipld.NamespacedSha256FromCID(root)
+	}
+	return &header.DataAvailabilityHeader{
+		RowsRoots:   rootBytes[:rootCount/2],
+		ColumnRoots: rootBytes[rootCount/2:],
+	}
 }
 
 func (s *Store) getAccessor(ctx context.Context, key shard.Key) (*accessorWithBlockstore, error) {

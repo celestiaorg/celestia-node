@@ -210,8 +210,9 @@ func Test_BlockstoreCache(t *testing.T) {
 	assert.ErrorIs(t, err, errCacheMiss)
 
 	// now get it, so that the key is in the cache
-	_, err = edsStore.CARBlockstore(ctx, dah.Hash())
+	_, newDAH, err := edsStore.CARBlockstore(ctx, dah.Hash())
 	assert.NoError(t, err)
+	assert.True(t, dah.Equals(newDAH), "DAH integrity mismatch")
 	_, err = edsStore.cache.Get(shardKey)
 	assert.NoError(t, err, errCacheMiss)
 }
