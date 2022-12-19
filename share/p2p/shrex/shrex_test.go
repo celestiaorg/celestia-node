@@ -15,7 +15,6 @@ import (
 	"github.com/celestiaorg/celestia-node/share"
 	availability_test "github.com/celestiaorg/celestia-node/share/availability/test"
 	"github.com/celestiaorg/celestia-node/share/eds"
-	"github.com/celestiaorg/celestia-node/share/ipld"
 	"github.com/celestiaorg/nmt/namespace"
 	"github.com/celestiaorg/rsmt2d"
 )
@@ -33,9 +32,7 @@ func TestGetSharesWithProofByNamespace(t *testing.T) {
 	require.NoError(t, err)
 
 	// create server and register handler
-	getter := &mockGetter{}
 	srv := StartServer(net.NewTestNode().Host, edsStore)
-	srv.getter = getter
 	t.Cleanup(srv.Stop)
 
 	// create client
@@ -43,12 +40,11 @@ func TestGetSharesWithProofByNamespace(t *testing.T) {
 
 	net.ConnectAll()
 
-	// generate test data
-	blob, eds, nID := generateTest(t)
+	eds, nID := generateTestEDS(t)
 	dah := da.NewDataAvailabilityHeader(eds)
 
 	// put data into the store and getter mock
-	getter.blob = blob
+	srv.testDAH = &dah
 	err = edsStore.Put(ctx, dah.Hash(), eds)
 	require.NoError(t, err)
 
@@ -70,7 +66,7 @@ func newStore(t *testing.T) (*eds.Store, error) {
 	return eds.NewStore(tmpDir, ds)
 }
 
-func generateTest(t *testing.T) (*share.Blob, *rsmt2d.ExtendedDataSquare, namespace.ID) {
+func generateTestEDS(t *testing.T) (*rsmt2d.ExtendedDataSquare, namespace.ID) {
 	shares := share.RandShares(t, 16)
 
 	from := rand.Intn(len(shares))
@@ -90,29 +86,5 @@ func generateTest(t *testing.T) (*share.Blob, *rsmt2d.ExtendedDataSquare, namesp
 	eds, err := share.AddShares(context.Background(), shares, bServ)
 	require.NoError(t, err)
 
-	var rows []share.VerifiedShares
-	for _, row := range eds.RowRoots() {
-		rcid := ipld.MustCidFromNamespacedSha256(row)
-
-		proof := new(ipld.Proof)
-		rowShares, err := share.GetSharesByNamespace(context.Background(), bServ, rcid, nID, len(eds.RowRoots()), proof)
-		require.NoError(t, err)
-
-		if len(rowShares) != 0 {
-			rows = append(rows, share.VerifiedShares{
-				Shares: rowShares,
-				Proof:  proof,
-			})
-		}
-	}
-
-	return &share.Blob{Rows: rows}, eds, nID
-}
-
-type mockGetter struct {
-	blob *share.Blob
-}
-
-func (m *mockGetter) GetBlobByNamespace(context.Context, *share.Root, namespace.ID) (*share.Blob, error) {
-	return m.blob, nil
+	return eds, nID
 }

@@ -5,16 +5,21 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/ipfs/go-blockservice"
+	"github.com/ipfs/go-cid"
 	logging "github.com/ipfs/go-log/v2"
 	"github.com/libp2p/go-libp2p-core/host"
 	"github.com/libp2p/go-libp2p-core/network"
 	"github.com/minio/sha256-simd"
+	"golang.org/x/sync/errgroup"
 
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/eds"
 	"github.com/celestiaorg/celestia-node/share/ipld"
 	share_p2p_v1 "github.com/celestiaorg/celestia-node/share/p2p/v1/pb"
 	"github.com/celestiaorg/go-libp2p-messenger/serde"
+	"github.com/celestiaorg/nmt"
+	"github.com/celestiaorg/nmt/namespace"
 )
 
 const ndProtocolID = "/shrex/nd/0.0.1"
@@ -29,18 +34,18 @@ const (
 
 type Server struct {
 	store        *eds.Store
-	getter       share.Getter
 	host         host.Host
 	writeTimeout time.Duration
 	readTimeout  time.Duration
 	serveTimeout time.Duration
+
+	// TODO: will be removed after CARBlockstore is implemented to return DAH
+	testDAH *share.Root
 }
 
 func StartServer(host host.Host, store *eds.Store) *Server {
-	getter := eds.NewGetter(store)
 	srv := &Server{
 		store:        store,
-		getter:       getter,
 		host:         host,
 		writeTimeout: writeTimeout,
 		readTimeout:  readTimeout,
@@ -83,14 +88,20 @@ func (srv *Server) handleNamespacedData(stream network.Stream) {
 	ctx, cancel := context.WithTimeout(context.Background(), srv.serveTimeout)
 	defer cancel()
 
-	dah, err := srv.store.GetDAH(ctx, req.RootHash)
+	bs, dah, err := srv.store.CARBlockstore(ctx, req.RootHash)
 	if err != nil {
 		log.Errorw("get header for datahash", "err", err)
 		srv.respondInternal(stream)
 		return
 	}
 
-	blob, err := srv.getter.GetBlobByNamespace(ctx, dah, req.NamespaceId)
+	// replace with testDAH with test one if in test
+	if srv.testDAH != nil {
+		dah = srv.testDAH
+	}
+
+	getter := eds.NewBlockGetter(bs)
+	blob, err := getBlobByNamespace(ctx, getter, dah, req.NamespaceId)
 	if err != nil {
 		log.Errorw("get shares", "err", err)
 		srv.respondInternal(stream)
@@ -99,6 +110,42 @@ func (srv *Server) handleNamespacedData(stream network.Stream) {
 
 	resp := blobToResponse(blob)
 	srv.respond(stream, resp)
+}
+
+func getBlobByNamespace(
+	ctx context.Context,
+	getter blockservice.BlockGetter,
+	root *share.Root,
+	nID namespace.ID,
+) (*share.Blob, error) {
+	rowRootCIDs := make([]cid.Cid, 0)
+	for _, row := range root.RowsRoots {
+		if !nID.Less(nmt.MinNamespace(row, nID.Size())) && nID.LessOrEqual(nmt.MaxNamespace(row, nID.Size())) {
+			rowRootCIDs = append(rowRootCIDs, ipld.MustCidFromNamespacedSha256(row))
+		}
+	}
+	if len(rowRootCIDs) == 0 {
+		return nil, nil
+	}
+
+	errGroup, ctx := errgroup.WithContext(ctx)
+	verifiedShares := make([]share.VerifiedShares, len(rowRootCIDs))
+	for i, rootCID := range rowRootCIDs {
+		// shadow loop variables, to ensure correct values are captured
+		i, rootCID := i, rootCID
+		errGroup.Go(func() (err error) {
+			proof := new(ipld.Proof)
+			shares, err := share.GetSharesByNamespace(ctx, getter, rootCID, nID, len(root.RowsRoots), proof)
+			verifiedShares[i].Shares = shares
+			verifiedShares[i].Proof = proof
+			return
+		})
+	}
+
+	if err := errGroup.Wait(); err != nil {
+		return nil, err
+	}
+	return &share.Blob{Rows: verifiedShares}, nil
 }
 
 // validateRequest checks correctness of the request
