@@ -203,13 +203,16 @@ SyncHead(ctx context.Context) (*header.ExtendedHeader, error)
 ```go
 
   type NodeModule interface {
-    // Type returns the node type.
-    Type() node.Type
-    // Version returns information about the current binary build.
-    Version() string
-   
+    // Info returns administrative information about the node.
+    Info(context.Context) (Info, error)
+ 
     // LogLevelSet sets the given component log level to the given level.
     LogLevelSet(ctx context.Context, name, level string) error
+
+    // AuthVerify returns the permissions assigned to the given token.
+    AuthVerify(ctx context.Context, token string) ([]auth.Permission, error)
+    // AuthNew signs and returns a new token with the given permissions.
+    AuthNew(ctx context.Context, perms []auth.Permission) ([]byte, error)
   }
   
 ```
@@ -243,15 +246,17 @@ SyncHead(ctx context.Context) (*header.ExtendedHeader, error)
     SubmitPayForData(
       ctx context.Context, 
       nID namespace.ID, 
-      data []byte, 
+      data []byte,
+      fee types.Int,
       gasLimit uint64,
     ) (*state.TxResponse, error)
     // Transfer sends the given amount of coins from default wallet of the node 
     // to the given account address.
     Transfer(
       ctx context.Context, 
-      to types.Address, 
-      amount types.Int, 
+      to types.Address,
+      amount types.Int,
+      fee types.Int,
       gasLimit uint64,
     ) (*state.TxResponse, error)
 
@@ -272,7 +277,8 @@ yet.
     Delegate(
         ctx context.Context, 
         delAddr state.ValAddress, 
-        amount state.Int, 
+        amount state.Int,
+        fee types.Int,
         gasLim uint64,
     ) (*state.TxResponse, error)
     // BeginRedelegate sends a user's delegated tokens to a new validator for redelegation.
@@ -281,6 +287,7 @@ yet.
         srcValAddr,
         dstValAddr state.ValAddress,
         amount state.Int,
+        fee types.Int,
         gasLim uint64, 
     ) (*state.TxResponse, error)
     // Undelegate undelegates a user's delegated tokens, unbonding them from the
@@ -289,6 +296,7 @@ yet.
         ctx context.Context, 
         delAddr state.ValAddress,
         amount state.Int,
+        fee types.Int,
         gasLim uint64,
     ) (*state.TxResponse, error)
 
@@ -297,8 +305,9 @@ yet.
     CancelUnbondingDelegation(
         ctx context.Context,
         valAddr state.ValAddress,
-        amount,
-        height state.Int,
+        amount types.Int,
+        height types.Int,
+        fee types.Int,
         gasLim uint64,
     ) (*state.TxResponse, error)
 

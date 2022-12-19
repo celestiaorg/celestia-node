@@ -91,6 +91,7 @@ lint:
 	@echo "--> Running linter"
 	@golangci-lint run
 	@markdownlint --config .markdownlint.yaml '**/*.md'
+	@cfmt -m=100 ./...
 .PHONY: lint
 
 ## test-unit: Running unit tests
@@ -151,6 +152,6 @@ pb-gen:
 ## openrpc-gen: Generate OpenRPC spec for Celestia-Node's RPC api
 openrpc-gen:
 	@echo "--> Generating OpenRPC spec"
-	@go run ./cmd/docgen fraud header state share das p2p
+	@go run ./cmd/docgen fraud header state share das p2p node
 .PHONY: openrpc-gen
 

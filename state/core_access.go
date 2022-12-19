@@ -7,12 +7,13 @@ import (
 	"time"
 
 	"github.com/cosmos/cosmos-sdk/api/tendermint/abci"
-	"github.com/cosmos/cosmos-sdk/store/rootmulti"
+	storetypes "github.com/cosmos/cosmos-sdk/store/types"
 	sdktypes "github.com/cosmos/cosmos-sdk/types"
 	sdktx "github.com/cosmos/cosmos-sdk/types/tx"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 	logging "github.com/ipfs/go-log/v2"
+	"github.com/tendermint/tendermint/crypto/merkle"
 	rpcclient "github.com/tendermint/tendermint/rpc/client"
 	"github.com/tendermint/tendermint/rpc/client/http"
 	"google.golang.org/grpc"
@@ -44,6 +45,8 @@ type CoreAccessor struct {
 	stakingCli stakingtypes.QueryClient
 	rpcCli     rpcclient.ABCIClient
 
+	prt *merkle.ProofRuntime
+
 	coreConn *grpc.ClientConn
 	coreIP   string
 	rpcPort  string
@@ -63,12 +66,17 @@ func NewCoreAccessor(
 	rpcPort string,
 	grpcPort string,
 ) *CoreAccessor {
+	// create verifier
+	prt := merkle.DefaultProofRuntime()
+	prt.RegisterOpDecoder(storetypes.ProofOpIAVLCommitment, storetypes.CommitmentOpDecoder)
+	prt.RegisterOpDecoder(storetypes.ProofOpSimpleMerkleCommitment, storetypes.CommitmentOpDecoder)
 	return &CoreAccessor{
 		signer:   signer,
 		getter:   getter,
 		coreIP:   coreIP,
 		rpcPort:  rpcPort,
 		grpcPort: grpcPort,
+		prt:      prt,
 	}
 }
 
@@ -97,6 +105,7 @@ func (ca *CoreAccessor) Start(ctx context.Context) error {
 		return err
 	}
 	ca.rpcCli = cli
+
 	return nil
 }
 
@@ -149,9 +158,10 @@ func (ca *CoreAccessor) SubmitPayForData(
 	ctx context.Context,
 	nID namespace.ID,
 	data []byte,
+	fee Int,
 	gasLim uint64,
 ) (*TxResponse, error) {
-	response, err := payment.SubmitPayForData(ctx, ca.signer, ca.coreConn, nID, data, gasLim)
+	response, err := payment.SubmitPayForData(ctx, ca.signer, ca.coreConn, nID, data, gasLim, withFee(fee))
 	// metrics should only be counted on a successful PFD tx
 	if err == nil && response.Code == 0 {
 		ca.lastPayForData = time.Now().UnixMilli()
@@ -220,9 +230,12 @@ func (ca *CoreAccessor) BalanceForAddress(ctx context.Context, addr Address) (*B
 		return nil, fmt.Errorf("cannot convert %s into sdktypes.Int", string(value))
 	}
 	// verify balance
-	path := fmt.Sprintf("/%s/%s", banktypes.StoreKey, string(prefixedAccountKey))
-	prt := rootmulti.DefaultProofRuntime()
-	err = prt.VerifyValue(result.Response.GetProofOps(), head.AppHash, path, value)
+	err = ca.prt.VerifyValueKeys(
+		result.Response.GetProofOps(),
+		head.AppHash,
+		[][]byte{[]byte(banktypes.StoreKey),
+			prefixedAccountKey,
+		}, value)
 	if err != nil {
 		return nil, err
 	}
@@ -256,7 +269,8 @@ func (ca *CoreAccessor) SubmitTxWithBroadcastMode(
 func (ca *CoreAccessor) Transfer(
 	ctx context.Context,
 	addr AccAddress,
-	amount Int,
+	amount,
+	fee Int,
 	gasLim uint64,
 ) (*TxResponse, error) {
 	if amount.IsNil() || amount.Int64() <= 0 {
@@ -269,7 +283,7 @@ func (ca *CoreAccessor) Transfer(
 	}
 	coins := sdktypes.NewCoins(sdktypes.NewCoin(app.BondDenom, amount))
 	msg := banktypes.NewMsgSend(from, addr, coins)
-	signedTx, err := ca.constructSignedTx(ctx, msg, apptypes.SetGasLimit(gasLim))
+	signedTx, err := ca.constructSignedTx(ctx, msg, apptypes.SetGasLimit(gasLim), withFee(fee))
 	if err != nil {
 		return nil, err
 	}
@@ -280,7 +294,8 @@ func (ca *CoreAccessor) CancelUnbondingDelegation(
 	ctx context.Context,
 	valAddr ValAddress,
 	amount,
-	height Int,
+	height,
+	fee Int,
 	gasLim uint64,
 ) (*TxResponse, error) {
 	if amount.IsNil() || amount.Int64() <= 0 {
@@ -293,7 +308,7 @@ func (ca *CoreAccessor) CancelUnbondingDelegation(
 	}
 	coins := sdktypes.NewCoin(app.BondDenom, amount)
 	msg := stakingtypes.NewMsgCancelUnbondingDelegation(from, valAddr, height.Int64(), coins)
-	signedTx, err := ca.constructSignedTx(ctx, msg, apptypes.SetGasLimit(gasLim))
+	signedTx, err := ca.constructSignedTx(ctx, msg, apptypes.SetGasLimit(gasLim), withFee(fee))
 	if err != nil {
 		return nil, err
 	}
@@ -304,7 +319,8 @@ func (ca *CoreAccessor) BeginRedelegate(
 	ctx context.Context,
 	srcValAddr,
 	dstValAddr ValAddress,
-	amount Int,
+	amount,
+	fee Int,
 	gasLim uint64,
 ) (*TxResponse, error) {
 	if amount.IsNil() || amount.Int64() <= 0 {
@@ -317,7 +333,7 @@ func (ca *CoreAccessor) BeginRedelegate(
 	}
 	coins := sdktypes.NewCoin(app.BondDenom, amount)
 	msg := stakingtypes.NewMsgBeginRedelegate(from, srcValAddr, dstValAddr, coins)
-	signedTx, err := ca.constructSignedTx(ctx, msg, apptypes.SetGasLimit(gasLim))
+	signedTx, err := ca.constructSignedTx(ctx, msg, apptypes.SetGasLimit(gasLim), withFee(fee))
 	if err != nil {
 		return nil, err
 	}
@@ -327,7 +343,8 @@ func (ca *CoreAccessor) BeginRedelegate(
 func (ca *CoreAccessor) Undelegate(
 	ctx context.Context,
 	delAddr ValAddress,
-	amount Int,
+	amount,
+	fee Int,
 	gasLim uint64,
 ) (*TxResponse, error) {
 	if amount.IsNil() || amount.Int64() <= 0 {
@@ -340,7 +357,7 @@ func (ca *CoreAccessor) Undelegate(
 	}
 	coins := sdktypes.NewCoin(app.BondDenom, amount)
 	msg := stakingtypes.NewMsgUndelegate(from, delAddr, coins)
-	signedTx, err := ca.constructSignedTx(ctx, msg, apptypes.SetGasLimit(gasLim))
+	signedTx, err := ca.constructSignedTx(ctx, msg, apptypes.SetGasLimit(gasLim), withFee(fee))
 	if err != nil {
 		return nil, err
 	}
@@ -351,6 +368,7 @@ func (ca *CoreAccessor) Delegate(
 	ctx context.Context,
 	delAddr ValAddress,
 	amount Int,
+	fee Int,
 	gasLim uint64,
 ) (*TxResponse, error) {
 	if amount.IsNil() || amount.Int64() <= 0 {
@@ -363,7 +381,7 @@ func (ca *CoreAccessor) Delegate(
 	}
 	coins := sdktypes.NewCoin(app.BondDenom, amount)
 	msg := stakingtypes.NewMsgDelegate(from, delAddr, coins)
-	signedTx, err := ca.constructSignedTx(ctx, msg, apptypes.SetGasLimit(gasLim))
+	signedTx, err := ca.constructSignedTx(ctx, msg, apptypes.SetGasLimit(gasLim), withFee(fee))
 	if err != nil {
 		return nil, err
 	}
@@ -415,4 +433,9 @@ func (ca *CoreAccessor) QueryRedelegations(
 
 func (ca *CoreAccessor) IsStopped(context.Context) bool {
 	return ca.ctx.Err() != nil
+}
+
+func withFee(fee Int) apptypes.TxBuilderOption {
+	gasFee := sdktypes.NewCoins(sdktypes.NewCoin(app.BondDenom, fee))
+	return apptypes.SetFeeAmount(gasFee)
 }

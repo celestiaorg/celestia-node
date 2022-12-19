@@ -41,6 +41,7 @@ func ConstructModule(tp node.Type, network p2p.Network, cfg *Config, store Store
 		core.ConstructModule(tp, &cfg.Core),
 		das.ConstructModule(tp, &cfg.DASer),
 		fraud.ConstructModule(tp),
+		node.ConstructModule(tp),
 	)
 
 	return fx.Module(

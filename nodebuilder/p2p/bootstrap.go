@@ -31,7 +31,7 @@ var bootstrapList = map[Network][]string{
 		"/dns4/marsellesa.celestia-devops.dev/tcp/2121/p2p/12D3KooWHr2wqFAsMXnPzpFsgxmePgXb8BqpkePebwUgLyZc95bd",
 		"/dns4/parainem.celestia-devops.dev/tcp/2121/p2p/12D3KooWHX8xpwg8qkP7kLKmKGtgZvmsopvgxc6Fwtu665QC7G8q",
 	},
-	Mamaki: {
+	Mocha: {
 		"/dns4/andromeda.celestia-devops.dev/tcp/2121/p2p/12D3KooWKvPXtV1yaQ6e3BRNUHa5Phh8daBwBi3KkGaSSkUPys6D",
 		"/dns4/libra.celestia-devops.dev/tcp/2121/p2p/12D3KooWK5aDotDcLsabBmWDazehQLMsDkRyARm1k7f1zGAXqbt4",
 		"/dns4/norma.celestia-devops.dev/tcp/2121/p2p/12D3KooWHYczJDVNfYVkLcNHPTDKCeiVvRhg8Q9JU3bE3m9eEVyY",

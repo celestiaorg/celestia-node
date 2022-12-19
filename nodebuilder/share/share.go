@@ -28,7 +28,8 @@ var _ Module = (*API)(nil)
 //
 //go:generate mockgen -destination=mocks/api.go -package=mocks . Module
 type Module interface {
-	// SharesAvailable subjectively validates if Shares committed to the given Root are available on the Network.
+	// SharesAvailable subjectively validates if Shares committed to the given Root are available on
+	// the Network.
 	SharesAvailable(context.Context, *share.Root) error
 	// ProbabilityOfAvailability calculates the probability of the data square
 	// being available based on the number of samples collected.
