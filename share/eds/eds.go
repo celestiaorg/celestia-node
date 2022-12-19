@@ -29,10 +29,6 @@ import (
 	"github.com/celestiaorg/celestia-node/share/ipld"
 )
 
-// childHashLen is the length of each half of an inner node's data. It consists of the respective
-// min and max namespaces, followed by a sha256 hash.
-const childHashLen = (appconsts.NamespaceSize * 2) + sha256.Size
-
 var ErrEmptySquare = errors.New("share: importing empty data")
 
 // writingSession contains the components needed to write an EDS to a CARv1 file with our custom
@@ -112,7 +108,7 @@ func initializeWriter(ctx context.Context, eds *rsmt2d.ExtendedDataSquare, w io.
 	return &writingSession{
 		eds:    eds,
 		store:  store,
-		hasher: nmt.NewNmtHasher(sha256.New(), appconsts.NamespaceSize, true),
+		hasher: nmt.NewNmtHasher(sha256.New(), ipld.NamespaceSize, ipld.NMTIgnoreMaxNamespace),
 		w:      w,
 	}, nil
 }
@@ -162,7 +158,7 @@ func (w *writingSession) writeProofs(ctx context.Context) error {
 		}
 
 		node := block.RawData()
-		left, right := node[:childHashLen], node[childHashLen:]
+		left, right := node[:ipld.NmtHashSize], node[ipld.NmtHashSize:]
 		cid, err := ipld.CidFromNamespacedSha256(w.hasher.HashNode(left, right))
 		if err != nil {
 			return fmt.Errorf("getting cid: %w", err)
@@ -209,11 +205,10 @@ func getQuadrantCells(eds *rsmt2d.ExtendedDataSquare, i, j uint) [][]byte {
 
 // prependNamespace adds the namespace to the passed share if in the first quadrant,
 // otherwise it adds the ParitySharesNamespace to the beginning.
-// TODO(@walldiss): this method will be obselete once the redundant namespace is removed
 func prependNamespace(quadrant int, share []byte) []byte {
 	switch quadrant {
 	case 0:
-		return append(share[:appconsts.NamespaceSize], share...)
+		return append(share[:ipld.NamespaceSize], share...)
 	case 1, 2, 3:
 		return append(appconsts.ParitySharesNamespaceID, share...)
 	default:
@@ -258,8 +253,7 @@ func ReadEDS(ctx context.Context, r io.Reader, root share.DataHash) (*rsmt2d.Ext
 		}
 		// the stored first quadrant shares are wrapped with the namespace twice.
 		// we cut it off here, because it is added again while importing to the tree below
-		// TODO(@walldiss): remove redundant namespace
-		shares[i] = block.RawData()[appconsts.NamespaceSize:]
+		shares[i] = block.RawData()[ipld.NamespaceSize:]
 	}
 
 	eds, err := rsmt2d.ComputeExtendedDataSquare(
