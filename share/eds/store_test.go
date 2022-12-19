@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/filecoin-project/dagstore/shard"
-	"github.com/ipfs/go-blockservice"
 	"github.com/ipfs/go-datastore"
 	ds_sync "github.com/ipfs/go-datastore/sync"
 	"github.com/ipld/go-car"
@@ -215,30 +214,6 @@ func Test_BlockstoreCache(t *testing.T) {
 	assert.NoError(t, err)
 	_, err = edsStore.cache.Get(shardKey)
 	assert.NoError(t, err, errCacheMiss)
-}
-
-func Test_EmptyCARExists(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	t.Cleanup(cancel)
-
-	edsStore, err := newStore(t)
-	require.NoError(t, err)
-	err = edsStore.Start(ctx)
-	require.NoError(t, err)
-
-	bServ := blockservice.New(edsStore.Blockstore(), nil)
-	eds, _ := share.EnsureEmptySquareExists(ctx, bServ)
-	dah := da.NewDataAvailabilityHeader(eds)
-
-	// assert that the empty car exists
-	has, err := edsStore.Has(ctx, dah.Hash())
-	assert.True(t, has)
-	assert.NoError(t, err)
-
-	// assert that the empty car is, in fact, empty
-	emptyEds, err := edsStore.Get(ctx, dah.Hash())
-	assert.Equal(t, eds.Flattened(), emptyEds.Flattened())
-	assert.NoError(t, err)
 }
 
 func newStore(t *testing.T) (*Store, error) {
