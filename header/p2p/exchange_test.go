@@ -103,7 +103,9 @@ func TestExchange_RequestFullRangeHeaders(t *testing.T) {
 		servers[index], err = NewExchangeServer(hosts[index], store, protocolSuffix)
 		require.NoError(t, err)
 		servers[index].Start(context.Background()) //nolint:errcheck
+		exchange.peerTracker.peerLk.Lock()
 		exchange.peerTracker.trackedPeers[hosts[index].ID()] = &peerStat{peerID: hosts[index].ID()}
+		exchange.peerTracker.peerLk.Unlock()
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
@@ -137,13 +139,13 @@ func TestExchange_RequestHeadersFromAnotherPeer(t *testing.T) {
 	t.Cleanup(func() {
 		serverSideEx.Stop(context.Background()) //nolint:errcheck
 	})
-	// add higher score to peer that does not have the requesting range.
-	exchg.peerTracker.trackedPeers[hosts[1].ID()] = &peerStat{peerID: hosts[1].ID(), peerScore: 100}
+	exchg.peerTracker.peerLk.Lock()
 	exchg.peerTracker.trackedPeers[hosts[2].ID()] = &peerStat{peerID: hosts[2].ID(), peerScore: 20}
+	exchg.peerTracker.peerLk.Unlock()
 	_, err = exchg.GetRangeByHeight(context.Background(), 5, 3)
 	require.NoError(t, err)
 	// ensure that peerScore for the second peer is changed
-	newPeerScore := exchg.peerTracker.trackedPeers[hosts[2].ID()].peerScore
+	newPeerScore := exchg.peerTracker.trackedPeers[hosts[2].ID()].score()
 	require.NotEqual(t, 20, newPeerScore)
 }
 
@@ -309,6 +311,7 @@ func createP2PExAndServer(t *testing.T, host, tpeer libhost.Host) (header.Exchan
 	require.NoError(t, err)
 	ex, err := NewExchange(host, []peer.ID{tpeer.ID()}, "private", connGater)
 	require.NoError(t, err)
+	ex.peerTracker.trackedPeers[tpeer.ID()] = &peerStat{peerID: tpeer.ID(), peerScore: 100}
 	require.NoError(t, ex.Start(context.Background()))
 
 	t.Cleanup(func() {

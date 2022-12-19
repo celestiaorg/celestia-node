@@ -31,6 +31,8 @@ type session struct {
 	// peerTracker contains discovered peers with records that describes their activity.
 	peerTracker *peerTracker
 
+	// `from` is set when additional validation for range is needed.
+	// Otherwise, it will be nil.
 	from *header.ExtendedHeader
 
 	ctx    context.Context
@@ -192,10 +194,12 @@ func (s *session) processResponse(responses []*p2p_pb.ExtendedHeaderResponse) ([
 
 // validate checks that the received range of headers is valid against the provided header.
 func (s *session) validate(headers []*header.ExtendedHeader) error {
+	// if `from` is empty, then additional validation for the header`s range is not needed.
 	if s.from == nil {
 		return nil
 	}
 
+	// verify that the first header in range is valid against the trusted header.
 	err := s.from.VerifyNonAdjacent(headers[0])
 	if err != nil {
 		return nil
@@ -206,6 +210,7 @@ func (s *session) validate(headers []*header.ExtendedHeader) error {
 	}
 
 	trusted := headers[0]
+	// verify that the whole range is valid.
 	for i := 1; i < len(headers); i++ {
 		err = trusted.VerifyAdjacent(headers[i])
 		if err != nil {
