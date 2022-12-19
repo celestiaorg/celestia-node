@@ -152,7 +152,6 @@ func DefaultClientParameters() ClientParameters {
 		DefaultScore:         1,
 		RequestTimeout:       time.Second * 3,
 		MaxPeerTrackerSize:   100,
-		protocolSuffix:       "",
 	}
 }
 
