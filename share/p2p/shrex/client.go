@@ -15,7 +15,6 @@ import (
 	"github.com/celestiaorg/celestia-node/share/ipld"
 	share_p2p_v1 "github.com/celestiaorg/celestia-node/share/p2p/v1/pb"
 	"github.com/celestiaorg/go-libp2p-messenger/serde"
-	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/nmt/namespace"
 )
 
@@ -44,43 +43,33 @@ func NewClient(host host.Host, defaultTimeout time.Duration) *Client {
 	}
 }
 
-// GetSharesWithProofs request shares with option to collect proofs from remote peers using shrex protocol
-func (c *Client) GetSharesWithProofs(
-	ctx context.Context,
-	rootHash []byte,
-	rowRoots [][]byte,
-	_ int,
-	nID namespace.ID,
-	collectProofs bool,
-) ([]share.SharesWithProof, error) {
+// GetBlobByNamespace request shares with option to collect proofs from remote peers using shrex protocol
+func (c *Client) GetBlobByNamespace(ctx context.Context, root *share.Root, nID namespace.ID) (*share.Blob, error) {
 	peers := c.testPeers
 	if len(peers) == 0 { //nolint:staticcheck
 		//TODO: collect peers from discovery here
 	}
 
 	for _, peer := range peers {
-		sharesWithProof, err := c.getSharesWithProofs(
-			ctx, rootHash, rowRoots, nID, collectProofs, peer)
+		blob, err := c.getBlobByNamespace(
+			ctx, root, nID, peer)
 		if err != nil {
 			log.Debugw("peer returned err", "peer_id", peer.String(), "err", err)
 			continue
 		}
 
-		return sharesWithProof, nil
+		return blob, nil
 	}
 
 	return nil, errNotAvailable
 }
 
-// GetSharesWithProofs gets shares with option to collect Merkle proofs from remote host
-func (c *Client) getSharesWithProofs(
+// getBlobByNamespace gets shares with Merkle tree inclusion proofs from remote host
+func (c *Client) getBlobByNamespace(
 	ctx context.Context,
-	rootHash []byte,
-	rowRoots [][]byte,
-	nID namespace.ID,
-	collectProofs bool,
+	root *share.Root, nID namespace.ID,
 	peerID peer.ID,
-) ([]share.SharesWithProof, error) {
+) (*share.Blob, error) {
 	stream, err := c.host.NewStream(ctx, peerID, ndProtocolID)
 	if err != nil {
 		return nil, err
@@ -88,10 +77,8 @@ func (c *Client) getSharesWithProofs(
 	defer stream.Close()
 
 	req := &share_p2p_v1.GetSharesByNamespaceRequest{
-		RootHash:      rootHash,
-		RowRoots:      rowRoots,
-		NamespaceId:   nID,
-		CollectProofs: collectProofs,
+		RootHash:    root.Hash(),
+		NamespaceId: nID,
 	}
 
 	// if context doesn't have deadline use default one
@@ -112,7 +99,7 @@ func (c *Client) getSharesWithProofs(
 
 	err = stream.CloseWrite()
 	if err != nil {
-		log.Debugf("close write: %s", err)
+		log.Debugf("close write side of the stream: %s", err)
 	}
 
 	var resp share_p2p_v1.GetSharesByNamespaceResponse
@@ -125,24 +112,22 @@ func (c *Client) getSharesWithProofs(
 		return nil, fmt.Errorf("response code is not OK: %w", err)
 	}
 
-	sharesWithProof, err := responseToShares(resp.Rows)
+	blob, err := responseToBlob(resp.Rows)
 	if err != nil {
-		return nil, fmt.Errorf("converting resp proto: %w", err)
+		return nil, fmt.Errorf("convert response to blob: %w", err)
 	}
 
-	if collectProofs {
-		err = verifySharesWithProof(nID, rowRoots, sharesWithProof)
-		if err != nil {
-			return nil, err
-		}
+	err = blob.Verify(root, nID)
+	if err != nil {
+		return nil, err
 	}
 
-	return sharesWithProof, nil
+	return blob, nil
 }
 
-// responseToShares converts proto Rows to SharesWithProof
-func responseToShares(rows []*share_p2p_v1.Row) ([]share.SharesWithProof, error) {
-	shares := make([]share.SharesWithProof, 0, len(rows))
+// responseToBlob converts proto Rows to share.Blob
+func responseToBlob(rows []*share_p2p_v1.Row) (*share.Blob, error) {
+	shares := make([]share.VerifiedShares, 0, len(rows))
 	for _, row := range rows {
 		var proof *ipld.Proof
 		if row.Proof != nil {
@@ -150,7 +135,7 @@ func responseToShares(rows []*share_p2p_v1.Row) ([]share.SharesWithProof, error)
 			for _, node := range row.Proof.Nodes {
 				cid, err := cid.Cast(node)
 				if err != nil {
-					return nil, fmt.Errorf("cast proof node cid: %w", err)
+					return nil, fmt.Errorf("cast proofs node to cid: %w", err)
 				}
 				cids = append(cids, cid)
 			}
@@ -162,39 +147,12 @@ func responseToShares(rows []*share_p2p_v1.Row) ([]share.SharesWithProof, error)
 			}
 		}
 
-		shares = append(shares, share.SharesWithProof{
+		shares = append(shares, share.VerifiedShares{
 			Shares: row.Shares,
 			Proof:  proof,
 		})
 	}
-	return shares, nil
-}
-
-func verifySharesWithProof(nID namespace.ID, rowRoots [][]byte, sharesWithProof []share.SharesWithProof) error {
-	// select rows that contain shares for given namespaceID
-	selectedRoots := make([][]byte, 0)
-	for _, row := range rowRoots {
-		if !nID.Less(nmt.MinNamespace(row, nID.Size())) && nID.LessOrEqual(nmt.MaxNamespace(row, nID.Size())) {
-			selectedRoots = append(selectedRoots, row)
-		}
-	}
-
-	// check if returned data is correct size
-	if len(sharesWithProof) != len(selectedRoots) {
-		return fmt.Errorf("resp has incorrect returned amount of rows: %v, expected: %v",
-			len(sharesWithProof), len(rowRoots))
-	}
-
-	// verify with inclusion proof
-	for i := range sharesWithProof {
-		root := selectedRoots[i]
-		rcid := ipld.MustCidFromNamespacedSha256(root)
-		if !sharesWithProof[i].Verify(rcid, nID) {
-			return errors.New("shares failed verification")
-		}
-	}
-
-	return nil
+	return &share.Blob{Rows: shares}, nil
 }
 
 func statusToErr(code share_p2p_v1.StatusCode) error {
@@ -207,7 +165,7 @@ func statusToErr(code share_p2p_v1.StatusCode) error {
 		return errNotFound
 	case share_p2p_v1.StatusCode_INTERNAL:
 		return errServerInternal
-	case share_p2p_v1.StatusCode_REFUSE:
+	case share_p2p_v1.StatusCode_REFUSED:
 		return errConnRefused
 	}
 	return errInvalidStatusCode

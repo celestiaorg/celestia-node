@@ -2,21 +2,19 @@ package shrex
 
 import (
 	"context"
-	"errors"
 	"fmt"
-	"github.com/minio/sha256-simd"
 	"time"
 
 	logging "github.com/ipfs/go-log/v2"
 	"github.com/libp2p/go-libp2p-core/host"
 	"github.com/libp2p/go-libp2p-core/network"
+	"github.com/minio/sha256-simd"
 
 	"github.com/celestiaorg/celestia-node/share"
+	"github.com/celestiaorg/celestia-node/share/eds"
 	"github.com/celestiaorg/celestia-node/share/ipld"
 	share_p2p_v1 "github.com/celestiaorg/celestia-node/share/p2p/v1/pb"
 	"github.com/celestiaorg/go-libp2p-messenger/serde"
-	"github.com/celestiaorg/nmt"
-	"github.com/celestiaorg/nmt/namespace"
 )
 
 const ndProtocolID = "/shrex/nd/0.0.1"
@@ -30,15 +28,18 @@ const (
 )
 
 type Server struct {
-	getter       Getter
+	store        *eds.Store
+	getter       share.Getter
 	host         host.Host
 	writeTimeout time.Duration
 	readTimeout  time.Duration
 	serveTimeout time.Duration
 }
 
-func StartServer(host host.Host, getter Getter) *Server {
+func StartServer(host host.Host, store *eds.Store) *Server {
+	getter := eds.NewGetter(store)
 	srv := &Server{
+		store:        store,
 		getter:       getter,
 		host:         host,
 		writeTimeout: writeTimeout,
@@ -62,14 +63,14 @@ func (srv *Server) handleNamespacedData(stream network.Stream) {
 	var req share_p2p_v1.GetSharesByNamespaceRequest
 	_, err = serde.Read(stream, &req)
 	if err != nil {
-		log.Errorw("reading msg", "err", err)
+		log.Errorw("read msg", "err", err)
 		stream.Reset() //nolint:errcheck
 		return
 	}
 
 	err = stream.CloseRead()
 	if err != nil {
-		log.Debugf("close read: %s", err)
+		log.Debugf("close read side of the stream: %s", err)
 	}
 
 	err = validateRequest(req)
@@ -82,35 +83,26 @@ func (srv *Server) handleNamespacedData(stream network.Stream) {
 	ctx, cancel := context.WithTimeout(context.Background(), srv.serveTimeout)
 	defer cancel()
 
-	// select rows that contain shares for given namespaceID
-	nID := namespace.ID(req.NamespaceId)
-	selectedRoots := make([][]byte, 0)
-	for _, row := range req.RowRoots {
-		if !nID.Less(nmt.MinNamespace(row, nID.Size())) && nID.LessOrEqual(nmt.MaxNamespace(row, nID.Size())) {
-			selectedRoots = append(selectedRoots, row)
-		}
-	}
-	if len(selectedRoots) == 0 {
-		srv.respond(stream, sharesWithProofsToResponse(nil))
+	dah, err := srv.store.GetDAH(ctx, req.RootHash)
+	if err != nil {
+		log.Errorw("get header for datahash", "err", err)
+		srv.respondInternal(stream)
+		return
 	}
 
-	sharesWithProofs, err := srv.getter.GetSharesWithProofsByNamespace(
-		ctx, req.RootHash, selectedRoots, len(selectedRoots), req.NamespaceId, req.CollectProofs)
+	blob, err := srv.getter.GetBlobByNamespace(ctx, dah, req.NamespaceId)
 	if err != nil {
 		log.Errorw("get shares", "err", err)
 		srv.respondInternal(stream)
 		return
 	}
 
-	resp := sharesWithProofsToResponse(sharesWithProofs)
+	resp := blobToResponse(blob)
 	srv.respond(stream, resp)
 }
 
 // validateRequest checks correctness of the request
 func validateRequest(req share_p2p_v1.GetSharesByNamespaceRequest) error {
-	if len(req.RowRoots) == 0 {
-		return errors.New("no roots provided")
-	}
 	if len(req.NamespaceId) != ipld.NamespaceSize {
 		return fmt.Errorf("incorrect namespace id length: %v", len(req.NamespaceId))
 	}
@@ -118,11 +110,6 @@ func validateRequest(req share_p2p_v1.GetSharesByNamespaceRequest) error {
 		return fmt.Errorf("incorrect root hash length: %v", len(req.RootHash))
 	}
 
-	for _, row := range req.RowRoots {
-		if len(row) != ipld.NmtHashSize {
-			return fmt.Errorf("incorrect row root length: %v", len(row))
-		}
-	}
 	return nil
 }
 
@@ -134,29 +121,27 @@ func (srv *Server) respondInternal(stream network.Stream) {
 	srv.respond(stream, resp)
 }
 
-// sharesWithProofsToResponse encodes shares into proto and sends it to client with OK status code
-func sharesWithProofsToResponse(
-	shares []share.SharesWithProof,
-) *share_p2p_v1.GetSharesByNamespaceResponse {
-	rows := make([]*share_p2p_v1.Row, 0, len(shares))
-	for _, sh := range shares {
+// blobToResponse encodes shares into proto and sends it to client with OK status code
+func blobToResponse(blob *share.Blob) *share_p2p_v1.GetSharesByNamespaceResponse {
+	rows := make([]*share_p2p_v1.Row, 0, len(blob.Rows))
+	for _, row := range blob.Rows {
 		// construct proof
 		var proof *share_p2p_v1.Proof
-		if sh.Proof != nil {
-			nodes := make([][]byte, 0, len(sh.Proof.Nodes))
-			for _, cid := range sh.Proof.Nodes {
+		if row.Proof != nil {
+			nodes := make([][]byte, 0, len(row.Proof.Nodes))
+			for _, cid := range row.Proof.Nodes {
 				nodes = append(nodes, cid.Bytes())
 			}
 
 			proof = &share_p2p_v1.Proof{
-				Start: int64(sh.Proof.Start),
-				End:   int64(sh.Proof.End),
+				Start: int64(row.Proof.Start),
+				End:   int64(row.Proof.End),
 				Nodes: nodes,
 			}
 		}
 
 		row := &share_p2p_v1.Row{
-			Shares: sh.Shares,
+			Shares: row.Shares,
 			Proof:  proof,
 		}
 

@@ -4,9 +4,7 @@ package share.p2p.v1;
 
 message GetSharesByNamespaceRequest{
   bytes root_hash = 1;
-  repeated bytes row_roots = 2;
-  bytes namespace_id = 3;
-  bool collect_proofs = 4;
+  bytes namespace_id = 2;
 }
 
 message GetSharesByNamespaceResponse{
@@ -19,7 +17,7 @@ enum StatusCode {
   OK = 1;
   NOT_FOUND = 2;
   INTERNAL = 3;
-  REFUSE = 4;
+  REFUSED = 4;
 };
 
 message Row {
