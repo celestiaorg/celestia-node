@@ -200,9 +200,10 @@ func (s *Store) Blockstore() bstore.Blockstore {
 	return s.bs
 }
 
-// CARBlockstore returns an IPFS Blockstore providing access to individual shares/nodes of a specific EDS identified by
-// DataHash and registered on the Store. NOTE: The Blockstore does not store whole Celestia Blocks but IPFS blocks.
-// We represent `shares` and NMT Merkle proofs as IPFS blocks and IPLD nodes so Bitswap can access those.
+// CARBlockstore returns an IPFS Blockstore providing access to individual shares/nodes of a
+// specific EDS identified by DataHash and registered on the Store. NOTE: The Blockstore does not
+// store whole Celestia Blocks but IPFS blocks. We represent `shares` and NMT Merkle proofs as IPFS
+// blocks and IPLD nodes so Bitswap can access those.
 func (s *Store) CARBlockstore(
 	ctx context.Context,
 	dataHash share.DataHash,
