@@ -112,13 +112,6 @@ func DefaultClientParameters() ClientParameters {
 	}
 }
 
-// Empty checks if config was initialized.
-func (p *ClientParameters) Empty() bool {
-	return p.MinResponses == 0 && p.MaxRequestSize == 0 &&
-		p.MaxHeadersPerRequest == 0 && p.MaxAwaitingTime == 0 &&
-		p.DefaultScore == 0 && p.MaxPeerTrackerSize == 0
-}
-
 const (
 	greaterThenZero = "should be greater than 0"
 	providedSuffix  = "Provided value"
