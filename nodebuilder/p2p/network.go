@@ -32,11 +32,15 @@ type Bootstrappers []peer.AddrInfo
 var ErrInvalidNetwork = errors.New("params: invalid network")
 
 // Validate the network.
-func (n Network) Validate() error {
-	if _, ok := networksList[n]; !ok {
-		return ErrInvalidNetwork
+func (n Network) Validate() (Network, error) {
+	// return actual network if alias was provided
+	if net, ok := networkAliases[string(n)]; ok {
+		return net, nil
 	}
-	return nil
+	if _, ok := networksList[n]; !ok {
+		return "", ErrInvalidNetwork
+	}
+	return n, nil
 }
 
 // networksList is a strict list of all known long-standing networks.
@@ -46,10 +50,10 @@ var networksList = map[Network]struct{}{
 	Private: {},
 }
 
-// NetworkAliases is a strict list of all known long-standing networks
+// networkAliases is a strict list of all known long-standing networks
 // mapped from the string representation of their *alias* (rather than
 // their actual value) to the Network.
-var NetworkAliases = map[string]Network{
+var networkAliases = map[string]Network{
 	"arabica": Arabica,
 	"mocha":   Mocha,
 	"private": Private,

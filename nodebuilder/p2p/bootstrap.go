@@ -17,7 +17,9 @@ func BootstrappersFor(net Network) (Bootstrappers, error) {
 
 // bootstrappersFor reports multiaddresses of bootstrap peers for a given network.
 func bootstrappersFor(net Network) ([]string, error) {
-	if err := net.Validate(); err != nil {
+	var err error
+	net, err = net.Validate()
+	if err != nil {
 		return nil, err
 	}
 
