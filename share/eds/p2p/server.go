@@ -67,7 +67,8 @@ func (s *Server) handleStream(stream network.Stream) {
 	}
 
 	// ensure the requested dataHash is a valid root
-	err = share.DataHash(req.Hash).Validate()
+	hash := share.DataHash(req.Hash)
+	err = hash.Validate()
 	if err != nil {
 		stream.Reset() //nolint:errcheck
 		return
@@ -77,7 +78,7 @@ func (s *Server) handleStream(stream network.Stream) {
 	defer cancel()
 	status := p2p_pb.Status_OK
 	// determine whether the EDS is available in our store
-	edsReader, err := s.store.GetCAR(ctx, req.Hash)
+	edsReader, err := s.store.GetCAR(ctx, hash)
 	if err != nil {
 		status = p2p_pb.Status_NOT_FOUND
 	} else {
@@ -108,14 +109,13 @@ func (s *Server) handleStream(stream network.Stream) {
 	err = stream.Close()
 	if err != nil {
 		log.Errorw("server: closing stream", "err", err)
-		return
 	}
 }
 
 func (s *Server) readRequest(stream network.Stream) (*p2p_pb.EDSRequest, error) {
 	err := stream.SetReadDeadline(time.Now().Add(readDeadline))
 	if err != nil {
-		log.Warn(err)
+		log.Debug(err)
 	}
 
 	req := new(p2p_pb.EDSRequest)
@@ -134,7 +134,7 @@ func (s *Server) readRequest(stream network.Stream) (*p2p_pb.EDSRequest, error) 
 func (s *Server) writeStatus(status p2p_pb.Status, stream network.Stream) error {
 	err := stream.SetWriteDeadline(time.Now().Add(writeDeadline))
 	if err != nil {
-		log.Warn(err)
+		log.Debug(err)
 	}
 
 	resp := &p2p_pb.EDSResponse{Status: status}
@@ -145,7 +145,7 @@ func (s *Server) writeStatus(status p2p_pb.Status, stream network.Stream) error 
 func (s *Server) writeODS(edsReader io.ReadCloser, stream network.Stream) error {
 	err := stream.SetWriteDeadline(time.Now().Add(writeDeadline))
 	if err != nil {
-		log.Warn(err)
+		log.Debug(err)
 	}
 
 	odsReader, err := eds.ODSReader(edsReader)

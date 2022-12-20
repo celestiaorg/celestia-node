@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"net"
 
-	logging "github.com/ipfs/go-log/v2"
 	"github.com/libp2p/go-libp2p-core/host"
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/libp2p/go-libp2p-core/protocol"
@@ -19,13 +18,7 @@ import (
 	"github.com/celestiaorg/rsmt2d"
 )
 
-var log = logging.Logger("shrex/eds")
-
 var errNoMorePeers = errors.New("all peers returned invalid responses")
-
-func protocolID(protocolSuffix string) protocol.ID {
-	return protocol.ID(fmt.Sprintf("/shrex/eds/v0.0.1/%s", protocolSuffix))
-}
 
 // Client is responsible for requesting EDSs for blocksync over the ShrEx/EDS protocol.
 type Client struct {
@@ -67,7 +60,7 @@ func (c *Client) RequestEDS(
 			}
 			eds, err := c.doRequest(ctx, req, to)
 			if eds != nil {
-				return eds, nil
+				return eds, err
 			}
 			if errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) {
 				return nil, ctx.Err()
@@ -106,7 +99,7 @@ func (c *Client) doRequest(
 		}
 	}
 
-	// request status from peer to provide the requested EDS
+	// request ODS
 	_, err = serde.Write(stream, req)
 	if err != nil {
 		stream.Reset() //nolint:errcheck
@@ -133,7 +126,6 @@ func (c *Client) doRequest(
 		if err != nil {
 			return nil, fmt.Errorf("failed to read eds from ods bytes: %w", err)
 		}
-
 		return eds, nil
 	case p2p_pb.Status_NOT_FOUND, p2p_pb.Status_REFUSED:
 		log.Debugf("client: peer %s couldn't serve eds %s with status %s", to.String(), dataHash.String(), resp.GetStatus())
