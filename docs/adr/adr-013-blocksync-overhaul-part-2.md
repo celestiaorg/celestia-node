@@ -414,14 +414,14 @@ type Getter interface {
   GetShares(context.Context, *Root) ([][]Share, error)
   
   // GetSharesByNamespace gets all the shares of the given namespace.
-  // Shares are returned in a row-by-row order, if the namespace spans over multiple rows.
+  // Shares are returned in a row-by-row order if the namespace spans multiple rows.
   GetSharesByNamespace(context.Context, *Root, namespace.ID) (NamespaceShares, error)
 }
 
 // NamespaceShares represents all the shares with proofs of a specific namespace of an EDS.
 type NamespaceShares []RowNamespaceShares
 
-// RowNamespaceShares represents all the share with proofs of a specific namespace within a Row of an EDS.
+// RowNamespaceShares represents all the shares with proofs of a specific namespace within a Row of an EDS.
 type RowNamespaceShares struct {
 	Shares []Share
 	Proof  *ipld.Proof
@@ -435,7 +435,7 @@ func (NamespaceShares) Verify(*Root, namespace.ID) error
 #### IPLDGetter
 
 `IPLDGetter` stems from the existing implementation of `ShareService`, but omits to embed of `Availability` and optionally
-caches EDSes to `eds.Store`.
+caches EDSes to `eds.Store`. `IPLDGetter` verifies data integrity as it's a default IPLD behavior.
 
 The `eds.Store` might be abstracted with a private interface for testing. The mode might be configured depending on
 interface being nil or not.
@@ -444,6 +444,7 @@ interface being nil or not.
 
 `ShrExGetter` implements `Getter` over `ShrEx/ND` and `ShrEx/EDS` and their respective clients. It relies on `Discovery`
 to get data providers/peers. Additionally, it works in two modes w/ and w/o EDS caching over `eds.Store`.
+`ShrExGetter` must verify data integrity itself or by relying on underlying protocol clients.
 
 The `eds.Store` might be abstracted with a private interface for testing. The mode might be configured depending on
 interface being nil or not.
@@ -465,7 +466,8 @@ func WithProvider(context.Context, ...peer.ID) ctx
 
 #### StoreGetter
 
-`StoreGetter` implements `Getter` over `eds.Store`.
+`StoreGetter` implements `Getter` over `eds.Store`. `StoreGetter` might not verify data integrity and return it as is
+from the underlying storage.
 
 ```go
 // GetShare reads up the share from stored EDS. 
@@ -483,6 +485,8 @@ func (sg *StoreGetter) GetShareByNamespace(context.Context, *Root, namespace.ID)
 `CascadeGetter` implements `Getter` that composes multiple `Getters`. The composition is ordered with priority.
 For every `Getter` operation, the first registered `Getter` is used. If it fails with an error or timeout from a configured
 deadline controlled by context, the following `Getter` is used, and so forth, until one of them succeeds.
+
+`CascadeGetter` must not verify date integrity and leave it up to the composing implementations.
 
 ## Integration Details
 
