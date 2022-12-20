@@ -39,7 +39,7 @@ type Server struct {
 	readTimeout  time.Duration
 	serveTimeout time.Duration
 
-	// TODO: will be removed after CARBlockstore is implemented to return DAH
+	// TODO: will be removed after CARBlockstore is ready to return DAH
 	testDAH *share.Root
 }
 
@@ -65,6 +65,7 @@ func (srv *Server) handleNamespacedData(stream network.Stream) {
 	if err != nil {
 		log.Debugf("set read deadline: %s", err)
 	}
+
 	var req share_p2p_v1.GetSharesByNamespaceRequest
 	_, err = serde.Read(stream, &req)
 	if err != nil {
@@ -95,7 +96,7 @@ func (srv *Server) handleNamespacedData(stream network.Stream) {
 		return
 	}
 
-	// replace with testDAH with test one if in test
+	// replace dah with testDAH within test scope
 	if srv.testDAH != nil {
 		dah = srv.testDAH
 	}
@@ -118,24 +119,25 @@ func getBlobByNamespace(
 	root *share.Root,
 	nID namespace.ID,
 ) (*share.Blob, error) {
-	rowRootCIDs := make([]cid.Cid, 0)
+	// select rows that contain shares with desired namespace.ID
+	selectedRows := make([]cid.Cid, 0)
 	for _, row := range root.RowsRoots {
 		if !nID.Less(nmt.MinNamespace(row, nID.Size())) && nID.LessOrEqual(nmt.MaxNamespace(row, nID.Size())) {
-			rowRootCIDs = append(rowRootCIDs, ipld.MustCidFromNamespacedSha256(row))
+			selectedRows = append(selectedRows, ipld.MustCidFromNamespacedSha256(row))
 		}
 	}
-	if len(rowRootCIDs) == 0 {
+	if len(selectedRows) == 0 {
 		return nil, nil
 	}
 
 	errGroup, ctx := errgroup.WithContext(ctx)
-	verifiedShares := make([]share.VerifiedShares, len(rowRootCIDs))
-	for i, rootCID := range rowRootCIDs {
+	verifiedShares := make([]share.VerifiedShares, len(selectedRows))
+	for i, rowRoot := range selectedRows {
 		// shadow loop variables, to ensure correct values are captured
-		i, rootCID := i, rootCID
+		i, rowRoot := i, rowRoot
 		errGroup.Go(func() (err error) {
 			proof := new(ipld.Proof)
-			shares, err := share.GetSharesByNamespace(ctx, getter, rootCID, nID, len(root.RowsRoots), proof)
+			shares, err := share.GetSharesByNamespace(ctx, getter, rowRoot, nID, len(root.RowsRoots), proof)
 			verifiedShares[i].Shares = shares
 			verifiedShares[i].Proof = proof
 			return
@@ -173,18 +175,15 @@ func blobToResponse(blob *share.Blob) *share_p2p_v1.GetSharesByNamespaceResponse
 	rows := make([]*share_p2p_v1.Row, 0, len(blob.Rows))
 	for _, row := range blob.Rows {
 		// construct proof
-		var proof *share_p2p_v1.Proof
-		if row.Proof != nil {
-			nodes := make([][]byte, 0, len(row.Proof.Nodes))
-			for _, cid := range row.Proof.Nodes {
-				nodes = append(nodes, cid.Bytes())
-			}
+		nodes := make([][]byte, 0, len(row.Proof.Nodes))
+		for _, cid := range row.Proof.Nodes {
+			nodes = append(nodes, cid.Bytes())
+		}
 
-			proof = &share_p2p_v1.Proof{
-				Start: int64(row.Proof.Start),
-				End:   int64(row.Proof.End),
-				Nodes: nodes,
-			}
+		proof := &share_p2p_v1.Proof{
+			Start: int64(row.Proof.Start),
+			End:   int64(row.Proof.End),
+			Nodes: nodes,
 		}
 
 		row := &share_p2p_v1.Row{

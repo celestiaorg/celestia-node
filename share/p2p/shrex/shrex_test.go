@@ -26,6 +26,7 @@ func TestGetSharesWithProofByNamespace(t *testing.T) {
 	// create test net
 	net := availability_test.NewTestDAGNet(ctx, t)
 
+	// launch eds store
 	edsStore, err := newStore(t)
 	require.NoError(t, err)
 	err = edsStore.Start(ctx)
@@ -43,7 +44,7 @@ func TestGetSharesWithProofByNamespace(t *testing.T) {
 	eds, nID := generateTestEDS(t)
 	dah := da.NewDataAvailabilityHeader(eds)
 
-	// put data into the store and getter mock
+	// put test data into the edsstore and server
 	srv.testDAH = &dah
 	err = edsStore.Put(ctx, dah.Hash(), eds)
 	require.NoError(t, err)
