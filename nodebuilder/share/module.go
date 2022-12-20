@@ -52,8 +52,8 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 			"share",
 			baseComponents,
 			fx.Provide(fx.Annotate(
-				func(host host.Host, store *eds.Store, network modp2p.Network) *shrexeds.Server {
-					return shrexeds.NewServer(host, store, string(network))
+				func(host host.Host, store *eds.Store, network modp2p.Network) (*shrexeds.Server, error) {
+					return shrexeds.NewServer(host, store, shrexeds.WithProtocolSuffix(string(network)))
 				},
 				fx.OnStart(func(ctx context.Context, server *shrexeds.Server) error {
 					return server.Start(ctx)
@@ -64,8 +64,8 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 			)),
 			// Bridge Nodes need a client as well, for requests over FullAvailability
 			fx.Provide(
-				func(host host.Host, network modp2p.Network) *shrexeds.Client {
-					return shrexeds.NewClient(host, string(network))
+				func(host host.Host, network modp2p.Network) (*shrexeds.Client, error) {
+					return shrexeds.NewClient(host, shrexeds.WithProtocolSuffix(string(network)))
 				},
 			),
 			fx.Provide(fx.Annotate(

@@ -26,11 +26,20 @@ type Client struct {
 }
 
 // NewClient creates a new ShrEx/EDS client.
-func NewClient(host host.Host, protocolSuffix string) *Client {
+func NewClient(host host.Host, opts ...Option) (*Client, error) {
+	params := DefaultParameters()
+	for _, opt := range opts {
+		opt(params)
+	}
+
+	if err := params.Validate(); err != nil {
+		return nil, fmt.Errorf("shrex/eds: client creation failed: %w", err)
+	}
+
 	return &Client{
 		host:       host,
-		protocolID: protocolID(protocolSuffix),
-	}
+		protocolID: protocolID(params.ProtocolSuffix),
+	}, nil
 }
 
 // RequestEDS requests the full ODS from one of the given peers and returns the EDS.

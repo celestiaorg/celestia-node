@@ -16,17 +16,6 @@ import (
 	"github.com/celestiaorg/go-libp2p-messenger/serde"
 )
 
-const (
-	// writeDeadline sets timeout for sending messages to the stream
-	writeDeadline = time.Second * 5
-	// readDeadline sets timeout for reading a CAR file from disk
-	readDeadline = time.Minute
-	// getCarDeadline sets timeout for reading a CAR file from disk
-	getCarDeadline = time.Minute
-	// bufferSize is the size of the buffer used for writing an ODS to the stream
-	bufferSize = 32 * 1024
-)
-
 // Server is responsible for serving ODSs for blocksync over the ShrEx/EDS protocol.
 type Server struct {
 	ctx    context.Context
@@ -36,15 +25,27 @@ type Server struct {
 	protocolID protocol.ID
 
 	store *eds.Store
+
+	params *Parameters
 }
 
 // NewServer creates a new ShrEx/EDS server.
-func NewServer(host host.Host, store *eds.Store, protocolSuffix string) *Server {
+func NewServer(host host.Host, store *eds.Store, opts ...Option) (*Server, error) {
+	params := DefaultParameters()
+	for _, opt := range opts {
+		opt(params)
+	}
+
+	if err := params.Validate(); err != nil {
+		return nil, fmt.Errorf("shrex/eds: server creation failed: %w", err)
+	}
+
 	return &Server{
 		host:       host,
 		store:      store,
-		protocolID: protocolID(protocolSuffix),
-	}
+		protocolID: protocolID(params.ProtocolSuffix),
+		params:     params,
+	}, nil
 }
 
 func (s *Server) Start(context.Context) error {
@@ -78,7 +79,7 @@ func (s *Server) handleStream(stream network.Stream) {
 		return
 	}
 
-	ctx, cancel := context.WithTimeout(s.ctx, getCarDeadline)
+	ctx, cancel := context.WithTimeout(s.ctx, s.params.ReadCARDeadline)
 	defer cancel()
 	status := p2p_pb.Status_OK
 	// determine whether the EDS is available in our store
@@ -117,7 +118,7 @@ func (s *Server) handleStream(stream network.Stream) {
 }
 
 func (s *Server) readRequest(stream network.Stream) (*p2p_pb.EDSRequest, error) {
-	err := stream.SetReadDeadline(time.Now().Add(readDeadline))
+	err := stream.SetReadDeadline(time.Now().Add(s.params.ReadDeadline))
 	if err != nil {
 		log.Debug(err)
 	}
@@ -136,7 +137,7 @@ func (s *Server) readRequest(stream network.Stream) (*p2p_pb.EDSRequest, error) 
 }
 
 func (s *Server) writeStatus(status p2p_pb.Status, stream network.Stream) error {
-	err := stream.SetWriteDeadline(time.Now().Add(writeDeadline))
+	err := stream.SetWriteDeadline(time.Now().Add(s.params.WriteDeadline))
 	if err != nil {
 		log.Debug(err)
 	}
@@ -147,7 +148,7 @@ func (s *Server) writeStatus(status p2p_pb.Status, stream network.Stream) error 
 }
 
 func (s *Server) writeODS(edsReader io.ReadCloser, stream network.Stream) error {
-	err := stream.SetWriteDeadline(time.Now().Add(writeDeadline))
+	err := stream.SetWriteDeadline(time.Now().Add(s.params.WriteDeadline))
 	if err != nil {
 		log.Debug(err)
 	}
@@ -156,7 +157,7 @@ func (s *Server) writeODS(edsReader io.ReadCloser, stream network.Stream) error 
 	if err != nil {
 		return fmt.Errorf("creating ODS reader: %w", err)
 	}
-	buf := make([]byte, bufferSize)
+	buf := make([]byte, s.params.BufferSize)
 	_, err = io.CopyBuffer(stream, odsReader, buf)
 	if err != nil {
 		return fmt.Errorf("writing ODS bytes: %w", err)
