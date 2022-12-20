@@ -17,7 +17,7 @@ var log = logging.Logger("shrex-push")
 
 // pubSubTopic hardcodes the name of the EDS floodsub topic with the provided suffix.
 func pubSubTopic(suffix string) string {
-	return "eds-sub/v0.0.1/" + suffix
+	return fmt.Sprintf("/eds-sub/v0.0.1/%s", suffix)
 }
 
 // Validator is an injectable func and governs EDS notification or DataHash validity.
