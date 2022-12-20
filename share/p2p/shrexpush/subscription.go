@@ -1,4 +1,4 @@
-package push
+package shrexpush
 
 import (
 	"context"
