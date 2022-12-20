@@ -1,4 +1,4 @@
-package eds
+package push
 
 import (
 	"context"
