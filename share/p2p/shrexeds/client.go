@@ -33,7 +33,7 @@ func NewClient(host host.Host, opts ...Option) (*Client, error) {
 	}
 
 	if err := params.Validate(); err != nil {
-		return nil, fmt.Errorf("shrex/eds: client creation failed: %w", err)
+		return nil, fmt.Errorf("shrex-eds: client creation failed: %w", err)
 	}
 
 	return &Client{

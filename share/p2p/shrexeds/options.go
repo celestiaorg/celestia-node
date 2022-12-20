@@ -10,7 +10,7 @@ import (
 
 const protocolPrefix = "/shrex/eds/v0.0.1/"
 
-var log = logging.Logger("shrex/eds")
+var log = logging.Logger("shrex-eds")
 
 // Option is the functional option that is applied to the shrex/eds protocol to configure its
 // parameters.

@@ -37,7 +37,7 @@ func NewServer(host host.Host, store *eds.Store, opts ...Option) (*Server, error
 	}
 
 	if err := params.Validate(); err != nil {
-		return nil, fmt.Errorf("shrex/eds: server creation failed: %w", err)
+		return nil, fmt.Errorf("shrex-eds: server creation failed: %w", err)
 	}
 
 	return &Server{
