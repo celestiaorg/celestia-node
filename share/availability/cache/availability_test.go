@@ -18,7 +18,6 @@ import (
 
 	"github.com/celestiaorg/celestia-node/share"
 	availability_test "github.com/celestiaorg/celestia-node/share/availability/test"
-	"github.com/celestiaorg/celestia-node/share/service"
 )
 
 // TestCacheAvailability tests to ensure that the successful result of a
@@ -31,27 +30,27 @@ func TestCacheAvailability(t *testing.T) {
 	lightLocalServ, dah1 := RandLightLocalServiceWithSquare(t, 16)
 
 	var tests = []struct {
-		service *service.ShareService
-		root    *share.Root
+		avail share.Availability
+		root  *share.Root
 	}{
 		{
-			service: fullLocalServ,
-			root:    dah0,
+			avail: fullLocalServ,
+			root:  dah0,
 		},
 		{
-			service: lightLocalServ,
-			root:    dah1,
+			avail: lightLocalServ,
+			root:  dah1,
 		},
 	}
 
 	for i, tt := range tests {
 		t.Run(strconv.Itoa(i), func(t *testing.T) {
-			ca := tt.service.Availability.(*ShareAvailability)
+			ca := tt.avail.(*ShareAvailability)
 			// ensure the dah isn't yet in the cache
 			exists, err := ca.ds.Has(ctx, rootKey(tt.root))
 			require.NoError(t, err)
 			assert.False(t, exists)
-			err = tt.service.SharesAvailable(ctx, tt.root)
+			err = tt.avail.SharesAvailable(ctx, tt.root)
 			require.NoError(t, err)
 			// ensure the dah was stored properly
 			exists, err = ca.ds.Has(ctx, rootKey(tt.root))
@@ -72,9 +71,8 @@ func TestCacheAvailability_Failed(t *testing.T) {
 	defer cancel()
 
 	ca := NewShareAvailability(&dummyAvailability{}, sync.MutexWrap(datastore.NewMapDatastore()))
-	serv := service.NewShareService(mdutils.Bserv(), ca)
 
-	err := serv.SharesAvailable(ctx, &invalidHeader)
+	err := ca.SharesAvailable(ctx, &invalidHeader)
 	require.Error(t, err)
 	// ensure the dah was NOT cached
 	exists, err := ca.ds.Has(ctx, rootKey(&invalidHeader))
@@ -112,10 +110,10 @@ func TestCacheAvailability_MinRoot(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	fullLocalServ, _ := RandFullLocalServiceWithSquare(t, 16)
+	fullLocalAvail, _ := RandFullLocalServiceWithSquare(t, 16)
 	minDAH := da.MinDataAvailabilityHeader()
 
-	err := fullLocalServ.SharesAvailable(ctx, &minDAH)
+	err := fullLocalAvail.SharesAvailable(ctx, &minDAH)
 	assert.NoError(t, err)
 }
 

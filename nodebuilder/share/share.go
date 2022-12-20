@@ -6,7 +6,6 @@ import (
 	"github.com/celestiaorg/nmt/namespace"
 
 	"github.com/celestiaorg/celestia-node/share"
-	"github.com/celestiaorg/celestia-node/share/service"
 )
 
 var _ Module = (*API)(nil)
@@ -89,9 +88,10 @@ func (api *API) GetSharesByNamespace(
 }
 
 type module struct {
-	*service.ShareService
+	share.Getter
+	share.Availability
 }
 
-func (m *module) SharesAvailable(ctx context.Context, root *share.Root) error {
-	return m.ShareService.SharesAvailable(ctx, root)
+func (m module) SharesAvailable(ctx context.Context, root *share.Root) error {
+	return m.Availability.SharesAvailable(ctx, root)
 }

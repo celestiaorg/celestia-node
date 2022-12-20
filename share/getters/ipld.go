@@ -1,4 +1,4 @@
-package service
+package getters
 
 import (
 	"context"
@@ -12,58 +12,27 @@ import (
 	"github.com/celestiaorg/celestia-node/share/eds"
 	"github.com/celestiaorg/celestia-node/share/ipld"
 	"github.com/celestiaorg/nmt"
+
 	"github.com/celestiaorg/nmt/namespace"
 )
 
-// TODO(@Wondertan): Simple thread safety for Start and Stop would not hurt.
-type ShareService struct {
-	share.Availability
+var _ share.Getter = (*IPLDGetter)(nil)
+
+type IPLDGetter struct {
 	rtrv  *eds.Retriever
 	bServ blockservice.BlockService
-	// session is blockservice sub-session that applies optimization for fetching/loading related
-	// nodes, like shares prefer session over blockservice for fetching nodes.
-	session blockservice.BlockGetter
-	cancel  context.CancelFunc
 }
 
-// NewService creates a new basic share.Module.
-func NewShareService(bServ blockservice.BlockService, avail share.Availability) *ShareService {
-	return &ShareService{
-		rtrv:         eds.NewRetriever(bServ),
-		Availability: avail,
-		bServ:        bServ,
+func NewIPLDGetter(bServ blockservice.BlockService) *IPLDGetter {
+	return &IPLDGetter{
+		rtrv:  eds.NewRetriever(bServ),
+		bServ: bServ,
 	}
 }
 
-func (s *ShareService) Start(context.Context) error {
-	if s.session != nil || s.cancel != nil {
-		return fmt.Errorf("share: service already started")
-	}
-
-	// NOTE: The ctx given as param is used to control Start flow and only needed when Start is
-	// blocking, but this one is not.
-	//
-	// The newer context here is created to control lifecycle of the session and peer discovery.
-	ctx, cancel := context.WithCancel(context.Background())
-	s.cancel = cancel
-	s.session = blockservice.NewSession(ctx, s.bServ)
-	return nil
-}
-
-func (s *ShareService) Stop(context.Context) error {
-	if s.session == nil || s.cancel == nil {
-		return fmt.Errorf("share: service already stopped")
-	}
-
-	s.cancel()
-	s.cancel = nil
-	s.session = nil
-	return nil
-}
-
-func (s *ShareService) GetShare(ctx context.Context, dah *share.Root, row, col int) (share.Share, error) {
+func (ig *IPLDGetter) GetShare(ctx context.Context, dah *share.Root, row, col int) (share.Share, error) {
 	root, leaf := ipld.Translate(dah, row, col)
-	nd, err := share.GetShare(ctx, s.bServ, root, leaf, len(dah.RowsRoots))
+	nd, err := share.GetShare(ctx, ig.bServ, root, leaf, len(dah.RowsRoots))
 	if err != nil {
 		return nil, err
 	}
@@ -71,8 +40,8 @@ func (s *ShareService) GetShare(ctx context.Context, dah *share.Root, row, col i
 	return nd, nil
 }
 
-func (s *ShareService) GetShares(ctx context.Context, root *share.Root) ([][]share.Share, error) {
-	eds, err := s.rtrv.Retrieve(ctx, root)
+func (ig *IPLDGetter) GetShares(ctx context.Context, root *share.Root) ([][]share.Share, error) {
+	eds, err := ig.rtrv.Retrieve(ctx, root)
 	if err != nil {
 		return nil, err
 	}
@@ -91,9 +60,7 @@ func (s *ShareService) GetShares(ctx context.Context, root *share.Root) ([][]sha
 	return shares, nil
 }
 
-// GetSharesByNamespace iterates over a square's row roots and accumulates the found shares in the
-// given namespace.ID.
-func (s *ShareService) GetSharesByNamespace(
+func (ig *IPLDGetter) GetSharesByNamespace(
 	ctx context.Context,
 	root *share.Root,
 	nID namespace.ID,
@@ -118,7 +85,7 @@ func (s *ShareService) GetSharesByNamespace(
 		// shadow loop variables, to ensure correct values are captured
 		i, rootCID := i, rootCID
 		errGroup.Go(func() (err error) {
-			shares[i], err = share.GetSharesByNamespace(ctx, s.bServ, rootCID, nID, len(root.RowsRoots), nil)
+			shares[i], err = share.GetSharesByNamespace(ctx, ig.bServ, rootCID, nID, len(root.RowsRoots), nil)
 			return
 		})
 	}

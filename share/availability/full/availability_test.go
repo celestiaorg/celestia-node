@@ -34,7 +34,7 @@ func TestSharesAvailable_Full(t *testing.T) {
 	defer cancel()
 
 	// RandServiceWithSquare creates a NewShareAvailability inside, so we can test it
-	service, dah := RandServiceWithSquare(t, 16)
-	err := service.SharesAvailable(ctx, dah)
+	_, availability, dah := RandServiceWithSquare(t, 16)
+	err := availability.SharesAvailable(ctx, dah)
 	assert.NoError(t, err)
 }

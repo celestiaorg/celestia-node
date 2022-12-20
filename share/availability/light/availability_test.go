@@ -34,8 +34,8 @@ func TestSharesAvailable(t *testing.T) {
 	defer cancel()
 
 	// RandServiceWithSquare creates a Light ShareAvailability inside, so we can test it
-	service, dah := RandServiceWithSquare(t, 16)
-	err := service.SharesAvailable(ctx, dah)
+	_, avail, dah := RandServiceWithSquare(t, 16)
+	err := avail.SharesAvailable(ctx, dah)
 	assert.NoError(t, err)
 }
 
@@ -44,9 +44,9 @@ func TestSharesAvailableFailed(t *testing.T) {
 	defer cancel()
 
 	// RandServiceWithSquare creates a Light ShareAvailability inside, so we can test it
-	s, _ := RandServiceWithSquare(t, 16)
+	_, avail, _ := RandServiceWithSquare(t, 16)
 	empty := header.EmptyDAH()
-	err := s.SharesAvailable(ctx, &empty)
+	err := avail.SharesAvailable(ctx, &empty)
 	assert.Error(t, err)
 }
 
@@ -68,20 +68,15 @@ func TestGetShare(t *testing.T) {
 	defer cancel()
 
 	n := 16
-	serv, dah := RandServiceWithSquare(t, n)
-	err := serv.Start(ctx)
-	require.NoError(t, err)
+	getter, _, dah := RandServiceWithSquare(t, n)
 
 	for i := range make([]bool, n) {
 		for j := range make([]bool, n) {
-			sh, err := serv.GetShare(ctx, dah, i, j)
+			sh, err := getter.GetShare(ctx, dah, i, j)
 			assert.NotNil(t, sh)
 			assert.NoError(t, err)
 		}
 	}
-
-	err = serv.Stop(ctx)
-	require.NoError(t, err)
 }
 
 func TestService_GetSharesByNamespace(t *testing.T) {
@@ -96,7 +91,7 @@ func TestService_GetSharesByNamespace(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run("size: "+strconv.Itoa(tt.squareSize), func(t *testing.T) {
-			serv, bServ := RandService()
+			getter, _, bServ := RandService()
 			n := tt.squareSize * tt.squareSize
 			randShares := share.RandShares(t, n)
 			idx1 := (n - 1) / 2
@@ -108,7 +103,7 @@ func TestService_GetSharesByNamespace(t *testing.T) {
 			root := availability_test.FillBS(t, bServ, randShares)
 			randNID := randShares[idx1][:8]
 
-			shares, err := serv.GetSharesByNamespace(context.Background(), root, randNID)
+			shares, err := getter.GetSharesByNamespace(context.Background(), root, randNID)
 			require.NoError(t, err)
 			assert.Len(t, shares, tt.expectedShareCount)
 			for _, value := range shares {
@@ -128,11 +123,9 @@ func TestGetShares(t *testing.T) {
 	defer cancel()
 
 	n := 16
-	serv, dah := RandServiceWithSquare(t, n)
-	err := serv.Start(ctx)
-	require.NoError(t, err)
+	getter, _, dah := RandServiceWithSquare(t, n)
 
-	shares, err := serv.GetShares(ctx, dah)
+	shares, err := getter.GetShares(ctx, dah)
 	require.NoError(t, err)
 
 	flattened := make([][]byte, 0, len(shares)*2)
@@ -147,16 +140,13 @@ func TestGetShares(t *testing.T) {
 	gotDAH := da.NewDataAvailabilityHeader(eds)
 
 	require.True(t, dah.Equals(&gotDAH))
-
-	err = serv.Stop(ctx)
-	require.NoError(t, err)
 }
 
 func TestService_GetSharesByNamespaceNotFound(t *testing.T) {
-	serv, root := RandServiceWithSquare(t, 1)
+	getter, _, root := RandServiceWithSquare(t, 1)
 	root.RowsRoots = nil
 
-	shares, err := serv.GetSharesByNamespace(context.Background(), root, []byte{1, 1, 1, 1, 1, 1, 1, 1})
+	shares, err := getter.GetSharesByNamespace(context.Background(), root, []byte{1, 1, 1, 1, 1, 1, 1, 1})
 	assert.Len(t, shares, 0)
 	assert.NoError(t, err)
 }
@@ -173,12 +163,12 @@ func BenchmarkService_GetSharesByNamespace(b *testing.B) {
 	for _, tt := range tests {
 		b.Run(strconv.Itoa(tt.amountShares), func(b *testing.B) {
 			t := &testing.T{}
-			serv, root := RandServiceWithSquare(t, tt.amountShares)
+			getter, _, root := RandServiceWithSquare(t, tt.amountShares)
 			randNID := root.RowsRoots[(len(root.RowsRoots)-1)/2][:8]
 			root.RowsRoots[(len(root.RowsRoots) / 2)] = root.RowsRoots[(len(root.RowsRoots)-1)/2]
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
-				_, err := serv.GetSharesByNamespace(context.Background(), root, randNID)
+				_, err := getter.GetSharesByNamespace(context.Background(), root, randNID)
 				require.NoError(t, err)
 			}
 		})
@@ -186,7 +176,7 @@ func BenchmarkService_GetSharesByNamespace(b *testing.B) {
 }
 
 func TestSharesRoundTrip(t *testing.T) {
-	serv, store := RandService()
+	getter, _, store := RandService()
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -325,7 +315,7 @@ func TestSharesRoundTrip(t *testing.T) {
 				require.NoError(t, err)
 
 				dah := da.NewDataAvailabilityHeader(extSquare)
-				shares, err := serv.GetSharesByNamespace(ctx, &dah, namespace)
+				shares, err := getter.GetSharesByNamespace(ctx, &dah, namespace)
 				require.NoError(t, err)
 				require.NotEmpty(t, shares)
 
