@@ -1,6 +1,8 @@
 package rpc
 
 import (
+	"github.com/cristalhq/jwt"
+
 	"github.com/celestiaorg/celestia-node/api/rpc"
 	"github.com/celestiaorg/celestia-node/nodebuilder/das"
 	"github.com/celestiaorg/celestia-node/nodebuilder/fraud"
@@ -31,6 +33,6 @@ func RegisterEndpoints(
 	serv.RegisterAuthedService("node", nodeMod, &node.API{})
 }
 
-func Server(cfg *Config) *rpc.Server {
-	return rpc.NewServer(cfg.Address, cfg.Port)
+func Server(cfg *Config, auth jwt.Signer) *rpc.Server {
+	return rpc.NewServer(cfg.Address, cfg.Port, auth)
 }

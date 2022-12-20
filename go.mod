@@ -14,6 +14,7 @@ require (
 	github.com/celestiaorg/rsmt2d v0.7.0
 	github.com/cosmos/cosmos-sdk v0.46.0
 	github.com/cosmos/cosmos-sdk/api v0.1.0
+	github.com/cristalhq/jwt v1.2.0
 	github.com/dgraph-io/badger/v2 v2.2007.4
 	github.com/etclabscore/go-openrpc-reflect v0.0.37
 	github.com/filecoin-project/dagstore v0.5.6
