@@ -2,9 +2,9 @@
 
 ## Authors
 
-@Wondertan @renaynay
+@Wondertan @renaynay @waldiss
 
-> This ADR took a while to get through all the necessary details. Special thanks to awesome @renaynay for dozens of
+> This ADR took a while to get through all the necessary details. Special thanks to @renaynay for dozens of
 > deep dive calls, note-taking, thoughts, and ideas.
 > Similarly, the time spent on the experiments with the format of the documents was refactored three times.
 
@@ -178,7 +178,6 @@ syntax = "proto3";
 message NDRequest {
   bytes data_hash = 1;          // identifies the EDS to get ND from
   bytes namespace = 2;          // namespace of ND
-  repeated bytes row_roots = 3; // row roots from share.Root/DAH containing requested namespace
 }
 ```
 
@@ -244,11 +243,8 @@ data and proofs in real-time while they are read from the disk.
 
 #### Misbehavior
 
-- Client requests not corresponding data
-  - `row_roots` are committed to the `data_hash`
-  - Each `row_roots` element contains `namespace`
-    > __NOTE__: In the implementation, if `eds.Store.CARBlockstore` contains the EDS by `data_hash`, but the `row_roots` are not found
-    > in there, we can conclude that either of conditions fails and peer misbehaves/
+- Client requests not corresponding to requested data
+  - `data_hash` addressed DAH does not contain `namespace`
 - Server responds with `rows` failing Merkle inclusion verification
 
 ### ShrEx/Sub Protocol
@@ -320,7 +316,7 @@ func (c *Client) RequestEDS(context.Context, share.Root, peer.IDSlice) (rsmt2d.E
 
 ### `NDClient`
 
-The EDS Client implements client-side of the `ShrEx/NS` protocol.
+The EDS Client implements client-side of the `ShrEx/ND` protocol.
 
 #### `Client.RequestND`
 
@@ -408,16 +404,32 @@ the `Getter` interface.
 
 ```go
 // Getter interface provides a set of accessors for shares by the Root.
+// Automatically verifies integrity of shares(exceptions possible depending on the implementation)
 type Getter interface {
-  // GetShare gets a Share by coordinates in EDS.
+  // GetShare gets Share by coordinates in EDS.
   GetShare(context.Context, *Root, row, col int) (Share, error)
   
-  // GetShares gets all the shares.
+  // GetShares gets all the shares in the EDS square.
+  // Shares are returned in a row-by-row order.
   GetShares(context.Context, *Root) ([][]Share, error)
   
   // GetSharesByNamespace gets all the shares of the given namespace.
-  GetSharesByNamespace(context.Context, *Root, namespace.ID) ([]Share, error)
+  // Shares are returned in a row-by-row order, if the namespace spans over multiple rows.
+  GetSharesByNamespace(context.Context, *Root, namespace.ID) (NamespaceShares, error)
 }
+
+// NamespaceShares represents all the shares with proofs of a specific namespace of an EDS.
+type NamespaceShares []RowNamespaceShares
+
+// RowNamespaceShares represents all the share with proofs of a specific namespace within a Row of an EDS.
+type RowNamespaceShares struct {
+	Shares []Share
+	Proof  *ipld.Proof
+}
+
+// Verify checks for the inclusion of the NamespacedShares in the Root and verifies their belonging 
+// to the given namespace.
+func (NamespaceShares) Verify(*Root, namespace.ID) error
 ```
 
 #### IPLDGetter
@@ -445,7 +457,7 @@ func (shrg *ShrExGetter) GetShare(context.Context, *Root, row, col int) (share.S
 func (shrg *ShrExGetter) GetShares(context.Context, *Root) ([][]share.Share, error)
 
 // GetShareByNamespace fetches all the namespaced shares committed to the given root over `ShrEx/ND`.
-func (shrg *ShrExGetter) GetShareByNamespace(context.Context, *Root, namespace.ID) ([]share.Share, error)
+func (shrg *ShrExGetter) GetShareByNamespace(context.Context, *Root, namespace.ID) (share.NamespaceShares, error)
 
 // WithProvider hints ShrExGetter to fetch data from the given peers instead of Discovery.
 func WithProvider(context.Context, ...peer.ID) ctx
@@ -463,7 +475,7 @@ func (sg *StoreGetter) GetShare(context.Context, *Root, row, col int) (share.Sha
 func (sg *StoreGetter) GetShares(context.Context, *Root) ([][]share.Share, error)
 
 // GetShareByNamespace fetches all the namespaced shares from the stored EDS.
-func (sg *StoreGetter) GetShareByNamespace(context.Context, *Root, namespace.ID) ([]share.Share, error)
+func (sg *StoreGetter) GetShareByNamespace(context.Context, *Root, namespace.ID) (share.NamespaceShares, error)
 ```
 
 #### CascadeGetter
