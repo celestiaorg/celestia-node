@@ -13,7 +13,7 @@ import (
 	"github.com/celestiaorg/celestia-node/share/availability/full"
 	"github.com/celestiaorg/celestia-node/share/availability/light"
 	"github.com/celestiaorg/celestia-node/share/eds"
-	"github.com/celestiaorg/celestia-node/share/eds/p2p"
+	"github.com/celestiaorg/celestia-node/share/p2p/shrexeds"
 )
 
 func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option {
@@ -52,20 +52,20 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 			"share",
 			baseComponents,
 			fx.Provide(fx.Annotate(
-				func(host host.Host, store *eds.Store, network modp2p.Network) *p2p.Server {
-					return p2p.NewServer(host, store, string(network))
+				func(host host.Host, store *eds.Store, network modp2p.Network) *shrexeds.Server {
+					return shrexeds.NewServer(host, store, string(network))
 				},
-				fx.OnStart(func(ctx context.Context, server *p2p.Server) error {
+				fx.OnStart(func(ctx context.Context, server *shrexeds.Server) error {
 					return server.Start(ctx)
 				}),
-				fx.OnStop(func(ctx context.Context, server *p2p.Server) error {
+				fx.OnStop(func(ctx context.Context, server *shrexeds.Server) error {
 					return server.Stop(ctx)
 				}),
 			)),
 			// Bridge Nodes need a client as well, for requests over FullAvailability
 			fx.Provide(
-				func(host host.Host, network modp2p.Network) *p2p.Client {
-					return p2p.NewClient(host, string(network))
+				func(host host.Host, network modp2p.Network) *shrexeds.Client {
+					return shrexeds.NewClient(host, string(network))
 				},
 			),
 			fx.Provide(fx.Annotate(

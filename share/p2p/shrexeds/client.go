@@ -1,4 +1,4 @@
-package p2p
+package shrexeds
 
 import (
 	"context"
@@ -12,8 +12,7 @@ import (
 
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/eds"
-	p2p_pb "github.com/celestiaorg/celestia-node/share/eds/p2p/pb"
-
+	p2p_pb "github.com/celestiaorg/celestia-node/share/p2p/shrexeds/pb"
 	"github.com/celestiaorg/go-libp2p-messenger/serde"
 	"github.com/celestiaorg/rsmt2d"
 )
