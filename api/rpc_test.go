@@ -16,8 +16,9 @@ import (
 
 	"github.com/celestiaorg/celestia-node/api/rpc"
 	"github.com/celestiaorg/celestia-node/api/rpc/client"
-	"github.com/celestiaorg/celestia-node/api/rpc/permissions"
+	"github.com/celestiaorg/celestia-node/api/rpc/perms"
 	daspkg "github.com/celestiaorg/celestia-node/das"
+	headerpkg "github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/nodebuilder"
 	"github.com/celestiaorg/celestia-node/nodebuilder/das"
 	dasMock "github.com/celestiaorg/celestia-node/nodebuilder/das/mocks"
@@ -48,7 +49,7 @@ func TestRPCCallsUnderlyingNode(t *testing.T) {
 	)
 	for i := 0; i < 3; i++ {
 		time.Sleep(time.Second * 1)
-		rpcClient, err = client.NewReadOnlyClient(ctx, "http://"+url)
+		rpcClient, err = client.NewPublicClient(ctx, "http://"+url)
 		if err == nil {
 			t.Cleanup(rpcClient.Close)
 			break
@@ -123,7 +124,7 @@ func TestAuthedRPC(t *testing.T) {
 	// generate dummy signer and sign admin perms token with it
 	signer, err := jwt.NewHS256(make([]byte, 32))
 	require.NoError(t, err)
-	token, err := permissions.NewTokenWithPerms(signer, permissions.AllPerms)
+	token, err := perms.NewTokenWithPerms(signer, perms.AllPerms)
 	require.NoError(t, err)
 
 	nd, server := setupNodeWithAuthedRPC(t, signer)
@@ -143,7 +144,13 @@ func TestAuthedRPC(t *testing.T) {
 	require.NotNil(t, rpcClient)
 	require.NoError(t, err)
 
-	// 1. Test method with read-level permissions
+	// 1. Test method with public permissions
+	server.Header.EXPECT().Head(gomock.Any()).Return(new(headerpkg.ExtendedHeader), nil).Times(1)
+	got, err := rpcClient.Header.Head(ctx)
+	require.NoError(t, err)
+	require.NotNil(t, got)
+
+	// 2. Test method with read-level permissions
 	expected := daspkg.SamplingStats{
 		SampledChainHead: 100,
 		CatchupHead:      100,
@@ -159,14 +166,14 @@ func TestAuthedRPC(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, expected, stats)
 
-	// 2. Test method with write-level permissions
+	// 3. Test method with write-level permissions
 	expectedResp := &state.TxResponse{}
 	server.State.EXPECT().SubmitTx(gomock.Any(), gomock.Any()).Return(expectedResp, nil).Times(1)
 	txResp, err := rpcClient.State.SubmitTx(ctx, []byte{})
 	require.NoError(t, err)
 	require.Equal(t, expectedResp, txResp)
 
-	// 3. Test method with admin-level permissions
+	// 4. Test method with admin-level permissions
 	expectedReachability := network.Reachability(3)
 	server.P2P.EXPECT().NATStatus(gomock.Any()).Return(expectedReachability, nil).Times(1)
 	natstatus, err := rpcClient.P2P.NATStatus(ctx)
@@ -183,7 +190,7 @@ func TestRWAuthRPC(t *testing.T) {
 	// generate dummy signer and sign RW perms token with it
 	signer, err := jwt.NewHS256(make([]byte, 32))
 	require.NoError(t, err)
-	token, err := permissions.NewTokenWithPerms(signer, permissions.ReadWritePerms)
+	token, err := perms.NewTokenWithPerms(signer, perms.ReadWritePerms)
 	require.NoError(t, err)
 
 	nd, server := setupNodeWithAuthedRPC(t, signer)
@@ -203,7 +210,13 @@ func TestRWAuthRPC(t *testing.T) {
 	require.NotNil(t, rpcClient)
 	require.NoError(t, err)
 
-	// 1. Test method with read-level permissions
+	// 1. Test method with public permissions
+	server.Header.EXPECT().Head(gomock.Any()).Return(new(headerpkg.ExtendedHeader), nil).Times(1)
+	got, err := rpcClient.Header.Head(ctx)
+	require.NoError(t, err)
+	require.NotNil(t, got)
+
+	// 2. Test method with read-level permissions
 	expected := daspkg.SamplingStats{
 		SampledChainHead: 100,
 		CatchupHead:      100,
@@ -219,14 +232,14 @@ func TestRWAuthRPC(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, expected, stats)
 
-	// 2. Test method with write-level permissions
+	// 3. Test method with write-level permissions
 	expectedResp := &state.TxResponse{}
 	server.State.EXPECT().SubmitTx(gomock.Any(), gomock.Any()).Return(expectedResp, nil).Times(1)
 	txResp, err := rpcClient.State.SubmitTx(ctx, []byte{})
 	require.NoError(t, err)
 	require.Equal(t, expectedResp, txResp)
 
-	// 3. Ensure method with admin-level permissions fails and does not get called
+	// 4. Ensure method with admin-level permissions fails and does not get called
 	server.P2P.EXPECT().NATStatus(gomock.Any()).Return(network.ReachabilityUnknown, nil).Times(0)
 	_, err = rpcClient.P2P.NATStatus(ctx)
 	require.Error(t, err)
@@ -251,7 +264,7 @@ func TestUnauthedRPC(t *testing.T) {
 	require.NoError(t, err)
 	for i := 0; i < 3; i++ {
 		time.Sleep(time.Second * 1)
-		rpcClient, err = client.NewReadOnlyClient(ctx, "http://"+url)
+		rpcClient, err = client.NewPublicClient(ctx, "http://"+url)
 		if err == nil {
 			t.Cleanup(rpcClient.Close)
 			break
@@ -260,29 +273,24 @@ func TestUnauthedRPC(t *testing.T) {
 	require.NotNil(t, rpcClient)
 	require.NoError(t, err)
 
-	// 1. Test method with read-level permissions
-	expected := daspkg.SamplingStats{
-		SampledChainHead: 100,
-		CatchupHead:      100,
-		NetworkHead:      1000,
-		Failed:           nil,
-		Workers:          nil,
-		Concurrency:      0,
-		CatchUpDone:      true,
-		IsRunning:        false,
-	}
-	server.Das.EXPECT().SamplingStats(gomock.Any()).Return(expected, nil).Times(1)
-	stats, err := rpcClient.DAS.SamplingStats(ctx)
+	// 1. Test method with public permissions
+	server.Header.EXPECT().Head(gomock.Any()).Return(new(headerpkg.ExtendedHeader), nil).Times(1)
+	got, err := rpcClient.Header.Head(ctx)
 	require.NoError(t, err)
-	require.Equal(t, expected, stats)
+	require.NotNil(t, got)
 
-	// 2. Ensure method with write-level permissions fails and doesn't get called
+	// 2. Test method with read-level permissions
+	server.Das.EXPECT().SamplingStats(gomock.Any()).Return(daspkg.SamplingStats{}, nil).Times(0)
+	_, err = rpcClient.DAS.SamplingStats(ctx)
+	require.Error(t, err)
+
+	// 3. Ensure method with write-level permissions fails and doesn't get called
 	server.State.EXPECT().SubmitTx(gomock.Any(), gomock.Any()).Return(nil, nil).Times(0)
 	_, err = rpcClient.State.SubmitTx(ctx, []byte{})
 	require.Error(t, err)
 	require.ErrorContains(t, err, "missing permission")
 
-	// 3. Ensure method with admin-level permissions fails and does not get called
+	// 4. Ensure method with admin-level permissions fails and does not get called
 	server.P2P.EXPECT().NATStatus(gomock.Any()).Return(network.ReachabilityUnknown, nil).Times(0)
 	_, err = rpcClient.P2P.NATStatus(ctx)
 	require.Error(t, err)

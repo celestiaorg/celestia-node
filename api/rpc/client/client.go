@@ -7,7 +7,7 @@ import (
 
 	"github.com/filecoin-project/go-jsonrpc"
 
-	"github.com/celestiaorg/celestia-node/api/rpc/permissions"
+	"github.com/celestiaorg/celestia-node/api/rpc/perms"
 	"github.com/celestiaorg/celestia-node/nodebuilder/das"
 	"github.com/celestiaorg/celestia-node/nodebuilder/fraud"
 	"github.com/celestiaorg/celestia-node/nodebuilder/header"
@@ -51,15 +51,15 @@ func (c *Client) Close() {
 	c.closer.closeAll()
 }
 
-// NewReadOnlyClient creates a new Client with one connection per namespace.
-func NewReadOnlyClient(ctx context.Context, addr string) (*Client, error) {
+// NewPublicClient creates a new Client with one connection per namespace.
+func NewPublicClient(ctx context.Context, addr string) (*Client, error) {
 	return newClient(ctx, addr, nil)
 }
 
 // NewClient creates a new Client with one connection per namespace with the
 // given token as the authorization token.
 func NewClient(ctx context.Context, addr string, token string) (*Client, error) {
-	authHeader := http.Header{permissions.AuthKey: []string{fmt.Sprintf("Bearer %s", token)}}
+	authHeader := http.Header{perms.AuthKey: []string{fmt.Sprintf("Bearer %s", token)}}
 	return newClient(ctx, addr, authHeader)
 }
 
