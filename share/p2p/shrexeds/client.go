@@ -38,7 +38,7 @@ func NewClient(host host.Host, opts ...Option) (*Client, error) {
 
 	return &Client{
 		host:       host,
-		protocolID: protocolID(params.ProtocolSuffix),
+		protocolID: protocolID(params.protocolSuffix),
 	}, nil
 }
 

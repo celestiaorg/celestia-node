@@ -14,7 +14,7 @@ var log = logging.Logger("shrex-eds")
 
 // Option is the functional option that is applied to the shrex/eds protocol to configure its
 // parameters.
-type Option func(parameters *Parameters)
+type Option func(*Parameters)
 
 // Parameters is the set of parameters that must be configured for the shrex/eds protocol.
 type Parameters struct {
@@ -30,9 +30,9 @@ type Parameters struct {
 	// BufferSize defines the size of the buffer used for writing an ODS over the stream.
 	BufferSize uint64
 
-	// ProtocolSuffix is appended to the protocolID and represents the network the protocol is
+	// protocolSuffix is appended to the protocolID and represents the network the protocol is
 	// running on.
-	ProtocolSuffix string
+	protocolSuffix string
 }
 
 func DefaultParameters() *Parameters {
@@ -62,10 +62,10 @@ func (p *Parameters) Validate() error {
 	return nil
 }
 
-// WithProtocolSuffix is a functional option that configures the `ProtocolSuffix` parameter
+// WithProtocolSuffix is a functional option that configures the `protocolSuffix` parameter
 func WithProtocolSuffix(protocolSuffix string) Option {
 	return func(parameters *Parameters) {
-		parameters.ProtocolSuffix = protocolSuffix
+		parameters.protocolSuffix = protocolSuffix
 	}
 }
 

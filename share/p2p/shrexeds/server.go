@@ -43,7 +43,7 @@ func NewServer(host host.Host, store *eds.Store, opts ...Option) (*Server, error
 	return &Server{
 		host:       host,
 		store:      store,
-		protocolID: protocolID(params.ProtocolSuffix),
+		protocolID: protocolID(params.protocolSuffix),
 		params:     params,
 	}, nil
 }
