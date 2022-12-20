@@ -45,7 +45,7 @@ func run() error {
 var rootCmd = &cobra.Command{
 	Use: "celestia [  bridge  ||  full ||  light  ] [subcommand]",
 	Short: `
-		____      __          __  _
+	    ____      __          __  _
 	  / ____/__  / /__  _____/ /_(_)___ _
 	 / /   / _ \/ / _ \/ ___/ __/ / __  /
 	/ /___/  __/ /  __(__  ) /_/ / /_/ /
