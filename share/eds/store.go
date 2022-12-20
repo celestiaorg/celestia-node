@@ -211,12 +211,12 @@ func (s *Store) CARBlockstore(
 	key := shard.KeyFromString(dataHash.String())
 	shardAccessor, err := s.acquireShard(ctx, key)
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to get accessor: %w", err)
+		return nil, nil, fmt.Errorf("eds/store: failed to get accessor: %w", err)
 	}
 
 	reader, err := carv1.NewCarReader(shardAccessor)
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to read DAH from car reader: %w", err)
+		return nil, nil, fmt.Errorf("eds/store: failed to read DAH from car reader: %w", err)
 	}
 	dah := dahFromCARHeader(reader.Header)
 
