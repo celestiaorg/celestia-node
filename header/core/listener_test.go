@@ -25,13 +25,13 @@ func TestListener(t *testing.T) {
 	// create mocknet with two pubsub endpoints
 	ps0, ps1 := createMocknetWithTwoPubsubEndpoints(ctx, t)
 	// create second subscription endpoint to listen for Listener's pubsub messages
-	subsriber := p2p.NewSubscriber(ps1, "private")
-	err := subsriber.AddValidator(func(context.Context, *header.ExtendedHeader) pubsub.ValidationResult {
+	subscriber := p2p.NewSubscriber(ps1, "private")
+	err := subscriber.AddValidator(func(context.Context, *header.ExtendedHeader) pubsub.ValidationResult {
 		return pubsub.ValidationAccept
 	})
 	require.NoError(t, err)
-	require.NoError(t, subsriber.Start(ctx))
-	subs, err := subsriber.Subscribe()
+	require.NoError(t, subscriber.Start(ctx))
+	subs, err := subscriber.Subscribe()
 	require.NoError(t, err)
 	// create one block to store as Head in local store and then unsubscribe from block events
 	fetcher := createCoreFetcher(t)

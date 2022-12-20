@@ -10,7 +10,7 @@ import (
 )
 
 func pubSubTopicID(fraudType, protocolSuffix string) string {
-	return "/fraud-sub/" + fraudType + "/v0.0.1/" + protocolSuffix
+	return fmt.Sprintf("fraud-sub/%s/v0.0.1/%s", fraudType, protocolSuffix)
 }
 
 func protocolID(protocolSuffix string) protocol.ID {
@@ -20,6 +20,7 @@ func protocolID(protocolSuffix string) protocol.ID {
 func join(p *pubsub.PubSub, proofType ProofType, protocolSuffix string,
 	validate func(context.Context, ProofType, peer.ID, *pubsub.Message) pubsub.ValidationResult) (*pubsub.Topic, error) {
 	topic := pubSubTopicID(string(proofType), protocolSuffix)
+	log.Infow("joining topic", "id", topic)
 	t, err := p.Join(topic)
 	if err != nil {
 		return nil, err

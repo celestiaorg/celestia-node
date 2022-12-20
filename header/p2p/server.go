@@ -64,7 +64,7 @@ func NewExchangeServer(
 // Start sets the stream handler for inbound header-related requests.
 func (serv *ExchangeServer) Start(context.Context) error {
 	serv.ctx, serv.cancel = context.WithCancel(context.Background())
-	log.Info("server: listening for inbound header requests")
+	log.Infow("server: listening for inbound header requests", "protocol ID", serv.protocolID)
 
 	serv.host.SetStreamHandler(serv.protocolID, serv.requestHandler)
 

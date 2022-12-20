@@ -84,7 +84,11 @@ func (f *ProofService) Start(context.Context) error {
 	if err := f.registerProofTopics(registeredProofTypes()...); err != nil {
 		return err
 	}
-	f.host.SetStreamHandler(protocolID(f.protocolSuffix), f.handleFraudMessageRequest)
+
+	id := protocolID(f.protocolSuffix)
+	log.Infow("starting fraud proof service", "protocol ID", id)
+
+	f.host.SetStreamHandler(id, f.handleFraudMessageRequest)
 	if f.syncerEnabled {
 		go f.syncFraudProofs(f.ctx)
 	}

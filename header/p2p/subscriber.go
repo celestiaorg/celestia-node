@@ -33,6 +33,7 @@ func NewSubscriber(ps *pubsub.PubSub, protocolSuffix string) *Subscriber {
 // Start starts the Subscriber, registering a topic validator for the "header-sub"
 // topic and joining it.
 func (p *Subscriber) Start(context.Context) (err error) {
+	log.Infow("joining topic", "topic ID", p.pubSubTopicID)
 	p.topic, err = p.pubsub.Join(p.pubSubTopicID, pubsub.WithTopicMessageIdFn(msgID))
 	return err
 }
