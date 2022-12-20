@@ -25,7 +25,7 @@ func pubSubTopic(suffix string) string {
 // Validator is allowed to be blocking for an indefinite time or until the context is canceled.
 type Validator func(context.Context, peer.ID, share.DataHash) pubsub.ValidationResult
 
-// BroadcastFn aliases the function that broadcasts the DataHash.
+// BroadcastEDSHash aliases the function that broadcasts the DataHash.
 type BroadcastEDSHash func(context.Context, share.DataHash) error
 
 // PubSub manages receiving and propagating the EDS from/to the network

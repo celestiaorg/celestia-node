@@ -22,25 +22,28 @@ import (
 // broadcasts the new `ExtendedHeader` to the header-sub gossipsub
 // network.
 type Listener struct {
-	bcast     libhead.Broadcaster[*header.ExtendedHeader]
-	fetcher   *core.BlockFetcher
-	broadcast eds.BroadcastFn
-	bServ     blockservice.BlockService
+	fetcher *core.BlockFetcher
+	bServ   blockservice.BlockService
+
 	construct header.ConstructFn
-	cancel    context.CancelFunc
+
+	broadcastExtendedHeader libhead.Broadcaster[*header.ExtendedHeader]
+	broadcastEDSHash        eds.BroadcastEDSHash
+
+	cancel context.CancelFunc
 }
 
 func NewListener(
 	bcast libhead.Broadcaster[*header.ExtendedHeader],
 	fetcher *core.BlockFetcher,
-	broadcastFn eds.BroadcastEDSHash,
+	broadcastEDSHash eds.BroadcastEDSHash,
 	bServ blockservice.BlockService,
 	construct header.ConstructFn,
 ) *Listener {
 	return &Listener{
-		bcast:                   bcast,
+		broadcastExtendedHeader: bcast,
 		fetcher:                 fetcher,
-		broadcastExtendedHeader: broadcastFn,
+		broadcastEDSHash:        broadcastEDSHash,
 		bServ:                   bServ,
 		construct:               construct,
 	}
@@ -101,14 +104,14 @@ func (cl *Listener) listen(ctx context.Context, sub <-chan *types.Block) {
 			}
 
 			// broadcast new ExtendedHeader, but if core is still syncing, notify only local subscribers
-			err = cl.bcast.Broadcast(ctx, eh, pubsub.WithLocalPublication(syncing))
+			err = cl.broadcastExtendedHeader.Broadcast(ctx, eh, pubsub.WithLocalPublication(syncing))
 			if err != nil {
 				log.Errorw("listener: broadcasting next header", "height", eh.Height(),
 					"err", err)
 			}
 
 			// notify network of new EDS hash
-			err = cl.broadcastExtendedHeader(ctx, eh.DataHash.Bytes())
+			err = cl.broadcastEDSHash(ctx, eh.DataHash.Bytes())
 			if err != nil {
 				log.Errorw("listener: broadcasting data hash", "height", eh.Height,
 					"err", err)
