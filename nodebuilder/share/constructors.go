@@ -57,7 +57,7 @@ func newModule(lc fx.Lifecycle, bServ blockservice.BlockService, avail share.Ava
 	return &module{serv}
 }
 
-// ensureEmptyCARExists adds the empty EDS from share.EnsureEmptySquareExists to the provided EDS store.
+// ensureEmptyCARExists adds an empty EDS to the provided EDS store.
 func ensureEmptyCARExists(ctx context.Context, store *eds.Store) error {
 	emptyEDS := share.EmptyExtendedDataSquare()
 	emptyDAH := da.NewDataAvailabilityHeader(emptyEDS)

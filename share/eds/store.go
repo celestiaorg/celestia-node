@@ -15,9 +15,9 @@ import (
 	"github.com/ipfs/go-datastore"
 	bstore "github.com/ipfs/go-ipfs-blockstore"
 
-	"github.com/celestiaorg/celestia-node/share"
-
 	"github.com/celestiaorg/rsmt2d"
+
+	"github.com/celestiaorg/celestia-node/share"
 )
 
 const (
