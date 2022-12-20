@@ -1,4 +1,4 @@
-package shrex
+package shrexnd
 
 import (
 	"errors"
@@ -13,7 +13,7 @@ import (
 
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/ipld"
-	share_p2p_v1 "github.com/celestiaorg/celestia-node/share/p2p/v1/pb"
+	share_p2p_v1 "github.com/celestiaorg/celestia-node/share/p2p/shrexnd/v1/pb"
 	"github.com/celestiaorg/go-libp2p-messenger/serde"
 	"github.com/celestiaorg/nmt/namespace"
 )
@@ -44,21 +44,25 @@ func NewClient(host host.Host, defaultTimeout time.Duration) *Client {
 }
 
 // GetBlobByNamespace request shares with option to collect proofs from remote peers using shrex protocol
-func (c *Client) GetBlobByNamespace(ctx context.Context, root *share.Root, nID namespace.ID) (*share.Blob, error) {
+func (c *Client) GetBlobByNamespace(
+	ctx context.Context,
+	root *share.Root,
+	nID namespace.ID,
+) (share.NamespaceShares, error) {
 	peers := c.testPeers
 	if len(peers) == 0 { //nolint:staticcheck
 		//TODO: collect peers from discovery here
 	}
 
 	for _, peer := range peers {
-		blob, err := c.getBlobByNamespace(
+		shares, err := c.getBlobByNamespace(
 			ctx, root, nID, peer)
 		if err != nil {
 			log.Debugw("peer returned err", "peer_id", peer.String(), "err", err)
 			continue
 		}
 
-		return blob, nil
+		return shares, nil
 	}
 
 	return nil, errNotAvailable
@@ -69,7 +73,7 @@ func (c *Client) getBlobByNamespace(
 	ctx context.Context,
 	root *share.Root, nID namespace.ID,
 	peerID peer.ID,
-) (*share.Blob, error) {
+) (share.NamespaceShares, error) {
 	stream, err := c.host.NewStream(ctx, peerID, ndProtocolID)
 	if err != nil {
 		return nil, err
@@ -112,22 +116,22 @@ func (c *Client) getBlobByNamespace(
 		return nil, fmt.Errorf("response code is not OK: %w", err)
 	}
 
-	blob, err := responseToBlob(resp.Rows)
+	shares, err := responseToBlob(resp.Rows)
 	if err != nil {
 		return nil, fmt.Errorf("convert response to blob: %w", err)
 	}
 
-	err = blob.Verify(root, nID)
+	err = shares.Verify(root, nID)
 	if err != nil {
 		return nil, err
 	}
 
-	return blob, nil
+	return shares, nil
 }
 
 // responseToBlob converts proto Rows to share.Blob
-func responseToBlob(rows []*share_p2p_v1.Row) (*share.Blob, error) {
-	shares := make([]share.VerifiedShares, 0, len(rows))
+func responseToBlob(rows []*share_p2p_v1.Row) (share.NamespaceShares, error) {
+	shares := make([]share.RowNamespaceShares, 0, len(rows))
 	for _, row := range rows {
 		var proof *ipld.Proof
 		if row.Proof != nil {
@@ -147,12 +151,12 @@ func responseToBlob(rows []*share_p2p_v1.Row) (*share.Blob, error) {
 			}
 		}
 
-		shares = append(shares, share.VerifiedShares{
+		shares = append(shares, share.RowNamespaceShares{
 			Shares: row.Shares,
 			Proof:  proof,
 		})
 	}
-	return &share.Blob{Rows: shares}, nil
+	return shares, nil
 }
 
 func statusToErr(code share_p2p_v1.StatusCode) error {

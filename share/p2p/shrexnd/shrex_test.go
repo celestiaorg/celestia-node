@@ -1,4 +1,4 @@
-package shrex
+package shrexnd
 
 import (
 	"math/rand"

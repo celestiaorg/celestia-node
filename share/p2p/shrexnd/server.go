@@ -1,4 +1,4 @@
-package shrex
+package shrexnd
 
 import (
 	"context"
@@ -16,7 +16,7 @@ import (
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/eds"
 	"github.com/celestiaorg/celestia-node/share/ipld"
-	share_p2p_v1 "github.com/celestiaorg/celestia-node/share/p2p/v1/pb"
+	share_p2p_v1 "github.com/celestiaorg/celestia-node/share/p2p/shrexnd/v1/pb"
 	"github.com/celestiaorg/go-libp2p-messenger/serde"
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/nmt/namespace"
@@ -102,14 +102,14 @@ func (srv *Server) handleNamespacedData(stream network.Stream) {
 	}
 
 	getter := eds.NewBlockGetter(bs)
-	blob, err := getBlobByNamespace(ctx, getter, dah, req.NamespaceId)
+	shares, err := getBlobByNamespace(ctx, getter, dah, req.NamespaceId)
 	if err != nil {
 		log.Errorw("get shares", "err", err)
 		srv.respondInternal(stream)
 		return
 	}
 
-	resp := blobToResponse(blob)
+	resp := blobToResponse(shares)
 	srv.respond(stream, resp)
 }
 
@@ -118,7 +118,7 @@ func getBlobByNamespace(
 	getter blockservice.BlockGetter,
 	root *share.Root,
 	nID namespace.ID,
-) (*share.Blob, error) {
+) (share.NamespaceShares, error) {
 	// select rows that contain shares with desired namespace.ID
 	selectedRows := make([]cid.Cid, 0)
 	for _, row := range root.RowsRoots {
@@ -131,15 +131,15 @@ func getBlobByNamespace(
 	}
 
 	errGroup, ctx := errgroup.WithContext(ctx)
-	verifiedShares := make([]share.VerifiedShares, len(selectedRows))
+	rowShares := make([]share.RowNamespaceShares, len(selectedRows))
 	for i, rowRoot := range selectedRows {
 		// shadow loop variables, to ensure correct values are captured
 		i, rowRoot := i, rowRoot
 		errGroup.Go(func() (err error) {
 			proof := new(ipld.Proof)
 			shares, err := share.GetSharesByNamespace(ctx, getter, rowRoot, nID, len(root.RowsRoots), proof)
-			verifiedShares[i].Shares = shares
-			verifiedShares[i].Proof = proof
+			rowShares[i].Shares = shares
+			rowShares[i].Proof = proof
 			return
 		})
 	}
@@ -147,7 +147,7 @@ func getBlobByNamespace(
 	if err := errGroup.Wait(); err != nil {
 		return nil, err
 	}
-	return &share.Blob{Rows: verifiedShares}, nil
+	return rowShares, nil
 }
 
 // validateRequest checks correctness of the request
@@ -171,9 +171,9 @@ func (srv *Server) respondInternal(stream network.Stream) {
 }
 
 // blobToResponse encodes shares into proto and sends it to client with OK status code
-func blobToResponse(blob *share.Blob) *share_p2p_v1.GetSharesByNamespaceResponse {
-	rows := make([]*share_p2p_v1.Row, 0, len(blob.Rows))
-	for _, row := range blob.Rows {
+func blobToResponse(shares share.NamespaceShares) *share_p2p_v1.GetSharesByNamespaceResponse {
+	rows := make([]*share_p2p_v1.Row, 0, len(shares))
+	for _, row := range shares {
 		// construct proof
 		nodes := make([][]byte, 0, len(row.Proof.Nodes))
 		for _, cid := range row.Proof.Nodes {
