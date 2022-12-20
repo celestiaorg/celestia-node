@@ -18,15 +18,29 @@ import (
 
 var _ share.Getter = (*IPLDGetter)(nil)
 
+// IPLDGetter is a share.Getter that retrieves shares from the IPLD network. An EDS store can be
+// provided to store shares retrieved from GetShares. Otherwise, result caching is handled by the
+// provided blockservice.
 type IPLDGetter struct {
 	rtrv  *eds.Retriever
 	bServ blockservice.BlockService
+
+	// store is an optional eds store that can be used to cache retrieved shares.
+	store *eds.Store
 }
 
-func NewIPLDGetter(bServ blockservice.BlockService) *IPLDGetter {
+// NewIPLDGetter creates a new share.Getter that retrieves shares from the IPLD network.
+func NewIPLDGetter(bServ blockservice.BlockService) share.Getter {
+	return NewIPLDGetterWithStore(bServ, nil)
+}
+
+// NewIPLDGetterWithStore creates a new IPLDGetter with an EDS store for storing EDSes from
+// GetShares.
+func NewIPLDGetterWithStore(bServ blockservice.BlockService, store *eds.Store) share.Getter {
 	return &IPLDGetter{
 		rtrv:  eds.NewRetriever(bServ),
 		bServ: bServ,
+		store: store,
 	}
 }
 
@@ -44,6 +58,14 @@ func (ig *IPLDGetter) GetShares(ctx context.Context, root *share.Root) ([][]shar
 	eds, err := ig.rtrv.Retrieve(ctx, root)
 	if err != nil {
 		return nil, err
+	}
+
+	// store the EDS if a store was provided
+	if ig.store != nil {
+		err = ig.store.Put(ctx, root.Hash(), eds)
+		if err != nil {
+			return nil, fmt.Errorf("failed to cache retrieved shares: %w", err)
+		}
 	}
 
 	origWidth := int(eds.Width() / 2)
@@ -64,7 +86,7 @@ func (ig *IPLDGetter) GetSharesByNamespace(
 	ctx context.Context,
 	root *share.Root,
 	nID namespace.ID,
-) ([]share.Share, error) {
+) (share.NamespaceShares, error) {
 	if len(nID) != share.NamespaceSize {
 		return nil, fmt.Errorf("expected namespace ID of size %d, got %d", share.NamespaceSize, len(nID))
 	}
@@ -80,12 +102,17 @@ func (ig *IPLDGetter) GetSharesByNamespace(
 	}
 
 	errGroup, ctx := errgroup.WithContext(ctx)
-	shares := make([][]share.Share, len(rowRootCIDs))
+	shares := make([]share.RowNamespaceShares, len(rowRootCIDs))
 	for i, rootCID := range rowRootCIDs {
 		// shadow loop variables, to ensure correct values are captured
 		i, rootCID := i, rootCID
 		errGroup.Go(func() (err error) {
-			shares[i], err = share.GetSharesByNamespace(ctx, ig.bServ, rootCID, nID, len(root.RowsRoots), nil)
+			var proof *ipld.Proof
+			row, err := share.GetSharesByNamespace(ctx, ig.bServ, rootCID, nID, len(root.RowsRoots), proof)
+			shares[i] = share.RowNamespaceShares{
+				Shares: row,
+				Proof:  proof,
+			}
 			return
 		})
 	}
@@ -94,14 +121,5 @@ func (ig *IPLDGetter) GetSharesByNamespace(
 		return nil, err
 	}
 
-	// we don't know the amount of shares in the namespace, so we cannot preallocate properly
-	// TODO(@Wondertan): Consider improving encoding schema for data in the shares that will also
-	// include metadata 	with the amount of shares. If we are talking about plenty of data here, proper
-	// preallocation would make a 	difference
-	var out []share.Share
-	for i := 0; i < len(rowRootCIDs); i++ {
-		out = append(out, shares[i]...)
-	}
-
-	return out, nil
+	return shares, nil
 }

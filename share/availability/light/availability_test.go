@@ -105,14 +105,15 @@ func TestService_GetSharesByNamespace(t *testing.T) {
 
 			shares, err := getter.GetSharesByNamespace(context.Background(), root, randNID)
 			require.NoError(t, err)
-			assert.Len(t, shares, tt.expectedShareCount)
-			for _, value := range shares {
+			flattened := shares.Flatten()
+			assert.Len(t, flattened, tt.expectedShareCount)
+			for _, value := range flattened {
 				assert.Equal(t, randNID, []byte(share.ID(value)))
 			}
 			if tt.expectedShareCount > 1 {
 				// idx1 is always smaller than idx2
-				assert.Equal(t, randShares[idx1], shares[0])
-				assert.Equal(t, randShares[idx2], shares[1])
+				assert.Equal(t, randShares[idx1], flattened[0])
+				assert.Equal(t, randShares[idx2], flattened[1])
 			}
 		})
 	}
@@ -319,7 +320,7 @@ func TestSharesRoundTrip(t *testing.T) {
 				require.NoError(t, err)
 				require.NotEmpty(t, shares)
 
-				msgs, err := appshares.ParseMsgs(shares)
+				msgs, err := appshares.ParseMsgs(shares.Flatten())
 				require.NoError(t, err)
 				assert.Len(t, msgs.MessagesList, len(msgsInNamespace))
 				for i := range msgs.MessagesList {

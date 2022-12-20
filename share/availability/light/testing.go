@@ -19,15 +19,16 @@ import (
 // trees of 'n' random shares, essentially storing a whole square.
 func RandServiceWithSquare(t *testing.T, n int) (share.Getter, share.Availability, *share.Root) {
 	bServ := mdutils.Bserv()
-
-	return getters.NewIPLDGetter(bServ), TestAvailability(bServ), availability_test.RandFillBS(t, n, bServ)
+	getter := getters.NewIPLDGetter(bServ)
+	return getter, TestAvailability(getter), availability_test.RandFillBS(t, n, bServ)
 }
 
 // RandService provides an unfilled share.Getter/share.Availability with corresponding
 // blockservice.BlockService than can be filled by the test.
 func RandService() (share.Getter, share.Availability, blockservice.BlockService) {
 	bServ := mdutils.Bserv()
-	return getters.NewIPLDGetter(bServ), TestAvailability(bServ), bServ
+	getter := getters.NewIPLDGetter(bServ)
+	return getter, TestAvailability(getter), bServ
 }
 
 // RandNode creates a Light Node filled with a random block of the given size.
@@ -40,13 +41,13 @@ func RandNode(dn *availability_test.TestDagNet, squareSize int) (*availability_t
 func Node(dn *availability_test.TestDagNet) *availability_test.TestNode {
 	nd := dn.NewTestNode()
 	nd.Getter = getters.NewIPLDGetter(nd.BlockService)
-	nd.Availability = TestAvailability(nd.BlockService)
+	nd.Availability = TestAvailability(nd.Getter)
 	return nd
 }
 
-func TestAvailability(bServ blockservice.BlockService) *ShareAvailability {
+func TestAvailability(getter share.Getter) *ShareAvailability {
 	disc := discovery.NewDiscovery(nil, routing.NewRoutingDiscovery(routinghelpers.Null{}), 0, time.Second, time.Second)
-	return NewShareAvailability(bServ, disc)
+	return NewShareAvailability(getter, disc)
 }
 
 func SubNetNode(sn *availability_test.SubNet) *availability_test.TestNode {

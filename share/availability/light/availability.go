@@ -7,9 +7,6 @@ import (
 
 	"github.com/libp2p/go-libp2p/core/peer"
 
-	"github.com/celestiaorg/celestia-node/share/ipld"
-
-	"github.com/ipfs/go-blockservice"
 	ipldFormat "github.com/ipfs/go-ipld-format"
 	logging "github.com/ipfs/go-log/v2"
 
@@ -24,7 +21,7 @@ var log = logging.Logger("share/light")
 // its availability. It is assumed that there are a lot of lightAvailability instances
 // on the network doing sampling over the same Root to collectively verify its availability.
 type ShareAvailability struct {
-	bserv blockservice.BlockService
+	getter share.Getter
 	// disc discovers new full nodes in the network.
 	// it is not allowed to call advertise for light nodes (Full nodes only).
 	disc   *discovery.Discovery
@@ -33,12 +30,12 @@ type ShareAvailability struct {
 
 // NewShareAvailability creates a new light Availability.
 func NewShareAvailability(
-	bserv blockservice.BlockService,
+	getter share.Getter,
 	disc *discovery.Discovery,
 ) *ShareAvailability {
 	la := &ShareAvailability{
-		bserv: bserv,
-		disc:  disc,
+		getter: getter,
+		disc:   disc,
 	}
 	return la
 }
@@ -76,16 +73,13 @@ func (la *ShareAvailability) SharesAvailable(ctx context.Context, dah *share.Roo
 	defer cancel()
 
 	log.Debugw("starting sampling session", "root", dah.Hash())
-	ses := blockservice.NewSession(ctx, la.bserv)
 	errs := make(chan error, len(samples))
 	for _, s := range samples {
 		go func(s Sample) {
-			root, leaf := ipld.Translate(dah, s.Row, s.Col)
-
-			log.Debugw("fetching share", "root", dah.Hash(), "leaf CID", leaf)
-			_, err := share.GetShare(ctx, ses, root, leaf, len(dah.RowsRoots))
+			log.Debugw("fetching share", "root", dah.Hash(), "row", s.Row, "col", s.Col)
+			_, err := la.getter.GetShare(ctx, dah, s.Row, s.Col)
 			if err != nil {
-				log.Debugw("error fetching share", "root", dah.Hash(), "leaf CID", leaf)
+				log.Debugw("error fetching share", "root", dah.Hash(), "row", s.Row, "col", s.Col)
 			}
 			// we don't really care about Share bodies at this point
 			// it also means we now saved the Share in local storage

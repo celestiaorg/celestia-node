@@ -33,11 +33,14 @@ type Module interface {
 	// ProbabilityOfAvailability calculates the probability of the data square
 	// being available based on the number of samples collected.
 	ProbabilityOfAvailability(context.Context) float64
+	// GetShare gets a Share by coordinates in EDS.
 	GetShare(ctx context.Context, dah *share.Root, row, col int) (share.Share, error)
+	// GetShares gets all shares in an EDS.
+	// Shares are returned in a row-by-row order.
 	GetShares(ctx context.Context, root *share.Root) ([][]share.Share, error)
-	// GetSharesByNamespace iterates over a square's row roots and accumulates the found shares in the
-	// given namespace.ID.
-	GetSharesByNamespace(ctx context.Context, root *share.Root, namespace namespace.ID) ([]share.Share, error)
+	// GetSharesByNamespace gets all shares from an EDS within the given namespace.
+	// Shares are returned in a row-by-row order if the namespace spans multiple rows.
+	GetSharesByNamespace(ctx context.Context, root *share.Root, namespace namespace.ID) (share.NamespaceShares, error)
 }
 
 // API is a wrapper around Module for the RPC.
@@ -59,7 +62,7 @@ type API struct {
 			ctx context.Context,
 			root *share.Root,
 			namespace namespace.ID,
-		) ([]share.Share, error) `perm:"public"`
+		) (share.NamespaceShares, error) `perm:"public"`
 	}
 }
 
@@ -83,7 +86,7 @@ func (api *API) GetSharesByNamespace(
 	ctx context.Context,
 	root *share.Root,
 	namespace namespace.ID,
-) ([]share.Share, error) {
+) (share.NamespaceShares, error) {
 	return api.Internal.GetSharesByNamespace(ctx, root, namespace)
 }
 

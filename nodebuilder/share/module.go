@@ -13,6 +13,7 @@ import (
 	"github.com/celestiaorg/celestia-node/share/availability/full"
 	"github.com/celestiaorg/celestia-node/share/availability/light"
 	"github.com/celestiaorg/celestia-node/share/eds"
+	"github.com/celestiaorg/celestia-node/share/getters"
 	"github.com/celestiaorg/celestia-node/share/p2p/shrexeds"
 )
 
@@ -27,6 +28,7 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 		fx.Provide(discovery(*cfg)),
 		fx.Provide(newModule),
 		fx.Invoke(share.EnsureEmptySquareExists),
+		fx.Provide(getters.NewIPLDGetter),
 	)
 
 	switch tp {
