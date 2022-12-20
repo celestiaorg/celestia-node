@@ -42,11 +42,11 @@ const (
 	// NamespaceSize is a system-wide size for NMT namespaces.
 	NamespaceSize = appconsts.NamespaceSize
 
-	// nmtHashSize is the size of a digest created by an NMT in bytes.
-	nmtHashSize = 2*NamespaceSize + sha256.Size
+	// NmtHashSize is the size of a digest created by an NMT in bytes.
+	NmtHashSize = 2*NamespaceSize + sha256.Size
 
 	// innerNodeSize is the size of data in inner nodes.
-	innerNodeSize = nmtHashSize * 2
+	innerNodeSize = NmtHashSize * 2
 
 	// leafNodeSize is the size of data in leaf nodes.
 	leafNodeSize = NamespaceSize + appconsts.ShareSize
@@ -98,8 +98,8 @@ func (n nmtNode) Links() []*ipld.Link {
 	default:
 		panic(fmt.Sprintf("unexpected size %v", len(n.RawData())))
 	case innerNodeSize:
-		leftCid := MustCidFromNamespacedSha256(n.RawData()[:nmtHashSize])
-		rightCid := MustCidFromNamespacedSha256(n.RawData()[nmtHashSize:])
+		leftCid := MustCidFromNamespacedSha256(n.RawData()[:NmtHashSize])
+		rightCid := MustCidFromNamespacedSha256(n.RawData()[NmtHashSize:])
 
 		return []*ipld.Link{{Cid: leftCid}, {Cid: rightCid}}
 	case leafNodeSize:
@@ -129,7 +129,7 @@ func (n nmtNode) Size() (uint64, error) {
 
 // CidFromNamespacedSha256 uses a hash from an nmt tree to create a CID
 func CidFromNamespacedSha256(namespacedHash []byte) (cid.Cid, error) {
-	if got, want := len(namespacedHash), nmtHashSize; got != want {
+	if got, want := len(namespacedHash), NmtHashSize; got != want {
 		return cid.Cid{}, fmt.Errorf("invalid namespaced hash length, got: %v, want: %v", got, want)
 	}
 	buf, err := mh.Encode(namespacedHash, sha256Namespace8Flagged)

@@ -9,7 +9,7 @@ import (
 )
 
 func RandNamespacedCID(t *testing.T) cid.Cid {
-	raw := make([]byte, nmtHashSize)
+	raw := make([]byte, NmtHashSize)
 	_, err := mrand.Read(raw)
 	require.NoError(t, err)
 	id, err := CidFromNamespacedSha256(raw)

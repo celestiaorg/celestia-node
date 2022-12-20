@@ -16,6 +16,7 @@ import (
 	format "github.com/ipfs/go-ipld-format"
 	"github.com/ipld/go-car"
 	"github.com/ipld/go-car/util"
+	"github.com/minio/sha256-simd"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/pkg/da"
@@ -33,11 +34,10 @@ var ErrEmptySquare = errors.New("share: importing empty data")
 // writingSession contains the components needed to write an EDS to a CARv1 file with our custom
 // node order.
 type writingSession struct {
-	eds *rsmt2d.ExtendedDataSquare
-	// store is an in-memory blockstore, used to cache the inner nodes (proofs) while we walk the nmt
-	// tree.
-	store bstore.Blockstore
-	w     io.Writer
+	eds    *rsmt2d.ExtendedDataSquare
+	store  bstore.Blockstore // caches inner nodes (proofs) while we walk the nmt tree.
+	hasher *nmt.Hasher
+	w      io.Writer
 }
 
 // WriteEDS writes the entire EDS into the given io.Writer as CARv1 file.
@@ -106,9 +106,10 @@ func initializeWriter(ctx context.Context, eds *rsmt2d.ExtendedDataSquare, w io.
 	}
 
 	return &writingSession{
-		eds:   eds,
-		store: store,
-		w:     w,
+		eds:    eds,
+		store:  store,
+		hasher: nmt.NewNmtHasher(sha256.New(), ipld.NamespaceSize, ipld.NMTIgnoreMaxNamespace),
+		w:      w,
 	}, nil
 }
 
@@ -129,7 +130,7 @@ func (w *writingSession) writeHeader() error {
 func (w *writingSession) writeQuadrants() error {
 	shares := quadrantOrder(w.eds)
 	for _, share := range shares {
-		cid, err := ipld.CidFromNamespacedSha256(nmt.Sha256Namespace8FlaggedLeaf(share))
+		cid, err := ipld.CidFromNamespacedSha256(w.hasher.HashLeaf(share))
 		if err != nil {
 			return fmt.Errorf("getting cid from share: %w", err)
 		}
@@ -151,15 +152,18 @@ func (w *writingSession) writeProofs(ctx context.Context) error {
 		return fmt.Errorf("getting all keys from the blockstore: %w", err)
 	}
 	for proofCid := range proofs {
-		node, err := w.store.Get(ctx, proofCid)
+		block, err := w.store.Get(ctx, proofCid)
 		if err != nil {
 			return fmt.Errorf("getting proof from the blockstore: %w", err)
 		}
-		cid, err := ipld.CidFromNamespacedSha256(nmt.Sha256Namespace8FlaggedInner(node.RawData()))
+
+		node := block.RawData()
+		left, right := node[:ipld.NmtHashSize], node[ipld.NmtHashSize:]
+		cid, err := ipld.CidFromNamespacedSha256(w.hasher.HashNode(left, right))
 		if err != nil {
 			return fmt.Errorf("getting cid: %w", err)
 		}
-		err = util.LdWrite(w.w, cid.Bytes(), node.RawData())
+		err = util.LdWrite(w.w, cid.Bytes(), node)
 		if err != nil {
 			return fmt.Errorf("writing proof to the car: %w", err)
 		}
@@ -201,11 +205,10 @@ func getQuadrantCells(eds *rsmt2d.ExtendedDataSquare, i, j uint) [][]byte {
 
 // prependNamespace adds the namespace to the passed share if in the first quadrant,
 // otherwise it adds the ParitySharesNamespace to the beginning.
-// TODO(@walldiss): this method will be obselete once the redundant namespace is removed
 func prependNamespace(quadrant int, share []byte) []byte {
 	switch quadrant {
 	case 0:
-		return append(share[:appconsts.NamespaceSize], share...)
+		return append(share[:ipld.NamespaceSize], share...)
 	case 1, 2, 3:
 		return append(appconsts.ParitySharesNamespaceID, share...)
 	default:
@@ -250,8 +253,7 @@ func ReadEDS(ctx context.Context, r io.Reader, root share.DataHash) (*rsmt2d.Ext
 		}
 		// the stored first quadrant shares are wrapped with the namespace twice.
 		// we cut it off here, because it is added again while importing to the tree below
-		// TODO(@walldiss): remove redundant namespace
-		shares[i] = block.RawData()[appconsts.NamespaceSize:]
+		shares[i] = block.RawData()[ipld.NamespaceSize:]
 	}
 
 	eds, err := rsmt2d.ComputeExtendedDataSquare(
