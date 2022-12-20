@@ -1,4 +1,4 @@
-build/
+/build/
 *.bak
 *.iml
 *.log
@@ -10,14 +10,13 @@ build/
 *.coverprofile
 *.test
 *.orig
-*/vendor
 vendor
 .DS_Store
 .bak
 .idea/
 .vscode/
-celestia
-cel-shed
-cel-key
+/celestia
+/cel-shed
+/cel-key
 coverage.txt
 go.work
