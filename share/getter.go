@@ -3,9 +3,11 @@ package share
 import (
 	"context"
 	"errors"
-
+	"fmt"
 	"github.com/celestiaorg/celestia-node/share/ipld"
+	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/nmt/namespace"
+	"github.com/minio/sha256-simd"
 )
 
 // Getter interface provides a set of accessors for shares by the Root.
@@ -33,12 +35,6 @@ type RowNamespaceShares struct {
 	Proof  *ipld.Proof
 }
 
-// Verify checks for the inclusion of the NamespacedShares in the Root and verifies their belonging
-// to the given namespace.
-func (NamespaceShares) Verify(*Root, namespace.ID) error {
-	return errors.New("not implemented")
-}
-
 // Flatten returns the concatenated slice of all RowNamespaceShares shares.
 func (ns NamespaceShares) Flatten() []Share {
 	shares := make([]Share, 0)
@@ -46,4 +42,55 @@ func (ns NamespaceShares) Flatten() []Share {
 		shares = append(shares, row.Shares...)
 	}
 	return shares
+}
+
+// Verify validates NamespaceShares by checking every row with nmt inclusion proof.
+func (ns NamespaceShares) Verify(root *Root, nID namespace.ID) error {
+	originalRoots := make([][]byte, 0)
+	for _, row := range root.RowsRoots {
+		if !nID.Less(nmt.MinNamespace(row, nID.Size())) && nID.LessOrEqual(nmt.MaxNamespace(row, nID.Size())) {
+			originalRoots = append(originalRoots, row)
+		}
+	}
+
+	if len(originalRoots) != len(ns) {
+		return fmt.Errorf("amount of rows in root: %v, is defferent from namespace shares: %v",
+			len(originalRoots), len(ns))
+	}
+
+	for i, row := range ns {
+		// verify row data against row hash from original root
+		if !row.verify(originalRoots[i], nID) {
+			return errors.New("shares failed verification")
+		}
+	}
+	return nil
+}
+
+// verify validates the row using nmt inclusion proof
+func (row *RowNamespaceShares) verify(rowRoot []byte, nID namespace.ID) bool {
+	// construct nmt leaves from shares by prepending namespace
+	leaves := make([][]byte, 0, len(row.Shares))
+	for _, sh := range row.Shares {
+		leaves = append(leaves, append(sh[:NamespaceSize], sh...))
+	}
+
+	proofNodes := make([][]byte, 0, len(row.Proof.Nodes))
+	for _, n := range row.Proof.Nodes {
+		proofNodes = append(proofNodes, ipld.NamespacedSha256FromCID(n))
+	}
+
+	// construct new proof
+	inclusionProof := nmt.NewInclusionProof(
+		row.Proof.Start,
+		row.Proof.End,
+		proofNodes,
+		ipld.NMTIgnoreMaxNamespace)
+
+	// verify inclusion
+	return inclusionProof.VerifyNamespace(
+		sha256.New(),
+		nID,
+		leaves,
+		rowRoot)
 }
