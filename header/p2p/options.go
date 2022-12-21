@@ -38,7 +38,6 @@ func DefaultServerParameters() ServerParameters {
 		ReadDeadline:   time.Minute,
 		MaxRequestSize: 512,
 		RequestTimeout: time.Second * 5,
-		protocolSuffix: "",
 	}
 }
 

@@ -19,7 +19,7 @@ import (
 
 var log = logging.Logger("module/header")
 
-func ConstructModule(tp node.Type, network modp2p.Network, cfg *Config) fx.Option {
+func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 	// sanitize config values before constructing module
 	cfgErr := cfg.Validate(tp)
 
@@ -37,7 +37,7 @@ func ConstructModule(tp node.Type, network modp2p.Network, cfg *Config) fx.Optio
 			},
 		),
 		fx.Provide(
-			func(cfg Config) []p2p.Option[p2p.ServerParameters] {
+			func(cfg Config, network modp2p.Network) []p2p.Option[p2p.ServerParameters] {
 				return []p2p.Option[p2p.ServerParameters]{
 					p2p.WithWriteDeadline(cfg.Server.WriteDeadline),
 					p2p.WithReadDeadline(cfg.Server.ReadDeadline),
@@ -105,7 +105,7 @@ func ConstructModule(tp node.Type, network modp2p.Network, cfg *Config) fx.Optio
 			"header",
 			baseComponents,
 			fx.Provide(
-				func(cfg Config) []p2p.Option[p2p.ClientParameters] {
+				func(cfg Config, network modp2p.Network) []p2p.Option[p2p.ClientParameters] {
 					return []p2p.Option[p2p.ClientParameters]{
 						p2p.WithMinResponses(cfg.Client.MinResponses),
 						p2p.WithMaxRequestSize[p2p.ClientParameters](cfg.Client.MaxRequestSize),

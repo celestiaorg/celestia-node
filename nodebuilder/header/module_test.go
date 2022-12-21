@@ -32,10 +32,11 @@ func TestConstructModule_StoreParams(t *testing.T) {
 	var headerStore *store.Store
 
 	app := fxtest.New(t,
+		fx.Supply(modp2p.Private),
 		fx.Provide(func() datastore.Batching {
 			return datastore.NewMapDatastore()
 		}),
-		ConstructModule(node.Light, modp2p.Private, &cfg),
+		ConstructModule(node.Light, &cfg),
 		fx.Invoke(
 			func(s header.Store) {
 				ss := s.(*store.Store)
@@ -100,7 +101,7 @@ func TestConstructModule_ExchangeParams(t *testing.T) {
 		fx.Provide(func() datastore.Batching {
 			return datastore.NewMapDatastore()
 		}),
-		ConstructModule(node.Light, network, &cfg),
+		ConstructModule(node.Light, &cfg),
 		fx.Provide(func(b datastore.Batching) (*conngater.BasicConnectionGater, error) {
 			return conngater.NewBasicConnectionGater(b)
 		}),

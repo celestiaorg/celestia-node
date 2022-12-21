@@ -97,7 +97,12 @@ func TestExchange_RequestFullRangeHeaders(t *testing.T) {
 	connGater, err := conngater.NewBasicConnectionGater(sync.MutexWrap(datastore.NewMapDatastore()))
 	require.NoError(t, err)
 	// create new exchange
-	exchange, err := NewExchange(hosts[len(hosts)-1], []peer.ID{}, connGater, WithProtocolSuffix[ClientParameters]("private"))
+	exchange, err := NewExchange(
+		hosts[len(hosts)-1],
+		[]peer.ID{},
+		connGater,
+		WithProtocolSuffix[ClientParameters]("private"),
+	)
 	require.NoError(t, err)
 	exchange.Params.MaxHeadersPerRequest = 10
 	exchange.ctx, exchange.cancel = context.WithCancel(context.Background())
@@ -137,7 +142,11 @@ func TestExchange_RequestHeadersFromAnotherPeer(t *testing.T) {
 	// create client + server(it does not have needed headers)
 	exchg, _ := createP2PExAndServer(t, hosts[0], hosts[1])
 	// create one more server(with more headers in the store)
-	serverSideEx, err := NewExchangeServer(hosts[2], headerMock.NewStore(t, 10), WithProtocolSuffix[ServerParameters]("private"))
+	serverSideEx, err := NewExchangeServer(
+		hosts[2],
+		headerMock.NewStore(t, 10),
+		WithProtocolSuffix[ServerParameters]("private"),
+	)
 	require.NoError(t, err)
 	require.NoError(t, serverSideEx.Start(context.Background()))
 	t.Cleanup(func() {
@@ -322,7 +331,11 @@ func TestExchange_RequestHeadersFromAnotherPeerWhenTimeout(t *testing.T) {
 	exchg, _ := createP2PExAndServer(t, host0, host1)
 	exchg.Params.RequestTimeout = time.Millisecond * 100
 	// create one more server(with more headers in the store)
-	serverSideEx, err := NewExchangeServer(host2, headerMock.NewStore(t, 10), "private")
+	serverSideEx, err := NewExchangeServer(
+		host2,
+		headerMock.NewStore(t, 10),
+		WithProtocolSuffix[ServerParameters]("private"),
+	)
 	require.NoError(t, err)
 	// change store implementation
 	serverSideEx.getter = &timedOutStore{exchg.Params.RequestTimeout}

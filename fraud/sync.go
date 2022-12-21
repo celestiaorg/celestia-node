@@ -9,6 +9,7 @@ import (
 	"github.com/libp2p/go-libp2p/core/event"
 	"github.com/libp2p/go-libp2p/core/network"
 	"github.com/libp2p/go-libp2p/core/peer"
+	"github.com/libp2p/go-libp2p/core/protocol"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 
@@ -22,7 +23,7 @@ import (
 // to request fraud proofs from and request fraud proofs from them.
 // After fraud proofs are received, they are published to all local subscriptions for verification
 // order to be verified.
-func (f *ProofService) syncFraudProofs(ctx context.Context) {
+func (f *ProofService) syncFraudProofs(ctx context.Context, id protocol.ID) {
 	log.Debug("start fetching fraud proofs")
 	// subscribe to new peer connections that we can request fraud proofs from
 	sub, err := f.host.EventBus().Subscribe(&event.EvtPeerIdentificationCompleted{})
@@ -67,7 +68,7 @@ func (f *ProofService) syncFraudProofs(ctx context.Context) {
 				attribute.StringSlice("proof_types", proofTypes),
 			)
 			log.Debugw("requesting proofs from peer", "pid", pid)
-			respProofs, err := f.requestProofs(ctx, pid, proofTypes)
+			respProofs, err := f.requestProofs(ctx, id, pid, proofTypes)
 			if err != nil {
 				log.Errorw("error while requesting fraud proofs", "err", err, "peer", pid)
 				span.RecordError(err)

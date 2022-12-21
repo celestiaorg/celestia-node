@@ -9,9 +9,9 @@ import (
 	"sync"
 
 	"github.com/ipfs/go-datastore"
-	"github.com/libp2p/go-libp2p-core/host"
-	"github.com/libp2p/go-libp2p-core/peer"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
+	"github.com/libp2p/go-libp2p/core/host"
+	"github.com/libp2p/go-libp2p/core/peer"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
@@ -90,7 +90,7 @@ func (f *ProofService) Start(context.Context) error {
 
 	f.host.SetStreamHandler(id, f.handleFraudMessageRequest)
 	if f.syncerEnabled {
-		go f.syncFraudProofs(f.ctx)
+		go f.syncFraudProofs(f.ctx, id)
 	}
 	return nil
 }
