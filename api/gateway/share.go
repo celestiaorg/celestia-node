@@ -9,7 +9,7 @@ import (
 
 	"github.com/gorilla/mux"
 
-	appshares "github.com/celestiaorg/celestia-app/pkg/shares"
+	"github.com/celestiaorg/celestia-app/pkg/shares"
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/nmt/namespace"
@@ -111,14 +111,17 @@ func (h *Handler) getShares(ctx context.Context, height uint64, nID namespace.ID
 	return shares.Flatten(), header.Height(), err
 }
 
-func dataFromShares(shares []share.Share) ([][]byte, error) {
-	blobs, err := appshares.ParseBlobs(shares)
+func dataFromShares(input []share.Share) (data [][]byte, err error) {
+	sequences, err := shares.ParseShares(input)
 	if err != nil {
 		return nil, err
 	}
-	data := make([][]byte, len(blobs))
-	for i := range blobs {
-		data[i] = blobs[i].Data
+	for _, sequence := range sequences {
+		raw, err := sequence.RawData()
+		if err != nil {
+			return nil, err
+		}
+		data = append(data, raw)
 	}
 	return data, nil
 }
