@@ -186,7 +186,7 @@ func (serv *ExchangeServer) handleRequest(from, to uint64) ([]*header.ExtendedHe
 	if err != nil {
 		if errors.Is(err, context.DeadlineExceeded) {
 			log.Warnw("server: requested headers not found", "from", from, "to", to)
-			return nil, err
+			return nil, header.ErrNotFound
 		}
 		log.Errorw("server: getting headers", "from", from, "to", to, "err", err)
 		return nil, err
