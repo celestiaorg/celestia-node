@@ -2,6 +2,7 @@ package p2p
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	"github.com/libp2p/go-libp2p-core/host"
@@ -183,6 +184,10 @@ func (serv *ExchangeServer) handleRequest(from, to uint64) ([]*header.ExtendedHe
 	defer cancel()
 	headersByRange, err := serv.store.GetRangeByHeight(ctx, from, to)
 	if err != nil {
+		if errors.Is(err, context.DeadlineExceeded) {
+			log.Warnw("server: requested headers not found", "from", from, "to", to)
+			return nil, header.ErrNotFound
+		}
 		log.Errorw("server: getting headers", "from", from, "to", to, "err", err)
 		return nil, err
 	}
