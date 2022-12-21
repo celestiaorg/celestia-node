@@ -211,7 +211,7 @@ func (s *Store) CARBlockstore(
 	key := shard.KeyFromString(root.String())
 	shardAccessor, err := s.getAccessor(ctx, key)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get accessor: %w", err)
+		return nil, fmt.Errorf("eds/store: failed to get accessor: %w", err)
 	}
 	return shardAccessor.bs, nil
 }
@@ -221,13 +221,13 @@ func (s *Store) GetDAH(ctx context.Context, root share.DataHash) (*share.Root, e
 	key := shard.KeyFromString(root.String())
 	shardAccessor, err := s.acquireShard(ctx, key)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get accessor: %w", err)
+		return nil, fmt.Errorf("eds/store: failed to get accessor: %w", err)
 	}
 	defer shardAccessor.Close()
 
 	reader, err := carv1.NewCarReader(shardAccessor)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read DAH from car reader: %w", err)
+		return nil, fmt.Errorf("eds/store: failed to read DAH from car reader: %w", err)
 	}
 	return dahFromCARHeader(reader.Header), nil
 }
