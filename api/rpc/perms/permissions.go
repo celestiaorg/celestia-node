@@ -9,6 +9,7 @@ import (
 
 var (
 	DefaultPerms   = []auth.Permission{"public"}
+	ReadPerms      = []auth.Permission{"public", "read"}
 	ReadWritePerms = []auth.Permission{"public", "read", "write"}
 	AllPerms       = []auth.Permission{"public", "read", "write", "admin"}
 )
