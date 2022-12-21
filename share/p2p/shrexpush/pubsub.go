@@ -1,8 +1,10 @@
-package eds
+package shrexpush
 
 import (
 	"context"
 	"fmt"
+
+	logging "github.com/ipfs/go-log/v2"
 
 	"github.com/libp2p/go-libp2p-core/host"
 	"github.com/libp2p/go-libp2p-core/peer"
@@ -10,6 +12,8 @@ import (
 
 	"github.com/celestiaorg/celestia-node/share"
 )
+
+var log = logging.Logger("shrex-push")
 
 // pubSubTopic hardcodes the name of the EDS floodsub topic with the provided suffix.
 func pubSubTopic(suffix string) string {
@@ -77,7 +81,7 @@ func (s *PubSub) AddValidator(validate Validator) error {
 // Subscribe provides a new Subscription for EDS notifications.
 func (s *PubSub) Subscribe() (*Subscription, error) {
 	if s.topic == nil {
-		return nil, fmt.Errorf("share/eds: topic is not started")
+		return nil, fmt.Errorf("shrex-push: topic is not started")
 	}
 	return newSubscription(s.topic)
 }
