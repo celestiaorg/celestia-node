@@ -13,7 +13,7 @@ import (
 	"github.com/celestiaorg/celestia-node/share"
 )
 
-var log = logging.Logger("share/shrexpush")
+var log = logging.Logger("shrex-push")
 
 // pubSubTopic hardcodes the name of the EDS floodsub topic with the provided suffix.
 func pubSubTopic(suffix string) string {
@@ -81,7 +81,7 @@ func (s *PubSub) AddValidator(validate Validator) error {
 // Subscribe provides a new Subscription for EDS notifications.
 func (s *PubSub) Subscribe() (*Subscription, error) {
 	if s.topic == nil {
-		return nil, fmt.Errorf("share/shrexpush: topic is not started")
+		return nil, fmt.Errorf("shrex-push: topic is not started")
 	}
 	return newSubscription(s.topic)
 }
