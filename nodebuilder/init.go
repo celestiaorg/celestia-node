@@ -69,43 +69,42 @@ func Reinit(cfg Config, path string, newConfigPath string, tp node.Type) error {
 	if err != nil {
 		return err
 	}
+
 	cfgPath := configPath(path)
 	exist := utils.Exists(cfgPath)
-
-	// if config exist make changes
-	if exist {
-		log.Infof("Reinitializing %s Node Store Config over '%s'", tp, path)
-
-		flock, err := fslock.Lock(lockPath(path))
-		if err != nil {
-			if err == fslock.ErrLocked {
-				return ErrOpened
-			}
-			return err
-		}
-		defer flock.Unlock() //nolint: errcheck
-
-		newConf, err := LoadConfig(newConfigPath)
-		if err != nil {
-			return err
-		}
-
-		err = diffConfig(&cfg, newConf)
-		if err != nil {
-			return err
-		}
-
-		err = SaveConfig(cfgPath, &cfg)
-		if err != nil {
-			return err
-		}
-
-		log.Infow("Saving config", "path", cfgPath)
+	if !exist {
+		log.Errorf("%s Node store not found '%s'", tp, path)
 		return nil
 	}
 
-	log.Infof("%s Node store not found '%s'", tp, path)
-	return Init(cfg, path, tp)
+	log.Infof("Reinitializing %s Node Store Config over '%s'", tp, path)
+
+	flock, err := fslock.Lock(lockPath(path))
+	if err != nil {
+		if err == fslock.ErrLocked {
+			return ErrOpened
+		}
+		return err
+	}
+	defer flock.Unlock() //nolint: errcheck
+
+	newConf, err := LoadConfig(newConfigPath)
+	if err != nil {
+		return err
+	}
+
+	err = diffConfig(&cfg, newConf)
+	if err != nil {
+		return err
+	}
+
+	err = SaveConfig(cfgPath, &cfg)
+	if err != nil {
+		return err
+	}
+
+	log.Infow("Saving config", "path", cfgPath)
+	return nil
 }
 
 // IsInit checks whether FileSystem Store was setup under given 'path'.
