@@ -187,7 +187,7 @@ func (s *Store) Put(ctx context.Context, root share.DataHash, square *rsmt2d.Ext
 // Caller must Close returned reader after reading.
 func (s *Store) GetCAR(ctx context.Context, root share.DataHash) (io.ReadCloser, error) {
 	key := root.String()
-	accessor, err := s.acquireShard(ctx, shard.KeyFromString(key))
+	accessor, err := s.getAccessor(ctx, shard.KeyFromString(key))
 	if err != nil {
 		return nil, fmt.Errorf("failed to get accessor: %w", err)
 	}
@@ -211,7 +211,7 @@ func (s *Store) CARBlockstore(
 	root share.DataHash,
 ) (dagstore.ReadBlockstore, error) {
 	key := shard.KeyFromString(root.String())
-	accessor, err := s.getAccessor(ctx, key)
+	accessor, err := s.getCachedAccessor(ctx, key)
 	if err != nil {
 		return nil, fmt.Errorf("eds/store: failed to get accessor: %w", err)
 	}
@@ -221,7 +221,7 @@ func (s *Store) CARBlockstore(
 // GetDAH returns the DataAvailabilityHeader for the EDS identified by DataHash.
 func (s *Store) GetDAH(ctx context.Context, root share.DataHash) (*share.Root, error) {
 	key := shard.KeyFromString(root.String())
-	accessor, err := s.acquireShard(ctx, key)
+	accessor, err := s.getAccessor(ctx, key)
 	if err != nil {
 		return nil, fmt.Errorf("eds/store: failed to get accessor: %w", err)
 	}
@@ -252,7 +252,7 @@ func dahFromCARHeader(carHeader *carv1.CarHeader) *header.DataAvailabilityHeader
 	}
 }
 
-func (s *Store) acquireShard(ctx context.Context, key shard.Key) (*dagstore.ShardAccessor, error) {
+func (s *Store) getAccessor(ctx context.Context, key shard.Key) (*dagstore.ShardAccessor, error) {
 	ch := make(chan dagstore.ShardResult, 1)
 	err := s.dgstr.AcquireShard(ctx, key, ch, dagstore.AcquireOpts{})
 	if err != nil {
@@ -270,7 +270,7 @@ func (s *Store) acquireShard(ctx context.Context, key shard.Key) (*dagstore.Shar
 	}
 }
 
-func (s *Store) getAccessor(ctx context.Context, key shard.Key) (*accessorWithBlockstore, error) {
+func (s *Store) getCachedAccessor(ctx context.Context, key shard.Key) (*accessorWithBlockstore, error) {
 	// try to fetch from cache
 	accessor, err := s.cache.Get(key)
 	if err != nil && err != errCacheMiss {
@@ -281,7 +281,7 @@ func (s *Store) getAccessor(ctx context.Context, key shard.Key) (*accessorWithBl
 	}
 
 	// wasn't found in cache, so acquire it and add to cache
-	shardAccessor, err := s.acquireShard(ctx, key)
+	shardAccessor, err := s.getAccessor(ctx, key)
 	if err != nil {
 		return nil, err
 	}

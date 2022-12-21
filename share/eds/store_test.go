@@ -210,7 +210,7 @@ func Test_BlockstoreCache(t *testing.T) {
 	assert.ErrorIs(t, err, errCacheMiss)
 
 	// now get it, so that the key is in the cache
-	_, err = edsStore.getAccessor(ctx, shardKey)
+	_, err = edsStore.getCachedAccessor(ctx, shardKey)
 	assert.NoError(t, err)
 	_, err = edsStore.cache.Get(shardKey)
 	assert.NoError(t, err, errCacheMiss)
