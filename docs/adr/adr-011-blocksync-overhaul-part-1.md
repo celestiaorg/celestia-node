@@ -287,7 +287,21 @@ ___NOTES:___
 // CARBlockstore returns an IPFS Blockstore providing access to individual shares/nodes of a specific EDS identified by 
 // DataHash and registered on the Store. NOTE: The Blockstore does not store whole Celestia Blocks but IPFS blocks. 
 // We represent `shares` and NMT Merkle proofs as IPFS blocks and IPLD nodes so Bitswap can access those.
-func (s *Store) CARBlockstore(context.Context, DataHash)  (dagstore.ReadBlockstore, *share.Root, error)
+func (s *Store) CARBlockstore(context.Context, DataHash)  (dagstore.ReadBlockstore, error)
+```
+
+##### `eds.Store.GetDAH`
+
+The `GetDAH` method returns the DAH (`share.Root`) of the EDS identified by `DataHash`. Internally it:
+
+- Acquires a `ShardAccessor` for the corresponding shard
+- Reads the CAR Header from the accessor
+- Converts the header's root CIDs into a `share.Root`
+- Verifies the integrity of the `share.Root` by comparing it with the `DataHash`
+
+```go
+// GetDAH returns the DataAvailabilityHeader for the EDS identified by DataHash.
+func (s *Store) GetDAH(context.Context, share.DataHash) (*share.Root, error) 
 ```
 
 ##### `eds.Store.Get`

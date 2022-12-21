@@ -1,6 +1,7 @@
 package eds
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"io"
@@ -209,27 +210,32 @@ func (s *Store) CARBlockstore(
 	root share.DataHash,
 ) (dagstore.ReadBlockstore, error) {
 	key := shard.KeyFromString(root.String())
-	shardAccessor, err := s.getAccessor(ctx, key)
+	accessor, err := s.getAccessor(ctx, key)
 	if err != nil {
 		return nil, fmt.Errorf("eds/store: failed to get accessor: %w", err)
 	}
-	return shardAccessor.bs, nil
+	return accessor.bs, nil
 }
 
 // GetDAH returns the DataAvailabilityHeader for the EDS identified by DataHash.
 func (s *Store) GetDAH(ctx context.Context, root share.DataHash) (*share.Root, error) {
 	key := shard.KeyFromString(root.String())
-	shardAccessor, err := s.acquireShard(ctx, key)
+	accessor, err := s.acquireShard(ctx, key)
 	if err != nil {
 		return nil, fmt.Errorf("eds/store: failed to get accessor: %w", err)
 	}
-	defer shardAccessor.Close()
+	defer accessor.Close()
 
-	reader, err := carv1.NewCarReader(shardAccessor)
+	reader, err := carv1.NewCarReader(accessor)
 	if err != nil {
 		return nil, fmt.Errorf("eds/store: failed to read DAH from car reader: %w", err)
 	}
-	return dahFromCARHeader(reader.Header), nil
+
+	dah := dahFromCARHeader(reader.Header)
+	if !bytes.Equal(dah.Hash(), root) {
+		return nil, fmt.Errorf("eds/store: content integrity mismatch from CAR for root %x", root)
+	}
+	return dah, nil
 }
 
 // dahFromCARHeader returns the DataAvailabilityHeader stored in the CIDs of a CARv1 header.
