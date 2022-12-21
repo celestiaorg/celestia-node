@@ -206,26 +206,30 @@ func (s *Store) Blockstore() bstore.Blockstore {
 // blocks and IPLD nodes so Bitswap can access those.
 func (s *Store) CARBlockstore(
 	ctx context.Context,
-	dataHash share.DataHash,
-) (dagstore.ReadBlockstore, *share.Root, error) {
-	key := shard.KeyFromString(dataHash.String())
+	root share.DataHash,
+) (dagstore.ReadBlockstore, error) {
+	key := shard.KeyFromString(root.String())
+	shardAccessor, err := s.getAccessor(ctx, key)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get accessor: %w", err)
+	}
+	return shardAccessor.bs, nil
+}
+
+// GetDAH returns the DataAvailabilityHeader for the EDS identified by DataHash.
+func (s *Store) GetDAH(ctx context.Context, root share.DataHash) (*share.Root, error) {
+	key := shard.KeyFromString(root.String())
 	shardAccessor, err := s.acquireShard(ctx, key)
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to get accessor: %w", err)
+		return nil, fmt.Errorf("failed to get accessor: %w", err)
 	}
+	defer shardAccessor.Close()
 
 	reader, err := carv1.NewCarReader(shardAccessor)
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to read DAH from car reader: %w", err)
+		return nil, fmt.Errorf("failed to read DAH from car reader: %w", err)
 	}
-	dah := dahFromCARHeader(reader.Header)
-
-	bs, err := shardAccessor.Blockstore()
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to get blockstore from shard accessor: %w", err)
-	}
-
-	return bs, dah, nil
+	return dahFromCARHeader(reader.Header), nil
 }
 
 // dahFromCARHeader returns the DataAvailabilityHeader stored in the CIDs of a CARv1 header.
