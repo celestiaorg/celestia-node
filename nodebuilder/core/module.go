@@ -12,7 +12,7 @@ import (
 	"github.com/celestiaorg/celestia-node/libs/fxutil"
 	libhead "github.com/celestiaorg/celestia-node/libs/header"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
-	"github.com/celestiaorg/celestia-node/share/eds"
+	"github.com/celestiaorg/celestia-node/share/p2p/shrexpush"
 )
 
 // ConstructModule collects all the components and services related to managing the relationship
@@ -38,7 +38,7 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 			fx.Invoke(fx.Annotate(
 				func(bcast header.Broadcaster,
 					fetcher *core.BlockFetcher,
-					pubsub *eds.PubSub,
+					pubsub *shrexpush.PubSub,
 					bServ blockservice.BlockService,
 					construct header.ConstructFn) *headercore.Listener {
 					return headercore.NewListener(bcast, fetcher, pubsub.Broadcast, bServ, construct)
