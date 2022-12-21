@@ -1,6 +1,7 @@
 package eds
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"fmt"
@@ -226,12 +227,12 @@ func (s *Store) GetDAH(ctx context.Context, root share.DataHash) (*share.Root, e
 	}
 	defer accessor.Close()
 
-	reader, err := carv1.NewCarReader(accessor)
+	carHeader, err := carv1.ReadHeader(bufio.NewReader(accessor))
 	if err != nil {
-		return nil, fmt.Errorf("eds/store: failed to read DAH from car reader: %w", err)
+		return nil, fmt.Errorf("eds/store: failed to read car header: %w", err)
 	}
 
-	dah := dahFromCARHeader(reader.Header)
+	dah := dahFromCARHeader(carHeader)
 	if !bytes.Equal(dah.Hash(), root) {
 		return nil, fmt.Errorf("eds/store: content integrity mismatch from CAR for root %x", root)
 	}
@@ -241,9 +242,9 @@ func (s *Store) GetDAH(ctx context.Context, root share.DataHash) (*share.Root, e
 // dahFromCARHeader returns the DataAvailabilityHeader stored in the CIDs of a CARv1 header.
 func dahFromCARHeader(carHeader *carv1.CarHeader) *header.DataAvailabilityHeader {
 	rootCount := len(carHeader.Roots)
-	rootBytes := make([][]byte, rootCount)
-	for i, root := range carHeader.Roots {
-		rootBytes[i] = ipld.NamespacedSha256FromCID(root)
+	rootBytes := make([][]byte, 0)
+	for _, root := range carHeader.Roots {
+		rootBytes = append(rootBytes, ipld.NamespacedSha256FromCID(root))
 	}
 	return &header.DataAvailabilityHeader{
 		RowsRoots:   rootBytes[:rootCount/2],
