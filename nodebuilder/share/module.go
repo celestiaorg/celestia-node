@@ -3,6 +3,8 @@ package share
 import (
 	"context"
 
+	"github.com/celestiaorg/celestia-node/libs/fxutil"
+
 	"github.com/ipfs/go-datastore"
 	"github.com/libp2p/go-libp2p/core/host"
 	"go.uber.org/fx"
@@ -28,7 +30,7 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 		fx.Provide(discovery(*cfg)),
 		fx.Provide(newModule),
 		fx.Invoke(share.EnsureEmptySquareExists),
-		fx.Provide(getters.NewIPLDGetter),
+		fxutil.ProvideAs(getters.NewIPLDGetter, new(share.Getter)),
 	)
 
 	switch tp {

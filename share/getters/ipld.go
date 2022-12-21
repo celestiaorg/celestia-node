@@ -30,13 +30,13 @@ type IPLDGetter struct {
 }
 
 // NewIPLDGetter creates a new share.Getter that retrieves shares from the IPLD network.
-func NewIPLDGetter(bServ blockservice.BlockService) share.Getter {
+func NewIPLDGetter(bServ blockservice.BlockService) *IPLDGetter {
 	return NewIPLDGetterWithStore(bServ, nil)
 }
 
 // NewIPLDGetterWithStore creates a new IPLDGetter with an EDS store for storing EDSes from
 // GetShares.
-func NewIPLDGetterWithStore(bServ blockservice.BlockService, store *eds.Store) share.Getter {
+func NewIPLDGetterWithStore(bServ blockservice.BlockService, store *eds.Store) *IPLDGetter {
 	return &IPLDGetter{
 		rtrv:  eds.NewRetriever(bServ),
 		bServ: bServ,
@@ -55,6 +55,7 @@ func (ig *IPLDGetter) GetShare(ctx context.Context, dah *share.Root, row, col in
 }
 
 func (ig *IPLDGetter) GetShares(ctx context.Context, root *share.Root) ([][]share.Share, error) {
+	// rtrv.Retrieve calls shares.GetShares until enough shares are retrieved to reconstruct the EDS
 	eds, err := ig.rtrv.Retrieve(ctx, root)
 	if err != nil {
 		return nil, err
