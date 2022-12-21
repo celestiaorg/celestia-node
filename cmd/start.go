@@ -60,6 +60,8 @@ Options passed on start override configuration options only on start and are not
 			defer cancel()
 			err = nd.Start(ctx)
 			if err != nil {
+				stopErr := nd.Stop(ctx)
+				log.Debugf("Could not properly stop node: %s", stopErr)
 				return err
 			}
 
