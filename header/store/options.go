@@ -22,8 +22,8 @@ type Parameters struct {
 }
 
 // DefaultParameters returns the default params to configure the store.
-func DefaultParameters() *Parameters {
-	return &Parameters{
+func DefaultParameters() Parameters {
+	return Parameters{
 		StoreCacheSize: 4096,
 		IndexCacheSize: 16384,
 		WriteBatchSize: 2048,

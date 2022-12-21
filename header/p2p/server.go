@@ -26,7 +26,7 @@ type ExchangeServer struct {
 	ctx    context.Context
 	cancel context.CancelFunc
 
-	Params *ServerParameters
+	Params ServerParameters
 }
 
 // NewExchangeServer returns a new P2P server that handles inbound
@@ -39,7 +39,7 @@ func NewExchangeServer(
 ) (*ExchangeServer, error) {
 	params := DefaultServerParameters()
 	for _, opt := range opts {
-		opt(params)
+		opt(&params)
 	}
 	if err := params.Validate(); err != nil {
 		return nil, err

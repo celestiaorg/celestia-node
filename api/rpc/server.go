@@ -2,23 +2,22 @@ package rpc
 
 import (
 	"context"
+	"encoding/json"
 	"net"
 	"net/http"
 	"reflect"
 	"sync/atomic"
 	"time"
 
+	"github.com/cristalhq/jwt"
 	"github.com/filecoin-project/go-jsonrpc"
 	"github.com/filecoin-project/go-jsonrpc/auth"
 	logging "github.com/ipfs/go-log/v2"
+
+	"github.com/celestiaorg/celestia-node/api/rpc/permissions"
 )
 
 var log = logging.Logger("rpc")
-
-var (
-	AllPerms     = []auth.Permission{"public", "read", "write", "admin"}
-	DefaultPerms = []auth.Permission{"public"}
-)
 
 type Server struct {
 	srv      *http.Server
@@ -26,27 +25,43 @@ type Server struct {
 	listener net.Listener
 
 	started atomic.Bool
+
+	auth jwt.Signer
 }
 
-func NewServer(address, port string) *Server {
+func NewServer(address, port string, secret jwt.Signer) *Server {
 	rpc := jsonrpc.NewServer()
-	authHandler := &auth.Handler{
-		Verify: func(ctx context.Context, token string) ([]auth.Permission, error) {
-			// TODO(distractedm1nd/renaynay): implement auth
-			log.Warn("auth not implemented, token: ", token)
-			return DefaultPerms, nil
-		},
-		Next: rpc.ServeHTTP,
-	}
-	return &Server{
+	srv := &Server{
 		rpc: rpc,
 		srv: &http.Server{
-			Addr:    address + ":" + port,
-			Handler: authHandler,
+			Addr: address + ":" + port,
 			// the amount of time allowed to read request headers. set to the default 2 seconds
 			ReadHeaderTimeout: 2 * time.Second,
 		},
+		auth: secret,
 	}
+	srv.srv.Handler = &auth.Handler{
+		Verify: srv.verifyAuth,
+		Next:   rpc.ServeHTTP,
+	}
+	return srv
+}
+
+// verifyAuth is the RPC server's auth middleware. This middleware is only
+// reached if a token is provided in the header of the request, otherwise only
+// methods with `read` permissions are accessible.
+func (s *Server) verifyAuth(_ context.Context, token string) ([]auth.Permission, error) {
+	tk, err := jwt.ParseAndVerifyString(token, s.auth)
+	if err != nil {
+		return nil, err
+	}
+	p := new(permissions.JWTPayload)
+	err = json.Unmarshal(tk.RawClaims(), p)
+	if err != nil {
+		return nil, err
+	}
+	// check permissions
+	return p.Allow, nil
 }
 
 // RegisterService registers a service onto the RPC server. All methods on the service will then be
@@ -58,7 +73,7 @@ func (s *Server) RegisterService(namespace string, service interface{}) {
 // RegisterAuthedService registers a service onto the RPC server. All methods on the service will
 // then be exposed over the RPC.
 func (s *Server) RegisterAuthedService(namespace string, service interface{}, out interface{}) {
-	auth.PermissionedProxy(AllPerms, DefaultPerms, service, getInternalStruct(out))
+	auth.PermissionedProxy(permissions.AllPerms, permissions.DefaultPerms, service, getInternalStruct(out))
 	s.RegisterService(namespace, out)
 }
 

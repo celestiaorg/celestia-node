@@ -10,7 +10,7 @@ import (
 
 func TestNamespaceHasherWrite(t *testing.T) {
 	leafSize := appconsts.ShareSize + appconsts.NamespaceSize
-	innerSize := nmtHashSize * 2
+	innerSize := NmtHashSize * 2
 	tt := []struct {
 		name         string
 		expectedSize int
@@ -59,7 +59,7 @@ func TestNamespaceHasherWrite(t *testing.T) {
 
 func TestNamespaceHasherSum(t *testing.T) {
 	leafSize := appconsts.ShareSize + appconsts.NamespaceSize
-	innerSize := nmtHashSize * 2
+	innerSize := NmtHashSize * 2
 	tt := []struct {
 		name         string
 		expectedSize int
@@ -67,12 +67,12 @@ func TestNamespaceHasherSum(t *testing.T) {
 	}{
 		{
 			"Leaf",
-			nmtHashSize,
+			NmtHashSize,
 			leafSize,
 		},
 		{
 			"Inner",
-			nmtHashSize,
+			NmtHashSize,
 			innerSize,
 		},
 		{
