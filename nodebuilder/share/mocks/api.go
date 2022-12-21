@@ -8,10 +8,10 @@ import (
 	context "context"
 	reflect "reflect"
 
-	gomock "github.com/golang/mock/gomock"
-
 	da "github.com/celestiaorg/celestia-app/pkg/da"
+	share "github.com/celestiaorg/celestia-node/share"
 	namespace "github.com/celestiaorg/nmt/namespace"
+	gomock "github.com/golang/mock/gomock"
 )
 
 // MockModule is a mock of Module interface.
@@ -68,10 +68,10 @@ func (mr *MockModuleMockRecorder) GetShares(arg0, arg1 interface{}) *gomock.Call
 }
 
 // GetSharesByNamespace mocks base method.
-func (m *MockModule) GetSharesByNamespace(arg0 context.Context, arg1 *da.DataAvailabilityHeader, arg2 namespace.ID) ([][]byte, error) {
+func (m *MockModule) GetSharesByNamespace(arg0 context.Context, arg1 *da.DataAvailabilityHeader, arg2 namespace.ID) (share.NamespaceShares, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetSharesByNamespace", arg0, arg1, arg2)
-	ret0, _ := ret[0].([][]byte)
+	ret0, _ := ret[0].(share.NamespaceShares)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
