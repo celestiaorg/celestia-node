@@ -105,6 +105,7 @@ func TestService_GetSharesByNamespace(t *testing.T) {
 
 			shares, err := getter.GetSharesByNamespace(context.Background(), root, randNID)
 			require.NoError(t, err)
+			require.NoError(t, shares.Verify(root, randNID))
 			flattened := shares.Flatten()
 			assert.Len(t, flattened, tt.expectedShareCount)
 			for _, value := range flattened {
@@ -318,6 +319,7 @@ func TestSharesRoundTrip(t *testing.T) {
 				dah := da.NewDataAvailabilityHeader(extSquare)
 				shares, err := getter.GetSharesByNamespace(ctx, &dah, namespace)
 				require.NoError(t, err)
+				require.NoError(t, shares.Verify(&dah, namespace))
 				require.NotEmpty(t, shares)
 
 				msgs, err := appshares.ParseMsgs(shares.Flatten())

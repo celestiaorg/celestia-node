@@ -5,13 +5,13 @@ import (
 	"errors"
 	"math"
 
-	"github.com/libp2p/go-libp2p/core/peer"
-
 	ipldFormat "github.com/ipfs/go-ipld-format"
 	logging "github.com/ipfs/go-log/v2"
+	"github.com/libp2p/go-libp2p/core/peer"
 
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/availability/discovery"
+	"github.com/celestiaorg/celestia-node/share/getters"
 )
 
 var log = logging.Logger("share/light")
@@ -69,6 +69,9 @@ func (la *ShareAvailability) SharesAvailable(ctx context.Context, dah *share.Roo
 		return err
 	}
 
+	// indicate to the share.Getter that a blockservice session should be created. This
+	// functionality is optional and must be supported by the used share.Getter.
+	ctx = getters.WithSession(ctx)
 	ctx, cancel := context.WithTimeout(ctx, share.AvailabilityTimeout)
 	defer cancel()
 

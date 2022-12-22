@@ -13,8 +13,8 @@ import (
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/eds"
 	"github.com/celestiaorg/celestia-node/share/ipld"
-	"github.com/celestiaorg/nmt"
 
+	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/nmt/namespace"
 )
 
@@ -48,7 +48,8 @@ func NewIPLDGetterWithStore(bServ blockservice.BlockService, store *eds.Store) *
 
 func (ig *IPLDGetter) GetShare(ctx context.Context, dah *share.Root, row, col int) (share.Share, error) {
 	root, leaf := ipld.Translate(dah, row, col)
-	nd, err := share.GetShare(ctx, ig.bServ, root, leaf, len(dah.RowsRoots))
+	blockGetter := getGetter(ctx, ig.bServ)
+	nd, err := share.GetShare(ctx, blockGetter, root, leaf, len(dah.RowsRoots))
 	if err != nil {
 		return nil, fmt.Errorf("getter/ipld: failed to retrieve share: %w", err)
 	}
@@ -105,6 +106,7 @@ func (ig *IPLDGetter) GetSharesByNamespace(
 		return nil, nil
 	}
 
+	blockGetter := getGetter(ctx, ig.bServ)
 	errGroup, ctx := errgroup.WithContext(ctx)
 	shares := make([]share.RowNamespaceShares, len(rowRootCIDs))
 	for i, rootCID := range rowRootCIDs {
@@ -112,7 +114,7 @@ func (ig *IPLDGetter) GetSharesByNamespace(
 		i, rootCID := i, rootCID
 		errGroup.Go(func() error {
 			proof := new(ipld.Proof)
-			row, err := share.GetSharesByNamespace(ctx, ig.bServ, rootCID, nID, len(root.RowsRoots), proof)
+			row, err := share.GetSharesByNamespace(ctx, blockGetter, rootCID, nID, len(root.RowsRoots), proof)
 			shares[i] = share.RowNamespaceShares{
 				Shares: row,
 				Proof:  proof,
