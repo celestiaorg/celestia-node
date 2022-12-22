@@ -274,7 +274,7 @@ func (s *Store) getCachedAccessor(ctx context.Context, key shard.Key) (*accessor
 	// try to fetch from cache
 	accessor, err := s.cache.Get(key)
 	if err != nil && err != errCacheMiss {
-		log.Errorw("unexpected error while reading key from bs cache %s: %s", key, err)
+		log.Errorf("unexpected error while reading key from bs cache %s: %s", key, err)
 	}
 	if accessor != nil {
 		return accessor, nil
