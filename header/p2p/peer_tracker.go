@@ -9,13 +9,15 @@ import (
 	"github.com/libp2p/go-libp2p-core/host"
 	"github.com/libp2p/go-libp2p-core/network"
 	"github.com/libp2p/go-libp2p-core/peer"
+	"github.com/libp2p/go-libp2p/p2p/net/conngater"
 )
 
 // gcCycle defines the duration after which the peerTracker starts removing peers.
 var gcCycle = time.Minute * 30
 
 type peerTracker struct {
-	host host.Host
+	host      host.Host
+	connGater *conngater.BasicConnectionGater
 
 	peerLk sync.RWMutex
 	// trackedPeers contains active peers that we can request to.
@@ -43,6 +45,7 @@ type peerTracker struct {
 
 func newPeerTracker(
 	h host.Host,
+	connGater *conngater.BasicConnectionGater,
 	maxAwaitingTime time.Duration,
 	defaultScore float32,
 	maxPeerTrackerSize int,
@@ -50,6 +53,7 @@ func newPeerTracker(
 	ctx, cancel := context.WithCancel(context.Background())
 	return &peerTracker{
 		host:               h,
+		connGater:          connGater,
 		disconnectedPeers:  make(map[peer.ID]*peerStat),
 		trackedPeers:       make(map[peer.ID]*peerStat),
 		maxAwaitingTime:    maxAwaitingTime,
@@ -189,4 +193,26 @@ func (p *peerTracker) stop() {
 	for i := 0; i < cap(p.done); i++ {
 		<-p.done
 	}
+}
+
+// blockPeer blocks a peer on the networking level and removes it from the local cache.
+func (p *peerTracker) blockPeer(pID peer.ID) {
+	// add peer to the blacklist, so we can't connect to it in the future.
+	err := p.connGater.BlockPeer(pID)
+	if err != nil {
+		log.Errorw("header/p2p: blocking peer failed", "err", err, "pID", pID)
+	}
+	// close connections to peer.
+	err = p.host.Network().ClosePeer(pID)
+	if err != nil {
+		log.Errorw("header/p2p: closing connection with peer failed", "err", err, "pID", pID)
+	}
+
+	log.Warnw("header/p2p: blocked peer", "pID", pID)
+
+	p.peerLk.Lock()
+	defer p.peerLk.Unlock()
+	// remove peer from cache.
+	delete(p.trackedPeers, pID)
+	delete(p.disconnectedPeers, pID)
 }

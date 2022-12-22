@@ -6,8 +6,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ipfs/go-datastore"
+	"github.com/ipfs/go-datastore/sync"
 	libhost "github.com/libp2p/go-libp2p-core/host"
 	"github.com/libp2p/go-libp2p-core/peer"
+	"github.com/libp2p/go-libp2p/p2p/net/conngater"
 	mocknet "github.com/libp2p/go-libp2p/p2p/net/mock"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -82,8 +85,10 @@ func TestExchange_RequestFullRangeHeaders(t *testing.T) {
 	totalAmount := 80
 	store := createStore(t, totalAmount)
 	protocolSuffix := "private"
+	connGater, err := conngater.NewBasicConnectionGater(sync.MutexWrap(datastore.NewMapDatastore()))
+	require.NoError(t, err)
 	// create new exchange
-	exchange, err := NewExchange(hosts[len(hosts)-1], []peer.ID{}, protocolSuffix)
+	exchange, err := NewExchange(hosts[len(hosts)-1], []peer.ID{}, protocolSuffix, connGater)
 	require.NoError(t, err)
 	exchange.Params.MaxHeadersPerRequest = 10
 	exchange.ctx, exchange.cancel = context.WithCancel(context.Background())
@@ -288,8 +293,9 @@ func createP2PExAndServer(t *testing.T, host, tpeer libhost.Host) (header.Exchan
 	require.NoError(t, err)
 	err = serverSideEx.Start(context.Background())
 	require.NoError(t, err)
-
-	ex, err := NewExchange(host, []peer.ID{tpeer.ID()}, "private")
+	connGater, err := conngater.NewBasicConnectionGater(sync.MutexWrap(datastore.NewMapDatastore()))
+	require.NoError(t, err)
+	ex, err := NewExchange(host, []peer.ID{tpeer.ID()}, "private", connGater)
 	require.NoError(t, err)
 	ex.peerTracker.trackedPeers[tpeer.ID()] = &peerStat{peerID: tpeer.ID()}
 	require.NoError(t, ex.Start(context.Background()))
