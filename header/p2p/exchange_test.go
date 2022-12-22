@@ -116,8 +116,8 @@ func TestExchange_RequestFullRangeHeaders(t *testing.T) {
 	require.Len(t, headers, 80)
 }
 
-// TestExchange_RequestHeadersFails tests that the Exchange instance will return
-// header.ErrNotFound if it will not have requested header.
+// TestExchange_RequestHeadersLimitExceeded tests that the Exchange instance will return
+// header.ErrHeadersLimitExceeded if the requested range will be move than MaxRequestSize.
 func TestExchange_RequestHeadersLimitExceeded(t *testing.T) {
 	hosts := createMocknet(t, 2)
 	exchg, _ := createP2PExAndServer(t, hosts[0], hosts[1])

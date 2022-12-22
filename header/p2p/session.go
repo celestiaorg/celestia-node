@@ -12,8 +12,6 @@ import (
 	p2p_pb "github.com/celestiaorg/celestia-node/header/p2p/pb"
 )
 
-var errUnmarshalling = errors.New("unmarshalling error")
-
 type option func(*session)
 
 func withValidation(from *header.ExtendedHeader) option {
@@ -180,7 +178,7 @@ func (s *session) processResponse(responses []*p2p_pb.ExtendedHeaderResponse) ([
 		}
 		header, err := header.UnmarshalExtendedHeader(resp.Body)
 		if err != nil {
-			return nil, errUnmarshalling
+			return nil, errors.New("unmarshalling error")
 		}
 		headers = append(headers, header)
 	}
