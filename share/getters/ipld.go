@@ -2,8 +2,10 @@ package getters
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
+	"github.com/filecoin-project/dagstore"
 	"github.com/ipfs/go-blockservice"
 	"github.com/ipfs/go-cid"
 	"golang.org/x/sync/errgroup"
@@ -48,7 +50,7 @@ func (ig *IPLDGetter) GetShare(ctx context.Context, dah *share.Root, row, col in
 	root, leaf := ipld.Translate(dah, row, col)
 	nd, err := share.GetShare(ctx, ig.bServ, root, leaf, len(dah.RowsRoots))
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("getter/ipld: failed to retrieve share: %w", err)
 	}
 
 	return nd, nil
@@ -58,14 +60,14 @@ func (ig *IPLDGetter) GetShares(ctx context.Context, root *share.Root) ([][]shar
 	// rtrv.Retrieve calls shares.GetShares until enough shares are retrieved to reconstruct the EDS
 	eds, err := ig.rtrv.Retrieve(ctx, root)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("getter/ipld: failed to retrieve eds: %w", err)
 	}
 
 	// store the EDS if a store was provided
 	if ig.store != nil {
 		err = ig.store.Put(ctx, root.Hash(), eds)
-		if err != nil {
-			return nil, fmt.Errorf("failed to cache retrieved shares: %w", err)
+		if err != nil && !errors.Is(err, dagstore.ErrShardExists) {
+			return nil, fmt.Errorf("getter/ipld: failed to cache retrieved shares: %w", err)
 		}
 	}
 
@@ -89,10 +91,11 @@ func (ig *IPLDGetter) GetSharesByNamespace(
 	nID namespace.ID,
 ) (share.NamespaceShares, error) {
 	if len(nID) != share.NamespaceSize {
-		return nil, fmt.Errorf("expected namespace ID of size %d, got %d", share.NamespaceSize, len(nID))
+		return nil, fmt.Errorf("getter/ipld: expected namespace ID of size %d, got %d",
+			share.NamespaceSize, len(nID))
 	}
 
-	rowRootCIDs := make([]cid.Cid, 0)
+	rowRootCIDs := make([]cid.Cid, 0, len(root.RowsRoots))
 	for _, row := range root.RowsRoots {
 		if !nID.Less(nmt.MinNamespace(row, nID.Size())) && nID.LessOrEqual(nmt.MaxNamespace(row, nID.Size())) {
 			rowRootCIDs = append(rowRootCIDs, ipld.MustCidFromNamespacedSha256(row))
@@ -107,14 +110,17 @@ func (ig *IPLDGetter) GetSharesByNamespace(
 	for i, rootCID := range rowRootCIDs {
 		// shadow loop variables, to ensure correct values are captured
 		i, rootCID := i, rootCID
-		errGroup.Go(func() (err error) {
-			var proof *ipld.Proof
+		errGroup.Go(func() error {
+			proof := new(ipld.Proof)
 			row, err := share.GetSharesByNamespace(ctx, ig.bServ, rootCID, nID, len(root.RowsRoots), proof)
 			shares[i] = share.RowNamespaceShares{
 				Shares: row,
 				Proof:  proof,
 			}
-			return
+			if err != nil {
+				return fmt.Errorf("getter/ipld: retrieving nID %x for row %x: %w", nID, rootCID, err)
+			}
+			return nil
 		})
 	}
 

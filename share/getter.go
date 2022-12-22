@@ -2,7 +2,6 @@ package share
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
 	"github.com/minio/sha256-simd"
@@ -56,14 +55,14 @@ func (ns NamespaceShares) Verify(root *Root, nID namespace.ID) error {
 	}
 
 	if len(originalRoots) != len(ns) {
-		return fmt.Errorf("amount of rows in root: %v, is defferent from namespace shares: %v",
+		return fmt.Errorf("amount of rows differs between root and namespace shares: %v vs %v",
 			len(originalRoots), len(ns))
 	}
 
 	for i, row := range ns {
 		// verify row data against row hash from original root
 		if !row.verify(originalRoots[i], nID) {
-			return errors.New("shares failed verification")
+			return fmt.Errorf("row verification failed: %vth row doesn't match original root: %s", i, root.Hash())
 		}
 	}
 	return nil
