@@ -7,8 +7,10 @@ import (
 	"github.com/minio/sha256-simd"
 
 	"github.com/celestiaorg/celestia-node/share/ipld"
+
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/nmt/namespace"
+	"github.com/celestiaorg/rsmt2d"
 )
 
 // Getter interface provides a set of accessors for shares by the Root.
@@ -17,9 +19,8 @@ type Getter interface {
 	// GetShare gets a Share by coordinates in EDS.
 	GetShare(ctx context.Context, root *Root, row, col int) (Share, error)
 
-	// GetShares gets all shares in an EDS.
-	// Shares are returned in a row-by-row order.
-	GetShares(context.Context, *Root) ([][]Share, error)
+	// GetEDS gets the full EDS identified by the given root.
+	GetEDS(context.Context, *Root) (*rsmt2d.ExtendedDataSquare, error)
 
 	// GetSharesByNamespace gets all shares from an EDS within the given namespace.
 	// Shares are returned in a row-by-row order if the namespace spans multiple rows.

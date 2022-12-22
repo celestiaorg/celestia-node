@@ -16,6 +16,7 @@ import (
 
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/nmt/namespace"
+	"github.com/celestiaorg/rsmt2d"
 )
 
 var _ share.Getter = (*IPLDGetter)(nil)
@@ -47,25 +48,13 @@ func (ig *IPLDGetter) GetShare(ctx context.Context, dah *share.Root, row, col in
 	return nd, nil
 }
 
-func (ig *IPLDGetter) GetShares(ctx context.Context, root *share.Root) ([][]share.Share, error) {
+func (ig *IPLDGetter) GetEDS(ctx context.Context, root *share.Root) (*rsmt2d.ExtendedDataSquare, error) {
 	// rtrv.Retrieve calls shares.GetShares until enough shares are retrieved to reconstruct the EDS
 	eds, err := ig.rtrv.Retrieve(ctx, root)
 	if err != nil {
 		return nil, fmt.Errorf("getter/ipld: failed to retrieve eds: %w", err)
 	}
-
-	origWidth := int(eds.Width() / 2)
-	shares := make([][]share.Share, origWidth)
-
-	for i := 0; i < origWidth; i++ {
-		row := eds.Row(uint(i))
-		shares[i] = make([]share.Share, origWidth)
-		for j := 0; j < origWidth; j++ {
-			shares[i][j] = row[j]
-		}
-	}
-
-	return shares, nil
+	return eds, nil
 }
 
 func (ig *IPLDGetter) GetSharesByNamespace(

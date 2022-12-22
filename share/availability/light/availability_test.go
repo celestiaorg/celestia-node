@@ -6,7 +6,6 @@ import (
 	_ "embed"
 	"encoding/hex"
 	"encoding/json"
-	"math"
 	mrand "math/rand"
 	"strconv"
 	"testing"
@@ -127,17 +126,7 @@ func TestGetShares(t *testing.T) {
 	n := 16
 	getter, _, dah := RandServiceWithSquare(t, n)
 
-	shares, err := getter.GetShares(ctx, dah)
-	require.NoError(t, err)
-
-	flattened := make([][]byte, 0, len(shares)*2)
-	for _, row := range shares {
-		flattened = append(flattened, row...)
-	}
-	// generate DAH from shares returned by `share.GetShares` to compare
-	// calculated DAH to expected DAH
-	squareSize := uint64(math.Sqrt(float64(len(flattened))))
-	eds, err := da.ExtendShares(squareSize, flattened)
+	eds, err := getter.GetEDS(ctx, dah)
 	require.NoError(t, err)
 	gotDAH := da.NewDataAvailabilityHeader(eds)
 

@@ -8,11 +8,11 @@ import (
 	context "context"
 	reflect "reflect"
 
-	gomock "github.com/golang/mock/gomock"
-
 	da "github.com/celestiaorg/celestia-app/pkg/da"
 	share "github.com/celestiaorg/celestia-node/share"
 	namespace "github.com/celestiaorg/nmt/namespace"
+	rsmt2d "github.com/celestiaorg/rsmt2d"
+	gomock "github.com/golang/mock/gomock"
 )
 
 // MockModule is a mock of Module interface.
@@ -38,6 +38,21 @@ func (m *MockModule) EXPECT() *MockModuleMockRecorder {
 	return m.recorder
 }
 
+// GetEDS mocks base method.
+func (m *MockModule) GetEDS(arg0 context.Context, arg1 *da.DataAvailabilityHeader) (*rsmt2d.ExtendedDataSquare, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetEDS", arg0, arg1)
+	ret0, _ := ret[0].(*rsmt2d.ExtendedDataSquare)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetEDS indicates an expected call of GetEDS.
+func (mr *MockModuleMockRecorder) GetEDS(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetEDS", reflect.TypeOf((*MockModule)(nil).GetEDS), arg0, arg1)
+}
+
 // GetShare mocks base method.
 func (m *MockModule) GetShare(arg0 context.Context, arg1 *da.DataAvailabilityHeader, arg2, arg3 int) ([]byte, error) {
 	m.ctrl.T.Helper()
@@ -51,21 +66,6 @@ func (m *MockModule) GetShare(arg0 context.Context, arg1 *da.DataAvailabilityHea
 func (mr *MockModuleMockRecorder) GetShare(arg0, arg1, arg2, arg3 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetShare", reflect.TypeOf((*MockModule)(nil).GetShare), arg0, arg1, arg2, arg3)
-}
-
-// GetShares mocks base method.
-func (m *MockModule) GetShares(arg0 context.Context, arg1 *da.DataAvailabilityHeader) ([][][]byte, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetShares", arg0, arg1)
-	ret0, _ := ret[0].([][][]byte)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// GetShares indicates an expected call of GetShares.
-func (mr *MockModuleMockRecorder) GetShares(arg0, arg1 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetShares", reflect.TypeOf((*MockModule)(nil).GetShares), arg0, arg1)
 }
 
 // GetSharesByNamespace mocks base method.
