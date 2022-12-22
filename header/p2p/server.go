@@ -108,8 +108,6 @@ func (serv *ExchangeServer) requestHandler(stream network.Stream) {
 		code = p2p_pb.StatusCode_OK
 	case header.ErrNotFound:
 		code = p2p_pb.StatusCode_NOT_FOUND
-	case header.ErrHeadersLimitExceeded:
-		code = p2p_pb.StatusCode_LIMIT_EXCEEDED
 	default:
 		stream.Reset() //nolint:errcheck
 		return
