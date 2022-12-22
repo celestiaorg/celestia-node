@@ -242,7 +242,7 @@ func (s *Store) GetDAH(ctx context.Context, root share.DataHash) (*share.Root, e
 // dahFromCARHeader returns the DataAvailabilityHeader stored in the CIDs of a CARv1 header.
 func dahFromCARHeader(carHeader *carv1.CarHeader) *header.DataAvailabilityHeader {
 	rootCount := len(carHeader.Roots)
-	rootBytes := make([][]byte, 0)
+	rootBytes := make([][]byte, 0, rootCount)
 	for _, root := range carHeader.Roots {
 		rootBytes = append(rootBytes, ipld.NamespacedSha256FromCID(root))
 	}
