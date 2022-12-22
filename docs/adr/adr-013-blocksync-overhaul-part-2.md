@@ -492,16 +492,16 @@ The table below describes composition of different Getters per node type.
 
 |      | `StoreGetter` | `ShrExGetter` | `IPLDGetter` | `CascadeGetter` | `TeeGetter` |
 |------|---------------|---------------|--------------|-----------------|-------------|
-| `LN` |               | X             | X            | X               |             |
-| `FN` | X             | X             | X            | X               | X           |
-| `BN` | X             |               |              |                 |             |
+| `LN` |               | ___X___       | ___X___      | ___X___         |             |
+| `FN` | ___X___       | ___X___       | ___X___      | ___X___         | ___X___     |
+| `BN` | ___X___       |               |              |                 |             |
 
 ___NOTES___:
 
-- `X` - node type uses `Getter`
+- ___X___ - node type uses column's `Getter` impl
 - Columns are ordered by priority and should be supplied to `CascadeGetter` in the order, if applicable
 - `TeeGetter` wraps the `CascadeGetter`
-- FN should have a configuration option to be run with `IPLDGetter` only to enable more experiments with reconstruction.
+- `FN` should have a configuration option to be run with `IPLDGetter` only to enable more experiments with reconstruction.
 
 ### Discovery
 
