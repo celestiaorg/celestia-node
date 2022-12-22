@@ -5,6 +5,7 @@ import (
 
 	"github.com/ipfs/go-datastore"
 	"github.com/libp2p/go-libp2p"
+	"github.com/libp2p/go-libp2p/p2p/net/conngater"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/fx"
 	"go.uber.org/fx/fxtest"
@@ -60,6 +61,9 @@ func TestConstructModule_ExchangeParams(t *testing.T) {
 			return datastore.NewMapDatastore()
 		}),
 		ConstructModule(node.Light, &cfg),
+		fx.Provide(func(b datastore.Batching) (*conngater.BasicConnectionGater, error) {
+			return conngater.NewBasicConnectionGater(b)
+		}),
 		fx.Invoke(
 			func(e header.Exchange, server *p2p.ExchangeServer) {
 				ex := e.(*p2p.Exchange)
