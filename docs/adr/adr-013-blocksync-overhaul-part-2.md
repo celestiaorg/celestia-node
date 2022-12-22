@@ -409,9 +409,8 @@ type Getter interface {
   // GetShare gets Share by coordinates in EDS.
   GetShare(context.Context, *Root, row, col int) (Share, error)
   
-  // GetShares gets all the shares in the EDS square.
-  // Shares are returned in a row-by-row order.
-  GetShares(context.Context, *Root) ([][]Share, error)
+  // GetEDS gets all the shares in the form of EDS square.
+  GetEDS(context.Context, *Root) (*rsmt2d.EDS, error)
   
   // GetSharesByNamespace gets all the shares of the given namespace.
   // Shares are returned in a row-by-row order if the namespace spans multiple rows.
@@ -434,28 +433,20 @@ func (NamespaceShares) Verify(*Root, namespace.ID) error
 
 #### IPLDGetter
 
-`IPLDGetter` stems from the existing implementation of `ShareService`, but omits to embed of `Availability` and optionally
-caches EDSes to `eds.Store`. `IPLDGetter` verifies data integrity as it's a default IPLD behavior.
-
-The `eds.Store` might be abstracted with a private interface for testing. The mode might be configured depending on
-interface being nil or not.
+`IPLDGetter` stems from the existing implementation of `ShareService`, but omits to embed of `Availability`.
+`IPLDGetter` verifies data integrity as it's a default IPLD behavior.
 
 #### ShrExGetter
 
 `ShrExGetter` implements `Getter` over `ShrEx/ND` and `ShrEx/EDS` and their respective clients. It relies on `Discovery`
-to get data providers/peers. Additionally, it works in two modes w/ and w/o EDS caching over `eds.Store`.
-`ShrExGetter` must verify data integrity itself or by relying on underlying protocol clients.
-
-The `eds.Store` might be abstracted with a private interface for testing. The mode might be configured depending on
-interface being nil or not.
+to get data providers/peers. `ShrExGetter` must verify data integrity itself or by relying on underlying protocol clients.
 
 ```go
 // GetShare is no-op.
 func (shrg *ShrExGetter) GetShare(context.Context, *Root, row, col int) (share.Share, error)
 
-// GetShares fetches all the shares committed to the given root over `ShrEx/EDS`.
-// Caches data if ShrExGetter, if in the caching mode.
-func (shrg *ShrExGetter) GetShares(context.Context, *Root) ([][]share.Share, error)
+// GetEDS fetches all the shares in the form of EDS committed to the given root over `ShrEx/EDS`.
+func (shrg *ShrExGetter) GetEDS(context.Context, *Root) (*rsmt2d.EDS, error)
 
 // GetShareByNamespace fetches all the namespaced shares committed to the given root over `ShrEx/ND`.
 func (shrg *ShrExGetter) GetShareByNamespace(context.Context, *Root, namespace.ID) (share.NamespaceShares, error)
@@ -473,8 +464,8 @@ from the underlying storage.
 // GetShare reads up the share from stored EDS. 
 func (sg *StoreGetter) GetShare(context.Context, *Root, row, col int) (share.Share, error)
 
-// GetShares reads up all the shares from the stored EDS.
-func (sg *StoreGetter) GetShares(context.Context, *Root) ([][]share.Share, error)
+// GetEDS reads up all the shares in the form of EDS from the EDS store.
+func (sg *StoreGetter) GetEDS(context.Context, *Root) (*rsmt2d.EDS, error)
 
 // GetShareByNamespace fetches all the namespaced shares from the stored EDS.
 func (sg *StoreGetter) GetShareByNamespace(context.Context, *Root, namespace.ID) (share.NamespaceShares, error)
@@ -488,23 +479,29 @@ deadline controlled by context, the following `Getter` is used, and so forth, un
 
 `CascadeGetter` must not verify date integrity and leave it up to the composing implementations.
 
+#### TeeGetter
+
+`TeeGetter` implements `Getter` that follows GNU's core util `tee`. It wraps a `Getter` and stores the result of `GetEDS`
+calls into `EDSStore`.
+
 ## Integration Details
 
 ### Getters
 
 The table below describes composition of different Getters per node type.
 
-|     | StoreGetter | ShrExGetter    | IPLDGetter | CascadeGetter |
-|-----|-------------|----------------|------------|---------------|
-| LN  |             | X(w/o caching) | X          | X             |
-| FN  | X           | X(w/ caching)  | X          | X             |
-| BN  | X           |                |            |               |
+|      | `StoreGetter` | `ShrExGetter` | `IPLDGetter` | `CascadeGetter` | `TeeGetter` |
+|------|---------------|---------------|--------------|-----------------|-------------|
+| `LN` |               | X             | X            | X               |             |
+| `FN` | X             | X             | X            | X               | X           |
+| `BN` | X             |               |              |                 |             |
 
 ___NOTES___:
 
 - `X` - node type uses `Getter`
-- Columns are ordered by priority and should be supplied to CascadeGetter in the order, if applicable
-- FN should have a configuration option to be run with IPLDGetter only to enable more experiments with reconstruction.
+- Columns are ordered by priority and should be supplied to `CascadeGetter` in the order, if applicable
+- `TeeGetter` wraps the `CascadeGetter`
+- FN should have a configuration option to be run with `IPLDGetter` only to enable more experiments with reconstruction.
 
 ### Discovery
 
