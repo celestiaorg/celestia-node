@@ -99,9 +99,9 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 				}),
 			)),
 			fx.Provide(fx.Annotate(
-				func(lc fx.Lifecycle, h host.Host, network modp2p.Network) (*shrexpush.PubSub, error) {
+				func(ctx context.Context, h host.Host, network modp2p.Network) (*shrexpush.PubSub, error) {
 					return shrexpush.NewPubSub(
-						fxutil.WithLifecycle(context.Background(), lc),
+						ctx,
 						h,
 						string(network),
 					)
