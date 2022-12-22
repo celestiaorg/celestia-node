@@ -13,25 +13,7 @@ import (
 
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/nmt/namespace"
-	"github.com/celestiaorg/rsmt2d"
 )
-
-// flattenToShares takes an EDS and flattens it into a slice of its rows. It differs from
-// eds.Flatten() in that it returns share.Share instead of raw bytes.
-func flattenToShares(eds *rsmt2d.ExtendedDataSquare) [][]share.Share {
-	origWidth := int(eds.Width() / 2)
-	shares := make([][]share.Share, origWidth)
-
-	for i := 0; i < origWidth; i++ {
-		row := eds.Row(uint(i))
-		shares[i] = make([]share.Share, origWidth)
-		for j := 0; j < origWidth; j++ {
-			shares[i][j] = row[j]
-		}
-	}
-
-	return shares
-}
 
 // filterRootsByNamespace returns the row roots from the given share.Root that contain the passed
 // namespace ID.

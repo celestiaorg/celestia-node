@@ -36,6 +36,8 @@ func NewIPLDGetter(bServ blockservice.BlockService) *IPLDGetter {
 
 func (ig *IPLDGetter) GetShare(ctx context.Context, dah *share.Root, row, col int) (share.Share, error) {
 	root, leaf := ipld.Translate(dah, row, col)
+
+	// check the context to see if a blockservice session should be created
 	blockGetter := getGetter(ctx, ig.bServ)
 	nd, err := share.GetShare(ctx, blockGetter, root, leaf, len(dah.RowsRoots))
 	if err != nil {
