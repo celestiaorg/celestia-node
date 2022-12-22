@@ -1,6 +1,7 @@
 package p2p
 
 import (
+	"errors"
 	"testing"
 	"time"
 
@@ -42,7 +43,7 @@ func TestPeerTracker_BlockPeer(t *testing.T) {
 	connGater, err := conngater.NewBasicConnectionGater(sync.MutexWrap(datastore.NewMapDatastore()))
 	require.NoError(t, err)
 	p := newPeerTracker(h[0], connGater, time.Millisecond*1, 1, 5)
-	p.blockPeer(h[1].ID())
+	p.blockPeer(h[1].ID(), errors.New("test"))
 	require.Len(t, connGater.ListBlockedPeers(), 1)
 	require.True(t, connGater.ListBlockedPeers()[0] == h[1].ID())
 }
