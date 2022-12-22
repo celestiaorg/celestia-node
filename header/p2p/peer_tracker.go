@@ -196,19 +196,19 @@ func (p *peerTracker) stop() {
 }
 
 // blockPeer blocks a peer on the networking level and removes it from the local cache.
-func (p *peerTracker) blockPeer(pID peer.ID) {
+func (p *peerTracker) blockPeer(pID peer.ID, reason error) {
 	// add peer to the blacklist, so we can't connect to it in the future.
 	err := p.connGater.BlockPeer(pID)
 	if err != nil {
-		log.Errorw("header/p2p: blocking peer failed", "err", err, "pID", pID)
+		log.Errorw("header/p2p: blocking peer failed", "pID", pID, "err", err)
 	}
 	// close connections to peer.
 	err = p.host.Network().ClosePeer(pID)
 	if err != nil {
-		log.Errorw("header/p2p: closing connection with peer failed", "err", err, "pID", pID)
+		log.Errorw("header/p2p: closing connection with peer failed", "pID", pID, "err", err)
 	}
 
-	log.Warnw("header/p2p: blocked peer", "pID", pID)
+	log.Warnw("header/p2p: blocked peer", "pID", pID, "reason", reason)
 
 	p.peerLk.Lock()
 	defer p.peerLk.Unlock()
