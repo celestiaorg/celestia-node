@@ -70,7 +70,7 @@ func TestExchange_RequestVerifiedHeadersFails(t *testing.T) {
 	exchg, store := createP2PExAndServer(t, hosts[0], hosts[1])
 	store.Headers[2] = store.Headers[3]
 	// perform expected request
-	h := store.headers[1]
+	h := store.Headers[1]
 	ctx, cancel := context.WithTimeout(context.Background(), time.Millisecond*500)
 	t.Cleanup(cancel)
 	_, err := exchg.GetVerifiedRange(ctx, h, 3)
@@ -133,7 +133,7 @@ func TestExchange_RequestHeadersFromAnotherPeer(t *testing.T) {
 	// create client + server(it does not have needed headers)
 	exchg, _ := createP2PExAndServer(t, hosts[0], hosts[1])
 	// create one more server(with more headers in the store)
-	serverSideEx, err := NewExchangeServer(hosts[2], createStore(t, 10), "private")
+	serverSideEx, err := NewExchangeServer(hosts[2], headerMock.NewStore(t, 10), "private")
 	require.NoError(t, err)
 	require.NoError(t, serverSideEx.Start(context.Background()))
 	t.Cleanup(func() {
@@ -301,7 +301,7 @@ func createMocknet(t *testing.T, amount int) []libhost.Host {
 }
 
 // createP2PExAndServer creates a Exchange with 5 headers already in its store.
-func createP2PExAndServer(t *testing.T, host, tpeer libhost.Host) (header.Exchange, *headerMock.MockStore) {
+func createP2PExAndServer(t *testing.T, host, tpeer libhost.Host) (*Exchange, *headerMock.MockStore) {
 	store := headerMock.NewStore(t, 5)
 	serverSideEx, err := NewExchangeServer(tpeer, store, "private")
 	require.NoError(t, err)

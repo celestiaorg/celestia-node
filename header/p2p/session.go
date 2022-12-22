@@ -137,12 +137,13 @@ func (s *session) doRequest(
 		if err == context.Canceled || err == context.DeadlineExceeded {
 			return
 		}
-		log.Errorw("requesting headers from peer failed."+
-			"Retrying the request from different peer", "failed peer", stat.peerID, "err", err)
+		log.Errorw("requesting headers from peer failed.", "failed peer", stat.peerID, "err", err)
 		select {
 		case <-ctx.Done():
 		case <-s.ctx.Done():
+			// retry request
 		case s.reqCh <- req:
+			log.Debug("Retrying the request from different peer")
 		}
 		return
 	}
@@ -152,8 +153,7 @@ func (s *session) doRequest(
 		switch err {
 		case header.ErrNotFound:
 		default:
-			s.peerTracker.blockPeer(stat.peerID)
-			log.Errorw("header/p2p: unexpected error received", "err", err, "pID", stat.peerID)
+			s.peerTracker.blockPeer(stat.peerID, err)
 		}
 		select {
 		case <-ctx.Done():
