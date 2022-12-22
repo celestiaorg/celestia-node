@@ -14,8 +14,8 @@ import (
 	"github.com/celestiaorg/go-libp2p-messenger/serde"
 
 	"github.com/celestiaorg/celestia-node/header"
+	headerMock "github.com/celestiaorg/celestia-node/header/mocks"
 	p2p_pb "github.com/celestiaorg/celestia-node/header/p2p/pb"
-	headerMock "github.com/celestiaorg/celestia-node/nodebuilder/header/mocks"
 )
 
 var privateProtocolID = protocolID("private")
