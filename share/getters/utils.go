@@ -65,12 +65,15 @@ func collectSharesByNamespace(
 		i, rootCID := i, rootCID
 		errGroup.Go(func() error {
 			proof := new(ipld.Proof)
-			row, err := share.GetSharesByNamespace(ctx, bg, rootCID, nID, len(rootCIDs), proof)
+			row, err := share.GetSharesByNamespace(ctx, bg, rootCID, nID, len(root.RowsRoots), proof)
 			shares[i] = share.NamespacedRow{
 				Shares: row,
 				Proof:  proof,
 			}
-			return fmt.Errorf("retrieving nID %x for row %x: %w", nID, rootCID, err)
+			if err != nil {
+				return fmt.Errorf("retrieving nID %x for row %x: %w", nID, rootCID, err)
+			}
+			return nil
 		})
 	}
 
