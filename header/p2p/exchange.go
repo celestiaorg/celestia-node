@@ -11,6 +11,7 @@ import (
 	"github.com/libp2p/go-libp2p-core/host"
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/libp2p/go-libp2p-core/protocol"
+	"github.com/libp2p/go-libp2p/p2p/net/conngater"
 	tmbytes "github.com/tendermint/tendermint/libs/bytes"
 
 	"github.com/celestiaorg/celestia-node/header"
@@ -42,6 +43,7 @@ func NewExchange(
 	host host.Host,
 	peers peer.IDSlice,
 	protocolSuffix string,
+	connGater *conngater.BasicConnectionGater,
 	opts ...Option[ClientParameters],
 ) (*Exchange, error) {
 	params := DefaultClientParameters()
@@ -60,6 +62,7 @@ func NewExchange(
 		trustedPeers: peers,
 		peerTracker: newPeerTracker(
 			host,
+			connGater,
 			params.MaxAwaitingTime,
 			params.DefaultScore,
 			params.MaxPeerTrackerSize,

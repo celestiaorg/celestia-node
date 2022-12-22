@@ -7,6 +7,7 @@ import (
 	"github.com/libp2p/go-libp2p-core/host"
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/libp2p/go-libp2p-core/peerstore"
+	"github.com/libp2p/go-libp2p/p2p/net/conngater"
 	"go.uber.org/fx"
 
 	"github.com/celestiaorg/celestia-node/header"
@@ -32,6 +33,7 @@ func newP2PExchange(cfg Config) func(
 	modp2p.Bootstrappers,
 	modp2p.Network,
 	host.Host,
+	*conngater.BasicConnectionGater,
 	[]p2p.Option[p2p.ClientParameters],
 ) (header.Exchange, error) {
 	return func(
@@ -39,6 +41,7 @@ func newP2PExchange(cfg Config) func(
 		bpeers modp2p.Bootstrappers,
 		network modp2p.Network,
 		host host.Host,
+		conngater *conngater.BasicConnectionGater,
 		opts []p2p.Option[p2p.ClientParameters],
 	) (header.Exchange, error) {
 		peers, err := cfg.trustedPeers(bpeers)
@@ -50,7 +53,7 @@ func newP2PExchange(cfg Config) func(
 			ids[index] = peer.ID
 			host.Peerstore().AddAddrs(peer.ID, peer.Addrs, peerstore.PermanentAddrTTL)
 		}
-		exchange, err := p2p.NewExchange(host, ids, string(network), opts...)
+		exchange, err := p2p.NewExchange(host, ids, string(network), conngater, opts...)
 		if err != nil {
 			return nil, err
 		}
