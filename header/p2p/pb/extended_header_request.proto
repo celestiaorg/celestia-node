@@ -14,7 +14,6 @@ enum StatusCode {
   INVALID = 0;
   OK = 1;
   NOT_FOUND = 2;
-  LIMIT_EXCEEDED = 3;
 };
 
 message ExtendedHeaderResponse {

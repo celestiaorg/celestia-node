@@ -89,8 +89,6 @@ func convertStatusCodeToError(code p2p_pb.StatusCode) error {
 		return nil
 	case p2p_pb.StatusCode_NOT_FOUND:
 		return header.ErrNotFound
-	case p2p_pb.StatusCode_LIMIT_EXCEEDED:
-		return header.ErrHeadersLimitExceeded
 	default:
 		return fmt.Errorf("unknown status code %d", code)
 	}
