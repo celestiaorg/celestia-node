@@ -117,7 +117,9 @@ func TestP2PModule_Bandwidth(t *testing.T) {
 	require.Equal(t, network.Connected, mgr.Connectedness(ctx, peer.ID()))
 
 	// open stream with host
-	stream, err := peer.NewStream(ctx, mgr.Info(ctx).ID, protoID)
+	info, err := mgr.Info(ctx)
+	require.NoError(t, err)
+	stream, err := peer.NewStream(ctx, info.ID, protoID)
 	require.NoError(t, err)
 
 	// write to stream to increase bandwidth usage get some substantive
