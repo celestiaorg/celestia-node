@@ -7,14 +7,11 @@ import (
 	"sync/atomic"
 
 	"github.com/ipfs/go-blockservice"
-	"github.com/ipfs/go-cid"
-	"golang.org/x/sync/errgroup"
 
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/eds"
 	"github.com/celestiaorg/celestia-node/share/ipld"
 
-	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/nmt/namespace"
 	"github.com/celestiaorg/rsmt2d"
 )
@@ -62,46 +59,13 @@ func (ig *IPLDGetter) GetSharesByNamespace(
 	root *share.Root,
 	nID namespace.ID,
 ) (share.NamespacedShares, error) {
-	if len(nID) != share.NamespaceSize {
-		return nil, fmt.Errorf("getter/ipld: expected namespace ID of size %d, got %d",
-			share.NamespaceSize, len(nID))
-	}
-
-	rowRootCIDs := make([]cid.Cid, 0, len(root.RowsRoots))
-	for _, row := range root.RowsRoots {
-		if !nID.Less(nmt.MinNamespace(row, nID.Size())) && nID.LessOrEqual(nmt.MaxNamespace(row, nID.Size())) {
-			rowRootCIDs = append(rowRootCIDs, ipld.MustCidFromNamespacedSha256(row))
-		}
-	}
-	if len(rowRootCIDs) == 0 {
-		return nil, nil
+	err := verifyNIDSize(nID)
+	if err != nil {
+		return nil, fmt.Errorf("getter/ipld: invalid namespace ID: %w", err)
 	}
 
 	blockGetter := getGetter(ctx, ig.bServ)
-	errGroup, ctx := errgroup.WithContext(ctx)
-	shares := make([]share.NamespacedRow, len(rowRootCIDs))
-	for i, rootCID := range rowRootCIDs {
-		// shadow loop variables, to ensure correct values are captured
-		i, rootCID := i, rootCID
-		errGroup.Go(func() error {
-			proof := new(ipld.Proof)
-			row, err := share.GetSharesByNamespace(ctx, blockGetter, rootCID, nID, len(root.RowsRoots), proof)
-			shares[i] = share.NamespacedRow{
-				Shares: row,
-				Proof:  proof,
-			}
-			if err != nil {
-				return fmt.Errorf("getter/ipld: retrieving nID %x for row %x: %w", nID, rootCID, err)
-			}
-			return nil
-		})
-	}
-
-	if err := errGroup.Wait(); err != nil {
-		return nil, err
-	}
-
-	return shares, nil
+	return collectSharesByNamespace(ctx, blockGetter, root, nID)
 }
 
 var sessionKey = &session{}
