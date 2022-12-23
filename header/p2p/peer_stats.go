@@ -29,9 +29,9 @@ type peerStat struct {
 func (p *peerStat) updateStats(amount uint64, time uint64) {
 	p.Lock()
 	defer p.Unlock()
-	var averageSpeed float32
+	averageSpeed := float32(amount)
 	if time != 0 {
-		averageSpeed = float32(amount / time)
+		averageSpeed /= float32(time)
 	}
 	if p.peerScore == 0.0 {
 		p.peerScore = averageSpeed
@@ -112,6 +112,10 @@ func newPeerQueue(ctx context.Context, stats []*peerStat) *peerQueue {
 // in case if there are no peer available in current session, it blocks until
 // the peer will be pushed in.
 func (p *peerQueue) waitPop(ctx context.Context) *peerStat {
+	// TODO(vgonkivs): implement fallback solution for cases when peer queue is empty.
+	// As we discussed with @Wondertan there could be 2 possible solutions:
+	// * use libp2p.Discovery to find new peers outside peerTracker to request headers;
+	// * implement IWANT/IHAVE messaging system and start requesting ranges from the Peerstore;
 	select {
 	case <-ctx.Done():
 		return &peerStat{}

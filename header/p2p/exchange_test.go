@@ -71,8 +71,15 @@ func TestExchange_RequestVerifiedHeadersFails(t *testing.T) {
 	store.Headers[2] = store.Headers[3]
 	// perform expected request
 	h := store.Headers[1]
-	_, err := exchg.GetVerifiedRange(context.Background(), h, 3)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Millisecond*500)
+	t.Cleanup(cancel)
+	_, err := exchg.GetVerifiedRange(ctx, h, 3)
 	require.Error(t, err)
+
+	// ensure that peer was added to the blacklist
+	peers := exchg.peerTracker.connGater.ListBlockedPeers()
+	require.Len(t, peers, 1)
+	require.True(t, hosts[1].ID() == peers[0])
 }
 
 // TestExchange_RequestFullRangeHeaders requests max amount of headers
@@ -96,7 +103,9 @@ func TestExchange_RequestFullRangeHeaders(t *testing.T) {
 		servers[index], err = NewExchangeServer(hosts[index], store, protocolSuffix)
 		require.NoError(t, err)
 		servers[index].Start(context.Background()) //nolint:errcheck
+		exchange.peerTracker.peerLk.Lock()
 		exchange.peerTracker.trackedPeers[hosts[index].ID()] = &peerStat{peerID: hosts[index].ID()}
+		exchange.peerTracker.peerLk.Unlock()
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
@@ -107,30 +116,37 @@ func TestExchange_RequestFullRangeHeaders(t *testing.T) {
 	require.Len(t, headers, 80)
 }
 
-// TestExchange_RequestHeadersFails tests that the Exchange instance will return
-// header.ErrNotFound if it will not have requested header.
-func TestExchange_RequestHeadersFails(t *testing.T) {
+// TestExchange_RequestHeadersLimitExceeded tests that the Exchange instance will return
+// header.ErrHeadersLimitExceeded if the requested range will be move than MaxRequestSize.
+func TestExchange_RequestHeadersLimitExceeded(t *testing.T) {
 	hosts := createMocknet(t, 2)
 	exchg, _ := createP2PExAndServer(t, hosts[0], hosts[1])
-	tt := []struct {
-		amount      uint64
-		expectedErr *error
-	}{
-		{
-			amount:      10,
-			expectedErr: &header.ErrNotFound,
-		},
-		{
-			amount:      600,
-			expectedErr: &header.ErrHeadersLimitExceeded,
-		},
-	}
-	for _, test := range tt {
-		// perform expected request
-		_, err := exchg.GetRangeByHeight(context.Background(), 1, test.amount)
-		require.Error(t, err)
-		require.ErrorAs(t, err, test.expectedErr)
-	}
+	_, err := exchg.GetRangeByHeight(context.Background(), 1, 600)
+	require.Error(t, err)
+	require.ErrorAs(t, err, &header.ErrHeadersLimitExceeded)
+}
+
+// TestExchange_RequestHeadersFromAnotherPeer tests that the Exchange instance will request range
+// from another peer with lower score after receiving header.ErrNotFound
+func TestExchange_RequestHeadersFromAnotherPeer(t *testing.T) {
+	hosts := createMocknet(t, 3)
+	// create client + server(it does not have needed headers)
+	exchg, _ := createP2PExAndServer(t, hosts[0], hosts[1])
+	// create one more server(with more headers in the store)
+	serverSideEx, err := NewExchangeServer(hosts[2], headerMock.NewStore(t, 10), "private")
+	require.NoError(t, err)
+	require.NoError(t, serverSideEx.Start(context.Background()))
+	t.Cleanup(func() {
+		serverSideEx.Stop(context.Background()) //nolint:errcheck
+	})
+	exchg.peerTracker.peerLk.Lock()
+	exchg.peerTracker.trackedPeers[hosts[2].ID()] = &peerStat{peerID: hosts[2].ID(), peerScore: 20}
+	exchg.peerTracker.peerLk.Unlock()
+	_, err = exchg.GetRangeByHeight(context.Background(), 5, 3)
+	require.NoError(t, err)
+	// ensure that peerScore for the second peer is changed
+	newPeerScore := exchg.peerTracker.trackedPeers[hosts[2].ID()].score()
+	require.NotEqual(t, 20, newPeerScore)
 }
 
 // TestExchange_RequestByHash tests that the Exchange instance can
@@ -285,7 +301,7 @@ func createMocknet(t *testing.T, amount int) []libhost.Host {
 }
 
 // createP2PExAndServer creates a Exchange with 5 headers already in its store.
-func createP2PExAndServer(t *testing.T, host, tpeer libhost.Host) (header.Exchange, *headerMock.MockStore) {
+func createP2PExAndServer(t *testing.T, host, tpeer libhost.Host) (*Exchange, *headerMock.MockStore) {
 	store := headerMock.NewStore(t, 5)
 	serverSideEx, err := NewExchangeServer(tpeer, store, "private")
 	require.NoError(t, err)
@@ -295,7 +311,7 @@ func createP2PExAndServer(t *testing.T, host, tpeer libhost.Host) (header.Exchan
 	require.NoError(t, err)
 	ex, err := NewExchange(host, []peer.ID{tpeer.ID()}, "private", connGater)
 	require.NoError(t, err)
-	ex.peerTracker.trackedPeers[tpeer.ID()] = &peerStat{peerID: tpeer.ID()}
+	ex.peerTracker.trackedPeers[tpeer.ID()] = &peerStat{peerID: tpeer.ID(), peerScore: 100}
 	require.NoError(t, ex.Start(context.Background()))
 
 	t.Cleanup(func() {
