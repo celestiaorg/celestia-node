@@ -46,7 +46,7 @@ func TestNamespaceHasherWrite(t *testing.T) {
 		assert.Equal(t, leafSize, n)
 
 		require.Panics(t, func() {
-			h.Write(make([]byte, leafSize))
+			_, _ = h.Write(make([]byte, leafSize))
 		})
 	})
 
