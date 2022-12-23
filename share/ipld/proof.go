@@ -1,9 +1,9 @@
 package ipld
 
 import (
-	"github.com/ipfs/go-cid"
 	"math"
-	"sort"
+
+	"github.com/ipfs/go-cid"
 )
 
 // Proof contains information required for Leaves inclusion validation.
@@ -51,9 +51,6 @@ func (c *proofCollector) addRight(cid cid.Cid, depth int) {
 func (c *proofCollector) Nodes() []cid.Cid {
 	cids := make([]cid.Cid, 0, len(c.left)+len(c.right))
 	// left side will be traversed in bottom-up order
-	sort.Slice(c.left, func(i, j int) bool {
-		return c.left[i].depth < c.left[j].depth
-	})
 	for _, node := range c.left {
 		if node.cid.ByteLen() != 0 {
 			cids = append(cids, node.cid)
@@ -62,12 +59,10 @@ func (c *proofCollector) Nodes() []cid.Cid {
 
 	// right side of the tree will be traversed from top to bottom,
 	// so sort in reversed order
-	sort.Slice(c.right, func(i, j int) bool {
-		return c.right[i].depth > c.right[j].depth
-	})
-	for _, node := range c.right {
-		if node.cid.ByteLen() != 0 {
-			cids = append(cids, node.cid)
+	for i := len(c.right) - 1; i >= 0; i-- {
+		cid := c.right[i].cid
+		if cid.ByteLen() != 0 {
+			cids = append(cids, cid)
 		}
 	}
 	return cids
