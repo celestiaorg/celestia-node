@@ -20,26 +20,28 @@ func init() {
 
 // namespaceHasher implements hash.Hash over NMT Hasher.
 // TODO: Move to NMT repo!
-//  As NMT already defines Hasher that implements hash.Hash by embedding,
-//  it should define full and *correct* implementation of hash.Hash,
-//  which is the namespaceHasher. This hash.Hash, is not IPLD specific and
-//  can be used elsewhere.
+//
+//	As NMT already defines Hasher that implements hash.Hash by embedding,
+//	it should define full and *correct* implementation of hash.Hash,
+//	which is the namespaceHasher. This hash.Hash, is not IPLD specific and
+//	can be used elsewhere.
 type namespaceHasher struct {
 	hasher *nmt.Hasher
-	tp   byte
-	data []byte
+
+	tp   byte   // keeps type of NMT node to be hashed
+	data []byte // written data of the NMT node
 }
 
 // defaultHasher constructs the namespaceHasher with default configuration
 func defaultHasher() *namespaceHasher {
-	 nh := &namespaceHasher{hasher: nmt.NewNmtHasher(sha256.New(), NamespaceSize, true)}
-	 nh.Reset()
-	 return nh
+	nh := &namespaceHasher{hasher: nmt.NewNmtHasher(sha256.New(), NamespaceSize, true)}
+	nh.Reset()
+	return nh
 }
 
 // Size returns the number of bytes Sum will return.
 func (n *namespaceHasher) Size() int {
-	return n.hasher.Size() + int(n.hasher.NamespaceLen) * 2
+	return n.hasher.Size() + int(n.hasher.NamespaceLen)*2
 }
 
 // Write writes the namespaced data to be hashed.
@@ -48,14 +50,14 @@ func (n *namespaceHasher) Size() int {
 // Only one write is allowed.
 func (n *namespaceHasher) Write(data []byte) (int, error) {
 	if n.data != nil {
-		return 0, fmt.Errorf("ipld: only one write to hasher is allowed")
+		panic("namespaceHasher: only single Write is allowed")
 	}
 
 	ln := len(data)
 	switch ln {
 	default:
 		log.Warnf("unexpected data size: %d", ln)
-		return 0, fmt.Errorf("ipld: wrong sized data written to the hasher, len: %v", ln)
+		return 0, fmt.Errorf("wrong sized data written to the hasher, len: %v", ln)
 	case innerNodeSize:
 		n.tp = nmt.NodePrefix
 	case leafNodeSize:
@@ -83,7 +85,8 @@ func (n *namespaceHasher) Sum([]byte) []byte {
 
 // Reset resets the Hash to its initial state.
 func (n *namespaceHasher) Reset() {
-	n.tp, n.data = 255, nil  // reset with an invalid node type, as zero value is a valid Leaf
+	n.tp, n.data = 255, nil // reset with an invalid node type, as zero value is a valid Leaf
+	n.hasher.Reset()
 }
 
 // BlockSize returns the hash's underlying block size.
