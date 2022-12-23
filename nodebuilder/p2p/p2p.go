@@ -24,7 +24,7 @@ var _ Module = (*API)(nil)
 //go:generate mockgen -destination=mocks/api.go -package=mocks . Module
 type Module interface {
 	// Info returns address information about the host.
-	Info(context.Context) peer.AddrInfo
+	Info(context.Context) (peer.AddrInfo, error)
 	// Peers returns all peer IDs used across all inner stores.
 	Peers(context.Context) []peer.ID
 	// PeerInfo returns a small slice of information Peerstore has on the
@@ -98,8 +98,8 @@ func newModule(
 	}
 }
 
-func (m *module) Info(context.Context) peer.AddrInfo {
-	return *libhost.InfoFromHost(m.host)
+func (m *module) Info(context.Context) (peer.AddrInfo, error) {
+	return *libhost.InfoFromHost(m.host), nil
 }
 
 func (m *module) Peers(context.Context) []peer.ID {
@@ -177,7 +177,7 @@ func (m *module) PubSubPeers(_ context.Context, topic string) []peer.ID {
 //nolint:dupl
 type API struct {
 	Internal struct {
-		Info                 func(context.Context) peer.AddrInfo                         `perm:"admin"`
+		Info                 func(context.Context) (peer.AddrInfo, error)                `perm:"admin"`
 		Peers                func(context.Context) []peer.ID                             `perm:"admin"`
 		PeerInfo             func(ctx context.Context, id peer.ID) peer.AddrInfo         `perm:"admin"`
 		Connect              func(ctx context.Context, pi peer.AddrInfo) error           `perm:"admin"`
@@ -197,7 +197,7 @@ type API struct {
 	}
 }
 
-func (api *API) Info(ctx context.Context) peer.AddrInfo {
+func (api *API) Info(ctx context.Context) (peer.AddrInfo, error) {
 	return api.Internal.Info(ctx)
 }
 
