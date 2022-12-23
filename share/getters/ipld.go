@@ -21,9 +21,9 @@ import (
 
 var _ share.Getter = (*IPLDGetter)(nil)
 
-// IPLDGetter is a share.Getter that retrieves shares from the IPLD network. An EDS store can be
-// provided to store shares retrieved from GetShares. Otherwise, result caching is handled by the
-// provided blockservice.
+// IPLDGetter is a share.Getter that retrieves shares from the IPLD network. Result caching is
+// handled by the provided blockservice. A blockservice session will be created for retrieval if the
+// passed context is wrapped with WithSession.
 type IPLDGetter struct {
 	rtrv  *eds.Retriever
 	bServ blockservice.BlockService
