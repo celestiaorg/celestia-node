@@ -5,10 +5,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/libp2p/go-libp2p-core/event"
-	"github.com/libp2p/go-libp2p-core/host"
-	"github.com/libp2p/go-libp2p-core/network"
-	"github.com/libp2p/go-libp2p-core/peer"
+	"github.com/libp2p/go-libp2p/core/event"
+	"github.com/libp2p/go-libp2p/core/host"
+	"github.com/libp2p/go-libp2p/core/network"
+	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -89,23 +89,22 @@ Steps:
  8. Stop FN and ensure that it's not connected to LN
 */
 func TestBootstrapNodesFromBridgeNode(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), swamp.DefaultTestTimeout)
+	t.Cleanup(cancel)
+
 	sw := swamp.NewSwamp(t)
 	cfg := nodebuilder.DefaultConfig(node.Bridge)
 	cfg.P2P.Bootstrapper = true
-	const defaultTimeInterval = time.Second * 10
-	setTimeInterval(cfg, defaultTimeInterval)
+	setTimeInterval(cfg)
 
 	bridge := sw.NewNodeWithConfig(node.Bridge, cfg)
-
-	ctx, cancel := context.WithTimeout(context.Background(), swamp.DefaultTestTimeout)
-	t.Cleanup(cancel)
 
 	err := bridge.Start(ctx)
 	require.NoError(t, err)
 	addr := host.InfoFromHost(bridge.Host)
 
 	cfg = nodebuilder.DefaultConfig(node.Full)
-	setTimeInterval(cfg, defaultTimeInterval)
+	setTimeInterval(cfg)
 	full := sw.NewNodeWithConfig(
 		node.Full,
 		cfg,
@@ -113,7 +112,7 @@ func TestBootstrapNodesFromBridgeNode(t *testing.T) {
 	)
 
 	cfg = nodebuilder.DefaultConfig(node.Light)
-	setTimeInterval(cfg, defaultTimeInterval)
+	setTimeInterval(cfg)
 	light := sw.NewNodeWithConfig(
 		node.Light,
 		cfg,
@@ -175,7 +174,7 @@ func TestRestartNodeDiscovery(t *testing.T) {
 	const defaultTimeInterval = time.Second * 2
 	const fullNodes = 2
 
-	setTimeInterval(cfg, defaultTimeInterval)
+	setTimeInterval(cfg)
 	cfg.Share.PeersLimit = fullNodes
 	bridge := sw.NewNodeWithConfig(node.Bridge, cfg)
 
@@ -187,7 +186,7 @@ func TestRestartNodeDiscovery(t *testing.T) {
 	addr := host.InfoFromHost(bridge.Host)
 	nodes := make([]*nodebuilder.Node, fullNodes)
 	cfg = nodebuilder.DefaultConfig(node.Full)
-	setTimeInterval(cfg, defaultTimeInterval)
+	setTimeInterval(cfg)
 	cfg.Share.PeersLimit = fullNodes
 	nodesConfig := nodebuilder.WithBootstrappers([]peer.AddrInfo{*addr})
 	for index := 0; index < fullNodes; index++ {
@@ -214,7 +213,7 @@ func TestRestartNodeDiscovery(t *testing.T) {
 
 	// create one more node with disabled discovery
 	cfg = nodebuilder.DefaultConfig(node.Full)
-	setTimeInterval(cfg, defaultTimeInterval)
+	setTimeInterval(cfg)
 	cfg.Share.PeersLimit = 0
 	node := sw.NewNodeWithConfig(node.Full, cfg, nodesConfig)
 	connectSub, err := nodes[0].Host.EventBus().Subscribe(&event.EvtPeerConnectednessChanged{})
@@ -237,7 +236,8 @@ func TestRestartNodeDiscovery(t *testing.T) {
 	}
 }
 
-func setTimeInterval(cfg *nodebuilder.Config, interval time.Duration) {
+func setTimeInterval(cfg *nodebuilder.Config) {
+	interval := 5 * time.Second
 	cfg.P2P.RoutingTableRefreshPeriod = interval
 	cfg.Share.DiscoveryInterval = interval
 	cfg.Share.AdvertiseInterval = interval

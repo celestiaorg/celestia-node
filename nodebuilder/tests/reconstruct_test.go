@@ -10,9 +10,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/libp2p/go-libp2p-core/event"
-	"github.com/libp2p/go-libp2p-core/host"
-	"github.com/libp2p/go-libp2p-core/peer"
+	"github.com/libp2p/go-libp2p/core/event"
+	"github.com/libp2p/go-libp2p/core/host"
+	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/sync/errgroup"
 
@@ -101,26 +101,28 @@ func TestFullReconstructFromLights(t *testing.T) {
 	)
 
 	ctx, cancel := context.WithTimeout(context.Background(), swamp.DefaultTestTimeout)
-
 	t.Cleanup(cancel)
+
 	sw := swamp.NewSwamp(t, swamp.WithBlockTime(btime))
 	fillDn := sw.FillBlocks(ctx, bsize, blocks)
-
-	const defaultTimeInterval = time.Second * 5
-	cfg := nodebuilder.DefaultConfig(node.Full)
-	cfg.P2P.Bootstrapper = true
-	setTimeInterval(cfg, defaultTimeInterval)
 
 	bridge := sw.NewBridgeNode()
 	addrsBridge, err := peer.AddrInfoToP2pAddrs(host.InfoFromHost(bridge.Host))
 	require.NoError(t, err)
+	err = bridge.Start(ctx)
+	require.NoError(t, err)
+
+	cfg := nodebuilder.DefaultConfig(node.Full)
+	cfg.P2P.Bootstrapper = true
+	setTimeInterval(cfg)
+
 	bootstrapper := sw.NewNodeWithConfig(node.Full, cfg)
-	require.NoError(t, bootstrapper.Start(ctx))
-	require.NoError(t, bridge.Start(ctx))
 	bootstrapperAddr := host.InfoFromHost(bootstrapper.Host)
+	err = bootstrapper.Start(ctx)
+	require.NoError(t, err)
 
 	cfg = nodebuilder.DefaultConfig(node.Full)
-	setTimeInterval(cfg, defaultTimeInterval)
+	setTimeInterval(cfg)
 	cfg.Header.TrustedPeers = append(cfg.Header.TrustedPeers, addrsBridge[0].String())
 	nodesConfig := nodebuilder.WithBootstrappers([]peer.AddrInfo{*bootstrapperAddr})
 	full := sw.NewNodeWithConfig(node.Full, cfg, nodesConfig)
@@ -132,7 +134,7 @@ func TestFullReconstructFromLights(t *testing.T) {
 		i := i
 		errg.Go(func() error {
 			lnConfig := nodebuilder.DefaultConfig(node.Light)
-			setTimeInterval(lnConfig, defaultTimeInterval)
+			setTimeInterval(lnConfig)
 			lnConfig.Header.TrustedPeers = append(lnConfig.Header.TrustedPeers, addrsBridge[0].String())
 			light := sw.NewNodeWithConfig(node.Light, lnConfig, nodesConfig)
 			sub, err := light.Host.EventBus().Subscribe(&event.EvtPeerIdentificationCompleted{})

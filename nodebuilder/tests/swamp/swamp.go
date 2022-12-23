@@ -8,8 +8,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/libp2p/go-libp2p-core/host"
-	"github.com/libp2p/go-libp2p-core/peer"
+	"github.com/libp2p/go-libp2p/core/host"
+	"github.com/libp2p/go-libp2p/core/peer"
 	mocknet "github.com/libp2p/go-libp2p/p2p/net/mock"
 	ma "github.com/multiformats/go-multiaddr"
 	"github.com/stretchr/testify/require"
@@ -267,7 +267,11 @@ func (s *Swamp) newNode(t node.Type, store nodebuilder.Store, options ...fx.Opti
 	options = append(options,
 		p2p.WithHost(s.createPeer(ks)),
 		fx.Replace(node.StorePath(tempDir)),
+		// fx.Invoke(func(store header.Store) {
+		// 	store.Init()
+		// })
 	)
+
 
 	node, err := nodebuilder.New(t, p2p.Private, store, options...)
 	require.NoError(s.t, err)

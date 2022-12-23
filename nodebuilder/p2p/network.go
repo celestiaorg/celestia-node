@@ -4,7 +4,7 @@ import (
 	"errors"
 	"time"
 
-	"github.com/libp2p/go-libp2p-core/peer"
+	"github.com/libp2p/go-libp2p/core/peer"
 )
 
 // NOTE: Every time we add a new long-running network, it has to be added here.
