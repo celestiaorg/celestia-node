@@ -74,8 +74,7 @@ func TestSyncCatchUp(t *testing.T) {
 		local.NewExchange(remoteStore),
 		localStore,
 		&header.DummySubscriber{},
-		WithBlockTime(time.Second*30),
-		WithTrustingPeriod(time.Microsecond),
+		WithTrustingPeriod(time.Minute),
 	)
 	require.NoError(t, err)
 	// 1. Initial sync
@@ -123,7 +122,6 @@ func TestSyncPendingRangesWithMisses(t *testing.T) {
 		local.NewExchange(remoteStore),
 		localStore,
 		&header.DummySubscriber{},
-		WithBlockTime(time.Second*30),
 		WithTrustingPeriod(time.Minute),
 	)
 	require.NoError(t, err)
