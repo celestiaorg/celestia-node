@@ -28,7 +28,7 @@ type Listener struct {
 	construct header.ConstructFn
 
 	broadcastExtendedHeader libhead.Broadcaster[*header.ExtendedHeader]
-	broadcastEDSHash        shrexpush.BroadcastEDSHash
+	broadcastEDSHash        shrexpush.BroadcastFn
 
 	cancel context.CancelFunc
 }
@@ -36,7 +36,7 @@ type Listener struct {
 func NewListener(
 	bcast libhead.Broadcaster[*header.ExtendedHeader],
 	fetcher *core.BlockFetcher,
-	broadcastEDSHash shrexpush.BroadcastEDSHash,
+	broadcastEDSHash shrexpush.BroadcastFn,
 	bServ blockservice.BlockService,
 	construct header.ConstructFn,
 ) *Listener {
