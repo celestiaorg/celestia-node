@@ -41,7 +41,7 @@ func (c *proofCollector) Nodes() []cid.Cid {
 	cids := make([]cid.Cid, 0, len(c.left)+len(c.right))
 	// left side will be traversed in bottom-up order
 	for _, cid := range c.left {
-		if cid.ByteLen() != 0 {
+		if cid.Defined() {
 			cids = append(cids, cid)
 		}
 	}
@@ -50,7 +50,7 @@ func (c *proofCollector) Nodes() []cid.Cid {
 	// so sort in reversed order
 	for i := len(c.right) - 1; i >= 0; i-- {
 		cid := c.right[i]
-		if cid.ByteLen() != 0 {
+		if cid.Defined() {
 			cids = append(cids, cid)
 		}
 	}
