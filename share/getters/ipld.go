@@ -34,10 +34,11 @@ func NewIPLDGetter(bServ blockservice.BlockService) *IPLDGetter {
 	}
 }
 
+// GetShare gets a single share at the given EDS coordinates from the IPLD network.
 func (ig *IPLDGetter) GetShare(ctx context.Context, dah *share.Root, row, col int) (share.Share, error) {
 	root, leaf := ipld.Translate(dah, row, col)
 
-	// check the context to see if a blockservice session should be created
+	// wrap the blockservice in a session if it has been signaled in the context.
 	blockGetter := getGetter(ctx, ig.bServ)
 	nd, err := share.GetShare(ctx, blockGetter, root, leaf, len(dah.RowsRoots))
 	if err != nil {
@@ -66,8 +67,13 @@ func (ig *IPLDGetter) GetSharesByNamespace(
 		return nil, fmt.Errorf("getter/ipld: invalid namespace ID: %w", err)
 	}
 
+	// wrap the blockservice in a session if it has been signaled in the context.
 	blockGetter := getGetter(ctx, ig.bServ)
-	return collectSharesByNamespace(ctx, blockGetter, root, nID)
+	shares, err := collectSharesByNamespace(ctx, blockGetter, root, nID)
+	if err != nil {
+		return nil, fmt.Errorf("getter/ipld: failed to retrieve shares by namespace: %w", err)
+	}
+	return shares, nil
 }
 
 var sessionKey = &session{}
