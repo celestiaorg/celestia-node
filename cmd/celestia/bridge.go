@@ -2,6 +2,7 @@ package main
 
 import (
 	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 
 	cmdnode "github.com/celestiaorg/celestia-node/cmd"
 	"github.com/celestiaorg/celestia-node/nodebuilder/core"
@@ -16,34 +17,20 @@ import (
 // PersistentPreRun func on parent command.
 
 func init() {
+	flags := []*pflag.FlagSet{
+		cmdnode.NodeFlags(),
+		p2p.Flags(),
+		core.Flags(),
+		cmdnode.MiscFlags(),
+		rpc.Flags(),
+		gateway.Flags(),
+		state.Flags(),
+	}
+
 	bridgeCmd.AddCommand(
-		cmdnode.Init(
-			cmdnode.NodeFlags(),
-			p2p.Flags(),
-			core.Flags(),
-			cmdnode.MiscFlags(),
-			rpc.Flags(),
-			gateway.Flags(),
-			state.Flags(),
-		),
-		cmdnode.Start(
-			cmdnode.NodeFlags(),
-			p2p.Flags(),
-			core.Flags(),
-			cmdnode.MiscFlags(),
-			rpc.Flags(),
-			gateway.Flags(),
-			state.Flags(),
-		),
-		authCmd(
-			cmdnode.NodeFlags(),
-			p2p.Flags(),
-			core.Flags(),
-			cmdnode.MiscFlags(),
-			rpc.Flags(),
-			gateway.Flags(),
-			state.Flags(),
-		),
+		cmdnode.Init(flags...),
+		cmdnode.Start(flags...),
+		cmdnode.AuthCmd(flags...),
 	)
 }
 

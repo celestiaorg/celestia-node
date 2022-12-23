@@ -1,4 +1,4 @@
-package main
+package cmd
 
 import (
 	"fmt"
@@ -11,12 +11,11 @@ import (
 	flag "github.com/spf13/pflag"
 
 	"github.com/celestiaorg/celestia-node/api/rpc/perms"
-	cmdnode "github.com/celestiaorg/celestia-node/cmd"
 	"github.com/celestiaorg/celestia-node/libs/keystore"
 	nodemod "github.com/celestiaorg/celestia-node/nodebuilder/node"
 )
 
-func authCmd(fsets ...*flag.FlagSet) *cobra.Command {
+func AuthCmd(fsets ...*flag.FlagSet) *cobra.Command {
 	var cmd = &cobra.Command{
 		Use:   "auth [permission-level (e.g. read || write || admin)]",
 		Short: "Signs and outputs a hex-encoded JWT token with the given permissions.",
@@ -41,7 +40,7 @@ func newToken(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	expanded, err := homedir.Expand(filepath.Clean(cmdnode.StorePath(cmd.Context())))
+	expanded, err := homedir.Expand(filepath.Clean(StorePath(cmd.Context())))
 	if err != nil {
 		return err
 	}
