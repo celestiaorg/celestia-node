@@ -15,35 +15,24 @@ type Proof struct {
 // proofCollector collects proof nodes' CIDs for the construction of a shares inclusion validation
 // nmt.Proof.
 type proofCollector struct {
-	left, right []node
-}
-
-type node struct {
-	cid   cid.Cid
-	depth int
+	left, right []cid.Cid
 }
 
 func newProofCollector(maxShares int) *proofCollector {
 	// maximum possible amount of required proofs from each side is equal to tree height.
 	height := int(math.Log2(float64(maxShares))) + 1
 	return &proofCollector{
-		left:  make([]node, height),
-		right: make([]node, height),
+		left:  make([]cid.Cid, height),
+		right: make([]cid.Cid, height),
 	}
 }
 
 func (c *proofCollector) addLeft(cid cid.Cid, depth int) {
-	c.left[depth] = node{
-		cid:   cid,
-		depth: depth,
-	}
+	c.left[depth] = cid
 }
 
 func (c *proofCollector) addRight(cid cid.Cid, depth int) {
-	c.right[depth] = node{
-		cid:   cid,
-		depth: depth,
-	}
+	c.right[depth] = cid
 }
 
 // Nodes returns nodes collected by proofCollector in the order that nmt.Proof validator will use
@@ -51,16 +40,16 @@ func (c *proofCollector) addRight(cid cid.Cid, depth int) {
 func (c *proofCollector) Nodes() []cid.Cid {
 	cids := make([]cid.Cid, 0, len(c.left)+len(c.right))
 	// left side will be traversed in bottom-up order
-	for _, node := range c.left {
-		if node.cid.ByteLen() != 0 {
-			cids = append(cids, node.cid)
+	for _, cid := range c.left {
+		if cid.ByteLen() != 0 {
+			cids = append(cids, cid)
 		}
 	}
 
 	// right side of the tree will be traversed from top to bottom,
 	// so sort in reversed order
 	for i := len(c.right) - 1; i >= 0; i-- {
-		cid := c.right[i].cid
+		cid := c.right[i]
 		if cid.ByteLen() != 0 {
 			cids = append(cids, cid)
 		}
