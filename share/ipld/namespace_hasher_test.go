@@ -75,16 +75,6 @@ func TestNamespaceHasherSum(t *testing.T) {
 			NmtHashSize,
 			innerSize,
 		},
-		{
-			"ShortGarbage",
-			0,
-			13,
-		},
-		{
-			"LongGarbage",
-			0,
-			500,
-		},
 	}
 
 	for _, ts := range tt {
