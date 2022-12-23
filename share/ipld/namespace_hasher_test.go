@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 )
@@ -44,9 +45,9 @@ func TestNamespaceHasherWrite(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, leafSize, n)
 
-		n, err = h.Write(make([]byte, leafSize))
-		assert.Error(t, err)
-		assert.Equal(t, 0, n)
+		require.Panics(t, func() {
+			h.Write(make([]byte, leafSize))
+		})
 	})
 
 	t.Run("ErrorIncorrectSize", func(t *testing.T) {
