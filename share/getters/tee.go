@@ -53,6 +53,6 @@ func (tg *TeeGetter) GetSharesByNamespace(
 	ctx context.Context,
 	root *share.Root,
 	id namespace.ID,
-) (share.NamespaceShares, error) {
+) (share.NamespacedShares, error) {
 	return tg.getter.GetSharesByNamespace(ctx, root, id)
 }
