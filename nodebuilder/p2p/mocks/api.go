@@ -39,11 +39,12 @@ func (m *MockModule) EXPECT() *MockModuleMockRecorder {
 }
 
 // BandwidthForPeer mocks base method.
-func (m *MockModule) BandwidthForPeer(arg0 context.Context, arg1 peer.ID) metrics.Stats {
+func (m *MockModule) BandwidthForPeer(arg0 context.Context, arg1 peer.ID) (metrics.Stats, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "BandwidthForPeer", arg0, arg1)
 	ret0, _ := ret[0].(metrics.Stats)
-	return ret0
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
 }
 
 // BandwidthForPeer indicates an expected call of BandwidthForPeer.
@@ -53,11 +54,12 @@ func (mr *MockModuleMockRecorder) BandwidthForPeer(arg0, arg1 interface{}) *gomo
 }
 
 // BandwidthForProtocol mocks base method.
-func (m *MockModule) BandwidthForProtocol(arg0 context.Context, arg1 protocol.ID) metrics.Stats {
+func (m *MockModule) BandwidthForProtocol(arg0 context.Context, arg1 protocol.ID) (metrics.Stats, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "BandwidthForProtocol", arg0, arg1)
 	ret0, _ := ret[0].(metrics.Stats)
-	return ret0
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
 }
 
 // BandwidthForProtocol indicates an expected call of BandwidthForProtocol.
@@ -67,11 +69,12 @@ func (mr *MockModuleMockRecorder) BandwidthForProtocol(arg0, arg1 interface{}) *
 }
 
 // BandwidthStats mocks base method.
-func (m *MockModule) BandwidthStats(arg0 context.Context) metrics.Stats {
+func (m *MockModule) BandwidthStats(arg0 context.Context) (metrics.Stats, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "BandwidthStats", arg0)
 	ret0, _ := ret[0].(metrics.Stats)
-	return ret0
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
 }
 
 // BandwidthStats indicates an expected call of BandwidthStats.
@@ -123,11 +126,12 @@ func (mr *MockModuleMockRecorder) Connect(arg0, arg1 interface{}) *gomock.Call {
 }
 
 // Connectedness mocks base method.
-func (m *MockModule) Connectedness(arg0 context.Context, arg1 peer.ID) network.Connectedness {
+func (m *MockModule) Connectedness(arg0 context.Context, arg1 peer.ID) (network.Connectedness, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Connectedness", arg0, arg1)
 	ret0, _ := ret[0].(network.Connectedness)
-	return ret0
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
 }
 
 // Connectedness indicates an expected call of Connectedness.
@@ -137,11 +141,12 @@ func (mr *MockModuleMockRecorder) Connectedness(arg0, arg1 interface{}) *gomock.
 }
 
 // Info mocks base method.
-func (m *MockModule) Info(arg0 context.Context) peer.AddrInfo {
+func (m *MockModule) Info(arg0 context.Context) (peer.AddrInfo, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Info", arg0)
 	ret0, _ := ret[0].(peer.AddrInfo)
-	return ret0
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
 }
 
 // Info indicates an expected call of Info.
@@ -151,11 +156,12 @@ func (mr *MockModuleMockRecorder) Info(arg0 interface{}) *gomock.Call {
 }
 
 // IsProtected mocks base method.
-func (m *MockModule) IsProtected(arg0 context.Context, arg1 peer.ID, arg2 string) bool {
+func (m *MockModule) IsProtected(arg0 context.Context, arg1 peer.ID, arg2 string) (bool, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "IsProtected", arg0, arg1, arg2)
 	ret0, _ := ret[0].(bool)
-	return ret0
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
 }
 
 // IsProtected indicates an expected call of IsProtected.
@@ -165,11 +171,12 @@ func (mr *MockModuleMockRecorder) IsProtected(arg0, arg1, arg2 interface{}) *gom
 }
 
 // ListBlockedPeers mocks base method.
-func (m *MockModule) ListBlockedPeers(arg0 context.Context) []peer.ID {
+func (m *MockModule) ListBlockedPeers(arg0 context.Context) ([]peer.ID, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ListBlockedPeers", arg0)
 	ret0, _ := ret[0].([]peer.ID)
-	return ret0
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
 }
 
 // ListBlockedPeers indicates an expected call of ListBlockedPeers.
@@ -194,11 +201,12 @@ func (mr *MockModuleMockRecorder) NATStatus(arg0 interface{}) *gomock.Call {
 }
 
 // PeerInfo mocks base method.
-func (m *MockModule) PeerInfo(arg0 context.Context, arg1 peer.ID) peer.AddrInfo {
+func (m *MockModule) PeerInfo(arg0 context.Context, arg1 peer.ID) (peer.AddrInfo, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "PeerInfo", arg0, arg1)
 	ret0, _ := ret[0].(peer.AddrInfo)
-	return ret0
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
 }
 
 // PeerInfo indicates an expected call of PeerInfo.
@@ -208,11 +216,12 @@ func (mr *MockModuleMockRecorder) PeerInfo(arg0, arg1 interface{}) *gomock.Call 
 }
 
 // Peers mocks base method.
-func (m *MockModule) Peers(arg0 context.Context) []peer.ID {
+func (m *MockModule) Peers(arg0 context.Context) ([]peer.ID, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Peers", arg0)
 	ret0, _ := ret[0].([]peer.ID)
-	return ret0
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
 }
 
 // Peers indicates an expected call of Peers.
@@ -222,9 +231,11 @@ func (mr *MockModuleMockRecorder) Peers(arg0 interface{}) *gomock.Call {
 }
 
 // Protect mocks base method.
-func (m *MockModule) Protect(arg0 context.Context, arg1 peer.ID, arg2 string) {
+func (m *MockModule) Protect(arg0 context.Context, arg1 peer.ID, arg2 string) error {
 	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "Protect", arg0, arg1, arg2)
+	ret := m.ctrl.Call(m, "Protect", arg0, arg1, arg2)
+	ret0, _ := ret[0].(error)
+	return ret0
 }
 
 // Protect indicates an expected call of Protect.
@@ -234,11 +245,12 @@ func (mr *MockModuleMockRecorder) Protect(arg0, arg1, arg2 interface{}) *gomock.
 }
 
 // PubSubPeers mocks base method.
-func (m *MockModule) PubSubPeers(arg0 context.Context, arg1 string) []peer.ID {
+func (m *MockModule) PubSubPeers(arg0 context.Context, arg1 string) ([]peer.ID, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "PubSubPeers", arg0, arg1)
 	ret0, _ := ret[0].([]peer.ID)
-	return ret0
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
 }
 
 // PubSubPeers indicates an expected call of PubSubPeers.
@@ -262,11 +274,12 @@ func (mr *MockModuleMockRecorder) UnblockPeer(arg0, arg1 interface{}) *gomock.Ca
 }
 
 // Unprotect mocks base method.
-func (m *MockModule) Unprotect(arg0 context.Context, arg1 peer.ID, arg2 string) bool {
+func (m *MockModule) Unprotect(arg0 context.Context, arg1 peer.ID, arg2 string) (bool, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Unprotect", arg0, arg1, arg2)
 	ret0, _ := ret[0].(bool)
-	return ret0
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
 }
 
 // Unprotect indicates an expected call of Unprotect.
