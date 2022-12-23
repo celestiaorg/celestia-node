@@ -37,10 +37,6 @@ type Syncer struct {
 	exchange header.Exchange
 	store    header.Store
 
-	// blockTime provides a reference point for the Syncer to determine
-	// whether its subjective head is outdated
-	blockTime time.Duration
-
 	// stateLk protects state which represents the current or latest sync
 	stateLk sync.RWMutex
 	state   State
@@ -54,17 +50,27 @@ type Syncer struct {
 	// controls lifecycle for syncLoop
 	ctx    context.Context
 	cancel context.CancelFunc
+
+	Params *Parameters
 }
 
 // NewSyncer creates a new instance of Syncer.
-func NewSyncer(exchange header.Exchange, store header.Store, sub header.Subscriber, blockTime time.Duration) *Syncer {
+func NewSyncer(exchange header.Exchange, store header.Store, sub header.Subscriber, opts ...Options) (*Syncer, error) {
+	params := DefaultParameters()
+	for _, opt := range opts {
+		opt(&params)
+	}
+	if err := params.Validate(); err != nil {
+		return nil, err
+	}
+
 	return &Syncer{
 		sub:         sub,
 		exchange:    exchange,
 		store:       store,
-		blockTime:   blockTime,
 		triggerSync: make(chan struct{}, 1), // should be buffered
-	}
+		Params:      &params,
+	}, nil
 }
 
 // Start starts the syncing routine.

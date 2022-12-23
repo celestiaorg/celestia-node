@@ -10,6 +10,7 @@ import (
 
 	p2p_exchange "github.com/celestiaorg/celestia-node/header/p2p"
 	"github.com/celestiaorg/celestia-node/header/store"
+	"github.com/celestiaorg/celestia-node/header/sync"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
 )
@@ -24,7 +25,8 @@ type Config struct {
 	// headers at any moment.
 	TrustedPeers []string
 
-	Store store.Parameters
+	Store  store.Parameters
+	Syncer sync.Parameters
 
 	Server p2p_exchange.ServerParameters
 	Client p2p_exchange.ClientParameters `toml:",omitempty"`
@@ -35,6 +37,7 @@ func DefaultConfig(tp node.Type) Config {
 		TrustedHash:  "",
 		TrustedPeers: make([]string, 0),
 		Store:        store.DefaultParameters(),
+		Syncer:       sync.DefaultParameters(),
 		Server:       p2p_exchange.DefaultServerParameters(),
 	}
 
@@ -86,6 +89,11 @@ func (cfg *Config) Validate(tp node.Type) error {
 	err := cfg.Store.Validate()
 	if err != nil {
 		return fmt.Errorf("module/header: misconfiguration of store: %w", err)
+	}
+
+	err = cfg.Syncer.Validate()
+	if err != nil {
+		return fmt.Errorf("module/header: misconfiguration of syncer: %w", err)
 	}
 
 	err = cfg.Server.Validate()

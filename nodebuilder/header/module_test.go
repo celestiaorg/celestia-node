@@ -1,18 +1,23 @@
 package header
 
 import (
+	"context"
 	"testing"
+	"time"
 
 	"github.com/ipfs/go-datastore"
 	"github.com/libp2p/go-libp2p"
+	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	"github.com/libp2p/go-libp2p/p2p/net/conngater"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/fx"
 	"go.uber.org/fx/fxtest"
 
+	"github.com/celestiaorg/celestia-node/fraud"
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/header/p2p"
 	"github.com/celestiaorg/celestia-node/header/store"
+	"github.com/celestiaorg/celestia-node/header/sync"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	modp2p "github.com/celestiaorg/celestia-node/nodebuilder/p2p"
 )
@@ -41,6 +46,38 @@ func TestConstructModule_StoreParams(t *testing.T) {
 	require.Equal(t, headerStore.Params.StoreCacheSize, cfg.Store.StoreCacheSize)
 	require.Equal(t, headerStore.Params.IndexCacheSize, cfg.Store.IndexCacheSize)
 	require.Equal(t, headerStore.Params.WriteBatchSize, cfg.Store.WriteBatchSize)
+}
+
+// TestConstructModule_SyncerParams ensures that all passed via functional options
+// params are set in syncer correctly.
+func TestConstructModule_SyncerParams(t *testing.T) {
+	cfg := DefaultConfig(node.Light)
+	cfg.Syncer.TrustingPeriod = time.Hour
+	var syncer *sync.Syncer
+	app := fxtest.New(t,
+		fx.Supply(modp2p.Private),
+		fx.Supply(modp2p.Bootstrappers{}),
+		fx.Provide(context.Background),
+		fx.Provide(libp2p.New),
+		fx.Provide(func(b datastore.Batching) (*conngater.BasicConnectionGater, error) {
+			return conngater.NewBasicConnectionGater(b)
+		}),
+		fx.Provide(func() *pubsub.PubSub {
+			return nil
+		}),
+		fx.Provide(func() datastore.Batching {
+			return datastore.NewMapDatastore()
+		}),
+		fx.Provide(func() fraud.Service {
+			return nil
+		}),
+		ConstructModule(node.Light, &cfg),
+		fx.Invoke(func(s *sync.Syncer) {
+			syncer = s
+		}),
+	)
+	require.Equal(t, cfg.Syncer.TrustingPeriod, syncer.Params.TrustingPeriod)
+	require.NoError(t, app.Err())
 }
 
 // TestConstructModule_ExchangeParams ensures that all passed via functional options

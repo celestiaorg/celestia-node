@@ -60,6 +60,12 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 		fx.Provide(func(subscriber *p2p.Subscriber) header.Subscriber {
 			return subscriber
 		}),
+		fx.Provide(func(cfg Config) []sync.Options {
+			return []sync.Options{
+				sync.WithBlockTime(modp2p.BlockTime),
+				sync.WithTrustingPeriod(cfg.Syncer.TrustingPeriod),
+			}
+		}),
 		fx.Provide(fx.Annotate(
 			newSyncer,
 			fx.OnStart(func(startCtx, ctx context.Context, fservice fraud.Service, syncer *sync.Syncer) error {
