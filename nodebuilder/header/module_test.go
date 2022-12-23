@@ -53,6 +53,7 @@ func TestConstructModule_StoreParams(t *testing.T) {
 func TestConstructModule_SyncerParams(t *testing.T) {
 	cfg := DefaultConfig(node.Light)
 	cfg.Syncer.TrustingPeriod = time.Hour
+	cfg.Syncer.MaxRequestSize = 1
 	var syncer *sync.Syncer
 	app := fxtest.New(t,
 		fx.Supply(modp2p.Private),
@@ -77,6 +78,7 @@ func TestConstructModule_SyncerParams(t *testing.T) {
 		}),
 	)
 	require.Equal(t, cfg.Syncer.TrustingPeriod, syncer.Params.TrustingPeriod)
+	require.Equal(t, cfg.Syncer.MaxRequestSize, syncer.Params.MaxRequestSize)
 	require.NoError(t, app.Err())
 }
 

@@ -16,8 +16,6 @@ import (
 )
 
 func TestSyncSimpleRequestingHead(t *testing.T) {
-	requestSize = 13 // just some random number
-
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	t.Cleanup(cancel)
 
@@ -38,6 +36,7 @@ func TestSyncSimpleRequestingHead(t *testing.T) {
 		&header.DummySubscriber{},
 		WithBlockTime(time.Second*30),
 		WithTrustingPeriod(time.Microsecond),
+		WithMaxRequestSize(13),
 	)
 	require.NoError(t, err)
 	err = syncer.Start(ctx)

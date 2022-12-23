@@ -64,6 +64,7 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 			return []sync.Options{
 				sync.WithBlockTime(modp2p.BlockTime),
 				sync.WithTrustingPeriod(cfg.Syncer.TrustingPeriod),
+				sync.WithMaxRequestSize(cfg.Syncer.MaxRequestSize),
 			}
 		}),
 		fx.Provide(fx.Annotate(
