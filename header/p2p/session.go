@@ -12,30 +12,53 @@ import (
 	p2p_pb "github.com/celestiaorg/celestia-node/header/p2p/pb"
 )
 
+type option func(*session)
+
+func withValidation(from *header.ExtendedHeader) option {
+	return func(s *session) {
+		s.from = from
+	}
+}
+
 // session aims to divide a range of headers
 // into several smaller requests among different peers.
 type session struct {
-	ctx        context.Context
-	cancel     context.CancelFunc
 	host       host.Host
 	protocolID protocol.ID
+	queue      *peerQueue
 	// peerTracker contains discovered peers with records that describes their activity.
-	queue *peerQueue
+	peerTracker *peerTracker
 
-	reqCh chan *p2p_pb.ExtendedHeaderRequest
-	errCh chan error
+	// `from` is set when additional validation for range is needed.
+	// Otherwise, it will be nil.
+	from *header.ExtendedHeader
+
+	ctx    context.Context
+	cancel context.CancelFunc
+	reqCh  chan *p2p_pb.ExtendedHeaderRequest
 }
 
-func newSession(ctx context.Context, h host.Host, peerTracker []*peerStat, protocolID protocol.ID) *session {
+func newSession(
+	ctx context.Context,
+	h host.Host,
+	peerTracker *peerTracker,
+	protocolID protocol.ID,
+	options ...option,
+) *session {
 	ctx, cancel := context.WithCancel(ctx)
-	return &session{
-		ctx:        ctx,
-		cancel:     cancel,
-		protocolID: protocolID,
-		host:       h,
-		queue:      newPeerQueue(ctx, peerTracker),
-		errCh:      make(chan error),
+	ses := &session{
+		ctx:         ctx,
+		cancel:      cancel,
+		protocolID:  protocolID,
+		host:        h,
+		queue:       newPeerQueue(ctx, peerTracker.peers()),
+		peerTracker: peerTracker,
 	}
+
+	for _, opt := range options {
+		opt(ses)
+	}
+	return ses
 }
 
 // GetRangeByHeight requests headers from different peers.
@@ -61,8 +84,6 @@ func (s *session) getRangeByHeight(
 			return nil, errors.New("header/p2p: exchange is closed")
 		case <-ctx.Done():
 			return nil, ctx.Err()
-		case err := <-s.errCh:
-			return nil, err
 		case res := <-result:
 			headers = append(headers, res...)
 		}
@@ -114,19 +135,29 @@ func (s *session) doRequest(
 		if err == context.Canceled || err == context.DeadlineExceeded {
 			return
 		}
-		log.Errorw("requesting headers from peer failed."+
-			"Retrying the request from different peer", "failed peer", stat.peerID, "err", err)
+		log.Errorw("requesting headers from peer failed.", "failed peer", stat.peerID, "err", err)
 		select {
 		case <-ctx.Done():
 		case <-s.ctx.Done():
+			// retry request
 		case s.reqCh <- req:
+			log.Debug("Retrying the request from different peer")
 		}
 		return
 	}
 
 	h, err := s.processResponse(r)
 	if err != nil {
-		s.errCh <- err
+		switch err {
+		case header.ErrNotFound:
+		default:
+			s.peerTracker.blockPeer(stat.peerID, err)
+		}
+		select {
+		case <-ctx.Done():
+		case <-s.ctx.Done():
+		case s.reqCh <- req:
+		}
 		return
 	}
 	log.Debugw("request headers from peer succeed ", "from", s.host.ID(), "pID", stat.peerID, "amount", req.Amount)
@@ -147,14 +178,45 @@ func (s *session) processResponse(responses []*p2p_pb.ExtendedHeaderResponse) ([
 		}
 		header, err := header.UnmarshalExtendedHeader(resp.Body)
 		if err != nil {
-			return nil, err
+			return nil, errors.New("unmarshalling error")
 		}
 		headers = append(headers, header)
 	}
 	if len(headers) == 0 {
 		return nil, header.ErrNotFound
 	}
-	return headers, nil
+
+	err := s.validate(headers)
+	return headers, err
+}
+
+// validate checks that the received range of headers is valid against the provided header.
+func (s *session) validate(headers []*header.ExtendedHeader) error {
+	// if `from` is empty, then additional validation for the header`s range is not needed.
+	if s.from == nil {
+		return nil
+	}
+
+	// verify that the first header in range is valid against the trusted header.
+	err := s.from.VerifyNonAdjacent(headers[0])
+	if err != nil {
+		return nil
+	}
+
+	if len(headers) == 1 {
+		return nil
+	}
+
+	trusted := headers[0]
+	// verify that the whole range is valid.
+	for i := 1; i < len(headers); i++ {
+		err = trusted.VerifyAdjacent(headers[i])
+		if err != nil {
+			return err
+		}
+		trusted = headers[i]
+	}
+	return nil
 }
 
 // prepareRequests converts incoming range into separate ExtendedHeaderRequest.

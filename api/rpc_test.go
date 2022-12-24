@@ -4,16 +4,22 @@ import (
 	"context"
 	"encoding/json"
 	"reflect"
+	"strconv"
 	"testing"
 	"time"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	"github.com/cristalhq/jwt"
 	"github.com/golang/mock/gomock"
+	"github.com/libp2p/go-libp2p-core/network"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/fx"
 
 	"github.com/celestiaorg/celestia-node/api/rpc"
 	"github.com/celestiaorg/celestia-node/api/rpc/client"
+	"github.com/celestiaorg/celestia-node/api/rpc/perms"
+	daspkg "github.com/celestiaorg/celestia-node/das"
+	headerpkg "github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/nodebuilder"
 	"github.com/celestiaorg/celestia-node/nodebuilder/das"
 	dasMock "github.com/celestiaorg/celestia-node/nodebuilder/das/mocks"
@@ -44,7 +50,7 @@ func TestRPCCallsUnderlyingNode(t *testing.T) {
 	)
 	for i := 0; i < 3; i++ {
 		time.Sleep(time.Second * 1)
-		rpcClient, err = client.NewClient(ctx, "http://"+url)
+		rpcClient, err = client.NewPublicClient(ctx, "http://"+url)
 		if err == nil {
 			t.Cleanup(rpcClient.Close)
 			break
@@ -58,7 +64,7 @@ func TestRPCCallsUnderlyingNode(t *testing.T) {
 		Denom:  "utia",
 	}
 
-	server.State.EXPECT().Balance(gomock.Any()).Return(expectedBalance, nil).Times(1)
+	server.State.EXPECT().Balance(gomock.Any()).Return(expectedBalance, nil)
 
 	balance, err := rpcClient.State.Balance(ctx)
 	require.NoError(t, err)
@@ -108,6 +114,160 @@ func TestModulesImplementFullAPI(t *testing.T) {
 			}
 		}
 	}
+}
+
+func TestAuthedRPC(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(cancel)
+
+	// generate dummy signer and sign admin perms token with it
+	signer, err := jwt.NewHS256(make([]byte, 32))
+	require.NoError(t, err)
+
+	nd, server := setupNodeWithAuthedRPC(t, signer)
+	url := nd.RPCServer.ListenAddr()
+
+	// create permissioned tokens
+	publicToken, err := perms.NewTokenWithPerms(signer, perms.DefaultPerms)
+	require.NoError(t, err)
+	readToken, err := perms.NewTokenWithPerms(signer, perms.ReadPerms)
+	require.NoError(t, err)
+	rwToken, err := perms.NewTokenWithPerms(signer, perms.ReadWritePerms)
+	require.NoError(t, err)
+	adminToken, err := perms.NewTokenWithPerms(signer, perms.AllPerms)
+	require.NoError(t, err)
+
+	var tests = []struct {
+		perm  int
+		token string
+	}{
+		{perm: 1, token: string(publicToken)}, // public
+		{perm: 2, token: string(readToken)},   // read
+		{perm: 3, token: string(rwToken)},     // RW
+		{perm: 4, token: string(adminToken)},  // admin
+	}
+
+	for i, tt := range tests {
+		t.Run(strconv.Itoa(i), func(t *testing.T) {
+			// we need to run this a few times to prevent the race where the server is not yet started
+			var rpcClient *client.Client
+			require.NoError(t, err)
+			for i := 0; i < 3; i++ {
+				time.Sleep(time.Second * 1)
+				rpcClient, err = client.NewClient(ctx, "http://"+url, tt.token)
+				if err == nil {
+					break
+				}
+			}
+			require.NotNil(t, rpcClient)
+			require.NoError(t, err)
+
+			// 1. Test method with public permissions
+			server.Header.EXPECT().Head(gomock.Any()).Return(new(headerpkg.ExtendedHeader), nil)
+			got, err := rpcClient.Header.Head(ctx)
+			require.NoError(t, err)
+			require.NotNil(t, got)
+
+			// 2. Test method with read-level permissions
+			expected := daspkg.SamplingStats{
+				SampledChainHead: 100,
+				CatchupHead:      100,
+				NetworkHead:      1000,
+				Failed:           nil,
+				Workers:          nil,
+				Concurrency:      0,
+				CatchUpDone:      true,
+				IsRunning:        false,
+			}
+			if tt.perm > 1 {
+				server.Das.EXPECT().SamplingStats(gomock.Any()).Return(expected, nil)
+				stats, err := rpcClient.DAS.SamplingStats(ctx)
+				require.NoError(t, err)
+				require.Equal(t, expected, stats)
+			} else {
+				_, err := rpcClient.DAS.SamplingStats(ctx)
+				require.Error(t, err)
+				require.ErrorContains(t, err, "missing permission")
+			}
+
+			// 3. Test method with write-level permissions
+			expectedResp := &state.TxResponse{}
+			if tt.perm > 2 {
+				server.State.EXPECT().SubmitTx(gomock.Any(), gomock.Any()).Return(expectedResp, nil)
+				txResp, err := rpcClient.State.SubmitTx(ctx, []byte{})
+				require.NoError(t, err)
+				require.Equal(t, expectedResp, txResp)
+			} else {
+				_, err := rpcClient.State.SubmitTx(ctx, []byte{})
+				require.Error(t, err)
+				require.ErrorContains(t, err, "missing permission")
+			}
+
+			// 4. Test method with admin-level permissions
+			expectedReachability := network.Reachability(3)
+			if tt.perm > 3 {
+				server.P2P.EXPECT().NATStatus(gomock.Any()).Return(expectedReachability, nil)
+				natstatus, err := rpcClient.P2P.NATStatus(ctx)
+				require.NoError(t, err)
+				require.Equal(t, expectedReachability, natstatus)
+			} else {
+				_, err := rpcClient.P2P.NATStatus(ctx)
+				require.Error(t, err)
+				require.ErrorContains(t, err, "missing permission")
+			}
+
+			rpcClient.Close()
+		})
+	}
+}
+
+// TestPublicClient tests that the public rpc client can only
+// access public methods.
+func TestPublicClient(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(cancel)
+
+	// generate dummy signer and sign admin perms token with it
+	signer, err := jwt.NewHS256(make([]byte, 32))
+	require.NoError(t, err)
+
+	nd, server := setupNodeWithAuthedRPC(t, signer)
+	url := nd.RPCServer.ListenAddr()
+
+	// we need to run this a few times to prevent the race where the server is not yet started
+	var rpcClient *client.Client
+	require.NoError(t, err)
+	for i := 0; i < 3; i++ {
+		time.Sleep(time.Second * 1)
+		rpcClient, err = client.NewPublicClient(ctx, "http://"+url)
+		if err == nil {
+			t.Cleanup(rpcClient.Close)
+			break
+		}
+	}
+	require.NotNil(t, rpcClient)
+	require.NoError(t, err)
+
+	// 1. Test method with public permissions
+	server.Header.EXPECT().Head(gomock.Any()).Return(new(headerpkg.ExtendedHeader), nil)
+	got, err := rpcClient.Header.Head(ctx)
+	require.NoError(t, err)
+	require.NotNil(t, got)
+
+	// 2. Test method with read-level permissions
+	_, err = rpcClient.DAS.SamplingStats(ctx)
+	require.Error(t, err)
+	require.ErrorContains(t, err, "missing permission")
+
+	// 3. Test method with write-level permissions
+	_, err = rpcClient.State.SubmitTx(ctx, []byte{})
+	require.Error(t, err)
+	require.ErrorContains(t, err, "missing permission")
+
+	// 4. Test method with admin-level permissions
+	_, err = rpcClient.P2P.NATStatus(ctx)
+	require.Error(t, err)
+	require.ErrorContains(t, err, "missing permission")
 }
 
 func TestAllReturnValuesAreMarshalable(t *testing.T) {
@@ -201,6 +361,49 @@ func setupNodeWithModifiedRPC(t *testing.T) (*nodebuilder.Node, *mockAPI) {
 		srv.RegisterService("node", mockAPI.Node)
 	})
 	nd := nodebuilder.TestNode(t, node.Full, invokeRPC)
+	// start node
+	err := nd.Start(ctx)
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		err = nd.Stop(ctx)
+		require.NoError(t, err)
+	})
+	return nd, mockAPI
+}
+
+// setupNodeWithAuthedRPC sets up a node and overrides its JWT
+// signer with the given signer.
+func setupNodeWithAuthedRPC(t *testing.T, auth jwt.Signer) (*nodebuilder.Node, *mockAPI) {
+	ctx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(cancel)
+
+	ctrl := gomock.NewController(t)
+
+	mockAPI := &mockAPI{
+		stateMock.NewMockModule(ctrl),
+		shareMock.NewMockModule(ctrl),
+		fraudMock.NewMockModule(ctrl),
+		headerMock.NewMockModule(ctrl),
+		dasMock.NewMockModule(ctrl),
+		p2pMock.NewMockModule(ctrl),
+		nodeMock.NewMockModule(ctrl),
+	}
+
+	// given the behavior of fx.Invoke, this invoke will be called last as it is added at the root
+	// level module. For further information, check the documentation on fx.Invoke.
+	invokeRPC := fx.Invoke(func(srv *rpc.Server) {
+		srv.RegisterAuthedService("state", mockAPI.State, &statemod.API{})
+		srv.RegisterAuthedService("share", mockAPI.Share, &share.API{})
+		srv.RegisterAuthedService("fraud", mockAPI.Fraud, &fraud.API{})
+		srv.RegisterAuthedService("header", mockAPI.Header, &header.API{})
+		srv.RegisterAuthedService("das", mockAPI.Das, &das.API{})
+		srv.RegisterAuthedService("p2p", mockAPI.P2P, &p2p.API{})
+		srv.RegisterAuthedService("node", mockAPI.Node, &node.API{})
+	})
+	// fx.Replace does not work here, but fx.Decorate does
+	nd := nodebuilder.TestNode(t, node.Full, invokeRPC, fx.Decorate(func() (jwt.Signer, error) {
+		return auth, nil
+	}))
 	// start node
 	err := nd.Start(ctx)
 	require.NoError(t, err)

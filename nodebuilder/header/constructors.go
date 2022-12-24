@@ -7,6 +7,7 @@ import (
 	"github.com/libp2p/go-libp2p-core/host"
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/libp2p/go-libp2p-core/peerstore"
+	"github.com/libp2p/go-libp2p/p2p/net/conngater"
 	"go.uber.org/fx"
 
 	"github.com/celestiaorg/celestia-node/header"
@@ -32,6 +33,7 @@ func newP2PExchange(cfg Config) func(
 	modp2p.Bootstrappers,
 	modp2p.Network,
 	host.Host,
+	*conngater.BasicConnectionGater,
 	[]p2p.Option[p2p.ClientParameters],
 ) (header.Exchange, error) {
 	return func(
@@ -39,6 +41,7 @@ func newP2PExchange(cfg Config) func(
 		bpeers modp2p.Bootstrappers,
 		network modp2p.Network,
 		host host.Host,
+		conngater *conngater.BasicConnectionGater,
 		opts []p2p.Option[p2p.ClientParameters],
 	) (header.Exchange, error) {
 		peers, err := cfg.trustedPeers(bpeers)
@@ -50,7 +53,7 @@ func newP2PExchange(cfg Config) func(
 			ids[index] = peer.ID
 			host.Peerstore().AddAddrs(peer.ID, peer.Addrs, peerstore.PermanentAddrTTL)
 		}
-		exchange, err := p2p.NewExchange(host, ids, string(network), opts...)
+		exchange, err := p2p.NewExchange(host, ids, string(network), conngater, opts...)
 		if err != nil {
 			return nil, err
 		}
@@ -67,13 +70,13 @@ func newP2PExchange(cfg Config) func(
 }
 
 // newSyncer constructs new Syncer for headers.
-func newSyncer(ex header.Exchange, store initStore, sub header.Subscriber, duration time.Duration) *sync.Syncer {
+func newSyncer(ex header.Exchange, store InitStore, sub header.Subscriber, duration time.Duration) *sync.Syncer {
 	return sync.NewSyncer(ex, store, sub, duration)
 }
 
-// initStore is a type representing initialized header store.
+// InitStore is a type representing initialized header store.
 // NOTE: It is needed to ensure that Store is always initialized before Syncer is started.
-type initStore header.Store
+type InitStore header.Store
 
 // newInitStore constructs an initialized store
 func newInitStore(
@@ -82,7 +85,7 @@ func newInitStore(
 	net modp2p.Network,
 	s header.Store,
 	ex header.Exchange,
-) (initStore, error) {
+) (InitStore, error) {
 	trustedHash, err := cfg.trustedHash(net)
 	if err != nil {
 		return nil, err
@@ -90,17 +93,7 @@ func newInitStore(
 
 	lc.Append(fx.Hook{
 		OnStart: func(ctx context.Context) error {
-			err = store.Init(ctx, s, ex, trustedHash)
-			if err != nil {
-				// TODO(@Wondertan): Error is ignored, as otherwise unit tests for Node construction fail.
-				// 	This is due to requesting step of initialization, which fetches initial Header by trusted hash
-				// from  the network. The step can't be done during unit tests and fixing it would require either
-				//   * Having some test/dev/offline mode for Node that mocks out all the networking
-				//   * Hardcoding full extended header in params pkg, instead of hashes, so we avoid requesting step
-				//   * Or removing explicit initialization in favor of automated initialization by Syncer
-				log.Errorf("initializing header store failed: %s", err)
-			}
-			return nil
+			return store.Init(ctx, s, ex, trustedHash)
 		},
 	})
 

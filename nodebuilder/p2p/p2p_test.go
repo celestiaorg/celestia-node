@@ -31,13 +31,22 @@ func TestP2PModule_Host(t *testing.T) {
 	ctx := context.Background()
 
 	// test all methods on `manager.host`
-	assert.Equal(t, []libpeer.ID(host.Peerstore().Peers()), mgr.Peers(ctx))
-	assert.Equal(t, libhost.InfoFromHost(peer).ID, mgr.PeerInfo(ctx, peer.ID()).ID)
+	peers, err := mgr.Peers(ctx)
+	require.NoError(t, err)
+	assert.Equal(t, []libpeer.ID(host.Peerstore().Peers()), peers)
 
-	assert.Equal(t, host.Network().Connectedness(peer.ID()), mgr.Connectedness(ctx, peer.ID()))
+	peerInfo, err := mgr.PeerInfo(ctx, peer.ID())
+	require.NoError(t, err)
+	assert.Equal(t, libhost.InfoFromHost(peer).ID, peerInfo.ID)
+
+	connectedness, err := mgr.Connectedness(ctx, peer.ID())
+	require.NoError(t, err)
+	assert.Equal(t, host.Network().Connectedness(peer.ID()), connectedness)
 	// now disconnect using manager and check for connectedness match again
 	assert.NoError(t, mgr.ClosePeer(ctx, peer.ID()))
-	assert.Equal(t, host.Network().Connectedness(peer.ID()), mgr.Connectedness(ctx, peer.ID()))
+	connectedness, err = mgr.Connectedness(ctx, peer.ID())
+	require.NoError(t, err)
+	assert.Equal(t, host.Network().Connectedness(peer.ID()), connectedness)
 }
 
 // TestP2PModule_ConnManager tests P2P Module methods on
@@ -60,10 +69,18 @@ func TestP2PModule_ConnManager(t *testing.T) {
 	err = mgr.Connect(ctx, *libhost.InfoFromHost(peer))
 	require.NoError(t, err)
 
-	mgr.Protect(ctx, peer.ID(), "test")
-	assert.True(t, mgr.IsProtected(ctx, peer.ID(), "test"))
-	mgr.Unprotect(ctx, peer.ID(), "test")
-	assert.False(t, mgr.IsProtected(ctx, peer.ID(), "test"))
+	err = mgr.Protect(ctx, peer.ID(), "test")
+	require.NoError(t, err)
+	protected, err := mgr.IsProtected(ctx, peer.ID(), "test")
+	require.NoError(t, err)
+	assert.True(t, protected)
+
+	ok, err := mgr.Unprotect(ctx, peer.ID(), "test")
+	require.False(t, ok)
+	require.NoError(t, err)
+	protected, err = mgr.IsProtected(ctx, peer.ID(), "test")
+	require.NoError(t, err)
+	assert.False(t, protected)
 }
 
 // TestP2PModule_Autonat tests P2P Module methods on
@@ -114,10 +131,14 @@ func TestP2PModule_Bandwidth(t *testing.T) {
 	require.NoError(t, err)
 
 	// check to ensure they're actually connected
-	require.Equal(t, network.Connected, mgr.Connectedness(ctx, peer.ID()))
+	connectedness, err := mgr.Connectedness(ctx, peer.ID())
+	require.NoError(t, err)
+	require.Equal(t, network.Connected, connectedness)
 
 	// open stream with host
-	stream, err := peer.NewStream(ctx, mgr.Info(ctx).ID, protoID)
+	info, err := mgr.Info(ctx)
+	require.NoError(t, err)
+	stream, err := peer.NewStream(ctx, info.ID, protoID)
 	require.NoError(t, err)
 
 	// write to stream to increase bandwidth usage get some substantive
@@ -135,12 +156,17 @@ func TestP2PModule_Bandwidth(t *testing.T) {
 	// in the background process
 	time.Sleep(time.Second * 2)
 
-	stats := mgr.BandwidthStats(ctx)
+	stats, err := mgr.BandwidthStats(ctx)
+	require.NoError(t, err)
 	assert.NotNil(t, stats)
-	peerStat := mgr.BandwidthForPeer(ctx, peer.ID())
+
+	peerStat, err := mgr.BandwidthForPeer(ctx, peer.ID())
+	require.NoError(t, err)
 	assert.NotZero(t, peerStat.TotalIn)
 	assert.Greater(t, int(peerStat.TotalIn), bufSize) // should be slightly more than buf size due negotiations, etc
-	protoStat := mgr.BandwidthForProtocol(ctx, protoID)
+
+	protoStat, err := mgr.BandwidthForProtocol(ctx, protoID)
+	require.NoError(t, err)
 	assert.NotZero(t, protoStat.TotalIn)
 	assert.Greater(t, int(protoStat.TotalIn), bufSize) // should be slightly more than buf size due negotiations, etc
 }
@@ -184,7 +210,9 @@ func TestP2PModule_Pubsub(t *testing.T) {
 	// anywhere where gossipsub is used in tests)
 	time.Sleep(1 * time.Second)
 
-	assert.Equal(t, len(topic.ListPeers()), len(mgr.PubSubPeers(context.Background(), topicStr)))
+	psPeers, err := mgr.PubSubPeers(context.Background(), topicStr)
+	require.NoError(t, err)
+	assert.Equal(t, len(topic.ListPeers()), len(psPeers))
 }
 
 // TestP2PModule_ConnGater tests P2P Module methods on
@@ -198,7 +226,12 @@ func TestP2PModule_ConnGater(t *testing.T) {
 	ctx := context.Background()
 
 	assert.NoError(t, mgr.BlockPeer(ctx, "badpeer"))
-	assert.Len(t, mgr.ListBlockedPeers(ctx), 1)
+	blocked, err := mgr.ListBlockedPeers(ctx)
+	require.NoError(t, err)
+	assert.Len(t, blocked, 1)
+
 	assert.NoError(t, mgr.UnblockPeer(ctx, "badpeer"))
-	assert.Len(t, mgr.ListBlockedPeers(ctx), 0)
+	blocked, err = mgr.ListBlockedPeers(ctx)
+	require.NoError(t, err)
+	assert.Len(t, blocked, 0)
 }
