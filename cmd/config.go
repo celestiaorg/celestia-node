@@ -5,41 +5,14 @@ import (
 	flag "github.com/spf13/pflag"
 
 	"github.com/celestiaorg/celestia-node/nodebuilder"
-	"github.com/celestiaorg/celestia-node/nodebuilder/core"
-	"github.com/celestiaorg/celestia-node/nodebuilder/gateway"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
-	"github.com/celestiaorg/celestia-node/nodebuilder/rpc"
-	"github.com/celestiaorg/celestia-node/nodebuilder/state"
 )
-
-func init() {
-	ConfigCmd.AddCommand(
-		Init(
-			NodeFlags(),
-			p2p.Flags(),
-			core.Flags(),
-			MiscFlags(),
-			rpc.Flags(),
-			gateway.Flags(),
-			state.Flags(),
-		),
-		Remove(
-			NodeFlags(),
-			p2p.Flags(),
-		),
-		Reinit(
-			NodeFlags(),
-			p2p.Flags(),
-			MiscFlags(),
-		),
-	)
-}
 
 var ConfigCmd = &cobra.Command{
 	Use:   "config [subcommand]",
 	Args:  cobra.NoArgs,
-	Short: "Manage your Bridge node",
+	Short: "Manage config for your bridge node",
 }
 
 func Remove(fsets ...*flag.FlagSet) *cobra.Command {
@@ -102,5 +75,6 @@ func parseStorePath(cmd *cobra.Command, nodeType node.Type) error {
 	}
 
 	cmd.SetContext(ctx)
+
 	return nil
 }

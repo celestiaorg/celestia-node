@@ -2,6 +2,7 @@ package main
 
 import (
 	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 
 	cmdnode "github.com/celestiaorg/celestia-node/cmd"
 	"github.com/celestiaorg/celestia-node/nodebuilder/core"
@@ -26,22 +27,17 @@ func init() {
 		state.Flags(),
 	}
 
-	bridgeCmd.AddCommand(
+	configCmd := cmdnode.ConfigCmd
+	configCmd.AddCommand(
 		cmdnode.Init(flags...),
-		cmdnode.Start(flags...),
-		cmdnode.AuthCmd(flags...),
+		cmdnode.Remove(cmdnode.NodeFlags(), p2p.Flags()),
+		cmdnode.Reinit(cmdnode.NodeFlags(), p2p.Flags()),
+	)
 
 	bridgeCmd.AddCommand(
-		cmdnode.ConfigCmd,
-		cmdnode.Start(
-			cmdnode.NodeFlags(),
-			p2p.Flags(),
-			core.Flags(),
-			cmdnode.MiscFlags(),
-			rpc.Flags(),
-			gateway.Flags(),
-			state.Flags(),
-		),
+		configCmd,
+		cmdnode.Start(flags...),
+		cmdnode.AuthCmd(flags...),
 	)
 }
 
