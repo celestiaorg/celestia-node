@@ -3,6 +3,7 @@ package nodebuilder
 import (
 	"os"
 	"path/filepath"
+	"reflect"
 
 	"github.com/r3labs/diff/v3"
 
@@ -64,21 +65,20 @@ func Remove(path string) error {
 	return RemoveConfig(cfgPath)
 }
 
-func Reinit(cfg Config, path string, newConfigPath string, tp node.Type) error {
+func Reinit(path string, newConfigPath string, tp node.Type) error {
 	path, err := storePath(path)
 	if err != nil {
 		return err
 	}
 
 	cfgPath := configPath(path)
-	exist := utils.Exists(cfgPath)
-	if !exist {
-		log.Errorf("%s Node store not found '%s'", tp, path)
+	cfg, err := LoadConfig(cfgPath)
+	if err != nil {
+		log.Errorw("error loading config", "path", path, "err", err)
 		return nil
 	}
 
-	log.Infof("Reinitializing %s Node Store Config over '%s'", tp, path)
-
+	log.Infof("Reinitializing %s Node Store config over '%s'", tp, path)
 	flock, err := fslock.Lock(lockPath(path))
 	if err != nil {
 		if err == fslock.ErrLocked {
@@ -93,12 +93,12 @@ func Reinit(cfg Config, path string, newConfigPath string, tp node.Type) error {
 		return err
 	}
 
-	err = diffConfig(&cfg, newConf)
+	err = diffConfig(cfg, newConf)
 	if err != nil {
 		return err
 	}
 
-	err = SaveConfig(cfgPath, &cfg)
+	err = SaveConfig(cfgPath, cfg)
 	if err != nil {
 		return err
 	}
@@ -167,6 +167,16 @@ func diffConfig(cfg, newConf *Config) error {
 		return err
 	}
 
-	diff.Patch(changelog, &cfg)
+	filterChangelog := []diff.Change{}
+	for _, change := range changelog {
+		if change.To != nil {
+			if !reflect.ValueOf(change.To).IsZero() {
+				filterChangelog = append(filterChangelog, change)
+			}
+		}
+	}
+
+	diff.Patch(filterChangelog, &cfg)
+
 	return nil
 }

@@ -3,10 +3,14 @@ package main
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"os"
 	"testing"
 
 	"github.com/stretchr/testify/require"
+
+	"github.com/celestiaorg/celestia-node/nodebuilder"
+	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 )
 
 func TestLight(t *testing.T) {
@@ -107,6 +111,53 @@ func TestBridge(t *testing.T) {
 
 		err = rootCmd.ExecuteContext(context.Background())
 		require.Error(t, err)
+	})
+
+	t.Run("reinit", func(t *testing.T) {
+		tempDir, err := os.MkdirTemp(".", "")
+		require.NoError(t, err)
+
+		defaultPath := fmt.Sprintf("%s/config.toml", tempDir)
+		diffPath := fmt.Sprintf("%s/diffconfig.toml", tempDir)
+
+		diffConfig := nodebuilder.DefaultConfig(node.Bridge)
+		require.NoError(t, err)
+
+		// make changes to default config
+		diffConfig.State.KeyringAccName = "diffConfig"
+		err = nodebuilder.SaveConfig(diffPath, diffConfig)
+		require.NoError(t, err)
+
+		output := &bytes.Buffer{}
+		rootCmd.SetOut(output)
+
+		// init config
+		rootCmd.SetArgs([]string{
+			"bridge",
+			"config",
+			"--node.store", tempDir,
+			"init",
+		})
+
+		err = rootCmd.ExecuteContext(context.Background())
+
+		config, err := nodebuilder.LoadConfig(defaultPath)
+		require.NotEqualValues(t, config, diffConfig)
+
+		// reinit with diff config
+		rootCmd.SetArgs([]string{
+			"bridge",
+			"config",
+			"--node.store", tempDir,
+			"reinit",
+			diffPath,
+		})
+		err = rootCmd.ExecuteContext(context.Background())
+		require.NoError(t, err)
+
+		// load default config and check for changes
+		config, err = nodebuilder.LoadConfig(defaultPath)
+		require.EqualValues(t, config, diffConfig)
 	})
 
 	t.Cleanup(func() {

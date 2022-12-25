@@ -45,7 +45,7 @@ func Reinit(fsets ...*flag.FlagSet) *cobra.Command {
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
-			return nodebuilder.Reinit(NodeConfig(ctx), StorePath(ctx), args[0], NodeType(ctx))
+			return nodebuilder.Reinit(StorePath(ctx), args[0], NodeType(ctx))
 		},
 	}
 	for _, set := range fsets {
@@ -73,6 +73,8 @@ func parseStorePath(cmd *cobra.Command, nodeType node.Type) error {
 	if err != nil {
 		return err
 	}
+
+	ctx, err = ParseMiscFlags(ctx, cmd)
 
 	cmd.SetContext(ctx)
 
