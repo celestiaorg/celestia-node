@@ -276,6 +276,8 @@ func (s *Syncer) findHeaders(ctx context.Context, from, to uint64) ([]*header.Ex
 		cached, ln := r.Before(to)
 		out = append(out, cached...)
 		from += ln
+		// we do not need this range anymore
+		s.pending.Clear()
 	}
 
 	return out, nil

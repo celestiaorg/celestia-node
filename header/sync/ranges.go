@@ -25,6 +25,9 @@ func (rs *ranges) Head() *header.ExtendedHeader {
 	}
 
 	head := rs.ranges[ln-1]
+	if head == nil {
+		return nil
+	}
 	return head.Head()
 }
 
@@ -89,11 +92,20 @@ func (rs *ranges) First() (*headerRange, bool) {
 		}
 
 		out := rs.ranges[0]
-		if !out.Empty() {
+		if out != nil && !out.Empty() {
 			return out, true
 		}
 
 		rs.ranges = rs.ranges[1:]
+	}
+}
+
+// Clear removes the first range of headers.
+func (rs *ranges) Clear() {
+	rs.lk.Lock()
+	defer rs.lk.Unlock()
+	if len(rs.ranges) > 0 {
+		rs.ranges[0] = nil
 	}
 }
 

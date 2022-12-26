@@ -143,11 +143,13 @@ func TestSyncPendingRangesWithMisses(t *testing.T) {
 
 	// and fire up a sync
 	syncer.sync(ctx)
-
+	// give some time to finish writing
+	time.Sleep(time.Millisecond * 200)
 	_, err = remoteStore.GetByHeight(ctx, 43)
 	require.NoError(t, err)
-	_, err = localStore.GetByHeight(ctx, 43)
+	h, err := localStore.GetByHeight(ctx, 43)
 	require.NoError(t, err)
+	require.Equal(t, h.Height, int64(43))
 
 	exp, err := remoteStore.Head(ctx)
 	require.NoError(t, err)
