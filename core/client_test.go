@@ -13,7 +13,7 @@ func TestRemoteClient_Status(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
 	t.Cleanup(cancel)
 
-	_, client := StartTestCoreWithApp(t)
+	client := StartTestNode(t).Client
 	status, err := client.Status(ctx)
 	require.NoError(t, err)
 	require.NotNil(t, status)
@@ -23,7 +23,7 @@ func TestRemoteClient_StartBlockSubscription_And_GetBlock(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
 	t.Cleanup(cancel)
 
-	_, client := StartTestCoreWithApp(t)
+	client := StartTestNode(t).Client
 	eventChan, err := client.Subscribe(ctx, newBlockSubscriber, newBlockEventQuery)
 	require.NoError(t, err)
 

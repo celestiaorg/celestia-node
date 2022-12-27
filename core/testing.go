@@ -1,7 +1,6 @@
 package core
 
 import (
-	"context"
 	"fmt"
 	"math/rand"
 	"net"
@@ -10,94 +9,98 @@ import (
 	"testing"
 	"time"
 
+	appconfig "github.com/cosmos/cosmos-sdk/server/config"
 	"github.com/stretchr/testify/require"
-	"github.com/tendermint/tendermint/abci/example/kvstore"
-	"github.com/tendermint/tendermint/abci/types"
-	"github.com/tendermint/tendermint/config"
+	tmconfig "github.com/tendermint/tendermint/config"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
-	tmservice "github.com/tendermint/tendermint/libs/service"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
-	rpctest "github.com/tendermint/tendermint/rpc/test"
 	tmtypes "github.com/tendermint/tendermint/types"
 
 	"github.com/celestiaorg/celestia-app/testutil/testnode"
 )
 
-// so that we never hit an issue where we request blocks that are removed
-const defaultRetainBlocks int64 = 10000
+// TestConfig encompasses all the configs required to run test Tendermint + Celestia App tandem.
+type TestConfig struct {
+	ConsensusParams *tmproto.ConsensusParams
+	Tendermint      *tmconfig.Config
+	App             *appconfig.Config
 
-// StartTestNode starts a mock Core node background process and returns it.
-func StartTestNode(ctx context.Context, t *testing.T, app types.Application, cfg *config.Config) tmservice.Service {
-	nd := rpctest.StartTendermint(app, rpctest.SuppressStdout, func(options *rpctest.Options) {
-		options.SpecificConfig = cfg
-	})
-	t.Cleanup(func() {
-		rpctest.StopTendermint(nd)
-	})
-	return nd
+	Accounts     []string
+	SuppressLogs bool
 }
 
-// StartTestKVApp starts Tendermint KVApp.
-func StartTestKVApp(ctx context.Context, t *testing.T) (tmservice.Service, types.Application, *config.Config) {
-	cfg := rpctest.GetConfig(true)
-	app := CreateKVStore(defaultRetainBlocks)
-	return StartTestNode(ctx, t, app, cfg), app, cfg
-}
+// DefaultTestConfig returns the default testing configuration for Tendermint + Celestia App tandem.
+//
+// It fetches free ports from OS and sets them into configs, s.t.
+// user can make use of them(unlike 0 port) and allowing to run
+// multiple tests nodes in parallel.
+//
+// Additionally, it instructs Tendermint + Celestia App tandem to setup 10 funded accounts.
+func DefaultTestConfig() *TestConfig {
+	conCfg := testnode.DefaultParams()
 
-// CreateKVStore creates a simple kv store app and gives the user
-// ability to set desired amount of blocks to be retained.
-func CreateKVStore(retainBlocks int64) *kvstore.Application {
-	app := kvstore.NewApplication()
-	app.RetainBlocks = retainBlocks
-	return app
-}
+	tnCfg := testnode.DefaultTendermintConfig()
+	tnCfg.RPC.ListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", getFreePort())
+	tnCfg.RPC.GRPCListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", getFreePort())
+	tnCfg.P2P.ListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", getFreePort())
 
-func getFreePort() (port int, err error) {
-	var a *net.TCPAddr
-	if a, err = net.ResolveTCPAddr("tcp", "localhost:0"); err == nil {
-		var l *net.TCPListener
-		if l, err = net.ListenTCP("tcp", a); err == nil {
-			defer l.Close()
-			return l.Addr().(*net.TCPAddr).Port, nil
-		}
-	}
-	return
-}
+	appCfg := testnode.DefaultAppConfig()
+	appCfg.GRPC.Address = fmt.Sprintf("127.0.0.1:%d", getFreePort())
+	appCfg.API.Address = fmt.Sprintf("tcp://127.0.0.1:%d", getFreePort())
 
-func StartTestCoreWithApp(t *testing.T) (tmservice.Service, Client) {
-	// we create an arbitrary number of funded accounts
+	// instructs creating funded accounts
+	// 10 usually is enough for testing
 	accounts := make([]string, 10)
 	for i := range accounts {
 		accounts[i] = tmrand.Str(9)
 	}
 
-	tmNode, _, cctx, err := testnode.New(
+	return &TestConfig{
+		ConsensusParams: conCfg,
+		Tendermint:      tnCfg,
+		App:             appCfg,
+		Accounts:        accounts,
+		SuppressLogs:    true,
+	}
+}
+
+// StartTestNode simply starts Tendermint and Celestia App tandem with default testing
+// configuration.
+func StartTestNode(t *testing.T) testnode.Context {
+	return StartTestNodeWithConfig(t, DefaultTestConfig())
+}
+
+// StartTestNodeWithConfig starts Tendermint and Celestia App tandem with custom configuration.
+func StartTestNodeWithConfig(t *testing.T, cfg *TestConfig) testnode.Context {
+	tmNode, app, cctx, err := testnode.New(
 		t,
-		testnode.DefaultParams(),
-		testnode.DefaultTendermintConfig(),
-		true,
-		accounts...,
+		cfg.ConsensusParams,
+		cfg.Tendermint,
+		cfg.SuppressLogs,
+		cfg.Accounts...,
 	)
 	require.NoError(t, err)
-	// get a random port for running test in parallel
-	freePort, err := getFreePort()
-	require.NoError(t, err)
-	tmNode.Config().RPC.ListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", freePort)
-	tmNode.Config().P2P.ListenAddress = "tcp://0.0.0.0:0"
 
-	_, cleanupCoreNode, err := testnode.StartNode(tmNode, cctx)
+	cctx, cleanupCoreNode, err := testnode.StartNode(tmNode, cctx)
 	require.NoError(t, err)
 	t.Cleanup(func() {
 		err := cleanupCoreNode()
 		require.NoError(t, err)
 	})
 
-	endpoint, err := GetEndpoint(tmNode.Config())
+	cctx, cleanupGRPCServer, err := StartGRPCServer(app, cfg.App, cctx)
 	require.NoError(t, err)
+	t.Cleanup(func() {
+		err := cleanupGRPCServer()
+		require.NoError(t, err)
+	})
 
-	ip, port, err := net.SplitHostPort(endpoint)
+	// we want to test over remote http client,
+	// so we are as close to the real environment as possible
+	// however, it might be useful to use local tendermint client
+	// if you need to debug something inside of it
+	ip, port, err := getEndpoint(cfg.Tendermint)
 	require.NoError(t, err)
-
 	client, err := NewRemote(ip, port)
 	require.NoError(t, err)
 
@@ -108,20 +111,8 @@ func StartTestCoreWithApp(t *testing.T) (tmservice.Service, Client) {
 		require.NoError(t, err)
 	})
 
-	return tmNode, client
-}
-
-// GetEndpoint returns the remote node's RPC endpoint.
-func GetEndpoint(cfg *config.Config) (string, error) {
-	url, err := url.Parse(cfg.RPC.ListenAddress)
-	if err != nil {
-		return "", err
-	}
-	host, _, err := net.SplitHostPort(url.Host)
-	if err != nil {
-		return "", err
-	}
-	return fmt.Sprintf("%s:%s", host, url.Port()), nil
+	cctx.WithClient(client)
+	return cctx
 }
 
 func RandValidator(randPower bool, minPower int64) (*tmtypes.Validator, tmtypes.PrivValidator) {
@@ -192,4 +183,28 @@ func signAddVote(privVal tmtypes.PrivValidator, vote *tmtypes.Vote, voteSet *tmt
 	}
 	vote.Signature = v.Signature
 	return voteSet.AddVote(vote)
+}
+
+func getFreePort() int {
+	a, err := net.ResolveTCPAddr("tcp", "localhost:0")
+	if err == nil {
+		var l *net.TCPListener
+		if l, err = net.ListenTCP("tcp", a); err == nil {
+			defer l.Close()
+			return l.Addr().(*net.TCPAddr).Port
+		}
+	}
+	panic("while getting free port: " + err.Error())
+}
+
+func getEndpoint(cfg *tmconfig.Config) (string, string, error) {
+	url, err := url.Parse(cfg.RPC.ListenAddress)
+	if err != nil {
+		return "", "", err
+	}
+	host, _, err := net.SplitHostPort(url.Host)
+	if err != nil {
+		return "", "", err
+	}
+	return host, url.Port(), nil
 }
