@@ -353,7 +353,10 @@ func createMocknet(t *testing.T, amount int) []libhost.Host {
 }
 
 // createP2PExAndServer creates a Exchange with 5 headers already in its store.
-func createP2PExAndServer(t *testing.T, host, tpeer libhost.Host) (*Exchange[*test.DummyHeader], *headerMock.MockStore) {
+func createP2PExAndServer(
+	t *testing.T,
+	host, tpeer libhost.Host,
+) (*Exchange[*test.DummyHeader], *headerMock.MockStore) {
 	store := headerMock.NewStore(t, 5)
 	serverSideEx, err := NewExchangeServer[*test.DummyHeader](tpeer, store, "private")
 	require.NoError(t, err)
