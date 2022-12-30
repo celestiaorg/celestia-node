@@ -3,6 +3,7 @@ package das
 import (
 	"context"
 	"fmt"
+	headerpkg "github.com/celestiaorg/celestia-node/libs/header"
 
 	"github.com/ipfs/go-datastore"
 
@@ -34,8 +35,8 @@ func newDaserStub() Module {
 
 func NewDASer(
 	da share.Availability,
-	hsub header.Subscriber,
-	store header.Store,
+	hsub headerpkg.Subscriber[*header.ExtendedHeader],
+	store headerpkg.Store[*header.ExtendedHeader],
 	batching datastore.Batching,
 	fraudServ fraud.Service,
 	options ...das.Option,

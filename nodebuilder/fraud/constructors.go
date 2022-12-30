@@ -1,6 +1,7 @@
 package fraud
 
 import (
+	headerpkg "github.com/celestiaorg/celestia-node/libs/header"
 	"github.com/ipfs/go-datastore"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	"github.com/libp2p/go-libp2p/core/host"
@@ -15,7 +16,7 @@ func newFraudService(syncerEnabled bool) func(
 	fx.Lifecycle,
 	*pubsub.PubSub,
 	host.Host,
-	header.Store,
+	headerpkg.Store[*header.ExtendedHeader],
 	datastore.Batching,
 	p2p.Network,
 ) (Module, fraud.Service, error) {
@@ -23,7 +24,7 @@ func newFraudService(syncerEnabled bool) func(
 		lc fx.Lifecycle,
 		sub *pubsub.PubSub,
 		host host.Host,
-		hstore header.Store,
+		hstore headerpkg.Store[*header.ExtendedHeader],
 		ds datastore.Batching,
 		network p2p.Network,
 	) (Module, fraud.Service, error) {

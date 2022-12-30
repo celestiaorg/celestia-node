@@ -258,7 +258,7 @@ func (mhs *DummySubscriber) AddValidator(Validator) error {
 	return nil
 }
 
-func (mhs *DummySubscriber) Subscribe() (Subscription, error) {
+func (mhs *DummySubscriber) Subscribe() (headerpkg.Subscription[*ExtendedHeader], error) {
 	return mhs, nil
 }
 

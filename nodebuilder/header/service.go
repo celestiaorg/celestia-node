@@ -2,6 +2,9 @@ package header
 
 import (
 	"context"
+	headerpkg "github.com/celestiaorg/celestia-node/libs/header"
+	"github.com/celestiaorg/celestia-node/libs/header/p2p"
+	"github.com/celestiaorg/celestia-node/libs/header/sync"
 
 	"github.com/celestiaorg/celestia-node/header"
 )
@@ -10,21 +13,21 @@ import (
 // Service's main function is to manage its sub-services. Service can contain several
 // sub-services, such as Exchange, ExchangeServer, Syncer, and so forth.
 type Service struct {
-	ex header.Exchange
+	ex headerpkg.Exchange[*header.ExtendedHeader]
 
-	syncer    *header.Syncer
-	sub       header.Subscriber
-	p2pServer *header.ExchangeServer
-	store     header.Store
+	syncer    *sync.Syncer[*header.ExtendedHeader]
+	sub       headerpkg.Subscriber[*header.ExtendedHeader]
+	p2pServer *p2p.ExchangeServer[*header.ExtendedHeader]
+	store     headerpkg.Store[*header.ExtendedHeader]
 }
 
 // NewHeaderService creates a new instance of header Service.
 func NewHeaderService(
-	syncer *header.Syncer,
-	sub header.Subscriber,
-	p2pServer *header.ExchangeServer,
-	ex header.Exchange,
-	store header.Store) Module {
+	syncer *sync.Syncer[*header.ExtendedHeader],
+	sub headerpkg.Subscriber[*header.ExtendedHeader],
+	p2pServer *p2p.ExchangeServer[*header.ExtendedHeader],
+	ex headerpkg.Exchange[*header.ExtendedHeader],
+	store headerpkg.Store[*header.ExtendedHeader]) Module {
 	return &Service{
 		syncer:    syncer,
 		sub:       sub,

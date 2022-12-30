@@ -11,6 +11,7 @@ import (
 
 	"github.com/celestiaorg/celestia-node/fraud"
 	"github.com/celestiaorg/celestia-node/header"
+	headerpkg "github.com/celestiaorg/celestia-node/libs/header"
 	"github.com/celestiaorg/celestia-node/libs/header/p2p"
 	"github.com/celestiaorg/celestia-node/libs/header/store"
 	"github.com/celestiaorg/celestia-node/libs/header/sync"
@@ -49,18 +50,18 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 			}),
 		fx.Provide(NewHeaderService),
 		fx.Provide(fx.Annotate(
-			func(ds datastore.Batching, opts []store.Option) (header.Store, error) {
+			func(ds datastore.Batching, opts []store.Option) (headerpkg.Store[*header.ExtendedHeader], error) {
 				return store.NewStore[*header.ExtendedHeader](ds, opts...)
 			},
-			fx.OnStart(func(ctx context.Context, store header.Store) error {
+			fx.OnStart(func(ctx context.Context, store headerpkg.Store[*header.ExtendedHeader]) error {
 				return store.Start(ctx)
 			}),
-			fx.OnStop(func(ctx context.Context, store header.Store) error {
+			fx.OnStop(func(ctx context.Context, store headerpkg.Store[*header.ExtendedHeader]) error {
 				return store.Stop(ctx)
 			}),
 		)),
 		fx.Provide(newInitStore),
-		fx.Provide(func(subscriber *p2p.Subscriber[*header.ExtendedHeader]) header.Subscriber {
+		fx.Provide(func(subscriber *p2p.Subscriber[*header.ExtendedHeader]) headerpkg.Subscriber[*header.ExtendedHeader] {
 			return subscriber
 		}),
 		fx.Provide(func(cfg Config) []sync.Options {
@@ -76,7 +77,7 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 				return modfraud.Lifecycle(startCtx, ctx, fraud.BadEncoding, fservice,
 					syncer.Start, syncer.Stop)
 			}),
-			fx.OnStop(func(ctx context.Context, syncer *header.Syncer) error {
+			fx.OnStop(func(ctx context.Context, syncer *sync.Syncer[*header.ExtendedHeader]) error {
 				return syncer.Stop(ctx)
 			}),
 		)),
@@ -127,7 +128,7 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 		return fx.Module(
 			"header",
 			baseComponents,
-			fx.Provide(func(subscriber *p2p.Subscriber[*header.ExtendedHeader]) header.Broadcaster {
+			fx.Provide(func(subscriber *p2p.Subscriber[*header.ExtendedHeader]) headerpkg.Broadcaster[*header.ExtendedHeader] {
 				return subscriber
 			}),
 			fx.Supply(header.MakeExtendedHeader),

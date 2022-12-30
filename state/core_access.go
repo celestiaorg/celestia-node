@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	headerpkg "github.com/celestiaorg/celestia-node/libs/header"
 	"time"
 
 	"github.com/cosmos/cosmos-sdk/api/tendermint/abci"
@@ -39,7 +40,7 @@ type CoreAccessor struct {
 	cancel context.CancelFunc
 
 	signer *apptypes.KeyringSigner
-	getter header.Head
+	getter headerpkg.Head[*header.ExtendedHeader]
 
 	queryCli   banktypes.QueryClient
 	stakingCli stakingtypes.QueryClient
@@ -61,7 +62,7 @@ type CoreAccessor struct {
 // connection.
 func NewCoreAccessor(
 	signer *apptypes.KeyringSigner,
-	getter header.Head,
+	getter headerpkg.Head[*header.ExtendedHeader],
 	coreIP,
 	rpcPort string,
 	grpcPort string,

@@ -10,6 +10,7 @@ import (
 	"go.uber.org/fx"
 
 	"github.com/celestiaorg/celestia-node/header"
+	headerpkg "github.com/celestiaorg/celestia-node/libs/header"
 	"github.com/celestiaorg/celestia-node/libs/header/p2p"
 	"github.com/celestiaorg/celestia-node/libs/header/store"
 	"github.com/celestiaorg/celestia-node/libs/header/sync"
@@ -19,10 +20,10 @@ import (
 // newP2PServer constructs a new ExchangeServer using the given Network as a protocolID suffix.
 func newP2PServer(
 	host host.Host,
-	store header.Store,
+	store headerpkg.Store[*header.ExtendedHeader],
 	network modp2p.Network,
 	opts []p2p.Option[p2p.ServerParameters],
-) (*header.ExchangeServer, error) {
+) (*p2p.ExchangeServer[*header.ExtendedHeader], error) {
 	return p2p.NewExchangeServer[*header.ExtendedHeader](host, store, string(network), opts...)
 }
 
@@ -34,7 +35,7 @@ func newP2PExchange(cfg Config) func(
 	host.Host,
 	*conngater.BasicConnectionGater,
 	[]p2p.Option[p2p.ClientParameters],
-) (header.Exchange, error) {
+) (headerpkg.Exchange[*header.ExtendedHeader], error) {
 	return func(
 		lc fx.Lifecycle,
 		bpeers modp2p.Bootstrappers,
@@ -42,7 +43,7 @@ func newP2PExchange(cfg Config) func(
 		host host.Host,
 		conngater *conngater.BasicConnectionGater,
 		opts []p2p.Option[p2p.ClientParameters],
-	) (header.Exchange, error) {
+	) (headerpkg.Exchange[*header.ExtendedHeader], error) {
 		peers, err := cfg.trustedPeers(bpeers)
 		if err != nil {
 			return nil, err
@@ -69,21 +70,21 @@ func newP2PExchange(cfg Config) func(
 }
 
 // newSyncer constructs new Syncer for headers.
-func newSyncer(ex header.Exchange, store InitStore, sub header.Subscriber, opts []sync.Options) (*sync.Syncer[*header.ExtendedHeader], error) {
+func newSyncer(ex headerpkg.Exchange[*header.ExtendedHeader], store InitStore, sub headerpkg.Subscriber[*header.ExtendedHeader], opts []sync.Options) (*sync.Syncer[*header.ExtendedHeader], error) {
 	return sync.NewSyncer[*header.ExtendedHeader](ex, store, sub, opts...)
 }
 
 // InitStore is a type representing initialized header store.
 // NOTE: It is needed to ensure that Store is always initialized before Syncer is started.
-type InitStore header.Store
+type InitStore headerpkg.Store[*header.ExtendedHeader]
 
 // newInitStore constructs an initialized store
 func newInitStore(
 	lc fx.Lifecycle,
 	cfg Config,
 	net modp2p.Network,
-	s header.Store,
-	ex header.Exchange,
+	s headerpkg.Store[*header.ExtendedHeader],
+	ex headerpkg.Exchange[*header.ExtendedHeader],
 ) (InitStore, error) {
 	trustedHash, err := cfg.trustedHash(net)
 	if err != nil {
