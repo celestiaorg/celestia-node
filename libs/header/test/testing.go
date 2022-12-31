@@ -206,6 +206,10 @@ type Suite struct {
 	head *DummyHeader
 }
 
+type Generator[H header.Header] interface {
+	GetRandomHeader() H
+}
+
 // NewTestSuite setups a new test suite.
 func NewTestSuite(t *testing.T) *Suite {
 	return &Suite{
@@ -234,12 +238,12 @@ func (s *Suite) Head() *DummyHeader {
 func (s *Suite) GenDummyHeaders(num int) []*DummyHeader {
 	headers := make([]*DummyHeader, num)
 	for i := range headers {
-		headers[i] = s.GenDummyHeader()
+		headers[i] = s.GetRandomHeader()
 	}
 	return headers
 }
 
-func (s *Suite) GenDummyHeader() *DummyHeader {
+func (s *Suite) GetRandomHeader() *DummyHeader {
 	if s.head == nil {
 		s.head = s.genesis()
 		return s.head

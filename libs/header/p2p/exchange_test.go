@@ -93,7 +93,7 @@ func TestExchange_RequestFullRangeHeaders(t *testing.T) {
 	// create mocknet with 5 peers
 	hosts := createMocknet(t, 5)
 	totalAmount := 80
-	store := headerMock.NewStore(t, totalAmount)
+	store := headerMock.NewStore[*test.DummyHeader](t, test.NewTestSuite(t), totalAmount)
 	protocolSuffix := "private"
 	connGater, err := conngater.NewBasicConnectionGater(sync.MutexWrap(datastore.NewMapDatastore()))
 	require.NoError(t, err)
@@ -139,7 +139,7 @@ func TestExchange_RequestHeadersFromAnotherPeer(t *testing.T) {
 	// create client + server(it does not have needed headers)
 	exchg, _ := createP2PExAndServer(t, hosts[0], hosts[1])
 	// create one more server(with more headers in the store)
-	serverSideEx, err := NewExchangeServer[*test.DummyHeader](hosts[2], headerMock.NewStore(t, 10), "private")
+	serverSideEx, err := NewExchangeServer[*test.DummyHeader](hosts[2], headerMock.NewStore[*test.DummyHeader](t, test.NewTestSuite(t), 10), "private")
 	require.NoError(t, err)
 	require.NoError(t, serverSideEx.Start(context.Background()))
 	t.Cleanup(func() {
@@ -166,7 +166,7 @@ func TestExchange_RequestByHash(t *testing.T) {
 	// get host and peer
 	host, peer := net.Hosts()[0], net.Hosts()[1]
 	// create and start the ExchangeServer
-	store := headerMock.NewStore(t, 5)
+	store := headerMock.NewStore[*test.DummyHeader](t, test.NewTestSuite(t), 5)
 	serv, err := NewExchangeServer[*test.DummyHeader](host, store, "private")
 	require.NoError(t, err)
 	err = serv.Start(ctx)
@@ -206,7 +206,7 @@ func Test_bestHead(t *testing.T) {
 		suite := test.NewTestSuite(t)
 		res := make([]*test.DummyHeader, 0)
 		for i := 0; i < 3; i++ {
-			res = append(res, suite.GenDummyHeader())
+			res = append(res, suite.GetRandomHeader())
 		}
 		return res
 	}
@@ -276,7 +276,7 @@ func TestExchange_RequestByHashFails(t *testing.T) {
 	require.NoError(t, err)
 	// get host and peer
 	host, peer := net.Hosts()[0], net.Hosts()[1]
-	serv, err := NewExchangeServer[*test.DummyHeader](host, headerMock.NewStore(t, 0), "private")
+	serv, err := NewExchangeServer[*test.DummyHeader](host, headerMock.NewStore[*test.DummyHeader](t, test.NewTestSuite(t), 0), "private")
 	require.NoError(t, err)
 	err = serv.Start(ctx)
 	require.NoError(t, err)
@@ -356,8 +356,8 @@ func createMocknet(t *testing.T, amount int) []libhost.Host {
 func createP2PExAndServer(
 	t *testing.T,
 	host, tpeer libhost.Host,
-) (*Exchange[*test.DummyHeader], *headerMock.MockStore) {
-	store := headerMock.NewStore(t, 5)
+) (*Exchange[*test.DummyHeader], *headerMock.MockStore[*test.DummyHeader]) {
+	store := headerMock.NewStore[*test.DummyHeader](t, test.NewTestSuite(t), 5)
 	serverSideEx, err := NewExchangeServer[*test.DummyHeader](tpeer, store, "private")
 	require.NoError(t, err)
 	err = serverSideEx.Start(context.Background())

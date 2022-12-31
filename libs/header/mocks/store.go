@@ -9,23 +9,21 @@ import (
 	"github.com/celestiaorg/celestia-node/libs/header/test"
 )
 
-type MockStore struct {
-	Headers    map[int64]*test.DummyHeader
+type MockStore[H header.Header] struct {
+	Headers    map[int64]H
 	HeadHeight int64
 }
 
 // NewStore creates a mock store and adds several random
 // headers
-func NewStore(t *testing.T, numHeaders int) *MockStore {
-	store := &MockStore{
-		Headers:    make(map[int64]*test.DummyHeader),
+func NewStore[H header.Header](t *testing.T, gen test.Generator[H], numHeaders int) *MockStore[H] {
+	store := &MockStore[H]{
+		Headers:    make(map[int64]H),
 		HeadHeight: 0,
 	}
 
-	suite := test.NewTestSuite(t)
-
 	for i := 0; i < numHeaders; i++ {
-		header := suite.GenDummyHeader()
+		header := gen.GetRandomHeader()
 		store.Headers[header.Height()] = header
 
 		if header.Height() > store.HeadHeight {
@@ -35,33 +33,33 @@ func NewStore(t *testing.T, numHeaders int) *MockStore {
 	return store
 }
 
-func (m *MockStore) Init(context.Context, *test.DummyHeader) error { return nil }
-func (m *MockStore) Start(context.Context) error                   { return nil }
-func (m *MockStore) Stop(context.Context) error                    { return nil }
+func (m *MockStore[H]) Init(context.Context, H) error { return nil }
+func (m *MockStore[H]) Start(context.Context) error   { return nil }
+func (m *MockStore[H]) Stop(context.Context) error    { return nil }
 
-func (m *MockStore) Height() uint64 {
+func (m *MockStore[H]) Height() uint64 {
 	return uint64(m.HeadHeight)
 }
 
-func (m *MockStore) Head(context.Context) (*test.DummyHeader, error) {
+func (m *MockStore[H]) Head(context.Context) (H, error) {
 	return m.Headers[m.HeadHeight], nil
 }
 
-func (m *MockStore) Get(ctx context.Context, hash header.Hash) (*test.DummyHeader, error) {
+func (m *MockStore[H]) Get(ctx context.Context, hash header.Hash) (H, error) {
 	for _, header := range m.Headers {
 		if bytes.Equal(header.Hash(), hash) {
 			return header, nil
 		}
 	}
-	return nil, header.ErrNotFound
+	return *new(H), header.ErrNotFound
 }
 
-func (m *MockStore) GetByHeight(ctx context.Context, height uint64) (*test.DummyHeader, error) {
+func (m *MockStore[H]) GetByHeight(ctx context.Context, height uint64) (H, error) {
 	return m.Headers[int64(height)], nil
 }
 
-func (m *MockStore) GetRangeByHeight(ctx context.Context, from, to uint64) ([]*test.DummyHeader, error) {
-	headers := make([]*test.DummyHeader, to-from)
+func (m *MockStore[H]) GetRangeByHeight(ctx context.Context, from, to uint64) ([]H, error) {
+	headers := make([]H, to-from)
 	// As the requested range is [from; to),
 	// check that (to-1) height in request is less than
 	// the biggest header height in store.
@@ -75,19 +73,19 @@ func (m *MockStore) GetRangeByHeight(ctx context.Context, from, to uint64) ([]*t
 	return headers, nil
 }
 
-func (m *MockStore) GetVerifiedRange(
+func (m *MockStore[H]) GetVerifiedRange(
 	ctx context.Context,
-	h *test.DummyHeader,
+	h H,
 	to uint64,
-) ([]*test.DummyHeader, error) {
+) ([]H, error) {
 	return m.GetRangeByHeight(ctx, uint64(h.Height())+1, to)
 }
 
-func (m *MockStore) Has(context.Context, header.Hash) (bool, error) {
+func (m *MockStore[H]) Has(context.Context, header.Hash) (bool, error) {
 	return false, nil
 }
 
-func (m *MockStore) Append(ctx context.Context, headers ...*test.DummyHeader) (int, error) {
+func (m *MockStore[H]) Append(ctx context.Context, headers ...H) (int, error) {
 	for _, header := range headers {
 		m.Headers[header.Height()] = header
 		// set head

@@ -5,6 +5,7 @@ package header
 
 import (
 	"context"
+	"github.com/celestiaorg/celestia-node/libs/header/test"
 
 	mrand "math/rand"
 	"testing"
@@ -90,6 +91,12 @@ func (s *TestSuite) GenExtendedHeaders(num int) []*ExtendedHeader {
 	}
 	return headers
 }
+
+func (s *TestSuite) GetRandomHeader() *ExtendedHeader {
+	return s.GenExtendedHeader()
+}
+
+var _ test.Generator[*ExtendedHeader] = &TestSuite{}
 
 func (s *TestSuite) GenExtendedHeader() *ExtendedHeader {
 	if s.head == nil {
