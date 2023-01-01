@@ -9,6 +9,8 @@ import (
 type Header interface {
 	// New creates new instance of a header.
 	New() Header
+	// ChainID returns identifier of the chain (ChainID).
+	ChainID() string
 	// Hash returns hash of a header.
 	Hash() Hash
 	// Height returns the height of a header.

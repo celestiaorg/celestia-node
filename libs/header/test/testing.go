@@ -19,6 +19,7 @@ import (
 )
 
 type Raw struct {
+	ChainID      string
 	PreviousHash header.Hash
 
 	Height int64
@@ -33,6 +34,10 @@ type DummyHeader struct {
 
 func (d *DummyHeader) New() header.Header {
 	return new(DummyHeader)
+}
+
+func (d *DummyHeader) ChainID() string {
+	return d.Raw.ChainID
 }
 
 func (d *DummyHeader) Hash() header.Hash {

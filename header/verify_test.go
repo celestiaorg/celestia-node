@@ -41,7 +41,7 @@ func TestVerifyAdjacent(t *testing.T) {
 		},
 		{
 			prepare: func() {
-				untrusted.ChainID = "toaster"
+				untrusted.RawHeader.ChainID = "toaster"
 			},
 			err: true,
 		},

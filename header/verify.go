@@ -36,7 +36,7 @@ func (eh *ExtendedHeader) VerifyNonAdjacent(untrusted headerpkg.Header) error {
 	}
 
 	// Ensure that untrusted commit has enough of trusted commit's power.
-	err := eh.ValidatorSet.VerifyCommitLightTrusting(eh.ChainID, untrst.Commit, light.DefaultTrustLevel)
+	err := eh.ValidatorSet.VerifyCommitLightTrusting(eh.ChainID(), untrst.Commit, light.DefaultTrustLevel)
 	if err != nil {
 		return &VerifyError{err}
 	}
@@ -80,8 +80,8 @@ var clockDrift = 10 * time.Second
 
 // verify performs basic verification of untrusted header.
 func (eh *ExtendedHeader) verify(untrst *ExtendedHeader) error {
-	if untrst.ChainID != eh.ChainID {
-		return fmt.Errorf("new untrusted header has different chain %s, not %s", untrst.ChainID, eh.ChainID)
+	if untrst.ChainID() != eh.ChainID() {
+		return fmt.Errorf("new untrusted header has different chain %s, not %s", untrst.ChainID(), eh.ChainID())
 	}
 
 	if !untrst.Time().After(eh.Time()) {

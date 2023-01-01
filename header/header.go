@@ -48,6 +48,10 @@ func (eh *ExtendedHeader) New() headerpkg.Header {
 	return new(ExtendedHeader)
 }
 
+func (eh *ExtendedHeader) ChainID() string {
+	return eh.RawHeader.ChainID
+}
+
 func (eh *ExtendedHeader) Height() int64 {
 	return eh.RawHeader.Height
 }
@@ -148,7 +152,7 @@ func (eh *ExtendedHeader) ValidateBasic() error {
 		)
 	}
 
-	if err := eh.ValidatorSet.VerifyCommitLight(eh.ChainID, eh.Commit.BlockID, eh.Height(), eh.Commit); err != nil {
+	if err := eh.ValidatorSet.VerifyCommitLight(eh.ChainID(), eh.Commit.BlockID, eh.Height(), eh.Commit); err != nil {
 		return err
 	}
 
