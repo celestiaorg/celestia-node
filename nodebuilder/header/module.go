@@ -82,7 +82,9 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 			}),
 		)),
 		fx.Provide(fx.Annotate(
-			p2p.NewSubscriber[*header.ExtendedHeader],
+			func(ps *pubsub.PubSub) *p2p.Subscriber[*header.ExtendedHeader] {
+				return p2p.NewSubscriber[*header.ExtendedHeader](ps, header.MsgID)
+			},
 			fx.OnStart(func(ctx context.Context, sub *p2p.Subscriber[*header.ExtendedHeader]) error {
 				return sub.Start(ctx)
 			}),
@@ -90,9 +92,6 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 				return sub.Stop(ctx)
 			}),
 		)),
-		fx.Provide(func() pubsub.MsgIdFunction {
-			return header.MsgID
-		}),
 		fx.Provide(fx.Annotate(
 			newP2PServer,
 			fx.OnStart(func(ctx context.Context, server *p2p.ExchangeServer[*header.ExtendedHeader]) error {
