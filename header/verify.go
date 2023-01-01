@@ -29,16 +29,16 @@ func (eh *ExtendedHeader) IsRecent(blockTime time.Duration) bool {
 func (eh *ExtendedHeader) VerifyNonAdjacent(untrusted headerpkg.Header) error {
 	untrst, ok := untrusted.(*ExtendedHeader)
 	if !ok {
-		return &VerifyError{errors.New("invalid header type: expected *ExtendedHeader")}
+		return &headerpkg.VerifyError{errors.New("invalid header type: expected *ExtendedHeader")}
 	}
 	if err := eh.verify(untrst); err != nil {
-		return &VerifyError{Reason: err}
+		return &headerpkg.VerifyError{Reason: err}
 	}
 
 	// Ensure that untrusted commit has enough of trusted commit's power.
 	err := eh.ValidatorSet.VerifyCommitLightTrusting(eh.ChainID(), untrst.Commit, light.DefaultTrustLevel)
 	if err != nil {
-		return &VerifyError{err}
+		return &headerpkg.VerifyError{err}
 	}
 
 	return nil
@@ -48,22 +48,22 @@ func (eh *ExtendedHeader) VerifyNonAdjacent(untrusted headerpkg.Header) error {
 func (eh *ExtendedHeader) VerifyAdjacent(untrusted headerpkg.Header) error {
 	untrst, ok := untrusted.(*ExtendedHeader)
 	if !ok {
-		return &VerifyError{errors.New("invalid header type: expected *ExtendedHeader")}
+		return &headerpkg.VerifyError{errors.New("invalid header type: expected *ExtendedHeader")}
 	}
 	if untrst.Height() != eh.Height()+1 {
-		return &headerpkg.ErrNonAdjacent{
+		return &headerpkg.VerifyError{&headerpkg.ErrNonAdjacent{
 			Head:      eh.Height(),
 			Attempted: untrst.Height(),
-		}
+		}}
 	}
 
 	if err := eh.verify(untrst); err != nil {
-		return &VerifyError{Reason: err}
+		return &headerpkg.VerifyError{Reason: err}
 	}
 
 	// Check the validator hashes are the same
 	if !bytes.Equal(untrst.ValidatorsHash, eh.NextValidatorsHash) {
-		return &VerifyError{
+		return &headerpkg.VerifyError{
 			fmt.Errorf("expected old header next validators (%X) to match those from new header (%X)",
 				eh.NextValidatorsHash,
 				untrst.ValidatorsHash,
@@ -95,13 +95,4 @@ func (eh *ExtendedHeader) verify(untrst *ExtendedHeader) error {
 	}
 
 	return nil
-}
-
-// VerifyError is thrown on during VerifyAdjacent and VerifyNonAdjacent if verification fails.
-type VerifyError struct {
-	Reason error
-}
-
-func (vr *VerifyError) Error() string {
-	return fmt.Sprintf("header: verify: %s", vr.Reason.Error())
 }
