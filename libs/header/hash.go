@@ -6,12 +6,15 @@ import (
 	"strings"
 )
 
+// Hash represents cryptographic hash and provides basic serialization functions.
 type Hash []byte
 
+// String implements fmt.Stringer interface.
 func (h Hash) String() string {
 	return strings.ToUpper(hex.EncodeToString(h))
 }
 
+// MarshalJSON serializes Hash into valid JSON.
 func (h Hash) MarshalJSON() ([]byte, error) {
 	s := strings.ToUpper(hex.EncodeToString(h))
 	jbz := make([]byte, len(s)+2)
@@ -21,6 +24,7 @@ func (h Hash) MarshalJSON() ([]byte, error) {
 	return jbz, nil
 }
 
+// UnmarshalJSON deserializes JSON representation of a Hash into object.
 func (h *Hash) UnmarshalJSON(data []byte) error {
 	if len(data) < 2 || data[0] != '"' || data[len(data)-1] != '"' {
 		return fmt.Errorf("invalid hex string: %s", data)
