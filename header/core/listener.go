@@ -3,7 +3,7 @@ package core
 import (
 	"context"
 	"fmt"
-	headerpkg "github.com/celestiaorg/celestia-node/libs/header"
+	libhead "github.com/celestiaorg/celestia-node/libs/header"
 
 	"github.com/ipfs/go-blockservice"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
@@ -21,7 +21,7 @@ import (
 // broadcasts the new `ExtendedHeader` to the header-sub gossipsub
 // network.
 type Listener struct {
-	bcast     headerpkg.Broadcaster[*header.ExtendedHeader]
+	bcast     libhead.Broadcaster[*header.ExtendedHeader]
 	fetcher   *core.BlockFetcher
 	bServ     blockservice.BlockService
 	construct header.ConstructFn
@@ -29,7 +29,7 @@ type Listener struct {
 }
 
 func NewListener(
-	bcast headerpkg.Broadcaster[*header.ExtendedHeader],
+	bcast libhead.Broadcaster[*header.ExtendedHeader],
 	fetcher *core.BlockFetcher,
 	bServ blockservice.BlockService,
 	construct header.ConstructFn,

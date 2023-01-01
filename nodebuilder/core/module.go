@@ -2,7 +2,7 @@ package core
 
 import (
 	"context"
-	headerpkg "github.com/celestiaorg/celestia-node/libs/header"
+	libhead "github.com/celestiaorg/celestia-node/libs/header"
 
 	"go.uber.org/fx"
 
@@ -32,7 +32,7 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 		return fx.Module("core",
 			baseComponents,
 			fx.Provide(core.NewBlockFetcher),
-			fxutil.ProvideAs(headercore.NewExchange, new(headerpkg.Exchange[*header.ExtendedHeader])),
+			fxutil.ProvideAs(headercore.NewExchange, new(libhead.Exchange[*header.ExtendedHeader])),
 			fx.Invoke(fx.Annotate(
 				headercore.NewListener,
 				fx.OnStart(func(ctx context.Context, listener *headercore.Listener) error {

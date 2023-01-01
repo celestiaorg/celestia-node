@@ -8,7 +8,7 @@ import (
 
 	"github.com/tendermint/tendermint/light"
 
-	headerpkg "github.com/celestiaorg/celestia-node/libs/header"
+	libhead "github.com/celestiaorg/celestia-node/libs/header"
 )
 
 // TODO(@Wondertan): We should request TrustingPeriod from the network's state params or
@@ -26,44 +26,44 @@ func (eh *ExtendedHeader) IsRecent(blockTime time.Duration) bool {
 }
 
 // VerifyNonAdjacent validates non-adjacent untrusted header against trusted 'eh'.
-func (eh *ExtendedHeader) VerifyNonAdjacent(untrusted headerpkg.Header) error {
+func (eh *ExtendedHeader) VerifyNonAdjacent(untrusted libhead.Header) error {
 	untrst, ok := untrusted.(*ExtendedHeader)
 	if !ok {
-		return &headerpkg.VerifyError{errors.New("invalid header type: expected *ExtendedHeader")}
+		return &libhead.VerifyError{errors.New("invalid header type: expected *ExtendedHeader")}
 	}
 	if err := eh.verify(untrst); err != nil {
-		return &headerpkg.VerifyError{Reason: err}
+		return &libhead.VerifyError{Reason: err}
 	}
 
 	// Ensure that untrusted commit has enough of trusted commit's power.
 	err := eh.ValidatorSet.VerifyCommitLightTrusting(eh.ChainID(), untrst.Commit, light.DefaultTrustLevel)
 	if err != nil {
-		return &headerpkg.VerifyError{err}
+		return &libhead.VerifyError{err}
 	}
 
 	return nil
 }
 
 // VerifyAdjacent validates adjacent untrusted header against trusted 'eh'.
-func (eh *ExtendedHeader) VerifyAdjacent(untrusted headerpkg.Header) error {
+func (eh *ExtendedHeader) VerifyAdjacent(untrusted libhead.Header) error {
 	untrst, ok := untrusted.(*ExtendedHeader)
 	if !ok {
-		return &headerpkg.VerifyError{errors.New("invalid header type: expected *ExtendedHeader")}
+		return &libhead.VerifyError{errors.New("invalid header type: expected *ExtendedHeader")}
 	}
 	if untrst.Height() != eh.Height()+1 {
-		return &headerpkg.VerifyError{&headerpkg.ErrNonAdjacent{
+		return &libhead.VerifyError{&libhead.ErrNonAdjacent{
 			Head:      eh.Height(),
 			Attempted: untrst.Height(),
 		}}
 	}
 
 	if err := eh.verify(untrst); err != nil {
-		return &headerpkg.VerifyError{Reason: err}
+		return &libhead.VerifyError{Reason: err}
 	}
 
 	// Check the validator hashes are the same
 	if !bytes.Equal(untrst.ValidatorsHash, eh.NextValidatorsHash) {
-		return &headerpkg.VerifyError{
+		return &libhead.VerifyError{
 			fmt.Errorf("expected old header next validators (%X) to match those from new header (%X)",
 				eh.NextValidatorsHash,
 				untrst.ValidatorsHash,

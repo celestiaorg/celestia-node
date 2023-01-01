@@ -25,7 +25,7 @@ import (
 	"github.com/celestiaorg/celestia-app/pkg/da"
 
 	"github.com/celestiaorg/celestia-node/core"
-	headerpkg "github.com/celestiaorg/celestia-node/libs/header"
+	libhead "github.com/celestiaorg/celestia-node/libs/header"
 	"github.com/celestiaorg/celestia-node/share"
 )
 
@@ -106,7 +106,7 @@ func (s *TestSuite) GenExtendedHeader() *ExtendedHeader {
 
 	dah := da.MinDataAvailabilityHeader()
 	height := s.Head().Height() + 1
-	rh := s.GenRawHeader(height, s.Head().Hash(), headerpkg.Hash(s.Head().Commit.Hash()), dah.Hash())
+	rh := s.GenRawHeader(height, s.Head().Hash(), libhead.Hash(s.Head().Commit.Hash()), dah.Hash())
 	s.head = &ExtendedHeader{
 		RawHeader:    *rh,
 		Commit:       s.Commit(rh),
@@ -118,7 +118,7 @@ func (s *TestSuite) GenExtendedHeader() *ExtendedHeader {
 }
 
 func (s *TestSuite) GenRawHeader(
-	height int64, lastHeader, lastCommit, dataHash headerpkg.Hash) *RawHeader {
+	height int64, lastHeader, lastCommit, dataHash libhead.Hash) *RawHeader {
 	rh := RandRawHeader(s.t)
 	rh.Height = height
 	rh.Time = time.Now()
@@ -265,7 +265,7 @@ func (mhs *DummySubscriber) AddValidator(Validator) error {
 	return nil
 }
 
-func (mhs *DummySubscriber) Subscribe() (headerpkg.Subscription[*ExtendedHeader], error) {
+func (mhs *DummySubscriber) Subscribe() (libhead.Subscription[*ExtendedHeader], error) {
 	return mhs, nil
 }
 

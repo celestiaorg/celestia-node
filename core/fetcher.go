@@ -7,7 +7,7 @@ import (
 	logging "github.com/ipfs/go-log/v2"
 	"github.com/tendermint/tendermint/types"
 
-	headerpkg "github.com/celestiaorg/celestia-node/libs/header"
+	libhead "github.com/celestiaorg/celestia-node/libs/header"
 )
 
 const newBlockSubscriber = "NewBlock/Events"
@@ -65,7 +65,7 @@ func (f *BlockFetcher) GetBlock(ctx context.Context, height *int64) (*types.Bloc
 	return res.Block, nil
 }
 
-func (f *BlockFetcher) GetBlockByHash(ctx context.Context, hash headerpkg.Hash) (*types.Block, error) {
+func (f *BlockFetcher) GetBlockByHash(ctx context.Context, hash libhead.Hash) (*types.Block, error) {
 	res, err := f.client.BlockByHash(ctx, hash)
 	if err != nil {
 		return nil, err

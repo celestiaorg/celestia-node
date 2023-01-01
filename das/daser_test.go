@@ -17,7 +17,7 @@ import (
 
 	"github.com/celestiaorg/celestia-node/fraud"
 	"github.com/celestiaorg/celestia-node/header"
-	headerpkg "github.com/celestiaorg/celestia-node/libs/header"
+	libhead "github.com/celestiaorg/celestia-node/libs/header"
 	"github.com/celestiaorg/celestia-node/share/availability/full"
 	"github.com/celestiaorg/celestia-node/share/availability/light"
 	availability_test "github.com/celestiaorg/celestia-node/share/availability/test"
@@ -330,6 +330,6 @@ func (m getterStub) GetVerifiedRange(
 	return nil, nil
 }
 
-func (m getterStub) Get(context.Context, headerpkg.Hash) (*header.ExtendedHeader, error) {
+func (m getterStub) Get(context.Context, libhead.Hash) (*header.ExtendedHeader, error) {
 	return nil, nil
 }

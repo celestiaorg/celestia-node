@@ -2,7 +2,7 @@ package header
 
 import (
 	"context"
-	headerpkg "github.com/celestiaorg/celestia-node/libs/header"
+	libhead "github.com/celestiaorg/celestia-node/libs/header"
 
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric/global"
@@ -13,7 +13,7 @@ import (
 var meter = global.MeterProvider().Meter("header")
 
 // WithMetrics enables Otel metrics to monitor head.
-func WithMetrics(store headerpkg.Store[*ExtendedHeader]) {
+func WithMetrics(store libhead.Store[*ExtendedHeader]) {
 	headC, _ := meter.AsyncInt64().Counter(
 		"head",
 		instrument.WithUnit(unit.Dimensionless),

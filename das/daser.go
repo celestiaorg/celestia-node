@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	headerpkg "github.com/celestiaorg/celestia-node/libs/header"
+	libhead "github.com/celestiaorg/celestia-node/libs/header"
 	"sync/atomic"
 
 	"github.com/ipfs/go-datastore"
@@ -24,8 +24,8 @@ type DASer struct {
 
 	da     share.Availability
 	bcast  fraud.Broadcaster
-	hsub   headerpkg.Subscriber[*header.ExtendedHeader] // listens for new headers in the network
-	getter headerpkg.Getter[*header.ExtendedHeader]     // retrieves past headers
+	hsub   libhead.Subscriber[*header.ExtendedHeader] // listens for new headers in the network
+	getter libhead.Getter[*header.ExtendedHeader]     // retrieves past headers
 
 	sampler    *samplingCoordinator
 	store      checkpointStore
@@ -42,8 +42,8 @@ type sampleFn func(context.Context, *header.ExtendedHeader) error
 // NewDASer creates a new DASer.
 func NewDASer(
 	da share.Availability,
-	hsub headerpkg.Subscriber[*header.ExtendedHeader],
-	getter headerpkg.Getter[*header.ExtendedHeader],
+	hsub libhead.Subscriber[*header.ExtendedHeader],
+	getter libhead.Getter[*header.ExtendedHeader],
 	dstore datastore.Datastore,
 	bcast fraud.Broadcaster,
 	options ...Option,

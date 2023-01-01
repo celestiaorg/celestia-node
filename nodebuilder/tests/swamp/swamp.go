@@ -21,7 +21,7 @@ import (
 	"github.com/celestiaorg/celestia-node/core"
 	"github.com/celestiaorg/celestia-node/header"
 	headercore "github.com/celestiaorg/celestia-node/header/core"
-	headerpkg "github.com/celestiaorg/celestia-node/libs/header"
+	libhead "github.com/celestiaorg/celestia-node/libs/header"
 	"github.com/celestiaorg/celestia-node/libs/keystore"
 	"github.com/celestiaorg/celestia-node/logs"
 	"github.com/celestiaorg/celestia-node/nodebuilder"
@@ -101,15 +101,15 @@ func (s *Swamp) stopAllNodes(ctx context.Context, allNodes ...[]*nodebuilder.Nod
 }
 
 // GetCoreBlockHashByHeight returns a tendermint block's hash by provided height
-func (s *Swamp) GetCoreBlockHashByHeight(ctx context.Context, height int64) headerpkg.Hash {
+func (s *Swamp) GetCoreBlockHashByHeight(ctx context.Context, height int64) libhead.Hash {
 	b, err := s.ClientContext.Client.Block(ctx, &height)
 	require.NoError(s.t, err)
-	return headerpkg.Hash(b.BlockID.Hash)
+	return libhead.Hash(b.BlockID.Hash)
 }
 
 // WaitTillHeight holds the test execution until the given amount of blocks
 // has been produced by the CoreClient.
-func (s *Swamp) WaitTillHeight(ctx context.Context, height int64) headerpkg.Hash {
+func (s *Swamp) WaitTillHeight(ctx context.Context, height int64) libhead.Hash {
 	require.Greater(s.t, height, int64(0))
 
 	t := time.NewTicker(time.Millisecond * 50)
@@ -125,11 +125,11 @@ func (s *Swamp) WaitTillHeight(ctx context.Context, height int64) headerpkg.Hash
 			latest := status.SyncInfo.LatestBlockHeight
 			switch {
 			case latest == height:
-				return headerpkg.Hash(status.SyncInfo.LatestBlockHash)
+				return libhead.Hash(status.SyncInfo.LatestBlockHash)
 			case latest > height:
 				res, err := s.ClientContext.Client.Block(ctx, &height)
 				require.NoError(s.t, err)
-				return headerpkg.Hash(res.BlockID.Hash)
+				return libhead.Hash(res.BlockID.Hash)
 			}
 		}
 	}
@@ -254,7 +254,7 @@ func (s *Swamp) newNode(t node.Type, store nodebuilder.Store, options ...fx.Opti
 	options = append(options,
 		p2p.WithHost(s.createPeer(ks)),
 		fx.Replace(node.StorePath(tempDir)),
-		fx.Invoke(func(ctx context.Context, store header.Store) error {
+		fx.Invoke(func(ctx context.Context, store libhead.Store[*header.ExtendedHeader]) error {
 			return store.Init(ctx, s.genesis)
 		}),
 	)

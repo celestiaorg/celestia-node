@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	headerpkg "github.com/celestiaorg/celestia-node/libs/header"
+	libhead "github.com/celestiaorg/celestia-node/libs/header"
 	"sync"
 	"time"
 
@@ -37,7 +37,7 @@ type job struct {
 
 func (w *worker) run(
 	ctx context.Context,
-	getter headerpkg.Getter[*header.ExtendedHeader],
+	getter libhead.Getter[*header.ExtendedHeader],
 	sample sampleFn,
 	metrics *metrics,
 	resultCh chan<- result) {

@@ -18,7 +18,7 @@ import (
 
 	"github.com/celestiaorg/celestia-app/pkg/da"
 
-	headerpkg "github.com/celestiaorg/celestia-node/libs/header"
+	libhead "github.com/celestiaorg/celestia-node/libs/header"
 	"github.com/celestiaorg/celestia-node/share"
 )
 
@@ -44,7 +44,7 @@ type ExtendedHeader struct {
 	DAH          *DataAvailabilityHeader `json:"dah"`
 }
 
-func (eh *ExtendedHeader) New() headerpkg.Header {
+func (eh *ExtendedHeader) New() libhead.Header {
 	return new(ExtendedHeader)
 }
 
@@ -60,10 +60,10 @@ func (eh *ExtendedHeader) Time() time.Time {
 	return eh.RawHeader.Time
 }
 
-func (eh *ExtendedHeader) Verify(header headerpkg.Header) error {
+func (eh *ExtendedHeader) Verify(header libhead.Header) error {
 	hdr, ok := header.(*ExtendedHeader)
 	if !ok {
-		return &headerpkg.VerifyError{errors.New("invalid header type: expected *ExtendedHeader")}
+		return &libhead.VerifyError{errors.New("invalid header type: expected *ExtendedHeader")}
 	}
 	return eh.verify(hdr)
 }
@@ -73,7 +73,7 @@ func (eh *ExtendedHeader) Validate() error {
 	return eh.ValidateBasic()
 }
 
-var _ headerpkg.Header = &ExtendedHeader{}
+var _ libhead.Header = &ExtendedHeader{}
 
 // MakeExtendedHeader assembles new ExtendedHeader.
 func MakeExtendedHeader(
@@ -112,13 +112,13 @@ func MakeExtendedHeader(
 // Hash returns Hash of the wrapped RawHeader.
 // NOTE: It purposely overrides Hash method of RawHeader to get it directly from Commit without
 // recomputing.
-func (eh *ExtendedHeader) Hash() headerpkg.Hash {
-	return headerpkg.Hash(eh.Commit.BlockID.Hash)
+func (eh *ExtendedHeader) Hash() libhead.Hash {
+	return libhead.Hash(eh.Commit.BlockID.Hash)
 }
 
 // LastHeader returns the Hash of the last wrapped RawHeader.
-func (eh *ExtendedHeader) LastHeader() headerpkg.Hash {
-	return headerpkg.Hash(eh.RawHeader.LastBlockID.Hash)
+func (eh *ExtendedHeader) LastHeader() libhead.Hash {
+	return libhead.Hash(eh.RawHeader.LastBlockID.Hash)
 }
 
 // IsBefore returns whether the given header is of a higher height.

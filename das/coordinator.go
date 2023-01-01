@@ -2,7 +2,7 @@ package das
 
 import (
 	"context"
-	headerpkg "github.com/celestiaorg/celestia-node/libs/header"
+	libhead "github.com/celestiaorg/celestia-node/libs/header"
 	"sync"
 
 	"github.com/celestiaorg/celestia-node/header"
@@ -12,7 +12,7 @@ import (
 type samplingCoordinator struct {
 	concurrencyLimit int
 
-	getter   headerpkg.Getter[*header.ExtendedHeader]
+	getter   libhead.Getter[*header.ExtendedHeader]
 	sampleFn sampleFn
 
 	state coordinatorState
@@ -38,7 +38,7 @@ type result struct {
 
 func newSamplingCoordinator(
 	params Parameters,
-	getter headerpkg.Getter[*header.ExtendedHeader],
+	getter libhead.Getter[*header.ExtendedHeader],
 	sample sampleFn,
 ) *samplingCoordinator {
 	return &samplingCoordinator{

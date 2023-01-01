@@ -2,7 +2,7 @@ package das
 
 import (
 	"context"
-	headerpkg "github.com/celestiaorg/celestia-node/libs/header"
+	libhead "github.com/celestiaorg/celestia-node/libs/header"
 
 	"github.com/celestiaorg/celestia-node/header"
 )
@@ -17,7 +17,7 @@ func newSubscriber() subscriber {
 	return subscriber{newDone("subscriber")}
 }
 
-func (s *subscriber) run(ctx context.Context, sub headerpkg.Subscription[*header.ExtendedHeader], emit listenFn) {
+func (s *subscriber) run(ctx context.Context, sub libhead.Subscription[*header.ExtendedHeader], emit listenFn) {
 	defer s.indicateDone()
 	defer sub.Cancel()
 

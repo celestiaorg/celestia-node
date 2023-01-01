@@ -7,7 +7,7 @@ import (
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/multiformats/go-multiaddr"
 
-	headerpkg "github.com/celestiaorg/celestia-node/libs/header"
+	libhead "github.com/celestiaorg/celestia-node/libs/header"
 	p2p_exchange "github.com/celestiaorg/celestia-node/libs/header/p2p"
 	"github.com/celestiaorg/celestia-node/libs/header/store"
 	"github.com/celestiaorg/celestia-node/libs/header/sync"
@@ -73,7 +73,7 @@ func (cfg *Config) trustedPeers(bpeers p2p.Bootstrappers) (infos []peer.AddrInfo
 	return
 }
 
-func (cfg *Config) trustedHash(net p2p.Network) (headerpkg.Hash, error) {
+func (cfg *Config) trustedHash(net p2p.Network) (libhead.Hash, error) {
 	if cfg.TrustedHash == "" {
 		gen, err := p2p.GenesisFor(net)
 		if err != nil {

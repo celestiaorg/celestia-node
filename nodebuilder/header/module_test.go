@@ -15,7 +15,7 @@ import (
 
 	"github.com/celestiaorg/celestia-node/fraud"
 	"github.com/celestiaorg/celestia-node/header"
-	headerpkg "github.com/celestiaorg/celestia-node/libs/header"
+	libhead "github.com/celestiaorg/celestia-node/libs/header"
 	"github.com/celestiaorg/celestia-node/libs/header/p2p"
 	"github.com/celestiaorg/celestia-node/libs/header/store"
 	"github.com/celestiaorg/celestia-node/libs/header/sync"
@@ -38,7 +38,7 @@ func TestConstructModule_StoreParams(t *testing.T) {
 		}),
 		ConstructModule(node.Light, &cfg),
 		fx.Invoke(
-			func(s headerpkg.Store[*header.ExtendedHeader]) {
+			func(s libhead.Store[*header.ExtendedHeader]) {
 				ss := s.(*store.Store[*header.ExtendedHeader])
 				headerStore = ss
 			}),
@@ -105,7 +105,7 @@ func TestConstructModule_ExchangeParams(t *testing.T) {
 			return conngater.NewBasicConnectionGater(b)
 		}),
 		fx.Invoke(
-			func(e headerpkg.Exchange[*header.ExtendedHeader], server *p2p.ExchangeServer[*header.ExtendedHeader]) {
+			func(e libhead.Exchange[*header.ExtendedHeader], server *p2p.ExchangeServer[*header.ExtendedHeader]) {
 				ex := e.(*p2p.Exchange[*header.ExtendedHeader])
 				exchange = ex
 				exchangeServer = server
