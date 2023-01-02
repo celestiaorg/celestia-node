@@ -19,16 +19,29 @@ func init() {
 }
 
 // namespaceHasher implements hash.Hash over NMT Hasher.
-// TODO: Move to NMT repo?
+// TODO: Move to NMT repo!
+//
+//	As NMT already defines Hasher that implements hash.Hash by embedding,
+//	it should define full and *correct* implementation of hash.Hash,
+//	which is the namespaceHasher. This hash.Hash, is not IPLD specific and
+//	can be used elsewhere.
 type namespaceHasher struct {
-	*nmt.Hasher
-	tp   byte
-	data []byte
+	hasher *nmt.Hasher
+
+	tp   byte   // keeps type of NMT node to be hashed
+	data []byte // written data of the NMT node
 }
 
 // defaultHasher constructs the namespaceHasher with default configuration
 func defaultHasher() *namespaceHasher {
-	return &namespaceHasher{Hasher: nmt.NewNmtHasher(sha256.New(), NamespaceSize, true)}
+	nh := &namespaceHasher{hasher: nmt.NewNmtHasher(sha256.New(), NamespaceSize, true)}
+	nh.Reset()
+	return nh
+}
+
+// Size returns the number of bytes Sum will return.
+func (n *namespaceHasher) Size() int {
+	return n.hasher.Size() + int(n.hasher.NamespaceLen)*2
 }
 
 // Write writes the namespaced data to be hashed.
@@ -37,14 +50,14 @@ func defaultHasher() *namespaceHasher {
 // Only one write is allowed.
 func (n *namespaceHasher) Write(data []byte) (int, error) {
 	if n.data != nil {
-		return 0, fmt.Errorf("ipld: only one write to hasher is allowed")
+		panic("namespaceHasher: only single Write is allowed")
 	}
 
 	ln := len(data)
 	switch ln {
 	default:
 		log.Warnf("unexpected data size: %d", ln)
-		return 0, fmt.Errorf("ipld: wrong sized data written to the hasher, len: %v", ln)
+		return 0, fmt.Errorf("wrong sized data written to the hasher, len: %v", ln)
 	case innerNodeSize:
 		n.tp = nmt.NodePrefix
 	case leafNodeSize:
@@ -58,18 +71,25 @@ func (n *namespaceHasher) Write(data []byte) (int, error) {
 // Sum computes the hash.
 // Does not append the given suffix and violating the interface.
 func (n *namespaceHasher) Sum([]byte) []byte {
-	// if n.data is empty, it hit the default case in Write.
-	// this will be seen by multihash.encodeHash, where it will be caught and an error will be returned.
-	if len(n.data) == 0 {
-		return nil
+	switch n.tp {
+	case nmt.LeafPrefix:
+		return n.hasher.HashLeaf(n.data)
+	case nmt.NodePrefix:
+		flagLen := int(n.hasher.NamespaceLen * 2)
+		sha256Len := n.hasher.Size()
+		return n.hasher.HashNode(n.data[:flagLen+sha256Len], n.data[flagLen+sha256Len:])
+	default:
+		panic("namespaceHasher: node type wasn't set")
 	}
+}
 
-	isLeafData := n.tp == nmt.LeafPrefix
-	if isLeafData {
-		return n.Hasher.HashLeaf(n.data)
-	}
+// Reset resets the Hash to its initial state.
+func (n *namespaceHasher) Reset() {
+	n.tp, n.data = 255, nil // reset with an invalid node type, as zero value is a valid Leaf
+	n.hasher.Reset()
+}
 
-	flagLen := int(n.NamespaceLen * 2)
-	sha256Len := n.Hasher.Size()
-	return n.Hasher.HashNode(n.data[:flagLen+sha256Len], n.data[flagLen+sha256Len:])
+// BlockSize returns the hash's underlying block size.
+func (n *namespaceHasher) BlockSize() int {
+	return n.hasher.BlockSize()
 }

@@ -71,8 +71,8 @@ func (p *peerTracker) track() {
 	}()
 
 	// store peers that have been already connected
-	for _, peer := range p.host.Peerstore().Peers() {
-		p.connected(peer)
+	for _, c := range p.host.Network().Conns() {
+		p.connected(c.RemotePeer())
 	}
 
 	subs, err := p.host.EventBus().Subscribe(&event.EvtPeerConnectednessChanged{})
