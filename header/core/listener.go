@@ -3,7 +3,6 @@ package core
 import (
 	"context"
 	"fmt"
-	libhead "github.com/celestiaorg/celestia-node/libs/header"
 
 	"github.com/ipfs/go-blockservice"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
@@ -11,6 +10,7 @@ import (
 
 	"github.com/celestiaorg/celestia-node/core"
 	"github.com/celestiaorg/celestia-node/header"
+	libhead "github.com/celestiaorg/celestia-node/libs/header"
 )
 
 // Listener is responsible for listening to Core for

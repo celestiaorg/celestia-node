@@ -29,7 +29,7 @@ func (eh *ExtendedHeader) IsRecent(blockTime time.Duration) bool {
 func (eh *ExtendedHeader) VerifyNonAdjacent(untrusted libhead.Header) error {
 	untrst, ok := untrusted.(*ExtendedHeader)
 	if !ok {
-		return &libhead.VerifyError{errors.New("invalid header type: expected *ExtendedHeader")}
+		return &libhead.VerifyError{Reason: errors.New("invalid header type: expected *ExtendedHeader")}
 	}
 	if err := eh.verify(untrst); err != nil {
 		return &libhead.VerifyError{Reason: err}
@@ -38,7 +38,7 @@ func (eh *ExtendedHeader) VerifyNonAdjacent(untrusted libhead.Header) error {
 	// Ensure that untrusted commit has enough of trusted commit's power.
 	err := eh.ValidatorSet.VerifyCommitLightTrusting(eh.ChainID(), untrst.Commit, light.DefaultTrustLevel)
 	if err != nil {
-		return &libhead.VerifyError{err}
+		return &libhead.VerifyError{Reason: err}
 	}
 
 	return nil
@@ -48,10 +48,10 @@ func (eh *ExtendedHeader) VerifyNonAdjacent(untrusted libhead.Header) error {
 func (eh *ExtendedHeader) VerifyAdjacent(untrusted libhead.Header) error {
 	untrst, ok := untrusted.(*ExtendedHeader)
 	if !ok {
-		return &libhead.VerifyError{errors.New("invalid header type: expected *ExtendedHeader")}
+		return &libhead.VerifyError{Reason: errors.New("invalid header type: expected *ExtendedHeader")}
 	}
 	if untrst.Height() != eh.Height()+1 {
-		return &libhead.VerifyError{&libhead.ErrNonAdjacent{
+		return &libhead.VerifyError{Reason: &libhead.ErrNonAdjacent{
 			Head:      eh.Height(),
 			Attempted: untrst.Height(),
 		}}
@@ -64,7 +64,7 @@ func (eh *ExtendedHeader) VerifyAdjacent(untrusted libhead.Header) error {
 	// Check the validator hashes are the same
 	if !bytes.Equal(untrst.ValidatorsHash, eh.NextValidatorsHash) {
 		return &libhead.VerifyError{
-			fmt.Errorf("expected old header next validators (%X) to match those from new header (%X)",
+			Reason: fmt.Errorf("expected old header next validators (%X) to match those from new header (%X)",
 				eh.NextValidatorsHash,
 				untrst.ValidatorsHash,
 			),

@@ -3,10 +3,9 @@ package header
 import (
 	"context"
 
-	pubsub "github.com/libp2p/go-libp2p-pubsub"
-
 	"github.com/ipfs/go-datastore"
 	logging "github.com/ipfs/go-log/v2"
+	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	"go.uber.org/fx"
 
 	"github.com/celestiaorg/celestia-node/fraud"
@@ -73,7 +72,11 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 		}),
 		fx.Provide(fx.Annotate(
 			newSyncer,
-			fx.OnStart(func(startCtx, ctx context.Context, fservice fraud.Service, syncer *sync.Syncer[*header.ExtendedHeader]) error {
+			fx.OnStart(func(
+				startCtx, ctx context.Context,
+				fservice fraud.Service,
+				syncer *sync.Syncer[*header.ExtendedHeader],
+			) error {
 				return modfraud.Lifecycle(startCtx, ctx, fraud.BadEncoding, fservice,
 					syncer.Start, syncer.Stop)
 			}),

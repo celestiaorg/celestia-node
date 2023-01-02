@@ -177,7 +177,9 @@ func (ex *Exchange[H]) GetVerifiedRange(
 	from H,
 	amount uint64,
 ) ([]H, error) {
-	session := newSession[H](ex.ctx, ex.host, ex.peerTracker, ex.protocolID, ex.Params.RequestTimeout, withValidation(from))
+	session := newSession[H](
+		ex.ctx, ex.host, ex.peerTracker, ex.protocolID, ex.Params.RequestTimeout, withValidation(from),
+	)
 	defer session.close()
 
 	return session.getRangeByHeight(ctx, uint64(from.Height())+1, amount, ex.Params.MaxHeadersPerRequest)

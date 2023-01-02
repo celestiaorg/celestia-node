@@ -1,7 +1,6 @@
 package fraud
 
 import (
-	libhead "github.com/celestiaorg/celestia-node/libs/header"
 	"github.com/ipfs/go-datastore"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	"github.com/libp2p/go-libp2p/core/host"
@@ -9,6 +8,7 @@ import (
 
 	"github.com/celestiaorg/celestia-node/fraud"
 	"github.com/celestiaorg/celestia-node/header"
+	libhead "github.com/celestiaorg/celestia-node/libs/header"
 	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
 )
 

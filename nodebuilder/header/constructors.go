@@ -70,7 +70,12 @@ func newP2PExchange(cfg Config) func(
 }
 
 // newSyncer constructs new Syncer for headers.
-func newSyncer(ex libhead.Exchange[*header.ExtendedHeader], store InitStore, sub libhead.Subscriber[*header.ExtendedHeader], opts []sync.Options) (*sync.Syncer[*header.ExtendedHeader], error) {
+func newSyncer(
+	ex libhead.Exchange[*header.ExtendedHeader],
+	store InitStore,
+	sub libhead.Subscriber[*header.ExtendedHeader],
+	opts []sync.Options,
+) (*sync.Syncer[*header.ExtendedHeader], error) {
 	return sync.NewSyncer[*header.ExtendedHeader](ex, store, sub, opts...)
 }
 

@@ -2,9 +2,9 @@ package das
 
 import (
 	"context"
-	libhead "github.com/celestiaorg/celestia-node/libs/header"
 
 	"github.com/celestiaorg/celestia-node/header"
+	libhead "github.com/celestiaorg/celestia-node/libs/header"
 )
 
 // subscriber subscribes to notifications about new headers in the network to keep

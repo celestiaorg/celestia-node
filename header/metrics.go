@@ -2,12 +2,13 @@ package header
 
 import (
 	"context"
-	libhead "github.com/celestiaorg/celestia-node/libs/header"
 
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric/global"
 	"go.opentelemetry.io/otel/metric/instrument"
 	"go.opentelemetry.io/otel/metric/unit"
+
+	libhead "github.com/celestiaorg/celestia-node/libs/header"
 )
 
 var meter = global.MeterProvider().Meter("header")

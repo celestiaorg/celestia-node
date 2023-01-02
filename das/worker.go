@@ -4,13 +4,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	libhead "github.com/celestiaorg/celestia-node/libs/header"
 	"sync"
 	"time"
 
 	"go.uber.org/multierr"
 
 	"github.com/celestiaorg/celestia-node/header"
+	libhead "github.com/celestiaorg/celestia-node/libs/header"
 )
 
 type worker struct {

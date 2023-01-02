@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	libhead "github.com/celestiaorg/celestia-node/libs/header"
 	"sync/atomic"
 
 	"github.com/ipfs/go-datastore"
@@ -12,6 +11,7 @@ import (
 
 	"github.com/celestiaorg/celestia-node/fraud"
 	"github.com/celestiaorg/celestia-node/header"
+	libhead "github.com/celestiaorg/celestia-node/libs/header"
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/eds/byzantine"
 )

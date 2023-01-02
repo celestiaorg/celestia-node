@@ -2,7 +2,6 @@ package core
 
 import (
 	"context"
-	libhead "github.com/celestiaorg/celestia-node/libs/header"
 
 	"go.uber.org/fx"
 
@@ -10,6 +9,7 @@ import (
 	"github.com/celestiaorg/celestia-node/header"
 	headercore "github.com/celestiaorg/celestia-node/header/core"
 	"github.com/celestiaorg/celestia-node/libs/fxutil"
+	libhead "github.com/celestiaorg/celestia-node/libs/header"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 )
 

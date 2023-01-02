@@ -5,7 +5,6 @@ package header
 
 import (
 	"context"
-	"github.com/celestiaorg/celestia-node/libs/header/test"
 
 	mrand "math/rand"
 	"testing"
@@ -26,6 +25,7 @@ import (
 
 	"github.com/celestiaorg/celestia-node/core"
 	libhead "github.com/celestiaorg/celestia-node/libs/header"
+	"github.com/celestiaorg/celestia-node/libs/header/test"
 	"github.com/celestiaorg/celestia-node/share"
 )
 

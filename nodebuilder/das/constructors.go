@@ -3,13 +3,13 @@ package das
 import (
 	"context"
 	"fmt"
-	libhead "github.com/celestiaorg/celestia-node/libs/header"
 
 	"github.com/ipfs/go-datastore"
 
 	"github.com/celestiaorg/celestia-node/das"
 	"github.com/celestiaorg/celestia-node/fraud"
 	"github.com/celestiaorg/celestia-node/header"
+	libhead "github.com/celestiaorg/celestia-node/libs/header"
 	"github.com/celestiaorg/celestia-node/share"
 )
 

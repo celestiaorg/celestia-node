@@ -2,10 +2,10 @@ package das
 
 import (
 	"context"
-	libhead "github.com/celestiaorg/celestia-node/libs/header"
 	"sync"
 
 	"github.com/celestiaorg/celestia-node/header"
+	libhead "github.com/celestiaorg/celestia-node/libs/header"
 )
 
 // samplingCoordinator runs and coordinates sampling workers and updates current sampling state

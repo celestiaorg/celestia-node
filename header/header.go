@@ -63,7 +63,7 @@ func (eh *ExtendedHeader) Time() time.Time {
 func (eh *ExtendedHeader) Verify(header libhead.Header) error {
 	hdr, ok := header.(*ExtendedHeader)
 	if !ok {
-		return &libhead.VerifyError{errors.New("invalid header type: expected *ExtendedHeader")}
+		return &libhead.VerifyError{Reason: errors.New("invalid header type: expected *ExtendedHeader")}
 	}
 	return eh.verify(hdr)
 }

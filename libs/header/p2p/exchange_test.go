@@ -139,7 +139,9 @@ func TestExchange_RequestHeadersFromAnotherPeer(t *testing.T) {
 	// create client + server(it does not have needed headers)
 	exchg, _ := createP2PExAndServer(t, hosts[0], hosts[1])
 	// create one more server(with more headers in the store)
-	serverSideEx, err := NewExchangeServer[*test.DummyHeader](hosts[2], headerMock.NewStore[*test.DummyHeader](t, test.NewTestSuite(t), 10), "private")
+	serverSideEx, err := NewExchangeServer[*test.DummyHeader](
+		hosts[2], headerMock.NewStore[*test.DummyHeader](t, test.NewTestSuite(t), 10), "private",
+	)
 	require.NoError(t, err)
 	require.NoError(t, serverSideEx.Start(context.Background()))
 	t.Cleanup(func() {
@@ -276,7 +278,9 @@ func TestExchange_RequestByHashFails(t *testing.T) {
 	require.NoError(t, err)
 	// get host and peer
 	host, peer := net.Hosts()[0], net.Hosts()[1]
-	serv, err := NewExchangeServer[*test.DummyHeader](host, headerMock.NewStore[*test.DummyHeader](t, test.NewTestSuite(t), 0), "private")
+	serv, err := NewExchangeServer[*test.DummyHeader](
+		host, headerMock.NewStore[*test.DummyHeader](t, test.NewTestSuite(t), 0), "private",
+	)
 	require.NoError(t, err)
 	err = serv.Start(ctx)
 	require.NoError(t, err)

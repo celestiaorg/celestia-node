@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	libhead "github.com/celestiaorg/celestia-node/libs/header"
 	"time"
 
 	"github.com/cosmos/cosmos-sdk/api/tendermint/abci"
@@ -26,6 +25,7 @@ import (
 	"github.com/celestiaorg/nmt/namespace"
 
 	"github.com/celestiaorg/celestia-node/header"
+	libhead "github.com/celestiaorg/celestia-node/libs/header"
 )
 
 var (

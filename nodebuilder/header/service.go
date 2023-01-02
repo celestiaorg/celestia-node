@@ -2,11 +2,11 @@ package header
 
 import (
 	"context"
+
+	"github.com/celestiaorg/celestia-node/header"
 	libhead "github.com/celestiaorg/celestia-node/libs/header"
 	"github.com/celestiaorg/celestia-node/libs/header/p2p"
 	"github.com/celestiaorg/celestia-node/libs/header/sync"
-
-	"github.com/celestiaorg/celestia-node/header"
 )
 
 // Service represents the header Service that can be started / stopped on a node.
