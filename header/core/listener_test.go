@@ -36,7 +36,6 @@ func TestListener(t *testing.T) {
 	eds := createEdsPubSub(ctx, t)
 	// create Listener and start listening
 	cl := createListener(ctx, t, fetcher, ps0, eds)
-	require.NoError(t, err)
 	err = cl.Start(ctx)
 	require.NoError(t, err)
 
