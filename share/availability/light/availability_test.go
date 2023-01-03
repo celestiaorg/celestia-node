@@ -32,8 +32,8 @@ func TestSharesAvailable(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	// RandServiceWithSquare creates a Light ShareAvailability inside, so we can test it
-	_, avail, dah := RandServiceWithSquare(t, 16)
+	getter, dah := GetterWithRandSquare(t, 16)
+	avail := TestAvailability(getter)
 	err := avail.SharesAvailable(ctx, dah)
 	assert.NoError(t, err)
 }
@@ -42,8 +42,8 @@ func TestSharesAvailableFailed(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	// RandServiceWithSquare creates a Light ShareAvailability inside, so we can test it
-	_, avail, _ := RandServiceWithSquare(t, 16)
+	getter, _ := GetterWithRandSquare(t, 16)
+	avail := TestAvailability(getter)
 	empty := header.EmptyDAH()
 	err := avail.SharesAvailable(ctx, &empty)
 	assert.Error(t, err)
@@ -67,7 +67,7 @@ func TestGetShare(t *testing.T) {
 	defer cancel()
 
 	n := 16
-	getter, _, dah := RandServiceWithSquare(t, n)
+	getter, dah := GetterWithRandSquare(t, n)
 
 	for i := range make([]bool, n) {
 		for j := range make([]bool, n) {
@@ -90,7 +90,7 @@ func TestService_GetSharesByNamespace(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run("size: "+strconv.Itoa(tt.squareSize), func(t *testing.T) {
-			getter, _, bServ := RandService()
+			getter, bServ := EmptyGetter()
 			n := tt.squareSize * tt.squareSize
 			randShares := share.RandShares(t, n)
 			idx1 := (n - 1) / 2
@@ -124,7 +124,7 @@ func TestGetShares(t *testing.T) {
 	defer cancel()
 
 	n := 16
-	getter, _, dah := RandServiceWithSquare(t, n)
+	getter, dah := GetterWithRandSquare(t, n)
 
 	eds, err := getter.GetEDS(ctx, dah)
 	require.NoError(t, err)
@@ -134,7 +134,7 @@ func TestGetShares(t *testing.T) {
 }
 
 func TestService_GetSharesByNamespaceNotFound(t *testing.T) {
-	getter, _, root := RandServiceWithSquare(t, 1)
+	getter, root := GetterWithRandSquare(t, 1)
 	root.RowsRoots = nil
 
 	shares, err := getter.GetSharesByNamespace(context.Background(), root, []byte{1, 1, 1, 1, 1, 1, 1, 1})
@@ -154,7 +154,7 @@ func BenchmarkService_GetSharesByNamespace(b *testing.B) {
 	for _, tt := range tests {
 		b.Run(strconv.Itoa(tt.amountShares), func(b *testing.B) {
 			t := &testing.T{}
-			getter, _, root := RandServiceWithSquare(t, tt.amountShares)
+			getter, root := GetterWithRandSquare(t, tt.amountShares)
 			randNID := root.RowsRoots[(len(root.RowsRoots)-1)/2][:8]
 			root.RowsRoots[(len(root.RowsRoots) / 2)] = root.RowsRoots[(len(root.RowsRoots)-1)/2]
 			b.ResetTimer()
@@ -167,7 +167,7 @@ func BenchmarkService_GetSharesByNamespace(b *testing.B) {
 }
 
 func TestSharesRoundTrip(t *testing.T) {
-	getter, _, store := RandService()
+	getter, store := EmptyGetter()
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 

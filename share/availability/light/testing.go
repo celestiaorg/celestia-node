@@ -15,20 +15,20 @@ import (
 	"github.com/celestiaorg/celestia-node/share/getters"
 )
 
-// RandServiceWithSquare provides a share.Getter/share.Availability filled with 'n' NMT
-// trees of 'n' random shares, essentially storing a whole square.
-func RandServiceWithSquare(t *testing.T, n int) (share.Getter, share.Availability, *share.Root) {
+// GetterWithRandSquare provides a share.Getter filled with 'n' NMT trees of 'n' random shares,
+// essentially storing a whole square.
+func GetterWithRandSquare(t *testing.T, n int) (share.Getter, *share.Root) {
 	bServ := mdutils.Bserv()
 	getter := getters.NewIPLDGetter(bServ)
-	return getter, TestAvailability(getter), availability_test.RandFillBS(t, n, bServ)
+	return getter, availability_test.RandFillBS(t, n, bServ)
 }
 
-// RandService provides an unfilled share.Getter/share.Availability with corresponding
-// blockservice.BlockService than can be filled by the test.
-func RandService() (share.Getter, share.Availability, blockservice.BlockService) {
+// EmptyGetter provides an unfilled share.Getter with corresponding blockservice.BlockService than
+// can be filled by the test.
+func EmptyGetter() (share.Getter, blockservice.BlockService) {
 	bServ := mdutils.Bserv()
 	getter := getters.NewIPLDGetter(bServ)
-	return getter, TestAvailability(getter), bServ
+	return getter, bServ
 }
 
 // RandNode creates a Light Node filled with a random block of the given size.
