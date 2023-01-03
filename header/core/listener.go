@@ -27,8 +27,8 @@ type Listener struct {
 
 	construct header.ConstructFn
 
-	broadcastExtendedHeader libhead.Broadcaster[*header.ExtendedHeader]
-	broadcastEDSHash        shrexpush.BroadcastFn
+	extHeaderBroadcaster libhead.Broadcaster[*header.ExtendedHeader]
+	edsHashBroadcaster   shrexpush.BroadcastFn
 
 	cancel context.CancelFunc
 }
@@ -41,11 +41,11 @@ func NewListener(
 	construct header.ConstructFn,
 ) *Listener {
 	return &Listener{
-		broadcastExtendedHeader: bcast,
-		fetcher:                 fetcher,
-		broadcastEDSHash:        broadcastEDSHash,
-		bServ:                   bServ,
-		construct:               construct,
+		extHeaderBroadcaster: bcast,
+		fetcher:              fetcher,
+		edsHashBroadcaster:   broadcastEDSHash,
+		bServ:                bServ,
+		construct:            construct,
 	}
 }
 
@@ -104,17 +104,17 @@ func (cl *Listener) listen(ctx context.Context, sub <-chan *types.Block) {
 			}
 
 			// broadcast new ExtendedHeader, but if core is still syncing, notify only local subscribers
-			err = cl.broadcastExtendedHeader.Broadcast(ctx, eh, pubsub.WithLocalPublication(syncing))
+			err = cl.extHeaderBroadcaster.Broadcast(ctx, eh, pubsub.WithLocalPublication(syncing))
 			if err != nil {
 				log.Errorw("listener: broadcasting next header", "height", eh.Height(),
 					"err", err)
 			}
 
 			// notify network of new EDS hash
-			err = cl.broadcastEDSHash(ctx, eh.DataHash.Bytes())
+			err = cl.edsHashBroadcaster(ctx, eh.DataHash.Bytes())
 			if err != nil {
-				log.Errorw("listener: broadcasting data hash", "height", eh.Height,
-					"err", err)
+				log.Errorw("listener: broadcasting data hash", "height", eh.Height(),
+					"hash", eh.Hash(), "err", err)
 			}
 		case <-ctx.Done():
 			return

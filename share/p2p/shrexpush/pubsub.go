@@ -65,7 +65,10 @@ func (s *PubSub) Start(context.Context) error {
 // * Unregisters all the added Validators
 // * Closes the `ShrEx/Sub` topic
 func (s *PubSub) Stop(context.Context) error {
-	// TODO(@vgonkivs): unregister the topic validator
+	err := s.pubSub.UnregisterTopicValidator(s.pubSubTopic)
+	if err != nil {
+		log.Warnw("unregistering topic", "err", err)
+	}
 	return s.topic.Close()
 }
 
