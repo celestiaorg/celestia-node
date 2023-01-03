@@ -9,7 +9,7 @@ type Options func(*Parameters)
 
 // Parameters is the set of parameters that must be configured for the syncer.
 type Parameters struct {
-	// blockTime provides a reference point for the Syncer to determine
+	// BlockTime provides a reference point for the Syncer to determine
 	// whether its subjective head is outdated
 	BlockTime time.Duration
 	// TrustingPeriod is period through which we can trust a header's validators set.
