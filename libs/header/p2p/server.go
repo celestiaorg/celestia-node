@@ -98,7 +98,7 @@ func (serv *ExchangeServer[H]) requestHandler(stream network.Stream) {
 	}
 
 	var headers []H
-	// retrieve and write ExtendedHeaders
+	// retrieve and write Headers
 	switch pbreq.Data.(type) {
 	case *p2p_pb.HeaderRequest_Hash:
 		headers, err = serv.handleRequestByHash(pbreq.GetHash())
@@ -120,7 +120,7 @@ func (serv *ExchangeServer[H]) requestHandler(stream network.Stream) {
 		return
 	}
 
-	// reallocate headers with 1 nil ExtendedHeader if code is not StatusCode_OK
+	// reallocate headers with 1 nil Header if code is not StatusCode_OK
 	if code != p2p_pb.StatusCode_OK {
 		headers = make([]H, 1)
 	}
@@ -154,7 +154,7 @@ func (serv *ExchangeServer[H]) requestHandler(stream network.Stream) {
 	}
 }
 
-// handleRequestByHash returns the ExtendedHeader at the given hash
+// handleRequestByHash returns the Header at the given hash
 // if it exists.
 func (serv *ExchangeServer[H]) handleRequestByHash(hash []byte) ([]H, error) {
 	log.Debugw("server: handling header request", "hash", header.Hash(hash).String())
@@ -180,7 +180,7 @@ func (serv *ExchangeServer[H]) handleRequestByHash(hash []byte) ([]H, error) {
 	return []H{h}, nil
 }
 
-// handleRequest fetches the ExtendedHeader at the given origin and
+// handleRequest fetches the Header at the given origin and
 // writes it to the stream.
 func (serv *ExchangeServer[H]) handleRequest(from, to uint64) ([]H, error) {
 	if from == uint64(0) {

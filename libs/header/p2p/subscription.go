@@ -10,13 +10,13 @@ import (
 	"github.com/celestiaorg/celestia-node/libs/header"
 )
 
-// subscription handles retrieving ExtendedHeaders from the header pubsub topic.
+// subscription handles retrieving Headers from the header pubsub topic.
 type subscription[H header.Header] struct {
 	topic        *pubsub.Topic
 	subscription *pubsub.Subscription
 }
 
-// newSubscription creates a new ExtendedHeader event subscription
+// newSubscription creates a new Header event subscription
 // on the given host.
 func newSubscription[H header.Header](topic *pubsub.Topic) (*subscription[H], error) {
 	sub, err := topic.Subscribe()
@@ -30,7 +30,7 @@ func newSubscription[H header.Header](topic *pubsub.Topic) (*subscription[H], er
 	}, nil
 }
 
-// NextHeader returns the next (latest) verified ExtendedHeader from the network.
+// NextHeader returns the next (latest) verified Header from the network.
 func (s *subscription[H]) NextHeader(ctx context.Context) (H, error) {
 	msg, err := s.subscription.Next(ctx)
 	if err != nil {
@@ -43,11 +43,11 @@ func (s *subscription[H]) NextHeader(ctx context.Context) (H, error) {
 		panic(fmt.Sprintf("invalid type received %s", reflect.TypeOf(msg.ValidatorData)))
 	}
 
-	log.Debugw("received new ExtendedHeader", "height", header.Height(), "hash", header.Hash())
+	log.Debugw("received new Header", "height", header.Height(), "hash", header.Hash())
 	return header, nil
 }
 
-// Cancel cancels the subscription to new ExtendedHeaders from the network.
+// Cancel cancels the subscription to new Headers from the network.
 func (s *subscription[H]) Cancel() {
 	s.subscription.Cancel()
 }

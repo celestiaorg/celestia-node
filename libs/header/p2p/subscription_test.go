@@ -79,7 +79,7 @@ func TestSubscriber(t *testing.T) {
 	err = p2pSub2.topic.Publish(ctx, bin, pubsub.WithReadiness(pubsub.MinTopicSize(1)))
 	require.NoError(t, err)
 
-	// get next ExtendedHeader from network
+	// get next Header from network
 	header, err := subscription.NextHeader(ctx)
 	require.NoError(t, err)
 

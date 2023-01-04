@@ -170,7 +170,7 @@ func (s *session[H]) doRequest(
 	s.queue.push(stat)
 }
 
-// processResponse converts HeaderResponse to ExtendedHeader.
+// processResponse converts HeaderResponse to Header.
 func (s *session[H]) processResponse(responses []*p2p_pb.HeaderResponse) ([]H, error) {
 	headers := make([]H, 0)
 	for _, resp := range responses {

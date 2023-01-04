@@ -72,7 +72,7 @@ func (p *Subscriber[H]) Subscribe() (header.Subscription[H], error) {
 	return newSubscription[H](p.topic)
 }
 
-// Broadcast broadcasts the given ExtendedHeader to the topic.
+// Broadcast broadcasts the given Header to the topic.
 func (p *Subscriber[H]) Broadcast(ctx context.Context, header H, opts ...pubsub.PubOpt) error {
 	bin, err := header.MarshalBinary()
 	if err != nil {

@@ -21,7 +21,7 @@ var (
 	errStoppedStore = errors.New("stopped store")
 )
 
-// Store implements the Store interface for ExtendedHeaders over Datastore.
+// Store implements the Store interface for Headers over Datastore.
 type Store[H header.Header] struct {
 	// header storing
 	//

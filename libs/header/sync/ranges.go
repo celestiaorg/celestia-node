@@ -14,7 +14,7 @@ type ranges[H header.Header] struct {
 	ranges []*headerRange[H]
 }
 
-// Head returns the highest ExtendedHeader in all ranges if any.
+// Head returns the highest Header in all ranges if any.
 func (rs *ranges[H]) Head() H {
 	rs.lk.RLock()
 	defer rs.lk.RUnlock()
@@ -28,8 +28,8 @@ func (rs *ranges[H]) Head() H {
 	return head.Head()
 }
 
-// Add appends the new ExtendedHeader to existing range or starts a new one.
-// It starts a new one if the new ExtendedHeader is not adjacent to any of existing ranges.
+// Add appends the new Header to existing range or starts a new one.
+// It starts a new one if the new Header is not adjacent to any of existing ranges.
 func (rs *ranges[H]) Add(h H) {
 	head := rs.Head()
 

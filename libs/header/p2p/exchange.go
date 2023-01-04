@@ -19,7 +19,7 @@ import (
 
 var log = logging.Logger("header/p2p")
 
-// PubSubTopic hardcodes the name of the ExtendedHeader
+// PubSubTopic hardcodes the name of the Header
 // gossipsub topic.
 const PubSubTopic = "header-sub"
 
@@ -138,8 +138,8 @@ LOOP:
 	return bestHead[H](result, ex.Params.MinResponses)
 }
 
-// GetByHeight performs a request for the ExtendedHeader at the given
-// height to the network. Note that the ExtendedHeader must be verified
+// GetByHeight performs a request for the Header at the given
+// height to the network. Note that the Header must be verified
 // thereafter.
 func (ex *Exchange[H]) GetByHeight(ctx context.Context, height uint64) (H, error) {
 	log.Debugw("requesting header", "height", height)
@@ -159,8 +159,8 @@ func (ex *Exchange[H]) GetByHeight(ctx context.Context, height uint64) (H, error
 	return headers[0], nil
 }
 
-// GetRangeByHeight performs a request for the given range of ExtendedHeaders
-// to the network. Note that the ExtendedHeaders must be verified thereafter.
+// GetRangeByHeight performs a request for the given range of Headers
+// to the network. Note that the Headers must be verified thereafter.
 func (ex *Exchange[H]) GetRangeByHeight(ctx context.Context, from, amount uint64) ([]H, error) {
 	if amount > ex.Params.MaxRequestSize {
 		return nil, header.ErrHeadersLimitExceeded
@@ -170,7 +170,7 @@ func (ex *Exchange[H]) GetRangeByHeight(ctx context.Context, from, amount uint64
 	return session.getRangeByHeight(ctx, from, amount, ex.Params.MaxHeadersPerRequest)
 }
 
-// GetVerifiedRange performs a request for the given range of ExtendedHeaders to the network and
+// GetVerifiedRange performs a request for the given range of Headers to the network and
 // ensures that returned headers are correct against the passed one.
 func (ex *Exchange[H]) GetVerifiedRange(
 	ctx context.Context,
@@ -185,8 +185,8 @@ func (ex *Exchange[H]) GetVerifiedRange(
 	return session.getRangeByHeight(ctx, uint64(from.Height())+1, amount, ex.Params.MaxHeadersPerRequest)
 }
 
-// Get performs a request for the ExtendedHeader by the given hash corresponding
-// to the RawHeader. Note that the ExtendedHeader must be verified thereafter.
+// Get performs a request for the Header by the given hash corresponding
+// to the RawHeader. Note that the Header must be verified thereafter.
 func (ex *Exchange[H]) Get(ctx context.Context, hash header.Hash) (H, error) {
 	log.Debugw("requesting header", "hash", hash.String())
 	// create request
@@ -253,17 +253,17 @@ func (ex *Exchange[H]) request(
 	return headers, nil
 }
 
-// bestHead chooses ExtendedHeader that matches the conditions:
+// bestHead chooses Header that matches the conditions:
 // * should have max height among received;
 // * should be received at least from 2 peers;
-// If neither condition is met, then latest ExtendedHeader will be returned (header of the highest
+// If neither condition is met, then latest Header will be returned (header of the highest
 // height).
 func bestHead[H header.Header](result []H, minResponses int) (H, error) {
 	if len(result) == 0 {
 		return *new(H), header.ErrNotFound //nolint:gocritic
 	}
 	counter := make(map[string]int)
-	// go through all of ExtendedHeaders and count the number of headers with a specific hash
+	// go through all of Headers and count the number of headers with a specific hash
 	for _, res := range result {
 		counter[res.Hash().String()]++
 	}
@@ -272,7 +272,7 @@ func bestHead[H header.Header](result []H, minResponses int) (H, error) {
 		return result[i].Height() > result[j].Height()
 	})
 
-	// try to find ExtendedHeader with the maximum height that was received at least from 2 peers
+	// try to find Header with the maximum height that was received at least from 2 peers
 	for _, res := range result {
 		if counter[res.Hash().String()] >= minResponses {
 			return res, nil
