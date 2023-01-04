@@ -56,12 +56,9 @@ func ParseDirectoryFlags(cmd *cobra.Command) error {
 	case "bridge", "full", "light":
 		keyPath := fmt.Sprintf("~/.celestia-%s-%s/keys", nodeType, strings.ToLower(network))
 		fmt.Println("using directory: ", keyPath)
-		if err := cmd.Flags().Set(sdkflags.FlagKeyringDir, keyPath); err != nil {
-			return err
-		}
+		return cmd.Flags().Set(sdkflags.FlagKeyringDir, keyPath)
 	default:
 		return fmt.Errorf("node type %s is not valid. Provided node types: (bridge || full || light)",
 			nodeType)
 	}
-	return nil
 }

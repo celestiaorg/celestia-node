@@ -6,6 +6,8 @@ import (
 	logging "github.com/ipfs/go-log/v2"
 	"go.uber.org/fx"
 
+	"github.com/celestiaorg/celestia-app/x/blob/types"
+
 	"github.com/celestiaorg/celestia-node/fraud"
 	fraudServ "github.com/celestiaorg/celestia-node/nodebuilder/fraud"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
@@ -16,14 +18,14 @@ var log = logging.Logger("module/state")
 
 // ConstructModule provides all components necessary to construct the
 // state service.
-func ConstructModule(tp node.Type, cfg *Config) fx.Option {
+func ConstructModule(tp node.Type, cfg *Config, signer *types.KeyringSigner) fx.Option {
 	// sanitize config values before constructing module
 	cfgErr := cfg.Validate()
 
 	baseComponents := fx.Options(
 		fx.Supply(*cfg),
+		fx.Supply(signer),
 		fx.Error(cfgErr),
-		fx.Provide(keyring),
 		fx.Provide(fx.Annotate(
 			coreAccessor,
 			fx.OnStart(func(startCtx, ctx context.Context, fservice fraud.Service, ca *state.CoreAccessor) error {

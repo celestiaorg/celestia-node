@@ -1,8 +1,15 @@
 package nodebuilder
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
+
+	"github.com/cosmos/cosmos-sdk/crypto/hd"
+	"github.com/cosmos/cosmos-sdk/crypto/keyring"
+
+	"github.com/celestiaorg/celestia-app/app"
+	"github.com/celestiaorg/celestia-app/app/encoding"
 
 	"github.com/celestiaorg/celestia-node/libs/fslock"
 	"github.com/celestiaorg/celestia-node/libs/utils"
@@ -32,7 +39,8 @@ func Init(cfg Config, path string, tp node.Type) error {
 	}
 	defer flock.Unlock() //nolint: errcheck
 
-	err = initDir(keysPath(path))
+	ksPath := keysPath(path)
+	err = initDir(ksPath)
 	if err != nil {
 		return err
 	}
@@ -47,7 +55,14 @@ func Init(cfg Config, path string, tp node.Type) error {
 	if err != nil {
 		return err
 	}
-	log.Infow("Saving config", "path", cfgPath)
+	log.Infow("Saved config", "path", cfgPath)
+
+	log.Infow("Accessing keyring...")
+	err = generateKeys(cfg, ksPath)
+	if err != nil {
+		log.Errorw("generating account keys", "err", err)
+		return err
+	}
 	log.Info("Node Store initialized")
 	return nil
 }
@@ -104,4 +119,42 @@ func initDir(path string) error {
 		return nil
 	}
 	return os.Mkdir(path, perms)
+}
+
+// generateKeys will construct a keyring from the given keystore path and check
+// if account keys already exist. If not, it will generate a new account key and
+// store it.
+func generateKeys(cfg Config, ksPath string) error {
+	encConf := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+
+	if cfg.State.KeyringBackend == keyring.BackendTest {
+		log.Warn("Detected plaintext keyring backend. For elevated security properties, consider using" +
+			"the `file` keyring backend.")
+	}
+	ring, err := keyring.New(app.Name, cfg.State.KeyringBackend, ksPath, os.Stdin, encConf.Codec)
+	if err != nil {
+		return err
+	}
+	keys, err := ring.List()
+	if err != nil {
+		return err
+	}
+	if len(keys) > 0 {
+		// at least one key is already present
+		return nil
+	}
+	log.Infow("NO KEY FOUND IN STORE, GENERATING NEW KEY...", "path", ksPath)
+	keyInfo, mn, err := ring.NewMnemonic("my_celes_key", keyring.English, "",
+		"", hd.Secp256k1)
+	if err != nil {
+		return err
+	}
+	log.Info("NEW KEY GENERATED...")
+	addr, err := keyInfo.GetAddress()
+	if err != nil {
+		return err
+	}
+	fmt.Printf("\nNAME: %s\nADDRESS: %s\nMNEMONIC (save this somewhere safe!!!): \n%s\n\n",
+		keyInfo.Name, addr.String(), mn)
+	return nil
 }

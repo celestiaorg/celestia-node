@@ -32,6 +32,12 @@ var rootCmd = keys.Commands("~")
 
 func init() {
 	rootCmd.PersistentFlags().AddFlagSet(DirectoryFlags())
+	err := rootCmd.Flag(flags.FlagKeyringBackend).Value.Set(keyring.BackendTest)
+	if err != nil {
+		panic(err)
+	}
+	rootCmd.Flag(flags.FlagKeyringBackend).Usage = "Select keyring's backend (os|file|kwallet|pass|test|memory). " +
+		"Default is test."
 	rootCmd.PersistentPreRunE = func(cmd *cobra.Command, _ []string) error {
 		initClientCtx, err := client.ReadPersistentCommandFlags(initClientCtx, cmd.Flags())
 		if err != nil {
