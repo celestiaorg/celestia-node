@@ -113,8 +113,8 @@ type session struct {
 	atomic.Pointer[blockservice.Session]
 }
 
-// WithSession stores an empty session in the context, indicating that a blockservice session should be
-// created.
+// WithSession stores an empty session in the context, indicating that a blockservice session should
+// be created.
 func WithSession(ctx context.Context) context.Context {
 	return context.WithValue(ctx, sessionKey{}, &session{})
 }
