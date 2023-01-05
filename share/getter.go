@@ -24,21 +24,14 @@ type Getter interface {
 
 	// GetSharesByNamespace gets all shares from an EDS within the given namespace.
 	// Shares are returned in a row-by-row order if the namespace spans multiple rows.
-	GetSharesByNamespace(context.Context, *Root, namespace.ID) (NamespaceShares, error)
+	GetSharesByNamespace(context.Context, *Root, namespace.ID) (NamespacedShares, error)
 }
 
-// NamespaceShares represents all the shares with proofs of a specific namespace of an EDS.
-type NamespaceShares []RowNamespaceShares
+// NamespacedShares represents all the shares with proofs of a specific namespace of an EDS.
+type NamespacedShares []NamespacedRow
 
-// RowNamespaceShares represents all the shares with proofs of a specific namespace within a Row of
-// an EDS.
-type RowNamespaceShares struct {
-	Shares []Share
-	Proof  *ipld.Proof
-}
-
-// Flatten returns the concatenated slice of all RowNamespaceShares shares.
-func (ns NamespaceShares) Flatten() []Share {
+// Flatten returns the concatenated slice of all NamespacedRow shares.
+func (ns NamespacedShares) Flatten() []Share {
 	shares := make([]Share, 0)
 	for _, row := range ns {
 		shares = append(shares, row.Shares...)
@@ -46,8 +39,15 @@ func (ns NamespaceShares) Flatten() []Share {
 	return shares
 }
 
-// Verify validates NamespaceShares by checking every row with nmt inclusion proof.
-func (ns NamespaceShares) Verify(root *Root, nID namespace.ID) error {
+// NamespacedRow represents all the shares with proofs of a specific namespace within a Row of
+// an EDS.
+type NamespacedRow struct {
+	Shares []Share
+	Proof  *ipld.Proof
+}
+
+// Verify validates NamespacedShares by checking every row with nmt inclusion proof.
+func (ns NamespacedShares) Verify(root *Root, nID namespace.ID) error {
 	originalRoots := make([][]byte, 0)
 	for _, row := range root.RowsRoots {
 		if !nID.Less(nmt.MinNamespace(row, nID.Size())) && nID.LessOrEqual(nmt.MaxNamespace(row, nID.Size())) {
@@ -70,7 +70,7 @@ func (ns NamespaceShares) Verify(root *Root, nID namespace.ID) error {
 }
 
 // verify validates the row using nmt inclusion proof.
-func (row *RowNamespaceShares) verify(rowRoot []byte, nID namespace.ID) bool {
+func (row *NamespacedRow) verify(rowRoot []byte, nID namespace.ID) bool {
 	// construct nmt leaves from shares by prepending namespace
 	leaves := make([][]byte, 0, len(row.Shares))
 	for _, sh := range row.Shares {

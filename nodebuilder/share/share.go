@@ -40,7 +40,7 @@ type Module interface {
 	GetEDS(ctx context.Context, root *share.Root) (*rsmt2d.ExtendedDataSquare, error)
 	// GetSharesByNamespace gets all shares from an EDS within the given namespace.
 	// Shares are returned in a row-by-row order if the namespace spans multiple rows.
-	GetSharesByNamespace(ctx context.Context, root *share.Root, namespace namespace.ID) (share.NamespaceShares, error)
+	GetSharesByNamespace(ctx context.Context, root *share.Root, namespace namespace.ID) (share.NamespacedShares, error)
 }
 
 // API is a wrapper around Module for the RPC.
@@ -62,7 +62,7 @@ type API struct {
 			ctx context.Context,
 			root *share.Root,
 			namespace namespace.ID,
-		) (share.NamespaceShares, error) `perm:"public"`
+		) (share.NamespacedShares, error) `perm:"public"`
 	}
 }
 
@@ -86,7 +86,7 @@ func (api *API) GetSharesByNamespace(
 	ctx context.Context,
 	root *share.Root,
 	namespace namespace.ID,
-) (share.NamespaceShares, error) {
+) (share.NamespacedShares, error) {
 	return api.Internal.GetSharesByNamespace(ctx, root, namespace)
 }
 

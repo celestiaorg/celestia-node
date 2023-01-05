@@ -61,7 +61,7 @@ func (ig *IPLDGetter) GetSharesByNamespace(
 	ctx context.Context,
 	root *share.Root,
 	nID namespace.ID,
-) (share.NamespaceShares, error) {
+) (share.NamespacedShares, error) {
 	if len(nID) != share.NamespaceSize {
 		return nil, fmt.Errorf("getter/ipld: expected namespace ID of size %d, got %d",
 			share.NamespaceSize, len(nID))
@@ -79,14 +79,14 @@ func (ig *IPLDGetter) GetSharesByNamespace(
 
 	blockGetter := getGetter(ctx, ig.bServ)
 	errGroup, ctx := errgroup.WithContext(ctx)
-	shares := make([]share.RowNamespaceShares, len(rowRootCIDs))
+	shares := make([]share.NamespacedRow, len(rowRootCIDs))
 	for i, rootCID := range rowRootCIDs {
 		// shadow loop variables, to ensure correct values are captured
 		i, rootCID := i, rootCID
 		errGroup.Go(func() error {
 			proof := new(ipld.Proof)
 			row, err := share.GetSharesByNamespace(ctx, blockGetter, rootCID, nID, len(root.RowsRoots), proof)
-			shares[i] = share.RowNamespaceShares{
+			shares[i] = share.NamespacedRow{
 				Shares: row,
 				Proof:  proof,
 			}
