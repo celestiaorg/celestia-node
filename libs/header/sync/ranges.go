@@ -79,6 +79,24 @@ func (rs *ranges[H]) FirstRangeWithin(start, end uint64) (*headerRange[H], bool)
 	return nil, false
 }
 
+// FindAllRangesWithin returns all headerRanges that apply the requested range.
+// There could be multiple headerRanges:
+// start = 2 , end 40
+// headerRange0 = [3;20];
+// headerRange1 = [30; 35];
+func (rs *ranges[H]) FindAllRangesWithin(start, end uint64) []*headerRange[H] {
+	ranges := make([]*headerRange[H], 0)
+	for _, r := range rs.ranges {
+		if r.Empty() {
+			continue
+		}
+		if r.start >= start && r.start <= end {
+			ranges = append(ranges, r)
+		}
+	}
+	return ranges
+}
+
 // First provides a first non-empty range, while cleaning up empty ones.
 func (rs *ranges[H]) First() (*headerRange[H], bool) {
 	rs.lk.Lock()
