@@ -11,7 +11,7 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cristalhq/jwt"
 	"github.com/golang/mock/gomock"
-	"github.com/libp2p/go-libp2p-core/network"
+	"github.com/libp2p/go-libp2p/core/network"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/fx"
 

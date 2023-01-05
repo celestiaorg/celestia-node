@@ -5,7 +5,7 @@ import (
 	"errors"
 	"sync"
 
-	"github.com/libp2p/go-libp2p-core/peer"
+	"github.com/libp2p/go-libp2p/core/peer"
 )
 
 // limitedSet is a thread safe set of peers with given limit.
