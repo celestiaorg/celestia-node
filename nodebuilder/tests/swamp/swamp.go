@@ -267,12 +267,7 @@ func (s *Swamp) newNode(t node.Type, store nodebuilder.Store, options ...fx.Opti
 	options = append(options,
 		p2p.WithHost(s.createPeer(ks)),
 		fx.Replace(node.StorePath(tempDir)),
-		// fx.Invoke(func(store header.Store) {
-		// 	store.Init()
-		// })
 	)
-
-
 	node, err := nodebuilder.New(t, p2p.Private, store, options...)
 	require.NoError(s.t, err)
 

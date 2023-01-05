@@ -8,9 +8,9 @@ import (
 
 	"github.com/ipfs/go-datastore"
 	"github.com/libp2p/go-libp2p"
-	"github.com/libp2p/go-libp2p/core/metrics"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	libhost "github.com/libp2p/go-libp2p/core/host"
+	"github.com/libp2p/go-libp2p/core/metrics"
 	"github.com/libp2p/go-libp2p/core/network"
 	libpeer "github.com/libp2p/go-libp2p/core/peer"
 	"github.com/libp2p/go-libp2p/core/protocol"
