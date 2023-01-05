@@ -9,9 +9,9 @@ type Options func(*Parameters)
 
 // Parameters is the set of parameters that must be configured for the syncer.
 type Parameters struct {
-	// BlockTime provides a reference point for the Syncer to determine
+	// blockTime provides a reference point for the Syncer to determine
 	// whether its subjective head is outdated
-	BlockTime time.Duration
+	blockTime time.Duration
 	// TrustingPeriod is period through which we can trust a header's validators set.
 	//
 	// Should be significantly less than the unbonding period (e.g. unbonding
@@ -28,18 +28,18 @@ type Parameters struct {
 // DefaultParameters returns the default params to configure the syncer.
 func DefaultParameters() Parameters {
 	return Parameters{
-		BlockTime:      time.Second * 30,
+		blockTime:      time.Second * 30,
 		TrustingPeriod: 168 * time.Hour,
 		MaxRequestSize: 512,
 	}
 }
 
 func (p *Parameters) Validate() error {
-	if p.BlockTime == 0 {
-		return fmt.Errorf("invalid block time duration: %v", p.BlockTime)
+	if p.blockTime == 0 {
+		return fmt.Errorf("invalid block time duration: %v", p.blockTime)
 	}
 	if p.TrustingPeriod == 0 {
-		return fmt.Errorf("invalid trusted time duration: %v", p.TrustingPeriod)
+		return fmt.Errorf("invalid trusting period duration: %v", p.TrustingPeriod)
 	}
 	if p.MaxRequestSize == 0 {
 		return fmt.Errorf("invalid max request size: %d", p.MaxRequestSize)
@@ -48,10 +48,10 @@ func (p *Parameters) Validate() error {
 }
 
 // WithBlockTime is a functional option that configures the
-// `BlockTime` parameter.
+// `blockTime` parameter.
 func WithBlockTime(duration time.Duration) Options {
 	return func(p *Parameters) {
-		p.BlockTime = duration
+		p.blockTime = duration
 	}
 }
 

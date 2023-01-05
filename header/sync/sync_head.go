@@ -51,7 +51,7 @@ func (s *Syncer) subjectiveHead(ctx context.Context) (*header.ExtendedHeader, er
 		return netHead, nil
 	case netHead.IsExpired(s.Params.TrustingPeriod):
 		log.Warnw("subjective initialization with an expired header", "height", netHead.Height)
-	case !netHead.IsRecent(s.Params.BlockTime):
+	case !netHead.IsRecent(s.Params.blockTime):
 		log.Warnw("subjective initialization with an old header", "height", netHead.Height)
 	}
 	log.Warn("trusted peer is out of sync")
@@ -68,7 +68,7 @@ func (s *Syncer) networkHead(ctx context.Context) (*header.ExtendedHeader, error
 		return nil, err
 	}
 	// if subjective header is recent enough (relative to the network's block time) - just use it
-	if sbjHead.IsRecent(s.Params.BlockTime) {
+	if sbjHead.IsRecent(s.Params.blockTime) {
 		return sbjHead, nil
 	}
 	// otherwise, request head from a trusted peer, as we assume it is fully synced
