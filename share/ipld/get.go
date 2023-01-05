@@ -292,8 +292,7 @@ func GetLeavesByNamespace(
 					id: lnk.Cid,
 					// sharePos represents potential share position in share slice
 					sharePos: j.sharePos*2 + i,
-					// position represents the index in a flattened binary tree,
-					// so we can return a slice of leaves in order
+					// depth represents the number of edges present in path from the root node of a tree to that node
 					depth: j.depth + 1,
 					// we pass the context to job so that spans are tracked in a tree
 					// structure
@@ -306,7 +305,7 @@ func GetLeavesByNamespace(
 				// proof is on the right side, if the nID is less than min namespace of jobNid
 				if nID.Less(nmt.MinNamespace(jobNid, nID.Size())) {
 					if collectProofs {
-						proofs.addRight(lnk.Cid)
+						proofs.addRight(lnk.Cid, newJob.depth)
 					}
 					continue
 				}
@@ -314,7 +313,7 @@ func GetLeavesByNamespace(
 				// proof is on the left side, if the nID is bigger than max namespace of jobNid
 				if !nID.LessOrEqual(nmt.MaxNamespace(jobNid, nID.Size())) {
 					if collectProofs {
-						proofs.addLeft(lnk.Cid)
+						proofs.addLeft(lnk.Cid, newJob.depth)
 					}
 					continue
 				}
