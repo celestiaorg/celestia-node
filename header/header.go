@@ -57,10 +57,11 @@ func MakeExtendedHeader(
 	if len(b.Txs) > 0 {
 		// extend and store block data
 		var eds *rsmt2d.ExtendedDataSquare
-		dah, eds, err = extendData(b.Data)
+		eds, err = extendData(b.Data)
 		if err != nil {
 			return nil, err
 		}
+		dah = da.NewDataAvailabilityHeader(eds)
 		err = store(ctx, dah.Hash(), eds)
 		if err != nil {
 			return nil, err
@@ -80,26 +81,15 @@ func MakeExtendedHeader(
 	return eh, eh.ValidateBasic()
 }
 
-// extendAndStoreData extends the given block data and stores it in the
-// given eds.Store, returning the resulting DataAvailabilityHeader.
-func extendData(data core.Data) (da.DataAvailabilityHeader, *rsmt2d.ExtendedDataSquare, error) {
+// extendData extends the given block data, returning the resulting
+// DataAvailabilityHeader.
+func extendData(data core.Data) (*rsmt2d.ExtendedDataSquare, error) {
 	shares, err := appshares.Split(data, true)
 	if err != nil {
-		return da.DataAvailabilityHeader{}, nil, err
+		return nil, err
 	}
 	size := utils.SquareSize(len(shares))
-	// flatten shares // TODO @renaynay: I wish appshares.Split returned shares as [][]byte instead of the alias.
-	flattened := make([][]byte, len(shares))
-	for i, share := range shares {
-		copy(flattened[i], share)
-	}
-	eds, err := da.ExtendShares(size, flattened)
-	if err != nil {
-		return da.DataAvailabilityHeader{}, nil, err
-	}
-	// generate dah
-	dah := da.NewDataAvailabilityHeader(eds)
-	return dah, eds, nil
+	return da.ExtendShares(size, appshares.ToBytes(shares))
 }
 
 // Hash returns Hash of the wrapped RawHeader.

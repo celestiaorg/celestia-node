@@ -5,12 +5,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/celestiaorg/rsmt2d"
-
-	availability_test "github.com/celestiaorg/celestia-node/share/availability/test"
-
-	"github.com/tendermint/tendermint/types"
-
 	"github.com/ipfs/go-blockservice"
 	"github.com/ipfs/go-datastore"
 	ds_sync "github.com/ipfs/go-datastore/sync"
@@ -20,12 +14,16 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	tmbytes "github.com/tendermint/tendermint/libs/bytes"
+	"github.com/tendermint/tendermint/types"
+
+	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/fraud"
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/availability/full"
 	"github.com/celestiaorg/celestia-node/share/availability/light"
+	availability_test "github.com/celestiaorg/celestia-node/share/availability/test"
 )
 
 var timeout = time.Second * 15

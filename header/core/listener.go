@@ -22,8 +22,8 @@ type Listener struct {
 	bcast   header.Broadcaster
 	fetcher *core.BlockFetcher
 
-	construct header.ConstructFn
-	storeFn   header.StoreFn
+	construct header.ConstructFn // construct is a callback function to construct an ExtendedHeader
+	store     header.StoreFn     // store is a callback function to store an extended square
 
 	cancel context.CancelFunc
 }
@@ -38,7 +38,7 @@ func NewListener(
 		bcast:     bcast,
 		fetcher:   fetcher,
 		construct: construct,
-		storeFn:   storeFn,
+		store:     storeFn,
 	}
 }
 
@@ -90,7 +90,7 @@ func (cl *Listener) listen(ctx context.Context, sub <-chan *types.Block) {
 				return
 			}
 
-			eh, err := cl.construct(ctx, b, comm, vals, cl.storeFn)
+			eh, err := cl.construct(ctx, b, comm, vals, cl.store)
 			if err != nil {
 				log.Errorw("listener: making extended header", "err", err)
 				return
