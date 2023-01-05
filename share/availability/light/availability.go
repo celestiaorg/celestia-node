@@ -5,7 +5,7 @@ import (
 	"errors"
 	"math"
 
-	"github.com/libp2p/go-libp2p-core/peer"
+	"github.com/libp2p/go-libp2p/core/peer"
 
 	"github.com/celestiaorg/celestia-node/share/ipld"
 

@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/libp2p/go-libp2p-core/host"
-	"github.com/libp2p/go-libp2p-core/peer"
+	"github.com/libp2p/go-libp2p/core/host"
+	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/stretchr/testify/require"
 
 	"github.com/celestiaorg/celestia-node/fraud"
@@ -97,14 +97,7 @@ Steps:
 func TestFraudProofSyncing(t *testing.T) {
 	sw := swamp.NewSwamp(t, swamp.WithBlockTime(time.Millisecond*300))
 
-	const defaultTimeInterval = time.Second * 5
-
 	cfg := nodebuilder.DefaultConfig(node.Bridge)
-	cfg.P2P.Bootstrapper = true
-	cfg.P2P.RoutingTableRefreshPeriod = defaultTimeInterval
-	cfg.Share.DiscoveryInterval = defaultTimeInterval
-	cfg.Share.AdvertiseInterval = defaultTimeInterval
-
 	store := nodebuilder.MockStore(t, cfg)
 	bridge := sw.NewNodeWithStore(node.Bridge, store, core.WithHeaderConstructFn(header.FraudMaker(t, 10)))
 
@@ -122,14 +115,21 @@ func TestFraudProofSyncing(t *testing.T) {
 	full := sw.NewNodeWithStore(node.Full, nodebuilder.MockStore(t, fullCfg))
 
 	lightCfg := nodebuilder.DefaultConfig(node.Light)
-	lightCfg.P2P.RoutingTableRefreshPeriod = defaultTimeInterval
-	lightCfg.Share.DiscoveryInterval = defaultTimeInterval
 	lightCfg.Header.TrustedPeers = append(lightCfg.Header.TrustedPeers, addrs[0].String())
 	ln := sw.NewNodeWithStore(node.Light, nodebuilder.MockStore(t, lightCfg))
-
 	require.NoError(t, full.Start(ctx))
-	require.NoError(t, ln.Start(ctx))
+
 	subsFN, err := full.FraudServ.Subscribe(ctx, fraud.BadEncoding)
+	require.NoError(t, err)
+
+	select {
+	case <-subsFN:
+	case <-ctx.Done():
+		t.Fatal("full node didn't get FP in time")
+	}
+
+	// start LN to enforce syncing logic, not the PubSub's broadcasting
+	err = ln.Start(ctx)
 	require.NoError(t, err)
 
 	// internal subscription for the fraud proof is done in order to ensure that light node
@@ -137,17 +137,14 @@ func TestFraudProofSyncing(t *testing.T) {
 	subsLN, err := ln.FraudServ.Subscribe(ctx, fraud.BadEncoding)
 	require.NoError(t, err)
 
-	// ensure that the full and light node are connected to preempt flakiness
+	// ensure that the full and light node are connected to speed up test
+	// alternatively, they would discover each other
 	err = ln.Host.Connect(ctx, *host.InfoFromHost(full.Host))
 	require.NoError(t, err)
 
-	// wait for BEFP to come through both subscriptions
-	for i := 0; i < 2; i++ {
-		select {
-		case <-subsFN:
-		case <-subsLN:
-		case <-ctx.Done():
-			t.Fatal(ctx.Err())
-		}
+	select {
+	case <-subsLN:
+	case <-ctx.Done():
+		t.Fatal("light node didn't get FP in time")
 	}
 }

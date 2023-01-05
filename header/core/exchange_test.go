@@ -35,7 +35,7 @@ func Test_hashMatch(t *testing.T) {
 }
 
 func createCoreFetcher(t *testing.T) *core.BlockFetcher {
-	_, client := core.StartTestCoreWithApp(t)
+	client := core.StartTestNode(t).Client
 	return core.NewBlockFetcher(client)
 }
 
