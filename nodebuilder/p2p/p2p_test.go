@@ -238,7 +238,7 @@ func TestP2PModule_ConnGater(t *testing.T) {
 }
 
 // TestP2PModule_ResourceManager tests P2P Module methods on
-// the ResourceManager.
+// the resourceManager.
 func TestP2PModule_ResourceManager(t *testing.T) {
 	rm, err := rcmgr.NewResourceManager(rcmgr.NewFixedLimiter(rcmgr.DefaultLimits.AutoScale()))
 	require.NoError(t, err)

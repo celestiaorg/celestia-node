@@ -14,6 +14,7 @@ import (
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/libp2p/go-libp2p/core/peerstore"
 	"github.com/libp2p/go-libp2p/core/routing"
+	rcmgr "github.com/libp2p/go-libp2p/p2p/host/resource-manager"
 	routedhost "github.com/libp2p/go-libp2p/p2p/host/routed"
 	"github.com/libp2p/go-libp2p/p2p/net/conngater"
 	"go.uber.org/fx"
@@ -62,6 +63,15 @@ func Host(params hostParams) (HostBase, error) {
 	}})
 
 	return h, nil
+}
+
+func resourceManager(cfg Config) (network.ResourceManager, error) {
+	if cfg.Bootstrapper {
+		return rcmgr.NewResourceManager(rcmgr.NewFixedLimiter(rcmgr.InfiniteLimits))
+	}
+	limits := rcmgr.DefaultLimits
+	libp2p.SetDefaultServiceLimits(&limits)
+	return rcmgr.NewResourceManager(rcmgr.NewFixedLimiter(limits.AutoScale()))
 }
 
 type HostBase host.Host
