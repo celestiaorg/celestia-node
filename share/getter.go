@@ -14,7 +14,7 @@ import (
 )
 
 // Getter interface provides a set of accessors for shares by the Root.
-// Automatically verifies integrity of shares(exceptions possible depending on the implementation)
+// Automatically verifies integrity of shares(exceptions possible depending on the implementation).
 type Getter interface {
 	// GetShare gets a Share by coordinates in EDS.
 	GetShare(ctx context.Context, root *Root, row, col int) (Share, error)
@@ -56,20 +56,20 @@ func (ns NamespaceShares) Verify(root *Root, nID namespace.ID) error {
 	}
 
 	if len(originalRoots) != len(ns) {
-		return fmt.Errorf("amount of rows differs between root and namespace shares: %v vs %v",
+		return fmt.Errorf("amount of rows differs between root and namespace shares: expected %d, got %d",
 			len(originalRoots), len(ns))
 	}
 
 	for i, row := range ns {
 		// verify row data against row hash from original root
 		if !row.verify(originalRoots[i], nID) {
-			return fmt.Errorf("row verification failed: %vth row doesn't match original root: %s", i, root.Hash())
+			return fmt.Errorf("row verification failed: row %d doesn't match original root: %s", i, root.Hash())
 		}
 	}
 	return nil
 }
 
-// verify validates the row using nmt inclusion proof
+// verify validates the row using nmt inclusion proof.
 func (row *RowNamespaceShares) verify(rowRoot []byte, nID namespace.ID) bool {
 	// construct nmt leaves from shares by prepending namespace
 	leaves := make([][]byte, 0, len(row.Shares))
