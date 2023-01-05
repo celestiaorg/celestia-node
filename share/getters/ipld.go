@@ -104,21 +104,23 @@ func (ig *IPLDGetter) GetSharesByNamespace(
 	return shares, nil
 }
 
-// ses is a struct that can optionally be passed by context to the share.Getter methods using
+type sessionKey struct{}
+
+// session is a struct that can optionally be passed by context to the share.Getter methods using
 // WithSession to indicate that a blockservice session should be created.
-type ses struct {
+type session struct {
 	sync.Mutex
 	atomic.Pointer[blockservice.Session]
 }
 
-// WithSession stores an empty ses in the context, indicating that a blockservice session should be
+// WithSession stores an empty session in the context, indicating that a blockservice session should be
 // created.
 func WithSession(ctx context.Context) context.Context {
-	return context.WithValue(ctx, ses{}, &ses{})
+	return context.WithValue(ctx, sessionKey{}, &session{})
 }
 
 func getGetter(ctx context.Context, service blockservice.BlockService) blockservice.BlockGetter {
-	s, ok := ctx.Value(ses{}).(*ses)
+	s, ok := ctx.Value(sessionKey{}).(*session)
 	if !ok {
 		return service
 	}
