@@ -20,6 +20,7 @@ import (
 	tmtime "github.com/tendermint/tendermint/types/time"
 
 	"github.com/celestiaorg/celestia-app/pkg/da"
+	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/core"
 	"github.com/celestiaorg/celestia-node/share"
@@ -279,3 +280,7 @@ func (mhs *DummySubscriber) NextHeader(ctx context.Context) (*ExtendedHeader, er
 
 func (mhs *DummySubscriber) Stop(context.Context) error { return nil }
 func (mhs *DummySubscriber) Cancel()                    {}
+
+var NoopTestStore = func(ctx context.Context, root []byte, square *rsmt2d.ExtendedDataSquare) error {
+	return nil
+}

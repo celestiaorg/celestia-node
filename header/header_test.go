@@ -8,8 +8,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/tendermint/tendermint/libs/rand"
 
-	"github.com/celestiaorg/rsmt2d"
-
 	"github.com/celestiaorg/celestia-node/core"
 )
 
@@ -31,8 +29,7 @@ func TestMakeExtendedHeaderForEmptyBlock(t *testing.T) {
 	comm, val, err := fetcher.GetBlockInfo(ctx, &height)
 	require.NoError(t, err)
 
-	noop := func(ctx context.Context, root []byte, square *rsmt2d.ExtendedDataSquare) error { return nil }
-	headerExt, err := MakeExtendedHeader(ctx, b, comm, val, noop)
+	headerExt, err := MakeExtendedHeader(ctx, b, comm, val, NoopTestStore)
 	require.NoError(t, err)
 
 	assert.Equal(t, EmptyDAH(), *headerExt.DAH)

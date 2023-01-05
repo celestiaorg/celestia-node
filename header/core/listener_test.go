@@ -101,5 +101,5 @@ func createListener(
 		require.NoError(t, err)
 	})
 
-	return NewListener(p2pSub, fetcher, header.MakeExtendedHeader, noopStore)
+	return NewListener(p2pSub, fetcher, header.MakeExtendedHeader, header.NoopTestStore)
 }
