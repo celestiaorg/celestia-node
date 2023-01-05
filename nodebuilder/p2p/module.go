@@ -2,7 +2,7 @@ package p2p
 
 import (
 	logging "github.com/ipfs/go-log/v2"
-	"github.com/libp2p/go-libp2p-core/metrics"
+	"github.com/libp2p/go-libp2p/core/metrics"
 	"go.uber.org/fx"
 
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"

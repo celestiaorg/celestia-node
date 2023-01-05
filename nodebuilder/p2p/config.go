@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/libp2p/go-libp2p-core/peer"
+	"github.com/libp2p/go-libp2p/core/peer"
 	ma "github.com/multiformats/go-multiaddr"
 )
 
@@ -39,16 +39,16 @@ type Config struct {
 func DefaultConfig() Config {
 	return Config{
 		ListenAddresses: []string{
-			"/ip4/0.0.0.0/udp/2121/quic",
-			"/ip6/::/udp/2121/quic",
+			"/ip4/0.0.0.0/udp/2121/quic-v1",
+			"/ip6/::/udp/2121/quic-v1",
 			"/ip4/0.0.0.0/tcp/2121",
 			"/ip6/::/tcp/2121",
 		},
 		AnnounceAddresses: []string{},
 		NoAnnounceAddresses: []string{
-			"/ip4/0.0.0.0/udp/2121/quic",
-			"/ip4/127.0.0.1/udp/2121/quic",
-			"/ip6/::/udp/2121/quic",
+			"/ip4/0.0.0.0/udp/2121/quic-v1",
+			"/ip4/127.0.0.1/udp/2121/quic-v1",
+			"/ip6/::/udp/2121/quic-v1",
 			"/ip4/0.0.0.0/tcp/2121",
 			"/ip4/127.0.0.1/tcp/2121",
 			"/ip6/::/tcp/2121",
