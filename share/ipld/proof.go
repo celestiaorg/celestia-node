@@ -20,32 +20,39 @@ type proofCollector struct {
 
 func newProofCollector(maxShares int) *proofCollector {
 	// maximum possible amount of required proofs from each side is equal to tree height.
-	height := int(math.Log2(float64(maxShares)))
+	height := int(math.Log2(float64(maxShares))) + 1
 	return &proofCollector{
-		left:  make([]cid.Cid, 0, height),
-		right: make([]cid.Cid, 0, height),
+		left:  make([]cid.Cid, height),
+		right: make([]cid.Cid, height),
 	}
 }
 
-func (c *proofCollector) addLeft(node cid.Cid) {
-	c.left = append(c.left, node)
+func (c *proofCollector) addLeft(cid cid.Cid, depth int) {
+	c.left[depth] = cid
 }
 
-func (c *proofCollector) addRight(node cid.Cid) {
-	c.right = append(c.right, node)
+func (c *proofCollector) addRight(cid cid.Cid, depth int) {
+	c.right[depth] = cid
 }
 
 // Nodes returns nodes collected by proofCollector in the order that nmt.Proof validator will use
 // to traverse the tree.
 func (c *proofCollector) Nodes() []cid.Cid {
-	nodes := make([]cid.Cid, 0, len(c.left)+len(c.left))
+	cids := make([]cid.Cid, 0, len(c.left)+len(c.right))
 	// left side will be traversed in bottom-up order
-	nodes = append(nodes, c.left...)
+	for _, cid := range c.left {
+		if cid.Defined() {
+			cids = append(cids, cid)
+		}
+	}
 
 	// right side of the tree will be traversed from top to bottom,
 	// so sort in reversed order
 	for i := len(c.right) - 1; i >= 0; i-- {
-		nodes = append(nodes, c.right[i])
+		cid := c.right[i]
+		if cid.Defined() {
+			cids = append(cids, cid)
+		}
 	}
-	return nodes
+	return cids
 }
