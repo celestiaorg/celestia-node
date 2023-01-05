@@ -18,12 +18,12 @@ func NewBlockGetter(store dagstore.ReadBlockstore) *BlockGetter {
 }
 
 // BlockGetter is an adapter for dagstore.ReadBlockstore to implement blockservice.BlockGetter
-// interface
+// interface.
 type BlockGetter struct {
 	store dagstore.ReadBlockstore
 }
 
-// GetBlock gets the requested block.
+// GetBlock gets the requested block by the given CID.
 func (bg *BlockGetter) GetBlock(ctx context.Context, cid cid.Cid) (blocks.Block, error) {
 	return bg.store.Get(ctx, cid)
 }
