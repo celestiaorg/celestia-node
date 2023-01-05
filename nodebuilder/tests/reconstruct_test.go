@@ -103,7 +103,6 @@ func TestFullReconstructFromLights(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), swamp.DefaultTestTimeout)
 
 	t.Cleanup(cancel)
-
 	sw := swamp.NewSwamp(t, swamp.WithBlockTime(btime))
 	fillDn := sw.FillBlocks(ctx, bsize, blocks)
 
@@ -115,13 +114,10 @@ func TestFullReconstructFromLights(t *testing.T) {
 	bridge := sw.NewBridgeNode()
 	addrsBridge, err := peer.AddrInfoToP2pAddrs(host.InfoFromHost(bridge.Host))
 	require.NoError(t, err)
-
 	bootstrapper := sw.NewNodeWithConfig(node.Full, cfg)
 	require.NoError(t, bootstrapper.Start(ctx))
 	require.NoError(t, bridge.Start(ctx))
 	bootstrapperAddr := host.InfoFromHost(bootstrapper.Host)
-	err = bootstrapper.Start(ctx)
-	require.NoError(t, err)
 
 	cfg = nodebuilder.DefaultConfig(node.Full)
 	setTimeInterval(cfg, defaultTimeInterval)
