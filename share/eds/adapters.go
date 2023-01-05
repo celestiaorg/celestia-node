@@ -47,6 +47,7 @@ func (bg *BlockGetter) GetBlocks(ctx context.Context, cids []cid.Cid) <-chan blo
 				defer wg.Done()
 				block, err := bg.store.Get(ctx, cid)
 				if err != nil {
+					log.Debugw("getblocks: error getting block by cid", "cid", cid, "error", err)
 					return
 				}
 
