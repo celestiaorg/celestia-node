@@ -9,9 +9,6 @@ type Options func(*Parameters)
 
 // Parameters is the set of parameters that must be configured for the syncer.
 type Parameters struct {
-	// blockTime provides a reference point for the Syncer to determine
-	// whether its subjective head is outdated
-	blockTime time.Duration
 	// TrustingPeriod is period through which we can trust a header's validators set.
 	//
 	// Should be significantly less than the unbonding period (e.g. unbonding
@@ -23,6 +20,11 @@ type Parameters struct {
 	TrustingPeriod time.Duration
 	// MaxRequestSizeNumber of headers that can be requested at once.
 	MaxRequestSize uint64
+	// blockTime provides a reference point for the Syncer to determine
+	// whether its subjective head is outdated.
+	// Keeping it private, we don't want users to independently configure it.
+	// default value is set to 0 so syncer will constantly request networking head.
+	blockTime time.Duration
 }
 
 // DefaultParameters returns the default params to configure the syncer.
