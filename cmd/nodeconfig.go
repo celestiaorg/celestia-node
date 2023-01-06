@@ -104,6 +104,9 @@ func parseStorePath(cmd *cobra.Command, nodeType node.Type) error {
 	}
 
 	ctx, err = ParseMiscFlags(ctx, cmd)
+	if err != nil {
+		return err
+	}
 
 	cmd.SetContext(ctx)
 

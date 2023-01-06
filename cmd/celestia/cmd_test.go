@@ -26,6 +26,7 @@ func TestLight(t *testing.T) {
 		rootCmd.SetOut(output)
 		rootCmd.SetArgs([]string{
 			"light",
+			"config",
 			"--node.store", ".celestia-light",
 			"init",
 		})
@@ -47,6 +48,53 @@ func TestLight(t *testing.T) {
 				rootCmd.SetArgs([]string{
 					"light",
 					"--node.store", ".celestia-light",
+					"start",
+					"--headers.trusted-peer",
+		            "/ip4/192.167.10.6/tcp/2121/p2p/12D3KooWL8z3KARAYJcmExhDsGwKbjChKeGaJpFPENyADdxmEHzw",
+		            "--headers.trusted-hash",
+		            "54A8B66D2BEF13850D67C8D474E196BD7485FE5A79989E31B17169371B0A9C96",
+				})
+				err := rootCmd.ExecuteContext(cmdnode.WithEnv(context.Background()))
+				require.NoError(t, err)
+			})
+	*/
+}
+
+func TestFull(t *testing.T) {
+	// Run the tests in a temporary directory
+	tmpDir := t.TempDir()
+	testDir, err := os.Getwd()
+	require.NoError(t, err, "error getting the current working directory")
+	err = os.Chdir(tmpDir)
+	require.NoError(t, err, "error changing to the temporary test directory")
+
+	t.Run("init", func(t *testing.T) {
+		output := &bytes.Buffer{}
+		rootCmd.SetOut(output)
+		rootCmd.SetArgs([]string{
+			"full",
+			"config",
+			"--node.store", ".celestia-full",
+			"init",
+		})
+		err := rootCmd.ExecuteContext(context.Background())
+		require.NoError(t, err)
+	})
+
+	t.Cleanup(func() {
+		if err := os.Chdir(testDir); err != nil {
+			t.Error("error resetting:", err)
+		}
+	})
+
+	// TODO @jbowen93: Commented out until a dry-run option can be implemented
+	/*
+			t.Run("start", func(t *testing.T) {
+				output := &bytes.Buffer{}
+				rootCmd.SetOut(output)
+				rootCmd.SetArgs([]string{
+					"full",
+					"--node.store", ".celestia-full",
 					"start",
 					"--headers.trusted-peer",
 		            "/ip4/192.167.10.6/tcp/2121/p2p/12D3KooWL8z3KARAYJcmExhDsGwKbjChKeGaJpFPENyADdxmEHzw",
