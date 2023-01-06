@@ -141,12 +141,12 @@ SyncHead(ctx context.Context) (*header.ExtendedHeader, error)
 ```go
   type P2PModule interface {
     // Info returns address information about the host.
-    Info(context.Context) peer.AddrInfo
+    Info(context.Context) (peer.AddrInfo, error)
     // Peers returns all peer IDs used across all inner stores.
-    Peers(context.Context) []peer.ID
+    Peers(context.Context) ([]peer.ID, error)
     // PeerInfo returns a small slice of information Peerstore has on the
     // given peer.
-    PeerInfo(context.Context, peer.ID) peer.AddrInfo
+    PeerInfo(context.Context, peer.ID) (peer.AddrInfo, error)
    
     // Connect ensures there is a connection between this host and the peer with
     // given peer.

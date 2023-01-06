@@ -6,8 +6,8 @@ import (
 	"time"
 
 	mdutils "github.com/ipfs/go-merkledag/test"
-	"github.com/libp2p/go-libp2p-core/event"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
+	"github.com/libp2p/go-libp2p/core/event"
 	mocknet "github.com/libp2p/go-libp2p/p2p/net/mock"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

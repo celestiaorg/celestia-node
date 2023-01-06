@@ -16,7 +16,7 @@ func TestMakeExtendedHeaderForEmptyBlock(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
 
-	_, client := core.StartTestCoreWithApp(t)
+	client := core.StartTestNode(t).Client
 	fetcher := core.NewBlockFetcher(client)
 
 	store := mdutils.Bserv()

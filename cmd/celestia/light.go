@@ -2,6 +2,7 @@ package main
 
 import (
 	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 
 	cmdnode "github.com/celestiaorg/celestia-node/cmd"
 	"github.com/celestiaorg/celestia-node/nodebuilder/core"
@@ -17,31 +18,23 @@ import (
 // PersistentPreRun func on parent command.
 
 func init() {
+	flags := []*pflag.FlagSet{
+		cmdnode.NodeFlags(),
+		p2p.Flags(),
+		header.Flags(),
+		cmdnode.MiscFlags(),
+		// NOTE: for now, state-related queries can only be accessed
+		// over an RPC connection with a celestia-core node.
+		core.Flags(),
+		rpc.Flags(),
+		gateway.Flags(),
+		state.Flags(),
+	}
+
 	lightCmd.AddCommand(
-		cmdnode.Init(
-			cmdnode.NodeFlags(),
-			p2p.Flags(),
-			header.Flags(),
-			cmdnode.MiscFlags(),
-			// NOTE: for now, state-related queries can only be accessed
-			// over an RPC connection with a celestia-core node.
-			core.Flags(),
-			rpc.Flags(),
-			gateway.Flags(),
-			state.Flags(),
-		),
-		cmdnode.Start(
-			cmdnode.NodeFlags(),
-			p2p.Flags(),
-			header.Flags(),
-			cmdnode.MiscFlags(),
-			// NOTE: for now, state-related queries can only be accessed
-			// over an RPC connection with a celestia-core node.
-			core.Flags(),
-			rpc.Flags(),
-			gateway.Flags(),
-			state.Flags(),
-		),
+		cmdnode.Init(flags...),
+		cmdnode.Start(flags...),
+		cmdnode.AuthCmd(flags...),
 	)
 }
 

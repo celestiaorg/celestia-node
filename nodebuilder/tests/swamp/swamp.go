@@ -8,14 +8,15 @@ import (
 	"testing"
 	"time"
 
-	"github.com/libp2p/go-libp2p-core/host"
-	"github.com/libp2p/go-libp2p-core/peer"
+	"github.com/libp2p/go-libp2p/core/host"
+	"github.com/libp2p/go-libp2p/core/peer"
 	mocknet "github.com/libp2p/go-libp2p/p2p/net/mock"
 	ma "github.com/multiformats/go-multiaddr"
 	"github.com/stretchr/testify/require"
 	"github.com/tendermint/tendermint/libs/bytes"
-	tmrand "github.com/tendermint/tendermint/libs/rand"
 	"go.uber.org/fx"
+
+	"github.com/celestiaorg/celestia-node/core"
 
 	"github.com/celestiaorg/celestia-app/testutil/testnode"
 
@@ -63,50 +64,24 @@ func NewSwamp(t *testing.T, options ...Option) *Swamp {
 		option(ic)
 	}
 
-	var err error
-	ctx := context.Background()
+	ctx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(cancel)
 
-	// we create an arbitrary number of funded accounts
-	accounts := make([]string, 10)
-	for i := range accounts {
-		accounts[i] = tmrand.Str(9)
-	}
-
-	// TODO(@Bidon15): CoreClient(limitation)
 	// Now, we are making an assumption that consensus mechanism is already tested out
 	// so, we are not creating bridge nodes with each one containing its own core client
 	// instead we are assigning all created BNs to 1 Core from the swamp
-	tmNode, app, cctx, err := testnode.New(
-		t,
-		ic.ConsensusParams,
-		ic.CoreCfg,
-		ic.SupressLogs,
-		accounts...,
-	)
-
-	require.NoError(t, err)
-
-	cctx, cleanupCoreNode, err := testnode.StartNode(tmNode, cctx)
-	require.NoError(t, err)
-
-	cctx, cleanupGRPCServer, err := testnode.StartGRPCServer(app, testnode.DefaultAppConfig(), cctx)
-	require.NoError(t, err)
-
+	cctx := core.StartTestNodeWithConfig(t, ic.TestConfig)
 	swp := &Swamp{
 		t:             t,
 		Network:       mocknet.New(),
 		ClientContext: cctx,
 		comps:         ic,
-		accounts:      accounts,
+		accounts:      ic.Accounts,
 	}
 	swp.trustedHash = swp.getTrustedHash(ctx)
 
 	swp.t.Cleanup(func() {
 		swp.stopAllNodes(ctx, swp.BridgeNodes, swp.FullNodes, swp.LightNodes)
-		err = cleanupCoreNode()
-		require.NoError(t, err)
-		err = cleanupGRPCServer()
-		require.NoError(t, err)
 	})
 
 	return swp
@@ -268,7 +243,6 @@ func (s *Swamp) newNode(t node.Type, store nodebuilder.Store, options ...fx.Opti
 		p2p.WithHost(s.createPeer(ks)),
 		fx.Replace(node.StorePath(tempDir)),
 	)
-
 	node, err := nodebuilder.New(t, p2p.Private, store, options...)
 	require.NoError(s.t, err)
 
