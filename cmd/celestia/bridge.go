@@ -27,15 +27,8 @@ func init() {
 		state.Flags(),
 	}
 
-	configCmd := cmdnode.ConfigCmd
-	configCmd.AddCommand(
-		cmdnode.Init(flags...),
-		cmdnode.Remove(cmdnode.NodeFlags(), p2p.Flags(), cmdnode.MiscFlags()),
-		cmdnode.Reinit(cmdnode.NodeFlags(), p2p.Flags(), cmdnode.MiscFlags()),
-	)
-
 	bridgeCmd.AddCommand(
-		configCmd,
+		cmdnode.NewConfigCmd(flags, node.Bridge),
 		cmdnode.Start(flags...),
 		cmdnode.AuthCmd(flags...),
 	)

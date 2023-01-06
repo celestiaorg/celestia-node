@@ -87,8 +87,7 @@ func RemoveConfig(path string) error {
 	}
 	defer f.Close()
 
-	err = os.Remove(path)
-	return err
+	return os.Remove(path)
 }
 
 // TODO(@Wondertan): We should have a description for each field written into w,

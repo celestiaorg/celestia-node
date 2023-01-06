@@ -2,26 +2,55 @@ package cmd
 
 import (
 	"github.com/spf13/cobra"
-	flag "github.com/spf13/pflag"
+	"github.com/spf13/pflag"
 
 	"github.com/celestiaorg/celestia-node/nodebuilder"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
 )
 
-var ConfigCmd = &cobra.Command{
-	Use:   "config [subcommand]",
-	Args:  cobra.NoArgs,
-	Short: "Manage config for your bridge node",
+func NewConfigCmd(flags []*pflag.FlagSet, nodeType node.Type) *cobra.Command {
+	configCmd := &cobra.Command{
+		Use:   "config [subcommand]",
+		Args:  cobra.NoArgs,
+		Short: "Manage config for node",
+	}
+
+	configCmd.AddCommand(
+		Init(flags...),
+		Remove(nodeType, NodeFlags(), p2p.Flags(), MiscFlags()),
+		Reinit(nodeType, NodeFlags(), p2p.Flags(), MiscFlags()),
+	)
+
+	return configCmd
 }
 
-func Remove(fsets ...*flag.FlagSet) *cobra.Command {
+// Init constructs a CLI command to initialize Celestia Node of any type with the given flags.
+func Init(fsets ...*pflag.FlagSet) *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "init",
+		Short: "Initialization for Celestia Node. Passed flags have persisted effect.",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			ctx := cmd.Context()
+
+			return nodebuilder.Init(NodeConfig(ctx), StorePath(ctx), NodeType(ctx))
+		},
+	}
+	for _, set := range fsets {
+		cmd.Flags().AddFlagSet(set)
+	}
+
+	return cmd
+}
+
+func Remove(nodeType node.Type, fsets ...*pflag.FlagSet) *cobra.Command {
 	RemoveConfigCmd := &cobra.Command{
 		Use:   "remove",
 		Args:  cobra.NoArgs,
 		Short: "Remove current config",
 		PersistentPreRunE: func(cmd *cobra.Command, _ []string) error {
-			return parseStorePath(cmd, node.Bridge)
+			return parseStorePath(cmd, nodeType)
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
@@ -35,13 +64,13 @@ func Remove(fsets ...*flag.FlagSet) *cobra.Command {
 	return RemoveConfigCmd
 }
 
-func Reinit(fsets ...*flag.FlagSet) *cobra.Command {
+func Reinit(nodeType node.Type, fsets ...*pflag.FlagSet) *cobra.Command {
 	ReinitCmd := &cobra.Command{
 		Use:   "reinit [config-path]",
 		Args:  cobra.MinimumNArgs(1),
 		Short: "Reinit config",
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-			return parseStorePath(cmd, node.Bridge)
+			return parseStorePath(cmd, nodeType)
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
