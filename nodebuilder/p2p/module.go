@@ -2,7 +2,10 @@ package p2p
 
 import (
 	logging "github.com/ipfs/go-log/v2"
+	"github.com/libp2p/go-libp2p"
 	"github.com/libp2p/go-libp2p/core/metrics"
+	"github.com/libp2p/go-libp2p/core/network"
+	rcmgr "github.com/libp2p/go-libp2p/p2p/host/resource-manager"
 	"go.uber.org/fx"
 
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
@@ -37,10 +40,23 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 	)
 
 	switch tp {
-	case node.Light, node.Full, node.Bridge:
+	case node.Full, node.Bridge:
 		return fx.Module(
 			"p2p",
 			baseComponents,
+			fx.Provide(func() (network.ResourceManager, error) {
+				return rcmgr.NewResourceManager(rcmgr.NewFixedLimiter(rcmgr.InfiniteLimits))
+			}),
+		)
+	case node.Light:
+		return fx.Module(
+			"p2p",
+			baseComponents,
+			fx.Provide(func() (network.ResourceManager, error) {
+				limits := rcmgr.DefaultLimits
+				libp2p.SetDefaultServiceLimits(&limits)
+				return rcmgr.NewResourceManager(rcmgr.NewFixedLimiter(limits.AutoScale()))
+			}),
 		)
 	default:
 		panic("invalid node type")
