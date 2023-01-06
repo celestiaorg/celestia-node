@@ -28,16 +28,12 @@ type Parameters struct {
 // DefaultParameters returns the default params to configure the syncer.
 func DefaultParameters() Parameters {
 	return Parameters{
-		blockTime:      time.Second * 30,
 		TrustingPeriod: 168 * time.Hour,
 		MaxRequestSize: 512,
 	}
 }
 
 func (p *Parameters) Validate() error {
-	if p.blockTime == 0 {
-		return fmt.Errorf("invalid block time duration: %v", p.blockTime)
-	}
 	if p.TrustingPeriod == 0 {
 		return fmt.Errorf("invalid trusting period duration: %v", p.TrustingPeriod)
 	}

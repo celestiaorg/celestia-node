@@ -29,13 +29,7 @@ func TestConfigWriteRead(t *testing.T) {
 			var out Config
 			err = out.Decode(buf)
 			require.NoError(t, err)
-			assert.EqualValues(t, in.Core, out.Core)
-			assert.EqualValues(t, in.State, out.State)
-			assert.EqualValues(t, in.P2P, out.P2P)
-			assert.EqualValues(t, in.RPC, out.RPC)
-			assert.EqualValues(t, in.Gateway, out.Gateway)
-			assert.EqualValues(t, in.Share, out.Share)
-			assert.EqualValues(t, in.DASer, out.DASer)
+			assert.EqualValues(t, in, &out)
 		})
 	}
 }
