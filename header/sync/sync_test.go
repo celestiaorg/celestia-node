@@ -15,13 +15,7 @@ import (
 	"github.com/celestiaorg/celestia-node/header/store"
 )
 
-var blockTime = 30 * time.Second
-
 func TestSyncSimpleRequestingHead(t *testing.T) {
-	// this way we force local head of Syncer to expire, so it requests a new one from trusted peer
-	header.TrustingPeriod = time.Microsecond
-	requestSize = 13 // just some random number
-
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	t.Cleanup(cancel)
 
@@ -36,7 +30,15 @@ func TestSyncSimpleRequestingHead(t *testing.T) {
 	require.NoError(t, err)
 
 	localStore := store.NewTestStore(ctx, t, head)
-	syncer := NewSyncer(local.NewExchange(remoteStore), localStore, &header.DummySubscriber{}, blockTime)
+	syncer, err := NewSyncer(
+		local.NewExchange(remoteStore),
+		localStore,
+		&header.DummySubscriber{},
+		WithBlockTime(time.Second*30),
+		WithTrustingPeriod(time.Microsecond),
+		WithMaxRequestSize(13),
+	)
+	require.NoError(t, err)
 	err = syncer.Start(ctx)
 	require.NoError(t, err)
 
@@ -60,9 +62,6 @@ func TestSyncSimpleRequestingHead(t *testing.T) {
 }
 
 func TestSyncCatchUp(t *testing.T) {
-	// just set a big enough value, so we trust local header and don't request anything
-	header.TrustingPeriod = time.Minute
-
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	t.Cleanup(cancel)
 
@@ -71,9 +70,15 @@ func TestSyncCatchUp(t *testing.T) {
 
 	remoteStore := store.NewTestStore(ctx, t, head)
 	localStore := store.NewTestStore(ctx, t, head)
-	syncer := NewSyncer(local.NewExchange(remoteStore), localStore, &header.DummySubscriber{}, blockTime)
+	syncer, err := NewSyncer(
+		local.NewExchange(remoteStore),
+		localStore,
+		&header.DummySubscriber{},
+		WithTrustingPeriod(time.Minute),
+	)
+	require.NoError(t, err)
 	// 1. Initial sync
-	err := syncer.Start(ctx)
+	err = syncer.Start(ctx)
 	require.NoError(t, err)
 
 	// 2. chain grows and syncer misses that
@@ -105,9 +110,6 @@ func TestSyncCatchUp(t *testing.T) {
 }
 
 func TestSyncPendingRangesWithMisses(t *testing.T) {
-	// just set a big enough value, so we trust local header and don't request anything
-	header.TrustingPeriod = time.Minute
-
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	t.Cleanup(cancel)
 
@@ -116,8 +118,14 @@ func TestSyncPendingRangesWithMisses(t *testing.T) {
 
 	remoteStore := store.NewTestStore(ctx, t, head)
 	localStore := store.NewTestStore(ctx, t, head)
-	syncer := NewSyncer(local.NewExchange(remoteStore), localStore, &header.DummySubscriber{}, blockTime)
-	err := syncer.Start(ctx)
+	syncer, err := NewSyncer(
+		local.NewExchange(remoteStore),
+		localStore,
+		&header.DummySubscriber{},
+		WithTrustingPeriod(time.Minute),
+	)
+	require.NoError(t, err)
+	err = syncer.Start(ctx)
 	require.NoError(t, err)
 
 	// miss 1 (helps to test that Syncer properly requests missed Headers from Exchange)
@@ -161,7 +169,6 @@ func TestSyncPendingRangesWithMisses(t *testing.T) {
 
 // Test that only one objective header is requested at a time
 func TestSyncer_OnlyOneRecentRequest(t *testing.T) {
-	blockTime := time.Nanosecond // so that we always request recent
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	t.Cleanup(cancel)
 
@@ -169,7 +176,8 @@ func TestSyncer_OnlyOneRecentRequest(t *testing.T) {
 	store := store.NewTestStore(ctx, t, suite.Head())
 	newHead := suite.GenExtendedHeader()
 	exchange := &exchangeCountingHead{header: newHead}
-	syncer := NewSyncer(exchange, store, &header.DummySubscriber{}, blockTime)
+	syncer, err := NewSyncer(exchange, store, &header.DummySubscriber{}, WithBlockTime(time.Nanosecond))
+	require.NoError(t, err)
 
 	res := make(chan *header.ExtendedHeader)
 	for i := 0; i < 10; i++ {

@@ -8,9 +8,10 @@ import (
 	context "context"
 	reflect "reflect"
 
-	node "github.com/celestiaorg/celestia-node/nodebuilder/node"
 	auth "github.com/filecoin-project/go-jsonrpc/auth"
 	gomock "github.com/golang/mock/gomock"
+
+	node "github.com/celestiaorg/celestia-node/nodebuilder/node"
 )
 
 // MockModule is a mock of Module interface.

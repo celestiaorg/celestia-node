@@ -4,9 +4,9 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/libp2p/go-libp2p-core/peer"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	pb "github.com/libp2p/go-libp2p-pubsub/pb"
+	"github.com/libp2p/go-libp2p/core/peer"
 	"golang.org/x/crypto/blake2b"
 
 	"github.com/celestiaorg/celestia-node/header"

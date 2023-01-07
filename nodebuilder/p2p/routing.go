@@ -5,9 +5,9 @@ import (
 	"fmt"
 
 	"github.com/ipfs/go-datastore"
-	"github.com/libp2p/go-libp2p-core/protocol"
-	"github.com/libp2p/go-libp2p-core/routing"
 	dht "github.com/libp2p/go-libp2p-kad-dht"
+	"github.com/libp2p/go-libp2p/core/protocol"
+	"github.com/libp2p/go-libp2p/core/routing"
 	"go.uber.org/fx"
 )
 

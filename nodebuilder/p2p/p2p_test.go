@@ -8,12 +8,13 @@ import (
 
 	"github.com/ipfs/go-datastore"
 	"github.com/libp2p/go-libp2p"
-	libhost "github.com/libp2p/go-libp2p-core/host"
-	"github.com/libp2p/go-libp2p-core/metrics"
-	"github.com/libp2p/go-libp2p-core/network"
-	libpeer "github.com/libp2p/go-libp2p-core/peer"
-	"github.com/libp2p/go-libp2p-core/protocol"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
+	libhost "github.com/libp2p/go-libp2p/core/host"
+	"github.com/libp2p/go-libp2p/core/metrics"
+	"github.com/libp2p/go-libp2p/core/network"
+	libpeer "github.com/libp2p/go-libp2p/core/peer"
+	"github.com/libp2p/go-libp2p/core/protocol"
+	rcmgr "github.com/libp2p/go-libp2p/p2p/host/resource-manager"
 	mocknet "github.com/libp2p/go-libp2p/p2p/net/mock"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -26,7 +27,7 @@ func TestP2PModule_Host(t *testing.T) {
 	require.NoError(t, err)
 	host, peer := net.Hosts()[0], net.Hosts()[1]
 
-	mgr := newModule(host, nil, nil, nil)
+	mgr := newModule(host, nil, nil, nil, nil)
 
 	ctx := context.Background()
 
@@ -61,7 +62,7 @@ func TestP2PModule_ConnManager(t *testing.T) {
 	peer, err := libp2p.New()
 	require.NoError(t, err)
 
-	mgr := newModule(host, nil, nil, nil)
+	mgr := newModule(host, nil, nil, nil, nil)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
@@ -89,7 +90,7 @@ func TestP2PModule_Autonat(t *testing.T) {
 	host, err := libp2p.New(libp2p.EnableNATService())
 	require.NoError(t, err)
 
-	mgr := newModule(host, nil, nil, nil)
+	mgr := newModule(host, nil, nil, nil, nil)
 
 	status, err := mgr.NATStatus(context.Background())
 	assert.NoError(t, err)
@@ -121,7 +122,7 @@ func TestP2PModule_Bandwidth(t *testing.T) {
 		require.NoError(t, err)
 	})
 
-	mgr := newModule(host, nil, nil, bw)
+	mgr := newModule(host, nil, nil, bw, nil)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
@@ -185,7 +186,7 @@ func TestP2PModule_Pubsub(t *testing.T) {
 	gs, err := pubsub.NewGossipSub(ctx, host)
 	require.NoError(t, err)
 
-	mgr := newModule(host, gs, nil, nil)
+	mgr := newModule(host, gs, nil, nil, nil)
 
 	topicStr := "test-topic"
 
@@ -221,7 +222,7 @@ func TestP2PModule_ConnGater(t *testing.T) {
 	gater, err := ConnectionGater(datastore.NewMapDatastore())
 	require.NoError(t, err)
 
-	mgr := newModule(nil, nil, gater, nil)
+	mgr := newModule(nil, nil, gater, nil, nil)
 
 	ctx := context.Background()
 
@@ -234,4 +235,18 @@ func TestP2PModule_ConnGater(t *testing.T) {
 	blocked, err = mgr.ListBlockedPeers(ctx)
 	require.NoError(t, err)
 	assert.Len(t, blocked, 0)
+}
+
+// TestP2PModule_ResourceManager tests P2P Module methods on
+// the resourceManager.
+func TestP2PModule_ResourceManager(t *testing.T) {
+	rm, err := rcmgr.NewResourceManager(rcmgr.NewFixedLimiter(rcmgr.DefaultLimits.AutoScale()))
+	require.NoError(t, err)
+
+	mgr := newModule(nil, nil, nil, nil, rm)
+
+	state, err := mgr.ResourceState(context.Background())
+	require.NoError(t, err)
+
+	assert.NotNil(t, state)
 }

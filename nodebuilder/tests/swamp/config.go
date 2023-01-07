@@ -3,28 +3,21 @@ package swamp
 import (
 	"time"
 
-	tn "github.com/tendermint/tendermint/config"
-	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
-
-	"github.com/celestiaorg/celestia-app/testutil/testnode"
+	"github.com/celestiaorg/celestia-node/core"
 )
 
 // Components struct represents a set of pre-requisite attributes from the test scenario
 type Components struct {
-	CoreCfg         *tn.Config
-	ConsensusParams *tmproto.ConsensusParams
-	SupressLogs     bool
+	*core.TestConfig
 }
 
 // DefaultComponents creates a celestia-app instance with a block time of around
 // 100ms
 func DefaultComponents() *Components {
-	tnCfg := tn.TestConfig()
-	tnCfg.Consensus.TimeoutCommit = 100 * time.Millisecond
+	cfg := core.DefaultTestConfig()
+	cfg.Tendermint.Consensus.TimeoutCommit = 100 * time.Millisecond
 	return &Components{
-		CoreCfg:         tnCfg,
-		ConsensusParams: testnode.DefaultParams(),
-		SupressLogs:     true,
+		cfg,
 	}
 }
 
@@ -35,9 +28,9 @@ type Option func(*Components)
 func WithBlockTime(t time.Duration) Option {
 	return func(c *Components) {
 		// for empty block
-		c.CoreCfg.Consensus.CreateEmptyBlocksInterval = t
+		c.Tendermint.Consensus.CreateEmptyBlocksInterval = t
 		// for filled block
-		c.CoreCfg.Consensus.TimeoutCommit = t
-		c.CoreCfg.Consensus.SkipTimeoutCommit = false
+		c.Tendermint.Consensus.TimeoutCommit = t
+		c.Tendermint.Consensus.SkipTimeoutCommit = false
 	}
 }

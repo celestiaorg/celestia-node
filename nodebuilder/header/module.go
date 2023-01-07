@@ -12,7 +12,7 @@ import (
 	"github.com/celestiaorg/celestia-node/header/p2p"
 	"github.com/celestiaorg/celestia-node/header/store"
 	"github.com/celestiaorg/celestia-node/header/sync"
-	fraudServ "github.com/celestiaorg/celestia-node/nodebuilder/fraud"
+	modfraud "github.com/celestiaorg/celestia-node/nodebuilder/fraud"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	modp2p "github.com/celestiaorg/celestia-node/nodebuilder/p2p"
 )
@@ -60,22 +60,18 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 		fx.Provide(func(subscriber *p2p.Subscriber) header.Subscriber {
 			return subscriber
 		}),
+		fx.Provide(func(cfg Config) []sync.Options {
+			return []sync.Options{
+				sync.WithBlockTime(modp2p.BlockTime),
+				sync.WithTrustingPeriod(cfg.Syncer.TrustingPeriod),
+				sync.WithMaxRequestSize(cfg.Syncer.MaxRequestSize),
+			}
+		}),
 		fx.Provide(fx.Annotate(
 			newSyncer,
 			fx.OnStart(func(startCtx, ctx context.Context, fservice fraud.Service, syncer *sync.Syncer) error {
-				syncerStartFunc := func(ctx context.Context) error {
-					err := syncer.Start(ctx)
-					switch err {
-					default:
-						return err
-					case header.ErrNoHead:
-						log.Warnw("Syncer running on uninitialized Store - headers won't be synced")
-					case nil:
-					}
-					return nil
-				}
-				return fraudServ.Lifecycle(startCtx, ctx, fraud.BadEncoding, fservice,
-					syncerStartFunc, syncer.Stop)
+				return modfraud.Lifecycle(startCtx, ctx, fraud.BadEncoding, fservice,
+					syncer.Start, syncer.Stop)
 			}),
 			fx.OnStop(func(ctx context.Context, syncer *sync.Syncer) error {
 				return syncer.Stop(ctx)

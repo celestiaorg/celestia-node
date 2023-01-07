@@ -5,10 +5,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/libp2p/go-libp2p-core/event"
-	"github.com/libp2p/go-libp2p-core/host"
-	"github.com/libp2p/go-libp2p-core/network"
-	"github.com/libp2p/go-libp2p-core/peer"
+	"github.com/libp2p/go-libp2p/core/event"
+	"github.com/libp2p/go-libp2p/core/host"
+	"github.com/libp2p/go-libp2p/core/network"
+	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/libp2p/go-libp2p/p2p/net/conngater"
 )
 
@@ -71,8 +71,8 @@ func (p *peerTracker) track() {
 	}()
 
 	// store peers that have been already connected
-	for _, peer := range p.host.Peerstore().Peers() {
-		p.connected(peer)
+	for _, c := range p.host.Network().Conns() {
+		p.connected(c.RemotePeer())
 	}
 
 	subs, err := p.host.EventBus().Subscribe(&event.EvtPeerConnectednessChanged{})
