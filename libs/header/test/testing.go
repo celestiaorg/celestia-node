@@ -96,7 +96,7 @@ func (d *DummyHeader) VerifyAdjacent(other header.Header) error {
 		return fmt.Errorf("invalid Height, expected: %d, got: %d", d.Height()+1, other.Height())
 	}
 
-	if err := d.Verify(other); err != nil {
+	if err := d.verify(other); err != nil {
 		return err
 	}
 
@@ -104,10 +104,10 @@ func (d *DummyHeader) VerifyAdjacent(other header.Header) error {
 }
 
 func (d *DummyHeader) VerifyNonAdjacent(other header.Header) error {
-	return d.Verify(other)
+	return d.verify(other)
 }
 
-func (d *DummyHeader) Verify(header header.Header) error {
+func (d *DummyHeader) verify(header header.Header) error {
 	// wee1
 	epsilon := 10 * time.Second
 	if header.Time().After(time.Now().Add(epsilon)) {

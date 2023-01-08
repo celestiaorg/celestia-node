@@ -27,8 +27,6 @@ type Header interface {
 	VerifyAdjacent(Header) error
 	// VerifyNonAdjacent validates non-adjacent untrusted header against trusted header.
 	VerifyNonAdjacent(Header) error
-	// Verify performs basic verification of untrusted header.
-	Verify(Header) error
 	// Validate performs basic validation to check for missed/incorrect fields.
 	Validate() error
 

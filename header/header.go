@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"time"
 
@@ -58,14 +57,6 @@ func (eh *ExtendedHeader) Height() int64 {
 
 func (eh *ExtendedHeader) Time() time.Time {
 	return eh.RawHeader.Time
-}
-
-func (eh *ExtendedHeader) Verify(header libhead.Header) error {
-	hdr, ok := header.(*ExtendedHeader)
-	if !ok {
-		return &libhead.VerifyError{Reason: errors.New("invalid header type: expected *ExtendedHeader")}
-	}
-	return eh.verify(hdr)
 }
 
 func (eh *ExtendedHeader) Validate() error {
