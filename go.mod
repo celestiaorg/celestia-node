@@ -27,7 +27,7 @@ require (
 	github.com/hashicorp/golang-lru v0.5.5-0.20210104140557-80c98217689d
 	github.com/ipfs/go-bitswap v0.11.0
 	github.com/ipfs/go-block-format v0.0.3
-	github.com/ipfs/go-blockservice v0.4.0
+	github.com/ipfs/go-blockservice v0.5.0
 	github.com/ipfs/go-cid v0.3.2
 	github.com/ipfs/go-datastore v0.6.0
 	github.com/ipfs/go-ds-badger2 v0.1.3
@@ -64,7 +64,7 @@ require (
 	go.opentelemetry.io/otel/trace v1.11.1
 	go.uber.org/fx v1.18.2
 	go.uber.org/multierr v1.8.0
-	golang.org/x/crypto v0.3.0
+	golang.org/x/crypto v0.5.0
 	golang.org/x/sync v0.1.0
 	golang.org/x/text v0.6.0
 	google.golang.org/grpc v1.51.0
@@ -296,10 +296,10 @@ require (
 	go.uber.org/zap v1.24.0 // indirect
 	golang.org/x/exp v0.0.0-20221205204356-47842c84f3db // indirect
 	golang.org/x/mod v0.7.0 // indirect
-	golang.org/x/net v0.3.0 // indirect
+	golang.org/x/net v0.5.0 // indirect
 	golang.org/x/oauth2 v0.0.0-20220411215720-9780585627b5 // indirect
-	golang.org/x/sys v0.3.0 // indirect
-	golang.org/x/term v0.3.0 // indirect
+	golang.org/x/sys v0.4.0 // indirect
+	golang.org/x/term v0.4.0 // indirect
 	golang.org/x/tools v0.3.0 // indirect
 	golang.org/x/xerrors v0.0.0-20220609144429-65e65417b02f // indirect
 	google.golang.org/api v0.81.0 // indirect
