@@ -27,7 +27,7 @@ type Getter interface {
 	GetSharesByNamespace(context.Context, *Root, namespace.ID) (NamespacedShares, error)
 }
 
-// NamespacedShares represents all the shares with proofs of a specific namespace of an EDS.
+// NamespacedShares represents all shares with proofs within a specific namespace of an EDS.
 type NamespacedShares []NamespacedRow
 
 // Flatten returns the concatenated slice of all NamespacedRow shares.
@@ -39,8 +39,7 @@ func (ns NamespacedShares) Flatten() []Share {
 	return shares
 }
 
-// NamespacedRow represents all the shares with proofs of a specific namespace within a Row of
-// an EDS.
+// NamespacedRow represents all shares with proofs within a specific namespace of a single EDS row.
 type NamespacedRow struct {
 	Shares []Share
 	Proof  *ipld.Proof
