@@ -39,7 +39,11 @@ type Discovery struct {
 	discoveryInterval time.Duration
 	// advertiseInterval is an interval between advertising sessions.
 	advertiseInterval time.Duration
+	// onPeersUpdate will be called on peers set changes
+	onPeersUpdate OnPeersUpdate
 }
+
+type OnPeersUpdate func(peers []peer.ID)
 
 // NewDiscovery constructs a new discovery.
 func NewDiscovery(
@@ -57,6 +61,19 @@ func NewDiscovery(
 		peersLimit,
 		discInterval,
 		advertiseInterval,
+		nil,
+	}
+}
+
+func (d *Discovery) WithOnPeersUpdate(f OnPeersUpdate) {
+	if d.onPeersUpdate == nil {
+		d.onPeersUpdate = f
+		return
+	}
+
+	d.onPeersUpdate = func(peers []peer.ID) {
+		d.onPeersUpdate(peers)
+		f(peers)
 	}
 }
 
@@ -78,6 +95,8 @@ func (d *Discovery) handlePeerFound(ctx context.Context, topic string, peer peer
 		d.set.Remove(peer.ID)
 		return
 	}
+
+	d.onPeersUpdate(d.set.ListPeers())
 	log.Debugw("added peer to set", "id", peer.ID)
 	// add tag to protect peer of being killed by ConnManager
 	d.host.ConnManager().TagPeer(peer.ID, topic, peerWeight)
@@ -132,6 +151,7 @@ func (d *Discovery) EnsurePeers(ctx context.Context) {
 				if d.set.Contains(connStatus.Peer) {
 					d.connector.RestartBackoff(connStatus.Peer)
 					d.set.Remove(connStatus.Peer)
+					d.onPeersUpdate(d.set.ListPeers())
 					d.host.ConnManager().UntagPeer(connStatus.Peer, topic)
 					t.Reset(d.discoveryInterval)
 				}
@@ -173,5 +193,15 @@ func (d *Discovery) Advertise(ctx context.Context) {
 // Peers provides a list of discovered peers in the "full" topic.
 // If Discovery hasn't found any peers, it blocks until at least one peer is found.
 func (d *Discovery) Peers(ctx context.Context) ([]peer.ID, error) {
-	return d.set.Peers(ctx)
+	peers := d.set.ListPeers()
+	if len(peers) > 0 {
+		return peers, nil
+	}
+
+	// block until a new peer will be discovered
+	p, err := d.set.WaitPeer(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return []peer.ID{p}, nil
 }

@@ -56,7 +56,7 @@ func (ps *limitedSet) TryAdd(p peer.ID) error {
 LOOP:
 	for {
 		// peer will be pushed to the channel only when somebody is reading from it.
-		// this is done to handle case when Peers() was called on empty set.
+		// this is done to handle case when WaitPeers() was called on empty set.
 		select {
 		case ps.waitPeer <- p:
 		default:
@@ -74,24 +74,23 @@ func (ps *limitedSet) Remove(id peer.ID) {
 	}
 }
 
-// Peers returns all discovered peers from the set.
-func (ps *limitedSet) Peers(ctx context.Context) ([]peer.ID, error) {
-	ps.lk.Lock()
-	if len(ps.ps) > 0 {
-		out := make([]peer.ID, 0, len(ps.ps))
-		for p := range ps.ps {
-			out = append(out, p)
-		}
-		ps.lk.Unlock()
-		return out, nil
-	}
-	ps.lk.Unlock()
-
-	// block until a new peer will be discovered
+// WaitPeer blocks until first peer discovered.
+func (ps *limitedSet) WaitPeer(ctx context.Context) (peer.ID, error) {
 	select {
 	case <-ctx.Done():
-		return nil, ctx.Err()
+		return "", ctx.Err()
 	case p := <-ps.waitPeer:
-		return []peer.ID{p}, nil
+		return p, nil
 	}
+}
+
+// ListPeers returns all discovered peers from the set.
+func (ps *limitedSet) ListPeers() []peer.ID {
+	ps.lk.Lock()
+	defer ps.lk.Unlock()
+	out := make([]peer.ID, 0, len(ps.ps))
+	for p := range ps.ps {
+		out = append(out, p)
+	}
+	return out
 }
