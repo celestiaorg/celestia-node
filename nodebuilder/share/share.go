@@ -4,9 +4,9 @@ import (
 	"context"
 
 	"github.com/celestiaorg/nmt/namespace"
+	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/share"
-	"github.com/celestiaorg/celestia-node/share/service"
 )
 
 var _ Module = (*API)(nil)
@@ -34,11 +34,13 @@ type Module interface {
 	// ProbabilityOfAvailability calculates the probability of the data square
 	// being available based on the number of samples collected.
 	ProbabilityOfAvailability(context.Context) float64
+	// GetShare gets a Share by coordinates in EDS.
 	GetShare(ctx context.Context, dah *share.Root, row, col int) (share.Share, error)
-	GetShares(ctx context.Context, root *share.Root) ([][]share.Share, error)
-	// GetSharesByNamespace iterates over a square's row roots and accumulates the found shares in the
-	// given namespace.ID.
-	GetSharesByNamespace(ctx context.Context, root *share.Root, namespace namespace.ID) ([]share.Share, error)
+	// GetEDS gets the full EDS identified by the given root.
+	GetEDS(ctx context.Context, root *share.Root) (*rsmt2d.ExtendedDataSquare, error)
+	// GetSharesByNamespace gets all shares from an EDS within the given namespace.
+	// Shares are returned in a row-by-row order if the namespace spans multiple rows.
+	GetSharesByNamespace(ctx context.Context, root *share.Root, namespace namespace.ID) (share.NamespacedShares, error)
 }
 
 // API is a wrapper around Module for the RPC.
@@ -52,15 +54,15 @@ type API struct {
 			dah *share.Root,
 			row, col int,
 		) (share.Share, error) `perm:"public"`
-		GetShares func(
+		GetEDS func(
 			ctx context.Context,
 			root *share.Root,
-		) ([][]share.Share, error) `perm:"public"`
+		) (*rsmt2d.ExtendedDataSquare, error) `perm:"public"`
 		GetSharesByNamespace func(
 			ctx context.Context,
 			root *share.Root,
 			namespace namespace.ID,
-		) ([]share.Share, error) `perm:"public"`
+		) (share.NamespacedShares, error) `perm:"public"`
 	}
 }
 
@@ -76,22 +78,23 @@ func (api *API) GetShare(ctx context.Context, dah *share.Root, row, col int) (sh
 	return api.Internal.GetShare(ctx, dah, row, col)
 }
 
-func (api *API) GetShares(ctx context.Context, root *share.Root) ([][]share.Share, error) {
-	return api.Internal.GetShares(ctx, root)
+func (api *API) GetEDS(ctx context.Context, root *share.Root) (*rsmt2d.ExtendedDataSquare, error) {
+	return api.Internal.GetEDS(ctx, root)
 }
 
 func (api *API) GetSharesByNamespace(
 	ctx context.Context,
 	root *share.Root,
 	namespace namespace.ID,
-) ([]share.Share, error) {
+) (share.NamespacedShares, error) {
 	return api.Internal.GetSharesByNamespace(ctx, root, namespace)
 }
 
 type module struct {
-	*service.ShareService
+	share.Getter
+	share.Availability
 }
 
-func (m *module) SharesAvailable(ctx context.Context, root *share.Root) error {
-	return m.ShareService.SharesAvailable(ctx, root)
+func (m module) SharesAvailable(ctx context.Context, root *share.Root) error {
+	return m.Availability.SharesAvailable(ctx, root)
 }
