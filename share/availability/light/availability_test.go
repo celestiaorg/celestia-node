@@ -6,7 +6,6 @@ import (
 	_ "embed"
 	"encoding/hex"
 	"encoding/json"
-	"math"
 	mrand "math/rand"
 	"strconv"
 	"testing"
@@ -33,9 +32,9 @@ func TestSharesAvailable(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	// RandServiceWithSquare creates a Light ShareAvailability inside, so we can test it
-	service, dah := RandServiceWithSquare(t, 16)
-	err := service.SharesAvailable(ctx, dah)
+	getter, dah := GetterWithRandSquare(t, 16)
+	avail := TestAvailability(getter)
+	err := avail.SharesAvailable(ctx, dah)
 	assert.NoError(t, err)
 }
 
@@ -43,10 +42,10 @@ func TestSharesAvailableFailed(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	// RandServiceWithSquare creates a Light ShareAvailability inside, so we can test it
-	s, _ := RandServiceWithSquare(t, 16)
+	getter, _ := GetterWithRandSquare(t, 16)
+	avail := TestAvailability(getter)
 	empty := header.EmptyDAH()
-	err := s.SharesAvailable(ctx, &empty)
+	err := avail.SharesAvailable(ctx, &empty)
 	assert.Error(t, err)
 }
 
@@ -68,20 +67,15 @@ func TestGetShare(t *testing.T) {
 	defer cancel()
 
 	n := 16
-	serv, dah := RandServiceWithSquare(t, n)
-	err := serv.Start(ctx)
-	require.NoError(t, err)
+	getter, dah := GetterWithRandSquare(t, n)
 
 	for i := range make([]bool, n) {
 		for j := range make([]bool, n) {
-			sh, err := serv.GetShare(ctx, dah, i, j)
+			sh, err := getter.GetShare(ctx, dah, i, j)
 			assert.NotNil(t, sh)
 			assert.NoError(t, err)
 		}
 	}
-
-	err = serv.Stop(ctx)
-	require.NoError(t, err)
 }
 
 func TestService_GetSharesByNamespace(t *testing.T) {
@@ -96,7 +90,7 @@ func TestService_GetSharesByNamespace(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run("size: "+strconv.Itoa(tt.squareSize), func(t *testing.T) {
-			serv, bServ := RandService()
+			getter, bServ := EmptyGetter()
 			n := tt.squareSize * tt.squareSize
 			randShares := share.RandShares(t, n)
 			idx1 := (n - 1) / 2
@@ -108,16 +102,18 @@ func TestService_GetSharesByNamespace(t *testing.T) {
 			root := availability_test.FillBS(t, bServ, randShares)
 			randNID := randShares[idx1][:8]
 
-			shares, err := serv.GetSharesByNamespace(context.Background(), root, randNID)
+			shares, err := getter.GetSharesByNamespace(context.Background(), root, randNID)
 			require.NoError(t, err)
-			assert.Len(t, shares, tt.expectedShareCount)
-			for _, value := range shares {
+			require.NoError(t, shares.Verify(root, randNID))
+			flattened := shares.Flatten()
+			assert.Len(t, flattened, tt.expectedShareCount)
+			for _, value := range flattened {
 				assert.Equal(t, randNID, []byte(share.ID(value)))
 			}
 			if tt.expectedShareCount > 1 {
 				// idx1 is always smaller than idx2
-				assert.Equal(t, randShares[idx1], shares[0])
-				assert.Equal(t, randShares[idx2], shares[1])
+				assert.Equal(t, randShares[idx1], flattened[0])
+				assert.Equal(t, randShares[idx2], flattened[1])
 			}
 		})
 	}
@@ -128,35 +124,20 @@ func TestGetShares(t *testing.T) {
 	defer cancel()
 
 	n := 16
-	serv, dah := RandServiceWithSquare(t, n)
-	err := serv.Start(ctx)
-	require.NoError(t, err)
+	getter, dah := GetterWithRandSquare(t, n)
 
-	shares, err := serv.GetShares(ctx, dah)
-	require.NoError(t, err)
-
-	flattened := make([][]byte, 0, len(shares)*2)
-	for _, row := range shares {
-		flattened = append(flattened, row...)
-	}
-	// generate DAH from shares returned by `share.GetShares` to compare
-	// calculated DAH to expected DAH
-	squareSize := uint64(math.Sqrt(float64(len(flattened))))
-	eds, err := da.ExtendShares(squareSize, flattened)
+	eds, err := getter.GetEDS(ctx, dah)
 	require.NoError(t, err)
 	gotDAH := da.NewDataAvailabilityHeader(eds)
 
 	require.True(t, dah.Equals(&gotDAH))
-
-	err = serv.Stop(ctx)
-	require.NoError(t, err)
 }
 
 func TestService_GetSharesByNamespaceNotFound(t *testing.T) {
-	serv, root := RandServiceWithSquare(t, 1)
+	getter, root := GetterWithRandSquare(t, 1)
 	root.RowsRoots = nil
 
-	shares, err := serv.GetSharesByNamespace(context.Background(), root, []byte{1, 1, 1, 1, 1, 1, 1, 1})
+	shares, err := getter.GetSharesByNamespace(context.Background(), root, []byte{1, 1, 1, 1, 1, 1, 1, 1})
 	assert.Len(t, shares, 0)
 	assert.NoError(t, err)
 }
@@ -173,12 +154,12 @@ func BenchmarkService_GetSharesByNamespace(b *testing.B) {
 	for _, tt := range tests {
 		b.Run(strconv.Itoa(tt.amountShares), func(b *testing.B) {
 			t := &testing.T{}
-			serv, root := RandServiceWithSquare(t, tt.amountShares)
+			getter, root := GetterWithRandSquare(t, tt.amountShares)
 			randNID := root.RowsRoots[(len(root.RowsRoots)-1)/2][:8]
 			root.RowsRoots[(len(root.RowsRoots) / 2)] = root.RowsRoots[(len(root.RowsRoots)-1)/2]
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
-				_, err := serv.GetSharesByNamespace(context.Background(), root, randNID)
+				_, err := getter.GetSharesByNamespace(context.Background(), root, randNID)
 				require.NoError(t, err)
 			}
 		})
@@ -186,7 +167,7 @@ func BenchmarkService_GetSharesByNamespace(b *testing.B) {
 }
 
 func TestSharesRoundTrip(t *testing.T) {
-	serv, store := RandService()
+	getter, store := EmptyGetter()
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -325,11 +306,12 @@ func TestSharesRoundTrip(t *testing.T) {
 				require.NoError(t, err)
 
 				dah := da.NewDataAvailabilityHeader(extSquare)
-				shares, err := serv.GetSharesByNamespace(ctx, &dah, namespace)
+				shares, err := getter.GetSharesByNamespace(ctx, &dah, namespace)
 				require.NoError(t, err)
+				require.NoError(t, shares.Verify(&dah, namespace))
 				require.NotEmpty(t, shares)
 
-				msgs, err := appshares.ParseMsgs(shares)
+				msgs, err := appshares.ParseMsgs(shares.Flatten())
 				require.NoError(t, err)
 				assert.Len(t, msgs.MessagesList, len(msgsInNamespace))
 				for i := range msgs.MessagesList {

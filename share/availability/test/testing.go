@@ -19,7 +19,6 @@ import (
 
 	"github.com/celestiaorg/celestia-app/pkg/da"
 	"github.com/celestiaorg/celestia-node/share"
-	"github.com/celestiaorg/celestia-node/share/service"
 )
 
 // RandFillBS fills the given BlockService with a random block of a given size.
@@ -38,7 +37,8 @@ func FillBS(t *testing.T, bServ blockservice.BlockService, shares []share.Share)
 
 type TestNode struct {
 	net *TestDagNet
-	*service.ShareService
+	share.Getter
+	share.Availability
 	blockservice.BlockService
 	host.Host
 }

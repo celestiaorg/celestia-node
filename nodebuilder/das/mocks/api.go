@@ -8,9 +8,8 @@ import (
 	context "context"
 	reflect "reflect"
 
-	gomock "github.com/golang/mock/gomock"
-
 	das "github.com/celestiaorg/celestia-node/das"
+	gomock "github.com/golang/mock/gomock"
 )
 
 // MockModule is a mock of Module interface.
@@ -49,4 +48,18 @@ func (m *MockModule) SamplingStats(arg0 context.Context) (das.SamplingStats, err
 func (mr *MockModuleMockRecorder) SamplingStats(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SamplingStats", reflect.TypeOf((*MockModule)(nil).SamplingStats), arg0)
+}
+
+// WaitCatchUp mocks base method.
+func (m *MockModule) WaitCatchUp(arg0 context.Context) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "WaitCatchUp", arg0)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// WaitCatchUp indicates an expected call of WaitCatchUp.
+func (mr *MockModuleMockRecorder) WaitCatchUp(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "WaitCatchUp", reflect.TypeOf((*MockModule)(nil).WaitCatchUp), arg0)
 }
