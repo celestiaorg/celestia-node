@@ -1,10 +1,7 @@
 package nodebuilder
 
 import (
-	"context"
-	"net"
 	"testing"
-	"time"
 
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
@@ -38,27 +35,27 @@ func TestNode(t *testing.T, tp node.Type, opts ...fx.Option) *Node {
 }
 
 func TestNodeWithConfig(t *testing.T, tp node.Type, cfg *Config, opts ...fx.Option) *Node {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
-	t.Cleanup(cancel)
-
-	store := MockStore(t, cfg)
-	_, _, coreCfg := core.StartTestKVApp(ctx, t)
-	endpoint, err := core.GetEndpoint(coreCfg)
-	require.NoError(t, err)
-	ip, port, err := net.SplitHostPort(endpoint)
-	require.NoError(t, err)
-	cfg.Core.IP = ip
-	cfg.Core.RPCPort = port
+	// avoids port conflicts
 	cfg.RPC.Port = "0"
-
-	// storePath is used for the eds blockstore
-	storePath := t.TempDir()
 	opts = append(opts,
+		// avoid writing keyring on disk
 		state.WithKeyringSigner(TestKeyringSigner(t)),
-		fx.Replace(node.StorePath(storePath)),
+		// temp dir for the eds store FIXME: Should be in mem
+		fx.Replace(node.StorePath(t.TempDir())),
+		// avoid requesting trustedPeer during initialization
 		fxutil.ReplaceAs(mocks.NewStore(t, 20), new(header.InitStore)),
 	)
-	nd, err := New(tp, p2p.Private, store, opts...)
+
+	// in fact, we don't need core.Client in tests, but Bridge requires is a valid one
+	// or fails otherwise with failed attempt to connect with custom build client
+	if tp == node.Bridge {
+		cctx := core.StartTestNode(t)
+		opts = append(opts,
+			fxutil.ReplaceAs(cctx.Client, new(core.Client)),
+		)
+	}
+
+	nd, err := New(tp, p2p.Private, MockStore(t, cfg), opts...)
 	require.NoError(t, err)
 	return nd
 }

@@ -10,6 +10,7 @@ import (
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/metrics"
+	"github.com/libp2p/go-libp2p/core/network"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/libp2p/go-libp2p/core/peerstore"
 	"github.com/libp2p/go-libp2p/core/routing"
@@ -27,7 +28,7 @@ func RoutedHost(base HostBase, r routing.PeerRouting) host.Host {
 }
 
 // Host returns constructor for Host.
-func Host(cfg Config, params hostParams) (HostBase, error) {
+func Host(params hostParams) (HostBase, error) {
 	opts := []libp2p.Option{
 		libp2p.NoListenAddrs, // do not listen automatically
 		libp2p.AddrsFactory(params.AddrF),
@@ -39,6 +40,7 @@ func Host(cfg Config, params hostParams) (HostBase, error) {
 		libp2p.NATPortMap(), // enables upnp
 		libp2p.DisableRelay(),
 		libp2p.BandwidthReporter(params.Bandwidth),
+		libp2p.ResourceManager(params.ResourceManager),
 		// to clearly define what defaults we rely upon
 		libp2p.DefaultSecurity,
 		libp2p.DefaultTransports,
@@ -67,15 +69,16 @@ type HostBase host.Host
 type hostParams struct {
 	fx.In
 
-	Net       Network
-	Lc        fx.Lifecycle
-	ID        peer.ID
-	Key       crypto.PrivKey
-	AddrF     p2pconfig.AddrsFactory
-	PStore    peerstore.Peerstore
-	ConnMngr  connmgr.ConnManager
-	ConnGater *conngater.BasicConnectionGater
-	Bandwidth *metrics.BandwidthCounter
+	Net             Network
+	Lc              fx.Lifecycle
+	ID              peer.ID
+	Key             crypto.PrivKey
+	AddrF           p2pconfig.AddrsFactory
+	PStore          peerstore.Peerstore
+	ConnMngr        connmgr.ConnManager
+	ConnGater       *conngater.BasicConnectionGater
+	Bandwidth       *metrics.BandwidthCounter
+	ResourceManager network.ResourceManager
 
 	Tp node.Type
 }

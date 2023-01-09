@@ -36,6 +36,11 @@ func DirectoryFlags() *flag.FlagSet {
 }
 
 func ParseDirectoryFlags(cmd *cobra.Command) error {
+	// if keyring-dir is explicitly set, use it
+	if cmd.Flags().Changed(sdkflags.FlagKeyringDir) {
+		return nil
+	}
+
 	nodeType := cmd.Flag(nodeDirKey).Value.String()
 	if nodeType == "" {
 		return errors.New("no node type provided")

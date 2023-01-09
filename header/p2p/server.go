@@ -135,7 +135,7 @@ func (serv *ExchangeServer) requestHandler(stream network.Stream) {
 		}
 		_, err = serde.Write(stream, &p2p_pb.ExtendedHeaderResponse{Body: bin, StatusCode: code})
 		if err != nil {
-			log.Errorw("server: writing header to stream", "height", h.Height, "err", err)
+			log.Errorw("server: writing header to stream", "err", err)
 			stream.Reset() //nolint:errcheck
 			return
 		}
