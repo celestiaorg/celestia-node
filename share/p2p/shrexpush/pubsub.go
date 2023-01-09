@@ -3,6 +3,7 @@ package shrexpush
 import (
 	"context"
 	"fmt"
+	"time"
 
 	logging "github.com/ipfs/go-log/v2"
 
@@ -36,7 +37,8 @@ type PubSub struct {
 
 // NewPubSub creates a libp2p.PubSub wrapper.
 func NewPubSub(ctx context.Context, h host.Host, suffix string) (*PubSub, error) {
-	pubsub, err := pubsub.NewFloodSub(ctx, h)
+	// WithSeenMessagesTTL with small duration allows to process all incoming messages(even with the same msgId)
+	pubsub, err := pubsub.NewFloodSub(ctx, h, pubsub.WithSeenMessagesTTL(100*time.Millisecond))
 	if err != nil {
 		return nil, err
 	}
