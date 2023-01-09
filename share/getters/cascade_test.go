@@ -41,143 +41,130 @@ func TestCascadeGetter(t *testing.T) {
 	})
 }
 
-func TestCascadeSuccessFirst(t *testing.T) {
+func TestCascade(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
 
-	fns := []func(context.Context) (int, error){
-		func(context.Context) (int, error) {
-			return 1, nil
-		},
-		func(context.Context) (int, error) {
-			return 2, nil
-		},
-		func(context.Context) (int, error) {
-			return 3, nil
-		},
-	}
-
-	val, err := cascade(ctx, fns, time.Millisecond*10)
-	assert.NoError(t, err)
-	assert.Equal(t, 1, val)
-}
-
-func TestCascadeSuccessSecond(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	t.Cleanup(cancel)
-
-	fns := []func(context.Context) (int, error){
-		func(context.Context) (int, error) {
-			return 1, fmt.Errorf("1")
-		},
-		func(context.Context) (int, error) {
-			return 2, nil
-		},
-		func(context.Context) (int, error) {
-			return 3, nil
-		},
-	}
-
-	val, err := cascade(ctx, fns, time.Millisecond*10)
-	assert.NoError(t, err)
-	assert.Equal(t, 2, val)
-}
-
-func TestCascadeSuccessSecondFirst(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	t.Cleanup(cancel)
-
-	fns := []func(context.Context) (int, error){
-		func(ctx context.Context) (int, error) {
-			select {
-			case <-time.After(time.Second):
+	t.Run("SuccessFirst", func(t *testing.T) {
+		fns := []func(context.Context) (int, error){
+			func(context.Context) (int, error) {
 				return 1, nil
-			case <-ctx.Done():
-				return 0, ctx.Err()
-			}
-		},
-		func(context.Context) (int, error) {
-			return 2, nil
-		},
-		func(context.Context) (int, error) {
-			return 3, nil
-		},
-	}
-
-	val, err := cascade(ctx, fns, time.Millisecond*10)
-	assert.NoError(t, err)
-	assert.Equal(t, 2, val)
-}
-
-func TestCascadeSuccessOnceAllStarted(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	t.Cleanup(cancel)
-
-	fns := []func(context.Context) (int, error){
-		func(ctx context.Context) (int, error) {
-			select {
-			case <-time.After(time.Millisecond * 3):
-				return 1, nil
-			case <-ctx.Done():
-				return 0, ctx.Err()
-			}
-		},
-		func(context.Context) (int, error) {
-			select {
-			case <-time.After(time.Millisecond * 4):
+			},
+			func(context.Context) (int, error) {
 				return 2, nil
-			case <-ctx.Done():
-				return 0, ctx.Err()
-			}
-		},
-		func(context.Context) (int, error) {
-			select {
-			case <-time.After(time.Millisecond * 5):
+			},
+			func(context.Context) (int, error) {
 				return 3, nil
-			case <-ctx.Done():
-				return 0, ctx.Err()
-			}
-		},
-	}
+			},
+		}
 
-	val, err := cascade(ctx, fns, time.Millisecond*1)
-	assert.NoError(t, err)
-	assert.Equal(t, 1, val)
-}
+		val, err := cascade(ctx, fns, time.Millisecond*10)
+		assert.NoError(t, err)
+		assert.Equal(t, 1, val)
+	})
 
-func TestCascadeError(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	t.Cleanup(cancel)
+	t.Run("SuccessSecond", func(t *testing.T) {
+		fns := []func(context.Context) (int, error){
+			func(context.Context) (int, error) {
+				return 1, fmt.Errorf("1")
+			},
+			func(context.Context) (int, error) {
+				return 2, nil
+			},
+			func(context.Context) (int, error) {
+				return 3, nil
+			},
+		}
 
-	fns := []func(context.Context) (int, error){
-		func(context.Context) (int, error) {
-			return 0, fmt.Errorf("1")
-		},
-		func(context.Context) (int, error) {
-			return 0, fmt.Errorf("2")
-		},
-		func(context.Context) (int, error) {
-			return 0, fmt.Errorf("3")
-		},
-	}
+		val, err := cascade(ctx, fns, time.Millisecond*10)
+		assert.NoError(t, err)
+		assert.Equal(t, 2, val)
+	})
 
-	val, err := cascade(ctx, fns, time.Millisecond*10)
-	assert.Error(t, err)
-	assert.Len(t, multierr.Errors(err), 3)
-	assert.Equal(t, 0, val)
-}
+	t.Run("SuccessSecondAfterFirst", func(t *testing.T) {
+		fns := []func(context.Context) (int, error){
+			func(ctx context.Context) (int, error) {
+				select {
+				case <-time.After(time.Second):
+					return 1, nil
+				case <-ctx.Done():
+					return 0, ctx.Err()
+				}
+			},
+			func(context.Context) (int, error) {
+				return 2, nil
+			},
+			func(context.Context) (int, error) {
+				return 3, nil
+			},
+		}
 
-func TestCascadeSingle(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	t.Cleanup(cancel)
+		val, err := cascade(ctx, fns, time.Millisecond*10)
+		assert.NoError(t, err)
+		assert.Equal(t, 2, val)
+	})
 
-	fns := []func(context.Context) (int, error){
-		func(ctx context.Context) (int, error) {
-			return 1, nil
-		},
-	}
+	t.Run("SuccessAllGetterRace", func(t *testing.T) {
+		fns := []func(context.Context) (int, error){
+			func(ctx context.Context) (int, error) {
+				select {
+				case <-time.After(time.Millisecond * 3):
+					return 1, nil
+				case <-ctx.Done():
+					return 0, ctx.Err()
+				}
+			},
+			func(context.Context) (int, error) {
+				select {
+				case <-time.After(time.Millisecond * 4):
+					return 2, nil
+				case <-ctx.Done():
+					return 0, ctx.Err()
+				}
+			},
+			func(context.Context) (int, error) {
+				select {
+				case <-time.After(time.Millisecond * 5):
+					return 3, nil
+				case <-ctx.Done():
+					return 0, ctx.Err()
+				}
+			},
+		}
 
-	val, err := cascade(ctx, fns, time.Second)
-	assert.NoError(t, err)
-	assert.Equal(t, 1, val)
+		val, err := cascade(ctx, fns, time.Millisecond*1)
+		assert.NoError(t, err)
+		assert.Equal(t, 1, val)
+	})
+
+	t.Run("Error", func(t *testing.T) {
+		fns := []func(context.Context) (int, error){
+			func(context.Context) (int, error) {
+				return 0, fmt.Errorf("1")
+			},
+			func(context.Context) (int, error) {
+				return 0, fmt.Errorf("2")
+			},
+			func(context.Context) (int, error) {
+				return 0, fmt.Errorf("3")
+			},
+		}
+
+		val, err := cascade(ctx, fns, time.Millisecond*10)
+		assert.Error(t, err)
+		assert.Len(t, multierr.Errors(err), 3)
+		assert.Equal(t, 0, val)
+	})
+
+	t.Run("Single", func(t *testing.T) {
+		fns := []func(context.Context) (int, error){
+			func(ctx context.Context) (int, error) {
+				return 1, nil
+			},
+		}
+
+		val, err := cascade(ctx, fns, time.Second)
+		assert.NoError(t, err)
+		assert.Equal(t, 1, val)
+	})
 }

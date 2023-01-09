@@ -10,11 +10,12 @@ import (
 	"github.com/celestiaorg/rsmt2d"
 )
 
-// SingleEDSGetter contains single EDS and allows getting data only out of it
+// SingleEDSGetter contains single EDS and allows getting data only out of it.
 type SingleEDSGetter struct {
 	EDS *rsmt2d.ExtendedDataSquare
 }
 
+// GetShare gets a share from a kept EDS if exist and if the correct root is given.
 func (seg *SingleEDSGetter) GetShare(_ context.Context, root *share.Root, row, col int) (share.Share, error) {
 	err := seg.checkRoot(root)
 	if err != nil {
@@ -23,6 +24,7 @@ func (seg *SingleEDSGetter) GetShare(_ context.Context, root *share.Root, row, c
 	return seg.EDS.GetCell(uint(row), uint(col)), nil
 }
 
+// GetEDS returns a kept EDS if the correct root is given.
 func (seg *SingleEDSGetter) GetEDS(_ context.Context, root *share.Root) (*rsmt2d.ExtendedDataSquare, error) {
 	err := seg.checkRoot(root)
 	if err != nil {
@@ -31,6 +33,7 @@ func (seg *SingleEDSGetter) GetEDS(_ context.Context, root *share.Root) (*rsmt2d
 	return seg.EDS, nil
 }
 
+// GetSharesByNamespace returns NamespacedShares from a kept EDS if the correct root is given.
 func (seg *SingleEDSGetter) GetSharesByNamespace(
 	ctx context.Context,
 	root *share.Root,
