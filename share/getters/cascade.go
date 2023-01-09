@@ -75,12 +75,18 @@ func cascadeGetters[V any](
 	return cascade[V](ctx, fns, interval)
 }
 
-// cascade
+// cascade implements a cascading retry algorithm for getting a value from multiple sources
+// sorted by priority. Cascading implies trying the sources one-by-one in the given order with the
+// given interval until either:
+//   - One of the sources returns the value
+//   - All of the sources errors
+//   - Context is canceled
+//
 // TODO(@Wondertan): Move to utils
-func cascade[V any](ctx context.Context, fncs []func(context.Context) (V, error), interval time.Duration) (V, error) {
+func cascade[V any](ctx context.Context, srcs []func(context.Context) (V, error), interval time.Duration) (V, error) {
 	// short circuit when there is only func to cascade
-	if len(fncs) == 1 {
-		return fncs[0](ctx)
+	if len(srcs) == 1 {
+		return srcs[0](ctx)
 	}
 	// once we got value from one of the fns
 	// this cancels all others on return
@@ -103,7 +109,7 @@ func cascade[V any](ctx context.Context, fncs []func(context.Context) (V, error)
 		err error
 	})
 
-	for _, f := range fncs {
+	for _, src := range srcs {
 		select {
 		case res := <-results:
 			if res.err == nil {
@@ -116,8 +122,8 @@ func cascade[V any](ctx context.Context, fncs []func(context.Context) (V, error)
 		}
 
 		t.Reset(interval)
-		go func(f func(context.Context) (V, error)) {
-			val, err := f(ctx)
+		go func(src func(context.Context) (V, error)) {
+			val, err := src(ctx)
 			select {
 			case results <- struct {
 				val V
@@ -125,10 +131,10 @@ func cascade[V any](ctx context.Context, fncs []func(context.Context) (V, error)
 			}{val: val, err: err}:
 			case <-ctx.Done():
 			}
-		}(f)
+		}(src)
 	}
 
-	for i := 0; i < len(fncs)-len(errs); i++ {
+	for i := 0; i < len(srcs)-len(errs); i++ {
 		select {
 		case res := <-results:
 			if res.err == nil {
