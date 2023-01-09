@@ -29,9 +29,6 @@ import (
 	"github.com/celestiaorg/celestia-node/share"
 )
 
-// Validator aliases a func that validates Header.
-type Validator = func(context.Context, *ExtendedHeader) pubsub.ValidationResult
-
 // TestSuite provides everything you need to test chain of Headers.
 // If not, please don't hesitate to extend it for your case.
 type TestSuite struct {
@@ -261,7 +258,7 @@ type DummySubscriber struct {
 	Headers []*ExtendedHeader
 }
 
-func (mhs *DummySubscriber) AddValidator(Validator) error {
+func (mhs *DummySubscriber) AddValidator(func(context.Context, *ExtendedHeader) pubsub.ValidationResult) error {
 	return nil
 }
 
