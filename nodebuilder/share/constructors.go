@@ -16,7 +16,6 @@ import (
 	"github.com/celestiaorg/celestia-node/share/availability/cache"
 	disc "github.com/celestiaorg/celestia-node/share/availability/discovery"
 	"github.com/celestiaorg/celestia-node/share/eds"
-	"github.com/celestiaorg/celestia-node/share/service"
 )
 
 func discovery(cfg Config) func(routing.ContentRouting, host.Host) *disc.Discovery {
@@ -43,11 +42,8 @@ func cacheAvailability[A share.Availability](lc fx.Lifecycle, ds datastore.Batch
 	return ca
 }
 
-func newModule(shrSrv service.ShareService, avail share.Availability) Module {
-	return &module{
-		Availability: avail,
-		ShareService: shrSrv,
-	}
+func newModule(getter share.Getter, avail share.Availability) Module {
+	return &module{getter, avail}
 }
 
 // ensureEmptyCARExists adds an empty EDS to the provided EDS store.

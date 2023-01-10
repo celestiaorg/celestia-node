@@ -12,27 +12,23 @@ import (
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/availability/discovery"
 	availability_test "github.com/celestiaorg/celestia-node/share/availability/test"
-	"github.com/celestiaorg/celestia-node/share/service"
+	"github.com/celestiaorg/celestia-node/share/getters"
 )
 
-// RandServiceWithSquare provides a share.Service filled with 'n' NMT
-// trees of 'n' random shares, essentially storing a whole square.
-func RandServiceWithSquare(t *testing.T, n int) (*ShareAvailability, *share.Root) {
+// GetterWithRandSquare provides a share.Getter filled with 'n' NMT trees of 'n' random shares,
+// essentially storing a whole square.
+func GetterWithRandSquare(t *testing.T, n int) (share.Getter, *share.Root) {
 	bServ := mdutils.Bserv()
-
-	shareServ, dah := service.NewShareService(bServ), availability_test.RandFillBS(t, n, bServ)
-	return NewShareAvailability(shareServ, bServ, RandDisc()), dah
+	getter := getters.NewIPLDGetter(bServ)
+	return getter, availability_test.RandFillBS(t, n, bServ)
 }
 
-func RandDisc() *discovery.Discovery {
-	return &discovery.Discovery{}
-}
-
-// RandService provides an unfilled share.Service with corresponding
-// blockservice.BlockService than can be filled by the test.
-func RandService() (service.ShareService, blockservice.BlockService) {
+// EmptyGetter provides an unfilled share.Getter with corresponding blockservice.BlockService than
+// can be filled by the test.
+func EmptyGetter() (share.Getter, blockservice.BlockService) {
 	bServ := mdutils.Bserv()
-	return service.NewShareService(bServ), bServ
+	getter := getters.NewIPLDGetter(bServ)
+	return getter, bServ
 }
 
 // RandNode creates a Light Node filled with a random block of the given size.
@@ -44,14 +40,14 @@ func RandNode(dn *availability_test.TestDagNet, squareSize int) (*availability_t
 // Node creates a new empty Light Node.
 func Node(dn *availability_test.TestDagNet) *availability_test.TestNode {
 	nd := dn.NewTestNode()
-	nd.ShareService = service.NewShareService(nd.BlockService)
-	nd.Availability = NewShareAvailability(nd.ShareService, nd.BlockService, RandDisc())
+	nd.Getter = getters.NewIPLDGetter(nd.BlockService)
+	nd.Availability = TestAvailability(nd.Getter)
 	return nd
 }
 
-func TestAvailability(bServ blockservice.BlockService) *ShareAvailability {
+func TestAvailability(getter share.Getter) *ShareAvailability {
 	disc := discovery.NewDiscovery(nil, routing.NewRoutingDiscovery(routinghelpers.Null{}), 0, time.Second, time.Second)
-	return NewShareAvailability(service.NewShareService(bServ), bServ, disc)
+	return NewShareAvailability(getter, disc)
 }
 
 func SubNetNode(sn *availability_test.SubNet) *availability_test.TestNode {

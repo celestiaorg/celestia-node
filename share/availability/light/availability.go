@@ -5,15 +5,13 @@ import (
 	"errors"
 	"math"
 
-	"github.com/libp2p/go-libp2p/core/peer"
-
-	"github.com/ipfs/go-blockservice"
 	ipldFormat "github.com/ipfs/go-ipld-format"
 	logging "github.com/ipfs/go-log/v2"
+	"github.com/libp2p/go-libp2p/core/peer"
 
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/availability/discovery"
-	shr "github.com/celestiaorg/celestia-node/share/service"
+	"github.com/celestiaorg/celestia-node/share/getters"
 )
 
 var log = logging.Logger("share/light")
@@ -23,8 +21,7 @@ var log = logging.Logger("share/light")
 // its availability. It is assumed that there are a lot of lightAvailability instances
 // on the network doing sampling over the same Root to collectively verify its availability.
 type ShareAvailability struct {
-	shareServ shr.ShareService
-	bserv     blockservice.BlockService
+	getter share.Getter
 	// disc discovers new full nodes in the network.
 	// it is not allowed to call advertise for light nodes (Full nodes only).
 	disc   *discovery.Discovery
@@ -33,14 +30,12 @@ type ShareAvailability struct {
 
 // NewShareAvailability creates a new light Availability.
 func NewShareAvailability(
-	shareService shr.ShareService,
-	bserv blockservice.BlockService,
+	getter share.Getter,
 	disc *discovery.Discovery,
 ) *ShareAvailability {
 	la := &ShareAvailability{
-		shareServ: shareService,
-		bserv:     bserv,
-		disc:      disc,
+		getter: getter,
+		disc:   disc,
 	}
 	return la
 }
@@ -51,7 +46,7 @@ func (la *ShareAvailability) Start(context.Context) error {
 
 	go la.disc.EnsurePeers(ctx)
 
-	return la.shareServ.Start(ctx)
+	return nil
 }
 
 func (la *ShareAvailability) Stop(ctx context.Context) error {
@@ -75,16 +70,21 @@ func (la *ShareAvailability) SharesAvailable(ctx context.Context, dah *share.Roo
 		return err
 	}
 
+	// indicate to the share.Getter that a blockservice session should be created. This
+	// functionality is optional and must be supported by the used share.Getter.
+	ctx = getters.WithSession(ctx)
 	ctx, cancel := context.WithTimeout(ctx, share.AvailabilityTimeout)
 	defer cancel()
-
-	la.shareServ.RenewSession(ctx)
-
 	log.Debugw("starting sampling session", "root", dah.Hash())
+
 	errs := make(chan error, len(samples))
 	for _, s := range samples {
 		go func(s Sample) {
-			_, err := la.shareServ.GetShare(ctx, dah, s.Row, s.Col)
+			log.Debugw("fetching share", "root", dah.Hash(), "row", s.Row, "col", s.Col)
+			_, err := la.getter.GetShare(ctx, dah, s.Row, s.Col)
+			if err != nil {
+				log.Debugw("error fetching share", "root", dah.Hash(), "row", s.Row, "col", s.Col)
+			}
 			// we don't really care about Share bodies at this point
 			// it also means we now saved the Share in local storage
 			select {

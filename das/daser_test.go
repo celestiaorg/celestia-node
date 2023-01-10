@@ -23,6 +23,7 @@ import (
 
 	"github.com/celestiaorg/celestia-node/fraud"
 	"github.com/celestiaorg/celestia-node/header"
+	"github.com/celestiaorg/celestia-node/share/getters"
 )
 
 var timeout = time.Second * 15
@@ -32,7 +33,7 @@ var timeout = time.Second * 15
 func TestDASerLifecycle(t *testing.T) {
 	ds := ds_sync.MutexWrap(datastore.NewMapDatastore())
 	bServ := mdutils.Bserv()
-	avail := light.TestAvailability(bServ)
+	avail := light.TestAvailability(getters.NewIPLDGetter(bServ))
 	// 15 headers from the past and 15 future headers
 	mockGet, sub, mockService := createDASerSubcomponents(t, bServ, 15, 15)
 
@@ -72,7 +73,7 @@ func TestDASerLifecycle(t *testing.T) {
 func TestDASer_Restart(t *testing.T) {
 	ds := ds_sync.MutexWrap(datastore.NewMapDatastore())
 	bServ := mdutils.Bserv()
-	avail := light.TestAvailability(bServ)
+	avail := light.TestAvailability(getters.NewIPLDGetter(bServ))
 	// 15 headers from the past and 15 future headers
 	mockGet, sub, mockService := createDASerSubcomponents(t, bServ, 15, 15)
 
@@ -147,7 +148,7 @@ func TestDASer_stopsAfter_BEFP(t *testing.T) {
 	ps, err := pubsub.NewGossipSub(ctx, net.Hosts()[0],
 		pubsub.WithMessageSignaturePolicy(pubsub.StrictNoSign))
 	require.NoError(t, err)
-	avail := full.TestAvailability(bServ)
+	avail := full.TestAvailability(getters.NewIPLDGetter(bServ))
 	// 15 headers from the past and 15 future headers
 	mockGet, sub, _ := createDASerSubcomponents(t, bServ, 15, 15)
 

@@ -10,7 +10,7 @@ import (
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/availability/full"
 	availability_test "github.com/celestiaorg/celestia-node/share/availability/test"
-	"github.com/celestiaorg/celestia-node/share/service"
+	"github.com/celestiaorg/celestia-node/share/getters"
 )
 
 // sharesAvailableTimeout is an arbitrarily picked interval of time in which a TestNode is expected
@@ -26,7 +26,7 @@ func TestNamespaceHasher_CorruptedData(t *testing.T) {
 
 	requestor := full.Node(net)
 	provider, mockBS := availability_test.MockNode(t, net)
-	provider.ShareService = service.NewShareService(provider.BlockService)
+	provider.Availability = full.TestAvailability(getters.NewIPLDGetter(provider.BlockService))
 	net.ConnectAll()
 
 	// before the provider starts attacking, we should be able to retrieve successfully. We pass a size
