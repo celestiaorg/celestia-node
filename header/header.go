@@ -63,11 +63,6 @@ func (eh *ExtendedHeader) Time() time.Time {
 	return eh.RawHeader.Time
 }
 
-func (eh *ExtendedHeader) Validate() error {
-	// TODO(tzdybal): rename ValidateBasic to Validate
-	return eh.ValidateBasic()
-}
-
 var _ libhead.Header = &ExtendedHeader{}
 
 // MakeExtendedHeader assembles new ExtendedHeader.
@@ -101,7 +96,7 @@ func MakeExtendedHeader(
 		Commit:       comm,
 		ValidatorSet: vals,
 	}
-	return eh, eh.ValidateBasic()
+	return eh, eh.Validate()
 }
 
 // Hash returns Hash of the wrapped RawHeader.
@@ -123,8 +118,8 @@ func (eh *ExtendedHeader) Equals(header *ExtendedHeader) bool {
 	return eh.Height() == header.Height() && bytes.Equal(eh.Hash(), header.Hash())
 }
 
-// ValidateBasic performs *basic* validation to check for missed/incorrect fields.
-func (eh *ExtendedHeader) ValidateBasic() error {
+// Validate performs *basic* validation to check for missed/incorrect fields.
+func (eh *ExtendedHeader) Validate() error {
 	err := eh.RawHeader.ValidateBasic()
 	if err != nil {
 		return err

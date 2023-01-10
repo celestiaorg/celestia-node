@@ -70,7 +70,7 @@ func (s *TestSuite) genesis() *ExtendedHeader {
 		ValidatorSet: s.valSet,
 		DAH:          &dah,
 	}
-	require.NoError(s.t, eh.ValidateBasic())
+	require.NoError(s.t, eh.Validate())
 	return eh
 }
 
@@ -110,7 +110,7 @@ func (s *TestSuite) GenExtendedHeader() *ExtendedHeader {
 		ValidatorSet: s.valSet,
 		DAH:          &dah,
 	}
-	require.NoError(s.t, s.head.ValidateBasic())
+	require.NoError(s.t, s.head.Validate())
 	return s.head
 }
 
