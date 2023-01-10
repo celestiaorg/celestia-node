@@ -47,6 +47,10 @@ func (eh *ExtendedHeader) New() libhead.Header {
 	return new(ExtendedHeader)
 }
 
+func (eh *ExtendedHeader) IsZero() bool {
+	return eh == nil
+}
+
 func (eh *ExtendedHeader) ChainID() string {
 	return eh.RawHeader.ChainID
 }

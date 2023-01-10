@@ -129,13 +129,10 @@ func (serv *ExchangeServer[H]) requestHandler(stream network.Stream) {
 		if err := stream.SetWriteDeadline(time.Now().Add(serv.Params.ReadDeadline)); err != nil {
 			log.Debugf("error setting deadline: %s", err)
 		}
-		var (
-			bin  []byte
-			zero H
-		)
+		var bin []byte
 		// if header is not nil, then marshal it to []byte.
 		// if header is nil, then error was received,so we will set empty []byte to proto.
-		if header.Header(h) != header.Header(zero) {
+		if !h.IsZero() {
 			bin, err = h.MarshalBinary()
 			if err != nil {
 				log.Errorw("server: marshaling header to proto", "height", h.Height, "err", err)

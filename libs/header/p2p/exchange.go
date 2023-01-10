@@ -109,12 +109,14 @@ func (ex *Exchange[H]) Head(ctx context.Context) (H, error) {
 		zero     H
 		headerCh = make(chan H)
 	)
+
 	// request head from each trusted peer
 	for _, from := range ex.trustedPeers {
 		go func(from peer.ID) {
 			headers, err := ex.request(ctx, from, req)
 			if err != nil {
 				log.Errorw("head request to trusted peer failed", "trustedPeer", from, "err", err)
+				var zero H
 				headerCh <- zero
 				return
 			}
@@ -128,7 +130,7 @@ LOOP:
 	for range ex.trustedPeers {
 		select {
 		case h := <-headerCh:
-			if header.Header(h) != header.Header(zero) {
+			if !h.IsZero() {
 				result = append(result, h)
 			}
 		case <-ctx.Done():

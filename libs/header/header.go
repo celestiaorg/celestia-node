@@ -9,6 +9,8 @@ import (
 type Header interface {
 	// New creates new instance of a header.
 	New() Header
+	// IsZero reports whether Header is a zero value of it's concrete type.
+	IsZero() bool
 	// ChainID returns identifier of the chain (ChainID).
 	ChainID() string
 	// Hash returns hash of a header.

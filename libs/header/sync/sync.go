@@ -168,11 +168,8 @@ func (s *Syncer[H]) syncLoop() {
 
 // sync ensures we are synced from the Store's head up to the new subjective head
 func (s *Syncer[H]) sync(ctx context.Context) {
-	var (
-		newHead = s.pending.Head()
-		zero    H
-	)
-	if header.Header(newHead) == header.Header(zero) {
+	newHead := s.pending.Head()
+	if newHead.IsZero() {
 		return
 	}
 

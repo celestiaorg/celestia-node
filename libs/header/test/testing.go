@@ -36,6 +36,10 @@ func (d *DummyHeader) New() header.Header {
 	return new(DummyHeader)
 }
 
+func (d *DummyHeader) IsZero() bool {
+	return d == nil
+}
+
 func (d *DummyHeader) ChainID() string {
 	return d.Raw.ChainID
 }

@@ -197,8 +197,7 @@ func (s *session[H]) processResponse(responses []*p2p_pb.HeaderResponse) ([]H, e
 // validate checks that the received range of headers is valid against the provided header.
 func (s *session[H]) validate(headers []H) error {
 	// if `from` is empty, then additional validation for the header`s range is not needed.
-	var zero H
-	if header.Header(s.from) == header.Header(zero) {
+	if s.from.IsZero() {
 		return nil
 	}
 

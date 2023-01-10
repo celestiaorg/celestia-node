@@ -27,7 +27,7 @@ func (s *Syncer[H]) subjectiveHead(ctx context.Context) (H, error) {
 		pendHead = s.pending.Head()
 		zero     H
 	)
-	if header.Header(pendHead) != header.Header(zero) {
+	if !pendHead.IsZero() {
 		return pendHead, nil
 	}
 	// if empty, get subjective head out of the store

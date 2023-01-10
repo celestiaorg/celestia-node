@@ -173,7 +173,7 @@ func (s *Store[H]) Get(ctx context.Context, hash header.Hash) (H, error) {
 		return v.(H), nil
 	}
 	// check if the requested header is not yet written on disk
-	if h := s.pending.Get(hash); header.Header(h) != header.Header(zero) {
+	if h := s.pending.Get(hash); !h.IsZero() {
 		return h, nil
 	}
 
@@ -212,7 +212,7 @@ func (s *Store[H]) GetByHeight(ctx context.Context, height uint64) (H, error) {
 	// which means the requested 'height' should be present
 	//
 	// check if the requested header is not yet written on disk
-	if h := s.pending.GetByHeight(height); header.Header(h) != header.Header(zero) {
+	if h := s.pending.GetByHeight(height); !h.IsZero() {
 		return h, nil
 	}
 
