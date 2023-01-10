@@ -92,7 +92,6 @@ func (dn *TestDagNet) NewTestNodeWithBlockstore(dstore ds.Datastore, bstore bloc
 	bserv := blockservice.New(bstore, bs)
 
 	nd := &TestNode{
-		ShareService: shrSrv,
 		net:          dn,
 		BlockService: bserv,
 		Host:         hst,

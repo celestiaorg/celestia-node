@@ -51,7 +51,7 @@ func (la *ShareAvailability) Start(context.Context) error {
 
 func (la *ShareAvailability) Stop(ctx context.Context) error {
 	la.cancel()
-	return la.shareServ.Stop(ctx)
+	return nil
 }
 
 // SharesAvailable randomly samples DefaultSampleAmount amount of Shares committed to the given
