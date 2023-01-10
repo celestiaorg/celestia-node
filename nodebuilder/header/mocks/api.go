@@ -8,9 +8,8 @@ import (
 	context "context"
 	reflect "reflect"
 
-	gomock "github.com/golang/mock/gomock"
-
 	header "github.com/celestiaorg/celestia-node/header"
+	gomock "github.com/golang/mock/gomock"
 )
 
 // MockModule is a mock of Module interface.
@@ -67,15 +66,15 @@ func (mr *MockModuleMockRecorder) Head(arg0 interface{}) *gomock.Call {
 }
 
 // IsSyncing mocks base method.
-func (m *MockModule) IsSyncing() bool {
+func (m *MockModule) IsSyncing(arg0 context.Context) bool {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "IsSyncing")
+	ret := m.ctrl.Call(m, "IsSyncing", arg0)
 	ret0, _ := ret[0].(bool)
 	return ret0
 }
 
 // IsSyncing indicates an expected call of IsSyncing.
-func (mr *MockModuleMockRecorder) IsSyncing() *gomock.Call {
+func (mr *MockModuleMockRecorder) IsSyncing(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsSyncing", reflect.TypeOf((*MockModule)(nil).IsSyncing))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsSyncing", reflect.TypeOf((*MockModule)(nil).IsSyncing), arg0)
 }
