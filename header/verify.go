@@ -53,10 +53,10 @@ func (eh *ExtendedHeader) VerifyAdjacent(untrusted libhead.Header) error {
 		return errInvalidType
 	}
 	if untrst.Height() != eh.Height()+1 {
-		return &libhead.VerifyError{Reason: &libhead.ErrNonAdjacent{
+		return &libhead.ErrNonAdjacent{
 			Head:      eh.Height(),
 			Attempted: untrst.Height(),
-		}}
+		}
 	}
 
 	if err := eh.verify(untrst); err != nil {
