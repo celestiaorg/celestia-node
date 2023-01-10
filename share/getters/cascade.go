@@ -11,6 +11,8 @@ import (
 	"github.com/celestiaorg/rsmt2d"
 )
 
+var _ share.Getter = (*CascadeGetter)(nil)
+
 // CascadeGetter implements custom share.Getter that composes multiple Getter implementations in
 // "cascading" order.
 //
