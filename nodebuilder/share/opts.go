@@ -2,8 +2,6 @@ package share
 
 import (
 	"fmt"
-
-	"github.com/celestiaorg/celestia-node/share/service"
 )
 
 func WithBlackBoxMetrics(ss Module) (Module, error) {
@@ -11,22 +9,16 @@ func WithBlackBoxMetrics(ss Module) (Module, error) {
 	if !ok {
 		return nil, fmt.Errorf("[WithBlackBoxMetrics]: encountered an error while type-casting share.Module to `module` ")
 	}
-	shareService, err := WithBlackBoxShareServiceMetrics(mod.ShareService)
+
+	insShareGetter, err := newInstrument(mod.Getter)
 	if err != nil {
 		return nil, err
 	}
 
-	// Add `Availability` once implemented
-	mod.ShareService = shareService
+	// Reassign `Availability` with the instrumented
+	// availability instance here
+	// once it's implemented
+	mod.Getter = insShareGetter
 
 	return Module(mod), nil
-}
-
-func WithBlackBoxShareServiceMetrics(ss service.ShareService) (service.ShareService, error) {
-	instrumentedShareServ, err := newBlackBoxInstrument(ss)
-	if err != nil {
-		return nil, err
-	}
-
-	return instrumentedShareServ, nil
 }

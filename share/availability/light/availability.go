@@ -46,12 +46,12 @@ func (la *ShareAvailability) Start(context.Context) error {
 
 	go la.disc.EnsurePeers(ctx)
 
-	return la.shareServ.Start(ctx)
+	return nil
 }
 
 func (la *ShareAvailability) Stop(ctx context.Context) error {
 	la.cancel()
-	return la.shareServ.Stop(ctx)
+	return nil
 }
 
 // SharesAvailable randomly samples DefaultSampleAmount amount of Shares committed to the given
@@ -75,10 +75,8 @@ func (la *ShareAvailability) SharesAvailable(ctx context.Context, dah *share.Roo
 	ctx = getters.WithSession(ctx)
 	ctx, cancel := context.WithTimeout(ctx, share.AvailabilityTimeout)
 	defer cancel()
-
-	la.shareServ.RenewSession(ctx)
-
 	log.Debugw("starting sampling session", "root", dah.Hash())
+
 	errs := make(chan error, len(samples))
 	for _, s := range samples {
 		go func(s Sample) {

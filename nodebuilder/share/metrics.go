@@ -12,7 +12,9 @@ import (
 	"go.opentelemetry.io/otel/metric/instrument/syncint64"
 
 	"github.com/celestiaorg/celestia-node/share"
-	"github.com/celestiaorg/celestia-node/share/service"
+	"github.com/celestiaorg/rsmt2d"
+
+	// "github.com/celestiaorg/celestia-node/share/service"
 	"github.com/celestiaorg/nmt/namespace"
 	"github.com/celestiaorg/utils/misc"
 )
@@ -39,11 +41,11 @@ const (
 	squareSizeMetricDesc = "size of the erasure coded block"
 )
 
-// shareServiceBlackboxInstru is the proxy struct
-// used to perform measurements of blackbox metrics
-// for the service.ShareService interface (i.e: the share service)
-// check <insert documentation file here> for more info.
-type shareServiceBlackboxInstru struct {
+// instrumentedShareGetter is the proxy struct
+// used to perform "blackbox" metrics measurements
+// for the share.Getter interface implementers
+// check share/getter.go and share/availability/light.go for more info
+type instrumentedShareGetter struct {
 	// metrics
 	requestsNum     syncint64.Counter
 	requestDuration syncint64.Histogram
@@ -51,10 +53,10 @@ type shareServiceBlackboxInstru struct {
 	squareSize      syncint64.UpDownCounter
 
 	// pointer to mod
-	next service.ShareService
+	next share.Getter
 }
 
-func newBlackBoxInstrument(next service.ShareService) (service.ShareService, error) {
+func newInstrument(next share.Getter) (share.Getter, error) {
 	requestsNum, err := meter.
 		SyncInt64().
 		Counter(
@@ -95,7 +97,7 @@ func newBlackBoxInstrument(next service.ShareService) (service.ShareService, err
 		return nil, err
 	}
 
-	bbinstrument := &shareServiceBlackboxInstru{
+	instrument := &instrumentedShareGetter{
 		requestsNum,
 		requestDuration,
 		requestSize,
@@ -103,26 +105,11 @@ func newBlackBoxInstrument(next service.ShareService) (service.ShareService, err
 		next,
 	}
 
-	return bbinstrument, nil
+	return instrument, nil
 }
 
-func (bbi *shareServiceBlackboxInstru) Start(ctx context.Context) error {
-	return bbi.next.Start(ctx)
-}
-
-func (bbi *shareServiceBlackboxInstru) Stop(ctx context.Context) error {
-	return bbi.next.Stop(ctx)
-}
-
-func (bbi *shareServiceBlackboxInstru) RenewSession(ctx context.Context) {
-	bbi.next.RenewSession(ctx)
-}
-
-func (bbi *shareServiceBlackboxInstru) GetShare(
-	ctx context.Context,
-	dah *share.Root,
-	row, col int,
-) (share.Share, error) {
+// // GetShare gets a Share by coordinates in EDS.
+func (ins *instrumentedShareGetter) GetShare(ctx context.Context, root *share.Root, row, col int) (share.Share, error) {
 	log.Debug("GetShare is being called through the facade")
 	now := time.Now()
 	requestID, err := misc.RandString(5)
@@ -132,19 +119,21 @@ func (bbi *shareServiceBlackboxInstru) GetShare(
 
 	// defer recording the duration until the request has received a response and finished
 	defer func(ctx context.Context, begin time.Time) {
-		bbi.requestDuration.Record(
+		ins.requestDuration.Record(
 			ctx,
 			time.Since(begin).Milliseconds(),
 		)
 	}(ctx, now)
 
-	bbi.squareSize.Add(ctx, int64(len(dah.RowsRoots)))
+	// measure the EDS size
+	// this will track the EDS size for light nodes
+	ins.squareSize.Add(ctx, int64(len(root.RowsRoots)))
 
 	// perform the actual request
-	share, err := bbi.next.GetShare(ctx, dah, row, col)
+	share, err := ins.next.GetShare(ctx, root, row, col)
 	if err != nil {
 		// count the request and tag it as a failed one
-		bbi.requestsNum.Add(
+		ins.requestsNum.Add(
 			ctx,
 			1,
 			attribute.String("request-id", requestID),
@@ -154,7 +143,7 @@ func (bbi *shareServiceBlackboxInstru) GetShare(
 	}
 
 	// other wise, count the request but tag it as a succeeded one
-	bbi.requestsNum.Add(
+	ins.requestsNum.Add(
 		ctx,
 		1,
 		attribute.String("request-id", requestID),
@@ -162,7 +151,7 @@ func (bbi *shareServiceBlackboxInstru) GetShare(
 	)
 
 	// record the response size (extended header in this case)
-	bbi.requestSize.Record(
+	ins.requestSize.Record(
 		ctx,
 		int64(len(share)),
 	)
@@ -170,18 +159,16 @@ func (bbi *shareServiceBlackboxInstru) GetShare(
 	return share, err
 }
 
-func (bbi *shareServiceBlackboxInstru) GetShares(
-	ctx context.Context,
-	root *share.Root,
-) ([][]share.Share, error) {
-	return bbi.next.GetShares(ctx, root)
+// // GetEDS gets the full EDS identified by the given root.
+func (ins *instrumentedShareGetter) GetEDS(ctx context.Context, root *share.Root) (*rsmt2d.ExtendedDataSquare, error) {
+	// measure the EDS size
+	// this will track the EDS size for full nodes
+	ins.squareSize.Add(ctx, int64(len(root.RowsRoots)))
+	return ins.next.GetEDS(ctx, root)
 }
 
-// GetSharesByNamespace iterates over a square's row roots and accumulates the found shares in the given namespace.ID.
-func (bbi *shareServiceBlackboxInstru) GetSharesByNamespace(
-	ctx context.Context,
-	root *share.Root,
-	namespace namespace.ID,
-) ([]share.Share, error) {
-	return bbi.next.GetSharesByNamespace(ctx, root, namespace)
+// // GetSharesByNamespace gets all shares from an EDS within the given namespace.
+// // Shares are returned in a row-by-row order if the namespace spans multiple rows.
+func (ins *instrumentedShareGetter) GetSharesByNamespace(ctx context.Context, root *share.Root, id namespace.ID) (share.NamespacedShares, error) {
+	return ins.next.GetSharesByNamespace(ctx, root, id)
 }

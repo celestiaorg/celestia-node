@@ -19,7 +19,6 @@ import (
 
 	"github.com/celestiaorg/celestia-app/pkg/da"
 	"github.com/celestiaorg/celestia-node/share"
-	"github.com/celestiaorg/celestia-node/share/service"
 )
 
 // RandFillBS fills the given BlockService with a random block of a given size.
@@ -42,7 +41,6 @@ type TestNode struct {
 	share.Availability
 	blockservice.BlockService
 
-	net *TestDagNet
 	host.Host
 }
 
@@ -92,10 +90,8 @@ func (dn *TestDagNet) NewTestNodeWithBlockstore(dstore ds.Datastore, bstore bloc
 		bitswap.SetSendDontHaves(false),
 	)
 	bserv := blockservice.New(bstore, bs)
-	shrSrv := service.NewShareService(bserv)
 
 	nd := &TestNode{
-		ShareService: shrSrv,
 		net:          dn,
 		BlockService: bserv,
 		Host:         hst,
