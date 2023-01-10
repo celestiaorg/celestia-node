@@ -3,9 +3,8 @@ package nodebuilder
 import (
 	"os"
 	"path/filepath"
-	"reflect"
 
-	"github.com/r3labs/diff/v3"
+	"github.com/imdario/mergo"
 
 	"github.com/celestiaorg/celestia-node/libs/fslock"
 	"github.com/celestiaorg/celestia-node/libs/utils"
@@ -93,12 +92,12 @@ func Reinit(path string, newConfigPath string, tp node.Type) error {
 		return err
 	}
 
-	err = diffConfig(cfg, newConf)
+	err = mergo.Merge(newConf, cfg, mergo.WithOverrideEmptySlice)
 	if err != nil {
 		return err
 	}
 
-	err = SaveConfig(cfgPath, cfg)
+	err = SaveConfig(cfgPath, newConf)
 	if err != nil {
 		return err
 	}
@@ -159,24 +158,4 @@ func initDir(path string) error {
 		return nil
 	}
 	return os.Mkdir(path, perms)
-}
-
-func diffConfig(cfg, newConf *Config) error {
-	changelog, err := diff.Diff(cfg, newConf)
-	if err != nil {
-		return err
-	}
-
-	filterChangelog := []diff.Change{}
-	for _, change := range changelog {
-		if change.To != nil {
-			if !reflect.ValueOf(change.To).IsZero() {
-				filterChangelog = append(filterChangelog, change)
-			}
-		}
-	}
-
-	diff.Patch(filterChangelog, &cfg)
-
-	return nil
 }
