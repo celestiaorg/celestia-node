@@ -51,7 +51,8 @@ func (m *MockStore[H]) Get(ctx context.Context, hash header.Hash) (H, error) {
 			return header, nil
 		}
 	}
-	return *new(H), header.ErrNotFound //nolint:gocritic
+	var zero H
+	return zero, header.ErrNotFound
 }
 
 func (m *MockStore[H]) GetByHeight(ctx context.Context, height uint64) (H, error) {

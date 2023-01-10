@@ -19,18 +19,21 @@ func (s *Syncer[H]) Head(ctx context.Context) (H, error) {
 // If the header is expired, it is retrieved from a trusted peer without validation;
 // in other words, an automatic subjective initialization is performed.
 func (s *Syncer[H]) subjectiveHead(ctx context.Context) (H, error) {
-	// pending head is the latest known subjective head Syncer syncs to, so try to get it
-	// NOTES:
-	// * Empty when no sync is in progress
-	// * Pending cannot be expired, guaranteed
-	pendHead := s.pending.Head()
-	if header.Header(pendHead) != header.Header(*new(H)) { //nolint:gocritic
+	var (
+		// pending head is the latest known subjective head Syncer syncs to, so try to get it
+		// NOTES:
+		// * Empty when no sync is in progress
+		// * Pending cannot be expired, guaranteed
+		pendHead = s.pending.Head()
+		zero     H
+	)
+	if header.Header(pendHead) != header.Header(zero) {
 		return pendHead, nil
 	}
 	// if empty, get subjective head out of the store
 	netHead, err := s.store.Head(ctx)
 	if err != nil {
-		return *new(H), err //nolint:gocritic
+		return zero, err
 	}
 	// check if our subjective header is not expired and use it
 	if !netHead.IsExpired(s.Params.TrustingPeriod) {
@@ -40,7 +43,7 @@ func (s *Syncer[H]) subjectiveHead(ctx context.Context) (H, error) {
 	// otherwise, request network head from a trusted peer
 	netHead, err = s.exchange.Head(ctx)
 	if err != nil {
-		return *new(H), err //nolint:gocritic
+		return zero, err
 	}
 	// and set as the new subjective head without validation,
 	// or, in other words, do 'automatic subjective initialization'
@@ -63,9 +66,10 @@ func (s *Syncer[H]) subjectiveHead(ctx context.Context) (H, error) {
 // enough(now-timestamp<=blocktime). Otherwise, network header is requested from a trusted peer and
 // set as the new subjective head, assuming that trusted peer is always synced.
 func (s *Syncer[H]) networkHead(ctx context.Context) (H, error) {
+	var zero H
 	sbjHead, err := s.subjectiveHead(ctx)
 	if err != nil {
-		return *new(H), err //nolint:gocritic
+		return zero, err
 	}
 	// if subjective header is recent enough (relative to the network's block time) - just use it
 	if sbjHead.IsRecent(s.Params.blockTime) {
@@ -88,7 +92,7 @@ func (s *Syncer[H]) networkHead(ctx context.Context) (H, error) {
 	//  * This way we don't request as we know the new network header arrives exactly
 	netHead, err := s.exchange.Head(ctx)
 	if err != nil {
-		return *new(H), err //nolint:gocritic
+		return zero, err
 	}
 	// process netHead returned from the trusted peer and validate against the subjective head
 	// NOTE: We could trust the netHead like we do during 'automatic subjective initialization'

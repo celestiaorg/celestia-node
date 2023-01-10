@@ -153,12 +153,13 @@ func (s *Store[H]) Head(ctx context.Context) (H, error) {
 		return head, nil
 	}
 
+	var zero H
 	head, err = s.readHead(ctx)
 	switch err {
 	default:
-		return *new(H), err //nolint:gocritic
+		return zero, err
 	case datastore.ErrNotFound, header.ErrNotFound:
-		return *new(H), header.ErrNoHead //nolint:gocritic
+		return zero, header.ErrNoHead
 	case nil:
 		s.heightSub.SetHeight(uint64(head.Height()))
 		log.Infow("loaded head", "height", head.Height(), "hash", head.Hash())
@@ -167,28 +168,29 @@ func (s *Store[H]) Head(ctx context.Context) (H, error) {
 }
 
 func (s *Store[H]) Get(ctx context.Context, hash header.Hash) (H, error) {
+	var zero H
 	if v, ok := s.cache.Get(hash.String()); ok {
 		return v.(H), nil
 	}
 	// check if the requested header is not yet written on disk
-	if h := s.pending.Get(hash); header.Header(h) != header.Header(*new(H)) { //nolint:gocritic
+	if h := s.pending.Get(hash); header.Header(h) != header.Header(zero) {
 		return h, nil
 	}
 
 	b, err := s.ds.Get(ctx, datastore.NewKey(hash.String()))
 	if err != nil {
 		if err == datastore.ErrNotFound {
-			return *new(H), header.ErrNotFound //nolint:gocritic
+			return zero, header.ErrNotFound
 		}
 
-		return *new(H), err //nolint:gocritic
+		return zero, err
 	}
 
 	var empty H
 	h := empty.New()
 	err = h.UnmarshalBinary(b)
 	if err != nil {
-		return *new(H), err //nolint:gocritic
+		return zero, err
 	}
 
 	s.cache.Add(h.Hash().String(), h)
@@ -196,8 +198,9 @@ func (s *Store[H]) Get(ctx context.Context, hash header.Hash) (H, error) {
 }
 
 func (s *Store[H]) GetByHeight(ctx context.Context, height uint64) (H, error) {
+	var zero H
 	if height == 0 {
-		return *new(H), fmt.Errorf("header/store: height must be bigger than zero") //nolint:gocritic
+		return zero, fmt.Errorf("header/store: height must be bigger than zero")
 	}
 	// if the requested 'height' was not yet published
 	// we subscribe to it
@@ -209,17 +212,17 @@ func (s *Store[H]) GetByHeight(ctx context.Context, height uint64) (H, error) {
 	// which means the requested 'height' should be present
 	//
 	// check if the requested header is not yet written on disk
-	if h := s.pending.GetByHeight(height); header.Header(h) != header.Header(*new(H)) { //nolint:gocritic
+	if h := s.pending.GetByHeight(height); header.Header(h) != header.Header(zero) {
 		return h, nil
 	}
 
 	hash, err := s.heightIndex.HashByHeight(ctx, height)
 	if err != nil {
 		if err == datastore.ErrNotFound {
-			return *new(H), header.ErrNotFound //nolint:gocritic
+			return zero, header.ErrNotFound
 		}
 
-		return *new(H), err //nolint:gocritic
+		return zero, err
 	}
 
 	return s.Get(ctx, hash)
@@ -426,15 +429,16 @@ func (s *Store[H]) flush(ctx context.Context, headers ...H) error {
 
 // readHead loads the head from the datastore.
 func (s *Store[H]) readHead(ctx context.Context) (H, error) {
+	var zero H
 	b, err := s.ds.Get(ctx, headKey)
 	if err != nil {
-		return *new(H), err //nolint:gocritic
+		return zero, err
 	}
 
 	var head header.Hash
 	err = head.UnmarshalJSON(b)
 	if err != nil {
-		return *new(H), err //nolint:gocritic
+		return zero, err
 	}
 
 	return s.Get(ctx, head)

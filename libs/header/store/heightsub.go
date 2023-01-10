@@ -42,8 +42,9 @@ func (hs *heightSub[H]) SetHeight(height uint64) {
 // It can return errElapsedHeight, which means a requested header was already provided
 // and caller should get it elsewhere.
 func (hs *heightSub[H]) Sub(ctx context.Context, height uint64) (H, error) {
+	var zero H
 	if hs.Height() >= height {
-		return *new(H), errElapsedHeight //nolint:gocritic
+		return zero, errElapsedHeight
 	}
 
 	hs.heightReqsLk.Lock()
@@ -52,7 +53,7 @@ func (hs *heightSub[H]) Sub(ctx context.Context, height uint64) (H, error) {
 		// The lock above can park a goroutine long enough for hs.height to change for a requested height,
 		// leaving the request never fulfilled and the goroutine deadlocked.
 		hs.heightReqsLk.Unlock()
-		return *new(H), errElapsedHeight //nolint:gocritic
+		return zero, errElapsedHeight
 	}
 	resp := make(chan H, 1)
 	hs.heightReqs[height] = append(hs.heightReqs[height], resp)
@@ -66,7 +67,7 @@ func (hs *heightSub[H]) Sub(ctx context.Context, height uint64) (H, error) {
 		hs.heightReqsLk.Lock()
 		delete(hs.heightReqs, height)
 		hs.heightReqsLk.Unlock()
-		return *new(H), ctx.Err() //nolint:gocritic
+		return zero, ctx.Err()
 	}
 }
 

@@ -47,7 +47,8 @@ func (b *batch[H]) Get(hash header.Hash) H {
 	defer b.lk.RUnlock()
 	height, ok := b.heights[hash.String()]
 	if !ok {
-		return *new(H) //nolint:gocritic
+		var zero H
+		return zero
 	}
 
 	return b.getByHeight(height)
@@ -61,15 +62,18 @@ func (b *batch[H]) GetByHeight(height uint64) H {
 }
 
 func (b *batch[H]) getByHeight(height uint64) H {
-	ln := uint64(len(b.headers))
+	var (
+		ln   = uint64(len(b.headers))
+		zero H
+	)
 	if ln == 0 {
-		return *new(H) //nolint:gocritic
+		return zero
 	}
 
 	head := uint64(b.headers[ln-1].Height())
 	base := head - ln
 	if height > head || height <= base {
-		return *new(H) //nolint:gocritic
+		return zero
 	}
 
 	return b.headers[height-base-1]
