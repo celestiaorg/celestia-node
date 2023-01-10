@@ -76,6 +76,8 @@ func randomEDS(t *testing.T) (*rsmt2d.ExtendedDataSquare, share.Root) {
 	return eds, dah
 }
 
+// randomEDSWithDoubledNamespace generates a random EDS and ensures that there are two shares in the
+// middle that share a namespace.
 func randomEDSWithDoubledNamespace(t *testing.T, size int) (*rsmt2d.ExtendedDataSquare, []byte, share.Root) {
 	n := size * size
 	randShares := share.RandShares(t, n)

@@ -38,12 +38,12 @@ func (sg *StoreGetter) GetShare(ctx context.Context, dah *share.Root, row, col i
 
 	// wrap the read-only CAR blockstore in a getter
 	blockGetter := eds.NewBlockGetter(bs)
-	nd, err := share.GetShare(ctx, blockGetter, root, leaf, len(dah.RowsRoots))
+	share, err := share.GetShare(ctx, blockGetter, root, leaf, len(dah.RowsRoots))
 	if err != nil {
 		return nil, fmt.Errorf("getter/store: failed to retrieve share: %w", err)
 	}
 
-	return nd, nil
+	return share, nil
 }
 
 // GetEDS gets the EDS identified by the given root from the EDS store.

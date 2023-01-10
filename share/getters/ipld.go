@@ -18,7 +18,7 @@ import (
 
 var _ share.Getter = (*IPLDGetter)(nil)
 
-// IPLDGetter is a share.Getter that retrieves shares from the IPLD network. Result caching is
+// IPLDGetter is a share.Getter that retrieves shares from the bitswap network. Result caching is
 // handled by the provided blockservice. A blockservice session will be created for retrieval if the
 // passed context is wrapped with WithSession.
 type IPLDGetter struct {
@@ -26,7 +26,7 @@ type IPLDGetter struct {
 	bServ blockservice.BlockService
 }
 
-// NewIPLDGetter creates a new share.Getter that retrieves shares from the IPLD network.
+// NewIPLDGetter creates a new share.Getter that retrieves shares from the bitswap network.
 func NewIPLDGetter(bServ blockservice.BlockService) *IPLDGetter {
 	return &IPLDGetter{
 		rtrv:  eds.NewRetriever(bServ),
@@ -34,7 +34,7 @@ func NewIPLDGetter(bServ blockservice.BlockService) *IPLDGetter {
 	}
 }
 
-// GetShare gets a single share at the given EDS coordinates from the IPLD network.
+// GetShare gets a single share at the given EDS coordinates from the bitswap network.
 func (ig *IPLDGetter) GetShare(ctx context.Context, dah *share.Root, row, col int) (share.Share, error) {
 	root, leaf := ipld.Translate(dah, row, col)
 
