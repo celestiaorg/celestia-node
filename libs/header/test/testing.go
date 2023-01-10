@@ -79,17 +79,6 @@ func (d *DummyHeader) IsRecent(blockTime time.Duration) bool {
 	return time.Since(d.Time()) <= blockTime
 }
 
-// TrustingPeriod is period through which we can trust a header's validators set.
-// This is copied from ceelstia-node
-//
-// Should be significantly less than the unbonding period (e.g. unbonding
-// period = 3 weeks, trusting period = 2 weeks).
-//
-// More specifically, trusting period + Time needed to check headers + Time
-// needed to report and punish misbehavior should be less than the unbonding
-// period.
-var TrustingPeriod = 168 * time.Hour
-
 func (d *DummyHeader) IsExpired(period time.Duration) bool {
 	expirationTime := d.Time().Add(period)
 	return expirationTime.Before(time.Now())
