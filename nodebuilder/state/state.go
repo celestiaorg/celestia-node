@@ -41,8 +41,8 @@ type Module interface {
 	// Celestia network and blocks until the tx is included in
 	// a block.
 	SubmitTx(ctx context.Context, tx state.Tx) (*state.TxResponse, error)
-	// SubmitPayForData builds, signs and submits a PayForData transaction.
-	SubmitPayForData(
+	// SubmitPayForBlob builds, signs and submits a PayForBlob transaction.
+	SubmitPayForBlob(
 		ctx context.Context,
 		nID namespace.ID,
 		data []byte,
@@ -111,7 +111,7 @@ type API struct {
 			gasLimit uint64,
 		) (*state.TxResponse, error) `perm:"write"`
 		SubmitTx         func(ctx context.Context, tx state.Tx) (*state.TxResponse, error) `perm:"write"`
-		SubmitPayForData func(
+		SubmitPayForBlob func(
 			ctx context.Context,
 			nID namespace.ID,
 			data []byte,
@@ -190,14 +190,14 @@ func (api *API) SubmitTx(ctx context.Context, tx state.Tx) (*state.TxResponse, e
 	return api.Internal.SubmitTx(ctx, tx)
 }
 
-func (api *API) SubmitPayForData(
+func (api *API) SubmitPayForBlob(
 	ctx context.Context,
 	nID namespace.ID,
 	data []byte,
 	fee state.Int,
 	gasLim uint64,
 ) (*state.TxResponse, error) {
-	return api.Internal.SubmitPayForData(ctx, nID, data, fee, gasLim)
+	return api.Internal.SubmitPayForBlob(ctx, nID, data, fee, gasLim)
 }
 
 func (api *API) CancelUnbondingDelegation(

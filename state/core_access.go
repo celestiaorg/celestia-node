@@ -53,8 +53,8 @@ type CoreAccessor struct {
 	rpcPort  string
 	grpcPort string
 
-	lastPayForData  int64
-	payForDataCount int64
+	lastPayForBlob  int64
+	payForBlobCount int64
 }
 
 // NewCoreAccessor dials the given celestia-core endpoint and
@@ -155,7 +155,7 @@ func (ca *CoreAccessor) constructSignedTx(
 	return ca.signer.EncodeTx(tx)
 }
 
-func (ca *CoreAccessor) SubmitPayForData(
+func (ca *CoreAccessor) SubmitPayForBlob(
 	ctx context.Context,
 	nID namespace.ID,
 	data []byte,
@@ -163,10 +163,10 @@ func (ca *CoreAccessor) SubmitPayForData(
 	gasLim uint64,
 ) (*TxResponse, error) {
 	response, err := payment.SubmitPayForData(ctx, ca.signer, ca.coreConn, nID, data, gasLim, withFee(fee))
-	// metrics should only be counted on a successful PFD tx
+	// metrics should only be counted on a successful PFB tx
 	if err == nil && response.Code == 0 {
-		ca.lastPayForData = time.Now().UnixMilli()
-		ca.payForDataCount++
+		ca.lastPayForBlob = time.Now().UnixMilli()
+		ca.payForBlobCount++
 	}
 	return response, err
 }

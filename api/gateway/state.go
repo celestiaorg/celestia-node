@@ -15,7 +15,7 @@ import (
 const (
 	balanceEndpoint            = "/balance"
 	submitTxEndpoint           = "/submit_tx"
-	submitPFDEndpoint          = "/submit_pfd"
+	submitPFBEndpoint          = "/submit_pfb"
 	transferEndpoint           = "/transfer"
 	delegationEndpoint         = "/delegate"
 	undelegationEndpoint       = "/begin_unbonding"
@@ -38,9 +38,9 @@ type submitTxRequest struct {
 	Tx string `json:"tx"`
 }
 
-// submitPFDRequest represents a request to submit a PayForData
+// submitPFBRequest represents a request to submit a PayForBlob
 // transaction.
-type submitPFDRequest struct {
+type submitPFBRequest struct {
 	NamespaceID string `json:"namespace_id"`
 	Data        string `json:"data"`
 	Fee         int64  `json:"fee"`
@@ -165,39 +165,39 @@ func (h *Handler) handleSubmitTx(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (h *Handler) handleSubmitPFD(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) handleSubmitPFB(w http.ResponseWriter, r *http.Request) {
 	// decode request
-	var req submitPFDRequest
+	var req submitPFBRequest
 	err := json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
-		writeError(w, http.StatusBadRequest, submitPFDEndpoint, err)
+		writeError(w, http.StatusBadRequest, submitPFBEndpoint, err)
 		return
 	}
 	nID, err := hex.DecodeString(req.NamespaceID)
 	if err != nil {
-		writeError(w, http.StatusBadRequest, submitPFDEndpoint, err)
+		writeError(w, http.StatusBadRequest, submitPFBEndpoint, err)
 		return
 	}
 	data, err := hex.DecodeString(req.Data)
 	if err != nil {
-		writeError(w, http.StatusBadRequest, submitPFDEndpoint, err)
+		writeError(w, http.StatusBadRequest, submitPFBEndpoint, err)
 		return
 	}
 	fee := types.NewInt(req.Fee)
 	// perform request
-	txResp, err := h.state.SubmitPayForData(r.Context(), nID, data, fee, req.GasLimit)
+	txResp, err := h.state.SubmitPayForBlob(r.Context(), nID, data, fee, req.GasLimit)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, submitPFDEndpoint, err)
+		writeError(w, http.StatusInternalServerError, submitPFBEndpoint, err)
 		return
 	}
 	resp, err := json.Marshal(txResp)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, submitPFDEndpoint, err)
+		writeError(w, http.StatusInternalServerError, submitPFBEndpoint, err)
 		return
 	}
 	_, err = w.Write(resp)
 	if err != nil {
-		log.Errorw("writing response", "endpoint", submitPFDEndpoint, "err", err)
+		log.Errorw("writing response", "endpoint", submitPFBEndpoint, "err", err)
 	}
 }
 
