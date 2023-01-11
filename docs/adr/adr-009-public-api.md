@@ -120,13 +120,15 @@ SyncHead(ctx context.Context) (*header.ExtendedHeader, error)
     // GetShare returns the Share from the given data Root at the given row/col
     // coordinates.
     GetShare(ctx context.Context, root *Root, row, col int) (Share, error)
-    // GetSharesByNamespace returns all shares of the given nID from the given data
-    // Root.
+    // GetEDS gets the full EDS identified by the given root.
+    GetEDS(ctx context.Context, root *share.Root) (*rsmt2d.ExtendedDataSquare, error)
+    // GetSharesByNamespace gets all shares from an EDS within the given namespace.
+    // Shares are returned in a row-by-row order if the namespace spans multiple rows.
     GetSharesByNamespace(
       ctx context.Context,
       root *Root, 
       nID namespace.ID, 
-    ) ([]Share, error)
+    ) (share.NamespacedShares, error)
     // SharesAvailable subjectively validates if Shares committed to the given data
     // Root are available on the network. 
     SharesAvailable(ctx context.Context, root *Root) error
@@ -141,12 +143,12 @@ SyncHead(ctx context.Context) (*header.ExtendedHeader, error)
 ```go
   type P2PModule interface {
     // Info returns address information about the host.
-    Info(context.Context) peer.AddrInfo
+    Info(context.Context) (peer.AddrInfo, error)
     // Peers returns all peer IDs used across all inner stores.
-    Peers(context.Context) []peer.ID
+    Peers(context.Context) ([]peer.ID, error)
     // PeerInfo returns a small slice of information Peerstore has on the
     // given peer.
-    PeerInfo(context.Context, peer.ID) peer.AddrInfo
+    PeerInfo(context.Context, peer.ID) (peer.AddrInfo, error)
    
     // Connect ensures there is a connection between this host and the peer with
     // given peer.

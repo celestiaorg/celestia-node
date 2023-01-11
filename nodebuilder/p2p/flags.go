@@ -77,14 +77,10 @@ func ParseNetwork(cmd *cobra.Command) (Network, error) {
 		}
 		return envNetwork, err
 	}
-	// check if user provided an alias
-	parsedNetwork, ok := networkAliases[parsed]
-	if ok {
-		return parsedNetwork, nil
-	}
 	// check if user provided the actual network value
-	if err := Network(parsed).Validate(); err == nil {
-		return Network(parsed), nil
+	// or an alias
+	if net, err := Network(parsed).Validate(); err == nil {
+		return net, nil
 	}
 	return "", fmt.Errorf("invalid network specified: %s", parsed)
 }

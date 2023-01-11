@@ -8,9 +8,10 @@ import (
 	"sort"
 
 	logging "github.com/ipfs/go-log/v2"
-	"github.com/libp2p/go-libp2p-core/host"
-	"github.com/libp2p/go-libp2p-core/peer"
-	"github.com/libp2p/go-libp2p-core/protocol"
+	"github.com/libp2p/go-libp2p/core/host"
+	"github.com/libp2p/go-libp2p/core/peer"
+	"github.com/libp2p/go-libp2p/core/protocol"
+	"github.com/libp2p/go-libp2p/p2p/net/conngater"
 	tmbytes "github.com/tendermint/tendermint/libs/bytes"
 
 	"github.com/celestiaorg/celestia-node/header"
@@ -42,6 +43,7 @@ func NewExchange(
 	host host.Host,
 	peers peer.IDSlice,
 	protocolSuffix string,
+	connGater *conngater.BasicConnectionGater,
 	opts ...Option[ClientParameters],
 ) (*Exchange, error) {
 	params := DefaultClientParameters()
@@ -60,6 +62,7 @@ func NewExchange(
 		trustedPeers: peers,
 		peerTracker: newPeerTracker(
 			host,
+			connGater,
 			params.MaxAwaitingTime,
 			params.DefaultScore,
 			params.MaxPeerTrackerSize,
@@ -71,6 +74,12 @@ func NewExchange(
 func (ex *Exchange) Start(context.Context) error {
 	ex.ctx, ex.cancel = context.WithCancel(context.Background())
 
+	for _, p := range ex.trustedPeers {
+		// Try to pre-connect to trusted peers.
+		// We don't really care if we succeed at this point
+		// and just need any peers in the peerTracker asap
+		go ex.host.Connect(ex.ctx, peer.AddrInfo{ID: p}) //nolint:errcheck
+	}
 	go ex.peerTracker.gc()
 	go ex.peerTracker.track()
 	return nil
@@ -156,7 +165,7 @@ func (ex *Exchange) GetRangeByHeight(ctx context.Context, from, amount uint64) (
 	if amount > ex.Params.MaxRequestSize {
 		return nil, header.ErrHeadersLimitExceeded
 	}
-	session := newSession(ex.ctx, ex.host, ex.peerTracker.peers(), ex.protocolID)
+	session := newSession(ex.ctx, ex.host, ex.peerTracker, ex.protocolID)
 	defer session.close()
 	return session.getRangeByHeight(ctx, from, amount, ex.Params.MaxHeadersPerRequest)
 }
@@ -168,22 +177,10 @@ func (ex *Exchange) GetVerifiedRange(
 	from *header.ExtendedHeader,
 	amount uint64,
 ) ([]*header.ExtendedHeader, error) {
-	session := newSession(ex.ctx, ex.host, ex.peerTracker.peers(), ex.protocolID)
+	session := newSession(ex.ctx, ex.host, ex.peerTracker, ex.protocolID, withValidation(from))
 	defer session.close()
 
-	headers, err := session.getRangeByHeight(ctx, uint64(from.Height)+1, amount, ex.Params.MaxHeadersPerRequest)
-	if err != nil {
-		return nil, err
-	}
-
-	for _, h := range headers {
-		err := from.VerifyAdjacent(h)
-		if err != nil {
-			return nil, err
-		}
-		from = h
-	}
-	return headers, nil
+	return session.getRangeByHeight(ctx, uint64(from.Height)+1, amount, ex.Params.MaxHeadersPerRequest)
 }
 
 // Get performs a request for the ExtendedHeader by the given hash corresponding

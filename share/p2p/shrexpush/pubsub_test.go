@@ -1,4 +1,4 @@
-package eds
+package shrexpush
 
 import (
 	"context"

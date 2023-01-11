@@ -1,7 +1,7 @@
 package p2p
 
 import (
-	"github.com/libp2p/go-libp2p-core/peer"
+	"github.com/libp2p/go-libp2p/core/peer"
 	ma "github.com/multiformats/go-multiaddr"
 )
 
@@ -17,7 +17,9 @@ func BootstrappersFor(net Network) (Bootstrappers, error) {
 
 // bootstrappersFor reports multiaddresses of bootstrap peers for a given network.
 func bootstrappersFor(net Network) ([]string, error) {
-	if err := net.Validate(); err != nil {
+	var err error
+	net, err = net.Validate()
+	if err != nil {
 		return nil, err
 	}
 
@@ -27,7 +29,7 @@ func bootstrappersFor(net Network) ([]string, error) {
 // NOTE: Every time we add a new long-running network, its bootstrap peers have to be added here.
 var bootstrapList = map[Network][]string{
 	Arabica: {
-		"/dns4/limani.celestia-devops.dev/tcp/2121/p2p/12D3KooWNpRWxpi1APzV6CnwHvdgNRuTUbMNvg4ta2i1fnqYXR7H",
+		"/dns4/limani.celestia-devops.dev/tcp/2121/p2p/12D3KooWDgG69kXfmSiHjUErN2ahpUC1SXpSfB2urrqMZ6aWC8NS",
 		"/dns4/marsellesa.celestia-devops.dev/tcp/2121/p2p/12D3KooWHr2wqFAsMXnPzpFsgxmePgXb8BqpkePebwUgLyZc95bd",
 		"/dns4/parainem.celestia-devops.dev/tcp/2121/p2p/12D3KooWHX8xpwg8qkP7kLKmKGtgZvmsopvgxc6Fwtu665QC7G8q",
 	},

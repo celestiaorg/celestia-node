@@ -2,11 +2,12 @@ package p2p
 
 import (
 	"context"
+	"errors"
 	"time"
 
-	"github.com/libp2p/go-libp2p-core/host"
-	"github.com/libp2p/go-libp2p-core/network"
-	"github.com/libp2p/go-libp2p-core/protocol"
+	"github.com/libp2p/go-libp2p/core/host"
+	"github.com/libp2p/go-libp2p/core/network"
+	"github.com/libp2p/go-libp2p/core/protocol"
 	tmbytes "github.com/tendermint/tendermint/libs/bytes"
 
 	"github.com/celestiaorg/go-libp2p-messenger/serde"
@@ -107,8 +108,6 @@ func (serv *ExchangeServer) requestHandler(stream network.Stream) {
 		code = p2p_pb.StatusCode_OK
 	case header.ErrNotFound:
 		code = p2p_pb.StatusCode_NOT_FOUND
-	case header.ErrHeadersLimitExceeded:
-		code = p2p_pb.StatusCode_LIMIT_EXCEEDED
 	default:
 		stream.Reset() //nolint:errcheck
 		return
@@ -136,7 +135,7 @@ func (serv *ExchangeServer) requestHandler(stream network.Stream) {
 		}
 		_, err = serde.Write(stream, &p2p_pb.ExtendedHeaderResponse{Body: bin, StatusCode: code})
 		if err != nil {
-			log.Errorw("server: writing header to stream", "height", h.Height, "err", err)
+			log.Errorw("server: writing header to stream", "err", err)
 			stream.Reset() //nolint:errcheck
 			return
 		}
@@ -183,6 +182,10 @@ func (serv *ExchangeServer) handleRequest(from, to uint64) ([]*header.ExtendedHe
 	defer cancel()
 	headersByRange, err := serv.store.GetRangeByHeight(ctx, from, to)
 	if err != nil {
+		if errors.Is(err, context.DeadlineExceeded) {
+			log.Warnw("server: requested headers not found", "from", from, "to", to)
+			return nil, header.ErrNotFound
+		}
 		log.Errorw("server: getting headers", "from", from, "to", to, "err", err)
 		return nil, err
 	}

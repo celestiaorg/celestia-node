@@ -20,8 +20,7 @@ import (
 	"github.com/celestiaorg/rsmt2d"
 )
 
-// TestEDSStore_PutRegistersShard tests if Put registers the shard on the underlying DAGStore
-func TestEDSStore_PutRegistersShard(t *testing.T) {
+func TestEDSStore(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
 
@@ -30,130 +29,121 @@ func TestEDSStore_PutRegistersShard(t *testing.T) {
 	err = edsStore.Start(ctx)
 	require.NoError(t, err)
 
-	eds, dah := randomEDS(t)
+	// PutRegistersShard tests if Put registers the shard on the underlying DAGStore
+	t.Run("PutRegistersShard", func(t *testing.T) {
+		eds, dah := randomEDS(t)
 
-	// shard hasn't been registered yet
-	has, err := edsStore.Has(ctx, dah.Hash())
-	assert.False(t, has)
-	assert.Error(t, err, "shard not found")
+		// shard hasn't been registered yet
+		has, err := edsStore.Has(ctx, dah.Hash())
+		assert.False(t, has)
+		assert.Error(t, err, "shard not found")
 
-	err = edsStore.Put(ctx, dah.Hash(), eds)
-	assert.NoError(t, err)
+		err = edsStore.Put(ctx, dah.Hash(), eds)
+		assert.NoError(t, err)
 
-	_, err = edsStore.dgstr.GetShardInfo(shard.KeyFromString(dah.String()))
-	assert.NoError(t, err)
-}
+		_, err = edsStore.dgstr.GetShardInfo(shard.KeyFromString(dah.String()))
+		assert.NoError(t, err)
+	})
 
-// TestEDSStore_PutIndexesEDS ensures that Putting an EDS indexes it into the car index
-func TestEDSStore_PutIndexesEDS(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	t.Cleanup(cancel)
+	// PutIndexesEDS ensures that Putting an EDS indexes it into the car index
+	t.Run("PutIndexesEDS", func(t *testing.T) {
+		eds, dah := randomEDS(t)
 
-	edsStore, err := newStore(t)
-	require.NoError(t, err)
-	err = edsStore.Start(ctx)
-	require.NoError(t, err)
+		stat, _ := edsStore.carIdx.StatFullIndex(shard.KeyFromString(dah.String()))
+		assert.False(t, stat.Exists)
 
-	eds, dah := randomEDS(t)
-	stat, _ := edsStore.carIdx.StatFullIndex(shard.KeyFromString(dah.String()))
-	assert.False(t, stat.Exists)
+		err = edsStore.Put(ctx, dah.Hash(), eds)
+		assert.NoError(t, err)
 
-	err = edsStore.Put(ctx, dah.Hash(), eds)
-	assert.NoError(t, err)
+		stat, err = edsStore.carIdx.StatFullIndex(shard.KeyFromString(dah.String()))
+		assert.True(t, stat.Exists)
+		assert.NoError(t, err)
+	})
 
-	stat, err = edsStore.carIdx.StatFullIndex(shard.KeyFromString(dah.String()))
-	assert.True(t, stat.Exists)
-	assert.NoError(t, err)
-}
+	// GetCAR ensures that the reader returned from GetCAR is capable of reading the CAR header and
+	// ODS.
+	t.Run("GetCAR", func(t *testing.T) {
+		eds, dah := randomEDS(t)
 
-// TestEDSStore_GetCAR ensures that the reader returned from GetCAR is capable of reading the CAR
-// header and ODS.
-func TestEDSStore_GetCAR(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	t.Cleanup(cancel)
+		err = edsStore.Put(ctx, dah.Hash(), eds)
+		require.NoError(t, err)
 
-	edsStore, err := newStore(t)
-	require.NoError(t, err)
-	err = edsStore.Start(ctx)
-	require.NoError(t, err)
+		r, err := edsStore.GetCAR(ctx, dah.Hash())
+		assert.NoError(t, err)
+		carReader, err := car.NewCarReader(r)
 
-	eds, dah := randomEDS(t)
-	err = edsStore.Put(ctx, dah.Hash(), eds)
-	require.NoError(t, err)
+		fmt.Println(car.HeaderSize(carReader.Header))
+		assert.NoError(t, err)
 
-	r, err := edsStore.GetCAR(ctx, dah.Hash())
-	assert.NoError(t, err)
-	carReader, err := car.NewCarReader(r)
-
-	fmt.Println(car.HeaderSize(carReader.Header))
-	assert.NoError(t, err)
-
-	for i := 0; i < 4; i++ {
-		for j := 0; j < 4; j++ {
-			original := eds.GetCell(uint(i), uint(j))
-			block, err := carReader.Next()
-			assert.NoError(t, err)
-			assert.Equal(t, original, block.RawData()[share.NamespaceSize:])
+		for i := 0; i < 4; i++ {
+			for j := 0; j < 4; j++ {
+				original := eds.GetCell(uint(i), uint(j))
+				block, err := carReader.Next()
+				assert.NoError(t, err)
+				assert.Equal(t, original, block.RawData()[share.NamespaceSize:])
+			}
 		}
-	}
-}
+	})
 
-func TestEDSStore_Remove(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	t.Cleanup(cancel)
+	t.Run("Remove", func(t *testing.T) {
+		eds, dah := randomEDS(t)
 
-	edsStore, err := newStore(t)
-	require.NoError(t, err)
-	err = edsStore.Start(ctx)
-	require.NoError(t, err)
+		err = edsStore.Put(ctx, dah.Hash(), eds)
+		require.NoError(t, err)
 
-	eds, dah := randomEDS(t)
+		// assert that file now exists
+		_, err = os.Stat(edsStore.basepath + blocksPath + dah.String())
+		assert.NoError(t, err)
 
-	err = edsStore.Put(ctx, dah.Hash(), eds)
-	require.NoError(t, err)
+		err = edsStore.Remove(ctx, dah.Hash())
+		assert.NoError(t, err)
 
-	// assert that file now exists
-	_, err = os.Stat(edsStore.basepath + blocksPath + dah.String())
-	assert.NoError(t, err)
+		// shard should no longer be registered on the dagstore
+		_, err = edsStore.dgstr.GetShardInfo(shard.KeyFromString(dah.String()))
+		assert.Error(t, err, "shard not found")
 
-	err = edsStore.Remove(ctx, dah.Hash())
-	assert.NoError(t, err)
+		// shard should have been dropped from the index, which also removes the file under /index/
+		indexStat, err := edsStore.carIdx.StatFullIndex(shard.KeyFromString(dah.String()))
+		assert.NoError(t, err)
+		assert.False(t, indexStat.Exists)
 
-	// shard should no longer be registered on the dagstore
-	_, err = edsStore.dgstr.GetShardInfo(shard.KeyFromString(dah.String()))
-	assert.Error(t, err, "shard not found")
+		// file no longer exists
+		_, err = os.Stat(edsStore.basepath + blocksPath + dah.String())
+		assert.ErrorContains(t, err, "no such file or directory")
+	})
 
-	// shard should have been dropped from the index, which also removes the file under /index/
-	indexStat, err := edsStore.carIdx.StatFullIndex(shard.KeyFromString(dah.String()))
-	assert.NoError(t, err)
-	assert.False(t, indexStat.Exists)
+	t.Run("Has", func(t *testing.T) {
+		eds, dah := randomEDS(t)
 
-	// file no longer exists
-	_, err = os.Stat(edsStore.basepath + blocksPath + dah.String())
-	assert.ErrorContains(t, err, "no such file or directory")
-}
+		ok, err := edsStore.Has(ctx, dah.Hash())
+		assert.Error(t, err, "shard not found")
+		assert.False(t, ok)
 
-func TestEDSStore_Has(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	t.Cleanup(cancel)
+		err = edsStore.Put(ctx, dah.Hash(), eds)
+		assert.NoError(t, err)
 
-	edsStore, err := newStore(t)
-	require.NoError(t, err)
-	err = edsStore.Start(ctx)
-	require.NoError(t, err)
+		ok, err = edsStore.Has(ctx, dah.Hash())
+		assert.NoError(t, err)
+		assert.True(t, ok)
+	})
 
-	eds, dah := randomEDS(t)
+	t.Run("BlockstoreCache", func(t *testing.T) {
+		eds, dah := randomEDS(t)
 
-	ok, err := edsStore.Has(ctx, dah.Hash())
-	assert.Error(t, err, "shard not found")
-	assert.False(t, ok)
+		err = edsStore.Put(ctx, dah.Hash(), eds)
+		require.NoError(t, err)
 
-	err = edsStore.Put(ctx, dah.Hash(), eds)
-	assert.NoError(t, err)
+		// key isnt in cache yet, so get returns errCacheMiss
+		shardKey := shard.KeyFromString(dah.String())
+		_, err = edsStore.cache.Get(shardKey)
+		assert.ErrorIs(t, err, errCacheMiss)
 
-	ok, err = edsStore.Has(ctx, dah.Hash())
-	assert.NoError(t, err)
-	assert.True(t, ok)
+		// now get it, so that the key is in the cache
+		_, err = edsStore.CARBlockstore(ctx, dah.Hash())
+		assert.NoError(t, err)
+		_, err = edsStore.cache.Get(shardKey)
+		assert.NoError(t, err, errCacheMiss)
+	})
 }
 
 // TestEDSStore_GC verifies that unused transient shards are collected by the GC periodically.
@@ -210,7 +200,7 @@ func Test_BlockstoreCache(t *testing.T) {
 	assert.ErrorIs(t, err, errCacheMiss)
 
 	// now get it, so that the key is in the cache
-	_, err = edsStore.CARBlockstore(ctx, dah.Hash())
+	_, err = edsStore.getCachedAccessor(ctx, shardKey)
 	assert.NoError(t, err)
 	_, err = edsStore.cache.Get(shardKey)
 	assert.NoError(t, err, errCacheMiss)

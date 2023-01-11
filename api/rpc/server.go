@@ -14,7 +14,7 @@ import (
 	"github.com/filecoin-project/go-jsonrpc/auth"
 	logging "github.com/ipfs/go-log/v2"
 
-	"github.com/celestiaorg/celestia-node/api/rpc/permissions"
+	"github.com/celestiaorg/celestia-node/api/rpc/perms"
 )
 
 var log = logging.Logger("rpc")
@@ -55,7 +55,7 @@ func (s *Server) verifyAuth(_ context.Context, token string) ([]auth.Permission,
 	if err != nil {
 		return nil, err
 	}
-	p := new(permissions.JWTPayload)
+	p := new(perms.JWTPayload)
 	err = json.Unmarshal(tk.RawClaims(), p)
 	if err != nil {
 		return nil, err
@@ -73,7 +73,7 @@ func (s *Server) RegisterService(namespace string, service interface{}) {
 // RegisterAuthedService registers a service onto the RPC server. All methods on the service will
 // then be exposed over the RPC.
 func (s *Server) RegisterAuthedService(namespace string, service interface{}, out interface{}) {
-	auth.PermissionedProxy(permissions.AllPerms, permissions.DefaultPerms, service, getInternalStruct(out))
+	auth.PermissionedProxy(perms.AllPerms, perms.DefaultPerms, service, getInternalStruct(out))
 	s.RegisterService(namespace, out)
 }
 

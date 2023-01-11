@@ -1,22 +1,23 @@
 package p2p
 
 import (
-	"bytes"
 	"context"
 	"testing"
 	"time"
 
-	libhost "github.com/libp2p/go-libp2p-core/host"
-	"github.com/libp2p/go-libp2p-core/peer"
+	"github.com/ipfs/go-datastore"
+	"github.com/ipfs/go-datastore/sync"
+	libhost "github.com/libp2p/go-libp2p/core/host"
+	"github.com/libp2p/go-libp2p/core/peer"
+	"github.com/libp2p/go-libp2p/p2p/net/conngater"
 	mocknet "github.com/libp2p/go-libp2p/p2p/net/mock"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	tmbytes "github.com/tendermint/tendermint/libs/bytes"
-
 	"github.com/celestiaorg/go-libp2p-messenger/serde"
 
 	"github.com/celestiaorg/celestia-node/header"
+	headerMock "github.com/celestiaorg/celestia-node/header/mocks"
 	p2p_pb "github.com/celestiaorg/celestia-node/header/p2p/pb"
 )
 
@@ -29,8 +30,8 @@ func TestExchange_RequestHead(t *testing.T) {
 	header, err := exchg.Head(context.Background())
 	require.NoError(t, err)
 
-	assert.Equal(t, store.headers[store.headHeight].Height, header.Height)
-	assert.Equal(t, store.headers[store.headHeight].Hash(), header.Hash())
+	assert.Equal(t, store.Headers[store.HeadHeight].Height, header.Height)
+	assert.Equal(t, store.Headers[store.HeadHeight].Hash(), header.Hash())
 }
 
 func TestExchange_RequestHeader(t *testing.T) {
@@ -39,8 +40,8 @@ func TestExchange_RequestHeader(t *testing.T) {
 	// perform expected request
 	header, err := exchg.GetByHeight(context.Background(), 5)
 	require.NoError(t, err)
-	assert.Equal(t, store.headers[5].Height, header.Height)
-	assert.Equal(t, store.headers[5].Hash(), header.Hash())
+	assert.Equal(t, store.Headers[5].Height, header.Height)
+	assert.Equal(t, store.Headers[5].Hash(), header.Hash())
 }
 
 func TestExchange_RequestHeaders(t *testing.T) {
@@ -50,8 +51,8 @@ func TestExchange_RequestHeaders(t *testing.T) {
 	gotHeaders, err := exchg.GetRangeByHeight(context.Background(), 1, 5)
 	require.NoError(t, err)
 	for _, got := range gotHeaders {
-		assert.Equal(t, store.headers[got.Height].Height, got.Height)
-		assert.Equal(t, store.headers[got.Height].Hash(), got.Hash())
+		assert.Equal(t, store.Headers[got.Height].Height, got.Height)
+		assert.Equal(t, store.Headers[got.Height].Hash(), got.Hash())
 	}
 }
 
@@ -59,7 +60,7 @@ func TestExchange_RequestVerifiedHeaders(t *testing.T) {
 	hosts := createMocknet(t, 2)
 	exchg, store := createP2PExAndServer(t, hosts[0], hosts[1])
 	// perform expected request
-	h := store.headers[1]
+	h := store.Headers[1]
 	_, err := exchg.GetVerifiedRange(context.Background(), h, 3)
 	require.NoError(t, err)
 }
@@ -67,11 +68,18 @@ func TestExchange_RequestVerifiedHeaders(t *testing.T) {
 func TestExchange_RequestVerifiedHeadersFails(t *testing.T) {
 	hosts := createMocknet(t, 2)
 	exchg, store := createP2PExAndServer(t, hosts[0], hosts[1])
-	store.headers[2] = store.headers[3]
+	store.Headers[2] = store.Headers[3]
 	// perform expected request
-	h := store.headers[1]
-	_, err := exchg.GetVerifiedRange(context.Background(), h, 3)
+	h := store.Headers[1]
+	ctx, cancel := context.WithTimeout(context.Background(), time.Millisecond*500)
+	t.Cleanup(cancel)
+	_, err := exchg.GetVerifiedRange(ctx, h, 3)
 	require.Error(t, err)
+
+	// ensure that peer was added to the blacklist
+	peers := exchg.peerTracker.connGater.ListBlockedPeers()
+	require.Len(t, peers, 1)
+	require.True(t, hosts[1].ID() == peers[0])
 }
 
 // TestExchange_RequestFullRangeHeaders requests max amount of headers
@@ -80,10 +88,12 @@ func TestExchange_RequestFullRangeHeaders(t *testing.T) {
 	// create mocknet with 5 peers
 	hosts := createMocknet(t, 5)
 	totalAmount := 80
-	store := createStore(t, totalAmount)
+	store := headerMock.NewStore(t, totalAmount)
 	protocolSuffix := "private"
+	connGater, err := conngater.NewBasicConnectionGater(sync.MutexWrap(datastore.NewMapDatastore()))
+	require.NoError(t, err)
 	// create new exchange
-	exchange, err := NewExchange(hosts[len(hosts)-1], []peer.ID{}, protocolSuffix)
+	exchange, err := NewExchange(hosts[len(hosts)-1], []peer.ID{}, protocolSuffix, connGater)
 	require.NoError(t, err)
 	exchange.Params.MaxHeadersPerRequest = 10
 	exchange.ctx, exchange.cancel = context.WithCancel(context.Background())
@@ -93,7 +103,9 @@ func TestExchange_RequestFullRangeHeaders(t *testing.T) {
 		servers[index], err = NewExchangeServer(hosts[index], store, protocolSuffix)
 		require.NoError(t, err)
 		servers[index].Start(context.Background()) //nolint:errcheck
+		exchange.peerTracker.peerLk.Lock()
 		exchange.peerTracker.trackedPeers[hosts[index].ID()] = &peerStat{peerID: hosts[index].ID()}
+		exchange.peerTracker.peerLk.Unlock()
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
@@ -104,30 +116,37 @@ func TestExchange_RequestFullRangeHeaders(t *testing.T) {
 	require.Len(t, headers, 80)
 }
 
-// TestExchange_RequestHeadersFails tests that the Exchange instance will return
-// header.ErrNotFound if it will not have requested header.
-func TestExchange_RequestHeadersFails(t *testing.T) {
+// TestExchange_RequestHeadersLimitExceeded tests that the Exchange instance will return
+// header.ErrHeadersLimitExceeded if the requested range will be move than MaxRequestSize.
+func TestExchange_RequestHeadersLimitExceeded(t *testing.T) {
 	hosts := createMocknet(t, 2)
 	exchg, _ := createP2PExAndServer(t, hosts[0], hosts[1])
-	tt := []struct {
-		amount      uint64
-		expectedErr *error
-	}{
-		{
-			amount:      10,
-			expectedErr: &header.ErrNotFound,
-		},
-		{
-			amount:      600,
-			expectedErr: &header.ErrHeadersLimitExceeded,
-		},
-	}
-	for _, test := range tt {
-		// perform expected request
-		_, err := exchg.GetRangeByHeight(context.Background(), 1, test.amount)
-		require.Error(t, err)
-		require.ErrorAs(t, err, test.expectedErr)
-	}
+	_, err := exchg.GetRangeByHeight(context.Background(), 1, 600)
+	require.Error(t, err)
+	require.ErrorAs(t, err, &header.ErrHeadersLimitExceeded)
+}
+
+// TestExchange_RequestHeadersFromAnotherPeer tests that the Exchange instance will request range
+// from another peer with lower score after receiving header.ErrNotFound
+func TestExchange_RequestHeadersFromAnotherPeer(t *testing.T) {
+	hosts := createMocknet(t, 3)
+	// create client + server(it does not have needed headers)
+	exchg, _ := createP2PExAndServer(t, hosts[0], hosts[1])
+	// create one more server(with more headers in the store)
+	serverSideEx, err := NewExchangeServer(hosts[2], headerMock.NewStore(t, 10), "private")
+	require.NoError(t, err)
+	require.NoError(t, serverSideEx.Start(context.Background()))
+	t.Cleanup(func() {
+		serverSideEx.Stop(context.Background()) //nolint:errcheck
+	})
+	exchg.peerTracker.peerLk.Lock()
+	exchg.peerTracker.trackedPeers[hosts[2].ID()] = &peerStat{peerID: hosts[2].ID(), peerScore: 20}
+	exchg.peerTracker.peerLk.Unlock()
+	_, err = exchg.GetRangeByHeight(context.Background(), 5, 3)
+	require.NoError(t, err)
+	// ensure that peerScore for the second peer is changed
+	newPeerScore := exchg.peerTracker.trackedPeers[hosts[2].ID()].score()
+	require.NotEqual(t, 20, newPeerScore)
 }
 
 // TestExchange_RequestByHash tests that the Exchange instance can
@@ -141,7 +160,7 @@ func TestExchange_RequestByHash(t *testing.T) {
 	// get host and peer
 	host, peer := net.Hosts()[0], net.Hosts()[1]
 	// create and start the ExchangeServer
-	store := createStore(t, 5)
+	store := headerMock.NewStore(t, 5)
 	serv, err := NewExchangeServer(host, store, "private")
 	require.NoError(t, err)
 	err = serv.Start(ctx)
@@ -154,9 +173,9 @@ func TestExchange_RequestByHash(t *testing.T) {
 	stream, err := peer.NewStream(context.Background(), libhost.InfoFromHost(host).ID, privateProtocolID)
 	require.NoError(t, err)
 	// create request for a header at a random height
-	reqHeight := store.headHeight - 2
+	reqHeight := store.HeadHeight - 2
 	req := &p2p_pb.ExtendedHeaderRequest{
-		Data:   &p2p_pb.ExtendedHeaderRequest_Hash{Hash: store.headers[reqHeight].Hash()},
+		Data:   &p2p_pb.ExtendedHeaderRequest_Hash{Hash: store.Headers[reqHeight].Hash()},
 		Amount: 1,
 	}
 	// send request
@@ -170,8 +189,8 @@ func TestExchange_RequestByHash(t *testing.T) {
 	eh, err := header.UnmarshalExtendedHeader(resp.Body)
 	require.NoError(t, err)
 
-	assert.Equal(t, store.headers[reqHeight].Height, eh.Height)
-	assert.Equal(t, store.headers[reqHeight].Hash(), eh.Hash())
+	assert.Equal(t, store.Headers[reqHeight].Height, eh.Height)
+	assert.Equal(t, store.Headers[reqHeight].Hash(), eh.Hash())
 }
 
 func Test_bestHead(t *testing.T) {
@@ -250,7 +269,7 @@ func TestExchange_RequestByHashFails(t *testing.T) {
 	require.NoError(t, err)
 	// get host and peer
 	host, peer := net.Hosts()[0], net.Hosts()[1]
-	serv, err := NewExchangeServer(host, createStore(t, 0), "private")
+	serv, err := NewExchangeServer(host, headerMock.NewStore(t, 0), "private")
 	require.NoError(t, err)
 	err = serv.Start(ctx)
 	require.NoError(t, err)
@@ -282,110 +301,24 @@ func createMocknet(t *testing.T, amount int) []libhost.Host {
 }
 
 // createP2PExAndServer creates a Exchange with 5 headers already in its store.
-func createP2PExAndServer(t *testing.T, host, tpeer libhost.Host) (header.Exchange, *mockStore) {
-	store := createStore(t, 5)
+func createP2PExAndServer(t *testing.T, host, tpeer libhost.Host) (*Exchange, *headerMock.MockStore) {
+	store := headerMock.NewStore(t, 5)
 	serverSideEx, err := NewExchangeServer(tpeer, store, "private")
 	require.NoError(t, err)
 	err = serverSideEx.Start(context.Background())
 	require.NoError(t, err)
-
-	ex, err := NewExchange(host, []peer.ID{tpeer.ID()}, "private")
+	connGater, err := conngater.NewBasicConnectionGater(sync.MutexWrap(datastore.NewMapDatastore()))
 	require.NoError(t, err)
-	ex.peerTracker.trackedPeers[tpeer.ID()] = &peerStat{peerID: tpeer.ID()}
+	ex, err := NewExchange(host, []peer.ID{tpeer.ID()}, "private", connGater)
+	require.NoError(t, err)
 	require.NoError(t, ex.Start(context.Background()))
-
+	time.Sleep(time.Millisecond * 100) // give peerTracker time to add a trusted peer
+	ex.peerTracker.peerLk.Lock()
+	ex.peerTracker.trackedPeers[tpeer.ID()] = &peerStat{peerID: tpeer.ID(), peerScore: 100.0}
+	ex.peerTracker.peerLk.Unlock()
 	t.Cleanup(func() {
 		serverSideEx.Stop(context.Background()) //nolint:errcheck
 		ex.Stop(context.Background())           //nolint:errcheck
 	})
 	return ex, store
-}
-
-type mockStore struct {
-	headers    map[int64]*header.ExtendedHeader
-	headHeight int64
-}
-
-// createStore creates a mock store and adds several random
-// headers
-func createStore(t *testing.T, numHeaders int) *mockStore {
-	store := &mockStore{
-		headers:    make(map[int64]*header.ExtendedHeader),
-		headHeight: 0,
-	}
-
-	suite := header.NewTestSuite(t, numHeaders)
-
-	for i := 0; i < numHeaders; i++ {
-		header := suite.GenExtendedHeader()
-		store.headers[header.Height] = header
-
-		if header.Height > store.headHeight {
-			store.headHeight = header.Height
-		}
-	}
-	return store
-}
-
-func (m *mockStore) Init(context.Context, *header.ExtendedHeader) error { return nil }
-func (m *mockStore) Start(context.Context) error                        { return nil }
-func (m *mockStore) Stop(context.Context) error                         { return nil }
-
-func (m *mockStore) Height() uint64 {
-	return uint64(m.headHeight)
-}
-
-func (m *mockStore) Head(context.Context) (*header.ExtendedHeader, error) {
-	return m.headers[m.headHeight], nil
-}
-
-func (m *mockStore) Get(ctx context.Context, hash tmbytes.HexBytes) (*header.ExtendedHeader, error) {
-	for _, header := range m.headers {
-		if bytes.Equal(header.Hash(), hash) {
-			return header, nil
-		}
-	}
-	return nil, header.ErrNotFound
-}
-
-func (m *mockStore) GetByHeight(ctx context.Context, height uint64) (*header.ExtendedHeader, error) {
-	return m.headers[int64(height)], nil
-}
-
-func (m *mockStore) GetRangeByHeight(ctx context.Context, from, to uint64) ([]*header.ExtendedHeader, error) {
-	headers := make([]*header.ExtendedHeader, to-from)
-	// As the requested range is [from; to),
-	// check that (to-1) height in request is less than
-	// the biggest header height in store.
-	if to-1 > m.Height() {
-		return nil, header.ErrNotFound
-	}
-	for i := range headers {
-		headers[i] = m.headers[int64(from)]
-		from++
-	}
-	return headers, nil
-}
-
-func (m *mockStore) GetVerifiedRange(
-	ctx context.Context,
-	h *header.ExtendedHeader,
-	to uint64,
-) ([]*header.ExtendedHeader, error) {
-	return m.GetRangeByHeight(ctx, uint64(h.Height)+1, to)
-}
-
-func (m *mockStore) Has(context.Context, tmbytes.HexBytes) (bool, error) {
-	return false, nil
-}
-
-func (m *mockStore) Append(ctx context.Context, headers ...*header.ExtendedHeader) (int, error) {
-	for _, header := range headers {
-		m.headers[header.Height] = header
-		// set head
-		if header.Height > m.headHeight {
-			m.headHeight = header.Height
-		}
-	}
-	return len(headers), nil
 }

@@ -3,8 +3,8 @@ package fraud
 import (
 	"context"
 
-	"github.com/libp2p/go-libp2p-core/peer"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
+	"github.com/libp2p/go-libp2p/core/peer"
 )
 
 func join(p *pubsub.PubSub, proofType ProofType,

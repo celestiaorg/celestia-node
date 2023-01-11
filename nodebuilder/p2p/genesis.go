@@ -7,7 +7,9 @@ import (
 // GenesisFor reports a hash of a genesis block for a given network.
 // Genesis is strictly defined and can't be modified.
 func GenesisFor(net Network) (string, error) {
-	if err := net.Validate(); err != nil {
+	var err error
+	net, err = net.Validate()
+	if err != nil {
 		return "", err
 	}
 

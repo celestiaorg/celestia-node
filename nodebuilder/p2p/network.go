@@ -4,7 +4,7 @@ import (
 	"errors"
 	"time"
 
-	"github.com/libp2p/go-libp2p-core/peer"
+	"github.com/libp2p/go-libp2p/core/peer"
 )
 
 // NOTE: Every time we add a new long-running network, it has to be added here.
@@ -32,11 +32,15 @@ type Bootstrappers []peer.AddrInfo
 var ErrInvalidNetwork = errors.New("params: invalid network")
 
 // Validate the network.
-func (n Network) Validate() error {
-	if _, ok := networksList[n]; !ok {
-		return ErrInvalidNetwork
+func (n Network) Validate() (Network, error) {
+	// return actual network if alias was provided
+	if net, ok := networkAliases[string(n)]; ok {
+		return net, nil
 	}
-	return nil
+	if _, ok := networksList[n]; !ok {
+		return "", ErrInvalidNetwork
+	}
+	return n, nil
 }
 
 // networksList is a strict list of all known long-standing networks.

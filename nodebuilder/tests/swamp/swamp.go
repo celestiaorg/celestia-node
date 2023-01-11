@@ -8,17 +8,20 @@ import (
 	"testing"
 	"time"
 
-	"github.com/libp2p/go-libp2p-core/host"
-	"github.com/libp2p/go-libp2p-core/peer"
+	mdutils "github.com/ipfs/go-merkledag/test"
+	"github.com/libp2p/go-libp2p/core/host"
+	"github.com/libp2p/go-libp2p/core/peer"
 	mocknet "github.com/libp2p/go-libp2p/p2p/net/mock"
 	ma "github.com/multiformats/go-multiaddr"
 	"github.com/stretchr/testify/require"
 	"github.com/tendermint/tendermint/libs/bytes"
-	tmrand "github.com/tendermint/tendermint/libs/rand"
 	"go.uber.org/fx"
 
 	"github.com/celestiaorg/celestia-app/testutil/testnode"
 
+	"github.com/celestiaorg/celestia-node/core"
+	"github.com/celestiaorg/celestia-node/header"
+	headercore "github.com/celestiaorg/celestia-node/header/core"
 	"github.com/celestiaorg/celestia-node/libs/keystore"
 	"github.com/celestiaorg/celestia-node/logs"
 	"github.com/celestiaorg/celestia-node/nodebuilder"
@@ -45,11 +48,12 @@ type Swamp struct {
 	BridgeNodes []*nodebuilder.Node
 	FullNodes   []*nodebuilder.Node
 	LightNodes  []*nodebuilder.Node
-	trustedHash string
 	comps       *Components
 
 	ClientContext testnode.Context
 	accounts      []string
+
+	genesis *header.ExtendedHeader
 }
 
 // NewSwamp creates a new instance of Swamp.
@@ -63,52 +67,26 @@ func NewSwamp(t *testing.T, options ...Option) *Swamp {
 		option(ic)
 	}
 
-	var err error
-	ctx := context.Background()
+	ctx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(cancel)
 
-	// we create an arbitrary number of funded accounts
-	accounts := make([]string, 10)
-	for i := range accounts {
-		accounts[i] = tmrand.Str(9)
-	}
-
-	// TODO(@Bidon15): CoreClient(limitation)
 	// Now, we are making an assumption that consensus mechanism is already tested out
 	// so, we are not creating bridge nodes with each one containing its own core client
 	// instead we are assigning all created BNs to 1 Core from the swamp
-	tmNode, app, cctx, err := testnode.New(
-		t,
-		ic.ConsensusParams,
-		ic.CoreCfg,
-		ic.SupressLogs,
-		accounts...,
-	)
-
-	require.NoError(t, err)
-
-	cctx, cleanupCoreNode, err := testnode.StartNode(tmNode, cctx)
-	require.NoError(t, err)
-
-	cctx, cleanupGRPCServer, err := testnode.StartGRPCServer(app, testnode.DefaultAppConfig(), cctx)
-	require.NoError(t, err)
-
+	cctx := core.StartTestNodeWithConfig(t, ic.TestConfig)
 	swp := &Swamp{
 		t:             t,
 		Network:       mocknet.New(),
 		ClientContext: cctx,
 		comps:         ic,
-		accounts:      accounts,
+		accounts:      ic.Accounts,
 	}
-	swp.trustedHash = swp.getTrustedHash(ctx)
 
 	swp.t.Cleanup(func() {
 		swp.stopAllNodes(ctx, swp.BridgeNodes, swp.FullNodes, swp.LightNodes)
-		err = cleanupCoreNode()
-		require.NoError(t, err)
-		err = cleanupGRPCServer()
-		require.NoError(t, err)
 	})
 
+	swp.setupGenesis(ctx)
 	return swp
 }
 
@@ -181,10 +159,20 @@ func (s *Swamp) createPeer(ks keystore.Keystore) host.Host {
 	return host
 }
 
-// getTrustedHash is needed for celestia nodes to get the trustedhash
-// from CoreClient. This is required to initialize and start correctly.
-func (s *Swamp) getTrustedHash(ctx context.Context) string {
-	return s.WaitTillHeight(ctx, 1).String()
+// setupGenesis sets up genesis Header.
+// This is required to initialize and start correctly.
+func (s *Swamp) setupGenesis(ctx context.Context) {
+	s.WaitTillHeight(ctx, 1)
+
+	ex := headercore.NewExchange(
+		core.NewBlockFetcher(s.ClientContext.Client),
+		mdutils.Bserv(),
+		header.MakeExtendedHeader,
+	)
+
+	h, err := ex.GetByHeight(ctx, 1)
+	require.NoError(s.t, err)
+	s.genesis = h
 }
 
 // NewBridgeNode creates a new instance of a BridgeNode providing a default config
@@ -259,7 +247,6 @@ func (s *Swamp) newNode(t node.Type, store nodebuilder.Store, options ...fx.Opti
 	// like <core, host, hash> from the test case, we need to check them and not use
 	// default that are set here
 	cfg, _ := store.Config()
-	cfg.Header.TrustedHash = s.trustedHash
 	cfg.RPC.Port = "0"
 
 	// tempDir is used for the eds.Store
@@ -267,11 +254,12 @@ func (s *Swamp) newNode(t node.Type, store nodebuilder.Store, options ...fx.Opti
 	options = append(options,
 		p2p.WithHost(s.createPeer(ks)),
 		fx.Replace(node.StorePath(tempDir)),
+		fx.Invoke(func(ctx context.Context, store header.Store) error {
+			return store.Init(ctx, s.genesis)
+		}),
 	)
-
 	node, err := nodebuilder.New(t, p2p.Private, store, options...)
 	require.NoError(s.t, err)
-
 	return node
 }
 
