@@ -19,11 +19,7 @@ import (
 )
 
 var (
-	errInvalidStatusCode = errors.New("INVALID")
-	errNotFound          = errors.New("NOT_FOUND")
-	errServerInternal    = errors.New("SERVER_INTERNAL")
-	errConnRefused       = errors.New("CONN_REFUSED")
-	errNotAvailable      = errors.New("none of the peers has requested data")
+	errNotAvailable = errors.New("none of the peers has requested data")
 )
 
 // Client implements Getter interface, requesting data from remote peers
@@ -60,7 +56,7 @@ func (c *Client) GetSharesByNamespace(
 		shares, err := c.getSharesByNamespace(
 			ctx, root, nID, peer)
 		if err != nil {
-			log.Debugw("peer returned err", "peer_id", peer.String(), "err", err)
+			log.Debugw("client: peer returned err", "peer_id", peer.String(), "err", err)
 			continue
 		}
 
@@ -100,32 +96,32 @@ func (c *Client) getSharesByNamespace(
 
 	_, err = serde.Write(stream, req)
 	if err != nil {
-		return nil, fmt.Errorf("write req: %w", err)
+		return nil, fmt.Errorf("client: writing request: %w", err)
 	}
 
 	err = stream.CloseWrite()
 	if err != nil {
-		log.Debugf("close write side of the stream: %s", err)
+		log.Debugf("client: closing write side of the stream: %s", err)
 	}
 
 	var resp share_p2p_v1.GetSharesByNamespaceResponse
 	_, err = serde.Read(stream, &resp)
 	if err != nil {
-		return nil, fmt.Errorf("read resp: %w", err)
+		return nil, fmt.Errorf("client: reading response: %w", err)
 	}
 
-	if err := statusToErr(resp.Status); err != nil {
-		return nil, fmt.Errorf("response code is not OK: %w", err)
+	if err = statusToErr(resp.Status); err != nil {
+		return nil, fmt.Errorf("client: response code is not OK: %w", err)
 	}
 
 	shares, err := responseToNamespacedShares(resp.Rows)
 	if err != nil {
-		return nil, fmt.Errorf("convert response to blob: %w", err)
+		return nil, fmt.Errorf("client: converting response to shares: %w", err)
 	}
 
 	err = shares.Verify(root, nID)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("client: verifing response: %w", err)
 	}
 
 	return shares, nil
@@ -141,7 +137,7 @@ func responseToNamespacedShares(rows []*share_p2p_v1.Row) (share.NamespacedShare
 			for _, node := range row.Proof.Nodes {
 				cid, err := cid.Cast(node)
 				if err != nil {
-					return nil, fmt.Errorf("cast proofs node to cid: %w", err)
+					return nil, fmt.Errorf("casting proofs node to cid: %w", err)
 				}
 				cids = append(cids, cid)
 			}
@@ -163,16 +159,15 @@ func responseToNamespacedShares(rows []*share_p2p_v1.Row) (share.NamespacedShare
 
 func statusToErr(code share_p2p_v1.StatusCode) error {
 	switch code {
-	case share_p2p_v1.StatusCode_INVALID:
-		return errInvalidStatusCode
 	case share_p2p_v1.StatusCode_OK:
 		return nil
-	case share_p2p_v1.StatusCode_NOT_FOUND:
-		return errNotFound
-	case share_p2p_v1.StatusCode_INTERNAL:
-		return errServerInternal
-	case share_p2p_v1.StatusCode_REFUSED:
-		return errConnRefused
+	case share_p2p_v1.StatusCode_INVALID,
+		share_p2p_v1.StatusCode_NOT_FOUND,
+		share_p2p_v1.StatusCode_INTERNAL,
+		share_p2p_v1.StatusCode_REFUSED:
+		fallthrough
+	default:
+		code = share_p2p_v1.StatusCode_INVALID
 	}
-	return errInvalidStatusCode
+	return errors.New(code.String())
 }
