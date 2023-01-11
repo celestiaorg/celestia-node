@@ -118,7 +118,11 @@ func cascade[V any](ctx context.Context, srcs []func(context.Context) (V, error)
 			if res.err == nil {
 				return res.val, nil
 			}
+
 			errs = append(errs, res.err)
+			if !t.Stop() {
+				<-t.C
+			}
 		case <-ctx.Done():
 			return zero, ctx.Err()
 		case <-t.C:
