@@ -10,7 +10,8 @@ import (
 	"github.com/celestiaorg/rsmt2d"
 )
 
-// SingleEDSGetter contains single EDS and allows getting data only out of it.
+// SingleEDSGetter contains a single EDS where data is retrieved from.
+// Its primary use is testing, and GetSharesByNamespace is not supported.
 type SingleEDSGetter struct {
 	EDS *rsmt2d.ExtendedDataSquare
 }
