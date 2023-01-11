@@ -11,7 +11,7 @@ require (
 	github.com/celestiaorg/celestia-app v0.11.0
 	github.com/celestiaorg/go-libp2p-messenger v0.1.0
 	github.com/celestiaorg/nmt v0.11.0
-	github.com/celestiaorg/rsmt2d v0.7.0
+	github.com/celestiaorg/rsmt2d v0.8.0
 	github.com/cosmos/cosmos-sdk v0.46.0
 	github.com/cosmos/cosmos-sdk/api v0.1.0
 	github.com/cristalhq/jwt v1.2.0

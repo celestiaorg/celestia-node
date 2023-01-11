@@ -7,21 +7,18 @@ import (
 	"sync/atomic"
 
 	"github.com/ipfs/go-blockservice"
-	"github.com/ipfs/go-cid"
-	"golang.org/x/sync/errgroup"
 
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/eds"
 	"github.com/celestiaorg/celestia-node/share/ipld"
 
-	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/nmt/namespace"
 	"github.com/celestiaorg/rsmt2d"
 )
 
 var _ share.Getter = (*IPLDGetter)(nil)
 
-// IPLDGetter is a share.Getter that retrieves shares from the IPLD network. Result caching is
+// IPLDGetter is a share.Getter that retrieves shares from the bitswap network. Result caching is
 // handled by the provided blockservice. A blockservice session will be created for retrieval if the
 // passed context is wrapped with WithSession.
 type IPLDGetter struct {
@@ -29,7 +26,7 @@ type IPLDGetter struct {
 	bServ blockservice.BlockService
 }
 
-// NewIPLDGetter creates a new share.Getter that retrieves shares from the IPLD network.
+// NewIPLDGetter creates a new share.Getter that retrieves shares from the bitswap network.
 func NewIPLDGetter(bServ blockservice.BlockService) *IPLDGetter {
 	return &IPLDGetter{
 		rtrv:  eds.NewRetriever(bServ),
@@ -37,8 +34,11 @@ func NewIPLDGetter(bServ blockservice.BlockService) *IPLDGetter {
 	}
 }
 
+// GetShare gets a single share at the given EDS coordinates from the bitswap network.
 func (ig *IPLDGetter) GetShare(ctx context.Context, dah *share.Root, row, col int) (share.Share, error) {
 	root, leaf := ipld.Translate(dah, row, col)
+
+	// wrap the blockservice in a session if it has been signaled in the context.
 	blockGetter := getGetter(ctx, ig.bServ)
 	nd, err := share.GetShare(ctx, blockGetter, root, leaf, len(dah.RowsRoots))
 	if err != nil {
@@ -62,45 +62,17 @@ func (ig *IPLDGetter) GetSharesByNamespace(
 	root *share.Root,
 	nID namespace.ID,
 ) (share.NamespacedShares, error) {
-	if len(nID) != share.NamespaceSize {
-		return nil, fmt.Errorf("getter/ipld: expected namespace ID of size %d, got %d",
-			share.NamespaceSize, len(nID))
+	err := verifyNIDSize(nID)
+	if err != nil {
+		return nil, fmt.Errorf("getter/ipld: invalid namespace ID: %w", err)
 	}
 
-	rowRootCIDs := make([]cid.Cid, 0, len(root.RowsRoots))
-	for _, row := range root.RowsRoots {
-		if !nID.Less(nmt.MinNamespace(row, nID.Size())) && nID.LessOrEqual(nmt.MaxNamespace(row, nID.Size())) {
-			rowRootCIDs = append(rowRootCIDs, ipld.MustCidFromNamespacedSha256(row))
-		}
-	}
-	if len(rowRootCIDs) == 0 {
-		return nil, nil
-	}
-
+	// wrap the blockservice in a session if it has been signaled in the context.
 	blockGetter := getGetter(ctx, ig.bServ)
-	errGroup, ctx := errgroup.WithContext(ctx)
-	shares := make([]share.NamespacedRow, len(rowRootCIDs))
-	for i, rootCID := range rowRootCIDs {
-		// shadow loop variables, to ensure correct values are captured
-		i, rootCID := i, rootCID
-		errGroup.Go(func() error {
-			proof := new(ipld.Proof)
-			row, err := share.GetSharesByNamespace(ctx, blockGetter, rootCID, nID, len(root.RowsRoots), proof)
-			shares[i] = share.NamespacedRow{
-				Shares: row,
-				Proof:  proof,
-			}
-			if err != nil {
-				return fmt.Errorf("getter/ipld: retrieving nID %x for row %x: %w", nID, rootCID, err)
-			}
-			return nil
-		})
+	shares, err := collectSharesByNamespace(ctx, blockGetter, root, nID)
+	if err != nil {
+		return nil, fmt.Errorf("getter/ipld: failed to retrieve shares by namespace: %w", err)
 	}
-
-	if err := errGroup.Wait(); err != nil {
-		return nil, err
-	}
-
 	return shares, nil
 }
 
