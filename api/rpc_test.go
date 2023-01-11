@@ -289,10 +289,6 @@ func TestAllReturnValuesAreMarshalable(t *testing.T) {
 }
 
 func implementsMarshaler(t *testing.T, typ reflect.Type) {
-	// TODO(@distractedm1nd): Write marshaller for ExtendedDataSquare
-	if typ.Name() == "ExtendedDataSquare" {
-		return
-	}
 	// the passed type may already implement json.Marshaler and we don't need to go deeper
 	if typ.Implements(reflect.TypeOf(new(json.Marshaler)).Elem()) {
 		return
