@@ -47,6 +47,7 @@ func TestFullReconstructFromBridge(t *testing.T) {
 	t.Cleanup(cancel)
 	sw := swamp.NewSwamp(t, swamp.WithBlockTime(btime))
 	fillDn := sw.FillBlocks(ctx, bsize, blocks)
+	require.NoError(t, <-fillDn)
 
 	bridge := sw.NewBridgeNode()
 	err := bridge.Start(ctx)
@@ -70,7 +71,6 @@ func TestFullReconstructFromBridge(t *testing.T) {
 			return full.ShareServ.SharesAvailable(bctx, h.DAH)
 		})
 	}
-	require.NoError(t, <-fillDn)
 	require.NoError(t, errg.Wait())
 }
 
@@ -105,6 +105,7 @@ func TestFullReconstructFromLights(t *testing.T) {
 	t.Cleanup(cancel)
 	sw := swamp.NewSwamp(t, swamp.WithBlockTime(btime))
 	fillDn := sw.FillBlocks(ctx, bsize, blocks)
+	require.NoError(t, <-fillDn)
 
 	const defaultTimeInterval = time.Second * 5
 	cfg := nodebuilder.DefaultConfig(node.Full)
@@ -167,7 +168,6 @@ func TestFullReconstructFromLights(t *testing.T) {
 			return full.ShareServ.SharesAvailable(bctx, h.DAH)
 		})
 	}
-	require.NoError(t, <-fillDn)
 	require.NoError(t, errg.Wait())
 }
 

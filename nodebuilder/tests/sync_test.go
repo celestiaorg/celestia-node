@@ -38,6 +38,7 @@ func TestSyncLightWithBridge(t *testing.T) {
 
 	sw := swamp.NewSwamp(t, swamp.WithBlockTime(btime))
 	fillDn := sw.FillBlocks(ctx, bsize, blocks)
+	require.NoError(t, <-fillDn)
 
 	bridge := sw.NewBridgeNode()
 
@@ -71,7 +72,6 @@ func TestSyncLightWithBridge(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.EqualValues(t, h.Commit.BlockID.Hash, sw.GetCoreBlockHashByHeight(ctx, 30))
-	require.NoError(t, <-fillDn)
 }
 
 /*
@@ -151,6 +151,7 @@ func TestSyncFullWithBridge(t *testing.T) {
 
 	sw := swamp.NewSwamp(t, swamp.WithBlockTime(btime))
 	fillDn := sw.FillBlocks(ctx, bsize, blocks)
+	require.NoError(t, <-fillDn)
 
 	bridge := sw.NewBridgeNode()
 
@@ -184,7 +185,6 @@ func TestSyncFullWithBridge(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.EqualValues(t, h.Commit.BlockID.Hash, sw.GetCoreBlockHashByHeight(ctx, 30))
-	require.NoError(t, <-fillDn)
 }
 
 /*
