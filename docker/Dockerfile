@@ -12,6 +12,7 @@ RUN make build
 FROM ubuntu:20.04
 # Default node type can be overwritten in deployment manifest
 ENV NODE_TYPE bridge
+ENV P2P_NETWORK mocha
 
 COPY docker/entrypoint.sh /
 
