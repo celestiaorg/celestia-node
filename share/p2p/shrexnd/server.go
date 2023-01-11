@@ -28,6 +28,8 @@ const (
 	serveTimeout = time.Second * 10
 )
 
+// Server implements server side of shrex/nd protocol to obtain namespaced shares data from remote
+// peers.
 type Server struct {
 	getter       share.Getter
 	store        *eds.Store
@@ -35,9 +37,12 @@ type Server struct {
 	writeTimeout time.Duration
 	readTimeout  time.Duration
 	serveTimeout time.Duration
+
+	cancel context.CancelFunc
 }
 
-func StartServer(host host.Host, store *eds.Store, getter *getters.IPLDGetter) *Server {
+// NewServer creates new Server
+func NewServer(host host.Host, store *eds.Store, getter *getters.IPLDGetter) *Server {
 	srv := &Server{
 		getter:       getter,
 		store:        store,
@@ -46,16 +51,27 @@ func StartServer(host host.Host, store *eds.Store, getter *getters.IPLDGetter) *
 		readTimeout:  readTimeout,
 		serveTimeout: serveTimeout,
 	}
-	host.SetStreamHandler(ndProtocolID, srv.handleNamespacedData)
+
 	return srv
+}
+
+// Start starts the server
+func (srv *Server) Start(ctx context.Context) {
+	ctx, cancel := context.WithCancel(ctx)
+	srv.cancel = cancel
+
+	srv.host.SetStreamHandler(ndProtocolID, func(s network.Stream) {
+		srv.handleNamespacedData(ctx, s)
+	})
 }
 
 // Stop stops the server
 func (srv *Server) Stop() {
+	srv.cancel()
 	srv.host.RemoveStreamHandler(ndProtocolID)
 }
 
-func (srv *Server) handleNamespacedData(stream network.Stream) {
+func (srv *Server) handleNamespacedData(ctx context.Context, stream network.Stream) {
 	err := stream.SetReadDeadline(time.Now().Add(srv.readTimeout))
 	if err != nil {
 		log.Debugf("server: seting read deadline: %s", err)
@@ -81,7 +97,7 @@ func (srv *Server) handleNamespacedData(stream network.Stream) {
 		return
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), srv.serveTimeout)
+	ctx, cancel := context.WithTimeout(ctx, srv.serveTimeout)
 	defer cancel()
 
 	dah, err := srv.store.GetDAH(ctx, req.RootHash)

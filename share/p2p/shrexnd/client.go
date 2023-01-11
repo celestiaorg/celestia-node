@@ -18,24 +18,18 @@ import (
 	"github.com/celestiaorg/nmt/namespace"
 )
 
-var (
-	errNotAvailable = errors.New("none of the peers has requested data")
-)
-
-// Client implements Getter interface, requesting data from remote peers
+// Client implements client side of shrex/nd protocol to obtain namespaced shares data from remote
+// peers.
 type Client struct {
-	host           host.Host
-	defaultTimeout time.Duration
-
-	// fake peers for testing purposes
-	testPeers []peer.ID
+	host    host.Host
+	timeout time.Duration
 }
 
-// NewClient creates a new shrEx client
-func NewClient(host host.Host, defaultTimeout time.Duration) *Client {
+// NewClient creates a new shrEx/nd client
+func NewClient(host host.Host, timeout time.Duration) *Client {
 	return &Client{
-		host:           host,
-		defaultTimeout: defaultTimeout,
+		host:    host,
+		timeout: timeout,
 	}
 }
 
@@ -45,31 +39,6 @@ func (c *Client) GetSharesByNamespace(
 	ctx context.Context,
 	root *share.Root,
 	nID namespace.ID,
-	peerIDs peer.IDSlice,
-) (share.NamespacedShares, error) {
-	// overwrite peers in test
-	if len(c.testPeers) != 0 {
-		peerIDs = c.testPeers
-	}
-
-	for _, peer := range peerIDs {
-		shares, err := c.getSharesByNamespace(
-			ctx, root, nID, peer)
-		if err != nil {
-			log.Debugw("client: peer returned err", "peer_id", peer.String(), "err", err)
-			continue
-		}
-
-		return shares, nil
-	}
-
-	return nil, errNotAvailable
-}
-
-// getSharesByNamespace gets shares with Merkle tree inclusion proofs from remote host
-func (c *Client) getSharesByNamespace(
-	ctx context.Context,
-	root *share.Root, nID namespace.ID,
 	peerID peer.ID,
 ) (share.NamespacedShares, error) {
 	stream, err := c.host.NewStream(ctx, peerID, ndProtocolID)
@@ -86,7 +55,7 @@ func (c *Client) getSharesByNamespace(
 	// if context doesn't have deadline use default one
 	deadline, ok := ctx.Deadline()
 	if !ok {
-		deadline = time.Now().Add(c.defaultTimeout)
+		deadline = time.Now().Add(c.timeout)
 	}
 
 	err = stream.SetDeadline(deadline)
@@ -96,6 +65,7 @@ func (c *Client) getSharesByNamespace(
 
 	_, err = serde.Write(stream, req)
 	if err != nil {
+		stream.Reset() //nolint:errcheck
 		return nil, fmt.Errorf("client: writing request: %w", err)
 	}
 
@@ -107,6 +77,7 @@ func (c *Client) getSharesByNamespace(
 	var resp share_p2p_v1.GetSharesByNamespaceResponse
 	_, err = serde.Read(stream, &resp)
 	if err != nil {
+		stream.Reset() //nolint:errcheck
 		return nil, fmt.Errorf("client: reading response: %w", err)
 	}
 
@@ -165,7 +136,6 @@ func statusToErr(code share_p2p_v1.StatusCode) error {
 		share_p2p_v1.StatusCode_NOT_FOUND,
 		share_p2p_v1.StatusCode_INTERNAL,
 		share_p2p_v1.StatusCode_REFUSED:
-		fallthrough
 	default:
 		code = share_p2p_v1.StatusCode_INVALID
 	}
