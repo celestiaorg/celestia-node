@@ -77,13 +77,14 @@ func cascadeGetters[V any](
 	return cascade[V](ctx, fns, interval)
 }
 
-// cascade implements a cascading retry algorithm for getting a value from multiple sources
-// sorted by priority. Cascading implies trying the sources one-by-one in the given order with the
+// cascade implements a cascading retry algorithm for getting a value from multiple sources.
+// Cascading implies trying the sources one-by-one in the given order with the
 // given interval until either:
 //   - One of the sources returns the value
 //   - All of the sources errors
 //   - Context is canceled
 //
+// NOTE: New source attempts after interval do not suspend running sources in progress.
 // TODO(@Wondertan): Move to utils
 func cascade[V any](ctx context.Context, srcs []func(context.Context) (V, error), interval time.Duration) (V, error) {
 	// short circuit when there is only func to cascade
@@ -136,7 +137,9 @@ func cascade[V any](ctx context.Context, srcs []func(context.Context) (V, error)
 		}(src)
 	}
 
-	for i := 0; i < len(srcs)-len(errs); i++ {
+	// we know how many sources were executed in total
+	// and how many were processed already, so expect only the diff
+	for i := len(errs); i < len(srcs); i++ {
 		select {
 		case res := <-results:
 			if res.err == nil {
