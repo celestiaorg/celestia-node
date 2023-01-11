@@ -7,8 +7,8 @@ import (
 	"time"
 
 	"github.com/ipfs/go-cid"
-	"github.com/libp2p/go-libp2p-core/host"
-	"github.com/libp2p/go-libp2p-core/peer"
+	"github.com/libp2p/go-libp2p/core/host"
+	"github.com/libp2p/go-libp2p/core/peer"
 	"golang.org/x/net/context"
 
 	"github.com/celestiaorg/celestia-node/share"
@@ -43,19 +43,21 @@ func NewClient(host host.Host, defaultTimeout time.Duration) *Client {
 	}
 }
 
-// GetBlobByNamespace request shares with option to collect proofs from remote peers using shrex protocol
-func (c *Client) GetBlobByNamespace(
+// GetSharesByNamespace request shares with option to collect proofs from remote peers using shrex
+// protocol
+func (c *Client) GetSharesByNamespace(
 	ctx context.Context,
 	root *share.Root,
 	nID namespace.ID,
-) (share.NamespaceShares, error) {
-	peers := c.testPeers
-	if len(peers) == 0 { //nolint:staticcheck
-		//TODO: collect peers from discovery here
+	peerIDs peer.IDSlice,
+) (share.NamespacedShares, error) {
+	// overwrite peers in test
+	if len(c.testPeers) != 0 {
+		peerIDs = c.testPeers
 	}
 
-	for _, peer := range peers {
-		shares, err := c.getBlobByNamespace(
+	for _, peer := range peerIDs {
+		shares, err := c.getSharesByNamespace(
 			ctx, root, nID, peer)
 		if err != nil {
 			log.Debugw("peer returned err", "peer_id", peer.String(), "err", err)
@@ -68,12 +70,12 @@ func (c *Client) GetBlobByNamespace(
 	return nil, errNotAvailable
 }
 
-// getBlobByNamespace gets shares with Merkle tree inclusion proofs from remote host
-func (c *Client) getBlobByNamespace(
+// getSharesByNamespace gets shares with Merkle tree inclusion proofs from remote host
+func (c *Client) getSharesByNamespace(
 	ctx context.Context,
 	root *share.Root, nID namespace.ID,
 	peerID peer.ID,
-) (share.NamespaceShares, error) {
+) (share.NamespacedShares, error) {
 	stream, err := c.host.NewStream(ctx, peerID, ndProtocolID)
 	if err != nil {
 		return nil, err
@@ -116,7 +118,7 @@ func (c *Client) getBlobByNamespace(
 		return nil, fmt.Errorf("response code is not OK: %w", err)
 	}
 
-	shares, err := responseToBlob(resp.Rows)
+	shares, err := responseToNamespacedShares(resp.Rows)
 	if err != nil {
 		return nil, fmt.Errorf("convert response to blob: %w", err)
 	}
@@ -129,9 +131,9 @@ func (c *Client) getBlobByNamespace(
 	return shares, nil
 }
 
-// responseToBlob converts proto Rows to share.Blob
-func responseToBlob(rows []*share_p2p_v1.Row) (share.NamespaceShares, error) {
-	shares := make([]share.RowNamespaceShares, 0, len(rows))
+// responseToNamespacedShares converts proto Rows to share.NamespacedShares
+func responseToNamespacedShares(rows []*share_p2p_v1.Row) (share.NamespacedShares, error) {
+	shares := make([]share.NamespacedRow, 0, len(rows))
 	for _, row := range rows {
 		var proof *ipld.Proof
 		if row.Proof != nil {
@@ -151,7 +153,7 @@ func responseToBlob(rows []*share_p2p_v1.Row) (share.NamespaceShares, error) {
 			}
 		}
 
-		shares = append(shares, share.RowNamespaceShares{
+		shares = append(shares, share.NamespacedRow{
 			Shares: row.Shares,
 			Proof:  proof,
 		})
