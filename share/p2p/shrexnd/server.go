@@ -5,21 +5,17 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/ipfs/go-blockservice"
-	"github.com/ipfs/go-cid"
 	logging "github.com/ipfs/go-log/v2"
-	"github.com/libp2p/go-libp2p-core/host"
-	"github.com/libp2p/go-libp2p-core/network"
+	"github.com/libp2p/go-libp2p/core/host"
+	"github.com/libp2p/go-libp2p/core/network"
 	"github.com/minio/sha256-simd"
-	"golang.org/x/sync/errgroup"
 
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/eds"
+	"github.com/celestiaorg/celestia-node/share/getters"
 	"github.com/celestiaorg/celestia-node/share/ipld"
 	share_p2p_v1 "github.com/celestiaorg/celestia-node/share/p2p/shrexnd/v1/pb"
 	"github.com/celestiaorg/go-libp2p-messenger/serde"
-	"github.com/celestiaorg/nmt"
-	"github.com/celestiaorg/nmt/namespace"
 )
 
 const ndProtocolID = "/shrex/nd/0.0.1"
@@ -33,18 +29,17 @@ const (
 )
 
 type Server struct {
+	getter       share.Getter
 	store        *eds.Store
 	host         host.Host
 	writeTimeout time.Duration
 	readTimeout  time.Duration
 	serveTimeout time.Duration
-
-	// TODO: will be removed after CARBlockstore is ready to return DAH
-	testDAH *share.Root
 }
 
-func StartServer(host host.Host, store *eds.Store) *Server {
+func StartServer(host host.Host, store *eds.Store, getter *getters.IPLDGetter) *Server {
 	srv := &Server{
+		getter:       getter,
 		store:        store,
 		host:         host,
 		writeTimeout: writeTimeout,
@@ -89,65 +84,22 @@ func (srv *Server) handleNamespacedData(stream network.Stream) {
 	ctx, cancel := context.WithTimeout(context.Background(), srv.serveTimeout)
 	defer cancel()
 
-	bs, dah, err := srv.store.CARBlockstore(ctx, req.RootHash)
+	dah, err := srv.store.GetDAH(ctx, req.RootHash)
 	if err != nil {
 		log.Errorw("get header for datahash", "err", err)
 		srv.respondInternal(stream)
 		return
 	}
 
-	// replace dah with testDAH within test scope
-	if srv.testDAH != nil {
-		dah = srv.testDAH
-	}
-
-	getter := eds.NewBlockGetter(bs)
-	shares, err := getBlobByNamespace(ctx, getter, dah, req.NamespaceId)
+	shares, err := srv.getter.GetSharesByNamespace(ctx, dah, req.NamespaceId)
 	if err != nil {
 		log.Errorw("get shares", "err", err)
 		srv.respondInternal(stream)
 		return
 	}
 
-	resp := blobToResponse(shares)
+	resp := namespacedSharesToResponse(shares)
 	srv.respond(stream, resp)
-}
-
-func getBlobByNamespace(
-	ctx context.Context,
-	getter blockservice.BlockGetter,
-	root *share.Root,
-	nID namespace.ID,
-) (share.NamespaceShares, error) {
-	// select rows that contain shares with desired namespace.ID
-	selectedRows := make([]cid.Cid, 0)
-	for _, row := range root.RowsRoots {
-		if !nID.Less(nmt.MinNamespace(row, nID.Size())) && nID.LessOrEqual(nmt.MaxNamespace(row, nID.Size())) {
-			selectedRows = append(selectedRows, ipld.MustCidFromNamespacedSha256(row))
-		}
-	}
-	if len(selectedRows) == 0 {
-		return nil, nil
-	}
-
-	errGroup, ctx := errgroup.WithContext(ctx)
-	rowShares := make([]share.RowNamespaceShares, len(selectedRows))
-	for i, rowRoot := range selectedRows {
-		// shadow loop variables, to ensure correct values are captured
-		i, rowRoot := i, rowRoot
-		errGroup.Go(func() (err error) {
-			proof := new(ipld.Proof)
-			shares, err := share.GetSharesByNamespace(ctx, getter, rowRoot, nID, len(root.RowsRoots), proof)
-			rowShares[i].Shares = shares
-			rowShares[i].Proof = proof
-			return
-		})
-	}
-
-	if err := errGroup.Wait(); err != nil {
-		return nil, err
-	}
-	return rowShares, nil
 }
 
 // validateRequest checks correctness of the request
@@ -170,8 +122,8 @@ func (srv *Server) respondInternal(stream network.Stream) {
 	srv.respond(stream, resp)
 }
 
-// blobToResponse encodes shares into proto and sends it to client with OK status code
-func blobToResponse(shares share.NamespaceShares) *share_p2p_v1.GetSharesByNamespaceResponse {
+// namespacedSharesToResponse encodes shares into proto and sends it to client with OK status code
+func namespacedSharesToResponse(shares share.NamespacedShares) *share_p2p_v1.GetSharesByNamespaceResponse {
 	rows := make([]*share_p2p_v1.Row, 0, len(shares))
 	for _, row := range shares {
 		// construct proof

@@ -5,6 +5,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/celestiaorg/celestia-node/share/getters"
+
+	bsrv "github.com/ipfs/go-blockservice"
 	"github.com/ipfs/go-datastore"
 	ds_sync "github.com/ipfs/go-datastore/sync"
 	mdutils "github.com/ipfs/go-merkledag/test"
@@ -26,30 +29,29 @@ func TestGetSharesWithProofByNamespace(t *testing.T) {
 	// create test net
 	net := availability_test.NewTestDAGNet(ctx, t)
 
-	// launch eds store
+	// generate test data
+	bServ := mdutils.Bserv()
+	randomEDS, nID := generateTestEDS(t, bServ)
+	dah := da.NewDataAvailabilityHeader(randomEDS)
+
+	// launch eds store and put test data into it
 	edsStore, err := newStore(t)
 	require.NoError(t, err)
 	err = edsStore.Start(ctx)
 	require.NoError(t, err)
-
-	// create server and register handler
-	srv := StartServer(net.NewTestNode().Host, edsStore)
-	t.Cleanup(srv.Stop)
-
-	// create client
-	client := NewClient(net.NewTestNode().Host, readTimeout)
-
-	net.ConnectAll()
-
-	eds, nID := generateTestEDS(t)
-	dah := da.NewDataAvailabilityHeader(eds)
-
-	// put test data into the edsstore and server
-	srv.testDAH = &dah
-	err = edsStore.Put(ctx, dah.Hash(), eds)
+	err = edsStore.Put(ctx, dah.Hash(), randomEDS)
 	require.NoError(t, err)
 
-	got, err := client.getBlobByNamespace(
+	// create server and register handler
+	srv := StartServer(net.NewTestNode().Host, edsStore, nil)
+	srv.getter = getters.NewIPLDGetter(bServ)
+	t.Cleanup(srv.Stop)
+
+	// create client and connect it to server
+	client := NewClient(net.NewTestNode().Host, readTimeout)
+	net.ConnectAll()
+
+	got, err := client.getSharesByNamespace(
 		ctx,
 		&dah,
 		nID,
@@ -67,7 +69,7 @@ func newStore(t *testing.T) (*eds.Store, error) {
 	return eds.NewStore(tmpDir, ds)
 }
 
-func generateTestEDS(t *testing.T) (*rsmt2d.ExtendedDataSquare, namespace.ID) {
+func generateTestEDS(t *testing.T, bServ bsrv.BlockService) (*rsmt2d.ExtendedDataSquare, namespace.ID) {
 	shares := share.RandShares(t, 16)
 
 	from := rand.Intn(len(shares))
@@ -83,7 +85,6 @@ func generateTestEDS(t *testing.T) (*rsmt2d.ExtendedDataSquare, namespace.ID) {
 		copy(shares[i][:share.NamespaceSize], nID)
 	}
 
-	bServ := mdutils.Bserv()
 	eds, err := share.AddShares(context.Background(), shares, bServ)
 	require.NoError(t, err)
 
