@@ -5,14 +5,21 @@ import (
 	"testing"
 	"time"
 
+	"github.com/golang/mock/gomock"
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/fx"
 
+	// import cosmos sdk types
+
+	"github.com/celestiaorg/celestia-node/libs/fxutil"
 	"github.com/celestiaorg/celestia-node/nodebuilder"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
+	"github.com/celestiaorg/celestia-node/nodebuilder/share/mocks"
 	"github.com/celestiaorg/celestia-node/nodebuilder/tests/swamp"
+	"github.com/celestiaorg/celestia-node/share"
 )
 
 // Common consts for tests producing filled blocks
@@ -314,4 +321,74 @@ func TestSyncLightWithTrustedPeers(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.EqualValues(t, h.Commit.BlockID.Hash, sw.GetCoreBlockHashByHeight(ctx, 50))
+}
+
+/*
+Test-Case: Sync a Light Node with a Bridge Node(includes DASing of non-empty blocks)
+Exactly the same as TestSyncLightWithBridge, but uses an option to enable Blackbox metrics
+*/
+func TestSyncLightWithBridge_WithBlackBoxMetrics(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), swamp.DefaultTestTimeout)
+	t.Cleanup(cancel)
+
+	// cfg := sdk.GetConfig()
+	// // set the encoder to be the one used by the SDK
+	// // cfg.SetBech32PrefixForAccount(app.Bech32PrefixAccAddr, app.Bech32PrefixAccPub)
+	// // cfg.SetBech32PrefixForValidator(app.Bech32PrefixValAddr, app.Bech32PrefixValPub)
+	// cfg.Seal()
+
+	sw := swamp.NewSwamp(t, swamp.WithBlockTime(btime))
+	fillDn := sw.FillBlocks(ctx, bsize, blocks)
+
+	bridge := sw.NewBridgeNode()
+
+	sw.WaitTillHeight(ctx, 20)
+
+	err := bridge.Start(ctx)
+	require.NoError(t, err)
+
+	h, err := bridge.HeaderServ.GetByHeight(ctx, 20)
+	require.NoError(t, err)
+
+	require.EqualValues(t, h.Commit.BlockID.Hash, sw.GetCoreBlockHashByHeight(ctx, 20))
+
+	addrs, err := peer.AddrInfoToP2pAddrs(host.InfoFromHost(bridge.Host))
+	require.NoError(t, err)
+
+	cfg := nodebuilder.DefaultConfig(node.Light)
+	cfg.Header.TrustedPeers = append(cfg.Header.TrustedPeers, addrs[0].String())
+
+	// options to enable Blackbox metrics
+	mockCtrl := gomock.NewController(t)
+	mockShareGetter := mocks.NewMockGetter(mockCtrl)
+	options := []fx.Option{
+		// this mocks the IPLD share getter before
+		// it's proxied by WithBlackboxMetrics
+		fxutil.ReplaceAs(new(share.Getter), mockShareGetter),
+		nodebuilder.WithBlackboxMetrics(),
+	}
+
+	// establish mock expectations
+	mockShareGetter.
+		EXPECT().
+		GetShare(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
+		Times(0)
+
+	// supply the options to the light node to track metrics
+	light := sw.NewNodeWithConfig(node.Light, cfg, options...)
+
+	err = light.Start(ctx)
+	require.NoError(t, err)
+
+	h, err = light.HeaderServ.GetByHeight(ctx, 30)
+	require.NoError(t, err)
+
+	err = light.ShareServ.SharesAvailable(ctx, h.DAH)
+	assert.NoError(t, err)
+
+	err = light.DASer.WaitCatchUp(ctx)
+	require.NoError(t, err)
+
+	assert.EqualValues(t, h.Commit.BlockID.Hash, sw.GetCoreBlockHashByHeight(ctx, 30))
+	require.NoError(t, <-fillDn)
 }

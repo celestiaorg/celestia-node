@@ -173,6 +173,7 @@ func (s *Swamp) setupGenesis(ctx context.Context) {
 	h, err := ex.GetByHeight(ctx, 1)
 	require.NoError(s.t, err)
 	s.genesis = h
+	fmt.Println(s.genesis)
 }
 
 // NewBridgeNode creates a new instance of a BridgeNode providing a default config

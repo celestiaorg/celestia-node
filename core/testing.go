@@ -55,6 +55,8 @@ func DefaultTestConfig() *TestConfig {
 		accounts[i] = tmrand.Str(9)
 	}
 
+	fmt.Println("Accounts", accounts)
+
 	return &TestConfig{
 		ConsensusParams: conCfg,
 		Tendermint:      tnCfg,
