@@ -14,7 +14,7 @@ import (
 	"github.com/celestiaorg/celestia-node/share/eds"
 	"github.com/celestiaorg/celestia-node/share/getters"
 	"github.com/celestiaorg/celestia-node/share/ipld"
-	share_p2p_v1 "github.com/celestiaorg/celestia-node/share/p2p/shrexnd/v1/pb"
+	pb "github.com/celestiaorg/celestia-node/share/p2p/shrexnd/pb"
 	"github.com/celestiaorg/go-libp2p-messenger/serde"
 )
 
@@ -77,7 +77,7 @@ func (srv *Server) handleNamespacedData(ctx context.Context, stream network.Stre
 		log.Debugf("server: seting read deadline: %s", err)
 	}
 
-	var req share_p2p_v1.GetSharesByNamespaceRequest
+	var req pb.GetSharesByNamespaceRequest
 	_, err = serde.Read(stream, &req)
 	if err != nil {
 		log.Errorw("server: reading request", "err", err)
@@ -119,7 +119,7 @@ func (srv *Server) handleNamespacedData(ctx context.Context, stream network.Stre
 }
 
 // validateRequest checks correctness of the request
-func validateRequest(req share_p2p_v1.GetSharesByNamespaceRequest) error {
+func validateRequest(req pb.GetSharesByNamespaceRequest) error {
 	if len(req.NamespaceId) != ipld.NamespaceSize {
 		return fmt.Errorf("incorrect namespace id length: %v", len(req.NamespaceId))
 	}
@@ -132,15 +132,15 @@ func validateRequest(req share_p2p_v1.GetSharesByNamespaceRequest) error {
 
 // respondInternal sends internal error response to client
 func (srv *Server) respondInternalError(stream network.Stream) {
-	resp := &share_p2p_v1.GetSharesByNamespaceResponse{
-		Status: share_p2p_v1.StatusCode_INTERNAL,
+	resp := &pb.GetSharesByNamespaceResponse{
+		Status: pb.StatusCode_INTERNAL,
 	}
 	srv.respond(stream, resp)
 }
 
 // namespacedSharesToResponse encodes shares into proto and sends it to client with OK status code
-func namespacedSharesToResponse(shares share.NamespacedShares) *share_p2p_v1.GetSharesByNamespaceResponse {
-	rows := make([]*share_p2p_v1.Row, 0, len(shares))
+func namespacedSharesToResponse(shares share.NamespacedShares) *pb.GetSharesByNamespaceResponse {
+	rows := make([]*pb.Row, 0, len(shares))
 	for _, row := range shares {
 		// construct proof
 		nodes := make([][]byte, 0, len(row.Proof.Nodes))
@@ -148,13 +148,13 @@ func namespacedSharesToResponse(shares share.NamespacedShares) *share_p2p_v1.Get
 			nodes = append(nodes, cid.Bytes())
 		}
 
-		proof := &share_p2p_v1.Proof{
+		proof := &pb.Proof{
 			Start: int64(row.Proof.Start),
 			End:   int64(row.Proof.End),
 			Nodes: nodes,
 		}
 
-		row := &share_p2p_v1.Row{
+		row := &pb.Row{
 			Shares: row.Shares,
 			Proof:  proof,
 		}
@@ -162,13 +162,13 @@ func namespacedSharesToResponse(shares share.NamespacedShares) *share_p2p_v1.Get
 		rows = append(rows, row)
 	}
 
-	return &share_p2p_v1.GetSharesByNamespaceResponse{
-		Status: share_p2p_v1.StatusCode_OK,
+	return &pb.GetSharesByNamespaceResponse{
+		Status: pb.StatusCode_OK,
 		Rows:   rows,
 	}
 }
 
-func (srv *Server) respond(stream network.Stream, resp *share_p2p_v1.GetSharesByNamespaceResponse) {
+func (srv *Server) respond(stream network.Stream, resp *pb.GetSharesByNamespaceResponse) {
 	err := stream.SetWriteDeadline(time.Now().Add(srv.writeTimeout))
 	if err != nil {
 		log.Debugf("server: seting write deadline: %s", err)

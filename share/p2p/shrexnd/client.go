@@ -13,7 +13,7 @@ import (
 
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/ipld"
-	share_p2p_v1 "github.com/celestiaorg/celestia-node/share/p2p/shrexnd/v1/pb"
+	pb "github.com/celestiaorg/celestia-node/share/p2p/shrexnd/pb"
 	"github.com/celestiaorg/go-libp2p-messenger/serde"
 	"github.com/celestiaorg/nmt/namespace"
 )
@@ -47,7 +47,7 @@ func (c *Client) GetSharesByNamespace(
 	}
 	defer stream.Close()
 
-	req := &share_p2p_v1.GetSharesByNamespaceRequest{
+	req := &pb.GetSharesByNamespaceRequest{
 		RootHash:    root.Hash(),
 		NamespaceId: nID,
 	}
@@ -74,7 +74,7 @@ func (c *Client) GetSharesByNamespace(
 		log.Debugf("client: closing write side of the stream: %s", err)
 	}
 
-	var resp share_p2p_v1.GetSharesByNamespaceResponse
+	var resp pb.GetSharesByNamespaceResponse
 	_, err = serde.Read(stream, &resp)
 	if err != nil {
 		stream.Reset() //nolint:errcheck
@@ -99,7 +99,7 @@ func (c *Client) GetSharesByNamespace(
 }
 
 // responseToNamespacedShares converts proto Rows to share.NamespacedShares
-func responseToNamespacedShares(rows []*share_p2p_v1.Row) (share.NamespacedShares, error) {
+func responseToNamespacedShares(rows []*pb.Row) (share.NamespacedShares, error) {
 	shares := make([]share.NamespacedRow, 0, len(rows))
 	for _, row := range rows {
 		var proof *ipld.Proof
@@ -128,16 +128,16 @@ func responseToNamespacedShares(rows []*share_p2p_v1.Row) (share.NamespacedShare
 	return shares, nil
 }
 
-func statusToErr(code share_p2p_v1.StatusCode) error {
+func statusToErr(code pb.StatusCode) error {
 	switch code {
-	case share_p2p_v1.StatusCode_OK:
+	case pb.StatusCode_OK:
 		return nil
-	case share_p2p_v1.StatusCode_INVALID,
-		share_p2p_v1.StatusCode_NOT_FOUND,
-		share_p2p_v1.StatusCode_INTERNAL,
-		share_p2p_v1.StatusCode_REFUSED:
+	case pb.StatusCode_INVALID,
+		pb.StatusCode_NOT_FOUND,
+		pb.StatusCode_INTERNAL,
+		pb.StatusCode_REFUSED:
 	default:
-		code = share_p2p_v1.StatusCode_INVALID
+		code = pb.StatusCode_INVALID
 	}
 	return errors.New(code.String())
 }

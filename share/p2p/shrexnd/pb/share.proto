@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-package share.p2p.v1;
+package share.p2p.shrex.nd;
 
 message GetSharesByNamespaceRequest{
   bytes root_hash = 1;
