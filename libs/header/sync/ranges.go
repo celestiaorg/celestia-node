@@ -80,6 +80,8 @@ func (rs *ranges[H]) FirstRangeWithin(start, end uint64) (*headerRange[H], bool)
 }
 
 // FindAllRangesWithin returns all headerRanges that apply the requested range.
+// Returned ranges meant to have `start` in within their bounds.
+// NOTE: rages does not have to contain `end`.
 // There could be multiple headerRanges:
 // start = 2 , end 40
 // headerRange0 = [3;20];
