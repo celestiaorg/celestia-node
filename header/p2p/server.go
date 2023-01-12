@@ -9,11 +9,19 @@ import (
 	"github.com/libp2p/go-libp2p/core/network"
 	"github.com/libp2p/go-libp2p/core/protocol"
 	tmbytes "github.com/tendermint/tendermint/libs/bytes"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/trace"
 
 	"github.com/celestiaorg/go-libp2p-messenger/serde"
 
 	"github.com/celestiaorg/celestia-node/header"
 	p2p_pb "github.com/celestiaorg/celestia-node/header/p2p/pb"
+)
+
+var (
+	serverTracer = otel.Tracer("header/server")
 )
 
 // ExchangeServer represents the server-side component for
@@ -151,6 +159,10 @@ func (serv *ExchangeServer) requestHandler(stream network.Stream) {
 // if it exists.
 func (serv *ExchangeServer) handleRequestByHash(hash []byte) ([]*header.ExtendedHeader, error) {
 	log.Debugw("server: handling header request", "hash", tmbytes.HexBytes(hash).String())
+	ctx, span := serverTracer.Start(serv.ctx, "handleRequestByHash", trace.WithAttributes(
+		attribute.String("hash", tmbytes.HexBytes(hash).String()),
+	))
+	defer span.End()
 
 	ctx, cancel := context.WithTimeout(serv.ctx, serv.Params.ServeTimeout)
 	defer cancel()
@@ -158,8 +170,15 @@ func (serv *ExchangeServer) handleRequestByHash(hash []byte) ([]*header.Extended
 	h, err := serv.getter.Get(ctx, hash)
 	if err != nil {
 		log.Errorw("server: getting header by hash", "hash", tmbytes.HexBytes(hash).String(), "err", err)
+		span.RecordError(err)
 		return nil, err
 	}
+
+	span.AddEvent("fetched_header_from_store", trace.WithAttributes(
+		attribute.String("hash", tmbytes.HexBytes(hash).String()),
+		attribute.Int64("height", h.Height)),
+	)
+	span.SetStatus(codes.Ok, "")
 	return []*header.ExtendedHeader{h}, nil
 }
 
@@ -169,24 +188,39 @@ func (serv *ExchangeServer) handleRequest(from, to uint64) ([]*header.ExtendedHe
 	ctx, cancel := context.WithTimeout(serv.ctx, serv.Params.ServeTimeout)
 	defer cancel()
 
+	ctx, span := serverTracer.Start(ctx, "handleRequest", trace.WithAttributes(
+		attribute.Int64("from", int64(from)),
+		attribute.Int64("to", int64(to))))
+	defer span.End()
+
 	if from == uint64(0) {
+		span.AddEvent("handling_head_request")
 		log.Debug("server: handling head request")
 		head, err := serv.getter.Head(ctx)
 		if err != nil {
 			log.Errorw("server: getting head", "err", err)
+			span.RecordError(err)
 			return nil, err
 		}
+
+		span.AddEvent("fetched_head", trace.WithAttributes(
+			attribute.String("hash", head.Hash().String()),
+			attribute.Int64("height", head.Height)),
+		)
+		span.SetStatus(codes.Ok, "")
 		return []*header.ExtendedHeader{head}, nil
 	}
 
 	if to-from > serv.Params.MaxRequestSize {
 		log.Errorw("server: skip request for too many headers.", "amount", to-from)
+		span.RecordError(header.ErrHeadersLimitExceeded)
 		return nil, header.ErrHeadersLimitExceeded
 	}
 
 	log.Debugw("server: handling headers request", "from", from, "to", to)
 	headersByRange, err := serv.getter.GetRangeByHeight(ctx, from, to)
 	if err != nil {
+		span.RecordError(err)
 		if errors.Is(err, context.DeadlineExceeded) {
 			log.Warnw("server: requested headers not found", "from", from, "to", to)
 			return nil, header.ErrNotFound
@@ -194,5 +228,9 @@ func (serv *ExchangeServer) handleRequest(from, to uint64) ([]*header.ExtendedHe
 		log.Errorw("server: getting headers", "from", from, "to", to, "err", err)
 		return nil, err
 	}
+
+	span.AddEvent("fetched_range_of_headers", trace.WithAttributes(
+		attribute.Int("amount", len(headersByRange))))
+	span.SetStatus(codes.Ok, "")
 	return headersByRange, nil
 }
