@@ -130,7 +130,7 @@ func validateRequest(req pb.GetSharesByNamespaceRequest) error {
 	return nil
 }
 
-// respondInternal sends internal error response to client
+// respondInternalError sends internal error response to client
 func (srv *Server) respondInternalError(stream network.Stream) {
 	resp := &pb.GetSharesByNamespaceResponse{
 		Status: pb.StatusCode_INTERNAL,
