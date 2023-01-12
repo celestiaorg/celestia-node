@@ -32,7 +32,7 @@ func init() {
 	}
 
 	lightCmd.AddCommand(
-		cmdnode.NewConfigCmd(flags, node.Light),
+		cmdnode.ConfigCmd(node.Light, flags),
 		cmdnode.Start(flags...),
 		cmdnode.AuthCmd(flags...),
 	)

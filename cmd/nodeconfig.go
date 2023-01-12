@@ -9,7 +9,7 @@ import (
 	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
 )
 
-func NewConfigCmd(flags []*pflag.FlagSet, nodeType node.Type) *cobra.Command {
+func ConfigCmd(nodeType node.Type, flags []*pflag.FlagSet) *cobra.Command {
 	configCmd := &cobra.Command{
 		Use:   "config [subcommand]",
 		Args:  cobra.NoArgs,
@@ -18,8 +18,8 @@ func NewConfigCmd(flags []*pflag.FlagSet, nodeType node.Type) *cobra.Command {
 
 	configCmd.AddCommand(
 		Init(flags...),
-		Remove(nodeType, NodeFlags(), p2p.Flags(), MiscFlags()),
-		Reinit(nodeType, NodeFlags(), p2p.Flags(), MiscFlags()),
+		Remove(nodeType, NodeFlags(), p2p.Flags()),
+		Reinit(nodeType, NodeFlags(), p2p.Flags()),
 	)
 
 	return configCmd
@@ -33,7 +33,6 @@ func Init(fsets ...*pflag.FlagSet) *cobra.Command {
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
-
 			return nodebuilder.Init(NodeConfig(ctx), StorePath(ctx), NodeType(ctx))
 		},
 	}
@@ -45,7 +44,7 @@ func Init(fsets ...*pflag.FlagSet) *cobra.Command {
 }
 
 func Remove(nodeType node.Type, fsets ...*pflag.FlagSet) *cobra.Command {
-	RemoveConfigCmd := &cobra.Command{
+	cmd := &cobra.Command{
 		Use:   "remove",
 		Args:  cobra.NoArgs,
 		Short: "Remove current config",
@@ -58,14 +57,14 @@ func Remove(nodeType node.Type, fsets ...*pflag.FlagSet) *cobra.Command {
 		},
 	}
 	for _, set := range fsets {
-		RemoveConfigCmd.Flags().AddFlagSet(set)
+		cmd.Flags().AddFlagSet(set)
 	}
 
-	return RemoveConfigCmd
+	return cmd
 }
 
 func Reinit(nodeType node.Type, fsets ...*pflag.FlagSet) *cobra.Command {
-	ReinitCmd := &cobra.Command{
+	cmd := &cobra.Command{
 		Use:   "reinit [config-path]",
 		Args:  cobra.MinimumNArgs(1),
 		Short: "Reinit config",
@@ -78,10 +77,10 @@ func Reinit(nodeType node.Type, fsets ...*pflag.FlagSet) *cobra.Command {
 		},
 	}
 	for _, set := range fsets {
-		ReinitCmd.Flags().AddFlagSet(set)
+		cmd.Flags().AddFlagSet(set)
 	}
 
-	return ReinitCmd
+	return cmd
 }
 
 func parseStorePath(cmd *cobra.Command, nodeType node.Type) error {
@@ -102,12 +101,7 @@ func parseStorePath(cmd *cobra.Command, nodeType node.Type) error {
 	if err != nil {
 		return err
 	}
-
-	ctx, err = ParseMiscFlags(ctx, cmd)
-	if err != nil {
-		return err
-	}
-
+	
 	cmd.SetContext(ctx)
 
 	return nil

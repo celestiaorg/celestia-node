@@ -32,7 +32,7 @@ func init() {
 	}
 
 	fullCmd.AddCommand(
-		cmdnode.NewConfigCmd(flags, node.Full),
+		cmdnode.ConfigCmd(node.Full, flags),
 		cmdnode.Start(flags...),
 		cmdnode.AuthCmd(flags...),
 	)

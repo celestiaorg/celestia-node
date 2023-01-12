@@ -54,6 +54,7 @@ func Init(cfg Config, path string, tp node.Type) error {
 	return nil
 }
 
+// Remove removes config at 'path'
 func Remove(path string) error {
 	strPath, err := storePath(path)
 	if err != nil {
@@ -61,9 +62,11 @@ func Remove(path string) error {
 	}
 
 	cfgPath := configPath(strPath)
-	return RemoveConfig(cfgPath)
+	return os.Remove(cfgPath)
 }
 
+// Reinit re-initializes the Config for the given Node Type 'tp' in the directory under
+// 'path' according to Config changes at 'newConfigPath'.
 func Reinit(path string, newConfigPath string, tp node.Type) error {
 	path, err := storePath(path)
 	if err != nil {

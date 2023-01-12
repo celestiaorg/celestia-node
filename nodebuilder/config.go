@@ -80,16 +80,6 @@ func LoadConfig(path string) (*Config, error) {
 	return &cfg, cfg.Decode(f)
 }
 
-func RemoveConfig(path string) error {
-	f, err := os.Open(path)
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-
-	return os.Remove(path)
-}
-
 // TODO(@Wondertan): We should have a description for each field written into w,
 // 	so users can instantly understand purpose of each field. Ideally, we should have a utility
 // program to parse comments 	from actual sources(*.go files) and generate docs from comments.
