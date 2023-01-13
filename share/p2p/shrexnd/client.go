@@ -57,7 +57,7 @@ func (c *Client) GetSharesByNamespace(
 	peerIDs ...peer.ID,
 ) (share.NamespacedShares, error) {
 	for _, peerID := range peerIDs {
-		shares, err := c.getSharesByNamespace(ctx, root, nID, peerID)
+		shares, err := c.doRequest(ctx, root, nID, peerID)
 		if err != nil {
 			log.Debugw("peer returned err", "peer_id", peerID.String(), "err", err)
 			continue
@@ -68,7 +68,7 @@ func (c *Client) GetSharesByNamespace(
 	return nil, errNoMorePeers
 }
 
-func (c *Client) getSharesByNamespace(
+func (c *Client) doRequest(
 	ctx context.Context,
 	root *share.Root,
 	nID namespace.ID,
