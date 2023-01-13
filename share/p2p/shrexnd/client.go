@@ -124,7 +124,7 @@ func (c *Client) doRequest(
 		return nil, fmt.Errorf("client-nd: response code is not OK: %w", err)
 	}
 
-	shares, err := responseToNamespacedShares(resp.Rows)
+	shares, err := convertToNamespacedShares(resp.Rows)
 	if err != nil {
 		return nil, fmt.Errorf("client-nd: converting response to shares: %w", err)
 	}
@@ -137,8 +137,8 @@ func (c *Client) doRequest(
 	return shares, nil
 }
 
-// responseToNamespacedShares converts proto Rows to share.NamespacedShares
-func responseToNamespacedShares(rows []*pb.Row) (share.NamespacedShares, error) {
+// convertToNamespacedShares converts proto Rows to share.NamespacedShares
+func convertToNamespacedShares(rows []*pb.Row) (share.NamespacedShares, error) {
 	shares := make([]share.NamespacedRow, 0, len(rows))
 	for _, row := range rows {
 		var proof *ipld.Proof
@@ -178,15 +178,15 @@ func (c *Client) setStreamDeadlines(ctx context.Context, stream network.Stream) 
 		return
 	}
 
-	if c.params.ReadTimeout != 0 {
-		err := stream.SetReadDeadline(time.Now().Add(c.params.ReadTimeout))
+	if c.params.readTimeout != 0 {
+		err := stream.SetReadDeadline(time.Now().Add(c.params.readTimeout))
 		if err != nil {
 			log.Debugf("client-nd: set read deadline: %s", err)
 		}
 	}
 
-	if c.params.WriteTimeout != 0 {
-		err := stream.SetWriteDeadline(time.Now().Add(c.params.ReadTimeout))
+	if c.params.writeTimeout != 0 {
+		err := stream.SetWriteDeadline(time.Now().Add(c.params.readTimeout))
 		if err != nil {
 			log.Debugf("client-nd: set write deadline: %s", err)
 		}

@@ -70,7 +70,7 @@ func (srv *Server) Stop() {
 }
 
 func (srv *Server) handleNamespacedData(ctx context.Context, stream network.Stream) {
-	err := stream.SetReadDeadline(time.Now().Add(srv.params.ReadTimeout))
+	err := stream.SetReadDeadline(time.Now().Add(srv.params.readTimeout))
 	if err != nil {
 		log.Debugf("server: setting read deadline: %s", err)
 	}
@@ -82,6 +82,7 @@ func (srv *Server) handleNamespacedData(ctx context.Context, stream network.Stre
 		stream.Reset() //nolint:errcheck
 		return
 	}
+	log.Debugw("server: new request", "namespaceId", string(req.NamespaceId), "roothash", string(req.RootHash))
 
 	err = stream.CloseRead()
 	if err != nil {
@@ -95,7 +96,7 @@ func (srv *Server) handleNamespacedData(ctx context.Context, stream network.Stre
 		return
 	}
 
-	ctx, cancel := context.WithTimeout(ctx, srv.params.ServeTimeout)
+	ctx, cancel := context.WithTimeout(ctx, srv.params.serveTimeout)
 	defer cancel()
 
 	dah, err := srv.store.GetDAH(ctx, req.RootHash)
@@ -114,6 +115,7 @@ func (srv *Server) handleNamespacedData(ctx context.Context, stream network.Stre
 
 	resp := namespacedSharesToResponse(shares)
 	srv.respond(stream, resp)
+	log.Debugw("server: handled request", "namespaceId", string(req.NamespaceId), "roothash", string(req.RootHash))
 }
 
 // validateRequest checks correctness of the request
@@ -167,7 +169,7 @@ func namespacedSharesToResponse(shares share.NamespacedShares) *pb.GetSharesByNa
 }
 
 func (srv *Server) respond(stream network.Stream, resp *pb.GetSharesByNamespaceResponse) {
-	err := stream.SetWriteDeadline(time.Now().Add(srv.params.WriteTimeout))
+	err := stream.SetWriteDeadline(time.Now().Add(srv.params.writeTimeout))
 	if err != nil {
 		log.Debugf("server: seting write deadline: %s", err)
 	}
