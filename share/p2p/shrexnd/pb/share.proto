@@ -1,0 +1,32 @@
+syntax = "proto3";
+
+package share.p2p.shrex.nd;
+
+message GetSharesByNamespaceRequest{
+  bytes root_hash = 1;
+  bytes namespace_id = 2;
+}
+
+message GetSharesByNamespaceResponse{
+  StatusCode status = 1;
+  repeated Row rows = 2;
+}
+
+enum StatusCode {
+  INVALID = 0;
+  OK = 1;
+  NOT_FOUND = 2;
+  INTERNAL = 3;
+  REFUSED = 4;
+};
+
+message Row {
+  repeated bytes shares = 1;
+  Proof proof = 2;
+}
+
+message Proof {
+  int64 start = 1;
+  int64 end = 2;
+  repeated bytes Nodes = 3;
+}
