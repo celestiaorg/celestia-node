@@ -131,7 +131,7 @@ func (c *Client) doRequest(
 
 	err = shares.Verify(root, nID)
 	if err != nil {
-		return nil, fmt.Errorf("client-nd: verifing response: %w", err)
+		return nil, fmt.Errorf("client-nd: verifying response: %w", err)
 	}
 
 	return shares, nil
