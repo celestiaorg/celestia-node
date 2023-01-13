@@ -18,7 +18,7 @@ import (
 	"github.com/celestiaorg/go-libp2p-messenger/serde"
 )
 
-// Server implements server side of shrex/nd protocol to obtain namespaced shares data from remote
+// Server implements server side of shrex/nd protocol to serve namespaced share to remote
 // peers.
 type Server struct {
 	params     *Parameters
