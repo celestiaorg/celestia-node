@@ -43,13 +43,15 @@ func TestGetSharesWithProofByNamespace(t *testing.T) {
 	require.NoError(t, err)
 
 	// create server and register handler
-	srv := NewServer(net.NewTestNode().Host, edsStore, nil)
+	srv, err := NewServer(net.NewTestNode().Host, edsStore, nil)
+	require.NoError(t, err)
 	srv.getter = getters.NewIPLDGetter(bServ)
 	srv.Start(ctx)
 	t.Cleanup(srv.Stop)
 
 	// create client and connect it to server
-	client := NewClient(net.NewTestNode().Host, readTimeout)
+	client, err := NewClient(net.NewTestNode().Host)
+	require.NoError(t, err)
 	net.ConnectAll()
 
 	got, err := client.GetSharesByNamespace(

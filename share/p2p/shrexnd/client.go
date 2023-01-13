@@ -4,6 +4,8 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/libp2p/go-libp2p/core/protocol"
+
 	"time"
 
 	"github.com/ipfs/go-cid"
@@ -18,19 +20,33 @@ import (
 	"github.com/celestiaorg/nmt/namespace"
 )
 
+var errNoMorePeers = errors.New("shrex-nd: all peers returned invalid responses")
+
 // Client implements client side of shrex/nd protocol to obtain namespaced shares data from remote
 // peers.
 type Client struct {
-	host    host.Host
+	host       host.Host
+	protocolID protocol.ID
+
 	timeout time.Duration
 }
 
 // NewClient creates a new shrEx/nd client
-func NewClient(host host.Host, timeout time.Duration) *Client {
-	return &Client{
-		host:    host,
-		timeout: timeout,
+func NewClient(host host.Host, opts ...Option) (*Client, error) {
+	params := DefaultParameters()
+	for _, opt := range opts {
+		opt(params)
 	}
+
+	if err := params.Validate(); err != nil {
+		return nil, fmt.Errorf("shrex-nd: client creation failed: %w", err)
+	}
+
+	return &Client{
+		host:       host,
+		protocolID: protocolID(params.protocolSuffix),
+		timeout:    params.ServeTimeout + params.ReadTimeout + params.WriteTimeout,
+	}, nil
 }
 
 // GetSharesByNamespace request shares with option to collect proofs from remote peers using shrex
@@ -39,9 +55,27 @@ func (c *Client) GetSharesByNamespace(
 	ctx context.Context,
 	root *share.Root,
 	nID namespace.ID,
+	peerIDs ...peer.ID,
+) (share.NamespacedShares, error) {
+	for _, peerID := range peerIDs {
+		shares, err := c.getSharesByNamespace(ctx, root, nID, peerID)
+		if err != nil {
+			log.Debugw("peer returned err", "peer_id", peerID.String(), "err", err)
+			continue
+		}
+		return shares, err
+	}
+
+	return nil, errNoMorePeers
+}
+
+func (c *Client) getSharesByNamespace(
+	ctx context.Context,
+	root *share.Root,
+	nID namespace.ID,
 	peerID peer.ID,
 ) (share.NamespacedShares, error) {
-	stream, err := c.host.NewStream(ctx, peerID, ndProtocolID)
+	stream, err := c.host.NewStream(ctx, peerID, c.protocolID)
 	if err != nil {
 		return nil, err
 	}
