@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net"
 	"time"
 
 	"github.com/ipfs/go-cid"
@@ -58,11 +59,25 @@ func (c *Client) GetSharesByNamespace(
 ) (share.NamespacedShares, error) {
 	for _, peerID := range peerIDs {
 		shares, err := c.doRequest(ctx, root, nID, peerID)
-		if err != nil {
-			log.Debugw("client-nd: peer returned err", "peer_id", peerID.String(), "err", err)
-			continue
+		if err == nil {
+			return shares, err
 		}
-		return shares, err
+
+		if errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) {
+			return nil, ctx.Err()
+		}
+		// some net.Errors also mean the context deadline was exceeded, but yamux/mocknet do not
+		// unwrap to a ctx err
+		var ne net.Error
+		if errors.As(err, &ne) && ne.Timeout() {
+			if deadline, _ := ctx.Deadline(); deadline.Before(time.Now()) {
+				// stop trying peers if ctx deadline reached
+				return nil, context.DeadlineExceeded
+			}
+		}
+
+		// log and try another peer
+		log.Errorw("client-nd: peer returned err", "peer_id", peerID.String(), "err", err)
 	}
 
 	return nil, errNoMorePeers
