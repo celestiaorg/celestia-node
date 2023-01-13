@@ -1,17 +1,17 @@
 package shrexnd
 
 import (
+	"context"
 	"errors"
 	"fmt"
-
-	"github.com/libp2p/go-libp2p/core/protocol"
-
 	"time"
+
+	"github.com/libp2p/go-libp2p/core/network"
 
 	"github.com/ipfs/go-cid"
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/peer"
-	"golang.org/x/net/context"
+	"github.com/libp2p/go-libp2p/core/protocol"
 
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/ipld"
@@ -25,10 +25,9 @@ var errNoMorePeers = errors.New("shrex-nd: all peers returned invalid responses"
 // Client implements client side of shrex/nd protocol to obtain namespaced shares data from remote
 // peers.
 type Client struct {
-	host       host.Host
+	params     *Parameters
 	protocolID protocol.ID
-
-	timeout time.Duration
+	host       host.Host
 }
 
 // NewClient creates a new shrEx/nd client
@@ -45,7 +44,7 @@ func NewClient(host host.Host, opts ...Option) (*Client, error) {
 	return &Client{
 		host:       host,
 		protocolID: protocolID(params.protocolSuffix),
-		timeout:    params.ServeTimeout + params.ReadTimeout + params.WriteTimeout,
+		params:     params,
 	}, nil
 }
 
@@ -81,20 +80,11 @@ func (c *Client) getSharesByNamespace(
 	}
 	defer stream.Close()
 
+	c.setStreamDeadlines(ctx, stream)
+
 	req := &pb.GetSharesByNamespaceRequest{
 		RootHash:    root.Hash(),
 		NamespaceId: nID,
-	}
-
-	// if context doesn't have deadline use default one
-	deadline, ok := ctx.Deadline()
-	if !ok {
-		deadline = time.Now().Add(c.timeout)
-	}
-
-	err = stream.SetDeadline(deadline)
-	if err != nil {
-		log.Debugf("set write deadline: %s", err)
 	}
 
 	_, err = serde.Write(stream, req)
@@ -160,6 +150,32 @@ func responseToNamespacedShares(rows []*pb.Row) (share.NamespacedShares, error) 
 		})
 	}
 	return shares, nil
+}
+
+func (c *Client) setStreamDeadlines(ctx context.Context, stream network.Stream) {
+	// set read/write deadline to use context deadline if it exists
+	deadline, ok := ctx.Deadline()
+	if ok {
+		err := stream.SetDeadline(deadline)
+		if err != nil {
+			log.Debugf("client: set write deadline: %s", err)
+		}
+		return
+	}
+
+	if c.params.ReadTimeout != 0 {
+		err := stream.SetReadDeadline(time.Now().Add(c.params.ReadTimeout))
+		if err != nil {
+			log.Debugf("client: set read deadline: %s", err)
+		}
+	}
+
+	if c.params.WriteTimeout != 0 {
+		err := stream.SetWriteDeadline(time.Now().Add(c.params.ReadTimeout))
+		if err != nil {
+			log.Debugf("client: set write deadline: %s", err)
+		}
+	}
 }
 
 func statusToErr(code pb.StatusCode) error {

@@ -22,14 +22,11 @@ import (
 // Server implements server side of shrex/nd protocol to obtain namespaced shares data from remote
 // peers.
 type Server struct {
-	getter share.Getter
-	store  *eds.Store
-	host   host.Host
-
-	protocolID   protocol.ID
-	writeTimeout time.Duration
-	readTimeout  time.Duration
-	serveTimeout time.Duration
+	params     *Parameters
+	protocolID protocol.ID
+	getter     share.Getter
+	store      *eds.Store
+	host       host.Host
 
 	cancel context.CancelFunc
 }
@@ -46,13 +43,11 @@ func NewServer(host host.Host, store *eds.Store, getter *getters.IPLDGetter, opt
 	}
 
 	srv := &Server{
-		getter:       getter,
-		store:        store,
-		host:         host,
-		writeTimeout: params.WriteTimeout,
-		readTimeout:  params.ReadTimeout,
-		serveTimeout: params.ServeTimeout,
-		protocolID:   protocolID(params.protocolSuffix),
+		getter:     getter,
+		store:      store,
+		host:       host,
+		params:     params,
+		protocolID: protocolID(params.protocolSuffix),
 	}
 
 	return srv, nil
@@ -75,9 +70,9 @@ func (srv *Server) Stop() {
 }
 
 func (srv *Server) handleNamespacedData(ctx context.Context, stream network.Stream) {
-	err := stream.SetReadDeadline(time.Now().Add(srv.readTimeout))
+	err := stream.SetReadDeadline(time.Now().Add(srv.params.ReadTimeout))
 	if err != nil {
-		log.Debugf("server: seting read deadline: %s", err)
+		log.Debugf("server: setting read deadline: %s", err)
 	}
 
 	var req pb.GetSharesByNamespaceRequest
@@ -100,7 +95,7 @@ func (srv *Server) handleNamespacedData(ctx context.Context, stream network.Stre
 		return
 	}
 
-	ctx, cancel := context.WithTimeout(ctx, srv.serveTimeout)
+	ctx, cancel := context.WithTimeout(ctx, srv.params.ServeTimeout)
 	defer cancel()
 
 	dah, err := srv.store.GetDAH(ctx, req.RootHash)
@@ -172,7 +167,7 @@ func namespacedSharesToResponse(shares share.NamespacedShares) *pb.GetSharesByNa
 }
 
 func (srv *Server) respond(stream network.Stream, resp *pb.GetSharesByNamespaceResponse) {
-	err := stream.SetWriteDeadline(time.Now().Add(srv.writeTimeout))
+	err := stream.SetWriteDeadline(time.Now().Add(srv.params.WriteTimeout))
 	if err != nil {
 		log.Debugf("server: seting write deadline: %s", err)
 	}
@@ -183,5 +178,8 @@ func (srv *Server) respond(stream network.Stream, resp *pb.GetSharesByNamespaceR
 		stream.Reset() //nolint:errcheck
 		return
 	}
-	stream.Close()
+
+	if err = stream.Close(); err != nil {
+		log.Errorf("server: closing stream: %s", err.Error())
+	}
 }
