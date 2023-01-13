@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"sort"
+	"time"
 
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/protocol"
@@ -130,14 +131,13 @@ func (s *session) doRequest(
 	req *p2p_pb.ExtendedHeaderRequest,
 	headers chan []*header.ExtendedHeader,
 ) {
+	ctx, cancel := context.WithTimeout(ctx, time.Second*3) // todo: extract into param
+	defer cancel()
+
 	r, size, duration, err := sendMessage(ctx, s.host, stat.peerID, s.protocolID, req)
 	if err != nil {
-		if err == context.Canceled || err == context.DeadlineExceeded {
-			return
-		}
 		log.Errorw("requesting headers from peer failed.", "failed peer", stat.peerID, "err", err)
 		select {
-		case <-ctx.Done():
 		case <-s.ctx.Done():
 			// retry request
 		case s.reqCh <- req:
@@ -154,7 +154,6 @@ func (s *session) doRequest(
 			s.peerTracker.blockPeer(stat.peerID, err)
 		}
 		select {
-		case <-ctx.Done():
 		case <-s.ctx.Done():
 		case s.reqCh <- req:
 		}
