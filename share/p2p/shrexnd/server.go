@@ -5,7 +5,8 @@ import (
 	"fmt"
 	"time"
 
-	logging "github.com/ipfs/go-log/v2"
+	"github.com/libp2p/go-libp2p/core/protocol"
+
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/network"
 	"github.com/minio/sha256-simd"
@@ -18,22 +19,14 @@ import (
 	"github.com/celestiaorg/go-libp2p-messenger/serde"
 )
 
-const ndProtocolID = "/shrex/nd/0.0.1"
-
-var log = logging.Logger("shrex/nd")
-
-const (
-	writeTimeout = time.Second * 10
-	readTimeout  = time.Second * 10
-	serveTimeout = time.Second * 10
-)
-
 // Server implements server side of shrex/nd protocol to obtain namespaced shares data from remote
 // peers.
 type Server struct {
-	getter       share.Getter
-	store        *eds.Store
-	host         host.Host
+	getter share.Getter
+	store  *eds.Store
+	host   host.Host
+
+	protocolID   protocol.ID
 	writeTimeout time.Duration
 	readTimeout  time.Duration
 	serveTimeout time.Duration
@@ -42,17 +35,27 @@ type Server struct {
 }
 
 // NewServer creates new Server
-func NewServer(host host.Host, store *eds.Store, getter *getters.IPLDGetter) *Server {
+func NewServer(host host.Host, store *eds.Store, getter *getters.IPLDGetter, opts ...Option) (*Server, error) {
+	params := DefaultParameters()
+	for _, opt := range opts {
+		opt(params)
+	}
+
+	if err := params.Validate(); err != nil {
+		return nil, fmt.Errorf("shrex-nd: server creation failed: %w", err)
+	}
+
 	srv := &Server{
 		getter:       getter,
 		store:        store,
 		host:         host,
-		writeTimeout: writeTimeout,
-		readTimeout:  readTimeout,
-		serveTimeout: serveTimeout,
+		writeTimeout: params.WriteTimeout,
+		readTimeout:  params.ReadTimeout,
+		serveTimeout: params.ServeTimeout,
+		protocolID:   protocolID(params.protocolSuffix),
 	}
 
-	return srv
+	return srv, nil
 }
 
 // Start starts the server
@@ -60,7 +63,7 @@ func (srv *Server) Start(ctx context.Context) {
 	ctx, cancel := context.WithCancel(ctx)
 	srv.cancel = cancel
 
-	srv.host.SetStreamHandler(ndProtocolID, func(s network.Stream) {
+	srv.host.SetStreamHandler(srv.protocolID, func(s network.Stream) {
 		srv.handleNamespacedData(ctx, s)
 	})
 }
@@ -68,7 +71,7 @@ func (srv *Server) Start(ctx context.Context) {
 // Stop stops the server
 func (srv *Server) Stop() {
 	srv.cancel()
-	srv.host.RemoveStreamHandler(ndProtocolID)
+	srv.host.RemoveStreamHandler(srv.protocolID)
 }
 
 func (srv *Server) handleNamespacedData(ctx context.Context, stream network.Stream) {
