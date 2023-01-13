@@ -6,10 +6,9 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/libp2p/go-libp2p/core/network"
-
 	"github.com/ipfs/go-cid"
 	"github.com/libp2p/go-libp2p/core/host"
+	"github.com/libp2p/go-libp2p/core/network"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/libp2p/go-libp2p/core/protocol"
 
@@ -27,7 +26,8 @@ var errNoMorePeers = errors.New("shrex-nd: all peers returned invalid responses"
 type Client struct {
 	params     *Parameters
 	protocolID protocol.ID
-	host       host.Host
+
+	host host.Host
 }
 
 // NewClient creates a new shrEx/nd client
@@ -59,7 +59,7 @@ func (c *Client) GetSharesByNamespace(
 	for _, peerID := range peerIDs {
 		shares, err := c.doRequest(ctx, root, nID, peerID)
 		if err != nil {
-			log.Debugw("peer returned err", "peer_id", peerID.String(), "err", err)
+			log.Debugw("client-nd: peer returned err", "peer_id", peerID.String(), "err", err)
 			continue
 		}
 		return shares, err
@@ -90,33 +90,33 @@ func (c *Client) doRequest(
 	_, err = serde.Write(stream, req)
 	if err != nil {
 		stream.Reset() //nolint:errcheck
-		return nil, fmt.Errorf("client: writing request: %w", err)
+		return nil, fmt.Errorf("client-nd: writing request: %w", err)
 	}
 
 	err = stream.CloseWrite()
 	if err != nil {
-		log.Debugf("client: closing write side of the stream: %s", err)
+		log.Debugf("client-nd: closing write side of the stream: %s", err)
 	}
 
 	var resp pb.GetSharesByNamespaceResponse
 	_, err = serde.Read(stream, &resp)
 	if err != nil {
 		stream.Reset() //nolint:errcheck
-		return nil, fmt.Errorf("client: reading response: %w", err)
+		return nil, fmt.Errorf("client-nd: reading response: %w", err)
 	}
 
 	if err = statusToErr(resp.Status); err != nil {
-		return nil, fmt.Errorf("client: response code is not OK: %w", err)
+		return nil, fmt.Errorf("client-nd: response code is not OK: %w", err)
 	}
 
 	shares, err := responseToNamespacedShares(resp.Rows)
 	if err != nil {
-		return nil, fmt.Errorf("client: converting response to shares: %w", err)
+		return nil, fmt.Errorf("client-nd: converting response to shares: %w", err)
 	}
 
 	err = shares.Verify(root, nID)
 	if err != nil {
-		return nil, fmt.Errorf("client: verifing response: %w", err)
+		return nil, fmt.Errorf("client-nd: verifing response: %w", err)
 	}
 
 	return shares, nil
@@ -158,7 +158,7 @@ func (c *Client) setStreamDeadlines(ctx context.Context, stream network.Stream) 
 	if ok {
 		err := stream.SetDeadline(deadline)
 		if err != nil {
-			log.Debugf("client: set write deadline: %s", err)
+			log.Debugf("client-nd: set write deadline: %s", err)
 		}
 		return
 	}
@@ -166,14 +166,14 @@ func (c *Client) setStreamDeadlines(ctx context.Context, stream network.Stream) 
 	if c.params.ReadTimeout != 0 {
 		err := stream.SetReadDeadline(time.Now().Add(c.params.ReadTimeout))
 		if err != nil {
-			log.Debugf("client: set read deadline: %s", err)
+			log.Debugf("client-nd: set read deadline: %s", err)
 		}
 	}
 
 	if c.params.WriteTimeout != 0 {
 		err := stream.SetWriteDeadline(time.Now().Add(c.params.ReadTimeout))
 		if err != nil {
-			log.Debugf("client: set write deadline: %s", err)
+			log.Debugf("client-nd: set write deadline: %s", err)
 		}
 	}
 }
