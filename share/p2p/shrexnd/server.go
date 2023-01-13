@@ -5,10 +5,9 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/libp2p/go-libp2p/core/protocol"
-
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/network"
+	"github.com/libp2p/go-libp2p/core/protocol"
 	"github.com/minio/sha256-simd"
 
 	"github.com/celestiaorg/celestia-node/share"
@@ -24,9 +23,10 @@ import (
 type Server struct {
 	params     *Parameters
 	protocolID protocol.ID
-	getter     share.Getter
-	store      *eds.Store
-	host       host.Host
+
+	getter share.Getter
+	store  *eds.Store
+	host   host.Host
 
 	cancel context.CancelFunc
 }
@@ -54,8 +54,8 @@ func NewServer(host host.Host, store *eds.Store, getter *getters.IPLDGetter, opt
 }
 
 // Start starts the server
-func (srv *Server) Start(ctx context.Context) {
-	ctx, cancel := context.WithCancel(ctx)
+func (srv *Server) Start() {
+	ctx, cancel := context.WithCancel(context.Background())
 	srv.cancel = cancel
 
 	srv.host.SetStreamHandler(srv.protocolID, func(s network.Stream) {
