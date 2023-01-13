@@ -8,7 +8,7 @@ import (
 	"github.com/libp2p/go-libp2p/core/protocol"
 )
 
-const protocolPrefix = "/shrex/nd/0.0.1"
+const protocolPrefix = "/shrex/nd/0.0.1/"
 
 var log = logging.Logger("shrex/nd")
 

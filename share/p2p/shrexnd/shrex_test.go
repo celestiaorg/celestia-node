@@ -45,7 +45,7 @@ func TestGetSharesWithProofByNamespace(t *testing.T) {
 	srv, err := NewServer(net.NewTestNode().Host, edsStore, nil)
 	require.NoError(t, err)
 	srv.getter = getters.NewIPLDGetter(bServ)
-	srv.Start(ctx)
+	srv.Start()
 	t.Cleanup(srv.Stop)
 
 	// create client and connect it to server
