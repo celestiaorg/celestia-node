@@ -6,6 +6,7 @@ import (
 
 	"github.com/ipfs/go-datastore"
 	ds_sync "github.com/ipfs/go-datastore/sync"
+	mdutils "github.com/ipfs/go-merkledag/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -16,6 +17,61 @@ import (
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/eds"
 )
+
+func TestTeeGetter(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(cancel)
+
+	tmpDir := t.TempDir()
+	ds := ds_sync.MutexWrap(datastore.NewMapDatastore())
+	edsStore, err := eds.NewStore(tmpDir, ds)
+	require.NoError(t, err)
+
+	err = edsStore.Start(ctx)
+	require.NoError(t, err)
+
+	bServ := mdutils.Bserv()
+	ig := NewIPLDGetter(bServ)
+	tg := NewTeeGetter(ig, edsStore)
+
+	t.Run("TeesToEDSStore", func(t *testing.T) {
+		eds, dah := randomEDS(t)
+		_, err := share.ImportShares(ctx, eds.Flattened(), bServ)
+		require.NoError(t, err)
+
+		// eds store doesn't have the EDS yet
+		ok, err := edsStore.Has(ctx, dah.Hash())
+		assert.False(t, ok)
+		assert.Error(t, err)
+
+		retrievedEDS, err := tg.GetEDS(ctx, &dah)
+		require.NoError(t, err)
+		require.True(t, share.EqualEDS(eds, retrievedEDS))
+
+		// eds store now has the EDS and it can be retrieved
+		ok, err = edsStore.Has(ctx, dah.Hash())
+		assert.True(t, ok)
+		assert.NoError(t, err)
+		finalEDS, err := edsStore.Get(ctx, dah.Hash())
+		assert.NoError(t, err)
+		require.True(t, share.EqualEDS(eds, finalEDS))
+	})
+
+	t.Run("ShardAlreadyExistsDoesntError", func(t *testing.T) {
+		eds, dah := randomEDS(t)
+		_, err := share.ImportShares(ctx, eds.Flattened(), bServ)
+		require.NoError(t, err)
+
+		retrievedEDS, err := tg.GetEDS(ctx, &dah)
+		require.NoError(t, err)
+		require.True(t, share.EqualEDS(eds, retrievedEDS))
+
+		// no error should be returned, even though the EDS identified by the DAH already exists
+		retrievedEDS, err = tg.GetEDS(ctx, &dah)
+		require.NoError(t, err)
+		require.True(t, share.EqualEDS(eds, retrievedEDS))
+	})
+}
 
 func TestStoreGetter(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
