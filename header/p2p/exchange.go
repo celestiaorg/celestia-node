@@ -132,6 +132,8 @@ LOOP:
 			}
 		case <-ctx.Done():
 			break LOOP
+		case <-ex.ctx.Done():
+			return nil, ctx.Err()
 		}
 	}
 
