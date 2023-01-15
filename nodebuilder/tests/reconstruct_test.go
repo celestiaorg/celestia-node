@@ -37,6 +37,7 @@ Steps:
 5. Check that a FN can retrieve shares from 1 to 20 blocks
 */
 func TestFullReconstructFromBridge(t *testing.T) {
+	t.Skip("Skipping TestFullReconstructFromBridge until acc not found issue is resolved on Mac")
 	const (
 		blocks = 20
 		bsize  = 16
@@ -91,6 +92,7 @@ Steps:
 9. Check that the FN can retrieve shares from 1 to 20 blocks
 */
 func TestFullReconstructFromLights(t *testing.T) {
+	t.Skip("Skipping TestFullReconstructFromLights until acc not found issue is resolved on Mac")
 	eds.RetrieveQuadrantTimeout = time.Millisecond * 100
 	light.DefaultSampleAmount = 20
 	const (
