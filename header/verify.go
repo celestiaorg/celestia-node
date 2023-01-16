@@ -2,7 +2,6 @@ package header
 
 import (
 	"bytes"
-	"errors"
 	"fmt"
 	"time"
 
@@ -13,8 +12,6 @@ import (
 
 // TODO(@Wondertan): We should request TrustingPeriod from the network's state params or
 //  listen for network params changes to always have a topical value.
-
-var errInvalidType = &libhead.VerifyError{Reason: errors.New("invalid header type: expected *ExtendedHeader")}
 
 // IsExpired checks if header is expired against trusting period.
 func (eh *ExtendedHeader) IsExpired(period time.Duration) bool {
@@ -31,7 +28,7 @@ func (eh *ExtendedHeader) IsRecent(blockTime time.Duration) bool {
 func (eh *ExtendedHeader) VerifyNonAdjacent(untrusted libhead.Header) error {
 	untrst, ok := untrusted.(*ExtendedHeader)
 	if !ok {
-		return errInvalidType
+		return &libhead.VerifyError{Reason: fmt.Errorf("invalid header type: expected %T, got %T", eh, untrusted)}
 	}
 	if err := eh.verify(untrst); err != nil {
 		return &libhead.VerifyError{Reason: err}
@@ -50,7 +47,7 @@ func (eh *ExtendedHeader) VerifyNonAdjacent(untrusted libhead.Header) error {
 func (eh *ExtendedHeader) VerifyAdjacent(untrusted libhead.Header) error {
 	untrst, ok := untrusted.(*ExtendedHeader)
 	if !ok {
-		return errInvalidType
+		return &libhead.VerifyError{Reason: fmt.Errorf("invalid header type: expected %T, got %T", eh, untrusted)}
 	}
 	if untrst.Height() != eh.Height()+1 {
 		return &libhead.ErrNonAdjacent{

@@ -6,7 +6,7 @@ import (
 	"github.com/celestiaorg/celestia-node/libs/header"
 )
 
-// NewExchange is a simple Exchange that reads Headers from Store without any networking.
+// Exchange is a simple Exchange that reads Headers from Store without any networking.
 type Exchange[H header.Header] struct {
 	store header.Store[H]
 }

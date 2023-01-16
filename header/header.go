@@ -23,6 +23,15 @@ import (
 
 var log = logging.Logger("header")
 
+// ConstructFn aliases a function that creates an ExtendedHeader.
+type ConstructFn = func(
+	context.Context,
+	*core.Block,
+	*core.Commit,
+	*core.ValidatorSet,
+	blockservice.BlockService,
+) (*ExtendedHeader, error)
+
 type DataAvailabilityHeader = da.DataAvailabilityHeader
 
 // EmptyDAH provides DAH of the empty block.
