@@ -42,52 +42,34 @@ func NewClient(host host.Host, opts ...Option) (*Client, error) {
 	}, nil
 }
 
-// RequestEDS requests the full ODS from one of the given peers and returns the EDS.
-//
-// The peers are requested in a round-robin manner with retries until one of them gives a valid
-// response, blocking until the context is canceled or a valid response is given.
+// RequestEDS requests the ODS from the given peers and returns the EDS upon success.
 func (c *Client) RequestEDS(
 	ctx context.Context,
 	dataHash share.DataHash,
-	peers peer.IDSlice,
+	peers ...peer.ID,
 ) (*rsmt2d.ExtendedDataSquare, error) {
 	req := &p2p_pb.EDSRequest{Hash: dataHash}
 
-	// requests are retried for every peer until a valid response is received
-	excludedPeers := make(map[peer.ID]struct{})
-	for {
-		// if no peers are left, return
-		if len(peers) == len(excludedPeers) {
-			return nil, errNoMorePeers
+	for _, to := range peers {
+		eds, err := c.doRequest(ctx, req, to)
+		if eds != nil {
+			return eds, err
 		}
-
-		for _, to := range peers {
-			// skip over excluded peers
-			if _, ok := excludedPeers[to]; ok {
-				continue
-			}
-			eds, err := c.doRequest(ctx, req, to)
-			if eds != nil {
-				return eds, err
-			}
-			if errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) {
-				return nil, ctx.Err()
-			}
-			// some net.Errors also mean the context deadline was exceeded, but yamux/mocknet do not
-			// unwrap to a ctx err
-			var ne net.Error
-			if errors.As(err, &ne) && ne.Timeout() {
-				return nil, context.DeadlineExceeded
-			}
-			if err != nil {
-				// peer has misbehaved, exclude them from round-robin
-				excludedPeers[to] = struct{}{}
-				log.Errorw("client: eds request to peer failed", "peer", to, "hash", dataHash.String())
-			}
-
-			// no eds was found, continue
+		if errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) {
+			return nil, ctx.Err()
+		}
+		// some net.Errors also mean the context deadline was exceeded, but yamux/mocknet do not
+		// unwrap to a ctx err
+		var ne net.Error
+		if errors.As(err, &ne) && ne.Timeout() {
+			return nil, context.DeadlineExceeded
+		}
+		if err != nil {
+			log.Errorw("client: eds request to peer failed", "peer", to, "hash", dataHash.String())
 		}
 	}
+
+	return nil, errNoMorePeers
 }
 
 func (c *Client) doRequest(

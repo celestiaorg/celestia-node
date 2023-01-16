@@ -30,7 +30,7 @@ func DirectoryFlags() *flag.FlagSet {
 		networkKey,
 		defaultNetwork,
 		"Sets key utility to use the node network's directory (e.g. "+
-			"~/.celestia-light-mynetwork if --node.network MyNetwork is passed).")
+			"~/.celestia-light-mynetwork if --p2p.network MyNetwork is passed).")
 
 	return flags
 }
