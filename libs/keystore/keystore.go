@@ -3,6 +3,7 @@ package keystore
 import (
 	"fmt"
 
+	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	"github.com/multiformats/go-base32"
 )
 
@@ -34,6 +35,9 @@ type Keystore interface {
 
 	// Path reports the path of the Keystore.
 	Path() string
+
+	// TODO @renaynay:
+	Keyring() keyring.Keyring
 }
 
 // KeyNameFromBase32 decodes KeyName from Base32 format.

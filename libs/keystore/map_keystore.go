@@ -3,6 +3,8 @@ package keystore
 import (
 	"fmt"
 	"sync"
+
+	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 )
 
 // mapKeystore is a simple in-memory Keystore implementation.
@@ -68,4 +70,8 @@ func (m *mapKeystore) List() ([]KeyName, error) {
 
 func (m *mapKeystore) Path() string {
 	return ""
+}
+
+func (m *mapKeystore) Keyring() keyring.Keyring {
+	return nil
 }

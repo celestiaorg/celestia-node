@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"sync"
 
+	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	"github.com/dgraph-io/badger/v2/options"
 	"github.com/ipfs/go-datastore"
 	dsbadger "github.com/ipfs/go-ds-badger2"
@@ -48,7 +49,7 @@ type Store interface {
 // To be opened the Store must be initialized first, otherwise ErrNotInited is thrown.
 // OpenStore takes a file Lock on directory, hence only one Store can be opened at a time under the
 // given 'path', otherwise ErrOpened is thrown.
-func OpenStore(path string) (Store, error) {
+func OpenStore(path string, ring keyring.Keyring) (Store, error) {
 	path, err := storePath(path)
 	if err != nil {
 		return nil, err
@@ -68,9 +69,15 @@ func OpenStore(path string) (Store, error) {
 		return nil, ErrNotInited
 	}
 
+	ks, err := keystore.NewFSKeystore(keysPath(path), ring)
+	if err != nil {
+		return nil, err
+	}
+
 	return &fsStore{
 		path:    path,
 		dirLock: flock,
+		keys:    ks,
 	}, nil
 }
 
@@ -98,20 +105,10 @@ func (f *fsStore) PutConfig(cfg *Config) error {
 
 func (f *fsStore) Keystore() (_ keystore.Keystore, err error) {
 	f.lock.RLock()
-	if f.keys != nil {
-		f.lock.RUnlock()
-		return f.keys, nil
+	defer f.lock.RUnlock()
+	if f.keys == nil {
+		return nil, fmt.Errorf("node: no Keystore found")
 	}
-	f.lock.RUnlock()
-
-	f.lock.Lock()
-	defer f.lock.Unlock()
-
-	f.keys, err = keystore.NewFSKeystore(keysPath(f.path))
-	if err != nil {
-		return nil, fmt.Errorf("node: can't open Keystore: %w", err)
-	}
-
 	return f.keys, nil
 }
 

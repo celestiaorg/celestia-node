@@ -2,27 +2,17 @@ package state
 
 import (
 	"fmt"
-	"os"
 
 	kr "github.com/cosmos/cosmos-sdk/crypto/keyring"
 
-	"github.com/celestiaorg/celestia-app/app"
-	"github.com/celestiaorg/celestia-app/app/encoding"
 	apptypes "github.com/celestiaorg/celestia-app/x/blob/types"
 
 	"github.com/celestiaorg/celestia-node/libs/keystore"
 	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
 )
 
-func keyring(cfg Config, ks keystore.Keystore, net p2p.Network) (*apptypes.KeyringSigner, error) {
-	// TODO @renaynay: Include option for setting custom `userInput` parameter with
-	//  implementation of https://github.com/celestiaorg/celestia-node/issues/415.
-	encConf := encoding.MakeConfig(app.ModuleEncodingRegisters...)
-	ring, err := kr.New(app.Name, cfg.KeyringBackend, ks.Path(), os.Stdin, encConf.Codec)
-	if err != nil {
-		return nil, err
-	}
-
+func KeyringSigner(cfg Config, ks keystore.Keystore, net p2p.Network) (*apptypes.KeyringSigner, error) {
+	ring := ks.Keyring()
 	var info *kr.Record
 	// if custom keyringAccName provided, find key for that name
 	if cfg.KeyringAccName != "" {
