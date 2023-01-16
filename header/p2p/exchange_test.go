@@ -355,27 +355,27 @@ type timeoutedStore struct {
 }
 
 func (t *timeoutedStore) Start(context.Context) error {
-	//TODO implement me
+	// TODO implement me
 	panic("implement me")
 }
 
 func (t *timeoutedStore) Stop(context.Context) error {
-	//TODO implement me
+	// TODO implement me
 	panic("implement me")
 }
 
 func (t *timeoutedStore) Head(context.Context) (*header.ExtendedHeader, error) {
-	//TODO implement me
+	// TODO implement me
 	panic("implement me")
 }
 
 func (t timeoutedStore) Get(context.Context, tmbytes.HexBytes) (*header.ExtendedHeader, error) {
-	//TODO implement me
+	// TODO implement me
 	panic("implement me")
 }
 
 func (t *timeoutedStore) GetByHeight(context.Context, uint64) (*header.ExtendedHeader, error) {
-	//TODO implement me
+	// TODO implement me
 	panic("implement me")
 }
 
@@ -384,27 +384,31 @@ func (t *timeoutedStore) GetRangeByHeight(_ context.Context, _, _ uint64) ([]*he
 	return []*header.ExtendedHeader{}, nil
 }
 
-func (t *timeoutedStore) GetVerifiedRange(context.Context, *header.ExtendedHeader, uint64) ([]*header.ExtendedHeader, error) {
-	//TODO implement me
+func (t *timeoutedStore) GetVerifiedRange(
+	context.Context,
+	*header.ExtendedHeader,
+	uint64,
+) ([]*header.ExtendedHeader, error) {
+	// TODO implement me
 	panic("implement me")
 }
 
 func (t *timeoutedStore) Init(context.Context, *header.ExtendedHeader) error {
-	//TODO implement me
+	// TODO implement me
 	panic("implement me")
 }
 
 func (t timeoutedStore) Height() uint64 {
-	//TODO implement me
+	// TODO implement me
 	panic("implement me")
 }
 
 func (t *timeoutedStore) Has(context.Context, tmbytes.HexBytes) (bool, error) {
-	//TODO implement me
+	// TODO implement me
 	panic("implement me")
 }
 
 func (t *timeoutedStore) Append(context.Context, ...*header.ExtendedHeader) (int, error) {
-	//TODO implement me
+	// TODO implement me
 	panic("implement me")
 }

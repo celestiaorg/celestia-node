@@ -42,7 +42,7 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 					p2p.WithWriteDeadline(cfg.Server.WriteDeadline),
 					p2p.WithReadDeadline(cfg.Server.ReadDeadline),
 					p2p.WithMaxRequestSize[p2p.ServerParameters](cfg.Server.MaxRequestSize),
-					p2p.WithServeTimeout[p2p.ServerParameters](cfg.Server.ServeTimeout),
+					p2p.WithRequestDuration[p2p.ServerParameters](cfg.Server.RequestDuration),
 				}
 			}),
 		fx.Provide(NewHeaderService),
@@ -111,7 +111,7 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 						p2p.WithMaxHeadersPerRequest(cfg.Client.MaxHeadersPerRequest),
 						p2p.WithMaxAwaitingTime(cfg.Client.MaxAwaitingTime),
 						p2p.WithDefaultScore(cfg.Client.DefaultScore),
-						p2p.WithRequestDuration(cfg.Client.RequestDuration),
+						p2p.WithRequestDuration[p2p.ClientParameters](cfg.Client.RequestDuration),
 						p2p.WithMaxTrackerSize(cfg.Client.MaxPeerTrackerSize),
 					}
 				},
