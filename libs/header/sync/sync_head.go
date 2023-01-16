@@ -3,6 +3,7 @@ package sync
 import (
 	"context"
 	"errors"
+	"time"
 
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 
@@ -36,7 +37,7 @@ func (s *Syncer[H]) subjectiveHead(ctx context.Context) (H, error) {
 		return zero, err
 	}
 	// check if our subjective header is not expired and use it
-	if !netHead.IsExpired(s.Params.TrustingPeriod) {
+	if !isExpired(netHead, s.Params.TrustingPeriod) {
 		return netHead, nil
 	}
 	log.Infow("subjective header expired", "height", netHead.Height())
@@ -52,9 +53,9 @@ func (s *Syncer[H]) subjectiveHead(ctx context.Context) (H, error) {
 	default:
 		log.Infow("subjective initialization finished", "height", netHead.Height())
 		return netHead, nil
-	case netHead.IsExpired(s.Params.TrustingPeriod):
+	case isExpired(netHead, s.Params.TrustingPeriod):
 		log.Warnw("subjective initialization with an expired header", "height", netHead.Height())
-	case !netHead.IsRecent(s.Params.blockTime):
+	case !isRecent(netHead, s.Params.blockTime):
 		log.Warnw("subjective initialization with an old header", "height", netHead.Height())
 	}
 	log.Warn("trusted peer is out of sync")
@@ -72,7 +73,7 @@ func (s *Syncer[H]) networkHead(ctx context.Context) (H, error) {
 		return zero, err
 	}
 	// if subjective header is recent enough (relative to the network's block time) - just use it
-	if sbjHead.IsRecent(s.Params.blockTime) {
+	if isRecent(sbjHead, s.Params.blockTime) {
 		return sbjHead, nil
 	}
 	// otherwise, request head from a trusted peer, as we assume it is fully synced
@@ -179,4 +180,15 @@ func (s *Syncer[H]) validate(ctx context.Context, new H) pubsub.ValidationResult
 	}
 	// and accept if the header is good
 	return pubsub.ValidationAccept
+}
+
+// isExpired checks if header is expired against trusting period.
+func isExpired(header header.Header, period time.Duration) bool {
+	expirationTime := header.Time().Add(period)
+	return !expirationTime.After(time.Now())
+}
+
+// isRecent checks if header is recent against the given blockTime.
+func isRecent(header header.Header, blockTime time.Duration) bool {
+	return time.Since(header.Time()) <= blockTime // TODO @renaynay: should we allow for a 5-10 block drift here?
 }

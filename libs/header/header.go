@@ -21,10 +21,6 @@ type Header interface {
 	LastHeader() Hash
 	// Time returns time when header was created.
 	Time() time.Time
-	// IsRecent checks if header is recent against the given blockTime.
-	IsRecent(duration time.Duration) bool
-	// IsExpired checks if header is expired against trusting period.
-	IsExpired(period time.Duration) bool
 	// VerifyAdjacent validates adjacent untrusted header against trusted header.
 	VerifyAdjacent(Header) error
 	// VerifyNonAdjacent validates non-adjacent untrusted header against trusted header.

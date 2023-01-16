@@ -13,17 +13,6 @@ import (
 // TODO(@Wondertan): We should request TrustingPeriod from the network's state params or
 //  listen for network params changes to always have a topical value.
 
-// IsExpired checks if header is expired against trusting period.
-func (eh *ExtendedHeader) IsExpired(period time.Duration) bool {
-	expirationTime := eh.Time().Add(period)
-	return !expirationTime.After(time.Now())
-}
-
-// IsRecent checks if header is recent against the given blockTime.
-func (eh *ExtendedHeader) IsRecent(blockTime time.Duration) bool {
-	return time.Since(eh.Time()) <= blockTime // TODO @renaynay: should we allow for a 5-10 block drift here?
-}
-
 // VerifyNonAdjacent validates non-adjacent untrusted header against trusted 'eh'.
 func (eh *ExtendedHeader) VerifyNonAdjacent(untrusted libhead.Header) error {
 	untrst, ok := untrusted.(*ExtendedHeader)
