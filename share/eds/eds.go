@@ -17,6 +17,7 @@ import (
 	"github.com/ipld/go-car"
 	"github.com/ipld/go-car/util"
 	"github.com/minio/sha256-simd"
+	"go.opentelemetry.io/otel/codes"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/pkg/da"
@@ -45,9 +46,13 @@ type writingSession struct {
 // Order: [ Carv1Header | Q1 |  Q2 | Q3 | Q4 | inner nodes ]
 // For more information about the header: https://ipld.io/specs/transport/car/carv1/#header
 func WriteEDS(ctx context.Context, eds *rsmt2d.ExtendedDataSquare, w io.Writer) error {
+	ctx, span := tracer.Start(ctx, "write-eds")
+	defer span.End()
+
 	// 1. Reimport EDS. This is needed to traverse the NMT tree and cache the inner nodes (proofs)
 	writer, err := initializeWriter(ctx, eds, w)
 	if err != nil {
+		span.SetStatus(codes.Error, err.Error())
 		return fmt.Errorf("share: creating eds writer: %w", err)
 	}
 
@@ -55,18 +60,21 @@ func WriteEDS(ctx context.Context, eds *rsmt2d.ExtendedDataSquare, w io.Writer) 
 	//    - Roots are the eds Row + Col roots
 	err = writer.writeHeader()
 	if err != nil {
+		span.SetStatus(codes.Error, err.Error())
 		return fmt.Errorf("share: writing carv1 header: %w", err)
 	}
 
 	// 3. Iterates over shares in quadrant order via eds.GetCell
 	err = writer.writeQuadrants()
 	if err != nil {
+		span.SetStatus(codes.Error, err.Error())
 		return fmt.Errorf("share: writing shares: %w", err)
 	}
 
 	// 4. Iterates over in-memory blockstore and writes proofs to the CAR
 	err = writer.writeProofs(ctx)
 	if err != nil {
+		span.SetStatus(codes.Error, err.Error())
 		return fmt.Errorf("share: writing proofs: %w", err)
 	}
 	return nil
@@ -235,8 +243,12 @@ func rootsToCids(eds *rsmt2d.ExtendedDataSquare) ([]cid.Cid, error) {
 // The returned EDS is guaranteed to be full and valid against the DataRoot, otherwise ReadEDS
 // errors.
 func ReadEDS(ctx context.Context, r io.Reader, root share.DataHash) (*rsmt2d.ExtendedDataSquare, error) {
+	_, span := tracer.Start(ctx, "read-eds")
+	defer span.End()
+
 	carReader, err := car.NewCarReader(r)
 	if err != nil {
+		span.SetStatus(codes.Error, err.Error())
 		return nil, fmt.Errorf("share: reading car file: %w", err)
 	}
 
@@ -262,11 +274,13 @@ func ReadEDS(ctx context.Context, r io.Reader, root share.DataHash) (*rsmt2d.Ext
 		wrapper.NewConstructor(uint64(odsWidth)),
 	)
 	if err != nil {
+		span.SetStatus(codes.Error, err.Error())
 		return nil, fmt.Errorf("share: computing eds: %w", err)
 	}
 
 	newDah := da.NewDataAvailabilityHeader(eds)
 	if !bytes.Equal(newDah.Hash(), root) {
+		span.SetStatus(codes.Error, err.Error())
 		return nil, fmt.Errorf(
 			"share: content integrity mismatch: imported root %s doesn't match expected root %s",
 			newDah.Hash(),

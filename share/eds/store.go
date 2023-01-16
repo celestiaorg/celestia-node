@@ -17,6 +17,9 @@ import (
 	"github.com/ipfs/go-datastore"
 	bstore "github.com/ipfs/go-ipfs-blockstore"
 	carv1 "github.com/ipld/go-car"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/trace"
 
 	"github.com/celestiaorg/rsmt2d"
 
@@ -148,14 +151,19 @@ func (s *Store) gc(ctx context.Context) {
 // The resulting file stores all the shares and NMT Merkle Proofs of the EDS.
 // Additionally, the file gets indexed s.t. store.Blockstore can access them.
 func (s *Store) Put(ctx context.Context, root share.DataHash, square *rsmt2d.ExtendedDataSquare) error {
+	ctx, span := tracer.Start(ctx, "store/put", trace.WithAttributes(attribute.String("root", root.String())))
+	defer span.End()
+
 	key := root.String()
 	f, err := os.OpenFile(s.basepath+blocksPath+key, os.O_CREATE|os.O_WRONLY, 0600)
 	if err != nil {
+		span.SetStatus(codes.Error, err.Error())
 		return err
 	}
 
 	err = WriteEDS(ctx, square, f)
 	if err != nil {
+		span.SetStatus(codes.Error, err.Error())
 		return fmt.Errorf("failed to write EDS to file: %w", err)
 	}
 
@@ -165,6 +173,7 @@ func (s *Store) Put(ctx context.Context, root share.DataHash, square *rsmt2d.Ext
 		Path: key,
 	}, ch, dagstore.RegisterOpts{})
 	if err != nil {
+		span.SetStatus(codes.Error, err.Error())
 		return fmt.Errorf("failed to initiate shard registration: %w", err)
 	}
 
@@ -173,6 +182,7 @@ func (s *Store) Put(ctx context.Context, root share.DataHash, square *rsmt2d.Ext
 		return ctx.Err()
 	case result := <-ch:
 		if result.Error != nil {
+			span.SetStatus(codes.Error, err.Error())
 			return fmt.Errorf("failed to register shard: %w", result.Error)
 		}
 		return nil
@@ -186,6 +196,9 @@ func (s *Store) Put(ctx context.Context, root share.DataHash, square *rsmt2d.Ext
 //
 // Caller must Close returned reader after reading.
 func (s *Store) GetCAR(ctx context.Context, root share.DataHash) (io.ReadCloser, error) {
+	ctx, span := tracer.Start(ctx, "store/get-car", trace.WithAttributes(attribute.String("root", root.String())))
+	defer span.End()
+
 	key := root.String()
 	accessor, err := s.getAccessor(ctx, shard.KeyFromString(key))
 	if err != nil {
@@ -220,6 +233,9 @@ func (s *Store) CARBlockstore(
 
 // GetDAH returns the DataAvailabilityHeader for the EDS identified by DataHash.
 func (s *Store) GetDAH(ctx context.Context, root share.DataHash) (*share.Root, error) {
+	ctx, span := tracer.Start(ctx, "store/get-dah", trace.WithAttributes(attribute.String("root", root.String())))
+	defer span.End()
+
 	key := shard.KeyFromString(root.String())
 	accessor, err := s.getAccessor(ctx, key)
 	if err != nil {
@@ -291,17 +307,21 @@ func (s *Store) getCachedAccessor(ctx context.Context, key shard.Key) (*accessor
 // Remove removes EDS from Store by the given share.Root hash and cleans up all
 // the indexing.
 func (s *Store) Remove(ctx context.Context, root share.DataHash) error {
-	key := root.String()
+	ctx, span := tracer.Start(ctx, "store/remove", trace.WithAttributes(attribute.String("root", root.String())))
+	defer span.End()
 
+	key := root.String()
 	ch := make(chan dagstore.ShardResult, 1)
 	err := s.dgstr.DestroyShard(ctx, shard.KeyFromString(key), ch, dagstore.DestroyOpts{})
 	if err != nil {
+		span.SetStatus(codes.Error, err.Error())
 		return fmt.Errorf("failed to initiate shard destruction: %w", err)
 	}
 
 	select {
 	case result := <-ch:
 		if result.Error != nil {
+			span.SetStatus(codes.Error, err.Error())
 			return fmt.Errorf("failed to destroy shard: %w", result.Error)
 		}
 	case <-ctx.Done():
@@ -313,11 +333,13 @@ func (s *Store) Remove(ctx context.Context, root share.DataHash) error {
 		log.Warnf("failed to drop index for %s", key)
 	}
 	if err != nil {
+		span.SetStatus(codes.Error, err.Error())
 		return fmt.Errorf("failed to drop index for %s: %w", key, err)
 	}
 
 	err = os.Remove(s.basepath + blocksPath + key)
 	if err != nil {
+		span.SetStatus(codes.Error, err.Error())
 		return fmt.Errorf("failed to remove CAR file: %w", err)
 	}
 	return nil
@@ -328,12 +350,17 @@ func (s *Store) Remove(ctx context.Context, root share.DataHash) error {
 // It reads only one quadrant(1/4) of the EDS and verifies the integrity of the stored data by
 // recomputing it.
 func (s *Store) Get(ctx context.Context, root share.DataHash) (*rsmt2d.ExtendedDataSquare, error) {
+	ctx, span := tracer.Start(ctx, "store/get", trace.WithAttributes(attribute.String("root", root.String())))
+	defer span.End()
+
 	f, err := s.GetCAR(ctx, root)
 	if err != nil {
+		span.SetStatus(codes.Error, err.Error())
 		return nil, fmt.Errorf("failed to get CAR file: %w", err)
 	}
 	eds, err := ReadEDS(ctx, f, root)
 	if err != nil {
+		span.SetStatus(codes.Error, err.Error())
 		return nil, fmt.Errorf("failed to read EDS from CAR file: %w", err)
 	}
 	return eds, nil
@@ -341,6 +368,9 @@ func (s *Store) Get(ctx context.Context, root share.DataHash) (*rsmt2d.ExtendedD
 
 // Has checks if EDS exists by the given share.Root hash.
 func (s *Store) Has(ctx context.Context, root share.DataHash) (bool, error) {
+	_, span := tracer.Start(ctx, "store/has", trace.WithAttributes(attribute.String("root", root.String())))
+	defer span.End()
+
 	key := root.String()
 	info, err := s.dgstr.GetShardInfo(shard.KeyFromString(key))
 	if err == dagstore.ErrShardUnknown {
