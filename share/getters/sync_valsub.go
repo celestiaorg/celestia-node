@@ -6,18 +6,18 @@ import (
 	"sync"
 )
 
-var ereSubDuringClean = errors.New("sub during cleanup")
+var errSubDuringClean = errors.New("sub during cleanup")
 
 type valueSub[V any] struct {
 	sn *getterSession[V]
 
 	reqsMu sync.Mutex
-	reqs map[chan result[V]]struct{}
+	reqs   map[chan result[V]]struct{}
 }
 
 func newValueSub[V any](sn *getterSession[V]) *valueSub[V] {
 	return &valueSub[V]{
-		sn: sn,
+		sn:   sn,
 		reqs: make(map[chan result[V]]struct{}),
 	}
 }
@@ -33,7 +33,7 @@ func (vs *valueSub[V]) sub(ctx context.Context) result[V] {
 		vs.reqsMu.Unlock()
 		return result[V]{err: ctx.Err()}
 	case <-vs.sn.ctx.Done():
-		return result[V]{err: ereSubDuringClean}
+		return result[V]{err: errSubDuringClean}
 	}
 }
 

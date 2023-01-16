@@ -12,7 +12,7 @@ type sessionBucket[V any] struct {
 	sns   map[string]*getterSession[V]
 }
 
-func (sb *sessionBuckets[V]) getSession(key string, gtr getter[V]) *getterSession[V]  {
+func (sb *sessionBuckets[V]) getSession(key string, gtr getter[V]) *getterSession[V] {
 	newFn := func() *getterSession[V] {
 		cleanup := func() {
 			sb.rmSession(key)

@@ -11,8 +11,8 @@ type getterSession[V any] struct {
 	gtr getter[V]
 	sub *valueSub[V]
 
-	ctx context.Context
-	cancel context.CancelFunc
+	ctx     context.Context
+	cancel  context.CancelFunc
 	cleanup func()
 }
 
@@ -27,8 +27,8 @@ func newGetSession[V any](gtr getter[V], cleanup func()) *getterSession[V] {
 	ctx, cancel := context.WithCancel(context.Background())
 	sn := &getterSession[V]{
 		gtr:     gtr,
-		ctx: ctx,
-		cancel: cancel,
+		ctx:     ctx,
+		cancel:  cancel,
 		cleanup: cleanup,
 	}
 	sn.sub = newValueSub[V](sn)
@@ -41,7 +41,7 @@ func (ss *getterSession[V]) get(ctx context.Context) (V, error) {
 		return res.val, res.err
 	}
 
-	if res := ss.sub.sub(ctx); res.err != ereSubDuringClean {
+	if res := ss.sub.sub(ctx); res.err != errSubDuringClean {
 		return res.val, res.err
 	}
 
