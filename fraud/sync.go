@@ -79,7 +79,7 @@ func (f *ProofService) syncFraudProofs(ctx context.Context) {
 				span.SetStatus(codes.Ok, "")
 				return
 			}
-			log.Debugw("got fraud proofs from peer", "pid", connStatus.Peer)
+			log.Debugw("got fraud proofs from peer", "pid", pid)
 			for _, data := range respProofs {
 				f.topicsLk.RLock()
 				topic, ok := f.topics[ProofType(data.Type)]
