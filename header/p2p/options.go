@@ -112,7 +112,9 @@ type ClientParameters struct {
 	MaxAwaitingTime time.Duration
 	// DefaultScore specifies the score for newly connected peers.
 	DefaultScore float32
-
+	// RequestDuration defines a timeout after which session will try to re-request headers
+	// from the another peer.
+	RequestDuration time.Duration
 	// MaxTrackerSize specifies the max amount of peers that can be added to the peerTracker.
 	MaxPeerTrackerSize int
 }
@@ -125,6 +127,7 @@ func DefaultClientParameters() ClientParameters {
 		MaxHeadersPerRequest: 64,
 		MaxAwaitingTime:      time.Hour,
 		DefaultScore:         1,
+		RequestDuration:      time.Second * 3,
 		MaxPeerTrackerSize:   100,
 	}
 }
@@ -155,6 +158,10 @@ func (p *ClientParameters) Validate() error {
 	}
 	if p.DefaultScore <= 0 {
 		return fmt.Errorf("invalid DefaultScore: %s. %s: %f", greaterThenZero, providedSuffix, p.DefaultScore)
+	}
+	if p.RequestDuration == 0 {
+		return fmt.Errorf("invalid RequestDuration for session: "+
+			"%s. %s: %v", greaterThenZero, providedSuffix, p.RequestDuration)
 	}
 	if p.MaxPeerTrackerSize <= 0 {
 		return fmt.Errorf("invalid MaxTrackerSize: %s. %s: %d", greaterThenZero, providedSuffix, p.MaxPeerTrackerSize)
@@ -203,6 +210,17 @@ func WithDefaultScore[T ClientParameters](score float32) Option[T] {
 		switch t := any(p).(type) { //nolint:gocritic
 		case *ClientParameters:
 			t.DefaultScore = score
+		}
+	}
+}
+
+// WithRequestDuration is a functional option that configures the
+// `RequestDuration` parameter.
+func WithRequestDuration[T ClientParameters](duration time.Duration) Option[T] {
+	return func(p *T) {
+		switch t := any(p).(type) { //nolint:gocritic
+		case *ClientParameters:
+			t.RequestDuration = duration
 		}
 	}
 }

@@ -111,6 +111,7 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 						p2p.WithMaxHeadersPerRequest(cfg.Client.MaxHeadersPerRequest),
 						p2p.WithMaxAwaitingTime(cfg.Client.MaxAwaitingTime),
 						p2p.WithDefaultScore(cfg.Client.DefaultScore),
+						p2p.WithRequestDuration(cfg.Client.RequestDuration),
 						p2p.WithMaxTrackerSize(cfg.Client.MaxPeerTrackerSize),
 					}
 				},
