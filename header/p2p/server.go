@@ -21,8 +21,8 @@ import (
 type ExchangeServer struct {
 	protocolID protocol.ID
 
-	host  host.Host
-	store header.Store
+	host   host.Host
+	getter header.Getter
 
 	ctx    context.Context
 	cancel context.CancelFunc
@@ -34,7 +34,7 @@ type ExchangeServer struct {
 // header-related requests.
 func NewExchangeServer(
 	host host.Host,
-	store header.Store,
+	getter header.Getter,
 	protocolSuffix string,
 	opts ...Option[ServerParameters],
 ) (*ExchangeServer, error) {
@@ -49,7 +49,7 @@ func NewExchangeServer(
 	return &ExchangeServer{
 		protocolID: protocolID(protocolSuffix),
 		host:       host,
-		store:      store,
+		getter:     getter,
 		Params:     params,
 	}, nil
 }
@@ -152,7 +152,7 @@ func (serv *ExchangeServer) requestHandler(stream network.Stream) {
 func (serv *ExchangeServer) handleRequestByHash(hash []byte) ([]*header.ExtendedHeader, error) {
 	log.Debugw("server: handling header request", "hash", tmbytes.HexBytes(hash).String())
 
-	h, err := serv.store.Get(serv.ctx, hash)
+	h, err := serv.getter.Get(serv.ctx, hash)
 	if err != nil {
 		log.Errorw("server: getting header by hash", "hash", tmbytes.HexBytes(hash).String(), "err", err)
 		return nil, err
@@ -165,7 +165,7 @@ func (serv *ExchangeServer) handleRequestByHash(hash []byte) ([]*header.Extended
 func (serv *ExchangeServer) handleRequest(from, to uint64) ([]*header.ExtendedHeader, error) {
 	if from == uint64(0) {
 		log.Debug("server: handling head request")
-		head, err := serv.store.Head(serv.ctx)
+		head, err := serv.getter.Head(serv.ctx)
 		if err != nil {
 			log.Errorw("server: getting head", "err", err)
 			return nil, err
@@ -180,7 +180,7 @@ func (serv *ExchangeServer) handleRequest(from, to uint64) ([]*header.ExtendedHe
 	log.Debugw("server: handling headers request", "from", from, "to", to)
 	ctx, cancel := context.WithTimeout(serv.ctx, time.Second*5)
 	defer cancel()
-	headersByRange, err := serv.store.GetRangeByHeight(ctx, from, to)
+	headersByRange, err := serv.getter.GetRangeByHeight(ctx, from, to)
 	if err != nil {
 		if errors.Is(err, context.DeadlineExceeded) {
 			log.Warnw("server: requested headers not found", "from", from, "to", to)
