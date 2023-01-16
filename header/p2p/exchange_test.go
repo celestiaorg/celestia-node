@@ -13,6 +13,7 @@ import (
 	mocknet "github.com/libp2p/go-libp2p/p2p/net/mock"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	tmbytes "github.com/tendermint/tendermint/libs/bytes"
 
 	"github.com/celestiaorg/go-libp2p-messenger/serde"
 
@@ -293,6 +294,32 @@ func TestExchange_RequestByHashFails(t *testing.T) {
 	require.Equal(t, resp.StatusCode, p2p_pb.StatusCode_NOT_FOUND)
 }
 
+// TestExchange_RequestHeadersFromAnotherPeer tests that the Exchange instance will request range
+// from another peer with lower score after receiving header.ErrNotFound
+func TestExchange_RequestHeadersFromAnotherPeerWhenTimeout(t *testing.T) {
+	hosts := createMocknet(t, 3)
+	// create client + server(it does not have needed headers)
+	exchg, _ := createP2PExAndServer(t, hosts[0], hosts[1])
+	exchg.Params.RequestDuration = time.Millisecond * 100
+	// create one more server(with more headers in the store)
+	serverSideEx, err := NewExchangeServer(hosts[2], headerMock.NewStore(t, 10), "private")
+	require.NoError(t, err)
+	// change store implementation
+	serverSideEx.store = &timeoutedStore{exchg.Params.RequestDuration}
+	require.NoError(t, serverSideEx.Start(context.Background()))
+	t.Cleanup(func() {
+		serverSideEx.Stop(context.Background()) //nolint:errcheck
+	})
+	exchg.peerTracker.peerLk.Lock()
+	exchg.peerTracker.trackedPeers[hosts[2].ID()] = &peerStat{peerID: hosts[2].ID(), peerScore: 200}
+	exchg.peerTracker.peerLk.Unlock()
+	_, err = exchg.GetRangeByHeight(context.Background(), 1, 3)
+	require.NoError(t, err)
+	// ensure that peerScore for the first peer was decrease by 20%
+	newPeerScore := exchg.peerTracker.trackedPeers[hosts[2].ID()].score()
+	require.NotEqual(t, 160, newPeerScore)
+}
+
 func createMocknet(t *testing.T, amount int) []libhost.Host {
 	net, err := mocknet.FullMeshConnected(amount)
 	require.NoError(t, err)
@@ -321,4 +348,63 @@ func createP2PExAndServer(t *testing.T, host, tpeer libhost.Host) (*Exchange, *h
 		ex.Stop(context.Background())           //nolint:errcheck
 	})
 	return ex, store
+}
+
+type timeoutedStore struct {
+	timeout time.Duration
+}
+
+func (t *timeoutedStore) Start(context.Context) error {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (t *timeoutedStore) Stop(context.Context) error {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (t *timeoutedStore) Head(context.Context) (*header.ExtendedHeader, error) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (t timeoutedStore) Get(context.Context, tmbytes.HexBytes) (*header.ExtendedHeader, error) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (t *timeoutedStore) GetByHeight(context.Context, uint64) (*header.ExtendedHeader, error) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (t *timeoutedStore) GetRangeByHeight(_ context.Context, _, _ uint64) ([]*header.ExtendedHeader, error) {
+	time.Sleep(t.timeout)
+	return []*header.ExtendedHeader{}, nil
+}
+
+func (t *timeoutedStore) GetVerifiedRange(context.Context, *header.ExtendedHeader, uint64) ([]*header.ExtendedHeader, error) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (t *timeoutedStore) Init(context.Context, *header.ExtendedHeader) error {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (t timeoutedStore) Height() uint64 {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (t *timeoutedStore) Has(context.Context, tmbytes.HexBytes) (bool, error) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (t *timeoutedStore) Append(context.Context, ...*header.ExtendedHeader) (int, error) {
+	//TODO implement me
+	panic("implement me")
 }
