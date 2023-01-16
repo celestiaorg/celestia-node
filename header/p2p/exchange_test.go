@@ -305,7 +305,7 @@ func TestExchange_RequestHeadersFromAnotherPeerWhenTimeout(t *testing.T) {
 	serverSideEx, err := NewExchangeServer(hosts[2], headerMock.NewStore(t, 10), "private")
 	require.NoError(t, err)
 	// change store implementation
-	serverSideEx.store = &timeoutedStore{exchg.Params.RequestDuration}
+	serverSideEx.getter = &timeoutedStore{exchg.Params.RequestDuration}
 	require.NoError(t, serverSideEx.Start(context.Background()))
 	t.Cleanup(func() {
 		serverSideEx.Stop(context.Background()) //nolint:errcheck
@@ -354,22 +354,12 @@ type timeoutedStore struct {
 	timeout time.Duration
 }
 
-func (t *timeoutedStore) Start(context.Context) error {
-	// TODO implement me
-	panic("implement me")
-}
-
-func (t *timeoutedStore) Stop(context.Context) error {
-	// TODO implement me
-	panic("implement me")
-}
-
 func (t *timeoutedStore) Head(context.Context) (*header.ExtendedHeader, error) {
 	// TODO implement me
 	panic("implement me")
 }
 
-func (t timeoutedStore) Get(context.Context, tmbytes.HexBytes) (*header.ExtendedHeader, error) {
+func (t *timeoutedStore) Get(context.Context, tmbytes.HexBytes) (*header.ExtendedHeader, error) {
 	// TODO implement me
 	panic("implement me")
 }
