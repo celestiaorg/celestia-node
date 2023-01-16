@@ -77,23 +77,7 @@ func WithBlackboxMetrics() fx.Option {
 			}
 			return hdr
 		}),
-		fx.Decorate(func(mod shr.Module) shr.Module {
-			shr, err := shr.WithBlackBoxMetrics(mod)
-			if err != nil {
-				log.Warn("[WithBlackBoxMetrics] encountered error while providing share.Module:", err)
-				return mod
-			}
-			return shr
-		}),
-		// fx.Decorate(func(mod shr.Module) shr.Module {
-		// 	shr, err := shr.WithBlackBoxMetrics(mod)
-		// 	if err != nil {
-		// 		log.Warn("[WithBlackBoxMetrics] encountered error while providing share.Module:", err)
-		// 		return mod
-		// 	}
-		// 	return shr
-		// }),
-		// fx.Decorate(shr.WithBlackBoxShareServiceMetrics),
+		fx.Decorate(shr.WithBlackBoxMetrics),
 	)
 }
 

@@ -4,8 +4,6 @@ import (
 	"context"
 	"time"
 
-	logging "github.com/ipfs/go-log/v2"
-
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric/global"
 	"go.opentelemetry.io/otel/metric/instrument"
@@ -20,7 +18,6 @@ import (
 )
 
 var (
-	log   = logging.Logger("share-facade")
 	meter = global.MeterProvider().Meter("blackbox-share")
 )
 
@@ -37,7 +34,7 @@ const (
 	requestSizeMetricName = "node.share.blackbox.request_size"
 	requestSizeMetricDesc = "size of a get share response"
 
-	squareSizeMetricName = "node.share.blackbox.square_size"
+	squareSizeMetricName = "node.share.blackbox.eds_size"
 	squareSizeMetricDesc = "size of the erasure coded block"
 )
 
@@ -127,7 +124,11 @@ func (ins *instrumentedShareGetter) GetShare(ctx context.Context, root *share.Ro
 
 	// measure the EDS size
 	// this will track the EDS size for light nodes
-	ins.squareSize.Add(ctx, int64(len(root.RowsRoots)))
+	ins.squareSize.Add(
+		ctx,
+		int64(row),
+		attribute.String("request-id", requestID),
+	)
 
 	// perform the actual request
 	share, err := ins.next.GetShare(ctx, root, row, col)

@@ -119,9 +119,10 @@ func Test_InstrumentedShareGetter(t *testing.T) {
 
 	proxiedGetterSpy := newSpyGetter(proxiedGetter)
 
-	smod, _ := mod.(*module)
-	mod, err = Proxy(smod, "Getter", proxiedGetterSpy)
-	assert.NoError(t, err)
+	smod, ok := mod.(*module)
+	assert.True(t, ok)
+
+	smod.Getter = proxiedGetterSpy
 
 	// prepare the arguments
 	eds := share.EmptyExtendedDataSquare()
