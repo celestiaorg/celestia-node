@@ -28,6 +28,7 @@ func keyring(cfg Config, ks keystore.Keystore, net p2p.Network) (*apptypes.Keyri
 	if cfg.KeyringAccName != "" {
 		keyInfo, err := ring.Key(cfg.KeyringAccName)
 		if err != nil {
+			log.Errorw("failed to find key by given name", "keyring.accname", cfg.KeyringAccName)
 			return nil, err
 		}
 		info = keyInfo
@@ -39,12 +40,15 @@ func keyring(cfg Config, ks keystore.Keystore, net p2p.Network) (*apptypes.Keyri
 		}
 		// if no key was found in keystore path, generate new key for node
 		if len(keys) == 0 {
+			log.Errorw("no keys found in path", "path", ks.Path(), "keyring backend",
+				cfg.KeyringBackend)
 			return nil, fmt.Errorf("no keys found in path %s using keyring backend %s", ks.Path(),
 				cfg.KeyringBackend)
 		}
 		// if one or more keys are present and no keyringAccName was given, use the first key in list
 		keyInfo, err := ring.Key(keys[0].Name)
 		if err != nil {
+			log.Errorw("could not access key in keyring", "name", keys[0].Name)
 			return nil, err
 		}
 		info = keyInfo
