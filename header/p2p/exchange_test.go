@@ -382,23 +382,3 @@ func (t *timeoutedStore) GetVerifiedRange(
 	// TODO implement me
 	panic("implement me")
 }
-
-func (t *timeoutedStore) Init(context.Context, *header.ExtendedHeader) error {
-	// TODO implement me
-	panic("implement me")
-}
-
-func (t timeoutedStore) Height() uint64 {
-	// TODO implement me
-	panic("implement me")
-}
-
-func (t *timeoutedStore) Has(context.Context, tmbytes.HexBytes) (bool, error) {
-	// TODO implement me
-	panic("implement me")
-}
-
-func (t *timeoutedStore) Append(context.Context, ...*header.ExtendedHeader) (int, error) {
-	// TODO implement me
-	panic("implement me")
-}
