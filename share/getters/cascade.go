@@ -112,9 +112,12 @@ func cascadeGetters[V any](
 //   - Context is canceled
 //
 // NOTE: New source attempts after interval do not suspend running sources in progress.
-// TODO(@Wondertan): Move to utils
-func cascade[V any](ctx context.Context, srcs []func(context.Context) (V, error), interval time.Duration) (V, error) {
-	// short circuit when there is only func to cascade
+func cascade[V any](
+	ctx context.Context,
+	srcs []func(context.Context) (V, error),
+	interval time.Duration,
+) (V, error) {
+	// short circuit when there is only one source
 	if len(srcs) == 1 {
 		return srcs[0](ctx)
 	}
