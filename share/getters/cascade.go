@@ -4,12 +4,18 @@ import (
 	"context"
 	"time"
 
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/trace"
 	"go.uber.org/multierr"
 
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/nmt/namespace"
 	"github.com/celestiaorg/rsmt2d"
 )
+
+var cascadeTracer = otel.Tracer("getters/cascade")
 
 var _ share.Getter = (*CascadeGetter)(nil)
 
@@ -33,17 +39,31 @@ func NewCascadeGetter(getters []share.Getter, interval time.Duration) *CascadeGe
 
 // GetShare gets a share from any of registered share.Getters in cascading order.
 func (cg *CascadeGetter) GetShare(ctx context.Context, root *share.Root, row, col int) (share.Share, error) {
+	ctx, span := cascadeTracer.Start(ctx, "get-share", trace.WithAttributes(
+		attribute.String("root", root.String()),
+		attribute.Int("row", row),
+		attribute.Int("col", col),
+	))
+	defer span.End()
+
 	get := func(ctx context.Context, get share.Getter) (share.Share, error) {
 		return get.GetShare(ctx, root, row, col)
 	}
+
 	return cascadeGetters(ctx, cg.getters, cg.interval, get)
 }
 
 // GetEDS gets a full EDS from any of registered share.Getters in cascading order.
 func (cg *CascadeGetter) GetEDS(ctx context.Context, root *share.Root) (*rsmt2d.ExtendedDataSquare, error) {
+	ctx, span := cascadeTracer.Start(ctx, "get-eds", trace.WithAttributes(
+		attribute.String("root", root.String()),
+	))
+	defer span.End()
+
 	get := func(ctx context.Context, get share.Getter) (*rsmt2d.ExtendedDataSquare, error) {
 		return get.GetEDS(ctx, root)
 	}
+
 	return cascadeGetters(ctx, cg.getters, cg.interval, get)
 }
 
@@ -54,9 +74,16 @@ func (cg *CascadeGetter) GetSharesByNamespace(
 	root *share.Root,
 	id namespace.ID,
 ) (share.NamespacedShares, error) {
+	ctx, span := cascadeTracer.Start(ctx, "get-shares-by-namespace", trace.WithAttributes(
+		attribute.String("root", root.String()),
+		attribute.String("nid", id.String()),
+	))
+	defer span.End()
+
 	get := func(ctx context.Context, get share.Getter) (share.NamespacedShares, error) {
 		return get.GetSharesByNamespace(ctx, root, id)
 	}
+
 	return cascadeGetters(ctx, cg.getters, cg.interval, get)
 }
 
@@ -112,7 +139,22 @@ func cascade[V any](ctx context.Context, srcs []func(context.Context) (V, error)
 		err error
 	})
 
-	for _, src := range srcs {
+	ctx, span := cascadeTracer.Start(ctx, "cascade", trace.WithAttributes(
+		attribute.String("interval", interval.String()),
+		attribute.Int("total-sources", len(srcs)),
+	))
+	defer func() {
+		defer span.End()
+		if len(errs) == len(srcs) {
+			// we do not set the actual errors to the description, as they were already recorded
+			span.SetStatus(codes.Error, "all sources failed")
+			return
+		}
+
+		span.SetStatus(codes.Ok, "")
+	}()
+
+	for i, src := range srcs {
 		select {
 		case res := <-results:
 			if res.err == nil {
@@ -129,8 +171,9 @@ func cascade[V any](ctx context.Context, srcs []func(context.Context) (V, error)
 		}
 
 		t.Reset(interval)
-		go func(src func(context.Context) (V, error)) {
+		go func(i int, src func(context.Context) (V, error)) {
 			val, err := src(ctx)
+			span.RecordError(err, trace.WithAttributes(attribute.Int("id", i)))
 			select {
 			case results <- struct {
 				val V
@@ -138,7 +181,8 @@ func cascade[V any](ctx context.Context, srcs []func(context.Context) (V, error)
 			}{val: val, err: err}:
 			case <-ctx.Done():
 			}
-		}(src)
+		}(i, src)
+		span.AddEvent("source launched", trace.WithAttributes(attribute.Int("id", i)))
 	}
 
 	// we know how many sources were executed in total
