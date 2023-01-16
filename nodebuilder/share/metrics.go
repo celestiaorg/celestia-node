@@ -47,7 +47,7 @@ type instrumentedShareGetter struct {
 	requestsNum     syncint64.Counter
 	requestDuration syncint64.Histogram
 	requestSize     syncint64.Histogram
-	squareSize      syncint64.UpDownCounter
+	squareSize      syncint64.Histogram
 
 	// pointer to mod
 	next share.Getter
@@ -86,7 +86,7 @@ func newInstrument(next share.Getter) (share.Getter, error) {
 
 	squareSize, err := meter.
 		SyncInt64().
-		UpDownCounter(
+		Histogram(
 			squareSizeMetricName,
 			instrument.WithDescription(squareSizeMetricDesc),
 		)
@@ -124,10 +124,9 @@ func (ins *instrumentedShareGetter) GetShare(ctx context.Context, root *share.Ro
 
 	// measure the EDS size
 	// this will track the EDS size for light nodes
-	ins.squareSize.Add(
+	ins.squareSize.Record(
 		ctx,
-		int64(row),
-		attribute.String("request-id", requestID),
+		int64(len(root.RowsRoots)),
 	)
 
 	// perform the actual request
@@ -164,7 +163,12 @@ func (ins *instrumentedShareGetter) GetShare(ctx context.Context, root *share.Ro
 func (ins *instrumentedShareGetter) GetEDS(ctx context.Context, root *share.Root) (*rsmt2d.ExtendedDataSquare, error) {
 	// measure the EDS size
 	// this will track the EDS size for full nodes
-	ins.squareSize.Add(ctx, int64(len(root.RowsRoots)))
+
+	ins.squareSize.Record(
+		ctx,
+		int64(len(root.RowsRoots)),
+	)
+
 	return ins.next.GetEDS(ctx, root)
 }
 
