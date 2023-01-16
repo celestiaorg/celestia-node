@@ -92,7 +92,11 @@ func (sg *spyGetter) GetEDS(ctx context.Context, root *share.Root) (*rsmt2d.Exte
 	return sg.Getter.GetEDS(ctx, root)
 }
 
-func (sg *spyGetter) GetSharesByNamespace(ctx context.Context, root *share.Root, id namespace.ID) (share.NamespacedShares, error) {
+func (sg *spyGetter) GetSharesByNamespace(
+	ctx context.Context,
+	root *share.Root,
+	id namespace.ID,
+) (share.NamespacedShares, error) {
 	sg.getSharesByNamespace.called = true
 	sg.getSharesByNamespace.times++
 	return sg.Getter.GetSharesByNamespace(ctx, root, id)
@@ -121,14 +125,14 @@ func Test_InstrumentedShareGetter(t *testing.T) {
 
 	// prepare the arguments
 	eds := share.EmptyExtendedDataSquare()
-	dah := da.NewDataAvailabilityHeader(eds)
-	root := share.Root(dah)
+	root := da.NewDataAvailabilityHeader(eds)
 	ctx := context.Background()
 
 	mockGetter.EXPECT().GetShare(ctx, &root, 1, 1).Times(1)
 
 	// perform the call
-	mod.GetShare(ctx, &root, 1, 1)
+	_, err = mod.GetShare(ctx, &root, 1, 1)
+	assert.NoError(t, err)
 
 	assert.True(t, proxiedGetterSpy.getShare.Called())
 	assert.True(t, proxiedGetterSpy.getShare.Times(1))

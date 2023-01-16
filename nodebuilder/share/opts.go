@@ -26,7 +26,7 @@ func WithBlackBoxMetrics(ss Module) (Module, error) {
 		return nil, err
 	}
 
-	return Module(pmod), nil
+	return pmod, nil
 }
 
 func Proxy(mod *module, field string, proxy any) (Module, error) {

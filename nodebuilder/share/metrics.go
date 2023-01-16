@@ -169,6 +169,10 @@ func (ins *instrumentedShareGetter) GetEDS(ctx context.Context, root *share.Root
 
 // // GetSharesByNamespace gets all shares from an EDS within the given namespace.
 // // Shares are returned in a row-by-row order if the namespace spans multiple rows.
-func (ins *instrumentedShareGetter) GetSharesByNamespace(ctx context.Context, root *share.Root, id namespace.ID) (share.NamespacedShares, error) {
+func (ins *instrumentedShareGetter) GetSharesByNamespace(
+	ctx context.Context,
+	root *share.Root,
+	id namespace.ID,
+) (share.NamespacedShares, error) {
 	return ins.next.GetSharesByNamespace(ctx, root, id)
 }

@@ -173,6 +173,7 @@ func TestFullReconstructFromLights(t *testing.T) {
 	require.NoError(t, errg.Wait())
 }
 
+//nolint:unused
 func getMultiAddr(t *testing.T, h host.Host) string {
 	addrs, err := peer.AddrInfoToP2pAddrs(host.InfoFromHost(h))
 	require.NoError(t, err)
