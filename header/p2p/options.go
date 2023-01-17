@@ -23,6 +23,8 @@ type ServerParameters struct {
 	ReadDeadline time.Duration
 	// MaxRequestSize defines the max amount of headers that can be handled at once.
 	MaxRequestSize uint64
+	// ServeTimeout defines the deadline for serving requests.
+	ServeTimeout time.Duration
 }
 
 // DefaultServerParameters returns the default params to configure the store.
@@ -31,6 +33,7 @@ func DefaultServerParameters() ServerParameters {
 		WriteDeadline:  time.Second * 5,
 		ReadDeadline:   time.Minute,
 		MaxRequestSize: 512,
+		ServeTimeout:   time.Second * 5,
 	}
 }
 
@@ -43,6 +46,9 @@ func (p *ServerParameters) Validate() error {
 	}
 	if p.MaxRequestSize == 0 {
 		return fmt.Errorf("invalid max request size: %d", p.MaxRequestSize)
+	}
+	if p.ServeTimeout == time.Duration(0) {
+		return fmt.Errorf("invalid request timeout: %d", p.ServeTimeout)
 	}
 	return nil
 }
@@ -78,6 +84,17 @@ func WithMaxRequestSize[T parameters](size uint64) Option[T] {
 			t.MaxRequestSize = size
 		case *ServerParameters:
 			t.MaxRequestSize = size
+		}
+	}
+}
+
+// WithServeTimeout is a functional option that configures the
+// `ServeTimeout` parameter.
+func WithServeTimeout[T parameters](timeout time.Duration) Option[T] {
+	return func(p *T) {
+		switch t := any(p).(type) { //nolint:gocritic
+		case *ServerParameters:
+			t.ServeTimeout = timeout
 		}
 	}
 }
