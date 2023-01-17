@@ -16,6 +16,10 @@ import (
 
 var log = logging.Logger("shrex-push")
 
+// seenMsgTimeout indicates when validated messages
+// will be removed from pubsub cache.
+const seenMsgTimeout = 100 * time.Millisecond
+
 // pubSubTopic hardcodes the name of the EDS floodsub topic with the provided suffix.
 func pubSubTopic(suffix string) string {
 	return "eds-sub/v0.0.1/" + suffix
@@ -38,7 +42,7 @@ type PubSub struct {
 // NewPubSub creates a libp2p.PubSub wrapper.
 func NewPubSub(ctx context.Context, h host.Host, suffix string) (*PubSub, error) {
 	// WithSeenMessagesTTL with small duration allows to process all incoming messages(even with the same msgId)
-	pubsub, err := pubsub.NewFloodSub(ctx, h, pubsub.WithSeenMessagesTTL(100*time.Millisecond))
+	pubsub, err := pubsub.NewFloodSub(ctx, h, pubsub.WithSeenMessagesTTL(seenMsgTimeout))
 	if err != nil {
 		return nil, err
 	}
