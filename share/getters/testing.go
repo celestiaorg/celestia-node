@@ -60,4 +60,3 @@ func (seg *SingleEDSGetter) checkRoot(root *share.Root) error {
 	}
 	return nil
 }
-
