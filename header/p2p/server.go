@@ -159,15 +159,12 @@ func (serv *ExchangeServer) requestHandler(stream network.Stream) {
 // if it exists.
 func (serv *ExchangeServer) handleRequestByHash(hash []byte) ([]*header.ExtendedHeader, error) {
 	log.Debugw("server: handling header request", "hash", tmbytes.HexBytes(hash).String())
-	ctx, cancel := context.WithTimeout(serv.ctx, time.Second*5)
+	ctx, cancel := context.WithTimeout(serv.ctx, serv.Params.ServeTimeout)
 	defer cancel()
 	ctx, span := serverTracer.Start(ctx, "ExchangeServer_handleRequestByHash", trace.WithAttributes(
 		attribute.String("hash", tmbytes.HexBytes(hash).String()),
 	))
 	defer span.End()
-
-	ctx, cancel := context.WithTimeout(serv.ctx, serv.Params.ServeTimeout)
-	defer cancel()
 
 	h, err := serv.getter.Get(ctx, hash)
 	if err != nil {
@@ -249,7 +246,7 @@ func (serv *ExchangeServer) handleHeadRequest() ([]*header.ExtendedHeader, error
 	ctx, span := serverTracer.Start(ctx, "ExchangeServer_handleRequest")
 	defer span.End()
 
-	head, err := serv.store.Head(serv.ctx)
+	head, err := serv.getter.Head(ctx)
 	if err != nil {
 		log.Errorw("server: getting head", "err", err)
 		span.RecordError(err)
