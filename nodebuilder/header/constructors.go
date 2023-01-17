@@ -2,11 +2,10 @@ package header
 
 import (
 	"context"
-	"time"
 
-	"github.com/libp2p/go-libp2p-core/host"
-	"github.com/libp2p/go-libp2p-core/peer"
-	"github.com/libp2p/go-libp2p-core/peerstore"
+	"github.com/libp2p/go-libp2p/core/host"
+	"github.com/libp2p/go-libp2p/core/peer"
+	"github.com/libp2p/go-libp2p/core/peerstore"
 	"github.com/libp2p/go-libp2p/p2p/net/conngater"
 	"go.uber.org/fx"
 
@@ -70,8 +69,8 @@ func newP2PExchange(cfg Config) func(
 }
 
 // newSyncer constructs new Syncer for headers.
-func newSyncer(ex header.Exchange, store InitStore, sub header.Subscriber, duration time.Duration) *sync.Syncer {
-	return sync.NewSyncer(ex, store, sub, duration)
+func newSyncer(ex header.Exchange, store InitStore, sub header.Subscriber, opts []sync.Options) (*sync.Syncer, error) {
+	return sync.NewSyncer(ex, store, sub, opts...)
 }
 
 // InitStore is a type representing initialized header store.

@@ -5,7 +5,7 @@ import (
 	"time"
 
 	logging "github.com/ipfs/go-log/v2"
-	"github.com/libp2p/go-libp2p-core/protocol"
+	"github.com/libp2p/go-libp2p/core/protocol"
 )
 
 const protocolPrefix = "/shrex/eds/v0.0.1/"

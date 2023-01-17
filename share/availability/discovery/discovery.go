@@ -5,11 +5,11 @@ import (
 	"time"
 
 	logging "github.com/ipfs/go-log/v2"
-	core "github.com/libp2p/go-libp2p-core/discovery"
-	"github.com/libp2p/go-libp2p-core/event"
-	"github.com/libp2p/go-libp2p-core/host"
-	"github.com/libp2p/go-libp2p-core/network"
-	"github.com/libp2p/go-libp2p-core/peer"
+	"github.com/libp2p/go-libp2p/core/discovery"
+	"github.com/libp2p/go-libp2p/core/event"
+	"github.com/libp2p/go-libp2p/core/host"
+	"github.com/libp2p/go-libp2p/core/network"
+	"github.com/libp2p/go-libp2p/core/peer"
 )
 
 var log = logging.Logger("share/discovery")
@@ -31,7 +31,7 @@ var waitF = func(ttl time.Duration) time.Duration {
 type Discovery struct {
 	set       *limitedSet
 	host      host.Host
-	disc      core.Discovery
+	disc      discovery.Discovery
 	connector *backoffConnector
 	// peersLimit is max amount of peers that will be discovered during a discovery session.
 	peersLimit uint
@@ -44,7 +44,7 @@ type Discovery struct {
 // NewDiscovery constructs a new discovery.
 func NewDiscovery(
 	h host.Host,
-	d core.Discovery,
+	d discovery.Discovery,
 	peersLimit uint,
 	discInterval,
 	advertiseInterval time.Duration,

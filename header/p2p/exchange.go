@@ -8,9 +8,9 @@ import (
 	"sort"
 
 	logging "github.com/ipfs/go-log/v2"
-	"github.com/libp2p/go-libp2p-core/host"
-	"github.com/libp2p/go-libp2p-core/peer"
-	"github.com/libp2p/go-libp2p-core/protocol"
+	"github.com/libp2p/go-libp2p/core/host"
+	"github.com/libp2p/go-libp2p/core/peer"
+	"github.com/libp2p/go-libp2p/core/protocol"
 	"github.com/libp2p/go-libp2p/p2p/net/conngater"
 	tmbytes "github.com/tendermint/tendermint/libs/bytes"
 
@@ -74,14 +74,14 @@ func NewExchange(
 func (ex *Exchange) Start(context.Context) error {
 	ex.ctx, ex.cancel = context.WithCancel(context.Background())
 
-	go ex.peerTracker.gc()
-	go ex.peerTracker.track()
 	for _, p := range ex.trustedPeers {
 		// Try to pre-connect to trusted peers.
 		// We don't really care if we succeed at this point
 		// and just need any peers in the peerTracker asap
 		go ex.host.Connect(ex.ctx, peer.AddrInfo{ID: p}) //nolint:errcheck
 	}
+	go ex.peerTracker.gc()
+	go ex.peerTracker.track()
 	return nil
 }
 
@@ -132,6 +132,8 @@ LOOP:
 			}
 		case <-ctx.Done():
 			break LOOP
+		case <-ex.ctx.Done():
+			return nil, ctx.Err()
 		}
 	}
 

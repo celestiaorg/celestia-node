@@ -4,7 +4,7 @@ import (
 	"context"
 
 	"github.com/ipfs/go-datastore"
-	"github.com/libp2p/go-libp2p-core/host"
+	"github.com/libp2p/go-libp2p/core/host"
 	"go.uber.org/fx"
 
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
@@ -13,7 +13,10 @@ import (
 	"github.com/celestiaorg/celestia-node/share/availability/full"
 	"github.com/celestiaorg/celestia-node/share/availability/light"
 	"github.com/celestiaorg/celestia-node/share/eds"
+	"github.com/celestiaorg/celestia-node/share/getters"
 	"github.com/celestiaorg/celestia-node/share/p2p/shrexeds"
+
+	"github.com/celestiaorg/celestia-node/libs/fxutil"
 )
 
 func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option {
@@ -27,6 +30,7 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 		fx.Provide(discovery(*cfg)),
 		fx.Provide(newModule),
 		fx.Invoke(share.EnsureEmptySquareExists),
+		fxutil.ProvideAs(getters.NewIPLDGetter, new(share.Getter)),
 	)
 
 	switch tp {

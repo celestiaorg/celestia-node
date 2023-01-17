@@ -50,3 +50,17 @@ func (mr *MockModuleMockRecorder) SamplingStats(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SamplingStats", reflect.TypeOf((*MockModule)(nil).SamplingStats), arg0)
 }
+
+// WaitCatchUp mocks base method.
+func (m *MockModule) WaitCatchUp(arg0 context.Context) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "WaitCatchUp", arg0)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// WaitCatchUp indicates an expected call of WaitCatchUp.
+func (mr *MockModuleMockRecorder) WaitCatchUp(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "WaitCatchUp", reflect.TypeOf((*MockModule)(nil).WaitCatchUp), arg0)
+}

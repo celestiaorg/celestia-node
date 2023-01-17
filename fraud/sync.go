@@ -5,10 +5,10 @@ import (
 	"time"
 
 	"github.com/ipfs/go-datastore"
-	"github.com/libp2p/go-libp2p-core/event"
-	"github.com/libp2p/go-libp2p-core/network"
-	"github.com/libp2p/go-libp2p-core/peer"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
+	"github.com/libp2p/go-libp2p/core/event"
+	"github.com/libp2p/go-libp2p/core/network"
+	"github.com/libp2p/go-libp2p/core/peer"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 
@@ -79,7 +79,7 @@ func (f *ProofService) syncFraudProofs(ctx context.Context) {
 				span.SetStatus(codes.Ok, "")
 				return
 			}
-			log.Debugw("got fraud proofs from peer", "pid", connStatus.Peer)
+			log.Debugw("got fraud proofs from peer", "pid", pid)
 			for _, data := range respProofs {
 				f.topicsLk.RLock()
 				topic, ok := f.topics[ProofType(data.Type)]

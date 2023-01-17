@@ -30,12 +30,17 @@ func DirectoryFlags() *flag.FlagSet {
 		networkKey,
 		defaultNetwork,
 		"Sets key utility to use the node network's directory (e.g. "+
-			"~/.celestia-light-mynetwork if --node.network MyNetwork is passed).")
+			"~/.celestia-light-mynetwork if --p2p.network MyNetwork is passed).")
 
 	return flags
 }
 
 func ParseDirectoryFlags(cmd *cobra.Command) error {
+	// if keyring-dir is explicitly set, use it
+	if cmd.Flags().Changed(sdkflags.FlagKeyringDir) {
+		return nil
+	}
+
 	nodeType := cmd.Flag(nodeDirKey).Value.String()
 	if nodeType == "" {
 		return errors.New("no node type provided")

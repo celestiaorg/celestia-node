@@ -5,13 +5,14 @@ import (
 	"fmt"
 	"reflect"
 
-	libhost "github.com/libp2p/go-libp2p-core/host"
-	"github.com/libp2p/go-libp2p-core/metrics"
-	"github.com/libp2p/go-libp2p-core/network"
-	"github.com/libp2p/go-libp2p-core/peer"
-	"github.com/libp2p/go-libp2p-core/protocol"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
+	libhost "github.com/libp2p/go-libp2p/core/host"
+	"github.com/libp2p/go-libp2p/core/metrics"
+	"github.com/libp2p/go-libp2p/core/network"
+	"github.com/libp2p/go-libp2p/core/peer"
+	"github.com/libp2p/go-libp2p/core/protocol"
 	basichost "github.com/libp2p/go-libp2p/p2p/host/basic"
+	rcmgr "github.com/libp2p/go-libp2p/p2p/host/resource-manager"
 	"github.com/libp2p/go-libp2p/p2p/net/conngater"
 )
 
@@ -70,6 +71,9 @@ type Module interface {
 	// protocol.ID.
 	BandwidthForProtocol(ctx context.Context, proto protocol.ID) (metrics.Stats, error)
 
+	// ResourceState returns the state of the resource manager.
+	ResourceState(context.Context) (rcmgr.ResourceManagerStat, error)
+
 	// PubSubPeers returns the peer IDs of the peers joined on
 	// the given topic.
 	PubSubPeers(ctx context.Context, topic string) ([]peer.ID, error)
@@ -82,6 +86,7 @@ type module struct {
 	ps        *pubsub.PubSub
 	connGater *conngater.BasicConnectionGater
 	bw        *metrics.BandwidthCounter
+	rm        network.ResourceManager
 }
 
 func newModule(
@@ -89,12 +94,14 @@ func newModule(
 	ps *pubsub.PubSub,
 	cg *conngater.BasicConnectionGater,
 	bw *metrics.BandwidthCounter,
+	rm network.ResourceManager,
 ) Module {
 	return &module{
 		host:      host,
 		ps:        ps,
 		connGater: cg,
 		bw:        bw,
+		rm:        rm,
 	}
 }
 
@@ -168,6 +175,15 @@ func (m *module) BandwidthForProtocol(_ context.Context, proto protocol.ID) (met
 	return m.bw.GetBandwidthForProtocol(proto), nil
 }
 
+func (m *module) ResourceState(context.Context) (rcmgr.ResourceManagerStat, error) {
+	rms, ok := m.rm.(rcmgr.ResourceManagerState)
+	if !ok {
+		return rcmgr.ResourceManagerStat{}, fmt.Errorf("network.resourceManager does not implement " +
+			"rcmgr.ResourceManagerState")
+	}
+	return rms.Stat(), nil
+}
+
 func (m *module) PubSubPeers(_ context.Context, topic string) ([]peer.ID, error) {
 	return m.ps.ListPeers(topic), nil
 }
@@ -194,6 +210,7 @@ type API struct {
 		BandwidthStats       func(context.Context) (metrics.Stats, error)                         `perm:"admin"`
 		BandwidthForPeer     func(ctx context.Context, id peer.ID) (metrics.Stats, error)         `perm:"admin"`
 		BandwidthForProtocol func(ctx context.Context, proto protocol.ID) (metrics.Stats, error)  `perm:"admin"`
+		ResourceState        func(context.Context) (rcmgr.ResourceManagerStat, error)             `perm:"admin"`
 		PubSubPeers          func(ctx context.Context, topic string) ([]peer.ID, error)           `perm:"admin"`
 	}
 }
@@ -260,6 +277,10 @@ func (api *API) BandwidthForPeer(ctx context.Context, id peer.ID) (metrics.Stats
 
 func (api *API) BandwidthForProtocol(ctx context.Context, proto protocol.ID) (metrics.Stats, error) {
 	return api.Internal.BandwidthForProtocol(ctx, proto)
+}
+
+func (api *API) ResourceState(ctx context.Context) (rcmgr.ResourceManagerStat, error) {
+	return api.Internal.ResourceState(ctx)
 }
 
 func (api *API) PubSubPeers(ctx context.Context, topic string) ([]peer.ID, error) {

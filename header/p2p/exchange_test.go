@@ -7,8 +7,8 @@ import (
 
 	"github.com/ipfs/go-datastore"
 	"github.com/ipfs/go-datastore/sync"
-	libhost "github.com/libp2p/go-libp2p-core/host"
-	"github.com/libp2p/go-libp2p-core/peer"
+	libhost "github.com/libp2p/go-libp2p/core/host"
+	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/libp2p/go-libp2p/p2p/net/conngater"
 	mocknet "github.com/libp2p/go-libp2p/p2p/net/mock"
 	"github.com/stretchr/testify/assert"
@@ -311,9 +311,11 @@ func createP2PExAndServer(t *testing.T, host, tpeer libhost.Host) (*Exchange, *h
 	require.NoError(t, err)
 	ex, err := NewExchange(host, []peer.ID{tpeer.ID()}, "private", connGater)
 	require.NoError(t, err)
-	ex.peerTracker.trackedPeers[tpeer.ID()] = &peerStat{peerID: tpeer.ID(), peerScore: 100}
 	require.NoError(t, ex.Start(context.Background()))
-
+	time.Sleep(time.Millisecond * 100) // give peerTracker time to add a trusted peer
+	ex.peerTracker.peerLk.Lock()
+	ex.peerTracker.trackedPeers[tpeer.ID()] = &peerStat{peerID: tpeer.ID(), peerScore: 100.0}
+	ex.peerTracker.peerLk.Unlock()
 	t.Cleanup(func() {
 		serverSideEx.Stop(context.Background()) //nolint:errcheck
 		ex.Stop(context.Background())           //nolint:errcheck

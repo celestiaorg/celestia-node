@@ -3,8 +3,8 @@ package p2p
 import (
 	"fmt"
 
-	"github.com/libp2p/go-libp2p-core/host"
 	p2pconfig "github.com/libp2p/go-libp2p/config"
+	"github.com/libp2p/go-libp2p/core/host"
 	ma "github.com/multiformats/go-multiaddr"
 )
 

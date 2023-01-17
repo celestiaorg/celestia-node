@@ -2,8 +2,8 @@ package fraud
 
 import (
 	"github.com/ipfs/go-datastore"
-	"github.com/libp2p/go-libp2p-core/host"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
+	"github.com/libp2p/go-libp2p/core/host"
 	"go.uber.org/fx"
 
 	"github.com/celestiaorg/celestia-node/fraud"

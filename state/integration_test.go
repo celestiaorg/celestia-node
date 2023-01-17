@@ -9,9 +9,10 @@ import (
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
-	tmrand "github.com/tendermint/tendermint/libs/rand"
 	rpcclient "github.com/tendermint/tendermint/rpc/client"
 	"google.golang.org/grpc"
+
+	"github.com/celestiaorg/celestia-node/core"
 
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/testutil/testnode"
@@ -36,42 +37,21 @@ type IntegrationTestSuite struct {
 
 func (s *IntegrationTestSuite) SetupSuite() {
 	if testing.Short() {
-		s.T().Skip("skipping test in unit-tests or race-detector mode.")
+		s.T().Skip("skipping test in unit-tests")
 	}
-
 	s.T().Log("setting up integration test suite")
-	require := s.Require()
 
-	// we create an arbitrary number of funded accounts
-	for i := 0; i < 25; i++ {
-		s.accounts = append(s.accounts, tmrand.Str(9))
-	}
+	cfg := core.DefaultTestConfig()
+	s.cctx = core.StartTestNodeWithConfig(s.T(), cfg)
+	s.accounts = cfg.Accounts
 
-	tmNode, app, cctx, err := testnode.New(
-		s.T(),
-		testnode.DefaultParams(),
-		testnode.DefaultTendermintConfig(),
-		false,
-		s.accounts...,
-	)
-	require.NoError(err)
-
-	cctx, stopNode, err := testnode.StartNode(tmNode, cctx)
-	require.NoError(err)
-	s.cleanups = append(s.cleanups, stopNode)
-
-	cctx, cleanupGRPC, err := testnode.StartGRPCServer(app, testnode.DefaultAppConfig(), cctx)
-	require.NoError(err)
-	s.cleanups = append(s.cleanups, cleanupGRPC)
-
-	s.cctx = cctx
-	require.NoError(cctx.WaitForNextBlock())
-
-	signer := blobtypes.NewKeyringSigner(s.cctx.Keyring, s.accounts[0], cctx.ChainID)
-
+	signer := blobtypes.NewKeyringSigner(s.cctx.Keyring, s.accounts[0], s.cctx.ChainID)
 	accessor := NewCoreAccessor(signer, localHeader{s.cctx.Client}, "", "", "")
 	setClients(accessor, s.cctx.GRPCClient, s.cctx.Client)
 	s.accessor = accessor
+
+	// required to ensure the Head request is non-nil
+	require.NoError(s.T(), s.cctx.WaitForNextBlock())
 }
 
 func setClients(ca *CoreAccessor, conn *grpc.ClientConn, abciCli rpcclient.ABCIClient) {

@@ -19,7 +19,7 @@ func TestBridge_WithMockedCoreClient(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
 
-	_, client := core.StartTestCoreWithApp(t)
+	client := core.StartTestNode(t).Client
 	node, err := New(node.Bridge, p2p.Private, repo, coremodule.WithClient(client))
 	require.NoError(t, err)
 	require.NotNil(t, node)
