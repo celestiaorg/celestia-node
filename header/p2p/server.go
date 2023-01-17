@@ -161,7 +161,7 @@ func (serv *ExchangeServer) handleRequestByHash(hash []byte) ([]*header.Extended
 	log.Debugw("server: handling header request", "hash", tmbytes.HexBytes(hash).String())
 	ctx, cancel := context.WithTimeout(serv.ctx, serv.Params.ServeTimeout)
 	defer cancel()
-	ctx, span := tracer.Start(ctx, "ExchangeServer_handleRequestByHash", trace.WithAttributes(
+	ctx, span := tracer.Start(ctx, "request-by-hash", trace.WithAttributes(
 		attribute.String("hash", tmbytes.HexBytes(hash).String()),
 	))
 	defer span.End()
@@ -169,11 +169,11 @@ func (serv *ExchangeServer) handleRequestByHash(hash []byte) ([]*header.Extended
 	h, err := serv.getter.Get(ctx, hash)
 	if err != nil {
 		log.Errorw("server: getting header by hash", "hash", tmbytes.HexBytes(hash).String(), "err", err)
-		recordSpanError(span, err)
+		span.SetStatus(codes.Error, err.Error())
 		return nil, err
 	}
 
-	span.AddEvent("fetched_header_from_store", trace.WithAttributes(
+	span.AddEvent("fetched-header-from-store", trace.WithAttributes(
 		attribute.String("hash", tmbytes.HexBytes(hash).String()),
 		attribute.Int64("height", h.Height)),
 	)
@@ -191,39 +191,21 @@ func (serv *ExchangeServer) handleRequest(from, to uint64) ([]*header.ExtendedHe
 	ctx, cancel := context.WithTimeout(serv.ctx, serv.Params.ServeTimeout)
 	defer cancel()
 
-	ctx, span := tracer.Start(ctx, "ExchangeServer_handleRequest", trace.WithAttributes(
+	ctx, span := tracer.Start(ctx, "request-range", trace.WithAttributes(
 		attribute.Int64("from", int64(from)),
 		attribute.Int64("to", int64(to))))
 	defer span.End()
 
-	if from == uint64(0) {
-		span.AddEvent("handling_head_request")
-		log.Debug("server: handling head request")
-		head, err := serv.getter.Head(ctx)
-		if err != nil {
-			log.Errorw("server: getting head", "err", err)
-			recordSpanError(span, err)
-			return nil, err
-		}
-
-		span.AddEvent("fetched_head", trace.WithAttributes(
-			attribute.String("hash", head.Hash().String()),
-			attribute.Int64("height", head.Height)),
-		)
-		span.SetStatus(codes.Ok, "")
-		return []*header.ExtendedHeader{head}, nil
-	}
-
 	if to-from > serv.Params.MaxRequestSize {
 		log.Errorw("server: skip request for too many headers.", "amount", to-from)
-		recordSpanError(span, header.ErrHeadersLimitExceeded)
+		span.SetStatus(codes.Error, header.ErrHeadersLimitExceeded.Error())
 		return nil, header.ErrHeadersLimitExceeded
 	}
 
 	log.Debugw("server: handling headers request", "from", from, "to", to)
 	headersByRange, err := serv.getter.GetRangeByHeight(ctx, from, to)
 	if err != nil {
-		recordSpanError(span, err)
+		span.SetStatus(codes.Error, err.Error())
 		if errors.Is(err, context.DeadlineExceeded) {
 			log.Warnw("server: requested headers not found", "from", from, "to", to)
 			return nil, header.ErrNotFound
@@ -232,7 +214,7 @@ func (serv *ExchangeServer) handleRequest(from, to uint64) ([]*header.ExtendedHe
 		return nil, err
 	}
 
-	span.AddEvent("fetched_range_of_headers", trace.WithAttributes(
+	span.AddEvent("fetched-range-of-headers", trace.WithAttributes(
 		attribute.Int("amount", len(headersByRange))))
 	span.SetStatus(codes.Ok, "")
 	return headersByRange, nil
@@ -241,27 +223,22 @@ func (serv *ExchangeServer) handleRequest(from, to uint64) ([]*header.ExtendedHe
 // handleHeadRequest returns the latest stored head.
 func (serv *ExchangeServer) handleHeadRequest() ([]*header.ExtendedHeader, error) {
 	log.Debug("server: handling head request")
-	ctx, cancel := context.WithTimeout(serv.ctx, time.Second*5)
+	ctx, cancel := context.WithTimeout(serv.ctx, serv.Params.ServeTimeout)
 	defer cancel()
-	ctx, span := tracer.Start(ctx, "ExchangeServer_handleRequest")
+	ctx, span := tracer.Start(ctx, "request-head")
 	defer span.End()
 
 	head, err := serv.getter.Head(ctx)
 	if err != nil {
 		log.Errorw("server: getting head", "err", err)
-		recordSpanError(span, err)
+		span.SetStatus(codes.Error, err.Error())
 		return nil, err
 	}
 
-	span.AddEvent("fetched_head", trace.WithAttributes(
+	span.AddEvent("fetched-head", trace.WithAttributes(
 		attribute.String("hash", head.Hash().String()),
 		attribute.Int64("height", head.Height)),
 	)
 	span.SetStatus(codes.Ok, "")
 	return []*header.ExtendedHeader{head}, nil
-}
-
-func recordSpanError(span trace.Span, err error) {
-	span.RecordError(err)
-	span.SetStatus(codes.Error, "")
 }
