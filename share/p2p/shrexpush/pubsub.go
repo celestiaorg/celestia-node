@@ -3,7 +3,6 @@ package shrexpush
 import (
 	"context"
 	"fmt"
-	"time"
 
 	logging "github.com/ipfs/go-log/v2"
 
@@ -15,10 +14,6 @@ import (
 )
 
 var log = logging.Logger("shrex-push")
-
-// seenMsgTimeout indicates when validated messages
-// will be removed from pubsub cache.
-const seenMsgTimeout = 100 * time.Millisecond
 
 // pubSubTopic hardcodes the name of the EDS floodsub topic with the provided suffix.
 func pubSubTopic(suffix string) string {
@@ -41,8 +36,8 @@ type PubSub struct {
 
 // NewPubSub creates a libp2p.PubSub wrapper.
 func NewPubSub(ctx context.Context, h host.Host, suffix string) (*PubSub, error) {
-	// WithSeenMessagesTTL with small duration allows to process all incoming messages(even with the same msgId)
-	pubsub, err := pubsub.NewFloodSub(ctx, h, pubsub.WithSeenMessagesTTL(seenMsgTimeout))
+	// WithSeenMessagesTTL without duration allows to process all incoming messages(even with the same msgId)
+	pubsub, err := pubsub.NewFloodSub(ctx, h, pubsub.WithSeenMessagesTTL(0))
 	if err != nil {
 		return nil, err
 	}
