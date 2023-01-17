@@ -305,7 +305,7 @@ func TestExchange_RequestHeadersFromAnotherPeerWhenTimeout(t *testing.T) {
 	serverSideEx, err := NewExchangeServer(hosts[2], headerMock.NewStore(t, 10), "private")
 	require.NoError(t, err)
 	// change store implementation
-	serverSideEx.getter = &timeoutedStore{exchg.Params.RequestDuration}
+	serverSideEx.getter = &timedOutStore{exchg.Params.RequestDuration}
 	require.NoError(t, serverSideEx.Start(context.Background()))
 	t.Cleanup(func() {
 		serverSideEx.Stop(context.Background()) //nolint:errcheck
@@ -317,7 +317,7 @@ func TestExchange_RequestHeadersFromAnotherPeerWhenTimeout(t *testing.T) {
 	require.NoError(t, err)
 	// ensure that peerScore for the first peer was decrease by 20%
 	newPeerScore := exchg.peerTracker.trackedPeers[hosts[2].ID()].score()
-	require.NotEqual(t, 160, newPeerScore)
+	assert.Less(t, newPeerScore, float32(200))
 }
 
 func createMocknet(t *testing.T, amount int) []libhost.Host {
@@ -350,31 +350,31 @@ func createP2PExAndServer(t *testing.T, host, tpeer libhost.Host) (*Exchange, *h
 	return ex, store
 }
 
-type timeoutedStore struct {
+type timedOutStore struct {
 	timeout time.Duration
 }
 
-func (t *timeoutedStore) Head(context.Context) (*header.ExtendedHeader, error) {
+func (t *timedOutStore) Head(context.Context) (*header.ExtendedHeader, error) {
 	// TODO implement me
 	panic("implement me")
 }
 
-func (t *timeoutedStore) Get(context.Context, tmbytes.HexBytes) (*header.ExtendedHeader, error) {
+func (t *timedOutStore) Get(context.Context, tmbytes.HexBytes) (*header.ExtendedHeader, error) {
 	// TODO implement me
 	panic("implement me")
 }
 
-func (t *timeoutedStore) GetByHeight(context.Context, uint64) (*header.ExtendedHeader, error) {
+func (t *timedOutStore) GetByHeight(context.Context, uint64) (*header.ExtendedHeader, error) {
 	// TODO implement me
 	panic("implement me")
 }
 
-func (t *timeoutedStore) GetRangeByHeight(_ context.Context, _, _ uint64) ([]*header.ExtendedHeader, error) {
-	time.Sleep(t.timeout)
+func (t *timedOutStore) GetRangeByHeight(_ context.Context, _, _ uint64) ([]*header.ExtendedHeader, error) {
+	time.Sleep(t.timeout + 1)
 	return []*header.ExtendedHeader{}, nil
 }
 
-func (t *timeoutedStore) GetVerifiedRange(
+func (t *timedOutStore) GetVerifiedRange(
 	context.Context,
 	*header.ExtendedHeader,
 	uint64,
