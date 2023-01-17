@@ -67,6 +67,10 @@ func WithMetrics(metricOpts []otlpmetrichttp.Option, nodeType node.Type) fx.Opti
 	return opts
 }
 
+// WithBlackboxMetrics enables blackbox metrics for the node.
+// Blackbox metrics are metrics that are recorded for the node's components
+// through a proxy that records metrics for the node's components
+// on each method call.
 func WithBlackboxMetrics() fx.Option {
 	return fx.Options(
 		fx.Decorate(func(mod hdr.Module) hdr.Module {
