@@ -170,6 +170,7 @@ func (serv *ExchangeServer) handleRequestByHash(hash []byte) ([]*header.Extended
 	if err != nil {
 		log.Errorw("server: getting header by hash", "hash", tmbytes.HexBytes(hash).String(), "err", err)
 		span.RecordError(err)
+		span.SetStatus(codes.Error, "")
 		return nil, err
 	}
 
@@ -217,6 +218,7 @@ func (serv *ExchangeServer) handleRequest(from, to uint64) ([]*header.ExtendedHe
 	if to-from > serv.Params.MaxRequestSize {
 		log.Errorw("server: skip request for too many headers.", "amount", to-from)
 		span.RecordError(header.ErrHeadersLimitExceeded)
+		span.SetStatus(codes.Error, "")
 		return nil, header.ErrHeadersLimitExceeded
 	}
 
@@ -224,6 +226,7 @@ func (serv *ExchangeServer) handleRequest(from, to uint64) ([]*header.ExtendedHe
 	headersByRange, err := serv.getter.GetRangeByHeight(ctx, from, to)
 	if err != nil {
 		span.RecordError(err)
+		span.SetStatus(codes.Error, "")
 		if errors.Is(err, context.DeadlineExceeded) {
 			log.Warnw("server: requested headers not found", "from", from, "to", to)
 			return nil, header.ErrNotFound
@@ -250,6 +253,7 @@ func (serv *ExchangeServer) handleHeadRequest() ([]*header.ExtendedHeader, error
 	if err != nil {
 		log.Errorw("server: getting head", "err", err)
 		span.RecordError(err)
+		span.SetStatus(codes.Error, "")
 		return nil, err
 	}
 
