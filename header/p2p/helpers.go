@@ -33,7 +33,7 @@ func sendMessage(
 	startTime := time.Now()
 	stream, err := host.NewStream(ctx, to, protocol)
 	if err != nil {
-		return nil, 0, 0, err
+		return nil, 0, 0, fmt.Errorf("header/p2p: failed to open a new stream: %w", err)
 	}
 
 	// set stream deadline from the context deadline.
@@ -49,12 +49,12 @@ func sendMessage(
 	_, err = serde.Write(stream, req)
 	if err != nil {
 		stream.Reset() //nolint:errcheck
-		return nil, 0, 0, err
+		return nil, 0, 0, fmt.Errorf("header/p2p: failed to write a request: %w", err)
 	}
 
 	err = stream.CloseWrite()
 	if err != nil {
-		return nil, 0, 0, nil
+		return nil, 0, 0, err
 	}
 
 	headers := make([]*p2p_pb.ExtendedHeaderResponse, 0)
@@ -67,7 +67,7 @@ func sendMessage(
 				break
 			}
 			stream.Reset() //nolint:errcheck
-			return nil, 0, 0, err
+			return nil, 0, 0, fmt.Errorf("header/p2p: failed to read a response: %w", err)
 		}
 
 		totalRequestSize += uint64(msgSize)
