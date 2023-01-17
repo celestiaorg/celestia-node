@@ -228,8 +228,10 @@ func (ex *Exchange) request(
 	to peer.ID,
 	req *p2p_pb.ExtendedHeaderRequest,
 ) ([]*header.ExtendedHeader, error) {
+	log.Debugw("requesting peer", "peer", to)
 	responses, _, _, err := sendMessage(ctx, ex.host, to, ex.protocolID, req)
 	if err != nil {
+		log.Debugw("err sending request", "peer", to, "err", err)
 		return nil, err
 	}
 	if len(responses) == 0 {
