@@ -88,9 +88,9 @@ func WithMaxRequestSize[T parameters](size uint64) Option[T] {
 	}
 }
 
-// WithRequestTimeout is a functional option that configures the
+// WithServeTimeout is a functional option that configures the
 // `ServeTimeout` parameter.
-func WithRequestTimeout[T parameters](timeout time.Duration) Option[T] {
+func WithServeTimeout[T parameters](timeout time.Duration) Option[T] {
 	return func(p *T) {
 		switch t := any(p).(type) { //nolint:gocritic
 		case *ServerParameters:
