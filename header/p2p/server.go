@@ -21,7 +21,7 @@ import (
 )
 
 var (
-	serverTracer = otel.Tracer("header/server")
+	tracer = otel.Tracer("header/server")
 )
 
 // ExchangeServer represents the server-side component for
@@ -161,7 +161,7 @@ func (serv *ExchangeServer) handleRequestByHash(hash []byte) ([]*header.Extended
 	log.Debugw("server: handling header request", "hash", tmbytes.HexBytes(hash).String())
 	ctx, cancel := context.WithTimeout(serv.ctx, serv.Params.ServeTimeout)
 	defer cancel()
-	ctx, span := serverTracer.Start(ctx, "ExchangeServer_handleRequestByHash", trace.WithAttributes(
+	ctx, span := tracer.Start(ctx, "ExchangeServer_handleRequestByHash", trace.WithAttributes(
 		attribute.String("hash", tmbytes.HexBytes(hash).String()),
 	))
 	defer span.End()
@@ -169,8 +169,7 @@ func (serv *ExchangeServer) handleRequestByHash(hash []byte) ([]*header.Extended
 	h, err := serv.getter.Get(ctx, hash)
 	if err != nil {
 		log.Errorw("server: getting header by hash", "hash", tmbytes.HexBytes(hash).String(), "err", err)
-		span.RecordError(err)
-		span.SetStatus(codes.Error, "")
+		recordSpanError(span, err)
 		return nil, err
 	}
 
@@ -192,7 +191,7 @@ func (serv *ExchangeServer) handleRequest(from, to uint64) ([]*header.ExtendedHe
 	ctx, cancel := context.WithTimeout(serv.ctx, serv.Params.ServeTimeout)
 	defer cancel()
 
-	ctx, span := serverTracer.Start(ctx, "ExchangeServer_handleRequest", trace.WithAttributes(
+	ctx, span := tracer.Start(ctx, "ExchangeServer_handleRequest", trace.WithAttributes(
 		attribute.Int64("from", int64(from)),
 		attribute.Int64("to", int64(to))))
 	defer span.End()
@@ -203,7 +202,7 @@ func (serv *ExchangeServer) handleRequest(from, to uint64) ([]*header.ExtendedHe
 		head, err := serv.getter.Head(ctx)
 		if err != nil {
 			log.Errorw("server: getting head", "err", err)
-			span.RecordError(err)
+			recordSpanError(span, err)
 			return nil, err
 		}
 
@@ -217,16 +216,14 @@ func (serv *ExchangeServer) handleRequest(from, to uint64) ([]*header.ExtendedHe
 
 	if to-from > serv.Params.MaxRequestSize {
 		log.Errorw("server: skip request for too many headers.", "amount", to-from)
-		span.RecordError(header.ErrHeadersLimitExceeded)
-		span.SetStatus(codes.Error, "")
+		recordSpanError(span, header.ErrHeadersLimitExceeded)
 		return nil, header.ErrHeadersLimitExceeded
 	}
 
 	log.Debugw("server: handling headers request", "from", from, "to", to)
 	headersByRange, err := serv.getter.GetRangeByHeight(ctx, from, to)
 	if err != nil {
-		span.RecordError(err)
-		span.SetStatus(codes.Error, "")
+		recordSpanError(span, err)
 		if errors.Is(err, context.DeadlineExceeded) {
 			log.Warnw("server: requested headers not found", "from", from, "to", to)
 			return nil, header.ErrNotFound
@@ -246,14 +243,13 @@ func (serv *ExchangeServer) handleHeadRequest() ([]*header.ExtendedHeader, error
 	log.Debug("server: handling head request")
 	ctx, cancel := context.WithTimeout(serv.ctx, time.Second*5)
 	defer cancel()
-	ctx, span := serverTracer.Start(ctx, "ExchangeServer_handleRequest")
+	ctx, span := tracer.Start(ctx, "ExchangeServer_handleRequest")
 	defer span.End()
 
 	head, err := serv.getter.Head(ctx)
 	if err != nil {
 		log.Errorw("server: getting head", "err", err)
-		span.RecordError(err)
-		span.SetStatus(codes.Error, "")
+		recordSpanError(span, err)
 		return nil, err
 	}
 
@@ -263,4 +259,9 @@ func (serv *ExchangeServer) handleHeadRequest() ([]*header.ExtendedHeader, error
 	)
 	span.SetStatus(codes.Ok, "")
 	return []*header.ExtendedHeader{head}, nil
+}
+
+func recordSpanError(span trace.Span, err error) {
+	span.RecordError(err)
+	span.SetStatus(codes.Error, "")
 }
