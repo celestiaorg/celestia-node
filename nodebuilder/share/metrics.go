@@ -127,6 +127,7 @@ func (ins *instrumentedShareGetter) GetShare(ctx context.Context, root *share.Ro
 	ins.squareSize.Record(
 		ctx,
 		int64(len(root.RowsRoots)),
+		attribute.String("request-id", requestID),
 	)
 
 	// perform the actual request
@@ -163,10 +164,15 @@ func (ins *instrumentedShareGetter) GetShare(ctx context.Context, root *share.Ro
 func (ins *instrumentedShareGetter) GetEDS(ctx context.Context, root *share.Root) (*rsmt2d.ExtendedDataSquare, error) {
 	// measure the EDS size
 	// this will track the EDS size for full nodes
+	requestID, err := misc.RandString(5)
+	if err != nil {
+		return nil, err
+	}
 
 	ins.squareSize.Record(
 		ctx,
 		int64(len(root.RowsRoots)),
+		attribute.String("request-id", requestID),
 	)
 
 	return ins.next.GetEDS(ctx, root)
