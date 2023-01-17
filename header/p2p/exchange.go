@@ -219,7 +219,9 @@ func (ex *Exchange) performRequest(
 
 	//nolint:gosec // G404: Use of weak random number generator
 	index := rand.Intn(len(ex.trustedPeers))
-	return ex.request(ctx, ex.trustedPeers[index], req)
+	pid := ex.trustedPeers[index]
+	log.Debugw("requesting peer", "id", pid)
+	return ex.request(ctx, pid, req)
 }
 
 // request sends the ExtendedHeaderRequest to a remote peer.
