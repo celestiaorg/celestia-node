@@ -219,9 +219,7 @@ func (ex *Exchange) performRequest(
 
 	//nolint:gosec // G404: Use of weak random number generator
 	index := rand.Intn(len(ex.trustedPeers))
-	pid := ex.trustedPeers[index]
-	log.Debugw("requesting peer", "id", pid)
-	return ex.request(ctx, pid, req)
+	return ex.request(ctx, ex.trustedPeers[index], req)
 }
 
 // request sends the ExtendedHeaderRequest to a remote peer.
@@ -230,6 +228,7 @@ func (ex *Exchange) request(
 	to peer.ID,
 	req *p2p_pb.ExtendedHeaderRequest,
 ) ([]*header.ExtendedHeader, error) {
+	log.Debugw("requesting peer", "peer", to)
 	responses, _, _, err := sendMessage(ctx, ex.host, to, ex.protocolID, req)
 	if err != nil {
 		log.Debugw("err sending request", "peer", to, "err", err)
