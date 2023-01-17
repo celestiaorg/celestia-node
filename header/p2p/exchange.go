@@ -232,6 +232,7 @@ func (ex *Exchange) request(
 ) ([]*header.ExtendedHeader, error) {
 	responses, _, _, err := sendMessage(ctx, ex.host, to, ex.protocolID, req)
 	if err != nil {
+		log.Debugw("err sending request", "peer", to, "err", err)
 		return nil, err
 	}
 	if len(responses) == 0 {

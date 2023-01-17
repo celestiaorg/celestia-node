@@ -54,7 +54,7 @@ func sendMessage(
 
 	err = stream.CloseWrite()
 	if err != nil {
-		return nil, 0, 0, nil
+		return nil, 0, 0, err
 	}
 
 	headers := make([]*p2p_pb.ExtendedHeaderResponse, 0)
