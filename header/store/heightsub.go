@@ -62,6 +62,10 @@ func (hs *heightSub) Sub(ctx context.Context, height uint64) (*header.ExtendedHe
 	case resp := <-resp:
 		return resp, nil
 	case <-ctx.Done():
+		// no need to keep the request, if the op is canceled
+		hs.heightReqsLk.Lock()
+		delete(hs.heightReqs, height)
+		hs.heightReqsLk.Unlock()
 		return nil, ctx.Err()
 	}
 }
