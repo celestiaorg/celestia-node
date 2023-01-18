@@ -43,13 +43,7 @@ type Discovery struct {
 	onPeersUpdate OnPeersUpdate
 }
 
-type OnPeersUpdate func(updateInfo)
-
-type updateInfo struct {
-	peerID peer.ID
-	// isAdded will be true if peer was added and false of removed
-	isAdded bool
-}
+type OnPeersUpdate func(peerID peer.ID, isAdded bool)
 
 // NewDiscovery constructs a new discovery.
 func NewDiscovery(
@@ -67,15 +61,15 @@ func NewDiscovery(
 		peersLimit,
 		discInterval,
 		advertiseInterval,
-		func(info updateInfo) {},
+		func(peer.ID, bool) {},
 	}
 }
 
 // WithOnPeersUpdate adds OnPeersUpdate callback call on every update of discovered peers list.
 func (d *Discovery) WithOnPeersUpdate(f OnPeersUpdate) {
-	d.onPeersUpdate = func(info updateInfo) {
-		d.onPeersUpdate(info)
-		f(info)
+	d.onPeersUpdate = func(peerID peer.ID, isAdded bool) {
+		d.onPeersUpdate(peerID, isAdded)
+		f(peerID, isAdded)
 	}
 }
 
@@ -98,10 +92,7 @@ func (d *Discovery) handlePeerFound(ctx context.Context, topic string, peer peer
 		return
 	}
 
-	d.onPeersUpdate(updateInfo{
-		peerID:  peer.ID,
-		isAdded: true,
-	})
+	d.onPeersUpdate(peer.ID, true)
 	log.Debugw("added peer to set", "id", peer.ID)
 	// add tag to protect peer of being killed by ConnManager
 	d.host.ConnManager().TagPeer(peer.ID, topic, peerWeight)
@@ -156,10 +147,7 @@ func (d *Discovery) EnsurePeers(ctx context.Context) {
 				if d.set.Contains(connStatus.Peer) {
 					d.connector.RestartBackoff(connStatus.Peer)
 					d.set.Remove(connStatus.Peer)
-					d.onPeersUpdate(updateInfo{
-						peerID:  connStatus.Peer,
-						isAdded: false,
-					})
+					d.onPeersUpdate(connStatus.Peer, false)
 					d.host.ConnManager().UntagPeer(connStatus.Peer, topic)
 					t.Reset(d.discoveryInterval)
 				}
