@@ -35,8 +35,11 @@ type Parameters struct {
 	// PriorityQueueSize defines the size limit of the priority queue
 	PriorityQueueSize int
 
-	// SampleFrom is the height sampling will start from
+	// SampleFrom is the height sampling will start from if no previous checkpoint was saved
 	SampleFrom uint64
+
+	// SampleTimeout is a maximum amount time sampling of single block may take until it will be canceled
+	SampleTimeout time.Duration
 }
 
 // DefaultParameters returns the default configuration values for the daser parameters
@@ -49,6 +52,7 @@ func DefaultParameters() Parameters {
 		BackgroundStoreInterval: 10 * time.Minute,
 		PriorityQueueSize:       16 * 4,
 		SampleFrom:              1,
+		SampleTimeout:           time.Minute,
 	}
 }
 
@@ -80,7 +84,15 @@ func (p *Parameters) Validate() error {
 	// which does not exist therefore breaking the DASer.
 	if p.SampleFrom <= 0 {
 		return errInvalidOptionValue(
-			"SampleFrome",
+			"SampleFrom",
+			"negative or 0",
+		)
+	}
+
+	// SampleTimeout = 0 would fail every sample operation with timeout error
+	if p.SampleTimeout <= 0 {
+		return errInvalidOptionValue(
+			"SampleTimeout",
 			"negative or 0",
 		)
 	}
@@ -139,5 +151,13 @@ func WithPriorityQueueSize(priorityQueueSize int) Option {
 func WithSampleFrom(sampleFrom uint64) Option {
 	return func(d *DASer) {
 		d.params.SampleFrom = sampleFrom
+	}
+}
+
+// WithSampleFrom is a functional option to configure the daser's `SampleTimeout` parameter
+// Refer to WithSamplingRange documentation to see an example of how to use this
+func WithSampleTimeout(sampleTimeout time.Duration) Option {
+	return func(d *DASer) {
+		d.params.SampleTimeout = sampleTimeout
 	}
 }
