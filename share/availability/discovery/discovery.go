@@ -71,6 +71,7 @@ func NewDiscovery(
 	}
 }
 
+// WithOnPeersUpdate adds OnPeersUpdate callback call on every update of discovered peers list.
 func (d *Discovery) WithOnPeersUpdate(f OnPeersUpdate) {
 	d.onPeersUpdate = func(info updateInfo) {
 		d.onPeersUpdate(info)
@@ -200,15 +201,5 @@ func (d *Discovery) Advertise(ctx context.Context) {
 // Peers provides a list of discovered peers in the "full" topic.
 // If Discovery hasn't found any peers, it blocks until at least one peer is found.
 func (d *Discovery) Peers(ctx context.Context) ([]peer.ID, error) {
-	peers := d.set.ListPeers()
-	if len(peers) > 0 {
-		return peers, nil
-	}
-
-	// block until a new peer will be discovered
-	p, err := d.set.WaitPeer(ctx)
-	if err != nil {
-		return nil, err
-	}
-	return []peer.ID{p}, nil
+	return d.set.Peers(ctx)
 }

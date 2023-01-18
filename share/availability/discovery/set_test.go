@@ -53,11 +53,15 @@ func TestSet_Peers(t *testing.T) {
 	require.NoError(t, set.TryAdd(h1.ID()))
 	require.NoError(t, set.TryAdd(h2.ID()))
 
-	peers := set.ListPeers()
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*1)
+	t.Cleanup(cancel)
+
+	peers, err := set.Peers(ctx)
+	require.NoError(t, err)
 	require.True(t, len(peers) == 2)
 }
 
-// TestSet_WaitPeers ensures that `WaitPeers` will be unblocked once
+// TestSet_WaitPeers ensures that `Peers` will be unblocked once
 // a new peer was discovered.
 func TestSet_WaitPeers(t *testing.T) {
 	m := mocknet.New()
@@ -73,8 +77,8 @@ func TestSet_WaitPeers(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*2)
 	t.Cleanup(cancel)
 
-	// call `WaitPeer` on empty set will block until a new peer will be discovered
-	peers, err := set.WaitPeer(ctx)
+	// call `Peers` on empty set will block until a new peer will be discovered
+	peers, err := set.Peers(ctx)
 	require.NoError(t, err)
 	require.True(t, len(peers) == 1)
 }
