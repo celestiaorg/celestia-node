@@ -23,18 +23,18 @@ type ServerParameters struct {
 	ReadDeadline time.Duration
 	// MaxRequestSize defines the max amount of headers that can be handled at once.
 	MaxRequestSize uint64
-	// RequestDuration defines a timeout after which the session will try to re-request headers
+	// RequestTimeout defines a timeout after which the session will try to re-request headers
 	// from another peer.
-	RequestDuration time.Duration
+	RequestTimeout time.Duration
 }
 
 // DefaultServerParameters returns the default params to configure the store.
 func DefaultServerParameters() ServerParameters {
 	return ServerParameters{
-		WriteDeadline:   time.Second * 5,
-		ReadDeadline:    time.Minute,
-		MaxRequestSize:  512,
-		RequestDuration: time.Second * 5,
+		WriteDeadline:  time.Second * 5,
+		ReadDeadline:   time.Minute,
+		MaxRequestSize: 512,
+		RequestTimeout: time.Second * 5,
 	}
 }
 
@@ -48,9 +48,9 @@ func (p *ServerParameters) Validate() error {
 	if p.MaxRequestSize == 0 {
 		return fmt.Errorf("invalid max request size: %d", p.MaxRequestSize)
 	}
-	if p.RequestDuration == 0 {
+	if p.RequestTimeout == 0 {
 		return fmt.Errorf("invalid request duration for session: "+
-			"%s. %s: %v", greaterThenZero, providedSuffix, p.RequestDuration)
+			"%s. %s: %v", greaterThenZero, providedSuffix, p.RequestTimeout)
 	}
 	return nil
 }
@@ -90,15 +90,15 @@ func WithMaxRequestSize[T parameters](size uint64) Option[T] {
 	}
 }
 
-// WithRequestDuration is a functional option that configures the
-// `RequestDuration` parameter.
-func WithRequestDuration[T parameters](duration time.Duration) Option[T] {
+// WithRequestTimeout is a functional option that configures the
+// `RequestTimeout` parameter.
+func WithRequestTimeout[T parameters](duration time.Duration) Option[T] {
 	return func(p *T) {
 		switch t := any(p).(type) {
 		case *ClientParameters:
-			t.RequestDuration = duration
+			t.RequestTimeout = duration
 		case *ServerParameters:
-			t.RequestDuration = duration
+			t.RequestTimeout = duration
 		}
 	}
 }
@@ -116,9 +116,9 @@ type ClientParameters struct {
 	MaxAwaitingTime time.Duration
 	// DefaultScore specifies the score for newly connected peers.
 	DefaultScore float32
-	// RequestDuration defines a timeout after which the session will try to re-request headers
+	// RequestTimeout defines a timeout after which the session will try to re-request headers
 	// from another peer.
-	RequestDuration time.Duration
+	RequestTimeout time.Duration
 	// MaxTrackerSize specifies the max amount of peers that can be added to the peerTracker.
 	MaxPeerTrackerSize int
 }
@@ -131,7 +131,7 @@ func DefaultClientParameters() ClientParameters {
 		MaxHeadersPerRequest: 64,
 		MaxAwaitingTime:      time.Hour,
 		DefaultScore:         1,
-		RequestDuration:      time.Second * 3,
+		RequestTimeout:       time.Second * 3,
 		MaxPeerTrackerSize:   100,
 	}
 }
@@ -163,9 +163,9 @@ func (p *ClientParameters) Validate() error {
 	if p.DefaultScore <= 0 {
 		return fmt.Errorf("invalid DefaultScore: %s. %s: %f", greaterThenZero, providedSuffix, p.DefaultScore)
 	}
-	if p.RequestDuration == 0 {
+	if p.RequestTimeout == 0 {
 		return fmt.Errorf("invalid request duration for session: "+
-			"%s. %s: %v", greaterThenZero, providedSuffix, p.RequestDuration)
+			"%s. %s: %v", greaterThenZero, providedSuffix, p.RequestTimeout)
 	}
 	if p.MaxPeerTrackerSize <= 0 {
 		return fmt.Errorf("invalid MaxTrackerSize: %s. %s: %d", greaterThenZero, providedSuffix, p.MaxPeerTrackerSize)
