@@ -39,7 +39,7 @@ type Discovery struct {
 	discoveryInterval time.Duration
 	// advertiseInterval is an interval between advertising sessions.
 	advertiseInterval time.Duration
-	// onPeersUpdate will be called on peers set changes
+	// onPeersUpdate will be called on peer set changes
 	onPeersUpdate OnPeersUpdate
 }
 
