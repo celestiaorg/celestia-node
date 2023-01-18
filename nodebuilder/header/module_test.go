@@ -117,9 +117,10 @@ func TestConstructModule_ExchangeParams(t *testing.T) {
 	require.Equal(t, exchange.Params.MaxAwaitingTime, cfg.Client.MaxAwaitingTime)
 	require.Equal(t, exchange.Params.DefaultScore, cfg.Client.DefaultScore)
 	require.Equal(t, exchange.Params.MaxPeerTrackerSize, cfg.Client.MaxPeerTrackerSize)
+	require.Equal(t, exchange.Params.RequestTimeout, cfg.Client.RequestTimeout)
 
 	require.Equal(t, exchangeServer.Params.WriteDeadline, cfg.Server.WriteDeadline)
 	require.Equal(t, exchangeServer.Params.ReadDeadline, cfg.Server.ReadDeadline)
 	require.Equal(t, exchangeServer.Params.MaxRequestSize, cfg.Server.MaxRequestSize)
-	require.Equal(t, exchangeServer.Params.ServeTimeout, cfg.Server.ServeTimeout)
+	require.Equal(t, exchangeServer.Params.RequestTimeout, cfg.Server.RequestTimeout)
 }

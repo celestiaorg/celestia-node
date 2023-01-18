@@ -159,7 +159,7 @@ func (serv *ExchangeServer) requestHandler(stream network.Stream) {
 // if it exists.
 func (serv *ExchangeServer) handleRequestByHash(hash []byte) ([]*header.ExtendedHeader, error) {
 	log.Debugw("server: handling header request", "hash", tmbytes.HexBytes(hash).String())
-	ctx, cancel := context.WithTimeout(serv.ctx, serv.Params.ServeTimeout)
+	ctx, cancel := context.WithTimeout(serv.ctx, serv.Params.RequestTimeout)
 	defer cancel()
 	ctx, span := tracer.Start(ctx, "request-by-hash", trace.WithAttributes(
 		attribute.String("hash", tmbytes.HexBytes(hash).String()),
@@ -188,7 +188,7 @@ func (serv *ExchangeServer) handleRequest(from, to uint64) ([]*header.ExtendedHe
 		return serv.handleHeadRequest()
 	}
 
-	ctx, cancel := context.WithTimeout(serv.ctx, serv.Params.ServeTimeout)
+	ctx, cancel := context.WithTimeout(serv.ctx, serv.Params.RequestTimeout)
 	defer cancel()
 
 	ctx, span := tracer.Start(ctx, "request-range", trace.WithAttributes(
@@ -223,7 +223,7 @@ func (serv *ExchangeServer) handleRequest(from, to uint64) ([]*header.ExtendedHe
 // handleHeadRequest returns the latest stored head.
 func (serv *ExchangeServer) handleHeadRequest() ([]*header.ExtendedHeader, error) {
 	log.Debug("server: handling head request")
-	ctx, cancel := context.WithTimeout(serv.ctx, serv.Params.ServeTimeout)
+	ctx, cancel := context.WithTimeout(serv.ctx, serv.Params.RequestTimeout)
 	defer cancel()
 	ctx, span := tracer.Start(ctx, "request-head")
 	defer span.End()
