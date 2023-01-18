@@ -142,7 +142,6 @@ func (s *session) doRequest(
 		log.Errorw("requesting headers from peer failed.", "failed peer", stat.peerID, "err", err)
 		select {
 		case <-s.ctx.Done():
-			// retry request
 		case s.reqCh <- req:
 			stat.decreaseScore()
 			log.Debug("Retrying the request from different peer")

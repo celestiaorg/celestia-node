@@ -63,10 +63,6 @@ func sendMessage(
 		resp := new(p2p_pb.ExtendedHeaderResponse)
 		msgSize, err := serde.Read(stream, resp)
 		if err != nil {
-			// explicitly check if ctx was canceled
-			if ctx.Err() != nil {
-				return nil, 0, 0, ctx.Err()
-			}
 			if err == io.EOF {
 				break
 			}
