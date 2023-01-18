@@ -47,7 +47,9 @@ func collectSharesByNamespace(
 		attribute.String("root", root.String()),
 		attribute.String("nid", nID.String()),
 	))
-	defer utils.SetStatusAndEnd(span, err)
+	defer func() {
+		utils.SetStatusAndEnd(span, err)
+	}()
 
 	rootCIDs := filterRootsByNamespace(root, nID)
 	if len(rootCIDs) == 0 {

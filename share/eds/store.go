@@ -155,7 +155,9 @@ func (s *Store) Put(ctx context.Context, root share.DataHash, square *rsmt2d.Ext
 		attribute.String("root", root.String()),
 		attribute.Int("width", int(square.Width())),
 	))
-	defer utils.SetStatusAndEnd(span, err)
+	defer func() {
+		utils.SetStatusAndEnd(span, err)
+	}()
 
 	key := root.String()
 	f, err := os.OpenFile(s.basepath+blocksPath+key, os.O_CREATE|os.O_WRONLY, 0600)
@@ -307,7 +309,9 @@ func (s *Store) getCachedAccessor(ctx context.Context, key shard.Key) (*accessor
 // the indexing.
 func (s *Store) Remove(ctx context.Context, root share.DataHash) (err error) {
 	ctx, span := tracer.Start(ctx, "store/remove", trace.WithAttributes(attribute.String("root", root.String())))
-	defer utils.SetStatusAndEnd(span, err)
+	defer func() {
+		utils.SetStatusAndEnd(span, err)
+	}()
 
 	key := root.String()
 	ch := make(chan dagstore.ShardResult, 1)
@@ -346,7 +350,9 @@ func (s *Store) Remove(ctx context.Context, root share.DataHash) (err error) {
 // recomputing it.
 func (s *Store) Get(ctx context.Context, root share.DataHash) (eds *rsmt2d.ExtendedDataSquare, err error) {
 	ctx, span := tracer.Start(ctx, "store/get", trace.WithAttributes(attribute.String("root", root.String())))
-	defer utils.SetStatusAndEnd(span, err)
+	defer func() {
+		utils.SetStatusAndEnd(span, err)
+	}()
 
 	f, err := s.GetCAR(ctx, root)
 	if err != nil {

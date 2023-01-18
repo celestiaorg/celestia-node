@@ -40,7 +40,9 @@ func (sg *StoreGetter) GetShare(ctx context.Context, dah *share.Root, row, col i
 		attribute.Int("row", row),
 		attribute.Int("col", col),
 	))
-	defer utils.SetStatusAndEnd(span, err)
+	defer func() {
+		utils.SetStatusAndEnd(span, err)
+	}()
 
 	root, leaf := ipld.Translate(dah, row, col)
 	bs, err := sg.store.CARBlockstore(ctx, dah.Hash())
@@ -63,7 +65,9 @@ func (sg *StoreGetter) GetEDS(ctx context.Context, root *share.Root) (eds *rsmt2
 	ctx, span := tracer.Start(ctx, "store/get-eds", trace.WithAttributes(
 		attribute.String("root", root.String()),
 	))
-	defer utils.SetStatusAndEnd(span, err)
+	defer func() {
+		utils.SetStatusAndEnd(span, err)
+	}()
 
 	eds, err = sg.store.Get(ctx, root.Hash())
 	if err != nil {
@@ -83,7 +87,9 @@ func (sg *StoreGetter) GetSharesByNamespace(
 		attribute.String("root", root.String()),
 		attribute.String("nID", nID.String()),
 	))
-	defer utils.SetStatusAndEnd(span, err)
+	defer func() {
+		utils.SetStatusAndEnd(span, err)
+	}()
 
 	err = verifyNIDSize(nID)
 	if err != nil {

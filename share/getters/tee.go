@@ -40,7 +40,9 @@ func (tg *TeeGetter) GetShare(ctx context.Context, root *share.Root, row, col in
 		attribute.Int("row", row),
 		attribute.Int("col", col),
 	))
-	defer utils.SetStatusAndEnd(span, err)
+	defer func() {
+		utils.SetStatusAndEnd(span, err)
+	}()
 
 	return tg.getter.GetShare(ctx, root, row, col)
 }
@@ -49,7 +51,9 @@ func (tg *TeeGetter) GetEDS(ctx context.Context, root *share.Root) (eds *rsmt2d.
 	ctx, span := tracer.Start(ctx, "tee/get-eds", trace.WithAttributes(
 		attribute.String("root", root.String()),
 	))
-	defer utils.SetStatusAndEnd(span, err)
+	defer func() {
+		utils.SetStatusAndEnd(span, err)
+	}()
 
 	eds, err = tg.getter.GetEDS(ctx, root)
 	if err != nil {
@@ -73,7 +77,9 @@ func (tg *TeeGetter) GetSharesByNamespace(
 		attribute.String("root", root.String()),
 		attribute.String("nID", id.String()),
 	))
-	defer utils.SetStatusAndEnd(span, err)
+	defer func() {
+		utils.SetStatusAndEnd(span, err)
+	}()
 
 	return tg.getter.GetSharesByNamespace(ctx, root, id)
 }

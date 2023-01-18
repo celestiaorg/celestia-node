@@ -45,7 +45,9 @@ func (ig *IPLDGetter) GetShare(ctx context.Context, dah *share.Root, row, col in
 		attribute.Int("row", row),
 		attribute.Int("col", col),
 	))
-	defer utils.SetStatusAndEnd(span, err)
+	defer func() {
+		utils.SetStatusAndEnd(span, err)
+	}()
 
 	root, leaf := ipld.Translate(dah, row, col)
 
@@ -63,7 +65,9 @@ func (ig *IPLDGetter) GetEDS(ctx context.Context, root *share.Root) (eds *rsmt2d
 	ctx, span := tracer.Start(ctx, "ipld/get-eds", trace.WithAttributes(
 		attribute.String("root", root.String()),
 	))
-	defer utils.SetStatusAndEnd(span, err)
+	defer func() {
+		utils.SetStatusAndEnd(span, err)
+	}()
 
 	// rtrv.Retrieve calls shares.GetShares until enough shares are retrieved to reconstruct the EDS
 	eds, err = ig.rtrv.Retrieve(ctx, root)
@@ -82,7 +86,9 @@ func (ig *IPLDGetter) GetSharesByNamespace(
 		attribute.String("root", root.String()),
 		attribute.String("nID", nID.String()),
 	))
-	defer utils.SetStatusAndEnd(span, err)
+	defer func() {
+		utils.SetStatusAndEnd(span, err)
+	}()
 
 	err = verifyNIDSize(nID)
 	if err != nil {

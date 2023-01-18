@@ -46,7 +46,9 @@ type writingSession struct {
 // For more information about the header: https://ipld.io/specs/transport/car/carv1/#header
 func WriteEDS(ctx context.Context, eds *rsmt2d.ExtendedDataSquare, w io.Writer) (err error) {
 	ctx, span := tracer.Start(ctx, "write-eds")
-	defer utils.SetStatusAndEnd(span, err)
+	defer func() {
+		utils.SetStatusAndEnd(span, err)
+	}()
 
 	// 1. Reimport EDS. This is needed to traverse the NMT tree and cache the inner nodes (proofs)
 	writer, err := initializeWriter(ctx, eds, w)
@@ -239,7 +241,9 @@ func rootsToCids(eds *rsmt2d.ExtendedDataSquare) ([]cid.Cid, error) {
 // errors.
 func ReadEDS(ctx context.Context, r io.Reader, root share.DataHash) (eds *rsmt2d.ExtendedDataSquare, err error) {
 	_, span := tracer.Start(ctx, "read-eds")
-	defer utils.SetStatusAndEnd(span, err)
+	defer func() {
+		utils.SetStatusAndEnd(span, err)
+	}()
 
 	carReader, err := car.NewCarReader(r)
 	if err != nil {
