@@ -14,7 +14,7 @@ import (
 
 	"github.com/celestiaorg/celestia-node/core"
 	"github.com/celestiaorg/celestia-node/header"
-	"github.com/celestiaorg/celestia-node/header/p2p"
+	"github.com/celestiaorg/celestia-node/libs/header/p2p"
 )
 
 // TestListener tests the lifecycle of the core listener.
@@ -94,7 +94,7 @@ func createListener(
 	fetcher *core.BlockFetcher,
 	ps *pubsub.PubSub,
 ) *Listener {
-	p2pSub := p2p.NewSubscriber(ps)
+	p2pSub := p2p.NewSubscriber[*header.ExtendedHeader](ps, header.MsgID)
 	err := p2pSub.Start(ctx)
 	require.NoError(t, err)
 	t.Cleanup(func() {

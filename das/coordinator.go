@@ -5,13 +5,14 @@ import (
 	"sync"
 
 	"github.com/celestiaorg/celestia-node/header"
+	libhead "github.com/celestiaorg/celestia-node/libs/header"
 )
 
 // samplingCoordinator runs and coordinates sampling workers and updates current sampling state
 type samplingCoordinator struct {
 	concurrencyLimit int
 
-	getter   header.Getter
+	getter   libhead.Getter[*header.ExtendedHeader]
 	sampleFn sampleFn
 
 	state coordinatorState
@@ -37,7 +38,7 @@ type result struct {
 
 func newSamplingCoordinator(
 	params Parameters,
-	getter header.Getter,
+	getter libhead.Getter[*header.ExtendedHeader],
 	sample sampleFn,
 ) *samplingCoordinator {
 	return &samplingCoordinator{

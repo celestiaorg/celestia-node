@@ -10,6 +10,7 @@ import (
 
 	"github.com/celestiaorg/celestia-node/core"
 	"github.com/celestiaorg/celestia-node/header"
+	libhead "github.com/celestiaorg/celestia-node/libs/header"
 )
 
 // Listener is responsible for listening to Core for
@@ -20,7 +21,7 @@ import (
 // broadcasts the new `ExtendedHeader` to the header-sub gossipsub
 // network.
 type Listener struct {
-	bcast     header.Broadcaster
+	bcast     libhead.Broadcaster[*header.ExtendedHeader]
 	fetcher   *core.BlockFetcher
 	bServ     blockservice.BlockService
 	construct header.ConstructFn
@@ -28,7 +29,7 @@ type Listener struct {
 }
 
 func NewListener(
-	bcast header.Broadcaster,
+	bcast libhead.Broadcaster[*header.ExtendedHeader],
 	fetcher *core.BlockFetcher,
 	bServ blockservice.BlockService,
 	construct header.ConstructFn,
@@ -98,7 +99,7 @@ func (cl *Listener) listen(ctx context.Context, sub <-chan *types.Block) {
 			// broadcast new ExtendedHeader, but if core is still syncing, notify only local subscribers
 			err = cl.bcast.Broadcast(ctx, eh, pubsub.WithLocalPublication(syncing))
 			if err != nil {
-				log.Errorw("listener: broadcasting next header", "height", eh.Height,
+				log.Errorw("listener: broadcasting next header", "height", eh.Height(),
 					"err", err)
 			}
 		case <-ctx.Done():
