@@ -49,7 +49,7 @@ func (p *ServerParameters) Validate() error {
 		return fmt.Errorf("invalid max request size: %d", p.MaxRequestSize)
 	}
 	if p.RequestTimeout == 0 {
-		return fmt.Errorf("invalid request duration for session: "+
+		return fmt.Errorf("invalid request timeout for session: "+
 			"%s. %s: %v", greaterThenZero, providedSuffix, p.RequestTimeout)
 	}
 	return nil
@@ -164,7 +164,7 @@ func (p *ClientParameters) Validate() error {
 		return fmt.Errorf("invalid DefaultScore: %s. %s: %f", greaterThenZero, providedSuffix, p.DefaultScore)
 	}
 	if p.RequestTimeout == 0 {
-		return fmt.Errorf("invalid request duration for session: "+
+		return fmt.Errorf("invalid request timeout for session: "+
 			"%s. %s: %v", greaterThenZero, providedSuffix, p.RequestTimeout)
 	}
 	if p.MaxPeerTrackerSize <= 0 {
