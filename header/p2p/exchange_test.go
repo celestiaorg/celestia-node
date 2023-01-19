@@ -8,13 +8,18 @@ import (
 	"github.com/ipfs/go-datastore"
 	"github.com/ipfs/go-datastore/sync"
 	libhost "github.com/libp2p/go-libp2p/core/host"
+	"github.com/libp2p/go-libp2p/core/network"
 	"github.com/libp2p/go-libp2p/core/peer"
+	blankhost "github.com/libp2p/go-libp2p/p2p/host/blank"
 	"github.com/libp2p/go-libp2p/p2p/net/conngater"
 	mocknet "github.com/libp2p/go-libp2p/p2p/net/mock"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	tmbytes "github.com/tendermint/tendermint/libs/bytes"
 
 	"github.com/celestiaorg/go-libp2p-messenger/serde"
+
+	swarm "github.com/libp2p/go-libp2p/p2p/net/swarm/testing"
 
 	"github.com/celestiaorg/celestia-node/header"
 	headerMock "github.com/celestiaorg/celestia-node/header/mocks"
@@ -293,6 +298,49 @@ func TestExchange_RequestByHashFails(t *testing.T) {
 	require.Equal(t, resp.StatusCode, p2p_pb.StatusCode_NOT_FOUND)
 }
 
+// TestExchange_RequestHeadersFromAnotherPeer tests that the Exchange instance will request range
+// from another peer with lower score after receiving header.ErrNotFound
+func TestExchange_RequestHeadersFromAnotherPeerWhenTimeout(t *testing.T) {
+	// create blankhost because mocknet does not support deadlines
+	swarm0 := swarm.GenSwarm(t)
+	host0 := blankhost.NewBlankHost(swarm0)
+	swarm1 := swarm.GenSwarm(t)
+	host1 := blankhost.NewBlankHost(swarm1)
+	swarm2 := swarm.GenSwarm(t)
+	host2 := blankhost.NewBlankHost(swarm2)
+	dial := func(a, b network.Network) {
+		swarm.DivulgeAddresses(b, a)
+		if _, err := a.DialPeer(context.Background(), b.LocalPeer()); err != nil {
+			t.Fatalf("Failed to dial: %s", err)
+		}
+	}
+	// dial peers
+	dial(swarm0, swarm1)
+	dial(swarm0, swarm2)
+	dial(swarm1, swarm2)
+
+	// create client + server(it does not have needed headers)
+	exchg, _ := createP2PExAndServer(t, host0, host1)
+	exchg.Params.RequestTimeout = time.Millisecond * 100
+	// create one more server(with more headers in the store)
+	serverSideEx, err := NewExchangeServer(host2, headerMock.NewStore(t, 10), "private")
+	require.NoError(t, err)
+	// change store implementation
+	serverSideEx.getter = &timedOutStore{exchg.Params.RequestTimeout}
+	require.NoError(t, serverSideEx.Start(context.Background()))
+	t.Cleanup(func() {
+		serverSideEx.Stop(context.Background()) //nolint:errcheck
+	})
+	exchg.peerTracker.peerLk.Lock()
+	exchg.peerTracker.trackedPeers[host2.ID()] = &peerStat{peerID: host2.ID(), peerScore: 200}
+	exchg.peerTracker.peerLk.Unlock()
+	_, err = exchg.GetRangeByHeight(context.Background(), 1, 3)
+	require.NoError(t, err)
+	// ensure that peerScore for the first peer was decrease by 20%
+	newPeerScore := exchg.peerTracker.trackedPeers[host2.ID()].score()
+	assert.Less(t, newPeerScore, float32(200))
+}
+
 func createMocknet(t *testing.T, amount int) []libhost.Host {
 	net, err := mocknet.FullMeshConnected(amount)
 	require.NoError(t, err)
@@ -321,4 +369,37 @@ func createP2PExAndServer(t *testing.T, host, tpeer libhost.Host) (*Exchange, *h
 		ex.Stop(context.Background())           //nolint:errcheck
 	})
 	return ex, store
+}
+
+type timedOutStore struct {
+	timeout time.Duration
+}
+
+func (t *timedOutStore) Head(context.Context) (*header.ExtendedHeader, error) {
+	// TODO implement me
+	panic("implement me")
+}
+
+func (t *timedOutStore) Get(context.Context, tmbytes.HexBytes) (*header.ExtendedHeader, error) {
+	// TODO implement me
+	panic("implement me")
+}
+
+func (t *timedOutStore) GetByHeight(context.Context, uint64) (*header.ExtendedHeader, error) {
+	// TODO implement me
+	panic("implement me")
+}
+
+func (t *timedOutStore) GetRangeByHeight(_ context.Context, _, _ uint64) ([]*header.ExtendedHeader, error) {
+	time.Sleep(t.timeout + 1)
+	return []*header.ExtendedHeader{}, nil
+}
+
+func (t *timedOutStore) GetVerifiedRange(
+	context.Context,
+	*header.ExtendedHeader,
+	uint64,
+) ([]*header.ExtendedHeader, error) {
+	// TODO implement me
+	panic("implement me")
 }

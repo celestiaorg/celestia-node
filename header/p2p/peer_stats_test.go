@@ -99,3 +99,13 @@ func Test_StatsUpdateStats(t *testing.T) {
 		heap.Push(&pQueue.stats, updatedStat)
 	}
 }
+
+func Test_StatDecreaseScore(t *testing.T) {
+	pStats := &peerStat{
+		peerID:    peer.ID("test"),
+		peerScore: 100,
+	}
+	// will decrease score by 20%
+	pStats.decreaseScore()
+	require.Equal(t, pStats.score(), float32(80.0))
+}

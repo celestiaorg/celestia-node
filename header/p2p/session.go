@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"sort"
+	"time"
 
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/protocol"
@@ -31,7 +32,8 @@ type session struct {
 
 	// `from` is set when additional validation for range is needed.
 	// Otherwise, it will be nil.
-	from *header.ExtendedHeader
+	from           *header.ExtendedHeader
+	requestTimeout time.Duration
 
 	ctx    context.Context
 	cancel context.CancelFunc
@@ -43,16 +45,18 @@ func newSession(
 	h host.Host,
 	peerTracker *peerTracker,
 	protocolID protocol.ID,
+	requestTimeout time.Duration,
 	options ...option,
 ) *session {
 	ctx, cancel := context.WithCancel(ctx)
 	ses := &session{
-		ctx:         ctx,
-		cancel:      cancel,
-		protocolID:  protocolID,
-		host:        h,
-		queue:       newPeerQueue(ctx, peerTracker.peers()),
-		peerTracker: peerTracker,
+		ctx:            ctx,
+		cancel:         cancel,
+		protocolID:     protocolID,
+		host:           h,
+		queue:          newPeerQueue(ctx, peerTracker.peers()),
+		peerTracker:    peerTracker,
+		requestTimeout: requestTimeout,
 	}
 
 	for _, opt := range options {
@@ -130,17 +134,16 @@ func (s *session) doRequest(
 	req *p2p_pb.ExtendedHeaderRequest,
 	headers chan []*header.ExtendedHeader,
 ) {
+	ctx, cancel := context.WithTimeout(ctx, s.requestTimeout)
+	defer cancel()
+
 	r, size, duration, err := sendMessage(ctx, s.host, stat.peerID, s.protocolID, req)
 	if err != nil {
-		if err == context.Canceled || err == context.DeadlineExceeded {
-			return
-		}
 		log.Errorw("requesting headers from peer failed.", "failed peer", stat.peerID, "err", err)
 		select {
-		case <-ctx.Done():
 		case <-s.ctx.Done():
-			// retry request
 		case s.reqCh <- req:
+			stat.decreaseScore()
 			log.Debug("Retrying the request from different peer")
 		}
 		return
@@ -154,7 +157,6 @@ func (s *session) doRequest(
 			s.peerTracker.blockPeer(stat.peerID, err)
 		}
 		select {
-		case <-ctx.Done():
 		case <-s.ctx.Done():
 		case s.reqCh <- req:
 		}
