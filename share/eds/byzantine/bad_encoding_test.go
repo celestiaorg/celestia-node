@@ -57,7 +57,7 @@ func TestIncorrectBadEncodingFraudProof(t *testing.T) {
 		},
 	}
 
-	proof := CreateBadEncodingProof(h.Hash(), uint64(h.Height), &fakeError)
+	proof := CreateBadEncodingProof(h.Hash(), uint64(h.Height()), &fakeError)
 	err = proof.Validate(h)
 	require.Error(t, err)
 }

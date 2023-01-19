@@ -25,6 +25,7 @@ import (
 	"github.com/celestiaorg/nmt/namespace"
 
 	"github.com/celestiaorg/celestia-node/header"
+	libhead "github.com/celestiaorg/celestia-node/libs/header"
 )
 
 var (
@@ -39,7 +40,7 @@ type CoreAccessor struct {
 	cancel context.CancelFunc
 
 	signer *apptypes.KeyringSigner
-	getter header.Head
+	getter libhead.Head[*header.ExtendedHeader]
 
 	queryCli   banktypes.QueryClient
 	stakingCli stakingtypes.QueryClient
@@ -61,7 +62,7 @@ type CoreAccessor struct {
 // connection.
 func NewCoreAccessor(
 	signer *apptypes.KeyringSigner,
-	getter header.Head,
+	getter libhead.Head[*header.ExtendedHeader],
 	coreIP,
 	rpcPort string,
 	grpcPort string,
@@ -200,7 +201,7 @@ func (ca *CoreAccessor) BalanceForAddress(ctx context.Context, addr Address) (*B
 	abciReq := abci.RequestQuery{
 		// TODO @renayay: once https://github.com/cosmos/cosmos-sdk/pull/12674 is merged, use const instead
 		Path:   fmt.Sprintf("store/%s/key", banktypes.StoreKey),
-		Height: head.Height - 1,
+		Height: head.Height() - 1,
 		Data:   prefixedAccountKey,
 		Prove:  true,
 	}
@@ -219,7 +220,7 @@ func (ca *CoreAccessor) BalanceForAddress(ctx context.Context, addr Address) (*B
 	value := result.Response.Value
 	// if the value returned is empty, the account balance does not yet exist
 	if len(value) == 0 {
-		log.Errorf("balance for account %s does not exist at block height %d", addr.String(), head.Height-1)
+		log.Errorf("balance for account %s does not exist at block height %d", addr.String(), head.Height()-1)
 		return &Balance{
 			Denom:  app.BondDenom,
 			Amount: sdktypes.NewInt(0),

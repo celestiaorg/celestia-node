@@ -8,10 +8,9 @@ import (
 	"github.com/ipfs/go-blockservice"
 	logging "github.com/ipfs/go-log/v2"
 
-	tmbytes "github.com/tendermint/tendermint/libs/bytes"
-
 	"github.com/celestiaorg/celestia-node/core"
 	"github.com/celestiaorg/celestia-node/header"
+	libhead "github.com/celestiaorg/celestia-node/libs/header"
 )
 
 var log = logging.Logger("header/core")
@@ -57,7 +56,7 @@ func (ce *Exchange) GetRangeByHeight(ctx context.Context, from, amount uint64) (
 
 func (ce *Exchange) GetVerifiedRange(ctx context.Context, from *header.ExtendedHeader, amount uint64,
 ) ([]*header.ExtendedHeader, error) {
-	headers, err := ce.GetRangeByHeight(ctx, uint64(from.Height)+1, amount)
+	headers, err := ce.GetRangeByHeight(ctx, uint64(from.Height())+1, amount)
 	if err != nil {
 		return nil, err
 	}
@@ -72,7 +71,7 @@ func (ce *Exchange) GetVerifiedRange(ctx context.Context, from *header.ExtendedH
 	return headers, nil
 }
 
-func (ce *Exchange) Get(ctx context.Context, hash tmbytes.HexBytes) (*header.ExtendedHeader, error) {
+func (ce *Exchange) Get(ctx context.Context, hash libhead.Hash) (*header.ExtendedHeader, error) {
 	log.Debugw("requesting header", "hash", hash.String())
 	block, err := ce.fetcher.GetBlockByHash(ctx, hash)
 	if err != nil {
