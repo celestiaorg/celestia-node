@@ -47,3 +47,8 @@ func (s *Service) Head(ctx context.Context) (*header.ExtendedHeader, error) {
 func (s *Service) IsSyncing(ctx context.Context) bool {
 	return !s.syncer.State().Finished()
 }
+
+// SyncerHead returns the ExtendedHeader of the chain head from the validator network.
+func (s *Service) SyncerHead(ctx context.Context) (*header.ExtendedHeader, error) {
+	return s.syncer.Head(ctx)
+}
