@@ -22,7 +22,6 @@ import (
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/x/blob"
-	"github.com/celestiaorg/celestia-app/x/blob/types"
 	apptypes "github.com/celestiaorg/celestia-app/x/blob/types"
 	"github.com/celestiaorg/nmt/namespace"
 
@@ -164,8 +163,8 @@ func (ca *CoreAccessor) SubmitPayForData(
 	fee Int,
 	gasLim uint64,
 ) (*TxResponse, error) {
-	b := &types.Blob{NamespaceId: nID, Data: data, ShareVersion: uint32(appconsts.DefaultShareVersion)}
-	response, err := blob.SubmitPayForBlob(ctx, ca.signer, ca.coreConn, []*types.Blob{b}, gasLim, withFee(fee))
+	b := &apptypes.Blob{NamespaceId: nID, Data: data, ShareVersion: uint32(appconsts.DefaultShareVersion)}
+	response, err := blob.SubmitPayForBlob(ctx, ca.signer, ca.coreConn, []*apptypes.Blob{b}, gasLim, withFee(fee))
 	// metrics should only be counted on a successful PFD tx
 	if err == nil && response.Code == 0 {
 		ca.lastPayForData = time.Now().UnixMilli()

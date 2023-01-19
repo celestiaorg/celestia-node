@@ -121,9 +121,9 @@ func (s *IntegrationTestSuite) TestGetBalance() {
 // such as that in share/availability/light/testdata
 func (s *IntegrationTestSuite) TestGenerateJSONBlock() {
 	t := s.T()
-	require := s.Require()
 	t.Skip("skipping testdata generation test")
 	resp, err := s.cctx.FillBlock(4, s.accounts, flags.BroadcastSync)
+	require := s.Require()
 	require.NoError(err)
 	require.Equal(abci.CodeTypeOK, resp.Code)
 	require.NoError(s.cctx.WaitForNextBlock())
@@ -139,7 +139,7 @@ func (s *IntegrationTestSuite) TestGenerateJSONBlock() {
 	require.NoError(err)
 
 	file, err := os.OpenFile("sample-block.json", os.O_CREATE|os.O_RDWR, os.ModePerm)
-	defer file.Close()
+	defer file.Close() //nolint: staticcheck
 	require.NoError(err)
 
 	err = json.NewEncoder(file).Encode(pBlock)

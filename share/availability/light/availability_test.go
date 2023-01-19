@@ -14,6 +14,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/tendermint/tendermint/libs/rand"
+	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	core "github.com/tendermint/tendermint/types"
 
 	"github.com/celestiaorg/celestia-app/pkg/da"
@@ -21,7 +22,6 @@ import (
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/share"
 	availability_test "github.com/celestiaorg/celestia-node/share/availability/test"
-	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 )
 
 func init() {
@@ -174,6 +174,7 @@ func TestSharesRoundTrip(t *testing.T) {
 
 	var pb tmproto.Block
 	err := json.Unmarshal([]byte(sampleBlock), &pb)
+	require.NoError(t, err)
 
 	b, err := core.BlockFromProto(&pb)
 	require.NoError(t, err)
