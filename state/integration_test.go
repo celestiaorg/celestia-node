@@ -16,7 +16,7 @@ import (
 
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/testutil/testnode"
-	blobtypes "github.com/celestiaorg/celestia-app/x/payment/types"
+	blobtypes "github.com/celestiaorg/celestia-app/x/blob/types"
 
 	"github.com/celestiaorg/celestia-node/header"
 )

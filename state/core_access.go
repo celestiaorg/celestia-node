@@ -20,8 +20,10 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 
 	"github.com/celestiaorg/celestia-app/app"
-	"github.com/celestiaorg/celestia-app/x/payment"
-	apptypes "github.com/celestiaorg/celestia-app/x/payment/types"
+	"github.com/celestiaorg/celestia-app/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/x/blob"
+	"github.com/celestiaorg/celestia-app/x/blob/types"
+	apptypes "github.com/celestiaorg/celestia-app/x/blob/types"
 	"github.com/celestiaorg/nmt/namespace"
 
 	"github.com/celestiaorg/celestia-node/header"
@@ -154,6 +156,7 @@ func (ca *CoreAccessor) constructSignedTx(
 	return ca.signer.EncodeTx(tx)
 }
 
+// todo: change to SubmitPayForBlob
 func (ca *CoreAccessor) SubmitPayForData(
 	ctx context.Context,
 	nID namespace.ID,
@@ -161,7 +164,8 @@ func (ca *CoreAccessor) SubmitPayForData(
 	fee Int,
 	gasLim uint64,
 ) (*TxResponse, error) {
-	response, err := payment.SubmitPayForData(ctx, ca.signer, ca.coreConn, nID, data, gasLim, withFee(fee))
+	b := &types.Blob{NamespaceId: nID, Data: data, ShareVersion: uint32(appconsts.DefaultShareVersion)}
+	response, err := blob.SubmitPayForBlob(ctx, ca.signer, ca.coreConn, []*types.Blob{b}, gasLim, withFee(fee))
 	// metrics should only be counted on a successful PFD tx
 	if err == nil && response.Code == 0 {
 		ca.lastPayForData = time.Now().UnixMilli()
@@ -230,7 +234,7 @@ func (ca *CoreAccessor) BalanceForAddress(ctx context.Context, addr Address) (*B
 		return nil, fmt.Errorf("cannot convert %s into sdktypes.Int", string(value))
 	}
 	// verify balance
-	err = ca.prt.VerifyValueKeys(
+	err = ca.prt.VerifyValueFromKeys(
 		result.Response.GetProofOps(),
 		head.AppHash,
 		[][]byte{[]byte(banktypes.StoreKey),
