@@ -167,7 +167,7 @@ func (ex *Exchange) GetRangeByHeight(ctx context.Context, from, amount uint64) (
 	if amount > ex.Params.MaxRequestSize {
 		return nil, header.ErrHeadersLimitExceeded
 	}
-	session := newSession(ex.ctx, ex.host, ex.peerTracker, ex.protocolID)
+	session := newSession(ex.ctx, ex.host, ex.peerTracker, ex.protocolID, ex.Params.RequestTimeout)
 	defer session.close()
 	return session.getRangeByHeight(ctx, from, amount, ex.Params.MaxHeadersPerRequest)
 }
@@ -179,7 +179,7 @@ func (ex *Exchange) GetVerifiedRange(
 	from *header.ExtendedHeader,
 	amount uint64,
 ) ([]*header.ExtendedHeader, error) {
-	session := newSession(ex.ctx, ex.host, ex.peerTracker, ex.protocolID, withValidation(from))
+	session := newSession(ex.ctx, ex.host, ex.peerTracker, ex.protocolID, ex.Params.RequestTimeout, withValidation(from))
 	defer session.close()
 
 	return session.getRangeByHeight(ctx, uint64(from.Height)+1, amount, ex.Params.MaxHeadersPerRequest)

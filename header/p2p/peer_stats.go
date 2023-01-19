@@ -40,6 +40,17 @@ func (p *peerStat) updateStats(amount uint64, time uint64) {
 	p.peerScore = (p.peerScore + averageSpeed) / 2
 }
 
+// decreaseScore decreases peerScore by 20% of the peer that failed the request by any reason.
+// NOTE: decreasing peerScore in one session will not affect its position in queue in another
+// session(as we can have multiple sessions running concurrently).
+// TODO(vgonkivs): to figure out the better scoring increments/decrements
+func (p *peerStat) decreaseScore() {
+	p.Lock()
+	defer p.Unlock()
+
+	p.peerScore -= p.peerScore / 100 * 20
+}
+
 // score reads a peer's latest score from the queue
 func (p *peerStat) score() float32 {
 	p.RLock()
