@@ -7,7 +7,6 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	mrand "math/rand"
-	"os"
 	"strconv"
 	"testing"
 	"time"
@@ -173,13 +172,8 @@ func TestSharesRoundTrip(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	file, err := os.OpenFile("/home/evan/go/src/github.com/celestiaorg/celestia-node/share/availability/light/testdata/sample-block.json", os.O_RDWR, os.ModePerm)
-	require.NoError(t, err)
-	defer file.Close()
-
 	var pb tmproto.Block
-	err = json.NewDecoder(file).Decode(&pb)
-	require.NoError(t, err)
+	err := json.Unmarshal([]byte(sampleBlock), &pb)
 
 	b, err := core.BlockFromProto(&pb)
 	require.NoError(t, err)
