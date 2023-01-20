@@ -5,11 +5,13 @@ import (
 	"testing"
 	"time"
 
+	"github.com/golang/mock/gomock"
 	"github.com/ipfs/go-blockservice"
 	"github.com/ipfs/go-datastore"
 	ds_sync "github.com/ipfs/go-datastore/sync"
 	mdutils "github.com/ipfs/go-merkledag/test"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
+	"github.com/libp2p/go-libp2p/core/peer"
 	mocknet "github.com/libp2p/go-libp2p/p2p/net/mock"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -18,8 +20,10 @@ import (
 	"github.com/celestiaorg/celestia-node/fraud"
 	"github.com/celestiaorg/celestia-node/header"
 	libhead "github.com/celestiaorg/celestia-node/libs/header"
+	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/availability/full"
 	"github.com/celestiaorg/celestia-node/share/availability/light"
+	"github.com/celestiaorg/celestia-node/share/availability/mocks"
 	availability_test "github.com/celestiaorg/celestia-node/share/availability/test"
 	"github.com/celestiaorg/celestia-node/share/getters"
 )
@@ -178,6 +182,44 @@ func TestDASer_stopsAfter_BEFP(t *testing.T) {
 	require.True(t, daser.running == 0)
 }
 
+func TestDASerSampleTimeout(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	t.Cleanup(cancel)
+
+	getter := getterStub{}
+	avail := mocks.NewMockAvailability(gomock.NewController(t))
+	avail.EXPECT().SharesAvailable(gomock.Any(), gomock.Any()).DoAndReturn(
+		func(sampleCtx context.Context, h *share.Root, peers ...peer.ID) error {
+			select {
+			case <-sampleCtx.Done():
+				return sampleCtx.Err()
+			case <-ctx.Done():
+				t.Fatal("call context didn't timeout in time")
+				return ctx.Err()
+			}
+		})
+
+	ds := ds_sync.MutexWrap(datastore.NewMapDatastore())
+	sub := new(header.DummySubscriber)
+	f := new(fraud.DummyService)
+
+	// create and start DASer
+	daser, err := NewDASer(avail, sub, getter, ds, f)
+	require.NoError(t, err)
+
+	// assign directly to avoid params validation
+	daser.params.SampleTimeout = 0
+
+	require.NoError(t, daser.Start(ctx))
+	require.NoError(t, daser.sampler.state.waitCatchUp(ctx))
+
+	stats, err := daser.SamplingStats(ctx)
+	require.NoError(t, err)
+
+	// failed map should contain first header as failed
+	require.Equal(t, stats.Failed[1], 1)
+}
+
 // createDASerSubcomponents takes numGetter (number of headers
 // to store in mockGetter) and numSub (number of headers to store
 // in the mock header.Subscriber), returning a newly instantiated
@@ -308,7 +350,7 @@ func (m benchGetterStub) GetByHeight(_ context.Context, height uint64) (*header.
 type getterStub struct{}
 
 func (m getterStub) Head(context.Context) (*header.ExtendedHeader, error) {
-	return nil, nil
+	return &header.ExtendedHeader{RawHeader: header.RawHeader{Height: 1}}, nil
 }
 
 func (m getterStub) GetByHeight(_ context.Context, height uint64) (*header.ExtendedHeader, error) {

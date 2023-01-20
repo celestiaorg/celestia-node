@@ -23,6 +23,8 @@ const AvailabilityTimeout = 20 * time.Minute
 type Root = da.DataAvailabilityHeader
 
 // Availability defines interface for validation of Shares' availability.
+//
+//go:generate mockgen -destination=availability/mocks/availability.go -package=mocks . Availability
 type Availability interface {
 	// SharesAvailable subjectively validates if Shares committed to the given Root are available on
 	// the Network by requesting the EDS from the provided peers.
