@@ -2,7 +2,10 @@ package shrexeds
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"net"
+	"time"
 
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/peer"
@@ -50,8 +53,16 @@ func (c *Client) RequestEDS(
 	if err == nil {
 		return eds, nil
 	}
-	if p2p.ExtractContextError(ctx, err) != nil {
-		return nil, err
+	if errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) {
+		return nil, ctx.Err()
+	}
+	// some net.Errors also mean the context deadline was exceeded, but yamux/mocknet do not
+	// unwrap to a ctx err
+	var ne net.Error
+	if errors.As(err, &ne) && ne.Timeout() {
+		if deadline, _ := ctx.Deadline(); deadline.Before(time.Now()) {
+			return nil, context.DeadlineExceeded
+		}
 	}
 	if err != p2p.ErrUnavailable {
 		log.Errorw("client: eds request to peer failed", "peer", peer, "hash", dataHash.String())
