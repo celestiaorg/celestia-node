@@ -2,7 +2,9 @@ package shrexnd
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"net"
 	"time"
 
 	"github.com/ipfs/go-cid"
@@ -59,8 +61,16 @@ func (c *Client) GetSharesByNamespace(
 	if err == nil {
 		return shares, err
 	}
-	if p2p.ExtractContextError(ctx, err) != nil {
-		return nil, err
+	if errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) {
+		return nil, ctx.Err()
+	}
+	// some net.Errors also mean the context deadline was exceeded, but yamux/mocknet do not
+	// unwrap to a ctx err
+	var ne net.Error
+	if errors.As(err, &ne) && ne.Timeout() {
+		if deadline, _ := ctx.Deadline(); deadline.Before(time.Now()) {
+			return nil, context.DeadlineExceeded
+		}
 	}
 	if err != p2p.ErrUnavailable {
 		log.Errorw("client-nd: peer returned err", "peer_id", peer.String(), "err", err)
