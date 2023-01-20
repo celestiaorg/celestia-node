@@ -141,7 +141,7 @@ func TestFraudProofValidation(t *testing.T) {
 	faultHeader, err := generateByzantineError(ctx, t, bServ)
 	require.True(t, errors.As(err, &errByz))
 
-	p := byzantine.CreateBadEncodingProof([]byte("hash"), uint64(faultHeader.Height), errByz)
+	p := byzantine.CreateBadEncodingProof([]byte("hash"), uint64(faultHeader.Height()), errByz)
 	err = p.Validate(faultHeader)
 	require.NoError(t, err)
 }

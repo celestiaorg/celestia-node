@@ -8,8 +8,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/tendermint/tendermint/types"
-
-	"github.com/tendermint/tendermint/libs/bytes"
 )
 
 func TestBlockFetcher_GetBlock_and_SubscribeNewBlockEvent(t *testing.T) {
@@ -76,9 +74,7 @@ func TestBlockFetcherHeaderValues(t *testing.T) {
 	assert.Equal(t, nextBlock.LastCommit.Height, commit.Height)
 	assert.Equal(t, nextBlock.LastCommit.Signatures, commit.Signatures)
 	// compare ValidatorSet hash to the ValidatorsHash from first block height
-	hexBytes := bytes.HexBytes{}
-	err = hexBytes.Unmarshal(valSet.Hash())
-	require.NoError(t, err)
-	assert.Equal(t, nextBlock.ValidatorsHash, hexBytes)
+	hexBytes := valSet.Hash()
+	assert.Equal(t, nextBlock.ValidatorsHash.Bytes(), hexBytes)
 	require.NoError(t, fetcher.UnsubscribeNewBlockEvent(ctx))
 }

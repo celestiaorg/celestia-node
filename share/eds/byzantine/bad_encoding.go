@@ -105,7 +105,7 @@ func (p *BadEncodingProof) UnmarshalBinary(data []byte) error {
 // rebuilds bad row or col from received shares, computes Merkle Root
 // and compares it with block's Merkle Root.
 func (p *BadEncodingProof) Validate(header *header.ExtendedHeader) error {
-	if header.Height != int64(p.BlockHeight) {
+	if header.Height() != int64(p.BlockHeight) {
 		return errors.New("fraud: incorrect block height")
 	}
 	merkleRowRoots := header.DAH.RowsRoots

@@ -8,6 +8,7 @@ import (
 
 	"github.com/celestiaorg/celestia-node/fraud"
 	"github.com/celestiaorg/celestia-node/header"
+	libhead "github.com/celestiaorg/celestia-node/libs/header"
 	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
 )
 
@@ -15,7 +16,7 @@ func newFraudService(syncerEnabled bool) func(
 	fx.Lifecycle,
 	*pubsub.PubSub,
 	host.Host,
-	header.Store,
+	libhead.Store[*header.ExtendedHeader],
 	datastore.Batching,
 	p2p.Network,
 ) (Module, fraud.Service, error) {
@@ -23,7 +24,7 @@ func newFraudService(syncerEnabled bool) func(
 		lc fx.Lifecycle,
 		sub *pubsub.PubSub,
 		host host.Host,
-		hstore header.Store,
+		hstore libhead.Store[*header.ExtendedHeader],
 		ds datastore.Batching,
 		network p2p.Network,
 	) (Module, fraud.Service, error) {

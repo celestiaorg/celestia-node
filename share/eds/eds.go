@@ -21,10 +21,10 @@ import (
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/pkg/da"
 	"github.com/celestiaorg/celestia-app/pkg/wrapper"
-
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/rsmt2d"
 
+	"github.com/celestiaorg/celestia-node/libs/utils"
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/ipld"
 )
@@ -44,7 +44,12 @@ type writingSession struct {
 // This includes all shares in quadrant order, followed by all inner nodes of the NMT tree.
 // Order: [ Carv1Header | Q1 |  Q2 | Q3 | Q4 | inner nodes ]
 // For more information about the header: https://ipld.io/specs/transport/car/carv1/#header
-func WriteEDS(ctx context.Context, eds *rsmt2d.ExtendedDataSquare, w io.Writer) error {
+func WriteEDS(ctx context.Context, eds *rsmt2d.ExtendedDataSquare, w io.Writer) (err error) {
+	ctx, span := tracer.Start(ctx, "write-eds")
+	defer func() {
+		utils.SetStatusAndEnd(span, err)
+	}()
+
 	// 1. Reimport EDS. This is needed to traverse the NMT tree and cache the inner nodes (proofs)
 	writer, err := initializeWriter(ctx, eds, w)
 	if err != nil {
@@ -234,7 +239,12 @@ func rootsToCids(eds *rsmt2d.ExtendedDataSquare) ([]cid.Cid, error) {
 // Only the first quadrant will be read, which represents the original data.
 // The returned EDS is guaranteed to be full and valid against the DataRoot, otherwise ReadEDS
 // errors.
-func ReadEDS(ctx context.Context, r io.Reader, root share.DataHash) (*rsmt2d.ExtendedDataSquare, error) {
+func ReadEDS(ctx context.Context, r io.Reader, root share.DataHash) (eds *rsmt2d.ExtendedDataSquare, err error) {
+	_, span := tracer.Start(ctx, "read-eds")
+	defer func() {
+		utils.SetStatusAndEnd(span, err)
+	}()
+
 	carReader, err := car.NewCarReader(r)
 	if err != nil {
 		return nil, fmt.Errorf("share: reading car file: %w", err)
@@ -256,7 +266,7 @@ func ReadEDS(ctx context.Context, r io.Reader, root share.DataHash) (*rsmt2d.Ext
 		shares[i] = block.RawData()[ipld.NamespaceSize:]
 	}
 
-	eds, err := rsmt2d.ComputeExtendedDataSquare(
+	eds, err = rsmt2d.ComputeExtendedDataSquare(
 		shares,
 		share.DefaultRSMT2DCodec(),
 		wrapper.NewConstructor(uint64(odsWidth)),
