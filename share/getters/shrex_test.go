@@ -54,7 +54,7 @@ func TestGetSharesWithProofByNamespace(t *testing.T) {
 	require.NoError(t, err)
 	net.ConnectAll()
 
-	got, err := client.GetSharesByNamespace(
+	got, err := client.RequestND(
 		ctx,
 		&dah,
 		nID,

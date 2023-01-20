@@ -49,9 +49,9 @@ func NewClient(host host.Host, opts ...Option) (*Client, error) {
 	}, nil
 }
 
-// GetSharesByNamespace request shares with option to collect proofs from remote peers using shrex
-// protocol
-func (c *Client) GetSharesByNamespace(
+// RequestND requests namespaced data from the given peer.
+// Returns valid data with its verified inclusion against the share.Root.
+func (c *Client) RequestND(
 	ctx context.Context,
 	root *share.Root,
 	nID namespace.ID,
