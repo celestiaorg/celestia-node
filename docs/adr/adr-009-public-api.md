@@ -244,8 +244,8 @@ SyncHead(ctx context.Context) (*header.ExtendedHeader, error)
     // SubmitTx submits the given transaction/message to the Celestia network
     // and blocks until the tx is included in a block.
     SubmitTx(ctx context.Context, tx state.Tx) (*state.TxResponse, error)
-    // SubmitPayForData builds, signs and submits a PayForData transaction.
-    SubmitPayForData(
+    // SubmitPayForBlob builds, signs and submits a PayForBlob transaction.
+    SubmitPayForBlob(
       ctx context.Context, 
       nID namespace.ID, 
       data []byte,
@@ -397,8 +397,8 @@ type BankModule interface {
   // address and verifies the returned balance against the corresponding
   // block's AppHash.
   BalanceForAddress(ctx context.Context, addr state.Address) (*state.Balance, error)
-  // SubmitPayForData builds, signs and submits a PayForData transaction.
-  SubmitPayForData(
+  // SubmitPayForBlob builds, signs and submits a PayForBlob transaction.
+  SubmitPayForBlob(
     ctx context.Context,
     nID namespace.ID,
     data []byte,
