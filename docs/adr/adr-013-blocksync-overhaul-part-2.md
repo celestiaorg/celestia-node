@@ -252,7 +252,7 @@ data and proofs in real-time while they are read from the disk.
 `ShrEx/Sub` is a push-based notification protocol with the publish-subscribe model, where LNs are subscribers, BNs are
 publishers and FNs are both.
 
-The protocol is based on libp2p's `FloodSub`(TODO Link) with `/eds-sub/0.0.1` as the topic ID.
+The protocol is based on libp2p's [`FloodSub`](https://github.com/libp2p/specs/tree/master/pubsub) with `/eds-sub/0.0.1` as the topic ID.
 
 #### Message Schema
 
