@@ -138,7 +138,8 @@ func (bbi *blackBoxInstrument) GetByHeight(ctx context.Context, height uint64) (
 	)
 
 	// retrieve the binary format to get the size of the header
-	// TODO(@team): is ExtendedHeader.MarshalBinary() == ResponseSize? I am making this assumption for now
+	// TODO(@team): is ExtendedHeader.MarshalBinary() == ResponseSize?
+	// I am making this assumption for now
 	bin, err := eh.MarshalBinary()
 	if err != nil {
 		return nil, err

@@ -85,29 +85,29 @@ func WithMetrics(bc *metrics.BandwidthCounter) {
 			bandwidthRateInbound.Record(ctx, bcStats.RateIn)
 			bandwidthRateOutbound.Record(ctx, bcStats.RateOut)
 
-			for peerId, stat := range bcByPeerStats {
+			for peerID, stat := range bcByPeerStats {
 				bandwidthTotalInboundByPeer.Record(
 					ctx,
 					stat.TotalIn,
-					attribute.String("peer_id", peerId.Pretty()),
+					attribute.String("peer_id", peerID.Pretty()),
 				)
 
 				bandwidthTotalOutboundByPeer.Record(
 					ctx,
 					stat.TotalOut,
-					attribute.String("peer_id", peerId.Pretty()),
+					attribute.String("peer_id", peerID.Pretty()),
 				)
 
 				bandwidthInboundRateByPeer.Record(
 					ctx,
 					stat.RateIn,
-					attribute.String("peer_id", peerId.Pretty()),
+					attribute.String("peer_id", peerID.Pretty()),
 				)
 
 				bandwidthOutboundRateByPeer.Record(
 					ctx,
 					stat.RateOut,
-					attribute.String("peer_id", peerId.Pretty()),
+					attribute.String("peer_id", peerID.Pretty()),
 				)
 			}
 		},
