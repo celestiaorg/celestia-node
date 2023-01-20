@@ -1,4 +1,4 @@
-package shrexnd
+package getters
 
 import (
 	"context"
@@ -16,7 +16,8 @@ import (
 	"github.com/celestiaorg/celestia-node/share"
 	availability_test "github.com/celestiaorg/celestia-node/share/availability/test"
 	"github.com/celestiaorg/celestia-node/share/eds"
-	"github.com/celestiaorg/celestia-node/share/getters"
+	"github.com/celestiaorg/celestia-node/share/p2p/shrexnd"
+
 	"github.com/celestiaorg/nmt/namespace"
 	"github.com/celestiaorg/rsmt2d"
 )
@@ -42,22 +43,22 @@ func TestGetSharesWithProofByNamespace(t *testing.T) {
 	require.NoError(t, err)
 
 	// create server and register handler
-	srv, err := NewServer(net.NewTestNode().Host, edsStore, nil)
+	srvHost := net.NewTestNode().Host
+	srv, err := shrexnd.NewServer(srvHost, edsStore, NewIPLDGetter(bServ))
 	require.NoError(t, err)
-	srv.getter = getters.NewIPLDGetter(bServ)
 	srv.Start()
 	t.Cleanup(srv.Stop)
 
 	// create client and connect it to server
-	client, err := NewClient(net.NewTestNode().Host)
+	client, err := shrexnd.NewClient(net.NewTestNode().Host)
 	require.NoError(t, err)
 	net.ConnectAll()
 
-	got, err := client.GetSharesByNamespace(
+	got, err := client.RequestND(
 		ctx,
 		&dah,
 		nID,
-		srv.host.ID())
+		srvHost.ID())
 
 	require.NoError(t, err)
 	require.NoError(t, got.Verify(&dah, nID))
