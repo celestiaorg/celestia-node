@@ -1,0 +1,22 @@
+syntax = "proto3";
+
+package p2p.pb;
+
+message HeaderRequest {
+  oneof data {
+    uint64 origin = 1;
+    bytes hash = 2;
+  }
+  uint64 amount = 3;
+}
+
+enum StatusCode {
+  INVALID = 0;
+  OK = 1;
+  NOT_FOUND = 2;
+};
+
+message HeaderResponse {
+  bytes body = 1;
+  StatusCode statusCode = 2;
+}

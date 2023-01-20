@@ -7,12 +7,14 @@ import (
 	"go.opentelemetry.io/otel/metric/global"
 	"go.opentelemetry.io/otel/metric/instrument"
 	"go.opentelemetry.io/otel/metric/unit"
+
+	libhead "github.com/celestiaorg/celestia-node/libs/header"
 )
 
 var meter = global.MeterProvider().Meter("header")
 
 // WithMetrics enables Otel metrics to monitor head.
-func WithMetrics(store Store) {
+func WithMetrics(store libhead.Store[*ExtendedHeader]) {
 	headC, _ := meter.AsyncInt64().Counter(
 		"head",
 		instrument.WithUnit(unit.Dimensionless),
@@ -32,7 +34,7 @@ func WithMetrics(store Store) {
 
 			headC.Observe(
 				ctx,
-				head.Height,
+				head.Height(),
 				attribute.Int("square_size", len(head.DAH.RowsRoots)),
 			)
 		},

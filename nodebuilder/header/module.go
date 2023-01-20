@@ -5,13 +5,15 @@ import (
 
 	"github.com/ipfs/go-datastore"
 	logging "github.com/ipfs/go-log/v2"
+	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	"go.uber.org/fx"
 
 	"github.com/celestiaorg/celestia-node/fraud"
 	"github.com/celestiaorg/celestia-node/header"
-	"github.com/celestiaorg/celestia-node/header/p2p"
-	"github.com/celestiaorg/celestia-node/header/store"
-	"github.com/celestiaorg/celestia-node/header/sync"
+	libhead "github.com/celestiaorg/celestia-node/libs/header"
+	"github.com/celestiaorg/celestia-node/libs/header/p2p"
+	"github.com/celestiaorg/celestia-node/libs/header/store"
+	"github.com/celestiaorg/celestia-node/libs/header/sync"
 	modfraud "github.com/celestiaorg/celestia-node/nodebuilder/fraud"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	modp2p "github.com/celestiaorg/celestia-node/nodebuilder/p2p"
@@ -42,22 +44,23 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 					p2p.WithWriteDeadline(cfg.Server.WriteDeadline),
 					p2p.WithReadDeadline(cfg.Server.ReadDeadline),
 					p2p.WithMaxRequestSize[p2p.ServerParameters](cfg.Server.MaxRequestSize),
+					p2p.WithRequestTimeout[p2p.ServerParameters](cfg.Server.RequestTimeout),
 				}
 			}),
 		fx.Provide(NewHeaderService),
 		fx.Provide(fx.Annotate(
-			func(ds datastore.Batching, opts []store.Option) (header.Store, error) {
-				return store.NewStore(ds, opts...)
+			func(ds datastore.Batching, opts []store.Option) (libhead.Store[*header.ExtendedHeader], error) {
+				return store.NewStore[*header.ExtendedHeader](ds, opts...)
 			},
-			fx.OnStart(func(ctx context.Context, store header.Store) error {
+			fx.OnStart(func(ctx context.Context, store libhead.Store[*header.ExtendedHeader]) error {
 				return store.Start(ctx)
 			}),
-			fx.OnStop(func(ctx context.Context, store header.Store) error {
+			fx.OnStop(func(ctx context.Context, store libhead.Store[*header.ExtendedHeader]) error {
 				return store.Stop(ctx)
 			}),
 		)),
 		fx.Provide(newInitStore),
-		fx.Provide(func(subscriber *p2p.Subscriber) header.Subscriber {
+		fx.Provide(func(subscriber *p2p.Subscriber[*header.ExtendedHeader]) libhead.Subscriber[*header.ExtendedHeader] {
 			return subscriber
 		}),
 		fx.Provide(func(cfg Config) []sync.Options {
@@ -69,29 +72,35 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 		}),
 		fx.Provide(fx.Annotate(
 			newSyncer,
-			fx.OnStart(func(startCtx, ctx context.Context, fservice fraud.Service, syncer *sync.Syncer) error {
+			fx.OnStart(func(
+				startCtx, ctx context.Context,
+				fservice fraud.Service,
+				syncer *sync.Syncer[*header.ExtendedHeader],
+			) error {
 				return modfraud.Lifecycle(startCtx, ctx, fraud.BadEncoding, fservice,
 					syncer.Start, syncer.Stop)
 			}),
-			fx.OnStop(func(ctx context.Context, syncer *sync.Syncer) error {
+			fx.OnStop(func(ctx context.Context, syncer *sync.Syncer[*header.ExtendedHeader]) error {
 				return syncer.Stop(ctx)
 			}),
 		)),
 		fx.Provide(fx.Annotate(
-			p2p.NewSubscriber,
-			fx.OnStart(func(ctx context.Context, sub *p2p.Subscriber) error {
+			func(ps *pubsub.PubSub) *p2p.Subscriber[*header.ExtendedHeader] {
+				return p2p.NewSubscriber[*header.ExtendedHeader](ps, header.MsgID)
+			},
+			fx.OnStart(func(ctx context.Context, sub *p2p.Subscriber[*header.ExtendedHeader]) error {
 				return sub.Start(ctx)
 			}),
-			fx.OnStop(func(ctx context.Context, sub *p2p.Subscriber) error {
+			fx.OnStop(func(ctx context.Context, sub *p2p.Subscriber[*header.ExtendedHeader]) error {
 				return sub.Stop(ctx)
 			}),
 		)),
 		fx.Provide(fx.Annotate(
 			newP2PServer,
-			fx.OnStart(func(ctx context.Context, server *p2p.ExchangeServer) error {
+			fx.OnStart(func(ctx context.Context, server *p2p.ExchangeServer[*header.ExtendedHeader]) error {
 				return server.Start(ctx)
 			}),
-			fx.OnStop(func(ctx context.Context, server *p2p.ExchangeServer) error {
+			fx.OnStop(func(ctx context.Context, server *p2p.ExchangeServer[*header.ExtendedHeader]) error {
 				return server.Stop(ctx)
 			}),
 		)),
@@ -110,6 +119,7 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 						p2p.WithMaxHeadersPerRequest(cfg.Client.MaxHeadersPerRequest),
 						p2p.WithMaxAwaitingTime(cfg.Client.MaxAwaitingTime),
 						p2p.WithDefaultScore(cfg.Client.DefaultScore),
+						p2p.WithRequestTimeout[p2p.ClientParameters](cfg.Client.RequestTimeout),
 						p2p.WithMaxTrackerSize(cfg.Client.MaxPeerTrackerSize),
 					}
 				},
@@ -120,7 +130,7 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 		return fx.Module(
 			"header",
 			baseComponents,
-			fx.Provide(func(subscriber *p2p.Subscriber) header.Broadcaster {
+			fx.Provide(func(subscriber *p2p.Subscriber[*header.ExtendedHeader]) libhead.Broadcaster[*header.ExtendedHeader] {
 				return subscriber
 			}),
 			fx.Supply(header.MakeExtendedHeader),

@@ -10,6 +10,7 @@ import (
 	"go.uber.org/multierr"
 
 	"github.com/celestiaorg/celestia-node/header"
+	libhead "github.com/celestiaorg/celestia-node/libs/header"
 )
 
 type worker struct {
@@ -36,7 +37,7 @@ type job struct {
 
 func (w *worker) run(
 	ctx context.Context,
-	getter header.Getter,
+	getter libhead.Getter[*header.ExtendedHeader],
 	sample sampleFn,
 	metrics *metrics,
 	resultCh chan<- result) {
@@ -59,7 +60,7 @@ func (w *worker) run(
 		}
 
 		metrics.observeGetHeader(ctx, time.Since(startGet))
-		log.Debugw("got header from header store", "height", h.Height, "hash", h.Hash(),
+		log.Debugw("got header from header store", "height", h.Height(), "hash", h.Hash(),
 			"square width", len(h.DAH.RowsRoots), "data root", h.DAH.Hash(), "finished (s)", time.Since(startGet))
 
 		startSample := time.Now()
@@ -71,10 +72,10 @@ func (w *worker) run(
 		w.setResult(curr, err)
 		metrics.observeSample(ctx, h, time.Since(startSample), err)
 		if err != nil {
-			log.Debugw("failed to sampled header", "height", h.Height, "hash", h.Hash(),
+			log.Debugw("failed to sampled header", "height", h.Height(), "hash", h.Hash(),
 				"square width", len(h.DAH.RowsRoots), "data root", h.DAH.Hash(), "err", err)
 		} else {
-			log.Debugw("sampled header", "height", h.Height, "hash", h.Hash(),
+			log.Debugw("sampled header", "height", h.Height(), "hash", h.Hash(),
 				"square width", len(h.DAH.RowsRoots), "data root", h.DAH.Hash(), "finished (s)", time.Since(startSample))
 		}
 	}

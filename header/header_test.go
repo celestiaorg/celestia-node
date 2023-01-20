@@ -43,6 +43,6 @@ func TestMismatchedDataHash_ComputedRoot(t *testing.T) {
 
 	header.DataHash = rand.Bytes(32)
 
-	err := header.ValidateBasic()
+	err := header.Validate()
 	assert.ErrorContains(t, err, "mismatch between data hash")
 }

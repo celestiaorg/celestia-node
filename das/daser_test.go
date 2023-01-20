@@ -5,12 +5,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/celestiaorg/celestia-node/share/availability/full"
-	"github.com/celestiaorg/celestia-node/share/availability/light"
-	availability_test "github.com/celestiaorg/celestia-node/share/availability/test"
-
-	"github.com/tendermint/tendermint/types"
-
 	"github.com/ipfs/go-blockservice"
 	"github.com/ipfs/go-datastore"
 	ds_sync "github.com/ipfs/go-datastore/sync"
@@ -19,10 +13,14 @@ import (
 	mocknet "github.com/libp2p/go-libp2p/p2p/net/mock"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	tmbytes "github.com/tendermint/tendermint/libs/bytes"
+	"github.com/tendermint/tendermint/types"
 
 	"github.com/celestiaorg/celestia-node/fraud"
 	"github.com/celestiaorg/celestia-node/header"
+	libhead "github.com/celestiaorg/celestia-node/libs/header"
+	"github.com/celestiaorg/celestia-node/share/availability/full"
+	"github.com/celestiaorg/celestia-node/share/availability/light"
+	availability_test "github.com/celestiaorg/celestia-node/share/availability/test"
 	"github.com/celestiaorg/celestia-node/share/getters"
 )
 
@@ -232,7 +230,7 @@ func (m *mockGetter) fillSubWithHeaders(
 		randHeader := header.RandExtendedHeader(t)
 		randHeader.DataHash = dah.Hash()
 		randHeader.DAH = dah
-		randHeader.Height = int64(i + 1)
+		randHeader.RawHeader.Height = int64(i + 1)
 
 		sub.Headers[index] = randHeader
 		// also checkpointStore to mock getter for duplicate sampling
@@ -260,7 +258,7 @@ func (m *mockGetter) generateHeaders(t *testing.T, bServ blockservice.BlockServi
 		randHeader := header.RandExtendedHeader(t)
 		randHeader.DataHash = dah.Hash()
 		randHeader.DAH = dah
-		randHeader.Height = int64(i + 1)
+		randHeader.RawHeader.Height = int64(i + 1)
 
 		m.headers[int64(i+1)] = randHeader
 	}
@@ -332,6 +330,6 @@ func (m getterStub) GetVerifiedRange(
 	return nil, nil
 }
 
-func (m getterStub) Get(context.Context, tmbytes.HexBytes) (*header.ExtendedHeader, error) {
+func (m getterStub) Get(context.Context, libhead.Hash) (*header.ExtendedHeader, error) {
 	return nil, nil
 }

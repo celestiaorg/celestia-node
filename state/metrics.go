@@ -11,22 +11,22 @@ import (
 var meter = global.MeterProvider().Meter("state")
 
 func WithMetrics(ca *CoreAccessor) {
-	pfdCounter, _ := meter.AsyncInt64().Counter(
-		"pfd_count",
+	pfbCounter, _ := meter.AsyncInt64().Counter(
+		"pfb_count",
 		instrument.WithUnit(unit.Dimensionless),
-		instrument.WithDescription("Total count of submitted PayForData transactions"),
+		instrument.WithDescription("Total count of submitted PayForBlob transactions"),
 	)
-	lastPfdTimestamp, _ := meter.AsyncInt64().Counter(
-		"last_pfd_timestamp",
+	lastPfbTimestamp, _ := meter.AsyncInt64().Counter(
+		"last_pfb_timestamp",
 		instrument.WithUnit(unit.Milliseconds),
-		instrument.WithDescription("Timestamp of the last submitted PayForData transaction"),
+		instrument.WithDescription("Timestamp of the last submitted PayForBlob transaction"),
 	)
 
 	err := meter.RegisterCallback(
-		[]instrument.Asynchronous{pfdCounter, lastPfdTimestamp},
+		[]instrument.Asynchronous{pfbCounter, lastPfbTimestamp},
 		func(ctx context.Context) {
-			pfdCounter.Observe(ctx, ca.payForDataCount)
-			lastPfdTimestamp.Observe(ctx, ca.lastPayForData)
+			pfbCounter.Observe(ctx, ca.payForBlobCount)
+			lastPfbTimestamp.Observe(ctx, ca.lastPayForBlob)
 		},
 	)
 	if err != nil {

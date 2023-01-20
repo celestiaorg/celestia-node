@@ -6,11 +6,11 @@ import (
 
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/multiformats/go-multiaddr"
-	tmbytes "github.com/tendermint/tendermint/libs/bytes"
 
-	p2p_exchange "github.com/celestiaorg/celestia-node/header/p2p"
-	"github.com/celestiaorg/celestia-node/header/store"
-	"github.com/celestiaorg/celestia-node/header/sync"
+	libhead "github.com/celestiaorg/celestia-node/libs/header"
+	p2p_exchange "github.com/celestiaorg/celestia-node/libs/header/p2p"
+	"github.com/celestiaorg/celestia-node/libs/header/store"
+	"github.com/celestiaorg/celestia-node/libs/header/sync"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
 )
@@ -73,7 +73,7 @@ func (cfg *Config) trustedPeers(bpeers p2p.Bootstrappers) (infos []peer.AddrInfo
 	return
 }
 
-func (cfg *Config) trustedHash(net p2p.Network) (tmbytes.HexBytes, error) {
+func (cfg *Config) trustedHash(net p2p.Network) (libhead.Hash, error) {
 	if cfg.TrustedHash == "" {
 		gen, err := p2p.GenesisFor(net)
 		if err != nil {

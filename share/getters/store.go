@@ -4,6 +4,10 @@ import (
 	"context"
 	"fmt"
 
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
+
+	"github.com/celestiaorg/celestia-node/libs/utils"
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/eds"
 	"github.com/celestiaorg/celestia-node/share/ipld"
@@ -30,6 +34,16 @@ func NewStoreGetter(store *eds.Store) *StoreGetter {
 // GetShare gets a single share at the given EDS coordinates from the eds.Store through the
 // corresponding CAR-level blockstore.
 func (sg *StoreGetter) GetShare(ctx context.Context, dah *share.Root, row, col int) (share.Share, error) {
+	var err error
+	ctx, span := tracer.Start(ctx, "store/get-share", trace.WithAttributes(
+		attribute.String("root", dah.String()),
+		attribute.Int("row", row),
+		attribute.Int("col", col),
+	))
+	defer func() {
+		utils.SetStatusAndEnd(span, err)
+	}()
+
 	root, leaf := ipld.Translate(dah, row, col)
 	bs, err := sg.store.CARBlockstore(ctx, dah.Hash())
 	if err != nil {
@@ -47,8 +61,15 @@ func (sg *StoreGetter) GetShare(ctx context.Context, dah *share.Root, row, col i
 }
 
 // GetEDS gets the EDS identified by the given root from the EDS store.
-func (sg *StoreGetter) GetEDS(ctx context.Context, root *share.Root) (*rsmt2d.ExtendedDataSquare, error) {
-	eds, err := sg.store.Get(ctx, root.Hash())
+func (sg *StoreGetter) GetEDS(ctx context.Context, root *share.Root) (eds *rsmt2d.ExtendedDataSquare, err error) {
+	ctx, span := tracer.Start(ctx, "store/get-eds", trace.WithAttributes(
+		attribute.String("root", root.String()),
+	))
+	defer func() {
+		utils.SetStatusAndEnd(span, err)
+	}()
+
+	eds, err = sg.store.Get(ctx, root.Hash())
 	if err != nil {
 		return nil, fmt.Errorf("getter/store: failed to retrieve eds: %w", err)
 	}
@@ -61,8 +82,16 @@ func (sg *StoreGetter) GetSharesByNamespace(
 	ctx context.Context,
 	root *share.Root,
 	nID namespace.ID,
-) (share.NamespacedShares, error) {
-	err := verifyNIDSize(nID)
+) (shares share.NamespacedShares, err error) {
+	ctx, span := tracer.Start(ctx, "store/get-shares-by-namespace", trace.WithAttributes(
+		attribute.String("root", root.String()),
+		attribute.String("nID", nID.String()),
+	))
+	defer func() {
+		utils.SetStatusAndEnd(span, err)
+	}()
+
+	err = verifyNIDSize(nID)
 	if err != nil {
 		return nil, fmt.Errorf("getter/store: invalid namespace ID: %w", err)
 	}
@@ -74,7 +103,7 @@ func (sg *StoreGetter) GetSharesByNamespace(
 
 	// wrap the read-only CAR blockstore in a getter
 	blockGetter := eds.NewBlockGetter(bs)
-	shares, err := collectSharesByNamespace(ctx, blockGetter, root, nID)
+	shares, err = collectSharesByNamespace(ctx, blockGetter, root, nID)
 	if err != nil {
 		return nil, fmt.Errorf("getter/store: failed to retrieve shares by namespace: %w", err)
 	}

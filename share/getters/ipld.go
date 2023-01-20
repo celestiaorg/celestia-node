@@ -7,7 +7,10 @@ import (
 	"sync/atomic"
 
 	"github.com/ipfs/go-blockservice"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 
+	"github.com/celestiaorg/celestia-node/libs/utils"
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/eds"
 	"github.com/celestiaorg/celestia-node/share/ipld"
@@ -36,6 +39,16 @@ func NewIPLDGetter(bServ blockservice.BlockService) *IPLDGetter {
 
 // GetShare gets a single share at the given EDS coordinates from the bitswap network.
 func (ig *IPLDGetter) GetShare(ctx context.Context, dah *share.Root, row, col int) (share.Share, error) {
+	var err error
+	ctx, span := tracer.Start(ctx, "ipld/get-share", trace.WithAttributes(
+		attribute.String("root", dah.String()),
+		attribute.Int("row", row),
+		attribute.Int("col", col),
+	))
+	defer func() {
+		utils.SetStatusAndEnd(span, err)
+	}()
+
 	root, leaf := ipld.Translate(dah, row, col)
 
 	// wrap the blockservice in a session if it has been signaled in the context.
@@ -48,9 +61,16 @@ func (ig *IPLDGetter) GetShare(ctx context.Context, dah *share.Root, row, col in
 	return nd, nil
 }
 
-func (ig *IPLDGetter) GetEDS(ctx context.Context, root *share.Root) (*rsmt2d.ExtendedDataSquare, error) {
+func (ig *IPLDGetter) GetEDS(ctx context.Context, root *share.Root) (eds *rsmt2d.ExtendedDataSquare, err error) {
+	ctx, span := tracer.Start(ctx, "ipld/get-eds", trace.WithAttributes(
+		attribute.String("root", root.String()),
+	))
+	defer func() {
+		utils.SetStatusAndEnd(span, err)
+	}()
+
 	// rtrv.Retrieve calls shares.GetShares until enough shares are retrieved to reconstruct the EDS
-	eds, err := ig.rtrv.Retrieve(ctx, root)
+	eds, err = ig.rtrv.Retrieve(ctx, root)
 	if err != nil {
 		return nil, fmt.Errorf("getter/ipld: failed to retrieve eds: %w", err)
 	}
@@ -61,15 +81,23 @@ func (ig *IPLDGetter) GetSharesByNamespace(
 	ctx context.Context,
 	root *share.Root,
 	nID namespace.ID,
-) (share.NamespacedShares, error) {
-	err := verifyNIDSize(nID)
+) (shares share.NamespacedShares, err error) {
+	ctx, span := tracer.Start(ctx, "ipld/get-shares-by-namespace", trace.WithAttributes(
+		attribute.String("root", root.String()),
+		attribute.String("nID", nID.String()),
+	))
+	defer func() {
+		utils.SetStatusAndEnd(span, err)
+	}()
+
+	err = verifyNIDSize(nID)
 	if err != nil {
 		return nil, fmt.Errorf("getter/ipld: invalid namespace ID: %w", err)
 	}
 
 	// wrap the blockservice in a session if it has been signaled in the context.
 	blockGetter := getGetter(ctx, ig.bServ)
-	shares, err := collectSharesByNamespace(ctx, blockGetter, root, nID)
+	shares, err = collectSharesByNamespace(ctx, blockGetter, root, nID)
 	if err != nil {
 		return nil, fmt.Errorf("getter/ipld: failed to retrieve shares by namespace: %w", err)
 	}
