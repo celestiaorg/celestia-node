@@ -11,6 +11,7 @@ import (
 
 	"github.com/celestiaorg/celestia-node/fraud"
 	"github.com/celestiaorg/celestia-node/header"
+	libhead "github.com/celestiaorg/celestia-node/libs/header"
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/eds/byzantine"
 )
@@ -23,8 +24,8 @@ type DASer struct {
 
 	da     share.Availability
 	bcast  fraud.Broadcaster
-	hsub   header.Subscriber // listens for new headers in the network
-	getter header.Getter     // retrieves past headers
+	hsub   libhead.Subscriber[*header.ExtendedHeader] // listens for new headers in the network
+	getter libhead.Getter[*header.ExtendedHeader]     // retrieves past headers
 
 	sampler    *samplingCoordinator
 	store      checkpointStore
@@ -41,8 +42,8 @@ type sampleFn func(context.Context, *header.ExtendedHeader) error
 // NewDASer creates a new DASer.
 func NewDASer(
 	da share.Availability,
-	hsub header.Subscriber,
-	getter header.Getter,
+	hsub libhead.Subscriber[*header.ExtendedHeader],
+	getter libhead.Getter[*header.ExtendedHeader],
 	dstore datastore.Datastore,
 	bcast fraud.Broadcaster,
 	options ...Option,
@@ -95,7 +96,7 @@ func (d *DASer) Start(ctx context.Context) error {
 		// attempt to get head info. No need to handle error, later DASer
 		// will be able to find new head from subscriber after it is started
 		if h, err := d.getter.Head(ctx); err == nil {
-			cp.NetworkHead = uint64(h.Height)
+			cp.NetworkHead = uint64(h.Height())
 		}
 	}
 	log.Info("starting DASer from checkpoint: ", cp.String())
@@ -151,13 +152,13 @@ func (d *DASer) sample(ctx context.Context, h *header.ExtendedHeader) error {
 		var byzantineErr *byzantine.ErrByzantine
 		if errors.As(err, &byzantineErr) {
 			log.Warn("Propagating proof...")
-			sendErr := d.bcast.Broadcast(ctx, byzantine.CreateBadEncodingProof(h.Hash(), uint64(h.Height), byzantineErr))
+			sendErr := d.bcast.Broadcast(ctx, byzantine.CreateBadEncodingProof(h.Hash(), uint64(h.Height()), byzantineErr))
 			if sendErr != nil {
 				log.Errorw("fraud proof propagating failed", "err", sendErr)
 			}
 		}
 
-		log.Errorw("sampling failed", "height", h.Height, "hash", h.Hash(),
+		log.Errorw("sampling failed", "height", h.Height(), "hash", h.Hash(),
 			"square width", len(h.DAH.RowsRoots), "data root", h.DAH.Hash(), "err", err)
 		return err
 	}

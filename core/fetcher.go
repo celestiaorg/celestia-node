@@ -5,8 +5,9 @@ import (
 	"fmt"
 
 	logging "github.com/ipfs/go-log/v2"
-	tmbytes "github.com/tendermint/tendermint/libs/bytes"
 	"github.com/tendermint/tendermint/types"
+
+	libhead "github.com/celestiaorg/celestia-node/libs/header"
 )
 
 const newBlockSubscriber = "NewBlock/Events"
@@ -64,7 +65,7 @@ func (f *BlockFetcher) GetBlock(ctx context.Context, height *int64) (*types.Bloc
 	return res.Block, nil
 }
 
-func (f *BlockFetcher) GetBlockByHash(ctx context.Context, hash tmbytes.HexBytes) (*types.Block, error) {
+func (f *BlockFetcher) GetBlockByHash(ctx context.Context, hash libhead.Hash) (*types.Block, error) {
 	res, err := f.client.BlockByHash(ctx, hash)
 	if err != nil {
 		return nil, err

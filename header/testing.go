@@ -6,13 +6,12 @@ package header
 import (
 	"context"
 
-	"github.com/celestiaorg/celestia-node/share"
-
 	mrand "math/rand"
 	"testing"
 	"time"
 
 	"github.com/ipfs/go-blockservice"
+	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	"github.com/stretchr/testify/require"
 	"github.com/tendermint/tendermint/crypto/tmhash"
 	"github.com/tendermint/tendermint/libs/bytes"
@@ -25,6 +24,9 @@ import (
 	"github.com/celestiaorg/celestia-app/pkg/da"
 
 	"github.com/celestiaorg/celestia-node/core"
+	libhead "github.com/celestiaorg/celestia-node/libs/header"
+	"github.com/celestiaorg/celestia-node/libs/header/test"
+	"github.com/celestiaorg/celestia-node/share"
 )
 
 // TestSuite provides everything you need to test chain of Headers.
@@ -68,7 +70,7 @@ func (s *TestSuite) genesis() *ExtendedHeader {
 		ValidatorSet: s.valSet,
 		DAH:          &dah,
 	}
-	require.NoError(s.t, eh.ValidateBasic())
+	require.NoError(s.t, eh.Validate())
 	return eh
 }
 
@@ -87,6 +89,12 @@ func (s *TestSuite) GenExtendedHeaders(num int) []*ExtendedHeader {
 	return headers
 }
 
+func (s *TestSuite) GetRandomHeader() *ExtendedHeader {
+	return s.GenExtendedHeader()
+}
+
+var _ test.Generator[*ExtendedHeader] = &TestSuite{}
+
 func (s *TestSuite) GenExtendedHeader() *ExtendedHeader {
 	if s.head == nil {
 		s.head = s.genesis()
@@ -94,26 +102,26 @@ func (s *TestSuite) GenExtendedHeader() *ExtendedHeader {
 	}
 
 	dah := da.MinDataAvailabilityHeader()
-	height := s.Head().Height + 1
-	rh := s.GenRawHeader(height, s.Head().Hash(), s.Head().Commit.Hash(), dah.Hash())
+	height := s.Head().Height() + 1
+	rh := s.GenRawHeader(height, s.Head().Hash(), libhead.Hash(s.Head().Commit.Hash()), dah.Hash())
 	s.head = &ExtendedHeader{
 		RawHeader:    *rh,
 		Commit:       s.Commit(rh),
 		ValidatorSet: s.valSet,
 		DAH:          &dah,
 	}
-	require.NoError(s.t, s.head.ValidateBasic())
+	require.NoError(s.t, s.head.Validate())
 	return s.head
 }
 
 func (s *TestSuite) GenRawHeader(
-	height int64, lastHeader, lastCommit, dataHash bytes.HexBytes) *RawHeader {
+	height int64, lastHeader, lastCommit, dataHash libhead.Hash) *RawHeader {
 	rh := RandRawHeader(s.t)
 	rh.Height = height
 	rh.Time = time.Now()
-	rh.LastBlockID = types.BlockID{Hash: lastHeader}
-	rh.LastCommitHash = lastCommit
-	rh.DataHash = dataHash
+	rh.LastBlockID = types.BlockID{Hash: bytes.HexBytes(lastHeader)}
+	rh.LastCommitHash = bytes.HexBytes(lastCommit)
+	rh.DataHash = bytes.HexBytes(dataHash)
 	rh.ValidatorsHash = s.valSet.Hash()
 	rh.NextValidatorsHash = s.valSet.Hash()
 	rh.ProposerAddress = s.nextProposer().Address
@@ -250,11 +258,11 @@ type DummySubscriber struct {
 	Headers []*ExtendedHeader
 }
 
-func (mhs *DummySubscriber) AddValidator(Validator) error {
+func (mhs *DummySubscriber) AddValidator(func(context.Context, *ExtendedHeader) pubsub.ValidationResult) error {
 	return nil
 }
 
-func (mhs *DummySubscriber) Subscribe() (Subscription, error) {
+func (mhs *DummySubscriber) Subscribe() (libhead.Subscription[*ExtendedHeader], error) {
 	return mhs, nil
 }
 

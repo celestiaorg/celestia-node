@@ -25,6 +25,7 @@ import (
 	"github.com/celestiaorg/nmt/namespace"
 
 	"github.com/celestiaorg/celestia-node/header"
+	libhead "github.com/celestiaorg/celestia-node/libs/header"
 )
 
 var (
@@ -39,7 +40,7 @@ type CoreAccessor struct {
 	cancel context.CancelFunc
 
 	signer *apptypes.KeyringSigner
-	getter header.Head
+	getter libhead.Head[*header.ExtendedHeader]
 
 	queryCli   banktypes.QueryClient
 	stakingCli stakingtypes.QueryClient
@@ -52,8 +53,8 @@ type CoreAccessor struct {
 	rpcPort  string
 	grpcPort string
 
-	lastPayForData  int64
-	payForDataCount int64
+	lastPayForBlob  int64
+	payForBlobCount int64
 }
 
 // NewCoreAccessor dials the given celestia-core endpoint and
@@ -61,7 +62,7 @@ type CoreAccessor struct {
 // connection.
 func NewCoreAccessor(
 	signer *apptypes.KeyringSigner,
-	getter header.Head,
+	getter libhead.Head[*header.ExtendedHeader],
 	coreIP,
 	rpcPort string,
 	grpcPort string,
@@ -154,7 +155,7 @@ func (ca *CoreAccessor) constructSignedTx(
 	return ca.signer.EncodeTx(tx)
 }
 
-func (ca *CoreAccessor) SubmitPayForData(
+func (ca *CoreAccessor) SubmitPayForBlob(
 	ctx context.Context,
 	nID namespace.ID,
 	data []byte,
@@ -162,10 +163,10 @@ func (ca *CoreAccessor) SubmitPayForData(
 	gasLim uint64,
 ) (*TxResponse, error) {
 	response, err := payment.SubmitPayForData(ctx, ca.signer, ca.coreConn, nID, data, gasLim, withFee(fee))
-	// metrics should only be counted on a successful PFD tx
+	// metrics should only be counted on a successful PFB tx
 	if err == nil && response.Code == 0 {
-		ca.lastPayForData = time.Now().UnixMilli()
-		ca.payForDataCount++
+		ca.lastPayForBlob = time.Now().UnixMilli()
+		ca.payForBlobCount++
 	}
 	return response, err
 }
@@ -200,7 +201,7 @@ func (ca *CoreAccessor) BalanceForAddress(ctx context.Context, addr Address) (*B
 	abciReq := abci.RequestQuery{
 		// TODO @renayay: once https://github.com/cosmos/cosmos-sdk/pull/12674 is merged, use const instead
 		Path:   fmt.Sprintf("store/%s/key", banktypes.StoreKey),
-		Height: head.Height - 1,
+		Height: head.Height() - 1,
 		Data:   prefixedAccountKey,
 		Prove:  true,
 	}
@@ -219,7 +220,7 @@ func (ca *CoreAccessor) BalanceForAddress(ctx context.Context, addr Address) (*B
 	value := result.Response.Value
 	// if the value returned is empty, the account balance does not yet exist
 	if len(value) == 0 {
-		log.Errorf("balance for account %s does not exist at block height %d", addr.String(), head.Height-1)
+		log.Errorf("balance for account %s does not exist at block height %d", addr.String(), head.Height()-1)
 		return &Balance{
 			Denom:  app.BondDenom,
 			Amount: sdktypes.NewInt(0),
