@@ -73,7 +73,7 @@ func (c *Client) GetSharesByNamespace(
 		}
 	}
 	if err != p2p.ErrUnavailable {
-		log.Errorw("client-nd: peer returned err", "peer_id", peer.String(), "err", err)
+		log.Errorw("client-nd: peer returned err", "peer", peer, "err", err)
 	}
 	return nil, err
 }
@@ -197,7 +197,7 @@ func statusToErr(code pb.StatusCode) error {
 	case pb.StatusCode_INTERNAL, pb.StatusCode_INVALID:
 		fallthrough
 	default:
-		log.Errorf("unknown request status %s returned", code.String())
+		log.Errorf("client-nd: request status %s returned", code.String())
 		return p2p.ErrInvalidResponse
 	}
 }

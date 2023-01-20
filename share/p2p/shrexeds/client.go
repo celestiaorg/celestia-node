@@ -123,7 +123,7 @@ func (c *Client) doRequest(
 	case pb.Status_INVALID:
 		fallthrough
 	default:
-		log.Errorf("unknown request status %s returned for root %s", resp.Status.String(), dataHash.String())
+		log.Errorf("request status %s returned for root %s", resp.Status.String(), dataHash.String())
 		return nil, p2p.ErrInvalidResponse
 	}
 }
