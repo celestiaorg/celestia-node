@@ -12,9 +12,11 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/celestiaorg/celestia-app/pkg/da"
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/eds"
+	"github.com/celestiaorg/celestia-node/share/p2p"
+
+	"github.com/celestiaorg/celestia-app/pkg/da"
 )
 
 func TestExchange_RequestEDS(t *testing.T) {
@@ -66,7 +68,7 @@ func TestExchange_RequestEDS(t *testing.T) {
 		t.Skip()
 		dataHash := []byte("invalid")
 		requestedEDS, err := client.RequestEDS(ctx, dataHash, server.host.ID())
-		assert.ErrorIs(t, err, errNoMorePeers)
+		assert.ErrorIs(t, err, p2p.ErrInvalidResponse)
 		assert.Nil(t, requestedEDS)
 	})
 
