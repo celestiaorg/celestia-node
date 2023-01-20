@@ -17,10 +17,13 @@ import (
 	"github.com/ipfs/go-datastore"
 	bstore "github.com/ipfs/go-ipfs-blockstore"
 	carv1 "github.com/ipld/go-car"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/header"
+	"github.com/celestiaorg/celestia-node/libs/utils"
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/ipld"
 )
@@ -147,7 +150,15 @@ func (s *Store) gc(ctx context.Context) {
 // The square is verified on the Exchange level, and Put only stores the square, trusting it.
 // The resulting file stores all the shares and NMT Merkle Proofs of the EDS.
 // Additionally, the file gets indexed s.t. store.Blockstore can access them.
-func (s *Store) Put(ctx context.Context, root share.DataHash, square *rsmt2d.ExtendedDataSquare) error {
+func (s *Store) Put(ctx context.Context, root share.DataHash, square *rsmt2d.ExtendedDataSquare) (err error) {
+	ctx, span := tracer.Start(ctx, "store/put", trace.WithAttributes(
+		attribute.String("root", root.String()),
+		attribute.Int("width", int(square.Width())),
+	))
+	defer func() {
+		utils.SetStatusAndEnd(span, err)
+	}()
+
 	key := root.String()
 	f, err := os.OpenFile(s.basepath+blocksPath+key, os.O_CREATE|os.O_WRONLY, 0600)
 	if err != nil {
@@ -186,6 +197,9 @@ func (s *Store) Put(ctx context.Context, root share.DataHash, square *rsmt2d.Ext
 //
 // Caller must Close returned reader after reading.
 func (s *Store) GetCAR(ctx context.Context, root share.DataHash) (io.ReadCloser, error) {
+	ctx, span := tracer.Start(ctx, "store/get-car", trace.WithAttributes(attribute.String("root", root.String())))
+	defer span.End()
+
 	key := root.String()
 	accessor, err := s.getAccessor(ctx, shard.KeyFromString(key))
 	if err != nil {
@@ -220,6 +234,9 @@ func (s *Store) CARBlockstore(
 
 // GetDAH returns the DataAvailabilityHeader for the EDS identified by DataHash.
 func (s *Store) GetDAH(ctx context.Context, root share.DataHash) (*share.Root, error) {
+	ctx, span := tracer.Start(ctx, "store/get-dah", trace.WithAttributes(attribute.String("root", root.String())))
+	defer span.End()
+
 	key := shard.KeyFromString(root.String())
 	accessor, err := s.getAccessor(ctx, key)
 	if err != nil {
@@ -290,11 +307,15 @@ func (s *Store) getCachedAccessor(ctx context.Context, key shard.Key) (*accessor
 
 // Remove removes EDS from Store by the given share.Root hash and cleans up all
 // the indexing.
-func (s *Store) Remove(ctx context.Context, root share.DataHash) error {
-	key := root.String()
+func (s *Store) Remove(ctx context.Context, root share.DataHash) (err error) {
+	ctx, span := tracer.Start(ctx, "store/remove", trace.WithAttributes(attribute.String("root", root.String())))
+	defer func() {
+		utils.SetStatusAndEnd(span, err)
+	}()
 
+	key := root.String()
 	ch := make(chan dagstore.ShardResult, 1)
-	err := s.dgstr.DestroyShard(ctx, shard.KeyFromString(key), ch, dagstore.DestroyOpts{})
+	err = s.dgstr.DestroyShard(ctx, shard.KeyFromString(key), ch, dagstore.DestroyOpts{})
 	if err != nil {
 		return fmt.Errorf("failed to initiate shard destruction: %w", err)
 	}
@@ -327,12 +348,17 @@ func (s *Store) Remove(ctx context.Context, root share.DataHash) error {
 //
 // It reads only one quadrant(1/4) of the EDS and verifies the integrity of the stored data by
 // recomputing it.
-func (s *Store) Get(ctx context.Context, root share.DataHash) (*rsmt2d.ExtendedDataSquare, error) {
+func (s *Store) Get(ctx context.Context, root share.DataHash) (eds *rsmt2d.ExtendedDataSquare, err error) {
+	ctx, span := tracer.Start(ctx, "store/get", trace.WithAttributes(attribute.String("root", root.String())))
+	defer func() {
+		utils.SetStatusAndEnd(span, err)
+	}()
+
 	f, err := s.GetCAR(ctx, root)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get CAR file: %w", err)
 	}
-	eds, err := ReadEDS(ctx, f, root)
+	eds, err = ReadEDS(ctx, f, root)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read EDS from CAR file: %w", err)
 	}
@@ -341,6 +367,9 @@ func (s *Store) Get(ctx context.Context, root share.DataHash) (*rsmt2d.ExtendedD
 
 // Has checks if EDS exists by the given share.Root hash.
 func (s *Store) Has(ctx context.Context, root share.DataHash) (bool, error) {
+	_, span := tracer.Start(ctx, "store/has", trace.WithAttributes(attribute.String("root", root.String())))
+	defer span.End()
+
 	key := root.String()
 	info, err := s.dgstr.GetShardInfo(shard.KeyFromString(key))
 	if err == dagstore.ErrShardUnknown {
