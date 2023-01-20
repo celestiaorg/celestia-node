@@ -6,13 +6,21 @@ import (
 
 	"github.com/ipfs/go-blockservice"
 	"github.com/ipfs/go-cid"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 	"golang.org/x/sync/errgroup"
 
+	"github.com/celestiaorg/celestia-node/libs/utils"
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/ipld"
 
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/nmt/namespace"
+)
+
+var (
+	tracer = otel.Tracer("share/getters")
 )
 
 // filterRootsByNamespace returns the row roots from the given share.Root that contain the passed
@@ -34,14 +42,22 @@ func collectSharesByNamespace(
 	bg blockservice.BlockGetter,
 	root *share.Root,
 	nID namespace.ID,
-) (share.NamespacedShares, error) {
+) (shares share.NamespacedShares, err error) {
+	ctx, span := tracer.Start(ctx, "collect-shares-by-namespace", trace.WithAttributes(
+		attribute.String("root", root.String()),
+		attribute.String("nid", nID.String()),
+	))
+	defer func() {
+		utils.SetStatusAndEnd(span, err)
+	}()
+
 	rootCIDs := filterRootsByNamespace(root, nID)
 	if len(rootCIDs) == 0 {
 		return nil, nil
 	}
 
 	errGroup, ctx := errgroup.WithContext(ctx)
-	shares := make([]share.NamespacedRow, len(rootCIDs))
+	shares = make([]share.NamespacedRow, len(rootCIDs))
 	for i, rootCID := range rootCIDs {
 		// shadow loop variables, to ensure correct values are captured
 		i, rootCID := i, rootCID
