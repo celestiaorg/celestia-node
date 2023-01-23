@@ -3,15 +3,17 @@ package getters
 import (
 	"context"
 	"errors"
-	"github.com/celestiaorg/celestia-node/libs/utils"
 	"time"
 
-	"github.com/celestiaorg/celestia-node/share"
-	"github.com/celestiaorg/nmt/namespace"
-	"github.com/celestiaorg/rsmt2d"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
 	"go.uber.org/multierr"
+
+	"github.com/celestiaorg/celestia-node/libs/utils"
+	"github.com/celestiaorg/celestia-node/share"
+
+	"github.com/celestiaorg/nmt/namespace"
+	"github.com/celestiaorg/rsmt2d"
 )
 
 var _ share.Getter = (*CascadeGetter)(nil)
@@ -111,15 +113,15 @@ func cascadeGetters[V any](
 	for i, getter := range getters {
 		span.AddEvent("getter launched", trace.WithAttributes(attribute.Int("getter_id", i)))
 		ctx, cancel := context.WithTimeout(ctx, interval)
-		val, err := get(ctx, getter)
+		val, getErr := get(ctx, getter)
 		cancel()
-		if err == nil {
+		if getErr == nil {
 			return val, nil
 		}
 
 		// TODO(@Wondertan): migrate to errors.Join once Go1.20 is out!
-		err = multierr.Append(err, err)
-		span.RecordError(err, trace.WithAttributes(attribute.Int("getter_id", i)))
+		err = multierr.Append(err, getErr)
+		span.RecordError(getErr, trace.WithAttributes(attribute.Int("getter_id", i)))
 	}
-	return
+	return zero, err
 }

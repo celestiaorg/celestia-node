@@ -2,14 +2,18 @@ package getters
 
 import (
 	"context"
-	"fmt"
+	"errors"
 	"testing"
 	"time"
 
+	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/multierr"
 
 	"github.com/celestiaorg/celestia-node/share"
+	"github.com/celestiaorg/celestia-node/share/mocks"
+
+	"github.com/celestiaorg/rsmt2d"
 )
 
 func TestCascadeGetter(t *testing.T) {
@@ -42,129 +46,68 @@ func TestCascadeGetter(t *testing.T) {
 }
 
 func TestCascade(t *testing.T) {
+	ctrl := gomock.NewController(t)
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
 
-	t.Run("SuccessFirst", func(t *testing.T) {
-		fns := []func(context.Context) (int, error){
-			func(context.Context) (int, error) {
-				return 1, nil
-			},
-			func(context.Context) (int, error) {
-				return 2, nil
-			},
-			func(context.Context) (int, error) {
-				return 3, nil
-			},
-		}
+	timeoutGetter := mocks.NewMockGetter(ctrl)
+	immediateFailGetter := mocks.NewMockGetter(ctrl)
+	successGetter := mocks.NewMockGetter(ctrl)
+	timeoutGetter.EXPECT().
+		GetEDS(gomock.Any(), gomock.Any()).
+		DoAndReturn(func(ctx context.Context, _ *share.Root) (*rsmt2d.ExtendedDataSquare, error) {
+			<-ctx.Done()
+			return nil, ctx.Err()
+		}).AnyTimes()
+	immediateFailGetter.EXPECT().
+		GetEDS(gomock.Any(), gomock.Any()).
+		DoAndReturn(func(_ context.Context, _ *share.Root) (*rsmt2d.ExtendedDataSquare, error) {
+			return nil, errors.New("second getter fails immediately")
+		}).AnyTimes()
+	successGetter.EXPECT().
+		GetEDS(gomock.Any(), gomock.Any()).
+		DoAndReturn(func(_ context.Context, _ *share.Root) (*rsmt2d.ExtendedDataSquare, error) {
+			return nil, nil
+		}).AnyTimes()
 
-		val, err := cascade(ctx, fns, time.Millisecond*10)
+	get := func(ctx context.Context, get share.Getter) (*rsmt2d.ExtendedDataSquare, error) {
+		return get.GetEDS(ctx, nil)
+	}
+
+	t.Run("SuccessFirst", func(t *testing.T) {
+		getters := []share.Getter{successGetter, timeoutGetter, immediateFailGetter}
+		_, err := cascadeGetters(ctx, getters, get, time.Millisecond*10)
 		assert.NoError(t, err)
-		assert.Equal(t, 1, val)
 	})
 
 	t.Run("SuccessSecond", func(t *testing.T) {
-		fns := []func(context.Context) (int, error){
-			func(context.Context) (int, error) {
-				return 1, fmt.Errorf("1")
-			},
-			func(context.Context) (int, error) {
-				return 2, nil
-			},
-			func(context.Context) (int, error) {
-				return 3, nil
-			},
-		}
-
-		val, err := cascade(ctx, fns, time.Millisecond*10)
+		getters := []share.Getter{immediateFailGetter, successGetter}
+		_, err := cascadeGetters(ctx, getters, get, time.Millisecond*10)
 		assert.NoError(t, err)
-		assert.Equal(t, 2, val)
 	})
 
 	t.Run("SuccessSecondAfterFirst", func(t *testing.T) {
-		fns := []func(context.Context) (int, error){
-			func(ctx context.Context) (int, error) {
-				select {
-				case <-time.After(time.Second):
-					return 1, nil
-				case <-ctx.Done():
-					return 0, ctx.Err()
-				}
-			},
-			func(context.Context) (int, error) {
-				return 2, nil
-			},
-			func(context.Context) (int, error) {
-				return 3, nil
-			},
-		}
-
-		val, err := cascade(ctx, fns, time.Millisecond*10)
+		getters := []share.Getter{timeoutGetter, successGetter}
+		_, err := cascadeGetters(ctx, getters, get, time.Millisecond*10)
 		assert.NoError(t, err)
-		assert.Equal(t, 2, val)
 	})
 
-	t.Run("SuccessAllGetterRace", func(t *testing.T) {
-		fns := []func(context.Context) (int, error){
-			func(ctx context.Context) (int, error) {
-				select {
-				case <-time.After(time.Millisecond * 3):
-					return 1, nil
-				case <-ctx.Done():
-					return 0, ctx.Err()
-				}
-			},
-			func(context.Context) (int, error) {
-				select {
-				case <-time.After(time.Millisecond * 4):
-					return 2, nil
-				case <-ctx.Done():
-					return 0, ctx.Err()
-				}
-			},
-			func(context.Context) (int, error) {
-				select {
-				case <-time.After(time.Millisecond * 5):
-					return 3, nil
-				case <-ctx.Done():
-					return 0, ctx.Err()
-				}
-			},
-		}
-
-		val, err := cascade(ctx, fns, time.Millisecond*1)
+	t.Run("SuccessAfterMultipleTimeouts", func(t *testing.T) {
+		getters := []share.Getter{timeoutGetter, immediateFailGetter, timeoutGetter, timeoutGetter, successGetter}
+		_, err := cascadeGetters(ctx, getters, get, time.Millisecond*10)
 		assert.NoError(t, err)
-		assert.Equal(t, 1, val)
 	})
 
 	t.Run("Error", func(t *testing.T) {
-		fns := []func(context.Context) (int, error){
-			func(context.Context) (int, error) {
-				return 0, fmt.Errorf("1")
-			},
-			func(context.Context) (int, error) {
-				return 0, fmt.Errorf("2")
-			},
-			func(context.Context) (int, error) {
-				return 0, fmt.Errorf("3")
-			},
-		}
-
-		val, err := cascade(ctx, fns, time.Millisecond*10)
+		getters := []share.Getter{immediateFailGetter, timeoutGetter, immediateFailGetter}
+		_, err := cascadeGetters(ctx, getters, get, time.Millisecond*10)
 		assert.Error(t, err)
 		assert.Len(t, multierr.Errors(err), 3)
-		assert.Equal(t, 0, val)
 	})
 
 	t.Run("Single", func(t *testing.T) {
-		fns := []func(context.Context) (int, error){
-			func(ctx context.Context) (int, error) {
-				return 1, nil
-			},
-		}
-
-		val, err := cascade(ctx, fns, time.Second)
+		getters := []share.Getter{successGetter}
+		_, err := cascadeGetters(ctx, getters, get, time.Millisecond*10)
 		assert.NoError(t, err)
-		assert.Equal(t, 1, val)
 	})
 }
