@@ -7,6 +7,7 @@ import (
 	"github.com/libp2p/go-libp2p/core/host"
 	"go.uber.org/fx"
 
+	"github.com/celestiaorg/celestia-node/libs/fxutil"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	modp2p "github.com/celestiaorg/celestia-node/nodebuilder/p2p"
 	"github.com/celestiaorg/celestia-node/share"
@@ -15,9 +16,7 @@ import (
 	"github.com/celestiaorg/celestia-node/share/eds"
 	"github.com/celestiaorg/celestia-node/share/getters"
 	"github.com/celestiaorg/celestia-node/share/p2p/shrexeds"
-	"github.com/celestiaorg/celestia-node/share/p2p/shrexpush"
-
-	"github.com/celestiaorg/celestia-node/libs/fxutil"
+	"github.com/celestiaorg/celestia-node/share/p2p/shrexsub"
 )
 
 func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option {
@@ -99,17 +98,17 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 				}),
 			)),
 			fx.Provide(fx.Annotate(
-				func(ctx context.Context, h host.Host, network modp2p.Network) (*shrexpush.PubSub, error) {
-					return shrexpush.NewPubSub(
+				func(ctx context.Context, h host.Host, network modp2p.Network) (*shrexsub.PubSub, error) {
+					return shrexsub.NewPubSub(
 						ctx,
 						h,
 						string(network),
 					)
 				},
-				fx.OnStart(func(ctx context.Context, pubsub *shrexpush.PubSub) error {
+				fx.OnStart(func(ctx context.Context, pubsub *shrexsub.PubSub) error {
 					return pubsub.Start(ctx)
 				}),
-				fx.OnStop(func(ctx context.Context, pubsub *shrexpush.PubSub) error {
+				fx.OnStop(func(ctx context.Context, pubsub *shrexsub.PubSub) error {
 					return pubsub.Stop(ctx)
 				}),
 			)),

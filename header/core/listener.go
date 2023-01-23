@@ -11,7 +11,7 @@ import (
 	"github.com/celestiaorg/celestia-node/core"
 	"github.com/celestiaorg/celestia-node/header"
 	libhead "github.com/celestiaorg/celestia-node/libs/header"
-	"github.com/celestiaorg/celestia-node/share/p2p/shrexpush"
+	"github.com/celestiaorg/celestia-node/share/p2p/shrexsub"
 )
 
 // Listener is responsible for listening to Core for
@@ -28,7 +28,7 @@ type Listener struct {
 	construct header.ConstructFn
 
 	extHeaderBroadcaster libhead.Broadcaster[*header.ExtendedHeader]
-	edsHashBroadcaster   shrexpush.BroadcastFn
+	edsHashBroadcaster   shrexsub.BroadcastFn
 
 	cancel context.CancelFunc
 }
@@ -36,7 +36,7 @@ type Listener struct {
 func NewListener(
 	bcast libhead.Broadcaster[*header.ExtendedHeader],
 	fetcher *core.BlockFetcher,
-	extHeaderBroadcaster shrexpush.BroadcastFn,
+	extHeaderBroadcaster shrexsub.BroadcastFn,
 	bServ blockservice.BlockService,
 	construct header.ConstructFn,
 ) *Listener {

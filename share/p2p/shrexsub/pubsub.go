@@ -1,4 +1,4 @@
-package shrexpush
+package shrexsub
 
 import (
 	"context"
@@ -13,7 +13,7 @@ import (
 	"github.com/celestiaorg/celestia-node/share"
 )
 
-var log = logging.Logger("shrex-push")
+var log = logging.Logger("shrex-sub")
 
 // pubSubTopic hardcodes the name of the EDS floodsub topic with the provided suffix.
 func pubSubTopic(suffix string) string {

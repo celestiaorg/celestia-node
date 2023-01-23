@@ -15,7 +15,7 @@ import (
 	"github.com/celestiaorg/celestia-node/core"
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/libs/header/p2p"
-	"github.com/celestiaorg/celestia-node/share/p2p/shrexpush"
+	"github.com/celestiaorg/celestia-node/share/p2p/shrexsub"
 )
 
 // TestListener tests the lifecycle of the core listener.
@@ -103,7 +103,7 @@ func createListener(
 	t *testing.T,
 	fetcher *core.BlockFetcher,
 	ps *pubsub.PubSub,
-	edsSub *shrexpush.PubSub,
+	edsSub *shrexsub.PubSub,
 ) *Listener {
 	p2pSub := p2p.NewSubscriber[*header.ExtendedHeader](ps, header.MsgID)
 	err := p2pSub.Start(ctx)
@@ -115,10 +115,10 @@ func createListener(
 	return NewListener(p2pSub, fetcher, edsSub.Broadcast, mdutils.Bserv(), header.MakeExtendedHeader)
 }
 
-func createEdsPubSub(ctx context.Context, t *testing.T) *shrexpush.PubSub {
+func createEdsPubSub(ctx context.Context, t *testing.T) *shrexsub.PubSub {
 	net, err := mocknet.FullMeshLinked(1)
 	require.NoError(t, err)
-	edsSub, err := shrexpush.NewPubSub(ctx, net.Hosts()[0], "eds-test")
+	edsSub, err := shrexsub.NewPubSub(ctx, net.Hosts()[0], "eds-test")
 	require.NoError(t, err)
 	require.NoError(t, edsSub.Start(ctx))
 	t.Cleanup(func() {
