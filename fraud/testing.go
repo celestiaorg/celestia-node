@@ -15,6 +15,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/celestiaorg/celestia-node/header"
+	"github.com/celestiaorg/celestia-node/headertest"
 )
 
 type DummyService struct {
@@ -45,7 +46,7 @@ func createStore(t *testing.T, numHeaders int) *mockStore {
 		headHeight: 0,
 	}
 
-	suite := header.NewTestSuite(t, numHeaders)
+	suite := headertest.NewTestSuite(t, numHeaders)
 
 	for i := 0; i < numHeaders; i++ {
 		header := suite.GenExtendedHeader()
