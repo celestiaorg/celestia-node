@@ -8,7 +8,8 @@ import (
 	"testing"
 	"time"
 
-	mdutils "github.com/ipfs/go-merkledag/test"
+	ds "github.com/ipfs/go-datastore"
+	ds_sync "github.com/ipfs/go-datastore/sync"
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/peer"
 	mocknet "github.com/libp2p/go-libp2p/p2p/net/mock"
@@ -28,6 +29,7 @@ import (
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
 	"github.com/celestiaorg/celestia-node/nodebuilder/state"
+	"github.com/celestiaorg/celestia-node/share/eds"
 )
 
 var blackholeIP6 = net.ParseIP("100::")
@@ -163,9 +165,12 @@ func (s *Swamp) createPeer(ks keystore.Keystore) host.Host {
 func (s *Swamp) setupGenesis(ctx context.Context) {
 	s.WaitTillHeight(ctx, 1)
 
+	store, err := eds.NewStore(s.t.TempDir(), ds_sync.MutexWrap(ds.NewMapDatastore()))
+	require.NoError(s.t, err)
+
 	ex := core.NewExchange(
 		core.NewBlockFetcher(s.ClientContext.Client),
-		mdutils.Bserv(),
+		store,
 		header.MakeExtendedHeader,
 	)
 
