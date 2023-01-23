@@ -83,6 +83,7 @@ func (cg *CascadeGetter) GetSharesByNamespace(
 	return cascadeGetters(ctx, cg.getters, get, cg.interval)
 }
 
+// getVal defines a type constraint for the types allowed for cascading
 type getVal interface {
 	share.Share | share.NamespacedShares | *rsmt2d.ExtendedDataSquare
 }
