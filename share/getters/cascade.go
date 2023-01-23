@@ -111,7 +111,7 @@ func cascadeGetters[V any](
 	}()
 
 	for i, getter := range getters {
-		span.AddEvent("getter launched", trace.WithAttributes(attribute.Int("getter_id", i)))
+		span.AddEvent("getter launched", trace.WithAttributes(attribute.Int("getter_idx", i)))
 		ctx, cancel := context.WithTimeout(ctx, interval)
 		val, getErr := get(ctx, getter)
 		cancel()
@@ -121,7 +121,7 @@ func cascadeGetters[V any](
 
 		// TODO(@Wondertan): migrate to errors.Join once Go1.20 is out!
 		err = multierr.Append(err, getErr)
-		span.RecordError(getErr, trace.WithAttributes(attribute.Int("getter_id", i)))
+		span.RecordError(getErr, trace.WithAttributes(attribute.Int("getter_idx", i)))
 	}
-	return zero, err
+	return
 }
