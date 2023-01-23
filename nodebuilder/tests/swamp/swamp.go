@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math/rand"
 	"net"
+	"os"
 	"testing"
 	"time"
 
@@ -254,6 +255,8 @@ func (s *Swamp) newNode(t node.Type, store nodebuilder.Store, options ...fx.Opti
 	options = append(options,
 		p2p.WithHost(s.createPeer(ks)),
 		fx.Replace(node.StorePath(tempDir)),
+		fx.Replace(os.DirFS(tempDir)),
+		
 		fx.Invoke(func(ctx context.Context, store libhead.Store[*header.ExtendedHeader]) error {
 			return store.Init(ctx, s.genesis)
 		}),

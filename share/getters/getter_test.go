@@ -2,20 +2,18 @@ package getters
 
 import (
 	"context"
-	"testing"
-
+	"github.com/celestiaorg/celestia-app/pkg/da"
+	"github.com/celestiaorg/celestia-app/pkg/wrapper"
+	"github.com/celestiaorg/celestia-node/share"
+	"github.com/celestiaorg/celestia-node/share/eds"
+	"github.com/celestiaorg/rsmt2d"
 	"github.com/ipfs/go-datastore"
 	ds_sync "github.com/ipfs/go-datastore/sync"
 	mdutils "github.com/ipfs/go-merkledag/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	"github.com/celestiaorg/celestia-app/pkg/da"
-	"github.com/celestiaorg/celestia-app/pkg/wrapper"
-	"github.com/celestiaorg/rsmt2d"
-
-	"github.com/celestiaorg/celestia-node/share"
-	"github.com/celestiaorg/celestia-node/share/eds"
+	"os"
+	"testing"
 )
 
 func TestTeeGetter(t *testing.T) {
@@ -24,7 +22,7 @@ func TestTeeGetter(t *testing.T) {
 
 	tmpDir := t.TempDir()
 	ds := ds_sync.MutexWrap(datastore.NewMapDatastore())
-	edsStore, err := eds.NewStore(tmpDir, ds)
+	edsStore, err := eds.NewStore(tmpDir, ds, os.DirFS(tmpDir))
 	require.NoError(t, err)
 
 	err = edsStore.Start(ctx)
@@ -79,7 +77,7 @@ func TestStoreGetter(t *testing.T) {
 
 	tmpDir := t.TempDir()
 	ds := ds_sync.MutexWrap(datastore.NewMapDatastore())
-	edsStore, err := eds.NewStore(tmpDir, ds)
+	edsStore, err := eds.NewStore(tmpDir, ds, os.DirFS(tmpDir))
 	require.NoError(t, err)
 
 	err = edsStore.Start(ctx)

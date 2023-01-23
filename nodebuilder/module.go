@@ -2,8 +2,8 @@ package nodebuilder
 
 import (
 	"context"
-
 	"go.uber.org/fx"
+	"os"
 
 	"github.com/celestiaorg/celestia-node/libs/fxutil"
 	"github.com/celestiaorg/celestia-node/nodebuilder/core"
@@ -31,6 +31,7 @@ func ConstructModule(tp node.Type, network p2p.Network, cfg *Config, store Store
 		fx.Provide(store.Datastore),
 		fx.Provide(store.Keystore),
 		fx.Supply(node.StorePath(store.Path())),
+		fx.Supply(os.DirFS(store.Path())),
 		// modules provided by the node
 		p2p.ConstructModule(tp, &cfg.P2P),
 		state.ConstructModule(tp, &cfg.State),

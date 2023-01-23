@@ -2,10 +2,10 @@ package share
 
 import (
 	"context"
-
 	"github.com/ipfs/go-datastore"
 	"github.com/libp2p/go-libp2p/core/host"
 	"go.uber.org/fx"
+	"io/fs"
 
 	"github.com/celestiaorg/celestia-node/libs/fxutil"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
@@ -73,8 +73,8 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 				},
 			),
 			fx.Provide(fx.Annotate(
-				func(path node.StorePath, ds datastore.Batching) (*eds.Store, error) {
-					return eds.NewStore(string(path), ds)
+				func(path node.StorePath, ds datastore.Batching, FS fs.FS) (*eds.Store, error) {
+					return eds.NewStore(string(path), ds, FS)
 				},
 				fx.OnStart(func(ctx context.Context, store *eds.Store) error {
 					err := store.Start(ctx)

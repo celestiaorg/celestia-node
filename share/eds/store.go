@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
 	"sync/atomic"
 	"time"
@@ -30,6 +31,7 @@ import (
 
 const (
 	blocksPath     = "/blocks/"
+	fsBlocksPath   = "blocks"
 	indexPath      = "/index/"
 	transientsPath = "/transients/"
 
@@ -53,20 +55,27 @@ type Store struct {
 	carIdx index.FullIndexRepo
 
 	basepath   string
+	FS         fs.FS
 	gcInterval time.Duration
 	// lastGCResult is only stored on the store for testing purposes.
 	lastGCResult atomic.Pointer[dagstore.GCResult]
 }
 
 // NewStore creates a new EDS Store under the given basepath and datastore.
-func NewStore(basepath string, ds datastore.Batching) (*Store, error) {
+func NewStore(basepath string, ds datastore.Batching, FS fs.FS) (*Store, error) {
 	err := setupPath(basepath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to setup eds.Store directories: %w", err)
 	}
 
+	fsMount, err := fs.Sub(FS, fsBlocksPath)
+
+	if err != nil {
+		return nil, err
+	}
+
 	r := mount.NewRegistry()
-	err = r.Register("fs", &mount.FSMount{FS: os.DirFS(basepath + blocksPath)})
+	err = r.Register("fs", &mount.FSMount{FS: fsMount})
 	if err != nil {
 		return nil, fmt.Errorf("failed to register FS mount on the registry: %w", err)
 	}
@@ -103,6 +112,7 @@ func NewStore(basepath string, ds datastore.Batching) (*Store, error) {
 		gcInterval: defaultGCInterval,
 		mounts:     r,
 		cache:      cache,
+		FS:         fsMount,
 	}
 	store.bs = newBlockstore(store, cache)
 	return store, nil
@@ -171,8 +181,9 @@ func (s *Store) Put(ctx context.Context, root share.DataHash, square *rsmt2d.Ext
 	}
 
 	ch := make(chan dagstore.ShardResult, 1)
+
 	err = s.dgstr.RegisterShard(ctx, shard.KeyFromString(key), &mount.FSMount{
-		FS:   os.DirFS(s.basepath + blocksPath),
+		FS:   s.FS,
 		Path: key,
 	}, ch, dagstore.RegisterOpts{})
 	if err != nil {

@@ -109,7 +109,7 @@ func TestEDSStore(t *testing.T) {
 
 		// file no longer exists
 		_, err = os.Stat(edsStore.basepath + blocksPath + dah.String())
-		assert.ErrorContains(t, err, "no such file or directory")
+		assert.ErrorContains(t, err, "such file or directory")
 	})
 
 	t.Run("Has", func(t *testing.T) {
@@ -211,7 +211,7 @@ func newStore(t *testing.T) (*Store, error) {
 
 	tmpDir := t.TempDir()
 	ds := ds_sync.MutexWrap(datastore.NewMapDatastore())
-	return NewStore(tmpDir, ds)
+	return NewStore(tmpDir, ds, os.DirFS(tmpDir))
 }
 
 func randomEDS(t *testing.T) (*rsmt2d.ExtendedDataSquare, share.Root) {

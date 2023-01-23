@@ -3,6 +3,7 @@ package getters
 import (
 	"context"
 	"math/rand"
+	"os"
 	"testing"
 	"time"
 
@@ -69,7 +70,7 @@ func newStore(t *testing.T) (*eds.Store, error) {
 
 	tmpDir := t.TempDir()
 	ds := ds_sync.MutexWrap(datastore.NewMapDatastore())
-	return eds.NewStore(tmpDir, ds)
+	return eds.NewStore(tmpDir, ds, os.DirFS(tmpDir))
 }
 
 func generateTestEDS(t *testing.T, bServ bsrv.BlockService) (*rsmt2d.ExtendedDataSquare, namespace.ID) {

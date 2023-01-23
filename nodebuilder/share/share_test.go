@@ -2,16 +2,16 @@ package share
 
 import (
 	"context"
-	"testing"
-
+	"github.com/celestiaorg/celestia-node/share/eds"
 	"github.com/ipfs/go-datastore"
 	ds_sync "github.com/ipfs/go-datastore/sync"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"os"
+	"testing"
 
 	"github.com/celestiaorg/celestia-app/pkg/da"
 	"github.com/celestiaorg/celestia-node/share"
-	"github.com/celestiaorg/celestia-node/share/eds"
 )
 
 func Test_EmptyCARExists(t *testing.T) {
@@ -20,7 +20,7 @@ func Test_EmptyCARExists(t *testing.T) {
 
 	tmpDir := t.TempDir()
 	ds := ds_sync.MutexWrap(datastore.NewMapDatastore())
-	edsStore, err := eds.NewStore(tmpDir, ds)
+	edsStore, err := eds.NewStore(tmpDir, ds, os.DirFS(tmpDir))
 	require.NoError(t, err)
 	err = edsStore.Start(ctx)
 	require.NoError(t, err)

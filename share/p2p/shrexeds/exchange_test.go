@@ -2,6 +2,7 @@ package shrexeds
 
 import (
 	"context"
+	"os"
 	"testing"
 	"time"
 
@@ -90,7 +91,7 @@ func newStore(t *testing.T) *eds.Store {
 
 	tmpDir := t.TempDir()
 	ds := ds_sync.MutexWrap(datastore.NewMapDatastore())
-	store, err := eds.NewStore(tmpDir, ds)
+	store, err := eds.NewStore(tmpDir, ds, os.DirFS(tmpDir))
 	require.NoError(t, err)
 	return store
 }
