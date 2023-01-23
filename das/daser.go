@@ -55,6 +55,7 @@ func NewDASer(
 		hsub:           hsub,
 		getter:         getter,
 		store:          newCheckpointStore(dstore),
+		subscriber:     newSubscriber(),
 		subscriberDone: make(chan struct{}),
 	}
 
@@ -103,9 +104,8 @@ func (d *DASer) Start(ctx context.Context) error {
 	runCtx, cancel := context.WithCancel(context.Background())
 	d.cancel = cancel
 
-	d.subscriber = newSubscriber(runCtx, d.da, d.sampler.listen)
 	go d.sampler.run(runCtx, cp)
-	go d.subscriber.subscribeHeader(sub)
+	go d.subscriber.run(runCtx, sub, d.sampler.listen)
 	go d.store.runBackgroundStore(runCtx, d.params.BackgroundStoreInterval, d.sampler.getCheckpoint)
 
 	return nil
