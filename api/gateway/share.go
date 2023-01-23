@@ -108,7 +108,7 @@ func (h *Handler) getShares(ctx context.Context, height uint64, nID namespace.ID
 	}
 	// perform request
 	shares, err := h.share.GetSharesByNamespace(ctx, header.DAH, nID)
-	return shares.Flatten(), header.Height, err
+	return shares.Flatten(), header.Height(), err
 }
 
 func dataFromShares(shares []share.Share) ([][]byte, error) {

@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/celestiaorg/celestia-node/header"
+	libhead "github.com/celestiaorg/celestia-node/libs/header"
 )
 
 // subscriber subscribes to notifications about new headers in the network to keep
@@ -16,7 +17,7 @@ func newSubscriber() subscriber {
 	return subscriber{newDone("subscriber")}
 }
 
-func (s *subscriber) run(ctx context.Context, sub header.Subscription, emit listenFn) {
+func (s *subscriber) run(ctx context.Context, sub libhead.Subscription[*header.ExtendedHeader], emit listenFn) {
 	defer s.indicateDone()
 	defer sub.Cancel()
 
@@ -30,8 +31,8 @@ func (s *subscriber) run(ctx context.Context, sub header.Subscription, emit list
 			log.Errorw("failed to get next header", "err", err)
 			continue
 		}
-		log.Infow("new header received via subscription", "height", h.Height)
+		log.Infow("new header received via subscription", "height", h.Height())
 
-		emit(ctx, uint64(h.Height))
+		emit(ctx, uint64(h.Height()))
 	}
 }

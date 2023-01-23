@@ -5,11 +5,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"time"
 
 	"github.com/ipfs/go-blockservice"
 	logging "github.com/ipfs/go-log/v2"
 
-	bts "github.com/tendermint/tendermint/libs/bytes"
 	amino "github.com/tendermint/tendermint/libs/json"
 	core "github.com/tendermint/tendermint/types"
 
@@ -17,10 +17,20 @@ import (
 
 	"github.com/celestiaorg/celestia-app/pkg/da"
 
+	libhead "github.com/celestiaorg/celestia-node/libs/header"
 	"github.com/celestiaorg/celestia-node/share"
 )
 
 var log = logging.Logger("header")
+
+// ConstructFn aliases a function that creates an ExtendedHeader.
+type ConstructFn = func(
+	context.Context,
+	*core.Block,
+	*core.Commit,
+	*core.ValidatorSet,
+	blockservice.BlockService,
+) (*ExtendedHeader, error)
 
 type DataAvailabilityHeader = da.DataAvailabilityHeader
 
@@ -41,6 +51,28 @@ type ExtendedHeader struct {
 	ValidatorSet *core.ValidatorSet      `json:"validator_set"`
 	DAH          *DataAvailabilityHeader `json:"dah"`
 }
+
+func (eh *ExtendedHeader) New() libhead.Header {
+	return new(ExtendedHeader)
+}
+
+func (eh *ExtendedHeader) IsZero() bool {
+	return eh == nil
+}
+
+func (eh *ExtendedHeader) ChainID() string {
+	return eh.RawHeader.ChainID
+}
+
+func (eh *ExtendedHeader) Height() int64 {
+	return eh.RawHeader.Height
+}
+
+func (eh *ExtendedHeader) Time() time.Time {
+	return eh.RawHeader.Time
+}
+
+var _ libhead.Header = &ExtendedHeader{}
 
 // MakeExtendedHeader assembles new ExtendedHeader.
 func MakeExtendedHeader(
@@ -73,33 +105,30 @@ func MakeExtendedHeader(
 		Commit:       comm,
 		ValidatorSet: vals,
 	}
-	return eh, eh.ValidateBasic()
+	return eh, eh.Validate()
 }
 
 // Hash returns Hash of the wrapped RawHeader.
 // NOTE: It purposely overrides Hash method of RawHeader to get it directly from Commit without
 // recomputing.
-func (eh *ExtendedHeader) Hash() bts.HexBytes {
-	return eh.Commit.BlockID.Hash
+func (eh *ExtendedHeader) Hash() libhead.Hash {
+	return libhead.Hash(eh.Commit.BlockID.Hash)
 }
 
 // LastHeader returns the Hash of the last wrapped RawHeader.
-func (eh *ExtendedHeader) LastHeader() bts.HexBytes {
-	return eh.RawHeader.LastBlockID.Hash
+func (eh *ExtendedHeader) LastHeader() libhead.Hash {
+	return libhead.Hash(eh.RawHeader.LastBlockID.Hash)
 }
 
 // IsBefore returns whether the given header is of a higher height.
-func (eh *ExtendedHeader) IsBefore(h *ExtendedHeader) bool {
-	return eh.Height < h.Height
-}
 
 // Equals returns whether the hash and height of the given header match.
 func (eh *ExtendedHeader) Equals(header *ExtendedHeader) bool {
-	return eh.Height == header.Height && bytes.Equal(eh.Hash(), header.Hash())
+	return eh.Height() == header.Height() && bytes.Equal(eh.Hash(), header.Hash())
 }
 
-// ValidateBasic performs *basic* validation to check for missed/incorrect fields.
-func (eh *ExtendedHeader) ValidateBasic() error {
+// Validate performs *basic* validation to check for missed/incorrect fields.
+func (eh *ExtendedHeader) Validate() error {
 	err := eh.RawHeader.ValidateBasic()
 	if err != nil {
 		return err
@@ -122,7 +151,7 @@ func (eh *ExtendedHeader) ValidateBasic() error {
 		)
 	}
 
-	if err := eh.ValidatorSet.VerifyCommitLight(eh.ChainID, eh.Commit.BlockID, eh.Height, eh.Commit); err != nil {
+	if err := eh.ValidatorSet.VerifyCommitLight(eh.ChainID(), eh.Commit.BlockID, eh.Height(), eh.Commit); err != nil {
 		return err
 	}
 

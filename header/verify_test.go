@@ -29,25 +29,25 @@ func TestVerifyAdjacent(t *testing.T) {
 		},
 		{
 			prepare: func() {
-				untrusted.Time = untrusted.Time.Add(time.Minute)
+				untrusted.RawHeader.Time = untrusted.RawHeader.Time.Add(time.Minute)
 			},
 			err: true,
 		},
 		{
 			prepare: func() {
-				untrusted.Time = untrusted.Time.Truncate(time.Hour)
+				untrusted.RawHeader.Time = untrusted.RawHeader.Time.Truncate(time.Hour)
 			},
 			err: true,
 		},
 		{
 			prepare: func() {
-				untrusted.ChainID = "toaster"
+				untrusted.RawHeader.ChainID = "toaster"
 			},
 			err: true,
 		},
 		{
 			prepare: func() {
-				untrusted.Height++
+				untrusted.RawHeader.Height++
 			},
 			err: true,
 		},
