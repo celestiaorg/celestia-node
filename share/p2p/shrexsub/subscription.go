@@ -1,4 +1,4 @@
-package shrexpush
+package shrexsub
 
 import (
 	"context"

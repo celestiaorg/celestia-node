@@ -7,6 +7,7 @@ import (
 	"github.com/libp2p/go-libp2p/core/host"
 	"go.uber.org/fx"
 
+	"github.com/celestiaorg/celestia-node/libs/fxutil"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	modp2p "github.com/celestiaorg/celestia-node/nodebuilder/p2p"
 	"github.com/celestiaorg/celestia-node/share"
@@ -15,8 +16,7 @@ import (
 	"github.com/celestiaorg/celestia-node/share/eds"
 	"github.com/celestiaorg/celestia-node/share/getters"
 	"github.com/celestiaorg/celestia-node/share/p2p/shrexeds"
-
-	"github.com/celestiaorg/celestia-node/libs/fxutil"
+	"github.com/celestiaorg/celestia-node/share/p2p/shrexsub"
 )
 
 func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option {
@@ -95,6 +95,21 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 				}),
 				fx.OnStop(func(ctx context.Context, avail *full.ShareAvailability) error {
 					return avail.Stop(ctx)
+				}),
+			)),
+			fx.Provide(fx.Annotate(
+				func(ctx context.Context, h host.Host, network modp2p.Network) (*shrexsub.PubSub, error) {
+					return shrexsub.NewPubSub(
+						ctx,
+						h,
+						string(network),
+					)
+				},
+				fx.OnStart(func(ctx context.Context, pubsub *shrexsub.PubSub) error {
+					return pubsub.Start(ctx)
+				}),
+				fx.OnStop(func(ctx context.Context, pubsub *shrexsub.PubSub) error {
+					return pubsub.Stop(ctx)
 				}),
 			)),
 			// cacheAvailability's lifecycle continues to use a fx hook,
