@@ -2,13 +2,14 @@ package getters
 
 import (
 	"context"
+	"errors"
+	"github.com/celestiaorg/celestia-node/libs/utils"
 	"time"
 
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/nmt/namespace"
 	"github.com/celestiaorg/rsmt2d"
 	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
 	"go.uber.org/multierr"
 )
@@ -70,7 +71,7 @@ func (cg *CascadeGetter) GetSharesByNamespace(
 	root *share.Root,
 	id namespace.ID,
 ) (share.NamespacedShares, error) {
-	ctx, span := tracer.Start(ctx, "cascade/gget-shares-by-namespace", trace.WithAttributes(
+	ctx, span := tracer.Start(ctx, "cascade/get-shares-by-namespace", trace.WithAttributes(
 		attribute.String("root", root.String()),
 		attribute.String("nid", id.String()),
 	))
@@ -83,11 +84,6 @@ func (cg *CascadeGetter) GetSharesByNamespace(
 	return cascadeGetters(ctx, cg.getters, get, cg.interval)
 }
 
-// getVal defines a type constraint for the types allowed for cascading
-type getVal interface {
-	share.Share | share.NamespacedShares | *rsmt2d.ExtendedDataSquare
-}
-
 // cascade implements a cascading retry algorithm for getting a value from multiple sources.
 // Cascading implies trying the sources one-by-one in the given order with the
 // given interval until either:
@@ -96,24 +92,20 @@ type getVal interface {
 //   - Context is canceled
 //
 // NOTE: New source attempts after interval do suspend running sources in progress.
-func cascadeGetters[V getVal](
+func cascadeGetters[V any](
 	ctx context.Context,
 	getters []share.Getter,
 	get func(context.Context, share.Getter) (V, error),
 	interval time.Duration,
-) (zero V,  err error) {
+) (zero V, err error) {
 	ctx, span := tracer.Start(ctx, "cascade", trace.WithAttributes(
 		attribute.String("interval", interval.String()),
 		attribute.Int("total-getters", len(getters)),
 	))
 	defer func() {
-		defer span.End()
 		if err != nil {
-			// we do not set the actual errors to the description, as they were already recorded
-			span.SetStatus(codes.Error, "all getters failed")
-			return
+			utils.SetStatusAndEnd(span, errors.New("all getters failed"))
 		}
-		span.SetStatus(codes.Ok, "")
 	}()
 
 	for i, getter := range getters {
