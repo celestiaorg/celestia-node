@@ -19,7 +19,7 @@ type coordinatorState struct {
 	next        uint64 // all headers before next were sent to workers
 	networkHead uint64
 
-	catchUpDone   *atomic.Bool  // indicates if all headers are sampled
+	catchUpDone   atomic.Bool   // indicates if all headers are sampled
 	catchUpDoneCh chan struct{} // blocks until all headers are sampled
 }
 
@@ -35,7 +35,6 @@ func newCoordinatorState(params Parameters) coordinatorState {
 		nextJobID:         0,
 		next:              params.SampleFrom,
 		networkHead:       params.SampleFrom,
-		catchUpDone:       new(atomic.Bool),
 		catchUpDoneCh:     make(chan struct{}),
 	}
 }

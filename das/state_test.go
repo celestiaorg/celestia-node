@@ -3,7 +3,6 @@ package das
 import (
 	"errors"
 	"sort"
-	"sync/atomic"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -48,7 +47,6 @@ func Test_coordinatorStats(t *testing.T) {
 				nextJobID:   0,
 				next:        31,
 				networkHead: 100,
-				catchUpDone: new(atomic.Bool),
 			},
 			SamplingStats{
 				SampledChainHead: 11,
