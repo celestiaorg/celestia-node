@@ -3,14 +3,15 @@ package share
 import (
 	"context"
 	"fmt"
-	"math"
 
 	"github.com/ipfs/go-blockservice"
 
 	"github.com/celestiaorg/celestia-app/pkg/wrapper"
-	"github.com/celestiaorg/celestia-node/share/ipld"
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/rsmt2d"
+
+	"github.com/celestiaorg/celestia-node/libs/utils"
+	"github.com/celestiaorg/celestia-node/share/ipld"
 )
 
 // AddShares erasures and extends shares to blockservice.BlockService using the provided
@@ -23,7 +24,7 @@ func AddShares(
 	if len(shares) == 0 {
 		return nil, fmt.Errorf("empty data") // empty block is not an empty Data
 	}
-	squareSize := int(math.Sqrt(float64(len(shares))))
+	squareSize := int(utils.SquareSize(len(shares)))
 	// create nmt adder wrapping batch adder with calculated size
 	batchAdder := ipld.NewNmtNodeAdder(ctx, adder, ipld.MaxSizeBatchOption(squareSize*2))
 	// create the nmt wrapper to generate row and col commitments
@@ -43,7 +44,7 @@ func AddShares(
 	return eds, batchAdder.Commit()
 }
 
-// ImportShares imports flattend chunks of data into Extended Data square and saves it in
+// ImportShares imports flattened chunks of data into Extended Data square and saves it in
 // blockservice.BlockService
 func ImportShares(
 	ctx context.Context,
@@ -52,7 +53,7 @@ func ImportShares(
 	if len(shares) == 0 {
 		return nil, fmt.Errorf("ipld: importing empty data")
 	}
-	squareSize := int(math.Sqrt(float64(len(shares))))
+	squareSize := int(utils.SquareSize(len(shares)))
 	// create nmt adder wrapping batch adder with calculated size
 	batchAdder := ipld.NewNmtNodeAdder(ctx, adder, ipld.MaxSizeBatchOption(squareSize*2))
 	// recompute the eds

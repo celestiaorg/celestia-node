@@ -5,27 +5,26 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/ipfs/go-blockservice"
-
 	"github.com/celestiaorg/celestia-node/header"
 	libhead "github.com/celestiaorg/celestia-node/libs/header"
+	"github.com/celestiaorg/celestia-node/share/eds"
 )
 
 type Exchange struct {
-	fetcher    *BlockFetcher
-	shareStore blockservice.BlockService
-	construct  header.ConstructFn
+	fetcher   *BlockFetcher
+	store     *eds.Store
+	construct header.ConstructFn
 }
 
 func NewExchange(
 	fetcher *BlockFetcher,
-	bServ blockservice.BlockService,
+	store *eds.Store,
 	construct header.ConstructFn,
 ) *Exchange {
 	return &Exchange{
-		fetcher:    fetcher,
-		shareStore: bServ,
-		construct:  construct,
+		fetcher:   fetcher,
+		store:     store,
+		construct: construct,
 	}
 }
 
@@ -86,14 +85,24 @@ func (ce *Exchange) Get(ctx context.Context, hash libhead.Hash) (*header.Extende
 		return nil, err
 	}
 
-	eh, err := ce.construct(ctx, block, comm, vals, ce.shareStore)
+	// extend block data
+	eds, err := extendBlock(block.Data)
 	if err != nil {
 		return nil, err
 	}
-
+	// construct extended header
+	eh, err := ce.construct(ctx, block, comm, vals, eds)
+	if err != nil {
+		return nil, err
+	}
 	// verify hashes match
 	if !bytes.Equal(hash, eh.Hash()) {
 		return nil, fmt.Errorf("incorrect hash in header: expected %x, got %x", hash, eh.Hash())
+	}
+	// store extended block
+	err = ce.store.Put(ctx, eh.DAH.Hash(), eds)
+	if err != nil {
+		return nil, err
 	}
 
 	return eh, nil
@@ -115,5 +124,22 @@ func (ce *Exchange) getExtendedHeaderByHeight(ctx context.Context, height *int64
 		return nil, err
 	}
 
-	return ce.construct(ctx, b, comm, vals, ce.shareStore)
+	// extend block data
+	eds, err := extendBlock(b.Data)
+	if err != nil {
+		return nil, err
+	}
+	// create extended header
+	eh, err := ce.construct(ctx, b, comm, vals, eds)
+	if err != nil {
+		return nil, err
+	}
+	// only store extended block if it's not empty
+	if eds != nil {
+		err = ce.store.Put(ctx, eh.DAH.Hash(), eds)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return eh, nil
 }

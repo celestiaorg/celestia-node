@@ -2,8 +2,9 @@ package headertest
 
 import (
 	"context"
-
+	"fmt"
 	mrand "math/rand"
+	"sort"
 	"testing"
 	"time"
 
@@ -18,10 +19,11 @@ import (
 	"github.com/tendermint/tendermint/proto/tendermint/version"
 	"github.com/tendermint/tendermint/types"
 	tmtime "github.com/tendermint/tendermint/types/time"
+	"golang.org/x/exp/rand"
 
 	"github.com/celestiaorg/celestia-app/pkg/da"
+	"github.com/celestiaorg/rsmt2d"
 
-	"github.com/celestiaorg/celestia-node/core"
 	"github.com/celestiaorg/celestia-node/header"
 	libhead "github.com/celestiaorg/celestia-node/libs/header"
 	"github.com/celestiaorg/celestia-node/libs/header/test"
@@ -44,7 +46,7 @@ type TestSuite struct {
 
 // NewTestSuite setups a new test suite with a given number of validators.
 func NewTestSuite(t *testing.T, num int) *TestSuite {
-	valSet, vals := core.RandValidatorSet(num, 10)
+	valSet, vals := RandValidatorSet(num, 10)
 	return &TestSuite{
 		t:      t,
 		vals:   vals,
@@ -62,7 +64,7 @@ func (s *TestSuite) genesis() *header.ExtendedHeader {
 	gen.NextValidatorsHash = s.valSet.Hash()
 	gen.Height = 1
 	voteSet := types.NewVoteSet(gen.ChainID, gen.Height, 0, tmproto.PrecommitType, s.valSet)
-	commit, err := core.MakeCommit(RandBlockID(s.t), gen.Height, 0, voteSet, s.vals, time.Now())
+	commit, err := MakeCommit(RandBlockID(s.t), gen.Height, 0, voteSet, s.vals, time.Now())
 	require.NoError(s.t, err)
 
 	eh := &header.ExtendedHeader{
@@ -73,6 +75,44 @@ func (s *TestSuite) genesis() *header.ExtendedHeader {
 	}
 	require.NoError(s.t, eh.Validate())
 	return eh
+}
+
+func MakeCommit(blockID types.BlockID, height int64, round int32,
+	voteSet *types.VoteSet, validators []types.PrivValidator, now time.Time) (*types.Commit, error) {
+
+	// all sign
+	for i := 0; i < len(validators); i++ {
+		pubKey, err := validators[i].GetPubKey()
+		if err != nil {
+			return nil, fmt.Errorf("can't get pubkey: %w", err)
+		}
+		vote := &types.Vote{
+			ValidatorAddress: pubKey.Address(),
+			ValidatorIndex:   int32(i),
+			Height:           height,
+			Round:            round,
+			Type:             tmproto.PrecommitType,
+			BlockID:          blockID,
+			Timestamp:        now,
+		}
+
+		_, err = signAddVote(validators[i], vote, voteSet)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return voteSet.MakeCommit(), nil
+}
+
+func signAddVote(privVal types.PrivValidator, vote *types.Vote, voteSet *types.VoteSet) (signed bool, err error) {
+	v := vote.ToProto()
+	err = privVal.SignVote(voteSet.ChainID(), v)
+	if err != nil {
+		return false, err
+	}
+	vote.Signature = v.Signature
+	return voteSet.AddVote(vote)
 }
 
 func (s *TestSuite) Head() *header.ExtendedHeader {
@@ -173,10 +213,10 @@ func RandExtendedHeader(t *testing.T) *header.ExtendedHeader {
 	rh := RandRawHeader(t)
 	rh.DataHash = dah.Hash()
 
-	valSet, vals := core.RandValidatorSet(3, 1)
+	valSet, vals := RandValidatorSet(3, 1)
 	rh.ValidatorsHash = valSet.Hash()
 	voteSet := types.NewVoteSet(rh.ChainID, rh.Height, 0, tmproto.PrecommitType, valSet)
-	commit, err := core.MakeCommit(RandBlockID(t), rh.Height, 0, voteSet, vals, time.Now())
+	commit, err := MakeCommit(RandBlockID(t), rh.Height, 0, voteSet, vals, time.Now())
 	require.NoError(t, err)
 
 	return &header.ExtendedHeader{
@@ -185,6 +225,38 @@ func RandExtendedHeader(t *testing.T) *header.ExtendedHeader {
 		ValidatorSet: valSet,
 		DAH:          &dah,
 	}
+}
+
+func RandValidatorSet(numValidators int, votingPower int64) (*types.ValidatorSet, []types.PrivValidator) {
+	var (
+		valz           = make([]*types.Validator, numValidators)
+		privValidators = make([]types.PrivValidator, numValidators)
+	)
+
+	for i := 0; i < numValidators; i++ {
+		val, privValidator := RandValidator(false, votingPower)
+		valz[i] = val
+		privValidators[i] = privValidator
+	}
+
+	sort.Sort(types.PrivValidatorsByAddress(privValidators))
+
+	return types.NewValidatorSet(valz), privValidators
+}
+
+func RandValidator(randPower bool, minPower int64) (*types.Validator, types.PrivValidator) {
+	privVal := types.NewMockPV()
+	votePower := minPower
+	if randPower {
+		//nolint:gosec // G404: Use of weak random number generator
+		votePower += int64(rand.Uint32())
+	}
+	pubKey, err := privVal.GetPubKey()
+	if err != nil {
+		panic(fmt.Errorf("could not retrieve pubkey %w", err))
+	}
+	val := types.NewValidator(pubKey, votePower)
+	return val, privVal
 }
 
 // RandRawHeader provides a RawHeader fixture.
@@ -222,13 +294,14 @@ func RandBlockID(t *testing.T) types.BlockID {
 }
 
 // FraudMaker creates a custom ConstructFn that breaks the block at the given height.
-func FraudMaker(t *testing.T, faultHeight int64) header.ConstructFn {
+func FraudMaker(t *testing.T, faultHeight int64, bServ blockservice.BlockService) header.ConstructFn {
 	log.Warn("Corrupting block...", "height", faultHeight)
 	return func(ctx context.Context,
 		b *types.Block,
 		comm *types.Commit,
 		vals *types.ValidatorSet,
-		bServ blockservice.BlockService) (*header.ExtendedHeader, error) {
+		eds *rsmt2d.ExtendedDataSquare,
+	) (*header.ExtendedHeader, error) {
 		if b.Height == faultHeight {
 			eh := &header.ExtendedHeader{
 				RawHeader:    b.Header,
@@ -239,7 +312,12 @@ func FraudMaker(t *testing.T, faultHeight int64) header.ConstructFn {
 			eh = CreateFraudExtHeader(t, eh, bServ)
 			return eh, nil
 		}
-		return header.MakeExtendedHeader(ctx, b, comm, vals, bServ)
+		flattened := eds.Flattened()
+		_, err := share.ImportShares(ctx, flattened, bServ)
+		if err != nil {
+			return nil, err
+		}
+		return header.MakeExtendedHeader(ctx, b, comm, vals, eds)
 	}
 }
 

@@ -1,23 +1,25 @@
 package core
 
 import (
-	"bytes"
 	"context"
 	"testing"
 
-	mdutils "github.com/ipfs/go-merkledag/test"
+	ds "github.com/ipfs/go-datastore"
+	ds_sync "github.com/ipfs/go-datastore/sync"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/celestiaorg/celestia-node/header"
+	"github.com/celestiaorg/celestia-node/share/eds"
 )
 
 func TestCoreExchange_RequestHeaders(t *testing.T) {
 	fetcher := createCoreFetcher(t)
-	store := mdutils.Bserv()
 
 	// generate 10 blocks
 	generateBlocks(t, fetcher)
+
+	store := createStore(t)
 
 	ce := NewExchange(fetcher, store, header.MakeExtendedHeader)
 	headers, err := ce.GetRangeByHeight(context.Background(), 1, 10)
@@ -26,16 +28,15 @@ func TestCoreExchange_RequestHeaders(t *testing.T) {
 	assert.Equal(t, 10, len(headers))
 }
 
-func Test_hashMatch(t *testing.T) {
-	expected := []byte("AE0F153556A4FA5C0B7C3BFE0BAF0EC780C031933B281A8D759BB34C1DA31C56")
-	mismatch := []byte("57A0D7FE69FE88B3D277C824B3ACB9B60E5E65837A802485DE5CBB278C43576A")
-
-	assert.False(t, bytes.Equal(expected, mismatch))
-}
-
 func createCoreFetcher(t *testing.T) *BlockFetcher {
 	client := StartTestNode(t).Client
 	return NewBlockFetcher(client)
+}
+
+func createStore(t *testing.T) *eds.Store {
+	store, err := eds.NewStore(t.TempDir(), ds_sync.MutexWrap(ds.NewMapDatastore()))
+	require.NoError(t, err)
+	return store
 }
 
 func generateBlocks(t *testing.T, fetcher *BlockFetcher) {
