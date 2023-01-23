@@ -10,10 +10,10 @@ import (
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/multierr"
 
+	"github.com/celestiaorg/rsmt2d"
+
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/mocks"
-
-	"github.com/celestiaorg/rsmt2d"
 )
 
 func TestCascadeGetter(t *testing.T) {
