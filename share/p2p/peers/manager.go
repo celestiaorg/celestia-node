@@ -3,28 +3,24 @@ package peers
 import (
 	"context"
 	"errors"
-	libhead "github.com/celestiaorg/celestia-node/libs/header"
-	"github.com/celestiaorg/celestia-node/share/availability/discovery"
-	logging "github.com/ipfs/go-log/v2"
-	"github.com/libp2p/go-libp2p/core/peer"
 	"sync"
 	"sync/atomic"
 	"time"
 
+	logging "github.com/ipfs/go-log/v2"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
+	"github.com/libp2p/go-libp2p/core/peer"
 
 	"github.com/celestiaorg/celestia-node/header"
+	libhead "github.com/celestiaorg/celestia-node/libs/header"
 	"github.com/celestiaorg/celestia-node/share"
+	"github.com/celestiaorg/celestia-node/share/availability/discovery"
 	"github.com/celestiaorg/celestia-node/share/p2p/shrexsub"
 )
 
 // TODO: Needs improvement:
-//   - might need rework / adjustment: if node was behind head, DASer will start only after some header is sampled / sample timed out
-//   - need to add cleanup, otherwise items store memory footpritn will grow over time
-//   - note: recent block will be sampled without being restricted by DASer concurrency limit.
-//     If DASer is busy with heavy tasks it could take a while until worker slot is available
 //   - make params configurable
-//   - add metrics
+//   - add metrics, traces
 
 var (
 	log         = logging.Logger("shrex/peers")
@@ -97,32 +93,32 @@ func (s *Manager) Stop(ctx context.Context) error {
 	}
 }
 
-func (s *Manager) Get(ctx context.Context, h *header.ExtendedHeader) (peer.ID, error) {
-	p := s.markSynced(hashStr(h.DataHash.String()))
-	peer, ok := p.pool.tryGet()
+func (s *Manager) Get(ctx context.Context, datahash string) (peer.ID, error) {
+	p := s.markSynced(hashStr(datahash))
+	peerID, ok := p.pool.tryGet()
 	if ok {
-		return peer, nil
+		return peerID, nil
 	}
 
 	// try fullnodes obtained from discovery
-	peer, ok = s.fullNodes.tryGet()
+	peerID, ok = s.fullNodes.tryGet()
 	if ok {
-		return peer, nil
+		return peerID, nil
 	}
 
 	// no peers available, wait for the first one
 	select {
-	case peer = <-p.pool.waitNext(ctx):
-		return peer, nil
-	case peer = <-s.fullNodes.waitNext(ctx):
-		return peer, nil
+	case peerID = <-p.pool.waitNext(ctx):
+		return peerID, nil
+	case peerID = <-s.fullNodes.waitNext(ctx):
+		return peerID, nil
 	case <-ctx.Done():
 		return "", ctx.Err()
 	}
 }
 
-func (s *Manager) Remove(h *header.ExtendedHeader, ids ...peer.ID) {
-	p := s.markSynced(hashStr(h.DataHash.String()))
+func (s *Manager) Remove(datahash string, ids ...peer.ID) {
+	p := s.markSynced(hashStr(datahash))
 	p.pool.remove(ids...)
 }
 
@@ -136,7 +132,7 @@ func (s *Manager) subscribeHeader(ctx context.Context) {
 			if errors.Is(err, context.Canceled) {
 				return
 			}
-			log.Errorw("get next header", "err", err)
+			log.Errorw("get next header from sub", "err", err)
 			continue
 		}
 
@@ -168,9 +164,10 @@ func (s *Manager) markSynced(key hashStr) syncPool {
 	return p
 }
 
-// Validator will block until header with given datahash received. This behavior opens an attack vector of multiple fake
-// datahash spam, that will grow amount of hanging routines in node. To address this, validator should be reworked to be non-blocking,
-// with retransmission being invoked upon header discovery and from another routine in sync manner.
+// Validator will block until header with given datahash received. This behavior opens an attack
+// vector of multiple fake datahash spam, that will grow amount of hanging routines in node. To
+// address this, validator should be reworked to be non-blocking, with retransmission being invoked
+// upon header discovery and from another routine in sync manner.
 func (s *Manager) validator() shrexsub.Validator {
 	return func(ctx context.Context, peerID peer.ID, hash share.DataHash) pubsub.ValidationResult {
 		p := s.addPool(hash)
@@ -186,13 +183,12 @@ func (s *Manager) validator() shrexsub.Validator {
 		case <-p.syncCh:
 			if p.isSynced.Load() {
 				// headerSub found corresponding ExtendedHeader for dataHash,
-				//retransmit the message by returning Accept
+				// retransmit the message by returning Accept
 				return pubsub.ValidationAccept
 			}
 
 			// no corresponding header was received in time,
-			//highly unlikely block with given datahash exist in chain, reject msg and punish the peer
-			// TODO: maybe keep pool for fast rejects later?
+			// highly unlikely block with given datahash exist in chain, reject msg and punish the peer
 			s.deletePool(hashStr(hash.String()))
 			return pubsub.ValidationReject
 		case <-ctx.Done():

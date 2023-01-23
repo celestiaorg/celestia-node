@@ -2,9 +2,9 @@ package peers
 
 import (
 	"context"
-	"github.com/libp2p/go-libp2p/core/peer"
 	"sync"
-	"sync/atomic"
+
+	"github.com/libp2p/go-libp2p/core/peer"
 )
 
 type pool struct {
@@ -14,8 +14,9 @@ type pool struct {
 	aliveCount int
 	next       int
 
-	hasPeer   *atomic.Bool
-	hasPeerCh chan struct{}
+	cleanupEnabled bool
+	hasPeer        bool
+	hasPeerCh      chan struct{}
 }
 
 func newPool() *pool {
@@ -23,7 +24,6 @@ func newPool() *pool {
 		m:         new(sync.Mutex),
 		peersList: make([]peer.ID, 0),
 		alive:     make(map[peer.ID]bool),
-		hasPeer:   new(atomic.Bool),
 		hasPeerCh: make(chan struct{}),
 	}
 }
@@ -37,13 +37,12 @@ func (p *pool) tryGet() (peer.ID, bool) {
 	}
 
 	for {
-		peer := p.peersList[p.next]
+		peerID := p.peersList[p.next]
 		if p.next++; p.next == len(p.peersList) {
 			p.next = 0
 		}
-		_, ok := p.alive[peer]
-		if ok {
-			return peer, true
+		if alive := p.alive[peerID]; alive {
+			return peerID, true
 		}
 	}
 }
@@ -54,11 +53,12 @@ func (p *pool) waitNext(ctx context.Context) <-chan peer.ID {
 		for {
 			select {
 			case <-p.hasPeerCh:
-				if peer, ok := p.tryGet(); ok {
-					peerCh <- peer
+				if peerID, ok := p.tryGet(); ok {
+					peerCh <- peerID
 					return
 				}
 			case <-ctx.Done():
+				close(peerCh)
 				return
 			}
 		}
@@ -70,14 +70,14 @@ func (p *pool) add(peers ...peer.ID) {
 	p.m.Lock()
 	defer p.m.Unlock()
 
-	for _, peer := range peers {
-		alive, ok := p.alive[peer]
+	for _, peerID := range peers {
+		alive, ok := p.alive[peerID]
 		if !ok {
-			p.peersList = append(p.peersList, peer)
+			p.peersList = append(p.peersList, peerID)
 		}
 
 		if !ok || !alive {
-			p.alive[peer] = true
+			p.alive[peerID] = true
 			p.aliveCount++
 		}
 	}
@@ -88,14 +88,14 @@ func (p *pool) remove(peers ...peer.ID) {
 	p.m.Lock()
 	defer p.m.Unlock()
 
-	for _, peer := range peers {
-		if alive, ok := p.alive[peer]; ok && alive {
-			p.alive[peer] = false
+	for _, peerID := range peers {
+		if alive, ok := p.alive[peerID]; ok && alive {
+			p.alive[peerID] = false
 			p.aliveCount--
 		}
 	}
 
-	if len(p.peersList) > p.aliveCount*2 {
+	if len(p.peersList) > p.aliveCount*2 && p.cleanupEnabled {
 		p.cleanup()
 	}
 	p.checkHasPeers()
@@ -103,10 +103,12 @@ func (p *pool) remove(peers ...peer.ID) {
 
 func (p *pool) cleanup() {
 	newList := make([]peer.ID, 0, p.aliveCount)
-	for idx, peer := range p.peersList {
-		alive := p.alive[peer]
+	for idx, peerID := range p.peersList {
+		alive := p.alive[peerID]
 		if alive {
-			newList = append(newList, peer)
+			newList = append(newList, peerID)
+		} else {
+			delete(p.alive, peerID)
 		}
 
 		if idx == p.next {
@@ -122,13 +124,14 @@ func (p *pool) cleanup() {
 }
 
 func (p *pool) checkHasPeers() {
-	if p.aliveCount > 0 && p.hasPeer.CompareAndSwap(false, true) {
+	if p.aliveCount > 0 && !p.hasPeer {
+		p.hasPeer = true
 		close(p.hasPeerCh)
 		return
 	}
 
-	if p.aliveCount == 0 && p.hasPeer.Load() {
+	if p.aliveCount == 0 && p.hasPeer {
 		p.hasPeerCh = make(chan struct{})
-		p.hasPeer.Store(true)
+		p.hasPeer = false
 	}
 }
