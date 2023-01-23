@@ -11,6 +11,7 @@ import (
 	"github.com/celestiaorg/celestia-node/core"
 	"github.com/celestiaorg/celestia-node/header"
 	libhead "github.com/celestiaorg/celestia-node/libs/header"
+	"github.com/celestiaorg/celestia-node/share/p2p/shrexsub"
 )
 
 // Listener is responsible for listening to Core for
@@ -21,24 +22,30 @@ import (
 // broadcasts the new `ExtendedHeader` to the header-sub gossipsub
 // network.
 type Listener struct {
-	bcast     libhead.Broadcaster[*header.ExtendedHeader]
-	fetcher   *core.BlockFetcher
-	bServ     blockservice.BlockService
+	fetcher *core.BlockFetcher
+	bServ   blockservice.BlockService
+
 	construct header.ConstructFn
-	cancel    context.CancelFunc
+
+	headerBroadcaster libhead.Broadcaster[*header.ExtendedHeader]
+	hashBroadcaster   shrexsub.BroadcastFn
+
+	cancel context.CancelFunc
 }
 
 func NewListener(
 	bcast libhead.Broadcaster[*header.ExtendedHeader],
 	fetcher *core.BlockFetcher,
+	extHeaderBroadcaster shrexsub.BroadcastFn,
 	bServ blockservice.BlockService,
 	construct header.ConstructFn,
 ) *Listener {
 	return &Listener{
-		bcast:     bcast,
-		fetcher:   fetcher,
-		bServ:     bServ,
-		construct: construct,
+		headerBroadcaster: bcast,
+		fetcher:           fetcher,
+		hashBroadcaster:   extHeaderBroadcaster,
+		bServ:             bServ,
+		construct:         construct,
 	}
 }
 
@@ -97,10 +104,17 @@ func (cl *Listener) listen(ctx context.Context, sub <-chan *types.Block) {
 			}
 
 			// broadcast new ExtendedHeader, but if core is still syncing, notify only local subscribers
-			err = cl.bcast.Broadcast(ctx, eh, pubsub.WithLocalPublication(syncing))
+			err = cl.headerBroadcaster.Broadcast(ctx, eh, pubsub.WithLocalPublication(syncing))
 			if err != nil {
 				log.Errorw("listener: broadcasting next header", "height", eh.Height(),
 					"err", err)
+			}
+
+			// notify network of new EDS hash
+			err = cl.hashBroadcaster(ctx, eh.DataHash.Bytes())
+			if err != nil {
+				log.Errorw("listener: broadcasting data hash", "height", eh.Height(),
+					"hash", eh.Hash(), "err", err)
 			}
 		case <-ctx.Done():
 			return

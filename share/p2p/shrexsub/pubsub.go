@@ -1,4 +1,4 @@
-package shrexpush
+package shrexsub
 
 import (
 	"context"
@@ -13,7 +13,7 @@ import (
 	"github.com/celestiaorg/celestia-node/share"
 )
 
-var log = logging.Logger("shrex-push")
+var log = logging.Logger("shrex-sub")
 
 // pubSubTopic hardcodes the name of the EDS floodsub topic with the provided suffix.
 func pubSubTopic(suffix string) string {
@@ -24,6 +24,9 @@ func pubSubTopic(suffix string) string {
 // It receives the notification and sender peer and expects the validation result.
 // Validator is allowed to be blocking for an indefinite time or until the context is canceled.
 type Validator func(context.Context, peer.ID, share.DataHash) pubsub.ValidationResult
+
+// BroadcastFn aliases the function that broadcasts the DataHash.
+type BroadcastFn func(context.Context, share.DataHash) error
 
 // PubSub manages receiving and propagating the EDS from/to the network
 // over "eds-sub" subscription.
@@ -64,9 +67,8 @@ func (s *PubSub) Start(context.Context) error {
 func (s *PubSub) Stop(context.Context) error {
 	err := s.pubSub.UnregisterTopicValidator(s.pubSubTopic)
 	if err != nil {
-		return err
+		log.Warnw("unregistering topic", "err", err)
 	}
-
 	return s.topic.Close()
 }
 
