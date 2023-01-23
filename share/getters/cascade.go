@@ -7,14 +7,11 @@ import (
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/nmt/namespace"
 	"github.com/celestiaorg/rsmt2d"
-	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
 	"go.uber.org/multierr"
 )
-
-var cascadeTracer = otel.Tracer("getters/cascade")
 
 var _ share.Getter = (*CascadeGetter)(nil)
 
@@ -38,7 +35,7 @@ func NewCascadeGetter(getters []share.Getter, interval time.Duration) *CascadeGe
 
 // GetShare gets a share from any of registered share.Getters in cascading order.
 func (cg *CascadeGetter) GetShare(ctx context.Context, root *share.Root, row, col int) (share.Share, error) {
-	ctx, span := cascadeTracer.Start(ctx, "get-share", trace.WithAttributes(
+	ctx, span := tracer.Start(ctx, "cascade/get-share", trace.WithAttributes(
 		attribute.String("root", root.String()),
 		attribute.Int("row", row),
 		attribute.Int("col", col),
@@ -54,7 +51,7 @@ func (cg *CascadeGetter) GetShare(ctx context.Context, root *share.Root, row, co
 
 // GetEDS gets a full EDS from any of registered share.Getters in cascading order.
 func (cg *CascadeGetter) GetEDS(ctx context.Context, root *share.Root) (*rsmt2d.ExtendedDataSquare, error) {
-	ctx, span := cascadeTracer.Start(ctx, "get-eds", trace.WithAttributes(
+	ctx, span := tracer.Start(ctx, "cascade/get-eds", trace.WithAttributes(
 		attribute.String("root", root.String()),
 	))
 	defer span.End()
@@ -73,7 +70,7 @@ func (cg *CascadeGetter) GetSharesByNamespace(
 	root *share.Root,
 	id namespace.ID,
 ) (share.NamespacedShares, error) {
-	ctx, span := cascadeTracer.Start(ctx, "get-shares-by-namespace", trace.WithAttributes(
+	ctx, span := tracer.Start(ctx, "cascade/gget-shares-by-namespace", trace.WithAttributes(
 		attribute.String("root", root.String()),
 		attribute.String("nid", id.String()),
 	))
@@ -104,22 +101,22 @@ func cascadeGetters[V getVal](
 	get func(context.Context, share.Getter) (V, error),
 	interval time.Duration,
 ) (zero V,  err error) {
-	ctx, span := cascadeTracer.Start(ctx, "cascade", trace.WithAttributes(
+	ctx, span := tracer.Start(ctx, "cascade", trace.WithAttributes(
 		attribute.String("interval", interval.String()),
-		attribute.Int("total-sources", len(getters)),
+		attribute.Int("total-getters", len(getters)),
 	))
 	defer func() {
 		defer span.End()
 		if err != nil {
 			// we do not set the actual errors to the description, as they were already recorded
-			span.SetStatus(codes.Error, "all sources failed")
+			span.SetStatus(codes.Error, "all getters failed")
 			return
 		}
 		span.SetStatus(codes.Ok, "")
 	}()
 
 	for i, getter := range getters {
-		span.AddEvent("source launched", trace.WithAttributes(attribute.Int("source_id", i)))
+		span.AddEvent("getter launched", trace.WithAttributes(attribute.Int("getter_id", i)))
 		ctx, cancel := context.WithTimeout(ctx, interval)
 		val, err := get(ctx, getter)
 		cancel()
@@ -129,7 +126,7 @@ func cascadeGetters[V getVal](
 
 		// TODO(@Wondertan): migrate to errors.Join once Go1.20 is out!
 		err = multierr.Append(err, err)
-		span.RecordError(err, trace.WithAttributes(attribute.Int("source_id", i)))
+		span.RecordError(err, trace.WithAttributes(attribute.Int("getter_id", i)))
 	}
 	return
 }
