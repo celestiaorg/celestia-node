@@ -4,15 +4,14 @@ import (
 	"context"
 	"time"
 
+	"github.com/celestiaorg/celestia-node/share"
+	"github.com/celestiaorg/nmt/namespace"
+	"github.com/celestiaorg/rsmt2d"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
 	"go.uber.org/multierr"
-
-	"github.com/celestiaorg/celestia-node/share"
-	"github.com/celestiaorg/nmt/namespace"
-	"github.com/celestiaorg/rsmt2d"
 )
 
 var cascadeTracer = otel.Tracer("getters/cascade")
@@ -50,7 +49,7 @@ func (cg *CascadeGetter) GetShare(ctx context.Context, root *share.Root, row, co
 		return get.GetShare(ctx, root, row, col)
 	}
 
-	return cascadeGetters(ctx, cg.getters, cg.interval, get)
+	return cascadeGetters(ctx, cg.getters, get, cg.interval)
 }
 
 // GetEDS gets a full EDS from any of registered share.Getters in cascading order.
@@ -64,7 +63,7 @@ func (cg *CascadeGetter) GetEDS(ctx context.Context, root *share.Root) (*rsmt2d.
 		return get.GetEDS(ctx, root)
 	}
 
-	return cascadeGetters(ctx, cg.getters, cg.interval, get)
+	return cascadeGetters(ctx, cg.getters, get, cg.interval)
 }
 
 // GetSharesByNamespace gets NamespacedShares from any of registered share.Getters in cascading
@@ -84,24 +83,11 @@ func (cg *CascadeGetter) GetSharesByNamespace(
 		return get.GetSharesByNamespace(ctx, root, id)
 	}
 
-	return cascadeGetters(ctx, cg.getters, cg.interval, get)
+	return cascadeGetters(ctx, cg.getters, get, cg.interval)
 }
 
-func cascadeGetters[V any](
-	ctx context.Context,
-	getters []share.Getter,
-	interval time.Duration,
-	get func(context.Context, share.Getter) (V, error),
-) (V, error) {
-	fns := make([]func(context.Context) (V, error), 0, len(getters))
-	for _, getter := range getters {
-		getter := getter // required for the same reason we do this when we launch goroutines in the loop
-		fns = append(fns, func(ctx context.Context) (V, error) {
-			return get(ctx, getter)
-		})
-	}
-
-	return cascade[V](ctx, fns, interval)
+type getVal interface {
+	share.Share | share.NamespacedShares | *rsmt2d.ExtendedDataSquare
 }
 
 // cascade implements a cascading retry algorithm for getting a value from multiple sources.
@@ -112,51 +98,38 @@ func cascadeGetters[V any](
 //   - Context is canceled
 //
 // NOTE: New source attempts after interval do suspend running sources in progress.
-func cascade[V any](
+func cascadeGetters[V getVal](
 	ctx context.Context,
-	srcs []func(context.Context) (V, error),
+	getters []share.Getter,
+	get func(context.Context, share.Getter) (V, error),
 	interval time.Duration,
-) (V, error) {
-	// short circuit when there is only one source
-	if len(srcs) == 1 {
-		return srcs[0](ctx)
-	}
-	// zero 'V'alue to return in error cases and errors themselves
-	// NOTE: You cannot return nil for generics(type params) in Go
-	var (
-		zero V
-		errs []error
-	)
-
+) (zero V,  err error) {
 	ctx, span := cascadeTracer.Start(ctx, "cascade", trace.WithAttributes(
 		attribute.String("interval", interval.String()),
-		attribute.Int("total-sources", len(srcs)),
+		attribute.Int("total-sources", len(getters)),
 	))
 	defer func() {
 		defer span.End()
-		if len(errs) == len(srcs) {
+		if err != nil {
 			// we do not set the actual errors to the description, as they were already recorded
 			span.SetStatus(codes.Error, "all sources failed")
 			return
 		}
-
 		span.SetStatus(codes.Ok, "")
 	}()
 
-	for i, src := range srcs {
+	for i, getter := range getters {
 		span.AddEvent("source launched", trace.WithAttributes(attribute.Int("source_id", i)))
 		ctx, cancel := context.WithTimeout(ctx, interval)
-		val, err := src(ctx)
+		val, err := get(ctx, getter)
 		cancel()
-		if err != nil {
-			span.RecordError(err, trace.WithAttributes(attribute.Int("source_id", i)))
-			errs = append(errs, err)
-			continue
+		if err == nil {
+			return val, nil
 		}
 
-		return val, nil
+		// TODO(@Wondertan): migrate to errors.Join once Go1.20 is out!
+		err = multierr.Append(err, err)
+		span.RecordError(err, trace.WithAttributes(attribute.Int("source_id", i)))
 	}
-
-	// TODO: migrate to errors.Join once Go1.20 is out!
-	return zero, multierr.Combine(errs...)
+	return
 }
