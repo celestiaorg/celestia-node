@@ -111,7 +111,7 @@ func cascadeGetters[V any](
 //   - All of the sources errors
 //   - Context is canceled
 //
-// NOTE: New source attempts after interval do not suspend running sources in progress.
+// NOTE: New source attempts after interval do suspend running sources in progress.
 func cascade[V any](
 	ctx context.Context,
 	srcs []func(context.Context) (V, error),
@@ -121,26 +121,12 @@ func cascade[V any](
 	if len(srcs) == 1 {
 		return srcs[0](ctx)
 	}
-	// once we got value from one of the fns
-	// this cancels all others on return
-	ctx, cancel := context.WithCancel(ctx)
-	defer cancel()
-	// start from zero so the first iteration is instantaneous
-	// later on in the loop below we reset to real interval
-	t := time.NewTimer(0)
-	defer t.Stop()
 	// zero 'V'alue to return in error cases and errors themselves
 	// NOTE: You cannot return nil for generics(type params) in Go
 	var (
 		zero V
 		errs []error
 	)
-	// results channel with anon type
-	// NOTE: Unfortunately, you cannot define private types in generic funcs in Go
-	results := make(chan struct {
-		val V
-		err error
-	})
 
 	ctx, span := cascadeTracer.Start(ctx, "cascade", trace.WithAttributes(
 		attribute.String("interval", interval.String()),
@@ -158,48 +144,17 @@ func cascade[V any](
 	}()
 
 	for i, src := range srcs {
-		select {
-		case res := <-results:
-			if res.err == nil {
-				return res.val, nil
-			}
-
-			errs = append(errs, res.err)
-			if !t.Stop() {
-				<-t.C
-			}
-		case <-ctx.Done():
-			return zero, ctx.Err()
-		case <-t.C:
+		span.AddEvent("source launched", trace.WithAttributes(attribute.Int("source_id", i)))
+		ctx, cancel := context.WithTimeout(ctx, interval)
+		val, err := src(ctx)
+		cancel()
+		if err != nil {
+			span.RecordError(err, trace.WithAttributes(attribute.Int("source_id", i)))
+			errs = append(errs, err)
+			continue
 		}
 
-		t.Reset(interval)
-		go func(i int, src func(context.Context) (V, error)) {
-			val, err := src(ctx)
-			span.RecordError(err, trace.WithAttributes(attribute.Int("id", i)))
-			select {
-			case results <- struct {
-				val V
-				err error
-			}{val: val, err: err}:
-			case <-ctx.Done():
-			}
-		}(i, src)
-		span.AddEvent("source launched", trace.WithAttributes(attribute.Int("id", i)))
-	}
-
-	// we know how many sources were executed in total
-	// and how many were processed already, so expect only the diff
-	for i := len(errs); i < len(srcs); i++ {
-		select {
-		case res := <-results:
-			if res.err == nil {
-				return res.val, nil
-			}
-			errs = append(errs, res.err)
-		case <-ctx.Done():
-			return zero, ctx.Err()
-		}
+		return val, nil
 	}
 
 	// TODO: migrate to errors.Join once Go1.20 is out!
