@@ -72,12 +72,16 @@ func StartTestNode(t *testing.T) testnode.Context {
 
 // StartTestNodeWithConfig starts Tendermint and Celestia App tandem with custom configuration.
 func StartTestNodeWithConfig(t *testing.T, cfg *TestConfig) testnode.Context {
+	state, kr, err := testnode.DefaultGenesisState(cfg.Accounts...)
+	require.NoError(t, err)
+
 	tmNode, app, cctx, err := testnode.New(
 		t,
 		cfg.ConsensusParams,
 		cfg.Tendermint,
 		cfg.SuppressLogs,
-		cfg.Accounts...,
+		state,
+		kr,
 	)
 	require.NoError(t, err)
 

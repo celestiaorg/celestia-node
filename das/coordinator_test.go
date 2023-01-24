@@ -302,7 +302,7 @@ func (m *mockSampler) sample(ctx context.Context, h *header.ExtendedHeader) erro
 	m.lock.Lock()
 	defer m.lock.Unlock()
 
-	height := uint64(h.Height)
+	height := uint64(h.Height())
 	m.done[height]++
 
 	if len(m.done) > int(m.NetworkHead-m.SampleFrom) && !m.isFinished {
@@ -435,7 +435,7 @@ func (o *checkOrder) middleWare(out sampleFn) sampleFn {
 
 		if len(o.queue) > 0 {
 			// check last item in queue to be same as input
-			if o.queue[0] != uint64(h.Height) {
+			if o.queue[0] != uint64(h.Height()) {
 				o.lock.Unlock()
 				return fmt.Errorf("expected height: %v,got: %v", o.queue[0], h)
 			}
@@ -505,7 +505,7 @@ func (l *lock) releaseAll(except ...uint64) {
 func (l *lock) middleWare(out sampleFn) sampleFn {
 	return func(ctx context.Context, h *header.ExtendedHeader) error {
 		l.m.Lock()
-		ch, blocked := l.blockList[uint64(h.Height)]
+		ch, blocked := l.blockList[uint64(h.Height())]
 		l.m.Unlock()
 		if !blocked {
 			return out(ctx, h)
@@ -525,10 +525,10 @@ func onceMiddleWare(out sampleFn) sampleFn {
 	m := sync.Mutex{}
 	return func(ctx context.Context, h *header.ExtendedHeader) error {
 		m.Lock()
-		db[h.Height]++
-		if db[h.Height] > 1 {
+		db[h.Height()]++
+		if db[h.Height()] > 1 {
 			m.Unlock()
-			return fmt.Errorf("header sampled more than once: %v", h.Height)
+			return fmt.Errorf("header sampled more than once: %v", h.Height())
 		}
 		m.Unlock()
 		return out(ctx, h)

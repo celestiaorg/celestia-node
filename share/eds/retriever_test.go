@@ -14,13 +14,15 @@ import (
 
 	"github.com/celestiaorg/celestia-app/pkg/da"
 	"github.com/celestiaorg/celestia-app/pkg/wrapper"
+	"github.com/celestiaorg/nmt"
+	"github.com/celestiaorg/rsmt2d"
+
 	"github.com/celestiaorg/celestia-node/fraud"
 	"github.com/celestiaorg/celestia-node/header"
+	"github.com/celestiaorg/celestia-node/headertest"
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/eds/byzantine"
 	"github.com/celestiaorg/celestia-node/share/ipld"
-	"github.com/celestiaorg/nmt"
-	"github.com/celestiaorg/rsmt2d"
 )
 
 func init() {
@@ -141,7 +143,7 @@ func TestFraudProofValidation(t *testing.T) {
 	faultHeader, err := generateByzantineError(ctx, t, bServ)
 	require.True(t, errors.As(err, &errByz))
 
-	p := byzantine.CreateBadEncodingProof([]byte("hash"), uint64(faultHeader.Height), errByz)
+	p := byzantine.CreateBadEncodingProof([]byte("hash"), uint64(faultHeader.Height()), errByz)
 	err = p.Validate(faultHeader)
 	require.NoError(t, err)
 }
@@ -155,7 +157,7 @@ func generateByzantineError(
 	h, err := store.GetByHeight(ctx, 1)
 	require.NoError(t, err)
 
-	faultHeader := header.CreateFraudExtHeader(t, h, bServ)
+	faultHeader := headertest.CreateFraudExtHeader(t, h, bServ)
 	_, err = NewRetriever(bServ).Retrieve(ctx, faultHeader.DAH)
 	return faultHeader, err
 }

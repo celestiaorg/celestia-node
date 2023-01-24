@@ -11,7 +11,7 @@ func (h *Handler) RegisterEndpoints(rpc *Server) {
 	rpc.RegisterHandlerFunc(fmt.Sprintf("%s/{%s}", balanceEndpoint, addrKey), h.handleBalanceRequest,
 		http.MethodGet)
 	rpc.RegisterHandlerFunc(submitTxEndpoint, h.handleSubmitTx, http.MethodPost)
-	rpc.RegisterHandlerFunc(submitPFDEndpoint, h.handleSubmitPFD, http.MethodPost)
+	rpc.RegisterHandlerFunc(submitPFBEndpoint, h.handleSubmitPFB, http.MethodPost)
 	rpc.RegisterHandlerFunc(transferEndpoint, h.handleTransfer, http.MethodPost)
 	rpc.RegisterHandlerFunc(delegationEndpoint, h.handleDelegation, http.MethodPost)
 	rpc.RegisterHandlerFunc(undelegationEndpoint, h.handleUndelegation, http.MethodPost)

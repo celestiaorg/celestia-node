@@ -6,7 +6,10 @@ import (
 	"fmt"
 
 	"github.com/filecoin-project/dagstore"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 
+	"github.com/celestiaorg/celestia-node/libs/utils"
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/eds"
 
@@ -31,12 +34,28 @@ func NewTeeGetter(getter share.Getter, store *eds.Store) *TeeGetter {
 	}
 }
 
-func (tg *TeeGetter) GetShare(ctx context.Context, root *share.Root, row, col int) (share.Share, error) {
+func (tg *TeeGetter) GetShare(ctx context.Context, root *share.Root, row, col int) (share share.Share, err error) {
+	ctx, span := tracer.Start(ctx, "tee/get-share", trace.WithAttributes(
+		attribute.String("root", root.String()),
+		attribute.Int("row", row),
+		attribute.Int("col", col),
+	))
+	defer func() {
+		utils.SetStatusAndEnd(span, err)
+	}()
+
 	return tg.getter.GetShare(ctx, root, row, col)
 }
 
-func (tg *TeeGetter) GetEDS(ctx context.Context, root *share.Root) (*rsmt2d.ExtendedDataSquare, error) {
-	eds, err := tg.getter.GetEDS(ctx, root)
+func (tg *TeeGetter) GetEDS(ctx context.Context, root *share.Root) (eds *rsmt2d.ExtendedDataSquare, err error) {
+	ctx, span := tracer.Start(ctx, "tee/get-eds", trace.WithAttributes(
+		attribute.String("root", root.String()),
+	))
+	defer func() {
+		utils.SetStatusAndEnd(span, err)
+	}()
+
+	eds, err = tg.getter.GetEDS(ctx, root)
 	if err != nil {
 		return nil, err
 	}
@@ -53,6 +72,14 @@ func (tg *TeeGetter) GetSharesByNamespace(
 	ctx context.Context,
 	root *share.Root,
 	id namespace.ID,
-) (share.NamespacedShares, error) {
+) (shares share.NamespacedShares, err error) {
+	ctx, span := tracer.Start(ctx, "tee/get-shares-by-namespace", trace.WithAttributes(
+		attribute.String("root", root.String()),
+		attribute.String("nID", id.String()),
+	))
+	defer func() {
+		utils.SetStatusAndEnd(span, err)
+	}()
+
 	return tg.getter.GetSharesByNamespace(ctx, root, id)
 }

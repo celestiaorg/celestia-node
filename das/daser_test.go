@@ -5,24 +5,27 @@ import (
 	"testing"
 	"time"
 
-	"github.com/celestiaorg/celestia-node/share/availability/full"
-	"github.com/celestiaorg/celestia-node/share/availability/light"
-	availability_test "github.com/celestiaorg/celestia-node/share/availability/test"
-
-	"github.com/tendermint/tendermint/types"
-
+	"github.com/golang/mock/gomock"
 	"github.com/ipfs/go-blockservice"
 	"github.com/ipfs/go-datastore"
 	ds_sync "github.com/ipfs/go-datastore/sync"
 	mdutils "github.com/ipfs/go-merkledag/test"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
+	"github.com/libp2p/go-libp2p/core/peer"
 	mocknet "github.com/libp2p/go-libp2p/p2p/net/mock"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	tmbytes "github.com/tendermint/tendermint/libs/bytes"
+	"github.com/tendermint/tendermint/types"
 
 	"github.com/celestiaorg/celestia-node/fraud"
 	"github.com/celestiaorg/celestia-node/header"
+	"github.com/celestiaorg/celestia-node/headertest"
+	libhead "github.com/celestiaorg/celestia-node/libs/header"
+	"github.com/celestiaorg/celestia-node/share"
+	"github.com/celestiaorg/celestia-node/share/availability/full"
+	"github.com/celestiaorg/celestia-node/share/availability/light"
+	"github.com/celestiaorg/celestia-node/share/availability/mocks"
+	availability_test "github.com/celestiaorg/celestia-node/share/availability/test"
 	"github.com/celestiaorg/celestia-node/share/getters"
 )
 
@@ -155,7 +158,7 @@ func TestDASer_stopsAfter_BEFP(t *testing.T) {
 	// create fraud service and break one header
 	f := fraud.NewProofService(ps, net.Hosts()[0], mockGet.GetByHeight, ds, false, "private")
 	require.NoError(t, f.Start(ctx))
-	mockGet.headers[1] = header.CreateFraudExtHeader(t, mockGet.headers[1], bServ)
+	mockGet.headers[1] = headertest.CreateFraudExtHeader(t, mockGet.headers[1], bServ)
 	newCtx := context.Background()
 
 	// create and start DASer
@@ -180,6 +183,44 @@ func TestDASer_stopsAfter_BEFP(t *testing.T) {
 	require.True(t, daser.running == 0)
 }
 
+func TestDASerSampleTimeout(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	t.Cleanup(cancel)
+
+	getter := getterStub{}
+	avail := mocks.NewMockAvailability(gomock.NewController(t))
+	avail.EXPECT().SharesAvailable(gomock.Any(), gomock.Any()).DoAndReturn(
+		func(sampleCtx context.Context, h *share.Root, peers ...peer.ID) error {
+			select {
+			case <-sampleCtx.Done():
+				return sampleCtx.Err()
+			case <-ctx.Done():
+				t.Fatal("call context didn't timeout in time")
+				return ctx.Err()
+			}
+		})
+
+	ds := ds_sync.MutexWrap(datastore.NewMapDatastore())
+	sub := new(headertest.DummySubscriber)
+	f := new(fraud.DummyService)
+
+	// create and start DASer
+	daser, err := NewDASer(avail, sub, getter, ds, f)
+	require.NoError(t, err)
+
+	// assign directly to avoid params validation
+	daser.params.SampleTimeout = 0
+
+	require.NoError(t, daser.Start(ctx))
+	require.NoError(t, daser.sampler.state.waitCatchUp(ctx))
+
+	stats, err := daser.SamplingStats(ctx)
+	require.NoError(t, err)
+
+	// failed map should contain first header as failed
+	require.Equal(t, stats.Failed[1], 1)
+}
+
 // createDASerSubcomponents takes numGetter (number of headers
 // to store in mockGetter) and numSub (number of headers to store
 // in the mock header.Subscriber), returning a newly instantiated
@@ -189,7 +230,7 @@ func createDASerSubcomponents(
 	bServ blockservice.BlockService,
 	numGetter,
 	numSub int,
-) (*mockGetter, *header.DummySubscriber, *fraud.DummyService) {
+) (*mockGetter, *headertest.DummySubscriber, *fraud.DummyService) {
 	mockGet, sub := createMockGetterAndSub(t, bServ, numGetter, numSub)
 	fraud := new(fraud.DummyService)
 	return mockGet, sub, fraud
@@ -200,7 +241,7 @@ func createMockGetterAndSub(
 	bServ blockservice.BlockService,
 	numGetter,
 	numSub int,
-) (*mockGetter, *header.DummySubscriber) {
+) (*mockGetter, *headertest.DummySubscriber) {
 	mockGet := &mockGetter{
 		headers:        make(map[int64]*header.ExtendedHeader),
 		doneCh:         make(chan struct{}),
@@ -209,7 +250,7 @@ func createMockGetterAndSub(
 
 	mockGet.generateHeaders(t, bServ, 0, numGetter)
 
-	sub := new(header.DummySubscriber)
+	sub := new(headertest.DummySubscriber)
 	mockGet.fillSubWithHeaders(t, sub, bServ, numGetter, numGetter+numSub)
 
 	return mockGet, sub
@@ -218,7 +259,7 @@ func createMockGetterAndSub(
 // fillSubWithHeaders generates `num` headers from the future for p2pSub to pipe through to DASer.
 func (m *mockGetter) fillSubWithHeaders(
 	t *testing.T,
-	sub *header.DummySubscriber,
+	sub *headertest.DummySubscriber,
 	bServ blockservice.BlockService,
 	startHeight,
 	endHeight int,
@@ -229,10 +270,10 @@ func (m *mockGetter) fillSubWithHeaders(
 	for i := startHeight; i < endHeight; i++ {
 		dah := availability_test.RandFillBS(t, 16, bServ)
 
-		randHeader := header.RandExtendedHeader(t)
+		randHeader := headertest.RandExtendedHeader(t)
 		randHeader.DataHash = dah.Hash()
 		randHeader.DAH = dah
-		randHeader.Height = int64(i + 1)
+		randHeader.RawHeader.Height = int64(i + 1)
 
 		sub.Headers[index] = randHeader
 		// also checkpointStore to mock getter for duplicate sampling
@@ -257,10 +298,10 @@ func (m *mockGetter) generateHeaders(t *testing.T, bServ blockservice.BlockServi
 	for i := startHeight; i < endHeight; i++ {
 		dah := availability_test.RandFillBS(t, 16, bServ)
 
-		randHeader := header.RandExtendedHeader(t)
+		randHeader := headertest.RandExtendedHeader(t)
 		randHeader.DataHash = dah.Hash()
 		randHeader.DAH = dah
-		randHeader.Height = int64(i + 1)
+		randHeader.RawHeader.Height = int64(i + 1)
 
 		m.headers[int64(i+1)] = randHeader
 	}
@@ -310,7 +351,7 @@ func (m benchGetterStub) GetByHeight(_ context.Context, height uint64) (*header.
 type getterStub struct{}
 
 func (m getterStub) Head(context.Context) (*header.ExtendedHeader, error) {
-	return nil, nil
+	return &header.ExtendedHeader{RawHeader: header.RawHeader{Height: 1}}, nil
 }
 
 func (m getterStub) GetByHeight(_ context.Context, height uint64) (*header.ExtendedHeader, error) {
@@ -332,6 +373,6 @@ func (m getterStub) GetVerifiedRange(
 	return nil, nil
 }
 
-func (m getterStub) Get(context.Context, tmbytes.HexBytes) (*header.ExtendedHeader, error) {
+func (m getterStub) Get(context.Context, libhead.Hash) (*header.ExtendedHeader, error) {
 	return nil, nil
 }

@@ -9,6 +9,7 @@ import (
 	"github.com/celestiaorg/celestia-node/das"
 	"github.com/celestiaorg/celestia-node/fraud"
 	"github.com/celestiaorg/celestia-node/header"
+	libhead "github.com/celestiaorg/celestia-node/libs/header"
 	"github.com/celestiaorg/celestia-node/share"
 )
 
@@ -34,8 +35,8 @@ func newDaserStub() Module {
 
 func NewDASer(
 	da share.Availability,
-	hsub header.Subscriber,
-	store header.Store,
+	hsub libhead.Subscriber[*header.ExtendedHeader],
+	store libhead.Store[*header.ExtendedHeader],
 	batching datastore.Batching,
 	fraudServ fraud.Service,
 	options ...das.Option,

@@ -14,14 +14,13 @@ import (
 	mocknet "github.com/libp2p/go-libp2p/p2p/net/mock"
 	ma "github.com/multiformats/go-multiaddr"
 	"github.com/stretchr/testify/require"
-	"github.com/tendermint/tendermint/libs/bytes"
 	"go.uber.org/fx"
 
 	"github.com/celestiaorg/celestia-app/testutil/testnode"
 
 	"github.com/celestiaorg/celestia-node/core"
 	"github.com/celestiaorg/celestia-node/header"
-	headercore "github.com/celestiaorg/celestia-node/header/core"
+	libhead "github.com/celestiaorg/celestia-node/libs/header"
 	"github.com/celestiaorg/celestia-node/libs/keystore"
 	"github.com/celestiaorg/celestia-node/logs"
 	"github.com/celestiaorg/celestia-node/nodebuilder"
@@ -101,15 +100,15 @@ func (s *Swamp) stopAllNodes(ctx context.Context, allNodes ...[]*nodebuilder.Nod
 }
 
 // GetCoreBlockHashByHeight returns a tendermint block's hash by provided height
-func (s *Swamp) GetCoreBlockHashByHeight(ctx context.Context, height int64) bytes.HexBytes {
+func (s *Swamp) GetCoreBlockHashByHeight(ctx context.Context, height int64) libhead.Hash {
 	b, err := s.ClientContext.Client.Block(ctx, &height)
 	require.NoError(s.t, err)
-	return b.BlockID.Hash
+	return libhead.Hash(b.BlockID.Hash)
 }
 
 // WaitTillHeight holds the test execution until the given amount of blocks
 // has been produced by the CoreClient.
-func (s *Swamp) WaitTillHeight(ctx context.Context, height int64) bytes.HexBytes {
+func (s *Swamp) WaitTillHeight(ctx context.Context, height int64) libhead.Hash {
 	require.Greater(s.t, height, int64(0))
 
 	t := time.NewTicker(time.Millisecond * 50)
@@ -125,11 +124,11 @@ func (s *Swamp) WaitTillHeight(ctx context.Context, height int64) bytes.HexBytes
 			latest := status.SyncInfo.LatestBlockHeight
 			switch {
 			case latest == height:
-				return status.SyncInfo.LatestBlockHash
+				return libhead.Hash(status.SyncInfo.LatestBlockHash)
 			case latest > height:
 				res, err := s.ClientContext.Client.Block(ctx, &height)
 				require.NoError(s.t, err)
-				return res.BlockID.Hash
+				return libhead.Hash(res.BlockID.Hash)
 			}
 		}
 	}
@@ -164,7 +163,7 @@ func (s *Swamp) createPeer(ks keystore.Keystore) host.Host {
 func (s *Swamp) setupGenesis(ctx context.Context) {
 	s.WaitTillHeight(ctx, 1)
 
-	ex := headercore.NewExchange(
+	ex := core.NewExchange(
 		core.NewBlockFetcher(s.ClientContext.Client),
 		mdutils.Bserv(),
 		header.MakeExtendedHeader,
@@ -254,7 +253,7 @@ func (s *Swamp) newNode(t node.Type, store nodebuilder.Store, options ...fx.Opti
 	options = append(options,
 		p2p.WithHost(s.createPeer(ks)),
 		fx.Replace(node.StorePath(tempDir)),
-		fx.Invoke(func(ctx context.Context, store header.Store) error {
+		fx.Invoke(func(ctx context.Context, store libhead.Store[*header.ExtendedHeader]) error {
 			return store.Init(ctx, s.genesis)
 		}),
 	)

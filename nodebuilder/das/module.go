@@ -30,6 +30,7 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 					das.WithPriorityQueueSize(c.PriorityQueueSize),
 					das.WithBackgroundStoreInterval(c.BackgroundStoreInterval),
 					das.WithSampleFrom(c.SampleFrom),
+					das.WithSampleTimeout(c.SampleTimeout),
 				}
 			},
 		),

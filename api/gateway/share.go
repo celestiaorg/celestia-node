@@ -108,17 +108,17 @@ func (h *Handler) getShares(ctx context.Context, height uint64, nID namespace.ID
 	}
 	// perform request
 	shares, err := h.share.GetSharesByNamespace(ctx, header.DAH, nID)
-	return shares.Flatten(), header.Height, err
+	return shares.Flatten(), header.Height(), err
 }
 
 func dataFromShares(shares []share.Share) ([][]byte, error) {
-	messages, err := appshares.ParseMsgs(shares)
+	blobs, err := appshares.ParseBlobs(shares)
 	if err != nil {
 		return nil, err
 	}
-	data := make([][]byte, len(messages.MessagesList))
-	for i := range messages.MessagesList {
-		data[i] = messages.MessagesList[i].Data
+	data := make([][]byte, len(blobs))
+	for i := range blobs {
+		data[i] = blobs[i].Data
 	}
 	return data, nil
 }
