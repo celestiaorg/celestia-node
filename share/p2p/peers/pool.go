@@ -7,6 +7,7 @@ import (
 	"github.com/libp2p/go-libp2p/core/peer"
 )
 
+// pool stores peers and provides methods for simple round-robin access.
 type pool struct {
 	m           *sync.Mutex
 	peersList   []peer.ID
@@ -19,6 +20,7 @@ type pool struct {
 	hasPeerCh      chan struct{}
 }
 
+// newPool creates new pool
 func newPool() *pool {
 	return &pool{
 		m:         new(sync.Mutex),
@@ -28,6 +30,8 @@ func newPool() *pool {
 	}
 }
 
+// tryGet will attempt to get peer and return it if there is any, otherwise bool flag would be
+// returned as false.
 func (p *pool) tryGet() (peer.ID, bool) {
 	p.m.Lock()
 	defer p.m.Unlock()
@@ -47,6 +51,7 @@ func (p *pool) tryGet() (peer.ID, bool) {
 	}
 }
 
+// waitNext waits for any peer to become available in the pool and sends it to the channel.
 func (p *pool) waitNext(ctx context.Context) <-chan peer.ID {
 	peerCh := make(chan peer.ID, 1)
 	go func() {
@@ -94,12 +99,14 @@ func (p *pool) remove(peers ...peer.ID) {
 		}
 	}
 
+	// do cleanup if too much garbage
 	if len(p.peersList) > p.activeCount*2 && p.cleanupEnabled {
 		p.cleanup()
 	}
 	p.checkHasPeers()
 }
 
+// cleanup will reduce memory footprint of pool.
 func (p *pool) cleanup() {
 	newList := make([]peer.ID, 0, p.activeCount)
 	for idx, peerID := range p.peersList {
@@ -122,6 +129,7 @@ func (p *pool) cleanup() {
 	p.peersList = newList
 }
 
+// checkHasPeers will check and indicate if there are peers in the pool.
 func (p *pool) checkHasPeers() {
 	if p.activeCount > 0 && !p.hasPeer {
 		p.hasPeer = true

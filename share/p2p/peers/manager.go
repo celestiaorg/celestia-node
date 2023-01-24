@@ -38,8 +38,9 @@ type Manager struct {
 
 type hashStr string
 
-// syncPool accumulates peers from shrex.Sub validators and blocks message retransmission, until
-// there is a proof that header with given datahash exist in a chain
+// syncPool accumulates peers from shrex.Sub validators and controls message retransmission.
+// It will unlock the validator only if there is a proof that header with given datahash exist in a
+// chain
 type syncPool struct {
 	pool *pool
 
@@ -94,6 +95,9 @@ func (s *Manager) Stop(ctx context.Context) error {
 	}
 }
 
+// GetPeer attempts to get a peer obtained from shrex.Sub for given datahash if any.
+// If there is none, it will try fullnodes collected from discovery. And if there is still none, it
+// will wait until any peer appear in either source or timeout happen.
 func (s *Manager) GetPeer(ctx context.Context, datahash string) (peer.ID, error) {
 	p := s.getOrCreateValidatedPool(hashStr(datahash))
 	peerID, ok := p.pool.tryGet()
