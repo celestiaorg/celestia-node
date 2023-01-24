@@ -3,6 +3,7 @@ package peers
 import (
 	"context"
 	"errors"
+	"github.com/celestiaorg/celestia-node/header"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -11,8 +12,6 @@ import (
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	"github.com/libp2p/go-libp2p/core/peer"
 
-	"github.com/celestiaorg/celestia-node/header"
-	libhead "github.com/celestiaorg/celestia-node/libs/header"
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/availability/discovery"
 	"github.com/celestiaorg/celestia-node/share/p2p/shrexsub"
@@ -22,13 +21,10 @@ var (
 	log = logging.Logger("shrex/peers")
 )
 
-//go:generate mockgen -destination=mocks/subscription.go -package=mocks . HeaderSub
-type HeaderSub = libhead.Subscription[*header.ExtendedHeader]
-
 // Manager keeps track of peers coming from shrex.Sub and discovery
 type Manager struct {
 	disc      discovery.Discovery
-	headerSub HeaderSub
+	headerSub header.Subscription
 
 	m               *sync.Mutex
 	pools           map[hashStr]syncPool
@@ -54,7 +50,7 @@ type syncPool struct {
 
 func NewManager(
 	shrexSub *shrexsub.PubSub,
-	headerSub HeaderSub,
+	headerSub header.Subscription,
 	discovery discovery.Discovery,
 	syncTimeout time.Duration,
 ) (*Manager, error) {
