@@ -109,11 +109,13 @@ func (cl *Listener) listen(ctx context.Context, sub <-chan *types.Block) {
 				log.Errorw("listener: making extended header", "err", err)
 				return
 			}
-			// store block data
-			err = cl.store.Put(ctx, eh.DAH.Hash(), eds)
-			if err != nil {
-				log.Errorw("listener: storing extended header", "err", err)
-				return
+			// store block data if not empty
+			if eds != nil {
+				err = cl.store.Put(ctx, eh.DAH.Hash(), eds)
+				if err != nil {
+					log.Errorw("listener: storing extended header", "err", err)
+					return
+				}
 			}
 
 			// broadcast new ExtendedHeader, but if core is still syncing, notify only local subscribers
