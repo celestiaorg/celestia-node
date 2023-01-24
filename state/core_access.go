@@ -20,8 +20,9 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 
 	"github.com/celestiaorg/celestia-app/app"
-	"github.com/celestiaorg/celestia-app/x/payment"
-	apptypes "github.com/celestiaorg/celestia-app/x/payment/types"
+	"github.com/celestiaorg/celestia-app/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/x/blob"
+	apptypes "github.com/celestiaorg/celestia-app/x/blob/types"
 	"github.com/celestiaorg/nmt/namespace"
 
 	"github.com/celestiaorg/celestia-node/header"
@@ -162,8 +163,16 @@ func (ca *CoreAccessor) SubmitPayForBlob(
 	fee Int,
 	gasLim uint64,
 ) (*TxResponse, error) {
-	response, err := payment.SubmitPayForData(ctx, ca.signer, ca.coreConn, nID, data, gasLim, withFee(fee))
-	// metrics should only be counted on a successful PFB tx
+	b := &apptypes.Blob{NamespaceId: nID, Data: data, ShareVersion: uint32(appconsts.DefaultShareVersion)}
+	response, err := blob.SubmitPayForBlob(
+		ctx,
+		ca.signer,
+		ca.coreConn,
+		[]*apptypes.Blob{b},
+		apptypes.SetGasLimit(gasLim),
+		withFee(fee),
+	)
+	// metrics should only be counted on a successful PFD tx
 	if err == nil && response.Code == 0 {
 		ca.lastPayForBlob = time.Now().UnixMilli()
 		ca.payForBlobCount++
@@ -231,7 +240,7 @@ func (ca *CoreAccessor) BalanceForAddress(ctx context.Context, addr Address) (*B
 		return nil, fmt.Errorf("cannot convert %s into sdktypes.Int", string(value))
 	}
 	// verify balance
-	err = ca.prt.VerifyValueKeys(
+	err = ca.prt.VerifyValueFromKeys(
 		result.Response.GetProofOps(),
 		head.AppHash,
 		[][]byte{[]byte(banktypes.StoreKey),

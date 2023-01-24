@@ -15,7 +15,8 @@ type Components struct {
 // 100ms
 func DefaultComponents() *Components {
 	cfg := core.DefaultTestConfig()
-	cfg.Tendermint.Consensus.TimeoutCommit = 100 * time.Millisecond
+	// timeout commits faster than this tend to be flakier
+	cfg.Tendermint.Consensus.TimeoutCommit = 200 * time.Millisecond
 	return &Components{
 		cfg,
 	}
