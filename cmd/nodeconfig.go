@@ -9,43 +9,9 @@ import (
 	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
 )
 
-func ConfigCmd(nodeType node.Type, flags []*pflag.FlagSet) *cobra.Command {
-	configCmd := &cobra.Command{
-		Use:   "config [subcommand]",
-		Args:  cobra.NoArgs,
-		Short: "Manage config for node",
-	}
-
-	configCmd.AddCommand(
-		Init(flags...),
-		Remove(nodeType, NodeFlags(), p2p.Flags()),
-		Reinit(nodeType, NodeFlags(), p2p.Flags()),
-	)
-
-	return configCmd
-}
-
-// Init constructs a CLI command to initialize Celestia Node of any type with the given flags.
-func Init(fsets ...*pflag.FlagSet) *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "init",
-		Short: "Initialization for Celestia Node. Passed flags have persisted effect.",
-		Args:  cobra.NoArgs,
-		RunE: func(cmd *cobra.Command, args []string) error {
-			ctx := cmd.Context()
-			return nodebuilder.Init(NodeConfig(ctx), StorePath(ctx), NodeType(ctx))
-		},
-	}
-	for _, set := range fsets {
-		cmd.Flags().AddFlagSet(set)
-	}
-
-	return cmd
-}
-
 func Remove(nodeType node.Type, fsets ...*pflag.FlagSet) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "remove",
+		Use:   "conf-remove",
 		Args:  cobra.NoArgs,
 		Short: "Remove current config",
 		PersistentPreRunE: func(cmd *cobra.Command, _ []string) error {
@@ -65,7 +31,7 @@ func Remove(nodeType node.Type, fsets ...*pflag.FlagSet) *cobra.Command {
 
 func Reinit(nodeType node.Type, fsets ...*pflag.FlagSet) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "reinit [config-path]",
+		Use:   "conf-reinit [config-path]",
 		Args:  cobra.MinimumNArgs(1),
 		Short: "Reinit config",
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
@@ -101,8 +67,7 @@ func parseStorePath(cmd *cobra.Command, nodeType node.Type) error {
 	if err != nil {
 		return err
 	}
-	
-	cmd.SetContext(ctx)
 
+	cmd.SetContext(ctx)
 	return nil
 }

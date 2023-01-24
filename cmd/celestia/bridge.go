@@ -28,7 +28,9 @@ func init() {
 	}
 
 	bridgeCmd.AddCommand(
-		cmdnode.ConfigCmd(node.Bridge, flags),
+		cmdnode.Init(flags...),
+		cmdnode.Remove(node.Bridge, cmdnode.NodeFlags(), p2p.Flags()),
+		cmdnode.Reinit(node.Bridge, cmdnode.NodeFlags(), p2p.Flags()),
 		cmdnode.Start(flags...),
 		cmdnode.AuthCmd(flags...),
 	)

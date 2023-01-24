@@ -26,7 +26,6 @@ func TestLight(t *testing.T) {
 		rootCmd.SetOut(output)
 		rootCmd.SetArgs([]string{
 			"light",
-			"config",
 			"--node.store", ".celestia-light",
 			"init",
 		})
@@ -73,7 +72,6 @@ func TestFull(t *testing.T) {
 		rootCmd.SetOut(output)
 		rootCmd.SetArgs([]string{
 			"full",
-			"config",
 			"--node.store", ".celestia-full",
 			"init",
 		})
@@ -120,7 +118,6 @@ func TestBridge(t *testing.T) {
 		rootCmd.SetOut(output)
 		rootCmd.SetArgs([]string{
 			"bridge",
-			"config",
 			"--node.store", ".celestia-bridge",
 			"init",
 		})
@@ -134,7 +131,6 @@ func TestBridge(t *testing.T) {
 
 		rootCmd.SetArgs([]string{
 			"bridge",
-			"config",
 			"--node.store", ".celestia-bridge",
 			"init",
 		})
@@ -142,9 +138,8 @@ func TestBridge(t *testing.T) {
 
 		rootCmd.SetArgs([]string{
 			"bridge",
-			"config",
 			"--node.store", ".celestia-bridge",
-			"remove",
+			"conf-remove",
 		})
 		err = rootCmd.ExecuteContext(context.Background())
 		require.NoError(t, err)
@@ -152,9 +147,8 @@ func TestBridge(t *testing.T) {
 		// file does not exist
 		rootCmd.SetArgs([]string{
 			"bridge",
-			"config",
 			"--node.store", ".celestia-bridge",
-			"remove",
+			"conf-remove",
 		})
 
 		err = rootCmd.ExecuteContext(context.Background())
@@ -182,7 +176,6 @@ func TestBridge(t *testing.T) {
 		// init config
 		rootCmd.SetArgs([]string{
 			"bridge",
-			"config",
 			"--node.store", tempDir,
 			"init",
 		})
@@ -195,9 +188,8 @@ func TestBridge(t *testing.T) {
 		// reinit with diff config
 		rootCmd.SetArgs([]string{
 			"bridge",
-			"config",
 			"--node.store", tempDir,
-			"reinit",
+			"conf-reinit",
 			diffPath,
 		})
 		err = rootCmd.ExecuteContext(context.Background())

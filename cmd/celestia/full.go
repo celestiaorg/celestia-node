@@ -32,7 +32,9 @@ func init() {
 	}
 
 	fullCmd.AddCommand(
-		cmdnode.ConfigCmd(node.Full, flags),
+		cmdnode.Init(flags...),
+		cmdnode.Remove(node.Full, cmdnode.NodeFlags(), p2p.Flags()),
+		cmdnode.Reinit(node.Full, cmdnode.NodeFlags(), p2p.Flags()),
 		cmdnode.Start(flags...),
 		cmdnode.AuthCmd(flags...),
 	)
