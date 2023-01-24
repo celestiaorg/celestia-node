@@ -6,6 +6,7 @@ import (
 
 	"github.com/ipfs/go-blockservice"
 	"github.com/ipfs/go-cid"
+	logging "github.com/ipfs/go-log/v2"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
@@ -21,6 +22,7 @@ import (
 
 var (
 	tracer = otel.Tracer("share/getters")
+	log    = logging.Logger("share/getters")
 )
 
 // filterRootsByNamespace returns the row roots from the given share.Root that contain the passed
