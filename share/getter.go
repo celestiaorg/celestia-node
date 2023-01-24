@@ -15,6 +15,8 @@ import (
 
 // Getter interface provides a set of accessors for shares by the Root.
 // Automatically verifies integrity of shares(exceptions possible depending on the implementation).
+//
+//go:generate mockgen -destination=mocks/getter.go -package=mocks . Getter
 type Getter interface {
 	// GetShare gets a Share by coordinates in EDS.
 	GetShare(ctx context.Context, root *Root, row, col int) (Share, error)
