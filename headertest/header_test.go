@@ -1,4 +1,4 @@
-package header
+package headertest
 
 import (
 	"context"
@@ -10,6 +10,7 @@ import (
 	"github.com/tendermint/tendermint/libs/rand"
 
 	"github.com/celestiaorg/celestia-node/core"
+	"github.com/celestiaorg/celestia-node/header"
 )
 
 func TestMakeExtendedHeaderForEmptyBlock(t *testing.T) {
@@ -32,10 +33,10 @@ func TestMakeExtendedHeaderForEmptyBlock(t *testing.T) {
 	comm, val, err := fetcher.GetBlockInfo(ctx, &height)
 	require.NoError(t, err)
 
-	headerExt, err := MakeExtendedHeader(ctx, b, comm, val, store)
+	headerExt, err := header.MakeExtendedHeader(ctx, b, comm, val, store)
 	require.NoError(t, err)
 
-	assert.Equal(t, EmptyDAH(), *headerExt.DAH)
+	assert.Equal(t, header.EmptyDAH(), *headerExt.DAH)
 }
 
 func TestMismatchedDataHash_ComputedRoot(t *testing.T) {

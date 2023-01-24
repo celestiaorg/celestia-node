@@ -8,7 +8,6 @@ import (
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	"github.com/tendermint/tendermint/types"
 
-	"github.com/celestiaorg/celestia-node/core"
 	"github.com/celestiaorg/celestia-node/header"
 	libhead "github.com/celestiaorg/celestia-node/libs/header"
 	"github.com/celestiaorg/celestia-node/share/p2p/shrexsub"
@@ -22,7 +21,7 @@ import (
 // broadcasts the new `ExtendedHeader` to the header-sub gossipsub
 // network.
 type Listener struct {
-	fetcher *core.BlockFetcher
+	fetcher *BlockFetcher
 	bServ   blockservice.BlockService
 
 	construct header.ConstructFn
@@ -35,7 +34,7 @@ type Listener struct {
 
 func NewListener(
 	bcast libhead.Broadcaster[*header.ExtendedHeader],
-	fetcher *core.BlockFetcher,
+	fetcher *BlockFetcher,
 	extHeaderBroadcaster shrexsub.BroadcastFn,
 	bServ blockservice.BlockService,
 	construct header.ConstructFn,
