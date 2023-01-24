@@ -36,14 +36,14 @@ type Listener struct {
 func NewListener(
 	bcast libhead.Broadcaster[*header.ExtendedHeader],
 	fetcher *BlockFetcher,
-	extHeaderBroadcaster shrexsub.BroadcastFn,
+	hashBroadcaster shrexsub.BroadcastFn,
 	construct header.ConstructFn,
 	store *eds.Store,
 ) *Listener {
 	return &Listener{
-		headerBroadcaster: bcast,
 		fetcher:           fetcher,
-		hashBroadcaster:   extHeaderBroadcaster,
+		headerBroadcaster: bcast,
+		hashBroadcaster:   hashBroadcaster,
 		construct:         construct,
 		store:             store,
 	}
