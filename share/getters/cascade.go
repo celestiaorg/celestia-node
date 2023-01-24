@@ -99,7 +99,11 @@ func cascadeGetters[V any](
 	getters []share.Getter,
 	get func(context.Context, share.Getter) (V, error),
 	interval time.Duration,
-) (zero V, err error) {
+) (V, error) {
+	var (
+		zero V
+		err  error
+	)
 	ctx, span := tracer.Start(ctx, "cascade", trace.WithAttributes(
 		attribute.String("interval", interval.String()),
 		attribute.Int("total-getters", len(getters)),
