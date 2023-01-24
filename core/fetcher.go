@@ -4,11 +4,8 @@ import (
 	"context"
 	"fmt"
 
-	sdk "github.com/cosmos/cosmos-sdk/types"
 	logging "github.com/ipfs/go-log/v2"
 	"github.com/tendermint/tendermint/types"
-
-	"github.com/celestiaorg/celestia-app/app"
 
 	libhead "github.com/celestiaorg/celestia-node/libs/header"
 )
@@ -19,15 +16,6 @@ var (
 	log                = logging.Logger("core/fetcher")
 	newBlockEventQuery = types.QueryForEvent(types.EventNewBlock).String()
 )
-
-func init() {
-	// This is necessary to ensure that the account addresses are correctly prefixed
-	// as in the celestia application.
-	cfg := sdk.GetConfig()
-	cfg.SetBech32PrefixForAccount(app.Bech32PrefixAccAddr, app.Bech32PrefixAccPub)
-	cfg.SetBech32PrefixForValidator(app.Bech32PrefixValAddr, app.Bech32PrefixValPub)
-	cfg.Seal()
-}
 
 type BlockFetcher struct {
 	client Client
