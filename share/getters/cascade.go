@@ -111,6 +111,7 @@ func cascadeGetters[V any](
 	}()
 
 	for i, getter := range getters {
+		log.Debugf("cascade: launching getter #%d", i)
 		span.AddEvent("getter launched", trace.WithAttributes(attribute.Int("getter_idx", i)))
 		ctx, cancel := context.WithTimeout(ctx, interval)
 		val, getErr := get(ctx, getter)
@@ -123,5 +124,5 @@ func cascadeGetters[V any](
 		err = multierr.Append(err, getErr)
 		span.RecordError(getErr, trace.WithAttributes(attribute.Int("getter_idx", i)))
 	}
-	return
+	return zero, err
 }

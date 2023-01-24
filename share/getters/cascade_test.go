@@ -53,22 +53,15 @@ func TestCascade(t *testing.T) {
 	timeoutGetter := mocks.NewMockGetter(ctrl)
 	immediateFailGetter := mocks.NewMockGetter(ctrl)
 	successGetter := mocks.NewMockGetter(ctrl)
-	timeoutGetter.EXPECT().
-		GetEDS(gomock.Any(), gomock.Any()).
+	timeoutGetter.EXPECT().GetEDS(gomock.Any(), gomock.Any()).
 		DoAndReturn(func(ctx context.Context, _ *share.Root) (*rsmt2d.ExtendedDataSquare, error) {
 			<-ctx.Done()
 			return nil, ctx.Err()
 		}).AnyTimes()
-	immediateFailGetter.EXPECT().
-		GetEDS(gomock.Any(), gomock.Any()).
-		DoAndReturn(func(_ context.Context, _ *share.Root) (*rsmt2d.ExtendedDataSquare, error) {
-			return nil, errors.New("second getter fails immediately")
-		}).AnyTimes()
-	successGetter.EXPECT().
-		GetEDS(gomock.Any(), gomock.Any()).
-		DoAndReturn(func(_ context.Context, _ *share.Root) (*rsmt2d.ExtendedDataSquare, error) {
-			return nil, nil
-		}).AnyTimes()
+	immediateFailGetter.EXPECT().GetEDS(gomock.Any(), gomock.Any()).
+		Return(nil, errors.New("second getter fails immediately")).AnyTimes()
+	successGetter.EXPECT().GetEDS(gomock.Any(), gomock.Any()).
+		Return(nil, nil).AnyTimes()
 
 	get := func(ctx context.Context, get share.Getter) (*rsmt2d.ExtendedDataSquare, error) {
 		return get.GetEDS(ctx, nil)
