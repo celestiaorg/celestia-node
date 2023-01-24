@@ -181,8 +181,10 @@ func TestBridge(t *testing.T) {
 		})
 
 		err = rootCmd.ExecuteContext(context.Background())
+		require.NoError(t, err)
 
 		config, err := nodebuilder.LoadConfig(defaultPath)
+		require.NoError(t, err)
 		require.NotEqualValues(t, config, diffConfig)
 
 		// reinit with diff config
@@ -192,11 +194,13 @@ func TestBridge(t *testing.T) {
 			"conf-reinit",
 			diffPath,
 		})
+
 		err = rootCmd.ExecuteContext(context.Background())
 		require.NoError(t, err)
 
 		// load default config and check for changes
 		config, err = nodebuilder.LoadConfig(defaultPath)
+		require.NoError(t, err)
 		require.EqualValues(t, config, diffConfig)
 	})
 

@@ -67,7 +67,7 @@ func parseStorePath(cmd *cobra.Command, nodeType node.Type) error {
 	if err != nil {
 		return err
 	}
-	cmd.SetContext(ctx)
 
+	cmd.SetContext(ctx)
 	return nil
 }
