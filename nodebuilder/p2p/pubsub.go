@@ -2,7 +2,6 @@ package p2p
 
 import (
 	"context"
-	"strings"
 
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	pubsub_pb "github.com/libp2p/go-libp2p-pubsub/pb"
@@ -31,12 +30,8 @@ func PubSub(cfg Config, params pubSubParams) (*pubsub.PubSub, error) {
 		pubsub.WithPeerExchange(cfg.PeerExchange || cfg.Bootstrapper),
 		pubsub.WithDirectPeers(fpeers),
 		pubsub.WithMessageIdFn(hashMsgID),
-		pubsub.WithProtocolMatchFn(
-			func(base string) func(string) bool {
-				return func(check string) bool {
-					return strings.EqualFold(base, check)
-				}
-			}),
+		// specifying sub protocol helps to avoid conflicts with
+		// floodsub(because gossipsub supports floodsub protocol by default).
 		pubsub.WithGossipSubProtocols([]protocol.ID{pubsub.GossipSubID_v11}, pubsub.GossipSubDefaultFeatures),
 	}
 
