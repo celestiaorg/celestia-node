@@ -12,7 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/celestiaorg/celestia-node/header"
-	header_mock "github.com/celestiaorg/celestia-node/header/mocks"
+	header_mock "github.com/celestiaorg/celestia-node/share/p2p/peers/mocks"
 )
 
 func TestManager(t *testing.T) {
@@ -23,7 +23,7 @@ func TestManager(t *testing.T) {
 		// create headerSub mock
 		h := testHeader()
 		ctrl := gomock.NewController(t)
-		headerSub := header_mock.NewMockSubscription(ctrl)
+		headerSub := header_mock.NewMockHeaderSub(ctrl)
 		headerSub.EXPECT().Cancel()
 		nextHeader := waitNextHeader(headerSub, h, nil)
 
@@ -52,7 +52,7 @@ func TestManager(t *testing.T) {
 		// create headerSub mock
 		h := testHeader()
 		ctrl := gomock.NewController(t)
-		headerSub := header_mock.NewMockSubscription(ctrl)
+		headerSub := header_mock.NewMockHeaderSub(ctrl)
 		headerSub.EXPECT().Cancel()
 		nextHeader := waitNextHeader(headerSub, h, nil)
 
@@ -115,7 +115,7 @@ func TestManager(t *testing.T) {
 		// create headerSub mock
 		h := testHeader()
 		ctrl := gomock.NewController(t)
-		headerSub := header_mock.NewMockSubscription(ctrl)
+		headerSub := header_mock.NewMockHeaderSub(ctrl)
 		headerSub.EXPECT().Cancel()
 		waitNextHeader(headerSub, h)
 
@@ -162,7 +162,7 @@ func TestManager(t *testing.T) {
 		// create headerSub mock
 		h := testHeader()
 		ctrl := gomock.NewController(t)
-		headerSub := header_mock.NewMockSubscription(ctrl)
+		headerSub := header_mock.NewMockHeaderSub(ctrl)
 		waitNextHeader(headerSub, h)
 		headerSub.EXPECT().Cancel()
 
@@ -187,7 +187,7 @@ func TestManager(t *testing.T) {
 		// create headerSub mock
 		h := testHeader()
 		ctrl := gomock.NewController(t)
-		headerSub := header_mock.NewMockSubscription(ctrl)
+		headerSub := header_mock.NewMockHeaderSub(ctrl)
 		waitNextHeader(headerSub, h)
 		headerSub.EXPECT().Cancel()
 
@@ -230,7 +230,7 @@ func TestManager(t *testing.T) {
 		dataHash := h.DataHash
 
 		ctrl := gomock.NewController(t)
-		headerSub := header_mock.NewMockSubscription(ctrl)
+		headerSub := header_mock.NewMockHeaderSub(ctrl)
 		headerSub.EXPECT().Cancel()
 		waitNextHeader(headerSub, h)
 
@@ -289,7 +289,7 @@ func TestManager(t *testing.T) {
 	})
 }
 
-func testManager(headerSub *header_mock.MockSubscription) *Manager {
+func testManager(headerSub *header_mock.MockHeaderSub) *Manager {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	manager := &Manager{
 		headerSub:       headerSub,
@@ -346,7 +346,7 @@ func (n subLock) release(ctx context.Context) error {
 	}
 }
 
-func waitNextHeader(subscription *header_mock.MockSubscription, expected ...*header.ExtendedHeader) subLock {
+func waitNextHeader(subscription *header_mock.MockHeaderSub, expected ...*header.ExtendedHeader) subLock {
 	n := subLock{
 		next:   make(chan struct{}),
 		called: make(chan struct{}),

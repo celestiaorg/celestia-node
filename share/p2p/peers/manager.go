@@ -22,10 +22,13 @@ var (
 	log = logging.Logger("shrex/peers")
 )
 
+//go:generate mockgen -destination=mocks/subscription.go -package=mocks . HeaderSub
+type HeaderSub = libhead.Subscription[*header.ExtendedHeader]
+
 // Manager keeps track of peers coming from shrex.Sub and discovery
 type Manager struct {
 	disc      discovery.Discovery
-	headerSub libhead.Subscription[*header.ExtendedHeader]
+	headerSub HeaderSub
 
 	m               *sync.Mutex
 	pools           map[hashStr]syncPool
@@ -51,7 +54,7 @@ type syncPool struct {
 
 func NewManager(
 	shrexSub *shrexsub.PubSub,
-	headerSub libhead.Subscription[*header.ExtendedHeader],
+	headerSub HeaderSub,
 	discovery discovery.Discovery,
 	syncTimeout time.Duration,
 ) (*Manager, error) {
