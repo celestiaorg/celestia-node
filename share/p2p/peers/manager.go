@@ -101,8 +101,8 @@ func (s *Manager) Stop(ctx context.Context) error {
 // GetPeer attempts to get a peer obtained from shrex.Sub for given datahash if any.
 // If there is none, it will try fullnodes collected from discovery. And if there is still none, it
 // will wait until any peer appear in either source or timeout happen.
-func (s *Manager) GetPeer(ctx context.Context, datahash string) (peer.ID, error) {
-	p := s.getOrCreateValidatedPool(hashStr(datahash))
+func (s *Manager) GetPeer(ctx context.Context, datahash share.DataHash) (peer.ID, error) {
+	p := s.getOrCreateValidatedPool(hashStr(datahash.String()))
 	peerID, ok := p.pool.tryGet()
 	if ok {
 		return peerID, nil
@@ -125,8 +125,8 @@ func (s *Manager) GetPeer(ctx context.Context, datahash string) (peer.ID, error)
 	}
 }
 
-func (s *Manager) RemovePeers(datahash string, ids ...peer.ID) {
-	p := s.getOrCreateValidatedPool(hashStr(datahash))
+func (s *Manager) RemovePeers(datahash share.DataHash, ids ...peer.ID) {
+	p := s.getOrCreateValidatedPool(hashStr(datahash.String()))
 	p.pool.remove(ids...)
 }
 

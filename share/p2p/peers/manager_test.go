@@ -38,7 +38,7 @@ func TestManager(t *testing.T) {
 		validation := manager.validate(ctx, peerID, h.DataHash.Bytes())
 		require.Equal(t, pubsub.ValidationAccept, validation)
 
-		p, err := manager.GetPeer(ctx, h.DataHash.String())
+		p, err := manager.GetPeer(ctx, h.DataHash.Bytes())
 		require.NoError(t, err)
 		require.Equal(t, peerID, p)
 
@@ -173,7 +173,7 @@ func TestManager(t *testing.T) {
 		peers := []peer.ID{"peer1", "peer2", "peer3"}
 		manager.fullNodes.add(peers...)
 
-		peerID, err := manager.GetPeer(ctx, h.DataHash.String())
+		peerID, err := manager.GetPeer(ctx, h.DataHash.Bytes())
 		require.NoError(t, err)
 		require.Contains(t, peers, peerID)
 
@@ -197,14 +197,14 @@ func TestManager(t *testing.T) {
 		// make sure peers are not returned before timeout
 		timeoutCtx, cancel := context.WithTimeout(context.Background(), time.Millisecond)
 		t.Cleanup(cancel)
-		_, err := manager.GetPeer(timeoutCtx, h.DataHash.String())
+		_, err := manager.GetPeer(timeoutCtx, h.DataHash.Bytes())
 		require.ErrorIs(t, err, context.DeadlineExceeded)
 
 		peers := []peer.ID{"peer1", "peer2", "peer3"}
 		done := make(chan struct{})
 		go func() {
 			defer close(done)
-			peerID, err := manager.GetPeer(ctx, h.DataHash.String())
+			peerID, err := manager.GetPeer(ctx, h.DataHash.Bytes())
 			require.NoError(t, err)
 			require.Contains(t, peers, peerID)
 		}()
@@ -274,7 +274,7 @@ func TestManager(t *testing.T) {
 		}
 
 		// wait for first peers to be added to pool
-		peerID, err := manager.GetPeer(ctx, dataHash.String())
+		peerID, err := manager.GetPeer(ctx, dataHash.Bytes())
 		require.NoError(t, err)
 		require.Contains(t, peers, peerID)
 
