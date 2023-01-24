@@ -9,9 +9,9 @@ import (
 	"github.com/celestiaorg/celestia-node/core"
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/libs/fxutil"
-	libhead "github.com/celestiaorg/celestia-node/libs/header"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	"github.com/celestiaorg/celestia-node/share/p2p/shrexsub"
+	libhead "github.com/celestiaorg/go-header"
 )
 
 // ConstructModule collects all the components and services related to managing the relationship

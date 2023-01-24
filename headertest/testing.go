@@ -23,9 +23,9 @@ import (
 
 	"github.com/celestiaorg/celestia-node/core"
 	"github.com/celestiaorg/celestia-node/header"
-	libhead "github.com/celestiaorg/celestia-node/libs/header"
-	"github.com/celestiaorg/celestia-node/libs/header/test"
 	"github.com/celestiaorg/celestia-node/share"
+	libhead "github.com/celestiaorg/go-header"
+	"github.com/celestiaorg/go-header/test"
 )
 
 var log = logging.Logger("headertest")

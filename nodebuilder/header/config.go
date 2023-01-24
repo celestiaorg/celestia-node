@@ -7,12 +7,12 @@ import (
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/multiformats/go-multiaddr"
 
-	libhead "github.com/celestiaorg/celestia-node/libs/header"
-	p2p_exchange "github.com/celestiaorg/celestia-node/libs/header/p2p"
-	"github.com/celestiaorg/celestia-node/libs/header/store"
-	"github.com/celestiaorg/celestia-node/libs/header/sync"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
+	libhead "github.com/celestiaorg/go-header"
+	p2p_exchange "github.com/celestiaorg/go-header/p2p"
+	"github.com/celestiaorg/go-header/store"
+	"github.com/celestiaorg/go-header/sync"
 )
 
 // Config contains configuration parameters for header retrieval and management.

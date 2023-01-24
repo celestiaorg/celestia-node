@@ -5,7 +5,7 @@ import (
 	"sync"
 
 	"github.com/celestiaorg/celestia-node/header"
-	libhead "github.com/celestiaorg/celestia-node/libs/header"
+	libhead "github.com/celestiaorg/go-header"
 )
 
 // samplingCoordinator runs and coordinates sampling workers and updates current sampling state

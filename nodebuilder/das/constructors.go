@@ -9,8 +9,8 @@ import (
 	"github.com/celestiaorg/celestia-node/das"
 	"github.com/celestiaorg/celestia-node/fraud"
 	"github.com/celestiaorg/celestia-node/header"
-	libhead "github.com/celestiaorg/celestia-node/libs/header"
 	"github.com/celestiaorg/celestia-node/share"
+	libhead "github.com/celestiaorg/go-header"
 )
 
 var _ Module = (*daserStub)(nil)

@@ -8,8 +8,8 @@ import (
 
 	"github.com/celestiaorg/celestia-node/fraud"
 	"github.com/celestiaorg/celestia-node/header"
-	libhead "github.com/celestiaorg/celestia-node/libs/header"
 	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
+	libhead "github.com/celestiaorg/go-header"
 )
 
 func newFraudService(syncerEnabled bool) func(

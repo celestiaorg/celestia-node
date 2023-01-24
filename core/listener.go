@@ -9,8 +9,8 @@ import (
 	"github.com/tendermint/tendermint/types"
 
 	"github.com/celestiaorg/celestia-node/header"
-	libhead "github.com/celestiaorg/celestia-node/libs/header"
 	"github.com/celestiaorg/celestia-node/share/p2p/shrexsub"
+	libhead "github.com/celestiaorg/go-header"
 )
 
 // Listener is responsible for listening to Core for

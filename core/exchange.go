@@ -8,7 +8,7 @@ import (
 	"github.com/ipfs/go-blockservice"
 
 	"github.com/celestiaorg/celestia-node/header"
-	libhead "github.com/celestiaorg/celestia-node/libs/header"
+	libhead "github.com/celestiaorg/go-header"
 )
 
 type Exchange struct {

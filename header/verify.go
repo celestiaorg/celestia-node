@@ -7,7 +7,7 @@ import (
 
 	"github.com/tendermint/tendermint/light"
 
-	libhead "github.com/celestiaorg/celestia-node/libs/header"
+	libhead "github.com/celestiaorg/go-header"
 )
 
 // TODO(@Wondertan): We should request TrustingPeriod from the network's state params or

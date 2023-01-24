@@ -10,7 +10,7 @@ import (
 	"go.uber.org/multierr"
 
 	"github.com/celestiaorg/celestia-node/header"
-	libhead "github.com/celestiaorg/celestia-node/libs/header"
+	libhead "github.com/celestiaorg/go-header"
 )
 
 type worker struct {

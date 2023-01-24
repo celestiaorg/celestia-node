@@ -17,8 +17,8 @@ import (
 
 	"github.com/celestiaorg/celestia-app/pkg/da"
 
-	libhead "github.com/celestiaorg/celestia-node/libs/header"
 	"github.com/celestiaorg/celestia-node/share"
+	libhead "github.com/celestiaorg/go-header"
 )
 
 var log = logging.Logger("header")

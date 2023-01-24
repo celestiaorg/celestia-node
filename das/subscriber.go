@@ -4,7 +4,7 @@ import (
 	"context"
 
 	"github.com/celestiaorg/celestia-node/header"
-	libhead "github.com/celestiaorg/celestia-node/libs/header"
+	libhead "github.com/celestiaorg/go-header"
 )
 
 // subscriber subscribes to notifications about new headers in the network to keep
