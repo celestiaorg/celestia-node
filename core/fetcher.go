@@ -4,10 +4,11 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/celestiaorg/celestia-app/app"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	logging "github.com/ipfs/go-log/v2"
 	"github.com/tendermint/tendermint/types"
+
+	"github.com/celestiaorg/celestia-app/app"
 
 	libhead "github.com/celestiaorg/celestia-node/libs/header"
 )
