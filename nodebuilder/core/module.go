@@ -7,7 +7,6 @@ import (
 
 	"github.com/celestiaorg/celestia-node/core"
 	"github.com/celestiaorg/celestia-node/header"
-	headercore "github.com/celestiaorg/celestia-node/header/core"
 	"github.com/celestiaorg/celestia-node/libs/fxutil"
 	libhead "github.com/celestiaorg/celestia-node/libs/header"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
@@ -32,13 +31,13 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 		return fx.Module("core",
 			baseComponents,
 			fx.Provide(core.NewBlockFetcher),
-			fxutil.ProvideAs(headercore.NewExchange, new(libhead.Exchange[*header.ExtendedHeader])),
+			fxutil.ProvideAs(core.NewExchange, new(libhead.Exchange[*header.ExtendedHeader])),
 			fx.Invoke(fx.Annotate(
-				headercore.NewListener,
-				fx.OnStart(func(ctx context.Context, listener *headercore.Listener) error {
+				core.NewListener,
+				fx.OnStart(func(ctx context.Context, listener *core.Listener) error {
 					return listener.Start(ctx)
 				}),
-				fx.OnStop(func(ctx context.Context, listener *headercore.Listener) error {
+				fx.OnStop(func(ctx context.Context, listener *core.Listener) error {
 					return listener.Stop(ctx)
 				}),
 			)),

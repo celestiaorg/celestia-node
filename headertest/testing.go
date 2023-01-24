@@ -1,7 +1,4 @@
-// TODO(@Wondertan): Ideally, we should move that into subpackage, so this does not get included
-// into binary of  production code, but that does not matter at the moment.
-
-package header
+package headertest
 
 import (
 	"context"
@@ -11,6 +8,7 @@ import (
 	"time"
 
 	"github.com/ipfs/go-blockservice"
+	logging "github.com/ipfs/go-log/v2"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	"github.com/stretchr/testify/require"
 	"github.com/tendermint/tendermint/crypto/tmhash"
@@ -24,10 +22,13 @@ import (
 	"github.com/celestiaorg/celestia-app/pkg/da"
 
 	"github.com/celestiaorg/celestia-node/core"
+	"github.com/celestiaorg/celestia-node/header"
 	libhead "github.com/celestiaorg/celestia-node/libs/header"
 	"github.com/celestiaorg/celestia-node/libs/header/test"
 	"github.com/celestiaorg/celestia-node/share"
 )
+
+var log = logging.Logger("headertest")
 
 // TestSuite provides everything you need to test chain of Headers.
 // If not, please don't hesitate to extend it for your case.
@@ -38,7 +39,7 @@ type TestSuite struct {
 	valSet  *types.ValidatorSet
 	valPntr int
 
-	head *ExtendedHeader
+	head *header.ExtendedHeader
 }
 
 // NewTestSuite setups a new test suite with a given number of validators.
@@ -51,8 +52,8 @@ func NewTestSuite(t *testing.T, num int) *TestSuite {
 	}
 }
 
-func (s *TestSuite) genesis() *ExtendedHeader {
-	dah := EmptyDAH()
+func (s *TestSuite) genesis() *header.ExtendedHeader {
+	dah := header.EmptyDAH()
 
 	gen := RandRawHeader(s.t)
 
@@ -64,7 +65,7 @@ func (s *TestSuite) genesis() *ExtendedHeader {
 	commit, err := core.MakeCommit(RandBlockID(s.t), gen.Height, 0, voteSet, s.vals, time.Now())
 	require.NoError(s.t, err)
 
-	eh := &ExtendedHeader{
+	eh := &header.ExtendedHeader{
 		RawHeader:    *gen,
 		Commit:       commit,
 		ValidatorSet: s.valSet,
@@ -74,28 +75,28 @@ func (s *TestSuite) genesis() *ExtendedHeader {
 	return eh
 }
 
-func (s *TestSuite) Head() *ExtendedHeader {
+func (s *TestSuite) Head() *header.ExtendedHeader {
 	if s.head == nil {
 		s.head = s.genesis()
 	}
 	return s.head
 }
 
-func (s *TestSuite) GenExtendedHeaders(num int) []*ExtendedHeader {
-	headers := make([]*ExtendedHeader, num)
+func (s *TestSuite) GenExtendedHeaders(num int) []*header.ExtendedHeader {
+	headers := make([]*header.ExtendedHeader, num)
 	for i := range headers {
 		headers[i] = s.GenExtendedHeader()
 	}
 	return headers
 }
 
-func (s *TestSuite) GetRandomHeader() *ExtendedHeader {
+func (s *TestSuite) GetRandomHeader() *header.ExtendedHeader {
 	return s.GenExtendedHeader()
 }
 
-var _ test.Generator[*ExtendedHeader] = &TestSuite{}
+var _ test.Generator[*header.ExtendedHeader] = &TestSuite{}
 
-func (s *TestSuite) GenExtendedHeader() *ExtendedHeader {
+func (s *TestSuite) GenExtendedHeader() *header.ExtendedHeader {
 	if s.head == nil {
 		s.head = s.genesis()
 		return s.head
@@ -104,7 +105,7 @@ func (s *TestSuite) GenExtendedHeader() *ExtendedHeader {
 	dah := da.MinDataAvailabilityHeader()
 	height := s.Head().Height() + 1
 	rh := s.GenRawHeader(height, s.Head().Hash(), libhead.Hash(s.Head().Commit.Hash()), dah.Hash())
-	s.head = &ExtendedHeader{
+	s.head = &header.ExtendedHeader{
 		RawHeader:    *rh,
 		Commit:       s.Commit(rh),
 		ValidatorSet: s.valSet,
@@ -115,7 +116,7 @@ func (s *TestSuite) GenExtendedHeader() *ExtendedHeader {
 }
 
 func (s *TestSuite) GenRawHeader(
-	height int64, lastHeader, lastCommit, dataHash libhead.Hash) *RawHeader {
+	height int64, lastHeader, lastCommit, dataHash libhead.Hash) *header.RawHeader {
 	rh := RandRawHeader(s.t)
 	rh.Height = height
 	rh.Time = time.Now()
@@ -128,7 +129,7 @@ func (s *TestSuite) GenRawHeader(
 	return rh
 }
 
-func (s *TestSuite) Commit(h *RawHeader) *types.Commit {
+func (s *TestSuite) Commit(h *header.RawHeader) *types.Commit {
 	bid := types.BlockID{
 		Hash: h.Hash(),
 		// Unfortunately, we still have to commit PartSetHeader even we don't need it in Celestia
@@ -166,8 +167,8 @@ func (s *TestSuite) nextProposer() *types.Validator {
 }
 
 // RandExtendedHeader provides an ExtendedHeader fixture.
-func RandExtendedHeader(t *testing.T) *ExtendedHeader {
-	dah := EmptyDAH()
+func RandExtendedHeader(t *testing.T) *header.ExtendedHeader {
+	dah := header.EmptyDAH()
 
 	rh := RandRawHeader(t)
 	rh.DataHash = dah.Hash()
@@ -178,7 +179,7 @@ func RandExtendedHeader(t *testing.T) *ExtendedHeader {
 	commit, err := core.MakeCommit(RandBlockID(t), rh.Height, 0, voteSet, vals, time.Now())
 	require.NoError(t, err)
 
-	return &ExtendedHeader{
+	return &header.ExtendedHeader{
 		RawHeader:    *rh,
 		Commit:       commit,
 		ValidatorSet: valSet,
@@ -187,8 +188,8 @@ func RandExtendedHeader(t *testing.T) *ExtendedHeader {
 }
 
 // RandRawHeader provides a RawHeader fixture.
-func RandRawHeader(t *testing.T) *RawHeader {
-	return &RawHeader{
+func RandRawHeader(t *testing.T) *header.RawHeader {
+	return &header.RawHeader{
 		Version:            version.Consensus{Block: 11, App: 1},
 		ChainID:            "test",
 		Height:             mrand.Int63(),
@@ -221,15 +222,15 @@ func RandBlockID(t *testing.T) types.BlockID {
 }
 
 // FraudMaker creates a custom ConstructFn that breaks the block at the given height.
-func FraudMaker(t *testing.T, faultHeight int64) ConstructFn {
+func FraudMaker(t *testing.T, faultHeight int64) header.ConstructFn {
 	log.Warn("Corrupting block...", "height", faultHeight)
 	return func(ctx context.Context,
 		b *types.Block,
 		comm *types.Commit,
 		vals *types.ValidatorSet,
-		bServ blockservice.BlockService) (*ExtendedHeader, error) {
+		bServ blockservice.BlockService) (*header.ExtendedHeader, error) {
 		if b.Height == faultHeight {
-			eh := &ExtendedHeader{
+			eh := &header.ExtendedHeader{
 				RawHeader:    b.Header,
 				Commit:       comm,
 				ValidatorSet: vals,
@@ -238,11 +239,15 @@ func FraudMaker(t *testing.T, faultHeight int64) ConstructFn {
 			eh = CreateFraudExtHeader(t, eh, bServ)
 			return eh, nil
 		}
-		return MakeExtendedHeader(ctx, b, comm, vals, bServ)
+		return header.MakeExtendedHeader(ctx, b, comm, vals, bServ)
 	}
 }
 
-func CreateFraudExtHeader(t *testing.T, eh *ExtendedHeader, dag blockservice.BlockService) *ExtendedHeader {
+func CreateFraudExtHeader(
+	t *testing.T,
+	eh *header.ExtendedHeader,
+	dag blockservice.BlockService,
+) *header.ExtendedHeader {
 	extended := share.RandEDS(t, 2)
 	shares := share.ExtractEDS(extended)
 	copy(shares[0][share.NamespaceSize:], shares[1][share.NamespaceSize:])
@@ -255,25 +260,25 @@ func CreateFraudExtHeader(t *testing.T, eh *ExtendedHeader, dag blockservice.Blo
 }
 
 type DummySubscriber struct {
-	Headers []*ExtendedHeader
+	Headers []*header.ExtendedHeader
 }
 
-func (mhs *DummySubscriber) AddValidator(func(context.Context, *ExtendedHeader) pubsub.ValidationResult) error {
+func (mhs *DummySubscriber) AddValidator(func(context.Context, *header.ExtendedHeader) pubsub.ValidationResult) error {
 	return nil
 }
 
-func (mhs *DummySubscriber) Subscribe() (libhead.Subscription[*ExtendedHeader], error) {
+func (mhs *DummySubscriber) Subscribe() (libhead.Subscription[*header.ExtendedHeader], error) {
 	return mhs, nil
 }
 
-func (mhs *DummySubscriber) NextHeader(ctx context.Context) (*ExtendedHeader, error) {
+func (mhs *DummySubscriber) NextHeader(ctx context.Context) (*header.ExtendedHeader, error) {
 	defer func() {
 		if len(mhs.Headers) > 1 {
 			// pop the already-returned header
 			cp := mhs.Headers
 			mhs.Headers = cp[1:]
 		} else {
-			mhs.Headers = make([]*ExtendedHeader, 0)
+			mhs.Headers = make([]*header.ExtendedHeader, 0)
 		}
 	}()
 	if len(mhs.Headers) == 0 {

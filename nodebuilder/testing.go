@@ -14,6 +14,7 @@ import (
 
 	"github.com/celestiaorg/celestia-node/core"
 	coreheader "github.com/celestiaorg/celestia-node/header"
+	"github.com/celestiaorg/celestia-node/headertest"
 	"github.com/celestiaorg/celestia-node/libs/fxutil"
 	"github.com/celestiaorg/celestia-node/libs/header/mocks"
 	"github.com/celestiaorg/celestia-node/nodebuilder/header"
@@ -45,7 +46,7 @@ func TestNodeWithConfig(t *testing.T, tp node.Type, cfg *Config, opts ...fx.Opti
 		fx.Replace(node.StorePath(t.TempDir())),
 		// avoid requesting trustedPeer during initialization
 		fxutil.ReplaceAs(mocks.NewStore[*coreheader.ExtendedHeader](
-			t, coreheader.NewTestSuite(t, 5), 20), new(header.InitStore),
+			t, headertest.NewTestSuite(t, 5), 20), new(header.InitStore),
 		),
 	)
 
