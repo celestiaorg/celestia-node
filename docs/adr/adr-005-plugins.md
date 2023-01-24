@@ -259,7 +259,7 @@ Proposed
 - easier to create custom applications that run on top of celestia
 - allows for developers to create a better UX for their custom celestia-nodes
 - isolates the added functionality to its own service(s), which could potentially be combined with other plugins
-- helps move us towards our goal of reducing any any duplicate functionality coded in optimint's dalc
+- helps move us towards our goal of reducing any duplicate functionality coded in optimint's dalc
 
 ### Negative
 
