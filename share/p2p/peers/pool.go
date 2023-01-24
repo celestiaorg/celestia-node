@@ -8,11 +8,11 @@ import (
 )
 
 type pool struct {
-	m          *sync.Mutex
-	peersList  []peer.ID
-	alive      map[peer.ID]bool
-	aliveCount int
-	next       int
+	m           *sync.Mutex
+	peersList   []peer.ID
+	active      map[peer.ID]bool
+	activeCount int
+	next        int
 
 	cleanupEnabled bool
 	hasPeer        bool
@@ -23,7 +23,7 @@ func newPool() *pool {
 	return &pool{
 		m:         new(sync.Mutex),
 		peersList: make([]peer.ID, 0),
-		alive:     make(map[peer.ID]bool),
+		active:    make(map[peer.ID]bool),
 		hasPeerCh: make(chan struct{}),
 	}
 }
@@ -32,7 +32,7 @@ func (p *pool) tryGet() (peer.ID, bool) {
 	p.m.Lock()
 	defer p.m.Unlock()
 
-	if p.aliveCount == 0 {
+	if p.activeCount == 0 {
 		return "", false
 	}
 
@@ -41,7 +41,7 @@ func (p *pool) tryGet() (peer.ID, bool) {
 		if p.next++; p.next == len(p.peersList) {
 			p.next = 0
 		}
-		if alive := p.alive[peerID]; alive {
+		if alive := p.active[peerID]; alive {
 			return peerID, true
 		}
 	}
@@ -58,7 +58,6 @@ func (p *pool) waitNext(ctx context.Context) <-chan peer.ID {
 					return
 				}
 			case <-ctx.Done():
-				close(peerCh)
 				return
 			}
 		}
@@ -71,14 +70,14 @@ func (p *pool) add(peers ...peer.ID) {
 	defer p.m.Unlock()
 
 	for _, peerID := range peers {
-		alive, ok := p.alive[peerID]
+		alive, ok := p.active[peerID]
 		if !ok {
 			p.peersList = append(p.peersList, peerID)
 		}
 
 		if !ok || !alive {
-			p.alive[peerID] = true
-			p.aliveCount++
+			p.active[peerID] = true
+			p.activeCount++
 		}
 	}
 	p.checkHasPeers()
@@ -89,31 +88,31 @@ func (p *pool) remove(peers ...peer.ID) {
 	defer p.m.Unlock()
 
 	for _, peerID := range peers {
-		if alive, ok := p.alive[peerID]; ok && alive {
-			p.alive[peerID] = false
-			p.aliveCount--
+		if alive, ok := p.active[peerID]; ok && alive {
+			p.active[peerID] = false
+			p.activeCount--
 		}
 	}
 
-	if len(p.peersList) > p.aliveCount*2 && p.cleanupEnabled {
+	if len(p.peersList) > p.activeCount*2 && p.cleanupEnabled {
 		p.cleanup()
 	}
 	p.checkHasPeers()
 }
 
 func (p *pool) cleanup() {
-	newList := make([]peer.ID, 0, p.aliveCount)
+	newList := make([]peer.ID, 0, p.activeCount)
 	for idx, peerID := range p.peersList {
-		alive := p.alive[peerID]
+		alive := p.active[peerID]
 		if alive {
 			newList = append(newList, peerID)
 		} else {
-			delete(p.alive, peerID)
+			delete(p.active, peerID)
 		}
 
 		if idx == p.next {
-			// if peer is not alive and no more alive peers left in list point to first peer
-			if !alive && len(newList) >= p.aliveCount {
+			// if peer is not active and no more active peers left in list point to first peer
+			if !alive && len(newList) >= p.activeCount {
 				p.next = 0
 				continue
 			}
@@ -124,13 +123,13 @@ func (p *pool) cleanup() {
 }
 
 func (p *pool) checkHasPeers() {
-	if p.aliveCount > 0 && !p.hasPeer {
+	if p.activeCount > 0 && !p.hasPeer {
 		p.hasPeer = true
 		close(p.hasPeerCh)
 		return
 	}
 
-	if p.aliveCount == 0 && p.hasPeer {
+	if p.activeCount == 0 && p.hasPeer {
 		p.hasPeerCh = make(chan struct{})
 		p.hasPeer = false
 	}

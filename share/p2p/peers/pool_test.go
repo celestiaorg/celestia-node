@@ -16,10 +16,10 @@ func TestPool(t *testing.T) {
 		peers := []peer.ID{"peer1", "peer1", "peer2", "peer3"}
 		// adding same peer twice should not produce copies
 		p.add(peers...)
-		require.Equal(t, len(peers)-1, p.aliveCount)
+		require.Equal(t, len(peers)-1, p.activeCount)
 
 		p.remove("peer1", "peer2")
-		require.Equal(t, len(peers)-3, p.aliveCount)
+		require.Equal(t, len(peers)-3, p.activeCount)
 
 		peerID, ok := p.tryGet()
 		require.True(t, ok)
@@ -27,7 +27,7 @@ func TestPool(t *testing.T) {
 
 		p.remove("peer3")
 		p.remove("peer3")
-		require.Equal(t, 0, p.aliveCount)
+		require.Equal(t, 0, p.activeCount)
 		_, ok = p.tryGet()
 		require.False(t, ok)
 		fmt.Println(p)
@@ -38,7 +38,7 @@ func TestPool(t *testing.T) {
 		peers := []peer.ID{"peer1", "peer1", "peer2", "peer3"}
 		// adding same peer twice should not produce copies
 		p.add(peers...)
-		require.Equal(t, 3, p.aliveCount)
+		require.Equal(t, 3, p.activeCount)
 
 		peerID, ok := p.tryGet()
 		require.True(t, ok)
@@ -57,9 +57,9 @@ func TestPool(t *testing.T) {
 		require.Equal(t, peer.ID("peer1"), peerID)
 
 		p.remove("peer2", "peer3")
-		require.Equal(t, 1, p.aliveCount)
+		require.Equal(t, 1, p.activeCount)
 
-		// pointer should skip removed items until found alive one
+		// pointer should skip removed items until found active one
 		peerID, ok = p.tryGet()
 		require.True(t, ok)
 		require.Equal(t, peer.ID("peer1"), peerID)
@@ -78,12 +78,11 @@ func TestPool(t *testing.T) {
 
 		go func() {
 			select {
-			case _, ok := <-p.waitNext(shortCtx):
-				require.False(t, ok)
+			case <-p.waitNext(shortCtx):
+			case <-shortCtx.Done():
+				require.Error(t, shortCtx.Err())
 				// unlock longCtx waiter by adding new peer
 				p.add("peer1")
-			case <-longCtx.Done():
-				require.NoError(t, longCtx.Err())
 			}
 		}()
 
@@ -124,20 +123,20 @@ func TestPool(t *testing.T) {
 
 		peers := []peer.ID{"peer1", "peer2", "peer3", "peer4", "peer5"}
 		p.add(peers...)
-		require.Equal(t, len(peers), p.aliveCount)
+		require.Equal(t, len(peers), p.activeCount)
 
 		// point to last element that will be removed, to check how pointer will be updated
 		p.next = len(peers) - 1
 
 		// remove some, but not trigger cleanup yet
 		p.remove(peers[3:]...)
-		require.Equal(t, len(peers)-2, p.aliveCount)
-		require.Equal(t, len(peers), len(p.alive))
+		require.Equal(t, len(peers)-2, p.activeCount)
+		require.Equal(t, len(peers), len(p.active))
 
 		// trigger cleanup
 		p.remove(peers[2])
-		require.Equal(t, len(peers)-3, p.aliveCount)
-		require.Equal(t, len(peers)-3, len(p.alive))
+		require.Equal(t, len(peers)-3, p.activeCount)
+		require.Equal(t, len(peers)-3, len(p.active))
 		// next pointer should be updated
 		require.Equal(t, 0, p.next)
 	})
