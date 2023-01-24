@@ -20,7 +20,6 @@ import (
 
 	"github.com/celestiaorg/celestia-node/core"
 	"github.com/celestiaorg/celestia-node/header"
-	headercore "github.com/celestiaorg/celestia-node/header/core"
 	libhead "github.com/celestiaorg/celestia-node/libs/header"
 	"github.com/celestiaorg/celestia-node/libs/keystore"
 	"github.com/celestiaorg/celestia-node/logs"
@@ -164,7 +163,7 @@ func (s *Swamp) createPeer(ks keystore.Keystore) host.Host {
 func (s *Swamp) setupGenesis(ctx context.Context) {
 	s.WaitTillHeight(ctx, 1)
 
-	ex := headercore.NewExchange(
+	ex := core.NewExchange(
 		core.NewBlockFetcher(s.ClientContext.Client),
 		mdutils.Bserv(),
 		header.MakeExtendedHeader,
