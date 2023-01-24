@@ -2,10 +2,12 @@ package p2p
 
 import (
 	"context"
+	"strings"
 
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	pubsub_pb "github.com/libp2p/go-libp2p-pubsub/pb"
 	"github.com/libp2p/go-libp2p/core/host"
+	"github.com/libp2p/go-libp2p/core/protocol"
 	"go.uber.org/fx"
 	"golang.org/x/crypto/blake2b"
 )
@@ -29,6 +31,13 @@ func PubSub(cfg Config, params pubSubParams) (*pubsub.PubSub, error) {
 		pubsub.WithPeerExchange(cfg.PeerExchange || cfg.Bootstrapper),
 		pubsub.WithDirectPeers(fpeers),
 		pubsub.WithMessageIdFn(hashMsgID),
+		pubsub.WithProtocolMatchFn(
+			func(base string) func(string) bool {
+				return func(check string) bool {
+					return strings.EqualFold(base, check)
+				}
+			}),
+		pubsub.WithGossipSubProtocols([]protocol.ID{pubsub.GossipSubID_v11}, pubsub.GossipSubDefaultFeatures),
 	}
 
 	return pubsub.NewGossipSub(
