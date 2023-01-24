@@ -164,7 +164,14 @@ func (ca *CoreAccessor) SubmitPayForBlob(
 	gasLim uint64,
 ) (*TxResponse, error) {
 	b := &apptypes.Blob{NamespaceId: nID, Data: data, ShareVersion: uint32(appconsts.DefaultShareVersion)}
-	response, err := blob.SubmitPayForBlob(ctx, ca.signer, ca.coreConn, []*apptypes.Blob{b}, apptypes.SetGasLimit(gasLim), withFee(fee))
+	response, err := blob.SubmitPayForBlob(
+		ctx,
+		ca.signer,
+		ca.coreConn,
+		[]*apptypes.Blob{b},
+		apptypes.SetGasLimit(gasLim),
+		withFee(fee),
+	)
 	// metrics should only be counted on a successful PFD tx
 	if err == nil && response.Code == 0 {
 		ca.lastPayForBlob = time.Now().UnixMilli()
