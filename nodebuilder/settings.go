@@ -41,6 +41,18 @@ func WithMetrics(metricOpts []otlpmetrichttp.Option, nodeType node.Type) fx.Opti
 		fx.Invoke(header.WithMetrics),
 		fx.Invoke(state.WithMetrics),
 		fx.Invoke(fraud.WithMetrics),
+		fx.Invoke(func(ctx context.Context) error {
+			m, err := node.NewUptimeMetrics()
+			if err != nil {
+				return err
+			}
+			m.RecordNodeStartTime(ctx)
+
+			interval := time.Minute // TODO @derrandz: we can make this configurable once there is a need
+			// TODO @derrandz: instead of doing this async routine and relying on context from fx to cancel it out, you need to register callback on meter the way that it's done inside of header/metrics.go
+			go m.ObserveNodeUptime(ctx, interval)
+			return nil
+		}),
 	)
 
 	var opts fx.Option

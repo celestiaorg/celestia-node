@@ -25,7 +25,6 @@ import (
 	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
 	"github.com/celestiaorg/celestia-node/nodebuilder/share"
 	"github.com/celestiaorg/celestia-node/nodebuilder/state"
-	"github.com/celestiaorg/celestia-node/nodebuilder/telemetry"
 )
 
 const Timeout = time.Second * 15
@@ -64,8 +63,6 @@ type Node struct {
 	StateServ  state.Module  // not optional
 	FraudServ  fraud.Module  // not optional
 	DASer      das.Module    // not optional
-
-	Telemetry telemetry.Module
 
 	// start and stop control ref internal fx.App lifecycle funcs to be called from Start and Stop
 	start, stop lifecycleFunc
