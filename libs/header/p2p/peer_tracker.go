@@ -75,7 +75,7 @@ func (p *peerTracker) track() {
 		p.connected(c.RemotePeer())
 	}
 
-	subs, err := p.host.EventBus().Subscribe([]interface{}{&event.EvtPeerIdentificationCompleted{}, event.EvtPeerConnectednessChanged{}})
+	subs, err := p.host.EventBus().Subscribe([]interface{}{&event.EvtPeerIdentificationCompleted{}})
 	if err != nil {
 		log.Errorw("subscribing to EvtPeerConnectednessChanged", "err", err)
 		return

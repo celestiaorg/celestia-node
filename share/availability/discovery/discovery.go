@@ -107,7 +107,7 @@ func (d *Discovery) EnsurePeers(ctx context.Context) {
 		return
 	}
 	// subscribe on Event Bus in order to catch disconnected peers and restart the discovery
-	sub, err := d.host.EventBus().Subscribe(&event.EvtPeerConnectednessChanged{})
+	sub, err := d.host.EventBus().Subscribe(&event.EvtPeerIdentificationCompleted{})
 	if err != nil {
 		log.Error(err)
 		return
@@ -142,7 +142,10 @@ func (d *Discovery) EnsurePeers(ctx context.Context) {
 		case e := <-sub.Out():
 			// listen to disconnect event to remove peer from set and reset backoff time
 			// reset timer in order to restart the discovery, once stored peer is disconnected
-			connStatus := e.(event.EvtPeerConnectednessChanged)
+			connStatus, ok  := e.(event.EvtPeerConnectednessChanged)
+			if !ok {
+				continue
+			}
 			if connStatus.Peer.String() == "12D3KooWFpRaSJ4eGRJrxoEer358eogwCLBtrTSA4y1kh2hEtJd2" {
 				log.Info("DEBUG: Event")
 			}
