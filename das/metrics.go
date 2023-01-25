@@ -24,6 +24,8 @@ type metrics struct {
 	sampleTime    syncfloat64.Histogram
 	getHeaderTime syncfloat64.Histogram
 	newHead       syncint64.Counter
+	totalSampled  syncint64.UpDownCounter
+
 	lastSampledTS int64
 }
 
@@ -76,11 +78,22 @@ func (d *DASer) InitMetrics() error {
 		return err
 	}
 
+	totalSampled, err := meter.
+		SyncInt64().
+		UpDownCounter(
+			"das_total_sampled_headers_gauge",
+			instrument.WithDescription("total sampled headers gauge"),
+		)
+	if err != nil {
+		return err
+	}
+
 	d.sampler.metrics = &metrics{
 		sampled:       sampled,
 		sampleTime:    sampleTime,
 		getHeaderTime: getHeaderTime,
 		newHead:       newHead,
+		totalSampled:  totalSampled,
 	}
 
 	err = meter.RegisterCallback(
@@ -110,19 +123,24 @@ func (d *DASer) InitMetrics() error {
 	return nil
 }
 
+// observeSample records the time it took to sample a header +
+// the amount of sampled contiguous headers
 func (m *metrics) observeSample(ctx context.Context, h *header.ExtendedHeader, sampleTime time.Duration, err error) {
 	if m == nil {
 		return
 	}
 	m.sampleTime.Record(ctx, sampleTime.Seconds(),
 		attribute.Bool("failed", err != nil),
-		attribute.Int("header_width", len(h.DAH.RowsRoots)))
+	)
+
 	m.sampled.Add(ctx, 1,
 		attribute.Bool("failed", err != nil),
-		attribute.Int("header_width", len(h.DAH.RowsRoots)))
+	)
+
 	atomic.StoreInt64(&m.lastSampledTS, time.Now().UTC().Unix())
 }
 
+// observeGetHeader records the time it took to get a header from the header store.
 func (m *metrics) observeGetHeader(ctx context.Context, d time.Duration) {
 	if m == nil {
 		return
@@ -130,9 +148,18 @@ func (m *metrics) observeGetHeader(ctx context.Context, d time.Duration) {
 	m.getHeaderTime.Record(ctx, d.Seconds())
 }
 
+// observeNewHead records the network head.
 func (m *metrics) observeNewHead(ctx context.Context) {
 	if m == nil {
 		return
 	}
 	m.newHead.Add(ctx, 1)
+}
+
+// recordTotalSampled records the total amount of sampled headers.
+func (m *metrics) recordTotalSampled(ctx context.Context, n int64) {
+	if m == nil {
+		return
+	}
+	m.totalSampled.Add(ctx, n)
 }
