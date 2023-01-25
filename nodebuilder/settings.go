@@ -48,9 +48,6 @@ func WithMetrics(metricOpts []otlpmetrichttp.Option, nodeType node.Type) fx.Opti
 			}
 			m.RecordNodeStartTime(ctx)
 
-			interval := time.Minute // TODO @derrandz: we can make this configurable once there is a need
-			// TODO @derrandz: instead of doing this async routine and relying on context from fx to cancel it out, you need to register callback on meter the way that it's done inside of header/metrics.go
-			go m.ObserveNodeUptime(ctx, interval)
 			return nil
 		}),
 	)

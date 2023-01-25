@@ -7,16 +7,22 @@ import (
 
 	"go.opentelemetry.io/otel/metric/global"
 	"go.opentelemetry.io/otel/metric/instrument"
+	"go.opentelemetry.io/otel/metric/instrument/asyncfloat64"
 	"go.opentelemetry.io/otel/metric/instrument/syncfloat64"
 )
 
-// TODO @derrandz doc this
+// UptimeMetrics is a struct that records
+// 1. node start time: the timestamp when the node was started
+// 2. node up time: total time the node has been running
+//
+// the node start time is recorded imperatively when RecordNodeStartTime is called
+// whereas the node up time is recorded periodically upon callback recalling (re-mettering from optl)
 type UptimeMetrics struct {
 	// nodeStartTS is the timestamp when the node was started.
 	nodeStartTS syncfloat64.UpDownCounter
 
 	// totalNodeUptime is the total time the node has been running.
-	totalNodeUptime syncfloat64.Counter
+	totalNodeUptime asyncfloat64.Gauge
 
 	// lastNodeUptimeTS is the last timestamp when the node uptime was recorded.
 	lastNodeUptimeTS float64
@@ -24,6 +30,8 @@ type UptimeMetrics struct {
 
 var meter = global.MeterProvider().Meter("node")
 
+// NewUptimeMetrics creates a new UptimeMetrics
+// and registers a callback to re-meter the totalNodeUptime metric.
 func NewUptimeMetrics() (*UptimeMetrics, error) {
 	nodeStartTS, err := meter.
 		SyncFloat64().
@@ -36,8 +44,8 @@ func NewUptimeMetrics() (*UptimeMetrics, error) {
 	}
 
 	totalNodeUptime, err := meter.
-		SyncFloat64().
-		Counter(
+		AsyncFloat64().
+		Gauge(
 			"node_uptime",
 			instrument.WithDescription("total time the node has been running"),
 		)
@@ -45,33 +53,31 @@ func NewUptimeMetrics() (*UptimeMetrics, error) {
 		return nil, err
 	}
 
-	return &UptimeMetrics{
+	m := &UptimeMetrics{
 		nodeStartTS:     nodeStartTS,
 		totalNodeUptime: totalNodeUptime,
-	}, nil
+	}
+
+	m.lastNodeUptimeTS = float64(time.Now().Unix())
+
+	err = meter.RegisterCallback(
+		[]instrument.Asynchronous{
+			totalNodeUptime,
+		},
+		func(ctx context.Context) {
+			ts := time.Since(time.Unix(int64(m.lastNodeUptimeTS), 0)).Seconds()
+			m.lastNodeUptimeTS = float64(time.Now().Unix())
+			totalNodeUptime.Observe(ctx, ts)
+		},
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	return m, nil
 }
 
 // RecordNodeStartTime records the timestamp when the node was started.
 func (m *UptimeMetrics) RecordNodeStartTime(ctx context.Context) {
 	m.nodeStartTS.Add(context.Background(), float64(time.Now().Unix()))
-}
-
-// ObserveNodeUptime records the total time the node has been running.
-func (m *UptimeMetrics) ObserveNodeUptime(ctx context.Context, interval time.Duration) {
-	m.lastNodeUptimeTS = float64(time.Now().Unix())
-
-	// ticker ticks every `interval` and records the total time the node has been running
-	// since the last tick
-	ticker := time.NewTicker(interval)
-	defer ticker.Stop()
-	for {
-		select {
-		case <-ticker.C:
-			ts := time.Since(time.Unix(int64(m.lastNodeUptimeTS), 0)).Seconds()
-			m.lastNodeUptimeTS = float64(time.Now().Unix())
-			m.totalNodeUptime.Add(ctx, ts)
-		case <-ctx.Done():
-			return
-		}
-	}
 }
