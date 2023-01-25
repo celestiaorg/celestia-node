@@ -23,9 +23,9 @@ type Subscriber[H header.Header] struct {
 // NewSubscriber returns a Subscriber that manages the header Module's
 // relationship with the "header-sub" gossipsub topic.
 func NewSubscriber[H header.Header](
-	protocolSuffix string,
 	ps *pubsub.PubSub,
 	msgID pubsub.MsgIdFunction,
+	protocolSuffix string,
 ) *Subscriber[H] {
 	return &Subscriber[H]{
 		pubSubTopicID: pubSubTopicID(protocolSuffix),

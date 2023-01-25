@@ -87,7 +87,7 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 		)),
 		fx.Provide(fx.Annotate(
 			func(ps *pubsub.PubSub, network modp2p.Network) *p2p.Subscriber[*header.ExtendedHeader] {
-				return p2p.NewSubscriber[*header.ExtendedHeader](string(network), ps, header.MsgID)
+				return p2p.NewSubscriber[*header.ExtendedHeader](ps, header.MsgID, string(network))
 			},
 			fx.OnStart(func(ctx context.Context, sub *p2p.Subscriber[*header.ExtendedHeader]) error {
 				return sub.Start(ctx)

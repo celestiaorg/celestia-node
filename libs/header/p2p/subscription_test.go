@@ -30,7 +30,7 @@ func TestSubscriber(t *testing.T) {
 	require.NoError(t, err)
 
 	// create sub-service lifecycles for header service 1
-	p2pSub1 := NewSubscriber[*test.DummyHeader]("private", pubsub1, pubsub.DefaultMsgIdFn)
+	p2pSub1 := NewSubscriber[*test.DummyHeader](pubsub1, pubsub.DefaultMsgIdFn, "private")
 	err = p2pSub1.Start(context.Background())
 	require.NoError(t, err)
 
@@ -40,7 +40,7 @@ func TestSubscriber(t *testing.T) {
 	require.NoError(t, err)
 
 	// create sub-service lifecycles for header service 2
-	p2pSub2 := NewSubscriber[*test.DummyHeader]("private", pubsub2, pubsub.DefaultMsgIdFn)
+	p2pSub2 := NewSubscriber[*test.DummyHeader](pubsub2, pubsub.DefaultMsgIdFn, "private")
 	err = p2pSub2.Start(context.Background())
 	require.NoError(t, err)
 
