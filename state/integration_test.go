@@ -2,21 +2,26 @@ package state
 
 import (
 	"context"
+	"encoding/json"
+	"os"
 	"testing"
 
+	"github.com/cosmos/cosmos-sdk/client/flags"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
+	abci "github.com/tendermint/tendermint/abci/types"
 	rpcclient "github.com/tendermint/tendermint/rpc/client"
 	"google.golang.org/grpc"
 
 	"github.com/celestiaorg/celestia-node/core"
 
 	"github.com/celestiaorg/celestia-app/app"
+	"github.com/celestiaorg/celestia-app/testutil/testfactory"
 	"github.com/celestiaorg/celestia-app/testutil/testnode"
-	blobtypes "github.com/celestiaorg/celestia-app/x/payment/types"
+	blobtypes "github.com/celestiaorg/celestia-app/x/blob/types"
 
 	"github.com/celestiaorg/celestia-node/header"
 )
@@ -51,7 +56,8 @@ func (s *IntegrationTestSuite) SetupSuite() {
 	s.accessor = accessor
 
 	// required to ensure the Head request is non-nil
-	require.NoError(s.T(), s.cctx.WaitForNextBlock())
+	_, err := s.cctx.WaitForHeight(3)
+	require.NoError(s.T(), err)
 }
 
 func setClients(ca *CoreAccessor, conn *grpc.ClientConn, abciCli rpcclient.ABCIClient) {
@@ -109,4 +115,33 @@ func (s *IntegrationTestSuite) TestGetBalance() {
 		require.NoError(err)
 		require.Equal(&expectedBal, bal)
 	}
+}
+
+// This test can be used to generate a json encoded block for other test data,
+// such as that in share/availability/light/testdata
+func (s *IntegrationTestSuite) TestGenerateJSONBlock() {
+	t := s.T()
+	t.Skip("skipping testdata generation test")
+	resp, err := s.cctx.FillBlock(4, s.accounts, flags.BroadcastSync)
+	require := s.Require()
+	require.NoError(err)
+	require.Equal(abci.CodeTypeOK, resp.Code)
+	require.NoError(s.cctx.WaitForNextBlock())
+
+	// download the block that the tx was in
+	res, err := testfactory.QueryWithoutProof(s.cctx.Context, resp.TxHash)
+	require.NoError(err)
+
+	block, err := s.cctx.Client.Block(s.cctx.GoContext(), &res.Height)
+	require.NoError(err)
+
+	pBlock, err := block.Block.ToProto()
+	require.NoError(err)
+
+	file, err := os.OpenFile("sample-block.json", os.O_CREATE|os.O_RDWR, os.ModePerm)
+	defer file.Close() //nolint: staticcheck
+	require.NoError(err)
+
+	err = json.NewEncoder(file).Encode(pBlock)
+	require.NoError(err)
 }
