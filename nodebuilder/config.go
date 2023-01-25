@@ -15,6 +15,7 @@ import (
 	"github.com/celestiaorg/celestia-node/nodebuilder/rpc"
 	"github.com/celestiaorg/celestia-node/nodebuilder/share"
 	"github.com/celestiaorg/celestia-node/nodebuilder/state"
+	"github.com/celestiaorg/celestia-node/nodebuilder/telemetry"
 )
 
 // ConfigLoader defines a function that loads a config from any source.
@@ -23,27 +24,29 @@ type ConfigLoader func() (*Config, error)
 // Config is main configuration structure for a Node.
 // It combines configuration units for all Node subsystems.
 type Config struct {
-	Core    core.Config
-	State   state.Config
-	P2P     p2p.Config
-	RPC     rpc.Config
-	Gateway gateway.Config
-	Share   share.Config
-	Header  header.Config
-	DASer   das.Config `toml:",omitempty"`
+	Core      core.Config
+	State     state.Config
+	P2P       p2p.Config
+	RPC       rpc.Config
+	Gateway   gateway.Config
+	Share     share.Config
+	Header    header.Config
+	DASer     das.Config
+	Telemetry telemetry.Config
 }
 
 // DefaultConfig provides a default Config for a given Node Type 'tp'.
 // NOTE: Currently, configs are identical, but this will change.
 func DefaultConfig(tp node.Type) *Config {
 	commonConfig := &Config{
-		Core:    core.DefaultConfig(),
-		State:   state.DefaultConfig(),
-		P2P:     p2p.DefaultConfig(),
-		RPC:     rpc.DefaultConfig(),
-		Gateway: gateway.DefaultConfig(),
-		Share:   share.DefaultConfig(),
-		Header:  header.DefaultConfig(tp),
+		Core:      core.DefaultConfig(),
+		State:     state.DefaultConfig(),
+		P2P:       p2p.DefaultConfig(),
+		RPC:       rpc.DefaultConfig(),
+		Gateway:   gateway.DefaultConfig(),
+		Share:     share.DefaultConfig(),
+		Header:    header.DefaultConfig(tp),
+		Telemetry: telemetry.DefaultConfig(),
 	}
 
 	switch tp {

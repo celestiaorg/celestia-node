@@ -16,6 +16,7 @@ import (
 	"github.com/celestiaorg/celestia-node/nodebuilder/rpc"
 	"github.com/celestiaorg/celestia-node/nodebuilder/share"
 	"github.com/celestiaorg/celestia-node/nodebuilder/state"
+	"github.com/celestiaorg/celestia-node/nodebuilder/telemetry"
 )
 
 func ConstructModule(tp node.Type, network p2p.Network, cfg *Config, store Store) fx.Option {
@@ -42,6 +43,7 @@ func ConstructModule(tp node.Type, network p2p.Network, cfg *Config, store Store
 		das.ConstructModule(tp, &cfg.DASer),
 		fraud.ConstructModule(tp),
 		node.ConstructModule(tp),
+		telemetry.ConstructModule(&cfg.Telemetry),
 	)
 
 	return fx.Module(
