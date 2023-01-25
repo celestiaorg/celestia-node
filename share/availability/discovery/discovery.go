@@ -121,6 +121,32 @@ func (d *Discovery) EnsurePeers(ctx context.Context) {
 			log.Error(err)
 		}
 	}()
+
+	// starting to listen to subscriptions async will help us to avoid any blocking
+	// in the case when we will not have the needed amount of FNs and will be blocked in `FindPeers`.
+	go func() {
+		select {
+		case <-ctx.Done():
+			return
+		case e, ok := <-sub.Out():
+			if !ok {
+				return
+			}
+			// listen to disconnect event to remove peer from set and reset backoff time
+			// reset timer in order to restart the discovery, once stored peer is disconnected
+			connStatus := e.(event.EvtPeerConnectednessChanged)
+			if connStatus.Connectedness == network.NotConnected {
+				if d.set.Contains(connStatus.Peer) {
+					d.connector.RestartBackoff(connStatus.Peer)
+					d.set.Remove(connStatus.Peer)
+					d.onUpdatedPeers(connStatus.Peer, false)
+					d.host.ConnManager().UntagPeer(connStatus.Peer, topic)
+					t.Reset(d.discoveryInterval)
+				}
+			}
+		}
+	}()
+
 	for {
 		select {
 		case <-ctx.Done():
@@ -138,19 +164,6 @@ func (d *Discovery) EnsurePeers(ctx context.Context) {
 			}
 			for p := range peers {
 				go d.handlePeerFound(ctx, topic, p)
-			}
-		case e := <-sub.Out():
-			// listen to disconnect event to remove peer from set and reset backoff time
-			// reset timer in order to restart the discovery, once stored peer is disconnected
-			connStatus := e.(event.EvtPeerConnectednessChanged)
-			if connStatus.Connectedness == network.NotConnected {
-				if d.set.Contains(connStatus.Peer) {
-					d.connector.RestartBackoff(connStatus.Peer)
-					d.set.Remove(connStatus.Peer)
-					d.onUpdatedPeers(connStatus.Peer, false)
-					d.host.ConnManager().UntagPeer(connStatus.Peer, topic)
-					t.Reset(d.discoveryInterval)
-				}
 			}
 		}
 	}
