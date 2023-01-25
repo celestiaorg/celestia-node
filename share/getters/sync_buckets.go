@@ -14,14 +14,10 @@ type sessionBucket[V any] struct {
 
 func (sb *sessionBuckets[V]) getSession(key string, gtr getter[V]) *getterSession[V] {
 	newFn := func() *getterSession[V] {
-		cleanup := func() {
-			sb.rmSession(key)
-		}
-
-		return newGetSession[V](gtr, cleanup)
+		return newGetSession[V](key, gtr, sb)
 	}
 
-	return sb.getOrLoadSession(key, newFn)
+	return sb.getOrNewSession(key, newFn)
 }
 
 func (sb *sessionBuckets[V]) rmSession(key string) {
@@ -32,7 +28,7 @@ func (sb *sessionBuckets[V]) rmSession(key string) {
 	bkt.snsLk.Unlock()
 }
 
-func (sb *sessionBuckets[V]) getOrLoadSession(key string, new func() *getterSession[V]) *getterSession[V] {
+func (sb *sessionBuckets[V]) getOrNewSession(key string, new func() *getterSession[V]) *getterSession[V] {
 	bkt := sb.getBucket(key)
 
 	bkt.snsLk.RLock()

@@ -6,14 +6,16 @@ import (
 )
 
 type getterSession[V any] struct {
-	res atomic.Pointer[result[V]]
+	bkts *sessionBuckets[V]
+
+	key string
+	res result[V]
 
 	gtr getter[V]
-	sub *valueSub[V]
+	calls atomic.Uint32
 
 	ctx     context.Context
 	cancel  context.CancelFunc
-	cleanup func()
 }
 
 type getter[V any] func(context.Context) (V, error)
@@ -23,37 +25,46 @@ type result[V any] struct {
 	err error
 }
 
-func newGetSession[V any](gtr getter[V], cleanup func()) *getterSession[V] {
+func newGetSession[V any](key string, gtr getter[V], bkts *sessionBuckets[V]) *getterSession[V] {
 	ctx, cancel := context.WithCancel(context.Background())
 	sn := &getterSession[V]{
+		bkts: bkts,
+		key: key,
 		gtr:     gtr,
 		ctx:     ctx,
 		cancel:  cancel,
-		cleanup: cleanup,
 	}
-	sn.sub = newValueSub[V](sn)
-	go sn.load()
+	go sn.execGetter()
 	return sn
 }
 
 func (ss *getterSession[V]) get(ctx context.Context) (V, error) {
-	if res := ss.res.Load(); res != nil {
-		return res.val, res.err
-	}
+	ss.calls.Add(1) // count calls
+	select {
+	case <-ss.ctx.Done():
+		// we are done getting, return the result
+		return ss.res.val, ss.res.err
+	case <-ctx.Done():
+		// if all the callers cancel
+		// cancel getter
+		if ss.calls.Load() == 0 {
+			ss.cancel()
+		}
 
-	if res := ss.sub.sub(ctx); res.err != errSubDuringClean {
-		return res.val, res.err
+		var zero V
+		return zero, ctx.Err()
 	}
-
-	res := ss.res.Load()
-	return res.val, res.err
 }
 
-// load executes underlying getter notifying subscribers
+// execGetter executes underlying getter notifying subscribers
 // and caching the result
-func (ss *getterSession[V]) load() {
-	val, err := ss.gtr(ss.ctx)
-	res := result[V]{val: val, err: err}
-	ss.res.Store(&res)
-	ss.sub.pub(res)
+func (ss *getterSession[V]) execGetter() {
+	defer ss.bkts.rmSession(ss.key) // cleanup
+	val, err := ss.gtr(ss.ctx) // get
+	if val == nil && err == context.Canceled {
+		return
+	}
+
+	ss.res = result[V]{val: val, err: err} // cache
+	ss.cancel() // notify
 }
