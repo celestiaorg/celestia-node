@@ -45,10 +45,20 @@ func (p *syncPool) waitValidation(ctx context.Context) (valid bool) {
 func (p *syncPool) waitSampling(ctx context.Context) (sampled bool) {
 	select {
 	case <-p.waitSamplingCh:
-		// block with given datahash got sampled, allow the pubsub to retransmit the message by returning
-		// Accept
+		// block with given datahash got markSampled, allow the pubsub to retransmit the message by
+		// returning Accept
 		return true
 	case <-ctx.Done():
 		return false
+	}
+}
+
+func (p *syncPool) markValidated() {
+	if p.isValidDataHash.CompareAndSwap(false, true) {
+		// unlock all awaiting Validators.
+		// if unable to stop the timer, the channel was already closed by afterfunc
+		if p.validatorWaitTimer.Stop() {
+			close(p.validatorWaitCh)
+		}
 	}
 }

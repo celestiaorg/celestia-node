@@ -6,22 +6,20 @@ import (
 	"sync"
 	"time"
 
-	"github.com/celestiaorg/celestia-node/header"
-
 	logging "github.com/ipfs/go-log/v2"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	"github.com/libp2p/go-libp2p/core/peer"
 
+	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/availability/discovery"
-	"github.com/celestiaorg/celestia-node/share/p2p/shrexsub"
 )
 
 var (
 	log = logging.Logger("shrex/peers")
 )
 
-// Manager keeps track of peers coming from shrex.Sub and discovery
+// Manager keeps track of peers coming from shrex.Sub and from discovery
 type Manager struct {
 	disc      discovery.Discovery
 	headerSub header.Subscription
@@ -38,11 +36,10 @@ type Manager struct {
 type hashStr = string
 
 func NewManager(
-	shrexSub *shrexsub.PubSub,
 	headerSub header.Subscription,
 	discovery discovery.Discovery,
 	syncTimeout time.Duration,
-) (*Manager, error) {
+) *Manager {
 	s := &Manager{
 		disc:            discovery,
 		headerSub:       headerSub,
@@ -61,8 +58,7 @@ func NewManager(
 			s.fullNodes.remove(peerID)
 		})
 
-	err := shrexSub.AddValidator(s.validate)
-	return s, err
+	return s
 }
 
 func (s *Manager) Start() {
@@ -84,9 +80,9 @@ func (s *Manager) Stop(ctx context.Context) error {
 
 type DoneFunc func(success bool)
 
-// GetPeer attempts to get a peer obtained from shrex.Sub for given datahash if any.
-// If there is none, it will try fullnodes collected from discovery. And if there is still none, it
-// will wait until any peer appear in either source or timeout happen.
+// GetPeer returns peer collected from shrex.Sub for given datahash if any available.
+// If there is none, it will look for fullnodes collected from discovery. If there is no discovered
+// full nodes, it will wait until any peer appear in either source or timeout happen.
 // After fetching data using given peer, caller is required to call returned DoneFunc
 func (s *Manager) GetPeer(
 	ctx context.Context, datahash share.DataHash,
@@ -117,16 +113,16 @@ func (s *Manager) GetPeer(
 func (s *Manager) doneFunc(datahash share.DataHash, peerID peer.ID) DoneFunc {
 	return func(success bool) {
 		if success {
-			s.sampled(datahash)
+			s.markSampled(datahash)
 			return
 		}
 		s.RemovePeers(datahash, peerID)
 	}
 }
 
-// sampled marks datahash as sampled if not yet marked, to release waiting validator and retransmit
-// the message via shrex.Sub
-func (s *Manager) sampled(datahash share.DataHash) {
+// markSampled marks datahash as sampled if not yet marked, to release waiting validator and
+// retransmit the message via shrex.Sub
+func (s *Manager) markSampled(datahash share.DataHash) {
 	p := s.getOrCreateValidatedPool(datahash.String())
 	if p.isSampled.CompareAndSwap(false, true) {
 		close(p.waitSamplingCh)
@@ -139,7 +135,7 @@ func (s *Manager) RemovePeers(datahash share.DataHash, ids ...peer.ID) {
 	p.pool.remove(ids...)
 }
 
-// subscribeHeader marks pool as validated when its datahash corresponds to headers received from
+// subscribeHeader marks pool as validated when its datahash corresponds to a header received from
 // headerSub.
 func (s *Manager) subscribeHeader(ctx context.Context) {
 	defer close(s.done)
@@ -165,37 +161,34 @@ func (s *Manager) getOrCreateValidatedPool(key hashStr) syncPool {
 
 	p, ok := s.pools[key]
 	if !ok {
-		// save as already validated
 		p = newSyncPool()
+
+		// save as already validated
 		p.isValidDataHash.Store(true)
 		s.pools[key] = p
 		return p
 	}
 
-	// check if there are validators waiting
-	if p.isValidDataHash.CompareAndSwap(false, true) {
-		// datahash is valid, so unlock all awaiting Validators.
-		// if unable to stop the timer, the channel was already closed by afterfunc
-		if p.validatorWaitTimer.Stop() {
-			close(p.validatorWaitCh)
-		}
-	}
+	// if not yet validated, there is validator waiting that needs to be released
+	p.markValidated()
 	return p
 }
 
-// Validator will block until header with given datahash received. This behavior opens an attack
+// Validate will block until header with given datahash received. This behavior opens an attack
 // vector of multiple fake datahash spam, that will grow amount of hanging routines in node. To
 // address this, validator should be reworked to be non-blocking, with retransmission being invoked
 // in sync manner from another routine upon header discovery.
-func (s *Manager) validate(ctx context.Context, peerID peer.ID, hash share.DataHash) pubsub.ValidationResult {
+func (s *Manager) Validate(ctx context.Context, peerID peer.ID, hash share.DataHash) pubsub.ValidationResult {
 	p := s.getOrCreateUnvalidatedPool(hash.String())
 	p.pool.add(peerID)
 
-	// only first validator call is responsible for retransmit, all subsequent call should return ignore
+	// only first validator call is responsible for retransmit, all subsequent calls should return
+	// ignore
 	if !p.firstPeer.CompareAndSwap(false, true) {
 		return pubsub.ValidationIgnore
 	}
 
+	// check of validation required
 	if !p.isValidDataHash.Load() {
 		if valid := p.waitValidation(ctx); !valid {
 			// no corresponding header was received for given datahash in time,
@@ -205,9 +198,9 @@ func (s *Manager) validate(ctx context.Context, peerID peer.ID, hash share.DataH
 		}
 	}
 
+	// headerSub found corresponding ExtendedHeader for dataHash,
+	// wait for it to be sampled, before retransmission
 	if sampled := p.waitSampling(ctx); sampled {
-		// headerSub found corresponding ExtendedHeader for dataHash,
-		// wait for it to be sampled, before retransmission
 		return pubsub.ValidationAccept
 	}
 	return pubsub.ValidationIgnore
@@ -228,7 +221,6 @@ func (s *Manager) getOrCreateUnvalidatedPool(key hashStr) syncPool {
 
 		s.pools[key] = p
 	}
-
 	return p
 }
 
