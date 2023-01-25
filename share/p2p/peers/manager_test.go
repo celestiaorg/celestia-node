@@ -81,7 +81,7 @@ func TestManager(t *testing.T) {
 		}
 
 		// wait for peers to be collected in pool
-		p := manager.getOrCreateUnvalidatedPool(h.DataHash.Bytes())
+		p := manager.getOrCreateUnvalidatedPool(h.DataHash.String())
 		for {
 			p.pool.m.Lock()
 			count := p.pool.activeCount
@@ -262,7 +262,7 @@ func TestManager(t *testing.T) {
 		}
 
 		// wait for peers to be collected in pool
-		p := manager.getOrCreateUnvalidatedPool(dataHash.Bytes())
+		p := manager.getOrCreateUnvalidatedPool(dataHash.String())
 		for {
 			p.pool.m.Lock()
 			count := p.pool.activeCount
@@ -298,7 +298,6 @@ func testManager(headerSub *header_mock.MockSubscription) *Manager {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	manager := &Manager{
 		headerSub:       headerSub,
-		m:               new(sync.Mutex),
 		pools:           make(map[hashStr]syncPool),
 		poolSyncTimeout: 60 * time.Second,
 		fullNodes:       newPool(),

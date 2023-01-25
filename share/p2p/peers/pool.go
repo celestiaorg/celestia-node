@@ -9,7 +9,7 @@ import (
 
 // pool stores peers and provides methods for simple round-robin access.
 type pool struct {
-	m           *sync.Mutex
+	m           sync.Mutex
 	peersList   []peer.ID
 	active      map[peer.ID]bool
 	activeCount int
@@ -23,7 +23,6 @@ type pool struct {
 // newPool creates new pool
 func newPool() *pool {
 	return &pool{
-		m:         new(sync.Mutex),
 		peersList: make([]peer.ID, 0),
 		active:    make(map[peer.ID]bool),
 		hasPeerCh: make(chan struct{}),
