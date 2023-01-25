@@ -15,9 +15,10 @@ type pool struct {
 	activeCount int
 	next        int
 
+	hasPeer   bool
+	hasPeerCh chan struct{}
+
 	cleanupEnabled bool
-	hasPeer        bool
-	hasPeerCh      chan struct{}
 }
 
 // newPool creates new pool
@@ -29,8 +30,7 @@ func newPool() *pool {
 	}
 }
 
-// tryGet will attempt to get peer and return it if there is any, otherwise bool flag would be
-// returned as false.
+// tryGet returns peer along with bool flag indicating success of operation.
 func (p *pool) tryGet() (peer.ID, bool) {
 	p.m.Lock()
 	defer p.m.Unlock()
@@ -39,13 +39,20 @@ func (p *pool) tryGet() (peer.ID, bool) {
 		return "", false
 	}
 
+	start := p.next
 	for {
 		peerID := p.peersList[p.next]
 		if p.next++; p.next == len(p.peersList) {
 			p.next = 0
 		}
+
 		if alive := p.active[peerID]; alive {
 			return peerID, true
+		}
+
+		// full circle passed
+		if p.next == start {
+			return "", false
 		}
 	}
 }

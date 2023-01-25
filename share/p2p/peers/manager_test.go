@@ -33,15 +33,26 @@ func TestManager(t *testing.T) {
 		// wait until header is requested from header sub
 		require.NoError(t, nextHeader.wait(ctx, 1))
 
-		// validator should return accept, since header is synced
+		doneCh := make(chan struct{})
 		peerID := peer.ID("peer")
-		validation := manager.validate(ctx, peerID, h.DataHash.Bytes())
-		require.Equal(t, pubsub.ValidationAccept, validation)
+		// validator should return accept, since header is synced
+		go func() {
+			defer close(doneCh)
+			validation := manager.Validate(ctx, peerID, h.DataHash.Bytes())
+			require.Equal(t, pubsub.ValidationAccept, validation)
+		}()
 
 		p, done, err := manager.GetPeer(ctx, h.DataHash.Bytes())
 		done(true)
 		require.NoError(t, err)
 		require.Equal(t, peerID, p)
+
+		// wait for validators to finish
+		select {
+		case <-doneCh:
+		case <-ctx.Done():
+			require.NoError(t, ctx.Err())
+		}
 
 		stopManager(t, manager)
 	})
@@ -62,21 +73,15 @@ func TestManager(t *testing.T) {
 
 		peers := []peer.ID{"peer1", "peer2", "peer3"}
 
-		// spawn wait routine, that will unlock when all validators have returned
-		var wg sync.WaitGroup
-		done := make(chan struct{})
-		wg.Add(len(peers))
-		go func() {
-			defer close(done)
-			wg.Wait()
-		}()
-
 		// spawn validator routine for every peer
+		validationCh := make(chan pubsub.ValidationResult)
 		for _, p := range peers {
 			go func(peerID peer.ID) {
-				defer wg.Done()
-				validation := manager.validate(ctx, peerID, h.DataHash.Bytes())
-				require.Equal(t, pubsub.ValidationAccept, validation)
+				select {
+				case validationCh <- manager.Validate(ctx, peerID, h.DataHash.Bytes()):
+				case <-ctx.Done():
+					return
+				}
 			}(p)
 		}
 
@@ -99,13 +104,28 @@ func TestManager(t *testing.T) {
 		// release headerSub with validating header
 		require.NoError(t, nextHeader.wait(ctx, 1))
 
-		// wait for validators to finish
-		select {
-		case <-done:
-		case <-ctx.Done():
-			require.NoError(t, ctx.Err())
+		// release sample lock by calling done
+		_, done, err := manager.GetPeer(ctx, h.DataHash.Bytes())
+		done(true)
+		require.NoError(t, err)
+
+		// collect validation results
+		actual := make(map[pubsub.ValidationResult]int)
+		expected := map[pubsub.ValidationResult]int{
+			pubsub.ValidationAccept: 1,
+			pubsub.ValidationIgnore: len(peers) - 1,
 		}
 
+		// wait for validators to finis
+		for i := 0; i < len(peers); i++ {
+			select {
+			case result := <-validationCh:
+				actual[result]++
+			case <-ctx.Done():
+				require.NoError(t, ctx.Err())
+			}
+		}
+		require.Equal(t, actual, expected)
 		stopManager(t, manager)
 	})
 
@@ -141,7 +161,7 @@ func TestManager(t *testing.T) {
 		for _, p := range peers {
 			go func(peerID peer.ID) {
 				defer wg.Done()
-				validation := manager.validate(ctx, peerID, h.DataHash.Bytes())
+				validation := manager.Validate(ctx, peerID, h.DataHash.Bytes())
 				require.Equal(t, pubsub.ValidationReject, validation)
 			}(p)
 		}
@@ -256,7 +276,7 @@ func TestManager(t *testing.T) {
 		for _, p := range peers {
 			go func(peerID peer.ID) {
 				defer wg.Done()
-				validation := manager.validate(ctx, peerID, dataHash.Bytes())
+				validation := manager.Validate(ctx, peerID, dataHash.Bytes())
 				require.Equal(t, pubsub.ValidationAccept, validation)
 			}(p)
 		}
