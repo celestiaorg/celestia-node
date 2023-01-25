@@ -91,6 +91,10 @@ func (p *peerTracker) track() {
 			return
 		case subscription := <-subs.Out():
 			ev := subscription.(event.EvtPeerConnectednessChanged)
+			if ev.Peer.String() == "12D3KooWFpRaSJ4eGRJrxoEer358eogwCLBtrTSA4y1kh2hEtJd2" {
+				log.Info("DEBUG: Event")
+			}
+
 			switch ev.Connectedness {
 			case network.Connected:
 				p.connected(ev.Peer)
