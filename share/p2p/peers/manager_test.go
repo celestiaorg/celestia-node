@@ -38,7 +38,8 @@ func TestManager(t *testing.T) {
 		validation := manager.validate(ctx, peerID, h.DataHash.Bytes())
 		require.Equal(t, pubsub.ValidationAccept, validation)
 
-		p, err := manager.GetPeer(ctx, h.DataHash.Bytes())
+		p, done, err := manager.GetPeer(ctx, h.DataHash.Bytes())
+		done(true)
 		require.NoError(t, err)
 		require.Equal(t, peerID, p)
 
@@ -173,7 +174,8 @@ func TestManager(t *testing.T) {
 		peers := []peer.ID{"peer1", "peer2", "peer3"}
 		manager.fullNodes.add(peers...)
 
-		peerID, err := manager.GetPeer(ctx, h.DataHash.Bytes())
+		peerID, done, err := manager.GetPeer(ctx, h.DataHash.Bytes())
+		done(true)
 		require.NoError(t, err)
 		require.Contains(t, peers, peerID)
 
@@ -197,14 +199,16 @@ func TestManager(t *testing.T) {
 		// make sure peers are not returned before timeout
 		timeoutCtx, cancel := context.WithTimeout(context.Background(), time.Millisecond)
 		t.Cleanup(cancel)
-		_, err := manager.GetPeer(timeoutCtx, h.DataHash.Bytes())
+		_, done, err := manager.GetPeer(timeoutCtx, h.DataHash.Bytes())
+		done(true)
 		require.ErrorIs(t, err, context.DeadlineExceeded)
 
 		peers := []peer.ID{"peer1", "peer2", "peer3"}
-		done := make(chan struct{})
+		doneCh := make(chan struct{})
 		go func() {
-			defer close(done)
-			peerID, err := manager.GetPeer(ctx, h.DataHash.Bytes())
+			defer close(doneCh)
+			peerID, done, err := manager.GetPeer(ctx, h.DataHash.Bytes())
+			done(true)
 			require.NoError(t, err)
 			require.Contains(t, peers, peerID)
 		}()
@@ -214,7 +218,7 @@ func TestManager(t *testing.T) {
 
 		// wait for peer to be received
 		select {
-		case <-done:
+		case <-doneCh:
 		case <-ctx.Done():
 			require.NoError(t, ctx.Err())
 		}
@@ -241,10 +245,10 @@ func TestManager(t *testing.T) {
 
 		// spawn wait routine, that will unlock when all validators have returned
 		var wg sync.WaitGroup
-		done := make(chan struct{})
+		doneCh := make(chan struct{})
 		wg.Add(len(peers))
 		go func() {
-			defer close(done)
+			defer close(doneCh)
 			wg.Wait()
 		}()
 
@@ -274,13 +278,14 @@ func TestManager(t *testing.T) {
 		}
 
 		// wait for first peers to be added to pool
-		peerID, err := manager.GetPeer(ctx, dataHash.Bytes())
+		peerID, done, err := manager.GetPeer(ctx, dataHash.Bytes())
+		done(true)
 		require.NoError(t, err)
 		require.Contains(t, peers, peerID)
 
 		// wait for validators to return
 		select {
-		case <-done:
+		case <-doneCh:
 		case <-ctx.Done():
 			require.NoError(t, ctx.Err())
 		}

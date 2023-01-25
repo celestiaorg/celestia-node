@@ -3,10 +3,10 @@ package peers
 import (
 	"context"
 	"errors"
-	"github.com/celestiaorg/celestia-node/header"
 	"sync"
-	"sync/atomic"
 	"time"
+
+	"github.com/celestiaorg/celestia-node/header"
 
 	logging "github.com/ipfs/go-log/v2"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
@@ -36,17 +36,6 @@ type Manager struct {
 }
 
 type hashStr string
-
-// syncPool accumulates peers from shrex.Sub validators and controls message retransmission.
-// It will unlock the validator only if there is a proof that header with given datahash exist in a
-// chain
-type syncPool struct {
-	pool *pool
-
-	isValidDataHash    *atomic.Bool
-	validatorWaitCh    chan struct{}
-	validatorWaitTimer *time.Timer
-}
 
 func NewManager(
 	shrexSub *shrexsub.PubSub,
@@ -94,39 +83,65 @@ func (s *Manager) Stop(ctx context.Context) error {
 	}
 }
 
+type DoneFunc func(success bool)
+
 // GetPeer attempts to get a peer obtained from shrex.Sub for given datahash if any.
 // If there is none, it will try fullnodes collected from discovery. And if there is still none, it
 // will wait until any peer appear in either source or timeout happen.
-func (s *Manager) GetPeer(ctx context.Context, datahash share.DataHash) (peer.ID, error) {
+// After fetching data using given peer, caller is required to call returned DoneFunc
+func (s *Manager) GetPeer(
+	ctx context.Context, datahash share.DataHash,
+) (peer.ID, DoneFunc, error) {
 	p := s.getOrCreateValidatedPool(hashStr(datahash.String()))
 	peerID, ok := p.pool.tryGet()
 	if ok {
-		return peerID, nil
+		return peerID, s.doneFunc(datahash, peerID), nil
 	}
 
 	// try fullnodes obtained from discovery
 	peerID, ok = s.fullNodes.tryGet()
 	if ok {
-		return peerID, nil
+		return peerID, s.doneFunc(datahash, peerID), nil
 	}
 
 	// no peers available, wait for the first one
 	select {
 	case peerID = <-p.pool.waitNext(ctx):
-		return peerID, nil
+		return peerID, s.doneFunc(datahash, peerID), nil
 	case peerID = <-s.fullNodes.waitNext(ctx):
-		return peerID, nil
+		return peerID, s.doneFunc(datahash, peerID), nil
 	case <-ctx.Done():
-		return "", ctx.Err()
+		return "", s.doneFunc(datahash, peerID), ctx.Err()
 	}
 }
 
+func (s *Manager) doneFunc(datahash share.DataHash, peerID peer.ID) DoneFunc {
+	return func(success bool) {
+		if success {
+			s.sampled(datahash)
+			return
+		}
+		s.RemovePeers(datahash, peerID)
+	}
+}
+
+// sampled marks datahash as sampled if not yet marked, to release waiting validator and retransmit
+// the message via shrex.Sub
+func (s *Manager) sampled(datahash share.DataHash) {
+	p := s.getOrCreateValidatedPool(hashStr(datahash.String()))
+	if p.isSampled.CompareAndSwap(false, true) {
+		close(p.waitSamplingCh)
+	}
+}
+
+// RemovePeers removes peers for given datahash from store
 func (s *Manager) RemovePeers(datahash share.DataHash, ids ...peer.ID) {
 	p := s.getOrCreateValidatedPool(hashStr(datahash.String()))
 	p.pool.remove(ids...)
 }
 
-// subscribeHeader subscribes to headerSub and
+// subscribeHeader marks pool as validated when its datahash corresponds to headers received from
+// headerSub.
 func (s *Manager) subscribeHeader(ctx context.Context) {
 	defer close(s.done)
 	defer s.headerSub.Cancel()
@@ -152,8 +167,7 @@ func (s *Manager) getOrCreateValidatedPool(key hashStr) syncPool {
 	p, ok := s.pools[key]
 	if !ok {
 		// save as already validated
-		p.pool = newPool()
-		p.isValidDataHash = new(atomic.Bool)
+		p = newSyncPool()
 		p.isValidDataHash.Store(true)
 		s.pools[key] = p
 		return p
@@ -178,27 +192,26 @@ func (s *Manager) validate(ctx context.Context, peerID peer.ID, hash share.DataH
 	p := s.getOrCreateUnvalidatedPool(hash)
 	p.pool.add(peerID)
 
-	if p.isValidDataHash.Load() {
-		// datahash is valid, allow the pubsub to retransmit the message by returning Accept
-		return pubsub.ValidationAccept
-	}
-
-	// wait for header to sync within timeout.
-	select {
-	case <-p.validatorWaitCh:
-		if p.isValidDataHash.Load() {
-			// headerSub found corresponding ExtendedHeader for dataHash,
-			// retransmit the message by returning Accept
-			return pubsub.ValidationAccept
-		}
-
-		// no corresponding header was received for given datahash in time,
-		// highly unlikely block with given datahash exist in chain, reject msg and punish the peer
-		s.deletePool(hashStr(hash.String()))
-		return pubsub.ValidationReject
-	case <-ctx.Done():
+	// only first validator call is responsible for retransmit, all subsequent call should return ignore
+	if !p.firstPeer.CompareAndSwap(false, true) {
 		return pubsub.ValidationIgnore
 	}
+
+	if !p.isValidDataHash.Load() {
+		if valid := p.waitValidation(ctx); !valid {
+			// no corresponding header was received for given datahash in time,
+			// highly unlikely block with given datahash exist in chain, reject msg and punish the peer
+			s.deletePool(hashStr(hash.String()))
+			return pubsub.ValidationReject
+		}
+	}
+
+	if sampled := p.waitSampling(ctx); sampled {
+		// headerSub found corresponding ExtendedHeader for dataHash,
+		// wait for it to be sampled, before retransmission
+		return pubsub.ValidationAccept
+	}
+	return pubsub.ValidationIgnore
 }
 
 func (s *Manager) getOrCreateUnvalidatedPool(dataHash share.DataHash) syncPool {
@@ -206,23 +219,19 @@ func (s *Manager) getOrCreateUnvalidatedPool(dataHash share.DataHash) syncPool {
 	defer s.m.Unlock()
 
 	key := hashStr(dataHash.String())
-	t, ok := s.pools[key]
-	if ok {
-		return t
+	p, ok := s.pools[key]
+	if !ok {
+		// create pool in non-validated state
+		p = newSyncPool()
+		p.validatorWaitCh = make(chan struct{})
+		p.validatorWaitTimer = time.AfterFunc(s.poolSyncTimeout, func() {
+			close(p.validatorWaitCh)
+		})
+
+		s.pools[key] = p
 	}
 
-	// create pool in non-validated state
-	waitCh := make(chan struct{})
-	t = syncPool{
-		pool:            newPool(),
-		isValidDataHash: new(atomic.Bool),
-		validatorWaitCh: waitCh,
-		validatorWaitTimer: time.AfterFunc(s.poolSyncTimeout, func() {
-			close(waitCh)
-		}),
-	}
-	s.pools[key] = t
-	return t
+	return p
 }
 
 func (s *Manager) deletePool(key hashStr) {
