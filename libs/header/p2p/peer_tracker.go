@@ -75,7 +75,7 @@ func (p *peerTracker) track() {
 		p.connected(c.RemotePeer())
 	}
 
-	subs, err := p.host.EventBus().Subscribe(&event.EvtPeerConnectednessChanged{})
+	subs, err := p.host.EventBus().Subscribe([]interface{}{&event.EvtPeerIdentificationCompleted{}, event.EvtPeerConnectednessChanged{}})
 	if err != nil {
 		log.Errorw("subscribing to EvtPeerConnectednessChanged", "err", err)
 		return
@@ -89,17 +89,19 @@ func (p *peerTracker) track() {
 				log.Errorw("closing subscription", "err", err)
 			}
 			return
-		case subscription := <-subs.Out():
-			ev := subscription.(event.EvtPeerConnectednessChanged)
-			if ev.Peer.String() == "12D3KooWFpRaSJ4eGRJrxoEer358eogwCLBtrTSA4y1kh2hEtJd2" {
-				log.Info("DEBUG: Event")
-			}
-
-			switch ev.Connectedness {
-			case network.Connected:
-				p.connected(ev.Peer)
-			case network.NotConnected:
-				p.disconnected(ev.Peer)
+		case sub := <-subs.Out():
+			switch sub.(type) {
+			case event.EvtPeerIdentificationCompleted:
+				peer := sub.(event.EvtPeerIdentificationCompleted).Peer
+				if peer.String() == "12D3KooWFpRaSJ4eGRJrxoEer358eogwCLBtrTSA4y1kh2hEtJd2" {
+					log.Info("DEBUG: Event")
+				}
+				p.connected(peer)
+			case event.EvtPeerConnectednessChanged:
+				evt := sub.(event.EvtPeerConnectednessChanged)
+				if evt.Connectedness == network.NotConnected {
+					p.disconnected(evt.Peer)
+				}
 			}
 		}
 	}
