@@ -37,7 +37,6 @@ func (fa *ShareAvailability) Start(context.Context) error {
 	fa.cancel = cancel
 
 	go fa.disc.Advertise(ctx)
-	fa.disc.EnsurePeers(ctx)
 	return nil
 }
 
