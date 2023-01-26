@@ -45,6 +45,24 @@ func Test_dataFromShares(t *testing.T) {
 	largeTxData := []byte{128, 4}
 	largeTxData = append(largeTxData, bytes.Repeat([]byte{0xc}, 512)...)
 
+	largePfbTxInput := [][]byte{
+		fillShare([]uint8{
+			0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x4, // namespace id
+			0x1,                // info byte
+			0x0, 0x0, 0x2, 0x2, // 512 (unit) + 2 (unit length) = 514 sequence length
+			0x0, 0x0, 0x0, 17, // reserved bytes
+			128, 4, // unit length of transaction is 512
+		}, 0xc), // data of transaction
+		padShare(append([]uint8{
+			0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x4, // namespace id
+			0x0,                // info byte
+			0x0, 0x0, 0x0, 0x0, // reserved bytes
+		}, bytes.Repeat([]byte{0xc}, 19)..., // continuation data of transaction
+		)),
+	}
+	largePfbTxData := []byte{128, 4}
+	largePfbTxData = append(largePfbTxData, bytes.Repeat([]byte{0xc}, 512)...)
+
 	testCases := []testCase{
 		{
 			name:    "empty",
@@ -71,6 +89,12 @@ func Test_dataFromShares(t *testing.T) {
 			name:    "returns raw data of a large tx that spans two shares",
 			input:   largeTxInput,
 			want:    [][]byte{largeTxData},
+			wantErr: false,
+		},
+		{
+			name:    "returns raw data of a large PFB tx that spans two shares",
+			input:   largePfbTxInput,
+			want:    [][]byte{largePfbTxData},
 			wantErr: false,
 		},
 	}
