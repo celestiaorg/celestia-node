@@ -69,7 +69,7 @@ func NewDiscovery(
 	}
 }
 
-// WithOnPeersUpdate adds OnPeersUpdate callback call on every update of discovered peers list.
+// WithOnPeersUpdate chains OnPeersUpdate callbacks on every update of discovered peers list.
 func (d *Discovery) WithOnPeersUpdate(f OnUpdatedPeers) {
 	d.onUpdatedPeers = func(peerID peer.ID, isAdded bool) {
 		d.onUpdatedPeers(peerID, isAdded)
