@@ -9,10 +9,8 @@ import (
 	"github.com/ipfs/go-datastore/autobatch"
 	"github.com/ipfs/go-datastore/namespace"
 	logging "github.com/ipfs/go-log/v2"
-	"github.com/libp2p/go-libp2p/core/peer"
 
 	"github.com/celestiaorg/celestia-app/pkg/da"
-
 	"github.com/celestiaorg/celestia-node/share"
 )
 
@@ -54,7 +52,7 @@ func NewShareAvailability(avail share.Availability, ds datastore.Batching) *Shar
 }
 
 // SharesAvailable will store, upon success, the hash of the given Root to disk.
-func (ca *ShareAvailability) SharesAvailable(ctx context.Context, root *share.Root, _ ...peer.ID) error {
+func (ca *ShareAvailability) SharesAvailable(ctx context.Context, root *share.Root) error {
 	// short-circuit if the given root is minimum DAH of an empty data square
 	if isMinRoot(root) {
 		return nil

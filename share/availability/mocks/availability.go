@@ -8,9 +8,9 @@ import (
 	context "context"
 	reflect "reflect"
 
-	da "github.com/celestiaorg/celestia-app/pkg/da"
 	gomock "github.com/golang/mock/gomock"
-	peer "github.com/libp2p/go-libp2p/core/peer"
+
+	da "github.com/celestiaorg/celestia-app/pkg/da"
 )
 
 // MockAvailability is a mock of Availability interface.
@@ -51,20 +51,15 @@ func (mr *MockAvailabilityMockRecorder) ProbabilityOfAvailability(arg0 interface
 }
 
 // SharesAvailable mocks base method.
-func (m *MockAvailability) SharesAvailable(arg0 context.Context, arg1 *da.DataAvailabilityHeader, arg2 ...peer.ID) error {
+func (m *MockAvailability) SharesAvailable(arg0 context.Context, arg1 *da.DataAvailabilityHeader) error {
 	m.ctrl.T.Helper()
-	varargs := []interface{}{arg0, arg1}
-	for _, a := range arg2 {
-		varargs = append(varargs, a)
-	}
-	ret := m.ctrl.Call(m, "SharesAvailable", varargs...)
+	ret := m.ctrl.Call(m, "SharesAvailable", arg0, arg1)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // SharesAvailable indicates an expected call of SharesAvailable.
-func (mr *MockAvailabilityMockRecorder) SharesAvailable(arg0, arg1 interface{}, arg2 ...interface{}) *gomock.Call {
+func (mr *MockAvailabilityMockRecorder) SharesAvailable(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	varargs := append([]interface{}{arg0, arg1}, arg2...)
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SharesAvailable", reflect.TypeOf((*MockAvailability)(nil).SharesAvailable), varargs...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SharesAvailable", reflect.TypeOf((*MockAvailability)(nil).SharesAvailable), arg0, arg1)
 }
