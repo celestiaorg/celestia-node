@@ -30,7 +30,7 @@ type Config struct {
 	Gateway gateway.Config
 	Share   share.Config
 	Header  header.Config
-	DASer   das.Config
+	DASer   das.Config `toml:",omitempty"`
 }
 
 // DefaultConfig provides a default Config for a given Node Type 'tp'.

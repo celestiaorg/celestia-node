@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/ipfs/go-datastore"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetrichttp"
 	"go.opentelemetry.io/otel/metric/global"
@@ -14,8 +13,9 @@ import (
 	semconv "go.opentelemetry.io/otel/semconv/v1.11.0"
 	"go.uber.org/fx"
 
-	"github.com/celestiaorg/celestia-node/fraud"
-	"github.com/celestiaorg/celestia-node/header"
+	fraudPkg "github.com/celestiaorg/celestia-node/fraud"
+	headerPkg "github.com/celestiaorg/celestia-node/header"
+
 	"github.com/celestiaorg/celestia-node/nodebuilder/das"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
@@ -39,21 +39,10 @@ func WithMetrics(metricOpts []otlpmetrichttp.Option, nodeType node.Type) fx.Opti
 	baseComponents := fx.Options(
 		fx.Supply(metricOpts),
 		fx.Invoke(initializeMetrics),
-		fx.Invoke(header.WithMetrics),
+		fx.Invoke(headerPkg.WithMetrics),
 		fx.Invoke(state.WithMetrics),
-		fx.Invoke(fraud.WithMetrics),
-		fx.Invoke(func(ctx context.Context, ds datastore.Datastore) error {
-			m, err := node.NewUptimeMetrics(ds)
-			if err != nil {
-				return err
-			}
-			err = m.RecordNodeStartTime(ctx)
-			if err != nil {
-				return err
-			}
-
-			return nil
-		}),
+		fx.Invoke(fraudPkg.WithMetrics),
+		fx.Invoke(node.WithMetrics),
 	)
 
 	var opts fx.Option
