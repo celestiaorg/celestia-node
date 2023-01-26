@@ -19,8 +19,8 @@ var log = logging.Logger("shrex/peers")
 
 // Manager keeps track of peers coming from shrex.Sub and from discovery
 type Manager struct {
-	disc      discovery.Discovery
-        // header subscription is necessary in order to validate the inbound eds hash
+	disc discovery.Discovery
+	// header subscription is necessary in order to validate the inbound eds hash
 	headerSub header.Subscription
 
 	m               sync.Mutex
@@ -123,8 +123,8 @@ func (s *Manager) doneFunc(datahash share.DataHash, peerID peer.ID) DoneFunc {
 // retransmit the message via shrex.Sub
 func (s *Manager) markSampled(datahash share.DataHash) {
 	p := s.getOrCreateValidatedPool(datahash.String())
-	if p.isSampled.CompareAndSwap(false, true) {
-		close(p.waitSamplingCh)
+	if p.isSynced.CompareAndSwap(false, true) {
+		close(p.waitSyncCh)
 	}
 }
 
