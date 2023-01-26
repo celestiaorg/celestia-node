@@ -38,7 +38,8 @@ type Parameters struct {
 	// SampleFrom is the height sampling will start from if no previous checkpoint was saved
 	SampleFrom uint64
 
-	// SampleTimeout is a maximum amount time sampling of single block may take until it will be canceled
+	// SampleTimeout is a maximum amount time sampling of
+	// single block may take until it will be canceled
 	SampleTimeout time.Duration
 }
 

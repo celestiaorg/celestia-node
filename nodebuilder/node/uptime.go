@@ -19,7 +19,8 @@ import (
 // 2. node up time: total time the node has been running
 //
 // the node start time is recorded imperatively when RecordNodeStartTime is called
-// whereas the node up time is recorded periodically upon callback recalling (re-mettering from optl)
+// whereas the node up time is recorded periodically
+// upon callback recalling (re-mettering from optl)
 type UptimeMetrics struct {
 	// nodeStartTS is the timestamp when the node was started.
 	nodeStartTS asyncfloat64.Gauge
@@ -32,10 +33,9 @@ type UptimeMetrics struct {
 }
 
 var (
-	meter              = global.MeterProvider().Meter("node")
-	storePrefix        = datastore.NewKey("node")
-	nodeStartTsKey     = datastore.NewKey("node_start_ts")
-	totalNodeUpTimeKey = datastore.NewKey("total_node_uptime")
+	meter          = global.MeterProvider().Meter("node")
+	storePrefix    = datastore.NewKey("node")
+	nodeStartTSKey = datastore.NewKey("node_start_ts")
 )
 
 // NewUptimeMetrics creates a new UptimeMetrics
@@ -83,21 +83,29 @@ func NewUptimeMetrics(ds datastore.Datastore) (*UptimeMetrics, error) {
 }
 
 // RecordNodeStartTime records the timestamp when the node was started.
-func (m *UptimeMetrics) RecordNodeStartTime(ctx context.Context) {
-	nodeStartTs, err := m.Get(ctx, nodeStartTsKey)
+func (m *UptimeMetrics) RecordNodeStartTime(ctx context.Context) error {
+	_, err := m.Get(ctx, nodeStartTSKey)
+
+	if err != nil && err != datastore.ErrNotFound {
+		return err
+	}
 
 	if err == datastore.ErrNotFound {
-		nodeStartTs = float64(time.Now().Unix())
-		m.nodeStartTS.Observe(context.Background(), nodeStartTs)
+		nodeStartTS := float64(time.Now().Unix())
+		m.nodeStartTS.Observe(context.Background(), nodeStartTS)
 
 		// persist to the datastore
-		m.persist(ctx, nodeStartTsKey, nodeStartTs)
-
+		err := m.Persist(ctx, nodeStartTSKey, nodeStartTS)
+		if err != nil {
+			return err
+		}
 	}
+
+	return nil
 }
 
 // Persist persists the UptimeMetrics to the datastore
-func (m *UptimeMetrics) persist(ctx context.Context, key datastore.Key, value float64) error {
+func (m *UptimeMetrics) Persist(ctx context.Context, key datastore.Key, value float64) error {
 	// represent the float64 number on an 8-bit big endian byte array
 	bytes := make([]byte, 8)
 	binary.BigEndian.PutUint64(bytes, math.Float64bits(value))

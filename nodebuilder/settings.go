@@ -47,7 +47,10 @@ func WithMetrics(metricOpts []otlpmetrichttp.Option, nodeType node.Type) fx.Opti
 			if err != nil {
 				return err
 			}
-			m.RecordNodeStartTime(ctx)
+			err = m.RecordNodeStartTime(ctx)
+			if err != nil {
+				return err
+			}
 
 			return nil
 		}),
