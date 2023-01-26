@@ -48,3 +48,17 @@ func (c checkpoint) String() string {
 
 	return str
 }
+
+// WorkersTotalSampled returns the total amount of sampled headers
+func (c checkpoint) WorkersTotalSampled() int {
+	var total int
+	for _, w := range c.Workers {
+		total += int(w.To - w.From)
+	}
+	return total
+}
+
+// TotalSampled returns the total amount of sampled headers
+func (c checkpoint) TotalSampled() int {
+	return int(c.SampleFrom) - 1 + c.WorkersTotalSampled() - len(c.Failed)
+}

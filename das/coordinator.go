@@ -56,9 +56,8 @@ func newSamplingCoordinator(
 func (sc *samplingCoordinator) run(ctx context.Context, cp checkpoint) {
 	sc.state.resumeFromCheckpoint(cp)
 
-	// the amount of sampled headers from the checkpoint
-	// is the point from which we should start sampling - 1
-	totalSampledFromCheckpoint := int64(cp.SampleFrom - 1)
+	// the amount of sampled headers from the last checkpoint
+	totalSampledFromCheckpoint := int64(cp.TotalSampled())
 	sc.metrics.recordTotalSampled(ctx, totalSampledFromCheckpoint)
 
 	// resume workers
