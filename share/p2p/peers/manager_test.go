@@ -2,7 +2,6 @@ package peers
 
 import (
 	"context"
-	"sync"
 	"testing"
 	"time"
 
@@ -87,19 +86,7 @@ func TestManager(t *testing.T) {
 
 		// wait for peers to be collected in pool
 		p := manager.getOrCreateUnvalidatedPool(h.DataHash.String())
-		for {
-			p.pool.m.Lock()
-			count := p.pool.activeCount
-			p.pool.m.Unlock()
-			if count == 3 {
-				break
-			}
-			select {
-			case <-ctx.Done():
-				require.NoError(t, ctx.Err())
-			default:
-			}
-		}
+		waitPoolHasItems(ctx, t, p, 3)
 
 		// release headerSub with validating header
 		require.NoError(t, nextHeader.wait(ctx, 1))
@@ -109,23 +96,15 @@ func TestManager(t *testing.T) {
 		done(true)
 		require.NoError(t, err)
 
-		// collect validation results
-		actual := make(map[pubsub.ValidationResult]int)
-		expected := map[pubsub.ValidationResult]int{
-			pubsub.ValidationAccept: 1,
-			pubsub.ValidationIgnore: len(peers) - 1,
-		}
-
-		// wait for validators to finis
+		// wait for validators to finish
 		for i := 0; i < len(peers); i++ {
 			select {
 			case result := <-validationCh:
-				actual[result]++
+				require.Equal(t, pubsub.ValidationAccept, result)
 			case <-ctx.Done():
 				require.NoError(t, ctx.Err())
 			}
 		}
-		require.Equal(t, actual, expected)
 		stopManager(t, manager)
 	})
 
@@ -145,32 +124,29 @@ func TestManager(t *testing.T) {
 
 		peers := []peer.ID{"peer1", "peer2", "peer3"}
 
-		// spawn wait routine, that will unlock when all validators have returned
-		var wg sync.WaitGroup
-		done := make(chan struct{})
-		wg.Add(len(peers))
-		go func() {
-			defer close(done)
-			wg.Wait()
-		}()
-
 		// set syncTimeout to 0 for fast rejects
 		manager.poolSyncTimeout = 0
 
-		// spawn validator routine for every peer and ensure rejects
+		// spawn validator routine for every peer
+		validationCh := make(chan pubsub.ValidationResult)
 		for _, p := range peers {
 			go func(peerID peer.ID) {
-				defer wg.Done()
-				validation := manager.Validate(ctx, peerID, h.DataHash.Bytes())
-				require.Equal(t, pubsub.ValidationReject, validation)
+				select {
+				case validationCh <- manager.Validate(ctx, peerID, h.DataHash.Bytes()):
+				case <-ctx.Done():
+					return
+				}
 			}(p)
 		}
 
 		// wait for validators to finish
-		select {
-		case <-done:
-		case <-ctx.Done():
-			require.NoError(t, ctx.Err())
+		for i := 0; i < len(peers); i++ {
+			select {
+			case result := <-validationCh:
+				require.Equal(t, pubsub.ValidationReject, result)
+			case <-ctx.Done():
+				require.NoError(t, ctx.Err())
+			}
 		}
 
 		stopManager(t, manager)
@@ -224,6 +200,8 @@ func TestManager(t *testing.T) {
 		require.ErrorIs(t, err, context.DeadlineExceeded)
 
 		peers := []peer.ID{"peer1", "peer2", "peer3"}
+
+		// launch wait routine
 		doneCh := make(chan struct{})
 		go func() {
 			defer close(doneCh)
@@ -263,51 +241,36 @@ func TestManager(t *testing.T) {
 
 		peers := []peer.ID{"peer1", "peer2", "peer3"}
 
-		// spawn wait routine, that will unlock when all validators have returned
-		var wg sync.WaitGroup
-		doneCh := make(chan struct{})
-		wg.Add(len(peers))
-		go func() {
-			defer close(doneCh)
-			wg.Wait()
-		}()
-
 		// spawn validator routine for every peer
+		validationCh := make(chan pubsub.ValidationResult)
 		for _, p := range peers {
 			go func(peerID peer.ID) {
-				defer wg.Done()
-				validation := manager.Validate(ctx, peerID, dataHash.Bytes())
-				require.Equal(t, pubsub.ValidationAccept, validation)
+				select {
+				case validationCh <- manager.Validate(ctx, peerID, h.DataHash.Bytes()):
+				case <-ctx.Done():
+					return
+				}
 			}(p)
 		}
 
 		// wait for peers to be collected in pool
 		p := manager.getOrCreateUnvalidatedPool(dataHash.String())
-		for {
-			p.pool.m.Lock()
-			count := p.pool.activeCount
-			p.pool.m.Unlock()
-			if count == 3 {
-				break
-			}
-			select {
-			case <-ctx.Done():
-				require.NoError(t, ctx.Err())
-			default:
-			}
-		}
+		waitPoolHasItems(ctx, t, p, 3)
 
-		// wait for first peers to be added to pool
+		// mark pool as synced by calling GetPeer
 		peerID, done, err := manager.GetPeer(ctx, dataHash.Bytes())
 		done(true)
 		require.NoError(t, err)
 		require.Contains(t, peers, peerID)
 
-		// wait for validators to return
-		select {
-		case <-doneCh:
-		case <-ctx.Done():
-			require.NoError(t, ctx.Err())
+		// wait for validators to finish
+		for i := 0; i < len(peers); i++ {
+			select {
+			case result := <-validationCh:
+				require.Equal(t, pubsub.ValidationAccept, result)
+			case <-ctx.Done():
+				require.NoError(t, ctx.Err())
+			}
 		}
 
 		stopManager(t, manager)
@@ -394,4 +357,19 @@ func waitNextHeader(subscription *header_mock.MockSubscription, expected ...*hea
 		})
 	}
 	return n
+}
+
+func waitPoolHasItems(ctx context.Context, t *testing.T, p syncPool, count int) {
+	for {
+		p.pool.m.Lock()
+		if p.pool.activeCount == count {
+			break
+		}
+		p.pool.m.Unlock()
+		select {
+		case <-ctx.Done():
+			require.NoError(t, ctx.Err())
+		default:
+		}
+	}
 }

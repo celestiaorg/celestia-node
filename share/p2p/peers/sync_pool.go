@@ -12,8 +12,6 @@ import (
 type syncPool struct {
 	pool *pool
 
-	firstPeer *atomic.Bool
-
 	isValidDataHash    *atomic.Bool
 	validatorWaitCh    chan struct{}
 	validatorWaitTimer *time.Timer
@@ -25,7 +23,6 @@ type syncPool struct {
 func newSyncPool() syncPool {
 	return syncPool{
 		pool:            newPool(),
-		firstPeer:       new(atomic.Bool),
 		isValidDataHash: new(atomic.Bool),
 		isSampled:       new(atomic.Bool),
 		waitSamplingCh:  make(chan struct{}),

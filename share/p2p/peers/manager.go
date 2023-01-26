@@ -182,12 +182,6 @@ func (s *Manager) Validate(ctx context.Context, peerID peer.ID, hash share.DataH
 	p := s.getOrCreateUnvalidatedPool(hash.String())
 	p.pool.add(peerID)
 
-	// only first validator call is responsible for retransmit, all subsequent calls should return
-	// ignore
-	if !p.firstPeer.CompareAndSwap(false, true) {
-		return pubsub.ValidationIgnore
-	}
-
 	// check of validation required
 	if !p.isValidDataHash.Load() {
 		if valid := p.waitValidation(ctx); !valid {
