@@ -10,7 +10,6 @@ import (
 	"github.com/libp2p/go-libp2p/core/peer"
 
 	"github.com/celestiaorg/celestia-node/share"
-	"github.com/celestiaorg/celestia-node/share/availability/discovery"
 	"github.com/celestiaorg/celestia-node/share/getters"
 )
 
@@ -22,35 +21,11 @@ var log = logging.Logger("share/light")
 // on the network doing sampling over the same Root to collectively verify its availability.
 type ShareAvailability struct {
 	getter share.Getter
-	// disc discovers new full nodes in the network.
-	// it is not allowed to call advertise for light nodes (Full nodes only).
-	disc   *discovery.Discovery
-	cancel context.CancelFunc
 }
 
 // NewShareAvailability creates a new light Availability.
-func NewShareAvailability(
-	getter share.Getter,
-	disc *discovery.Discovery,
-) *ShareAvailability {
-	la := &ShareAvailability{
-		getter: getter,
-		disc:   disc,
-	}
-	return la
-}
-
-func (la *ShareAvailability) Start(context.Context) error {
-	ctx, cancel := context.WithCancel(context.Background())
-	la.cancel = cancel
-
-	la.disc.EnsurePeers(ctx)
-	return nil
-}
-
-func (la *ShareAvailability) Stop(context.Context) error {
-	la.cancel()
-	return nil
+func NewShareAvailability(getter share.Getter) *ShareAvailability {
+	return &ShareAvailability{getter}
 }
 
 // SharesAvailable randomly samples DefaultSampleAmount amount of Shares committed to the given

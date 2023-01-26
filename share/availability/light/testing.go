@@ -2,15 +2,11 @@ package light
 
 import (
 	"testing"
-	"time"
 
 	"github.com/ipfs/go-blockservice"
 	mdutils "github.com/ipfs/go-merkledag/test"
-	routinghelpers "github.com/libp2p/go-libp2p-routing-helpers"
-	"github.com/libp2p/go-libp2p/p2p/discovery/routing"
 
 	"github.com/celestiaorg/celestia-node/share"
-	"github.com/celestiaorg/celestia-node/share/availability/discovery"
 	availability_test "github.com/celestiaorg/celestia-node/share/availability/test"
 	"github.com/celestiaorg/celestia-node/share/getters"
 )
@@ -46,8 +42,7 @@ func Node(dn *availability_test.TestDagNet) *availability_test.TestNode {
 }
 
 func TestAvailability(getter share.Getter) *ShareAvailability {
-	disc := discovery.NewDiscovery(nil, routing.NewRoutingDiscovery(routinghelpers.Null{}), 0, time.Second, time.Second)
-	return NewShareAvailability(getter, disc)
+	return NewShareAvailability(getter)
 }
 
 func SubNetNode(sn *availability_test.SubNet) *availability_test.TestNode {
