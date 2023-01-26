@@ -44,7 +44,7 @@ func (la *ShareAvailability) Start(context.Context) error {
 	ctx, cancel := context.WithCancel(context.Background())
 	la.cancel = cancel
 
-	go la.disc.EnsurePeers(ctx)
+	la.disc.EnsurePeers(ctx)
 	return nil
 }
 
