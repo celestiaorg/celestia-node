@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"math/rand"
 	"sort"
+	"time"
 
 	logging "github.com/ipfs/go-log/v2"
 	"github.com/libp2p/go-libp2p/core/host"
@@ -224,9 +225,21 @@ func (ex *Exchange[H]) performRequest(
 		return nil, fmt.Errorf("no trusted peers")
 	}
 
-	//nolint:gosec // G404: Use of weak random number generator
-	index := rand.Intn(len(ex.trustedPeers))
-	return ex.request(ctx, ex.trustedPeers[index], req)
+	for ctx.Err() == nil {
+		//nolint:gosec // G404: Use of weak random number generator
+		index := rand.Intn(len(ex.trustedPeers))
+		cctx, cancel := context.WithTimeout(context.Background(), time.Second)
+		h, err := ex.request(cctx, ex.trustedPeers[index], req)
+		cancel()
+		if err != nil {
+			log.Error(err)
+			continue
+		}
+		return h, nil
+
+	}
+
+	return nil, ctx.Err()
 }
 
 // request sends the HeaderRequest to a remote peer.
