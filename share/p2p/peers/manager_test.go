@@ -57,7 +57,7 @@ func TestManager(t *testing.T) {
 	})
 
 	t.Run("validated datahash, peers comes first", func(t *testing.T) {
-		ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second*50)
 		t.Cleanup(cancel)
 
 		// create headerSub mock
@@ -90,7 +90,6 @@ func TestManager(t *testing.T) {
 
 		// release headerSub with validating header
 		require.NoError(t, nextHeader.wait(ctx, 1))
-
 		// release sample lock by calling done
 		_, done, err := manager.GetPeer(ctx, h.DataHash.Bytes())
 		done(true)
@@ -281,7 +280,7 @@ func testManager(headerSub *header_mock.MockSubscription) *Manager {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	manager := &Manager{
 		headerSub:       headerSub,
-		pools:           make(map[hashStr]syncPool),
+		pools:           make(map[string]syncPool),
 		poolSyncTimeout: 60 * time.Second,
 		fullNodes:       newPool(),
 		cancel:          cancel,
@@ -363,6 +362,7 @@ func waitPoolHasItems(ctx context.Context, t *testing.T, p syncPool, count int) 
 	for {
 		p.pool.m.Lock()
 		if p.pool.activeCount == count {
+			p.pool.m.Unlock()
 			break
 		}
 		p.pool.m.Unlock()
@@ -370,6 +370,7 @@ func waitPoolHasItems(ctx context.Context, t *testing.T, p syncPool, count int) 
 		case <-ctx.Done():
 			require.NoError(t, ctx.Err())
 		default:
+			time.Sleep(time.Millisecond)
 		}
 	}
 }

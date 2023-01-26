@@ -24,15 +24,13 @@ type Manager struct {
 	headerSub header.Subscription
 
 	m               sync.Mutex
-	pools           map[hashStr]syncPool
+	pools           map[string]syncPool
 	poolSyncTimeout time.Duration
 	fullNodes       *pool
 
 	cancel context.CancelFunc
 	done   chan struct{}
 }
-
-type hashStr = string
 
 func NewManager(
 	headerSub header.Subscription,
@@ -42,7 +40,7 @@ func NewManager(
 	s := &Manager{
 		disc:            discovery,
 		headerSub:       headerSub,
-		pools:           make(map[hashStr]syncPool),
+		pools:           make(map[string]syncPool),
 		poolSyncTimeout: syncTimeout,
 		fullNodes:       newPool(),
 		done:            make(chan struct{}),
@@ -154,17 +152,17 @@ func (s *Manager) subscribeHeader(ctx context.Context) {
 	}
 }
 
-func (s *Manager) getOrCreateValidatedPool(key hashStr) syncPool {
+func (s *Manager) getOrCreateValidatedPool(datahash string) syncPool {
 	s.m.Lock()
 	defer s.m.Unlock()
 
-	p, ok := s.pools[key]
+	p, ok := s.pools[datahash]
 	if !ok {
 		p = newSyncPool()
 
 		// save as already validated
 		p.isValidDataHash.Store(true)
-		s.pools[key] = p
+		s.pools[datahash] = p
 		return p
 	}
 
@@ -199,11 +197,11 @@ func (s *Manager) Validate(ctx context.Context, peerID peer.ID, hash share.DataH
 	return pubsub.ValidationIgnore
 }
 
-func (s *Manager) getOrCreateUnvalidatedPool(key hashStr) syncPool {
+func (s *Manager) getOrCreateUnvalidatedPool(datahash string) syncPool {
 	s.m.Lock()
 	defer s.m.Unlock()
 
-	p, ok := s.pools[key]
+	p, ok := s.pools[datahash]
 	if !ok {
 		// create pool in non-validated state
 		p = newSyncPool()
@@ -212,13 +210,13 @@ func (s *Manager) getOrCreateUnvalidatedPool(key hashStr) syncPool {
 			close(p.validatorWaitCh)
 		})
 
-		s.pools[key] = p
+		s.pools[datahash] = p
 	}
 	return p
 }
 
-func (s *Manager) deletePool(key hashStr) {
+func (s *Manager) deletePool(datahash string) {
 	s.m.Lock()
 	defer s.m.Unlock()
-	delete(s.pools, key)
+	delete(s.pools, datahash)
 }
