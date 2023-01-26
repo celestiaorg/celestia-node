@@ -8,7 +8,7 @@ import (
 	ma "github.com/multiformats/go-multiaddr"
 )
 
-// Listen returns invoke function that starts listening for inbound connections with libp2p.host.
+// Listen returns invoke function that starts listening for inbound connections with libp2p.Host.
 func Listen(listen []string) func(h hst.Host) (err error) {
 	return func(h hst.Host) (err error) {
 		maListen := make([]ma.Multiaddr, len(listen))
@@ -22,7 +22,7 @@ func Listen(listen []string) func(h hst.Host) (err error) {
 	}
 }
 
-// addrsFactory returns a constructor for addrsFactory.
+// AddrsFactory returns a constructor for AddrsFactory.
 func addrsFactory(announce []string, noAnnounce []string) func() (_ p2pconfig.AddrsFactory, err error) {
 	return func() (_ p2pconfig.AddrsFactory, err error) {
 		// Convert maAnnounce strings to Multiaddresses

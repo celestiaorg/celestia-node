@@ -30,7 +30,7 @@ type Config struct {
 	// PeerExchange configures the node, whether it should share some peers to a pruned peer.
 	// This is enabled by default for Bootstrappers.
 	PeerExchange bool
-	// ConnManager is a configuration tuple for connectionManager.
+	// ConnManager is a configuration tuple for ConnectionManager.
 	ConnManager               connManagerConfig
 	RoutingTableRefreshPeriod time.Duration
 }

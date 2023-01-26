@@ -24,7 +24,7 @@ const (
 	defaultARCCacheSize = 64 << 10
 )
 
-// dataExchange provides a constructor for IPFS block's dataExchange over BitSwap.
+// DataExchange provides a constructor for IPFS block's DataExchange over BitSwap.
 func dataExchange(params bitSwapParams) (exchange.Interface, blockstore.Blockstore, error) {
 	bs, err := blockstore.CachedBlockstore(
 		params.Ctx,

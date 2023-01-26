@@ -8,7 +8,7 @@ import (
 	"github.com/celestiaorg/celestia-node/state"
 )
 
-// coreAccessor constructs a new instance of state.Module over
+// CoreAccessor constructs a new instance of state.Module over
 // a celestia-core connection.
 func coreAccessor(
 	corecfg core.Config,

@@ -13,7 +13,7 @@ import (
 	"github.com/celestiaorg/celestia-node/nodebuilder/state"
 )
 
-// registerEndpoints registers the given services on the rpc.
+// RegisterEndpoints registers the given services on the rpc.
 func registerEndpoints(
 	stateMod state.Module,
 	shareMod share.Module,

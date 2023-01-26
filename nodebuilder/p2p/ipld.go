@@ -6,7 +6,7 @@ import (
 	exchange "github.com/ipfs/go-ipfs-exchange-interface"
 )
 
-// blockService constructs IPFS's blockService for fetching arbitrary Merkle structures.
+// BlockService constructs IPFS's BlockService for fetching arbitrary Merkle structures.
 func blockService(bs blockstore.Blockstore, ex exchange.Interface) blockservice.BlockService {
 	return blockservice.New(bs, ex)
 }
