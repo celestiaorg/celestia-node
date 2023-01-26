@@ -19,7 +19,7 @@ var log = logging.Logger("shrex/peers")
 
 // Manager keeps track of peers coming from shrex.Sub and from discovery
 type Manager struct {
-	disc discovery.Discovery
+	disc *discovery.Discovery
 	// header subscription is necessary in order to validate the inbound eds hash
 	headerSub header.Subscription
 
@@ -36,7 +36,7 @@ type hashStr = string
 
 func NewManager(
 	headerSub header.Subscription,
-	discovery discovery.Discovery,
+	discovery *discovery.Discovery,
 	syncTimeout time.Duration,
 ) *Manager {
 	s := &Manager{

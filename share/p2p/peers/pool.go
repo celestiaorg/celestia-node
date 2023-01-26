@@ -42,7 +42,9 @@ func (p *pool) tryGet() (peer.ID, bool) {
 	start := p.next
 	for {
 		peerID := p.peersList[p.next]
-		if p.next++; p.next == len(p.peersList) {
+
+		p.next++
+		if p.next == len(p.peersList) {
 			p.next = 0
 		}
 
