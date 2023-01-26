@@ -2,9 +2,9 @@ package p2p
 
 import (
 	"encoding/hex"
+	hst "github.com/libp2p/go-libp2p/core/host"
 
 	"github.com/libp2p/go-libp2p/core/crypto"
-	"github.com/libp2p/go-libp2p/core/host"
 	"go.uber.org/fx"
 
 	"github.com/celestiaorg/celestia-node/libs/fxutil"
@@ -30,7 +30,7 @@ func WithP2PKeyStr(key string) fx.Option {
 	return fxutil.ReplaceAs(privKey, new(crypto.PrivKey))
 }
 
-// WithHost sets custom Host's data for p2p networking.
-func WithHost(hst host.Host) fx.Option {
+// WithHost sets custom host's data for p2p networking.
+func WithHost(hst hst.Host) fx.Option {
 	return fxutil.ReplaceAs(hst, new(HostBase))
 }

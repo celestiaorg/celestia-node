@@ -21,7 +21,7 @@ import (
 )
 
 // TestP2PModule_Host tests P2P Module methods on
-// the instance of Host.
+// the instance of host.
 func TestP2PModule_Host(t *testing.T) {
 	net, err := mocknet.FullMeshConnected(2)
 	require.NoError(t, err)
@@ -51,7 +51,7 @@ func TestP2PModule_Host(t *testing.T) {
 }
 
 // TestP2PModule_ConnManager tests P2P Module methods on
-// the Host's ConnManager. Note that this test is constructed differently
+// the host's ConnManager. Note that this test is constructed differently
 // than the one above because mocknet does not provide a ConnManager to its
 // mock peers.
 func TestP2PModule_ConnManager(t *testing.T) {
@@ -98,7 +98,7 @@ func TestP2PModule_Autonat(t *testing.T) {
 }
 
 // TestP2PModule_Bandwidth tests P2P Module methods on
-// the Host's bandwidth reporter.
+// the host's bandwidth reporter.
 func TestP2PModule_Bandwidth(t *testing.T) {
 	bw := metrics.NewBandwidthCounter()
 	host, err := libp2p.New(libp2p.BandwidthReporter(bw))
@@ -217,9 +217,9 @@ func TestP2PModule_Pubsub(t *testing.T) {
 }
 
 // TestP2PModule_ConnGater tests P2P Module methods on
-// the instance of ConnectionGater.
+// the instance of connectionGater.
 func TestP2PModule_ConnGater(t *testing.T) {
-	gater, err := ConnectionGater(datastore.NewMapDatastore())
+	gater, err := connectionGater(datastore.NewMapDatastore())
 	require.NoError(t, err)
 
 	mgr := newModule(nil, nil, gater, nil, nil)
