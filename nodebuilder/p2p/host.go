@@ -21,13 +21,13 @@ import (
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 )
 
-// RoutedHost constructs a wrapped Host that may fallback to address discovery,
+// routedHost constructs a wrapped Host that may fallback to address discovery,
 // if any top-level operation on the Host is provided with PeerID(Hash(PbK)) only.
 func routedHost(base HostBase, r routing.PeerRouting) hst.Host {
 	return routedhost.Wrap(base, r)
 }
 
-// Host returns constructor for Host.
+// host returns constructor for Host.
 func host(params hostParams) (HostBase, error) {
 	opts := []libp2p.Option{
 		libp2p.NoListenAddrs, // do not listen automatically

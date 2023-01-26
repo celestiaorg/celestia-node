@@ -11,14 +11,14 @@ import (
 	"golang.org/x/crypto/blake2b"
 )
 
-// PubSub provides a constructor for PubSub protocol with GossipSub routing.
+// pubSub provides a constructor for PubSub protocol with GossipSub routing.
 func pubSub(cfg Config, params pubSubParams) (*pubsub.PubSub, error) {
 	fpeers, err := cfg.mutualPeers()
 	if err != nil {
 		return nil, err
 	}
 
-	// TODO(@Wondertan) for pubSub options:
+	// TODO(@Wondertan) for PubSub options:
 	//  * Hash-based MsgId function.
 	//  * Validate default peer scoring params for our use-case.
 	//  * Strict subscription filter

@@ -11,13 +11,13 @@ import (
 	"go.uber.org/fx"
 )
 
-// ContentRouting constructs nil content routing,
+// contentRouting constructs nil content routing,
 // as for our use-case existing ContentRouting mechanisms, e.g DHT, are unsuitable
 func contentRouting(r routing.PeerRouting) routing.ContentRouting {
 	return r.(*dht.IpfsDHT)
 }
 
-// PeerRouting provides constructor for PeerRouting over DHT.
+// peerRouting provides constructor for PeerRouting over DHT.
 // Basically, this provides a way to discover peer addresses by respecting public keys.
 func peerRouting(cfg Config, params routingParams) (routing.PeerRouting, error) {
 	opts := []dht.Option{
