@@ -7,8 +7,9 @@ import (
 )
 
 // syncPool accumulates peers from shrex.Sub validators and controls message retransmission.
-// It will unlock the validator only if there is a proof that header with given datahash exist in a
-// chain
+// It will unlock the validator if two conditions are met:
+//  1. an ExtendedHeader that corresponds to the data hash was received and verified by the node
+//  2. the EDS corresponding to the data hash was synced by the node
 type syncPool struct {
 	pool *pool
 
@@ -16,20 +17,22 @@ type syncPool struct {
 	validatorWaitCh    chan struct{}
 	validatorWaitTimer *time.Timer
 
-	isSampled      *atomic.Bool
-	waitSamplingCh chan struct{}
+	// isSynced refers to whether the data hash corresponding to
+	// the sync pool has been synced by the node
+	isSynced   *atomic.Bool
+	waitSyncCh chan struct{}
 }
 
 func newSyncPool() syncPool {
 	return syncPool{
 		pool:            newPool(),
 		isValidDataHash: new(atomic.Bool),
-		isSampled:       new(atomic.Bool),
-		waitSamplingCh:  make(chan struct{}),
+		isSynced:        new(atomic.Bool),
+		waitSyncCh:      make(chan struct{}),
 	}
 }
 
-// waitValidation waits for header to sync within timeout.
+// waitValidation waits for ExtendedHeader to sync within timeout.
 func (p *syncPool) waitValidation(ctx context.Context) (valid bool) {
 	select {
 	case <-p.validatorWaitCh:
@@ -41,7 +44,7 @@ func (p *syncPool) waitValidation(ctx context.Context) (valid bool) {
 
 func (p *syncPool) waitSampling(ctx context.Context) (sampled bool) {
 	select {
-	case <-p.waitSamplingCh:
+	case <-p.waitSyncCh:
 		// block with given datahash got markSampled, allow the pubsub to retransmit the message by
 		// returning Accept
 		return true
