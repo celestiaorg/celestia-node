@@ -2,6 +2,7 @@ package discovery
 
 import (
 	"context"
+	"sync"
 	"time"
 
 	logging "github.com/ipfs/go-log/v2"
@@ -41,6 +42,8 @@ type Discovery struct {
 	advertiseInterval time.Duration
 	// onUpdatedPeers will be called on peer set changes
 	onUpdatedPeers OnUpdatedPeers
+	// ensureIsRunning allows only one ensurePeers process to be running
+	ensurePeersOnce sync.Once
 }
 
 type OnUpdatedPeers func(peerID peer.ID, isAdded bool)
@@ -62,6 +65,7 @@ func NewDiscovery(
 		discInterval,
 		advertiseInterval,
 		func(peer.ID, bool) {},
+		sync.Once{},
 	}
 }
 
@@ -102,6 +106,12 @@ func (d *Discovery) handlePeerFound(ctx context.Context, topic string, peer peer
 // It starts peer discovery every 30 seconds until peer cache reaches peersLimit.
 // Discovery is restarted if any previously connected peers disconnect.
 func (d *Discovery) EnsurePeers(ctx context.Context) {
+	d.ensurePeersOnce.Do(func() {
+		go d.ensurePeers(ctx)
+	})
+}
+
+func (d *Discovery) ensurePeers(ctx context.Context) {
 	if d.peersLimit == 0 {
 		log.Warn("peers limit is set to 0. Skipping discovery...")
 		return
