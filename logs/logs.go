@@ -17,6 +17,7 @@ func SetAllLoggers(level logging.LogLevel) {
 	_ = logging.SetLogLevel("bitswap_network", "ERROR")
 	_ = logging.SetLogLevel("badger", "INFO")
 	_ = logging.SetLogLevel("basichost", "INFO")
+	_ = logging.SetLogLevel("net/identify", "ERROR")
 }
 
 func SetDebugLogging() {

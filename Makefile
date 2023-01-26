@@ -42,7 +42,7 @@ deps:
 .PHONY: deps
 
 ## install: Build and install the celestia-node binary into the $PREFIX (/usr/local/ by default) directory.
-install: build
+install:
 	@echo "--> Installing Celestia"
 	@install -v ./build/* -t ${PREFIX}/bin/
 .PHONY: install

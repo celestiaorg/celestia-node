@@ -26,6 +26,7 @@ func PeerRouting(cfg Config, params routingParams) (routing.PeerRouting, error) 
 		dht.ProtocolPrefix(protocol.ID(fmt.Sprintf("/celestia/%s", params.Net))),
 		dht.Datastore(params.DataStore),
 		dht.RoutingTableRefreshPeriod(cfg.RoutingTableRefreshPeriod),
+		dht.DisableAutoRefresh(),
 	}
 
 	if cfg.Bootstrapper {

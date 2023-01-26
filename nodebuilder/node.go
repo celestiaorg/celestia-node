@@ -27,7 +27,8 @@ import (
 	"github.com/celestiaorg/celestia-node/nodebuilder/state"
 )
 
-const Timeout = time.Second * 15
+const Timeout = time.Hour
+
 
 var log = logging.Logger("node")
 
@@ -152,6 +153,8 @@ func newNode(opts ...fx.Option) (*Node, error) {
 		fx.NopLogger,
 		fx.Populate(node),
 		fx.Options(opts...),
+		fx.StartTimeout(Timeout),
+		fx.StopTimeout(Timeout),
 	)
 	if err := app.Err(); err != nil {
 		return nil, err

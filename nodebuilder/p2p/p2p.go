@@ -82,7 +82,7 @@ type Module interface {
 // module contains all components necessary to access information and
 // perform actions related to the node's p2p Host / operations.
 type module struct {
-	host      HostBase
+	host      libhost.Host
 	ps        *pubsub.PubSub
 	connGater *conngater.BasicConnectionGater
 	bw        *metrics.BandwidthCounter
@@ -90,7 +90,7 @@ type module struct {
 }
 
 func newModule(
-	host HostBase,
+	host libhost.Host,
 	ps *pubsub.PubSub,
 	cg *conngater.BasicConnectionGater,
 	bw *metrics.BandwidthCounter,
