@@ -10,6 +10,7 @@ import (
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/network"
 	"github.com/libp2p/go-libp2p/core/peer"
+	"github.com/libp2p/go-libp2p/p2p/host/eventbus"
 )
 
 var log = logging.Logger("share/discovery")
@@ -107,7 +108,7 @@ func (d *Discovery) EnsurePeers(ctx context.Context) {
 		return
 	}
 	// subscribe on Event Bus in order to catch disconnected peers and restart the discovery
-	sub, err := d.host.EventBus().Subscribe(&event.EvtPeerConnectednessChanged{})
+	sub, err := d.host.EventBus().Subscribe(&event.EvtPeerConnectednessChanged{}, eventbus.BufSize(512))
 	if err != nil {
 		log.Error(err)
 		return
