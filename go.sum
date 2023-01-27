@@ -215,8 +215,8 @@ github.com/celestiaorg/go-verifcid v0.0.1-lazypatch h1:9TSe3w1cmJmbWlweCwCTIZkan
 github.com/celestiaorg/go-verifcid v0.0.1-lazypatch/go.mod h1:kXPYu0XqTNUKWA1h3M95UHjUqBzDwXVVt/RXZDjKJmQ=
 github.com/celestiaorg/merkletree v0.0.0-20210714075610-a84dc3ddbbe4 h1:CJdIpo8n5MFP2MwK0gSRcOVlDlFdQJO1p+FqdxYzmvc=
 github.com/celestiaorg/merkletree v0.0.0-20210714075610-a84dc3ddbbe4/go.mod h1:fzuHnhzj1pUygGz+1ZkB3uQbEUL4htqCGJ4Qs2LwMZA=
-github.com/celestiaorg/nmt v0.12.0 h1:6CmaMPri9FdSiytZP7yCrEq3ewebFiIEjlJhasrS6oQ=
-github.com/celestiaorg/nmt v0.12.0/go.mod h1:NN3W8EEoospv8EHCw50DDNWwPLpJkFHoEFiqCEcNCH4=
+github.com/celestiaorg/nmt v0.13.0 h1:zhuwhvICMJhXy2lzaBydFBYztTuLzV5N3xAa9zTSiCw=
+github.com/celestiaorg/nmt v0.13.0/go.mod h1:b+pwd9cGTSSYLZnUIQSJl07pusJdFeEvCVsVfSRH9gA=
 github.com/celestiaorg/quantum-gravity-bridge v1.3.0 h1:9zPIp7w1FWfkPnn16y3S4FpFLnQtS7rm81CUVcHEts0=
 github.com/celestiaorg/quantum-gravity-bridge v1.3.0/go.mod h1:6WOajINTDEUXpSj5UZzod16UZ96ZVB/rFNKyM+Mt1gI=
 github.com/celestiaorg/rsmt2d v0.8.0 h1:ZUxTCELZCM9zMGKNF3cT+rUqMddXMeiuyleSJPZ3Wn4=
