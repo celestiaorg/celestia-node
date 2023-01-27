@@ -42,7 +42,7 @@ func TestManager(t *testing.T) {
 		}()
 
 		p, done, err := manager.GetPeer(ctx, h.DataHash.Bytes())
-		done(true)
+		done(ResultSuccess)
 		require.NoError(t, err)
 		require.Equal(t, peerID, p)
 
@@ -92,7 +92,7 @@ func TestManager(t *testing.T) {
 		require.NoError(t, nextHeader.wait(ctx, 1))
 		// release sample lock by calling done
 		_, done, err := manager.GetPeer(ctx, h.DataHash.Bytes())
-		done(true)
+		done(ResultSuccess)
 		require.NoError(t, err)
 
 		// wait for validators to finish
@@ -170,7 +170,7 @@ func TestManager(t *testing.T) {
 		manager.fullNodes.add(peers...)
 
 		peerID, done, err := manager.GetPeer(ctx, h.DataHash.Bytes())
-		done(true)
+		done(ResultSuccess)
 		require.NoError(t, err)
 		require.Contains(t, peers, peerID)
 
@@ -194,8 +194,7 @@ func TestManager(t *testing.T) {
 		// make sure peers are not returned before timeout
 		timeoutCtx, cancel := context.WithTimeout(context.Background(), time.Millisecond)
 		t.Cleanup(cancel)
-		_, done, err := manager.GetPeer(timeoutCtx, h.DataHash.Bytes())
-		done(true)
+		_, _, err := manager.GetPeer(timeoutCtx, h.DataHash.Bytes())
 		require.ErrorIs(t, err, context.DeadlineExceeded)
 
 		peers := []peer.ID{"peer1", "peer2", "peer3"}
@@ -205,7 +204,7 @@ func TestManager(t *testing.T) {
 		go func() {
 			defer close(doneCh)
 			peerID, done, err := manager.GetPeer(ctx, h.DataHash.Bytes())
-			done(true)
+			done(ResultSuccess)
 			require.NoError(t, err)
 			require.Contains(t, peers, peerID)
 		}()
@@ -258,7 +257,7 @@ func TestManager(t *testing.T) {
 
 		// mark pool as synced by calling GetPeer
 		peerID, done, err := manager.GetPeer(ctx, dataHash.Bytes())
-		done(true)
+		done(ResultSuccess)
 		require.NoError(t, err)
 		require.Contains(t, peers, peerID)
 

@@ -15,6 +15,12 @@ import (
 	"github.com/celestiaorg/celestia-node/share/availability/discovery"
 )
 
+const (
+	ResultSuccess sampleResult = iota
+	ResultFail
+	ResultPeerMMisbehaved
+)
+
 var log = logging.Logger("shrex/peers")
 
 // Manager keeps track of peers coming from shrex.Sub and from discovery
@@ -75,7 +81,9 @@ func (s *Manager) Stop(ctx context.Context) error {
 	}
 }
 
-type DoneFunc func(success bool)
+type DoneFunc func(result sampleResult)
+
+type sampleResult int
 
 // GetPeer returns peer collected from shrex.Sub for given datahash if any available.
 // If there is none, it will look for fullnodes collected from discovery. If there is no discovered
@@ -103,17 +111,21 @@ func (s *Manager) GetPeer(
 	case peerID = <-s.fullNodes.waitNext(ctx):
 		return peerID, s.doneFunc(datahash, peerID), nil
 	case <-ctx.Done():
-		return "", s.doneFunc(datahash, peerID), ctx.Err()
+		return "", nil, ctx.Err()
 	}
 }
 
 func (s *Manager) doneFunc(datahash share.DataHash, peerID peer.ID) DoneFunc {
-	return func(success bool) {
-		if success {
+	return func(result sampleResult) {
+		switch result {
+		case ResultSuccess:
 			s.markSampled(datahash)
-			return
+		case ResultFail:
+		case ResultPeerMMisbehaved:
+			// TODO: signal to peers Validator to return Reject
+			s.RemovePeers(datahash, peerID)
+			s.fullNodes.remove(peerID)
 		}
-		s.RemovePeers(datahash, peerID)
 	}
 }
 
