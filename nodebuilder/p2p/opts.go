@@ -2,6 +2,7 @@ package p2p
 
 import (
 	"encoding/hex"
+
 	hst "github.com/libp2p/go-libp2p/core/host"
 
 	"github.com/libp2p/go-libp2p/core/crypto"
