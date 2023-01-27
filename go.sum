@@ -201,8 +201,8 @@ github.com/buger/jsonparser v0.0.0-20181115193947-bf1c66bbce23/go.mod h1:bbYlZJ7
 github.com/bwesterb/go-ristretto v1.2.0/go.mod h1:fUIoIZaG73pV5biE2Blr2xEzDoMj7NFEuV9ekS419A0=
 github.com/c-bata/go-prompt v0.2.2/go.mod h1:VzqtzE2ksDBcdln8G7mk2RX9QyGjH+OVqOCSiVIqS34=
 github.com/casbin/casbin/v2 v2.1.2/go.mod h1:YcPU1XXisHhLzuxH9coDNf2FbKpjGlbCg3n9yuLkIJQ=
-github.com/celestiaorg/celestia-app v0.12.0-rc3 h1:b/v/GzIexz6v86kPvd9ZKsdXNAOCnwj9WIzupzISMPo=
-github.com/celestiaorg/celestia-app v0.12.0-rc3/go.mod h1:IElQbkLVDqDTeZKNRvAM3Qj/Ju8SP7KDg+GisT54Br4=
+github.com/celestiaorg/celestia-app v0.12.0-rc4 h1:sy7zq44EpRHi1Max5Cjw4fCQY7/rPphdoGwRgQu1Poo=
+github.com/celestiaorg/celestia-app v0.12.0-rc4/go.mod h1:1VLYgvVX7GQ4OD+NoymwzCEqjNdm9woG06hDx2tKA2E=
 github.com/celestiaorg/celestia-core v1.13.0-tm-v0.34.23 h1:nMg928RIanyA2ICN3PHpIE6jgg+008BtD5XmxeObEhM=
 github.com/celestiaorg/celestia-core v1.13.0-tm-v0.34.23/go.mod h1:Iu2XuSzF+QG3rzd60/sGhhk3n4wOAm8YyadU80KlcMs=
 github.com/celestiaorg/cosmos-sdk v1.5.1-sdk-v0.46.6 h1:G7c1qcM2WTVdiLsyHASyP4pOK7D4QsOrbXl0qP3GKpk=
@@ -215,8 +215,8 @@ github.com/celestiaorg/go-verifcid v0.0.1-lazypatch h1:9TSe3w1cmJmbWlweCwCTIZkan
 github.com/celestiaorg/go-verifcid v0.0.1-lazypatch/go.mod h1:kXPYu0XqTNUKWA1h3M95UHjUqBzDwXVVt/RXZDjKJmQ=
 github.com/celestiaorg/merkletree v0.0.0-20210714075610-a84dc3ddbbe4 h1:CJdIpo8n5MFP2MwK0gSRcOVlDlFdQJO1p+FqdxYzmvc=
 github.com/celestiaorg/merkletree v0.0.0-20210714075610-a84dc3ddbbe4/go.mod h1:fzuHnhzj1pUygGz+1ZkB3uQbEUL4htqCGJ4Qs2LwMZA=
-github.com/celestiaorg/nmt v0.13.0 h1:zhuwhvICMJhXy2lzaBydFBYztTuLzV5N3xAa9zTSiCw=
-github.com/celestiaorg/nmt v0.13.0/go.mod h1:b+pwd9cGTSSYLZnUIQSJl07pusJdFeEvCVsVfSRH9gA=
+github.com/celestiaorg/nmt v0.12.0 h1:6CmaMPri9FdSiytZP7yCrEq3ewebFiIEjlJhasrS6oQ=
+github.com/celestiaorg/nmt v0.12.0/go.mod h1:NN3W8EEoospv8EHCw50DDNWwPLpJkFHoEFiqCEcNCH4=
 github.com/celestiaorg/quantum-gravity-bridge v1.3.0 h1:9zPIp7w1FWfkPnn16y3S4FpFLnQtS7rm81CUVcHEts0=
 github.com/celestiaorg/quantum-gravity-bridge v1.3.0/go.mod h1:6WOajINTDEUXpSj5UZzod16UZ96ZVB/rFNKyM+Mt1gI=
 github.com/celestiaorg/rsmt2d v0.8.0 h1:ZUxTCELZCM9zMGKNF3cT+rUqMddXMeiuyleSJPZ3Wn4=
