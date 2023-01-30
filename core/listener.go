@@ -24,8 +24,7 @@ type Listener struct {
 	fetcher *BlockFetcher
 
 	construct header.ConstructFn
-
-	store *eds.Store
+	store     *eds.Store
 
 	headerBroadcaster libhead.Broadcaster[*header.ExtendedHeader]
 	hashBroadcaster   shrexsub.BroadcastFn

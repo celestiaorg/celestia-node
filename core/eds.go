@@ -11,7 +11,7 @@ import (
 )
 
 // extendBlock extends the given block data, returning the resulting
-// DataAvailabilityHeader. If there are no transactions in the block,
+// ExtendedDataSquare (EDS). If there are no transactions in the block,
 // nil is returned in place of the eds.
 func extendBlock(data types.Data) (*rsmt2d.ExtendedDataSquare, error) {
 	if len(data.Txs) == 0 {
