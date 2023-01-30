@@ -26,7 +26,7 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 		fx.Supply(cfg),
 		fx.Error(cfgErr),
 		fx.Provide(fx.Annotate(
-			Server,
+			server,
 			fx.OnStart(func(ctx context.Context, server *gateway.Server) error {
 				return server.Start(ctx)
 			}),

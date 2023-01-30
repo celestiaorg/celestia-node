@@ -33,7 +33,7 @@ func newDaserStub() Module {
 	return &daserStub{}
 }
 
-func NewDASer(
+func newDASer(
 	da share.Availability,
 	hsub libhead.Subscriber[*header.ExtendedHeader],
 	store libhead.Store[*header.ExtendedHeader],

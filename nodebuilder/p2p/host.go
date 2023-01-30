@@ -8,7 +8,7 @@ import (
 	p2pconfig "github.com/libp2p/go-libp2p/config"
 	"github.com/libp2p/go-libp2p/core/connmgr"
 	"github.com/libp2p/go-libp2p/core/crypto"
-	"github.com/libp2p/go-libp2p/core/host"
+	hst "github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/metrics"
 	"github.com/libp2p/go-libp2p/core/network"
 	"github.com/libp2p/go-libp2p/core/peer"
@@ -21,14 +21,14 @@ import (
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 )
 
-// RoutedHost constructs a wrapped Host that may fallback to address discovery,
+// routedHost constructs a wrapped Host that may fallback to address discovery,
 // if any top-level operation on the Host is provided with PeerID(Hash(PbK)) only.
-func RoutedHost(base HostBase, r routing.PeerRouting) host.Host {
+func routedHost(base HostBase, r routing.PeerRouting) hst.Host {
 	return routedhost.Wrap(base, r)
 }
 
-// Host returns constructor for Host.
-func Host(params hostParams) (HostBase, error) {
+// host returns constructor for Host.
+func host(params hostParams) (HostBase, error) {
 	opts := []libp2p.Option{
 		libp2p.NoListenAddrs, // do not listen automatically
 		libp2p.AddrsFactory(params.AddrF),
@@ -64,7 +64,7 @@ func Host(params hostParams) (HostBase, error) {
 	return h, nil
 }
 
-type HostBase host.Host
+type HostBase hst.Host
 
 type hostParams struct {
 	fx.In
