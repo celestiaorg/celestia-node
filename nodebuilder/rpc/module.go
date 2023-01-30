@@ -17,7 +17,7 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 		fx.Supply(cfg),
 		fx.Error(cfgErr),
 		fx.Provide(fx.Annotate(
-			Server,
+			server,
 			fx.OnStart(func(ctx context.Context, server *rpc.Server) error {
 				return server.Start(ctx)
 			}),
@@ -32,7 +32,7 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 		return fx.Module(
 			"rpc",
 			baseComponents,
-			fx.Invoke(RegisterEndpoints),
+			fx.Invoke(registerEndpoints),
 		)
 	default:
 		panic("invalid node type")
