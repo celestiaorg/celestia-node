@@ -21,8 +21,8 @@ type Service struct {
 	store     libhead.Store[*header.ExtendedHeader]
 }
 
-// NewHeaderService creates a new instance of header Service.
-func NewHeaderService(
+// newHeaderService creates a new instance of header Service.
+func newHeaderService(
 	syncer *sync.Syncer[*header.ExtendedHeader],
 	sub libhead.Subscriber[*header.ExtendedHeader],
 	p2pServer *p2p.ExchangeServer[*header.ExtendedHeader],
