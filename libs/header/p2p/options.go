@@ -104,13 +104,14 @@ func WithRequestTimeout[T parameters](duration time.Duration) Option[T] {
 }
 
 // ClientParameters is the set of parameters that must be configured for the exchange.
+// TODO: #1667
 type ClientParameters struct {
 	// the target minimum amount of responses with the same chain head
 	MinResponses int
 	// MaxRequestSize defines the max amount of headers that can be handled at once.
-	MaxRequestSize uint64
+	MaxRequestSize uint64 // TODO: Rename to MaxRangeRequestSize
 	// MaxHeadersPerRequest defines the max amount of headers that can be requested per 1 request.
-	MaxHeadersPerRequest uint64
+	MaxHeadersPerRequest uint64 // TODO: Rename to MaxHeadersPerRangeRequest
 	// MaxAwaitingTime specifies the duration that gives to the disconnected peer to be back online,
 	// otherwise it will be removed on the next GC cycle.
 	MaxAwaitingTime time.Duration
@@ -118,7 +119,9 @@ type ClientParameters struct {
 	DefaultScore float32
 	// RequestTimeout defines a timeout after which the session will try to re-request headers
 	// from another peer.
-	RequestTimeout time.Duration
+	RequestTimeout time.Duration // TODO: Rename to RangeRequestTimeout
+	// TrustedPeersRequestTimeout a timeout for any request to a trusted peer.
+	TrustedPeersRequestTimeout time.Duration
 	// MaxTrackerSize specifies the max amount of peers that can be added to the peerTracker.
 	MaxPeerTrackerSize int
 }
@@ -132,6 +135,7 @@ func DefaultClientParameters() ClientParameters {
 		MaxAwaitingTime:      time.Hour,
 		DefaultScore:         1,
 		RequestTimeout:       time.Second * 3,
+		TrustedPeersRequestTimeout: time.Millisecond * 300,
 		MaxPeerTrackerSize:   100,
 	}
 }

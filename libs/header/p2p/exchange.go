@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"math/rand"
 	"sort"
-	"time"
 
 	logging "github.com/ipfs/go-log/v2"
 	"github.com/libp2p/go-libp2p/core/host"
@@ -41,11 +40,15 @@ type Exchange[H header.Header] struct {
 
 func NewExchange[H header.Header](
 	host host.Host,
-	peers peer.IDSlice,
+	trustedPeers peer.IDSlice,
 	protocolSuffix string,
 	connGater *conngater.BasicConnectionGater,
 	opts ...Option[ClientParameters],
 ) (*Exchange[H], error) {
+	if len(trustedPeers) == 0 {
+		return nil, fmt.Errorf("no trusted peers")
+	}
+
 	params := DefaultClientParameters()
 	for _, opt := range opts {
 		opt(&params)
@@ -59,7 +62,7 @@ func NewExchange[H header.Header](
 	return &Exchange[H]{
 		host:         host,
 		protocolID:   protocolID(protocolSuffix),
-		trustedPeers: peers,
+		trustedPeers: trustedPeers,
 		peerTracker: newPeerTracker(
 			host,
 			connGater,
@@ -78,7 +81,12 @@ func (ex *Exchange[H]) Start(context.Context) error {
 		// Try to pre-connect to trusted peers.
 		// We don't really care if we succeed at this point
 		// and just need any peers in the peerTracker asap
-		go ex.host.Connect(ex.ctx, peer.AddrInfo{ID: p}) //nolint:errcheck
+		go func(p peer.ID) {
+			err := ex.host.Connect(ex.ctx, peer.AddrInfo{ID: p}) //nolint:errcheck
+			if err != nil {
+				log.Debugw("err connecting to a bootstrap peer", "err", err, "peer", p)
+			}
+		}(p)
 	}
 	go ex.peerTracker.gc()
 	go ex.peerTracker.track()
@@ -221,25 +229,21 @@ func (ex *Exchange[H]) performRequest(
 		return make([]H, 0), nil
 	}
 
-	if len(ex.trustedPeers) == 0 {
-		return nil, fmt.Errorf("no trusted peers")
-	}
-
-	for ctx.Err() == nil {
+	for {
 		//nolint:gosec // G404: Use of weak random number generator
-		index := rand.Intn(len(ex.trustedPeers))
-		cctx, cancel := context.WithTimeout(ctx, time.Second)
-		h, err := ex.request(cctx, ex.trustedPeers[index], req)
+		idx := rand.Intn(len(ex.trustedPeers))
+		ctx, cancel := context.WithTimeout(ctx, ex.Params.TrustedPeersRequestTimeout)
+
+		h, err := ex.request(ctx, ex.trustedPeers[idx], req)
 		cancel()
-		if err != nil {
-			log.Error(err)
+		switch err {
+		default:
+			log.Debug(err)
 			continue
+		case context.Canceled, context.DeadlineExceeded, nil:
+			return h, err
 		}
-		return h, nil
-
 	}
-
-	return nil, ctx.Err()
 }
 
 // request sends the HeaderRequest to a remote peer.
