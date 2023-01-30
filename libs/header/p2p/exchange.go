@@ -228,7 +228,7 @@ func (ex *Exchange[H]) performRequest(
 	for ctx.Err() == nil {
 		//nolint:gosec // G404: Use of weak random number generator
 		index := rand.Intn(len(ex.trustedPeers))
-		cctx, cancel := context.WithTimeout(context.Background(), time.Second)
+		cctx, cancel := context.WithTimeout(ctx, time.Second)
 		h, err := ex.request(cctx, ex.trustedPeers[index], req)
 		cancel()
 		if err != nil {
