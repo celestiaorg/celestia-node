@@ -21,6 +21,10 @@ const (
 	// so ConnManager will not break a connection with them.
 	peerWeight = 1000
 	topic      = "full"
+
+	// eventbusBufSize is the size of the buffered channel to handle
+	// events in libp2p
+	eventbusBufSize = 32
 )
 
 // waitF calculates time to restart announcing.
@@ -107,13 +111,11 @@ func (d *Discovery) EnsurePeers(ctx context.Context) {
 		log.Warn("peers limit is set to 0. Skipping discovery...")
 		return
 	}
-	// buffSize is the size of the buffered channel to handle events in libp2p.
-	buffSize := 512
-	// subscribe on Event Bus in order to catch disconnected peers and restart the discovery.
-	// eventbus.BufSize specifies the size of the channel where EvtPeerConnectednessChanged events
-	// are sent(by default it is 16).
-	// The size is increased to avoid any blocks on writing to the full channel.
-	sub, err := d.host.EventBus().Subscribe(&event.EvtPeerConnectednessChanged{}, eventbus.BufSize(buffSize))
+	// subscribe on EventBus in order to catch disconnected peers and restart
+	// the discovery. We specify a larger buffer size for the channel where
+	// EvtPeerConnectednessChanged events are sent (by default it is 16, we
+	// specify 32) to avoid any blocks on writing to the full channel.
+	sub, err := d.host.EventBus().Subscribe(&event.EvtPeerConnectednessChanged{}, eventbus.BufSize(eventbusBufSize))
 	if err != nil {
 		log.Error(err)
 		return
@@ -133,10 +135,11 @@ func (d *Discovery) EnsurePeers(ctx context.Context) {
 	go func() {
 		select {
 		case <-ctx.Done():
-			log.Info("context canceled. Finish handling subscriptions")
+			log.Debug("Context canceled. Finish listening for connectedness events.")
 			return
 		case e, ok := <-sub.Out():
 			if !ok {
+				log.Debug("Subscription for connectedness events is closed.")
 				return
 			}
 			// listen to disconnect event to remove peer from set and reset backoff time
@@ -159,7 +162,7 @@ func (d *Discovery) EnsurePeers(ctx context.Context) {
 	for {
 		select {
 		case <-ctx.Done():
-			log.Info("context canceled. Finish peer discovery")
+			log.Info("Context canceled. Finishing peer discovery")
 			return
 		case <-t.C:
 			if uint(d.set.Size()) == d.peersLimit {
