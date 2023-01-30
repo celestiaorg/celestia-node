@@ -13,8 +13,8 @@ import (
 	"github.com/celestiaorg/celestia-node/nodebuilder/state"
 )
 
-// RegisterEndpoints registers the given services on the rpc.
-func RegisterEndpoints(
+// registerEndpoints registers the given services on the rpc.
+func registerEndpoints(
 	stateMod state.Module,
 	shareMod share.Module,
 	fraudMod fraud.Module,
@@ -33,6 +33,6 @@ func RegisterEndpoints(
 	serv.RegisterAuthedService("node", nodeMod, &node.API{})
 }
 
-func Server(cfg *Config, auth jwt.Signer) *rpc.Server {
+func server(cfg *Config, auth jwt.Signer) *rpc.Server {
 	return rpc.NewServer(cfg.Address, cfg.Port, auth)
 }
