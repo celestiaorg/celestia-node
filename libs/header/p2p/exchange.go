@@ -45,10 +45,6 @@ func NewExchange[H header.Header](
 	connGater *conngater.BasicConnectionGater,
 	opts ...Option[ClientParameters],
 ) (*Exchange[H], error) {
-	if len(trustedPeers) == 0 {
-		return nil, fmt.Errorf("no trusted peers")
-	}
-
 	params := DefaultClientParameters()
 	for _, opt := range opts {
 		opt(&params)
