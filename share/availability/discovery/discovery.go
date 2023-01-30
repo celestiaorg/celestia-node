@@ -107,8 +107,13 @@ func (d *Discovery) EnsurePeers(ctx context.Context) {
 		log.Warn("peers limit is set to 0. Skipping discovery...")
 		return
 	}
-	// subscribe on Event Bus in order to catch disconnected peers and restart the discovery
-	sub, err := d.host.EventBus().Subscribe(&event.EvtPeerConnectednessChanged{}, eventbus.BufSize(512))
+	// buffSize is the size of the buffered channel to handle events in libp2p.
+	buffSize := 512
+	// subscribe on Event Bus in order to catch disconnected peers and restart the discovery.
+	// eventbus.BufSize specifies the size of the channel where EvtPeerConnectednessChanged events
+	// are sent(by default it is 16).
+	// The size is increased to avoid any blocks on writing to the full channel.
+	sub, err := d.host.EventBus().Subscribe(&event.EvtPeerConnectednessChanged{}, eventbus.BufSize(buffSize))
 	if err != nil {
 		log.Error(err)
 		return
@@ -128,6 +133,7 @@ func (d *Discovery) EnsurePeers(ctx context.Context) {
 	go func() {
 		select {
 		case <-ctx.Done():
+			log.Info("context canceled. Finish handling subscriptions")
 			return
 		case e, ok := <-sub.Out():
 			if !ok {
@@ -138,6 +144,8 @@ func (d *Discovery) EnsurePeers(ctx context.Context) {
 			connStatus := e.(event.EvtPeerConnectednessChanged)
 			if connStatus.Connectedness == network.NotConnected {
 				if d.set.Contains(connStatus.Peer) {
+					log.Debugw("removing the peer from the peer set",
+						"peer", connStatus.Peer, "status", connStatus.Connectedness.String())
 					d.connector.RestartBackoff(connStatus.Peer)
 					d.set.Remove(connStatus.Peer)
 					d.onUpdatedPeers(connStatus.Peer, false)
@@ -151,6 +159,7 @@ func (d *Discovery) EnsurePeers(ctx context.Context) {
 	for {
 		select {
 		case <-ctx.Done():
+			log.Info("context canceled. Finish peer discovery")
 			return
 		case <-t.C:
 			if uint(d.set.Size()) == d.peersLimit {
