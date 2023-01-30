@@ -1,6 +1,7 @@
 package sync
 
 import (
+	"sync"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -13,12 +14,17 @@ func TestAddParallel(t *testing.T) {
 
 	n := 500
 	suite := test.NewTestSuite(t)
-	headers := suite.GenDummyHeaders(1000)
+	headers := suite.GenDummyHeaders(n)
+
+	wg := &sync.WaitGroup{}
+	wg.Add(n)
 	for i := 0; i < n; i++ {
 		go func(i int) {
 			pending.Add(headers[i])
+			wg.Done()
 		}(i)
 	}
+	wg.Wait()
 
 	last := uint64(0)
 	for _, r := range pending.ranges {
