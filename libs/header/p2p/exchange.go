@@ -82,7 +82,7 @@ func (ex *Exchange[H]) Start(context.Context) error {
 		// We don't really care if we succeed at this point
 		// and just need any peers in the peerTracker asap
 		go func(p peer.ID) {
-			err := ex.host.Connect(ex.ctx, peer.AddrInfo{ID: p}) //nolint:errcheck
+			err := ex.host.Connect(ex.ctx, peer.AddrInfo{ID: p})
 			if err != nil {
 				log.Debugw("err connecting to a bootstrap peer", "err", err, "peer", p)
 			}

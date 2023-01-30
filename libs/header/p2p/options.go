@@ -129,14 +129,14 @@ type ClientParameters struct {
 // DefaultClientParameters returns the default params to configure the store.
 func DefaultClientParameters() ClientParameters {
 	return ClientParameters{
-		MinResponses:         2,
-		MaxRequestSize:       512,
-		MaxHeadersPerRequest: 64,
-		MaxAwaitingTime:      time.Hour,
-		DefaultScore:         1,
-		RequestTimeout:       time.Second * 3,
+		MinResponses:               2,
+		MaxRequestSize:             512,
+		MaxHeadersPerRequest:       64,
+		MaxAwaitingTime:            time.Hour,
+		DefaultScore:               1,
+		RequestTimeout:             time.Second * 3,
 		TrustedPeersRequestTimeout: time.Millisecond * 300,
-		MaxPeerTrackerSize:   100,
+		MaxPeerTrackerSize:         100,
 	}
 }
 
