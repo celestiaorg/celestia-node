@@ -171,6 +171,10 @@ func (p *ClientParameters) Validate() error {
 		return fmt.Errorf("invalid request timeout for session: "+
 			"%s. %s: %v", greaterThenZero, providedSuffix, p.RequestTimeout)
 	}
+	if p.TrustedPeersRequestTimeout == 0 {
+		return fmt.Errorf("invalid TrustedPeersRequestTimeout: "+
+			"%s. %s: %v", greaterThenZero, providedSuffix, p.TrustedPeersRequestTimeout)
+	}
 	if p.MaxPeerTrackerSize <= 0 {
 		return fmt.Errorf("invalid MaxTrackerSize: %s. %s: %d", greaterThenZero, providedSuffix, p.MaxPeerTrackerSize)
 	}

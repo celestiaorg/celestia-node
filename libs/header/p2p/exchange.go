@@ -225,6 +225,11 @@ func (ex *Exchange[H]) performRequest(
 		return make([]H, 0), nil
 	}
 
+	// TODO: Move this check to constructor()
+	if len(ex.trustedPeers) == 0 {
+		return nil, fmt.Errorf("no trusted peers")
+	}
+
 	for {
 		//nolint:gosec // G404: Use of weak random number generator
 		idx := rand.Intn(len(ex.trustedPeers))
