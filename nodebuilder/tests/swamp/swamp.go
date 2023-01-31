@@ -52,7 +52,7 @@ type Swamp struct {
 	comps       *Components
 
 	ClientContext testnode.Context
-	accounts      []string
+	Accounts      []string
 
 	genesis *header.ExtendedHeader
 }
@@ -80,7 +80,7 @@ func NewSwamp(t *testing.T, options ...Option) *Swamp {
 		Network:       mocknet.New(),
 		ClientContext: cctx,
 		comps:         ic,
-		accounts:      ic.Accounts,
+		Accounts:      ic.Accounts,
 	}
 
 	swp.t.Cleanup(func() {
