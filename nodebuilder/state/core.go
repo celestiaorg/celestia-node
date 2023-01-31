@@ -8,9 +8,9 @@ import (
 	"github.com/celestiaorg/celestia-node/state"
 )
 
-// CoreAccessor constructs a new instance of state.Module over
+// coreAccessor constructs a new instance of state.Module over
 // a celestia-core connection.
-func CoreAccessor(
+func coreAccessor(
 	corecfg core.Config,
 	signer *apptypes.KeyringSigner,
 	sync *sync.Syncer[*header.ExtendedHeader],

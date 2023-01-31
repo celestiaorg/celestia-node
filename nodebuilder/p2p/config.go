@@ -31,7 +31,7 @@ type Config struct {
 	// This is enabled by default for Bootstrappers.
 	PeerExchange bool
 	// ConnManager is a configuration tuple for ConnectionManager.
-	ConnManager               ConnManagerConfig
+	ConnManager               connManagerConfig
 	RoutingTableRefreshPeriod time.Duration
 }
 
@@ -56,7 +56,7 @@ func DefaultConfig() Config {
 		MutualPeers:               []string{},
 		Bootstrapper:              false,
 		PeerExchange:              false,
-		ConnManager:               DefaultConnManagerConfig(),
+		ConnManager:               defaultConnManagerConfig(),
 		RoutingTableRefreshPeriod: defaultRoutingRefreshPeriod,
 	}
 }
