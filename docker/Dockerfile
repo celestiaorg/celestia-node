@@ -19,7 +19,7 @@ COPY docker/entrypoint.sh /
 
 # Copy in the binary
 COPY --from=builder /src/build/celestia /
-COPY --from=builder /cel-key /
+COPY --from=builder /src/./cel-key /
 
 EXPOSE 2121
 
