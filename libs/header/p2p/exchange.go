@@ -3,6 +3,7 @@ package p2p
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"math/rand"
 	"sort"
@@ -79,7 +80,7 @@ func (ex *Exchange[H]) Start(context.Context) error {
 		// and just need any peers in the peerTracker asap
 		go func(p peer.ID) {
 			err := ex.host.Connect(ex.ctx, peer.AddrInfo{ID: p})
-			if err != nil && err != context.Canceled && err != context.DeadlineExceeded {
+			if err != nil && !errors.Is(err, context.Canceled) && !errors.Is(err, context.DeadlineExceeded) {
 				log.Debugw("err connecting to a bootstrap peer", "err", err, "peer", p)
 			}
 		}(p)
