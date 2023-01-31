@@ -226,7 +226,7 @@ func (ex *Exchange[H]) performRequest(
 		return make([]H, 0), nil
 	}
 
-	// TODO: Move this check to constructor()
+	// TODO: Move this check to constructor(#1671)
 	if len(ex.trustedPeers) == 0 {
 		return nil, fmt.Errorf("no trusted peers")
 	}
