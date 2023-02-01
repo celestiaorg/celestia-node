@@ -28,7 +28,7 @@ var (
 // check <insert documentation file here> for more info.
 type blackBoxInstrument struct {
 	// metrics
-	requestsNum     syncint64.Counter
+	requestCount     syncint64.Counter
 	requestDuration syncint64.Histogram
 	requestSize     syncint64.Histogram
 	blockTime       syncint64.Histogram
