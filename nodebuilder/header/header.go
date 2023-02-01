@@ -19,7 +19,7 @@ type Module interface {
 	// IsSyncing returns the status of sync
 	IsSyncing(context.Context) bool
 
-	// SyncerHead returns the ExtendedHeader of the chain head from the validator network.
+	// SyncerHead returns the highest known ExtendedHeader of the network.
 	SyncerHead(context.Context) (*header.ExtendedHeader, error)
 }
 
