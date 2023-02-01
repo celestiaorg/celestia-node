@@ -19,6 +19,10 @@ func (rs *ranges[H]) Head() H {
 	rs.lk.RLock()
 	defer rs.lk.RUnlock()
 
+	return rs.head()
+}
+
+func (rs *ranges[H]) head() H {
 	ln := len(rs.ranges)
 	if ln == 0 {
 		var zero H
@@ -32,7 +36,10 @@ func (rs *ranges[H]) Head() H {
 // Add appends the new Header to existing range or starts a new one.
 // It starts a new one if the new Header is not adjacent to any of existing ranges.
 func (rs *ranges[H]) Add(h H) {
-	head := rs.Head()
+	rs.lk.Lock()
+	defer rs.lk.Unlock()
+
+	head := rs.head()
 
 	// short-circuit if header is from the past
 	if !head.IsZero() && head.Height() >= h.Height() {
@@ -46,9 +53,6 @@ func (rs *ranges[H]) Add(h H) {
 		log.Warnf("rcvd headers in wrong order")
 		return
 	}
-
-	rs.lk.Lock()
-	defer rs.lk.Unlock()
 
 	// if the new header is adjacent to head
 	if !head.IsZero() && h.Height() == head.Height()+1 {

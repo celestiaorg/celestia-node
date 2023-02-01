@@ -5,14 +5,14 @@ import (
 
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	pubsub_pb "github.com/libp2p/go-libp2p-pubsub/pb"
-	"github.com/libp2p/go-libp2p/core/host"
+	hst "github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/protocol"
 	"go.uber.org/fx"
 	"golang.org/x/crypto/blake2b"
 )
 
-// PubSub provides a constructor for PubSub protocol with GossipSub routing.
-func PubSub(cfg Config, params pubSubParams) (*pubsub.PubSub, error) {
+// pubSub provides a constructor for PubSub protocol with GossipSub routing.
+func pubSub(cfg Config, params pubSubParams) (*pubsub.PubSub, error) {
 	fpeers, err := cfg.mutualPeers()
 	if err != nil {
 		return nil, err
@@ -51,5 +51,5 @@ type pubSubParams struct {
 	fx.In
 
 	Ctx  context.Context
-	Host host.Host
+	Host hst.Host
 }

@@ -21,6 +21,6 @@ func Handler(
 	handler.RegisterMiddleware(serv)
 }
 
-func Server(cfg *Config) *gateway.Server {
+func server(cfg *Config) *gateway.Server {
 	return gateway.NewServer(cfg.Address, cfg.Port)
 }

@@ -109,11 +109,13 @@ func (cl *Listener) listen(ctx context.Context, sub <-chan *types.Block) {
 					"err", err)
 			}
 
-			// notify network of new EDS hash
-			err = cl.hashBroadcaster(ctx, eh.DataHash.Bytes())
-			if err != nil {
-				log.Errorw("listener: broadcasting data hash", "height", eh.Height(),
-					"hash", eh.Hash(), "err", err)
+			// notify network of new EDS hash only if core is already synced
+			if !syncing {
+				err = cl.hashBroadcaster(ctx, eh.DataHash.Bytes())
+				if err != nil {
+					log.Errorw("listener: broadcasting data hash", "height", eh.Height(),
+						"hash", eh.Hash(), "err", err)
+				}
 			}
 		case <-ctx.Done():
 			return
