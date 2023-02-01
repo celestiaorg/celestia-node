@@ -16,6 +16,8 @@ import (
 
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/headertest"
+	libheader "github.com/celestiaorg/celestia-node/libs/header"
+	mockstore "github.com/celestiaorg/celestia-node/libs/header/mocks"
 )
 
 type DummyService struct {
@@ -33,34 +35,33 @@ func (d *DummyService) Get(context.Context, ProofType) ([]Proof, error) {
 	return nil, nil
 }
 
-type mockStore struct {
-	headers    map[int64]*header.ExtendedHeader
-	headHeight int64
-}
+type H libheader.Header
+
+type mockStore mockstore.MockStore[H]
 
 // createStore creates a mock store and adds several random
 // headers.
 func createStore(t *testing.T, numHeaders int) *mockStore {
 	store := &mockStore{
-		headers:    make(map[int64]*header.ExtendedHeader),
-		headHeight: 0,
+		Headers:    make(map[int64]H),
+		HeadHeight: 0,
 	}
 
 	suite := headertest.NewTestSuite(t, numHeaders)
 
 	for i := 0; i < numHeaders; i++ {
 		header := suite.GenExtendedHeader()
-		store.headers[header.Height()] = header
+		store.Headers[header.Height()] = header
 
-		if header.Height() > store.headHeight {
-			store.headHeight = header.Height()
+		if header.Height() > store.HeadHeight {
+			store.HeadHeight = header.Height()
 		}
 	}
 	return store
 }
 
-func (m *mockStore) GetByHeight(_ context.Context, height uint64) (*header.ExtendedHeader, error) {
-	return m.headers[int64(height)], nil
+func (m *mockStore) GetByHeight(_ context.Context, height uint64) (H, error) {
+	return m.Headers[int64(height)], nil
 }
 
 func (m *mockStore) Close() error { return nil }
