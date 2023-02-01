@@ -322,6 +322,7 @@ require (
 )
 
 replace (
+	github.com/celestiaorg/nmt => github.com/celestiaorg/nmt v0.12.0 // temporary patch until we either fix nmt v0.13.0 or downgrade across all repos
 	github.com/cosmos/cosmos-sdk => github.com/celestiaorg/cosmos-sdk v1.5.1-sdk-v0.46.6
 	github.com/filecoin-project/dagstore => github.com/celestiaorg/dagstore v0.0.0-20221014072825-395797efb659
 	github.com/gogo/protobuf => github.com/regen-network/protobuf v1.3.3-alpha.regen.1
