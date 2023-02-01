@@ -33,7 +33,7 @@ type blackBoxInstrument struct {
 	requestSize     syncint64.Histogram
 	blockTime       syncint64.Histogram
 
-	lastHeadTS time.Time
+	lastHeadTimestamp time.Time
 	lastHead   int64
 
 	// pointer to mod
