@@ -76,13 +76,6 @@ func initializeMetrics(
 	}
 
 	provider := metric.NewMeterProvider(
-		// metric.WithView(metric.NewView(
-		// 	metric.Instrument{Kind: metric.InstrumentKindSyncHistogram},
-		// 	metric.Stream{
-		// 		Name:        "celestia.metrics",
-		// 		Aggregation: exp.Aggregation(metric.InstrumentKindSyncHistogram),
-		// 	},
-		// )),
 		metric.WithReader(metric.NewPeriodicReader(exp, metric.WithTimeout(2*time.Second))),
 		metric.WithResource(resource.NewWithAttributes(
 			semconv.SchemaURL,
