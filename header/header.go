@@ -82,22 +82,15 @@ func MakeExtendedHeader(
 	vals *core.ValidatorSet,
 	bServ blockservice.BlockService,
 ) (*ExtendedHeader, error) {
-	var dah DataAvailabilityHeader
-	if len(b.Txs) > 0 {
-		shares, err := appshares.Split(b.Data, true)
-		if err != nil {
-			return nil, err
-		}
-		extended, err := share.AddShares(ctx, appshares.ToBytes(shares), bServ)
-		if err != nil {
-			return nil, err
-		}
-		dah = da.NewDataAvailabilityHeader(extended)
-	} else {
-		// use MinDataAvailabilityHeader for empty block
-		dah = EmptyDAH()
-		log.Debugw("empty block received", "height", "blockID", "time", b.Height, b.Time.String(), comm.BlockID)
+	shares, err := appshares.Split(b.Data, true)
+	if err != nil {
+		return nil, err
 	}
+	extended, err := share.AddShares(ctx, appshares.ToBytes(shares), bServ)
+	if err != nil {
+		return nil, err
+	}
+	dah := da.NewDataAvailabilityHeader(extended)
 
 	eh := &ExtendedHeader{
 		RawHeader:    b.Header,
