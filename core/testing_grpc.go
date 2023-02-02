@@ -3,6 +3,7 @@ package core
 import (
 	"net"
 	"strings"
+	"time"
 
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/codec"
@@ -103,12 +104,19 @@ func startGRPCServer(
 		return nil, err
 	}
 
+	errCh := make(chan error)
 	go func() {
 		err = grpcSrv.Serve(listener)
-		if err != nil {
-			log.Error("serving GRPC: ", err)
-		}
+		errCh <- err
 	}()
 
+	select {
+	case err := <-errCh:
+		if err != nil {
+			return nil, err
+		}
+	case <-time.After(time.Second * 2):
+		// assume server started successfully
+	}
 	return grpcSrv, nil
 }
