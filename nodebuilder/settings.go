@@ -8,11 +8,9 @@ import (
 	"github.com/libp2p/go-libp2p/core/peer"
 	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetrichttp"
 	"go.opentelemetry.io/otel/metric/global"
-	controller "go.opentelemetry.io/otel/sdk/metric/controller/basic"
-	processor "go.opentelemetry.io/otel/sdk/metric/processor/basic"
-	selector "go.opentelemetry.io/otel/sdk/metric/selector/simple"
+	"go.opentelemetry.io/otel/sdk/metric"
 	"go.opentelemetry.io/otel/sdk/resource"
-	semconv "go.opentelemetry.io/otel/semconv/v1.10.0"
+	semconv "go.opentelemetry.io/otel/semconv/v1.11.0"
 	"go.uber.org/fx"
 
 	"github.com/celestiaorg/celestia-node/fraud"
@@ -77,32 +75,21 @@ func initializeMetrics(
 		return err
 	}
 
-	pusher := controller.New(
-		processor.NewFactory(
-			selector.NewWithHistogramDistribution(),
-			exp,
-		),
-		controller.WithExporter(exp),
-		controller.WithCollectPeriod(2*time.Second),
-		controller.WithResource(resource.NewWithAttributes(
+	provider := metric.NewMeterProvider(
+		metric.WithReader(metric.NewPeriodicReader(exp, metric.WithTimeout(2*time.Second))),
+		metric.WithResource(resource.NewWithAttributes(
 			semconv.SchemaURL,
 			semconv.ServiceNameKey.String(fmt.Sprintf("Celestia-%s", nodeType.String())),
 			// TODO(@Wondertan): Versioning: semconv.ServiceVersionKey
 			semconv.ServiceInstanceIDKey.String(peerID.String()),
-		)),
-	)
+		)))
 
 	lc.Append(fx.Hook{
-		// here we take the context from fx.Invoke because pusher uses it for its entire lifetime,
-		// instead of only for the Start operation
-		OnStart: func(context.Context) error {
-			return pusher.Start(ctx)
-		},
 		OnStop: func(ctx context.Context) error {
-			return pusher.Stop(ctx)
+			return provider.Shutdown(ctx)
 		},
 	})
+	global.SetMeterProvider(provider)
 
-	global.SetMeterProvider(pusher)
 	return nil
 }

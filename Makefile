@@ -41,8 +41,8 @@ deps:
 	@go mod download
 .PHONY: deps
 
-## install: Build and install the celestia-node binary into the $PREFIX (/usr/local/ by default) directory.
-install: build
+## install: Install all build binaries into the $PREFIX (/usr/local/ by default) directory.
+install:
 	@echo "--> Installing Celestia"
 	@install -v ./build/* -t ${PREFIX}/bin/
 .PHONY: install
