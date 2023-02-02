@@ -41,6 +41,8 @@ type Syncer[H header.Header] struct {
 	state   State
 	// signals to start syncing
 	triggerSync chan struct{}
+	// syncedHead is the latest synced header.
+	syncedHead H
 	// pending keeps ranges of valid new network headers awaiting to be appended to store
 	pending ranges[H]
 	// netReqLk ensures only one network head is requested at any moment
@@ -257,8 +259,12 @@ func (s *Syncer[H]) requestHeaders(
 			}
 		}
 		// apply cached headers
-		if _, err = s.store.Append(ctx, headers...); err != nil {
+		amount, err := s.store.Append(ctx, headers...)
+		if err != nil {
 			return err
+		}
+		if amount > 0 {
+			s.syncedHead = headers[amount-1]
 		}
 		fromHeader = headers[len(headers)-1]
 	}
@@ -303,8 +309,12 @@ func (s *Syncer[H]) findHeaders(
 		}
 		fromHeader = headers[len(headers)-1]
 		amount -= size
-		if _, err = s.store.Append(ctx, headers...); err != nil {
+		amount, err := s.store.Append(ctx, headers...)
+		if err != nil {
 			return nil
+		}
+		if amount > 0 {
+			s.syncedHead = fromHeader
 		}
 	}
 
