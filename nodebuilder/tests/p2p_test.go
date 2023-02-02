@@ -226,6 +226,7 @@ func TestRestartNodeDiscovery(t *testing.T) {
 		select {
 		case <-ctx.Done():
 			require.True(t, nodes[0].Host.Network().Connectedness(node.Host.ID()) == network.Connected)
+			return
 		case conn := <-connectSub.Out():
 			status := conn.(event.EvtPeerConnectednessChanged)
 			if status.Peer != node.Host.ID() {

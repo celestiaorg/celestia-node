@@ -4,13 +4,13 @@ package header.pb;
 
 import "tendermint/types/types.proto";
 import "tendermint/types/validator.proto";
-import "da/data_availability_header.proto";
+import "celestia/da/data_availability_header.proto";
 
 message ExtendedHeader {
   tendermint.types.Header header = 1;
   tendermint.types.Commit commit = 2;
   tendermint.types.ValidatorSet validator_set = 3;
-  da.DataAvailabilityHeader dah = 4;
+  celestia.da.DataAvailabilityHeader dah = 4;
 }
 
 // Generated with:
