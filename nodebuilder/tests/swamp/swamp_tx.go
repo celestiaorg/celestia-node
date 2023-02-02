@@ -9,6 +9,8 @@ import (
 // FillBlocks produces the given amount of contiguous blocks with customizable size.
 // The returned channel reports when the process is finished.
 func (s *Swamp) FillBlocks(ctx context.Context, bsize, blocks int) chan error {
+	// wait for first block to begin filling blocks
+	s.WaitTillHeight(ctx, 1)
 	errCh := make(chan error)
 	go func() {
 		// TODO: FillBlock must respect the context
