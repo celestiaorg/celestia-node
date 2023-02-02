@@ -19,22 +19,23 @@ import (
 )
 
 var (
-	meter = global.MeterProvider().Meter("blackbox-header")
+	meter = global.MeterProvider().Meter("proxy-header")
 )
 
 // blackBoxInstrument is the proxy struct
 // used to perform measurements of blackbox metrics
 // for the header.Module interface (i.e: the header service)
 // check <insert documentation file here> for more info.
+// TODO(@derrandz): create doc file and link to it in here
 type blackBoxInstrument struct {
 	// metrics
-	requestCount     syncint64.Counter
+	requestCount    syncint64.Counter
 	requestDuration syncint64.Histogram
-	requestSize     syncint64.Histogram
+	responseSize    syncint64.Histogram
 	blockTime       syncint64.Histogram
 
 	lastHeadTimestamp time.Time
-	lastHead   int64
+	lastHead          int64
 
 	// pointer to mod
 	next Module
@@ -43,7 +44,7 @@ type blackBoxInstrument struct {
 // constructor that returns a proxied
 // interface for blackbox metrics
 func newBlackBoxInstrument(next Module) (Module, error) {
-	requestsNum, err := meter.
+	requestsCount, err := meter.
 		SyncInt64().
 		Counter(
 			"node.header.blackbox.requests_count",
@@ -63,10 +64,10 @@ func newBlackBoxInstrument(next Module) (Module, error) {
 		return nil, err
 	}
 
-	requestSize, err := meter.
+	responseSize, err := meter.
 		SyncInt64().
 		Histogram(
-			"node.header.blackbox.request_size",
+			"node.header.blackbox.response_size",
 			instrument.WithDescription("size of a get header response"),
 		)
 	if err != nil {
@@ -77,7 +78,7 @@ func newBlackBoxInstrument(next Module) (Module, error) {
 		SyncInt64().
 		Histogram(
 			"node.header.blackbox.block_time",
-			instrument.WithDescription("test block time"),
+			instrument.WithDescription("block time"),
 		)
 	if err != nil {
 		return nil, err
@@ -86,41 +87,37 @@ func newBlackBoxInstrument(next Module) (Module, error) {
 	lastHeadTS := time.Now()
 	lastHead := int64(0)
 
-	bbinstrument := &blackBoxInstrument{
-		requestsNum,
+	return &blackBoxInstrument{
+		requestsCount,
 		requestDuration,
-		requestSize,
+		responseSize,
 		blockTime,
 		lastHeadTS,
 		lastHead,
 		next,
-	}
-
-	return bbinstrument, nil
+	}, nil
 }
 
 // GetByHeight returns the ExtendedHeader at the given height, blocking
 // until header has been processed by the store or context deadline is exceeded.
 func (bbi *blackBoxInstrument) GetByHeight(ctx context.Context, height uint64) (*header.ExtendedHeader, error) {
-	now := time.Now()
+	start := time.Now()
 	requestID, err := misc.RandString(5)
 	if err != nil {
 		return nil, err
 	}
 
 	// defer recording the duration until the request has received a response and finished
-	defer func(ctx context.Context, begin time.Time) {
+	defer func() {
 		bbi.requestDuration.Record(
 			ctx,
-			time.Since(begin).Milliseconds(),
+			time.Since(start).Milliseconds(),
 		)
-	}(ctx, now)
+	}()
 
-	// perform the actual request
 	eh, err := bbi.next.GetByHeight(ctx, height)
 	if err != nil {
-		// count the request and tag it as a failed one
-		bbi.requestsNum.Add(
+		bbi.requestCount.Add(
 			ctx,
 			1,
 			attribute.String("request-id", requestID),
@@ -129,8 +126,7 @@ func (bbi *blackBoxInstrument) GetByHeight(ctx context.Context, height uint64) (
 		return eh, err
 	}
 
-	// other wise, count the request but tag it as a succeeded one
-	bbi.requestsNum.Add(
+	bbi.requestCount.Add(
 		ctx,
 		1,
 		attribute.String("request-id", requestID),
@@ -138,15 +134,14 @@ func (bbi *blackBoxInstrument) GetByHeight(ctx context.Context, height uint64) (
 	)
 
 	// retrieve the binary format to get the size of the header
-	// TODO(@team): is ExtendedHeader.MarshalBinary() == ResponseSize?
-	// I am making this assumption for now
+	// TODO(@derrandz): remove this in favor of a metric that records
+	// the size of the actual network response (and not the header size)
 	bin, err := eh.MarshalBinary()
 	if err != nil {
 		return nil, err
 	}
 
-	// record the response size (extended header in this case)
-	bbi.requestSize.Record(
+	bbi.responseSize.Record(
 		ctx,
 		int64(len(bin)),
 	)
@@ -170,11 +165,10 @@ func (bbi *blackBoxInstrument) SyncerHead(ctx context.Context) (*header.Extended
 		bbi.lastHead = header.RawHeader.Height
 		bbi.blockTime.Record(
 			ctx,
-			time.Since(bbi.lastHeadTS).Milliseconds(),
+			time.Since(bbi.lastHeadTimestamp).Milliseconds(),
 			attribute.Int("height", int(header.RawHeader.Height)),
-			attribute.String("state", "failed"),
 		)
-		bbi.lastHeadTS = time.Now()
+		bbi.lastHeadTimestamp = time.Now()
 	}
 
 	return header, err

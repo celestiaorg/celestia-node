@@ -24,7 +24,6 @@ func WithMetrics(bc *metrics.BandwidthCounter) {
 			instrument.WithUnit(unit.Bytes),
 			instrument.WithDescription("total number of bytes received by the host"),
 		)
-
 	bandwidthTotalOutbound, _ := meter.
 		SyncInt64().
 		Histogram(
@@ -32,42 +31,36 @@ func WithMetrics(bc *metrics.BandwidthCounter) {
 			instrument.WithUnit(unit.Bytes),
 			instrument.WithDescription("total number of bytes sent by the host"),
 		)
-
 	bandwidthRateInbound, _ := meter.
 		SyncFloat64().
 		Histogram(
 			"p2p_bandwidth_rate_inbound",
 			instrument.WithDescription("total number of bytes sent by the host"),
 		)
-
 	bandwidthRateOutbound, _ := meter.
 		SyncFloat64().
 		Histogram(
 			"p2p_bandwidth_rate_outbound",
 			instrument.WithDescription("total number of bytes sent by the host"),
 		)
-
 	bandwidthTotalInboundByPeer, _ := meter.
 		SyncInt64().
 		Histogram(
 			"p2p_total_inbound_by_peer",
 			instrument.WithDescription("total number of bytes received by the host by peer"),
 		)
-
 	bandwidthTotalOutboundByPeer, _ := meter.
 		SyncInt64().
 		Histogram(
 			"p2p_total_outbound_by_peer",
 			instrument.WithDescription("total number of bytes sent by the host by peer"),
 		)
-
 	bandwidthInboundRateByPeer, _ := meter.
 		SyncFloat64().
 		Histogram(
 			"p2p_rate_inbound_by_peer",
 			instrument.WithDescription("rate of bytes received by the host by peer"),
 		)
-
 	bandwidthOutboundRateByPeer, _ := meter.
 		SyncFloat64().
 		Histogram(

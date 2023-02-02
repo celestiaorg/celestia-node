@@ -12,30 +12,12 @@ import (
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/rsmt2d"
 
-	// "github.com/celestiaorg/celestia-node/share/service"
 	"github.com/celestiaorg/nmt/namespace"
 	"github.com/celestiaorg/utils/misc"
 )
 
 var (
-	meter = global.MeterProvider().Meter("blackbox-share")
-)
-
-const (
-	// requestsNum metric attributes
-	requestsNumMetricName = "node.share.blackbox.requests_count"
-	requestNumMetricDesc  = "get share requests count"
-
-	// reqeustDuration metric attributes
-	requestDurationMetricName = "node.share.blackbox.request_duration"
-	requestDurationMetricDesc = "duration of a single get share request"
-
-	// requestSize metric attributes
-	requestSizeMetricName = "node.share.blackbox.request_size"
-	requestSizeMetricDesc = "size of a get share response"
-
-	squareSizeMetricName = "node.share.blackbox.eds_size"
-	squareSizeMetricDesc = "size of the erasure coded block"
+	meter = global.MeterProvider().Meter("proxy-share")
 )
 
 // instrumentedShareGetter is the proxy struct
@@ -44,7 +26,7 @@ const (
 // check share/getter.go and share/availability/light.go for more info
 type instrumentedShareGetter struct {
 	// metrics
-	requestsNum     syncint64.Counter
+	requestCount    syncint64.Counter
 	requestDuration syncint64.Histogram
 	requestSize     syncint64.Histogram
 	squareSize      syncint64.Histogram
@@ -54,11 +36,11 @@ type instrumentedShareGetter struct {
 }
 
 func newInstrument(next share.Getter) (share.Getter, error) {
-	requestsNum, err := meter.
+	requestCount, err := meter.
 		SyncInt64().
 		Counter(
-			requestsNumMetricName,
-			instrument.WithDescription(requestNumMetricDesc),
+			"node.share.blackbox.requests_count",
+			instrument.WithDescription("get share requests count"),
 		)
 	if err != nil {
 		return nil, err
@@ -67,8 +49,8 @@ func newInstrument(next share.Getter) (share.Getter, error) {
 	requestDuration, err := meter.
 		SyncInt64().
 		Histogram(
-			requestDurationMetricName,
-			instrument.WithDescription(requestDurationMetricDesc),
+			"node.share.blackbox.request_duration",
+			instrument.WithDescription("duration of a single get share request"),
 		)
 	if err != nil {
 		return nil, err
@@ -77,8 +59,8 @@ func newInstrument(next share.Getter) (share.Getter, error) {
 	requestSize, err := meter.
 		SyncInt64().
 		Histogram(
-			requestSizeMetricName,
-			instrument.WithDescription(requestSizeMetricDesc),
+			"node.share.blackbox.request_size",
+			instrument.WithDescription("size of a get share response"),
 		)
 	if err != nil {
 		return nil, err
@@ -87,42 +69,40 @@ func newInstrument(next share.Getter) (share.Getter, error) {
 	squareSize, err := meter.
 		SyncInt64().
 		Histogram(
-			squareSizeMetricName,
-			instrument.WithDescription(squareSizeMetricDesc),
+			"node.share.blackbox.eds_size",
+			instrument.WithDescription("size of the erasure coded block"),
 		)
 	if err != nil {
 		return nil, err
 	}
 
-	instrument := &instrumentedShareGetter{
-		requestsNum,
+	return &instrumentedShareGetter{
+		requestCount,
 		requestDuration,
 		requestSize,
 		squareSize,
 		next,
-	}
-
-	return instrument, nil
+	}, nil
 }
 
-// // GetShare gets a Share by coordinates in EDS.
+// GetShare gets a Share by coordinates in EDS.
 func (ins *instrumentedShareGetter) GetShare(ctx context.Context, root *share.Root, row, col int) (share.Share, error) {
-	log.Debug("GetShare is being called through the facade")
-	now := time.Now()
+	log.Debug("proxy-share: GetShare call is being proxied")
+	start := time.Now()
 	requestID, err := misc.RandString(5)
 	if err != nil {
 		return nil, err
 	}
 
 	// defer recording the duration until the request has received a response and finished
-	defer func(ctx context.Context, begin time.Time) {
+	defer func() {
 		ins.requestDuration.Record(
 			ctx,
-			time.Since(begin).Milliseconds(),
+			time.Since(start).Milliseconds(),
 		)
-	}(ctx, now)
+	}()
 
-	// measure the EDS size
+	// measure the EDS size (or rather the `k` parameter)
 	// this will track the EDS size for light nodes
 	ins.squareSize.Record(
 		ctx,
@@ -130,11 +110,9 @@ func (ins *instrumentedShareGetter) GetShare(ctx context.Context, root *share.Ro
 		attribute.String("request-id", requestID),
 	)
 
-	// perform the actual request
 	share, err := ins.next.GetShare(ctx, root, row, col)
 	if err != nil {
-		// count the request and tag it as a failed one
-		ins.requestsNum.Add(
+		ins.requestCount.Add(
 			ctx,
 			1,
 			attribute.String("request-id", requestID),
@@ -143,8 +121,7 @@ func (ins *instrumentedShareGetter) GetShare(ctx context.Context, root *share.Ro
 		return share, err
 	}
 
-	// other wise, count the request but tag it as a succeeded one
-	ins.requestsNum.Add(
+	ins.requestCount.Add(
 		ctx,
 		1,
 		attribute.String("request-id", requestID),
