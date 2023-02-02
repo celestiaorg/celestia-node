@@ -11,7 +11,7 @@ import (
 // The returned channel reports when the process is finished.
 func (s *Swamp) FillBlocks(ctx context.Context, bsize, blocks int) chan error {
 	// TODO @renaynay: figure out why sleep is necessary to prevent flakeyness for macOS
-	time.Sleep(time.Millisecond * 50)
+	time.Sleep(time.Millisecond * 100)
 	errCh := make(chan error)
 	go func() {
 		// TODO: FillBlock must respect the context
