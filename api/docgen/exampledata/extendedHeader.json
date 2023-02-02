@@ -1,0 +1,77 @@
+{
+  "validator_set": {
+    "validators": [
+      {
+        "address": "57DC09D28388DBF977CFC30EF50BE8B644CCC1FA",
+        "pub_key": {
+          "type": "tendermint/PubKeyEd25519",
+          "value": "aoB4xU9//HAqOP9ciyp0+PTdZxt/UGKgZOabU6JxW8o="
+        },
+        "voting_power": "5000000000",
+        "proposer_priority": "0"
+      }
+    ],
+    "proposer": {
+      "address": "57DC09D28388DBF977CFC30EF50BE8B644CCC1FA",
+      "pub_key": {
+        "type": "tendermint/PubKeyEd25519",
+        "value": "aoB4xU9//HAqOP9ciyp0+PTdZxt/UGKgZOabU6JxW8o="
+      },
+      "voting_power": "5000000000",
+      "proposer_priority": "0"
+    }
+  },
+  "header": {
+    "version": {
+      "block": 11
+    },
+    "chain_id": "arabica-2",
+    "height": 42,
+    "time": "2022-11-15T17:04:04.364455555Z",
+    "last_block_id": {
+      "hash": "D35285797CB08451E8E85B97B0259A3C98E42BFCAEA5465152EE68DBD5760935",
+      "parts": {
+        "total": 1,
+        "hash": "EF5E90A836E5676B98177FB38B0C0BB7D957F71BBA6109B1D79C65344BC6C7FB"
+      }
+    },
+    "last_commit_hash": "DB5BB6A1518FD618D5B6607E9507E60E52BB9B532E5718D6D74F1F510FE5D10F",
+    "data_hash": "6F52DAC16545E45725BE6EA32AED55266E45034800EEE1D87C9428F4844EA47A",
+    "validators_hash": "883A0C92B8D976312B249C1397E73CF2981A9EB715717CBEE3800B8380C22C1D",
+    "next_validators_hash": "883A0C92B8D976312B249C1397E73CF2981A9EB715717CBEE3800B8380C22C1D",
+    "consensus_hash": "048091BC7DDC283F77BFBF91D73C44DA58C3DF8A9CBC867405D8B7F3DAADA22F",
+    "app_hash": "9E52BD09B71043C25FBC7C8D928490E051811A10E978C66E3519A41352DD0699",
+    "last_results_hash": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+    "evidence_hash": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+    "proposer_address": "57DC09D28388DBF977CFC30EF50BE8B644CCC1FA"
+  },
+  "commit": {
+    "height": 42,
+    "round": 0,
+    "block_id": {
+      "hash": "F22BAEF4D99A835D9F2CA92C58E8AA48C589284B7916FF073A1D778C73EA4CC1",
+      "parts": {
+        "total": 1,
+        "hash": "9961CC7B6B9BE558D0FED40675232F4B37BEE75419C815240804C1A1801CF626"
+      }
+    },
+    "signatures": [
+      {
+        "block_id_flag": 2,
+        "validator_address": "57DC09D28388DBF977CFC30EF50BE8B644CCC1FA",
+        "timestamp": "2022-11-15T17:04:29.384867372Z",
+        "signature": "0+INXvvzUExQToNpmQhhvFySbQYFqoYTpgFACP+3lkSWGh48ukkMMqj2UnnAzqQhabuKeXx/5f8hiwEzeMM6Dg=="
+      }
+    ]
+  },
+  "dah": {
+    "row_roots": [
+      "//////////7//////////rr7xfWEpBugDbgBYmKPvIOGpNDJUjrMyS17ZyAnUvK7",
+      "/////////////////////zEUYTRl2BUUeFrpCh4OmiYKeTgtgYfn/tCeVNNVTMv4"
+    ],
+    "column_roots": [
+      "//////////7//////////rr7xfWEpBugDbgBYmKPvIOGpNDJUjrMyS17ZyAnUvK7",
+      "/////////////////////zEUYTRl2BUUeFrpCh4OmiYKeTgtgYfn/tCeVNNVTMv4"
+    ]
+  }
+}
