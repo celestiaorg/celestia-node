@@ -13,6 +13,8 @@ import (
 func TestPool(t *testing.T) {
 	t.Run("add / remove peers", func(t *testing.T) {
 		p := newPool()
+		p.cleanupDisabled = true
+
 		peers := []peer.ID{"peer1", "peer1", "peer2", "peer3"}
 		// adding same peer twice should not produce copies
 		p.add(peers...)
@@ -35,6 +37,8 @@ func TestPool(t *testing.T) {
 
 	t.Run("round robin", func(t *testing.T) {
 		p := newPool()
+		p.cleanupDisabled = true
+
 		peers := []peer.ID{"peer1", "peer1", "peer2", "peer3"}
 		// adding same peer twice should not produce copies
 		p.add(peers...)
@@ -74,11 +78,12 @@ func TestPool(t *testing.T) {
 		t.Cleanup(cancel)
 
 		p := newPool()
+		p.cleanupDisabled = true
 		done := make(chan struct{})
 
 		go func() {
 			select {
-			case <-p.waitNext(shortCtx):
+			case <-p.getNext(shortCtx):
 			case <-shortCtx.Done():
 				require.Error(t, shortCtx.Err())
 				// unlock longCtx waiter by adding new peer
@@ -89,7 +94,7 @@ func TestPool(t *testing.T) {
 		go func() {
 			defer close(done)
 			select {
-			case peerID := <-p.waitNext(longCtx):
+			case peerID := <-p.getNext(longCtx):
 				require.Equal(t, peer.ID("peer1"), peerID)
 			case <-longCtx.Done():
 				require.NoError(t, longCtx.Err())
@@ -105,6 +110,7 @@ func TestPool(t *testing.T) {
 
 	t.Run("next got removed", func(t *testing.T) {
 		p := newPool()
+		p.cleanupDisabled = true
 
 		peers := []peer.ID{"peer1", "peer2", "peer3"}
 		p.add(peers...)
@@ -119,7 +125,6 @@ func TestPool(t *testing.T) {
 
 	t.Run("cleanup", func(t *testing.T) {
 		p := newPool()
-		p.cleanupEnabled = true
 
 		peers := []peer.ID{"peer1", "peer2", "peer3", "peer4", "peer5"}
 		p.add(peers...)

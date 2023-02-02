@@ -11,7 +11,6 @@ import (
 	ds_sync "github.com/ipfs/go-datastore/sync"
 	mdutils "github.com/ipfs/go-merkledag/test"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
-	"github.com/libp2p/go-libp2p/core/peer"
 	mocknet "github.com/libp2p/go-libp2p/p2p/net/mock"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -190,7 +189,7 @@ func TestDASerSampleTimeout(t *testing.T) {
 	getter := getterStub{}
 	avail := mocks.NewMockAvailability(gomock.NewController(t))
 	avail.EXPECT().SharesAvailable(gomock.Any(), gomock.Any()).DoAndReturn(
-		func(sampleCtx context.Context, h *share.Root, peers ...peer.ID) error {
+		func(sampleCtx context.Context, h *share.Root) error {
 			select {
 			case <-sampleCtx.Done():
 				return sampleCtx.Err()
