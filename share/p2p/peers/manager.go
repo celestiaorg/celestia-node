@@ -11,14 +11,15 @@ import (
 	"github.com/libp2p/go-libp2p/core/peer"
 
 	"github.com/celestiaorg/celestia-node/header"
+	libhead "github.com/celestiaorg/celestia-node/libs/header"
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/availability/discovery"
 )
 
 const (
-	ResultSuccess sampleResult = iota
+	ResultSuccess syncResult = iota
 	ResultFail
-	ResultPeerMMisbehaved
+	ResultPeerMisbehaved
 )
 
 var log = logging.Logger("shrex/peers")
@@ -27,10 +28,10 @@ var log = logging.Logger("shrex/peers")
 type Manager struct {
 	disc *discovery.Discovery
 	// header subscription is necessary in order to validate the inbound eds hash
-	headerSub header.Subscription
+	headerSub libhead.Subscriber[*header.ExtendedHeader]
 
-	m               sync.Mutex
-	pools           map[string]syncPool
+	poolsLock       sync.Mutex
+	pools           map[string]*syncPool
 	poolSyncTimeout time.Duration
 	fullNodes       *pool
 
@@ -39,14 +40,14 @@ type Manager struct {
 }
 
 func NewManager(
-	headerSub header.Subscription,
+	headerSub libhead.Subscriber[*header.ExtendedHeader],
 	discovery *discovery.Discovery,
 	syncTimeout time.Duration,
 ) *Manager {
 	s := &Manager{
 		disc:            discovery,
 		headerSub:       headerSub,
-		pools:           make(map[string]syncPool),
+		pools:           make(map[string]*syncPool),
 		poolSyncTimeout: syncTimeout,
 		fullNodes:       newPool(),
 		done:            make(chan struct{}),
@@ -64,11 +65,18 @@ func NewManager(
 	return s
 }
 
-func (s *Manager) Start() {
+func (s *Manager) Start() error {
 	ctx, cancel := context.WithCancel(context.Background())
 	s.cancel = cancel
+
+	sub, err := s.headerSub.Subscribe()
+	if err != nil {
+		return err
+	}
 	go s.disc.EnsurePeers(ctx)
-	go s.subscribeHeader(ctx)
+	go s.subscribeHeader(ctx, sub)
+
+	return nil
 }
 
 func (s *Manager) Stop(ctx context.Context) error {
@@ -81,9 +89,9 @@ func (s *Manager) Stop(ctx context.Context) error {
 	}
 }
 
-type DoneFunc func(result sampleResult)
+type DoneFunc func(result syncResult)
 
-type sampleResult int
+type syncResult int
 
 // GetPeer returns peer collected from shrex.Sub for given datahash if any available.
 // If there is none, it will look for fullnodes collected from discovery. If there is no discovered
@@ -93,7 +101,7 @@ func (s *Manager) GetPeer(
 	ctx context.Context, datahash share.DataHash,
 ) (peer.ID, DoneFunc, error) {
 	p := s.getOrCreateValidatedPool(datahash.String())
-	peerID, ok := p.pool.tryGet()
+	peerID, ok := p.tryGet()
 	if ok {
 		return peerID, s.doneFunc(datahash, peerID), nil
 	}
@@ -106,9 +114,9 @@ func (s *Manager) GetPeer(
 
 	// no peers available, wait for the first one
 	select {
-	case peerID = <-p.pool.waitNext(ctx):
+	case peerID = <-p.getNext(ctx):
 		return peerID, s.doneFunc(datahash, peerID), nil
-	case peerID = <-s.fullNodes.waitNext(ctx):
+	case peerID = <-s.fullNodes.getNext(ctx):
 		return peerID, s.doneFunc(datahash, peerID), nil
 	case <-ctx.Done():
 		return "", nil, ctx.Err()
@@ -116,12 +124,12 @@ func (s *Manager) GetPeer(
 }
 
 func (s *Manager) doneFunc(datahash share.DataHash, peerID peer.ID) DoneFunc {
-	return func(result sampleResult) {
+	return func(result syncResult) {
 		switch result {
 		case ResultSuccess:
-			s.markSampled(datahash)
+			s.markSynced(datahash)
 		case ResultFail:
-		case ResultPeerMMisbehaved:
+		case ResultPeerMisbehaved:
 			// TODO: signal to peers Validator to return Reject
 			s.RemovePeers(datahash, peerID)
 			s.fullNodes.remove(peerID)
@@ -129,9 +137,9 @@ func (s *Manager) doneFunc(datahash share.DataHash, peerID peer.ID) DoneFunc {
 	}
 }
 
-// markSampled marks datahash as sampled if not yet marked, to release waiting validator and
+// markSynced marks datahash as synced if not yet marked, to release waiting validator and
 // retransmit the message via shrex.Sub
-func (s *Manager) markSampled(datahash share.DataHash) {
+func (s *Manager) markSynced(datahash share.DataHash) {
 	p := s.getOrCreateValidatedPool(datahash.String())
 	if p.isSynced.CompareAndSwap(false, true) {
 		close(p.waitSyncCh)
@@ -141,17 +149,17 @@ func (s *Manager) markSampled(datahash share.DataHash) {
 // RemovePeers removes peers for given datahash from store
 func (s *Manager) RemovePeers(datahash share.DataHash, ids ...peer.ID) {
 	p := s.getOrCreateValidatedPool(datahash.String())
-	p.pool.remove(ids...)
+	p.remove(ids...)
 }
 
 // subscribeHeader marks pool as validated when its datahash corresponds to a header received from
 // headerSub.
-func (s *Manager) subscribeHeader(ctx context.Context) {
+func (s *Manager) subscribeHeader(ctx context.Context, headerSub libhead.Subscription[*header.ExtendedHeader]) {
 	defer close(s.done)
-	defer s.headerSub.Cancel()
+	defer headerSub.Cancel()
 
 	for {
-		h, err := s.headerSub.NextHeader(ctx)
+		h, err := headerSub.NextHeader(ctx)
 		if err != nil {
 			if errors.Is(err, context.Canceled) {
 				return
@@ -164,9 +172,9 @@ func (s *Manager) subscribeHeader(ctx context.Context) {
 	}
 }
 
-func (s *Manager) getOrCreateValidatedPool(datahash string) syncPool {
-	s.m.Lock()
-	defer s.m.Unlock()
+func (s *Manager) getOrCreateValidatedPool(datahash string) *syncPool {
+	s.poolsLock.Lock()
+	defer s.poolsLock.Unlock()
 
 	p, ok := s.pools[datahash]
 	if !ok {
@@ -179,7 +187,7 @@ func (s *Manager) getOrCreateValidatedPool(datahash string) syncPool {
 	}
 
 	// if not yet validated, there is validator waiting that needs to be released
-	p.markValidated()
+	p.indicateValid()
 	return p
 }
 
@@ -189,9 +197,9 @@ func (s *Manager) getOrCreateValidatedPool(datahash string) syncPool {
 // in sync manner from another routine upon header discovery.
 func (s *Manager) Validate(ctx context.Context, peerID peer.ID, hash share.DataHash) pubsub.ValidationResult {
 	p := s.getOrCreateUnvalidatedPool(hash.String())
-	p.pool.add(peerID)
+	p.add(peerID)
 
-	// check of validation required
+	// check if validation is required
 	if !p.isValidDataHash.Load() {
 		if valid := p.waitValidation(ctx); !valid {
 			// no corresponding header was received for given datahash in time,
@@ -202,16 +210,18 @@ func (s *Manager) Validate(ctx context.Context, peerID peer.ID, hash share.DataH
 	}
 
 	// headerSub found corresponding ExtendedHeader for dataHash,
-	// wait for it to be sampled, before retransmission
-	if sampled := p.waitSampling(ctx); sampled {
+	// wait for it to be synced, before retransmission
+	if synced := p.WaitSync(ctx); synced {
+		// block with given datahash was synced, allow the pubsub to retransmit the message by
+		// returning Accept
 		return pubsub.ValidationAccept
 	}
 	return pubsub.ValidationIgnore
 }
 
-func (s *Manager) getOrCreateUnvalidatedPool(datahash string) syncPool {
-	s.m.Lock()
-	defer s.m.Unlock()
+func (s *Manager) getOrCreateUnvalidatedPool(datahash string) *syncPool {
+	s.poolsLock.Lock()
+	defer s.poolsLock.Unlock()
 
 	p, ok := s.pools[datahash]
 	if !ok {
@@ -228,7 +238,7 @@ func (s *Manager) getOrCreateUnvalidatedPool(datahash string) syncPool {
 }
 
 func (s *Manager) deletePool(datahash string) {
-	s.m.Lock()
-	defer s.m.Unlock()
+	s.poolsLock.Lock()
+	defer s.poolsLock.Unlock()
 	delete(s.pools, datahash)
 }

@@ -18,7 +18,7 @@ type pool struct {
 	hasPeer   bool
 	hasPeerCh chan struct{}
 
-	cleanupEnabled bool
+	cleanupDisabled bool
 }
 
 // newPool creates new pool
@@ -59,17 +59,18 @@ func (p *pool) tryGet() (peer.ID, bool) {
 	}
 }
 
-// waitNext waits for any peer to become available in the pool and sends it to the channel.
-func (p *pool) waitNext(ctx context.Context) <-chan peer.ID {
+// getNext sends a peer to the returned channel when it becomes available.
+func (p *pool) getNext(ctx context.Context) <-chan peer.ID {
 	peerCh := make(chan peer.ID, 1)
 	go func() {
 		for {
+			if peerID, ok := p.tryGet(); ok {
+				peerCh <- peerID
+				return
+			}
+
 			select {
 			case <-p.hasPeerCh:
-				if peerID, ok := p.tryGet(); ok {
-					peerCh <- peerID
-					return
-				}
 			case <-ctx.Done():
 				return
 			}
@@ -108,7 +109,7 @@ func (p *pool) remove(peers ...peer.ID) {
 	}
 
 	// do cleanup if too much garbage
-	if len(p.peersList) > p.activeCount*2 && p.cleanupEnabled {
+	if len(p.peersList) > p.activeCount*2 && p.cleanupDisabled {
 		p.cleanup()
 	}
 	p.checkHasPeers()

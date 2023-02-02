@@ -5,13 +5,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/golang/mock/gomock"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/stretchr/testify/require"
 
 	"github.com/celestiaorg/celestia-node/header"
-	header_mock "github.com/celestiaorg/celestia-node/header/mocks"
+	libhead "github.com/celestiaorg/celestia-node/libs/header"
 )
 
 func TestManager(t *testing.T) {
@@ -21,16 +20,13 @@ func TestManager(t *testing.T) {
 
 		// create headerSub mock
 		h := testHeader()
-		ctrl := gomock.NewController(t)
-		headerSub := header_mock.NewMockSubscription(ctrl)
-		headerSub.EXPECT().Cancel()
-		nextHeader := waitNextHeader(headerSub, h, nil)
+		headerSub := newSubLock(h, nil)
 
 		// start test manager
 		manager := testManager(headerSub)
 
 		// wait until header is requested from header sub
-		require.NoError(t, nextHeader.wait(ctx, 1))
+		require.NoError(t, headerSub.wait(ctx, 1))
 
 		doneCh := make(chan struct{})
 		peerID := peer.ID("peer")
@@ -62,10 +58,7 @@ func TestManager(t *testing.T) {
 
 		// create headerSub mock
 		h := testHeader()
-		ctrl := gomock.NewController(t)
-		headerSub := header_mock.NewMockSubscription(ctrl)
-		headerSub.EXPECT().Cancel()
-		nextHeader := waitNextHeader(headerSub, h, nil)
+		headerSub := newSubLock(h, nil)
 
 		// start test manager
 		manager := testManager(headerSub)
@@ -89,8 +82,8 @@ func TestManager(t *testing.T) {
 		waitPoolHasItems(ctx, t, p, 3)
 
 		// release headerSub with validating header
-		require.NoError(t, nextHeader.wait(ctx, 1))
-		// release sample lock by calling done
+		require.NoError(t, headerSub.wait(ctx, 1))
+		// release sync lock by calling done function
 		_, done, err := manager.GetPeer(ctx, h.DataHash.Bytes())
 		done(ResultSuccess)
 		require.NoError(t, err)
@@ -113,10 +106,7 @@ func TestManager(t *testing.T) {
 
 		// create headerSub mock
 		h := testHeader()
-		ctrl := gomock.NewController(t)
-		headerSub := header_mock.NewMockSubscription(ctrl)
-		headerSub.EXPECT().Cancel()
-		waitNextHeader(headerSub, h)
+		headerSub := newSubLock(h)
 
 		// start test manager
 		manager := testManager(headerSub)
@@ -157,10 +147,7 @@ func TestManager(t *testing.T) {
 
 		// create headerSub mock
 		h := testHeader()
-		ctrl := gomock.NewController(t)
-		headerSub := header_mock.NewMockSubscription(ctrl)
-		waitNextHeader(headerSub, h)
-		headerSub.EXPECT().Cancel()
+		headerSub := newSubLock(h)
 
 		// start test manager
 		manager := testManager(headerSub)
@@ -183,10 +170,7 @@ func TestManager(t *testing.T) {
 
 		// create headerSub mock
 		h := testHeader()
-		ctrl := gomock.NewController(t)
-		headerSub := header_mock.NewMockSubscription(ctrl)
-		waitNextHeader(headerSub, h)
-		headerSub.EXPECT().Cancel()
+		headerSub := newSubLock(h)
 
 		// start test manager
 		manager := testManager(headerSub)
@@ -227,12 +211,7 @@ func TestManager(t *testing.T) {
 		t.Cleanup(cancel)
 
 		h := testHeader()
-		dataHash := h.DataHash
-
-		ctrl := gomock.NewController(t)
-		headerSub := header_mock.NewMockSubscription(ctrl)
-		headerSub.EXPECT().Cancel()
-		waitNextHeader(headerSub, h)
+		headerSub := newSubLock(h, nil)
 
 		// start test manager
 		manager := testManager(headerSub)
@@ -252,11 +231,11 @@ func TestManager(t *testing.T) {
 		}
 
 		// wait for peers to be collected in pool
-		p := manager.getOrCreateUnvalidatedPool(dataHash.String())
+		p := manager.getOrCreateUnvalidatedPool(h.DataHash.String())
 		waitPoolHasItems(ctx, t, p, 3)
 
 		// mark pool as synced by calling GetPeer
-		peerID, done, err := manager.GetPeer(ctx, dataHash.Bytes())
+		peerID, done, err := manager.GetPeer(ctx, h.DataHash.Bytes())
 		done(ResultSuccess)
 		require.NoError(t, err)
 		require.Contains(t, peers, peerID)
@@ -275,18 +254,19 @@ func TestManager(t *testing.T) {
 	})
 }
 
-func testManager(headerSub *header_mock.MockSubscription) *Manager {
+func testManager(headerSub libhead.Subscriber[*header.ExtendedHeader]) *Manager {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	manager := &Manager{
 		headerSub:       headerSub,
-		pools:           make(map[string]syncPool),
+		pools:           make(map[string]*syncPool),
 		poolSyncTimeout: 60 * time.Second,
 		fullNodes:       newPool(),
 		cancel:          cancel,
 		done:            make(chan struct{}),
 	}
 
-	go manager.subscribeHeader(ctx)
+	sub, _ := headerSub.Subscribe()
+	go manager.subscribeHeader(ctx, sub)
 	return manager
 }
 
@@ -302,65 +282,10 @@ func testHeader() *header.ExtendedHeader {
 	}
 }
 
-type subLock struct {
-	next   chan struct{}
-	called chan struct{}
-}
-
-func (n subLock) wait(ctx context.Context, count int) error {
-	for i := 0; i < count; i++ {
-		select {
-		case <-n.called:
-			err := n.release(ctx)
-			if err != nil {
-				return err
-			}
-		case <-ctx.Done():
-			return ctx.Err()
-		}
-	}
-	return nil
-}
-
-func (n subLock) release(ctx context.Context) error {
-	select {
-	case n.next <- struct{}{}:
-		return nil
-	case <-ctx.Done():
-		return ctx.Err()
-	}
-}
-
-func waitNextHeader(subscription *header_mock.MockSubscription, expected ...*header.ExtendedHeader) subLock {
-	n := subLock{
-		next:   make(chan struct{}),
-		called: make(chan struct{}),
-	}
-
-	for i := range expected {
-		i := i
-		subscription.EXPECT().NextHeader(gomock.Any()).DoAndReturn(func(ctx context.Context) (*header.ExtendedHeader, error) {
-			close(n.called)
-			defer func() {
-				n.called = make(chan struct{})
-			}()
-
-			// wait for
-			select {
-			case <-n.next:
-				return expected[i], nil
-			case <-ctx.Done():
-				return nil, ctx.Err()
-			}
-		})
-	}
-	return n
-}
-
-func waitPoolHasItems(ctx context.Context, t *testing.T, p syncPool, count int) {
+func waitPoolHasItems(ctx context.Context, t *testing.T, p *syncPool, count int) {
 	for {
 		p.pool.m.Lock()
-		if p.pool.activeCount == count {
+		if p.pool.activeCount >= count {
 			p.pool.m.Unlock()
 			break
 		}
@@ -372,4 +297,68 @@ func waitPoolHasItems(ctx context.Context, t *testing.T, p syncPool, count int) 
 			time.Sleep(time.Millisecond)
 		}
 	}
+}
+
+type subLock struct {
+	next     chan struct{}
+	called   chan struct{}
+	expected []*header.ExtendedHeader
+}
+
+func (s subLock) wait(ctx context.Context, count int) error {
+	for i := 0; i < count; i++ {
+		select {
+		case <-s.called:
+			err := s.release(ctx)
+			if err != nil {
+				return err
+			}
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+	}
+	return nil
+}
+
+func (s subLock) release(ctx context.Context) error {
+	select {
+	case s.next <- struct{}{}:
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+}
+
+func newSubLock(expected ...*header.ExtendedHeader) *subLock {
+	return &subLock{
+		next:     make(chan struct{}),
+		called:   make(chan struct{}),
+		expected: expected,
+	}
+}
+
+func (s *subLock) Subscribe() (libhead.Subscription[*header.ExtendedHeader], error) {
+	return s, nil
+}
+
+func (s *subLock) AddValidator(f func(context.Context, *header.ExtendedHeader) pubsub.ValidationResult) error {
+	panic("implement me")
+}
+
+func (s *subLock) NextHeader(ctx context.Context) (*header.ExtendedHeader, error) {
+	close(s.called)
+
+	// wait for call to be unlocked by release
+	select {
+	case <-s.next:
+		h := s.expected[0]
+		s.expected = s.expected[1:]
+		s.called = make(chan struct{})
+		return h, nil
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	}
+}
+
+func (s *subLock) Cancel() {
 }
