@@ -10,7 +10,7 @@ require (
 	github.com/alecthomas/jsonschema v0.0.0-20200530073317-71f438968921
 	github.com/celestiaorg/celestia-app v0.12.0-rc4
 	github.com/celestiaorg/go-libp2p-messenger v0.1.0
-	github.com/celestiaorg/nmt v0.12.0
+	github.com/celestiaorg/nmt v0.14.0
 	github.com/celestiaorg/rsmt2d v0.8.0
 	github.com/cosmos/cosmos-sdk v0.46.7
 	github.com/cosmos/cosmos-sdk/api v0.1.0
