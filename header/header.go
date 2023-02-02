@@ -8,8 +8,6 @@ import (
 	"time"
 
 	"github.com/ipfs/go-blockservice"
-	logging "github.com/ipfs/go-log/v2"
-
 	amino "github.com/tendermint/tendermint/libs/json"
 	core "github.com/tendermint/tendermint/types"
 
@@ -20,8 +18,6 @@ import (
 	libhead "github.com/celestiaorg/celestia-node/libs/header"
 	"github.com/celestiaorg/celestia-node/share"
 )
-
-var log = logging.Logger("header")
 
 // ConstructFn aliases a function that creates an ExtendedHeader.
 type ConstructFn = func(
