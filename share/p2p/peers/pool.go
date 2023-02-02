@@ -109,7 +109,7 @@ func (p *pool) remove(peers ...peer.ID) {
 	}
 
 	// do cleanup if too much garbage
-	if len(p.peersList) > p.activeCount*2 && p.cleanupDisabled {
+	if len(p.peersList) > p.activeCount*2 && !p.cleanupDisabled {
 		p.cleanup()
 	}
 	p.checkHasPeers()
