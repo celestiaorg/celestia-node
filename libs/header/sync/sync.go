@@ -41,12 +41,12 @@ type Syncer[H header.Header] struct {
 	state   State
 	// signals to start syncing
 	triggerSync chan struct{}
+	// syncedHead is the latest synced header.
+	syncedHead H
 	// pending keeps ranges of valid new network headers awaiting to be appended to store
 	pending ranges[H]
 	// netReqLk ensures only one network head is requested at any moment
 	netReqLk sync.RWMutex
-
-	syncedHead H
 
 	// controls lifecycle for syncLoop
 	ctx    context.Context
@@ -251,7 +251,7 @@ func (s *Syncer[H]) processHeaders(ctx context.Context, from, to uint64) (int, e
 	}
 
 	amount, err := s.store.Append(ctx, headers...)
-	if err != nil && amount > 0 {
+	if err == nil && amount > 0 {
 		s.syncedHead = headers[amount-1]
 	}
 	return amount, err
