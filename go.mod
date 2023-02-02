@@ -8,9 +8,9 @@ require (
 	cosmossdk.io/math v1.0.0-beta.3
 	github.com/BurntSushi/toml v1.2.1
 	github.com/alecthomas/jsonschema v0.0.0-20200530073317-71f438968921
-	github.com/celestiaorg/celestia-app v0.12.0-rc4
+	github.com/celestiaorg/celestia-app v0.12.0-rc5
 	github.com/celestiaorg/go-libp2p-messenger v0.1.0
-	github.com/celestiaorg/nmt v0.12.0
+	github.com/celestiaorg/nmt v0.14.0
 	github.com/celestiaorg/rsmt2d v0.8.0
 	github.com/cosmos/cosmos-sdk v0.46.7
 	github.com/cosmos/cosmos-sdk/api v0.1.0
@@ -322,9 +322,9 @@ require (
 )
 
 replace (
-	github.com/cosmos/cosmos-sdk => github.com/celestiaorg/cosmos-sdk v1.5.1-sdk-v0.46.6
+	github.com/cosmos/cosmos-sdk => github.com/celestiaorg/cosmos-sdk v1.7.0-sdk-v0.46.7
 	github.com/filecoin-project/dagstore => github.com/celestiaorg/dagstore v0.0.0-20221014072825-395797efb659
 	github.com/gogo/protobuf => github.com/regen-network/protobuf v1.3.3-alpha.regen.1
 	github.com/libp2p/go-libp2p => github.com/Wondertan/go-libp2p v0.5.3-0.20230126212817-d54022334dbe
-	github.com/tendermint/tendermint => github.com/celestiaorg/celestia-core v1.13.0-tm-v0.34.23
+	github.com/tendermint/tendermint => github.com/celestiaorg/celestia-core v1.14.0-tm-v0.34.23
 )

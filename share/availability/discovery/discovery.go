@@ -143,27 +143,29 @@ func (d *Discovery) ensurePeers(ctx context.Context) {
 	// starting to listen to subscriptions async will help us to avoid any blocking
 	// in the case when we will not have the needed amount of FNs and will be blocked in `FindPeers`.
 	go func() {
-		select {
-		case <-ctx.Done():
-			log.Debug("Context canceled. Finish listening for connectedness events.")
-			return
-		case e, ok := <-sub.Out():
-			if !ok {
-				log.Debug("Subscription for connectedness events is closed.")
+		for {
+			select {
+			case <-ctx.Done():
+				log.Debug("Context canceled. Finish listening for connectedness events.")
 				return
-			}
-			// listen to disconnect event to remove peer from set and reset backoff time
-			// reset timer in order to restart the discovery, once stored peer is disconnected
-			connStatus := e.(event.EvtPeerConnectednessChanged)
-			if connStatus.Connectedness == network.NotConnected {
-				if d.set.Contains(connStatus.Peer) {
-					log.Debugw("removing the peer from the peer set",
-						"peer", connStatus.Peer, "status", connStatus.Connectedness.String())
-					d.connector.RestartBackoff(connStatus.Peer)
-					d.set.Remove(connStatus.Peer)
-					d.onUpdatedPeers(connStatus.Peer, false)
-					d.host.ConnManager().UntagPeer(connStatus.Peer, topic)
-					t.Reset(d.discoveryInterval)
+			case e, ok := <-sub.Out():
+				if !ok {
+					log.Debug("Subscription for connectedness events is closed.")
+					return
+				}
+				// listen to disconnect event to remove peer from set and reset backoff time
+				// reset timer in order to restart the discovery, once stored peer is disconnected
+				connStatus := e.(event.EvtPeerConnectednessChanged)
+				if connStatus.Connectedness == network.NotConnected {
+					if d.set.Contains(connStatus.Peer) {
+						log.Debugw("removing the peer from the peer set",
+							"peer", connStatus.Peer, "status", connStatus.Connectedness.String())
+						d.connector.RestartBackoff(connStatus.Peer)
+						d.set.Remove(connStatus.Peer)
+						d.onUpdatedPeers(connStatus.Peer, false)
+						d.host.ConnManager().UntagPeer(connStatus.Peer, topic)
+						t.Reset(d.discoveryInterval)
+					}
 				}
 			}
 		}

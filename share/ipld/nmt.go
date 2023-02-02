@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"errors"
 	"fmt"
+	"hash"
 	"math/rand"
 
 	blocks "github.com/ipfs/go-block-format"
@@ -13,10 +14,12 @@ import (
 	ipld "github.com/ipfs/go-ipld-format"
 	logging "github.com/ipfs/go-log/v2"
 	mh "github.com/multiformats/go-multihash"
+	mhcore "github.com/multiformats/go-multihash/core"
 	"go.opentelemetry.io/otel"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/pkg/da"
+	"github.com/celestiaorg/nmt"
 )
 
 var (
@@ -61,6 +64,15 @@ const (
 	// If set to true, this allows for shorter proofs in particular use-cases.
 	NMTIgnoreMaxNamespace = true
 )
+
+func init() {
+	// required for Bitswap to hash and verify inbound data correctly
+	mhcore.Register(sha256Namespace8Flagged, func() hash.Hash {
+		nh := nmt.NewNmtHasher(sha256.New(), NamespaceSize, true)
+		nh.Reset()
+		return nh
+	})
+}
 
 func GetNode(ctx context.Context, bGetter blockservice.BlockGetter, root cid.Cid) (ipld.Node, error) {
 	block, err := bGetter.GetBlock(ctx, root)
