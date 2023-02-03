@@ -232,7 +232,7 @@ func (s *Syncer[H]) doSync(ctx context.Context, toHead H) (err error) {
 	s.state.Start = time.Now()
 	s.stateLk.Unlock()
 
-	err = s.requestHeaders(ctx, to)
+	err = s.processHeaders(ctx, to)
 
 	s.stateLk.Lock()
 	s.state.End = time.Now()
@@ -241,38 +241,38 @@ func (s *Syncer[H]) doSync(ctx context.Context, toHead H) (err error) {
 	return err
 }
 
-// requestHeaders gets and stores headers starting at the given 'from' height up to 'to' height -
+// processHeaders gets and stores headers starting at the given 'from' height up to 'to' height -
 // [from:to]
-// requestHeaders checks headers in pending cache that apply to the requested range.
+// processHeaders checks headers in pending cache that apply to the requested range.
 // If some headers are missing, it starts requesting them from the network.
 // All headers that will be received are verified to be contiguous.
-func (s *Syncer[H]) requestHeaders(
+func (s *Syncer[H]) processHeaders(
 	ctx context.Context,
 	to uint64,
 ) (err error) {
 	cached := s.pending.cached(s.syncedHead, to)
-	for _, headers := range cached {
-		if s.syncedHead.Height()+1 != headers[0].Height() {
+	for _, cachedRange := range cached {
+		if s.syncedHead.Height()+1 != cachedRange[0].Height() {
 			// make an external request
-			err = s.findHeaders(ctx, uint64(headers[0].Height())-1)
+			err = s.requestHeaders(ctx, uint64(cachedRange[0].Height())-1)
 			if err != nil {
 				return err
 			}
 		}
 		// apply cached headers
-		amount, err := s.store.Append(ctx, headers...)
+		amount, err := s.store.Append(ctx, cachedRange...)
 		if err != nil {
 			return err
 		}
 		if amount > 0 {
-			s.syncedHead = headers[amount-1]
+			s.syncedHead = cachedRange[amount-1]
 		}
 	}
-	return s.findHeaders(ctx, to)
+	return s.requestHeaders(ctx, to)
 }
 
-// findHeaders requests headers from the network -> (fromHeader.Height;to].
-func (s *Syncer[H]) findHeaders(
+// requestHeaders requests headers from the network -> (fromHeader.Height;to].
+func (s *Syncer[H]) requestHeaders(
 	ctx context.Context,
 	to uint64,
 ) error {
