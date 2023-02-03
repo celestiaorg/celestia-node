@@ -120,7 +120,6 @@ func (s *Swamp) WaitTillHeight(ctx context.Context, height int64) libhead.Hash {
 		case <-t.C:
 			latest, err := s.ClientContext.LatestHeight()
 			require.NoError(s.t, err)
-
 			if latest >= height {
 				res, err := s.ClientContext.Client.Block(ctx, &latest)
 				require.NoError(s.t, err)

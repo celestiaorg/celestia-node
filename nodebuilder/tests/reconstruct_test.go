@@ -101,29 +101,33 @@ func TestFullReconstructFromLights(t *testing.T) {
 	)
 
 	ctx, cancel := context.WithTimeout(context.Background(), swamp.DefaultTestTimeout)
-
 	t.Cleanup(cancel)
+
 	sw := swamp.NewSwamp(t, swamp.WithBlockTime(btime))
 	fillDn := sw.FillBlocks(ctx, bsize, blocks)
 
 	const defaultTimeInterval = time.Second * 5
-	cfg := nodebuilder.DefaultConfig(node.Full)
-	cfg.P2P.Bootstrapper = true
-	setTimeInterval(cfg, defaultTimeInterval)
 
 	bridge := sw.NewBridgeNode()
 	addrsBridge, err := peer.AddrInfoToP2pAddrs(host.InfoFromHost(bridge.Host))
 	require.NoError(t, err)
+
+	cfg := nodebuilder.DefaultConfig(node.Full)
+	cfg.P2P.Bootstrapper = true
+	setTimeInterval(cfg, defaultTimeInterval)
 	bootstrapper := sw.NewNodeWithConfig(node.Full, cfg)
 	require.NoError(t, bootstrapper.Start(ctx))
-	require.NoError(t, bridge.Start(ctx))
 	bootstrapperAddr := host.InfoFromHost(bootstrapper.Host)
+
+	// start bridge
+	require.NoError(t, bridge.Start(ctx))
 
 	cfg = nodebuilder.DefaultConfig(node.Full)
 	setTimeInterval(cfg, defaultTimeInterval)
 	cfg.Header.TrustedPeers = append(cfg.Header.TrustedPeers, addrsBridge[0].String())
-	nodesConfig := nodebuilder.WithBootstrappers([]peer.AddrInfo{*bootstrapperAddr})
-	full := sw.NewNodeWithConfig(node.Full, cfg, nodesConfig)
+	withBootstrappersOpt := nodebuilder.WithBootstrappers([]peer.AddrInfo{*bootstrapperAddr})
+	full := sw.NewNodeWithConfig(node.Full, cfg, withBootstrappersOpt)
+	require.NoError(t, full.Start(ctx))
 
 	lights := make([]*nodebuilder.Node, lnodes)
 	subs := make([]event.Subscription, lnodes)
@@ -134,7 +138,7 @@ func TestFullReconstructFromLights(t *testing.T) {
 			lnConfig := nodebuilder.DefaultConfig(node.Light)
 			setTimeInterval(lnConfig, defaultTimeInterval)
 			lnConfig.Header.TrustedPeers = append(lnConfig.Header.TrustedPeers, addrsBridge[0].String())
-			light := sw.NewNodeWithConfig(node.Light, lnConfig, nodesConfig)
+			light := sw.NewNodeWithConfig(node.Light, lnConfig, withBootstrappersOpt)
 			sub, err := light.Host.EventBus().Subscribe(&event.EvtPeerIdentificationCompleted{})
 			if err != nil {
 				return err
@@ -145,7 +149,6 @@ func TestFullReconstructFromLights(t *testing.T) {
 		})
 	}
 	require.NoError(t, errg.Wait())
-	require.NoError(t, full.Start(ctx))
 	for i := 0; i < lnodes; i++ {
 		select {
 		case <-ctx.Done():
@@ -155,16 +158,16 @@ func TestFullReconstructFromLights(t *testing.T) {
 			continue
 		}
 	}
-	errg, bctx := errgroup.WithContext(ctx)
+	errg, errCtx = errgroup.WithContext(ctx)
 	for i := 1; i <= blocks+1; i++ {
 		i := i
 		errg.Go(func() error {
-			h, err := full.HeaderServ.GetByHeight(bctx, uint64(i))
+			h, err := full.HeaderServ.GetByHeight(errCtx, uint64(i))
 			if err != nil {
 				return err
 			}
 
-			return full.ShareServ.SharesAvailable(bctx, h.DAH)
+			return full.ShareServ.SharesAvailable(errCtx, h.DAH)
 		})
 	}
 	require.NoError(t, <-fillDn)
