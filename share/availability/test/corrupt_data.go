@@ -87,9 +87,9 @@ func (fb FraudulentBlockstore) Put(ctx context.Context, block blocks.Block) erro
 		return err
 	}
 
-	// create data that doesn't match the CID with arbitrary lengths between 0 and
+	// create data that doesn't match the CID with arbitrary lengths between 1 and
 	// len(block.RawData())*2
-	corrupted := make([]byte, mrand.Int()%(len(block.RawData())*2))
+	corrupted := make([]byte, 1+mrand.Int()%(len(block.RawData())*2-1))
 	mrand.Read(corrupted)
 	return fb.Datastore.Put(ctx, ds.NewKey("corrupt"+block.Cid().String()), corrupted)
 }

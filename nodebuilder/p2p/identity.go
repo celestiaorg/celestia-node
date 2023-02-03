@@ -42,7 +42,7 @@ func Key(kstore keystore.Keystore) (crypto.PrivKey, error) {
 	return crypto.UnmarshalPrivateKey(ksPriv.Body)
 }
 
-func ID(key crypto.PrivKey, pstore peerstore.Peerstore) (peer.ID, error) {
+func id(key crypto.PrivKey, pstore peerstore.Peerstore) (peer.ID, error) {
 	id, err := peer.IDFromPrivateKey(key)
 	if err != nil {
 		return "", err

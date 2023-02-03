@@ -11,8 +11,8 @@ import (
 	"github.com/libp2p/go-libp2p/p2p/net/connmgr"
 )
 
-// ConnManagerConfig configures connection manager.
-type ConnManagerConfig struct {
+// connManagerConfig configures connection manager.
+type connManagerConfig struct {
 	// Low and High are watermarks governing the number of connections that'll be maintained.
 	Low, High int
 	// GracePeriod is the amount of time a newly opened connection is given before it becomes subject
@@ -20,17 +20,17 @@ type ConnManagerConfig struct {
 	GracePeriod time.Duration
 }
 
-// DefaultConnManagerConfig returns defaults for ConnManagerConfig.
-func DefaultConnManagerConfig() ConnManagerConfig {
-	return ConnManagerConfig{
+// defaultConnManagerConfig returns defaults for ConnManagerConfig.
+func defaultConnManagerConfig() connManagerConfig {
+	return connManagerConfig{
 		Low:         50,
 		High:        100,
 		GracePeriod: time.Minute,
 	}
 }
 
-// ConnectionManager provides a constructor for ConnectionManager.
-func ConnectionManager(cfg Config, bpeers Bootstrappers) (connmgri.ConnManager, error) {
+// connectionManager provides a constructor for ConnectionManager.
+func connectionManager(cfg Config, bpeers Bootstrappers) (connmgri.ConnManager, error) {
 	fpeers, err := cfg.mutualPeers()
 	if err != nil {
 		return nil, err
@@ -53,12 +53,12 @@ func ConnectionManager(cfg Config, bpeers Bootstrappers) (connmgri.ConnManager, 
 	return cm, nil
 }
 
-// ConnectionGater constructs a BasicConnectionGater.
-func ConnectionGater(ds datastore.Batching) (*conngater.BasicConnectionGater, error) {
+// connectionGater constructs a BasicConnectionGater.
+func connectionGater(ds datastore.Batching) (*conngater.BasicConnectionGater, error) {
 	return conngater.NewBasicConnectionGater(ds)
 }
 
-// PeerStore constructs a PeerStore.
-func PeerStore() (peerstore.Peerstore, error) {
+// peerStore constructs a PeerStore.
+func peerStore() (peerstore.Peerstore, error) {
 	return pstoremem.NewPeerstore()
 }

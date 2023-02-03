@@ -10,13 +10,12 @@ import (
 	"github.com/ipfs/go-blockservice"
 	logging "github.com/ipfs/go-log/v2"
 
-	amino "github.com/tendermint/tendermint/libs/json"
+	tmjson "github.com/tendermint/tendermint/libs/json"
 	core "github.com/tendermint/tendermint/types"
 
 	appshares "github.com/celestiaorg/celestia-app/pkg/shares"
 
 	"github.com/celestiaorg/celestia-app/pkg/da"
-
 	libhead "github.com/celestiaorg/celestia-node/libs/header"
 	"github.com/celestiaorg/celestia-node/share"
 )
@@ -188,15 +187,21 @@ func (eh *ExtendedHeader) UnmarshalBinary(data []byte) error {
 // to be able to unmarshal the crypto.PubKey type back from JSON.
 func (eh *ExtendedHeader) MarshalJSON() ([]byte, error) {
 	type Alias ExtendedHeader
-	validatorSet, err := amino.Marshal(eh.ValidatorSet)
+	validatorSet, err := tmjson.Marshal(eh.ValidatorSet)
+	if err != nil {
+		return nil, err
+	}
+	rawHeader, err := tmjson.Marshal(eh.RawHeader)
 	if err != nil {
 		return nil, err
 	}
 	return json.Marshal(&struct {
+		RawHeader    json.RawMessage `json:"header"`
 		ValidatorSet json.RawMessage `json:"validator_set"`
 		*Alias
 	}{
 		ValidatorSet: validatorSet,
+		RawHeader:    rawHeader,
 		Alias:        (*Alias)(eh),
 	})
 }
@@ -206,6 +211,7 @@ func (eh *ExtendedHeader) MarshalJSON() ([]byte, error) {
 func (eh *ExtendedHeader) UnmarshalJSON(data []byte) error {
 	type Alias ExtendedHeader
 	aux := &struct {
+		RawHeader    json.RawMessage `json:"header"`
 		ValidatorSet json.RawMessage `json:"validator_set"`
 		*Alias
 	}{
@@ -216,10 +222,15 @@ func (eh *ExtendedHeader) UnmarshalJSON(data []byte) error {
 	}
 
 	valSet := new(core.ValidatorSet)
-	if err := amino.Unmarshal(aux.ValidatorSet, valSet); err != nil {
+	if err := tmjson.Unmarshal(aux.ValidatorSet, valSet); err != nil {
+		return err
+	}
+	rawHeader := new(RawHeader)
+	if err := tmjson.Unmarshal(aux.RawHeader, rawHeader); err != nil {
 		return err
 	}
 
 	eh.ValidatorSet = valSet
+	eh.RawHeader = *rawHeader
 	return nil
 }

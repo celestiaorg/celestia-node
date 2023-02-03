@@ -47,7 +47,7 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 					p2p.WithRequestTimeout[p2p.ServerParameters](cfg.Server.RequestTimeout),
 				}
 			}),
-		fx.Provide(NewHeaderService),
+		fx.Provide(newHeaderService),
 		fx.Provide(fx.Annotate(
 			func(ds datastore.Batching, opts []store.Option) (libhead.Store[*header.ExtendedHeader], error) {
 				return store.NewStore[*header.ExtendedHeader](ds, opts...)
