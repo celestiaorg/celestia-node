@@ -33,6 +33,21 @@ func (rs *ranges[H]) head() H {
 	return head.Head()
 }
 
+// cached returns all headers sub-ranges of headers that could be found in between the requested range.
+func (rs *ranges[H]) cached(fromHeader H, to uint64) [][]H {
+	r := rs.FindAllRangesWithin(uint64(fromHeader.Height()+1), to) // start looking for headers for the next height
+	if len(r) == 0 {
+		return nil
+	}
+
+	out := make([][]H, len(r))
+	for i, headersRange := range r {
+		cached, _ := headersRange.Before(to)
+		out[i] = append(out[i], cached...)
+	}
+	return out
+}
+
 // Add appends the new Header to existing range or starts a new one.
 // It starts a new one if the new Header is not adjacent to any of existing ranges.
 func (rs *ranges[H]) Add(h H) {

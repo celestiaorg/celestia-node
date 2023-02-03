@@ -183,9 +183,13 @@ func (s *Syncer[H]) sync(ctx context.Context) {
 		}
 		s.syncedHead = head
 	}
+
+	// local variable for better logging
+	from := s.syncedHead.Height()
+
 	if s.syncedHead.Height() >= newHead.Height() {
 		log.Warnw("sync attempt to an already synced header",
-			"synced_height", s.syncedHead.Height(),
+			"synced_height", from,
 			"attempted_height", newHead.Height(),
 		)
 		log.Warn("PLEASE REPORT THIS AS A BUG")
@@ -193,9 +197,9 @@ func (s *Syncer[H]) sync(ctx context.Context) {
 	}
 
 	log.Infow("syncing headers",
-		"from", s.syncedHead.Height(),
+		"from", from,
 		"to", newHead.Height())
-	err := s.doSync(ctx, s.syncedHead, newHead)
+	err := s.doSync(ctx, newHead)
 	if err != nil {
 		if errors.Is(err, context.Canceled) {
 			// don't log this error as it is normal case of Syncer being stopped
@@ -203,32 +207,32 @@ func (s *Syncer[H]) sync(ctx context.Context) {
 		}
 
 		log.Errorw("syncing headers",
-			"from", s.syncedHead.Height(),
+			"from", from,
 			"to", newHead.Height(),
 			"err", err)
 		return
 	}
 
 	log.Infow("finished syncing",
-		"from", s.syncedHead.Height(),
+		"from", from,
 		"to", newHead.Height(),
 		"elapsed time", s.state.End.Sub(s.state.Start))
 }
 
 // doSync performs actual syncing updating the internal State
-func (s *Syncer[H]) doSync(ctx context.Context, fromHead, toHead H) (err error) {
-	from, to := uint64(fromHead.Height())+1, uint64(toHead.Height())
+func (s *Syncer[H]) doSync(ctx context.Context, toHead H) (err error) {
+	to := uint64(toHead.Height())
 
 	s.stateLk.Lock()
 	s.state.ID++
-	s.state.FromHeight = from
+	s.state.FromHeight = uint64(s.syncedHead.Height() + 1)
 	s.state.ToHeight = to
-	s.state.FromHash = fromHead.Hash()
+	s.state.FromHash = s.syncedHead.Hash()
 	s.state.ToHash = toHead.Hash()
 	s.state.Start = time.Now()
 	s.stateLk.Unlock()
 
-	err = s.processHeaders(ctx, fromHead, to)
+	err = s.requestHeaders(ctx, to)
 
 	s.stateLk.Lock()
 	s.state.End = time.Now()
@@ -237,95 +241,42 @@ func (s *Syncer[H]) doSync(ctx context.Context, fromHead, toHead H) (err error) 
 	return err
 }
 
-// processHeaders gets and stores headers starting at the given 'from' height up to 'to' height -
+// requestHeaders gets and stores headers starting at the given 'from' height up to 'to' height -
 // [from:to]
-func (s *Syncer[H]) processHeaders(ctx context.Context, fromHeader H, to uint64) error {
-	headers, err := s.requestHeaders(ctx, fromHeader, to)
-	if err != nil {
-		return err
-	}
-
-	amount, err := s.store.Append(ctx, headers...)
-	if err == nil && amount > 0 {
-		s.syncedHead = headers[amount-1]
-	}
-	return err
-}
-
 // requestHeaders checks headers in pending cache that apply to the requested range.
 // If some headers are missing, it starts requesting them from the network.
 // All headers that will be received are verified to be contiguous.
 func (s *Syncer[H]) requestHeaders(
 	ctx context.Context,
-	fromHeader H,
 	to uint64,
-) ([]H, error) {
-	amount := to - uint64(fromHeader.Height())
-	cached, ok := s.checkCache(fromHeader, to)
-	if !ok {
-		// request full range if cache is empty
-		return s.findHeaders(ctx, fromHeader, to)
-	}
-
-	out := make([]H, 0, amount)
+) (err error) {
+	cached := s.pending.cached(s.syncedHead, to)
 	for _, headers := range cached {
-		if fromHeader.Height()+1 == headers[0].Height() {
-			// apply cache
-			out = append(out, headers...)
-			// set new header to count from
-			fromHeader = out[len(out)-1]
-			continue
+		if s.syncedHead.Height()+1 != headers[0].Height() {
+			// make an external request
+			err = s.findHeaders(ctx, uint64(headers[0].Height())-1)
+			if err != nil {
+				return err
+			}
 		}
-		// make an external request
-		h, err := s.findHeaders(ctx, fromHeader, uint64(headers[0].Height())-1)
+		// apply cached headers
+		amount, err := s.store.Append(ctx, headers...)
 		if err != nil {
-			return nil, err
+			return err
 		}
-		// apply received headers + headers from the range
-		out = append(out, append(h, headers...)...)
-		fromHeader = out[len(out)-1]
+		if amount > 0 {
+			s.syncedHead = headers[amount-1]
+		}
 	}
-
-	// ensure that we have all requested headers
-	if uint64(len(out)) == amount {
-		return out, nil
-	}
-	// make one more external request in case if `to` is bigger than the
-	// last cached header
-	h, err := s.findHeaders(ctx, fromHeader, to)
-	if err != nil {
-		return nil, err
-	}
-	return append(out, h...), nil
-}
-
-// checkCache returns all headers sub-ranges of headers that could be found in between the requested range.
-func (s *Syncer[H]) checkCache(fromHeader H, to uint64) ([][]H, bool) {
-	r := s.pending.FindAllRangesWithin(uint64(fromHeader.Height()+1), to) // start looking for headers for the next height
-	if len(r) == 0 {
-		return nil, false
-	}
-
-	out := make([][]H, len(r))
-	for i, headersRange := range r {
-		cached, _ := headersRange.Before(to)
-		out[i] = append(out[i], cached...)
-	}
-	return out, len(out) > 0
+	return s.findHeaders(ctx, to)
 }
 
 // findHeaders requests headers from the network -> (fromHeader.Height;to].
 func (s *Syncer[H]) findHeaders(
 	ctx context.Context,
-	fromHeader H,
 	to uint64,
-) ([]H, error) {
-	amount := to - uint64(fromHeader.Height())
-	// request full range if the amount of headers is less than the MaxRequestSize.
-	if amount <= s.Params.MaxRequestSize {
-		return s.exchange.GetVerifiedRange(ctx, fromHeader, amount)
-	}
-	out := make([]H, 0, amount)
+) error {
+	amount := to - uint64(s.syncedHead.Height())
 	// start requesting headers until amount will be 0
 	for amount > 0 {
 		size := s.Params.MaxRequestSize
@@ -333,14 +284,19 @@ func (s *Syncer[H]) findHeaders(
 			size = amount
 		}
 
-		headers, err := s.exchange.GetVerifiedRange(ctx, fromHeader, size)
+		headers, err := s.exchange.GetVerifiedRange(ctx, s.syncedHead, size)
 		if err != nil {
-			return nil, err
+			return err
 		}
-		out = append(out, headers...)
-		fromHeader = out[len(out)-1]
 		amount -= size
-	}
 
-	return out, nil
+		stored, err := s.store.Append(ctx, headers...)
+		if err != nil {
+			return nil
+		}
+		if amount > 0 {
+			s.syncedHead = headers[stored-1]
+		}
+	}
+	return nil
 }
