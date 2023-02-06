@@ -14,6 +14,7 @@ import (
 
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/libs/header/p2p"
+	network "github.com/celestiaorg/celestia-node/nodebuilder/p2p"
 	"github.com/celestiaorg/celestia-node/share/p2p/shrexsub"
 )
 
@@ -24,7 +25,7 @@ func TestListener(t *testing.T) {
 
 	// create mocknet with two pubsub endpoints
 	ps0, ps1 := createMocknetWithTwoPubsubEndpoints(ctx, t)
-	subscriber := p2p.NewSubscriber[*header.ExtendedHeader](ps1, header.MsgID, "private")
+	subscriber := p2p.NewSubscriber[*header.ExtendedHeader](ps1, header.MsgID, string(network.Private))
 	err := subscriber.AddValidator(func(context.Context, *header.ExtendedHeader) pubsub.ValidationResult {
 		return pubsub.ValidationAccept
 	})
@@ -103,7 +104,7 @@ func createListener(
 	ps *pubsub.PubSub,
 	edsSub *shrexsub.PubSub,
 ) *Listener {
-	p2pSub := p2p.NewSubscriber[*header.ExtendedHeader](ps, header.MsgID, "private")
+	p2pSub := p2p.NewSubscriber[*header.ExtendedHeader](ps, header.MsgID, string(network.Private))
 	err := p2pSub.Start(ctx)
 	require.NoError(t, err)
 	t.Cleanup(func() {

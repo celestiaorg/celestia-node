@@ -9,17 +9,17 @@ import (
 	"github.com/libp2p/go-libp2p/core/protocol"
 )
 
-func pubSubTopicID(fraudType, protocolSuffix string) string {
-	return fmt.Sprintf("/fraud-sub/%s/v0.0.1/%s", fraudType, protocolSuffix)
+func pubsubTopicID(fraudType, protocolSuffix string) string {
+	return fmt.Sprintf("/fraud-sub/%s/%s/v0.0.1", protocolSuffix, fraudType)
 }
 
 func protocolID(protocolSuffix string) protocol.ID {
-	return protocol.ID(fmt.Sprintf("/fraud/v0.0.1/%s", protocolSuffix))
+	return protocol.ID(fmt.Sprintf("/fraud/%s/v0.0.1", protocolSuffix))
 }
 
 func join(p *pubsub.PubSub, proofType ProofType, protocolSuffix string,
 	validate func(context.Context, ProofType, peer.ID, *pubsub.Message) pubsub.ValidationResult) (*pubsub.Topic, error) {
-	topic := pubSubTopicID(string(proofType), protocolSuffix)
+	topic := pubsubTopicID(string(proofType), protocolSuffix)
 	log.Infow("joining topic", "id", topic)
 	t, err := p.Join(topic)
 	if err != nil {
