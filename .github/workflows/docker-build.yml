@@ -45,7 +45,6 @@ jobs:
           platforms: linux/amd64
           push: true
           tags: ${{ steps.meta.outputs.tags }}
-          file: docker/Dockerfile
       - name: Build and Push amd64+arm64 Images
         if: |
           github.ref == 'refs/heads/main' ||
@@ -55,4 +54,3 @@ jobs:
           platforms: linux/arm64, linux/amd64
           push: true
           tags: ${{ steps.meta.outputs.tags }}
-          file: docker/Dockerfile
