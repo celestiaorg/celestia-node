@@ -16,7 +16,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"golang.org/x/sync/errgroup"
 
-	"github.com/celestiaorg/celestia-node/core"
 	"github.com/celestiaorg/celestia-node/share/availability/light"
 	"github.com/celestiaorg/celestia-node/share/eds"
 
@@ -47,7 +46,7 @@ func TestFullReconstructFromBridge(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), swamp.DefaultTestTimeout)
 	t.Cleanup(cancel)
 	sw := swamp.NewSwamp(t, swamp.WithBlockTime(btime))
-	fillDn := core.FillBlocks(ctx, sw.ClientContext, sw.Accounts, bsize, blocks)
+	fillDn := swamp.FillBlocks(ctx, sw.ClientContext, sw.Accounts, bsize, blocks)
 
 	bridge := sw.NewBridgeNode()
 	err := bridge.Start(ctx)
@@ -105,7 +104,7 @@ func TestFullReconstructFromLights(t *testing.T) {
 
 	t.Cleanup(cancel)
 	sw := swamp.NewSwamp(t, swamp.WithBlockTime(btime))
-	fillDn := core.FillBlocks(ctx, sw.ClientContext, sw.Accounts, bsize, blocks)
+	fillDn := swamp.FillBlocks(ctx, sw.ClientContext, sw.Accounts, bsize, blocks)
 
 	const defaultTimeInterval = time.Second * 5
 	cfg := nodebuilder.DefaultConfig(node.Full)
