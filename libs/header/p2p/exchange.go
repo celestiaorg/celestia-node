@@ -90,12 +90,11 @@ func (ex *Exchange[H]) Start(context.Context) error {
 	return nil
 }
 
-func (ex *Exchange[H]) Stop(context.Context) error {
+func (ex *Exchange[H]) Stop(ctx context.Context) error {
 	// cancel the session if it exists
 	ex.cancel()
 	// stop the peerTracker
-	ex.peerTracker.stop()
-	return nil
+	return ex.peerTracker.stop(ctx)
 }
 
 // Head requests the latest Header. Note that the Header must be verified thereafter.

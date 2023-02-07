@@ -187,12 +187,18 @@ func (p *peerTracker) gc() {
 }
 
 // stop waits until all background routines will be finished.
-func (p *peerTracker) stop() {
+func (p *peerTracker) stop(ctx context.Context) error {
 	p.cancel()
 
 	for i := 0; i < cap(p.done); i++ {
-		<-p.done
+		select {
+		case <-p.done:
+		case <-ctx.Done():
+			return ctx.Err()
+		}
 	}
+
+	return nil
 }
 
 // blockPeer blocks a peer on the networking level and removes it from the local cache.

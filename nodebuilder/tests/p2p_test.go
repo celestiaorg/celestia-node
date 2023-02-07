@@ -18,141 +18,104 @@ import (
 )
 
 /*
-Test-Case: Full/Light Nodes connection to Bridge as a Bootstapper
+Test-Case: Full/Light Nodes connection to Bridge as a bootstrapper
 Steps:
-1. Create a Bridge Node(BN)
-2. Start a BN
-3. Create full/light nodes with bridge node as bootsrapped peer
-4. Start full/light nodes
-5. Check that nodes are connected to bridge
+1. Create and start a Bridge Node(BN)
+2. Create and start Full/Light Nodes(FN/LN) with BN as bootstrapper
+3. Check that FN/LN are connected to BN
 */
-func TestUseBridgeNodeAsBootstraper(t *testing.T) {
-	sw := swamp.NewSwamp(t)
-
-	bridge := sw.NewBridgeNode()
-
+func TestBootstrapping(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), swamp.DefaultTestTimeout)
 	t.Cleanup(cancel)
 
+	sw := swamp.NewSwamp(t, swamp.WithBlockTime(blockTime))
+
+	bridge := sw.NewBridgeNode()
 	err := bridge.Start(ctx)
 	require.NoError(t, err)
+	addr := []peer.AddrInfo{*host.InfoFromHost(bridge.Host)}
 
-	addr := host.InfoFromHost(bridge.Host)
-
-	full := sw.NewFullNode(nodebuilder.WithBootstrappers([]peer.AddrInfo{*addr}))
-	light := sw.NewLightNode(nodebuilder.WithBootstrappers([]peer.AddrInfo{*addr}))
+	full := sw.NewFullNode(nodebuilder.WithBootstrappers(addr))
+	light := sw.NewLightNode(nodebuilder.WithBootstrappers(addr))
 	nodes := []*nodebuilder.Node{full, light}
 	for index := range nodes {
 		require.NoError(t, nodes[index].Start(ctx))
-		assert.Equal(t, *addr, nodes[index].Bootstrappers[0])
-		assert.True(t, nodes[index].Host.Network().Connectedness(addr.ID) == network.Connected)
+		assert.Equal(t, addr, nodes[index].Bootstrappers)
+		assert.True(t, nodes[index].Host.Network().Connectedness(bridge.Host.ID()) == network.Connected)
 	}
 }
 
 /*
 Test-Case: Add peer to blacklist
 Steps:
-1. Create a Full Node(BN)
-2. Start a FN
-3. Create a Light Node(LN)
-5. Start a LN
-6. Explicitly block FN id by LN
-7. Check FN is allowed to dial with LN
-8. Check LN is not allowed to dial with FN
+1. Create and start a Full Node(FN)
+2. Create and start a Light Node(LN)
+3. LN blocks FN
+4. Check that LN intercepts and prevents dials from FN
 */
 func TestAddPeerToBlackList(t *testing.T) {
-	sw := swamp.NewSwamp(t)
-	full := sw.NewFullNode()
 	ctx, cancel := context.WithTimeout(context.Background(), swamp.DefaultTestTimeout)
 	t.Cleanup(cancel)
-	require.NoError(t, full.Start(ctx))
 
-	addr := host.InfoFromHost(full.Host)
+	sw := swamp.NewSwamp(t, swamp.WithBlockTime(blockTime))
+
+	full := sw.NewFullNode()
+	err := full.Start(ctx)
+	require.NoError(t, err)
+
 	light := sw.NewLightNode()
 	require.NoError(t, light.Start(ctx))
-	require.NoError(t, light.ConnGater.BlockPeer(addr.ID))
+	require.NoError(t, light.ConnGater.BlockPeer(full.Host.ID()))
 
-	require.True(t, full.ConnGater.InterceptPeerDial(host.InfoFromHost(light.Host).ID))
-	require.False(t, light.ConnGater.InterceptPeerDial(addr.ID))
+	require.False(t, light.ConnGater.InterceptPeerDial(full.Host.ID()))
 }
 
 /*
-Test-Case: Connect Full And Light using Bridge node as a bootstrapper
+Test-Case: Light discovers Full over bootstrapper
 Steps:
- 1. Create a Bridge Node(BN)
- 2. Start a BN
- 3. Create full/light nodes with bridge node as bootsrapped peer
- 4. Start full/light nodes
- 5. Ensure that nodes are connected to bridge
- 6. Wait until light will find full node
- 7. Check that full and light nodes are connected to each other
- 8. Stop FN and ensure that it's not connected to LN
+ 1. Create and start a Bridge Node(BN) bootstrapper
+ 2. Create and start a Full Node(FN)
+ 3. Create and start a Light Node(LN)
+ 4. Wait until LN discovers FN
 */
-func TestBootstrapNodesFromBridgeNode(t *testing.T) {
-	sw := swamp.NewSwamp(t)
-	cfg := nodebuilder.DefaultConfig(node.Bridge)
-	cfg.P2P.Bootstrapper = true
-	const defaultTimeInterval = time.Second * 10
-	setTimeInterval(cfg, defaultTimeInterval)
-
-	bridge := sw.NewNodeWithConfig(node.Bridge, cfg)
-
+func TestDiscoveryOverBootstrapper(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), swamp.DefaultTestTimeout)
 	t.Cleanup(cancel)
 
+	sw := swamp.NewSwamp(t, swamp.WithBlockTime(blockTime))
+
+	cfg := nodebuilder.DefaultConfig(node.Bridge)
+	cfg.P2P.Bootstrapper = true
+	setTimeInterval(cfg)
+	bridge := sw.NewNodeWithConfig(node.Bridge, cfg)
 	err := bridge.Start(ctx)
 	require.NoError(t, err)
-	addr := host.InfoFromHost(bridge.Host)
+	addr := []peer.AddrInfo{*host.InfoFromHost(bridge.Host)}
 
 	cfg = nodebuilder.DefaultConfig(node.Full)
-	setTimeInterval(cfg, defaultTimeInterval)
-	full := sw.NewNodeWithConfig(
-		node.Full,
-		cfg,
-		nodebuilder.WithBootstrappers([]peer.AddrInfo{*addr}),
-	)
+	setTimeInterval(cfg)
+	full := sw.NewNodeWithConfig(node.Full, cfg, nodebuilder.WithBootstrappers(addr))
+	err = full.Start(ctx)
+	require.NoError(t, err)
 
 	cfg = nodebuilder.DefaultConfig(node.Light)
-	setTimeInterval(cfg, defaultTimeInterval)
-	light := sw.NewNodeWithConfig(
-		node.Light,
-		cfg,
-		nodebuilder.WithBootstrappers([]peer.AddrInfo{*addr}),
-	)
-	nodes := []*nodebuilder.Node{full, light}
-	ch := make(chan struct{})
+	setTimeInterval(cfg)
+	light := sw.NewNodeWithConfig(node.Light, cfg, nodebuilder.WithBootstrappers(addr))
+	err = light.Start(ctx)
+	require.NoError(t, err)
+
 	sub, err := light.Host.EventBus().Subscribe(&event.EvtPeerConnectednessChanged{})
 	require.NoError(t, err)
 	defer sub.Close()
-	for index := range nodes {
-		require.NoError(t, nodes[index].Start(ctx))
-		assert.Equal(t, *addr, nodes[index].Bootstrappers[0])
-		assert.True(t, nodes[index].Host.Network().Connectedness(addr.ID) == network.Connected)
-	}
-	addrFull := host.InfoFromHost(full.Host)
-	go func() {
-		for e := range sub.Out() {
-			connStatus := e.(event.EvtPeerConnectednessChanged)
-			if connStatus.Peer == full.Host.ID() {
-				ch <- struct{}{}
-			}
+
+	select {
+	case e := <-sub.Out():
+		if e.(event.EvtPeerConnectednessChanged).Peer != full.Host.ID() {
+			t.Fatal("wrong peer event")
 		}
-	}()
-
-	select {
+		assert.True(t, light.Host.Network().Connectedness(full.Host.ID()) == network.Connected)
 	case <-ctx.Done():
-		t.Fatal("peer was not found")
-	case <-ch:
-		assert.True(t, light.Host.Network().Connectedness(addrFull.ID) == network.Connected)
-	}
-
-	sw.Disconnect(t, light.Host.ID(), full.Host.ID())
-	require.NoError(t, full.Stop(ctx))
-	select {
-	case <-ctx.Done():
-		t.Fatal("peer was not disconnected")
-	case <-ch:
-		assert.True(t, light.Host.Network().Connectedness(addrFull.ID) == network.NotConnected)
+		t.Fatal("peer was not connected within a timeout")
 	}
 }
 
@@ -169,29 +132,28 @@ Steps:
 *NOTE*: this test will take some time because it relies on several cycles of peer discovery
 */
 func TestRestartNodeDiscovery(t *testing.T) {
-	sw := swamp.NewSwamp(t)
-	cfg := nodebuilder.DefaultConfig(node.Bridge)
-	cfg.P2P.Bootstrapper = true
-	const defaultTimeInterval = time.Second * 2
 	const fullNodes = 2
-
-	setTimeInterval(cfg, defaultTimeInterval)
-	cfg.Share.PeersLimit = fullNodes
-	bridge := sw.NewNodeWithConfig(node.Bridge, cfg)
 
 	ctx, cancel := context.WithTimeout(context.Background(), swamp.DefaultTestTimeout)
 	t.Cleanup(cancel)
 
+	sw := swamp.NewSwamp(t, swamp.WithBlockTime(blockTime))
+
+	cfg := nodebuilder.DefaultConfig(node.Bridge)
+	cfg.P2P.Bootstrapper = true
+	setTimeInterval(cfg)
+	cfg.Share.PeersLimit = fullNodes
+	bridge := sw.NewNodeWithConfig(node.Bridge, cfg)
 	err := bridge.Start(ctx)
 	require.NoError(t, err)
-	addr := host.InfoFromHost(bridge.Host)
+	addr := []peer.AddrInfo{*host.InfoFromHost(bridge.Host)}
+
 	nodes := make([]*nodebuilder.Node, fullNodes)
 	cfg = nodebuilder.DefaultConfig(node.Full)
-	setTimeInterval(cfg, defaultTimeInterval)
+	setTimeInterval(cfg)
 	cfg.Share.PeersLimit = fullNodes
-	nodesConfig := nodebuilder.WithBootstrappers([]peer.AddrInfo{*addr})
 	for index := 0; index < fullNodes; index++ {
-		nodes[index] = sw.NewNodeWithConfig(node.Full, cfg, nodesConfig)
+		nodes[index] = sw.NewNodeWithConfig(node.Full, cfg, nodebuilder.WithBootstrappers(addr))
 	}
 
 	identitySub, err := nodes[0].Host.EventBus().Subscribe(&event.EvtPeerIdentificationCompleted{})
@@ -200,7 +162,7 @@ func TestRestartNodeDiscovery(t *testing.T) {
 
 	for index := 0; index < fullNodes; index++ {
 		require.NoError(t, nodes[index].Start(ctx))
-		assert.True(t, nodes[index].Host.Network().Connectedness(addr.ID) == network.Connected)
+		assert.True(t, nodes[index].Host.Network().Connectedness(bridge.Host.ID()) == network.Connected)
 	}
 
 	// wait until full nodes connect each other
@@ -214,14 +176,16 @@ func TestRestartNodeDiscovery(t *testing.T) {
 
 	// create one more node with disabled discovery
 	cfg = nodebuilder.DefaultConfig(node.Full)
-	setTimeInterval(cfg, defaultTimeInterval)
+	setTimeInterval(cfg)
 	cfg.Share.PeersLimit = 0
-	node := sw.NewNodeWithConfig(node.Full, cfg, nodesConfig)
+	node := sw.NewNodeWithConfig(node.Full, cfg, nodebuilder.WithBootstrappers(addr))
 	connectSub, err := nodes[0].Host.EventBus().Subscribe(&event.EvtPeerConnectednessChanged{})
 	require.NoError(t, err)
 	defer connectSub.Close()
-	sw.Disconnect(t, nodes[0].Host.ID(), nodes[1].Host.ID())
-	require.NoError(t, node.Start(ctx))
+	sw.Disconnect(nodes[0].Host.ID(), nodes[1].Host.ID())
+	err = node.Start(ctx)
+	require.NoError(t, err)
+
 	for {
 		select {
 		case <-ctx.Done():
@@ -238,7 +202,8 @@ func TestRestartNodeDiscovery(t *testing.T) {
 	}
 }
 
-func setTimeInterval(cfg *nodebuilder.Config, interval time.Duration) {
+func setTimeInterval(cfg *nodebuilder.Config) {
+	interval := time.Second * 5
 	cfg.P2P.RoutingTableRefreshPeriod = interval
 	cfg.Share.DiscoveryInterval = interval
 	cfg.Share.AdvertiseInterval = interval

@@ -1,6 +1,7 @@
 package p2p
 
 import (
+	"context"
 	"errors"
 	"testing"
 	"time"
@@ -33,7 +34,8 @@ func TestPeerTracker_GC(t *testing.T) {
 	go p.track()
 	go p.gc()
 	time.Sleep(time.Second * 1)
-	p.stop()
+	err = p.stop(context.Background())
+	require.NoError(t, err)
 	require.Nil(t, p.trackedPeers[pid1])
 	require.Nil(t, p.disconnectedPeers[pid3])
 }
