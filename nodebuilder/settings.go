@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/jonboulle/clockwork"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetrichttp"
 	"go.opentelemetry.io/otel/metric/global"
@@ -37,6 +38,7 @@ func WithBootstrappers(peers p2p.Bootstrappers) fx.Option {
 // WithMetrics enables metrics exporting for the node.
 func WithMetrics(metricOpts []otlpmetrichttp.Option, nodeType node.Type) fx.Option {
 	baseComponents := fx.Options(
+		fx.Provide(clockwork.NewRealClock),
 		fx.Supply(metricOpts),
 		fx.Invoke(initializeMetrics),
 		fx.Invoke(headerPkg.WithMetrics),

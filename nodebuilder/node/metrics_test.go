@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/jonboulle/clockwork"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.opentelemetry.io/otel/exporters/stdout/stdoutmetric"
@@ -16,9 +17,12 @@ func TestWithMetrics(t *testing.T) {
 	provider, reader, err := TestingMeterProvider()
 	require.NoError(t, err)
 
+	fakeStart := time.Now()
+	fakeClock := clockwork.NewFakeClockAt(fakeStart)
+
 	// re-assign the global variable `meter` from metrics.go
 	meter = provider.Meter("test")
-	err = WithMetrics()
+	err = WithMetrics(fakeClock)
 	require.NoError(t, err)
 
 	mr, err := reader.Collect(context.Background())
@@ -41,12 +45,11 @@ func TestWithMetrics(t *testing.T) {
 	totalNodeRunTimeGauge, _ := (totalNodeRunTime.Data).(metricdata.Sum[float64])
 
 	// assert for correctness collected data
-	start := float64(time.Now().Unix())
-	assert.Equal(t, totalNodeRunTimeGauge.DataPoints[0].Value, 0.0)
-	assert.Equal(t, nodeStartTSCounter.DataPoints[0].Value, start)
+	assert.Equal(t, float64(fakeStart.Unix()), nodeStartTSCounter.DataPoints[0].Value)
+	assert.Equal(t, fakeClock.Since(fakeStart).Seconds(), totalNodeRunTimeGauge.DataPoints[0].Value)
 
 	// Recollect after 2 seconds
-	<-time.After(2 * time.Second)
+	fakeClock.Advance(2 * time.Second)
 	mr, err = reader.Collect(context.Background())
 	require.NoError(t, err)
 
@@ -63,7 +66,11 @@ func TestWithMetrics(t *testing.T) {
 	// assert that the collected metrics were the right ones
 	assert.Equal(t, totalNodeRunTime.Name, "node_runtime_counter_in_seconds")
 	//  assert for correctness collected data
-	assert.Equal(t, totalNodeRunTimeGauge.DataPoints[0].Value, float64(time.Now().Unix()-int64(start)))
+	assert.Equal(
+		t,
+		float64(fakeClock.Now().Unix()-fakeStart.Unix()),
+		totalNodeRunTimeGauge.DataPoints[0].Value,
+	)
 }
 
 func TestingMeterProvider() (*metric.MeterProvider, metric.Reader, error) {
