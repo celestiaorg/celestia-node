@@ -59,9 +59,9 @@ type Manager struct {
 type syncPool struct {
 	*pool
 
-	isValidDataHash    atomic.Bool
-	validationDeadline time.Time
-	blacklisted           bool
+	isValidatedDataHash atomic.Bool
+	validationDeadline  time.Time
+	blacklisted         bool
 }
 
 func NewManager(
@@ -127,7 +127,6 @@ func (s *Manager) GetPeer(
 ) (peer.ID, DoneFunc, error) {
 	p := s.getOrCreatePool(datahash.String())
 	p.markValidated()
-	fmt.Println("Pool get ", len(p.pool.peersList))
 
 	peerID, ok := p.tryGet()
 	if ok {
@@ -147,7 +146,6 @@ func (s *Manager) GetPeer(
 	case peerID = <-s.fullNodes.getNext(ctx):
 		return peerID, s.doneFunc(datahash, peerID), nil
 	case <-ctx.Done():
-		fmt.Println("nothing came", len(p.pool.peersList))
 		return "", nil, ctx.Err()
 	}
 }
@@ -156,7 +154,6 @@ func (s *Manager) doneFunc(datahash share.DataHash, peerID peer.ID) DoneFunc {
 	return func(ctx context.Context, result syncResult) error {
 		switch result {
 		case ResultSuccess:
-			fmt.Println("BROADCAST", peerID.String())
 			s.deletePool(datahash.String())
 			err := s.broadcast(ctx, datahash)
 			if err != nil {
@@ -164,8 +161,8 @@ func (s *Manager) doneFunc(datahash share.DataHash, peerID peer.ID) DoneFunc {
 			}
 		case ResultFail:
 		case ResultPeerMisbehaved:
-			fmt.Println("MISBEHAVED")
-			// TODO: signal to peers Validator to return Reject
+			// TODO: keep track of bad peers and punish them with reject
+			// TODO: should blacklist peers instead of removal
 			s.RemovePeers(datahash, peerID)
 			s.fullNodes.remove(peerID)
 		}
@@ -203,31 +200,31 @@ func (s *Manager) subscribeHeader(ctx context.Context, headerSub libhead.Subscri
 // address this, validator should be reworked to be non-blocking, with retransmission being invoked
 // in sync manner from another routine upon header discovery.
 func (s *Manager) Validate(ctx context.Context, peerID peer.ID, hash share.DataHash) pubsub.ValidationResult {
-	fmt.Println("VALIDATE", hash.String(), peerID.String())
+	// broadcasted messages should bypass the validation with Accept
 	if peerID == s.ownPeerID {
 		return pubsub.ValidationAccept
 	}
 
 	p := s.getOrCreatePool(hash.String())
-	//TODO: check blacklisted
+	if p.blacklisted {
+		return pubsub.ValidationReject
+	}
+
 	p.add(peerID)
 	return pubsub.ValidationIgnore
 }
 
-// TODO: find better name
 func (s *Manager) getOrCreatePool(datahash string) *syncPool {
 	s.poolsLock.Lock()
 	defer s.poolsLock.Unlock()
 
 	p, ok := s.pools[datahash]
 	if !ok {
-		// create pool in non-validated state
 		p = &syncPool{
-			pool: newPool(),
+			pool:               newPool(),
 			validationDeadline: time.Now().Add(s.poolSyncTimeout),
 		}
 		s.pools[datahash] = p
-		fmt.Println("create")
 	}
 
 	return p
@@ -240,7 +237,9 @@ func (s *Manager) deletePool(datahash string) {
 }
 
 func (p *syncPool) markValidated() {
-	p.isValidDataHash.Store(true)
+	p.isValidatedDataHash.Store(true)
 }
 
-func (s *Manager)
+func (s *Manager) GC() {
+	//TODO: implement me
+}
