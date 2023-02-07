@@ -20,10 +20,6 @@ import (
 
 var log = logging.Logger("header/p2p")
 
-// PubSubTopic hardcodes the name of the Header
-// gossipsub topic.
-const PubSubTopic = "header-sub"
-
 // Exchange enables sending outbound HeaderRequests to the network as well as
 // handling inbound HeaderRequests from the network.
 type Exchange[H header.Header] struct {
@@ -41,8 +37,7 @@ type Exchange[H header.Header] struct {
 
 func NewExchange[H header.Header](
 	host host.Host,
-	trustedPeers peer.IDSlice,
-	protocolSuffix string,
+	peers peer.IDSlice,
 	connGater *conngater.BasicConnectionGater,
 	opts ...Option[ClientParameters],
 ) (*Exchange[H], error) {
@@ -58,8 +53,8 @@ func NewExchange[H header.Header](
 
 	return &Exchange[H]{
 		host:         host,
-		protocolID:   protocolID(protocolSuffix),
-		trustedPeers: trustedPeers,
+		protocolID:   protocolID(params.protocolSuffix),
+		trustedPeers: peers,
 		peerTracker: newPeerTracker(
 			host,
 			connGater,

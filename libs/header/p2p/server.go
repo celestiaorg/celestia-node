@@ -42,7 +42,6 @@ type ExchangeServer[H header.Header] struct {
 func NewExchangeServer[H header.Header](
 	host host.Host,
 	getter header.Getter[H],
-	protocolSuffix string,
 	opts ...Option[ServerParameters],
 ) (*ExchangeServer[H], error) {
 	params := DefaultServerParameters()
@@ -54,7 +53,7 @@ func NewExchangeServer[H header.Header](
 	}
 
 	return &ExchangeServer[H]{
-		protocolID: protocolID(protocolSuffix),
+		protocolID: protocolID(params.protocolSuffix),
 		host:       host,
 		getter:     getter,
 		Params:     params,
@@ -64,7 +63,7 @@ func NewExchangeServer[H header.Header](
 // Start sets the stream handler for inbound header-related requests.
 func (serv *ExchangeServer[H]) Start(context.Context) error {
 	serv.ctx, serv.cancel = context.WithCancel(context.Background())
-	log.Info("server: listening for inbound header requests")
+	log.Infow("server: listening for inbound header requests", "protocol ID", serv.protocolID)
 
 	serv.host.SetStreamHandler(serv.protocolID, serv.requestHandler)
 
