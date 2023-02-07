@@ -9,7 +9,6 @@ import (
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric/global"
 	"go.opentelemetry.io/otel/metric/instrument"
-	"go.opentelemetry.io/otel/metric/instrument/asyncint64"
 	"go.opentelemetry.io/otel/metric/instrument/syncfloat64"
 	"go.opentelemetry.io/otel/metric/instrument/syncint64"
 
@@ -25,10 +24,9 @@ type metrics struct {
 	sampleTime    syncfloat64.Histogram
 	getHeaderTime syncfloat64.Histogram
 	newHead       syncint64.Counter
-	totalSampled  asyncint64.Gauge
 
 	lastSampledTS   int64
-	totalSampledInt int64
+	totalSampledInt uint64
 }
 
 func (d *DASer) InitMetrics() error {
@@ -95,7 +93,6 @@ func (d *DASer) InitMetrics() error {
 		sampleTime:    sampleTime,
 		getHeaderTime: getHeaderTime,
 		newHead:       newHead,
-		totalSampled:  totalSampled,
 	}
 
 	err = meter.RegisterCallback(
@@ -120,8 +117,8 @@ func (d *DASer) InitMetrics() error {
 				lastSampledTS.Observe(ctx, ts)
 			}
 
-			totalSampledInt := atomic.LoadInt64(&d.sampler.metrics.totalSampledInt)
-			totalSampled.Observe(ctx, totalSampledInt)
+			totalSampledInt := atomic.LoadUint64(&d.sampler.metrics.totalSampledInt)
+			totalSampled.Observe(ctx, int64(totalSampledInt))
 		},
 	)
 
@@ -156,7 +153,7 @@ func (m *metrics) observeSample(
 	atomic.StoreInt64(&m.lastSampledTS, time.Now().UTC().Unix())
 
 	if err == nil {
-		atomic.AddInt64(&m.totalSampledInt, 1)
+		atomic.AddUint64(&m.totalSampledInt, 1)
 	}
 }
 
@@ -177,9 +174,9 @@ func (m *metrics) observeNewHead(ctx context.Context) {
 }
 
 // recordTotalSampled records the total sampled headers.
-func (m *metrics) recordTotalSampled(totalSampled int) {
+func (m *metrics) recordTotalSampled(totalSampled uint64) {
 	if m == nil {
 		return
 	}
-	atomic.StoreInt64(&m.totalSampledInt, int64(totalSampled))
+	atomic.StoreUint64(&m.totalSampledInt, totalSampled)
 }

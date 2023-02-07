@@ -4,7 +4,6 @@ import (
 	"context"
 	"time"
 
-	"github.com/jonboulle/clockwork"
 	"go.opentelemetry.io/otel/metric/global"
 	"go.opentelemetry.io/otel/metric/instrument"
 )
@@ -17,7 +16,7 @@ var (
 )
 
 // WithMetrics registers node metrics.
-func WithMetrics(clock clockwork.Clock) error {
+func WithMetrics() error {
 	nodeStartTS, err := meter.
 		AsyncFloat64().
 		Gauge(
@@ -43,12 +42,12 @@ func WithMetrics(clock clockwork.Clock) error {
 		func(ctx context.Context) {
 			if !nodeStarted {
 				// Observe node start timestamp
-				timeStarted = clock.Now()
+				timeStarted = time.Now()
 				nodeStartTS.Observe(ctx, float64(timeStarted.Unix()))
 				nodeStarted = true
 			}
 
-			totalNodeRunTime.Observe(ctx, clock.Since(timeStarted).Seconds())
+			totalNodeRunTime.Observe(ctx, time.Since(timeStarted).Seconds())
 		},
 	)
 }
