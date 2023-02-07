@@ -15,8 +15,8 @@ import (
 
 var log = logging.Logger("shrex-sub")
 
-// pubSubTopic hardcodes the name of the EDS floodsub topic with the provided suffix.
-func pubSubTopic(suffix string) string {
+// pubsubTopic hardcodes the name of the EDS floodsub topic with the provided suffix.
+func pubsubTopic(suffix string) string {
 	return fmt.Sprintf("/eds-sub/v0.0.1/%s", suffix)
 }
 
@@ -34,7 +34,7 @@ type PubSub struct {
 	pubSub *pubsub.PubSub
 	topic  *pubsub.Topic
 
-	pubSubTopic string
+	pubsubTopic string
 }
 
 // NewPubSub creates a libp2p.PubSub wrapper.
@@ -46,13 +46,13 @@ func NewPubSub(ctx context.Context, h host.Host, suffix string) (*PubSub, error)
 	}
 	return &PubSub{
 		pubSub:      pubsub,
-		pubSubTopic: pubSubTopic(suffix),
+		pubsubTopic: pubsubTopic(suffix),
 	}, nil
 }
 
 // Start creates an instances of FloodSub and joins specified topic.
 func (s *PubSub) Start(context.Context) error {
-	topic, err := s.pubSub.Join(s.pubSubTopic)
+	topic, err := s.pubSub.Join(s.pubsubTopic)
 	if err != nil {
 		return err
 	}
@@ -65,7 +65,7 @@ func (s *PubSub) Start(context.Context) error {
 // * Unregisters all the added Validators
 // * Closes the `ShrEx/Sub` topic
 func (s *PubSub) Stop(context.Context) error {
-	err := s.pubSub.UnregisterTopicValidator(s.pubSubTopic)
+	err := s.pubSub.UnregisterTopicValidator(s.pubsubTopic)
 	if err != nil {
 		log.Warnw("unregistering topic", "err", err)
 	}
@@ -75,7 +75,7 @@ func (s *PubSub) Stop(context.Context) error {
 // AddValidator registers given Validator for EDS notifications (DataHash).
 // Any amount of Validators can be registered.
 func (s *PubSub) AddValidator(validate Validator) error {
-	return s.pubSub.RegisterTopicValidator(s.pubSubTopic,
+	return s.pubSub.RegisterTopicValidator(s.pubsubTopic,
 		func(ctx context.Context, p peer.ID, msg *pubsub.Message) pubsub.ValidationResult {
 			return validate(ctx, p, msg.Data)
 		})

@@ -17,11 +17,11 @@ import (
 )
 
 func protocolID(protocolSuffix string) protocol.ID {
-	return protocol.ID(fmt.Sprintf("/header-ex/%s/v0.0.3", protocolSuffix))
+	return protocol.ID(fmt.Sprintf("/header-ex/v0.0.3/%s", protocolSuffix))
 }
 
 func pubsubTopicID(protocolSuffix string) string {
-	return fmt.Sprintf("/header-sub/%s/v0.0.1", protocolSuffix)
+	return fmt.Sprintf("/header-sub/v0.0.1/%s", protocolSuffix)
 }
 
 // sendMessage opens the stream to the given peers and sends HeaderRequest to fetch
