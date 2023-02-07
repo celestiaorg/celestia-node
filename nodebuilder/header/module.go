@@ -39,12 +39,13 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 			},
 		),
 		fx.Provide(
-			func(cfg Config) []p2p.Option[p2p.ServerParameters] {
+			func(cfg Config, network modp2p.Network) []p2p.Option[p2p.ServerParameters] {
 				return []p2p.Option[p2p.ServerParameters]{
 					p2p.WithWriteDeadline(cfg.Server.WriteDeadline),
 					p2p.WithReadDeadline(cfg.Server.ReadDeadline),
 					p2p.WithMaxRequestSize[p2p.ServerParameters](cfg.Server.MaxRequestSize),
 					p2p.WithRequestTimeout[p2p.ServerParameters](cfg.Server.RequestTimeout),
+					p2p.WithProtocolSuffix[p2p.ServerParameters](string(network)),
 				}
 			}),
 		fx.Provide(newHeaderService),
@@ -85,8 +86,8 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 			}),
 		)),
 		fx.Provide(fx.Annotate(
-			func(ps *pubsub.PubSub) *p2p.Subscriber[*header.ExtendedHeader] {
-				return p2p.NewSubscriber[*header.ExtendedHeader](ps, header.MsgID)
+			func(ps *pubsub.PubSub, network modp2p.Network) *p2p.Subscriber[*header.ExtendedHeader] {
+				return p2p.NewSubscriber[*header.ExtendedHeader](ps, header.MsgID, string(network))
 			},
 			fx.OnStart(func(ctx context.Context, sub *p2p.Subscriber[*header.ExtendedHeader]) error {
 				return sub.Start(ctx)
@@ -112,7 +113,7 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 			"header",
 			baseComponents,
 			fx.Provide(
-				func(cfg Config) []p2p.Option[p2p.ClientParameters] {
+				func(cfg Config, network modp2p.Network) []p2p.Option[p2p.ClientParameters] {
 					return []p2p.Option[p2p.ClientParameters]{
 						p2p.WithMinResponses(cfg.Client.MinResponses),
 						p2p.WithMaxRequestSize[p2p.ClientParameters](cfg.Client.MaxRequestSize),
@@ -121,6 +122,7 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 						p2p.WithDefaultScore(cfg.Client.DefaultScore),
 						p2p.WithRequestTimeout[p2p.ClientParameters](cfg.Client.RequestTimeout),
 						p2p.WithMaxTrackerSize(cfg.Client.MaxPeerTrackerSize),
+						p2p.WithProtocolSuffix[p2p.ClientParameters](string(network)),
 					}
 				},
 			),

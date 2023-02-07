@@ -14,6 +14,7 @@ import (
 
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/libs/header/p2p"
+	network "github.com/celestiaorg/celestia-node/nodebuilder/p2p"
 	"github.com/celestiaorg/celestia-node/share/p2p/shrexsub"
 )
 
@@ -24,10 +25,13 @@ func TestListener(t *testing.T) {
 
 	// create mocknet with two pubsub endpoints
 	ps0, ps1 := createMocknetWithTwoPubsubEndpoints(ctx, t)
-	// create second subscription endpoint to listen for Listener's pubsub messages
-	topic, err := ps1.Join(p2p.PubSubTopic)
+	subscriber := p2p.NewSubscriber[*header.ExtendedHeader](ps1, header.MsgID, string(network.Private))
+	err := subscriber.AddValidator(func(context.Context, *header.ExtendedHeader) pubsub.ValidationResult {
+		return pubsub.ValidationAccept
+	})
 	require.NoError(t, err)
-	sub, err := topic.Subscribe()
+	require.NoError(t, subscriber.Start(ctx))
+	subs, err := subscriber.Subscribe()
 	require.NoError(t, err)
 
 	// create one block to store as Head in local store and then unsubscribe from block events
@@ -44,17 +48,13 @@ func TestListener(t *testing.T) {
 
 	// ensure headers and dataHash are getting broadcasted to the relevant topics
 	for i := 1; i < 6; i++ {
-		msg, err := sub.Next(ctx)
-		require.NoError(t, err)
-
-		var resp header.ExtendedHeader
-		err = resp.UnmarshalBinary(msg.Data)
+		h, err := subs.NextHeader(ctx)
 		require.NoError(t, err)
 
 		dataHash, err := edsSubs.Next(ctx)
 		require.NoError(t, err)
 
-		require.Equal(t, resp.DataHash.Bytes(), []byte(dataHash))
+		require.Equal(t, h.DataHash.Bytes(), []byte(dataHash))
 	}
 
 	err = cl.Stop(ctx)
@@ -104,7 +104,7 @@ func createListener(
 	ps *pubsub.PubSub,
 	edsSub *shrexsub.PubSub,
 ) *Listener {
-	p2pSub := p2p.NewSubscriber[*header.ExtendedHeader](ps, header.MsgID)
+	p2pSub := p2p.NewSubscriber[*header.ExtendedHeader](ps, header.MsgID, string(network.Private))
 	err := p2pSub.Start(ctx)
 	require.NoError(t, err)
 	t.Cleanup(func() {
