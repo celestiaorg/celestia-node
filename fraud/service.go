@@ -12,7 +12,6 @@ import (
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/peer"
-	"github.com/libp2p/go-libp2p/core/protocol"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
@@ -25,7 +24,7 @@ const fraudRequests = 5
 // ProofService is responsible for validating and propagating Fraud Proofs.
 // It implements the Service interface.
 type ProofService struct {
-	protocolID protocol.ID
+	protocolSuffix string
 
 	ctx    context.Context
 	cancel context.CancelFunc
@@ -53,21 +52,21 @@ func NewProofService(
 	protocolSuffix string,
 ) *ProofService {
 	return &ProofService{
-		pubsub:        p,
-		host:          host,
-		getter:        getter,
-		topics:        make(map[ProofType]*pubsub.Topic),
-		stores:        make(map[ProofType]datastore.Datastore),
-		ds:            ds,
-		protocolID:    protocol.ID(fmt.Sprintf("/fraud/v0.0.1/%s", protocolSuffix)),
-		syncerEnabled: syncerEnabled,
+		pubsub:         p,
+		host:           host,
+		getter:         getter,
+		topics:         make(map[ProofType]*pubsub.Topic),
+		stores:         make(map[ProofType]datastore.Datastore),
+		ds:             ds,
+		protocolSuffix: protocolSuffix,
+		syncerEnabled:  syncerEnabled,
 	}
 }
 
 // registerProofTopics registers proofTypes as pubsub topics to be joined.
 func (f *ProofService) registerProofTopics(proofTypes ...ProofType) error {
 	for _, proofType := range proofTypes {
-		t, err := join(f.pubsub, proofType, f.processIncoming)
+		t, err := join(f.pubsub, proofType, f.protocolSuffix, f.processIncoming)
 		if err != nil {
 			return err
 		}
@@ -85,16 +84,19 @@ func (f *ProofService) Start(context.Context) error {
 	if err := f.registerProofTopics(registeredProofTypes()...); err != nil {
 		return err
 	}
-	f.host.SetStreamHandler(f.protocolID, f.handleFraudMessageRequest)
+	id := protocolID(f.protocolSuffix)
+	log.Infow("starting fraud proof service", "protocol ID", id)
+
+	f.host.SetStreamHandler(id, f.handleFraudMessageRequest)
 	if f.syncerEnabled {
-		go f.syncFraudProofs(f.ctx)
+		go f.syncFraudProofs(f.ctx, id)
 	}
 	return nil
 }
 
 // Stop removes the stream handler and cancels the underlying ProofService
 func (f *ProofService) Stop(context.Context) error {
-	f.host.RemoveStreamHandler(f.protocolID)
+	f.host.RemoveStreamHandler(protocolID(f.protocolSuffix))
 	f.cancel()
 	return nil
 }
