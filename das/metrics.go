@@ -25,7 +25,7 @@ type metrics struct {
 	getHeaderTime syncfloat64.Histogram
 	newHead       syncint64.Counter
 
-	lastSampledTS   int64
+	lastSampledTS   uint64
 	totalSampledInt uint64
 }
 
@@ -113,8 +113,8 @@ func (d *DASer) InitMetrics() error {
 			networkHead.Observe(ctx, int64(stats.NetworkHead))
 			sampledChainHead.Observe(ctx, int64(stats.SampledChainHead))
 
-			if ts := atomic.LoadInt64(&d.sampler.metrics.lastSampledTS); ts != 0 {
-				lastSampledTS.Observe(ctx, ts)
+			if ts := atomic.LoadUint64(&d.sampler.metrics.lastSampledTS); ts != 0 {
+				lastSampledTS.Observe(ctx, int64(ts))
 			}
 
 			totalSampledInt := atomic.LoadUint64(&d.sampler.metrics.totalSampledInt)
@@ -150,7 +150,7 @@ func (m *metrics) observeSample(
 		attribute.Int("header_width", len(h.DAH.RowsRoots)),
 	)
 
-	atomic.StoreInt64(&m.lastSampledTS, time.Now().UTC().Unix())
+	atomic.StoreUint64(&m.lastSampledTS, uint64(time.Now().UTC().Unix()))
 
 	if err == nil {
 		atomic.AddUint64(&m.totalSampledInt, 1)

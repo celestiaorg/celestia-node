@@ -214,9 +214,7 @@ func (s *Syncer[H]) sync(ctx context.Context) {
 	log.Infow("finished syncing",
 		"from", s.syncedHead.Height(),
 		"to", newHead.Height(),
-		"elapsed time",
-		s.state.End.Sub(s.state.Start),
-	)
+		"elapsed time", s.state.End.Sub(s.state.Start))
 }
 
 // doSync performs actual syncing updating the internal State
