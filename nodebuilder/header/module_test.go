@@ -33,6 +33,7 @@ func TestConstructModule_StoreParams(t *testing.T) {
 	var headerStore *store.Store[*header.ExtendedHeader]
 
 	app := fxtest.New(t,
+		fx.Supply(modp2p.Private),
 		fx.Provide(func() datastore.Batching {
 			return datastore.NewMapDatastore()
 		}),

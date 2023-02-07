@@ -26,7 +26,7 @@ jobs:
   hadolint:
     uses: celestiaorg/.github/.github/workflows/reusable_dockerfile_lint.yml@main # yamllint disable-line rule:line-length
     with:
-      dockerfile: docker/Dockerfile
+      dockerfile: Dockerfile
 
   yamllint:
     runs-on: ubuntu-latest

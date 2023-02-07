@@ -26,6 +26,9 @@ type ServerParameters struct {
 	// RequestTimeout defines a timeout after which the session will try to re-request headers
 	// from another peer.
 	RequestTimeout time.Duration
+	// protocolSuffix is a network suffix that will be used to create a protocol.ID
+	// Is empty by default
+	protocolSuffix string
 }
 
 // DefaultServerParameters returns the default params to configure the store.
@@ -103,6 +106,19 @@ func WithRequestTimeout[T parameters](duration time.Duration) Option[T] {
 	}
 }
 
+// WithProtocolSuffix is a functional option that configures the
+// `protocolSuffix` parameter.
+func WithProtocolSuffix[T parameters](protocolSuffix string) Option[T] {
+	return func(p *T) {
+		switch t := any(p).(type) {
+		case *ClientParameters:
+			t.protocolSuffix = protocolSuffix
+		case *ServerParameters:
+			t.protocolSuffix = protocolSuffix
+		}
+	}
+}
+
 // ClientParameters is the set of parameters that must be configured for the exchange.
 // TODO: #1667
 type ClientParameters struct {
@@ -124,6 +140,8 @@ type ClientParameters struct {
 	TrustedPeersRequestTimeout time.Duration
 	// MaxTrackerSize specifies the max amount of peers that can be added to the peerTracker.
 	MaxPeerTrackerSize int
+	// protocolSuffix is a network suffix that will be used to create a protocol.ID
+	protocolSuffix string
 }
 
 // DefaultClientParameters returns the default params to configure the store.
