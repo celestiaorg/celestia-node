@@ -322,7 +322,7 @@ require (
 )
 
 replace (
-	github.com/celestiaorg/celestia-app => github.com/vgonkivs/celestia-app v0.5.4-0.20230207095444-d7c0715f95ed
+	github.com/celestiaorg/celestia-app => github.com/vgonkivs/celestia-app v0.5.4-0.20230207131450-93a4b67b3c9f
 	github.com/cosmos/cosmos-sdk => github.com/celestiaorg/cosmos-sdk v1.8.0-sdk-v0.46.7
 	github.com/filecoin-project/dagstore => github.com/celestiaorg/dagstore v0.0.0-20221014072825-395797efb659
 	github.com/gogo/protobuf => github.com/regen-network/protobuf v1.3.3-alpha.regen.1
