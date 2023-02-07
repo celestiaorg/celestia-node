@@ -2,6 +2,14 @@ package peers
 
 import (
 	"context"
+	"fmt"
+	"github.com/celestiaorg/celestia-node/share"
+	"github.com/celestiaorg/celestia-node/share/availability/discovery"
+	"github.com/celestiaorg/celestia-node/share/p2p/shrexsub"
+	dht "github.com/libp2p/go-libp2p-kad-dht"
+	"github.com/libp2p/go-libp2p/core/host"
+	routingdisc "github.com/libp2p/go-libp2p/p2p/discovery/routing"
+	mocknet "github.com/libp2p/go-libp2p/p2p/net/mock"
 	"testing"
 	"time"
 
@@ -13,6 +21,7 @@ import (
 	libhead "github.com/celestiaorg/celestia-node/libs/header"
 )
 
+// TODO: add broadcast to tests
 func TestManager(t *testing.T) {
 	t.Run("validated datahash, header comes first", func(t *testing.T) {
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
@@ -23,7 +32,7 @@ func TestManager(t *testing.T) {
 		headerSub := newSubLock(h, nil)
 
 		// start test manager
-		manager := testManager(headerSub)
+		manager := testManager(ctx, headerSub)
 
 		// wait until header is requested from header sub
 		require.NoError(t, headerSub.wait(ctx, 1))
@@ -34,11 +43,11 @@ func TestManager(t *testing.T) {
 		go func() {
 			defer close(doneCh)
 			validation := manager.Validate(ctx, peerID, h.DataHash.Bytes())
-			require.Equal(t, pubsub.ValidationAccept, validation)
+			require.Equal(t, pubsub.ValidationIgnore, validation)
 		}()
 
 		p, done, err := manager.GetPeer(ctx, h.DataHash.Bytes())
-		done(ResultSuccess)
+		done(ctx, ResultSuccess)
 		require.NoError(t, err)
 		require.Equal(t, peerID, p)
 
@@ -61,7 +70,7 @@ func TestManager(t *testing.T) {
 		headerSub := newSubLock(h, nil)
 
 		// start test manager
-		manager := testManager(headerSub)
+		manager := testManager(ctx, headerSub)
 
 		peers := []peer.ID{"peer1", "peer2", "peer3"}
 
@@ -78,21 +87,21 @@ func TestManager(t *testing.T) {
 		}
 
 		// wait for peers to be collected in pool
-		p := manager.getOrCreateUnvalidatedPool(h.DataHash.String())
+		p := manager.getOrCreatePool(h.DataHash.String())
 		waitPoolHasItems(ctx, t, p, 3)
 
 		// release headerSub with validating header
 		require.NoError(t, headerSub.wait(ctx, 1))
 		// release sync lock by calling done function
 		_, done, err := manager.GetPeer(ctx, h.DataHash.Bytes())
-		done(ResultSuccess)
+		done(ctx, ResultSuccess)
 		require.NoError(t, err)
 
 		// wait for validators to finish
 		for i := 0; i < len(peers); i++ {
 			select {
 			case result := <-validationCh:
-				require.Equal(t, pubsub.ValidationAccept, result)
+				require.Equal(t, pubsub.ValidationIgnore, result)
 			case <-ctx.Done():
 				require.NoError(t, ctx.Err())
 			}
@@ -109,7 +118,7 @@ func TestManager(t *testing.T) {
 		headerSub := newSubLock(h)
 
 		// start test manager
-		manager := testManager(headerSub)
+		manager := testManager(ctx, headerSub)
 
 		peers := []peer.ID{"peer1", "peer2", "peer3"}
 
@@ -132,7 +141,7 @@ func TestManager(t *testing.T) {
 		for i := 0; i < len(peers); i++ {
 			select {
 			case result := <-validationCh:
-				require.Equal(t, pubsub.ValidationReject, result)
+				require.Equal(t, pubsub.ValidationIgnore, result)
 			case <-ctx.Done():
 				require.NoError(t, ctx.Err())
 			}
@@ -150,14 +159,14 @@ func TestManager(t *testing.T) {
 		headerSub := newSubLock(h)
 
 		// start test manager
-		manager := testManager(headerSub)
+		manager := testManager(ctx, headerSub)
 
 		// add peers to fullnodes, imitating discovery add
 		peers := []peer.ID{"peer1", "peer2", "peer3"}
 		manager.fullNodes.add(peers...)
 
 		peerID, done, err := manager.GetPeer(ctx, h.DataHash.Bytes())
-		done(ResultSuccess)
+		done(ctx, ResultSuccess)
 		require.NoError(t, err)
 		require.Contains(t, peers, peerID)
 
@@ -173,7 +182,7 @@ func TestManager(t *testing.T) {
 		headerSub := newSubLock(h)
 
 		// start test manager
-		manager := testManager(headerSub)
+		manager := testManager(ctx, headerSub)
 
 		// make sure peers are not returned before timeout
 		timeoutCtx, cancel := context.WithTimeout(context.Background(), time.Millisecond)
@@ -188,7 +197,7 @@ func TestManager(t *testing.T) {
 		go func() {
 			defer close(doneCh)
 			peerID, done, err := manager.GetPeer(ctx, h.DataHash.Bytes())
-			done(ResultSuccess)
+			done(ctx, ResultSuccess)
 			require.NoError(t, err)
 			require.Contains(t, peers, peerID)
 		}()
@@ -214,7 +223,7 @@ func TestManager(t *testing.T) {
 		headerSub := newSubLock(h, nil)
 
 		// start test manager
-		manager := testManager(headerSub)
+		manager := testManager(ctx, headerSub)
 
 		peers := []peer.ID{"peer1", "peer2", "peer3"}
 
@@ -231,12 +240,12 @@ func TestManager(t *testing.T) {
 		}
 
 		// wait for peers to be collected in pool
-		p := manager.getOrCreateUnvalidatedPool(h.DataHash.String())
+		p := manager.getOrCreatePool(h.DataHash.String())
 		waitPoolHasItems(ctx, t, p, 3)
 
 		// mark pool as synced by calling GetPeer
 		peerID, done, err := manager.GetPeer(ctx, h.DataHash.Bytes())
-		done(ResultSuccess)
+		done(ctx, ResultSuccess)
 		require.NoError(t, err)
 		require.Contains(t, peers, peerID)
 
@@ -244,7 +253,7 @@ func TestManager(t *testing.T) {
 		for i := 0; i < len(peers); i++ {
 			select {
 			case result := <-validationCh:
-				require.Equal(t, pubsub.ValidationAccept, result)
+				require.Equal(t, pubsub.ValidationIgnore, result)
 			case <-ctx.Done():
 				require.NoError(t, ctx.Err())
 			}
@@ -254,11 +263,132 @@ func TestManager(t *testing.T) {
 	})
 }
 
-func testManager(headerSub libhead.Subscriber[*header.ExtendedHeader]) *Manager {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+func TestIntagration(t *testing.T) {
+	t.Run("get peer from shrexsub", func(t *testing.T) {
+		nw, err := mocknet.FullMeshConnected(3)
+		require.NoError(t, err)
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+		t.Cleanup(cancel)
+
+		bnPubSub, err := shrexsub.NewPubSub(ctx, nw.Hosts()[0], "test")
+		require.NoError(t, err)
+
+		fnPubSub1, err := shrexsub.NewPubSub(ctx, nw.Hosts()[1], "test")
+		require.NoError(t, err)
+
+		fnPubSub2, err := shrexsub.NewPubSub(ctx, nw.Hosts()[2], "test")
+		require.NoError(t, err)
+
+		require.NoError(t, bnPubSub.Start(ctx))
+		require.NoError(t, fnPubSub1.Start(ctx))
+		require.NoError(t, fnPubSub2.Start(ctx))
+
+		fnPeerManager1 := testManager(ctx, newSubLock())
+		fnPeerManager1.broadcast = fnPubSub1.Broadcast
+		fnPeerManager1.ownPeerID = nw.Hosts()[1].ID()
+		fnPeerManager2 := testManager(ctx, newSubLock())
+		fnPeerManager2.broadcast = fnPubSub2.Broadcast
+
+		require.NoError(t, fnPubSub1.AddValidator(fnPeerManager1.Validate))
+		_, err = fnPubSub1.Subscribe()
+		require.NoError(t, err)
+
+		require.NoError(t, fnPubSub2.AddValidator(fnPeerManager2.Validate))
+		_, err = fnPubSub2.Subscribe()
+		require.NoError(t, err)
+
+		// broadcast from BN
+		peerHash := share.DataHash("peer1")
+		require.NoError(t, bnPubSub.Broadcast(ctx, peerHash))
+
+		// first FN should get message
+		peerID, doneFn, err := fnPeerManager1.GetPeer(ctx, peerHash)
+		require.NoError(t, err)
+
+		// check that peerID matched bridge node
+		require.Equal(t, nw.Hosts()[0].ID(), peerID)
+		// release the validator by using ResultSuccess, it should allow message retransmit
+		doneFn(ctx, ResultSuccess)
+
+		// check for retransmitted message to arrive to second FN
+		peerID2, doneFn2, err := fnPeerManager2.GetPeer(ctx, peerHash)
+		if peerID2 == nw.Hosts()[0].ID() {
+			// if got bridge node peer id, remove it from pool and retry
+			doneFn2(ctx, ResultPeerMisbehaved)
+			peerID2, doneFn2, err = fnPeerManager2.GetPeer(ctx, peerHash)
+		}
+		require.NoError(t, err)
+		// should be first FN peer id
+		require.Equal(t, nw.Hosts()[1].ID(), peerID2)
+	})
+
+	t.Run("get peer from discovery", func(t *testing.T) {
+		nw, err := mocknet.FullMeshConnected(3)
+		require.NoError(t, err)
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+		t.Cleanup(cancel)
+
+		bs := host.InfoFromHost(nw.Hosts()[2])
+		opts := []dht.Option{
+			dht.Mode(dht.ModeAuto),
+			dht.BootstrapPeers(*bs),
+			//dht.ProtocolPrefix("prefix"),
+			//dht.Datastore(params.DataStore),
+			dht.RoutingTableRefreshPeriod(time.Second),
+		}
+
+		bsOpts := append(opts,
+			dht.Mode(dht.ModeServer), // it must accept incoming connections
+			dht.BootstrapPeers(),     // no bootstrappers for a bootstrapper ¯\_(ツ)_/¯
+		)
+		bsRouter, err := dht.New(ctx, nw.Hosts()[2], bsOpts...)
+		require.NoError(t, err)
+		require.NoError(t, bsRouter.Bootstrap(ctx))
+
+		router1, err := dht.New(ctx, nw.Hosts()[0], opts...)
+		require.NoError(t, err)
+		bnDisc := discovery.NewDiscovery(
+			nw.Hosts()[0],
+			routingdisc.NewRoutingDiscovery(router1),
+			10,
+			time.Second,
+			time.Second)
+
+		router2, err := dht.New(ctx, nw.Hosts()[1], opts...)
+		require.NoError(t, err)
+		fnDisc := discovery.NewDiscovery(
+			nw.Hosts()[1],
+			routingdisc.NewRoutingDiscovery(router2),
+			10,
+			time.Second,
+			time.Second)
+
+		fnDisc.WithOnPeersUpdate(func(peerID peer.ID, isAdded bool) {
+			fmt.Println("GOT peer", peerID.String(), isAdded)
+		})
+
+		require.NoError(t, router1.Bootstrap(ctx))
+		require.NoError(t, router2.Bootstrap(ctx))
+		go fnDisc.EnsurePeers(ctx)
+
+		go bnDisc.Advertise(ctx)
+		select {
+		case <-ctx.Done():
+			peers, err := fnDisc.Peers(ctx)
+			require.NoError(t, err)
+			fmt.Println("done", len(peers))
+		}
+	})
+}
+
+func testManager(ctx context.Context, headerSub libhead.Subscriber[*header.ExtendedHeader]) *Manager {
+	ctx, cancel := context.WithCancel(ctx)
 	manager := &Manager{
-		headerSub:       headerSub,
-		pools:           make(map[string]*syncPool),
+		headerSub: headerSub,
+		pools:     make(map[string]*syncPool),
+		broadcast: func(ctx context.Context, hash share.DataHash) error {
+			return nil
+		},
 		poolSyncTimeout: 60 * time.Second,
 		fullNodes:       newPool(),
 		cancel:          cancel,
