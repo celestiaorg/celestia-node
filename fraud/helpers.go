@@ -10,7 +10,7 @@ import (
 )
 
 func pubsubTopicID(fraudType, protocolSuffix string) string {
-	return fmt.Sprintf("/fraud-sub/%s/%s/v0.0.1", protocolSuffix, fraudType)
+	return fmt.Sprintf("/fraud-sub/%s/%s/v0.0.1", fraudType, protocolSuffix)
 }
 
 func protocolID(protocolSuffix string) protocol.ID {
