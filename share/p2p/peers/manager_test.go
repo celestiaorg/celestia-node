@@ -64,7 +64,7 @@ func TestManager(t *testing.T) {
 		result := manager.validate(ctx, peerID, h.DataHash.Bytes())
 		require.Equal(t, pubsub.ValidationIgnore, result)
 
-		pID, done, err := manager.GetPeer(ctx, h.DataHash.Bytes())
+		pID, done, err := manager.Peer(ctx, h.DataHash.Bytes())
 		require.NoError(t, err)
 		require.Equal(t, peerID, pID)
 
@@ -95,7 +95,7 @@ func TestManager(t *testing.T) {
 		result = manager.validate(ctx, peerID, h.DataHash.Bytes())
 		require.Equal(t, pubsub.ValidationIgnore, result)
 
-		pID, done, err := manager.GetPeer(ctx, h.DataHash.Bytes())
+		pID, done, err := manager.Peer(ctx, h.DataHash.Bytes())
 		require.NoError(t, err)
 		require.Equal(t, peerID, pID)
 
@@ -147,7 +147,7 @@ func TestManager(t *testing.T) {
 		peers := []peer.ID{"peer1", "peer2", "peer3"}
 		manager.fullNodes.add(peers...)
 
-		peerID, done, err := manager.GetPeer(ctx, h.DataHash.Bytes())
+		peerID, done, err := manager.Peer(ctx, h.DataHash.Bytes())
 		done(ResultSuccess)
 		require.NoError(t, err)
 		require.Contains(t, peers, peerID)
@@ -170,7 +170,7 @@ func TestManager(t *testing.T) {
 		// make sure peers are not returned before timeout
 		timeoutCtx, cancel := context.WithTimeout(context.Background(), time.Millisecond)
 		t.Cleanup(cancel)
-		_, _, err = manager.GetPeer(timeoutCtx, h.DataHash.Bytes())
+		_, _, err = manager.Peer(timeoutCtx, h.DataHash.Bytes())
 		require.ErrorIs(t, err, context.DeadlineExceeded)
 
 		peers := []peer.ID{"peer1", "peer2", "peer3"}
@@ -179,7 +179,7 @@ func TestManager(t *testing.T) {
 		doneCh := make(chan struct{})
 		go func() {
 			defer close(doneCh)
-			peerID, done, err := manager.GetPeer(ctx, h.DataHash.Bytes())
+			peerID, done, err := manager.Peer(ctx, h.DataHash.Bytes())
 			done(ResultSuccess)
 			require.NoError(t, err)
 			require.Contains(t, peers, peerID)
@@ -210,18 +210,18 @@ func TestIntagration(t *testing.T) {
 		bnPubSub, err := shrexsub.NewPubSub(ctx, nw.Hosts()[0], "test")
 		require.NoError(t, err)
 
-		fnPubSub1, err := shrexsub.NewPubSub(ctx, nw.Hosts()[1], "test")
+		fnPubSub, err := shrexsub.NewPubSub(ctx, nw.Hosts()[1], "test")
 		require.NoError(t, err)
 
 		require.NoError(t, bnPubSub.Start(ctx))
-		require.NoError(t, fnPubSub1.Start(ctx))
+		require.NoError(t, fnPubSub.Start(ctx))
 
 		fnPeerManager, err := testManager(ctx, newSubLock())
 		require.NoError(t, err)
 		fnPeerManager.host = nw.Hosts()[1]
 
-		require.NoError(t, fnPubSub1.AddValidator(fnPeerManager.validate))
-		_, err = fnPubSub1.Subscribe()
+		require.NoError(t, fnPubSub.AddValidator(fnPeerManager.validate))
+		_, err = fnPubSub.Subscribe()
 		require.NoError(t, err)
 
 		// broadcast from BN
@@ -229,7 +229,7 @@ func TestIntagration(t *testing.T) {
 		require.NoError(t, bnPubSub.Broadcast(ctx, peerHash))
 
 		// FN should get message
-		peerID, _, err := fnPeerManager.GetPeer(ctx, peerHash)
+		peerID, _, err := fnPeerManager.Peer(ctx, peerHash)
 		require.NoError(t, err)
 
 		// check that peerID matched bridge node

@@ -22,19 +22,6 @@ import (
 	"github.com/celestiaorg/celestia-node/share/p2p/shrexsub"
 )
 
-//TODO: address TODOs
-//TODO: add backoff
-//TODO: add debug logs
-//TODO: simplify tests
-// TODO: add GC for old / unwanted pools
-//TODO: metrics
-// - validation results rate[result_type, source:discovery/shrexsub]
-// - peer retrival rate[shrexsub/discovery]
-// - retrieval time hist
-// - validation time hist
-// - blacklisted peers count
-// - blacklistedHash count
-
 const (
 	gcInterval = time.Second * 30
 
@@ -62,8 +49,6 @@ type Manager struct {
 	// fullNodes collects full nodes peer.ID found via discovery
 	fullNodes *pool
 
-	// peers that misbehaved
-	blacklistedPeers map[peer.ID]bool
 	// hashes that are not in the chain
 	blacklistedHashes map[string]bool
 
@@ -102,7 +87,6 @@ func NewManager(
 		pools:             make(map[string]*syncPool),
 		poolSyncTimeout:   syncTimeout,
 		fullNodes:         newPool(),
-		blacklistedPeers:  make(map[peer.ID]bool),
 		blacklistedHashes: make(map[string]bool),
 		done:              make(chan struct{}),
 	}
@@ -160,11 +144,11 @@ func (s *Manager) Stop(ctx context.Context) error {
 	}
 }
 
-// GetPeer returns peer collected from shrex.Sub for given datahash if any available.
+// Peer returns peer collected from shrex.Sub for given datahash if any available.
 // If there is none, it will look for fullnodes collected from discovery. If there is no discovered
 // full nodes, it will wait until any peer appear in either source or timeout happen.
 // After fetching data using given peer, caller is required to call returned DoneFunc
-func (s *Manager) GetPeer(
+func (s *Manager) Peer(
 	ctx context.Context, datahash share.DataHash,
 ) (peer.ID, DoneFunc, error) {
 	p := s.getOrCreatePool(datahash.String())
@@ -173,9 +157,10 @@ func (s *Manager) GetPeer(
 	peerID, ok := p.tryGet()
 	if ok {
 		// some pools could still have blacklisted peers in storage
+
 		if s.peerIsBlacklisted(peerID) {
 			p.remove(peerID)
-			return s.GetPeer(ctx, datahash)
+			return s.Peer(ctx, datahash)
 		}
 		return peerID, s.doneFunc(datahash, peerID), nil
 	}
@@ -267,14 +252,8 @@ func (s *Manager) deletePool(datahash string) {
 }
 
 func (s *Manager) blacklistPeers(peerIDs ...peer.ID) {
-	s.lock.Lock()
 	for _, peerID := range peerIDs {
-		s.blacklistedPeers[peerID] = true
 		s.fullNodes.remove(peerID)
-	}
-	s.lock.Unlock()
-
-	for _, peerID := range peerIDs {
 		// add peer to the blacklist, so we can't connect to it in the future.
 		err := s.connGater.BlockPeer(peerID)
 		if err != nil {
@@ -289,9 +268,7 @@ func (s *Manager) blacklistPeers(peerIDs ...peer.ID) {
 }
 
 func (s *Manager) peerIsBlacklisted(peerID peer.ID) bool {
-	s.lock.Lock()
-	defer s.lock.Unlock()
-	return s.blacklistedPeers[peerID]
+	return s.connGater.InterceptPeerDial(peerID)
 }
 
 func (s *Manager) hashIsBlacklisted(hash share.DataHash) bool {
