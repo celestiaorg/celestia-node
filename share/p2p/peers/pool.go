@@ -7,26 +7,29 @@ import (
 	"github.com/libp2p/go-libp2p/core/peer"
 )
 
+const defaultCleanupThreshold = 2
+
 // pool stores peers and provides methods for simple round-robin access.
 type pool struct {
 	m           sync.Mutex
 	peersList   []peer.ID
 	active      map[peer.ID]bool
 	activeCount int
-	next        int
+	nextIdx     int
 
 	hasPeer   bool
 	hasPeerCh chan struct{}
 
-	cleanupDisabled bool
+	cleanupThreshold int
 }
 
 // newPool creates new pool
 func newPool() *pool {
 	return &pool{
-		peersList: make([]peer.ID, 0),
-		active:    make(map[peer.ID]bool),
-		hasPeerCh: make(chan struct{}),
+		peersList:        make([]peer.ID, 0),
+		active:           make(map[peer.ID]bool),
+		hasPeerCh:        make(chan struct{}),
+		cleanupThreshold: defaultCleanupThreshold,
 	}
 }
 
@@ -39,13 +42,13 @@ func (p *pool) tryGet() (peer.ID, bool) {
 		return "", false
 	}
 
-	start := p.next
+	start := p.nextIdx
 	for {
-		peerID := p.peersList[p.next]
+		peerID := p.peersList[p.nextIdx]
 
-		p.next++
-		if p.next == len(p.peersList) {
-			p.next = 0
+		p.nextIdx++
+		if p.nextIdx == len(p.peersList) {
+			p.nextIdx = 0
 		}
 
 		if alive := p.active[peerID]; alive {
@@ -53,14 +56,14 @@ func (p *pool) tryGet() (peer.ID, bool) {
 		}
 
 		// full circle passed
-		if p.next == start {
+		if p.nextIdx == start {
 			return "", false
 		}
 	}
 }
 
-// getNext sends a peer to the returned channel when it becomes available.
-func (p *pool) getNext(ctx context.Context) <-chan peer.ID {
+// next sends a peer to the returned channel when it becomes available.
+func (p *pool) next(ctx context.Context) <-chan peer.ID {
 	peerCh := make(chan peer.ID, 1)
 	go func() {
 		for {
@@ -109,7 +112,7 @@ func (p *pool) remove(peers ...peer.ID) {
 	}
 
 	// do cleanup if too much garbage
-	if len(p.peersList) > p.activeCount*2 && !p.cleanupDisabled {
+	if len(p.peersList) >= p.activeCount+p.cleanupThreshold {
 		p.cleanup()
 	}
 	p.checkHasPeers()
@@ -126,13 +129,13 @@ func (p *pool) cleanup() {
 			delete(p.active, peerID)
 		}
 
-		if idx == p.next {
+		if idx == p.nextIdx {
 			// if peer is not active and no more active peers left in list point to first peer
 			if !alive && len(newList) >= p.activeCount {
-				p.next = 0
+				p.nextIdx = 0
 				continue
 			}
-			p.next = len(newList)
+			p.nextIdx = len(newList)
 		}
 	}
 	p.peersList = newList
