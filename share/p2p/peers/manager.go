@@ -23,11 +23,11 @@ import (
 )
 
 const (
-	gcInterval = time.Second * 30
-
 	ResultSuccess syncResult = iota
 	ResultFail
 	ResultPeerMisbehaved
+
+	gcInterval = time.Second * 30
 )
 
 var log = logging.Logger("shrex/peer-manager")
@@ -56,6 +56,11 @@ type Manager struct {
 	done   chan struct{}
 }
 
+// DoneFunc is a function performs an action based on the given syncResult.
+type DoneFunc func(result syncResult)
+
+type syncResult int
+
 type syncPool struct {
 	*pool
 
@@ -64,11 +69,6 @@ type syncPool struct {
 	isValidatedDataHash atomic.Bool
 	createdAt           time.Time
 }
-
-type (
-	syncResult int
-	DoneFunc   func(result syncResult)
-)
 
 func NewManager(
 	headerSub libhead.Subscriber[*header.ExtendedHeader],
@@ -109,22 +109,22 @@ func (s *Manager) Start(startCtx context.Context) error {
 
 	err := s.shrexSub.Start(startCtx)
 	if err != nil {
-		return fmt.Errorf("start shrexsub: %w", err)
+		return fmt.Errorf("starting shrexsub: %w", err)
 	}
 
 	err = s.shrexSub.AddValidator(s.validate)
 	if err != nil {
-		return fmt.Errorf("register validator: %w", err)
+		return fmt.Errorf("registering validator: %w", err)
 	}
 
 	_, err = s.shrexSub.Subscribe()
 	if err != nil {
-		return fmt.Errorf("subscribe shrexsub: %w", err)
+		return fmt.Errorf("subscribing to shrexsub: %w", err)
 	}
 
 	sub, err := s.headerSub.Subscribe()
 	if err != nil {
-		return fmt.Errorf("subscribe headersub: %w", err)
+		return fmt.Errorf("subscribing to headersub: %w", err)
 	}
 
 	go s.disc.EnsurePeers(ctx)
@@ -154,10 +154,10 @@ func (s *Manager) Peer(
 	p := s.getOrCreatePool(datahash.String())
 	p.markValidated()
 
+	// first, check if a peer is available for the given datahash
 	peerID, ok := p.tryGet()
 	if ok {
 		// some pools could still have blacklisted peers in storage
-
 		if s.peerIsBlacklisted(peerID) {
 			p.remove(peerID)
 			return s.Peer(ctx, datahash)
@@ -165,7 +165,8 @@ func (s *Manager) Peer(
 		return peerID, s.doneFunc(datahash, peerID), nil
 	}
 
-	// try to use full node address obtained from discovery
+	// if no peer for datahash is currently available, try to use full node
+	// obtained from discovery
 	peerID, ok = s.fullNodes.tryGet()
 	if ok {
 		return peerID, s.doneFunc(datahash, peerID), nil
@@ -194,7 +195,7 @@ func (s *Manager) doneFunc(datahash share.DataHash, peerID peer.ID) DoneFunc {
 	}
 }
 
-// subscribeHeader takes datahash from received header and validates corresponding peer pool
+// subscribeHeader takes datahash from received header and validates corresponding peer pool.
 func (s *Manager) subscribeHeader(ctx context.Context, headerSub libhead.Subscription[*header.ExtendedHeader]) {
 	defer close(s.done)
 	defer headerSub.Cancel()
@@ -205,7 +206,7 @@ func (s *Manager) subscribeHeader(ctx context.Context, headerSub libhead.Subscri
 			if errors.Is(err, context.Canceled) {
 				return
 			}
-			log.Errorw("get nextIdx header from sub", "err", err)
+			log.Errorw("get next header from sub", "err", err)
 			continue
 		}
 
@@ -215,7 +216,7 @@ func (s *Manager) subscribeHeader(ctx context.Context, headerSub libhead.Subscri
 
 // Validate will collect peer.ID into corresponding peer pool
 func (s *Manager) validate(ctx context.Context, peerID peer.ID, hash share.DataHash) pubsub.ValidationResult {
-	// broadcasted messages should bypass the validation with Accept
+	// messages broadcasted from self should bypass the validation with Accept
 	if peerID == s.host.ID() {
 		return pubsub.ValidationAccept
 	}

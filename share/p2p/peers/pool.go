@@ -23,7 +23,7 @@ type pool struct {
 	cleanupThreshold int
 }
 
-// newPool creates new pool
+// newPool returns new empty pool.
 func newPool() *pool {
 	return &pool{
 		peersList:        make([]peer.ID, 0),
