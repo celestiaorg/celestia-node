@@ -38,15 +38,7 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 		return fx.Module(
 			"share",
 			baseComponents,
-			fx.Provide(fx.Annotate(
-				light.NewShareAvailability,
-				fx.OnStart(func(ctx context.Context, avail *light.ShareAvailability) error {
-					return avail.Start(ctx)
-				}),
-				fx.OnStop(func(ctx context.Context, avail *light.ShareAvailability) error {
-					return avail.Stop(ctx)
-				}),
-			)),
+			fx.Provide(fx.Annotate(light.NewShareAvailability)),
 			// cacheAvailability's lifecycle continues to use a fx hook,
 			// since the LC requires a cacheAvailability but the constructor returns a share.Availability
 			fx.Provide(cacheAvailability[*light.ShareAvailability]),
