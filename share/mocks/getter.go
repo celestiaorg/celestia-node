@@ -8,11 +8,12 @@ import (
 	context "context"
 	reflect "reflect"
 
+	gomock "github.com/golang/mock/gomock"
+
 	da "github.com/celestiaorg/celestia-app/pkg/da"
 	share "github.com/celestiaorg/celestia-node/share"
 	namespace "github.com/celestiaorg/nmt/namespace"
 	rsmt2d "github.com/celestiaorg/rsmt2d"
-	gomock "github.com/golang/mock/gomock"
 )
 
 // MockGetter is a mock of Getter interface.
