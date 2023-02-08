@@ -3,6 +3,7 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"os"
 	"path/filepath"
 	"strings"
 
@@ -42,7 +43,11 @@ func ParseNodeFlags(ctx context.Context, cmd *cobra.Command, network p2p.Network
 	store := cmd.Flag(nodeStoreFlag).Value.String()
 	if store == "" {
 		tp := NodeType(ctx)
-		store = fmt.Sprintf("~/.celestia-%s-%s", strings.ToLower(tp.String()), strings.ToLower(string(network)))
+		home, err := os.UserHomeDir()
+		if err != nil {
+			return ctx, err
+		}
+		store = fmt.Sprintf("%s/.celestia-%s-%s", home, strings.ToLower(tp.String()), strings.ToLower(string(network)))
 	}
 	ctx = WithStorePath(ctx, store)
 
