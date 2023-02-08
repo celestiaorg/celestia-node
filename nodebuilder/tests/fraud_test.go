@@ -10,7 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/celestiaorg/celestia-node/fraud"
-	"github.com/celestiaorg/celestia-node/header"
+	"github.com/celestiaorg/celestia-node/headertest"
 	"github.com/celestiaorg/celestia-node/nodebuilder"
 	"github.com/celestiaorg/celestia-node/nodebuilder/core"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
@@ -35,7 +35,7 @@ func TestFraudProofBroadcasting(t *testing.T) {
 	testTimeout := time.Millisecond * 200
 	sw := swamp.NewSwamp(t, swamp.WithBlockTime(testTimeout))
 
-	bridge := sw.NewBridgeNode(core.WithHeaderConstructFn(header.FraudMaker(t, 20)))
+	bridge := sw.NewBridgeNode(core.WithHeaderConstructFn(headertest.FraudMaker(t, 20)))
 
 	ctx, cancel := context.WithTimeout(context.Background(), swamp.DefaultTestTimeout)
 	t.Cleanup(cancel)
@@ -99,7 +99,7 @@ func TestFraudProofSyncing(t *testing.T) {
 
 	cfg := nodebuilder.DefaultConfig(node.Bridge)
 	store := nodebuilder.MockStore(t, cfg)
-	bridge := sw.NewNodeWithStore(node.Bridge, store, core.WithHeaderConstructFn(header.FraudMaker(t, 10)))
+	bridge := sw.NewNodeWithStore(node.Bridge, store, core.WithHeaderConstructFn(headertest.FraudMaker(t, 10)))
 
 	ctx, cancel := context.WithTimeout(context.Background(), swamp.DefaultTestTimeout)
 	t.Cleanup(cancel)

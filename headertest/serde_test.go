@@ -1,10 +1,12 @@
-package header
+package headertest
 
 import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/celestiaorg/celestia-node/header"
 )
 
 func TestMarshalUnmarshalExtendedHeader(t *testing.T) {
@@ -12,7 +14,7 @@ func TestMarshalUnmarshalExtendedHeader(t *testing.T) {
 	binaryData, err := in.MarshalBinary()
 	require.NoError(t, err)
 
-	out := &ExtendedHeader{}
+	out := &header.ExtendedHeader{}
 	err = out.UnmarshalBinary(binaryData)
 	require.NoError(t, err)
 	equalExtendedHeader(t, in, out)
@@ -22,13 +24,13 @@ func TestMarshalUnmarshalExtendedHeader(t *testing.T) {
 	jsonData, err := in.MarshalJSON()
 	require.NoError(t, err)
 
-	out = &ExtendedHeader{}
+	out = &header.ExtendedHeader{}
 	err = out.UnmarshalJSON(jsonData)
 	require.NoError(t, err)
 	equalExtendedHeader(t, in, out)
 }
 
-func equalExtendedHeader(t *testing.T, in, out *ExtendedHeader) {
+func equalExtendedHeader(t *testing.T, in, out *header.ExtendedHeader) {
 	// ValidatorSet.totalVotingPower is not set (is a cached value that can be recomputed client side)
 	assert.Equal(t, in.ValidatorSet.Validators, out.ValidatorSet.Validators)
 	assert.Equal(t, in.ValidatorSet.Proposer, out.ValidatorSet.Proposer)

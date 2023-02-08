@@ -14,6 +14,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/tendermint/tendermint/libs/rand"
+	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	core "github.com/tendermint/tendermint/types"
 
 	"github.com/celestiaorg/celestia-app/pkg/da"
@@ -171,8 +172,11 @@ func TestSharesRoundTrip(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	var b core.Block
-	err := json.Unmarshal([]byte(sampleBlock), &b)
+	var pb tmproto.Block
+	err := json.Unmarshal([]byte(sampleBlock), &pb)
+	require.NoError(t, err)
+
+	b, err := core.BlockFromProto(&pb)
 	require.NoError(t, err)
 
 	namespace, err := hex.DecodeString("00001337BEEF0000")
@@ -191,7 +195,7 @@ func TestSharesRoundTrip(t *testing.T) {
 	cases := []testCase{
 		{
 			"original test case",
-			[][]byte{b.Data.Messages.MessagesList[0].Data},
+			[][]byte{b.Data.Blobs[0].Data},
 			[][]byte{namespace}},
 		{
 			"one short message",
@@ -266,12 +270,12 @@ func TestSharesRoundTrip(t *testing.T) {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			// prepare data
-			b.Data.Messages.MessagesList = make([]core.Message, len(tc.messages))
-			b.OriginalSquareSize = 16
+			b.Data.Blobs = make([]core.Blob, len(tc.messages))
+			b.SquareSize = 16
 			var msgsInNamespace [][]byte
 			require.Equal(t, len(tc.namespaces), len(tc.messages))
 			for i := range tc.messages {
-				b.Data.Messages.MessagesList[i] = core.Message{NamespaceID: tc.namespaces[i], Data: tc.messages[i]}
+				b.Data.Blobs[i] = core.Blob{NamespaceID: tc.namespaces[i], Data: tc.messages[i]}
 				if bytes.Equal(tc.namespaces[i], namespace) {
 					msgsInNamespace = append(msgsInNamespace, tc.messages[i])
 				}
@@ -292,11 +296,11 @@ func TestSharesRoundTrip(t *testing.T) {
 						myShares = append(myShares, sh)
 					}
 				}
-				msgs, err := appshares.ParseMsgs(myShares)
+				blobs, err := appshares.ParseBlobs(myShares)
 				require.NoError(t, err)
-				assert.Len(t, msgs.MessagesList, len(msgsInNamespace))
-				for i := range msgs.MessagesList {
-					assert.Equal(t, msgsInNamespace[i], msgs.MessagesList[i].Data)
+				assert.Len(t, blobs, len(msgsInNamespace))
+				for i := range blobs {
+					assert.Equal(t, msgsInNamespace[i], blobs[i].Data)
 				}
 			}
 
@@ -311,19 +315,19 @@ func TestSharesRoundTrip(t *testing.T) {
 				require.NoError(t, shares.Verify(&dah, namespace))
 				require.NotEmpty(t, shares)
 
-				msgs, err := appshares.ParseMsgs(shares.Flatten())
+				blobs, err := appshares.ParseBlobs(shares.Flatten())
 				require.NoError(t, err)
-				assert.Len(t, msgs.MessagesList, len(msgsInNamespace))
-				for i := range msgs.MessagesList {
-					assert.Equal(t, namespace, []byte(msgs.MessagesList[i].NamespaceID))
-					assert.Equal(t, msgsInNamespace[i], msgs.MessagesList[i].Data)
+				assert.Len(t, blobs, len(msgsInNamespace))
+				for i := range blobs {
+					assert.Equal(t, namespace, []byte(blobs[i].NamespaceID))
+					assert.Equal(t, msgsInNamespace[i], blobs[i].Data)
 				}
 			}
 		})
 	}
 }
 
-// this is a sample block from devnet-2 which originally showed the issue with share ordering
+// this is a sample block
 //
-//go:embed "testdata/block-825320.json"
+//go:embed "testdata/sample-block.json"
 var sampleBlock string

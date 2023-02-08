@@ -6,22 +6,22 @@ import (
 	"fmt"
 
 	"github.com/ipfs/go-blockservice"
-	logging "github.com/ipfs/go-log/v2"
 
-	"github.com/celestiaorg/celestia-node/core"
 	"github.com/celestiaorg/celestia-node/header"
 	libhead "github.com/celestiaorg/celestia-node/libs/header"
 )
 
-var log = logging.Logger("header/core")
-
 type Exchange struct {
-	fetcher    *core.BlockFetcher
+	fetcher    *BlockFetcher
 	shareStore blockservice.BlockService
 	construct  header.ConstructFn
 }
 
-func NewExchange(fetcher *core.BlockFetcher, bServ blockservice.BlockService, construct header.ConstructFn) *Exchange {
+func NewExchange(
+	fetcher *BlockFetcher,
+	bServ blockservice.BlockService,
+	construct header.ConstructFn,
+) *Exchange {
 	return &Exchange{
 		fetcher:    fetcher,
 		shareStore: bServ,
@@ -54,7 +54,10 @@ func (ce *Exchange) GetRangeByHeight(ctx context.Context, from, amount uint64) (
 	return headers, nil
 }
 
-func (ce *Exchange) GetVerifiedRange(ctx context.Context, from *header.ExtendedHeader, amount uint64,
+func (ce *Exchange) GetVerifiedRange(
+	ctx context.Context,
+	from *header.ExtendedHeader,
+	amount uint64,
 ) ([]*header.ExtendedHeader, error) {
 	headers, err := ce.GetRangeByHeight(ctx, uint64(from.Height())+1, amount)
 	if err != nil {

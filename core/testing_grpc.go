@@ -109,6 +109,5 @@ func startGRPCServer(
 			log.Error("serving GRPC: ", err)
 		}
 	}()
-
 	return grpcSrv, nil
 }

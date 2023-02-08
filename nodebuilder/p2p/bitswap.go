@@ -10,7 +10,7 @@ import (
 	blockstore "github.com/ipfs/go-ipfs-blockstore"
 	exchange "github.com/ipfs/go-ipfs-exchange-interface"
 	routinghelpers "github.com/libp2p/go-libp2p-routing-helpers"
-	"github.com/libp2p/go-libp2p/core/host"
+	hst "github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/protocol"
 	"go.uber.org/fx"
 )
@@ -24,8 +24,8 @@ const (
 	defaultARCCacheSize = 64 << 10
 )
 
-// DataExchange provides a constructor for IPFS block's DataExchange over BitSwap.
-func DataExchange(params bitSwapParams) (exchange.Interface, blockstore.Blockstore, error) {
+// dataExchange provides a constructor for IPFS block's DataExchange over BitSwap.
+func dataExchange(params bitSwapParams) (exchange.Interface, blockstore.Blockstore, error) {
 	bs, err := blockstore.CachedBlockstore(
 		params.Ctx,
 		blockstore.NewBlockstore(params.Ds),
@@ -56,6 +56,6 @@ type bitSwapParams struct {
 
 	Ctx  context.Context
 	Net  Network
-	Host host.Host
+	Host hst.Host
 	Ds   datastore.Batching
 }

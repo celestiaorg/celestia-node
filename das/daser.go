@@ -144,6 +144,9 @@ func (d *DASer) Stop(ctx context.Context) error {
 }
 
 func (d *DASer) sample(ctx context.Context, h *header.ExtendedHeader) error {
+	ctx, cancel := context.WithTimeout(ctx, d.params.SampleTimeout)
+	defer cancel()
+
 	err := d.da.SharesAvailable(ctx, h.DAH)
 	if err != nil {
 		if err == context.Canceled {

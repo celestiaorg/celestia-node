@@ -9,7 +9,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/celestiaorg/celestia-node/core"
 	"github.com/celestiaorg/celestia-node/header"
 )
 
@@ -34,12 +33,12 @@ func Test_hashMatch(t *testing.T) {
 	assert.False(t, bytes.Equal(expected, mismatch))
 }
 
-func createCoreFetcher(t *testing.T) *core.BlockFetcher {
-	client := core.StartTestNode(t).Client
-	return core.NewBlockFetcher(client)
+func createCoreFetcher(t *testing.T) *BlockFetcher {
+	client := StartTestNode(t).Client
+	return NewBlockFetcher(client)
 }
 
-func generateBlocks(t *testing.T, fetcher *core.BlockFetcher) {
+func generateBlocks(t *testing.T, fetcher *BlockFetcher) {
 	sub, err := fetcher.SubscribeNewBlockEvent(context.Background())
 	require.NoError(t, err)
 

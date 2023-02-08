@@ -3,6 +3,7 @@ package p2p
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"math/rand"
 	"sort"
@@ -18,10 +19,6 @@ import (
 )
 
 var log = logging.Logger("header/p2p")
-
-// PubSubTopic hardcodes the name of the Header
-// gossipsub topic.
-const PubSubTopic = "header-sub"
 
 // Exchange enables sending outbound HeaderRequests to the network as well as
 // handling inbound HeaderRequests from the network.
@@ -41,7 +38,6 @@ type Exchange[H header.Header] struct {
 func NewExchange[H header.Header](
 	host host.Host,
 	peers peer.IDSlice,
-	protocolSuffix string,
 	connGater *conngater.BasicConnectionGater,
 	opts ...Option[ClientParameters],
 ) (*Exchange[H], error) {
@@ -57,7 +53,7 @@ func NewExchange[H header.Header](
 
 	return &Exchange[H]{
 		host:         host,
-		protocolID:   protocolID(protocolSuffix),
+		protocolID:   protocolID(params.protocolSuffix),
 		trustedPeers: peers,
 		peerTracker: newPeerTracker(
 			host,
@@ -77,7 +73,12 @@ func (ex *Exchange[H]) Start(context.Context) error {
 		// Try to pre-connect to trusted peers.
 		// We don't really care if we succeed at this point
 		// and just need any peers in the peerTracker asap
-		go ex.host.Connect(ex.ctx, peer.AddrInfo{ID: p}) //nolint:errcheck
+		go func(p peer.ID) {
+			err := ex.host.Connect(ex.ctx, peer.AddrInfo{ID: p})
+			if err != nil && !errors.Is(err, context.Canceled) && !errors.Is(err, context.DeadlineExceeded) {
+				log.Debugw("err connecting to a bootstrap peer", "err", err, "peer", p)
+			}
+		}(p)
 	}
 	go ex.peerTracker.gc()
 	go ex.peerTracker.track()
@@ -220,13 +221,26 @@ func (ex *Exchange[H]) performRequest(
 		return make([]H, 0), nil
 	}
 
+	// TODO: Move this check to constructor(#1671)
 	if len(ex.trustedPeers) == 0 {
 		return nil, fmt.Errorf("no trusted peers")
 	}
 
-	//nolint:gosec // G404: Use of weak random number generator
-	index := rand.Intn(len(ex.trustedPeers))
-	return ex.request(ctx, ex.trustedPeers[index], req)
+	for {
+		//nolint:gosec // G404: Use of weak random number generator
+		idx := rand.Intn(len(ex.trustedPeers))
+		ctx, cancel := context.WithTimeout(ctx, ex.Params.TrustedPeersRequestTimeout)
+
+		h, err := ex.request(ctx, ex.trustedPeers[idx], req)
+		cancel()
+		switch err {
+		default:
+			log.Debug(err)
+			continue
+		case context.Canceled, context.DeadlineExceeded, nil:
+			return h, err
+		}
+	}
 }
 
 // request sends the HeaderRequest to a remote peer.

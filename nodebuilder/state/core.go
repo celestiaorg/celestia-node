@@ -1,16 +1,16 @@
 package state
 
 import (
-	apptypes "github.com/celestiaorg/celestia-app/x/payment/types"
+	apptypes "github.com/celestiaorg/celestia-app/x/blob/types"
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/libs/header/sync"
 	"github.com/celestiaorg/celestia-node/nodebuilder/core"
 	"github.com/celestiaorg/celestia-node/state"
 )
 
-// CoreAccessor constructs a new instance of state.Module over
+// coreAccessor constructs a new instance of state.Module over
 // a celestia-core connection.
-func CoreAccessor(
+func coreAccessor(
 	corecfg core.Config,
 	signer *apptypes.KeyringSigner,
 	sync *sync.Syncer[*header.ExtendedHeader],

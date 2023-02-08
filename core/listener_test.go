@@ -12,9 +12,10 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/celestiaorg/celestia-node/core"
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/libs/header/p2p"
+	network "github.com/celestiaorg/celestia-node/nodebuilder/p2p"
+	"github.com/celestiaorg/celestia-node/share/p2p/shrexsub"
 )
 
 // TestListener tests the lifecycle of the core listener.
@@ -24,28 +25,36 @@ func TestListener(t *testing.T) {
 
 	// create mocknet with two pubsub endpoints
 	ps0, ps1 := createMocknetWithTwoPubsubEndpoints(ctx, t)
-	// create second subscription endpoint to listen for Listener's pubsub messages
-	topic, err := ps1.Join(p2p.PubSubTopic)
+	subscriber := p2p.NewSubscriber[*header.ExtendedHeader](ps1, header.MsgID, string(network.Private))
+	err := subscriber.AddValidator(func(context.Context, *header.ExtendedHeader) pubsub.ValidationResult {
+		return pubsub.ValidationAccept
+	})
 	require.NoError(t, err)
-	sub, err := topic.Subscribe()
+	require.NoError(t, subscriber.Start(ctx))
+	subs, err := subscriber.Subscribe()
 	require.NoError(t, err)
 
 	// create one block to store as Head in local store and then unsubscribe from block events
 	fetcher := createCoreFetcher(t)
-
+	eds := createEdsPubSub(ctx, t)
 	// create Listener and start listening
-	cl := createListener(ctx, t, fetcher, ps0)
+	cl := createListener(ctx, t, fetcher, ps0, eds)
 	err = cl.Start(ctx)
 	require.NoError(t, err)
 
-	// ensure headers are getting broadcasted to the gossipsub topic
+	edsSubs, err := eds.Subscribe()
+	require.NoError(t, err)
+	defer edsSubs.Cancel()
+
+	// ensure headers and dataHash are getting broadcasted to the relevant topics
 	for i := 1; i < 6; i++ {
-		msg, err := sub.Next(ctx)
+		h, err := subs.NextHeader(ctx)
 		require.NoError(t, err)
 
-		var resp header.ExtendedHeader
-		err = resp.UnmarshalBinary(msg.Data)
+		dataHash, err := edsSubs.Next(ctx)
 		require.NoError(t, err)
+
+		require.Equal(t, h.DataHash.Bytes(), []byte(dataHash))
 	}
 
 	err = cl.Stop(ctx)
@@ -91,16 +100,28 @@ func createMocknetWithTwoPubsubEndpoints(ctx context.Context, t *testing.T) (*pu
 func createListener(
 	ctx context.Context,
 	t *testing.T,
-	fetcher *core.BlockFetcher,
+	fetcher *BlockFetcher,
 	ps *pubsub.PubSub,
+	edsSub *shrexsub.PubSub,
 ) *Listener {
-	p2pSub := p2p.NewSubscriber[*header.ExtendedHeader](ps, header.MsgID)
+	p2pSub := p2p.NewSubscriber[*header.ExtendedHeader](ps, header.MsgID, string(network.Private))
 	err := p2pSub.Start(ctx)
 	require.NoError(t, err)
 	t.Cleanup(func() {
-		err := p2pSub.Stop(ctx)
-		require.NoError(t, err)
+		require.NoError(t, p2pSub.Stop(ctx))
 	})
 
-	return NewListener(p2pSub, fetcher, mdutils.Bserv(), header.MakeExtendedHeader)
+	return NewListener(p2pSub, fetcher, edsSub.Broadcast, mdutils.Bserv(), header.MakeExtendedHeader)
+}
+
+func createEdsPubSub(ctx context.Context, t *testing.T) *shrexsub.PubSub {
+	net, err := mocknet.FullMeshLinked(1)
+	require.NoError(t, err)
+	edsSub, err := shrexsub.NewPubSub(ctx, net.Hosts()[0], "eds-test")
+	require.NoError(t, err)
+	require.NoError(t, edsSub.Start(ctx))
+	t.Cleanup(func() {
+		require.NoError(t, edsSub.Stop(ctx))
+	})
+	return edsSub
 }

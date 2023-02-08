@@ -24,7 +24,7 @@ func EnsureEmptySquareExists(ctx context.Context, bServ blockservice.BlockServic
 // EmptyExtendedDataSquare returns the EDS of the empty block data square.
 func EmptyExtendedDataSquare() *rsmt2d.ExtendedDataSquare {
 	shares := emptyDataSquare()
-	squareSize := uint64(math.Sqrt(float64(appconsts.MinSquareSize)))
+	squareSize := uint64(math.Sqrt(float64(appconsts.DefaultMinSquareSize)))
 	eds, err := da.ExtendShares(squareSize, shares)
 	if err != nil {
 		panic(fmt.Errorf("failed to create empty EDS: %w", err))

@@ -6,9 +6,9 @@ message EDSRequest {
 
 enum Status {
   INVALID = 0;
-  OK = 100; // data found
-  NOT_FOUND = 200; // data not found
-  REFUSED = 201; // request refused
+  OK = 1; // data found
+  NOT_FOUND = 2; // data not found
+  REFUSED = 3; // request refused
 }
 
 message EDSResponse {

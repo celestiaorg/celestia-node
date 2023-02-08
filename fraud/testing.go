@@ -15,6 +15,8 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/celestiaorg/celestia-node/header"
+	"github.com/celestiaorg/celestia-node/headertest"
+	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
 )
 
 type DummyService struct {
@@ -45,7 +47,7 @@ func createStore(t *testing.T, numHeaders int) *mockStore {
 		headHeight: 0,
 	}
 
-	suite := header.NewTestSuite(t, numHeaders)
+	suite := headertest.NewTestSuite(t, numHeaders)
 
 	for i := 0; i < numHeaders; i++ {
 		header := suite.GenExtendedHeader()
@@ -142,6 +144,6 @@ func createTestServiceWithHost(
 		store.GetByHeight,
 		sync.MutexWrap(datastore.NewMapDatastore()),
 		enabledSyncer,
-		"private",
+		string(p2p.Private),
 	), store
 }

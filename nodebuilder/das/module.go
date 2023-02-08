@@ -30,6 +30,7 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 					das.WithPriorityQueueSize(c.PriorityQueueSize),
 					das.WithBackgroundStoreInterval(c.BackgroundStoreInterval),
 					das.WithSampleFrom(c.SampleFrom),
+					das.WithSampleTimeout(c.SampleTimeout),
 				}
 			},
 		),
@@ -41,7 +42,7 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 			"daser",
 			baseComponents,
 			fx.Provide(fx.Annotate(
-				NewDASer,
+				newDASer,
 				fx.OnStart(func(startCtx, ctx context.Context, fservice fraud.Service, das *das.DASer) error {
 					return fraudServ.Lifecycle(startCtx, ctx, fraud.BadEncoding, fservice,
 						das.Start, das.Stop)

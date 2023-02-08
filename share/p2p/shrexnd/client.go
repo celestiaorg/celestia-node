@@ -15,12 +15,12 @@ import (
 
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/ipld"
+	"github.com/celestiaorg/celestia-node/share/p2p"
 	pb "github.com/celestiaorg/celestia-node/share/p2p/shrexnd/pb"
+
 	"github.com/celestiaorg/go-libp2p-messenger/serde"
 	"github.com/celestiaorg/nmt/namespace"
 )
-
-var errNoMorePeers = errors.New("shrex-nd: all peers returned invalid responses")
 
 // Client implements client side of shrex/nd protocol to obtain namespaced shares data from remote
 // peers.
@@ -49,38 +49,33 @@ func NewClient(host host.Host, opts ...Option) (*Client, error) {
 	}, nil
 }
 
-// GetSharesByNamespace request shares with option to collect proofs from remote peers using shrex
-// protocol
-func (c *Client) GetSharesByNamespace(
+// RequestND requests namespaced data from the given peer.
+// Returns valid data with its verified inclusion against the share.Root.
+func (c *Client) RequestND(
 	ctx context.Context,
 	root *share.Root,
 	nID namespace.ID,
-	peerIDs ...peer.ID,
+	peer peer.ID,
 ) (share.NamespacedShares, error) {
-	for _, peerID := range peerIDs {
-		shares, err := c.doRequest(ctx, root, nID, peerID)
-		if err == nil {
-			return shares, err
-		}
-
-		if errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) {
-			return nil, ctx.Err()
-		}
-		// some net.Errors also mean the context deadline was exceeded, but yamux/mocknet do not
-		// unwrap to a ctx err
-		var ne net.Error
-		if errors.As(err, &ne) && ne.Timeout() {
-			if deadline, _ := ctx.Deadline(); deadline.Before(time.Now()) {
-				// stop trying peers if ctx deadline reached
-				return nil, context.DeadlineExceeded
-			}
-		}
-
-		// log and try another peer
-		log.Errorw("client-nd: peer returned err", "peer_id", peerID.String(), "err", err)
+	shares, err := c.doRequest(ctx, root, nID, peer)
+	if err == nil {
+		return shares, err
 	}
-
-	return nil, errNoMorePeers
+	if errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) {
+		return nil, ctx.Err()
+	}
+	// some net.Errors also mean the context deadline was exceeded, but yamux/mocknet do not
+	// unwrap to a ctx err
+	var ne net.Error
+	if errors.As(err, &ne) && ne.Timeout() {
+		if deadline, _ := ctx.Deadline(); deadline.Before(time.Now()) {
+			return nil, context.DeadlineExceeded
+		}
+	}
+	if err != p2p.ErrUnavailable {
+		log.Errorw("client-nd: peer returned err", "peer", peer, "err", err)
+	}
+	return nil, err
 }
 
 func (c *Client) doRequest(
@@ -197,12 +192,12 @@ func statusToErr(code pb.StatusCode) error {
 	switch code {
 	case pb.StatusCode_OK:
 		return nil
-	case pb.StatusCode_INVALID,
-		pb.StatusCode_NOT_FOUND,
-		pb.StatusCode_INTERNAL,
-		pb.StatusCode_REFUSED:
+	case pb.StatusCode_NOT_FOUND, pb.StatusCode_REFUSED:
+		return p2p.ErrUnavailable
+	case pb.StatusCode_INTERNAL, pb.StatusCode_INVALID:
+		fallthrough
 	default:
-		code = pb.StatusCode_INVALID
+		log.Errorf("client-nd: request status %s returned", code.String())
+		return p2p.ErrInvalidResponse
 	}
-	return errors.New(code.String())
 }

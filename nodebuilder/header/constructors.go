@@ -21,10 +21,9 @@ import (
 func newP2PServer(
 	host host.Host,
 	store libhead.Store[*header.ExtendedHeader],
-	network modp2p.Network,
 	opts []p2p.Option[p2p.ServerParameters],
 ) (*p2p.ExchangeServer[*header.ExtendedHeader], error) {
-	return p2p.NewExchangeServer[*header.ExtendedHeader](host, store, string(network), opts...)
+	return p2p.NewExchangeServer[*header.ExtendedHeader](host, store, opts...)
 }
 
 // newP2PExchange constructs a new Exchange for headers.
@@ -53,7 +52,7 @@ func newP2PExchange(cfg Config) func(
 			ids[index] = peer.ID
 			host.Peerstore().AddAddrs(peer.ID, peer.Addrs, peerstore.PermanentAddrTTL)
 		}
-		exchange, err := p2p.NewExchange[*header.ExtendedHeader](host, ids, string(network), conngater, opts...)
+		exchange, err := p2p.NewExchange[*header.ExtendedHeader](host, ids, conngater, opts...)
 		if err != nil {
 			return nil, err
 		}

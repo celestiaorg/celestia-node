@@ -3,7 +3,7 @@ package state
 import (
 	"go.uber.org/fx"
 
-	"github.com/celestiaorg/celestia-app/x/payment/types"
+	"github.com/celestiaorg/celestia-app/x/blob/types"
 )
 
 // WithKeyringSigner overrides the default keyring signer constructed

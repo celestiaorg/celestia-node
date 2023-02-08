@@ -12,9 +12,9 @@ import (
 
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/eds"
-	"github.com/celestiaorg/celestia-node/share/getters"
 	"github.com/celestiaorg/celestia-node/share/ipld"
 	pb "github.com/celestiaorg/celestia-node/share/p2p/shrexnd/pb"
+
 	"github.com/celestiaorg/go-libp2p-messenger/serde"
 )
 
@@ -32,7 +32,7 @@ type Server struct {
 }
 
 // NewServer creates new Server
-func NewServer(host host.Host, store *eds.Store, getter *getters.IPLDGetter, opts ...Option) (*Server, error) {
+func NewServer(host host.Host, store *eds.Store, getter share.Getter, opts ...Option) (*Server, error) {
 	params := DefaultParameters()
 	for _, opt := range opts {
 		opt(params)

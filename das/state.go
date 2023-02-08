@@ -2,6 +2,7 @@ package das
 
 import (
 	"context"
+	"sync/atomic"
 )
 
 // coordinatorState represents the current state of sampling
@@ -18,7 +19,7 @@ type coordinatorState struct {
 	next        uint64 // all headers before next were sent to workers
 	networkHead uint64
 
-	catchUpDone   bool          // indicates if all headers are sampled
+	catchUpDone   atomic.Bool   // indicates if all headers are sampled
 	catchUpDoneCh chan struct{} // blocks until all headers are sampled
 }
 
@@ -34,7 +35,6 @@ func newCoordinatorState(params Parameters) coordinatorState {
 		nextJobID:         0,
 		next:              params.SampleFrom,
 		networkHead:       params.SampleFrom,
-		catchUpDone:       false,
 		catchUpDoneCh:     make(chan struct{}),
 	}
 }
@@ -201,28 +201,31 @@ func (s *coordinatorState) unsafeStats() SamplingStats {
 		Failed:           failed,
 		Workers:          workers,
 		Concurrency:      len(workers),
-		CatchUpDone:      s.catchUpDone,
-		IsRunning:        len(workers) > 0 || s.catchUpDone,
+		CatchUpDone:      s.catchUpDone.Load(),
+		IsRunning:        len(workers) > 0 || s.catchUpDone.Load(),
 	}
 }
 
 func (s *coordinatorState) checkDone() {
 	if len(s.inProgress) == 0 && len(s.priority) == 0 && s.next > s.networkHead {
-		if !s.catchUpDone {
+		if s.catchUpDone.CompareAndSwap(false, true) {
 			close(s.catchUpDoneCh)
-			s.catchUpDone = true
 		}
 		return
 	}
 
-	if s.catchUpDone {
+	if s.catchUpDone.Load() {
+		// overwrite channel before storing done flag
 		s.catchUpDoneCh = make(chan struct{})
-		s.catchUpDone = false
+		s.catchUpDone.Store(false)
 	}
 }
 
 // waitCatchUp waits for sampling process to indicate catchup is done
 func (s *coordinatorState) waitCatchUp(ctx context.Context) error {
+	if s.catchUpDone.Load() {
+		return nil
+	}
 	select {
 	case <-s.catchUpDoneCh:
 	case <-ctx.Done():
