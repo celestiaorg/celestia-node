@@ -269,7 +269,7 @@ func (s *Manager) blacklistPeers(peerIDs ...peer.ID) {
 }
 
 func (s *Manager) peerIsBlacklisted(peerID peer.ID) bool {
-	return s.connGater.InterceptPeerDial(peerID)
+	return !s.connGater.InterceptPeerDial(peerID)
 }
 
 func (s *Manager) hashIsBlacklisted(hash share.DataHash) bool {
