@@ -36,7 +36,8 @@ type Keystore interface {
 	// Path reports the path of the Keystore.
 	Path() string
 
-	// TODO @renaynay:
+	// Keyring returns the keyring corresponding to the node's
+	// keystore.
 	Keyring() keyring.Keyring
 }
 

@@ -1,7 +1,6 @@
 package nodebuilder
 
 import (
-	"fmt"
 	"os"
 	"path/filepath"
 
@@ -40,6 +39,7 @@ func Init(cfg Config, path string, tp node.Type) error {
 	defer flock.Unlock() //nolint: errcheck
 
 	ksPath := keysPath(path)
+
 	err = initDir(ksPath)
 	if err != nil {
 		return err
@@ -125,13 +125,17 @@ func initDir(path string) error {
 // if account keys already exist. If not, it will generate a new account key and
 // store it.
 func generateKeys(cfg Config, ksPath string) error {
-	encConf := encoding.MakeConfig(app.ModuleEncodingRegisters...)
-
 	if cfg.State.KeyringBackend == keyring.BackendTest {
 		log.Warn("Detected plaintext keyring backend. For elevated security properties, consider using" +
 			"the `file` keyring backend.")
 	}
-	ring, err := keyring.New(app.Name, cfg.State.KeyringBackend, ksPath, os.Stdin, encConf.Codec)
+	ring, err := keyring.New(
+		app.Name,
+		cfg.State.KeyringBackend,
+		ksPath,
+		os.Stdin,
+		encoding.MakeConfig(app.ModuleEncodingRegisters...).Codec,
+	)
 	if err != nil {
 		return err
 	}
@@ -154,7 +158,7 @@ func generateKeys(cfg Config, ksPath string) error {
 	if err != nil {
 		return err
 	}
-	fmt.Printf("\nNAME: %s\nADDRESS: %s\nMNEMONIC (save this somewhere safe!!!): \n%s\n\n",
+	log.Infof("\n\nNAME: %s\nADDRESS: %s\nMNEMONIC (save this somewhere safe!!!): \n%s\n\n",
 		keyInfo.Name, addr.String(), mn)
 	return nil
 }
