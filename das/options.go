@@ -32,13 +32,14 @@ type Parameters struct {
 	// checkpoint backup.
 	BackgroundStoreInterval time.Duration
 
-	// PriorityQueueSize defines the size limit of the priority queue
-	PriorityQueueSize int
+	// MaxRecentHeaderGap defines the maximum size of the job for sampling recent headers
+	MaxRecentHeaderGap uint64
 
 	// SampleFrom is the height sampling will start from if no previous checkpoint was saved
 	SampleFrom uint64
 
-	// SampleTimeout is a maximum amount time sampling of single block may take until it will be canceled
+	// SampleTimeout is a maximum amount time sampling of single block may take until it will be
+	// canceled
 	SampleTimeout time.Duration
 }
 
@@ -50,7 +51,7 @@ func DefaultParameters() Parameters {
 		SamplingRange:           100,
 		ConcurrencyLimit:        16,
 		BackgroundStoreInterval: 10 * time.Minute,
-		PriorityQueueSize:       16 * 4,
+		MaxRecentHeaderGap:      10,
 		SampleFrom:              1,
 		SampleTimeout:           time.Minute,
 	}
@@ -97,6 +98,14 @@ func (p *Parameters) Validate() error {
 		)
 	}
 
+	// SampleTimeout = 0 would fail every sample operation with timeout error
+	if p.MaxRecentHeaderGap < 1 {
+		return errInvalidOptionValue(
+			"SampleTimeout",
+			"less than 1",
+		)
+	}
+
 	return nil
 }
 
@@ -138,11 +147,11 @@ func WithBackgroundStoreInterval(backgroundStoreInterval time.Duration) Option {
 	}
 }
 
-// WithPriorityQueueSize is a functional option to configure the daser's `priorityQueuSize`
-// parameter Refer to WithSamplingRange documentation to see an example of how to use this
-func WithPriorityQueueSize(priorityQueueSize int) Option {
+// WithMaxRecentHeaderGap is a functional option to configure the daser's `maxRecentHeaderGap`
+// parameter
+func WithMaxRecentHeaderGap(maxRecentHeaderGap uint64) Option {
 	return func(d *DASer) {
-		d.params.PriorityQueueSize = priorityQueueSize
+		d.params.MaxRecentHeaderGap = maxRecentHeaderGap
 	}
 }
 

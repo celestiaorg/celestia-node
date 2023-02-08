@@ -8,6 +8,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/celestiaorg/celestia-node/share"
+	"github.com/celestiaorg/celestia-node/share/p2p/shrexsub"
+
 	"github.com/celestiaorg/celestia-node/header"
 
 	"github.com/stretchr/testify/assert"
@@ -19,7 +22,7 @@ func TestCoordinator(t *testing.T) {
 
 		ctx, cancel := context.WithTimeout(context.Background(), testParams.timeoutDelay)
 		sampler := newMockSampler(testParams.sampleFrom, testParams.networkHead)
-		coordinator := newSamplingCoordinator(testParams.dasParams, getterStub{}, onceMiddleWare(sampler.sample))
+		coordinator := newSamplingCoordinator(testParams.dasParams, getterStub{}, onceMiddleWare(sampler.sample), nil)
 
 		go coordinator.run(ctx, sampler.checkpoint)
 
@@ -44,15 +47,12 @@ func TestCoordinator(t *testing.T) {
 
 		sampler := newMockSampler(testParams.sampleFrom, testParams.networkHead)
 
-		coordinator := newSamplingCoordinator(testParams.dasParams, getterStub{}, sampler.sample)
+		newhead := testParams.networkHead + 200
+		coordinator := newSamplingCoordinator(testParams.dasParams, getterStub{}, sampler.sample, newBroadcastMock(1))
 		go coordinator.run(ctx, sampler.checkpoint)
 
-		time.Sleep(50 * time.Millisecond)
 		// discover new height
-		for i := 0; i < 200; i++ {
-			// mess the order by running in go-routine
-			sampler.discover(ctx, testParams.networkHead+uint64(i), coordinator.listen)
-		}
+		sampler.discover(ctx, newhead, coordinator.listen)
 
 		// check if all jobs were sampled successfully
 		assert.NoError(t, sampler.finished(ctx), "not all headers were sampled")
@@ -69,7 +69,6 @@ func TestCoordinator(t *testing.T) {
 	})
 
 	t.Run("prioritize newly discovered over known", func(t *testing.T) {
-
 		testParams := defaultTestParams()
 
 		testParams.dasParams.ConcurrencyLimit = 1
@@ -92,14 +91,14 @@ func TestCoordinator(t *testing.T) {
 			testParams.dasParams.SamplingRange,
 		) // worker will pick up first job before discovery
 
-		order.addStacks(testParams.networkHead+1, toBeDiscovered, testParams.dasParams.SamplingRange)
-		order.addInterval(testParams.dasParams.SamplingRange+1, toBeDiscovered)
+		order.addInterval(testParams.networkHead+1, toBeDiscovered)
 
 		// start coordinator
 		coordinator := newSamplingCoordinator(testParams.dasParams, getterStub{},
 			lk.middleWare(
 				order.middleWare(sampler.sample),
 			),
+			newBroadcastMock(1),
 		)
 		go coordinator.run(ctx, sampler.checkpoint)
 
@@ -129,7 +128,7 @@ func TestCoordinator(t *testing.T) {
 		assert.Equal(t, sampler.finalState(), newCheckpoint(coordinator.state.unsafeStats()))
 	})
 
-	t.Run("priority routine should not lock other workers", func(t *testing.T) {
+	t.Run("recent headers sampling routine should not lock other workers", func(t *testing.T) {
 		testParams := defaultTestParams()
 
 		testParams.networkHead = uint64(20)
@@ -139,10 +138,9 @@ func TestCoordinator(t *testing.T) {
 
 		lk := newLock(testParams.sampleFrom, testParams.networkHead) // lock all workers before start
 		coordinator := newSamplingCoordinator(testParams.dasParams, getterStub{},
-			lk.middleWare(sampler.sample))
+			lk.middleWare(sampler.sample), newBroadcastMock(1))
 		go coordinator.run(ctx, sampler.checkpoint)
 
-		time.Sleep(50 * time.Millisecond)
 		// discover new height and lock it
 		discovered := testParams.networkHead + 1
 		lk.add(discovered)
@@ -186,7 +184,12 @@ func TestCoordinator(t *testing.T) {
 		bornToFail := []uint64{4, 8, 15, 16, 23, 42}
 		sampler := newMockSampler(testParams.sampleFrom, testParams.networkHead, bornToFail...)
 
-		coordinator := newSamplingCoordinator(testParams.dasParams, getterStub{}, onceMiddleWare(sampler.sample))
+		coordinator := newSamplingCoordinator(
+			testParams.dasParams,
+			getterStub{},
+			onceMiddleWare(sampler.sample),
+			newBroadcastMock(1),
+		)
 		go coordinator.run(ctx, sampler.checkpoint)
 
 		// wait for coordinator to indicateDone catchup
@@ -217,7 +220,12 @@ func TestCoordinator(t *testing.T) {
 		sampler := newMockSampler(testParams.sampleFrom, testParams.networkHead, failedAgain...)
 		sampler.checkpoint.Failed = failedLastRun
 
-		coordinator := newSamplingCoordinator(testParams.dasParams, getterStub{}, onceMiddleWare(sampler.sample))
+		coordinator := newSamplingCoordinator(
+			testParams.dasParams,
+			getterStub{},
+			onceMiddleWare(sampler.sample),
+			newBroadcastMock(1),
+		)
 		go coordinator.run(ctx, sampler.checkpoint)
 
 		// check if all jobs were sampled successfully
@@ -249,8 +257,12 @@ func BenchmarkCoordinator(b *testing.B) {
 
 	b.Run("bench run", func(b *testing.B) {
 		ctx, cancel := context.WithTimeout(context.Background(), timeoutDelay)
-		coordinator := newSamplingCoordinator(params, newBenchGetter(),
-			func(ctx context.Context, h *header.ExtendedHeader) error { return nil })
+		coordinator := newSamplingCoordinator(
+			params,
+			newBenchGetter(),
+			func(ctx context.Context, h *header.ExtendedHeader) error { return nil },
+			newBroadcastMock(1),
+		)
 		go coordinator.run(ctx, checkpoint{
 			SampleFrom:  1,
 			NetworkHead: uint64(b.N),
@@ -437,7 +449,7 @@ func (o *checkOrder) middleWare(out sampleFn) sampleFn {
 			// check last item in queue to be same as input
 			if o.queue[0] != uint64(h.Height()) {
 				o.lock.Unlock()
-				return fmt.Errorf("expected height: %v,got: %v", o.queue[0], h)
+				return fmt.Errorf("expected height: %v,got: %v", o.queue[0], h.Height())
 			}
 			o.queue = o.queue[1:]
 		}
@@ -549,5 +561,15 @@ func defaultTestParams() testParams {
 		sampleFrom:   dasParamsDefault.SampleFrom,
 		timeoutDelay: 125 * time.Second,
 		dasParams:    dasParamsDefault,
+	}
+}
+
+func newBroadcastMock(callLimit int) shrexsub.BroadcastFn {
+	return func(ctx context.Context, hash share.DataHash) error {
+		if callLimit == 0 {
+			return errors.New("exceeded mock call limit")
+		}
+		callLimit--
+		return nil
 	}
 }
