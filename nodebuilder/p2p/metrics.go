@@ -4,7 +4,6 @@ import (
 	"context"
 
 	"github.com/libp2p/go-libp2p/core/metrics"
-	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric/global"
 	"go.opentelemetry.io/otel/metric/instrument"
 	"go.opentelemetry.io/otel/metric/unit"
@@ -43,33 +42,17 @@ func WithMetrics(bc *metrics.BandwidthCounter) {
 			"p2p_bandwidth_rate_outbound",
 			instrument.WithDescription("total number of bytes sent by the host"),
 		)
-	bandwidthTotalInboundByPeer, _ := meter.
-		SyncInt64().
-		Histogram(
-			"p2p_total_inbound_by_peer",
-			instrument.WithDescription("total number of bytes received by the host by peer"),
-		)
-	bandwidthTotalOutboundByPeer, _ := meter.
-		SyncInt64().
-		Histogram(
-			"p2p_total_outbound_by_peer",
-			instrument.WithDescription("total number of bytes sent by the host by peer"),
-		)
-	bandwidthInboundRateByPeer, _ := meter.
-		SyncFloat64().
-		Histogram(
-			"p2p_rate_inbound_by_peer",
-			instrument.WithDescription("rate of bytes received by the host by peer"),
-		)
-	bandwidthOutboundRateByPeer, _ := meter.
-		SyncFloat64().
-		Histogram(
-			"p2p_rate_outbound_by_peer",
-			instrument.WithDescription("rate of bytes sent by the host by peer"),
+	p2pPeerCount, _ := meter.
+		AsyncFloat64().
+		Gauge(
+			"p2p_peer_count",
+			instrument.WithDescription("number of peers connected to the host"),
 		)
 
 	err := meter.RegisterCallback(
-		[]instrument.Asynchronous{}, func(ctx context.Context) {
+		[]instrument.Asynchronous{
+			p2pPeerCount,
+		}, func(ctx context.Context) {
 			bcStats := bc.GetBandwidthTotals()
 			bcByPeerStats := bc.GetBandwidthByPeer()
 
@@ -78,28 +61,7 @@ func WithMetrics(bc *metrics.BandwidthCounter) {
 			bandwidthRateInbound.Record(ctx, bcStats.RateIn)
 			bandwidthRateOutbound.Record(ctx, bcStats.RateOut)
 
-			for peerID, stat := range bcByPeerStats {
-				bandwidthTotalInboundByPeer.Record(
-					ctx,
-					stat.TotalIn,
-					attribute.String("peer_id", peerID.Pretty()),
-				)
-				bandwidthTotalOutboundByPeer.Record(
-					ctx,
-					stat.TotalOut,
-					attribute.String("peer_id", peerID.Pretty()),
-				)
-				bandwidthInboundRateByPeer.Record(
-					ctx,
-					stat.RateIn,
-					attribute.String("peer_id", peerID.Pretty()),
-				)
-				bandwidthOutboundRateByPeer.Record(
-					ctx,
-					stat.RateOut,
-					attribute.String("peer_id", peerID.Pretty()),
-				)
-			}
+			p2pPeerCount.Observe(ctx, float64(len(bcByPeerStats)))
 		},
 	)
 
