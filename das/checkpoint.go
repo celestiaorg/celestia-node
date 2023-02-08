@@ -51,9 +51,9 @@ func (c checkpoint) String() string {
 
 // totalSampled returns the total amount of sampled headers
 func (c checkpoint) totalSampled() uint64 {
-	totalInProgress := 0
+	var totalInProgress uint64
 	for _, w := range c.Workers {
-		totalInProgress += int(w.To-w.From) + 1
+		totalInProgress += (w.To - w.From) + 1
 	}
-	return uint64(int(c.SampleFrom) - totalInProgress - len(c.Failed))
+	return c.SampleFrom - totalInProgress - uint64(len(c.Failed))
 }
