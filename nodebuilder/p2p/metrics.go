@@ -15,14 +15,17 @@ var (
 )
 
 // WithMetrics option sets up metrics for p2p networking.
-func WithMetrics(bc *metrics.BandwidthCounter) {
-	bandwidthTotalInbound, _ := meter.
+func WithMetrics(bc *metrics.BandwidthCounter) error {
+	bandwidthTotalInbound, err := meter.
 		SyncInt64().
 		Histogram(
 			"p2p_bandwidth_total_inbound",
 			instrument.WithUnit(unit.Bytes),
 			instrument.WithDescription("total number of bytes received by the host"),
 		)
+	if err != nil {
+		return err
+	}
 	bandwidthTotalOutbound, _ := meter.
 		SyncInt64().
 		Histogram(
@@ -30,26 +33,38 @@ func WithMetrics(bc *metrics.BandwidthCounter) {
 			instrument.WithUnit(unit.Bytes),
 			instrument.WithDescription("total number of bytes sent by the host"),
 		)
+	if err != nil {
+		return err
+	}
 	bandwidthRateInbound, _ := meter.
 		SyncFloat64().
 		Histogram(
 			"p2p_bandwidth_rate_inbound",
 			instrument.WithDescription("total number of bytes sent by the host"),
 		)
+	if err != nil {
+		return err
+	}
 	bandwidthRateOutbound, _ := meter.
 		SyncFloat64().
 		Histogram(
 			"p2p_bandwidth_rate_outbound",
 			instrument.WithDescription("total number of bytes sent by the host"),
 		)
+	if err != nil {
+		return err
+	}
 	p2pPeerCount, _ := meter.
 		AsyncFloat64().
 		Gauge(
 			"p2p_peer_count",
 			instrument.WithDescription("number of peers connected to the host"),
 		)
+	if err != nil {
+		return err
+	}
 
-	err := meter.RegisterCallback(
+	return meter.RegisterCallback(
 		[]instrument.Asynchronous{
 			p2pPeerCount,
 		}, func(ctx context.Context) {
@@ -64,8 +79,4 @@ func WithMetrics(bc *metrics.BandwidthCounter) {
 			p2pPeerCount.Observe(ctx, float64(len(bcByPeerStats)))
 		},
 	)
-
-	if err != nil {
-		panic(err)
-	}
 }
