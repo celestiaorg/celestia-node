@@ -15,6 +15,8 @@ type metrics struct {
 }
 
 func (s *Syncer[H]) InitMetrics() error {
+	s.metrics = &metrics{}
+
 	totalSynced, err := meter.
 		AsyncFloat64().
 		Gauge(
@@ -25,7 +27,7 @@ func (s *Syncer[H]) InitMetrics() error {
 		return err
 	}
 
-	err = meter.RegisterCallback(
+	return meter.RegisterCallback(
 		[]instrument.Asynchronous{
 			totalSynced,
 		},
@@ -33,12 +35,6 @@ func (s *Syncer[H]) InitMetrics() error {
 			totalSynced.Observe(ctx, float64(atomic.LoadInt64(&s.metrics.totalSynced)))
 		},
 	)
-	if err != nil {
-		return err
-	}
-
-	s.metrics = &metrics{totalSynced: 0}
-	return nil
 }
 
 // recordTotalSynced records the total amount of synced headers.

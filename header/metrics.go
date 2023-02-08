@@ -15,7 +15,7 @@ import (
 var meter = global.MeterProvider().Meter("header")
 
 // WithMetrics enables Otel metrics to monitor head and total amount of synced headers.
-func WithMetrics(store libhead.Store[*ExtendedHeader], syncer *sync.Syncer[*ExtendedHeader]) {
+func WithMetrics(store libhead.Store[*ExtendedHeader], syncer *sync.Syncer[*ExtendedHeader]) error {
 	headC, _ := meter.AsyncInt64().Counter(
 		"head",
 		instrument.WithUnit(unit.Dimensionless),
@@ -41,11 +41,8 @@ func WithMetrics(store libhead.Store[*ExtendedHeader], syncer *sync.Syncer[*Exte
 		},
 	)
 	if err != nil {
-		panic(err)
+		return err
 	}
 
-	err = syncer.InitMetrics()
-	if err != nil {
-		panic(err)
-	}
+	return syncer.InitMetrics()
 }
