@@ -124,12 +124,12 @@ func StartMockOtelCollectorHTTPServer(t *testing.T) (string, func()) {
 		contentType := "application/x-protobuf"
 		status := http.StatusOK
 
-		log.Debug("Responding to optl POST request")
+		log.Debug("Responding to otlp POST request")
 		w.Header().Set("Content-Type", contentType)
 		w.WriteHeader(status)
 		_, _ = w.Write(rawResponse)
 
-		log.Debug("Responded to optl POST request")
+		log.Debug("Responded to otlp POST request")
 	}))
 
 	server.EnableHTTP2 = true
