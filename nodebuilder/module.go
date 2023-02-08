@@ -19,8 +19,8 @@ import (
 )
 
 func ConstructModule(tp node.Type, network p2p.Network, cfg *Config, store Store) fx.Option {
-	// construct keyring signer before constructing node for easier UX (asking user for password)
-	// TODO @renaynay: better comment
+	// NOTE: we construct keyring signer before constructing node for easier UX
+	// as having keyring-backend set to `file` prompts user for password.
 	log.Infow("Accessing keyring...")
 	ks, err := store.Keystore()
 	if err != nil {
