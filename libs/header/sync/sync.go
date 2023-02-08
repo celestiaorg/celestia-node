@@ -53,6 +53,8 @@ type Syncer[H header.Header] struct {
 	cancel context.CancelFunc
 
 	Params *Parameters
+
+	metrics *metrics
 }
 
 // NewSyncer creates a new instance of Syncer.
@@ -232,6 +234,9 @@ func (s *Syncer[H]) doSync(ctx context.Context, fromHead, toHead H) (err error) 
 		processed, err = s.processHeaders(ctx, from, to)
 		if err != nil && processed == 0 {
 			break
+		}
+		if s.metrics != nil {
+			s.metrics.recordTotalSynced(processed)
 		}
 	}
 

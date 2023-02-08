@@ -8,9 +8,10 @@ import (
 	context "context"
 	reflect "reflect"
 
-	da "github.com/celestiaorg/celestia-app/pkg/da"
 	gomock "github.com/golang/mock/gomock"
 	peer "github.com/libp2p/go-libp2p/core/peer"
+
+	da "github.com/celestiaorg/celestia-app/pkg/da"
 )
 
 // MockAvailability is a mock of Availability interface.

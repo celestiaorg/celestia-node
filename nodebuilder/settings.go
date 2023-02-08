@@ -13,8 +13,9 @@ import (
 	semconv "go.opentelemetry.io/otel/semconv/v1.11.0"
 	"go.uber.org/fx"
 
-	"github.com/celestiaorg/celestia-node/fraud"
-	"github.com/celestiaorg/celestia-node/header"
+	fraudPkg "github.com/celestiaorg/celestia-node/fraud"
+	headerPkg "github.com/celestiaorg/celestia-node/header"
+
 	"github.com/celestiaorg/celestia-node/nodebuilder/das"
 	headerPkg "github.com/celestiaorg/celestia-node/nodebuilder/header"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
@@ -40,10 +41,11 @@ func WithMetrics(metricOpts []otlpmetrichttp.Option, nodeType node.Type) fx.Opti
 	baseComponents := fx.Options(
 		fx.Supply(metricOpts),
 		fx.Invoke(initializeMetrics),
-		fx.Invoke(header.WithMetrics),
+		fx.Invoke(headerPkg.WithMetrics),
 		fx.Invoke(state.WithMetrics),
-		fx.Invoke(fraud.WithMetrics),
 		fx.Invoke(p2p.WithMetrics),
+		fx.Invoke(fraudPkg.WithMetrics),
+		fx.Invoke(node.WithMetrics),
 	)
 
 	var opts fx.Option

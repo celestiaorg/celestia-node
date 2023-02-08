@@ -24,7 +24,9 @@ type metrics struct {
 	sampleTime    syncfloat64.Histogram
 	getHeaderTime syncfloat64.Histogram
 	newHead       syncint64.Counter
-	lastSampledTS int64
+
+	lastSampledTS   uint64
+	totalSampledInt uint64
 }
 
 func (d *DASer) InitMetrics() error {
@@ -76,6 +78,16 @@ func (d *DASer) InitMetrics() error {
 		return err
 	}
 
+	totalSampled, err := meter.
+		AsyncInt64().
+		Gauge(
+			"das_total_sampled_headers",
+			instrument.WithDescription("total sampled headers gauge"),
+		)
+	if err != nil {
+		return err
+	}
+
 	d.sampler.metrics = &metrics{
 		sampled:       sampled,
 		sampleTime:    sampleTime,
@@ -85,7 +97,11 @@ func (d *DASer) InitMetrics() error {
 
 	err = meter.RegisterCallback(
 		[]instrument.Asynchronous{
-			lastSampledTS, busyWorkers, networkHead, sampledChainHead,
+			lastSampledTS,
+			busyWorkers,
+			networkHead,
+			sampledChainHead,
+			totalSampled,
 		},
 		func(ctx context.Context) {
 			stats, err := d.sampler.stats(ctx)
@@ -97,9 +113,12 @@ func (d *DASer) InitMetrics() error {
 			networkHead.Observe(ctx, int64(stats.NetworkHead))
 			sampledChainHead.Observe(ctx, int64(stats.SampledChainHead))
 
-			if ts := atomic.LoadInt64(&d.sampler.metrics.lastSampledTS); ts != 0 {
-				lastSampledTS.Observe(ctx, ts)
+			if ts := atomic.LoadUint64(&d.sampler.metrics.lastSampledTS); ts != 0 {
+				lastSampledTS.Observe(ctx, int64(ts))
 			}
+
+			totalSampledInt := atomic.LoadUint64(&d.sampler.metrics.totalSampledInt)
+			totalSampled.Observe(ctx, int64(totalSampledInt))
 		},
 	)
 
@@ -110,7 +129,14 @@ func (d *DASer) InitMetrics() error {
 	return nil
 }
 
-func (m *metrics) observeSample(ctx context.Context, h *header.ExtendedHeader, sampleTime time.Duration, err error) {
+// observeSample records the time it took to sample a header +
+// the amount of sampled contiguous headers
+func (m *metrics) observeSample(
+	ctx context.Context,
+	h *header.ExtendedHeader,
+	sampleTime time.Duration,
+	err error,
+) {
 	if m == nil {
 		return
 	}
@@ -126,9 +152,14 @@ func (m *metrics) observeSample(ctx context.Context, h *header.ExtendedHeader, s
 		attribute.Int("header_width", len(h.DAH.RowsRoots)),
 	)
 
-	atomic.StoreInt64(&m.lastSampledTS, time.Now().UTC().Unix())
+	atomic.StoreUint64(&m.lastSampledTS, uint64(time.Now().UTC().Unix()))
+
+	if err == nil {
+		atomic.AddUint64(&m.totalSampledInt, 1)
+	}
 }
 
+// observeGetHeader records the time it took to get a header from the header store.
 func (m *metrics) observeGetHeader(ctx context.Context, d time.Duration) {
 	if m == nil {
 		return
@@ -136,9 +167,18 @@ func (m *metrics) observeGetHeader(ctx context.Context, d time.Duration) {
 	m.getHeaderTime.Record(ctx, d.Seconds())
 }
 
+// observeNewHead records the network head.
 func (m *metrics) observeNewHead(ctx context.Context) {
 	if m == nil {
 		return
 	}
 	m.newHead.Add(ctx, 1)
+}
+
+// recordTotalSampled records the total sampled headers.
+func (m *metrics) recordTotalSampled(totalSampled uint64) {
+	if m == nil {
+		return
+	}
+	atomic.StoreUint64(&m.totalSampledInt, totalSampled)
 }
