@@ -42,12 +42,12 @@ func TestManager(t *testing.T) {
 		// validator should return accept, since header is synced
 		go func() {
 			defer close(doneCh)
-			validation := manager.Validate(ctx, peerID, h.DataHash.Bytes())
+			validation := manager.validate(ctx, peerID, h.DataHash.Bytes())
 			require.Equal(t, pubsub.ValidationIgnore, validation)
 		}()
 
 		p, done, err := manager.GetPeer(ctx, h.DataHash.Bytes())
-		done(ctx, ResultSuccess)
+		done(ResultSuccess)
 		require.NoError(t, err)
 		require.Equal(t, peerID, p)
 
@@ -79,7 +79,7 @@ func TestManager(t *testing.T) {
 		for _, p := range peers {
 			go func(peerID peer.ID) {
 				select {
-				case validationCh <- manager.Validate(ctx, peerID, h.DataHash.Bytes()):
+				case validationCh <- manager.validate(ctx, peerID, h.DataHash.Bytes()):
 				case <-ctx.Done():
 					return
 				}
@@ -94,7 +94,7 @@ func TestManager(t *testing.T) {
 		require.NoError(t, headerSub.wait(ctx, 1))
 		// release sync lock by calling done function
 		_, done, err := manager.GetPeer(ctx, h.DataHash.Bytes())
-		done(ctx, ResultSuccess)
+		done(ResultSuccess)
 		require.NoError(t, err)
 
 		// wait for validators to finish
@@ -130,7 +130,7 @@ func TestManager(t *testing.T) {
 		for _, p := range peers {
 			go func(peerID peer.ID) {
 				select {
-				case validationCh <- manager.Validate(ctx, peerID, h.DataHash.Bytes()):
+				case validationCh <- manager.validate(ctx, peerID, h.DataHash.Bytes()):
 				case <-ctx.Done():
 					return
 				}
@@ -166,7 +166,7 @@ func TestManager(t *testing.T) {
 		manager.fullNodes.add(peers...)
 
 		peerID, done, err := manager.GetPeer(ctx, h.DataHash.Bytes())
-		done(ctx, ResultSuccess)
+		done(ResultSuccess)
 		require.NoError(t, err)
 		require.Contains(t, peers, peerID)
 
@@ -197,7 +197,7 @@ func TestManager(t *testing.T) {
 		go func() {
 			defer close(doneCh)
 			peerID, done, err := manager.GetPeer(ctx, h.DataHash.Bytes())
-			done(ctx, ResultSuccess)
+			done(ResultSuccess)
 			require.NoError(t, err)
 			require.Contains(t, peers, peerID)
 		}()
@@ -232,7 +232,7 @@ func TestManager(t *testing.T) {
 		for _, p := range peers {
 			go func(peerID peer.ID) {
 				select {
-				case validationCh <- manager.Validate(ctx, peerID, h.DataHash.Bytes()):
+				case validationCh <- manager.validate(ctx, peerID, h.DataHash.Bytes()):
 				case <-ctx.Done():
 					return
 				}
@@ -245,7 +245,7 @@ func TestManager(t *testing.T) {
 
 		// mark pool as synced by calling GetPeer
 		peerID, done, err := manager.GetPeer(ctx, h.DataHash.Bytes())
-		done(ctx, ResultSuccess)
+		done(ResultSuccess)
 		require.NoError(t, err)
 		require.Contains(t, peers, peerID)
 
@@ -276,50 +276,26 @@ func TestIntagration(t *testing.T) {
 		fnPubSub1, err := shrexsub.NewPubSub(ctx, nw.Hosts()[1], "test")
 		require.NoError(t, err)
 
-		fnPubSub2, err := shrexsub.NewPubSub(ctx, nw.Hosts()[2], "test")
-		require.NoError(t, err)
-
 		require.NoError(t, bnPubSub.Start(ctx))
 		require.NoError(t, fnPubSub1.Start(ctx))
-		require.NoError(t, fnPubSub2.Start(ctx))
 
 		fnPeerManager1 := testManager(ctx, newSubLock())
-		fnPeerManager1.broadcast = fnPubSub1.Broadcast
-		fnPeerManager1.ownPeerID = nw.Hosts()[1].ID()
-		fnPeerManager2 := testManager(ctx, newSubLock())
-		fnPeerManager2.broadcast = fnPubSub2.Broadcast
+		fnPeerManager1.host = nw.Hosts()[1]
 
-		require.NoError(t, fnPubSub1.AddValidator(fnPeerManager1.Validate))
+		require.NoError(t, fnPubSub1.AddValidator(fnPeerManager1.validate))
 		_, err = fnPubSub1.Subscribe()
-		require.NoError(t, err)
-
-		require.NoError(t, fnPubSub2.AddValidator(fnPeerManager2.Validate))
-		_, err = fnPubSub2.Subscribe()
 		require.NoError(t, err)
 
 		// broadcast from BN
 		peerHash := share.DataHash("peer1")
 		require.NoError(t, bnPubSub.Broadcast(ctx, peerHash))
 
-		// first FN should get message
-		peerID, doneFn, err := fnPeerManager1.GetPeer(ctx, peerHash)
+		// FN should get message
+		peerID, _, err := fnPeerManager1.GetPeer(ctx, peerHash)
 		require.NoError(t, err)
 
 		// check that peerID matched bridge node
 		require.Equal(t, nw.Hosts()[0].ID(), peerID)
-		// release the validator by using ResultSuccess, it should allow message retransmit
-		doneFn(ctx, ResultSuccess)
-
-		// check for retransmitted message to arrive to second FN
-		peerID2, doneFn2, err := fnPeerManager2.GetPeer(ctx, peerHash)
-		if peerID2 == nw.Hosts()[0].ID() {
-			// if got bridge node peer id, remove it from pool and retry
-			doneFn2(ctx, ResultPeerMisbehaved)
-			peerID2, doneFn2, err = fnPeerManager2.GetPeer(ctx, peerHash)
-		}
-		require.NoError(t, err)
-		// should be first FN peer id
-		require.Equal(t, nw.Hosts()[1].ID(), peerID2)
 	})
 
 	t.Run("get peer from discovery", func(t *testing.T) {
@@ -332,12 +308,11 @@ func TestIntagration(t *testing.T) {
 		opts := []dht.Option{
 			dht.Mode(dht.ModeAuto),
 			dht.BootstrapPeers(*bs),
-			//dht.ProtocolPrefix("prefix"),
-			//dht.Datastore(params.DataStore),
 			dht.RoutingTableRefreshPeriod(time.Second),
 		}
 
-		bsOpts := append(opts,
+		bsOpts := opts
+		bsOpts = append(bsOpts,
 			dht.Mode(dht.ModeServer), // it must accept incoming connections
 			dht.BootstrapPeers(),     // no bootstrappers for a bootstrapper ¯\_(ツ)_/¯
 		)
@@ -372,23 +347,20 @@ func TestIntagration(t *testing.T) {
 		go fnDisc.EnsurePeers(ctx)
 
 		go bnDisc.Advertise(ctx)
-		select {
-		case <-ctx.Done():
-			peers, err := fnDisc.Peers(ctx)
-			require.NoError(t, err)
-			fmt.Println("done", len(peers))
-		}
+		<-ctx.Done()
+		peers, err := fnDisc.Peers(ctx)
+		require.NoError(t, err)
+		fmt.Println("done", len(peers))
 	})
 }
 
 func testManager(ctx context.Context, headerSub libhead.Subscriber[*header.ExtendedHeader]) *Manager {
 	ctx, cancel := context.WithCancel(ctx)
+	host, _ := mocknet.New().GenPeer()
 	manager := &Manager{
-		headerSub: headerSub,
-		pools:     make(map[string]*syncPool),
-		broadcast: func(ctx context.Context, hash share.DataHash) error {
-			return nil
-		},
+		headerSub:       headerSub,
+		pools:           make(map[string]*syncPool),
+		host:            host,
 		poolSyncTimeout: 60 * time.Second,
 		fullNodes:       newPool(),
 		cancel:          cancel,
