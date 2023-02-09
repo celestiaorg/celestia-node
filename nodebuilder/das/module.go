@@ -2,13 +2,14 @@ package das
 
 import (
 	"context"
-	"github.com/celestiaorg/celestia-node/share/p2p/shrexsub"
+
 	"go.uber.org/fx"
 
 	"github.com/celestiaorg/celestia-node/das"
 	"github.com/celestiaorg/celestia-node/fraud"
 	fraudServ "github.com/celestiaorg/celestia-node/nodebuilder/fraud"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
+	"github.com/celestiaorg/celestia-node/share/p2p/shrexsub"
 )
 
 func ConstructModule(tp node.Type, cfg *Config) fx.Option {
