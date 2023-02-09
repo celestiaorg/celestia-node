@@ -2,7 +2,7 @@ package das
 
 import (
 	"context"
-
+	"github.com/celestiaorg/celestia-node/share/p2p/shrexsub"
 	"go.uber.org/fx"
 
 	"github.com/celestiaorg/celestia-node/das"
@@ -50,6 +50,9 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 					return das.Stop(ctx)
 				}),
 			)),
+			fx.Provide(func(shrexSub *shrexsub.PubSub) shrexsub.BroadcastFn {
+				return shrexSub.Broadcast
+			}),
 			// Module is needed for the RPC handler
 			fx.Provide(func(das *das.DASer) Module {
 				return das
