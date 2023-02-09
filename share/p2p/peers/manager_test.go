@@ -283,7 +283,9 @@ func TestIntagration(t *testing.T) {
 			time.Second)
 
 		// hook peer manager to discovery
-		fnPeerManager := NewManager(nil, nil, fnDisc, nil, nil, time.Minute)
+		connGater, err := conngater.NewBasicConnectionGater(sync.MutexWrap(datastore.NewMapDatastore()))
+		require.NoError(t, err)
+		fnPeerManager := NewManager(nil, nil, fnDisc, nil, connGater, time.Minute)
 
 		waitCh := make(chan struct{})
 		fnDisc.WithOnPeersUpdate(func(peerID peer.ID, isAdded bool) {
