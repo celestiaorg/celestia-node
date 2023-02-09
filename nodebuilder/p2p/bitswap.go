@@ -13,6 +13,8 @@ import (
 	hst "github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/protocol"
 	"go.uber.org/fx"
+
+	"github.com/celestiaorg/celestia-node/share/eds"
 )
 
 const (
@@ -25,10 +27,24 @@ const (
 )
 
 // dataExchange provides a constructor for IPFS block's DataExchange over BitSwap.
-func dataExchange(params bitSwapParams) (exchange.Interface, blockstore.Blockstore, error) {
-	bs, err := blockstore.CachedBlockstore(
+func dataExchange(params bitSwapParams) (exchange.Interface, error) {
+	prefix := protocol.ID(fmt.Sprintf("/celestia/%s", params.Net))
+	return bitswap.New(
 		params.Ctx,
-		blockstore.NewBlockstore(params.Ds),
+		network.NewFromIpfsHost(params.Host, &routinghelpers.Null{}, network.Prefix(prefix)),
+		params.Bs,
+		bitswap.ProvideEnabled(false),
+		// NOTE: These below ar required for our protocol to work reliably.
+		// See https://github.com/celestiaorg/celestia-node/issues/732
+		bitswap.SetSendDontHaves(false),
+		bitswap.SetSimulateDontHavesOnTimeout(false),
+	), nil
+}
+
+func blockstoreFromDatastore(ctx context.Context, ds datastore.Batching) (blockstore.Blockstore, error) {
+	bs, err := blockstore.CachedBlockstore(
+		ctx,
+		blockstore.NewBlockstore(ds),
 		blockstore.CacheOpts{
 			HasBloomFilterSize:   defaultBloomFilterSize,
 			HasBloomFilterHashes: defaultBloomFilterHashes,
@@ -36,19 +52,23 @@ func dataExchange(params bitSwapParams) (exchange.Interface, blockstore.Blocksto
 		},
 	)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
-	prefix := protocol.ID(fmt.Sprintf("/celestia/%s", params.Net))
-	return bitswap.New(
-		params.Ctx,
-		network.NewFromIpfsHost(params.Host, &routinghelpers.Null{}, network.Prefix(prefix)),
-		bs,
-		bitswap.ProvideEnabled(false),
-		// NOTE: These below ar required for our protocol to work reliably.
-		// See https://github.com/celestiaorg/celestia-node/issues/732
-		bitswap.SetSendDontHaves(false),
-		bitswap.SetSimulateDontHavesOnTimeout(false),
-	), bs, nil
+	return bs, err
+}
+
+func blockstoreFromEDSStore(ctx context.Context, store *eds.Store) (blockstore.Blockstore, error) {
+	bs, err := blockstore.CachedBlockstore(
+		ctx,
+		store.Blockstore(),
+		blockstore.CacheOpts{
+			HasARCCacheSize: defaultARCCacheSize,
+		},
+	)
+	if err != nil {
+		return nil, err
+	}
+	return bs, err
 }
 
 type bitSwapParams struct {
@@ -57,5 +77,5 @@ type bitSwapParams struct {
 	Ctx  context.Context
 	Net  Network
 	Host hst.Host
-	Ds   datastore.Batching
+	Bs   blockstore.Blockstore
 }
