@@ -4,6 +4,8 @@ import (
 	"context"
 	"sync"
 
+	"github.com/celestiaorg/celestia-node/share/p2p/shrexsub"
+
 	"github.com/celestiaorg/celestia-node/header"
 	libhead "github.com/celestiaorg/celestia-node/libs/header"
 )
@@ -12,8 +14,9 @@ import (
 type samplingCoordinator struct {
 	concurrencyLimit int
 
-	getter   libhead.Getter[*header.ExtendedHeader]
-	sampleFn sampleFn
+	getter      libhead.Getter[*header.ExtendedHeader]
+	sampleFn    sampleFn
+	broadcastFn shrexsub.BroadcastFn
 
 	state coordinatorState
 
@@ -40,11 +43,13 @@ func newSamplingCoordinator(
 	params Parameters,
 	getter libhead.Getter[*header.ExtendedHeader],
 	sample sampleFn,
+	broadcast shrexsub.BroadcastFn,
 ) *samplingCoordinator {
 	return &samplingCoordinator{
 		concurrencyLimit: params.ConcurrencyLimit,
 		getter:           getter,
 		sampleFn:         sample,
+		broadcastFn:      broadcast,
 		state:            newCoordinatorState(params),
 		resultCh:         make(chan result),
 		updHeadCh:        make(chan uint64),
@@ -75,7 +80,10 @@ func (sc *samplingCoordinator) run(ctx context.Context, cp checkpoint) {
 
 		select {
 		case head := <-sc.updHeadCh:
-			if sc.state.updateHead(head) {
+			if sc.state.isNewHead(head) {
+				sc.runWorker(ctx, sc.state.newRecentJob(head))
+				sc.state.updateHead(head)
+				// run worker without concurrency limit restrictions to reduced delay
 				sc.metrics.observeNewHead(ctx)
 			}
 		case res := <-sc.resultCh:
@@ -99,7 +107,7 @@ func (sc *samplingCoordinator) runWorker(ctx context.Context, j job) {
 	sc.workersWg.Add(1)
 	go func() {
 		defer sc.workersWg.Done()
-		w.run(ctx, sc.getter, sc.sampleFn, sc.metrics, sc.resultCh)
+		w.run(ctx, sc.getter, sc.sampleFn, sc.broadcastFn, sc.metrics, sc.resultCh)
 	}()
 }
 
