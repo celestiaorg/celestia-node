@@ -3,7 +3,6 @@ package core
 import (
 	"context"
 
-	"github.com/ipfs/go-blockservice"
 	"go.uber.org/fx"
 
 	"github.com/celestiaorg/celestia-node/core"
@@ -11,6 +10,7 @@ import (
 	"github.com/celestiaorg/celestia-node/libs/fxutil"
 	libhead "github.com/celestiaorg/celestia-node/libs/header"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
+	"github.com/celestiaorg/celestia-node/share/eds"
 	"github.com/celestiaorg/celestia-node/share/p2p/shrexsub"
 )
 
@@ -35,13 +35,14 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 			fx.Provide(core.NewBlockFetcher),
 			fxutil.ProvideAs(core.NewExchange, new(libhead.Exchange[*header.ExtendedHeader])),
 			fx.Invoke(fx.Annotate(
-				func(bcast libhead.Broadcaster[*header.ExtendedHeader],
+				func(
+					bcast libhead.Broadcaster[*header.ExtendedHeader],
 					fetcher *core.BlockFetcher,
 					pubsub *shrexsub.PubSub,
-					bServ blockservice.BlockService,
 					construct header.ConstructFn,
+					store *eds.Store,
 				) *core.Listener {
-					return core.NewListener(bcast, fetcher, pubsub.Broadcast, bServ, construct)
+					return core.NewListener(bcast, fetcher, pubsub.Broadcast, construct, store)
 				},
 				fx.OnStart(func(ctx context.Context, listener *core.Listener) error {
 					return listener.Start(ctx)
