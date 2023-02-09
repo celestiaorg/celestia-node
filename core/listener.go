@@ -4,12 +4,12 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/ipfs/go-blockservice"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	"github.com/tendermint/tendermint/types"
 
 	"github.com/celestiaorg/celestia-node/header"
 	libhead "github.com/celestiaorg/celestia-node/libs/header"
+	"github.com/celestiaorg/celestia-node/share/eds"
 	"github.com/celestiaorg/celestia-node/share/p2p/shrexsub"
 )
 
@@ -22,9 +22,9 @@ import (
 // network.
 type Listener struct {
 	fetcher *BlockFetcher
-	bServ   blockservice.BlockService
 
 	construct header.ConstructFn
+	store     *eds.Store
 
 	headerBroadcaster libhead.Broadcaster[*header.ExtendedHeader]
 	hashBroadcaster   shrexsub.BroadcastFn
@@ -35,16 +35,16 @@ type Listener struct {
 func NewListener(
 	bcast libhead.Broadcaster[*header.ExtendedHeader],
 	fetcher *BlockFetcher,
-	extHeaderBroadcaster shrexsub.BroadcastFn,
-	bServ blockservice.BlockService,
+	hashBroadcaster shrexsub.BroadcastFn,
 	construct header.ConstructFn,
+	store *eds.Store,
 ) *Listener {
 	return &Listener{
-		headerBroadcaster: bcast,
 		fetcher:           fetcher,
-		hashBroadcaster:   extHeaderBroadcaster,
-		bServ:             bServ,
+		headerBroadcaster: bcast,
+		hashBroadcaster:   hashBroadcaster,
 		construct:         construct,
+		store:             store,
 	}
 }
 
@@ -65,7 +65,7 @@ func (cl *Listener) Start(ctx context.Context) error {
 	return nil
 }
 
-// Stop stops the Listener listener loop.
+// Stop stops the listener loop.
 func (cl *Listener) Stop(ctx context.Context) error {
 	cl.cancel()
 	cl.cancel = nil
@@ -96,10 +96,25 @@ func (cl *Listener) listen(ctx context.Context, sub <-chan *types.Block) {
 				return
 			}
 
-			eh, err := cl.construct(ctx, b, comm, vals, cl.bServ)
+			// extend block data
+			eds, err := extendBlock(b.Data)
+			if err != nil {
+				log.Errorw("listener: extending block data", "err", err)
+				return
+			}
+			// generate extended header
+			eh, err := cl.construct(ctx, b, comm, vals, eds)
 			if err != nil {
 				log.Errorw("listener: making extended header", "err", err)
 				return
+			}
+			// store block data if not empty
+			if eds != nil {
+				err = cl.store.Put(ctx, eh.DAH.Hash(), eds)
+				if err != nil {
+					log.Errorw("listener: storing extended header", "err", err)
+					return
+				}
 			}
 
 			// broadcast new ExtendedHeader, but if core is still syncing, notify only local subscribers

@@ -7,20 +7,14 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/ipfs/go-blockservice"
-	logging "github.com/ipfs/go-log/v2"
-
 	tmjson "github.com/tendermint/tendermint/libs/json"
 	core "github.com/tendermint/tendermint/types"
 
-	appshares "github.com/celestiaorg/celestia-app/pkg/shares"
-
 	"github.com/celestiaorg/celestia-app/pkg/da"
-	libhead "github.com/celestiaorg/celestia-node/libs/header"
-	"github.com/celestiaorg/celestia-node/share"
-)
+	"github.com/celestiaorg/rsmt2d"
 
-var log = logging.Logger("header")
+	libhead "github.com/celestiaorg/celestia-node/libs/header"
+)
 
 // ConstructFn aliases a function that creates an ExtendedHeader.
 type ConstructFn = func(
@@ -28,7 +22,7 @@ type ConstructFn = func(
 	*core.Block,
 	*core.Commit,
 	*core.ValidatorSet,
-	blockservice.BlockService,
+	*rsmt2d.ExtendedDataSquare,
 ) (*ExtendedHeader, error)
 
 type DataAvailabilityHeader = da.DataAvailabilityHeader
@@ -79,23 +73,14 @@ func MakeExtendedHeader(
 	b *core.Block,
 	comm *core.Commit,
 	vals *core.ValidatorSet,
-	bServ blockservice.BlockService,
+	eds *rsmt2d.ExtendedDataSquare,
 ) (*ExtendedHeader, error) {
 	var dah DataAvailabilityHeader
-	if len(b.Txs) > 0 {
-		shares, err := appshares.Split(b.Data, true)
-		if err != nil {
-			return nil, err
-		}
-		extended, err := share.AddShares(ctx, appshares.ToBytes(shares), bServ)
-		if err != nil {
-			return nil, err
-		}
-		dah = da.NewDataAvailabilityHeader(extended)
-	} else {
-		// use MinDataAvailabilityHeader for empty block
+	switch eds {
+	case nil:
 		dah = EmptyDAH()
-		log.Debugw("empty block received", "height", "blockID", "time", b.Height, b.Time.String(), comm.BlockID)
+	default:
+		dah = da.NewDataAvailabilityHeader(eds)
 	}
 
 	eh := &ExtendedHeader{
