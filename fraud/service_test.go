@@ -16,7 +16,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/celestiaorg/celestia-node/header"
-	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
 )
 
 func TestService_Subscribe(t *testing.T) {
@@ -133,7 +132,7 @@ func TestService_ReGossiping(t *testing.T) {
 		},
 		sync.MutexWrap(datastore.NewMapDatastore()),
 		false,
-		string(p2p.Private),
+		"private",
 	)
 	addrB := host.InfoFromHost(net.Hosts()[1]) // -> B
 
@@ -149,7 +148,7 @@ func TestService_ReGossiping(t *testing.T) {
 		},
 		sync.MutexWrap(datastore.NewMapDatastore()),
 		false,
-		string(p2p.Private),
+		"private",
 	)
 	// establish connections
 	// connect peers: A -> B -> C, so A and C are not connected to each other
