@@ -65,8 +65,15 @@ func (w *worker) run(
 		}
 
 		metrics.observeGetHeader(ctx, time.Since(startGet))
-		log.Debugw("got header from header store", "height", h.Height(), "hash", h.Hash(),
-			"square width", len(h.DAH.RowsRoots), "data root", h.DAH.Hash(), "finished (s)", time.Since(startGet))
+
+		log.Debugw(
+			"got header from header store",
+			"height", h.Height(),
+			"hash", h.Hash(),
+			"square width", len(h.DAH.RowsRoots),
+			"data root", h.DAH.Hash(),
+			"finished (s)", time.Since(startGet),
+		)
 
 		startSample := time.Now()
 		err = sample(ctx, h)
@@ -78,13 +85,25 @@ func (w *worker) run(
 		metrics.observeSample(ctx, h, time.Since(startSample), err)
 
 		if err != nil {
-			log.Debugw("failed to sampled header", "height", h.Height(), "hash", h.Hash(),
-				"square width", len(h.DAH.RowsRoots), "data root", h.DAH.Hash(), "err", err)
+			log.Debugw(
+				"failed to sampled header",
+				"height", h.Height(),
+				"hash", h.Hash(),
+				"square width", len(h.DAH.RowsRoots),
+				"data root", h.DAH.Hash(),
+				"err", err,
+			)
 			continue
 		}
 
-		log.Debugw("sampled header", "height", h.Height(), "hash", h.Hash(),
-			"square width", len(h.DAH.RowsRoots), "data root", h.DAH.Hash(), "finished (s)", time.Since(startSample))
+		log.Debugw(
+				"sampled header",
+				"height", h.Height(),
+				"hash", h.Hash(),
+				"square width", len(h.DAH.RowsRoots),
+				"data root", h.DAH.Hash(),
+				"finished (s)", time.Since(startSample),
+			)
 
 		// notify network about recent header being available to be synced via shrex.Getter
 		if w.state.isRecentHeader {
@@ -98,8 +117,13 @@ func (w *worker) run(
 
 	if w.state.Curr > w.state.From {
 		jobTime := time.Since(jobStart)
-		log.Infow("sampled headers", "from", w.state.From, "to", w.state.Curr,
-			"finished (s)", jobTime.Seconds())
+		log.Infow(
+			"sampled headers",
+			"from", w.state.From,
+			"to", w.state.Curr,
+			"finished (s)",
+			jobTime.Seconds(),
+		)
 	}
 
 	select {
