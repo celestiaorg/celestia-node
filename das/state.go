@@ -124,7 +124,7 @@ func (s *coordinatorState) nextJob() (next job, found bool) {
 }
 
 func (s *coordinatorState) nextFromRetry() (job, bool) {
-	for len(s.retry) == 0 {
+	if len(s.retry) == 0 {
 		return job{}, false
 	}
 
