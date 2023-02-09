@@ -37,7 +37,7 @@ func TestSyncLightWithBridge(t *testing.T) {
 	t.Cleanup(cancel)
 
 	sw := swamp.NewSwamp(t, swamp.WithBlockTime(btime))
-	fillDn := sw.FillBlocks(ctx, bsize, blocks)
+	fillDn := swamp.FillBlocks(ctx, sw.ClientContext, sw.Accounts, bsize, blocks)
 
 	bridge := sw.NewBridgeNode()
 
@@ -150,7 +150,7 @@ func TestSyncFullWithBridge(t *testing.T) {
 	t.Cleanup(cancel)
 
 	sw := swamp.NewSwamp(t, swamp.WithBlockTime(btime))
-	fillDn := sw.FillBlocks(ctx, bsize, blocks)
+	fillDn := swamp.FillBlocks(ctx, sw.ClientContext, sw.Accounts, bsize, blocks)
 
 	bridge := sw.NewBridgeNode()
 
