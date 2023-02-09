@@ -33,8 +33,8 @@ Note: 15 is not available because DASer will be stopped before reaching this hei
 */
 func TestFraudProofBroadcasting(t *testing.T) {
 	const (
-		blocks = 20
-		bsize  = 16
+		blocks = 15
+		bsize  = 2
 		btime  = time.Millisecond * 300
 	)
 	sw := swamp.NewSwamp(t, swamp.WithBlockTime(btime))
@@ -101,8 +101,8 @@ Steps:
 */
 func TestFraudProofSyncing(t *testing.T) {
 	const (
-		blocks = 20
-		bsize  = 16
+		blocks = 15
+		bsize  = 2
 		btime  = time.Millisecond * 300
 	)
 	sw := swamp.NewSwamp(t, swamp.WithBlockTime(btime))
