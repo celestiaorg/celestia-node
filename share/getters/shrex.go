@@ -24,6 +24,22 @@ type ShrexGetter struct {
 	peerManager *peers.Manager
 }
 
+func NewShrexGetter(edsClient *shrexeds.Client, ndClient *shrexnd.Client, peerManager *peers.Manager) *ShrexGetter {
+	return &ShrexGetter{
+		edsClient:   edsClient,
+		ndClient:    ndClient,
+		peerManager: peerManager,
+	}
+}
+
+func (sg *ShrexGetter) Start(ctx context.Context) error {
+	return sg.peerManager.Start(ctx)
+}
+
+func (sg *ShrexGetter) Stop(ctx context.Context) error {
+	return sg.peerManager.Stop(ctx)
+}
+
 func (sg *ShrexGetter) GetShare(ctx context.Context, root *share.Root, row, col int) (share.Share, error) {
 	return nil, errors.New("shrex-getter: GetShare is not supported")
 }
