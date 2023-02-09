@@ -7,6 +7,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/celestiaorg/celestia-node/share/p2p/shrexsub"
+
 	"go.uber.org/multierr"
 
 	"github.com/celestiaorg/celestia-node/header"
@@ -30,7 +32,9 @@ type workerState struct {
 
 // job represents headers interval to be processed by worker
 type job struct {
-	id   int
+	id             int
+	isRecentHeader bool
+
 	From uint64
 	To   uint64
 }
@@ -39,6 +43,7 @@ func (w *worker) run(
 	ctx context.Context,
 	getter libhead.Getter[*header.ExtendedHeader],
 	sample sampleFn,
+	broadcast shrexsub.BroadcastFn,
 	metrics *metrics,
 	resultCh chan<- result) {
 	jobStart := time.Now()
@@ -78,6 +83,7 @@ func (w *worker) run(
 		}
 		w.setResult(curr, err)
 		metrics.observeSample(ctx, h, time.Since(startSample), err)
+
 		if err != nil {
 			log.Debugw(
 				"failed to sampled header",
@@ -87,15 +93,25 @@ func (w *worker) run(
 				"data root", h.DAH.Hash(),
 				"err", err,
 			)
-		} else {
-			log.Debugw(
-				"sampled header",
-				"height", h.Height(),
-				"hash", h.Hash(),
-				"square width", len(h.DAH.RowsRoots),
-				"data root", h.DAH.Hash(),
-				"finished (s)", time.Since(startSample),
-			)
+			continue
+		}
+
+		log.Debugw(
+			"sampled header",
+			"height", h.Height(),
+			"hash", h.Hash(),
+			"square width", len(h.DAH.RowsRoots),
+			"data root", h.DAH.Hash(),
+			"finished (s)", time.Since(startSample),
+		)
+
+		// notify network about availability of new block data (note: only full nodes can notify)
+		if w.state.isRecentHeader {
+			err = broadcast(ctx, h.DataHash.Bytes())
+			if err != nil {
+				log.Warn("failed to broadcast availability message",
+					"height", h.Height(), "hash", h.Hash(), "err", err)
+			}
 		}
 	}
 

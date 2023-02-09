@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"sync/atomic"
 
+	"github.com/celestiaorg/celestia-node/share/p2p/shrexsub"
+
 	"github.com/ipfs/go-datastore"
 	logging "github.com/ipfs/go-log/v2"
 
@@ -46,6 +48,7 @@ func NewDASer(
 	getter libhead.Getter[*header.ExtendedHeader],
 	dstore datastore.Datastore,
 	bcast fraud.Broadcaster,
+	shrexBroadcast shrexsub.BroadcastFn,
 	options ...Option,
 ) (*DASer, error) {
 	d := &DASer{
@@ -68,7 +71,7 @@ func NewDASer(
 		return nil, err
 	}
 
-	d.sampler = newSamplingCoordinator(d.params, getter, d.sample)
+	d.sampler = newSamplingCoordinator(d.params, getter, d.sample, shrexBroadcast)
 	return d, nil
 }
 

@@ -32,9 +32,6 @@ type Parameters struct {
 	// checkpoint backup.
 	BackgroundStoreInterval time.Duration
 
-	// PriorityQueueSize defines the size limit of the priority queue
-	PriorityQueueSize int
-
 	// SampleFrom is the height sampling will start from if no previous checkpoint was saved
 	SampleFrom uint64
 
@@ -51,7 +48,6 @@ func DefaultParameters() Parameters {
 		SamplingRange:           100,
 		ConcurrencyLimit:        16,
 		BackgroundStoreInterval: 10 * time.Minute,
-		PriorityQueueSize:       16 * 4,
 		SampleFrom:              1,
 		SampleTimeout:           time.Minute,
 	}
@@ -136,14 +132,6 @@ func WithConcurrencyLimit(concurrencyLimit int) Option {
 func WithBackgroundStoreInterval(backgroundStoreInterval time.Duration) Option {
 	return func(d *DASer) {
 		d.params.BackgroundStoreInterval = backgroundStoreInterval
-	}
-}
-
-// WithPriorityQueueSize is a functional option to configure the daser's `priorityQueuSize`
-// parameter Refer to WithSamplingRange documentation to see an example of how to use this
-func WithPriorityQueueSize(priorityQueueSize int) Option {
-	return func(d *DASer) {
-		d.params.PriorityQueueSize = priorityQueueSize
 	}
 }
 

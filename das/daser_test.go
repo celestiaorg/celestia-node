@@ -43,7 +43,7 @@ func TestDASerLifecycle(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	t.Cleanup(cancel)
 
-	daser, err := NewDASer(avail, sub, mockGet, ds, mockService)
+	daser, err := NewDASer(avail, sub, mockGet, ds, mockService, newBroadcastMock(1))
 	require.NoError(t, err)
 
 	err = daser.Start(ctx)
@@ -83,7 +83,7 @@ func TestDASer_Restart(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	t.Cleanup(cancel)
 
-	daser, err := NewDASer(avail, sub, mockGet, ds, mockService)
+	daser, err := NewDASer(avail, sub, mockGet, ds, mockService, newBroadcastMock(1))
 	require.NoError(t, err)
 
 	err = daser.Start(ctx)
@@ -114,7 +114,7 @@ func TestDASer_Restart(t *testing.T) {
 	restartCtx, restartCancel := context.WithTimeout(context.Background(), timeout)
 	t.Cleanup(restartCancel)
 
-	daser, err = NewDASer(avail, sub, mockGet, ds, mockService)
+	daser, err = NewDASer(avail, sub, mockGet, ds, mockService, newBroadcastMock(1))
 	require.NoError(t, err)
 
 	err = daser.Start(restartCtx)
@@ -162,7 +162,7 @@ func TestDASer_stopsAfter_BEFP(t *testing.T) {
 	newCtx := context.Background()
 
 	// create and start DASer
-	daser, err := NewDASer(avail, sub, mockGet, ds, f)
+	daser, err := NewDASer(avail, sub, mockGet, ds, f, newBroadcastMock(1))
 	require.NoError(t, err)
 
 	resultCh := make(chan error)
@@ -205,7 +205,7 @@ func TestDASerSampleTimeout(t *testing.T) {
 	f := new(fraud.DummyService)
 
 	// create and start DASer
-	daser, err := NewDASer(avail, sub, getter, ds, f)
+	daser, err := NewDASer(avail, sub, getter, ds, f, newBroadcastMock(1))
 	require.NoError(t, err)
 
 	// assign directly to avoid params validation
