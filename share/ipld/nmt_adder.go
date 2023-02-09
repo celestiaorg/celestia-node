@@ -2,6 +2,7 @@ package ipld
 
 import (
 	"context"
+	"fmt"
 	"sync"
 
 	"github.com/ipfs/go-blockservice"
@@ -79,17 +80,13 @@ func (n *NmtNodeAdder) Commit() error {
 	n.lock.Lock()
 	defer n.lock.Unlock()
 
-	// TODO(@distractedm1nd): figure out what is going on here. I think it has to do with the fact
-	// that eds.Store takes a while to get the multihashes in the index
 	if n.err != nil {
-		log.Errorf("before batch commit: %s", n.err)
-		// return fmt.Errorf("before batch commit: %w", n.err)
+		return fmt.Errorf("before batch commit: %w", n.err)
 	}
 
 	n.err = n.add.Commit()
 	if n.err != nil {
-		log.Errorf("after batch commit: %s", n.err)
-		// return fmt.Errorf("after batch commit: %w", n.err)
+		return fmt.Errorf("after batch commit: %w", n.err)
 	}
 	return nil
 }

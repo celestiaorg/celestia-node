@@ -30,7 +30,6 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 		fx.Options(options...),
 		fx.Provide(discovery(*cfg)),
 		fx.Provide(newModule),
-		fx.Invoke(share.EnsureEmptySquareExists),
 		// TODO: Configure for light nodes
 		fx.Provide(
 			func(host host.Host, network modp2p.Network) (*shrexnd.Client, error) {
@@ -44,6 +43,7 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 		return fx.Module(
 			"share",
 			baseComponents,
+			fx.Invoke(share.EnsureEmptySquareExists),
 			// shrexsub broadcaster stub for daser
 			fxutil.ProvideAs(func(context.Context, share.DataHash) error {
 				return nil
