@@ -44,6 +44,7 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 		return fx.Module(
 			"p2p",
 			baseComponents,
+			fx.Provide(blockstoreFromEDSStore),
 			fx.Provide(func() (network.ResourceManager, error) {
 				return rcmgr.NewResourceManager(rcmgr.NewFixedLimiter(rcmgr.InfiniteLimits))
 			}),
@@ -52,6 +53,7 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 		return fx.Module(
 			"p2p",
 			baseComponents,
+			fx.Provide(blockstoreFromDatastore),
 			fx.Provide(func() (network.ResourceManager, error) {
 				limits := rcmgr.DefaultLimits
 				libp2p.SetDefaultServiceLimits(&limits)
