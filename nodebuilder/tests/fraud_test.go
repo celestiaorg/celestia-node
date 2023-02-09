@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	mdutils "github.com/ipfs/go-merkledag/test"
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/stretchr/testify/require"
@@ -35,7 +36,7 @@ func TestFraudProofBroadcasting(t *testing.T) {
 	testTimeout := time.Millisecond * 200
 	sw := swamp.NewSwamp(t, swamp.WithBlockTime(testTimeout))
 
-	bridge := sw.NewBridgeNode(core.WithHeaderConstructFn(headertest.FraudMaker(t, 20)))
+	bridge := sw.NewBridgeNode(core.WithHeaderConstructFn(headertest.FraudMaker(t, 20, mdutils.Bserv())))
 
 	ctx, cancel := context.WithTimeout(context.Background(), swamp.DefaultTestTimeout)
 	t.Cleanup(cancel)
@@ -99,7 +100,11 @@ func TestFraudProofSyncing(t *testing.T) {
 
 	cfg := nodebuilder.DefaultConfig(node.Bridge)
 	store := nodebuilder.MockStore(t, cfg)
-	bridge := sw.NewNodeWithStore(node.Bridge, store, core.WithHeaderConstructFn(headertest.FraudMaker(t, 10)))
+	bridge := sw.NewNodeWithStore(
+		node.Bridge,
+		store,
+		core.WithHeaderConstructFn(headertest.FraudMaker(t, 10, mdutils.Bserv())),
+	)
 
 	ctx, cancel := context.WithTimeout(context.Background(), swamp.DefaultTestTimeout)
 	t.Cleanup(cancel)
