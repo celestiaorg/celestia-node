@@ -16,7 +16,6 @@ import (
 
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/headertest"
-	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
 )
 
 type DummyService struct {
@@ -144,6 +143,6 @@ func createTestServiceWithHost(
 		store.GetByHeight,
 		sync.MutexWrap(datastore.NewMapDatastore()),
 		enabledSyncer,
-		string(p2p.Private),
+		"private",
 	), store
 }

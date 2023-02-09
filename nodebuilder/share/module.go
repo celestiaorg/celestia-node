@@ -29,7 +29,6 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 		fx.Options(options...),
 		fx.Provide(discovery(*cfg)),
 		fx.Provide(newModule),
-		fx.Invoke(share.EnsureEmptySquareExists),
 		fxutil.ProvideAs(getters.NewIPLDGetter, new(share.Getter)),
 	)
 
@@ -38,6 +37,7 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 		return fx.Module(
 			"share",
 			baseComponents,
+			fx.Invoke(share.EnsureEmptySquareExists),
 			fx.Provide(fx.Annotate(light.NewShareAvailability)),
 			// cacheAvailability's lifecycle continues to use a fx hook,
 			// since the LC requires a cacheAvailability but the constructor returns a share.Availability
