@@ -91,7 +91,7 @@ func TestCoordinator(t *testing.T) {
 			testParams.dasParams.SamplingRange,
 		) // worker will pick up first job before discovery
 
-		order.addInterval(testParams.networkHead+1, toBeDiscovered)
+		order.addInterval(toBeDiscovered, toBeDiscovered)
 
 		// start coordinator
 		coordinator := newSamplingCoordinator(testParams.dasParams, getterStub{},
@@ -559,7 +559,7 @@ func defaultTestParams() testParams {
 	return testParams{
 		networkHead:  uint64(500),
 		sampleFrom:   dasParamsDefault.SampleFrom,
-		timeoutDelay: 125 * time.Second,
+		timeoutDelay: 5 * time.Second,
 		dasParams:    dasParamsDefault,
 	}
 }
