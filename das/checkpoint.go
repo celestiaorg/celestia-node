@@ -48,3 +48,12 @@ func (c checkpoint) String() string {
 
 	return str
 }
+
+// totalSampled returns the total amount of sampled headers
+func (c checkpoint) totalSampled() uint64 {
+	var totalInProgress uint64
+	for _, w := range c.Workers {
+		totalInProgress += (w.To - w.From) + 1
+	}
+	return c.SampleFrom - totalInProgress - uint64(len(c.Failed))
+}
