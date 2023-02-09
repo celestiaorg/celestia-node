@@ -564,7 +564,10 @@ func defaultTestParams() testParams {
 }
 
 func newBroadcastMock(callLimit int) shrexsub.BroadcastFn {
+	var m sync.Mutex
 	return func(ctx context.Context, hash share.DataHash) error {
+		m.Lock()
+		defer m.Unlock()
 		if callLimit == 0 {
 			return errors.New("exceeded mock call limit")
 		}
