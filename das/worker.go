@@ -97,13 +97,13 @@ func (w *worker) run(
 		}
 
 		log.Debugw(
-				"sampled header",
-				"height", h.Height(),
-				"hash", h.Hash(),
-				"square width", len(h.DAH.RowsRoots),
-				"data root", h.DAH.Hash(),
-				"finished (s)", time.Since(startSample),
-			)
+			"sampled header",
+			"height", h.Height(),
+			"hash", h.Hash(),
+			"square width", len(h.DAH.RowsRoots),
+			"data root", h.DAH.Hash(),
+			"finished (s)", time.Since(startSample),
+		)
 
 		// notify network about availability of new block data (note: only full nodes can notify)
 		if w.state.isRecentHeader {

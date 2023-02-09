@@ -8,9 +8,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/p2p/shrexsub"
-	"github.com/celestiaorg/celestia-node/header"
 
 	"github.com/stretchr/testify/assert"
 )
