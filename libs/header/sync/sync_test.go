@@ -99,7 +99,7 @@ func TestSyncCatchUp(t *testing.T) {
 	// 4. assert syncer caught-up
 	have, err := localStore.Head(ctx)
 	require.NoError(t, err)
-	headerPtr := syncer.syncedHeadPtr.Load()
+	headerPtr := syncer.syncedHead.Load()
 	require.NotNil(t, headerPtr)
 	head = *headerPtr
 	assert.Equal(t, head.Height(), incomingHead.Height())
@@ -161,7 +161,7 @@ func TestSyncPendingRangesWithMisses(t *testing.T) {
 	_, err = localStore.GetByHeight(ctx, 43)
 	require.NoError(t, err)
 
-	headerPtr := syncer.syncedHeadPtr.Load()
+	headerPtr := syncer.syncedHead.Load()
 	require.NotNil(t, headerPtr)
 	lastHead := *headerPtr
 	require.Equal(t, lastHead.Height(), int64(43))

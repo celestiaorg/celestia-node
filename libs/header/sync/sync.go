@@ -42,8 +42,8 @@ type Syncer[H header.Header] struct {
 	state   State
 	// signals to start syncing
 	triggerSync chan struct{}
-	// syncedHeadPtr is the latest synced header.
-	syncedHeadPtr atomic.Pointer[H]
+	// syncedHead is the latest synced header.
+	syncedHead atomic.Pointer[H]
 	// pending keeps ranges of valid new network headers awaiting to be appended to store
 	pending ranges[H]
 	// netReqLk ensures only one network head is requested at any moment
@@ -178,7 +178,8 @@ func (s *Syncer[H]) sync(ctx context.Context) {
 		return
 	}
 
-	headPtr := s.syncedHeadPtr.Load()
+	headPtr := s.syncedHead.Load()
+
 	var header H
 	if headPtr == nil {
 		head, err := s.store.Head(ctx)
@@ -263,7 +264,7 @@ func (s *Syncer[H]) processHeaders(ctx context.Context, from, to uint64) (int, e
 
 	amount, err := s.store.Append(ctx, headers...)
 	if err == nil && amount > 0 {
-		s.syncedHeadPtr.Store(&headers[amount-1])
+		s.syncedHead.Store(&headers[amount-1])
 	}
 	return amount, err
 }
