@@ -67,8 +67,8 @@ type syncPool struct {
 
 	// isValidatedDataHash indicates if datahash was validated by receiving corresponding extended
 	// header from headerSub
-	isSynced            atomic.Bool
 	isValidatedDataHash atomic.Bool
+	isSynced            atomic.Bool
 	createdAt           time.Time
 }
 
