@@ -32,9 +32,6 @@ type Parameters struct {
 	// checkpoint backup.
 	BackgroundStoreInterval time.Duration
 
-	// MaxRecentHeaderGap defines the maximum size of the job for sampling recent headers
-	MaxRecentHeaderGap uint64
-
 	// SampleFrom is the height sampling will start from if no previous checkpoint was saved
 	SampleFrom uint64
 
@@ -51,7 +48,6 @@ func DefaultParameters() Parameters {
 		SamplingRange:           100,
 		ConcurrencyLimit:        16,
 		BackgroundStoreInterval: 10 * time.Minute,
-		MaxRecentHeaderGap:      10,
 		SampleFrom:              1,
 		SampleTimeout:           time.Minute,
 	}
@@ -98,14 +94,6 @@ func (p *Parameters) Validate() error {
 		)
 	}
 
-	// SampleTimeout = 0 would fail every sample operation with timeout error
-	if p.MaxRecentHeaderGap < 1 {
-		return errInvalidOptionValue(
-			"SampleTimeout",
-			"less than 1",
-		)
-	}
-
 	return nil
 }
 
@@ -144,14 +132,6 @@ func WithConcurrencyLimit(concurrencyLimit int) Option {
 func WithBackgroundStoreInterval(backgroundStoreInterval time.Duration) Option {
 	return func(d *DASer) {
 		d.params.BackgroundStoreInterval = backgroundStoreInterval
-	}
-}
-
-// WithMaxRecentHeaderGap is a functional option to configure the daser's `maxRecentHeaderGap`
-// parameter
-func WithMaxRecentHeaderGap(maxRecentHeaderGap uint64) Option {
-	return func(d *DASer) {
-		d.params.MaxRecentHeaderGap = maxRecentHeaderGap
 	}
 }
 

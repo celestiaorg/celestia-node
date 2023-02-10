@@ -10,10 +10,9 @@ type coordinatorState struct {
 	sampleFrom    uint64 // is the height from which the DASer will start sampling
 	samplingRange uint64 // is the maximum amount of headers processed in one job.
 
-	maxRecentHeaderGap uint64                     // maximum amount of header in the job for sampling recent headers
-	retry              []job                      // list of headers heights that will be retried after last run
-	inProgress         map[int]func() workerState // keeps track of running workers
-	failed             map[uint64]int             // stores heights of failed headers with amount of attempt as value
+	retry      []job                      // list of headers heights that will be retried after last run
+	inProgress map[int]func() workerState // keeps track of running workers
+	failed     map[uint64]int             // stores heights of failed headers with amount of attempt as value
 
 	nextJobID   int
 	next        uint64 // all headers before next were sent to workers
@@ -26,16 +25,15 @@ type coordinatorState struct {
 // newCoordinatorState initiates state for samplingCoordinator
 func newCoordinatorState(params Parameters) coordinatorState {
 	return coordinatorState{
-		sampleFrom:         params.SampleFrom,
-		samplingRange:      params.SamplingRange,
-		maxRecentHeaderGap: params.MaxRecentHeaderGap,
-		retry:              make([]job, 0),
-		inProgress:         make(map[int]func() workerState),
-		failed:             make(map[uint64]int),
-		nextJobID:          0,
-		next:               params.SampleFrom,
-		networkHead:        params.SampleFrom,
-		catchUpDoneCh:      make(chan struct{}),
+		sampleFrom:    params.SampleFrom,
+		samplingRange: params.SamplingRange,
+		retry:         make([]job, 0),
+		inProgress:    make(map[int]func() workerState),
+		failed:        make(map[uint64]int),
+		nextJobID:     0,
+		next:          params.SampleFrom,
+		networkHead:   params.SampleFrom,
+		catchUpDoneCh: make(chan struct{}),
 	}
 }
 
@@ -94,17 +92,11 @@ func (s *coordinatorState) updateHead(newHead uint64) {
 }
 
 func (s *coordinatorState) newRecentJob(newHead uint64) job {
-	// previous network head is already handled by another job
-	from := s.networkHead + 1
-	if newHead-from > s.maxRecentHeaderGap {
-		from = newHead - s.maxRecentHeaderGap
-	}
-
 	s.nextJobID++
 	return job{
 		id:             s.nextJobID,
 		isRecentHeader: true,
-		From:           from,
+		From:           newHead,
 		To:             newHead,
 	}
 }
@@ -132,7 +124,7 @@ func (s *coordinatorState) nextJob() (next job, found bool) {
 }
 
 func (s *coordinatorState) nextFromRetry() (job, bool) {
-	for len(s.retry) == 0 {
+	if len(s.retry) == 0 {
 		return job{}, false
 	}
 

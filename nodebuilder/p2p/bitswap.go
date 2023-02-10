@@ -42,7 +42,7 @@ func dataExchange(params bitSwapParams) exchange.Interface {
 }
 
 func blockstoreFromDatastore(ctx context.Context, ds datastore.Batching) (blockstore.Blockstore, error) {
-	bs, err := blockstore.CachedBlockstore(
+	return blockstore.CachedBlockstore(
 		ctx,
 		blockstore.NewBlockstore(ds),
 		blockstore.CacheOpts{
@@ -51,24 +51,16 @@ func blockstoreFromDatastore(ctx context.Context, ds datastore.Batching) (blocks
 			HasARCCacheSize:      defaultARCCacheSize,
 		},
 	)
-	if err != nil {
-		return nil, err
-	}
-	return bs, err
 }
 
 func blockstoreFromEDSStore(ctx context.Context, store *eds.Store) (blockstore.Blockstore, error) {
-	bs, err := blockstore.CachedBlockstore(
+	return blockstore.CachedBlockstore(
 		ctx,
 		store.Blockstore(),
 		blockstore.CacheOpts{
 			HasARCCacheSize: defaultARCCacheSize,
 		},
 	)
-	if err != nil {
-		return nil, err
-	}
-	return bs, err
 }
 
 type bitSwapParams struct {

@@ -105,7 +105,7 @@ func (w *worker) run(
 			"finished (s)", time.Since(startSample),
 		)
 
-		// notify network about recent header being available to be synced via shrex.Getter
+		// notify network about availability of new block data (note: only full nodes can notify)
 		if w.state.isRecentHeader {
 			err = broadcast(ctx, h.DataHash.Bytes())
 			if err != nil {

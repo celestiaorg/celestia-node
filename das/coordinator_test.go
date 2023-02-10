@@ -8,12 +8,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/celestiaorg/celestia-node/share"
-	"github.com/celestiaorg/celestia-node/share/p2p/shrexsub"
+	"github.com/stretchr/testify/assert"
 
 	"github.com/celestiaorg/celestia-node/header"
-
-	"github.com/stretchr/testify/assert"
+	"github.com/celestiaorg/celestia-node/share"
+	"github.com/celestiaorg/celestia-node/share/p2p/shrexsub"
 )
 
 func TestCoordinator(t *testing.T) {
@@ -85,13 +84,13 @@ func TestCoordinator(t *testing.T) {
 		// lock worker before start, to not let it indicateDone before discover
 		lk := newLock(testParams.sampleFrom, testParams.sampleFrom)
 
-		// expect worker to prioritize newly discovered  (20 -> 10) and then old (0 -> 10)
-		order := newCheckOrder().addInterval(
-			testParams.sampleFrom,
-			testParams.dasParams.SamplingRange,
-		) // worker will pick up first job before discovery
+		order := newCheckOrder().addInterval(toBeDiscovered, toBeDiscovered)
 
-		order.addInterval(testParams.networkHead+1, toBeDiscovered)
+		// expect worker to prioritize newly discovered
+		order.addInterval(
+			testParams.sampleFrom,
+			toBeDiscovered,
+		)
 
 		// start coordinator
 		coordinator := newSamplingCoordinator(testParams.dasParams, getterStub{},
@@ -102,14 +101,18 @@ func TestCoordinator(t *testing.T) {
 		)
 		go coordinator.run(ctx, sampler.checkpoint)
 
-		// wait for worker to pick up first job
-		time.Sleep(50 * time.Millisecond)
-
 		// discover new height
 		sampler.discover(ctx, toBeDiscovered, coordinator.listen)
 
 		// check if no header were sampled yet
-		assert.Equal(t, 0, sampler.sampledAmount())
+		for sampler.sampledAmount() != 1 {
+			time.Sleep(time.Millisecond)
+			select {
+			case <-ctx.Done():
+				assert.NoError(t, ctx.Err())
+			default:
+			}
+		}
 
 		// unblock worker
 		lk.release(testParams.sampleFrom)
@@ -448,7 +451,7 @@ func (o *checkOrder) middleWare(out sampleFn) sampleFn {
 		if len(o.queue) > 0 {
 			// check last item in queue to be same as input
 			if o.queue[0] != uint64(h.Height()) {
-				o.lock.Unlock()
+				defer o.lock.Unlock()
 				return fmt.Errorf("expected height: %v,got: %v", o.queue[0], h.Height())
 			}
 			o.queue = o.queue[1:]
@@ -559,13 +562,16 @@ func defaultTestParams() testParams {
 	return testParams{
 		networkHead:  uint64(500),
 		sampleFrom:   dasParamsDefault.SampleFrom,
-		timeoutDelay: 125 * time.Second,
+		timeoutDelay: 5 * time.Second,
 		dasParams:    dasParamsDefault,
 	}
 }
 
 func newBroadcastMock(callLimit int) shrexsub.BroadcastFn {
+	var m sync.Mutex
 	return func(ctx context.Context, hash share.DataHash) error {
+		m.Lock()
+		defer m.Unlock()
 		if callLimit == 0 {
 			return errors.New("exceeded mock call limit")
 		}

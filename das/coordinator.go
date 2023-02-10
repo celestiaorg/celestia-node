@@ -4,10 +4,9 @@ import (
 	"context"
 	"sync"
 
-	"github.com/celestiaorg/celestia-node/share/p2p/shrexsub"
-
 	"github.com/celestiaorg/celestia-node/header"
 	libhead "github.com/celestiaorg/celestia-node/libs/header"
+	"github.com/celestiaorg/celestia-node/share/p2p/shrexsub"
 )
 
 // samplingCoordinator runs and coordinates sampling workers and updates current sampling state
