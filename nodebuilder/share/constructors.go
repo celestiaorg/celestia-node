@@ -74,7 +74,7 @@ func peerManager(
 	connGater *conngater.BasicConnectionGater,
 ) *peers.Manager {
 	// TODO: find better syncTimeout duration?
-	return peers.NewManager(headerSub, shrexSub, discovery, host, connGater, modp2p.BlockTime)
+	return peers.NewManager(headerSub, shrexSub, discovery, host, connGater, modp2p.BlockTime*5)
 }
 
 func fullGetter(
