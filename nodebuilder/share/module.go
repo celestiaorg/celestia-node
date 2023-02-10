@@ -61,7 +61,7 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 			"share",
 			baseComponents,
 			fx.Provide(getters.NewIPLDGetter),
-			fx.Invoke(func(srv *shrexeds.Server) {}),
+			fx.Invoke(func(edsSrv *shrexeds.Server, ndSrc *shrexnd.Server) {}),
 			fx.Provide(fx.Annotate(
 				func(host host.Host, store *eds.Store, network modp2p.Network) (*shrexeds.Server, error) {
 					return shrexeds.NewServer(host, store, shrexeds.WithProtocolSuffix(string(network)))
