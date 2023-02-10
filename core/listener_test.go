@@ -33,9 +33,9 @@ func TestListener(t *testing.T) {
 	})
 	require.NoError(t, err)
 	require.NoError(t, subscriber.Start(ctx))
-	sub, err := subscriber.Subscribe()
+	subs, err := subscriber.Subscribe()
 	require.NoError(t, err)
-	t.Cleanup(sub.Cancel)
+	t.Cleanup(subs.Cancel)
 
 	// create one block to store as Head in local store and then unsubscribe from block events
 	fetcher, _ := createCoreFetcher(t, DefaultTestConfig())
@@ -51,12 +51,13 @@ func TestListener(t *testing.T) {
 
 	// ensure headers and dataHash are getting broadcasted to the relevant topics
 	for i := 0; i < 5; i++ {
-		msg, err := sub.NextHeader(ctx)
+		h, err := subs.NextHeader(ctx)
 		require.NoError(t, err)
 
 		dataHash, err := edsSubs.Next(ctx)
 		require.NoError(t, err)
-		require.Equal(t, msg.DataHash.Bytes(), []byte(dataHash))
+
+		require.Equal(t, h.DataHash.Bytes(), []byte(dataHash))
 	}
 
 	err = cl.Stop(ctx)

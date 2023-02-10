@@ -73,7 +73,7 @@ func (c *Client) RequestND(
 		}
 	}
 	if err != p2p.ErrUnavailable {
-		log.Errorw("client-nd: peer returned err", "peer", peer, "err", err)
+		log.Debugw("client-nd: peer returned err", "peer", peer, "err", err)
 	}
 	return nil, err
 }
