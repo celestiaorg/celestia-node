@@ -198,6 +198,35 @@ func TestManager(t *testing.T) {
 		stopManager(t, manager)
 	})
 
+	t.Run("get peer from discovery", func(t *testing.T) {
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+		t.Cleanup(cancel)
+
+		h := testHeader()
+		headerSub := newSubLock(h, nil)
+
+		// start test manager
+		manager, err := testManager(ctx, headerSub)
+		require.NoError(t, err)
+
+		peerID := peer.ID("peer1")
+		result := manager.validate(ctx, peerID, h.DataHash.Bytes())
+		require.Equal(t, pubsub.ValidationIgnore, result)
+
+		pID, done, err := manager.Peer(ctx, h.DataHash.Bytes())
+		require.NoError(t, err)
+		require.Equal(t, peerID, pID)
+		done(ResultSuccess)
+
+		// check pool is soft deleted and marked synced
+		pool := manager.getOrCreatePool(h.DataHash.String())
+		require.Len(t, pool.peersList, 0)
+		require.True(t, pool.isSynced.Load())
+
+		// add peer on synced pool should be noop
+		pool.add("peer1", "peer2")
+		require.Len(t, pool.peersList, 0)
+	})
 }
 
 func TestIntegration(t *testing.T) {
