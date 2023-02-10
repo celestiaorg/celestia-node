@@ -40,6 +40,7 @@ require (
 	github.com/ipfs/go-log/v2 v2.5.1
 	github.com/ipfs/go-merkledag v0.7.0
 	github.com/ipld/go-car v0.5.0
+	github.com/jonboulle/clockwork v0.3.1-0.20230117163003-a89700cec744
 	github.com/libp2p/go-libp2p v0.24.1
 	github.com/libp2p/go-libp2p-kad-dht v0.20.0
 	github.com/libp2p/go-libp2p-pubsub v0.8.3

@@ -71,7 +71,7 @@ func TestManager(t *testing.T) {
 		// check pool validation
 		require.True(t, manager.pools[h.DataHash.String()].isValidatedDataHash.Load())
 
-		done(ResultSuccess)
+		done(Success)
 		// pool should be removed after success
 		require.Len(t, manager.pools, 0)
 	})
@@ -100,7 +100,7 @@ func TestManager(t *testing.T) {
 		require.Equal(t, peerID, pID)
 
 		// mark peer as misbehaved tp blacklist it
-		done(ResultPeerMisbehaved)
+		done(Blacklist)
 
 		// misbehaved should be Rejected
 		result = manager.validate(ctx, pID, h.DataHash.Bytes())
@@ -148,7 +148,7 @@ func TestManager(t *testing.T) {
 		manager.fullNodes.add(peers...)
 
 		peerID, done, err := manager.Peer(ctx, h.DataHash.Bytes())
-		done(ResultSuccess)
+		done(Success)
 		require.NoError(t, err)
 		require.Contains(t, peers, peerID)
 
@@ -180,7 +180,7 @@ func TestManager(t *testing.T) {
 		go func() {
 			defer close(doneCh)
 			peerID, done, err := manager.Peer(ctx, h.DataHash.Bytes())
-			done(ResultSuccess)
+			done(Success)
 			require.NoError(t, err)
 			require.Contains(t, peers, peerID)
 		}()
@@ -286,7 +286,7 @@ func TestIntegration(t *testing.T) {
 		// hook peer manager to discovery
 		connGater, err := conngater.NewBasicConnectionGater(sync.MutexWrap(datastore.NewMapDatastore()))
 		require.NoError(t, err)
-		fnPeerManager := NewManager(nil, nil, fnDisc, nil, connGater, time.Minute)
+		fnPeerManager := NewManager(nil, nil, fnDisc, nil, connGater, time.Minute, time.Second)
 
 		waitCh := make(chan struct{})
 		fnDisc.WithOnPeersUpdate(func(peerID peer.ID, isAdded bool) {
@@ -325,7 +325,7 @@ func testManager(ctx context.Context, headerSub libhead.Subscriber[*header.Exten
 	if err != nil {
 		return nil, err
 	}
-	manager := NewManager(headerSub, shrexSub, disc, host, connGater, time.Minute)
+	manager := NewManager(headerSub, shrexSub, disc, host, connGater, time.Minute, time.Second)
 	err = manager.Start(ctx)
 	return manager, err
 }

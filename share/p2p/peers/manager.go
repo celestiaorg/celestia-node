@@ -23,9 +23,9 @@ import (
 )
 
 const (
-	ResultSuccess syncResult = iota
-	ResultFail
-	ResultPeerMisbehaved
+	Success syncResult = iota
+	Cooldown
+	Blacklist
 
 	gcInterval = time.Second * 30
 )
@@ -44,8 +44,9 @@ type Manager struct {
 	connGater *conngater.BasicConnectionGater
 
 	// pools collecting peers from shrexSub
-	pools           map[string]*syncPool
-	poolSyncTimeout time.Duration
+	pools            map[string]*syncPool
+	poolSyncTimeout  time.Duration
+	peerCooldownTime time.Duration
 	// fullNodes collects full nodes peer.ID found via discovery
 	fullNodes *pool
 
@@ -77,6 +78,7 @@ func NewManager(
 	host host.Host,
 	connGater *conngater.BasicConnectionGater,
 	syncTimeout time.Duration,
+	peerCooldownTime time.Duration,
 ) *Manager {
 	s := &Manager{
 		headerSub:         headerSub,
@@ -86,7 +88,7 @@ func NewManager(
 		host:              host,
 		pools:             make(map[string]*syncPool),
 		poolSyncTimeout:   syncTimeout,
-		fullNodes:         newPool(),
+		fullNodes:         newPool(peerCooldownTime),
 		blacklistedHashes: make(map[string]bool),
 		done:              make(chan struct{}),
 	}
@@ -186,10 +188,11 @@ func (s *Manager) Peer(
 func (s *Manager) doneFunc(datahash share.DataHash, peerID peer.ID) DoneFunc {
 	return func(result syncResult) {
 		switch result {
-		case ResultSuccess:
+		case Success:
 			s.deletePool(datahash.String())
-		case ResultFail:
-		case ResultPeerMisbehaved:
+		case Cooldown:
+			s.getOrCreatePool(datahash.String()).putOnCooldown(peerID)
+		case Blacklist:
 			s.blacklistPeers(peerID)
 		}
 	}
@@ -237,7 +240,7 @@ func (s *Manager) getOrCreatePool(datahash string) *syncPool {
 	p, ok := s.pools[datahash]
 	if !ok {
 		p = &syncPool{
-			pool:      newPool(),
+			pool:      newPool(s.peerCooldownTime),
 			createdAt: time.Now(),
 		}
 		s.pools[datahash] = p

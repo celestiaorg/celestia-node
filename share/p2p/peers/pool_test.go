@@ -2,7 +2,6 @@ package peers
 
 import (
 	"context"
-	"fmt"
 	"testing"
 	"time"
 
@@ -12,7 +11,7 @@ import (
 
 func TestPool(t *testing.T) {
 	t.Run("add / remove peers", func(t *testing.T) {
-		p := newPool()
+		p := newPool(time.Second)
 
 		peers := []peer.ID{"peer1", "peer1", "peer2", "peer3"}
 		// adding same peer twice should not produce copies
@@ -31,11 +30,10 @@ func TestPool(t *testing.T) {
 		require.Equal(t, 0, p.activeCount)
 		_, ok = p.tryGet()
 		require.False(t, ok)
-		fmt.Println(p)
 	})
 
 	t.Run("round robin", func(t *testing.T) {
-		p := newPool()
+		p := newPool(time.Second)
 
 		peers := []peer.ID{"peer1", "peer1", "peer2", "peer3"}
 		// adding same peer twice should not produce copies
@@ -75,7 +73,7 @@ func TestPool(t *testing.T) {
 		longCtx, cancel := context.WithTimeout(context.Background(), timeout)
 		t.Cleanup(cancel)
 
-		p := newPool()
+		p := newPool(time.Second)
 		done := make(chan struct{})
 
 		go func() {
@@ -106,7 +104,7 @@ func TestPool(t *testing.T) {
 	})
 
 	t.Run("nextIdx got removed", func(t *testing.T) {
-		p := newPool()
+		p := newPool(time.Second)
 
 		peers := []peer.ID{"peer1", "peer2", "peer3"}
 		p.add(peers...)
@@ -120,7 +118,7 @@ func TestPool(t *testing.T) {
 	})
 
 	t.Run("cleanup", func(t *testing.T) {
-		p := newPool()
+		p := newPool(time.Second)
 		p.cleanupThreshold = 3
 
 		peers := []peer.ID{"peer1", "peer2", "peer3", "peer4", "peer5"}
@@ -133,13 +131,37 @@ func TestPool(t *testing.T) {
 		// remove some, but not trigger cleanup yet
 		p.remove(peers[3:]...)
 		require.Equal(t, len(peers)-2, p.activeCount)
-		require.Equal(t, len(peers), len(p.active))
+		require.Equal(t, len(peers), len(p.statuses))
 
 		// trigger cleanup
 		p.remove(peers[2])
 		require.Equal(t, len(peers)-3, p.activeCount)
-		require.Equal(t, len(peers)-3, len(p.active))
+		require.Equal(t, len(peers)-3, len(p.statuses))
 		// nextIdx pointer should be updated
 		require.Equal(t, 0, p.nextIdx)
+	})
+
+	t.Run("cooldown blocks get", func(t *testing.T) {
+		ttl := time.Second / 10
+		p := newPool(ttl)
+
+		peerID := peer.ID("peer1")
+		p.add(peerID)
+
+		_, ok := p.tryGet()
+		require.True(t, ok)
+
+		p.putOnCooldown(peerID)
+		// item should be unavailable
+		_, ok = p.tryGet()
+		require.False(t, ok)
+
+		ctx, cancel := context.WithTimeout(context.Background(), ttl*5)
+		defer cancel()
+		select {
+		case <-p.next(ctx):
+		case <-ctx.Done():
+			t.Fatal("item should be already available")
+		}
 	})
 }
