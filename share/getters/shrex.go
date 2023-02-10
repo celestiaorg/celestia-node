@@ -3,6 +3,7 @@ package getters
 import (
 	"context"
 	"errors"
+	"time"
 
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/p2p"
@@ -16,12 +17,15 @@ import (
 
 var _ share.Getter = (*ShrexGetter)(nil)
 
+const MaxRequestDuration = time.Second * 10
+
 // ShrexGetter is a share.Getter that uses the shrex/eds and shrex/nd protocol to retrieve shares.
 type ShrexGetter struct {
 	edsClient *shrexeds.Client
 	ndClient  *shrexnd.Client
 
-	peerManager *peers.Manager
+	peerManager        *peers.Manager
+	maxRequestDuration time.Duration
 }
 
 func (sg *ShrexGetter) GetShare(ctx context.Context, root *share.Root, row, col int) (share.Share, error) {
@@ -32,19 +36,21 @@ func (sg *ShrexGetter) GetEDS(ctx context.Context, root *share.Root) (*rsmt2d.Ex
 	for {
 		peer, setStatus, err := sg.peerManager.Peer(ctx, root.Hash())
 		if err != nil {
+			log.Debugw("couldn't find peer", "datahash", root.String(), "err", err)
 			return nil, err
 		}
 
-		eds, err := sg.edsClient.RequestEDS(ctx, root.Hash(), peer)
+		reqCtx, cancel := context.WithTimeout(ctx, sg.maxRequestDuration)
+		eds, err := sg.edsClient.RequestEDS(reqCtx, root.Hash(), peer)
+		cancel()
 		switch err {
 		case nil:
 			setStatus(peers.ResultSuccess)
 			return eds, nil
+		case context.DeadlineExceeded:
+			log.Debugw("request exceeded deadline, trying with new peer", "datahash", root.String())
 		case p2p.ErrInvalidResponse:
 			setStatus(peers.ResultPeerMisbehaved)
-		case context.Canceled, context.DeadlineExceeded:
-			setStatus(peers.ResultFail)
-			return nil, ctx.Err()
 		default:
 			setStatus(peers.ResultFail)
 		}
@@ -59,19 +65,21 @@ func (sg *ShrexGetter) GetSharesByNamespace(
 	for {
 		peer, setStatus, err := sg.peerManager.Peer(ctx, root.Hash())
 		if err != nil {
+			log.Debugw("couldn't find peer", "datahash", root.String(), "err", err)
 			return nil, err
 		}
 
-		eds, err := sg.ndClient.RequestND(ctx, root, id, peer)
+		reqCtx, cancel := context.WithTimeout(ctx, sg.maxRequestDuration)
+		nd, err := sg.ndClient.RequestND(reqCtx, root, id, peer)
+		cancel()
 		switch err {
 		case nil:
 			setStatus(peers.ResultSuccess)
-			return eds, nil
+			return nd, nil
+		case context.DeadlineExceeded:
+			log.Debugw("request exceeded deadline, trying with new peer", "datahash", root.String())
 		case p2p.ErrInvalidResponse:
 			setStatus(peers.ResultPeerMisbehaved)
-		case context.Canceled, context.DeadlineExceeded:
-			setStatus(peers.ResultFail)
-			return nil, ctx.Err()
 		default:
 			setStatus(peers.ResultFail)
 		}
