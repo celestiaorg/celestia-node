@@ -54,19 +54,21 @@ func NewServer(host host.Host, store *eds.Store, getter share.Getter, opts ...Op
 }
 
 // Start starts the server
-func (srv *Server) Start() {
+func (srv *Server) Start(context.Context) error {
 	ctx, cancel := context.WithCancel(context.Background())
 	srv.cancel = cancel
 
 	srv.host.SetStreamHandler(srv.protocolID, func(s network.Stream) {
 		srv.handleNamespacedData(ctx, s)
 	})
+	return nil
 }
 
 // Stop stops the server
-func (srv *Server) Stop() {
+func (srv *Server) Stop(context.Context) error {
 	srv.cancel()
 	srv.host.RemoveStreamHandler(srv.protocolID)
+	return nil
 }
 
 func (srv *Server) handleNamespacedData(ctx context.Context, stream network.Stream) {

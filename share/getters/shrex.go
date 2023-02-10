@@ -17,7 +17,7 @@ import (
 
 var _ share.Getter = (*ShrexGetter)(nil)
 
-const MaxRequestDuration = time.Second * 10
+const defaultMaxRequestDuration = time.Second * 10
 
 // ShrexGetter is a share.Getter that uses the shrex/eds and shrex/nd protocol to retrieve shares.
 type ShrexGetter struct {
@@ -26,6 +26,23 @@ type ShrexGetter struct {
 
 	peerManager        *peers.Manager
 	maxRequestDuration time.Duration
+}
+
+func NewShrexGetter(edsClient *shrexeds.Client, ndClient *shrexnd.Client, peerManager *peers.Manager) *ShrexGetter {
+	return &ShrexGetter{
+		edsClient:          edsClient,
+		ndClient:           ndClient,
+		peerManager:        peerManager,
+		maxRequestDuration: defaultMaxRequestDuration,
+	}
+}
+
+func (sg *ShrexGetter) Start(ctx context.Context) error {
+	return sg.peerManager.Start(ctx)
+}
+
+func (sg *ShrexGetter) Stop(ctx context.Context) error {
+	return sg.peerManager.Stop(ctx)
 }
 
 func (sg *ShrexGetter) GetShare(ctx context.Context, root *share.Root, row, col int) (share.Share, error) {
