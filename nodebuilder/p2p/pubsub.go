@@ -27,7 +27,7 @@ func pubSub(cfg Config, params pubSubParams) (*pubsub.PubSub, error) {
 	//  * Bootstrappers should only gossip and PX
 	//  * Peers should trust boostrappers, so peerscore for them should always be high.
 	opts := []pubsub.Option{
-		pubsub.WithPeerExchange(cfg.PeerExchange || cfg.Bootstrapper),
+		pubsub.WithPeerExchange(true),
 		pubsub.WithDirectPeers(fpeers),
 		pubsub.WithMessageIdFn(hashMsgID),
 		// specifying sub protocol helps to avoid conflicts with
