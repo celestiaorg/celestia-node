@@ -148,7 +148,7 @@ func (p *pool) cleanup() {
 
 		if idx == p.nextIdx {
 			// if peer is not active and no more active peers left in list point to first peer
-			if status == removed && len(newList) >= p.activeCount {
+			if status != active && len(newList) >= p.activeCount {
 				p.nextIdx = 0
 				continue
 			}
@@ -174,7 +174,7 @@ func (p *pool) afterCooldown(peerID peer.ID) {
 	defer p.m.Unlock()
 
 	// item could have been already removed by the time afterCooldown is called
-	if p.statuses[peerID] != cooldown {
+	if status, ok := p.statuses[peerID]; !ok || status != cooldown {
 		return
 	}
 
