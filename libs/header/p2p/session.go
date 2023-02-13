@@ -139,12 +139,12 @@ func (s *session[H]) doRequest(
 
 	r, size, duration, err := sendMessage(ctx, s.host, stat.peerID, s.protocolID, req)
 	if err != nil {
-		log.Errorw("requesting headers from peer failed.", "failed peer", stat.peerID, "err", err)
+		log.Errorw("requesting headers from peer failed", "failed peer", stat.peerID, "err", err)
 		select {
 		case <-s.ctx.Done():
 		case s.reqCh <- req:
 			stat.decreaseScore()
-			log.Debug("Retrying the request from different peer")
+			log.Debug("retrying the request from different peer")
 		}
 		return
 	}
@@ -162,7 +162,7 @@ func (s *session[H]) doRequest(
 		}
 		return
 	}
-	log.Debugw("request headers from peer succeed ", "from", s.host.ID(), "pID", stat.peerID, "amount", req.Amount)
+	log.Debugw("request headers from peer succeeded", "peer", stat.peerID, "amount", req.Amount)
 	// send headers to the channel, update peer stats and return peer to the queue, so it can be
 	// re-used in case if there are other requests awaiting
 	headers <- h
