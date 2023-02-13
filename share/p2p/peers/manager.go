@@ -95,15 +95,15 @@ func NewManager(
 		func(peerID peer.ID, isAdded bool) {
 			if isAdded {
 				if s.peerIsBlacklisted(peerID) {
-					log.Debugw("got blacklisted from discovery", "peer_id", peerID)
+					log.Debugw("got blacklisted from discovery", "peer", peerID)
 					return
 				}
-				log.Debugw("added to full nodes", "peer_id", peerID)
+				log.Debugw("added to full nodes", "peer", peerID)
 				s.fullNodes.add(peerID)
 				return
 			}
 
-			log.Debugw("removing peer from discovered full nodes", "peer_id", peerID)
+			log.Debugw("removing peer from discovered full nodes", "peer", peerID)
 			s.fullNodes.remove(peerID)
 		})
 
@@ -168,7 +168,7 @@ func (s *Manager) Peer(
 	if ok {
 		// some pools could still have blacklisted peers in storage
 		if s.peerIsBlacklisted(peerID) {
-			log.Debugw("blacklisting bad shrex-sub peer", "hash", datahash.String(),
+			log.Debugw("removing blacklisted peer from pool", "hash", datahash.String(),
 				"peer", peerID.String())
 			p.remove(peerID)
 			return s.Peer(ctx, datahash)
@@ -182,17 +182,17 @@ func (s *Manager) Peer(
 	// obtained from discovery
 	peerID, ok = s.fullNodes.tryGet()
 	if ok {
-		log.Debugw("got peer from full nodes discovery pool", "peer_id", peerID, "datahash", datahash.String())
+		log.Debugw("got peer from full nodes discovery pool", "peer", peerID, "datahash", datahash.String())
 		return peerID, s.doneFunc(datahash, peerID), nil
 	}
 
 	// no peers are available right now, wait for the first one
 	select {
 	case peerID = <-p.next(ctx):
-		log.Debugw("got peer from shrexSub pool after wait", "peer_id", peerID, "datahash", datahash.String())
+		log.Debugw("got peer from shrexSub pool after wait", "peer", peerID, "datahash", datahash.String())
 		return peerID, s.doneFunc(datahash, peerID), nil
 	case peerID = <-s.fullNodes.next(ctx):
-		log.Debugw("got peer from discovery pool after wait", "peer_id", peerID, "datahash", datahash.String())
+		log.Debugw("got peer from discovery pool after wait", "peer", peerID, "datahash", datahash.String())
 		return peerID, s.doneFunc(datahash, peerID), nil
 	case <-ctx.Done():
 		return "", nil, ctx.Err()
@@ -201,8 +201,8 @@ func (s *Manager) Peer(
 
 func (s *Manager) doneFunc(datahash share.DataHash, peerID peer.ID) DoneFunc {
 	return func(result syncResult) {
-		log.Debugw("got peer from shrexSub pool",
-			"peer_id", peerID,
+		log.Debugw("set peer status",
+			"peer", peerID,
 			"datahash", datahash.String(),
 			result, result)
 		switch result {
@@ -246,12 +246,12 @@ func (s *Manager) validate(ctx context.Context, peerID peer.ID, hash share.DataH
 
 	// punish peer for sending invalid hash if it has misbehaved in the past
 	if s.hashIsBlacklisted(hash) {
-		log.Debugw("received blacklisted hash, reject validation", "peer_id", peerID, "datahash", hash.String())
+		log.Debugw("received blacklisted hash, reject validation", "peer", peerID, "datahash", hash.String())
 		return pubsub.ValidationReject
 	}
 
 	if s.peerIsBlacklisted(peerID) {
-		log.Debugw("received message from blacklisted peer, reject validation", "peer_id", peerID, "datahash", hash.String())
+		log.Debugw("received message from blacklisted peer, reject validation", "peer", peerID, "datahash", hash.String())
 		return pubsub.ValidationReject
 	}
 
@@ -283,18 +283,18 @@ func (s *Manager) deletePool(datahash string) {
 }
 
 func (s *Manager) blacklistPeers(peerIDs ...peer.ID) {
-	log.Debugw("blacklisting peers", "peer_ids", peerIDs)
+	log.Debugw("blacklisting peers", "peers", peerIDs)
 	for _, peerID := range peerIDs {
 		s.fullNodes.remove(peerID)
 		// add peer to the blacklist, so we can't connect to it in the future.
 		err := s.connGater.BlockPeer(peerID)
 		if err != nil {
-			log.Debugw("err blocking peer failed", "peer_id", peerID, "err", err)
+			log.Warnw("failed tp block peer", "peer", peerID, "err", err)
 		}
 		// close connections to peer.
 		err = s.host.Network().ClosePeer(peerID)
 		if err != nil {
-			log.Debugw("err closing connection with peer failed", "peer_id", peerID, "err", err)
+			log.Warnw("failed to close connection with peer", "peer", peerID, "err", err)
 		}
 	}
 }
