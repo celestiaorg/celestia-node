@@ -103,7 +103,7 @@ func NewManager(
 				return
 			}
 
-			log.Debugw("remove from full nodes", "peer_id", peerID)
+			log.Debugw("removing peer from discovered full nodes", "peer_id", peerID)
 			s.fullNodes.remove(peerID)
 		})
 
@@ -182,7 +182,7 @@ func (s *Manager) Peer(
 	// obtained from discovery
 	peerID, ok = s.fullNodes.tryGet()
 	if ok {
-		log.Debugw("got peer from full nodes pool", "peer_id", peerID, "datahash", datahash.String())
+		log.Debugw("got peer from full nodes discovery pool", "peer_id", peerID, "datahash", datahash.String())
 		return peerID, s.doneFunc(datahash, peerID), nil
 	}
 
@@ -192,7 +192,7 @@ func (s *Manager) Peer(
 		log.Debugw("got peer from shrexSub pool after wait", "peer_id", peerID, "datahash", datahash.String())
 		return peerID, s.doneFunc(datahash, peerID), nil
 	case peerID = <-s.fullNodes.next(ctx):
-		log.Debugw("got peer from shrexSub pool after wait", "peer_id", peerID, "datahash", datahash.String())
+		log.Debugw("got peer from discovery pool after wait", "peer_id", peerID, "datahash", datahash.String())
 		return peerID, s.doneFunc(datahash, peerID), nil
 	case <-ctx.Done():
 		return "", nil, ctx.Err()
@@ -240,23 +240,23 @@ func (s *Manager) subscribeHeader(ctx context.Context, headerSub libhead.Subscri
 func (s *Manager) validate(ctx context.Context, peerID peer.ID, hash share.DataHash) pubsub.ValidationResult {
 	// messages broadcasted from self should bypass the validation with Accept
 	if peerID == s.host.ID() {
-		log.Debugw("accept validation", "peer_id", peerID, "datahash", hash.String())
+		log.Debugw("received datahash from self", "datahash", hash.String())
 		return pubsub.ValidationAccept
 	}
 
 	// punish peer for sending invalid hash if it has misbehaved in the past
 	if s.hashIsBlacklisted(hash) {
-		log.Debugw("hash blacklisted, reject validation", "peer_id", peerID, "datahash", hash.String())
+		log.Debugw("received blacklisted hash, reject validation", "peer_id", peerID, "datahash", hash.String())
 		return pubsub.ValidationReject
 	}
 
 	if s.peerIsBlacklisted(peerID) {
-		log.Debugw("peer blacklisted, reject validation", "peer_id", peerID, "datahash", hash.String())
+		log.Debugw("received message from blacklisted peer, reject validation", "peer_id", peerID, "datahash", hash.String())
 		return pubsub.ValidationReject
 	}
 
 	s.getOrCreatePool(hash.String()).add(peerID)
-	log.Debugw("ignore validation", "peer_id", peerID, "datahash", hash.String())
+	log.Debugw("got hash from shrex-sub", "peer", peerID, "datahash", hash.String())
 	return pubsub.ValidationIgnore
 }
 
@@ -283,7 +283,7 @@ func (s *Manager) deletePool(datahash string) {
 }
 
 func (s *Manager) blacklistPeers(peerIDs ...peer.ID) {
-	log.Debugw("blacklist peers", "peer_ids", peerIDs)
+	log.Debugw("blacklisting peers", "peer_ids", peerIDs)
 	for _, peerID := range peerIDs {
 		s.fullNodes.remove(peerID)
 		// add peer to the blacklist, so we can't connect to it in the future.
