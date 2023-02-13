@@ -69,11 +69,12 @@ func TestManager(t *testing.T) {
 		require.Equal(t, peerID, pID)
 
 		// check pool validation
-		require.True(t, manager.pools[h.DataHash.String()].isValidatedDataHash.Load())
+		require.True(t, manager.getOrCreatePool(h.DataHash.String()).isValidatedDataHash.Load())
 
 		done(ResultSuccess)
-		// pool should be removed after success
-		require.Len(t, manager.pools, 0)
+		// pool should not be removed after success
+		require.Len(t, manager.pools, 1)
+		require.Len(t, manager.getOrCreatePool(h.DataHash.String()).pool.peersList, 0)
 	})
 
 	t.Run("validator", func(t *testing.T) {
@@ -198,6 +199,36 @@ func TestManager(t *testing.T) {
 		stopManager(t, manager)
 	})
 
+	t.Run("get peer from discovery", func(t *testing.T) {
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+		t.Cleanup(cancel)
+
+		h := testHeader()
+		headerSub := newSubLock(h, nil)
+
+		// start test manager
+		manager, err := testManager(ctx, headerSub)
+		require.NoError(t, err)
+
+		peerID := peer.ID("peer1")
+		result := manager.validate(ctx, peerID, h.DataHash.Bytes())
+		require.Equal(t, pubsub.ValidationIgnore, result)
+
+		pID, done, err := manager.Peer(ctx, h.DataHash.Bytes())
+		require.NoError(t, err)
+		require.Equal(t, peerID, pID)
+		done(ResultSuccess)
+
+		// check pool is soft deleted and marked synced
+		pool := manager.getOrCreatePool(h.DataHash.String())
+		require.Len(t, pool.peersList, 0)
+		require.True(t, pool.isSynced.Load())
+
+		// add peer on synced pool should be noop
+		result = manager.validate(ctx, "peer2", h.DataHash.Bytes())
+		require.Equal(t, pubsub.ValidationIgnore, result)
+		require.Len(t, pool.peersList, 0)
+	})
 }
 
 func TestIntegration(t *testing.T) {
