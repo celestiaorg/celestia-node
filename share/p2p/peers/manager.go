@@ -321,7 +321,7 @@ func (s *Manager) cleanUp() []peer.ID {
 
 func (p *syncPool) markSynced() {
 	old := (*unsafe.Pointer)(unsafe.Pointer(&p.pool))
-	// release pointer to old pool to be garbage collected
+	// release pointer to old pool to free up memory
 	atomic.StorePointer(old, unsafe.Pointer(newPool()))
 	p.isSynced.Store(true)
 }
