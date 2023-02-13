@@ -34,6 +34,11 @@ func (sg *ShrexGetter) GetShare(ctx context.Context, root *share.Root, row, col 
 
 func (sg *ShrexGetter) GetEDS(ctx context.Context, root *share.Root) (*rsmt2d.ExtendedDataSquare, error) {
 	for {
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		default:
+		}
 		peer, setStatus, err := sg.peerManager.Peer(ctx, root.Hash())
 		if err != nil {
 			log.Debugw("couldn't find peer", "datahash", root.String(), "err", err)
@@ -63,6 +68,11 @@ func (sg *ShrexGetter) GetSharesByNamespace(
 	id namespace.ID,
 ) (share.NamespacedShares, error) {
 	for {
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		default:
+		}
 		peer, setStatus, err := sg.peerManager.Peer(ctx, root.Hash())
 		if err != nil {
 			log.Debugw("couldn't find peer", "datahash", root.String(), "err", err)
