@@ -1,11 +1,10 @@
 name: Docker Build & Publish
 
-# Trigger on push events to main (i.e. merges), pushing new semantic version
-# tags and all PRs
+# Trigger on all push events, new semantic version tags, and all PRs
 on:
   push:
     branches:
-      - main
+      - "**"
     tags:
       - "v[0-9]+.[0-9]+.[0-9]+"
       - "v[0-9]+.[0-9]+.[0-9]+-alpha.[0-9]+"
