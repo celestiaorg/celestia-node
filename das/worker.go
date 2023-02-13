@@ -82,7 +82,8 @@ func (w *worker) run(
 			break
 		}
 		w.setResult(curr, err)
-		metrics.observeSample(ctx, h, time.Since(startSample), err)
+
+		metrics.observeSample(ctx, h, time.Since(startSample), err, w.state.isRecentHeader)
 
 		if err != nil {
 			log.Debugw(
