@@ -4,7 +4,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/jonboulle/clockwork"
+	"github.com/benbjohnson/clock"
 	"github.com/libp2p/go-libp2p/core/peer"
 )
 
@@ -13,8 +13,8 @@ type timedQueue struct {
 	items []item
 
 	ttl   time.Duration
-	clock clockwork.Clock
-	after clockwork.Timer
+	clock clock.Clock
+	after *clock.Timer
 	onPop func(peer.ID)
 }
 
@@ -26,7 +26,7 @@ type item struct {
 func newTimedQueue(ttl time.Duration, onPop func(peer.ID)) *timedQueue {
 	return &timedQueue{
 		items: make([]item, 0),
-		clock: clockwork.NewRealClock(),
+		clock: clock.New(),
 		ttl:   ttl,
 		onPop: onPop,
 	}

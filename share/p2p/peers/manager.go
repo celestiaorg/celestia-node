@@ -23,9 +23,14 @@ import (
 )
 
 const (
-	Success syncResult = iota
-	Cooldown
-	Blacklist
+	// ResultSuccess will save the status of pool as "synced" and will remove peers from it
+	ResultSuccess syncResult = iota
+	// ResultCooldownPeer will put returned peer on cooldown, meaning it won't be available by Peer
+	// method for some time
+	ResultCooldownPeer
+	// ResultBlacklistPeer will blacklist peer. Blacklisted peers will be disconnected and blocked from
+	// any p2p communication in future by libp2p Gater
+	ResultBlacklistPeer
 
 	gcInterval = time.Second * 30
 )
@@ -188,11 +193,11 @@ func (s *Manager) Peer(
 func (s *Manager) doneFunc(datahash share.DataHash, peerID peer.ID) DoneFunc {
 	return func(result syncResult) {
 		switch result {
-		case Success:
+		case ResultSuccess:
 			s.deletePool(datahash.String())
-		case Cooldown:
+		case ResultCooldownPeer:
 			s.getOrCreatePool(datahash.String()).putOnCooldown(peerID)
-		case Blacklist:
+		case ResultBlacklistPeer:
 			s.blacklistPeers(peerID)
 		}
 	}

@@ -71,7 +71,7 @@ func TestManager(t *testing.T) {
 		// check pool validation
 		require.True(t, manager.pools[h.DataHash.String()].isValidatedDataHash.Load())
 
-		done(Success)
+		done(ResultSuccess)
 		// pool should be removed after success
 		require.Len(t, manager.pools, 0)
 	})
@@ -100,7 +100,7 @@ func TestManager(t *testing.T) {
 		require.Equal(t, peerID, pID)
 
 		// mark peer as misbehaved tp blacklist it
-		done(Blacklist)
+		done(ResultBlacklistPeer)
 
 		// misbehaved should be Rejected
 		result = manager.validate(ctx, pID, h.DataHash.Bytes())
@@ -148,7 +148,7 @@ func TestManager(t *testing.T) {
 		manager.fullNodes.add(peers...)
 
 		peerID, done, err := manager.Peer(ctx, h.DataHash.Bytes())
-		done(Success)
+		done(ResultSuccess)
 		require.NoError(t, err)
 		require.Contains(t, peers, peerID)
 
@@ -180,7 +180,7 @@ func TestManager(t *testing.T) {
 		go func() {
 			defer close(doneCh)
 			peerID, done, err := manager.Peer(ctx, h.DataHash.Bytes())
-			done(Success)
+			done(ResultSuccess)
 			require.NoError(t, err)
 			require.Contains(t, peers, peerID)
 		}()
@@ -202,8 +202,7 @@ func TestManager(t *testing.T) {
 
 func TestIntegration(t *testing.T) {
 	t.Run("get peer from shrexsub", func(t *testing.T) {
-		t.SkipNow()
-		nw, err := mocknet.FullMeshConnected(3)
+		nw, err := mocknet.FullMeshLinked(2)
 		require.NoError(t, err)
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 		t.Cleanup(cancel)
@@ -216,6 +215,8 @@ func TestIntegration(t *testing.T) {
 
 		require.NoError(t, bnPubSub.Start(ctx))
 		require.NoError(t, fnPubSub.Start(ctx))
+
+		require.NoError(t, nw.ConnectAllButSelf())
 
 		fnPeerManager, err := testManager(ctx, newSubLock())
 		require.NoError(t, err)

@@ -54,17 +54,6 @@ func (p *pool) tryGet() (peer.ID, bool) {
 		return "", false
 	}
 
-	var a int
-	for _, v := range p.statuses {
-		if v == active {
-			a++
-		}
-	}
-
-	if a != p.activeCount {
-		panic("ALARM")
-	}
-
 	start := p.nextIdx
 	for {
 		peerID := p.peersList[p.nextIdx]
