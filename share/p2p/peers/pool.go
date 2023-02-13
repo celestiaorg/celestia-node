@@ -54,6 +54,17 @@ func (p *pool) tryGet() (peer.ID, bool) {
 		return "", false
 	}
 
+	var a int
+	for _, v := range p.statuses {
+		if v == active {
+			a++
+		}
+	}
+
+	if a != p.activeCount {
+		panic("ALARM")
+	}
+
 	start := p.nextIdx
 	for {
 		peerID := p.peersList[p.nextIdx]
@@ -162,11 +173,13 @@ func (p *pool) putOnCooldown(peerID peer.ID) {
 	p.m.Lock()
 	defer p.m.Unlock()
 
-	p.cooldown.push(peerID)
+	if p.statuses[peerID] == active {
+		p.cooldown.push(peerID)
 
-	p.statuses[peerID] = cooldown
-	p.activeCount--
-	p.checkHasPeers()
+		p.statuses[peerID] = cooldown
+		p.activeCount--
+		p.checkHasPeers()
+	}
 }
 
 func (p *pool) afterCooldown(peerID peer.ID) {
