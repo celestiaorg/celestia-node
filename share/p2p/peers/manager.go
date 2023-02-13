@@ -281,7 +281,9 @@ func (s *Manager) GC(ctx context.Context) {
 	var blacklist []peer.ID
 	for {
 		blacklist = s.cleanUp()
-		s.blacklistPeers(blacklist...)
+		if len(blacklist) > 0 {
+			s.blacklistPeers(blacklist...)
+		}
 
 		select {
 		case <-ticker.C:
@@ -320,10 +322,10 @@ func (s *Manager) cleanUp() []peer.ID {
 }
 
 func (p *syncPool) markSynced() {
+	p.isSynced.Store(true)
 	old := (*unsafe.Pointer)(unsafe.Pointer(&p.pool))
 	// release pointer to old pool to free up memory
 	atomic.StorePointer(old, unsafe.Pointer(newPool()))
-	p.isSynced.Store(true)
 }
 
 func (p *syncPool) markValidated() {
