@@ -81,13 +81,14 @@ func fullGetter(
 	store *eds.Store,
 	shrexGetter *getters.ShrexGetter,
 	ipldGetter *getters.IPLDGetter,
+	cfg Config,
 ) share.Getter {
-	return getters.NewCascadeGetter(
-		[]share.Getter{
-			getters.NewStoreGetter(store),
-			getters.NewTeeGetter(shrexGetter, store),
-			getters.NewTeeGetter(ipldGetter, store),
-		},
-		modp2p.BlockTime,
-	)
+	var cascade []share.Getter
+	cascade = append(cascade, getters.NewStoreGetter(store))
+	if cfg.UseShareExchange {
+		cascade = append(cascade, getters.NewTeeGetter(shrexGetter, store))
+	}
+	cascade = append(cascade, getters.NewTeeGetter(ipldGetter, store))
+
+	return getters.NewCascadeGetter(cascade, cfg.GetterTimeout)
 }

@@ -18,6 +18,12 @@ type Config struct {
 	// AdvertiseInterval is a interval between advertising sessions.
 	// NOTE: only full and bridge can advertise themselves.
 	AdvertiseInterval time.Duration
+	// GetterTimeout is the duration that each share retrieval getter will be run before moving to
+	// the next getter.
+	GetterTimeout time.Duration
+	// UseShareExchange is a flag toggling the usage of shrex protocols for blocksync.
+	// NOTE: This config variable only has an effect on full and bridge nodes.
+	UseShareExchange bool
 }
 
 func DefaultConfig() Config {
@@ -25,12 +31,14 @@ func DefaultConfig() Config {
 		PeersLimit:        3,
 		DiscoveryInterval: time.Second * 30,
 		AdvertiseInterval: time.Second * 30,
+		GetterTimeout:     time.Second * 30,
+		UseShareExchange:  true,
 	}
 }
 
 // Validate performs basic validation of the config.
 func (cfg *Config) Validate() error {
-	if cfg.DiscoveryInterval <= 0 || cfg.AdvertiseInterval <= 0 {
+	if cfg.DiscoveryInterval <= 0 || cfg.AdvertiseInterval <= 0 || cfg.GetterTimeout <= 0 {
 		return fmt.Errorf("nodebuilder/share: %s", ErrNegativeInterval)
 	}
 	return nil
