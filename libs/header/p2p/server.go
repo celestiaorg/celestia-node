@@ -201,9 +201,9 @@ func (serv *ExchangeServer[H]) handleRequest(from, to uint64) ([]H, error) {
 	}
 
 	log.Debugw("server: handling headers request", "from", from, "to", to)
-	if !serv.store.HasAt(to - 1) {
+	if !serv.store.HasAt(ctx, to-1) {
 		span.SetStatus(codes.Error, header.ErrNotFound.Error())
-		log.Warnw("server: requested headers not stored")
+		log.Debug("server: requested headers not stored")
 		return nil, header.ErrNotFound
 	}
 
