@@ -221,8 +221,8 @@ github.com/celestiaorg/quantum-gravity-bridge v1.3.0 h1:9zPIp7w1FWfkPnn16y3S4FpF
 github.com/celestiaorg/quantum-gravity-bridge v1.3.0/go.mod h1:6WOajINTDEUXpSj5UZzod16UZ96ZVB/rFNKyM+Mt1gI=
 github.com/celestiaorg/rsmt2d v0.8.0 h1:ZUxTCELZCM9zMGKNF3cT+rUqMddXMeiuyleSJPZ3Wn4=
 github.com/celestiaorg/rsmt2d v0.8.0/go.mod h1:hhlsTi6G3+X5jOP/8Lb/d7i5y2XNFmnyMddYbFSmrgo=
-github.com/celestiaorg/utils v0.0.0-20230111201732-2d8b5f8774ad h1:DHLh9QR6vWe47XsNFw5HNoKYXZBcrMgQtEDeoFo2dtY=
-github.com/celestiaorg/utils v0.0.0-20230111201732-2d8b5f8774ad/go.mod h1:vQTh7MHnvpIeCQZ2/Ph+w7K1R2UerDheZbgJEJD2hSU=
+github.com/celestiaorg/utils v0.1.0 h1:WsP3O8jF7jKRgLNFmlDCwdThwOFMFxg0MnqhkLFVxPo=
+github.com/celestiaorg/utils v0.1.0/go.mod h1:vQTh7MHnvpIeCQZ2/Ph+w7K1R2UerDheZbgJEJD2hSU=
 github.com/cenkalti/backoff v2.2.1+incompatible h1:tNowT99t7UNflLxfYYSlKYsBpXdEet03Pg2g16Swow4=
 github.com/cenkalti/backoff v2.2.1+incompatible/go.mod h1:90ReRw6GdpyfrHakVjL/QHaoyV4aDUVVkXQJJJ3NXXM=
 github.com/cenkalti/backoff/v4 v4.1.1/go.mod h1:scbssz8iZGpm3xbr14ovlUdkxfGXNInqkPWOWmG2CLw=
