@@ -309,13 +309,11 @@ func FraudMaker(t *testing.T, faultHeight int64, bServ blockservice.BlockService
 				ValidatorSet: vals,
 			}
 
-			eh = CreateFraudExtHeader(t, eh, bServ)
+			eh, dataSq := CreateFraudExtHeader(t, eh, bServ)
+			if eds != nil {
+				*eds = *dataSq
+			}
 			return eh, nil
-		}
-		flattened := eds.Flattened()
-		_, err := share.ImportShares(ctx, flattened, bServ)
-		if err != nil {
-			return nil, err
 		}
 		return header.MakeExtendedHeader(ctx, b, comm, vals, eds)
 	}
@@ -325,7 +323,7 @@ func CreateFraudExtHeader(
 	t *testing.T,
 	eh *header.ExtendedHeader,
 	dag blockservice.BlockService,
-) *header.ExtendedHeader {
+) (*header.ExtendedHeader, *rsmt2d.ExtendedDataSquare) {
 	extended := share.RandEDS(t, 2)
 	shares := share.ExtractEDS(extended)
 	copy(shares[0][share.NamespaceSize:], shares[1][share.NamespaceSize:])
@@ -334,7 +332,7 @@ func CreateFraudExtHeader(
 	dah := da.NewDataAvailabilityHeader(extended)
 	eh.DAH = &dah
 	eh.RawHeader.DataHash = dah.Hash()
-	return eh
+	return eh, extended
 }
 
 type DummySubscriber struct {

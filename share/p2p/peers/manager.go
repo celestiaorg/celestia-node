@@ -7,6 +7,7 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+	"unsafe"
 
 	"github.com/libp2p/go-libp2p/p2p/net/conngater"
 
@@ -73,6 +74,7 @@ type syncPool struct {
 	// isValidatedDataHash indicates if datahash was validated by receiving corresponding extended
 	// header from headerSub
 	isValidatedDataHash atomic.Bool
+	isSynced            atomic.Bool
 	createdAt           time.Time
 }
 
@@ -194,7 +196,7 @@ func (m *Manager) doneFunc(datahash share.DataHash, peerID peer.ID) DoneFunc {
 	return func(result syncResult) {
 		switch result {
 		case ResultSuccess:
-			m.deletePool(datahash.String())
+			s.getOrCreatePool(datahash.String()).markSynced()
 		case ResultCooldownPeer:
 			m.getOrCreatePool(datahash.String()).putOnCooldown(peerID)
 		case ResultBlacklistPeer:
@@ -254,6 +256,7 @@ func (m *Manager) getOrCreatePool(datahash string) *syncPool {
 	return p
 }
 
+
 func (m *Manager) deletePool(datahash string) {
 	m.lock.Lock()
 	defer m.lock.Unlock()
@@ -286,6 +289,7 @@ func (m *Manager) hashIsBlacklisted(hash share.DataHash) bool {
 	return m.blacklistedHashes[hash.String()]
 }
 
+
 func (p *syncPool) markValidated() {
 	p.isValidatedDataHash.Store(true)
 }
@@ -296,8 +300,10 @@ func (m *Manager) GC(ctx context.Context) {
 
 	var blacklist []peer.ID
 	for {
-		blacklist = m.cleanUp()
-		m.blacklistPeers(blacklist...)
+		blacklist = s.cleanUp()
+		if len(blacklist) > 0 {
+			s.blacklistPeers(blacklist...)
+		}
 
 		select {
 		case <-ticker.C:
@@ -333,4 +339,21 @@ func (m *Manager) cleanUp() []peer.ID {
 		blacklist = append(blacklist, peerID)
 	}
 	return blacklist
+}
+
+func (p *syncPool) markSynced() {
+	p.isSynced.Store(true)
+	old := (*unsafe.Pointer)(unsafe.Pointer(&p.pool))
+	// release pointer to old pool to free up memory
+	atomic.StorePointer(old, unsafe.Pointer(newPool()))
+}
+
+func (p *syncPool) markValidated() {
+	p.isValidatedDataHash.Store(true)
+}
+
+func (p *syncPool) add(peers ...peer.ID) {
+	if !p.isSynced.Load() {
+		p.pool.add(peers...)
+	}
 }

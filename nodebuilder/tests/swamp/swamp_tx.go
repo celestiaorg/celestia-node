@@ -2,6 +2,7 @@ package swamp
 
 import (
 	"context"
+	"time"
 
 	"github.com/cosmos/cosmos-sdk/client/flags"
 
@@ -14,6 +15,8 @@ func FillBlocks(ctx context.Context, cctx testnode.Context, accounts []string, b
 	errCh := make(chan error)
 	go func() {
 		// TODO: FillBlock must respect the context
+		// fill blocks is not working correctly without sleep rn.
+		time.Sleep(time.Millisecond * 50)
 		var err error
 		for i := 0; i < blocks; i++ {
 			_, err = cctx.FillBlock(bsize, accounts, flags.BroadcastBlock)

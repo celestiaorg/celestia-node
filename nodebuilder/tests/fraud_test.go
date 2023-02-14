@@ -32,14 +32,17 @@ Steps:
 Note: 15 is not available because DASer will be stopped before reaching this height due to receiving a fraud proof.
 */
 func TestFraudProofBroadcasting(t *testing.T) {
-	// we increase the timeout for this test to decrease flakiness in CI
-	testTimeout := time.Millisecond * 200
-	sw := swamp.NewSwamp(t, swamp.WithBlockTime(testTimeout))
-
-	bridge := sw.NewBridgeNode(core.WithHeaderConstructFn(headertest.FraudMaker(t, 20, mdutils.Bserv())))
-
+	const (
+		blocks = 15
+		bsize  = 2
+		btime  = time.Millisecond * 300
+	)
+	sw := swamp.NewSwamp(t, swamp.WithBlockTime(btime))
 	ctx, cancel := context.WithTimeout(context.Background(), swamp.DefaultTestTimeout)
 	t.Cleanup(cancel)
+
+	fillDn := swamp.FillBlocks(ctx, sw.ClientContext, sw.Accounts, bsize, blocks)
+	bridge := sw.NewBridgeNode(core.WithHeaderConstructFn(headertest.FraudMaker(t, 10, mdutils.Bserv())))
 
 	err := bridge.Start(ctx)
 	require.NoError(t, err)
@@ -60,13 +63,13 @@ func TestFraudProofBroadcasting(t *testing.T) {
 	require.NoError(t, err)
 
 	p := <-subscr
-	require.Equal(t, 20, int(p.Height()))
+	require.Equal(t, 10, int(p.Height()))
 
 	// This is an obscure way to check if the Syncer was stopped.
 	// If we cannot get a height header within a timeframe it means the syncer was stopped
 	// FIXME: Eventually, this should be a check on service registry managing and keeping
 	//  lifecycles of each Module.
-	syncCtx, syncCancel := context.WithTimeout(context.Background(), testTimeout)
+	syncCtx, syncCancel := context.WithTimeout(context.Background(), btime)
 	_, err = full.HeaderServ.GetByHeight(syncCtx, 100)
 	require.ErrorIs(t, err, context.DeadlineExceeded)
 	syncCancel()
@@ -80,6 +83,7 @@ func TestFraudProofBroadcasting(t *testing.T) {
 	proofs, err := full.FraudServ.Get(ctx, fraud.BadEncoding)
 	require.NoError(t, err)
 	require.NotNil(t, proofs)
+	require.NoError(t, <-fillDn)
 }
 
 /*
@@ -96,8 +100,16 @@ Steps:
 7. Wait until LN will be connected to FN and fetch a fraud proof.
 */
 func TestFraudProofSyncing(t *testing.T) {
-	sw := swamp.NewSwamp(t, swamp.WithBlockTime(time.Millisecond*300))
+	const (
+		blocks = 15
+		bsize  = 2
+		btime  = time.Millisecond * 300
+	)
+	sw := swamp.NewSwamp(t, swamp.WithBlockTime(btime))
+	ctx, cancel := context.WithTimeout(context.Background(), swamp.DefaultTestTimeout)
+	t.Cleanup(cancel)
 
+	fillDn := swamp.FillBlocks(ctx, sw.ClientContext, sw.Accounts, bsize, blocks)
 	cfg := nodebuilder.DefaultConfig(node.Bridge)
 	store := nodebuilder.MockStore(t, cfg)
 	bridge := sw.NewNodeWithStore(
@@ -105,9 +117,6 @@ func TestFraudProofSyncing(t *testing.T) {
 		store,
 		core.WithHeaderConstructFn(headertest.FraudMaker(t, 10, mdutils.Bserv())),
 	)
-
-	ctx, cancel := context.WithTimeout(context.Background(), swamp.DefaultTestTimeout)
-	t.Cleanup(cancel)
 
 	err := bridge.Start(ctx)
 	require.NoError(t, err)
@@ -152,4 +161,5 @@ func TestFraudProofSyncing(t *testing.T) {
 	case <-ctx.Done():
 		t.Fatal("light node didn't get FP in time")
 	}
+	require.NoError(t, <-fillDn)
 }
