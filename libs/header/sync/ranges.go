@@ -33,6 +33,21 @@ func (rs *ranges[H]) head() H {
 	return head.Head()
 }
 
+// cached returns all headers sub-ranges of headers that could be found in between the requested range.
+func (rs *ranges[H]) cached(fromHeader H, to uint64) [][]H {
+	r := rs.FindAllRangesWithin(uint64(fromHeader.Height()+1), to) // start looking for headers for the next height
+	if len(r) == 0 {
+		return nil
+	}
+
+	out := make([][]H, len(r))
+	for i, headersRange := range r {
+		cached, _ := headersRange.Before(to)
+		out[i] = append(out[i], cached...)
+	}
+	return out
+}
+
 // Add appends the new Header to existing range or starts a new one.
 // It starts a new one if the new Header is not adjacent to any of existing ranges.
 func (rs *ranges[H]) Add(h H) {
@@ -81,6 +96,26 @@ func (rs *ranges[H]) FirstRangeWithin(start, end uint64) (*headerRange[H], bool)
 	}
 
 	return nil, false
+}
+
+// FindAllRangesWithin returns all headerRanges that apply the requested range.
+// Returned ranges contain `start` within their bounds.
+// NOTE: ranges do not need to contain `end`.
+// There could be multiple headerRanges:
+// start = 2 , end 40
+// headerRange0 = [3;20];
+// headerRange1 = [30; 35];
+func (rs *ranges[H]) FindAllRangesWithin(start, end uint64) []*headerRange[H] {
+	ranges := make([]*headerRange[H], 0)
+	for _, r := range rs.ranges {
+		if r.Empty() {
+			continue
+		}
+		if r.start >= start && r.start <= end {
+			ranges = append(ranges, r)
+		}
+	}
+	return ranges
 }
 
 // First provides a first non-empty range, while cleaning up empty ones.

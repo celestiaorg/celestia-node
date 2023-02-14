@@ -281,16 +281,13 @@ func TestSyncer_FindHeadersReturnsCorrectRange(t *testing.T) {
 	require.NoError(t, err)
 
 	syncer.pending.Add(suite.GetRandomHeader())
-	h, err := syncer.findHeaders(ctx, 2, 21)
 	require.NoError(t, err)
-	require.NotNil(t, h)
-	require.Equal(t, h[0].Height(), int64(2))
-	require.Equal(t, h[len(h)-1].Height(), int64(21))
-	header := h[0]
-	for i := 1; i < len(h); i++ {
-		require.NoError(t, header.Verify(h[i]))
-		header = h[i]
-	}
+	err = syncer.processHeaders(ctx, head, 21)
+	time.Sleep(time.Millisecond * 100) // give time to store all fetched headers
+	require.NoError(t, err)
+	h, err := syncer.store.Head(ctx)
+	require.NoError(t, err)
+	require.Equal(t, h.Height(), int64(21))
 }
 
 type exchangeCountingHead struct {
