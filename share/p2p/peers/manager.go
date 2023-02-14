@@ -7,6 +7,7 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+	"unsafe"
 
 	"github.com/libp2p/go-libp2p/p2p/net/conngater"
 
@@ -67,6 +68,7 @@ type syncPool struct {
 	// isValidatedDataHash indicates if datahash was validated by receiving corresponding extended
 	// header from headerSub
 	isValidatedDataHash atomic.Bool
+	isSynced            atomic.Bool
 	createdAt           time.Time
 }
 
@@ -207,7 +209,7 @@ func (s *Manager) doneFunc(datahash share.DataHash, peerID peer.ID) DoneFunc {
 			result, result)
 		switch result {
 		case ResultSuccess:
-			s.deletePool(datahash.String())
+			s.getOrCreatePool(datahash.String()).markSynced()
 		case ResultFail:
 		case ResultPeerMisbehaved:
 			s.blacklistPeers(peerID)
@@ -276,12 +278,6 @@ func (s *Manager) getOrCreatePool(datahash string) *syncPool {
 	return p
 }
 
-func (s *Manager) deletePool(datahash string) {
-	s.lock.Lock()
-	defer s.lock.Unlock()
-	delete(s.pools, datahash)
-}
-
 func (s *Manager) blacklistPeers(peerIDs ...peer.ID) {
 	log.Debugw("blacklisting peers", "peers", peerIDs)
 	for _, peerID := range peerIDs {
@@ -309,10 +305,6 @@ func (s *Manager) hashIsBlacklisted(hash share.DataHash) bool {
 	return s.blacklistedHashes[hash.String()]
 }
 
-func (p *syncPool) markValidated() bool {
-	return p.isValidatedDataHash.CompareAndSwap(false, true)
-}
-
 func (s *Manager) GC(ctx context.Context) {
 	ticker := time.NewTicker(gcInterval)
 	defer ticker.Stop()
@@ -320,7 +312,9 @@ func (s *Manager) GC(ctx context.Context) {
 	var blacklist []peer.ID
 	for {
 		blacklist = s.cleanUp()
-		s.blacklistPeers(blacklist...)
+		if len(blacklist) > 0 {
+			s.blacklistPeers(blacklist...)
+		}
 
 		select {
 		case <-ticker.C:
@@ -356,4 +350,21 @@ func (s *Manager) cleanUp() []peer.ID {
 		blacklist = append(blacklist, peerID)
 	}
 	return blacklist
+}
+
+func (p *syncPool) markSynced() {
+	p.isSynced.Store(true)
+	old := (*unsafe.Pointer)(unsafe.Pointer(&p.pool))
+	// release pointer to old pool to free up memory
+	atomic.StorePointer(old, unsafe.Pointer(newPool()))
+}
+
+func (p *syncPool) markValidated() bool {
+	return p.isValidatedDataHash.CompareAndSwap(false, true)
+}
+
+func (p *syncPool) add(peers ...peer.ID) {
+	if !p.isSynced.Load() {
+		p.pool.add(peers...)
+	}
 }
