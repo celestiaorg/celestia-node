@@ -247,8 +247,6 @@ func TestIntegration(t *testing.T) {
 		require.NoError(t, bnPubSub.Start(ctx))
 		require.NoError(t, fnPubSub.Start(ctx))
 
-		require.NoError(t, nw.ConnectAllButSelf())
-
 		fnPeerManager, err := testManager(ctx, newSubLock())
 		require.NoError(t, err)
 		fnPeerManager.host = nw.Hosts()[1]
@@ -256,6 +254,9 @@ func TestIntegration(t *testing.T) {
 		require.NoError(t, fnPubSub.AddValidator(fnPeerManager.validate))
 		_, err = fnPubSub.Subscribe()
 		require.NoError(t, err)
+
+		time.Sleep(time.Millisecond * 100)
+		require.NoError(t, nw.ConnectAllButSelf())
 
 		// broadcast from BN
 		peerHash := share.DataHash("peer1")
