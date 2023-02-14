@@ -115,6 +115,7 @@ func (ex *Exchange[H]) Head(ctx context.Context) (H, error) {
 	// request head from each trusted peer
 	for _, from := range ex.trustedPeers {
 		go func(from peer.ID) {
+			// request ensures that the result slice will have at least one Header
 			headers, err := ex.request(ctx, from, req)
 			if err != nil {
 				log.Errorw("head request to trusted peer failed", "trustedPeer", from, "err", err)
@@ -122,7 +123,6 @@ func (ex *Exchange[H]) Head(ctx context.Context) (H, error) {
 				headerCh <- zero
 				return
 			}
-			// doRequest ensures that the result slice will have at least one Header
 			headerCh <- headers[0]
 		}(from)
 	}
@@ -226,8 +226,8 @@ func (ex *Exchange[H]) performRequest(
 	if len(ex.trustedPeers) == 0 {
 		return nil, fmt.Errorf("no trusted peers")
 	}
-
-	for {
+	var reqErr error
+	for i := 0; i < len(ex.trustedPeers); i++ {
 		//nolint:gosec // G404: Use of weak random number generator
 		idx := rand.Intn(len(ex.trustedPeers))
 		ctx, cancel := context.WithTimeout(ctx, ex.Params.TrustedPeersRequestTimeout)
@@ -236,12 +236,17 @@ func (ex *Exchange[H]) performRequest(
 		cancel()
 		switch err {
 		default:
+			reqErr = err
 			log.Debug(err)
 			continue
 		case context.Canceled, context.DeadlineExceeded, nil:
+			if err != nil && reqErr != nil {
+				err = reqErr
+			}
 			return h, err
 		}
 	}
+	return nil, reqErr
 }
 
 // request sends the HeaderRequest to a remote peer.
@@ -256,9 +261,7 @@ func (ex *Exchange[H]) request(
 		log.Debugw("err sending request", "peer", to, "err", err)
 		return nil, err
 	}
-	if len(responses) == 0 {
-		return nil, header.ErrNotFound
-	}
+
 	headers := make([]H, 0, len(responses))
 	for _, response := range responses {
 		if err = convertStatusCodeToError(response.StatusCode); err != nil {
@@ -270,7 +273,15 @@ func (ex *Exchange[H]) request(
 		if err != nil {
 			return nil, err
 		}
+		err = validateChainID(ex.Params.protocolSuffix, header.(H).ChainID())
+		if err != nil {
+			return nil, err
+		}
 		headers = append(headers, header.(H))
+	}
+
+	if len(headers) == 0 {
+		return nil, header.ErrNotFound
 	}
 	return headers, nil
 }
