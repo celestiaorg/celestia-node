@@ -99,6 +99,7 @@ func TestExchange_RequestFullRangeHeaders(t *testing.T) {
 	// create new exchange
 	exchange, err := NewExchange[*test.DummyHeader](hosts[len(hosts)-1], []peer.ID{}, connGater,
 		WithNetworkID[ClientParameters](networkID),
+		WithChainID(networkID),
 	)
 	require.NoError(t, err)
 	exchange.Params.MaxHeadersPerRequest = 10
@@ -320,7 +321,7 @@ func TestExchange_RequestByHashFails(t *testing.T) {
 func TestExchange_HandleHeaderWithDifferentChainID(t *testing.T) {
 	hosts := createMocknet(t, 2)
 	exchg, store := createP2PExAndServer(t, hosts[0], hosts[1])
-	exchg.Params.protocolSuffix = "test"
+	exchg.Params.chainID = "test"
 	require.NoError(t, exchg.Start(context.TODO()))
 
 	_, err := exchg.Head(context.Background())
@@ -404,6 +405,7 @@ func createP2PExAndServer(
 	require.NoError(t, err)
 	ex, err := NewExchange[*test.DummyHeader](host, []peer.ID{tpeer.ID()}, connGater,
 		WithNetworkID[ClientParameters](networkID),
+		WithChainID(networkID),
 	)
 	require.NoError(t, err)
 	require.NoError(t, ex.Start(context.Background()))

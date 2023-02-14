@@ -273,7 +273,7 @@ func (ex *Exchange[H]) request(
 		if err != nil {
 			return nil, err
 		}
-		err = validateChainID(ex.Params.protocolSuffix, header.(H).ChainID())
+		err = validateChainID(ex.Params.chainID, header.(H).ChainID())
 		if err != nil {
 			return nil, err
 		}
