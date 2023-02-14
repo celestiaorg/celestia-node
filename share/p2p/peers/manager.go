@@ -256,12 +256,6 @@ func (m *Manager) getOrCreatePool(datahash string) *syncPool {
 	return p
 }
 
-func (m *Manager) deletePool(datahash string) {
-	m.lock.Lock()
-	defer m.lock.Unlock()
-	delete(m.pools, datahash)
-}
-
 func (m *Manager) blacklistPeers(peerIDs ...peer.ID) {
 	for _, peerID := range peerIDs {
 		m.fullNodes.remove(peerID)
