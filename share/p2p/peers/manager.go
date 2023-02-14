@@ -196,7 +196,7 @@ func (m *Manager) doneFunc(datahash share.DataHash, peerID peer.ID) DoneFunc {
 	return func(result syncResult) {
 		switch result {
 		case ResultSuccess:
-			s.getOrCreatePool(datahash.String()).markSynced()
+			m.getOrCreatePool(datahash.String()).markSynced()
 		case ResultCooldownPeer:
 			m.getOrCreatePool(datahash.String()).putOnCooldown(peerID)
 		case ResultBlacklistPeer:
@@ -256,7 +256,6 @@ func (m *Manager) getOrCreatePool(datahash string) *syncPool {
 	return p
 }
 
-
 func (m *Manager) deletePool(datahash string) {
 	m.lock.Lock()
 	defer m.lock.Unlock()
@@ -289,20 +288,15 @@ func (m *Manager) hashIsBlacklisted(hash share.DataHash) bool {
 	return m.blacklistedHashes[hash.String()]
 }
 
-
-func (p *syncPool) markValidated() {
-	p.isValidatedDataHash.Store(true)
-}
-
 func (m *Manager) GC(ctx context.Context) {
 	ticker := time.NewTicker(gcInterval)
 	defer ticker.Stop()
 
 	var blacklist []peer.ID
 	for {
-		blacklist = s.cleanUp()
+		blacklist = m.cleanUp()
 		if len(blacklist) > 0 {
-			s.blacklistPeers(blacklist...)
+			m.blacklistPeers(blacklist...)
 		}
 
 		select {
@@ -345,7 +339,7 @@ func (p *syncPool) markSynced() {
 	p.isSynced.Store(true)
 	old := (*unsafe.Pointer)(unsafe.Pointer(&p.pool))
 	// release pointer to old pool to free up memory
-	atomic.StorePointer(old, unsafe.Pointer(newPool()))
+	atomic.StorePointer(old, unsafe.Pointer(newPool(time.Second)))
 }
 
 func (p *syncPool) markValidated() {
