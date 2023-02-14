@@ -257,6 +257,7 @@ func TestIntegration(t *testing.T) {
 
 		time.Sleep(time.Millisecond * 100)
 		require.NoError(t, nw.ConnectAllButSelf())
+		time.Sleep(time.Millisecond * 100)
 
 		// broadcast from BN
 		peerHash := share.DataHash("peer1")
