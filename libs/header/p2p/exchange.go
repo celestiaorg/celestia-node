@@ -240,6 +240,10 @@ func (ex *Exchange[H]) performRequest(
 			log.Debug(err)
 			continue
 		case context.Canceled, context.DeadlineExceeded, nil:
+			// at this point we can change the error if the following conditions are passed:
+			// 1. deadline reached or request was canceled;
+			// 2. we have already stored errors, received from another peers;
+			// Otherwise, corresponding context error will be returned(in case of unsuccessful request)
 			if err != nil && reqErr != nil {
 				err = reqErr
 			}
