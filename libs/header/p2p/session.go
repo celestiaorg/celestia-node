@@ -21,6 +21,16 @@ func withValidation[H header.Header](from H) option[H] {
 	}
 }
 
+// sendMessageFunc is a function that sends a message to a peer.
+// this option was specifically introduced to allow providing
+// wrapped versions of the sendMessage function.
+func withSendMessageFunc[H header.Header](f sendMessageFunc) option[H] {
+	return func(s *session[H]) {
+		log.Debug("using wrapped sendMessage function")
+		s.sendMessage = f
+	}
+}
+
 // session aims to divide a range of headers
 // into several smaller requests among different peers.
 type session[H header.Header] struct {
@@ -38,6 +48,8 @@ type session[H header.Header] struct {
 	ctx    context.Context
 	cancel context.CancelFunc
 	reqCh  chan *p2p_pb.HeaderRequest
+
+	sendMessage sendMessageFunc
 }
 
 func newSession[H header.Header](
@@ -57,11 +69,13 @@ func newSession[H header.Header](
 		queue:          newPeerQueue(ctx, peerTracker.peers()),
 		peerTracker:    peerTracker,
 		requestTimeout: requestTimeout,
+		sendMessage:    sendMessage, // default
 	}
 
 	for _, opt := range options {
 		opt(ses)
 	}
+
 	return ses
 }
 
@@ -137,7 +151,7 @@ func (s *session[H]) doRequest(
 	ctx, cancel := context.WithTimeout(ctx, s.requestTimeout)
 	defer cancel()
 
-	r, size, duration, err := sendMessage(ctx, s.host, stat.peerID, s.protocolID, req)
+	r, size, duration, err := s.sendMessage(ctx, s.host, stat.peerID, s.protocolID, req)
 	if err != nil {
 		log.Errorw("requesting headers from peer failed", "failed peer", stat.peerID, "err", err)
 		select {

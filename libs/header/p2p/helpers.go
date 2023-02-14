@@ -24,6 +24,14 @@ func pubsubTopicID(protocolSuffix string) string {
 	return fmt.Sprintf("/header-sub/v0.0.1/%s", protocolSuffix)
 }
 
+type sendMessageFunc func(
+	ctx context.Context,
+	host host.Host,
+	to peer.ID,
+	protocol protocol.ID,
+	req *p2p_pb.HeaderRequest,
+) ([]*p2p_pb.HeaderResponse, uint64, uint64, error)
+
 // sendMessage opens the stream to the given peers and sends HeaderRequest to fetch
 // Headers. As a result sendMessage returns HeaderResponse, the size of fetched
 // data, the duration of the request and an error.

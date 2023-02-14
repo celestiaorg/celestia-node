@@ -29,6 +29,8 @@ type ServerParameters struct {
 	// protocolSuffix is a network suffix that will be used to create a protocol.ID
 	// Is empty by default
 	protocolSuffix string
+	// EnableMetrics enables metrics collection for the exchange.
+	EnableMetrics bool
 }
 
 // DefaultServerParameters returns the default params to configure the store.
@@ -142,6 +144,8 @@ type ClientParameters struct {
 	MaxPeerTrackerSize int
 	// protocolSuffix is a network suffix that will be used to create a protocol.ID
 	protocolSuffix string
+	// EnableMetrics enables metrics collection for the exchange.
+	EnableMetrics bool
 }
 
 // DefaultClientParameters returns the default params to configure the store.
