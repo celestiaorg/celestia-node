@@ -14,6 +14,9 @@ on:
 
 jobs:
   docker-security-build:
+    permissions:
+      contents: write
+      packages: write
     uses: celestiaorg/.github/.github/workflows/reusable_dockerfile_pipeline.yml@main # yamllint disable-line rule:line-length
     with:
       dockerfile: Dockerfile
