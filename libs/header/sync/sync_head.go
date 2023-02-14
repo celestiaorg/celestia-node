@@ -112,6 +112,7 @@ func (s *Syncer[H]) incomingNetHead(ctx context.Context, netHead H) pubsub.Valid
 	_, err := s.store.Append(ctx, netHead)
 	if err == nil {
 		// a happy case where we appended maybe head directly, so accept
+		s.syncedHead.Store(&netHead)
 		return pubsub.ValidationAccept
 	}
 	var nonAdj *header.ErrNonAdjacent
