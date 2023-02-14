@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"net"
 	"time"
 
@@ -67,6 +68,7 @@ func (c *Client) RequestEDS(
 	if err != p2p.ErrUnavailable {
 		log.Debugw("client: eds request to peer failed", "peer", peer, "hash", dataHash.String())
 	}
+
 	return nil, err
 }
 
@@ -105,6 +107,10 @@ func (c *Client) doRequest(
 	resp := new(pb.EDSResponse)
 	_, err = serde.Read(stream, resp)
 	if err != nil {
+		// server is overloaded and closed the stream
+		if errors.Is(err, io.EOF) {
+			return nil, p2p.ErrUnavailable
+		}
 		stream.Reset() //nolint:errcheck
 		return nil, fmt.Errorf("failed to read status from stream: %w", err)
 	}

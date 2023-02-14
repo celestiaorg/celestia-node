@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"net"
 	"time"
 
@@ -111,6 +112,10 @@ func (c *Client) doRequest(
 	var resp pb.GetSharesByNamespaceResponse
 	_, err = serde.Read(stream, &resp)
 	if err != nil {
+		// server is overloaded and closed the stream
+		if errors.Is(err, io.EOF) {
+			return nil, p2p.ErrUnavailable
+		}
 		stream.Reset() //nolint:errcheck
 		return nil, fmt.Errorf("client-nd: reading response: %w", err)
 	}
