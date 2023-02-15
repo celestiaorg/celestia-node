@@ -3,13 +3,13 @@ package main
 import (
 	"errors"
 	"fmt"
-	"os"
 	"strings"
 
 	sdkflags "github.com/cosmos/cosmos-sdk/client/flags"
 	"github.com/spf13/cobra"
 	flag "github.com/spf13/pflag"
 
+	nodecmd "github.com/celestiaorg/celestia-node/cmd"
 	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
 )
 
@@ -55,12 +55,14 @@ func ParseDirectoryFlags(cmd *cobra.Command) error {
 	}
 	switch nodeType {
 	case "bridge", "full", "light":
-		home, err := os.UserHomeDir()
+		path, err := nodecmd.DefaultNodeStorePath(nodeType, network)
 		if err != nil {
 			return err
 		}
-		keyPath := fmt.Sprintf("%s/.celestia-%s-%s/keys", home, nodeType, strings.ToLower(network))
+
+		keyPath := fmt.Sprintf("%s/keys", path)
 		fmt.Println("using directory: ", keyPath)
+
 		if err := cmd.Flags().Set(sdkflags.FlagKeyringDir, keyPath); err != nil {
 			return err
 		}
