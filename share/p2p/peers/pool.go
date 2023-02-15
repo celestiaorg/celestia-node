@@ -3,6 +3,7 @@ package peers
 import (
 	"context"
 	"sync"
+	"time"
 
 	"github.com/libp2p/go-libp2p/core/peer"
 )
@@ -13,7 +14,8 @@ const defaultCleanupThreshold = 2
 type pool struct {
 	m           sync.Mutex
 	peersList   []peer.ID
-	active      map[peer.ID]bool
+	statuses    map[peer.ID]status
+	cooldown    *timedQueue
 	activeCount int
 	nextIdx     int
 
@@ -23,14 +25,24 @@ type pool struct {
 	cleanupThreshold int
 }
 
+type status int
+
+const (
+	active status = iota
+	cooldown
+	removed
+)
+
 // newPool returns new empty pool.
-func newPool() *pool {
-	return &pool{
+func newPool(peerCooldownTime time.Duration) *pool {
+	p := &pool{
 		peersList:        make([]peer.ID, 0),
-		active:           make(map[peer.ID]bool),
+		statuses:         make(map[peer.ID]status),
 		hasPeerCh:        make(chan struct{}),
 		cleanupThreshold: defaultCleanupThreshold,
 	}
+	p.cooldown = newTimedQueue(peerCooldownTime, p.afterCooldown)
+	return p
 }
 
 // tryGet returns peer along with bool flag indicating success of operation.
@@ -51,7 +63,7 @@ func (p *pool) tryGet() (peer.ID, bool) {
 			p.nextIdx = 0
 		}
 
-		if alive := p.active[peerID]; alive {
+		if p.statuses[peerID] == active {
 			return peerID, true
 		}
 
@@ -87,15 +99,17 @@ func (p *pool) add(peers ...peer.ID) {
 	defer p.m.Unlock()
 
 	for _, peerID := range peers {
-		alive, ok := p.active[peerID]
+		status, ok := p.statuses[peerID]
+		if ok && status != removed {
+			continue
+		}
+
 		if !ok {
 			p.peersList = append(p.peersList, peerID)
 		}
 
-		if !ok || !alive {
-			p.active[peerID] = true
-			p.activeCount++
-		}
+		p.statuses[peerID] = active
+		p.activeCount++
 	}
 	p.checkHasPeers()
 }
@@ -105,9 +119,11 @@ func (p *pool) remove(peers ...peer.ID) {
 	defer p.m.Unlock()
 
 	for _, peerID := range peers {
-		if alive, ok := p.active[peerID]; ok && alive {
-			p.active[peerID] = false
-			p.activeCount--
+		if status, ok := p.statuses[peerID]; ok && status != removed {
+			p.statuses[peerID] = removed
+			if status == active {
+				p.activeCount--
+			}
 		}
 	}
 
@@ -122,16 +138,17 @@ func (p *pool) remove(peers ...peer.ID) {
 func (p *pool) cleanup() {
 	newList := make([]peer.ID, 0, p.activeCount)
 	for idx, peerID := range p.peersList {
-		alive := p.active[peerID]
-		if alive {
+		status := p.statuses[peerID]
+		switch status {
+		case active, cooldown:
 			newList = append(newList, peerID)
-		} else {
-			delete(p.active, peerID)
+		case removed:
+			delete(p.statuses, peerID)
 		}
 
 		if idx == p.nextIdx {
 			// if peer is not active and no more active peers left in list point to first peer
-			if !alive && len(newList) >= p.activeCount {
+			if status != active && len(newList) >= p.activeCount {
 				p.nextIdx = 0
 				continue
 			}
@@ -139,6 +156,33 @@ func (p *pool) cleanup() {
 		}
 	}
 	p.peersList = newList
+}
+
+func (p *pool) putOnCooldown(peerID peer.ID) {
+	p.m.Lock()
+	defer p.m.Unlock()
+
+	if status, ok := p.statuses[peerID]; ok && status == active {
+		p.cooldown.push(peerID)
+
+		p.statuses[peerID] = cooldown
+		p.activeCount--
+		p.checkHasPeers()
+	}
+}
+
+func (p *pool) afterCooldown(peerID peer.ID) {
+	p.m.Lock()
+	defer p.m.Unlock()
+
+	// item could have been already removed by the time afterCooldown is called
+	if status, ok := p.statuses[peerID]; !ok || status != cooldown {
+		return
+	}
+
+	p.statuses[peerID] = active
+	p.activeCount++
+	p.checkHasPeers()
 }
 
 // checkHasPeers will check and indicate if there are peers in the pool.

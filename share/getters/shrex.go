@@ -45,14 +45,14 @@ func (sg *ShrexGetter) GetEDS(ctx context.Context, root *share.Root) (*rsmt2d.Ex
 		cancel()
 		switch err {
 		case nil:
-			setStatus(peers.ResultSuccess)
+			setStatus(peers.ResultSynced)
 			return eds, nil
 		case context.DeadlineExceeded:
 			log.Debugw("request exceeded deadline, trying with new peer", "datahash", root.String())
 		case p2p.ErrInvalidResponse:
-			setStatus(peers.ResultPeerMisbehaved)
+			setStatus(peers.ResultBlacklistPeer)
 		default:
-			setStatus(peers.ResultFail)
+			setStatus(peers.ResultCooldownPeer)
 		}
 	}
 }
@@ -79,9 +79,9 @@ func (sg *ShrexGetter) GetSharesByNamespace(
 		case context.DeadlineExceeded:
 			log.Debugw("request exceeded deadline, trying with new peer", "datahash", root.String())
 		case p2p.ErrInvalidResponse:
-			setStatus(peers.ResultPeerMisbehaved)
+			setStatus(peers.ResultBlacklistPeer)
 		default:
-			setStatus(peers.ResultFail)
+			setStatus(peers.ResultCooldownPeer)
 		}
 	}
 }
