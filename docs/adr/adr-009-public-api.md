@@ -91,8 +91,8 @@ microservice architectures.
 
 ```go
 type HeaderModule interface {
-// Head returns the node's local head (tip of the chain of the header store).
-Head(ctx context.Context) (*header.ExtendedHeader, error)
+// LocalHead returns the node's local head (tip of the chain of the header store).
+LocalHead(ctx context.Context) (*header.ExtendedHeader, error)
 // GetByHash returns the header of the given hash from the node's header store.
 GetByHash(ctx context.Context, hash tmbytes.HexBytes) (*header.ExtendedHeader, error)
 // GetByHeight returns the header of the given height from the node's header store.
@@ -110,8 +110,8 @@ Subscribe(context.Context) (Subscription, error)
 SyncState(context.Context) sync.State
 // WaitSync blocks until the header Syncer is synced to network head. 
 WaitSync(ctx context.Context) error
-// SyncHead provides the Syncer's view of the current network head.
-SyncHead(ctx context.Context) (*header.ExtendedHeader, error)
+// NetworkHead provides the Syncer's view of the current network head.
+NetworkHead(ctx context.Context) (*header.ExtendedHeader, error)
 }
 ```
 

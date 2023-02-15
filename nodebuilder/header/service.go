@@ -53,7 +53,7 @@ func (s *Service) GetByHeight(ctx context.Context, height uint64) (*header.Exten
 	return s.store.GetByHeight(ctx, height)
 }
 
-func (s *Service) Head(ctx context.Context) (*header.ExtendedHeader, error) {
+func (s *Service) LocalHead(ctx context.Context) (*header.ExtendedHeader, error) {
 	return s.store.Head(ctx)
 }
 
@@ -65,6 +65,6 @@ func (s *Service) WaitSync(ctx context.Context) error {
 	return s.syncer.WaitSync(ctx)
 }
 
-func (s *Service) SyncHead(ctx context.Context) (*header.ExtendedHeader, error) {
+func (s *Service) NetworkHead(ctx context.Context) (*header.ExtendedHeader, error) {
 	return s.syncer.Head(ctx)
 }

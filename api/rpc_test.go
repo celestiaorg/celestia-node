@@ -164,8 +164,8 @@ func TestAuthedRPC(t *testing.T) {
 			require.NoError(t, err)
 
 			// 1. Test method with public permissions
-			server.Header.EXPECT().Head(gomock.Any()).Return(new(headerpkg.ExtendedHeader), nil)
-			got, err := rpcClient.Header.Head(ctx)
+			server.Header.EXPECT().LocalHead(gomock.Any()).Return(new(headerpkg.ExtendedHeader), nil)
+			got, err := rpcClient.Header.LocalHead(ctx)
 			require.NoError(t, err)
 			require.NotNil(t, got)
 
@@ -250,8 +250,8 @@ func TestPublicClient(t *testing.T) {
 	require.NoError(t, err)
 
 	// 1. Test method with public permissions
-	server.Header.EXPECT().Head(gomock.Any()).Return(new(headerpkg.ExtendedHeader), nil)
-	got, err := rpcClient.Header.Head(ctx)
+	server.Header.EXPECT().LocalHead(gomock.Any()).Return(new(headerpkg.ExtendedHeader), nil)
+	got, err := rpcClient.Header.LocalHead(ctx)
 	require.NoError(t, err)
 	require.NotNil(t, got)
 
