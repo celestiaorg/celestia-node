@@ -3,6 +3,8 @@ package swamp
 import (
 	"time"
 
+	logging "github.com/ipfs/go-log/v2"
+
 	"github.com/celestiaorg/celestia-node/core"
 )
 
@@ -33,5 +35,22 @@ func WithBlockTime(t time.Duration) Option {
 		// for filled block
 		c.Tendermint.Consensus.TimeoutCommit = t
 		c.Tendermint.Consensus.SkipTimeoutCommit = false
+	}
+}
+
+// WithLogLevel overrides basic log levels for test purposes
+func WithLogLevel(components []string, levels []string) Option {
+	return func(_ *Components) {
+		if len(components) != len(levels) && len(levels) != 1 {
+			panic("inconsistent amount of components and levels")
+		}
+
+		level := levels[0]
+		for i, c := range components {
+			if len(levels) == len(components) {
+				level = levels[i]
+			}
+			_ = logging.SetLogLevel(c, level)
+		}
 	}
 }

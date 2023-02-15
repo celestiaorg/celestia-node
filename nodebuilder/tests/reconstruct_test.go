@@ -103,7 +103,17 @@ func TestFullReconstructFromLights(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), swamp.DefaultTestTimeout)
 
 	t.Cleanup(cancel)
-	sw := swamp.NewSwamp(t, swamp.WithBlockTime(btime))
+	sw := swamp.NewSwamp(t, swamp.WithBlockTime(btime), swamp.WithLogLevel(
+		[]string{
+			"bitswap_network",
+			"bitswap-server",
+			"bitswap-client",
+			"net/identify",
+			"mocknet",
+			"basichost",
+			"bs:sprmgr",
+		}, []string{"ERROR"}),
+	)
 	fillDn := sw.FillBlocks(ctx, bsize, blocks)
 
 	const defaultTimeInterval = time.Second * 5
