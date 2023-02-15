@@ -162,7 +162,7 @@ func (p *pool) putOnCooldown(peerID peer.ID) {
 	p.m.Lock()
 	defer p.m.Unlock()
 
-	if p.statuses[peerID] == active {
+	if status, ok := p.statuses[peerID]; ok && status == active {
 		p.cooldown.push(peerID)
 
 		p.statuses[peerID] = cooldown

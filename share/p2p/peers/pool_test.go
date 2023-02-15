@@ -164,4 +164,19 @@ func TestPool(t *testing.T) {
 			t.Fatal("item should be already available")
 		}
 	})
+
+	t.Run("put on cooldown removed item should be noop", func(t *testing.T) {
+		p := newPool(time.Second)
+		p.cleanupThreshold = 3
+
+		peerID := peer.ID("peer1")
+		p.add(peerID)
+
+		p.remove(peerID)
+		p.cleanup()
+		p.putOnCooldown(peerID)
+
+		_, ok := p.tryGet()
+		require.False(t, ok)
+	})
 }

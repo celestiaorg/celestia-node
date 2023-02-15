@@ -24,8 +24,10 @@ import (
 )
 
 const (
-	// ResultSuccess will save the status of pool as "synced" and will remove peers from it
-	ResultSuccess syncResult = iota
+	// ResultSuccess indicates operation was successful and no extra action is required
+	ResultSuccess result = iota
+	// ResultSynced will save the status of pool as "synced" and will remove peers from it
+	ResultSynced result = iota
 	// ResultCooldownPeer will put returned peer on cooldown, meaning it won't be available by Peer
 	// method for some time
 	ResultCooldownPeer
@@ -63,10 +65,10 @@ type Manager struct {
 	done   chan struct{}
 }
 
-// DoneFunc is a function performs an action based on the given syncResult.
-type DoneFunc func(result syncResult)
+// DoneFunc updates internal state depending on call results. Should be called once per returned peer from Peer method
+type DoneFunc func(result)
 
-type syncResult int
+type result int
 
 type syncPool struct {
 	*pool
@@ -156,7 +158,7 @@ func (m *Manager) Stop(ctx context.Context) error {
 // Peer returns peer collected from shrex.Sub for given datahash if any available.
 // If there is none, it will look for fullnodes collected from discovery. If there is no discovered
 // full nodes, it will wait until any peer appear in either source or timeout happen.
-// After fetching data using given peer, caller is required to call returned DoneFunc
+// After fetching data using given peer, caller is required to call returned DoneFunc using appropriate result value
 func (m *Manager) Peer(
 	ctx context.Context, datahash share.DataHash,
 ) (peer.ID, DoneFunc, error) {
@@ -193,9 +195,10 @@ func (m *Manager) Peer(
 }
 
 func (m *Manager) doneFunc(datahash share.DataHash, peerID peer.ID) DoneFunc {
-	return func(result syncResult) {
+	return func(result result) {
 		switch result {
 		case ResultSuccess:
+		case ResultSynced:
 			m.getOrCreatePool(datahash.String()).markSynced()
 		case ResultCooldownPeer:
 			m.getOrCreatePool(datahash.String()).putOnCooldown(peerID)

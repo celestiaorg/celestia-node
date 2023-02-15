@@ -71,7 +71,7 @@ func TestManager(t *testing.T) {
 		// check pool validation
 		require.True(t, manager.getOrCreatePool(h.DataHash.String()).isValidatedDataHash.Load())
 
-		done(ResultSuccess)
+		done(ResultSynced)
 		// pool should not be removed after success
 		require.Len(t, manager.pools, 1)
 		require.Len(t, manager.getOrCreatePool(h.DataHash.String()).pool.peersList, 0)
@@ -149,7 +149,7 @@ func TestManager(t *testing.T) {
 		manager.fullNodes.add(peers...)
 
 		peerID, done, err := manager.Peer(ctx, h.DataHash.Bytes())
-		done(ResultSuccess)
+		done(ResultSynced)
 		require.NoError(t, err)
 		require.Contains(t, peers, peerID)
 
@@ -181,7 +181,7 @@ func TestManager(t *testing.T) {
 		go func() {
 			defer close(doneCh)
 			peerID, done, err := manager.Peer(ctx, h.DataHash.Bytes())
-			done(ResultSuccess)
+			done(ResultSynced)
 			require.NoError(t, err)
 			require.Contains(t, peers, peerID)
 		}()
@@ -217,7 +217,7 @@ func TestManager(t *testing.T) {
 		pID, done, err := manager.Peer(ctx, h.DataHash.Bytes())
 		require.NoError(t, err)
 		require.Equal(t, peerID, pID)
-		done(ResultSuccess)
+		done(ResultSynced)
 
 		// check pool is soft deleted and marked synced
 		pool := manager.getOrCreatePool(h.DataHash.String())
