@@ -164,7 +164,7 @@ func (m *Manager) Stop(ctx context.Context) error {
 }
 
 // Peer returns peer collected from shrex.Sub for given datahash if any available.
-// If there is none, it will look for fullnodes collected from discovery. If there is no discovered
+// If there is none, it will look for full nodes collected from discovery. If there is no discovered
 // full nodes, it will wait until any peer appear in either source or timeout happen.
 // After fetching data using given peer, caller is required to call returned DoneFunc using
 // appropriate result value
@@ -253,7 +253,7 @@ func (m *Manager) subscribeHeader(ctx context.Context, headerSub libhead.Subscri
 
 // Validate will collect peer.ID into corresponding peer pool
 func (m *Manager) validate(ctx context.Context, peerID peer.ID, hash share.DataHash) pubsub.ValidationResult {
-	// messages broadcasted from self should bypass the validation with Accept
+	// messages broadcast from self should bypass the validation with Accept
 	if peerID == m.host.ID() {
 		log.Debugw("received datahash from self", "datahash", hash.String())
 		return pubsub.ValidationAccept

@@ -9,7 +9,7 @@ import (
 )
 
 // timedQueue store items for ttl duration and releases it with calling onPop callback. Each item
-// is tracked independantly
+// is tracked independently
 type timedQueue struct {
 	sync.Mutex
 	items []item
