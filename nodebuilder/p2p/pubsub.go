@@ -2,10 +2,12 @@ package p2p
 
 import (
 	"context"
+	"time"
 
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	pubsub_pb "github.com/libp2p/go-libp2p-pubsub/pb"
 	hst "github.com/libp2p/go-libp2p/core/host"
+	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/libp2p/go-libp2p/core/protocol"
 	"go.uber.org/fx"
 	"golang.org/x/crypto/blake2b"
@@ -18,15 +20,71 @@ func pubSub(cfg Config, params pubSubParams) (*pubsub.PubSub, error) {
 		return nil, err
 	}
 
+	isBootstrapper := cfg.Bootstrapper
+	bootstrappers := map[peer.ID]struct{}{}
+	for _, b := range params.Bootstrappers {
+		bootstrappers[b.ID] = struct{}{}
+	}
+
+	if isBootstrapper {
+		// Turn off the mesh in bootstrappers as per:
+		// https://github.com/libp2p/specs/blob/master/pubsub/gossipsub/gossipsub-v1.1.md#recommendations-for-network-operators
+		pubsub.GossipSubD = 0
+		pubsub.GossipSubDscore = 0
+		pubsub.GossipSubDlo = 0
+		pubsub.GossipSubDhi = 0
+		pubsub.GossipSubDout = 0
+		pubsub.GossipSubDlazy = 64
+		pubsub.GossipSubGossipFactor = 0.25
+		pubsub.GossipSubPruneBackoff = 5 * time.Minute
+	}
+
 	// TODO(@Wondertan) for PubSub options:
-	//  * Hash-based MsgId function.
-	//  * Validate default peer scoring params for our use-case.
+	//  * Validate and improve default peer scoring params
 	//  * Strict subscription filter
-	//  * For different network types(mainnet/testnet/devnet) we should have different network topic
-	// names.  * Hardcode positive score for bootstrap peers
-	//  * Bootstrappers should only gossip and PX
-	//  * Peers should trust boostrappers, so peerscore for them should always be high.
 	opts := []pubsub.Option{
+		// Based on:
+		//	* https://github.com/libp2p/specs/blob/master/pubsub/gossipsub/gossipsub-v1.1.md#peer-scoring
+		//  * lotus
+		//  * prysm
+		pubsub.WithPeerScore(
+			&pubsub.PeerScoreParams{
+				AppSpecificScore: func(p peer.ID) float64 {
+					// return a heavy positive score for bootstrappers so that we don't unilaterally prune
+					// them and accept PX from them.
+					// we don't do that in the bootstrappers themselves to avoid creating a closed mesh
+					// between them (however we might want to consider doing just that)
+					_, ok := bootstrappers[p]
+					if ok && !isBootstrapper {
+						return 2500
+					}
+
+					// TODO: we want to plug the application specific score to the node itself in order
+					//       to provide feedback to the pubsub system based on observed behaviour
+					return 0
+				},
+				AppSpecificWeight: 1,
+
+				// This sets the IP colocation threshold to 5 peers before we apply penalties
+				IPColocationFactorThreshold: 10,
+				IPColocationFactorWeight:    -100,
+				IPColocationFactorWhitelist: nil,
+
+				BehaviourPenaltyThreshold: 6,
+				BehaviourPenaltyWeight:    -10,
+				BehaviourPenaltyDecay:     pubsub.ScoreParameterDecay(time.Hour),
+
+				DecayInterval: pubsub.DefaultDecayInterval,
+				DecayToZero:   pubsub.DefaultDecayToZero,
+
+				// this retains *non-positive* scores for 6 hours
+				RetainScore: 6 * time.Hour,
+
+				Topics: map[string]*pubsub.TopicScoreParams{
+				},
+			},
+			nil,
+		),
 		pubsub.WithPeerExchange(cfg.PeerExchange || cfg.Bootstrapper),
 		pubsub.WithDirectPeers(fpeers),
 		pubsub.WithMessageIdFn(hashMsgID),
@@ -52,4 +110,6 @@ type pubSubParams struct {
 
 	Ctx  context.Context
 	Host hst.Host
+	Bootstrappers Bootstrappers
+	Network Network
 }
