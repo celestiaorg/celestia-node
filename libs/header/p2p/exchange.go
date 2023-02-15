@@ -230,8 +230,14 @@ func (ex *Exchange[H]) performRequest(
 	for i := 0; i < len(ex.trustedPeers); i++ {
 		//nolint:gosec // G404: Use of weak random number generator
 		idx := rand.Intn(len(ex.trustedPeers))
-		ctx, cancel := context.WithTimeout(ctx, ex.Params.TrustedPeersRequestTimeout)
 
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		default:
+		}
+
+		ctx, cancel := context.WithTimeout(ctx, ex.Params.TrustedPeersRequestTimeout)
 		h, err := ex.request(ctx, ex.trustedPeers[idx], req)
 		cancel()
 		switch err {
@@ -239,15 +245,8 @@ func (ex *Exchange[H]) performRequest(
 			reqErr = err
 			log.Debug(err)
 			continue
-		case context.Canceled, context.DeadlineExceeded, nil:
-			// at this point we can change the error if the following conditions are passed:
-			// 1. deadline reached or request was canceled;
-			// 2. we have already stored errors, received from another peers;
-			// Otherwise, corresponding context error will be returned(in case of unsuccessful request)
-			if err != nil && reqErr != nil {
-				err = reqErr
-			}
-			return h, err
+		case nil:
+			return h, nil
 		}
 	}
 	return nil, reqErr
