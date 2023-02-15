@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/libp2p/go-libp2p/core/peer"
+	"github.com/libp2p/go-libp2p/core/protocol"
 
 	"github.com/celestiaorg/go-libp2p-messenger/serde"
 
@@ -20,11 +21,12 @@ const (
 
 func (f *ProofService) requestProofs(
 	ctx context.Context,
+	id protocol.ID,
 	pid peer.ID,
 	proofTypes []string,
 ) ([]*pb.ProofResponse, error) {
 	msg := &pb.FraudMessageRequest{RequestedProofType: proofTypes}
-	stream, err := f.host.NewStream(ctx, pid, f.protocolID)
+	stream, err := f.host.NewStream(ctx, pid, id)
 	if err != nil {
 		return nil, err
 	}

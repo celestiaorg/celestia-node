@@ -24,9 +24,10 @@ import (
 	headerMock "github.com/celestiaorg/celestia-node/libs/header/mocks"
 	p2p_pb "github.com/celestiaorg/celestia-node/libs/header/p2p/pb"
 	"github.com/celestiaorg/celestia-node/libs/header/test"
+	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
 )
 
-var privateProtocolID = protocolID("private")
+var privateProtocolID = protocolID(string(p2p.Private))
 
 func TestExchange_RequestHead(t *testing.T) {
 	hosts := createMocknet(t, 2)
@@ -94,11 +95,12 @@ func TestExchange_RequestFullRangeHeaders(t *testing.T) {
 	hosts := createMocknet(t, 5)
 	totalAmount := 80
 	store := headerMock.NewStore[*test.DummyHeader](t, test.NewTestSuite(t), totalAmount)
-	protocolSuffix := "private"
 	connGater, err := conngater.NewBasicConnectionGater(sync.MutexWrap(datastore.NewMapDatastore()))
 	require.NoError(t, err)
 	// create new exchange
-	exchange, err := NewExchange[*test.DummyHeader](hosts[len(hosts)-1], []peer.ID{}, protocolSuffix, connGater)
+	exchange, err := NewExchange[*test.DummyHeader](hosts[len(hosts)-1], []peer.ID{}, connGater,
+		WithProtocolSuffix[ClientParameters](string(p2p.Private)),
+	)
 	require.NoError(t, err)
 	exchange.Params.MaxHeadersPerRequest = 10
 	exchange.ctx, exchange.cancel = context.WithCancel(context.Background())
@@ -106,7 +108,11 @@ func TestExchange_RequestFullRangeHeaders(t *testing.T) {
 	// amount of servers is len(hosts)-1 because one peer acts as a client
 	servers := make([]*ExchangeServer[*test.DummyHeader], len(hosts)-1)
 	for index := range servers {
-		servers[index], err = NewExchangeServer[*test.DummyHeader](hosts[index], store, protocolSuffix)
+		servers[index], err = NewExchangeServer[*test.DummyHeader](
+			hosts[index],
+			store,
+			WithProtocolSuffix[ServerParameters](string(p2p.Private)),
+		)
 		require.NoError(t, err)
 		servers[index].Start(context.Background()) //nolint:errcheck
 		exchange.peerTracker.peerLk.Lock()
@@ -140,7 +146,8 @@ func TestExchange_RequestHeadersFromAnotherPeer(t *testing.T) {
 	exchg, _ := createP2PExAndServer(t, hosts[0], hosts[1])
 	// create one more server(with more headers in the store)
 	serverSideEx, err := NewExchangeServer[*test.DummyHeader](
-		hosts[2], headerMock.NewStore[*test.DummyHeader](t, test.NewTestSuite(t), 10), "private",
+		hosts[2], headerMock.NewStore[*test.DummyHeader](t, test.NewTestSuite(t), 10),
+		WithProtocolSuffix[ServerParameters](string(p2p.Private)),
 	)
 	require.NoError(t, err)
 	require.NoError(t, serverSideEx.Start(context.Background()))
@@ -169,7 +176,11 @@ func TestExchange_RequestByHash(t *testing.T) {
 	host, peer := net.Hosts()[0], net.Hosts()[1]
 	// create and start the ExchangeServer
 	store := headerMock.NewStore[*test.DummyHeader](t, test.NewTestSuite(t), 5)
-	serv, err := NewExchangeServer[*test.DummyHeader](host, store, "private")
+	serv, err := NewExchangeServer[*test.DummyHeader](
+		host,
+		store,
+		WithProtocolSuffix[ServerParameters](string(p2p.Private)),
+	)
 	require.NoError(t, err)
 	err = serv.Start(ctx)
 	require.NoError(t, err)
@@ -279,7 +290,8 @@ func TestExchange_RequestByHashFails(t *testing.T) {
 	// get host and peer
 	host, peer := net.Hosts()[0], net.Hosts()[1]
 	serv, err := NewExchangeServer[*test.DummyHeader](
-		host, headerMock.NewStore[*test.DummyHeader](t, test.NewTestSuite(t), 0), "private",
+		host, headerMock.NewStore[*test.DummyHeader](t, test.NewTestSuite(t), 0),
+		WithProtocolSuffix[ServerParameters](string(p2p.Private)),
 	)
 	require.NoError(t, err)
 	err = serv.Start(ctx)
@@ -330,7 +342,8 @@ func TestExchange_RequestHeadersFromAnotherPeerWhenTimeout(t *testing.T) {
 	exchg.Params.RequestTimeout = time.Millisecond * 100
 	// create one more server(with more headers in the store)
 	serverSideEx, err := NewExchangeServer[*test.DummyHeader](
-		host2, headerMock.NewStore[*test.DummyHeader](t, test.NewTestSuite(t), 10), "private",
+		host2, headerMock.NewStore[*test.DummyHeader](t, test.NewTestSuite(t), 10),
+		WithProtocolSuffix[ServerParameters](string(p2p.Private)),
 	)
 	require.NoError(t, err)
 	// change store implementation
@@ -362,13 +375,17 @@ func createP2PExAndServer(
 	host, tpeer libhost.Host,
 ) (*Exchange[*test.DummyHeader], *headerMock.MockStore[*test.DummyHeader]) {
 	store := headerMock.NewStore[*test.DummyHeader](t, test.NewTestSuite(t), 5)
-	serverSideEx, err := NewExchangeServer[*test.DummyHeader](tpeer, store, "private")
+	serverSideEx, err := NewExchangeServer[*test.DummyHeader](tpeer, store,
+		WithProtocolSuffix[ServerParameters](string(p2p.Private)),
+	)
 	require.NoError(t, err)
 	err = serverSideEx.Start(context.Background())
 	require.NoError(t, err)
 	connGater, err := conngater.NewBasicConnectionGater(sync.MutexWrap(datastore.NewMapDatastore()))
 	require.NoError(t, err)
-	ex, err := NewExchange[*test.DummyHeader](host, []peer.ID{tpeer.ID()}, "private", connGater)
+	ex, err := NewExchange[*test.DummyHeader](host, []peer.ID{tpeer.ID()}, connGater,
+		WithProtocolSuffix[ClientParameters](string(p2p.Private)),
+	)
 	require.NoError(t, err)
 	require.NoError(t, ex.Start(context.Background()))
 	time.Sleep(time.Millisecond * 100) // give peerTracker time to add a trusted peer

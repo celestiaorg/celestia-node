@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	logging "github.com/ipfs/go-log/v2"
@@ -42,7 +43,7 @@ type Syncer[H header.Header] struct {
 	// signals to start syncing
 	triggerSync chan struct{}
 	// syncedHead is the latest synced header.
-	syncedHead H
+	syncedHead atomic.Pointer[H]
 	// pending keeps ranges of valid new network headers awaiting to be appended to store
 	pending ranges[H]
 	// netReqLk ensures only one network head is requested at any moment
@@ -53,6 +54,8 @@ type Syncer[H header.Header] struct {
 	cancel context.CancelFunc
 
 	Params *Parameters
+
+	metrics *metrics
 }
 
 // NewSyncer creates a new instance of Syncer.
@@ -175,17 +178,23 @@ func (s *Syncer[H]) sync(ctx context.Context) {
 		return
 	}
 
-	if s.syncedHead.IsZero() {
+	headPtr := s.syncedHead.Load()
+
+	var header H
+	if headPtr == nil {
 		head, err := s.store.Head(ctx)
 		if err != nil {
 			log.Errorw("getting head during sync", "err", err)
 			return
 		}
-		s.syncedHead = head
+		header = head
+	} else {
+		header = *headPtr
 	}
-	if s.syncedHead.Height() >= newHead.Height() {
+
+	if header.Height() >= newHead.Height() {
 		log.Warnw("sync attempt to an already synced header",
-			"synced_height", s.syncedHead.Height(),
+			"synced_height", header.Height(),
 			"attempted_height", newHead.Height(),
 		)
 		log.Warn("PLEASE REPORT THIS AS A BUG")
@@ -193,9 +202,9 @@ func (s *Syncer[H]) sync(ctx context.Context) {
 	}
 
 	log.Infow("syncing headers",
-		"from", s.syncedHead.Height(),
+		"from", header.Height(),
 		"to", newHead.Height())
-	err := s.doSync(ctx, s.syncedHead, newHead)
+	err := s.doSync(ctx, header, newHead)
 	if err != nil {
 		if errors.Is(err, context.Canceled) {
 			// don't log this error as it is normal case of Syncer being stopped
@@ -203,14 +212,14 @@ func (s *Syncer[H]) sync(ctx context.Context) {
 		}
 
 		log.Errorw("syncing headers",
-			"from", s.syncedHead.Height(),
+			"from", header.Height(),
 			"to", newHead.Height(),
 			"err", err)
 		return
 	}
 
 	log.Infow("finished syncing",
-		"from", s.syncedHead.Height(),
+		"from", header.Height(),
 		"to", newHead.Height(),
 		"elapsed time", s.state.End.Sub(s.state.Start))
 }
@@ -233,6 +242,9 @@ func (s *Syncer[H]) doSync(ctx context.Context, fromHead, toHead H) (err error) 
 		if err != nil && processed == 0 {
 			break
 		}
+		if s.metrics != nil {
+			s.metrics.recordTotalSynced(processed)
+		}
 	}
 
 	s.stateLk.Lock()
@@ -252,7 +264,7 @@ func (s *Syncer[H]) processHeaders(ctx context.Context, from, to uint64) (int, e
 
 	amount, err := s.store.Append(ctx, headers...)
 	if err == nil && amount > 0 {
-		s.syncedHead = headers[amount-1]
+		s.syncedHead.Store(&headers[amount-1])
 	}
 	return amount, err
 }
