@@ -62,7 +62,6 @@ func ParseDirectoryFlags(cmd *cobra.Command) error {
 
 		keyPath := fmt.Sprintf("%s/keys", path)
 		fmt.Println("using directory: ", keyPath)
-
 		if err := cmd.Flags().Set(sdkflags.FlagKeyringDir, keyPath); err != nil {
 			return err
 		}
