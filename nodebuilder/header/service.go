@@ -37,7 +37,7 @@ func newHeaderService(
 	}
 }
 
-func (s *Service) Get(ctx context.Context, hash libhead.Hash) (*header.ExtendedHeader, error) {
+func (s *Service) GetByHash(ctx context.Context, hash libhead.Hash) (*header.ExtendedHeader, error) {
 	return s.store.Get(ctx, hash)
 }
 
@@ -67,8 +67,4 @@ func (s *Service) WaitSync(ctx context.Context) error {
 
 func (s *Service) SyncHead(ctx context.Context) (*header.ExtendedHeader, error) {
 	return s.syncer.Head(ctx)
-}
-
-func (s *Service) Subscribe(context.Context) (libhead.Subscription[*header.ExtendedHeader], error) {
-	return s.sub.Subscribe()
 }

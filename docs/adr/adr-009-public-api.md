@@ -93,8 +93,8 @@ microservice architectures.
 type HeaderModule interface {
 // Head returns the node's local head (tip of the chain of the header store).
 Head(ctx context.Context) (*header.ExtendedHeader, error)
-// Get returns the header of the given hash from the node's header store.
-Get(ctx context.Context, hash tmbytes.HexBytes) (*header.ExtendedHeader, error)
+// GetByHash returns the header of the given hash from the node's header store.
+GetByHash(ctx context.Context, hash tmbytes.HexBytes) (*header.ExtendedHeader, error)
 // GetByHeight returns the header of the given height from the node's header store.
 // If the header of the given height is not yet available, the request will hang
 // until it becomes available in the node's header store.
