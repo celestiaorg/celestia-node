@@ -8,13 +8,17 @@ import (
 	"github.com/libp2p/go-libp2p/core/peer"
 )
 
+// timedQueue store items for ttl duration and releases it with calling onPop callback. Each item
+// is tracked independantly
 type timedQueue struct {
 	sync.Mutex
 	items []item
 
+	// ttl is the amount of time each item exist in the timedQueue
 	ttl   time.Duration
 	clock clock.Clock
 	after *clock.Timer
+	// onPop will be called on item peer.ID after it is released
 	onPop func(peer.ID)
 }
 
@@ -32,6 +36,7 @@ func newTimedQueue(ttl time.Duration, onPop func(peer.ID)) *timedQueue {
 	}
 }
 
+// releaseExpired will release all expired items
 func (q *timedQueue) releaseExpired() {
 	q.Lock()
 	defer q.Unlock()
@@ -47,12 +52,13 @@ func (q *timedQueue) releaseUnsafe() {
 	for _, next := range q.items {
 		timeIn := q.clock.Since(next.createdAt)
 		if timeIn < q.ttl {
-			// item not expired yet, create a timer that will call releaseExpired
+			// item is not expired yet, create a timer that will call releaseExpired
 			q.after.Stop()
 			q.after = q.clock.AfterFunc(q.ttl-timeIn, q.releaseExpired)
 			break
 		}
 
+		// item is expired
 		q.onPop(next.ID)
 		i++
 	}
@@ -72,7 +78,7 @@ func (q *timedQueue) push(peerID peer.ID) {
 		createdAt: q.clock.Now(),
 	})
 
-	// set timer after item is added so releaseExpired after expiration happens
+	// if it is the first item in queue, create a timer to call releaseExpired after its expiration
 	if len(q.items) == 1 {
 		q.after = q.clock.AfterFunc(q.ttl, q.releaseExpired)
 	}

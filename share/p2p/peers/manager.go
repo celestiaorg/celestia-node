@@ -65,7 +65,8 @@ type Manager struct {
 	done   chan struct{}
 }
 
-// DoneFunc updates internal state depending on call results. Should be called once per returned peer from Peer method
+// DoneFunc updates internal state depending on call results. Should be called once per returned
+// peer from Peer method
 type DoneFunc func(result)
 
 type result int
@@ -158,7 +159,8 @@ func (m *Manager) Stop(ctx context.Context) error {
 // Peer returns peer collected from shrex.Sub for given datahash if any available.
 // If there is none, it will look for fullnodes collected from discovery. If there is no discovered
 // full nodes, it will wait until any peer appear in either source or timeout happen.
-// After fetching data using given peer, caller is required to call returned DoneFunc using appropriate result value
+// After fetching data using given peer, caller is required to call returned DoneFunc using
+// appropriate result value
 func (m *Manager) Peer(
 	ctx context.Context, datahash share.DataHash,
 ) (peer.ID, DoneFunc, error) {
