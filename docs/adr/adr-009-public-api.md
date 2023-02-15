@@ -103,8 +103,8 @@ GetByHeight(ctx context.Context, height uint64) (*header.ExtendedHeader, error)
 // from the node's header store and verifies that the returned headers are 
 // adjacent to each other.
 GetVerifiedRangeByHeight(ctx context.Context, from, to uint64) ([]*ExtendedHeader, error)
-// Subscribe creates long-living Subscription for validated ExtendedHeaders.
-// Multiple Subscriptions can be created.
+// Subscribe creates long-living Subscription for newly validated 
+// ExtendedHeaders. Multiple Subscriptions can be created.
 Subscribe(context.Context) (Subscription, error)
 // SyncState returns the current state of the header Syncer. 
 SyncState(context.Context) sync.State
