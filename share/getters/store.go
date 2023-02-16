@@ -73,7 +73,7 @@ func (sg *StoreGetter) GetEDS(ctx context.Context, root *share.Root) (eds *rsmt2
 
 	eds, err = sg.store.Get(ctx, root.Hash())
 	if errors.Is(err, dagstore.ErrShardUnknown) {
-		return nil, fmt.Errorf("getter/store: eds does not yet exist")
+		return nil, fmt.Errorf("getter/store: eds not found")
 	}
 	if err != nil {
 		return nil, fmt.Errorf("getter/store: failed to retrieve eds: %w", err)
