@@ -197,7 +197,7 @@ func statusToErr(code pb.StatusCode) error {
 	switch code {
 	case pb.StatusCode_OK:
 		return nil
-	case pb.StatusCode_NOT_FOUND, pb.StatusCode_REFUSED:
+	case pb.StatusCode_NOT_FOUND:
 		return p2p.ErrUnavailable
 	case pb.StatusCode_INTERNAL, pb.StatusCode_INVALID:
 		fallthrough

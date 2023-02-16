@@ -123,7 +123,7 @@ func (c *Client) doRequest(
 			return nil, fmt.Errorf("failed to read eds from ods bytes: %w", err)
 		}
 		return eds, nil
-	case pb.Status_NOT_FOUND, pb.Status_REFUSED:
+	case pb.Status_NOT_FOUND:
 		log.Debugf("client: peer %s couldn't serve eds %s with status %s", to.String(), dataHash.String(), resp.GetStatus())
 		return nil, p2p.ErrUnavailable
 	case pb.Status_INVALID:
