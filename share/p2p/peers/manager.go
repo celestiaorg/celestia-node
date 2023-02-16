@@ -34,8 +34,6 @@ const (
 	// ResultBlacklistPeer will blacklist peer. Blacklisted peers will be disconnected and blocked from
 	// any p2p communication in future by libp2p Gater
 	ResultBlacklistPeer
-
-	gcInterval = time.Second * 30
 )
 
 var log = logging.Logger("shrex/peer-manager")
@@ -52,9 +50,10 @@ type Manager struct {
 	connGater *conngater.BasicConnectionGater
 
 	// pools collecting peers from shrexSub
-	pools            map[string]*syncPool
-	poolSyncTimeout  time.Duration
-	peerCooldownTime time.Duration
+	pools                 map[string]*syncPool
+	poolValidationTimeout time.Duration
+	peerCooldownTime      time.Duration
+	gcInterval            time.Duration
 	// fullNodes collects full nodes peer.ID found via discovery
 	fullNodes *pool
 
@@ -87,21 +86,29 @@ func NewManager(
 	discovery *discovery.Discovery,
 	host host.Host,
 	connGater *conngater.BasicConnectionGater,
-	syncTimeout time.Duration,
-	peerCooldownTime time.Duration,
+	opts ...Option,
 ) *Manager {
+	params := DefaultParameters()
+
 	s := &Manager{
-		headerSub:         headerSub,
-		shrexSub:          shrexSub,
-		disc:              discovery,
-		connGater:         connGater,
-		host:              host,
-		pools:             make(map[string]*syncPool),
-		poolSyncTimeout:   syncTimeout,
-		fullNodes:         newPool(peerCooldownTime),
-		blacklistedHashes: make(map[string]bool),
-		done:              make(chan struct{}),
+		headerSub:             headerSub,
+		shrexSub:              shrexSub,
+		disc:                  discovery,
+		connGater:             connGater,
+		host:                  host,
+		pools:                 make(map[string]*syncPool),
+		poolValidationTimeout: params.ValidationTimeout,
+		peerCooldownTime:      params.PeerCooldown,
+		gcInterval:            params.GcInterval,
+		blacklistedHashes:     make(map[string]bool),
+		done:                  make(chan struct{}),
 	}
+
+	for _, opt := range opts {
+		opt(s)
+	}
+
+	s.fullNodes = newPool(s.peerCooldownTime)
 
 	discovery.WithOnPeersUpdate(
 		func(peerID peer.ID, isAdded bool) {
@@ -319,7 +326,7 @@ func (m *Manager) hashIsBlacklisted(hash share.DataHash) bool {
 }
 
 func (m *Manager) GC(ctx context.Context) {
-	ticker := time.NewTicker(gcInterval)
+	ticker := time.NewTicker(m.gcInterval)
 	defer ticker.Stop()
 
 	var blacklist []peer.ID
@@ -343,7 +350,7 @@ func (m *Manager) cleanUp() []peer.ID {
 
 	addToBlackList := make(map[peer.ID]struct{})
 	for h, p := range m.pools {
-		if time.Since(p.createdAt) > m.poolSyncTimeout && !p.isValidatedDataHash.Load() {
+		if time.Since(p.createdAt) > m.poolValidationTimeout && !p.isValidatedDataHash.Load() {
 			log.Debug("blacklisting datahash with all corresponding peers",
 				"datahash", h,
 				"peer_list", p.peersList)

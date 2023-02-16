@@ -125,7 +125,7 @@ func TestManager(t *testing.T) {
 		peerID := peer.ID("peer1")
 		manager.validate(ctx, peerID, h.DataHash.Bytes())
 		// set syncTimeout to 0 to allow cleanup to find outdated datahash
-		manager.poolSyncTimeout = 0
+		manager.poolValidationTimeout = 0
 
 		blacklisted := manager.cleanUp()
 		require.Contains(t, blacklisted, peerID)
@@ -320,7 +320,15 @@ func TestIntegration(t *testing.T) {
 		// hook peer manager to discovery
 		connGater, err := conngater.NewBasicConnectionGater(sync.MutexWrap(datastore.NewMapDatastore()))
 		require.NoError(t, err)
-		fnPeerManager := NewManager(nil, nil, fnDisc, nil, connGater, time.Minute, time.Second)
+		fnPeerManager := NewManager(
+			nil,
+			nil,
+			fnDisc,
+			nil,
+			connGater,
+			WithValidationTimeout(time.Minute),
+			WithPeerCooldown(time.Second),
+		)
 
 		waitCh := make(chan struct{})
 		fnDisc.WithOnPeersUpdate(func(peerID peer.ID, isAdded bool) {
@@ -359,7 +367,15 @@ func testManager(ctx context.Context, headerSub libhead.Subscriber[*header.Exten
 	if err != nil {
 		return nil, err
 	}
-	manager := NewManager(headerSub, shrexSub, disc, host, connGater, time.Minute, time.Second)
+	manager := NewManager(
+		headerSub,
+		shrexSub,
+		disc,
+		host,
+		connGater,
+		WithValidationTimeout(time.Minute),
+		WithPeerCooldown(time.Second),
+	)
 	err = manager.Start(ctx)
 	return manager, err
 }

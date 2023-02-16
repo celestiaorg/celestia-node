@@ -15,6 +15,7 @@ import (
 	"github.com/celestiaorg/celestia-node/share/availability/light"
 	"github.com/celestiaorg/celestia-node/share/eds"
 	"github.com/celestiaorg/celestia-node/share/getters"
+	"github.com/celestiaorg/celestia-node/share/p2p/peers"
 	"github.com/celestiaorg/celestia-node/share/p2p/shrexeds"
 	"github.com/celestiaorg/celestia-node/share/p2p/shrexnd"
 	"github.com/celestiaorg/celestia-node/share/p2p/shrexsub"
@@ -144,7 +145,7 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 			fx.Provide(func(shrexSub *shrexsub.PubSub) shrexsub.BroadcastFn {
 				return shrexSub.Broadcast
 			}),
-			fx.Provide(peerManager),
+			fx.Provide(peers.NewManager),
 			fx.Provide(fullGetter),
 		)
 	default:
