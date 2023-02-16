@@ -64,7 +64,7 @@ require (
 	go.opentelemetry.io/otel/sdk/metric v0.34.0
 	go.opentelemetry.io/otel/trace v1.11.2
 	go.opentelemetry.io/proto/otlp v0.19.0
-	go.uber.org/fx v1.18.2
+	go.uber.org/fx v1.19.1
 	go.uber.org/multierr v1.9.0
 	golang.org/x/crypto v0.5.0
 	golang.org/x/exp v0.0.0-20221205204356-47842c84f3db
@@ -300,7 +300,7 @@ require (
 	go.opentelemetry.io/otel/exporters/otlp/otlpmetric v0.34.0 // indirect
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace v1.11.2 // indirect
 	go.uber.org/atomic v1.10.0 // indirect
-	go.uber.org/dig v1.15.0 // indirect
+	go.uber.org/dig v1.16.0 // indirect
 	go.uber.org/zap v1.24.0 // indirect
 	golang.org/x/mod v0.7.0 // indirect
 	golang.org/x/net v0.5.0 // indirect
