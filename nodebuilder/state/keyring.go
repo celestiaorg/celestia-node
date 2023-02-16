@@ -11,6 +11,9 @@ import (
 	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
 )
 
+// KeyringSigner constructs a new keyring signer.
+// NOTE: we construct keyring signer before constructing node for easier UX
+// as having keyring-backend set to `file` prompts user for password.
 func KeyringSigner(cfg Config, ks keystore.Keystore, net p2p.Network) (*apptypes.KeyringSigner, error) {
 	ring := ks.Keyring()
 	var info *kr.Record
