@@ -14,6 +14,23 @@ import (
 	"golang.org/x/crypto/blake2b"
 )
 
+func init() {
+	// TODO(@Wondertan): Requires deeper analysis
+	// configure larger overlay parameters
+	// the default ones are pretty conservative
+	pubsub.GossipSubD = 8
+	pubsub.GossipSubDscore = 6
+	pubsub.GossipSubDout = 3
+	pubsub.GossipSubDlo = 6
+	pubsub.GossipSubDhi = 12
+	pubsub.GossipSubDlazy = 12
+
+	pubsub.GossipSubIWantFollowupTime = 5 * time.Second
+	pubsub.GossipSubHistoryLength = 10 // cache msgs longer
+	// MutualPeers will wait for 30secs before connecting
+	pubsub.GossipSubDirectConnectInitialDelay = 30 * time.Second
+}
+
 // pubSub provides a constructor for PubSub protocol with GossipSub routing.
 func pubSub(cfg Config, params pubSubParams) (*pubsub.PubSub, error) {
 	fpeers, err := cfg.mutualPeers()
