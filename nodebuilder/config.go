@@ -39,7 +39,7 @@ func DefaultConfig(tp node.Type) *Config {
 	commonConfig := &Config{
 		Core:    core.DefaultConfig(),
 		State:   state.DefaultConfig(),
-		P2P:     p2p.DefaultConfig(),
+		P2P:     p2p.DefaultConfig(tp),
 		RPC:     rpc.DefaultConfig(),
 		Gateway: gateway.DefaultConfig(),
 		Share:   share.DefaultConfig(),

@@ -27,7 +27,6 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 				return []das.Option{
 					das.WithSamplingRange(c.SamplingRange),
 					das.WithConcurrencyLimit(c.ConcurrencyLimit),
-					das.WithPriorityQueueSize(c.PriorityQueueSize),
 					das.WithBackgroundStoreInterval(c.BackgroundStoreInterval),
 					das.WithSampleFrom(c.SampleFrom),
 					das.WithSampleTimeout(c.SampleTimeout),

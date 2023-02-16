@@ -3,6 +3,7 @@ package share
 import (
 	"context"
 	"errors"
+	"time"
 
 	"github.com/filecoin-project/dagstore"
 	"github.com/ipfs/go-datastore"
@@ -16,6 +17,7 @@ import (
 	"github.com/celestiaorg/celestia-node/share/availability/cache"
 	disc "github.com/celestiaorg/celestia-node/share/availability/discovery"
 	"github.com/celestiaorg/celestia-node/share/eds"
+	"github.com/celestiaorg/celestia-node/share/getters"
 )
 
 func discovery(cfg Config) func(routing.ContentRouting, host.Host) *disc.Discovery {
@@ -56,4 +58,43 @@ func ensureEmptyCARExists(ctx context.Context, store *eds.Store) error {
 		return nil
 	}
 	return err
+}
+
+func lightGetter(
+	shrexGetter *getters.ShrexGetter,
+	ipldGetter *getters.IPLDGetter,
+) share.Getter {
+	return getters.NewCascadeGetter(
+		[]share.Getter{
+			shrexGetter,
+			ipldGetter,
+		},
+		// based on the default value of das.SampleTimeout.
+		// will no longer be needed when async cascadegetter is merged
+		time.Minute,
+	)
+}
+
+func fullGetter(
+	store *eds.Store,
+	shrexGetter *getters.ShrexGetter,
+	ipldGetter *getters.IPLDGetter,
+	cfg Config,
+) share.Getter {
+	var cascade []share.Getter
+	// based on the default value of das.SampleTimeout
+	timeout := time.Minute
+	cascade = append(cascade, getters.NewStoreGetter(store))
+	if cfg.UseShareExchange {
+		// if we are using share exchange, we split the timeout between the two getters
+		// once async cascadegetter is implemented, we can remove this
+		timeout /= 2
+		cascade = append(cascade, shrexGetter)
+	}
+	cascade = append(cascade, ipldGetter)
+
+	return getters.NewTeeGetter(
+		getters.NewCascadeGetter(cascade, timeout),
+		store,
+	)
 }

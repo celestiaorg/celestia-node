@@ -11,7 +11,6 @@ import (
 	ds_sync "github.com/ipfs/go-datastore/sync"
 	mdutils "github.com/ipfs/go-merkledag/test"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
-	"github.com/libp2p/go-libp2p/core/peer"
 	mocknet "github.com/libp2p/go-libp2p/p2p/net/mock"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -44,7 +43,7 @@ func TestDASerLifecycle(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	t.Cleanup(cancel)
 
-	daser, err := NewDASer(avail, sub, mockGet, ds, mockService)
+	daser, err := NewDASer(avail, sub, mockGet, ds, mockService, newBroadcastMock(1))
 	require.NoError(t, err)
 
 	err = daser.Start(ctx)
@@ -84,7 +83,7 @@ func TestDASer_Restart(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	t.Cleanup(cancel)
 
-	daser, err := NewDASer(avail, sub, mockGet, ds, mockService)
+	daser, err := NewDASer(avail, sub, mockGet, ds, mockService, newBroadcastMock(1))
 	require.NoError(t, err)
 
 	err = daser.Start(ctx)
@@ -115,7 +114,7 @@ func TestDASer_Restart(t *testing.T) {
 	restartCtx, restartCancel := context.WithTimeout(context.Background(), timeout)
 	t.Cleanup(restartCancel)
 
-	daser, err = NewDASer(avail, sub, mockGet, ds, mockService)
+	daser, err = NewDASer(avail, sub, mockGet, ds, mockService, newBroadcastMock(1))
 	require.NoError(t, err)
 
 	err = daser.Start(restartCtx)
@@ -159,11 +158,11 @@ func TestDASer_stopsAfter_BEFP(t *testing.T) {
 	// create fraud service and break one header
 	f := fraud.NewProofService(ps, net.Hosts()[0], mockGet.GetByHeight, ds, false, string(p2p.Private))
 	require.NoError(t, f.Start(ctx))
-	mockGet.headers[1] = headertest.CreateFraudExtHeader(t, mockGet.headers[1], bServ)
+	mockGet.headers[1], _ = headertest.CreateFraudExtHeader(t, mockGet.headers[1], bServ)
 	newCtx := context.Background()
 
 	// create and start DASer
-	daser, err := NewDASer(avail, sub, mockGet, ds, f)
+	daser, err := NewDASer(avail, sub, mockGet, ds, f, newBroadcastMock(1))
 	require.NoError(t, err)
 
 	resultCh := make(chan error)
@@ -191,7 +190,7 @@ func TestDASerSampleTimeout(t *testing.T) {
 	getter := getterStub{}
 	avail := mocks.NewMockAvailability(gomock.NewController(t))
 	avail.EXPECT().SharesAvailable(gomock.Any(), gomock.Any()).DoAndReturn(
-		func(sampleCtx context.Context, h *share.Root, peers ...peer.ID) error {
+		func(sampleCtx context.Context, h *share.Root) error {
 			select {
 			case <-sampleCtx.Done():
 				return sampleCtx.Err()
@@ -206,7 +205,7 @@ func TestDASerSampleTimeout(t *testing.T) {
 	f := new(fraud.DummyService)
 
 	// create and start DASer
-	daser, err := NewDASer(avail, sub, getter, ds, f)
+	daser, err := NewDASer(avail, sub, getter, ds, f, newBroadcastMock(1))
 	require.NoError(t, err)
 
 	// assign directly to avoid params validation

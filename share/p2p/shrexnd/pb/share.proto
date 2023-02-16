@@ -17,7 +17,6 @@ enum StatusCode {
   OK = 1;
   NOT_FOUND = 2;
   INTERNAL = 3;
-  REFUSED = 4;
 };
 
 message Row {

@@ -1,0 +1,75 @@
+package peers
+
+import (
+	"fmt"
+	"time"
+)
+
+// Option is the functional option that is applied to the manager instance to configure peer manager
+// parameters (the Parameters struct)
+type Option func(manager *Manager)
+
+type Parameters struct {
+	// ValidationTimeout is the timeout used for validating incoming datahashes. Pools that have
+	// been created for datahashes from shrexsub that do not see this hash from headersub after this
+	// timeout will be garbage collected.
+	ValidationTimeout time.Duration
+
+	// PeerCooldown is the time a peer is put on cooldown after a ResultCooldownPeer.
+	PeerCooldown time.Duration
+
+	// GcInterval is the interval at which the manager will garbage collect unvalidated pools.
+	GcInterval time.Duration
+}
+
+// Validate validates the values in Parameters
+func (p *Parameters) Validate() error {
+	if p.ValidationTimeout <= 0 {
+		return fmt.Errorf("peer-manager: validation timeout must be positive")
+	}
+
+	if p.PeerCooldown <= 0 {
+		return fmt.Errorf("peer-manager: peer cooldown must be positive")
+	}
+
+	if p.GcInterval <= 0 {
+		return fmt.Errorf("peer-manager: garbage collection interval must be positive")
+	}
+
+	return nil
+}
+
+// DefaultParameters returns the default configuration values for the daser parameters
+func DefaultParameters() Parameters {
+	return Parameters{
+		// ValidationTimeout's default value is based on the default daser sampling timeout of 1 minute.
+		// If a received datahash has not tried to be sampled within these two minutes, the pool will be removed.
+		ValidationTimeout: 2 * time.Minute,
+		// PeerCooldown's default value is based on initial network tests that showed a ~3.5 second
+		// sync time for large blocks. This value gives our (discovery) peers enough time to sync
+		// the new block before we ask them again.
+		PeerCooldown: 3 * time.Second,
+		GcInterval:   time.Second * 30,
+	}
+}
+
+// WithValidationTimeout configures the manager's pool validation timeout.
+func WithValidationTimeout(timeout time.Duration) Option {
+	return func(manager *Manager) {
+		manager.poolValidationTimeout = timeout
+	}
+}
+
+// WithPeerCooldown configures the manager's peer cooldown time.
+func WithPeerCooldown(cooldown time.Duration) Option {
+	return func(manager *Manager) {
+		manager.peerCooldownTime = cooldown
+	}
+}
+
+// WithGcInterval configures the manager's garbage collection interval.
+func WithGcInterval(interval time.Duration) Option {
+	return func(manager *Manager) {
+		manager.gcInterval = interval
+	}
+}

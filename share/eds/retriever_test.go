@@ -157,7 +157,7 @@ func generateByzantineError(
 	h, err := store.GetByHeight(ctx, 1)
 	require.NoError(t, err)
 
-	faultHeader := headertest.CreateFraudExtHeader(t, h, bServ)
+	faultHeader, _ := headertest.CreateFraudExtHeader(t, h, bServ)
 	_, err = NewRetriever(bServ).Retrieve(ctx, faultHeader.DAH)
 	return faultHeader, err
 }
