@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	headp2p "github.com/celestiaorg/celestia-node/libs/header/p2p"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	pubsub_pb "github.com/libp2p/go-libp2p-pubsub/pb"
 	hst "github.com/libp2p/go-libp2p/core/host"
@@ -34,16 +35,18 @@ func pubSub(cfg Config, params pubSubParams) (*pubsub.PubSub, error) {
 		pubsub.GossipSubPruneBackoff = 5 * time.Minute
 	}
 
+	// TODO(@Wondertan) Validate and improve default peer scoring params
+	// Сurrent parameters are based on:
+	//	* https://github.com/libp2p/specs/blob/master/pubsub/gossipsub/gossipsub-v1.1.md#peer-scoring
+	//  * lotus
+	//  * prysm
+	topicScores := topicScoreParams(params.Network)
+	peerScores := peerScoreParams(isBootstrapper, params.Bootstrappers)
+	peerScores.Topics = topicScores
+	scoreThresholds := peerScoreThresholds()
+
 	opts := []pubsub.Option{
-		// TODO(@Wondertan) Validate and improve default peer scoring params
-		// Сurrent parameters are based on:
-		//	* https://github.com/libp2p/specs/blob/master/pubsub/gossipsub/gossipsub-v1.1.md#peer-scoring
-		//  * lotus
-		//  * prysm
-		pubsub.WithPeerScore(
-			peerScoreParams(isBootstrapper, params.Bootstrappers),
-			peerScoreThresholds(),
-		),
+		pubsub.WithPeerScore(peerScores, scoreThresholds),
 		pubsub.WithPeerExchange(cfg.PeerExchange || cfg.Bootstrapper),
 		pubsub.WithDirectPeers(fpeers),
 		pubsub.WithMessageIdFn(hashMsgID),
@@ -71,6 +74,12 @@ type pubSubParams struct {
 	Host hst.Host
 	Bootstrappers Bootstrappers
 	Network Network
+}
+
+func topicScoreParams(network Network) map[string]*pubsub.TopicScoreParams {
+	return map[string]*pubsub.TopicScoreParams{
+		headp2p.PubsubTopicID(network.String()): headp2p.GossibSubScore,
+	}
 }
 
 func peerScoreParams(isBootstrapper bool, bootstrappers Bootstrappers) *pubsub.PeerScoreParams {
@@ -113,9 +122,6 @@ func peerScoreParams(isBootstrapper bool, bootstrappers Bootstrappers) *pubsub.P
 
 		// this retains *non-positive* scores for 6 hours
 		RetainScore: 6 * time.Hour,
-
-		Topics: map[string]*pubsub.TopicScoreParams{
-		},
 	}
 }
 
