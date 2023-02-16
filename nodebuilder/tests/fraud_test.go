@@ -30,6 +30,7 @@ Steps:
 5. Subscribe to a fraud proof and wait when it will be received.
 6. Check FN is not synced to 15.
 Note: 15 is not available because DASer will be stopped before reaching this height due to receiving a fraud proof.
+Another note: this test disables share exchange to speed up test results.
 */
 func TestFraudProofBroadcasting(t *testing.T) {
 	const (
@@ -42,14 +43,21 @@ func TestFraudProofBroadcasting(t *testing.T) {
 	t.Cleanup(cancel)
 
 	fillDn := swamp.FillBlocks(ctx, sw.ClientContext, sw.Accounts, bsize, blocks)
-	bridge := sw.NewBridgeNode(core.WithHeaderConstructFn(headertest.FraudMaker(t, 10, mdutils.Bserv())))
+	cfg := nodebuilder.DefaultConfig(node.Bridge)
+	cfg.Share.UseShareExchange = false
+	bridge := sw.NewNodeWithConfig(
+		node.Bridge,
+		cfg,
+		core.WithHeaderConstructFn(headertest.FraudMaker(t, 10, mdutils.Bserv())),
+	)
 
 	err := bridge.Start(ctx)
 	require.NoError(t, err)
 	addrs, err := peer.AddrInfoToP2pAddrs(host.InfoFromHost(bridge.Host))
 	require.NoError(t, err)
 
-	cfg := nodebuilder.DefaultConfig(node.Full)
+	cfg = nodebuilder.DefaultConfig(node.Full)
+	cfg.Share.UseShareExchange = false
 	cfg.Header.TrustedPeers = append(cfg.Header.TrustedPeers, addrs[0].String())
 	store := nodebuilder.MockStore(t, cfg)
 	full := sw.NewNodeWithStore(node.Full, store)
@@ -98,6 +106,7 @@ Steps:
 5. Subscribe to a fraud proof and wait when it will be received.
 6. Start LN once a fraud proof is received and verified by FN.
 7. Wait until LN will be connected to FN and fetch a fraud proof.
+Note: this test disables share exchange to speed up test results.
 */
 func TestFraudProofSyncing(t *testing.T) {
 	const (
@@ -111,6 +120,7 @@ func TestFraudProofSyncing(t *testing.T) {
 
 	fillDn := swamp.FillBlocks(ctx, sw.ClientContext, sw.Accounts, bsize, blocks)
 	cfg := nodebuilder.DefaultConfig(node.Bridge)
+	cfg.Share.UseShareExchange = false
 	store := nodebuilder.MockStore(t, cfg)
 	bridge := sw.NewNodeWithStore(
 		node.Bridge,
@@ -125,6 +135,7 @@ func TestFraudProofSyncing(t *testing.T) {
 	require.NoError(t, err)
 
 	fullCfg := nodebuilder.DefaultConfig(node.Full)
+	fullCfg.Share.UseShareExchange = false
 	fullCfg.Header.TrustedPeers = append(fullCfg.Header.TrustedPeers, addrs[0].String())
 	full := sw.NewNodeWithStore(node.Full, nodebuilder.MockStore(t, fullCfg))
 

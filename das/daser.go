@@ -152,9 +152,6 @@ func (d *DASer) sample(ctx context.Context, h *header.ExtendedHeader) error {
 
 	err := d.da.SharesAvailable(ctx, h.DAH)
 	if err != nil {
-		if err == context.Canceled {
-			return err
-		}
 		var byzantineErr *byzantine.ErrByzantine
 		if errors.As(err, &byzantineErr) {
 			log.Warn("Propagating proof...")
@@ -162,6 +159,8 @@ func (d *DASer) sample(ctx context.Context, h *header.ExtendedHeader) error {
 			if sendErr != nil {
 				log.Errorw("fraud proof propagating failed", "err", sendErr)
 			}
+		} else if err == context.Canceled {
+			return err
 		}
 
 		log.Errorw("sampling failed", "height", h.Height(), "hash", h.Hash(),
