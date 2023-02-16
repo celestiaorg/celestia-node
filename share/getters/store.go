@@ -2,8 +2,10 @@ package getters
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
+	"github.com/filecoin-project/dagstore"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
 
@@ -70,6 +72,9 @@ func (sg *StoreGetter) GetEDS(ctx context.Context, root *share.Root) (eds *rsmt2
 	}()
 
 	eds, err = sg.store.Get(ctx, root.Hash())
+	if errors.Is(err, dagstore.ErrShardUnknown) {
+		return nil, fmt.Errorf("getter/store: eds does not yet exist")
+	}
 	if err != nil {
 		return nil, fmt.Errorf("getter/store: failed to retrieve eds: %w", err)
 	}

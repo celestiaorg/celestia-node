@@ -59,7 +59,7 @@ func (fa *ShareAvailability) SharesAvailable(ctx context.Context, root *share.Ro
 
 	_, err := fa.getter.GetEDS(ctx, root)
 	if err != nil {
-		log.Errorw("availability validation failed", "root", root.Hash(), "err", err)
+		log.Errorw("availability validation failed", "root", root.Hash(), "err", err.Error())
 		if ipldFormat.IsNotFound(err) || errors.Is(err, context.DeadlineExceeded) {
 			return share.ErrNotAvailable
 		}

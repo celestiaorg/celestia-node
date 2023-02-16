@@ -224,7 +224,7 @@ func (m *Manager) doneFunc(datahash share.DataHash, peerID peer.ID) DoneFunc {
 		log.Debugw("set peer status",
 			"peer", peerID,
 			"datahash", datahash.String(),
-			result, result)
+			"result", result)
 		switch result {
 		case ResultSuccess:
 		case ResultSynced:
