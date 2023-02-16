@@ -21,11 +21,6 @@ func pubSub(cfg Config, params pubSubParams) (*pubsub.PubSub, error) {
 	}
 
 	isBootstrapper := cfg.Bootstrapper
-	bootstrappers := map[peer.ID]struct{}{}
-	for _, b := range params.Bootstrappers {
-		bootstrappers[b.ID] = struct{}{}
-	}
-
 	if isBootstrapper {
 		// Turn off the mesh in bootstrappers as per:
 		// https://github.com/libp2p/specs/blob/master/pubsub/gossipsub/gossipsub-v1.1.md#recommendations-for-network-operators
@@ -39,51 +34,15 @@ func pubSub(cfg Config, params pubSubParams) (*pubsub.PubSub, error) {
 		pubsub.GossipSubPruneBackoff = 5 * time.Minute
 	}
 
-	// TODO(@Wondertan) for PubSub options:
-	//  * Validate and improve default peer scoring params
-	//  * Strict subscription filter
 	opts := []pubsub.Option{
-		// Based on:
+		// TODO(@Wondertan) Validate and improve default peer scoring params
+		// Сurrent parameters are based on:
 		//	* https://github.com/libp2p/specs/blob/master/pubsub/gossipsub/gossipsub-v1.1.md#peer-scoring
 		//  * lotus
 		//  * prysm
 		pubsub.WithPeerScore(
-			&pubsub.PeerScoreParams{
-				AppSpecificScore: func(p peer.ID) float64 {
-					// return a heavy positive score for bootstrappers so that we don't unilaterally prune
-					// them and accept PX from them.
-					// we don't do that in the bootstrappers themselves to avoid creating a closed mesh
-					// between them (however we might want to consider doing just that)
-					_, ok := bootstrappers[p]
-					if ok && !isBootstrapper {
-						return 2500
-					}
-
-					// TODO: we want to plug the application specific score to the node itself in order
-					//       to provide feedback to the pubsub system based on observed behaviour
-					return 0
-				},
-				AppSpecificWeight: 1,
-
-				// This sets the IP colocation threshold to 5 peers before we apply penalties
-				IPColocationFactorThreshold: 10,
-				IPColocationFactorWeight:    -100,
-				IPColocationFactorWhitelist: nil,
-
-				BehaviourPenaltyThreshold: 6,
-				BehaviourPenaltyWeight:    -10,
-				BehaviourPenaltyDecay:     pubsub.ScoreParameterDecay(time.Hour),
-
-				DecayInterval: pubsub.DefaultDecayInterval,
-				DecayToZero:   pubsub.DefaultDecayToZero,
-
-				// this retains *non-positive* scores for 6 hours
-				RetainScore: 6 * time.Hour,
-
-				Topics: map[string]*pubsub.TopicScoreParams{
-				},
-			},
-			nil,
+			peerScoreParams(isBootstrapper, params.Bootstrappers),
+			peerScoreThresholds(),
 		),
 		pubsub.WithPeerExchange(cfg.PeerExchange || cfg.Bootstrapper),
 		pubsub.WithDirectPeers(fpeers),
@@ -112,4 +71,61 @@ type pubSubParams struct {
 	Host hst.Host
 	Bootstrappers Bootstrappers
 	Network Network
+}
+
+func peerScoreParams(isBootstrapper bool, bootstrappers Bootstrappers) *pubsub.PeerScoreParams {
+	bootstrapperSet := map[peer.ID]struct{}{}
+	for _, b := range bootstrappers {
+		bootstrapperSet[b.ID] = struct{}{}
+	}
+
+	// See https://github.com/libp2p/specs/blob/master/pubsub/gossipsub/gossipsub-v1.1.md#the-score-function
+	return &pubsub.PeerScoreParams{
+		AppSpecificScore: func(p peer.ID) float64 {
+			// return a heavy positive score for bootstrappers so that we don't unilaterally prune
+			// them and accept PX from them
+			_, ok := bootstrapperSet[p]
+			if ok && !isBootstrapper {
+				return 2500
+			}
+
+			// TODO(@Wondertan):
+			//  Plug the application specific score to the node itself in order
+			//  to provide feedback to the pubsub system based on observed behaviour
+			return 0
+		},
+		AppSpecificWeight: 1,
+
+		// This sets the IP colocation threshold to 5 peers before we apply penalties
+		// The aim is to protect the PubSub from naive bots collocated on the same machine/datacenter
+		IPColocationFactorThreshold: 10,
+		IPColocationFactorWeight:    -100,
+		// TODO(@Wondertan): Make this configurable, e.g. we might have Testground bots for testing purposes
+		IPColocationFactorWhitelist: nil,
+
+		BehaviourPenaltyThreshold: 6,
+		BehaviourPenaltyWeight:    -10,
+		BehaviourPenaltyDecay:     pubsub.ScoreParameterDecay(time.Hour),
+
+		// Scores should not only grow and this defines a decay function equal for each peer
+		DecayInterval: pubsub.DefaultDecayInterval,
+		DecayToZero:   pubsub.DefaultDecayToZero,
+
+		// this retains *non-positive* scores for 6 hours
+		RetainScore: 6 * time.Hour,
+
+		Topics: map[string]*pubsub.TopicScoreParams{
+		},
+	}
+}
+
+func peerScoreThresholds() *pubsub.PeerScoreThresholds {
+	// https://github.com/libp2p/specs/blob/master/pubsub/gossipsub/gossipsub-v1.1.md#overview-of-new-parameters
+	return &pubsub.PeerScoreThresholds{
+		GossipThreshold:             -1000,
+		PublishThreshold:            -2000,
+		GraylistThreshold:           -8000,
+		AcceptPXThreshold:           1000,
+		OpportunisticGraftThreshold: 5,
+	}
 }
