@@ -63,8 +63,8 @@ func (p *Parameters) Validate() error {
 	if p.BufferSize <= 0 {
 		return fmt.Errorf("invalid buffer size: %s", errSuffix)
 	}
-	if p.concurrencyLimit < 1 {
-		return fmt.Errorf("invalid concurrency limit: value should be greater than 0")
+	if p.concurrencyLimit <= 0 {
+		return fmt.Errorf("invalid concurrency limit: %s", errSuffix)
 	}
 	return nil
 }
