@@ -237,8 +237,8 @@ func (ex *Exchange[H]) performRequest(
 		default:
 		}
 
-		ctx, cancel := context.WithTimeout(ctx, ex.Params.TrustedPeersRequestTimeout)
-		h, err := ex.request(ctx, ex.trustedPeers[idx], req)
+		reqCtx, cancel := context.WithTimeout(ctx, ex.Params.TrustedPeersRequestTimeout)
+		h, err := ex.request(reqCtx, ex.trustedPeers[idx], req)
 		cancel()
 		switch err {
 		default:
