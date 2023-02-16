@@ -68,6 +68,7 @@ func NewExchange[H header.Header](
 
 func (ex *Exchange[H]) Start(context.Context) error {
 	ex.ctx, ex.cancel = context.WithCancel(context.Background())
+	log.Infow("client: starting client", "protocol ID", ex.protocolID)
 
 	for _, p := range ex.trustedPeers {
 		// Try to pre-connect to trusted peers.

@@ -24,11 +24,16 @@ import (
 )
 
 const (
-	ResultSuccess syncResult = iota
-	ResultFail
-	ResultPeerMisbehaved
-
-	gcInterval = time.Second * 30
+	// ResultSuccess indicates operation was successful and no extra action is required
+	ResultSuccess result = iota
+	// ResultSynced will save the status of pool as "synced" and will remove peers from it
+	ResultSynced
+	// ResultCooldownPeer will put returned peer on cooldown, meaning it won't be available by Peer
+	// method for some time
+	ResultCooldownPeer
+	// ResultBlacklistPeer will blacklist peer. Blacklisted peers will be disconnected and blocked from
+	// any p2p communication in future by libp2p Gater
+	ResultBlacklistPeer
 )
 
 var log = logging.Logger("shrex/peer-manager")
@@ -45,8 +50,10 @@ type Manager struct {
 	connGater *conngater.BasicConnectionGater
 
 	// pools collecting peers from shrexSub
-	pools           map[string]*syncPool
-	poolSyncTimeout time.Duration
+	pools                 map[string]*syncPool
+	poolValidationTimeout time.Duration
+	peerCooldownTime      time.Duration
+	gcInterval            time.Duration
 	// fullNodes collects full nodes peer.ID found via discovery
 	fullNodes *pool
 
@@ -57,10 +64,11 @@ type Manager struct {
 	done   chan struct{}
 }
 
-// DoneFunc is a function performs an action based on the given syncResult.
-type DoneFunc func(result syncResult)
+// DoneFunc updates internal state depending on call results. Should be called once per returned
+// peer from Peer method
+type DoneFunc func(result)
 
-type syncResult int
+type result int
 
 type syncPool struct {
 	*pool
@@ -78,20 +86,29 @@ func NewManager(
 	discovery *discovery.Discovery,
 	host host.Host,
 	connGater *conngater.BasicConnectionGater,
-	syncTimeout time.Duration,
+	opts ...Option,
 ) *Manager {
+	params := DefaultParameters()
+
 	s := &Manager{
-		headerSub:         headerSub,
-		shrexSub:          shrexSub,
-		disc:              discovery,
-		connGater:         connGater,
-		host:              host,
-		pools:             make(map[string]*syncPool),
-		poolSyncTimeout:   syncTimeout,
-		fullNodes:         newPool(),
-		blacklistedHashes: make(map[string]bool),
-		done:              make(chan struct{}),
+		headerSub:             headerSub,
+		shrexSub:              shrexSub,
+		disc:                  discovery,
+		connGater:             connGater,
+		host:                  host,
+		pools:                 make(map[string]*syncPool),
+		poolValidationTimeout: params.ValidationTimeout,
+		peerCooldownTime:      params.PeerCooldown,
+		gcInterval:            params.GcInterval,
+		blacklistedHashes:     make(map[string]bool),
+		done:                  make(chan struct{}),
 	}
+
+	for _, opt := range opts {
+		opt(s)
+	}
+
+	s.fullNodes = newPool(s.peerCooldownTime)
 
 	discovery.WithOnPeersUpdate(
 		func(peerID peer.ID, isAdded bool) {
@@ -112,41 +129,41 @@ func NewManager(
 	return s
 }
 
-func (s *Manager) Start(startCtx context.Context) error {
+func (m *Manager) Start(startCtx context.Context) error {
 	ctx, cancel := context.WithCancel(context.Background())
-	s.cancel = cancel
+	m.cancel = cancel
 
-	err := s.shrexSub.Start(startCtx)
+	err := m.shrexSub.Start(startCtx)
 	if err != nil {
 		return fmt.Errorf("starting shrexsub: %w", err)
 	}
 
-	err = s.shrexSub.AddValidator(s.validate)
+	err = m.shrexSub.AddValidator(m.validate)
 	if err != nil {
 		return fmt.Errorf("registering validator: %w", err)
 	}
 
-	_, err = s.shrexSub.Subscribe()
+	_, err = m.shrexSub.Subscribe()
 	if err != nil {
 		return fmt.Errorf("subscribing to shrexsub: %w", err)
 	}
 
-	sub, err := s.headerSub.Subscribe()
+	sub, err := m.headerSub.Subscribe()
 	if err != nil {
 		return fmt.Errorf("subscribing to headersub: %w", err)
 	}
 
-	go s.disc.EnsurePeers(ctx)
-	go s.subscribeHeader(ctx, sub)
-	go s.GC(ctx)
+	go m.disc.EnsurePeers(ctx)
+	go m.subscribeHeader(ctx, sub)
+	go m.GC(ctx)
 
 	return nil
 }
 
-func (s *Manager) Stop(ctx context.Context) error {
-	s.cancel()
+func (m *Manager) Stop(ctx context.Context) error {
+	m.cancel()
 	select {
-	case <-s.done:
+	case <-m.done:
 		return nil
 	case <-ctx.Done():
 		return ctx.Err()
@@ -154,13 +171,14 @@ func (s *Manager) Stop(ctx context.Context) error {
 }
 
 // Peer returns peer collected from shrex.Sub for given datahash if any available.
-// If there is none, it will look for fullnodes collected from discovery. If there is no discovered
+// If there is none, it will look for full nodes collected from discovery. If there is no discovered
 // full nodes, it will wait until any peer appear in either source or timeout happen.
-// After fetching data using given peer, caller is required to call returned DoneFunc
-func (s *Manager) Peer(
+// After fetching data using given peer, caller is required to call returned DoneFunc using
+// appropriate result value
+func (m *Manager) Peer(
 	ctx context.Context, datahash share.DataHash,
 ) (peer.ID, DoneFunc, error) {
-	p := s.getOrCreatePool(datahash.String())
+	p := m.getOrCreatePool(datahash.String())
 	if p.markValidated() {
 		log.Debugw("marked validated", "datahash", datahash.String())
 	}
@@ -169,57 +187,59 @@ func (s *Manager) Peer(
 	peerID, ok := p.tryGet()
 	if ok {
 		// some pools could still have blacklisted peers in storage
-		if s.peerIsBlacklisted(peerID) {
+		if m.peerIsBlacklisted(peerID) {
 			log.Debugw("removing blacklisted peer from pool", "hash", datahash.String(),
 				"peer", peerID.String())
 			p.remove(peerID)
-			return s.Peer(ctx, datahash)
+			return m.Peer(ctx, datahash)
 		}
 		log.Debugw("returning shrex-sub peer", "hash", datahash.String(),
 			"peer", peerID.String())
-		return peerID, s.doneFunc(datahash, peerID), nil
+		return peerID, m.doneFunc(datahash, peerID), nil
 	}
 
 	// if no peer for datahash is currently available, try to use full node
 	// obtained from discovery
-	peerID, ok = s.fullNodes.tryGet()
+	peerID, ok = m.fullNodes.tryGet()
 	if ok {
 		log.Debugw("got peer from full nodes discovery pool", "peer", peerID, "datahash", datahash.String())
-		return peerID, s.doneFunc(datahash, peerID), nil
+		return peerID, m.doneFunc(datahash, peerID), nil
 	}
 
 	// no peers are available right now, wait for the first one
 	select {
 	case peerID = <-p.next(ctx):
 		log.Debugw("got peer from shrexSub pool after wait", "peer", peerID, "datahash", datahash.String())
-		return peerID, s.doneFunc(datahash, peerID), nil
-	case peerID = <-s.fullNodes.next(ctx):
+		return peerID, m.doneFunc(datahash, peerID), nil
+	case peerID = <-m.fullNodes.next(ctx):
 		log.Debugw("got peer from discovery pool after wait", "peer", peerID, "datahash", datahash.String())
-		return peerID, s.doneFunc(datahash, peerID), nil
+		return peerID, m.doneFunc(datahash, peerID), nil
 	case <-ctx.Done():
 		return "", nil, ctx.Err()
 	}
 }
 
-func (s *Manager) doneFunc(datahash share.DataHash, peerID peer.ID) DoneFunc {
-	return func(result syncResult) {
+func (m *Manager) doneFunc(datahash share.DataHash, peerID peer.ID) DoneFunc {
+	return func(result result) {
 		log.Debugw("set peer status",
 			"peer", peerID,
 			"datahash", datahash.String(),
 			result, result)
 		switch result {
 		case ResultSuccess:
-			s.getOrCreatePool(datahash.String()).markSynced()
-		case ResultFail:
-		case ResultPeerMisbehaved:
-			s.blacklistPeers(peerID)
+		case ResultSynced:
+			m.getOrCreatePool(datahash.String()).markSynced()
+		case ResultCooldownPeer:
+			m.getOrCreatePool(datahash.String()).putOnCooldown(peerID)
+		case ResultBlacklistPeer:
+			m.blacklistPeers(peerID)
 		}
 	}
 }
 
 // subscribeHeader takes datahash from received header and validates corresponding peer pool.
-func (s *Manager) subscribeHeader(ctx context.Context, headerSub libhead.Subscription[*header.ExtendedHeader]) {
-	defer close(s.done)
+func (m *Manager) subscribeHeader(ctx context.Context, headerSub libhead.Subscription[*header.ExtendedHeader]) {
+	defer close(m.done)
 	defer headerSub.Cancel()
 
 	for {
@@ -232,88 +252,88 @@ func (s *Manager) subscribeHeader(ctx context.Context, headerSub libhead.Subscri
 			continue
 		}
 
-		if s.getOrCreatePool(h.DataHash.String()).markValidated() {
+		if m.getOrCreatePool(h.DataHash.String()).markValidated() {
 			log.Debugw("marked validated", "datahash", h.DataHash.String())
 		}
 	}
 }
 
 // Validate will collect peer.ID into corresponding peer pool
-func (s *Manager) validate(ctx context.Context, peerID peer.ID, hash share.DataHash) pubsub.ValidationResult {
-	// messages broadcasted from self should bypass the validation with Accept
-	if peerID == s.host.ID() {
+func (m *Manager) validate(ctx context.Context, peerID peer.ID, hash share.DataHash) pubsub.ValidationResult {
+	// messages broadcast from self should bypass the validation with Accept
+	if peerID == m.host.ID() {
 		log.Debugw("received datahash from self", "datahash", hash.String())
 		return pubsub.ValidationAccept
 	}
 
 	// punish peer for sending invalid hash if it has misbehaved in the past
-	if s.hashIsBlacklisted(hash) {
+	if m.hashIsBlacklisted(hash) {
 		log.Debugw("received blacklisted hash, reject validation", "peer", peerID, "datahash", hash.String())
 		return pubsub.ValidationReject
 	}
 
-	if s.peerIsBlacklisted(peerID) {
+	if m.peerIsBlacklisted(peerID) {
 		log.Debugw("received message from blacklisted peer, reject validation", "peer", peerID, "datahash", hash.String())
 		return pubsub.ValidationReject
 	}
 
-	s.getOrCreatePool(hash.String()).add(peerID)
+	m.getOrCreatePool(hash.String()).add(peerID)
 	log.Debugw("got hash from shrex-sub", "peer", peerID, "datahash", hash.String())
 	return pubsub.ValidationIgnore
 }
 
-func (s *Manager) getOrCreatePool(datahash string) *syncPool {
-	s.lock.Lock()
-	defer s.lock.Unlock()
+func (m *Manager) getOrCreatePool(datahash string) *syncPool {
+	m.lock.Lock()
+	defer m.lock.Unlock()
 
-	p, ok := s.pools[datahash]
+	p, ok := m.pools[datahash]
 	if !ok {
 		p = &syncPool{
-			pool:      newPool(),
+			pool:      newPool(m.peerCooldownTime),
 			createdAt: time.Now(),
 		}
-		s.pools[datahash] = p
+		m.pools[datahash] = p
 	}
 
 	return p
 }
 
-func (s *Manager) blacklistPeers(peerIDs ...peer.ID) {
+func (m *Manager) blacklistPeers(peerIDs ...peer.ID) {
 	log.Debugw("blacklisting peers", "peers", peerIDs)
 	for _, peerID := range peerIDs {
-		s.fullNodes.remove(peerID)
+		m.fullNodes.remove(peerID)
 		// add peer to the blacklist, so we can't connect to it in the future.
-		err := s.connGater.BlockPeer(peerID)
+		err := m.connGater.BlockPeer(peerID)
 		if err != nil {
 			log.Warnw("failed tp block peer", "peer", peerID, "err", err)
 		}
 		// close connections to peer.
-		err = s.host.Network().ClosePeer(peerID)
+		err = m.host.Network().ClosePeer(peerID)
 		if err != nil {
 			log.Warnw("failed to close connection with peer", "peer", peerID, "err", err)
 		}
 	}
 }
 
-func (s *Manager) peerIsBlacklisted(peerID peer.ID) bool {
-	return !s.connGater.InterceptPeerDial(peerID)
+func (m *Manager) peerIsBlacklisted(peerID peer.ID) bool {
+	return !m.connGater.InterceptPeerDial(peerID)
 }
 
-func (s *Manager) hashIsBlacklisted(hash share.DataHash) bool {
-	s.lock.Lock()
-	defer s.lock.Unlock()
-	return s.blacklistedHashes[hash.String()]
+func (m *Manager) hashIsBlacklisted(hash share.DataHash) bool {
+	m.lock.Lock()
+	defer m.lock.Unlock()
+	return m.blacklistedHashes[hash.String()]
 }
 
-func (s *Manager) GC(ctx context.Context) {
-	ticker := time.NewTicker(gcInterval)
+func (m *Manager) GC(ctx context.Context) {
+	ticker := time.NewTicker(m.gcInterval)
 	defer ticker.Stop()
 
 	var blacklist []peer.ID
 	for {
-		blacklist = s.cleanUp()
+		blacklist = m.cleanUp()
 		if len(blacklist) > 0 {
-			s.blacklistPeers(blacklist...)
+			m.blacklistPeers(blacklist...)
 		}
 
 		select {
@@ -324,19 +344,19 @@ func (s *Manager) GC(ctx context.Context) {
 	}
 }
 
-func (s *Manager) cleanUp() []peer.ID {
-	s.lock.Lock()
-	defer s.lock.Unlock()
+func (m *Manager) cleanUp() []peer.ID {
+	m.lock.Lock()
+	defer m.lock.Unlock()
 
 	addToBlackList := make(map[peer.ID]struct{})
-	for h, p := range s.pools {
-		if time.Since(p.createdAt) > s.poolSyncTimeout && !p.isValidatedDataHash.Load() {
+	for h, p := range m.pools {
+		if time.Since(p.createdAt) > m.poolValidationTimeout && !p.isValidatedDataHash.Load() {
 			log.Debug("blacklisting datahash with all corresponding peers",
 				"datahash", h,
 				"peer_list", p.peersList)
 			// blacklist hash
-			delete(s.pools, h)
-			s.blacklistedHashes[h] = true
+			delete(m.pools, h)
+			m.blacklistedHashes[h] = true
 
 			// blacklist peers
 			for _, peer := range p.peersList {
@@ -356,7 +376,7 @@ func (p *syncPool) markSynced() {
 	p.isSynced.Store(true)
 	old := (*unsafe.Pointer)(unsafe.Pointer(&p.pool))
 	// release pointer to old pool to free up memory
-	atomic.StorePointer(old, unsafe.Pointer(newPool()))
+	atomic.StorePointer(old, unsafe.Pointer(newPool(time.Second)))
 }
 
 func (p *syncPool) markValidated() bool {

@@ -24,7 +24,7 @@ func TestExchange_RequestND(t *testing.T) {
 		server, err := NewServer(net.Hosts()[1], nil, nil)
 		require.NoError(t, err)
 
-		server.Start()
+		require.NoError(t, server.Start(context.Background()))
 
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 		t.Cleanup(cancel)

@@ -54,7 +54,7 @@ func NewServer(host host.Host, store *eds.Store, getter share.Getter, opts ...Op
 }
 
 // Start starts the server
-func (srv *Server) Start() {
+func (srv *Server) Start(context.Context) error {
 	ctx, cancel := context.WithCancel(context.Background())
 	srv.cancel = cancel
 
@@ -62,12 +62,14 @@ func (srv *Server) Start() {
 		srv.handleNamespacedData(ctx, s)
 	}
 	srv.host.SetStreamHandler(srv.protocolID, p2p.RateLimitMiddleware(handler, srv.params.concurrencyLimit))
+	return nil
 }
 
 // Stop stops the server
-func (srv *Server) Stop() {
+func (srv *Server) Stop(context.Context) error {
 	srv.cancel()
 	srv.host.RemoveStreamHandler(srv.protocolID)
+	return nil
 }
 
 func (srv *Server) handleNamespacedData(ctx context.Context, stream network.Stream) {

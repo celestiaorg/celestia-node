@@ -64,7 +64,6 @@ func (s *Server) Stop(context.Context) error {
 func (s *Server) handleStream(stream network.Stream) {
 	log.Debug("server: handling eds request")
 
-	// TODO: add read timeout!
 	// read request from stream to get the dataHash for store lookup
 	req, err := s.readRequest(stream)
 	if err != nil {

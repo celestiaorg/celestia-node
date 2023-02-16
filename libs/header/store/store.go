@@ -283,6 +283,10 @@ func (s *Store[H]) Has(ctx context.Context, hash header.Hash) (bool, error) {
 	return s.ds.Has(ctx, datastore.NewKey(hash.String()))
 }
 
+func (s *Store[H]) HasAt(_ context.Context, height uint64) bool {
+	return height != uint64(0) && s.Height() >= height
+}
+
 func (s *Store[H]) Append(ctx context.Context, headers ...H) (int, error) {
 	lh := len(headers)
 	if lh == 0 {
