@@ -3,6 +3,7 @@ package getters
 import (
 	"context"
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/celestiaorg/celestia-node/share"
@@ -46,20 +47,20 @@ func (sg *ShrexGetter) Stop(ctx context.Context) error {
 }
 
 func (sg *ShrexGetter) GetShare(ctx context.Context, root *share.Root, row, col int) (share.Share, error) {
-	return nil, errors.New("shrex-getter: GetShare is not supported")
+	return nil, errors.New("getter/shrex: GetShare is not supported")
 }
 
 func (sg *ShrexGetter) GetEDS(ctx context.Context, root *share.Root) (*rsmt2d.ExtendedDataSquare, error) {
 	for {
 		select {
 		case <-ctx.Done():
-			return nil, ctx.Err()
+			return nil, fmt.Errorf("getter/shrex: %w", ctx.Err())
 		default:
 		}
 		peer, setStatus, err := sg.peerManager.Peer(ctx, root.Hash())
 		if err != nil {
 			log.Debugw("couldn't find peer", "datahash", root.String(), "err", err)
-			return nil, err
+			return nil, fmt.Errorf("getter/shrex: %w", err)
 		}
 
 		reqCtx, cancel := context.WithTimeout(ctx, sg.maxRequestDuration)
@@ -87,13 +88,13 @@ func (sg *ShrexGetter) GetSharesByNamespace(
 	for {
 		select {
 		case <-ctx.Done():
-			return nil, ctx.Err()
+			return nil, fmt.Errorf("getter/shrex: %w", ctx.Err())
 		default:
 		}
 		peer, setStatus, err := sg.peerManager.Peer(ctx, root.Hash())
 		if err != nil {
 			log.Debugw("couldn't find peer", "datahash", root.String(), "err", err)
-			return nil, err
+			return nil, fmt.Errorf("getter/shrex: %w", err)
 		}
 
 		reqCtx, cancel := context.WithTimeout(ctx, sg.maxRequestDuration)

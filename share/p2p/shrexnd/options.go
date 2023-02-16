@@ -56,8 +56,8 @@ func (p *Parameters) Validate() error {
 	if p.serveTimeout <= 0 {
 		return fmt.Errorf("invalid serve timeout: %v, %s", p.serveTimeout, errSuffix)
 	}
-	if p.concurrencyLimit < 1 {
-		return fmt.Errorf("invalid concurrency limit: value should be greater than 0")
+	if p.concurrencyLimit <= 0 {
+		return fmt.Errorf("invalid concurrency limit: %v, %s", p.concurrencyLimit, errSuffix)
 	}
 	return nil
 }

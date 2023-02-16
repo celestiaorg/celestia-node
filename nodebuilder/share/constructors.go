@@ -74,9 +74,12 @@ func fullGetter(
 		// if we are using share exchange, we split the timeout between the two getters
 		// once async cascadegetter is implemented, we can remove this
 		timeout /= 2
-		cascade = append(cascade, getters.NewTeeGetter(shrexGetter, store))
+		cascade = append(cascade, shrexGetter)
 	}
-	cascade = append(cascade, getters.NewTeeGetter(ipldGetter, store))
+	cascade = append(cascade, ipldGetter)
 
-	return getters.NewCascadeGetter(cascade, timeout)
+	return getters.NewTeeGetter(
+		getters.NewCascadeGetter(cascade, timeout),
+		store,
+	)
 }
