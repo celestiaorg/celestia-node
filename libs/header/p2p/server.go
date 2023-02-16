@@ -28,8 +28,8 @@ var (
 type ExchangeServer[H header.Header] struct {
 	protocolID protocol.ID
 
-	host   host.Host
-	getter header.Getter[H]
+	host  host.Host
+	store header.Store[H]
 
 	ctx    context.Context
 	cancel context.CancelFunc
@@ -41,7 +41,7 @@ type ExchangeServer[H header.Header] struct {
 // header-related requests.
 func NewExchangeServer[H header.Header](
 	host host.Host,
-	getter header.Getter[H],
+	store header.Store[H],
 	opts ...Option[ServerParameters],
 ) (*ExchangeServer[H], error) {
 	params := DefaultServerParameters()
@@ -55,7 +55,7 @@ func NewExchangeServer[H header.Header](
 	return &ExchangeServer[H]{
 		protocolID: protocolID(params.protocolSuffix),
 		host:       host,
-		getter:     getter,
+		store:      store,
 		Params:     params,
 	}, nil
 }
@@ -164,7 +164,7 @@ func (serv *ExchangeServer[H]) handleRequestByHash(hash []byte) ([]H, error) {
 	))
 	defer span.End()
 
-	h, err := serv.getter.Get(ctx, hash)
+	h, err := serv.store.Get(ctx, hash)
 	if err != nil {
 		log.Errorw("server: getting header by hash", "hash", header.Hash(hash).String(), "err", err)
 		span.SetStatus(codes.Error, err.Error())
@@ -201,7 +201,13 @@ func (serv *ExchangeServer[H]) handleRequest(from, to uint64) ([]H, error) {
 	}
 
 	log.Debugw("server: handling headers request", "from", from, "to", to)
-	headersByRange, err := serv.getter.GetRangeByHeight(ctx, from, to)
+	if !serv.store.HasAt(ctx, to-1) {
+		span.SetStatus(codes.Error, header.ErrNotFound.Error())
+		log.Debugw("server: requested headers not stored", "from", from, "to", to)
+		return nil, header.ErrNotFound
+	}
+
+	headersByRange, err := serv.store.GetRangeByHeight(ctx, from, to)
 	if err != nil {
 		span.SetStatus(codes.Error, err.Error())
 		if errors.Is(err, context.DeadlineExceeded) {
@@ -226,7 +232,7 @@ func (serv *ExchangeServer[H]) handleHeadRequest() ([]H, error) {
 	ctx, span := tracer.Start(ctx, "request-head")
 	defer span.End()
 
-	head, err := serv.getter.Head(ctx)
+	head, err := serv.store.Head(ctx)
 	if err != nil {
 		log.Errorw("server: getting head", "err", err)
 		span.SetStatus(codes.Error, err.Error())
