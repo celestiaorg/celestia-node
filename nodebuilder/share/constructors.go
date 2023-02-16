@@ -3,27 +3,21 @@ package share
 import (
 	"context"
 	"errors"
+	"time"
 
 	"github.com/filecoin-project/dagstore"
 	"github.com/ipfs/go-datastore"
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/routing"
 	routingdisc "github.com/libp2p/go-libp2p/p2p/discovery/routing"
-	"github.com/libp2p/go-libp2p/p2p/net/conngater"
 	"go.uber.org/fx"
 
-	"github.com/celestiaorg/celestia-node/header"
-	libhead "github.com/celestiaorg/celestia-node/libs/header"
-	modp2p "github.com/celestiaorg/celestia-node/nodebuilder/p2p"
+	"github.com/celestiaorg/celestia-app/pkg/da"
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/availability/cache"
 	disc "github.com/celestiaorg/celestia-node/share/availability/discovery"
 	"github.com/celestiaorg/celestia-node/share/eds"
 	"github.com/celestiaorg/celestia-node/share/getters"
-	"github.com/celestiaorg/celestia-node/share/p2p/peers"
-	"github.com/celestiaorg/celestia-node/share/p2p/shrexsub"
-
-	"github.com/celestiaorg/celestia-app/pkg/da"
 )
 
 func discovery(cfg Config) func(routing.ContentRouting, host.Host) *disc.Discovery {
@@ -66,28 +60,23 @@ func ensureEmptyCARExists(ctx context.Context, store *eds.Store) error {
 	return err
 }
 
-func peerManager(
-	headerSub libhead.Subscriber[*header.ExtendedHeader],
-	shrexSub *shrexsub.PubSub,
-	discovery *disc.Discovery,
-	host host.Host,
-	connGater *conngater.BasicConnectionGater,
-) *peers.Manager {
-	// TODO: find better syncTimeout duration?
-	return peers.NewManager(headerSub, shrexSub, discovery, host, connGater, modp2p.BlockTime*5)
-}
-
 func fullGetter(
 	store *eds.Store,
 	shrexGetter *getters.ShrexGetter,
 	ipldGetter *getters.IPLDGetter,
+	cfg Config,
 ) share.Getter {
-	return getters.NewCascadeGetter(
-		[]share.Getter{
-			getters.NewStoreGetter(store),
-			getters.NewTeeGetter(shrexGetter, store),
-			getters.NewTeeGetter(ipldGetter, store),
-		},
-		modp2p.BlockTime,
-	)
+	var cascade []share.Getter
+	// based on the default value of das.SampleTimeout
+	timeout := time.Minute
+	cascade = append(cascade, getters.NewStoreGetter(store))
+	if cfg.UseShareExchange {
+		// if we are using share exchange, we split the timeout between the two getters
+		// once async cascadegetter is implemented, we can remove this
+		timeout /= 2
+		cascade = append(cascade, getters.NewTeeGetter(shrexGetter, store))
+	}
+	cascade = append(cascade, getters.NewTeeGetter(ipldGetter, store))
+
+	return getters.NewCascadeGetter(cascade, timeout)
 }
