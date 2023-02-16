@@ -9,6 +9,7 @@ import (
 
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/availability/discovery"
+	"github.com/celestiaorg/celestia-node/share/eds/byzantine"
 )
 
 var log = logging.Logger("share/full")
@@ -60,7 +61,8 @@ func (fa *ShareAvailability) SharesAvailable(ctx context.Context, root *share.Ro
 	_, err := fa.getter.GetEDS(ctx, root)
 	if err != nil {
 		log.Errorw("availability validation failed", "root", root.Hash(), "err", err.Error())
-		if ipldFormat.IsNotFound(err) || errors.Is(err, context.DeadlineExceeded) {
+		var byzantineErr *byzantine.ErrByzantine
+		if ipldFormat.IsNotFound(err) || errors.Is(err, context.DeadlineExceeded) && !errors.As(err, &byzantineErr) {
 			return share.ErrNotAvailable
 		}
 
