@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"net"
 	"time"
 
@@ -111,6 +112,10 @@ func (c *Client) doRequest(
 	var resp pb.GetSharesByNamespaceResponse
 	_, err = serde.Read(stream, &resp)
 	if err != nil {
+		// server is overloaded and closed the stream
+		if errors.Is(err, io.EOF) {
+			return nil, p2p.ErrUnavailable
+		}
 		stream.Reset() //nolint:errcheck
 		return nil, fmt.Errorf("client-nd: reading response: %w", err)
 	}
@@ -192,7 +197,7 @@ func statusToErr(code pb.StatusCode) error {
 	switch code {
 	case pb.StatusCode_OK:
 		return nil
-	case pb.StatusCode_NOT_FOUND, pb.StatusCode_REFUSED:
+	case pb.StatusCode_NOT_FOUND:
 		return p2p.ErrUnavailable
 	case pb.StatusCode_INTERNAL, pb.StatusCode_INVALID:
 		fallthrough

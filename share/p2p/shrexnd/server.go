@@ -13,8 +13,8 @@ import (
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/eds"
 	"github.com/celestiaorg/celestia-node/share/ipld"
+	"github.com/celestiaorg/celestia-node/share/p2p"
 	pb "github.com/celestiaorg/celestia-node/share/p2p/shrexnd/pb"
-
 	"github.com/celestiaorg/go-libp2p-messenger/serde"
 )
 
@@ -58,9 +58,10 @@ func (srv *Server) Start(context.Context) error {
 	ctx, cancel := context.WithCancel(context.Background())
 	srv.cancel = cancel
 
-	srv.host.SetStreamHandler(srv.protocolID, func(s network.Stream) {
+	handler := func(s network.Stream) {
 		srv.handleNamespacedData(ctx, s)
-	})
+	}
+	srv.host.SetStreamHandler(srv.protocolID, p2p.RateLimitMiddleware(handler, srv.params.concurrencyLimit))
 	return nil
 }
 

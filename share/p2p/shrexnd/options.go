@@ -30,13 +30,17 @@ type Parameters struct {
 	// protocolSuffix is appended to the protocolID and represents the network the protocol is
 	// running on.
 	protocolSuffix string
+
+	// concurrencyLimit is the maximum number of concurrently handled streams
+	concurrencyLimit int
 }
 
 func DefaultParameters() *Parameters {
 	return &Parameters{
-		readTimeout:  time.Second * 5,
-		writeTimeout: time.Second * 10,
-		serveTimeout: time.Second * 10,
+		readTimeout:      time.Second * 5,
+		writeTimeout:     time.Second * 10,
+		serveTimeout:     time.Second * 10,
+		concurrencyLimit: 10,
 	}
 }
 
@@ -51,6 +55,9 @@ func (p *Parameters) Validate() error {
 	}
 	if p.serveTimeout <= 0 {
 		return fmt.Errorf("invalid serve timeout: %v, %s", p.serveTimeout, errSuffix)
+	}
+	if p.concurrencyLimit < 1 {
+		return fmt.Errorf("invalid concurrency limit: value should be greater than 0")
 	}
 	return nil
 }
@@ -80,6 +87,13 @@ func WithWriteTimeout(writeTimeout time.Duration) Option {
 func WithServeTimeout(serveTimeout time.Duration) Option {
 	return func(parameters *Parameters) {
 		parameters.serveTimeout = serveTimeout
+	}
+}
+
+// WithConcurrencyLimit is a functional option that configures the `concurrencyLimit` parameter
+func WithConcurrencyLimit(concurrencyLimit int) Option {
+	return func(parameters *Parameters) {
+		parameters.concurrencyLimit = concurrencyLimit
 	}
 }
 
