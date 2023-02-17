@@ -13,6 +13,7 @@ import (
 	"go.uber.org/fx"
 
 	"github.com/celestiaorg/celestia-app/pkg/da"
+
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/availability/cache"
 	disc "github.com/celestiaorg/celestia-node/share/availability/discovery"
@@ -58,21 +59,6 @@ func ensureEmptyCARExists(ctx context.Context, store *eds.Store) error {
 		return nil
 	}
 	return err
-}
-
-func lightGetter(
-	shrexGetter *getters.ShrexGetter,
-	ipldGetter *getters.IPLDGetter,
-) share.Getter {
-	return getters.NewCascadeGetter(
-		[]share.Getter{
-			shrexGetter,
-			ipldGetter,
-		},
-		// based on the default value of das.SampleTimeout.
-		// will no longer be needed when async cascadegetter is merged
-		time.Minute,
-	)
 }
 
 func fullGetter(
