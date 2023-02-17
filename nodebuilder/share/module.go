@@ -11,6 +11,7 @@ import (
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	modp2p "github.com/celestiaorg/celestia-node/nodebuilder/p2p"
 	"github.com/celestiaorg/celestia-node/share"
+	disc "github.com/celestiaorg/celestia-node/share/availability/discovery"
 	"github.com/celestiaorg/celestia-node/share/availability/full"
 	"github.com/celestiaorg/celestia-node/share/availability/light"
 	"github.com/celestiaorg/celestia-node/share/eds"
@@ -51,6 +52,21 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 					return nil
 				}
 			}),
+			// call ensure peers lifecycle from outside peer manager
+			fx.Provide(fx.Annotate(func(lc fx.Lifecycle, discovery *disc.Discovery) {
+				ctx, cancel := context.WithCancel(context.Background())
+				lc.Append(fx.Hook{
+					OnStart: func(context.Context) error {
+						discovery.EnsurePeers(ctx)
+						return nil
+					},
+					OnStop: func(context.Context) error {
+						cancel()
+						return nil
+					},
+				})
+
+			})),
 			fxutil.ProvideAs(getters.NewIPLDGetter, new(share.Getter)),
 			fx.Provide(fx.Annotate(light.NewShareAvailability)),
 			// cacheAvailability's lifecycle continues to use a fx hook,
