@@ -53,20 +53,9 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 				}
 			}),
 			// call ensure peers lifecycle from outside peer manager
-			fx.Provide(fx.Annotate(func(lc fx.Lifecycle, discovery *disc.Discovery) {
-				ctx, cancel := context.WithCancel(context.Background())
-				lc.Append(fx.Hook{
-					OnStart: func(context.Context) error {
-						discovery.EnsurePeers(ctx)
-						return nil
-					},
-					OnStop: func(context.Context) error {
-						cancel()
-						return nil
-					},
-				})
-
-			})),
+			fx.Invoke(func(discover *disc.Discovery) {
+				go discover.EnsurePeers(context.Background())
+			}),
 			fxutil.ProvideAs(getters.NewIPLDGetter, new(share.Getter)),
 			fx.Provide(fx.Annotate(light.NewShareAvailability)),
 			// cacheAvailability's lifecycle continues to use a fx hook,

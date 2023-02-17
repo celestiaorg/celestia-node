@@ -163,7 +163,7 @@ func (s *Swamp) createPeer(ks keystore.Keystore) host.Host {
 // setupGenesis sets up genesis Header.
 // This is required to initialize and start correctly.
 func (s *Swamp) setupGenesis(ctx context.Context) {
-	s.WaitTillHeight(ctx, 1)
+	s.WaitTillHeight(ctx, 2)
 
 	store, err := eds.NewStore(s.t.TempDir(), ds_sync.MutexWrap(ds.NewMapDatastore()))
 	require.NoError(s.t, err)
