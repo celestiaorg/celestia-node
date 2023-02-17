@@ -28,7 +28,6 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 	baseComponents := fx.Options(
 		fx.Supply(*cfg),
 		fx.Error(cfgErr),
-		fx.Supply(modp2p.BlockTime),
 		fx.Provide(
 			func(cfg Config) []store.Option {
 				return []store.Option{

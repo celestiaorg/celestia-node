@@ -19,7 +19,7 @@ const (
 	Private Network = "private"
 	// BlockTime is a network block time.
 	// TODO @renaynay @Wondertan (#790)
-	BlockTime = time.Second * 30
+	BlockTime = time.Second * 15
 )
 
 // Network is a type definition for DA network run by Celestia Node.
