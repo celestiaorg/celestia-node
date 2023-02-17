@@ -143,18 +143,19 @@ func (m *Manager) Start(startCtx context.Context) error {
 		return fmt.Errorf("registering validator: %w", err)
 	}
 
-	_, err = m.shrexSub.Subscribe()
+	shrexSub, err := m.shrexSub.Subscribe()
 	if err != nil {
 		return fmt.Errorf("subscribing to shrexsub: %w", err)
 	}
 
-	sub, err := m.headerSub.Subscribe()
+	headerSub, err := m.headerSub.Subscribe()
 	if err != nil {
 		return fmt.Errorf("subscribing to headersub: %w", err)
 	}
 
 	go m.disc.EnsurePeers(ctx)
-	go m.subscribeHeader(ctx, sub)
+	go m.subscribeHeader(ctx, headerSub)
+	go m.subscribeShrex(ctx, shrexSub)
 	go m.GC(ctx)
 
 	return nil
@@ -233,6 +234,20 @@ func (m *Manager) doneFunc(datahash share.DataHash, peerID peer.ID) DoneFunc {
 			m.getOrCreatePool(datahash.String()).putOnCooldown(peerID)
 		case ResultBlacklistPeer:
 			m.blacklistPeers(peerID)
+		}
+	}
+}
+
+// subscribeShrex reads out shrexsub messages to avoid "subscription too slow" errors.
+func (m *Manager) subscribeShrex(ctx context.Context, sub *shrexsub.Subscription) {
+	defer sub.Cancel()
+
+	for {
+		_, err := sub.Next(ctx)
+		if err != nil {
+			if errors.Is(err, context.Canceled) {
+				return
+			}
 		}
 	}
 }
