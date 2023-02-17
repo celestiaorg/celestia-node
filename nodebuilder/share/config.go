@@ -18,6 +18,9 @@ type Config struct {
 	// AdvertiseInterval is a interval between advertising sessions.
 	// NOTE: only full and bridge can advertise themselves.
 	AdvertiseInterval time.Duration
+	// UseShareExchange is a flag toggling the usage of shrex protocols for blocksync.
+	// NOTE: This config variable only has an effect on full and bridge nodes.
+	UseShareExchange bool
 }
 
 func DefaultConfig() Config {
@@ -25,6 +28,7 @@ func DefaultConfig() Config {
 		PeersLimit:        3,
 		DiscoveryInterval: time.Second * 30,
 		AdvertiseInterval: time.Second * 30,
+		UseShareExchange:  true,
 	}
 }
 
