@@ -81,6 +81,14 @@ func (s *PubSub) AddValidator(validate Validator) error {
 		})
 }
 
+// Relay enables relaying of EDS notifications (DataHash) to other peers without a subscription.
+func (s *PubSub) Relay() (pubsub.RelayCancelFunc, error) {
+	if s.topic == nil {
+		return nil, fmt.Errorf("shrex-push: topic is not started")
+	}
+	return s.topic.Relay()
+}
+
 // Subscribe provides a new Subscription for EDS notifications.
 func (s *PubSub) Subscribe() (*Subscription, error) {
 	if s.topic == nil {
