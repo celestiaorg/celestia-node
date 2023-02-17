@@ -15,7 +15,6 @@ import (
 
 	fraudPkg "github.com/celestiaorg/celestia-node/fraud"
 	headerPkg "github.com/celestiaorg/celestia-node/header"
-	"github.com/celestiaorg/celestia-node/nodebuilder/header"
 
 	"github.com/celestiaorg/celestia-node/nodebuilder/das"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
@@ -46,7 +45,7 @@ func WithMetrics(metricOpts []otlpmetrichttp.Option, nodeType node.Type) fx.Opti
 		fx.Invoke(p2p.WithMetrics),
 		fx.Invoke(fraudPkg.WithMetrics),
 		fx.Invoke(node.WithMetrics),
-		fx.Invoke(header.WithMetrics),
+		// fx.Invoke(header.WithMetrics),
 	)
 
 	var opts fx.Option
