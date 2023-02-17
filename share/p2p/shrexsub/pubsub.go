@@ -35,6 +35,7 @@ type PubSub struct {
 	topic  *pubsub.Topic
 
 	pubsubTopic string
+	cancelRelay pubsub.RelayCancelFunc
 }
 
 // NewPubSub creates a libp2p.PubSub wrapper.
@@ -57,6 +58,12 @@ func (s *PubSub) Start(context.Context) error {
 		return err
 	}
 
+	cancel, err := topic.Relay()
+	if err != nil {
+		return err
+	}
+
+	s.cancelRelay = cancel
 	s.topic = topic
 	return nil
 }
@@ -65,6 +72,7 @@ func (s *PubSub) Start(context.Context) error {
 // * Unregisters all the added Validators
 // * Closes the `ShrEx/Sub` topic
 func (s *PubSub) Stop(context.Context) error {
+	s.cancelRelay()
 	err := s.pubSub.UnregisterTopicValidator(s.pubsubTopic)
 	if err != nil {
 		log.Warnw("unregistering topic", "err", err)
@@ -79,14 +87,6 @@ func (s *PubSub) AddValidator(validate Validator) error {
 		func(ctx context.Context, p peer.ID, msg *pubsub.Message) pubsub.ValidationResult {
 			return validate(ctx, p, msg.Data)
 		})
-}
-
-// Relay enables relaying of EDS notifications (DataHash) to other peers without a subscription.
-func (s *PubSub) Relay() (pubsub.RelayCancelFunc, error) {
-	if s.topic == nil {
-		return nil, fmt.Errorf("shrex-push: topic is not started")
-	}
-	return s.topic.Relay()
 }
 
 // Subscribe provides a new Subscription for EDS notifications.

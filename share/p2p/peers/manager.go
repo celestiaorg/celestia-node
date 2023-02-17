@@ -60,9 +60,8 @@ type Manager struct {
 	// hashes that are not in the chain
 	blacklistedHashes map[string]bool
 
-	cancel           context.CancelFunc
-	shrexRelayCancel pubsub.RelayCancelFunc
-	done             chan struct{}
+	cancel context.CancelFunc
+	done   chan struct{}
 }
 
 // DoneFunc updates internal state depending on call results. Should be called once per returned
@@ -144,12 +143,6 @@ func (m *Manager) Start(startCtx context.Context) error {
 		return fmt.Errorf("registering validator: %w", err)
 	}
 
-	shrexRelayCancel, err := m.shrexSub.Relay()
-	if err != nil {
-		return fmt.Errorf("starting shrexsub relay: %w", err)
-	}
-	m.shrexRelayCancel = shrexRelayCancel
-
 	headerSub, err := m.headerSub.Subscribe()
 	if err != nil {
 		return fmt.Errorf("subscribing to headersub: %w", err)
@@ -164,7 +157,6 @@ func (m *Manager) Start(startCtx context.Context) error {
 
 func (m *Manager) Stop(ctx context.Context) error {
 	m.cancel()
-	m.shrexRelayCancel()
 
 	select {
 	case <-m.done:
