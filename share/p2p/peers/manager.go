@@ -143,18 +143,13 @@ func (m *Manager) Start(startCtx context.Context) error {
 		return fmt.Errorf("registering validator: %w", err)
 	}
 
-	_, err = m.shrexSub.Subscribe()
-	if err != nil {
-		return fmt.Errorf("subscribing to shrexsub: %w", err)
-	}
-
-	sub, err := m.headerSub.Subscribe()
+	headerSub, err := m.headerSub.Subscribe()
 	if err != nil {
 		return fmt.Errorf("subscribing to headersub: %w", err)
 	}
 
 	go m.disc.EnsurePeers(ctx)
-	go m.subscribeHeader(ctx, sub)
+	go m.subscribeHeader(ctx, headerSub)
 	go m.GC(ctx)
 
 	return nil
@@ -162,6 +157,7 @@ func (m *Manager) Start(startCtx context.Context) error {
 
 func (m *Manager) Stop(ctx context.Context) error {
 	m.cancel()
+
 	select {
 	case <-m.done:
 		return nil
