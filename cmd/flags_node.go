@@ -42,7 +42,7 @@ func ParseNodeFlags(ctx context.Context, cmd *cobra.Command, network p2p.Network
 	store := cmd.Flag(nodeStoreFlag).Value.String()
 	if store == "" {
 		tp := NodeType(ctx)
-		store = fmt.Sprintf("~/.celestia-%s-%s", strings.ToLower(tp.String()), strings.ToLower(string(network)))
+		store = fmt.Sprintf("~/.celestia-%s-%s", strings.ToLower(tp.String()), strings.ToLower(network.String()))
 	}
 	ctx = WithStorePath(ctx, store)
 
