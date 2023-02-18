@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/celestiaorg/celestia-node/header/headertest"
 	"github.com/golang/mock/gomock"
 	"github.com/ipfs/go-blockservice"
 	"github.com/ipfs/go-datastore"
@@ -18,7 +19,6 @@ import (
 
 	"github.com/celestiaorg/celestia-node/fraud"
 	"github.com/celestiaorg/celestia-node/header"
-	"github.com/celestiaorg/celestia-node/headertest"
 	libhead "github.com/celestiaorg/celestia-node/libs/header"
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/availability/full"

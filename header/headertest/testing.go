@@ -248,7 +248,6 @@ func RandValidator(randPower bool, minPower int64) (*types.Validator, types.Priv
 	privVal := types.NewMockPV()
 	votePower := minPower
 	if randPower {
-		//nolint:gosec // G404: Use of weak random number generator
 		votePower += int64(rand.Uint32())
 	}
 	pubKey, err := privVal.GetPubKey()

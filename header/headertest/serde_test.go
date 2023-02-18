@@ -3,10 +3,9 @@ package headertest
 import (
 	"testing"
 
+	"github.com/celestiaorg/celestia-node/header"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	"github.com/celestiaorg/celestia-node/header"
 )
 
 func TestMarshalUnmarshalExtendedHeader(t *testing.T) {

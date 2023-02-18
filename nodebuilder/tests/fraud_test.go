@@ -5,13 +5,13 @@ import (
 	"testing"
 	"time"
 
+	"github.com/celestiaorg/celestia-node/header/headertest"
 	mdutils "github.com/ipfs/go-merkledag/test"
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/stretchr/testify/require"
 
 	"github.com/celestiaorg/celestia-node/fraud"
-	"github.com/celestiaorg/celestia-node/headertest"
 	"github.com/celestiaorg/celestia-node/nodebuilder"
 	"github.com/celestiaorg/celestia-node/nodebuilder/core"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"

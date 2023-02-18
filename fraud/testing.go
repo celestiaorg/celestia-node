@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/celestiaorg/celestia-node/header/headertest"
 	"github.com/ipfs/go-datastore"
 	"github.com/ipfs/go-datastore/sync"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
@@ -15,7 +16,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/celestiaorg/celestia-node/header"
-	"github.com/celestiaorg/celestia-node/headertest"
 )
 
 type DummyService struct {

@@ -160,6 +160,7 @@ func (s *session[H]) doRequest(
 		case <-s.ctx.Done():
 		case s.reqCh <- req:
 		}
+		log.Errorw("processing response", "err", err)
 		return
 	}
 	log.Debugw("request headers from peer succeeded", "peer", stat.peerID, "amount", req.Amount)
@@ -201,20 +202,10 @@ func (s *session[H]) validate(headers []H) error {
 		return nil
 	}
 
-	// verify that the first header in range is valid against the trusted header.
-	err := s.from.VerifyNonAdjacent(headers[0])
-	if err != nil {
-		return nil
-	}
-
-	if len(headers) == 1 {
-		return nil
-	}
-
-	trusted := headers[0]
+	trusted := s.from
 	// verify that the whole range is valid.
 	for i := 1; i < len(headers); i++ {
-		err = trusted.VerifyAdjacent(headers[i])
+		err := trusted.Verify(headers[i])
 		if err != nil {
 			return err
 		}

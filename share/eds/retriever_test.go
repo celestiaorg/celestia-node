@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/celestiaorg/celestia-node/header/headertest"
 	"github.com/ipfs/go-blockservice"
 	mdutils "github.com/ipfs/go-merkledag/test"
 	"github.com/stretchr/testify/assert"
@@ -19,7 +20,6 @@ import (
 
 	"github.com/celestiaorg/celestia-node/fraud"
 	"github.com/celestiaorg/celestia-node/header"
-	"github.com/celestiaorg/celestia-node/headertest"
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/eds/byzantine"
 	"github.com/celestiaorg/celestia-node/share/ipld"

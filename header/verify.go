@@ -5,58 +5,51 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/tendermint/tendermint/light"
-
 	libhead "github.com/celestiaorg/celestia-node/libs/header"
+	"github.com/tendermint/tendermint/light"
 )
 
-// TODO(@Wondertan): We should request TrustingPeriod from the network's state params or
-//  listen for network params changes to always have a topical value.
-
-// VerifyNonAdjacent validates non-adjacent untrusted header against trusted 'eh'.
-func (eh *ExtendedHeader) VerifyNonAdjacent(untrusted libhead.Header) error {
+// Verify validates given untrusted Header against trusted ExtendedHeader.
+func (eh *ExtendedHeader) Verify(untrusted libhead.Header) error {
 	untrst, ok := untrusted.(*ExtendedHeader)
 	if !ok {
-		return &libhead.VerifyError{Reason: fmt.Errorf("invalid header type: expected %T, got %T", eh, untrusted)}
+		// if the header of the type was given, something very wrong happens
+		panic(fmt.Sprintf("invalid header type: expected %T, got %T", eh, untrusted))
 	}
+
 	if err := eh.verify(untrst); err != nil {
 		return &libhead.VerifyError{Reason: err}
+	}
+
+	isAdjacent := eh.Height()+1 == untrst.Height()
+	if isAdjacent {
+		// Optimized verification for adjacent headers
+		// Check the validator hashes are the same
+		if !bytes.Equal(untrst.ValidatorsHash, eh.NextValidatorsHash) {
+			return &libhead.VerifyError{
+				Reason: fmt.Errorf("expected old header next validators (%X) to match those from new header (%X)",
+					eh.NextValidatorsHash,
+					untrst.ValidatorsHash,
+				),
+			}
+		}
+
+		if !bytes.Equal(untrst.LastHeader(), eh.Hash()) {
+			return &libhead.VerifyError{
+				Reason: fmt.Errorf("expected new header to point to last header hash (%X), but got %X)",
+					eh.Hash(),
+					untrst.LastHeader(),
+				),
+			}
+		}
+
+		return nil
 	}
 
 	// Ensure that untrusted commit has enough of trusted commit's power.
 	err := eh.ValidatorSet.VerifyCommitLightTrusting(eh.ChainID(), untrst.Commit, light.DefaultTrustLevel)
 	if err != nil {
 		return &libhead.VerifyError{Reason: err}
-	}
-
-	return nil
-}
-
-// VerifyAdjacent validates adjacent untrusted header against trusted 'eh'.
-func (eh *ExtendedHeader) VerifyAdjacent(untrusted libhead.Header) error {
-	untrst, ok := untrusted.(*ExtendedHeader)
-	if !ok {
-		return &libhead.VerifyError{Reason: fmt.Errorf("invalid header type: expected %T, got %T", eh, untrusted)}
-	}
-	if untrst.Height() != eh.Height()+1 {
-		return &libhead.ErrNonAdjacent{
-			Head:      eh.Height(),
-			Attempted: untrst.Height(),
-		}
-	}
-
-	if err := eh.verify(untrst); err != nil {
-		return &libhead.VerifyError{Reason: err}
-	}
-
-	// Check the validator hashes are the same
-	if !bytes.Equal(untrst.ValidatorsHash, eh.NextValidatorsHash) {
-		return &libhead.VerifyError{
-			Reason: fmt.Errorf("expected old header next validators (%X) to match those from new header (%X)",
-				eh.NextValidatorsHash,
-				untrst.ValidatorsHash,
-			),
-		}
 	}
 
 	return nil
