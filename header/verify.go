@@ -5,8 +5,9 @@ import (
 	"fmt"
 	"time"
 
-	libhead "github.com/celestiaorg/celestia-node/libs/header"
 	"github.com/tendermint/tendermint/light"
+
+	libhead "github.com/celestiaorg/celestia-node/libs/header"
 )
 
 // Verify validates given untrusted Header against trusted ExtendedHeader.

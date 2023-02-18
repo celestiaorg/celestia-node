@@ -5,7 +5,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/celestiaorg/celestia-node/header/headertest"
 	"github.com/golang/mock/gomock"
 	"github.com/ipfs/go-blockservice"
 	"github.com/ipfs/go-datastore"
@@ -16,6 +15,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/tendermint/tendermint/types"
+
+	"github.com/celestiaorg/celestia-node/header/headertest"
 
 	"github.com/celestiaorg/celestia-node/fraud"
 	"github.com/celestiaorg/celestia-node/header"

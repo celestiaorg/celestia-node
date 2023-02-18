@@ -3,7 +3,6 @@ package nodebuilder
 import (
 	"testing"
 
-	"github.com/celestiaorg/celestia-node/header/headertest"
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	"github.com/stretchr/testify/require"
@@ -13,6 +12,7 @@ import (
 
 	"github.com/celestiaorg/celestia-node/core"
 	coreheader "github.com/celestiaorg/celestia-node/header"
+	"github.com/celestiaorg/celestia-node/header/headertest"
 	"github.com/celestiaorg/celestia-node/libs/fxutil"
 	"github.com/celestiaorg/celestia-node/libs/header/mocks"
 	"github.com/celestiaorg/celestia-node/nodebuilder/header"

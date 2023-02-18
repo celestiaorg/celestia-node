@@ -5,8 +5,9 @@ import (
 	"testing"
 	"time"
 
-	libhead "github.com/celestiaorg/celestia-node/libs/header"
 	"github.com/stretchr/testify/assert"
+
+	libhead "github.com/celestiaorg/celestia-node/libs/header"
 
 	tmrand "github.com/tendermint/tendermint/libs/rand"
 )
@@ -19,7 +20,7 @@ func TestVerify(t *testing.T) {
 		err     bool
 	}{
 		{
-			prepare: func() libhead.Header {return  untrustedAdj},
+			prepare: func() libhead.Header { return untrustedAdj },
 			err:     false,
 		},
 		{
@@ -60,7 +61,7 @@ func TestVerify(t *testing.T) {
 			err: true,
 		},
 		{
-			prepare: func() libhead.Header{
+			prepare: func() libhead.Header {
 				untrustedAdj.RawHeader.Time = untrustedAdj.RawHeader.Time.Truncate(time.Hour)
 				return untrustedAdj
 			},
