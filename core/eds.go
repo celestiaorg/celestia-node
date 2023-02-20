@@ -2,6 +2,9 @@ package core
 
 import (
 	"context"
+	"errors"
+
+	"github.com/filecoin-project/dagstore"
 
 	"github.com/tendermint/tendermint/types"
 
@@ -34,13 +37,10 @@ func storeEDS(ctx context.Context, hash share.DataHash, eds *rsmt2d.ExtendedData
 	if eds == nil {
 		return nil
 	}
-	has, err := store.Has(ctx, hash)
-	if err != nil {
-		return err
-	}
-	if has {
-		log.Debugw("hash already exists in eds.Store", "hash", hash.String())
+	err := store.Put(ctx, hash, eds)
+	if errors.Is(err, dagstore.ErrShardExists) {
+		// block with given root already exists, return nil
 		return nil
 	}
-	return store.Put(ctx, hash, eds)
+	return err
 }

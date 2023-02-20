@@ -151,6 +151,15 @@ func (s *Store) gc(ctx context.Context) {
 // The resulting file stores all the shares and NMT Merkle Proofs of the EDS.
 // Additionally, the file gets indexed s.t. store.Blockstore can access them.
 func (s *Store) Put(ctx context.Context, root share.DataHash, square *rsmt2d.ExtendedDataSquare) (err error) {
+	// if root already exists, short-circuit
+	has, err := s.Has(ctx, root)
+	if err != nil {
+		return fmt.Errorf("failed to check if root already exists in index: %w", err)
+	}
+	if has {
+		return dagstore.ErrShardExists
+	}
+
 	ctx, span := tracer.Start(ctx, "store/put", trace.WithAttributes(
 		attribute.String("root", root.String()),
 		attribute.Int("width", int(square.Width())),
