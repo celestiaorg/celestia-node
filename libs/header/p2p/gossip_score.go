@@ -6,7 +6,8 @@ import (
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 )
 
-// GossibSubScore provides a set of recommended parameters for header GossipSub topic, a.k.a HeaderSub.
+// GossibSubScore provides a set of recommended parameters for header GossipSub topic, a.k.a
+// HeaderSub.
 var GossibSubScore = &pubsub.TopicScoreParams{
 	// expected > 1 tx/second
 	TopicWeight: 0.1, // max cap is 5, single invalid message is -100
