@@ -63,15 +63,15 @@ var clockDrift = 10 * time.Second
 // verify performs basic verification of untrusted header.
 func (eh *ExtendedHeader) verify(untrst libhead.Header) error {
 	if untrst.Height() <= eh.Height() {
-		return fmt.Errorf("new untrusted header height <= current trusted header (trusted: %d, untrusted: %d)", eh.Height(), untrst.Height())
+		return fmt.Errorf("untrusted header height(%d) <= current trusted header(%d)", untrst.Height(), eh.Height())
 	}
 
 	if untrst.ChainID() != eh.ChainID() {
-		return fmt.Errorf("new untrusted header has different chain %s, not %s", untrst.ChainID(), eh.ChainID())
+		return fmt.Errorf("untrusted header has different chain %s, not %s", untrst.ChainID(), eh.ChainID())
 	}
 
 	if !untrst.Time().After(eh.Time()) {
-		return fmt.Errorf("expected new untrusted header time %v to be after current trusted header time %v", untrst.Time(), eh.Time())
+		return fmt.Errorf("untrusted header time(%v) must be after current trusted header(%v)", untrst.Time(), eh.Time())
 	}
 
 	now := time.Now()
