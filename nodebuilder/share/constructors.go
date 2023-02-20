@@ -36,6 +36,24 @@ func discovery(cfg Config) func(routing.ContentRouting, host.Host) *disc.Discove
 	}
 }
 
+// ensurePeersLifecycle controls the lifecycle for discovering full nodes.
+// This constructor is in place of the peer manager which generally controls the
+// EnsurePeers lifecycle.
+func ensurePeersLifecycle(lc fx.Lifecycle, discovery *disc.Discovery) error {
+	ctx, cancel := context.WithCancel(context.Background())
+	lc.Append(fx.Hook{
+		OnStart: func(context.Context) error {
+			go discovery.EnsurePeers(ctx)
+			return nil
+		},
+		OnStop: func(context.Context) error {
+			cancel()
+			return nil
+		},
+	})
+	return nil
+}
+
 // cacheAvailability wraps either Full or Light availability with a cache for result sampling.
 func cacheAvailability[A share.Availability](lc fx.Lifecycle, ds datastore.Batching, avail A) share.Availability {
 	ca := cache.NewShareAvailability(avail, ds)
