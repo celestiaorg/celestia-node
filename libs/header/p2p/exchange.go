@@ -33,6 +33,8 @@ type Exchange[H header.Header] struct {
 	peerTracker  *peerTracker
 
 	Params ClientParameters
+
+	metrics *metrics
 }
 
 func NewExchange[H header.Header](
@@ -51,7 +53,7 @@ func NewExchange[H header.Header](
 		return nil, err
 	}
 
-	return &Exchange[H]{
+	ex := &Exchange[H]{
 		host:         host,
 		protocolID:   protocolID(params.protocolSuffix),
 		trustedPeers: peers,
@@ -63,7 +65,17 @@ func NewExchange[H header.Header](
 			params.MaxPeerTrackerSize,
 		),
 		Params: params,
-	}, nil
+	}
+
+	if params.MetricsEnabled {
+		m, err := registerMetrics()
+		if err != nil {
+			return nil, err
+		}
+		ex.metrics = m
+	}
+
+	return ex, nil
 }
 
 func (ex *Exchange[H]) Start(context.Context) error {
@@ -142,7 +154,13 @@ LOOP:
 		}
 	}
 
-	return bestHead[H](result, ex.Params.MinResponses)
+	bestHeader, minResponses := bestHead[H](result, ex.Params.MinResponses)
+
+	if ex.Params.MetricsEnabled {
+		ex.metrics.ObserveBestHead(ctx, bestHeader.Height())
+	}
+
+	return bestHeader, minResponses
 }
 
 // GetByHeight performs a request for the Header at the given
@@ -251,7 +269,11 @@ func (ex *Exchange[H]) request(
 	req *p2p_pb.HeaderRequest,
 ) ([]H, error) {
 	log.Debugw("requesting peer", "peer", to)
-	responses, _, _, err := sendMessage(ctx, ex.host, to, ex.protocolID, req)
+	responses, size, duration, err := sendMessage(ctx, ex.host, to, ex.protocolID, req)
+	if ex.Params.MetricsEnabled {
+		ex.metrics.ObserveRequest(ctx, size, duration)
+	}
+
 	if err != nil {
 		log.Debugw("err sending request", "peer", to, "err", err)
 		return nil, err

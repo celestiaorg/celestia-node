@@ -1,12 +1,18 @@
 package header
 
-// WithBlackBoxMetrics is a header service option that wraps the header service
-// with a proxied header service that records metrics for the header service.
-func WithBlackBoxMetrics(hs Module) (Module, error) {
-	instrumentedHeaderServ, err := newBlackBoxInstrument(hs)
-	if err != nil {
-		return nil, err
-	}
+import (
+	"github.com/celestiaorg/celestia-node/libs/header/p2p"
+	modp2p "github.com/celestiaorg/celestia-node/nodebuilder/p2p"
+	"go.uber.org/fx"
+)
 
-	return instrumentedHeaderServ, nil
+// WithMetrics provides sets `MetricsEnabled` to true on ClientParameters for the header exchange
+func WithMetrics() fx.Option {
+	return fx.Provide(
+		func(cfg Config, network modp2p.Network) []p2p.Option[p2p.ClientParameters] {
+			return []p2p.Option[p2p.ClientParameters]{
+				p2p.WithMetrics(),
+			}
+		},
+	)
 }

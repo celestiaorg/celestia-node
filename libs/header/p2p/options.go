@@ -142,6 +142,8 @@ type ClientParameters struct {
 	MaxPeerTrackerSize int
 	// protocolSuffix is a network suffix that will be used to create a protocol.ID
 	protocolSuffix string
+	// EnableMetrics enables metrics collection for the exchange.
+	MetricsEnabled bool
 }
 
 // DefaultClientParameters returns the default params to configure the store.
@@ -155,6 +157,7 @@ func DefaultClientParameters() ClientParameters {
 		RequestTimeout:             time.Second * 3,
 		TrustedPeersRequestTimeout: time.Millisecond * 300,
 		MaxPeerTrackerSize:         100,
+		MetricsEnabled:             false,
 	}
 }
 
@@ -251,6 +254,16 @@ func WithMaxTrackerSize[T ClientParameters](size int) Option[T] {
 		switch t := any(p).(type) { //nolint:gocritic
 		case *ClientParameters:
 			t.MaxPeerTrackerSize = size
+		}
+	}
+}
+
+// WithMetrics is a functional option that enables metrics collection.
+func WithMetrics[T ClientParameters]() Option[T] {
+	return func(p *T) {
+		switch t := any(p).(type) { //nolint:gocritic
+		case *ClientParameters:
+			t.MetricsEnabled = true
 		}
 	}
 }

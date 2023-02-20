@@ -14,10 +14,10 @@ import (
 	"go.uber.org/fx"
 
 	fraudPkg "github.com/celestiaorg/celestia-node/fraud"
+	"github.com/celestiaorg/celestia-node/header"
 	headerPkg "github.com/celestiaorg/celestia-node/header"
 
 	"github.com/celestiaorg/celestia-node/nodebuilder/das"
-	"github.com/celestiaorg/celestia-node/nodebuilder/header"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
 	sharePkg "github.com/celestiaorg/celestia-node/nodebuilder/share"
@@ -46,6 +46,7 @@ func WithMetrics(metricOpts []otlpmetrichttp.Option, nodeType node.Type) fx.Opti
 		fx.Invoke(p2p.WithMetrics),
 		fx.Invoke(fraudPkg.WithMetrics),
 		fx.Invoke(node.WithMetrics),
+		fx.Invoke(header.WithMetrics),
 	)
 
 	var opts fx.Option
@@ -73,14 +74,6 @@ func WithMetrics(metricOpts []otlpmetrichttp.Option, nodeType node.Type) fx.Opti
 // on each method call.
 func WithBlackboxMetrics() fx.Option {
 	return fx.Options(
-		fx.Decorate(func(mod header.Module) header.Module {
-			headerMod, err := header.WithBlackBoxMetrics(mod)
-			if err != nil {
-				log.Warn("WithBlackBoxMetrics: providing header.Module:", err)
-				return mod
-			}
-			return headerMod
-		}),
 		fx.Decorate(sharePkg.WithBlackBoxMetrics),
 	)
 }
