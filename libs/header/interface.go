@@ -41,6 +41,7 @@ type Broadcaster[H Header] interface {
 // from the network.
 type Exchange[H Header] interface {
 	Getter[H]
+	RegisterMetrics() error
 }
 
 var (

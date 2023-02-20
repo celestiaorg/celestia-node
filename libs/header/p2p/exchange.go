@@ -53,7 +53,7 @@ func NewExchange[H header.Header](
 		return nil, err
 	}
 
-	ex := &Exchange[H]{
+	return &Exchange[H]{
 		host:         host,
 		protocolID:   protocolID(params.protocolSuffix),
 		trustedPeers: peers,
@@ -65,17 +65,7 @@ func NewExchange[H header.Header](
 			params.MaxPeerTrackerSize,
 		),
 		Params: params,
-	}
-
-	if params.MetricsEnabled {
-		m, err := registerMetrics()
-		if err != nil {
-			return nil, err
-		}
-		ex.metrics = m
-	}
-
-	return ex, nil
+	}, nil
 }
 
 func (ex *Exchange[H]) Start(context.Context) error {
@@ -155,11 +145,7 @@ LOOP:
 	}
 
 	bestHeader, minResponses := bestHead[H](result, ex.Params.MinResponses)
-
-	if ex.Params.MetricsEnabled {
-		ex.metrics.ObserveBestHead(ctx, bestHeader.Height())
-	}
-
+	ex.metrics.ObserveBestHead(ctx, bestHeader.Height())
 	return bestHeader, minResponses
 }
 
@@ -270,9 +256,7 @@ func (ex *Exchange[H]) request(
 ) ([]H, error) {
 	log.Debugw("requesting peer", "peer", to)
 	responses, size, duration, err := sendMessage(ctx, ex.host, to, ex.protocolID, req)
-	if ex.Params.MetricsEnabled {
-		ex.metrics.ObserveRequest(ctx, size, duration)
-	}
+	ex.metrics.ObserveRequest(ctx, size, duration)
 
 	if err != nil {
 		log.Debugw("err sending request", "peer", to, "err", err)

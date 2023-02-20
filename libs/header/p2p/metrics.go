@@ -26,7 +26,7 @@ var (
 	meter = global.MeterProvider().Meter("libs/header/p2p")
 )
 
-func registerMetrics() (*metrics, error) {
+func (ex *Exchange[H]) RegisterMetrics() error {
 	responseSize, err := meter.
 		SyncFloat64().
 		Histogram(
@@ -44,7 +44,7 @@ func registerMetrics() (*metrics, error) {
 			instrument.WithDescription("Duration of get headers request in seconds"),
 		)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	bestHead, err := meter.
@@ -54,7 +54,7 @@ func registerMetrics() (*metrics, error) {
 			instrument.WithDescription("Latest/best observed height"),
 		)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	blockTime, err := meter.
@@ -64,7 +64,7 @@ func registerMetrics() (*metrics, error) {
 			instrument.WithDescription("block time"),
 		)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	m := &metrics{
@@ -80,10 +80,12 @@ func registerMetrics() (*metrics, error) {
 		bestHead.Observe(ctx, float64(head))
 	})
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	return m, nil
+	ex.metrics = m
+
+	return nil
 }
 
 func (m *metrics) ObserveRequest(ctx context.Context, size uint64, duration uint64) {
