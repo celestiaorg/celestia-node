@@ -103,8 +103,8 @@ func (r *Retriever) Retrieve(ctx context.Context, dah *da.DataAvailabilityHeader
 // quadrant request retries. Also, provides an API
 // to reconstruct the block once enough shares are fetched.
 type retrievalSession struct {
-	dah   *da.DataAvailabilityHeader
-	bget  blockservice.BlockGetter
+	dah  *da.DataAvailabilityHeader
+	bget blockservice.BlockGetter
 
 	// TODO(@Wondertan): Extract into a separate data structure
 	// https://github.com/celestiaorg/rsmt2d/issues/135
