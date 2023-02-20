@@ -93,6 +93,7 @@ func (w *worker) run(
 				"square width", len(h.DAH.RowsRoots),
 				"data root", h.DAH.Hash(),
 				"err", err,
+				"timeout", time.Since(startSample),
 			)
 			continue
 		}
