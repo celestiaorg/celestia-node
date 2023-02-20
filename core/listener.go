@@ -109,20 +109,10 @@ func (cl *Listener) listen(ctx context.Context, sub <-chan *types.Block) {
 				return
 			}
 			// attempt to store block data if not empty
-			if eds != nil {
-				// check if hash already exists in store, and if not, store it
-				exists, err := cl.store.Has(ctx, eh.DAH.Hash())
-				if err != nil {
-					log.Errorw("listener: checking if eds exists in store", "err", err)
-					return
-				}
-				if !exists {
-					err = cl.store.Put(ctx, eh.DAH.Hash(), eds)
-					if err != nil {
-						log.Errorw("listener: storing extended square", "err", err)
-						return
-					}
-				}
+			err = storeEDS(ctx, eh.DAH.Hash(), eds, cl.store)
+			if err != nil {
+				log.Errorw("listener: storing EDS", "err", err)
+				return
 			}
 
 			// notify network of new EDS hash only if core is already synced
