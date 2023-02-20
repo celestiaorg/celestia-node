@@ -5,6 +5,7 @@ import (
 	"errors"
 	"time"
 
+	"github.com/celestiaorg/celestia-node/libs/fxutil"
 	"github.com/filecoin-project/dagstore"
 	"github.com/ipfs/go-datastore"
 	"github.com/libp2p/go-libp2p/core/host"
@@ -39,15 +40,11 @@ func discovery(cfg Config) func(routing.ContentRouting, host.Host) *disc.Discove
 // ensurePeersLifecycle controls the lifecycle for discovering full nodes.
 // This constructor is in place of the peer manager which generally controls the
 // EnsurePeers lifecycle.
-func ensurePeersLifecycle(lc fx.Lifecycle, discovery *disc.Discovery) error {
-	ctx, cancel := context.WithCancel(context.Background())
+func ensurePeersLifecycle(ctx context.Context, lc fx.Lifecycle, discovery *disc.Discovery) error {
+	ctx = fxutil.WithLifecycle(ctx, lc)
 	lc.Append(fx.Hook{
 		OnStart: func(context.Context) error {
 			go discovery.EnsurePeers(ctx)
-			return nil
-		},
-		OnStop: func(context.Context) error {
-			cancel()
 			return nil
 		},
 	})
