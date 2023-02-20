@@ -372,11 +372,14 @@ func (s *Store) Has(ctx context.Context, root share.DataHash) (bool, error) {
 
 	key := root.String()
 	info, err := s.dgstr.GetShardInfo(shard.KeyFromString(key))
-	if err == dagstore.ErrShardUnknown {
+	switch err {
+	case nil:
+		return true, info.Error
+	case dagstore.ErrShardUnknown:
+		return false, info.Error
+	default:
 		return false, err
 	}
-
-	return true, info.Error
 }
 
 func setupPath(basepath string) error {

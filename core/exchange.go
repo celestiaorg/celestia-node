@@ -99,14 +99,20 @@ func (ce *Exchange) Get(ctx context.Context, hash libhead.Hash) (*header.Extende
 	if !bytes.Equal(hash, eh.Hash()) {
 		return nil, fmt.Errorf("incorrect hash in header: expected %x, got %x", hash, eh.Hash())
 	}
-	// store extended block if it is not empty
-	if eds != nil {
+	// only store extended block if it is not empty and doesn't already exist
+	if eds == nil {
+		return eh, nil
+	}
+	has, err := ce.store.Has(ctx, eh.DAH.Hash())
+	if err != nil {
+		return nil, err
+	}
+	if !has {
 		err = ce.store.Put(ctx, eh.DAH.Hash(), eds)
 		if err != nil {
 			return nil, err
 		}
 	}
-
 	return eh, nil
 }
 

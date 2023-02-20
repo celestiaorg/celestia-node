@@ -108,12 +108,20 @@ func (cl *Listener) listen(ctx context.Context, sub <-chan *types.Block) {
 				log.Errorw("listener: making extended header", "err", err)
 				return
 			}
-			// store block data if not empty
+			// attempt to store block data if not empty
 			if eds != nil {
-				err = cl.store.Put(ctx, eh.DAH.Hash(), eds)
+				// check if hash already exists in store, and if not, store it
+				exists, err := cl.store.Has(ctx, eh.DAH.Hash())
 				if err != nil {
-					log.Errorw("listener: storing extended header", "err", err)
+					log.Errorw("listener: checking if eds exists in store", "err", err)
 					return
+				}
+				if !exists {
+					err = cl.store.Put(ctx, eh.DAH.Hash(), eds)
+					if err != nil {
+						log.Errorw("listener: storing extended square", "err", err)
+						return
+					}
 				}
 			}
 
