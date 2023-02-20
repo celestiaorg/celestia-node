@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"math/rand"
 	"sort"
-	"time"
 
 	logging "github.com/ipfs/go-log/v2"
 	"github.com/libp2p/go-libp2p/core/host"
@@ -34,8 +33,6 @@ type Exchange[H header.Header] struct {
 	peerTracker  *peerTracker
 
 	Params ClientParameters
-
-	sendMsg sendMessageFunc
 }
 
 func NewExchange[H header.Header](
@@ -65,8 +62,7 @@ func NewExchange[H header.Header](
 			params.DefaultScore,
 			params.MaxPeerTrackerSize,
 		),
-		Params:  params,
-		sendMsg: sendMessage, // default
+		Params: params,
 	}, nil
 }
 
@@ -171,27 +167,13 @@ func (ex *Exchange[H]) GetByHeight(ctx context.Context, height uint64) (H, error
 	return headers[0], nil
 }
 
-// newSession creates a new session for the given host.
-// This method was created to enable proxying the session creation
-// when enabling metrics.
-func (ex *Exchange[H]) SessionFactory(
-	ctx context.Context,
-	h host.Host,
-	peerTracker *peerTracker,
-	protocolID protocol.ID,
-	requestTimeout time.Duration,
-	options ...option[H],
-) *session[H] {
-	return newSession(ctx, h, peerTracker, protocolID, requestTimeout, options...)
-}
-
 // GetRangeByHeight performs a request for the given range of Headers
 // to the network. Note that the Headers must be verified thereafter.
 func (ex *Exchange[H]) GetRangeByHeight(ctx context.Context, from, amount uint64) ([]H, error) {
 	if amount > ex.Params.MaxRequestSize {
 		return nil, header.ErrHeadersLimitExceeded
 	}
-	session := ex.SessionFactory(ex.ctx, ex.host, ex.peerTracker, ex.protocolID, ex.Params.RequestTimeout)
+	session := newSession[H](ex.ctx, ex.host, ex.peerTracker, ex.protocolID, ex.Params.RequestTimeout)
 	defer session.close()
 	return session.getRangeByHeight(ctx, from, amount, ex.Params.MaxHeadersPerRequest)
 }
@@ -203,7 +185,7 @@ func (ex *Exchange[H]) GetVerifiedRange(
 	from H,
 	amount uint64,
 ) ([]H, error) {
-	session := ex.SessionFactory(
+	session := newSession[H](
 		ex.ctx, ex.host, ex.peerTracker, ex.protocolID, ex.Params.RequestTimeout, withValidation(from),
 	)
 	defer session.close()
@@ -262,54 +244,35 @@ func (ex *Exchange[H]) performRequest(
 	}
 }
 
-// requestWithSendMsgFunc is a function factory helper method that allows to use
-// the Exchange with a custom sendMessageFunc.
-// This is useful to enable instrumentation middlewares.
-// check exchange_metrics.go for more information.
-func (ex *Exchange[H]) requestWithSendMsgFunc(sender sendMessageFunc) func(
-	context.Context,
-	peer.ID,
-	*p2p_pb.HeaderRequest,
-) ([]H, error) {
-	return func(
-		ctx context.Context,
-		to peer.ID,
-		req *p2p_pb.HeaderRequest,
-	) ([]H, error) {
-		log.Debugw("requesting peer", "peer", to)
-		responses, _, _, err := sender(ctx, ex.host, to, ex.protocolID, req)
-		if err != nil {
-			log.Debugw("err sending request", "peer", to, "err", err)
-			return nil, err
-		}
-		if len(responses) == 0 {
-			return nil, header.ErrNotFound
-		}
-		headers := make([]H, 0, len(responses))
-		for _, response := range responses {
-			if err = convertStatusCodeToError(response.StatusCode); err != nil {
-				return nil, err
-			}
-			var empty H
-			header := empty.New()
-			err := header.UnmarshalBinary(response.Body)
-			// ex.metrics.trackResponseSize(len(response.Body))
-			if err != nil {
-				return nil, err
-			}
-			headers = append(headers, header.(H))
-		}
-		return headers, nil
-	}
-}
-
 // request sends the HeaderRequest to a remote peer.
 func (ex *Exchange[H]) request(
 	ctx context.Context,
 	to peer.ID,
 	req *p2p_pb.HeaderRequest,
 ) ([]H, error) {
-	return ex.requestWithSendMsgFunc(ex.sendMsg)(ctx, to, req)
+	log.Debugw("requesting peer", "peer", to)
+	responses, _, _, err := sendMessage(ctx, ex.host, to, ex.protocolID, req)
+	if err != nil {
+		log.Debugw("err sending request", "peer", to, "err", err)
+		return nil, err
+	}
+	if len(responses) == 0 {
+		return nil, header.ErrNotFound
+	}
+	headers := make([]H, 0, len(responses))
+	for _, response := range responses {
+		if err = convertStatusCodeToError(response.StatusCode); err != nil {
+			return nil, err
+		}
+		var empty H
+		header := empty.New()
+		err := header.UnmarshalBinary(response.Body)
+		if err != nil {
+			return nil, err
+		}
+		headers = append(headers, header.(H))
+	}
+	return headers, nil
 }
 
 // bestHead chooses Header that matches the conditions:
