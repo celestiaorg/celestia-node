@@ -7,6 +7,8 @@ import (
 )
 
 // GossibSubScore provides a set of recommended parameters for header GossipSub topic, a.k.a HeaderSub.
+// TODO(@Wondertan): We should disable mesh on publish for this topic to minimize chances of censoring FPs
+//  by eclipsing nodes producing them
 var GossibSubScore = &pubsub.TopicScoreParams{
 	// expected > 1 tx/second
 	TopicWeight: 0.1, // max cap is 5, single invalid message is -100
@@ -16,16 +18,18 @@ var GossibSubScore = &pubsub.TopicScoreParams{
 	TimeInMeshQuantum: time.Second,
 	TimeInMeshCap:     1,
 
-	// deliveries decay after 10min, cap at 100 tx
-	FirstMessageDeliveriesWeight: 0.5, // max value is 50
-	FirstMessageDeliveriesDecay:  pubsub.ScoreParameterDecay(10 * time.Minute),
-	FirstMessageDeliveriesCap:    100, // 100 messages in 10 minutes
+	// messages in such topics should almost never exist, but very valuable if happens
+	// so giving max weight
+	FirstMessageDeliveriesWeight: 50,
+	FirstMessageDeliveriesDecay:  pubsub.ScoreParameterDecay(10 * time.Hour),
+	// no cap, if the peer is giving us *valid* FPs, just keep increasing peer's score with no limit
+	// again, this is such a rare case to happen, but if it happens, we should prefer the peer who
+	// gave it to us
+	FirstMessageDeliveriesCap:    0,
 
-	// invalid messages decay after 1 hour
-	InvalidMessageDeliveriesWeight: -1000,
-	InvalidMessageDeliveriesDecay:  pubsub.ScoreParameterDecay(time.Hour),
+	// we don't really need this, as we block list peers who give us a bad message,
+	// so disabled
+	InvalidMessageDeliveriesWeight: 0,
 
-	// Mesh Delivery Failure is currently turned off for messages
-	// This is on purpose as the network is still too small, which results in
-	// asymmetries and potential unmeshing from negative scores.
+	// Mesh Delivery Scoring is turned off as well.
 }
