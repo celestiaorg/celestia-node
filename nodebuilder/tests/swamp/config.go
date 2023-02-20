@@ -6,28 +6,28 @@ import (
 	"github.com/celestiaorg/celestia-node/core"
 )
 
-// Components struct represents a set of pre-requisite attributes from the test scenario
-type Components struct {
+// Config struct represents a set of pre-requisite attributes from the test scenario
+type Config struct {
 	*core.TestConfig
 }
 
-// DefaultComponents creates a celestia-app instance with a block time of around
+// DefaultConfig creates a celestia-app instance with a block time of around
 // 100ms
-func DefaultComponents() *Components {
+func DefaultConfig() *Config {
 	cfg := core.DefaultTestConfig()
 	// timeout commits faster than this tend to be flakier
 	cfg.Tendermint.Consensus.TimeoutCommit = 200 * time.Millisecond
-	return &Components{
+	return &Config{
 		cfg,
 	}
 }
 
 // Option for modifying Swamp's Config.
-type Option func(*Components)
+type Option func(*Config)
 
 // WithBlockTime sets a custom interval for block creation.
 func WithBlockTime(t time.Duration) Option {
-	return func(c *Components) {
+	return func(c *Config) {
 		// for empty block
 		c.Tendermint.Consensus.CreateEmptyBlocksInterval = t
 		// for filled block

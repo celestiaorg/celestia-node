@@ -49,7 +49,7 @@ type Swamp struct {
 	BridgeNodes []*nodebuilder.Node
 	FullNodes   []*nodebuilder.Node
 	LightNodes  []*nodebuilder.Node
-	comps       *Components
+	comps       *Config
 
 	ClientContext testnode.Context
 	Accounts      []string
@@ -63,7 +63,7 @@ func NewSwamp(t *testing.T, options ...Option) *Swamp {
 		logs.SetDebugLogging()
 	}
 
-	ic := DefaultComponents()
+	ic := DefaultConfig()
 	for _, option := range options {
 		option(ic)
 	}
