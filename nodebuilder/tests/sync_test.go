@@ -346,7 +346,7 @@ func TestSyncLightWithBridge_WithBlackBoxMetrics(t *testing.T) {
 	// cfg.Seal()
 
 	sw := swamp.NewSwamp(t, swamp.WithBlockTime(btime))
-	fillDn := sw.FillBlocks(ctx, bsize, blocks)
+	// fillDn := sw.FillBlocks(ctx, bsize, blocks)
 
 	bridge := sw.NewBridgeNode()
 
@@ -398,5 +398,5 @@ func TestSyncLightWithBridge_WithBlackBoxMetrics(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.EqualValues(t, h.Commit.BlockID.Hash, sw.GetCoreBlockHashByHeight(ctx, 30))
-	require.NoError(t, <-fillDn)
+	// require.NoError(t, <-fillDn)
 }

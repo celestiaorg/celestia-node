@@ -144,9 +144,7 @@ LOOP:
 		}
 	}
 
-	bestHeader, minResponses := bestHead[H](result, ex.Params.MinResponses)
-	ex.metrics.ObserveBestHead(ctx, bestHeader.Height())
-	return bestHeader, minResponses
+	return bestHead[H](result, ex.Params.MinResponses)
 }
 
 // GetByHeight performs a request for the Header at the given
