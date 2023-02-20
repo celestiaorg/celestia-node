@@ -46,6 +46,8 @@ type Discovery struct {
 	advertiseInterval time.Duration
 	// onUpdatedPeers will be called on peer set changes
 	onUpdatedPeers OnUpdatedPeers
+
+	cancel context.CancelFunc
 }
 
 type OnUpdatedPeers func(peerID peer.ID, isAdded bool)
@@ -59,15 +61,28 @@ func NewDiscovery(
 	advertiseInterval time.Duration,
 ) *Discovery {
 	return &Discovery{
-		newLimitedSet(peersLimit),
-		h,
-		d,
-		newBackoffConnector(h, defaultBackoffFactory),
-		peersLimit,
-		discInterval,
-		advertiseInterval,
-		func(peer.ID, bool) {},
+		set:               newLimitedSet(peersLimit),
+		host:              h,
+		disc:              d,
+		connector:         newBackoffConnector(h, defaultBackoffFactory),
+		peersLimit:        peersLimit,
+		discoveryInterval: discInterval,
+		advertiseInterval: advertiseInterval,
+		onUpdatedPeers:    func(peer.ID, bool) {},
 	}
+}
+
+func (d *Discovery) Start(context.Context) error {
+	ctx, cancel := context.WithCancel(context.Background())
+	d.cancel = cancel
+
+	go d.EnsurePeers(ctx)
+	return nil
+}
+
+func (d *Discovery) Stop(context.Context) error {
+	d.cancel()
+	return nil
 }
 
 // WithOnPeersUpdate chains OnPeersUpdate callbacks on every update of discovered peers list.
