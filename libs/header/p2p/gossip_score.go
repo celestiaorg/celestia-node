@@ -16,10 +16,10 @@ var GossibSubScore = &pubsub.TopicScoreParams{
 	TimeInMeshQuantum: time.Second,
 	TimeInMeshCap:     1,
 
-	// deliveries decay after 10min, cap at 100 tx
-	FirstMessageDeliveriesWeight: 0.5, // max value is 50
-	FirstMessageDeliveriesDecay:  pubsub.ScoreParameterDecay(10 * time.Minute),
-	FirstMessageDeliveriesCap:    100, // 100 messages in 10 minutes
+	// deliveries decay after 1 hour, cap at 100 blocks
+	FirstMessageDeliveriesWeight: 5, // max value is 500
+	FirstMessageDeliveriesDecay:  pubsub.ScoreParameterDecay(time.Hour),
+	FirstMessageDeliveriesCap:    100, // 100 blocks in an hour
 
 	// invalid messages decay after 1 hour
 	InvalidMessageDeliveriesWeight: -1000,
