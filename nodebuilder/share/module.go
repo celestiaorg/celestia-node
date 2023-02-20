@@ -42,6 +42,78 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 		fx.Provide(newModule),
 	)
 
+	bridgeAndFullComponents := fx.Options(
+		fx.Invoke(func(edsSrv *shrexeds.Server, ndSrc *shrexnd.Server) {}), // TODO: why do we need this ?
+		fx.Provide(fx.Annotate(
+			func(host host.Host, store *eds.Store, network modp2p.Network) (*shrexeds.Server, error) {
+				return shrexeds.NewServer(host, store, shrexeds.WithProtocolSuffix(network.String()))
+			},
+			fx.OnStart(func(ctx context.Context, server *shrexeds.Server) error {
+				return server.Start(ctx)
+			}),
+			fx.OnStop(func(ctx context.Context, server *shrexeds.Server) error {
+				return server.Stop(ctx)
+			}),
+		)),
+		fx.Provide(fx.Annotate(
+			func(
+				host host.Host,
+				store *eds.Store,
+				getter *getters.IPLDGetter,
+				network modp2p.Network,
+			) (*shrexnd.Server, error) {
+				return shrexnd.NewServer(host, store, getter, shrexnd.WithProtocolSuffix(string(network)))
+			},
+			fx.OnStart(func(ctx context.Context, server *shrexnd.Server) error {
+				return server.Start(ctx)
+			}),
+			fx.OnStop(func(ctx context.Context, server *shrexnd.Server) error {
+				return server.Stop(ctx)
+			}),
+		)),
+		fx.Provide(fx.Annotate(
+			func(path node.StorePath, ds datastore.Batching) (*eds.Store, error) {
+				return eds.NewStore(string(path), ds)
+			},
+			fx.OnStart(func(ctx context.Context, store *eds.Store) error {
+				err := store.Start(ctx)
+				if err != nil {
+					return err
+				}
+
+				return ensureEmptyCARExists(ctx, store)
+			}),
+			fx.OnStop(func(ctx context.Context, store *eds.Store) error {
+				return store.Stop(ctx)
+			}),
+		)),
+		fx.Provide(fx.Annotate(
+			full.NewShareAvailability,
+			fx.OnStart(func(ctx context.Context, avail *full.ShareAvailability) error {
+				return avail.Start(ctx)
+			}),
+			fx.OnStop(func(ctx context.Context, avail *full.ShareAvailability) error {
+				return avail.Stop(ctx)
+			}),
+		)),
+		// cacheAvailability's lifecycle continues to use a fx hook,
+		// since the LC requires a cacheAvailability but the constructor returns a share.Availability
+		fx.Provide(cacheAvailability[*full.ShareAvailability]),
+		fx.Provide(func(shrexSub *shrexsub.PubSub) shrexsub.BroadcastFn {
+			return shrexSub.Broadcast
+		}),
+		fx.Provide(
+			func(ctx context.Context, h host.Host, network modp2p.Network) (*shrexsub.PubSub, error) {
+				return shrexsub.NewPubSub(
+					ctx,
+					h,
+					string(network),
+				)
+			},
+		),
+		fx.Provide(getters.NewIPLDGetter),
+	)
+
 	switch tp {
 	case node.Light:
 		return fx.Module(
@@ -60,69 +132,20 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 			// since the LC requires a cacheAvailability but the constructor returns a share.Availability
 			fx.Provide(cacheAvailability[*light.ShareAvailability]),
 		)
-	case node.Bridge, node.Full:
+	case node.Bridge:
 		return fx.Module(
 			"share",
 			baseComponents,
-			fx.Invoke(func(edsSrv *shrexeds.Server, ndSrc *shrexnd.Server) {}),
-			fx.Provide(fx.Annotate(
-				func(host host.Host, store *eds.Store, network modp2p.Network) (*shrexeds.Server, error) {
-					return shrexeds.NewServer(host, store, shrexeds.WithProtocolSuffix(network.String()))
-				},
-				fx.OnStart(func(ctx context.Context, server *shrexeds.Server) error {
-					return server.Start(ctx)
-				}),
-				fx.OnStop(func(ctx context.Context, server *shrexeds.Server) error {
-					return server.Stop(ctx)
-				}),
-			)),
-			fx.Provide(fx.Annotate(
-				func(
-					host host.Host,
-					store *eds.Store,
-					getter *getters.IPLDGetter,
-					network modp2p.Network,
-				) (*shrexnd.Server, error) {
-					return shrexnd.NewServer(host, store, getter, shrexnd.WithProtocolSuffix(network.String()))
-				},
-				fx.OnStart(func(ctx context.Context, server *shrexnd.Server) error {
-					return server.Start(ctx)
-				}),
-				fx.OnStop(func(ctx context.Context, server *shrexnd.Server) error {
-					return server.Stop(ctx)
-				}),
-			)),
-			fx.Provide(fx.Annotate(
-				func(path node.StorePath, ds datastore.Batching) (*eds.Store, error) {
-					return eds.NewStore(string(path), ds)
-				},
-				fx.OnStart(func(ctx context.Context, store *eds.Store) error {
-					err := store.Start(ctx)
-					if err != nil {
-						return err
-					}
-
-					return ensureEmptyCARExists(ctx, store)
-				}),
-				fx.OnStop(func(ctx context.Context, store *eds.Store) error {
-					return store.Stop(ctx)
-				}),
-			)),
-			fx.Provide(fx.Annotate(
-				full.NewShareAvailability,
-				fx.OnStart(func(ctx context.Context, avail *full.ShareAvailability) error {
-					return avail.Start(ctx)
-				}),
-				fx.OnStop(func(ctx context.Context, avail *full.ShareAvailability) error {
-					return avail.Stop(ctx)
-				}),
-			)),
-			// cacheAvailability's lifecycle continues to use a fx hook,
-			// since the LC requires a cacheAvailability but the constructor returns a share.Availability
-			fx.Provide(cacheAvailability[*full.ShareAvailability]),
-			fx.Provide(func(shrexSub *shrexsub.PubSub) shrexsub.BroadcastFn {
-				return shrexSub.Broadcast
+			bridgeAndFullComponents,
+			fx.Provide(func(ipldGetter *getters.IPLDGetter) share.Getter {
+				return ipldGetter
 			}),
+		)
+	case node.Full:
+		return fx.Module(
+			"share",
+			baseComponents,
+			bridgeAndFullComponents,
 			fx.Provide(fullGetter),
 			fx.Provide(
 				func(host host.Host, network modp2p.Network) (*shrexnd.Client, error) {
@@ -143,17 +166,7 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 					return getter.Stop(ctx)
 				}),
 			)),
-			fx.Provide(
-				func(ctx context.Context, h host.Host, network modp2p.Network) (*shrexsub.PubSub, error) {
-					return shrexsub.NewPubSub(
-						ctx,
-						h,
-						network.String(),
-					)
-				},
-			),
 			fx.Provide(peers.NewManager),
-			fx.Provide(getters.NewIPLDGetter),
 		)
 	default:
 		panic("invalid node type")
