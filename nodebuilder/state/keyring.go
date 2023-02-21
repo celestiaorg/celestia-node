@@ -2,36 +2,26 @@ package state
 
 import (
 	"fmt"
-	"os"
 
-	"github.com/cosmos/cosmos-sdk/crypto/hd"
 	kr "github.com/cosmos/cosmos-sdk/crypto/keyring"
 
-	"github.com/celestiaorg/celestia-app/app"
-	"github.com/celestiaorg/celestia-app/app/encoding"
 	apptypes "github.com/celestiaorg/celestia-app/x/blob/types"
 
 	"github.com/celestiaorg/celestia-node/libs/keystore"
 	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
 )
 
-func keyring(cfg Config, ks keystore.Keystore, net p2p.Network) (*apptypes.KeyringSigner, error) {
-	// TODO @renaynay: Include option for setting custom `userInput` parameter with
-	//  implementation of https://github.com/celestiaorg/celestia-node/issues/415.
-	// TODO @renaynay @Wondertan: ensure that keyring backend from config is passed
-	//  here instead of hardcoded `BackendTest`:
-	// https://github.com/celestiaorg/celestia-node/issues/603.
-	encConf := encoding.MakeConfig(app.ModuleEncodingRegisters...)
-	ring, err := kr.New(app.Name, kr.BackendTest, ks.Path(), os.Stdin, encConf.Codec)
-	if err != nil {
-		return nil, err
-	}
-
+// KeyringSigner constructs a new keyring signer.
+// NOTE: we construct keyring signer before constructing node for easier UX
+// as having keyring-backend set to `file` prompts user for password.
+func KeyringSigner(cfg Config, ks keystore.Keystore, net p2p.Network) (*apptypes.KeyringSigner, error) {
+	ring := ks.Keyring()
 	var info *kr.Record
 	// if custom keyringAccName provided, find key for that name
 	if cfg.KeyringAccName != "" {
 		keyInfo, err := ring.Key(cfg.KeyringAccName)
 		if err != nil {
+			log.Errorw("failed to find key by given name", "keyring.accname", cfg.KeyringAccName)
 			return nil, err
 		}
 		info = keyInfo
@@ -43,30 +33,23 @@ func keyring(cfg Config, ks keystore.Keystore, net p2p.Network) (*apptypes.Keyri
 		}
 		// if no key was found in keystore path, generate new key for node
 		if len(keys) == 0 {
-			log.Infow("NO KEY FOUND IN STORE, GENERATING NEW KEY...", "path", ks.Path())
-			keyInfo, mn, err := ring.NewMnemonic("my_celes_key", kr.English, "",
-				"", hd.Secp256k1)
-			if err != nil {
-				return nil, err
-			}
-			log.Info("NEW KEY GENERATED...")
-			addr, err := keyInfo.GetAddress()
-			if err != nil {
-				return nil, err
-			}
-			fmt.Printf("\nNAME: %s\nADDRESS: %s\nMNEMONIC (save this somewhere safe!!!): \n%s\n\n",
-				keyInfo.Name, addr.String(), mn)
-
-			info = keyInfo
-		} else {
-			// if one or more keys are present and no keyringAccName was given, use the first key in list
-			info = keys[0]
+			log.Errorw("no keys found in path", "path", ks.Path(), "keyring backend",
+				cfg.KeyringBackend)
+			return nil, fmt.Errorf("no keys found in path %s using keyring backend %s", ks.Path(),
+				cfg.KeyringBackend)
 		}
+		// if one or more keys are present and no keyringAccName was given, use the first key in list
+		keyInfo, err := ring.Key(keys[0].Name)
+		if err != nil {
+			log.Errorw("could not access key in keyring", "name", keys[0].Name)
+			return nil, err
+		}
+		info = keyInfo
 	}
 	// construct signer using the default key found / generated above
 	signer := apptypes.NewKeyringSigner(ring, info.Name, string(net))
 	signerInfo := signer.GetSignerInfo()
-	log.Infow("constructed keyring signer", "backend", kr.BackendTest, "path", ks.Path(),
+	log.Infow("constructed keyring signer", "backend", cfg.KeyringBackend, "path", ks.Path(),
 		"key name", signerInfo.Name, "chain-id", string(net))
 
 	return signer, nil
