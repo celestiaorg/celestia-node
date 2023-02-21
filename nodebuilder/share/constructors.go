@@ -5,13 +5,14 @@ import (
 	"errors"
 	"time"
 
-	"github.com/celestiaorg/celestia-node/libs/fxutil"
 	"github.com/filecoin-project/dagstore"
 	"github.com/ipfs/go-datastore"
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/routing"
 	routingdisc "github.com/libp2p/go-libp2p/p2p/discovery/routing"
 	"go.uber.org/fx"
+
+	"github.com/celestiaorg/celestia-node/libs/fxutil"
 
 	"github.com/celestiaorg/celestia-app/pkg/da"
 
