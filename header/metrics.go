@@ -2,6 +2,7 @@ package header
 
 import (
 	"context"
+	"time"
 
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric/global"
@@ -27,6 +28,11 @@ func WithMetrics(store libhead.Store[*ExtendedHeader], syncer *sync.Syncer[*Exte
 			headC,
 		},
 		func(ctx context.Context) {
+			// add timeout to limit the time it takes to get the head
+			// in case there is a deadlock
+			ctx, cancel := context.WithTimeout(ctx, time.Second)
+			defer cancel()
+
 			head, err := store.Head(ctx)
 			if err != nil {
 				headC.Observe(ctx, 0, attribute.String("err", err.Error()))
