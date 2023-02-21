@@ -25,7 +25,7 @@ func (ex *Exchange[H]) RegisterMetrics() error {
 			instrument.WithDescription("Size of get headers response in bytes"),
 		)
 	if err != nil {
-		panic(err)
+		return err
 	}
 
 	responseDuration, err := meter.
