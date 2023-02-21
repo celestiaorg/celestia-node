@@ -12,8 +12,6 @@ import (
 	routingdisc "github.com/libp2p/go-libp2p/p2p/discovery/routing"
 	"go.uber.org/fx"
 
-	"github.com/celestiaorg/celestia-node/libs/fxutil"
-
 	"github.com/celestiaorg/celestia-app/pkg/da"
 
 	"github.com/celestiaorg/celestia-node/share"
@@ -36,20 +34,6 @@ func discovery(cfg Config) func(routing.ContentRouting, host.Host) *disc.Discove
 			cfg.AdvertiseInterval,
 		)
 	}
-}
-
-// ensurePeersLifecycle controls the lifecycle for discovering full nodes.
-// This constructor is in place of the peer manager which generally controls the
-// EnsurePeers lifecycle.
-func ensurePeersLifecycle(ctx context.Context, lc fx.Lifecycle, discovery *disc.Discovery) error {
-	ctx = fxutil.WithLifecycle(ctx, lc)
-	lc.Append(fx.Hook{
-		OnStart: func(context.Context) error {
-			go discovery.EnsurePeers(ctx)
-			return nil
-		},
-	})
-	return nil
 }
 
 // cacheAvailability wraps either Full or Light availability with a cache for result sampling.

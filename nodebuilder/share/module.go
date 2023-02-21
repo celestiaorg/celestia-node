@@ -131,7 +131,6 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 			// cacheAvailability's lifecycle continues to use a fx hook,
 			// since the LC requires a cacheAvailability but the constructor returns a share.Availability
 			fx.Provide(cacheAvailability[*light.ShareAvailability]),
-			fx.Invoke(ensurePeersLifecycle),
 		)
 	case node.Bridge:
 		return fx.Module(
@@ -141,7 +140,6 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 			fx.Provide(func(ipldGetter *getters.IPLDGetter) share.Getter {
 				return ipldGetter
 			}),
-			fx.Invoke(ensurePeersLifecycle),
 			fx.Invoke(func(lc fx.Lifecycle, sub *shrexsub.PubSub) error {
 				lc.Append(fx.Hook{
 					OnStart: sub.Start,
