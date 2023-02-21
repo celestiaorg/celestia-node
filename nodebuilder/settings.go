@@ -41,6 +41,7 @@ func WithMetrics(metricOpts []otlpmetrichttp.Option, nodeType node.Type) fx.Opti
 		fx.Invoke(initializeMetrics),
 		fx.Invoke(headerPkg.WithMetrics),
 		fx.Invoke(state.WithMetrics),
+		fx.Invoke(p2p.WithMetrics),
 		fx.Invoke(fraudPkg.WithMetrics),
 		fx.Invoke(node.WithMetrics),
 	)
