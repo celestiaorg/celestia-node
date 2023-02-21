@@ -221,8 +221,11 @@ func (s *Swamp) NewNodeWithStore(
 ) *nodebuilder.Node {
 	var n *nodebuilder.Node
 
+	ks, err := store.Keystore()
+	require.NoError(s.t, err)
+
 	options = append(options,
-		state.WithKeyringSigner(nodebuilder.TestKeyringSigner(s.t)),
+		state.WithKeyringSigner(nodebuilder.TestKeyringSigner(s.t, ks.Keyring())),
 	)
 
 	switch t {
