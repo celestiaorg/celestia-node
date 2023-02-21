@@ -45,7 +45,6 @@ type Manager struct {
 	// header subscription is necessary in order to validate the inbound eds hash
 	headerSub libhead.Subscriber[*header.ExtendedHeader]
 	shrexSub  *shrexsub.PubSub
-	disc      *discovery.Discovery
 	host      host.Host
 	connGater *conngater.BasicConnectionGater
 
@@ -93,7 +92,6 @@ func NewManager(
 	s := &Manager{
 		headerSub:             headerSub,
 		shrexSub:              shrexSub,
-		disc:                  discovery,
 		connGater:             connGater,
 		host:                  host,
 		pools:                 make(map[string]*syncPool),
@@ -148,7 +146,6 @@ func (m *Manager) Start(startCtx context.Context) error {
 		return fmt.Errorf("subscribing to headersub: %w", err)
 	}
 
-	go m.disc.EnsurePeers(ctx)
 	go m.subscribeHeader(ctx, headerSub)
 	go m.GC(ctx)
 
