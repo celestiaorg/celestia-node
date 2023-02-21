@@ -93,8 +93,8 @@ func verifyNIDSize(nID namespace.ID) error {
 	return nil
 }
 
-// splitCtxTimeout will split timeout stored in context by splitFactor and return max of the
-// result and minTimeout
+// splitCtxTimeout will split timeout stored in context by splitFactor and return the result if 
+// it is greater than minTimeout.
 func splitCtxTimeout(ctx context.Context, splitFactor int, minTimeout time.Duration) time.Duration {
 	deadline, ok := ctx.Deadline()
 	if !ok {
