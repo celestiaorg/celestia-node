@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/ipfs/go-datastore"
+	logging "github.com/ipfs/go-log/v2"
 	"github.com/libp2p/go-libp2p/core/host"
 	"go.uber.org/fx"
 
@@ -19,6 +20,10 @@ import (
 	"github.com/celestiaorg/celestia-node/share/p2p/shrexeds"
 	"github.com/celestiaorg/celestia-node/share/p2p/shrexnd"
 	"github.com/celestiaorg/celestia-node/share/p2p/shrexsub"
+)
+
+var (
+	log = logging.Logger("module/share")
 )
 
 func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option {

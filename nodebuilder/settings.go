@@ -19,6 +19,7 @@ import (
 	"github.com/celestiaorg/celestia-node/nodebuilder/das"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
+	"github.com/celestiaorg/celestia-node/nodebuilder/share"
 	"github.com/celestiaorg/celestia-node/state"
 )
 
@@ -43,6 +44,7 @@ func WithMetrics(metricOpts []otlpmetrichttp.Option, nodeType node.Type) fx.Opti
 		fx.Invoke(state.WithMetrics),
 		fx.Invoke(fraudPkg.WithMetrics),
 		fx.Invoke(node.WithMetrics),
+		fx.Decorate(share.WithMetrics), // do not use invoke
 	)
 
 	var opts fx.Option
