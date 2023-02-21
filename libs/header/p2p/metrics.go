@@ -38,13 +38,10 @@ func (ex *Exchange[H]) RegisterMetrics() error {
 		return err
 	}
 
-	m := &metrics{
+	ex.metrics = &metrics{
 		responseSize:     responseSize,
 		responseDuration: responseDuration,
 	}
-
-	ex.metrics = m
-
 	return nil
 }
 
