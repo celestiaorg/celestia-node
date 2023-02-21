@@ -76,7 +76,7 @@ func (d *Discovery) Start(context.Context) error {
 	ctx, cancel := context.WithCancel(context.Background())
 	d.cancel = cancel
 
-	go d.EnsurePeers(ctx)
+	go d.ensurePeers(ctx)
 	return nil
 }
 
@@ -119,10 +119,10 @@ func (d *Discovery) handlePeerFound(ctx context.Context, topic string, peer peer
 	d.host.ConnManager().TagPeer(peer.ID, topic, peerWeight)
 }
 
-// EnsurePeers ensures we always have 'peerLimit' connected peers.
+// ensurePeers ensures we always have 'peerLimit' connected peers.
 // It starts peer discovery every 30 seconds until peer cache reaches peersLimit.
 // Discovery is restarted if any previously connected peers disconnect.
-func (d *Discovery) EnsurePeers(ctx context.Context) {
+func (d *Discovery) ensurePeers(ctx context.Context) {
 	if d.peersLimit == 0 {
 		log.Warn("peers limit is set to 0. Skipping discovery...")
 		return
