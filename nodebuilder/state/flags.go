@@ -1,11 +1,16 @@
 package state
 
 import (
+	"fmt"
+
 	"github.com/spf13/cobra"
 	flag "github.com/spf13/pflag"
 )
 
-var keyringAccNameFlag = "keyring.accname"
+var (
+	keyringAccNameFlag = "keyring.accname"
+	keyringBackendFlag = "keyring.backend"
+)
 
 // Flags gives a set of hardcoded State flags.
 func Flags() *flag.FlagSet {
@@ -13,6 +18,9 @@ func Flags() *flag.FlagSet {
 
 	flags.String(keyringAccNameFlag, "", "Directs node's keyring signer to use the key prefixed with the "+
 		"given string.")
+	flags.String(keyringBackendFlag, defaultKeyringBackend, fmt.Sprintf("Directs node's keyring signer to use the given "+
+		"backend. Default is %s.", defaultKeyringBackend))
+
 	return flags
 }
 
@@ -22,4 +30,6 @@ func ParseFlags(cmd *cobra.Command, cfg *Config) {
 	if keyringAccName != "" {
 		cfg.KeyringAccName = keyringAccName
 	}
+
+	cfg.KeyringBackend = cmd.Flag(keyringBackendFlag).Value.String()
 }

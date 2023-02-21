@@ -44,7 +44,7 @@ func newToken(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	ks, err := keystore.NewFSKeystore(expanded + "/keys")
+	ks, err := keystore.NewFSKeystore(filepath.Join(expanded, "keys"), nil)
 	if err != nil {
 		return err
 	}
