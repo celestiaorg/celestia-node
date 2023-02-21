@@ -45,7 +45,7 @@ Custom store path is not supported yet.`,
 		}
 
 		s, err := nodebuilder.OpenStore(fmt.Sprintf("~/.celestia-%s-%s", strings.ToLower(tp.String()),
-			strings.ToLower(network)))
+			strings.ToLower(network)), nil)
 		if err != nil {
 			return err
 		}
