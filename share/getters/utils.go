@@ -3,6 +3,7 @@ package getters
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/ipfs/go-blockservice"
 	"github.com/ipfs/go-cid"
@@ -90,4 +91,18 @@ func verifyNIDSize(nID namespace.ID) error {
 			share.NamespaceSize, len(nID))
 	}
 	return nil
+}
+
+// splitCtxTimeout will split timeout stored in context by splitFactor and return max of the
+// result and minTimeout
+func splitCtxTimeout(ctx context.Context, splitFactor int, minTimeout time.Duration) time.Duration {
+	deadline, ok := ctx.Deadline()
+	if !ok {
+		return minTimeout
+	}
+	timeout := time.Until(deadline) / time.Duration(splitFactor)
+	if timeout < minTimeout {
+		return minTimeout
+	}
+	return timeout
 }

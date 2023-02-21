@@ -18,23 +18,28 @@ import (
 
 var _ share.Getter = (*ShrexGetter)(nil)
 
-const defaultMaxRequestDuration = time.Second * 10
+const (
+	defaultMinRequestTimeout = time.Second * 10
+	defaultMinAttemptsCount  = 3
+)
 
 // ShrexGetter is a share.Getter that uses the shrex/eds and shrex/nd protocol to retrieve shares.
 type ShrexGetter struct {
 	edsClient *shrexeds.Client
 	ndClient  *shrexnd.Client
 
-	peerManager        *peers.Manager
-	maxRequestDuration time.Duration
+	peerManager       *peers.Manager
+	minRequestTimeout time.Duration
+	minAttemptsCount  int
 }
 
 func NewShrexGetter(edsClient *shrexeds.Client, ndClient *shrexnd.Client, peerManager *peers.Manager) *ShrexGetter {
 	return &ShrexGetter{
-		edsClient:          edsClient,
-		ndClient:           ndClient,
-		peerManager:        peerManager,
-		maxRequestDuration: defaultMaxRequestDuration,
+		edsClient:         edsClient,
+		ndClient:          ndClient,
+		peerManager:       peerManager,
+		minRequestTimeout: defaultMinRequestTimeout,
+		minAttemptsCount:  defaultMinAttemptsCount,
 	}
 }
 
@@ -63,7 +68,8 @@ func (sg *ShrexGetter) GetEDS(ctx context.Context, root *share.Root) (*rsmt2d.Ex
 			return nil, fmt.Errorf("getter/shrex: %w", err)
 		}
 
-		reqCtx, cancel := context.WithTimeout(ctx, sg.maxRequestDuration)
+		timeout := splitCtxTimeout(ctx, sg.minAttemptsCount, sg.minRequestTimeout)
+		reqCtx, cancel := context.WithTimeout(ctx, timeout)
 		eds, err := sg.edsClient.RequestEDS(reqCtx, root.Hash(), peer)
 		cancel()
 		switch err {
@@ -97,7 +103,8 @@ func (sg *ShrexGetter) GetSharesByNamespace(
 			return nil, fmt.Errorf("getter/shrex: %w", err)
 		}
 
-		reqCtx, cancel := context.WithTimeout(ctx, sg.maxRequestDuration)
+		timeout := splitCtxTimeout(ctx, sg.minAttemptsCount, sg.minRequestTimeout)
+		reqCtx, cancel := context.WithTimeout(ctx, timeout)
 		nd, err := sg.ndClient.RequestND(reqCtx, root, id, peer)
 		cancel()
 		switch err {

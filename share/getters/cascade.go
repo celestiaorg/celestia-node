@@ -23,16 +23,16 @@ var _ share.Getter = (*CascadeGetter)(nil)
 //
 // See cascade func for details on cascading.
 type CascadeGetter struct {
-	interval time.Duration
+	minInterval time.Duration
 
 	getters []share.Getter
 }
 
 // NewCascadeGetter instantiates a new CascadeGetter from given share.Getters with given interval.
-func NewCascadeGetter(getters []share.Getter, interval time.Duration) *CascadeGetter {
+func NewCascadeGetter(getters []share.Getter, minInterval time.Duration) *CascadeGetter {
 	return &CascadeGetter{
-		interval: interval,
-		getters:  getters,
+		minInterval: minInterval,
+		getters:     getters,
 	}
 }
 
@@ -49,7 +49,7 @@ func (cg *CascadeGetter) GetShare(ctx context.Context, root *share.Root, row, co
 		return get.GetShare(ctx, root, row, col)
 	}
 
-	return cascadeGetters(ctx, cg.getters, get, cg.interval)
+	return cascadeGetters(ctx, cg.getters, get, cg.minInterval)
 }
 
 // GetEDS gets a full EDS from any of registered share.Getters in cascading order.
@@ -63,7 +63,7 @@ func (cg *CascadeGetter) GetEDS(ctx context.Context, root *share.Root) (*rsmt2d.
 		return get.GetEDS(ctx, root)
 	}
 
-	return cascadeGetters(ctx, cg.getters, get, cg.interval)
+	return cascadeGetters(ctx, cg.getters, get, cg.minInterval)
 }
 
 // GetSharesByNamespace gets NamespacedShares from any of registered share.Getters in cascading
@@ -83,7 +83,7 @@ func (cg *CascadeGetter) GetSharesByNamespace(
 		return get.GetSharesByNamespace(ctx, root, id)
 	}
 
-	return cascadeGetters(ctx, cg.getters, get, cg.interval)
+	return cascadeGetters(ctx, cg.getters, get, cg.minInterval)
 }
 
 // cascade implements a cascading retry algorithm for getting a value from multiple sources.
@@ -98,12 +98,19 @@ func cascadeGetters[V any](
 	ctx context.Context,
 	getters []share.Getter,
 	get func(context.Context, share.Getter) (V, error),
-	interval time.Duration,
+	minInterval time.Duration,
 ) (V, error) {
 	var (
 		zero V
 		err  error
 	)
+
+	if len(getters) == 0 {
+		return zero, errors.New("no getters provided")
+	}
+
+	interval := splitCtxTimeout(ctx, len(getters), minInterval)
+
 	ctx, span := tracer.Start(ctx, "cascade", trace.WithAttributes(
 		attribute.String("interval", interval.String()),
 		attribute.Int("total-getters", len(getters)),
