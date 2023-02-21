@@ -19,6 +19,8 @@ import (
 var _ share.Getter = (*ShrexGetter)(nil)
 
 const (
+	// defaultMinRequestTimeout value is set according to observed time taken by healthy peer to
+	// serve getEDS request for block size 256
 	defaultMinRequestTimeout = time.Second * 10
 	defaultMinAttemptsCount  = 3
 )
@@ -28,9 +30,13 @@ type ShrexGetter struct {
 	edsClient *shrexeds.Client
 	ndClient  *shrexnd.Client
 
-	peerManager       *peers.Manager
+	peerManager *peers.Manager
+
+	// minRequestTimeout limits minimal timeout given to single peer by getter for serving the request.
 	minRequestTimeout time.Duration
-	minAttemptsCount  int
+	// minAttemptsCount will be used to split request timeout into multiple attempts. It will allow to
+	// attempt multiple peers in scope of one request before context timeout is reached
+	minAttemptsCount int
 }
 
 func NewShrexGetter(edsClient *shrexeds.Client, ndClient *shrexnd.Client, peerManager *peers.Manager) *ShrexGetter {
