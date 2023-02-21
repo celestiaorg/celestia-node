@@ -347,19 +347,19 @@ func TestExchange_RequestHeadersFromAnotherPeerWhenTimeout(t *testing.T) {
 	)
 	require.NoError(t, err)
 	// change store implementation
-	serverSideEx.getter = &timedOutStore{exchg.Params.RequestTimeout}
+	serverSideEx.store = &timedOutStore{timeout: exchg.Params.RequestTimeout}
 	require.NoError(t, serverSideEx.Start(context.Background()))
 	t.Cleanup(func() {
 		serverSideEx.Stop(context.Background()) //nolint:errcheck
 	})
+	prevScore := exchg.peerTracker.trackedPeers[host1.ID()].score()
 	exchg.peerTracker.peerLk.Lock()
 	exchg.peerTracker.trackedPeers[host2.ID()] = &peerStat{peerID: host2.ID(), peerScore: 200}
 	exchg.peerTracker.peerLk.Unlock()
 	_, err = exchg.GetRangeByHeight(context.Background(), 1, 3)
 	require.NoError(t, err)
-	// ensure that peerScore for the first peer was decrease by 20%
-	newPeerScore := exchg.peerTracker.trackedPeers[host2.ID()].score()
-	assert.Less(t, newPeerScore, float32(200))
+	newPeerScore := exchg.peerTracker.trackedPeers[host1.ID()].score()
+	assert.NotEqual(t, newPeerScore, prevScore)
 }
 
 func createMocknet(t *testing.T, amount int) []libhost.Host {
@@ -400,34 +400,11 @@ func createP2PExAndServer(
 }
 
 type timedOutStore struct {
+	headerMock.MockStore[*test.DummyHeader]
 	timeout time.Duration
-}
-
-func (t *timedOutStore) Head(context.Context) (*test.DummyHeader, error) {
-	// TODO implement me
-	panic("implement me")
-}
-
-func (t *timedOutStore) Get(context.Context, header.Hash) (*test.DummyHeader, error) {
-	// TODO implement me
-	panic("implement me")
-}
-
-func (t *timedOutStore) GetByHeight(context.Context, uint64) (*test.DummyHeader, error) {
-	// TODO implement me
-	panic("implement me")
 }
 
 func (t *timedOutStore) GetRangeByHeight(_ context.Context, _, _ uint64) ([]*test.DummyHeader, error) {
 	time.Sleep(t.timeout + 1)
 	return []*test.DummyHeader{}, nil
-}
-
-func (t *timedOutStore) GetVerifiedRange(
-	context.Context,
-	*test.DummyHeader,
-	uint64,
-) ([]*test.DummyHeader, error) {
-	// TODO implement me
-	panic("implement me")
 }

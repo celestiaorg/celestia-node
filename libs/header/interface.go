@@ -87,6 +87,9 @@ type Store[H Header] interface {
 	// Has checks whether Header is already stored.
 	Has(context.Context, Hash) (bool, error)
 
+	// HasAt checks whether Header at the given height is already stored.
+	HasAt(context.Context, uint64) bool
+
 	// Append stores and verifies the given Header(s).
 	// It requires them to be adjacent and in ascending order,
 	// as it applies them contiguously on top of the current head height.

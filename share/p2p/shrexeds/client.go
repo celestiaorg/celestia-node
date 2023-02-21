@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"net"
 	"time"
 
@@ -65,8 +66,9 @@ func (c *Client) RequestEDS(
 		}
 	}
 	if err != p2p.ErrUnavailable {
-		log.Errorw("client: eds request to peer failed", "peer", peer, "hash", dataHash.String())
+		log.Debugw("client: eds request to peer failed", "peer", peer, "hash", dataHash.String())
 	}
+
 	return nil, err
 }
 
@@ -82,7 +84,7 @@ func (c *Client) doRequest(
 
 	if dl, ok := ctx.Deadline(); ok {
 		if err = stream.SetDeadline(dl); err != nil {
-			log.Debugw("error setting deadline: %s", err)
+			log.Debugf("error setting deadline: %s", err)
 		}
 	}
 
@@ -105,6 +107,10 @@ func (c *Client) doRequest(
 	resp := new(pb.EDSResponse)
 	_, err = serde.Read(stream, resp)
 	if err != nil {
+		// server is overloaded and closed the stream
+		if errors.Is(err, io.EOF) {
+			return nil, p2p.ErrUnavailable
+		}
 		stream.Reset() //nolint:errcheck
 		return nil, fmt.Errorf("failed to read status from stream: %w", err)
 	}
@@ -117,7 +123,7 @@ func (c *Client) doRequest(
 			return nil, fmt.Errorf("failed to read eds from ods bytes: %w", err)
 		}
 		return eds, nil
-	case pb.Status_NOT_FOUND, pb.Status_REFUSED:
+	case pb.Status_NOT_FOUND:
 		log.Debugf("client: peer %s couldn't serve eds %s with status %s", to.String(), dataHash.String(), resp.GetStatus())
 		return nil, p2p.ErrUnavailable
 	case pb.Status_INVALID:

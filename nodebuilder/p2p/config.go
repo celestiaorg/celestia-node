@@ -6,6 +6,8 @@ import (
 
 	"github.com/libp2p/go-libp2p/core/peer"
 	ma "github.com/multiformats/go-multiaddr"
+
+	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 )
 
 const defaultRoutingRefreshPeriod = time.Minute
@@ -36,7 +38,7 @@ type Config struct {
 }
 
 // DefaultConfig returns default configuration for P2P subsystem.
-func DefaultConfig() Config {
+func DefaultConfig(tp node.Type) Config {
 	return Config{
 		ListenAddresses: []string{
 			"/ip4/0.0.0.0/udp/2121/quic-v1",
@@ -55,7 +57,7 @@ func DefaultConfig() Config {
 		},
 		MutualPeers:               []string{},
 		Bootstrapper:              false,
-		PeerExchange:              false,
+		PeerExchange:              tp == node.Bridge || tp == node.Full,
 		ConnManager:               defaultConnManagerConfig(),
 		RoutingTableRefreshPeriod: defaultRoutingRefreshPeriod,
 	}
