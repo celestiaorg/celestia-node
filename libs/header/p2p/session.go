@@ -13,6 +13,8 @@ import (
 	p2p_pb "github.com/celestiaorg/celestia-node/libs/header/p2p/pb"
 )
 
+var errEmptyResponse = errors.New("empty response")
+
 type option[H header.Header] func(*session[H])
 
 func withValidation[H header.Header](from H) option[H] {
@@ -65,7 +67,7 @@ func newSession[H header.Header](
 	return ses
 }
 
-// GetRangeByHeight requests headers from different peers.
+// getRangeByHeight requests headers from different peers.
 func (s *session[H]) getRangeByHeight(
 	ctx context.Context,
 	from, amount, headersPerPeer uint64,
@@ -82,7 +84,8 @@ func (s *session[H]) getRangeByHeight(
 	}
 
 	headers := make([]H, 0, amount)
-	for i := 0; i < len(requests); i++ {
+LOOP:
+	for {
 		select {
 		case <-s.ctx.Done():
 			return nil, errors.New("header/p2p: exchange is closed")
@@ -90,6 +93,9 @@ func (s *session[H]) getRangeByHeight(
 			return nil, ctx.Err()
 		case res := <-result:
 			headers = append(headers, res...)
+			if uint64(len(headers)) == amount {
+				break LOOP
+			}
 		}
 	}
 	sort.Slice(headers, func(i, j int) bool {
@@ -139,22 +145,20 @@ func (s *session[H]) doRequest(
 
 	r, size, duration, err := sendMessage(ctx, s.host, stat.peerID, s.protocolID, req)
 	if err != nil {
-		log.Errorw("requesting headers from peer failed", "failed peer", stat.peerID, "err", err)
-		select {
-		case <-s.ctx.Done():
-		case s.reqCh <- req:
-			stat.decreaseScore()
-			log.Debug("retrying the request from different peer")
-		}
-		return
+		// we should not punish peer at this point and should try to parse responses, despite that error was received.
+		log.Debugw("requesting headers from peer failed", "failed peer", stat.peerID, "err", err)
 	}
 
 	h, err := s.processResponse(r)
 	if err != nil {
 		switch err {
 		case header.ErrNotFound:
+			// errNoResponses means that we did not fetch any headers from the peer, so we can decrease its score.
+		case errEmptyResponse:
+			stat.decreaseScore()
 		default:
 			s.peerTracker.blockPeer(stat.peerID, err)
+			log.Errorw("parsing headers failed", "failed peer", stat.peerID, "err", err)
 		}
 		select {
 		case <-s.ctx.Done():
@@ -162,7 +166,26 @@ func (s *session[H]) doRequest(
 		}
 		return
 	}
-	log.Debugw("request headers from peer succeeded", "peer", stat.peerID, "amount", req.Amount)
+
+	log.Debugw("request headers from peer succeeded",
+		"peer", stat.peerID,
+		"receivedAmount", len(h),
+		"requestedAmount", req.Amount,
+	)
+
+	// ensure that we received the correct amount of headers.
+	if uint64(len(h)) != req.Amount {
+		from := uint64(h[len(h)-1].Height())
+		amount := req.Amount - from
+		select {
+		case <-s.ctx.Done():
+		// create a new request with the remaining headers.
+		// prepareRequests will return a slice with 1 element at this point
+		case s.reqCh <- prepareRequests(from+1, amount, req.Amount)[0]:
+			log.Debugw("sending additional request to get remaining headers")
+		}
+	}
+
 	// send headers to the channel, update peer stats and return peer to the queue, so it can be
 	// re-used in case if there are other requests awaiting
 	headers <- h
@@ -172,6 +195,10 @@ func (s *session[H]) doRequest(
 
 // processResponse converts HeaderResponse to Header.
 func (s *session[H]) processResponse(responses []*p2p_pb.HeaderResponse) ([]H, error) {
+	if len(responses) == 0 {
+		return nil, errEmptyResponse
+	}
+
 	headers := make([]H, 0)
 	for _, resp := range responses {
 		err := convertStatusCodeToError(resp.StatusCode)
