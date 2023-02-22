@@ -3,12 +3,11 @@ package nodebuilder
 import (
 	"testing"
 
+	apptypes "github.com/celestiaorg/celestia-app/x/blob/types"
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/fx"
-
-	apptypes "github.com/celestiaorg/celestia-app/x/blob/types"
 
 	"github.com/celestiaorg/celestia-node/core"
 	coreheader "github.com/celestiaorg/celestia-node/header"

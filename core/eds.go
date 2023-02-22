@@ -1,11 +1,10 @@
 package core
 
 import (
-	"github.com/tendermint/tendermint/types"
-
 	"github.com/celestiaorg/celestia-app/pkg/da"
 	appshares "github.com/celestiaorg/celestia-app/pkg/shares"
 	"github.com/celestiaorg/rsmt2d"
+	"github.com/tendermint/tendermint/types"
 
 	"github.com/celestiaorg/celestia-node/libs/utils"
 )

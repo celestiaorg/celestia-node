@@ -5,12 +5,12 @@ import (
 	"context"
 	"sync"
 
+	"github.com/celestiaorg/celestia-app/pkg/da"
 	"github.com/ipfs/go-datastore"
 	"github.com/ipfs/go-datastore/autobatch"
 	"github.com/ipfs/go-datastore/namespace"
 	logging "github.com/ipfs/go-log/v2"
 
-	"github.com/celestiaorg/celestia-app/pkg/da"
 	"github.com/celestiaorg/celestia-node/share"
 )
 

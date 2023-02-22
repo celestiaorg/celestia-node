@@ -4,9 +4,8 @@ import (
 	"context"
 	"time"
 
-	"github.com/cosmos/cosmos-sdk/client/flags"
-
 	"github.com/celestiaorg/celestia-app/testutil/testnode"
+	"github.com/cosmos/cosmos-sdk/client/flags"
 )
 
 // FillBlocks produces the given amount of contiguous blocks with customizable size.

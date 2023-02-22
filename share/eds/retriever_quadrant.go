@@ -4,10 +4,9 @@ import (
 	"math/rand"
 	"time"
 
-	"github.com/ipfs/go-cid"
-
 	"github.com/celestiaorg/celestia-app/pkg/da"
 	"github.com/celestiaorg/rsmt2d"
+	"github.com/ipfs/go-cid"
 
 	"github.com/celestiaorg/celestia-node/share/ipld"
 )

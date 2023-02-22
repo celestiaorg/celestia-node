@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/celestiaorg/go-libp2p-messenger/serde"
 	"github.com/ipfs/go-datastore"
 	"github.com/ipfs/go-datastore/sync"
 	libhost "github.com/libp2p/go-libp2p/core/host"
@@ -13,12 +14,9 @@ import (
 	blankhost "github.com/libp2p/go-libp2p/p2p/host/blank"
 	"github.com/libp2p/go-libp2p/p2p/net/conngater"
 	mocknet "github.com/libp2p/go-libp2p/p2p/net/mock"
+	swarm "github.com/libp2p/go-libp2p/p2p/net/swarm/testing"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	"github.com/celestiaorg/go-libp2p-messenger/serde"
-
-	swarm "github.com/libp2p/go-libp2p/p2p/net/swarm/testing"
 
 	"github.com/celestiaorg/celestia-node/libs/header"
 	headerMock "github.com/celestiaorg/celestia-node/libs/header/mocks"

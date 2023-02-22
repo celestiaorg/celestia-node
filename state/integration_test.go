@@ -6,6 +6,10 @@ import (
 	"os"
 	"testing"
 
+	"github.com/celestiaorg/celestia-app/app"
+	"github.com/celestiaorg/celestia-app/testutil/testfactory"
+	"github.com/celestiaorg/celestia-app/testutil/testnode"
+	blobtypes "github.com/celestiaorg/celestia-app/x/blob/types"
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
@@ -17,12 +21,6 @@ import (
 	"google.golang.org/grpc"
 
 	"github.com/celestiaorg/celestia-node/core"
-
-	"github.com/celestiaorg/celestia-app/app"
-	"github.com/celestiaorg/celestia-app/testutil/testfactory"
-	"github.com/celestiaorg/celestia-app/testutil/testnode"
-	blobtypes "github.com/celestiaorg/celestia-app/x/blob/types"
-
 	"github.com/celestiaorg/celestia-node/header"
 )
 

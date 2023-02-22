@@ -5,6 +5,12 @@ ifeq (${PREFIX},)
 	PREFIX := /usr/local
 endif
 
+GOBIN ?= $(shell go env GOPATH)/bin
+
+GOIMPORTSREVISER = $(GOBIN)/goimports-reviser
+$(GOIMPORTSREVISER):
+	go install -v github.com/incu6us/goimports-reviser/v3@latest
+
 ## help: Get more info on make commands.
 help: Makefile
 	@echo " Choose a command run in "$(PROJECTNAME)":"
@@ -78,7 +84,7 @@ install-key:
 .PHONY: install-key
 
 ## fmt: Formats only *.go (excluding *.pb.go *pb_test.go). Runs `gofmt & goimports` internally.
-fmt:
+fmt: sort-imports
 	@find . -name '*.go' -type f -not -path "*.git*" -not -name '*.pb.go' -not -name '*pb_test.go' | xargs gofmt -w -s
 	@find . -name '*.go' -type f -not -path "*.git*"  -not -name '*.pb.go' -not -name '*pb_test.go' | xargs goimports -w -local github.com/celestiaorg
 	@go mod tidy -compat=1.17
@@ -155,3 +161,5 @@ openrpc-gen:
 	@go run ./cmd/docgen fraud header state share das p2p node
 .PHONY: openrpc-gen
 
+sort-imports: $(GOIMPORTSREVISER)
+	@$(GOIMPORTSREVISER) -project-name "github.com/celestiaorg/celestia-node" -output stdout ./...

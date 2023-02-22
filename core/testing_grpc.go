@@ -4,6 +4,7 @@ import (
 	"net"
 	"strings"
 
+	"github.com/celestiaorg/celestia-app/testutil/testnode"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/codec"
 	srvconfig "github.com/cosmos/cosmos-sdk/server/config"
@@ -13,8 +14,6 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
-
-	"github.com/celestiaorg/celestia-app/testutil/testnode"
 )
 
 /*

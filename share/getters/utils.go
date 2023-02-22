@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/celestiaorg/nmt"
+	"github.com/celestiaorg/nmt/namespace"
 	"github.com/ipfs/go-blockservice"
 	"github.com/ipfs/go-cid"
 	logging "github.com/ipfs/go-log/v2"
@@ -15,9 +17,6 @@ import (
 	"github.com/celestiaorg/celestia-node/libs/utils"
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/ipld"
-
-	"github.com/celestiaorg/nmt"
-	"github.com/celestiaorg/nmt/namespace"
 )
 
 var (

@@ -4,11 +4,11 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/celestiaorg/celestia-app/pkg/da"
+	"github.com/celestiaorg/rsmt2d"
 	"github.com/ipfs/go-blockservice"
 
-	"github.com/celestiaorg/celestia-app/pkg/da"
 	"github.com/celestiaorg/celestia-node/share/ipld"
-	"github.com/celestiaorg/rsmt2d"
 )
 
 // ErrByzantine is a thrown when recovered data square is not correct

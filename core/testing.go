@@ -6,13 +6,12 @@ import (
 	"net/url"
 	"testing"
 
+	"github.com/celestiaorg/celestia-app/testutil/testnode"
 	appconfig "github.com/cosmos/cosmos-sdk/server/config"
 	"github.com/stretchr/testify/require"
 	tmconfig "github.com/tendermint/tendermint/config"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
-
-	"github.com/celestiaorg/celestia-app/testutil/testnode"
 )
 
 // TestConfig encompasses all the configs required to run test Tendermint + Celestia App tandem.

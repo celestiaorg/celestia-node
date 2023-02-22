@@ -6,6 +6,7 @@ import (
 	"io"
 	"time"
 
+	"github.com/celestiaorg/go-libp2p-messenger/serde"
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/network"
 	"github.com/libp2p/go-libp2p/core/protocol"
@@ -14,7 +15,6 @@ import (
 	"github.com/celestiaorg/celestia-node/share/eds"
 	"github.com/celestiaorg/celestia-node/share/p2p"
 	p2p_pb "github.com/celestiaorg/celestia-node/share/p2p/shrexeds/pb"
-	"github.com/celestiaorg/go-libp2p-messenger/serde"
 )
 
 // Server is responsible for serving ODSs for blocksync over the ShrEx/EDS protocol.

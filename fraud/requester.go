@@ -4,10 +4,9 @@ import (
 	"context"
 	"time"
 
+	"github.com/celestiaorg/go-libp2p-messenger/serde"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/libp2p/go-libp2p/core/protocol"
-
-	"github.com/celestiaorg/go-libp2p-messenger/serde"
 
 	pb "github.com/celestiaorg/celestia-node/fraud/pb"
 )

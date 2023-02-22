@@ -3,10 +3,9 @@ package share
 import (
 	"fmt"
 
-	"go.opentelemetry.io/otel"
-
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/nmt/namespace"
+	"go.opentelemetry.io/otel"
 )
 
 var (

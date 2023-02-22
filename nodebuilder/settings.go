@@ -15,7 +15,6 @@ import (
 
 	fraudPkg "github.com/celestiaorg/celestia-node/fraud"
 	headerPkg "github.com/celestiaorg/celestia-node/header"
-
 	"github.com/celestiaorg/celestia-node/nodebuilder/das"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"

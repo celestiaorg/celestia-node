@@ -3,11 +3,10 @@ package state
 import (
 	"context"
 
+	"github.com/celestiaorg/nmt/namespace"
 	"github.com/cosmos/cosmos-sdk/x/staking/types"
 
 	"github.com/celestiaorg/celestia-node/state"
-
-	"github.com/celestiaorg/nmt/namespace"
 )
 
 var _ Module = (*API)(nil)

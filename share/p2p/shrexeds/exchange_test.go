@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/celestiaorg/celestia-app/pkg/da"
 	"github.com/ipfs/go-datastore"
 	ds_sync "github.com/ipfs/go-datastore/sync"
 	libhost "github.com/libp2p/go-libp2p/core/host"
@@ -17,8 +18,6 @@ import (
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/eds"
 	"github.com/celestiaorg/celestia-node/share/p2p"
-
-	"github.com/celestiaorg/celestia-app/pkg/da"
 )
 
 func TestExchange_RequestEDS(t *testing.T) {

@@ -7,6 +7,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/celestiaorg/celestia-app/pkg/da"
+	"github.com/celestiaorg/rsmt2d"
 	"github.com/filecoin-project/dagstore/shard"
 	"github.com/ipfs/go-datastore"
 	ds_sync "github.com/ipfs/go-datastore/sync"
@@ -15,9 +17,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/celestiaorg/celestia-node/share"
-
-	"github.com/celestiaorg/celestia-app/pkg/da"
-	"github.com/celestiaorg/rsmt2d"
 )
 
 func TestEDSStore(t *testing.T) {

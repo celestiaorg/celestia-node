@@ -1,11 +1,10 @@
 package header
 
 import (
+	"github.com/celestiaorg/celestia-app/pkg/da"
 	pb "github.com/libp2p/go-libp2p-pubsub/pb"
 	core "github.com/tendermint/tendermint/types"
 	"golang.org/x/crypto/blake2b"
-
-	"github.com/celestiaorg/celestia-app/pkg/da"
 
 	header_pb "github.com/celestiaorg/celestia-node/header/pb"
 )

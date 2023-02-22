@@ -4,11 +4,10 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/ipfs/go-blockservice"
-
 	"github.com/celestiaorg/celestia-app/pkg/wrapper"
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/rsmt2d"
+	"github.com/ipfs/go-blockservice"
 
 	"github.com/celestiaorg/celestia-node/libs/utils"
 	"github.com/celestiaorg/celestia-node/share/ipld"

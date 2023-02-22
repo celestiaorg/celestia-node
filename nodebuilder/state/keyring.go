@@ -3,9 +3,8 @@ package state
 import (
 	"fmt"
 
-	kr "github.com/cosmos/cosmos-sdk/crypto/keyring"
-
 	apptypes "github.com/celestiaorg/celestia-app/x/blob/types"
+	kr "github.com/cosmos/cosmos-sdk/crypto/keyring"
 
 	"github.com/celestiaorg/celestia-node/libs/keystore"
 	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"

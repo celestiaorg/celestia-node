@@ -3,6 +3,7 @@ package byzantine
 import (
 	"context"
 
+	"github.com/celestiaorg/nmt"
 	"github.com/ipfs/go-blockservice"
 	"github.com/ipfs/go-cid"
 	logging "github.com/ipfs/go-log/v2"
@@ -11,7 +12,6 @@ import (
 	"github.com/celestiaorg/celestia-node/share"
 	pb "github.com/celestiaorg/celestia-node/share/eds/byzantine/pb"
 	"github.com/celestiaorg/celestia-node/share/ipld"
-	"github.com/celestiaorg/nmt"
 )
 
 var log = logging.Logger("share/byzantine")

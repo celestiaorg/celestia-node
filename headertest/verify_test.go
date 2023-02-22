@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
-
 	tmrand "github.com/tendermint/tendermint/libs/rand"
 )
 
