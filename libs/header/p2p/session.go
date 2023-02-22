@@ -182,14 +182,13 @@ func (s *session[H]) doRequest(
 		"requestedAmount", req.Amount,
 	)
 
-	defer func() {
-		stat.updateStats(size, duration)
-	}()
+	// update peer stats
+	stat.updateStats(size, duration)
 
 	// ensure that we received the correct amount of headers.
 	if uint64(len(h)) < req.Amount {
 		from := uint64(h[len(h)-1].Height())
-		amount := req.Amount - from
+		amount := req.Amount - uint64(len(h))
 
 		select {
 		case <-s.ctx.Done():
@@ -201,7 +200,7 @@ func (s *session[H]) doRequest(
 		}
 	}
 
-	// send headers to the channel, update peer stats and return peer to the queue, so it can be
+	// send headers to the channel, return peer to the queue, so it can be
 	// re-used in case if there are other requests awaiting
 	headers <- h
 	s.queue.push(stat)
