@@ -43,6 +43,11 @@ func (n Network) Validate() (Network, error) {
 	return n, nil
 }
 
+// String returns string representation of the Network.
+func (n Network) String() string {
+	return string(n)
+}
+
 // networksList is a strict list of all known long-standing networks.
 var networksList = map[Network]struct{}{
 	Arabica: {},
