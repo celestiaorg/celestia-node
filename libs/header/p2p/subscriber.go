@@ -28,7 +28,7 @@ func NewSubscriber[H header.Header](
 	protocolSuffix string,
 ) *Subscriber[H] {
 	return &Subscriber[H]{
-		pubsubTopicID: pubsubTopicID(protocolSuffix),
+		pubsubTopicID: PubsubTopicID(protocolSuffix),
 		pubsub:        ps,
 		msgID:         msgID,
 	}

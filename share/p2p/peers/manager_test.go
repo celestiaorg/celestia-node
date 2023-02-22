@@ -315,7 +315,14 @@ func TestIntegration(t *testing.T) {
 			routingdisc.NewRoutingDiscovery(router2),
 			10,
 			time.Second,
-			time.Second)
+			time.Second,
+		)
+		err = fnDisc.Start(ctx)
+		require.NoError(t, err)
+		t.Cleanup(func() {
+			err = fnDisc.Stop(ctx)
+			require.NoError(t, err)
+		})
 
 		// hook peer manager to discovery
 		connGater, err := conngater.NewBasicConnectionGater(sync.MutexWrap(datastore.NewMapDatastore()))
@@ -340,7 +347,6 @@ func TestIntegration(t *testing.T) {
 		require.NoError(t, router1.Bootstrap(ctx))
 		require.NoError(t, router2.Bootstrap(ctx))
 
-		go fnDisc.EnsurePeers(ctx)
 		go bnDisc.Advertise(ctx)
 
 		select {

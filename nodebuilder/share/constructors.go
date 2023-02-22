@@ -17,6 +17,7 @@ import (
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/availability/cache"
 	disc "github.com/celestiaorg/celestia-node/share/availability/discovery"
+	"github.com/celestiaorg/celestia-node/share/availability/light"
 	"github.com/celestiaorg/celestia-node/share/eds"
 	"github.com/celestiaorg/celestia-node/share/getters"
 )
@@ -36,8 +37,8 @@ func discovery(cfg Config) func(routing.ContentRouting, host.Host) *disc.Discove
 	}
 }
 
-// cacheAvailability wraps either Full or Light availability with a cache for result sampling.
-func cacheAvailability[A share.Availability](lc fx.Lifecycle, ds datastore.Batching, avail A) share.Availability {
+// cacheAvailability wraps light availability with a cache for result sampling.
+func cacheAvailability(lc fx.Lifecycle, ds datastore.Batching, avail *light.ShareAvailability) share.Availability {
 	ca := cache.NewShareAvailability(avail, ds)
 	lc.Append(fx.Hook{
 		OnStop: ca.Close,
