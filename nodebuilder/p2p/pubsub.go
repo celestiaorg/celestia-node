@@ -96,11 +96,11 @@ type pubSubParams struct {
 
 func topicScoreParams(network Network) map[string]*pubsub.TopicScoreParams {
 	mp := map[string]*pubsub.TopicScoreParams{
-		headp2p.PubsubTopicID(network.String()): headp2p.GossibSubScore,
+		headp2p.PubsubTopicID(network.String()): &headp2p.GossibSubScore,
 	}
 
 	for _, pt := range fraud.Registered() {
-		mp[fraud.PubsubTopicID(string(pt), network.String())] = fraud.GossibSubScore
+		mp[fraud.PubsubTopicID(pt.String(), network.String())] = &fraud.GossibSubScore
 	}
 
 	return mp
