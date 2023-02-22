@@ -32,8 +32,8 @@ type Module interface {
 
 	// SyncState returns the current state of the header Syncer.
 	SyncState(context.Context) (sync.State, error)
-	// WaitSync blocks until the header Syncer is synced to network head.
-	WaitSync(ctx context.Context) error
+	// SyncWait blocks until the header Syncer is synced to network head.
+	SyncWait(ctx context.Context) error
 	// NetworkHead provides the Syncer's view of the current network head.
 	NetworkHead(ctx context.Context) (*header.ExtendedHeader, error)
 }
@@ -54,7 +54,7 @@ type API struct {
 		) ([]*header.ExtendedHeader, error) `perm:"public"`
 		GetByHeight func(context.Context, uint64) (*header.ExtendedHeader, error) `perm:"public"`
 		SyncState   func(ctx context.Context) (sync.State, error)                 `perm:"read"`
-		WaitSync    func(ctx context.Context) error                               `perm:"read"`
+		SyncWait    func(ctx context.Context) error                               `perm:"read"`
 		NetworkHead func(ctx context.Context) (*header.ExtendedHeader, error)     `perm:"public"`
 	}
 }
@@ -83,8 +83,8 @@ func (api *API) SyncState(ctx context.Context) (sync.State, error) {
 	return api.Internal.SyncState(ctx)
 }
 
-func (api *API) WaitSync(ctx context.Context) error {
-	return api.Internal.WaitSync(ctx)
+func (api *API) SyncWait(ctx context.Context) error {
+	return api.Internal.SyncWait(ctx)
 }
 
 func (api *API) NetworkHead(ctx context.Context) (*header.ExtendedHeader, error) {

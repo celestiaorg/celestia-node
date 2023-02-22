@@ -10,6 +10,7 @@ import (
 
 	header "github.com/celestiaorg/celestia-node/header"
 	header0 "github.com/celestiaorg/celestia-node/libs/header"
+	sync "github.com/celestiaorg/celestia-node/libs/header/sync"
 	gomock "github.com/golang/mock/gomock"
 )
 
@@ -81,20 +82,6 @@ func (mr *MockModuleMockRecorder) GetVerifiedRangeByHeight(arg0, arg1, arg2 inte
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetVerifiedRangeByHeight", reflect.TypeOf((*MockModule)(nil).GetVerifiedRangeByHeight), arg0, arg1, arg2)
 }
 
-// IsSyncing mocks base method.
-func (m *MockModule) IsSyncing(arg0 context.Context) bool {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "IsSyncing", arg0)
-	ret0, _ := ret[0].(bool)
-	return ret0
-}
-
-// IsSyncing indicates an expected call of IsSyncing.
-func (mr *MockModuleMockRecorder) IsSyncing(arg0 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsSyncing", reflect.TypeOf((*MockModule)(nil).IsSyncing), arg0)
-}
-
 // LocalHead mocks base method.
 func (m *MockModule) LocalHead(arg0 context.Context) (*header.ExtendedHeader, error) {
 	m.ctrl.T.Helper()
@@ -125,16 +112,31 @@ func (mr *MockModuleMockRecorder) NetworkHead(arg0 interface{}) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "NetworkHead", reflect.TypeOf((*MockModule)(nil).NetworkHead), arg0)
 }
 
-// WaitSync mocks base method.
-func (m *MockModule) WaitSync(arg0 context.Context) error {
+// SyncState mocks base method.
+func (m *MockModule) SyncState(arg0 context.Context) (sync.State, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "WaitSync", arg0)
+	ret := m.ctrl.Call(m, "SyncState", arg0)
+	ret0, _ := ret[0].(sync.State)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// SyncState indicates an expected call of SyncState.
+func (mr *MockModuleMockRecorder) SyncState(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SyncState", reflect.TypeOf((*MockModule)(nil).SyncState), arg0)
+}
+
+// SyncWait mocks base method.
+func (m *MockModule) SyncWait(arg0 context.Context) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SyncWait", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// WaitSync indicates an expected call of WaitSync.
-func (mr *MockModuleMockRecorder) WaitSync(arg0 interface{}) *gomock.Call {
+// SyncWait indicates an expected call of SyncWait.
+func (mr *MockModuleMockRecorder) SyncWait(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "WaitSync", reflect.TypeOf((*MockModule)(nil).WaitSync), arg0)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SyncWait", reflect.TypeOf((*MockModule)(nil).SyncWait), arg0)
 }

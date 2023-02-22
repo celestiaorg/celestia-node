@@ -61,8 +61,8 @@ func (s *Service) SyncState(context.Context) (sync.State, error) {
 	return s.syncer.State(), nil
 }
 
-func (s *Service) WaitSync(ctx context.Context) error {
-	return s.syncer.WaitSync(ctx)
+func (s *Service) SyncWait(ctx context.Context) error {
+	return s.syncer.SyncWait(ctx)
 }
 
 func (s *Service) NetworkHead(ctx context.Context) (*header.ExtendedHeader, error) {
