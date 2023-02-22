@@ -74,8 +74,7 @@ func (sg *ShrexGetter) GetEDS(ctx context.Context, root *share.Root) (*rsmt2d.Ex
 			return nil, fmt.Errorf("getter/shrex: %w", err)
 		}
 
-		timeout := splitCtxTimeout(ctx, sg.minAttemptsCount, sg.minRequestTimeout)
-		reqCtx, cancel := context.WithTimeout(ctx, timeout)
+		reqCtx, cancel := ctxWithSplitTimeout(ctx, sg.minAttemptsCount, sg.minRequestTimeout)
 		eds, err := sg.edsClient.RequestEDS(reqCtx, root.Hash(), peer)
 		cancel()
 		switch err {
@@ -109,8 +108,7 @@ func (sg *ShrexGetter) GetSharesByNamespace(
 			return nil, fmt.Errorf("getter/shrex: %w", err)
 		}
 
-		timeout := splitCtxTimeout(ctx, sg.minAttemptsCount, sg.minRequestTimeout)
-		reqCtx, cancel := context.WithTimeout(ctx, timeout)
+		reqCtx, cancel := ctxWithSplitTimeout(ctx, sg.minAttemptsCount, sg.minRequestTimeout)
 		nd, err := sg.ndClient.RequestND(reqCtx, root, id, peer)
 		cancel()
 		switch err {

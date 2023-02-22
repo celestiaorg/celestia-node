@@ -3,7 +3,6 @@ package share
 import (
 	"context"
 	"errors"
-	"time"
 
 	"github.com/filecoin-project/dagstore"
 	"github.com/ipfs/go-datastore"
@@ -13,7 +12,6 @@ import (
 	"go.uber.org/fx"
 
 	"github.com/celestiaorg/celestia-app/pkg/da"
-
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/availability/cache"
 	disc "github.com/celestiaorg/celestia-node/share/availability/discovery"
@@ -69,19 +67,14 @@ func fullGetter(
 	cfg Config,
 ) share.Getter {
 	var cascade []share.Getter
-	// based on the default value of das.SampleTimeout
-	timeout := time.Minute
 	cascade = append(cascade, getters.NewStoreGetter(store))
 	if cfg.UseShareExchange {
-		// if we are using share exchange, we split the timeout between the two getters
-		// once async cascadegetter is implemented, we can remove this
-		timeout /= 2
 		cascade = append(cascade, shrexGetter)
 	}
 	cascade = append(cascade, ipldGetter)
 
 	return getters.NewTeeGetter(
-		getters.NewCascadeGetter(cascade, timeout),
+		getters.NewCascadeGetter(cascade),
 		store,
 	)
 }
