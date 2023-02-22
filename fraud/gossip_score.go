@@ -8,9 +8,7 @@ import (
 
 // GossibSubScore provides a set of recommended parameters for header GossipSub topic, a.k.a
 // FraudSub. TODO(@Wondertan): We should disable mesh on publish for this topic to minimize
-// chances of censoring FPs
-//
-//	by eclipsing nodes producing them
+// chances of censoring FPs by eclipsing nodes producing them.
 var GossibSubScore = &pubsub.TopicScoreParams{
 	// expected > 1 tx/second
 	TopicWeight: 0.1, // max cap is 5, single invalid message is -100
@@ -34,4 +32,6 @@ var GossibSubScore = &pubsub.TopicScoreParams{
 	InvalidMessageDeliveriesWeight: 0,
 
 	// Mesh Delivery Scoring is turned off as well.
+	// This is on purpose as the network is still too small, which results in
+	// asymmetries and potential unmeshing from negative scores.
 }
