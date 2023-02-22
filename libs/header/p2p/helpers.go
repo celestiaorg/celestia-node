@@ -20,7 +20,7 @@ func protocolID(protocolSuffix string) protocol.ID {
 	return protocol.ID(fmt.Sprintf("/header-ex/v0.0.3/%s", protocolSuffix))
 }
 
-func pubsubTopicID(protocolSuffix string) string {
+func PubsubTopicID(protocolSuffix string) string {
 	return fmt.Sprintf("/header-sub/v0.0.1/%s", protocolSuffix)
 }
 
