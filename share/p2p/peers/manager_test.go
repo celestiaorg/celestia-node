@@ -22,6 +22,7 @@ import (
 	"github.com/celestiaorg/celestia-node/header"
 	libhead "github.com/celestiaorg/celestia-node/libs/header"
 	"github.com/celestiaorg/celestia-node/share"
+	"github.com/celestiaorg/celestia-node/share/availability"
 	"github.com/celestiaorg/celestia-node/share/availability/discovery"
 	"github.com/celestiaorg/celestia-node/share/p2p/shrexsub"
 )
@@ -302,9 +303,10 @@ func TestIntegration(t *testing.T) {
 		bnDisc := discovery.NewDiscovery(
 			nw.Hosts()[0],
 			routingdisc.NewRoutingDiscovery(router1),
-			10,
-			time.Second,
-			time.Second)
+			availability.WithPeersLimit[availability.DiscoveryParameters](10),
+			availability.WithDiscoveryInterval[availability.DiscoveryParameters](time.Second),
+			availability.WithAdvertiseInterval[availability.DiscoveryParameters](time.Second),
+		)
 
 		// set up full node / receiver node
 		fnHost := nw.Hosts()[0]
@@ -313,9 +315,9 @@ func TestIntegration(t *testing.T) {
 		fnDisc := discovery.NewDiscovery(
 			nw.Hosts()[1],
 			routingdisc.NewRoutingDiscovery(router2),
-			10,
-			time.Second,
-			time.Second,
+			availability.WithPeersLimit[availability.DiscoveryParameters](10),
+			availability.WithDiscoveryInterval[availability.DiscoveryParameters](time.Second),
+			availability.WithAdvertiseInterval[availability.DiscoveryParameters](time.Second),
 		)
 		err = fnDisc.Start(ctx)
 		require.NoError(t, err)
@@ -368,7 +370,11 @@ func testManager(ctx context.Context, headerSub libhead.Subscriber[*header.Exten
 		return nil, err
 	}
 	disc := discovery.NewDiscovery(nil,
-		routingdisc.NewRoutingDiscovery(routinghelpers.Null{}), 0, time.Second, time.Second)
+		routingdisc.NewRoutingDiscovery(routinghelpers.Null{}),
+		availability.WithPeersLimit[availability.DiscoveryParameters](10),
+		availability.WithDiscoveryInterval[availability.DiscoveryParameters](time.Second),
+		availability.WithAdvertiseInterval[availability.DiscoveryParameters](time.Second),
+	)
 	connGater, err := conngater.NewBasicConnectionGater(sync.MutexWrap(datastore.NewMapDatastore()))
 	if err != nil {
 		return nil, err

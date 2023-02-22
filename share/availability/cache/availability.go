@@ -12,6 +12,7 @@ import (
 
 	"github.com/celestiaorg/celestia-app/pkg/da"
 	"github.com/celestiaorg/celestia-node/share"
+	"github.com/celestiaorg/celestia-node/share/availability"
 )
 
 var log = logging.Logger("share/cache")
@@ -37,17 +38,30 @@ type ShareAvailability struct {
 	//  Related to #483
 	dsLk sync.RWMutex
 	ds   *autobatch.Datastore
+
+	params availability.CacheAvailabilityParamaters
 }
 
 // NewShareAvailability wraps the given share.Availability with an additional datastore
 // for sampling result caching.
-func NewShareAvailability(avail share.Availability, ds datastore.Batching) *ShareAvailability {
+func NewShareAvailability(
+	avail share.Availability,
+	ds datastore.Batching,
+	opts ...availability.Option[availability.CacheAvailabilityParamaters],
+) *ShareAvailability {
+	params := availability.DefaultCacheAvailabilityParameters()
+
+	for _, opt := range opts {
+		opt(&params)
+	}
+
 	ds = namespace.Wrap(ds, cacheAvailabilityPrefix)
 	autoDS := autobatch.NewAutoBatching(ds, DefaultWriteBatchSize)
 
 	return &ShareAvailability{
-		avail: avail,
-		ds:    autoDS,
+		avail:  avail,
+		ds:     autoDS,
+		params: params,
 	}
 }
 

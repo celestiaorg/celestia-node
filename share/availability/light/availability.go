@@ -9,6 +9,7 @@ import (
 	logging "github.com/ipfs/go-log/v2"
 
 	"github.com/celestiaorg/celestia-node/share"
+	"github.com/celestiaorg/celestia-node/share/availability"
 	"github.com/celestiaorg/celestia-node/share/getters"
 )
 
@@ -20,11 +21,21 @@ var log = logging.Logger("share/light")
 // on the network doing sampling over the same Root to collectively verify its availability.
 type ShareAvailability struct {
 	getter share.Getter
+	params availability.LightAvailabilityParameters
 }
 
 // NewShareAvailability creates a new light Availability.
-func NewShareAvailability(getter share.Getter) *ShareAvailability {
-	return &ShareAvailability{getter}
+func NewShareAvailability(
+	getter share.Getter,
+	opts ...availability.Option[availability.LightAvailabilityParameters],
+) *ShareAvailability {
+	params := availability.DefaultLightAvailabilityParameters()
+
+	for _, opt := range opts {
+		opt(&params)
+	}
+
+	return &ShareAvailability{getter, params}
 }
 
 // SharesAvailable randomly samples DefaultSampleAmount amount of Shares committed to the given
@@ -46,7 +57,7 @@ func (la *ShareAvailability) SharesAvailable(ctx context.Context, dah *share.Roo
 	// indicate to the share.Getter that a blockservice session should be created. This
 	// functionality is optional and must be supported by the used share.Getter.
 	ctx = getters.WithSession(ctx)
-	ctx, cancel := context.WithTimeout(ctx, share.AvailabilityTimeout)
+	ctx, cancel := context.WithTimeout(ctx, la.params.AvailabilityTimeout)
 	defer cancel()
 
 	log.Debugw("starting sampling session", "root", dah.Hash())

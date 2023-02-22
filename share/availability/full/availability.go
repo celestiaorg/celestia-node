@@ -8,6 +8,7 @@ import (
 	logging "github.com/ipfs/go-log/v2"
 
 	"github.com/celestiaorg/celestia-node/share"
+	availability "github.com/celestiaorg/celestia-node/share/availability"
 	"github.com/celestiaorg/celestia-node/share/availability/discovery"
 	"github.com/celestiaorg/celestia-node/share/eds/byzantine"
 )
@@ -22,13 +23,26 @@ type ShareAvailability struct {
 	disc   *discovery.Discovery
 
 	cancel context.CancelFunc
+
+	params availability.FullAvailabilityParameters
 }
 
 // NewShareAvailability creates a new full ShareAvailability.
-func NewShareAvailability(getter share.Getter, disc *discovery.Discovery) *ShareAvailability {
+func NewShareAvailability(
+	getter share.Getter,
+	disc *discovery.Discovery,
+	opts ...availability.Option[availability.FullAvailabilityParameters],
+) *ShareAvailability {
+	params := availability.DefaultFullAvailabilityParameters()
+
+	for _, opt := range opts {
+		opt(&params)
+	}
+
 	return &ShareAvailability{
 		getter: getter,
 		disc:   disc,
+		params: params,
 	}
 }
 
@@ -48,7 +62,7 @@ func (fa *ShareAvailability) Stop(context.Context) error {
 // SharesAvailable reconstructs the data committed to the given Root by requesting
 // enough Shares from the network.
 func (fa *ShareAvailability) SharesAvailable(ctx context.Context, root *share.Root) error {
-	ctx, cancel := context.WithTimeout(ctx, share.AvailabilityTimeout)
+	ctx, cancel := context.WithTimeout(ctx, fa.params.AvailabilityTimeout)
 	defer cancel()
 	// we assume the caller of this method has already performed basic validation on the
 	// given dah/root. If for some reason this has not happened, the node should panic.

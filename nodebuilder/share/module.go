@@ -11,6 +11,7 @@ import (
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	modp2p "github.com/celestiaorg/celestia-node/nodebuilder/p2p"
 	"github.com/celestiaorg/celestia-node/share"
+	"github.com/celestiaorg/celestia-node/share/availability"
 	disc "github.com/celestiaorg/celestia-node/share/availability/discovery"
 	"github.com/celestiaorg/celestia-node/share/availability/full"
 	"github.com/celestiaorg/celestia-node/share/availability/light"
@@ -30,6 +31,21 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 		fx.Supply(*cfg),
 		fx.Error(cfgErr),
 		fx.Options(options...),
+		fx.Provide(func() []availability.Option[availability.FullAvailabilityParameters] {
+			return []availability.Option[availability.FullAvailabilityParameters]{
+				availability.WithAvailabilityTimeout[availability.FullAvailabilityParameters](
+					cfg.FullAvailabilityParameters.AvailabilityTimeout,
+				),
+			}
+		}),
+		fx.Provide(func() []availability.Option[availability.LightAvailabilityParameters] {
+			return []availability.Option[availability.LightAvailabilityParameters]{
+				availability.WithAvailabilityTimeout[availability.LightAvailabilityParameters](
+					cfg.LightAvailabilityParameters.AvailabilityTimeout,
+				),
+				availability.WithSampleAmount[availability.LightAvailabilityParameters](cfg.SampleAmount),
+			}
+		}),
 		fx.Provide(fx.Annotate(
 			discovery(*cfg),
 			fx.OnStart(func(ctx context.Context, d *disc.Discovery) error {

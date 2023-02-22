@@ -9,6 +9,7 @@ import (
 	"github.com/libp2p/go-libp2p/p2p/discovery/routing"
 
 	"github.com/celestiaorg/celestia-node/share"
+	availability "github.com/celestiaorg/celestia-node/share/availability"
 	"github.com/celestiaorg/celestia-node/share/availability/discovery"
 	availability_test "github.com/celestiaorg/celestia-node/share/availability/test"
 	"github.com/celestiaorg/celestia-node/share/getters"
@@ -37,6 +38,12 @@ func Node(dn *availability_test.TestDagNet) *availability_test.TestNode {
 }
 
 func TestAvailability(getter share.Getter) *ShareAvailability {
-	disc := discovery.NewDiscovery(nil, routing.NewRoutingDiscovery(routinghelpers.Null{}), 0, time.Second, time.Second)
+	disc := discovery.NewDiscovery(
+		nil,
+		routing.NewRoutingDiscovery(routinghelpers.Null{}),
+		availability.WithPeersLimit[availability.DiscoveryParameters](10),
+		availability.WithDiscoveryInterval[availability.DiscoveryParameters](time.Second),
+		availability.WithAdvertiseInterval[availability.DiscoveryParameters](time.Second),
+	)
 	return NewShareAvailability(getter, disc)
 }

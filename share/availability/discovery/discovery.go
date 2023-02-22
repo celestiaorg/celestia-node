@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/celestiaorg/celestia-node/share/availability"
 	logging "github.com/ipfs/go-log/v2"
 	"github.com/libp2p/go-libp2p/core/discovery"
 	"github.com/libp2p/go-libp2p/core/event"
@@ -38,16 +39,12 @@ type Discovery struct {
 	host      host.Host
 	disc      discovery.Discovery
 	connector *backoffConnector
-	// peersLimit is max amount of peers that will be discovered during a discovery session.
-	peersLimit uint
-	// discInterval is an interval between discovery sessions.
-	discoveryInterval time.Duration
-	// advertiseInterval is an interval between advertising sessions.
-	advertiseInterval time.Duration
 	// onUpdatedPeers will be called on peer set changes
 	onUpdatedPeers OnUpdatedPeers
 
 	cancel context.CancelFunc
+
+	params availability.DiscoveryParameters
 }
 
 type OnUpdatedPeers func(peerID peer.ID, isAdded bool)
@@ -56,19 +53,21 @@ type OnUpdatedPeers func(peerID peer.ID, isAdded bool)
 func NewDiscovery(
 	h host.Host,
 	d discovery.Discovery,
-	peersLimit uint,
-	discInterval,
-	advertiseInterval time.Duration,
+	opts ...availability.Option[availability.DiscoveryParameters],
 ) *Discovery {
+	params := availability.DefaultDiscoveryParameters()
+
+	for _, opt := range opts {
+		opt(&params)
+	}
+
 	return &Discovery{
-		set:               newLimitedSet(peersLimit),
-		host:              h,
-		disc:              d,
-		connector:         newBackoffConnector(h, defaultBackoffFactory),
-		peersLimit:        peersLimit,
-		discoveryInterval: discInterval,
-		advertiseInterval: advertiseInterval,
-		onUpdatedPeers:    func(peer.ID, bool) {},
+		set:            newLimitedSet(params.PeersLimit),
+		host:           h,
+		disc:           d,
+		connector:      newBackoffConnector(h, defaultBackoffFactory),
+		onUpdatedPeers: func(peer.ID, bool) {},
+		params:         params,
 	}
 }
 
@@ -123,7 +122,7 @@ func (d *Discovery) handlePeerFound(ctx context.Context, topic string, peer peer
 // It starts peer discovery every 30 seconds until peer cache reaches peersLimit.
 // Discovery is restarted if any previously connected peers disconnect.
 func (d *Discovery) ensurePeers(ctx context.Context) {
-	if d.peersLimit == 0 {
+	if d.params.PeersLimit == 0 {
 		log.Warn("peers limit is set to 0. Skipping discovery...")
 		return
 	}
@@ -138,7 +137,7 @@ func (d *Discovery) ensurePeers(ctx context.Context) {
 	}
 	go d.connector.GC(ctx)
 
-	t := time.NewTicker(d.discoveryInterval)
+	t := time.NewTicker(d.params.DiscoveryInterval)
 	defer func() {
 		t.Stop()
 		if err = sub.Close(); err != nil {
@@ -170,7 +169,7 @@ func (d *Discovery) ensurePeers(ctx context.Context) {
 						d.set.Remove(connStatus.Peer)
 						d.onUpdatedPeers(connStatus.Peer, false)
 						d.host.ConnManager().UntagPeer(connStatus.Peer, topic)
-						t.Reset(d.discoveryInterval)
+						t.Reset(d.params.DiscoveryInterval)
 					}
 				}
 			}
@@ -183,7 +182,7 @@ func (d *Discovery) ensurePeers(ctx context.Context) {
 			log.Info("Context canceled. Finishing peer discovery")
 			return
 		case <-t.C:
-			if uint(d.set.Size()) == d.peersLimit {
+			if uint(d.set.Size()) == d.params.PeersLimit {
 				// stop ticker if we have reached the limit
 				t.Stop()
 				continue
@@ -202,7 +201,7 @@ func (d *Discovery) ensurePeers(ctx context.Context) {
 
 // Advertise is a utility function that persistently advertises a service through an Advertiser.
 func (d *Discovery) Advertise(ctx context.Context) {
-	timer := time.NewTimer(d.advertiseInterval)
+	timer := time.NewTimer(d.params.AdvertiseInterval)
 	defer timer.Stop()
 	for {
 		ttl, err := d.disc.Advertise(ctx, topic)
@@ -214,7 +213,7 @@ func (d *Discovery) Advertise(ctx context.Context) {
 
 			select {
 			case <-timer.C:
-				timer.Reset(d.advertiseInterval)
+				timer.Reset(d.params.AdvertiseInterval)
 				continue
 			case <-ctx.Done():
 				return
