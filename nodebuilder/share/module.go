@@ -96,9 +96,9 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 				return avail.Stop(ctx)
 			}),
 		)),
-		// cacheAvailability's lifecycle continues to use a fx hook,
-		// since the LC requires a cacheAvailability but the constructor returns a share.Availability
-		fx.Provide(cacheAvailability[*full.ShareAvailability]),
+		fx.Provide(func(avail *full.ShareAvailability) share.Availability {
+			return avail
+		}),
 		fx.Provide(func(shrexSub *shrexsub.PubSub) shrexsub.BroadcastFn {
 			return shrexSub.Broadcast
 		}),
@@ -129,7 +129,7 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 			fx.Provide(fx.Annotate(light.NewShareAvailability)),
 			// cacheAvailability's lifecycle continues to use a fx hook,
 			// since the LC requires a cacheAvailability but the constructor returns a share.Availability
-			fx.Provide(cacheAvailability[*light.ShareAvailability]),
+			fx.Provide(cacheAvailability),
 		)
 	case node.Bridge:
 		return fx.Module(
