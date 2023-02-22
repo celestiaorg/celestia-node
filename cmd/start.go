@@ -1,11 +1,17 @@
 package cmd
 
 import (
+	"os"
 	"os/signal"
+	"path/filepath"
 	"syscall"
 
+	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	"github.com/spf13/cobra"
 	flag "github.com/spf13/pflag"
+
+	"github.com/celestiaorg/celestia-app/app"
+	"github.com/celestiaorg/celestia-app/app/encoding"
 
 	"github.com/celestiaorg/celestia-node/nodebuilder"
 )
@@ -22,12 +28,25 @@ Options passed on start override configuration options only on start and are not
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
 
-			store, err := nodebuilder.OpenStore(StorePath(ctx))
+			// override config with all modifiers passed on start
+			cfg := NodeConfig(ctx)
+
+			storePath := StorePath(ctx)
+			keysPath := filepath.Join(storePath, "keys")
+
+			// construct ring
+			// TODO @renaynay: Include option for setting custom `userInput` parameter with
+			//  implementation of https://github.com/celestiaorg/celestia-node/issues/415.
+			encConf := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+			ring, err := keyring.New(app.Name, cfg.State.KeyringBackend, keysPath, os.Stdin, encConf.Codec)
 			if err != nil {
 				return err
 			}
-			// override config with all modifiers passed on start
-			cfg := NodeConfig(ctx)
+
+			store, err := nodebuilder.OpenStore(storePath, ring)
+			if err != nil {
+				return err
+			}
 
 			nd, err := nodebuilder.NewWithConfig(NodeType(ctx), Network(ctx), store, &cfg, NodeOptions(ctx)...)
 			if err != nil {

@@ -35,11 +35,13 @@ type PubSub struct {
 	topic  *pubsub.Topic
 
 	pubsubTopic string
+	cancelRelay pubsub.RelayCancelFunc
 }
 
 // NewPubSub creates a libp2p.PubSub wrapper.
 func NewPubSub(ctx context.Context, h host.Host, suffix string) (*PubSub, error) {
-	// WithSeenMessagesTTL without duration allows to process all incoming messages(even with the same msgId)
+	// WithSeenMessagesTTL without duration allows to process all incoming messages(even with the same
+	// msgId)
 	pubsub, err := pubsub.NewFloodSub(ctx, h, pubsub.WithSeenMessagesTTL(0))
 	if err != nil {
 		return nil, err
@@ -57,6 +59,12 @@ func (s *PubSub) Start(context.Context) error {
 		return err
 	}
 
+	cancel, err := topic.Relay()
+	if err != nil {
+		return err
+	}
+
+	s.cancelRelay = cancel
 	s.topic = topic
 	return nil
 }
@@ -65,6 +73,7 @@ func (s *PubSub) Start(context.Context) error {
 // * Unregisters all the added Validators
 // * Closes the `ShrEx/Sub` topic
 func (s *PubSub) Stop(context.Context) error {
+	s.cancelRelay()
 	err := s.pubSub.UnregisterTopicValidator(s.pubsubTopic)
 	if err != nil {
 		log.Warnw("unregistering topic", "err", err)

@@ -6,10 +6,10 @@ import (
 	"fmt"
 
 	"github.com/filecoin-project/dagstore"
-	blocks "github.com/ipfs/go-block-format"
 	"github.com/ipfs/go-cid"
 	bstore "github.com/ipfs/go-ipfs-blockstore"
 	ipld "github.com/ipfs/go-ipld-format"
+	blocks "github.com/ipfs/go-libipfs/blocks"
 )
 
 var _ bstore.Blockstore = (*blockstore)(nil)
