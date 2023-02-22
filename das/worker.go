@@ -69,9 +69,7 @@ func (w *worker) run(ctx context.Context, timeout time.Duration, resultCh chan<-
 	log.Debugw("start sampling worker", "from", w.state.From, "to", w.state.To)
 
 	for curr := w.state.From; curr <= w.state.To; curr++ {
-		ctx, cancel := context.WithTimeout(ctx, timeout)
-		err := w.sample(ctx, curr)
-		cancel()
+		err := w.sample(ctx, timeout, curr)
 		if err != nil {
 			if errors.Is(err, context.Canceled) {
 				// sampling worker will resume upon restart
@@ -103,13 +101,16 @@ func (w *worker) run(ctx context.Context, timeout time.Duration, resultCh chan<-
 	}
 }
 
-func (w *worker) sample(ctx context.Context, height uint64) error {
+func (w *worker) sample(ctx context.Context, timeout time.Duration, height uint64) error {
 	h, err := w.getHeader(ctx, height)
 	if err != nil {
 		return err
 	}
 
 	start := time.Now()
+	ctx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+
 	err = w.sampleFn(ctx, h)
 	w.metrics.observeSample(ctx, h, time.Since(start), err, w.state.isRecentHeader)
 	if err != nil {
