@@ -19,7 +19,7 @@ func protocolID(protocolSuffix string) protocol.ID {
 
 func join(p *pubsub.PubSub, proofType ProofType, protocolSuffix string,
 	validate func(context.Context, ProofType, peer.ID, *pubsub.Message) pubsub.ValidationResult) (*pubsub.Topic, error) {
-	topic := PubsubTopicID(string(proofType), protocolSuffix)
+	topic := PubsubTopicID(proofType.String(), protocolSuffix)
 	log.Infow("joining topic", "id", topic)
 	t, err := p.Join(topic)
 	if err != nil {
