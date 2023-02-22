@@ -13,9 +13,11 @@ import (
 	"go.uber.org/fx"
 
 	"github.com/celestiaorg/celestia-app/pkg/da"
+
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/availability/cache"
 	disc "github.com/celestiaorg/celestia-node/share/availability/discovery"
+	"github.com/celestiaorg/celestia-node/share/availability/light"
 	"github.com/celestiaorg/celestia-node/share/eds"
 	"github.com/celestiaorg/celestia-node/share/getters"
 )
@@ -35,8 +37,8 @@ func discovery(cfg Config) func(routing.ContentRouting, host.Host) *disc.Discove
 	}
 }
 
-// cacheAvailability wraps either Full or Light availability with a cache for result sampling.
-func cacheAvailability[A share.Availability](lc fx.Lifecycle, ds datastore.Batching, avail A) share.Availability {
+// cacheAvailability wraps light availability with a cache for result sampling.
+func cacheAvailability(lc fx.Lifecycle, ds datastore.Batching, avail *light.ShareAvailability) share.Availability {
 	ca := cache.NewShareAvailability(avail, ds)
 	lc.Append(fx.Hook{
 		OnStop: ca.Close,
@@ -58,21 +60,6 @@ func ensureEmptyCARExists(ctx context.Context, store *eds.Store) error {
 		return nil
 	}
 	return err
-}
-
-func lightGetter(
-	shrexGetter *getters.ShrexGetter,
-	ipldGetter *getters.IPLDGetter,
-) share.Getter {
-	return getters.NewCascadeGetter(
-		[]share.Getter{
-			shrexGetter,
-			ipldGetter,
-		},
-		// based on the default value of das.SampleTimeout.
-		// will no longer be needed when async cascadegetter is merged
-		time.Minute,
-	)
 }
 
 func fullGetter(
