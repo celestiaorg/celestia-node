@@ -5,6 +5,7 @@ import (
 
 	"github.com/celestiaorg/celestia-node/header"
 	libhead "github.com/celestiaorg/celestia-node/libs/header"
+	"github.com/celestiaorg/celestia-node/libs/header/sync"
 )
 
 // Module exposes the functionality needed for querying headers from the network.
@@ -29,8 +30,8 @@ type Module interface {
 	// until header has been processed by the store or context deadline is exceeded.
 	GetByHeight(context.Context, uint64) (*header.ExtendedHeader, error)
 
-	// IsSyncing returns the status of sync
-	IsSyncing(context.Context) bool
+	// SyncState returns the current state of the header Syncer.
+	SyncState(context.Context) (sync.State, error)
 	// WaitSync blocks until the header Syncer is synced to network head.
 	WaitSync(ctx context.Context) error
 	// NetworkHead provides the Syncer's view of the current network head.
@@ -52,7 +53,7 @@ type API struct {
 			uint64,
 		) ([]*header.ExtendedHeader, error) `perm:"public"`
 		GetByHeight func(context.Context, uint64) (*header.ExtendedHeader, error) `perm:"public"`
-		IsSyncing   func(context.Context) bool                                    `perm:"read"`
+		SyncState   func(ctx context.Context) (sync.State, error)                 `perm:"read"`
 		WaitSync    func(ctx context.Context) error                               `perm:"read"`
 		NetworkHead func(ctx context.Context) (*header.ExtendedHeader, error)     `perm:"public"`
 	}
@@ -78,8 +79,8 @@ func (api *API) LocalHead(ctx context.Context) (*header.ExtendedHeader, error) {
 	return api.Internal.LocalHead(ctx)
 }
 
-func (api *API) IsSyncing(ctx context.Context) bool {
-	return api.Internal.IsSyncing(ctx)
+func (api *API) SyncState(ctx context.Context) (sync.State, error) {
+	return api.Internal.SyncState(ctx)
 }
 
 func (api *API) WaitSync(ctx context.Context) error {

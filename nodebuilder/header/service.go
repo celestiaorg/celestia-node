@@ -57,8 +57,8 @@ func (s *Service) LocalHead(ctx context.Context) (*header.ExtendedHeader, error)
 	return s.store.Head(ctx)
 }
 
-func (s *Service) IsSyncing(context.Context) bool {
-	return !s.syncer.State().Finished()
+func (s *Service) SyncState(context.Context) (sync.State, error) {
+	return s.syncer.State(), nil
 }
 
 func (s *Service) WaitSync(ctx context.Context) error {

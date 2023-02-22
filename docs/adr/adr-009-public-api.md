@@ -107,7 +107,7 @@ GetVerifiedRangeByHeight(ctx context.Context, from, to uint64) ([]*ExtendedHeade
 // ExtendedHeaders. Multiple Subscriptions can be created.
 Subscribe(context.Context) (Subscription, error)
 // SyncState returns the current state of the header Syncer. 
-SyncState(context.Context) sync.State
+SyncState(context.Context) (sync.State, error)
 // WaitSync blocks until the header Syncer is synced to network head. 
 WaitSync(ctx context.Context) error
 // NetworkHead provides the Syncer's view of the current network head.
