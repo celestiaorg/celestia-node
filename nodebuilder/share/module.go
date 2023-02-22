@@ -59,7 +59,7 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 			func(
 				host host.Host,
 				store *eds.Store,
-				getter *getters.IPLDGetter,
+				getter share.Getter,
 				network modp2p.Network,
 			) (*shrexnd.Server, error) {
 				return shrexnd.NewServer(host, store, getter, shrexnd.WithProtocolSuffix(string(network)))
@@ -111,7 +111,6 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 				)
 			},
 		),
-		fx.Provide(getters.NewIPLDGetter),
 	)
 
 	switch tp {
@@ -137,8 +136,8 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 			"share",
 			baseComponents,
 			bridgeAndFullComponents,
-			fx.Provide(func(ipldGetter *getters.IPLDGetter) share.Getter {
-				return ipldGetter
+			fx.Provide(func(store *eds.Store) share.Getter {
+				return getters.NewStoreGetter(store)
 			}),
 			fx.Invoke(func(lc fx.Lifecycle, sub *shrexsub.PubSub) error {
 				lc.Append(fx.Hook{
@@ -174,6 +173,7 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 				}),
 			)),
 			fx.Provide(peers.NewManager),
+			fx.Provide(getters.NewIPLDGetter),
 		)
 	default:
 		panic("invalid node type")
