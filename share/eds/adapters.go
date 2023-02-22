@@ -5,9 +5,9 @@ import (
 	"sync"
 
 	"github.com/filecoin-project/dagstore"
-	blocks "github.com/ipfs/go-block-format"
 	"github.com/ipfs/go-blockservice"
 	"github.com/ipfs/go-cid"
+	"github.com/ipfs/go-libipfs/blocks"
 )
 
 var _ blockservice.BlockGetter = (*BlockGetter)(nil)

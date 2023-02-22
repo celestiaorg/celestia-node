@@ -7,9 +7,11 @@ import (
 	"github.com/libp2p/go-libp2p/core/host"
 	"go.uber.org/fx"
 
+	"github.com/celestiaorg/celestia-node/libs/fxutil"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	modp2p "github.com/celestiaorg/celestia-node/nodebuilder/p2p"
 	"github.com/celestiaorg/celestia-node/share"
+	disc "github.com/celestiaorg/celestia-node/share/availability/discovery"
 	"github.com/celestiaorg/celestia-node/share/availability/full"
 	"github.com/celestiaorg/celestia-node/share/availability/light"
 	"github.com/celestiaorg/celestia-node/share/eds"
@@ -28,38 +30,16 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 		fx.Supply(*cfg),
 		fx.Error(cfgErr),
 		fx.Options(options...),
-		fx.Provide(discovery(*cfg)),
-		fx.Provide(newModule),
-		fx.Provide(getters.NewIPLDGetter),
-		fx.Provide(peers.NewManager),
-		fx.Provide(
-			func(ctx context.Context, h host.Host, network modp2p.Network) (*shrexsub.PubSub, error) {
-				return shrexsub.NewPubSub(
-					ctx,
-					h,
-					string(network),
-				)
-			},
-		),
-		fx.Provide(
-			func(host host.Host, network modp2p.Network) (*shrexnd.Client, error) {
-				return shrexnd.NewClient(host, shrexnd.WithProtocolSuffix(string(network)))
-			},
-		),
-		fx.Provide(
-			func(host host.Host, network modp2p.Network) (*shrexeds.Client, error) {
-				return shrexeds.NewClient(host, shrexeds.WithProtocolSuffix(string(network)))
-			},
-		),
 		fx.Provide(fx.Annotate(
-			getters.NewShrexGetter,
-			fx.OnStart(func(ctx context.Context, getter *getters.ShrexGetter) error {
-				return getter.Start(ctx)
+			discovery(*cfg),
+			fx.OnStart(func(ctx context.Context, d *disc.Discovery) error {
+				return d.Start(ctx)
 			}),
-			fx.OnStop(func(ctx context.Context, getter *getters.ShrexGetter) error {
-				return getter.Stop(ctx)
+			fx.OnStop(func(ctx context.Context, d *disc.Discovery) error {
+				return d.Stop(ctx)
 			}),
 		)),
+		fx.Provide(newModule),
 	)
 
 	switch tp {
@@ -68,7 +48,7 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 			"share",
 			baseComponents,
 			fx.Invoke(share.EnsureEmptySquareExists),
-			fx.Provide(lightGetter),
+			fxutil.ProvideAs(getters.NewIPLDGetter, new(share.Getter)),
 			// shrexsub broadcaster stub for daser
 			fx.Provide(func() shrexsub.BroadcastFn {
 				return func(context.Context, share.DataHash) error {
@@ -144,6 +124,36 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 				return shrexSub.Broadcast
 			}),
 			fx.Provide(fullGetter),
+			fx.Provide(
+				func(host host.Host, network modp2p.Network) (*shrexnd.Client, error) {
+					return shrexnd.NewClient(host, shrexnd.WithProtocolSuffix(string(network)))
+				},
+			),
+			fx.Provide(
+				func(host host.Host, network modp2p.Network) (*shrexeds.Client, error) {
+					return shrexeds.NewClient(host, shrexeds.WithProtocolSuffix(string(network)))
+				},
+			),
+			fx.Provide(fx.Annotate(
+				getters.NewShrexGetter,
+				fx.OnStart(func(ctx context.Context, getter *getters.ShrexGetter) error {
+					return getter.Start(ctx)
+				}),
+				fx.OnStop(func(ctx context.Context, getter *getters.ShrexGetter) error {
+					return getter.Stop(ctx)
+				}),
+			)),
+			fx.Provide(
+				func(ctx context.Context, h host.Host, network modp2p.Network) (*shrexsub.PubSub, error) {
+					return shrexsub.NewPubSub(
+						ctx,
+						h,
+						string(network),
+					)
+				},
+			),
+			fx.Provide(peers.NewManager),
+			fx.Provide(getters.NewIPLDGetter),
 		)
 	default:
 		panic("invalid node type")
