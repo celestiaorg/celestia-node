@@ -44,7 +44,7 @@ func ParseNodeFlags(ctx context.Context, cmd *cobra.Command, network p2p.Network
 	if store == "" {
 		tp := NodeType(ctx)
 		var err error
-		store, err = DefaultNodeStorePath(tp.String(), string(network))
+		store, err = DefaultNodeStorePath(tp.String(), network.String())
 		if err != nil {
 			return ctx, err
 		}
