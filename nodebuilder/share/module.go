@@ -43,7 +43,7 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 	)
 
 	bridgeAndFullComponents := fx.Options(
-		fx.Invoke(func(edsSrv *shrexeds.Server, ndSrc *shrexnd.Server) {}), // TODO: why do we need this ?
+		fx.Invoke(func(edsSrv *shrexeds.Server, ndSrc *shrexnd.Server) {}),
 		fx.Provide(fx.Annotate(
 			func(host host.Host, store *eds.Store, network modp2p.Network) (*shrexeds.Server, error) {
 				return shrexeds.NewServer(host, store, shrexeds.WithProtocolSuffix(network.String()))
