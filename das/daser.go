@@ -156,15 +156,9 @@ func (d *DASer) sample(ctx context.Context, h *header.ExtendedHeader) error {
 			if sendErr != nil {
 				log.Errorw("fraud proof propagating failed", "err", sendErr)
 			}
-		} else if err == context.Canceled {
-			return err
 		}
-
-		log.Errorw("sampling failed", "height", h.Height(), "hash", h.Hash(),
-			"square width", len(h.DAH.RowsRoots), "data root", h.DAH.Hash(), "err", err)
 		return err
 	}
-
 	return nil
 }
 
