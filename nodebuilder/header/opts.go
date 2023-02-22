@@ -3,7 +3,6 @@ package header
 import (
 	"fmt"
 
-	"github.com/celestiaorg/celestia-node/core"
 	header "github.com/celestiaorg/celestia-node/header"
 	libhead "github.com/celestiaorg/celestia-node/libs/header"
 	p2p "github.com/celestiaorg/celestia-node/libs/header/p2p"
@@ -18,9 +17,7 @@ func WithMetrics(ex libhead.Exchange[*header.ExtendedHeader]) error {
 			return fmt.Errorf("header.WithMetrics: type is to *p2p.Exchange but cast failed")
 		}
 		return exchange.RegisterMetrics()
-	case *core.Exchange:
-		return nil
 	default:
-		return fmt.Errorf("header.WithMetrics: unknown/unsupported (provided) exchange type")
+		return nil
 	}
 }
