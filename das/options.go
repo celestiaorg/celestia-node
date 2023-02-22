@@ -37,7 +37,7 @@ type Parameters struct {
 
 	// SampleTimeout is a maximum amount time sampling of single block may take until it will be
 	// canceled. High ConcurrencyLimit value may increase sampling time due to node resources being
-	// divided between parallel workers. SampleTimeout should be adjusted proportional to
+	// divided between parallel workers. SampleTimeout should be adjusted proportionally to
 	// ConcurrencyLimit.
 	SampleTimeout time.Duration
 }
