@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/celestiaorg/celestia-node/fraud"
 	headp2p "github.com/celestiaorg/celestia-node/libs/header/p2p"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	pubsub_pb "github.com/libp2p/go-libp2p-pubsub/pb"
@@ -94,9 +95,15 @@ type pubSubParams struct {
 }
 
 func topicScoreParams(network Network) map[string]*pubsub.TopicScoreParams {
-	return map[string]*pubsub.TopicScoreParams{
+	mp := map[string]*pubsub.TopicScoreParams{
 		headp2p.PubsubTopicID(network.String()): headp2p.GossibSubScore,
 	}
+
+	for _, pt := range fraud.Registered() {
+		mp[fraud.PubsubTopicID(string(pt), network.String())] = fraud.GossibSubScore
+	}
+
+	return mp
 }
 
 func peerScoreParams(isBootstrapper bool, bootstrappers Bootstrappers) *pubsub.PeerScoreParams {
