@@ -62,7 +62,7 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 				getter share.Getter,
 				network modp2p.Network,
 			) (*shrexnd.Server, error) {
-				return shrexnd.NewServer(host, store, getter, shrexnd.WithProtocolSuffix(string(network)))
+				return shrexnd.NewServer(host, store, getter, shrexnd.WithProtocolSuffix(network.String()))
 			},
 			fx.OnStart(func(ctx context.Context, server *shrexnd.Server) error {
 				return server.Start(ctx)
@@ -107,7 +107,7 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 				return shrexsub.NewPubSub(
 					ctx,
 					h,
-					string(network),
+					network.String(),
 				)
 			},
 		),
