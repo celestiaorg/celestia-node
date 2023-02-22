@@ -7,7 +7,7 @@ import (
 )
 
 // GossibSubScore provides a set of recommended parameters for header GossipSub topic, a.k.a
-// HeaderSub. TODO(@Wondertan): We should disable mesh on publish for this topic to minimize
+// FraudSub. TODO(@Wondertan): We should disable mesh on publish for this topic to minimize
 // chances of censoring FPs
 //
 //	by eclipsing nodes producing them
