@@ -6,10 +6,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/celestiaorg/rsmt2d"
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/multierr"
+
+	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/mocks"

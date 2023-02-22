@@ -3,10 +3,11 @@ package share
 import (
 	"context"
 
-	"github.com/celestiaorg/nmt/namespace"
 	"github.com/ipfs/go-blockservice"
 	"github.com/ipfs/go-cid"
 	format "github.com/ipfs/go-ipld-format"
+
+	"github.com/celestiaorg/nmt/namespace"
 
 	"github.com/celestiaorg/celestia-node/share/ipld"
 )

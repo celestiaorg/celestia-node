@@ -7,10 +7,11 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/pkg/da"
-	"github.com/celestiaorg/rsmt2d"
 	tmjson "github.com/tendermint/tendermint/libs/json"
 	core "github.com/tendermint/tendermint/types"
+
+	"github.com/celestiaorg/celestia-app/pkg/da"
+	"github.com/celestiaorg/rsmt2d"
 
 	libhead "github.com/celestiaorg/celestia-node/libs/header"
 )

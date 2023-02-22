@@ -5,9 +5,10 @@ import (
 	mrand "math/rand"
 	"sort"
 
+	"github.com/stretchr/testify/require"
+
 	"github.com/celestiaorg/celestia-app/pkg/wrapper"
 	"github.com/celestiaorg/rsmt2d"
-	"github.com/stretchr/testify/require"
 )
 
 // EqualEDS check whether two given EDSes are equal.

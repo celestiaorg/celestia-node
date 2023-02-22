@@ -6,14 +6,15 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"github.com/celestiaorg/nmt"
-	"github.com/celestiaorg/nmt/namespace"
 	"github.com/gammazero/workerpool"
 	"github.com/ipfs/go-blockservice"
 	"github.com/ipfs/go-cid"
 	ipld "github.com/ipfs/go-ipld-format"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
+
+	"github.com/celestiaorg/nmt"
+	"github.com/celestiaorg/nmt/namespace"
 )
 
 // NumWorkersLimit sets global limit for workers spawned by GetShares.

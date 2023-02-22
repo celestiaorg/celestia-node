@@ -3,11 +3,12 @@ package byzantine
 import (
 	"context"
 
-	"github.com/celestiaorg/nmt"
 	"github.com/ipfs/go-blockservice"
 	"github.com/ipfs/go-cid"
 	logging "github.com/ipfs/go-log/v2"
 	"github.com/minio/sha256-simd"
+
+	"github.com/celestiaorg/nmt"
 
 	"github.com/celestiaorg/celestia-node/share"
 	pb "github.com/celestiaorg/celestia-node/share/eds/byzantine/pb"

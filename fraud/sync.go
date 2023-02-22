@@ -4,7 +4,6 @@ import (
 	"context"
 	"time"
 
-	"github.com/celestiaorg/go-libp2p-messenger/serde"
 	"github.com/ipfs/go-datastore"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	"github.com/libp2p/go-libp2p/core/event"
@@ -13,6 +12,8 @@ import (
 	"github.com/libp2p/go-libp2p/core/protocol"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
+
+	"github.com/celestiaorg/go-libp2p-messenger/serde"
 
 	pb "github.com/celestiaorg/celestia-node/fraud/pb"
 )
