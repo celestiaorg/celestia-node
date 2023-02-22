@@ -46,12 +46,14 @@ type Parameters struct {
 func DefaultParameters() Parameters {
 	// TODO(@derrandz): parameters needs performance testing on real network to define optimal values
 	// (#1261)
+	concurrencyLimit := 16
 	return Parameters{
 		SamplingRange:           100,
-		ConcurrencyLimit:        16,
+		ConcurrencyLimit:        concurrencyLimit,
 		BackgroundStoreInterval: 10 * time.Minute,
 		SampleFrom:              1,
-		SampleTimeout:           15 * time.Second * 16, // block time * max amount of catchup workers
+		// SampleTimeout = block time * max amount of catchup workers
+		SampleTimeout: 15 * time.Second * time.Duration(concurrencyLimit),
 	}
 }
 
