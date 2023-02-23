@@ -113,7 +113,7 @@ type Getter[H Header] interface {
 	GetRangeByHeight(ctx context.Context, from, amount uint64) ([]H, error)
 
 	// GetVerifiedRange requests the header range from the provided Header and
-	// .
+	// verifies that the returned headers are adjacent to each other.
 	GetVerifiedRange(ctx context.Context, from H, amount uint64) ([]H, error)
 }
 
