@@ -91,25 +91,27 @@ microservice architectures.
 
 ```go
 type HeaderModule interface {
-// Head returns the node's local head (tip of the chain of the header store).
-Head(ctx context.Context) (*header.ExtendedHeader, error)
-// Get returns the header of the given hash from the node's header store.
-Get(ctx context.Context, hash tmbytes.HexBytes) (*header.ExtendedHeader, error)
+// LocalHead returns the node's local head (tip of the chain of the header store).
+LocalHead(ctx context.Context) (*header.ExtendedHeader, error)
+// GetByHash returns the header of the given hash from the node's header store.
+GetByHash(ctx context.Context, hash tmbytes.HexBytes) (*header.ExtendedHeader, error)
 // GetByHeight returns the header of the given height from the node's header store.
 // If the header of the given height is not yet available, the request will hang
 // until it becomes available in the node's header store.
 GetByHeight(ctx context.Context, height uint64) (*header.ExtendedHeader, error)
-// GetRangeByHeight returns the given range [from:to) of ExtendedHeaders.
-GetRangeByHeight(ctx context.Context, from, to uint64) ([]*ExtendedHeader, error)
-// Subscribe creates long-living Subscription for validated ExtendedHeaders.
-// Multiple Subscriptions can be created.
-Subscribe() (Subscription, error)
+// GetVerifiedRangeByHeight returns the given range [from:to) of ExtendedHeaders
+// from the node's header store and verifies that the returned headers are 
+// adjacent to each other.
+GetVerifiedRangeByHeight(ctx context.Context, from, to uint64) ([]*ExtendedHeader, error)
+// Subscribe creates long-living Subscription for newly validated 
+// ExtendedHeaders. Multiple Subscriptions can be created.
+Subscribe(context.Context) (Subscription, error)
 // SyncState returns the current state of the header Syncer. 
-SyncState() sync.State
+SyncState(context.Context) (sync.State, error)
 // SyncWait blocks until the header Syncer is synced to network head. 
 SyncWait(ctx context.Context) error
-// SyncHead provides the Syncer's view of the current network head.
-SyncHead(ctx context.Context) (*header.ExtendedHeader, error)
+// NetworkHead provides the Syncer's view of the current network head.
+NetworkHead(ctx context.Context) (*header.ExtendedHeader, error)
 }
 ```
 

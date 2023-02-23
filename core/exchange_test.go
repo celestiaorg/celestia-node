@@ -35,7 +35,7 @@ func createCoreFetcher(t *testing.T, cfg *TestConfig) (*BlockFetcher, testnode.C
 	cctx := StartTestNodeWithConfig(t, cfg)
 	// wait for height 2 in order to be able to start submitting txs (this prevents
 	// flakiness with accessing account state)
-	_, err := cctx.WaitForHeightWithTimeout(2, time.Second) // TODO @renaynay: configure?
+	_, err := cctx.WaitForHeightWithTimeout(2, time.Second*2) // TODO @renaynay: configure?
 	require.NoError(t, err)
 	return NewBlockFetcher(cctx.Client), cctx
 }

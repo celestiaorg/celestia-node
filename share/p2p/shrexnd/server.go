@@ -10,12 +10,13 @@ import (
 	"github.com/libp2p/go-libp2p/core/protocol"
 	"github.com/minio/sha256-simd"
 
+	"github.com/celestiaorg/go-libp2p-messenger/serde"
+
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/eds"
 	"github.com/celestiaorg/celestia-node/share/ipld"
 	"github.com/celestiaorg/celestia-node/share/p2p"
 	pb "github.com/celestiaorg/celestia-node/share/p2p/shrexnd/pb"
-	"github.com/celestiaorg/go-libp2p-messenger/serde"
 )
 
 // Server implements server side of shrex/nd protocol to serve namespaced share to remote
@@ -47,7 +48,7 @@ func NewServer(host host.Host, store *eds.Store, getter share.Getter, opts ...Op
 		store:      store,
 		host:       host,
 		params:     params,
-		protocolID: protocolID(params.protocolSuffix),
+		protocolID: protocolID(params.networkID),
 	}
 
 	return srv, nil

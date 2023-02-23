@@ -33,6 +33,6 @@ func (s *subscriber) run(ctx context.Context, sub libhead.Subscription[*header.E
 		}
 		log.Infow("new header received via subscription", "height", h.Height())
 
-		emit(ctx, uint64(h.Height()))
+		emit(ctx, h)
 	}
 }

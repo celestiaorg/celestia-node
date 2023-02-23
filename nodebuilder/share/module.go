@@ -46,7 +46,7 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 		fx.Invoke(func(edsSrv *shrexeds.Server, ndSrc *shrexnd.Server) {}),
 		fx.Provide(fx.Annotate(
 			func(host host.Host, store *eds.Store, network modp2p.Network) (*shrexeds.Server, error) {
-				return shrexeds.NewServer(host, store, shrexeds.WithProtocolSuffix(network.String()))
+				return shrexeds.NewServer(host, store, shrexeds.WithNetworkID(network.String()))
 			},
 			fx.OnStart(func(ctx context.Context, server *shrexeds.Server) error {
 				return server.Start(ctx)
@@ -62,7 +62,7 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 				getter share.Getter,
 				network modp2p.Network,
 			) (*shrexnd.Server, error) {
-				return shrexnd.NewServer(host, store, getter, shrexnd.WithProtocolSuffix(network.String()))
+				return shrexnd.NewServer(host, store, getter, shrexnd.WithNetworkID(network.String()))
 			},
 			fx.OnStart(func(ctx context.Context, server *shrexnd.Server) error {
 				return server.Start(ctx)
@@ -155,12 +155,12 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 			fx.Provide(fullGetter),
 			fx.Provide(
 				func(host host.Host, network modp2p.Network) (*shrexnd.Client, error) {
-					return shrexnd.NewClient(host, shrexnd.WithProtocolSuffix(network.String()))
+					return shrexnd.NewClient(host, shrexnd.WithNetworkID(network.String()))
 				},
 			),
 			fx.Provide(
 				func(host host.Host, network modp2p.Network) (*shrexeds.Client, error) {
-					return shrexeds.NewClient(host, shrexeds.WithProtocolSuffix(network.String()))
+					return shrexeds.NewClient(host, shrexeds.WithNetworkID(network.String()))
 				},
 			),
 			fx.Provide(fx.Annotate(
