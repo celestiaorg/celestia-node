@@ -6,6 +6,7 @@ import (
 	"github.com/libp2p/go-libp2p/core/metrics"
 	"github.com/libp2p/go-libp2p/core/network"
 	rcmgr "github.com/libp2p/go-libp2p/p2p/host/resource-manager"
+	ma "github.com/multiformats/go-multiaddr"
 	"go.uber.org/fx"
 
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
@@ -54,10 +55,27 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 			"p2p",
 			baseComponents,
 			fx.Provide(blockstoreFromDatastore),
-			fx.Provide(func() (network.ResourceManager, error) {
+			fx.Provide(func(bootstrappers Bootstrappers) (network.ResourceManager, error) {
 				limits := rcmgr.DefaultLimits
 				libp2p.SetDefaultServiceLimits(&limits)
-				return rcmgr.NewResourceManager(rcmgr.NewFixedLimiter(limits.AutoScale()))
+
+				mutual, err := cfg.mutualPeers()
+				if err != nil {
+					return nil, err
+				}
+
+				allowlist := make([]ma.Multiaddr, 0, len(bootstrappers)+len(mutual))
+				for _, b := range bootstrappers {
+					allowlist = append(allowlist, b.Addrs...)
+				}
+				for _, m := range mutual {
+					allowlist = append(allowlist, m.Addrs...)
+				}
+
+				return rcmgr.NewResourceManager(
+					rcmgr.NewFixedLimiter(limits.AutoScale()),
+					rcmgr.WithAllowlistedMultiaddrs(allowlist),
+				)
 			}),
 		)
 	default:
