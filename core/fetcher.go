@@ -13,7 +13,7 @@ import (
 const newBlockSubscriber = "NewBlock/Events"
 
 var (
-	log                = logging.Logger("core/fetcher")
+	log                = logging.Logger("core")
 	newBlockEventQuery = types.QueryForEvent(types.EventNewBlock).String()
 )
 

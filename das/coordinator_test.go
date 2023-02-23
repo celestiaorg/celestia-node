@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/tendermint/tendermint/types"
 
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/share"
@@ -368,7 +369,7 @@ func (m *mockSampler) finalState() checkpoint {
 	return finalState
 }
 
-func (m *mockSampler) discover(ctx context.Context, newHeight uint64, emit func(ctx context.Context, h uint64)) {
+func (m *mockSampler) discover(ctx context.Context, newHeight uint64, emit listenFn) {
 	m.lock.Lock()
 
 	if newHeight > m.checkpoint.NetworkHead {
@@ -379,7 +380,11 @@ func (m *mockSampler) discover(ctx context.Context, newHeight uint64, emit func(
 		}
 	}
 	m.lock.Unlock()
-	emit(ctx, newHeight)
+	emit(ctx, &header.ExtendedHeader{
+		Commit:    &types.Commit{},
+		RawHeader: header.RawHeader{Height: int64(newHeight)},
+		DAH:       &header.DataAvailabilityHeader{RowsRoots: make([][]byte, 0)},
+	})
 }
 
 func (m *mockSampler) sampledAmount() int {

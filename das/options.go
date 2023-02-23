@@ -36,7 +36,9 @@ type Parameters struct {
 	SampleFrom uint64
 
 	// SampleTimeout is a maximum amount time sampling of single block may take until it will be
-	// canceled
+	// canceled. High ConcurrencyLimit value may increase sampling time due to node resources being
+	// divided between parallel workers. SampleTimeout should be adjusted proportionally to
+	// ConcurrencyLimit.
 	SampleTimeout time.Duration
 }
 
@@ -44,12 +46,14 @@ type Parameters struct {
 func DefaultParameters() Parameters {
 	// TODO(@derrandz): parameters needs performance testing on real network to define optimal values
 	// (#1261)
+	concurrencyLimit := 16
 	return Parameters{
 		SamplingRange:           100,
-		ConcurrencyLimit:        16,
+		ConcurrencyLimit:        concurrencyLimit,
 		BackgroundStoreInterval: 10 * time.Minute,
 		SampleFrom:              1,
-		SampleTimeout:           time.Minute,
+		// SampleTimeout = block time * max amount of catchup workers
+		SampleTimeout: 15 * time.Second * time.Duration(concurrencyLimit),
 	}
 }
 
