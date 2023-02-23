@@ -16,7 +16,7 @@ import (
 
 var (
 	emptyRoot atomic.Pointer[Root]
-	emptyEDS atomic.Pointer[rsmt2d.ExtendedDataSquare]
+	emptyEDS  atomic.Pointer[rsmt2d.ExtendedDataSquare]
 )
 
 func init() {
@@ -33,7 +33,7 @@ func init() {
 }
 
 // EmptyRoot returns Root of an empty EDS.
-func EmptyRoot() *Root  {
+func EmptyRoot() *Root {
 	return emptyRoot.Load()
 }
 
