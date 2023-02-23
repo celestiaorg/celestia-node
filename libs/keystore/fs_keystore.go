@@ -7,6 +7,8 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+
+	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 )
 
 // ErrNotFound is returned when the key does not exist.
@@ -15,16 +17,21 @@ var ErrNotFound = errors.New("keystore: key not found")
 // fsKeystore implements persistent Keystore over OS filesystem.
 type fsKeystore struct {
 	path string
+
+	ring keyring.Keyring
 }
 
 // NewFSKeystore creates a new Keystore over OS filesystem.
 // The path must point to a directory. It is created automatically if necessary.
-func NewFSKeystore(path string) (Keystore, error) {
+func NewFSKeystore(path string, ring keyring.Keyring) (Keystore, error) {
 	err := os.Mkdir(path, 0755)
 	if err != nil && !os.IsExist(err) {
 		return nil, fmt.Errorf("keystore: failed to make a dir: %w", err)
 	}
-	return &fsKeystore{path: path}, nil
+	return &fsKeystore{
+		path: path,
+		ring: ring,
+	}, nil
 }
 
 func (f *fsKeystore) Put(n KeyName, pk PrivKey) error {
@@ -120,6 +127,10 @@ func (f *fsKeystore) List() ([]KeyName, error) {
 
 func (f *fsKeystore) Path() string {
 	return f.path
+}
+
+func (f *fsKeystore) Keyring() keyring.Keyring {
+	return f.ring
 }
 
 func (f *fsKeystore) pathTo(file string) string {

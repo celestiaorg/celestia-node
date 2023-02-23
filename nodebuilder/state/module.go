@@ -23,7 +23,6 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 	baseComponents := fx.Options(
 		fx.Supply(*cfg),
 		fx.Error(cfgErr),
-		fx.Provide(keyring),
 		fx.Provide(fx.Annotate(
 			coreAccessor,
 			fx.OnStart(func(startCtx, ctx context.Context, fservice fraud.Service, ca *state.CoreAccessor) error {

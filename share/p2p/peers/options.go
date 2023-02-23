@@ -43,7 +43,8 @@ func (p *Parameters) Validate() error {
 func DefaultParameters() Parameters {
 	return Parameters{
 		// ValidationTimeout's default value is based on the default daser sampling timeout of 1 minute.
-		// If a received datahash has not tried to be sampled within these two minutes, the pool will be removed.
+		// If a received datahash has not tried to be sampled within these two minutes, the pool will be
+		// removed.
 		ValidationTimeout: 2 * time.Minute,
 		// PeerCooldown's default value is based on initial network tests that showed a ~3.5 second
 		// sync time for large blocks. This value gives our (discovery) peers enough time to sync
