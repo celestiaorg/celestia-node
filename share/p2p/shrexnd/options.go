@@ -27,7 +27,7 @@ type Parameters struct {
 	// serveTimeout defines the deadline for serving request.
 	serveTimeout time.Duration
 
-	// networkID is appended to the protocolID and represents the network the protocol is
+	// networkID is prepended to the protocolID and represents the network the protocol is
 	// running on.
 	networkID string
 

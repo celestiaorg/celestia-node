@@ -30,7 +30,7 @@ type Parameters struct {
 	// BufferSize defines the size of the buffer used for writing an ODS over the stream.
 	BufferSize uint64
 
-	// networkID is appended to the protocolID and represents the network the protocol is
+	// networkID is prepended to the protocolID and represents the network the protocol is
 	// running on.
 	networkID string
 
