@@ -1,12 +1,15 @@
 package p2p
 
 import (
+	"context"
+
 	logging "github.com/ipfs/go-log/v2"
 	"github.com/libp2p/go-libp2p"
 	"github.com/libp2p/go-libp2p/core/metrics"
 	"github.com/libp2p/go-libp2p/core/network"
 	rcmgr "github.com/libp2p/go-libp2p/p2p/host/resource-manager"
 	ma "github.com/multiformats/go-multiaddr"
+	madns "github.com/multiformats/go-multiaddr-dns"
 	"go.uber.org/fx"
 
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
@@ -55,7 +58,7 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 			"p2p",
 			baseComponents,
 			fx.Provide(blockstoreFromDatastore),
-			fx.Provide(func(bootstrappers Bootstrappers) (network.ResourceManager, error) {
+			fx.Provide(func(ctx context.Context, bootstrappers Bootstrappers) (network.ResourceManager, error) {
 				limits := rcmgr.DefaultLimits
 				libp2p.SetDefaultServiceLimits(&limits)
 
@@ -64,12 +67,28 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 					return nil, err
 				}
 
+				// TODO(@Wondertan): We should resolve their addresses only once, but currently
+				//  we resolve it here and libp2p stuck does that as well internally
 				allowlist := make([]ma.Multiaddr, 0, len(bootstrappers)+len(mutual))
 				for _, b := range bootstrappers {
-					allowlist = append(allowlist, b.Addrs...)
+					for _, baddr := range b.Addrs {
+						resolved, err := madns.DefaultResolver.Resolve(ctx, baddr)
+						if err != nil {
+							log.Warnw("error resolving bootstrapper DNS", "addr", baddr.String(), "err", err)
+							continue
+						}
+						allowlist = append(allowlist, resolved...)
+					}
 				}
 				for _, m := range mutual {
-					allowlist = append(allowlist, m.Addrs...)
+					for _, maddr := range m.Addrs {
+						resolved, err := madns.DefaultResolver.Resolve(ctx, maddr)
+						if err != nil {
+							log.Warnw("error resolving mutual peer DNS", "addr", maddr.String(), "err", err)
+							continue
+						}
+						allowlist = append(allowlist, resolved...)
+					}
 				}
 
 				return rcmgr.NewResourceManager(
