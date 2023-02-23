@@ -8,10 +8,11 @@ import (
 	context "context"
 	reflect "reflect"
 
+	gomock "github.com/golang/mock/gomock"
+
 	header "github.com/celestiaorg/celestia-node/header"
 	header0 "github.com/celestiaorg/celestia-node/libs/header"
 	sync "github.com/celestiaorg/celestia-node/libs/header/sync"
-	gomock "github.com/golang/mock/gomock"
 )
 
 // MockModule is a mock of Module interface.

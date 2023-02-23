@@ -1,6 +1,7 @@
 package fraud
 
 import (
+	"math"
 	"time"
 
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
@@ -9,7 +10,9 @@ import (
 // GossibSubScore provides a set of recommended parameters for header GossipSub topic, a.k.a
 // FraudSub. TODO(@Wondertan): We should disable mesh on publish for this topic to minimize
 // chances of censoring FPs by eclipsing nodes producing them.
-var GossibSubScore = &pubsub.TopicScoreParams{
+var GossibSubScore = pubsub.TopicScoreParams{
+	SkipAtomicValidation: true,
+
 	// expected > 1 tx/second
 	TopicWeight: 0.1, // max cap is 5, single invalid message is -100
 
@@ -25,7 +28,7 @@ var GossibSubScore = &pubsub.TopicScoreParams{
 	// no cap, if the peer is giving us *valid* FPs, just keep increasing peer's score with no limit
 	// again, this is such a rare case to happen, but if it happens, we should prefer the peer who
 	// gave it to us
-	FirstMessageDeliveriesCap: 0,
+	FirstMessageDeliveriesCap: math.MaxFloat64,
 
 	// we don't really need this, as we block list peers who give us a bad message,
 	// so disabled
