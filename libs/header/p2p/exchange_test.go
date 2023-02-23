@@ -28,8 +28,6 @@ import (
 
 const networkID = "private"
 
-var privateProtocolID = protocolID(networkID)
-
 func TestExchange_RequestHead(t *testing.T) {
 	hosts := createMocknet(t, 2)
 	exchg, store := createP2PExAndServer(t, hosts[0], hosts[1])
@@ -190,7 +188,7 @@ func TestExchange_RequestByHash(t *testing.T) {
 	})
 
 	// start a new stream via Peer to see if Host can handle inbound requests
-	stream, err := peer.NewStream(context.Background(), libhost.InfoFromHost(host).ID, privateProtocolID)
+	stream, err := peer.NewStream(context.Background(), libhost.InfoFromHost(host).ID, protocolID(networkID))
 	require.NoError(t, err)
 	// create request for a header at a random height
 	reqHeight := store.HeadHeight - 2
@@ -301,7 +299,7 @@ func TestExchange_RequestByHashFails(t *testing.T) {
 		serv.Stop(context.Background()) //nolint:errcheck
 	})
 
-	stream, err := peer.NewStream(context.Background(), libhost.InfoFromHost(host).ID, privateProtocolID)
+	stream, err := peer.NewStream(context.Background(), libhost.InfoFromHost(host).ID, protocolID(networkID))
 	require.NoError(t, err)
 	req := &p2p_pb.HeaderRequest{
 		Data:   &p2p_pb.HeaderRequest_Hash{Hash: []byte("dummy_hash")},
