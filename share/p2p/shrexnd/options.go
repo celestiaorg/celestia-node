@@ -8,7 +8,7 @@ import (
 	"github.com/libp2p/go-libp2p/core/protocol"
 )
 
-const protocolPrefix = "/shrex/nd/0.0.1/"
+const protocolString = "/shrex/nd/0.0.1"
 
 var log = logging.Logger("shrex/nd")
 
@@ -27,16 +27,20 @@ type Parameters struct {
 	// serveTimeout defines the deadline for serving request.
 	serveTimeout time.Duration
 
-	// protocolSuffix is appended to the protocolID and represents the network the protocol is
+	// networkID is prepended to the protocolID and represents the network the protocol is
 	// running on.
-	protocolSuffix string
+	networkID string
+
+	// concurrencyLimit is the maximum number of concurrently handled streams
+	concurrencyLimit int
 }
 
 func DefaultParameters() *Parameters {
 	return &Parameters{
-		readTimeout:  time.Second * 5,
-		writeTimeout: time.Second * 10,
-		serveTimeout: time.Second * 10,
+		readTimeout:      time.Second * 5,
+		writeTimeout:     time.Second * 10,
+		serveTimeout:     time.Second * 10,
+		concurrencyLimit: 10,
 	}
 }
 
@@ -52,13 +56,16 @@ func (p *Parameters) Validate() error {
 	if p.serveTimeout <= 0 {
 		return fmt.Errorf("invalid serve timeout: %v, %s", p.serveTimeout, errSuffix)
 	}
+	if p.concurrencyLimit <= 0 {
+		return fmt.Errorf("invalid concurrency limit: %v, %s", p.concurrencyLimit, errSuffix)
+	}
 	return nil
 }
 
-// WithProtocolSuffix is a functional option that configures the `protocolSuffix` parameter
-func WithProtocolSuffix(protocolSuffix string) Option {
+// WithNetworkID is a functional option that configures the `networkID` parameter
+func WithNetworkID(networkID string) Option {
 	return func(parameters *Parameters) {
-		parameters.protocolSuffix = protocolSuffix
+		parameters.networkID = networkID
 	}
 }
 
@@ -83,6 +90,13 @@ func WithServeTimeout(serveTimeout time.Duration) Option {
 	}
 }
 
-func protocolID(protocolSuffix string) protocol.ID {
-	return protocol.ID(fmt.Sprintf("%s%s", protocolPrefix, protocolSuffix))
+// WithConcurrencyLimit is a functional option that configures the `concurrencyLimit` parameter
+func WithConcurrencyLimit(concurrencyLimit int) Option {
+	return func(parameters *Parameters) {
+		parameters.concurrencyLimit = concurrencyLimit
+	}
+}
+
+func protocolID(networkID string) protocol.ID {
+	return protocol.ID(fmt.Sprintf("%s%s", networkID, protocolString))
 }

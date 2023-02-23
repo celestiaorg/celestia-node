@@ -43,7 +43,7 @@ func TestSyncSimpleRequestingHead(t *testing.T) {
 	require.NoError(t, err)
 
 	time.Sleep(time.Millisecond * 10) // needs some to realize it is syncing
-	err = syncer.WaitSync(ctx)
+	err = syncer.SyncWait(ctx)
 	require.NoError(t, err)
 
 	exp, err := remoteStore.Head(ctx)
@@ -91,7 +91,7 @@ func TestSyncCatchUp(t *testing.T) {
 	assert.Equal(t, pubsub.ValidationAccept, res)
 
 	time.Sleep(time.Millisecond * 10) // needs some to realize it is syncing
-	err = syncer.WaitSync(ctx)
+	err = syncer.SyncWait(ctx)
 	require.NoError(t, err)
 	exp, err := remoteStore.Head(ctx)
 	require.NoError(t, err)

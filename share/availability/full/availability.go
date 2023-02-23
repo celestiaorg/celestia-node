@@ -6,10 +6,10 @@ import (
 
 	ipldFormat "github.com/ipfs/go-ipld-format"
 	logging "github.com/ipfs/go-log/v2"
-	"github.com/libp2p/go-libp2p/core/peer"
 
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/availability/discovery"
+	"github.com/celestiaorg/celestia-node/share/eds/byzantine"
 )
 
 var log = logging.Logger("share/full")
@@ -37,7 +37,6 @@ func (fa *ShareAvailability) Start(context.Context) error {
 	fa.cancel = cancel
 
 	go fa.disc.Advertise(ctx)
-	fa.disc.EnsurePeers(ctx)
 	return nil
 }
 
@@ -48,9 +47,7 @@ func (fa *ShareAvailability) Stop(context.Context) error {
 
 // SharesAvailable reconstructs the data committed to the given Root by requesting
 // enough Shares from the network.
-func (fa *ShareAvailability) SharesAvailable(ctx context.Context, root *share.Root, _ ...peer.ID) error {
-	ctx, cancel := context.WithTimeout(ctx, share.AvailabilityTimeout)
-	defer cancel()
+func (fa *ShareAvailability) SharesAvailable(ctx context.Context, root *share.Root) error {
 	// we assume the caller of this method has already performed basic validation on the
 	// given dah/root. If for some reason this has not happened, the node should panic.
 	if err := root.ValidateBasic(); err != nil {
@@ -61,8 +58,9 @@ func (fa *ShareAvailability) SharesAvailable(ctx context.Context, root *share.Ro
 
 	_, err := fa.getter.GetEDS(ctx, root)
 	if err != nil {
-		log.Errorw("availability validation failed", "root", root.Hash(), "err", err)
-		if ipldFormat.IsNotFound(err) || errors.Is(err, context.DeadlineExceeded) {
+		log.Errorw("availability validation failed", "root", root.Hash(), "err", err.Error())
+		var byzantineErr *byzantine.ErrByzantine
+		if ipldFormat.IsNotFound(err) || errors.Is(err, context.DeadlineExceeded) && !errors.As(err, &byzantineErr) {
 			return share.ErrNotAvailable
 		}
 

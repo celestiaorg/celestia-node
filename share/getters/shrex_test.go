@@ -46,8 +46,12 @@ func TestGetSharesWithProofByNamespace(t *testing.T) {
 	srvHost := net.NewTestNode().Host
 	srv, err := shrexnd.NewServer(srvHost, edsStore, NewIPLDGetter(bServ))
 	require.NoError(t, err)
-	srv.Start()
-	t.Cleanup(srv.Stop)
+	err = srv.Start(ctx)
+	require.NoError(t, err)
+
+	t.Cleanup(func() {
+		_ = srv.Stop(ctx)
+	})
 
 	// create client and connect it to server
 	client, err := shrexnd.NewClient(net.NewTestNode().Host)

@@ -4,16 +4,14 @@ import (
 	"context"
 	"errors"
 	"testing"
-	"time"
 
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/multierr"
 
-	"github.com/celestiaorg/rsmt2d"
-
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/mocks"
+	"github.com/celestiaorg/rsmt2d"
 )
 
 func TestCascadeGetter(t *testing.T) {
@@ -27,7 +25,7 @@ func TestCascadeGetter(t *testing.T) {
 		getters[i], roots[i] = TestGetter(t)
 	}
 
-	getter := NewCascadeGetter(getters, time.Millisecond)
+	getter := NewCascadeGetter(getters)
 	t.Run("GetShare", func(t *testing.T) {
 		for _, r := range roots {
 			sh, err := getter.GetShare(ctx, r, 0, 0)
@@ -69,38 +67,38 @@ func TestCascade(t *testing.T) {
 
 	t.Run("SuccessFirst", func(t *testing.T) {
 		getters := []share.Getter{successGetter, timeoutGetter, immediateFailGetter}
-		_, err := cascadeGetters(ctx, getters, get, time.Millisecond*10)
+		_, err := cascadeGetters(ctx, getters, get)
 		assert.NoError(t, err)
 	})
 
 	t.Run("SuccessSecond", func(t *testing.T) {
 		getters := []share.Getter{immediateFailGetter, successGetter}
-		_, err := cascadeGetters(ctx, getters, get, time.Millisecond*10)
+		_, err := cascadeGetters(ctx, getters, get)
 		assert.NoError(t, err)
 	})
 
 	t.Run("SuccessSecondAfterFirst", func(t *testing.T) {
 		getters := []share.Getter{timeoutGetter, successGetter}
-		_, err := cascadeGetters(ctx, getters, get, time.Millisecond*10)
+		_, err := cascadeGetters(ctx, getters, get)
 		assert.NoError(t, err)
 	})
 
 	t.Run("SuccessAfterMultipleTimeouts", func(t *testing.T) {
 		getters := []share.Getter{timeoutGetter, immediateFailGetter, timeoutGetter, timeoutGetter, successGetter}
-		_, err := cascadeGetters(ctx, getters, get, time.Millisecond*10)
+		_, err := cascadeGetters(ctx, getters, get)
 		assert.NoError(t, err)
 	})
 
 	t.Run("Error", func(t *testing.T) {
 		getters := []share.Getter{immediateFailGetter, timeoutGetter, immediateFailGetter}
-		_, err := cascadeGetters(ctx, getters, get, time.Millisecond*10)
+		_, err := cascadeGetters(ctx, getters, get)
 		assert.Error(t, err)
 		assert.Len(t, multierr.Errors(err), 3)
 	})
 
 	t.Run("Single", func(t *testing.T) {
 		getters := []share.Getter{successGetter}
-		_, err := cascadeGetters(ctx, getters, get, time.Millisecond*10)
+		_, err := cascadeGetters(ctx, getters, get)
 		assert.NoError(t, err)
 	})
 }

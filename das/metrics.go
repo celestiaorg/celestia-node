@@ -136,6 +136,7 @@ func (m *metrics) observeSample(
 	h *header.ExtendedHeader,
 	sampleTime time.Duration,
 	err error,
+	isRecentHeader bool,
 ) {
 	if m == nil {
 		return
@@ -152,7 +153,9 @@ func (m *metrics) observeSample(
 
 	atomic.StoreUint64(&m.lastSampledTS, uint64(time.Now().UTC().Unix()))
 
-	if err == nil {
+	// only increment the counter if it's not a recent header job
+	// as those happen twice.
+	if err == nil && !isRecentHeader {
 		atomic.AddUint64(&m.totalSampledInt, 1)
 	}
 }

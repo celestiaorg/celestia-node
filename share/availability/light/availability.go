@@ -7,10 +7,8 @@ import (
 
 	ipldFormat "github.com/ipfs/go-ipld-format"
 	logging "github.com/ipfs/go-log/v2"
-	"github.com/libp2p/go-libp2p/core/peer"
 
 	"github.com/celestiaorg/celestia-node/share"
-	"github.com/celestiaorg/celestia-node/share/availability/discovery"
 	"github.com/celestiaorg/celestia-node/share/getters"
 )
 
@@ -22,40 +20,16 @@ var log = logging.Logger("share/light")
 // on the network doing sampling over the same Root to collectively verify its availability.
 type ShareAvailability struct {
 	getter share.Getter
-	// disc discovers new full nodes in the network.
-	// it is not allowed to call advertise for light nodes (Full nodes only).
-	disc   *discovery.Discovery
-	cancel context.CancelFunc
 }
 
 // NewShareAvailability creates a new light Availability.
-func NewShareAvailability(
-	getter share.Getter,
-	disc *discovery.Discovery,
-) *ShareAvailability {
-	la := &ShareAvailability{
-		getter: getter,
-		disc:   disc,
-	}
-	return la
-}
-
-func (la *ShareAvailability) Start(context.Context) error {
-	ctx, cancel := context.WithCancel(context.Background())
-	la.cancel = cancel
-
-	la.disc.EnsurePeers(ctx)
-	return nil
-}
-
-func (la *ShareAvailability) Stop(context.Context) error {
-	la.cancel()
-	return nil
+func NewShareAvailability(getter share.Getter) *ShareAvailability {
+	return &ShareAvailability{getter}
 }
 
 // SharesAvailable randomly samples DefaultSampleAmount amount of Shares committed to the given
 // Root. This way SharesAvailable subjectively verifies that Shares are available.
-func (la *ShareAvailability) SharesAvailable(ctx context.Context, dah *share.Root, _ ...peer.ID) error {
+func (la *ShareAvailability) SharesAvailable(ctx context.Context, dah *share.Root) error {
 	log.Debugw("Validate availability", "root", dah.Hash())
 	// We assume the caller of this method has already performed basic validation on the
 	// given dah/root. If for some reason this has not happened, the node should panic.
@@ -72,8 +46,6 @@ func (la *ShareAvailability) SharesAvailable(ctx context.Context, dah *share.Roo
 	// indicate to the share.Getter that a blockservice session should be created. This
 	// functionality is optional and must be supported by the used share.Getter.
 	ctx = getters.WithSession(ctx)
-	ctx, cancel := context.WithTimeout(ctx, share.AvailabilityTimeout)
-	defer cancel()
 
 	log.Debugw("starting sampling session", "root", dah.Hash())
 	errs := make(chan error, len(samples))
@@ -103,7 +75,7 @@ func (la *ShareAvailability) SharesAvailable(ctx context.Context, dah *share.Roo
 
 		if err != nil {
 			if !errors.Is(err, context.Canceled) {
-				log.Errorw("availability validation failed", "root", dah.Hash(), "err", err)
+				log.Errorw("availability validation failed", "root", dah.Hash(), "err", err.Error())
 			}
 			if ipldFormat.IsNotFound(err) || errors.Is(err, context.DeadlineExceeded) {
 				return share.ErrNotAvailable

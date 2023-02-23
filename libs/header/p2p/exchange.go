@@ -53,7 +53,7 @@ func NewExchange[H header.Header](
 
 	return &Exchange[H]{
 		host:         host,
-		protocolID:   protocolID(params.protocolSuffix),
+		protocolID:   protocolID(params.networkID),
 		trustedPeers: peers,
 		peerTracker: newPeerTracker(
 			host,

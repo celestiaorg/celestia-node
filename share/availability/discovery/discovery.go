@@ -2,7 +2,6 @@ package discovery
 
 import (
 	"context"
-	"sync"
 	"time"
 
 	logging "github.com/ipfs/go-log/v2"
@@ -47,8 +46,8 @@ type Discovery struct {
 	advertiseInterval time.Duration
 	// onUpdatedPeers will be called on peer set changes
 	onUpdatedPeers OnUpdatedPeers
-	// ensureIsRunning allows only one ensurePeers process to be running
-	ensurePeersOnce sync.Once
+
+	cancel context.CancelFunc
 }
 
 type OnUpdatedPeers func(peerID peer.ID, isAdded bool)
@@ -62,22 +61,35 @@ func NewDiscovery(
 	advertiseInterval time.Duration,
 ) *Discovery {
 	return &Discovery{
-		newLimitedSet(peersLimit),
-		h,
-		d,
-		newBackoffConnector(h, defaultBackoffFactory),
-		peersLimit,
-		discInterval,
-		advertiseInterval,
-		func(peer.ID, bool) {},
-		sync.Once{},
+		set:               newLimitedSet(peersLimit),
+		host:              h,
+		disc:              d,
+		connector:         newBackoffConnector(h, defaultBackoffFactory),
+		peersLimit:        peersLimit,
+		discoveryInterval: discInterval,
+		advertiseInterval: advertiseInterval,
+		onUpdatedPeers:    func(peer.ID, bool) {},
 	}
 }
 
-// WithOnPeersUpdate adds OnPeersUpdate callback call on every update of discovered peers list.
+func (d *Discovery) Start(context.Context) error {
+	ctx, cancel := context.WithCancel(context.Background())
+	d.cancel = cancel
+
+	go d.ensurePeers(ctx)
+	return nil
+}
+
+func (d *Discovery) Stop(context.Context) error {
+	d.cancel()
+	return nil
+}
+
+// WithOnPeersUpdate chains OnPeersUpdate callbacks on every update of discovered peers list.
 func (d *Discovery) WithOnPeersUpdate(f OnUpdatedPeers) {
+	prev := d.onUpdatedPeers
 	d.onUpdatedPeers = func(peerID peer.ID, isAdded bool) {
-		d.onUpdatedPeers(peerID, isAdded)
+		prev(peerID, isAdded)
 		f(peerID, isAdded)
 	}
 }
@@ -107,15 +119,9 @@ func (d *Discovery) handlePeerFound(ctx context.Context, topic string, peer peer
 	d.host.ConnManager().TagPeer(peer.ID, topic, peerWeight)
 }
 
-// EnsurePeers ensures we always have 'peerLimit' connected peers.
+// ensurePeers ensures we always have 'peerLimit' connected peers.
 // It starts peer discovery every 30 seconds until peer cache reaches peersLimit.
 // Discovery is restarted if any previously connected peers disconnect.
-func (d *Discovery) EnsurePeers(ctx context.Context) {
-	d.ensurePeersOnce.Do(func() {
-		go d.ensurePeers(ctx)
-	})
-}
-
 func (d *Discovery) ensurePeers(ctx context.Context) {
 	if d.peersLimit == 0 {
 		log.Warn("peers limit is set to 0. Skipping discovery...")

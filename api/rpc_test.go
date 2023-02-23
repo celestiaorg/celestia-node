@@ -15,6 +15,8 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.uber.org/fx"
 
+	headerMock "github.com/celestiaorg/celestia-node/nodebuilder/header/mocks"
+
 	"github.com/celestiaorg/celestia-node/api/rpc"
 	"github.com/celestiaorg/celestia-node/api/rpc/client"
 	"github.com/celestiaorg/celestia-node/api/rpc/perms"
@@ -26,7 +28,6 @@ import (
 	"github.com/celestiaorg/celestia-node/nodebuilder/fraud"
 	fraudMock "github.com/celestiaorg/celestia-node/nodebuilder/fraud/mocks"
 	"github.com/celestiaorg/celestia-node/nodebuilder/header"
-	headerMock "github.com/celestiaorg/celestia-node/nodebuilder/header/mocks"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	nodeMock "github.com/celestiaorg/celestia-node/nodebuilder/node/mocks"
 	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
@@ -163,8 +164,8 @@ func TestAuthedRPC(t *testing.T) {
 			require.NoError(t, err)
 
 			// 1. Test method with public permissions
-			server.Header.EXPECT().Head(gomock.Any()).Return(new(headerpkg.ExtendedHeader), nil)
-			got, err := rpcClient.Header.Head(ctx)
+			server.Header.EXPECT().NetworkHead(gomock.Any()).Return(new(headerpkg.ExtendedHeader), nil)
+			got, err := rpcClient.Header.NetworkHead(ctx)
 			require.NoError(t, err)
 			require.NotNil(t, got)
 
@@ -249,8 +250,8 @@ func TestPublicClient(t *testing.T) {
 	require.NoError(t, err)
 
 	// 1. Test method with public permissions
-	server.Header.EXPECT().Head(gomock.Any()).Return(new(headerpkg.ExtendedHeader), nil)
-	got, err := rpcClient.Header.Head(ctx)
+	server.Header.EXPECT().NetworkHead(gomock.Any()).Return(new(headerpkg.ExtendedHeader), nil)
+	got, err := rpcClient.Header.NetworkHead(ctx)
 	require.NoError(t, err)
 	require.NotNil(t, got)
 

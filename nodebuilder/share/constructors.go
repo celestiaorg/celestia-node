@@ -15,7 +15,9 @@ import (
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/availability/cache"
 	disc "github.com/celestiaorg/celestia-node/share/availability/discovery"
+	"github.com/celestiaorg/celestia-node/share/availability/light"
 	"github.com/celestiaorg/celestia-node/share/eds"
+	"github.com/celestiaorg/celestia-node/share/getters"
 )
 
 func discovery(cfg Config) func(routing.ContentRouting, host.Host) *disc.Discovery {
@@ -33,8 +35,8 @@ func discovery(cfg Config) func(routing.ContentRouting, host.Host) *disc.Discove
 	}
 }
 
-// cacheAvailability wraps either Full or Light availability with a cache for result sampling.
-func cacheAvailability[A share.Availability](lc fx.Lifecycle, ds datastore.Batching, avail A) share.Availability {
+// cacheAvailability wraps light availability with a cache for result sampling.
+func cacheAvailability(lc fx.Lifecycle, ds datastore.Batching, avail *light.ShareAvailability) share.Availability {
 	ca := cache.NewShareAvailability(avail, ds)
 	lc.Append(fx.Hook{
 		OnStop: ca.Close,
@@ -56,4 +58,23 @@ func ensureEmptyCARExists(ctx context.Context, store *eds.Store) error {
 		return nil
 	}
 	return err
+}
+
+func fullGetter(
+	store *eds.Store,
+	shrexGetter *getters.ShrexGetter,
+	ipldGetter *getters.IPLDGetter,
+	cfg Config,
+) share.Getter {
+	var cascade []share.Getter
+	cascade = append(cascade, getters.NewStoreGetter(store))
+	if cfg.UseShareExchange {
+		cascade = append(cascade, shrexGetter)
+	}
+	cascade = append(cascade, ipldGetter)
+
+	return getters.NewTeeGetter(
+		getters.NewCascadeGetter(cascade),
+		store,
+	)
 }

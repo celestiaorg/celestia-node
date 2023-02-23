@@ -32,7 +32,13 @@ func (e *errNoUnmarshaler) Error() string {
 	return fmt.Sprintf("fraud: unmarshaler for %s type is not registered", e.proofType)
 }
 
+// ProofType type defines a unique proof type string.
 type ProofType string
+
+// String returns string representation of ProofType.
+func (pt ProofType) String() string {
+	return string(pt)
+}
 
 const (
 	BadEncoding ProofType = "badencoding"

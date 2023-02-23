@@ -12,14 +12,14 @@ const (
 	// DefaultNetwork is the default network of the current build.
 	DefaultNetwork = Mocha
 	// Arabica testnet. See: celestiaorg/networks.
-	Arabica Network = "arabica-5"
+	Arabica Network = "arabica-6"
 	// Mocha testnet. See: celestiaorg/networks.
 	Mocha Network = "mocha"
 	// Private can be used to set up any private network, including local testing setups.
 	Private Network = "private"
 	// BlockTime is a network block time.
 	// TODO @renaynay @Wondertan (#790)
-	BlockTime = time.Second * 30
+	BlockTime = time.Second * 15
 )
 
 // Network is a type definition for DA network run by Celestia Node.
@@ -41,6 +41,11 @@ func (n Network) Validate() (Network, error) {
 		return "", ErrInvalidNetwork
 	}
 	return n, nil
+}
+
+// String returns string representation of the Network.
+func (n Network) String() string {
+	return string(n)
 }
 
 // networksList is a strict list of all known long-standing networks.

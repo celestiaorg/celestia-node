@@ -8,8 +8,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.uber.org/fx"
 
-	"github.com/celestiaorg/celestia-app/app"
-	"github.com/celestiaorg/celestia-app/app/encoding"
 	apptypes "github.com/celestiaorg/celestia-app/x/blob/types"
 
 	"github.com/celestiaorg/celestia-node/core"
@@ -39,9 +37,14 @@ func TestNode(t *testing.T, tp node.Type, opts ...fx.Option) *Node {
 func TestNodeWithConfig(t *testing.T, tp node.Type, cfg *Config, opts ...fx.Option) *Node {
 	// avoids port conflicts
 	cfg.RPC.Port = "0"
+
+	store := MockStore(t, cfg)
+	ks, err := store.Keystore()
+	require.NoError(t, err)
+
 	opts = append(opts,
 		// avoid writing keyring on disk
-		state.WithKeyringSigner(TestKeyringSigner(t)),
+		state.WithKeyringSigner(TestKeyringSigner(t, ks.Keyring())),
 		// temp dir for the eds store FIXME: Should be in mem
 		fx.Replace(node.StorePath(t.TempDir())),
 		// avoid requesting trustedPeer during initialization
@@ -59,14 +62,12 @@ func TestNodeWithConfig(t *testing.T, tp node.Type, cfg *Config, opts ...fx.Opti
 		)
 	}
 
-	nd, err := New(tp, p2p.Private, MockStore(t, cfg), opts...)
+	nd, err := New(tp, p2p.Private, store, opts...)
 	require.NoError(t, err)
 	return nd
 }
 
-func TestKeyringSigner(t *testing.T) *apptypes.KeyringSigner {
-	encConf := encoding.MakeConfig(app.ModuleEncodingRegisters...)
-	ring := keyring.NewInMemory(encConf.Codec)
+func TestKeyringSigner(t *testing.T, ring keyring.Keyring) *apptypes.KeyringSigner {
 	signer := apptypes.NewKeyringSigner(ring, "", string(p2p.Private))
 	_, _, err := signer.NewMnemonic("test_celes", keyring.English, "",
 		"", hd.Secp256k1)

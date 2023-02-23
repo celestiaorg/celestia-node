@@ -15,9 +15,9 @@ import (
 
 var log = logging.Logger("shrex-sub")
 
-// pubsubTopic hardcodes the name of the EDS floodsub topic with the provided suffix.
-func pubsubTopic(suffix string) string {
-	return fmt.Sprintf("/eds-sub/v0.0.1/%s", suffix)
+// pubsubTopic hardcodes the name of the EDS floodsub topic with the provided networkID.
+func pubsubTopicID(networkID string) string {
+	return fmt.Sprintf("%s/eds-sub/v0.0.1", networkID)
 }
 
 // Validator is an injectable func and governs EDS notification or DataHash validity.
@@ -35,18 +35,20 @@ type PubSub struct {
 	topic  *pubsub.Topic
 
 	pubsubTopic string
+	cancelRelay pubsub.RelayCancelFunc
 }
 
 // NewPubSub creates a libp2p.PubSub wrapper.
-func NewPubSub(ctx context.Context, h host.Host, suffix string) (*PubSub, error) {
-	// WithSeenMessagesTTL without duration allows to process all incoming messages(even with the same msgId)
+func NewPubSub(ctx context.Context, h host.Host, networkID string) (*PubSub, error) {
+	// WithSeenMessagesTTL without duration allows to process all incoming messages(even with the same
+	// msgId)
 	pubsub, err := pubsub.NewFloodSub(ctx, h, pubsub.WithSeenMessagesTTL(0))
 	if err != nil {
 		return nil, err
 	}
 	return &PubSub{
 		pubSub:      pubsub,
-		pubsubTopic: pubsubTopic(suffix),
+		pubsubTopic: pubsubTopicID(networkID),
 	}, nil
 }
 
@@ -57,6 +59,12 @@ func (s *PubSub) Start(context.Context) error {
 		return err
 	}
 
+	cancel, err := topic.Relay()
+	if err != nil {
+		return err
+	}
+
+	s.cancelRelay = cancel
 	s.topic = topic
 	return nil
 }
@@ -65,6 +73,7 @@ func (s *PubSub) Start(context.Context) error {
 // * Unregisters all the added Validators
 // * Closes the `ShrEx/Sub` topic
 func (s *PubSub) Stop(context.Context) error {
+	s.cancelRelay()
 	err := s.pubSub.UnregisterTopicValidator(s.pubsubTopic)
 	if err != nil {
 		log.Warnw("unregistering topic", "err", err)

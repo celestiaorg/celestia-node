@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"sync/atomic"
 
+	"github.com/celestiaorg/celestia-node/share/p2p/shrexsub"
+
 	"github.com/ipfs/go-datastore"
 	logging "github.com/ipfs/go-log/v2"
 
@@ -36,7 +38,7 @@ type DASer struct {
 	running        int32
 }
 
-type listenFn func(ctx context.Context, height uint64)
+type listenFn func(context.Context, *header.ExtendedHeader)
 type sampleFn func(context.Context, *header.ExtendedHeader) error
 
 // NewDASer creates a new DASer.
@@ -46,6 +48,7 @@ func NewDASer(
 	getter libhead.Getter[*header.ExtendedHeader],
 	dstore datastore.Datastore,
 	bcast fraud.Broadcaster,
+	shrexBroadcast shrexsub.BroadcastFn,
 	options ...Option,
 ) (*DASer, error) {
 	d := &DASer{
@@ -68,7 +71,7 @@ func NewDASer(
 		return nil, err
 	}
 
-	d.sampler = newSamplingCoordinator(d.params, getter, d.sample)
+	d.sampler = newSamplingCoordinator(d.params, getter, d.sample, shrexBroadcast)
 	return d, nil
 }
 
@@ -144,14 +147,8 @@ func (d *DASer) Stop(ctx context.Context) error {
 }
 
 func (d *DASer) sample(ctx context.Context, h *header.ExtendedHeader) error {
-	ctx, cancel := context.WithTimeout(ctx, d.params.SampleTimeout)
-	defer cancel()
-
 	err := d.da.SharesAvailable(ctx, h.DAH)
 	if err != nil {
-		if err == context.Canceled {
-			return err
-		}
 		var byzantineErr *byzantine.ErrByzantine
 		if errors.As(err, &byzantineErr) {
 			log.Warn("Propagating proof...")
@@ -160,12 +157,8 @@ func (d *DASer) sample(ctx context.Context, h *header.ExtendedHeader) error {
 				log.Errorw("fraud proof propagating failed", "err", sendErr)
 			}
 		}
-
-		log.Errorw("sampling failed", "height", h.Height(), "hash", h.Hash(),
-			"square width", len(h.DAH.RowsRoots), "data root", h.DAH.Hash(), "err", err)
 		return err
 	}
-
 	return nil
 }
 

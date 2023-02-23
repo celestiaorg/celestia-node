@@ -10,12 +10,13 @@ import (
 	"github.com/libp2p/go-libp2p/core/protocol"
 	"github.com/minio/sha256-simd"
 
+	"github.com/celestiaorg/go-libp2p-messenger/serde"
+
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/eds"
 	"github.com/celestiaorg/celestia-node/share/ipld"
+	"github.com/celestiaorg/celestia-node/share/p2p"
 	pb "github.com/celestiaorg/celestia-node/share/p2p/shrexnd/pb"
-
-	"github.com/celestiaorg/go-libp2p-messenger/serde"
 )
 
 // Server implements server side of shrex/nd protocol to serve namespaced share to remote
@@ -47,26 +48,29 @@ func NewServer(host host.Host, store *eds.Store, getter share.Getter, opts ...Op
 		store:      store,
 		host:       host,
 		params:     params,
-		protocolID: protocolID(params.protocolSuffix),
+		protocolID: protocolID(params.networkID),
 	}
 
 	return srv, nil
 }
 
 // Start starts the server
-func (srv *Server) Start() {
+func (srv *Server) Start(context.Context) error {
 	ctx, cancel := context.WithCancel(context.Background())
 	srv.cancel = cancel
 
-	srv.host.SetStreamHandler(srv.protocolID, func(s network.Stream) {
+	handler := func(s network.Stream) {
 		srv.handleNamespacedData(ctx, s)
-	})
+	}
+	srv.host.SetStreamHandler(srv.protocolID, p2p.RateLimitMiddleware(handler, srv.params.concurrencyLimit))
+	return nil
 }
 
 // Stop stops the server
-func (srv *Server) Stop() {
+func (srv *Server) Stop(context.Context) error {
 	srv.cancel()
 	srv.host.RemoveStreamHandler(srv.protocolID)
+	return nil
 }
 
 func (srv *Server) handleNamespacedData(ctx context.Context, stream network.Stream) {

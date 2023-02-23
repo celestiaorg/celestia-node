@@ -11,6 +11,7 @@ import (
 	"github.com/celestiaorg/celestia-node/header"
 	libhead "github.com/celestiaorg/celestia-node/libs/header"
 	"github.com/celestiaorg/celestia-node/share"
+	"github.com/celestiaorg/celestia-node/share/p2p/shrexsub"
 )
 
 var _ Module = (*daserStub)(nil)
@@ -39,7 +40,8 @@ func newDASer(
 	store libhead.Store[*header.ExtendedHeader],
 	batching datastore.Batching,
 	fraudServ fraud.Service,
+	bFn shrexsub.BroadcastFn,
 	options ...das.Option,
 ) (*das.DASer, error) {
-	return das.NewDASer(da, hsub, store, batching, fraudServ, options...)
+	return das.NewDASer(da, hsub, store, batching, fraudServ, bFn, options...)
 }

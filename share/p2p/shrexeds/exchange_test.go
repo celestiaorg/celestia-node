@@ -2,12 +2,14 @@ package shrexeds
 
 import (
 	"context"
+	"sync"
 	"testing"
 	"time"
 
 	"github.com/ipfs/go-datastore"
 	ds_sync "github.com/ipfs/go-datastore/sync"
 	libhost "github.com/libp2p/go-libp2p/core/host"
+	"github.com/libp2p/go-libp2p/core/network"
 	mocknet "github.com/libp2p/go-libp2p/p2p/net/mock"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -82,6 +84,47 @@ func TestExchange_RequestEDS(t *testing.T) {
 		requestedEDS, err := client.RequestEDS(timeoutCtx, dah.Hash(), server.host.ID())
 		assert.ErrorIs(t, err, timeoutCtx.Err())
 		assert.Nil(t, requestedEDS)
+	})
+
+	// Testcase: Concurrency limit reached
+	t.Run("EDS_concurrency_limit", func(t *testing.T) {
+		store, client, server := makeExchange(t)
+
+		require.NoError(t, store.Start(ctx))
+		require.NoError(t, server.Start(ctx))
+
+		ctx, cancel := context.WithTimeout(ctx, time.Second)
+		t.Cleanup(cancel)
+
+		rateLimit := 2
+		wg := sync.WaitGroup{}
+		wg.Add(rateLimit)
+
+		// mockHandler will block requests on server side until test is over
+		lock := make(chan struct{})
+		defer close(lock)
+		mockHandler := func(network.Stream) {
+			wg.Done()
+			select {
+			case <-lock:
+			case <-ctx.Done():
+				t.Fatal("timeout")
+			}
+		}
+		server.host.SetStreamHandler(server.protocolID,
+			p2p.RateLimitMiddleware(mockHandler, rateLimit))
+
+		// take server concurrency slots with blocked requests
+		for i := 0; i < rateLimit; i++ {
+			go func(i int) {
+				client.RequestEDS(ctx, nil, server.host.ID()) //nolint:errcheck
+			}(i)
+		}
+
+		// wait until all server slots are taken
+		wg.Wait()
+		_, err = client.RequestEDS(ctx, nil, server.host.ID())
+		require.ErrorIs(t, err, p2p.ErrUnavailable)
 	})
 }
 

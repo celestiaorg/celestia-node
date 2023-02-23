@@ -8,7 +8,8 @@ import (
 	"testing"
 	"time"
 
-	mdutils "github.com/ipfs/go-merkledag/test"
+	ds "github.com/ipfs/go-datastore"
+	ds_sync "github.com/ipfs/go-datastore/sync"
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/peer"
 	mocknet "github.com/libp2p/go-libp2p/p2p/net/mock"
@@ -28,6 +29,7 @@ import (
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
 	"github.com/celestiaorg/celestia-node/nodebuilder/state"
+	"github.com/celestiaorg/celestia-node/share/eds"
 )
 
 var blackholeIP6 = net.ParseIP("100::")
@@ -47,10 +49,10 @@ type Swamp struct {
 	BridgeNodes []*nodebuilder.Node
 	FullNodes   []*nodebuilder.Node
 	LightNodes  []*nodebuilder.Node
-	comps       *Components
+	comps       *Config
 
 	ClientContext testnode.Context
-	accounts      []string
+	Accounts      []string
 
 	genesis *header.ExtendedHeader
 }
@@ -61,7 +63,7 @@ func NewSwamp(t *testing.T, options ...Option) *Swamp {
 		logs.SetDebugLogging()
 	}
 
-	ic := DefaultComponents()
+	ic := DefaultConfig()
 	for _, option := range options {
 		option(ic)
 	}
@@ -78,7 +80,7 @@ func NewSwamp(t *testing.T, options ...Option) *Swamp {
 		Network:       mocknet.New(),
 		ClientContext: cctx,
 		comps:         ic,
-		accounts:      ic.Accounts,
+		Accounts:      ic.Accounts,
 	}
 
 	swp.t.Cleanup(func() {
@@ -163,9 +165,12 @@ func (s *Swamp) createPeer(ks keystore.Keystore) host.Host {
 func (s *Swamp) setupGenesis(ctx context.Context) {
 	s.WaitTillHeight(ctx, 1)
 
+	store, err := eds.NewStore(s.t.TempDir(), ds_sync.MutexWrap(ds.NewMapDatastore()))
+	require.NoError(s.t, err)
+
 	ex := core.NewExchange(
 		core.NewBlockFetcher(s.ClientContext.Client),
-		mdutils.Bserv(),
+		store,
 		header.MakeExtendedHeader,
 	)
 
@@ -216,8 +221,11 @@ func (s *Swamp) NewNodeWithStore(
 ) *nodebuilder.Node {
 	var n *nodebuilder.Node
 
+	ks, err := store.Keystore()
+	require.NoError(s.t, err)
+
 	options = append(options,
-		state.WithKeyringSigner(nodebuilder.TestKeyringSigner(s.t)),
+		state.WithKeyringSigner(nodebuilder.TestKeyringSigner(s.t, ks.Keyring())),
 	)
 
 	switch t {
