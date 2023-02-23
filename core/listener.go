@@ -108,13 +108,11 @@ func (cl *Listener) listen(ctx context.Context, sub <-chan *types.Block) {
 				log.Errorw("listener: making extended header", "err", err)
 				return
 			}
-			// store block data if not empty
-			if eds != nil {
-				err = cl.store.Put(ctx, eh.DAH.Hash(), eds)
-				if err != nil {
-					log.Errorw("listener: storing extended header", "err", err)
-					return
-				}
+			// attempt to store block data if not empty
+			err = storeEDS(ctx, eh.DAH.Hash(), eds, cl.store)
+			if err != nil {
+				log.Errorw("listener: storing EDS", "err", err)
+				return
 			}
 
 			// notify network of new EDS hash only if core is already synced
