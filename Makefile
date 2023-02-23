@@ -155,3 +155,36 @@ openrpc-gen:
 	@go run ./cmd/docgen fraud header state share das p2p node
 .PHONY: openrpc-gen
 
+docker-build:
+	@echo "--> Building docker image"
+	@docker buildx build \
+		-f ./Dockerfile \
+		--platform linux/amd64 \
+		-t celestiaorg/celestia-node:latest \
+		./
+.PHONY: docker-build
+
+docker-run:
+	@echo "--> Running node using Docker, type=${NODE}, network=${NETWORK}"
+	@docker run -it \
+		-p 9090:9090 \
+		-p 26659:26659 \
+		--env NODE_TYPE=${NODE} \
+		--env P2P_NETWORK=${NETWORK} \
+		celestiaorg/celestia-node:latest \
+		celestia ${NODE} init --p2p.network ${NETWORK} \
+		&& whoami \
+		&& ./cel-key add "${NETWORK}-tn-key" \
+			--keyring-backend test \
+			--p2p.network ${NETWORK} \
+			--node.type ${NODE} \
+		&& celestia ${NODE} start \
+			--core.ip https://limani.celestia-devops.dev \
+			--core.grpc.port 9090 \
+			--keyring.accname "${NETWORK}-tn-key" \
+			--gateway \
+			--gateway.addr 127.0.0.1 \
+			--gateway.port 26659 \
+			--p2p.network ${NETWORK} \
+			--metrics --metrics.tls=false \
+			--metrics.endpoint 178.128.163.171:4318 \
