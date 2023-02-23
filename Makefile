@@ -159,7 +159,7 @@ docker-build:
 	@echo "--> Building docker image"
 	@docker buildx build \
 		-f ./Dockerfile \
-		--platform linux/amd64 \
+		--platform linux/amd64,linux/arm64 \
 		-t celestiaorg/celestia-node:latest \
 		./
 .PHONY: docker-build
@@ -174,7 +174,7 @@ ifeq (,"$(GATEWAY_PORT)")
 endif
 	@echo "--> Using GRPC_PORT=${GRPC_PORT} and GATEWAY_PORT=${GATEWAY_PORT}"
 	@echo "--> Cleaning up existing (dead) containers"
-	@docker rm --force celestia_${NETWORK}_{NODE}_node
+	@docker rm --force celestia_${NETWORK}_${NODE}_node
 	@echo "--> Starting...."
 	@docker run -itd \
 		-p "${GRPC_PORT}:9090" \
