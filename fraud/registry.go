@@ -28,6 +28,11 @@ func Register(p Proof) {
 	}
 }
 
+// Registered reports a set of registered proof types by Register.
+func Registered() []ProofType {
+	return registeredProofTypes()
+}
+
 // registeredProofTypes returns all available proofTypes.
 func registeredProofTypes() []ProofType {
 	unmarshalersLk.Lock()

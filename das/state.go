@@ -3,6 +3,8 @@ package das
 import (
 	"context"
 	"sync/atomic"
+
+	"github.com/celestiaorg/celestia-node/header"
 )
 
 // coordinatorState represents the current state of sampling
@@ -72,32 +74,33 @@ func (s *coordinatorState) handleResult(res result) {
 	s.checkDone()
 }
 
-func (s *coordinatorState) isNewHead(newHead uint64) bool {
+func (s *coordinatorState) isNewHead(newHead int64) bool {
 	// seen this header before
-	if newHead <= s.networkHead {
+	if uint64(newHead) <= s.networkHead {
 		log.Warnf("received head height: %v, which is lower or the same as previously known: %v", newHead, s.networkHead)
 		return false
 	}
 	return true
 }
 
-func (s *coordinatorState) updateHead(newHead uint64) {
+func (s *coordinatorState) updateHead(newHead int64) {
 	if s.networkHead == s.sampleFrom {
 		log.Infow("found first header, starting sampling")
 	}
 
-	s.networkHead = newHead
+	s.networkHead = uint64(newHead)
 	log.Debugw("updated head", "from_height", s.networkHead, "to_height", newHead)
 	s.checkDone()
 }
 
-func (s *coordinatorState) newRecentJob(newHead uint64) job {
+func (s *coordinatorState) newRecentJob(header *header.ExtendedHeader) job {
 	s.nextJobID++
 	return job{
 		id:             s.nextJobID,
 		isRecentHeader: true,
-		From:           newHead,
-		To:             newHead,
+		header:         header,
+		From:           uint64(header.Height()),
+		To:             uint64(header.Height()),
 	}
 }
 

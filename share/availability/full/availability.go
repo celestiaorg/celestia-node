@@ -48,8 +48,6 @@ func (fa *ShareAvailability) Stop(context.Context) error {
 // SharesAvailable reconstructs the data committed to the given Root by requesting
 // enough Shares from the network.
 func (fa *ShareAvailability) SharesAvailable(ctx context.Context, root *share.Root) error {
-	ctx, cancel := context.WithTimeout(ctx, share.AvailabilityTimeout)
-	defer cancel()
 	// we assume the caller of this method has already performed basic validation on the
 	// given dah/root. If for some reason this has not happened, the node should panic.
 	if err := root.ValidateBasic(); err != nil {

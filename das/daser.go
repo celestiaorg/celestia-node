@@ -38,7 +38,7 @@ type DASer struct {
 	running        int32
 }
 
-type listenFn func(ctx context.Context, height uint64)
+type listenFn func(context.Context, *header.ExtendedHeader)
 type sampleFn func(context.Context, *header.ExtendedHeader) error
 
 // NewDASer creates a new DASer.
@@ -147,9 +147,6 @@ func (d *DASer) Stop(ctx context.Context) error {
 }
 
 func (d *DASer) sample(ctx context.Context, h *header.ExtendedHeader) error {
-	ctx, cancel := context.WithTimeout(ctx, d.params.SampleTimeout)
-	defer cancel()
-
 	err := d.da.SharesAvailable(ctx, h.DAH)
 	if err != nil {
 		var byzantineErr *byzantine.ErrByzantine
@@ -159,15 +156,9 @@ func (d *DASer) sample(ctx context.Context, h *header.ExtendedHeader) error {
 			if sendErr != nil {
 				log.Errorw("fraud proof propagating failed", "err", sendErr)
 			}
-		} else if err == context.Canceled {
-			return err
 		}
-
-		log.Errorw("sampling failed", "height", h.Height(), "hash", h.Hash(),
-			"square width", len(h.DAH.RowsRoots), "data root", h.DAH.Hash(), "err", err)
 		return err
 	}
-
 	return nil
 }
 

@@ -10,9 +10,10 @@ import (
 	"github.com/gorilla/mux"
 
 	"github.com/celestiaorg/celestia-app/pkg/shares"
+	"github.com/celestiaorg/nmt/namespace"
+
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/share"
-	"github.com/celestiaorg/nmt/namespace"
 )
 
 const (
@@ -99,7 +100,7 @@ func (h *Handler) getShares(ctx context.Context, height uint64, nID namespace.ID
 	)
 	switch height {
 	case 0:
-		header, err = h.header.Head(ctx)
+		header, err = h.header.LocalHead(ctx)
 	default:
 		header, err = h.header.GetByHeight(ctx, height)
 	}
