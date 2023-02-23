@@ -19,7 +19,7 @@ type Config das.Parameters
 // TODO(@derrandz): Address #1261
 func DefaultConfig() Config {
 	cfg := das.DefaultParameters()
-	cfg.SampleTimeout = modp2p.BlockTime * time.Duration(cfg.SampleTimeout)
+	cfg.SampleTimeout = modp2p.BlockTime * time.Duration(cfg.ConcurrencyLimit)
 	return Config(cfg)
 }
 
