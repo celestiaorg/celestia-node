@@ -24,10 +24,9 @@ import (
 	headerMock "github.com/celestiaorg/celestia-node/libs/header/mocks"
 	p2p_pb "github.com/celestiaorg/celestia-node/libs/header/p2p/pb"
 	"github.com/celestiaorg/celestia-node/libs/header/test"
-	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
 )
 
-var privateProtocolID = protocolID(string(p2p.Private))
+const networkID = "private"
 
 func TestExchange_RequestHead(t *testing.T) {
 	hosts := createMocknet(t, 2)
@@ -99,7 +98,7 @@ func TestExchange_RequestFullRangeHeaders(t *testing.T) {
 	require.NoError(t, err)
 	// create new exchange
 	exchange, err := NewExchange[*test.DummyHeader](hosts[len(hosts)-1], []peer.ID{}, connGater,
-		WithProtocolSuffix[ClientParameters](string(p2p.Private)),
+		WithNetworkID[ClientParameters](networkID),
 	)
 	require.NoError(t, err)
 	exchange.Params.MaxHeadersPerRequest = 10
@@ -111,7 +110,7 @@ func TestExchange_RequestFullRangeHeaders(t *testing.T) {
 		servers[index], err = NewExchangeServer[*test.DummyHeader](
 			hosts[index],
 			store,
-			WithProtocolSuffix[ServerParameters](string(p2p.Private)),
+			WithNetworkID[ServerParameters](networkID),
 		)
 		require.NoError(t, err)
 		servers[index].Start(context.Background()) //nolint:errcheck
@@ -147,7 +146,7 @@ func TestExchange_RequestHeadersFromAnotherPeer(t *testing.T) {
 	// create one more server(with more headers in the store)
 	serverSideEx, err := NewExchangeServer[*test.DummyHeader](
 		hosts[2], headerMock.NewStore[*test.DummyHeader](t, test.NewTestSuite(t), 10),
-		WithProtocolSuffix[ServerParameters](string(p2p.Private)),
+		WithNetworkID[ServerParameters](networkID),
 	)
 	require.NoError(t, err)
 	require.NoError(t, serverSideEx.Start(context.Background()))
@@ -179,7 +178,7 @@ func TestExchange_RequestByHash(t *testing.T) {
 	serv, err := NewExchangeServer[*test.DummyHeader](
 		host,
 		store,
-		WithProtocolSuffix[ServerParameters](string(p2p.Private)),
+		WithNetworkID[ServerParameters](networkID),
 	)
 	require.NoError(t, err)
 	err = serv.Start(ctx)
@@ -189,7 +188,7 @@ func TestExchange_RequestByHash(t *testing.T) {
 	})
 
 	// start a new stream via Peer to see if Host can handle inbound requests
-	stream, err := peer.NewStream(context.Background(), libhost.InfoFromHost(host).ID, privateProtocolID)
+	stream, err := peer.NewStream(context.Background(), libhost.InfoFromHost(host).ID, protocolID(networkID))
 	require.NoError(t, err)
 	// create request for a header at a random height
 	reqHeight := store.HeadHeight - 2
@@ -291,7 +290,7 @@ func TestExchange_RequestByHashFails(t *testing.T) {
 	host, peer := net.Hosts()[0], net.Hosts()[1]
 	serv, err := NewExchangeServer[*test.DummyHeader](
 		host, headerMock.NewStore[*test.DummyHeader](t, test.NewTestSuite(t), 0),
-		WithProtocolSuffix[ServerParameters](string(p2p.Private)),
+		WithNetworkID[ServerParameters](networkID),
 	)
 	require.NoError(t, err)
 	err = serv.Start(ctx)
@@ -300,7 +299,7 @@ func TestExchange_RequestByHashFails(t *testing.T) {
 		serv.Stop(context.Background()) //nolint:errcheck
 	})
 
-	stream, err := peer.NewStream(context.Background(), libhost.InfoFromHost(host).ID, privateProtocolID)
+	stream, err := peer.NewStream(context.Background(), libhost.InfoFromHost(host).ID, protocolID(networkID))
 	require.NoError(t, err)
 	req := &p2p_pb.HeaderRequest{
 		Data:   &p2p_pb.HeaderRequest_Hash{Hash: []byte("dummy_hash")},
@@ -343,7 +342,7 @@ func TestExchange_RequestHeadersFromAnotherPeerWhenTimeout(t *testing.T) {
 	// create one more server(with more headers in the store)
 	serverSideEx, err := NewExchangeServer[*test.DummyHeader](
 		host2, headerMock.NewStore[*test.DummyHeader](t, test.NewTestSuite(t), 10),
-		WithProtocolSuffix[ServerParameters](string(p2p.Private)),
+		WithNetworkID[ServerParameters](networkID),
 	)
 	require.NoError(t, err)
 	// change store implementation
@@ -376,7 +375,7 @@ func createP2PExAndServer(
 ) (*Exchange[*test.DummyHeader], *headerMock.MockStore[*test.DummyHeader]) {
 	store := headerMock.NewStore[*test.DummyHeader](t, test.NewTestSuite(t), 5)
 	serverSideEx, err := NewExchangeServer[*test.DummyHeader](tpeer, store,
-		WithProtocolSuffix[ServerParameters](string(p2p.Private)),
+		WithNetworkID[ServerParameters](networkID),
 	)
 	require.NoError(t, err)
 	err = serverSideEx.Start(context.Background())
@@ -384,7 +383,7 @@ func createP2PExAndServer(
 	connGater, err := conngater.NewBasicConnectionGater(sync.MutexWrap(datastore.NewMapDatastore()))
 	require.NoError(t, err)
 	ex, err := NewExchange[*test.DummyHeader](host, []peer.ID{tpeer.ID()}, connGater,
-		WithProtocolSuffix[ClientParameters](string(p2p.Private)),
+		WithNetworkID[ClientParameters](networkID),
 	)
 	require.NoError(t, err)
 	require.NoError(t, ex.Start(context.Background()))
