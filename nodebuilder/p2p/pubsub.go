@@ -4,8 +4,6 @@ import (
 	"context"
 	"time"
 
-	"github.com/celestiaorg/celestia-node/fraud"
-	headp2p "github.com/celestiaorg/celestia-node/libs/header/p2p"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	pubsub_pb "github.com/libp2p/go-libp2p-pubsub/pb"
 	hst "github.com/libp2p/go-libp2p/core/host"
@@ -13,6 +11,9 @@ import (
 	"github.com/libp2p/go-libp2p/core/protocol"
 	"go.uber.org/fx"
 	"golang.org/x/crypto/blake2b"
+
+	"github.com/celestiaorg/celestia-node/fraud"
+	headp2p "github.com/celestiaorg/celestia-node/libs/header/p2p"
 )
 
 func init() {
@@ -42,6 +43,7 @@ func pubSub(cfg Config, params pubSubParams) (*pubsub.PubSub, error) {
 	isBootstrapper := cfg.Bootstrapper
 	if isBootstrapper {
 		// Turn off the mesh in bootstrappers as per:
+		//
 		// https://github.com/libp2p/specs/blob/master/pubsub/gossipsub/gossipsub-v1.1.md#recommendations-for-network-operators
 		pubsub.GossipSubD = 0
 		pubsub.GossipSubDscore = 0
@@ -88,10 +90,10 @@ func hashMsgID(m *pubsub_pb.Message) string {
 type pubSubParams struct {
 	fx.In
 
-	Ctx  context.Context
-	Host hst.Host
+	Ctx           context.Context
+	Host          hst.Host
 	Bootstrappers Bootstrappers
-	Network Network
+	Network       Network
 }
 
 func topicScoreParams(network Network) map[string]*pubsub.TopicScoreParams {
@@ -112,7 +114,8 @@ func peerScoreParams(isBootstrapper bool, bootstrappers Bootstrappers) *pubsub.P
 		bootstrapperSet[b.ID] = struct{}{}
 	}
 
-	// See https://github.com/libp2p/specs/blob/master/pubsub/gossipsub/gossipsub-v1.1.md#the-score-function
+	// See
+	// https://github.com/libp2p/specs/blob/master/pubsub/gossipsub/gossipsub-v1.1.md#the-score-function
 	return &pubsub.PeerScoreParams{
 		AppSpecificScore: func(p peer.ID) float64 {
 			// return a heavy positive score for bootstrappers so that we don't unilaterally prune
@@ -124,7 +127,7 @@ func peerScoreParams(isBootstrapper bool, bootstrappers Bootstrappers) *pubsub.P
 
 			// TODO(@Wondertan):
 			//  Plug the application specific score to the node itself in order
-			//  to provide feedback to the pubsub system based on observed behaviour
+			//  to provide feedback to the pubsub system based on observed behavior
 			return 0
 		},
 		AppSpecificWeight: 1,
@@ -150,7 +153,8 @@ func peerScoreParams(isBootstrapper bool, bootstrappers Bootstrappers) *pubsub.P
 }
 
 func peerScoreThresholds() *pubsub.PeerScoreThresholds {
-	// https://github.com/libp2p/specs/blob/master/pubsub/gossipsub/gossipsub-v1.1.md#overview-of-new-parameters
+	//
+	//https://github.com/libp2p/specs/blob/master/pubsub/gossipsub/gossipsub-v1.1.md#overview-of-new-parameters
 	return &pubsub.PeerScoreThresholds{
 		GossipThreshold:             -1000,
 		PublishThreshold:            -2000,
