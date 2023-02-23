@@ -25,10 +25,10 @@ type Subscriber[H header.Header] struct {
 func NewSubscriber[H header.Header](
 	ps *pubsub.PubSub,
 	msgID pubsub.MsgIdFunction,
-	protocolSuffix string,
+	networkID string,
 ) *Subscriber[H] {
 	return &Subscriber[H]{
-		pubsubTopicID: PubsubTopicID(protocolSuffix),
+		pubsubTopicID: PubsubTopicID(networkID),
 		pubsub:        ps,
 		msgID:         msgID,
 	}
