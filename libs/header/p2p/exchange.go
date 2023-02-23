@@ -231,23 +231,17 @@ func (ex *Exchange[H]) performRequest(
 		//nolint:gosec // G404: Use of weak random number generator
 		idx := rand.Intn(len(ex.trustedPeers))
 
-		select {
-		case <-ctx.Done():
-			return nil, ctx.Err()
-		default:
-		}
-
-		reqCtx, cancel := context.WithTimeout(ctx, ex.Params.TrustedPeersRequestTimeout)
-		h, err := ex.request(reqCtx, ex.trustedPeers[idx], req)
+		ctx, cancel := context.WithTimeout(ctx, ex.Params.TrustedPeersRequestTimeout)
+		h, err := ex.request(ctx, ex.trustedPeers[idx], req)
 		cancel()
 		switch err {
+		case context.Canceled, nil:
+			return h, err
 		default:
 			reqErr = err
 			log.Debug(err)
-			continue
-		case nil:
-			return h, nil
 		}
+
 	}
 	return nil, reqErr
 }
