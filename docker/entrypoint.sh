@@ -3,9 +3,11 @@
 set -e 
 
 if [ "$1" = 'celestia' ]; then
-    ./celestia "${NODE_TYPE}" init --p2p.network "${P2P_NETWORK}"
+    echo "We are going to initialize the store"
+    ./celestia "${NODE_TYPE}" init --keyring.backend "test" --p2p.network "${P2P_NETWORK}"
 
     exec ./"$@" "--"
-fi
-
+else
+echo "Relying on user commands"
 exec "$@"
+fi

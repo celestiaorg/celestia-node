@@ -75,6 +75,44 @@ celestia <node_type> init
 celestia <node_type> start
 ```
 
+## Run using Docker
+
+Build:
+```
+make docker-build
+```
+
+Run:
+```
+make docker-run \
+    NODE={NODE_TYPE} \
+    NETWORK={NETWORK}
+```
+
+If you are running multiple nodes on the same machine, you can pass in custom `grpc_port` and `gateway_port` to the docker port mapping to avoid conflicts:
+
+The first node will be on the following ports by default:
+
+- `GRPC_PORT = 9090`
+- `GATEWAY_PORT = 26659`
+
+Thus you can port-forward with these ports as starting points, example:
+
+Node 2:
+
+- `GRPC_PORT = 9091`
+- `GATEWAY_PORT = 26660`
+
+And so on. And you can pass them to your node as follows:
+
+```
+make docker-run \
+    NODE={NODE_TYPE} \
+    NETWORK={NETWORK} \
+    GRPC_PORT=9092 \
+    GATEWAY_PORT=26661
+```
+
 ## Package-specific documentation
 
 - [Header](./header/doc.go)

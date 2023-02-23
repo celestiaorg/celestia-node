@@ -166,25 +166,31 @@ docker-build:
 
 docker-run:
 	@echo "--> Running node using Docker, type=${NODE}, network=${NETWORK}"
-	@docker run -it \
-		-p 9090:9090 \
-		-p 26659:26659 \
+ifeq (,"$(GRPC_PORT)")	
+	GRPC_PORT := 9090
+endif
+ifeq (,"$(GATEWAY_PORT)")
+	GATEWAY_PORT = 26659
+endif
+	@echo "--> Using GRPC_PORT=${GRPC_PORT} and GATEWAY_PORT=${GATEWAY_PORT}"
+	@echo "--> Cleaning up existing (dead) containers"
+	@docker rm --force celestia_${NETWORK}_{NODE}_node
+	@echo "--> Starting...."
+	@docker run -itd \
+		-p "${GRPC_PORT}:9090" \
+		-p "${GATEWAY_PORT}:26659" \
 		--env NODE_TYPE=${NODE} \
 		--env P2P_NETWORK=${NETWORK} \
+		--network bridge \
+		--name celestia_${NETWORK}_${NODE}_node \
 		celestiaorg/celestia-node:latest \
-		celestia ${NODE} init --p2p.network ${NETWORK} \
-		&& whoami \
-		&& ./cel-key add "${NETWORK}-tn-key" \
-			--keyring-backend test \
-			--p2p.network ${NETWORK} \
-			--node.type ${NODE} \
-		&& celestia ${NODE} start \
+		celestia ${NODE} start \
 			--core.ip https://limani.celestia-devops.dev \
-			--core.grpc.port 9090 \
+			--core.grpc.port ${GRPC_PORT} \
 			--keyring.accname "${NETWORK}-tn-key" \
 			--gateway \
 			--gateway.addr 127.0.0.1 \
-			--gateway.port 26659 \
+			--gateway.port ${GATEWAY_PORT} \
 			--p2p.network ${NETWORK} \
 			--metrics --metrics.tls=false \
 			--metrics.endpoint 178.128.163.171:4318 \
