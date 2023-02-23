@@ -26,7 +26,7 @@ func PubsubTopicID(networkID string) string {
 }
 
 func validateChainID(want, have string) error {
-	if !strings.EqualFold(want, have) {
+	if want != "" && !strings.EqualFold(want, have) {
 		return fmt.Errorf("header with different chainID received.want=%s,have=%s",
 			want, have,
 		)
