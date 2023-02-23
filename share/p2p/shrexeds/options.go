@@ -30,9 +30,9 @@ type Parameters struct {
 	// BufferSize defines the size of the buffer used for writing an ODS over the stream.
 	BufferSize uint64
 
-	// protocolSuffix is appended to the protocolID and represents the network the protocol is
+	// networkID is appended to the protocolID and represents the network the protocol is
 	// running on.
-	protocolSuffix string
+	networkID string
 
 	// concurrencyLimit is the maximum number of concurrently handled streams
 	concurrencyLimit int
@@ -69,10 +69,10 @@ func (p *Parameters) Validate() error {
 	return nil
 }
 
-// WithProtocolSuffix is a functional option that configures the `protocolSuffix` parameter
-func WithProtocolSuffix(protocolSuffix string) Option {
+// networkID is a functional option that configures the `networkID` parameter
+func WithNetworkID(networkID string) Option {
 	return func(parameters *Parameters) {
-		parameters.protocolSuffix = protocolSuffix
+		parameters.networkID = networkID
 	}
 }
 
@@ -83,6 +83,6 @@ func WithConcurrencyLimit(concurrencyLimit int) Option {
 	}
 }
 
-func protocolID(protocolSuffix string) protocol.ID {
-	return protocol.ID(fmt.Sprintf("%s%s", protocolPrefix, protocolSuffix))
+func protocolID(networkID string) protocol.ID {
+	return protocol.ID(fmt.Sprintf("%s%s", networkID, protocolPrefix))
 }
