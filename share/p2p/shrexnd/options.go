@@ -98,5 +98,5 @@ func WithConcurrencyLimit(concurrencyLimit int) Option {
 }
 
 func protocolID(networkID string) protocol.ID {
-	return protocol.ID(fmt.Sprintf("%s%s", networkID, protocolString))
+	return protocol.ID(fmt.Sprintf("/%s%s", networkID, protocolString))
 }
