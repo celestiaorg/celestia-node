@@ -8,7 +8,7 @@ import (
 	"github.com/libp2p/go-libp2p/core/protocol"
 )
 
-const protocolPrefix = "/shrex/eds/v0.0.1/"
+const protocolString = "shrex/eds/v0.0.1/"
 
 var log = logging.Logger("shrex-eds")
 
@@ -69,7 +69,7 @@ func (p *Parameters) Validate() error {
 	return nil
 }
 
-// networkID is a functional option that configures the `networkID` parameter
+// WithNetworkID is a functional option that configures the `networkID` parameter
 func WithNetworkID(networkID string) Option {
 	return func(parameters *Parameters) {
 		parameters.networkID = networkID
@@ -84,5 +84,5 @@ func WithConcurrencyLimit(concurrencyLimit int) Option {
 }
 
 func protocolID(networkID string) protocol.ID {
-	return protocol.ID(fmt.Sprintf("%s%s", networkID, protocolPrefix))
+	return protocol.ID(fmt.Sprintf("%s/%s", networkID, protocolString))
 }

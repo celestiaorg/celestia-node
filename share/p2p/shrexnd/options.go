@@ -8,7 +8,7 @@ import (
 	"github.com/libp2p/go-libp2p/core/protocol"
 )
 
-const protocolPrefix = "/shrex/nd/0.0.1/"
+const protocolString = "shrex/nd/0.0.1/"
 
 var log = logging.Logger("shrex/nd")
 
@@ -98,5 +98,5 @@ func WithConcurrencyLimit(concurrencyLimit int) Option {
 }
 
 func protocolID(networkID string) protocol.ID {
-	return protocol.ID(fmt.Sprintf("%s%s", networkID, protocolPrefix))
+	return protocol.ID(fmt.Sprintf("%s/%s", networkID, protocolString))
 }
