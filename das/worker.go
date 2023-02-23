@@ -80,16 +80,13 @@ func (w *worker) run(ctx context.Context, timeout time.Duration, resultCh chan<-
 		}
 	}
 
-	if w.state.Curr > w.state.From {
-		jobTime := time.Since(jobStart)
-		log.Infow(
-			"sampled headers",
-			"from", w.state.From,
-			"to", w.state.Curr,
-			"finished (s)",
-			jobTime.Seconds(),
-		)
-	}
+	log.Infow(
+		"finished sampling job",
+		"from", w.state.From,
+		"to", w.state.Curr,
+		"errors", len(w.state.failed),
+		"finished (s)", time.Since(jobStart),
+	)
 
 	select {
 	case resultCh <- result{
