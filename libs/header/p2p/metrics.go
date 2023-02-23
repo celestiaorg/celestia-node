@@ -45,7 +45,7 @@ func (ex *Exchange[H]) RegisterMetrics() error {
 	return nil
 }
 
-func (m *metrics) ObserveRequest(ctx context.Context, size uint64, duration uint64) {
+func (m *metrics) observeResponse(ctx context.Context, size uint64, duration uint64) {
 	if m == nil {
 		return
 	}

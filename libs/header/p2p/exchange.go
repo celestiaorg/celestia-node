@@ -254,7 +254,7 @@ func (ex *Exchange[H]) request(
 ) ([]H, error) {
 	log.Debugw("requesting peer", "peer", to)
 	responses, size, duration, err := sendMessage(ctx, ex.host, to, ex.protocolID, req)
-	ex.metrics.ObserveRequest(ctx, size, duration)
+	ex.metrics.observeResponse(ctx, size, duration)
 
 	if err != nil {
 		log.Debugw("err sending request", "peer", to, "err", err)
