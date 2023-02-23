@@ -107,8 +107,8 @@ func (s *Syncer[H]) Stop(context.Context) error {
 	return nil
 }
 
-// WaitSync blocks until ongoing sync is done.
-func (s *Syncer[H]) WaitSync(ctx context.Context) error {
+// SyncWait blocks until ongoing sync is done.
+func (s *Syncer[H]) SyncWait(ctx context.Context) error {
 	state := s.State()
 	if state.Finished() {
 		return nil
