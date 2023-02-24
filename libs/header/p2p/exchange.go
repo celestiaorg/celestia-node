@@ -33,6 +33,8 @@ type Exchange[H header.Header] struct {
 	peerTracker  *peerTracker
 
 	Params ClientParameters
+
+	metrics *metrics
 }
 
 func NewExchange[H header.Header](
@@ -254,7 +256,8 @@ func (ex *Exchange[H]) request(
 	req *p2p_pb.HeaderRequest,
 ) ([]H, error) {
 	log.Debugw("requesting peer", "peer", to)
-	responses, _, _, err := sendMessage(ctx, ex.host, to, ex.protocolID, req)
+	responses, size, duration, err := sendMessage(ctx, ex.host, to, ex.protocolID, req)
+	ex.metrics.observeResponse(ctx, size, duration, err)
 	if err != nil {
 		log.Debugw("err sending request", "peer", to, "err", err)
 		return nil, err
