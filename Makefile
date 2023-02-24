@@ -169,3 +169,4 @@ lint-imports:
 
 sort-imports: $(GOIMPORTSREVISER)
 	@$(GOIMPORTSREVISER) -company-prefixes "github.com/celestiaorg"  -project-name "github.com/celestiaorg/celestia-node" -output stdout ./...
+.PHONY sort-imports
