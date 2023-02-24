@@ -235,13 +235,14 @@ func (ex *Exchange[H]) performRequest(
 		h, err := ex.request(ctx, ex.trustedPeers[idx], req)
 		cancel()
 		switch err {
-		case context.Canceled, nil:
-			return h, err
 		default:
 			reqErr = err
-			log.Debug(err)
+			log.Debugw("requesting header from trustedPeer failed",
+				"trustedPeer", ex.trustedPeers[idx], "err", err)
+			continue
+		case context.Canceled, context.DeadlineExceeded, nil:
+			return h, err
 		}
-
 	}
 	return nil, reqErr
 }
