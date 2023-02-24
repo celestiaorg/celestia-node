@@ -204,11 +204,8 @@ func TestDASerSampleTimeout(t *testing.T) {
 	f := new(fraud.DummyService)
 
 	// create and start DASer
-	daser, err := NewDASer(avail, sub, getter, ds, f, newBroadcastMock(1))
+	daser, err := NewDASer(avail, sub, getter, ds, f, newBroadcastMock(1), WithSampleTimeout(1))
 	require.NoError(t, err)
-
-	// assign directly to avoid params validation
-	daser.params.SampleTimeout = 0
 
 	require.NoError(t, daser.Start(ctx))
 	require.NoError(t, daser.sampler.state.waitCatchUp(ctx))
