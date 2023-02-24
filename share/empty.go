@@ -19,6 +19,7 @@ var (
 )
 
 func init() {
+	// compute empty block EDS and DAH for it
 	shares := emptyDataSquare()
 	squareSize := uint64(math.Sqrt(float64(appconsts.DefaultMinSquareSize)))
 	eds, err := da.ExtendShares(squareSize, shares)
@@ -29,6 +30,9 @@ func init() {
 	emptyEDS = eds
 	dah := da.NewDataAvailabilityHeader(eds)
 	emptyRoot = &dah
+
+	// precompute Hash, so it's cached internally to avoid potential races
+	emptyRoot.Hash()
 }
 
 // EmptyRoot returns Root of an empty EDS.

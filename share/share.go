@@ -59,5 +59,5 @@ func (dh DataHash) String() string {
 
 // IsEmptyRoot check whether DataHash corresponds to the root of an empty block EDS.
 func (dh DataHash) IsEmptyRoot() bool {
-	return bytes.Equal(emptyRoot.Hash(), dh)
+	return bytes.Equal(EmptyRoot().Hash(), dh)
 }
