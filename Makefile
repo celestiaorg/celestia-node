@@ -93,7 +93,7 @@ fmt: sort-imports
 .PHONY: fmt
 
 ## lint: Linting *.go files using golangci-lint. Look for .golangci.yml for the list of linters.
-lint:
+lint: lint-imports
 	@echo "--> Running linter"
 	@golangci-lint run
 	@markdownlint --config .markdownlint.yaml '**/*.md'
@@ -160,6 +160,12 @@ openrpc-gen:
 	@echo "--> Generating OpenRPC spec"
 	@go run ./cmd/docgen fraud header state share das p2p node
 .PHONY: openrpc-gen
+
+lint-imports:
+	@echo "--> Running imports linter"
+	@for file in `find . -type f -name '*.go'`; \
+		do $(GOIMPORTSREVISER) -list-diff -set-exit-status -company-prefixes "github.com/celestiaorg"  -project-name "github.com/celestiaorg/celestia-node" -output stdout $$file;  \
+    done;
 
 sort-imports: $(GOIMPORTSREVISER)
 	@$(GOIMPORTSREVISER) -company-prefixes "github.com/celestiaorg"  -project-name "github.com/celestiaorg/celestia-node" -output stdout ./...
