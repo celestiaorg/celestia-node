@@ -81,7 +81,7 @@ func (w *worker) run(ctx context.Context, timeout time.Duration, resultCh chan<-
 	}
 
 	log.Infow(
-		"finished sampling job",
+		"finished sampling headers",
 		"from", w.state.From,
 		"to", w.state.Curr,
 		"errors", len(w.state.failed),
