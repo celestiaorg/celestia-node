@@ -4,9 +4,10 @@ import (
 	"context"
 	"errors"
 
-	"github.com/celestiaorg/celestia-node/share/eds"
 	ipldFormat "github.com/ipfs/go-ipld-format"
 	logging "github.com/ipfs/go-log/v2"
+
+	"github.com/celestiaorg/celestia-node/share/eds"
 
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/availability/discovery"
@@ -19,7 +20,7 @@ var log = logging.Logger("share/full")
 // recovery technique. It is considered "full" because it is required
 // to download enough shares to fully reconstruct the data square.
 type ShareAvailability struct {
-	store *eds.Store
+	store  *eds.Store
 	getter share.Getter
 	disc   *discovery.Discovery
 
@@ -29,7 +30,7 @@ type ShareAvailability struct {
 // NewShareAvailability creates a new full ShareAvailability.
 func NewShareAvailability(store *eds.Store, getter share.Getter, disc *discovery.Discovery) *ShareAvailability {
 	return &ShareAvailability{
-		store: store,
+		store:  store,
 		getter: getter,
 		disc:   disc,
 	}
