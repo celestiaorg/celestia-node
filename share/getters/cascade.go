@@ -8,10 +8,11 @@ import (
 	"go.opentelemetry.io/otel/trace"
 	"go.uber.org/multierr"
 
-	"github.com/celestiaorg/celestia-node/libs/utils"
-	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/nmt/namespace"
 	"github.com/celestiaorg/rsmt2d"
+
+	"github.com/celestiaorg/celestia-node/libs/utils"
+	"github.com/celestiaorg/celestia-node/share"
 )
 
 var _ share.Getter = (*CascadeGetter)(nil)
