@@ -254,6 +254,7 @@ func (ex *Exchange[H]) request(
 ) ([]H, error) {
 	log.Debugw("requesting peer", "peer", to)
 	responses, size, duration, err := sendMessage(ctx, ex.host, to, ex.protocolID, req)
+	ex.metrics.observeResponse(ctx, size, duration, err)
 	if err != nil {
 		log.Debugw("err sending request", "peer", to, "err", err)
 		return nil, err
@@ -261,7 +262,6 @@ func (ex *Exchange[H]) request(
 	if len(responses) == 0 {
 		return nil, header.ErrNotFound
 	}
-	ex.metrics.observeResponse(ctx, size, duration, err)
 	headers := make([]H, 0, len(responses))
 	for _, response := range responses {
 		if err = convertStatusCodeToError(response.StatusCode); err != nil {
