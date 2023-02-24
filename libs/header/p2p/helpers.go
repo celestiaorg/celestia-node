@@ -18,11 +18,11 @@ import (
 )
 
 func protocolID(networkID string) protocol.ID {
-	return protocol.ID(fmt.Sprintf("%s/header-ex/v0.0.3", networkID))
+	return protocol.ID(fmt.Sprintf("/%s/header-ex/v0.0.3", networkID))
 }
 
 func PubsubTopicID(networkID string) string {
-	return fmt.Sprintf("%s/header-sub/v0.0.1", networkID)
+	return fmt.Sprintf("/%s/header-sub/v0.0.1", networkID)
 }
 
 func validateChainID(want, have string) error {
