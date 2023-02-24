@@ -142,6 +142,8 @@ type ClientParameters struct {
 	MaxPeerTrackerSize int
 	// networkID is a network that will be used to create a protocol.ID
 	networkID string
+	// chainID is an identifier of the chain.
+	chainID string
 }
 
 // DefaultClientParameters returns the default params to configure the store.
@@ -251,6 +253,17 @@ func WithMaxTrackerSize[T ClientParameters](size int) Option[T] {
 		switch t := any(p).(type) { //nolint:gocritic
 		case *ClientParameters:
 			t.MaxPeerTrackerSize = size
+		}
+	}
+}
+
+// WithChainID is a functional option that configures the
+// `chainID` parameter.
+func WithChainID[T ClientParameters](chainID string) Option[T] {
+	return func(p *T) {
+		switch t := any(p).(type) { //nolint:gocritic
+		case *ClientParameters:
+			t.chainID = chainID
 		}
 	}
 }
