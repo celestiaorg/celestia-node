@@ -261,7 +261,7 @@ func (ex *Exchange[H]) request(
 	if len(responses) == 0 {
 		return nil, header.ErrNotFound
 	}
-	ex.metrics.observeResponse(ctx, size, duration)
+	ex.metrics.observeResponse(ctx, size, duration, err)
 	headers := make([]H, 0, len(responses))
 	for _, response := range responses {
 		if err = convertStatusCodeToError(response.StatusCode); err != nil {

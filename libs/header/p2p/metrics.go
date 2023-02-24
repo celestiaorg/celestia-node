@@ -3,6 +3,7 @@ package p2p
 import (
 	"context"
 
+	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric/global"
 	"go.opentelemetry.io/otel/metric/instrument"
 	"go.opentelemetry.io/otel/metric/instrument/syncfloat64"
@@ -45,10 +46,18 @@ func (ex *Exchange[H]) RegisterMetrics() error {
 	return nil
 }
 
-func (m *metrics) observeResponse(ctx context.Context, size uint64, duration uint64) {
+func (m *metrics) observeResponse(ctx context.Context, size uint64, duration uint64, err error) {
 	if m == nil {
 		return
 	}
-	m.responseSize.Record(ctx, float64(size))
-	m.responseDuration.Record(ctx, float64(duration))
+	m.responseSize.Record(
+		ctx,
+		float64(size),
+		attribute.Bool("failed", err != nil),
+	)
+	m.responseDuration.Record(
+		ctx,
+		float64(duration),
+		attribute.Bool("failed", err != nil),
+	)
 }
