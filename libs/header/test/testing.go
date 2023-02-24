@@ -41,7 +41,7 @@ func (d *DummyHeader) IsZero() bool {
 }
 
 func (d *DummyHeader) ChainID() string {
-	return d.Raw.ChainID
+	return "private"
 }
 
 func (d *DummyHeader) Hash() header.Hash {
