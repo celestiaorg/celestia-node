@@ -5,7 +5,6 @@ import (
 	"context"
 	"fmt"
 	"math"
-	"sync/atomic"
 
 	"github.com/ipfs/go-blockservice"
 
@@ -15,8 +14,8 @@ import (
 )
 
 var (
-	emptyRoot atomic.Pointer[Root]
-	emptyEDS  atomic.Pointer[rsmt2d.ExtendedDataSquare]
+	emptyRoot *Root
+	emptyEDS  *rsmt2d.ExtendedDataSquare
 )
 
 func init() {
@@ -26,15 +25,16 @@ func init() {
 	if err != nil {
 		panic(fmt.Errorf("failed to create empty EDS: %w", err))
 	}
-	dah := da.NewDataAvailabilityHeader(eds)
 
-	emptyEDS.Store(eds)
-	emptyRoot.Store(&dah)
+
+	emptyEDS = eds
+	dah := da.NewDataAvailabilityHeader(eds)
+	emptyRoot = &dah
 }
 
 // EmptyRoot returns Root of an empty EDS.
 func EmptyRoot() *Root {
-	return emptyRoot.Load()
+	return emptyRoot
 }
 
 // EnsureEmptySquareExists checks if the given DAG contains an empty block data square.
@@ -47,7 +47,7 @@ func EnsureEmptySquareExists(ctx context.Context, bServ blockservice.BlockServic
 
 // EmptyExtendedDataSquare returns the EDS of the empty block data square.
 func EmptyExtendedDataSquare() *rsmt2d.ExtendedDataSquare {
-	return emptyEDS.Load()
+	return emptyEDS
 }
 
 // tail is filler for all tail padded shares

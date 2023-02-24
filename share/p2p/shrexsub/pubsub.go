@@ -1,7 +1,6 @@
 package shrexsub
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 
@@ -101,8 +100,8 @@ func (s *PubSub) Subscribe() (*Subscription, error) {
 
 // Broadcast sends the EDS notification (DataHash) to every connected peer.
 func (s *PubSub) Broadcast(ctx context.Context, data share.DataHash) error {
-	if bytes.Equal(share.EmptyRoot().Hash(), data) {
-		// no need to broadcast datahash of an empty block
+	if data.IsEmptyRoot(){
+		// no need to broadcast datahash of an empty block EDS
 		return nil
 	}
 
