@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"net"
 	"net/url"
+	"os"
+	"path"
 	"testing"
 
 	appconfig "github.com/cosmos/cosmos-sdk/server/config"
@@ -86,6 +88,7 @@ func StartTestNodeWithConfig(t *testing.T, cfg *TestConfig) testnode.Context {
 	t.Cleanup(func() {
 		err := cleanupCoreNode()
 		require.NoError(t, err)
+		require.NoError(t, removeDir(t, path.Join([]string{cfg.Tendermint.RootDir, "config"}...)))
 	})
 
 	cctx, cleanupGRPCServer, err := StartGRPCServer(app, cfg.App, cctx)
@@ -137,4 +140,29 @@ func getEndpoint(cfg *tmconfig.Config) (string, string, error) {
 		return "", "", err
 	}
 	return host, url.Port(), nil
+}
+
+// removeDir removes the directory `rootDir`.
+// The main reason for using it is to know if some file is used by some leaking process during
+// cleanup and be able to identify where the leak is occurring.
+// TODO: remove after fixing the CI flakiness
+func removeDir(t *testing.T, rootDir string) error {
+	dir, err := os.ReadDir(rootDir)
+	if err != nil {
+		return err
+	}
+	for _, d := range dir {
+		p := path.Join([]string{rootDir, d.Name()}...)
+		t.Logf("deleting %s", p)
+		err := os.RemoveAll(p)
+		if err != nil {
+			return err
+		}
+	}
+	err = os.RemoveAll(rootDir)
+	if err != nil {
+		return err
+	}
+	t.Log("finished deleting")
+	return nil
 }
