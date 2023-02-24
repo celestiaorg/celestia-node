@@ -13,6 +13,33 @@ import (
 	"github.com/celestiaorg/rsmt2d"
 )
 
+var (
+	emptyRoot *Root
+	emptyEDS  *rsmt2d.ExtendedDataSquare
+)
+
+func init() {
+	// compute empty block EDS and DAH for it
+	shares := emptyDataSquare()
+	squareSize := uint64(math.Sqrt(float64(appconsts.DefaultMinSquareSize)))
+	eds, err := da.ExtendShares(squareSize, shares)
+	if err != nil {
+		panic(fmt.Errorf("failed to create empty EDS: %w", err))
+	}
+
+	emptyEDS = eds
+	dah := da.NewDataAvailabilityHeader(eds)
+	emptyRoot = &dah
+
+	// precompute Hash, so it's cached internally to avoid potential races
+	emptyRoot.Hash()
+}
+
+// EmptyRoot returns Root of an empty EDS.
+func EmptyRoot() *Root {
+	return emptyRoot
+}
+
 // EnsureEmptySquareExists checks if the given DAG contains an empty block data square.
 // If it does not, it stores an empty block. This optimization exists to prevent
 // redundant storing of empty block data so that it is only stored once and returned
@@ -23,13 +50,7 @@ func EnsureEmptySquareExists(ctx context.Context, bServ blockservice.BlockServic
 
 // EmptyExtendedDataSquare returns the EDS of the empty block data square.
 func EmptyExtendedDataSquare() *rsmt2d.ExtendedDataSquare {
-	shares := emptyDataSquare()
-	squareSize := uint64(math.Sqrt(float64(appconsts.DefaultMinSquareSize)))
-	eds, err := da.ExtendShares(squareSize, shares)
-	if err != nil {
-		panic(fmt.Errorf("failed to create empty EDS: %w", err))
-	}
-	return eds
+	return emptyEDS
 }
 
 // tail is filler for all tail padded shares
