@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"strings"
 	"time"
 
 	"github.com/libp2p/go-libp2p/core/host"
@@ -22,6 +23,15 @@ func protocolID(networkID string) protocol.ID {
 
 func PubsubTopicID(networkID string) string {
 	return fmt.Sprintf("/%s/header-sub/v0.0.1", networkID)
+}
+
+func validateChainID(want, have string) error {
+	if want != "" && !strings.EqualFold(want, have) {
+		return fmt.Errorf("header with different chainID received.want=%s,have=%s",
+			want, have,
+		)
+	}
+	return nil
 }
 
 // sendMessage opens the stream to the given peers and sends HeaderRequest to fetch
