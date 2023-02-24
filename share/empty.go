@@ -26,7 +26,6 @@ func init() {
 		panic(fmt.Errorf("failed to create empty EDS: %w", err))
 	}
 
-
 	emptyEDS = eds
 	dah := da.NewDataAvailabilityHeader(eds)
 	emptyRoot = &dah
