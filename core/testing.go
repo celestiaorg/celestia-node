@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"net"
 	"net/url"
+	"os"
+	"path"
 	"testing"
 
 	appconfig "github.com/cosmos/cosmos-sdk/server/config"
@@ -86,6 +88,7 @@ func StartTestNodeWithConfig(t *testing.T, cfg *TestConfig) testnode.Context {
 	t.Cleanup(func() {
 		err := cleanupCoreNode()
 		require.NoError(t, err)
+		require.NoError(t, removeDir(path.Join([]string{cfg.Tendermint.RootDir, "config"}...)))
 	})
 
 	cctx, cleanupGRPCServer, err := StartGRPCServer(app, cfg.App, cctx)
@@ -137,4 +140,28 @@ func getEndpoint(cfg *tmconfig.Config) (string, string, error) {
 		return "", "", err
 	}
 	return host, url.Port(), nil
+}
+
+// removeDir removes the directory `rootDir`.
+// The main use of this is to reduce the flakiness of the CI when it's unable to delete
+// the config folder of the tendermint node.
+// This will manually go over the files contained inside the provided `rootDir`
+// and delete them one by one.
+func removeDir(rootDir string) error {
+	dir, err := os.ReadDir(rootDir)
+	if err != nil {
+		return err
+	}
+	for _, d := range dir {
+		p := path.Join([]string{rootDir, d.Name()}...)
+		err := os.RemoveAll(p)
+		if err != nil {
+			return err
+		}
+	}
+	err = os.RemoveAll(rootDir)
+	if err != nil {
+		return err
+	}
+	return nil
 }
