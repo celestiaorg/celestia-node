@@ -276,25 +276,25 @@ func (s *Syncer[H]) findHeaders(ctx context.Context, from, to uint64) ([]H, erro
 	if amount > s.Params.MaxRequestSize {
 		to, amount = from+s.Params.MaxRequestSize, s.Params.MaxRequestSize
 	}
-
 	out := make([]H, 0, amount)
-	for from < to {
+	for from <= to {
 		// if we have some range cached - use it
 		r, ok := s.pending.FirstRangeWithin(from, to)
 		if !ok {
-			hs, err := s.exchange.GetRangeByHeight(ctx, from, amount)
+			hs, err := s.exchange.GetRangeByHeight(ctx, from, to-from+1)
 			return append(out, hs...), err
 		}
 
-		// first, request everything between from and start of the found range
-		hs, err := s.exchange.GetRangeByHeight(ctx, from, r.start-from)
-		if err != nil {
-			return nil, err
+		if r.start > from {
+			// first, request everything between from and start of the found range
+			hs, err := s.exchange.GetRangeByHeight(ctx, from, r.start-from)
+			if err != nil {
+				return nil, err
+			}
+			out = append(out, hs...)
+			from += uint64(len(hs))
 		}
-		out = append(out, hs...)
-		from += uint64(len(hs))
-
-		// then, apply cached range if any
+		// apply cached range if any
 		cached, ln := r.Before(to)
 		out = append(out, cached...)
 		from += ln
