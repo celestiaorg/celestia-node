@@ -1,6 +1,8 @@
 package fraud
 
 import (
+	"context"
+
 	"github.com/ipfs/go-datastore"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	"github.com/libp2p/go-libp2p/core/host"
@@ -28,7 +30,10 @@ func newFraudService(syncerEnabled bool) func(
 		ds datastore.Batching,
 		network p2p.Network,
 	) (Module, fraud.Service, error) {
-		pservice := fraud.NewProofService(sub, host, hstore.GetByHeight, ds, syncerEnabled, network.String())
+		getter := func(ctx context.Context, height uint64) (libhead.Header, error) {
+			return hstore.GetByHeight(ctx, height)
+		}
+		pservice := fraud.NewProofService(sub, host, getter, ds, syncerEnabled, network.String())
 		lc.Append(fx.Hook{
 			OnStart: pservice.Start,
 			OnStop:  pservice.Stop,

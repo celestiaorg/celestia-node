@@ -15,7 +15,8 @@ import (
 	mocknet "github.com/libp2p/go-libp2p/p2p/net/mock"
 	"github.com/stretchr/testify/require"
 
-	"github.com/celestiaorg/celestia-node/header"
+	"github.com/celestiaorg/celestia-node/libs/header"
+	"github.com/celestiaorg/celestia-node/libs/header/test"
 )
 
 func TestService_Subscribe(t *testing.T) {
@@ -127,8 +128,8 @@ func TestService_ReGossiping(t *testing.T) {
 	pserviceB := NewProofService(
 		psB,
 		net.Hosts()[1],
-		func(ctx context.Context, u uint64) (*header.ExtendedHeader, error) {
-			return &header.ExtendedHeader{}, nil
+		func(ctx context.Context, u uint64) (header.Header, error) {
+			return &test.DummyHeader{}, nil
 		},
 		sync.MutexWrap(datastore.NewMapDatastore()),
 		false,
@@ -143,8 +144,8 @@ func TestService_ReGossiping(t *testing.T) {
 	pserviceC := NewProofService(
 		psC,
 		net.Hosts()[2],
-		func(ctx context.Context, u uint64) (*header.ExtendedHeader, error) {
-			return &header.ExtendedHeader{}, nil
+		func(ctx context.Context, u uint64) (header.Header, error) {
+			return &test.DummyHeader{}, nil
 		},
 		sync.MutexWrap(datastore.NewMapDatastore()),
 		false,
