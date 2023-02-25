@@ -9,6 +9,7 @@ import (
 	"github.com/celestiaorg/celestia-app/pkg/wrapper"
 	"github.com/celestiaorg/celestia-node/fraud"
 	"github.com/celestiaorg/celestia-node/header"
+	libhead "github.com/celestiaorg/celestia-node/libs/header"
 	pb "github.com/celestiaorg/celestia-node/share/eds/byzantine/pb"
 	"github.com/celestiaorg/celestia-node/share/ipld"
 	"github.com/celestiaorg/rsmt2d"
@@ -104,7 +105,11 @@ func (p *BadEncodingProof) UnmarshalBinary(data []byte) error {
 // Validate checks that provided Merkle Proofs correspond to the shares,
 // rebuilds bad row or col from received shares, computes Merkle Root
 // and compares it with block's Merkle Root.
-func (p *BadEncodingProof) Validate(header *header.ExtendedHeader) error {
+func (p *BadEncodingProof) Validate(hdr libhead.Header) error {
+	header, ok := hdr.(*header.ExtendedHeader)
+	if !ok {
+		return fmt.Errorf("invakud header type: expected %T, got %T", header, hdr)
+	}
 	if header.Height() != int64(p.BlockHeight) {
 		return errors.New("fraud: incorrect block height")
 	}
