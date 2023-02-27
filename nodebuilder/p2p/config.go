@@ -66,7 +66,8 @@ func DefaultConfig(tp node.Type) Config {
 		PeerExchange:              tp == node.Bridge || tp == node.Full,
 		ConnManager:               defaultConnManagerConfig(),
 		RoutingTableRefreshPeriod: defaultRoutingRefreshPeriod,
-		PrometheusAgentPort:       ":9000",
+		EnableDebugMetrics: false,
+		PrometheusAgentPort:       ":8890",
 		PrometheusAgentEndpoint:   "/metrics",
 	}
 }

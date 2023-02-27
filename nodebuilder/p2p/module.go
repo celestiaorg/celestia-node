@@ -2,7 +2,6 @@ package p2p
 
 import (
 	"context"
-	"fmt"
 	"net/http"
 
 	logging "github.com/ipfs/go-log/v2"
@@ -51,49 +50,48 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 	if cfg.EnableDebugMetrics {
 		baseComponents = fx.Options(
 			baseComponents,
-			fx.Provide(
-				func() prometheus.Registerer {
-					return prometheus.DefaultRegisterer
+			fx.Invoke(
+				func() {
+					rcmgrObs.MustRegisterWith(prometheus.DefaultRegisterer)
 				},
 			),
 			fx.Invoke(
-				func(promRegisterer prometheus.Registerer) error {
-					rcmgrObs.MustRegisterWith(promRegisterer)
+				func (lifecycle fx.Lifecycle, cfg Config) *http.Server {
+					reg := prometheus.DefaultRegisterer
+					registry := reg.(*prometheus.Registry)
+				
+					mux := http.NewServeMux()
+					handler := promhttp.HandlerFor(registry, promhttp.HandlerOpts{Registry: reg})
+					mux.Handle(cfg.PrometheusAgentEndpoint, handler)
+				
+					promHttpServer := &http.Server{
+						Addr:    cfg.PrometheusAgentPort,
+						Handler: mux,
+					}
+	
+					lifecycle.Append(fx.Hook{
+						OnStart: func(ctx context.Context) error {
+							log.Info("Starting prometheus agent", promHttpServer)
+							go func() {
+								if err := promHttpServer.ListenAndServe(); err != nil {
+									log.Error("Error starting Prometheus metrics exporter http server")
+									panic(err)
+								}
+							}()
+							
+							log.Info("Prometheus agent started on %s/%s", cfg.PrometheusAgentPort, cfg.PrometheusAgentEndpoint)
+							return nil
+						},
+						OnStop:	func(ctx context.Context) error {
+							if err := promHttpServer.Shutdown(ctx); err != nil {
+								return err
+							}
+							return nil
+						},
+					})
+	
 					return nil
 				},
-			),
-			fx.Provide(
-				fx.Annotate(
-					func(cfg Config, reg prometheus.Registerer) *http.Server {
-						registry := reg.(*prometheus.Registry)
-
-						mux := http.NewServeMux()
-						handler := promhttp.HandlerFor(registry, promhttp.HandlerOpts{Registry: reg})
-						mux.Handle(cfg.PrometheusAgentEndpoint, handler)
-
-						return &http.Server{
-							Addr:    fmt.Sprintf(":%s", cfg.PrometheusAgentPort),
-							Handler: mux,
-						}
-					},
-					fx.OnStart(func(startCtx, ctx context.Context, promHttpServer *http.Server) error {
-						log.Info("Starting prometheus agent")
-						go func() {
-							if err := promHttpServer.ListenAndServe(); err != nil {
-								log.Error("Error starting Prometheus metrics exporter http server")
-								panic(err)
-							}
-							log.Info("Prometheus agent started on %s/%s", cfg.PrometheusAgentPort, cfg.PrometheusAgentEndpoint)
-						}()
-						return nil
-					}),
-					fx.OnStop(func(ctx context.Context, promHttpServer *http.Server) error {
-						if err := promHttpServer.Shutdown(ctx); err != nil {
-							return err
-						}
-						return nil
-					}),
-				),
 			),
 		)
 	}
@@ -105,8 +103,16 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 			baseComponents,
 			fx.Provide(blockstoreFromEDSStore),
 			fx.Provide(func() (network.ResourceManager, error) {
+				if cfg.EnableDebugMetrics {
+					str, err := rcmgrObs.NewStatsTraceReporter()
+					if err != nil {
+						return nil, err
+					}
+					return rcmgr.NewResourceManager(rcmgr.NewFixedLimiter(rcmgr.InfiniteLimits), rcmgr.WithTraceReporter(str))
+				}				
 				return rcmgr.NewResourceManager(rcmgr.NewFixedLimiter(rcmgr.InfiniteLimits))
 			}),
+
 		)
 	case node.Light:
 		return fx.Module(
@@ -144,6 +150,19 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 						}
 						allowlist = append(allowlist, resolved...)
 					}
+				}
+
+				if cfg.EnableDebugMetrics {
+					str, err := rcmgrObs.NewStatsTraceReporter()
+					if err != nil {
+						return nil, err
+					}
+
+					return rcmgr.NewResourceManager(
+						rcmgr.NewFixedLimiter(limits.AutoScale()),
+						rcmgr.WithAllowlistedMultiaddrs(allowlist),
+						rcmgr.WithTraceReporter(str),
+					)
 				}
 
 				return rcmgr.NewResourceManager(
