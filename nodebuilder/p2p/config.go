@@ -35,6 +35,12 @@ type Config struct {
 	// ConnManager is a configuration tuple for ConnectionManager.
 	ConnManager               connManagerConfig
 	RoutingTableRefreshPeriod time.Duration
+
+	EnableDebugMetrics bool
+
+	// Prometheus Agent http endpoint configuration
+	PrometheusAgentEndpoint string
+	PrometheusAgentPort     string
 }
 
 // DefaultConfig returns default configuration for P2P subsystem.
@@ -60,6 +66,8 @@ func DefaultConfig(tp node.Type) Config {
 		PeerExchange:              tp == node.Bridge || tp == node.Full,
 		ConnManager:               defaultConnManagerConfig(),
 		RoutingTableRefreshPeriod: defaultRoutingRefreshPeriod,
+		PrometheusAgentPort:       ":9000",
+		PrometheusAgentEndpoint:   "/metrics",
 	}
 }
 

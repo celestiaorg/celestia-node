@@ -14,7 +14,7 @@ var (
 	meter = global.MeterProvider().Meter("p2p")
 )
 
-// WithMetrics option sets up metrics for p2p networking.
+// WithInfoMetrics option sets up metrics for p2p networking.
 func WithMetrics(bc *metrics.BandwidthCounter) error {
 	bandwidthTotalInbound, err := meter.
 		SyncInt64().
@@ -64,7 +64,7 @@ func WithMetrics(bc *metrics.BandwidthCounter) error {
 		return err
 	}
 
-	return meter.RegisterCallback(
+	if err = meter.RegisterCallback(
 		[]instrument.Asynchronous{
 			p2pPeerCount,
 		}, func(ctx context.Context) {
@@ -78,5 +78,9 @@ func WithMetrics(bc *metrics.BandwidthCounter) error {
 
 			p2pPeerCount.Observe(ctx, float64(len(bcByPeerStats)))
 		},
-	)
+	); err != nil {
+		return err
+	}
+
+	return nil
 }
