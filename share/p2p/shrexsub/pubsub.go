@@ -100,5 +100,10 @@ func (s *PubSub) Subscribe() (*Subscription, error) {
 
 // Broadcast sends the EDS notification (DataHash) to every connected peer.
 func (s *PubSub) Broadcast(ctx context.Context, data share.DataHash) error {
+	if data.IsEmptyRoot() {
+		// no need to broadcast datahash of an empty block EDS
+		return nil
+	}
+
 	return s.topic.Publish(ctx, data)
 }

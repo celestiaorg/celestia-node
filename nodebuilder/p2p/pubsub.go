@@ -44,7 +44,8 @@ func pubSub(cfg Config, params pubSubParams) (*pubsub.PubSub, error) {
 	if isBootstrapper {
 		// Turn off the mesh in bootstrappers as per:
 		//
-		// https://github.com/libp2p/specs/blob/master/pubsub/gossipsub/gossipsub-v1.1.md#recommendations-for-network-operators
+		//
+		//https://github.com/libp2p/specs/blob/master/pubsub/gossipsub/gossipsub-v1.1.md#recommendations-for-network-operators
 		pubsub.GossipSubD = 0
 		pubsub.GossipSubDscore = 0
 		pubsub.GossipSubDlo = 0
