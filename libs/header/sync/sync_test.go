@@ -236,8 +236,10 @@ func TestSyncer_FindHeadersReturnsCorrectRange(t *testing.T) {
 	for _, h := range range1 {
 		syncer.pending.Add(h)
 	}
-	remoteStore.Append(ctx, range1...)
-	remoteStore.Append(ctx, suite.GenDummyHeaders(9)...)
+	_, err = remoteStore.Append(ctx, range1...)
+	require.NoError(t, err)
+	_, err = remoteStore.Append(ctx, suite.GenDummyHeaders(9)...)
+	require.NoError(t, err)
 
 	syncer.pending.Add(suite.GetRandomHeader())
 	h, err := syncer.findHeaders(ctx, 2, 21)
