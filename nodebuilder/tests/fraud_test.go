@@ -10,12 +10,12 @@ import (
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/stretchr/testify/require"
 
-	"github.com/celestiaorg/celestia-node/fraud"
 	"github.com/celestiaorg/celestia-node/headertest"
 	"github.com/celestiaorg/celestia-node/nodebuilder"
 	"github.com/celestiaorg/celestia-node/nodebuilder/core"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	"github.com/celestiaorg/celestia-node/nodebuilder/tests/swamp"
+	"github.com/celestiaorg/celestia-node/share/eds/byzantine"
 )
 
 /*
@@ -67,7 +67,7 @@ func TestFraudProofBroadcasting(t *testing.T) {
 
 	// subscribe to fraud proof before node starts helps
 	// to prevent flakiness when fraud proof is propagating before subscribing on it
-	subscr, err := full.FraudServ.Subscribe(ctx, fraud.BadEncoding)
+	subscr, err := full.FraudServ.Subscribe(ctx, byzantine.BadEncoding)
 	require.NoError(t, err)
 
 	p := <-subscr
@@ -88,7 +88,7 @@ func TestFraudProofBroadcasting(t *testing.T) {
 	full = sw.NewNodeWithStore(node.Full, store)
 
 	require.Error(t, full.Start(ctx))
-	proofs, err := full.FraudServ.Get(ctx, fraud.BadEncoding)
+	proofs, err := full.FraudServ.Get(ctx, byzantine.BadEncoding)
 	require.NoError(t, err)
 	require.NotNil(t, proofs)
 	require.NoError(t, <-fillDn)
@@ -144,7 +144,7 @@ func TestFraudProofSyncing(t *testing.T) {
 	ln := sw.NewNodeWithStore(node.Light, nodebuilder.MockStore(t, lightCfg))
 	require.NoError(t, full.Start(ctx))
 
-	subsFN, err := full.FraudServ.Subscribe(ctx, fraud.BadEncoding)
+	subsFN, err := full.FraudServ.Subscribe(ctx, byzantine.BadEncoding)
 	require.NoError(t, err)
 
 	select {
@@ -159,7 +159,7 @@ func TestFraudProofSyncing(t *testing.T) {
 
 	// internal subscription for the fraud proof is done in order to ensure that light node
 	// receives the BEFP.
-	subsLN, err := ln.FraudServ.Subscribe(ctx, fraud.BadEncoding)
+	subsLN, err := ln.FraudServ.Subscribe(ctx, byzantine.BadEncoding)
 	require.NoError(t, err)
 
 	// ensure that the full and light node are connected to speed up test

@@ -25,6 +25,7 @@ import (
 	"github.com/celestiaorg/celestia-node/share/availability/light"
 	"github.com/celestiaorg/celestia-node/share/availability/mocks"
 	availability_test "github.com/celestiaorg/celestia-node/share/availability/test"
+	"github.com/celestiaorg/celestia-node/share/eds/byzantine"
 	"github.com/celestiaorg/celestia-node/share/getters"
 )
 
@@ -168,7 +169,7 @@ func TestDASer_stopsAfter_BEFP(t *testing.T) {
 	require.NoError(t, err)
 
 	resultCh := make(chan error)
-	go fraud.OnProof(newCtx, f, fraud.BadEncoding,
+	go fraud.OnProof(newCtx, f, byzantine.BadEncoding,
 		func(fraud.Proof) {
 			resultCh <- daser.Stop(newCtx)
 		})

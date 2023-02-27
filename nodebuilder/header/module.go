@@ -17,6 +17,7 @@ import (
 	modfraud "github.com/celestiaorg/celestia-node/nodebuilder/fraud"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	modp2p "github.com/celestiaorg/celestia-node/nodebuilder/p2p"
+	"github.com/celestiaorg/celestia-node/share/eds/byzantine"
 )
 
 var log = logging.Logger("module/header")
@@ -77,7 +78,7 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 				fservice fraud.Service,
 				syncer *sync.Syncer[*header.ExtendedHeader],
 			) error {
-				return modfraud.Lifecycle(startCtx, ctx, fraud.BadEncoding, fservice,
+				return modfraud.Lifecycle(startCtx, ctx, byzantine.BadEncoding, fservice,
 					syncer.Start, syncer.Stop)
 			}),
 			fx.OnStop(func(ctx context.Context, syncer *sync.Syncer[*header.ExtendedHeader]) error {
