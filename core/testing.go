@@ -159,9 +159,5 @@ func removeDir(rootDir string) error {
 			return err
 		}
 	}
-	err = os.RemoveAll(rootDir)
-	if err != nil {
-		return err
-	}
-	return nil
+	return os.RemoveAll(rootDir)
 }
