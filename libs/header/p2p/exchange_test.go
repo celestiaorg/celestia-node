@@ -99,6 +99,7 @@ func TestExchange_RequestFullRangeHeaders(t *testing.T) {
 	// create new exchange
 	exchange, err := NewExchange[*test.DummyHeader](hosts[len(hosts)-1], []peer.ID{}, connGater,
 		WithNetworkID[ClientParameters](networkID),
+		WithChainID(networkID),
 	)
 	require.NoError(t, err)
 	exchange.Params.MaxHeadersPerRequest = 10
@@ -315,6 +316,26 @@ func TestExchange_RequestByHashFails(t *testing.T) {
 	require.Equal(t, resp.StatusCode, p2p_pb.StatusCode_NOT_FOUND)
 }
 
+// TestExchange_HandleHeaderWithDifferentChainID ensures that headers with different
+// chainIDs will not be served and stored.
+func TestExchange_HandleHeaderWithDifferentChainID(t *testing.T) {
+	hosts := createMocknet(t, 2)
+	exchg, store := createP2PExAndServer(t, hosts[0], hosts[1])
+	exchg.Params.chainID = "test"
+	require.NoError(t, exchg.Start(context.TODO()))
+
+	_, err := exchg.Head(context.Background())
+	require.Error(t, err)
+
+	_, err = exchg.GetByHeight(context.Background(), 1)
+	require.Error(t, err)
+
+	h, err := store.GetByHeight(context.Background(), 1)
+	require.NoError(t, err)
+	_, err = exchg.Get(context.Background(), h.Hash())
+	require.Error(t, err)
+}
+
 // TestExchange_RequestHeadersFromAnotherPeer tests that the Exchange instance will request range
 // from another peer with lower score after receiving header.ErrNotFound
 func TestExchange_RequestHeadersFromAnotherPeerWhenTimeout(t *testing.T) {
@@ -384,6 +405,7 @@ func createP2PExAndServer(
 	require.NoError(t, err)
 	ex, err := NewExchange[*test.DummyHeader](host, []peer.ID{tpeer.ID()}, connGater,
 		WithNetworkID[ClientParameters](networkID),
+		WithChainID(networkID),
 	)
 	require.NoError(t, err)
 	require.NoError(t, ex.Start(context.Background()))
