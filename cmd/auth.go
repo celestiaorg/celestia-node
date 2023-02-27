@@ -1,7 +1,10 @@
 package cmd
 
 import (
+	"crypto/rand"
+	"errors"
 	"fmt"
+	"io"
 	"path/filepath"
 
 	"github.com/cristalhq/jwt"
@@ -49,10 +52,19 @@ func newToken(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	key, err := ks.Get(nodemod.SecretName)
+	var key keystore.PrivKey
+	key, err = ks.Get(nodemod.SecretName)
 	if err != nil {
-		return err
+		if !errors.Is(err, keystore.ErrNotFound) {
+			return err
+		}
+		// otherwise, generate and save new priv key
+		key, err = generateNewKey(ks)
+		if err != nil {
+			return err
+		}
 	}
+
 	signer, err := jwt.NewHS256(key.Body)
 	if err != nil {
 		return err
@@ -67,6 +79,20 @@ func newToken(cmd *cobra.Command, args []string) error {
 
 	fmt.Printf("%s", token.InsecureString())
 	return nil
+}
+
+func generateNewKey(ks keystore.Keystore) (keystore.PrivKey, error) {
+	sk, err := io.ReadAll(io.LimitReader(rand.Reader, 32))
+	if err != nil {
+		return keystore.PrivKey{}, err
+	}
+	// save key
+	key := keystore.PrivKey{Body: sk}
+	err = ks.Put(nodemod.SecretName, key)
+	if err != nil {
+		return keystore.PrivKey{}, err
+	}
+	return key, nil
 }
 
 func convertToPerms(perm string) ([]auth.Permission, error) {
