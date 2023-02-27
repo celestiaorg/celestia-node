@@ -147,6 +147,7 @@ func getEndpoint(cfg *tmconfig.Config) (string, string, error) {
 // the config folder of the tendermint node.
 // This will manually go over the files contained inside the provided `rootDir`
 // and delete them one by one.
+// TODO: remove after updating the app to a version that contains this PR https://github.com/celestiaorg/celestia-app/pull/1426
 func removeDir(rootDir string) error {
 	dir, err := os.ReadDir(rootDir)
 	if err != nil {
