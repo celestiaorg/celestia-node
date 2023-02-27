@@ -276,6 +276,7 @@ func (s *Syncer[H]) findHeaders(ctx context.Context, from, to uint64) ([]H, erro
 	if amount > s.Params.MaxRequestSize {
 		to, amount = from+s.Params.MaxRequestSize, s.Params.MaxRequestSize
 	}
+
 	out := make([]H, 0, amount)
 	for from <= to {
 		// if we have some range cached - use it
