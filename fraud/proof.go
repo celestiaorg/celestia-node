@@ -40,10 +40,6 @@ func (pt ProofType) String() string {
 	return string(pt)
 }
 
-const (
-	BadEncoding ProofType = "badencoding"
-)
-
 // Proof is a generic interface that will be used for all types of fraud proofs in the network.
 type Proof interface {
 	// Type returns the exact type of fraud proof.

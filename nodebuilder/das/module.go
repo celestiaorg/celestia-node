@@ -9,6 +9,7 @@ import (
 	"github.com/celestiaorg/celestia-node/fraud"
 	fraudServ "github.com/celestiaorg/celestia-node/nodebuilder/fraud"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
+	"github.com/celestiaorg/celestia-node/share/eds/byzantine"
 )
 
 func ConstructModule(tp node.Type, cfg *Config) fx.Option {
@@ -43,7 +44,7 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 			fx.Provide(fx.Annotate(
 				newDASer,
 				fx.OnStart(func(startCtx, ctx context.Context, fservice fraud.Service, das *das.DASer) error {
-					return fraudServ.Lifecycle(startCtx, ctx, fraud.BadEncoding, fservice,
+					return fraudServ.Lifecycle(startCtx, ctx, byzantine.BadEncoding, fservice,
 						das.Start, das.Stop)
 				}),
 				fx.OnStop(func(ctx context.Context, das *das.DASer) error {

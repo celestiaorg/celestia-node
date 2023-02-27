@@ -16,6 +16,10 @@ import (
 	"github.com/celestiaorg/celestia-node/share/ipld"
 )
 
+const (
+	BadEncoding fraud.ProofType = "badencoding"
+)
+
 func init() {
 	fraud.Register(&BadEncodingProof{})
 }
@@ -53,7 +57,7 @@ func CreateBadEncodingProof(
 
 // Type returns type of fraud proof.
 func (p *BadEncodingProof) Type() fraud.ProofType {
-	return fraud.BadEncoding
+	return BadEncoding
 }
 
 // HeaderHash returns block hash.
