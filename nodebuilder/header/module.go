@@ -122,6 +122,7 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 						p2p.WithRequestTimeout[p2p.ClientParameters](cfg.Client.RequestTimeout),
 						p2p.WithMaxTrackerSize(cfg.Client.MaxPeerTrackerSize),
 						p2p.WithNetworkID[p2p.ClientParameters](network.String()),
+						p2p.WithChainID(network.String()),
 					}
 				},
 			),

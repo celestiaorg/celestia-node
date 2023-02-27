@@ -7,6 +7,8 @@ import (
 	ipldFormat "github.com/ipfs/go-ipld-format"
 	logging "github.com/ipfs/go-log/v2"
 
+	"github.com/celestiaorg/celestia-node/share/eds"
+
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/availability/discovery"
 	"github.com/celestiaorg/celestia-node/share/eds/byzantine"
@@ -18,6 +20,7 @@ var log = logging.Logger("share/full")
 // recovery technique. It is considered "full" because it is required
 // to download enough shares to fully reconstruct the data square.
 type ShareAvailability struct {
+	store  *eds.Store
 	getter share.Getter
 	disc   *discovery.Discovery
 
@@ -25,8 +28,9 @@ type ShareAvailability struct {
 }
 
 // NewShareAvailability creates a new full ShareAvailability.
-func NewShareAvailability(getter share.Getter, disc *discovery.Discovery) *ShareAvailability {
+func NewShareAvailability(store *eds.Store, getter share.Getter, disc *discovery.Discovery) *ShareAvailability {
 	return &ShareAvailability{
+		store:  store,
 		getter: getter,
 		disc:   disc,
 	}
@@ -54,6 +58,13 @@ func (fa *ShareAvailability) SharesAvailable(ctx context.Context, root *share.Ro
 		log.Errorw("Availability validation cannot be performed on a malformed DataAvailabilityHeader",
 			"err", err)
 		panic(err)
+	}
+
+	// a hack to avoid loading the whole EDS in mem if we store it already.
+	if fa.store != nil {
+		if ok, _ := fa.store.Has(ctx, root.Hash()); ok {
+			return nil
+		}
 	}
 
 	_, err := fa.getter.GetEDS(ctx, root)
