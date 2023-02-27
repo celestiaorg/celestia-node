@@ -120,7 +120,6 @@ func WithNetworkID[T parameters](networkID string) Option[T] {
 }
 
 // ClientParameters is the set of parameters that must be configured for the exchange.
-// TODO: #1667
 type ClientParameters struct {
 	// MaxRangeRequestSize defines the max amount of headers that can be handled at once.
 	MaxRangeRequestSize uint64
