@@ -84,7 +84,7 @@ func newInvalidProof() *mockProof {
 func newMockProof(valid bool) *mockProof {
 	p := &mockProof{valid}
 	if _, ok := defaultUnmarshalers[p.Type()]; !ok {
-		Register(&mockProof{})
+		Register(mockProofType, unmarshal)
 	}
 	return p
 }
@@ -114,6 +114,12 @@ func (m *mockProof) MarshalBinary() (data []byte, err error) {
 
 func (m *mockProof) UnmarshalBinary(data []byte) error {
 	return json.Unmarshal(data, m)
+}
+
+func unmarshal(data []byte) (Proof, error) {
+	m := &mockProof{}
+	err := m.UnmarshalBinary(data)
+	return m, err
 }
 
 func CreateTestService(t *testing.T, enabledSyncer bool) (*ProofService, *mockStore) { //nolint:revive

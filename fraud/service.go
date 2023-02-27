@@ -17,10 +17,6 @@ import (
 	"go.opentelemetry.io/otel/trace"
 )
 
-// fraudRequests is the amount of external requests that will be tried to get fraud proofs from
-// other peers.
-const fraudRequests = 5
-
 // ProofService is responsible for validating and propagating Fraud Proofs.
 // It implements the Service interface.
 type ProofService struct {

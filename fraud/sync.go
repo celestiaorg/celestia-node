@@ -18,11 +18,12 @@ import (
 	pb "github.com/celestiaorg/celestia-node/fraud/pb"
 )
 
-// syncFraudProofs encompasses the behavior for fetching fraud proofs from other peers.
-// syncFraudProofs subscribes to EvtPeerIdentificationCompleted to get newly connected peers
-// to request fraud proofs from and request fraud proofs from them.
-// After fraud proofs are received, they are published to all local subscriptions for verification
-// order to be verified.
+// fraudRequests is the amount of external requests that will be tried to get fraud proofs from
+// other peers.
+const fraudRequests = 5
+
+// syncFraudProofs sends `fraudRequests` requests to external peers to get fraud proofs.
+// After fraud proofs are received, they are published locally in order to be verified.
 func (f *ProofService) syncFraudProofs(ctx context.Context, id protocol.ID) {
 	log.Debug("start fetching fraud proofs")
 	// subscribe to new peer connections that we can request fraud proofs from
