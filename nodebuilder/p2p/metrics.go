@@ -2,9 +2,9 @@ package p2p
 
 import (
 	"context"
-	"fmt"
 	"net/http"
 
+	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	"github.com/libp2p/go-libp2p/core/metrics"
 	rcmgrObs "github.com/libp2p/go-libp2p/p2p/host/resource-manager/obs"
 	"github.com/prometheus/client_golang/prometheus"
@@ -13,60 +13,16 @@ import (
 	"go.opentelemetry.io/otel/metric/instrument"
 	"go.opentelemetry.io/otel/metric/unit"
 	"go.uber.org/fx"
+
+	"github.com/libp2p/go-libp2p/core/network"
+	rcmgr "github.com/libp2p/go-libp2p/p2p/host/resource-manager"
+	ma "github.com/multiformats/go-multiaddr"
 )
 
 // global meter provider (see opentelemetry docs)
 var (
 	meter = global.MeterProvider().Meter("p2p")
 )
-
-// newPromAgentHttpServer configures and return an http server
-// that handles prometheus requests
-func newPromAgentHttpServer(cfg Config, reg prometheus.Registerer) *http.Server {
-	registry := reg.(*prometheus.Registry)
-
-	mux := http.NewServeMux()
-	handler := promhttp.HandlerFor(registry, promhttp.HandlerOpts{Registry: reg})
-	mux.Handle(cfg.PrometheusAgentEndpoint, handler)
-
-	return &http.Server{
-		Addr:    fmt.Sprintf(":%s", cfg.PrometheusAgentPort),
-		Handler: mux,
-	}
-}
-
-// WithPrometheusAgentOpts is a funciton that provides an instance
-// of an http server to be used with prometheus agent.
-// Use with fx.Provide, only necessary when `WithDebugMetrics` is used.
-func WithPrometheusAgentOpts() fx.Option {
-	return fx.Options(
-		fx.Provide(
-			func() prometheus.Registerer {
-				return prometheus.DefaultRegisterer
-			},
-		),
-		fx.Provide(
-			fx.Annotate(
-				newPromAgentHttpServer,
-				fx.OnStart(func(startCtx, ctx context.Context, promHttpServer *http.Server) error {
-					go func() {
-						if err := promHttpServer.ListenAndServe(); err != nil {
-							log.Error("Error starting Prometheus metrics exporter http server")
-							panic(err)
-						}
-					}()
-					return nil
-				}),
-				fx.OnStop(func(ctx context.Context, promHttpServer *http.Server) error {
-					if err := promHttpServer.Shutdown(ctx); err != nil {
-						return err
-					}
-					return nil
-				}),
-			),
-		),
-	)
-}
 
 // WithInfoMetrics option sets up metrics for p2p networking.
 func WithInfoMetrics(bc *metrics.BandwidthCounter) error {
@@ -140,7 +96,74 @@ func WithInfoMetrics(bc *metrics.BandwidthCounter) error {
 }
 
 // WithDebugMetrics option sets up metrics for p2p networking.
-func WithDebugMetrics(promRegisterer prometheus.Registerer) error {
-	rcmgrObs.MustRegisterWith(promRegisterer)
+func WithDebugMetrics(lifecycle fx.Lifecycle, cfg Config) error {
+	rcmgrObs.MustRegisterWith(prometheus.DefaultRegisterer)
+
+	reg := prometheus.DefaultRegisterer
+	registry := reg.(*prometheus.Registry)
+
+	mux := http.NewServeMux()
+	handler := promhttp.HandlerFor(registry, promhttp.HandlerOpts{Registry: reg})
+	mux.Handle(cfg.PrometheusAgentEndpoint, handler)
+
+	promHttpServer := &http.Server{
+		Addr:    cfg.PrometheusAgentPort,
+		Handler: mux,
+	}
+
+	lifecycle.Append(fx.Hook{
+		OnStart: func(ctx context.Context) error {
+			go func() {
+				if err := promHttpServer.ListenAndServe(); err != nil {
+					log.Error("Error starting Prometheus metrics exporter http server")
+					panic(err)
+				}
+			}()
+
+			log.Info("Prometheus agent started on %s/%s", cfg.PrometheusAgentPort, cfg.PrometheusAgentEndpoint)
+			return nil
+		},
+		OnStop: func(ctx context.Context) error {
+			if err := promHttpServer.Shutdown(ctx); err != nil {
+				return err
+			}
+			return nil
+		},
+	})
+
 	return nil
+}
+
+func WithMonitoredResourceManager(nodeType node.Type, allowlist []ma.Multiaddr) (network.ResourceManager, error) {
+	str, err := rcmgrObs.NewStatsTraceReporter()
+	if err != nil {
+		return nil, err
+	}
+
+	var (
+		monitoredRcmgr network.ResourceManager
+	)
+
+	switch nodeType {
+	case node.Full, node.Bridge:
+		monitoredRcmgr, err = rcmgr.NewResourceManager(
+			rcmgr.NewFixedLimiter(rcmgr.InfiniteLimits),
+			rcmgr.WithTraceReporter(str),
+		)
+
+	case node.Light:
+		monitoredRcmgr, err = rcmgr.NewResourceManager(
+			rcmgr.NewFixedLimiter(rcmgr.DefaultLimits.AutoScale()),
+			rcmgr.WithAllowlistedMultiaddrs(allowlist),
+			rcmgr.WithTraceReporter(str),
+		)
+	default:
+		panic("invalid node type")
+	}
+
+	if err != nil {
+		return nil, err
+	}
+
+	return monitoredRcmgr, nil
 }
