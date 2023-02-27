@@ -16,6 +16,7 @@ import (
 	"go.opentelemetry.io/otel/sdk/resource"
 	tracesdk "go.opentelemetry.io/otel/sdk/trace"
 	semconv "go.opentelemetry.io/otel/semconv/v1.11.0"
+	"go.uber.org/fx"
 
 	"github.com/celestiaorg/celestia-node/logs"
 	"github.com/celestiaorg/celestia-node/nodebuilder"
@@ -31,6 +32,7 @@ var (
 	metricsFlag         = "metrics"
 	metricsEndpointFlag = "metrics.endpoint"
 	metricsTlS          = "metrics.tls"
+	metricsLevelFlag    = "metrics.level"
 )
 
 // MiscFlags gives a set of hardcoded miscellaneous flags.
@@ -90,6 +92,12 @@ and their lower-case forms`,
 		metricsTlS,
 		true,
 		"Enable TLS connection to OTLP metric backend",
+	)
+
+	flags.String(
+		metricsLevelFlag,
+		"INFO",
+		`INFO, DEBUG, ERROR and their lower-case forms`,
 	)
 
 	return flags
@@ -198,7 +206,26 @@ func ParseMiscFlags(ctx context.Context, cmd *cobra.Command) (context.Context, e
 			opts = append(opts, otlpmetrichttp.WithInsecure())
 		}
 
-		ctx = WithNodeOptions(ctx, nodebuilder.WithMetrics(opts, NodeType(ctx)))
+		var nodeOpts []fx.Option
+		if level, err := cmd.Flags().GetString(metricsLevelFlag); err != nil {
+			panic(err)
+		} else {
+			switch level {
+			case "DEBUG", "ERROR":
+				nodeOpts = append(
+					nodeOpts,
+					nodebuilder.WithMetrics(opts, NodeType(ctx)),
+					nodebuilder.WithDebugMetrics(NodeType(ctx)),
+				)
+			case "INFO":
+				fallthrough
+			default:
+				nodeOpts = append(nodeOpts, nodebuilder.WithMetrics(opts, NodeType(ctx)))
+
+			}
+		}
+
+		ctx = WithNodeOptions(ctx, nodeOpts...)
 	}
 
 	return ctx, err
