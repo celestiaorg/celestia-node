@@ -36,7 +36,7 @@ func TestSyncSimpleRequestingHead(t *testing.T) {
 		&test.DummySubscriber{},
 		WithBlockTime(time.Second*30),
 		WithTrustingPeriod(time.Microsecond),
-		WithMaxRequestSize(13),
+		WithMaxRangeRequestSize(13),
 	)
 	require.NoError(t, err)
 	err = syncer.Start(ctx)

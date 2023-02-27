@@ -12,8 +12,20 @@ import (
 	"github.com/libp2p/go-libp2p/p2p/net/conngater"
 )
 
-// gcCycle defines the duration after which the peerTracker starts removing peers.
-var gcCycle = time.Minute * 30
+const (
+	// defaultScore specifies the score for newly connected peers.
+	defaultScore float32 = 1
+	// maxTrackerSize specifies the max amount of peers that can be added to the peerTracker.
+	maxPeerTrackerSize = 100
+)
+
+var (
+	// maxAwaitingTime specifies the duration that gives to the disconnected peer to be back online,
+	// otherwise it will be removed on the next GC cycle.
+	maxAwaitingTime = time.Hour
+	// gcCycle defines the duration after which the peerTracker starts removing peers.
+	gcCycle = time.Minute * 30
+)
 
 type peerTracker struct {
 	host      host.Host
@@ -28,14 +40,6 @@ type peerTracker struct {
 	// online until pruneDeadline, it will be removed and its score will be lost.
 	disconnectedPeers map[peer.ID]*peerStat
 
-	// maxAwaitingTime specifies the duration that gives to the disconnected peer to be back online,
-	// otherwise it will be removed on the next GC cycle.
-	maxAwaitingTime time.Duration
-	// defaultScore specifies the score for newly connected peers.
-	defaultScore float32
-	// maxPeerTrackerSize specifies the max amount of peers that can be added to the peerTracker.
-	maxPeerTrackerSize int
-
 	ctx    context.Context
 	cancel context.CancelFunc
 	// done is used to gracefully stop the peerTracker.
@@ -46,22 +50,16 @@ type peerTracker struct {
 func newPeerTracker(
 	h host.Host,
 	connGater *conngater.BasicConnectionGater,
-	maxAwaitingTime time.Duration,
-	defaultScore float32,
-	maxPeerTrackerSize int,
 ) *peerTracker {
 	ctx, cancel := context.WithCancel(context.Background())
 	return &peerTracker{
-		host:               h,
-		connGater:          connGater,
-		disconnectedPeers:  make(map[peer.ID]*peerStat),
-		trackedPeers:       make(map[peer.ID]*peerStat),
-		maxAwaitingTime:    maxAwaitingTime,
-		defaultScore:       defaultScore,
-		maxPeerTrackerSize: maxPeerTrackerSize,
-		ctx:                ctx,
-		cancel:             cancel,
-		done:               make(chan struct{}, 2),
+		host:              h,
+		connGater:         connGater,
+		disconnectedPeers: make(map[peer.ID]*peerStat),
+		trackedPeers:      make(map[peer.ID]*peerStat),
+		ctx:               ctx,
+		cancel:            cancel,
+		done:              make(chan struct{}, 2),
 	}
 }
 
@@ -118,7 +116,7 @@ func (p *peerTracker) connected(pID peer.ID) {
 	// skip adding the peer to avoid overfilling of the peerTracker with unused peers if:
 	// peerTracker reaches the maxTrackerSize and there are more connected peers
 	// than disconnected peers.
-	if len(p.trackedPeers)+len(p.disconnectedPeers) > p.maxPeerTrackerSize &&
+	if len(p.trackedPeers)+len(p.disconnectedPeers) > maxPeerTrackerSize &&
 		len(p.trackedPeers) > len(p.disconnectedPeers) {
 		return
 	}
@@ -127,7 +125,7 @@ func (p *peerTracker) connected(pID peer.ID) {
 	// because libp2p does not emit multiple Connected events per 1 peer
 	stats, ok := p.disconnectedPeers[pID]
 	if !ok {
-		stats = &peerStat{peerID: pID, peerScore: p.defaultScore}
+		stats = &peerStat{peerID: pID, peerScore: defaultScore}
 	} else {
 		delete(p.disconnectedPeers, pID)
 	}
@@ -141,7 +139,7 @@ func (p *peerTracker) disconnected(pID peer.ID) {
 	if !ok {
 		return
 	}
-	stats.pruneDeadline = time.Now().Add(p.maxAwaitingTime)
+	stats.pruneDeadline = time.Now().Add(maxAwaitingTime)
 	p.disconnectedPeers[pID] = stats
 	delete(p.trackedPeers, pID)
 }
@@ -177,7 +175,7 @@ func (p *peerTracker) gc() {
 			}
 
 			for id, peer := range p.trackedPeers {
-				if peer.peerScore <= p.defaultScore {
+				if peer.peerScore <= defaultScore {
 					delete(p.trackedPeers, id)
 				}
 			}
