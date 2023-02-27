@@ -25,8 +25,7 @@ type metrics struct {
 	getHeaderTime syncfloat64.Histogram
 	newHead       syncint64.Counter
 
-	lastSampledTS   uint64
-	totalSampledInt uint64
+	lastSampledTS uint64
 }
 
 func (d *DASer) InitMetrics() error {
@@ -117,8 +116,7 @@ func (d *DASer) InitMetrics() error {
 				lastSampledTS.Observe(ctx, int64(ts))
 			}
 
-			totalSampledInt := atomic.LoadUint64(&d.sampler.metrics.totalSampledInt)
-			totalSampled.Observe(ctx, int64(totalSampledInt))
+			totalSampled.Observe(ctx, int64(stats.totalSampled()))
 		},
 	)
 
@@ -152,12 +150,6 @@ func (m *metrics) observeSample(
 	)
 
 	atomic.StoreUint64(&m.lastSampledTS, uint64(time.Now().UTC().Unix()))
-
-	// only increment the counter if it's not a recent header job
-	// as those happen twice.
-	if err == nil && !isRecentHeader {
-		atomic.AddUint64(&m.totalSampledInt, 1)
-	}
 }
 
 // observeGetHeader records the time it took to get a header from the header store.
@@ -174,12 +166,4 @@ func (m *metrics) observeNewHead(ctx context.Context) {
 		return
 	}
 	m.newHead.Add(ctx, 1)
-}
-
-// recordTotalSampled records the total sampled headers.
-func (m *metrics) recordTotalSampled(totalSampled uint64) {
-	if m == nil {
-		return
-	}
-	atomic.StoreUint64(&m.totalSampledInt, totalSampled)
 }
