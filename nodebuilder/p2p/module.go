@@ -2,14 +2,19 @@ package p2p
 
 import (
 	"context"
+	"fmt"
+	"net/http"
 
 	logging "github.com/ipfs/go-log/v2"
 	"github.com/libp2p/go-libp2p"
 	"github.com/libp2p/go-libp2p/core/metrics"
 	"github.com/libp2p/go-libp2p/core/network"
 	rcmgr "github.com/libp2p/go-libp2p/p2p/host/resource-manager"
+	rcmgrObs "github.com/libp2p/go-libp2p/p2p/host/resource-manager/obs"
 	ma "github.com/multiformats/go-multiaddr"
 	madns "github.com/multiformats/go-multiaddr-dns"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"go.uber.org/fx"
 
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
@@ -42,6 +47,56 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 		fx.Provide(newModule),
 		fx.Invoke(Listen(cfg.ListenAddresses)),
 	)
+
+	if cfg.EnableDebugMetrics {
+		baseComponents = fx.Options(
+			baseComponents,
+			fx.Provide(
+				func() prometheus.Registerer {
+					return prometheus.DefaultRegisterer
+				},
+			),
+			fx.Invoke(
+				func(promRegisterer prometheus.Registerer) error {
+					rcmgrObs.MustRegisterWith(promRegisterer)
+					return nil
+				},
+			),
+			fx.Provide(
+				fx.Annotate(
+					func(cfg Config, reg prometheus.Registerer) *http.Server {
+						registry := reg.(*prometheus.Registry)
+
+						mux := http.NewServeMux()
+						handler := promhttp.HandlerFor(registry, promhttp.HandlerOpts{Registry: reg})
+						mux.Handle(cfg.PrometheusAgentEndpoint, handler)
+
+						return &http.Server{
+							Addr:    fmt.Sprintf(":%s", cfg.PrometheusAgentPort),
+							Handler: mux,
+						}
+					},
+					fx.OnStart(func(startCtx, ctx context.Context, promHttpServer *http.Server) error {
+						log.Info("Starting prometheus agent")
+						go func() {
+							if err := promHttpServer.ListenAndServe(); err != nil {
+								log.Error("Error starting Prometheus metrics exporter http server")
+								panic(err)
+							}
+							log.Info("Prometheus agent started on %s/%s", cfg.PrometheusAgentPort, cfg.PrometheusAgentEndpoint)
+						}()
+						return nil
+					}),
+					fx.OnStop(func(ctx context.Context, promHttpServer *http.Server) error {
+						if err := promHttpServer.Shutdown(ctx); err != nil {
+							return err
+						}
+						return nil
+					}),
+				),
+			),
+		)
+	}
 
 	switch tp {
 	case node.Full, node.Bridge:

@@ -14,8 +14,9 @@ import (
 const EnvCustomNetwork = "CELESTIA_CUSTOM"
 
 const (
-	networkFlag = "p2p.network"
-	mutualFlag  = "p2p.mutual"
+	networkFlag      = "p2p.network"
+	mutualFlag       = "p2p.mutual"
+	debugMetricsFlag = "p2p.metrics.debug"
 )
 
 // Flags gives a set of p2p flags.
@@ -36,6 +37,11 @@ Peers must bidirectionally point to each other. (Format: multiformats.io/multiad
 		"The name of the network to connect to, e.g. "+
 			listProvidedNetworks()+
 			". Must be passed on both init and start to take effect.",
+	)
+	flags.Bool(
+		debugMetricsFlag,
+		false,
+		"The flag to enable debug level metrics for the p2p module",
 	)
 
 	return flags
@@ -60,6 +66,14 @@ func ParseFlags(
 
 	if len(mutualPeers) != 0 {
 		cfg.MutualPeers = mutualPeers
+	}
+
+	enableDebugMetrics, err := cmd.Flags().GetBool(debugMetricsFlag)
+	if err != nil {
+		return err
+	}
+	if enableDebugMetrics {
+		cfg.EnableDebugMetrics = true
 	}
 	return nil
 }

@@ -39,11 +39,10 @@ func WithMetrics(metricOpts []otlpmetrichttp.Option, nodeType node.Type) fx.Opti
 		fx.Supply(metricOpts),
 		fx.Invoke(initializeMetrics),
 		fx.Invoke(state.WithMetrics),
-		fx.Invoke(p2p.WithMetrics),
 		fx.Invoke(fraud.WithMetrics),
-		fx.Invoke(p2p.WithMetrics),
 		fx.Invoke(node.WithMetrics),
 		fx.Invoke(modheader.WithMetrics),
+		fx.Invoke(p2p.WithMetrics),
 	)
 
 	var opts fx.Option
@@ -65,6 +64,23 @@ func WithMetrics(metricOpts []otlpmetrichttp.Option, nodeType node.Type) fx.Opti
 	return opts
 }
 
+// var p2pOpts fx.Option
+// switch cfg.P2P.MetricsLevel {
+// case p2p.ObservabilityLevelInfo:
+// 	p2pOpts = fx.Options(
+// 		baseComponents,
+// 	)
+// case p2p.ObservabilityLevelDebug, p2p.ObservabilityLevelError:
+// 	p2pOpts = fx.Options(
+// 		baseComponents,
+// 		fx.Invoke(p2p.WithInfoMetrics),
+// 		fx.Invoke(p2p.WithDebugMetrics),
+// 	)
+// default:
+// 	p2pOpts = fx.Options()
+// }
+
+// baseComponents = fx.Options(baseComponents, p2pOpts)
 // initializeMetrics initializes the global meter provider.
 func initializeMetrics(
 	ctx context.Context,
