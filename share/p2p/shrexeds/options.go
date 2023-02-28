@@ -41,7 +41,7 @@ type Parameters struct {
 func DefaultParameters() *Parameters {
 	return &Parameters{
 		ReadDeadline:     time.Minute,
-		WriteDeadline:    time.Second * 5,
+		WriteDeadline:    time.Second * 30, // based on block time
 		ReadCARDeadline:  time.Minute,
 		BufferSize:       32 * 1024,
 		concurrencyLimit: 10,
