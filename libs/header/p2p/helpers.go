@@ -73,8 +73,8 @@ func sendMessage(
 
 	headers := make([]*p2p_pb.HeaderResponse, 0)
 	var (
-		totalRequestSize uint64
-		msgSize          int
+		totalResponseSize uint64
+		msgSize           int
 	)
 
 	for i := 0; i < int(req.Amount); i++ {
@@ -84,25 +84,26 @@ func sendMessage(
 			// this could be a valid case when server closes the connection on its side.
 			if err == io.EOF {
 				err = nil
-			} else {
-				stream.Reset() //nolint:errcheck
 			}
 			break
 		}
 
-		totalRequestSize += uint64(msgSize)
+		totalResponseSize += uint64(msgSize)
 		headers = append(headers, resp)
 	}
 
 	duration := time.Since(startTime).Milliseconds()
-	if err == nil {
-		// we do not need to close the stream as it was already reset.
+
+	if err != nil {
+		// reset stream in case of an error
+		stream.Reset() //nolint:errcheck
+
+	} else {
 		if closeErr := stream.Close(); closeErr != nil {
 			log.Errorw("closing stream", "err", closeErr)
 		}
 	}
-
-	return headers, totalRequestSize, uint64(duration), err
+	return headers, totalResponseSize, uint64(duration), err
 }
 
 // convertStatusCodeToError converts passed status code into an error.

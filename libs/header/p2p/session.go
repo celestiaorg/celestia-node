@@ -158,7 +158,7 @@ func (s *session[H]) doRequest(
 			stat.decreaseScore()
 		default:
 			s.peerTracker.blockPeer(stat.peerID, err)
-			log.Errorw("parsing headers failed", "failed peer", stat.peerID, "err", err)
+			log.Errorw("processing headers response failed", "failed peer", stat.peerID, "err", err)
 		}
 		select {
 		case <-s.ctx.Done():
@@ -179,6 +179,9 @@ func (s *session[H]) doRequest(
 		amount := req.Amount - from
 		select {
 		case <-s.ctx.Done():
+			// we should update stats anyway in this case
+			stat.updateStats(size, duration)
+			return
 		// create a new request with the remaining headers.
 		// prepareRequests will return a slice with 1 element at this point
 		case s.reqCh <- prepareRequests(from+1, amount, req.Amount)[0]:
@@ -209,7 +212,7 @@ func (s *session[H]) processResponse(responses []*p2p_pb.HeaderResponse) ([]H, e
 		header := empty.New()
 		err = header.UnmarshalBinary(resp.Body)
 		if err != nil {
-			return nil, errors.New("unmarshalling error")
+			return nil, err
 		}
 		headers = append(headers, header.(H))
 	}
