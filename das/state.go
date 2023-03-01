@@ -94,13 +94,18 @@ func (s *coordinatorState) updateHead(newHead int64) {
 }
 
 func (s *coordinatorState) newRecentJob(header *header.ExtendedHeader) job {
+	height := uint64(header.Height())
+	// move next, to prevent catchup job from processing same height
+	if s.next == height {
+		s.next++
+	}
 	s.nextJobID++
 	return job{
 		id:             s.nextJobID,
 		isRecentHeader: true,
 		header:         header,
-		From:           uint64(header.Height()),
-		To:             uint64(header.Height()),
+		From:           height,
+		To:             height,
 	}
 }
 
