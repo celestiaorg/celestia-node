@@ -274,7 +274,8 @@ func (s *Syncer[H]) processHeaders(ctx context.Context, from, to uint64) (int, e
 func (s *Syncer[H]) findHeaders(ctx context.Context, from, to uint64) ([]H, error) {
 	amount := to - from + 1 // + 1 to include 'to' height as well
 	if amount > s.Params.MaxRequestSize {
-		to, amount = from+s.Params.MaxRequestSize, s.Params.MaxRequestSize
+		to = from + s.Params.MaxRequestSize - 1 // `from` is already included in range
+		amount = s.Params.MaxRequestSize
 	}
 
 	out := make([]H, 0, amount)
