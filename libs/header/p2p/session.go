@@ -205,7 +205,7 @@ func (s *session[H]) validate(headers []H) error {
 
 	trusted := s.from
 	// verify that the whole range is valid.
-	for i := 1; i < len(headers); i++ {
+	for i := 0; i < len(headers); i++ {
 		err := trusted.Verify(headers[i])
 		if err != nil {
 			return err
