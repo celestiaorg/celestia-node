@@ -121,8 +121,8 @@ func peerScoreParams(isBootstrapper bool, bootstrappers Bootstrappers, cfg Confi
 		bootstrapperSet[b.ID] = struct{}{}
 	}
 
-	var ipColocFactWl []*net.IPNet //nolint
-	for _, strIP := range cfg.IPColocationFactorWhitelist {
+	ipColocFactWl := make([]*net.IPNet, 0)
+	for _, strIP := range cfg.IPColocationWhitelist {
 		_, ipNet, err := net.ParseCIDR(strIP)
 		if err != nil {
 			return nil, fmt.Errorf("error while parsing whitelist collocation CIDR string: %w", err)
