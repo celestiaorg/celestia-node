@@ -36,8 +36,8 @@ type Config struct {
 	ConnManager               connManagerConfig
 	RoutingTableRefreshPeriod time.Duration
 
-	// Allowlist for IPColocation PubSub parameter, a list of string IPs
-	IPColocationFactorWhitelist []string
+	// Allowlist for IPColocation PubSub parameter, a list of string CIDRs
+	IPColocationWhitelist []string
 }
 
 // DefaultConfig returns default configuration for P2P subsystem.
