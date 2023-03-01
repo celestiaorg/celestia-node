@@ -9,9 +9,10 @@ import (
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/multierr"
 
+	"github.com/celestiaorg/rsmt2d"
+
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/mocks"
-	"github.com/celestiaorg/rsmt2d"
 )
 
 func TestCascadeGetter(t *testing.T) {
@@ -53,8 +54,7 @@ func TestCascade(t *testing.T) {
 	successGetter := mocks.NewMockGetter(ctrl)
 	timeoutGetter.EXPECT().GetEDS(gomock.Any(), gomock.Any()).
 		DoAndReturn(func(ctx context.Context, _ *share.Root) (*rsmt2d.ExtendedDataSquare, error) {
-			<-ctx.Done()
-			return nil, ctx.Err()
+			return nil, context.DeadlineExceeded
 		}).AnyTimes()
 	immediateFailGetter.EXPECT().GetEDS(gomock.Any(), gomock.Any()).
 		Return(nil, errors.New("second getter fails immediately")).AnyTimes()
