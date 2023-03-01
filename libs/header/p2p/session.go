@@ -3,6 +3,7 @@ package p2p
 import (
 	"context"
 	"errors"
+	"io"
 	"sort"
 	"time"
 
@@ -144,7 +145,7 @@ func (s *session[H]) doRequest(
 	defer cancel()
 
 	r, size, duration, err := sendMessage(ctx, s.host, stat.peerID, s.protocolID, req)
-	if err != nil {
+	if err != nil && err != io.EOF {
 		// we should not punish peer at this point and should try to parse responses, despite that error was received.
 		log.Debugw("requesting headers from peer failed", "peer", stat.peerID, "err", err)
 	}

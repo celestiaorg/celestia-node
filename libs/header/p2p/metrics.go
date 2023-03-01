@@ -2,6 +2,7 @@ package p2p
 
 import (
 	"context"
+	"io"
 
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric/global"
@@ -53,11 +54,11 @@ func (m *metrics) observeResponse(ctx context.Context, size uint64, duration uin
 	m.responseSize.Record(
 		ctx,
 		float64(size),
-		attribute.Bool("failed", err != nil),
+		attribute.Bool("failed", err != nil && err != io.EOF),
 	)
 	m.responseDuration.Record(
 		ctx,
 		float64(duration),
-		attribute.Bool("failed", err != nil),
+		attribute.Bool("failed", err != nil && err != io.EOF),
 	)
 }
