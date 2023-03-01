@@ -78,18 +78,23 @@ func TestDoSyncFullRangeFromExternalPeer(t *testing.T) {
 	)
 	require.NoError(t, err)
 	require.NoError(t, syncer.Start(ctx))
+
 	_, err = remoteStore.Append(ctx, suite.GenDummyHeaders(10)...)
 	require.NoError(t, err)
 	// give store time to update heightSub index
 	time.Sleep(time.Millisecond * 100)
+
 	localHead, err := localStore.Head(ctx)
 	require.NoError(t, err)
+
 	remoteHead, err := remoteStore.Head(ctx)
 	require.NoError(t, err)
+
 	err = syncer.doSync(ctx, localHead, remoteHead)
 	require.NoError(t, err)
 	// give store time to update heightSub index
 	time.Sleep(time.Millisecond * 100)
+
 	newHead, err := localStore.Head(ctx)
 	require.NoError(t, err)
 	require.Equal(t, newHead.Height(), remoteHead.Height())
