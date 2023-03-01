@@ -146,7 +146,7 @@ func (s *session[H]) doRequest(
 	r, size, duration, err := sendMessage(ctx, s.host, stat.peerID, s.protocolID, req)
 	if err != nil {
 		// we should not punish peer at this point and should try to parse responses, despite that error was received.
-		log.Debugw("requesting headers from peer failed", "failed peer", stat.peerID, "err", err)
+		log.Debugw("requesting headers from peer failed", "peer", stat.peerID, "err", err)
 	}
 
 	h, err := s.processResponse(r)
@@ -173,14 +173,16 @@ func (s *session[H]) doRequest(
 		"requestedAmount", req.Amount,
 	)
 
+	defer func() {
+		stat.updateStats(size, duration)
+	}()
+
 	// ensure that we received the correct amount of headers.
-	if uint64(len(h)) != req.Amount {
+	if uint64(len(h)) < req.Amount {
 		from := uint64(h[len(h)-1].Height())
 		amount := req.Amount - from
 		select {
 		case <-s.ctx.Done():
-			// we should update stats anyway in this case
-			stat.updateStats(size, duration)
 			return
 		// create a new request with the remaining headers.
 		// prepareRequests will return a slice with 1 element at this point
@@ -192,7 +194,6 @@ func (s *session[H]) doRequest(
 	// send headers to the channel, update peer stats and return peer to the queue, so it can be
 	// re-used in case if there are other requests awaiting
 	headers <- h
-	stat.updateStats(size, duration)
 	s.queue.push(stat)
 }
 

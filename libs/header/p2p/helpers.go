@@ -72,38 +72,31 @@ func sendMessage(
 	}
 
 	headers := make([]*p2p_pb.HeaderResponse, 0)
-	var (
-		totalResponseSize uint64
-		msgSize           int
-	)
 
+	var totalRespLn uint64
 	for i := 0; i < int(req.Amount); i++ {
 		resp := new(p2p_pb.HeaderResponse)
-		msgSize, err = serde.Read(stream, resp)
-		if err != nil {
-			// this could be a valid case when server closes the connection on its side.
-			if err == io.EOF {
-				err = nil
-			}
+		respLn, readErr := serde.Read(stream, resp)
+		if readErr != nil {
+			err = readErr
 			break
 		}
 
-		totalResponseSize += uint64(msgSize)
+		totalRespLn += uint64(respLn)
 		headers = append(headers, resp)
 	}
 
 	duration := time.Since(startTime).Milliseconds()
 
-	if err != nil {
-		// reset stream in case of an error
-		stream.Reset() //nolint:errcheck
-
-	} else {
+	if err == nil || err == io.EOF {
 		if closeErr := stream.Close(); closeErr != nil {
 			log.Errorw("closing stream", "err", closeErr)
 		}
+	} else {
+		// reset stream in case of an error
+		stream.Reset() //nolint:errcheck
 	}
-	return headers, totalResponseSize, uint64(duration), err
+	return headers, totalRespLn, uint64(duration), err
 }
 
 // convertStatusCodeToError converts passed status code into an error.
