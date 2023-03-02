@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"strings"
 	"time"
 
 	"github.com/libp2p/go-libp2p/core/host"
@@ -16,12 +17,21 @@ import (
 	p2p_pb "github.com/celestiaorg/celestia-node/libs/header/p2p/pb"
 )
 
-func protocolID(protocolSuffix string) protocol.ID {
-	return protocol.ID(fmt.Sprintf("/header-ex/v0.0.3/%s", protocolSuffix))
+func protocolID(networkID string) protocol.ID {
+	return protocol.ID(fmt.Sprintf("/%s/header-ex/v0.0.3", networkID))
 }
 
-func PubsubTopicID(protocolSuffix string) string {
-	return fmt.Sprintf("/header-sub/v0.0.1/%s", protocolSuffix)
+func PubsubTopicID(networkID string) string {
+	return fmt.Sprintf("/%s/header-sub/v0.0.1", networkID)
+}
+
+func validateChainID(want, have string) error {
+	if want != "" && !strings.EqualFold(want, have) {
+		return fmt.Errorf("header with different chainID received.want=%s,have=%s",
+			want, have,
+		)
+	}
+	return nil
 }
 
 // sendMessage opens the stream to the given peers and sends HeaderRequest to fetch

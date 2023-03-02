@@ -45,7 +45,7 @@ func NewServer(host host.Host, store *eds.Store, opts ...Option) (*Server, error
 	return &Server{
 		host:       host,
 		store:      store,
-		protocolID: protocolID(params.protocolSuffix),
+		protocolID: protocolID(params.networkID),
 		params:     params,
 	}, nil
 }
@@ -108,7 +108,7 @@ func (s *Server) handleStream(stream network.Stream) {
 	// start streaming the ODS to the client
 	err = s.writeODS(edsReader, stream)
 	if err != nil {
-		log.Errorw("server: writing ods to stream", "err", err)
+		log.Errorw("server: writing ods to stream", "hash", hash.String(), "err", err)
 		stream.Reset() //nolint:errcheck
 		return
 	}

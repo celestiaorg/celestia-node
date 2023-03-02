@@ -14,9 +14,9 @@ import (
 
 var log = logging.Logger("shrex-sub")
 
-// pubsubTopic hardcodes the name of the EDS floodsub topic with the provided suffix.
-func pubsubTopic(suffix string) string {
-	return fmt.Sprintf("/eds-sub/v0.0.1/%s", suffix)
+// pubsubTopic hardcodes the name of the EDS floodsub topic with the provided networkID.
+func pubsubTopicID(networkID string) string {
+	return fmt.Sprintf("%s/eds-sub/v0.0.1", networkID)
 }
 
 // Validator is an injectable func and governs EDS notification or DataHash validity.
@@ -38,7 +38,7 @@ type PubSub struct {
 }
 
 // NewPubSub creates a libp2p.PubSub wrapper.
-func NewPubSub(ctx context.Context, h host.Host, suffix string) (*PubSub, error) {
+func NewPubSub(ctx context.Context, h host.Host, networkID string) (*PubSub, error) {
 	// WithSeenMessagesTTL without duration allows to process all incoming messages(even with the same
 	// msgId)
 	pubsub, err := pubsub.NewFloodSub(ctx, h, pubsub.WithSeenMessagesTTL(0))
@@ -47,7 +47,7 @@ func NewPubSub(ctx context.Context, h host.Host, suffix string) (*PubSub, error)
 	}
 	return &PubSub{
 		pubSub:      pubsub,
-		pubsubTopic: pubsubTopic(suffix),
+		pubsubTopic: pubsubTopicID(networkID),
 	}, nil
 }
 
@@ -99,5 +99,10 @@ func (s *PubSub) Subscribe() (*Subscription, error) {
 
 // Broadcast sends the EDS notification (DataHash) to every connected peer.
 func (s *PubSub) Broadcast(ctx context.Context, data share.DataHash) error {
+	if data.IsEmptyRoot() {
+		// no need to broadcast datahash of an empty block EDS
+		return nil
+	}
+
 	return s.topic.Publish(ctx, data)
 }

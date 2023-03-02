@@ -18,23 +18,34 @@ import (
 
 var _ share.Getter = (*ShrexGetter)(nil)
 
-const defaultMaxRequestDuration = time.Second * 10
+const (
+	// defaultMinRequestTimeout value is set according to observed time taken by healthy peer to
+	// serve getEDS request for block size 256
+	defaultMinRequestTimeout = time.Second * 10
+	defaultMinAttemptsCount  = 3
+)
 
 // ShrexGetter is a share.Getter that uses the shrex/eds and shrex/nd protocol to retrieve shares.
 type ShrexGetter struct {
 	edsClient *shrexeds.Client
 	ndClient  *shrexnd.Client
 
-	peerManager        *peers.Manager
-	maxRequestDuration time.Duration
+	peerManager *peers.Manager
+
+	// minRequestTimeout limits minimal timeout given to single peer by getter for serving the request.
+	minRequestTimeout time.Duration
+	// minAttemptsCount will be used to split request timeout into multiple attempts. It will allow to
+	// attempt multiple peers in scope of one request before context timeout is reached
+	minAttemptsCount int
 }
 
 func NewShrexGetter(edsClient *shrexeds.Client, ndClient *shrexnd.Client, peerManager *peers.Manager) *ShrexGetter {
 	return &ShrexGetter{
-		edsClient:          edsClient,
-		ndClient:           ndClient,
-		peerManager:        peerManager,
-		maxRequestDuration: defaultMaxRequestDuration,
+		edsClient:         edsClient,
+		ndClient:          ndClient,
+		peerManager:       peerManager,
+		minRequestTimeout: defaultMinRequestTimeout,
+		minAttemptsCount:  defaultMinAttemptsCount,
 	}
 }
 
@@ -63,7 +74,7 @@ func (sg *ShrexGetter) GetEDS(ctx context.Context, root *share.Root) (*rsmt2d.Ex
 			return nil, fmt.Errorf("getter/shrex: %w", err)
 		}
 
-		reqCtx, cancel := context.WithTimeout(ctx, sg.maxRequestDuration)
+		reqCtx, cancel := ctxWithSplitTimeout(ctx, sg.minAttemptsCount, sg.minRequestTimeout)
 		eds, err := sg.edsClient.RequestEDS(reqCtx, root.Hash(), peer)
 		cancel()
 		switch err {
@@ -97,7 +108,7 @@ func (sg *ShrexGetter) GetSharesByNamespace(
 			return nil, fmt.Errorf("getter/shrex: %w", err)
 		}
 
-		reqCtx, cancel := context.WithTimeout(ctx, sg.maxRequestDuration)
+		reqCtx, cancel := ctxWithSplitTimeout(ctx, sg.minAttemptsCount, sg.minRequestTimeout)
 		nd, err := sg.ndClient.RequestND(reqCtx, root, id, peer)
 		cancel()
 		switch err {

@@ -100,7 +100,7 @@ func (h *Handler) getShares(ctx context.Context, height uint64, nID namespace.ID
 	)
 	switch height {
 	case 0:
-		header, err = h.header.Head(ctx)
+		header, err = h.header.LocalHead(ctx)
 	default:
 		header, err = h.header.GetByHeight(ctx, height)
 	}

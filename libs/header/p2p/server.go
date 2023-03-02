@@ -53,7 +53,7 @@ func NewExchangeServer[H header.Header](
 	}
 
 	return &ExchangeServer[H]{
-		protocolID: protocolID(params.protocolSuffix),
+		protocolID: protocolID(params.networkID),
 		host:       host,
 		store:      store,
 		Params:     params,

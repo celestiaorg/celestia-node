@@ -48,7 +48,7 @@ func NewServer(host host.Host, store *eds.Store, getter share.Getter, opts ...Op
 		store:      store,
 		host:       host,
 		params:     params,
-		protocolID: protocolID(params.protocolSuffix),
+		protocolID: protocolID(params.networkID),
 	}
 
 	return srv, nil

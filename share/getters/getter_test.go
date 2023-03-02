@@ -42,7 +42,7 @@ func TestTeeGetter(t *testing.T) {
 		// eds store doesn't have the EDS yet
 		ok, err := edsStore.Has(ctx, dah.Hash())
 		assert.False(t, ok)
-		assert.Error(t, err)
+		assert.NoError(t, err)
 
 		retrievedEDS, err := tg.GetEDS(ctx, &dah)
 		require.NoError(t, err)
