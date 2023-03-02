@@ -5,12 +5,6 @@ ifeq (${PREFIX},)
 	PREFIX := /usr/local
 endif
 
-GOBIN ?= $(shell go env GOPATH)/bin
-
-GOIMPORTSREVISER = $(GOBIN)/goimports-reviser
-$(GOIMPORTSREVISER):
-	go install -v github.com/incu6us/goimports-reviser/v3@latest
-
 ## help: Get more info on make commands.
 help: Makefile
 	@echo " Choose a command run in "$(PROJECTNAME)":"
@@ -90,7 +84,7 @@ fmt: sort-imports
 	@go mod tidy -compat=1.17
 	@cfmt -w -m=100 ./...
 	@markdownlint --fix --quiet --config .markdownlint.yaml .
-.PHONY: fmt
+.PHONY: sort-imports
 
 ## lint: Linting *.go files using golangci-lint. Look for .golangci.yml for the list of linters.
 lint: lint-imports
@@ -164,9 +158,10 @@ openrpc-gen:
 lint-imports:
 	@echo "--> Running imports linter"
 	@for file in `find . -type f -name '*.go'`; \
-		do $(GOIMPORTSREVISER) -list-diff -set-exit-status -company-prefixes "github.com/celestiaorg"  -project-name "github.com/celestiaorg/celestia-node" -output stdout $$file;  \
+		do goimports-reviser -list-diff -set-exit-status -company-prefixes "github.com/celestiaorg"  -project-name "github.com/celestiaorg/celestia-node" -output stdout $$file;  \
     done;
+.PHONY: lint-imports
 
-sort-imports: $(GOIMPORTSREVISER)
-	@$(GOIMPORTSREVISER) -company-prefixes "github.com/celestiaorg"  -project-name "github.com/celestiaorg/celestia-node" -output stdout ./...
-.PHONY sort-imports
+sort-imports:
+	goimports-reviser -company-prefixes "github.com/celestiaorg"  -project-name "github.com/celestiaorg/celestia-node" -output stdout ./...
+.PHONY: sort-imports
