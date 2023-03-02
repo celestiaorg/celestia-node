@@ -64,7 +64,7 @@ func (ce *Exchange) GetVerifiedRange(
 	}
 
 	for _, h := range headers {
-		err := from.VerifyAdjacent(h)
+		err := from.Verify(h)
 		if err != nil {
 			return nil, err
 		}
