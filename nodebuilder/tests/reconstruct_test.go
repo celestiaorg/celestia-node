@@ -7,6 +7,7 @@ package tests
 
 import (
 	"context"
+	"sync"
 	"testing"
 	"time"
 
@@ -72,6 +73,69 @@ func TestFullReconstructFromBridge(t *testing.T) {
 	}
 	require.NoError(t, <-fillDn)
 	require.NoError(t, errg.Wait())
+}
+
+/*
+Test-Case: Sync a group of Full Nodes with a Bridge Node (includes DASing of non-empty blocks)
+
+Steps:
+1. Create a Bridge Node(BN)
+2. Start BN
+3. Check BN is synced to height 30
+4. Create {fullNodesCount} Full Nodes(FNs) with a connection to BN as a trusted peer
+5. Start FNs
+6. Check FNs sync *and* DAS to height 30
+*/
+func TestSyncFullsWithBridge_Network_Stable_Latest_IPLD(t *testing.T) {
+	fullNodesCount := 5
+
+	ctx, cancel := context.WithTimeout(context.Background(), swamp.DefaultTestTimeout)
+	t.Cleanup(cancel)
+
+	sw := swamp.NewSwamp(t, swamp.WithBlockTime(btime))
+	fillDn := swamp.FillBlocks(ctx, sw.ClientContext, sw.Accounts, bsize, 30)
+
+	bridge := sw.NewBridgeNode()
+
+	err := bridge.Start(ctx)
+	require.NoError(t, err)
+
+	sw.WaitTillHeight(ctx, 30)
+
+	_, err = bridge.HeaderServ.GetByHeight(ctx, 30)
+	require.NoError(t, err)
+
+	addrs, err := peer.AddrInfoToP2pAddrs(host.InfoFromHost(bridge.Host))
+	require.NoError(t, err)
+
+	cfg := nodebuilder.DefaultConfig(node.Full)
+	cfg.Header.TrustedPeers = append(cfg.Header.TrustedPeers, addrs[0].String())
+	cfg.Share.UseShareExchange = false // use IPLD only
+
+	fullNodes := make([]*nodebuilder.Node, fullNodesCount)
+	for i := range fullNodes {
+		fullNodes[i] = sw.NewNodeWithConfig(node.Full, cfg)
+		err = fullNodes[i].Start(ctx)
+		require.NoError(t, err)
+	}
+
+	wg := sync.WaitGroup{}
+	wg.Add(fullNodesCount)
+	for _, full := range fullNodes {
+		go func(f *nodebuilder.Node) {
+			// first wait for full node to get to height 30
+			_, err := f.HeaderServ.GetByHeight(ctx, 30)
+			require.NoError(t, err)
+			// and ensure it DASes up to that height
+			err = f.DASer.WaitCatchUp(ctx)
+			require.NoError(t, err)
+
+			wg.Done()
+		}(full)
+	}
+	wg.Wait()
+
+	require.NoError(t, <-fillDn)
 }
 
 /*
