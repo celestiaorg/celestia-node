@@ -3,7 +3,6 @@ package p2p
 import (
 	"context"
 	"errors"
-	"io"
 	"sort"
 	"time"
 
@@ -14,6 +13,7 @@ import (
 	p2p_pb "github.com/celestiaorg/celestia-node/libs/header/p2p/pb"
 )
 
+// errEmptyResponse means that server side closes the connection without sending at least 1 response.
 var errEmptyResponse = errors.New("empty response")
 
 type option[H header.Header] func(*session[H])
@@ -146,7 +146,7 @@ func (s *session[H]) doRequest(
 	defer cancel()
 
 	r, size, duration, err := sendMessage(ctx, s.host, stat.peerID, s.protocolID, req)
-	if err != nil && err != io.EOF {
+	if err != nil {
 		// we should not punish peer at this point and should try to parse responses, despite that error was received.
 		log.Debugw("requesting headers from peer failed", "peer", stat.peerID, "err", err)
 	}
@@ -154,10 +154,7 @@ func (s *session[H]) doRequest(
 	h, err := s.processResponse(r)
 	if err != nil {
 		switch err {
-		case header.ErrNotFound:
-		case errEmptyResponse:
-			// decrease score in the peer that for some reason closes the connection
-			// and did not give us at least one response.
+		case header.ErrNotFound, errEmptyResponse:
 			stat.decreaseScore()
 		default:
 			s.peerTracker.blockPeer(stat.peerID, err)

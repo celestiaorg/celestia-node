@@ -88,7 +88,17 @@ func sendMessage(
 
 	duration := time.Since(startTime).Milliseconds()
 
-	if err == nil || err == io.EOF {
+	// we allow the server side to explicitly close the connection
+	// if it does not have the requested range.
+	// In this case, server side will send us a response with ErrNotFound status code inside
+	// and then will close the stream.
+	// If the server side will have a part of the requested range, then it will send this part
+	// and then will close the connection
+	if err == io.EOF {
+		err = nil
+	}
+
+	if err == nil {
 		if closeErr := stream.Close(); closeErr != nil {
 			log.Errorw("closing stream", "err", closeErr)
 		}
