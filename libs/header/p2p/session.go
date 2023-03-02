@@ -212,7 +212,7 @@ func (s *session[H]) validate(headers []H) error {
 		}
 		if trusted.Height()+1 != headers[i].Height() {
 			// Exchange requires requested ranges to always consist of adjacent headers
-			return fmt.Errorf("peer sent valid but undjacent header")
+			return fmt.Errorf("peer sent valid but non-adjacent header")
 		}
 
 		trusted = headers[i]
