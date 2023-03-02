@@ -61,6 +61,45 @@ func TestSyncSimpleRequestingHead(t *testing.T) {
 	assert.True(t, state.Finished(), state)
 }
 
+func TestDoSyncFullRangeFromExternalPeer(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	t.Cleanup(cancel)
+
+	suite := test.NewTestSuite(t)
+	head := suite.Head()
+
+	remoteStore := store.NewTestStore(ctx, t, head)
+	localStore := store.NewTestStore(ctx, t, head)
+	syncer, err := NewSyncer[*test.DummyHeader](
+		local.NewExchange(remoteStore),
+		localStore,
+		&test.DummySubscriber{},
+		WithMaxRequestSize(10),
+	)
+	require.NoError(t, err)
+	require.NoError(t, syncer.Start(ctx))
+
+	_, err = remoteStore.Append(ctx, suite.GenDummyHeaders(10)...)
+	require.NoError(t, err)
+	// give store time to update heightSub index
+	time.Sleep(time.Millisecond * 100)
+
+	localHead, err := localStore.Head(ctx)
+	require.NoError(t, err)
+
+	remoteHead, err := remoteStore.Head(ctx)
+	require.NoError(t, err)
+
+	err = syncer.doSync(ctx, localHead, remoteHead)
+	require.NoError(t, err)
+	// give store time to update heightSub index
+	time.Sleep(time.Millisecond * 100)
+
+	newHead, err := localStore.Head(ctx)
+	require.NoError(t, err)
+	require.Equal(t, newHead.Height(), remoteHead.Height())
+}
+
 func TestSyncCatchUp(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	t.Cleanup(cancel)
