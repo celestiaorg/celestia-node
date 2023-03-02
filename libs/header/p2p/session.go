@@ -99,6 +99,7 @@ LOOP:
 			}
 		}
 	}
+
 	sort.Slice(headers, func(i, j int) bool {
 		return headers[i].Height() < headers[j].Height()
 	})
@@ -154,13 +155,15 @@ func (s *session[H]) doRequest(
 	if err != nil {
 		switch err {
 		case header.ErrNotFound:
-			// errNoResponses means that we did not fetch any headers from the peer, so we can decrease its score.
 		case errEmptyResponse:
+			// decrease score in the peer that for some reason closes the connection
+			// and did not give us at least one response.
 			stat.decreaseScore()
 		default:
 			s.peerTracker.blockPeer(stat.peerID, err)
 			log.Errorw("processing headers response failed", "failed peer", stat.peerID, "err", err)
 		}
+
 		select {
 		case <-s.ctx.Done():
 		case s.reqCh <- req:
@@ -182,6 +185,7 @@ func (s *session[H]) doRequest(
 	if uint64(len(h)) < req.Amount {
 		from := uint64(h[len(h)-1].Height())
 		amount := req.Amount - from
+
 		select {
 		case <-s.ctx.Done():
 			return
@@ -210,6 +214,7 @@ func (s *session[H]) processResponse(responses []*p2p_pb.HeaderResponse) ([]H, e
 		if err != nil {
 			return nil, err
 		}
+
 		var empty H
 		header := empty.New()
 		err = header.UnmarshalBinary(resp.Body)
@@ -218,6 +223,7 @@ func (s *session[H]) processResponse(responses []*p2p_pb.HeaderResponse) ([]H, e
 		}
 		headers = append(headers, header.(H))
 	}
+
 	if len(headers) == 0 {
 		return nil, header.ErrNotFound
 	}
@@ -263,6 +269,7 @@ func prepareRequests(from, amount, headersPerPeer uint64) []*p2p_pb.HeaderReques
 		request := &p2p_pb.HeaderRequest{
 			Data: &p2p_pb.HeaderRequest_Origin{Origin: from},
 		}
+
 		if amount < headersPerPeer {
 			requestSize = amount
 			amount = 0
@@ -271,6 +278,7 @@ func prepareRequests(from, amount, headersPerPeer uint64) []*p2p_pb.HeaderReques
 			from += headersPerPeer
 			requestSize = headersPerPeer
 		}
+
 		request.Amount = requestSize
 		requests = append(requests, request)
 	}
