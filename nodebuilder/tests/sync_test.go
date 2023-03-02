@@ -553,6 +553,12 @@ func TestSyncFullsWithBridge_IPLD_Network_Partitioned_Historical(t *testing.T) {
 		}
 	}
 
+	sw.WaitTillHeight(ctx, int64(topHeight))
+
+	h, err = bridge.HeaderServ.GetByHeight(ctx, uint64(topHeight))
+	require.NoError(t, err)
+	assert.EqualValues(t, h.Commit.BlockID.Hash, sw.GetCoreBlockHashByHeight(ctx, int64(topHeight)))
+
 	for _, full := range fullNodes {
 		go func(f *nodebuilder.Node) {
 			h, err := f.HeaderServ.GetByHeight(ctx, uint64(topHeight))
