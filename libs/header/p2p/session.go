@@ -158,7 +158,12 @@ func (s *session[H]) doRequest(
 			stat.decreaseScore()
 		default:
 			s.peerTracker.blockPeer(stat.peerID, err)
-			log.Errorw("processing headers response failed", "failed peer", stat.peerID, "err", err)
+		}
+
+		// exclude header.ErrNotFound from being logged as it is a `valid` error
+		// and peer may not have the range(peer just connected and syncing).
+		if err != header.ErrNotFound {
+			log.Errorw("processing headers response failed", "peer", stat.peerID, "err", err)
 		}
 
 		select {
