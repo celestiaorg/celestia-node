@@ -2,6 +2,7 @@ package das
 
 import (
 	"context"
+
 	"sync/atomic"
 
 	"github.com/celestiaorg/celestia-node/header"
@@ -12,9 +13,9 @@ type coordinatorState struct {
 	sampleFrom    uint64 // is the height from which the DASer will start sampling
 	samplingRange uint64 // is the maximum amount of headers processed in one job.
 
-	retry      []job                      // list of headers heights that will be retried after last run
 	inProgress map[int]func() workerState // keeps track of running workers
 	failed     map[uint64]int             // stores heights of failed headers with amount of attempt as value
+	retry      map[int]int                // height that previously failed and currently are being process by workers
 
 	nextJobID   int
 	next        uint64 // all headers before next were sent to workers
@@ -29,9 +30,9 @@ func newCoordinatorState(params Parameters) coordinatorState {
 	return coordinatorState{
 		sampleFrom:    params.SampleFrom,
 		samplingRange: params.SamplingRange,
-		retry:         make([]job, 0),
 		inProgress:    make(map[int]func() workerState),
 		failed:        make(map[uint64]int),
+		retry:         make(map[int]int),
 		nextJobID:     0,
 		next:          params.SampleFrom,
 		networkHead:   params.SampleFrom,
@@ -42,20 +43,14 @@ func newCoordinatorState(params Parameters) coordinatorState {
 func (s *coordinatorState) resumeFromCheckpoint(c checkpoint) {
 	s.next = c.SampleFrom
 	s.networkHead = c.NetworkHead
-	// store failed to retry them on restart
-	for h, count := range c.Failed {
-		s.failed[h] = count
-		s.retry = append(s.retry, s.newJob(h, h))
+
+	if len(c.Failed) > 0 {
+		s.failed = c.Failed
 	}
 }
 
 func (s *coordinatorState) handleResult(res result) {
 	delete(s.inProgress, res.id)
-
-	failedFromWorker := make(map[uint64]bool)
-	for _, h := range res.failed {
-		failedFromWorker[h] = true
-	}
 
 	// check if the worker retried any of the previously failed heights
 	for h := range s.failed {
@@ -63,13 +58,23 @@ func (s *coordinatorState) handleResult(res result) {
 			continue
 		}
 
-		if !failedFromWorker[h] {
+		if res.failed[h] == 0 {
 			delete(s.failed, h)
 		}
 	}
+
+	attempts := 1
+	if res.kind == retryJob {
+		if len(res.failed) > 0 {
+			// if item was in retry and failed again, carry on previous attempt count
+			attempts += s.retry[res.job.id]
+		}
+		delete(s.retry, res.job.id)
+	}
+
 	// add newly failed heights
-	for h := range failedFromWorker {
-		s.failed[h]++
+	for h := range res.failed {
+		s.failed[h] = +attempts
 	}
 	s.checkDone()
 }
@@ -101,59 +106,51 @@ func (s *coordinatorState) newRecentJob(header *header.ExtendedHeader) job {
 	}
 	s.nextJobID++
 	return job{
-		id:             s.nextJobID,
-		isRecentHeader: true,
-		header:         header,
-		From:           height,
-		To:             height,
+		id:     s.nextJobID,
+		kind:   recentJob,
+		header: header,
+		From:   height,
+		To:     height,
 	}
 }
 
 // nextJob will return header height to be processed and done flag if there is none
 func (s *coordinatorState) nextJob() (next job, found bool) {
-	// all headers were sent to workers.
-	if s.next > s.networkHead {
-		return job{}, false
+	if s.next <= s.networkHead {
+		to := s.next + s.samplingRange - 1
+		if to > s.networkHead {
+			to = s.networkHead
+		}
+		j := s.newJob(catchupJob, s.next, to)
+		s.next = to + 1
+		return j, true
 	}
 
-	// try to take from retry first
-	if next, found := s.nextFromRetry(); found {
-		return next, found
-	}
-
-	j := s.newJob(s.next, s.networkHead)
-
-	s.next += s.samplingRange
-	if s.next > s.networkHead {
-		s.next = s.networkHead + 1
-	}
-
-	return j, true
+	// if all headers were tried already, make a retry job
+	return s.retryJob()
 }
 
-func (s *coordinatorState) nextFromRetry() (job, bool) {
-	if len(s.retry) == 0 {
-		return job{}, false
+// retryJob will retry previously failed header
+func (s *coordinatorState) retryJob() (job, bool) {
+	for h, count := range s.failed {
+		delete(s.failed, h)
+		j := s.newJob(retryJob, h, h)
+		s.retry[j.id] = count
+		return j, true
 	}
 
-	next := s.retry[len(s.retry)-1]
-	s.retry = s.retry[:len(s.retry)-1]
-
-	return next, true
+	return job{}, false
 }
 
 func (s *coordinatorState) putInProgress(jobID int, getState func() workerState) {
 	s.inProgress[jobID] = getState
 }
 
-func (s *coordinatorState) newJob(from, max uint64) job {
+func (s *coordinatorState) newJob(kind jobKind, from, to uint64) job {
 	s.nextJobID++
-	to := from + s.samplingRange - 1
-	if to > max {
-		to = max
-	}
 	return job{
 		id:   s.nextJobID,
+		kind: kind,
 		From: from,
 		To:   to,
 	}
@@ -169,17 +166,18 @@ func (s *coordinatorState) unsafeStats() SamplingStats {
 	for _, getStats := range s.inProgress {
 		wstats := getStats()
 		var errMsg string
-		if wstats.Err != nil {
-			errMsg = wstats.Err.Error()
+		if wstats.err != nil {
+			errMsg = wstats.err.Error()
 		}
 		workers = append(workers, WorkerStats{
+			Kind:   wstats.job.kind,
 			Curr:   wstats.Curr,
 			From:   wstats.From,
 			To:     wstats.To,
 			ErrMsg: errMsg,
 		})
 
-		for _, h := range wstats.failed {
+		for h := range wstats.failed {
 			failed[h]++
 			if h < lowestFailedOrInProgress {
 				lowestFailedOrInProgress = h
@@ -212,7 +210,7 @@ func (s *coordinatorState) unsafeStats() SamplingStats {
 }
 
 func (s *coordinatorState) checkDone() {
-	if len(s.inProgress) == 0 && len(s.retry) == 0 && s.next > s.networkHead {
+	if len(s.inProgress) == 0 && len(s.failed) == 0 && s.next > s.networkHead {
 		if s.catchUpDone.CompareAndSwap(false, true) {
 			close(s.catchUpDoneCh)
 		}

@@ -22,6 +22,7 @@ type SamplingStats struct {
 }
 
 type WorkerStats struct {
+	Kind string `json:"kind"`
 	Curr uint64 `json:"current"`
 	From uint64 `json:"from"`
 	To   uint64 `json:"to"`

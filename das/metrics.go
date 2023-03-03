@@ -134,7 +134,6 @@ func (m *metrics) observeSample(
 	h *header.ExtendedHeader,
 	sampleTime time.Duration,
 	err error,
-	isRecentHeader bool,
 ) {
 	if m == nil {
 		return

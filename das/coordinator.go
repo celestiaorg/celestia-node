@@ -36,7 +36,7 @@ type samplingCoordinator struct {
 // result will carry errors to coordinator after worker finishes the job
 type result struct {
 	job
-	failed []uint64
+	failed map[uint64]int
 	err    error
 }
 
@@ -65,7 +65,7 @@ func (sc *samplingCoordinator) run(ctx context.Context, cp checkpoint) {
 
 	// resume workers
 	for _, wk := range cp.Workers {
-		sc.runWorker(ctx, sc.state.newJob(wk.From, wk.To))
+		sc.runWorker(ctx, sc.state.newJob(wk.Kind, wk.From, wk.To))
 	}
 
 	for {

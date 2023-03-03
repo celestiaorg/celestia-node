@@ -17,6 +17,7 @@ type checkpoint struct {
 type workerCheckpoint struct {
 	From uint64 `json:"from"`
 	To   uint64 `json:"to"`
+	Kind string `json:"kind"`
 }
 
 func newCheckpoint(stats SamplingStats) checkpoint {
@@ -25,6 +26,7 @@ func newCheckpoint(stats SamplingStats) checkpoint {
 		workers = append(workers, workerCheckpoint{
 			From: w.Curr,
 			To:   w.To,
+			Kind: w.Kind,
 		})
 	}
 	return checkpoint{

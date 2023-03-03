@@ -14,6 +14,12 @@ import (
 	"github.com/celestiaorg/celestia-node/share/p2p/shrexsub"
 )
 
+const (
+	catchupJob jobKind = "catchup"
+	recentJob  jobKind = "recent"
+	retryJob   jobKind = "retry"
+)
+
 type worker struct {
 	lock  sync.Mutex
 	state workerState
@@ -27,18 +33,18 @@ type worker struct {
 // workerState contains important information about the state of a
 // current sampling routine.
 type workerState struct {
-	job
+	result
 
-	Curr   uint64
-	Err    error
-	failed []uint64
+	Curr uint64
 }
+
+type jobKind = string
 
 // job represents headers interval to be processed by worker
 type job struct {
-	id             int
-	isRecentHeader bool
-	header         *header.ExtendedHeader
+	id     int
+	kind   jobKind
+	header *header.ExtendedHeader
 
 	From uint64
 	To   uint64
@@ -56,9 +62,11 @@ func newWorker(j job,
 		broadcast: broadcast,
 		metrics:   metrics,
 		state: workerState{
-			job:    j,
-			Curr:   j.From,
-			failed: make([]uint64, 0),
+			Curr: j.From,
+			result: result{
+				job:    j,
+				failed: make(map[uint64]int),
+			},
 		},
 	}
 }
@@ -88,11 +96,7 @@ func (w *worker) run(ctx context.Context, timeout time.Duration, resultCh chan<-
 	)
 
 	select {
-	case resultCh <- result{
-		job:    w.state.job,
-		failed: w.state.failed,
-		err:    w.state.Err,
-	}:
+	case resultCh <- w.state.result:
 	case <-ctx.Done():
 	}
 }
@@ -108,7 +112,7 @@ func (w *worker) sample(ctx context.Context, timeout time.Duration, height uint6
 	defer cancel()
 
 	err = w.sampleFn(ctx, h)
-	w.metrics.observeSample(ctx, h, time.Since(start), err, w.state.isRecentHeader)
+	w.metrics.observeSample(ctx, h, time.Since(start), err)
 	if err != nil {
 		if !errors.Is(err, context.Canceled) {
 			log.Debugw(
@@ -134,7 +138,7 @@ func (w *worker) sample(ctx context.Context, timeout time.Duration, height uint6
 	)
 
 	// notify network about availability of new block data (note: only full nodes can notify)
-	if w.state.isRecentHeader {
+	if w.state.job.kind == recentJob {
 		err = w.broadcast(ctx, h.DataHash.Bytes())
 		if err != nil {
 			log.Warn("failed to broadcast availability message",
@@ -177,8 +181,8 @@ func (w *worker) setResult(curr uint64, err error) {
 	w.lock.Lock()
 	defer w.lock.Unlock()
 	if err != nil {
-		w.state.failed = append(w.state.failed, curr)
-		w.state.Err = multierr.Append(w.state.Err, fmt.Errorf("height: %v, err: %w", curr, err))
+		w.state.failed[curr]++
+		w.state.err = multierr.Append(w.state.err, fmt.Errorf("height: %v, err: %w", curr, err))
 	}
 	w.state.Curr = curr
 }

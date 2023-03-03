@@ -196,20 +196,27 @@ func TestCoordinator(t *testing.T) {
 		)
 		go coordinator.run(ctx, sampler.checkpoint)
 
-		// wait for coordinator to indicateDone catchup
-		assert.NoError(t, coordinator.state.waitCatchUp(ctx))
+		// wait for coordinator to go over all headers
+		assert.NoError(t, sampler.finished(ctx))
 
 		cancel()
 		stopCtx, cancel := context.WithTimeout(context.Background(), testParams.timeoutDelay)
 		defer cancel()
 		assert.NoError(t, coordinator.wait(stopCtx))
 
-		// set failed items in expectedState
-		expectedState := sampler.finalState()
-		for _, h := range bornToFail {
-			expectedState.Failed[h] = 1
+		// failed item should be either in failed map or be processed by worker
+		cp := newCheckpoint(coordinator.state.unsafeStats())
+		for _, failedHeight := range bornToFail {
+			if _, ok := cp.Failed[failedHeight]; ok {
+				continue
+			}
+			for _, w := range cp.Workers {
+				if w.Kind == retryJob && w.From == failedHeight {
+					continue
+				}
+			}
+			t.Error("header is not found in failed nor in workers")
 		}
-		assert.Equal(t, expectedState, newCheckpoint(coordinator.state.unsafeStats()))
 	})
 
 	t.Run("failed should retry on restart", func(t *testing.T) {
@@ -219,10 +226,9 @@ func TestCoordinator(t *testing.T) {
 		ctx, cancel := context.WithTimeout(context.Background(), testParams.timeoutDelay)
 
 		failedLastRun := map[uint64]int{4: 1, 8: 2, 15: 1, 16: 1, 23: 1, 42: 1, testParams.sampleFrom - 1: 1}
-		failedAgain := []uint64{16}
 
-		sampler := newMockSampler(testParams.sampleFrom, testParams.networkHead, failedAgain...)
-		sampler.checkpoint.Failed = failedLastRun
+		sampler := newMockSampler(testParams.sampleFrom, testParams.networkHead)
+		sampler.withFailed(failedLastRun)
 
 		coordinator := newSamplingCoordinator(
 			testParams.dasParams,
@@ -243,12 +249,7 @@ func TestCoordinator(t *testing.T) {
 		defer cancel()
 		assert.NoError(t, coordinator.wait(stopCtx))
 
-		expectedState := sampler.finalState()
-		expectedState.Failed = make(map[uint64]int)
-		for _, v := range failedAgain {
-			expectedState.Failed[v] = failedLastRun[v] + 1
-		}
-		assert.Equal(t, expectedState, newCheckpoint(coordinator.state.unsafeStats()))
+		assert.Equal(t, sampler.finalState(), newCheckpoint(coordinator.state.unsafeStats()))
 	})
 }
 
@@ -287,6 +288,7 @@ type mockSampler struct {
 	checkpoint
 	bornToFail map[uint64]bool
 	done       map[uint64]int
+	failed     map[uint64]int
 
 	isFinished bool
 	finishedCh chan struct{}
@@ -304,6 +306,7 @@ func newMockSampler(sampledBefore, sampleTo uint64, bornToFail ...uint64) mockSa
 			Failed:      make(map[uint64]int),
 			Workers:     make([]workerCheckpoint, 0),
 		},
+		failed:     make(map[uint64]int),
 		bornToFail: failMap,
 		done:       make(map[uint64]int),
 		finishedCh: make(chan struct{}),
@@ -331,7 +334,7 @@ func (m *mockSampler) sample(ctx context.Context, h *header.ExtendedHeader) erro
 	}
 
 	if height > m.NetworkHead || height < m.SampleFrom {
-		if m.Failed[height] == 0 {
+		if m.failed[height] == 0 {
 			return fmt.Errorf("header: %v out of range: %v-%v", h, m.SampleFrom, m.NetworkHead)
 		}
 	}
@@ -391,6 +394,13 @@ func (m *mockSampler) sampledAmount() int {
 	m.lock.Lock()
 	defer m.lock.Unlock()
 	return len(m.done)
+}
+
+func (m *mockSampler) withFailed(failed map[uint64]int) {
+	m.checkpoint.Failed = failed
+	for height, count := range failed {
+		m.failed[height] = count
+	}
 }
 
 // ensures correct order of operations
