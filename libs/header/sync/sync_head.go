@@ -118,7 +118,7 @@ func (s *Syncer[H]) incomingNetHead(ctx context.Context, netHead H) pubsub.Valid
 	var nonAdj *header.ErrNonAdjacent
 	if errors.As(err, &nonAdj) {
 		// not adjacent, maybe we've missed a few headers or its from the past
-		log.Debugw("attempted to append non-adjacent header", "store head",
+		log.Debugw("attempted to append gossiped non-adjacent header", "store head",
 			nonAdj.Head, "attempted", nonAdj.Attempted)
 	} else {
 		var verErr *header.VerifyError
@@ -168,7 +168,7 @@ func (s *Syncer[H]) validate(ctx context.Context, new H) pubsub.ValidationResult
 		return pubsub.ValidationIgnore
 	}
 	// perform verification
-	err = sbjHead.VerifyNonAdjacent(new)
+	err = sbjHead.Verify(new)
 	var verErr *header.VerifyError
 	if errors.As(err, &verErr) {
 		log.Errorw("invalid network header",
@@ -182,6 +182,9 @@ func (s *Syncer[H]) validate(ctx context.Context, new H) pubsub.ValidationResult
 	// and accept if the header is good
 	return pubsub.ValidationAccept
 }
+
+// TODO(@Wondertan): We should request TrustingPeriod from the network's state params or
+//  listen for network params changes to always have a topical value.
 
 // isExpired checks if header is expired against trusting period.
 func isExpired(header header.Header, period time.Duration) bool {

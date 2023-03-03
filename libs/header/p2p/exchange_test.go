@@ -79,7 +79,7 @@ func TestExchange_RequestVerifiedHeadersFails(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Millisecond*500)
 	t.Cleanup(cancel)
 	_, err := exchg.GetVerifiedRange(ctx, h, 3)
-	require.Error(t, err)
+	assert.Error(t, err)
 
 	// ensure that peer was added to the blacklist
 	peers := exchg.peerTracker.connGater.ListBlockedPeers()

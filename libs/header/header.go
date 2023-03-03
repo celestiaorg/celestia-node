@@ -21,10 +21,8 @@ type Header interface {
 	LastHeader() Hash
 	// Time returns time when header was created.
 	Time() time.Time
-	// VerifyAdjacent validates adjacent untrusted header against trusted header.
-	VerifyAdjacent(Header) error
-	// VerifyNonAdjacent validates non-adjacent untrusted header against trusted header.
-	VerifyNonAdjacent(Header) error
+	// Verify validates given untrusted Header against trusted Header.
+	Verify(Header) error
 	// Validate performs basic validation to check for missed/incorrect fields.
 	Validate() error
 

@@ -72,28 +72,41 @@ func sendMessage(
 	}
 
 	headers := make([]*p2p_pb.HeaderResponse, 0)
-	totalRequestSize := uint64(0)
+
+	var totalRespLn uint64
 	for i := 0; i < int(req.Amount); i++ {
 		resp := new(p2p_pb.HeaderResponse)
-		msgSize, err := serde.Read(stream, resp)
-		if err != nil {
-			if err == io.EOF {
-				break
-			}
-			stream.Reset() //nolint:errcheck
-			return nil, 0, 0, fmt.Errorf("header/p2p: failed to read a response: %w", err)
+		respLn, readErr := serde.Read(stream, resp)
+		if readErr != nil {
+			err = readErr
+			break
 		}
 
-		totalRequestSize += uint64(msgSize)
+		totalRespLn += uint64(respLn)
 		headers = append(headers, resp)
 	}
 
 	duration := time.Since(startTime).Milliseconds()
-	if err = stream.Close(); err != nil {
-		log.Errorw("closing stream", "err", err)
+
+	// we allow the server side to explicitly close the connection
+	// if it does not have the requested range.
+	// In this case, server side will send us a response with ErrNotFound status code inside
+	// and then will close the stream.
+	// If the server side will have a part of the requested range, then it will send this part
+	// and then will close the connection
+	if err == io.EOF {
+		err = nil
 	}
 
-	return headers, totalRequestSize, uint64(duration), nil
+	if err == nil {
+		if closeErr := stream.Close(); closeErr != nil {
+			log.Errorw("closing stream", "err", closeErr)
+		}
+	} else {
+		// reset stream in case of an error
+		stream.Reset() //nolint:errcheck
+	}
+	return headers, totalRespLn, uint64(duration), err
 }
 
 // convertStatusCodeToError converts passed status code into an error.
