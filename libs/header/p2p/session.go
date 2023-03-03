@@ -184,10 +184,11 @@ func (s *session[H]) doRequest(
 	// update peer stats
 	stat.updateStats(size, duration)
 
+	responseLn := uint64(len(h))
 	// ensure that we received the correct amount of headers.
-	if uint64(len(h)) < req.Amount {
-		from := uint64(h[len(h)-1].Height())
-		amount := req.Amount - uint64(len(h))
+	if responseLn < req.Amount {
+		from := uint64(h[responseLn-1].Height())
+		amount := req.Amount - responseLn
 
 		select {
 		case <-s.ctx.Done():
