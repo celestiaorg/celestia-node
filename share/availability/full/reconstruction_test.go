@@ -266,5 +266,6 @@ func TestShareAvailable_DisconnectedFullNodes(t *testing.T) {
 	require.NoError(t, err, share.ErrNotAvailable)
 	err = full2.SharesAvailable(ctx, root)
 	require.NoError(t, err, share.ErrNotAvailable)
+	// wait for all routines to finish before exit, in case there are any errors to log
 	wg.Wait()
 }
