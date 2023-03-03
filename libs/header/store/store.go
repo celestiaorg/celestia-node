@@ -262,7 +262,7 @@ func (s *Store[H]) GetVerifiedRange(
 	}
 
 	for _, h := range headers {
-		err := from.VerifyAdjacent(h)
+		err := from.Verify(h)
 		if err != nil {
 			return nil, err
 		}
@@ -309,7 +309,16 @@ func (s *Store[H]) Append(ctx context.Context, headers ...H) (int, error) {
 	// collect valid headers
 	verified := make([]H, 0, lh)
 	for i, h := range headers {
-		err = head.VerifyAdjacent(h)
+		// currently store requires all headers to be appended sequentially and adjacently
+		// TODO(@Wondertan): Further pruning friendly Store design should reevaluate this requirement
+		if h.Height() != head.Height()+1 {
+			return 0, &header.ErrNonAdjacent{
+				Head:      head.Height(),
+				Attempted: h.Height(),
+			}
+		}
+
+		err = head.Verify(h)
 		if err != nil {
 			var verErr *header.VerifyError
 			if errors.As(err, &verErr) {

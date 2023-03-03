@@ -2,7 +2,7 @@ package header
 
 import "fmt"
 
-// VerifyError is thrown on during VerifyAdjacent and VerifyNonAdjacent if verification fails.
+// VerifyError is thrown on during Verify if it fails.
 type VerifyError struct {
 	Reason error
 }

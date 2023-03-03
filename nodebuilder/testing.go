@@ -12,7 +12,7 @@ import (
 
 	"github.com/celestiaorg/celestia-node/core"
 	coreheader "github.com/celestiaorg/celestia-node/header"
-	"github.com/celestiaorg/celestia-node/headertest"
+	"github.com/celestiaorg/celestia-node/header/headertest"
 	"github.com/celestiaorg/celestia-node/libs/fxutil"
 	"github.com/celestiaorg/celestia-node/libs/header/mocks"
 	"github.com/celestiaorg/celestia-node/nodebuilder/header"

@@ -8,8 +8,9 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/tendermint/tendermint/libs/rand"
 
+	"github.com/celestiaorg/celestia-node/header/headertest"
+
 	"github.com/celestiaorg/celestia-node/header"
-	"github.com/celestiaorg/celestia-node/headertest"
 )
 
 func TestMakeExtendedHeaderForEmptyBlock(t *testing.T) {
