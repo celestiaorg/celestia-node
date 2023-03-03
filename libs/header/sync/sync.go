@@ -317,16 +317,14 @@ func (s *Syncer[H]) requestHeaders(
 func (s *Syncer[H]) storeHeaders(ctx context.Context, headers []H) error {
 	// we don't expect any issues in storing right now, as all headers are now verified.
 	// So, we should return immediately in case an error appears.
-	stored, err := s.store.Append(ctx, headers...)
-	if err != nil {
+	if err := s.store.Append(ctx, headers...); err != nil {
 		return err
 	}
-	if stored > 0 {
-		s.syncedHead.Store(&headers[stored-1])
-	}
+
+	s.syncedHead.Store(&headers[len(headers)-1])
 
 	if s.metrics != nil {
-		s.metrics.recordTotalSynced(stored)
+		s.metrics.recordTotalSynced(len(headers))
 	}
 	return nil
 }

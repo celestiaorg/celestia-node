@@ -79,7 +79,7 @@ func TestDoSyncFullRangeFromExternalPeer(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, syncer.Start(ctx))
 
-	_, err = remoteStore.Append(ctx, suite.GenDummyHeaders(10)...)
+	err = remoteStore.Append(ctx, suite.GenDummyHeaders(10)...)
 	require.NoError(t, err)
 	// give store time to update heightSub index
 	time.Sleep(time.Millisecond * 100)
@@ -275,9 +275,9 @@ func TestSyncer_FindHeadersReturnsCorrectRange(t *testing.T) {
 	for _, h := range range1 {
 		syncer.pending.Add(h)
 	}
-	_, err = remoteStore.Append(ctx, range1...)
+	err = remoteStore.Append(ctx, range1...)
 	require.NoError(t, err)
-	_, err = remoteStore.Append(ctx, suite.GenDummyHeaders(9)...)
+	err = remoteStore.Append(ctx, suite.GenDummyHeaders(9)...)
 	require.NoError(t, err)
 
 	syncer.pending.Add(suite.GetRandomHeader())
