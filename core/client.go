@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	retryhttp "github.com/hashicorp/go-retryablehttp"
-
 	"github.com/tendermint/tendermint/rpc/client"
 	"github.com/tendermint/tendermint/rpc/client/http"
 )

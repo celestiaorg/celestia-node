@@ -5,7 +5,6 @@ import (
 	"errors"
 
 	"github.com/filecoin-project/dagstore"
-
 	"github.com/tendermint/tendermint/types"
 
 	"github.com/celestiaorg/celestia-app/pkg/da"

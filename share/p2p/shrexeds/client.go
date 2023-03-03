@@ -12,13 +12,13 @@ import (
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/libp2p/go-libp2p/core/protocol"
 
+	"github.com/celestiaorg/go-libp2p-messenger/serde"
+	"github.com/celestiaorg/rsmt2d"
+
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/eds"
 	"github.com/celestiaorg/celestia-node/share/p2p"
 	pb "github.com/celestiaorg/celestia-node/share/p2p/shrexeds/pb"
-
-	"github.com/celestiaorg/go-libp2p-messenger/serde"
-	"github.com/celestiaorg/rsmt2d"
 )
 
 // Client is responsible for requesting EDSs for blocksync over the ShrEx/EDS protocol.
