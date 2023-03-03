@@ -4,6 +4,7 @@ package full
 
 import (
 	"context"
+	"sync"
 	"testing"
 	"time"
 
@@ -213,9 +214,13 @@ func TestShareAvailable_DisconnectedFullNodes(t *testing.T) {
 	lights1, lights2 := make(
 		[]*availability_test.TestNode, lightNodes/2),
 		make([]*availability_test.TestNode, lightNodes/2)
+
+	var wg sync.WaitGroup
+	wg.Add(lightNodes)
 	for i := 0; i < len(lights1); i++ {
 		lights1[i] = light.Node(net)
 		go func(i int) {
+			defer wg.Done()
 			err := lights1[i].SharesAvailable(ctx, root)
 			if err != nil {
 				t.Log("light1 errors:", err)
@@ -224,6 +229,7 @@ func TestShareAvailable_DisconnectedFullNodes(t *testing.T) {
 
 		lights2[i] = light.Node(net)
 		go func(i int) {
+			defer wg.Done()
 			err := lights2[i].SharesAvailable(ctx, root)
 			if err != nil {
 				t.Log("light2 errors:", err)
@@ -260,4 +266,6 @@ func TestShareAvailable_DisconnectedFullNodes(t *testing.T) {
 	require.NoError(t, err, share.ErrNotAvailable)
 	err = full2.SharesAvailable(ctx, root)
 	require.NoError(t, err, share.ErrNotAvailable)
+	// wait for all routines to finish before exit, in case there are any errors to log
+	wg.Wait()
 }
