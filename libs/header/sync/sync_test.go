@@ -288,7 +288,7 @@ func TestSyncer_FindHeadersReturnsCorrectRange(t *testing.T) {
 	require.Equal(t, h[len(h)-1].Height(), int64(21))
 	header := h[0]
 	for i := 1; i < len(h); i++ {
-		require.NoError(t, header.VerifyAdjacent(h[i]))
+		require.NoError(t, header.Verify(h[i]))
 		header = h[i]
 	}
 }
