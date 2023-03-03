@@ -393,15 +393,18 @@ func TestExchange_RequestPartialRange(t *testing.T) {
 		hosts[2], headerMock.NewStore[*test.DummyHeader](t, test.NewTestSuite(t), 10),
 		WithNetworkID[ServerParameters](networkID),
 	)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	t.Cleanup(cancel)
+
 	require.NoError(t, err)
-	require.NoError(t, serverSideEx.Start(context.Background()))
+	require.NoError(t, serverSideEx.Start(ctx))
 	exchg.peerTracker.peerLk.Lock()
 	prevScoreBefore1 := exchg.peerTracker.trackedPeers[hosts[1].ID()].peerScore
 	prevScoreBefore2 := 50
 	// reducing peerScore of the second server, so our exchange will request host[1] first.
 	exchg.peerTracker.trackedPeers[hosts[2].ID()] = &peerStat{peerID: hosts[2].ID(), peerScore: 50}
 	exchg.peerTracker.peerLk.Unlock()
-	h, err := exchg.GetRangeByHeight(context.Background(), 1, 8)
+	h, err := exchg.GetRangeByHeight(ctx, 1, 8)
 	require.NotNil(t, h)
 	require.NoError(t, err)
 
