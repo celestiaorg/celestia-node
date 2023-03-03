@@ -7,6 +7,7 @@ package tests
 
 import (
 	"context"
+	"github.com/stretchr/testify/assert"
 	"sync"
 	"testing"
 	"time"
@@ -123,14 +124,16 @@ func TestSyncFullsWithBridge_Network_Stable_Latest_IPLD(t *testing.T) {
 	wg.Add(fullNodesCount)
 	for _, full := range fullNodes {
 		go func(f *nodebuilder.Node) {
+			defer wg.Done()
 			// first wait for full node to get to height 30
 			_, err := f.HeaderServ.GetByHeight(ctx, 30)
 			require.NoError(t, err)
 			// and ensure it DASes up to that height
 			err = f.DASer.WaitCatchUp(ctx)
 			require.NoError(t, err)
-
-			wg.Done()
+			stats, err := f.DASer.SamplingStats(ctx)
+			require.NoError(t, err)
+			assert.GreaterOrEqual(t, stats.CatchupHead, uint64(30))
 		}(full)
 	}
 	wg.Wait()
