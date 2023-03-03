@@ -6,10 +6,9 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	tmrand "github.com/tendermint/tendermint/libs/rand"
 
 	libhead "github.com/celestiaorg/celestia-node/libs/header"
-
-	tmrand "github.com/tendermint/tendermint/libs/rand"
 )
 
 func TestVerify(t *testing.T) {

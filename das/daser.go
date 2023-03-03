@@ -6,8 +6,6 @@ import (
 	"fmt"
 	"sync/atomic"
 
-	"github.com/celestiaorg/celestia-node/share/p2p/shrexsub"
-
 	"github.com/ipfs/go-datastore"
 	logging "github.com/ipfs/go-log/v2"
 
@@ -16,6 +14,7 @@ import (
 	libhead "github.com/celestiaorg/celestia-node/libs/header"
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/eds/byzantine"
+	"github.com/celestiaorg/celestia-node/share/p2p/shrexsub"
 )
 
 var log = logging.Logger("das")

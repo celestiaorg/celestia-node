@@ -54,6 +54,11 @@ func (p *pool) tryGet() (peer.ID, bool) {
 		return "", false
 	}
 
+	// if pointer is out of range, point to first element
+	if p.nextIdx > len(p.peersList)-1 {
+		p.nextIdx = 0
+	}
+
 	start := p.nextIdx
 	for {
 		peerID := p.peersList[p.nextIdx]
@@ -137,22 +142,13 @@ func (p *pool) remove(peers ...peer.ID) {
 // cleanup will reduce memory footprint of pool.
 func (p *pool) cleanup() {
 	newList := make([]peer.ID, 0, p.activeCount)
-	for idx, peerID := range p.peersList {
+	for _, peerID := range p.peersList {
 		status := p.statuses[peerID]
 		switch status {
 		case active, cooldown:
 			newList = append(newList, peerID)
 		case removed:
 			delete(p.statuses, peerID)
-		}
-
-		if idx == p.nextIdx {
-			// if peer is not active and no more active peers left in list point to first peer
-			if status != active && len(newList) >= p.activeCount {
-				p.nextIdx = 0
-				continue
-			}
-			p.nextIdx = len(newList)
 		}
 	}
 	p.peersList = newList

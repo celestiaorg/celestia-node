@@ -13,13 +13,13 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/celestiaorg/celestia-app/pkg/da"
+	"github.com/celestiaorg/nmt/namespace"
+	"github.com/celestiaorg/rsmt2d"
+
 	"github.com/celestiaorg/celestia-node/share"
 	availability_test "github.com/celestiaorg/celestia-node/share/availability/test"
 	"github.com/celestiaorg/celestia-node/share/eds"
 	"github.com/celestiaorg/celestia-node/share/p2p/shrexnd"
-
-	"github.com/celestiaorg/nmt/namespace"
-	"github.com/celestiaorg/rsmt2d"
 )
 
 func TestGetSharesWithProofByNamespace(t *testing.T) {
