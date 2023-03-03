@@ -222,7 +222,7 @@ func (serv *ExchangeServer[H]) handleRequest(from, to uint64) ([]H, error) {
 			return nil, header.ErrNotFound
 		}
 
-		log.Debugw("server: change requested range",
+		log.Debugw("server: serving partial range",
 			"prevMaxHeight", to,
 			"newMaxHeight", uint64(head.Height())+1,
 		)

@@ -394,7 +394,7 @@ func TestExchange_RequestPartialRange(t *testing.T) {
 		WithNetworkID[ServerParameters](networkID),
 	)
 	require.NoError(t, err)
-	require.NoError(t, serverSideEx.Start(context.TODO()))
+	require.NoError(t, serverSideEx.Start(context.Background()))
 	exchg.peerTracker.peerLk.Lock()
 	prevScoreBefore1 := exchg.peerTracker.trackedPeers[hosts[1].ID()].peerScore
 	prevScoreBefore2 := 50
