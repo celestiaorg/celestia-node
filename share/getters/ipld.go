@@ -109,9 +109,9 @@ var sessionKey = &session{}
 // session is a struct that can optionally be passed by context to the share.Getter methods using
 // WithSession to indicate that a blockservice session should be created.
 type session struct {
-	ctx context.Context
 	sync.Mutex
 	atomic.Pointer[blockservice.Session]
+	ctx context.Context
 }
 
 // WithSession stores an empty session in the context, indicating that a blockservice session should
