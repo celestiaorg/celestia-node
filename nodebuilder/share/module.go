@@ -60,6 +60,15 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 				return getter.Stop(ctx)
 			}),
 		)),
+		fx.Provide(
+			func(ctx context.Context, h host.Host, network modp2p.Network) (*shrexsub.PubSub, error) {
+				return shrexsub.NewPubSub(
+					ctx,
+					h,
+					string(network),
+				)
+			},
+		),
 	)
 
 	switch tp {
@@ -139,15 +148,6 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 			fx.Provide(func(avail *full.ShareAvailability) share.Availability {
 				return avail
 			}),
-			fx.Provide(
-				func(ctx context.Context, h host.Host, network modp2p.Network) (*shrexsub.PubSub, error) {
-					return shrexsub.NewPubSub(
-						ctx,
-						h,
-						string(network),
-					)
-				},
-			),
 			fx.Provide(func(shrexSub *shrexsub.PubSub) shrexsub.BroadcastFn {
 				return shrexSub.Broadcast
 			}),
