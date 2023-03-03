@@ -159,7 +159,6 @@ func (s *session[H]) doRequest(
 			stat.decreaseScore()
 		default:
 			s.peerTracker.blockPeer(stat.peerID, err)
-			log.Errorw("parsing headers failed", "failed peer", stat.peerID, "err", err)
 		}
 
 		// exclude header.ErrNotFound from being logged as it is a `valid` error
