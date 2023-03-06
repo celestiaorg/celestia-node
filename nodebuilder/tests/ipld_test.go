@@ -19,7 +19,7 @@ import (
 )
 
 /*
-Test-Case: Sync a group of Full Nodes with a Bridge Node (includes DASing of non-empty blocks)
+Test-Case: Sync a group of Full Nodes with a Bridge Node (includes DASing of non-empty 128-square size blocks)
 
 Steps:
 1. Create a Bridge Node(BN)
@@ -36,7 +36,7 @@ func TestSyncFullsWithBridge_Network_Stable_Latest_IPLD(t *testing.T) {
 	t.Cleanup(cancel)
 
 	sw := swamp.NewSwamp(t, swamp.WithBlockTime(btime))
-	fillDn := swamp.FillBlocks(ctx, sw.ClientContext, sw.Accounts, bsize, 30)
+	fillDn := swamp.FillBlocks(ctx, sw.ClientContext, sw.Accounts, 128, 30)
 
 	bridge := sw.NewBridgeNode()
 
@@ -75,7 +75,7 @@ func TestSyncFullsWithBridge_Network_Stable_Latest_IPLD(t *testing.T) {
 			require.NoError(t, err)
 			stats, err := f.DASer.SamplingStats(ctx)
 			require.NoError(t, err)
-			t.Log("stats: ", stats.Failed)
+			assert.Len(t, stats.Failed, 0)
 			assert.GreaterOrEqual(t, stats.CatchupHead, uint64(30))
 		}(full)
 	}
