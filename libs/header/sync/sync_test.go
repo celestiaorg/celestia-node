@@ -255,7 +255,7 @@ func TestSyncer_FindHeadersReturnsCorrectRange(t *testing.T) {
 	// 1. get range of headers from pending; [2;11]
 	// 2. get headers from the remote store; [12;20]
 	// 3. apply last header from pending;
-	ctx, cancel := context.WithTimeout(context.Background(), time.Minute*5)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	t.Cleanup(cancel)
 
 	suite := test.NewTestSuite(t)
