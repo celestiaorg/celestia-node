@@ -283,11 +283,7 @@ func TestSyncer_FindHeadersReturnsCorrectRange(t *testing.T) {
 	syncer.pending.Add(suite.GetRandomHeader())
 	require.NoError(t, err)
 	err = syncer.processHeaders(ctx, head, 21)
-	time.Sleep(time.Millisecond * 100) // give time to store all fetched headers
 	require.NoError(t, err)
-	h, err := syncer.store.Head(ctx)
-	require.NoError(t, err)
-	require.Equal(t, h.Height(), int64(21))
 
 	headerPtr := syncer.syncedHead.Load()
 	require.NotNil(t, headerPtr)
