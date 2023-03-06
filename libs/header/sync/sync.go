@@ -265,6 +265,7 @@ func (s *Syncer[H]) processHeaders(
 			break
 		}
 
+		// check that returned range is adjacent to `fromHead`
 		if fromHead.Height()+1 != headers[0].Height() {
 			// make an external request
 			err = s.requestHeaders(ctx, fromHead, uint64(headers[0].Height()-1))

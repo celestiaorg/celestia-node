@@ -288,6 +288,10 @@ func TestSyncer_FindHeadersReturnsCorrectRange(t *testing.T) {
 	h, err := syncer.store.Head(ctx)
 	require.NoError(t, err)
 	require.Equal(t, h.Height(), int64(21))
+
+	headerPtr := syncer.syncedHead.Load()
+	require.NotNil(t, headerPtr)
+	assert.Equal(t, (*headerPtr).Height(), int64(21))
 }
 
 type exchangeCountingHead struct {
