@@ -23,7 +23,6 @@ import (
 	"github.com/celestiaorg/celestia-node/header"
 	libhead "github.com/celestiaorg/celestia-node/libs/header"
 	"github.com/celestiaorg/celestia-node/libs/keystore"
-	"github.com/celestiaorg/celestia-node/logs"
 	"github.com/celestiaorg/celestia-node/nodebuilder"
 	coremodule "github.com/celestiaorg/celestia-node/nodebuilder/core"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
@@ -60,7 +59,7 @@ type Swamp struct {
 // NewSwamp creates a new instance of Swamp.
 func NewSwamp(t *testing.T, options ...Option) *Swamp {
 	if testing.Verbose() {
-		logs.SetDebugLogging()
+		//logs.SetDebugLogging()
 	}
 
 	ic := DefaultConfig()
