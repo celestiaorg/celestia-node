@@ -254,21 +254,31 @@ func (s *Syncer[H]) processHeaders(
 	fromHead H,
 	to uint64,
 ) (err error) {
-	cached := s.pending.cached(fromHead, to)
-	for _, cachedRange := range cached {
-		if fromHead.Height()+1 != cachedRange[0].Height() {
+	for {
+		headersRange, ok := s.pending.First()
+		if !ok {
+			break
+		}
+
+		headers, amount := headersRange.Before(to)
+		if amount == 0 {
+			break
+		}
+
+		if fromHead.Height()+1 != headers[0].Height() {
 			// make an external request
-			err = s.requestHeaders(ctx, fromHead, uint64(cachedRange[0].Height())-1)
+			err = s.requestHeaders(ctx, fromHead, uint64(headers[0].Height()-1))
 			if err != nil {
 				return err
 			}
 		}
+
 		// apply cached headers
-		if err = s.storeHeaders(ctx, cachedRange); err != nil {
+		if err = s.storeHeaders(ctx, headers); err != nil {
 			return err
 		}
 		// update fromHead for the next iteration
-		fromHead = cachedRange[len(cachedRange)-1]
+		fromHead = headers[len(headers)-1]
 	}
 	return s.requestHeaders(ctx, fromHead, to)
 }
