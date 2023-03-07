@@ -9,8 +9,9 @@ import (
 
 var (
 	// ErrInvalidAvailOption is an error that is returned by FullAvailabilityPameters.Validate
-	// LightAvailabilityPameters.Validate and ShareParameters.Validate when supplied with invalid values.
-	// This error will also be returned by NewShareAvailability if supplied with an invalid option
+	// LightAvailabilityPameters.Validate and ShareParameters.Validate when supplied with invalid
+	// values. This error will also be returned by NewShareAvailability if supplied with an invalid
+	// option
 	ErrInvalidAvailOption = fmt.Errorf("availability: invalid option")
 
 	// ErrInvalidAvailOption is an error that is returned by DiscoveryParameters.Validate
@@ -33,26 +34,29 @@ type Parameters interface {
 // Option is a function that configures a ShareParameters
 type Option[T Parameters] func(*T)
 
-// FullAvailabilityParameters is the set of parameters that must be configured for the full availability implementation
+// FullAvailabilityParameters is the set of parameters that must be configured for the full
+// availability implementation
 type FullAvailabilityParameters struct {
-	// AvailabilityTimeout specifies timeout for DA validation during which data have to be found on the network,
-	// otherwise ErrNotAvailable is fired.
+	// AvailabilityTimeout specifies timeout for DA validation during which data have to be found on
+	// the network, otherwise ErrNotAvailable is fired.
 	// TODO: https://github.com/celestiaorg/celestia-node/issues/10)
 	AvailabilityTimeout time.Duration
 }
 
-// LightAvailabilityParameters is the set of parameters that must be configured for the light availability implementation
+// LightAvailabilityParameters is the set of parameters that must be configured for the light
+// availability implementation
 type LightAvailabilityParameters struct {
 	FullAvailabilityParameters
 	SampleAmount uint // The minimum required amount of samples to perform
 }
 
-// CacheAvailabilityParameters is the set of parameters that must be configured for cache availability implementation
+// CacheAvailabilityParameters is the set of parameters that must be configured for cache
+// availability implementation
 type CacheAvailabilityParamaters struct {
 	// DefaultWriteBatchSize defines the size of the batched header write.
 	// Headers are written in batches not to thrash the underlying Datastore with writes.
-	// TODO(@Wondertan, @renaynay): Those values must be configurable and proper defaults should be set for specific node
-	//  type. (#709)
+	// TODO(@Wondertan, @renaynay): Those values must be configurable and proper defaults should be set
+	// for specific node  type. (#709)
 	WriteBatchSize uint
 	// The string prefix to use as a key for the datastore
 	CacheAvailabilityPrefix string
@@ -157,6 +161,7 @@ func WithSampleAmount[T Parameters](sampleAmount uint) Option[T] {
 		switch t := any(p).(type) {
 		case *LightAvailabilityParameters:
 			t.SampleAmount = sampleAmount
+		default:
 		}
 	}
 }
@@ -209,6 +214,7 @@ func WithWriteBatchSize[T Parameters](writeBatchSize uint) Option[T] {
 		switch t := any(p).(type) {
 		case *CacheAvailabilityParamaters:
 			t.WriteBatchSize = writeBatchSize
+		default: // keep an empty default to silence linter
 		}
 	}
 }
@@ -222,6 +228,7 @@ func WithCacheAvailabilityPrefix[T Parameters](prefix string) Option[T] {
 		switch t := any(p).(type) {
 		case *CacheAvailabilityParamaters:
 			t.CacheAvailabilityPrefix = prefix
+		default: // keep an empty default to silence linter
 		}
 	}
 }
@@ -283,6 +290,7 @@ func WithPeersLimit[T Parameters](peersLimit uint) Option[T] {
 		switch t := any(p).(type) {
 		case *DiscoveryParameters:
 			t.PeersLimit = peersLimit
+		default: // keep an empty default to silence linter
 		}
 	}
 }
@@ -296,6 +304,7 @@ func WithDiscoveryInterval[T Parameters](discInterval time.Duration) Option[T] {
 		switch t := any(p).(type) {
 		case *DiscoveryParameters:
 			t.DiscoveryInterval = discInterval
+		default: // keep an empty default to silence linter
 		}
 	}
 }
@@ -309,6 +318,7 @@ func WithAdvertiseInterval[T Parameters](advInterval time.Duration) Option[T] {
 		switch t := any(p).(type) {
 		case *DiscoveryParameters:
 			t.AdvertiseInterval = advInterval
+		default: // keep an empty default to silence linter
 		}
 	}
 }
