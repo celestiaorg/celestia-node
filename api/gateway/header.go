@@ -20,7 +20,7 @@ var (
 )
 
 func (h *Handler) handleHeadRequest(w http.ResponseWriter, r *http.Request) {
-	head, err := h.header.Head(r.Context())
+	head, err := h.header.LocalHead(r.Context())
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, headEndpoint, err)
 		return

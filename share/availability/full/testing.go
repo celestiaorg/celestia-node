@@ -41,9 +41,9 @@ func TestAvailability(getter share.Getter) *ShareAvailability {
 	disc := discovery.NewDiscovery(
 		nil,
 		routing.NewRoutingDiscovery(routinghelpers.Null{}),
-		availability.WithPeersLimit[availability.DiscoveryParameters](10),
+		availability.WithPeersLimit[availability.DiscoveryParameters](0),
 		availability.WithDiscoveryInterval[availability.DiscoveryParameters](time.Second),
 		availability.WithAdvertiseInterval[availability.DiscoveryParameters](time.Second),
 	)
-	return NewShareAvailability(getter, disc)
+	return NewShareAvailability(nil, getter, disc)
 }

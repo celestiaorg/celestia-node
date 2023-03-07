@@ -10,11 +10,12 @@ import (
 	"github.com/libp2p/go-libp2p/core/network"
 	"github.com/libp2p/go-libp2p/core/protocol"
 
+	"github.com/celestiaorg/go-libp2p-messenger/serde"
+
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/eds"
 	"github.com/celestiaorg/celestia-node/share/p2p"
 	p2p_pb "github.com/celestiaorg/celestia-node/share/p2p/shrexeds/pb"
-	"github.com/celestiaorg/go-libp2p-messenger/serde"
 )
 
 // Server is responsible for serving ODSs for blocksync over the ShrEx/EDS protocol.
@@ -44,7 +45,7 @@ func NewServer(host host.Host, store *eds.Store, opts ...Option) (*Server, error
 	return &Server{
 		host:       host,
 		store:      store,
-		protocolID: protocolID(params.protocolSuffix),
+		protocolID: protocolID(params.networkID),
 		params:     params,
 	}, nil
 }
@@ -107,7 +108,7 @@ func (s *Server) handleStream(stream network.Stream) {
 	// start streaming the ODS to the client
 	err = s.writeODS(edsReader, stream)
 	if err != nil {
-		log.Errorw("server: writing ods to stream", "err", err)
+		log.Errorw("server: writing ods to stream", "hash", hash.String(), "err", err)
 		stream.Reset() //nolint:errcheck
 		return
 	}

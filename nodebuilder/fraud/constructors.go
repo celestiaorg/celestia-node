@@ -28,7 +28,7 @@ func newFraudService(syncerEnabled bool) func(
 		ds datastore.Batching,
 		network p2p.Network,
 	) (Module, fraud.Service, error) {
-		pservice := fraud.NewProofService(sub, host, hstore.GetByHeight, ds, syncerEnabled, string(network))
+		pservice := fraud.NewProofService(sub, host, hstore.GetByHeight, ds, syncerEnabled, network.String())
 		lc.Append(fx.Hook{
 			OnStart: pservice.Start,
 			OnStop:  pservice.Stop,

@@ -4,13 +4,13 @@ import (
 	"context"
 	"testing"
 
-	"github.com/ipfs/go-bitswap"
-	"github.com/ipfs/go-bitswap/network"
 	"github.com/ipfs/go-blockservice"
 	ds "github.com/ipfs/go-datastore"
 	dssync "github.com/ipfs/go-datastore/sync"
 	blockstore "github.com/ipfs/go-ipfs-blockstore"
 	"github.com/ipfs/go-ipfs-routing/offline"
+	"github.com/ipfs/go-libipfs/bitswap"
+	"github.com/ipfs/go-libipfs/bitswap/network"
 	record "github.com/libp2p/go-libp2p-record"
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/peer"
@@ -18,6 +18,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/celestiaorg/celestia-app/pkg/da"
+
 	"github.com/celestiaorg/celestia-node/share"
 )
 

@@ -24,7 +24,7 @@ const fraudRequests = 5
 // ProofService is responsible for validating and propagating Fraud Proofs.
 // It implements the Service interface.
 type ProofService struct {
-	protocolSuffix string
+	networkID string
 
 	ctx    context.Context
 	cancel context.CancelFunc
@@ -49,24 +49,24 @@ func NewProofService(
 	getter headerFetcher,
 	ds datastore.Datastore,
 	syncerEnabled bool,
-	protocolSuffix string,
+	networkID string,
 ) *ProofService {
 	return &ProofService{
-		pubsub:         p,
-		host:           host,
-		getter:         getter,
-		topics:         make(map[ProofType]*pubsub.Topic),
-		stores:         make(map[ProofType]datastore.Datastore),
-		ds:             ds,
-		protocolSuffix: protocolSuffix,
-		syncerEnabled:  syncerEnabled,
+		pubsub:        p,
+		host:          host,
+		getter:        getter,
+		topics:        make(map[ProofType]*pubsub.Topic),
+		stores:        make(map[ProofType]datastore.Datastore),
+		ds:            ds,
+		networkID:     networkID,
+		syncerEnabled: syncerEnabled,
 	}
 }
 
 // registerProofTopics registers proofTypes as pubsub topics to be joined.
 func (f *ProofService) registerProofTopics(proofTypes ...ProofType) error {
 	for _, proofType := range proofTypes {
-		t, err := join(f.pubsub, proofType, f.protocolSuffix, f.processIncoming)
+		t, err := join(f.pubsub, proofType, f.networkID, f.processIncoming)
 		if err != nil {
 			return err
 		}
@@ -84,7 +84,7 @@ func (f *ProofService) Start(context.Context) error {
 	if err := f.registerProofTopics(registeredProofTypes()...); err != nil {
 		return err
 	}
-	id := protocolID(f.protocolSuffix)
+	id := protocolID(f.networkID)
 	log.Infow("starting fraud proof service", "protocol ID", id)
 
 	f.host.SetStreamHandler(id, f.handleFraudMessageRequest)
@@ -96,7 +96,7 @@ func (f *ProofService) Start(context.Context) error {
 
 // Stop removes the stream handler and cancels the underlying ProofService
 func (f *ProofService) Stop(context.Context) error {
-	f.host.RemoveStreamHandler(protocolID(f.protocolSuffix))
+	f.host.RemoveStreamHandler(protocolID(f.networkID))
 	f.cancel()
 	return nil
 }

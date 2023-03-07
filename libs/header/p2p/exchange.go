@@ -33,6 +33,8 @@ type Exchange[H header.Header] struct {
 	peerTracker  *peerTracker
 
 	Params ClientParameters
+
+	metrics *metrics
 }
 
 func NewExchange[H header.Header](
@@ -53,7 +55,7 @@ func NewExchange[H header.Header](
 
 	return &Exchange[H]{
 		host:         host,
-		protocolID:   protocolID(params.protocolSuffix),
+		protocolID:   protocolID(params.networkID),
 		trustedPeers: peers,
 		peerTracker: newPeerTracker(
 			host,
@@ -115,6 +117,7 @@ func (ex *Exchange[H]) Head(ctx context.Context) (H, error) {
 	// request head from each trusted peer
 	for _, from := range ex.trustedPeers {
 		go func(from peer.ID) {
+			// request ensures that the result slice will have at least one Header
 			headers, err := ex.request(ctx, from, req)
 			if err != nil {
 				log.Errorw("head request to trusted peer failed", "trustedPeer", from, "err", err)
@@ -122,7 +125,6 @@ func (ex *Exchange[H]) Head(ctx context.Context) (H, error) {
 				headerCh <- zero
 				return
 			}
-			// doRequest ensures that the result slice will have at least one Header
 			headerCh <- headers[0]
 		}(from)
 	}
@@ -170,6 +172,9 @@ func (ex *Exchange[H]) GetByHeight(ctx context.Context, height uint64) (H, error
 // GetRangeByHeight performs a request for the given range of Headers
 // to the network. Note that the Headers must be verified thereafter.
 func (ex *Exchange[H]) GetRangeByHeight(ctx context.Context, from, amount uint64) ([]H, error) {
+	if amount == 0 {
+		return make([]H, 0), nil
+	}
 	if amount > ex.Params.MaxRequestSize {
 		return nil, header.ErrHeadersLimitExceeded
 	}
@@ -185,6 +190,9 @@ func (ex *Exchange[H]) GetVerifiedRange(
 	from H,
 	amount uint64,
 ) ([]H, error) {
+	if amount == 0 {
+		return make([]H, 0), nil
+	}
 	session := newSession[H](
 		ex.ctx, ex.host, ex.peerTracker, ex.protocolID, ex.Params.RequestTimeout, withValidation(from),
 	)
@@ -226,22 +234,25 @@ func (ex *Exchange[H]) performRequest(
 	if len(ex.trustedPeers) == 0 {
 		return nil, fmt.Errorf("no trusted peers")
 	}
-
-	for {
+	var reqErr error
+	for i := 0; i < len(ex.trustedPeers); i++ {
 		//nolint:gosec // G404: Use of weak random number generator
 		idx := rand.Intn(len(ex.trustedPeers))
-		ctx, cancel := context.WithTimeout(ctx, ex.Params.TrustedPeersRequestTimeout)
 
+		ctx, cancel := context.WithTimeout(ctx, ex.Params.TrustedPeersRequestTimeout)
 		h, err := ex.request(ctx, ex.trustedPeers[idx], req)
 		cancel()
 		switch err {
 		default:
-			log.Debug(err)
+			reqErr = err
+			log.Debugw("requesting header from trustedPeer failed",
+				"trustedPeer", ex.trustedPeers[idx], "err", err)
 			continue
 		case context.Canceled, context.DeadlineExceeded, nil:
 			return h, err
 		}
 	}
+	return nil, reqErr
 }
 
 // request sends the HeaderRequest to a remote peer.
@@ -251,14 +262,13 @@ func (ex *Exchange[H]) request(
 	req *p2p_pb.HeaderRequest,
 ) ([]H, error) {
 	log.Debugw("requesting peer", "peer", to)
-	responses, _, _, err := sendMessage(ctx, ex.host, to, ex.protocolID, req)
+	responses, size, duration, err := sendMessage(ctx, ex.host, to, ex.protocolID, req)
+	ex.metrics.observeResponse(ctx, size, duration, err)
 	if err != nil {
 		log.Debugw("err sending request", "peer", to, "err", err)
 		return nil, err
 	}
-	if len(responses) == 0 {
-		return nil, header.ErrNotFound
-	}
+
 	headers := make([]H, 0, len(responses))
 	for _, response := range responses {
 		if err = convertStatusCodeToError(response.StatusCode); err != nil {
@@ -270,7 +280,15 @@ func (ex *Exchange[H]) request(
 		if err != nil {
 			return nil, err
 		}
+		err = validateChainID(ex.Params.chainID, header.(H).ChainID())
+		if err != nil {
+			return nil, err
+		}
 		headers = append(headers, header.(H))
+	}
+
+	if len(headers) == 0 {
+		return nil, header.ErrNotFound
 	}
 	return headers, nil
 }

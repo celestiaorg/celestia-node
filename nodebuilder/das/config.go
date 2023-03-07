@@ -2,8 +2,10 @@ package das
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/celestiaorg/celestia-node/das"
+	modp2p "github.com/celestiaorg/celestia-node/nodebuilder/p2p"
 )
 
 // Config contains configuration parameters for the DASer (or DASing process)
@@ -16,7 +18,9 @@ type Config das.Parameters
 //
 // TODO(@derrandz): Address #1261
 func DefaultConfig() Config {
-	return Config(das.DefaultParameters())
+	cfg := das.DefaultParameters()
+	cfg.SampleTimeout = modp2p.BlockTime * time.Duration(cfg.ConcurrencyLimit)
+	return Config(cfg)
 }
 
 // Validate performs basic validation of the config.

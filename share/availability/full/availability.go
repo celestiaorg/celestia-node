@@ -10,6 +10,7 @@ import (
 	"github.com/celestiaorg/celestia-node/share"
 	availability "github.com/celestiaorg/celestia-node/share/availability"
 	"github.com/celestiaorg/celestia-node/share/availability/discovery"
+	"github.com/celestiaorg/celestia-node/share/eds"
 	"github.com/celestiaorg/celestia-node/share/eds/byzantine"
 )
 
@@ -19,6 +20,7 @@ var log = logging.Logger("share/full")
 // recovery technique. It is considered "full" because it is required
 // to download enough shares to fully reconstruct the data square.
 type ShareAvailability struct {
+	store  *eds.Store
 	getter share.Getter
 	disc   *discovery.Discovery
 
@@ -29,6 +31,7 @@ type ShareAvailability struct {
 
 // NewShareAvailability creates a new full ShareAvailability.
 func NewShareAvailability(
+	store *eds.Store,
 	getter share.Getter,
 	disc *discovery.Discovery,
 	opts ...availability.Option[availability.FullAvailabilityParameters],
@@ -40,6 +43,7 @@ func NewShareAvailability(
 	}
 
 	return &ShareAvailability{
+		store:  store,
 		getter: getter,
 		disc:   disc,
 		params: params,
@@ -62,14 +66,19 @@ func (fa *ShareAvailability) Stop(context.Context) error {
 // SharesAvailable reconstructs the data committed to the given Root by requesting
 // enough Shares from the network.
 func (fa *ShareAvailability) SharesAvailable(ctx context.Context, root *share.Root) error {
-	ctx, cancel := context.WithTimeout(ctx, fa.params.AvailabilityTimeout)
-	defer cancel()
 	// we assume the caller of this method has already performed basic validation on the
 	// given dah/root. If for some reason this has not happened, the node should panic.
 	if err := root.ValidateBasic(); err != nil {
 		log.Errorw("Availability validation cannot be performed on a malformed DataAvailabilityHeader",
 			"err", err)
 		panic(err)
+	}
+
+	// a hack to avoid loading the whole EDS in mem if we store it already.
+	if fa.store != nil {
+		if ok, _ := fa.store.Has(ctx, root.Hash()); ok {
+			return nil
+		}
 	}
 
 	_, err := fa.getter.GetEDS(ctx, root)

@@ -11,6 +11,8 @@ import (
 	gomock "github.com/golang/mock/gomock"
 
 	header "github.com/celestiaorg/celestia-node/header"
+	header0 "github.com/celestiaorg/celestia-node/libs/header"
+	sync "github.com/celestiaorg/celestia-node/libs/header/sync"
 )
 
 // MockModule is a mock of Module interface.
@@ -36,6 +38,21 @@ func (m *MockModule) EXPECT() *MockModuleMockRecorder {
 	return m.recorder
 }
 
+// GetByHash mocks base method.
+func (m *MockModule) GetByHash(arg0 context.Context, arg1 header0.Hash) (*header.ExtendedHeader, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetByHash", arg0, arg1)
+	ret0, _ := ret[0].(*header.ExtendedHeader)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetByHash indicates an expected call of GetByHash.
+func (mr *MockModuleMockRecorder) GetByHash(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetByHash", reflect.TypeOf((*MockModule)(nil).GetByHash), arg0, arg1)
+}
+
 // GetByHeight mocks base method.
 func (m *MockModule) GetByHeight(arg0 context.Context, arg1 uint64) (*header.ExtendedHeader, error) {
 	m.ctrl.T.Helper()
@@ -51,31 +68,76 @@ func (mr *MockModuleMockRecorder) GetByHeight(arg0, arg1 interface{}) *gomock.Ca
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetByHeight", reflect.TypeOf((*MockModule)(nil).GetByHeight), arg0, arg1)
 }
 
-// Head mocks base method.
-func (m *MockModule) Head(arg0 context.Context) (*header.ExtendedHeader, error) {
+// GetVerifiedRangeByHeight mocks base method.
+func (m *MockModule) GetVerifiedRangeByHeight(arg0 context.Context, arg1 *header.ExtendedHeader, arg2 uint64) ([]*header.ExtendedHeader, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Head", arg0)
+	ret := m.ctrl.Call(m, "GetVerifiedRangeByHeight", arg0, arg1, arg2)
+	ret0, _ := ret[0].([]*header.ExtendedHeader)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetVerifiedRangeByHeight indicates an expected call of GetVerifiedRangeByHeight.
+func (mr *MockModuleMockRecorder) GetVerifiedRangeByHeight(arg0, arg1, arg2 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetVerifiedRangeByHeight", reflect.TypeOf((*MockModule)(nil).GetVerifiedRangeByHeight), arg0, arg1, arg2)
+}
+
+// LocalHead mocks base method.
+func (m *MockModule) LocalHead(arg0 context.Context) (*header.ExtendedHeader, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "LocalHead", arg0)
 	ret0, _ := ret[0].(*header.ExtendedHeader)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// Head indicates an expected call of Head.
-func (mr *MockModuleMockRecorder) Head(arg0 interface{}) *gomock.Call {
+// LocalHead indicates an expected call of LocalHead.
+func (mr *MockModuleMockRecorder) LocalHead(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Head", reflect.TypeOf((*MockModule)(nil).Head), arg0)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "LocalHead", reflect.TypeOf((*MockModule)(nil).LocalHead), arg0)
 }
 
-// IsSyncing mocks base method.
-func (m *MockModule) IsSyncing(arg0 context.Context) bool {
+// NetworkHead mocks base method.
+func (m *MockModule) NetworkHead(arg0 context.Context) (*header.ExtendedHeader, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "IsSyncing", arg0)
-	ret0, _ := ret[0].(bool)
+	ret := m.ctrl.Call(m, "NetworkHead", arg0)
+	ret0, _ := ret[0].(*header.ExtendedHeader)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// NetworkHead indicates an expected call of NetworkHead.
+func (mr *MockModuleMockRecorder) NetworkHead(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "NetworkHead", reflect.TypeOf((*MockModule)(nil).NetworkHead), arg0)
+}
+
+// SyncState mocks base method.
+func (m *MockModule) SyncState(arg0 context.Context) (sync.State, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SyncState", arg0)
+	ret0, _ := ret[0].(sync.State)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// SyncState indicates an expected call of SyncState.
+func (mr *MockModuleMockRecorder) SyncState(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SyncState", reflect.TypeOf((*MockModule)(nil).SyncState), arg0)
+}
+
+// SyncWait mocks base method.
+func (m *MockModule) SyncWait(arg0 context.Context) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SyncWait", arg0)
+	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// IsSyncing indicates an expected call of IsSyncing.
-func (mr *MockModuleMockRecorder) IsSyncing(arg0 interface{}) *gomock.Call {
+// SyncWait indicates an expected call of SyncWait.
+func (mr *MockModuleMockRecorder) SyncWait(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsSyncing", reflect.TypeOf((*MockModule)(nil).IsSyncing), arg0)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SyncWait", reflect.TypeOf((*MockModule)(nil).SyncWait), arg0)
 }

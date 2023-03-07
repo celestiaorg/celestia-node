@@ -14,10 +14,10 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/celestiaorg/celestia-node/share"
-
 	"github.com/celestiaorg/celestia-app/pkg/da"
 	"github.com/celestiaorg/rsmt2d"
+
+	"github.com/celestiaorg/celestia-node/share"
 )
 
 func TestEDSStore(t *testing.T) {
@@ -36,7 +36,7 @@ func TestEDSStore(t *testing.T) {
 		// shard hasn't been registered yet
 		has, err := edsStore.Has(ctx, dah.Hash())
 		assert.False(t, has)
-		assert.Error(t, err, "shard not found")
+		assert.NoError(t, err)
 
 		err = edsStore.Put(ctx, dah.Hash(), eds)
 		assert.NoError(t, err)
@@ -116,7 +116,7 @@ func TestEDSStore(t *testing.T) {
 		eds, dah := randomEDS(t)
 
 		ok, err := edsStore.Has(ctx, dah.Hash())
-		assert.Error(t, err, "shard not found")
+		assert.NoError(t, err)
 		assert.False(t, ok)
 
 		err = edsStore.Put(ctx, dah.Hash(), eds)

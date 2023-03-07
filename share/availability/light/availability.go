@@ -57,8 +57,6 @@ func (la *ShareAvailability) SharesAvailable(ctx context.Context, dah *share.Roo
 	// indicate to the share.Getter that a blockservice session should be created. This
 	// functionality is optional and must be supported by the used share.Getter.
 	ctx = getters.WithSession(ctx)
-	ctx, cancel := context.WithTimeout(ctx, la.params.AvailabilityTimeout)
-	defer cancel()
 
 	log.Debugw("starting sampling session", "root", dah.Hash())
 	errs := make(chan error, len(samples))

@@ -9,12 +9,11 @@ import (
 	"time"
 	"unsafe"
 
-	"github.com/libp2p/go-libp2p/p2p/net/conngater"
-
 	logging "github.com/ipfs/go-log/v2"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/peer"
+	"github.com/libp2p/go-libp2p/p2p/net/conngater"
 
 	"github.com/celestiaorg/celestia-node/header"
 	libhead "github.com/celestiaorg/celestia-node/libs/header"
@@ -253,6 +252,11 @@ func (m *Manager) subscribeHeader(ctx context.Context, headerSub libhead.Subscri
 
 // Validate will collect peer.ID into corresponding peer pool
 func (m *Manager) validate(ctx context.Context, peerID peer.ID, hash share.DataHash) pubsub.ValidationResult {
+	if hash.IsEmptyRoot() {
+		// we don't send empty EDS data hashes, but If someone sent it to us - do hard reject
+		return pubsub.ValidationReject
+	}
+
 	// messages broadcast from self should bypass the validation with Accept
 	if peerID == m.host.ID() {
 		log.Debugw("received datahash from self", "datahash", hash.String())

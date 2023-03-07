@@ -3,6 +3,7 @@ package das
 import (
 	"context"
 	"sync"
+	"time"
 
 	"github.com/celestiaorg/celestia-node/header"
 	libhead "github.com/celestiaorg/celestia-node/libs/header"
@@ -12,6 +13,7 @@ import (
 // samplingCoordinator runs and coordinates sampling workers and updates current sampling state
 type samplingCoordinator struct {
 	concurrencyLimit int
+	samplingTimeout  time.Duration
 
 	getter      libhead.Getter[*header.ExtendedHeader]
 	sampleFn    sampleFn
@@ -22,7 +24,7 @@ type samplingCoordinator struct {
 	// resultCh fans-in sampling results from worker to coordinator
 	resultCh chan result
 	// updHeadCh signals to update network head header height
-	updHeadCh chan uint64
+	updHeadCh chan *header.ExtendedHeader
 	// waitCh signals to block coordinator for external access to state
 	waitCh chan *sync.WaitGroup
 
@@ -46,12 +48,13 @@ func newSamplingCoordinator(
 ) *samplingCoordinator {
 	return &samplingCoordinator{
 		concurrencyLimit: params.ConcurrencyLimit,
+		samplingTimeout:  params.SampleTimeout,
 		getter:           getter,
 		sampleFn:         sample,
 		broadcastFn:      broadcast,
 		state:            newCoordinatorState(params),
 		resultCh:         make(chan result),
-		updHeadCh:        make(chan uint64),
+		updHeadCh:        make(chan *header.ExtendedHeader),
 		waitCh:           make(chan *sync.WaitGroup),
 		done:             newDone("sampling coordinator"),
 	}
@@ -59,9 +62,6 @@ func newSamplingCoordinator(
 
 func (sc *samplingCoordinator) run(ctx context.Context, cp checkpoint) {
 	sc.state.resumeFromCheckpoint(cp)
-
-	// the amount of sampled headers from the last checkpoint
-	sc.metrics.recordTotalSampled(cp.totalSampled())
 
 	// resume workers
 	for _, wk := range cp.Workers {
@@ -79,9 +79,9 @@ func (sc *samplingCoordinator) run(ctx context.Context, cp checkpoint) {
 
 		select {
 		case head := <-sc.updHeadCh:
-			if sc.state.isNewHead(head) {
+			if sc.state.isNewHead(head.Height()) {
 				sc.runWorker(ctx, sc.state.newRecentJob(head))
-				sc.state.updateHead(head)
+				sc.state.updateHead(head.Height())
 				// run worker without concurrency limit restrictions to reduced delay
 				sc.metrics.observeNewHead(ctx)
 			}
@@ -99,21 +99,21 @@ func (sc *samplingCoordinator) run(ctx context.Context, cp checkpoint) {
 
 // runWorker runs job in separate worker go-routine
 func (sc *samplingCoordinator) runWorker(ctx context.Context, j job) {
-	w := newWorker(j)
+	w := newWorker(j, sc.getter, sc.sampleFn, sc.broadcastFn, sc.metrics)
 	sc.state.putInProgress(j.id, w.getState)
 
 	// launch worker go-routine
 	sc.workersWg.Add(1)
 	go func() {
 		defer sc.workersWg.Done()
-		w.run(ctx, sc.getter, sc.sampleFn, sc.broadcastFn, sc.metrics, sc.resultCh)
+		w.run(ctx, sc.samplingTimeout, sc.resultCh)
 	}()
 }
 
 // listen notifies the coordinator about a new network head received via subscription.
-func (sc *samplingCoordinator) listen(ctx context.Context, height uint64) {
+func (sc *samplingCoordinator) listen(ctx context.Context, h *header.ExtendedHeader) {
 	select {
-	case sc.updHeadCh <- height:
+	case sc.updHeadCh <- h:
 	case <-ctx.Done():
 	}
 }
