@@ -268,8 +268,7 @@ func (s *Syncer[H]) processHeaders(
 		// check that returned range is adjacent to `fromHead`
 		if fromHead.Height()+1 != headers[0].Height() {
 			// make an external request
-			err = s.requestHeaders(ctx, fromHead, uint64(headers[0].Height()-1))
-			if err != nil {
+			if err = s.requestHeaders(ctx, fromHead, uint64(headers[0].Height()-1)); err != nil {
 				return err
 			}
 		}
@@ -278,6 +277,7 @@ func (s *Syncer[H]) processHeaders(
 		if err = s.storeHeaders(ctx, headers); err != nil {
 			return err
 		}
+
 		// update fromHead for the next iteration
 		fromHead = headers[len(headers)-1]
 	}
