@@ -236,26 +236,34 @@ func (s *session[H]) processResponse(responses []*p2p_pb.HeaderResponse) ([]H, e
 	return headers, err
 }
 
-// validate checks that the received range of headers is valid against the provided header.
+// validate checks that the received range of headers is adjacent and is valid against the provided header.
 func (s *session[H]) validate(headers []H) error {
-	// if `from` is empty, then additional validation for the header`s range is not needed.
+	// if `s.from` is empty, then additional validation for the header`s range is not needed.
 	if s.from.IsZero() {
 		return nil
 	}
 
 	trusted := s.from
-	// verify that the whole range is valid.
-	for i := 0; i < len(headers); i++ {
-		err := trusted.Verify(headers[i])
+	// verify that the whole range is valid and adjacent.
+	for _, untrusted := range headers {
+		err := trusted.Verify(untrusted)
 		if err != nil {
 			return err
 		}
-		if trusted.Height()+1 != headers[i].Height() {
-			// Exchange requires requested ranges to always consist of adjacent headers
-			return fmt.Errorf("peer sent valid but non-adjacent header")
-		}
 
-		trusted = headers[i]
+		// extra check for the adjacency should be performed only for the received range,
+		// because headers are received out of order and `s.from` can't be adjacent to them
+		if trusted.Height() != s.from.Height() {
+			if trusted.Height()+1 != untrusted.Height() {
+				// Exchange requires requested ranges to always consist of adjacent headers
+				return fmt.Errorf("peer sent valid but non-adjacent header. expected:%d, received:%d",
+					trusted.Height()+1,
+					untrusted.Height(),
+				)
+			}
+		}
+		// as `untrusted` was verified against previous trusted header, we can assume that it is valid
+		trusted = untrusted
 	}
 	return nil
 }
