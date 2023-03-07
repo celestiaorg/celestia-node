@@ -8,9 +8,24 @@ jobs:
     permissions:
       issues: write
     steps:
+      - name: Check for External Contributor
+        uses: tspascoal/get-user-teams-membership@v2
+        id: teamCheck
+        with:
+          username: ${{ github.actor }}
+          team: "celestia-node"
+          GITHUB_TOKEN: ${{ secrets.PAT_TEAM_CHECK }}
+
       - name: Triage labeling
         uses: andymckay/labeler@master
         with:
           add-labels: "needs:triage"
           ignore-if-labeled: true
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: External labeling
+        if: ${{ steps.teamCheck.outputs.isTeamMember == 'false' }}
+        uses: andymckay/labeler@master
+        with:
+          add-labels: "external"
           repo-token: ${{ secrets.GITHUB_TOKEN }}
