@@ -18,11 +18,11 @@ import (
 
 	"github.com/celestiaorg/celestia-app/pkg/da"
 	"github.com/celestiaorg/celestia-app/pkg/wrapper"
+	"github.com/celestiaorg/rsmt2d"
+
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/eds/byzantine"
 	"github.com/celestiaorg/celestia-node/share/ipld"
-	"github.com/celestiaorg/nmt"
-	"github.com/celestiaorg/rsmt2d"
 )
 
 var (
@@ -104,9 +104,8 @@ func (r *Retriever) Retrieve(ctx context.Context, dah *da.DataAvailabilityHeader
 // quadrant request retries. Also, provides an API
 // to reconstruct the block once enough shares are fetched.
 type retrievalSession struct {
-	dah   *da.DataAvailabilityHeader
-	bget  blockservice.BlockGetter
-	adder *ipld.NmtNodeAdder
+	dah  *da.DataAvailabilityHeader
+	bget blockservice.BlockGetter
 
 	// TODO(@Wondertan): Extract into a separate data structure
 	// https://github.com/celestiaorg/rsmt2d/issues/135
@@ -124,14 +123,8 @@ type retrievalSession struct {
 // newSession creates a new retrieval session and kicks off requesting process.
 func (r *Retriever) newSession(ctx context.Context, dah *da.DataAvailabilityHeader) (*retrievalSession, error) {
 	size := len(dah.RowsRoots)
-	adder := ipld.NewNmtNodeAdder(
-		ctx,
-		r.bServ,
-		ipld.MaxSizeBatchOption(size),
-	)
-
 	treeFn := func(_ rsmt2d.Axis, index uint) rsmt2d.Tree {
-		tree := wrapper.NewErasuredNamespacedMerkleTree(uint64(size)/2, index, nmt.NodeVisitor(adder.Visit))
+		tree := wrapper.NewErasuredNamespacedMerkleTree(uint64(size)/2, index)
 		return &tree
 	}
 
@@ -143,7 +136,6 @@ func (r *Retriever) newSession(ctx context.Context, dah *da.DataAvailabilityHead
 	ses := &retrievalSession{
 		dah:             dah,
 		bget:            blockservice.NewSession(ctx, r.bServ),
-		adder:           adder,
 		squareQuadrants: newQuadrants(dah),
 		squareCellsLks:  make([][]sync.Mutex, size),
 		squareSig:       make(chan struct{}, 1),
@@ -202,14 +194,7 @@ func (rs *retrievalSession) isReconstructed() bool {
 
 func (rs *retrievalSession) Close() error {
 	defer rs.span.End()
-	// All shares which were requested or repaired are written to disk via `Commit`.
-	// Note that we store *all*, so they are served to the network, including commit of incorrect
-	// data(BEFP/ErrByzantineCase case), so that the network can check BEFP.
-	err := rs.adder.Commit()
-	if err != nil {
-		log.Errorw("committing DAG", "err", err)
-	}
-	return err
+	return nil
 }
 
 // request kicks off quadrants requests.
@@ -276,8 +261,9 @@ func (rs *retrievalSession) doRequest(ctx context.Context, q *quadrant) {
 				// NOTE: Each share can appear twice here, for a Row and Col, respectively.
 				// These shares are always equal, and we allow only the first one to be written
 				// in the square.
-				// NOTE-2: We never actually fetch shares from the network *twice*.
-				// Once a share is downloaded from the network it is cached on the IPLD(blockservice) level.
+				// NOTE-2: We may never actually fetch shares from the network *twice*.
+				// Once a share is downloaded from the network it may be cached on the IPLD(blockservice) level.
+				//
 				// calc position of the share
 				x, y := q.pos(i, j)
 				// try to lock the share

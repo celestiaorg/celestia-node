@@ -3,6 +3,7 @@ package getters
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/ipfs/go-blockservice"
 	"github.com/ipfs/go-cid"
@@ -12,12 +13,12 @@ import (
 	"go.opentelemetry.io/otel/trace"
 	"golang.org/x/sync/errgroup"
 
+	"github.com/celestiaorg/nmt"
+	"github.com/celestiaorg/nmt/namespace"
+
 	"github.com/celestiaorg/celestia-node/libs/utils"
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/ipld"
-
-	"github.com/celestiaorg/nmt"
-	"github.com/celestiaorg/nmt/namespace"
 )
 
 var (
@@ -90,4 +91,26 @@ func verifyNIDSize(nID namespace.ID) error {
 			share.NamespaceSize, len(nID))
 	}
 	return nil
+}
+
+// ctxWithSplitTimeout will split timeout stored in context by splitFactor and return the result if
+// it is greater than minTimeout. minTimeout == 0 will be ignored
+func ctxWithSplitTimeout(
+	ctx context.Context,
+	splitFactor int,
+	minTimeout time.Duration,
+) (context.Context, context.CancelFunc) {
+	deadline, ok := ctx.Deadline()
+	if !ok {
+		if minTimeout == 0 {
+			return context.WithCancel(ctx)
+		}
+		return context.WithTimeout(ctx, minTimeout)
+	}
+
+	timeout := time.Until(deadline) / time.Duration(splitFactor)
+	if minTimeout == 0 || timeout > minTimeout {
+		return context.WithTimeout(ctx, timeout)
+	}
+	return context.WithTimeout(ctx, minTimeout)
 }

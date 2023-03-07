@@ -19,7 +19,7 @@ const (
 	Private Network = "private"
 	// BlockTime is a network block time.
 	// TODO @renaynay @Wondertan (#790)
-	BlockTime = time.Second * 30
+	BlockTime = time.Second * 15
 )
 
 // Network is a type definition for DA network run by Celestia Node.
@@ -41,6 +41,11 @@ func (n Network) Validate() (Network, error) {
 		return "", ErrInvalidNetwork
 	}
 	return n, nil
+}
+
+// String returns string representation of the Network.
+func (n Network) String() string {
+	return string(n)
 }
 
 // networksList is a strict list of all known long-standing networks.

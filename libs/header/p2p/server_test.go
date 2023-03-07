@@ -9,7 +9,6 @@ import (
 
 	"github.com/celestiaorg/celestia-node/libs/header/store"
 	"github.com/celestiaorg/celestia-node/libs/header/test"
-	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
 )
 
 func TestExchangeServer_handleRequestTimeout(t *testing.T) {
@@ -19,7 +18,7 @@ func TestExchangeServer_handleRequestTimeout(t *testing.T) {
 	server, err := NewExchangeServer[*test.DummyHeader](
 		peer[0],
 		s,
-		WithProtocolSuffix[ServerParameters](string(p2p.Private)),
+		WithNetworkID[ServerParameters](networkID),
 	)
 	require.NoError(t, err)
 	err = server.Start(context.Background())

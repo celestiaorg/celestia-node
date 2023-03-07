@@ -17,7 +17,7 @@ import (
 	modp2p "github.com/celestiaorg/celestia-node/nodebuilder/p2p"
 )
 
-// newP2PServer constructs a new ExchangeServer using the given Network as a protocolID suffix.
+// newP2PServer constructs a new ExchangeServer using the given Network as a protocolID prefix.
 func newP2PServer(
 	host host.Host,
 	store libhead.Store[*header.ExtendedHeader],

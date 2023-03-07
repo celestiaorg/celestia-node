@@ -8,14 +8,13 @@ import (
 
 	"github.com/ipfs/go-datastore"
 	"github.com/ipfs/go-datastore/sync"
-	routinghelpers "github.com/libp2p/go-libp2p-routing-helpers"
-	"github.com/libp2p/go-libp2p/p2p/net/conngater"
-
 	dht "github.com/libp2p/go-libp2p-kad-dht"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
+	routinghelpers "github.com/libp2p/go-libp2p-routing-helpers"
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/peer"
 	routingdisc "github.com/libp2p/go-libp2p/p2p/discovery/routing"
+	"github.com/libp2p/go-libp2p/p2p/net/conngater"
 	mocknet "github.com/libp2p/go-libp2p/p2p/net/mock"
 	"github.com/stretchr/testify/require"
 
@@ -315,7 +314,14 @@ func TestIntegration(t *testing.T) {
 			routingdisc.NewRoutingDiscovery(router2),
 			10,
 			time.Second,
-			time.Second)
+			time.Second,
+		)
+		err = fnDisc.Start(ctx)
+		require.NoError(t, err)
+		t.Cleanup(func() {
+			err = fnDisc.Stop(ctx)
+			require.NoError(t, err)
+		})
 
 		// hook peer manager to discovery
 		connGater, err := conngater.NewBasicConnectionGater(sync.MutexWrap(datastore.NewMapDatastore()))
@@ -340,7 +346,6 @@ func TestIntegration(t *testing.T) {
 		require.NoError(t, router1.Bootstrap(ctx))
 		require.NoError(t, router2.Bootstrap(ctx))
 
-		go fnDisc.EnsurePeers(ctx)
 		go bnDisc.Advertise(ctx)
 
 		select {

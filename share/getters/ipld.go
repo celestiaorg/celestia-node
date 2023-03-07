@@ -10,13 +10,13 @@ import (
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
 
+	"github.com/celestiaorg/nmt/namespace"
+	"github.com/celestiaorg/rsmt2d"
+
 	"github.com/celestiaorg/celestia-node/libs/utils"
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/eds"
 	"github.com/celestiaorg/celestia-node/share/ipld"
-
-	"github.com/celestiaorg/nmt/namespace"
-	"github.com/celestiaorg/rsmt2d"
 )
 
 var _ share.Getter = (*IPLDGetter)(nil)
@@ -111,12 +111,13 @@ var sessionKey = &session{}
 type session struct {
 	sync.Mutex
 	atomic.Pointer[blockservice.Session]
+	ctx context.Context
 }
 
 // WithSession stores an empty session in the context, indicating that a blockservice session should
 // be created.
 func WithSession(ctx context.Context) context.Context {
-	return context.WithValue(ctx, sessionKey, &session{})
+	return context.WithValue(ctx, sessionKey, &session{ctx: ctx})
 }
 
 func getGetter(ctx context.Context, service blockservice.BlockService) blockservice.BlockGetter {
@@ -134,7 +135,7 @@ func getGetter(ctx context.Context, service blockservice.BlockService) blockserv
 	defer s.Unlock()
 	val = s.Load()
 	if val == nil {
-		val = blockservice.NewSession(ctx, service)
+		val = blockservice.NewSession(s.ctx, service)
 		s.Store(val)
 	}
 	return val

@@ -18,9 +18,8 @@ import (
 
 	"github.com/celestiaorg/celestia-node/fraud"
 	"github.com/celestiaorg/celestia-node/header"
-	"github.com/celestiaorg/celestia-node/headertest"
+	"github.com/celestiaorg/celestia-node/header/headertest"
 	libhead "github.com/celestiaorg/celestia-node/libs/header"
-	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/availability/full"
 	"github.com/celestiaorg/celestia-node/share/availability/light"
@@ -156,7 +155,7 @@ func TestDASer_stopsAfter_BEFP(t *testing.T) {
 	mockGet, sub, _ := createDASerSubcomponents(t, bServ, 15, 15)
 
 	// create fraud service and break one header
-	f := fraud.NewProofService(ps, net.Hosts()[0], mockGet.GetByHeight, ds, false, string(p2p.Private))
+	f := fraud.NewProofService(ps, net.Hosts()[0], mockGet.GetByHeight, ds, false, "private")
 	require.NoError(t, f.Start(ctx))
 	mockGet.headers[1], _ = headertest.CreateFraudExtHeader(t, mockGet.headers[1], bServ)
 	newCtx := context.Background()
@@ -205,11 +204,8 @@ func TestDASerSampleTimeout(t *testing.T) {
 	f := new(fraud.DummyService)
 
 	// create and start DASer
-	daser, err := NewDASer(avail, sub, getter, ds, f, newBroadcastMock(1))
+	daser, err := NewDASer(avail, sub, getter, ds, f, newBroadcastMock(1), WithSampleTimeout(1))
 	require.NoError(t, err)
-
-	// assign directly to avoid params validation
-	daser.params.SampleTimeout = 0
 
 	require.NoError(t, daser.Start(ctx))
 	require.NoError(t, daser.sampler.state.waitCatchUp(ctx))

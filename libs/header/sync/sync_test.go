@@ -43,7 +43,7 @@ func TestSyncSimpleRequestingHead(t *testing.T) {
 	require.NoError(t, err)
 
 	time.Sleep(time.Millisecond * 10) // needs some to realize it is syncing
-	err = syncer.WaitSync(ctx)
+	err = syncer.SyncWait(ctx)
 	require.NoError(t, err)
 
 	exp, err := remoteStore.Head(ctx)
@@ -59,6 +59,45 @@ func TestSyncSimpleRequestingHead(t *testing.T) {
 	assert.Equal(t, uint64(2), state.FromHeight)
 	assert.Equal(t, uint64(exp.Height()), state.ToHeight)
 	assert.True(t, state.Finished(), state)
+}
+
+func TestDoSyncFullRangeFromExternalPeer(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	t.Cleanup(cancel)
+
+	suite := test.NewTestSuite(t)
+	head := suite.Head()
+
+	remoteStore := store.NewTestStore(ctx, t, head)
+	localStore := store.NewTestStore(ctx, t, head)
+	syncer, err := NewSyncer[*test.DummyHeader](
+		local.NewExchange(remoteStore),
+		localStore,
+		&test.DummySubscriber{},
+		WithMaxRequestSize(10),
+	)
+	require.NoError(t, err)
+	require.NoError(t, syncer.Start(ctx))
+
+	_, err = remoteStore.Append(ctx, suite.GenDummyHeaders(10)...)
+	require.NoError(t, err)
+	// give store time to update heightSub index
+	time.Sleep(time.Millisecond * 100)
+
+	localHead, err := localStore.Head(ctx)
+	require.NoError(t, err)
+
+	remoteHead, err := remoteStore.Head(ctx)
+	require.NoError(t, err)
+
+	err = syncer.doSync(ctx, localHead, remoteHead)
+	require.NoError(t, err)
+	// give store time to update heightSub index
+	time.Sleep(time.Millisecond * 100)
+
+	newHead, err := localStore.Head(ctx)
+	require.NoError(t, err)
+	require.Equal(t, newHead.Height(), remoteHead.Height())
 }
 
 func TestSyncCatchUp(t *testing.T) {
@@ -91,7 +130,7 @@ func TestSyncCatchUp(t *testing.T) {
 	assert.Equal(t, pubsub.ValidationAccept, res)
 
 	time.Sleep(time.Millisecond * 10) // needs some to realize it is syncing
-	err = syncer.WaitSync(ctx)
+	err = syncer.SyncWait(ctx)
 	require.NoError(t, err)
 	exp, err := remoteStore.Head(ctx)
 	require.NoError(t, err)
@@ -207,6 +246,51 @@ func TestSyncer_OnlyOneRecentRequest(t *testing.T) {
 		assert.Equal(t, exchange.header, head)
 	}
 	assert.Equal(t, 1, exchange.counter)
+}
+
+// TestSyncer_FindHeadersReturnsCorrectRange ensures that `findHeaders` returns
+// range [from;to]
+func TestSyncer_FindHeadersReturnsCorrectRange(t *testing.T) {
+	// Test consists of 3 steps:
+	// 1. get range of headers from pending; [2;11]
+	// 2. get headers from the remote store; [12;20]
+	// 3. apply last header from pending;
+	ctx, cancel := context.WithTimeout(context.Background(), time.Minute*5)
+	t.Cleanup(cancel)
+
+	suite := test.NewTestSuite(t)
+	head := suite.Head()
+
+	remoteStore := store.NewTestStore(ctx, t, head)
+	localStore := store.NewTestStore(ctx, t, head)
+	syncer, err := NewSyncer[*test.DummyHeader](
+		local.NewExchange(remoteStore),
+		localStore,
+		&test.DummySubscriber{},
+	)
+	require.NoError(t, err)
+
+	range1 := suite.GenDummyHeaders(10)
+	// manually add to pending
+	for _, h := range range1 {
+		syncer.pending.Add(h)
+	}
+	_, err = remoteStore.Append(ctx, range1...)
+	require.NoError(t, err)
+	_, err = remoteStore.Append(ctx, suite.GenDummyHeaders(9)...)
+	require.NoError(t, err)
+
+	syncer.pending.Add(suite.GetRandomHeader())
+	h, err := syncer.findHeaders(ctx, 2, 21)
+	require.NoError(t, err)
+	require.NotNil(t, h)
+	require.Equal(t, h[0].Height(), int64(2))
+	require.Equal(t, h[len(h)-1].Height(), int64(21))
+	header := h[0]
+	for i := 1; i < len(h); i++ {
+		require.NoError(t, header.Verify(h[i]))
+		header = h[i]
+	}
 }
 
 type exchangeCountingHead struct {

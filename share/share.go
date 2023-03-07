@@ -1,6 +1,7 @@
 package share
 
 import (
+	"bytes"
 	"fmt"
 
 	"go.opentelemetry.io/otel"
@@ -54,4 +55,9 @@ func (dh DataHash) Validate() error {
 
 func (dh DataHash) String() string {
 	return fmt.Sprintf("%X", []byte(dh))
+}
+
+// IsEmptyRoot check whether DataHash corresponds to the root of an empty block EDS.
+func (dh DataHash) IsEmptyRoot() bool {
+	return bytes.Equal(EmptyRoot().Hash(), dh)
 }
