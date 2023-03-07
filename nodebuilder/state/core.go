@@ -2,6 +2,7 @@ package state
 
 import (
 	apptypes "github.com/celestiaorg/celestia-app/x/blob/types"
+
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/libs/header/sync"
 	"github.com/celestiaorg/celestia-node/nodebuilder/core"

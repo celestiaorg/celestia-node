@@ -201,10 +201,33 @@ func (serv *ExchangeServer[H]) handleRequest(from, to uint64) ([]H, error) {
 	}
 
 	log.Debugw("server: handling headers request", "from", from, "to", to)
+	// check that store has the requested height
 	if !serv.store.HasAt(ctx, to-1) {
-		span.SetStatus(codes.Error, header.ErrNotFound.Error())
-		log.Debugw("server: requested headers not stored", "from", from, "to", to)
-		return nil, header.ErrNotFound
+		head, err := serv.store.Head(ctx)
+		if err != nil {
+			span.SetStatus(codes.Error, err.Error())
+			log.Debugw("server: could not get current head", "err", err)
+			return nil, err
+		}
+
+		// might be a case when store hasn't synced yet to the requested range
+		if uint64(head.Height()) < from {
+			span.SetStatus(codes.Error, header.ErrNotFound.Error())
+			log.Debugw("server: requested headers not stored",
+				"from", from,
+				"to", to,
+				"currentHead",
+				head.Height(),
+			)
+			return nil, header.ErrNotFound
+		}
+
+		log.Debugw("server: serving partial range",
+			"prevMaxHeight", to,
+			"newMaxHeight", uint64(head.Height())+1,
+		)
+		// change `to` height to return a partial range
+		to = uint64(head.Height()) + 1
 	}
 
 	headersByRange, err := serv.store.GetRangeByHeight(ctx, from, to)

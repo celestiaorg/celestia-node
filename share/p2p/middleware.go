@@ -4,7 +4,6 @@ import (
 	"sync/atomic"
 
 	logging "github.com/ipfs/go-log/v2"
-
 	"github.com/libp2p/go-libp2p/core/network"
 )
 

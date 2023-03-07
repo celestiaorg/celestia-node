@@ -13,12 +13,12 @@ import (
 	"go.opentelemetry.io/otel/trace"
 	"golang.org/x/sync/errgroup"
 
+	"github.com/celestiaorg/nmt"
+	"github.com/celestiaorg/nmt/namespace"
+
 	"github.com/celestiaorg/celestia-node/libs/utils"
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/ipld"
-
-	"github.com/celestiaorg/nmt"
-	"github.com/celestiaorg/nmt/namespace"
 )
 
 var (

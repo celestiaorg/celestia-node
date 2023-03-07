@@ -6,11 +6,11 @@ import (
 
 	"github.com/minio/sha256-simd"
 
-	"github.com/celestiaorg/celestia-node/share/ipld"
-
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/nmt/namespace"
 	"github.com/celestiaorg/rsmt2d"
+
+	"github.com/celestiaorg/celestia-node/share/ipld"
 )
 
 // Getter interface provides a set of accessors for shares by the Root.

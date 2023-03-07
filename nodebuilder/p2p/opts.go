@@ -3,9 +3,8 @@ package p2p
 import (
 	"encoding/hex"
 
-	hst "github.com/libp2p/go-libp2p/core/host"
-
 	"github.com/libp2p/go-libp2p/core/crypto"
+	hst "github.com/libp2p/go-libp2p/core/host"
 	"go.uber.org/fx"
 
 	"github.com/celestiaorg/celestia-node/libs/fxutil"

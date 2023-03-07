@@ -120,15 +120,10 @@ func (s *Swamp) WaitTillHeight(ctx context.Context, height int64) libhead.Hash {
 		case <-ctx.Done():
 			require.NoError(s.t, ctx.Err())
 		case <-t.C:
-			status, err := s.ClientContext.Client.Status(ctx)
+			latest, err := s.ClientContext.LatestHeight()
 			require.NoError(s.t, err)
-
-			latest := status.SyncInfo.LatestBlockHeight
-			switch {
-			case latest == height:
-				return libhead.Hash(status.SyncInfo.LatestBlockHash)
-			case latest > height:
-				res, err := s.ClientContext.Client.Block(ctx, &height)
+			if latest >= height {
+				res, err := s.ClientContext.Client.Block(ctx, &latest)
 				require.NoError(s.t, err)
 				return libhead.Hash(res.BlockID.Hash)
 			}
@@ -163,7 +158,8 @@ func (s *Swamp) createPeer(ks keystore.Keystore) host.Host {
 // setupGenesis sets up genesis Header.
 // This is required to initialize and start correctly.
 func (s *Swamp) setupGenesis(ctx context.Context) {
-	s.WaitTillHeight(ctx, 1)
+	// ensure core has surpassed genesis block
+	s.WaitTillHeight(ctx, 2)
 
 	store, err := eds.NewStore(s.t.TempDir(), ds_sync.MutexWrap(ds.NewMapDatastore()))
 	require.NoError(s.t, err)

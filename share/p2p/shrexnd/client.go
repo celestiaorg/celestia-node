@@ -14,13 +14,13 @@ import (
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/libp2p/go-libp2p/core/protocol"
 
+	"github.com/celestiaorg/go-libp2p-messenger/serde"
+	"github.com/celestiaorg/nmt/namespace"
+
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/ipld"
 	"github.com/celestiaorg/celestia-node/share/p2p"
 	pb "github.com/celestiaorg/celestia-node/share/p2p/shrexnd/pb"
-
-	"github.com/celestiaorg/go-libp2p-messenger/serde"
-	"github.com/celestiaorg/nmt/namespace"
 )
 
 // Client implements client side of shrex/nd protocol to obtain namespaced shares data from remote

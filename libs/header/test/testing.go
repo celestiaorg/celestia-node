@@ -6,7 +6,6 @@ import (
 	"crypto/rand"
 	"encoding/binary"
 	"encoding/gob"
-	"errors"
 	"fmt"
 	"math"
 	"testing"
@@ -84,35 +83,18 @@ func (d *DummyHeader) IsExpired(period time.Duration) bool {
 	return expirationTime.Before(time.Now())
 }
 
-func (d *DummyHeader) VerifyAdjacent(other header.Header) error {
-	if other.Height() != d.Height()+1 {
-		return fmt.Errorf("invalid Height, expected: %d, got: %d", d.Height()+1, other.Height())
-	}
-
-	if err := d.verify(other); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (d *DummyHeader) VerifyNonAdjacent(other header.Header) error {
-	return d.verify(other)
-}
-
-func (d *DummyHeader) verify(header header.Header) error {
-	// wee1
+func (d *DummyHeader) Verify(header header.Header) error {
 	epsilon := 10 * time.Second
 	if header.Time().After(time.Now().Add(epsilon)) {
-		return errors.New("header Time too far in the future")
+		return fmt.Errorf("header Time too far in the future")
 	}
 
 	if header.Height() <= d.Height() {
-		return errors.New("expected new header Height to be larger than old header Time")
+		return fmt.Errorf("expected new header Height to be larger than old header Time")
 	}
 
 	if header.Time().Before(d.Time()) {
-		return errors.New("expected new header Time to be after old header Time")
+		return fmt.Errorf("expected new header Time to be after old header Time")
 	}
 
 	return nil

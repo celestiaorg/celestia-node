@@ -35,6 +35,9 @@ type Config struct {
 	// ConnManager is a configuration tuple for ConnectionManager.
 	ConnManager               connManagerConfig
 	RoutingTableRefreshPeriod time.Duration
+
+	// Allowlist for IPColocation PubSub parameter, a list of string CIDRs
+	IPColocationWhitelist []string
 }
 
 // DefaultConfig returns default configuration for P2P subsystem.
