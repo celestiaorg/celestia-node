@@ -3,10 +3,13 @@ package p2p
 import (
 	"context"
 	"net/http"
+	"time"
 
-	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	"github.com/libp2p/go-libp2p/core/metrics"
+	"github.com/libp2p/go-libp2p/core/network"
+	rcmgr "github.com/libp2p/go-libp2p/p2p/host/resource-manager"
 	rcmgrObs "github.com/libp2p/go-libp2p/p2p/host/resource-manager/obs"
+	ma "github.com/multiformats/go-multiaddr"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"go.opentelemetry.io/otel/metric/global"
@@ -14,9 +17,7 @@ import (
 	"go.opentelemetry.io/otel/metric/unit"
 	"go.uber.org/fx"
 
-	"github.com/libp2p/go-libp2p/core/network"
-	rcmgr "github.com/libp2p/go-libp2p/p2p/host/resource-manager"
-	ma "github.com/multiformats/go-multiaddr"
+	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 )
 
 // global meter provider (see opentelemetry docs)
@@ -106,15 +107,16 @@ func WithDebugMetrics(lifecycle fx.Lifecycle, cfg Config) error {
 	handler := promhttp.HandlerFor(registry, promhttp.HandlerOpts{Registry: reg})
 	mux.Handle(cfg.PrometheusAgentEndpoint, handler)
 
-	promHttpServer := &http.Server{
-		Addr:    cfg.PrometheusAgentPort,
-		Handler: mux,
+	promHTTPServer := &http.Server{
+		Addr:              cfg.PrometheusAgentPort,
+		Handler:           mux,
+		ReadHeaderTimeout: 10 * time.Second,
 	}
 
 	lifecycle.Append(fx.Hook{
 		OnStart: func(ctx context.Context) error {
 			go func() {
-				if err := promHttpServer.ListenAndServe(); err != nil {
+				if err := promHTTPServer.ListenAndServe(); err != nil {
 					log.Error("Error starting Prometheus metrics exporter http server")
 					panic(err)
 				}
@@ -124,7 +126,7 @@ func WithDebugMetrics(lifecycle fx.Lifecycle, cfg Config) error {
 			return nil
 		},
 		OnStop: func(ctx context.Context) error {
-			if err := promHttpServer.Shutdown(ctx); err != nil {
+			if err := promHTTPServer.Shutdown(ctx); err != nil {
 				return err
 			}
 			return nil

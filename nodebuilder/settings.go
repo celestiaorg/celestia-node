@@ -15,8 +15,6 @@ import (
 
 	fraud "github.com/celestiaorg/celestia-node/fraud"
 	header "github.com/celestiaorg/celestia-node/header"
-	modheader "github.com/celestiaorg/celestia-node/nodebuilder/header"
-
 	"github.com/celestiaorg/celestia-node/nodebuilder/das"
 	modheader "github.com/celestiaorg/celestia-node/nodebuilder/header"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
