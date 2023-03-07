@@ -168,7 +168,7 @@ func TestGetSharesByNamespace(t *testing.T) {
 			var shares []Share
 			for _, row := range eds.RowRoots() {
 				rcid := ipld.MustCidFromNamespacedSha256(row)
-				rowShares, err := GetSharesByNamespace(ctx, bServ, rcid, nID, len(eds.RowRoots()), nil)
+				rowShares, _, err := GetSharesByNamespace(ctx, bServ, rcid, nID, len(eds.RowRoots()))
 				require.NoError(t, err)
 
 				shares = append(shares, rowShares...)
@@ -222,7 +222,9 @@ func TestGetLeavesByNamespace_IncompleteData(t *testing.T) {
 	err = bServ.DeleteBlock(ctx, r.Cid())
 	require.NoError(t, err)
 
-	leaves, err := ipld.GetLeavesByNamespace(ctx, bServ, rcid, nid, len(shares), nil)
+	rData := ipld.NewRetrievedData(len(shares), ipld.WithLeaves())
+	err = ipld.GetLeavesByNamespace(ctx, bServ, rcid, nid, rData)
+	leaves := rData.CollectLeaves()
 	assert.Nil(t, leaves[1])
 	assert.Equal(t, 4, len(leaves))
 	require.Error(t, err)
@@ -303,9 +305,10 @@ func TestGetLeavesByNamespace_MultipleRowsContainingSameNamespaceId(t *testing.T
 
 	for _, row := range eds.RowRoots() {
 		rcid := ipld.MustCidFromNamespacedSha256(row)
-		leaves, err := ipld.GetLeavesByNamespace(ctx, bServ, rcid, nid, len(shares), nil)
+		data := ipld.NewRetrievedData(len(shares), ipld.WithLeaves())
+		err := ipld.GetLeavesByNamespace(ctx, bServ, rcid, nid, data)
 		assert.Nil(t, err)
-
+		leaves := data.CollectLeaves()
 		for _, node := range leaves {
 			// test that the data returned by getLeavesByNamespace for nid
 			// matches the commonNamespaceData that was copied across almost all data
@@ -353,10 +356,10 @@ func TestGetSharesWithProofsByNamespace(t *testing.T) {
 			var shares []Share
 			for _, row := range eds.RowRoots() {
 				rcid := ipld.MustCidFromNamespacedSha256(row)
-				proof := new(ipld.Proof)
-				rowShares, err := GetSharesByNamespace(ctx, bServ, rcid, nID, len(eds.RowRoots()), proof)
+				rowShares, proof, err := GetSharesByNamespace(ctx, bServ, rcid, nID, len(eds.RowRoots()))
 				require.NoError(t, err)
 				if rowShares != nil {
+					require.NotNil(t, proof)
 					// append shares to check integrity later
 					shares = append(shares, rowShares...)
 
@@ -448,7 +451,9 @@ func assertNoRowContainsNID(
 
 	// for each row root cid check if the minNID exists
 	for _, rowCID := range rowRootCIDs {
-		leaves, err := ipld.GetLeavesByNamespace(context.Background(), bServ, rowCID, nID, rowRootCount, nil)
+		data := ipld.NewRetrievedData(rowRootCount, ipld.WithProofs())
+		err := ipld.GetLeavesByNamespace(context.Background(), bServ, rowCID, nID, data)
+		leaves := data.CollectLeaves()
 		assert.Nil(t, leaves)
 		assert.Nil(t, err)
 	}

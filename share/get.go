@@ -50,15 +50,17 @@ func GetSharesByNamespace(
 	root cid.Cid,
 	nID namespace.ID,
 	maxShares int,
-	proofContainer *ipld.Proof,
-) ([]Share, error) {
+) ([]Share, *ipld.Proof, error) {
 	ctx, span := tracer.Start(ctx, "get-shares-by-namespace")
 	defer span.End()
 
-	leaves, err := ipld.GetLeavesByNamespace(ctx, bGetter, root, nID, maxShares, proofContainer)
-	if err != nil && leaves == nil {
-		return nil, err
+	data := ipld.NewRetrievedData(maxShares, ipld.WithLeaves(), ipld.WithProofs())
+	err := ipld.GetLeavesByNamespace(ctx, bGetter, root, nID, data)
+	if err != nil {
+		return nil, nil, err
 	}
+
+	leaves := data.CollectLeaves()
 
 	shares := make([]Share, len(leaves))
 	for i, leaf := range leaves {
@@ -66,8 +68,7 @@ func GetSharesByNamespace(
 			shares[i] = leafToShare(leaf)
 		}
 	}
-
-	return shares, err
+	return shares, data.CollectProofs(), err
 }
 
 // leafToShare converts an NMT leaf into a Share.
