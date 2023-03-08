@@ -1,5 +1,6 @@
 name: Label Automation
 on:
+  # Using pull_request_target for forks since labels are not a security issue
   pull_request_target:
     types: [opened]
   issues:
