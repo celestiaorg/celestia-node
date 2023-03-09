@@ -2,13 +2,13 @@ package main
 
 import (
 	"context"
-	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	"os"
 
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/client/config"
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	"github.com/cosmos/cosmos-sdk/client/keys"
+	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	"github.com/cosmos/cosmos-sdk/x/auth/types"
 	"github.com/spf13/cobra"
 
@@ -48,7 +48,10 @@ func init() {
 		}
 
 		if !cmd.Flag(flags.FlagKeyringBackend).Changed {
-			cmd.Flag(flags.FlagKeyringBackend).Value.Set(keyring.BackendTest)
+			err = cmd.Flag(flags.FlagKeyringBackend).Value.Set(keyring.BackendTest)
+			if err != nil {
+				return err
+			}
 			cmd.Flag(flags.FlagKeyringBackend).Changed = true
 		}
 
