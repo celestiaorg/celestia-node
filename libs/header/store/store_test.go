@@ -31,9 +31,8 @@ func TestStore(t *testing.T) {
 	assert.EqualValues(t, suite.Head().Hash(), head.Hash())
 
 	in := suite.GenDummyHeaders(10)
-	ln, err := store.Append(ctx, in...)
+	err = store.Append(ctx, in...)
 	require.NoError(t, err)
-	assert.Equal(t, 10, ln)
 
 	out, err := store.GetRangeByHeight(ctx, 2, 12)
 	require.NoError(t, err)
@@ -54,9 +53,8 @@ func TestStore(t *testing.T) {
 	assert.False(t, ok)
 
 	go func() {
-		ln, err := store.Append(ctx, suite.GenDummyHeaders(1)...)
+		err := store.Append(ctx, suite.GenDummyHeaders(1)...)
 		require.NoError(t, err)
-		assert.Equal(t, 1, ln)
 	}()
 
 	h, err := store.GetByHeight(ctx, 12)
@@ -102,10 +100,10 @@ func TestStorePendingCacheMiss(t *testing.T) {
 
 	err = store.Start(ctx)
 	require.NoError(t, err)
-	_, err = store.Append(ctx, suite.GenDummyHeaders(100)...)
+	err = store.Append(ctx, suite.GenDummyHeaders(100)...)
 	require.NoError(t, err)
 
-	_, err = store.Append(ctx, suite.GenDummyHeaders(50)...)
+	err = store.Append(ctx, suite.GenDummyHeaders(50)...)
 	require.NoError(t, err)
 
 	_, err = store.GetRangeByHeight(ctx, 1, 101)
