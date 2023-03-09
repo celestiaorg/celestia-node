@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	"os"
 
 	"github.com/cosmos/cosmos-sdk/client"
@@ -44,6 +45,11 @@ func init() {
 
 		if err := client.SetCmdClientContextHandler(initClientCtx, cmd); err != nil {
 			return err
+		}
+
+		if !cmd.Flag(flags.FlagKeyringBackend).Changed {
+			cmd.Flag(flags.FlagKeyringBackend).Value.Set(keyring.BackendTest)
+			cmd.Flag(flags.FlagKeyringBackend).Changed = true
 		}
 
 		return ParseDirectoryFlags(cmd)
