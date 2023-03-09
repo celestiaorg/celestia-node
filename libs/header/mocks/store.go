@@ -90,7 +90,7 @@ func (m *MockStore[H]) HasAt(_ context.Context, height uint64) bool {
 	return height != 0 && m.HeadHeight >= int64(height)
 }
 
-func (m *MockStore[H]) Append(ctx context.Context, headers ...H) (int, error) {
+func (m *MockStore[H]) Append(ctx context.Context, headers ...H) error {
 	for _, header := range headers {
 		m.Headers[header.Height()] = header
 		// set head
@@ -98,5 +98,5 @@ func (m *MockStore[H]) Append(ctx context.Context, headers ...H) (int, error) {
 			m.HeadHeight = header.Height()
 		}
 	}
-	return len(headers), nil
+	return nil
 }
