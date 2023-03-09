@@ -201,9 +201,12 @@ func (s *Syncer[H]) sync(ctx context.Context) {
 		return // should never happen, but just in case
 	}
 
+	from := header.Height() + 1
+
 	log.Infow("syncing headers",
-		"from", header.Height()+1,
+		"from", from,
 		"to", newHead.Height())
+
 	err := s.doSync(ctx, header, newHead)
 	if err != nil {
 		if errors.Is(err, context.Canceled) {
@@ -212,14 +215,14 @@ func (s *Syncer[H]) sync(ctx context.Context) {
 		}
 
 		log.Errorw("syncing headers",
-			"from", header.Height()+1,
+			"from", from,
 			"to", newHead.Height(),
 			"err", err)
 		return
 	}
 
 	log.Infow("finished syncing",
-		"from", header.Height()+1,
+		"from", from,
 		"to", newHead.Height(),
 		"elapsed time", s.state.End.Sub(s.state.Start))
 }
