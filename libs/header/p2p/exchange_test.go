@@ -91,8 +91,7 @@ func TestExchange_RequestVerifiedHeadersFails(t *testing.T) {
 func TestExchange_RequestFullRangeHeaders(t *testing.T) {
 	// create mocknet with 5 peers
 	hosts := createMocknet(t, 5)
-	totalAmount := 80
-	store := headerMock.NewStore[*test.DummyHeader](t, test.NewTestSuite(t), totalAmount)
+	store := headerMock.NewStore[*test.DummyHeader](t, test.NewTestSuite(t), int(header.MaxRangeRequestSize))
 	connGater, err := conngater.NewBasicConnectionGater(sync.MutexWrap(datastore.NewMapDatastore()))
 	require.NoError(t, err)
 	// create new exchange
@@ -101,7 +100,6 @@ func TestExchange_RequestFullRangeHeaders(t *testing.T) {
 		WithChainID(networkID),
 	)
 	require.NoError(t, err)
-	exchange.Params.MaxHeadersPerRangeRequest = 10
 	exchange.ctx, exchange.cancel = context.WithCancel(context.Background())
 	t.Cleanup(exchange.cancel)
 	// amount of servers is len(hosts)-1 because one peer acts as a client
@@ -122,9 +120,9 @@ func TestExchange_RequestFullRangeHeaders(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 	t.Cleanup(cancel)
 	// request headers from 1 to totalAmount(80)
-	headers, err := exchange.GetRangeByHeight(ctx, 1, uint64(totalAmount))
+	headers, err := exchange.GetRangeByHeight(ctx, 1, header.MaxRangeRequestSize)
 	require.NoError(t, err)
-	require.Len(t, headers, 80)
+	require.Len(t, headers, int(header.MaxRangeRequestSize))
 }
 
 // TestExchange_RequestHeadersLimitExceeded tests that the Exchange instance will return

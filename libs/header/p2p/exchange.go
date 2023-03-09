@@ -175,7 +175,7 @@ func (ex *Exchange[H]) GetRangeByHeight(ctx context.Context, from, amount uint64
 	if amount == 0 {
 		return make([]H, 0), nil
 	}
-	if amount > ex.Params.MaxRequestSize {
+	if amount > header.MaxRangeRequestSize {
 		return nil, header.ErrHeadersLimitExceeded
 	}
 	session := newSession[H](ex.ctx, ex.host, ex.peerTracker, ex.protocolID, ex.Params.RangeRequestTimeout)
@@ -198,7 +198,7 @@ func (ex *Exchange[H]) GetVerifiedRange(
 	)
 	defer session.close()
 	// we request the next header height that we don't have: `fromHead`+1
-	return session.getRangeByHeight(ctx, uint64(from.Height())+1, amount, ex.Params.MaxHeadersPerRequest)
+	return session.getRangeByHeight(ctx, uint64(from.Height())+1, amount, ex.Params.MaxHeadersPerRangeRequest)
 }
 
 // Get performs a request for the Header by the given hash corresponding

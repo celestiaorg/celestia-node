@@ -295,7 +295,7 @@ func (s *Syncer[H]) requestHeaders(
 	amount := to - uint64(fromHead.Height())
 	// start requesting headers until amount remaining will be 0
 	for amount > 0 {
-		size := s.Params.MaxRequestSize
+		size := header.MaxRangeRequestSize
 		if amount < size {
 			size = amount
 		}

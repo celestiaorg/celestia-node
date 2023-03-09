@@ -194,7 +194,7 @@ func (serv *ExchangeServer[H]) handleRequest(from, to uint64) ([]H, error) {
 		attribute.Int64("to", int64(to))))
 	defer span.End()
 
-	if to-from > serv.Params.MaxRangeRequestSize {
+	if to-from > header.MaxRangeRequestSize {
 		log.Errorw("server: skip request for too many headers.", "amount", to-from)
 		span.SetStatus(codes.Error, header.ErrHeadersLimitExceeded.Error())
 		return nil, header.ErrHeadersLimitExceeded

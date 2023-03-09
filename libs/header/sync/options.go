@@ -18,8 +18,6 @@ type Parameters struct {
 	// needed to report and punish misbehavior should be less than the unbonding
 	// period.
 	TrustingPeriod time.Duration
-	// MaxRangeRequestSizeNumber of headers that can be requested at once.
-	MaxRangeRequestSize uint64
 	// blockTime provides a reference point for the Syncer to determine
 	// whether its subjective head is outdated.
 	// Keeping it private, we don't want users to independently configure it.
@@ -30,17 +28,13 @@ type Parameters struct {
 // DefaultParameters returns the default params to configure the syncer.
 func DefaultParameters() Parameters {
 	return Parameters{
-		TrustingPeriod:      168 * time.Hour,
-		MaxRangeRequestSize: 512,
+		TrustingPeriod: 168 * time.Hour,
 	}
 }
 
 func (p *Parameters) Validate() error {
 	if p.TrustingPeriod == 0 {
 		return fmt.Errorf("invalid trusting period duration: %v", p.TrustingPeriod)
-	}
-	if p.MaxRangeRequestSize == 0 {
-		return fmt.Errorf("invalid max request size: %d", p.MaxRangeRequestSize)
 	}
 	return nil
 }
@@ -58,13 +52,5 @@ func WithBlockTime(duration time.Duration) Options {
 func WithTrustingPeriod(duration time.Duration) Options {
 	return func(p *Parameters) {
 		p.TrustingPeriod = duration
-	}
-}
-
-// WithMaxRangeRequestSize is a functional option that configures the
-// `MaxRangeRequestSize` parameter.
-func WithMaxRangeRequestSize(amount uint64) Options {
-	return func(p *Parameters) {
-		p.MaxRangeRequestSize = amount
 	}
 }

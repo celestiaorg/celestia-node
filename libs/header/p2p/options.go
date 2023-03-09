@@ -21,8 +21,6 @@ type ServerParameters struct {
 	WriteDeadline time.Duration
 	// ReadDeadline sets the timeout for reading messages from the stream
 	ReadDeadline time.Duration
-	// MaxRangeRequestSize defines the max amount of headers that can be handled at once.
-	MaxRangeRequestSize uint64
 	// RangeRequestTimeout defines a timeout after which the session will try to re-request headers
 	// from another peer.
 	RangeRequestTimeout time.Duration
@@ -36,7 +34,6 @@ func DefaultServerParameters() ServerParameters {
 	return ServerParameters{
 		WriteDeadline:       time.Second * 5,
 		ReadDeadline:        time.Minute,
-		MaxRangeRequestSize: 512,
 		RangeRequestTimeout: time.Second * 5,
 	}
 }
@@ -47,9 +44,6 @@ func (p *ServerParameters) Validate() error {
 	}
 	if p.ReadDeadline == 0 {
 		return fmt.Errorf("invalid read time duration: %v", p.ReadDeadline)
-	}
-	if p.MaxRangeRequestSize == 0 {
-		return fmt.Errorf("invalid max request size: %d", p.MaxRangeRequestSize)
 	}
 	if p.RangeRequestTimeout == 0 {
 		return fmt.Errorf("invalid request timeout for session: "+
@@ -76,19 +70,6 @@ func WithReadDeadline[T ServerParameters](deadline time.Duration) Option[T] {
 		switch t := any(p).(type) { //nolint:gocritic
 		case *ServerParameters:
 			t.ReadDeadline = deadline
-		}
-	}
-}
-
-// WithMaxRangeRequestSize is a functional option that configures the
-// `MaxRangeRequestSize` parameter.
-func WithMaxRangeRequestSize[T parameters](size uint64) Option[T] {
-	return func(p *T) {
-		switch t := any(p).(type) {
-		case *ClientParameters:
-			t.MaxRangeRequestSize = size
-		case *ServerParameters:
-			t.MaxRangeRequestSize = size
 		}
 	}
 }
@@ -121,8 +102,6 @@ func WithNetworkID[T parameters](networkID string) Option[T] {
 
 // ClientParameters is the set of parameters that must be configured for the exchange.
 type ClientParameters struct {
-	// MaxRangeRequestSize defines the max amount of headers that can be handled at once.
-	MaxRangeRequestSize uint64
 	// MaxHeadersPerRangeRequest defines the max amount of headers that can be requested per 1 request.
 	MaxHeadersPerRangeRequest uint64
 	// RangeRequestTimeout defines a timeout after which the session will try to re-request headers
@@ -139,7 +118,6 @@ type ClientParameters struct {
 // DefaultClientParameters returns the default params to configure the store.
 func DefaultClientParameters() ClientParameters {
 	return ClientParameters{
-		MaxRangeRequestSize:             512,
 		MaxHeadersPerRangeRequest:       64,
 		RangeRequestTimeout:             time.Second * 8,
 		TrustedPeersRangeRequestTimeout: time.Millisecond * 300,
@@ -152,16 +130,9 @@ const (
 )
 
 func (p *ClientParameters) Validate() error {
-	if p.MaxRangeRequestSize == 0 {
-		return fmt.Errorf("invalid MaxRangeRequestSize: %s. %s: %v", greaterThenZero, providedSuffix, p.MaxRangeRequestSize)
-	}
 	if p.MaxHeadersPerRangeRequest == 0 {
 		return fmt.Errorf("invalid MaxHeadersPerRangeRequest:%s. %s: %v",
 			greaterThenZero, providedSuffix, p.MaxHeadersPerRangeRequest)
-	}
-	if p.MaxHeadersPerRangeRequest > p.MaxRangeRequestSize {
-		return fmt.Errorf("MaxHeadersPerRangeRequest should not be more than MaxRangeRequestSize."+
-			"MaxHeadersPerRangeRequest: %v, MaxRangeRequestSize: %v", p.MaxHeadersPerRangeRequest, p.MaxRangeRequestSize)
 	}
 	if p.RangeRequestTimeout == 0 {
 		return fmt.Errorf("invalid request timeout for session: "+
