@@ -31,7 +31,11 @@ func (s *Syncer[H]) subjectiveHead(ctx context.Context) (H, error) {
 	if !pendHead.IsZero() {
 		return pendHead, nil
 	}
-	// if empty, get subjective head out of the store
+	// next, check if the syncer holds any known head
+	if syncHead := s.syncedHead.Load(); syncHead != nil {
+		return *syncHead, nil
+	}
+	// if both pending and syncer head are empty - get subjective head out of the store
 	netHead, err := s.store.Head(ctx)
 	if err != nil {
 		return zero, err
@@ -107,6 +111,12 @@ func (s *Syncer[H]) networkHead(ctx context.Context) (H, error) {
 
 // incomingNetHead processes new gossiped network headers.
 func (s *Syncer[H]) incomingNetHead(ctx context.Context, netHead H) pubsub.ValidationResult {
+	// check if it's an outdated head
+	// TODO(@Wondertan): This check does should not be here and it's already part of the validation
+	//  pipeline. We have it here because syncedHead is not synchronized with writeHead inside of Store.
+	if syncHead := s.syncedHead.Load(); syncHead != nil && (*syncHead).Height() >= netHead.Height() {
+		return pubsub.ValidationIgnore
+	}
 	// Try to short-circuit netHead with append. If not adjacent/from future - try it as new network
 	// header
 	_, err := s.store.Append(ctx, netHead)
