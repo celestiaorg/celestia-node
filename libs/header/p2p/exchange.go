@@ -197,7 +197,7 @@ func (ex *Exchange[H]) GetVerifiedRange(
 		ex.ctx, ex.host, ex.peerTracker, ex.protocolID, ex.Params.RequestTimeout, withValidation(from),
 	)
 	defer session.close()
-
+	// we request the next header height that we don't have: `fromHead`+1
 	return session.getRangeByHeight(ctx, uint64(from.Height())+1, amount, ex.Params.MaxHeadersPerRequest)
 }
 

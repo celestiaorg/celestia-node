@@ -201,9 +201,12 @@ func (s *Syncer[H]) sync(ctx context.Context) {
 		return // should never happen, but just in case
 	}
 
+	from := header.Height() + 1
+
 	log.Infow("syncing headers",
-		"from", header.Height(),
+		"from", from,
 		"to", newHead.Height())
+
 	err := s.doSync(ctx, header, newHead)
 	if err != nil {
 		if errors.Is(err, context.Canceled) {
@@ -212,40 +215,30 @@ func (s *Syncer[H]) sync(ctx context.Context) {
 		}
 
 		log.Errorw("syncing headers",
-			"from", header.Height(),
+			"from", from,
 			"to", newHead.Height(),
 			"err", err)
 		return
 	}
 
 	log.Infow("finished syncing",
-		"from", header.Height(),
+		"from", from,
 		"to", newHead.Height(),
 		"elapsed time", s.state.End.Sub(s.state.Start))
 }
 
 // doSync performs actual syncing updating the internal State
 func (s *Syncer[H]) doSync(ctx context.Context, fromHead, toHead H) (err error) {
-	from, to := uint64(fromHead.Height())+1, uint64(toHead.Height())
-
 	s.stateLk.Lock()
 	s.state.ID++
-	s.state.FromHeight = from
-	s.state.ToHeight = to
+	s.state.FromHeight = uint64(fromHead.Height()) + 1
+	s.state.ToHeight = uint64(toHead.Height())
 	s.state.FromHash = fromHead.Hash()
 	s.state.ToHash = toHead.Hash()
 	s.state.Start = time.Now()
 	s.stateLk.Unlock()
 
-	for processed := 0; from < to; from += uint64(processed) {
-		processed, err = s.processHeaders(ctx, from, to)
-		if err != nil && processed == 0 {
-			break
-		}
-		if s.metrics != nil {
-			s.metrics.recordTotalSynced(processed)
-		}
-	}
+	err = s.processHeaders(ctx, fromHead, uint64(toHead.Height()))
 
 	s.stateLk.Lock()
 	s.state.End = time.Now()
@@ -256,50 +249,84 @@ func (s *Syncer[H]) doSync(ctx context.Context, fromHead, toHead H) (err error) 
 
 // processHeaders gets and stores headers starting at the given 'from' height up to 'to' height -
 // [from:to]
-func (s *Syncer[H]) processHeaders(ctx context.Context, from, to uint64) (int, error) {
-	headers, err := s.findHeaders(ctx, from, to)
-	if err != nil {
-		return 0, err
-	}
+// processHeaders checks headers in pending cache that apply to the requested range.
+// If some headers are missing, it starts requesting them from the network.
+func (s *Syncer[H]) processHeaders(
+	ctx context.Context,
+	fromHead H,
+	to uint64,
+) (err error) {
+	for {
+		headersRange, ok := s.pending.First()
+		if !ok {
+			break
+		}
 
-	amount, err := s.store.Append(ctx, headers...)
-	if err == nil && amount > 0 {
-		s.syncedHead.Store(&headers[amount-1])
+		headers, amount := headersRange.Before(to)
+		if amount == 0 {
+			break
+		}
+
+		// check that returned range is adjacent to `fromHead`
+		if fromHead.Height()+1 != headers[0].Height() {
+			// make an external request
+			if err = s.requestHeaders(ctx, fromHead, uint64(headers[0].Height()-1)); err != nil {
+				return err
+			}
+		}
+
+		// apply cached headers
+		if err = s.storeHeaders(ctx, headers); err != nil {
+			return err
+		}
+
+		// update fromHead for the next iteration
+		fromHead = headers[len(headers)-1]
 	}
-	return amount, err
+	return s.requestHeaders(ctx, fromHead, to)
 }
 
-// findHeaders gets headers from either remote peers or from local cache of headers received by
-// PubSub - [from:to]
-func (s *Syncer[H]) findHeaders(ctx context.Context, from, to uint64) ([]H, error) {
-	amount := to - from + 1 // + 1 to include 'to' height as well
-	if amount > s.Params.MaxRequestSize {
-		to = from + s.Params.MaxRequestSize - 1 // `from` is already included in range
-		amount = s.Params.MaxRequestSize
-	}
-
-	out := make([]H, 0, amount)
-	for from <= to {
-		// if we have some range cached - use it
-		r, ok := s.pending.FirstRangeWithin(from, to)
-		if !ok {
-			hs, err := s.exchange.GetRangeByHeight(ctx, from, to-from+1)
-			return append(out, hs...), err
+// requestHeaders requests headers from the network -> (fromHeader.Height : to].
+func (s *Syncer[H]) requestHeaders(
+	ctx context.Context,
+	fromHead H,
+	to uint64,
+) error {
+	amount := to - uint64(fromHead.Height())
+	// start requesting headers until amount remaining will be 0
+	for amount > 0 {
+		size := s.Params.MaxRequestSize
+		if amount < size {
+			size = amount
 		}
-
-		// first, request everything between from and start of the found range
-		hs, err := s.exchange.GetRangeByHeight(ctx, from, r.start-from)
+		headers, err := s.exchange.GetVerifiedRange(ctx, fromHead, size)
 		if err != nil {
-			return nil, err
+			return err
 		}
-		out = append(out, hs...)
-		from += uint64(len(hs))
+		amount -= size
 
-		// apply cached range if any
-		cached, ln := r.Before(to)
-		out = append(out, cached...)
-		from += ln
+		if err := s.storeHeaders(ctx, headers); err != nil {
+			return err
+		}
+		fromHead = headers[len(headers)-1]
+	}
+	return nil
+}
+
+// storeHeaders updates store with new headers and updates current syncedHead.
+func (s *Syncer[H]) storeHeaders(ctx context.Context, headers []H) error {
+	// we don't expect any issues in storing right now, as all headers are now verified.
+	// So, we should return immediately in case an error appears.
+	stored, err := s.store.Append(ctx, headers...)
+	if err != nil {
+		return err
+	}
+	if stored > 0 {
+		s.syncedHead.Store(&headers[stored-1])
 	}
 
-	return out, nil
+	if s.metrics != nil {
+		s.metrics.recordTotalSynced(stored)
+	}
+	return nil
 }

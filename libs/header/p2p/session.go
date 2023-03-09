@@ -74,7 +74,7 @@ func (s *session[H]) getRangeByHeight(
 	ctx context.Context,
 	from, amount, headersPerPeer uint64,
 ) ([]H, error) {
-	log.Debugw("requesting headers", "from", from, "to", from+amount)
+	log.Debugw("requesting headers", "from", from, "to", from+amount-1) // -1 need to exclude to+1 height
 
 	requests := prepareRequests(from, amount, headersPerPeer)
 	result := make(chan []H, len(requests))
@@ -104,6 +104,11 @@ LOOP:
 	sort.Slice(headers, func(i, j int) bool {
 		return headers[i].Height() < headers[j].Height()
 	})
+
+	log.Debugw("received headers range",
+		"from", headers[0].Height(),
+		"to", headers[len(headers)-1].Height(),
+	)
 	return headers, nil
 }
 
