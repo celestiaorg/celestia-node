@@ -202,7 +202,7 @@ func (s *Syncer[H]) sync(ctx context.Context) {
 	}
 
 	log.Infow("syncing headers",
-		"from", header.Height(),
+		"from", header.Height()+1,
 		"to", newHead.Height())
 	err := s.doSync(ctx, header, newHead)
 	if err != nil {
@@ -212,14 +212,14 @@ func (s *Syncer[H]) sync(ctx context.Context) {
 		}
 
 		log.Errorw("syncing headers",
-			"from", header.Height(),
+			"from", header.Height()+1,
 			"to", newHead.Height(),
 			"err", err)
 		return
 	}
 
 	log.Infow("finished syncing",
-		"from", header.Height(),
+		"from", header.Height()+1,
 		"to", newHead.Height(),
 		"elapsed time", s.state.End.Sub(s.state.Start))
 }
@@ -248,7 +248,6 @@ func (s *Syncer[H]) doSync(ctx context.Context, fromHead, toHead H) (err error) 
 // [from:to]
 // processHeaders checks headers in pending cache that apply to the requested range.
 // If some headers are missing, it starts requesting them from the network.
-// All headers that will be received are verified to be contiguous.
 func (s *Syncer[H]) processHeaders(
 	ctx context.Context,
 	fromHead H,
@@ -284,14 +283,14 @@ func (s *Syncer[H]) processHeaders(
 	return s.requestHeaders(ctx, fromHead, to)
 }
 
-// requestHeaders requests headers from the network -> (fromHeader.Height;to].
+// requestHeaders requests headers from the network -> (fromHeader.Height : to].
 func (s *Syncer[H]) requestHeaders(
 	ctx context.Context,
 	fromHead H,
 	to uint64,
 ) error {
 	amount := to - uint64(fromHead.Height())
-	// start requesting headers until amount will be 0
+	// start requesting headers until amount remaining will be 0
 	for amount > 0 {
 		size := s.Params.MaxRequestSize
 		if amount < size {
@@ -313,6 +312,8 @@ func (s *Syncer[H]) requestHeaders(
 
 // storeHeaders updates store with new headers and updates current syncedHead.
 func (s *Syncer[H]) storeHeaders(ctx context.Context, headers []H) error {
+	// we don't expect any issues in storing right now, as all headers are now verified.
+	// So, we should return immediately in case an error appears.
 	stored, err := s.store.Append(ctx, headers...)
 	if err != nil {
 		return err
