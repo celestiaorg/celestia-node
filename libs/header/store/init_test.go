@@ -32,7 +32,7 @@ func TestInitStore_NoReinit(t *testing.T) {
 	err = store.Start(ctx)
 	require.NoError(t, err)
 
-	_, err = store.Append(ctx, suite.GenDummyHeaders(10)...)
+	err = store.Append(ctx, suite.GenDummyHeaders(10)...)
 	require.NoError(t, err)
 
 	err = store.Stop(ctx)

@@ -95,7 +95,7 @@ type Store[H Header] interface {
 	// as it applies them contiguously on top of the current head height.
 	// It returns the amount of successfully applied headers,
 	// so caller can understand what given header was invalid, if any.
-	Append(context.Context, ...H) (int, error)
+	Append(context.Context, ...H) error
 }
 
 // Getter contains the behavior necessary for a component to retrieve

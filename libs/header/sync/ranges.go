@@ -68,21 +68,6 @@ func (rs *ranges[H]) Add(h H) {
 	}
 }
 
-// FirstRangeWithin checks if the first range is within a given height span [start:end]
-// and returns it.
-func (rs *ranges[H]) FirstRangeWithin(start, end uint64) (*headerRange[H], bool) {
-	r, ok := rs.First()
-	if !ok {
-		return nil, false
-	}
-
-	if r.start >= start && r.start <= end {
-		return r, true
-	}
-
-	return nil, false
-}
-
 // First provides a first non-empty range, while cleaning up empty ones.
 func (rs *ranges[H]) First() (*headerRange[H], bool) {
 	rs.lk.Lock()
