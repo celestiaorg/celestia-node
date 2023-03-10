@@ -42,11 +42,7 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 		)),
 		fx.Provide(
 			func(ctx context.Context, h host.Host, network modp2p.Network) (*shrexsub.PubSub, error) {
-				return shrexsub.NewPubSub(
-					ctx,
-					h,
-					string(network),
-				)
+				return shrexsub.NewPubSub(ctx, h, network.String())
 			},
 		),
 	)
@@ -56,7 +52,7 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 		fx.Invoke(func(edsSrv *shrexeds.Server, ndSrc *shrexnd.Server) {}),
 		fx.Provide(fx.Annotate(
 			func(host host.Host, store *eds.Store, network modp2p.Network) (*shrexeds.Server, error) {
-				return shrexeds.NewServer(host, store, shrexeds.WithNetworkID(string(network)))
+				return shrexeds.NewServer(host, store, shrexeds.WithNetworkID(network.String()))
 			},
 			fx.OnStart(func(ctx context.Context, server *shrexeds.Server) error {
 				return server.Start(ctx)
@@ -72,7 +68,7 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 				getter *getters.StoreGetter,
 				network modp2p.Network,
 			) (*shrexnd.Server, error) {
-				return shrexnd.NewServer(host, store, getter, shrexnd.WithNetworkID(string(network)))
+				return shrexnd.NewServer(host, store, getter, shrexnd.WithNetworkID(network.String()))
 			},
 			fx.OnStart(func(ctx context.Context, server *shrexnd.Server) error {
 				return server.Start(ctx)
@@ -118,12 +114,12 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 		fx.Provide(peers.NewManager),
 		fx.Provide(
 			func(host host.Host, network modp2p.Network) (*shrexnd.Client, error) {
-				return shrexnd.NewClient(host, shrexnd.WithNetworkID(string(network)))
+				return shrexnd.NewClient(host, shrexnd.WithNetworkID(network.String()))
 			},
 		),
 		fx.Provide(
 			func(host host.Host, network modp2p.Network) (*shrexeds.Client, error) {
-				return shrexeds.NewClient(host, shrexeds.WithNetworkID(string(network)))
+				return shrexeds.NewClient(host, shrexeds.WithNetworkID(network.String()))
 			},
 		),
 		fx.Provide(fx.Annotate(
