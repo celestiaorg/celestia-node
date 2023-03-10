@@ -9,6 +9,8 @@ import (
 	ipld "github.com/ipfs/go-ipld-format"
 )
 
+// Option is the functional option that is applied to the RetrievedData instance
+// to configure data that needs to be stored.
 type Option func(*RetrievedData)
 
 // WithLeaves option specifies that leaves should be collected during retrieval.
@@ -27,6 +29,7 @@ func WithProofs() Option {
 	}
 }
 
+// RetrievedData saves all leaves under the given namespace in the given namespace with corresponded proofs.
 type RetrievedData struct {
 	leaves         []ipld.Node
 	proofContainer *proofCollector
