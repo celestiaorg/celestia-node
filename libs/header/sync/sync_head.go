@@ -31,7 +31,11 @@ func (s *Syncer[H]) subjectiveHead(ctx context.Context) (H, error) {
 	if !pendHead.IsZero() {
 		return pendHead, nil
 	}
-	// if empty, get subjective head out of the store
+	// next, check if the syncer holds any known head
+	if syncHead := s.syncedHead.Load(); syncHead != nil {
+		return *syncHead, nil
+	}
+	// if both pending and syncer head are empty - get subjective head out of the store
 	netHead, err := s.store.Head(ctx)
 	if err != nil {
 		return zero, err
@@ -107,9 +111,15 @@ func (s *Syncer[H]) networkHead(ctx context.Context) (H, error) {
 
 // incomingNetHead processes new gossiped network headers.
 func (s *Syncer[H]) incomingNetHead(ctx context.Context, netHead H) pubsub.ValidationResult {
+	// check if it's an outdated head
+	// TODO(@Wondertan): This check does should not be here and it's already part of the validation
+	//  pipeline. We have it here because syncedHead is not synchronized with writeHead inside of Store.
+	if syncHead := s.syncedHead.Load(); syncHead != nil && (*syncHead).Height() >= netHead.Height() {
+		return pubsub.ValidationIgnore
+	}
 	// Try to short-circuit netHead with append. If not adjacent/from future - try it as new network
 	// header
-	_, err := s.store.Append(ctx, netHead)
+	err := s.store.Append(ctx, netHead)
 	if err == nil {
 		// a happy case where we appended maybe head directly, so accept
 		s.syncedHead.Store(&netHead)
@@ -118,7 +128,7 @@ func (s *Syncer[H]) incomingNetHead(ctx context.Context, netHead H) pubsub.Valid
 	var nonAdj *header.ErrNonAdjacent
 	if errors.As(err, &nonAdj) {
 		// not adjacent, maybe we've missed a few headers or its from the past
-		log.Debugw("attempted to append non-adjacent header", "store head",
+		log.Debugw("attempted to append gossiped non-adjacent header", "store head",
 			nonAdj.Head, "attempted", nonAdj.Attempted)
 	} else {
 		var verErr *header.VerifyError
@@ -168,7 +178,7 @@ func (s *Syncer[H]) validate(ctx context.Context, new H) pubsub.ValidationResult
 		return pubsub.ValidationIgnore
 	}
 	// perform verification
-	err = sbjHead.VerifyNonAdjacent(new)
+	err = sbjHead.Verify(new)
 	var verErr *header.VerifyError
 	if errors.As(err, &verErr) {
 		log.Errorw("invalid network header",
@@ -182,6 +192,9 @@ func (s *Syncer[H]) validate(ctx context.Context, new H) pubsub.ValidationResult
 	// and accept if the header is good
 	return pubsub.ValidationAccept
 }
+
+// TODO(@Wondertan): We should request TrustingPeriod from the network's state params or
+//  listen for network params changes to always have a topical value.
 
 // isExpired checks if header is expired against trusting period.
 func isExpired(header header.Header, period time.Duration) bool {

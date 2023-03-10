@@ -6,9 +6,10 @@ import (
 	"testing"
 
 	"github.com/celestiaorg/celestia-app/pkg/da"
-	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/nmt/namespace"
 	"github.com/celestiaorg/rsmt2d"
+
+	"github.com/celestiaorg/celestia-node/share"
 )
 
 // TestGetter provides a testing SingleEDSGetter and the root of the EDS it holds.

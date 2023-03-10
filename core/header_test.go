@@ -9,7 +9,7 @@ import (
 	"github.com/tendermint/tendermint/libs/rand"
 
 	"github.com/celestiaorg/celestia-node/header"
-	"github.com/celestiaorg/celestia-node/headertest"
+	"github.com/celestiaorg/celestia-node/header/headertest"
 )
 
 func TestMakeExtendedHeaderForEmptyBlock(t *testing.T) {

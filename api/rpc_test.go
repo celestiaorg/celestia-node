@@ -15,8 +15,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.uber.org/fx"
 
-	headerMock "github.com/celestiaorg/celestia-node/nodebuilder/header/mocks"
-
 	"github.com/celestiaorg/celestia-node/api/rpc"
 	"github.com/celestiaorg/celestia-node/api/rpc/client"
 	"github.com/celestiaorg/celestia-node/api/rpc/perms"
@@ -28,6 +26,7 @@ import (
 	"github.com/celestiaorg/celestia-node/nodebuilder/fraud"
 	fraudMock "github.com/celestiaorg/celestia-node/nodebuilder/fraud/mocks"
 	"github.com/celestiaorg/celestia-node/nodebuilder/header"
+	headerMock "github.com/celestiaorg/celestia-node/nodebuilder/header/mocks"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	nodeMock "github.com/celestiaorg/celestia-node/nodebuilder/node/mocks"
 	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"

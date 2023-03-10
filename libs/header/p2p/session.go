@@ -3,6 +3,7 @@ package p2p
 import (
 	"context"
 	"errors"
+	"fmt"
 	"sort"
 	"time"
 
@@ -12,6 +13,10 @@ import (
 	"github.com/celestiaorg/celestia-node/libs/header"
 	p2p_pb "github.com/celestiaorg/celestia-node/libs/header/p2p/pb"
 )
+
+// errEmptyResponse means that server side closes the connection without sending at least 1
+// response.
+var errEmptyResponse = errors.New("empty response")
 
 type option[H header.Header] func(*session[H])
 
@@ -65,12 +70,12 @@ func newSession[H header.Header](
 	return ses
 }
 
-// GetRangeByHeight requests headers from different peers.
+// getRangeByHeight requests headers from different peers.
 func (s *session[H]) getRangeByHeight(
 	ctx context.Context,
 	from, amount, headersPerPeer uint64,
 ) ([]H, error) {
-	log.Debugw("requesting headers", "from", from, "to", from+amount)
+	log.Debugw("requesting headers", "from", from, "to", from+amount-1) // -1 need to exclude to+1 height
 
 	requests := prepareRequests(from, amount, headersPerPeer)
 	result := make(chan []H, len(requests))
@@ -82,7 +87,8 @@ func (s *session[H]) getRangeByHeight(
 	}
 
 	headers := make([]H, 0, amount)
-	for i := 0; i < len(requests); i++ {
+LOOP:
+	for {
 		select {
 		case <-s.ctx.Done():
 			return nil, errors.New("header/p2p: exchange is closed")
@@ -90,11 +96,20 @@ func (s *session[H]) getRangeByHeight(
 			return nil, ctx.Err()
 		case res := <-result:
 			headers = append(headers, res...)
+			if uint64(len(headers)) == amount {
+				break LOOP
+			}
 		}
 	}
+
 	sort.Slice(headers, func(i, j int) bool {
 		return headers[i].Height() < headers[j].Height()
 	})
+
+	log.Debugw("received headers range",
+		"from", headers[0].Height(),
+		"to", headers[len(headers)-1].Height(),
+	)
 	return headers, nil
 }
 
@@ -139,53 +154,88 @@ func (s *session[H]) doRequest(
 
 	r, size, duration, err := sendMessage(ctx, s.host, stat.peerID, s.protocolID, req)
 	if err != nil {
-		log.Errorw("requesting headers from peer failed", "failed peer", stat.peerID, "err", err)
-		select {
-		case <-s.ctx.Done():
-		case s.reqCh <- req:
-			stat.decreaseScore()
-			log.Debug("retrying the request from different peer")
-		}
-		return
+		// we should not punish peer at this point and should try to parse responses, despite that error
+		// was received.
+		log.Debugw("requesting headers from peer failed", "peer", stat.peerID, "err", err)
 	}
 
 	h, err := s.processResponse(r)
 	if err != nil {
 		switch err {
-		case header.ErrNotFound:
+		case header.ErrNotFound, errEmptyResponse:
+			stat.decreaseScore()
 		default:
 			s.peerTracker.blockPeer(stat.peerID, err)
 		}
+
+		// exclude header.ErrNotFound from being logged as it is a `valid` error
+		// and peer may not have the range(peer just connected and syncing).
+		if err != header.ErrNotFound {
+			log.Errorw("processing headers response failed", "peer", stat.peerID, "err", err)
+		}
+
 		select {
 		case <-s.ctx.Done():
+			return
 		case s.reqCh <- req:
 		}
+		log.Errorw("processing response", "err", err)
 		return
 	}
-	log.Debugw("request headers from peer succeeded", "peer", stat.peerID, "amount", req.Amount)
-	// send headers to the channel, update peer stats and return peer to the queue, so it can be
+
+	log.Debugw("request headers from peer succeeded",
+		"peer", stat.peerID,
+		"receivedAmount", len(h),
+		"requestedAmount", req.Amount,
+	)
+
+	// update peer stats
+	stat.updateStats(size, duration)
+
+	responseLn := uint64(len(h))
+	// ensure that we received the correct amount of headers.
+	if responseLn < req.Amount {
+		from := uint64(h[responseLn-1].Height())
+		amount := req.Amount - responseLn
+
+		select {
+		case <-s.ctx.Done():
+			return
+		// create a new request with the remaining headers.
+		// prepareRequests will return a slice with 1 element at this point
+		case s.reqCh <- prepareRequests(from+1, amount, req.Amount)[0]:
+			log.Debugw("sending additional request to get remaining headers")
+		}
+	}
+
+	// send headers to the channel, return peer to the queue, so it can be
 	// re-used in case if there are other requests awaiting
 	headers <- h
-	stat.updateStats(size, duration)
 	s.queue.push(stat)
 }
 
 // processResponse converts HeaderResponse to Header.
 func (s *session[H]) processResponse(responses []*p2p_pb.HeaderResponse) ([]H, error) {
+	if len(responses) == 0 {
+		return nil, errEmptyResponse
+	}
+
 	headers := make([]H, 0)
 	for _, resp := range responses {
 		err := convertStatusCodeToError(resp.StatusCode)
 		if err != nil {
 			return nil, err
 		}
+
 		var empty H
 		header := empty.New()
 		err = header.UnmarshalBinary(resp.Body)
 		if err != nil {
-			return nil, errors.New("unmarshalling error")
+			return nil, err
 		}
 		headers = append(headers, header.(H))
 	}
+
 	if len(headers) == 0 {
 		return nil, header.ErrNotFound
 	}
@@ -194,31 +244,35 @@ func (s *session[H]) processResponse(responses []*p2p_pb.HeaderResponse) ([]H, e
 	return headers, err
 }
 
-// validate checks that the received range of headers is valid against the provided header.
+// validate checks that the received range of headers is adjacent and is valid against the provided
+// header.
 func (s *session[H]) validate(headers []H) error {
-	// if `from` is empty, then additional validation for the header`s range is not needed.
+	// if `s.from` is empty, then additional validation for the header`s range is not needed.
 	if s.from.IsZero() {
 		return nil
 	}
 
-	// verify that the first header in range is valid against the trusted header.
-	err := s.from.VerifyNonAdjacent(headers[0])
-	if err != nil {
-		return nil
-	}
-
-	if len(headers) == 1 {
-		return nil
-	}
-
-	trusted := headers[0]
-	// verify that the whole range is valid.
-	for i := 1; i < len(headers); i++ {
-		err = trusted.VerifyAdjacent(headers[i])
+	trusted := s.from
+	// verify that the whole range is valid and adjacent.
+	for _, untrusted := range headers {
+		err := trusted.Verify(untrusted)
 		if err != nil {
 			return err
 		}
-		trusted = headers[i]
+
+		// extra check for the adjacency should be performed only for the received range,
+		// because headers are received out of order and `s.from` can't be adjacent to them
+		if trusted.Height() != s.from.Height() {
+			if trusted.Height()+1 != untrusted.Height() {
+				// Exchange requires requested ranges to always consist of adjacent headers
+				return fmt.Errorf("peer sent valid but non-adjacent header. expected:%d, received:%d",
+					trusted.Height()+1,
+					untrusted.Height(),
+				)
+			}
+		}
+		// as `untrusted` was verified against previous trusted header, we can assume that it is valid
+		trusted = untrusted
 	}
 	return nil
 }
@@ -231,6 +285,7 @@ func prepareRequests(from, amount, headersPerPeer uint64) []*p2p_pb.HeaderReques
 		request := &p2p_pb.HeaderRequest{
 			Data: &p2p_pb.HeaderRequest_Origin{Origin: from},
 		}
+
 		if amount < headersPerPeer {
 			requestSize = amount
 			amount = 0
@@ -239,6 +294,7 @@ func prepareRequests(from, amount, headersPerPeer uint64) []*p2p_pb.HeaderReques
 			from += headersPerPeer
 			requestSize = headersPerPeer
 		}
+
 		request.Amount = requestSize
 		requests = append(requests, request)
 	}

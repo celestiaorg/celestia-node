@@ -19,6 +19,7 @@ import (
 
 	"github.com/celestiaorg/celestia-app/pkg/da"
 	appshares "github.com/celestiaorg/celestia-app/pkg/shares"
+
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/share"
 	availability_test "github.com/celestiaorg/celestia-node/share/availability/test"

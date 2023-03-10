@@ -7,12 +7,11 @@ import (
 	"sync"
 	"time"
 
-	"github.com/celestiaorg/celestia-node/share/p2p/shrexsub"
-
 	"go.uber.org/multierr"
 
 	"github.com/celestiaorg/celestia-node/header"
 	libhead "github.com/celestiaorg/celestia-node/libs/header"
+	"github.com/celestiaorg/celestia-node/share/p2p/shrexsub"
 )
 
 type worker struct {
@@ -70,13 +69,10 @@ func (w *worker) run(ctx context.Context, timeout time.Duration, resultCh chan<-
 
 	for curr := w.state.From; curr <= w.state.To; curr++ {
 		err := w.sample(ctx, timeout, curr)
-		if err != nil {
-			if errors.Is(err, context.Canceled) {
-				// sampling worker will resume upon restart
-				break
-			}
-			w.setResult(curr, err)
-			continue
+		w.setResult(curr, err)
+		if errors.Is(err, context.Canceled) {
+			// sampling worker will resume upon restart
+			break
 		}
 	}
 

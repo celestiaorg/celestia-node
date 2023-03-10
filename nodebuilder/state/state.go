@@ -5,9 +5,9 @@ import (
 
 	"github.com/cosmos/cosmos-sdk/x/staking/types"
 
-	"github.com/celestiaorg/celestia-node/state"
-
 	"github.com/celestiaorg/nmt/namespace"
+
+	"github.com/celestiaorg/celestia-node/state"
 )
 
 var _ Module = (*API)(nil)

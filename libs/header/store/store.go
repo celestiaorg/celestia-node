@@ -262,7 +262,7 @@ func (s *Store[H]) GetVerifiedRange(
 	}
 
 	for _, h := range headers {
-		err := from.VerifyAdjacent(h)
+		err := from.Verify(h)
 		if err != nil {
 			return nil, err
 		}
@@ -287,10 +287,10 @@ func (s *Store[H]) HasAt(_ context.Context, height uint64) bool {
 	return height != uint64(0) && s.Height() >= height
 }
 
-func (s *Store[H]) Append(ctx context.Context, headers ...H) (int, error) {
+func (s *Store[H]) Append(ctx context.Context, headers ...H) error {
 	lh := len(headers)
 	if lh == 0 {
-		return 0, nil
+		return nil
 	}
 
 	var err error
@@ -300,7 +300,7 @@ func (s *Store[H]) Append(ctx context.Context, headers ...H) (int, error) {
 	if headPtr == nil {
 		head, err = s.Head(ctx)
 		if err != nil {
-			return 0, err
+			return err
 		}
 	} else {
 		head = *headPtr
@@ -309,7 +309,16 @@ func (s *Store[H]) Append(ctx context.Context, headers ...H) (int, error) {
 	// collect valid headers
 	verified := make([]H, 0, lh)
 	for i, h := range headers {
-		err = head.VerifyAdjacent(h)
+		// currently store requires all headers to be appended sequentially and adjacently
+		// TODO(@Wondertan): Further pruning friendly Store design should reevaluate this requirement
+		if h.Height() != head.Height()+1 {
+			return &header.ErrNonAdjacent{
+				Head:      head.Height(),
+				Attempted: h.Height(),
+			}
+		}
+
+		err = head.Verify(h)
 		if err != nil {
 			var verErr *header.VerifyError
 			if errors.As(err, &verErr) {
@@ -323,7 +332,7 @@ func (s *Store[H]) Append(ctx context.Context, headers ...H) (int, error) {
 			// if the first header is invalid, no need to go further
 			if i == 0 {
 				// and simply return
-				return 0, err
+				return err
 			}
 			// otherwise, stop the loop and apply headers appeared to be valid
 			break
@@ -340,11 +349,11 @@ func (s *Store[H]) Append(ctx context.Context, headers ...H) (int, error) {
 		log.Infow("new head", "height", wh.Height(), "hash", wh.Hash())
 		// we return an error here after writing,
 		// as there might be an invalid header in between of a given range
-		return ln, err
+		return err
 	case <-s.writesDn:
-		return 0, errStoppedStore
+		return errStoppedStore
 	case <-ctx.Done():
-		return 0, ctx.Err()
+		return ctx.Err()
 	}
 }
 

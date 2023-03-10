@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/celestiaorg/celestia-node/fraud"
-	"github.com/celestiaorg/celestia-node/headertest"
+	"github.com/celestiaorg/celestia-node/header/headertest"
 	"github.com/celestiaorg/celestia-node/nodebuilder"
 	"github.com/celestiaorg/celestia-node/nodebuilder/core"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
