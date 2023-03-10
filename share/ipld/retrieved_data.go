@@ -9,8 +9,6 @@ import (
 	ipld "github.com/ipfs/go-ipld-format"
 )
 
-var errNoLeavesAvailable = errors.New("no leaves available under the given root")
-
 type Option func(*RetrievedData)
 
 // WithLeaves option specifies that leaves should be collected during retrieval.
@@ -34,7 +32,6 @@ type RetrievedData struct {
 	proofContainer *proofCollector
 	bounds         fetchedBounds
 	maxShares      int
-	err            error
 }
 
 func NewRetrievedData(maxShares int, options ...Option) *RetrievedData {
@@ -78,13 +75,7 @@ func (r *RetrievedData) addLeaf(pos int, nd ipld.Node) {
 
 // leavesAvailable ensures if there leaves under the given root in the given namespace.
 func (r *RetrievedData) leavesAvailable() bool {
-	if r.bounds.lowest == int64(r.maxShares) {
-		// reset slice if no leaves available under the given root
-		r.leaves = nil
-		r.err = errNoLeavesAvailable
-		return false
-	}
-	return true
+	return r.bounds.lowest != int64(r.maxShares)
 }
 
 type direction int
@@ -112,7 +103,7 @@ func (r *RetrievedData) addProof(d direction, cid cid.Cid, depth int) {
 // CollectLeaves returns retrieved leaves within the bounds in case if `WithLeaves` option was passed,
 // otherwise nil will be returned.
 func (r *RetrievedData) CollectLeaves() []ipld.Node {
-	if r.leaves == nil {
+	if r.leaves == nil || !r.leavesAvailable() {
 		return nil
 	}
 	return r.leaves[r.bounds.lowest : r.bounds.highest+1]
@@ -125,7 +116,8 @@ func (r *RetrievedData) CollectProofs() *Proof {
 		return nil
 	}
 
-	if r.err != nil && errors.Is(r.err, errNoLeavesAvailable) {
+	// return an empty Proof if leavers are not available
+	if !r.leavesAvailable() {
 		return &Proof{}
 	}
 
