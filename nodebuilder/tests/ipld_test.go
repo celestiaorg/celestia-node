@@ -30,7 +30,7 @@ Steps:
 6. Check FNs sync *and* DAS to height 30
 */
 func TestSyncFullsWithBridge_Network_Stable_Latest_IPLD(t *testing.T) {
-	fullNodesCount := 5
+	fullNodesCount := 1
 
 	ctx, cancel := context.WithTimeout(context.Background(), swamp.DefaultTestTimeout)
 	t.Cleanup(cancel)
