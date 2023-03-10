@@ -83,7 +83,6 @@ celestia <node_type> start
 | -------------- | ----------------------------------- | ------------- | -------- |
 | `BOOTSTRAPPER` | Start the node in bootstrapper mode | `false`       | Optional |
 
-
 ## Package-specific documentation
 
 - [Header](./header/doc.go)
