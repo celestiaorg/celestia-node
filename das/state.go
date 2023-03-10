@@ -15,7 +15,7 @@ type coordinatorState struct {
 
 	inProgress map[int]func() workerState // keeps track of running workers
 	failed     map[uint64]int             // stores heights of failed headers with amount of attempt as value
-	retry      map[int]int                // height that previously failed and currently are being process by workers
+	retry      map[int]int                // retry jobsIDs for heights that previously failed and currently are being process by workers
 
 	nextJobID   int
 	next        uint64 // all headers before next were sent to workers
@@ -66,7 +66,7 @@ func (s *coordinatorState) handleResult(res result) {
 	attempts := 1
 	if res.kind == retryJob {
 		if len(res.failed) > 0 {
-			// if item was in retry and failed again, carry on previous attempt count
+			// if job was already in retry and failed again, increment attempt count
 			attempts += s.retry[res.job.id]
 		}
 		delete(s.retry, res.job.id)
@@ -74,7 +74,7 @@ func (s *coordinatorState) handleResult(res result) {
 
 	// add newly failed heights
 	for h := range res.failed {
-		s.failed[h] = +attempts
+		s.failed[h] += attempts
 	}
 	s.checkDone()
 }
@@ -98,7 +98,8 @@ func (s *coordinatorState) updateHead(newHead int64) {
 	s.checkDone()
 }
 
-func (s *coordinatorState) newRecentJob(header *header.ExtendedHeader) job {
+// recentJob creates a job to process recently produced header
+func (s *coordinatorState) recentJob(header *header.ExtendedHeader) job {
 	height := uint64(header.Height())
 	// move next, to prevent catchup job from processing same height
 	if s.next == height {
@@ -114,24 +115,34 @@ func (s *coordinatorState) newRecentJob(header *header.ExtendedHeader) job {
 	}
 }
 
-// nextJob will return header height to be processed and done flag if there is none
+// nextJob will return next job according to priority (catchup -> retry)
 func (s *coordinatorState) nextJob() (next job, found bool) {
-	if s.next <= s.networkHead {
-		to := s.next + s.samplingRange - 1
-		if to > s.networkHead {
-			to = s.networkHead
-		}
-		j := s.newJob(catchupJob, s.next, to)
-		s.next = to + 1
-		return j, true
+	// check for catchup job
+	if job, found := s.catchupJob(); found {
+		return job, found
 	}
 
 	// if all headers were tried already, make a retry job
 	return s.retryJob()
 }
 
-// retryJob will retry previously failed header
-func (s *coordinatorState) retryJob() (job, bool) {
+// catchupJob creates a catchup job if catchup is not finished
+func (s *coordinatorState) catchupJob() (next job, found bool) {
+	if s.next > s.networkHead {
+		return job{}, false
+	}
+
+	to := s.next + s.samplingRange - 1
+	if to > s.networkHead {
+		to = s.networkHead
+	}
+	j := s.newJob(catchupJob, s.next, to)
+	s.next = to + 1
+	return j, true
+}
+
+// retryJob creates a job to retry previously failed header
+func (s *coordinatorState) retryJob() (next job, found bool) {
 	for h, count := range s.failed {
 		delete(s.failed, h)
 		j := s.newJob(retryJob, h, h)
