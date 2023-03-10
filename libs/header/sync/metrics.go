@@ -39,5 +39,7 @@ func (s *Syncer[H]) InitMetrics() error {
 
 // recordTotalSynced records the total amount of synced headers.
 func (m *metrics) recordTotalSynced(totalSynced int) {
-	atomic.AddInt64(&m.totalSynced, int64(totalSynced))
+	if m != nil {
+		atomic.AddInt64(&m.totalSynced, int64(totalSynced))
+	}
 }

@@ -122,7 +122,7 @@ func TestSyncCatchUp(t *testing.T) {
 
 	incomingHead := suite.GenDummyHeaders(1)[0]
 	// 3. syncer rcvs header from the future and starts catching-up
-	res := syncer.incomingNetHead(ctx, incomingHead)
+	res := syncer.incomingNetworkHead(ctx, incomingHead)
 	assert.Equal(t, pubsub.ValidationAccept, res)
 
 	time.Sleep(time.Millisecond * 10) // needs some to realize it is syncing
@@ -134,9 +134,8 @@ func TestSyncCatchUp(t *testing.T) {
 	// 4. assert syncer caught-up
 	have, err := localStore.Head(ctx)
 	require.NoError(t, err)
-	headerPtr := syncer.syncedHead.Load()
-	require.NotNil(t, headerPtr)
-	head = *headerPtr
+	head, err = syncer.store.Head(ctx)
+	require.NoError(t, err)
 	assert.Equal(t, head.Height(), incomingHead.Height())
 	assert.Equal(t, exp.Height()+1, have.Height()) // plus one as we didn't add last header to remoteStore
 	assert.Empty(t, syncer.pending.Head())
@@ -196,9 +195,8 @@ func TestSyncPendingRangesWithMisses(t *testing.T) {
 	_, err = localStore.GetByHeight(ctx, 43)
 	require.NoError(t, err)
 
-	headerPtr := syncer.syncedHead.Load()
-	require.NotNil(t, headerPtr)
-	lastHead := *headerPtr
+	lastHead, err := syncer.store.Head(ctx)
+	require.NoError(t, err)
 	require.Equal(t, lastHead.Height(), int64(43))
 	exp, err := remoteStore.Head(ctx)
 	require.NoError(t, err)
@@ -281,9 +279,9 @@ func TestSyncer_FindHeadersReturnsCorrectRange(t *testing.T) {
 	err = syncer.processHeaders(ctx, head, 21)
 	require.NoError(t, err)
 
-	headerPtr := syncer.syncedHead.Load()
-	require.NotNil(t, headerPtr)
-	assert.Equal(t, (*headerPtr).Height(), int64(21))
+	head, err = syncer.store.Head(ctx)
+	require.NoError(t, err)
+	assert.Equal(t, head.Height(), int64(21))
 }
 
 type exchangeCountingHead struct {
