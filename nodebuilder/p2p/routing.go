@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/celestiaorg/celestia-node/nodebuilder/util"
 	"github.com/ipfs/go-datastore"
 	dht "github.com/libp2p/go-libp2p-kad-dht"
 	"github.com/libp2p/go-libp2p/core/protocol"
@@ -28,7 +29,7 @@ func peerRouting(cfg Config, params routingParams) (routing.PeerRouting, error) 
 		dht.RoutingTableRefreshPeriod(cfg.RoutingTableRefreshPeriod),
 	}
 
-	if cfg.Bootstrapper {
+	if util.IsBootstrapper {
 		// override options for bootstrapper
 		opts = append(opts,
 			dht.Mode(dht.ModeServer), // it must accept incoming connections
