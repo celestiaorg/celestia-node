@@ -262,8 +262,8 @@ func (s *Syncer[H]) processHeaders(
 			break
 		}
 
-		headers, amount := headersRange.Before(to)
-		if amount == 0 {
+		headers := headersRange.Truncate(to)
+		if len(headers) == 0 {
 			break
 		}
 
