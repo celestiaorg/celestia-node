@@ -3,6 +3,7 @@ package swamp
 import (
 	"context"
 	"fmt"
+	logging "github.com/ipfs/go-log/v2"
 	"math/rand"
 	"net"
 	"testing"
@@ -59,7 +60,8 @@ type Swamp struct {
 // NewSwamp creates a new instance of Swamp.
 func NewSwamp(t *testing.T, options ...Option) *Swamp {
 	if testing.Verbose() {
-		//logs.SetDebugLogging()
+		logging.SetLogLevel("header/sync", "debug")
+		logging.SetLogLevel("header/store", "debug")
 	}
 
 	ic := DefaultConfig()
