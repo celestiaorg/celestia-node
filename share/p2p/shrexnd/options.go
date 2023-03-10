@@ -18,11 +18,11 @@ type Option func(*Parameters)
 
 // Parameters is the set of parameters that must be configured for the shrex/eds protocol.
 type Parameters struct {
-	// readTimeout sets the timeout for reading messages from the stream.
-	readTimeout time.Duration
+	// serverReadTimeout sets the timeout for reading messages from the stream on server side
+	serverReadTimeout time.Duration
 
-	// writeTimeout sets the timeout for writing messages to the stream.
-	writeTimeout time.Duration
+	// serverWriteTimeout sets the timeout for writing messages to the stream on server side
+	serverWriteTimeout time.Duration
 
 	// serveTimeout defines the deadline for serving request.
 	serveTimeout time.Duration
@@ -37,21 +37,21 @@ type Parameters struct {
 
 func DefaultParameters() *Parameters {
 	return &Parameters{
-		readTimeout:      time.Second * 5,
-		writeTimeout:     time.Second * 10,
-		serveTimeout:     time.Second * 10,
-		concurrencyLimit: 10,
+		serverReadTimeout:  time.Second * 5,
+		serverWriteTimeout: time.Minute, // based on max observed sample time for 256 blocks (~50s)
+		serveTimeout:       time.Minute,
+		concurrencyLimit:   10,
 	}
 }
 
 const errSuffix = "value should be positive and non-zero"
 
 func (p *Parameters) Validate() error {
-	if p.readTimeout <= 0 {
-		return fmt.Errorf("invalid stream read timeout: %v, %s", p.readTimeout, errSuffix)
+	if p.serverReadTimeout <= 0 {
+		return fmt.Errorf("invalid stream read timeout: %v, %s", p.serverReadTimeout, errSuffix)
 	}
-	if p.writeTimeout <= 0 {
-		return fmt.Errorf("invalid write timeout: %v, %s", p.writeTimeout, errSuffix)
+	if p.serverWriteTimeout <= 0 {
+		return fmt.Errorf("invalid write timeout: %v, %s", p.serverWriteTimeout, errSuffix)
 	}
 	if p.serveTimeout <= 0 {
 		return fmt.Errorf("invalid serve timeout: %v, %s", p.serveTimeout, errSuffix)
@@ -72,14 +72,14 @@ func WithNetworkID(networkID string) Option {
 // WithReadTimeout is a functional option that configures the `readTimeout` parameter
 func WithReadTimeout(readTimeout time.Duration) Option {
 	return func(parameters *Parameters) {
-		parameters.readTimeout = readTimeout
+		parameters.serverReadTimeout = readTimeout
 	}
 }
 
 // WithWriteTimeout is a functional option that configures the `writeTimeout` parameter
 func WithWriteTimeout(writeTimeout time.Duration) Option {
 	return func(parameters *Parameters) {
-		parameters.writeTimeout = writeTimeout
+		parameters.serverWriteTimeout = writeTimeout
 	}
 }
 

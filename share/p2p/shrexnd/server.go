@@ -74,7 +74,7 @@ func (srv *Server) Stop(context.Context) error {
 }
 
 func (srv *Server) handleNamespacedData(ctx context.Context, stream network.Stream) {
-	err := stream.SetReadDeadline(time.Now().Add(srv.params.readTimeout))
+	err := stream.SetReadDeadline(time.Now().Add(srv.params.serverReadTimeout))
 	if err != nil {
 		log.Debugf("server: setting read deadline: %s", err)
 	}
@@ -173,7 +173,7 @@ func namespacedSharesToResponse(shares share.NamespacedShares) *pb.GetSharesByNa
 }
 
 func (srv *Server) respond(stream network.Stream, resp *pb.GetSharesByNamespaceResponse) {
-	err := stream.SetWriteDeadline(time.Now().Add(srv.params.writeTimeout))
+	err := stream.SetWriteDeadline(time.Now().Add(srv.params.serverWriteTimeout))
 	if err != nil {
 		log.Debugf("server: seting write deadline: %s", err)
 	}

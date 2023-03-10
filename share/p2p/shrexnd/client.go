@@ -178,15 +178,17 @@ func (c *Client) setStreamDeadlines(ctx context.Context, stream network.Stream) 
 		return
 	}
 
-	if c.params.readTimeout != 0 {
-		err := stream.SetReadDeadline(time.Now().Add(c.params.readTimeout))
+	// client read deadline is the same as server write deadline
+	if c.params.serverWriteTimeout != 0 {
+		err := stream.SetReadDeadline(time.Now().Add(c.params.serverWriteTimeout))
 		if err != nil {
 			log.Debugf("client-nd: set read deadline: %s", err)
 		}
 	}
 
-	if c.params.writeTimeout != 0 {
-		err := stream.SetWriteDeadline(time.Now().Add(c.params.readTimeout))
+	// client write deadline is the same as server read deadline
+	if c.params.serverReadTimeout != 0 {
+		err := stream.SetWriteDeadline(time.Now().Add(c.params.serverWriteTimeout))
 		if err != nil {
 			log.Debugf("client-nd: set write deadline: %s", err)
 		}

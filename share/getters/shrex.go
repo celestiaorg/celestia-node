@@ -6,8 +6,6 @@ import (
 	"fmt"
 	"time"
 
-	"go.uber.org/multierr"
-
 	"github.com/celestiaorg/nmt/namespace"
 	"github.com/celestiaorg/rsmt2d"
 
@@ -23,7 +21,7 @@ var _ share.Getter = (*ShrexGetter)(nil)
 const (
 	// defaultMinRequestTimeout value is set according to observed time taken by healthy peer to
 	// serve getEDS request for block size 256
-	defaultMinRequestTimeout = time.Second * 10
+	defaultMinRequestTimeout = time.Minute // should be >= shrexeds server write timeout
 	defaultMinAttemptsCount  = 3
 )
 
@@ -64,45 +62,33 @@ func (sg *ShrexGetter) GetShare(ctx context.Context, root *share.Root, row, col 
 }
 
 func (sg *ShrexGetter) GetEDS(ctx context.Context, root *share.Root) (*rsmt2d.ExtendedDataSquare, error) {
-	var (
-		attempt int
-		err     error
-	)
+	var attempt int
 	for {
 		attempt++
-		start := time.Now()
-		peer, setStatus, getErr := sg.peerManager.Peer(ctx, root.Hash())
-		if getErr != nil {
-			err = multierr.Append(err, getErr)
-			log.Debugw("couldn't find peer",
-				"datahash", root.String(),
-				"err", getErr,
-				"finished (s)", time.Since(start))
-			return nil, fmt.Errorf("getter/shrex: %w", err)
+		select {
+		case <-ctx.Done():
+			return nil, fmt.Errorf("getter/shrex: %w", ctx.Err())
+		default:
+		}
+		peer, setStatus, err := sg.peerManager.Peer(ctx, root.Hash())
+		if err != nil {
+			log.Debugw("couldn't find peer", "datahash", root.String(), "err", err)
 		}
 
-		reqStart := time.Now()
-		reqCtx, cancel := ctxWithSplitTimeout(ctx, sg.minAttemptsCount, sg.minRequestTimeout)
-		eds, getErr := sg.edsClient.RequestEDS(reqCtx, root.Hash(), peer)
+		reqCtx, cancel := ctxWithSplitTimeout(ctx, sg.minAttemptsCount-attempt+1, sg.minRequestTimeout)
+		eds, err := sg.edsClient.RequestEDS(reqCtx, root.Hash(), peer)
 		cancel()
-		switch getErr {
+		switch err {
 		case nil:
 			setStatus(peers.ResultSynced)
 			return eds, nil
 		case context.DeadlineExceeded:
+			log.Debugw("request exceeded deadline, trying with new peer", "datahash", root.String())
 		case p2p.ErrInvalidResponse:
 			setStatus(peers.ResultBlacklistPeer)
 		default:
 			setStatus(peers.ResultCooldownPeer)
 		}
-
-		err = multierr.Append(err, getErr)
-		log.Debugw("request failed",
-			"datahash", root.String(),
-			"peer", peer.String(),
-			"attempt", attempt,
-			"err", getErr,
-			"finished (s)", time.Since(reqStart))
 	}
 }
 
@@ -111,44 +97,33 @@ func (sg *ShrexGetter) GetSharesByNamespace(
 	root *share.Root,
 	id namespace.ID,
 ) (share.NamespacedShares, error) {
-	var (
-		attempt int
-		err     error
-	)
+	var attempt int
 	for {
 		attempt++
-		start := time.Now()
-		peer, setStatus, getErr := sg.peerManager.Peer(ctx, root.Hash())
-		if getErr != nil {
-			log.Debugw("couldn't find peer",
-				"datahash", root.String(),
-				"err", getErr,
-				"finished (s)", time.Since(start))
-			err = multierr.Append(err, getErr)
+		select {
+		case <-ctx.Done():
+			return nil, fmt.Errorf("getter/shrex: %w", ctx.Err())
+		default:
+		}
+		peer, setStatus, err := sg.peerManager.Peer(ctx, root.Hash())
+		if err != nil {
+			log.Debugw("couldn't find peer", "datahash", root.String(), "err", err)
 			return nil, fmt.Errorf("getter/shrex: %w", err)
 		}
 
-		reqStart := time.Now()
-		reqCtx, cancel := ctxWithSplitTimeout(ctx, sg.minAttemptsCount, sg.minRequestTimeout)
-		nd, getErr := sg.ndClient.RequestND(reqCtx, root, id, peer)
+		reqCtx, cancel := ctxWithSplitTimeout(ctx, sg.minAttemptsCount-attempt+1, sg.minRequestTimeout)
+		nd, err := sg.ndClient.RequestND(reqCtx, root, id, peer)
 		cancel()
-		switch getErr {
+		switch err {
 		case nil:
 			setStatus(peers.ResultSuccess)
 			return nd, nil
 		case context.DeadlineExceeded:
+			log.Debugw("request exceeded deadline, trying with new peer", "datahash", root.String())
 		case p2p.ErrInvalidResponse:
 			setStatus(peers.ResultBlacklistPeer)
 		default:
 			setStatus(peers.ResultCooldownPeer)
 		}
-
-		err = multierr.Append(err, getErr)
-		log.Debugw("request failed",
-			"datahash", root.String(),
-			"peer", peer.String(),
-			"attempt", attempt,
-			"err", getErr,
-			"finished (s)", time.Since(reqStart))
 	}
 }

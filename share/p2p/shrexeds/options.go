@@ -40,8 +40,8 @@ type Parameters struct {
 
 func DefaultParameters() *Parameters {
 	return &Parameters{
-		ReadDeadline:     time.Minute,
-		WriteDeadline:    time.Second * 30, // based on block time
+		ReadDeadline:     5 * time.Second,
+		WriteDeadline:    time.Minute, // based on max observed sample time for 256 blocks (~50s)
 		ReadCARDeadline:  time.Minute,
 		BufferSize:       32 * 1024,
 		concurrencyLimit: 10,
