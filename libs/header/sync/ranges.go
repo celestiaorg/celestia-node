@@ -131,6 +131,10 @@ func (r *headerRange[H]) Before(end uint64) ([]H, uint64) {
 	r.lk.Lock()
 	defer r.lk.Unlock()
 
+	if r.start > end {
+		return nil, 0
+	}
+
 	amnt := uint64(len(r.headers))
 	if r.start+amnt >= end {
 		amnt = end - r.start + 1 // + 1 to include 'end' as well

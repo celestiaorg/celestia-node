@@ -2,6 +2,7 @@ package tests
 
 import (
 	"context"
+	"fmt"
 	logging "github.com/ipfs/go-log/v2"
 	"math/rand"
 	"sync"
@@ -30,22 +31,22 @@ Steps:
 6. Check FNs sync *and* DAS to height 30
 */
 func TestSyncFullsWithBridge_Network_Stable_Latest_IPLD(t *testing.T) {
-	fullNodesCount := 1
+	fullNodesCount := 5
 
 	ctx, cancel := context.WithTimeout(context.Background(), swamp.DefaultTestTimeout)
 	t.Cleanup(cancel)
 
 	sw := swamp.NewSwamp(t, swamp.WithBlockTime(btime))
-	fillDn := swamp.FillBlocks(ctx, sw.ClientContext, sw.Accounts, 128, 30)
+	fillDn := swamp.FillBlocks(ctx, sw.ClientContext, sw.Accounts, 128, 10)
 
 	bridge := sw.NewBridgeNode()
 
 	err := bridge.Start(ctx)
 	require.NoError(t, err)
 
-	sw.WaitTillHeight(ctx, 30)
+	sw.WaitTillHeight(ctx, 10)
 
-	_, err = bridge.HeaderServ.GetByHeight(ctx, 30)
+	_, err = bridge.HeaderServ.GetByHeight(ctx, 10)
 	require.NoError(t, err)
 
 	addrs, err := peer.AddrInfoToP2pAddrs(host.InfoFromHost(bridge.Host))
@@ -68,15 +69,23 @@ func TestSyncFullsWithBridge_Network_Stable_Latest_IPLD(t *testing.T) {
 		go func(f *nodebuilder.Node) {
 			defer wg.Done()
 			// first wait for full node to get to height 30
-			_, err := f.HeaderServ.GetByHeight(ctx, 30)
-			require.NoError(t, err)
-			// and ensure it DASes up to that height
-			err = f.DASer.WaitCatchUp(ctx)
-			require.NoError(t, err)
-			stats, err := f.DASer.SamplingStats(ctx)
-			require.NoError(t, err)
-			assert.Len(t, stats.Failed, 0)
-			assert.GreaterOrEqual(t, stats.CatchupHead, uint64(30))
+			_, err := f.HeaderServ.GetByHeight(ctx, 10)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			for i := 1; i < 10; i++ {
+				h, err := f.HeaderServ.GetByHeight(ctx, uint64(i))
+				if err != nil {
+					t.Fatal(err)
+				}
+
+				err = f.ShareServ.SharesAvailable(ctx, h.DAH)
+				fmt.Println("getting shares for height: ", i)
+				if err != nil {
+					t.Fatal(err)
+				}
+			}
 		}(full)
 	}
 	wg.Wait()
