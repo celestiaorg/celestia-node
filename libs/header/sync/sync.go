@@ -309,7 +309,7 @@ func (s *Syncer[H]) requestHeaders(
 	return nil
 }
 
-// storeHeaders updates store with new headers and updates current storeHead.
+// storeHeaders updates store with new headers and updates current syncStore's Head.
 func (s *Syncer[H]) storeHeaders(ctx context.Context, headers ...H) error {
 	// we don't expect any issues in storing right now, as all headers are now verified.
 	// So, we should return immediately in case an error appears.

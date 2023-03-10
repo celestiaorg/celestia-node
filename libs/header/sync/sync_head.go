@@ -92,6 +92,7 @@ func (s *Syncer[H]) subjectiveHead(ctx context.Context) (H, error) {
 	log.Warn("trusted peer is out of sync")
 	return trustHead, nil
 }
+
 // setSubjectiveHead takes already validated head and sets it as the new sync target.
 func (s *Syncer[H]) setSubjectiveHead(ctx context.Context, netHead H) {
 	// TODO(@Wondertan): Right now, we can only store adjacent headers, instead we should:
