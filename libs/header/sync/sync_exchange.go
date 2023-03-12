@@ -16,7 +16,7 @@ type syncExchange[H header.Header] struct {
 }
 
 func (se *syncExchange[H]) Head(ctx context.Context) (H, error) {
-	// the lock construction here ensures only one routine requests at a time
+	// the lock construction here ensures only one routine calling Head at a time
 	// while others wait via Rlock
 	if !se.headLk.TryLock() {
 		se.headLk.RLock()
