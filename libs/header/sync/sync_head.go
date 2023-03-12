@@ -31,7 +31,7 @@ func (s *Syncer[H]) Head(ctx context.Context) (H, error) {
 	//  * If now >= TNH && now <= TNH + (THP) header propagation time
 	//    * Wait for header to arrive instead of requesting it
 	//  * This way we don't request as we know the new network header arrives exactly
-	netHead, err := s.exchange.Head(ctx)
+	netHead, err := s.getter.Head(ctx)
 	if err != nil {
 		return netHead, err
 	}
@@ -72,7 +72,7 @@ func (s *Syncer[H]) subjectiveHead(ctx context.Context) (H, error) {
 	}
 	// otherwise, request head from a trusted peer
 	log.Infow("stored head header expired", "height", storeHead.Height())
-	trustHead, err := s.exchange.Head(ctx)
+	trustHead, err := s.getter.Head(ctx)
 	if err != nil {
 		return trustHead, err
 	}
@@ -98,6 +98,7 @@ func (s *Syncer[H]) setSubjectiveHead(ctx context.Context, netHead H) {
 	// TODO(@Wondertan): Right now, we can only store adjacent headers, instead we should:
 	//  * Allow storing any valid header here in Store
 	//  * Remove ErrNonAdjacent
+	//  * Remove writeHead from the canonical store implementation
 	err := s.storeHeaders(ctx, netHead)
 	var nonAdj *header.ErrNonAdjacent
 	if err != nil && !errors.As(err, &nonAdj) {

@@ -7,15 +7,16 @@ import (
 	"github.com/celestiaorg/celestia-node/libs/header"
 )
 
-type syncExchange[H header.Header] struct {
-	header.Exchange[H]
+// syncGetter is a Getter wrapper that ensure only one Head call happens at the time
+type syncGetter[H header.Header] struct {
+	header.Getter[H]
 
 	headLk  sync.RWMutex
 	headErr error
 	head    H
 }
 
-func (se *syncExchange[H]) Head(ctx context.Context) (H, error) {
+func (se *syncGetter[H]) Head(ctx context.Context) (H, error) {
 	// the lock construction here ensures only one routine calling Head at a time
 	// while others wait via Rlock
 	if !se.headLk.TryLock() {
@@ -25,6 +26,6 @@ func (se *syncExchange[H]) Head(ctx context.Context) (H, error) {
 	}
 	defer se.headLk.Unlock()
 
-	se.head, se.headErr = se.Exchange.Head(ctx)
+	se.head, se.headErr = se.Getter.Head(ctx)
 	return se.head, se.headErr
 }

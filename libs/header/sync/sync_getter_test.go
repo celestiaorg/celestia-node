@@ -8,17 +8,18 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
+
 	"github.com/celestiaorg/celestia-node/libs/header"
 	"github.com/celestiaorg/celestia-node/libs/header/test"
-	"github.com/stretchr/testify/assert"
 )
 
-func TestSyncExchangeHead(t *testing.T) {
+func TestSyncGetterHead(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
 
-	fex := &fakeExchange[*test.DummyHeader]{}
-	sex := syncExchange[*test.DummyHeader]{Exchange: fex}
+	fex := &fakeGetter[*test.DummyHeader]{}
+	sex := &syncGetter[*test.DummyHeader]{Getter: fex}
 
 	var wg sync.WaitGroup
 	for i := 0; i < 100; i++ {
@@ -38,14 +39,14 @@ func TestSyncExchangeHead(t *testing.T) {
 
 var errFakeHead = fmt.Errorf("head")
 
-type fakeExchange[H header.Header] struct {
+type fakeGetter[H header.Header] struct {
 	hits atomic.Uint32
 }
 
-func (f *fakeExchange[H]) Head(ctx context.Context) (h H, err error) {
+func (f *fakeGetter[H]) Head(ctx context.Context) (h H, err error) {
 	f.hits.Add(1)
 	select {
-	case <-time.After(time.Millisecond*100):
+	case <-time.After(time.Millisecond * 100):
 		err = errFakeHead
 	case <-ctx.Done():
 		err = ctx.Err()
@@ -54,19 +55,18 @@ func (f *fakeExchange[H]) Head(ctx context.Context) (h H, err error) {
 	return
 }
 
-func (f *fakeExchange[H]) Get(ctx context.Context, hash header.Hash) (H, error) {
+func (f *fakeGetter[H]) Get(ctx context.Context, hash header.Hash) (H, error) {
 	panic("implement me")
 }
 
-func (f *fakeExchange[H]) GetByHeight(ctx context.Context, u uint64) (H, error) {
+func (f *fakeGetter[H]) GetByHeight(ctx context.Context, u uint64) (H, error) {
 	panic("implement me")
 }
 
-func (f *fakeExchange[H]) GetRangeByHeight(ctx context.Context, from, amount uint64) ([]H, error) {
+func (f *fakeGetter[H]) GetRangeByHeight(ctx context.Context, from, amount uint64) ([]H, error) {
 	panic("implement me")
 }
 
-func (f *fakeExchange[H]) GetVerifiedRange(ctx context.Context, from H, amount uint64) ([]H, error) {
+func (f *fakeGetter[H]) GetVerifiedRange(ctx context.Context, from H, amount uint64) ([]H, error) {
 	panic("implement me")
 }
-

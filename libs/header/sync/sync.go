@@ -30,10 +30,10 @@ var log = logging.Logger("header/sync")
 //   - if there is a gap between the previous and the new Subjective Head
 //   - Triggers s.syncLoop and saves the Subjective Head in the pending so s.syncLoop can access it
 type Syncer[H header.Header] struct {
-	sub      header.Subscriber[H]
-	store    syncStore[H]
-	exchange syncExchange[H]
-	metrics  *metrics
+	sub     header.Subscriber[H]
+	store   syncStore[H]
+	getter  syncGetter[H]
+	metrics *metrics
 
 	// stateLk protects state which represents the current or latest sync
 	stateLk sync.RWMutex
@@ -53,7 +53,7 @@ type Syncer[H header.Header] struct {
 
 // NewSyncer creates a new instance of Syncer.
 func NewSyncer[H header.Header](
-	exchange header.Exchange[H],
+	getter header.Getter[H],
 	store header.Store[H],
 	sub header.Subscriber[H],
 	opts ...Options,
@@ -69,7 +69,7 @@ func NewSyncer[H header.Header](
 	return &Syncer[H]{
 		sub:         sub,
 		store:       syncStore[H]{Store: store},
-		exchange:    syncExchange[H]{Exchange: exchange},
+		getter:      syncGetter[H]{Getter: getter},
 		triggerSync: make(chan struct{}, 1), // should be buffered
 		Params:      &params,
 	}, nil
@@ -293,7 +293,7 @@ func (s *Syncer[H]) requestHeaders(
 			size = amount
 		}
 
-		headers, err := s.exchange.GetVerifiedRange(ctx, fromHead, size)
+		headers, err := s.getter.GetVerifiedRange(ctx, fromHead, size)
 		if err != nil {
 			return err
 		}
