@@ -62,9 +62,8 @@ func (rs *ranges[H]) Add(h H) {
 		// otherwise, start a new range
 		rs.ranges = append(rs.ranges, newRange[H](h))
 
-		// it is possible to miss a header or few from PubSub, due to quick disconnects or sleep
-		// once we start rcving them again we save those in new range
-		// so 'Syncer.findHeaders' can fetch what was missed
+		// it is possible to miss a header or few from gossiping subsystem, due to quick disconnects
+		// or hibernation, so once we start rcving them again we save those in the new range
 	}
 }
 

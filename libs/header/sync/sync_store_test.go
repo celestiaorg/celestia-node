@@ -4,9 +4,10 @@ import (
 	"context"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+
 	"github.com/celestiaorg/celestia-node/libs/header/mocks"
 	"github.com/celestiaorg/celestia-node/libs/header/test"
-	"github.com/stretchr/testify/assert"
 )
 
 func TestSyncStore(t *testing.T) {
