@@ -8,6 +8,7 @@ import (
 
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	pubsub_pb "github.com/libp2p/go-libp2p-pubsub/pb"
+	"github.com/libp2p/go-libp2p-pubsub/timecache"
 	hst "github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/libp2p/go-libp2p/core/protocol"
@@ -73,6 +74,7 @@ func pubSub(cfg Config, params pubSubParams) (*pubsub.PubSub, error) {
 	scoreThresholds := peerScoreThresholds()
 
 	opts := []pubsub.Option{
+		pubsub.WithSeenMessagesStrategy(timecache.Strategy_LastSeen),
 		pubsub.WithPeerScore(peerScores, scoreThresholds),
 		pubsub.WithPeerExchange(cfg.PeerExchange || cfg.Bootstrapper),
 		pubsub.WithDirectPeers(fpeers),
