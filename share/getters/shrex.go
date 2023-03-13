@@ -96,7 +96,9 @@ func (sg *ShrexGetter) GetEDS(ctx context.Context, root *share.Root) (*rsmt2d.Ex
 			setStatus(peers.ResultCooldownPeer)
 		}
 
-		err = multierr.Append(err, getErr)
+		if !ErrorContains(err, getErr) {
+			err = multierr.Append(err, getErr)
+		}
 		log.Debugw("request failed",
 			"datahash", root.String(),
 			"peer", peer.String(),
@@ -143,7 +145,9 @@ func (sg *ShrexGetter) GetSharesByNamespace(
 			setStatus(peers.ResultCooldownPeer)
 		}
 
-		err = multierr.Append(err, getErr)
+		if !ErrorContains(err, getErr) {
+			err = multierr.Append(err, getErr)
+		}
 		log.Debugw("request failed",
 			"datahash", root.String(),
 			"peer", peer.String(),
