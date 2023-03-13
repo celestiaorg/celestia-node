@@ -1,16 +1,39 @@
-name: issue-automation
+name: Label Automation
 on:
+  # Using pull_request_target for forks since labels are not a security issue
+  pull_request_target:
+    types: [opened]
   issues:
     types: [opened]
 jobs:
-  automate-issues-labels:
+  automate-labels:
     runs-on: ubuntu-latest
     permissions:
       issues: write
+      pull-requests: write
     steps:
+      - name: Check for External Contributor
+        uses: tspascoal/get-user-teams-membership@v2
+        id: teamCheck
+        with:
+          username: ${{ github.actor }}
+          team: "celestia-node"
+          GITHUB_TOKEN: ${{ secrets.PAT_TEAM_CHECK }}
+
+      # For issues we want to add a `needs:triage` label if it is unlabeled
       - name: Triage labeling
+        if: ${{ github.event_name == 'issues' }}
         uses: andymckay/labeler@master
         with:
           add-labels: "needs:triage"
           ignore-if-labeled: true
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+
+      # For both issues and PRs we want to add the `external` label if the
+      # author is not a member of the node team
+      - name: External labeling
+        if: ${{ steps.teamCheck.outputs.isTeamMember == 'false' }}
+        uses: andymckay/labeler@master
+        with:
+          add-labels: "external"
           repo-token: ${{ secrets.GITHUB_TOKEN }}
