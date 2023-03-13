@@ -126,10 +126,14 @@ func (r *headerRange[H]) Head() H {
 	return r.headers[ln-1]
 }
 
-// Before truncates all the headers before height 'end' - [r.Start:end]
-func (r *headerRange[H]) Before(end uint64) ([]H, uint64) {
+// Truncate truncates all the headers before height 'end' - [r.Start:end]
+func (r *headerRange[H]) Truncate(end uint64) []H {
 	r.lk.Lock()
 	defer r.lk.Unlock()
+
+	if r.start > end {
+		return nil
+	}
 
 	amnt := uint64(len(r.headers))
 	if r.start+amnt >= end {
@@ -141,5 +145,6 @@ func (r *headerRange[H]) Before(end uint64) ([]H, uint64) {
 	if len(r.headers) != 0 {
 		r.start = uint64(r.headers[0].Height())
 	}
-	return out, amnt
+
+	return out
 }

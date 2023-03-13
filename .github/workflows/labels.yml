@@ -16,4 +16,4 @@ jobs:
         with:
           mode: minimum
           count: 1
-          labels: "kind:bug-fix, kind:miscellaneous, kind:breaking, kind:refactoring, kind:feature, kind:dependencies, kind:docs" # yamllint disable-line rule:line-length
+          labels: "kind:fix, kind:misc, kind:break!, kind:refactor, kind:feat, kind:deps, kind:docs, kind:ci, kind:chore" # yamllint disable-line rule:line-length

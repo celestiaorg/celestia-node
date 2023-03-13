@@ -14,7 +14,8 @@ import (
 	p2p_pb "github.com/celestiaorg/celestia-node/libs/header/p2p/pb"
 )
 
-// errEmptyResponse means that server side closes the connection without sending at least 1 response.
+// errEmptyResponse means that server side closes the connection without sending at least 1
+// response.
 var errEmptyResponse = errors.New("empty response")
 
 type option[H header.Header] func(*session[H])
@@ -153,7 +154,8 @@ func (s *session[H]) doRequest(
 
 	r, size, duration, err := sendMessage(ctx, s.host, stat.peerID, s.protocolID, req)
 	if err != nil {
-		// we should not punish peer at this point and should try to parse responses, despite that error was received.
+		// we should not punish peer at this point and should try to parse responses, despite that error
+		// was received.
 		log.Debugw("requesting headers from peer failed", "peer", stat.peerID, "err", err)
 	}
 
@@ -174,6 +176,7 @@ func (s *session[H]) doRequest(
 
 		select {
 		case <-s.ctx.Done():
+			return
 		case s.reqCh <- req:
 		}
 		log.Errorw("processing response", "err", err)
@@ -241,7 +244,8 @@ func (s *session[H]) processResponse(responses []*p2p_pb.HeaderResponse) ([]H, e
 	return headers, err
 }
 
-// validate checks that the received range of headers is adjacent and is valid against the provided header.
+// validate checks that the received range of headers is adjacent and is valid against the provided
+// header.
 func (s *session[H]) validate(headers []H) error {
 	// if `s.from` is empty, then additional validation for the header`s range is not needed.
 	if s.from.IsZero() {
