@@ -14,6 +14,7 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
+	"github.com/celestiaorg/celestia-node/share"
 )
 
 func TestLifecycle(t *testing.T) {
@@ -44,6 +45,10 @@ func TestLifecycle(t *testing.T) {
 
 			// ensure the state service is running
 			require.False(t, node.StateServ.IsStopped(ctx))
+
+			// ensure an empty block exists in store
+			err = node.ShareServ.SharesAvailable(ctx, share.EmptyRoot())
+			require.NoError(t, err)
 
 			err = node.Stop(ctx)
 			require.NoError(t, err)
