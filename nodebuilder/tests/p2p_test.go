@@ -14,8 +14,8 @@ import (
 
 	"github.com/celestiaorg/celestia-node/nodebuilder"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
+	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
 	"github.com/celestiaorg/celestia-node/nodebuilder/tests/swamp"
-	"github.com/celestiaorg/celestia-node/nodebuilder/util"
 )
 
 /*
@@ -92,7 +92,7 @@ Steps:
 func TestBootstrapNodesFromBridgeNode(t *testing.T) {
 	sw := swamp.NewSwamp(t)
 	cfg := nodebuilder.DefaultConfig(node.Bridge)
-	util.IsBootstrapper = true
+	p2p.IsBootstrapper = true
 	const defaultTimeInterval = time.Second * 10
 	setTimeInterval(cfg, defaultTimeInterval)
 
@@ -172,7 +172,7 @@ Steps:
 func TestRestartNodeDiscovery(t *testing.T) {
 	sw := swamp.NewSwamp(t)
 	cfg := nodebuilder.DefaultConfig(node.Bridge)
-	util.IsBootstrapper = true
+	p2p.IsBootstrapper = true
 	const defaultTimeInterval = time.Second * 2
 	const fullNodes = 2
 

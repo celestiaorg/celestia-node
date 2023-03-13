@@ -17,7 +17,6 @@ import (
 
 	"github.com/celestiaorg/celestia-node/fraud"
 	headp2p "github.com/celestiaorg/celestia-node/libs/header/p2p"
-	"github.com/celestiaorg/celestia-node/nodebuilder/util"
 )
 
 func init() {
@@ -44,7 +43,7 @@ func pubSub(cfg Config, params pubSubParams) (*pubsub.PubSub, error) {
 		return nil, err
 	}
 
-	if util.IsBootstrapper {
+	if IsBootstrapper {
 		// Turn off the mesh in bootstrappers as per:
 		//
 		//
@@ -65,7 +64,7 @@ func pubSub(cfg Config, params pubSubParams) (*pubsub.PubSub, error) {
 	//  * lotus
 	//  * prysm
 	topicScores := topicScoreParams(params.Network)
-	peerScores, err := peerScoreParams(util.IsBootstrapper, params.Bootstrappers, cfg)
+	peerScores, err := peerScoreParams(IsBootstrapper, params.Bootstrappers, cfg)
 	if err != nil {
 		return nil, err
 	}
@@ -76,7 +75,7 @@ func pubSub(cfg Config, params pubSubParams) (*pubsub.PubSub, error) {
 	opts := []pubsub.Option{
 		pubsub.WithSeenMessagesStrategy(timecache.Strategy_LastSeen),
 		pubsub.WithPeerScore(peerScores, scoreThresholds),
-		pubsub.WithPeerExchange(cfg.PeerExchange || util.IsBootstrapper),
+		pubsub.WithPeerExchange(cfg.PeerExchange || IsBootstrapper),
 		pubsub.WithDirectPeers(fpeers),
 		pubsub.WithMessageIdFn(hashMsgID),
 		// specifying sub protocol helps to avoid conflicts with

@@ -18,8 +18,8 @@ import (
 
 	"github.com/celestiaorg/celestia-node/nodebuilder"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
+	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
 	"github.com/celestiaorg/celestia-node/nodebuilder/tests/swamp"
-	"github.com/celestiaorg/celestia-node/nodebuilder/util"
 	"github.com/celestiaorg/celestia-node/share/availability/light"
 	"github.com/celestiaorg/celestia-node/share/eds"
 )
@@ -108,7 +108,7 @@ func TestFullReconstructFromLights(t *testing.T) {
 
 	const defaultTimeInterval = time.Second * 5
 	cfg := nodebuilder.DefaultConfig(node.Full)
-	util.IsBootstrapper = true
+	p2p.IsBootstrapper = true
 	setTimeInterval(cfg, defaultTimeInterval)
 
 	bridge := sw.NewBridgeNode()

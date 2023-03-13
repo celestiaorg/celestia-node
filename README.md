@@ -79,8 +79,8 @@ celestia <node_type> start
 
 ### Environment variables
 
-| Variable       | Explanation                         | Default value | Required |
-| -------------- | ----------------------------------- | ------------- | -------- |
+| Variable                | Explanation                         | Default value | Required |
+| ----------------------- | ----------------------------------- | ------------- | -------- |
 | `CELESTIA_BOOTSTRAPPER` | Start the node in bootstrapper mode | `false`       | Optional |
 
 ## Package-specific documentation

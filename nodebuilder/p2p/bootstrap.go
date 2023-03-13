@@ -1,9 +1,25 @@
 package p2p
 
 import (
+	"os"
+
 	"github.com/libp2p/go-libp2p/core/peer"
 	ma "github.com/multiformats/go-multiaddr"
 )
+
+var IsBootstrapper bool
+
+func init() {
+	IsBootstrapper = getEnv("CELESTIA_BOOTSTRAPPER", "false") == "true"
+}
+
+// Get environment variable or fallback to default value
+func getEnv(key, fallback string) string {
+	if value, ok := os.LookupEnv(key); ok {
+		return value
+	}
+	return fallback
+}
 
 // BootstrappersFor returns address information of bootstrap peers for a given network.
 func BootstrappersFor(net Network) (Bootstrappers, error) {
