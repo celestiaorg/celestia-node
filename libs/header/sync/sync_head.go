@@ -39,11 +39,7 @@ func (s *Syncer[H]) Head(ctx context.Context) (H, error) {
 	// NOTE: We could trust the netHead like we do during 'automatic subjective initialization'
 	// but in this case our subjective head is not expired, so we should verify netHead
 	// and only if it is valid, set it as new head
-	res := s.validateHead(ctx, netHead)
-	if res == pubsub.ValidationAccept {
-		s.setSubjectiveHead(ctx, netHead)
-	}
-
+	s.incomingNetworkHead(ctx, netHead)
 	// netHead was either accepted or rejected as the new subjective
 	// anyway return most current known subjective head
 	return s.subjectiveHead(ctx)
@@ -124,11 +120,10 @@ func (s *Syncer[H]) setSubjectiveHead(ctx context.Context, netHead H) {
 func (s *Syncer[H]) incomingNetworkHead(ctx context.Context, netHead H) pubsub.ValidationResult {
 	// first of all, check the validity of the netHead
 	res := s.validateHead(ctx, netHead)
-	if res != pubsub.ValidationAccept {
-		return res
+	if res == pubsub.ValidationAccept {
+		// and set it if valid
+		s.setSubjectiveHead(ctx, netHead)
 	}
-	// and set it
-	s.setSubjectiveHead(ctx, netHead)
 	return res
 }
 
