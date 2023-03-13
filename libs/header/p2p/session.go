@@ -14,7 +14,8 @@ import (
 	p2p_pb "github.com/celestiaorg/celestia-node/libs/header/p2p/pb"
 )
 
-// errEmptyResponse means that server side closes the connection without sending at least 1 response.
+// errEmptyResponse means that server side closes the connection without sending at least 1
+// response.
 var errEmptyResponse = errors.New("empty response")
 
 type option[H header.Header] func(*session[H])
@@ -74,7 +75,7 @@ func (s *session[H]) getRangeByHeight(
 	ctx context.Context,
 	from, amount, headersPerPeer uint64,
 ) ([]H, error) {
-	log.Debugw("requesting headers", "from", from, "to", from+amount)
+	log.Debugw("requesting headers", "from", from, "to", from+amount-1) // -1 need to exclude to+1 height
 
 	requests := prepareRequests(from, amount, headersPerPeer)
 	result := make(chan []H, len(requests))
@@ -104,6 +105,11 @@ LOOP:
 	sort.Slice(headers, func(i, j int) bool {
 		return headers[i].Height() < headers[j].Height()
 	})
+
+	log.Debugw("received headers range",
+		"from", headers[0].Height(),
+		"to", headers[len(headers)-1].Height(),
+	)
 	return headers, nil
 }
 
@@ -148,7 +154,8 @@ func (s *session[H]) doRequest(
 
 	r, size, duration, err := sendMessage(ctx, s.host, stat.peerID, s.protocolID, req)
 	if err != nil {
-		// we should not punish peer at this point and should try to parse responses, despite that error was received.
+		// we should not punish peer at this point and should try to parse responses, despite that error
+		// was received.
 		log.Debugw("requesting headers from peer failed", "peer", stat.peerID, "err", err)
 	}
 
@@ -169,6 +176,7 @@ func (s *session[H]) doRequest(
 
 		select {
 		case <-s.ctx.Done():
+			return
 		case s.reqCh <- req:
 		}
 		log.Errorw("processing response", "err", err)
@@ -236,26 +244,35 @@ func (s *session[H]) processResponse(responses []*p2p_pb.HeaderResponse) ([]H, e
 	return headers, err
 }
 
-// validate checks that the received range of headers is valid against the provided header.
+// validate checks that the received range of headers is adjacent and is valid against the provided
+// header.
 func (s *session[H]) validate(headers []H) error {
-	// if `from` is empty, then additional validation for the header`s range is not needed.
+	// if `s.from` is empty, then additional validation for the header`s range is not needed.
 	if s.from.IsZero() {
 		return nil
 	}
 
 	trusted := s.from
-	// verify that the whole range is valid.
-	for i := 0; i < len(headers); i++ {
-		err := trusted.Verify(headers[i])
+	// verify that the whole range is valid and adjacent.
+	for _, untrusted := range headers {
+		err := trusted.Verify(untrusted)
 		if err != nil {
 			return err
 		}
-		if trusted.Height()+1 != headers[i].Height() {
-			// Exchange requires requested ranges to always consist of adjacent headers
-			return fmt.Errorf("peer sent valid but non-adjacent header")
-		}
 
-		trusted = headers[i]
+		// extra check for the adjacency should be performed only for the received range,
+		// because headers are received out of order and `s.from` can't be adjacent to them
+		if trusted.Height() != s.from.Height() {
+			if trusted.Height()+1 != untrusted.Height() {
+				// Exchange requires requested ranges to always consist of adjacent headers
+				return fmt.Errorf("peer sent valid but non-adjacent header. expected:%d, received:%d",
+					trusted.Height()+1,
+					untrusted.Height(),
+				)
+			}
+		}
+		// as `untrusted` was verified against previous trusted header, we can assume that it is valid
+		trusted = untrusted
 	}
 	return nil
 }

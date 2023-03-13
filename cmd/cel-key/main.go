@@ -8,6 +8,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/client/config"
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	"github.com/cosmos/cosmos-sdk/client/keys"
+	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	"github.com/cosmos/cosmos-sdk/x/auth/types"
 	"github.com/spf13/cobra"
 
@@ -44,6 +45,14 @@ func init() {
 
 		if err := client.SetCmdClientContextHandler(initClientCtx, cmd); err != nil {
 			return err
+		}
+
+		if !cmd.Flag(flags.FlagKeyringBackend).Changed {
+			err = cmd.Flag(flags.FlagKeyringBackend).Value.Set(keyring.BackendTest)
+			if err != nil {
+				return err
+			}
+			cmd.Flag(flags.FlagKeyringBackend).Changed = true
 		}
 
 		return ParseDirectoryFlags(cmd)
