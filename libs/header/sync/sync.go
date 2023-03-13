@@ -220,7 +220,7 @@ func (s *Syncer[H]) sync(ctx context.Context) {
 		"elapsed time", s.state.End.Sub(s.state.Start))
 }
 
-// doSync performs actual syncing updating the internal State
+// doSync performs actual syncing updating the internal State.
 func (s *Syncer[H]) doSync(ctx context.Context, fromHead, toHead H) (err error) {
 	s.stateLk.Lock()
 	s.state.ID++
@@ -240,7 +240,7 @@ func (s *Syncer[H]) doSync(ctx context.Context, fromHead, toHead H) (err error) 
 	return err
 }
 
-// processHeaders fetches and stores asked headers [from:to].
+// processHeaders fetches and stores asked headers (from:to].
 // Checks headers in pending cache that apply to the requested range.
 // If some headers are missing, it starts requesting them from the network.
 func (s *Syncer[H]) processHeaders(
