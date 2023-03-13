@@ -7,7 +7,7 @@ import (
 var IsBootstrapper bool
 
 func init() {
-	IsBootstrapper = getEnv("BOOTSTRAPPER", "false") == "true"
+	IsBootstrapper = getEnv("CELESTIA_BOOTSTRAPPER", "false") == "true"
 }
 
 // Get environment variable or fallback to default value

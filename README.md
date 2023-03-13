@@ -81,7 +81,7 @@ celestia <node_type> start
 
 | Variable       | Explanation                         | Default value | Required |
 | -------------- | ----------------------------------- | ------------- | -------- |
-| `BOOTSTRAPPER` | Start the node in bootstrapper mode | `false`       | Optional |
+| `CELESTIA_BOOTSTRAPPER` | Start the node in bootstrapper mode | `false`       | Optional |
 
 ## Package-specific documentation
 
