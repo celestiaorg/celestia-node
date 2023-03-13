@@ -19,9 +19,9 @@ func TestExchange_RequestND(t *testing.T) {
 		net, err := mocknet.FullMeshConnected(2)
 		require.NoError(t, err)
 
-		client, err := NewClient(net.Hosts()[0])
+		client, err := NewClient(DefaultParameters(), net.Hosts()[0])
 		require.NoError(t, err)
-		server, err := NewServer(net.Hosts()[1], nil, nil)
+		server, err := NewServer(DefaultParameters(), net.Hosts()[1], nil, nil)
 		require.NoError(t, err)
 
 		require.NoError(t, server.Start(context.Background()))
