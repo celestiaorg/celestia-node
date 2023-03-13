@@ -116,7 +116,8 @@ func (s *Syncer[H]) setSubjectiveHead(ctx context.Context, netHead H) {
 	log.Infow("new network head", "height", netHead.Height(), "hash", netHead.Hash())
 }
 
-// incomingNetworkHead processes new gossiped network headers.
+// incomingNetworkHead processes new potential network headers.
+// If the header valid, sets as new subjective header.
 func (s *Syncer[H]) incomingNetworkHead(ctx context.Context, netHead H) pubsub.ValidationResult {
 	// first of all, check the validity of the netHead
 	res := s.validateHead(ctx, netHead)
