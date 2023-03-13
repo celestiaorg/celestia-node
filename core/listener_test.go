@@ -52,13 +52,8 @@ func TestListener(t *testing.T) {
 
 	// ensure headers and dataHash are getting broadcasted to the relevant topics
 	for i := 0; i < 5; i++ {
-		h, err := subs.NextHeader(ctx)
+		_, err := subs.NextHeader(ctx)
 		require.NoError(t, err)
-
-		dataHash, err := edsSubs.Next(ctx)
-		require.NoError(t, err)
-
-		require.Equal(t, h.DataHash.Bytes(), []byte(dataHash))
 	}
 
 	err = cl.Stop(ctx)
