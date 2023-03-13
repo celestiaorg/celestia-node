@@ -20,8 +20,10 @@ import (
 
 var log = logging.Logger("header/p2p")
 
-// minResponses the target minimum amount of responses with the same chain head
-const minResponses = 2
+// the minimum number of headers of the same height received from trusted peers
+// to determine the network head. If all trusted header will return headers with
+// non-equal height, then the highest header will be chosen.
+const minTrustedHeadResponses = 2
 
 // Exchange enables sending outbound HeaderRequests to the network as well as
 // handling inbound HeaderRequests from the network.
@@ -239,7 +241,7 @@ func (ex *Exchange[H]) performRequest(
 		//nolint:gosec // G404: Use of weak random number generator
 		idx := rand.Intn(len(ex.trustedPeers))
 
-		ctx, cancel := context.WithTimeout(ctx, ex.Params.TrustedPeersRangeRequestTimeout)
+		ctx, cancel := context.WithTimeout(ctx, ex.Params.TrustedPeersRequestTimeout)
 		h, err := ex.request(ctx, ex.trustedPeers[idx], req)
 		cancel()
 		switch err {
@@ -315,7 +317,7 @@ func bestHead[H header.Header](result []H) (H, error) {
 
 	// try to find Header with the maximum height that was received at least from 2 peers
 	for _, res := range result {
-		if counter[res.Hash().String()] >= minResponses {
+		if counter[res.Hash().String()] >= minTrustedHeadResponses {
 			return res, nil
 		}
 	}
