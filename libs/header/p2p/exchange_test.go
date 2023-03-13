@@ -91,8 +91,7 @@ func TestExchange_RequestVerifiedHeadersFails(t *testing.T) {
 func TestExchange_RequestFullRangeHeaders(t *testing.T) {
 	// create mocknet with 5 peers
 	hosts := createMocknet(t, 5)
-	totalAmount := 80
-	store := headerMock.NewStore[*test.DummyHeader](t, test.NewTestSuite(t), totalAmount)
+	store := headerMock.NewStore[*test.DummyHeader](t, test.NewTestSuite(t), int(header.MaxRangeRequestSize))
 	connGater, err := conngater.NewBasicConnectionGater(sync.MutexWrap(datastore.NewMapDatastore()))
 	require.NoError(t, err)
 	// create new exchange
@@ -101,7 +100,6 @@ func TestExchange_RequestFullRangeHeaders(t *testing.T) {
 		WithChainID(networkID),
 	)
 	require.NoError(t, err)
-	exchange.Params.MaxHeadersPerRequest = 10
 	exchange.ctx, exchange.cancel = context.WithCancel(context.Background())
 	t.Cleanup(exchange.cancel)
 	// amount of servers is len(hosts)-1 because one peer acts as a client
@@ -122,13 +120,13 @@ func TestExchange_RequestFullRangeHeaders(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 	t.Cleanup(cancel)
 	// request headers from 1 to totalAmount(80)
-	headers, err := exchange.GetRangeByHeight(ctx, 1, uint64(totalAmount))
+	headers, err := exchange.GetRangeByHeight(ctx, 1, header.MaxRangeRequestSize)
 	require.NoError(t, err)
-	require.Len(t, headers, 80)
+	require.Len(t, headers, int(header.MaxRangeRequestSize))
 }
 
 // TestExchange_RequestHeadersLimitExceeded tests that the Exchange instance will return
-// header.ErrHeadersLimitExceeded if the requested range will be move than MaxRequestSize.
+// header.ErrHeadersLimitExceeded if the requested range will be move than MaxRangeRequestSize.
 func TestExchange_RequestHeadersLimitExceeded(t *testing.T) {
 	hosts := createMocknet(t, 2)
 	exchg, _ := createP2PExAndServer(t, hosts[0], hosts[1])
@@ -213,7 +211,6 @@ func TestExchange_RequestByHash(t *testing.T) {
 }
 
 func Test_bestHead(t *testing.T) {
-	params := DefaultClientParameters()
 	gen := func() []*test.DummyHeader {
 		suite := test.NewTestSuite(t)
 		res := make([]*test.DummyHeader, 0)
@@ -272,7 +269,7 @@ func Test_bestHead(t *testing.T) {
 	}
 	for _, tt := range testCases {
 		res := tt.precondition()
-		header, err := bestHead(res, params.MinResponses)
+		header, err := bestHead(res)
 		require.NoError(t, err)
 		require.True(t, header.Height() == tt.expectedHeight)
 	}
@@ -358,7 +355,7 @@ func TestExchange_RequestHeadersFromAnotherPeerWhenTimeout(t *testing.T) {
 
 	// create client + server(it does not have needed headers)
 	exchg, _ := createP2PExAndServer(t, host0, host1)
-	exchg.Params.RequestTimeout = time.Millisecond * 100
+	exchg.Params.RangeRequestTimeout = time.Millisecond * 100
 	// create one more server(with more headers in the store)
 	serverSideEx, err := NewExchangeServer[*test.DummyHeader](
 		host2, headerMock.NewStore[*test.DummyHeader](t, test.NewTestSuite(t), 10),
@@ -366,7 +363,7 @@ func TestExchange_RequestHeadersFromAnotherPeerWhenTimeout(t *testing.T) {
 	)
 	require.NoError(t, err)
 	// change store implementation
-	serverSideEx.store = &timedOutStore{timeout: exchg.Params.RequestTimeout}
+	serverSideEx.store = &timedOutStore{timeout: exchg.Params.RangeRequestTimeout}
 	require.NoError(t, serverSideEx.Start(context.Background()))
 	t.Cleanup(func() {
 		serverSideEx.Stop(context.Background()) //nolint:errcheck
