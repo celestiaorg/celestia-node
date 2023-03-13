@@ -7,7 +7,14 @@ COPY . .
 ARG TARGETOS TARGETARCH
 ENV GOOS=$TARGETOS
 ENV GOARCH=$TARGETARCH
-RUN make build && make cel-key
+
+RUN echo "--> Building celestia" &&\
+	go build -o build/ \
+	-ldflags="-X 'main.buildTime=$(date)' -X 'main.lastCommit=$(git rev-parse HEAD)' -X 'main.semanticVersion=$(git describe --tags)'" \
+	./cmd/celestia
+
+RUN echo "--> Building cel-key" &&\
+	go build -o build/ ./cmd/cel-key
 
 FROM ubuntu:20.04
 # Default node type can be overwritten in deployment manifest
@@ -18,7 +25,7 @@ COPY docker/entrypoint.sh /
 
 # Copy in the binary
 COPY --from=builder /src/build/celestia /
-COPY --from=builder /src/./cel-key /
+COPY --from=builder /src/build/cel-key /
 
 EXPOSE 2121
 
