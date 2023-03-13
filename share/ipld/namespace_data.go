@@ -9,13 +9,13 @@ import (
 	ipld "github.com/ipfs/go-ipld-format"
 )
 
-// Option is the functional option that is applied to the RetrievedData instance
+// Option is the functional option that is applied to the NamespaceData instance
 // to configure data that needs to be stored.
-type Option func(*RetrievedData)
+type Option func(*NamespaceData)
 
 // WithLeaves option specifies that leaves should be collected during retrieval.
 func WithLeaves() Option {
-	return func(data *RetrievedData) {
+	return func(data *NamespaceData) {
 		// we over-allocate space for leaves since we do not know how many we will find
 		// on the level above, the length of the Row is passed in as maxShares
 		data.leaves = make([]ipld.Node, data.maxShares)
@@ -24,21 +24,21 @@ func WithLeaves() Option {
 
 // WithProofs option specifies that proofs should be collected during retrieval.
 func WithProofs() Option {
-	return func(data *RetrievedData) {
+	return func(data *NamespaceData) {
 		data.proofContainer = newProofCollector(data.maxShares)
 	}
 }
 
-// RetrievedData saves all leaves under the given namespace in the given namespace with corresponded proofs.
-type RetrievedData struct {
+// NamespaceData saves all leaves under the given namespace in the given namespace with corresponded proofs.
+type NamespaceData struct {
 	leaves         []ipld.Node
 	proofContainer *proofCollector
 	bounds         fetchedBounds
 	maxShares      int
 }
 
-func NewRetrievedData(maxShares int, options ...Option) *RetrievedData {
-	rData := &RetrievedData{
+func NewNamespaceData(maxShares int, options ...Option) *NamespaceData {
+	rData := &NamespaceData{
 		// we don't know where in the tree the leaves in the namespace are,
 		// so we keep track of the bounds to return the correct slice
 		// maxShares acts as a sentinel to know if we find any leaves
@@ -52,18 +52,18 @@ func NewRetrievedData(maxShares int, options ...Option) *RetrievedData {
 	return rData
 }
 
-func (r *RetrievedData) validateBasic() error {
+func (r *NamespaceData) validateBasic() error {
 	if r.leaves == nil && r.proofContainer == nil {
 		return errors.New("share/ipld: Invalid configuration: not specified what to retrieve")
 	}
 	return nil
 }
 
-func (r *RetrievedData) getMaxShares() int {
+func (r *NamespaceData) getMaxShares() int {
 	return r.maxShares
 }
 
-func (r *RetrievedData) addLeaf(pos int, nd ipld.Node) {
+func (r *NamespaceData) addLeaf(pos int, nd ipld.Node) {
 	// bounds will be needed in `collectProofs`
 	r.bounds.update(int64(pos))
 
@@ -77,7 +77,7 @@ func (r *RetrievedData) addLeaf(pos int, nd ipld.Node) {
 }
 
 // leavesAvailable ensures if there leaves under the given root in the given namespace.
-func (r *RetrievedData) leavesAvailable() bool {
+func (r *NamespaceData) leavesAvailable() bool {
 	return r.bounds.lowest != int64(r.maxShares)
 }
 
@@ -88,7 +88,7 @@ const (
 	right
 )
 
-func (r *RetrievedData) addProof(d direction, cid cid.Cid, depth int) {
+func (r *NamespaceData) addProof(d direction, cid cid.Cid, depth int) {
 	if r.proofContainer == nil {
 		return
 	}
@@ -105,7 +105,7 @@ func (r *RetrievedData) addProof(d direction, cid cid.Cid, depth int) {
 
 // CollectLeaves returns retrieved leaves within the bounds in case if `WithLeaves` option was passed,
 // otherwise nil will be returned.
-func (r *RetrievedData) CollectLeaves() []ipld.Node {
+func (r *NamespaceData) CollectLeaves() []ipld.Node {
 	if r.leaves == nil || !r.leavesAvailable() {
 		return nil
 	}
@@ -114,7 +114,7 @@ func (r *RetrievedData) CollectLeaves() []ipld.Node {
 
 // CollectProofs returns proofs within the bounds in case if `WithProofs` option was passed,
 // otherwise nil will be returned.
-func (r *RetrievedData) CollectProofs() *Proof {
+func (r *NamespaceData) CollectProofs() *Proof {
 	if r.proofContainer == nil {
 		return nil
 	}

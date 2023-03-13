@@ -180,13 +180,13 @@ func GetLeavesByNamespace(
 	bGetter blockservice.BlockGetter,
 	root cid.Cid,
 	nID namespace.ID,
-	retrievedData *RetrievedData,
+	data *NamespaceData,
 ) error {
 	if len(nID) != NamespaceSize {
 		return fmt.Errorf("expected namespace ID of size %d, got %d", NamespaceSize, len(nID))
 	}
 
-	if err := retrievedData.validateBasic(); err != nil {
+	if err := data.validateBasic(); err != nil {
 		return err
 	}
 
@@ -200,7 +200,7 @@ func GetLeavesByNamespace(
 
 	// buffer the jobs to avoid blocking, we only need as many
 	// queued as the number of shares in the second-to-last layer
-	jobs := make(chan *job, (retrievedData.getMaxShares()+1)/2)
+	jobs := make(chan *job, (data.getMaxShares()+1)/2)
 	jobs <- &job{id: root, ctx: ctx}
 
 	var wg chanGroup
@@ -224,7 +224,7 @@ func GetLeavesByNamespace(
 		if !ok {
 			// if there were no leaves under the given root in the given namespace,
 			// leaves and error will be nil. otherwise, the error will also be non-nil.
-			if !retrievedData.leavesAvailable() {
+			if !data.leavesAvailable() {
 				return retrievalErr
 			}
 
@@ -250,7 +250,7 @@ func GetLeavesByNamespace(
 				log.Errorw("getLeavesWithProofsByNamespace: could not retrieve node", "nID", nID, "pos", j.sharePos, "err", err)
 				span.SetStatus(codes.Error, err.Error())
 				// we still need to update the bounds
-				retrievedData.addLeaf(j.sharePos, nil)
+				data.addLeaf(j.sharePos, nil)
 				return
 			}
 
@@ -259,7 +259,7 @@ func GetLeavesByNamespace(
 				// successfully fetched a leaf belonging to the namespace
 				span.SetStatus(codes.Ok, "")
 				// we found a leaf, so we update the bounds
-				retrievedData.addLeaf(j.sharePos, nd)
+				data.addLeaf(j.sharePos, nd)
 				return
 			}
 
@@ -281,13 +281,13 @@ func GetLeavesByNamespace(
 
 				// proof is on the right side, if the nID is less than min namespace of jobNid
 				if nID.Less(nmt.MinNamespace(jobNid, nID.Size())) {
-					retrievedData.addProof(right, lnk.Cid, newJob.depth)
+					data.addProof(right, lnk.Cid, newJob.depth)
 					continue
 				}
 
 				// proof is on the left side, if the nID is bigger than max namespace of jobNid
 				if !nID.LessOrEqual(nmt.MaxNamespace(jobNid, nID.Size())) {
-					retrievedData.addProof(left, lnk.Cid, newJob.depth)
+					data.addProof(left, lnk.Cid, newJob.depth)
 					continue
 				}
 
