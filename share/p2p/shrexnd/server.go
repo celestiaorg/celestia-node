@@ -124,6 +124,9 @@ func (srv *Server) handleNamespacedData(ctx context.Context, stream network.Stre
 
 // validateRequest checks correctness of the request
 func validateRequest(req pb.GetSharesByNamespaceRequest) error {
+	if req.Mode == pb.Mode_NONE {
+		return fmt.Errorf("no data requested")
+	}
 	if len(req.NamespaceId) != ipld.NamespaceSize {
 		return fmt.Errorf("incorrect namespace id length: %v", len(req.NamespaceId))
 	}

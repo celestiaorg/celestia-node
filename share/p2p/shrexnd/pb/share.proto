@@ -5,6 +5,7 @@ package share.p2p.shrex.nd;
 message GetSharesByNamespaceRequest{
   bytes root_hash = 1;
   bytes namespace_id = 2;
+  Mode mode = 3;
 }
 
 message GetSharesByNamespaceResponse{
@@ -17,6 +18,13 @@ enum StatusCode {
   OK = 1;
   NOT_FOUND = 2;
   INTERNAL = 3;
+};
+
+enum Mode {
+  NONE = 0;
+  SHARES = 1;
+  PROOFS = 2;
+  ALL = 3;
 };
 
 message Row {

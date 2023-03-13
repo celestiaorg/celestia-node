@@ -96,6 +96,7 @@ func (c *Client) doRequest(
 	req := &pb.GetSharesByNamespaceRequest{
 		RootHash:    root.Hash(),
 		NamespaceId: nID,
+		Mode:        pb.Mode_ALL,
 	}
 
 	_, err = serde.Write(stream, req)
