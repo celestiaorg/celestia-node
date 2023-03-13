@@ -95,7 +95,7 @@ func (srv *Server) handleNamespacedData(ctx context.Context, stream network.Stre
 		return
 	}
 
-	ctx, cancel := context.WithTimeout(ctx, srv.params.HandleTimeout)
+	ctx, cancel := context.WithTimeout(ctx, srv.params.HandleRequestTimeout)
 	defer cancel()
 
 	dah, err := srv.store.GetDAH(ctx, req.RootHash)

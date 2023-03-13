@@ -49,8 +49,5 @@ func (cfg *Config) Validate() error {
 	if err := cfg.ShrExNDParams.Validate(); err != nil {
 		return err
 	}
-	if err := cfg.ShrExEDSParams.Validate(); err != nil {
-		return err
-	}
-	return nil
+	return cfg.ShrExEDSParams.Validate()
 }

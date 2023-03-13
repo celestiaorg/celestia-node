@@ -15,8 +15,8 @@ type Parameters struct {
 	// ServerWriteTimeout sets the timeout for writing messages to the stream.
 	ServerWriteTimeout time.Duration
 
-	// HandleTimeout defines the deadline for handling request.
-	HandleTimeout time.Duration
+	// HandleRequestTimeout defines the deadline for handling request.
+	HandleRequestTimeout time.Duration
 
 	// ConcurrencyLimit is the maximum number of concurrently handled streams
 	ConcurrencyLimit int
@@ -28,10 +28,10 @@ type Parameters struct {
 
 func DefaultParameters() *Parameters {
 	return &Parameters{
-		ServerReadTimeout:  5 * time.Second,
-		ServerWriteTimeout: time.Minute, // based on max observed sample time for 256 blocks (~50s)
-		HandleTimeout:      time.Minute,
-		ConcurrencyLimit:   10,
+		ServerReadTimeout:    5 * time.Second,
+		ServerWriteTimeout:   time.Minute, // based on max observed sample time for 256 blocks (~50s)
+		HandleRequestTimeout: time.Minute,
+		ConcurrencyLimit:     10,
 	}
 }
 
@@ -44,8 +44,8 @@ func (p *Parameters) Validate() error {
 	if p.ServerWriteTimeout <= 0 {
 		return fmt.Errorf("invalid write timeout: %v, %s", p.ServerWriteTimeout, errSuffix)
 	}
-	if p.HandleTimeout <= 0 {
-		return fmt.Errorf("invalid serve timeout: %v, %s", p.HandleTimeout, errSuffix)
+	if p.HandleRequestTimeout <= 0 {
+		return fmt.Errorf("invalid hadnle request timeout: %v, %s", p.HandleRequestTimeout, errSuffix)
 	}
 	if p.ConcurrencyLimit <= 0 {
 		return fmt.Errorf("invalid concurrency limit: %s", errSuffix)

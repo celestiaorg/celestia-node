@@ -76,7 +76,7 @@ func (s *Server) handleStream(stream network.Stream) {
 		return
 	}
 
-	ctx, cancel := context.WithTimeout(s.ctx, s.params.HandleTimeout)
+	ctx, cancel := context.WithTimeout(s.ctx, s.params.HandleRequestTimeout)
 	defer cancel()
 	status := p2p_pb.Status_OK
 	// determine whether the EDS is available in our store
