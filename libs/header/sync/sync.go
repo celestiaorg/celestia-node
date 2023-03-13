@@ -31,8 +31,8 @@ var log = logging.Logger("header/sync")
 //   - Triggers s.syncLoop and saves the Subjective Head in the pending so s.syncLoop can access it
 type Syncer[H header.Header] struct {
 	sub     header.Subscriber[H] // to subscribe for new Network Heads
-	store   syncStore[H] // to store all the headers to
-	getter  syncGetter[H] // to fetch headers from
+	store   syncStore[H]         // to store all the headers to
+	getter  syncGetter[H]        // to fetch headers from
 	metrics *metrics
 
 	// stateLk protects state which represents the current or latest sync
