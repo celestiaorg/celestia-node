@@ -23,7 +23,7 @@ func TestSyncSimpleRequestingHead(t *testing.T) {
 	head := suite.Head()
 
 	remoteStore := store.NewTestStore(ctx, t, head)
-	_, err := remoteStore.Append(ctx, suite.GenDummyHeaders(100)...)
+	err := remoteStore.Append(ctx, suite.GenDummyHeaders(100)...)
 	require.NoError(t, err)
 
 	_, err = remoteStore.GetByHeight(ctx, 100)
@@ -36,7 +36,6 @@ func TestSyncSimpleRequestingHead(t *testing.T) {
 		&test.DummySubscriber{},
 		WithBlockTime(time.Second*30),
 		WithTrustingPeriod(time.Microsecond),
-		WithMaxRequestSize(13),
 	)
 	require.NoError(t, err)
 	err = syncer.Start(ctx)
@@ -74,12 +73,11 @@ func TestDoSyncFullRangeFromExternalPeer(t *testing.T) {
 		local.NewExchange(remoteStore),
 		localStore,
 		&test.DummySubscriber{},
-		WithMaxRequestSize(10),
 	)
 	require.NoError(t, err)
 	require.NoError(t, syncer.Start(ctx))
 
-	_, err = remoteStore.Append(ctx, suite.GenDummyHeaders(10)...)
+	err = remoteStore.Append(ctx, suite.GenDummyHeaders(int(header.MaxRangeRequestSize))...)
 	require.NoError(t, err)
 	// give store time to update heightSub index
 	time.Sleep(time.Millisecond * 100)
@@ -92,10 +90,8 @@ func TestDoSyncFullRangeFromExternalPeer(t *testing.T) {
 
 	err = syncer.doSync(ctx, localHead, remoteHead)
 	require.NoError(t, err)
-	// give store time to update heightSub index
-	time.Sleep(time.Millisecond * 100)
 
-	newHead, err := localStore.Head(ctx)
+	newHead := *syncer.syncedHead.Load()
 	require.NoError(t, err)
 	require.Equal(t, newHead.Height(), remoteHead.Height())
 }
@@ -121,7 +117,7 @@ func TestSyncCatchUp(t *testing.T) {
 	require.NoError(t, err)
 
 	// 2. chain grows and syncer misses that
-	_, err = remoteStore.Append(ctx, suite.GenDummyHeaders(100)...)
+	err = remoteStore.Append(ctx, suite.GenDummyHeaders(100)...)
 	require.NoError(t, err)
 
 	incomingHead := suite.GenDummyHeaders(1)[0]
@@ -172,19 +168,19 @@ func TestSyncPendingRangesWithMisses(t *testing.T) {
 	require.NoError(t, err)
 
 	// miss 1 (helps to test that Syncer properly requests missed Headers from Exchange)
-	_, err = remoteStore.Append(ctx, suite.GenDummyHeaders(1)...)
+	err = remoteStore.Append(ctx, suite.GenDummyHeaders(1)...)
 	require.NoError(t, err)
 
 	range1 := suite.GenDummyHeaders(15)
-	_, err = remoteStore.Append(ctx, range1...)
+	err = remoteStore.Append(ctx, range1...)
 	require.NoError(t, err)
 
 	// miss 2
-	_, err = remoteStore.Append(ctx, suite.GenDummyHeaders(3)...)
+	err = remoteStore.Append(ctx, suite.GenDummyHeaders(3)...)
 	require.NoError(t, err)
 
 	range2 := suite.GenDummyHeaders(23)
-	_, err = remoteStore.Append(ctx, range2...)
+	err = remoteStore.Append(ctx, range2...)
 	require.NoError(t, err)
 
 	// manually add to pending
@@ -275,9 +271,9 @@ func TestSyncer_FindHeadersReturnsCorrectRange(t *testing.T) {
 	for _, h := range range1 {
 		syncer.pending.Add(h)
 	}
-	_, err = remoteStore.Append(ctx, range1...)
+	err = remoteStore.Append(ctx, range1...)
 	require.NoError(t, err)
-	_, err = remoteStore.Append(ctx, suite.GenDummyHeaders(9)...)
+	err = remoteStore.Append(ctx, suite.GenDummyHeaders(9)...)
 	require.NoError(t, err)
 
 	syncer.pending.Add(suite.GetRandomHeader())
