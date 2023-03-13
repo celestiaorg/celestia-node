@@ -4,11 +4,9 @@ import (
 	"os"
 )
 
-var IsBootstrapper bool
-
-func init() {
+var (
 	IsBootstrapper = getEnv("BOOTSTRAPPER", "false") == "true"
-}
+)
 
 // Get environment variable or fallback to default value
 func getEnv(key, fallback string) string {
