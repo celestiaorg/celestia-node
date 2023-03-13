@@ -7,7 +7,7 @@ import (
 	"github.com/celestiaorg/celestia-node/libs/header"
 )
 
-// syncStore is a Store wrapper that provides synchronisation over writes and reads
+// syncStore is a Store wrapper that provides synchronization over writes and reads
 // for Head of underlying Store. Useful for Stores that do not guarantee synchrony between Append
 // and Head method.
 type syncStore[H header.Header] struct {
