@@ -8,6 +8,7 @@ ARG TARGETOS TARGETARCH
 ENV GOOS=$TARGETOS
 ENV GOARCH=$TARGETARCH
 
+# FIXME -> ldflags are not working when using make
 RUN echo "--> Building celestia" &&\
 	go build -o build/ \
 	-ldflags="-X 'main.buildTime=$(date)' -X 'main.lastCommit=$(git rev-parse HEAD)' -X 'main.semanticVersion=$(git describe --tags)'" \
