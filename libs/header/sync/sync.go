@@ -262,8 +262,8 @@ func (s *Syncer[H]) processHeaders(
 			break
 		}
 
-		headers, amount := headersRange.Before(to)
-		if amount == 0 {
+		headers := headersRange.Truncate(to)
+		if len(headers) == 0 {
 			break
 		}
 
@@ -295,7 +295,7 @@ func (s *Syncer[H]) requestHeaders(
 	amount := to - uint64(fromHead.Height())
 	// start requesting headers until amount remaining will be 0
 	for amount > 0 {
-		size := s.Params.MaxRequestSize
+		size := header.MaxRangeRequestSize
 		if amount < size {
 			size = amount
 		}
@@ -317,16 +317,14 @@ func (s *Syncer[H]) requestHeaders(
 func (s *Syncer[H]) storeHeaders(ctx context.Context, headers []H) error {
 	// we don't expect any issues in storing right now, as all headers are now verified.
 	// So, we should return immediately in case an error appears.
-	stored, err := s.store.Append(ctx, headers...)
-	if err != nil {
+	if err := s.store.Append(ctx, headers...); err != nil {
 		return err
 	}
-	if stored > 0 {
-		s.syncedHead.Store(&headers[stored-1])
-	}
+
+	s.syncedHead.Store(&headers[len(headers)-1])
 
 	if s.metrics != nil {
-		s.metrics.recordTotalSynced(stored)
+		s.metrics.recordTotalSynced(len(headers))
 	}
 	return nil
 }

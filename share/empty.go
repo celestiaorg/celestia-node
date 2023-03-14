@@ -10,6 +10,7 @@ import (
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/pkg/da"
+	"github.com/celestiaorg/celestia-app/pkg/shares"
 	"github.com/celestiaorg/rsmt2d"
 )
 
@@ -26,9 +27,14 @@ func init() {
 	if err != nil {
 		panic(fmt.Errorf("failed to create empty EDS: %w", err))
 	}
-
 	emptyEDS = eds
+
 	dah := da.NewDataAvailabilityHeader(eds)
+	minDAH := da.MinDataAvailabilityHeader()
+	if !bytes.Equal(minDAH.Hash(), dah.Hash()) {
+		panic(fmt.Sprintf("mismatch in calculated minimum DAH and minimum DAH from celestia-app, "+
+			"expected %X, got %X", minDAH.Hash(), dah.Hash()))
+	}
 	emptyRoot = &dah
 
 	// precompute Hash, so it's cached internally to avoid potential races
@@ -53,19 +59,7 @@ func EmptyExtendedDataSquare() *rsmt2d.ExtendedDataSquare {
 	return emptyEDS
 }
 
-// tail is filler for all tail padded shares
-// it is allocated once and used everywhere
-var tailPaddingShare = append(
-	append(make([]byte, 0, appconsts.ShareSize), appconsts.TailPaddingNamespaceID...),
-	bytes.Repeat([]byte{0}, appconsts.ShareSize-appconsts.NamespaceSize)...,
-)
-
 // emptyDataSquare returns the minimum size data square filled with tail padding.
 func emptyDataSquare() [][]byte {
-	shares := make([][]byte, appconsts.MinShareCount)
-	for i := 0; i < appconsts.MinShareCount; i++ {
-		shares[i] = tailPaddingShare
-	}
-
-	return shares
+	return shares.ToBytes(shares.TailPaddingShares(appconsts.MinShareCount))
 }

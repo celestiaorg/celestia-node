@@ -157,7 +157,7 @@ func (serv *ExchangeServer[H]) requestHandler(stream network.Stream) {
 // if it exists.
 func (serv *ExchangeServer[H]) handleRequestByHash(hash []byte) ([]H, error) {
 	log.Debugw("server: handling header request", "hash", header.Hash(hash).String())
-	ctx, cancel := context.WithTimeout(serv.ctx, serv.Params.RequestTimeout)
+	ctx, cancel := context.WithTimeout(serv.ctx, serv.Params.RangeRequestTimeout)
 	defer cancel()
 	ctx, span := tracer.Start(ctx, "request-by-hash", trace.WithAttributes(
 		attribute.String("hash", header.Hash(hash).String()),
@@ -186,7 +186,7 @@ func (serv *ExchangeServer[H]) handleRequest(from, to uint64) ([]H, error) {
 		return serv.handleHeadRequest()
 	}
 
-	ctx, cancel := context.WithTimeout(serv.ctx, serv.Params.RequestTimeout)
+	ctx, cancel := context.WithTimeout(serv.ctx, serv.Params.RangeRequestTimeout)
 	defer cancel()
 
 	ctx, span := tracer.Start(ctx, "request-range", trace.WithAttributes(
@@ -194,7 +194,7 @@ func (serv *ExchangeServer[H]) handleRequest(from, to uint64) ([]H, error) {
 		attribute.Int64("to", int64(to))))
 	defer span.End()
 
-	if to-from > serv.Params.MaxRequestSize {
+	if to-from > header.MaxRangeRequestSize {
 		log.Errorw("server: skip request for too many headers.", "amount", to-from)
 		span.SetStatus(codes.Error, header.ErrHeadersLimitExceeded.Error())
 		return nil, header.ErrHeadersLimitExceeded
@@ -250,7 +250,7 @@ func (serv *ExchangeServer[H]) handleRequest(from, to uint64) ([]H, error) {
 // handleHeadRequest returns the latest stored head.
 func (serv *ExchangeServer[H]) handleHeadRequest() ([]H, error) {
 	log.Debug("server: handling head request")
-	ctx, cancel := context.WithTimeout(serv.ctx, serv.Params.RequestTimeout)
+	ctx, cancel := context.WithTimeout(serv.ctx, serv.Params.RangeRequestTimeout)
 	defer cancel()
 	ctx, span := tracer.Start(ctx, "request-head")
 	defer span.End()
