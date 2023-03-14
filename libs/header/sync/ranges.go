@@ -146,7 +146,8 @@ func (r *headerRange[H]) Remove(end uint64) {
 	}
 }
 
-// rangeAmount returns the number of headers to be removed or returned up to the specified 'end' height.
+// rangeAmount returns the number of headers to be removed or returned up to the specified 'end'
+// height.
 func (r *headerRange[H]) rangeAmount(end uint64) uint64 {
 	if r.start > end {
 		return 0

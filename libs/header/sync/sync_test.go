@@ -5,7 +5,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/celestiaorg/celestia-node/libs/header"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -14,7 +13,6 @@ import (
 	"github.com/celestiaorg/celestia-node/libs/header/local"
 	"github.com/celestiaorg/celestia-node/libs/header/store"
 	"github.com/celestiaorg/celestia-node/libs/header/test"
-	"github.com/celestiaorg/celestia-node/logs"
 )
 
 func TestSyncSimpleRequestingHead(t *testing.T) {
@@ -254,7 +252,6 @@ func TestSyncer_FindHeadersReturnsCorrectRange(t *testing.T) {
 }
 
 func TestSyncerIncomingDuplicate(t *testing.T) {
-	logs.SetDebugLogging()
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	t.Cleanup(cancel)
 
