@@ -163,5 +163,5 @@ lint-imports:
 .PHONY: lint-imports
 
 sort-imports:
-	goimports-reviser -company-prefixes "github.com/celestiaorg"  -project-name "github.com/celestiaorg/celestia-node" -output stdout ./...
+	@goimports-reviser -company-prefixes "github.com/celestiaorg"  -project-name "github.com/celestiaorg/celestia-node" -output stdout ./...
 .PHONY: sort-imports

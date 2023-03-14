@@ -42,8 +42,7 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 				return []p2p.Option[p2p.ServerParameters]{
 					p2p.WithWriteDeadline(cfg.Server.WriteDeadline),
 					p2p.WithReadDeadline(cfg.Server.ReadDeadline),
-					p2p.WithMaxRequestSize[p2p.ServerParameters](cfg.Server.MaxRequestSize),
-					p2p.WithRequestTimeout[p2p.ServerParameters](cfg.Server.RequestTimeout),
+					p2p.WithRangeRequestTimeout[p2p.ServerParameters](cfg.Server.RangeRequestTimeout),
 					p2p.WithNetworkID[p2p.ServerParameters](network.String()),
 				}
 			}),
@@ -67,7 +66,6 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 			return []sync.Options{
 				sync.WithBlockTime(modp2p.BlockTime),
 				sync.WithTrustingPeriod(cfg.Syncer.TrustingPeriod),
-				sync.WithMaxRequestSize(cfg.Syncer.MaxRequestSize),
 			}
 		}),
 		fx.Provide(fx.Annotate(
@@ -114,13 +112,8 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 			fx.Provide(
 				func(cfg Config, network modp2p.Network) []p2p.Option[p2p.ClientParameters] {
 					return []p2p.Option[p2p.ClientParameters]{
-						p2p.WithMinResponses(cfg.Client.MinResponses),
-						p2p.WithMaxRequestSize[p2p.ClientParameters](cfg.Client.MaxRequestSize),
-						p2p.WithMaxHeadersPerRequest(cfg.Client.MaxHeadersPerRequest),
-						p2p.WithMaxAwaitingTime(cfg.Client.MaxAwaitingTime),
-						p2p.WithDefaultScore(cfg.Client.DefaultScore),
-						p2p.WithRequestTimeout[p2p.ClientParameters](cfg.Client.RequestTimeout),
-						p2p.WithMaxTrackerSize(cfg.Client.MaxPeerTrackerSize),
+						p2p.WithMaxHeadersPerRangeRequest(cfg.Client.MaxHeadersPerRangeRequest),
+						p2p.WithRangeRequestTimeout[p2p.ClientParameters](cfg.Client.RangeRequestTimeout),
 						p2p.WithNetworkID[p2p.ClientParameters](network.String()),
 						p2p.WithChainID(network.String()),
 					}

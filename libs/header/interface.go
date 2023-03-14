@@ -8,6 +8,11 @@ import (
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 )
 
+const (
+	// MaxRangeRequestSize defines the max amount of headers that can be handled/requested at once.
+	MaxRangeRequestSize uint64 = 512
+)
+
 // Subscriber encompasses the behavior necessary to
 // subscribe/unsubscribe from new Header events from the
 // network.
@@ -95,7 +100,7 @@ type Store[H Header] interface {
 	// as it applies them contiguously on top of the current head height.
 	// It returns the amount of successfully applied headers,
 	// so caller can understand what given header was invalid, if any.
-	Append(context.Context, ...H) (int, error)
+	Append(context.Context, ...H) error
 }
 
 // Getter contains the behavior necessary for a component to retrieve
