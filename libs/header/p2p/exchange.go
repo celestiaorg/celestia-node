@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"math/rand"
 	"sort"
+	"time"
 
 	logging "github.com/ipfs/go-log/v2"
 	"github.com/libp2p/go-libp2p/core/host"
@@ -235,18 +236,21 @@ func (ex *Exchange[H]) performRequest(
 		return nil, fmt.Errorf("no trusted peers")
 	}
 	var reqErr error
-	for i := 0; i < len(ex.trustedPeers); i++ {
-		//nolint:gosec // G404: Use of weak random number generator
-		idx := rand.Intn(len(ex.trustedPeers))
+	peers := ex.trustedPeers
 
+	// we need this each time before calling shuffle
+	rand.Seed(time.Now().UnixNano())
+	// change order to get a random peer
+	rand.Shuffle(len(peers), func(i, j int) { peers[i], peers[j] = peers[j], peers[i] })
+	for _, peer := range peers {
 		ctx, cancel := context.WithTimeout(ctx, ex.Params.TrustedPeersRequestTimeout)
-		h, err := ex.request(ctx, ex.trustedPeers[idx], req)
+		h, err := ex.request(ctx, peer, req)
 		cancel()
 		switch err {
 		default:
 			reqErr = err
 			log.Debugw("requesting header from trustedPeer failed",
-				"trustedPeer", ex.trustedPeers[idx], "err", err)
+				"trustedPeer", peer, "err", err)
 			continue
 		case context.Canceled, context.DeadlineExceeded, nil:
 			return h, err
