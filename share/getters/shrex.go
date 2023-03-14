@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"time"
 
+	"go.uber.org/multierr"
+
 	"github.com/celestiaorg/nmt/namespace"
 	"github.com/celestiaorg/rsmt2d"
 
@@ -62,33 +64,47 @@ func (sg *ShrexGetter) GetShare(ctx context.Context, root *share.Root, row, col 
 }
 
 func (sg *ShrexGetter) GetEDS(ctx context.Context, root *share.Root) (*rsmt2d.ExtendedDataSquare, error) {
-	var attempt int
+	var (
+		attempt int
+		err     error
+	)
 	for {
 		attempt++
-		select {
-		case <-ctx.Done():
-			return nil, fmt.Errorf("getter/shrex: %w", ctx.Err())
-		default:
-		}
-		peer, setStatus, err := sg.peerManager.Peer(ctx, root.Hash())
-		if err != nil {
-			log.Debugw("couldn't find peer", "datahash", root.String(), "err", err)
+		start := time.Now()
+		peer, setStatus, getErr := sg.peerManager.Peer(ctx, root.Hash())
+		if getErr != nil {
+			err = multierr.Append(err, getErr)
+			log.Debugw("couldn't find peer",
+				"datahash", root.String(),
+				"err", getErr,
+				"finished (s)", time.Since(start))
+			return nil, fmt.Errorf("getter/shrex: %w", err)
 		}
 
+		reqStart := time.Now()
 		reqCtx, cancel := ctxWithSplitTimeout(ctx, sg.minAttemptsCount-attempt+1, sg.minRequestTimeout)
-		eds, err := sg.edsClient.RequestEDS(reqCtx, root.Hash(), peer)
+		eds, getErr := sg.edsClient.RequestEDS(reqCtx, root.Hash(), peer)
 		cancel()
-		switch err {
+		switch getErr {
 		case nil:
 			setStatus(peers.ResultSynced)
 			return eds, nil
 		case context.DeadlineExceeded:
-			log.Debugw("request exceeded deadline, trying with new peer", "datahash", root.String())
 		case p2p.ErrInvalidResponse:
 			setStatus(peers.ResultBlacklistPeer)
 		default:
 			setStatus(peers.ResultCooldownPeer)
 		}
+
+		if !ErrorContains(err, getErr) {
+			err = multierr.Append(err, getErr)
+		}
+		log.Debugw("request failed",
+			"datahash", root.String(),
+			"peer", peer.String(),
+			"attempt", attempt,
+			"err", getErr,
+			"finished (s)", time.Since(reqStart))
 	}
 }
 
@@ -97,33 +113,46 @@ func (sg *ShrexGetter) GetSharesByNamespace(
 	root *share.Root,
 	id namespace.ID,
 ) (share.NamespacedShares, error) {
-	var attempt int
+	var (
+		attempt int
+		err     error
+	)
 	for {
 		attempt++
-		select {
-		case <-ctx.Done():
-			return nil, fmt.Errorf("getter/shrex: %w", ctx.Err())
-		default:
-		}
-		peer, setStatus, err := sg.peerManager.Peer(ctx, root.Hash())
-		if err != nil {
-			log.Debugw("couldn't find peer", "datahash", root.String(), "err", err)
+		start := time.Now()
+		peer, setStatus, getErr := sg.peerManager.Peer(ctx, root.Hash())
+		if getErr != nil {
+			err = multierr.Append(err, getErr)
+			log.Debugw("couldn't find peer",
+				"datahash", root.String(),
+				"err", getErr,
+				"finished (s)", time.Since(start))
 			return nil, fmt.Errorf("getter/shrex: %w", err)
 		}
 
+		reqStart := time.Now()
 		reqCtx, cancel := ctxWithSplitTimeout(ctx, sg.minAttemptsCount-attempt+1, sg.minRequestTimeout)
-		nd, err := sg.ndClient.RequestND(reqCtx, root, id, peer)
+		nd, getErr := sg.ndClient.RequestND(reqCtx, root, id, peer)
 		cancel()
-		switch err {
+		switch getErr {
 		case nil:
 			setStatus(peers.ResultSuccess)
 			return nd, nil
 		case context.DeadlineExceeded:
-			log.Debugw("request exceeded deadline, trying with new peer", "datahash", root.String())
 		case p2p.ErrInvalidResponse:
 			setStatus(peers.ResultBlacklistPeer)
 		default:
 			setStatus(peers.ResultCooldownPeer)
 		}
+
+		if !ErrorContains(err, getErr) {
+			err = multierr.Append(err, getErr)
+		}
+		log.Debugw("request failed",
+			"datahash", root.String(),
+			"peer", peer.String(),
+			"attempt", attempt,
+			"err", getErr,
+			"finished (s)", time.Since(reqStart))
 	}
 }
