@@ -152,9 +152,9 @@ func makeExchange(t *testing.T) (*eds.Store, *Client, *Server) {
 	store := newStore(t)
 	hosts := createMocknet(t, 2)
 
-	client, err := NewClient(hosts[0])
+	client, err := NewClient(DefaultParameters(), hosts[0])
 	require.NoError(t, err)
-	server, err := NewServer(hosts[1], store)
+	server, err := NewServer(DefaultParameters(), hosts[1], store)
 	require.NoError(t, err)
 
 	return store, client, server

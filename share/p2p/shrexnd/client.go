@@ -33,19 +33,14 @@ type Client struct {
 }
 
 // NewClient creates a new shrEx/nd client
-func NewClient(host host.Host, opts ...Option) (*Client, error) {
-	params := DefaultParameters()
-	for _, opt := range opts {
-		opt(params)
-	}
-
+func NewClient(params *Parameters, host host.Host) (*Client, error) {
 	if err := params.Validate(); err != nil {
 		return nil, fmt.Errorf("shrex-nd: client creation failed: %w", err)
 	}
 
 	return &Client{
 		host:       host,
-		protocolID: protocolID(params.networkID),
+		protocolID: p2p.ProtocolID(params.NetworkID(), protocolString),
 		params:     params,
 	}, nil
 }
@@ -178,15 +173,17 @@ func (c *Client) setStreamDeadlines(ctx context.Context, stream network.Stream) 
 		return
 	}
 
-	if c.params.readTimeout != 0 {
-		err := stream.SetReadDeadline(time.Now().Add(c.params.readTimeout))
+	// if deadline not set, client read deadline defaults to server write deadline
+	if c.params.ServerWriteTimeout != 0 {
+		err := stream.SetReadDeadline(time.Now().Add(c.params.ServerWriteTimeout))
 		if err != nil {
 			log.Debugf("client-nd: set read deadline: %s", err)
 		}
 	}
 
-	if c.params.writeTimeout != 0 {
-		err := stream.SetWriteDeadline(time.Now().Add(c.params.readTimeout))
+	// if deadline not set, client write deadline defaults to server read deadline
+	if c.params.ServerReadTimeout != 0 {
+		err := stream.SetWriteDeadline(time.Now().Add(c.params.ServerReadTimeout))
 		if err != nil {
 			log.Debugf("client-nd: set write deadline: %s", err)
 		}
