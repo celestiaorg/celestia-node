@@ -10,9 +10,11 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/celestiaorg/celestia-node/libs/header"
 	"github.com/celestiaorg/celestia-node/libs/header/local"
 	"github.com/celestiaorg/celestia-node/libs/header/store"
 	"github.com/celestiaorg/celestia-node/libs/header/test"
+	"github.com/celestiaorg/celestia-node/logs"
 )
 
 func TestSyncSimpleRequestingHead(t *testing.T) {
@@ -249,4 +251,52 @@ func TestSyncer_FindHeadersReturnsCorrectRange(t *testing.T) {
 	head, err = syncer.store.Head(ctx)
 	require.NoError(t, err)
 	assert.Equal(t, head.Height(), int64(21))
+}
+
+func TestSyncerIncomingDuplicate(t *testing.T) {
+	logs.SetDebugLogging()
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	t.Cleanup(cancel)
+
+	suite := test.NewTestSuite(t)
+	head := suite.Head()
+
+	remoteStore := store.NewTestStore(ctx, t, head)
+	localStore := store.NewTestStore(ctx, t, head)
+	syncer, err := NewSyncer[*test.DummyHeader](
+		&delayedGetter[*test.DummyHeader]{Getter: local.NewExchange(remoteStore)},
+		localStore,
+		&test.DummySubscriber{},
+	)
+	require.NoError(t, err)
+	err = syncer.Start(ctx)
+	require.NoError(t, err)
+
+	range1 := suite.GenDummyHeaders(10)
+	err = remoteStore.Append(ctx, range1...)
+	require.NoError(t, err)
+
+	res := syncer.incomingNetworkHead(ctx, range1[len(range1)-1])
+	assert.Equal(t, pubsub.ValidationAccept, res)
+
+	time.Sleep(time.Millisecond * 10)
+
+	res = syncer.incomingNetworkHead(ctx, range1[len(range1)-1])
+	assert.Equal(t, pubsub.ValidationIgnore, res)
+
+	err = syncer.SyncWait(ctx)
+	require.NoError(t, err)
+}
+
+type delayedGetter[H header.Header] struct {
+	header.Getter[H]
+}
+
+func (d *delayedGetter[H]) GetVerifiedRange(ctx context.Context, from H, amount uint64) ([]H, error) {
+	select {
+	case <-time.After(time.Millisecond * 100):
+		return d.Getter.GetVerifiedRange(ctx, from, amount)
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	}
 }
