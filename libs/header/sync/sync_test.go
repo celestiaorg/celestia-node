@@ -36,7 +36,6 @@ func TestSyncSimpleRequestingHead(t *testing.T) {
 		&test.DummySubscriber{},
 		WithBlockTime(time.Second*30),
 		WithTrustingPeriod(time.Microsecond),
-		WithMaxRequestSize(13),
 	)
 	require.NoError(t, err)
 	err = syncer.Start(ctx)
@@ -74,12 +73,11 @@ func TestDoSyncFullRangeFromExternalPeer(t *testing.T) {
 		local.NewExchange(remoteStore),
 		localStore,
 		&test.DummySubscriber{},
-		WithMaxRequestSize(10),
 	)
 	require.NoError(t, err)
 	require.NoError(t, syncer.Start(ctx))
 
-	err = remoteStore.Append(ctx, suite.GenDummyHeaders(10)...)
+	err = remoteStore.Append(ctx, suite.GenDummyHeaders(int(header.MaxRangeRequestSize))...)
 	require.NoError(t, err)
 	// give store time to update heightSub index
 	time.Sleep(time.Millisecond * 100)
@@ -92,10 +90,8 @@ func TestDoSyncFullRangeFromExternalPeer(t *testing.T) {
 
 	err = syncer.doSync(ctx, localHead, remoteHead)
 	require.NoError(t, err)
-	// give store time to update heightSub index
-	time.Sleep(time.Millisecond * 100)
 
-	newHead, err := localStore.Head(ctx)
+	newHead := *syncer.syncedHead.Load()
 	require.NoError(t, err)
 	require.Equal(t, newHead.Height(), remoteHead.Height())
 }
