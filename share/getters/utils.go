@@ -94,14 +94,14 @@ func verifyNIDSize(nID namespace.ID) error {
 }
 
 // ctxWithSplitTimeout will split timeout stored in context by splitFactor and return the result if
-// it is greater than minTimeout. minTimeout == 0 will be ignored
+// it is greater than minTimeout. minTimeout == 0 will be ignored, splitFactor <= 0 will be ignored
 func ctxWithSplitTimeout(
 	ctx context.Context,
 	splitFactor int,
 	minTimeout time.Duration,
 ) (context.Context, context.CancelFunc) {
 	deadline, ok := ctx.Deadline()
-	if !ok {
+	if !ok || splitFactor <= 0 {
 		if minTimeout == 0 {
 			return context.WithCancel(ctx)
 		}

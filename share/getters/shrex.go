@@ -21,7 +21,7 @@ var _ share.Getter = (*ShrexGetter)(nil)
 const (
 	// defaultMinRequestTimeout value is set according to observed time taken by healthy peer to
 	// serve getEDS request for block size 256
-	defaultMinRequestTimeout = time.Second * 10
+	defaultMinRequestTimeout = time.Minute // should be >= shrexeds server write timeout
 	defaultMinAttemptsCount  = 3
 )
 
@@ -62,7 +62,9 @@ func (sg *ShrexGetter) GetShare(ctx context.Context, root *share.Root, row, col 
 }
 
 func (sg *ShrexGetter) GetEDS(ctx context.Context, root *share.Root) (*rsmt2d.ExtendedDataSquare, error) {
+	var attempt int
 	for {
+		attempt++
 		select {
 		case <-ctx.Done():
 			return nil, fmt.Errorf("getter/shrex: %w", ctx.Err())
@@ -71,10 +73,9 @@ func (sg *ShrexGetter) GetEDS(ctx context.Context, root *share.Root) (*rsmt2d.Ex
 		peer, setStatus, err := sg.peerManager.Peer(ctx, root.Hash())
 		if err != nil {
 			log.Debugw("couldn't find peer", "datahash", root.String(), "err", err)
-			return nil, fmt.Errorf("getter/shrex: %w", err)
 		}
 
-		reqCtx, cancel := ctxWithSplitTimeout(ctx, sg.minAttemptsCount, sg.minRequestTimeout)
+		reqCtx, cancel := ctxWithSplitTimeout(ctx, sg.minAttemptsCount-attempt+1, sg.minRequestTimeout)
 		eds, err := sg.edsClient.RequestEDS(reqCtx, root.Hash(), peer)
 		cancel()
 		switch err {
@@ -96,7 +97,9 @@ func (sg *ShrexGetter) GetSharesByNamespace(
 	root *share.Root,
 	id namespace.ID,
 ) (share.NamespacedShares, error) {
+	var attempt int
 	for {
+		attempt++
 		select {
 		case <-ctx.Done():
 			return nil, fmt.Errorf("getter/shrex: %w", ctx.Err())
@@ -108,7 +111,7 @@ func (sg *ShrexGetter) GetSharesByNamespace(
 			return nil, fmt.Errorf("getter/shrex: %w", err)
 		}
 
-		reqCtx, cancel := ctxWithSplitTimeout(ctx, sg.minAttemptsCount, sg.minRequestTimeout)
+		reqCtx, cancel := ctxWithSplitTimeout(ctx, sg.minAttemptsCount-attempt+1, sg.minRequestTimeout)
 		nd, err := sg.ndClient.RequestND(reqCtx, root, id, peer)
 		cancel()
 		switch err {
