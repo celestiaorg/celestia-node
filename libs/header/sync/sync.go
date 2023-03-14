@@ -254,14 +254,14 @@ func (s *Syncer[H]) processHeaders(
 			break
 		}
 
-		headers := headersRange.Truncate(to)
+		headers := headersRange.Get(to)
 		if len(headers) == 0 {
 			break
 		}
 
-		// check that returned range is adjacent to `fromHead`
+		// check if returned range is not adjacent to `fromHead`
 		if fromHead.Height()+1 != headers[0].Height() {
-			// make an external request
+			// if so - request missing ones
 			to := uint64(headers[0].Height() - 1)
 			if err = s.requestHeaders(ctx, fromHead, to); err != nil {
 				return err
@@ -273,6 +273,8 @@ func (s *Syncer[H]) processHeaders(
 			return err
 		}
 
+		// cleanup range only after we stored the headers
+		headersRange.Remove(to)
 		// update fromHead for the next iteration
 		fromHead = headers[len(headers)-1]
 	}
