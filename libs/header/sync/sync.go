@@ -298,22 +298,12 @@ func (s *Syncer[H]) requestHeaders(
 			return err
 		}
 
-		headersLn := uint64(len(headers))
-		if headersLn != size {
-			log.Warnw("verified range != requested range",
-				"requested", size,
-				"got", headersLn,
-			)
-			log.Warn("PLEASE REPORT THIS AS A BUG")
-		}
-
 		if err := s.storeHeaders(ctx, headers...); err != nil {
 			return err
 		}
 
-		amount -= headersLn
+		amount -= size // size == len(headers)
 		fromHead = headers[len(headers)-1]
-
 	}
 	return nil
 }
