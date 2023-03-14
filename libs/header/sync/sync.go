@@ -297,14 +297,23 @@ func (s *Syncer[H]) requestHeaders(
 		if err != nil {
 			return err
 		}
-		// TODO(@Wondertan): This fixed syncing for me, but the len should always be = to size
-		//  Something fishy in here.
-		amount -= uint64(len(headers))
+
+		headersLn := uint64(len(headers))
+		if headersLn != size {
+			log.Warnw("verified range != requested range",
+				"requested", size,
+				"got", headersLn,
+			)
+			log.Warn("PLEASE REPORT THIS AS A BUG")
+		}
 
 		if err := s.storeHeaders(ctx, headers...); err != nil {
 			return err
 		}
+
+		amount -= headersLn
 		fromHead = headers[len(headers)-1]
+
 	}
 	return nil
 }
