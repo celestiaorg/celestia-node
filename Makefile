@@ -1,5 +1,6 @@
 SHELL=/usr/bin/env bash
 PROJECTNAME=$(shell basename "$(PWD)")
+# Remember: if you update the LDFLAGS, please do it also in the Dockerfile
 LDFLAGS="-X 'main.buildTime=$(shell date)' -X 'main.lastCommit=$(shell git rev-parse HEAD)' -X 'main.semanticVersion=$(shell git describe --tags --dirty=-dev)'"
 ifeq (${PREFIX},)
 	PREFIX := /usr/local
