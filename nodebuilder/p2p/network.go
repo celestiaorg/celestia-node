@@ -15,6 +15,8 @@ const (
 	Arabica Network = "arabica-6"
 	// Mocha testnet. See: celestiaorg/networks.
 	Mocha Network = "mocha"
+	// BlockspaceRace testnet. See: https://docs.celestia.org/nodes/blockspace-race/.
+	BlockspaceRace Network = "blockspacerace-0"
 	// Private can be used to set up any private network, including local testing setups.
 	Private Network = "private"
 	// BlockTime is a network block time.
@@ -50,18 +52,20 @@ func (n Network) String() string {
 
 // networksList is a strict list of all known long-standing networks.
 var networksList = map[Network]struct{}{
-	Arabica: {},
-	Mocha:   {},
-	Private: {},
+	Arabica:        {},
+	Mocha:          {},
+	BlockspaceRace: {},
+	Private:        {},
 }
 
 // networkAliases is a strict list of all known long-standing networks
 // mapped from the string representation of their *alias* (rather than
 // their actual value) to the Network.
 var networkAliases = map[string]Network{
-	"arabica": Arabica,
-	"mocha":   Mocha,
-	"private": Private,
+	"arabica":        Arabica,
+	"mocha":          Mocha,
+	"blockspacerace": BlockspaceRace,
+	"private":        Private,
 }
 
 // listProvidedNetworks provides a string listing all known long-standing networks for things like
