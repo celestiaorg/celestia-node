@@ -7,14 +7,8 @@ import (
 	ma "github.com/multiformats/go-multiaddr"
 )
 
-var IsBootstrapper = getEnv("CELESTIA_BOOTSTRAPPER", "false") == "true"
-
-// Get environment variable or fallback to default value
-func getEnv(key, fallback string) string {
-	if value, ok := os.LookupEnv(key); ok {
-		return value
-	}
-	return fallback
+func isBootstrapper() bool {
+	return os.Getenv("CELESTIA_BOOTSTRAPPER") == "true"
 }
 
 // BootstrappersFor returns address information of bootstrap peers for a given network.
