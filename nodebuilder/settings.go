@@ -14,6 +14,7 @@ import (
 	"go.uber.org/fx"
 
 	fraud "github.com/celestiaorg/celestia-node/fraud"
+	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/nodebuilder/das"
 	modheader "github.com/celestiaorg/celestia-node/nodebuilder/header"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
@@ -42,6 +43,7 @@ func WithMetrics(metricOpts []otlpmetrichttp.Option, nodeType node.Type) fx.Opti
 		fx.Invoke(fraud.WithMetrics),
 		fx.Invoke(node.WithMetrics),
 		fx.Invoke(modheader.WithMetrics),
+		fx.Invoke(header.WithMetrics),
 	)
 
 	var opts fx.Option
