@@ -7,6 +7,7 @@ import (
 
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
+	sdk "github.com/cosmos/cosmos-sdk/types"
 
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
@@ -145,8 +146,7 @@ func generateKeys(cfg Config, ksPath string) error {
 		return nil
 	}
 	log.Infow("NO KEY FOUND IN STORE, GENERATING NEW KEY...", "path", ksPath)
-	keyInfo, mn, err := ring.NewMnemonic("my_celes_key", keyring.English, "",
-		"", hd.Secp256k1)
+	keyInfo, mn, err := generateNewKey(ring)
 	if err != nil {
 		return err
 	}
@@ -158,4 +158,11 @@ func generateKeys(cfg Config, ksPath string) error {
 	fmt.Printf("\nNAME: %s\nADDRESS: %s\nMNEMONIC (save this somewhere safe!!!): \n%s\n\n",
 		keyInfo.Name, addr.String(), mn)
 	return nil
+}
+
+// generateNewKey generates and returns a new key on the given keyring called
+// "my_celes_key".
+func generateNewKey(ring keyring.Keyring) (*keyring.Record, string, error) {
+	return ring.NewMnemonic("my_celes_key", keyring.English, sdk.GetConfig().GetFullBIP44Path(),
+		keyring.DefaultBIP39Passphrase, hd.Secp256k1)
 }
