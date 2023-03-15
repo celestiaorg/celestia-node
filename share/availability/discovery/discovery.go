@@ -11,8 +11,6 @@ import (
 	"github.com/libp2p/go-libp2p/core/network"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/libp2p/go-libp2p/p2p/host/eventbus"
-
-	"github.com/celestiaorg/celestia-node/share/availability"
 )
 
 var log = logging.Logger("share/discovery")
@@ -45,7 +43,7 @@ type Discovery struct {
 
 	cancel context.CancelFunc
 
-	params availability.DiscoveryParameters
+	params Parameters
 }
 
 type OnUpdatedPeers func(peerID peer.ID, isAdded bool)
@@ -54,9 +52,9 @@ type OnUpdatedPeers func(peerID peer.ID, isAdded bool)
 func NewDiscovery(
 	h host.Host,
 	d discovery.Discovery,
-	opts ...availability.Option[availability.DiscoveryParameters],
+	opts ...Option,
 ) *Discovery {
-	params := availability.DefaultDiscoveryParameters()
+	params := DefaultParameters()
 
 	for _, opt := range opts {
 		opt(&params)

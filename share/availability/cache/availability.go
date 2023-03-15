@@ -13,19 +13,10 @@ import (
 	"github.com/celestiaorg/celestia-app/pkg/da"
 
 	"github.com/celestiaorg/celestia-node/share"
-	"github.com/celestiaorg/celestia-node/share/availability"
 )
 
-var log = logging.Logger("share/cache")
-
 var (
-	// DefaultWriteBatchSize defines the size of the batched header write.
-	// Headers are written in batches not to thrash the underlying Datastore with writes.
-	// TODO(@Wondertan, @renaynay): Those values must be configurable and proper defaults should be set
-	// for specific node  type. (#709)
-	DefaultWriteBatchSize   = 2048
-	cacheAvailabilityPrefix = datastore.NewKey("sampling_result")
-
+	log     = logging.Logger("share/cache")
 	minRoot = da.MinDataAvailabilityHeader()
 )
 
@@ -40,7 +31,7 @@ type ShareAvailability struct {
 	dsLk sync.RWMutex
 	ds   *autobatch.Datastore
 
-	params availability.CacheAvailabilityParamaters
+	params Parameters
 }
 
 // NewShareAvailability wraps the given share.Availability with an additional datastore
@@ -48,16 +39,16 @@ type ShareAvailability struct {
 func NewShareAvailability(
 	avail share.Availability,
 	ds datastore.Batching,
-	opts ...availability.Option[availability.CacheAvailabilityParamaters],
+	opts ...Option,
 ) *ShareAvailability {
-	params := availability.DefaultCacheAvailabilityParameters()
+	params := DefaultParameters()
 
 	for _, opt := range opts {
 		opt(&params)
 	}
 
-	ds = namespace.Wrap(ds, cacheAvailabilityPrefix)
-	autoDS := autobatch.NewAutoBatching(ds, DefaultWriteBatchSize)
+	ds = namespace.Wrap(ds, datastore.NewKey(params.CacheAvailabilityPrefix))
+	autoDS := autobatch.NewAutoBatching(ds, int(params.WriteBatchSize))
 
 	return &ShareAvailability{
 		avail:  avail,

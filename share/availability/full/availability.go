@@ -8,7 +8,6 @@ import (
 	logging "github.com/ipfs/go-log/v2"
 
 	"github.com/celestiaorg/celestia-node/share"
-	availability "github.com/celestiaorg/celestia-node/share/availability"
 	"github.com/celestiaorg/celestia-node/share/availability/discovery"
 	"github.com/celestiaorg/celestia-node/share/eds"
 	"github.com/celestiaorg/celestia-node/share/eds/byzantine"
@@ -25,8 +24,6 @@ type ShareAvailability struct {
 	disc   *discovery.Discovery
 
 	cancel context.CancelFunc
-
-	params availability.FullAvailabilityParameters
 }
 
 // NewShareAvailability creates a new full ShareAvailability.
@@ -34,19 +31,11 @@ func NewShareAvailability(
 	store *eds.Store,
 	getter share.Getter,
 	disc *discovery.Discovery,
-	opts ...availability.Option[availability.FullAvailabilityParameters],
 ) *ShareAvailability {
-	params := availability.DefaultFullAvailabilityParameters()
-
-	for _, opt := range opts {
-		opt(&params)
-	}
-
 	return &ShareAvailability{
 		store:  store,
 		getter: getter,
 		disc:   disc,
-		params: params,
 	}
 }
 

@@ -2,14 +2,12 @@ package full
 
 import (
 	"testing"
-	"time"
 
 	mdutils "github.com/ipfs/go-merkledag/test"
 	routinghelpers "github.com/libp2p/go-libp2p-routing-helpers"
 	"github.com/libp2p/go-libp2p/p2p/discovery/routing"
 
 	"github.com/celestiaorg/celestia-node/share"
-	availability "github.com/celestiaorg/celestia-node/share/availability"
 	"github.com/celestiaorg/celestia-node/share/availability/discovery"
 	availability_test "github.com/celestiaorg/celestia-node/share/availability/test"
 	"github.com/celestiaorg/celestia-node/share/getters"
@@ -41,9 +39,6 @@ func TestAvailability(getter share.Getter) *ShareAvailability {
 	disc := discovery.NewDiscovery(
 		nil,
 		routing.NewRoutingDiscovery(routinghelpers.Null{}),
-		availability.WithPeersLimit[availability.DiscoveryParameters](0),
-		availability.WithDiscoveryInterval[availability.DiscoveryParameters](time.Second),
-		availability.WithAdvertiseInterval[availability.DiscoveryParameters](time.Second),
 	)
 	return NewShareAvailability(nil, getter, disc)
 }

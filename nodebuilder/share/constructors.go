@@ -14,7 +14,6 @@ import (
 	"github.com/celestiaorg/celestia-app/pkg/da"
 
 	"github.com/celestiaorg/celestia-node/share"
-	"github.com/celestiaorg/celestia-node/share/availability"
 	"github.com/celestiaorg/celestia-node/share/availability/cache"
 	disc "github.com/celestiaorg/celestia-node/share/availability/discovery"
 	"github.com/celestiaorg/celestia-node/share/availability/light"
@@ -22,7 +21,7 @@ import (
 	"github.com/celestiaorg/celestia-node/share/getters"
 )
 
-func discovery(cfg Config) func(routing.ContentRouting, host.Host) *disc.Discovery {
+func newDiscovery(cfg Config) func(routing.ContentRouting, host.Host) *disc.Discovery {
 	return func(
 		r routing.ContentRouting,
 		h host.Host,
@@ -30,15 +29,9 @@ func discovery(cfg Config) func(routing.ContentRouting, host.Host) *disc.Discove
 		return disc.NewDiscovery(
 			h,
 			routingdisc.NewRoutingDiscovery(r),
-			availability.WithPeersLimit[availability.DiscoveryParameters](
-				cfg.PeersLimit,
-			),
-			availability.WithDiscoveryInterval[availability.DiscoveryParameters](
-				cfg.DiscoveryInterval,
-			),
-			availability.WithAdvertiseInterval[availability.DiscoveryParameters](
-				cfg.AdvertiseInterval,
-			),
+			disc.WithPeersLimit(cfg.Discovery.PeersLimit),
+			disc.WithDiscoveryInterval(cfg.Discovery.DiscoveryInterval),
+			disc.WithAdvertiseInterval(cfg.Discovery.AdvertiseInterval),
 		)
 	}
 }

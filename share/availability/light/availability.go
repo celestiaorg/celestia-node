@@ -9,7 +9,6 @@ import (
 	logging "github.com/ipfs/go-log/v2"
 
 	"github.com/celestiaorg/celestia-node/share"
-	"github.com/celestiaorg/celestia-node/share/availability"
 	"github.com/celestiaorg/celestia-node/share/getters"
 )
 
@@ -21,15 +20,15 @@ var log = logging.Logger("share/light")
 // on the network doing sampling over the same Root to collectively verify its availability.
 type ShareAvailability struct {
 	getter share.Getter
-	params availability.LightAvailabilityParameters
+	params Parameters
 }
 
 // NewShareAvailability creates a new light Availability.
 func NewShareAvailability(
 	getter share.Getter,
-	opts ...availability.Option[availability.LightAvailabilityParameters],
+	opts ...Option,
 ) *ShareAvailability {
-	params := availability.DefaultLightAvailabilityParameters()
+	params := DefaultParameters()
 
 	for _, opt := range opts {
 		opt(&params)
@@ -38,7 +37,7 @@ func NewShareAvailability(
 	return &ShareAvailability{getter, params}
 }
 
-// SharesAvailable randomly samples DefaultSampleAmount amount of Shares committed to the given
+// SharesAvailable randomly samples `params.SampleAmount` amount of Shares committed to the given
 // Root. This way SharesAvailable subjectively verifies that Shares are available.
 func (la *ShareAvailability) SharesAvailable(ctx context.Context, dah *share.Root) error {
 	log.Debugw("Validate availability", "root", dah.Hash())
@@ -49,7 +48,7 @@ func (la *ShareAvailability) SharesAvailable(ctx context.Context, dah *share.Roo
 			"err", err)
 		panic(err)
 	}
-	samples, err := SampleSquare(len(dah.RowsRoots), DefaultSampleAmount)
+	samples, err := SampleSquare(len(dah.RowsRoots), int(la.params.SampleAmount))
 	if err != nil {
 		return err
 	}
@@ -101,9 +100,9 @@ func (la *ShareAvailability) SharesAvailable(ctx context.Context, dah *share.Roo
 
 // ProbabilityOfAvailability calculates the probability that the
 // data square is available based on the amount of samples collected
-// (DefaultSampleAmount).
+// (params.SampleAmount).
 //
 // Formula: 1 - (0.75 ** amount of samples)
 func (la *ShareAvailability) ProbabilityOfAvailability(context.Context) float64 {
-	return 1 - math.Pow(0.75, float64(DefaultSampleAmount))
+	return 1 - math.Pow(0.75, float64(la.params.SampleAmount))
 }

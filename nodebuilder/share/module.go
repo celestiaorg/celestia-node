@@ -11,7 +11,6 @@ import (
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	modp2p "github.com/celestiaorg/celestia-node/nodebuilder/p2p"
 	"github.com/celestiaorg/celestia-node/share"
-	"github.com/celestiaorg/celestia-node/share/availability"
 	disc "github.com/celestiaorg/celestia-node/share/availability/discovery"
 	"github.com/celestiaorg/celestia-node/share/availability/full"
 	"github.com/celestiaorg/celestia-node/share/availability/light"
@@ -31,23 +30,8 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 		fx.Supply(*cfg),
 		fx.Error(cfgErr),
 		fx.Options(options...),
-		fx.Provide(func() []availability.Option[availability.FullAvailabilityParameters] {
-			return []availability.Option[availability.FullAvailabilityParameters]{
-				availability.WithAvailabilityTimeout[availability.FullAvailabilityParameters](
-					cfg.FullAvailabilityParameters.AvailabilityTimeout,
-				),
-			}
-		}),
-		fx.Provide(func() []availability.Option[availability.LightAvailabilityParameters] {
-			return []availability.Option[availability.LightAvailabilityParameters]{
-				availability.WithAvailabilityTimeout[availability.LightAvailabilityParameters](
-					cfg.LightAvailabilityParameters.AvailabilityTimeout,
-				),
-				availability.WithSampleAmount[availability.LightAvailabilityParameters](cfg.SampleAmount),
-			}
-		}),
 		fx.Provide(fx.Annotate(
-			discovery(*cfg),
+			newDiscovery(*cfg),
 			fx.OnStart(func(ctx context.Context, d *disc.Discovery) error {
 				return d.Start(ctx)
 			}),
@@ -136,6 +120,11 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 		return fx.Module(
 			"share",
 			baseComponents,
+			fx.Provide(func() []light.Option {
+				return []light.Option{
+					light.WithSampleAmount(cfg.Light.SampleAmount),
+				}
+			}),
 			fx.Invoke(share.EnsureEmptySquareExists),
 			fxutil.ProvideAs(getters.NewIPLDGetter, new(share.Getter)),
 			// shrexsub broadcaster stub for daser
@@ -147,7 +136,7 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 			fx.Provide(fx.Annotate(light.NewShareAvailability)),
 			// cacheAvailability's lifecycle continues to use a fx hook,
 			// since the LC requires a cacheAvailability but the constructor returns a share.Availability
-			fx.Provide(cacheAvailability),
+			fx.Provide(cacheAvailability), // TODO: add options to constructor sig and provide options
 		)
 	case node.Bridge:
 		return fx.Module(
