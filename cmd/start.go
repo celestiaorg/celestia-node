@@ -48,7 +48,8 @@ Options passed on start override configuration options only on start and are not
 			if err != nil {
 				return err
 			}
-			defer multierr.AppendInvoke(&err, multierr.Invoke(store.Close)) // TODO(@Wondertan): Use join errors instead in go1.21
+			// TODO(@Wondertan): Use join errors instead in go1.21
+			defer multierr.AppendInvoke(&err, multierr.Invoke(store.Close))
 
 			nd, err := nodebuilder.NewWithConfig(NodeType(ctx), Network(ctx), store, &cfg, NodeOptions(ctx)...)
 			if err != nil {
