@@ -1,6 +1,6 @@
 SHELL=/usr/bin/env bash
 PROJECTNAME=$(shell basename "$(PWD)")
-LDFLAGS="-X 'main.buildTime=$(shell date)' -X 'main.lastCommit=$(shell git rev-parse HEAD)' -X 'main.semanticVersion=$(shell git describe --tags --dirty=-dev)'"
+LDFLAGS=-ldflags="-X 'main.buildTime=$(shell date)' -X 'main.lastCommit=$(shell git rev-parse HEAD)' -X 'main.semanticVersion=$(shell git describe --tags --dirty=-dev)'"
 ifeq (${PREFIX},)
 	PREFIX := /usr/local
 endif
@@ -19,7 +19,7 @@ install-hooks:
 ## build: Build celestia-node binary.
 build:
 	@echo "--> Building Celestia"
-	@go build -o build/ -ldflags ${LDFLAGS} ./cmd/celestia
+	@go build -o build/ ${LDFLAGS} ./cmd/celestia
 .PHONY: build
 
 ## clean: Clean up celestia-node binary.
@@ -49,7 +49,7 @@ install:
 ## go-install: Build and install the celestia-node binary into the GOBIN directory.
 go-install:
 	@echo "--> Installing Celestia"
-	@go install -ldflags ${LDFLAGS}  ./cmd/celestia
+	@go install ${LDFLAGS} ./cmd/celestia
 .PHONY: go-install
 
 ## shed: Build cel-shed binary.
