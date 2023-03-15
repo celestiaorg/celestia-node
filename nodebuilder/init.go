@@ -17,6 +17,8 @@ import (
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 )
 
+const defaultKeyName = "my_celes_key"
+
 // Init initializes the Node FileSystem Store for the given Node Type 'tp' in the directory under
 // 'path'.
 func Init(cfg Config, path string, tp node.Type) error {
@@ -163,6 +165,6 @@ func generateKeys(cfg Config, ksPath string) error {
 // generateNewKey generates and returns a new key on the given keyring called
 // "my_celes_key".
 func generateNewKey(ring keyring.Keyring) (*keyring.Record, string, error) {
-	return ring.NewMnemonic("my_celes_key", keyring.English, sdk.GetConfig().GetFullBIP44Path(),
+	return ring.NewMnemonic(defaultKeyName, keyring.English, sdk.GetConfig().GetFullBIP44Path(),
 		keyring.DefaultBIP39Passphrase, hd.Secp256k1)
 }
