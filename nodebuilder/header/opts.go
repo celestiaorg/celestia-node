@@ -8,7 +8,11 @@ import (
 )
 
 // WithMetrics provides sets `MetricsEnabled` to true on ClientParameters for the header exchange
-func WithMetrics(store libhead.Store[*header.ExtendedHeader], ex libhead.Exchange[*header.ExtendedHeader], sync *sync.Syncer[*header.ExtendedHeader]) error {
+func WithMetrics(
+	store libhead.Store[*header.ExtendedHeader],
+	ex libhead.Exchange[*header.ExtendedHeader],
+	sync *sync.Syncer[*header.ExtendedHeader],
+) error {
 	if p2pex, ok := ex.(*p2p.Exchange[*header.ExtendedHeader]); ok {
 		if err := p2pex.InitMetrics(); err != nil {
 			return err
