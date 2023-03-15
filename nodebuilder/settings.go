@@ -13,7 +13,7 @@ import (
 	semconv "go.opentelemetry.io/otel/semconv/v1.11.0"
 	"go.uber.org/fx"
 
-	fraud "github.com/celestiaorg/celestia-node/fraud"
+	"github.com/celestiaorg/celestia-node/fraud"
 	"github.com/celestiaorg/celestia-node/nodebuilder/das"
 	modheader "github.com/celestiaorg/celestia-node/nodebuilder/header"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
