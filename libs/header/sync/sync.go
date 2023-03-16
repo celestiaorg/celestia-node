@@ -176,7 +176,7 @@ func (s *Syncer[H]) syncLoop() {
 func (s *Syncer[H]) sync(ctx context.Context) {
 	subjHead, err := s.subjectiveHead(ctx)
 	if err != nil {
-		log.Errorw("getting new subjective head", "err", err)
+		log.Errorw("getting subjective head", "err", err)
 		return
 	}
 
