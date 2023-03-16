@@ -9,6 +9,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	"github.com/spf13/cobra"
 	flag "github.com/spf13/pflag"
+	"go.uber.org/multierr"
 
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
@@ -25,7 +26,7 @@ Options passed on start override configuration options only on start and are not
 		Aliases:      []string{"run", "daemon"},
 		Args:         cobra.NoArgs,
 		SilenceUsage: true,
-		RunE: func(cmd *cobra.Command, args []string) error {
+		RunE: func(cmd *cobra.Command, args []string) (err error) {
 			ctx := cmd.Context()
 
 			// override config with all modifiers passed on start
@@ -47,6 +48,8 @@ Options passed on start override configuration options only on start and are not
 			if err != nil {
 				return err
 			}
+			// TODO(@Wondertan): Use join errors instead in go1.21
+			defer multierr.AppendInvoke(&err, multierr.Invoke(store.Close))
 
 			nd, err := nodebuilder.NewWithConfig(NodeType(ctx), Network(ctx), store, &cfg, NodeOptions(ctx)...)
 			if err != nil {
@@ -65,12 +68,7 @@ Options passed on start override configuration options only on start and are not
 
 			ctx, cancel = signal.NotifyContext(cmd.Context(), syscall.SIGINT, syscall.SIGTERM)
 			defer cancel()
-			err = nd.Stop(ctx)
-			if err != nil {
-				return err
-			}
-
-			return store.Close()
+			return nd.Stop(ctx)
 		},
 	}
 	for _, set := range fsets {
