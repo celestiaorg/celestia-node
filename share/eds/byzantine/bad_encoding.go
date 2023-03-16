@@ -7,12 +7,13 @@ import (
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/pkg/wrapper"
+	"github.com/celestiaorg/rsmt2d"
+
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/libs/fraud"
 	libhead "github.com/celestiaorg/celestia-node/libs/header"
 	pb "github.com/celestiaorg/celestia-node/share/eds/byzantine/pb"
 	"github.com/celestiaorg/celestia-node/share/ipld"
-	"github.com/celestiaorg/rsmt2d"
 )
 
 const (
@@ -112,7 +113,7 @@ func (p *BadEncodingProof) UnmarshalBinary(data []byte) error {
 func (p *BadEncodingProof) Validate(hdr libhead.Header) error {
 	header, ok := hdr.(*header.ExtendedHeader)
 	if !ok {
-		return fmt.Errorf("invakud header type: expected %T, got %T", header, hdr)
+		panic(fmt.Sprintf("invalid header type: expected %T, got %T", header, hdr))
 	}
 	if header.Height() != int64(p.BlockHeight) {
 		return errors.New("fraud: incorrect block height")
