@@ -18,7 +18,7 @@ var (
 	meter = global.MeterProvider().Meter("header/p2p")
 )
 
-func (ex *Exchange[H]) RegisterMetrics() error {
+func (ex *Exchange[H]) InitMetrics() error {
 	responseSize, err := meter.
 		SyncFloat64().
 		Histogram(

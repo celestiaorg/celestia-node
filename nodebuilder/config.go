@@ -50,7 +50,7 @@ func DefaultConfig(tp node.Type) *Config {
 	case node.Bridge:
 		return commonConfig
 	case node.Light, node.Full:
-		commonConfig.DASer = das.DefaultConfig()
+		commonConfig.DASer = das.DefaultConfig(tp)
 		return commonConfig
 	default:
 		panic("node: invalid node type")

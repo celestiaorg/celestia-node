@@ -42,7 +42,7 @@ require (
 	github.com/ipld/go-car v0.6.0
 	github.com/libp2p/go-libp2p v0.25.1
 	github.com/libp2p/go-libp2p-kad-dht v0.21.0
-	github.com/libp2p/go-libp2p-pubsub v0.9.1
+	github.com/libp2p/go-libp2p-pubsub v0.9.3
 	github.com/libp2p/go-libp2p-record v0.2.0
 	github.com/libp2p/go-libp2p-routing-helpers v0.6.1
 	github.com/minio/sha256-simd v1.0.0

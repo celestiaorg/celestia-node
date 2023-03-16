@@ -28,7 +28,7 @@ func peerRouting(cfg Config, params routingParams) (routing.PeerRouting, error) 
 		dht.RoutingTableRefreshPeriod(cfg.RoutingTableRefreshPeriod),
 	}
 
-	if cfg.Bootstrapper {
+	if isBootstrapper() {
 		// override options for bootstrapper
 		opts = append(opts,
 			dht.Mode(dht.ModeServer), // it must accept incoming connections
