@@ -81,11 +81,11 @@ func DefaultNodeStorePath(tp string, network string) (string, error) {
 	home := os.Getenv("CELESTIA_HOME")
 
 	if home == "" {
-		userHomeDir, err := os.UserHomeDir()
+		var err error
+		home, err = os.UserHomeDir()
 		if err != nil {
 			return "", err
 		}
-		home = userHomeDir
 	}
 	return fmt.Sprintf(
 		"%s/.celestia-%s-%s",
