@@ -107,7 +107,6 @@ func TestFullReconstructFromLights(t *testing.T) {
 
 	const defaultTimeInterval = time.Second * 5
 	cfg := nodebuilder.DefaultConfig(node.Full)
-	cfg.P2P.Bootstrapper = true
 	setTimeInterval(cfg, defaultTimeInterval)
 
 	bridge := sw.NewBridgeNode()
