@@ -14,12 +14,12 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
+	"github.com/celestiaorg/celestia-node/share"
 )
 
 func TestLifecycle(t *testing.T) {
 	var test = []struct {
-		tp           node.Type
-		coreExpected bool
+		tp node.Type
 	}{
 		{tp: node.Bridge},
 		{tp: node.Full},
@@ -132,4 +132,35 @@ func StartMockOtelCollectorHTTPServer(t *testing.T) (string, func()) {
 
 	server.EnableHTTP2 = true
 	return server.URL, server.Close
+}
+
+func TestEmptyBlockExists(t *testing.T) {
+	var test = []struct {
+		tp node.Type
+	}{
+		{tp: node.Bridge},
+		{tp: node.Full},
+		// technically doesn't need to be tested as a SharesAvailable call to
+		// light node short circuits on an empty Root
+		{tp: node.Light},
+	}
+	for i, tt := range test {
+		t.Run(strconv.Itoa(i), func(t *testing.T) {
+			node := TestNode(t, tt.tp)
+
+			ctx, cancel := context.WithTimeout(context.Background(), Timeout)
+			defer cancel()
+
+			err := node.Start(ctx)
+			require.NoError(t, err)
+
+			// ensure an empty block exists in store
+			err = node.ShareServ.SharesAvailable(ctx, share.EmptyRoot())
+			require.NoError(t, err)
+
+			err = node.Stop(ctx)
+			require.NoError(t, err)
+		})
+	}
+
 }
