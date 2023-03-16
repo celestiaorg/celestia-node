@@ -68,9 +68,10 @@ func ParseNodeFlags(ctx context.Context, cmd *cobra.Command, network p2p.Network
 			return ctx, err
 		}
 		cfg, err := nodebuilder.LoadConfig(filepath.Join(expanded, "config.toml"))
-		if err == nil {
-			ctx = WithNodeConfig(ctx, cfg)
+		if err != nil {
+			return ctx, err
 		}
+		ctx = WithNodeConfig(ctx, cfg)
 	}
 	return ctx, nil
 }
