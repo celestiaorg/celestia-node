@@ -16,15 +16,16 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/tendermint/tendermint/types"
 
-	"github.com/celestiaorg/celestia-node/fraud"
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/header/headertest"
+	"github.com/celestiaorg/celestia-node/libs/fraud"
 	libhead "github.com/celestiaorg/celestia-node/libs/header"
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/availability/full"
 	"github.com/celestiaorg/celestia-node/share/availability/light"
 	"github.com/celestiaorg/celestia-node/share/availability/mocks"
 	availability_test "github.com/celestiaorg/celestia-node/share/availability/test"
+	"github.com/celestiaorg/celestia-node/share/eds/byzantine"
 	"github.com/celestiaorg/celestia-node/share/getters"
 )
 
@@ -155,7 +156,10 @@ func TestDASer_stopsAfter_BEFP(t *testing.T) {
 	mockGet, sub, _ := createDASerSubcomponents(t, bServ, 15, 15)
 
 	// create fraud service and break one header
-	f := fraud.NewProofService(ps, net.Hosts()[0], mockGet.GetByHeight, ds, false, "private")
+	getter := func(ctx context.Context, height uint64) (libhead.Header, error) {
+		return mockGet.GetByHeight(ctx, height)
+	}
+	f := fraud.NewProofService(ps, net.Hosts()[0], getter, ds, false, "private")
 	require.NoError(t, f.Start(ctx))
 	mockGet.headers[1], _ = headertest.CreateFraudExtHeader(t, mockGet.headers[1], bServ)
 	newCtx := context.Background()
@@ -165,7 +169,7 @@ func TestDASer_stopsAfter_BEFP(t *testing.T) {
 	require.NoError(t, err)
 
 	resultCh := make(chan error)
-	go fraud.OnProof(newCtx, f, fraud.BadEncoding,
+	go fraud.OnProof(newCtx, f, byzantine.BadEncoding,
 		func(fraud.Proof) {
 			resultCh <- daser.Stop(newCtx)
 		})
