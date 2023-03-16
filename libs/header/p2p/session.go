@@ -179,7 +179,7 @@ func (s *session[H]) doRequest(
 			return
 		case s.reqCh <- req:
 		}
-		log.Errorw("processing response", "err", err)
+		log.Errorw("processing response", "from", req.GetOrigin(), "to", req.Amount+req.GetOrigin()-1, "err", err)
 		return
 	}
 
