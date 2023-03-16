@@ -13,8 +13,9 @@ import (
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 
-	pb "github.com/celestiaorg/celestia-node/libs/fraud/pb"
 	"github.com/celestiaorg/go-libp2p-messenger/serde"
+
+	pb "github.com/celestiaorg/celestia-node/libs/fraud/pb"
 )
 
 // syncFraudProofs encompasses the behavior for fetching fraud proofs from other peers.

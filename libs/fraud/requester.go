@@ -7,8 +7,9 @@ import (
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/libp2p/go-libp2p/core/protocol"
 
-	pb "github.com/celestiaorg/celestia-node/libs/fraud/pb"
 	"github.com/celestiaorg/go-libp2p-messenger/serde"
+
+	pb "github.com/celestiaorg/celestia-node/libs/fraud/pb"
 )
 
 const (
