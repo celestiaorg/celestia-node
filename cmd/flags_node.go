@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -69,7 +70,9 @@ func ParseNodeFlags(ctx context.Context, cmd *cobra.Command, network p2p.Network
 		}
 		cfg, err := nodebuilder.LoadConfig(filepath.Join(expanded, "config.toml"))
 		if err != nil {
-			return ctx, err
+			if !errors.Is(err, os.ErrNotExist) {
+				return ctx, err
+			}
 		}
 		ctx = WithNodeConfig(ctx, cfg)
 	}
