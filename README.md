@@ -17,19 +17,21 @@ Continue reading [here](https://blog.celestia.org/celestia-mvp-release-data-avai
 ## Table of Contents
 
 - [Celestia Node](#celestia-node)
-- [Minimum requirements](#minimum-requirements)
-- [System Requirements](#system-requirements)
-- [Installation](#installation)
-- [API docs](#api-docs)
-- [Node types](#node-types)
-- [Run a node](#run-a-node)
-- [Package-specific documentation](#package-specific-documentation)
-- [Code of Conduct](#code-of-conduct)
+  - [Table of Contents](#table-of-contents)
+  - [Minimum requirements](#minimum-requirements)
+  - [System Requirements](#system-requirements)
+  - [Installation](#installation)
+  - [API docs](#api-docs)
+  - [Node types](#node-types)
+  - [Run a node](#run-a-node)
+    - [Environment variables](#environment-variables)
+  - [Package-specific documentation](#package-specific-documentation)
+  - [Code of Conduct](#code-of-conduct)
 
 ## Minimum requirements
 
 | Requirement | Notes          |
-|-------------|----------------|
+| ----------- | -------------- |
 | Go version  | 1.19 or higher |
 
 ## System Requirements
@@ -43,7 +45,7 @@ See the official docs page for system requirements per node type:
 ## Installation
 
 ```sh
-git clone https://github.com/celestiaorg/celestia-node.git 
+git clone https://github.com/celestiaorg/celestia-node.git
 cd celestia-node
 make build
 sudo make install
@@ -68,12 +70,18 @@ More information can be found [here](https://github.com/celestiaorg/celestia-nod
 `<node_type>` can be `bridge`, `full` or `light`.
 
 ```sh
-celestia <node_type> init 
+celestia <node_type> init
 ```
 
 ```sh
 celestia <node_type> start
 ```
+
+### Environment variables
+
+| Variable                | Explanation                         | Default value | Required |
+| ----------------------- | ----------------------------------- | ------------- | -------- |
+| `CELESTIA_BOOTSTRAPPER` | Start the node in bootstrapper mode | `false`       | Optional |
 
 ## Package-specific documentation
 

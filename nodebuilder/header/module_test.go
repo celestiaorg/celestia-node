@@ -55,7 +55,6 @@ func TestConstructModule_StoreParams(t *testing.T) {
 func TestConstructModule_SyncerParams(t *testing.T) {
 	cfg := DefaultConfig(node.Light)
 	cfg.Syncer.TrustingPeriod = time.Hour
-	cfg.Syncer.MaxRequestSize = 1
 	var syncer *sync.Syncer[*header.ExtendedHeader]
 	app := fxtest.New(t,
 		fx.Supply(modp2p.Private),
@@ -80,7 +79,6 @@ func TestConstructModule_SyncerParams(t *testing.T) {
 		}),
 	)
 	require.Equal(t, cfg.Syncer.TrustingPeriod, syncer.Params.TrustingPeriod)
-	require.Equal(t, cfg.Syncer.MaxRequestSize, syncer.Params.MaxRequestSize)
 	require.NoError(t, app.Err())
 }
 
@@ -88,9 +86,7 @@ func TestConstructModule_SyncerParams(t *testing.T) {
 // params are set in store correctly.
 func TestConstructModule_ExchangeParams(t *testing.T) {
 	cfg := DefaultConfig(node.Light)
-	cfg.Client.MinResponses = 10
-	cfg.Client.MaxRequestSize = 200
-	cfg.Client.MaxHeadersPerRequest = 15
+	cfg.Client.MaxHeadersPerRangeRequest = 15
 	var exchange *p2p.Exchange[*header.ExtendedHeader]
 	var exchangeServer *p2p.ExchangeServer[*header.ExtendedHeader]
 
@@ -113,16 +109,10 @@ func TestConstructModule_ExchangeParams(t *testing.T) {
 			}),
 	)
 	require.NoError(t, app.Err())
-	require.Equal(t, exchange.Params.MinResponses, cfg.Client.MinResponses)
-	require.Equal(t, exchange.Params.MaxRequestSize, cfg.Client.MaxRequestSize)
-	require.Equal(t, exchange.Params.MaxHeadersPerRequest, cfg.Client.MaxHeadersPerRequest)
-	require.Equal(t, exchange.Params.MaxAwaitingTime, cfg.Client.MaxAwaitingTime)
-	require.Equal(t, exchange.Params.DefaultScore, cfg.Client.DefaultScore)
-	require.Equal(t, exchange.Params.MaxPeerTrackerSize, cfg.Client.MaxPeerTrackerSize)
-	require.Equal(t, exchange.Params.RequestTimeout, cfg.Client.RequestTimeout)
+	require.Equal(t, exchange.Params.MaxHeadersPerRangeRequest, cfg.Client.MaxHeadersPerRangeRequest)
+	require.Equal(t, exchange.Params.RangeRequestTimeout, cfg.Client.RangeRequestTimeout)
 
 	require.Equal(t, exchangeServer.Params.WriteDeadline, cfg.Server.WriteDeadline)
 	require.Equal(t, exchangeServer.Params.ReadDeadline, cfg.Server.ReadDeadline)
-	require.Equal(t, exchangeServer.Params.MaxRequestSize, cfg.Server.MaxRequestSize)
-	require.Equal(t, exchangeServer.Params.RequestTimeout, cfg.Server.RequestTimeout)
+	require.Equal(t, exchangeServer.Params.RangeRequestTimeout, cfg.Server.RangeRequestTimeout)
 }

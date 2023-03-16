@@ -20,6 +20,11 @@ import (
 
 var log = logging.Logger("header/p2p")
 
+// the minimum number of headers of the same height received from trusted peers
+// to determine the network head. If all trusted header will return headers with
+// non-equal height, then the highest header will be chosen.
+const minTrustedHeadResponses = 2
+
 // Exchange enables sending outbound HeaderRequests to the network as well as
 // handling inbound HeaderRequests from the network.
 type Exchange[H header.Header] struct {
@@ -60,9 +65,6 @@ func NewExchange[H header.Header](
 		peerTracker: newPeerTracker(
 			host,
 			connGater,
-			params.MaxAwaitingTime,
-			params.DefaultScore,
-			params.MaxPeerTrackerSize,
 		),
 		Params: params,
 	}, nil
@@ -144,7 +146,7 @@ LOOP:
 		}
 	}
 
-	return bestHead[H](result, ex.Params.MinResponses)
+	return bestHead[H](result)
 }
 
 // GetByHeight performs a request for the Header at the given
@@ -175,12 +177,12 @@ func (ex *Exchange[H]) GetRangeByHeight(ctx context.Context, from, amount uint64
 	if amount == 0 {
 		return make([]H, 0), nil
 	}
-	if amount > ex.Params.MaxRequestSize {
+	if amount > header.MaxRangeRequestSize {
 		return nil, header.ErrHeadersLimitExceeded
 	}
-	session := newSession[H](ex.ctx, ex.host, ex.peerTracker, ex.protocolID, ex.Params.RequestTimeout)
+	session := newSession[H](ex.ctx, ex.host, ex.peerTracker, ex.protocolID, ex.Params.RangeRequestTimeout)
 	defer session.close()
-	return session.getRangeByHeight(ctx, from, amount, ex.Params.MaxHeadersPerRequest)
+	return session.getRangeByHeight(ctx, from, amount, ex.Params.MaxHeadersPerRangeRequest)
 }
 
 // GetVerifiedRange performs a request for the given range of Headers to the network and
@@ -194,11 +196,11 @@ func (ex *Exchange[H]) GetVerifiedRange(
 		return make([]H, 0), nil
 	}
 	session := newSession[H](
-		ex.ctx, ex.host, ex.peerTracker, ex.protocolID, ex.Params.RequestTimeout, withValidation(from),
+		ex.ctx, ex.host, ex.peerTracker, ex.protocolID, ex.Params.RangeRequestTimeout, withValidation(from),
 	)
 	defer session.close()
 	// we request the next header height that we don't have: `fromHead`+1
-	return session.getRangeByHeight(ctx, uint64(from.Height())+1, amount, ex.Params.MaxHeadersPerRequest)
+	return session.getRangeByHeight(ctx, uint64(from.Height())+1, amount, ex.Params.MaxHeadersPerRangeRequest)
 }
 
 // Get performs a request for the Header by the given hash corresponding
@@ -298,7 +300,7 @@ func (ex *Exchange[H]) request(
 // * should be received at least from 2 peers;
 // If neither condition is met, then latest Header will be returned (header of the highest
 // height).
-func bestHead[H header.Header](result []H, minResponses int) (H, error) {
+func bestHead[H header.Header](result []H) (H, error) {
 	if len(result) == 0 {
 		var zero H
 		return zero, header.ErrNotFound
@@ -315,7 +317,7 @@ func bestHead[H header.Header](result []H, minResponses int) (H, error) {
 
 	// try to find Header with the maximum height that was received at least from 2 peers
 	for _, res := range result {
-		if counter[res.Hash().String()] >= minResponses {
+		if counter[res.Hash().String()] >= minTrustedHeadResponses {
 			return res, nil
 		}
 	}
