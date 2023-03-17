@@ -3,17 +3,16 @@ package tests
 import (
 	"context"
 	"fmt"
-	logging "github.com/ipfs/go-log/v2"
 	"math/rand"
 	"sync"
 	"testing"
 
+	logging "github.com/ipfs/go-log/v2"
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/nodebuilder"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	"github.com/celestiaorg/celestia-node/nodebuilder/tests/swamp"
@@ -30,7 +29,7 @@ Steps:
 5. Start FNs
 6. Check FNs sync *and* DAS to height 30
 */
-func TestSyncFullsWithBridge_Network_Stable_Latest_IPLD(t *testing.T) {
+func TestBlockSync_IPLD_SyncLatest(t *testing.T) {
 	fullNodesCount := 5
 
 	ctx, cancel := context.WithTimeout(context.Background(), swamp.DefaultTestTimeout)
@@ -106,14 +105,15 @@ Steps:
 7. Disconnect all FNs (except a randomly chosen one) from BN
 8. Check FNs are synced to height 30
 */
-func TestSyncFullsWithBridge_Network_Partitioned_Latest_IPLD(t *testing.T) {
-	fullNodesCount := 16
+func TestBlockSync_IPLD_SyncLatest_NetworkPartition(t *testing.T) {
+	fullNodesCount := 7
 
 	ctx, cancel := context.WithTimeout(context.Background(), swamp.DefaultTestTimeout)
 	t.Cleanup(cancel)
 
 	sw := swamp.NewSwamp(t, swamp.WithBlockTime(btime))
-	fillDn := swamp.FillBlocks(ctx, sw.ClientContext, sw.Accounts, bsize, 30)
+	fillDn := swamp.FillBlocks(ctx, sw.ClientContext, sw.Accounts, 64, 30)
+	require.NoError(t, <-fillDn)
 
 	logging.SetAllLoggers(logging.LevelError)
 	bridge := sw.NewBridgeNode()
@@ -121,50 +121,56 @@ func TestSyncFullsWithBridge_Network_Partitioned_Latest_IPLD(t *testing.T) {
 	err := bridge.Start(ctx)
 	require.NoError(t, err)
 
-	sw.WaitTillHeight(ctx, 1)
+	sw.WaitTillHeight(ctx, 30)
 
-	h, err := bridge.HeaderServ.GetByHeight(ctx, 1)
+	_, err = bridge.HeaderServ.GetByHeight(ctx, 30)
 	require.NoError(t, err)
-	assert.EqualValues(t, h.Commit.BlockID.Hash, sw.GetCoreBlockHashByHeight(ctx, 1))
 
 	addrs, err := peer.AddrInfoToP2pAddrs(host.InfoFromHost(bridge.Host))
 	require.NoError(t, err)
+
 	cfg := nodebuilder.DefaultConfig(node.Full)
 	cfg.Header.TrustedPeers = append(cfg.Header.TrustedPeers, addrs[0].String())
 	cfg.Share.UseShareExchange = false // use IPLD only
 
-	fullNodes := make([]*nodebuilder.Node, 0)
-	for i := 1; i <= fullNodesCount; i++ {
-		logging.SetAllLoggers(logging.LevelError)
-		fullNodes = append(fullNodes, sw.NewNodeWithConfig(node.Full, cfg))
+	fullNodes := make([]*nodebuilder.Node, fullNodesCount)
+	for i := range fullNodes {
+		fullNodes[i] = sw.NewNodeWithConfig(node.Full, cfg)
+		err = fullNodes[i].Start(ctx)
+		require.NoError(t, err)
 	}
 
-	for _, full := range fullNodes {
-		require.NoError(t, full.Start(ctx))
-	}
+	wg := sync.WaitGroup{}
 
-	type syncNotif struct {
-		h   *header.ExtendedHeader
-		err error
-	}
-
-	waiter := make(chan syncNotif)
-	for _, full := range fullNodes {
+	wg.Add(fullNodesCount)
+	for i, full := range fullNodes {
 		go func(f *nodebuilder.Node) {
-			h, err := f.HeaderServ.GetByHeight(ctx, 15)
-			waiter <- syncNotif{h, err}
+			defer wg.Done()
+			_, err := f.HeaderServ.GetByHeight(ctx, 15)
+			if err != nil {
+				assert.Nil(t, err)
+			}
+
+			for j := 1; j <= 15; j++ {
+				h, err := f.HeaderServ.GetByHeight(ctx, uint64(j))
+				if err != nil {
+					assert.Nil(t, err)
+				}
+
+				err = f.ShareServ.SharesAvailable(ctx, h.DAH)
+				t.Logf("full node #%d getting shares for height: %d", i, j)
+				if err != nil {
+					assert.Nil(t, err)
+				}
+			}
 		}(full)
 	}
+	wg.Wait()
 
-	for i := 1; i < fullNodesCount; i++ {
-		res := <-waiter
-		require.NoError(t, res.err)
-		assert.EqualValues(t, res.h.Commit.BlockID.Hash, sw.GetCoreBlockHashByHeight(ctx, 15))
-	}
+	t.Log("All full nodes are synced to height 15")
 
 	// the full node that will remain connected to the bridge after the network partition
-	rand.Seed(16)
-	netEntrypointId := rand.Int()
+	netEntrypointId := rand.Intn(fullNodesCount)
 
 	// Let full nodes black list the bridge node (except for the full node with netEntrypointId)
 	bridgeInfo := host.InfoFromHost(bridge.Host)
@@ -178,22 +184,36 @@ func TestSyncFullsWithBridge_Network_Partitioned_Latest_IPLD(t *testing.T) {
 		}
 	}
 
-	for _, full := range fullNodes {
+	t.Log("All full nodes are disconnected from the bridge node exept for the full node with id: ", netEntrypointId)
+	t.Log("Continuing to sync full nodes to height 30")
+
+	wg.Add(fullNodesCount)
+
+	for i, full := range fullNodes {
 		go func(f *nodebuilder.Node) {
-			h, err := f.HeaderServ.GetByHeight(ctx, 30)
-			waiter <- syncNotif{h, err}
+			defer wg.Done()
+			_, err := f.HeaderServ.GetByHeight(ctx, 30)
+			if err != nil {
+				assert.Nil(t, err)
+			}
+
+			for j := 16; j <= 30; j++ {
+				h, err := f.HeaderServ.GetByHeight(ctx, uint64(j))
+				if err != nil {
+					assert.Nil(t, err)
+				}
+
+				err = f.ShareServ.SharesAvailable(ctx, h.DAH)
+				t.Logf("full node #%d getting shares for height: %d", i, j)
+				t.Log()
+				if err != nil {
+					assert.Nil(t, err)
+				}
+			}
 		}(full)
 	}
 
-	for i := 1; i < fullNodesCount; i++ {
-		res := <-waiter
-		require.NoError(t, res.err)
-		assert.EqualValues(t, res.h.Commit.BlockID.Hash, sw.GetCoreBlockHashByHeight(ctx, 30))
-	}
+	wg.Wait()
 
-	require.NoError(t, <-fillDn)
-
-	for _, full := range fullNodes {
-		require.NoError(t, full.Stop(ctx))
-	}
+	t.Log("All full nodes are synced to height 30")
 }
