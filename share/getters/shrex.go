@@ -136,7 +136,7 @@ func (sg *ShrexGetter) GetSharesByNamespace(
 		cancel()
 		switch getErr {
 		case nil:
-			setStatus(peers.ResultSuccess)
+			setStatus(peers.ResultNoop)
 			return nd, nil
 		case context.DeadlineExceeded:
 		case p2p.ErrInvalidResponse:

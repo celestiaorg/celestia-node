@@ -18,6 +18,7 @@ import (
 	modheader "github.com/celestiaorg/celestia-node/nodebuilder/header"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
+	"github.com/celestiaorg/celestia-node/nodebuilder/share"
 	"github.com/celestiaorg/celestia-node/state"
 )
 
@@ -46,10 +47,17 @@ func WithMetrics(metricOpts []otlpmetrichttp.Option, nodeType node.Type) fx.Opti
 
 	var opts fx.Option
 	switch nodeType {
-	case node.Full, node.Light:
+	case node.Light:
 		opts = fx.Options(
 			baseComponents,
 			fx.Invoke(das.WithMetrics),
+			// add more monitoring here
+		)
+	case node.Full:
+		opts = fx.Options(
+			baseComponents,
+			fx.Invoke(das.WithMetrics),
+			fx.Invoke(share.WithPeerManagerMetrics),
 			// add more monitoring here
 		)
 	case node.Bridge:

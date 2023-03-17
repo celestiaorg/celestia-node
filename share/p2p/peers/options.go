@@ -74,3 +74,13 @@ func WithGcInterval(interval time.Duration) Option {
 		manager.gcInterval = interval
 	}
 }
+
+// WithMetrics turns on metric collection in peer manager.
+func (m *Manager) WithMetrics() error {
+	metrics, err := initMetrics(m)
+	if err != nil {
+		return fmt.Errorf("peer-manager: init metrics: %w", err)
+	}
+	m.metrics = metrics
+	return nil
+}
