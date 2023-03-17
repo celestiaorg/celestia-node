@@ -18,7 +18,7 @@ const (
 type Parameters struct {
 	// WriteBatchSize defines the size of the batched header write.
 	WriteBatchSize uint
-	// The string prefix to use as a key for the datastore
+	// CacheAvailabilityPrefix is the string prefix to use as a key for the datastore
 	CacheAvailabilityPrefix string
 }
 
@@ -38,26 +38,24 @@ func DefaultParameters() Parameters {
 func (ca *Parameters) Validate() error {
 	if ca.WriteBatchSize <= 0 {
 		return fmt.Errorf(
-			"cache availability: invalid option: value %s was %s, where it should be %s",
-			"DefaultWriteBatchSize",
-			"<= 0", // current value
-			">= 0", // what the valueshould be
+			"cache availability: invalid option: value for DefaultWriteBatchSize, %s, %s",
+			"is negative or 0.",         // current value
+			"value must greater than 0", // what the valueshould be
 		)
 	}
 
 	if ca.CacheAvailabilityPrefix == "" {
 		return fmt.Errorf(
-			"cache availability: invalid option: value %s was %s, where it should be %s",
-			"CacheAvailabilityPrefix",
-			"is empty",  // current value
-			"non empty", // what the should be
+			"cache availability: invalid option: value for CacheAvailabilityPrefix %s, %s",
+			"is empty",                // current value
+			"value must be non empty", // what the should be
 		)
 	}
 
 	return nil
 }
 
-// WithTimeout is a functional option that the Availability interface
+// WithWriteBatchSize is a functional option that the Availability interface
 // implementers use to set the WriteBatchSize configuration param
 //
 // To be used with the construction

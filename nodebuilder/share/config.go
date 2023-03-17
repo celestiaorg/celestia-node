@@ -16,16 +16,15 @@ var (
 	ErrNegativeInterval = errors.New("interval must be positive")
 )
 
-// // ShareParameters is the aggergation of all configuration parameters of the the share module
-type ShareParameters struct {
-	// FullAvailabilityParameters
+// Parameters is the aggregation of all configuration parameters of the the share module
+type Parameters struct {
 	Light     light.Parameters
 	Cache     cache.Parameters
 	Discovery discovery.Parameters
 }
 
 type Config struct {
-	ShareParameters
+	Parameters
 	UseShareExchange bool
 	// ShrExEDSParams sets shrexeds client and server configuration parameters
 	ShrExEDSParams *shrexeds.Parameters
@@ -36,7 +35,7 @@ type Config struct {
 // TODO: Remove share/availability/options.go and reorg configs here
 func DefaultConfig() Config {
 	return Config{
-		ShareParameters: ShareParameters{
+		Parameters: Parameters{
 			Light:     light.DefaultParameters(),
 			Cache:     cache.DefaultParameters(),
 			Discovery: discovery.DefaultParameters(),
@@ -47,20 +46,24 @@ func DefaultConfig() Config {
 	}
 }
 
+// Validate performs basic validation of the share Parameters
+func (p *Parameters) Validate() error {
+	err := p.Light.Validate()
+	if err != nil {
+		return err
+	}
+
+	err = p.Cache.Validate()
+	if err != nil {
+		return err
+	}
+
+	return p.Discovery.Validate()
+}
+
 // Validate performs basic validation of the config.
 func (cfg *Config) Validate() error {
-	err := cfg.ShareParameters.Light.Validate()
-	if err != nil {
-		return fmt.Errorf("nodebuilder/share: %w", err)
-	}
-
-	err = cfg.ShareParameters.Cache.Validate()
-	if err != nil {
-		return fmt.Errorf("nodebuilder/share: %w", err)
-	}
-
-	err = cfg.ShareParameters.Discovery.Validate()
-	if err != nil {
+	if err := cfg.Parameters.Validate(); err != nil {
 		return fmt.Errorf("nodebuilder/share: %w", err)
 	}
 

@@ -61,7 +61,7 @@ func NewDiscovery(
 	}
 
 	return &Discovery{
-		set:            newLimitedSet(params.PeersLimit),
+		set:            newLimitedSet(uint(params.PeersLimit)),
 		host:           h,
 		disc:           d,
 		connector:      newBackoffConnector(h, defaultBackoffFactory),
@@ -181,7 +181,7 @@ func (d *Discovery) ensurePeers(ctx context.Context) {
 			log.Info("Context canceled. Finishing peer discovery")
 			return
 		case <-t.C:
-			if uint(d.set.Size()) == d.params.PeersLimit {
+			if uint(d.set.Size()) == uint(d.params.PeersLimit) {
 				// stop ticker if we have reached the limit
 				t.Stop()
 				continue
