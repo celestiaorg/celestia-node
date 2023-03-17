@@ -8,7 +8,7 @@ import (
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/metric/global"
 
-	"github.com/celestiaorg/celestia-node/header"
+	"github.com/celestiaorg/celestia-node/libs/header"
 )
 
 var (
@@ -40,10 +40,6 @@ func (pt ProofType) String() string {
 	return string(pt)
 }
 
-const (
-	BadEncoding ProofType = "badencoding"
-)
-
 // Proof is a generic interface that will be used for all types of fraud proofs in the network.
 type Proof interface {
 	// Type returns the exact type of fraud proof.
@@ -56,7 +52,7 @@ type Proof interface {
 	// Validate throws an error if some conditions don't pass and thus fraud proof is not valid.
 	// NOTE: header.ExtendedHeader should pass basic validation otherwise it will panic if it's
 	// malformed.
-	Validate(*header.ExtendedHeader) error
+	Validate(header.Header) error
 
 	encoding.BinaryMarshaler
 	encoding.BinaryUnmarshaler

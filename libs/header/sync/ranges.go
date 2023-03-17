@@ -62,9 +62,8 @@ func (rs *ranges[H]) Add(h H) {
 		// otherwise, start a new range
 		rs.ranges = append(rs.ranges, newRange[H](h))
 
-		// it is possible to miss a header or few from PubSub, due to quick disconnects or sleep
-		// once we start rcving them again we save those in new range
-		// so 'Syncer.findHeaders' can fetch what was missed
+		// it is possible to miss a header or few from gossiping subsystem, due to quick disconnects
+		// or hibernation, so once we start rcving them again we save those in the new range
 	}
 }
 
@@ -126,13 +125,32 @@ func (r *headerRange[H]) Head() H {
 	return r.headers[ln-1]
 }
 
-// Truncate truncates all the headers before height 'end' - [r.Start:end]
-func (r *headerRange[H]) Truncate(end uint64) []H {
+// Get returns headers within the range up to the specified 'end' height.
+func (r *headerRange[H]) Get(end uint64) []H {
+	r.lk.RLock()
+	defer r.lk.RUnlock()
+
+	amnt := r.rangeAmount(end)
+	return r.headers[:amnt]
+}
+
+// Remove removes all headers within the range up to the specified 'end' height.
+func (r *headerRange[H]) Remove(end uint64) {
 	r.lk.Lock()
 	defer r.lk.Unlock()
 
+	amnt := r.rangeAmount(end)
+	r.headers = r.headers[amnt:]
+	if len(r.headers) != 0 {
+		r.start = uint64(r.headers[0].Height())
+	}
+}
+
+// rangeAmount returns the number of headers to be removed or returned up to the specified 'end'
+// height.
+func (r *headerRange[H]) rangeAmount(end uint64) uint64 {
 	if r.start > end {
-		return nil
+		return 0
 	}
 
 	amnt := uint64(len(r.headers))
@@ -140,11 +158,5 @@ func (r *headerRange[H]) Truncate(end uint64) []H {
 		amnt = end - r.start + 1 // + 1 to include 'end' as well
 	}
 
-	out := r.headers[:amnt]
-	r.headers = r.headers[amnt:]
-	if len(r.headers) != 0 {
-		r.start = uint64(r.headers[0].Height())
-	}
-
-	return out
+	return amnt
 }

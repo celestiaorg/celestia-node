@@ -318,7 +318,6 @@ func TestExchange_HandleHeaderWithDifferentChainID(t *testing.T) {
 	hosts := createMocknet(t, 2)
 	exchg, store := createP2PExAndServer(t, hosts[0], hosts[1])
 	exchg.Params.chainID = "test"
-	require.NoError(t, exchg.Start(context.TODO()))
 
 	_, err := exchg.Head(context.Background())
 	require.Error(t, err)

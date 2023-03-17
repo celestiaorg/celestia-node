@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	logging "github.com/ipfs/go-log/v2"
@@ -16,51 +15,45 @@ var log = logging.Logger("header/sync")
 
 // Syncer implements efficient synchronization for headers.
 //
-// Subjective header - the latest known header that is not expired (within trusting period)
-// Network header - the latest header received from the network
+// Subjective Head - the latest known local valid header and a sync target.
+// Network Head - the latest valid network-wide header. Becomes subjective once applied locally.
 //
 // There are two main processes running in Syncer:
-// 1. Main syncing loop(s.syncLoop)
-//   - Performs syncing from the subjective(local chain view) header up to the latest known trusted header
+// - Main syncing loop(s.syncLoop)
+//   - Performs syncing from the latest stored header up to the latest known Subjective Head
 //   - Syncs by requesting missing headers from Exchange or
-//   - By accessing cache of pending and verified headers
+//   - By accessing cache of pending headers
 //
-// 2. Receives new headers from PubSub subnetwork (s.processIncoming)
-//   - Usually, a new header is adjacent to the trusted head and if so, it is simply appended to the local store,
-//     incrementing the subjective height and making it the new latest known trusted header.
-//   - Or, if it receives a header further in the future,
-//     verifies against the latest known trusted header
-//     adds the header to pending cache(making it the latest known trusted header)
-//     and triggers syncing loop to catch up to that point.
+// - Receives every new Network Head from PubSub gossip subnetwork (s.incomingNetworkHead)
+//   - Validates against the latest known Subjective Head, is so
+//   - Sets as the new Subjective Head, which
+//   - if there is a gap between the previous and the new Subjective Head
+//   - Triggers s.syncLoop and saves the Subjective Head in the pending so s.syncLoop can access it
 type Syncer[H header.Header] struct {
-	sub      header.Subscriber[H]
-	exchange header.Exchange[H]
-	store    header.Store[H]
+	sub     header.Subscriber[H] // to subscribe for new Network Heads
+	store   syncStore[H]         // to store all the headers to
+	getter  syncGetter[H]        // to fetch headers from
+	metrics *metrics
 
 	// stateLk protects state which represents the current or latest sync
 	stateLk sync.RWMutex
 	state   State
+
 	// signals to start syncing
 	triggerSync chan struct{}
-	// syncedHead is the latest synced header.
-	syncedHead atomic.Pointer[H]
 	// pending keeps ranges of valid new network headers awaiting to be appended to store
 	pending ranges[H]
-	// netReqLk ensures only one network head is requested at any moment
-	netReqLk sync.RWMutex
 
 	// controls lifecycle for syncLoop
 	ctx    context.Context
 	cancel context.CancelFunc
 
 	Params *Parameters
-
-	metrics *metrics
 }
 
 // NewSyncer creates a new instance of Syncer.
 func NewSyncer[H header.Header](
-	exchange header.Exchange[H],
+	getter header.Getter[H],
 	store header.Store[H],
 	sub header.Subscriber[H],
 	opts ...Options,
@@ -75,8 +68,8 @@ func NewSyncer[H header.Header](
 
 	return &Syncer[H]{
 		sub:         sub,
-		exchange:    exchange,
-		store:       store,
+		store:       syncStore[H]{Store: store},
+		getter:      syncGetter[H]{Getter: getter},
 		triggerSync: make(chan struct{}, 1), // should be buffered
 		Params:      &params,
 	}, nil
@@ -87,12 +80,12 @@ func (s *Syncer[H]) Start(ctx context.Context) error {
 	s.ctx, s.cancel = context.WithCancel(context.Background())
 	// register validator for header subscriptions
 	// syncer does not subscribe itself and syncs headers together with validation
-	err := s.sub.AddValidator(s.incomingNetHead)
+	err := s.sub.AddValidator(s.incomingNetworkHead)
 	if err != nil {
 		return err
 	}
-	// get the latest head and set it as syncing target
-	_, err = s.networkHead(ctx)
+	// gets the latest head and kicks off syncing if necessary
+	_, err = s.Head(ctx)
 	if err != nil {
 		return err
 	}
@@ -147,7 +140,15 @@ func (s *Syncer[H]) State() State {
 	s.stateLk.RLock()
 	state := s.state
 	s.stateLk.RUnlock()
-	state.Height = s.store.Height()
+
+	head, err := s.store.Head(s.ctx)
+	if err == nil {
+		state.Height = uint64(head.Height())
+	} else if state.Error == nil {
+		// don't ignore the error if we can show it in the state
+		state.Error = err
+	}
+
 	return state
 }
 
@@ -171,43 +172,35 @@ func (s *Syncer[H]) syncLoop() {
 	}
 }
 
-// sync ensures we are synced from the Store's head up to the new subjective head
+// sync ensures we are synced from the Store's head up to the new subjective head.
 func (s *Syncer[H]) sync(ctx context.Context) {
-	newHead := s.pending.Head()
-	if newHead.IsZero() {
+	subjHead, err := s.subjectiveHead(ctx)
+	if err != nil {
+		log.Errorw("getting subjective head", "err", err)
 		return
 	}
 
-	headPtr := s.syncedHead.Load()
-
-	var header H
-	if headPtr == nil {
-		head, err := s.store.Head(ctx)
-		if err != nil {
-			log.Errorw("getting head during sync", "err", err)
-			return
-		}
-		header = head
-	} else {
-		header = *headPtr
+	storeHead, err := s.store.Head(ctx)
+	if err != nil {
+		log.Errorw("getting stored head", "err", err)
+		return
 	}
 
-	if header.Height() >= newHead.Height() {
+	if storeHead.Height() >= subjHead.Height() {
 		log.Warnw("sync attempt to an already synced header",
-			"synced_height", header.Height(),
-			"attempted_height", newHead.Height(),
+			"synced_height", storeHead.Height(),
+			"attempted_height", subjHead.Height(),
 		)
 		log.Warn("PLEASE REPORT THIS AS A BUG")
 		return // should never happen, but just in case
 	}
 
-	from := header.Height() + 1
-
+	from := storeHead.Height() + 1
 	log.Infow("syncing headers",
 		"from", from,
-		"to", newHead.Height())
+		"to", subjHead.Height())
 
-	err := s.doSync(ctx, header, newHead)
+	err = s.doSync(ctx, storeHead, subjHead)
 	if err != nil {
 		if errors.Is(err, context.Canceled) {
 			// don't log this error as it is normal case of Syncer being stopped
@@ -216,18 +209,18 @@ func (s *Syncer[H]) sync(ctx context.Context) {
 
 		log.Errorw("syncing headers",
 			"from", from,
-			"to", newHead.Height(),
+			"to", subjHead.Height(),
 			"err", err)
 		return
 	}
 
-	log.Infow("finished syncing",
+	log.Infow("finished syncing headers",
 		"from", from,
-		"to", newHead.Height(),
+		"to", subjHead.Height(),
 		"elapsed time", s.state.End.Sub(s.state.Start))
 }
 
-// doSync performs actual syncing updating the internal State
+// doSync performs actual syncing updating the internal State.
 func (s *Syncer[H]) doSync(ctx context.Context, fromHead, toHead H) (err error) {
 	s.stateLk.Lock()
 	s.state.ID++
@@ -247,9 +240,8 @@ func (s *Syncer[H]) doSync(ctx context.Context, fromHead, toHead H) (err error) 
 	return err
 }
 
-// processHeaders gets and stores headers starting at the given 'from' height up to 'to' height -
-// [from:to]
-// processHeaders checks headers in pending cache that apply to the requested range.
+// processHeaders fetches and stores asked headers (from:to].
+// Checks headers in pending cache that apply to the requested range.
 // If some headers are missing, it starts requesting them from the network.
 func (s *Syncer[H]) processHeaders(
 	ctx context.Context,
@@ -262,24 +254,27 @@ func (s *Syncer[H]) processHeaders(
 			break
 		}
 
-		headers := headersRange.Truncate(to)
+		headers := headersRange.Get(to)
 		if len(headers) == 0 {
 			break
 		}
 
-		// check that returned range is adjacent to `fromHead`
+		// check if returned range is not adjacent to `fromHead`
 		if fromHead.Height()+1 != headers[0].Height() {
-			// make an external request
-			if err = s.requestHeaders(ctx, fromHead, uint64(headers[0].Height()-1)); err != nil {
+			// if so - request missing ones
+			to := uint64(headers[0].Height() - 1)
+			if err = s.requestHeaders(ctx, fromHead, to); err != nil {
 				return err
 			}
 		}
 
 		// apply cached headers
-		if err = s.storeHeaders(ctx, headers); err != nil {
+		if err = s.storeHeaders(ctx, headers...); err != nil {
 			return err
 		}
 
+		// cleanup range only after we stored the headers
+		headersRange.Remove(to)
 		// update fromHead for the next iteration
 		fromHead = headers[len(headers)-1]
 	}
@@ -299,32 +294,31 @@ func (s *Syncer[H]) requestHeaders(
 		if amount < size {
 			size = amount
 		}
-		headers, err := s.exchange.GetVerifiedRange(ctx, fromHead, size)
+
+		headers, err := s.getter.GetVerifiedRange(ctx, fromHead, size)
 		if err != nil {
 			return err
 		}
-		amount -= size
 
-		if err := s.storeHeaders(ctx, headers); err != nil {
+		if err := s.storeHeaders(ctx, headers...); err != nil {
 			return err
 		}
+
+		amount -= size // size == len(headers)
 		fromHead = headers[len(headers)-1]
 	}
 	return nil
 }
 
-// storeHeaders updates store with new headers and updates current syncedHead.
-func (s *Syncer[H]) storeHeaders(ctx context.Context, headers []H) error {
+// storeHeaders updates store with new headers and updates current syncStore's Head.
+func (s *Syncer[H]) storeHeaders(ctx context.Context, headers ...H) error {
 	// we don't expect any issues in storing right now, as all headers are now verified.
 	// So, we should return immediately in case an error appears.
-	if err := s.store.Append(ctx, headers...); err != nil {
+	err := s.store.Append(ctx, headers...)
+	if err != nil {
 		return err
 	}
 
-	s.syncedHead.Store(&headers[len(headers)-1])
-
-	if s.metrics != nil {
-		s.metrics.recordTotalSynced(len(headers))
-	}
+	s.metrics.recordTotalSynced(len(headers))
 	return nil
 }

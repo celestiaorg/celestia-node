@@ -168,18 +168,17 @@ func (s *session[H]) doRequest(
 			s.peerTracker.blockPeer(stat.peerID, err)
 		}
 
-		// exclude header.ErrNotFound from being logged as it is a `valid` error
-		// and peer may not have the range(peer just connected and syncing).
-		if err != header.ErrNotFound {
-			log.Errorw("processing headers response failed", "peer", stat.peerID, "err", err)
-		}
-
 		select {
 		case <-s.ctx.Done():
 			return
 		case s.reqCh <- req:
 		}
-		log.Errorw("processing response", "err", err)
+		log.Errorw("processing response",
+			"from", req.GetOrigin(),
+			"to", req.Amount+req.GetOrigin()-1,
+			"err", err,
+			"peer", stat.peerID,
+		)
 		return
 	}
 

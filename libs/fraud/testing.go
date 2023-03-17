@@ -14,8 +14,8 @@ import (
 	mocknet "github.com/libp2p/go-libp2p/p2p/net/mock"
 	"github.com/stretchr/testify/require"
 
-	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/header/headertest"
+	"github.com/celestiaorg/celestia-node/libs/header"
 )
 
 type DummyService struct {
@@ -34,7 +34,7 @@ func (d *DummyService) Get(context.Context, ProofType) ([]Proof, error) {
 }
 
 type mockStore struct {
-	headers    map[int64]*header.ExtendedHeader
+	headers    map[int64]header.Header
 	headHeight int64
 }
 
@@ -42,7 +42,7 @@ type mockStore struct {
 // headers.
 func createStore(t *testing.T, numHeaders int) *mockStore {
 	store := &mockStore{
-		headers:    make(map[int64]*header.ExtendedHeader),
+		headers:    make(map[int64]header.Header),
 		headHeight: 0,
 	}
 
@@ -59,7 +59,7 @@ func createStore(t *testing.T, numHeaders int) *mockStore {
 	return store
 }
 
-func (m *mockStore) GetByHeight(_ context.Context, height uint64) (*header.ExtendedHeader, error) {
+func (m *mockStore) GetByHeight(_ context.Context, height uint64) (header.Header, error) {
 	return m.headers[int64(height)], nil
 }
 
@@ -101,7 +101,7 @@ func (m *mockProof) Height() uint64 {
 	return 1
 }
 
-func (m *mockProof) Validate(*header.ExtendedHeader) error {
+func (m *mockProof) Validate(header.Header) error {
 	if !m.Valid {
 		return errors.New("mockProof: proof is not valid")
 	}
