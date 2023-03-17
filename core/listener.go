@@ -80,10 +80,10 @@ func (cl *Listener) listen(ctx context.Context, sub <-chan *types.Block) {
 	for {
 		select {
 		case b, ok := <-sub:
-			log.Debugw("listener: new block from core", "height", b.Height)
 			if !ok {
 				return
 			}
+			log.Debugw("listener: new block from core", "height", b.Height)
 
 			syncing, err := cl.fetcher.IsSyncing(ctx)
 			if err != nil {
