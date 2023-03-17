@@ -133,7 +133,7 @@ func generateKeys(cfg Config, ksPath string) error {
 
 	if cfg.State.KeyringBackend == keyring.BackendTest {
 		log.Warn("Detected plaintext keyring backend. For elevated security properties, consider using" +
-			"the `file` keyring backend.")
+			" the `file` keyring backend.")
 	}
 	ring, err := keyring.New(app.Name, cfg.State.KeyringBackend, ksPath, os.Stdin, encConf.Codec)
 	if err != nil {
