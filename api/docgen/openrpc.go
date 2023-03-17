@@ -18,7 +18,7 @@ import (
 )
 
 const (
-	APIVersion     = "v0.0.1"
+	APIVersion     = "v0.1.0"
 	APIDescription = "The Celestia Node API is the collection of RPC methods that " +
 		"can be used to interact with the services provided by Celestia Data Availability Nodes."
 	APIName  = "Celestia Node API"
