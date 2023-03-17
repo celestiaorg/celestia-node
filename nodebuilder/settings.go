@@ -67,7 +67,7 @@ func WithMetrics(metricOpts []otlpmetrichttp.Option, nodeType node.Type) fx.Opti
 }
 
 // WithDebugMetrics registers debug level metrics for node
-func WithDebugMetrics(nodeType node.Type) fx.Option {
+func WithDebugMetrics() fx.Option {
 	return fx.Options(
 		fx.Decorate(p2p.WithMonitoredResourceManager),
 		fx.Invoke(p2p.WithDebugMetrics),

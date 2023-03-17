@@ -58,10 +58,7 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 			"p2p",
 			baseComponents,
 			fx.Provide(blockstoreFromDatastore),
-			fx.Provide(func(ctx context.Context, bootstrappers Bootstrappers) ([]ma.Multiaddr, error) {
-				limits := rcmgr.DefaultLimits
-				libp2p.SetDefaultServiceLimits(&limits)
-
+			fx.Provide(func(ctx context.Context, bootstrappers Bootstrappers) (allowlist []ma.Multiaddr, err error) {
 				mutual, err := cfg.mutualPeers()
 				if err != nil {
 					return nil, err
@@ -69,7 +66,7 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 
 				// TODO(@Wondertan): We should resolve their addresses only once, but currently
 				//  we resolve it here and libp2p stuck does that as well internally
-				allowlist := make([]ma.Multiaddr, 0, len(bootstrappers)+len(mutual))
+				allowlist = make([]ma.Multiaddr, 0, len(bootstrappers)+len(mutual))
 				for _, b := range bootstrappers {
 					for _, baddr := range b.Addrs {
 						resolved, err := madns.DefaultResolver.Resolve(ctx, baddr)
@@ -94,8 +91,11 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 				return allowlist, nil
 			}),
 			fx.Provide(func(ctx context.Context, allowlist []ma.Multiaddr) (network.ResourceManager, error) {
+				limits := rcmgr.DefaultLimits
+				libp2p.SetDefaultServiceLimits(&limits)
+
 				return rcmgr.NewResourceManager(
-					rcmgr.NewFixedLimiter(rcmgr.DefaultLimits.AutoScale()),
+					rcmgr.NewFixedLimiter(limits.AutoScale()),
 					rcmgr.WithAllowlistedMultiaddrs(allowlist),
 				)
 			}),
