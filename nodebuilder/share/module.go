@@ -174,6 +174,9 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 					return getter.Stop(ctx)
 				}),
 			)),
+			fx.Provide(func() peers.Parameters {
+				return cfg.PeerManagerParams
+			}),
 			fx.Provide(peers.NewManager),
 			fx.Provide(getters.NewIPLDGetter),
 		)

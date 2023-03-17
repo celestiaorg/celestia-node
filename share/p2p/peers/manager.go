@@ -39,7 +39,8 @@ var log = logging.Logger("shrex/peer-manager")
 
 // Manager keeps track of peers coming from shrex.Sub and from discovery
 type Manager struct {
-	lock sync.Mutex
+	lock   sync.Mutex
+	params Parameters
 
 	// header subscription is necessary in order to validate the inbound eds hash
 	headerSub libhead.Subscriber[*header.ExtendedHeader]
@@ -48,10 +49,8 @@ type Manager struct {
 	connGater *conngater.BasicConnectionGater
 
 	// pools collecting peers from shrexSub
-	pools                 map[string]*syncPool
-	poolValidationTimeout time.Duration
-	peerCooldownTime      time.Duration
-	gcInterval            time.Duration
+	pools map[string]*syncPool
+
 	// fullNodes collects full nodes peer.ID found via discovery
 	fullNodes *pool
 
@@ -79,33 +78,29 @@ type syncPool struct {
 }
 
 func NewManager(
+	params Parameters,
 	headerSub libhead.Subscriber[*header.ExtendedHeader],
 	shrexSub *shrexsub.PubSub,
 	discovery *discovery.Discovery,
 	host host.Host,
 	connGater *conngater.BasicConnectionGater,
-	opts ...Option,
-) *Manager {
-	params := DefaultParameters()
+) (*Manager, error) {
+	if err := params.Validate(); err != nil {
+		return nil, err
+	}
 
 	s := &Manager{
-		headerSub:             headerSub,
-		shrexSub:              shrexSub,
-		connGater:             connGater,
-		host:                  host,
-		pools:                 make(map[string]*syncPool),
-		poolValidationTimeout: params.ValidationTimeout,
-		peerCooldownTime:      params.PeerCooldown,
-		gcInterval:            params.GcInterval,
-		blacklistedHashes:     make(map[string]bool),
-		done:                  make(chan struct{}),
+		params:            params,
+		headerSub:         headerSub,
+		shrexSub:          shrexSub,
+		connGater:         connGater,
+		host:              host,
+		pools:             make(map[string]*syncPool),
+		blacklistedHashes: make(map[string]bool),
+		done:              make(chan struct{}),
 	}
 
-	for _, opt := range opts {
-		opt(s)
-	}
-
-	s.fullNodes = newPool(s.peerCooldownTime)
+	s.fullNodes = newPool(s.params.PeerCooldown)
 
 	discovery.WithOnPeersUpdate(
 		func(peerID peer.ID, isAdded bool) {
@@ -123,7 +118,7 @@ func NewManager(
 			s.fullNodes.remove(peerID)
 		})
 
-	return s
+	return s, nil
 }
 
 func (m *Manager) Start(startCtx context.Context) error {
@@ -286,7 +281,7 @@ func (m *Manager) getOrCreatePool(datahash string) *syncPool {
 	p, ok := m.pools[datahash]
 	if !ok {
 		p = &syncPool{
-			pool:      newPool(m.peerCooldownTime),
+			pool:      newPool(m.params.PeerCooldown),
 			createdAt: time.Now(),
 		}
 		m.pools[datahash] = p
@@ -323,7 +318,7 @@ func (m *Manager) hashIsBlacklisted(hash share.DataHash) bool {
 }
 
 func (m *Manager) GC(ctx context.Context) {
-	ticker := time.NewTicker(m.gcInterval)
+	ticker := time.NewTicker(m.params.GcInterval)
 	defer ticker.Stop()
 
 	var blacklist []peer.ID
@@ -347,7 +342,7 @@ func (m *Manager) cleanUp() []peer.ID {
 
 	addToBlackList := make(map[peer.ID]struct{})
 	for h, p := range m.pools {
-		if time.Since(p.createdAt) > m.poolValidationTimeout && !p.isValidatedDataHash.Load() {
+		if time.Since(p.createdAt) > m.params.PoolValidationTimeout && !p.isValidatedDataHash.Load() {
 			log.Debug("blacklisting datahash with all corresponding peers",
 				"datahash", h,
 				"peer_list", p.peersList)

@@ -3,6 +3,7 @@ package share
 import (
 	"errors"
 	"fmt"
+	"github.com/celestiaorg/celestia-node/share/p2p/peers"
 	"time"
 
 	"github.com/celestiaorg/celestia-node/share/p2p/shrexeds"
@@ -28,6 +29,8 @@ type Config struct {
 	ShrExEDSParams *shrexeds.Parameters
 	// ShrExNDParams sets shrexnd client and server configuration parameters
 	ShrExNDParams *shrexnd.Parameters
+	// PeerManagerParams sets peer-manager configuration parameters
+	PeerManagerParams peers.Parameters
 }
 
 func DefaultConfig() Config {
@@ -38,6 +41,7 @@ func DefaultConfig() Config {
 		UseShareExchange:  true,
 		ShrExEDSParams:    shrexeds.DefaultParameters(),
 		ShrExNDParams:     shrexnd.DefaultParameters(),
+		PeerManagerParams: peers.DefaultParameters(),
 	}
 }
 
@@ -49,5 +53,8 @@ func (cfg *Config) Validate() error {
 	if err := cfg.ShrExNDParams.Validate(); err != nil {
 		return err
 	}
-	return cfg.ShrExEDSParams.Validate()
+	if err := cfg.ShrExEDSParams.Validate(); err != nil {
+		return err
+	}
+	return cfg.PeerManagerParams.Validate()
 }
