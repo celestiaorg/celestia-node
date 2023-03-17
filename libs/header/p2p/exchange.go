@@ -238,10 +238,12 @@ func (ex *Exchange[H]) performRequest(
 	var reqErr error
 	peers := ex.trustedPeers
 
-	// we need this each time before calling shuffle
-	rand.Seed(time.Now().UnixNano())
-	// change order to get a random peer
-	rand.Shuffle(len(peers), func(i, j int) { peers[i], peers[j] = peers[j], peers[i] })
+	// shuffle trusted peers to get the random order
+	rand.New(rand.NewSource(time.Now().UnixNano())).Shuffle(
+		len(peers),
+		func(i, j int) { peers[i], peers[j] = peers[j], peers[i] },
+	)
+
 	for _, peer := range peers {
 		ctx, cancel := context.WithTimeout(ctx, ex.Params.TrustedPeersRequestTimeout)
 		h, err := ex.request(ctx, peer, req)
