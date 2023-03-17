@@ -7,7 +7,7 @@ import (
 	"github.com/filecoin-project/go-jsonrpc/auth"
 	logging "github.com/ipfs/go-log/v2"
 
-	"github.com/celestiaorg/celestia-node/api/rpc"
+	"github.com/celestiaorg/celestia-node/api/docgen"
 )
 
 type module struct {
@@ -30,7 +30,7 @@ type Info struct {
 func (m *module) Info(context.Context) (Info, error) {
 	return Info{
 		Type:       m.tp,
-		APIVersion: rpc.Version,
+		APIVersion: docgen.APIVersion,
 	}, nil
 }
 
