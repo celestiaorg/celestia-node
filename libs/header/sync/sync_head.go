@@ -170,5 +170,5 @@ func isExpired(header header.Header, period time.Duration) bool {
 
 // isRecent checks if header is recent against the given blockTime.
 func isRecent(header header.Header, blockTime time.Duration) bool {
-	return time.Since(header.Time()) <= blockTime // TODO @renaynay: should we allow for a 5-10 block drift here?
+	return time.Since(header.Time()) <= blockTime+blockTime/2 // add half block time drift
 }
