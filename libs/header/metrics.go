@@ -8,15 +8,12 @@ import (
 	"go.opentelemetry.io/otel/metric/global"
 	"go.opentelemetry.io/otel/metric/instrument"
 	"go.opentelemetry.io/otel/metric/unit"
-
-	libhead "github.com/celestiaorg/celestia-node/libs/header"
-	"github.com/celestiaorg/celestia-node/libs/header/sync"
 )
 
 var meter = global.MeterProvider().Meter("header")
 
 // WithMetrics enables Otel metrics to monitor head and total amount of synced headers.
-func WithMetrics(store libhead.Store[*ExtendedHeader], syncer *sync.Syncer[*ExtendedHeader]) error {
+func WithMetrics[H Header](store Store[H]) error {
 	headC, _ := meter.AsyncInt64().Counter(
 		"head",
 		instrument.WithUnit(unit.Dimensionless),
@@ -42,13 +39,8 @@ func WithMetrics(store libhead.Store[*ExtendedHeader], syncer *sync.Syncer[*Exte
 			headC.Observe(
 				ctx,
 				head.Height(),
-				attribute.Int("square_size", len(head.DAH.RowsRoots)),
 			)
 		},
 	)
-	if err != nil {
-		return err
-	}
-
-	return syncer.InitMetrics()
+	return err
 }

@@ -8,6 +8,11 @@ import (
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 )
 
+const (
+	// MaxRangeRequestSize defines the max amount of headers that can be handled/requested at once.
+	MaxRangeRequestSize uint64 = 512
+)
+
 // Subscriber encompasses the behavior necessary to
 // subscribe/unsubscribe from new Header events from the
 // network.

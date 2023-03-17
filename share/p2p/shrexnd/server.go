@@ -33,12 +33,7 @@ type Server struct {
 }
 
 // NewServer creates new Server
-func NewServer(host host.Host, store *eds.Store, getter share.Getter, opts ...Option) (*Server, error) {
-	params := DefaultParameters()
-	for _, opt := range opts {
-		opt(params)
-	}
-
+func NewServer(params *Parameters, host host.Host, store *eds.Store, getter share.Getter) (*Server, error) {
 	if err := params.Validate(); err != nil {
 		return nil, fmt.Errorf("shrex-nd: server creation failed: %w", err)
 	}
@@ -48,7 +43,7 @@ func NewServer(host host.Host, store *eds.Store, getter share.Getter, opts ...Op
 		store:      store,
 		host:       host,
 		params:     params,
-		protocolID: protocolID(params.networkID),
+		protocolID: p2p.ProtocolID(params.NetworkID(), protocolString),
 	}
 
 	return srv, nil
@@ -62,7 +57,7 @@ func (srv *Server) Start(context.Context) error {
 	handler := func(s network.Stream) {
 		srv.handleNamespacedData(ctx, s)
 	}
-	srv.host.SetStreamHandler(srv.protocolID, p2p.RateLimitMiddleware(handler, srv.params.concurrencyLimit))
+	srv.host.SetStreamHandler(srv.protocolID, p2p.RateLimitMiddleware(handler, srv.params.ConcurrencyLimit))
 	return nil
 }
 
@@ -74,7 +69,7 @@ func (srv *Server) Stop(context.Context) error {
 }
 
 func (srv *Server) handleNamespacedData(ctx context.Context, stream network.Stream) {
-	err := stream.SetReadDeadline(time.Now().Add(srv.params.readTimeout))
+	err := stream.SetReadDeadline(time.Now().Add(srv.params.ServerReadTimeout))
 	if err != nil {
 		log.Debugf("server: setting read deadline: %s", err)
 	}
@@ -100,7 +95,7 @@ func (srv *Server) handleNamespacedData(ctx context.Context, stream network.Stre
 		return
 	}
 
-	ctx, cancel := context.WithTimeout(ctx, srv.params.serveTimeout)
+	ctx, cancel := context.WithTimeout(ctx, srv.params.HandleRequestTimeout)
 	defer cancel()
 
 	dah, err := srv.store.GetDAH(ctx, req.RootHash)
@@ -173,7 +168,7 @@ func namespacedSharesToResponse(shares share.NamespacedShares) *pb.GetSharesByNa
 }
 
 func (srv *Server) respond(stream network.Stream, resp *pb.GetSharesByNamespaceResponse) {
-	err := stream.SetWriteDeadline(time.Now().Add(srv.params.writeTimeout))
+	err := stream.SetWriteDeadline(time.Now().Add(srv.params.ServerWriteTimeout))
 	if err != nil {
 		log.Debugf("server: seting write deadline: %s", err)
 	}
