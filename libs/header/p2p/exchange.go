@@ -239,6 +239,7 @@ func (ex *Exchange[H]) performRequest(
 	peers := ex.trustedPeers
 
 	// shuffle trusted peers to get the random order
+	//nolint:gosec // G404: Use of weak random number generator
 	rand.New(rand.NewSource(time.Now().UnixNano())).Shuffle(
 		len(peers),
 		func(i, j int) { peers[i], peers[j] = peers[j], peers[i] },
