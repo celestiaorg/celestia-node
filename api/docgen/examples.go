@@ -63,6 +63,7 @@ var ExampleValues = map[reflect.Type]interface{}{
 			Shares: []*byzantine.ShareWithProof{},
 		},
 	),
+	reflect.TypeOf((*error)(nil)).Elem(): fmt.Errorf("error"),
 }
 
 func init() {
