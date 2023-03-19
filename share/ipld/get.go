@@ -2,7 +2,6 @@ package ipld
 
 import (
 	"context"
-	"fmt"
 	"sync"
 	"sync/atomic"
 
@@ -14,7 +13,6 @@ import (
 	"go.opentelemetry.io/otel/codes"
 
 	"github.com/celestiaorg/nmt"
-	"github.com/celestiaorg/nmt/namespace"
 )
 
 // NumWorkersLimit sets global limit for workers spawned by GetShares.
@@ -179,14 +177,9 @@ func GetLeavesByNamespace(
 	ctx context.Context,
 	bGetter blockservice.BlockGetter,
 	root cid.Cid,
-	nID namespace.ID,
 	data *NamespaceData,
 ) error {
-	if len(nID) != NamespaceSize {
-		return fmt.Errorf("expected namespace ID of size %d, got %d", NamespaceSize, len(nID))
-	}
-
-	if err := data.validateBasic(); err != nil {
+	if err := data.validate(); err != nil {
 		return err
 	}
 
@@ -194,13 +187,13 @@ func GetLeavesByNamespace(
 	defer span.End()
 
 	span.SetAttributes(
-		attribute.String("namespace", nID.String()),
+		attribute.String("namespace", data.nID.String()),
 		attribute.String("root", root.String()),
 	)
 
 	// buffer the jobs to avoid blocking, we only need as many
 	// queued as the number of shares in the second-to-last layer
-	jobs := make(chan *job, (data.getMaxShares()+1)/2)
+	jobs := make(chan *job, (data.maxShares+1)/2)
 	jobs <- &job{id: root, ctx: ctx}
 
 	var wg chanGroup
@@ -224,7 +217,7 @@ func GetLeavesByNamespace(
 		if !ok {
 			// if there were no leaves under the given root in the given namespace,
 			// leaves and error will be nil. otherwise, the error will also be non-nil.
-			if !data.leavesAvailable() {
+			if data.noLeaves() {
 				return retrievalErr
 			}
 
@@ -247,7 +240,11 @@ func GetLeavesByNamespace(
 				singleErr.Do(func() {
 					retrievalErr = err
 				})
-				log.Errorw("getLeavesWithProofsByNamespace: could not retrieve node", "nID", nID, "pos", j.sharePos, "err", err)
+				log.Errorw("getLeavesWithProofsByNamespace:could not retrieve node",
+					"nID", data.nID,
+					"pos", j.sharePos,
+					"err", err,
+				)
 				span.SetStatus(codes.Error, err.Error())
 				// we still need to update the bounds
 				data.addLeaf(j.sharePos, nil)
@@ -280,13 +277,13 @@ func GetLeavesByNamespace(
 				jobNid := NamespacedSha256FromCID(newJob.id)
 
 				// proof is on the right side, if the nID is less than min namespace of jobNid
-				if nID.Less(nmt.MinNamespace(jobNid, nID.Size())) {
+				if data.nID.Less(nmt.MinNamespace(jobNid, data.nID.Size())) {
 					data.addProof(right, lnk.Cid, newJob.depth)
 					continue
 				}
 
 				// proof is on the left side, if the nID is bigger than max namespace of jobNid
-				if !nID.LessOrEqual(nmt.MaxNamespace(jobNid, nID.Size())) {
+				if !data.nID.LessOrEqual(nmt.MaxNamespace(jobNid, data.nID.Size())) {
 					data.addProof(left, lnk.Cid, newJob.depth)
 					continue
 				}
