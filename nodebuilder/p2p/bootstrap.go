@@ -1,9 +1,18 @@
 package p2p
 
 import (
+	"os"
+	"strconv"
+
 	"github.com/libp2p/go-libp2p/core/peer"
 	ma "github.com/multiformats/go-multiaddr"
 )
+
+const envKeyCelestiaBootstrapper = "CELESTIA_BOOTSTRAPPER"
+
+func isBootstrapper() bool {
+	return os.Getenv(envKeyCelestiaBootstrapper) == strconv.FormatBool(true)
+}
 
 // BootstrappersFor returns address information of bootstrap peers for a given network.
 func BootstrappersFor(net Network) (Bootstrappers, error) {
@@ -38,6 +47,11 @@ var bootstrapList = map[Network][]string{
 		"/dns4/andromeda.celestia-devops.dev/tcp/2121/p2p/12D3KooWKvPXtV1yaQ6e3BRNUHa5Phh8daBwBi3KkGaSSkUPys6D",
 		"/dns4/libra.celestia-devops.dev/tcp/2121/p2p/12D3KooWK5aDotDcLsabBmWDazehQLMsDkRyARm1k7f1zGAXqbt4",
 		"/dns4/norma.celestia-devops.dev/tcp/2121/p2p/12D3KooWHYczJDVNfYVkLcNHPTDKCeiVvRhg8Q9JU3bE3m9eEVyY",
+	},
+	BlockspaceRace: {
+		"/dns4/bootstr-incent-3.celestia.tools/tcp/2121/p2p/12D3KooWNzdKcHagtvvr6qtjcPTAdCN6ZBiBLH8FBHbihxqu4GZx",
+		"/dns4/bootstr-incent-2.celestia.tools/tcp/2121/p2p/12D3KooWNJZyWeCsrKxKrxsNM1RVL2Edp77svvt7Cosa63TggC9m",
+		"/dns4/bootstr-incent-1.celestia.tools/tcp/2121/p2p/12D3KooWBtxdBzToQwnS4ySGpph9PtGmmjEyATkgX3PfhAo4xmf7",
 	},
 	Private: {},
 }

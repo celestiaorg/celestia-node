@@ -15,7 +15,7 @@ import (
 
 	"github.com/celestiaorg/go-libp2p-messenger/serde"
 
-	pb "github.com/celestiaorg/celestia-node/fraud/pb"
+	pb "github.com/celestiaorg/celestia-node/libs/fraud/pb"
 )
 
 // syncFraudProofs encompasses the behavior for fetching fraud proofs from other peers.

@@ -8,8 +8,8 @@ import (
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	"go.uber.org/fx"
 
-	"github.com/celestiaorg/celestia-node/fraud"
 	"github.com/celestiaorg/celestia-node/header"
+	"github.com/celestiaorg/celestia-node/libs/fraud"
 	libhead "github.com/celestiaorg/celestia-node/libs/header"
 	"github.com/celestiaorg/celestia-node/libs/header/p2p"
 	"github.com/celestiaorg/celestia-node/libs/header/store"
@@ -17,6 +17,7 @@ import (
 	modfraud "github.com/celestiaorg/celestia-node/nodebuilder/fraud"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	modp2p "github.com/celestiaorg/celestia-node/nodebuilder/p2p"
+	"github.com/celestiaorg/celestia-node/share/eds/byzantine"
 )
 
 var log = logging.Logger("module/header")
@@ -42,8 +43,7 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 				return []p2p.Option[p2p.ServerParameters]{
 					p2p.WithWriteDeadline(cfg.Server.WriteDeadline),
 					p2p.WithReadDeadline(cfg.Server.ReadDeadline),
-					p2p.WithMaxRequestSize[p2p.ServerParameters](cfg.Server.MaxRequestSize),
-					p2p.WithRequestTimeout[p2p.ServerParameters](cfg.Server.RequestTimeout),
+					p2p.WithRangeRequestTimeout[p2p.ServerParameters](cfg.Server.RangeRequestTimeout),
 					p2p.WithNetworkID[p2p.ServerParameters](network.String()),
 				}
 			}),
@@ -67,7 +67,6 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 			return []sync.Options{
 				sync.WithBlockTime(modp2p.BlockTime),
 				sync.WithTrustingPeriod(cfg.Syncer.TrustingPeriod),
-				sync.WithMaxRequestSize(cfg.Syncer.MaxRequestSize),
 			}
 		}),
 		fx.Provide(fx.Annotate(
@@ -77,7 +76,7 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 				fservice fraud.Service,
 				syncer *sync.Syncer[*header.ExtendedHeader],
 			) error {
-				return modfraud.Lifecycle(startCtx, ctx, fraud.BadEncoding, fservice,
+				return modfraud.Lifecycle(startCtx, ctx, byzantine.BadEncoding, fservice,
 					syncer.Start, syncer.Stop)
 			}),
 			fx.OnStop(func(ctx context.Context, syncer *sync.Syncer[*header.ExtendedHeader]) error {
@@ -114,13 +113,8 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 			fx.Provide(
 				func(cfg Config, network modp2p.Network) []p2p.Option[p2p.ClientParameters] {
 					return []p2p.Option[p2p.ClientParameters]{
-						p2p.WithMinResponses(cfg.Client.MinResponses),
-						p2p.WithMaxRequestSize[p2p.ClientParameters](cfg.Client.MaxRequestSize),
-						p2p.WithMaxHeadersPerRequest(cfg.Client.MaxHeadersPerRequest),
-						p2p.WithMaxAwaitingTime(cfg.Client.MaxAwaitingTime),
-						p2p.WithDefaultScore(cfg.Client.DefaultScore),
-						p2p.WithRequestTimeout[p2p.ClientParameters](cfg.Client.RequestTimeout),
-						p2p.WithMaxTrackerSize(cfg.Client.MaxPeerTrackerSize),
+						p2p.WithMaxHeadersPerRangeRequest(cfg.Client.MaxHeadersPerRangeRequest),
+						p2p.WithRangeRequestTimeout[p2p.ClientParameters](cfg.Client.RangeRequestTimeout),
 						p2p.WithNetworkID[p2p.ClientParameters](network.String()),
 						p2p.WithChainID(network.String()),
 					}

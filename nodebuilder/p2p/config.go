@@ -21,10 +21,6 @@ type Config struct {
 	// NoAnnounceAddresses - Addresses the P2P subsystem may know about, but that should not be
 	// announced/advertised, as undialable from WAN
 	NoAnnounceAddresses []string
-	// TODO(@Wondertan): This should be a build-time parameter. See
-	// https://github.com/celestiaorg/celestia-node/issues/63
-	// Bootstrapper is flag telling this node is a bootstrapper.
-	Bootstrapper bool
 	// MutualPeers are peers which have a bidirectional peering agreement with the configured node.
 	// Connections with those peers are protected from being trimmed, dropped or negatively scored.
 	// NOTE: Any two peers must bidirectionally configure each other on their MutualPeers field.
@@ -59,7 +55,6 @@ func DefaultConfig(tp node.Type) Config {
 			"/ip6/::/tcp/2121",
 		},
 		MutualPeers:               []string{},
-		Bootstrapper:              false,
 		PeerExchange:              tp == node.Bridge || tp == node.Full,
 		ConnManager:               defaultConnManagerConfig(),
 		RoutingTableRefreshPeriod: defaultRoutingRefreshPeriod,

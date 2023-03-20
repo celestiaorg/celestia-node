@@ -11,6 +11,7 @@ import (
 	"github.com/ipfs/go-datastore"
 	dsbadger "github.com/ipfs/go-ds-badger2"
 	"github.com/mitchellh/go-homedir"
+	"go.uber.org/multierr"
 
 	"github.com/celestiaorg/celestia-node/libs/fslock"
 	"github.com/celestiaorg/celestia-node/libs/keystore"
@@ -156,9 +157,12 @@ func (f *fsStore) Datastore() (_ datastore.Batching, err error) {
 	return f.data, nil
 }
 
-func (f *fsStore) Close() error {
-	defer f.dirLock.Unlock() //nolint: errcheck
-	return f.data.Close()
+func (f *fsStore) Close() (err error) {
+	err = multierr.Append(err, f.dirLock.Unlock())
+	if f.data != nil {
+		err = multierr.Append(err, f.data.Close())
+	}
+	return
 }
 
 type fsStore struct {

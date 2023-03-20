@@ -32,3 +32,15 @@ func TestAddParallel(t *testing.T) {
 		last = r.start
 	}
 }
+
+func TestRangeGet(t *testing.T) {
+	n := 300
+	suite := test.NewTestSuite(t)
+	headers := suite.GenDummyHeaders(n)
+
+	r := newRange(headers[200])
+	r.Append(headers[201:]...)
+
+	truncated := r.Get(100)
+	assert.Len(t, truncated, 0)
+}

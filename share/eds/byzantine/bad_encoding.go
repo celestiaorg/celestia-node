@@ -9,10 +9,15 @@ import (
 	"github.com/celestiaorg/celestia-app/pkg/wrapper"
 	"github.com/celestiaorg/rsmt2d"
 
-	"github.com/celestiaorg/celestia-node/fraud"
 	"github.com/celestiaorg/celestia-node/header"
+	"github.com/celestiaorg/celestia-node/libs/fraud"
+	libhead "github.com/celestiaorg/celestia-node/libs/header"
 	pb "github.com/celestiaorg/celestia-node/share/eds/byzantine/pb"
 	"github.com/celestiaorg/celestia-node/share/ipld"
+)
+
+const (
+	BadEncoding fraud.ProofType = "badencoding"
 )
 
 func init() {
@@ -52,7 +57,7 @@ func CreateBadEncodingProof(
 
 // Type returns type of fraud proof.
 func (p *BadEncodingProof) Type() fraud.ProofType {
-	return fraud.BadEncoding
+	return BadEncoding
 }
 
 // HeaderHash returns block hash.
@@ -105,7 +110,11 @@ func (p *BadEncodingProof) UnmarshalBinary(data []byte) error {
 // Validate checks that provided Merkle Proofs correspond to the shares,
 // rebuilds bad row or col from received shares, computes Merkle Root
 // and compares it with block's Merkle Root.
-func (p *BadEncodingProof) Validate(header *header.ExtendedHeader) error {
+func (p *BadEncodingProof) Validate(hdr libhead.Header) error {
+	header, ok := hdr.(*header.ExtendedHeader)
+	if !ok {
+		panic(fmt.Sprintf("invalid header type: expected %T, got %T", header, hdr))
+	}
 	if header.Height() != int64(p.BlockHeight) {
 		return errors.New("fraud: incorrect block height")
 	}

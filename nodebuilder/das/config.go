@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/celestiaorg/celestia-node/das"
+	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	modp2p "github.com/celestiaorg/celestia-node/nodebuilder/p2p"
 )
 
@@ -17,9 +18,19 @@ type Config das.Parameters
 // but this function will provide more once #1261 is addressed.
 //
 // TODO(@derrandz): Address #1261
-func DefaultConfig() Config {
+func DefaultConfig(tp node.Type) Config {
 	cfg := das.DefaultParameters()
-	cfg.SampleTimeout = modp2p.BlockTime * time.Duration(cfg.ConcurrencyLimit)
+	switch tp {
+	case node.Light:
+		cfg.SampleTimeout = modp2p.BlockTime * time.Duration(cfg.ConcurrencyLimit)
+	case node.Full:
+		// Default value for DASer concurrency limit is based on dasing using ipld getter.
+		// Full node will primarily use shrex protocol for sampling, that is much more efficient and can
+		// fully utilize nodes bandwidth with lower amount of parallel sampling workers
+		cfg.ConcurrencyLimit = 6
+		// Full node uses shrex with fallback to ipld to sample, so need 2x amount of time in worst case scenario
+		cfg.SampleTimeout = 2 * modp2p.BlockTime * time.Duration(cfg.ConcurrencyLimit)
+	}
 	return Config(cfg)
 }
 
