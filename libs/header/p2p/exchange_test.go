@@ -95,7 +95,7 @@ func TestExchange_RequestFullRangeHeaders(t *testing.T) {
 	connGater, err := conngater.NewBasicConnectionGater(sync.MutexWrap(datastore.NewMapDatastore()))
 	require.NoError(t, err)
 	// create new exchange
-	exchange, err := NewExchange[*test.DummyHeader](hosts[len(hosts)-1], []peer.ID{}, connGater,
+	exchange, err := NewExchange[*test.DummyHeader](hosts[len(hosts)-1], []peer.ID{hosts[4].ID()}, connGater,
 		WithNetworkID[ClientParameters](networkID),
 		WithChainID(networkID),
 	)
