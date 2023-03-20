@@ -67,14 +67,12 @@ func ParseCommentsFromNodebuilderModules(moduleNames ...string) Comments {
 		v := &Visitor{make(map[string]ast.Node)}
 		ast.Walk(v, f)
 
-		// TODO(@distractedm1nd): An issue with this could be two methods with the same name in different
-		// modules
 		for mn, node := range v.Methods {
 			filteredComments := cmap.Filter(node).Comments()
 			if len(filteredComments) == 0 {
-				nodeComments[mn] = "No comment exists yet for this method."
+				nodeComments[moduleName+mn] = "No comment exists yet for this method."
 			} else {
-				nodeComments[mn] = filteredComments[0].Text()
+				nodeComments[moduleName+mn] = filteredComments[0].Text()
 			}
 		}
 	}
@@ -140,7 +138,7 @@ func NewOpenRPCDocument(comments Comments) *go_openrpc_reflect.Document {
 
 	appReflector.FnIsMethodEligible = func(m reflect.Method) bool {
 		// methods are only eligible if they were found in the Module interface
-		_, ok := comments[m.Name]
+		_, ok := comments[extractPackageNameFromAPIMethod(m)+m.Name]
 		if !ok {
 			return false
 		}
@@ -170,7 +168,7 @@ func NewOpenRPCDocument(comments Comments) *go_openrpc_reflect.Document {
 	}
 
 	appReflector.FnGetMethodSummary = func(r reflect.Value, m reflect.Method, funcDecl *ast.FuncDecl) (string, error) {
-		if v, ok := comments[m.Name]; ok {
+		if v, ok := comments[extractPackageNameFromAPIMethod(m)+m.Name]; ok {
 			return v, nil
 		}
 		return "", nil // noComment
@@ -231,4 +229,8 @@ func OpenRPCSchemaTypeMapper(ty reflect.Type) *jsonschema.Type {
 	}
 
 	return nil
+}
+
+func extractPackageNameFromAPIMethod(m reflect.Method) string {
+	return strings.TrimSuffix(m.Type.In(0).String()[1:], ".API")
 }
