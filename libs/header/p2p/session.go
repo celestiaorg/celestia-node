@@ -167,13 +167,18 @@ func (s *session[H]) doRequest(
 		default:
 			s.peerTracker.blockPeer(stat.peerID, err)
 		}
+		logFn := log.Errorw
 
 		select {
 		case <-s.ctx.Done():
 			return
 		case s.reqCh <- req:
 		}
-		log.Errorw("processing response",
+		if err == header.ErrNotFound {
+			logFn = log.Debugw
+		}
+
+		logFn("processing response",
 			"from", req.GetOrigin(),
 			"to", req.Amount+req.GetOrigin()-1,
 			"err", err,
