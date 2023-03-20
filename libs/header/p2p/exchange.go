@@ -44,10 +44,6 @@ func NewExchange[H header.Header](
 	connGater *conngater.BasicConnectionGater,
 	opts ...Option[ClientParameters],
 ) (*Exchange[H], error) {
-	if len(peers) == 0 {
-		return nil, fmt.Errorf("header/p2p: no trusted peers")
-	}
-
 	params := DefaultClientParameters()
 	for _, opt := range opts {
 		opt(&params)
@@ -72,9 +68,7 @@ func NewExchange[H header.Header](
 	}
 
 	ex.trustedPeers = func() peer.IDSlice {
-		tpeers := make(peer.IDSlice, len(peers))
-		copy(tpeers, peers)
-		return shuffledPeers(tpeers)
+		return shufflePeers(peers)
 	}
 	return ex, nil
 }
@@ -245,6 +239,10 @@ func (ex *Exchange[H]) performRequest(
 	}
 
 	trustedPeers := ex.trustedPeers()
+	// TODO: Move this check to constructor(#1671)
+	if len(trustedPeers) == 0 {
+		return nil, fmt.Errorf("no trusted peers")
+	}
 	var reqErr error
 
 	for _, peer := range trustedPeers {
@@ -302,14 +300,16 @@ func (ex *Exchange[H]) request(
 	return headers, nil
 }
 
-// shuffledPeers changes the order of trusted peers.
-func shuffledPeers(trustedPeers peer.IDSlice) peer.IDSlice {
+// shufflePeers changes the order of trusted peers.
+func shufflePeers(peers peer.IDSlice) peer.IDSlice {
+	tpeers := make(peer.IDSlice, len(peers))
+	copy(tpeers, peers)
 	//nolint:gosec // G404: Use of weak random number generator
 	rand.New(rand.NewSource(time.Now().UnixNano())).Shuffle(
-		len(trustedPeers),
-		func(i, j int) { trustedPeers[i], trustedPeers[j] = trustedPeers[j], trustedPeers[i] },
+		len(tpeers),
+		func(i, j int) { tpeers[i], tpeers[j] = tpeers[j], tpeers[i] },
 	)
-	return trustedPeers
+	return tpeers
 }
 
 // bestHead chooses Header that matches the conditions:
