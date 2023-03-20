@@ -30,7 +30,7 @@ type Exchange[H header.Header] struct {
 	protocolID protocol.ID
 	host       host.Host
 
-	trustedPeers peer.IDSlice
+	trustedPeers func() peer.IDSlice
 	peerTracker  *peerTracker
 
 	Params ClientParameters
@@ -44,6 +44,10 @@ func NewExchange[H header.Header](
 	connGater *conngater.BasicConnectionGater,
 	opts ...Option[ClientParameters],
 ) (*Exchange[H], error) {
+	if len(peers) == 0 {
+		return nil, fmt.Errorf("header/p2p: no trusted peers")
+	}
+
 	params := DefaultClientParameters()
 	for _, opt := range opts {
 		opt(&params)
@@ -54,10 +58,9 @@ func NewExchange[H header.Header](
 		return nil, err
 	}
 
-	return &Exchange[H]{
-		host:         host,
-		protocolID:   protocolID(params.networkID),
-		trustedPeers: peers,
+	ex := &Exchange[H]{
+		host:       host,
+		protocolID: protocolID(params.networkID),
 		peerTracker: newPeerTracker(
 			host,
 			connGater,
@@ -66,14 +69,23 @@ func NewExchange[H header.Header](
 			params.MaxPeerTrackerSize,
 		),
 		Params: params,
-	}, nil
+	}
+
+	ex.trustedPeers = func() peer.IDSlice {
+		tpeers := make(peer.IDSlice, len(peers))
+		copy(tpeers, peers)
+		return shuffledPeers(tpeers)
+	}
+	return ex, nil
 }
 
 func (ex *Exchange[H]) Start(context.Context) error {
 	ex.ctx, ex.cancel = context.WithCancel(context.Background())
 	log.Infow("client: starting client", "protocol ID", ex.protocolID)
 
-	for _, p := range ex.trustedPeers {
+	trustedPeers := ex.trustedPeers()
+
+	for _, p := range trustedPeers {
 		// Try to pre-connect to trusted peers.
 		// We don't really care if we succeed at this point
 		// and just need any peers in the peerTracker asap
@@ -115,8 +127,9 @@ func (ex *Exchange[H]) Head(ctx context.Context) (H, error) {
 		headerCh = make(chan H)
 	)
 
+	trustedPeers := ex.trustedPeers()
 	// request head from each trusted peer
-	for _, from := range ex.trustedPeers {
+	for _, from := range trustedPeers {
 		go func(from peer.ID) {
 			// request ensures that the result slice will have at least one Header
 			headers, err := ex.request(ctx, from, req)
@@ -130,9 +143,9 @@ func (ex *Exchange[H]) Head(ctx context.Context) (H, error) {
 		}(from)
 	}
 
-	result := make([]H, 0, len(ex.trustedPeers))
+	result := make([]H, 0, len(trustedPeers))
 LOOP:
-	for range ex.trustedPeers {
+	for range trustedPeers {
 		select {
 		case h := <-headerCh:
 			if !h.IsZero() {
@@ -231,21 +244,10 @@ func (ex *Exchange[H]) performRequest(
 		return make([]H, 0), nil
 	}
 
-	// TODO: Move this check to constructor(#1671)
-	if len(ex.trustedPeers) == 0 {
-		return nil, fmt.Errorf("no trusted peers")
-	}
+	trustedPeers := ex.trustedPeers()
 	var reqErr error
-	peers := ex.trustedPeers
 
-	// shuffle trusted peers to get the random order
-	//nolint:gosec // G404: Use of weak random number generator
-	rand.New(rand.NewSource(time.Now().UnixNano())).Shuffle(
-		len(peers),
-		func(i, j int) { peers[i], peers[j] = peers[j], peers[i] },
-	)
-
-	for _, peer := range peers {
+	for _, peer := range trustedPeers {
 		ctx, cancel := context.WithTimeout(ctx, ex.Params.TrustedPeersRequestTimeout)
 		h, err := ex.request(ctx, peer, req)
 		cancel()
@@ -298,6 +300,16 @@ func (ex *Exchange[H]) request(
 		return nil, header.ErrNotFound
 	}
 	return headers, nil
+}
+
+// shuffledPeers changes the order of trusted peers.
+func shuffledPeers(trustedPeers peer.IDSlice) peer.IDSlice {
+	//nolint:gosec // G404: Use of weak random number generator
+	rand.New(rand.NewSource(time.Now().UnixNano())).Shuffle(
+		len(trustedPeers),
+		func(i, j int) { trustedPeers[i], trustedPeers[j] = trustedPeers[j], trustedPeers[i] },
+	)
+	return trustedPeers
 }
 
 // bestHead chooses Header that matches the conditions:
