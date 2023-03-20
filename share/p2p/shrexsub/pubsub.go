@@ -10,6 +10,7 @@ import (
 	"github.com/libp2p/go-libp2p/core/peer"
 
 	"github.com/celestiaorg/celestia-node/share"
+	pb "github.com/celestiaorg/celestia-node/share/p2p/shrexsub/pb"
 )
 
 var log = logging.Logger("shrex-sub")
@@ -19,13 +20,19 @@ func pubsubTopicID(networkID string) string {
 	return fmt.Sprintf("%s/eds-sub/v0.0.1", networkID)
 }
 
-// Validator is an injectable func and governs EDS notification or DataHash validity.
+// ValidatorFn is an injectable func and governs EDS notification msg validity.
 // It receives the notification and sender peer and expects the validation result.
-// Validator is allowed to be blocking for an indefinite time or until the context is canceled.
-type Validator func(context.Context, peer.ID, share.DataHash) pubsub.ValidationResult
+// ValidatorFn is allowed to be blocking for an indefinite time or until the context is canceled.
+type ValidatorFn func(context.Context, peer.ID, Notification) pubsub.ValidationResult
 
 // BroadcastFn aliases the function that broadcasts the DataHash.
-type BroadcastFn func(context.Context, share.DataHash) error
+type BroadcastFn func(context.Context, Notification) error
+
+// Notification is the format of message sent by Broadcaster
+type Notification struct {
+	DataHash share.DataHash
+	Height   int64
+}
 
 // PubSub manages receiving and propagating the EDS from/to the network
 // over "eds-sub" subscription.
@@ -80,13 +87,28 @@ func (s *PubSub) Stop(context.Context) error {
 	return s.topic.Close()
 }
 
-// AddValidator registers given Validator for EDS notifications (DataHash).
+// AddValidator registers given ValidatorFn for EDS notifications.
 // Any amount of Validators can be registered.
-func (s *PubSub) AddValidator(validate Validator) error {
-	return s.pubSub.RegisterTopicValidator(s.pubsubTopic,
-		func(ctx context.Context, p peer.ID, msg *pubsub.Message) pubsub.ValidationResult {
-			return validate(ctx, p, msg.Data)
-		})
+func (s *PubSub) AddValidator(v ValidatorFn) error {
+	return s.pubSub.RegisterTopicValidator(s.pubsubTopic, v.validate)
+}
+
+func (v ValidatorFn) validate(ctx context.Context, p peer.ID, msg *pubsub.Message) pubsub.ValidationResult {
+	var pbmsg pb.EDSAvailableMessage
+	if err := pbmsg.Unmarshal(msg.Data); err != nil {
+		log.Debugw("shrex-push: unmarshal error", "err", err)
+		return pubsub.ValidationReject
+	}
+
+	n := Notification{
+		DataHash: pbmsg.DataHash,
+		Height:   pbmsg.Height,
+	}
+	if n.DataHash.IsEmptyRoot() {
+		// we don't send empty EDS data hashes, but If someone sent it to us - do hard reject
+		return pubsub.ValidationReject
+	}
+	return v(ctx, p, n)
 }
 
 // Subscribe provides a new Subscription for EDS notifications.
@@ -98,11 +120,19 @@ func (s *PubSub) Subscribe() (*Subscription, error) {
 }
 
 // Broadcast sends the EDS notification (DataHash) to every connected peer.
-func (s *PubSub) Broadcast(ctx context.Context, data share.DataHash) error {
-	if data.IsEmptyRoot() {
+func (s *PubSub) Broadcast(ctx context.Context, notification Notification) error {
+	if notification.DataHash.IsEmptyRoot() {
 		// no need to broadcast datahash of an empty block EDS
 		return nil
 	}
 
+	msg := pb.EDSAvailableMessage{
+		Height:   notification.Height,
+		DataHash: notification.DataHash,
+	}
+	data, err := msg.Marshal()
+	if err != nil {
+		return fmt.Errorf("shrex-push: marshal notification")
+	}
 	return s.topic.Publish(ctx, data)
 }

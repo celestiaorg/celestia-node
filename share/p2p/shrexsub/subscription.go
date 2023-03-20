@@ -2,10 +2,11 @@ package shrexsub
 
 import (
 	"context"
+	"fmt"
 
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 
-	"github.com/celestiaorg/celestia-node/share"
+	pb "github.com/celestiaorg/celestia-node/share/p2p/shrexsub/pb"
 )
 
 // Subscription is a wrapper over pubsub.Subscription that handles
@@ -25,15 +26,23 @@ func newSubscription(t *pubsub.Topic) (*Subscription, error) {
 
 // Next blocks the caller until any new EDS DataHash notification arrives.
 // Returns only notifications which successfully pass validation.
-func (subs *Subscription) Next(ctx context.Context) (share.DataHash, error) {
+func (subs *Subscription) Next(ctx context.Context) (Notification, error) {
 	msg, err := subs.subscription.Next(ctx)
 	if err != nil {
 		log.Errorw("listening for the next eds hash", "err", err)
-		return nil, err
+		return Notification{}, err
 	}
 
 	log.Debugw("received message", "topic", msg.Message.GetTopic(), "sender", msg.ReceivedFrom)
-	return msg.Data, nil
+	var pbmsg pb.EDSAvailableMessage
+	if err := pbmsg.Unmarshal(msg.Data); err != nil {
+		log.Debugw("unmarshal error", "err", err)
+		return Notification{}, fmt.Errorf("unmarshal: %w", err)
+	}
+	return Notification{
+		DataHash: pbmsg.DataHash,
+		Height:   pbmsg.Height,
+	}, nil
 }
 
 // Cancel stops the subscription.

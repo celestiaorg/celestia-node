@@ -125,7 +125,7 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 			fxutil.ProvideAs(getters.NewIPLDGetter, new(share.Getter)),
 			// shrexsub broadcaster stub for daser
 			fx.Provide(func() shrexsub.BroadcastFn {
-				return func(context.Context, share.DataHash) error {
+				return func(context.Context, shrexsub.Notification) error {
 					return nil
 				}
 			}),

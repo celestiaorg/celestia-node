@@ -50,6 +50,7 @@ type Manager struct {
 
 	// pools collecting peers from shrexSub
 	pools                 map[string]*syncPool
+	firstHeader           int64
 	poolValidationTimeout time.Duration
 	peerCooldownTime      time.Duration
 	gcInterval            time.Duration
@@ -72,11 +73,16 @@ type result int
 type syncPool struct {
 	*pool
 
+	// headerHeight is the height of header corresponding to syncpool
+	headerHeight int64
 	// isValidatedDataHash indicates if datahash was validated by receiving corresponding extended
 	// header from headerSub
 	isValidatedDataHash atomic.Bool
-	isSynced            atomic.Bool
-	createdAt           time.Time
+	// isSynced will be true if DoneFunc was called with ResultSynced. It indicates that given datahash
+	// was synced and peer-manager no longer need to keep peers for it
+	isSynced atomic.Bool
+	// createdAt is the syncPool creation time
+	createdAt time.Time
 }
 
 func NewManager(
@@ -248,35 +254,46 @@ func (m *Manager) subscribeHeader(ctx context.Context, headerSub libhead.Subscri
 		if m.getOrCreatePool(h.DataHash.String()).markValidated() {
 			log.Debugw("marked validated", "datahash", h.DataHash.String())
 		}
+
+		// store first header for validation purposes
+		atomic.CompareAndSwapInt64(&m.firstHeader, 0, h.Height())
 	}
 }
 
 // Validate will collect peer.ID into corresponding peer pool
-func (m *Manager) validate(ctx context.Context, peerID peer.ID, hash share.DataHash) pubsub.ValidationResult {
-	if hash.IsEmptyRoot() {
-		// we don't send empty EDS data hashes, but If someone sent it to us - do hard reject
-		return pubsub.ValidationReject
-	}
-
+func (m *Manager) validate(ctx context.Context, peerID peer.ID, msg shrexsub.Notification) pubsub.ValidationResult {
 	// messages broadcast from self should bypass the validation with Accept
 	if peerID == m.host.ID() {
-		log.Debugw("received datahash from self", "datahash", hash.String())
+		log.Debugw("received datahash from self", "datahash", msg.DataHash.String())
 		return pubsub.ValidationAccept
 	}
 
 	// punish peer for sending invalid hash if it has misbehaved in the past
-	if m.hashIsBlacklisted(hash) {
-		log.Debugw("received blacklisted hash, reject validation", "peer", peerID, "datahash", hash.String())
+	if m.hashIsBlacklisted(msg.DataHash) {
+		log.Debugw("received blacklisted hash, reject validation", "peer", peerID, "datahash", msg.DataHash.String())
 		return pubsub.ValidationReject
 	}
 
 	if m.peerIsBlacklisted(peerID) {
-		log.Debugw("received message from blacklisted peer, reject validation", "peer", peerID, "datahash", hash.String())
+		log.Debugw("received message from blacklisted peer, reject validation",
+			"peer", peerID,
+			"datahash", msg.DataHash.String())
 		return pubsub.ValidationReject
 	}
 
-	m.getOrCreatePool(hash.String()).add(peerID)
-	log.Debugw("got hash from shrex-sub", "peer", peerID, "datahash", hash.String())
+	if msg.Height < atomic.LoadInt64(&m.firstHeader) {
+		// we can use peers from discovery for headers before the first one from headerSub
+		// if we allow pool creation for those headers, there is chance the pool will not be validated in
+		// time and will be false-positively trigger blacklisting of hash and all peers that sent msgs for
+		// that hash
+		log.Debugw("received message for past header", "peer", peerID, "datahash", msg.DataHash.String())
+		return pubsub.ValidationIgnore
+	}
+
+	p := m.getOrCreatePool(msg.DataHash.String())
+	p.storeHeight(msg.Height)
+	p.add(peerID)
+	log.Debugw("got hash from shrex-sub", "peer", peerID, "datahash", msg.DataHash.String())
 	return pubsub.ValidationIgnore
 }
 
@@ -329,15 +346,15 @@ func (m *Manager) GC(ctx context.Context) {
 
 	var blacklist []peer.ID
 	for {
-		blacklist = m.cleanUp()
-		if len(blacklist) > 0 {
-			m.blacklistPeers(blacklist...)
-		}
-
 		select {
 		case <-ticker.C:
 		case <-ctx.Done():
 			return
+		}
+
+		blacklist = m.cleanUp()
+		if len(blacklist) > 0 {
+			m.blacklistPeers(blacklist...)
 		}
 	}
 }
@@ -349,11 +366,14 @@ func (m *Manager) cleanUp() []peer.ID {
 	addToBlackList := make(map[peer.ID]struct{})
 	for h, p := range m.pools {
 		if time.Since(p.createdAt) > m.poolValidationTimeout && !p.isValidatedDataHash.Load() {
+			delete(m.pools, h)
+			if p.headerHeight < m.firstHeader {
+				continue
+			}
 			log.Debug("blacklisting datahash with all corresponding peers",
 				"datahash", h,
 				"peer_list", p.peersList)
 			// blacklist hash
-			delete(m.pools, h)
 			m.blacklistedHashes[h] = true
 
 			// blacklist peers
@@ -385,4 +405,8 @@ func (p *syncPool) add(peers ...peer.ID) {
 	if !p.isSynced.Load() {
 		p.pool.add(peers...)
 	}
+}
+
+func (p *syncPool) storeHeight(h int64) {
+	atomic.CompareAndSwapInt64(&p.headerHeight, 0, h)
 }

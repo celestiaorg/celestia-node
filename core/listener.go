@@ -164,7 +164,10 @@ func (cl *Listener) handleNewSignedBlock(ctx context.Context, b types.EventDataS
 
 	// notify network of new EDS hash only if core is already synced
 	if !syncing {
-		err = cl.hashBroadcaster(ctx, b.Header.DataHash.Bytes())
+		err = cl.hashBroadcaster(ctx, shrexsub.Notification{
+			DataHash: eh.DataHash.Bytes(),
+			Height:   eh.Height(),
+		})
 		if err != nil && !errors.Is(err, context.Canceled) {
 			log.Errorw("listener: broadcasting data hash",
 				"height", b.Header.Height,

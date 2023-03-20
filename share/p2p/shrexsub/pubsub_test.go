@@ -9,7 +9,7 @@ import (
 	mocknet "github.com/libp2p/go-libp2p/p2p/net/mock"
 	"github.com/stretchr/testify/require"
 
-	"github.com/celestiaorg/celestia-node/share"
+	pb "github.com/celestiaorg/celestia-node/share/p2p/shrexsub/pb"
 )
 
 func TestPubSub(t *testing.T) {
@@ -30,11 +30,23 @@ func TestPubSub(t *testing.T) {
 	subs, err := pSub2.Subscribe()
 	require.NoError(t, err)
 
-	var edsHash share.DataHash = []byte("data")
-	err = pSub1.topic.Publish(ctx, edsHash, pubsub.WithReadiness(pubsub.MinTopicSize(1)))
+	notification := Notification{
+		DataHash: []byte("data"),
+		Height:   1,
+	}
+
+	msg := pb.EDSAvailableMessage{
+		Height:   notification.Height,
+		DataHash: notification.DataHash,
+	}
+
+	data, err := msg.Marshal()
 	require.NoError(t, err)
 
-	data, err := subs.Next(ctx)
+	err = pSub1.topic.Publish(ctx, data, pubsub.WithReadiness(pubsub.MinTopicSize(1)))
 	require.NoError(t, err)
-	require.Equal(t, data, edsHash)
+
+	got, err := subs.Next(ctx)
+	require.NoError(t, err)
+	require.Equal(t, notification, got)
 }

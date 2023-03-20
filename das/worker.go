@@ -133,7 +133,10 @@ func (w *worker) sample(ctx context.Context, timeout time.Duration, height uint6
 
 	// notify network about availability of new block data (note: only full nodes can notify)
 	if w.state.isRecentHeader {
-		err = w.broadcast(ctx, h.DataHash.Bytes())
+		err = w.broadcast(ctx, shrexsub.Notification{
+			DataHash: h.DataHash.Bytes(),
+			Height:   h.Height(),
+		})
 		if err != nil {
 			log.Warn("failed to broadcast availability message",
 				"height", h.Height(), "hash", h.Hash(), "err", err)

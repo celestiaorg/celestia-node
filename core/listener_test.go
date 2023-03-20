@@ -101,14 +101,14 @@ func TestListenerWithNonEmptyBlocks(t *testing.T) {
 	for i := 0; i < 16; i++ {
 		_, err := cctx.FillBlock(16, cfg.Accounts, flags.BroadcastBlock)
 		require.NoError(t, err)
-		hash, err := sub.Next(ctx)
+		msg, err := sub.Next(ctx)
 		require.NoError(t, err)
 
-		if bytes.Equal(empty.Hash(), hash) {
+		if bytes.Equal(empty.Hash(), msg.DataHash) {
 			continue
 		}
 
-		has, err := store.Has(ctx, hash)
+		has, err := store.Has(ctx, msg.DataHash)
 		require.NoError(t, err)
 		require.True(t, has)
 	}
