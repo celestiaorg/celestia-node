@@ -74,13 +74,13 @@ func TestRPCCallsUnderlyingNode(t *testing.T) {
 // api contains all modules that are made available as the node's
 // public API surface
 type api struct {
-	Fraud fraud.Module
+	Fraud  fraud.Module
 	Header header.Module
-	State statemod.Module
-	Share share.Module
-	DAS das.Module
-	Node node.Module
-	P2P p2p.Module
+	State  statemod.Module
+	Share  share.Module
+	DAS    das.Module
+	Node   node.Module
+	P2P    p2p.Module
 }
 
 func TestModulesImplementFullAPI(t *testing.T) {
