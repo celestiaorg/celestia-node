@@ -37,11 +37,11 @@ func Flags() *flag.FlagSet {
 // ParseFlags parses gateway flags from the given cmd and saves them to the passed config.
 func ParseFlags(cmd *cobra.Command, cfg *Config) {
 	enabled, err := cmd.Flags().GetBool(enabledFlag)
-	if err == nil {
+	if cmd.Flags().Changed(enabledFlag) && err == nil {
 		cfg.Enabled = enabled
 	}
 	addr, port := cmd.Flag(addrFlag), cmd.Flag(portFlag)
-	if !enabled && (addr.Changed || port.Changed) {
+	if !cfg.Enabled && (addr.Changed || port.Changed) {
 		log.Warn("custom address or port provided without enabling gateway, setting config values")
 	}
 	addrVal := addr.Value.String()
