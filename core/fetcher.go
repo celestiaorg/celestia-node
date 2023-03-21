@@ -21,8 +21,8 @@ var (
 type BlockFetcher struct {
 	client Client
 
-	signedBlockCh chan types.EventDataSignedBlock
-	doneCh        chan struct{}
+	doneCh chan struct{}
+	cancel context.CancelFunc
 }
 
 // NewBlockFetcher returns a new `BlockFetcher`.
@@ -129,63 +129,50 @@ func (f *BlockFetcher) SubscribeNewBlockEvent(ctx context.Context) (<-chan types
 	if !f.client.IsRunning() {
 		return nil, fmt.Errorf("client not running")
 	}
+
+	ctx, cancel := context.WithCancel(ctx)
+	f.cancel = cancel
+	f.doneCh = make(chan struct{})
+
 	eventChan, err := f.client.Subscribe(ctx, newBlockSubscriber, newDataSignedBlockQuery)
 	if err != nil {
 		return nil, err
 	}
 
-	// create a wrapper channel for translating ResultEvent to "raw" block
-	if f.signedBlockCh != nil {
-		return nil, fmt.Errorf("new block event channel exists")
-	}
-
-	f.signedBlockCh = make(chan types.EventDataSignedBlock)
-	f.doneCh = make(chan struct{})
-
+	signedBlockCh := make(chan types.EventDataSignedBlock)
 	go func() {
+		defer close(f.doneCh)
+		defer close(signedBlockCh)
 		for {
 			select {
-			case <-f.doneCh:
+			case <-ctx.Done():
 				return
 			case newEvent, ok := <-eventChan:
 				if !ok {
+					log.Errorw("new blocks subscription channel closed unexpectedly")
 					return
 				}
-				signedBlock, ok := newEvent.Data.(types.EventDataSignedBlock)
-				if !ok {
-					log.Warnf("unexpected event: %v", newEvent)
-					continue
-				}
+				signedBlock := newEvent.Data.(types.EventDataSignedBlock)
 				select {
-				case f.signedBlockCh <- signedBlock:
-				case <-f.doneCh:
+				case signedBlockCh <- signedBlock:
+				case <-ctx.Done():
 					return
 				}
 			}
 		}
 	}()
 
-	return f.signedBlockCh, nil
+	return signedBlockCh, nil
 }
 
 // UnsubscribeNewBlockEvent stops the subscription to new block events from Core.
 func (f *BlockFetcher) UnsubscribeNewBlockEvent(ctx context.Context) error {
-	if f.signedBlockCh == nil {
-		return fmt.Errorf("no new block event channel found")
+	f.cancel()
+	select {
+	case <-f.doneCh:
+	case <-ctx.Done():
+		return fmt.Errorf("unsubscribe from new block events: %w", ctx.Err())
 	}
-	if f.doneCh == nil {
-		return fmt.Errorf("no stop signal chan found in fetcher")
-	}
-	defer func() {
-		// send stop signal
-		f.doneCh <- struct{}{}
-		// close out fetcher channels
-		close(f.signedBlockCh)
-		close(f.doneCh)
-		f.signedBlockCh = nil
-		f.doneCh = nil
-	}()
-
 	return f.client.Unsubscribe(ctx, newBlockSubscriber, newDataSignedBlockQuery)
 }
 
