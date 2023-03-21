@@ -19,7 +19,7 @@ import (
 // ConstructFn aliases a function that creates an ExtendedHeader.
 type ConstructFn = func(
 	context.Context,
-	*core.Block,
+	*core.Header,
 	*core.Commit,
 	*core.ValidatorSet,
 	*rsmt2d.ExtendedDataSquare,
@@ -70,7 +70,7 @@ var _ libhead.Header = &ExtendedHeader{}
 // MakeExtendedHeader assembles new ExtendedHeader.
 func MakeExtendedHeader(
 	ctx context.Context,
-	b *core.Block,
+	h *core.Header,
 	comm *core.Commit,
 	vals *core.ValidatorSet,
 	eds *rsmt2d.ExtendedDataSquare,
@@ -84,7 +84,7 @@ func MakeExtendedHeader(
 	}
 
 	eh := &ExtendedHeader{
-		RawHeader:    b.Header,
+		RawHeader:    *h,
 		DAH:          &dah,
 		Commit:       comm,
 		ValidatorSet: vals,
