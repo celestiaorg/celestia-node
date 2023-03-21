@@ -94,9 +94,9 @@ func (s *PubSub) AddValidator(v ValidatorFn) error {
 }
 
 func (v ValidatorFn) validate(ctx context.Context, p peer.ID, msg *pubsub.Message) pubsub.ValidationResult {
-	var pbmsg pb.EDSAvailableMessage
+	var pbmsg pb.RecentEDSNotification
 	if err := pbmsg.Unmarshal(msg.Data); err != nil {
-		log.Debugw("shrex-push: unmarshal error", "err", err)
+		log.Debugw("validator: unmarshal error", "err", err)
 		return pubsub.ValidationReject
 	}
 
@@ -114,7 +114,7 @@ func (v ValidatorFn) validate(ctx context.Context, p peer.ID, msg *pubsub.Messag
 // Subscribe provides a new Subscription for EDS notifications.
 func (s *PubSub) Subscribe() (*Subscription, error) {
 	if s.topic == nil {
-		return nil, fmt.Errorf("shrex-push: topic is not started")
+		return nil, fmt.Errorf("shrex-sub: topic is not started")
 	}
 	return newSubscription(s.topic)
 }
@@ -126,13 +126,13 @@ func (s *PubSub) Broadcast(ctx context.Context, notification Notification) error
 		return nil
 	}
 
-	msg := pb.EDSAvailableMessage{
+	msg := pb.RecentEDSNotification{
 		Height:   notification.Height,
 		DataHash: notification.DataHash,
 	}
 	data, err := msg.Marshal()
 	if err != nil {
-		return fmt.Errorf("shrex-push: marshal notification")
+		return fmt.Errorf("shrex-sub: marshal notification, %w", err)
 	}
 	return s.topic.Publish(ctx, data)
 }

@@ -1,8 +1,8 @@
 syntax = "proto3";
 
-package share.p2p.shrex.nd;
+package share.p2p.shrex.sub;
 
-message EDSAvailableMessage {
+message RecentEDSNotification {
   int64 height = 1;
   bytes data_hash = 2;
 }

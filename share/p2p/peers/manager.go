@@ -49,8 +49,10 @@ type Manager struct {
 	connGater *conngater.BasicConnectionGater
 
 	// pools collecting peers from shrexSub
-	pools                 map[string]*syncPool
-	firstHeader           int64
+	pools map[string]*syncPool
+	// messages from shrex.Sub with height below initialHeight will be ignored, since we don't need to
+	// track peers for those headers
+	initialHeight         int64
 	poolValidationTimeout time.Duration
 	peerCooldownTime      time.Duration
 	gcInterval            time.Duration
@@ -256,7 +258,7 @@ func (m *Manager) subscribeHeader(ctx context.Context, headerSub libhead.Subscri
 		}
 
 		// store first header for validation purposes
-		atomic.CompareAndSwapInt64(&m.firstHeader, 0, h.Height())
+		atomic.CompareAndSwapInt64(&m.initialHeight, 0, h.Height())
 	}
 }
 
@@ -281,7 +283,7 @@ func (m *Manager) validate(ctx context.Context, peerID peer.ID, msg shrexsub.Not
 		return pubsub.ValidationReject
 	}
 
-	if msg.Height < atomic.LoadInt64(&m.firstHeader) {
+	if msg.Height < atomic.LoadInt64(&m.initialHeight) {
 		// we can use peers from discovery for headers before the first one from headerSub
 		// if we allow pool creation for those headers, there is chance the pool will not be validated in
 		// time and will be false-positively trigger blacklisting of hash and all peers that sent msgs for
@@ -367,7 +369,7 @@ func (m *Manager) cleanUp() []peer.ID {
 	for h, p := range m.pools {
 		if time.Since(p.createdAt) > m.poolValidationTimeout && !p.isValidatedDataHash.Load() {
 			delete(m.pools, h)
-			if p.headerHeight < m.firstHeader {
+			if p.headerHeight < m.initialHeight {
 				continue
 			}
 			log.Debug("blacklisting datahash with all corresponding peers",

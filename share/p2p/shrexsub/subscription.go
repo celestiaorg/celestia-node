@@ -34,10 +34,10 @@ func (subs *Subscription) Next(ctx context.Context) (Notification, error) {
 	}
 
 	log.Debugw("received message", "topic", msg.Message.GetTopic(), "sender", msg.ReceivedFrom)
-	var pbmsg pb.EDSAvailableMessage
+	var pbmsg pb.RecentEDSNotification
 	if err := pbmsg.Unmarshal(msg.Data); err != nil {
 		log.Debugw("unmarshal error", "err", err)
-		return Notification{}, fmt.Errorf("unmarshal: %w", err)
+		return Notification{}, fmt.Errorf("shrex-sub: unmarshal notification, %w", err)
 	}
 	return Notification{
 		DataHash: pbmsg.DataHash,

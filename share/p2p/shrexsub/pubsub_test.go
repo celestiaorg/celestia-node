@@ -35,7 +35,7 @@ func TestPubSub(t *testing.T) {
 		Height:   1,
 	}
 
-	msg := pb.EDSAvailableMessage{
+	msg := pb.RecentEDSNotification{
 		Height:   notification.Height,
 		DataHash: notification.DataHash,
 	}
