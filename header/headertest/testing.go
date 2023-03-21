@@ -22,11 +22,11 @@ import (
 	"golang.org/x/exp/rand"
 
 	"github.com/celestiaorg/celestia-app/pkg/da"
+	libhead "github.com/celestiaorg/go-header"
+	"github.com/celestiaorg/go-header/test"
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/header"
-	libhead "github.com/celestiaorg/celestia-node/libs/header"
-	"github.com/celestiaorg/celestia-node/libs/header/test"
 	"github.com/celestiaorg/celestia-node/share"
 )
 

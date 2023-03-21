@@ -3,9 +3,10 @@ package header
 import (
 	"context"
 
+	libhead "github.com/celestiaorg/go-header"
+	"github.com/celestiaorg/go-header/sync"
+
 	"github.com/celestiaorg/celestia-node/header"
-	libhead "github.com/celestiaorg/celestia-node/libs/header"
-	"github.com/celestiaorg/celestia-node/libs/header/sync"
 )
 
 // Module exposes the functionality needed for querying headers from the network.
