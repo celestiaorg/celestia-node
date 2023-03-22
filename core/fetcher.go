@@ -8,7 +8,7 @@ import (
 	coretypes "github.com/tendermint/tendermint/rpc/core/types"
 	"github.com/tendermint/tendermint/types"
 
-	libhead "github.com/celestiaorg/celestia-node/libs/header"
+	libhead "github.com/celestiaorg/go-header"
 )
 
 const newBlockSubscriber = "NewBlock/Events"

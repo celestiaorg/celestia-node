@@ -7,11 +7,11 @@ import (
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/pkg/wrapper"
+	libhead "github.com/celestiaorg/go-header"
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/libs/fraud"
-	libhead "github.com/celestiaorg/celestia-node/libs/header"
 	pb "github.com/celestiaorg/celestia-node/share/eds/byzantine/pb"
 	"github.com/celestiaorg/celestia-node/share/ipld"
 )

@@ -15,8 +15,8 @@ import (
 	mocknet "github.com/libp2p/go-libp2p/p2p/net/mock"
 	"github.com/stretchr/testify/require"
 
-	"github.com/celestiaorg/celestia-node/libs/header"
-	"github.com/celestiaorg/celestia-node/libs/header/test"
+	"github.com/celestiaorg/go-header"
+	"github.com/celestiaorg/go-header/test"
 )
 
 func TestService_Subscribe(t *testing.T) {

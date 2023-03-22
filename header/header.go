@@ -11,9 +11,8 @@ import (
 	core "github.com/tendermint/tendermint/types"
 
 	"github.com/celestiaorg/celestia-app/pkg/da"
+	libhead "github.com/celestiaorg/go-header"
 	"github.com/celestiaorg/rsmt2d"
-
-	libhead "github.com/celestiaorg/celestia-node/libs/header"
 )
 
 // ConstructFn aliases a function that creates an ExtendedHeader.
