@@ -141,8 +141,8 @@ func (eh *ExtendedHeader) Validate() error {
 
 	// ensure data root from raw header matches computed root
 	if !bytes.Equal(eh.DAH.Hash(), eh.DataHash) {
-		return fmt.Errorf("mismatch between data hash commitment from core header and computed data root: "+
-			"data hash: %X, computed root: %X", eh.DataHash, eh.DAH.Hash())
+		panic(fmt.Sprintf("mismatch between data hash commitment from core header and computed data root "+
+			"at height %d: data hash: %X, computed root: %X", eh.Height(), eh.DataHash, eh.DAH.Hash()))
 	}
 
 	return eh.DAH.ValidateBasic()
