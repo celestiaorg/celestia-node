@@ -81,7 +81,7 @@ Test-Case: Connect Full And Light using Bridge node as a bootstrapper
 Steps:
  1. Create a Bridge Node(BN)
  2. Start a BN
- 3. Create full/light nodes with bridge node as bootsrapped peer
+ 3. Create full/light nodes with bridge node as bootstrapped peer
  4. Start full/light nodes
  5. Ensure that nodes are connected to bridge
  6. Wait until light will find full node
@@ -101,14 +101,14 @@ func TestBootstrapNodesFromBridgeNode(t *testing.T) {
 
 	err := bridge.Start(ctx)
 	require.NoError(t, err)
-	addr := host.InfoFromHost(bridge.Host)
+	bridgeAddr := host.InfoFromHost(bridge.Host)
 
 	cfg = nodebuilder.DefaultConfig(node.Full)
 	setTimeInterval(cfg, defaultTimeInterval)
 	full := sw.NewNodeWithConfig(
 		node.Full,
 		cfg,
-		nodebuilder.WithBootstrappers([]peer.AddrInfo{*addr}),
+		nodebuilder.WithBootstrappers([]peer.AddrInfo{*bridgeAddr}),
 	)
 
 	cfg = nodebuilder.DefaultConfig(node.Light)
@@ -116,7 +116,7 @@ func TestBootstrapNodesFromBridgeNode(t *testing.T) {
 	light := sw.NewNodeWithConfig(
 		node.Light,
 		cfg,
-		nodebuilder.WithBootstrappers([]peer.AddrInfo{*addr}),
+		nodebuilder.WithBootstrappers([]peer.AddrInfo{*bridgeAddr}),
 	)
 	nodes := []*nodebuilder.Node{full, light}
 	ch := make(chan struct{})
@@ -125,8 +125,8 @@ func TestBootstrapNodesFromBridgeNode(t *testing.T) {
 	defer sub.Close()
 	for index := range nodes {
 		require.NoError(t, nodes[index].Start(ctx))
-		assert.Equal(t, *addr, nodes[index].Bootstrappers[0])
-		assert.True(t, nodes[index].Host.Network().Connectedness(addr.ID) == network.Connected)
+		assert.Equal(t, *bridgeAddr, nodes[index].Bootstrappers[0])
+		assert.True(t, nodes[index].Host.Network().Connectedness(bridgeAddr.ID) == network.Connected)
 	}
 	addrFull := host.InfoFromHost(full.Host)
 	go func() {
@@ -182,12 +182,13 @@ func TestRestartNodeDiscovery(t *testing.T) {
 
 	err := bridge.Start(ctx)
 	require.NoError(t, err)
-	addr := host.InfoFromHost(bridge.Host)
+	bridgeAddr := host.InfoFromHost(bridge.Host)
+
 	nodes := make([]*nodebuilder.Node, fullNodes)
 	cfg = nodebuilder.DefaultConfig(node.Full)
 	setTimeInterval(cfg, defaultTimeInterval)
 	cfg.Share.PeersLimit = fullNodes
-	nodesConfig := nodebuilder.WithBootstrappers([]peer.AddrInfo{*addr})
+	nodesConfig := nodebuilder.WithBootstrappers([]peer.AddrInfo{*bridgeAddr})
 	for index := 0; index < fullNodes; index++ {
 		nodes[index] = sw.NewNodeWithConfig(node.Full, cfg, nodesConfig)
 	}
@@ -198,7 +199,7 @@ func TestRestartNodeDiscovery(t *testing.T) {
 
 	for index := 0; index < fullNodes; index++ {
 		require.NoError(t, nodes[index].Start(ctx))
-		assert.True(t, nodes[index].Host.Network().Connectedness(addr.ID) == network.Connected)
+		assert.True(t, nodes[index].Host.Network().Connectedness(bridgeAddr.ID) == network.Connected)
 	}
 
 	// wait until full nodes connect each other
@@ -208,7 +209,7 @@ func TestRestartNodeDiscovery(t *testing.T) {
 	if id != nodes[1].Host.ID() {
 		t.Fatal("unexpected peer connected")
 	}
-	require.True(t, nodes[0].Host.Network().Connectedness(id) == network.Connected)
+	require.True(t, nodes[0].Host.Network().Connectedness(nodes[1].Host.ID()) == network.Connected)
 
 	// create one more node with disabled discovery
 	cfg = nodebuilder.DefaultConfig(node.Full)
