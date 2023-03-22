@@ -73,6 +73,8 @@ func ParseNodeFlags(ctx context.Context, cmd *cobra.Command, network p2p.Network
 			if !errors.Is(err, os.ErrNotExist) {
 				return ctx, err
 			}
+			// config doesn't exist so we create a new one using the defaults
+			cfg = nodebuilder.DefaultConfig(NodeType(ctx))
 		}
 		ctx = WithNodeConfig(ctx, cfg)
 	}
