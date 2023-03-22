@@ -1,0 +1,33 @@
+extensions:
+  health_check:
+
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        # endpoint: "0.0.0.0:4317"
+      http:
+        # endpoint: "0.0.0.0:4318"
+
+exporters:
+  prometheus:
+    endpoint: "otel-collector:8889"
+    namespace: "testground"
+    send_timestamps: true
+    metric_expiration: 1800m 
+  jaeger:
+    endpoint: "jaeger:14250"
+    tls:
+      insecure: true
+
+service:
+  extensions: [health_check]
+  pipelines:
+    metrics:
+      receivers: [otlp]
+      exporters: [prometheus]
+    traces:
+      receivers: [otlp]
+      processors: []
+      exporters: [jaeger]
+    

@@ -1,0 +1,24 @@
+global:
+  scrape_interval: 15s
+  scrape_timeout: 10s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: 'collector'
+    metrics_path: /metrics
+    honor_timestamps: true
+    scrape_interval: 15s
+    scrape_timeout: 10s
+    scheme: http
+    static_configs:
+      - targets:
+        - 'otel-collector:8889'
+  - job_name: 'node'
+    metrics_path: /metrics
+    honor_timestamps: true
+    scrape_interval: 15s
+    scrape_timeout: 10s
+    scheme: http
+    static_configs:
+      - targets:
+        - '178.128.163.171:8890'
