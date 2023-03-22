@@ -75,8 +75,8 @@ type result int
 type syncPool struct {
 	*pool
 
-	// headerHeight is the height of header corresponding to syncpool. 0 value indicates that datahash was validated by receiving corresponding extended
-	// header from headerSub
+	// headerHeight is the height of header corresponding to syncpool. 0 value indicates that datahash
+	// was validated by receiving corresponding extended header from headerSub
 	headerHeight int64
 	// isSynced will be true if DoneFunc was called with ResultSynced. It indicates that given datahash
 	// was synced and peer-manager no longer need to keep peers for it
