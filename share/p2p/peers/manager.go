@@ -52,7 +52,7 @@ type Manager struct {
 	pools map[string]*syncPool
 	// messages from shrex.Sub with height below initialHeight will be ignored, since we don't need to
 	// track peers for those headers
-	initialHeight         int64
+	initialHeight         uint64
 	poolValidationTimeout time.Duration
 	peerCooldownTime      time.Duration
 	gcInterval            time.Duration
@@ -77,7 +77,7 @@ type syncPool struct {
 
 	// headerHeight is the height of header corresponding to syncpool. 0 value indicates that datahash
 	// was validated by receiving corresponding extended header from headerSub
-	headerHeight int64
+	headerHeight uint64
 	// isSynced will be true if DoneFunc was called with ResultSynced. It indicates that given datahash
 	// was synced and peer-manager no longer need to keep peers for it
 	isSynced atomic.Bool
@@ -250,7 +250,7 @@ func (m *Manager) subscribeHeader(ctx context.Context, headerSub libhead.Subscri
 		m.validatedPool(h.DataHash.String())
 
 		// store first header for validation purposes
-		atomic.CompareAndSwapInt64(&m.initialHeight, 0, h.Height())
+		atomic.CompareAndSwapUint64(&m.initialHeight, 0, uint64(h.Height()))
 	}
 }
 
@@ -280,7 +280,7 @@ func (m *Manager) validate(ctx context.Context, peerID peer.ID, msg shrexsub.Not
 		return pubsub.ValidationReject
 	}
 
-	if int64(msg.Height) < atomic.LoadInt64(&m.initialHeight) {
+	if msg.Height < atomic.LoadUint64(&m.initialHeight) {
 		// we can use peers from discovery for headers before the first one from headerSub
 		// if we allow pool creation for those headers, there is chance the pool will not be validated in
 		// time and will be false-positively trigger blacklisting of hash and all peers that sent msgs for
@@ -290,7 +290,7 @@ func (m *Manager) validate(ctx context.Context, peerID peer.ID, msg shrexsub.Not
 	}
 
 	p := m.getOrCreatePool(msg.DataHash.String())
-	p.storeHeight(int64(msg.Height))
+	p.storeHeight(msg.Height)
 	p.add(peerID)
 	log.Debugw("got hash from shrex-sub", "peer", peerID, "datahash", msg.DataHash.String())
 	return pubsub.ValidationIgnore
@@ -342,8 +342,8 @@ func (m *Manager) hashIsBlacklisted(hash share.DataHash) bool {
 
 func (m *Manager) validatedPool(hashStr string) *syncPool {
 	p := m.getOrCreatePool(hashStr)
-	if atomic.SwapInt64(&p.headerHeight, 0) > 0 {
-		log.Debugw("marked validated", "datahash", hashStr)
+	if atomic.SwapUint64(&p.headerHeight, 0) > 0 {
+		log.Debugw("pool marked validated", "datahash", hashStr)
 	}
 	return p
 }
@@ -413,9 +413,9 @@ func (p *syncPool) add(peers ...peer.ID) {
 }
 
 func (p *syncPool) isValidated() bool {
-	return atomic.LoadInt64(&p.headerHeight) == 0
+	return atomic.LoadUint64(&p.headerHeight) == 0
 }
 
-func (p *syncPool) storeHeight(h int64) {
-	atomic.CompareAndSwapInt64(&p.headerHeight, 1, h)
+func (p *syncPool) storeHeight(h uint64) {
+	atomic.CompareAndSwapUint64(&p.headerHeight, 1, h)
 }
