@@ -149,7 +149,7 @@ func (f *BlockFetcher) SubscribeNewBlockEvent(ctx context.Context) (<-chan types
 				return
 			case newEvent, ok := <-eventChan:
 				if !ok {
-					log.Errorw("new blocks subscription channel closed unexpectedly")
+					log.Errorw("fetcher: new blocks subscription channel closed unexpectedly")
 					return
 				}
 				signedBlock := newEvent.Data.(types.EventDataSignedBlock)
@@ -171,7 +171,7 @@ func (f *BlockFetcher) UnsubscribeNewBlockEvent(ctx context.Context) error {
 	select {
 	case <-f.doneCh:
 	case <-ctx.Done():
-		return fmt.Errorf("unsubscribe from new block events: %w", ctx.Err())
+		return fmt.Errorf("fetcher: unsubscribe from new block events: %w", ctx.Err())
 	}
 	return f.client.Unsubscribe(ctx, newBlockSubscriber, newDataSignedBlockQuery)
 }
