@@ -19,7 +19,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/celestiaorg/celestia-app/pkg/wrapper"
-	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/nmt/namespace"
 	"github.com/celestiaorg/rsmt2d"
 
@@ -358,7 +357,7 @@ func TestGetSharesWithProofsByNamespace(t *testing.T) {
 				rcid := ipld.MustCidFromNamespacedSha256(row)
 				rowShares, proof, err := GetSharesByNamespace(ctx, bServ, rcid, nID, len(eds.RowRoots()))
 				require.NoError(t, err)
-				if rowShares != nil {
+				if len(rowShares) > 0 {
 					require.NotNil(t, proof)
 					// append shares to check integrity later
 					shares = append(shares, rowShares...)
@@ -369,23 +368,19 @@ func TestGetSharesWithProofsByNamespace(t *testing.T) {
 						leaves = append(leaves, append(sh[:NamespaceSize], sh...))
 					}
 
-					proofNodes := make([][]byte, 0, len(proof.Nodes))
-					for _, n := range proof.Nodes {
-						proofNodes = append(proofNodes, ipld.NamespacedSha256FromCID(n))
-					}
-
-					// construct new proof
-					inclusionProof := nmt.NewInclusionProof(
-						proof.Start,
-						proof.End,
-						proofNodes,
-						ipld.NMTIgnoreMaxNamespace)
-
-					// verify inclusion
-					verified := inclusionProof.VerifyNamespace(
+					// verify namespace
+					verified := proof.VerifyNamespace(
 						sha256.New(),
 						nID,
 						leaves,
+						ipld.NamespacedSha256FromCID(rcid))
+					require.True(t, verified)
+
+					// verify inclusion
+					verified = proof.VerifyInclusion(
+						sha256.New(),
+						nID,
+						rowShares,
 						ipld.NamespacedSha256FromCID(rcid))
 					require.True(t, verified)
 				}

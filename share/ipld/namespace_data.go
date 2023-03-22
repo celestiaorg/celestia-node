@@ -8,6 +8,7 @@ import (
 	"github.com/ipfs/go-cid"
 	ipld "github.com/ipfs/go-ipld-format"
 
+	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/nmt/namespace"
 )
 
@@ -116,23 +117,30 @@ func (n *NamespaceData) CollectLeaves() []ipld.Node {
 	return n.leaves[n.bounds.lowest : n.bounds.highest+1]
 }
 
-// CollectProofs returns proofs within the bounds in case if `WithProofs` option was passed,
+// CollectProof returns proofs within the bounds in case if `WithProofs` option was passed,
 // otherwise nil will be returned.
-func (n *NamespaceData) CollectProofs() *Proof {
+func (n *NamespaceData) CollectProof() *nmt.Proof {
 	if n.proofs == nil {
 		return nil
 	}
 
 	// return an empty Proof if leaves are not available
 	if n.noLeaves() {
-		return &Proof{}
+		return &nmt.Proof{}
 	}
 
-	return &Proof{
-		Start: int(n.bounds.lowest),
-		End:   int(n.bounds.highest) + 1,
-		Nodes: n.proofs.Nodes(),
+	nodes := make([][]byte, len(n.proofs.Nodes()))
+	for i, node := range n.proofs.Nodes() {
+		nodes[i] = NamespacedSha256FromCID(node)
 	}
+
+	proof := nmt.NewInclusionProof(
+		int(n.bounds.lowest),
+		int(n.bounds.highest)+1,
+		nodes,
+		NMTIgnoreMaxNamespace,
+	)
+	return &proof
 }
 
 type fetchedBounds struct {

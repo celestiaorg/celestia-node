@@ -7,6 +7,7 @@ import (
 	"github.com/ipfs/go-cid"
 	format "github.com/ipfs/go-ipld-format"
 
+	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/nmt/namespace"
 
 	"github.com/celestiaorg/celestia-node/share/ipld"
@@ -50,7 +51,7 @@ func GetSharesByNamespace(
 	root cid.Cid,
 	nID namespace.ID,
 	maxShares int,
-) ([]Share, *ipld.Proof, error) {
+) ([]Share, *nmt.Proof, error) {
 	ctx, span := tracer.Start(ctx, "get-shares-by-namespace")
 	defer span.End()
 
@@ -68,7 +69,7 @@ func GetSharesByNamespace(
 			shares[i] = leafToShare(leaf)
 		}
 	}
-	return shares, data.CollectProofs(), err
+	return shares, data.CollectProof(), err
 }
 
 // leafToShare converts an NMT leaf into a Share.
