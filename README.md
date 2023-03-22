@@ -24,7 +24,9 @@ Continue reading [here](https://blog.celestia.org/celestia-mvp-release-data-avai
   - [API docs](#api-docs)
   - [Node types](#node-types)
   - [Run a node](#run-a-node)
-    - [Environment variables](#environment-variables)
+  - [Run local telemetry infrastructure](#run-local-telemetry-infrastructure)
+    - [Visualizing the metrics](#visualizing-the-metrics)
+  - [Environment variables](#environment-variables)
   - [Package-specific documentation](#package-specific-documentation)
   - [Code of Conduct](#code-of-conduct)
 
@@ -67,17 +69,37 @@ More information can be found [here](https://github.com/celestiaorg/celestia-nod
 
 ## Run a node
 
-`<node_type>` can be `bridge`, `full` or `light`.
-
+To run a celestia node, you have to first initialize it:
 ```sh
 celestia <node_type> init
 ```
 
+second, start it:
 ```sh
 celestia <node_type> start
 ```
+`<node_type>` can be: `bridge`, `full` or `light`.
 
-### Environment variables
+## Run local telemetry infrastructure
+If you don't have an already running telemetry infrastructure, you can use the one provided in this repo.
+To run it, you need to have `docker` and `docker-compose` installed. Then, you can run the following command:
+
+```sh
+$ make telemetry-infra-up
+```
+To bring it down:
+```
+$ make telemetry-infra-down
+```
+
+Then simply provide `127.0.0.1:4318` as the `METRICS_ENDPOINT` and `TRACING_ENDPOINT` when running the node.
+
+### Visualizing the metrics
+
+Head over to your local instance of [Grafana](http://localhost:3000) and login with the default credentials `admin:admin`.
+Then, import the [dashboard](./telemetry/grafana/dashboards.json) and you should be able to see the metrics.
+
+## Environment variables
 
 | Variable                | Explanation                         | Default value | Required |
 | ----------------------- | ----------------------------------- | ------------- | -------- |

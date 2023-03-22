@@ -1,5 +1,6 @@
 SHELL=/usr/bin/env bash
 PROJECTNAME=$(shell basename "$(PWD)")
+DIR_FULLPATH=$(shell pwd)
 LDFLAGS=-ldflags="-X 'main.buildTime=$(shell date)' -X 'main.lastCommit=$(shell git rev-parse HEAD)' -X 'main.semanticVersion=$(shell git describe --tags --dirty=-dev)'"
 ifeq (${PREFIX},)
 	PREFIX := /usr/local
@@ -162,6 +163,28 @@ lint-imports:
     done;
 .PHONY: lint-imports
 
-sort-imports:
-	@goimports-reviser -company-prefixes "github.com/celestiaorg"  -project-name "github.com/celestiaorg/celestia-node" -output stdout ./...
-.PHONY: sort-imports
+## telemetry-infra-up: launches the telemetry infrastructure up
+telemetry-infra-up: check-docker check-docker-compose
+	PWD="${DIR_FULLPATH}/docker/telemetry" docker-compose -f ./docker/telemetry/docker-compose.yml up
+.PHONY: telemetry-infra-up
+
+## telemetry-infra-up: launches the telemetry infrastructure up
+telemetry-infra-down: check-docker check-docker-compose
+	PWD="${DIR_FULLPATH}/docker/telemetry" docker-compose -f ./docker/telemetry/docker-compose.yml down
+.PHONY: telemetry-infra-down
+
+## check-docker: Check if docker is installed on the machine
+check-docker:
+ifeq (,$(shell which docker))	
+	@echo "docker is not installed, you must install docker first."
+	exit 1;
+endif
+.PHONY: check-go
+
+## check-docker: Check if docker is installed on the machine
+check-docker-compose:
+ifeq (,$(shell which docker-compose))	
+	@echo "docker-compose is not installed, you must install it first."
+	exit 1;
+endif
+.PHONY: check-go
