@@ -25,7 +25,8 @@ Continue reading [here](https://blog.celestia.org/celestia-mvp-release-data-avai
   - [Node types](#node-types)
   - [Run a node](#run-a-node)
   - [Run using Docker](#run-using-docker)
-    - [Environment variables](#environment-variables)
+  - [Run a monitored node](#run-a-monitored-node)
+  - [Environment variables](#environment-variables)
   - [Package-specific documentation](#package-specific-documentation)
   - [Code of Conduct](#code-of-conduct)
 
@@ -68,15 +69,16 @@ More information can be found [here](https://github.com/celestiaorg/celestia-nod
 
 ## Run a node
 
-`<node_type>` can be `bridge`, `full` or `light`.
-
+To run a celestia node, you have to first initialize it:
 ```sh
 celestia <node_type> init
 ```
 
+second, start it:
 ```sh
 celestia <node_type> start
 ```
+`<node_type>` can be: `bridge`, `full` or `light`.
 
 ## Run using Docker
 
@@ -115,7 +117,22 @@ make docker-run \
     GRPC_PORT=9092 \
     GATEWAY_PORT=26661
 ```
-### Environment variables
+
+## Run a monitored node
+If you want to run a node with monitoring enabled, you will have to specify so in the `docker-run` make target as follows:
+```
+$ make docker-run \
+    NODE={NODE_TYPE} \
+    NETWORK={NETWORK} \
+    ENABLE_METRICS=true \
+    METRICS_ENDPOINT={METRICS_ENDPOINT} \
+    ENABLE_TRACING=true \
+    TRACING_ENDPOINT={TRACING_ENDPOINT}
+```
+Note that you can enable `metrics` and `tracing` separately. For each one of them, you have to specify their corresponding endpoint.
+Both the `METRICS_ENDPOINT` and `TRACING_ENDPOINT` should be an open telemetry otel-collector's endpoint.
+
+## Environment variables
 
 | Variable                | Explanation                         | Default value | Required |
 | ----------------------- | ----------------------------------- | ------------- | -------- |

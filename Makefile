@@ -1,5 +1,6 @@
 SHELL=/usr/bin/env bash
 PROJECTNAME=$(shell basename "$(PWD)")
+DIR_FULLPATH=$(shell pwd)
 LDFLAGS=-ldflags="-X 'main.buildTime=$(shell date)' -X 'main.lastCommit=$(shell git rev-parse HEAD)' -X 'main.semanticVersion=$(shell git describe --tags --dirty=-dev)'"
 ifeq (${PREFIX},)
 	PREFIX := /usr/local
@@ -154,6 +155,20 @@ openrpc-gen:
 	@go run ./cmd/docgen fraud header state share das p2p node
 .PHONY: openrpc-gen
 
+# @echo "--> Cleaning up existing (dead) containers"
+# 	@docker rm --force celestia_${NETWORK}_${NODE}_node
+lint-imports:
+	@echo "--> Running imports linter"
+	@for file in `find . -type f -name '*.go'`; \
+		do goimports-reviser -list-diff -set-exit-status -company-prefixes "github.com/celestiaorg"  -project-name "github.com/celestiaorg/celestia-node" -output stdout $$file \
+		 || exit 1;  \
+    done;
+.PHONY: lint-imports
+
+sort-imports:
+	@goimports-reviser -company-prefixes "github.com/celestiaorg"  -project-name "github.com/celestiaorg/celestia-node" -output stdout ./...
+.PHONY: sort-imports
+
 ## docker-build: Build a docker image for celestia-node.
 docker-build:
 	@echo "--> Building docker image"
@@ -174,12 +189,14 @@ CONTAINER_NAME=celestia_${NETWORK}_${NODE}_node
 # you will have to specify different values for them explicitly for the other node types you want to run
 docker-run:
 	@echo "--> Running node using Docker, type=${NODE}, network=${NETWORK}"
-ifeq (,"$(GRPC_PORT)")	
-	GRPC_PORT := 9090
+ifeq (,$(GRPC_PORT))
+	$(eval GRPC_PORT := 9090)
+	@echo "--> No GRPC_PORT specified, using default value ${GRPC_PORT}"
 endif
 
-ifeq (,"$(GATEWAY_PORT)")
-	GATEWAY_PORT = 26659
+ifeq (,$(GATEWAY_PORT))
+	$(eval GATEWAY_PORT := 26659)
+	@echo "--> No GRPC_PORT specified, using default value ${GATEWAY_PORT}"
 endif
 
 ifeq (true, $(ENABLE_METRICS))
@@ -195,10 +212,8 @@ ifeq (,$(TRACES_ENDPOINT))
 	exit 1
 endif
 endif
-
 	@echo "--> Using GRPC_PORT=${GRPC_PORT} and GATEWAY_PORT=${GATEWAY_PORT}"
 	@echo "--> Checking if container $(CONTAINER_NAME) is running"
-
 ifneq (, $(shell docker inspect -f '{{.Id}}' ${CONTAINER_NAME} 2>/dev/null))
 	@echo "--> Container $(CONTAINER_NAME) is already running"
 	@echo "--> Do you which to stop it and run a new one? [y/N]: "
@@ -227,24 +242,16 @@ endif
 			--p2p.network ${NETWORK} \
 			--core.ip https://limani.celestia-devops.dev \
 			--core.grpc.port ${GRPC_PORT} \
-			--gateway \
-			--gateway.addr 127.0.0.1 \
+			--gateway --gateway.addr 127.0.0.1 \
 			--gateway.port ${GATEWAY_PORT} \
 			--metrics ${ENABLE_METRICS} --metrics.tls=false \
 			--metrics.endpoint ${METRICS_ENDPOINT} \
 			--tracing ${ENABLE_TRACES} \
 			--tracing.endpoint ${TRACES_ENDPOINT}
 
-# @echo "--> Cleaning up existing (dead) containers"
-# 	@docker rm --force celestia_${NETWORK}_${NODE}_node
-lint-imports:
-	@echo "--> Running imports linter"
-	@for file in `find . -type f -name '*.go'`; \
-		do goimports-reviser -list-diff -set-exit-status -company-prefixes "github.com/celestiaorg"  -project-name "github.com/celestiaorg/celestia-node" -output stdout $$file \
-		 || exit 1;  \
-    done;
-.PHONY: lint-imports
-
-sort-imports:
-	@goimports-reviser -company-prefixes "github.com/celestiaorg"  -project-name "github.com/celestiaorg/celestia-node" -output stdout ./...
-.PHONY: sort-imports
+## docker-cleanup: Remove all running and stopped nodes using Docker.
+docker-cleanup:
+	$(eval CONTAINERS := $(shell docker ps -a -q --filter name=celestia_))
+	@echo "--> Removing all celestia nodes containers"
+	@docker rm -f ${CONTAINERS}
+.PHONY: docker-cleanup
