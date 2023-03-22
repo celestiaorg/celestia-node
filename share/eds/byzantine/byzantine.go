@@ -7,8 +7,9 @@ import (
 	"github.com/ipfs/go-blockservice"
 
 	"github.com/celestiaorg/celestia-app/pkg/da"
-	"github.com/celestiaorg/celestia-node/share/ipld"
 	"github.com/celestiaorg/rsmt2d"
+
+	"github.com/celestiaorg/celestia-node/share/ipld"
 )
 
 // ErrByzantine is a thrown when recovered data square is not correct

@@ -7,8 +7,9 @@ import (
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	"github.com/tendermint/tendermint/types"
 
+	libhead "github.com/celestiaorg/go-header"
+
 	"github.com/celestiaorg/celestia-node/header"
-	libhead "github.com/celestiaorg/celestia-node/libs/header"
 	"github.com/celestiaorg/celestia-node/share/eds"
 	"github.com/celestiaorg/celestia-node/share/p2p/shrexsub"
 )
@@ -75,7 +76,7 @@ func (cl *Listener) Stop(ctx context.Context) error {
 // listen kicks off a loop, listening for new block events from Core,
 // generating ExtendedHeaders and broadcasting them to the header-sub
 // gossipsub network.
-func (cl *Listener) listen(ctx context.Context, sub <-chan *types.Block) {
+func (cl *Listener) listen(ctx context.Context, sub <-chan types.EventDataSignedBlock) {
 	defer log.Info("listener: listening stopped")
 	for {
 		select {
@@ -83,16 +84,11 @@ func (cl *Listener) listen(ctx context.Context, sub <-chan *types.Block) {
 			if !ok {
 				return
 			}
+			log.Debugw("listener: new block from core", "height", b.Header.Height)
 
 			syncing, err := cl.fetcher.IsSyncing(ctx)
 			if err != nil {
 				log.Errorw("listener: getting sync state", "err", err)
-				return
-			}
-
-			comm, vals, err := cl.fetcher.GetBlockInfo(ctx, &b.Height)
-			if err != nil {
-				log.Errorw("listener: getting block info", "err", err)
 				return
 			}
 
@@ -103,13 +99,14 @@ func (cl *Listener) listen(ctx context.Context, sub <-chan *types.Block) {
 				return
 			}
 			// generate extended header
-			eh, err := cl.construct(ctx, b, comm, vals, eds)
+			eh, err := cl.construct(ctx, &b.Header, &b.Commit, &b.ValidatorSet, eds)
 			if err != nil {
 				log.Errorw("listener: making extended header", "err", err)
 				return
 			}
+
 			// attempt to store block data if not empty
-			err = storeEDS(ctx, eh.DAH.Hash(), eds, cl.store)
+			err = storeEDS(ctx, b.Header.DataHash.Bytes(), eds, cl.store)
 			if err != nil {
 				log.Errorw("listener: storing EDS", "err", err)
 				return
@@ -117,17 +114,19 @@ func (cl *Listener) listen(ctx context.Context, sub <-chan *types.Block) {
 
 			// notify network of new EDS hash only if core is already synced
 			if !syncing {
-				err = cl.hashBroadcaster(ctx, eh.DataHash.Bytes())
+				err = cl.hashBroadcaster(ctx, b.Header.DataHash.Bytes())
 				if err != nil {
-					log.Errorw("listener: broadcasting data hash", "height", eh.Height(),
-						"hash", eh.Hash(), "err", err)
+					log.Errorw("listener: broadcasting data hash",
+						"height", b.Header.Height,
+						"hash", b.Header.Hash(), "err", err) //TODO: hash or datahash?
 				}
 			}
 
 			// broadcast new ExtendedHeader, but if core is still syncing, notify only local subscribers
 			err = cl.headerBroadcaster.Broadcast(ctx, eh, pubsub.WithLocalPublication(syncing))
 			if err != nil {
-				log.Errorw("listener: broadcasting next header", "height", eh.Height(),
+				log.Errorw("listener: broadcasting next header",
+					"height", b.Header.Height,
 					"err", err)
 			}
 		case <-ctx.Done():

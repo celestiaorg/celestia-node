@@ -7,12 +7,12 @@ import (
 	"sync"
 	"time"
 
-	"github.com/celestiaorg/celestia-node/share/p2p/shrexsub"
-
 	"go.uber.org/multierr"
 
+	libhead "github.com/celestiaorg/go-header"
+
 	"github.com/celestiaorg/celestia-node/header"
-	libhead "github.com/celestiaorg/celestia-node/libs/header"
+	"github.com/celestiaorg/celestia-node/share/p2p/shrexsub"
 )
 
 type worker struct {
@@ -70,26 +70,20 @@ func (w *worker) run(ctx context.Context, timeout time.Duration, resultCh chan<-
 
 	for curr := w.state.From; curr <= w.state.To; curr++ {
 		err := w.sample(ctx, timeout, curr)
-		if err != nil {
-			if errors.Is(err, context.Canceled) {
-				// sampling worker will resume upon restart
-				break
-			}
-			w.setResult(curr, err)
-			continue
+		w.setResult(curr, err)
+		if errors.Is(err, context.Canceled) {
+			// sampling worker will resume upon restart
+			break
 		}
 	}
 
-	if w.state.Curr > w.state.From {
-		jobTime := time.Since(jobStart)
-		log.Infow(
-			"sampled headers",
-			"from", w.state.From,
-			"to", w.state.Curr,
-			"finished (s)",
-			jobTime.Seconds(),
-		)
-	}
+	log.Infow(
+		"finished sampling headers",
+		"from", w.state.From,
+		"to", w.state.Curr,
+		"errors", len(w.state.failed),
+		"finished (s)", time.Since(jobStart),
+	)
 
 	select {
 	case resultCh <- result{

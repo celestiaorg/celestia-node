@@ -137,8 +137,10 @@ func TestPool(t *testing.T) {
 		p.remove(peers[2])
 		require.Equal(t, len(peers)-3, p.activeCount)
 		require.Equal(t, len(peers)-3, len(p.statuses))
-		// nextIdx pointer should be updated
-		require.Equal(t, 0, p.nextIdx)
+
+		// nextIdx pointer should be updated after next tryGet
+		p.tryGet()
+		require.Equal(t, 1, p.nextIdx)
 	})
 
 	t.Run("cooldown blocks get", func(t *testing.T) {

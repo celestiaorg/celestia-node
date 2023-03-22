@@ -11,8 +11,8 @@ import (
 	gomock "github.com/golang/mock/gomock"
 
 	header "github.com/celestiaorg/celestia-node/header"
-	header0 "github.com/celestiaorg/celestia-node/libs/header"
-	sync "github.com/celestiaorg/celestia-node/libs/header/sync"
+	header0 "github.com/celestiaorg/go-header"
+	sync "github.com/celestiaorg/go-header/sync"
 )
 
 // MockModule is a mock of Module interface.

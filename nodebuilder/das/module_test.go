@@ -19,7 +19,7 @@ func TestConstructModule_DASBridgeStub(t *testing.T) {
 
 	var mod Module
 
-	cfg := DefaultConfig()
+	cfg := DefaultConfig(node.Bridge)
 	app := fxtest.New(t,
 		ConstructModule(node.Bridge, &cfg),
 		fx.Populate(&mod)).

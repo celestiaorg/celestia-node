@@ -5,8 +5,9 @@ import (
 	"sync"
 	"time"
 
+	libhead "github.com/celestiaorg/go-header"
+
 	"github.com/celestiaorg/celestia-node/header"
-	libhead "github.com/celestiaorg/celestia-node/libs/header"
 	"github.com/celestiaorg/celestia-node/share/p2p/shrexsub"
 )
 
@@ -62,9 +63,6 @@ func newSamplingCoordinator(
 
 func (sc *samplingCoordinator) run(ctx context.Context, cp checkpoint) {
 	sc.state.resumeFromCheckpoint(cp)
-
-	// the amount of sampled headers from the last checkpoint
-	sc.metrics.recordTotalSampled(cp.totalSampled())
 
 	// resume workers
 	for _, wk := range cp.Workers {

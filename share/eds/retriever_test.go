@@ -17,9 +17,9 @@ import (
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/rsmt2d"
 
-	"github.com/celestiaorg/celestia-node/fraud"
 	"github.com/celestiaorg/celestia-node/header"
-	"github.com/celestiaorg/celestia-node/headertest"
+	"github.com/celestiaorg/celestia-node/header/headertest"
+	"github.com/celestiaorg/celestia-node/libs/fraud"
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/eds/byzantine"
 	"github.com/celestiaorg/celestia-node/share/ipld"
@@ -157,7 +157,7 @@ func generateByzantineError(
 	h, err := store.GetByHeight(ctx, 1)
 	require.NoError(t, err)
 
-	faultHeader, _ := headertest.CreateFraudExtHeader(t, h, bServ)
+	faultHeader, _ := headertest.CreateFraudExtHeader(t, h.(*header.ExtendedHeader), bServ)
 	_, err = NewRetriever(bServ).Retrieve(ctx, faultHeader.DAH)
 	return faultHeader, err
 }

@@ -2,18 +2,22 @@ package p2p
 
 import (
 	"context"
+	"fmt"
+	"net"
 	"time"
 
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	pubsub_pb "github.com/libp2p/go-libp2p-pubsub/pb"
+	"github.com/libp2p/go-libp2p-pubsub/timecache"
 	hst "github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/libp2p/go-libp2p/core/protocol"
 	"go.uber.org/fx"
 	"golang.org/x/crypto/blake2b"
 
-	"github.com/celestiaorg/celestia-node/fraud"
-	headp2p "github.com/celestiaorg/celestia-node/libs/header/p2p"
+	headp2p "github.com/celestiaorg/go-header/p2p"
+
+	"github.com/celestiaorg/celestia-node/libs/fraud"
 )
 
 func init() {
@@ -40,11 +44,13 @@ func pubSub(cfg Config, params pubSubParams) (*pubsub.PubSub, error) {
 		return nil, err
 	}
 
-	isBootstrapper := cfg.Bootstrapper
+	isBootstrapper := isBootstrapper()
+
 	if isBootstrapper {
 		// Turn off the mesh in bootstrappers as per:
 		//
-		// https://github.com/libp2p/specs/blob/master/pubsub/gossipsub/gossipsub-v1.1.md#recommendations-for-network-operators
+		//
+		//https://github.com/libp2p/specs/blob/master/pubsub/gossipsub/gossipsub-v1.1.md#recommendations-for-network-operators
 		pubsub.GossipSubD = 0
 		pubsub.GossipSubDscore = 0
 		pubsub.GossipSubDlo = 0
@@ -61,13 +67,18 @@ func pubSub(cfg Config, params pubSubParams) (*pubsub.PubSub, error) {
 	//  * lotus
 	//  * prysm
 	topicScores := topicScoreParams(params.Network)
-	peerScores := peerScoreParams(isBootstrapper, params.Bootstrappers)
+	peerScores, err := peerScoreParams(isBootstrapper, params.Bootstrappers, cfg)
+	if err != nil {
+		return nil, err
+	}
+
 	peerScores.Topics = topicScores
 	scoreThresholds := peerScoreThresholds()
 
 	opts := []pubsub.Option{
+		pubsub.WithSeenMessagesStrategy(timecache.Strategy_LastSeen),
 		pubsub.WithPeerScore(peerScores, scoreThresholds),
-		pubsub.WithPeerExchange(cfg.PeerExchange || cfg.Bootstrapper),
+		pubsub.WithPeerExchange(cfg.PeerExchange || isBootstrapper),
 		pubsub.WithDirectPeers(fpeers),
 		pubsub.WithMessageIdFn(hashMsgID),
 		// specifying sub protocol helps to avoid conflicts with
@@ -108,10 +119,19 @@ func topicScoreParams(network Network) map[string]*pubsub.TopicScoreParams {
 	return mp
 }
 
-func peerScoreParams(isBootstrapper bool, bootstrappers Bootstrappers) *pubsub.PeerScoreParams {
+func peerScoreParams(isBootstrapper bool, bootstrappers Bootstrappers, cfg Config) (*pubsub.PeerScoreParams, error) {
 	bootstrapperSet := map[peer.ID]struct{}{}
 	for _, b := range bootstrappers {
 		bootstrapperSet[b.ID] = struct{}{}
+	}
+
+	ipColocFactWl := make([]*net.IPNet, 0, len(cfg.IPColocationWhitelist))
+	for _, strIP := range cfg.IPColocationWhitelist {
+		_, ipNet, err := net.ParseCIDR(strIP)
+		if err != nil {
+			return nil, fmt.Errorf("error while parsing whitelist collocation CIDR string: %w", err)
+		}
+		ipColocFactWl = append(ipColocFactWl, ipNet)
 	}
 
 	// See
@@ -136,8 +156,7 @@ func peerScoreParams(isBootstrapper bool, bootstrappers Bootstrappers) *pubsub.P
 		// The aim is to protect the PubSub from naive bots collocated on the same machine/datacenter
 		IPColocationFactorThreshold: 10,
 		IPColocationFactorWeight:    -100,
-		// TODO(@Wondertan): Make this configurable, e.g. we might have Testground bots for testing purposes
-		IPColocationFactorWhitelist: nil,
+		IPColocationFactorWhitelist: ipColocFactWl,
 
 		BehaviourPenaltyThreshold: 6,
 		BehaviourPenaltyWeight:    -10,
@@ -149,7 +168,7 @@ func peerScoreParams(isBootstrapper bool, bootstrappers Bootstrappers) *pubsub.P
 
 		// this retains *non-positive* scores for 6 hours
 		RetainScore: 6 * time.Hour,
-	}
+	}, nil
 }
 
 func peerScoreThresholds() *pubsub.PeerScoreThresholds {

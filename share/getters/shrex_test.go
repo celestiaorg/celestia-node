@@ -13,13 +13,13 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/celestiaorg/celestia-app/pkg/da"
+	"github.com/celestiaorg/nmt/namespace"
+	"github.com/celestiaorg/rsmt2d"
+
 	"github.com/celestiaorg/celestia-node/share"
 	availability_test "github.com/celestiaorg/celestia-node/share/availability/test"
 	"github.com/celestiaorg/celestia-node/share/eds"
 	"github.com/celestiaorg/celestia-node/share/p2p/shrexnd"
-
-	"github.com/celestiaorg/nmt/namespace"
-	"github.com/celestiaorg/rsmt2d"
 )
 
 func TestGetSharesWithProofByNamespace(t *testing.T) {
@@ -44,7 +44,8 @@ func TestGetSharesWithProofByNamespace(t *testing.T) {
 
 	// create server and register handler
 	srvHost := net.NewTestNode().Host
-	srv, err := shrexnd.NewServer(srvHost, edsStore, NewIPLDGetter(bServ))
+	params := shrexnd.DefaultParameters()
+	srv, err := shrexnd.NewServer(params, srvHost, edsStore, NewIPLDGetter(bServ))
 	require.NoError(t, err)
 	err = srv.Start(ctx)
 	require.NoError(t, err)
@@ -54,7 +55,7 @@ func TestGetSharesWithProofByNamespace(t *testing.T) {
 	})
 
 	// create client and connect it to server
-	client, err := shrexnd.NewClient(net.NewTestNode().Host)
+	client, err := shrexnd.NewClient(params, net.NewTestNode().Host)
 	require.NoError(t, err)
 	net.ConnectAll()
 
