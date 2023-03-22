@@ -44,6 +44,8 @@ func TestMismatchedDataHash_ComputedRoot(t *testing.T) {
 
 	header.DataHash = rand.Bytes(32)
 
-	err := header.Validate()
-	assert.ErrorContains(t, err, "mismatch between data hash")
+	panicFn := func() {
+		header.Validate() //nolint:errcheck
+	}
+	assert.Panics(t, panicFn)
 }
