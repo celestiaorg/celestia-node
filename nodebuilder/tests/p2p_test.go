@@ -113,6 +113,7 @@ func TestBootstrapNodesFromBridgeNode(t *testing.T) {
 
 	cfg = nodebuilder.DefaultConfig(node.Light)
 	setTimeInterval(cfg, defaultTimeInterval)
+	cfg.P2P.PeerExchange = true
 	light := sw.NewNodeWithConfig(
 		node.Light,
 		cfg,
@@ -138,12 +139,8 @@ func TestBootstrapNodesFromBridgeNode(t *testing.T) {
 		}
 	}()
 
-	select {
-	case <-ctx.Done():
-		t.Fatal("peer was not found")
-	case <-ch:
-		assert.True(t, light.Host.Network().Connectedness(addrFull.ID) == network.Connected)
-	}
+	// ensure that the light node is connected to the full node
+	assert.True(t, light.Host.Network().Connectedness(addrFull.ID) == network.Connected)
 
 	sw.Disconnect(t, light.Host.ID(), full.Host.ID())
 	require.NoError(t, full.Stop(ctx))
@@ -193,22 +190,12 @@ func TestRestartNodeDiscovery(t *testing.T) {
 		nodes[index] = sw.NewNodeWithConfig(node.Full, cfg, nodesConfig)
 	}
 
-	identitySub, err := nodes[0].Host.EventBus().Subscribe(&event.EvtPeerIdentificationCompleted{})
-	require.NoError(t, err)
-	defer identitySub.Close()
-
 	for index := 0; index < fullNodes; index++ {
 		require.NoError(t, nodes[index].Start(ctx))
 		assert.True(t, nodes[index].Host.Network().Connectedness(bridgeAddr.ID) == network.Connected)
 	}
 
-	// wait until full nodes connect each other
-	e := <-identitySub.Out()
-	connStatus := e.(event.EvtPeerIdentificationCompleted)
-	id := connStatus.Peer
-	if id != nodes[1].Host.ID() {
-		t.Fatal("unexpected peer connected")
-	}
+	// ensure full nodes are connected to each other
 	require.True(t, nodes[0].Host.Network().Connectedness(nodes[1].Host.ID()) == network.Connected)
 
 	// create one more node with disabled discovery
@@ -221,20 +208,9 @@ func TestRestartNodeDiscovery(t *testing.T) {
 	defer connectSub.Close()
 	sw.Disconnect(t, nodes[0].Host.ID(), nodes[1].Host.ID())
 	require.NoError(t, node.Start(ctx))
-	for {
-		select {
-		case <-ctx.Done():
-			require.True(t, nodes[0].Host.Network().Connectedness(node.Host.ID()) == network.Connected)
-			return
-		case conn := <-connectSub.Out():
-			status := conn.(event.EvtPeerConnectednessChanged)
-			if status.Peer != node.Host.ID() {
-				continue
-			}
-			require.True(t, status.Connectedness == network.Connected)
-			return
-		}
-	}
+
+	// ensure that the last node is connected to one of the nodes
+	require.True(t, nodes[0].Host.Network().Connectedness(node.Host.ID()) == network.Connected)
 }
 
 func setTimeInterval(cfg *nodebuilder.Config, interval time.Duration) {
