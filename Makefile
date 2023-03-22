@@ -155,26 +155,66 @@ openrpc-gen:
 	@go run ./cmd/docgen fraud header state share das p2p node
 .PHONY: openrpc-gen
 
+## docker-build: Build a docker image for celestia-node.
 docker-build:
 	@echo "--> Building docker image"
-	@docker buildx build \
+	@docker build \
 		-f ./Dockerfile \
-		--platform linux/amd64,linux/arm64 \
 		-t celestiaorg/celestia-node:latest \
 		./
 .PHONY: docker-build
 
+# Makefile variables have to be defined outside of the target
+# this variable won't be used and will ignored when not using this specific target
+# so it won't cause no harm
+CONTAINER_NAME=celestia_${NETWORK}_${NODE}_node
+
+## docker-run: Run a node using Docker. NODE and NETWORK are required. GRPC_PORT and GATEWAY_PORT are optional.
+# Example: make docker-run NODE=full NETWORK=arabica
+# when you have already ran a node without default values for GRPC_PORT and GATEWAY_PORT
+# you will have to specify different values for them explicitly for the other node types you want to run
 docker-run:
 	@echo "--> Running node using Docker, type=${NODE}, network=${NETWORK}"
 ifeq (,"$(GRPC_PORT)")	
 	GRPC_PORT := 9090
 endif
+
 ifeq (,"$(GATEWAY_PORT)")
 	GATEWAY_PORT = 26659
 endif
+
+ifeq (true, $(ENABLE_METRICS))
+ifeq (,$(METRICS_ENDPOINT))
+	@echo "--> [ERROR]: Please specify a metrics endpoint through the METRICS_ENDPOINT env var"
+	exit 1
+endif
+endif
+
+ifeq (true, $(ENABLE_TRACES))
+ifeq (,$(TRACES_ENDPOINT))
+	@echo "--> [ERROR]: Please specify a traces endpoint through the TRACES_ENDPOINT env var"
+	exit 1
+endif
+endif
+
 	@echo "--> Using GRPC_PORT=${GRPC_PORT} and GATEWAY_PORT=${GATEWAY_PORT}"
-	@echo "--> Cleaning up existing (dead) containers"
-	@docker rm --force celestia_${NETWORK}_${NODE}_node
+	@echo "--> Checking if container $(CONTAINER_NAME) is running"
+
+ifneq (, $(shell docker inspect -f '{{.Id}}' ${CONTAINER_NAME} 2>/dev/null))
+	@echo "--> Container $(CONTAINER_NAME) is already running"
+	@echo "--> Do you which to stop it and run a new one? [y/N]: "
+	@read -r answer; \
+	if [ "$$answer" == "y" ]; then \
+		echo "--> Stopping and removing previous version of container $(CONTAINER_NAME)"; \
+		docker stop $(CONTAINER_NAME); \
+		docker rm $(CONTAINER_NAME); \
+	else \
+		echo "--> Exiting..."; \
+		exit 1; \
+	fi;
+else
+	@echo "--> No previous version of container $(CONTAINER_NAME) were found"
+endif
 	@echo "--> Starting...."
 	@docker run -itd \
 		-p "${GRPC_PORT}:9090" \
@@ -184,13 +224,17 @@ endif
 		--network bridge \
 		--name celestia_${NETWORK}_${NODE}_node \
 		celestiaorg/celestia-node:latest \
-		celestia ${NODE} start \
+	celestia ${NODE} start \
+			--p2p.network ${NETWORK} \
 			--core.ip https://limani.celestia-devops.dev \
 			--core.grpc.port ${GRPC_PORT} \
-			--keyring.accname "${NETWORK}-tn-key" \
 			--gateway \
 			--gateway.addr 127.0.0.1 \
 			--gateway.port ${GATEWAY_PORT} \
-			--p2p.network ${NETWORK} \
-			--metrics --metrics.tls=false \
-			--metrics.endpoint 178.128.163.171:4318 \
+			--metrics ${ENABLE_METRICS} --metrics.tls=false \
+			--metrics.endpoint ${METRICS_ENDPOINT} \
+			--tracing ${ENABLE_TRACES} \
+			--tracing.endpoint ${TRACES_ENDPOINT}
+
+# @echo "--> Cleaning up existing (dead) containers"
+# 	@docker rm --force celestia_${NETWORK}_${NODE}_node
