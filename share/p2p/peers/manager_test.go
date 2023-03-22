@@ -45,7 +45,7 @@ func TestManager(t *testing.T) {
 		require.NoError(t, err)
 
 		// check validation
-		require.True(t, manager.pools[h.DataHash.String()].isValidatedDataHash.Load())
+		require.True(t, manager.pools[h.DataHash.String()].isValidated())
 		stopManager(t, manager)
 	})
 
@@ -69,7 +69,7 @@ func TestManager(t *testing.T) {
 		require.Equal(t, peerID, pID)
 
 		// check pool validation
-		require.True(t, manager.getOrCreatePool(h.DataHash.String()).isValidatedDataHash.Load())
+		require.True(t, manager.getOrCreatePool(h.DataHash.String()).isValidated())
 
 		done(ResultSynced)
 		// pool should not be removed after success
@@ -268,7 +268,7 @@ func TestManager(t *testing.T) {
 		// create shrexSub msg with height lower than first header from headerSub
 		msg := shrexsub.Notification{
 			DataHash: share.DataHash("datahash"),
-			Height:   h.Height() - 1,
+			Height:   uint64(h.Height() - 1),
 		}
 		result := manager.validate(ctx, "peer", msg)
 		require.Equal(t, pubsub.ValidationIgnore, result)
@@ -292,7 +292,7 @@ func TestManager(t *testing.T) {
 		// create shrexSub msg with height lower than first header from headerSub
 		msg := shrexsub.Notification{
 			DataHash: share.DataHash("datahash"),
-			Height:   h.Height() - 1,
+			Height:   uint64(h.Height() - 1),
 		}
 		result := manager.validate(ctx, "peer", msg)
 		require.Equal(t, pubsub.ValidationIgnore, result)
@@ -550,6 +550,6 @@ func (s *subLock) Cancel() {
 func newShrexSubMsg(h *header.ExtendedHeader) shrexsub.Notification {
 	return shrexsub.Notification{
 		DataHash: h.DataHash.Bytes(),
-		Height:   h.Height(),
+		Height:   uint64(h.Height()),
 	}
 }

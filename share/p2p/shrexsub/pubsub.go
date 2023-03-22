@@ -31,7 +31,7 @@ type BroadcastFn func(context.Context, Notification) error
 // Notification is the format of message sent by Broadcaster
 type Notification struct {
 	DataHash share.DataHash
-	Height   int64
+	Height   uint64
 }
 
 // PubSub manages receiving and propagating the EDS from/to the network

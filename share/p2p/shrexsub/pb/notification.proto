@@ -3,7 +3,7 @@ syntax = "proto3";
 package share.p2p.shrex.sub;
 
 message RecentEDSNotification {
-  int64 height = 1;
+  uint64 height = 1;
   bytes data_hash = 2;
 }
 
