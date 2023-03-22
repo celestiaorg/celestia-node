@@ -33,7 +33,7 @@ func TestMakeExtendedHeaderForEmptyBlock(t *testing.T) {
 	eds, err := extendBlock(b.Data)
 	require.NoError(t, err)
 
-	headerExt, err := header.MakeExtendedHeader(ctx, b, comm, val, eds)
+	headerExt, err := header.MakeExtendedHeader(ctx, &b.Header, comm, val, eds)
 	require.NoError(t, err)
 
 	assert.Equal(t, header.EmptyDAH(), *headerExt.DAH)

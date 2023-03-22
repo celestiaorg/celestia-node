@@ -91,7 +91,7 @@ func (ce *Exchange) Get(ctx context.Context, hash libhead.Hash) (*header.Extende
 		return nil, err
 	}
 	// construct extended header
-	eh, err := ce.construct(ctx, block, comm, vals, eds)
+	eh, err := ce.construct(ctx, &block.Header, comm, vals, eds)
 	if err != nil {
 		return nil, err
 	}
@@ -113,12 +113,7 @@ func (ce *Exchange) Head(ctx context.Context) (*header.ExtendedHeader, error) {
 }
 
 func (ce *Exchange) getExtendedHeaderByHeight(ctx context.Context, height *int64) (*header.ExtendedHeader, error) {
-	b, err := ce.fetcher.GetBlock(ctx, height)
-	if err != nil {
-		return nil, err
-	}
-
-	comm, vals, err := ce.fetcher.GetBlockInfo(ctx, &b.Height)
+	b, err := ce.fetcher.GetSignedBlock(ctx, height)
 	if err != nil {
 		return nil, err
 	}
@@ -129,7 +124,7 @@ func (ce *Exchange) getExtendedHeaderByHeight(ctx context.Context, height *int64
 		return nil, err
 	}
 	// create extended header
-	eh, err := ce.construct(ctx, b, comm, vals, eds)
+	eh, err := ce.construct(ctx, &b.Header, &b.Commit, &b.ValidatorSet, eds)
 	if err != nil {
 		return nil, err
 	}
