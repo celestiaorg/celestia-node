@@ -129,8 +129,8 @@ func (eh *ExtendedHeader) Validate() error {
 
 	// make sure the validator set is consistent with the header
 	if valSetHash := eh.ValidatorSet.Hash(); !bytes.Equal(eh.ValidatorsHash, valSetHash) {
-		return fmt.Errorf("expected validator hash of header to match validator set hash (%X != %X)",
-			eh.ValidatorsHash, valSetHash,
+		return fmt.Errorf("expected validator hash of header to match validator set hash (%X != %X) at height %d",
+			eh.ValidatorsHash, valSetHash, eh.Height(),
 		)
 	}
 
