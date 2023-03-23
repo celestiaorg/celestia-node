@@ -42,7 +42,7 @@ type NamespaceData struct {
 }
 
 func NewNamespaceData(maxShares int, nID namespace.ID, options ...Option) *NamespaceData {
-	rData := &NamespaceData{
+	data := &NamespaceData{
 		// we don't know where in the tree the leaves in the namespace are,
 		// so we keep track of the bounds to return the correct slice
 		// maxShares acts as a sentinel to know if we find any leaves
@@ -52,9 +52,9 @@ func NewNamespaceData(maxShares int, nID namespace.ID, options ...Option) *Names
 	}
 
 	for _, opt := range options {
-		opt(rData)
+		opt(data)
 	}
-	return rData
+	return data
 }
 
 func (n *NamespaceData) validate() error {
