@@ -4,7 +4,6 @@ import (
 	_ "embed"
 	"encoding/json"
 	"fmt"
-	"github.com/celestiaorg/celestia-node/libs/fraud"
 	"reflect"
 
 	"cosmossdk.io/math"
@@ -18,14 +17,15 @@ import (
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
 
+	"github.com/celestiaorg/rsmt2d"
+
 	"github.com/celestiaorg/celestia-node/das"
 	"github.com/celestiaorg/celestia-node/header"
+	"github.com/celestiaorg/celestia-node/libs/fraud"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/eds/byzantine"
 	"github.com/celestiaorg/celestia-node/state"
-
-	"github.com/celestiaorg/rsmt2d"
 )
 
 //go:embed "exampledata/extendedHeader.json"
@@ -53,7 +53,7 @@ var ExampleValues = map[reflect.Type]interface{}{
 	reflect.TypeOf([]byte{}):                 []byte("byte array"),
 	reflect.TypeOf(node.Full):                node.Full,
 	reflect.TypeOf(auth.Permission("admin")): auth.Permission("admin"),
-	reflect.TypeOf(byzantine.BadEncoding):        byzantine.BadEncoding,
+	reflect.TypeOf(byzantine.BadEncoding):    byzantine.BadEncoding,
 	reflect.TypeOf((*fraud.Proof)(nil)).Elem(): byzantine.CreateBadEncodingProof(
 		[]byte("bad encoding proof"),
 		42,
