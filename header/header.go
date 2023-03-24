@@ -11,15 +11,14 @@ import (
 	core "github.com/tendermint/tendermint/types"
 
 	"github.com/celestiaorg/celestia-app/pkg/da"
+	libhead "github.com/celestiaorg/go-header"
 	"github.com/celestiaorg/rsmt2d"
-
-	libhead "github.com/celestiaorg/celestia-node/libs/header"
 )
 
 // ConstructFn aliases a function that creates an ExtendedHeader.
 type ConstructFn = func(
 	context.Context,
-	*core.Block,
+	*core.Header,
 	*core.Commit,
 	*core.ValidatorSet,
 	*rsmt2d.ExtendedDataSquare,
@@ -70,7 +69,7 @@ var _ libhead.Header = &ExtendedHeader{}
 // MakeExtendedHeader assembles new ExtendedHeader.
 func MakeExtendedHeader(
 	ctx context.Context,
-	b *core.Block,
+	h *core.Header,
 	comm *core.Commit,
 	vals *core.ValidatorSet,
 	eds *rsmt2d.ExtendedDataSquare,
@@ -84,7 +83,7 @@ func MakeExtendedHeader(
 	}
 
 	eh := &ExtendedHeader{
-		RawHeader:    b.Header,
+		RawHeader:    *h,
 		DAH:          &dah,
 		Commit:       comm,
 		ValidatorSet: vals,
@@ -141,8 +140,8 @@ func (eh *ExtendedHeader) Validate() error {
 
 	// ensure data root from raw header matches computed root
 	if !bytes.Equal(eh.DAH.Hash(), eh.DataHash) {
-		return fmt.Errorf("mismatch between data hash commitment from core header and computed data root: "+
-			"data hash: %X, computed root: %X", eh.DataHash, eh.DAH.Hash())
+		panic(fmt.Sprintf("mismatch between data hash commitment from core header and computed data root "+
+			"at height %d: data hash: %X, computed root: %X", eh.Height(), eh.DataHash, eh.DAH.Hash()))
 	}
 
 	return eh.DAH.ValidateBasic()

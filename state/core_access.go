@@ -23,10 +23,10 @@ import (
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/x/blob"
 	apptypes "github.com/celestiaorg/celestia-app/x/blob/types"
+	libhead "github.com/celestiaorg/go-header"
 	"github.com/celestiaorg/nmt/namespace"
 
 	"github.com/celestiaorg/celestia-node/header"
-	libhead "github.com/celestiaorg/celestia-node/libs/header"
 )
 
 var (

@@ -24,13 +24,13 @@ func TestRemoteClient_StartBlockSubscription_And_GetBlock(t *testing.T) {
 	t.Cleanup(cancel)
 
 	client := StartTestNode(t).Client
-	eventChan, err := client.Subscribe(ctx, newBlockSubscriber, newBlockEventQuery)
+	eventChan, err := client.Subscribe(ctx, newBlockSubscriber, newDataSignedBlockQuery)
 	require.NoError(t, err)
 
 	for i := 1; i <= 3; i++ {
 		select {
 		case evt := <-eventChan:
-			h := evt.Data.(types.EventDataNewBlock).Block.Height
+			h := evt.Data.(types.EventDataSignedBlock).Header.Height
 			block, err := client.Block(ctx, &h)
 			require.NoError(t, err)
 			require.GreaterOrEqual(t, block.Block.Height, int64(i))
@@ -39,5 +39,5 @@ func TestRemoteClient_StartBlockSubscription_And_GetBlock(t *testing.T) {
 		}
 	}
 	// unsubscribe to event channel
-	require.NoError(t, client.Unsubscribe(ctx, newBlockSubscriber, newBlockEventQuery))
+	require.NoError(t, client.Unsubscribe(ctx, newBlockSubscriber, newDataSignedBlockQuery))
 }

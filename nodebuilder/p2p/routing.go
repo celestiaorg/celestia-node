@@ -9,6 +9,8 @@ import (
 	"github.com/libp2p/go-libp2p/core/protocol"
 	"github.com/libp2p/go-libp2p/core/routing"
 	"go.uber.org/fx"
+
+	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 )
 
 // contentRouting constructs nil content routing,
@@ -19,7 +21,7 @@ func contentRouting(r routing.PeerRouting) routing.ContentRouting {
 
 // peerRouting provides constructor for PeerRouting over DHT.
 // Basically, this provides a way to discover peer addresses by respecting public keys.
-func peerRouting(cfg Config, params routingParams) (routing.PeerRouting, error) {
+func peerRouting(cfg Config, tp node.Type, params routingParams) (routing.PeerRouting, error) {
 	opts := []dht.Option{
 		dht.Mode(dht.ModeAuto),
 		dht.BootstrapPeers(params.Peers...),
@@ -28,11 +30,15 @@ func peerRouting(cfg Config, params routingParams) (routing.PeerRouting, error) 
 		dht.RoutingTableRefreshPeriod(cfg.RoutingTableRefreshPeriod),
 	}
 
-	if cfg.Bootstrapper {
-		// override options for bootstrapper
+	if isBootstrapper() {
 		opts = append(opts,
-			dht.Mode(dht.ModeServer), // it must accept incoming connections
-			dht.BootstrapPeers(),     // no bootstrappers for a bootstrapper ¯\_(ツ)_/¯
+			dht.BootstrapPeers(), // no bootstrappers for a bootstrapper ¯\_(ツ)_/¯
+		)
+	}
+
+	if tp == node.Bridge || tp == node.Full {
+		opts = append(opts,
+			dht.Mode(dht.ModeServer),
 		)
 	}
 

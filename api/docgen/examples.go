@@ -7,7 +7,7 @@ import (
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
 
-	"github.com/celestiaorg/celestia-node/fraud"
+	"github.com/celestiaorg/celestia-node/share/eds/byzantine"
 )
 
 var ExampleValues = map[reflect.Type]interface{}{
@@ -15,12 +15,12 @@ var ExampleValues = map[reflect.Type]interface{}{
 	reflect.TypeOf(uint64(42)): uint64(42),
 	reflect.TypeOf(uint32(42)): uint32(42),
 	// reflect.TypeOf(int32(42)):   int32(42),
-	reflect.TypeOf(int64(42)):         int64(42),
-	reflect.TypeOf(byte(7)):           byte(7),
-	reflect.TypeOf(float64(42)):       float64(42),
-	reflect.TypeOf(true):              true,
-	reflect.TypeOf([]byte{}):          []byte("byte array"),
-	reflect.TypeOf(fraud.BadEncoding): fraud.BadEncoding,
+	reflect.TypeOf(int64(42)):             int64(42),
+	reflect.TypeOf(byte(7)):               byte(7),
+	reflect.TypeOf(float64(42)):           float64(42),
+	reflect.TypeOf(true):                  true,
+	reflect.TypeOf([]byte{}):              []byte("byte array"),
+	reflect.TypeOf(byzantine.BadEncoding): byzantine.BadEncoding,
 }
 
 func ExampleValue(t, parent reflect.Type) (interface{}, error) {
