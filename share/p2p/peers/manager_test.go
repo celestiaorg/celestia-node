@@ -45,7 +45,7 @@ func TestManager(t *testing.T) {
 		require.NoError(t, err)
 
 		// check validation
-		require.True(t, manager.pools[h.DataHash.String()].isValidated())
+		require.True(t, manager.pools[h.DataHash.String()].isValidatedDataHash.Load())
 		stopManager(t, manager)
 	})
 
@@ -69,7 +69,7 @@ func TestManager(t *testing.T) {
 		require.Equal(t, peerID, pID)
 
 		// check pool validation
-		require.True(t, manager.getOrCreatePool(h.DataHash.String()).isValidated())
+		require.True(t, manager.getOrCreatePool(h.DataHash.String()).isValidatedDataHash.Load())
 
 		done(ResultSynced)
 		// pool should not be removed after success
@@ -123,16 +123,21 @@ func TestManager(t *testing.T) {
 		// start test manager
 		manager, err := testManager(ctx, headerSub)
 		require.NoError(t, err)
+		require.NoError(t, headerSub.wait(ctx, 1))
 
 		// set syncTimeout to 0 to allow cleanup to find outdated datahash
 		manager.poolValidationTimeout = 0
 
 		// create unvalidated pool
-		peerID, msg := peer.ID("peer1"), newShrexSubMsg(h)
+		peerID := peer.ID("peer1")
+		msg := shrexsub.Notification{
+			DataHash: share.DataHash("datahash1"),
+			Height:   2,
+		}
 		manager.validate(ctx, peerID, msg)
 
 		// create validated pool
-		validDataHash := share.DataHash("datahash")
+		validDataHash := share.DataHash("datahash2")
 		manager.fullNodes.add("full")    // add FN to unblock Peer call
 		manager.Peer(ctx, validDataHash) //nolint:errcheck
 
@@ -146,7 +151,7 @@ func TestManager(t *testing.T) {
 		require.Equal(t, pubsub.ValidationReject, result)
 
 		// check blacklisted pools
-		require.True(t, manager.hashIsBlacklisted(h.DataHash.Bytes()))
+		require.True(t, manager.hashIsBlacklisted(msg.DataHash))
 		require.False(t, manager.hashIsBlacklisted(validDataHash))
 	})
 
