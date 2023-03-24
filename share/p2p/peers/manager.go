@@ -258,8 +258,8 @@ func (m *Manager) subscribeHeader(ctx context.Context, headerSub libhead.Subscri
 	}
 }
 
-// Validate will collect peer.ID into corresponding peer pool
-func (m *Manager) validate(ctx context.Context, peerID peer.ID, msg shrexsub.Notification) pubsub.ValidationResult {
+// validate will collect peer.ID into corresponding peer pool
+func (m *Manager) validate(_ context.Context, peerID peer.ID, msg shrexsub.Notification) pubsub.ValidationResult {
 	// messages broadcast from self should bypass the validation with Accept
 	if peerID == m.host.ID() {
 		log.Debugw("received datahash from self", "datahash", msg.DataHash.String())
@@ -279,7 +279,7 @@ func (m *Manager) validate(ctx context.Context, peerID peer.ID, msg shrexsub.Not
 		return pubsub.ValidationReject
 	}
 
-	if msg.Height <= 0 {
+	if msg.Height == 0 {
 		log.Debugw("received message with 0 height", "peer", peerID)
 		return pubsub.ValidationReject
 	}
@@ -346,7 +346,6 @@ func (m *Manager) hashIsBlacklisted(hash share.DataHash) bool {
 func (m *Manager) validatedPool(hashStr string) *syncPool {
 	p := m.getOrCreatePool(hashStr)
 	if p.isValidatedDataHash.CompareAndSwap(false, true) {
-		fmt.Println("validate")
 		log.Debugw("pool marked validated", "datahash", hashStr)
 	}
 	return p
@@ -373,7 +372,6 @@ func (m *Manager) GC(ctx context.Context) {
 
 func (m *Manager) cleanUp() []peer.ID {
 	if atomic.LoadUint64(&m.initialHeight) == 0 {
-		fmt.Println("ZERO")
 		// can't blacklist peers until initialHeight is set
 		return nil
 	}
@@ -383,15 +381,12 @@ func (m *Manager) cleanUp() []peer.ID {
 
 	addToBlackList := make(map[peer.ID]struct{})
 	for h, p := range m.pools {
-		fmt.Println("RUN", !p.isValidatedDataHash.Load(), time.Since(p.createdAt) > m.poolValidationTimeout)
 		if !p.isValidatedDataHash.Load() && time.Since(p.createdAt) > m.poolValidationTimeout {
 			delete(m.pools, h)
 			if p.headerHeight < m.initialHeight {
 				// outdated pools could still be valid even if not validated, no need to blacklist
-				fmt.Println("SKIP")
 				continue
 			}
-			fmt.Println("BLACKLIST")
 			log.Debug("blacklisting datahash with all corresponding peers",
 				"datahash", h,
 				"peer_list", p.peersList)
