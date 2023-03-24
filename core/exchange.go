@@ -67,8 +67,8 @@ func (ce *Exchange) GetVerifiedRange(
 	for _, h := range headers {
 		err := from.Verify(h)
 		if err != nil {
-			log.Errorw("verifying next header", "last verified height", from.Height(), "err", err)
-			return nil, err
+			return nil, fmt.Errorf("verifying next header against last verified height: %d: %w",
+				from.Height(), err)
 		}
 		from = h
 	}
@@ -79,27 +79,23 @@ func (ce *Exchange) Get(ctx context.Context, hash libhead.Hash) (*header.Extende
 	log.Debugw("requesting header", "hash", hash.String())
 	block, err := ce.fetcher.GetBlockByHash(ctx, hash)
 	if err != nil {
-		log.Errorw("fetching block by hash", "hash", hash, "err", err)
-		return nil, err
+		return nil, fmt.Errorf("fetching block by hash %s: %w", hash.String(), err)
 	}
 
 	comm, vals, err := ce.fetcher.GetBlockInfo(ctx, &block.Height)
 	if err != nil {
-		log.Errorw("fetching block info", "height", &block.Height, "err", err)
-		return nil, err
+		return nil, fmt.Errorf("fetching block info for height %d: %w", &block.Height, err)
 	}
 
 	// extend block data
 	eds, err := extendBlock(block.Data)
 	if err != nil {
-		log.Errorw("extending block data", "height", &block.Height, "err", err)
-		return nil, err
+		return nil, fmt.Errorf("extending block data for height %d: %w", &block.Height, err)
 	}
 	// construct extended header
 	eh, err := ce.construct(ctx, &block.Header, comm, vals, eds)
 	if err != nil {
-		log.Errorw("constructing extended header", "height", &block.Height, "err", err)
-		return nil, err
+		return nil, fmt.Errorf("constructing extended header for height %d: %w", &block.Height, err)
 	}
 	// verify hashes match
 	if !bytes.Equal(hash, eh.Hash()) {
@@ -108,8 +104,7 @@ func (ce *Exchange) Get(ctx context.Context, hash libhead.Hash) (*header.Extende
 	}
 	err = storeEDS(ctx, eh.DAH.Hash(), eds, ce.store)
 	if err != nil {
-		log.Errorw("storing EDS to eds.Store", "height", &block.Height, "err", err)
-		return nil, err
+		return nil, fmt.Errorf("storing EDS to eds.Store for height %d: %w", &block.Height, err)
 	}
 	return eh, nil
 }
