@@ -158,17 +158,29 @@ func (ca *CoreAccessor) constructSignedTx(
 
 func (ca *CoreAccessor) SubmitPayForBlob(
 	ctx context.Context,
-	nID namespace.ID,
-	data []byte,
+	nIDs []namespace.ID,
+	data [][]byte,
 	fee Int,
 	gasLim uint64,
 ) (*TxResponse, error) {
-	b := &apptypes.Blob{NamespaceId: nID, Data: data, ShareVersion: uint32(appconsts.DefaultShareVersion)}
+	if len(nIDs) != len(data) {
+		return nil, fmt.Errorf("state: amounts of nids=%d and data=%d are not equal", len(nIDs), len(data))
+	}
+
+	blobs := make([]*apptypes.Blob, len(data))
+	for i, share := range data {
+		blobs[i] = &apptypes.Blob{
+			NamespaceId:  nIDs[i],
+			Data:         share,
+			ShareVersion: uint32(appconsts.DefaultShareVersion),
+		}
+	}
+
 	response, err := blob.SubmitPayForBlob(
 		ctx,
 		ca.signer,
 		ca.coreConn,
-		[]*apptypes.Blob{b},
+		blobs,
 		apptypes.SetGasLimit(gasLim),
 		withFee(fee),
 	)

@@ -44,8 +44,8 @@ type Module interface {
 	// SubmitPayForBlob builds, signs and submits a PayForBlob transaction.
 	SubmitPayForBlob(
 		ctx context.Context,
-		nID namespace.ID,
-		data []byte,
+		nIDs []namespace.ID,
+		data [][]byte,
 		fee state.Int,
 		gasLim uint64,
 	) (*state.TxResponse, error)
@@ -113,8 +113,8 @@ type API struct {
 		SubmitTx         func(ctx context.Context, tx state.Tx) (*state.TxResponse, error) `perm:"write"`
 		SubmitPayForBlob func(
 			ctx context.Context,
-			nID namespace.ID,
-			data []byte,
+			nID []namespace.ID,
+			data [][]byte,
 			fee state.Int,
 			gasLim uint64,
 		) (*state.TxResponse, error) `perm:"write"`
@@ -192,8 +192,8 @@ func (api *API) SubmitTx(ctx context.Context, tx state.Tx) (*state.TxResponse, e
 
 func (api *API) SubmitPayForBlob(
 	ctx context.Context,
-	nID namespace.ID,
-	data []byte,
+	nID []namespace.ID,
+	data [][]byte,
 	fee state.Int,
 	gasLim uint64,
 ) (*state.TxResponse, error) {
