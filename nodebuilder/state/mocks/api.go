@@ -9,11 +9,11 @@ import (
 	reflect "reflect"
 
 	math "cosmossdk.io/math"
-	namespace "github.com/celestiaorg/nmt/namespace"
 	types "github.com/cosmos/cosmos-sdk/types"
 	types0 "github.com/cosmos/cosmos-sdk/x/staking/types"
 	gomock "github.com/golang/mock/gomock"
-	types1 "github.com/tendermint/tendermint/types"
+	types1 "github.com/tendermint/tendermint/proto/tendermint/types"
+	types2 "github.com/tendermint/tendermint/types"
 )
 
 // MockModule is a mock of Module interface.
@@ -189,22 +189,22 @@ func (mr *MockModuleMockRecorder) QueryUnbonding(arg0, arg1 interface{}) *gomock
 }
 
 // SubmitPayForBlob mocks base method.
-func (m *MockModule) SubmitPayForBlob(arg0 context.Context, arg1 []namespace.ID, arg2 [][]byte, arg3 math.Int, arg4 uint64) (*types.TxResponse, error) {
+func (m *MockModule) SubmitPayForBlob(arg0 context.Context, arg1 []*types1.Blob, arg2 math.Int, arg3 uint64) (*types.TxResponse, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "SubmitPayForBlob", arg0, arg1, arg2, arg3, arg4)
+	ret := m.ctrl.Call(m, "SubmitPayForBlob", arg0, arg1, arg2, arg3)
 	ret0, _ := ret[0].(*types.TxResponse)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // SubmitPayForBlob indicates an expected call of SubmitPayForBlob.
-func (mr *MockModuleMockRecorder) SubmitPayForBlob(arg0, arg1, arg2, arg3, arg4 interface{}) *gomock.Call {
+func (mr *MockModuleMockRecorder) SubmitPayForBlob(arg0, arg1, arg2, arg3 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SubmitPayForBlob", reflect.TypeOf((*MockModule)(nil).SubmitPayForBlob), arg0, arg1, arg2, arg3, arg4)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SubmitPayForBlob", reflect.TypeOf((*MockModule)(nil).SubmitPayForBlob), arg0, arg1, arg2, arg3)
 }
 
 // SubmitTx mocks base method.
-func (m *MockModule) SubmitTx(arg0 context.Context, arg1 types1.Tx) (*types.TxResponse, error) {
+func (m *MockModule) SubmitTx(arg0 context.Context, arg1 types2.Tx) (*types.TxResponse, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "SubmitTx", arg0, arg1)
 	ret0, _ := ret[0].(*types.TxResponse)

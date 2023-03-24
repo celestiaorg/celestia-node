@@ -5,7 +5,7 @@ import (
 
 	"github.com/cosmos/cosmos-sdk/x/staking/types"
 
-	"github.com/celestiaorg/nmt/namespace"
+	apptypes "github.com/celestiaorg/celestia-app/x/blob/types"
 
 	"github.com/celestiaorg/celestia-node/state"
 )
@@ -44,8 +44,7 @@ type Module interface {
 	// SubmitPayForBlob builds, signs and submits a PayForBlob transaction.
 	SubmitPayForBlob(
 		ctx context.Context,
-		nIDs []namespace.ID,
-		data [][]byte,
+		blobs []*apptypes.Blob,
 		fee state.Int,
 		gasLim uint64,
 	) (*state.TxResponse, error)
@@ -113,8 +112,7 @@ type API struct {
 		SubmitTx         func(ctx context.Context, tx state.Tx) (*state.TxResponse, error) `perm:"write"`
 		SubmitPayForBlob func(
 			ctx context.Context,
-			nID []namespace.ID,
-			data [][]byte,
+			blobs []*apptypes.Blob,
 			fee state.Int,
 			gasLim uint64,
 		) (*state.TxResponse, error) `perm:"write"`
@@ -192,12 +190,11 @@ func (api *API) SubmitTx(ctx context.Context, tx state.Tx) (*state.TxResponse, e
 
 func (api *API) SubmitPayForBlob(
 	ctx context.Context,
-	nID []namespace.ID,
-	data [][]byte,
+	blobs []*apptypes.Blob,
 	fee state.Int,
 	gasLim uint64,
 ) (*state.TxResponse, error) {
-	return api.Internal.SubmitPayForBlob(ctx, nID, data, fee, gasLim)
+	return api.Internal.SubmitPayForBlob(ctx, blobs, fee, gasLim)
 }
 
 func (api *API) CancelUnbondingDelegation(

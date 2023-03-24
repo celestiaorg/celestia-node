@@ -20,11 +20,9 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 
 	"github.com/celestiaorg/celestia-app/app"
-	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/x/blob"
 	apptypes "github.com/celestiaorg/celestia-app/x/blob/types"
 	libhead "github.com/celestiaorg/go-header"
-	"github.com/celestiaorg/nmt/namespace"
 
 	"github.com/celestiaorg/celestia-node/header"
 )
@@ -158,22 +156,12 @@ func (ca *CoreAccessor) constructSignedTx(
 
 func (ca *CoreAccessor) SubmitPayForBlob(
 	ctx context.Context,
-	nIDs []namespace.ID,
-	data [][]byte,
+	blobs []*apptypes.Blob,
 	fee Int,
 	gasLim uint64,
 ) (*TxResponse, error) {
-	if len(nIDs) != len(data) {
-		return nil, fmt.Errorf("state: amounts of nids=%d and data=%d are not equal", len(nIDs), len(data))
-	}
-
-	blobs := make([]*apptypes.Blob, len(data))
-	for i, share := range data {
-		blobs[i] = &apptypes.Blob{
-			NamespaceId:  nIDs[i],
-			Data:         share,
-			ShareVersion: uint32(appconsts.DefaultShareVersion),
-		}
+	if len(blobs) == 0 {
+		return nil, errors.New("state: no blobs provided")
 	}
 
 	response, err := blob.SubmitPayForBlob(
