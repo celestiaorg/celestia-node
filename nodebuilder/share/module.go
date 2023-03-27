@@ -46,6 +46,13 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 				return shrexsub.NewPubSub(ctx, h, network.String())
 			},
 		),
+		fx.Invoke(func(lc fx.Lifecycle, sub *shrexsub.PubSub) error {
+			lc.Append(fx.Hook{
+				OnStart: sub.Start,
+				OnStop:  sub.Stop,
+			})
+			return nil
+		}),
 	)
 
 	bridgeAndFullComponents := fx.Options(
