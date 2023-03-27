@@ -88,27 +88,28 @@ func (cl *Listener) listen(ctx context.Context, sub <-chan types.EventDataSigned
 
 			syncing, err := cl.fetcher.IsSyncing(ctx)
 			if err != nil {
-				log.Errorw("listener: getting sync state", "err", err)
+				log.Errorw("listener: getting sync state", "height", b.Header.Height, "err", err)
 				return
 			}
 
 			// extend block data
 			eds, err := extendBlock(b.Data)
 			if err != nil {
-				log.Errorw("listener: extending block data", "err", err)
+				log.Errorw("listener: extending block data", "height", b.Header.Height, "err", err)
 				return
 			}
 			// generate extended header
 			eh, err := cl.construct(ctx, &b.Header, &b.Commit, &b.ValidatorSet, eds)
 			if err != nil {
-				log.Errorw("listener: making extended header", "err", err)
+				log.Errorw("listener: making extended header", "height", b.Header.Height,
+					"err", err)
 				return
 			}
 
 			// attempt to store block data if not empty
 			err = storeEDS(ctx, b.Header.DataHash.Bytes(), eds, cl.store)
 			if err != nil {
-				log.Errorw("listener: storing EDS", "err", err)
+				log.Errorw("listener: storing EDS", "height", b.Header.Height, "err", err)
 				return
 			}
 
