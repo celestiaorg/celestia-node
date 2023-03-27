@@ -146,6 +146,13 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 			fxutil.ProvideAs(func(getter *getters.StoreGetter) share.Getter {
 				return getter
 			}),
+			fx.Invoke(func(lc fx.Lifecycle, sub *shrexsub.PubSub) error {
+				lc.Append(fx.Hook{
+					OnStart: sub.Start,
+					OnStop:  sub.Stop,
+				})
+				return nil
+			}),
 		)
 	case node.Full:
 		return fx.Module(
