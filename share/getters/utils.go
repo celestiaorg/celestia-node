@@ -25,6 +25,8 @@ import (
 var (
 	tracer = otel.Tracer("share/getters")
 	log    = logging.Logger("share/getters")
+
+	errOperationNotSupported = errors.New("operation is not supported")
 )
 
 // filterRootsByNamespace returns the row roots from the given share.Root that contain the passed
