@@ -112,8 +112,7 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 		}),
 	)
 
-	lightAndFullComponents := fx.Options(
-		fx.Provide(getters.NewIPLDGetter),
+	shrexGetterComponents := fx.Options(
 		fx.Provide(peers.NewManager),
 		fx.Provide(
 			func(host host.Host, network modp2p.Network) (*shrexnd.Client, error) {
@@ -152,16 +151,18 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 		return fx.Module(
 			"share",
 			baseComponents,
-			lightAndFullComponents,
 			bridgeAndFullComponents,
+			shrexGetterComponents,
+			fx.Provide(getters.NewIPLDGetter),
 			fx.Provide(fullGetter),
 		)
 	case node.Light:
 		return fx.Module(
 			"share",
 			baseComponents,
-			lightAndFullComponents,
+			shrexGetterComponents,
 			fx.Invoke(share.EnsureEmptySquareExists),
+			fx.Provide(getters.NewIPLDGetter),
 			fx.Provide(lightGetter),
 			// shrexsub broadcaster stub for daser
 			fx.Provide(func() shrexsub.BroadcastFn {
