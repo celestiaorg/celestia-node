@@ -294,7 +294,7 @@ func (m *Manager) validate(_ context.Context, peerID peer.ID, msg shrexsub.Notif
 	}
 
 	p := m.getOrCreatePool(msg.DataHash.String())
-	p.storeHeight(msg.Height)
+	p.headerHeight.Store(msg.Height)
 	p.add(peerID)
 	log.Debugw("got hash from shrex-sub", "peer", peerID, "datahash", msg.DataHash.String())
 	return pubsub.ValidationIgnore
@@ -418,8 +418,4 @@ func (p *syncPool) add(peers ...peer.ID) {
 	if !p.isSynced.Load() {
 		p.pool.add(peers...)
 	}
-}
-
-func (p *syncPool) storeHeight(h uint64) {
-	p.headerHeight.Store(h)
 }
