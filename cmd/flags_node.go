@@ -78,9 +78,14 @@ func ParseNodeFlags(ctx context.Context, cmd *cobra.Command, network p2p.Network
 // DefaultNodeStorePath constructs the default node store path using the given
 // node type and network.
 func DefaultNodeStorePath(tp string, network string) (string, error) {
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return "", err
+	home := os.Getenv("CELESTIA_HOME")
+
+	if home == "" {
+		var err error
+		home, err = os.UserHomeDir()
+		if err != nil {
+			return "", err
+		}
 	}
 	return fmt.Sprintf(
 		"%s/.celestia-%s-%s",
