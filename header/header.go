@@ -114,28 +114,29 @@ func (eh *ExtendedHeader) Equals(header *ExtendedHeader) bool {
 func (eh *ExtendedHeader) Validate() error {
 	err := eh.RawHeader.ValidateBasic()
 	if err != nil {
-		return err
+		return fmt.Errorf("ValidateBasic error on RawHeader at height %d: %w", eh.Height(), err)
 	}
 
 	err = eh.Commit.ValidateBasic()
 	if err != nil {
-		return err
+		return fmt.Errorf("ValidateBasic error on Commit at height %d: %w", eh.Height(), err)
+
 	}
 
 	err = eh.ValidatorSet.ValidateBasic()
 	if err != nil {
-		return err
+		return fmt.Errorf("ValidateBasic error on ValidatorSet at height %d: %w", eh.Height(), err)
 	}
 
 	// make sure the validator set is consistent with the header
 	if valSetHash := eh.ValidatorSet.Hash(); !bytes.Equal(eh.ValidatorsHash, valSetHash) {
-		return fmt.Errorf("expected validator hash of header to match validator set hash (%X != %X)",
-			eh.ValidatorsHash, valSetHash,
+		return fmt.Errorf("expected validator hash of header to match validator set hash (%X != %X) at height %d",
+			eh.ValidatorsHash, valSetHash, eh.Height(),
 		)
 	}
 
 	if err := eh.ValidatorSet.VerifyCommitLight(eh.ChainID(), eh.Commit.BlockID, eh.Height(), eh.Commit); err != nil {
-		return err
+		return fmt.Errorf("VerifyCommitLight error at height %d: %w", eh.Height(), err)
 	}
 
 	// ensure data root from raw header matches computed root
@@ -144,7 +145,11 @@ func (eh *ExtendedHeader) Validate() error {
 			"at height %d: data hash: %X, computed root: %X", eh.Height(), eh.DataHash, eh.DAH.Hash()))
 	}
 
-	return eh.DAH.ValidateBasic()
+	err = eh.DAH.ValidateBasic()
+	if err != nil {
+		return fmt.Errorf("ValidateBasic error on DAH at height %d: %w", eh.RawHeader.Height, err)
+	}
+	return nil
 }
 
 // MarshalBinary marshals ExtendedHeader to binary.

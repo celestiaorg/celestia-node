@@ -148,9 +148,9 @@ func (n *NamespaceData) Proof() *nmt.Proof {
 	return &proof
 }
 
-// CollectLeavesByNamespace collects leaves and corresponding proof that could be used to verify leaves
-// inclusion. It returns as many leaves from the given root with the given namespace.ID as it can
-// retrieve. If no shares are found, it returns error as nil. A
+// CollectLeavesByNamespace collects leaves and corresponding proof that could be used to verify
+// leaves inclusion. It returns as many leaves from the given root with the given namespace.ID as
+// it can retrieve. If no shares are found, it returns error as nil. A
 // non-nil error means that only partial data is returned, because at least one share retrieval
 // failed. The following implementation is based on `GetShares`.
 func (n *NamespaceData) CollectLeavesByNamespace(
