@@ -108,7 +108,9 @@ func (cl *Listener) runSubscriber(ctx context.Context, sub <-chan types.EventDat
 // gossipsub network.
 func (cl *Listener) listen(ctx context.Context, sub <-chan types.EventDataSignedBlock) error {
 	defer log.Info("listener: listening stopped")
+	
 	timeout := time.NewTimer(defaultListenTimeout)
+	defer timeout.Stop()
 	for {
 		select {
 		case b, ok := <-sub:
@@ -118,6 +120,9 @@ func (cl *Listener) listen(ctx context.Context, sub <-chan types.EventDataSigned
 			log.Debugw("listener: new block from core", "height", b.Header.Height)
 			if err := cl.handleNewSignedBlock(ctx, b); err != nil {
 				return err
+			}
+			if !timeout.Stop() {
+				<-timeout.C
 			}
 			timeout.Reset(defaultListenTimeout)
 		case <-timeout.C:
