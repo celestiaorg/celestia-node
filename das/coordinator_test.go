@@ -12,7 +12,6 @@ import (
 	"github.com/tendermint/tendermint/types"
 
 	"github.com/celestiaorg/celestia-node/header"
-	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/p2p/shrexsub"
 )
 
@@ -574,7 +573,7 @@ func defaultTestParams() testParams {
 
 func newBroadcastMock(callLimit int) shrexsub.BroadcastFn {
 	var m sync.Mutex
-	return func(ctx context.Context, hash share.DataHash) error {
+	return func(ctx context.Context, hash shrexsub.Notification) error {
 		m.Lock()
 		defer m.Unlock()
 		if callLimit == 0 {
