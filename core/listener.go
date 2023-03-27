@@ -166,7 +166,7 @@ func (cl *Listener) handleNewSignedBlock(ctx context.Context, b types.EventDataS
 	if !syncing {
 		err = cl.hashBroadcaster(ctx, shrexsub.Notification{
 			DataHash: eh.DataHash.Bytes(),
-			Height:   eh.Height(),
+			Height:   uint64(eh.Height()),
 		})
 		if err != nil && !errors.Is(err, context.Canceled) {
 			log.Errorw("listener: broadcasting data hash",
