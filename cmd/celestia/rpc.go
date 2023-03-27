@@ -99,12 +99,22 @@ func parseParams(method string, params []string) []interface{} {
 	}
 
 	for i, param := range params {
-		// try to parse arguments as numbers before adding them as strings
-		num, err := strconv.ParseInt(param, 10, 64)
-		if err != nil {
+		if param[0] == '{' || param[0] == '[' {
+			var raw json.RawMessage
+			if err := json.Unmarshal([]byte(param), &raw); err == nil {
+				parsedParams[i] = raw
+			} else {
+				parsedParams[i] = param
+			}
+		} else {
+			// try to parse arguments as numbers before adding them as strings
+			num, err := strconv.ParseInt(param, 10, 64)
+			if err == nil {
+				parsedParams[i] = num
+				continue
+			}
 			parsedParams[i] = param
 		}
-		parsedParams[i] = num
 	}
 
 	return parsedParams
