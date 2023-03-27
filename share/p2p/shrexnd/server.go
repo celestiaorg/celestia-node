@@ -141,16 +141,10 @@ func (srv *Server) respondInternalError(stream network.Stream) {
 func namespacedSharesToResponse(shares share.NamespacedShares) *pb.GetSharesByNamespaceResponse {
 	rows := make([]*pb.Row, 0, len(shares))
 	for _, row := range shares {
-		// construct proof
-		nodes := make([][]byte, 0, len(row.Proof.Nodes))
-		for _, cid := range row.Proof.Nodes {
-			nodes = append(nodes, cid.Bytes())
-		}
-
 		proof := &pb.Proof{
-			Start: int64(row.Proof.Start),
-			End:   int64(row.Proof.End),
-			Nodes: nodes,
+			Start: int64(row.Proof.Start()),
+			End:   int64(row.Proof.End()),
+			Nodes: row.Proof.Nodes(),
 		}
 
 		row := &pb.Row{
