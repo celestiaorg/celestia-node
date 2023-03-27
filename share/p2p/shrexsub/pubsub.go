@@ -17,7 +17,7 @@ var log = logging.Logger("shrex-sub")
 
 // pubsubTopic hardcodes the name of the EDS floodsub topic with the provided networkID.
 func pubsubTopicID(networkID string) string {
-	return fmt.Sprintf("%s/eds-sub/v0.0.1", networkID)
+	return fmt.Sprintf("%s/eds-sub/v0.1.0", networkID)
 }
 
 // ValidatorFn is an injectable func and governs EDS notification msg validity.
