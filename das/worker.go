@@ -114,7 +114,7 @@ func (w *worker) sample(ctx context.Context, timeout time.Duration, height uint6
 				"height", h.Height(),
 				"hash", h.Hash(),
 				"square width", len(h.DAH.RowsRoots),
-				"data root", h.DAH.Hash(),
+				"data root", h.DAH.String(),
 				"err", err,
 				"finished (s)", time.Since(start),
 			)
@@ -127,7 +127,7 @@ func (w *worker) sample(ctx context.Context, timeout time.Duration, height uint6
 		"height", h.Height(),
 		"hash", h.Hash(),
 		"square width", len(h.DAH.RowsRoots),
-		"data root", h.DAH.Hash(),
+		"data root", h.DAH.String(),
 		"finished (s)", time.Since(start),
 	)
 
@@ -168,7 +168,7 @@ func (w *worker) getHeader(ctx context.Context, height uint64) (*header.Extended
 		"height", h.Height(),
 		"hash", h.Hash(),
 		"square width", len(h.DAH.RowsRoots),
-		"data root", h.DAH.Hash(),
+		"data root", h.DAH.String(),
 		"finished (s)", time.Since(start),
 	)
 	return h, nil
