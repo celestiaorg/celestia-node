@@ -4,12 +4,17 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"time"
+
+	"golang.org/x/sync/errgroup"
 
 	libhead "github.com/celestiaorg/go-header"
 
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/share/eds"
 )
+
+const concurrencyLimit = 4
 
 type Exchange struct {
 	fetcher   *BlockFetcher
@@ -42,15 +47,27 @@ func (ce *Exchange) GetRangeByHeight(ctx context.Context, from, amount uint64) (
 
 	log.Debugw("requesting headers", "from", from, "to", from+amount)
 	headers := make([]*header.ExtendedHeader, amount)
-	for i := range headers {
-		extHeader, err := ce.GetByHeight(ctx, from+uint64(i))
-		if err != nil {
-			return nil, err
-		}
 
-		headers[i] = extHeader
+	start := time.Now()
+	errGroup, ctx := errgroup.WithContext(ctx)
+	errGroup.SetLimit(concurrencyLimit)
+	for i := range headers {
+		i := i
+		errGroup.Go(func() error {
+			extHeader, err := ce.GetByHeight(ctx, from+uint64(i))
+			if err != nil {
+				return err
+			}
+
+			headers[i] = extHeader
+			return nil
+		})
 	}
 
+	if err := errGroup.Wait(); err != nil {
+		return nil, err
+	}
+	log.Debugw("received headers", "from", from, "to", from+amount, "after", time.Since(start))
 	return headers, nil
 }
 
