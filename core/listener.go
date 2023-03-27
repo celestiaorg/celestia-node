@@ -117,10 +117,13 @@ func (cl *Listener) listen(ctx context.Context, sub <-chan types.EventDataSigned
 			if !ok {
 				return errors.New("underlying subscription was closed")
 			}
+
 			log.Debugw("listener: new block from core", "height", b.Header.Height)
-			if err := cl.handleNewSignedBlock(ctx, b); err != nil {
-				return err
+			err := cl.handleNewSignedBlock(ctx, b)
+			if err != nil {
+				log.Errorw("listener: handling new block msg", "err", err)
 			}
+
 			if !timeout.Stop() {
 				<-timeout.C
 			}
@@ -134,11 +137,6 @@ func (cl *Listener) listen(ctx context.Context, sub <-chan types.EventDataSigned
 }
 
 func (cl *Listener) handleNewSignedBlock(ctx context.Context, b types.EventDataSignedBlock) error {
-	syncing, err := cl.fetcher.IsSyncing(ctx)
-	if err != nil {
-		return fmt.Errorf("getting sync state: %w", err)
-	}
-
 	// extend block data
 	eds, err := extendBlock(b.Data)
 	if err != nil {
@@ -156,10 +154,15 @@ func (cl *Listener) handleNewSignedBlock(ctx context.Context, b types.EventDataS
 		return fmt.Errorf("storing EDS: %w", err)
 	}
 
+	syncing, err := cl.fetcher.IsSyncing(ctx)
+	if err != nil {
+		return fmt.Errorf("getting sync state: %w", err)
+	}
+
 	// notify network of new EDS hash only if core is already synced
 	if !syncing {
 		err = cl.hashBroadcaster(ctx, b.Header.DataHash.Bytes())
-		if err != nil {
+		if err != nil && !errors.Is(err, context.Canceled) {
 			log.Errorw("listener: broadcasting data hash",
 				"height", b.Header.Height,
 				"hash", b.Header.Hash(), "err", err) //TODO: hash or datahash?
@@ -168,7 +171,7 @@ func (cl *Listener) handleNewSignedBlock(ctx context.Context, b types.EventDataS
 
 	// broadcast new ExtendedHeader, but if core is still syncing, notify only local subscribers
 	err = cl.headerBroadcaster.Broadcast(ctx, eh, pubsub.WithLocalPublication(syncing))
-	if err != nil {
+	if err != nil && !errors.Is(err, context.Canceled) {
 		log.Errorw("listener: broadcasting next header",
 			"height", b.Header.Height,
 			"err", err)
