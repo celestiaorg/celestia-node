@@ -99,7 +99,12 @@ func parseParams(method string, params []string) []interface{} {
 	}
 
 	for i, param := range params {
-		parsedParams[i] = param
+		// try to parse arguments as numbers before adding them as strings
+		num, err := strconv.ParseInt(param, 10, 64)
+		if err != nil {
+			parsedParams[i] = param
+		}
+		parsedParams[i] = num
 	}
 
 	return parsedParams
