@@ -1,10 +1,9 @@
 SHELL=/usr/bin/env bash
 PROJECTNAME=$(shell basename "$(PWD)")
-LDFLAGS="-X 'main.buildTime=$(shell date)' -X 'main.lastCommit=$(shell git rev-parse HEAD)' -X 'main.semanticVersion=$(shell git describe --tags --dirty=-dev)'"
+LDFLAGS=-ldflags="-X 'main.buildTime=$(shell date)' -X 'main.lastCommit=$(shell git rev-parse HEAD)' -X 'main.semanticVersion=$(shell git describe --tags --dirty=-dev)'"
 ifeq (${PREFIX},)
 	PREFIX := /usr/local
 endif
-
 ## help: Get more info on make commands.
 help: Makefile
 	@echo " Choose a command run in "$(PROJECTNAME)":"
@@ -20,7 +19,7 @@ install-hooks:
 ## build: Build celestia-node binary.
 build:
 	@echo "--> Building Celestia"
-	@go build -o build/ -ldflags ${LDFLAGS} ./cmd/celestia
+	@go build -o build/ ${LDFLAGS} ./cmd/celestia
 .PHONY: build
 
 ## clean: Clean up celestia-node binary.
@@ -50,7 +49,7 @@ install:
 ## go-install: Build and install the celestia-node binary into the GOBIN directory.
 go-install:
 	@echo "--> Installing Celestia"
-	@go install -ldflags ${LDFLAGS}  ./cmd/celestia
+	@go install ${LDFLAGS} ./cmd/celestia
 .PHONY: go-install
 
 ## shed: Build cel-shed binary.
@@ -78,16 +77,16 @@ install-key:
 .PHONY: install-key
 
 ## fmt: Formats only *.go (excluding *.pb.go *pb_test.go). Runs `gofmt & goimports` internally.
-fmt:
+fmt: sort-imports
 	@find . -name '*.go' -type f -not -path "*.git*" -not -name '*.pb.go' -not -name '*pb_test.go' | xargs gofmt -w -s
 	@find . -name '*.go' -type f -not -path "*.git*"  -not -name '*.pb.go' -not -name '*pb_test.go' | xargs goimports -w -local github.com/celestiaorg
 	@go mod tidy -compat=1.17
 	@cfmt -w -m=100 ./...
 	@markdownlint --fix --quiet --config .markdownlint.yaml .
-.PHONY: fmt
+.PHONY: sort-imports
 
 ## lint: Linting *.go files using golangci-lint. Look for .golangci.yml for the list of linters.
-lint:
+lint: lint-imports
 	@echo "--> Running linter"
 	@golangci-lint run
 	@markdownlint --config .markdownlint.yaml '**/*.md'
@@ -155,3 +154,14 @@ openrpc-gen:
 	@go run ./cmd/docgen fraud header state share das p2p node
 .PHONY: openrpc-gen
 
+lint-imports:
+	@echo "--> Running imports linter"
+	@for file in `find . -type f -name '*.go'`; \
+		do goimports-reviser -list-diff -set-exit-status -company-prefixes "github.com/celestiaorg"  -project-name "github.com/celestiaorg/celestia-node" -output stdout $$file \
+		 || exit 1;  \
+    done;
+.PHONY: lint-imports
+
+sort-imports:
+	@goimports-reviser -company-prefixes "github.com/celestiaorg"  -project-name "github.com/celestiaorg/celestia-node" -output stdout ./...
+.PHONY: sort-imports

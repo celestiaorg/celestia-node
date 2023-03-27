@@ -9,12 +9,12 @@ import (
 	"go.uber.org/fx"
 
 	apptypes "github.com/celestiaorg/celestia-app/x/blob/types"
+	"github.com/celestiaorg/go-header/mocks"
 
 	"github.com/celestiaorg/celestia-node/core"
 	coreheader "github.com/celestiaorg/celestia-node/header"
-	"github.com/celestiaorg/celestia-node/headertest"
+	"github.com/celestiaorg/celestia-node/header/headertest"
 	"github.com/celestiaorg/celestia-node/libs/fxutil"
-	"github.com/celestiaorg/celestia-node/libs/header/mocks"
 	"github.com/celestiaorg/celestia-node/nodebuilder/header"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"

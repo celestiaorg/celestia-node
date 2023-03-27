@@ -14,12 +14,12 @@ import (
 	"go.opentelemetry.io/otel/trace"
 	"golang.org/x/sync/errgroup"
 
+	"github.com/celestiaorg/nmt"
+	"github.com/celestiaorg/nmt/namespace"
+
 	"github.com/celestiaorg/celestia-node/libs/utils"
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/ipld"
-
-	"github.com/celestiaorg/nmt"
-	"github.com/celestiaorg/nmt/namespace"
 )
 
 var (
@@ -68,8 +68,7 @@ func collectSharesByNamespace(
 		// shadow loop variables, to ensure correct values are captured
 		i, rootCID := i, rootCID
 		errGroup.Go(func() error {
-			proof := new(ipld.Proof)
-			row, err := share.GetSharesByNamespace(ctx, bg, rootCID, nID, len(root.RowsRoots), proof)
+			row, proof, err := share.GetSharesByNamespace(ctx, bg, rootCID, nID, len(root.RowsRoots))
 			shares[i] = share.NamespacedRow{
 				Shares: row,
 				Proof:  proof,
@@ -97,14 +96,14 @@ func verifyNIDSize(nID namespace.ID) error {
 }
 
 // ctxWithSplitTimeout will split timeout stored in context by splitFactor and return the result if
-// it is greater than minTimeout. minTimeout == 0 will be ignored
+// it is greater than minTimeout. minTimeout == 0 will be ignored, splitFactor <= 0 will be ignored
 func ctxWithSplitTimeout(
 	ctx context.Context,
 	splitFactor int,
 	minTimeout time.Duration,
 ) (context.Context, context.CancelFunc) {
 	deadline, ok := ctx.Deadline()
-	if !ok {
+	if !ok || splitFactor <= 0 {
 		if minTimeout == 0 {
 			return context.WithCancel(ctx)
 		}
@@ -116,4 +115,17 @@ func ctxWithSplitTimeout(
 		return context.WithTimeout(ctx, timeout)
 	}
 	return context.WithTimeout(ctx, minTimeout)
+}
+
+// ErrorContains reports whether any error in err's tree matches any error in targets tree.
+func ErrorContains(err, target error) bool {
+	if errors.Is(err, target) || target == nil {
+		return true
+	}
+
+	target = errors.Unwrap(target)
+	if target == nil {
+		return false
+	}
+	return ErrorContains(err, target)
 }

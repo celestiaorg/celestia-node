@@ -16,13 +16,12 @@ import (
 	rpcclient "github.com/tendermint/tendermint/rpc/client"
 	"google.golang.org/grpc"
 
-	"github.com/celestiaorg/celestia-node/core"
-
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/testutil/testfactory"
 	"github.com/celestiaorg/celestia-app/testutil/testnode"
 	blobtypes "github.com/celestiaorg/celestia-app/x/blob/types"
 
+	"github.com/celestiaorg/celestia-node/core"
 	"github.com/celestiaorg/celestia-node/header"
 )
 

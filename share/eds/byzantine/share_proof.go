@@ -8,10 +8,11 @@ import (
 	logging "github.com/ipfs/go-log/v2"
 	"github.com/minio/sha256-simd"
 
+	"github.com/celestiaorg/nmt"
+
 	"github.com/celestiaorg/celestia-node/share"
 	pb "github.com/celestiaorg/celestia-node/share/eds/byzantine/pb"
 	"github.com/celestiaorg/celestia-node/share/ipld"
-	"github.com/celestiaorg/nmt"
 )
 
 var log = logging.Logger("share/byzantine")

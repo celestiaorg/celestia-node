@@ -8,19 +8,19 @@ import (
 	"net"
 	"time"
 
-	"github.com/ipfs/go-cid"
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/network"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/libp2p/go-libp2p/core/protocol"
 
+	"github.com/celestiaorg/go-libp2p-messenger/serde"
+	"github.com/celestiaorg/nmt"
+	"github.com/celestiaorg/nmt/namespace"
+
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/ipld"
 	"github.com/celestiaorg/celestia-node/share/p2p"
 	pb "github.com/celestiaorg/celestia-node/share/p2p/shrexnd/pb"
-
-	"github.com/celestiaorg/go-libp2p-messenger/serde"
-	"github.com/celestiaorg/nmt/namespace"
 )
 
 // Client implements client side of shrex/nd protocol to obtain namespaced shares data from remote
@@ -33,19 +33,14 @@ type Client struct {
 }
 
 // NewClient creates a new shrEx/nd client
-func NewClient(host host.Host, opts ...Option) (*Client, error) {
-	params := DefaultParameters()
-	for _, opt := range opts {
-		opt(params)
-	}
-
+func NewClient(params *Parameters, host host.Host) (*Client, error) {
 	if err := params.Validate(); err != nil {
 		return nil, fmt.Errorf("shrex-nd: client creation failed: %w", err)
 	}
 
 	return &Client{
 		host:       host,
-		protocolID: protocolID(params.networkID),
+		protocolID: p2p.ProtocolID(params.NetworkID(), protocolString),
 		params:     params,
 	}, nil
 }
@@ -141,22 +136,15 @@ func (c *Client) doRequest(
 func convertToNamespacedShares(rows []*pb.Row) (share.NamespacedShares, error) {
 	shares := make([]share.NamespacedRow, 0, len(rows))
 	for _, row := range rows {
-		var proof *ipld.Proof
+		var proof *nmt.Proof
 		if row.Proof != nil {
-			cids := make([]cid.Cid, 0, len(row.Proof.Nodes))
-			for _, node := range row.Proof.Nodes {
-				cid, err := cid.Cast(node)
-				if err != nil {
-					return nil, fmt.Errorf("casting proofs node to cid: %w", err)
-				}
-				cids = append(cids, cid)
-			}
-
-			proof = &ipld.Proof{
-				Nodes: cids,
-				Start: int(row.Proof.Start),
-				End:   int(row.Proof.End),
-			}
+			tmpProof := nmt.NewInclusionProof(
+				int(row.Proof.Start),
+				int(row.Proof.End),
+				row.Proof.Nodes,
+				ipld.NMTIgnoreMaxNamespace,
+			)
+			proof = &tmpProof
 		}
 
 		shares = append(shares, share.NamespacedRow{
@@ -178,15 +166,17 @@ func (c *Client) setStreamDeadlines(ctx context.Context, stream network.Stream) 
 		return
 	}
 
-	if c.params.readTimeout != 0 {
-		err := stream.SetReadDeadline(time.Now().Add(c.params.readTimeout))
+	// if deadline not set, client read deadline defaults to server write deadline
+	if c.params.ServerWriteTimeout != 0 {
+		err := stream.SetReadDeadline(time.Now().Add(c.params.ServerWriteTimeout))
 		if err != nil {
 			log.Debugf("client-nd: set read deadline: %s", err)
 		}
 	}
 
-	if c.params.writeTimeout != 0 {
-		err := stream.SetWriteDeadline(time.Now().Add(c.params.readTimeout))
+	// if deadline not set, client write deadline defaults to server read deadline
+	if c.params.ServerReadTimeout != 0 {
+		err := stream.SetWriteDeadline(time.Now().Add(c.params.ServerReadTimeout))
 		if err != nil {
 			log.Debugf("client-nd: set write deadline: %s", err)
 		}

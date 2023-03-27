@@ -9,7 +9,7 @@ import (
 	"github.com/tendermint/tendermint/libs/rand"
 
 	"github.com/celestiaorg/celestia-node/header"
-	"github.com/celestiaorg/celestia-node/headertest"
+	"github.com/celestiaorg/celestia-node/header/headertest"
 )
 
 func TestMakeExtendedHeaderForEmptyBlock(t *testing.T) {
@@ -33,7 +33,7 @@ func TestMakeExtendedHeaderForEmptyBlock(t *testing.T) {
 	eds, err := extendBlock(b.Data)
 	require.NoError(t, err)
 
-	headerExt, err := header.MakeExtendedHeader(ctx, b, comm, val, eds)
+	headerExt, err := header.MakeExtendedHeader(ctx, &b.Header, comm, val, eds)
 	require.NoError(t, err)
 
 	assert.Equal(t, header.EmptyDAH(), *headerExt.DAH)
@@ -44,6 +44,8 @@ func TestMismatchedDataHash_ComputedRoot(t *testing.T) {
 
 	header.DataHash = rand.Bytes(32)
 
-	err := header.Validate()
-	assert.ErrorContains(t, err, "mismatch between data hash")
+	panicFn := func() {
+		header.Validate() //nolint:errcheck
+	}
+	assert.Panics(t, panicFn)
 }
