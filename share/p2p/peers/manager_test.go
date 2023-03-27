@@ -151,8 +151,8 @@ func TestManager(t *testing.T) {
 		require.Equal(t, pubsub.ValidationReject, result)
 
 		// check blacklisted pools
-		require.True(t, manager.hashIsBlacklisted(msg.DataHash))
-		require.False(t, manager.hashIsBlacklisted(validDataHash))
+		require.True(t, manager.isBlacklistedHash(msg.DataHash))
+		require.False(t, manager.isBlacklistedHash(validDataHash))
 	})
 
 	t.Run("no peers from shrex.Sub, get from discovery", func(t *testing.T) {

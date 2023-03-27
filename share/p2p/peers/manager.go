@@ -52,7 +52,7 @@ type Manager struct {
 	pools map[string]*syncPool
 	// messages from shrex.Sub with height below initialHeight will be ignored, since we don't need to
 	// track peers for those headers
-	initialHeight         uint64
+	initialHeight         atomic.Uint64
 	poolValidationTimeout time.Duration
 	peerCooldownTime      time.Duration
 	gcInterval            time.Duration
@@ -252,7 +252,7 @@ func (m *Manager) subscribeHeader(ctx context.Context, headerSub libhead.Subscri
 		m.validatedPool(h.DataHash.String())
 
 		// store first header for validation purposes
-		if atomic.CompareAndSwapUint64(&m.initialHeight, 0, uint64(h.Height())) {
+		if m.initialHeight.CompareAndSwap(0, uint64(h.Height())) {
 			log.Debugw("stored initial height", "height", h.Height())
 		}
 	}
@@ -267,7 +267,7 @@ func (m *Manager) validate(_ context.Context, peerID peer.ID, msg shrexsub.Notif
 	}
 
 	// punish peer for sending invalid hash if it has misbehaved in the past
-	if m.hashIsBlacklisted(msg.DataHash) {
+	if m.isBlacklistedHash(msg.DataHash) {
 		log.Debugw("received blacklisted hash, reject validation", "peer", peerID, "datahash", msg.DataHash.String())
 		return pubsub.ValidationReject
 	}
@@ -284,7 +284,7 @@ func (m *Manager) validate(_ context.Context, peerID peer.ID, msg shrexsub.Notif
 		return pubsub.ValidationReject
 	}
 
-	if msg.Height < atomic.LoadUint64(&m.initialHeight) {
+	if msg.Height < m.initialHeight.Load() {
 		// we can use peers from discovery for headers before the first one from headerSub
 		// if we allow pool creation for those headers, there is chance the pool will not be validated in
 		// time and will be false-positively trigger blacklisting of hash and all peers that sent msgs for
@@ -337,7 +337,7 @@ func (m *Manager) isBlacklistedPeer(peerID peer.ID) bool {
 	return !m.connGater.InterceptPeerDial(peerID)
 }
 
-func (m *Manager) hashIsBlacklisted(hash share.DataHash) bool {
+func (m *Manager) isBlacklistedHash(hash share.DataHash) bool {
 	m.lock.Lock()
 	defer m.lock.Unlock()
 	return m.blacklistedHashes[hash.String()]
@@ -371,7 +371,7 @@ func (m *Manager) GC(ctx context.Context) {
 }
 
 func (m *Manager) cleanUp() []peer.ID {
-	if atomic.LoadUint64(&m.initialHeight) == 0 {
+	if m.initialHeight.Load() == 0 {
 		// can't blacklist peers until initialHeight is set
 		return nil
 	}
@@ -383,7 +383,7 @@ func (m *Manager) cleanUp() []peer.ID {
 	for h, p := range m.pools {
 		if !p.isValidatedDataHash.Load() && time.Since(p.createdAt) > m.poolValidationTimeout {
 			delete(m.pools, h)
-			if p.headerHeight < m.initialHeight {
+			if p.headerHeight < m.initialHeight.Load() {
 				// outdated pools could still be valid even if not validated, no need to blacklist
 				continue
 			}
