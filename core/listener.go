@@ -12,12 +12,9 @@ import (
 	libhead "github.com/celestiaorg/go-header"
 
 	"github.com/celestiaorg/celestia-node/header"
-	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
 	"github.com/celestiaorg/celestia-node/share/eds"
 	"github.com/celestiaorg/celestia-node/share/p2p/shrexsub"
 )
-
-const defaultListenTimeout = p2p.BlockTime * 2
 
 // Listener is responsible for listening to Core for
 // new block events and converting new Core blocks into
@@ -35,6 +32,8 @@ type Listener struct {
 	headerBroadcaster libhead.Broadcaster[*header.ExtendedHeader]
 	hashBroadcaster   shrexsub.BroadcastFn
 
+	listenerTimeout time.Duration
+
 	cancel context.CancelFunc
 }
 
@@ -44,6 +43,7 @@ func NewListener(
 	hashBroadcaster shrexsub.BroadcastFn,
 	construct header.ConstructFn,
 	store *eds.Store,
+	blocktime time.Duration,
 ) *Listener {
 	return &Listener{
 		fetcher:           fetcher,
@@ -51,6 +51,7 @@ func NewListener(
 		hashBroadcaster:   hashBroadcaster,
 		construct:         construct,
 		store:             store,
+		listenerTimeout:   2 * blocktime,
 	}
 }
 
@@ -108,7 +109,7 @@ func (cl *Listener) runSubscriber(ctx context.Context, sub <-chan types.EventDat
 // gossipsub network.
 func (cl *Listener) listen(ctx context.Context, sub <-chan types.EventDataSignedBlock) error {
 	defer log.Info("listener: listening stopped")
-	timeout := time.NewTimer(defaultListenTimeout)
+	timeout := time.NewTimer(cl.listenerTimeout)
 	defer timeout.Stop()
 	for {
 		select {
@@ -123,7 +124,7 @@ func (cl *Listener) listen(ctx context.Context, sub <-chan types.EventDataSigned
 			if !timeout.Stop() {
 				<-timeout.C
 			}
-			timeout.Reset(defaultListenTimeout)
+			timeout.Reset(cl.listenerTimeout)
 		case <-timeout.C:
 			return errors.New("underlying subscription is stuck")
 		case <-ctx.Done():
