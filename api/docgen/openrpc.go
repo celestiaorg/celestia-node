@@ -17,10 +17,10 @@ import (
 	meta_schema "github.com/open-rpc/meta-schema"
 
 	"github.com/celestiaorg/celestia-node/api/rpc/client"
+	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 )
 
 const (
-	APIVersion     = "v0.1.0"
 	APIDescription = "The Celestia Node API is the collection of RPC methods that " +
 		"can be used to interact with the services provided by Celestia Data Availability Nodes."
 	APIName  = "Celestia Node API"
@@ -104,7 +104,7 @@ func NewOpenRPCDocument(comments Comments, permissions Comments) *go_openrpc_ref
 			title := APIName
 			info.Title = (*meta_schema.InfoObjectProperties)(&title)
 
-			version := APIVersion
+			version := node.APIVersion
 			info.Version = (*meta_schema.InfoObjectVersion)(&version)
 
 			description := APIDescription
