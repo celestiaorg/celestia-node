@@ -79,7 +79,7 @@ type syncPool struct {
 	// header from headerSub
 	isValidatedDataHash atomic.Bool
 	// headerHeight is the height of header corresponding to syncpool
-	headerHeight uint64
+	headerHeight atomic.Uint64
 	// isSynced will be true if DoneFunc was called with ResultSynced. It indicates that given datahash
 	// was synced and peer-manager no longer need to keep peers for it
 	isSynced atomic.Bool
@@ -383,7 +383,7 @@ func (m *Manager) cleanUp() []peer.ID {
 	for h, p := range m.pools {
 		if !p.isValidatedDataHash.Load() && time.Since(p.createdAt) > m.poolValidationTimeout {
 			delete(m.pools, h)
-			if p.headerHeight < m.initialHeight.Load() {
+			if p.headerHeight.Load() < m.initialHeight.Load() {
 				// outdated pools could still be valid even if not validated, no need to blacklist
 				continue
 			}
@@ -421,5 +421,5 @@ func (p *syncPool) add(peers ...peer.ID) {
 }
 
 func (p *syncPool) storeHeight(h uint64) {
-	atomic.StoreUint64(&p.headerHeight, h)
+	p.headerHeight.Store(h)
 }
