@@ -87,8 +87,8 @@ func (cl *Listener) runSubscriber(ctx context.Context, sub <-chan types.EventDat
 			// listener stopped because external context was canceled
 			return
 		}
-
 		log.Warnw("listener: subscriber error, resubscribing...", "err", err)
+
 		err = cl.fetcher.UnsubscribeNewBlockEvent(ctx)
 		if err != nil {
 			log.Errorw("listener: unsubscribe error", "err", err)
@@ -108,7 +108,6 @@ func (cl *Listener) runSubscriber(ctx context.Context, sub <-chan types.EventDat
 // gossipsub network.
 func (cl *Listener) listen(ctx context.Context, sub <-chan types.EventDataSignedBlock) error {
 	defer log.Info("listener: listening stopped")
-	
 	timeout := time.NewTimer(defaultListenTimeout)
 	defer timeout.Stop()
 	for {
