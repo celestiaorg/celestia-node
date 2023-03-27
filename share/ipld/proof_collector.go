@@ -6,12 +6,6 @@ import (
 	"github.com/ipfs/go-cid"
 )
 
-// Proof contains information required for Leaves inclusion validation.
-type Proof struct {
-	Nodes      []cid.Cid
-	Start, End int
-}
-
 // proofCollector collects proof nodes' CIDs for the construction of a shares inclusion validation
 // nmt.Proof.
 type proofCollector struct {
