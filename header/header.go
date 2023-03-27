@@ -68,7 +68,7 @@ var _ libhead.Header = &ExtendedHeader{}
 
 // MakeExtendedHeader assembles new ExtendedHeader.
 func MakeExtendedHeader(
-	ctx context.Context,
+	_ context.Context,
 	h *core.Header,
 	comm *core.Commit,
 	vals *core.ValidatorSet,

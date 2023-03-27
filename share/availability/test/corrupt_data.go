@@ -55,7 +55,7 @@ type FraudulentBlockstore struct {
 	Attacking bool
 }
 
-func (fb FraudulentBlockstore) Has(ctx context.Context, cid cid.Cid) (bool, error) {
+func (fb FraudulentBlockstore) Has(context.Context, cid.Cid) (bool, error) {
 	return false, nil
 }
 
@@ -89,8 +89,8 @@ func (fb FraudulentBlockstore) Put(ctx context.Context, block blocks.Block) erro
 
 	// create data that doesn't match the CID with arbitrary lengths between 1 and
 	// len(block.RawData())*2
-	corrupted := make([]byte, 1+mrand.Int()%(len(block.RawData())*2-1))
-	mrand.Read(corrupted)
+	corrupted := make([]byte, 1+mrand.Int()%(len(block.RawData())*2-1)) //nolint:gosec
+	mrand.Read(corrupted)                                               //nolint:gosec
 	return fb.Datastore.Put(ctx, ds.NewKey("corrupt"+block.Cid().String()), corrupted)
 }
 
@@ -104,15 +104,15 @@ func (fb FraudulentBlockstore) PutMany(ctx context.Context, blocks []blocks.Bloc
 	return nil
 }
 
-func (fb FraudulentBlockstore) DeleteBlock(ctx context.Context, cid cid.Cid) error {
+func (fb FraudulentBlockstore) DeleteBlock(context.Context, cid.Cid) error {
 	panic("implement me")
 }
 
-func (fb FraudulentBlockstore) AllKeysChan(ctx context.Context) (<-chan cid.Cid, error) {
+func (fb FraudulentBlockstore) AllKeysChan(context.Context) (<-chan cid.Cid, error) {
 	panic("implement me")
 }
 
-func (fb FraudulentBlockstore) HashOnRead(enabled bool) {
+func (fb FraudulentBlockstore) HashOnRead(bool) {
 	panic("implement me")
 }
 

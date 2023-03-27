@@ -88,7 +88,7 @@ fmt: sort-imports
 ## lint: Linting *.go files using golangci-lint. Look for .golangci.yml for the list of linters.
 lint: lint-imports
 	@echo "--> Running linter"
-	@golangci-lint run
+	@golangci-lint rungolangci-lint run --fix
 	@markdownlint --config .markdownlint.yaml '**/*.md'
 	@cfmt -m=100 ./...
 .PHONY: lint
