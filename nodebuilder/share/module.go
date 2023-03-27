@@ -30,8 +30,8 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 		fx.Supply(*cfg),
 		fx.Error(cfgErr),
 		fx.Options(options...),
-		fx.Invoke(func(disc *disc.Discovery) {}),
 		fx.Provide(newModule),
+		fx.Invoke(func(disc *disc.Discovery) {}),
 		fx.Provide(fx.Annotate(
 			discovery(*cfg),
 			fx.OnStart(func(ctx context.Context, d *disc.Discovery) error {
@@ -117,12 +117,14 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 		fx.Provide(peers.NewManager),
 		fx.Provide(
 			func(host host.Host, network modp2p.Network) (*shrexnd.Client, error) {
-				return shrexnd.NewClient(host, shrexnd.WithNetworkID(network.String()))
+				cfg.ShrExNDParams.WithNetworkID(network.String())
+				return shrexnd.NewClient(cfg.ShrExNDParams, host)
 			},
 		),
 		fx.Provide(
 			func(host host.Host, network modp2p.Network) (*shrexeds.Client, error) {
-				return shrexeds.NewClient(host, shrexeds.WithNetworkID(network.String()))
+				cfg.ShrExEDSParams.WithNetworkID(network.String())
+				return shrexeds.NewClient(cfg.ShrExEDSParams, host)
 			},
 		),
 		fx.Provide(fx.Annotate(
