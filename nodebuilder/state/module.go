@@ -6,9 +6,10 @@ import (
 	logging "github.com/ipfs/go-log/v2"
 	"go.uber.org/fx"
 
-	"github.com/celestiaorg/celestia-node/fraud"
+	"github.com/celestiaorg/celestia-node/libs/fraud"
 	fraudServ "github.com/celestiaorg/celestia-node/nodebuilder/fraud"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
+	"github.com/celestiaorg/celestia-node/share/eds/byzantine"
 	"github.com/celestiaorg/celestia-node/state"
 )
 
@@ -26,7 +27,7 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 		fx.Provide(fx.Annotate(
 			coreAccessor,
 			fx.OnStart(func(startCtx, ctx context.Context, fservice fraud.Service, ca *state.CoreAccessor) error {
-				return fraudServ.Lifecycle(startCtx, ctx, fraud.BadEncoding, fservice, ca.Start, ca.Stop)
+				return fraudServ.Lifecycle(startCtx, ctx, byzantine.BadEncoding, fservice, ca.Start, ca.Stop)
 			}),
 			fx.OnStop(func(ctx context.Context, ca *state.CoreAccessor) error {
 				return ca.Stop(ctx)

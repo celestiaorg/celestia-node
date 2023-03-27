@@ -22,11 +22,11 @@ import (
 	"golang.org/x/exp/rand"
 
 	"github.com/celestiaorg/celestia-app/pkg/da"
+	libhead "github.com/celestiaorg/go-header"
+	"github.com/celestiaorg/go-header/test"
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/header"
-	libhead "github.com/celestiaorg/celestia-node/libs/header"
-	"github.com/celestiaorg/celestia-node/libs/header/test"
 	"github.com/celestiaorg/celestia-node/share"
 )
 
@@ -297,14 +297,14 @@ func RandBlockID(t *testing.T) types.BlockID {
 func FraudMaker(t *testing.T, faultHeight int64, bServ blockservice.BlockService) header.ConstructFn {
 	log.Warn("Corrupting block...", "height", faultHeight)
 	return func(ctx context.Context,
-		b *types.Block,
+		h *types.Header,
 		comm *types.Commit,
 		vals *types.ValidatorSet,
 		eds *rsmt2d.ExtendedDataSquare,
 	) (*header.ExtendedHeader, error) {
-		if b.Height == faultHeight {
+		if h.Height == faultHeight {
 			eh := &header.ExtendedHeader{
-				RawHeader:    b.Header,
+				RawHeader:    *h,
 				Commit:       comm,
 				ValidatorSet: vals,
 			}
@@ -315,7 +315,7 @@ func FraudMaker(t *testing.T, faultHeight int64, bServ blockservice.BlockService
 			}
 			return eh, nil
 		}
-		return header.MakeExtendedHeader(ctx, b, comm, vals, eds)
+		return header.MakeExtendedHeader(ctx, h, comm, vals, eds)
 	}
 }
 

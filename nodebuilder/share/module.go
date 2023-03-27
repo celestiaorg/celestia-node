@@ -30,6 +30,7 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 		fx.Supply(*cfg),
 		fx.Error(cfgErr),
 		fx.Options(options...),
+		fx.Invoke(func(disc *disc.Discovery) {}),
 		fx.Provide(fx.Annotate(
 			discovery(*cfg),
 			fx.OnStart(func(ctx context.Context, d *disc.Discovery) error {
