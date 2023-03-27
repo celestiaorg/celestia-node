@@ -121,7 +121,10 @@ func (cl *Listener) listen(ctx context.Context, sub <-chan types.EventDataSigned
 			log.Debugw("listener: new block from core", "height", b.Header.Height)
 			err := cl.handleNewSignedBlock(ctx, b)
 			if err != nil {
-				log.Errorw("listener: handling new block msg", "err", err)
+				log.Errorw("listener: handling new block msg",
+					"height", b.Header.Height,
+					"hash", b.Header.Hash().String(),
+					"err", err)
 			}
 
 			if !timeout.Stop() {
