@@ -7,7 +7,7 @@ import (
 
 	"github.com/tendermint/tendermint/light"
 
-	libhead "github.com/celestiaorg/celestia-node/libs/header"
+	libhead "github.com/celestiaorg/go-header"
 )
 
 // Verify validates given untrusted Header against trusted ExtendedHeader.

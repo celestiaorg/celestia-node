@@ -9,8 +9,6 @@ import (
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/nmt/namespace"
 	"github.com/celestiaorg/rsmt2d"
-
-	"github.com/celestiaorg/celestia-node/share/ipld"
 )
 
 // Getter interface provides a set of accessors for shares by the Root.
@@ -44,7 +42,7 @@ func (ns NamespacedShares) Flatten() []Share {
 // NamespacedRow represents all shares with proofs within a specific namespace of a single EDS row.
 type NamespacedRow struct {
 	Shares []Share
-	Proof  *ipld.Proof
+	Proof  *nmt.Proof
 }
 
 // Verify validates NamespacedShares by checking every row with nmt inclusion proof.
@@ -78,20 +76,8 @@ func (row *NamespacedRow) verify(rowRoot []byte, nID namespace.ID) bool {
 		leaves = append(leaves, append(sh[:NamespaceSize], sh...))
 	}
 
-	proofNodes := make([][]byte, 0, len(row.Proof.Nodes))
-	for _, n := range row.Proof.Nodes {
-		proofNodes = append(proofNodes, ipld.NamespacedSha256FromCID(n))
-	}
-
-	// construct new proof
-	inclusionProof := nmt.NewInclusionProof(
-		row.Proof.Start,
-		row.Proof.End,
-		proofNodes,
-		ipld.NMTIgnoreMaxNamespace)
-
-	// verify inclusion
-	return inclusionProof.VerifyNamespace(
+	// verify namespace
+	return row.Proof.VerifyNamespace(
 		sha256.New(),
 		nID,
 		leaves,

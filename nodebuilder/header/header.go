@@ -3,9 +3,10 @@ package header
 import (
 	"context"
 
+	libhead "github.com/celestiaorg/go-header"
+	"github.com/celestiaorg/go-header/sync"
+
 	"github.com/celestiaorg/celestia-node/header"
-	libhead "github.com/celestiaorg/celestia-node/libs/header"
-	"github.com/celestiaorg/celestia-node/libs/header/sync"
 )
 
 // Module exposes the functionality needed for querying headers from the network.
@@ -36,6 +37,9 @@ type Module interface {
 	SyncWait(ctx context.Context) error
 	// NetworkHead provides the Syncer's view of the current network head.
 	NetworkHead(ctx context.Context) (*header.ExtendedHeader, error)
+
+	// Subscribe to recent ExtendedHeaders from the network.
+	Subscribe(ctx context.Context) (<-chan *header.ExtendedHeader, error)
 }
 
 // API is a wrapper around Module for the RPC.
@@ -52,10 +56,11 @@ type API struct {
 			*header.ExtendedHeader,
 			uint64,
 		) ([]*header.ExtendedHeader, error) `perm:"public"`
-		GetByHeight func(context.Context, uint64) (*header.ExtendedHeader, error) `perm:"public"`
-		SyncState   func(ctx context.Context) (sync.State, error)                 `perm:"read"`
-		SyncWait    func(ctx context.Context) error                               `perm:"read"`
-		NetworkHead func(ctx context.Context) (*header.ExtendedHeader, error)     `perm:"public"`
+		GetByHeight func(context.Context, uint64) (*header.ExtendedHeader, error)    `perm:"public"`
+		SyncState   func(ctx context.Context) (sync.State, error)                    `perm:"read"`
+		SyncWait    func(ctx context.Context) error                                  `perm:"read"`
+		NetworkHead func(ctx context.Context) (*header.ExtendedHeader, error)        `perm:"public"`
+		Subscribe   func(ctx context.Context) (<-chan *header.ExtendedHeader, error) `perm:"public"`
 	}
 }
 
@@ -89,4 +94,8 @@ func (api *API) SyncWait(ctx context.Context) error {
 
 func (api *API) NetworkHead(ctx context.Context) (*header.ExtendedHeader, error) {
 	return api.Internal.NetworkHead(ctx)
+}
+
+func (api *API) Subscribe(ctx context.Context) (<-chan *header.ExtendedHeader, error) {
+	return api.Internal.Subscribe(ctx)
 }

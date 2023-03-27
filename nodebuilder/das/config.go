@@ -28,7 +28,8 @@ func DefaultConfig(tp node.Type) Config {
 		// Full node will primarily use shrex protocol for sampling, that is much more efficient and can
 		// fully utilize nodes bandwidth with lower amount of parallel sampling workers
 		cfg.ConcurrencyLimit = 6
-		// Full node uses shrex with fallback to ipld to sample, so need 2x amount of time in worst case scenario
+		// Full node uses shrex with fallback to ipld to sample, so need 2x amount of time in worst case
+		// scenario
 		cfg.SampleTimeout = 2 * modp2p.BlockTime * time.Duration(cfg.ConcurrencyLimit)
 	}
 	return Config(cfg)
