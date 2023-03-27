@@ -126,9 +126,11 @@ func cascadeGetters[V any](
 			return val, nil
 		}
 
-		// TODO(@Wondertan): migrate to errors.Join once Go1.20 is out!
-		err = multierr.Append(err, getErr)
-		span.RecordError(getErr, trace.WithAttributes(attribute.Int("getter_idx", i)))
+		if !errors.Is(getErr, errOperationNotSupported) {
+			// TODO(@Wondertan): migrate to errors.Join once Go1.20 is out!
+			err = multierr.Append(err, getErr)
+			span.RecordError(getErr, trace.WithAttributes(attribute.Int("getter_idx", i)))
+		}
 	}
 	return zero, err
 }
