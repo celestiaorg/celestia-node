@@ -32,7 +32,7 @@ type Config struct {
 
 func DefaultConfig() Config {
 	return Config{
-		PeersLimit:        3,
+		PeersLimit:        5,
 		DiscoveryInterval: time.Second * 30,
 		AdvertiseInterval: time.Second * 30,
 		UseShareExchange:  true,

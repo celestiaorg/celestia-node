@@ -96,16 +96,17 @@ func ProtoToExtendedHeader(pb *header_pb.ExtendedHeader) (*ExtendedHeader, error
 }
 
 // msgID computes an id for a pubsub message
-// TODO(@Wondertan): This cause additional allocations per each recvd message in the topic. Find a
-// way to avoid those.
+// TODO(@Wondertan): This cause additional allocations per each recvd message in the topic
+//
+//	Find a way to avoid those.
 func MsgID(pmsg *pb.Message) string {
 	mID := func(data []byte) string {
 		hash := blake2b.Sum256(data)
 		return string(hash[:])
 	}
 
-	h, err := UnmarshalExtendedHeader(pmsg.Data)
-	if err != nil {
+	h, _ := UnmarshalExtendedHeader(pmsg.Data)
+	if h == nil || h.RawHeader.ValidateBasic() != nil {
 		// There is nothing we can do about the error, and it will be anyway caught during validation.
 		// We also *have* to return some ID for the msg, so give the hash of even faulty msg
 		return mID(pmsg.Data)
@@ -119,14 +120,8 @@ func MsgID(pmsg *pb.Message) string {
 	// causing nondeterminism in the header message gossiped over the network. Subsequently, this
 	// causes message duplicates as each Bridge Node, connected to a personal validator, sends the
 	// validator's own view of commits of effectively the same header.
-	// To solve the problem above, we exclude nondeterministic value from message id calculation
-	h.Commit.Signatures = nil
-
-	data, err := MarshalExtendedHeader(h)
-	if err != nil {
-		// See the note under unmarshalling step
-		return mID(pmsg.Data)
-	}
-
-	return mID(data)
+	//
+	// To solve the nondeterminism problem above, we don't compute msg id on message body and take
+	// the actual header hash as an id.
+	return h.Commit.BlockID.String()
 }

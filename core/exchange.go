@@ -84,7 +84,8 @@ func (ce *Exchange) GetVerifiedRange(
 	for _, h := range headers {
 		err := from.Verify(h)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("verifying next header against last verified height: %d: %w",
+				from.Height(), err)
 		}
 		from = h
 	}
@@ -95,32 +96,32 @@ func (ce *Exchange) Get(ctx context.Context, hash libhead.Hash) (*header.Extende
 	log.Debugw("requesting header", "hash", hash.String())
 	block, err := ce.fetcher.GetBlockByHash(ctx, hash)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("fetching block by hash %s: %w", hash.String(), err)
 	}
 
 	comm, vals, err := ce.fetcher.GetBlockInfo(ctx, &block.Height)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("fetching block info for height %d: %w", &block.Height, err)
 	}
 
 	// extend block data
 	eds, err := extendBlock(block.Data)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("extending block data for height %d: %w", &block.Height, err)
 	}
 	// construct extended header
 	eh, err := ce.construct(ctx, &block.Header, comm, vals, eds)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("constructing extended header for height %d: %w", &block.Height, err)
 	}
 	// verify hashes match
 	if !bytes.Equal(hash, eh.Hash()) {
-		return nil, fmt.Errorf("incorrect hash in header: expected %x, got %x", hash, eh.Hash())
+		return nil, fmt.Errorf("incorrect hash in header at height %d: expected %x, got %x",
+			&block.Height, hash, eh.Hash())
 	}
 	err = storeEDS(ctx, eh.DAH.Hash(), eds, ce.store)
 	if err != nil {
-		log.Errorw("storing EDS to eds.Store", "err", err)
-		return nil, err
+		return nil, fmt.Errorf("storing EDS to eds.Store for height %d: %w", &block.Height, err)
 	}
 	return eh, nil
 }
@@ -133,23 +134,23 @@ func (ce *Exchange) Head(ctx context.Context) (*header.ExtendedHeader, error) {
 func (ce *Exchange) getExtendedHeaderByHeight(ctx context.Context, height *int64) (*header.ExtendedHeader, error) {
 	b, err := ce.fetcher.GetSignedBlock(ctx, height)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("fetching signed block at height %d from core: %w", *height, err)
 	}
+	log.Debugw("fetched signed block from core", "height", b.Header.Height)
 
 	// extend block data
 	eds, err := extendBlock(b.Data)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("extending block data for height %d: %w", b.Header.Height, err)
 	}
 	// create extended header
 	eh, err := ce.construct(ctx, &b.Header, &b.Commit, &b.ValidatorSet, eds)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("constructing extended header for height %d: %w", b.Header.Height, err)
 	}
 	err = storeEDS(ctx, eh.DAH.Hash(), eds, ce.store)
 	if err != nil {
-		log.Errorw("storing EDS to eds.Store", "err", err)
-		return nil, err
+		return nil, fmt.Errorf("storing EDS to eds.Store for block height %d: %w", b.Header.Height, err)
 	}
 	return eh, nil
 }
