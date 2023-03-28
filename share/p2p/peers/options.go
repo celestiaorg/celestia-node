@@ -20,6 +20,9 @@ type Parameters struct {
 
 	// GcInterval is the interval at which the manager will garbage collect unvalidated pools.
 	GcInterval time.Duration
+
+	// EnableBlackListing turns on blacklisting for misbehaved peers
+	EnableBlackListing bool
 }
 
 // Validate validates the values in Parameters
@@ -51,6 +54,8 @@ func DefaultParameters() Parameters {
 		// the new block before we ask them again.
 		PeerCooldown: 3 * time.Second,
 		GcInterval:   time.Second * 30,
+		// blacklisting is off by default //TODO(@walldiss): enable blacklisting once all related issues are resolved
+		EnableBlackListing: false,
 	}
 }
 
@@ -72,5 +77,12 @@ func WithPeerCooldown(cooldown time.Duration) Option {
 func WithGcInterval(interval time.Duration) Option {
 	return func(manager *Manager) {
 		manager.gcInterval = interval
+	}
+}
+
+// WithEnabledBlacklisting turns on blacklisting of misbehaved peers.
+func WithEnabledBlacklisting() Option {
+	return func(manager *Manager) {
+		manager.enableBlackListing = true
 	}
 }

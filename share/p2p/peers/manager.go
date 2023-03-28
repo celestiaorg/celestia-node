@@ -56,10 +56,11 @@ type Manager struct {
 	poolValidationTimeout time.Duration
 	peerCooldownTime      time.Duration
 	gcInterval            time.Duration
+	enableBlackListing    bool
+
 	// fullNodes collects full nodes peer.ID found via discovery
 	fullNodes *pool
 
-	enableBlackListing bool
 	// hashes that are not in the chain
 	blacklistedHashes map[string]bool
 
@@ -107,6 +108,7 @@ func NewManager(
 		poolValidationTimeout: params.ValidationTimeout,
 		peerCooldownTime:      params.PeerCooldown,
 		gcInterval:            params.GcInterval,
+		enableBlackListing:    params.EnableBlackListing,
 		blacklistedHashes:     make(map[string]bool),
 		done:                  make(chan struct{}),
 	}
