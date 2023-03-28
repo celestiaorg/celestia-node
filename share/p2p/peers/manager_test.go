@@ -103,6 +103,7 @@ func TestManager(t *testing.T) {
 		pID, done, err := manager.Peer(ctx, h.DataHash.Bytes())
 		require.NoError(t, err)
 		require.Equal(t, peerID, pID)
+		manager.enableBlackListing = true
 		done(ResultBlacklistPeer)
 
 		// new messages from misbehaved peer should be Rejected
