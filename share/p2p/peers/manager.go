@@ -59,6 +59,7 @@ type Manager struct {
 	// fullNodes collects full nodes peer.ID found via discovery
 	fullNodes *pool
 
+	enableBlackListing bool
 	// hashes that are not in the chain
 	blacklistedHashes map[string]bool
 
@@ -318,6 +319,10 @@ func (m *Manager) getOrCreatePool(datahash string) *syncPool {
 
 func (m *Manager) blacklistPeers(peerIDs ...peer.ID) {
 	log.Debugw("blacklisting peers", "peers", peerIDs)
+
+	if !m.enableBlackListing {
+		return
+	}
 	for _, peerID := range peerIDs {
 		m.fullNodes.remove(peerID)
 		// add peer to the blacklist, so we can't connect to it in the future.
