@@ -196,7 +196,7 @@ func (m *Manager) Peer(
 		}
 		log.Debugw("returning shrex-sub peer", "hash", datahash.String(),
 			"peer", peerID.String())
-		return peerID, m.doneFunc(datahash, peerID), nil
+		return peerID, m.doneFunc(datahash, peerID, false), nil
 	}
 
 	// if no peer for datahash is currently available, try to use full node
@@ -204,23 +204,23 @@ func (m *Manager) Peer(
 	peerID, ok = m.fullNodes.tryGet()
 	if ok {
 		log.Debugw("got peer from full nodes discovery pool", "peer", peerID, "datahash", datahash.String())
-		return peerID, m.doneFunc(datahash, peerID), nil
+		return peerID, m.doneFunc(datahash, peerID, true), nil
 	}
 
 	// no peers are available right now, wait for the first one
 	select {
 	case peerID = <-p.next(ctx):
 		log.Debugw("got peer from shrexSub pool after wait", "peer", peerID, "datahash", datahash.String())
-		return peerID, m.doneFunc(datahash, peerID), nil
+		return peerID, m.doneFunc(datahash, peerID, false), nil
 	case peerID = <-m.fullNodes.next(ctx):
 		log.Debugw("got peer from discovery pool after wait", "peer", peerID, "datahash", datahash.String())
-		return peerID, m.doneFunc(datahash, peerID), nil
+		return peerID, m.doneFunc(datahash, peerID, true), nil
 	case <-ctx.Done():
 		return "", nil, ctx.Err()
 	}
 }
 
-func (m *Manager) doneFunc(datahash share.DataHash, peerID peer.ID) DoneFunc {
+func (m *Manager) doneFunc(datahash share.DataHash, peerID peer.ID, fromFull bool) DoneFunc {
 	return func(result result) {
 		log.Debugw("set peer status",
 			"peer", peerID,
@@ -232,6 +232,9 @@ func (m *Manager) doneFunc(datahash share.DataHash, peerID peer.ID) DoneFunc {
 			m.getOrCreatePool(datahash.String()).markSynced()
 		case ResultCooldownPeer:
 			m.getOrCreatePool(datahash.String()).putOnCooldown(peerID)
+			if fromFull {
+				m.fullNodes.putOnCooldown(peerID)
+			}
 		case ResultBlacklistPeer:
 			m.blacklistPeers(peerID)
 		}
