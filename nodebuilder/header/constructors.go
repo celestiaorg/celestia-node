@@ -2,6 +2,7 @@ package header
 
 import (
 	"context"
+	"time"
 
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/peer"
@@ -98,7 +99,17 @@ func newInitStore(
 
 	lc.Append(fx.Hook{
 		OnStart: func(ctx context.Context) error {
-			return store.Init(ctx, s, ex, trustedHash)
+			for {
+				err := store.Init(ctx, s, ex, trustedHash)
+				if err == nil {
+					return nil
+				}
+
+				time.Sleep(time.Millisecond * 50)
+				if ctx.Err() != nil {
+					return ctx.Err()
+				}
+			}
 		},
 	})
 

@@ -2,6 +2,7 @@ package header
 
 import (
 	"context"
+	"time"
 
 	"github.com/ipfs/go-datastore"
 	logging "github.com/ipfs/go-log/v2"
@@ -78,7 +79,19 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 				syncer *sync.Syncer[*header.ExtendedHeader],
 			) error {
 				return modfraud.Lifecycle(startCtx, ctx, byzantine.BadEncoding, fservice,
-					syncer.Start, syncer.Stop)
+					func(ctx context.Context) error {
+						for {
+							err := syncer.Start(ctx)
+							if err == nil {
+								return nil
+							}
+
+							time.Sleep(time.Millisecond * 50)
+							if ctx.Err() != nil {
+								return ctx.Err()
+							}
+						}
+					}, syncer.Stop)
 			}),
 			fx.OnStop(func(ctx context.Context, syncer *sync.Syncer[*header.ExtendedHeader]) error {
 				return syncer.Stop(ctx)
