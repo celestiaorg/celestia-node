@@ -260,6 +260,9 @@ require (
 	github.com/prometheus/client_model v0.3.0 // indirect
 	github.com/prometheus/common v0.37.0 // indirect
 	github.com/prometheus/procfs v0.8.0 // indirect
+	github.com/pyroscope-io/client v0.7.0 // indirect
+	github.com/pyroscope-io/godeltaprof v0.1.0 // indirect
+	github.com/pyroscope-io/otel-profiling-go v0.4.0 // indirect
 	github.com/quic-go/qpack v0.4.0 // indirect
 	github.com/quic-go/qtls-go1-19 v0.2.1 // indirect
 	github.com/quic-go/qtls-go1-20 v0.1.1 // indirect

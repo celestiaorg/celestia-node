@@ -3,6 +3,7 @@ package cmd
 import (
 	"context"
 	"fmt"
+	otelpyroscope "github.com/pyroscope-io/otel-profiling-go"
 	"net/http"
 	"net/http/pprof"
 	"strings"
@@ -163,7 +164,7 @@ func ParseMiscFlags(ctx context.Context, cmd *cobra.Command) (context.Context, e
 	if ok {
 		opts := []otlptracehttp.Option{
 			otlptracehttp.WithCompression(otlptracehttp.GzipCompression),
-			otlptracehttp.WithEndpoint(cmd.Flag(tracingEndpointFlag).Value.String()),
+			//otlptracehttp.WithEndpoint(cmd.Flag(tracingEndpointFlag).Value.String()),
 		}
 		if ok, err := cmd.Flags().GetBool(tracingTlS); err != nil {
 			panic(err)
@@ -177,6 +178,7 @@ func ParseMiscFlags(ctx context.Context, cmd *cobra.Command) (context.Context, e
 		}
 
 		tp := tracesdk.NewTracerProvider(
+			tracesdk.WithSampler(tracesdk.AlwaysSample()),
 			// Always be sure to batch in production.
 			tracesdk.WithBatcher(exp),
 			// Record information about this application in a Resource.
@@ -186,7 +188,14 @@ func ParseMiscFlags(ctx context.Context, cmd *cobra.Command) (context.Context, e
 				// TODO(@Wondertan): Versioning: semconv.ServiceVersionKey
 			)),
 		)
-		otel.SetTracerProvider(tp)
+		otel.SetTracerProvider(otelpyroscope.NewTracerProvider(tp,
+			otelpyroscope.WithAppName("celestia.fullnode"),
+			otelpyroscope.WithPyroscopeURL("http://localhost:4040"),
+			otelpyroscope.WithRootSpanOnly(true),
+			otelpyroscope.WithAddSpanName(true),
+			otelpyroscope.WithProfileURL(true),
+			otelpyroscope.WithProfileBaselineURL(true),
+		))
 	}
 
 	ok, err = cmd.Flags().GetBool(metricsFlag)
