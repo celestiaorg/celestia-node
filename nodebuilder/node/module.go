@@ -14,11 +14,14 @@ func ConstructModule(tp Type) fx.Option {
 		}),
 		fx.Invoke(func() {
 			pyroscope.Start(pyroscope.Config{
-				ApplicationName: "celestia.fullnode",
+				ApplicationName: "celestia.da-node",
 				// replace this with the address of pyroscope server
 				ServerAddress: "http://localhost:4040",
+				Tags: map[string]string{
+					"type": tp.String(),
+				},
 				// you can disable logging by setting this to nil
-				Logger: pyroscope.StandardLogger,
+				Logger: nil,
 				// by default all profilers are enabled,
 				// but you can select the ones you want to use:
 				ProfileTypes: []pyroscope.ProfileType{

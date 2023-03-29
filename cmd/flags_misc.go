@@ -189,7 +189,7 @@ func ParseMiscFlags(ctx context.Context, cmd *cobra.Command) (context.Context, e
 			)),
 		)
 		otel.SetTracerProvider(otelpyroscope.NewTracerProvider(tp,
-			otelpyroscope.WithAppName("celestia.fullnode"),
+			otelpyroscope.WithAppName("celestia.da-node"),
 			otelpyroscope.WithPyroscopeURL("http://localhost:4040"),
 			otelpyroscope.WithRootSpanOnly(true),
 			otelpyroscope.WithAddSpanName(true),
