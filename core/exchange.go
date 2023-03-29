@@ -134,6 +134,9 @@ func (ce *Exchange) Head(ctx context.Context) (*header.ExtendedHeader, error) {
 func (ce *Exchange) getExtendedHeaderByHeight(ctx context.Context, height *int64) (*header.ExtendedHeader, error) {
 	b, err := ce.fetcher.GetSignedBlock(ctx, height)
 	if err != nil {
+		if height == nil {
+			return nil, fmt.Errorf("fetching signed block for head from core: %w", err)
+		}
 		return nil, fmt.Errorf("fetching signed block at height %d from core: %w", *height, err)
 	}
 	log.Debugw("fetched signed block from core", "height", b.Header.Height)
