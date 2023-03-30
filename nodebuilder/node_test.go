@@ -55,8 +55,8 @@ func TestLifecycle(t *testing.T) {
 }
 
 func TestLifecycle_WithMetrics(t *testing.T) {
-	url, close := StartMockOtelCollectorHTTPServer(t)
-	defer close()
+	url, stop := StartMockOtelCollectorHTTPServer(t)
+	defer stop()
 
 	otelCollectorURL := strings.ReplaceAll(url, "http://", "")
 

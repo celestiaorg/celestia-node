@@ -58,7 +58,7 @@ func (sg *ShrexGetter) Stop(ctx context.Context) error {
 	return sg.peerManager.Stop(ctx)
 }
 
-func (sg *ShrexGetter) GetShare(ctx context.Context, root *share.Root, row, col int) (share.Share, error) {
+func (sg *ShrexGetter) GetShare(context.Context, *share.Root, int, int) (share.Share, error) {
 	return nil, fmt.Errorf("getter/shrex: GetShare %w", errOperationNotSupported)
 }
 

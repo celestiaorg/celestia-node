@@ -46,10 +46,7 @@ func (seg *SingleEDSGetter) GetEDS(_ context.Context, root *share.Root) (*rsmt2d
 }
 
 // GetSharesByNamespace returns NamespacedShares from a kept EDS if the correct root is given.
-func (seg *SingleEDSGetter) GetSharesByNamespace(
-	ctx context.Context,
-	root *share.Root,
-	id namespace.ID,
+func (seg *SingleEDSGetter) GetSharesByNamespace(context.Context, *share.Root, namespace.ID,
 ) (share.NamespacedShares, error) {
 	panic("SingleEDSGetter: GetSharesByNamespace is not implemented")
 }
