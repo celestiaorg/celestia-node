@@ -11,7 +11,6 @@ import (
 	appshares "github.com/celestiaorg/celestia-app/pkg/shares"
 	"github.com/celestiaorg/rsmt2d"
 
-	"github.com/celestiaorg/celestia-node/libs/utils"
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/eds"
 )
@@ -20,15 +19,15 @@ import (
 // ExtendedDataSquare (EDS). If there are no transactions in the block,
 // nil is returned in place of the eds.
 func extendBlock(data types.Data) (*rsmt2d.ExtendedDataSquare, error) {
-	if len(data.Txs) == 0 {
+	if len(data.Txs) == 0 && data.SquareSize == uint64(1) {
 		return nil, nil
 	}
 	shares, err := appshares.Split(data, true)
 	if err != nil {
 		return nil, err
 	}
-	size := utils.SquareSize(len(shares))
-	return da.ExtendShares(size, appshares.ToBytes(shares))
+
+	return da.ExtendShares(data.SquareSize, appshares.ToBytes(shares))
 }
 
 // storeEDS will only store extended block if it is not empty and doesn't already exist.
