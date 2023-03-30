@@ -1,5 +1,6 @@
 # https://grafana.com/docs/loki/latest/clients/promtail/configuration/
 # https://docs.docker.com/engine/api/v1.41/#operation/ContainerList
+---
 server:
   http_listen_port: 9080
   grpc_listen_port: 0

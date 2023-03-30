@@ -1,3 +1,4 @@
+---
 version: '3.8'
 
 services:
@@ -14,7 +15,7 @@ services:
 
   promtail:
     container_name: promtail
-    image:  grafana/promtail:latest
+    image: grafana/promtail:latest
     volumes:
       # custom config will read logs from the containers of
       # this project
@@ -33,6 +34,7 @@ services:
     volumes:
       - ${PWD}/prometheus:/etc/prometheus
       - prometheus-data:/prometheus
+    # yamllint disable-line rule:line-length
     command: --web.enable-lifecycle  --config.file=/etc/prometheus/prometheus.yml
 
   otel-collector:
@@ -45,7 +47,7 @@ services:
       - "8888:8888"   # Prometheus metrics exposed by the collector
       - "8889:8889"   # Prometheus exporter metrics
       - "55681:55681"
-      - "13133:13133" # health_check extension
+      - "13133:13133"  # health_check extension
       - "4317:4317"   # OTLP gRPC receiver
       - "4318:4318"   # OTLP http receiver
 
