@@ -248,7 +248,6 @@ func RandValidator(randPower bool, minPower int64) (*types.Validator, types.Priv
 	privVal := types.NewMockPV()
 	votePower := minPower
 	if randPower {
-		//nolint:gosec // G404: Use of weak random number generator
 		votePower += int64(rand.Uint32())
 	}
 	pubKey, err := privVal.GetPubKey()
@@ -264,7 +263,7 @@ func RandRawHeader(t *testing.T) *header.RawHeader {
 	return &header.RawHeader{
 		Version:            version.Consensus{Block: 11, App: 1},
 		ChainID:            "test",
-		Height:             mrand.Int63(),
+		Height:             mrand.Int63(), //nolint:gosec
 		Time:               time.Now(),
 		LastBlockID:        RandBlockID(t),
 		LastCommitHash:     tmrand.Bytes(32),
@@ -280,7 +279,7 @@ func RandRawHeader(t *testing.T) *header.RawHeader {
 }
 
 // RandBlockID provides a BlockID fixture.
-func RandBlockID(t *testing.T) types.BlockID {
+func RandBlockID(*testing.T) types.BlockID {
 	bid := types.BlockID{
 		Hash: make([]byte, 32),
 		PartSetHeader: types.PartSetHeader{
@@ -288,8 +287,8 @@ func RandBlockID(t *testing.T) types.BlockID {
 			Hash:  make([]byte, 32),
 		},
 	}
-	mrand.Read(bid.Hash)
-	mrand.Read(bid.PartSetHeader.Hash)
+	mrand.Read(bid.Hash)               //nolint:gosec
+	mrand.Read(bid.PartSetHeader.Hash) //nolint:gosec
 	return bid
 }
 
@@ -347,7 +346,7 @@ func (mhs *DummySubscriber) Subscribe() (libhead.Subscription[*header.ExtendedHe
 	return mhs, nil
 }
 
-func (mhs *DummySubscriber) NextHeader(ctx context.Context) (*header.ExtendedHeader, error) {
+func (mhs *DummySubscriber) NextHeader(context.Context) (*header.ExtendedHeader, error) {
 	defer func() {
 		if len(mhs.Headers) > 1 {
 			// pop the already-returned header
