@@ -42,7 +42,6 @@ func WithMetrics(metricOpts []otlpmetrichttp.Option, nodeType node.Type) fx.Opti
 		fx.Invoke(fraud.WithMetrics),
 		fx.Invoke(node.WithMetrics),
 		fx.Invoke(modheader.WithMetrics),
-		fx.Invoke(p2p.WithInfoMetrics),
 	)
 
 	var opts fx.Option
@@ -65,10 +64,10 @@ func WithMetrics(metricOpts []otlpmetrichttp.Option, nodeType node.Type) fx.Opti
 }
 
 // WithDebugMetrics registers debug level metrics for node
-func WithDebugMetrics() fx.Option {
+func WithLibp2pMetrics() fx.Option {
 	return fx.Options(
 		fx.Decorate(p2p.WithMonitoredResourceManager),
-		fx.Invoke(p2p.WithDebugMetrics),
+		fx.Invoke(p2p.WithLibp2pMetrics),
 	)
 }
 

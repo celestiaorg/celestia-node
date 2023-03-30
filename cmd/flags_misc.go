@@ -16,7 +16,6 @@ import (
 	"go.opentelemetry.io/otel/sdk/resource"
 	tracesdk "go.opentelemetry.io/otel/sdk/trace"
 	semconv "go.opentelemetry.io/otel/semconv/v1.11.0"
-	"go.uber.org/fx"
 
 	"github.com/celestiaorg/celestia-node/logs"
 	"github.com/celestiaorg/celestia-node/nodebuilder"
@@ -32,7 +31,7 @@ var (
 	metricsFlag         = "metrics"
 	metricsEndpointFlag = "metrics.endpoint"
 	metricsTlS          = "metrics.tls"
-	metricsLevelFlag    = "metrics.level"
+	libp2pMetrics       = "libp2p.metrics"
 )
 
 // MiscFlags gives a set of hardcoded miscellaneous flags.
@@ -94,10 +93,10 @@ and their lower-case forms`,
 		"Enable TLS connection to OTLP metric backend",
 	)
 
-	flags.String(
-		metricsLevelFlag,
-		"INFO",
-		`INFO, DEBUG, ERROR and their lower-case forms`,
+	flags.Bool(
+		libp2pMetrics,
+		false,
+		"Enable libp2p metrics",
 	)
 
 	return flags
@@ -206,26 +205,20 @@ func ParseMiscFlags(ctx context.Context, cmd *cobra.Command) (context.Context, e
 			opts = append(opts, otlpmetrichttp.WithInsecure())
 		}
 
-		var nodeOpts []fx.Option
-		if level, err := cmd.Flags().GetString(metricsLevelFlag); err != nil {
+		ctx = WithNodeOptions(ctx, nodebuilder.WithMetrics(opts, NodeType(ctx)))
+	}
+
+	ok, err = cmd.Flags().GetBool(libp2pMetrics)
+	if err != nil {
+		panic(err)
+	}
+
+	if ok {
+		if metricsEnabled, _ := cmd.Flags().GetBool(metricsFlag); !metricsEnabled {
+			err := fmt.Errorf("Trying to use libp2p metrics without metrics enabled. Please enable metrics with --metrics flag and provide a metrics endpoint.")
 			panic(err)
-		} else {
-			switch level {
-			case "DEBUG", "ERROR":
-				nodeOpts = append(
-					nodeOpts,
-					nodebuilder.WithMetrics(opts, NodeType(ctx)),
-					nodebuilder.WithDebugMetrics(),
-				)
-			case "INFO":
-				fallthrough
-			default:
-				nodeOpts = append(nodeOpts, nodebuilder.WithMetrics(opts, NodeType(ctx)))
-
-			}
 		}
-
-		ctx = WithNodeOptions(ctx, nodeOpts...)
+		ctx = WithNodeOptions(ctx, nodebuilder.WithLibp2pMetrics())
 	}
 
 	return ctx, err

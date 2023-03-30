@@ -5,7 +5,6 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/libp2p/go-libp2p/core/metrics"
 	"github.com/libp2p/go-libp2p/core/network"
 	rcmgr "github.com/libp2p/go-libp2p/p2p/host/resource-manager"
 	rcmgrObs "github.com/libp2p/go-libp2p/p2p/host/resource-manager/obs"
@@ -13,8 +12,6 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"go.opentelemetry.io/otel/metric/global"
-	"go.opentelemetry.io/otel/metric/instrument"
-	"go.opentelemetry.io/otel/metric/unit"
 	"go.uber.org/fx"
 
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
@@ -25,79 +22,8 @@ var (
 	meter = global.MeterProvider().Meter("p2p")
 )
 
-// WithInfoMetrics option sets up metrics for p2p networking.
-func WithInfoMetrics(bc *metrics.BandwidthCounter) error {
-	bandwidthTotalInbound, err := meter.
-		SyncInt64().
-		Histogram(
-			"p2p_bandwidth_total_inbound",
-			instrument.WithUnit(unit.Bytes),
-			instrument.WithDescription("total number of bytes received by the host"),
-		)
-	if err != nil {
-		return err
-	}
-	bandwidthTotalOutbound, _ := meter.
-		SyncInt64().
-		Histogram(
-			"p2p_bandwidth_total_outbound",
-			instrument.WithUnit(unit.Bytes),
-			instrument.WithDescription("total number of bytes sent by the host"),
-		)
-	if err != nil {
-		return err
-	}
-	bandwidthRateInbound, _ := meter.
-		SyncFloat64().
-		Histogram(
-			"p2p_bandwidth_rate_inbound",
-			instrument.WithDescription("total number of bytes sent by the host"),
-		)
-	if err != nil {
-		return err
-	}
-	bandwidthRateOutbound, _ := meter.
-		SyncFloat64().
-		Histogram(
-			"p2p_bandwidth_rate_outbound",
-			instrument.WithDescription("total number of bytes sent by the host"),
-		)
-	if err != nil {
-		return err
-	}
-	p2pPeerCount, _ := meter.
-		AsyncFloat64().
-		Gauge(
-			"p2p_peer_count",
-			instrument.WithDescription("number of peers connected to the host"),
-		)
-	if err != nil {
-		return err
-	}
-
-	if err = meter.RegisterCallback(
-		[]instrument.Asynchronous{
-			p2pPeerCount,
-		}, func(ctx context.Context) {
-			bcStats := bc.GetBandwidthTotals()
-			bcByPeerStats := bc.GetBandwidthByPeer()
-
-			bandwidthTotalInbound.Record(ctx, bcStats.TotalIn)
-			bandwidthTotalOutbound.Record(ctx, bcStats.TotalOut)
-			bandwidthRateInbound.Record(ctx, bcStats.RateIn)
-			bandwidthRateOutbound.Record(ctx, bcStats.RateOut)
-
-			p2pPeerCount.Observe(ctx, float64(len(bcByPeerStats)))
-		},
-	); err != nil {
-		return err
-	}
-
-	return nil
-}
-
 // WithDebugMetrics option sets up metrics for p2p networking.
-func WithDebugMetrics(lifecycle fx.Lifecycle, cfg Config) error {
+func WithLibp2pMetrics(lifecycle fx.Lifecycle, cfg Config) error {
 	rcmgrObs.MustRegisterWith(prometheus.DefaultRegisterer)
 
 	reg := prometheus.DefaultRegisterer
