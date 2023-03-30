@@ -266,6 +266,7 @@ func (m *Manager) subscribeHeader(ctx context.Context, headerSub libhead.Subscri
 
 // validate will collect peer.ID into corresponding peer pool
 func (m *Manager) validate(_ context.Context, peerID peer.ID, msg shrexsub.Notification) pubsub.ValidationResult {
+
 	// messages broadcast from self should bypass the validation with Accept
 	if peerID == m.host.ID() {
 		log.Debugw("received datahash from self", "datahash", msg.DataHash.String())

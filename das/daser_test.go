@@ -345,7 +345,7 @@ func newBenchGetter() benchGetterStub {
 		DAH: &header.DataAvailabilityHeader{RowsRoots: make([][]byte, 0)}}}
 }
 
-func (m benchGetterStub) GetByHeight(_ context.Context, height uint64) (*header.ExtendedHeader, error) {
+func (m benchGetterStub) GetByHeight(context.Context, uint64) (*header.ExtendedHeader, error) {
 	return m.header, nil
 }
 
@@ -362,7 +362,7 @@ func (m getterStub) GetByHeight(_ context.Context, height uint64) (*header.Exten
 		DAH:       &header.DataAvailabilityHeader{RowsRoots: make([][]byte, 0)}}, nil
 }
 
-func (m getterStub) GetRangeByHeight(ctx context.Context, from, amount uint64) ([]*header.ExtendedHeader, error) {
+func (m getterStub) GetRangeByHeight(context.Context, uint64, uint64) ([]*header.ExtendedHeader, error) {
 	return nil, nil
 }
 

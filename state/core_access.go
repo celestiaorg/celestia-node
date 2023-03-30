@@ -180,7 +180,7 @@ func (ca *CoreAccessor) SubmitPayForBlob(
 	return response, err
 }
 
-func (ca *CoreAccessor) AccountAddress(ctx context.Context) (Address, error) {
+func (ca *CoreAccessor) AccountAddress(context.Context) (Address, error) {
 	addr, err := ca.signer.GetSignerInfo().GetAddress()
 	if err != nil {
 		return nil, err
