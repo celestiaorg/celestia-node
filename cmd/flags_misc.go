@@ -215,7 +215,7 @@ func ParseMiscFlags(ctx context.Context, cmd *cobra.Command) (context.Context, e
 				nodeOpts = append(
 					nodeOpts,
 					nodebuilder.WithMetrics(opts, NodeType(ctx)),
-					nodebuilder.WithDebugMetrics(NodeType(ctx)),
+					nodebuilder.WithDebugMetrics(),
 				)
 			case "INFO":
 				fallthrough

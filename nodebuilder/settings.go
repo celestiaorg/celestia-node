@@ -13,7 +13,7 @@ import (
 	semconv "go.opentelemetry.io/otel/semconv/v1.11.0"
 	"go.uber.org/fx"
 
-	fraud "github.com/celestiaorg/celestia-node/libs/fraud"
+	"github.com/celestiaorg/celestia-node/libs/fraud"
 	"github.com/celestiaorg/celestia-node/nodebuilder/das"
 	modheader "github.com/celestiaorg/celestia-node/nodebuilder/header"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
@@ -65,7 +65,7 @@ func WithMetrics(metricOpts []otlpmetrichttp.Option, nodeType node.Type) fx.Opti
 }
 
 // WithDebugMetrics registers debug level metrics for node
-func WithDebugMetrics(nodeType node.Type) fx.Option {
+func WithDebugMetrics() fx.Option {
 	return fx.Options(
 		fx.Decorate(p2p.WithMonitoredResourceManager),
 		fx.Invoke(p2p.WithDebugMetrics),
