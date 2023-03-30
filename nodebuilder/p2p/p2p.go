@@ -26,7 +26,7 @@ var _ Module = (*API)(nil)
 type Module interface {
 	// Info returns address information about the host.
 	Info(context.Context) (peer.AddrInfo, error)
-	// Peers returns all peer IDs used across all inner stores.
+	// Peers returns connected peers.
 	Peers(context.Context) ([]peer.ID, error)
 	// PeerInfo returns a small slice of information Peerstore has on the
 	// given peer.
@@ -110,7 +110,7 @@ func (m *module) Info(context.Context) (peer.AddrInfo, error) {
 }
 
 func (m *module) Peers(context.Context) ([]peer.ID, error) {
-	return m.host.Peerstore().Peers(), nil
+	return m.host.Network().Peers(), nil
 }
 
 func (m *module) PeerInfo(_ context.Context, id peer.ID) (peer.AddrInfo, error) {
