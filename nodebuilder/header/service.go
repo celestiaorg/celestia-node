@@ -69,3 +69,31 @@ func (s *Service) SyncWait(ctx context.Context) error {
 func (s *Service) NetworkHead(ctx context.Context) (*header.ExtendedHeader, error) {
 	return s.syncer.Head(ctx)
 }
+
+func (s *Service) Subscribe(ctx context.Context) (<-chan *header.ExtendedHeader, error) {
+	subscription, err := s.sub.Subscribe()
+	if err != nil {
+		return nil, err
+	}
+
+	headerCh := make(chan *header.ExtendedHeader)
+	go func() {
+		defer close(headerCh)
+		for {
+			h, err := subscription.NextHeader(ctx)
+			if err != nil {
+				if err != context.DeadlineExceeded && err != context.Canceled {
+					log.Errorw("fetching header from subscription", "err", err)
+				}
+				return
+			}
+
+			select {
+			case <-ctx.Done():
+				return
+			case headerCh <- h:
+			}
+		}
+	}()
+	return headerCh, nil
+}

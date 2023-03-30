@@ -113,6 +113,21 @@ func (mr *MockModuleMockRecorder) NetworkHead(arg0 interface{}) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "NetworkHead", reflect.TypeOf((*MockModule)(nil).NetworkHead), arg0)
 }
 
+// Subscribe mocks base method.
+func (m *MockModule) Subscribe(arg0 context.Context) (<-chan *header.ExtendedHeader, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Subscribe", arg0)
+	ret0, _ := ret[0].(<-chan *header.ExtendedHeader)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// Subscribe indicates an expected call of Subscribe.
+func (mr *MockModuleMockRecorder) Subscribe(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Subscribe", reflect.TypeOf((*MockModule)(nil).Subscribe), arg0)
+}
+
 // SyncState mocks base method.
 func (m *MockModule) SyncState(arg0 context.Context) (sync.State, error) {
 	m.ctrl.T.Helper()

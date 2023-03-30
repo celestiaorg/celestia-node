@@ -114,11 +114,11 @@ type rbsMock struct {
 	failed map[cid.Cid]struct{}
 }
 
-func (r rbsMock) Has(ctx context.Context, cid cid.Cid) (bool, error) {
+func (r rbsMock) Has(context.Context, cid.Cid) (bool, error) {
 	panic("implement me")
 }
 
-func (r rbsMock) Get(ctx context.Context, cid cid.Cid) (blocks.Block, error) {
+func (r rbsMock) Get(_ context.Context, cid cid.Cid) (blocks.Block, error) {
 	// return error for failed items
 	if _, ok := r.failed[cid]; ok {
 		return nil, errors.New("not found")
@@ -127,15 +127,15 @@ func (r rbsMock) Get(ctx context.Context, cid cid.Cid) (blocks.Block, error) {
 	return blocks.NewBlockWithCid(nil, cid)
 }
 
-func (r rbsMock) GetSize(ctx context.Context, cid cid.Cid) (int, error) {
+func (r rbsMock) GetSize(context.Context, cid.Cid) (int, error) {
 	panic("implement me")
 }
 
-func (r rbsMock) AllKeysChan(ctx context.Context) (<-chan cid.Cid, error) {
+func (r rbsMock) AllKeysChan(context.Context) (<-chan cid.Cid, error) {
 	panic("implement me")
 }
 
-func (r rbsMock) HashOnRead(enabled bool) {
+func (r rbsMock) HashOnRead(bool) {
 	panic("implement me")
 }
 

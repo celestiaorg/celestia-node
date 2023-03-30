@@ -13,7 +13,7 @@ import (
 	"github.com/celestiaorg/celestia-node/nodebuilder/state"
 )
 
-func persistentPreRunEnv(cmd *cobra.Command, nodeType node.Type, args []string) error {
+func persistentPreRunEnv(cmd *cobra.Command, nodeType node.Type, _ []string) error {
 	var (
 		ctx = cmd.Context()
 		err error

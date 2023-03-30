@@ -1,13 +1,20 @@
 #!/bin/bash
 
-set -e 
+set -e
 
 if [ "$1" = 'celestia' ]; then
-    echo "We are going to initialize the store"
-    ./celestia "${NODE_TYPE}" init --keyring.backend "test" --p2p.network "${P2P_NETWORK}"
+    echo "Initializing Celestia Node with command:"
+    echo "celestia "${NODE_TYPE}" init --p2p.network "${P2P_NETWORK}""
+    echo ""
 
-    exec ./"$@" "--"
-else
-echo "Relying on user commands"
+    celestia "${NODE_TYPE}" init --p2p.network "${P2P_NETWORK}"
+
+    echo ""
+fi
+
+echo "Starting Celestia Node with command:"
+echo "$@"
+echo ""
+
 exec "$@"
 fi
