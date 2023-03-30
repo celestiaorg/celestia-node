@@ -11,15 +11,9 @@ import (
 	ma "github.com/multiformats/go-multiaddr"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"go.opentelemetry.io/otel/metric/global"
 	"go.uber.org/fx"
 
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
-)
-
-// global meter provider (see opentelemetry docs)
-var (
-	meter = global.MeterProvider().Meter("p2p")
 )
 
 // WithDebugMetrics option sets up metrics for p2p networking.
