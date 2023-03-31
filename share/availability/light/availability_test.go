@@ -21,6 +21,7 @@ import (
 	appshares "github.com/celestiaorg/celestia-app/pkg/shares"
 
 	"github.com/celestiaorg/celestia-node/header"
+	"github.com/celestiaorg/celestia-node/libs/utils"
 	"github.com/celestiaorg/celestia-node/share"
 	availability_test "github.com/celestiaorg/celestia-node/share/availability/test"
 )
@@ -293,11 +294,15 @@ func TestSharesRoundTrip(t *testing.T) {
 			{
 				myShares := make([][]byte, 0)
 				for _, sh := range shares {
-					if bytes.Equal(namespace, sh[:8]) {
-						myShares = append(myShares, sh)
+					ns, err := sh.Namespace()
+					require.NoError(t, err)
+					if bytes.Equal(namespace, ns.Bytes()) {
+						myShares = append(myShares, sh.ToBytes())
 					}
 				}
-				blobs, err := appshares.ParseBlobs(myShares)
+				appShares, err := utils.AppSharesFromBytes(myShares)
+				assert.NoError(t, err)
+				blobs, err := appshares.ParseBlobs(appShares)
 				require.NoError(t, err)
 				assert.Len(t, blobs, len(msgsInNamespace))
 				for i := range blobs {
@@ -316,7 +321,9 @@ func TestSharesRoundTrip(t *testing.T) {
 				require.NoError(t, shares.Verify(&dah, namespace))
 				require.NotEmpty(t, shares)
 
-				blobs, err := appshares.ParseBlobs(shares.Flatten())
+				appShares, err := utils.AppSharesFromBytes(shares.Flatten())
+				assert.NoError(t, err)
+				blobs, err := appshares.ParseBlobs(appShares)
 				require.NoError(t, err)
 				assert.Len(t, blobs, len(msgsInNamespace))
 				for i := range blobs {

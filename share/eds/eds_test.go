@@ -15,8 +15,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/pkg/da"
+	"github.com/celestiaorg/celestia-app/pkg/namespace"
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/share"
@@ -32,8 +32,8 @@ var f embed.FS
 func TestQuadrantOrder(t *testing.T) {
 	// TODO: add more test cases
 	nID := []byte{0, 0, 0, 0, 0, 0, 0, 0}
-	parity := append(appconsts.ParitySharesNamespaceID, nID...) //nolint
-	doubleNID := append(nID, nID...)                            //nolint
+	parity := append(namespace.ParitySharesNamespace.Bytes(), nID...) //nolint
+	doubleNID := append(nID, nID...)                                  //nolint
 	result, _ := rsmt2d.ComputeExtendedDataSquare([][]byte{
 		append(nID, 1), append(nID, 2),
 		append(nID, 3), append(nID, 4),

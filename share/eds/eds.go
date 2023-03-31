@@ -18,8 +18,8 @@ import (
 	"github.com/ipld/go-car/util"
 	"github.com/minio/sha256-simd"
 
-	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/pkg/da"
+	"github.com/celestiaorg/celestia-app/pkg/namespace"
 	"github.com/celestiaorg/celestia-app/pkg/wrapper"
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/rsmt2d"
@@ -223,7 +223,7 @@ func prependNamespace(quadrant int, share []byte) []byte {
 	case 0:
 		return append(share[:ipld.NamespaceSize], share...)
 	case 1, 2, 3:
-		return append(appconsts.ParitySharesNamespaceID, share...)
+		return append(namespace.ParitySharesNamespace.Bytes(), share...)
 	default:
 		panic("invalid quadrant")
 	}
