@@ -196,7 +196,7 @@ endif
 
 ifeq (,$(GATEWAY_PORT))
 	$(eval GATEWAY_PORT := 26659)
-	@echo "--> No GRPC_PORT specified, using default value ${GATEWAY_PORT}"
+	@echo "--> No GATEWAY_PORT specified, using default value ${GATEWAY_PORT}"
 endif
 
 ifeq (true, $(ENABLE_METRICS))
@@ -206,8 +206,8 @@ ifeq (,$(METRICS_ENDPOINT))
 endif
 endif
 
-ifeq (true, $(ENABLE_TRACES))
-ifeq (,$(TRACES_ENDPOINT))
+ifeq (true, $(ENABLE_TRACING))
+ifeq (,$(TRACING_ENDPOINT))
 	@echo "--> [ERROR]: Please specify a traces endpoint through the TRACES_ENDPOINT env var"
 	exit 1
 endif
@@ -229,7 +229,15 @@ ifneq (, $(shell docker inspect -f '{{.Id}}' ${CONTAINER_NAME} 2>/dev/null))
 else
 	@echo "--> No previous version of container $(CONTAINER_NAME) were found"
 endif
+	$(eval ARGS := --p2p.network ${NETWORK} --core.ip https://limani.celestia-devops.dev --core.grpc.port ${GRPC_PORT} --gateway --gateway.addr 127.0.0.1 --gateway.port ${GATEWAY_PORT})
+ifeq (true, $(ENABLE_METRICS))
+	$(eval ARGS := $(ARGS) --metrics --metrics.tls=false --metrics.endpoint ${METRICS_ENDPOINT}) 
+endif
+ifeq (true, $(ENABLE_TRACING))
+	$(eval ARGS := $(ARGS) --tracing --tracing.endpoint ${TRACING_ENDPOINT})
+endif
 	@echo "--> Starting...."
+	@echo "ARGS: ${ARGS}"
 	@docker run -itd \
 		-p "${GRPC_PORT}:9090" \
 		-p "${GATEWAY_PORT}:26659" \
@@ -238,16 +246,8 @@ endif
 		--network bridge \
 		--name celestia_${NETWORK}_${NODE}_node \
 		celestiaorg/celestia-node:latest \
-	celestia ${NODE} start \
-			--p2p.network ${NETWORK} \
-			--core.ip https://limani.celestia-devops.dev \
-			--core.grpc.port ${GRPC_PORT} \
-			--gateway --gateway.addr 127.0.0.1 \
-			--gateway.port ${GATEWAY_PORT} \
-			--metrics ${ENABLE_METRICS} --metrics.tls=false \
-			--metrics.endpoint ${METRICS_ENDPOINT} \
-			--tracing ${ENABLE_TRACES} \
-			--tracing.endpoint ${TRACES_ENDPOINT}
+	celestia ${NODE} start $(ARGS)
+.PHONY: docker-run
 
 ## docker-cleanup: Remove all running and stopped nodes using Docker.
 docker-cleanup:

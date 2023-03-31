@@ -17,4 +17,3 @@ echo "$@"
 echo ""
 
 exec "$@"
-fi
