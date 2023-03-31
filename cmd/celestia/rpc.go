@@ -130,18 +130,18 @@ func parseParams(method string, params []string) []interface{} {
 		var err error
 		parsedParams[0], err = parseAddressFromString(params[0])
 		if err != nil {
-			panic(err)
+			panic(fmt.Errorf("error parsing address: %w", err))
 		}
 		return parsedParams
 	case "QueryRedelegations":
 		var err error
 		parsedParams[0], err = parseAddressFromString(params[0])
 		if err != nil {
-			panic(err)
+			panic(fmt.Errorf("error parsing address: %w", err))
 		}
 		parsedParams[1], err = parseAddressFromString(params[1])
 		if err != nil {
-			panic(err)
+			panic(fmt.Errorf("error parsing address: %w", err))
 		}
 		return parsedParams
 	case "Transfer", "Delegate", "Undelegate":
@@ -149,7 +149,7 @@ func parseParams(method string, params []string) []interface{} {
 		var err error
 		parsedParams[0], err = parseAddressFromString(params[0])
 		if err != nil {
-			panic(err)
+			panic(fmt.Errorf("error parsing address: %w", err))
 		}
 		// 2. Amount + Fee
 		parsedParams[1] = params[1]
@@ -166,7 +166,7 @@ func parseParams(method string, params []string) []interface{} {
 		var err error
 		parsedParams[0], err = parseAddressFromString(params[0])
 		if err != nil {
-			panic(err)
+			panic(fmt.Errorf("error parsing address: %w", err))
 		}
 		// 2. Amount + Height + Fee
 		parsedParams[1] = params[1]
@@ -183,12 +183,12 @@ func parseParams(method string, params []string) []interface{} {
 		var err error
 		parsedParams[0], err = parseAddressFromString(params[0])
 		if err != nil {
-			panic(err)
+			panic(fmt.Errorf("error parsing address: %w", err))
 		}
 		// 2. Destination Validator Address
 		parsedParams[1], err = parseAddressFromString(params[1])
 		if err != nil {
-			panic(err)
+			panic(fmt.Errorf("error parsing address: %w", err))
 		}
 		// 2. Amount + Fee
 		parsedParams[2] = params[2]
