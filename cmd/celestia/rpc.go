@@ -11,12 +11,14 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"reflect"
 	"strconv"
 	"strings"
 
 	"github.com/cosmos/cosmos-sdk/types"
 	"github.com/spf13/cobra"
 
+	"github.com/celestiaorg/celestia-node/api/rpc/client"
 	"github.com/celestiaorg/celestia-node/state"
 )
 
@@ -54,6 +56,27 @@ var rpcCmd = &cobra.Command{
 	Use:   "rpc [namespace] [method] [params...]",
 	Short: "Send JSON-RPC request",
 	Args:  cobra.MinimumNArgs(2),
+	ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		modules := client.Modules
+		if len(args) == 0 {
+			// get keys from modules (map[string]interface{})
+			var keys []string
+			for k := range modules {
+				keys = append(keys, k)
+			}
+			return keys, cobra.ShellCompDirectiveNoFileComp
+		} else if len(args) == 1 {
+			// get methods from module
+			module := modules[args[0]]
+			methods := reflect.VisibleFields(reflect.TypeOf(module).Elem())
+			var methodNames []string
+			for _, m := range methods {
+				methodNames = append(methodNames, m.Name)
+			}
+			return methodNames, cobra.ShellCompDirectiveNoFileComp
+		}
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	},
 	Run: func(cmd *cobra.Command, args []string) {
 		namespace := args[0]
 		method := args[1]
