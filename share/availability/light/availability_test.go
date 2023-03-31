@@ -21,7 +21,6 @@ import (
 	appshares "github.com/celestiaorg/celestia-app/pkg/shares"
 
 	"github.com/celestiaorg/celestia-node/header"
-	"github.com/celestiaorg/celestia-node/libs/utils"
 	"github.com/celestiaorg/celestia-node/share"
 	availability_test "github.com/celestiaorg/celestia-node/share/availability/test"
 )
@@ -300,7 +299,7 @@ func TestSharesRoundTrip(t *testing.T) {
 						myShares = append(myShares, sh.ToBytes())
 					}
 				}
-				appShares, err := utils.AppSharesFromBytes(myShares)
+				appShares, err := appshares.FromBytes(myShares)
 				assert.NoError(t, err)
 				blobs, err := appshares.ParseBlobs(appShares)
 				require.NoError(t, err)
@@ -321,7 +320,7 @@ func TestSharesRoundTrip(t *testing.T) {
 				require.NoError(t, shares.Verify(&dah, namespace))
 				require.NotEmpty(t, shares)
 
-				appShares, err := utils.AppSharesFromBytes(shares.Flatten())
+				appShares, err := appshares.FromBytes(shares.Flatten())
 				assert.NoError(t, err)
 				blobs, err := appshares.ParseBlobs(appShares)
 				require.NoError(t, err)

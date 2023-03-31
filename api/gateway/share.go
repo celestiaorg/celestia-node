@@ -13,7 +13,6 @@ import (
 	"github.com/celestiaorg/nmt/namespace"
 
 	"github.com/celestiaorg/celestia-node/header"
-	"github.com/celestiaorg/celestia-node/libs/utils"
 	"github.com/celestiaorg/celestia-node/share"
 )
 
@@ -114,7 +113,7 @@ func (h *Handler) getShares(ctx context.Context, height uint64, nID namespace.ID
 }
 
 func dataFromShares(input []share.Share) (data [][]byte, err error) {
-	appShares, err := utils.AppSharesFromBytes(input)
+	appShares, err := shares.FromBytes(input)
 	if err != nil {
 		return nil, err
 	}
