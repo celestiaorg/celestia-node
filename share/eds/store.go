@@ -173,6 +173,7 @@ func (s *Store) Put(ctx context.Context, root share.DataHash, square *rsmt2d.Ext
 	if err != nil {
 		return err
 	}
+	defer f.Close()
 
 	err = WriteEDS(ctx, square, f)
 	if err != nil {
@@ -367,6 +368,7 @@ func (s *Store) Get(ctx context.Context, root share.DataHash) (eds *rsmt2d.Exten
 	if err != nil {
 		return nil, fmt.Errorf("failed to get CAR file: %w", err)
 	}
+	defer f.Close()
 	eds, err = ReadEDS(ctx, f, root)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read EDS from CAR file: %w", err)
