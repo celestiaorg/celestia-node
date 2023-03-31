@@ -38,10 +38,10 @@ func (m *module) LogLevelSet(_ context.Context, name, level string) error {
 	return logging.SetLogLevel(name, level)
 }
 
-func (m *module) AuthVerify(ctx context.Context, token string) ([]auth.Permission, error) {
+func (m *module) AuthVerify(context.Context, string) ([]auth.Permission, error) {
 	return []auth.Permission{}, fmt.Errorf("not implemented")
 }
 
-func (m *module) AuthNew(ctx context.Context, perms []auth.Permission) ([]byte, error) {
+func (m *module) AuthNew(context.Context, []auth.Permission) ([]byte, error) {
 	return nil, fmt.Errorf("not implemented")
 }

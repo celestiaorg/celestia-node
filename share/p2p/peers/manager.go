@@ -56,6 +56,8 @@ type Manager struct {
 	poolValidationTimeout time.Duration
 	peerCooldownTime      time.Duration
 	gcInterval            time.Duration
+	enableBlackListing    bool
+
 	// fullNodes collects full nodes peer.ID found via discovery
 	fullNodes *pool
 
@@ -106,6 +108,7 @@ func NewManager(
 		poolValidationTimeout: params.ValidationTimeout,
 		peerCooldownTime:      params.PeerCooldown,
 		gcInterval:            params.GcInterval,
+		enableBlackListing:    params.EnableBlackListing,
 		blacklistedHashes:     make(map[string]bool),
 		done:                  make(chan struct{}),
 	}
@@ -193,7 +196,7 @@ func (m *Manager) Peer(
 		}
 		log.Debugw("returning shrex-sub peer", "hash", datahash.String(),
 			"peer", peerID.String())
-		return peerID, m.doneFunc(datahash, peerID), nil
+		return peerID, m.doneFunc(datahash, peerID, false), nil
 	}
 
 	// if no peer for datahash is currently available, try to use full node
@@ -201,23 +204,23 @@ func (m *Manager) Peer(
 	peerID, ok = m.fullNodes.tryGet()
 	if ok {
 		log.Debugw("got peer from full nodes discovery pool", "peer", peerID, "datahash", datahash.String())
-		return peerID, m.doneFunc(datahash, peerID), nil
+		return peerID, m.doneFunc(datahash, peerID, true), nil
 	}
 
 	// no peers are available right now, wait for the first one
 	select {
 	case peerID = <-p.next(ctx):
 		log.Debugw("got peer from shrexSub pool after wait", "peer", peerID, "datahash", datahash.String())
-		return peerID, m.doneFunc(datahash, peerID), nil
+		return peerID, m.doneFunc(datahash, peerID, false), nil
 	case peerID = <-m.fullNodes.next(ctx):
 		log.Debugw("got peer from discovery pool after wait", "peer", peerID, "datahash", datahash.String())
-		return peerID, m.doneFunc(datahash, peerID), nil
+		return peerID, m.doneFunc(datahash, peerID, true), nil
 	case <-ctx.Done():
 		return "", nil, ctx.Err()
 	}
 }
 
-func (m *Manager) doneFunc(datahash share.DataHash, peerID peer.ID) DoneFunc {
+func (m *Manager) doneFunc(datahash share.DataHash, peerID peer.ID, fromFull bool) DoneFunc {
 	return func(result result) {
 		log.Debugw("set peer status",
 			"peer", peerID,
@@ -229,6 +232,9 @@ func (m *Manager) doneFunc(datahash share.DataHash, peerID peer.ID) DoneFunc {
 			m.getOrCreatePool(datahash.String()).markSynced()
 		case ResultCooldownPeer:
 			m.getOrCreatePool(datahash.String()).putOnCooldown(peerID)
+			if fromFull {
+				m.fullNodes.putOnCooldown(peerID)
+			}
 		case ResultBlacklistPeer:
 			m.blacklistPeers(peerID)
 		}
@@ -260,6 +266,7 @@ func (m *Manager) subscribeHeader(ctx context.Context, headerSub libhead.Subscri
 
 // validate will collect peer.ID into corresponding peer pool
 func (m *Manager) validate(_ context.Context, peerID peer.ID, msg shrexsub.Notification) pubsub.ValidationResult {
+
 	// messages broadcast from self should bypass the validation with Accept
 	if peerID == m.host.ID() {
 		log.Debugw("received datahash from self", "datahash", msg.DataHash.String())
@@ -318,6 +325,10 @@ func (m *Manager) getOrCreatePool(datahash string) *syncPool {
 
 func (m *Manager) blacklistPeers(peerIDs ...peer.ID) {
 	log.Debugw("blacklisting peers", "peers", peerIDs)
+
+	if !m.enableBlackListing {
+		return
+	}
 	for _, peerID := range peerIDs {
 		m.fullNodes.remove(peerID)
 		// add peer to the blacklist, so we can't connect to it in the future.
