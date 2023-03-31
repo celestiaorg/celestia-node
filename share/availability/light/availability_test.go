@@ -18,6 +18,7 @@ import (
 	core "github.com/tendermint/tendermint/types"
 
 	"github.com/celestiaorg/celestia-app/pkg/da"
+	"github.com/celestiaorg/celestia-app/pkg/namespace"
 	appshares "github.com/celestiaorg/celestia-app/pkg/shares"
 
 	"github.com/celestiaorg/celestia-node/header"
@@ -80,6 +81,7 @@ func TestGetShare(t *testing.T) {
 	}
 }
 
+// TODO: fix test
 func TestService_GetSharesByNamespace(t *testing.T) {
 	var tests = []struct {
 		squareSize         int
@@ -99,10 +101,10 @@ func TestService_GetSharesByNamespace(t *testing.T) {
 			idx2 := n / 2
 			if tt.expectedShareCount > 1 {
 				// make it so that two rows have the same namespace ID
-				copy(randShares[idx2][:8], randShares[idx1][:8])
+				copy(randShares[idx2][:namespace.NamespaceSize], randShares[idx1][:namespace.NamespaceSize])
 			}
 			root := availability_test.FillBS(t, bServ, randShares)
-			randNID := randShares[idx1][:8]
+			randNID := randShares[idx1][:namespace.NamespaceSize]
 
 			shares, err := getter.GetSharesByNamespace(context.Background(), root, randNID)
 			require.NoError(t, err)
@@ -139,7 +141,7 @@ func TestService_GetSharesByNamespaceNotFound(t *testing.T) {
 	getter, root := GetterWithRandSquare(t, 1)
 	root.RowsRoots = nil
 
-	shares, err := getter.GetSharesByNamespace(context.Background(), root, []byte{1, 1, 1, 1, 1, 1, 1, 1})
+	shares, err := getter.GetSharesByNamespace(context.Background(), root, namespace.RandomNamespace().Bytes())
 	assert.Len(t, shares, 0)
 	assert.NoError(t, err)
 }
@@ -168,6 +170,7 @@ func BenchmarkService_GetSharesByNamespace(b *testing.B) {
 	}
 }
 
+// TODO: fix test
 func TestSharesRoundTrip(t *testing.T) {
 	getter, store := EmptyGetter()
 	ctx, cancel := context.WithCancel(context.Background())

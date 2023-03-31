@@ -29,9 +29,10 @@ var exampleRoot string
 //go:embed "testdata/example.car"
 var f embed.FS
 
+// TODO: fix test
 func TestQuadrantOrder(t *testing.T) {
 	// TODO: add more test cases
-	nID := []byte{0, 0, 0, 0, 0, 0, 0, 0}
+	nID := bytes.Repeat([]byte{0}, namespace.NamespaceSize)
 	parity := append(namespace.ParitySharesNamespace.Bytes(), nID...) //nolint
 	doubleNID := append(nID, nID...)                                  //nolint
 	result, _ := rsmt2d.ComputeExtendedDataSquare([][]byte{
