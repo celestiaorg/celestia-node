@@ -16,6 +16,10 @@ import (
 	"github.com/spf13/cobra"
 )
 
+const (
+	authEnvKey = "CELESTIA_NODE_AUTH_TOKEN"
+)
+
 var requestURL string
 var authTokenFlag string
 
@@ -37,7 +41,7 @@ func init() {
 		&authTokenFlag,
 		"auth",
 		"",
-		"Authorization token (if not provided, the AUTH_TOKEN environment variable will be used)",
+		"Authorization token (if not provided, the "+authEnvKey+" environment variable will be used)",
 	)
 	rootCmd.AddCommand(rpcCmd)
 }
@@ -90,7 +94,7 @@ func parseParams(method string, params []string) []interface{} {
 		parsedParams[2] = params[2]
 		// 4. GasLimit (uint64)
 		num, err := strconv.ParseUint(params[3], 10, 64)
-		if err == nil {
+		if err != nil {
 			panic("Error parsing gas limit: uint64 could not be parsed.")
 		}
 		parsedParams[3] = num
@@ -143,7 +147,7 @@ func sendJSONRPCRequest(namespace, method string, params []interface{}) {
 
 	authToken := authTokenFlag
 	if authToken == "" {
-		authToken = os.Getenv("AUTH_TOKEN")
+		authToken = os.Getenv(authEnvKey)
 	}
 	if authToken != "" {
 		req.Header.Set("Authorization", "Bearer "+authToken)
