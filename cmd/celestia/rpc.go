@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -13,7 +14,10 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/cosmos/cosmos-sdk/types"
 	"github.com/spf13/cobra"
+
+	"github.com/celestiaorg/celestia-node/state"
 )
 
 const (
@@ -99,6 +103,79 @@ func parseParams(method string, params []string) []interface{} {
 		}
 		parsedParams[3] = num
 		return parsedParams
+	case "QueryDelegation", "QueryUnbonding", "BalanceForAddress":
+		var err error
+		parsedParams[0], err = parseAddressFromString(params[0])
+		if err != nil {
+			panic(err)
+		}
+		return parsedParams
+	case "QueryRedelegations":
+		var err error
+		parsedParams[0], err = parseAddressFromString(params[0])
+		if err != nil {
+			panic(err)
+		}
+		parsedParams[1], err = parseAddressFromString(params[1])
+		if err != nil {
+			panic(err)
+		}
+		return parsedParams
+	case "Transfer", "Delegate", "Undelegate":
+		// 1. Address
+		var err error
+		parsedParams[0], err = parseAddressFromString(params[0])
+		if err != nil {
+			panic(err)
+		}
+		// 2. Amount + Fee
+		parsedParams[1] = params[1]
+		parsedParams[2] = params[2]
+		// 3. GasLimit (uint64)
+		num, err := strconv.ParseUint(params[3], 10, 64)
+		if err != nil {
+			panic("Error parsing gas limit: uint64 could not be parsed.")
+		}
+		parsedParams[3] = num
+		return parsedParams
+	case "CancelUnbondingDelegation":
+		// 1. Validator Address
+		var err error
+		parsedParams[0], err = parseAddressFromString(params[0])
+		if err != nil {
+			panic(err)
+		}
+		// 2. Amount + Height + Fee
+		parsedParams[1] = params[1]
+		parsedParams[2] = params[2]
+		parsedParams[3] = params[3]
+		// 4. GasLimit (uint64)
+		num, err := strconv.ParseUint(params[4], 10, 64)
+		if err != nil {
+			panic("Error parsing gas limit: uint64 could not be parsed.")
+		}
+		parsedParams[4] = num
+	case "BeginRedelegate":
+		// 1. Source Validator Address
+		var err error
+		parsedParams[0], err = parseAddressFromString(params[0])
+		if err != nil {
+			panic(err)
+		}
+		// 2. Destination Validator Address
+		parsedParams[1], err = parseAddressFromString(params[1])
+		if err != nil {
+			panic(err)
+		}
+		// 2. Amount + Fee
+		parsedParams[2] = params[2]
+		parsedParams[3] = params[3]
+		// 4. GasLimit (uint64)
+		num, err := strconv.ParseUint(params[4], 10, 64)
+		if err != nil {
+			panic("Error parsing gas limit: uint64 could not be parsed.")
+		}
+		parsedParams[4] = num
 	default:
 	}
 
@@ -166,4 +243,19 @@ func sendJSONRPCRequest(namespace, method string, params []interface{}) {
 	}
 
 	fmt.Println(string(responseBody))
+}
+
+func parseAddressFromString(addrStr string) (state.Address, error) {
+	var addr state.AccAddress
+	addr, err := types.AccAddressFromBech32(addrStr)
+	if err != nil {
+		// first check if it is a validator address and can be converted
+		valAddr, err := types.ValAddressFromBech32(addrStr)
+		if err != nil {
+			return nil, errors.New("address must be a valid account or validator address ")
+		}
+		return valAddr, nil
+	}
+
+	return addr, nil
 }
