@@ -17,6 +17,18 @@ import (
 	"github.com/celestiaorg/celestia-node/nodebuilder/state"
 )
 
+// TODO: this duplication of strings many times across the codebase can be avoided with issue #1176
+var client Client
+var Modules = map[string]interface{}{
+	"share":  &client.Share.Internal,
+	"state":  &client.State.Internal,
+	"header": &client.Header.Internal,
+	"fraud":  &client.Fraud.Internal,
+	"das":    &client.DAS.Internal,
+	"p2p":    &client.P2P.Internal,
+	"node":   &client.Node.Internal,
+}
+
 type Client struct {
 	Fraud  fraud.API
 	Header header.API
@@ -64,20 +76,8 @@ func NewClient(ctx context.Context, addr string, token string) (*Client, error) 
 }
 
 func newClient(ctx context.Context, addr string, authHeader http.Header) (*Client, error) {
-	var client Client
 	var multiCloser multiClientCloser
-
-	// TODO: this duplication of strings many times across the codebase can be avoided with issue #1176
-	var modules = map[string]interface{}{
-		"share":  &client.Share.Internal,
-		"state":  &client.State.Internal,
-		"header": &client.Header.Internal,
-		"fraud":  &client.Fraud.Internal,
-		"das":    &client.DAS.Internal,
-		"p2p":    &client.P2P.Internal,
-		"node":   &client.Node.Internal,
-	}
-	for name, module := range modules {
+	for name, module := range Modules {
 		closer, err := jsonrpc.NewClient(ctx, addr, name, module, authHeader)
 		if err != nil {
 			return nil, err
