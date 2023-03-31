@@ -135,7 +135,11 @@ func (w *writingSession) writeHeader() error {
 func (w *writingSession) writeQuadrants() error {
 	shares := quadrantOrder(w.eds)
 	for _, share := range shares {
-		cid, err := ipld.CidFromNamespacedSha256(w.hasher.HashLeaf(share))
+		leaf, err := w.hasher.HashLeaf(share)
+		if err != nil {
+			return fmt.Errorf("hashing share: %w", err)
+		}
+		cid, err := ipld.CidFromNamespacedSha256(leaf)
 		if err != nil {
 			return fmt.Errorf("getting cid from share: %w", err)
 		}
@@ -164,7 +168,11 @@ func (w *writingSession) writeProofs(ctx context.Context) error {
 
 		node := block.RawData()
 		left, right := node[:ipld.NmtHashSize], node[ipld.NmtHashSize:]
-		cid, err := ipld.CidFromNamespacedSha256(w.hasher.HashNode(left, right))
+		hash, err := w.hasher.HashNode(left, right)
+		if err != nil {
+			return fmt.Errorf("hashing node: %w", err)
+		}
+		cid, err := ipld.CidFromNamespacedSha256(hash)
 		if err != nil {
 			return fmt.Errorf("getting cid: %w", err)
 		}
