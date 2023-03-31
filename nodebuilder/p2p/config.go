@@ -32,9 +32,8 @@ type Config struct {
 	ConnManager               connManagerConfig
 	RoutingTableRefreshPeriod time.Duration
 
-	// Prometheus Agent http endpoint configuration
-	PrometheusAgentEndpoint string
-	PrometheusAgentPort     string
+	// Libp2p Metrics Configuration
+	Metrics MetricsConfig
 	// Allowlist for IPColocation PubSub parameter, a list of string CIDRs
 	IPColocationWhitelist []string
 }
@@ -61,8 +60,7 @@ func DefaultConfig(tp node.Type) Config {
 		PeerExchange:              tp == node.Bridge || tp == node.Full,
 		ConnManager:               defaultConnManagerConfig(),
 		RoutingTableRefreshPeriod: defaultRoutingRefreshPeriod,
-		PrometheusAgentPort:       ":8890",
-		PrometheusAgentEndpoint:   "/metrics",
+		Metrics:                   DefaultMetricsConfig(),
 	}
 }
 
@@ -84,5 +82,5 @@ func (cfg *Config) Validate() error {
 		cfg.RoutingTableRefreshPeriod = defaultRoutingRefreshPeriod
 		log.Warnf("routingTableRefreshPeriod is not valid. restoring to default value: %d", cfg.RoutingTableRefreshPeriod)
 	}
-	return nil
+	return cfg.Metrics.Validate()
 }

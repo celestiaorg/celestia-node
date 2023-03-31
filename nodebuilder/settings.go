@@ -63,7 +63,7 @@ func WithMetrics(metricOpts []otlpmetrichttp.Option, nodeType node.Type) fx.Opti
 	return opts
 }
 
-// WithDebugMetrics registers debug level metrics for node
+// WithLibp2pMetrics option enables native libp2p metrisc for node
 func WithLibp2pMetrics() fx.Option {
 	return fx.Options(
 		fx.Decorate(p2p.WithMonitoredResourceManager),
