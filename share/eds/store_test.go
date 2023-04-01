@@ -206,6 +206,43 @@ func Test_BlockstoreCache(t *testing.T) {
 	assert.NoError(t, err, errCacheMiss)
 }
 
+// Test_CachedAccessor verifies that the reader represented by a cached accessor can be read from
+// multiple times, without exhausting the underlying reader.
+func Test_CachedAccessor(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(cancel)
+
+	edsStore, err := newStore(t)
+	require.NoError(t, err)
+	err = edsStore.Start(ctx)
+	require.NoError(t, err)
+
+	eds, dah := randomEDS(t)
+	err = edsStore.Put(ctx, dah.Hash(), eds)
+	require.NoError(t, err)
+
+	shardKey := shard.KeyFromString(dah.String())
+	// adds to cache
+	cachedAccessor, err := edsStore.getCachedAccessor(ctx, shardKey)
+	assert.NoError(t, err)
+
+	// first read
+	carReader, err := car.NewCarReader(cachedAccessor.sa)
+	assert.NoError(t, err)
+	firstBlock, err := carReader.Next()
+	assert.NoError(t, err)
+
+	// second read
+	cachedAccessor, err = edsStore.getCachedAccessor(ctx, shardKey)
+	assert.NoError(t, err)
+	carReader, err = car.NewCarReader(cachedAccessor.sa)
+	assert.NoError(t, err)
+	secondBlock, err := carReader.Next()
+	assert.NoError(t, err)
+
+	assert.Equal(t, firstBlock, secondBlock)
+}
+
 func newStore(t *testing.T) (*Store, error) {
 	t.Helper()
 
