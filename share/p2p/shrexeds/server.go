@@ -80,11 +80,11 @@ func (s *Server) handleStream(stream network.Stream) {
 	defer cancel()
 	status := p2p_pb.Status_OK
 	// determine whether the EDS is available in our store
+	// we do not close the reader, so that other requests will not need to re-open the file.
+	// closing is handled by the LRU cache.
 	edsReader, err := s.store.GetCAR(ctx, hash)
 	if err != nil {
 		status = p2p_pb.Status_NOT_FOUND
-	} else {
-		defer edsReader.Close()
 	}
 
 	// inform the client of our status
