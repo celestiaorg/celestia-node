@@ -210,11 +210,11 @@ func (s *Store) GetCAR(ctx context.Context, root share.DataHash) (io.ReadCloser,
 	defer span.End()
 
 	key := root.String()
-	accessor, err := s.getAccessor(ctx, shard.KeyFromString(key))
+	accessor, err := s.getCachedAccessor(ctx, shard.KeyFromString(key))
 	if err != nil {
 		return nil, fmt.Errorf("failed to get accessor: %w", err)
 	}
-	return accessor, nil
+	return accessor.sa, nil
 }
 
 // Blockstore returns an IPFS blockstore providing access to individual shares/nodes of all EDS
@@ -247,13 +247,12 @@ func (s *Store) GetDAH(ctx context.Context, root share.DataHash) (*share.Root, e
 	defer span.End()
 
 	key := shard.KeyFromString(root.String())
-	accessor, err := s.getAccessor(ctx, key)
+	accessor, err := s.getCachedAccessor(ctx, key)
 	if err != nil {
 		return nil, fmt.Errorf("eds/store: failed to get accessor: %w", err)
 	}
-	defer accessor.Close()
 
-	carHeader, err := carv1.ReadHeader(bufio.NewReader(accessor))
+	carHeader, err := carv1.ReadHeader(bufio.NewReader(accessor.sa))
 	if err != nil {
 		return nil, fmt.Errorf("eds/store: failed to read car header: %w", err)
 	}
