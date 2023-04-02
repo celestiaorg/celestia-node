@@ -63,6 +63,10 @@ func (bc *blockstoreCache) Get(shardContainingCid shard.Key) (*accessorWithBlock
 	lk.Lock()
 	defer lk.Unlock()
 
+	return bc.unsafeGet(shardContainingCid)
+}
+
+func (bc *blockstoreCache) unsafeGet(shardContainingCid shard.Key) (*accessorWithBlockstore, error) {
 	// We've already ensured that the given shard has the cid/multihash we are looking for.
 	val, ok := bc.cache.Get(shardContainingCid)
 	if !ok {
@@ -84,14 +88,21 @@ func (bc *blockstoreCache) Add(
 	shardContainingCid shard.Key,
 	accessor *dagstore.ShardAccessor,
 ) (*accessorWithBlockstore, error) {
+	lk := &bc.stripedLocks[shardKeyToStriped(shardContainingCid)]
+	lk.Lock()
+	defer lk.Unlock()
+
+	return bc.unsafeAdd(shardContainingCid, accessor)
+}
+
+func (bc *blockstoreCache) unsafeAdd(
+	shardContainingCid shard.Key,
+	accessor *dagstore.ShardAccessor,
+) (*accessorWithBlockstore, error) {
 	blockStore, err := accessor.Blockstore()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get blockstore from accessor: %w", err)
 	}
-
-	lk := &bc.stripedLocks[shardKeyToStriped(shardContainingCid)]
-	lk.Lock()
-	defer lk.Unlock()
 
 	newAccessor := &accessorWithBlockstore{
 		bs: blockStore,
