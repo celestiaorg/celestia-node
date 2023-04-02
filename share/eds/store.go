@@ -296,8 +296,11 @@ func (s *Store) getAccessor(ctx context.Context, key shard.Key) (*dagstore.Shard
 }
 
 func (s *Store) getCachedAccessor(ctx context.Context, key shard.Key) (*accessorWithBlockstore, error) {
-	// try to fetch from cache
-	accessor, err := s.cache.Get(key)
+	lk := &s.cache.stripedLocks[shardKeyToStriped(key)]
+	lk.Lock()
+	defer lk.Unlock()
+
+	accessor, err := s.cache.unsafeGet(key)
 	if err != nil && err != errCacheMiss {
 		log.Errorf("unexpected error while reading key from bs cache %s: %s", key, err)
 	}
@@ -310,7 +313,7 @@ func (s *Store) getCachedAccessor(ctx context.Context, key shard.Key) (*accessor
 	if err != nil {
 		return nil, err
 	}
-	return s.cache.Add(key, shardAccessor)
+	return s.cache.unsafeAdd(key, shardAccessor)
 }
 
 // Remove removes EDS from Store by the given share.Root hash and cleans up all
