@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
-	"regexp"
+	"strconv"
 	"time"
 
 	"github.com/libp2p/go-libp2p"
@@ -38,9 +38,7 @@ func (cfg *MetricsConfig) Validate() error {
 		return fmt.Errorf("p2p metrics: prometheus agent port cannot be empty")
 	}
 
-	pattern := "^\\d+$"
-	regex := regexp.MustCompile(pattern)
-	if !regex.MatchString(cfg.PrometheusAgentPort) {
+	if _, err := strconv.Atoi(cfg.PrometheusAgentPort); err != nil {
 		return fmt.Errorf("p2p metrics: prometheus agent port must be a number")
 	}
 
@@ -114,5 +112,5 @@ func WithMonitoredResourceManager(nodeType node.Type, allowlist []ma.Multiaddr) 
 		return nil, err
 	}
 
-	return monitoredRcmgr, nil
+	return monitoredRcmgr, err
 }
