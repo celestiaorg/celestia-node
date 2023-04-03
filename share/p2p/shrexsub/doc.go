@@ -45,7 +45,7 @@
 //	  	}
 //	  }
 //
-// You can also manipulate the received pubsub messages by using the `shrexsub.PubSub.AddValidator` method:
+// You can also manipulate the received pubsub messages by using the [PubSub.AddValidator] method:
 //
 //	pubsub.AddValidator(validator ValidatorFn)
 //

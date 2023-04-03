@@ -1,7 +1,7 @@
-// This package provides p2p functionality that powers the share exchange protocols used by celestia-node.
+// Package p2p provides p2p functionality that powers the share exchange protocols used by celestia-node.
 // The available protocols are:
 //
-//   - shrexsub: a floodsub-based protocol that is used to broadcast shares to peers. This protocol is pubsub protocol
+//   - shrexsub : a floodsub-based protocol that is used to broadcast shares to peers. This protocol is pubsub protocol
 //     that broadcasts and listens for shares over a pubsub topic.
 //
 //   - shrexnd: a request/response protocol that is used to request shares from peers.
