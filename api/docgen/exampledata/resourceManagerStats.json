@@ -1,0 +1,88 @@
+{
+  "System": {
+    "NumStreamsInbound": 4,
+    "NumStreamsOutbound": 13,
+    "NumConnsInbound": 0,
+    "NumConnsOutbound": 13,
+    "NumFD": 7,
+    "Memory": 4456448
+  },
+  "Transient": {
+    "NumStreamsInbound": 0,
+    "NumStreamsOutbound": 0,
+    "NumConnsInbound": 0,
+    "NumConnsOutbound": 0,
+    "NumFD": 0,
+    "Memory": 0
+  },
+  "Services": {
+    "libp2p.autonat": {
+      "NumStreamsInbound": 0,
+      "NumStreamsOutbound": 0,
+      "NumConnsInbound": 0,
+      "NumConnsOutbound": 0,
+      "NumFD": 0,
+      "Memory": 0
+    },
+    "libp2p.identify": {
+      "NumStreamsInbound": 0,
+      "NumStreamsOutbound": 0,
+      "NumConnsInbound": 0,
+      "NumConnsOutbound": 0,
+      "NumFD": 0,
+      "Memory": 0
+    }
+  },
+  "Protocols": {
+    "/celestia/arabica-3/ipfs/bitswap/1.2.0": {
+      "NumStreamsInbound": 0,
+      "NumStreamsOutbound": 4,
+      "NumConnsInbound": 0,
+      "NumConnsOutbound": 0,
+      "NumFD": 0,
+      "Memory": 0
+    },
+    "/celestia/arabica-3/kad/1.0.0": {
+      "NumStreamsInbound": 0,
+      "NumStreamsOutbound": 4,
+      "NumConnsInbound": 0,
+      "NumConnsOutbound": 0,
+      "NumFD": 0,
+      "Memory": 0
+    },
+    "/floodsub/1.0.0": {
+      "NumStreamsInbound": 2,
+      "NumStreamsOutbound": 0,
+      "NumConnsInbound": 0,
+      "NumConnsOutbound": 0,
+      "NumFD": 0,
+      "Memory": 0
+    },
+    "/ipfs/id/1.0.0": {
+      "NumStreamsInbound": 0,
+      "NumStreamsOutbound": 1,
+      "NumConnsInbound": 0,
+      "NumConnsOutbound": 0,
+      "NumFD": 0,
+      "Memory": 0
+    },
+    "/meshsub/1.1.0": {
+      "NumStreamsInbound": 2,
+      "NumStreamsOutbound": 4,
+      "NumConnsInbound": 0,
+      "NumConnsOutbound": 0,
+      "NumFD": 0,
+      "Memory": 0
+    }
+  },
+  "Peers": {
+    "12D3KooWPRb5h3g9MH7sx9qfbSQZG5cXv1a2Qs3o4aW5YmmzPq82": {
+      "NumStreamsInbound": 1,
+      "NumStreamsOutbound": 3,
+      "NumConnsInbound": 0,
+      "NumConnsOutbound": 3,
+      "NumFD": 3,
+      "Memory": 1048576
+    }
+  }
+}

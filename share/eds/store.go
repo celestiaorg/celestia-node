@@ -66,7 +66,7 @@ func NewStore(basepath string, ds datastore.Batching) (*Store, error) {
 	}
 
 	r := mount.NewRegistry()
-	err = r.Register("fs", &mount.FSMount{FS: os.DirFS(basepath + blocksPath)})
+	err = r.Register("fs", &mount.FileMount{Path: basepath + blocksPath})
 	if err != nil {
 		return nil, fmt.Errorf("failed to register FS mount on the registry: %w", err)
 	}
@@ -173,6 +173,7 @@ func (s *Store) Put(ctx context.Context, root share.DataHash, square *rsmt2d.Ext
 	if err != nil {
 		return err
 	}
+	defer f.Close()
 
 	err = WriteEDS(ctx, square, f)
 	if err != nil {
@@ -180,9 +181,8 @@ func (s *Store) Put(ctx context.Context, root share.DataHash, square *rsmt2d.Ext
 	}
 
 	ch := make(chan dagstore.ShardResult, 1)
-	err = s.dgstr.RegisterShard(ctx, shard.KeyFromString(key), &mount.FSMount{
-		FS:   os.DirFS(s.basepath + blocksPath),
-		Path: key,
+	err = s.dgstr.RegisterShard(ctx, shard.KeyFromString(key), &mount.FileMount{
+		Path: s.basepath + blocksPath + key,
 	}, ch, dagstore.RegisterOpts{})
 	if err != nil {
 		return fmt.Errorf("failed to initiate shard registration: %w", err)
@@ -367,6 +367,7 @@ func (s *Store) Get(ctx context.Context, root share.DataHash) (eds *rsmt2d.Exten
 	if err != nil {
 		return nil, fmt.Errorf("failed to get CAR file: %w", err)
 	}
+	defer f.Close()
 	eds, err = ReadEDS(ctx, f, root)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read EDS from CAR file: %w", err)

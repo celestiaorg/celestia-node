@@ -15,10 +15,12 @@ import (
 	"github.com/alecthomas/jsonschema"
 	go_openrpc_reflect "github.com/etclabscore/go-openrpc-reflect"
 	meta_schema "github.com/open-rpc/meta-schema"
+
+	"github.com/celestiaorg/celestia-node/api/rpc/client"
+	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 )
 
 const (
-	APIVersion     = "v0.1.0"
 	APIDescription = "The Celestia Node API is the collection of RPC methods that " +
 		"can be used to interact with the services provided by Celestia Data Availability Nodes."
 	APIName  = "Celestia Node API"
@@ -52,9 +54,10 @@ func (v *Visitor) Visit(node ast.Node) ast.Visitor {
 
 type Comments = map[string]string
 
-func ParseCommentsFromNodebuilderModules(moduleNames ...string) Comments {
+func ParseCommentsFromNodebuilderModules(moduleNames ...string) (Comments, Comments) {
 	fset := token.NewFileSet()
 	nodeComments := make(Comments)
+	permComments := make(Comments)
 	for _, moduleName := range moduleNames {
 		fileName := fmt.Sprintf("nodebuilder/%s/%s.go", moduleName, moduleName)
 		f, err := parser.ParseFile(fset, fileName, nil, parser.AllErrors|parser.ParseComments)
@@ -75,11 +78,19 @@ func ParseCommentsFromNodebuilderModules(moduleNames ...string) Comments {
 				nodeComments[moduleName+mn] = filteredComments[0].Text()
 			}
 		}
+
+		module := reflect.TypeOf(client.Modules[moduleName]).Elem()
+		var meth reflect.StructField
+		for i := 0; i < module.NumField(); i++ {
+			meth = module.Field(i)
+			perms := meth.Tag.Get("perm")
+			permComments[meth.Name] = perms
+		}
 	}
-	return nodeComments
+	return nodeComments, permComments
 }
 
-func NewOpenRPCDocument(comments Comments) *go_openrpc_reflect.Document {
+func NewOpenRPCDocument(comments Comments, permissions Comments) *go_openrpc_reflect.Document {
 	d := &go_openrpc_reflect.Document{}
 
 	d.WithMeta(&go_openrpc_reflect.MetaT{
@@ -93,7 +104,7 @@ func NewOpenRPCDocument(comments Comments) *go_openrpc_reflect.Document {
 			title := APIName
 			info.Title = (*meta_schema.InfoObjectProperties)(&title)
 
-			version := APIVersion
+			version := node.APIVersion
 			info.Version = (*meta_schema.InfoObjectVersion)(&version)
 
 			description := APIDescription
@@ -112,10 +123,6 @@ func NewOpenRPCDocument(comments Comments) *go_openrpc_reflect.Document {
 	})
 
 	appReflector := &go_openrpc_reflect.EthereumReflectorT{}
-
-	appReflector.FnSchemaTypeMap = func() func(ty reflect.Type) *jsonschema.Type {
-		return OpenRPCSchemaTypeMapper
-	}
 
 	appReflector.FnGetMethodExternalDocs = func(
 		r reflect.Value,
@@ -155,6 +162,9 @@ func NewOpenRPCDocument(comments Comments) *go_openrpc_reflect.Document {
 
 	// remove the default implementation from the method descriptions
 	appReflector.FnGetMethodDescription = func(r reflect.Value, m reflect.Method, funcDecl *ast.FuncDecl) (string, error) {
+		if v, ok := permissions[m.Name]; ok {
+			return "Auth level: " + v, nil
+		}
 		return "", nil // noComment
 	}
 

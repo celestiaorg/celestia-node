@@ -12,11 +12,6 @@ func (h *Handler) RegisterEndpoints(rpc *Server) {
 		http.MethodGet)
 	rpc.RegisterHandlerFunc(submitTxEndpoint, h.handleSubmitTx, http.MethodPost)
 	rpc.RegisterHandlerFunc(submitPFBEndpoint, h.handleSubmitPFB, http.MethodPost)
-	rpc.RegisterHandlerFunc(transferEndpoint, h.handleTransfer, http.MethodPost)
-	rpc.RegisterHandlerFunc(delegationEndpoint, h.handleDelegation, http.MethodPost)
-	rpc.RegisterHandlerFunc(undelegationEndpoint, h.handleUndelegation, http.MethodPost)
-	rpc.RegisterHandlerFunc(cancelUnbondingEndpoint, h.handleCancelUnbonding, http.MethodPost)
-	rpc.RegisterHandlerFunc(beginRedelegationEndpoint, h.handleRedelegation, http.MethodPost)
 
 	// staking queries
 	rpc.RegisterHandlerFunc(fmt.Sprintf("%s/{%s}", queryDelegationEndpoint, addrKey), h.handleQueryDelegation,
