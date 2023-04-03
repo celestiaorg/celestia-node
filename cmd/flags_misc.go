@@ -31,7 +31,7 @@ var (
 	metricsFlag         = "metrics"
 	metricsEndpointFlag = "metrics.endpoint"
 	metricsTlS          = "metrics.tls"
-	libp2pMetrics       = "libp2p.metrics"
+	p2pMetrics          = "p2p.metrics"
 )
 
 // MiscFlags gives a set of hardcoded miscellaneous flags.
@@ -94,7 +94,7 @@ and their lower-case forms`,
 	)
 
 	flags.Bool(
-		libp2pMetrics,
+		p2pMetrics,
 		false,
 		"Enable libp2p metrics",
 	)
@@ -208,14 +208,14 @@ func ParseMiscFlags(ctx context.Context, cmd *cobra.Command) (context.Context, e
 		ctx = WithNodeOptions(ctx, nodebuilder.WithMetrics(opts, NodeType(ctx)))
 	}
 
-	ok, err = cmd.Flags().GetBool(libp2pMetrics)
+	ok, err = cmd.Flags().GetBool(p2pMetrics)
 	if err != nil {
 		panic(err)
 	}
 
 	if ok {
 		if metricsEnabled, _ := cmd.Flags().GetBool(metricsFlag); !metricsEnabled {
-			panic(fmt.Errorf("--libp2p.metrics requires --metrics to be enabled"))
+			log.Error("--p2p.metrics used without --metrics being enabled")
 		}
 		ctx = WithNodeOptions(ctx, nodebuilder.WithLibp2pMetrics())
 	}

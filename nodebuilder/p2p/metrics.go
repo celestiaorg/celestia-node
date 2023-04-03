@@ -7,6 +7,7 @@ import (
 	"regexp"
 	"time"
 
+	"github.com/libp2p/go-libp2p"
 	"github.com/libp2p/go-libp2p/core/network"
 	rcmgr "github.com/libp2p/go-libp2p/p2p/host/resource-manager"
 	rcmgrObs "github.com/libp2p/go-libp2p/p2p/host/resource-manager/obs"
@@ -18,33 +19,31 @@ import (
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 )
 
+const promAgentEndpoint = "/metrics"
+
 type MetricsConfig struct {
-	// Prometheus Agent http endpoint configuration
-	PrometheusAgentEndpoint string
-	PrometheusAgentPort     string
+	// Prometheus Agent http configuration
+	PrometheusAgentPort string
 }
 
 // DefaultMetricsConfig returns default configuration for P2P subsystem.
 func DefaultMetricsConfig() MetricsConfig {
 	return MetricsConfig{
-		PrometheusAgentEndpoint: "/metrics",
-		PrometheusAgentPort:     "8890",
+		PrometheusAgentPort: "8890",
 	}
 }
 
 func (cfg *MetricsConfig) Validate() error {
-	if cfg.PrometheusAgentEndpoint == "" {
-		return fmt.Errorf("libp2p metrics: prometheus agent endpoint cannot be empty")
-	}
-	endpointPattern := "^/\\w+$"
-	regex := regexp.MustCompile(endpointPattern)
-	if !regex.MatchString(cfg.PrometheusAgentEndpoint) {
-		return fmt.Errorf("libp2p metrics: prometheus agent endpoint must match %s", "/{endpoint}")
+	if cfg.PrometheusAgentPort == "" {
+		return fmt.Errorf("p2p metrics: prometheus agent port cannot be empty")
 	}
 
-	if cfg.PrometheusAgentPort == "" {
-		return fmt.Errorf("libp2p metrics: prometheus agent port cannot be empty")
+	pattern := "^\\d+$"
+	regex := regexp.MustCompile(pattern)
+	if !regex.MatchString(cfg.PrometheusAgentPort) {
+		return fmt.Errorf("p2p metrics: prometheus agent port must be a number")
 	}
+
 	return nil
 }
 
@@ -57,7 +56,7 @@ func WithLibp2pMetrics(lifecycle fx.Lifecycle, cfg Config) error {
 
 	mux := http.NewServeMux()
 	handler := promhttp.HandlerFor(registry, promhttp.HandlerOpts{Registry: reg})
-	mux.Handle(cfg.Metrics.PrometheusAgentEndpoint, handler)
+	mux.Handle(promAgentEndpoint, handler)
 
 	promHTTPServer := &http.Server{
 		Addr:              fmt.Sprintf(":%s", cfg.Metrics.PrometheusAgentPort),
@@ -74,7 +73,7 @@ func WithLibp2pMetrics(lifecycle fx.Lifecycle, cfg Config) error {
 				}
 			}()
 
-			log.Info("Prometheus agent started on :%s/%s", cfg.Metrics.PrometheusAgentPort, cfg.Metrics.PrometheusAgentEndpoint)
+			log.Info("Prometheus agent started on :%s/%s", cfg.Metrics.PrometheusAgentPort, promAgentEndpoint)
 			return nil
 		},
 		OnStop: func(ctx context.Context) error {
@@ -100,8 +99,11 @@ func WithMonitoredResourceManager(nodeType node.Type, allowlist []ma.Multiaddr) 
 		)
 
 	case node.Light:
+		limits := rcmgr.DefaultLimits
+		libp2p.SetDefaultServiceLimits(&limits)
+
 		monitoredRcmgr, err = rcmgr.NewResourceManager(
-			rcmgr.NewFixedLimiter(rcmgr.DefaultLimits.AutoScale()),
+			rcmgr.NewFixedLimiter(limits.AutoScale()),
 			rcmgr.WithAllowlistedMultiaddrs(allowlist),
 			rcmgr.WithTraceReporter(str),
 		)
