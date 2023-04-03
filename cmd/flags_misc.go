@@ -216,8 +216,9 @@ func ParseMiscFlags(ctx context.Context, cmd *cobra.Command) (context.Context, e
 	if ok {
 		if metricsEnabled, _ := cmd.Flags().GetBool(metricsFlag); !metricsEnabled {
 			log.Error("--p2p.metrics used without --metrics being enabled")
+		} else {
+			ctx = WithNodeOptions(ctx, nodebuilder.WithP2PMetrics())
 		}
-		ctx = WithNodeOptions(ctx, nodebuilder.WithLibp2pMetrics())
 	}
 
 	return ctx, err

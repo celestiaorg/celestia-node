@@ -47,8 +47,8 @@ func (cfg *MetricsConfig) Validate() error {
 	return nil
 }
 
-// WithLibp2pMetrics option sets up native libp2p metrics up
-func WithLibp2pMetrics(lifecycle fx.Lifecycle, cfg Config) error {
+// WithMetrics option sets up native libp2p metrics up
+func WithMetrics(lifecycle fx.Lifecycle, cfg Config) error {
 	rcmgrObs.MustRegisterWith(prometheus.DefaultRegisterer)
 
 	reg := prometheus.DefaultRegisterer
