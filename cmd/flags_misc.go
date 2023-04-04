@@ -3,12 +3,12 @@ package cmd
 import (
 	"context"
 	"fmt"
-	otelpyroscope "github.com/pyroscope-io/otel-profiling-go"
 	"net/http"
 	"net/http/pprof"
 	"strings"
 
 	logging "github.com/ipfs/go-log/v2"
+	otelpyroscope "github.com/pyroscope-io/otel-profiling-go"
 	"github.com/spf13/cobra"
 	flag "github.com/spf13/pflag"
 	"go.opentelemetry.io/otel"
