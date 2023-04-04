@@ -40,7 +40,7 @@ func WithPyroscope(endpoint string, nodeType node.Type) fx.Option {
 		fx.Invoke(func(peerID peer.ID) error {
 			_, err := pyroscope.Start(pyroscope.Config{
 				ApplicationName: "celestia.da-node",
-				ServerAddress: endpoint,
+				ServerAddress:   endpoint,
 				Tags: map[string]string{
 					"type":   nodeType.String(),
 					"peerId": peerID.String(),
