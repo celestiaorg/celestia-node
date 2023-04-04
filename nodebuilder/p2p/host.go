@@ -14,7 +14,6 @@ import (
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/libp2p/go-libp2p/core/peerstore"
 	"github.com/libp2p/go-libp2p/core/routing"
-	routedhost "github.com/libp2p/go-libp2p/p2p/host/routed"
 	"github.com/libp2p/go-libp2p/p2p/net/conngater"
 	"go.uber.org/fx"
 
@@ -23,8 +22,9 @@ import (
 
 // routedHost constructs a wrapped Host that may fallback to address discovery,
 // if any top-level operation on the Host is provided with PeerID(Hash(PbK)) only.
-func routedHost(base HostBase, r routing.PeerRouting) hst.Host {
-	return routedhost.Wrap(base, r)
+func routedHost(base HostBase, _ routing.PeerRouting) hst.Host {
+	// FIXME: Return back routed host
+	return base
 }
 
 // host returns constructor for Host.
