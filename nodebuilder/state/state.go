@@ -44,9 +44,9 @@ type Module interface {
 	// SubmitPayForBlob builds, signs and submits a PayForBlob transaction.
 	SubmitPayForBlob(
 		ctx context.Context,
-		blobs []*apptypes.Blob,
 		fee state.Int,
 		gasLim uint64,
+		blobs ...*apptypes.Blob,
 	) (*state.TxResponse, error)
 
 	// CancelUnbondingDelegation cancels a user's pending undelegation from a validator.
@@ -112,9 +112,9 @@ type API struct {
 		SubmitTx         func(ctx context.Context, tx state.Tx) (*state.TxResponse, error) `perm:"write"`
 		SubmitPayForBlob func(
 			ctx context.Context,
-			blobs []*apptypes.Blob,
 			fee state.Int,
 			gasLim uint64,
+			blobs ...*apptypes.Blob,
 		) (*state.TxResponse, error) `perm:"write"`
 		CancelUnbondingDelegation func(
 			ctx context.Context,
@@ -190,11 +190,11 @@ func (api *API) SubmitTx(ctx context.Context, tx state.Tx) (*state.TxResponse, e
 
 func (api *API) SubmitPayForBlob(
 	ctx context.Context,
-	blobs []*apptypes.Blob,
 	fee state.Int,
 	gasLim uint64,
+	blobs ...*apptypes.Blob,
 ) (*state.TxResponse, error) {
-	return api.Internal.SubmitPayForBlob(ctx, blobs, fee, gasLim)
+	return api.Internal.SubmitPayForBlob(ctx, fee, gasLim, blobs...)
 }
 
 func (api *API) CancelUnbondingDelegation(

@@ -148,7 +148,7 @@ func (h *Handler) handleSubmitPFB(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// perform request
-	txResp, err := h.state.SubmitPayForBlob(r.Context(), []*apptypes.Blob{blob}, fee, req.GasLimit)
+	txResp, err := h.state.SubmitPayForBlob(r.Context(), fee, req.GasLimit, blob)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, submitPFBEndpoint, err)
 		return

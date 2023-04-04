@@ -156,13 +156,16 @@ func (ca *CoreAccessor) constructSignedTx(
 
 func (ca *CoreAccessor) SubmitPayForBlob(
 	ctx context.Context,
-	blobs []*apptypes.Blob,
 	fee Int,
 	gasLim uint64,
+	blobs ...*apptypes.Blob,
 ) (*TxResponse, error) {
 	if len(blobs) == 0 {
 		return nil, errors.New("state: no blobs provided")
 	}
+
+	b := make([]*apptypes.Blob, len(blobs))
+	copy(b, blobs)
 
 	response, err := blob.SubmitPayForBlob(
 		ctx,
