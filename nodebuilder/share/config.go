@@ -3,9 +3,9 @@ package share
 import (
 	"errors"
 	"fmt"
-	"github.com/celestiaorg/celestia-node/share/p2p/peers"
 	"time"
 
+	"github.com/celestiaorg/celestia-node/share/p2p/peers"
 	"github.com/celestiaorg/celestia-node/share/p2p/shrexeds"
 	"github.com/celestiaorg/celestia-node/share/p2p/shrexnd"
 )

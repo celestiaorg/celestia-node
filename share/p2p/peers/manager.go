@@ -51,6 +51,9 @@ type Manager struct {
 
 	// pools collecting peers from shrexSub
 	pools map[string]*syncPool
+	// messages from shrex.Sub with height below initialHeight will be ignored, since we don't need to
+	// track peers for those headers
+	initialHeight atomic.Uint64
 
 	// fullNodes collects full nodes peer.ID found via discovery
 	fullNodes *pool
@@ -315,7 +318,7 @@ func (m *Manager) getOrCreatePool(datahash string) *syncPool {
 func (m *Manager) blacklistPeers(peerIDs ...peer.ID) {
 	log.Debugw("blacklisting peers", "peers", peerIDs)
 
-	if !m.enableBlackListing {
+	if !m.params.EnableBlackListing {
 		return
 	}
 	for _, peerID := range peerIDs {
