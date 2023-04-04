@@ -164,9 +164,6 @@ func (ca *CoreAccessor) SubmitPayForBlob(
 		return nil, errors.New("state: no blobs provided")
 	}
 
-	b := make([]*apptypes.Blob, len(blobs))
-	copy(b, blobs)
-
 	response, err := blob.SubmitPayForBlob(
 		ctx,
 		ca.signer,
