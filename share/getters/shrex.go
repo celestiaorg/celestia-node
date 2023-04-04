@@ -2,7 +2,6 @@ package getters
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"time"
 
@@ -59,8 +58,8 @@ func (sg *ShrexGetter) Stop(ctx context.Context) error {
 	return sg.peerManager.Stop(ctx)
 }
 
-func (sg *ShrexGetter) GetShare(ctx context.Context, root *share.Root, row, col int) (share.Share, error) {
-	return nil, errors.New("getter/shrex: GetShare is not supported")
+func (sg *ShrexGetter) GetShare(context.Context, *share.Root, int, int) (share.Share, error) {
+	return nil, fmt.Errorf("getter/shrex: GetShare %w", errOperationNotSupported)
 }
 
 func (sg *ShrexGetter) GetEDS(ctx context.Context, root *share.Root) (*rsmt2d.ExtendedDataSquare, error) {

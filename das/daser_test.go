@@ -16,10 +16,11 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/tendermint/tendermint/types"
 
+	libhead "github.com/celestiaorg/go-header"
+
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/header/headertest"
 	"github.com/celestiaorg/celestia-node/libs/fraud"
-	libhead "github.com/celestiaorg/celestia-node/libs/header"
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/availability/full"
 	"github.com/celestiaorg/celestia-node/share/availability/light"
@@ -344,7 +345,7 @@ func newBenchGetter() benchGetterStub {
 		DAH: &header.DataAvailabilityHeader{RowsRoots: make([][]byte, 0)}}}
 }
 
-func (m benchGetterStub) GetByHeight(_ context.Context, height uint64) (*header.ExtendedHeader, error) {
+func (m benchGetterStub) GetByHeight(context.Context, uint64) (*header.ExtendedHeader, error) {
 	return m.header, nil
 }
 
@@ -361,7 +362,7 @@ func (m getterStub) GetByHeight(_ context.Context, height uint64) (*header.Exten
 		DAH:       &header.DataAvailabilityHeader{RowsRoots: make([][]byte, 0)}}, nil
 }
 
-func (m getterStub) GetRangeByHeight(ctx context.Context, from, amount uint64) ([]*header.ExtendedHeader, error) {
+func (m getterStub) GetRangeByHeight(context.Context, uint64, uint64) ([]*header.ExtendedHeader, error) {
 	return nil, nil
 }
 

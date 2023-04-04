@@ -1,10 +1,11 @@
 package header
 
 import (
+	libhead "github.com/celestiaorg/go-header"
+	"github.com/celestiaorg/go-header/p2p"
+	"github.com/celestiaorg/go-header/sync"
+
 	"github.com/celestiaorg/celestia-node/header"
-	libhead "github.com/celestiaorg/celestia-node/libs/header"
-	"github.com/celestiaorg/celestia-node/libs/header/p2p"
-	"github.com/celestiaorg/celestia-node/libs/header/sync"
 )
 
 // WithMetrics provides sets `MetricsEnabled` to true on ClientParameters for the header exchange

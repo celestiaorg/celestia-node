@@ -81,7 +81,7 @@ func TestServer_contextLeakProtection(t *testing.T) {
 
 type ping struct{}
 
-func (p ping) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (p ping) ServeHTTP(w http.ResponseWriter, _ *http.Request) {
 	//nolint:errcheck
 	w.Write([]byte("pong"))
 }

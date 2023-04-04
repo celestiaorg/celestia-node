@@ -8,12 +8,13 @@ import (
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	"go.uber.org/fx"
 
+	libhead "github.com/celestiaorg/go-header"
+	"github.com/celestiaorg/go-header/p2p"
+	"github.com/celestiaorg/go-header/store"
+	"github.com/celestiaorg/go-header/sync"
+
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/libs/fraud"
-	libhead "github.com/celestiaorg/celestia-node/libs/header"
-	"github.com/celestiaorg/celestia-node/libs/header/p2p"
-	"github.com/celestiaorg/celestia-node/libs/header/store"
-	"github.com/celestiaorg/celestia-node/libs/header/sync"
 	modfraud "github.com/celestiaorg/celestia-node/nodebuilder/fraud"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	modp2p "github.com/celestiaorg/celestia-node/nodebuilder/p2p"

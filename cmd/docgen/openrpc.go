@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"encoding/json"
-	"log"
 	"os"
 
 	"github.com/spf13/cobra"
@@ -17,10 +16,10 @@ var rootCmd = &cobra.Command{
 	Short: "docgen generates the openrpc documentation for Celestia Node packages",
 	RunE: func(cmd *cobra.Command, moduleNames []string) error {
 		// 1. Open the respective nodebuilder/X/service.go files for AST parsing
-		nodeComments := docgen.ParseCommentsFromNodebuilderModules(moduleNames...)
+		nodeComments, permComments := docgen.ParseCommentsFromNodebuilderModules(moduleNames...)
 
 		// 2. Create an OpenRPC document from the map of comments + hardcoded metadata
-		doc := docgen.NewOpenRPCDocument(nodeComments)
+		doc := docgen.NewOpenRPCDocument(nodeComments, permComments)
 
 		// 3. Register the client wrapper interface on the document
 		for moduleName, module := range nodebuilder.PackageToAPI {
@@ -35,9 +34,6 @@ var rootCmd = &cobra.Command{
 
 		// 5. Print to Stdout
 		jsonOut, err := json.MarshalIndent(d, "", "    ")
-		if err != nil {
-			log.Fatalln(err)
-		}
 		if err != nil {
 			return err
 		}

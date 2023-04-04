@@ -25,6 +25,8 @@ import (
 var (
 	tracer = otel.Tracer("share/getters")
 	log    = logging.Logger("share/getters")
+
+	errOperationNotSupported = errors.New("operation is not supported")
 )
 
 // filterRootsByNamespace returns the row roots from the given share.Root that contain the passed
@@ -66,8 +68,7 @@ func collectSharesByNamespace(
 		// shadow loop variables, to ensure correct values are captured
 		i, rootCID := i, rootCID
 		errGroup.Go(func() error {
-			proof := new(ipld.Proof)
-			row, err := share.GetSharesByNamespace(ctx, bg, rootCID, nID, len(root.RowsRoots), proof)
+			row, proof, err := share.GetSharesByNamespace(ctx, bg, rootCID, nID, len(root.RowsRoots))
 			shares[i] = share.NamespacedRow{
 				Shares: row,
 				Proof:  proof,

@@ -23,10 +23,10 @@ import (
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/x/blob"
 	apptypes "github.com/celestiaorg/celestia-app/x/blob/types"
+	libhead "github.com/celestiaorg/go-header"
 	"github.com/celestiaorg/nmt/namespace"
 
 	"github.com/celestiaorg/celestia-node/header"
-	libhead "github.com/celestiaorg/celestia-node/libs/header"
 )
 
 var (
@@ -180,7 +180,7 @@ func (ca *CoreAccessor) SubmitPayForBlob(
 	return response, err
 }
 
-func (ca *CoreAccessor) AccountAddress(ctx context.Context) (Address, error) {
+func (ca *CoreAccessor) AccountAddress(context.Context) (Address, error) {
 	addr, err := ca.signer.GetSignerInfo().GetAddress()
 	if err != nil {
 		return nil, err
