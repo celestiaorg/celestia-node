@@ -62,7 +62,7 @@ func Test_coordinatorStats(t *testing.T) {
 						Curr:   15,
 						From:   11,
 						To:     20,
-						ErrMsg: "12: failed; 13: failed",
+						ErrMsg: "12: failed\n13: failed",
 					},
 				},
 				Concurrency: 2,
