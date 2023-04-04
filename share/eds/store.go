@@ -204,8 +204,9 @@ func (s *Store) Put(ctx context.Context, root share.DataHash, square *rsmt2d.Ext
 // The Reader strictly reads the CAR header and first quadrant (1/4) of the EDS, omitting all the
 // NMT Merkle proofs. Integrity of the store data is not verified.
 //
-// Caller must Close returned reader after reading.
-func (s *Store) GetCAR(ctx context.Context, root share.DataHash) (io.ReadCloser, error) {
+// The shard is cached in the Store, so subsequent calls to GetCAR with the same root will use the same reader.
+// The cache is responsible for closing the underlying reader.
+func (s *Store) GetCAR(ctx context.Context, root share.DataHash) (io.Reader, error) {
 	ctx, span := tracer.Start(ctx, "store/get-car", trace.WithAttributes(attribute.String("root", root.String())))
 	defer span.End()
 
@@ -214,7 +215,7 @@ func (s *Store) GetCAR(ctx context.Context, root share.DataHash) (io.ReadCloser,
 	if err != nil {
 		return nil, fmt.Errorf("failed to get accessor: %w", err)
 	}
-	return accessor.sa, nil
+	return utils.NewReaderAtWrapper(accessor.sa), nil
 }
 
 // Blockstore returns an IPFS blockstore providing access to individual shares/nodes of all EDS
@@ -252,7 +253,7 @@ func (s *Store) GetDAH(ctx context.Context, root share.DataHash) (*share.Root, e
 		return nil, fmt.Errorf("eds/store: failed to get accessor: %w", err)
 	}
 
-	carHeader, err := carv1.ReadHeader(bufio.NewReader(accessor.sa))
+	carHeader, err := carv1.ReadHeader(bufio.NewReader(utils.NewReaderAtWrapper(accessor.sa)))
 	if err != nil {
 		return nil, fmt.Errorf("eds/store: failed to read car header: %w", err)
 	}
@@ -369,7 +370,6 @@ func (s *Store) Get(ctx context.Context, root share.DataHash) (eds *rsmt2d.Exten
 	if err != nil {
 		return nil, fmt.Errorf("failed to get CAR file: %w", err)
 	}
-	defer f.Close()
 	eds, err = ReadEDS(ctx, f, root)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read EDS from CAR file: %w", err)

@@ -17,6 +17,7 @@ import (
 	"github.com/celestiaorg/celestia-app/pkg/da"
 	"github.com/celestiaorg/rsmt2d"
 
+	"github.com/celestiaorg/celestia-node/libs/utils"
 	"github.com/celestiaorg/celestia-node/share"
 )
 
@@ -227,7 +228,7 @@ func Test_CachedAccessor(t *testing.T) {
 	assert.NoError(t, err)
 
 	// first read
-	carReader, err := car.NewCarReader(cachedAccessor.sa)
+	carReader, err := car.NewCarReader(utils.NewReaderAtWrapper(cachedAccessor.sa))
 	assert.NoError(t, err)
 	firstBlock, err := carReader.Next()
 	assert.NoError(t, err)
@@ -235,7 +236,7 @@ func Test_CachedAccessor(t *testing.T) {
 	// second read
 	cachedAccessor, err = edsStore.getCachedAccessor(ctx, shardKey)
 	assert.NoError(t, err)
-	carReader, err = car.NewCarReader(cachedAccessor.sa)
+	carReader, err = car.NewCarReader(utils.NewReaderAtWrapper(cachedAccessor.sa))
 	assert.NoError(t, err)
 	secondBlock, err := carReader.Next()
 	assert.NoError(t, err)

@@ -144,7 +144,7 @@ func (s *Server) writeStatus(status p2p_pb.Status, stream network.Stream) error 
 	return err
 }
 
-func (s *Server) writeODS(edsReader io.ReadCloser, stream network.Stream) error {
+func (s *Server) writeODS(edsReader io.Reader, stream network.Stream) error {
 	err := stream.SetWriteDeadline(time.Now().Add(s.params.ServerWriteTimeout))
 	if err != nil {
 		log.Debug(err)
