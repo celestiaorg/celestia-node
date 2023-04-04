@@ -7,6 +7,7 @@ import (
 	"github.com/ipfs/go-datastore"
 	logging "github.com/ipfs/go-log/v2"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
+	"github.com/libp2p/go-libp2p/core/network"
 	"go.uber.org/fx"
 
 	libhead "github.com/celestiaorg/go-header"
@@ -81,7 +82,7 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 				return modfraud.Lifecycle(startCtx, ctx, byzantine.BadEncoding, fservice,
 					func(ctx context.Context) error {
 						for {
-							err := syncer.Start(ctx)
+							err := syncer.Start(network.WithForceDirectDial(ctx, "bootstrapper connect"))
 							if err == nil {
 								return nil
 							}

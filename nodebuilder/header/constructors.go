@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/libp2p/go-libp2p/core/host"
+	"github.com/libp2p/go-libp2p/core/network"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/libp2p/go-libp2p/core/peerstore"
 	"github.com/libp2p/go-libp2p/p2p/net/conngater"
@@ -100,7 +101,7 @@ func newInitStore(
 	lc.Append(fx.Hook{
 		OnStart: func(ctx context.Context) error {
 			for {
-				err := store.Init(ctx, s, ex, trustedHash)
+				err := store.Init(network.WithForceDirectDial(ctx, "bootstrapper connect"), s, ex, trustedHash)
 				if err == nil {
 					return nil
 				}
