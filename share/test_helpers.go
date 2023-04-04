@@ -2,7 +2,7 @@ package share
 
 import (
 	"bytes"
-	mrand "math/rand"
+	"crypto/rand"
 	"sort"
 
 	"github.com/stretchr/testify/require"
@@ -53,14 +53,14 @@ func RandShares(t require.TestingT, total int) []Share {
 	shares := make([]Share, total)
 	for i := range shares {
 		nid := make([]byte, Size)
-		_, err := mrand.Read(nid[:NamespaceSize]) //nolint:gosec
+		_, err := rand.Read(nid[:NamespaceSize])
 		require.NoError(t, err)
 		shares[i] = nid
 	}
 	sort.Slice(shares, func(i, j int) bool { return bytes.Compare(shares[i], shares[j]) < 0 })
 
 	for i := range shares {
-		_, err := mrand.Read(shares[i][NamespaceSize:]) //nolint:gosec
+		_, err := rand.Read(shares[i][NamespaceSize:])
 		require.NoError(t, err)
 	}
 

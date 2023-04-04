@@ -2,7 +2,7 @@ package ipld
 
 import (
 	"bytes"
-	"math/rand"
+	"crypto/rand"
 	"sort"
 	"strconv"
 	"testing"
@@ -51,14 +51,14 @@ func generateRandNamespacedRawData(total, nidSize, leafSize uint32) [][]byte {
 	for i := uint32(0); i < total; i++ {
 		nid := make([]byte, nidSize)
 
-		rand.Read(nid)
+		_, _ = rand.Read(nid)
 		data[i] = nid
 	}
 	sortByteArrays(data)
 	for i := uint32(0); i < total; i++ {
 		d := make([]byte, leafSize)
 
-		rand.Read(d)
+		_, _ = rand.Read(d)
 		data[i] = append(data[i], d...)
 	}
 
