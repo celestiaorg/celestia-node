@@ -87,6 +87,7 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 								return nil
 							}
 
+							log.Errorf("starting syncer: %s", err)
 							time.Sleep(time.Millisecond * 50)
 							if ctx.Err() != nil {
 								return ctx.Err()

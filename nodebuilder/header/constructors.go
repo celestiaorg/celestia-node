@@ -106,6 +106,7 @@ func newInitStore(
 					return nil
 				}
 
+				log.Errorf("initing store: %s", err)
 				time.Sleep(time.Millisecond * 50)
 				if ctx.Err() != nil {
 					return ctx.Err()
