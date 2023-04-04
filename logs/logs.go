@@ -18,6 +18,7 @@ func SetAllLoggers(level logging.LogLevel) {
 	_ = logging.SetLogLevel("badger", "INFO")
 	_ = logging.SetLogLevel("basichost", "INFO")
 	_ = logging.SetLogLevel("pubsub", "WARN")
+	_ = logging.SetLogLevel("net/identify", "ERROR")
 }
 
 func SetDebugLogging() {
