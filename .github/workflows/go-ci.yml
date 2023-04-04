@@ -4,7 +4,7 @@ on:
   workflow_call:
 
 env:
-  GO_VERSION: 1.19
+  GO_VERSION: '1.20'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
