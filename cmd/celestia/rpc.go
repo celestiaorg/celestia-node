@@ -71,7 +71,7 @@ var rpcCmd = &cobra.Command{
 			methods := reflect.VisibleFields(reflect.TypeOf(module).Elem())
 			var methodNames []string
 			for _, m := range methods {
-				methodNames = append(methodNames, m.Name)
+				methodNames = append(methodNames, m.Name+"\t"+parseSignatureForHelpstring(m))
 			}
 			return methodNames, cobra.ShellCompDirectiveNoFileComp
 		}
@@ -296,4 +296,24 @@ func parseAddressFromString(addrStr string) (state.Address, error) {
 	}
 
 	return addr, nil
+}
+
+func parseSignatureForHelpstring(methodSig reflect.StructField) string {
+	simplifiedSignature := "("
+	in, out := methodSig.Type.NumIn(), methodSig.Type.NumOut()
+	for i := 1; i < in; i++ {
+		simplifiedSignature += methodSig.Type.In(i).String()
+		if i != in-1 {
+			simplifiedSignature += ", "
+		}
+	}
+	simplifiedSignature += ") -> ("
+	for i := 0; i < out-1; i++ {
+		simplifiedSignature += methodSig.Type.Out(i).String()
+		if i != out-2 {
+			simplifiedSignature += ", "
+		}
+	}
+	simplifiedSignature += ")"
+	return simplifiedSignature
 }
