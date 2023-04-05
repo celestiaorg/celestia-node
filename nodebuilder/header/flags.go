@@ -38,7 +38,7 @@ func TrustedPeersFlags() *flag.FlagSet {
 	flags.StringSlice(
 		headersTrustedPeersFlag,
 		nil,
-		"Multiaddresses of a reliable peers to fetch headers from. (Format: multiformats.io/multiaddr)",
+		"Multiaddresses of reliable peers to fetch headers from. (Format: multiformats.io/multiaddr)",
 	)
 	return flags
 }
