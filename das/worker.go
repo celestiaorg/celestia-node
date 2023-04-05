@@ -110,7 +110,7 @@ func (w *worker) sample(ctx context.Context, timeout time.Duration, height uint6
 	defer cancel()
 
 	err = w.sampleFn(ctx, h)
-	w.metrics.observeSample(ctx, h, time.Since(start), err)
+	w.metrics.observeSample(ctx, h, time.Since(start), w.state.kind, err)
 	if err != nil {
 		if !errors.Is(err, context.Canceled) {
 			log.Debugw(

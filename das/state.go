@@ -2,27 +2,36 @@ package das
 
 import (
 	"context"
-
 	"sync/atomic"
 
 	"github.com/celestiaorg/celestia-node/header"
 )
 
-// coordinatorState represents the current state of sampling
+// coordinatorState represents the current state of sampling process
 type coordinatorState struct {
-	sampleFrom    uint64 // is the height from which the DASer will start sampling
-	samplingRange uint64 // is the maximum amount of headers processed in one job.
+	// sampleFrom is the height from which the DASer will start sampling
+	sampleFrom uint64
+	// samplingRange is the maximum amount of headers processed in one job.
+	samplingRange uint64
 
-	inProgress map[int]func() workerState // keeps track of running workers
-	failed     map[uint64]int             // stores heights of failed headers with amount of attempt as value
-	retry      map[int]int                // retry jobsIDs for heights that previously failed and currently are being process by workers
+	// keeps track of running workers
+	inProgress map[int]func() workerState
+	// stores heights of failed headers with amount of attempt as value
+	failed map[uint64]int
+	// retry stores heights of failed headers that are currently are being retried by workers
+	inRetry map[uint64]int
 
-	nextJobID   int
-	next        uint64 // all headers before next were sent to workers
+	// nextJobID is a unique identifier that will be used for creation of next job
+	nextJobID int
+	// all headers before next were sent to workers
+	next uint64
+	// networkHead is the height of the latest known network head
 	networkHead uint64
 
-	catchUpDone   atomic.Bool   // indicates if all headers are sampled
-	catchUpDoneCh chan struct{} // blocks until all headers are sampled
+	// catchUpDone indicates if all headers are sampled
+	catchUpDone atomic.Bool
+	// catchUpDoneCh blocks until all headers are sampled
+	catchUpDoneCh chan struct{}
 }
 
 // newCoordinatorState initiates state for samplingCoordinator
@@ -32,7 +41,7 @@ func newCoordinatorState(params Parameters) coordinatorState {
 		samplingRange: params.SamplingRange,
 		inProgress:    make(map[int]func() workerState),
 		failed:        make(map[uint64]int),
-		retry:         make(map[int]int),
+		inRetry:       make(map[uint64]int),
 		nextJobID:     0,
 		next:          params.SampleFrom,
 		networkHead:   params.SampleFrom,
@@ -63,18 +72,16 @@ func (s *coordinatorState) handleResult(res result) {
 		}
 	}
 
-	attempts := 1
-	if res.kind == retryJob {
-		if len(res.failed) > 0 {
-			// if job was already in retry and failed again, increment attempt count
-			attempts += s.retry[res.job.id]
-		}
-		delete(s.retry, res.job.id)
-	}
-
-	// add newly failed heights
+	// update failed heights
 	for h := range res.failed {
-		s.failed[h] += attempts
+		failCount := 1
+		if res.job.kind == retryJob {
+			// if job was already in retry and failed again, persist attempt count
+			failCount += s.inRetry[h]
+			delete(s.inRetry, h)
+		}
+
+		s.failed[h] += failCount
 	}
 	s.checkDone()
 }
@@ -144,9 +151,10 @@ func (s *coordinatorState) catchupJob() (next job, found bool) {
 // retryJob creates a job to retry previously failed header
 func (s *coordinatorState) retryJob() (next job, found bool) {
 	for h, count := range s.failed {
+		// move header from failed into retry
 		delete(s.failed, h)
+		s.inRetry[h] = count
 		j := s.newJob(retryJob, h, h)
-		s.retry[j.id] = count
 		return j, true
 	}
 
