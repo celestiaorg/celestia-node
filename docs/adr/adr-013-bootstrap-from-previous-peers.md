@@ -6,23 +6,30 @@
 
 ## Context
 
-Celestia node relies on a set or peer to peer protocols that assume a decentralized network, where nodes are connected to each other and can exchange data. However, in the case of a new node joining the network, the node does not have any peers to connect to (_apart from the hardcoded bootstrappers_), and thus cannot bootstrap itself. This is a problem for it makes the network centralized and reliant on the few hardcoded nodes.
+Celestia node relies on a set of peer to peer protocols that assume a decentralized network, where nodes are connected to each other and can exchange data. 
 
-In this ADR, we wish to aleviate this problem by allowing nodes to bootstrap from previously seen peers. This is a simple solution that allows the network to gain more decentralization, where nodes can join the network without the need for hardcoded bootstrappers, as long as they have already seen at least one peer.
+Currently, when a node joins/comes up on the network, it relies, by default, on hardcoded bootstrappers for 3 things: 
 
-_Original issue available in references_
+1. initializing its store with the first (genesis) block
+2. requesting the network head to which it sets its initial sync target, and 
+3. bootstrapping itself with some other peers on the network which it can utilise for its operations.
+
+This is centralisation bottleneck as it happens both during initial start-up and for any re-starts.
+
+In this ADR, we wish to aleviate this problem by allowing nodes to bootstrap from previously seen peers. This is a simple solution that allows the network alleviate the start-up centralisation bottleneck such that nodes can join the network without the need for hardcoded bootstrappers up re-start
+
+(_Original issue available in references_)
 
 ## Decision
 
-Periodically store the addresses of previously seen peers in a new key-value database, and allow the node to bootstrap from these peers on startup.
+Periodically store the addresses of previously seen peers in a key-value database, and allow the node to bootstrap from these peers on start-up.
 
 ## Detailed Design
 
 ### What systems will be affected?
 
-- `peerTracker` and `libhead.Exchange` from `go-header`
-- `newInitStore` in `nodebuilder/header.go`
-
+* `peerTracker` and `libhead.Exchange` from `go-header`
+* `newInitStore` in `nodebuilder/header.go`
 
 ### Database
 
@@ -42,6 +49,7 @@ type PeerStore interface {
 ```
 
 And we expect the underlying implementation to use a badgerDB datastore. Example:
+
 ```go
 type peerStore struct {
     db datastore.Batching
@@ -55,13 +63,16 @@ Since bootstrappers are primarily used as trustedPeers to kick off the header ex
 This means initially that on node startup, specifically on store initialization, we should have a mechanism that informs us about which trustedPeers have successfully answered the `Get` request to retrieve the trusted hash (_to initialize the store_). In the current state of affairs, with `go-header` being a separate repository, we suggest to extend internal functionality of `go-header` such that the `libhead.Exchange`'s `peerTracker` is able to select peers based on the criteria mentioned above.
 
 To achieve this, we will first extend `peerStat` to include a new attribute `isTrustedPeer`:
+
 ```go
 type peerStat struct {
     // ...
     isTrustedPeer bool
 }
 ```
+
 and add a new method to `peerTracker` named `rewardTrustedPeer` such that it increases the score of a tracked peer (_that is a trusted peer_) by 10(_TODO: rethink this value_) points to mark it as a good _bootstrapping_ peer:
+
 ```go
 func (pt *peerTracker) rewardTrustedPeer(id peer.ID) {
     pt.mu.Lock()
@@ -78,6 +89,7 @@ Then, we would update `libhead.Exchange`'s private method `performRequest` to ex
 This will allow a tracking of which trusted peers were successful in answering the `Get` request, and thus can be used to bootstrap from.
 
 Similarly, we will add a new method to `peerTracker` named `GetTrustedPeers` that returns a list of trusted peers that have answered with a header:
+
 ```go
 func (pt *peerTracker) GetTrustedPeers() []peer.ID {
     pt.mu.Lock()
@@ -94,21 +106,22 @@ func (pt *peerTracker) GetTrustedPeers() []peer.ID {
 ```
 
 Then in `store.Init`, we pass an instance of the peer store/database mentioned above, and perform a call to this method. We then iterate over this list and add each peer to the peer store/database.
+
 ```go
 // Init ensures a Store is initialized. If it is not already initialized,
 // it initializes the Store by requesting the header with the given hash.
 func Init[H header.Header](ctx context.Context, store header.Store[H], ex header.Exchange[H], hash header.Hash, pstore store.PeerStore) error {
-	_, err := store.Head(ctx)
-	switch err {
-	default:
-		return err
-	case header.ErrNoHead:
-		initial, err := ex.Get(ctx, hash)
-		if err != nil {
-			return err
-		}
+    _, err := store.Head(ctx)
+    switch err {
+    default:
+        return err
+    case header.ErrNoHead:
+        initial, err := ex.Get(ctx, hash)
+        if err != nil {
+            return err
+        }
 
-		err := store.Init(ctx, initial)
+        err := store.Init(ctx, initial)
         if err != nil {
             return err
         }
@@ -123,13 +136,13 @@ func Init[H header.Header](ctx context.Context, store header.Store[H], ex header
         }
 
         return err
-	}
+    }
 }
 ```
 
 Also, we will add a routine that periodically checks for new peers that have answered with a header, and adds them to the peer store/database. This routine will be started in `store.Init`:
-```go
 
+```go
     fx.Provide(
         // ...
         func(lc fx.Lifecycle, ex header.Exchange[H], pstore store.PeerStore) {
@@ -152,6 +165,7 @@ Also, we will add a routine that periodically checks for new peers that have ans
                 },
             })
         },
+    )
 ```
 
 (_MISSING: TODO: Add design for logic to only store peers that were active since the last 24 hours_)
@@ -170,11 +184,9 @@ Proposed
 
 * Allows nodes to bootstrap from previously seen peers, which allows the network to gain more decentralization.
 
-
 ### Negative
 
 * peerTracker scoring logic might be impacted
-
 
 <!-- 
 > This section does not need to be filled in at the start of the ADR, but must be completed prior to the merging of the implementation.
@@ -207,4 +219,4 @@ Proposed
 
 ## References
 
-- [Original Issue](https://github.com/celestiaorg/celestia-node/issues/1851)
+* [Original Issue](https://github.com/celestiaorg/celestia-node/issues/1851)
