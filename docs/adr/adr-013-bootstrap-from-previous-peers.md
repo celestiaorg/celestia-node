@@ -1,4 +1,4 @@
-# ADR {ADR-NUMBER}: {TITLE}
+# ADR 013: Bootstrap from previous peers
 
 ## Changelog
 
