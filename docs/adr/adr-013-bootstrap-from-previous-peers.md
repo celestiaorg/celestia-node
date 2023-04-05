@@ -94,6 +94,65 @@ func (pt *peerTracker) GetTrustedPeers() []peer.ID {
 ```
 
 Then in `store.Init`, we pass an instance of the peer store/database mentioned above, and perform a call to this method. We then iterate over this list and add each peer to the peer store/database.
+```go
+// Init ensures a Store is initialized. If it is not already initialized,
+// it initializes the Store by requesting the header with the given hash.
+func Init[H header.Header](ctx context.Context, store header.Store[H], ex header.Exchange[H], hash header.Hash, pstore store.PeerStore) error {
+	_, err := store.Head(ctx)
+	switch err {
+	default:
+		return err
+	case header.ErrNoHead:
+		initial, err := ex.Get(ctx, hash)
+		if err != nil {
+			return err
+		}
+
+		err := store.Init(ctx, initial)
+        if err != nil {
+            return err
+        }
+
+        peers := ex.PeerTracker().GetTrustedPeers()
+        for _, peer := range peers {
+            p := ex.PeerTracker().Get(peer)
+            err = pstore.Put(peer, p.Multiaddr)
+            if err != nil {
+                return err
+            }
+        }
+
+        return err
+	}
+}
+```
+
+Also, we will add a routine that periodically checks for new peers that have answered with a header, and adds them to the peer store/database. This routine will be started in `store.Init`:
+```go
+
+    fx.Provide(
+        // ...
+        func(lc fx.Lifecycle, ex header.Exchange[H], pstore store.PeerStore) {
+            lc.Append(fx.Hook{
+                OnStart: func(ctx context.Context) error {
+                    go func() {
+                        for {
+                            peers := ex.PeerTracker().GetTrustedPeers()
+                            for _, peer := range peers {
+                                p := ex.PeerTracker().Get(peer)
+                                err = pstore.Put(peer, p.Multiaddr)
+                                if err != nil {
+                                    return err
+                                }
+                            }
+                            time.Sleep(1 * time.Hour)
+                        }
+                    }()
+                    return nil
+                },
+            })
+        },
+```
 
 (_MISSING: TODO: Add design for logic to only store peers that were active since the last 24 hours_)
 
