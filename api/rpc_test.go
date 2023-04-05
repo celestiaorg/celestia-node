@@ -72,21 +72,19 @@ func TestRPCCallsUnderlyingNode(t *testing.T) {
 }
 
 // api contains all modules that are made available as the node's
-// public API surface (except for the `node` module as the node
-// module contains a method `Info` that is also contained in the
-// p2p module).
-type api interface {
-	fraud.Module
-	header.Module
-	statemod.Module
-	share.Module
-	das.Module
-	p2p.Module
+// public API surface
+type api struct {
+	Fraud  fraud.Module
+	Header header.Module
+	State  statemod.Module
+	Share  share.Module
+	DAS    das.Module
+	Node   node.Module
+	P2P    p2p.Module
 }
 
 func TestModulesImplementFullAPI(t *testing.T) {
 	api := reflect.TypeOf(new(api)).Elem()
-	nodeapi := reflect.TypeOf(new(node.Module)).Elem() // TODO @renaynay: explain
 	client := reflect.TypeOf(new(client.Client)).Elem()
 	for i := 0; i < client.NumField(); i++ {
 		module := client.Field(i)
@@ -94,22 +92,13 @@ func TestModulesImplementFullAPI(t *testing.T) {
 		case "closer":
 			// the "closers" field is not an actual module
 			continue
-		case "Node":
-			// node module contains a duplicate method to the p2p module
-			// and must be tested separately.
-			internal, ok := module.Type.FieldByName("Internal")
-			require.True(t, ok, "module %s's API does not have an Internal field", module.Name)
-			for j := 0; j < internal.Type.NumField(); j++ {
-				impl := internal.Type.Field(j)
-				method, _ := nodeapi.MethodByName(impl.Name)
-				require.Equal(t, method.Type, impl.Type, "method %s does not match", impl.Name)
-			}
 		default:
 			internal, ok := module.Type.FieldByName("Internal")
 			require.True(t, ok, "module %s's API does not have an Internal field", module.Name)
 			for j := 0; j < internal.Type.NumField(); j++ {
 				impl := internal.Type.Field(j)
-				method, _ := api.MethodByName(impl.Name)
+				field, _ := api.FieldByName(module.Name)
+				method, _ := field.Type.MethodByName(impl.Name)
 				require.Equal(t, method.Type, impl.Type, "method %s does not match", impl.Name)
 			}
 		}

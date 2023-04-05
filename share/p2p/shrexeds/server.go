@@ -32,12 +32,7 @@ type Server struct {
 }
 
 // NewServer creates a new ShrEx/EDS server.
-func NewServer(host host.Host, store *eds.Store, opts ...Option) (*Server, error) {
-	params := DefaultParameters()
-	for _, opt := range opts {
-		opt(params)
-	}
-
+func NewServer(params *Parameters, host host.Host, store *eds.Store) (*Server, error) {
 	if err := params.Validate(); err != nil {
 		return nil, fmt.Errorf("shrex-eds: server creation failed: %w", err)
 	}
@@ -45,14 +40,14 @@ func NewServer(host host.Host, store *eds.Store, opts ...Option) (*Server, error
 	return &Server{
 		host:       host,
 		store:      store,
-		protocolID: protocolID(params.networkID),
+		protocolID: p2p.ProtocolID(params.NetworkID(), protocolString),
 		params:     params,
 	}, nil
 }
 
 func (s *Server) Start(context.Context) error {
 	s.ctx, s.cancel = context.WithCancel(context.Background())
-	s.host.SetStreamHandler(s.protocolID, p2p.RateLimitMiddleware(s.handleStream, s.params.concurrencyLimit))
+	s.host.SetStreamHandler(s.protocolID, p2p.RateLimitMiddleware(s.handleStream, s.params.ConcurrencyLimit))
 	return nil
 }
 
@@ -81,15 +76,15 @@ func (s *Server) handleStream(stream network.Stream) {
 		return
 	}
 
-	ctx, cancel := context.WithTimeout(s.ctx, s.params.ReadCARDeadline)
+	ctx, cancel := context.WithTimeout(s.ctx, s.params.HandleRequestTimeout)
 	defer cancel()
 	status := p2p_pb.Status_OK
 	// determine whether the EDS is available in our store
+	// we do not close the reader, so that other requests will not need to re-open the file.
+	// closing is handled by the LRU cache.
 	edsReader, err := s.store.GetCAR(ctx, hash)
 	if err != nil {
 		status = p2p_pb.Status_NOT_FOUND
-	} else {
-		defer edsReader.Close()
 	}
 
 	// inform the client of our status
@@ -120,7 +115,7 @@ func (s *Server) handleStream(stream network.Stream) {
 }
 
 func (s *Server) readRequest(stream network.Stream) (*p2p_pb.EDSRequest, error) {
-	err := stream.SetReadDeadline(time.Now().Add(s.params.ReadDeadline))
+	err := stream.SetReadDeadline(time.Now().Add(s.params.ServerReadTimeout))
 	if err != nil {
 		log.Debug(err)
 	}
@@ -139,7 +134,7 @@ func (s *Server) readRequest(stream network.Stream) (*p2p_pb.EDSRequest, error) 
 }
 
 func (s *Server) writeStatus(status p2p_pb.Status, stream network.Stream) error {
-	err := stream.SetWriteDeadline(time.Now().Add(s.params.WriteDeadline))
+	err := stream.SetWriteDeadline(time.Now().Add(s.params.ServerWriteTimeout))
 	if err != nil {
 		log.Debug(err)
 	}
@@ -149,8 +144,8 @@ func (s *Server) writeStatus(status p2p_pb.Status, stream network.Stream) error 
 	return err
 }
 
-func (s *Server) writeODS(edsReader io.ReadCloser, stream network.Stream) error {
-	err := stream.SetWriteDeadline(time.Now().Add(s.params.WriteDeadline))
+func (s *Server) writeODS(edsReader io.Reader, stream network.Stream) error {
+	err := stream.SetWriteDeadline(time.Now().Add(s.params.ServerWriteTimeout))
 	if err != nil {
 		log.Debug(err)
 	}

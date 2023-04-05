@@ -43,6 +43,6 @@ var rootCmd = &cobra.Command{
 	`,
 	Args: cobra.NoArgs,
 	CompletionOptions: cobra.CompletionOptions{
-		DisableDefaultCmd: true,
+		DisableDefaultCmd: false,
 	},
 }

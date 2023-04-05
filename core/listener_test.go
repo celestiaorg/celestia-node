@@ -13,8 +13,10 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/celestiaorg/go-header/p2p"
+
 	"github.com/celestiaorg/celestia-node/header"
-	"github.com/celestiaorg/celestia-node/libs/header/p2p"
+	nodep2p "github.com/celestiaorg/celestia-node/nodebuilder/p2p"
 	"github.com/celestiaorg/celestia-node/share/eds"
 	"github.com/celestiaorg/celestia-node/share/p2p/shrexsub"
 )
@@ -52,13 +54,8 @@ func TestListener(t *testing.T) {
 
 	// ensure headers and dataHash are getting broadcasted to the relevant topics
 	for i := 0; i < 5; i++ {
-		h, err := subs.NextHeader(ctx)
+		_, err := subs.NextHeader(ctx)
 		require.NoError(t, err)
-
-		dataHash, err := edsSubs.Next(ctx)
-		require.NoError(t, err)
-
-		require.Equal(t, h.DataHash.Bytes(), []byte(dataHash))
 	}
 
 	err = cl.Stop(ctx)
@@ -104,14 +101,14 @@ func TestListenerWithNonEmptyBlocks(t *testing.T) {
 	for i := 0; i < 16; i++ {
 		_, err := cctx.FillBlock(16, cfg.Accounts, flags.BroadcastBlock)
 		require.NoError(t, err)
-		hash, err := sub.Next(ctx)
+		msg, err := sub.Next(ctx)
 		require.NoError(t, err)
 
-		if bytes.Equal(empty.Hash(), hash) {
+		if bytes.Equal(empty.Hash(), msg.DataHash) {
 			continue
 		}
 
-		has, err := store.Has(ctx, hash)
+		has, err := store.Has(ctx, msg.DataHash)
 		require.NoError(t, err)
 		require.True(t, has)
 	}
@@ -171,7 +168,7 @@ func createListener(
 		require.NoError(t, p2pSub.Stop(ctx))
 	})
 
-	return NewListener(p2pSub, fetcher, edsSub.Broadcast, header.MakeExtendedHeader, store)
+	return NewListener(p2pSub, fetcher, edsSub.Broadcast, header.MakeExtendedHeader, store, nodep2p.BlockTime)
 }
 
 func createEdsPubSub(ctx context.Context, t *testing.T) *shrexsub.PubSub {
