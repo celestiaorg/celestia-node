@@ -10,8 +10,12 @@ import (
 // It is computed by splitting the blob into shares and building the Merkle subtree to be included after Submit.
 type Commitment []byte
 
+func (com Commitment) String() string {
+	return string(com)
+}
+
 // Proof is a collection of nmt.Proofs that verifies the inclusion of the data.
-type Proof []nmt.Proof
+type Proof []*nmt.Proof
 
 // Blob represents any application-specific binary data that anyone can submit to Celestia.
 type Blob struct {
