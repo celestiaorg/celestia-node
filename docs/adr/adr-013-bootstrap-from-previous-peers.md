@@ -6,12 +6,12 @@
 
 ## Context
 
-Celestia node relies on a set of peer to peer protocols that assume a decentralized network, where nodes are connected to each other and can exchange data. 
+Celestia node relies on a set of peer to peer protocols that assume a decentralized network, where nodes are connected to each other and can exchange data.
 
-Currently, when a node joins/comes up on the network, it relies, by default, on hardcoded bootstrappers for 3 things: 
+Currently, when a node joins/comes up on the network, it relies, by default, on hardcoded bootstrappers for 3 things:
 
 1. initializing its store with the first (genesis) block
-2. requesting the network head to which it sets its initial sync target, and 
+2. requesting the network head to which it sets its initial sync target, and
 3. bootstrapping itself with some other peers on the network which it can utilise for its operations.
 
 This is centralisation bottleneck as it happens both during initial start-up and for any re-starts.
@@ -40,9 +40,9 @@ The peer store will implement the following interface:
 ```go
 type PeerStore interface {
     // Put adds a peer to the store.
-    Put(peer.ID, ma.Multiaddr) error
+    Put(peer.AddrInfo) error
     // Get returns a peer from the store.
-    Get(peer.ID) (ma.Multiaddr, error)
+    Get() ([]peer.AddrInfo, error)
     // Delete removes a peer from the store.
     Delete(peer.ID) error
 }
@@ -52,7 +52,7 @@ And we expect the underlying implementation to use a badgerDB datastore. Example
 
 ```go
 type peerStore struct {
-    db datastore.Batching
+    db datastore.Datastore
 }
 ```
 
