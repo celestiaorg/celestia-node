@@ -1,4 +1,4 @@
-FROM docker.io/golang:1.19.7-alpine3.17 as builder
+FROM docker.io/golang:1.20.3-alpine3.17 as builder
 
 # hadolint ignore=DL3018
 RUN apk update && apk add --no-cache \
