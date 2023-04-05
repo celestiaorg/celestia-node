@@ -532,7 +532,7 @@ func (s *subLock) Subscribe() (libhead.Subscription[*header.ExtendedHeader], err
 	return s, nil
 }
 
-func (s *subLock) AddValidator(f func(context.Context, *header.ExtendedHeader) pubsub.ValidationResult) error {
+func (s *subLock) AddValidator(func(context.Context, *header.ExtendedHeader) pubsub.ValidationResult) error {
 	panic("implement me")
 }
 
