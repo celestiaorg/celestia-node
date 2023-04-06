@@ -7,8 +7,6 @@ import (
 	"sync"
 	"time"
 
-	"go.uber.org/multierr"
-
 	libhead "github.com/celestiaorg/go-header"
 
 	"github.com/celestiaorg/celestia-node/header"
@@ -114,7 +112,7 @@ func (w *worker) sample(ctx context.Context, timeout time.Duration, height uint6
 				"height", h.Height(),
 				"hash", h.Hash(),
 				"square width", len(h.DAH.RowsRoots),
-				"data root", h.DAH.Hash(),
+				"data root", h.DAH.String(),
 				"err", err,
 				"finished (s)", time.Since(start),
 			)
@@ -127,7 +125,7 @@ func (w *worker) sample(ctx context.Context, timeout time.Duration, height uint6
 		"height", h.Height(),
 		"hash", h.Hash(),
 		"square width", len(h.DAH.RowsRoots),
-		"data root", h.DAH.Hash(),
+		"data root", h.DAH.String(),
 		"finished (s)", time.Since(start),
 	)
 
@@ -168,7 +166,7 @@ func (w *worker) getHeader(ctx context.Context, height uint64) (*header.Extended
 		"height", h.Height(),
 		"hash", h.Hash(),
 		"square width", len(h.DAH.RowsRoots),
-		"data root", h.DAH.Hash(),
+		"data root", h.DAH.String(),
 		"finished (s)", time.Since(start),
 	)
 	return h, nil
@@ -179,7 +177,7 @@ func (w *worker) setResult(curr uint64, err error) {
 	defer w.lock.Unlock()
 	if err != nil {
 		w.state.failed = append(w.state.failed, curr)
-		w.state.Err = multierr.Append(w.state.Err, fmt.Errorf("height: %v, err: %w", curr, err))
+		w.state.Err = errors.Join(w.state.Err, fmt.Errorf("height: %v, err: %w", curr, err))
 	}
 	w.state.Curr = curr
 }
