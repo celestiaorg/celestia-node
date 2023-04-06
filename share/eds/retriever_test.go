@@ -3,7 +3,6 @@ package eds
 import (
 	"context"
 	"errors"
-	"math/rand"
 	"testing"
 	"time"
 
@@ -24,11 +23,6 @@ import (
 	"github.com/celestiaorg/celestia-node/share/eds/byzantine"
 	"github.com/celestiaorg/celestia-node/share/ipld"
 )
-
-func init() {
-	// randomize quadrant fetching, otherwise quadrant sampling is deterministic
-	rand.Seed(time.Now().UnixNano())
-}
 
 func TestRetriever_Retrieve(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
