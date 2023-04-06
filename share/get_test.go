@@ -2,7 +2,7 @@ package share
 
 import (
 	"context"
-	"math/rand"
+	mrand "math/rand"
 	"strconv"
 	"testing"
 	"time"
@@ -130,7 +130,7 @@ func removeRandShares(data [][]byte, d int) [][]byte {
 	count := len(data)
 	// remove shares randomly
 	for i := 0; i < d; {
-		ind := rand.Intn(count)
+		ind := mrand.Intn(count)
 		if len(data[ind]) == 0 {
 			continue
 		}
@@ -331,7 +331,7 @@ func TestGetSharesWithProofsByNamespace(t *testing.T) {
 
 	for i, tt := range tests {
 		t.Run(strconv.Itoa(i), func(t *testing.T) {
-			rand.Seed(time.Now().UnixNano())
+			rand := mrand.New(mrand.NewSource(time.Now().UnixNano()))
 			// choose random range in shares slice
 			from := rand.Intn(len(tt.rawData))
 			to := rand.Intn(len(tt.rawData))

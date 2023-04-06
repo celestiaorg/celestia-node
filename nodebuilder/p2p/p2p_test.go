@@ -2,7 +2,7 @@ package p2p
 
 import (
 	"context"
-	"math/rand"
+	"crypto/rand"
 	"testing"
 	"time"
 
@@ -12,7 +12,6 @@ import (
 	libhost "github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/metrics"
 	"github.com/libp2p/go-libp2p/core/network"
-	libpeer "github.com/libp2p/go-libp2p/core/peer"
 	"github.com/libp2p/go-libp2p/core/protocol"
 	rcmgr "github.com/libp2p/go-libp2p/p2p/host/resource-manager"
 	mocknet "github.com/libp2p/go-libp2p/p2p/net/mock"
@@ -34,7 +33,7 @@ func TestP2PModule_Host(t *testing.T) {
 	// test all methods on `manager.host`
 	peers, err := mgr.Peers(ctx)
 	require.NoError(t, err)
-	assert.Equal(t, []libpeer.ID(host.Peerstore().Peers()), peers)
+	assert.Equal(t, host.Network().Peers(), peers)
 
 	peerInfo, err := mgr.PeerInfo(ctx, peer.ID())
 	require.NoError(t, err)

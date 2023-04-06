@@ -1,4 +1,4 @@
-FROM docker.io/golang:1.19.7-alpine3.17 as builder
+FROM docker.io/golang:1.20-alpine3.17 as builder
 
 # hadolint ignore=DL3018
 RUN apk update && apk add --no-cache \
@@ -33,7 +33,7 @@ RUN apk update && apk add --no-cache \
     # Creates a user with $UID and $GID=$UID
     && adduser ${USER_NAME} \
         -D \
-        -g "celestia" \
+        -g ${USER_NAME} \
         -h ${CELESTIA_HOME} \
         -s /sbin/nologin \
         -u ${UID}
@@ -42,11 +42,11 @@ RUN apk update && apk add --no-cache \
 COPY --from=builder /src/build/celestia /bin/celestia
 COPY --from=builder /src/./cel-key /bin/cel-key
 
-COPY docker/entrypoint.sh /home/celestia/entrypoint.sh
+COPY --chown=${USER_NAME}:${USER_NAME} docker/entrypoint.sh /opt/entrypoint.sh
 
 USER ${USER_NAME}
 
 EXPOSE 2121
 
-ENTRYPOINT [ "/bin/bash", "/home/celestia/entrypoint.sh" ]
+ENTRYPOINT [ "/bin/bash", "/opt/entrypoint.sh" ]
 CMD [ "celestia" ]

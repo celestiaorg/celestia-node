@@ -2,10 +2,9 @@ package getters
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
-
-	"go.uber.org/multierr"
 
 	"github.com/celestiaorg/nmt/namespace"
 	"github.com/celestiaorg/rsmt2d"
@@ -58,7 +57,7 @@ func (sg *ShrexGetter) Stop(ctx context.Context) error {
 	return sg.peerManager.Stop(ctx)
 }
 
-func (sg *ShrexGetter) GetShare(ctx context.Context, root *share.Root, row, col int) (share.Share, error) {
+func (sg *ShrexGetter) GetShare(context.Context, *share.Root, int, int) (share.Share, error) {
 	return nil, fmt.Errorf("getter/shrex: GetShare %w", errOperationNotSupported)
 }
 
@@ -72,7 +71,7 @@ func (sg *ShrexGetter) GetEDS(ctx context.Context, root *share.Root) (*rsmt2d.Ex
 		start := time.Now()
 		peer, setStatus, getErr := sg.peerManager.Peer(ctx, root.Hash())
 		if getErr != nil {
-			err = multierr.Append(err, getErr)
+			err = errors.Join(err, getErr)
 			log.Debugw("couldn't find peer",
 				"datahash", root.String(),
 				"err", getErr,
@@ -96,7 +95,7 @@ func (sg *ShrexGetter) GetEDS(ctx context.Context, root *share.Root) (*rsmt2d.Ex
 		}
 
 		if !ErrorContains(err, getErr) {
-			err = multierr.Append(err, getErr)
+			err = errors.Join(err, getErr)
 		}
 		log.Debugw("request failed",
 			"datahash", root.String(),
@@ -121,7 +120,7 @@ func (sg *ShrexGetter) GetSharesByNamespace(
 		start := time.Now()
 		peer, setStatus, getErr := sg.peerManager.Peer(ctx, root.Hash())
 		if getErr != nil {
-			err = multierr.Append(err, getErr)
+			err = errors.Join(err, getErr)
 			log.Debugw("couldn't find peer",
 				"datahash", root.String(),
 				"err", getErr,
@@ -145,7 +144,7 @@ func (sg *ShrexGetter) GetSharesByNamespace(
 		}
 
 		if !ErrorContains(err, getErr) {
-			err = multierr.Append(err, getErr)
+			err = errors.Join(err, getErr)
 		}
 		log.Debugw("request failed",
 			"datahash", root.String(),

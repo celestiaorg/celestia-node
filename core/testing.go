@@ -78,6 +78,7 @@ func StartTestNodeWithConfig(t *testing.T, cfg *TestConfig) testnode.Context {
 		cfg.SuppressLogs,
 		state,
 		kr,
+		"private",
 	)
 	require.NoError(t, err)
 

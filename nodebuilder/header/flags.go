@@ -29,11 +29,7 @@ func ParseFlags(cmd *cobra.Command, cfg *Config) error {
 	if err := ParseTrustedHashFlags(cmd, cfg); err != nil {
 		return err
 	}
-	if err := ParseTrustedPeerFlags(cmd, cfg); err != nil {
-		return err
-	}
-
-	return nil
+	return ParseTrustedPeerFlags(cmd, cfg)
 }
 
 // TrustedPeersFlags returns a set of flags.
