@@ -210,11 +210,11 @@ func TestCoordinator(t *testing.T) {
 				continue
 			}
 			for _, w := range cp.Workers {
-				if w.Kind == retryJob && w.From == failedHeight {
+				if w.JobType == retryJob && w.From == failedHeight {
 					continue
 				}
 			}
-			t.Error("header is not found in failed nor in workers")
+			t.Error("header is not found neither in failed nor in workers")
 		}
 	})
 

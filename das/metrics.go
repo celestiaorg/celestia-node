@@ -16,7 +16,7 @@ import (
 )
 
 const (
-	jobKindLabel     = "kind_of_job"
+	jobTypeLabel     = "job_type"
 	headerWidthLabel = "header_width"
 	failedLabel      = "failed"
 )
@@ -114,9 +114,9 @@ func (d *DASer) InitMetrics() error {
 				log.Errorf("observing stats: %s", err.Error())
 			}
 
-			for kind, amount := range stats.workersByKind() {
+			for jobTyoe, amount := range stats.workersByJobType() {
 				busyWorkers.Observe(ctx, amount,
-					attribute.String(jobKindLabel, kind))
+					attribute.String(jobTypeLabel, string(jobTyoe)))
 			}
 
 			networkHead.Observe(ctx, int64(stats.NetworkHead))
@@ -143,7 +143,7 @@ func (m *metrics) observeSample(
 	ctx context.Context,
 	h *header.ExtendedHeader,
 	sampleTime time.Duration,
-	jkind jobKind,
+	jobType jobType,
 	err error,
 ) {
 	if m == nil {
@@ -152,13 +152,13 @@ func (m *metrics) observeSample(
 	m.sampleTime.Record(ctx, sampleTime.Seconds(),
 		attribute.Bool(failedLabel, err != nil),
 		attribute.Int(headerWidthLabel, len(h.DAH.RowsRoots)),
-		attribute.String(jobKindLabel, jkind),
+		attribute.String(jobTypeLabel, string(jobType)),
 	)
 
 	m.sampled.Add(ctx, 1,
 		attribute.Bool(failedLabel, err != nil),
 		attribute.Int(headerWidthLabel, len(h.DAH.RowsRoots)),
-		attribute.String(jobKindLabel, jkind),
+		attribute.String(jobTypeLabel, string(jobType)),
 	)
 
 	atomic.StoreUint64(&m.lastSampledTS, uint64(time.Now().UTC().Unix()))

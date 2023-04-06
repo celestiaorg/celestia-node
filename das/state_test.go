@@ -22,6 +22,7 @@ func Test_coordinatorStats(t *testing.T) {
 						return workerState{
 							result: result{
 								job: job{
+									Type: recentJob,
 									From: 21,
 									To:   30,
 								},
@@ -35,6 +36,7 @@ func Test_coordinatorStats(t *testing.T) {
 						return workerState{
 							result: result{
 								job: job{
+									Type: catchupJob,
 									From: 11,
 									To:   20,
 								},
@@ -57,16 +59,18 @@ func Test_coordinatorStats(t *testing.T) {
 				Failed:           map[uint64]int{22: 2, 23: 1, 24: 2, 12: 1, 13: 1},
 				Workers: []WorkerStats{
 					{
-						Curr:   25,
-						From:   21,
-						To:     30,
-						ErrMsg: "22: failed",
+						JobType: recentJob,
+						Curr:    25,
+						From:    21,
+						To:      30,
+						ErrMsg:  "22: failed",
 					},
 					{
-						Curr:   15,
-						From:   11,
-						To:     20,
-						ErrMsg: "12: failed\n13: failed",
+						JobType: catchupJob,
+						Curr:    15,
+						From:    11,
+						To:      20,
+						ErrMsg:  "12: failed\n13: failed",
 					},
 				},
 				Concurrency: 2,

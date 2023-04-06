@@ -66,7 +66,7 @@ func (sc *samplingCoordinator) run(ctx context.Context, cp checkpoint) {
 
 	// resume workers
 	for _, wk := range cp.Workers {
-		sc.runWorker(ctx, sc.state.newJob(wk.Kind, wk.From, wk.To))
+		sc.runWorker(ctx, sc.state.newJob(wk.JobType, wk.From, wk.To))
 	}
 
 	for {

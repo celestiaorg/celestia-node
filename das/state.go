@@ -77,7 +77,7 @@ func (s *coordinatorState) handleResult(res result) {
 	// update failed heights
 	for h := range res.failed {
 		failCount := 1
-		if res.job.kind == retryJob {
+		if res.job.Type == retryJob {
 			// if job was already in retry and failed again, persist attempt count
 			failCount += s.inRetry[h]
 			delete(s.inRetry, h)
@@ -117,7 +117,7 @@ func (s *coordinatorState) recentJob(header *header.ExtendedHeader) job {
 	s.nextJobID++
 	return job{
 		id:     s.nextJobID,
-		kind:   recentJob,
+		Type:   recentJob,
 		header: header,
 		From:   height,
 		To:     height,
@@ -153,7 +153,7 @@ func (s *coordinatorState) catchupJob() (next job, found bool) {
 // retryJob creates a job to retry previously failed header
 func (s *coordinatorState) retryJob() (next job, found bool) {
 	for h, count := range s.failed {
-		if count > 6 {
+		if count > 3 {
 			// TODO(@walldiss): limit amx amount of retries until retry backoff is implemented
 			continue
 		}
@@ -171,11 +171,11 @@ func (s *coordinatorState) putInProgress(jobID int, getState func() workerState)
 	s.inProgress[jobID] = getState
 }
 
-func (s *coordinatorState) newJob(kind jobKind, from, to uint64) job {
+func (s *coordinatorState) newJob(jobType jobType, from, to uint64) job {
 	s.nextJobID++
 	return job{
 		id:   s.nextJobID,
-		kind: kind,
+		Type: jobType,
 		From: from,
 		To:   to,
 	}
@@ -195,11 +195,11 @@ func (s *coordinatorState) unsafeStats() SamplingStats {
 			errMsg = wstats.err.Error()
 		}
 		workers = append(workers, WorkerStats{
-			Kind:   wstats.job.kind,
-			Curr:   wstats.Curr,
-			From:   wstats.From,
-			To:     wstats.To,
-			ErrMsg: errMsg,
+			JobType: wstats.job.Type,
+			Curr:    wstats.Curr,
+			From:    wstats.From,
+			To:      wstats.To,
+			ErrMsg:  errMsg,
 		})
 
 		for h := range wstats.failed {

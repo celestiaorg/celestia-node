@@ -14,9 +14,9 @@ import (
 )
 
 const (
-	catchupJob jobKind = "catchup"
-	recentJob  jobKind = "recent"
-	retryJob   jobKind = "retry"
+	catchupJob jobType = "catchup"
+	recentJob  jobType = "recent"
+	retryJob   jobType = "retry"
 )
 
 type worker struct {
@@ -37,16 +37,18 @@ type workerState struct {
 	Curr uint64
 }
 
-type jobKind = string
+type jobType string
 
 // job represents headers interval to be processed by worker
 type job struct {
-	id     int
-	kind   jobKind
-	header *header.ExtendedHeader
+	id int
 
+	Type jobType
 	From uint64
 	To   uint64
+
+	// header will be filled for job with type recentJob, to skip the call to header store
+	header *header.ExtendedHeader
 }
 
 func newWorker(j job,
@@ -108,7 +110,7 @@ func (w *worker) sample(ctx context.Context, timeout time.Duration, height uint6
 	defer cancel()
 
 	err = w.sampleFn(ctx, h)
-	w.metrics.observeSample(ctx, h, time.Since(start), w.state.kind, err)
+	w.metrics.observeSample(ctx, h, time.Since(start), w.state.Type, err)
 	if err != nil {
 		if !errors.Is(err, context.Canceled) {
 			log.Debugw(
@@ -134,7 +136,7 @@ func (w *worker) sample(ctx context.Context, timeout time.Duration, height uint6
 	)
 
 	// notify network about availability of new block data (note: only full nodes can notify)
-	if w.state.job.kind == recentJob {
+	if w.state.job.Type == recentJob {
 		err = w.broadcast(ctx, shrexsub.Notification{
 			DataHash: h.DataHash.Bytes(),
 			Height:   uint64(h.Height()),
