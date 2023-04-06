@@ -3,6 +3,7 @@
 ## Changelog
 
 * 2023-05-04: initial draft
+* 2023-05-05: update peer selection with new simpler solution + fix language
 
 ## Context
 
@@ -39,10 +40,10 @@ The peer store will implement the following interface:
 
 ```go
 type PeerStore interface {
-    // Put adds a peer to the store.
-    Put(peer.AddrInfo) error
+   // Put adds a list of peers to the store.
+    Put([]peer.AddrInfo) error
     // Get returns a peer from the store.
-    Get() ([]peer.AddrInfo, error)
+    Load() ([]peer.AddrInfo, error)
     // Delete removes a peer from the store.
     Delete(peer.ID) error
 }
@@ -56,123 +57,273 @@ type peerStore struct {
 }
 ```
 
-### Peer Selection
+### Peer Selection & Persistence
 
-Since bootstrappers are primarily used as trustedPeers to kick off the header exchange process, we suggest to only select trustedPeers that have answered with a header in the last 24 hours. This will ensure that the node is only bootstrapping from peers that are still active.
+To periodically select the _"good peers"_ that we're connected to and store them in the peer store, we will rely on the internals of `go-header`, specifically the `peerTracker` and `libhead.Exchange` structs.
 
-This means initially that on node startup, specifically on store initialization, we should have a mechanism that informs us about which trustedPeers have successfully answered the `Get` request to retrieve the trusted hash (_to initialize the store_). In the current state of affairs, with `go-header` being a separate repository, we suggest to extend internal functionality of `go-header` such that the `libhead.Exchange`'s `peerTracker` is able to select peers based on the criteria mentioned above.
+`peerTracker` has internal logic that continuiously tracks and garbage collects peers, so that if new peers connect to the node, peer tracker keeps track of them in an internal list, as well as it marks disconnected peers for removal. `peerTracker` also blocks peers that fail to answer*.
 
-To achieve this, we will first extend `peerStat` to include a new attribute `isTrustedPeer`:
+We would like to use this internal logic to periodically select peers that are "good" and store them in the peer store. To do this, we will "hook" into the internals of `peerTracker` and `libhead.Exchange` by defining new "event handlers" intended to handle two main events from `peerTracker`:
 
-```go
-type peerStat struct {
-    // ...
-    isTrustedPeer bool
-}
+1. `OnUpdatedPeers`
+2. `OnBlockedPeer`
+
+```diff
++++ go-header/p2p/peer_tracker.go
+type peerTracker struct {
+        // online until pruneDeadline, it will be removed and its score will be lost.
+        disconnectedPeers map[peer.ID]*peerStat
+ 
++       onUpdatedPeers func([]peer.AddrInfo)
++       onBlockedPeer  func(peer.AddrInfo)
++
+        ctx    context.Context
+        cancel context.CancelFunc
+        // done is used to gracefully stop the peerTracker.
 ```
 
-and add a new method to `peerTracker` named `rewardTrustedPeer` such that it increases the score of a tracked peer (_that is a trusted peer_) by 10(_TODO: rethink this value_) points to mark it as a good _bootstrapping_ peer:
+`OnUpdatedPeers` will be called whenever `peerTracker` updates its internal list of peers on its `gc` routine, which updates every 30 minutes (_value is configurable_):
 
-```go
-func (pt *peerTracker) rewardTrustedPeer(id peer.ID) {
-    pt.mu.Lock()
-    defer pt.mu.Unlock()
-
-    if stat, ok := pt.trackedPeers[id]; ok && stat.isTrustedPeer {
-        stat.peerScore +=10
-    }
-}
-```
-
-Then, we would update `libhead.Exchange`'s private method `performRequest` to explicitly return the peers that answered with the header, then in `Get` call `rewardTrustedPeer` on the `peerTracker` when a request to a trusted peer was successful.
-
-This will allow a tracking of which trusted peers were successful in answering the `Get` request, and thus can be used to bootstrap from.
-
-Similarly, we will add a new method to `peerTracker` named `GetTrustedPeers` that returns a list of trusted peers that have answered with a header:
-
-```go
-func (pt *peerTracker) GetTrustedPeers() []peer.ID {
-    pt.mu.Lock()
-    defer pt.mu.Unlock()
-
-    var peers []peer.ID
-    for id, stat := range pt.tracedPeers {
-        if stat.isTrustedPeer && stat.peerScore >= 10 {
-            peers = append(peers, id)
+```diff
++++ go-header/p2p/peer_tracker.go
+func (p *peerTracker) gc() {
+         if peer.pruneDeadline.Before(now) {
+                        delete(p.disconnectedPeers, id)
+                }
         }
-    }
-    return peers
-}
+
+        for id, peer := range p.trackedPeers {
+                if peer.peerScore <= defaultScore {
+                        delete(p.trackedPeers, id)
+                }
+        }
++
++       updatedPeerList := make([]peer.ID, 0, len(p.trackedPeers))
++       for _, peer := range p.trackedPeers {
++           updatedPeerList = append(updatedPeerList, PIDtoAddrInfo(peer.peerID))
++       }
++
+        p.peerLk.Unlock()
++
++       p.onUpdatedPeers(updatedPeerList)
+                }
+        }
+ }
 ```
 
-Then in `store.Init`, we pass an instance of the peer store/database mentioned above, and perform a call to this method. We then iterate over this list and add each peer to the peer store/database.
+where are `OnBlockedPeer` will be called whenever `peerTracker` blocks a peer through its method `blockPeer`.
 
-```go
-// Init ensures a Store is initialized. If it is not already initialized,
-// it initializes the Store by requesting the header with the given hash.
-func Init[H header.Header](ctx context.Context, store header.Store[H], ex header.Exchange[H], hash header.Hash, pstore store.PeerStore) error {
-    _, err := store.Head(ctx)
-    switch err {
-    default:
-        return err
-    case header.ErrNoHead:
-        initial, err := ex.Get(ctx, hash)
+```diff
++++ go-header/p2p/peer_tracker.go
+ // blockPeer blocks a peer on the networking level and removes it from the local cache.
+ func (p *peerTracker) blockPeer(pID peer.ID, reason error) {
+        // add peer to the blacklist, so we can't connect to it in the future.
+        err := p.connGater.BlockPeer(pID)
         if err != nil {
-            return err
+                log.Errorw("header/p2p: blocking peer failed", "pID", pID, "err", err)
         }
-
-        err := store.Init(ctx, initial)
+        // close connections to peer.
+        err = p.host.Network().ClosePeer(pID)
         if err != nil {
-            return err
+                log.Errorw("header/p2p: closing connection with peer failed", "pID", pID, "err", err)
         }
+ 
+        log.Warnw("header/p2p: blocked peer", "pID", pID, "reason", reason)
+ 
+        p.peerLk.Lock()
+        defer p.peerLk.Unlock()
+        // remove peer from cache.
+        delete(p.trackedPeers, pID)
+        delete(p.disconnectedPeers, pID)
++       p.onBlockedPeer(PIDToAddrInfo(pID))
+ }
+```
+We are assuming a function named `PIDToAddrInfo` that converts a `peer.ID` to a `peer.AddrInfo` struct for this example's purpose. 
 
-        peers := ex.PeerTracker().GetTrustedPeers()
-        for _, peer := range peers {
-            p := ex.PeerTracker().Get(peer)
-            err = pstore.Put(peer, p.Multiaddr)
-            if err != nil {
-                return err
-            }
+The `peerTracker`'s constructor should be updated to accept these new event handlers:
+```diff
++++ go-header/p2p/peer_tracker.go
+ type peerTracker struct {
+ func newPeerTracker(
+        h host.Host,
+        connGater *conngater.BasicConnectionGater,
++       onUpdatedPeers func([]peer.ID),
++       onBlockedPeer func(peer.ID),
+ ) *peerTracker {
+```
+
+as well as the `libhead.Exchange`'s options and construction:
+
+```diff
++++ go-header/p2p/options.go
+ type ClientParameters struct {
+        // MaxHeadersPerRangeRequest defines the max amount of headers that can be requested per 1 request.
+        MaxHeadersPerRangeRequest uint64
+        // RangeRequestTimeout defines a timeout after which the session will try to re-request headers
+        // from another peer.
+        RangeRequestTimeout time.Duration
+        // TrustedPeersRequestTimeout a timeout for any request to a trusted peer.
+        TrustedPeersRequestTimeout time.Duration
+        // networkID is a network that will be used to create a protocol.ID
+        networkID string
+        // chainID is an identifier of the chain.
+        chainID string
++
++       onUpdatedPeers func([]peer.AddrInfo)
++       onBlockedPeer func(peer.AddrInfo)
+ }
+ ```
+
+ ```diff
++++ go-header/p2p/exchange.go
+ func NewExchange[H header.Header](
+        peers peer.IDSlice,
+        connGater *conngater.BasicConnectionGater,
+        opts ...Option[ClientParameters],
+ ) (*Exchange[H], error) {
+        params := DefaultClientParameters()
+        for _, opt := range opts {
+                opt(&params)
         }
+ 
+        err := params.Validate()
+        if err != nil {
+                return nil, err
+        }
+ 
+        ex := &Exchange[H]{
+                host:       host,
+                protocolID: protocolID(params.networkID),
+                peerTracker: newPeerTracker(
+                        host,
+                        connGater,
++                       params.OnUpdatedPeers
++                       params.OnBlockedPeer,
+                ),
+                Params: params,
+        }
+ 
+        ex.trustedPeers = func() peer.IDSlice {
+                return shufflePeers(peers)
+        }
+        return ex, nil
+ }
+ ```
 
-        return err
-    }
+And then define `libhead.Exchange` options to set the event handlers on the `peerTracker`:
+```go
++++ go-header/p2p/options.go
+func WithOnUpdatedPeers(f func([]]peer.ID)) Option[ClientParameters] {
+       return func(p *ClientParameters) {
+               switch t := any(p).(type) { //nolint:gocritic
+               case *PeerTrackerParameters:
+                       p.onUpdatedPeers = f
+               }
+       }
+}
+
+func WithOnBlockedPeer(f func([]]peer.ID)) Option[ClientParameters] {
+       return func(p *ClientParameters) {
+               switch t := any(p).(type) { //nolint:gocritic
+               case *PeerTrackerParameters:
+                       p.onBlockedPeer = f
+               }
+       }
 }
 ```
 
-Also, we will add a routine that periodically checks for new peers that have answered with a header, and adds them to the peer store/database. This routine will be started in `store.Init`:
+The event handlers to be supplied are callbacks that either:
+
+1. Put the new peer list into the peer store
+2. Remove a blocked peer from the peer store
+
+Such callbacks are easily passable as options sat header module construction time, example:
 
 ```go
-    fx.Provide(
-        // ...
-        func(lc fx.Lifecycle, ex header.Exchange[H], pstore store.PeerStore) {
-            lc.Append(fx.Hook{
-                OnStart: func(ctx context.Context) error {
-                    go func() {
-                        for {
-                            peers := ex.PeerTracker().GetTrustedPeers()
-                            for _, peer := range peers {
-                                p := ex.PeerTracker().Get(peer)
-                                err = pstore.Put(peer, p.Multiaddr)
-                                if err != nil {
-                                    return err
-                                }
-                            }
-                            time.Sleep(1 * time.Hour)
-                        }
-                    }()
-                    return nil
-                },
-            })
-        },
-    )
+// newP2PExchange constructs a new Exchange for headers.
+func newPeerStore(cfg Config) func(ds datastore.Datastore) (PeerStore, error) {
+       return PeerStore(namespace.Wrap(ds, datastore.NewKey("peer_list")))
+}
 ```
 
-(_MISSING: TODO: Add design for logic to only store peers that were active since the last 24 hours_)
+```diff
++++ celestia-node/nodebuilder/header/module.go
++   fx.Provide(newPeerStore),
+    fx.Provide(newHeaderService)
+
+...
+
+- func(cfg Config, network modp2p.Network) []p2p.Option[p2p.ClientParameters] {
++ func(cfg Config, network modp2p.Network, peerStore datastore.Datastore) []p2p.Option[p2p.ClientParameters] {
+        return []p2p.Option[p2p.ClientParameters]{
+            ...
+            p2p.WithChainID(network.String()),
++           p2p.WithOnUpdatedPeers(func(peers []peer.ID) {
++               topPeers := getTopPeers(peers, cfg.BootstrappersLimit)
++               peerStore.Put(datastore.NewKey("topPeers"), topPeers)
++           }),
+        }
+    },
+),
+                        fx.Provide(newP2PExchange(*cfg)),
+```
+
+*:_for requests are that are performed through `session.go`_
 
 ### Node Startup
 
 When the node starts up, it will first check if the `peers.db` database exists. If it does not, the node will bootstrap from the hardcoded bootstrappers. If it does, the node will bootstrap from the peers in the database.
+
+```diff
++++ celestia-node/nodebuilder/header/constructors.go
+ // newP2PExchange constructs a new Exchange for headers.
+ func newP2PExchange(cfg Config) func(
+        fx.Lifecycle,
+        modp2p.Bootstrappers,
+        modp2p.Network,
+        host.Host,
+        *conngater.BasicConnectionGater,
+        []p2p.Option[p2p.ClientParameters],
++       pstore peerstore.Peerstore,
+ ) (libhead.Exchange[*header.ExtendedHeader], error) {
+        return func(
+                lc fx.Lifecycle,
+                bpeers modp2p.Bootstrappers,
+                network modp2p.Network,
+                host host.Host,
+                conngater *conngater.BasicConnectionGater,
+                opts []p2p.Option[p2p.ClientParameters],
+        ) (libhead.Exchange[*header.ExtendedHeader], error) {
+                peers, err := cfg.trustedPeers(bpeers)
+                if err != nil {
+                        return nil, err
+                }
++              list, err := pstore.Load()
++               if err != nil {
++                       return nil, err
++               }
++               peers := append(peers, list...)
+                ids := make([]peer.ID, len(peers))
+                for index, peer := range peers {
+                        ids[index] = peer.ID
+                        host.Peerstore().AddAddrs(peer.ID, peer.Addrs, peerstore.PermanentAddrTTL)
+                }
+                exchange, err := p2p.NewExchange[*header.ExtendedHeader](host, ids, conngater, opts...)
+                if err != nil {
+                        return nil, err
+                }
+                lc.Append(fx.Hook{
+                        OnStart: func(ctx context.Context) error {
+                                return exchange.Start(ctx)
+                        },
+                        OnStop: func(ctx context.Context) error {
+                                return exchange.Stop(ctx)
+                        },
+                })
+                return exchange, nil
+        }
+ }
+```
 
 ## Status
 
@@ -184,9 +335,6 @@ Proposed
 
 * Allows nodes to bootstrap from previously seen peers, which allows the network to gain more decentralization.
 
-### Negative
-
-* peerTracker scoring logic might be impacted
 
 <!-- 
 > This section does not need to be filled in at the start of the ADR, but must be completed prior to the merging of the implementation.
