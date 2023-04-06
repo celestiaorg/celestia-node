@@ -103,7 +103,7 @@ func TestManager(t *testing.T) {
 		pID, done, err := manager.Peer(ctx, h.DataHash.Bytes())
 		require.NoError(t, err)
 		require.Equal(t, peerID, pID)
-		manager.enableBlackListing = true
+		manager.params.EnableBlackListing = true
 		done(ResultBlacklistPeer)
 
 		// new messages from misbehaved peer should be Rejected
@@ -127,7 +127,7 @@ func TestManager(t *testing.T) {
 		require.NoError(t, headerSub.wait(ctx, 1))
 
 		// set syncTimeout to 0 to allow cleanup to find outdated datahash
-		manager.poolValidationTimeout = 0
+		manager.params.PoolValidationTimeout = 0
 
 		// create unvalidated pool
 		peerID := peer.ID("peer1")
@@ -309,7 +309,7 @@ func TestManager(t *testing.T) {
 		require.Len(t, manager.pools, 2)
 
 		// trigger cleanup and check that no peers or hashes were blacklisted
-		manager.poolValidationTimeout = 0
+		manager.params.PoolValidationTimeout = 0
 		blacklisted := manager.cleanUp()
 		require.Len(t, blacklisted, 0)
 		require.Len(t, manager.blacklistedHashes, 0)
@@ -418,15 +418,15 @@ func TestIntegration(t *testing.T) {
 		// hook peer manager to discovery
 		connGater, err := conngater.NewBasicConnectionGater(sync.MutexWrap(datastore.NewMapDatastore()))
 		require.NoError(t, err)
-		fnPeerManager := NewManager(
+		fnPeerManager, err := NewManager(
+			DefaultParameters(),
 			nil,
 			nil,
 			fnDisc,
 			nil,
 			connGater,
-			WithValidationTimeout(time.Minute),
-			WithPeerCooldown(time.Second),
 		)
+		require.NoError(t, err)
 
 		waitCh := make(chan struct{})
 		fnDisc.WithOnPeersUpdate(func(peerID peer.ID, isAdded bool) {
@@ -464,15 +464,17 @@ func testManager(ctx context.Context, headerSub libhead.Subscriber[*header.Exten
 	if err != nil {
 		return nil, err
 	}
-	manager := NewManager(
+	manager, err := NewManager(
+		DefaultParameters(),
 		headerSub,
 		shrexSub,
 		disc,
 		host,
 		connGater,
-		WithValidationTimeout(time.Minute),
-		WithPeerCooldown(time.Second),
 	)
+	if err != nil {
+		return nil, err
+	}
 	err = manager.Start(ctx)
 	return manager, err
 }

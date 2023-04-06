@@ -3,11 +3,11 @@ package getters
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
-	"go.uber.org/multierr"
 
 	"github.com/celestiaorg/rsmt2d"
 
@@ -93,7 +93,7 @@ func TestCascade(t *testing.T) {
 		getters := []share.Getter{immediateFailGetter, timeoutGetter, immediateFailGetter}
 		_, err := cascadeGetters(ctx, getters, get)
 		assert.Error(t, err)
-		assert.Len(t, multierr.Errors(err), 3)
+		assert.Equal(t, strings.Count(err.Error(), "\n"), 2)
 	})
 
 	t.Run("Single", func(t *testing.T) {
