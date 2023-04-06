@@ -61,7 +61,7 @@ type peerStore struct {
 
 To periodically select the _"good peers"_ that we're connected to and store them in the peer store, we will rely on the internals of `go-header`, specifically the `peerTracker` and `libhead.Exchange` structs.
 
-`peerTracker` has internal logic that continuiously tracks and garbage collects peers, so that if new peers connect to the node, peer tracker keeps track of them in an internal list, as well as it marks disconnected peers for removal. `peerTracker` also blocks peers that fail to answer*.
+`peerTracker` has internal logic that continuiously tracks and garbage collects peers, so that if new peers connect to the node, peer tracker keeps track of them in an internal list, as well as it marks disconnected peers for removal. `peerTracker` also blocks peers that behave maliciously*.
 
 We would like to use this internal logic to periodically select peers that are "good" and store them in the peer store. To do this, we will "hook" into the internals of `peerTracker` and `libhead.Exchange` by defining new "event handlers" intended to handle two main events from `peerTracker`:
 
@@ -138,9 +138,11 @@ where are `OnBlockedPeer` will be called whenever `peerTracker` blocks a peer th
 +       p.onBlockedPeer(PIDToAddrInfo(pID))
  }
 ```
-We are assuming a function named `PIDToAddrInfo` that converts a `peer.ID` to a `peer.AddrInfo` struct for this example's purpose. 
+
+We are assuming a function named `PIDToAddrInfo` that converts a `peer.ID` to a `peer.AddrInfo` struct for this example's purpose.
 
 The `peerTracker`'s constructor should be updated to accept these new event handlers:
+
 ```diff
 +++ go-header/p2p/peer_tracker.go
  type peerTracker struct {
@@ -169,8 +171,8 @@ as well as the `libhead.Exchange`'s options and construction:
         // chainID is an identifier of the chain.
         chainID string
 +
-+       onUpdatedPeers func([]peer.AddrInfo)
-+       onBlockedPeer func(peer.AddrInfo)
++       OnUpdatedPeers func([]peer.AddrInfo)
++       OnBlockedPeer func(peer.AddrInfo)
  }
  ```
 
@@ -211,13 +213,14 @@ as well as the `libhead.Exchange`'s options and construction:
  ```
 
 And then define `libhead.Exchange` options to set the event handlers on the `peerTracker`:
+
 ```go
 +++ go-header/p2p/options.go
 func WithOnUpdatedPeers(f func([]]peer.ID)) Option[ClientParameters] {
        return func(p *ClientParameters) {
                switch t := any(p).(type) { //nolint:gocritic
                case *PeerTrackerParameters:
-                       p.onUpdatedPeers = f
+                       p.OnUpdatedPeers = f
                }
        }
 }
@@ -226,7 +229,7 @@ func WithOnBlockedPeer(f func([]]peer.ID)) Option[ClientParameters] {
        return func(p *ClientParameters) {
                switch t := any(p).(type) { //nolint:gocritic
                case *PeerTrackerParameters:
-                       p.onBlockedPeer = f
+                       p.OnBlockedPeer = f
                }
        }
 }
@@ -237,7 +240,7 @@ The event handlers to be supplied are callbacks that either:
 1. Put the new peer list into the peer store
 2. Remove a blocked peer from the peer store
 
-Such callbacks are easily passable as options sat header module construction time, example:
+Such callbacks are easily passable as options at header module construction time, example:
 
 ```go
 // newP2PExchange constructs a new Exchange for headers.
@@ -334,7 +337,6 @@ Proposed
 ### Positive
 
 * Allows nodes to bootstrap from previously seen peers, which allows the network to gain more decentralization.
-
 
 <!-- 
 > This section does not need to be filled in at the start of the ADR, but must be completed prior to the merging of the implementation.
