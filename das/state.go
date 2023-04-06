@@ -53,8 +53,9 @@ func (s *coordinatorState) resumeFromCheckpoint(c checkpoint) {
 	s.next = c.SampleFrom
 	s.networkHead = c.NetworkHead
 
-	if len(c.Failed) > 0 {
-		s.failed = c.Failed
+	for h := range c.Failed {
+		//TODO(@walldiss): reset retry counter to allow retries after restart. Will be removed when retry backoff is implemented.
+		s.failed[h] = 0
 	}
 }
 
@@ -151,6 +152,10 @@ func (s *coordinatorState) catchupJob() (next job, found bool) {
 // retryJob creates a job to retry previously failed header
 func (s *coordinatorState) retryJob() (next job, found bool) {
 	for h, count := range s.failed {
+		if count > 3 {
+			// TODO(@walldiss): limit amx amount of retries until retry backoff is implemented
+			continue
+		}
 		// move header from failed into retry
 		delete(s.failed, h)
 		s.inRetry[h] = count
