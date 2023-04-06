@@ -144,10 +144,6 @@ func (f *fsStore) Datastore() (_ datastore.Batching, err error) {
 	// Bigger values constantly takes more RAM
 	// TODO(@Wondertan): Make configurable with more conservative defaults for Light Node
 	opts.MaxTableSize = 64 << 20
-	// Remove GC as long as we don't have pruning of data to be GCed.
-	// Currently, we only append data on disk without removing.
-	// TODO(@Wondertan): Find good enough default, once pruning is shipped.
-	opts.GcInterval = 0
 
 	f.data, err = dsbadger.NewDatastore(dataPath(f.path), &opts)
 	if err != nil {
