@@ -2,7 +2,7 @@ package getters
 
 import (
 	"context"
-	"math/rand"
+	mrand "math/rand"
 	"testing"
 	"time"
 
@@ -80,8 +80,8 @@ func newStore(t *testing.T) (*eds.Store, error) {
 func generateTestEDS(t *testing.T, bServ bsrv.BlockService) (*rsmt2d.ExtendedDataSquare, namespace.ID) {
 	shares := share.RandShares(t, 16)
 
-	from := rand.Intn(len(shares))
-	to := rand.Intn(len(shares))
+	from := mrand.Intn(len(shares))
+	to := mrand.Intn(len(shares))
 
 	if to < from {
 		from, to = to, from

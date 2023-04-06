@@ -40,7 +40,8 @@ var log = logging.Logger("shrex/peer-manager")
 
 // Manager keeps track of peers coming from shrex.Sub and from discovery
 type Manager struct {
-	lock sync.Mutex
+	lock   sync.Mutex
+	params Parameters
 
 	// header subscription is necessary in order to validate the inbound eds hash
 	headerSub libhead.Subscriber[*header.ExtendedHeader]
@@ -52,11 +53,7 @@ type Manager struct {
 	pools map[string]*syncPool
 	// messages from shrex.Sub with height below initialHeight will be ignored, since we don't need to
 	// track peers for those headers
-	initialHeight         atomic.Uint64
-	poolValidationTimeout time.Duration
-	peerCooldownTime      time.Duration
-	gcInterval            time.Duration
-	enableBlackListing    bool
+	initialHeight atomic.Uint64
 
 	// fullNodes collects full nodes peer.ID found via discovery
 	fullNodes *pool
@@ -90,34 +87,29 @@ type syncPool struct {
 }
 
 func NewManager(
+	params Parameters,
 	headerSub libhead.Subscriber[*header.ExtendedHeader],
 	shrexSub *shrexsub.PubSub,
 	discovery *discovery.Discovery,
 	host host.Host,
 	connGater *conngater.BasicConnectionGater,
-	opts ...Option,
-) *Manager {
-	params := DefaultParameters()
+) (*Manager, error) {
+	if err := params.Validate(); err != nil {
+		return nil, err
+	}
 
 	s := &Manager{
-		headerSub:             headerSub,
-		shrexSub:              shrexSub,
-		connGater:             connGater,
-		host:                  host,
-		pools:                 make(map[string]*syncPool),
-		poolValidationTimeout: params.ValidationTimeout,
-		peerCooldownTime:      params.PeerCooldown,
-		gcInterval:            params.GcInterval,
-		enableBlackListing:    params.EnableBlackListing,
-		blacklistedHashes:     make(map[string]bool),
-		done:                  make(chan struct{}),
+		params:            params,
+		headerSub:         headerSub,
+		shrexSub:          shrexSub,
+		connGater:         connGater,
+		host:              host,
+		pools:             make(map[string]*syncPool),
+		blacklistedHashes: make(map[string]bool),
+		done:              make(chan struct{}),
 	}
 
-	for _, opt := range opts {
-		opt(s)
-	}
-
-	s.fullNodes = newPool(s.peerCooldownTime)
+	s.fullNodes = newPool(s.params.PeerCooldown)
 
 	discovery.WithOnPeersUpdate(
 		func(peerID peer.ID, isAdded bool) {
@@ -135,7 +127,7 @@ func NewManager(
 			s.fullNodes.remove(peerID)
 		})
 
-	return s
+	return s, nil
 }
 
 func (m *Manager) Start(startCtx context.Context) error {
@@ -314,7 +306,7 @@ func (m *Manager) getOrCreatePool(datahash string) *syncPool {
 	p, ok := m.pools[datahash]
 	if !ok {
 		p = &syncPool{
-			pool:      newPool(m.peerCooldownTime),
+			pool:      newPool(m.params.PeerCooldown),
 			createdAt: time.Now(),
 		}
 		m.pools[datahash] = p
@@ -326,7 +318,7 @@ func (m *Manager) getOrCreatePool(datahash string) *syncPool {
 func (m *Manager) blacklistPeers(peerIDs ...peer.ID) {
 	log.Debugw("blacklisting peers", "peers", peerIDs)
 
-	if !m.enableBlackListing {
+	if !m.params.EnableBlackListing {
 		return
 	}
 	for _, peerID := range peerIDs {
@@ -363,7 +355,7 @@ func (m *Manager) validatedPool(hashStr string) *syncPool {
 }
 
 func (m *Manager) GC(ctx context.Context) {
-	ticker := time.NewTicker(m.gcInterval)
+	ticker := time.NewTicker(m.params.GcInterval)
 	defer ticker.Stop()
 
 	var blacklist []peer.ID
@@ -392,7 +384,7 @@ func (m *Manager) cleanUp() []peer.ID {
 
 	addToBlackList := make(map[peer.ID]struct{})
 	for h, p := range m.pools {
-		if !p.isValidatedDataHash.Load() && time.Since(p.createdAt) > m.poolValidationTimeout {
+		if !p.isValidatedDataHash.Load() && time.Since(p.createdAt) > m.params.PoolValidationTimeout {
 			delete(m.pools, h)
 			if p.headerHeight.Load() < m.initialHeight.Load() {
 				// outdated pools could still be valid even if not validated, no need to blacklist

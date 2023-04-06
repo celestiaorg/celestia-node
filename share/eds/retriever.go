@@ -2,7 +2,6 @@ package eds
 
 import (
 	"context"
-	"encoding/hex"
 	"errors"
 	"sync"
 	"sync/atomic"
@@ -65,10 +64,10 @@ func (r *Retriever) Retrieve(ctx context.Context, dah *da.DataAvailabilityHeader
 	defer span.End()
 	span.SetAttributes(
 		attribute.Int("size", len(dah.RowsRoots)),
-		attribute.String("data_hash", hex.EncodeToString(dah.Hash())),
+		attribute.String("data_hash", dah.String()),
 	)
 
-	log.Debugw("retrieving data square", "data_hash", hex.EncodeToString(dah.Hash()), "size", len(dah.RowsRoots))
+	log.Debugw("retrieving data square", "data_hash", dah.String(), "size", len(dah.RowsRoots))
 	ses, err := r.newSession(ctx, dah)
 	if err != nil {
 		return nil, err
@@ -175,7 +174,7 @@ func (rs *retrievalSession) Reconstruct(ctx context.Context) (*rsmt2d.ExtendedDa
 		span.RecordError(err)
 		return nil, err
 	}
-	log.Infow("data square reconstructed", "data_hash", hex.EncodeToString(rs.dah.Hash()), "size", len(rs.dah.RowsRoots))
+	log.Infow("data square reconstructed", "data_hash", rs.dah.String(), "size", len(rs.dah.RowsRoots))
 	close(rs.squareDn)
 	return rs.square, nil
 }
