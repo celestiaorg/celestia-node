@@ -2,8 +2,9 @@ package eds
 
 import (
 	"context"
+	"crypto/rand"
 	"errors"
-	"math/rand"
+	mrand "math/rand"
 	"sort"
 	"testing"
 	"time"
@@ -47,7 +48,7 @@ func TestBlockGetter_GetBlocks(t *testing.T) {
 		cids := randCIDs(32)
 
 		// split cids into failed and succeeded
-		failedLen := rand.Intn(len(cids)-1) + 1
+		failedLen := mrand.Intn(len(cids)-1) + 1
 		failed := make(map[cid.Cid]struct{}, failedLen)
 		succeeded := make([]cid.Cid, 0, len(cids)-failedLen)
 		for i, cid := range cids {
@@ -141,7 +142,7 @@ func (r rbsMock) HashOnRead(bool) {
 
 func randCID() cid.Cid {
 	hash := make([]byte, ipld.NmtHashSize)
-	rand.Read(hash)
+	_, _ = rand.Read(hash)
 	return ipld.MustCidFromNamespacedSha256(hash)
 }
 

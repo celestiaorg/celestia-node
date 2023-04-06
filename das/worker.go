@@ -7,8 +7,6 @@ import (
 	"sync"
 	"time"
 
-	"go.uber.org/multierr"
-
 	libhead "github.com/celestiaorg/go-header"
 
 	"github.com/celestiaorg/celestia-node/header"
@@ -179,7 +177,7 @@ func (w *worker) setResult(curr uint64, err error) {
 	defer w.lock.Unlock()
 	if err != nil {
 		w.state.failed = append(w.state.failed, curr)
-		w.state.Err = multierr.Append(w.state.Err, fmt.Errorf("height: %v, err: %w", curr, err))
+		w.state.Err = errors.Join(w.state.Err, fmt.Errorf("height: %v, err: %w", curr, err))
 	}
 	w.state.Curr = curr
 }

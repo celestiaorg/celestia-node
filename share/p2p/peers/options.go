@@ -50,7 +50,8 @@ func DefaultParameters() Parameters {
 		// the new block before we ask them again.
 		PeerCooldown: 3 * time.Second,
 		GcInterval:   time.Second * 30,
-		// blacklisting is off by default //TODO(@walldiss): enable blacklisting once all related issues are resolved
+		// blacklisting is off by default //TODO(@walldiss): enable blacklisting once all related issues
+		// are resolved
 		EnableBlackListing: false,
 	}
 }

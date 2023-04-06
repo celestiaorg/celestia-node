@@ -3,17 +3,16 @@ package light
 import (
 	"bytes"
 	"context"
+	"crypto/rand"
 	_ "embed"
 	"encoding/hex"
 	"encoding/json"
 	mrand "math/rand"
 	"strconv"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/tendermint/tendermint/libs/rand"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	core "github.com/tendermint/tendermint/types"
 
@@ -24,11 +23,6 @@ import (
 	"github.com/celestiaorg/celestia-node/share"
 	availability_test "github.com/celestiaorg/celestia-node/share/availability/test"
 )
-
-func init() {
-	// randomize quadrant fetching, otherwise quadrant sampling is deterministic
-	rand.Seed(time.Now().UnixNano())
-}
 
 func TestSharesAvailable(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
@@ -230,7 +224,7 @@ func TestSharesRoundTrip(t *testing.T) {
 	}
 	randBytes := func(n int) []byte {
 		bs := make([]byte, n)
-		mrand.Read(bs)
+		_, _ = rand.Read(bs)
 		return bs
 	}
 	for i := 128; i < 4192; i += mrand.Intn(256) {

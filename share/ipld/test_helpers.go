@@ -1,7 +1,7 @@
 package ipld
 
 import (
-	mrand "math/rand"
+	"crypto/rand"
 	"testing"
 
 	"github.com/ipfs/go-cid"
@@ -10,7 +10,7 @@ import (
 
 func RandNamespacedCID(t *testing.T) cid.Cid {
 	raw := make([]byte, NmtHashSize)
-	_, err := mrand.Read(raw) //nolint:gosec
+	_, err := rand.Read(raw)
 	require.NoError(t, err)
 	id, err := CidFromNamespacedSha256(raw)
 	require.NoError(t, err)
