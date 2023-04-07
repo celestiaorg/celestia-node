@@ -40,6 +40,35 @@ type writingSession struct {
 	w      io.Writer
 }
 
+func WriteODS(ctx context.Context, eds *rsmt2d.ExtendedDataSquare, w io.Writer) (err error) {
+	ctx, span := tracer.Start(ctx, "write-ods")
+	defer func() {
+		utils.SetStatusAndEnd(span, err)
+	}()
+
+	// 1. Reimport EDS. This is needed to traverse the NMT tree and cache the inner nodes (proofs)
+	// TODO: optim, we don't need to cache proofs for writing ODS
+	writer, err := initializeWriter(ctx, eds, w)
+	if err != nil {
+		return fmt.Errorf("share: creating eds writer: %w", err)
+	}
+
+	// 2. Creates and writes Carv1Header
+	//    - Roots are the eds Row + Col roots
+	err = writer.writeHeader()
+	if err != nil {
+		return fmt.Errorf("share: writing carv1 header: %w", err)
+	}
+
+	// 3. Iterates over shares in quadrant order via eds.GetCell
+	err = writer.writeQuadrants(1)
+	if err != nil {
+		return fmt.Errorf("share: writing shares: %w", err)
+	}
+
+	return nil
+}
+
 // WriteEDS writes the entire EDS into the given io.Writer as CARv1 file.
 // This includes all shares in quadrant order, followed by all inner nodes of the NMT tree.
 // Order: [ Carv1Header | Q1 |  Q2 | Q3 | Q4 | inner nodes ]
@@ -64,7 +93,7 @@ func WriteEDS(ctx context.Context, eds *rsmt2d.ExtendedDataSquare, w io.Writer) 
 	}
 
 	// 3. Iterates over shares in quadrant order via eds.GetCell
-	err = writer.writeQuadrants()
+	err = writer.writeQuadrants(4)
 	if err != nil {
 		return fmt.Errorf("share: writing shares: %w", err)
 	}
@@ -132,9 +161,12 @@ func (w *writingSession) writeHeader() error {
 }
 
 // writeQuadrants reorders the shares to quadrant order and writes them to the CARv1 file.
-func (w *writingSession) writeQuadrants() error {
-	shares := quadrantOrder(w.eds)
+func (w *writingSession) writeQuadrants(quadrantCount int) error {
+	shares := quadrantOrder(w.eds, quadrantCount)
 	for _, share := range shares {
+		if share == nil {
+			continue
+		}
 		leaf, err := w.hasher.HashLeaf(share)
 		if err != nil {
 			return fmt.Errorf("hashing share: %w", err)
@@ -187,7 +219,7 @@ func (w *writingSession) writeProofs(ctx context.Context) error {
 // quadrantOrder reorders the shares in the EDS to quadrant row-by-row order, prepending the
 // respective namespace to the shares.
 // e.g. [ Q1 R1 | Q1 R2 | Q1 R3 | Q1 R4 | Q2 R1 | Q2 R2 .... ]
-func quadrantOrder(eds *rsmt2d.ExtendedDataSquare) [][]byte {
+func quadrantOrder(eds *rsmt2d.ExtendedDataSquare, quadrantCount int) [][]byte {
 	size := eds.Width() * eds.Width()
 	shares := make([][]byte, size)
 
@@ -197,7 +229,8 @@ func quadrantOrder(eds *rsmt2d.ExtendedDataSquare) [][]byte {
 		for j := 0; j < quadrantWidth; j++ {
 			cells := getQuadrantCells(eds, uint(i), uint(j))
 			innerOffset := i*quadrantWidth + j
-			for quadrant := 0; quadrant < 4; quadrant++ {
+			// TODO: optim, getQuadrantCells gets for all quads regardless of quadrantCount
+			for quadrant := 0; quadrant < quadrantCount; quadrant++ {
 				shares[(quadrant*quadrantSize)+innerOffset] = prependNamespace(quadrant, cells[quadrant])
 			}
 		}
