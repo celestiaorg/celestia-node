@@ -84,7 +84,18 @@ func collectSharesByNamespace(
 		return nil, err
 	}
 
-	return shares, nil
+	// At this point shares contains a row that is empty and contains a proof of
+	// absence.
+	return filterEmptyShares(shares), nil
+}
+
+func filterEmptyShares(shares share.NamespacedShares) (filtered share.NamespacedShares) {
+	for _, share := range shares {
+		if len(share.Shares) != 0 {
+			filtered = append(filtered, share)
+		}
+	}
+	return filtered
 }
 
 func verifyNIDSize(nID namespace.ID) error {

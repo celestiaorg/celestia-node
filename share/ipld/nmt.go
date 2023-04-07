@@ -36,6 +36,7 @@ const (
 
 	// sha256Namespace8Flagged is the multihash code used to hash blocks
 	// that contain an NMT node (inner and leaf nodes).
+	// Question: does the 8 in this constant refer to the size of the namespace? If so, it needs to be updated.
 	sha256Namespace8Flagged = 0x7701
 
 	// MaxSquareSize is currently the maximum size supported for unerasured data in

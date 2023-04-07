@@ -55,7 +55,7 @@ func RandShares(t require.TestingT, total int) []Share {
 	for i := range shares {
 		share := make([]byte, Size)
 		copy(share[:NamespaceSize], namespace.RandomNamespace().Bytes())
-		_, err := mrand.Read(share[NamespaceSize:]) //nolint:gosec
+		_, err := mrand.Read(share[NamespaceSize:])
 		require.NoError(t, err)
 		shares[i] = share
 	}

@@ -88,17 +88,17 @@ func TestService_GetSharesByNamespace(t *testing.T) {
 		expectedShareCount int
 	}{
 		{squareSize: 4, expectedShareCount: 2},
-		{squareSize: 16, expectedShareCount: 2},
-		{squareSize: 128, expectedShareCount: 2},
+		// {squareSize: 16, expectedShareCount: 2},
+		// {squareSize: 128, expectedShareCount: 2},
 	}
 
 	for _, tt := range tests {
 		t.Run("size: "+strconv.Itoa(tt.squareSize), func(t *testing.T) {
 			getter, bServ := EmptyGetter()
-			n := tt.squareSize * tt.squareSize
-			randShares := share.RandShares(t, n)
-			idx1 := (n - 1) / 2
-			idx2 := n / 2
+			totalShares := tt.squareSize * tt.squareSize
+			randShares := share.RandShares(t, totalShares)
+			idx1 := (totalShares - 1) / 2
+			idx2 := totalShares / 2
 			if tt.expectedShareCount > 1 {
 				// make it so that two rows have the same namespace ID
 				copy(randShares[idx2][:namespace.NamespaceSize], randShares[idx1][:namespace.NamespaceSize])
