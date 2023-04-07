@@ -34,6 +34,11 @@ var (
 func filterRootsByNamespace(root *share.Root, nID namespace.ID) []cid.Cid {
 	rowRootCIDs := make([]cid.Cid, 0, len(root.RowsRoots))
 	for _, row := range root.RowsRoots {
+		// The below lines assume that the EDS row roots ignore the max
+		// namespace. This is the case on `main` but breaks when we bump to
+		// versioned namespaces because the max namespace is 33 bytes of 0xFF
+		// but the parity namespace is 23 bytes of 0 followed by 10 bytes of
+		// 0xFF.
 		if !nID.Less(nmt.MinNamespace(row, nID.Size())) && nID.LessOrEqual(nmt.MaxNamespace(row, nID.Size())) {
 			rowRootCIDs = append(rowRootCIDs, ipld.MustCidFromNamespacedSha256(row))
 		}
