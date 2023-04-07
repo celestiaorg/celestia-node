@@ -18,6 +18,7 @@ import (
 	headp2p "github.com/celestiaorg/go-header/p2p"
 
 	"github.com/celestiaorg/celestia-node/libs/fraud"
+	"github.com/celestiaorg/celestia-node/libs/fraud/fraudserv"
 )
 
 func init() {
@@ -113,7 +114,7 @@ func topicScoreParams(network Network) map[string]*pubsub.TopicScoreParams {
 	}
 
 	for _, pt := range fraud.Registered() {
-		mp[fraud.PubsubTopicID(pt.String(), network.String())] = &fraud.GossibSubScore
+		mp[fraudserv.PubsubTopicID(pt.String(), network.String())] = &fraudserv.GossibSubScore
 	}
 
 	return mp

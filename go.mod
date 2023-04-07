@@ -10,7 +10,7 @@ require (
 	github.com/alecthomas/jsonschema v0.0.0-20200530073317-71f438968921
 	github.com/benbjohnson/clock v1.3.0
 	github.com/celestiaorg/celestia-app v0.12.2
-	github.com/celestiaorg/go-header v0.2.3
+	github.com/celestiaorg/go-header v0.2.4
 	github.com/celestiaorg/go-libp2p-messenger v0.2.0
 	github.com/celestiaorg/nmt v0.15.0
 	github.com/celestiaorg/rsmt2d v0.8.0
