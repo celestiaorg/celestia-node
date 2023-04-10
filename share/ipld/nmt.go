@@ -34,10 +34,10 @@ const (
 	// nmtCodec is the codec used for leaf and inner nodes of a Namespaced Merkle Tree.
 	nmtCodec = 0x7700
 
-	// sha256Namespace8Flagged is the multihash code used to hash blocks
+	// sha256NamespaceFlagged is the multihash code used to hash blocks
 	// that contain an NMT node (inner and leaf nodes).
 	// Question: does the 8 in this constant refer to the size of the namespace? If so, it needs to be updated.
-	sha256Namespace8Flagged = 0x7701
+	sha256NamespaceFlagged = 0x7701
 
 	// MaxSquareSize is currently the maximum size supported for unerasured data in
 	// rsmt2d.ExtendedDataSquare.
@@ -68,7 +68,7 @@ const (
 
 func init() {
 	// required for Bitswap to hash and verify inbound data correctly
-	mhcore.Register(sha256Namespace8Flagged, func() hash.Hash {
+	mhcore.Register(sha256NamespaceFlagged, func() hash.Hash {
 		nh := nmt.NewNmtHasher(sha256.New(), NamespaceSize, true)
 		nh.Reset()
 		return nh
@@ -145,7 +145,7 @@ func CidFromNamespacedSha256(namespacedHash []byte) (cid.Cid, error) {
 	if got, want := len(namespacedHash), NmtHashSize; got != want {
 		return cid.Cid{}, fmt.Errorf("invalid namespaced hash length, got: %v, want: %v", got, want)
 	}
-	buf, err := mh.Encode(namespacedHash, sha256Namespace8Flagged)
+	buf, err := mh.Encode(namespacedHash, sha256NamespaceFlagged)
 	if err != nil {
 		return cid.Undef, err
 	}
@@ -160,7 +160,7 @@ func MustCidFromNamespacedSha256(hash []byte) cid.Cid {
 		panic(
 			fmt.Sprintf("malformed hash: %s, codec: %v",
 				err,
-				mh.Codes[sha256Namespace8Flagged]),
+				mh.Codes[sha256NamespaceFlagged]),
 		)
 	}
 	return cidFromHash
