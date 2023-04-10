@@ -119,6 +119,33 @@ func TestService_GetSharesByNamespace(t *testing.T) {
 				assert.Equal(t, randShares[idx2], flattened[1])
 			}
 		})
+		t.Run("last two rows of a 4x4 square that have the same namespace ID have valid NMT proofs", func(t *testing.T) {
+			squareSize := 4
+			totalShares := squareSize * squareSize
+			getter, bServ := EmptyGetter()
+			randShares := share.RandShares(t, totalShares)
+			lastNID := randShares[totalShares-1][:namespace.NamespaceSize]
+			for i := totalShares / 2; i < totalShares; i++ {
+				copy(randShares[i][:namespace.NamespaceSize], lastNID)
+			}
+			root := availability_test.FillBS(t, bServ, randShares)
+
+			shares, err := getter.GetSharesByNamespace(context.Background(), root, lastNID)
+			require.NoError(t, err)
+			require.NoError(t, shares.Verify(root, lastNID))
+		})
+		t.Run("no shares are returned when GetSharesByNamespace is invoked with random namespace ID", func(t *testing.T) {
+			squareSize := 4
+			totalShares := squareSize * squareSize
+			getter, bServ := EmptyGetter()
+			randShares := share.RandShares(t, totalShares)
+			root := availability_test.FillBS(t, bServ, randShares)
+			randomNID := namespace.RandomBlobNamespace()
+
+			shares, err := getter.GetSharesByNamespace(context.Background(), root, randomNID.Bytes())
+			require.NoError(t, err)
+			require.Equal(t, 0, len(shares.Flatten()))
+		})
 	}
 }
 
