@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	_ "embed"
-	"encoding/hex"
 	"encoding/json"
 	mrand "math/rand"
 	"strconv"
@@ -196,7 +195,6 @@ func BenchmarkService_GetSharesByNamespace(b *testing.B) {
 	}
 }
 
-// TODO: fix test
 func TestSharesRoundTrip(t *testing.T) {
 	getter, store := EmptyGetter()
 	ctx, cancel := context.WithCancel(context.Background())
@@ -209,52 +207,49 @@ func TestSharesRoundTrip(t *testing.T) {
 	b, err := core.BlockFromProto(&pb)
 	require.NoError(t, err)
 
-	namespace, err := hex.DecodeString("00001337BEEF0000")
-	require.NoError(t, err)
-	namespaceBefore, err := hex.DecodeString("0000000000000123")
-	require.NoError(t, err)
-	namespaceAfter, err := hex.DecodeString("1234000000000123")
-	require.NoError(t, err)
+	namespaceA := namespace.MustNewV0(bytes.Repeat([]byte{0xa}, namespace.NamespaceVersionZeroIDSize))
+	namespaceB := namespace.MustNewV0(bytes.Repeat([]byte{0xb}, namespace.NamespaceVersionZeroIDSize))
+	namespaceC := namespace.MustNewV0(bytes.Repeat([]byte{0xc}, namespace.NamespaceVersionZeroIDSize))
 
 	type testCase struct {
 		name       string
 		messages   [][]byte
-		namespaces [][]byte
+		namespaces []namespace.Namespace
 	}
 
 	cases := []testCase{
 		{
 			"original test case",
 			[][]byte{b.Data.Blobs[0].Data},
-			[][]byte{namespace}},
+			[]namespace.Namespace{namespaceB}},
 		{
 			"one short message",
 			[][]byte{{1, 2, 3, 4}},
-			[][]byte{namespace}},
+			[]namespace.Namespace{namespaceB}},
 		{
 			"one short before other namespace",
 			[][]byte{{1, 2, 3, 4}, {4, 5, 6, 7}},
-			[][]byte{namespace, namespaceAfter},
+			[]namespace.Namespace{namespaceB, namespaceC},
 		},
 		{
 			"one short after other namespace",
 			[][]byte{{1, 2, 3, 4}, {4, 5, 6, 7}},
-			[][]byte{namespaceBefore, namespace},
+			[]namespace.Namespace{namespaceA, namespaceB},
 		},
 		{
 			"two short messages",
 			[][]byte{{1, 2, 3, 4}, {4, 5, 6, 7}},
-			[][]byte{namespace, namespace},
+			[]namespace.Namespace{namespaceB, namespaceB},
 		},
 		{
 			"two short messages before other namespace",
 			[][]byte{{1, 2, 3, 4}, {4, 5, 6, 7}, {7, 8, 9}},
-			[][]byte{namespace, namespace, namespaceAfter},
+			[]namespace.Namespace{namespaceB, namespaceB, namespaceC},
 		},
 		{
 			"two short messages after other namespace",
 			[][]byte{{1, 2, 3, 4}, {4, 5, 6, 7}, {7, 8, 9}},
-			[][]byte{namespaceBefore, namespace, namespace},
+			[]namespace.Namespace{namespaceA, namespaceB, namespaceB},
 		},
 	}
 	randBytes := func(n int) []byte {
@@ -267,32 +262,32 @@ func TestSharesRoundTrip(t *testing.T) {
 		cases = append(cases, testCase{
 			"one " + l + " bytes message",
 			[][]byte{randBytes(i)},
-			[][]byte{namespace},
+			[]namespace.Namespace{namespaceB},
 		})
 		cases = append(cases, testCase{
 			"one " + l + " bytes before other namespace",
 			[][]byte{randBytes(i), randBytes(1 + mrand.Intn(i))},
-			[][]byte{namespace, namespaceAfter},
+			[]namespace.Namespace{namespaceB, namespaceC},
 		})
 		cases = append(cases, testCase{
 			"one " + l + " bytes after other namespace",
 			[][]byte{randBytes(1 + mrand.Intn(i)), randBytes(i)},
-			[][]byte{namespaceBefore, namespace},
+			[]namespace.Namespace{namespaceA, namespaceB},
 		})
 		cases = append(cases, testCase{
 			"two " + l + " bytes messages",
 			[][]byte{randBytes(i), randBytes(i)},
-			[][]byte{namespace, namespace},
+			[]namespace.Namespace{namespaceB, namespaceB},
 		})
 		cases = append(cases, testCase{
 			"two " + l + " bytes messages before other namespace",
 			[][]byte{randBytes(i), randBytes(i), randBytes(1 + mrand.Intn(i))},
-			[][]byte{namespace, namespace, namespaceAfter},
+			[]namespace.Namespace{namespaceB, namespaceB, namespaceC},
 		})
 		cases = append(cases, testCase{
 			"two " + l + " bytes messages after other namespace",
 			[][]byte{randBytes(1 + mrand.Intn(i)), randBytes(i), randBytes(i)},
-			[][]byte{namespaceBefore, namespace, namespace},
+			[]namespace.Namespace{namespaceA, namespaceB, namespaceB},
 		})
 	}
 
@@ -305,8 +300,12 @@ func TestSharesRoundTrip(t *testing.T) {
 			var msgsInNamespace [][]byte
 			require.Equal(t, len(tc.namespaces), len(tc.messages))
 			for i := range tc.messages {
-				b.Data.Blobs[i] = core.Blob{NamespaceID: tc.namespaces[i], Data: tc.messages[i]}
-				if bytes.Equal(tc.namespaces[i], namespace) {
+				b.Data.Blobs[i] = core.Blob{
+					NamespaceID:      tc.namespaces[i].ID,
+					Data:             tc.messages[i],
+					NamespaceVersion: tc.namespaces[i].Version,
+				}
+				if bytes.Equal(tc.namespaces[i].Bytes(), namespaceB.Bytes()) {
 					msgsInNamespace = append(msgsInNamespace, tc.messages[i])
 				}
 			}
@@ -324,7 +323,7 @@ func TestSharesRoundTrip(t *testing.T) {
 				for _, sh := range shares {
 					ns, err := sh.Namespace()
 					require.NoError(t, err)
-					if bytes.Equal(namespace, ns.Bytes()) {
+					if bytes.Equal(namespaceB.Bytes(), ns.Bytes()) {
 						myShares = append(myShares, sh.ToBytes())
 					}
 				}
@@ -344,9 +343,9 @@ func TestSharesRoundTrip(t *testing.T) {
 				require.NoError(t, err)
 
 				dah := da.NewDataAvailabilityHeader(extSquare)
-				shares, err := getter.GetSharesByNamespace(ctx, &dah, namespace)
+				shares, err := getter.GetSharesByNamespace(ctx, &dah, namespaceB.Bytes())
 				require.NoError(t, err)
-				require.NoError(t, shares.Verify(&dah, namespace))
+				require.NoError(t, shares.Verify(&dah, namespaceB.Bytes()))
 				require.NotEmpty(t, shares)
 
 				appShares, err := appshares.FromBytes(shares.Flatten())
@@ -355,7 +354,8 @@ func TestSharesRoundTrip(t *testing.T) {
 				require.NoError(t, err)
 				assert.Len(t, blobs, len(msgsInNamespace))
 				for i := range blobs {
-					assert.Equal(t, namespace, []byte(blobs[i].NamespaceID))
+					assert.Equal(t, namespaceB.ID, blobs[i].NamespaceID)
+					assert.Equal(t, namespaceB.Version, blobs[i].NamespaceVersion)
 					assert.Equal(t, msgsInNamespace[i], blobs[i].Data)
 				}
 			}
