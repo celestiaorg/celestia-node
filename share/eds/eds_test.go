@@ -29,12 +29,9 @@ var exampleRoot string
 //go:embed "testdata/example.car"
 var f embed.FS
 
-// TODO: fix test
 func TestQuadrantOrder(t *testing.T) {
 	// TODO: add more test cases
 	nID := bytes.Repeat([]byte{0}, namespace.NamespaceSize)
-	parity := append(namespace.ParitySharesNamespace.Bytes(), nID...) //nolint
-	doubleNID := append(nID, nID...)                                  //nolint
 	result, _ := rsmt2d.ComputeExtendedDataSquare([][]byte{
 		append(nID, 1), append(nID, 2),
 		append(nID, 3), append(nID, 4),
@@ -45,10 +42,22 @@ func TestQuadrantOrder(t *testing.T) {
 	//  {{9}, {26}, {47}, {69}},
 	require.Equal(t,
 		[][]byte{
-			append(doubleNID, 1), append(doubleNID, 2), append(doubleNID, 3), append(doubleNID, 4),
-			append(parity, 7), append(parity, 13), append(parity, 13), append(parity, 31),
-			append(parity, 5), append(parity, 14), append(parity, 9), append(parity, 26),
-			append(parity, 19), append(parity, 41), append(parity, 47), append(parity, 69),
+			append(append(nID, nID...), 1),
+			append(append(nID, nID...), 2),
+			append(append(nID, nID...), 3),
+			append(append(nID, nID...), 4),
+			append(append(namespace.ParitySharesNamespace.Bytes(), nID...), 7),
+			append(append(namespace.ParitySharesNamespace.Bytes(), nID...), 13),
+			append(append(namespace.ParitySharesNamespace.Bytes(), nID...), 13),
+			append(append(namespace.ParitySharesNamespace.Bytes(), nID...), 31),
+			append(append(namespace.ParitySharesNamespace.Bytes(), nID...), 5),
+			append(append(namespace.ParitySharesNamespace.Bytes(), nID...), 14),
+			append(append(namespace.ParitySharesNamespace.Bytes(), nID...), 9),
+			append(append(namespace.ParitySharesNamespace.Bytes(), nID...), 26),
+			append(append(namespace.ParitySharesNamespace.Bytes(), nID...), 19),
+			append(append(namespace.ParitySharesNamespace.Bytes(), nID...), 41),
+			append(append(namespace.ParitySharesNamespace.Bytes(), nID...), 47),
+			append(append(namespace.ParitySharesNamespace.Bytes(), nID...), 69),
 		}, quadrantOrder(result),
 	)
 }
