@@ -2,7 +2,7 @@ package share
 
 import (
 	"bytes"
-	mrand "math/rand"
+	"crypto/rand"
 	"sort"
 
 	"github.com/stretchr/testify/require"

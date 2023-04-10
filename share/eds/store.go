@@ -66,7 +66,7 @@ func NewStore(basepath string, ds datastore.Batching) (*Store, error) {
 	}
 
 	r := mount.NewRegistry()
-	err = r.Register("fs", &mount.FSMount{FS: os.DirFS(basepath + blocksPath)})
+	err = r.Register("fs", &mount.FileMount{Path: basepath + blocksPath})
 	if err != nil {
 		return nil, fmt.Errorf("failed to register FS mount on the registry: %w", err)
 	}
@@ -181,9 +181,8 @@ func (s *Store) Put(ctx context.Context, root share.DataHash, square *rsmt2d.Ext
 	}
 
 	ch := make(chan dagstore.ShardResult, 1)
-	err = s.dgstr.RegisterShard(ctx, shard.KeyFromString(key), &mount.FSMount{
-		FS:   os.DirFS(s.basepath + blocksPath),
-		Path: key,
+	err = s.dgstr.RegisterShard(ctx, shard.KeyFromString(key), &mount.FileMount{
+		Path: s.basepath + blocksPath + key,
 	}, ch, dagstore.RegisterOpts{})
 	if err != nil {
 		return fmt.Errorf("failed to initiate shard registration: %w", err)
@@ -205,17 +204,18 @@ func (s *Store) Put(ctx context.Context, root share.DataHash, square *rsmt2d.Ext
 // The Reader strictly reads the CAR header and first quadrant (1/4) of the EDS, omitting all the
 // NMT Merkle proofs. Integrity of the store data is not verified.
 //
-// Caller must Close returned reader after reading.
-func (s *Store) GetCAR(ctx context.Context, root share.DataHash) (io.ReadCloser, error) {
+// The shard is cached in the Store, so subsequent calls to GetCAR with the same root will use the same reader.
+// The cache is responsible for closing the underlying reader.
+func (s *Store) GetCAR(ctx context.Context, root share.DataHash) (io.Reader, error) {
 	ctx, span := tracer.Start(ctx, "store/get-car", trace.WithAttributes(attribute.String("root", root.String())))
 	defer span.End()
 
 	key := root.String()
-	accessor, err := s.getAccessor(ctx, shard.KeyFromString(key))
+	accessor, err := s.getCachedAccessor(ctx, shard.KeyFromString(key))
 	if err != nil {
 		return nil, fmt.Errorf("failed to get accessor: %w", err)
 	}
-	return accessor, nil
+	return accessor.sa.Reader(), nil
 }
 
 // Blockstore returns an IPFS blockstore providing access to individual shares/nodes of all EDS
@@ -248,13 +248,12 @@ func (s *Store) GetDAH(ctx context.Context, root share.DataHash) (*share.Root, e
 	defer span.End()
 
 	key := shard.KeyFromString(root.String())
-	accessor, err := s.getAccessor(ctx, key)
+	accessor, err := s.getCachedAccessor(ctx, key)
 	if err != nil {
 		return nil, fmt.Errorf("eds/store: failed to get accessor: %w", err)
 	}
-	defer accessor.Close()
 
-	carHeader, err := carv1.ReadHeader(bufio.NewReader(accessor))
+	carHeader, err := carv1.ReadHeader(bufio.NewReader(accessor.sa.Reader()))
 	if err != nil {
 		return nil, fmt.Errorf("eds/store: failed to read car header: %w", err)
 	}
@@ -298,8 +297,11 @@ func (s *Store) getAccessor(ctx context.Context, key shard.Key) (*dagstore.Shard
 }
 
 func (s *Store) getCachedAccessor(ctx context.Context, key shard.Key) (*accessorWithBlockstore, error) {
-	// try to fetch from cache
-	accessor, err := s.cache.Get(key)
+	lk := &s.cache.stripedLocks[shardKeyToStriped(key)]
+	lk.Lock()
+	defer lk.Unlock()
+
+	accessor, err := s.cache.unsafeGet(key)
 	if err != nil && err != errCacheMiss {
 		log.Errorf("unexpected error while reading key from bs cache %s: %s", key, err)
 	}
@@ -312,7 +314,7 @@ func (s *Store) getCachedAccessor(ctx context.Context, key shard.Key) (*accessor
 	if err != nil {
 		return nil, err
 	}
-	return s.cache.Add(key, shardAccessor)
+	return s.cache.unsafeAdd(key, shardAccessor)
 }
 
 // Remove removes EDS from Store by the given share.Root hash and cleans up all
@@ -368,7 +370,6 @@ func (s *Store) Get(ctx context.Context, root share.DataHash) (eds *rsmt2d.Exten
 	if err != nil {
 		return nil, fmt.Errorf("failed to get CAR file: %w", err)
 	}
-	defer f.Close()
 	eds, err = ReadEDS(ctx, f, root)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read EDS from CAR file: %w", err)

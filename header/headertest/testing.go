@@ -2,6 +2,7 @@ package headertest
 
 import (
 	"context"
+	"crypto/rand"
 	"fmt"
 	mrand "math/rand"
 	"sort"
@@ -19,7 +20,6 @@ import (
 	"github.com/tendermint/tendermint/proto/tendermint/version"
 	"github.com/tendermint/tendermint/types"
 	tmtime "github.com/tendermint/tendermint/types/time"
-	"golang.org/x/exp/rand"
 
 	"github.com/celestiaorg/celestia-app/pkg/da"
 	libhead "github.com/celestiaorg/go-header"
@@ -248,7 +248,7 @@ func RandValidator(randPower bool, minPower int64) (*types.Validator, types.Priv
 	privVal := types.NewMockPV()
 	votePower := minPower
 	if randPower {
-		votePower += int64(rand.Uint32())
+		votePower += int64(mrand.Uint32()) //nolint:gosec
 	}
 	pubKey, err := privVal.GetPubKey()
 	if err != nil {
@@ -287,8 +287,8 @@ func RandBlockID(*testing.T) types.BlockID {
 			Hash:  make([]byte, 32),
 		},
 	}
-	mrand.Read(bid.Hash)               //nolint:gosec
-	mrand.Read(bid.PartSetHeader.Hash) //nolint:gosec
+	_, _ = rand.Read(bid.Hash)
+	_, _ = rand.Read(bid.PartSetHeader.Hash)
 	return bid
 }
 

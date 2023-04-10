@@ -1,6 +1,6 @@
 module github.com/celestiaorg/celestia-node
 
-go 1.19
+go 1.20
 
 replace github.com/ipfs/go-verifcid => github.com/celestiaorg/go-verifcid v0.0.1-lazypatch
 
@@ -53,6 +53,9 @@ require (
 	github.com/multiformats/go-multiaddr-dns v0.3.1
 	github.com/multiformats/go-multihash v0.2.2-0.20221030163302-608669da49b6
 	github.com/open-rpc/meta-schema v0.0.0-20201029221707-1b72ef2ea333
+	github.com/prometheus/client_golang v1.14.0
+	github.com/pyroscope-io/client v0.7.0
+	github.com/pyroscope-io/otel-profiling-go v0.4.0
 	github.com/spf13/cobra v1.6.1
 	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/testify v1.8.2
@@ -66,9 +69,7 @@ require (
 	go.opentelemetry.io/otel/trace v1.13.0
 	go.opentelemetry.io/proto/otlp v0.19.0
 	go.uber.org/fx v1.18.2
-	go.uber.org/multierr v1.9.0
 	golang.org/x/crypto v0.7.0
-	golang.org/x/exp v0.0.0-20230206171751-46f607a40771
 	golang.org/x/sync v0.1.0
 	golang.org/x/text v0.8.0
 	google.golang.org/grpc v1.53.0
@@ -260,10 +261,10 @@ require (
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/polydawn/refmt v0.89.0 // indirect
-	github.com/prometheus/client_golang v1.14.0 // indirect
 	github.com/prometheus/client_model v0.3.0 // indirect
 	github.com/prometheus/common v0.39.0 // indirect
 	github.com/prometheus/procfs v0.9.0 // indirect
+	github.com/pyroscope-io/godeltaprof v0.1.0 // indirect
 	github.com/quic-go/qpack v0.4.0 // indirect
 	github.com/quic-go/qtls-go1-19 v0.2.1 // indirect
 	github.com/quic-go/qtls-go1-20 v0.1.1 // indirect
@@ -305,7 +306,9 @@ require (
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace v1.11.2 // indirect
 	go.uber.org/atomic v1.10.0 // indirect
 	go.uber.org/dig v1.15.0 // indirect
+	go.uber.org/multierr v1.9.0 // indirect
 	go.uber.org/zap v1.24.0 // indirect
+	golang.org/x/exp v0.0.0-20230206171751-46f607a40771 // indirect
 	golang.org/x/mod v0.8.0 // indirect
 	golang.org/x/net v0.8.0 // indirect
 	golang.org/x/oauth2 v0.4.0 // indirect
@@ -328,7 +331,7 @@ require (
 replace (
 	github.com/celestiaorg/celestia-app => ../celestia-app
 	github.com/cosmos/cosmos-sdk => github.com/celestiaorg/cosmos-sdk v1.9.0-sdk-v0.46.11
-	github.com/filecoin-project/dagstore => github.com/celestiaorg/dagstore v0.0.0-20221014072825-395797efb659
+	github.com/filecoin-project/dagstore => github.com/celestiaorg/dagstore v0.0.0-20230404123415-177451f83136
 	github.com/gogo/protobuf => github.com/regen-network/protobuf v1.3.3-alpha.regen.1
 	github.com/tendermint/tendermint => github.com/celestiaorg/celestia-core v1.17.0-tm-v0.34.27
 )
