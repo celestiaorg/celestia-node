@@ -47,25 +47,25 @@ type NamespacedRow struct {
 
 // Verify validates NamespacedShares by checking every row with nmt inclusion proof.
 func (ns NamespacedShares) Verify(root *Root, nID namespace.ID) error {
-	for _, row := range ns {
-		err := row.verifyAny(root, nID)
-		if err != nil {
-			return err
+	originalRoots := make([][]byte, 0)
+	for _, row := range root.RowsRoots {
+		if !nID.Less(nmt.MinNamespace(row, nID.Size())) && nID.LessOrEqual(nmt.MaxNamespace(row, nID.Size())) {
+			originalRoots = append(originalRoots, row)
+		}
+	}
+
+	if len(originalRoots) != len(ns) {
+		return fmt.Errorf("amount of rows differs between root and namespace shares: expected %d, got %d",
+			len(originalRoots), len(ns))
+	}
+
+	for i, row := range ns {
+		// verify row data against row hash from original root
+		if !row.verify(originalRoots[i], nID) {
+			return fmt.Errorf("row verification failed: row %d doesn't match original root: %s", i, root.Hash())
 		}
 	}
 	return nil
-}
-
-// verifyAny validates the NMT proof inside NamespacedRow by checking if the NMT
-// inclusion proof is satisfied for any rowRoot from the data availability
-// header.
-func (row *NamespacedRow) verifyAny(root *Root, nID namespace.ID) error {
-	for _, root := range root.RowsRoots {
-		if row.verify(root, nID) {
-			return nil
-		}
-	}
-	return fmt.Errorf("no NMT inclusion proof verified successfully for namespace %v", nID.String())
 }
 
 // verify validates the row using nmt inclusion proof.
