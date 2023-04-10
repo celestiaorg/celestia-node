@@ -112,7 +112,6 @@ func TestStoreGetter(t *testing.T) {
 		assert.True(t, share.EqualEDS(eds, retrievedEDS))
 	})
 
-	// TODO: fix test
 	t.Run("GetSharesByNamespace", func(t *testing.T) {
 		eds, nID, dah := randomEDSWithDoubledNamespace(t, 4)
 		err = edsStore.Put(ctx, dah.Hash(), eds)

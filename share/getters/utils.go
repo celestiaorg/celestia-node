@@ -34,11 +34,6 @@ var (
 func filterRootsByNamespace(root *share.Root, nID namespace.ID) []cid.Cid {
 	rowRootCIDs := make([]cid.Cid, 0, len(root.RowsRoots))
 	for _, row := range root.RowsRoots {
-		// The below lines assume that the EDS row roots ignore the max
-		// namespace. This is the case on `main` but breaks when we bump to
-		// versioned namespaces because the max namespace is 33 bytes of 0xFF
-		// but the parity namespace is 23 bytes of 0 followed by 10 bytes of
-		// 0xFF.
 		if !nID.Less(nmt.MinNamespace(row, nID.Size())) && nID.LessOrEqual(nmt.MaxNamespace(row, nID.Size())) {
 			rowRootCIDs = append(rowRootCIDs, ipld.MustCidFromNamespacedSha256(row))
 		}
@@ -89,18 +84,7 @@ func collectSharesByNamespace(
 		return nil, err
 	}
 
-	// At this point shares contains a row that is empty and contains a proof of
-	// absence.
-	return filterEmptyShares(shares), nil
-}
-
-func filterEmptyShares(shares share.NamespacedShares) (filtered share.NamespacedShares) {
-	for _, share := range shares {
-		if len(share.Shares) != 0 {
-			filtered = append(filtered, share)
-		}
-	}
-	return filtered
+	return shares, nil
 }
 
 func verifyNIDSize(nID namespace.ID) error {
