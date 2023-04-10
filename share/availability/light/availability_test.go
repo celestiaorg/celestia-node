@@ -81,15 +81,14 @@ func TestGetShare(t *testing.T) {
 	}
 }
 
-// TODO: fix test
 func TestService_GetSharesByNamespace(t *testing.T) {
 	var tests = []struct {
 		squareSize         int
 		expectedShareCount int
 	}{
 		{squareSize: 4, expectedShareCount: 2},
-		// {squareSize: 16, expectedShareCount: 2},
-		// {squareSize: 128, expectedShareCount: 2},
+		{squareSize: 16, expectedShareCount: 2},
+		{squareSize: 128, expectedShareCount: 2},
 	}
 
 	for _, tt := range tests {

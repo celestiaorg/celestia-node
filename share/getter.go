@@ -48,9 +48,10 @@ type NamespacedRow struct {
 // Verify validates NamespacedShares by checking every row with nmt inclusion proof.
 func (ns NamespacedShares) Verify(root *Root, nID namespace.ID) error {
 	originalRoots := make([][]byte, 0)
-	for _, row := range root.RowsRoots {
-		if !nID.Less(nmt.MinNamespace(row, nID.Size())) && nID.LessOrEqual(nmt.MaxNamespace(row, nID.Size())) {
-			originalRoots = append(originalRoots, row)
+	rowRanges := getRowRanges(root.RowsRoots, nID.Size())
+	for i, rowRange := range rowRanges {
+		if !nID.Less(rowRange.min) && nID.LessOrEqual(rowRange.max) {
+			originalRoots = append(originalRoots, root.RowsRoots[i])
 		}
 	}
 
@@ -66,6 +67,38 @@ func (ns NamespacedShares) Verify(root *Root, nID namespace.ID) error {
 		}
 	}
 	return nil
+}
+
+// rowRange is a range of namespaces spanned by a single row of the ODS.
+type rowRange struct {
+	// min is the minimum namespace for the row
+	min []byte
+	// max is the maximum namespace for the row
+	max []byte
+}
+
+// getRowRanges returns the range of namespaces spanned by each row of the
+// original data square (ODS). The RowsRoots parameter is a list of NMT row roots
+// where one row root represents one row of the extended data square (EDS). The
+// order of RowsRoots is preserved in the result. This function is necessary
+// because the max namespace for all EDS rows will be the parity namespace so we
+// use a property of the square layout to determine the max namespace for an ODS
+// row: the max namespace for an ODS row is < the min namespace for the next EDS
+// row.
+func getRowRanges(RowsRoots [][]byte, nidSize namespace.IDSize) (result []rowRange) {
+	for i, root := range RowsRoots {
+		min := nmt.MinNamespace(root, nidSize)
+		var max []byte
+		if i == len(RowsRoots)-1 {
+			// if this is the last row, the max namespace is the max namespace of the EDS row
+			max = nmt.MaxNamespace(root, nidSize)
+		} else {
+			// if this is not the last row, the namespace is the min namespace of the next EDS row
+			max = nmt.MinNamespace(RowsRoots[i+1], nidSize)
+		}
+		result = append(result, rowRange{min: min, max: max})
+	}
+	return result
 }
 
 // verify validates the row using nmt inclusion proof.
