@@ -1,9 +1,11 @@
-# ADR 013: Bootstrap from previous peers
+
+# ADR 014: Bootstrap from previous peers
 
 ## Changelog
 
 * 2023-05-04: initial draft
-* 2023-05-05: update peer selection with new simpler solution + fix language
+* 2023-05-04: update peer selection with new simpler solution + fix language
+* 2023-10-04: propose a second approach
 
 ## Context
 
@@ -25,16 +27,26 @@ In this ADR, we wish to aleviate this problem by allowing nodes to bootstrap fro
 
 Periodically store the addresses of previously seen peers in a key-value database, and allow the node to bootstrap from these peers on start-up.
 
-## Detailed Design
+## Design
+
+## Approach A: Hook into `peerTracker` from `libhead.Exchange` and react to its internal events
+
+</br>
+
+In this approach, we will track on two important internal events from `peerTracker` in `libhead.Exchange` for bootstrapper peers selection and persistence purposes, and that is by proposing a design that allows access to `peerTracker`'s list of good peers and bad peers, and opening the design space to integrate peer selection and storage logic.
+
+## Implementation
+
+</br>
 
 ### What systems will be affected?
 
 * `peerTracker` and `libhead.Exchange` from `go-header`
 * `newInitStore` in `nodebuilder/header.go`
 
-### Database
+### Storage
 
-We will use a badgerDB datastore to store the addresses of previously seen peers. The database will be stored in the `data` directory, and will be named `peers.db`. The database will have a single key-value pair, where the key is the peer ID, and the value is the peer multiaddress.
+We will use a badgerDB datastore to store the addresses of previously seen peers. The database will be stored in the `data` directory, and will be named `good_peers`. The database will have a single key-value pair, where the key is `peers` and the value is a `[]PeerInfo`
 
 The peer store will implement the following interface:
 
@@ -49,6 +61,8 @@ type PeerStore interface {
 }
 ```
 
+\*: _Delete will be used in in the special case where we store a peer and then it gets blocked by `peerTracker`_
+
 And we expect the underlying implementation to use a badgerDB datastore. Example:
 
 ```go
@@ -61,15 +75,16 @@ type peerStore struct {
 
 To periodically select the _"good peers"_ that we're connected to and store them in the peer store, we will rely on the internals of `go-header`, specifically the `peerTracker` and `libhead.Exchange` structs.
 
-`peerTracker` has internal logic that continuiously tracks and garbage collects peers, so that if new peers connect to the node, peer tracker keeps track of them in an internal list, as well as it marks disconnected peers for removal. `peerTracker` also blocks peers that behave maliciously*.
+`peerTracker` has internal logic that continuiously tracks and garbage collects peers, so that if new peers connect to the node, peer tracker keeps track of them in an internal list, as well as it marks disconnected peers for removal. `peerTracker` also blocks peers that behave maliciously.
 
 We would like to use this internal logic to periodically select peers that are "good" and store them in the peer store. To do this, we will "hook" into the internals of `peerTracker` and `libhead.Exchange` by defining new "event handlers" intended to handle two main events from `peerTracker`:
 
 1. `OnUpdatedPeers`
 2. `OnBlockedPeer`
 
+_**Example of required changes to: go-header/p2p/peer_tracker.go**_
+
 ```diff
-+++ go-header/p2p/peer_tracker.go
 type peerTracker struct {
         // online until pruneDeadline, it will be removed and its score will be lost.
         disconnectedPeers map[peer.ID]*peerStat
@@ -85,7 +100,6 @@ type peerTracker struct {
 `OnUpdatedPeers` will be called whenever `peerTracker` updates its internal list of peers on its `gc` routine, which updates every 30 minutes (_value is configurable_):
 
 ```diff
-+++ go-header/p2p/peer_tracker.go
 func (p *peerTracker) gc() {
          if peer.pruneDeadline.Before(now) {
                         delete(p.disconnectedPeers, id)
@@ -111,10 +125,9 @@ func (p *peerTracker) gc() {
  }
 ```
 
-where are `OnBlockedPeer` will be called whenever `peerTracker` blocks a peer through its method `blockPeer`.
+where as `OnBlockedPeer` will be called whenever `peerTracker` blocks a peer through its method `blockPeer`.
 
 ```diff
-+++ go-header/p2p/peer_tracker.go
  // blockPeer blocks a peer on the networking level and removes it from the local cache.
  func (p *peerTracker) blockPeer(pID peer.ID, reason error) {
         // add peer to the blacklist, so we can't connect to it in the future.
@@ -139,12 +152,11 @@ where are `OnBlockedPeer` will be called whenever `peerTracker` blocks a peer th
  }
 ```
 
-We are assuming a function named `PIDToAddrInfo` that converts a `peer.ID` to a `peer.AddrInfo` struct for this example's purpose.
+The `PIDToAddrInfo` converts a `peer.ID` to a `peer.AddrInfo` by retrieving such info from the host's peer store (_`host.Peerstore().PeerInfo(peerId)`_).
 
 The `peerTracker`'s constructor should be updated to accept these new event handlers:
 
 ```diff
-+++ go-header/p2p/peer_tracker.go
  type peerTracker struct {
  func newPeerTracker(
         h host.Host,
@@ -157,7 +169,6 @@ The `peerTracker`'s constructor should be updated to accept these new event hand
 as well as the `libhead.Exchange`'s options and construction:
 
 ```diff
-+++ go-header/p2p/options.go
  type ClientParameters struct {
         // MaxHeadersPerRangeRequest defines the max amount of headers that can be requested per 1 request.
         MaxHeadersPerRangeRequest uint64
@@ -177,7 +188,6 @@ as well as the `libhead.Exchange`'s options and construction:
  ```
 
  ```diff
-+++ go-header/p2p/exchange.go
  func NewExchange[H header.Header](
         peers peer.IDSlice,
         connGater *conngater.BasicConnectionGater,
@@ -213,9 +223,9 @@ as well as the `libhead.Exchange`'s options and construction:
  ```
 
 And then define `libhead.Exchange` options to set the event handlers on the `peerTracker`:
+_**Example of required changes to: go-header/p2p/go-header/p2p/options.go**_
 
 ```go
-+++ go-header/p2p/options.go
 func WithOnUpdatedPeers(f func([]]peer.ID)) Option[ClientParameters] {
        return func(p *ClientParameters) {
                switch t := any(p).(type) { //nolint:gocritic
@@ -275,10 +285,11 @@ func newPeerStore(cfg Config) func(ds datastore.Datastore) (PeerStore, error) {
 
 ### Node Startup
 
-When the node starts up, it will first check if the `peers.db` database exists. If it does not, the node will bootstrap from the hardcoded bootstrappers. If it does, the node will bootstrap from the peers in the database.
+When the node starts up, it will first check if the `peers` database exists. If it does not, the node will bootstrap from the hardcoded bootstrappers. If it does, the node will bootstrap from the peers in the database.
+
+_**Example of required changes to: celestia-node/nodebuilder/header/constructors.go**_
 
 ```diff
-+++ celestia-node/nodebuilder/header/constructors.go
  // newP2PExchange constructs a new Exchange for headers.
  func newP2PExchange(cfg Config) func(
         fx.Lifecycle,
@@ -327,6 +338,100 @@ When the node starts up, it will first check if the `peers.db` database exists. 
         }
  }
 ```
+
+</br>
+
+## Approach B: Periodic sampling of peers from the peerstore for "good peers" selection
+
+In this approach, we will periodically sample peers from the peerstore and select the "good peers", with the "good peers" being the ones that have been connected to the longest possible amount of time.
+
+Taking inspiration from [this proposition](https://github.com/libp2p/go-libp2p-kad-dht/issues/254#issuecomment-633806123) we suggest to look for peers that have been continuously online, such that, for the given buckets of connection durations:
+
+* < 1 hour ago
+* < 1 day ago
+* < 1 week ago
+* < 1 month ago.
+
+The "good enough peers" to select should be present in most recent buckets, and should be peers we've seen often. For example, if a peer has been connected to the node for 1 day, then it should figure up in the buckets: "< 1 hour" and , "< 1 day", hence making it a "good enough peer" to select for persistence.
+
+The bucketing logic that triages peers into the mentioned buckets is executed periodically, with a new list of "good enough peers" being selected and persisted also periodically, and at the moment of node shutdown.
+
+## Implementation
+
+### Storage
+
+We suggest to use the same storage mechanism proposed in approach A.
+
+### Peer Selection
+
+To achieve bucket-powered peer selection, we propose to create a standalone cache like component to manage buckets, such that it tracks peers by their IDs (_`peer.ID`_) and puts them in the correct bucket every time a `Sort` method is called on the component. The component, thus, maps each peer ID to a list of timestamps, each timestamp marking when did the bucketing component see this peer.
+
+The length of the list of timestamps will be equal to the amount of times the peer was seen, and the dates from oldest to newest will help the component sort the peer into appropriate buckets.
+
+Example:
+A list of 1 timestamp means it's been seen once, and if the timestamp was 3 hours ago, then the peer would be sorted into the "< 1 day ago" bucket.
+
+Depending on how many peers the node will be connected to, this could be the best peer it can get, or the worst.
+
+A better example of what a very good peer would be is:
+A peer with list of timestamps whose length is equal to 10, and the oldest timestamp was a week  ago. This will make the peer fall into "< 1 week ago" bucket.
+
+We suggest to also turn the "amount of times seen" into buckets, such that we sorted peers into buckets of "how many times" they were seen, modifying the selection criteria for good peers to become:
+
+* Peers that fall in most recent buckets + Peers that fall in highest seen count buckets
+
+**The interface**: We will go with the name `Bucketer` for the lack of a better one for the moment
+
+```go
+type Bucketer interface {
+    AddPeer(peer.ID, time.Time)
+    AddPeers([]peer.ID, time.Time)
+    Sort()
+    BestPeers() []peer.ID
+    PurgePeer(peer.ID)
+    PurgeAll()
+}
+```
+
+The implementer of this interface should rely on golang maps as the native abstraction for buckets, example:
+
+```go
+type bucketer struct {
+    timeBuckets map[BucketDuration][]peer.ID
+    seenBuckets map[int][]peer.ID
+}
+```
+
+with `BucketDuration` being a new type to enumerate all possible time buckets, example:
+
+```go
+type BucketDuration string
+const (
+    LTOneHour = "< 1 hour"
+    LTOneDay = "< 1 day"
+    ...
+)
+```
+
+The `AddPeer` or `AddPeers`, and the `Sort` methods are intended to be called from within a procedure `fetchSortPersistPeers` routine that periodically fetches peers from the peer store of the host (_`peerstore.Peerstore`_) which contains all the peers we are connected to.
+
+`fetchSortPersistPeers` will also be called on node shutdown.
+
+### Node Startup
+
+In node startup, we propose to use the same mechanism that is proposed in approach A.
+
+## Other explored solutions
+
+### On-Disk Peerstore from libp2p
+
+Upon evaluating [the on-disk implementation of the peerstore](https://github.com/libp2p/go-libp2p/blob/master/p2p/host/peerstore/pstoreds/peerstore.go) from libp2p, we did not find that it will bring value to the current endeavor of this ADR, as the on-disk implementation simply moves peer store operations to disk and nothing more.
+
+We were hoping that we would be able to fully rely on it such that if the node shuts down and boots up again, it can boot up with a peer store full of peers and addresses, however, experiment  shows that although we successfully boot up with a list of peer IDs, most addresses are not stored, because they were expired before the node shut down, thus not persisted.
+
+With that, we need an additional mechanism that stores addresses long past their TTL and judges when a peer is good enough to be stored as an ephemeral bootstrapper.
+
+Both suggested approaches, A and B, do not conflict with using an on-disk peer storage, however switching to an on-disk one would be either due to memory usage optimizations or special requirement to store the peer store on disk, and not necessarily because the on-disk peer store provides special functionality.
 
 ## Status
 
