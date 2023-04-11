@@ -2,13 +2,18 @@ package eds
 
 import (
 	"context"
+	"crypto/rand"
 	"io"
 	"testing"
 
 	"github.com/filecoin-project/dagstore"
+	"github.com/ipfs/go-cid"
+	ipld "github.com/ipfs/go-ipld-format"
 	"github.com/ipld/go-car"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	ipld2 "github.com/celestiaorg/celestia-node/share/ipld"
 )
 
 // TestBlockstore_Operations tests Has, Get, and GetSize on the top level eds.Store blockstore.
@@ -48,6 +53,7 @@ func TestBlockstore_Operations(t *testing.T) {
 			break
 		}
 		blockCid := next.Cid()
+		randomCid := randomCid()
 
 		for _, bs := range blockstores {
 			// test GetSize
@@ -61,10 +67,20 @@ func TestBlockstore_Operations(t *testing.T) {
 			assert.Equal(t, block.Cid(), blockCid)
 			assert.Equal(t, block.RawData(), next.RawData())
 
+			// test Get (cid not found)
+			_, err = bs.Get(ctx, randomCid)
+			require.ErrorAs(t, err, &ipld.ErrNotFound{Cid: randomCid})
+
 			// test GetSize
 			size, err := bs.GetSize(ctx, blockCid)
 			assert.NotZerof(t, size, "blocksize.GetSize reported a root block from blockstore was empty")
 			assert.NoError(t, err)
 		}
 	}
+}
+
+func randomCid() cid.Cid {
+	hash := make([]byte, ipld2.NmtHashSize)
+	_, _ = rand.Read(hash)
+	return ipld2.MustCidFromNamespacedSha256(hash)
 }

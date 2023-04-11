@@ -3,9 +3,12 @@ package getters
 import (
 	"context"
 	"testing"
+	"time"
 
+	bsrv "github.com/ipfs/go-blockservice"
 	"github.com/ipfs/go-datastore"
 	ds_sync "github.com/ipfs/go-datastore/sync"
+	offline "github.com/ipfs/go-ipfs-exchange-offline"
 	mdutils "github.com/ipfs/go-merkledag/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -100,6 +103,11 @@ func TestStoreGetter(t *testing.T) {
 				assert.Equal(t, eds.GetCell(uint(i), uint(j)), share)
 			}
 		}
+
+		// root not found
+		_, dah = randomEDS(t)
+		_, err = sg.GetShare(ctx, &dah, 0, 0)
+		require.ErrorIs(t, err, share.ErrNotFound)
 	})
 
 	t.Run("GetEDS", func(t *testing.T) {
@@ -110,6 +118,11 @@ func TestStoreGetter(t *testing.T) {
 		retrievedEDS, err := sg.GetEDS(ctx, &dah)
 		require.NoError(t, err)
 		assert.True(t, share.EqualEDS(eds, retrievedEDS))
+
+		// root not found
+		root := share.Root{}
+		_, err = sg.GetEDS(ctx, &root)
+		require.ErrorIs(t, err, share.ErrNotFound)
 	})
 
 	t.Run("GetSharesByNamespace", func(t *testing.T) {
@@ -121,8 +134,93 @@ func TestStoreGetter(t *testing.T) {
 		require.NoError(t, err)
 		require.NoError(t, shares.Verify(&dah, nID))
 		assert.Len(t, shares.Flatten(), 2)
+
+		// nid not found
+		nID = make([]byte, 8)
+		_, err = sg.GetSharesByNamespace(ctx, &dah, nID)
+		require.ErrorIs(t, err, share.ErrNotFound)
+
+		// root not found
+		root := share.Root{}
+		_, err = sg.GetSharesByNamespace(ctx, &root, nID)
+		require.ErrorIs(t, err, share.ErrNotFound)
+	})
+}
+
+func TestIPLDGetter(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(cancel)
+
+	tmpDir := t.TempDir()
+	ds := ds_sync.MutexWrap(datastore.NewMapDatastore())
+	edsStore, err := eds.NewStore(tmpDir, ds)
+	require.NoError(t, err)
+
+	err = edsStore.Start(ctx)
+	require.NoError(t, err)
+
+	bserv := bsrv.New(edsStore.Blockstore(), offline.Exchange(edsStore.Blockstore()))
+	sg := NewIPLDGetter(bserv)
+
+	t.Run("GetShare", func(t *testing.T) {
+		ctx, cancel := context.WithTimeout(ctx, time.Second)
+		t.Cleanup(cancel)
+
+		eds, dah := randomEDS(t)
+		err = edsStore.Put(ctx, dah.Hash(), eds)
+		require.NoError(t, err)
+
+		squareSize := int(eds.Width())
+		for i := 0; i < squareSize; i++ {
+			for j := 0; j < squareSize; j++ {
+				share, err := sg.GetShare(ctx, &dah, i, j)
+				require.NoError(t, err)
+				assert.Equal(t, eds.GetCell(uint(i), uint(j)), share)
+			}
+		}
+
+		// root not found
+		_, dah = randomEDS(t)
+		_, err = sg.GetShare(ctx, &dah, 0, 0)
+		require.ErrorIs(t, err, share.ErrNotFound)
 	})
 
+	t.Run("GetEDS", func(t *testing.T) {
+		ctx, cancel := context.WithTimeout(ctx, time.Second)
+		t.Cleanup(cancel)
+
+		eds, dah := randomEDS(t)
+		err = edsStore.Put(ctx, dah.Hash(), eds)
+		require.NoError(t, err)
+
+		retrievedEDS, err := sg.GetEDS(ctx, &dah)
+		require.NoError(t, err)
+		assert.True(t, share.EqualEDS(eds, retrievedEDS))
+	})
+
+	t.Run("GetSharesByNamespace", func(t *testing.T) {
+		ctx, cancel := context.WithTimeout(ctx, time.Second)
+		t.Cleanup(cancel)
+
+		eds, nID, dah := randomEDSWithDoubledNamespace(t, 4)
+		err = edsStore.Put(ctx, dah.Hash(), eds)
+		require.NoError(t, err)
+
+		shares, err := sg.GetSharesByNamespace(ctx, &dah, nID)
+		require.NoError(t, err)
+		require.NoError(t, shares.Verify(&dah, nID))
+		assert.Len(t, shares.Flatten(), 2)
+
+		// nid not found
+		nID = make([]byte, 8)
+		_, err = sg.GetSharesByNamespace(ctx, &dah, nID)
+		require.ErrorIs(t, err, share.ErrNotFound)
+
+		// root not found
+		root := share.Root{}
+		_, err = sg.GetSharesByNamespace(ctx, &root, nID)
+		require.ErrorIs(t, err, share.ErrNotFound)
+	})
 }
 
 func randomEDS(t *testing.T) (*rsmt2d.ExtendedDataSquare, share.Root) {

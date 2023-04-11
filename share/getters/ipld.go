@@ -2,6 +2,7 @@ package getters
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sync"
 	"sync/atomic"
@@ -53,12 +54,15 @@ func (ig *IPLDGetter) GetShare(ctx context.Context, dah *share.Root, row, col in
 
 	// wrap the blockservice in a session if it has been signaled in the context.
 	blockGetter := getGetter(ctx, ig.bServ)
-	nd, err := share.GetShare(ctx, blockGetter, root, leaf, len(dah.RowsRoots))
+	s, err := share.GetShare(ctx, blockGetter, root, leaf, len(dah.RowsRoots))
 	if err != nil {
+		if errors.Is(err, ipld.ErrNotFound) {
+			err = share.ErrNotFound
+		}
 		return nil, fmt.Errorf("getter/ipld: failed to retrieve share: %w", err)
 	}
 
-	return nd, nil
+	return s, nil
 }
 
 func (ig *IPLDGetter) GetEDS(ctx context.Context, root *share.Root) (eds *rsmt2d.ExtendedDataSquare, err error) {
@@ -72,6 +76,11 @@ func (ig *IPLDGetter) GetEDS(ctx context.Context, root *share.Root) (eds *rsmt2d
 	// rtrv.Retrieve calls shares.GetShares until enough shares are retrieved to reconstruct the EDS
 	eds, err = ig.rtrv.Retrieve(ctx, root)
 	if err != nil {
+		// TODO(@walldiss): there is no clear way for eds retriever to return ErrNotFound, so this check is
+		// pointless before retriever is refactored
+		if errors.Is(err, ipld.ErrNotFound) {
+			err = share.ErrNotFound
+		}
 		return nil, fmt.Errorf("getter/ipld: failed to retrieve eds: %w", err)
 	}
 	return eds, nil
@@ -99,6 +108,9 @@ func (ig *IPLDGetter) GetSharesByNamespace(
 	blockGetter := getGetter(ctx, ig.bServ)
 	shares, err = collectSharesByNamespace(ctx, blockGetter, root, nID)
 	if err != nil {
+		if errors.Is(err, ipld.ErrNotFound) {
+			err = share.ErrNotFound
+		}
 		return nil, fmt.Errorf("getter/ipld: failed to retrieve shares by namespace: %w", err)
 	}
 	return shares, nil
