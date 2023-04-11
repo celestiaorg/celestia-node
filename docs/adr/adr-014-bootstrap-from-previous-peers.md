@@ -1,4 +1,3 @@
-
 # ADR 014: Bootstrap from previous peers
 
 ## Changelog
@@ -6,6 +5,7 @@
 * 2023-05-04: initial draft
 * 2023-05-04: update peer selection with new simpler solution + fix language
 * 2023-10-04: propose a second approach
+* 2023-11-04: propose a third approach
 
 ## Context
 
@@ -341,7 +341,7 @@ _**Example of required changes to: celestia-node/nodebuilder/header/constructors
 
 </br>
 
-## Approach B: Periodic sampling of peers from the peerstore for "good peers" selection
+## Approach B: Periodic sampling of peers from the peerstore for "good peers" selection using liveness buckets
 
 In this approach, we will periodically sample peers from the peerstore and select the "good peers", with the "good peers" being the ones that have been connected to the longest possible amount of time.
 
@@ -413,9 +413,39 @@ const (
 )
 ```
 
-The `AddPeer` or `AddPeers`, and the `Sort` methods are intended to be called from within a procedure `fetchSortPersistPeers` routine that periodically fetches peers from the peer store of the host (_`peerstore.Peerstore`_) which contains all the peers we are connected to.
+The `AddPeer` or `AddPeers`, and the `Sort` methods are intended to be called from within a procedure `fetchSortPersistPeers` that is called within a routine that periodically fetches peers from the peer store of the host (_`peerstore.Peerstore`_) which contains all the peers we are connected to.
 
 `fetchSortPersistPeers` will also be called on node shutdown.
+
+### Node Startup
+
+In node startup, we propose to use the same mechanism that is proposed in approach A.
+
+## Approach C: Periodic sampling of peers from the peerstore for randomized "good peers" selection
+
+In this approach, we will periodically sample peers from the peer store and select random peers from the peer store, similar to approach B, only without the bucketing logic. We suggest to do away with the bucketing logic as it will introduce maintenance costs, and will likely end up in go-libp2p-kad-dht sooner than we anticipate.
+
+Thus, approach C consist basically of approach B minus the bucketing logic.
+
+## Implementation
+
+### Storage
+
+We suggest to use the same storage mechanism proposed in approach A.
+
+### Peer Selection
+
+Assuming a routine `fetchPersistPeers` to be called periodically (_period to be defined_)
+and on node shutdown, this routine should:
+
+1. Fetch all peers with their addresses available in the address book (_from the peer store_)
+2. Randomly select a number (_to be defined_) from the fetched peer list
+     2.a If the fetched peer list's length is less than the required number, we simply select all available peers, as there wouldn't be enough peers to perform randomized selection
+3. Upsert the new list in place of the old one.
+
+This will result in periodic updates of the stored list of "good peers" on disk. The same should happen on node shutdown.
+
+If the node list does not change, then we will be upserting the same list again which should cause no problems.
 
 ### Node Startup
 
@@ -442,35 +472,6 @@ Proposed
 ### Positive
 
 * Allows nodes to bootstrap from previously seen peers, which allows the network to gain more decentralization.
-
-<!-- 
-> This section does not need to be filled in at the start of the ADR, but must be completed prior to the merging of the implementation.
->
-> Here are some common questions that get answered as part of the detailed design:
->
->
-> - What new data structures are needed, what data structures will be changed?
->
-> - What new APIs will be needed, what APIs will be changed?
->
-> - What are the efficiency considerations (time/space)?
->
-> - What are the expected access patterns (load/throughput)?
->
-> - Are there any logging, monitoring or observability needs?
->
-> - Are there any security considerations?
->
-> - Are there any privacy considerations?
->
-> - How will the changes be tested?
->
-> - If the change is large, how will the changes be broken up for ease of review?
->
-> - Will these changes require a breaking (major) release?
->
-> - Does this change require coordination with the Celestia fork of the SDK, celestia-app/-core, or any other celestiaorg repository?
- -->
 
 ## References
 
