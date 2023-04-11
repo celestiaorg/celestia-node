@@ -21,7 +21,7 @@ type Blob struct {
 }
 
 // NewBlob constructs a new blob from the provided namespace.ID and data.
-func NewBlob(nID namespace.ID, data []byte) (*Blob, error) {
+func NewBlob(_ uint8, nID namespace.ID, data []byte) (*Blob, error) {
 	blob, err := types.NewBlob(nID, data)
 	if err != nil {
 		return nil, err
