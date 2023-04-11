@@ -40,7 +40,7 @@ func NewShareAvailability(
 // SharesAvailable randomly samples `params.SampleAmount` amount of Shares committed to the given
 // Root. This way SharesAvailable subjectively verifies that Shares are available.
 func (la *ShareAvailability) SharesAvailable(ctx context.Context, dah *share.Root) error {
-	log.Debugw("Validate availability", "root", dah.Hash())
+	log.Debugw("Validate availability", "root", dah.String())
 	// We assume the caller of this method has already performed basic validation on the
 	// given dah/root. If for some reason this has not happened, the node should panic.
 	if err := dah.ValidateBasic(); err != nil {
@@ -57,14 +57,14 @@ func (la *ShareAvailability) SharesAvailable(ctx context.Context, dah *share.Roo
 	// functionality is optional and must be supported by the used share.Getter.
 	ctx = getters.WithSession(ctx)
 
-	log.Debugw("starting sampling session", "root", dah.Hash())
+	log.Debugw("starting sampling session", "root", dah.String())
 	errs := make(chan error, len(samples))
 	for _, s := range samples {
 		go func(s Sample) {
-			log.Debugw("fetching share", "root", dah.Hash(), "row", s.Row, "col", s.Col)
+			log.Debugw("fetching share", "root", dah.String(), "row", s.Row, "col", s.Col)
 			_, err := la.getter.GetShare(ctx, dah, s.Row, s.Col)
 			if err != nil {
-				log.Debugw("error fetching share", "root", dah.Hash(), "row", s.Row, "col", s.Col)
+				log.Debugw("error fetching share", "root", dah.String(), "row", s.Row, "col", s.Col)
 			}
 			// we don't really care about Share bodies at this point
 			// it also means we now saved the Share in local storage
@@ -85,7 +85,7 @@ func (la *ShareAvailability) SharesAvailable(ctx context.Context, dah *share.Roo
 
 		if err != nil {
 			if !errors.Is(err, context.Canceled) {
-				log.Errorw("availability validation failed", "root", dah.Hash(), "err", err.Error())
+				log.Errorw("availability validation failed", "root", dah.String(), "err", err.Error())
 			}
 			if ipldFormat.IsNotFound(err) || errors.Is(err, context.DeadlineExceeded) {
 				return share.ErrNotAvailable

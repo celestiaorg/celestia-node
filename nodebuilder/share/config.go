@@ -8,6 +8,7 @@ import (
 	"github.com/celestiaorg/celestia-node/share/availability/discovery"
 	"github.com/celestiaorg/celestia-node/share/availability/light"
 
+	"github.com/celestiaorg/celestia-node/share/p2p/peers"
 	"github.com/celestiaorg/celestia-node/share/p2p/shrexeds"
 	"github.com/celestiaorg/celestia-node/share/p2p/shrexnd"
 )
@@ -30,6 +31,8 @@ type Config struct {
 	ShrExEDSParams *shrexeds.Parameters
 	// ShrExNDParams sets shrexnd client and server configuration parameters
 	ShrExNDParams *shrexnd.Parameters
+	// PeerManagerParams sets peer-manager configuration parameters
+	PeerManagerParams peers.Parameters
 }
 
 // TODO: Remove share/availability/options.go and reorg configs here
@@ -40,9 +43,10 @@ func DefaultConfig() Config {
 			Cache:     cache.DefaultParameters(),
 			Discovery: discovery.DefaultParameters(),
 		},
-		ShrExEDSParams:   shrexeds.DefaultParameters(),
-		ShrExNDParams:    shrexnd.DefaultParameters(),
-		UseShareExchange: true,
+		ShrExEDSParams:    shrexeds.DefaultParameters(),
+		ShrExNDParams:     shrexnd.DefaultParameters(),
+		UseShareExchange:  true,
+		PeerManagerParams: peers.DefaultParameters(),
 	}
 }
 
@@ -72,6 +76,10 @@ func (cfg *Config) Validate() error {
 	}
 
 	if err := cfg.ShrExEDSParams.Validate(); err != nil {
+		return fmt.Errorf("nodebuilder/share: %w", err)
+	}
+
+	if err := cfg.PeerManagerParams.Validate(); err != nil {
 		return fmt.Errorf("nodebuilder/share: %w", err)
 	}
 

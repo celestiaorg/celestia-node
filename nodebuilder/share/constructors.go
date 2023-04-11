@@ -61,14 +61,28 @@ func ensureEmptyCARExists(ctx context.Context, store *eds.Store) error {
 	return err
 }
 
-func fullGetter(
-	store *eds.Store,
+func lightGetter(
 	shrexGetter *getters.ShrexGetter,
 	ipldGetter *getters.IPLDGetter,
 	cfg Config,
 ) share.Getter {
 	var cascade []share.Getter
-	cascade = append(cascade, getters.NewStoreGetter(store))
+	if cfg.UseShareExchange {
+		cascade = append(cascade, shrexGetter)
+	}
+	cascade = append(cascade, ipldGetter)
+	return getters.NewCascadeGetter(cascade)
+}
+
+func fullGetter(
+	store *eds.Store,
+	storeGetter *getters.StoreGetter,
+	shrexGetter *getters.ShrexGetter,
+	ipldGetter *getters.IPLDGetter,
+	cfg Config,
+) share.Getter {
+	var cascade []share.Getter
+	cascade = append(cascade, storeGetter)
 	if cfg.UseShareExchange {
 		cascade = append(cascade, shrexGetter)
 	}

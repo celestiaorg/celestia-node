@@ -3,10 +3,11 @@ package header
 import (
 	"context"
 
+	libhead "github.com/celestiaorg/go-header"
+	"github.com/celestiaorg/go-header/p2p"
+	"github.com/celestiaorg/go-header/sync"
+
 	"github.com/celestiaorg/celestia-node/header"
-	libhead "github.com/celestiaorg/celestia-node/libs/header"
-	"github.com/celestiaorg/celestia-node/libs/header/p2p"
-	"github.com/celestiaorg/celestia-node/libs/header/sync"
 )
 
 // Service represents the header Service that can be started / stopped on a node.
@@ -67,4 +68,32 @@ func (s *Service) SyncWait(ctx context.Context) error {
 
 func (s *Service) NetworkHead(ctx context.Context) (*header.ExtendedHeader, error) {
 	return s.syncer.Head(ctx)
+}
+
+func (s *Service) Subscribe(ctx context.Context) (<-chan *header.ExtendedHeader, error) {
+	subscription, err := s.sub.Subscribe()
+	if err != nil {
+		return nil, err
+	}
+
+	headerCh := make(chan *header.ExtendedHeader)
+	go func() {
+		defer close(headerCh)
+		for {
+			h, err := subscription.NextHeader(ctx)
+			if err != nil {
+				if err != context.DeadlineExceeded && err != context.Canceled {
+					log.Errorw("fetching header from subscription", "err", err)
+				}
+				return
+			}
+
+			select {
+			case <-ctx.Done():
+				return
+			case headerCh <- h:
+			}
+		}
+	}()
+	return headerCh, nil
 }

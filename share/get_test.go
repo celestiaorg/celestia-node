@@ -2,7 +2,7 @@ package share
 
 import (
 	"context"
-	"math/rand"
+	mrand "math/rand"
 	"strconv"
 	"testing"
 	"time"
@@ -19,7 +19,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/celestiaorg/celestia-app/pkg/wrapper"
-	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/nmt/namespace"
 	"github.com/celestiaorg/rsmt2d"
 
@@ -131,7 +130,7 @@ func removeRandShares(data [][]byte, d int) [][]byte {
 	count := len(data)
 	// remove shares randomly
 	for i := 0; i < d; {
-		ind := rand.Intn(count)
+		ind := mrand.Intn(count)
 		if len(data[ind]) == 0 {
 			continue
 		}
@@ -168,7 +167,7 @@ func TestGetSharesByNamespace(t *testing.T) {
 			var shares []Share
 			for _, row := range eds.RowRoots() {
 				rcid := ipld.MustCidFromNamespacedSha256(row)
-				rowShares, err := GetSharesByNamespace(ctx, bServ, rcid, nID, len(eds.RowRoots()), nil)
+				rowShares, _, err := GetSharesByNamespace(ctx, bServ, rcid, nID, len(eds.RowRoots()))
 				require.NoError(t, err)
 
 				shares = append(shares, rowShares...)
@@ -182,7 +181,7 @@ func TestGetSharesByNamespace(t *testing.T) {
 	}
 }
 
-func TestGetLeavesByNamespace_IncompleteData(t *testing.T) {
+func TestCollectLeavesByNamespace_IncompleteData(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	bServ := mdutils.Bserv()
@@ -222,13 +221,15 @@ func TestGetLeavesByNamespace_IncompleteData(t *testing.T) {
 	err = bServ.DeleteBlock(ctx, r.Cid())
 	require.NoError(t, err)
 
-	leaves, err := ipld.GetLeavesByNamespace(ctx, bServ, rcid, nid, len(shares), nil)
+	namespaceData := ipld.NewNamespaceData(len(shares), nid, ipld.WithLeaves())
+	err = namespaceData.CollectLeavesByNamespace(ctx, bServ, rcid)
+	leaves := namespaceData.Leaves()
 	assert.Nil(t, leaves[1])
 	assert.Equal(t, 4, len(leaves))
 	require.Error(t, err)
 }
 
-func TestGetLeavesByNamespace_AbsentNamespaceId(t *testing.T) {
+func TestCollectLeavesByNamespace_AbsentNamespaceId(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	bServ := mdutils.Bserv()
@@ -279,7 +280,7 @@ func TestGetLeavesByNamespace_AbsentNamespaceId(t *testing.T) {
 	}
 }
 
-func TestGetLeavesByNamespace_MultipleRowsContainingSameNamespaceId(t *testing.T) {
+func TestCollectLeavesByNamespace_MultipleRowsContainingSameNamespaceId(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	bServ := mdutils.Bserv()
@@ -303,11 +304,12 @@ func TestGetLeavesByNamespace_MultipleRowsContainingSameNamespaceId(t *testing.T
 
 	for _, row := range eds.RowRoots() {
 		rcid := ipld.MustCidFromNamespacedSha256(row)
-		leaves, err := ipld.GetLeavesByNamespace(ctx, bServ, rcid, nid, len(shares), nil)
+		data := ipld.NewNamespaceData(len(shares), nid, ipld.WithLeaves())
+		err := data.CollectLeavesByNamespace(ctx, bServ, rcid)
 		assert.Nil(t, err)
-
+		leaves := data.Leaves()
 		for _, node := range leaves {
-			// test that the data returned by getLeavesByNamespace for nid
+			// test that the data returned by collectLeavesByNamespace for nid
 			// matches the commonNamespaceData that was copied across almost all data
 			assert.Equal(t, commonNamespaceData, node.RawData()[NamespaceSize:])
 		}
@@ -329,7 +331,7 @@ func TestGetSharesWithProofsByNamespace(t *testing.T) {
 
 	for i, tt := range tests {
 		t.Run(strconv.Itoa(i), func(t *testing.T) {
-			rand.Seed(time.Now().UnixNano())
+			rand := mrand.New(mrand.NewSource(time.Now().UnixNano()))
 			// choose random range in shares slice
 			from := rand.Intn(len(tt.rawData))
 			to := rand.Intn(len(tt.rawData))
@@ -353,10 +355,10 @@ func TestGetSharesWithProofsByNamespace(t *testing.T) {
 			var shares []Share
 			for _, row := range eds.RowRoots() {
 				rcid := ipld.MustCidFromNamespacedSha256(row)
-				proof := new(ipld.Proof)
-				rowShares, err := GetSharesByNamespace(ctx, bServ, rcid, nID, len(eds.RowRoots()), proof)
+				rowShares, proof, err := GetSharesByNamespace(ctx, bServ, rcid, nID, len(eds.RowRoots()))
 				require.NoError(t, err)
-				if rowShares != nil {
+				if len(rowShares) > 0 {
+					require.NotNil(t, proof)
 					// append shares to check integrity later
 					shares = append(shares, rowShares...)
 
@@ -366,23 +368,19 @@ func TestGetSharesWithProofsByNamespace(t *testing.T) {
 						leaves = append(leaves, append(sh[:NamespaceSize], sh...))
 					}
 
-					proofNodes := make([][]byte, 0, len(proof.Nodes))
-					for _, n := range proof.Nodes {
-						proofNodes = append(proofNodes, ipld.NamespacedSha256FromCID(n))
-					}
-
-					// construct new proof
-					inclusionProof := nmt.NewInclusionProof(
-						proof.Start,
-						proof.End,
-						proofNodes,
-						ipld.NMTIgnoreMaxNamespace)
-
-					// verify inclusion
-					verified := inclusionProof.VerifyNamespace(
+					// verify namespace
+					verified := proof.VerifyNamespace(
 						sha256.New(),
 						nID,
 						leaves,
+						ipld.NamespacedSha256FromCID(rcid))
+					require.True(t, verified)
+
+					// verify inclusion
+					verified = proof.VerifyInclusion(
+						sha256.New(),
+						nID,
+						rowShares,
 						ipld.NamespacedSha256FromCID(rcid))
 					require.True(t, verified)
 				}
@@ -448,7 +446,9 @@ func assertNoRowContainsNID(
 
 	// for each row root cid check if the minNID exists
 	for _, rowCID := range rowRootCIDs {
-		leaves, err := ipld.GetLeavesByNamespace(context.Background(), bServ, rowCID, nID, rowRootCount, nil)
+		data := ipld.NewNamespaceData(rowRootCount, nID, ipld.WithProofs())
+		err := data.CollectLeavesByNamespace(context.Background(), bServ, rowCID)
+		leaves := data.Leaves()
 		assert.Nil(t, leaves)
 		assert.Nil(t, err)
 	}

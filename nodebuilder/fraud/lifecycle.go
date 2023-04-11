@@ -6,7 +6,7 @@ import (
 
 	"github.com/ipfs/go-datastore"
 
-	"github.com/celestiaorg/celestia-node/fraud"
+	"github.com/celestiaorg/celestia-node/libs/fraud"
 )
 
 // Lifecycle controls the lifecycle of service depending on fraud proofs.

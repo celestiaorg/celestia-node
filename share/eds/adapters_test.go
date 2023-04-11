@@ -2,8 +2,9 @@ package eds
 
 import (
 	"context"
+	"crypto/rand"
 	"errors"
-	"math/rand"
+	mrand "math/rand"
 	"sort"
 	"testing"
 	"time"
@@ -47,7 +48,7 @@ func TestBlockGetter_GetBlocks(t *testing.T) {
 		cids := randCIDs(32)
 
 		// split cids into failed and succeeded
-		failedLen := rand.Intn(len(cids)-1) + 1
+		failedLen := mrand.Intn(len(cids)-1) + 1
 		failed := make(map[cid.Cid]struct{}, failedLen)
 		succeeded := make([]cid.Cid, 0, len(cids)-failedLen)
 		for i, cid := range cids {
@@ -114,11 +115,11 @@ type rbsMock struct {
 	failed map[cid.Cid]struct{}
 }
 
-func (r rbsMock) Has(ctx context.Context, cid cid.Cid) (bool, error) {
+func (r rbsMock) Has(context.Context, cid.Cid) (bool, error) {
 	panic("implement me")
 }
 
-func (r rbsMock) Get(ctx context.Context, cid cid.Cid) (blocks.Block, error) {
+func (r rbsMock) Get(_ context.Context, cid cid.Cid) (blocks.Block, error) {
 	// return error for failed items
 	if _, ok := r.failed[cid]; ok {
 		return nil, errors.New("not found")
@@ -127,21 +128,21 @@ func (r rbsMock) Get(ctx context.Context, cid cid.Cid) (blocks.Block, error) {
 	return blocks.NewBlockWithCid(nil, cid)
 }
 
-func (r rbsMock) GetSize(ctx context.Context, cid cid.Cid) (int, error) {
+func (r rbsMock) GetSize(context.Context, cid.Cid) (int, error) {
 	panic("implement me")
 }
 
-func (r rbsMock) AllKeysChan(ctx context.Context) (<-chan cid.Cid, error) {
+func (r rbsMock) AllKeysChan(context.Context) (<-chan cid.Cid, error) {
 	panic("implement me")
 }
 
-func (r rbsMock) HashOnRead(enabled bool) {
+func (r rbsMock) HashOnRead(bool) {
 	panic("implement me")
 }
 
 func randCID() cid.Cid {
 	hash := make([]byte, ipld.NmtHashSize)
-	rand.Read(hash)
+	_, _ = rand.Read(hash)
 	return ipld.MustCidFromNamespacedSha256(hash)
 }
 

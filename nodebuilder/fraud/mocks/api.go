@@ -10,7 +10,7 @@ import (
 
 	gomock "github.com/golang/mock/gomock"
 
-	fraud "github.com/celestiaorg/celestia-node/fraud"
+	"github.com/celestiaorg/celestia-node/libs/fraud"
 	fraud0 "github.com/celestiaorg/celestia-node/nodebuilder/fraud"
 )
 

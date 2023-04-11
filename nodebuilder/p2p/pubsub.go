@@ -15,8 +15,9 @@ import (
 	"go.uber.org/fx"
 	"golang.org/x/crypto/blake2b"
 
-	"github.com/celestiaorg/celestia-node/fraud"
-	headp2p "github.com/celestiaorg/celestia-node/libs/header/p2p"
+	headp2p "github.com/celestiaorg/go-header/p2p"
+
+	"github.com/celestiaorg/celestia-node/libs/fraud"
 )
 
 func init() {
@@ -43,7 +44,8 @@ func pubSub(cfg Config, params pubSubParams) (*pubsub.PubSub, error) {
 		return nil, err
 	}
 
-	isBootstrapper := cfg.Bootstrapper
+	isBootstrapper := isBootstrapper()
+
 	if isBootstrapper {
 		// Turn off the mesh in bootstrappers as per:
 		//
@@ -76,7 +78,7 @@ func pubSub(cfg Config, params pubSubParams) (*pubsub.PubSub, error) {
 	opts := []pubsub.Option{
 		pubsub.WithSeenMessagesStrategy(timecache.Strategy_LastSeen),
 		pubsub.WithPeerScore(peerScores, scoreThresholds),
-		pubsub.WithPeerExchange(cfg.PeerExchange || cfg.Bootstrapper),
+		pubsub.WithPeerExchange(cfg.PeerExchange || isBootstrapper),
 		pubsub.WithDirectPeers(fpeers),
 		pubsub.WithMessageIdFn(hashMsgID),
 		// specifying sub protocol helps to avoid conflicts with
