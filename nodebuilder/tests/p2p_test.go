@@ -133,7 +133,7 @@ func TestBootstrapNodesFromBridgeNode(t *testing.T) {
 	go func() {
 		for e := range sub.Out() {
 			connStatus := e.(event.EvtPeerConnectednessChanged)
-			if connStatus.Peer == full.Host.ID() {
+			if connStatus.Peer == full.Host.ID() && connStatus.Connectedness == network.NotConnected {
 				ch <- struct{}{}
 			}
 		}
