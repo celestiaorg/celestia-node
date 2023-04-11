@@ -90,6 +90,21 @@ func parseParams(method string, params []string) []interface{} {
 	parsedParams := make([]interface{}, len(params))
 
 	switch method {
+	case "GetSharesByNamespace":
+		// 1. Share Root
+		parsedParams[0] = params[0]
+		// 2. NamespaceID
+		if strings.HasPrefix(params[1], "0x") {
+			decoded, err := hex.DecodeString(params[1][2:])
+			if err != nil {
+				panic("Error decoding namespace ID: hex string could not be decoded.")
+			}
+			parsedParams[1] = decoded
+		} else {
+			// otherwise, it's just a base64 string
+			parsedParams[1] = params[1]
+		}
+		return parsedParams
 	case "SubmitPayForBlob":
 		// 1. NamespaceID
 		if strings.HasPrefix(params[0], "0x") {
