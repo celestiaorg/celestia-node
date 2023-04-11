@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -35,6 +36,8 @@ const (
 
 	defaultGCInterval = time.Hour
 )
+
+var ErrItemNotExist = errors.New("item not exist in store")
 
 // Store maintains (via DAGStore) a top-level index enabling granular and efficient random access to
 // every share and/or Merkle proof over every registered CARv1 file. The EDSStore provides a custom
@@ -282,6 +285,9 @@ func (s *Store) getAccessor(ctx context.Context, key shard.Key) (*dagstore.Shard
 	ch := make(chan dagstore.ShardResult, 1)
 	err := s.dgstr.AcquireShard(ctx, key, ch, dagstore.AcquireOpts{})
 	if err != nil {
+		if errors.Is(err, dagstore.ErrShardUnknown) {
+			return nil, ErrItemNotExist
+		}
 		return nil, fmt.Errorf("failed to initialize shard acquisition: %w", err)
 	}
 

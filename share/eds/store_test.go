@@ -85,6 +85,18 @@ func TestEDSStore(t *testing.T) {
 		}
 	})
 
+	t.Run("item not exist", func(t *testing.T) {
+		root := share.DataHash{1}
+		_, err := edsStore.GetCAR(ctx, root)
+		assert.ErrorIs(t, err, ErrItemNotExist)
+
+		_, err = edsStore.GetDAH(ctx, root)
+		assert.ErrorIs(t, err, ErrItemNotExist)
+
+		_, err = edsStore.CARBlockstore(ctx, root)
+		assert.ErrorIs(t, err, ErrItemNotExist)
+	})
+
 	t.Run("Remove", func(t *testing.T) {
 		eds, dah := randomEDS(t)
 
