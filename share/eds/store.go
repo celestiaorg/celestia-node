@@ -37,7 +37,7 @@ const (
 	defaultGCInterval = time.Hour
 )
 
-var ErrItemNotExist = errors.New("eds: item does not exist in store")
+var ErrNotFound = errors.New("eds not found in store")
 
 // Store maintains (via DAGStore) a top-level index enabling granular and efficient random access to
 // every share and/or Merkle proof over every registered CARv1 file. The EDSStore provides a custom
@@ -286,7 +286,7 @@ func (s *Store) getAccessor(ctx context.Context, key shard.Key) (*dagstore.Shard
 	err := s.dgstr.AcquireShard(ctx, key, ch, dagstore.AcquireOpts{})
 	if err != nil {
 		if errors.Is(err, dagstore.ErrShardUnknown) {
-			return nil, ErrItemNotExist
+			return nil, ErrNotFound
 		}
 		return nil, fmt.Errorf("failed to initialize shard acquisition: %w", err)
 	}

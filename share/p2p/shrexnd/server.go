@@ -101,7 +101,7 @@ func (srv *Server) handleNamespacedData(ctx context.Context, stream network.Stre
 
 	dah, err := srv.store.GetDAH(ctx, req.RootHash)
 	if err != nil {
-		if errors.Is(err, eds.ErrItemNotExist) {
+		if errors.Is(err, eds.ErrNotFound) {
 			srv.respondNotFoundError(stream)
 			return
 		}
