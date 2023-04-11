@@ -45,8 +45,8 @@ func (p *Parameters) Validate() error {
 // implementers use to set the SampleAmount configuration param
 //
 // To be used with the construction, see example in WithAvailabilityTimeout documentation
-func WithSampleAmount(SampleAmount uint) Option {
+func WithSampleAmount(sampleAmount uint) Option {
 	return func(p *Parameters) {
-		p.SampleAmount = SampleAmount
+		p.SampleAmount = sampleAmount
 	}
 }

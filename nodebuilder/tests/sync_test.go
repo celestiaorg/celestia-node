@@ -169,6 +169,7 @@ func TestSyncFullWithBridge(t *testing.T) {
 
 	cfg := nodebuilder.DefaultConfig(node.Full)
 	cfg.Header.TrustedPeers = append(cfg.Header.TrustedPeers, addrs[0].String())
+	cfg.Share.UseShareExchange = false
 	full := sw.NewNodeWithConfig(node.Full, cfg)
 	require.NoError(t, full.Start(ctx))
 
