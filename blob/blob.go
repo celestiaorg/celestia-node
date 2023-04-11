@@ -15,7 +15,7 @@ type Proof []nmt.Proof
 
 // Blob represents any application-specific binary data that anyone can submit to Celestia.
 type Blob struct {
-	*types.Blob
+	types.Blob
 
 	commitment Commitment
 }
@@ -31,7 +31,7 @@ func NewBlob(nID namespace.ID, data []byte) (*Blob, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &Blob{Blob: blob, commitment: com}, nil
+	return &Blob{Blob: *blob, commitment: com}, nil
 }
 
 // NamespaceID returns blobs namespaceId.
