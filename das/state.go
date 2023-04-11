@@ -16,7 +16,7 @@ type coordinatorState struct {
 
 	// keeps track of running workers
 	inProgress map[int]func() workerState
-	// stores heights of failed headers with amount of attempt as value
+	// stores heights of failed headers with amount of retry attempt as value
 	failed map[uint64]int
 	// retry stores heights of failed headers that are currently are being retried by workers
 	inRetry map[uint64]int
@@ -83,7 +83,7 @@ func (s *coordinatorState) handleResult(res result) {
 			delete(s.inRetry, h)
 		}
 
-		s.failed[h] += failCount
+		s.failed[h] = failCount
 	}
 	s.checkDone()
 }
@@ -153,10 +153,11 @@ func (s *coordinatorState) catchupJob() (next job, found bool) {
 // retryJob creates a job to retry previously failed header
 func (s *coordinatorState) retryJob() (next job, found bool) {
 	for h, count := range s.failed {
+		// TODO(@walldiss): limit max amount of retries until retry backoff is implemented
 		if count > 3 {
-			// TODO(@walldiss): limit amx amount of retries until retry backoff is implemented
 			continue
 		}
+
 		// move header from failed into retry
 		delete(s.failed, h)
 		s.inRetry[h] = count

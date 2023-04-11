@@ -7,7 +7,7 @@ import (
 type checkpoint struct {
 	SampleFrom  uint64 `json:"sample_from"`
 	NetworkHead uint64 `json:"network_head"`
-	// Failed will be retried after restart
+	// Failed heights will be retried
 	Failed map[uint64]int `json:"failed,omitempty"`
 	// Workers will resume on restart from previous state
 	Workers []workerCheckpoint `json:"workers,omitempty"`
