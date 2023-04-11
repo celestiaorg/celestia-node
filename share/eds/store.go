@@ -37,7 +37,7 @@ const (
 	defaultGCInterval = time.Hour
 )
 
-var ErrItemNotExist = errors.New("item does not exist in store")
+var ErrItemNotExist = errors.New("eds: item does not exist in store")
 
 // Store maintains (via DAGStore) a top-level index enabling granular and efficient random access to
 // every share and/or Merkle proof over every registered CARv1 file. The EDSStore provides a custom
