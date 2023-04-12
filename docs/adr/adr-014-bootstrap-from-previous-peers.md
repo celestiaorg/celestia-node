@@ -79,7 +79,7 @@ To periodically select the _"good peers"_ that we're connected to and store them
 
 We intend to use this internal logic to periodically select peers that are "good" and store them in the peer store mentioned in the storage section. To do this, we will "hook" into the internals of `peerTracker` and `libhead.Exchange` by defining new "event handlers" intended to handle two main events from `peerTracker`:
 
-1. `OnUpdatedPeers`: _This event is triggered on every garbage collection cycle from `peerTracker`. Before the triggering of this event, the list would have underwent changes from other routines as well and thus the most final version will be available at the time of triggering this event ._
+1. `OnUpdatedPeers`: _This event is triggered on every garbage collection cycle from `peerTracker`. The list will have undergone changes from the other routines before this event is triggered._
 2. `OnBlockedPeer`: _This event is triggered every time the `blockPeer` action is called_
 
 ```diff
