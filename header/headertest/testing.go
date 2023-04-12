@@ -318,6 +318,27 @@ func FraudMaker(t *testing.T, faultHeight int64, bServ blockservice.BlockService
 	}
 }
 
+func ExtendedHeaderFromEDS(t *testing.T, height uint64, eds *rsmt2d.ExtendedDataSquare) *header.ExtendedHeader {
+	valSet, vals := RandValidatorSet(10, 10)
+	gen := RandRawHeader(t)
+	dah := da.NewDataAvailabilityHeader(eds)
+	gen.DataHash = dah.Hash()
+	gen.ValidatorsHash = valSet.Hash()
+	gen.NextValidatorsHash = valSet.Hash()
+	gen.Height = 1
+	voteSet := types.NewVoteSet(gen.ChainID, gen.Height, 0, tmproto.PrecommitType, valSet)
+	commit, err := MakeCommit(RandBlockID(t), gen.Height, 0, voteSet, vals, time.Now())
+	require.NoError(t, err)
+	eh := &header.ExtendedHeader{
+		RawHeader:    *gen,
+		Commit:       commit,
+		ValidatorSet: valSet,
+		DAH:          &dah,
+	}
+	require.NoError(t, eh.Validate())
+	return eh
+}
+
 func CreateFraudExtHeader(
 	t *testing.T,
 	eh *header.ExtendedHeader,
