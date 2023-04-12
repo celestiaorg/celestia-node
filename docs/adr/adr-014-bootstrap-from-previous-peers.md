@@ -1,3 +1,4 @@
+
 # ADR 014: Bootstrap from previous peers
 
 ## Changelog
@@ -127,7 +128,7 @@ func (p *peerTracker) gc() {
 
 (_Code Snippet 1.b: Example of required changes to: go-header/p2p/peer_tracker.go_)
 
-In _Code Snippet 1.b_, we can choose to order the slice by `peer.peerScore` to allow the event handler to know which peers are best in connectivity, without leaking the `peerStat` type into the event handler callbacks.
+In _Code Snippet 1.b_, we can choose to order the slice by `peer.peerScore` to allow the event handler to pick the top 10 peers (_for example_) in connectivity, without leaking the `peerStat` type into the event handler callbacks.
 
 where as `OnBlockedPeer` will be called whenever `peerTracker` blocks a peer through its method `blockPeer`.
 
@@ -234,30 +235,6 @@ as well as the `libhead.Exchange`'s options and construction:
 
 (_Code Snippet 2.b: Example of required changes to: go-header/p2p/exchange.go_)
 
-And then define `libhead.Exchange` options to set the event handlers on the `peerTracker`:
-
-```go
-func WithOnUpdatedPeers(f func([]]peer.ID)) Option[ClientParameters] {
-       return func(p *ClientParameters) {
-               switch t := any(p).(type) { //nolint:gocritic
-               case *PeerTrackerParameters:
-                       p.OnUpdatedPeers = f
-               }
-       }
-}
-
-func WithOnBlockedPeer(f func([]]peer.ID)) Option[ClientParameters] {
-       return func(p *ClientParameters) {
-               switch t := any(p).(type) { //nolint:gocritic
-               case *PeerTrackerParameters:
-                       p.OnBlockedPeer = f
-               }
-       }
-}
-```
-
-(_Code Snippet 2.c: Example of required changes to: go-header/p2p/go-header/p2p/options.go_)
-
 The event handlers to be supplied are callbacks that either:
 
 1. Put the new peer list into the peer store
@@ -265,21 +242,10 @@ The event handlers to be supplied are callbacks that either:
 
 Such callbacks are easily passable as options at header module construction time, example:
 
-```go
-// newP2PExchange constructs a new Exchange for headers.
-func newPeerStore(cfg Config) func(ds datastore.Datastore) (PeerStore, error) {
-       return PeerStore(namespace.Wrap(ds, datastore.NewKey("peer_list")))
-}
-```
-
-(_Code Snippet 3.a: Example of required changes to: celestia-node/nodebuilder/p2p/misc.go_)
-
 ```diff
 +   fx.Provide(newPeerStore),
     fx.Provide(newHeaderService)
-
 ...
-
 - func(cfg Config, network modp2p.Network) []p2p.Option[p2p.ClientParameters] {
 + func(cfg Config, network modp2p.Network, peerStore datastore.Datastore) []p2p.Option[p2p.ClientParameters] {
         return []p2p.Option[p2p.ClientParameters]{
@@ -294,6 +260,9 @@ func newPeerStore(cfg Config) func(ds datastore.Datastore) (PeerStore, error) {
 +               }
 +               peerStore.Put(topTen)
 +           }),
++           p2p.WithOnBlockedPeers(func(p peer.ID {
++                 peerSTore.Delete(p)
++           })
         }
     },
 ),
@@ -312,19 +281,15 @@ When the node starts up, it will first check if the `peers` database exists. If 
  // newP2PExchange constructs a new Exchange for headers.
  func newP2PExchange(cfg Config) func(
         fx.Lifecycle,
-        modp2p.Bootstrappers,
-        modp2p.Network,
-        host.Host,
-        *conngater.BasicConnectionGater,
+        ...
+        ...
         []p2p.Option[p2p.ClientParameters],
 +       pstore peerstore.Peerstore,
  ) (libhead.Exchange[*header.ExtendedHeader], error) {
         return func(
                 lc fx.Lifecycle,
-                bpeers modp2p.Bootstrappers,
-                network modp2p.Network,
-                host host.Host,
-                conngater *conngater.BasicConnectionGater,
+                ...
+                ...,
                 opts []p2p.Option[p2p.ClientParameters],
         ) (libhead.Exchange[*header.ExtendedHeader], error) {
                 peers, err := cfg.trustedPeers(bpeers)
@@ -342,17 +307,7 @@ When the node starts up, it will first check if the `peers` database exists. If 
                         host.Peerstore().AddAddrs(peer.ID, peer.Addrs, peerstore.PermanentAddrTTL)
                 }
                 exchange, err := p2p.NewExchange[*header.ExtendedHeader](host, ids, conngater, opts...)
-                if err != nil {
-                        return nil, err
-                }
-                lc.Append(fx.Hook{
-                        OnStart: func(ctx context.Context) error {
-                                return exchange.Start(ctx)
-                        },
-                        OnStop: func(ctx context.Context) error {
-                                return exchange.Stop(ctx)
-                        },
-                })
+                ...
                 return exchange, nil
         }
  }
@@ -382,6 +337,8 @@ The bucketing logic that triages peers into the mentioned buckets is executed pe
 ### Storage
 
 We suggest to use the same storage mechanism proposed in approach A.
+
+Note: In terms of write frequency, we intend for the periodicity of writes to be configurable.
 
 ### Peer Selection
 
@@ -463,22 +420,22 @@ In node startup, we propose to use the same mechanism that is proposed in approa
     baseComponents = fx.Options(
         ...
         fx.Provide(newModule),
-+   fx.Invoke(func (ctx context.Context, lc fx.Lifecycle, cfg Config, bcktr Bucketer, pstore PeerStore, host host.Host) {
-+     ch := make(chan struct{})
-+     ticker := time.NewTicker(cfg.filterBootstrappersInterval * time.Millisecond)
-+     go func() {
-+       select {
-+         case <-ctx.Done():
-+         case <-ch:
-+         case <-ticker.C:
-+            fetchSortPersistPeers(bcktr, pstore, host) 
-+       }
++       fx.Invoke(func (ctx context.Context, lc fx.Lifecycle, cfg Config, bcktr Bucketer, pstore PeerStore, host host.Host) {
++         ch := make(chan struct{})
++         ticker := time.NewTicker(cfg.filterBootstrappersInterval * time.Millisecond)
++         go func() {
++           select {
++             case <-ctx.Done():
++             case <-ch:
++             case <-ticker.C:
++                fetchSortPersistPeers(bcktr, pstore, host) 
++          }
 +
-+     lc.Append(fx.Hook{
-+        onStop: func(ctx context.Context) error) {
-+           ch <- struct{}{}
-+        },
-+     })
++          lc.Append(fx.Hook{
++             onStop: func(ctx context.Context) error) {
++               ch <- struct{}{}
++             },
++          })
 +   })
 ),
 
