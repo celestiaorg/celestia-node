@@ -1,4 +1,4 @@
-package fraud
+package fraudserv
 
 import (
 	"math"

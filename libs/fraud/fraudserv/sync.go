@@ -1,4 +1,4 @@
-package fraud
+package fraudserv
 
 import (
 	"context"
@@ -15,7 +15,8 @@ import (
 
 	"github.com/celestiaorg/go-libp2p-messenger/serde"
 
-	pb "github.com/celestiaorg/celestia-node/libs/fraud/pb"
+	"github.com/celestiaorg/celestia-node/libs/fraud"
+	pb "github.com/celestiaorg/celestia-node/libs/fraud/fraudserv/pb"
 )
 
 // syncFraudProofs encompasses the behavior for fetching fraud proofs from other peers.
@@ -83,10 +84,10 @@ func (f *ProofService) syncFraudProofs(ctx context.Context, id protocol.ID) {
 			log.Debugw("got fraud proofs from peer", "pid", pid)
 			for _, data := range respProofs {
 				f.topicsLk.RLock()
-				topic, ok := f.topics[ProofType(data.Type)]
+				topic, ok := f.topics[fraud.ProofType(data.Type)]
 				f.topicsLk.RUnlock()
 				if !ok {
-					log.Errorf("topic for %s does not exist", ProofType(data.Type))
+					log.Errorf("topic for %s does not exist", fraud.ProofType(data.Type))
 					continue
 				}
 				for _, val := range data.Value {
@@ -129,7 +130,7 @@ func (f *ProofService) handleFraudMessageRequest(stream network.Stream) {
 	resp.Proofs = make([]*pb.ProofResponse, 0, len(req.RequestedProofType))
 	// retrieve fraud proofs as provided by the FraudMessageRequest proofTypes.
 	for _, p := range req.RequestedProofType {
-		proofs, err := f.Get(f.ctx, ProofType(p))
+		proofs, err := f.Get(f.ctx, fraud.ProofType(p))
 		if err != nil {
 			if err != datastore.ErrNotFound {
 				log.Error(err)

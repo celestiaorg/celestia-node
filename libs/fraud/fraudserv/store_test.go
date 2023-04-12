@@ -1,4 +1,4 @@
-package fraud
+package fraudserv
 
 import (
 	"context"
@@ -9,13 +9,15 @@ import (
 	"github.com/ipfs/go-datastore/namespace"
 	ds_sync "github.com/ipfs/go-datastore/sync"
 	"github.com/stretchr/testify/require"
+
+	"github.com/celestiaorg/celestia-node/libs/fraud/fraudtest"
 )
 
 func TestStore_Put(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*15)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer t.Cleanup(cancel)
 
-	p := newValidProof()
+	p := fraudtest.NewValidProof()
 	bin, err := p.MarshalBinary()
 	require.NoError(t, err)
 	ds := ds_sync.MutexWrap(datastore.NewMapDatastore())
@@ -25,10 +27,10 @@ func TestStore_Put(t *testing.T) {
 }
 
 func TestStore_GetAll(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*15)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer t.Cleanup(cancel)
 
-	proof := newValidProof()
+	proof := fraudtest.NewValidProof()
 	bin, err := proof.MarshalBinary()
 	require.NoError(t, err)
 	ds := ds_sync.MutexWrap(datastore.NewMapDatastore())
@@ -41,14 +43,13 @@ func TestStore_GetAll(t *testing.T) {
 	require.NoError(t, err)
 	require.NotEmpty(t, proofs)
 	require.NoError(t, proof.Validate(nil))
-
 }
 
 func Test_GetAllFailed(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*15)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer t.Cleanup(cancel)
 
-	proof := newValidProof()
+	proof := fraudtest.NewValidProof()
 	ds := ds_sync.MutexWrap(datastore.NewMapDatastore())
 	store := namespace.Wrap(ds, makeKey(proof.Type()))
 
@@ -59,10 +60,10 @@ func Test_GetAllFailed(t *testing.T) {
 }
 
 func Test_getByHash(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*15)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer t.Cleanup(cancel)
 
-	proof := newValidProof()
+	proof := fraudtest.NewValidProof()
 	ds := ds_sync.MutexWrap(datastore.NewMapDatastore())
 	store := namespace.Wrap(ds, makeKey(proof.Type()))
 	bin, err := proof.MarshalBinary()

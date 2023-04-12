@@ -12,6 +12,7 @@ import (
 
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/libs/fraud"
+	"github.com/celestiaorg/celestia-node/libs/fraud/fraudserv"
 	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
 )
 
@@ -34,7 +35,7 @@ func newFraudService(syncerEnabled bool) func(
 		getter := func(ctx context.Context, height uint64) (libhead.Header, error) {
 			return hstore.GetByHeight(ctx, height)
 		}
-		pservice := fraud.NewProofService(sub, host, getter, ds, syncerEnabled, network.String())
+		pservice := fraudserv.NewProofService(sub, host, getter, ds, syncerEnabled, network.String())
 		lc.Append(fx.Hook{
 			OnStart: pservice.Start,
 			OnStop:  pservice.Stop,

@@ -1,4 +1,4 @@
-package fraud
+package fraudserv
 
 import (
 	"context"
@@ -9,6 +9,8 @@ import (
 	"github.com/ipfs/go-datastore"
 	"github.com/ipfs/go-datastore/namespace"
 	q "github.com/ipfs/go-datastore/query"
+
+	"github.com/celestiaorg/celestia-node/libs/fraud"
 )
 
 var (
@@ -36,7 +38,7 @@ func getByHash(ctx context.Context, ds datastore.Datastore, hash string) ([]byte
 }
 
 // getAll queries all Fraud Proofs by their type.
-func getAll(ctx context.Context, ds datastore.Datastore, proofType ProofType) ([]Proof, error) {
+func getAll(ctx context.Context, ds datastore.Datastore, proofType fraud.ProofType) ([]fraud.Proof, error) {
 	entries, err := query(ctx, ds, q.Query{})
 	if err != nil {
 		return nil, err
@@ -44,11 +46,11 @@ func getAll(ctx context.Context, ds datastore.Datastore, proofType ProofType) ([
 	if len(entries) == 0 {
 		return nil, datastore.ErrNotFound
 	}
-	proofs := make([]Proof, 0)
+	proofs := make([]fraud.Proof, 0)
 	for _, data := range entries {
-		proof, err := Unmarshal(proofType, data.Value)
+		proof, err := fraud.Unmarshal(proofType, data.Value)
 		if err != nil {
-			if errors.Is(err, &errNoUnmarshaler{}) {
+			if errors.Is(err, &fraud.ErrNoUnmarshaler{}) {
 				return nil, err
 			}
 			log.Warn(err)
@@ -62,10 +64,10 @@ func getAll(ctx context.Context, ds datastore.Datastore, proofType ProofType) ([
 	return proofs, nil
 }
 
-func initStore(topic ProofType, ds datastore.Datastore) datastore.Datastore {
+func initStore(topic fraud.ProofType, ds datastore.Datastore) datastore.Datastore {
 	return namespace.Wrap(ds, makeKey(topic))
 }
 
-func makeKey(topic ProofType) datastore.Key {
+func makeKey(topic fraud.ProofType) datastore.Key {
 	return datastore.NewKey(fmt.Sprintf("%s/%s", storePrefix, topic))
 }

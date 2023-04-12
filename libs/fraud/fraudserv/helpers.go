@@ -1,4 +1,4 @@
-package fraud
+package fraudserv
 
 import (
 	"context"
@@ -7,6 +7,8 @@ import (
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/libp2p/go-libp2p/core/protocol"
+
+	"github.com/celestiaorg/celestia-node/libs/fraud"
 )
 
 func PubsubTopicID(fraudType, networkID string) string {
@@ -17,8 +19,12 @@ func protocolID(networkID string) protocol.ID {
 	return protocol.ID(fmt.Sprintf("/%s/fraud/v0.0.1", networkID))
 }
 
-func join(p *pubsub.PubSub, proofType ProofType, networkID string,
-	validate func(context.Context, ProofType, peer.ID, *pubsub.Message) pubsub.ValidationResult) (*pubsub.Topic, error) {
+func join(
+	p *pubsub.PubSub,
+	proofType fraud.ProofType,
+	networkID string,
+	validate func(context.Context, fraud.ProofType, peer.ID, *pubsub.Message) pubsub.ValidationResult,
+) (*pubsub.Topic, error) {
 	topic := PubsubTopicID(proofType.String(), networkID)
 	log.Infow("joining topic", "id", topic)
 	t, err := p.Join(topic)
