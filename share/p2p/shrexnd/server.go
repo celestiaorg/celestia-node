@@ -2,6 +2,7 @@ package shrexnd
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -100,6 +101,10 @@ func (srv *Server) handleNamespacedData(ctx context.Context, stream network.Stre
 
 	dah, err := srv.store.GetDAH(ctx, req.RootHash)
 	if err != nil {
+		if errors.Is(err, eds.ErrNotFound) {
+			srv.respondNotFoundError(stream)
+			return
+		}
 		log.Errorw("server: retrieving DAH for datahash", "err", err)
 		srv.respondInternalError(stream)
 		return
@@ -127,6 +132,14 @@ func validateRequest(req pb.GetSharesByNamespaceRequest) error {
 	}
 
 	return nil
+}
+
+// respondNotFoundError sends internal error response to client
+func (srv *Server) respondNotFoundError(stream network.Stream) {
+	resp := &pb.GetSharesByNamespaceResponse{
+		Status: pb.StatusCode_NOT_FOUND,
+	}
+	srv.respond(stream, resp)
 }
 
 // respondInternalError sends internal error response to client
