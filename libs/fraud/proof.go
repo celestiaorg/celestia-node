@@ -5,32 +5,8 @@ import (
 	"encoding"
 	"fmt"
 
-	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/metric/global"
-
 	"github.com/celestiaorg/go-header"
 )
-
-var (
-	meter  = global.MeterProvider().Meter("fraud")
-	tracer = otel.Tracer("fraud")
-)
-
-type ErrFraudExists struct {
-	Proof []Proof
-}
-
-func (e *ErrFraudExists) Error() string {
-	return fmt.Sprintf("fraud: %s proof exists\n", e.Proof[0].Type())
-}
-
-type errNoUnmarshaler struct {
-	proofType ProofType
-}
-
-func (e *errNoUnmarshaler) Error() string {
-	return fmt.Sprintf("fraud: unmarshaler for %s type is not registered", e.proofType)
-}
 
 // ProofType type defines a unique proof type string.
 type ProofType string
@@ -63,7 +39,6 @@ type Proof interface {
 func OnProof(ctx context.Context, subscriber Subscriber, p ProofType, handle func(proof Proof)) {
 	subscription, err := subscriber.Subscribe(p)
 	if err != nil {
-		log.Error(err)
 		return
 	}
 	defer subscription.Cancel()
@@ -72,9 +47,6 @@ func OnProof(ctx context.Context, subscriber Subscriber, p ProofType, handle fun
 	// so there is no need to call Validate.
 	proof, err := subscription.Proof(ctx)
 	if err != nil {
-		if err != context.Canceled {
-			log.Errorw("reading next proof failed", "err", err)
-		}
 		return
 	}
 
@@ -87,7 +59,23 @@ func Unmarshal(proofType ProofType, msg []byte) (Proof, error) {
 	defer unmarshalersLk.RUnlock()
 	unmarshaler, ok := defaultUnmarshalers[proofType]
 	if !ok {
-		return nil, &errNoUnmarshaler{proofType: proofType}
+		return nil, &ErrNoUnmarshaler{proofType: proofType}
 	}
 	return unmarshaler(msg)
+}
+
+type ErrFraudExists struct {
+	Proof []Proof
+}
+
+func (e *ErrFraudExists) Error() string {
+	return fmt.Sprintf("fraud: %s proof exists\n", e.Proof[0].Type())
+}
+
+type ErrNoUnmarshaler struct {
+	proofType ProofType
+}
+
+func (e *ErrNoUnmarshaler) Error() string {
+	return fmt.Sprintf("fraud: unmarshaler for %s type is not registered", e.proofType)
 }

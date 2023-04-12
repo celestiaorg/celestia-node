@@ -207,8 +207,8 @@ func (s *Store) Put(ctx context.Context, root share.DataHash, square *rsmt2d.Ext
 // The Reader strictly reads the CAR header and first quadrant (1/4) of the EDS, omitting all the
 // NMT Merkle proofs. Integrity of the store data is not verified.
 //
-// The shard is cached in the Store, so subsequent calls to GetCAR with the same root will use the same reader.
-// The cache is responsible for closing the underlying reader.
+// The shard is cached in the Store, so subsequent calls to GetCAR with the same root will use the
+// same reader. The cache is responsible for closing the underlying reader.
 func (s *Store) GetCAR(ctx context.Context, root share.DataHash) (io.Reader, error) {
 	ctx, span := tracer.Start(ctx, "store/get-car", trace.WithAttributes(attribute.String("root", root.String())))
 	defer span.End()
