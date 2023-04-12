@@ -17,6 +17,8 @@ func (com Commitment) String() string {
 // Proof is a collection of nmt.Proofs that verifies the inclusion of the data.
 type Proof []*nmt.Proof
 
+func (p Proof) Len() int { return len(p) }
+
 // Blob represents any application-specific binary data that anyone can submit to Celestia.
 type Blob struct {
 	types.Blob
