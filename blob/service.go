@@ -222,7 +222,7 @@ func (s *Service) Included(ctx context.Context, height uint64, nID namespace.ID,
 	return true, nil
 }
 
-// getBlobs retrieves the whole DAH and fetches all shares from the requested namespace.ID and converts them to Blobs.
+// getBlobs retrieves the DAH and fetches all shares from the requested namespace.ID and converts them to Blobs.
 func (s *Service) getBlobs(ctx context.Context, nID namespace.ID, cids []cid.Cid) ([]*Blob, error) {
 	rawShares := make([]share.Share, 0)
 	for _, cid := range cids {
@@ -232,7 +232,11 @@ func (s *Service) getBlobs(ctx context.Context, nID namespace.ID, cids []cid.Cid
 		}
 
 		if len(shares) == 0 {
-			break
+			// break if we already got all shares from this namespace.
+			if len(rawShares) > 0 {
+				break
+			}
+			continue
 		}
 
 		rawShares = append(rawShares, shares...)
