@@ -16,13 +16,13 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/tendermint/tendermint/types"
 
+	"github.com/celestiaorg/go-fraud"
+	"github.com/celestiaorg/go-fraud/fraudserv"
+	"github.com/celestiaorg/go-fraud/fraudtest"
 	libhead "github.com/celestiaorg/go-header"
 
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/header/headertest"
-	"github.com/celestiaorg/celestia-node/libs/fraud"
-	"github.com/celestiaorg/celestia-node/libs/fraud/fraudserv"
-	"github.com/celestiaorg/celestia-node/libs/fraud/fraudtest"
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/availability/full"
 	"github.com/celestiaorg/celestia-node/share/availability/light"
