@@ -3,15 +3,11 @@ package fraud
 import (
 	"context"
 
-	logging "github.com/ipfs/go-log/v2"
-
 	"github.com/celestiaorg/go-header"
 )
 
-var log = logging.Logger("fraud")
-
-// headerFetcher aliases a function that is used to fetch an ExtendedHeader from store by height.
-type headerFetcher func(context.Context, uint64) (header.Header, error)
+// HeaderFetcher aliases a function that is used to fetch an ExtendedHeader from store by height.
+type HeaderFetcher func(context.Context, uint64) (header.Header, error)
 
 // ProofUnmarshaler aliases a function that parses data to `Proof`.
 type ProofUnmarshaler func([]byte) (Proof, error)
@@ -27,8 +23,9 @@ type Service interface {
 // Broadcaster is a generic interface that sends a `Proof` to all nodes subscribed on the
 // Broadcaster's topic.
 type Broadcaster interface {
-	// Broadcast takes a fraud `Proof` data structure that implements standard BinaryMarshal
-	// interface and broadcasts it to all subscribed peers.
+	// Broadcast takes a fraud `Proof` data structure interface and broadcasts it to local
+	// subscriptions and peers. It may additionally cache/persist Proofs for future
+	// access via Getter and to serve Proof requests to peers in the network.
 	Broadcast(context.Context, Proof) error
 }
 

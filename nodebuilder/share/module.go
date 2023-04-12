@@ -113,6 +113,9 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 	)
 
 	shrexGetterComponents := fx.Options(
+		fx.Provide(func() peers.Parameters {
+			return cfg.PeerManagerParams
+		}),
 		fx.Provide(peers.NewManager),
 		fx.Provide(
 			func(host host.Host, network modp2p.Network) (*shrexnd.Client, error) {

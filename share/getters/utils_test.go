@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"go.uber.org/multierr"
 )
 
 func Test_ErrorContains(t *testing.T) {
@@ -80,14 +79,14 @@ func Test_ErrorContains(t *testing.T) {
 		},
 		{"multierr first in slice",
 			args{
-				err:    multierr.Append(w1(err1), w2(err2)),
+				err:    errors.Join(w1(err1), w2(err2)),
 				target: w2(err1),
 			},
 			true,
 		},
 		{"multierr second in slice",
 			args{
-				err:    multierr.Append(w1(err1), w2(err2)),
+				err:    errors.Join(w1(err1), w2(err2)),
 				target: w1(err2),
 			},
 			true,

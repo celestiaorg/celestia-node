@@ -71,7 +71,7 @@ var rpcCmd = &cobra.Command{
 			methods := reflect.VisibleFields(reflect.TypeOf(module).Elem())
 			var methodNames []string
 			for _, m := range methods {
-				methodNames = append(methodNames, m.Name)
+				methodNames = append(methodNames, m.Name+"\t"+parseSignatureForHelpstring(m))
 			}
 			return methodNames, cobra.ShellCompDirectiveNoFileComp
 		}
@@ -90,6 +90,21 @@ func parseParams(method string, params []string) []interface{} {
 	parsedParams := make([]interface{}, len(params))
 
 	switch method {
+	case "GetSharesByNamespace":
+		// 1. Share Root
+		parsedParams[0] = params[0]
+		// 2. NamespaceID
+		if strings.HasPrefix(params[1], "0x") {
+			decoded, err := hex.DecodeString(params[1][2:])
+			if err != nil {
+				panic("Error decoding namespace ID: hex string could not be decoded.")
+			}
+			parsedParams[1] = decoded
+		} else {
+			// otherwise, it's just a base64 string
+			parsedParams[1] = params[1]
+		}
+		return parsedParams
 	case "SubmitPayForBlob":
 		// 1. NamespaceID
 		if strings.HasPrefix(params[0], "0x") {
@@ -281,4 +296,24 @@ func parseAddressFromString(addrStr string) (state.Address, error) {
 	}
 
 	return addr, nil
+}
+
+func parseSignatureForHelpstring(methodSig reflect.StructField) string {
+	simplifiedSignature := "("
+	in, out := methodSig.Type.NumIn(), methodSig.Type.NumOut()
+	for i := 1; i < in; i++ {
+		simplifiedSignature += methodSig.Type.In(i).String()
+		if i != in-1 {
+			simplifiedSignature += ", "
+		}
+	}
+	simplifiedSignature += ") -> ("
+	for i := 0; i < out-1; i++ {
+		simplifiedSignature += methodSig.Type.Out(i).String()
+		if i != out-2 {
+			simplifiedSignature += ", "
+		}
+	}
+	simplifiedSignature += ")"
+	return simplifiedSignature
 }

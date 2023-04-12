@@ -5,9 +5,12 @@ import (
 
 	"github.com/ipfs/go-datastore"
 	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/metric/global"
 	"go.opentelemetry.io/otel/metric/instrument"
 	"go.opentelemetry.io/otel/metric/unit"
 )
+
+var meter = global.MeterProvider().Meter("fraud")
 
 // WithMetrics enables metrics to monitor fraud proofs.
 func WithMetrics(store Getter) {

@@ -1,4 +1,4 @@
-package fraud
+package fraudserv
 
 import (
 	"context"
@@ -6,6 +6,8 @@ import (
 	"reflect"
 
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
+
+	"github.com/celestiaorg/celestia-node/libs/fraud"
 )
 
 // subscription wraps pubsub subscription and handles Fraud Proof from the pubsub topic.
@@ -13,7 +15,7 @@ type subscription struct {
 	subscription *pubsub.Subscription
 }
 
-func (s *subscription) Proof(ctx context.Context) (Proof, error) {
+func (s *subscription) Proof(ctx context.Context) (fraud.Proof, error) {
 	if s.subscription == nil {
 		panic("fraud: subscription is not created")
 	}
@@ -21,7 +23,7 @@ func (s *subscription) Proof(ctx context.Context) (Proof, error) {
 	if err != nil {
 		return nil, err
 	}
-	proof, ok := data.ValidatorData.(Proof)
+	proof, ok := data.ValidatorData.(fraud.Proof)
 	if !ok {
 		panic(fmt.Sprintf("fraud: unexpected type received %s", reflect.TypeOf(data.ValidatorData)))
 	}

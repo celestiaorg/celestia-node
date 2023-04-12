@@ -2,6 +2,7 @@ package headertest
 
 import (
 	"context"
+	"crypto/rand"
 	"fmt"
 	mrand "math/rand"
 	"sort"
@@ -10,7 +11,6 @@ import (
 
 	"github.com/ipfs/go-blockservice"
 	logging "github.com/ipfs/go-log/v2"
-	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	"github.com/stretchr/testify/require"
 	"github.com/tendermint/tendermint/crypto/tmhash"
 	"github.com/tendermint/tendermint/libs/bytes"
@@ -19,11 +19,10 @@ import (
 	"github.com/tendermint/tendermint/proto/tendermint/version"
 	"github.com/tendermint/tendermint/types"
 	tmtime "github.com/tendermint/tendermint/types/time"
-	"golang.org/x/exp/rand"
 
 	"github.com/celestiaorg/celestia-app/pkg/da"
 	libhead "github.com/celestiaorg/go-header"
-	"github.com/celestiaorg/go-header/test"
+	"github.com/celestiaorg/go-header/headertest"
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/header"
@@ -42,6 +41,10 @@ type TestSuite struct {
 	valPntr int
 
 	head *header.ExtendedHeader
+}
+
+func NewStore(t *testing.T) libhead.Store[*header.ExtendedHeader] {
+	return headertest.NewStore[*header.ExtendedHeader](t, NewTestSuite(t, 3), 10)
 }
 
 // NewTestSuite setups a new test suite with a given number of validators.
@@ -125,18 +128,14 @@ func (s *TestSuite) Head() *header.ExtendedHeader {
 func (s *TestSuite) GenExtendedHeaders(num int) []*header.ExtendedHeader {
 	headers := make([]*header.ExtendedHeader, num)
 	for i := range headers {
-		headers[i] = s.GenExtendedHeader()
+		headers[i] = s.NextHeader()
 	}
 	return headers
 }
 
-func (s *TestSuite) GetRandomHeader() *header.ExtendedHeader {
-	return s.GenExtendedHeader()
-}
+var _ headertest.Generator[*header.ExtendedHeader] = &TestSuite{}
 
-var _ test.Generator[*header.ExtendedHeader] = &TestSuite{}
-
-func (s *TestSuite) GenExtendedHeader() *header.ExtendedHeader {
+func (s *TestSuite) NextHeader() *header.ExtendedHeader {
 	if s.head == nil {
 		s.head = s.genesis()
 		return s.head
@@ -248,7 +247,7 @@ func RandValidator(randPower bool, minPower int64) (*types.Validator, types.Priv
 	privVal := types.NewMockPV()
 	votePower := minPower
 	if randPower {
-		votePower += int64(rand.Uint32())
+		votePower += int64(mrand.Uint32()) //nolint:gosec
 	}
 	pubKey, err := privVal.GetPubKey()
 	if err != nil {
@@ -287,8 +286,8 @@ func RandBlockID(*testing.T) types.BlockID {
 			Hash:  make([]byte, 32),
 		},
 	}
-	mrand.Read(bid.Hash)               //nolint:gosec
-	mrand.Read(bid.PartSetHeader.Hash) //nolint:gosec
+	_, _ = rand.Read(bid.Hash)
+	_, _ = rand.Read(bid.PartSetHeader.Hash)
 	return bid
 }
 
@@ -334,33 +333,8 @@ func CreateFraudExtHeader(
 	return eh, extended
 }
 
-type DummySubscriber struct {
-	Headers []*header.ExtendedHeader
+type Subscriber struct {
+	headertest.Subscriber[*header.ExtendedHeader]
 }
 
-func (mhs *DummySubscriber) AddValidator(func(context.Context, *header.ExtendedHeader) pubsub.ValidationResult) error {
-	return nil
-}
-
-func (mhs *DummySubscriber) Subscribe() (libhead.Subscription[*header.ExtendedHeader], error) {
-	return mhs, nil
-}
-
-func (mhs *DummySubscriber) NextHeader(context.Context) (*header.ExtendedHeader, error) {
-	defer func() {
-		if len(mhs.Headers) > 1 {
-			// pop the already-returned header
-			cp := mhs.Headers
-			mhs.Headers = cp[1:]
-		} else {
-			mhs.Headers = make([]*header.ExtendedHeader, 0)
-		}
-	}()
-	if len(mhs.Headers) == 0 {
-		return nil, context.Canceled
-	}
-	return mhs.Headers[0], nil
-}
-
-func (mhs *DummySubscriber) Stop(context.Context) error { return nil }
-func (mhs *DummySubscriber) Cancel()                    {}
+var _ libhead.Subscriber[*header.ExtendedHeader] = &Subscriber{}

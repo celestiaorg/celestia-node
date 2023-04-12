@@ -2,7 +2,7 @@ package p2p
 
 import (
 	"context"
-	"math/rand"
+	"crypto/rand"
 	"testing"
 	"time"
 

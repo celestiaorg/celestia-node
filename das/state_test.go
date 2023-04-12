@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"go.uber.org/multierr"
 )
 
 func Test_coordinatorStats(t *testing.T) {
@@ -38,7 +37,7 @@ func Test_coordinatorStats(t *testing.T) {
 							},
 							Curr:   15,
 							failed: []uint64{12, 13},
-							Err:    multierr.Append(errors.New("12: failed"), errors.New("13: failed")),
+							Err:    errors.Join(errors.New("12: failed"), errors.New("13: failed")),
 						}
 					},
 				},
@@ -63,7 +62,7 @@ func Test_coordinatorStats(t *testing.T) {
 						Curr:   15,
 						From:   11,
 						To:     20,
-						ErrMsg: "12: failed; 13: failed",
+						ErrMsg: "12: failed\n13: failed",
 					},
 				},
 				Concurrency: 2,

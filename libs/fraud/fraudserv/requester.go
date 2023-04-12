@@ -1,4 +1,4 @@
-package fraud
+package fraudserv
 
 import (
 	"context"
@@ -9,7 +9,7 @@ import (
 
 	"github.com/celestiaorg/go-libp2p-messenger/serde"
 
-	pb "github.com/celestiaorg/celestia-node/libs/fraud/pb"
+	pb "github.com/celestiaorg/celestia-node/libs/fraud/fraudserv/pb"
 )
 
 const (
