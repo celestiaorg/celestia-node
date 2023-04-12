@@ -136,8 +136,8 @@ func (s *Service) getByCommitment(ctx context.Context, height uint64, nID namesp
 	var (
 		rawShares = make([]share.Share, 0)
 		proofs    = make(Proof, 0)
-		blobShare = &shares.Share{}
-		seqLen    = uint32(0)
+		amount    int
+		blobShare *shares.Share
 	)
 
 	for _, cid := range rowsToCids(header.DAH.RowsRoots) {
@@ -170,19 +170,20 @@ func (s *Service) getByCommitment(ctx context.Context, height uint64, nID namesp
 				}
 				blobShare = &bShare
 				// save the length.
-				seqLen, err = blobShare.SequenceLen()
+				length, err := blobShare.SequenceLen()
 				if err != nil {
 					return nil, nil, err
 				}
+				amount = shares.SparseSharesNeeded(length)
 			}
 
 			// move to the next row if the blob is incomplete.
-			if int(seqLen) > len(rawShares) {
+			if amount > len(rawShares) {
 				break LOOP
 			}
 
 			// reconstruct the Blob.
-			blob, err := sharesToBlobs(rawShares[:seqLen])
+			blob, err := sharesToBlobs(rawShares[:amount])
 			if err != nil {
 				return nil, nil, err
 			}
@@ -193,7 +194,7 @@ func (s *Service) getByCommitment(ctx context.Context, height uint64, nID namesp
 			}
 
 			// drop info of the checked blob
-			rawShares = rawShares[seqLen:]
+			rawShares = rawShares[amount:]
 			blobShare = nil
 		}
 	}
