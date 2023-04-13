@@ -28,7 +28,7 @@ func (m *mockIterator) ForEach(f func(mh multihash.Multihash) error) error {
 func TestMultihashesForShard(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
-	
+
 	mhs := []multihash.Multihash{
 		multihash.Multihash("mh1"),
 		multihash.Multihash("mh2"),
