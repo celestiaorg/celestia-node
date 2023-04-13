@@ -2,12 +2,10 @@ package eds
 
 import (
 	"context"
-	"crypto/rand"
 	"io"
 	"testing"
 
 	"github.com/filecoin-project/dagstore"
-	"github.com/ipfs/go-cid"
 	ipld "github.com/ipfs/go-ipld-format"
 	"github.com/ipld/go-car"
 	"github.com/stretchr/testify/assert"
@@ -53,7 +51,7 @@ func TestBlockstore_Operations(t *testing.T) {
 			break
 		}
 		blockCid := next.Cid()
-		randomCid := randomCid()
+		randomCid := ipld2.RandNamespacedCID(t)
 
 		for _, bs := range blockstores {
 			// test GetSize
@@ -77,10 +75,4 @@ func TestBlockstore_Operations(t *testing.T) {
 			assert.NoError(t, err)
 		}
 	}
-}
-
-func randomCid() cid.Cid {
-	hash := make([]byte, ipld2.NmtHashSize)
-	_, _ = rand.Read(hash)
-	return ipld2.MustCidFromNamespacedSha256(hash)
 }
