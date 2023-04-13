@@ -16,7 +16,12 @@ func (com Commitment) String() string {
 }
 
 // Proof is a collection of nmt.Proofs that verifies the inclusion of the data.
-type Proof []*nmt.Proof
+type Proof []*proof
+
+type proof struct {
+	rowIndex uint64
+	proof    *nmt.Proof
+}
 
 func (p Proof) Len() int { return len(p) }
 

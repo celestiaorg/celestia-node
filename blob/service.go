@@ -158,14 +158,18 @@ func (s *Service) getByCommitment(
 		blobShare *shares.Share
 	)
 
-	for _, cid := range rowsToCids(header.DAH.RowsRoots) {
-		leaves, proof, err := share.GetSharesByNamespace(ctx, s.bGetter, cid, nID, len(header.DAH.RowsRoots))
+	for i, cid := range rowsToCids(header.DAH.RowsRoots) {
+		leaves, p, err := share.GetSharesByNamespace(ctx, s.bGetter, cid, nID, len(header.DAH.RowsRoots))
 		if err != nil {
 			return nil, nil, err
 		}
-
-		rawShares = append(rawShares, leaves...)
-		proofs = append(proofs, proof)
+		if len(leaves) > 0 {
+			rawShares = append(rawShares, leaves...)
+			proofs = append(proofs, &proof{
+				rowIndex: uint64(i),
+				proof:    p,
+			})
+		}
 	LOOP:
 		for {
 			select {
