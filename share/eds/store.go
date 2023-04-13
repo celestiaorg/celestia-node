@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -35,6 +36,8 @@ const (
 
 	defaultGCInterval = time.Hour
 )
+
+var ErrNotFound = errors.New("eds not found in store")
 
 // Store maintains (via DAGStore) a top-level index enabling granular and efficient random access to
 // every share and/or Merkle proof over every registered CARv1 file. The EDSStore provides a custom
@@ -204,8 +207,8 @@ func (s *Store) Put(ctx context.Context, root share.DataHash, square *rsmt2d.Ext
 // The Reader strictly reads the CAR header and first quadrant (1/4) of the EDS, omitting all the
 // NMT Merkle proofs. Integrity of the store data is not verified.
 //
-// The shard is cached in the Store, so subsequent calls to GetCAR with the same root will use the same reader.
-// The cache is responsible for closing the underlying reader.
+// The shard is cached in the Store, so subsequent calls to GetCAR with the same root will use the
+// same reader. The cache is responsible for closing the underlying reader.
 func (s *Store) GetCAR(ctx context.Context, root share.DataHash) (io.Reader, error) {
 	ctx, span := tracer.Start(ctx, "store/get-car", trace.WithAttributes(attribute.String("root", root.String())))
 	defer span.End()
@@ -282,6 +285,9 @@ func (s *Store) getAccessor(ctx context.Context, key shard.Key) (*dagstore.Shard
 	ch := make(chan dagstore.ShardResult, 1)
 	err := s.dgstr.AcquireShard(ctx, key, ch, dagstore.AcquireOpts{})
 	if err != nil {
+		if errors.Is(err, dagstore.ErrShardUnknown) {
+			return nil, ErrNotFound
+		}
 		return nil, fmt.Errorf("failed to initialize shard acquisition: %w", err)
 	}
 

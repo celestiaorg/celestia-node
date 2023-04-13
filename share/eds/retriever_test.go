@@ -18,7 +18,6 @@ import (
 
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/header/headertest"
-	"github.com/celestiaorg/celestia-node/libs/fraud"
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/eds/byzantine"
 	"github.com/celestiaorg/celestia-node/share/ipld"
@@ -147,11 +146,11 @@ func generateByzantineError(
 	t *testing.T,
 	bServ blockservice.BlockService,
 ) (*header.ExtendedHeader, error) {
-	_, store := fraud.CreateTestService(t, false)
+	store := headertest.NewStore(t)
 	h, err := store.GetByHeight(ctx, 1)
 	require.NoError(t, err)
 
-	faultHeader, _ := headertest.CreateFraudExtHeader(t, h.(*header.ExtendedHeader), bServ)
+	faultHeader, _ := headertest.CreateFraudExtHeader(t, h, bServ)
 	_, err = NewRetriever(bServ).Retrieve(ctx, faultHeader.DAH)
 	return faultHeader, err
 }
