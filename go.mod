@@ -9,7 +9,7 @@ require (
 	github.com/BurntSushi/toml v1.2.1
 	github.com/alecthomas/jsonschema v0.0.0-20200530073317-71f438968921
 	github.com/benbjohnson/clock v1.3.0
-	github.com/celestiaorg/celestia-app v0.14.0-rc0
+	github.com/celestiaorg/celestia-app v0.14.0-rc2
 	github.com/celestiaorg/go-header v0.2.3
 	github.com/celestiaorg/go-libp2p-messenger v0.2.0
 	github.com/celestiaorg/nmt v0.15.0
@@ -329,7 +329,6 @@ require (
 )
 
 replace (
-	github.com/celestiaorg/celestia-app => ../celestia-app
 	github.com/cosmos/cosmos-sdk => github.com/celestiaorg/cosmos-sdk v1.9.0-sdk-v0.46.11
 	github.com/filecoin-project/dagstore => github.com/celestiaorg/dagstore v0.0.0-20230404123415-177451f83136
 	github.com/gogo/protobuf => github.com/regen-network/protobuf v1.3.3-alpha.regen.1
