@@ -18,7 +18,7 @@ type coordinatorState struct {
 	inProgress map[int]func() workerState
 	// stores heights of failed headers with amount of retry attempt as value
 	failed map[uint64]int
-	// retry stores heights of failed headers that are currently are being retried by workers
+	// inRetry stores (height -> attempt count) of failed headers that are currently being retried by workers
 	inRetry map[uint64]int
 
 	// nextJobID is a unique identifier that will be used for creation of next job

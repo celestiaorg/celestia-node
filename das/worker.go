@@ -46,7 +46,7 @@ type job struct {
 	from    uint64
 	to      uint64
 
-	// header will be filled for job with type recentJob to avoid unnecessary call to the header store
+	// header is set only for recentJobs, avoiding an unnecessary call to the header store
 	header *header.ExtendedHeader
 }
 
