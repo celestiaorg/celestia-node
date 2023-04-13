@@ -7,6 +7,7 @@ package tests
 
 import (
 	"context"
+	"os"
 	"testing"
 	"time"
 
@@ -18,6 +19,7 @@ import (
 
 	"github.com/celestiaorg/celestia-node/nodebuilder"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
+	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
 	"github.com/celestiaorg/celestia-node/nodebuilder/tests/swamp"
 	"github.com/celestiaorg/celestia-node/share/availability/light"
 	"github.com/celestiaorg/celestia-node/share/eds"
@@ -52,6 +54,7 @@ func TestFullReconstructFromBridge(t *testing.T) {
 	require.NoError(t, err)
 
 	cfg := nodebuilder.DefaultConfig(node.Full)
+	cfg.Share.UseShareExchange = false
 	cfg.Header.TrustedPeers = append(cfg.Header.TrustedPeers, getMultiAddr(t, bridge.Host))
 	full := sw.NewNodeWithConfig(node.Full, cfg)
 	err = full.Start(ctx)
@@ -112,6 +115,8 @@ func TestFullReconstructFromLights(t *testing.T) {
 	bridge := sw.NewBridgeNode()
 	addrsBridge, err := peer.AddrInfoToP2pAddrs(host.InfoFromHost(bridge.Host))
 	require.NoError(t, err)
+
+	os.Setenv(p2p.EnvKeyCelestiaBootstrapper, "true")
 	bootstrapper := sw.NewNodeWithConfig(node.Full, cfg)
 	require.NoError(t, bootstrapper.Start(ctx))
 	require.NoError(t, bridge.Start(ctx))
@@ -119,9 +124,11 @@ func TestFullReconstructFromLights(t *testing.T) {
 
 	cfg = nodebuilder.DefaultConfig(node.Full)
 	setTimeInterval(cfg, defaultTimeInterval)
+	cfg.Share.UseShareExchange = false
 	cfg.Header.TrustedPeers = append(cfg.Header.TrustedPeers, addrsBridge[0].String())
 	nodesConfig := nodebuilder.WithBootstrappers([]peer.AddrInfo{*bootstrapperAddr})
 	full := sw.NewNodeWithConfig(node.Full, cfg, nodesConfig)
+	os.Setenv(p2p.EnvKeyCelestiaBootstrapper, "false")
 
 	lights := make([]*nodebuilder.Node, lnodes)
 	subs := make([]event.Subscription, lnodes)

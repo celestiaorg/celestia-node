@@ -207,10 +207,12 @@ github.com/celestiaorg/celestia-core v1.17.0-tm-v0.34.27 h1:7EIZ0pzRB4eaRnsscTLt
 github.com/celestiaorg/celestia-core v1.17.0-tm-v0.34.27/go.mod h1:gMRZPCntAn3FvoF9/NBszOolf89Ggrj7qLbeFIUFam4=
 github.com/celestiaorg/cosmos-sdk v1.9.0-sdk-v0.46.11 h1:4pHUj2JP27fEJ1daxlJNGi/jkCiAiRx78sAftzpCbGg=
 github.com/celestiaorg/cosmos-sdk v1.9.0-sdk-v0.46.11/go.mod h1:O3Pnh/fALx6KV5678ckfemIzvidYbVF5H8ol1rb/3+E=
-github.com/celestiaorg/dagstore v0.0.0-20230404123415-177451f83136 h1:LBvY3NDA18fcS72pBAEd2pENoUpz1iV4cCXBN2Zrj/I=
-github.com/celestiaorg/dagstore v0.0.0-20230404123415-177451f83136/go.mod h1:ta/DlqIH10bvhwqJIw51Nq3QU4XVMp6pz3f0Deve9fM=
-github.com/celestiaorg/go-header v0.2.3 h1:41r60OtAeexWC3J3eTELgWfzcdKR2taFlfcJ/2IHZD4=
-github.com/celestiaorg/go-header v0.2.3/go.mod h1:6XKf0yhoEQqfKQTZnyTZjTjF5jH5Wq9uO9AvDMkdYbs=
+github.com/celestiaorg/dagstore v0.0.0-20230413141458-735ab09a15d6 h1:/yCwMCoOPcYCiG18u8/1pv5eXF04xczoQO3sR0bKsgM=
+github.com/celestiaorg/dagstore v0.0.0-20230413141458-735ab09a15d6/go.mod h1:ta/DlqIH10bvhwqJIw51Nq3QU4XVMp6pz3f0Deve9fM=
+github.com/celestiaorg/go-fraud v0.1.0 h1:v6mZvlmf2J5ELZfPnrtmmOvKbaYIUs/erDWPO8NbZyY=
+github.com/celestiaorg/go-fraud v0.1.0/go.mod h1:yoNM35cKMAkt5Mi/Qx3Wi9bnPilLi8n6RpHZVglTUDs=
+github.com/celestiaorg/go-header v0.2.5 h1:TV1EybWjRRJfYc8Wf5UFVytGxEQJdPdNbVEfenUVXzo=
+github.com/celestiaorg/go-header v0.2.5/go.mod h1:i9OpY70+PJ1xPw1IgMfF0Pk6vBD6VWPmjY3bgubJBcU=
 github.com/celestiaorg/go-libp2p-messenger v0.2.0 h1:/0MuPDcFamQMbw9xTZ73yImqgTO3jHV7wKHvWD/Irao=
 github.com/celestiaorg/go-libp2p-messenger v0.2.0/go.mod h1:s9PIhMi7ApOauIsfBcQwbr7m+HBzmVfDIS+QLdgzDSo=
 github.com/celestiaorg/go-verifcid v0.0.1-lazypatch h1:9TSe3w1cmJmbWlweCwCTIZkan7jV8M+KwglXpdD+UG8=
