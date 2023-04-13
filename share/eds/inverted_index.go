@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"sync"
 
 	"github.com/filecoin-project/dagstore/index"
 	"github.com/filecoin-project/dagstore/shard"
@@ -16,7 +15,6 @@ import (
 // simpleInvertedIndex is an inverted index that only stores a single shard key per multihash. Its
 // implementation is modified from the default upstream implementation in dagstore/index.
 type simpleInvertedIndex struct {
-	mu sync.Mutex
 	ds ds.Batching
 }
 
@@ -35,9 +33,9 @@ func (s *simpleInvertedIndex) AddMultihashesForShard(
 	mhIter index.MultihashIterator,
 	sk shard.Key,
 ) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
+	// in the original implementation, a mutex is used here to prevent unnecessary updates to the
+	// key. The amount of extra data produced by this is negligible, and the performance benefits
+	// from removing the lock are significant (indexing is a hot path during sync).
 	batch, err := s.ds.Batch(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to create ds batch: %w", err)
