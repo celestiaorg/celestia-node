@@ -32,7 +32,11 @@ type Service struct {
 	bGetter  blockservice.BlockGetter
 }
 
-func NewService(state *state.CoreAccessor, hGetter libhead.Getter[*header.ExtendedHeader], bGetter blockservice.BlockGetter) *Service {
+func NewService(
+	state *state.CoreAccessor,
+	hGetter libhead.Getter[*header.ExtendedHeader],
+	bGetter blockservice.BlockGetter,
+) *Service {
 	return &Service{
 		accessor: state,
 		hGetter:  hGetter,
@@ -72,8 +76,14 @@ func (s *Service) Get(ctx context.Context, height uint64, nID namespace.ID, comm
 	return blob, nil
 }
 
-// GetProof retrieves all the blobs for given namespaces at the given height by commitment and return its Proof.
-func (s *Service) GetProof(ctx context.Context, height uint64, nID namespace.ID, commitment Commitment) (*Proof, error) {
+// GetProof retrieves all the blobs for given namespaces at the given height by commitment
+// and return its Proof.
+func (s *Service) GetProof(
+	ctx context.Context,
+	height uint64,
+	nID namespace.ID,
+	commitment Commitment,
+) (*Proof, error) {
 	_, proof, err := s.getByCommitment(ctx, height, nID, commitment)
 	if err != nil {
 		return nil, err
@@ -88,9 +98,12 @@ func (s *Service) GetAll(ctx context.Context, height uint64, nIDs ...namespace.I
 		return nil, err
 	}
 
-	cids := rowsToCids(header.DAH.RowsRoots)
-	blobs := make([]*Blob, 0)
-	ch := make(chan []*Blob, 0)
+	var (
+		cids  = rowsToCids(header.DAH.RowsRoots)
+		blobs = make([]*Blob, 0)
+		ch    = make(chan []*Blob)
+	)
+
 	for _, nID := range nIDs {
 		log.Infow("requesting blobs", "height", height, "nID", nID.String())
 		go func(nID namespace.ID) {
@@ -121,9 +134,14 @@ func (s *Service) GetAll(ctx context.Context, height uint64, nIDs ...namespace.I
 	return blobs, nil
 }
 
-// getByCommitment retrieving DAH row by row, fetching shares and constructing blobs in order to compare Commitments.
-// Retrieving will be stopped once requested blob/proof will be found.
-func (s *Service) getByCommitment(ctx context.Context, height uint64, nID namespace.ID, commitment Commitment) (*Blob, *Proof, error) {
+// getByCommitment retrieving DAH row by row, fetching shares and constructing blobs in order to
+// compare Commitments. Retrieving will be stopped once requested blob/proof will be found.
+func (s *Service) getByCommitment(
+	ctx context.Context,
+	height uint64,
+	nID namespace.ID,
+	commitment Commitment,
+) (*Blob, *Proof, error) {
 	log.Infow("requesting blob",
 		"height", height,
 		"nID", nID.String(),
@@ -205,14 +223,21 @@ func (s *Service) getByCommitment(ctx context.Context, height uint64, nID namesp
 // To ensure that blob was included in a specific height, we need:
 // 1. verify the provided commitment by recomputing it;
 // 2. verify the provided Proof against subtree roots that were used in 1.;
-func (s *Service) Included(ctx context.Context, height uint64, nID namespace.ID, _ *Proof, com Commitment) (bool, error) {
+func (s *Service) Included(
+	ctx context.Context,
+	height uint64,
+	nID namespace.ID,
+	_ *Proof,
+	com Commitment,
+) (bool, error) {
 	// In the current implementation, LNs will have to download all shares to recompute the commitment.
-	// To achieve 1. we need to modify Proof structure and to store all subtree roots, that were involved in
-	// commitment creation and then call
-	// https://github.com/tendermint/tendermint/blob/35581cf54ec436b8c37fabb43fdaa3f48339a170/crypto/merkle/tree.go#L9;
-	// nmt.Proof is verifying share inclusion by recomputing row roots, so, theoretically, we can do the same but using
-	// subtree roots. For this case, we need an extra method in nmt.Proof that will perform all reconstructions, but we have
-	// to guarantee that all our stored subtree roots will be on the same height(e.g. one level above shares)
+	// To achieve 1. we need to modify Proof structure and to store all subtree roots, that were
+	// involved in commitment creation and then call `merkle.HashFromByteSlices`(tendermint package).
+	// nmt.Proof is verifying share inclusion by recomputing row roots, so, theoretically, we can do
+	// the same but using subtree roots. For this case, we need an extra method in nmt.Proof
+	// that will perform all reconstructions,
+	// but we have to guarantee that all our stored subtree roots will be on the same height(e.g. one
+	// level above shares).
 	// TODO(@vgonkivs): rework the implementation to perform all verification without network requests.
 	_, _, err := s.getByCommitment(ctx, height, nID, com)
 	if err != nil {
@@ -222,7 +247,8 @@ func (s *Service) Included(ctx context.Context, height uint64, nID namespace.ID,
 	return true, nil
 }
 
-// getBlobs retrieves the DAH and fetches all shares from the requested namespace.ID and converts them to Blobs.
+// getBlobs retrieves the DAH and fetches all shares from the requested namespace.ID and converts
+// them to Blobs.
 func (s *Service) getBlobs(ctx context.Context, nID namespace.ID, cids []cid.Cid) ([]*Blob, error) {
 	rawShares := make([]share.Share, 0)
 	for _, cid := range cids {

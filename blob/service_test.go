@@ -7,14 +7,15 @@ import (
 	"testing"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/x/blob/types"
-	"github.com/celestiaorg/go-header/store"
 	ds "github.com/ipfs/go-datastore"
 	ds_sync "github.com/ipfs/go-datastore/sync"
 	mdutils "github.com/ipfs/go-merkledag/test"
 	"github.com/minio/sha256-simd"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/celestiaorg/celestia-app/x/blob/types"
+	"github.com/celestiaorg/go-header/store"
 
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/header/headertest"
@@ -148,23 +149,19 @@ func TestService_GetAll(t *testing.T) {
 	require.NoError(t, err)
 
 	service := NewService(nil, hstore, bs)
+
 	newBlobs, err := service.GetAll(ctx, 1, blobs[0].NamespaceID(), blobs[1].NamespaceID())
+	require.NoError(t, err)
 	assert.Len(t, newBlobs, 2)
 
 	sort.Slice(blobs, func(i, j int) bool {
 		val := bytes.Compare(blobs[i].NamespaceID(), blobs[j].NamespaceID())
-		if val > 0 {
-			return false
-		}
-		return true
+		return val <= 0
 	})
 
 	sort.Slice(newBlobs, func(i, j int) bool {
 		val := bytes.Compare(blobs[i].NamespaceID(), blobs[j].NamespaceID())
-		if val > 0 {
-			return false
-		}
-		return true
+		return val <= 0
 	})
 
 	for i := range blobs {
