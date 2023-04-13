@@ -46,7 +46,7 @@ type job struct {
 	from    uint64
 	to      uint64
 
-	// header will be filled for job with type recentJob to avoid unnecessary  call to the header store
+	// header will be filled for job with type recentJob to avoid unnecessary call to the header store
 	header *header.ExtendedHeader
 }
 
@@ -183,7 +183,7 @@ func (w *worker) setResult(curr uint64, err error) {
 	defer w.lock.Unlock()
 	if err != nil {
 		w.state.failed[curr]++
-		w.state.err = errors.Join(w.state.err, fmt.Errorf("height: %v, err: %w", curr, err))
+		w.state.err = errors.Join(w.state.err, fmt.Errorf("height: %d, err: %w", curr, err))
 	}
 	w.state.curr = curr
 }

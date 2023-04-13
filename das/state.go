@@ -107,7 +107,7 @@ func (s *coordinatorState) updateHead(newHead int64) {
 	s.checkDone()
 }
 
-// recentJob creates a job to process recently produced header
+// recentJob creates a job to process a recent header.
 func (s *coordinatorState) recentJob(header *header.ExtendedHeader) job {
 	height := uint64(header.Height())
 	// move next, to prevent catchup job from processing same height
