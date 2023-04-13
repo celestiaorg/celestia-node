@@ -3,6 +3,8 @@ package blob
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
+	"fmt"
 	"sort"
 	"testing"
 	"time"
@@ -10,11 +12,11 @@ import (
 	ds "github.com/ipfs/go-datastore"
 	ds_sync "github.com/ipfs/go-datastore/sync"
 	mdutils "github.com/ipfs/go-merkledag/test"
-	"github.com/minio/sha256-simd"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/celestiaorg/go-header/store"
+	"github.com/celestiaorg/nmt/namespace"
 
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/header/headertest"
@@ -51,7 +53,7 @@ func TestService_GetSingleBlobInHeaderWithSingleNID(t *testing.T) {
 	hstore, err := store.NewStore[*header.ExtendedHeader](batching)
 	require.NoError(t, err)
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Minute*5)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	t.Cleanup(cancel)
 
 	// TODO(@vgonkivs): add functionality to create blobs with the same nID
@@ -167,10 +169,10 @@ func TestService_GetProof(t *testing.T) {
 	hstore, err := store.NewStore[*header.ExtendedHeader](batching)
 	require.NoError(t, err)
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Minute*5)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	t.Cleanup(cancel)
 
-	blob := generateBlob(t, []int{16}, false)
+	blob := generateBlob(t, []int{10, 6}, false)
 	rawShares := splitBlob(t, blob...)
 	eds, err := share.AddShares(ctx, rawShares, bs)
 	require.NoError(t, err)
@@ -182,10 +184,23 @@ func TestService_GetProof(t *testing.T) {
 	service := NewService(nil, hstore, bs)
 	proof, err := service.GetProof(ctx, 1, blob[0].NamespaceID(), blob[0].Commitment())
 	require.NoError(t, err)
-	assert.Equal(t, uint(proof.Len()), eds.Width()/2)
 
-	for i, p := range *proof {
-		eq := p.VerifyInclusion(sha256.New(), blob[0].NamespaceID(), rawShares[i*4:(i+1)*4], eds.RowRoots()[i])
-		require.True(t, eq)
+	verifyFn := func(t *testing.T, rawShares [][]byte, proof *Proof, nID namespace.ID) {
+		to := 0
+		for i, p := range *proof {
+			from := to
+			to = p.proof.End() - p.proof.Start() + from
+			eq := p.proof.VerifyInclusion(sha256.New(), nID, rawShares[from:to], eds.RowRoots()[p.rowIndex])
+			require.Truef(t, eq, fmt.Sprintf("row:%d,start:%d,end:%d", i, from, to))
+		}
 	}
+
+	rawShares = splitBlob(t, blob[0])
+	verifyFn(t, rawShares, proof, blob[0].NamespaceID())
+
+	proof, err = service.GetProof(ctx, 1, blob[1].NamespaceID(), blob[1].Commitment())
+	require.NoError(t, err)
+
+	rawShares = splitBlob(t, blob[1])
+	verifyFn(t, rawShares, proof, blob[1].NamespaceID())
 }
