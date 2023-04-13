@@ -15,10 +15,9 @@ import (
 	"go.uber.org/fx"
 	"golang.org/x/crypto/blake2b"
 
+	"github.com/celestiaorg/go-fraud"
+	"github.com/celestiaorg/go-fraud/fraudserv"
 	headp2p "github.com/celestiaorg/go-header/p2p"
-
-	"github.com/celestiaorg/celestia-node/libs/fraud"
-	"github.com/celestiaorg/celestia-node/libs/fraud/fraudserv"
 )
 
 func init() {
