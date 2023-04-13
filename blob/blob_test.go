@@ -5,13 +5,14 @@ import (
 	"sort"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"github.com/tendermint/tendermint/types"
+
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/pkg/shares"
 	"github.com/celestiaorg/celestia-app/testutil/testfactory"
 	apptypes "github.com/celestiaorg/celestia-app/x/blob/types"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-	"github.com/tendermint/tendermint/types"
 )
 
 func TestBlob_NewBlob(t *testing.T) {
@@ -75,10 +76,7 @@ func splitBlob(t *testing.T, blobs ...*Blob) [][]byte {
 	}
 	sort.Slice(tendermintBlobs, func(i, j int) bool {
 		val := bytes.Compare(tendermintBlobs[i].NamespaceID, tendermintBlobs[j].NamespaceID)
-		if val > 0 {
-			return false
-		}
-		return true
+		return val <= 0
 	})
 	rawShares, err := shares.SplitBlobs(0, nil, tendermintBlobs, false)
 	require.NoError(t, err)

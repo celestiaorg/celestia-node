@@ -7,7 +7,8 @@ import (
 )
 
 // Commitment is a Merkle Root of the subtree built from shares of the Blob.
-// It is computed by splitting the blob into shares and building the Merkle subtree to be included after Submit.
+// It is computed by splitting the blob into shares and building the Merkle subtree to be included
+// after Submit.
 type Commitment []byte
 
 func (com Commitment) String() string {
