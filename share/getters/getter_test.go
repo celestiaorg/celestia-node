@@ -140,11 +140,12 @@ func randomEDSWithDoubledNamespace(t *testing.T, size int) (*rsmt2d.ExtendedData
 	idx1 := (n - 1) / 2
 	idx2 := n / 2
 
-	// Make it so that the two shares have a common namespace. For example if
-	// size=4, the original data square looks like this:
-	// _ D D _
+	// Make it so that the two shares in two different rows have a common
+	// namespace. For example if size=4, the original data square looks like
+	// this:
 	// _ _ _ _
-	// _ _ _ _
+	// _ _ _ D
+	// D _ _ _
 	// _ _ _ _
 	// where the D shares have a common namespace.
 	copy(randShares[idx2][:share.NamespaceSize], randShares[idx1][:share.NamespaceSize])
