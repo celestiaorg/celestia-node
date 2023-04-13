@@ -22,28 +22,28 @@ func Test_coordinatorStats(t *testing.T) {
 						return workerState{
 							result: result{
 								job: job{
-									Type: recentJob,
-									From: 21,
-									To:   30,
+									jobType: recentJob,
+									from:    21,
+									to:      30,
 								},
 								failed: map[uint64]int{22: 1},
 								err:    errors.New("22: failed"),
 							},
-							Curr: 25,
+							curr: 25,
 						}
 					},
 					2: func() workerState {
 						return workerState{
 							result: result{
 								job: job{
-									Type: catchupJob,
-									From: 11,
-									To:   20,
+									jobType: catchupJob,
+									from:    11,
+									to:      20,
 								},
 								failed: map[uint64]int{12: 1, 13: 1},
 								err:    errors.Join(errors.New("12: failed"), errors.New("13: failed")),
 							},
-							Curr: 15,
+							curr: 15,
 						}
 					},
 				},

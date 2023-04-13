@@ -34,18 +34,17 @@ type worker struct {
 type workerState struct {
 	result
 
-	Curr uint64
+	curr uint64
 }
 
 type jobType string
 
 // job represents headers interval to be processed by worker
 type job struct {
-	id int
-
-	Type jobType
-	From uint64
-	To   uint64
+	id      int
+	jobType jobType
+	from    uint64
+	to      uint64
 
 	// header will be filled for job with type recentJob to avoid unnecessary  call to the header store
 	header *header.ExtendedHeader
@@ -63,7 +62,7 @@ func newWorker(j job,
 		broadcast: broadcast,
 		metrics:   metrics,
 		state: workerState{
-			Curr: j.From,
+			curr: j.from,
 			result: result{
 				job:    j,
 				failed: make(map[uint64]int),
@@ -74,9 +73,9 @@ func newWorker(j job,
 
 func (w *worker) run(ctx context.Context, timeout time.Duration, resultCh chan<- result) {
 	jobStart := time.Now()
-	log.Debugw("start sampling worker", "from", w.state.From, "to", w.state.To)
+	log.Debugw("start sampling worker", "from", w.state.from, "to", w.state.to)
 
-	for curr := w.state.From; curr <= w.state.To; curr++ {
+	for curr := w.state.from; curr <= w.state.to; curr++ {
 		err := w.sample(ctx, timeout, curr)
 		w.setResult(curr, err)
 		if errors.Is(err, context.Canceled) {
@@ -85,10 +84,11 @@ func (w *worker) run(ctx context.Context, timeout time.Duration, resultCh chan<-
 		}
 	}
 
+	log.With()
 	log.Infow(
 		"finished sampling headers",
-		"from", w.state.From,
-		"to", w.state.Curr,
+		"from", w.state.from,
+		"to", w.state.curr,
 		"errors", len(w.state.failed),
 		"finished (s)", time.Since(jobStart),
 	)
@@ -110,7 +110,7 @@ func (w *worker) sample(ctx context.Context, timeout time.Duration, height uint6
 	defer cancel()
 
 	err = w.sampleFn(ctx, h)
-	w.metrics.observeSample(ctx, h, time.Since(start), w.state.Type, err)
+	w.metrics.observeSample(ctx, h, time.Since(start), w.state.jobType, err)
 	if err != nil {
 		if !errors.Is(err, context.Canceled) {
 			log.Debugw(
@@ -136,7 +136,7 @@ func (w *worker) sample(ctx context.Context, timeout time.Duration, height uint6
 	)
 
 	// notify network about availability of new block data (note: only full nodes can notify)
-	if w.state.job.Type == recentJob {
+	if w.state.job.jobType == recentJob {
 		err = w.broadcast(ctx, shrexsub.Notification{
 			DataHash: h.DataHash.Bytes(),
 			Height:   uint64(h.Height()),
@@ -185,7 +185,7 @@ func (w *worker) setResult(curr uint64, err error) {
 		w.state.failed[curr]++
 		w.state.err = errors.Join(w.state.err, fmt.Errorf("height: %v, err: %w", curr, err))
 	}
-	w.state.Curr = curr
+	w.state.curr = curr
 }
 
 func (w *worker) getState() workerState {

@@ -65,7 +65,7 @@ func (s *coordinatorState) handleResult(res result) {
 
 	// check if the worker retried any of the previously failed heights
 	for h := range s.failed {
-		if h < res.From || h > res.To {
+		if h < res.from || h > res.to {
 			continue
 		}
 
@@ -77,7 +77,7 @@ func (s *coordinatorState) handleResult(res result) {
 	// update failed heights
 	for h := range res.failed {
 		failCount := 1
-		if res.job.Type == retryJob {
+		if res.job.jobType == retryJob {
 			// if job was already in retry and failed again, persist attempt count
 			failCount += s.inRetry[h]
 			delete(s.inRetry, h)
@@ -116,11 +116,11 @@ func (s *coordinatorState) recentJob(header *header.ExtendedHeader) job {
 	}
 	s.nextJobID++
 	return job{
-		id:     s.nextJobID,
-		Type:   recentJob,
-		header: header,
-		From:   height,
-		To:     height,
+		id:      s.nextJobID,
+		jobType: recentJob,
+		header:  header,
+		from:    height,
+		to:      height,
 	}
 }
 
@@ -175,10 +175,10 @@ func (s *coordinatorState) putInProgress(jobID int, getState func() workerState)
 func (s *coordinatorState) newJob(jobType jobType, from, to uint64) job {
 	s.nextJobID++
 	return job{
-		id:   s.nextJobID,
-		Type: jobType,
-		From: from,
-		To:   to,
+		id:      s.nextJobID,
+		jobType: jobType,
+		from:    from,
+		to:      to,
 	}
 }
 
@@ -196,10 +196,10 @@ func (s *coordinatorState) unsafeStats() SamplingStats {
 			errMsg = wstats.err.Error()
 		}
 		workers = append(workers, WorkerStats{
-			JobType: wstats.job.Type,
-			Curr:    wstats.Curr,
-			From:    wstats.From,
-			To:      wstats.To,
+			JobType: wstats.job.jobType,
+			Curr:    wstats.curr,
+			From:    wstats.from,
+			To:      wstats.to,
 			ErrMsg:  errMsg,
 		})
 
@@ -210,8 +210,8 @@ func (s *coordinatorState) unsafeStats() SamplingStats {
 			}
 		}
 
-		if wstats.Curr < lowestFailedOrInProgress {
-			lowestFailedOrInProgress = wstats.Curr
+		if wstats.curr < lowestFailedOrInProgress {
+			lowestFailedOrInProgress = wstats.curr
 		}
 	}
 
