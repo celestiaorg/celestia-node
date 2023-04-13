@@ -14,7 +14,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/celestiaorg/celestia-app/x/blob/types"
 	"github.com/celestiaorg/go-header/store"
 
 	"github.com/celestiaorg/celestia-node/header"
@@ -31,9 +30,8 @@ func TestService_GetSingleBlob(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	t.Cleanup(cancel)
 
-	blob := generateBlob(t, 10)
-	blob1 := generateBlob(t, 6)
-	rawShares := splitBlob(t, blob, blob1)
+	blobs := generateBlob(t, []int{10, 6}, false)
+	rawShares := splitBlob(t, blobs...)
 	eds, err := share.AddShares(ctx, rawShares, bs)
 	require.NoError(t, err)
 
@@ -42,9 +40,9 @@ func TestService_GetSingleBlob(t *testing.T) {
 	require.NoError(t, err)
 
 	service := NewService(nil, hstore, bs)
-	newBlob, err := service.Get(ctx, 1, blob1.NamespaceID(), blob1.Commitment())
+	newBlob, err := service.Get(ctx, 1, blobs[1].NamespaceID(), blobs[1].Commitment())
 	require.NoError(t, err)
-	require.Equal(t, blob1.Commitment(), newBlob.Commitment())
+	require.Equal(t, blobs[1].Commitment(), newBlob.Commitment())
 }
 
 func TestService_GetSingleBlobInHeaderWithSingleNID(t *testing.T) {
@@ -57,14 +55,10 @@ func TestService_GetSingleBlobInHeaderWithSingleNID(t *testing.T) {
 	t.Cleanup(cancel)
 
 	// TODO(@vgonkivs): add functionality to create blobs with the same nID
-	blob := generateBlob(t, 12)
-	nid := blob.NamespaceID()
-	blob1 := generateBlob(t, 4)
-	blob1.NamespaceId = nid
-	blob1.commitment, err = types.CreateCommitment(&blob1.Blob)
+	blobs := generateBlob(t, []int{12, 4}, true)
 	require.NoError(t, err)
 
-	rawShares := splitBlob(t, blob, blob1)
+	rawShares := splitBlob(t, blobs...)
 	eds, err := share.AddShares(ctx, rawShares, bs)
 	require.NoError(t, err)
 
@@ -73,11 +67,11 @@ func TestService_GetSingleBlobInHeaderWithSingleNID(t *testing.T) {
 	require.NoError(t, err)
 
 	service := NewService(nil, hstore, bs)
-	newBlob, err := service.Get(ctx, 1, blob1.NamespaceID(), blob1.Commitment())
+	newBlob, err := service.Get(ctx, 1, blobs[1].NamespaceID(), blobs[1].Commitment())
 	require.NoError(t, err)
-	require.Equal(t, blob1.Commitment(), newBlob.Commitment())
+	require.Equal(t, blobs[1].Commitment(), newBlob.Commitment())
 
-	blobs, err := service.GetAll(ctx, 1, blob.NamespaceID())
+	blobs, err = service.GetAll(ctx, 1, blobs[0].NamespaceID())
 	require.NoError(t, err)
 	assert.Len(t, blobs, 2)
 }
@@ -91,9 +85,8 @@ func TestService_GetFailed(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	t.Cleanup(cancel)
 
-	blob := generateBlob(t, 16)
-	blob1 := generateBlob(t, 6)
-	rawShares := splitBlob(t, blob)
+	blobs := generateBlob(t, []int{16, 6}, false)
+	rawShares := splitBlob(t, blobs[0])
 	eds, err := share.AddShares(ctx, rawShares, bs)
 	require.NoError(t, err)
 
@@ -102,7 +95,7 @@ func TestService_GetFailed(t *testing.T) {
 	require.NoError(t, err)
 
 	service := NewService(nil, hstore, bs)
-	_, err = service.Get(ctx, 1, blob1.NamespaceID(), blob1.Commitment())
+	_, err = service.Get(ctx, 1, blobs[1].NamespaceID(), blobs[1].Commitment())
 	require.Error(t, err)
 }
 
@@ -115,9 +108,8 @@ func TestService_GetFailedWithInvalidCommitment(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	t.Cleanup(cancel)
 
-	blob := generateBlob(t, 16)
-	blob1 := generateBlob(t, 6)
-	rawShares := splitBlob(t, blob)
+	blobs := generateBlob(t, []int{10, 6}, false)
+	rawShares := splitBlob(t, blobs...)
 	eds, err := share.AddShares(ctx, rawShares, bs)
 	require.NoError(t, err)
 
@@ -126,7 +118,7 @@ func TestService_GetFailedWithInvalidCommitment(t *testing.T) {
 	require.NoError(t, err)
 
 	service := NewService(nil, hstore, bs)
-	_, err = service.Get(ctx, 1, blob.NamespaceID(), blob1.Commitment())
+	_, err = service.Get(ctx, 1, blobs[0].NamespaceID(), blobs[1].Commitment())
 	require.Error(t, err)
 }
 
@@ -139,8 +131,8 @@ func TestService_GetAll(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	t.Cleanup(cancel)
 
-	blobs := []*Blob{generateBlob(t, 10), generateBlob(t, 6)}
-	rawShares := splitBlob(t, blobs[0], blobs[1])
+	blobs := generateBlob(t, []int{10, 6}, false)
+	rawShares := splitBlob(t, blobs...)
 	eds, err := share.AddShares(ctx, rawShares, bs)
 	require.NoError(t, err)
 
@@ -178,8 +170,8 @@ func TestService_GetProof(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute*5)
 	t.Cleanup(cancel)
 
-	blob := generateBlob(t, 16)
-	rawShares := splitBlob(t, blob)
+	blob := generateBlob(t, []int{16}, false)
+	rawShares := splitBlob(t, blob...)
 	eds, err := share.AddShares(ctx, rawShares, bs)
 	require.NoError(t, err)
 
@@ -188,12 +180,12 @@ func TestService_GetProof(t *testing.T) {
 	require.NoError(t, err)
 
 	service := NewService(nil, hstore, bs)
-	proof, err := service.GetProof(ctx, 1, blob.NamespaceID(), blob.Commitment())
+	proof, err := service.GetProof(ctx, 1, blob[0].NamespaceID(), blob[0].Commitment())
 	require.NoError(t, err)
 	assert.Equal(t, uint(proof.Len()), eds.Width()/2)
 
 	for i, p := range *proof {
-		eq := p.VerifyInclusion(sha256.New(), blob.NamespaceID(), rawShares[i*4:(i+1)*4], eds.RowRoots()[i])
+		eq := p.VerifyInclusion(sha256.New(), blob[0].NamespaceID(), rawShares[i*4:(i+1)*4], eds.RowRoots()[i])
 		require.True(t, eq)
 	}
 }

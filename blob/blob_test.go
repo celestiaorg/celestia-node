@@ -7,6 +7,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	tmrand "github.com/tendermint/tendermint/libs/rand"
 	"github.com/tendermint/tendermint/types"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
@@ -16,48 +17,58 @@ import (
 )
 
 func TestBlob_NewBlob(t *testing.T) {
-	blob := generateBlob(t, 1)
+	blob := generateBlob(t, []int{1}, false)
 	require.NotEmpty(t, blob)
 }
 
 func TestBlob_CompareCommitments(t *testing.T) {
-	blob := generateBlob(t, 1)
-	require.NotEmpty(t, blob.Commitment())
+	blob := generateBlob(t, []int{1}, false)
+	require.NotEmpty(t, blob[0].Commitment())
 
-	comm, err := apptypes.CreateCommitment(&blob.Blob)
+	comm, err := apptypes.CreateCommitment(&blob[0].Blob)
 	require.NoError(t, err)
-	assert.Equal(t, blob.Commitment(), Commitment(comm))
+	assert.Equal(t, blob[0].Commitment(), Commitment(comm))
 }
 
 func TestBlob_NamespaceID(t *testing.T) {
-	blob := generateBlob(t, 1)
+	blob := generateBlob(t, []int{1}, false)
 	require.NotEmpty(t, blob)
-	require.NotEmpty(t, blob.NamespaceID())
-	require.NoError(t, apptypes.ValidateBlobNamespaceID(blob.NamespaceID()))
+	require.NotEmpty(t, blob[0].NamespaceID())
+	require.NoError(t, apptypes.ValidateBlobNamespaceID(blob[0].NamespaceID()))
 }
 
 func TestBlob_Data(t *testing.T) {
-	blob := generateBlob(t, 1)
+	blob := generateBlob(t, []int{1}, false)
 	require.NotEmpty(t, blob)
-	require.NotEmpty(t, blob.Data())
+	require.NotEmpty(t, blob[0].Data())
 }
 
 func TestSharesToBlobs(t *testing.T) {
-	blob := generateBlob(t, 1)
+	blob := generateBlob(t, []int{1}, false)
 	require.NotEmpty(t, blob)
 
-	b, err := sharesToBlobs(splitBlob(t, blob))
+	b, err := sharesToBlobs(splitBlob(t, blob...))
 	require.NoError(t, err)
 	assert.Equal(t, len(b), 1)
-	assert.Equal(t, blob.Commitment(), b[0].Commitment())
+	assert.Equal(t, blob[0].Commitment(), b[0].Commitment())
 }
 
-func generateBlob(t *testing.T, count int) *Blob {
-	size := rawBlobSize(appconsts.FirstSparseShareContentSize * count)
-	appBlob := testfactory.GenerateRandomBlob(size)
-	blob, err := NewBlob(appBlob.ShareVersion, appBlob.NamespaceID, appBlob.Data)
-	require.NoError(t, err)
-	return blob
+func generateBlob(t *testing.T, sizes []int, sameNID bool) []*Blob {
+	nID := tmrand.Bytes(appconsts.NamespaceSize)
+	blobs := make([]*Blob, 0, len(sizes))
+
+	for _, size := range sizes {
+		size := rawBlobSize(appconsts.FirstSparseShareContentSize * size)
+		appBlob := testfactory.GenerateRandomBlob(size)
+		if sameNID {
+			appBlob.NamespaceID = nID
+		}
+
+		blob, err := NewBlob(appBlob.ShareVersion, appBlob.NamespaceID, appBlob.Data)
+		require.NoError(t, err)
+		blobs = append(blobs, blob)
+	}
+	return blobs
 }
 
 func rawBlobSize(totalSize int) int {
