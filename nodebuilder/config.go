@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"github.com/BurntSushi/toml"
+	"github.com/imdario/mergo"
 
 	"github.com/celestiaorg/celestia-node/nodebuilder/core"
 	"github.com/celestiaorg/celestia-node/nodebuilder/das"
@@ -78,6 +79,48 @@ func LoadConfig(path string) (*Config, error) {
 
 	var cfg Config
 	return &cfg, cfg.Decode(f)
+}
+
+// RemoveConfig removes the Config from the given store path.
+func RemoveConfig(storePath string) error {
+	return removeConfig(configPath(storePath))
+}
+
+// removeConfig removes Config from the given 'path'.
+func removeConfig(path string) error {
+	return os.Remove(path)
+}
+
+// UpdateConfig loads the node's config and applies new values
+// from the default config of the given node type, saving the
+// newly updated config into the node's config path.
+func UpdateConfig(tp node.Type, storePath string) error {
+	newCfg := DefaultConfig(tp)
+
+	cfgPath := configPath(storePath)
+	cfg, err := LoadConfig(cfgPath)
+	if err != nil {
+		return err
+	}
+
+	cfg, err = updateConfig(cfg, newCfg)
+	if err != nil {
+		return err
+	}
+
+	// save the updated config
+	err = removeConfig(cfgPath)
+	if err != nil {
+		return err
+	}
+	return SaveConfig(cfgPath, cfg)
+}
+
+// updateConfig merges new values from the new config into the old
+// config, returning the updated old config.
+func updateConfig(oldCfg *Config, newCfg *Config) (*Config, error) {
+	err := mergo.Merge(oldCfg, newCfg, mergo.WithOverrideEmptySlice)
+	return oldCfg, err
 }
 
 // TODO(@Wondertan): We should have a description for each field written into w,
