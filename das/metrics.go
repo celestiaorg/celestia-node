@@ -114,9 +114,9 @@ func (d *DASer) InitMetrics() error {
 				log.Errorf("observing stats: %s", err.Error())
 			}
 
-			for jobTyoe, amount := range stats.workersByJobType() {
+			for jobType, amount := range stats.workersByJobType() {
 				busyWorkers.Observe(ctx, amount,
-					attribute.String(jobTypeLabel, string(jobTyoe)))
+					attribute.String(jobTypeLabel, string(jobType)))
 			}
 
 			networkHead.Observe(ctx, int64(stats.NetworkHead))
