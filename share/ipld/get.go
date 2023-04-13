@@ -32,8 +32,8 @@ var NumWorkersLimit = MaxSquareSize * MaxSquareSize / 2 * NumConcurrentSquares
 // concurrently/simultaneously.
 var NumConcurrentSquares = 8
 
-// ErrNotFound is used to signal when a nmt Node could not be found.
-var ErrNotFound = errors.New("nmt node not found")
+// ErrNodeNotFound is used to signal when a nmt Node could not be found.
+var ErrNodeNotFound = errors.New("nmt node not found")
 
 // Global worker pool that globally controls and limits goroutines spawned by
 // GetShares.

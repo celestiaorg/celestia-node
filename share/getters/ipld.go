@@ -55,10 +55,11 @@ func (ig *IPLDGetter) GetShare(ctx context.Context, dah *share.Root, row, col in
 	// wrap the blockservice in a session if it has been signaled in the context.
 	blockGetter := getGetter(ctx, ig.bServ)
 	s, err := share.GetShare(ctx, blockGetter, root, leaf, len(dah.RowsRoots))
+	if errors.Is(err, ipld.ErrNodeNotFound) {
+		// convert error to satisfy getter interface contract
+		err = share.ErrNotFound
+	}
 	if err != nil {
-		if errors.Is(err, ipld.ErrNotFound) {
-			err = share.ErrNotFound
-		}
 		return nil, fmt.Errorf("getter/ipld: failed to retrieve share: %w", err)
 	}
 
@@ -75,12 +76,11 @@ func (ig *IPLDGetter) GetEDS(ctx context.Context, root *share.Root) (eds *rsmt2d
 
 	// rtrv.Retrieve calls shares.GetShares until enough shares are retrieved to reconstruct the EDS
 	eds, err = ig.rtrv.Retrieve(ctx, root)
+	if errors.Is(err, ipld.ErrNodeNotFound) {
+		// convert error to satisfy getter interface contract
+		err = share.ErrNotFound
+	}
 	if err != nil {
-		// TODO(@walldiss): there is no clear way for eds retriever to return ErrNotFound, so this check is
-		// pointless before retriever is refactored
-		if errors.Is(err, ipld.ErrNotFound) {
-			err = share.ErrNotFound
-		}
 		return nil, fmt.Errorf("getter/ipld: failed to retrieve eds: %w", err)
 	}
 	return eds, nil
@@ -107,10 +107,11 @@ func (ig *IPLDGetter) GetSharesByNamespace(
 	// wrap the blockservice in a session if it has been signaled in the context.
 	blockGetter := getGetter(ctx, ig.bServ)
 	shares, err = collectSharesByNamespace(ctx, blockGetter, root, nID)
+	if errors.Is(err, ipld.ErrNodeNotFound) {
+		// convert error to satisfy getter interface contract
+		err = share.ErrNotFound
+	}
 	if err != nil {
-		if errors.Is(err, ipld.ErrNotFound) {
-			err = share.ErrNotFound
-		}
 		return nil, fmt.Errorf("getter/ipld: failed to retrieve shares by namespace: %w", err)
 	}
 	return shares, nil

@@ -13,7 +13,7 @@ import (
 
 	"github.com/celestiaorg/celestia-node/libs/utils"
 	"github.com/celestiaorg/celestia-node/share"
-	edsstore "github.com/celestiaorg/celestia-node/share/eds"
+	"github.com/celestiaorg/celestia-node/share/eds"
 	"github.com/celestiaorg/celestia-node/share/ipld"
 )
 
@@ -22,11 +22,11 @@ var _ share.Getter = (*StoreGetter)(nil)
 // StoreGetter is a share.Getter that retrieves shares from an eds.Store. No results are saved to
 // the eds.Store after retrieval.
 type StoreGetter struct {
-	store *edsstore.Store
+	store *eds.Store
 }
 
 // NewStoreGetter creates a new share.Getter that retrieves shares from an eds.Store.
-func NewStoreGetter(store *edsstore.Store) *StoreGetter {
+func NewStoreGetter(store *eds.Store) *StoreGetter {
 	return &StoreGetter{
 		store: store,
 	}
@@ -47,20 +47,22 @@ func (sg *StoreGetter) GetShare(ctx context.Context, dah *share.Root, row, col i
 
 	root, leaf := ipld.Translate(dah, row, col)
 	bs, err := sg.store.CARBlockstore(ctx, dah.Hash())
+	if errors.Is(err, eds.ErrNotFound) {
+		// convert error to satisfy getter interface contract
+		err = share.ErrNotFound
+	}
 	if err != nil {
-		if errors.Is(err, edsstore.ErrNotFound) {
-			err = share.ErrNotFound
-		}
 		return nil, fmt.Errorf("getter/store: failed to retrieve blockstore: %w", err)
 	}
 
 	// wrap the read-only CAR blockstore in a getter
-	blockGetter := edsstore.NewBlockGetter(bs)
+	blockGetter := eds.NewBlockGetter(bs)
 	s, err := share.GetShare(ctx, blockGetter, root, leaf, len(dah.RowsRoots))
+	if errors.Is(err, ipld.ErrNodeNotFound) {
+		// convert error to satisfy getter interface contract
+		err = share.ErrNotFound
+	}
 	if err != nil {
-		if errors.Is(err, ipld.ErrNotFound) {
-			err = share.ErrNotFound
-		}
 		return nil, fmt.Errorf("getter/store: failed to retrieve share: %w", err)
 	}
 
@@ -68,7 +70,7 @@ func (sg *StoreGetter) GetShare(ctx context.Context, dah *share.Root, row, col i
 }
 
 // GetEDS gets the EDS identified by the given root from the EDS store.
-func (sg *StoreGetter) GetEDS(ctx context.Context, root *share.Root) (eds *rsmt2d.ExtendedDataSquare, err error) {
+func (sg *StoreGetter) GetEDS(ctx context.Context, root *share.Root) (data *rsmt2d.ExtendedDataSquare, err error) {
 	ctx, span := tracer.Start(ctx, "store/get-eds", trace.WithAttributes(
 		attribute.String("root", root.String()),
 	))
@@ -76,14 +78,15 @@ func (sg *StoreGetter) GetEDS(ctx context.Context, root *share.Root) (eds *rsmt2
 		utils.SetStatusAndEnd(span, err)
 	}()
 
-	eds, err = sg.store.Get(ctx, root.Hash())
+	data, err = sg.store.Get(ctx, root.Hash())
+	if errors.Is(err, eds.ErrNotFound) {
+		// convert error to satisfy getter interface contract
+		err = share.ErrNotFound
+	}
 	if err != nil {
-		if errors.Is(err, edsstore.ErrNotFound) {
-			err = share.ErrNotFound
-		}
 		return nil, fmt.Errorf("getter/store: failed to retrieve eds: %w", err)
 	}
-	return eds, nil
+	return data, nil
 }
 
 // GetSharesByNamespace gets all EDS shares in the given namespace from the EDS store through the
@@ -107,20 +110,22 @@ func (sg *StoreGetter) GetSharesByNamespace(
 	}
 
 	bs, err := sg.store.CARBlockstore(ctx, root.Hash())
+	if errors.Is(err, eds.ErrNotFound) {
+		// convert error to satisfy getter interface contract
+		err = share.ErrNotFound
+	}
 	if err != nil {
-		if errors.Is(err, edsstore.ErrNotFound) {
-			err = share.ErrNotFound
-		}
 		return nil, fmt.Errorf("getter/store: failed to retrieve blockstore: %w", err)
 	}
 
 	// wrap the read-only CAR blockstore in a getter
-	blockGetter := edsstore.NewBlockGetter(bs)
+	blockGetter := eds.NewBlockGetter(bs)
 	shares, err = collectSharesByNamespace(ctx, blockGetter, root, nID)
+	if errors.Is(err, ipld.ErrNodeNotFound) {
+		// convert error to satisfy getter interface contract
+		err = share.ErrNotFound
+	}
 	if err != nil {
-		if errors.Is(err, ipld.ErrNotFound) {
-			err = share.ErrNotFound
-		}
 		return nil, fmt.Errorf("getter/store: failed to retrieve shares by namespace: %w", err)
 	}
 	return shares, nil
