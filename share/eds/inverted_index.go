@@ -22,9 +22,8 @@ type simpleInvertedIndex struct {
 // multihash. This is because we use badger as a storage backend, so updates are expensive, and we
 // don't care which shard is used to serve a cid.
 func newSimpleInvertedIndex(dts ds.Batching) *simpleInvertedIndex {
-	dts = namespace.Wrap(dts, ds.NewKey("/inverted/index"))
 	return &simpleInvertedIndex{
-		ds: dts,
+		ds: namespace.Wrap(dts, ds.NewKey("/inverted/index")),
 	}
 }
 
@@ -70,7 +69,6 @@ func (s *simpleInvertedIndex) AddMultihashesForShard(
 	if err := s.ds.Sync(ctx, ds.Key{}); err != nil {
 		return fmt.Errorf("failed to sync puts: %w", err)
 	}
-
 	return nil
 }
 
