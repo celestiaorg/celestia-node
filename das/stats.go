@@ -39,7 +39,7 @@ func (s SamplingStats) totalSampled() uint64 {
 	return s.CatchupHead - inProgress - uint64(len(s.Failed))
 }
 
-// totalSampled returns the total amount of sampled headers
+// workersByJobType returns a map of job types to the number of workers assigned to those types.
 func (s SamplingStats) workersByJobType() map[jobType]int64 {
 	workers := make(map[jobType]int64)
 	for _, w := range s.Workers {
