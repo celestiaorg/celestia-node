@@ -86,6 +86,15 @@ func TestExchange_RequestEDS(t *testing.T) {
 		assert.Nil(t, requestedEDS)
 	})
 
+	t.Run("EDS_err_not_found", func(t *testing.T) {
+		timeoutCtx, cancel := context.WithTimeout(ctx, time.Second)
+		t.Cleanup(cancel)
+		eds := share.RandEDS(t, 4)
+		dah := da.NewDataAvailabilityHeader(eds)
+		_, err := client.RequestEDS(timeoutCtx, dah.Hash(), server.host.ID())
+		require.ErrorIs(t, err, p2p.ErrUnavailable)
+	})
+
 	// Testcase: Concurrency limit reached
 	t.Run("EDS_concurrency_limit", func(t *testing.T) {
 		store, client, server := makeExchange(t)

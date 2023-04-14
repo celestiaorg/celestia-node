@@ -121,7 +121,7 @@ func (c *Client) doRequest(
 	case pb.Status_NOT_FOUND:
 		log.Debugf("client: peer %s couldn't serve eds %s with status %s", to.String(), dataHash.String(), resp.GetStatus())
 		return nil, p2p.ErrUnavailable
-	case pb.Status_INVALID:
+	case pb.Status_INVALID, pb.Status_INTERNAL:
 		fallthrough
 	default:
 		log.Errorf("request status %s returned for root %s", resp.Status.String(), dataHash.String())

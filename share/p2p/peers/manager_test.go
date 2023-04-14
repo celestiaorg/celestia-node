@@ -28,7 +28,7 @@ import (
 
 // TODO: add broadcast to tests
 func TestManager(t *testing.T) {
-	t.Run("validate pool by headerSub", func(t *testing.T) {
+	t.Run("Validate pool by headerSub", func(t *testing.T) {
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second*50)
 		t.Cleanup(cancel)
 
@@ -49,7 +49,7 @@ func TestManager(t *testing.T) {
 		stopManager(t, manager)
 	})
 
-	t.Run("validate pool by shrex.Getter", func(t *testing.T) {
+	t.Run("Validate pool by shrex.Getter", func(t *testing.T) {
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 		t.Cleanup(cancel)
 
@@ -61,7 +61,7 @@ func TestManager(t *testing.T) {
 		require.NoError(t, err)
 
 		peerID, msg := peer.ID("peer1"), newShrexSubMsg(h)
-		result := manager.validate(ctx, peerID, msg)
+		result := manager.Validate(ctx, peerID, msg)
 		require.Equal(t, pubsub.ValidationIgnore, result)
 
 		pID, done, err := manager.Peer(ctx, h.DataHash.Bytes())
@@ -91,12 +91,12 @@ func TestManager(t *testing.T) {
 
 		// own messages should be be accepted
 		msg := newShrexSubMsg(h)
-		result := manager.validate(ctx, manager.host.ID(), msg)
+		result := manager.Validate(ctx, manager.host.ID(), msg)
 		require.Equal(t, pubsub.ValidationAccept, result)
 
 		// normal messages should be ignored
 		peerID := peer.ID("peer1")
-		result = manager.validate(ctx, peerID, msg)
+		result = manager.Validate(ctx, peerID, msg)
 		require.Equal(t, pubsub.ValidationIgnore, result)
 
 		// mark peer as misbehaved to blacklist it
@@ -107,7 +107,7 @@ func TestManager(t *testing.T) {
 		done(ResultBlacklistPeer)
 
 		// new messages from misbehaved peer should be Rejected
-		result = manager.validate(ctx, pID, msg)
+		result = manager.Validate(ctx, pID, msg)
 		require.Equal(t, pubsub.ValidationReject, result)
 
 		stopManager(t, manager)
@@ -135,7 +135,7 @@ func TestManager(t *testing.T) {
 			DataHash: share.DataHash("datahash1"),
 			Height:   2,
 		}
-		manager.validate(ctx, peerID, msg)
+		manager.Validate(ctx, peerID, msg)
 
 		// create validated pool
 		validDataHash := share.DataHash("datahash2")
@@ -148,7 +148,7 @@ func TestManager(t *testing.T) {
 
 		// messages with blacklisted hash should be rejected right away
 		peerID2 := peer.ID("peer2")
-		result := manager.validate(ctx, peerID2, msg)
+		result := manager.Validate(ctx, peerID2, msg)
 		require.Equal(t, pubsub.ValidationReject, result)
 
 		// check blacklisted pools
@@ -235,7 +235,7 @@ func TestManager(t *testing.T) {
 		require.NoError(t, err)
 
 		peerID, msg := peer.ID("peer1"), newShrexSubMsg(h)
-		result := manager.validate(ctx, peerID, msg)
+		result := manager.Validate(ctx, peerID, msg)
 		require.Equal(t, pubsub.ValidationIgnore, result)
 
 		pID, done, err := manager.Peer(ctx, h.DataHash.Bytes())
@@ -249,7 +249,7 @@ func TestManager(t *testing.T) {
 		require.True(t, pool.isSynced.Load())
 
 		// add peer on synced pool should be noop
-		result = manager.validate(ctx, "peer2", msg)
+		result = manager.Validate(ctx, "peer2", msg)
 		require.Equal(t, pubsub.ValidationIgnore, result)
 		require.Len(t, pool.peersList, 0)
 	})
@@ -276,7 +276,7 @@ func TestManager(t *testing.T) {
 			DataHash: share.DataHash("datahash"),
 			Height:   uint64(h.Height() - 1),
 		}
-		result := manager.validate(ctx, "peer", msg)
+		result := manager.Validate(ctx, "peer", msg)
 		require.Equal(t, pubsub.ValidationIgnore, result)
 
 		// amount of pools should not change
@@ -300,7 +300,7 @@ func TestManager(t *testing.T) {
 			DataHash: share.DataHash("datahash"),
 			Height:   uint64(h.Height() - 1),
 		}
-		result := manager.validate(ctx, "peer", msg)
+		result := manager.Validate(ctx, "peer", msg)
 		require.Equal(t, pubsub.ValidationIgnore, result)
 
 		// unlock header sub after message validator
@@ -339,7 +339,7 @@ func TestIntegration(t *testing.T) {
 		require.NoError(t, err)
 		fnPeerManager.host = nw.Hosts()[1]
 
-		require.NoError(t, fnPubSub.AddValidator(fnPeerManager.validate))
+		require.NoError(t, fnPubSub.AddValidator(fnPeerManager.Validate))
 		_, err = fnPubSub.Subscribe()
 		require.NoError(t, err)
 
