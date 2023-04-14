@@ -14,6 +14,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/celestiaorg/celestia-app/pkg/da"
+	"github.com/celestiaorg/celestia-app/pkg/namespace"
 	"github.com/celestiaorg/celestia-app/pkg/wrapper"
 	"github.com/celestiaorg/rsmt2d"
 
@@ -212,7 +213,7 @@ func TestIPLDGetter(t *testing.T) {
 		assert.Len(t, shares.Flatten(), 2)
 
 		// nid not found
-		nID = make([]byte, 8)
+		nID = make([]byte, namespace.NamespaceSize)
 		_, err = sg.GetSharesByNamespace(ctx, &dah, nID)
 		require.ErrorIs(t, err, share.ErrNotFound)
 
