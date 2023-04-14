@@ -1,4 +1,3 @@
-
 # ADR 014: Bootstrap from previous peers
 
 ## Changelog
@@ -7,6 +6,7 @@
 * 2023-05-04: update peer selection with new simpler solution + fix language
 * 2023-10-04: propose a second approach
 * 2023-11-04: propose a third approach
+* 2023-14-04: document decision
 
 ## Context
 
@@ -26,7 +26,11 @@ In this ADR, we wish to aleviate this problem by allowing nodes to bootstrap fro
 
 ## Decision
 
-Periodically store the addresses of previously seen peers in a key-value database, and allow the node to bootstrap from these peers on start-up.
+Periodically store the addresses of previously seen peers in a key-value database, and allow the node to bootstrap from these peers on start-up, by following the methodology of:
+
+* Approach A.
+
+Caveats: In regards to the storage section of approach A, we decided to factorize the store implementation under `das/store.go` to be used by both approach A and the checkpoint store in `daser`.
 
 ## Design
 
@@ -57,12 +61,8 @@ type PeerStore interface {
     Put([]peer.AddrInfo) error
     // Get returns a peer from the store.
     Load() ([]peer.AddrInfo, error)
-    // Delete removes a peer from the store.
-    Delete(peer.ID) error
 }
 ```
-
-\*: _Delete will be used in in the special case where we store a peer and then it gets blocked by `peerTracker`_
 
 And we expect the underlying implementation to use a badgerDB datastore. Example:
 
@@ -78,10 +78,9 @@ To periodically select the _"good peers"_ that we're connected to and store them
 
 `peerTracker` has internal logic that continuiously tracks and garbage collects peers based on whether they connected to the node, disconnected from the node, or responded to the node while taking into consideration response speed. All connected peers are kept track of in a list, and disconnected peers are marked for removal, all as a part of a garbage collection routine. `peerTracker` also blocks peers that behave maliciously, but not in a routine, instead, it does so on `blockPeer` call.
 
-We intend to use this internal logic to periodically select peers that are "good" and store them in the peer store mentioned in the storage section. To do this, we will "hook" into the internals of `peerTracker` and `libhead.Exchange` by defining new "event handlers" intended to handle two main events from `peerTracker`:
+We intend to use this internal logic to periodically select peers that are "good" and store them in the peer store mentioned in the storage section. To do this, we will "hook" into the internals of `peerTracker` and `libhead.Exchange` by defining new "event handlers" intended to handle the following events from `peerTracker`:
 
 1. `OnUpdatedPeers`: _This event is triggered on every garbage collection cycle from `peerTracker`. The list will have undergone changes from the other routines before this event is triggered._
-2. `OnBlockedPeer`: _This event is triggered every time the `blockPeer` action is called_
 
 ```diff
 type peerTracker struct {
@@ -89,7 +88,6 @@ type peerTracker struct {
         disconnectedPeers map[peer.ID]*peerStat
  
 +       onUpdatedPeers func([]peer.AddrInfo)
-+       onBlockedPeer  func(peer.AddrInfo)
 +
         ctx    context.Context
         cancel context.CancelFunc
@@ -130,46 +128,13 @@ func (p *peerTracker) gc() {
 
 In _Code Snippet 1.b_, we can choose to order the slice by `peer.peerScore` to allow the event handler to pick the top 10 peers (_for example_) in connectivity, without leaking the `peerStat` type into the event handler callbacks.
 
-where as `OnBlockedPeer` will be called whenever `peerTracker` blocks a peer through its method `blockPeer`.
-
-```diff
- // blockPeer blocks a peer on the networking level and removes it from the local cache.
- func (p *peerTracker) blockPeer(pID peer.ID, reason error) {
-        // add peer to the blacklist, so we can't connect to it in the future.
-        err := p.connGater.BlockPeer(pID)
-        if err != nil {
-                log.Errorw("header/p2p: blocking peer failed", "pID", pID, "err", err)
-        }
-        // close connections to peer.
-        err = p.host.Network().ClosePeer(pID)
-        if err != nil {
-                log.Errorw("header/p2p: closing connection with peer failed", "pID", pID, "err", err)
-        }
- 
-        log.Warnw("header/p2p: blocked peer", "pID", pID, "reason", reason)
- 
-        p.peerLk.Lock()
-        defer p.peerLk.Unlock()
-        // remove peer from cache.
-        delete(p.trackedPeers, pID)
-        delete(p.disconnectedPeers, pID)
-+       p.onBlockedPeer(PIDToAddrInfo(pID))
-}
-```
-
-(_Code Snippet 1.c: Example of required changes to: go-header/p2p/peer_tracker.go_)
-
-The `PIDToAddrInfo` converts a `peer.ID` to a `peer.AddrInfo` by retrieving such info from the host's peer store (_`host.Peerstore().PeerInfo(peerId)`_).
-
 The `peerTracker`'s constructor should be updated to accept these new event handlers:
 
 ```diff
- type peerTracker struct {
- func newPeerTracker(
+func newPeerTracker(
         h host.Host,
         connGater *conngater.BasicConnectionGater,
 +       onUpdatedPeers func([]peer.ID),
-+       onBlockedPeer func(peer.ID),
  ) *peerTracker {
 ```
 
@@ -192,7 +157,6 @@ as well as the `libhead.Exchange`'s options and construction:
         chainID string
 +
 +       OnUpdatedPeers func([]peer.AddrInfo)
-+       OnBlockedPeer func(peer.AddrInfo)
 }
  ```
 
@@ -221,7 +185,6 @@ as well as the `libhead.Exchange`'s options and construction:
                         host,
                         connGater,
 +                       params.OnUpdatedPeers
-+                       params.OnBlockedPeer,
                 ),
                 Params: params,
         }
@@ -260,9 +223,6 @@ Such callbacks are easily passable as options at header module construction time
 +               }
 +               peerStore.Put(topTen)
 +           }),
-+           p2p.WithOnBlockedPeers(func(p peer.ID {
-+                 peerSTore.Delete(p)
-+           })
         }
     },
 ),
@@ -501,7 +461,7 @@ Both suggested approaches, A and B, do not conflict with using an on-disk peer s
 
 ## Status
 
-Proposed
+Accepted
 
 ## Consequences
 
