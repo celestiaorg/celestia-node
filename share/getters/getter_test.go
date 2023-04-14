@@ -137,7 +137,7 @@ func TestStoreGetter(t *testing.T) {
 		assert.Len(t, shares.Flatten(), 2)
 
 		// nid not found
-		nID = make([]byte, 8)
+		nID = make([]byte, namespace.NamespaceSize)
 		_, err = sg.GetSharesByNamespace(ctx, &dah, nID)
 		require.ErrorIs(t, err, share.ErrNotFound)
 
