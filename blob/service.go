@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 
 	"github.com/cosmos/cosmos-sdk/types"
 	"github.com/ipfs/go-blockservice"
@@ -27,20 +28,27 @@ var (
 )
 
 type Service struct {
+	// accessor dials the given celestia-core endpoint to submit blobs.
 	accessor *state.CoreAccessor
-	hGetter  libhead.Getter[*header.ExtendedHeader]
-	bGetter  blockservice.BlockGetter
+	// bGetter retrieves the EDS to fetch all shares from the requested header.
+	bGetter blockservice.BlockGetter
+	// hGetter allows to get the requested header.
+	hGetter libhead.Getter[*header.ExtendedHeader]
+	// headGetter gets current network head.
+	headGetter libhead.Head[*header.ExtendedHeader]
 }
 
 func NewService(
 	state *state.CoreAccessor,
-	hGetter libhead.Getter[*header.ExtendedHeader],
 	bGetter blockservice.BlockGetter,
+	hGetter libhead.Getter[*header.ExtendedHeader],
+	headGetter libhead.Head[*header.ExtendedHeader],
 ) *Service {
 	return &Service{
-		accessor: state,
-		hGetter:  hGetter,
-		bGetter:  bGetter,
+		accessor:   state,
+		bGetter:    bGetter,
+		hGetter:    hGetter,
+		headGetter: headGetter,
 	}
 }
 
@@ -93,7 +101,7 @@ func (s *Service) GetProof(
 
 // GetAll returns all found blobs for the given namespaces at the given height.
 func (s *Service) GetAll(ctx context.Context, height uint64, nIDs ...namespace.ID) ([]*Blob, error) {
-	header, err := s.hGetter.GetByHeight(ctx, height)
+	header, err := s.getByHeight(ctx, height)
 	if err != nil {
 		return nil, err
 	}
@@ -134,6 +142,34 @@ func (s *Service) GetAll(ctx context.Context, height uint64, nIDs ...namespace.I
 	return blobs, nil
 }
 
+// Included verifies that the blob was included in a specific height.
+// To ensure that blob was included in a specific height, we need:
+// 1. verify the provided commitment by recomputing it;
+// 2. verify the provided Proof against subtree roots that were used in 1.;
+func (s *Service) Included(
+	ctx context.Context,
+	height uint64,
+	nID namespace.ID,
+	_ *Proof,
+	com Commitment,
+) (bool, error) {
+	// In the current implementation, LNs will have to download all shares to recompute the commitment.
+	// To achieve 1. we need to modify Proof structure and to store all subtree roots, that were
+	// involved in commitment creation and then call `merkle.HashFromByteSlices`(tendermint package).
+	// nmt.Proof is verifying share inclusion by recomputing row roots, so, theoretically, we can do
+	// the same but using subtree roots. For this case, we need an extra method in nmt.Proof
+	// that will perform all reconstructions,
+	// but we have to guarantee that all our stored subtree roots will be on the same height(e.g. one
+	// level above shares).
+	// TODO(@vgonkivs): rework the implementation to perform all verification without network requests.
+	_, _, err := s.getByCommitment(ctx, height, nID, com)
+	if err != nil {
+		return false, err
+	}
+
+	return true, nil
+}
+
 // getByCommitment retrieving DAH row by row, fetching shares and constructing blobs in order to
 // compare Commitments. Retrieving will be stopped once requested blob/proof will be found.
 func (s *Service) getByCommitment(
@@ -146,7 +182,8 @@ func (s *Service) getByCommitment(
 		"height", height,
 		"nID", nID.String(),
 		"commitment", commitment.String())
-	header, err := s.hGetter.GetByHeight(ctx, height)
+
+	header, err := s.getByHeight(ctx, height)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -223,34 +260,6 @@ func (s *Service) getByCommitment(
 	return nil, nil, errBlobNotFound
 }
 
-// Included verifies that the blob was included in a specific height.
-// To ensure that blob was included in a specific height, we need:
-// 1. verify the provided commitment by recomputing it;
-// 2. verify the provided Proof against subtree roots that were used in 1.;
-func (s *Service) Included(
-	ctx context.Context,
-	height uint64,
-	nID namespace.ID,
-	_ *Proof,
-	com Commitment,
-) (bool, error) {
-	// In the current implementation, LNs will have to download all shares to recompute the commitment.
-	// To achieve 1. we need to modify Proof structure and to store all subtree roots, that were
-	// involved in commitment creation and then call `merkle.HashFromByteSlices`(tendermint package).
-	// nmt.Proof is verifying share inclusion by recomputing row roots, so, theoretically, we can do
-	// the same but using subtree roots. For this case, we need an extra method in nmt.Proof
-	// that will perform all reconstructions,
-	// but we have to guarantee that all our stored subtree roots will be on the same height(e.g. one
-	// level above shares).
-	// TODO(@vgonkivs): rework the implementation to perform all verification without network requests.
-	_, _, err := s.getByCommitment(ctx, height, nID, com)
-	if err != nil {
-		return false, err
-	}
-
-	return true, nil
-}
-
 // getBlobs retrieves the DAH and fetches all shares from the requested namespace.ID and converts
 // them to Blobs.
 func (s *Service) getBlobs(ctx context.Context, nID namespace.ID, cids []cid.Cid) ([]*Blob, error) {
@@ -272,4 +281,28 @@ func (s *Service) getBlobs(ctx context.Context, nID namespace.ID, cids []cid.Cid
 		rawShares = append(rawShares, shares...)
 	}
 	return sharesToBlobs(rawShares)
+}
+
+// getByHeight returns ExtendedHeader by its height.
+// getByHeight ensures that the requested height is less or equal than the current network head.
+func (s *Service) getByHeight(ctx context.Context, height uint64) (*header.ExtendedHeader, error) {
+	head, err := s.headGetter.Head(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	if uint64(head.Height()) < height {
+		return nil, fmt.Errorf("blob: unknown height. networkHeight:%d, requestedHeight:%d", head.Height(), height)
+	}
+
+	var header *header.ExtendedHeader
+	if uint64(head.Height()) == height {
+		header = head
+	} else {
+		header, err = s.hGetter.GetByHeight(ctx, height)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return header, nil
 }

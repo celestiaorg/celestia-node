@@ -41,7 +41,7 @@ func TestService_GetSingleBlob(t *testing.T) {
 	err = hstore.Init(ctx, h)
 	require.NoError(t, err)
 
-	service := NewService(nil, hstore, bs)
+	service := NewService(nil, bs, hstore, hstore)
 	newBlob, err := service.Get(ctx, 1, blobs[1].NamespaceID(), blobs[1].Commitment())
 	require.NoError(t, err)
 	require.Equal(t, blobs[1].Commitment(), newBlob.Commitment())
@@ -68,7 +68,7 @@ func TestService_GetSingleBlobInHeaderWithSingleNID(t *testing.T) {
 	err = hstore.Init(ctx, h)
 	require.NoError(t, err)
 
-	service := NewService(nil, hstore, bs)
+	service := NewService(nil, bs, hstore, hstore)
 	newBlob, err := service.Get(ctx, 1, blobs[1].NamespaceID(), blobs[1].Commitment())
 	require.NoError(t, err)
 	require.Equal(t, blobs[1].Commitment(), newBlob.Commitment())
@@ -96,7 +96,7 @@ func TestService_GetFailed(t *testing.T) {
 	err = hstore.Init(ctx, h)
 	require.NoError(t, err)
 
-	service := NewService(nil, hstore, bs)
+	service := NewService(nil, bs, hstore, hstore)
 	_, err = service.Get(ctx, 1, blobs[1].NamespaceID(), blobs[1].Commitment())
 	require.Error(t, err)
 }
@@ -119,7 +119,7 @@ func TestService_GetFailedWithInvalidCommitment(t *testing.T) {
 	err = hstore.Init(ctx, h)
 	require.NoError(t, err)
 
-	service := NewService(nil, hstore, bs)
+	service := NewService(nil, bs, hstore, hstore)
 	_, err = service.Get(ctx, 1, blobs[0].NamespaceID(), blobs[1].Commitment())
 	require.Error(t, err)
 }
@@ -142,7 +142,7 @@ func TestService_GetAll(t *testing.T) {
 	err = hstore.Init(ctx, h)
 	require.NoError(t, err)
 
-	service := NewService(nil, hstore, bs)
+	service := NewService(nil, bs, hstore, hstore)
 
 	newBlobs, err := service.GetAll(ctx, 1, blobs[0].NamespaceID(), blobs[1].NamespaceID())
 	require.NoError(t, err)
@@ -181,7 +181,7 @@ func TestService_GetProof(t *testing.T) {
 	err = hstore.Init(ctx, h)
 	require.NoError(t, err)
 
-	service := NewService(nil, hstore, bs)
+	service := NewService(nil, bs, hstore, hstore)
 	proof, err := service.GetProof(ctx, 1, blob[0].NamespaceID(), blob[0].Commitment())
 	require.NoError(t, err)
 
