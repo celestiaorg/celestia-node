@@ -83,15 +83,16 @@ func (sg *ShrexGetter) GetEDS(ctx context.Context, root *share.Root) (*rsmt2d.Ex
 		reqCtx, cancel := ctxWithSplitTimeout(ctx, sg.minAttemptsCount-attempt+1, sg.minRequestTimeout)
 		eds, getErr := sg.edsClient.RequestEDS(reqCtx, root.Hash(), peer)
 		cancel()
-		switch getErr {
-		case nil:
+		switch {
+		case getErr == nil:
 			setStatus(peers.ResultSynced)
 			return eds, nil
-		case context.DeadlineExceeded:
-		case p2p.ErrUnavailable:
+		case errors.Is(getErr, context.DeadlineExceeded),
+			errors.Is(getErr, context.Canceled):
+		case errors.Is(getErr, p2p.ErrUnavailable):
 			getErr = share.ErrNotFound
 			setStatus(peers.ResultCooldownPeer)
-		case p2p.ErrInvalidResponse:
+		case errors.Is(getErr, p2p.ErrInvalidResponse):
 			setStatus(peers.ResultBlacklistPeer)
 		default:
 			setStatus(peers.ResultCooldownPeer)
@@ -139,7 +140,8 @@ func (sg *ShrexGetter) GetSharesByNamespace(
 		case getErr == nil:
 			setStatus(peers.ResultSuccess)
 			return nd, nil
-		case errors.Is(getErr, context.DeadlineExceeded):
+		case errors.Is(getErr, context.DeadlineExceeded),
+			errors.Is(getErr, context.Canceled):
 		case errors.Is(getErr, p2p.ErrUnavailable):
 			getErr = share.ErrNotFound
 			setStatus(peers.ResultCooldownPeer)

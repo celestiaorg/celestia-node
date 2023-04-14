@@ -10,7 +10,8 @@ require (
 	github.com/alecthomas/jsonschema v0.0.0-20200530073317-71f438968921
 	github.com/benbjohnson/clock v1.3.0
 	github.com/celestiaorg/celestia-app v0.12.2
-	github.com/celestiaorg/go-header v0.2.3
+	github.com/celestiaorg/go-fraud v0.1.0
+	github.com/celestiaorg/go-header v0.2.5
 	github.com/celestiaorg/go-libp2p-messenger v0.2.0
 	github.com/celestiaorg/nmt v0.15.0
 	github.com/celestiaorg/rsmt2d v0.8.0
@@ -327,7 +328,7 @@ require (
 
 replace (
 	github.com/cosmos/cosmos-sdk => github.com/celestiaorg/cosmos-sdk v1.8.0-sdk-v0.46.7
-	github.com/filecoin-project/dagstore => github.com/celestiaorg/dagstore v0.0.0-20230404123415-177451f83136
+	github.com/filecoin-project/dagstore => github.com/celestiaorg/dagstore v0.0.0-20230413141458-735ab09a15d6
 	github.com/gogo/protobuf => github.com/regen-network/protobuf v1.3.3-alpha.regen.1
 	github.com/tendermint/tendermint => github.com/celestiaorg/celestia-core v1.15.0-tm-v0.34.23
 )

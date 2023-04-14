@@ -27,6 +27,10 @@ If recorded decisions turned out to be lacking, convene a discussion, record the
 
 Note the context/background should be written in the present tense.
 
-To start a new ADR, you can use this template: [adr-template.md](./adr-template.md)
+To start a new ADR, you can generate a new file with the following command:
+
+```bash
+make adr-gen NUM=001 TITLE=my-adr-title
+```
 
 ## Table of Contents

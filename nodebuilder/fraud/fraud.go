@@ -3,7 +3,7 @@ package fraud
 import (
 	"context"
 
-	"github.com/celestiaorg/celestia-node/libs/fraud"
+	"github.com/celestiaorg/go-fraud"
 )
 
 var _ Module = (*API)(nil)
