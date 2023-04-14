@@ -2,6 +2,7 @@ package ipld
 
 import (
 	"context"
+	"errors"
 	"sync"
 	"sync/atomic"
 
@@ -30,6 +31,9 @@ var NumWorkersLimit = MaxSquareSize * MaxSquareSize / 2 * NumConcurrentSquares
 // NumConcurrentSquares limits the amount of squares that are fetched
 // concurrently/simultaneously.
 var NumConcurrentSquares = 8
+
+// ErrNodeNotFound is used to signal when a nmt Node could not be found.
+var ErrNodeNotFound = errors.New("nmt node not found")
 
 // Global worker pool that globally controls and limits goroutines spawned by
 // GetShares.
