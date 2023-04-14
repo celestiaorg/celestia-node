@@ -56,7 +56,7 @@ func TestExchange_RequestEDS(t *testing.T) {
 		}()
 
 		requestedEDS, err := client.RequestEDS(ctx, dah.Hash(), server.host.ID())
-		assert.ErrorIs(t, err, p2p.ErrUnavailable)
+		assert.ErrorIs(t, err, p2p.ErrNotFound)
 		assert.Nil(t, requestedEDS)
 
 		time.Sleep(storageDelay * 2)
