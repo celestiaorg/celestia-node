@@ -50,6 +50,8 @@ func host(params hostParams) (HostBase, error) {
 
 	if params.Registry != nil {
 		opts = append(opts, libp2p.PrometheusRegisterer(params.Registry))
+	} else {
+		opts = append(opts, libp2p.DisableMetrics())
 	}
 
 	// All node types except light (bridge, full) will enable NATService
