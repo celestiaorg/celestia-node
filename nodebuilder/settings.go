@@ -90,14 +90,6 @@ func WithMetrics(metricOpts []otlpmetrichttp.Option, nodeType node.Type) fx.Opti
 	return opts
 }
 
-// WithP2PMetrics option enables native libp2p metrisc for node
-func WithP2PMetrics() fx.Option {
-	return fx.Options(
-		fx.Decorate(p2p.WithMonitoredResourceManager),
-		fx.Invoke(p2p.WithMetrics),
-	)
-}
-
 // initializeMetrics initializes the global meter provider.
 func initializeMetrics(
 	ctx context.Context,
