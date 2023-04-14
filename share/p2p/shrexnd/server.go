@@ -111,6 +111,10 @@ func (srv *Server) handleNamespacedData(ctx context.Context, stream network.Stre
 	}
 
 	shares, err := srv.getter.GetSharesByNamespace(ctx, dah, req.NamespaceId)
+	if errors.Is(err, share.ErrNotFound) {
+		srv.respondNotFoundError(stream)
+		return
+	}
 	if err != nil {
 		log.Errorw("server: retrieving shares", "err", err)
 		srv.respondInternalError(stream)

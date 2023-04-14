@@ -68,7 +68,7 @@ func (c *Client) RequestND(
 			return nil, context.DeadlineExceeded
 		}
 	}
-	if err != p2p.ErrUnavailable {
+	if err != p2p.ErrNotFound {
 		log.Debugw("client-nd: peer returned err", "peer", peer, "err", err)
 	}
 	return nil, err
@@ -109,7 +109,7 @@ func (c *Client) doRequest(
 	if err != nil {
 		// server is overloaded and closed the stream
 		if errors.Is(err, io.EOF) {
-			return nil, p2p.ErrUnavailable
+			return nil, p2p.ErrNotFound
 		}
 		stream.Reset() //nolint:errcheck
 		return nil, fmt.Errorf("client-nd: reading response: %w", err)
@@ -188,7 +188,7 @@ func statusToErr(code pb.StatusCode) error {
 	case pb.StatusCode_OK:
 		return nil
 	case pb.StatusCode_NOT_FOUND:
-		return p2p.ErrUnavailable
+		return p2p.ErrNotFound
 	case pb.StatusCode_INTERNAL, pb.StatusCode_INVALID:
 		fallthrough
 	default:
