@@ -69,7 +69,7 @@ func (c *Client) RequestND(
 		}
 	}
 	if err != p2p.ErrNotFound {
-		log.Debugw("client-nd: peer returned err", "peer", peer, "err", err)
+		log.Warnw("client-nd: peer returned err", "peer", peer, "err", err)
 	}
 	return nil, err
 }
@@ -101,7 +101,7 @@ func (c *Client) doRequest(
 
 	err = stream.CloseWrite()
 	if err != nil {
-		log.Debugf("client-nd: closing write side of the stream: %s", err)
+		log.Debugw("client-nd: closing write side of the stream", "err", err)
 	}
 
 	var resp pb.GetSharesByNamespaceResponse
@@ -161,7 +161,7 @@ func (c *Client) setStreamDeadlines(ctx context.Context, stream network.Stream) 
 	if ok {
 		err := stream.SetDeadline(deadline)
 		if err != nil {
-			log.Debugf("client-nd: set write deadline: %s", err)
+			log.Debugw("client-nd: set write deadline", "err", err)
 		}
 		return
 	}
@@ -170,7 +170,7 @@ func (c *Client) setStreamDeadlines(ctx context.Context, stream network.Stream) 
 	if c.params.ServerWriteTimeout != 0 {
 		err := stream.SetReadDeadline(time.Now().Add(c.params.ServerWriteTimeout))
 		if err != nil {
-			log.Debugf("client-nd: set read deadline: %s", err)
+			log.Debugw("client-nd: set read deadline", "err", err)
 		}
 	}
 
@@ -178,7 +178,7 @@ func (c *Client) setStreamDeadlines(ctx context.Context, stream network.Stream) 
 	if c.params.ServerReadTimeout != 0 {
 		err := stream.SetWriteDeadline(time.Now().Add(c.params.ServerReadTimeout))
 		if err != nil {
-			log.Debugf("client-nd: set write deadline: %s", err)
+			log.Debugw("client-nd: set write deadline", "err", err)
 		}
 	}
 }
@@ -189,10 +189,12 @@ func statusToErr(code pb.StatusCode) error {
 		return nil
 	case pb.StatusCode_NOT_FOUND:
 		return p2p.ErrNotFound
-	case pb.StatusCode_INTERNAL, pb.StatusCode_INVALID:
+	case pb.StatusCode_INVALID:
+		log.Debug("client-nd: invalid request")
+		fallthrough
+	case pb.StatusCode_INTERNAL:
 		fallthrough
 	default:
-		log.Errorf("client-nd: request status %s returned", code.String())
 		return p2p.ErrInvalidResponse
 	}
 }
