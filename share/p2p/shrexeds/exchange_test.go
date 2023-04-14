@@ -92,7 +92,7 @@ func TestExchange_RequestEDS(t *testing.T) {
 		eds := share.RandEDS(t, 4)
 		dah := da.NewDataAvailabilityHeader(eds)
 		_, err := client.RequestEDS(timeoutCtx, dah.Hash(), server.host.ID())
-		require.ErrorIs(t, err, p2p.ErrUnavailable)
+		require.ErrorIs(t, err, p2p.ErrNotFound)
 	})
 
 	// Testcase: Concurrency limit reached
@@ -133,7 +133,7 @@ func TestExchange_RequestEDS(t *testing.T) {
 		// wait until all server slots are taken
 		wg.Wait()
 		_, err = client.RequestEDS(ctx, nil, server.host.ID())
-		require.ErrorIs(t, err, p2p.ErrUnavailable)
+		require.ErrorIs(t, err, p2p.ErrNotFound)
 	})
 }
 

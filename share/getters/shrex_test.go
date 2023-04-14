@@ -50,19 +50,19 @@ func TestShrexGetter(t *testing.T) {
 
 	// create shrex Getter
 	sub := new(headertest.Subscriber)
-	peermanager, err := testManager(ctx, clHost, sub)
+	peerManager, err := testManager(ctx, clHost, sub)
 	require.NoError(t, err)
-	getter := NewShrexGetter(edsClient, ndClient, peermanager)
+	getter := NewShrexGetter(edsClient, ndClient, peerManager)
 	require.NoError(t, getter.Start(ctx))
 
 	t.Run("ND_Available", func(t *testing.T) {
-		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+		ctx, cancel := context.WithTimeout(ctx, time.Second)
 		t.Cleanup(cancel)
 
 		// generate test data
 		eds, dah, nID := generateTestEDS(t)
 		require.NoError(t, edsStore.Put(ctx, dah.Hash(), eds))
-		peermanager.Validate(ctx, srvHost.ID(), shrexsub.Notification{
+		peerManager.Validate(ctx, srvHost.ID(), shrexsub.Notification{
 			DataHash: dah.Hash(),
 			Height:   1,
 		})
@@ -73,12 +73,12 @@ func TestShrexGetter(t *testing.T) {
 	})
 
 	t.Run("ND_err_not_found", func(t *testing.T) {
-		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+		ctx, cancel := context.WithTimeout(ctx, time.Second)
 		t.Cleanup(cancel)
 
 		// generate test data
 		_, dah, nID := generateTestEDS(t)
-		peermanager.Validate(ctx, srvHost.ID(), shrexsub.Notification{
+		peerManager.Validate(ctx, srvHost.ID(), shrexsub.Notification{
 			DataHash: dah.Hash(),
 			Height:   1,
 		})
@@ -88,13 +88,13 @@ func TestShrexGetter(t *testing.T) {
 	})
 
 	t.Run("EDS_Available", func(t *testing.T) {
-		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+		ctx, cancel := context.WithTimeout(ctx, time.Second)
 		t.Cleanup(cancel)
 
 		// generate test data
 		eds, dah, _ := generateTestEDS(t)
 		require.NoError(t, edsStore.Put(ctx, dah.Hash(), eds))
-		peermanager.Validate(ctx, srvHost.ID(), shrexsub.Notification{
+		peerManager.Validate(ctx, srvHost.ID(), shrexsub.Notification{
 			DataHash: dah.Hash(),
 			Height:   1,
 		})
@@ -105,12 +105,12 @@ func TestShrexGetter(t *testing.T) {
 	})
 
 	t.Run("EDS_err_not_found", func(t *testing.T) {
-		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+		ctx, cancel := context.WithTimeout(ctx, time.Second)
 		t.Cleanup(cancel)
 
 		// generate test data
 		_, dah, _ := generateTestEDS(t)
-		peermanager.Validate(ctx, srvHost.ID(), shrexsub.Notification{
+		peerManager.Validate(ctx, srvHost.ID(), shrexsub.Notification{
 			DataHash: dah.Hash(),
 			Height:   1,
 		})

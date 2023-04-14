@@ -23,26 +23,33 @@ import (
 )
 
 func TestExchange_RequestND_NotFound(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	t.Cleanup(cancel)
-
 	edsStore, client, server := makeExchange(t, notFoundGetter{})
+	require.NoError(t, edsStore.Start(ctx))
+	require.NoError(t, server.Start(ctx))
 
 	t.Run("CAR_not_exist", func(t *testing.T) {
+		ctx, cancel := context.WithTimeout(ctx, time.Second)
+		t.Cleanup(cancel)
+
 		root := share.Root{}
 		nID := make([]byte, 8)
 		_, err := client.RequestND(ctx, &root, nID, server.host.ID())
-		require.ErrorIs(t, err, p2p.ErrUnavailable)
+		require.ErrorIs(t, err, p2p.ErrNotFound)
 	})
 
 	t.Run("Getter_err_not_found", func(t *testing.T) {
+		ctx, cancel := context.WithTimeout(ctx, time.Second)
+		t.Cleanup(cancel)
+
 		eds := share.RandEDS(t, 4)
 		dah := da.NewDataAvailabilityHeader(eds)
 		require.NoError(t, edsStore.Put(ctx, dah.Hash(), eds))
 
 		randNID := dah.RowsRoots[(len(dah.RowsRoots)-1)/2][:8]
 		_, err := client.RequestND(ctx, &dah, randNID, server.host.ID())
-		require.ErrorIs(t, err, p2p.ErrUnavailable)
+		require.ErrorIs(t, err, p2p.ErrNotFound)
 	})
 }
 
@@ -89,7 +96,7 @@ func TestExchange_RequestND(t *testing.T) {
 		// wait until all server slots are taken
 		wg.Wait()
 		_, err = client.RequestND(ctx, nil, nil, server.host.ID())
-		require.ErrorIs(t, err, p2p.ErrUnavailable)
+		require.ErrorIs(t, err, p2p.ErrNotFound)
 	})
 }
 
