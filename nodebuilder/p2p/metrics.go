@@ -51,7 +51,7 @@ func prometheusMetrics(lifecycle fx.Lifecycle, registerer prometheus.Registerer)
 				}
 			}()
 
-			log.Info("Prometheus agent started on :%s/%s", promAgentPort, promAgentEndpoint)
+			log.Infof("Prometheus agent started on :%s/%s", promAgentPort, promAgentEndpoint)
 			return nil
 		},
 		OnStop: func(ctx context.Context) error {
