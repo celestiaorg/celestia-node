@@ -80,14 +80,14 @@ To periodically select the _"good peers"_ that we're connected to and store them
 
 We intend to use this internal logic to periodically select peers that are "good" and store them in the peer store mentioned in the storage section. To do this, we will "hook" into the internals of `peerTracker` and `libhead.Exchange` by defining new "event handlers" intended to handle the following events from `peerTracker`:
 
-1. `OnUpdatedPeers`: _This event is triggered on every garbage collection cycle from `peerTracker`. The list will have undergone changes from the other routines before this event is triggered._
+1. `OnPeersGC`: _This event is triggered on every garbage collection cycle from `peerTracker`. The list will have undergone changes from the other routines before this event is triggered._
 
 ```diff
 type peerTracker struct {
         // online until pruneDeadline, it will be removed and its score will be lost.
         disconnectedPeers map[peer.ID]*peerStat
  
-+       onUpdatedPeers func([]peer.AddrInfo)
++       onPeersGC func([]peer.AddrInfo)
 +
         ctx    context.Context
         cancel context.CancelFunc
@@ -96,7 +96,7 @@ type peerTracker struct {
 
 (_Code Snippet 1.a: Example of required changes to: go-header/p2p/peer_tracker.go_)
 
-as explained above, `OnUpdatedPeers` will be called whenever `peerTracker` updates its internal list of peers on its `gc` routine, which updates every 30 minutes (_value is configurable_):
+as explained above, `OnPeersGC` will be called whenever `peerTracker` updates its internal list of peers on its `gc` routine, which updates every 30 minutes (_value is configurable_):
 
 ```diff
 func (p *peerTracker) gc() {
@@ -118,7 +118,7 @@ func (p *peerTracker) gc() {
 +
         p.peerLk.Unlock()
 +
-+       p.onUpdatedPeers(updatedPeerList)
++       p.onPeersGC(updatedPeerList)
                 }
         }
  }
@@ -134,7 +134,7 @@ The `peerTracker`'s constructor should be updated to accept these new event hand
 func newPeerTracker(
         h host.Host,
         connGater *conngater.BasicConnectionGater,
-+       onUpdatedPeers func([]peer.ID),
++       onPeersGC func([]peer.ID),
  ) *peerTracker {
 ```
 
@@ -156,7 +156,7 @@ as well as the `libhead.Exchange`'s options and construction:
         // chainID is an identifier of the chain.
         chainID string
 +
-+       OnUpdatedPeers func([]peer.AddrInfo)
++       OnPeersGC func([]peer.AddrInfo)
 }
  ```
 
@@ -184,7 +184,7 @@ as well as the `libhead.Exchange`'s options and construction:
                 peerTracker: newPeerTracker(
                         host,
                         connGater,
-+                       params.OnUpdatedPeers
++                       params.OnPeersGC
                 ),
                 Params: params,
         }
@@ -214,7 +214,7 @@ Such callbacks are easily passable as options at header module construction time
         return []p2p.Option[p2p.ClientParameters]{
             ...
             p2p.WithChainID(network.String()),
-+           p2p.WithOnUpdatedPeers(func(peers []peer.ID) {
++           p2p.WithOnPeersGC(func(peers []peer.ID) {
 +               var topTen []peer.ID
 +               if len(peers) >= 10 {
 +                  topTen = peers[:9]
@@ -288,7 +288,7 @@ Taking inspiration from [this proposition](https://github.com/libp2p/go-libp2p-k
 * < 1 week ago
 * < 1 month ago.
 
-the "good enough peers" to select should be present in most recent buckets, and should be peers we've seen often. For example, if a peer has been connected to the node for 1 day, then it should figure up in the buckets: "< 1 hour" and , "< 1 day", hence making it a "good enough peer" to select for persistence.
+the "good enough peers" to select should be present in most recent buckets, and should be peers we've seen often. For example, if a peer has been connected to the node for 1 day, then it should show up in the buckets: "< 1 hour" and , "< 1 day", hence making it a "good enough peer" to select for persistence.
 
 The bucketing logic that triages peers into the mentioned buckets is executed periodically, with a new list of "good enough peers" being selected and persisted at that same time, and also at the moment of node shutdown.
 
