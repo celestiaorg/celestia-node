@@ -46,7 +46,6 @@ func TestExchange_RequestEDS(t *testing.T) {
 
 	// Testcase: EDS is unavailable initially, but is found after multiple requests
 	t.Run("EDS_AvailableAfterDelay", func(t *testing.T) {
-		t.Skip()
 		storageDelay := time.Second
 		eds := share.RandEDS(t, 4)
 		dah := da.NewDataAvailabilityHeader(eds)
@@ -56,33 +55,21 @@ func TestExchange_RequestEDS(t *testing.T) {
 			// require.NoError(t, err)
 		}()
 
-		now := time.Now()
 		requestedEDS, err := client.RequestEDS(ctx, dah.Hash(), server.host.ID())
-		finished := time.Now()
+		assert.ErrorIs(t, err, p2p.ErrUnavailable)
+		assert.Nil(t, requestedEDS)
 
-		assert.Greater(t, finished.Sub(now), storageDelay)
+		time.Sleep(storageDelay * 2)
+		requestedEDS, err = client.RequestEDS(ctx, dah.Hash(), server.host.ID())
 		assert.NoError(t, err)
 		assert.Equal(t, eds.Flattened(), requestedEDS.Flattened())
 	})
 
 	// Testcase: Invalid request excludes peer from round-robin, stopping request
 	t.Run("EDS_InvalidRequest", func(t *testing.T) {
-		t.Skip()
 		dataHash := []byte("invalid")
 		requestedEDS, err := client.RequestEDS(ctx, dataHash, server.host.ID())
-		assert.ErrorIs(t, err, p2p.ErrInvalidResponse)
-		assert.Nil(t, requestedEDS)
-	})
-
-	// Testcase: Valid request, which server cannot serve, waits forever
-	t.Run("EDS_ValidTimeout", func(t *testing.T) {
-		t.Skip()
-		timeoutCtx, cancel := context.WithTimeout(ctx, time.Second)
-		t.Cleanup(cancel)
-		eds := share.RandEDS(t, 4)
-		dah := da.NewDataAvailabilityHeader(eds)
-		requestedEDS, err := client.RequestEDS(timeoutCtx, dah.Hash(), server.host.ID())
-		assert.ErrorIs(t, err, timeoutCtx.Err())
+		assert.ErrorContains(t, err, "stream reset")
 		assert.Nil(t, requestedEDS)
 	})
 
