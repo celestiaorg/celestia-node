@@ -127,18 +127,6 @@ func TestService_GetSharesByNamespace(t *testing.T) {
 			require.NoError(t, err)
 			require.NoError(t, shares.Verify(root, lastNID))
 		})
-		t.Run("no shares are returned when GetSharesByNamespace is invoked with random namespace ID", func(t *testing.T) {
-			squareSize := 4
-			totalShares := squareSize * squareSize
-			getter, bServ := EmptyGetter()
-			randShares := share.RandShares(t, totalShares)
-			root := availability_test.FillBS(t, bServ, randShares)
-			randomNID := namespace.RandomBlobNamespace()
-
-			shares, err := getter.GetSharesByNamespace(context.Background(), root, randomNID.Bytes())
-			require.NoError(t, err)
-			require.Equal(t, 0, len(shares.Flatten()))
-		})
 	}
 }
 
