@@ -10,8 +10,8 @@ import (
 
 	gomock "github.com/golang/mock/gomock"
 
-	"github.com/celestiaorg/celestia-node/libs/fraud"
 	fraud0 "github.com/celestiaorg/celestia-node/nodebuilder/fraud"
+	"github.com/celestiaorg/go-fraud"
 )
 
 // MockModule is a mock of Module interface.

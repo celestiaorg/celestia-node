@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/filecoin-project/dagstore"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
 
@@ -48,22 +47,30 @@ func (sg *StoreGetter) GetShare(ctx context.Context, dah *share.Root, row, col i
 
 	root, leaf := ipld.Translate(dah, row, col)
 	bs, err := sg.store.CARBlockstore(ctx, dah.Hash())
+	if errors.Is(err, eds.ErrNotFound) {
+		// convert error to satisfy getter interface contract
+		err = share.ErrNotFound
+	}
 	if err != nil {
 		return nil, fmt.Errorf("getter/store: failed to retrieve blockstore: %w", err)
 	}
 
 	// wrap the read-only CAR blockstore in a getter
 	blockGetter := eds.NewBlockGetter(bs)
-	share, err := share.GetShare(ctx, blockGetter, root, leaf, len(dah.RowsRoots))
+	s, err := share.GetShare(ctx, blockGetter, root, leaf, len(dah.RowsRoots))
+	if errors.Is(err, ipld.ErrNodeNotFound) {
+		// convert error to satisfy getter interface contract
+		err = share.ErrNotFound
+	}
 	if err != nil {
 		return nil, fmt.Errorf("getter/store: failed to retrieve share: %w", err)
 	}
 
-	return share, nil
+	return s, nil
 }
 
 // GetEDS gets the EDS identified by the given root from the EDS store.
-func (sg *StoreGetter) GetEDS(ctx context.Context, root *share.Root) (eds *rsmt2d.ExtendedDataSquare, err error) {
+func (sg *StoreGetter) GetEDS(ctx context.Context, root *share.Root) (data *rsmt2d.ExtendedDataSquare, err error) {
 	ctx, span := tracer.Start(ctx, "store/get-eds", trace.WithAttributes(
 		attribute.String("root", root.String()),
 	))
@@ -71,14 +78,15 @@ func (sg *StoreGetter) GetEDS(ctx context.Context, root *share.Root) (eds *rsmt2
 		utils.SetStatusAndEnd(span, err)
 	}()
 
-	eds, err = sg.store.Get(ctx, root.Hash())
-	if errors.Is(err, dagstore.ErrShardUnknown) {
-		return nil, fmt.Errorf("getter/store: eds not found")
+	data, err = sg.store.Get(ctx, root.Hash())
+	if errors.Is(err, eds.ErrNotFound) {
+		// convert error to satisfy getter interface contract
+		err = share.ErrNotFound
 	}
 	if err != nil {
 		return nil, fmt.Errorf("getter/store: failed to retrieve eds: %w", err)
 	}
-	return eds, nil
+	return data, nil
 }
 
 // GetSharesByNamespace gets all EDS shares in the given namespace from the EDS store through the
@@ -102,6 +110,10 @@ func (sg *StoreGetter) GetSharesByNamespace(
 	}
 
 	bs, err := sg.store.CARBlockstore(ctx, root.Hash())
+	if errors.Is(err, eds.ErrNotFound) {
+		// convert error to satisfy getter interface contract
+		err = share.ErrNotFound
+	}
 	if err != nil {
 		return nil, fmt.Errorf("getter/store: failed to retrieve blockstore: %w", err)
 	}
@@ -109,6 +121,10 @@ func (sg *StoreGetter) GetSharesByNamespace(
 	// wrap the read-only CAR blockstore in a getter
 	blockGetter := eds.NewBlockGetter(bs)
 	shares, err = collectSharesByNamespace(ctx, blockGetter, root, nID)
+	if errors.Is(err, ipld.ErrNodeNotFound) {
+		// convert error to satisfy getter interface contract
+		err = share.ErrNotFound
+	}
 	if err != nil {
 		return nil, fmt.Errorf("getter/store: failed to retrieve shares by namespace: %w", err)
 	}

@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 
-	"github.com/celestiaorg/celestia-node/libs/fraud"
+	"github.com/celestiaorg/go-fraud"
 )
 
 var _ Module = (*Service)(nil)

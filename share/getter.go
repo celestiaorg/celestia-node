@@ -2,6 +2,7 @@ package share
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/minio/sha256-simd"
@@ -10,6 +11,9 @@ import (
 	"github.com/celestiaorg/nmt/namespace"
 	"github.com/celestiaorg/rsmt2d"
 )
+
+// ErrNotFound is used to indicated that requested data could not be found.
+var ErrNotFound = errors.New("data not found")
 
 // Getter interface provides a set of accessors for shares by the Root.
 // Automatically verifies integrity of shares(exceptions possible depending on the implementation).
