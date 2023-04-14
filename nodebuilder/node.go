@@ -18,6 +18,7 @@ import (
 
 	"github.com/celestiaorg/celestia-node/api/gateway"
 	"github.com/celestiaorg/celestia-node/api/rpc"
+	"github.com/celestiaorg/celestia-node/nodebuilder/blob"
 	"github.com/celestiaorg/celestia-node/nodebuilder/das"
 	"github.com/celestiaorg/celestia-node/nodebuilder/fraud"
 	"github.com/celestiaorg/celestia-node/nodebuilder/header"
@@ -63,6 +64,7 @@ type Node struct {
 	StateServ  state.Module  // not optional
 	FraudServ  fraud.Module  // not optional
 	DASer      das.Module    // not optional
+	BlobServ   blob.Module   // not optional
 
 	// start and stop control ref internal fx.App lifecycle funcs to be called from Start and Stop
 	start, stop lifecycleFunc
