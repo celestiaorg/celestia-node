@@ -60,7 +60,7 @@ func (c *Client) RequestEDS(
 			return nil, context.DeadlineExceeded
 		}
 	}
-	if err != p2p.ErrUnavailable {
+	if err != p2p.ErrNotFound {
 		log.Debugw("client: eds request to peer failed", "peer", peer, "hash", dataHash.String())
 	}
 
@@ -104,7 +104,7 @@ func (c *Client) doRequest(
 	if err != nil {
 		// server is overloaded and closed the stream
 		if errors.Is(err, io.EOF) {
-			return nil, p2p.ErrUnavailable
+			return nil, p2p.ErrNotFound
 		}
 		stream.Reset() //nolint:errcheck
 		return nil, fmt.Errorf("failed to read status from stream: %w", err)
@@ -120,8 +120,8 @@ func (c *Client) doRequest(
 		return eds, nil
 	case pb.Status_NOT_FOUND:
 		log.Debugf("client: peer %s couldn't serve eds %s with status %s", to.String(), dataHash.String(), resp.GetStatus())
-		return nil, p2p.ErrUnavailable
-	case pb.Status_INVALID:
+		return nil, p2p.ErrNotFound
+	case pb.Status_INVALID, pb.Status_INTERNAL:
 		fallthrough
 	default:
 		log.Errorf("request status %s returned for root %s", resp.Status.String(), dataHash.String())

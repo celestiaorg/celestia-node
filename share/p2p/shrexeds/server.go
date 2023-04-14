@@ -2,6 +2,7 @@ package shrexeds
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"time"
@@ -78,13 +79,18 @@ func (s *Server) handleStream(stream network.Stream) {
 
 	ctx, cancel := context.WithTimeout(s.ctx, s.params.HandleRequestTimeout)
 	defer cancel()
-	status := p2p_pb.Status_OK
+
 	// determine whether the EDS is available in our store
 	// we do not close the reader, so that other requests will not need to re-open the file.
 	// closing is handled by the LRU cache.
 	edsReader, err := s.store.GetCAR(ctx, hash)
-	if err != nil {
+	status := p2p_pb.Status_OK
+	switch {
+	case errors.Is(err, eds.ErrNotFound):
 		status = p2p_pb.Status_NOT_FOUND
+	case err != nil:
+		log.Debugw("server: get car", "err", err)
+		status = p2p_pb.Status_INTERNAL
 	}
 
 	// inform the client of our status
