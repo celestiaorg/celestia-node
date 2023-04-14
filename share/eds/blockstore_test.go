@@ -6,9 +6,12 @@ import (
 	"testing"
 
 	"github.com/filecoin-project/dagstore"
+	ipld "github.com/ipfs/go-ipld-format"
 	"github.com/ipld/go-car"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	ipld2 "github.com/celestiaorg/celestia-node/share/ipld"
 )
 
 // TestBlockstore_Operations tests Has, Get, and GetSize on the top level eds.Store blockstore.
@@ -48,6 +51,7 @@ func TestBlockstore_Operations(t *testing.T) {
 			break
 		}
 		blockCid := next.Cid()
+		randomCid := ipld2.RandNamespacedCID(t)
 
 		for _, bs := range blockstores {
 			// test GetSize
@@ -60,6 +64,10 @@ func TestBlockstore_Operations(t *testing.T) {
 			assert.NoError(t, err, "blockstore.Get could not get a leaf CID")
 			assert.Equal(t, block.Cid(), blockCid)
 			assert.Equal(t, block.RawData(), next.RawData())
+
+			// test Get (cid not found)
+			_, err = bs.Get(ctx, randomCid)
+			require.ErrorAs(t, err, &ipld.ErrNotFound{Cid: randomCid})
 
 			// test GetSize
 			size, err := bs.GetSize(ctx, blockCid)
