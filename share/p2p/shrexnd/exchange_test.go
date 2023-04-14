@@ -32,7 +32,7 @@ func TestExchange_RequestND_NotFound(t *testing.T) {
 		root := share.Root{}
 		nID := make([]byte, 8)
 		_, err := client.RequestND(ctx, &root, nID, server.host.ID())
-		require.ErrorIs(t, err, p2p.ErrUnavailable)
+		require.ErrorIs(t, err, p2p.ErrNotFound)
 	})
 
 	t.Run("Getter_err_not_found", func(t *testing.T) {
@@ -42,7 +42,7 @@ func TestExchange_RequestND_NotFound(t *testing.T) {
 
 		randNID := dah.RowsRoots[(len(dah.RowsRoots)-1)/2][:8]
 		_, err := client.RequestND(ctx, &dah, randNID, server.host.ID())
-		require.ErrorIs(t, err, p2p.ErrUnavailable)
+		require.ErrorIs(t, err, p2p.ErrNotFound)
 	})
 }
 
@@ -89,7 +89,7 @@ func TestExchange_RequestND(t *testing.T) {
 		// wait until all server slots are taken
 		wg.Wait()
 		_, err = client.RequestND(ctx, nil, nil, server.host.ID())
-		require.ErrorIs(t, err, p2p.ErrUnavailable)
+		require.ErrorIs(t, err, p2p.ErrNotFound)
 	})
 }
 
