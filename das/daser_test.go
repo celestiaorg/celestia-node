@@ -16,11 +16,13 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/tendermint/tendermint/types"
 
+	"github.com/celestiaorg/go-fraud"
+	"github.com/celestiaorg/go-fraud/fraudserv"
+	"github.com/celestiaorg/go-fraud/fraudtest"
 	libhead "github.com/celestiaorg/go-header"
 
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/header/headertest"
-	"github.com/celestiaorg/celestia-node/libs/fraud"
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/availability/full"
 	"github.com/celestiaorg/celestia-node/share/availability/light"
@@ -160,7 +162,7 @@ func TestDASer_stopsAfter_BEFP(t *testing.T) {
 	getter := func(ctx context.Context, height uint64) (libhead.Header, error) {
 		return mockGet.GetByHeight(ctx, height)
 	}
-	f := fraud.NewProofService(ps, net.Hosts()[0], getter, ds, false, "private")
+	f := fraudserv.NewProofService(ps, net.Hosts()[0], getter, ds, false, "private")
 	require.NoError(t, f.Start(ctx))
 	mockGet.headers[1], _ = headertest.CreateFraudExtHeader(t, mockGet.headers[1], bServ)
 	newCtx := context.Background()
@@ -207,8 +209,8 @@ func TestDASerSampleTimeout(t *testing.T) {
 		})
 
 	ds := ds_sync.MutexWrap(datastore.NewMapDatastore())
-	sub := new(headertest.DummySubscriber)
-	f := new(fraud.DummyService)
+	sub := new(headertest.Subscriber)
+	f := new(fraudtest.DummyService)
 
 	// create and start DASer
 	daser, err := NewDASer(avail, sub, getter, ds, f, newBroadcastMock(1), WithSampleTimeout(1))
@@ -233,9 +235,9 @@ func createDASerSubcomponents(
 	bServ blockservice.BlockService,
 	numGetter,
 	numSub int,
-) (*mockGetter, *headertest.DummySubscriber, *fraud.DummyService) {
+) (*mockGetter, *headertest.Subscriber, *fraudtest.DummyService) {
 	mockGet, sub := createMockGetterAndSub(t, bServ, numGetter, numSub)
-	fraud := new(fraud.DummyService)
+	fraud := new(fraudtest.DummyService)
 	return mockGet, sub, fraud
 }
 
@@ -244,7 +246,7 @@ func createMockGetterAndSub(
 	bServ blockservice.BlockService,
 	numGetter,
 	numSub int,
-) (*mockGetter, *headertest.DummySubscriber) {
+) (*mockGetter, *headertest.Subscriber) {
 	mockGet := &mockGetter{
 		headers:        make(map[int64]*header.ExtendedHeader),
 		doneCh:         make(chan struct{}),
@@ -253,16 +255,15 @@ func createMockGetterAndSub(
 
 	mockGet.generateHeaders(t, bServ, 0, numGetter)
 
-	sub := new(headertest.DummySubscriber)
+	sub := new(headertest.Subscriber)
 	mockGet.fillSubWithHeaders(t, sub, bServ, numGetter, numGetter+numSub)
-
 	return mockGet, sub
 }
 
 // fillSubWithHeaders generates `num` headers from the future for p2pSub to pipe through to DASer.
 func (m *mockGetter) fillSubWithHeaders(
 	t *testing.T,
-	sub *headertest.DummySubscriber,
+	sub *headertest.Subscriber,
 	bServ blockservice.BlockService,
 	startHeight,
 	endHeight int,

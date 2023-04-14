@@ -235,7 +235,7 @@ func ParseMiscFlags(ctx context.Context, cmd *cobra.Command) (context.Context, e
 				tp,
 				otelpyroscope.WithAppName("celestia.da-node"),
 				otelpyroscope.WithPyroscopeURL(cmd.Flag(pyroscopeEndpoint).Value.String()),
-				otelpyroscope.WithRootSpanOnly(false),
+				otelpyroscope.WithRootSpanOnly(true),
 				otelpyroscope.WithAddSpanName(true),
 				otelpyroscope.WithProfileURL(true),
 				otelpyroscope.WithProfileBaselineURL(true),

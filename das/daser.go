@@ -9,10 +9,10 @@ import (
 	"github.com/ipfs/go-datastore"
 	logging "github.com/ipfs/go-log/v2"
 
+	"github.com/celestiaorg/go-fraud"
 	libhead "github.com/celestiaorg/go-header"
 
 	"github.com/celestiaorg/celestia-node/header"
-	"github.com/celestiaorg/celestia-node/libs/fraud"
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/eds/byzantine"
 	"github.com/celestiaorg/celestia-node/share/p2p/shrexsub"

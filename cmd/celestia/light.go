@@ -35,6 +35,7 @@ func init() {
 		cmdnode.Init(flags...),
 		cmdnode.Start(flags...),
 		cmdnode.AuthCmd(flags...),
+		cmdnode.ResetStore(flags...),
 	)
 }
 
