@@ -3,6 +3,7 @@ package header
 import (
 	"encoding/hex"
 	"fmt"
+	"time"
 
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/multiformats/go-multiaddr"
@@ -47,6 +48,7 @@ func DefaultConfig(tp node.Type) Config {
 		return cfg
 	case node.Light, node.Full:
 		cfg.Client = p2p_exchange.DefaultClientParameters()
+		cfg.Client.TrustedPeersRequestTimeout = time.Second * 5
 		return cfg
 	default:
 		panic("header: invalid node type")
