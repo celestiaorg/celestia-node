@@ -2,7 +2,6 @@ package eds
 
 import (
 	"context"
-	"crypto/rand"
 	"errors"
 	mrand "math/rand"
 	"sort"
@@ -18,7 +17,7 @@ import (
 
 func TestBlockGetter_GetBlocks(t *testing.T) {
 	t.Run("happy path", func(t *testing.T) {
-		cids := randCIDs(32)
+		cids := randCIDs(t, 32)
 		// sort cids in asc order
 		sort.Slice(cids, func(i, j int) bool {
 			return cids[i].String() < cids[j].String()
@@ -45,7 +44,7 @@ func TestBlockGetter_GetBlocks(t *testing.T) {
 		}
 	})
 	t.Run("retrieval error", func(t *testing.T) {
-		cids := randCIDs(32)
+		cids := randCIDs(t, 32)
 
 		// split cids into failed and succeeded
 		failedLen := mrand.Intn(len(cids)-1) + 1
@@ -85,7 +84,7 @@ func TestBlockGetter_GetBlocks(t *testing.T) {
 		}
 	})
 	t.Run("retrieval timeout", func(t *testing.T) {
-		cids := randCIDs(128)
+		cids := randCIDs(t, 128)
 
 		bg := &BlockGetter{
 			store: rbsMock{},
@@ -140,16 +139,10 @@ func (r rbsMock) HashOnRead(bool) {
 	panic("implement me")
 }
 
-func randCID() cid.Cid {
-	hash := make([]byte, ipld.NmtHashSize)
-	_, _ = rand.Read(hash)
-	return ipld.MustCidFromNamespacedSha256(hash)
-}
-
-func randCIDs(n int) []cid.Cid {
+func randCIDs(t *testing.T, n int) []cid.Cid {
 	cids := make([]cid.Cid, n)
 	for i := range cids {
-		cids[i] = randCID()
+		cids[i] = ipld.RandNamespacedCID(t)
 	}
 	return cids
 }

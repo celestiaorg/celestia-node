@@ -7,6 +7,7 @@ import (
 
 	"github.com/filecoin-project/dagstore"
 	"github.com/ipfs/go-cid"
+	"github.com/ipfs/go-datastore"
 	bstore "github.com/ipfs/go-ipfs-blockstore"
 	ipld "github.com/ipfs/go-ipld-format"
 	blocks "github.com/ipfs/go-libipfs/blocks"
@@ -16,7 +17,6 @@ var _ bstore.Blockstore = (*blockstore)(nil)
 
 var (
 	errUnsupportedOperation = errors.New("unsupported operation")
-	errShardNotFound        = errors.New("the provided cid does not map to any shard")
 )
 
 // blockstore implements the store.Blockstore interface on an EDSStore.
@@ -41,6 +41,9 @@ func newBlockstore(store *Store, cache *blockstoreCache) *blockstore {
 
 func (bs *blockstore) Has(ctx context.Context, cid cid.Cid) (bool, error) {
 	keys, err := bs.store.dgstr.ShardsContainingMultihash(ctx, cid.Hash())
+	if errors.Is(err, ErrNotFound) {
+		return false, nil
+	}
 	if err != nil {
 		return false, fmt.Errorf("failed to find shards containing multihash: %w", err)
 	}
@@ -49,16 +52,23 @@ func (bs *blockstore) Has(ctx context.Context, cid cid.Cid) (bool, error) {
 
 func (bs *blockstore) Get(ctx context.Context, cid cid.Cid) (blocks.Block, error) {
 	blockstr, err := bs.getReadOnlyBlockstore(ctx, cid)
-	if err != nil {
-		log.Debugf("failed to get blockstore for cid %s: %s", cid, err)
+	if errors.Is(err, ErrNotFound) {
 		// nmt's GetNode expects an ipld.ErrNotFound when a cid is not found.
 		return nil, ipld.ErrNotFound{Cid: cid}
+	}
+	if err != nil {
+		log.Debugf("failed to get blockstore for cid %s: %s", cid, err)
+		return nil, err
 	}
 	return blockstr.Get(ctx, cid)
 }
 
 func (bs *blockstore) GetSize(ctx context.Context, cid cid.Cid) (int, error) {
 	blockstr, err := bs.getReadOnlyBlockstore(ctx, cid)
+	if errors.Is(err, ErrNotFound) {
+		// nmt's GetSize expects an ipld.ErrNotFound when a cid is not found.
+		return 0, ipld.ErrNotFound{Cid: cid}
+	}
 	if err != nil {
 		return 0, err
 	}
@@ -102,11 +112,11 @@ func (bs *blockstore) HashOnRead(bool) {
 // getReadOnlyBlockstore finds the underlying blockstore of the shard that contains the given CID.
 func (bs *blockstore) getReadOnlyBlockstore(ctx context.Context, cid cid.Cid) (dagstore.ReadBlockstore, error) {
 	keys, err := bs.store.dgstr.ShardsContainingMultihash(ctx, cid.Hash())
+	if errors.Is(err, datastore.ErrNotFound) {
+		return nil, ErrNotFound
+	}
 	if err != nil {
 		return nil, fmt.Errorf("failed to find shards containing multihash: %w", err)
-	}
-	if len(keys) == 0 {
-		return nil, errShardNotFound
 	}
 
 	// a share can exist in multiple EDSes, so just take the first one.
