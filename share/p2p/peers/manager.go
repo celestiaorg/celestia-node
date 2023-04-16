@@ -43,7 +43,7 @@ type Manager struct {
 	lock   sync.Mutex
 	params Parameters
 
-	// header subscription is necessary in order to validate the inbound eds hash
+	// header subscription is necessary in order to Validate the inbound eds hash
 	headerSub libhead.Subscriber[*header.ExtendedHeader]
 	shrexSub  *shrexsub.PubSub
 	host      host.Host
@@ -134,7 +134,7 @@ func (m *Manager) Start(startCtx context.Context) error {
 	ctx, cancel := context.WithCancel(context.Background())
 	m.cancel = cancel
 
-	err := m.shrexSub.AddValidator(m.validate)
+	err := m.shrexSub.AddValidator(m.Validate)
 	if err != nil {
 		return fmt.Errorf("registering validator: %w", err)
 	}
@@ -256,8 +256,8 @@ func (m *Manager) subscribeHeader(ctx context.Context, headerSub libhead.Subscri
 	}
 }
 
-// validate will collect peer.ID into corresponding peer pool
-func (m *Manager) validate(_ context.Context, peerID peer.ID, msg shrexsub.Notification) pubsub.ValidationResult {
+// Validate will collect peer.ID into corresponding peer pool
+func (m *Manager) Validate(_ context.Context, peerID peer.ID, msg shrexsub.Notification) pubsub.ValidationResult {
 
 	// messages broadcast from self should bypass the validation with Accept
 	if peerID == m.host.ID() {

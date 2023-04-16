@@ -71,7 +71,8 @@ func Init(cfg Config, path string, tp node.Type) error {
 	return nil
 }
 
-// Reset removes all data from the datastore and dagstore directories. It leaves the keystore and config intact.
+// Reset removes all data from the datastore and dagstore directories. It leaves the keystore and
+// config intact.
 func Reset(path string, tp node.Type) error {
 	path, err := storePath(path)
 	if err != nil {

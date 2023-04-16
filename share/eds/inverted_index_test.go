@@ -24,7 +24,8 @@ func (m *mockIterator) ForEach(f func(mh multihash.Multihash) error) error {
 	return nil
 }
 
-// TestMultihashesForShard ensures that the inverted index correctly stores a single shard key per duplicate multihash
+// TestMultihashesForShard ensures that the inverted index correctly stores a single shard key per
+// duplicate multihash
 func TestMultihashesForShard(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
