@@ -191,7 +191,8 @@ func blocksPath(base string) string {
 }
 
 func transientsPath(base string) string {
-	// we don't actually use the transients directory anymore, but it could be populated from previous versions.
+	// we don't actually use the transients directory anymore, but it could be populated from previous
+	// versions.
 	return filepath.Join(base, "transients")
 }
 
