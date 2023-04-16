@@ -70,15 +70,17 @@ func (srv *Server) Stop(context.Context) error {
 }
 
 func (srv *Server) handleNamespacedData(ctx context.Context, stream network.Stream) {
+	log.Debug("server: handling nd request")
+
 	err := stream.SetReadDeadline(time.Now().Add(srv.params.ServerReadTimeout))
 	if err != nil {
-		log.Debugf("server: setting read deadline: %s", err)
+		log.Debugw("server: setting read deadline", "err", err)
 	}
 
 	var req pb.GetSharesByNamespaceRequest
 	_, err = serde.Read(stream, &req)
 	if err != nil {
-		log.Errorw("server: reading request", "err", err)
+		log.Warnw("server: reading request", "err", err)
 		stream.Reset() //nolint:errcheck
 		return
 	}
@@ -86,12 +88,12 @@ func (srv *Server) handleNamespacedData(ctx context.Context, stream network.Stre
 
 	err = stream.CloseRead()
 	if err != nil {
-		log.Debugf("server: closing read side of the stream: %s", err)
+		log.Debugw("server: closing read side of the stream", "err", err)
 	}
 
 	err = validateRequest(req)
 	if err != nil {
-		log.Errorw("server: invalid request", "err", err)
+		log.Debugw("server: invalid request", "err", err)
 		stream.Reset() //nolint:errcheck
 		return
 	}
@@ -111,6 +113,10 @@ func (srv *Server) handleNamespacedData(ctx context.Context, stream network.Stre
 	}
 
 	shares, err := srv.getter.GetSharesByNamespace(ctx, dah, req.NamespaceId)
+	if errors.Is(err, share.ErrNotFound) {
+		srv.respondNotFoundError(stream)
+		return
+	}
 	if err != nil {
 		log.Errorw("server: retrieving shares", "err", err)
 		srv.respondInternalError(stream)
@@ -119,7 +125,6 @@ func (srv *Server) handleNamespacedData(ctx context.Context, stream network.Stre
 
 	resp := namespacedSharesToResponse(shares)
 	srv.respond(stream, resp)
-	log.Debugw("server: handled request", "namespaceId", string(req.NamespaceId), "roothash", string(req.RootHash))
 }
 
 // validateRequest checks correctness of the request
@@ -177,17 +182,17 @@ func namespacedSharesToResponse(shares share.NamespacedShares) *pb.GetSharesByNa
 func (srv *Server) respond(stream network.Stream, resp *pb.GetSharesByNamespaceResponse) {
 	err := stream.SetWriteDeadline(time.Now().Add(srv.params.ServerWriteTimeout))
 	if err != nil {
-		log.Debugf("server: seting write deadline: %s", err)
+		log.Debugw("server: seting write deadline", "err", err)
 	}
 
 	_, err = serde.Write(stream, resp)
 	if err != nil {
-		log.Errorf("server: writing response: %s", err.Error())
+		log.Warnw("server: writing response", "err", err)
 		stream.Reset() //nolint:errcheck
 		return
 	}
 
 	if err = stream.Close(); err != nil {
-		log.Errorf("server: closing stream: %s", err.Error())
+		log.Debugw("server: closing stream", "err", err)
 	}
 }

@@ -16,6 +16,7 @@ import (
 	"github.com/libp2p/go-libp2p/core/routing"
 	routedhost "github.com/libp2p/go-libp2p/p2p/host/routed"
 	"github.com/libp2p/go-libp2p/p2p/net/conngater"
+	"github.com/prometheus/client_golang/prometheus"
 	"go.uber.org/fx"
 
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
@@ -45,6 +46,10 @@ func host(params hostParams) (HostBase, error) {
 		libp2p.DefaultSecurity,
 		libp2p.DefaultTransports,
 		libp2p.DefaultMuxers,
+	}
+
+	if params.Registry != nil {
+		opts = append(opts, libp2p.PrometheusRegisterer(params.Registry))
 	}
 
 	// All node types except light (bridge, full) will enable NATService
@@ -79,6 +84,7 @@ type hostParams struct {
 	ConnGater       *conngater.BasicConnectionGater
 	Bandwidth       *metrics.BandwidthCounter
 	ResourceManager network.ResourceManager
+	Registry        prometheus.Registerer `optional:"true"`
 
 	Tp node.Type
 }

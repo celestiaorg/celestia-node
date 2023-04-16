@@ -77,9 +77,9 @@ func init() {
 func GetNode(ctx context.Context, bGetter blockservice.BlockGetter, root cid.Cid) (ipld.Node, error) {
 	block, err := bGetter.GetBlock(ctx, root)
 	if err != nil {
-		var errNotFound *ipld.ErrNotFound
+		var errNotFound ipld.ErrNotFound
 		if errors.As(err, &errNotFound) {
-			return nil, errNotFound
+			return nil, ErrNodeNotFound
 		}
 		return nil, err
 	}
