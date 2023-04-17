@@ -7,6 +7,7 @@ import (
 	"github.com/BurntSushi/toml"
 	"github.com/imdario/mergo"
 
+	"github.com/celestiaorg/celestia-node/libs/fslock"
 	"github.com/celestiaorg/celestia-node/nodebuilder/core"
 	"github.com/celestiaorg/celestia-node/nodebuilder/das"
 	"github.com/celestiaorg/celestia-node/nodebuilder/gateway"
@@ -82,8 +83,22 @@ func LoadConfig(path string) (*Config, error) {
 }
 
 // RemoveConfig removes the Config from the given store path.
-func RemoveConfig(storePath string) error {
-	return removeConfig(configPath(storePath))
+func RemoveConfig(path string) (err error) {
+	path, err = storePath(path)
+	if err != nil {
+		return
+	}
+
+	flock, err := fslock.Lock(lockPath(path))
+	if err != nil {
+		if err == fslock.ErrLocked {
+			err = ErrOpened
+		}
+		return
+	}
+	defer flock.Unlock() //nolint: errcheck
+
+	return removeConfig(configPath(path))
 }
 
 // removeConfig removes Config from the given 'path'.
@@ -94,24 +109,38 @@ func removeConfig(path string) error {
 // UpdateConfig loads the node's config and applies new values
 // from the default config of the given node type, saving the
 // newly updated config into the node's config path.
-func UpdateConfig(tp node.Type, storePath string) error {
+func UpdateConfig(tp node.Type, path string) (err error) {
+	path, err = storePath(path)
+	if err != nil {
+		return
+	}
+
+	flock, err := fslock.Lock(lockPath(path))
+	if err != nil {
+		if err == fslock.ErrLocked {
+			err = ErrOpened
+		}
+		return
+	}
+	defer flock.Unlock() //nolint: errcheck
+
 	newCfg := DefaultConfig(tp)
 
-	cfgPath := configPath(storePath)
+	cfgPath := configPath(path)
 	cfg, err := LoadConfig(cfgPath)
 	if err != nil {
-		return err
+		return
 	}
 
 	cfg, err = updateConfig(cfg, newCfg)
 	if err != nil {
-		return err
+		return
 	}
 
 	// save the updated config
 	err = removeConfig(cfgPath)
 	if err != nil {
-		return err
+		return
 	}
 	return SaveConfig(cfgPath, cfg)
 }
