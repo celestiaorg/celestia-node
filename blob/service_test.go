@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"crypto/sha256"
-	"fmt"
 	"sort"
 	"testing"
 	"time"
@@ -21,54 +20,28 @@ import (
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/header/headertest"
 	"github.com/celestiaorg/celestia-node/share"
+	"github.com/celestiaorg/celestia-node/share/getters"
 )
 
 func TestService_GetSingleBlob(t *testing.T) {
-	bs := mdutils.Bserv()
-	batching := ds_sync.MutexWrap(ds.NewMapDatastore())
-	hstore, err := store.NewStore[*header.ExtendedHeader](batching)
-	require.NoError(t, err)
-
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	t.Cleanup(cancel)
 
 	blobs := generateBlob(t, []int{10, 6}, false)
-	rawShares := splitBlob(t, blobs...)
-	eds, err := share.AddShares(ctx, rawShares, bs)
-	require.NoError(t, err)
+	service := createService(ctx, t, blobs)
 
-	h := headertest.ExtendedHeaderFromEDS(t, 1, eds)
-	err = hstore.Init(ctx, h)
-	require.NoError(t, err)
-
-	service := NewService(nil, bs, hstore, hstore)
 	newBlob, err := service.Get(ctx, 1, blobs[1].NamespaceID(), blobs[1].Commitment())
 	require.NoError(t, err)
 	require.Equal(t, blobs[1].Commitment(), newBlob.Commitment())
 }
 
 func TestService_GetSingleBlobInHeaderWithSingleNID(t *testing.T) {
-	bs := mdutils.Bserv()
-	batching := ds_sync.MutexWrap(ds.NewMapDatastore())
-	hstore, err := store.NewStore[*header.ExtendedHeader](batching)
-	require.NoError(t, err)
-
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	t.Cleanup(cancel)
 
-	// TODO(@vgonkivs): add functionality to create blobs with the same nID
 	blobs := generateBlob(t, []int{12, 4}, true)
-	require.NoError(t, err)
+	service := createService(ctx, t, blobs)
 
-	rawShares := splitBlob(t, blobs...)
-	eds, err := share.AddShares(ctx, rawShares, bs)
-	require.NoError(t, err)
-
-	h := headertest.ExtendedHeaderFromEDS(t, 1, eds)
-	err = hstore.Init(ctx, h)
-	require.NoError(t, err)
-
-	service := NewService(nil, bs, hstore, hstore)
 	newBlob, err := service.Get(ctx, 1, blobs[1].NamespaceID(), blobs[1].Commitment())
 	require.NoError(t, err)
 	require.Equal(t, blobs[1].Commitment(), newBlob.Commitment())
@@ -79,70 +52,34 @@ func TestService_GetSingleBlobInHeaderWithSingleNID(t *testing.T) {
 }
 
 func TestService_GetFailed(t *testing.T) {
-	bs := mdutils.Bserv()
-	batching := ds_sync.MutexWrap(ds.NewMapDatastore())
-	hstore, err := store.NewStore[*header.ExtendedHeader](batching)
-	require.NoError(t, err)
-
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	t.Cleanup(cancel)
 
 	blobs := generateBlob(t, []int{16, 6}, false)
-	rawShares := splitBlob(t, blobs[0])
-	eds, err := share.AddShares(ctx, rawShares, bs)
-	require.NoError(t, err)
 
-	h := headertest.ExtendedHeaderFromEDS(t, 1, eds)
-	err = hstore.Init(ctx, h)
-	require.NoError(t, err)
-
-	service := NewService(nil, bs, hstore, hstore)
-	_, err = service.Get(ctx, 1, blobs[1].NamespaceID(), blobs[1].Commitment())
+	service := createService(ctx, t, []*Blob{blobs[0]})
+	_, err := service.Get(ctx, 1, blobs[1].NamespaceID(), blobs[1].Commitment())
 	require.Error(t, err)
 }
 
 func TestService_GetFailedWithInvalidCommitment(t *testing.T) {
-	bs := mdutils.Bserv()
-	batching := ds_sync.MutexWrap(ds.NewMapDatastore())
-	hstore, err := store.NewStore[*header.ExtendedHeader](batching)
-	require.NoError(t, err)
-
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	t.Cleanup(cancel)
 
 	blobs := generateBlob(t, []int{10, 6}, false)
-	rawShares := splitBlob(t, blobs...)
-	eds, err := share.AddShares(ctx, rawShares, bs)
-	require.NoError(t, err)
 
-	h := headertest.ExtendedHeaderFromEDS(t, 1, eds)
-	err = hstore.Init(ctx, h)
-	require.NoError(t, err)
-
-	service := NewService(nil, bs, hstore, hstore)
-	_, err = service.Get(ctx, 1, blobs[0].NamespaceID(), blobs[1].Commitment())
+	service := createService(ctx, t, blobs)
+	_, err := service.Get(ctx, 1, blobs[0].NamespaceID(), blobs[1].Commitment())
 	require.Error(t, err)
 }
 
 func TestService_GetAll(t *testing.T) {
-	bs := mdutils.Bserv()
-	batching := ds_sync.MutexWrap(ds.NewMapDatastore())
-	hstore, err := store.NewStore[*header.ExtendedHeader](batching)
-	require.NoError(t, err)
-
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	t.Cleanup(cancel)
 
 	blobs := generateBlob(t, []int{10, 6}, false)
-	rawShares := splitBlob(t, blobs...)
-	eds, err := share.AddShares(ctx, rawShares, bs)
-	require.NoError(t, err)
 
-	h := headertest.ExtendedHeaderFromEDS(t, 1, eds)
-	err = hstore.Init(ctx, h)
-	require.NoError(t, err)
-
-	service := NewService(nil, bs, hstore, hstore)
+	service := createService(ctx, t, blobs)
 
 	newBlobs, err := service.GetAll(ctx, 1, blobs[0].NamespaceID(), blobs[1].NamespaceID())
 	require.NoError(t, err)
@@ -164,43 +101,54 @@ func TestService_GetAll(t *testing.T) {
 }
 
 func TestService_GetProof(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	t.Cleanup(cancel)
+
+	blobs := generateBlob(t, []int{10, 6}, false)
+	service := createService(ctx, t, blobs)
+
+	proof, err := service.GetProof(ctx, 1, blobs[0].NamespaceID(), blobs[0].Commitment())
+	require.NoError(t, err)
+
+	header, err := service.getByHeight(ctx, 1)
+	require.NoError(t, err)
+
+	verifyFn := func(t *testing.T, rawShares [][]byte, proof *Proof, nID namespace.ID) {
+		for _, row := range header.DAH.RowsRoots {
+			to := 0
+			for _, p := range *proof {
+				from := to
+				to = p.End() - p.Start() + from
+				eq := p.VerifyInclusion(sha256.New(), nID, rawShares[from:to], row)
+				if eq == true {
+					return
+				}
+			}
+		}
+		t.Fatal("could not prove the shares")
+	}
+
+	rawShares := splitBlob(t, blobs[0])
+	verifyFn(t, rawShares, proof, blobs[0].NamespaceID())
+
+	proof, err = service.GetProof(ctx, 1, blobs[1].NamespaceID(), blobs[1].Commitment())
+	require.NoError(t, err)
+
+	rawShares = splitBlob(t, blobs[1])
+	verifyFn(t, rawShares, proof, blobs[1].NamespaceID())
+}
+
+func createService(ctx context.Context, t *testing.T, blobs []*Blob) *Service {
 	bs := mdutils.Bserv()
 	batching := ds_sync.MutexWrap(ds.NewMapDatastore())
 	hstore, err := store.NewStore[*header.ExtendedHeader](batching)
 	require.NoError(t, err)
-
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
-	t.Cleanup(cancel)
-
-	blob := generateBlob(t, []int{10, 6}, false)
-	rawShares := splitBlob(t, blob...)
+	rawShares := splitBlob(t, blobs...)
 	eds, err := share.AddShares(ctx, rawShares, bs)
 	require.NoError(t, err)
 
 	h := headertest.ExtendedHeaderFromEDS(t, 1, eds)
 	err = hstore.Init(ctx, h)
 	require.NoError(t, err)
-
-	service := NewService(nil, bs, hstore, hstore)
-	proof, err := service.GetProof(ctx, 1, blob[0].NamespaceID(), blob[0].Commitment())
-	require.NoError(t, err)
-
-	verifyFn := func(t *testing.T, rawShares [][]byte, proof *Proof, nID namespace.ID) {
-		to := 0
-		for i, p := range *proof {
-			from := to
-			to = p.proof.End() - p.proof.Start() + from
-			eq := p.proof.VerifyInclusion(sha256.New(), nID, rawShares[from:to], eds.RowRoots()[p.rowIndex])
-			require.Truef(t, eq, fmt.Sprintf("row:%d,start:%d,end:%d", i, from, to))
-		}
-	}
-
-	rawShares = splitBlob(t, blob[0])
-	verifyFn(t, rawShares, proof, blob[0].NamespaceID())
-
-	proof, err = service.GetProof(ctx, 1, blob[1].NamespaceID(), blob[1].Commitment())
-	require.NoError(t, err)
-
-	rawShares = splitBlob(t, blob[1])
-	verifyFn(t, rawShares, proof, blob[1].NamespaceID())
+	return NewService(nil, getters.NewIPLDGetter(bs), hstore, hstore)
 }

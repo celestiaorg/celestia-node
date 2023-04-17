@@ -7,8 +7,6 @@ import (
 	"fmt"
 
 	"github.com/cosmos/cosmos-sdk/types"
-	"github.com/ipfs/go-blockservice"
-	"github.com/ipfs/go-cid"
 	logging "github.com/ipfs/go-log/v2"
 
 	"github.com/celestiaorg/celestia-app/pkg/shares"
@@ -30,8 +28,8 @@ var (
 type Service struct {
 	// accessor dials the given celestia-core endpoint to submit blobs.
 	accessor *state.CoreAccessor
-	// bGetter retrieves the EDS to fetch all shares from the requested header.
-	bGetter blockservice.BlockGetter
+	// sGetter retrieves the EDS to fetch all shares from the requested header.
+	sGetter share.Getter
 	// hGetter allows to get the requested header.
 	hGetter libhead.Getter[*header.ExtendedHeader]
 	// headGetter gets current network head.
@@ -40,13 +38,13 @@ type Service struct {
 
 func NewService(
 	state *state.CoreAccessor,
-	bGetter blockservice.BlockGetter,
+	getter share.Getter,
 	hGetter libhead.Getter[*header.ExtendedHeader],
 	headGetter libhead.Head[*header.ExtendedHeader],
 ) *Service {
 	return &Service{
 		accessor:   state,
-		bGetter:    bGetter,
+		sGetter:    getter,
 		hGetter:    hGetter,
 		headGetter: headGetter,
 	}
@@ -107,7 +105,6 @@ func (s *Service) GetAll(ctx context.Context, height uint64, nIDs ...namespace.I
 	}
 
 	var (
-		cids  = rowsToCids(header.DAH.RowsRoots)
 		blobs = make([]*Blob, 0)
 		ch    = make(chan []*Blob)
 	)
@@ -115,7 +112,7 @@ func (s *Service) GetAll(ctx context.Context, height uint64, nIDs ...namespace.I
 	for _, nID := range nIDs {
 		log.Infow("requesting blobs", "height", height, "nID", nID.String())
 		go func(nID namespace.ID) {
-			blobs, err := s.getBlobs(ctx, nID, cids)
+			blobs, err := s.getBlobs(ctx, nID, header.DAH)
 			if err != nil {
 				ch <- nil
 				return
@@ -195,92 +192,65 @@ func (s *Service) getByCommitment(
 		blobShare *shares.Share
 	)
 
-	for i, cid := range rowsToCids(header.DAH.RowsRoots) {
-		leaves, p, err := share.GetSharesByNamespace(ctx, s.bGetter, cid, nID, len(header.DAH.RowsRoots))
-		if err != nil {
-			return nil, nil, err
+	namespacedShares, err := s.sGetter.GetSharesByNamespace(ctx, header.DAH, nID)
+	if err != nil {
+		return nil, nil, err
+	}
+	for _, rowShares := range namespacedShares {
+		if len(rowShares.Shares) == 0 {
+			continue
 		}
-		if len(leaves) > 0 {
-			rawShares = append(rawShares, leaves...)
-			proofs = append(proofs, &proof{
-				rowIndex: uint64(i),
-				proof:    p,
-			})
-		}
-	LOOP:
-		for {
-			select {
-			case <-ctx.Done():
-				return nil, nil, ctx.Err()
-			default:
-			}
 
-			// moving to the next round if no shares available
-			if len(rawShares) == 0 {
-				break LOOP
-			}
+		rawShares = append(rawShares, rowShares.Shares...)
+		proofs = append(proofs, rowShares.Proof)
 
-			// reconstruct the `blobShare` from the first rawShare in range
-			// in order to get blob's length(first share will contain this info)
-			if blobShare == nil {
-				bShare, err := shares.NewShare(rawShares[0])
-				if err != nil {
-					return nil, nil, err
-				}
-				blobShare = &bShare
-				// save the length.
-				length, err := blobShare.SequenceLen()
-				if err != nil {
-					return nil, nil, err
-				}
-				amount = shares.SparseSharesNeeded(length)
-			}
-
-			// move to the next row if the blob is incomplete.
-			if amount > len(rawShares) {
-				break LOOP
-			}
-
-			// reconstruct the Blob.
-			blob, err := sharesToBlobs(rawShares[:amount])
+		// reconstruct the `blobShare` from the first rawShare in range
+		// in order to get blob's length(first share will contain this info)
+		if blobShare == nil {
+			bShare, err := shares.NewShare(rawShares[0])
 			if err != nil {
 				return nil, nil, err
 			}
-
-			// compare commitments.
-			if bytes.Equal(blob[0].Commitment(), commitment) {
-				return blob[0], &proofs, nil
+			blobShare = &bShare
+			// save the length.
+			length, err := blobShare.SequenceLen()
+			if err != nil {
+				return nil, nil, err
 			}
-
-			// drop info of the checked blob
-			rawShares = rawShares[amount:]
-			blobShare = nil
+			amount = shares.SparseSharesNeeded(length)
 		}
+
+		// move to the next row if the blob is incomplete.
+		if amount > len(rawShares) {
+			continue
+		}
+
+		// reconstruct the Blob.
+		blob, err := sharesToBlobs(rawShares[:amount])
+		if err != nil {
+			return nil, nil, err
+		}
+
+		// compare commitments.
+		if bytes.Equal(blob[0].Commitment(), commitment) {
+			return blob[0], &proofs, nil
+		}
+
+		// drop info of the checked blob
+		rawShares = rawShares[amount:]
+		blobShare = nil
 	}
 	return nil, nil, errBlobNotFound
 }
 
 // getBlobs retrieves the DAH and fetches all shares from the requested namespace.ID and converts
 // them to Blobs.
-func (s *Service) getBlobs(ctx context.Context, nID namespace.ID, cids []cid.Cid) ([]*Blob, error) {
-	rawShares := make([]share.Share, 0)
-	for _, cid := range cids {
-		shares, _, err := share.GetSharesByNamespace(ctx, s.bGetter, cid, nID, len(cids))
-		if err != nil {
-			return nil, err
-		}
-
-		if len(shares) == 0 {
-			// break if we already got all shares from this namespace.
-			if len(rawShares) > 0 {
-				break
-			}
-			continue
-		}
-
-		rawShares = append(rawShares, shares...)
+func (s *Service) getBlobs(ctx context.Context, nID namespace.ID, root *share.Root) ([]*Blob, error) {
+	namespacedShares, err := s.sGetter.GetSharesByNamespace(ctx, root, nID)
+	if err != nil {
+		return nil, err
 	}
-	return sharesToBlobs(rawShares)
+	return sharesToBlobs(namespacedShares.Flatten())
 }
 
 // getByHeight returns ExtendedHeader by its height.

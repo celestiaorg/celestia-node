@@ -1,15 +1,15 @@
 package blob
 
 import (
-	"github.com/ipfs/go-cid"
-
 	"github.com/celestiaorg/celestia-app/pkg/shares"
-
-	"github.com/celestiaorg/celestia-node/share/ipld"
 )
 
 // sharesToBlobs takes raw shares and converts them to blobs.
 func sharesToBlobs(rawShares [][]byte) ([]*Blob, error) {
+	if len(rawShares) == 0 {
+		return nil, errBlobNotFound
+	}
+
 	shareSequences, err := shares.ParseShares(rawShares)
 	if err != nil {
 		return nil, err
@@ -32,12 +32,4 @@ func sharesToBlobs(rawShares [][]byte) ([]*Blob, error) {
 		blobs[i] = blob
 	}
 	return blobs, nil
-}
-
-func rowsToCids(rows [][]byte) []cid.Cid {
-	cids := make([]cid.Cid, len(rows))
-	for i, row := range rows {
-		cids[i] = ipld.MustCidFromNamespacedSha256(row)
-	}
-	return cids
 }
