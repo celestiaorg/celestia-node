@@ -21,6 +21,7 @@ import (
 
 	"github.com/celestiaorg/celestia-node/logs"
 	"github.com/celestiaorg/celestia-node/nodebuilder"
+	modp2p "github.com/celestiaorg/celestia-node/nodebuilder/p2p"
 )
 
 var (
@@ -273,7 +274,7 @@ func ParseMiscFlags(ctx context.Context, cmd *cobra.Command) (context.Context, e
 		if metricsEnabled, _ := cmd.Flags().GetBool(metricsFlag); !metricsEnabled {
 			log.Error("--p2p.metrics used without --metrics being enabled")
 		} else {
-			ctx = WithNodeOptions(ctx, nodebuilder.WithP2PMetrics())
+			ctx = WithNodeOptions(ctx, modp2p.WithMetrics())
 		}
 	}
 
