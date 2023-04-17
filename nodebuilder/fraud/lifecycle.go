@@ -73,7 +73,7 @@ func (breaker *ServiceBreaker[S]) awaitProof() {
 		return
 	}
 
-	if err := breaker.Stop(breaker.ctx); err != nil {
-		log.Error(err)
+	if err := breaker.Stop(breaker.ctx); err != nil && err != context.Canceled {
+		log.Errorw("stopping service: %s", err.Error())
 	}
 }
