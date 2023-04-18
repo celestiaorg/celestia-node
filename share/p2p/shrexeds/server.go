@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"go.opentelemetry.io/otel/attribute"
 	"io"
 	"sync/atomic"
 	"time"
@@ -64,9 +65,13 @@ func (s *Server) Stop(context.Context) error {
 }
 
 func (s *Server) observeRateLimitedRequests() {
+	var numRateLimited int64
 	if s.metrics != nil {
-		numRateLimited := atomic.SwapInt64(&s.middleware.NumRateLimited, 0)
-		s.metrics.rateLimitedCounter.Add(s.ctx, numRateLimited)
+		numRateLimited = atomic.SwapInt64(&s.middleware.NumRateLimited, 0)
+	}
+
+	if numRateLimited > 0 {
+		s.metrics.totalRequestCounter.Add(s.ctx, numRateLimited, attribute.String("status", string(statusRateLimited)))
 	}
 }
 
@@ -103,7 +108,7 @@ func (s *Server) handleStream(stream network.Stream) {
 	status := p2p_pb.Status_OK
 	switch {
 	case errors.Is(err, eds.ErrNotFound):
-		s.metrics.observeRequest(s.ctx, statusNotFound)
+		s.metrics.observeRequestForPeer(s.ctx, statusNotFound, stream.Conn().RemotePeer())
 		status = p2p_pb.Status_NOT_FOUND
 	case err != nil:
 		logger.Errorw("server: get CAR", "err", err)
