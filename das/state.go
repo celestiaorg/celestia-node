@@ -131,7 +131,7 @@ func (s *coordinatorState) nextJob() (next job, found bool) {
 		return job, found
 	}
 
-	// if all headers were tried already, make a retry job
+	// if caught up already, make a retry job
 	return s.retryJob()
 }
 
