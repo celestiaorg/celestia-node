@@ -34,3 +34,21 @@ func (p *Parameters) Validate() error {
 
 	return p.Parameters.Validate()
 }
+
+func (c *Client) WithMetrics() error {
+	metrics, err := initClientMetrics()
+	if err != nil {
+		return fmt.Errorf("shrex/eds: init metrics: %w", err)
+	}
+	c.metrics = metrics
+	return nil
+}
+
+func (s *Server) WithMetrics() error {
+	metrics, err := initServerMetrics()
+	if err != nil {
+		return fmt.Errorf("shrex/eds: init metrics: %w", err)
+	}
+	s.metrics = metrics
+	return nil
+}

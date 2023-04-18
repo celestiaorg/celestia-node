@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"sync/atomic"
 	"time"
 
 	"github.com/libp2p/go-libp2p/core/host"
@@ -32,9 +33,7 @@ type Server struct {
 
 	params     *Parameters
 	middleware *p2p.Middleware
-
-	numNotFoundServed     int64
-	numSuccessfullyServed int64
+	metrics    *metrics
 }
 
 // NewServer creates a new ShrEx/EDS server.
@@ -64,9 +63,17 @@ func (s *Server) Stop(context.Context) error {
 	return nil
 }
 
+func (s *Server) observeRateLimitedRequests() {
+	if s.metrics != nil {
+		numRateLimited := atomic.SwapInt64(&s.middleware.NumRateLimited, 0)
+		s.metrics.rateLimitedCounter.Add(s.ctx, numRateLimited)
+	}
+}
+
 func (s *Server) handleStream(stream network.Stream) {
 	logger := log.With("peer", stream.Conn().RemotePeer())
-	logger.Debug("server: handling eds request")
+	log.Debug("server: handling eds request")
+	s.observeRateLimitedRequests()
 
 	// read request from stream to get the dataHash for store lookup
 	req, err := s.readRequest(logger, stream)
@@ -96,7 +103,7 @@ func (s *Server) handleStream(stream network.Stream) {
 	status := p2p_pb.Status_OK
 	switch {
 	case errors.Is(err, eds.ErrNotFound):
-		s.numNotFoundServed++
+		s.metrics.observeRequest(s.ctx, statusNotFound)
 		status = p2p_pb.Status_NOT_FOUND
 	case err != nil:
 		logger.Errorw("server: get CAR", "err", err)
@@ -127,7 +134,7 @@ func (s *Server) handleStream(stream network.Stream) {
 		return
 	}
 
-	s.numSuccessfullyServed++
+	s.metrics.observeRequest(s.ctx, statusSuccess)
 	err = stream.Close()
 	if err != nil {
 		logger.Debugw("server: closing stream", "err", err)

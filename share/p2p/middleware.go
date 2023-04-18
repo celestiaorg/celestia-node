@@ -13,7 +13,8 @@ type Middleware struct {
 	concurrencyLimit int64
 	parallelRequests int64
 
-	NumRequests    int64
+	// NumRateLimited is the number of requests that were rate limited. It is reset to 0 every time
+	// it is read and observed into metrics.
 	NumRateLimited int64
 }
 
@@ -25,12 +26,11 @@ func NewMiddleware(concurrencyLimit int) *Middleware {
 
 func (m *Middleware) RateLimitHandler(handler network.StreamHandler) network.StreamHandler {
 	return func(stream network.Stream) {
-		m.NumRequests++
 		current := atomic.AddInt64(&m.parallelRequests, 1)
 		defer atomic.AddInt64(&m.parallelRequests, -1)
 
 		if current > m.concurrencyLimit {
-			m.NumRateLimited++
+			atomic.AddInt64(&m.NumRateLimited, 1)
 			log.Debug("concurrency limit reached")
 			err := stream.Close()
 			if err != nil {
