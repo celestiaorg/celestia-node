@@ -9,14 +9,28 @@ import (
 
 var log = logging.Logger("shrex/middleware")
 
-func RateLimitMiddleware(inner network.StreamHandler, concurrencyLimit int) network.StreamHandler {
-	var parallelRequests int64
-	limit := int64(concurrencyLimit)
-	return func(stream network.Stream) {
-		current := atomic.AddInt64(&parallelRequests, 1)
-		defer atomic.AddInt64(&parallelRequests, -1)
+type Middleware struct {
+	concurrencyLimit int64
+	parallelRequests int64
 
-		if current > limit {
+	NumRequests    int64
+	NumRateLimited int64
+}
+
+func NewMiddleware(concurrencyLimit int) *Middleware {
+	return &Middleware{
+		concurrencyLimit: int64(concurrencyLimit),
+	}
+}
+
+func (m *Middleware) RateLimitHandler(handler network.StreamHandler) network.StreamHandler {
+	return func(stream network.Stream) {
+		m.NumRequests++
+		current := atomic.AddInt64(&m.parallelRequests, 1)
+		defer atomic.AddInt64(&m.parallelRequests, -1)
+
+		if current > m.concurrencyLimit {
+			m.NumRateLimited++
 			log.Debug("concurrency limit reached")
 			err := stream.Close()
 			if err != nil {
@@ -24,6 +38,6 @@ func RateLimitMiddleware(inner network.StreamHandler, concurrencyLimit int) netw
 			}
 			return
 		}
-		inner(stream)
+		handler(stream)
 	}
 }

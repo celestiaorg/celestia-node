@@ -30,7 +30,11 @@ type Server struct {
 
 	store *eds.Store
 
-	params *Parameters
+	params     *Parameters
+	middleware *p2p.Middleware
+
+	numNotFoundServed     int64
+	numSuccessfullyServed int64
 }
 
 // NewServer creates a new ShrEx/EDS server.
@@ -44,12 +48,13 @@ func NewServer(params *Parameters, host host.Host, store *eds.Store) (*Server, e
 		store:      store,
 		protocolID: p2p.ProtocolID(params.NetworkID(), protocolString),
 		params:     params,
+		middleware: p2p.NewMiddleware(params.ConcurrencyLimit),
 	}, nil
 }
 
 func (s *Server) Start(context.Context) error {
 	s.ctx, s.cancel = context.WithCancel(context.Background())
-	s.host.SetStreamHandler(s.protocolID, p2p.RateLimitMiddleware(s.handleStream, s.params.ConcurrencyLimit))
+	s.host.SetStreamHandler(s.protocolID, s.middleware.RateLimitHandler(s.handleStream))
 	return nil
 }
 
@@ -91,6 +96,7 @@ func (s *Server) handleStream(stream network.Stream) {
 	status := p2p_pb.Status_OK
 	switch {
 	case errors.Is(err, eds.ErrNotFound):
+		s.numNotFoundServed++
 		status = p2p_pb.Status_NOT_FOUND
 	case err != nil:
 		logger.Errorw("server: get CAR", "err", err)
@@ -121,6 +127,7 @@ func (s *Server) handleStream(stream network.Stream) {
 		return
 	}
 
+	s.numSuccessfullyServed++
 	err = stream.Close()
 	if err != nil {
 		logger.Debugw("server: closing stream", "err", err)

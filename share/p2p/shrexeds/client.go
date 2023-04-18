@@ -26,8 +26,12 @@ import (
 type Client struct {
 	params     *Parameters
 	protocolID protocol.ID
+	host       host.Host
 
-	host host.Host
+	totalRequests          int64
+	numRatelimitedRequests int64
+	numNotFoundRequests    int64
+	numSuccessfulRequests  int64
 }
 
 // NewClient creates a new ShrEx/EDS client.
@@ -79,6 +83,7 @@ func (c *Client) doRequest(
 	dataHash share.DataHash,
 	to peer.ID,
 ) (*rsmt2d.ExtendedDataSquare, error) {
+	c.totalRequests++
 	stream, err := c.host.NewStream(ctx, to, c.protocolID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open stream: %w", err)
@@ -106,6 +111,7 @@ func (c *Client) doRequest(
 	if err != nil {
 		// server is overloaded and closed the stream
 		if errors.Is(err, io.EOF) {
+			c.numRatelimitedRequests++
 			return nil, p2p.ErrNotFound
 		}
 		stream.Reset() //nolint:errcheck
@@ -119,8 +125,10 @@ func (c *Client) doRequest(
 		if err != nil {
 			return nil, fmt.Errorf("failed to read eds from ods bytes: %w", err)
 		}
+		c.numSuccessfulRequests++
 		return eds, nil
 	case pb.Status_NOT_FOUND:
+		c.numNotFoundRequests++
 		return nil, p2p.ErrNotFound
 	case pb.Status_INVALID:
 		log.Debug("client: invalid request")
