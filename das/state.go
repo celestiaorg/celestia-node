@@ -18,7 +18,8 @@ type coordinatorState struct {
 	inProgress map[int]func() workerState
 	// stores heights of failed headers with amount of retry attempt as value
 	failed map[uint64]int
-	// inRetry stores (height -> attempt count) of failed headers that are currently being retried by workers
+	// inRetry stores (height -> attempt count) of failed headers that are currently being retried by
+	// workers
 	inRetry map[uint64]int
 
 	// nextJobID is a unique identifier that will be used for creation of next job
@@ -124,7 +125,7 @@ func (s *coordinatorState) recentJob(header *header.ExtendedHeader) job {
 	}
 }
 
-// nextJob will return next job according to priority (catchup -> retry)
+// nextJob will return next catchup or retry job according to priority (catchup > retry)
 func (s *coordinatorState) nextJob() (next job, found bool) {
 	// check for catchup job
 	if job, found := s.catchupJob(); found {
