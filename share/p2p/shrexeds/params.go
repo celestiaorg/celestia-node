@@ -10,7 +10,7 @@ import (
 
 const protocolString = "/shrex/eds/v0.0.1"
 
-var log = logging.Logger("shrex-eds")
+var log = logging.Logger("shrex/eds")
 
 // Parameters is the set of parameters that must be configured for the shrex/eds protocol.
 type Parameters struct {

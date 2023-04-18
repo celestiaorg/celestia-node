@@ -32,6 +32,8 @@ func init() {
 		cmdnode.Start(flags...),
 		cmdnode.AuthCmd(flags...),
 		cmdnode.ResetStore(flags...),
+		cmdnode.RemoveConfigCmd(flags...),
+		cmdnode.UpdateConfigCmd(flags...),
 	)
 }
 

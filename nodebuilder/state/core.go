@@ -2,10 +2,13 @@ package state
 
 import (
 	apptypes "github.com/celestiaorg/celestia-app/x/blob/types"
+	libfraud "github.com/celestiaorg/go-fraud"
 	"github.com/celestiaorg/go-header/sync"
 
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/nodebuilder/core"
+	modfraud "github.com/celestiaorg/celestia-node/nodebuilder/fraud"
+	"github.com/celestiaorg/celestia-node/share/eds/byzantine"
 	"github.com/celestiaorg/celestia-node/state"
 )
 
@@ -15,6 +18,13 @@ func coreAccessor(
 	corecfg core.Config,
 	signer *apptypes.KeyringSigner,
 	sync *sync.Syncer[*header.ExtendedHeader],
-) *state.CoreAccessor {
-	return state.NewCoreAccessor(signer, sync, corecfg.IP, corecfg.RPCPort, corecfg.GRPCPort)
+	fraudServ libfraud.Service,
+) (*state.CoreAccessor, *modfraud.ServiceBreaker[*state.CoreAccessor]) {
+	ca := state.NewCoreAccessor(signer, sync, corecfg.IP, corecfg.RPCPort, corecfg.GRPCPort)
+
+	return ca, &modfraud.ServiceBreaker[*state.CoreAccessor]{
+		Service:   ca,
+		FraudType: byzantine.BadEncoding,
+		FraudServ: fraudServ,
+	}
 }
