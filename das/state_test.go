@@ -20,24 +20,30 @@ func Test_coordinatorStats(t *testing.T) {
 				inProgress: map[int]func() workerState{
 					1: func() workerState {
 						return workerState{
-							job: job{
-								From: 21,
-								To:   30,
+							result: result{
+								job: job{
+									jobType: recentJob,
+									from:    21,
+									to:      30,
+								},
+								failed: map[uint64]int{22: 1},
+								err:    errors.New("22: failed"),
 							},
-							Curr:   25,
-							failed: []uint64{22},
-							Err:    errors.New("22: failed"),
+							curr: 25,
 						}
 					},
 					2: func() workerState {
 						return workerState{
-							job: job{
-								From: 11,
-								To:   20,
+							result: result{
+								job: job{
+									jobType: catchupJob,
+									from:    11,
+									to:      20,
+								},
+								failed: map[uint64]int{12: 1, 13: 1},
+								err:    errors.Join(errors.New("12: failed"), errors.New("13: failed")),
 							},
-							Curr:   15,
-							failed: []uint64{12, 13},
-							Err:    errors.Join(errors.New("12: failed"), errors.New("13: failed")),
+							curr: 15,
 						}
 					},
 				},
@@ -53,16 +59,18 @@ func Test_coordinatorStats(t *testing.T) {
 				Failed:           map[uint64]int{22: 2, 23: 1, 24: 2, 12: 1, 13: 1},
 				Workers: []WorkerStats{
 					{
-						Curr:   25,
-						From:   21,
-						To:     30,
-						ErrMsg: "22: failed",
+						JobType: recentJob,
+						Curr:    25,
+						From:    21,
+						To:      30,
+						ErrMsg:  "22: failed",
 					},
 					{
-						Curr:   15,
-						From:   11,
-						To:     20,
-						ErrMsg: "12: failed\n13: failed",
+						JobType: catchupJob,
+						Curr:    15,
+						From:    11,
+						To:      20,
+						ErrMsg:  "12: failed\n13: failed",
 					},
 				},
 				Concurrency: 2,
