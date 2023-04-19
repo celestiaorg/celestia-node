@@ -149,6 +149,7 @@ func (n *Node) Stop(ctx context.Context) error {
 func newNode(opts ...fx.Option) (*Node, error) {
 	node := new(Node)
 	app := fx.New(
+		fx.NopLogger,
 		fx.Populate(node),
 		fx.Options(opts...),
 	)
