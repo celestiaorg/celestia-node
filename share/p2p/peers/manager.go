@@ -135,7 +135,12 @@ func (m *Manager) Start(startCtx context.Context) error {
 	ctx, cancel := context.WithCancel(context.Background())
 	m.cancel = cancel
 
-	err := m.shrexSub.AddValidator(m.Validate)
+	validatorFn := m.Validate
+	if m.metrics != nil {
+		// wrap validator with metrics observer
+		validatorFn = m.metrics.validationObserver(validatorFn)
+	}
+	err := m.shrexSub.AddValidator(validatorFn)
 	if err != nil {
 		return fmt.Errorf("registering validator: %w", err)
 	}
@@ -187,43 +192,49 @@ func (m *Manager) Peer(
 			p.remove(peerID)
 			return m.Peer(ctx, datahash)
 		}
-		return m.newPeer(datahash, peerID, sourceShrexSub, 0)
+		return m.newPeer(datahash, peerID, sourceShrexSub, p.len(), 0)
 	}
 
 	// if no peer for datahash is currently available, try to use full node
 	// obtained from discovery
 	peerID, ok = m.fullNodes.tryGet()
 	if ok {
-		return m.newPeer(datahash, peerID, sourceDiscovery, 0)
+		return m.newPeer(datahash, peerID, sourceFullNodes, m.fullNodes.len(), 0)
 	}
 
 	// no peers are available right now, wait for the first one
 	start := time.Now()
 	select {
 	case peerID = <-p.next(ctx):
-		return m.newPeer(datahash, peerID, sourceShrexSub, time.Since(start).Milliseconds())
+		return m.newPeer(datahash, peerID, sourceShrexSub, p.len(), time.Since(start))
 	case peerID = <-m.fullNodes.next(ctx):
-		return m.newPeer(datahash, peerID, sourceDiscovery, time.Since(start).Milliseconds())
+		return m.newPeer(datahash, peerID, sourceFullNodes, m.fullNodes.len(), time.Since(start))
 	case <-ctx.Done():
 		return "", nil, ctx.Err()
 	}
 }
 
-func (m *Manager) newPeer(datahash share.DataHash, peerID peer.ID, source peerSource, waitTime int64) (peer.ID, DoneFunc, error) {
+func (m *Manager) newPeer(
+	datahash share.DataHash,
+	peerID peer.ID,
+	source peerSource,
+	poolSize int,
+	waitTime time.Duration) (peer.ID, DoneFunc, error) {
 	log.Debugw("got peer",
 		"hash", datahash.String(),
 		"peer", peerID.String(),
 		"source", source,
-		"is_instant", waitTime == 0)
-	m.metrics.observeGetPeer(source, waitTime)
+		"pool_size", poolSize,
+		"wait (s)", waitTime)
+	m.metrics.observeGetPeer(source, poolSize, waitTime)
 	return peerID, m.doneFunc(datahash, peerID, source), nil
 }
 
-func (m *Manager) doneFunc(datahash share.DataHash, peerID peer.ID, fromFull bool) DoneFunc {
+func (m *Manager) doneFunc(datahash share.DataHash, peerID peer.ID, source peerSource) DoneFunc {
 	return func(result result) {
 		log.Debugw("set peer status",
 			"peer", peerID,
-			"datahash", datahash.String(),
+			"hash", datahash.String(),
 			"source", source,
 			"result", result)
 		m.metrics.observeDoneResult(source, result)
@@ -233,7 +244,7 @@ func (m *Manager) doneFunc(datahash share.DataHash, peerID peer.ID, fromFull boo
 			m.markPoolAsSynced(datahash.String())
 		case ResultCooldownPeer:
 			m.getOrCreatePool(datahash.String()).putOnCooldown(peerID)
-			if fromFull {
+			if source == sourceFullNodes {
 				m.fullNodes.putOnCooldown(peerID)
 			}
 		case ResultBlacklistPeer:
@@ -304,14 +315,16 @@ func (m *Manager) Validate(_ context.Context, peerID peer.ID, msg shrexsub.Notif
 	p := m.getOrCreatePool(msg.DataHash.String())
 	p.headerHeight.Store(msg.Height)
 	p.add(peerID)
-	log.Debugw("got hash from shrex-sub", "peer", peerID, "datahash", msg.DataHash.String())
+	log.Debugw("got hash from shrex-sub", "peer", peerID, "hash", msg.DataHash.String())
 	return pubsub.ValidationIgnore
 }
 
 func (m *Manager) validatedPool(datahash string) *syncPool {
 	p := m.getOrCreatePool(datahash)
 	if p.isValidatedDataHash.CompareAndSwap(false, true) {
-		log.Debugw("pool marked validated", "datahash", datahash)
+		log.Debugw("pool marked validated",
+			"hash", datahash,
+			"after (s)", time.Since(p.createdAt))
 	}
 	return p
 }
@@ -364,14 +377,6 @@ func (m *Manager) isBlacklistedHash(hash share.DataHash) bool {
 	m.lock.Lock()
 	defer m.lock.Unlock()
 	return m.blacklistedHashes[hash.String()]
-}
-
-func (m *Manager) validatedPool(hashStr string) *syncPool {
-	p := m.getOrCreatePool(hashStr)
-	if p.isValidatedDataHash.CompareAndSwap(false, true) {
-		log.Debugw("pool marked validated", "datahash", hashStr)
-	}
-	return p
 }
 
 func (m *Manager) GC(ctx context.Context) {

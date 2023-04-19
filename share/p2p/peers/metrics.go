@@ -14,7 +14,6 @@ import (
 	"go.opentelemetry.io/otel/metric/instrument/asyncint64"
 	"go.opentelemetry.io/otel/metric/instrument/syncint64"
 
-	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/p2p/shrexsub"
 )
 
@@ -26,7 +25,7 @@ const (
 
 	sourceKey                  = "source"
 	sourceShrexSub  peerSource = "shrexsub"
-	sourceDiscovery peerSource = "discovery"
+	sourceFullNodes peerSource = "full_nodes"
 
 	blacklistPeerReasonKey                     = "blacklist_reason"
 	reasonInvalidHash      blacklistPeerReason = "invalid_hash"
@@ -36,6 +35,10 @@ const (
 	validationAccept    = "accept"
 	validationReject    = "reject"
 	validationIgnore    = "ignore"
+
+	peerStatusKey                 = "peer_status"
+	peerStatusActive   peerStatus = "active"
+	peerStatusCooldown peerStatus = "cooldown"
 
 	poolStatusKey                    = "pool_status"
 	poolStatusCreated     poolStatus = "created"
@@ -56,6 +59,8 @@ var (
 
 type blacklistPeerReason string
 
+type peerStatus string
+
 type poolStatus string
 
 type peerSource string
@@ -63,11 +68,12 @@ type peerSource string
 type metrics struct {
 	getPeer                  syncint64.Counter   // attributes: source, is_instant
 	getPeerWaitTimeHistogram syncint64.Histogram // attributes: source
+	getPeerPoolSizeHistogram syncint64.Histogram // attributes: source
 	doneResult               syncint64.Counter   // attributes: source, done_result
 	validationResult         syncint64.Counter   // attributes: validation_result
 
-	pools                    asyncint64.Gauge // attributes: pool_status
-	peers                    asyncint64.Gauge // attributes: pool_status
+	shrexPools               asyncint64.Gauge // attributes: pool_status
+	fullNodesPool            asyncint64.Gauge // attributes: pool_status
 	blacklistedPeersByReason sync.Map
 	blacklistedPeers         asyncint64.Gauge // attributes: blacklist_reason
 }
@@ -85,6 +91,12 @@ func initMetrics(manager *Manager) (*metrics, error) {
 		return nil, err
 	}
 
+	getPeerPoolSizeHistogram, err := meter.SyncInt64().Histogram("peer_manager_get_peer_pool_size_hist",
+		instrument.WithDescription("amount of available active peers in pool at time when get was called"))
+	if err != nil {
+		return nil, err
+	}
+
 	doneResult, err := meter.SyncInt64().Counter("peer_manager_done_result_counter",
 		instrument.WithDescription("done results counter"))
 	if err != nil {
@@ -97,14 +109,14 @@ func initMetrics(manager *Manager) (*metrics, error) {
 		return nil, err
 	}
 
-	pools, err := meter.AsyncInt64().Gauge("peer_manager_pools_gauge",
+	shrexPools, err := meter.AsyncInt64().Gauge("peer_manager_pools_gauge",
 		instrument.WithDescription("pools amount"))
 	if err != nil {
 		return nil, err
 	}
 
-	peers, err := meter.AsyncInt64().Gauge("peer_manager_peers_gauge",
-		instrument.WithDescription("peers amount"))
+	fullNodesPool, err := meter.AsyncInt64().Gauge("peer_manager_full_nodes_gauge",
+		instrument.WithDescription("full nodes pool peers amount"))
 	if err != nil {
 		return nil, err
 	}
@@ -120,29 +132,28 @@ func initMetrics(manager *Manager) (*metrics, error) {
 		getPeerWaitTimeHistogram: getPeerWaitTimeHistogram,
 		doneResult:               doneResult,
 		validationResult:         validationResult,
-		pools:                    pools,
-		peers:                    peers,
+		shrexPools:               shrexPools,
+		fullNodesPool:            fullNodesPool,
+		getPeerPoolSizeHistogram: getPeerPoolSizeHistogram,
 		blacklistedPeers:         blacklisted,
 	}
 
 	err = meter.RegisterCallback(
 		[]instrument.Asynchronous{
-			pools,
-			peers,
+			shrexPools,
+			fullNodesPool,
 			blacklisted,
 		},
 		func(ctx context.Context) {
-			stats := manager.stats()
-
-			for poolStatus, count := range stats.pools {
-				pools.Observe(ctx, count,
+			for poolStatus, count := range manager.shrexPools() {
+				shrexPools.Observe(ctx, count,
 					attribute.String(poolStatusKey, string(poolStatus)))
 			}
 
-			for poolStatus, count := range stats.peers {
-				peers.Observe(ctx, count,
-					attribute.String(poolStatusKey, string(poolStatus)))
-			}
+			fullNodesPool.Observe(ctx, int64(manager.fullNodes.len()),
+				attribute.String(peerStatusKey, string(peerStatusActive)))
+			fullNodesPool.Observe(ctx, int64(manager.fullNodes.cooldown.len()),
+				attribute.String(peerStatusKey, string(peerStatusCooldown)))
 
 			metrics.blacklistedPeersByReason.Range(func(key, value any) bool {
 				reason := key.(blacklistPeerReason)
@@ -160,21 +171,23 @@ func initMetrics(manager *Manager) (*metrics, error) {
 	return metrics, nil
 }
 
-func (m *metrics) observeGetPeer(source peerSource, waitTime int64) {
+func (m *metrics) observeGetPeer(source peerSource, poolSize int, waitTime time.Duration) {
 	if m == nil {
 		return
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), observeTimeout)
 	defer cancel()
-
-	if waitTime > 0 {
-		m.getPeerWaitTimeHistogram.Record(ctx, waitTime,
-			attribute.String(sourceKey, string(source)))
-	}
-
 	m.getPeer.Add(ctx, 1,
 		attribute.String(sourceKey, string(source)),
 		attribute.Bool(isInstantKey, waitTime == 0))
+	m.getPeerPoolSizeHistogram.Record(ctx, int64(poolSize),
+		attribute.String(sourceKey, string(source)))
+
+	// record wait time only for async gets
+	if waitTime > 0 {
+		m.getPeerWaitTimeHistogram.Record(ctx, waitTime.Milliseconds(),
+			attribute.String(sourceKey, string(source)))
+	}
 }
 
 func (m *metrics) observeDoneResult(source peerSource, result result) {
@@ -189,12 +202,13 @@ func (m *metrics) observeDoneResult(source peerSource, result result) {
 		attribute.String(doneResultKey, string(result)))
 }
 
-func (m *metrics) validationObserver(validator shrexsub.Validator) shrexsub.Validator {
+// validationObserver is a middleware that observes validation results as metrics
+func (m *metrics) validationObserver(validator shrexsub.ValidatorFn) shrexsub.ValidatorFn {
 	if m == nil {
 		return validator
 	}
-	return func(ctx context.Context, id peer.ID, datahash share.DataHash) pubsub.ValidationResult {
-		res := validator(ctx, id, datahash)
+	return func(ctx context.Context, id peer.ID, n shrexsub.Notification) pubsub.ValidationResult {
+		res := validator(ctx, id, n)
 
 		var resStr string
 		switch res {
@@ -217,6 +231,7 @@ func (m *metrics) validationObserver(validator shrexsub.Validator) shrexsub.Vali
 	}
 }
 
+// observeBlacklistPeers stores amount of blacklisted peers by reason
 func (m *metrics) observeBlacklistPeers(reason blacklistPeerReason, amount int) {
 	if m == nil {
 		return
@@ -234,40 +249,27 @@ func (m *metrics) observeBlacklistPeers(reason blacklistPeerReason, amount int) 
 	}
 }
 
-type stats struct {
-	pools map[poolStatus]int64
-	peers map[poolStatus]int64
-}
-
-func (s stats) add(p *syncPool, status poolStatus) {
-	s.pools[status]++
-	s.peers[status] += int64(p.activeCount + p.cooldown.len())
-}
-
-func (m *Manager) stats() stats {
+// shrexPools collects amount of shrex pools by poolStatus
+func (m *Manager) shrexPools() map[poolStatus]int64 {
 	m.lock.Lock()
 	defer m.lock.Unlock()
 
-	stats := stats{
-		pools: make(map[poolStatus]int64),
-		peers: make(map[poolStatus]int64),
-	}
-
+	shrexPools := make(map[poolStatus]int64)
 	for _, p := range m.pools {
 		if !p.isValidatedDataHash.Load() {
-			stats.add(p, poolStatusCreated)
+			shrexPools[poolStatusCreated]++
 			continue
 		}
 
 		if p.isSynced.Load() {
-			stats.add(p, poolStatusSynced)
+			shrexPools[poolStatusSynced]++
 			continue
 		}
 
 		// pool is validated but not synced
-		stats.add(p, poolStatusValidated)
+		shrexPools[poolStatusValidated]++
 	}
 
-	stats.pools[poolStatusBlacklisted] = int64(len(m.blacklistedHashes))
-	return stats
+	shrexPools[poolStatusBlacklisted] = int64(len(m.blacklistedHashes))
+	return shrexPools
 }
