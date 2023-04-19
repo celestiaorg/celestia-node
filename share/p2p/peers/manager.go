@@ -174,6 +174,7 @@ func (m *Manager) Stop(ctx context.Context) error {
 func (m *Manager) Peer(
 	ctx context.Context, datahash share.DataHash,
 ) (peer.ID, DoneFunc, error) {
+	logger := log.With("hash", datahash.String())
 	p := m.validatedPool(datahash.String())
 
 	// first, check if a peer is available for the given datahash
@@ -181,13 +182,14 @@ func (m *Manager) Peer(
 	if ok {
 		// some pools could still have blacklisted peers in storage
 		if m.isBlacklistedPeer(peerID) {
-			log.Debugw("removing blacklisted peer from pool", "hash", datahash.String(),
+			logger.Debugw("removing blacklisted peer from pool",
 				"peer", peerID.String())
 			p.remove(peerID)
 			return m.Peer(ctx, datahash)
 		}
-		log.Debugw("returning shrex-sub peer", "hash", datahash.String(),
-			"peer", peerID.String())
+		logger.Debugw("get peer from shrexsub pool",
+			"peer", peerID.String(),
+			"pool_size", p.size())
 		return peerID, m.doneFunc(datahash, peerID, false), nil
 	}
 
@@ -195,17 +197,26 @@ func (m *Manager) Peer(
 	// obtained from discovery
 	peerID, ok = m.fullNodes.tryGet()
 	if ok {
-		log.Debugw("got peer from full nodes discovery pool", "peer", peerID, "datahash", datahash.String())
+		logger.Debugw("got peer from full nodes pool",
+			"peer", peerID.String(),
+			"pool_size", m.fullNodes.size())
 		return peerID, m.doneFunc(datahash, peerID, true), nil
 	}
 
 	// no peers are available right now, wait for the first one
+	start := time.Now()
 	select {
 	case peerID = <-p.next(ctx):
-		log.Debugw("got peer from shrexSub pool after wait", "peer", peerID, "datahash", datahash.String())
+		logger.Debugw("got peer from shrexSub pool after wait",
+			"peer", peerID.String(),
+			"pool_size", p.size(),
+			"after (s)", time.Since(start))
 		return peerID, m.doneFunc(datahash, peerID, false), nil
 	case peerID = <-m.fullNodes.next(ctx):
-		log.Debugw("got peer from discovery pool after wait", "peer", peerID, "datahash", datahash.String())
+		logger.Debugw("got peer from full nodes pool after wait",
+			"peer", peerID.String(),
+			"pool_size", m.fullNodes.size(),
+			"after (s)", time.Since(start))
 		return peerID, m.doneFunc(datahash, peerID, true), nil
 	case <-ctx.Done():
 		return "", nil, ctx.Err()
@@ -216,7 +227,7 @@ func (m *Manager) doneFunc(datahash share.DataHash, peerID peer.ID, fromFull boo
 	return func(result result) {
 		log.Debugw("set peer status",
 			"peer", peerID,
-			"datahash", datahash.String(),
+			"hash", datahash.String(),
 			"result", result)
 		switch result {
 		case ResultSuccess:
@@ -258,28 +269,27 @@ func (m *Manager) subscribeHeader(ctx context.Context, headerSub libhead.Subscri
 
 // Validate will collect peer.ID into corresponding peer pool
 func (m *Manager) Validate(_ context.Context, peerID peer.ID, msg shrexsub.Notification) pubsub.ValidationResult {
+	logger := log.With("peer", peerID, "hash", msg.DataHash.String())
 
 	// messages broadcast from self should bypass the validation with Accept
 	if peerID == m.host.ID() {
-		log.Debugw("received datahash from self", "datahash", msg.DataHash.String())
+		logger.Debug("received datahash from self")
 		return pubsub.ValidationAccept
 	}
 
 	// punish peer for sending invalid hash if it has misbehaved in the past
 	if m.isBlacklistedHash(msg.DataHash) {
-		log.Debugw("received blacklisted hash, reject validation", "peer", peerID, "datahash", msg.DataHash.String())
+		logger.Debug("received blacklisted hash, reject validation")
 		return pubsub.ValidationReject
 	}
 
 	if m.isBlacklistedPeer(peerID) {
-		log.Debugw("received message from blacklisted peer, reject validation",
-			"peer", peerID,
-			"datahash", msg.DataHash.String())
+		logger.Debug("received message from blacklisted peer, reject validation")
 		return pubsub.ValidationReject
 	}
 
 	if msg.Height == 0 {
-		log.Debugw("received message with 0 height", "peer", peerID)
+		logger.Debug("received message with 0 height")
 		return pubsub.ValidationReject
 	}
 
@@ -288,14 +298,14 @@ func (m *Manager) Validate(_ context.Context, peerID peer.ID, msg shrexsub.Notif
 		// if we allow pool creation for those headers, there is chance the pool will not be validated in
 		// time and will be false-positively trigger blacklisting of hash and all peers that sent msgs for
 		// that hash
-		log.Debugw("received message for past header", "peer", peerID, "datahash", msg.DataHash.String())
+		logger.Debug("received message for past header")
 		return pubsub.ValidationIgnore
 	}
 
 	p := m.getOrCreatePool(msg.DataHash.String())
 	p.headerHeight.Store(msg.Height)
 	p.add(peerID)
-	log.Debugw("got hash from shrex-sub", "peer", peerID, "datahash", msg.DataHash.String())
+	logger.Debug("got hash from shrex-sub")
 	return pubsub.ValidationIgnore
 }
 
@@ -349,7 +359,7 @@ func (m *Manager) isBlacklistedHash(hash share.DataHash) bool {
 func (m *Manager) validatedPool(hashStr string) *syncPool {
 	p := m.getOrCreatePool(hashStr)
 	if p.isValidatedDataHash.CompareAndSwap(false, true) {
-		log.Debugw("pool marked validated", "datahash", hashStr)
+		log.Debugw("pool marked validated", "hash", hashStr)
 	}
 	return p
 }
@@ -391,7 +401,7 @@ func (m *Manager) cleanUp() []peer.ID {
 				continue
 			}
 			log.Debug("blacklisting datahash with all corresponding peers",
-				"datahash", h,
+				"hash", h,
 				"peer_list", p.peersList)
 			// blacklist hash
 			m.blacklistedHashes[h] = true
