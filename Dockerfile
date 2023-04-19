@@ -15,7 +15,7 @@ COPY . .
 
 RUN make build && make cel-key
 
-FROM docker.io/alpine:3.17.2
+FROM docker.io/alpine:3.17.3
 
 # Read here why UID 10001: https://github.com/hexops/dockerfile/blob/main/README.md#do-not-use-a-uid-below-10000
 ARG UID=10001

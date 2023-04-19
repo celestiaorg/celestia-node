@@ -136,14 +136,14 @@ func (s *coordinatorState) recentJob(header *header.ExtendedHeader) job {
 	}
 }
 
-// nextJob will return next job according to priority (catchup -> retry)
+// nextJob will return next catchup or retry job according to priority (catchup > retry)
 func (s *coordinatorState) nextJob() (next job, found bool) {
 	// check for catchup job
 	if job, found := s.catchupJob(); found {
 		return job, found
 	}
 
-	// if all headers were tried already, make a retry job
+	// if caught up already, make a retry job
 	return s.retryJob()
 }
 
@@ -161,6 +161,7 @@ func (s *coordinatorState) catchupJob() (next job, found bool) {
 	s.next = to + 1
 	return j, true
 }
+
 
 // retryJob creates a job to retry previously failed header
 func (s *coordinatorState) retryJob() (next job, found bool) {
