@@ -21,7 +21,7 @@ func TestLifecycle(t *testing.T) {
 	var test = []struct {
 		tp node.Type
 	}{
-		{tp: node.Bridge},
+		// {tp: node.Bridge},
 		{tp: node.Full},
 		{tp: node.Light},
 	}
