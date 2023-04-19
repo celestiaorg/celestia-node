@@ -37,7 +37,7 @@ type samplingCoordinator struct {
 // result will carry errors to coordinator after worker finishes the job
 type result struct {
 	job
-	failed []uint64
+	failed map[uint64]int
 	err    error
 }
 
@@ -66,7 +66,7 @@ func (sc *samplingCoordinator) run(ctx context.Context, cp checkpoint) {
 
 	// resume workers
 	for _, wk := range cp.Workers {
-		sc.runWorker(ctx, sc.state.newJob(wk.From, wk.To))
+		sc.runWorker(ctx, sc.state.newJob(wk.JobType, wk.From, wk.To))
 	}
 
 	for {
@@ -81,7 +81,7 @@ func (sc *samplingCoordinator) run(ctx context.Context, cp checkpoint) {
 		select {
 		case head := <-sc.updHeadCh:
 			if sc.state.isNewHead(head.Height()) {
-				sc.runWorker(ctx, sc.state.newRecentJob(head))
+				sc.runWorker(ctx, sc.state.recentJob(head))
 				sc.state.updateHead(head.Height())
 				// run worker without concurrency limit restrictions to reduced delay
 				sc.metrics.observeNewHead(ctx)
