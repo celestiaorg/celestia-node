@@ -69,7 +69,7 @@ func (c *Client) RequestND(
 		}
 	}
 	if err != p2p.ErrNotFound {
-		log.Warnw("client: peer returned err", "err", err)
+		log.Warnw("client-nd: peer returned err", "err", err)
 	}
 	return nil, err
 }
