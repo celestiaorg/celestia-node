@@ -11,8 +11,11 @@ import (
 
 	logging "github.com/ipfs/go-log/v2"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
+	"github.com/libp2p/go-libp2p/core/event"
 	"github.com/libp2p/go-libp2p/core/host"
+	"github.com/libp2p/go-libp2p/core/network"
 	"github.com/libp2p/go-libp2p/core/peer"
+	"github.com/libp2p/go-libp2p/p2p/host/eventbus"
 	"github.com/libp2p/go-libp2p/p2p/net/conngater"
 
 	libhead "github.com/celestiaorg/go-header"
@@ -34,6 +37,12 @@ const (
 	// ResultBlacklistPeer will blacklist peer. Blacklisted peers will be disconnected and blocked from
 	// any p2p communication in future by libp2p Gater
 	ResultBlacklistPeer = "result_blacklist_peer"
+	// ResultRemovePeer will remove peer from peer manager pool
+	ResultRemovePeer = "result_remove_peer"
+
+	// eventbusBufSize is the size of the buffered channel to handle
+	// events in libp2p
+	eventbusBufSize = 32
 )
 
 type result string
@@ -67,6 +76,9 @@ type Manager struct {
 
 	cancel context.CancelFunc
 	done   chan struct{}
+
+	headerSubDone         chan struct{}
+	disconnectedPeersDone chan struct{}
 }
 
 // DoneFunc updates internal state depending on call results. Should be called once per returned
@@ -108,7 +120,7 @@ func NewManager(
 		host:              host,
 		pools:             make(map[string]*syncPool),
 		blacklistedHashes: make(map[string]bool),
-		done:              make(chan struct{}),
+		headerSubDone:     make(chan struct{}),
 	}
 
 	s.fullNodes = newPool(s.params.PeerCooldown)
@@ -152,6 +164,12 @@ func (m *Manager) Start(startCtx context.Context) error {
 		return fmt.Errorf("subscribing to headersub: %w", err)
 	}
 
+	sub, err := m.host.EventBus().Subscribe(&event.EvtPeerConnectednessChanged{}, eventbus.BufSize(eventbusBufSize))
+	if err != nil {
+		return fmt.Errorf("subscribing to libp2p events: %w", err)
+	}
+
+	go m.subscribeDisconnectedPeers(ctx, sub)
 	go m.subscribeHeader(ctx, headerSub)
 	go m.GC(ctx)
 
@@ -162,7 +180,7 @@ func (m *Manager) Stop(ctx context.Context) error {
 	m.cancel()
 
 	select {
-	case <-m.done:
+	case <-m.headerSubDone:
 		return nil
 	case <-ctx.Done():
 		return ctx.Err()
@@ -245,6 +263,8 @@ func (m *Manager) doneFunc(datahash share.DataHash, peerID peer.ID, source peerS
 			if source == sourceFullNodes {
 				m.fullNodes.putOnCooldown(peerID)
 			}
+		case ResultRemovePeer:
+			m.fullNodes.remove(peerID)
 		case ResultBlacklistPeer:
 			m.blacklistPeers(reasonMisbehave, peerID)
 		}
@@ -253,7 +273,7 @@ func (m *Manager) doneFunc(datahash share.DataHash, peerID peer.ID, source peerS
 
 // subscribeHeader takes datahash from received header and validates corresponding peer pool.
 func (m *Manager) subscribeHeader(ctx context.Context, headerSub libhead.Subscription[*header.ExtendedHeader]) {
-	defer close(m.done)
+	defer close(m.headerSubDone)
 	defer headerSub.Cancel()
 
 	for {
@@ -270,6 +290,33 @@ func (m *Manager) subscribeHeader(ctx context.Context, headerSub libhead.Subscri
 		// store first header for validation purposes
 		if m.initialHeight.CompareAndSwap(0, uint64(h.Height())) {
 			log.Debugw("stored initial height", "height", h.Height())
+		}
+	}
+}
+
+// subscribeDisconnectedPeers subscribes to libp2p connectivity events and removes disconnected
+// peers from full nodes pool
+func (m *Manager) subscribeDisconnectedPeers(ctx context.Context, sub event.Subscription) {
+	defer close(m.disconnectedPeersDone)
+	defer sub.Close()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case e, ok := <-sub.Out():
+			if !ok {
+				log.Error("Subscription for connectedness events is closed.")
+				return
+			}
+			// listen to disconnect event to remove peer from full nodes pool
+			connStatus := e.(event.EvtPeerConnectednessChanged)
+			if connStatus.Connectedness == network.NotConnected {
+				peer := connStatus.Peer
+				if m.fullNodes.has(peer) {
+					log.Debugw("peer disconnected, removing from full nodes", "peer", peer)
+					m.fullNodes.remove(peer)
+				}
+			}
 		}
 	}
 }
@@ -312,7 +359,11 @@ func (m *Manager) Validate(_ context.Context, peerID peer.ID, msg shrexsub.Notif
 	p := m.getOrCreatePool(msg.DataHash.String())
 	p.headerHeight.Store(msg.Height)
 	p.add(peerID)
-	logger.Debug("got hash from shrex-sub")
+	if p.isValidatedDataHash.Load() {
+		// add peer to full nodes pool only of datahash has been already validated
+		m.fullNodes.add(peerID)
+	}
+	log.Debugw("got hash from shrex-sub", "peer", peerID, "datahash", msg.DataHash.String())
 	return pubsub.ValidationIgnore
 }
 
@@ -322,6 +373,8 @@ func (m *Manager) validatedPool(datahash string) *syncPool {
 		log.Debugw("pool marked validated",
 			"hash", datahash,
 			"after (s)", time.Since(p.createdAt))
+		// if pool is proven to be valid, add all collected peers to full nodes
+		m.fullNodes.add(p.peers()...)
 	}
 	return p
 }
