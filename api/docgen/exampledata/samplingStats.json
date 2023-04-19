@@ -1,90 +1,46 @@
 {
-  "head_of_sampled_chain": 27499,
-  "head_of_catchup": 29101,
-  "network_head_height": 30483,
+  "head_of_sampled_chain": 1092,
+  "head_of_catchup": 34101,
+  "network_head_height": 470292,
   "workers": [
     {
-      "current": 28806,
-      "from": 28802,
-      "to": 28901
+      "job_type": "catchup",
+      "current": 1093,
+      "from": 1002,
+      "to": 1101
     },
     {
-      "current": 28906,
-      "from": 28902,
-      "to": 29001
+      "job_type": "catchup",
+      "current": 33343,
+      "from": 33302,
+      "to": 33401
     },
     {
-      "current": 27794,
-      "from": 27702,
-      "to": 27801
+      "job_type": "catchup",
+      "current": 34047,
+      "from": 34002,
+      "to": 34101
     },
     {
-      "current": 28191,
-      "from": 28102,
-      "to": 28201
+      "job_type": "catchup",
+      "current": 1327,
+      "from": 1302,
+      "to": 1401
     },
     {
-      "current": 28420,
-      "from": 28402,
-      "to": 28501
+      "job_type": "catchup",
+      "current": 1197,
+      "from": 1102,
+      "to": 1201
     },
     {
-      "current": 28334,
-      "from": 28302,
-      "to": 28401
-    },
-    {
-      "current": 27691,
-      "from": 27602,
-      "to": 27701
-    },
-    {
-      "current": 27889,
-      "from": 27802,
-      "to": 27901
-    },
-    {
-      "current": 27990,
-      "from": 27902,
-      "to": 28001
-    },
-    {
-      "current": 28293,
-      "from": 28202,
-      "to": 28301
-    },
-    {
-      "current": 28092,
-      "from": 28002,
-      "to": 28101
-    },
-    {
-      "current": 29004,
-      "from": 29002,
-      "to": 29101
-    },
-    {
-      "current": 28708,
-      "from": 28702,
-      "to": 28801
-    },
-    {
-      "current": 28513,
-      "from": 28502,
-      "to": 28601
-    },
-    {
-      "current": 27500,
-      "from": 27402,
-      "to": 27501
-    },
-    {
-      "current": 28615,
-      "from": 28602,
-      "to": 28701
+      "job_type": "catchup",
+      "current": 1408,
+      "from": 1402,
+      "to": 1501
     }
   ],
-  "concurrency": 16,
+  "concurrency": 6,
   "catch_up_done": false,
   "is_running": true
 }

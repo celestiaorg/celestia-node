@@ -13,6 +13,12 @@ import (
 	"github.com/celestiaorg/celestia-node/share/p2p/shrexsub"
 )
 
+const (
+	catchupJob jobType = "catchup"
+	recentJob  jobType = "recent"
+	retryJob   jobType = "retry"
+)
+
 type worker struct {
 	lock  sync.Mutex
 	state workerState
@@ -26,21 +32,22 @@ type worker struct {
 // workerState contains important information about the state of a
 // current sampling routine.
 type workerState struct {
-	job
+	result
 
-	Curr   uint64
-	Err    error
-	failed []uint64
+	curr uint64
 }
+
+type jobType string
 
 // job represents headers interval to be processed by worker
 type job struct {
-	id             int
-	isRecentHeader bool
-	header         *header.ExtendedHeader
+	id      int
+	jobType jobType
+	from    uint64
+	to      uint64
 
-	From uint64
-	To   uint64
+	// header is set only for recentJobs, avoiding an unnecessary call to the header store
+	header *header.ExtendedHeader
 }
 
 func newWorker(j job,
@@ -55,18 +62,20 @@ func newWorker(j job,
 		broadcast: broadcast,
 		metrics:   metrics,
 		state: workerState{
-			job:    j,
-			Curr:   j.From,
-			failed: make([]uint64, 0),
+			curr: j.from,
+			result: result{
+				job:    j,
+				failed: make(map[uint64]int),
+			},
 		},
 	}
 }
 
 func (w *worker) run(ctx context.Context, timeout time.Duration, resultCh chan<- result) {
 	jobStart := time.Now()
-	log.Debugw("start sampling worker", "from", w.state.From, "to", w.state.To)
+	log.Debugw("start sampling worker", "from", w.state.from, "to", w.state.to)
 
-	for curr := w.state.From; curr <= w.state.To; curr++ {
+	for curr := w.state.from; curr <= w.state.to; curr++ {
 		err := w.sample(ctx, timeout, curr)
 		w.setResult(curr, err)
 		if errors.Is(err, context.Canceled) {
@@ -75,20 +84,17 @@ func (w *worker) run(ctx context.Context, timeout time.Duration, resultCh chan<-
 		}
 	}
 
+	log.With()
 	log.Infow(
 		"finished sampling headers",
-		"from", w.state.From,
-		"to", w.state.Curr,
+		"from", w.state.from,
+		"to", w.state.curr,
 		"errors", len(w.state.failed),
 		"finished (s)", time.Since(jobStart),
 	)
 
 	select {
-	case resultCh <- result{
-		job:    w.state.job,
-		failed: w.state.failed,
-		err:    w.state.Err,
-	}:
+	case resultCh <- w.state.result:
 	case <-ctx.Done():
 	}
 }
@@ -104,7 +110,7 @@ func (w *worker) sample(ctx context.Context, timeout time.Duration, height uint6
 	defer cancel()
 
 	err = w.sampleFn(ctx, h)
-	w.metrics.observeSample(ctx, h, time.Since(start), err, w.state.isRecentHeader)
+	w.metrics.observeSample(ctx, h, time.Since(start), w.state.jobType, err)
 	if err != nil {
 		if !errors.Is(err, context.Canceled) {
 			log.Debugw(
@@ -130,7 +136,7 @@ func (w *worker) sample(ctx context.Context, timeout time.Duration, height uint6
 	)
 
 	// notify network about availability of new block data (note: only full nodes can notify)
-	if w.state.isRecentHeader {
+	if w.state.job.jobType == recentJob {
 		err = w.broadcast(ctx, shrexsub.Notification{
 			DataHash: h.DataHash.Bytes(),
 			Height:   uint64(h.Height()),
@@ -176,10 +182,10 @@ func (w *worker) setResult(curr uint64, err error) {
 	w.lock.Lock()
 	defer w.lock.Unlock()
 	if err != nil {
-		w.state.failed = append(w.state.failed, curr)
-		w.state.Err = errors.Join(w.state.Err, fmt.Errorf("height: %v, err: %w", curr, err))
+		w.state.failed[curr]++
+		w.state.err = errors.Join(w.state.err, fmt.Errorf("height: %d, err: %w", curr, err))
 	}
-	w.state.Curr = curr
+	w.state.curr = curr
 }
 
 func (w *worker) getState() workerState {
