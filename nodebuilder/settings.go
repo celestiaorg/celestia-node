@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/libp2p/go-libp2p/core/peer"
+	"github.com/pyroscope-io/client/pyroscope"
 	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetrichttp"
 	"go.opentelemetry.io/otel/metric/global"
 	"go.opentelemetry.io/otel/sdk/metric"
@@ -13,7 +14,8 @@ import (
 	semconv "go.opentelemetry.io/otel/semconv/v1.11.0"
 	"go.uber.org/fx"
 
-	fraud "github.com/celestiaorg/celestia-node/fraud"
+	"github.com/celestiaorg/go-fraud"
+
 	"github.com/celestiaorg/celestia-node/nodebuilder/das"
 	modheader "github.com/celestiaorg/celestia-node/nodebuilder/header"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
@@ -32,6 +34,31 @@ func WithNetwork(net p2p.Network) fx.Option {
 // WithBootstrappers sets custom bootstrap peers.
 func WithBootstrappers(peers p2p.Bootstrappers) fx.Option {
 	return fx.Replace(peers)
+}
+
+// WithPyroscope enables pyroscope profiling for the node.
+func WithPyroscope(endpoint string, nodeType node.Type) fx.Option {
+	return fx.Options(
+		fx.Invoke(func(peerID peer.ID) error {
+			_, err := pyroscope.Start(pyroscope.Config{
+				ApplicationName: "celestia.da-node",
+				ServerAddress:   endpoint,
+				Tags: map[string]string{
+					"type":   nodeType.String(),
+					"peerId": peerID.String(),
+				},
+				Logger: nil,
+				ProfileTypes: []pyroscope.ProfileType{
+					pyroscope.ProfileCPU,
+					pyroscope.ProfileAllocObjects,
+					pyroscope.ProfileAllocSpace,
+					pyroscope.ProfileInuseObjects,
+					pyroscope.ProfileInuseSpace,
+				},
+			})
+			return err
+		}),
+	)
 }
 
 // WithMetrics enables metrics exporting for the node.

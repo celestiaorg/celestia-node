@@ -18,4 +18,11 @@ updates:
       - Wondertan
       - renaynay
     labels:
-      - kind:dependencies
+      - kind:deps
+  - package-ecosystem: docker
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+      time: "11:00"
+    open-pull-requests-limit: 10

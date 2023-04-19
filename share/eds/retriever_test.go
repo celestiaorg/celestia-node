@@ -3,7 +3,6 @@ package eds
 import (
 	"context"
 	"errors"
-	"math/rand"
 	"testing"
 	"time"
 
@@ -17,18 +16,12 @@ import (
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/rsmt2d"
 
-	"github.com/celestiaorg/celestia-node/fraud"
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/header/headertest"
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/eds/byzantine"
 	"github.com/celestiaorg/celestia-node/share/ipld"
 )
-
-func init() {
-	// randomize quadrant fetching, otherwise quadrant sampling is deterministic
-	rand.Seed(time.Now().UnixNano())
-}
 
 func TestRetriever_Retrieve(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
@@ -153,7 +146,7 @@ func generateByzantineError(
 	t *testing.T,
 	bServ blockservice.BlockService,
 ) (*header.ExtendedHeader, error) {
-	_, store := fraud.CreateTestService(t, false)
+	store := headertest.NewStore(t)
 	h, err := store.GetByHeight(ctx, 1)
 	require.NoError(t, err)
 

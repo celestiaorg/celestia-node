@@ -77,9 +77,9 @@ func init() {
 func GetNode(ctx context.Context, bGetter blockservice.BlockGetter, root cid.Cid) (ipld.Node, error) {
 	block, err := bGetter.GetBlock(ctx, root)
 	if err != nil {
-		var errNotFound *ipld.ErrNotFound
+		var errNotFound ipld.ErrNotFound
 		if errors.As(err, &errNotFound) {
-			return nil, errNotFound
+			return nil, ErrNodeNotFound
 		}
 		return nil, err
 	}
@@ -119,15 +119,15 @@ func (n nmtNode) Links() []*ipld.Link {
 	}
 }
 
-func (n nmtNode) Resolve(path []string) (interface{}, []string, error) {
+func (n nmtNode) Resolve([]string) (interface{}, []string, error) {
 	panic("method not implemented")
 }
 
-func (n nmtNode) Tree(path string, depth int) []string {
+func (n nmtNode) Tree(string, int) []string {
 	panic("method not implemented")
 }
 
-func (n nmtNode) ResolveLink(path []string) (*ipld.Link, []string, error) {
+func (n nmtNode) ResolveLink([]string) (*ipld.Link, []string, error) {
 	panic("method not implemented")
 }
 

@@ -6,7 +6,6 @@ import (
 
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
-	"go.uber.org/multierr"
 
 	"github.com/celestiaorg/nmt/namespace"
 	"github.com/celestiaorg/rsmt2d"
@@ -126,9 +125,10 @@ func cascadeGetters[V any](
 			return val, nil
 		}
 
-		// TODO(@Wondertan): migrate to errors.Join once Go1.20 is out!
-		err = multierr.Append(err, getErr)
-		span.RecordError(getErr, trace.WithAttributes(attribute.Int("getter_idx", i)))
+		if !errors.Is(getErr, errOperationNotSupported) {
+			err = errors.Join(err, getErr)
+			span.RecordError(getErr, trace.WithAttributes(attribute.Int("getter_idx", i)))
+		}
 	}
 	return zero, err
 }

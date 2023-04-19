@@ -2,8 +2,8 @@ package swamp
 
 import (
 	"context"
+	"crypto/rand"
 	"fmt"
-	"math/rand"
 	"net"
 	"testing"
 	"time"
@@ -18,10 +18,10 @@ import (
 	"go.uber.org/fx"
 
 	"github.com/celestiaorg/celestia-app/testutil/testnode"
+	libhead "github.com/celestiaorg/go-header"
 
 	"github.com/celestiaorg/celestia-node/core"
 	"github.com/celestiaorg/celestia-node/header"
-	libhead "github.com/celestiaorg/celestia-node/libs/header"
 	"github.com/celestiaorg/celestia-node/libs/keystore"
 	"github.com/celestiaorg/celestia-node/logs"
 	"github.com/celestiaorg/celestia-node/nodebuilder"
@@ -139,7 +139,7 @@ func (s *Swamp) createPeer(ks keystore.Keystore) host.Host {
 
 	// IPv6 will be starting with 100:0
 	token := make([]byte, 12)
-	rand.Read(token) //nolint:gosec
+	_, _ = rand.Read(token)
 	ip := append(net.IP{}, blackholeIP6...)
 	copy(ip[net.IPv6len-len(token):], token)
 

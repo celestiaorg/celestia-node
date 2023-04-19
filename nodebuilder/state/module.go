@@ -6,8 +6,7 @@ import (
 	logging "github.com/ipfs/go-log/v2"
 	"go.uber.org/fx"
 
-	"github.com/celestiaorg/celestia-node/fraud"
-	fraudServ "github.com/celestiaorg/celestia-node/nodebuilder/fraud"
+	modfraud "github.com/celestiaorg/celestia-node/nodebuilder/fraud"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	"github.com/celestiaorg/celestia-node/state"
 )
@@ -25,11 +24,11 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 		fx.Error(cfgErr),
 		fx.Provide(fx.Annotate(
 			coreAccessor,
-			fx.OnStart(func(startCtx, ctx context.Context, fservice fraud.Service, ca *state.CoreAccessor) error {
-				return fraudServ.Lifecycle(startCtx, ctx, fraud.BadEncoding, fservice, ca.Start, ca.Stop)
+			fx.OnStart(func(ctx context.Context, breaker *modfraud.ServiceBreaker[*state.CoreAccessor]) error {
+				return breaker.Start(ctx)
 			}),
-			fx.OnStop(func(ctx context.Context, ca *state.CoreAccessor) error {
-				return ca.Stop(ctx)
+			fx.OnStop(func(ctx context.Context, breaker *modfraud.ServiceBreaker[*state.CoreAccessor]) error {
+				return breaker.Stop(ctx)
 			}),
 		)),
 		// the module is needed for the handler

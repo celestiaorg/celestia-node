@@ -1,8 +1,6 @@
 package state
 
 import (
-	"fmt"
-
 	kr "github.com/cosmos/cosmos-sdk/crypto/keyring"
 
 	apptypes "github.com/celestiaorg/celestia-app/x/blob/types"
@@ -10,6 +8,8 @@ import (
 	"github.com/celestiaorg/celestia-node/libs/keystore"
 	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
 )
+
+const DefaultAccountName = "my_celes_key"
 
 // KeyringSigner constructs a new keyring signer.
 // NOTE: we construct keyring signer before constructing node for easier UX
@@ -26,22 +26,10 @@ func KeyringSigner(cfg Config, ks keystore.Keystore, net p2p.Network) (*apptypes
 		}
 		info = keyInfo
 	} else {
-		// check if key exists for signer
-		keys, err := ring.List()
+		// use default key
+		keyInfo, err := ring.Key(DefaultAccountName)
 		if err != nil {
-			return nil, err
-		}
-		// if no key was found in keystore path, generate new key for node
-		if len(keys) == 0 {
-			log.Errorw("no keys found in path", "path", ks.Path(), "keyring backend",
-				cfg.KeyringBackend)
-			return nil, fmt.Errorf("no keys found in path %s using keyring backend %s", ks.Path(),
-				cfg.KeyringBackend)
-		}
-		// if one or more keys are present and no keyringAccName was given, use the first key in list
-		keyInfo, err := ring.Key(keys[0].Name)
-		if err != nil {
-			log.Errorw("could not access key in keyring", "name", keys[0].Name)
+			log.Errorw("could not access key in keyring", "name", DefaultAccountName)
 			return nil, err
 		}
 		info = keyInfo

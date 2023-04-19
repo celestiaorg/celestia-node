@@ -8,12 +8,12 @@ import (
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	"go.uber.org/fx"
 
-	"github.com/celestiaorg/celestia-node/fraud"
+	libhead "github.com/celestiaorg/go-header"
+	"github.com/celestiaorg/go-header/p2p"
+	"github.com/celestiaorg/go-header/store"
+	"github.com/celestiaorg/go-header/sync"
+
 	"github.com/celestiaorg/celestia-node/header"
-	libhead "github.com/celestiaorg/celestia-node/libs/header"
-	"github.com/celestiaorg/celestia-node/libs/header/p2p"
-	"github.com/celestiaorg/celestia-node/libs/header/store"
-	"github.com/celestiaorg/celestia-node/libs/header/sync"
 	modfraud "github.com/celestiaorg/celestia-node/nodebuilder/fraud"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	modp2p "github.com/celestiaorg/celestia-node/nodebuilder/p2p"
@@ -71,15 +71,16 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 		fx.Provide(fx.Annotate(
 			newSyncer,
 			fx.OnStart(func(
-				startCtx, ctx context.Context,
-				fservice fraud.Service,
-				syncer *sync.Syncer[*header.ExtendedHeader],
+				ctx context.Context,
+				breaker *modfraud.ServiceBreaker[*sync.Syncer[*header.ExtendedHeader]],
 			) error {
-				return modfraud.Lifecycle(startCtx, ctx, fraud.BadEncoding, fservice,
-					syncer.Start, syncer.Stop)
+				return breaker.Start(ctx)
 			}),
-			fx.OnStop(func(ctx context.Context, syncer *sync.Syncer[*header.ExtendedHeader]) error {
-				return syncer.Stop(ctx)
+			fx.OnStop(func(
+				ctx context.Context,
+				breaker *modfraud.ServiceBreaker[*sync.Syncer[*header.ExtendedHeader]],
+			) error {
+				return breaker.Stop(ctx)
 			}),
 		)),
 		fx.Provide(fx.Annotate(

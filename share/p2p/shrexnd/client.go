@@ -8,13 +8,13 @@ import (
 	"net"
 	"time"
 
-	"github.com/ipfs/go-cid"
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/network"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/libp2p/go-libp2p/core/protocol"
 
 	"github.com/celestiaorg/go-libp2p-messenger/serde"
+	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/nmt/namespace"
 
 	"github.com/celestiaorg/celestia-node/share"
@@ -68,8 +68,8 @@ func (c *Client) RequestND(
 			return nil, context.DeadlineExceeded
 		}
 	}
-	if err != p2p.ErrUnavailable {
-		log.Debugw("client-nd: peer returned err", "peer", peer, "err", err)
+	if err != p2p.ErrNotFound {
+		log.Warnw("client-nd: peer returned err", "peer", peer, "err", err)
 	}
 	return nil, err
 }
@@ -101,7 +101,7 @@ func (c *Client) doRequest(
 
 	err = stream.CloseWrite()
 	if err != nil {
-		log.Debugf("client-nd: closing write side of the stream: %s", err)
+		log.Debugw("client-nd: closing write side of the stream", "err", err)
 	}
 
 	var resp pb.GetSharesByNamespaceResponse
@@ -109,7 +109,7 @@ func (c *Client) doRequest(
 	if err != nil {
 		// server is overloaded and closed the stream
 		if errors.Is(err, io.EOF) {
-			return nil, p2p.ErrUnavailable
+			return nil, p2p.ErrNotFound
 		}
 		stream.Reset() //nolint:errcheck
 		return nil, fmt.Errorf("client-nd: reading response: %w", err)
@@ -136,22 +136,15 @@ func (c *Client) doRequest(
 func convertToNamespacedShares(rows []*pb.Row) (share.NamespacedShares, error) {
 	shares := make([]share.NamespacedRow, 0, len(rows))
 	for _, row := range rows {
-		var proof *ipld.Proof
+		var proof *nmt.Proof
 		if row.Proof != nil {
-			cids := make([]cid.Cid, 0, len(row.Proof.Nodes))
-			for _, node := range row.Proof.Nodes {
-				cid, err := cid.Cast(node)
-				if err != nil {
-					return nil, fmt.Errorf("casting proofs node to cid: %w", err)
-				}
-				cids = append(cids, cid)
-			}
-
-			proof = &ipld.Proof{
-				Nodes: cids,
-				Start: int(row.Proof.Start),
-				End:   int(row.Proof.End),
-			}
+			tmpProof := nmt.NewInclusionProof(
+				int(row.Proof.Start),
+				int(row.Proof.End),
+				row.Proof.Nodes,
+				ipld.NMTIgnoreMaxNamespace,
+			)
+			proof = &tmpProof
 		}
 
 		shares = append(shares, share.NamespacedRow{
@@ -168,7 +161,7 @@ func (c *Client) setStreamDeadlines(ctx context.Context, stream network.Stream) 
 	if ok {
 		err := stream.SetDeadline(deadline)
 		if err != nil {
-			log.Debugf("client-nd: set write deadline: %s", err)
+			log.Debugw("client-nd: set write deadline", "err", err)
 		}
 		return
 	}
@@ -177,7 +170,7 @@ func (c *Client) setStreamDeadlines(ctx context.Context, stream network.Stream) 
 	if c.params.ServerWriteTimeout != 0 {
 		err := stream.SetReadDeadline(time.Now().Add(c.params.ServerWriteTimeout))
 		if err != nil {
-			log.Debugf("client-nd: set read deadline: %s", err)
+			log.Debugw("client-nd: set read deadline", "err", err)
 		}
 	}
 
@@ -185,7 +178,7 @@ func (c *Client) setStreamDeadlines(ctx context.Context, stream network.Stream) 
 	if c.params.ServerReadTimeout != 0 {
 		err := stream.SetWriteDeadline(time.Now().Add(c.params.ServerReadTimeout))
 		if err != nil {
-			log.Debugf("client-nd: set write deadline: %s", err)
+			log.Debugw("client-nd: set write deadline", "err", err)
 		}
 	}
 }
@@ -195,11 +188,13 @@ func statusToErr(code pb.StatusCode) error {
 	case pb.StatusCode_OK:
 		return nil
 	case pb.StatusCode_NOT_FOUND:
-		return p2p.ErrUnavailable
-	case pb.StatusCode_INTERNAL, pb.StatusCode_INVALID:
+		return p2p.ErrNotFound
+	case pb.StatusCode_INVALID:
+		log.Debug("client-nd: invalid request")
+		fallthrough
+	case pb.StatusCode_INTERNAL:
 		fallthrough
 	default:
-		log.Errorf("client-nd: request status %s returned", code.String())
 		return p2p.ErrInvalidResponse
 	}
 }

@@ -6,8 +6,7 @@ import (
 	"go.uber.org/fx"
 
 	"github.com/celestiaorg/celestia-node/das"
-	"github.com/celestiaorg/celestia-node/fraud"
-	fraudServ "github.com/celestiaorg/celestia-node/nodebuilder/fraud"
+	modfraud "github.com/celestiaorg/celestia-node/nodebuilder/fraud"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 )
 
@@ -42,12 +41,11 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 			baseComponents,
 			fx.Provide(fx.Annotate(
 				newDASer,
-				fx.OnStart(func(startCtx, ctx context.Context, fservice fraud.Service, das *das.DASer) error {
-					return fraudServ.Lifecycle(startCtx, ctx, fraud.BadEncoding, fservice,
-						das.Start, das.Stop)
+				fx.OnStart(func(ctx context.Context, breaker *modfraud.ServiceBreaker[*das.DASer]) error {
+					return breaker.Start(ctx)
 				}),
-				fx.OnStop(func(ctx context.Context, das *das.DASer) error {
-					return das.Stop(ctx)
+				fx.OnStop(func(ctx context.Context, breaker *modfraud.ServiceBreaker[*das.DASer]) error {
+					return breaker.Stop(ctx)
 				}),
 			)),
 			// Module is needed for the RPC handler

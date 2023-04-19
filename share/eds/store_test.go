@@ -2,7 +2,6 @@ package eds
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"testing"
 	"time"
@@ -71,8 +70,6 @@ func TestEDSStore(t *testing.T) {
 		r, err := edsStore.GetCAR(ctx, dah.Hash())
 		assert.NoError(t, err)
 		carReader, err := car.NewCarReader(r)
-
-		fmt.Println(car.HeaderSize(carReader.Header))
 		assert.NoError(t, err)
 
 		for i := 0; i < 4; i++ {
@@ -83,6 +80,18 @@ func TestEDSStore(t *testing.T) {
 				assert.Equal(t, original, block.RawData()[share.NamespaceSize:])
 			}
 		}
+	})
+
+	t.Run("item not exist", func(t *testing.T) {
+		root := share.DataHash{1}
+		_, err := edsStore.GetCAR(ctx, root)
+		assert.ErrorIs(t, err, ErrNotFound)
+
+		_, err = edsStore.GetDAH(ctx, root)
+		assert.ErrorIs(t, err, ErrNotFound)
+
+		_, err = edsStore.CARBlockstore(ctx, root)
+		assert.ErrorIs(t, err, ErrNotFound)
 	})
 
 	t.Run("Remove", func(t *testing.T) {
@@ -204,6 +213,43 @@ func Test_BlockstoreCache(t *testing.T) {
 	assert.NoError(t, err)
 	_, err = edsStore.cache.Get(shardKey)
 	assert.NoError(t, err, errCacheMiss)
+}
+
+// Test_CachedAccessor verifies that the reader represented by a cached accessor can be read from
+// multiple times, without exhausting the underlying reader.
+func Test_CachedAccessor(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(cancel)
+
+	edsStore, err := newStore(t)
+	require.NoError(t, err)
+	err = edsStore.Start(ctx)
+	require.NoError(t, err)
+
+	eds, dah := randomEDS(t)
+	err = edsStore.Put(ctx, dah.Hash(), eds)
+	require.NoError(t, err)
+
+	shardKey := shard.KeyFromString(dah.String())
+	// adds to cache
+	cachedAccessor, err := edsStore.getCachedAccessor(ctx, shardKey)
+	assert.NoError(t, err)
+
+	// first read
+	carReader, err := car.NewCarReader(cachedAccessor.sa.Reader())
+	assert.NoError(t, err)
+	firstBlock, err := carReader.Next()
+	assert.NoError(t, err)
+
+	// second read
+	cachedAccessor, err = edsStore.getCachedAccessor(ctx, shardKey)
+	assert.NoError(t, err)
+	carReader, err = car.NewCarReader(cachedAccessor.sa.Reader())
+	assert.NoError(t, err)
+	secondBlock, err := carReader.Next()
+	assert.NoError(t, err)
+
+	assert.Equal(t, firstBlock, secondBlock)
 }
 
 func newStore(t *testing.T) (*Store, error) {

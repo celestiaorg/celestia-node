@@ -4,10 +4,38 @@ import (
 	"bytes"
 	"context"
 	"os"
+	"reflect"
 	"testing"
 
 	"github.com/stretchr/testify/require"
+
+	"github.com/celestiaorg/celestia-node/header"
 )
+
+func TestCompletionHelpString(t *testing.T) {
+	type TestFields struct {
+		NoInputOneOutput        func(context.Context) (*header.ExtendedHeader, error)
+		TwoInputsOneOutputArray func(
+			context.Context,
+			*header.ExtendedHeader,
+			uint64,
+		) ([]*header.ExtendedHeader, error)
+		OneInputOneOutput  func(context.Context, uint64) (*header.ExtendedHeader, error)
+		NoInputsNoOutputs  func(ctx context.Context) error
+		NoInputsChanOutput func(ctx context.Context) (<-chan *header.ExtendedHeader, error)
+	}
+	testOutputs := []string{
+		"() -> (*header.ExtendedHeader)",
+		"(*header.ExtendedHeader, uint64) -> ([]*header.ExtendedHeader)",
+		"(uint64) -> (*header.ExtendedHeader)",
+		"() -> ()",
+		"() -> (<-chan *header.ExtendedHeader)",
+	}
+	methods := reflect.VisibleFields(reflect.TypeOf(TestFields{}))
+	for i, method := range methods {
+		require.Equal(t, testOutputs[i], parseSignatureForHelpstring(method))
+	}
+}
 
 func TestLight(t *testing.T) {
 	// Run the tests in a temporary directory

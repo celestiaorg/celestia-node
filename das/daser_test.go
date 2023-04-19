@@ -16,15 +16,19 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/tendermint/tendermint/types"
 
-	"github.com/celestiaorg/celestia-node/fraud"
+	"github.com/celestiaorg/go-fraud"
+	"github.com/celestiaorg/go-fraud/fraudserv"
+	"github.com/celestiaorg/go-fraud/fraudtest"
+	libhead "github.com/celestiaorg/go-header"
+
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/header/headertest"
-	libhead "github.com/celestiaorg/celestia-node/libs/header"
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/availability/full"
 	"github.com/celestiaorg/celestia-node/share/availability/light"
 	"github.com/celestiaorg/celestia-node/share/availability/mocks"
 	availability_test "github.com/celestiaorg/celestia-node/share/availability/test"
+	"github.com/celestiaorg/celestia-node/share/eds/byzantine"
 	"github.com/celestiaorg/celestia-node/share/getters"
 )
 
@@ -155,7 +159,10 @@ func TestDASer_stopsAfter_BEFP(t *testing.T) {
 	mockGet, sub, _ := createDASerSubcomponents(t, bServ, 15, 15)
 
 	// create fraud service and break one header
-	f := fraud.NewProofService(ps, net.Hosts()[0], mockGet.GetByHeight, ds, false, "private")
+	getter := func(ctx context.Context, height uint64) (libhead.Header, error) {
+		return mockGet.GetByHeight(ctx, height)
+	}
+	f := fraudserv.NewProofService(ps, net.Hosts()[0], getter, ds, false, "private")
 	require.NoError(t, f.Start(ctx))
 	mockGet.headers[1], _ = headertest.CreateFraudExtHeader(t, mockGet.headers[1], bServ)
 	newCtx := context.Background()
@@ -165,7 +172,7 @@ func TestDASer_stopsAfter_BEFP(t *testing.T) {
 	require.NoError(t, err)
 
 	resultCh := make(chan error)
-	go fraud.OnProof(newCtx, f, fraud.BadEncoding,
+	go fraud.OnProof(newCtx, f, byzantine.BadEncoding,
 		func(fraud.Proof) {
 			resultCh <- daser.Stop(newCtx)
 		})
@@ -200,8 +207,8 @@ func TestDASerSampleTimeout(t *testing.T) {
 		})
 
 	ds := ds_sync.MutexWrap(datastore.NewMapDatastore())
-	sub := new(headertest.DummySubscriber)
-	f := new(fraud.DummyService)
+	sub := new(headertest.Subscriber)
+	f := new(fraudtest.DummyService)
 
 	// create and start DASer
 	daser, err := NewDASer(avail, sub, getter, ds, f, newBroadcastMock(1), WithSampleTimeout(1))
@@ -226,9 +233,9 @@ func createDASerSubcomponents(
 	bServ blockservice.BlockService,
 	numGetter,
 	numSub int,
-) (*mockGetter, *headertest.DummySubscriber, *fraud.DummyService) {
+) (*mockGetter, *headertest.Subscriber, *fraudtest.DummyService) {
 	mockGet, sub := createMockGetterAndSub(t, bServ, numGetter, numSub)
-	fraud := new(fraud.DummyService)
+	fraud := new(fraudtest.DummyService)
 	return mockGet, sub, fraud
 }
 
@@ -237,7 +244,7 @@ func createMockGetterAndSub(
 	bServ blockservice.BlockService,
 	numGetter,
 	numSub int,
-) (*mockGetter, *headertest.DummySubscriber) {
+) (*mockGetter, *headertest.Subscriber) {
 	mockGet := &mockGetter{
 		headers:        make(map[int64]*header.ExtendedHeader),
 		doneCh:         make(chan struct{}),
@@ -246,16 +253,15 @@ func createMockGetterAndSub(
 
 	mockGet.generateHeaders(t, bServ, 0, numGetter)
 
-	sub := new(headertest.DummySubscriber)
+	sub := new(headertest.Subscriber)
 	mockGet.fillSubWithHeaders(t, sub, bServ, numGetter, numGetter+numSub)
-
 	return mockGet, sub
 }
 
 // fillSubWithHeaders generates `num` headers from the future for p2pSub to pipe through to DASer.
 func (m *mockGetter) fillSubWithHeaders(
 	t *testing.T,
-	sub *headertest.DummySubscriber,
+	sub *headertest.Subscriber,
 	bServ blockservice.BlockService,
 	startHeight,
 	endHeight int,
@@ -340,7 +346,7 @@ func newBenchGetter() benchGetterStub {
 		DAH: &header.DataAvailabilityHeader{RowsRoots: make([][]byte, 0)}}}
 }
 
-func (m benchGetterStub) GetByHeight(_ context.Context, height uint64) (*header.ExtendedHeader, error) {
+func (m benchGetterStub) GetByHeight(context.Context, uint64) (*header.ExtendedHeader, error) {
 	return m.header, nil
 }
 
@@ -357,7 +363,7 @@ func (m getterStub) GetByHeight(_ context.Context, height uint64) (*header.Exten
 		DAH:       &header.DataAvailabilityHeader{RowsRoots: make([][]byte, 0)}}, nil
 }
 
-func (m getterStub) GetRangeByHeight(ctx context.Context, from, amount uint64) ([]*header.ExtendedHeader, error) {
+func (m getterStub) GetRangeByHeight(context.Context, uint64, uint64) ([]*header.ExtendedHeader, error) {
 	return nil, nil
 }
 

@@ -3,7 +3,7 @@ package eds
 import (
 	"context"
 	"errors"
-	"math/rand"
+	mrand "math/rand"
 	"sort"
 	"testing"
 	"time"
@@ -17,7 +17,7 @@ import (
 
 func TestBlockGetter_GetBlocks(t *testing.T) {
 	t.Run("happy path", func(t *testing.T) {
-		cids := randCIDs(32)
+		cids := randCIDs(t, 32)
 		// sort cids in asc order
 		sort.Slice(cids, func(i, j int) bool {
 			return cids[i].String() < cids[j].String()
@@ -44,10 +44,10 @@ func TestBlockGetter_GetBlocks(t *testing.T) {
 		}
 	})
 	t.Run("retrieval error", func(t *testing.T) {
-		cids := randCIDs(32)
+		cids := randCIDs(t, 32)
 
 		// split cids into failed and succeeded
-		failedLen := rand.Intn(len(cids)-1) + 1
+		failedLen := mrand.Intn(len(cids)-1) + 1
 		failed := make(map[cid.Cid]struct{}, failedLen)
 		succeeded := make([]cid.Cid, 0, len(cids)-failedLen)
 		for i, cid := range cids {
@@ -84,7 +84,7 @@ func TestBlockGetter_GetBlocks(t *testing.T) {
 		}
 	})
 	t.Run("retrieval timeout", func(t *testing.T) {
-		cids := randCIDs(128)
+		cids := randCIDs(t, 128)
 
 		bg := &BlockGetter{
 			store: rbsMock{},
@@ -114,11 +114,11 @@ type rbsMock struct {
 	failed map[cid.Cid]struct{}
 }
 
-func (r rbsMock) Has(ctx context.Context, cid cid.Cid) (bool, error) {
+func (r rbsMock) Has(context.Context, cid.Cid) (bool, error) {
 	panic("implement me")
 }
 
-func (r rbsMock) Get(ctx context.Context, cid cid.Cid) (blocks.Block, error) {
+func (r rbsMock) Get(_ context.Context, cid cid.Cid) (blocks.Block, error) {
 	// return error for failed items
 	if _, ok := r.failed[cid]; ok {
 		return nil, errors.New("not found")
@@ -127,28 +127,22 @@ func (r rbsMock) Get(ctx context.Context, cid cid.Cid) (blocks.Block, error) {
 	return blocks.NewBlockWithCid(nil, cid)
 }
 
-func (r rbsMock) GetSize(ctx context.Context, cid cid.Cid) (int, error) {
+func (r rbsMock) GetSize(context.Context, cid.Cid) (int, error) {
 	panic("implement me")
 }
 
-func (r rbsMock) AllKeysChan(ctx context.Context) (<-chan cid.Cid, error) {
+func (r rbsMock) AllKeysChan(context.Context) (<-chan cid.Cid, error) {
 	panic("implement me")
 }
 
-func (r rbsMock) HashOnRead(enabled bool) {
+func (r rbsMock) HashOnRead(bool) {
 	panic("implement me")
 }
 
-func randCID() cid.Cid {
-	hash := make([]byte, ipld.NmtHashSize)
-	rand.Read(hash)
-	return ipld.MustCidFromNamespacedSha256(hash)
-}
-
-func randCIDs(n int) []cid.Cid {
+func randCIDs(t *testing.T, n int) []cid.Cid {
 	cids := make([]cid.Cid, n)
 	for i := range cids {
-		cids[i] = randCID()
+		cids[i] = ipld.RandNamespacedCID(t)
 	}
 	return cids
 }

@@ -9,12 +9,16 @@ import (
 	"github.com/libp2p/go-libp2p/p2p/net/conngater"
 	"go.uber.org/fx"
 
+	libfraud "github.com/celestiaorg/go-fraud"
+	libhead "github.com/celestiaorg/go-header"
+	"github.com/celestiaorg/go-header/p2p"
+	"github.com/celestiaorg/go-header/store"
+	"github.com/celestiaorg/go-header/sync"
+
 	"github.com/celestiaorg/celestia-node/header"
-	libhead "github.com/celestiaorg/celestia-node/libs/header"
-	"github.com/celestiaorg/celestia-node/libs/header/p2p"
-	"github.com/celestiaorg/celestia-node/libs/header/store"
-	"github.com/celestiaorg/celestia-node/libs/header/sync"
+	modfraud "github.com/celestiaorg/celestia-node/nodebuilder/fraud"
 	modp2p "github.com/celestiaorg/celestia-node/nodebuilder/p2p"
+	"github.com/celestiaorg/celestia-node/share/eds/byzantine"
 )
 
 // newP2PServer constructs a new ExchangeServer using the given Network as a protocolID prefix.
@@ -71,11 +75,21 @@ func newP2PExchange(cfg Config) func(
 // newSyncer constructs new Syncer for headers.
 func newSyncer(
 	ex libhead.Exchange[*header.ExtendedHeader],
+	fservice libfraud.Service,
 	store InitStore,
 	sub libhead.Subscriber[*header.ExtendedHeader],
 	opts []sync.Options,
-) (*sync.Syncer[*header.ExtendedHeader], error) {
-	return sync.NewSyncer[*header.ExtendedHeader](ex, store, sub, opts...)
+) (*sync.Syncer[*header.ExtendedHeader], *modfraud.ServiceBreaker[*sync.Syncer[*header.ExtendedHeader]], error) {
+	syncer, err := sync.NewSyncer[*header.ExtendedHeader](ex, store, sub, opts...)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return syncer, &modfraud.ServiceBreaker[*sync.Syncer[*header.ExtendedHeader]]{
+		Service:   syncer,
+		FraudType: byzantine.BadEncoding,
+		FraudServ: fservice,
+	}, nil
 }
 
 // InitStore is a type representing initialized header store.

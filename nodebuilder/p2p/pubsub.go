@@ -15,8 +15,9 @@ import (
 	"go.uber.org/fx"
 	"golang.org/x/crypto/blake2b"
 
-	"github.com/celestiaorg/celestia-node/fraud"
-	headp2p "github.com/celestiaorg/celestia-node/libs/header/p2p"
+	"github.com/celestiaorg/go-fraud"
+	"github.com/celestiaorg/go-fraud/fraudserv"
+	headp2p "github.com/celestiaorg/go-header/p2p"
 )
 
 func init() {
@@ -43,7 +44,8 @@ func pubSub(cfg Config, params pubSubParams) (*pubsub.PubSub, error) {
 		return nil, err
 	}
 
-	isBootstrapper := cfg.Bootstrapper
+	isBootstrapper := isBootstrapper()
+
 	if isBootstrapper {
 		// Turn off the mesh in bootstrappers as per:
 		//
@@ -65,7 +67,7 @@ func pubSub(cfg Config, params pubSubParams) (*pubsub.PubSub, error) {
 	//  * lotus
 	//  * prysm
 	topicScores := topicScoreParams(params.Network)
-	peerScores, err := peerScoreParams(isBootstrapper, params.Bootstrappers, cfg)
+	peerScores, err := peerScoreParams(params.Bootstrappers, cfg)
 	if err != nil {
 		return nil, err
 	}
@@ -76,7 +78,7 @@ func pubSub(cfg Config, params pubSubParams) (*pubsub.PubSub, error) {
 	opts := []pubsub.Option{
 		pubsub.WithSeenMessagesStrategy(timecache.Strategy_LastSeen),
 		pubsub.WithPeerScore(peerScores, scoreThresholds),
-		pubsub.WithPeerExchange(cfg.PeerExchange || cfg.Bootstrapper),
+		pubsub.WithPeerExchange(cfg.PeerExchange || isBootstrapper),
 		pubsub.WithDirectPeers(fpeers),
 		pubsub.WithMessageIdFn(hashMsgID),
 		// specifying sub protocol helps to avoid conflicts with
@@ -111,13 +113,13 @@ func topicScoreParams(network Network) map[string]*pubsub.TopicScoreParams {
 	}
 
 	for _, pt := range fraud.Registered() {
-		mp[fraud.PubsubTopicID(pt.String(), network.String())] = &fraud.GossibSubScore
+		mp[fraudserv.PubsubTopicID(pt.String(), network.String())] = &fraudserv.GossibSubScore
 	}
 
 	return mp
 }
 
-func peerScoreParams(isBootstrapper bool, bootstrappers Bootstrappers, cfg Config) (*pubsub.PeerScoreParams, error) {
+func peerScoreParams(bootstrappers Bootstrappers, cfg Config) (*pubsub.PeerScoreParams, error) {
 	bootstrapperSet := map[peer.ID]struct{}{}
 	for _, b := range bootstrappers {
 		bootstrapperSet[b.ID] = struct{}{}
@@ -139,7 +141,7 @@ func peerScoreParams(isBootstrapper bool, bootstrappers Bootstrappers, cfg Confi
 			// return a heavy positive score for bootstrappers so that we don't unilaterally prune
 			// them and accept PX from them
 			_, ok := bootstrapperSet[p]
-			if ok && !isBootstrapper {
+			if ok {
 				return 2500
 			}
 

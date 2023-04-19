@@ -2,7 +2,7 @@ package ipld
 
 import (
 	"context"
-	"fmt"
+	"errors"
 	"sync"
 	"sync/atomic"
 
@@ -12,9 +12,6 @@ import (
 	ipld "github.com/ipfs/go-ipld-format"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
-
-	"github.com/celestiaorg/nmt"
-	"github.com/celestiaorg/nmt/namespace"
 )
 
 // NumWorkersLimit sets global limit for workers spawned by GetShares.
@@ -34,6 +31,9 @@ var NumWorkersLimit = MaxSquareSize * MaxSquareSize / 2 * NumConcurrentSquares
 // NumConcurrentSquares limits the amount of squares that are fetched
 // concurrently/simultaneously.
 var NumConcurrentSquares = 8
+
+// ErrNodeNotFound is used to signal when a nmt Node could not be found.
+var ErrNodeNotFound = errors.New("nmt node not found")
 
 // Global worker pool that globally controls and limits goroutines spawned by
 // GetShares.
@@ -170,167 +170,6 @@ func GetLeaves(ctx context.Context,
 	wg.Wait()
 }
 
-// GetLeavesByNamespace returns leaves and corresponding proof that could be used to verify leaves
-// inclusion. It returns as many leaves from the given root with the given namespace.ID as it can
-// retrieve. If no shares are found, it returns both data and error as nil. If non-nil
-// proofContainer param passed, it will be filled with data required for inclusion verification. A
-// non-nil error means that only partial data is returned, because at least one share retrieval
-// failed. The following implementation is based on `GetShares`.
-func GetLeavesByNamespace(
-	ctx context.Context,
-	bGetter blockservice.BlockGetter,
-	root cid.Cid,
-	nID namespace.ID,
-	maxShares int,
-	proofContainer *Proof,
-) ([]ipld.Node, error) {
-	if len(nID) != NamespaceSize {
-		return nil, fmt.Errorf("expected namespace ID of size %d, got %d", NamespaceSize, len(nID))
-	}
-
-	ctx, span := tracer.Start(ctx, "get-leaves-by-namespace")
-	defer span.End()
-
-	span.SetAttributes(
-		attribute.String("namespace", nID.String()),
-		attribute.String("root", root.String()),
-	)
-
-	// we don't know where in the tree the leaves in the namespace are,
-	// so we keep track of the bounds to return the correct slice
-	// maxShares acts as a sentinel to know if we find any leaves
-	bounds := fetchedBounds{int64(maxShares), 0}
-
-	// buffer the jobs to avoid blocking, we only need as many
-	// queued as the number of shares in the second-to-last layer
-	jobs := make(chan *job, (maxShares+1)/2)
-	jobs <- &job{id: root, ctx: ctx}
-
-	var wg chanGroup
-	wg.jobs = jobs
-	wg.add(1)
-
-	var (
-		singleErr    sync.Once
-		retrievalErr error
-	)
-
-	// we overallocate space for leaves since we do not know how many we will find
-	// on the level above, the length of the Row is passed in as maxShares
-	leaves := make([]ipld.Node, maxShares)
-
-	// if non-nil proof container provided, collect proofs while traversing the tree and fill put them
-	// into container after
-	var collectProofs = proofContainer != nil
-	var proofs *proofCollector
-	if collectProofs {
-		proofs = newProofCollector(maxShares)
-	}
-
-	for {
-		var j *job
-		var ok bool
-		select {
-		case j, ok = <-jobs:
-		case <-ctx.Done():
-			return nil, ctx.Err()
-		}
-
-		if !ok {
-			// if there were no leaves under the given root in the given namespace,
-			// both return values are nil. otherwise, the error will also be non-nil.
-			if bounds.lowest == int64(maxShares) {
-				return nil, retrievalErr
-			}
-
-			if collectProofs {
-				proofContainer.Start = int(bounds.lowest)
-				proofContainer.End = int(bounds.highest) + 1
-				proofContainer.Nodes = proofs.Nodes()
-			}
-
-			return leaves[bounds.lowest : bounds.highest+1], retrievalErr
-		}
-		pool.Submit(func() {
-			ctx, span := tracer.Start(j.ctx, "process-job")
-			defer span.End()
-			defer wg.done()
-
-			span.SetAttributes(
-				attribute.String("cid", j.id.String()),
-				attribute.Int("pos", j.sharePos),
-			)
-
-			// if an error is likely to be returned or not depends on
-			// the underlying impl of the blockservice, currently it is not a realistic probability
-			nd, err := GetNode(ctx, bGetter, j.id)
-			if err != nil {
-				singleErr.Do(func() {
-					retrievalErr = err
-				})
-				log.Errorw("getLeavesWithProofsByNamespace: could not retrieve node", "nID", nID, "pos", j.sharePos, "err", err)
-				span.SetStatus(codes.Error, err.Error())
-				// we still need to update the bounds
-				bounds.update(int64(j.sharePos))
-				return
-			}
-
-			links := nd.Links()
-			if len(links) == 0 {
-				// successfully fetched a leaf belonging to the namespace
-				span.SetStatus(codes.Ok, "")
-				leaves[j.sharePos] = nd
-				// we found a leaf, so we update the bounds
-				// the update routine is repeated until the atomic swap is successful
-				bounds.update(int64(j.sharePos))
-				return
-			}
-
-			// this node has links in the namespace, so keep walking
-			for i, lnk := range links {
-				newJob := &job{
-					id: lnk.Cid,
-					// sharePos represents potential share position in share slice
-					sharePos: j.sharePos*2 + i,
-					// depth represents the number of edges present in path from the root node of a tree to that node
-					depth: j.depth + 1,
-					// we pass the context to job so that spans are tracked in a tree
-					// structure
-					ctx: ctx,
-				}
-				// if the link's nID isn't in range we don't need to create a new job for it,
-				// but need to collect a proof
-				jobNid := NamespacedSha256FromCID(newJob.id)
-
-				// proof is on the right side, if the nID is less than min namespace of jobNid
-				if nID.Less(nmt.MinNamespace(jobNid, nID.Size())) {
-					if collectProofs {
-						proofs.addRight(lnk.Cid, newJob.depth)
-					}
-					continue
-				}
-
-				// proof is on the left side, if the nID is bigger than max namespace of jobNid
-				if !nID.LessOrEqual(nmt.MaxNamespace(jobNid, nID.Size())) {
-					if collectProofs {
-						proofs.addLeft(lnk.Cid, newJob.depth)
-					}
-					continue
-				}
-
-				// by passing the previous check, we know we will have one more node to process
-				// note: it is important to increase the counter before sending to the channel
-				wg.add(1)
-				select {
-				case jobs <- newJob:
-				case <-ctx.Done():
-					return
-				}
-			}
-		})
-	}
-}
-
 // GetProof fetches and returns the leaf's Merkle Proof.
 // It walks down the IPLD NMT tree until it reaches the leaf and returns collected proof
 func GetProof(
@@ -391,31 +230,8 @@ func (w *chanGroup) done() {
 	}
 }
 
-type fetchedBounds struct {
-	lowest  int64
-	highest int64
-}
-
-// update checks if the passed index is outside the current bounds,
-// and updates the bounds atomically if it extends them.
-func (b *fetchedBounds) update(index int64) {
-	lowest := atomic.LoadInt64(&b.lowest)
-	// try to write index to the lower bound if appropriate, and retry until the atomic op is successful
-	// CAS ensures that we don't overwrite if the bound has been updated in another goroutine after the
-	// comparison here
-	for index < lowest && !atomic.CompareAndSwapInt64(&b.lowest, lowest, index) {
-		lowest = atomic.LoadInt64(&b.lowest)
-	}
-	// we always run both checks because element can be both the lower and higher bound
-	// for example, if there is only one share in the namespace
-	highest := atomic.LoadInt64(&b.highest)
-	for index > highest && !atomic.CompareAndSwapInt64(&b.highest, highest, index) {
-		highest = atomic.LoadInt64(&b.highest)
-	}
-}
-
 // job represents an encountered node to investigate during the `GetLeaves`
-// and `GetLeavesByNamespace` routines.
+// and `CollectLeavesByNamespace` routines.
 type job struct {
 	id       cid.Cid
 	sharePos int

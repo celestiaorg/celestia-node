@@ -1,14 +1,18 @@
 package fraud
 
 import (
+	"context"
+
 	"github.com/ipfs/go-datastore"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	"github.com/libp2p/go-libp2p/core/host"
 	"go.uber.org/fx"
 
-	"github.com/celestiaorg/celestia-node/fraud"
+	"github.com/celestiaorg/go-fraud"
+	"github.com/celestiaorg/go-fraud/fraudserv"
+	libhead "github.com/celestiaorg/go-header"
+
 	"github.com/celestiaorg/celestia-node/header"
-	libhead "github.com/celestiaorg/celestia-node/libs/header"
 	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
 )
 
@@ -28,7 +32,10 @@ func newFraudService(syncerEnabled bool) func(
 		ds datastore.Batching,
 		network p2p.Network,
 	) (Module, fraud.Service, error) {
-		pservice := fraud.NewProofService(sub, host, hstore.GetByHeight, ds, syncerEnabled, network.String())
+		getter := func(ctx context.Context, height uint64) (libhead.Header, error) {
+			return hstore.GetByHeight(ctx, height)
+		}
+		pservice := fraudserv.NewProofService(sub, host, getter, ds, syncerEnabled, network.String())
 		lc.Append(fx.Hook{
 			OnStart: pservice.Start,
 			OnStop:  pservice.Stop,
