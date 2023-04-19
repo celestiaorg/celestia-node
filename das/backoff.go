@@ -2,45 +2,46 @@ package das
 
 import "time"
 
-// retryStrategy defines a backoff strategy for retries.
-type retryStrategy struct {
-	backoffIntervals []time.Duration
+// retryBackoff defines a backoff backoff for retries.
+type retryBackoff struct {
+	backoffStrategy []time.Duration
 }
 
 // retry represents a retry attempt with a backoff delay.
 type retry struct {
 	// count specifies the number of retry attempts made so far.
 	count int
-	// after specifies the time of the next retry attempt.
+	// after specifies the time for the next retry attempt.
 	after time.Time
 }
 
-// newRetryStrategy creates and initializes a new retry strategy.
-func newRetryStrategy(backoffIntervals []time.Duration) retryStrategy {
-	return retryStrategy{backoffIntervals: backoffIntervals}
+// newRetryBackOff creates and initializes a new retry backoff.
+func newRetryBackOff(backoffStrategy []time.Duration) retryBackoff {
+	return retryBackoff{backoffStrategy: backoffStrategy}
 }
 
-// nextRetry creates a retry attempt with a backoff delay based on the retry strategy.
+// nextRetry creates a retry attempt with a backoff delay based on the retry backoff.
 // It takes the number of retry attempts and the time of the last attempt as inputs and returns a
 // retry instance and a boolean value indicating whether the retries amount have exceeded.
-func (s retryStrategy) nextRetry(tryCount int, lastAttempt time.Time) (retry retry, retriesExceeded bool) {
-	retry.count = tryCount
+func (s retryBackoff) nextRetry(lastRetry retry, lastAttempt time.Time) (retry retry, retriesExceeded bool) {
+	lastRetry.count++
 
-	if len(s.backoffIntervals) == 0 {
-		return retry, false
+	if len(s.backoffStrategy) == 0 {
+		return lastRetry, false
 	}
 
-	if tryCount > len(s.backoffIntervals) {
-		retry.after = lastAttempt.Add(s.backoffIntervals[len(s.backoffIntervals)-1])
-		return retry, true
+	if lastRetry.count > len(s.backoffStrategy) {
+		// try count exceeded backoff backoff try limit
+		retry.after = lastAttempt.Add(s.backoffStrategy[len(s.backoffStrategy)-1])
+		return lastRetry, true
 	}
 
-	retry.after = lastAttempt.Add(s.backoffIntervals[tryCount-1])
-	return retry, false
+	lastRetry.after = lastAttempt.Add(s.backoffStrategy[lastRetry.count-1])
+	return lastRetry, false
 }
 
 // exponentialBackoff generates an array of time.Duration values using an exponential backoff
-// strategy.
+// backoff.
 func exponentialBackoff(baseInterval time.Duration, factor, amount int) []time.Duration {
 	backoff := make([]time.Duration, 0, amount)
 	next := baseInterval

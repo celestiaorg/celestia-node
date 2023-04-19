@@ -18,13 +18,13 @@ type coordinatorState struct {
 	// keeps track of running workers
 	inProgress map[int]func() workerState
 
-	// retryStrategy implements retry backoff strategy
-	retryStrategy retryStrategy
+	// retryStrategy implements retry backoff backoff
+	retryStrategy retryBackoff
 	// stores heights of failed headers with amount of retry attempt as value
 	failed map[uint64]retry
 	// inRetry stores (height -> attempt count) of failed headers that are currently being retried by
 	// workers
-	inRetry map[uint64]int
+	inRetry map[uint64]retry
 
 	// nextJobID is a unique identifier that will be used for creation of next job
 	nextJobID int
@@ -45,9 +45,9 @@ func newCoordinatorState(params Parameters) coordinatorState {
 		sampleFrom:    params.SampleFrom,
 		samplingRange: params.SamplingRange,
 		inProgress:    make(map[int]func() workerState),
-		retryStrategy: newRetryStrategy(exponentialBackoff(time.Minute, 4, 4)),
+		retryStrategy: newRetryBackOff(exponentialBackoff(time.Minute, 4, 4)),
 		failed:        make(map[uint64]retry),
-		inRetry:       make(map[uint64]int),
+		inRetry:       make(map[uint64]retry),
 		nextJobID:     0,
 		next:          params.SampleFrom,
 		networkHead:   params.SampleFrom,
@@ -82,18 +82,17 @@ func (s *coordinatorState) handleResult(res result) {
 
 	// update failed heights
 	for h := range res.failed {
-		failCount := 1
-		if res.job.jobType == retryJob {
-			// if job was already in retry and failed again, persist attempt count
-			failCount += s.inRetry[h]
+		// if job was already in retry and failed again, persist attempt count
+		lastRetry, ok := s.inRetry[h]
+		if ok {
 			delete(s.inRetry, h)
 		}
 
-		nextRetry, retryExceeded := s.retryStrategy.nextRetry(failCount, time.Now())
+		nextRetry, retryExceeded := s.retryStrategy.nextRetry(lastRetry, time.Now())
 		if retryExceeded {
 			log.Warnw("header exceeded maximum amount of sampling attempts",
 				"height", h,
-				"attempts", failCount)
+				"attempts", nextRetry.count)
 		}
 		s.failed[h] = nextRetry
 	}
@@ -136,15 +135,15 @@ func (s *coordinatorState) recentJob(header *header.ExtendedHeader) job {
 	}
 }
 
-// nextJob will return next catchup or retry job according to priority (catchup > retry)
+// nextJob will return next catchup or retry job according to priority (retry -> catchup)
 func (s *coordinatorState) nextJob() (next job, found bool) {
 	// check for catchup job
-	if job, found := s.catchupJob(); found {
+	if job, found := s.retryJob(); found {
 		return job, found
 	}
 
 	// if caught up already, make a retry job
-	return s.retryJob()
+	return s.catchupJob()
 }
 
 // catchupJob creates a catchup job if catchup is not finished
@@ -162,7 +161,6 @@ func (s *coordinatorState) catchupJob() (next job, found bool) {
 	return j, true
 }
 
-
 // retryJob creates a job to retry previously failed header
 func (s *coordinatorState) retryJob() (next job, found bool) {
 	for h, retry := range s.failed {
@@ -173,7 +171,7 @@ func (s *coordinatorState) retryJob() (next job, found bool) {
 
 		// move header from failed into retry
 		delete(s.failed, h)
-		s.inRetry[h] = retry.count
+		s.inRetry[h] = retry
 		j := s.newJob(retryJob, h, h)
 		return j, true
 	}
