@@ -54,6 +54,9 @@ func (c *Client) RequestEDS(
 	if err == nil {
 		return eds, nil
 	}
+	if err != nil {
+		log.Debugw("client: eds request to peer failed", "peer", peer, "hash", dataHash.String(), "error", err)
+	}
 	if errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) {
 		return nil, ctx.Err()
 	}

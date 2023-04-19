@@ -4,6 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/metric/global"
+	"go.opentelemetry.io/otel/metric/instrument"
+	"go.opentelemetry.io/otel/metric/instrument/syncint64"
+	"go.opentelemetry.io/otel/metric/unit"
 	"time"
 
 	"github.com/celestiaorg/nmt/namespace"
@@ -25,6 +30,27 @@ const (
 	defaultMinAttemptsCount  = 3
 )
 
+var meter = global.MeterProvider().Meter("shrex/getter")
+
+type metrics struct {
+	attempts syncint64.Histogram
+}
+
+func (sg *ShrexGetter) WithMetrics() error {
+	attemptHistogram, err := meter.SyncInt64().Histogram(
+		"attempts_per_eds_request",
+		instrument.WithUnit(unit.Dimensionless),
+		instrument.WithDescription("Number of attempts per shrex/eds request"),
+	)
+	if err != nil {
+		return err
+	}
+	sg.metrics = &metrics{
+		attempts: attemptHistogram,
+	}
+	return nil
+}
+
 // ShrexGetter is a share.Getter that uses the shrex/eds and shrex/nd protocol to retrieve shares.
 type ShrexGetter struct {
 	edsClient *shrexeds.Client
@@ -37,6 +63,8 @@ type ShrexGetter struct {
 	// minAttemptsCount will be used to split request timeout into multiple attempts. It will allow to
 	// attempt multiple peers in scope of one request before context timeout is reached
 	minAttemptsCount int
+
+	metrics *metrics
 }
 
 func NewShrexGetter(edsClient *shrexeds.Client, ndClient *shrexnd.Client, peerManager *peers.Manager) *ShrexGetter {
@@ -79,6 +107,7 @@ func (sg *ShrexGetter) GetEDS(ctx context.Context, root *share.Root) (*rsmt2d.Ex
 				"hash", root.String(),
 				"err", getErr,
 				"finished (s)", time.Since(start))
+			sg.metrics.attempts.Record(ctx, int64(attempt), attribute.Bool("success", false))
 			return nil, fmt.Errorf("getter/shrex: %w", err)
 		}
 
@@ -89,6 +118,7 @@ func (sg *ShrexGetter) GetEDS(ctx context.Context, root *share.Root) (*rsmt2d.Ex
 		switch {
 		case getErr == nil:
 			setStatus(peers.ResultSynced)
+			sg.metrics.attempts.Record(ctx, int64(attempt), attribute.Bool("success", true))
 			return eds, nil
 		case errors.Is(getErr, context.DeadlineExceeded),
 			errors.Is(getErr, context.Canceled):

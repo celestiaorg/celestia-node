@@ -73,6 +73,7 @@ func WithMetrics(metricOpts []otlpmetrichttp.Option, nodeType node.Type) fx.Opti
 		// TODO(distractedm1nd): shrex can be disabled, which would make DI fail here
 		fx.Invoke(share.WithShrexClientMetrics),
 		fx.Invoke(modheader.WithMetrics),
+		fx.Invoke(share.WithShrexGetterMetrics),
 	)
 
 	var opts fx.Option
@@ -94,6 +95,7 @@ func WithMetrics(metricOpts []otlpmetrichttp.Option, nodeType node.Type) fx.Opti
 	case node.Bridge:
 		opts = fx.Options(
 			baseComponents,
+			fx.Invoke(share.WithShrexServerMetrics),
 			// add more monitoring here
 		)
 	default:
