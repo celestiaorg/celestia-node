@@ -12,7 +12,7 @@ const defaultCleanupThreshold = 2
 
 // pool stores peers and provides methods for simple round-robin access.
 type pool struct {
-	m           sync.Mutex
+	m           sync.RWMutex
 	peersList   []peer.ID
 	statuses    map[peer.ID]status
 	cooldown    *timedQueue
@@ -193,4 +193,10 @@ func (p *pool) checkHasPeers() {
 		p.hasPeerCh = make(chan struct{})
 		p.hasPeer = false
 	}
+}
+
+func (p *pool) size() int {
+	p.m.RLock()
+	defer p.m.RUnlock()
+	return p.activeCount
 }
