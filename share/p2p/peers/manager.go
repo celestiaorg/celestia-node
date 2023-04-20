@@ -200,9 +200,9 @@ func (m *Manager) Peer(
 	// first, check if a peer is available for the given datahash
 	peerID, ok := p.tryGet()
 	if ok {
-		// some pools could still have blacklisted peers in storage
-		if m.isBlacklistedPeer(peerID) {
-			log.Debugw("removing blacklisted peer from pool",
+		// some pools could still have blacklisted or disconnected peers in storage
+		if m.isBlacklistedPeer(peerID) || !m.fullNodes.has(peerID) {
+			log.Debugw("removing outdated peer from pool", "hash", datahash.String(),
 				"peer", peerID.String())
 			p.remove(peerID)
 			return m.Peer(ctx, datahash)
@@ -221,6 +221,15 @@ func (m *Manager) Peer(
 	start := time.Now()
 	select {
 	case peerID = <-p.next(ctx):
+		// some pools could still have blacklisted or disconnected peers in storage
+		if m.isBlacklistedPeer(peerID) || !m.fullNodes.has(peerID) {
+			log.Debugw("removing outdated peer from pool", "hash", datahash.String(),
+				"peer", peerID.String())
+			p.remove(peerID)
+			return m.Peer(ctx, datahash)
+		}
+		log.Debugw("got peer from shrexSub pool after wait", "peer", peerID, "datahash", datahash.String())
+		log.Debugw("got peer from shrexSub pool after wait", "peer", peerID, "datahash", datahash.String())
 		return m.newPeer(ctx, datahash, peerID, sourceShrexSub, p.len(), time.Since(start))
 	case peerID = <-m.fullNodes.next(ctx):
 		return m.newPeer(ctx, datahash, peerID, sourceFullNodes, m.fullNodes.len(), time.Since(start))
