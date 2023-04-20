@@ -15,6 +15,12 @@ import (
 	"github.com/celestiaorg/celestia-node/header"
 )
 
+const (
+	jobTypeLabel     = "job_type"
+	headerWidthLabel = "header_width"
+	failedLabel      = "failed"
+)
+
 var (
 	meter = global.MeterProvider().Meter("das")
 )
@@ -108,7 +114,11 @@ func (d *DASer) InitMetrics() error {
 				log.Errorf("observing stats: %s", err.Error())
 			}
 
-			busyWorkers.Observe(ctx, int64(len(stats.Workers)))
+			for jobType, amount := range stats.workersByJobType() {
+				busyWorkers.Observe(ctx, amount,
+					attribute.String(jobTypeLabel, string(jobType)))
+			}
+
 			networkHead.Observe(ctx, int64(stats.NetworkHead))
 			sampledChainHead.Observe(ctx, int64(stats.SampledChainHead))
 
@@ -133,20 +143,22 @@ func (m *metrics) observeSample(
 	ctx context.Context,
 	h *header.ExtendedHeader,
 	sampleTime time.Duration,
+	jobType jobType,
 	err error,
-	_ bool,
 ) {
 	if m == nil {
 		return
 	}
 	m.sampleTime.Record(ctx, sampleTime.Seconds(),
-		attribute.Bool("failed", err != nil),
-		attribute.Int("header_width", len(h.DAH.RowsRoots)),
+		attribute.Bool(failedLabel, err != nil),
+		attribute.Int(headerWidthLabel, len(h.DAH.RowsRoots)),
+		attribute.String(jobTypeLabel, string(jobType)),
 	)
 
 	m.sampled.Add(ctx, 1,
-		attribute.Bool("failed", err != nil),
-		attribute.Int("header_width", len(h.DAH.RowsRoots)),
+		attribute.Bool(failedLabel, err != nil),
+		attribute.Int(headerWidthLabel, len(h.DAH.RowsRoots)),
+		attribute.String(jobTypeLabel, string(jobType)),
 	)
 
 	atomic.StoreUint64(&m.lastSampledTS, uint64(time.Now().UTC().Unix()))
