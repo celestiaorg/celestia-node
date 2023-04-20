@@ -45,29 +45,46 @@ func (c *Client) RequestEDS(
 	dataHash share.DataHash,
 	peer peer.ID,
 ) (*rsmt2d.ExtendedDataSquare, error) {
-	eds, err := c.doRequest(ctx, dataHash, peer)
-	if err == nil {
+	resultChan := make(chan *rsmt2d.ExtendedDataSquare, 1)
+	errChan := make(chan error, 1)
+
+	// this is a hotfix for something inside of doRequest not respecting context.
+	// should be reverted when closing issue #2109
+	go func() {
+		eds, err := c.doRequest(ctx, dataHash, peer)
+		if err != nil {
+			errChan <- err
+			return
+		}
+		resultChan <- eds
+	}()
+
+	select {
+	case eds := <-resultChan:
 		return eds, nil
-	}
-	if errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) {
+	case err := <-errChan:
+		if errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) {
+			return nil, ctx.Err()
+		}
+
+		var ne net.Error
+		if errors.As(err, &ne) && ne.Timeout() {
+			if deadline, _ := ctx.Deadline(); deadline.Before(time.Now()) {
+				return nil, context.DeadlineExceeded
+			}
+		}
+
+		if err != p2p.ErrNotFound {
+			log.Warnw("client: eds request to peer failed",
+				"peer", peer,
+				"hash", dataHash.String(),
+				"err", err)
+		}
+
+		return nil, err
+	case <-ctx.Done():
 		return nil, ctx.Err()
 	}
-	// some net.Errors also mean the context deadline was exceeded, but yamux/mocknet do not
-	// unwrap to a ctx err
-	var ne net.Error
-	if errors.As(err, &ne) && ne.Timeout() {
-		if deadline, _ := ctx.Deadline(); deadline.Before(time.Now()) {
-			return nil, context.DeadlineExceeded
-		}
-	}
-	if err != p2p.ErrNotFound {
-		log.Warnw("client: eds request to peer failed",
-			"peer", peer,
-			"hash", dataHash.String(),
-			"err", err)
-	}
-
-	return nil, err
 }
 
 func (c *Client) doRequest(

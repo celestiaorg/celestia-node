@@ -67,6 +67,11 @@ func (sg *ShrexGetter) GetEDS(ctx context.Context, root *share.Root) (*rsmt2d.Ex
 		err     error
 	)
 	for {
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		default:
+		}
 		attempt++
 		start := time.Now()
 		peer, setStatus, getErr := sg.peerManager.Peer(ctx, root.Hash())
