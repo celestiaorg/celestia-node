@@ -67,10 +67,8 @@ func (sg *ShrexGetter) GetEDS(ctx context.Context, root *share.Root) (*rsmt2d.Ex
 		err     error
 	)
 	for {
-		select {
-		case <-ctx.Done():
+		if ctx.Err() != nil {
 			return nil, ctx.Err()
-		default:
 		}
 		attempt++
 		start := time.Now()

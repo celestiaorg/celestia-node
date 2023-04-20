@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/libp2p/go-libp2p/core/network"
 	"io"
 	"net"
 	"time"
@@ -20,6 +21,8 @@ import (
 	"github.com/celestiaorg/celestia-node/share/p2p"
 	pb "github.com/celestiaorg/celestia-node/share/p2p/shrexeds/pb"
 )
+
+const safetyTimeout = time.Millisecond * 500
 
 // Client is responsible for requesting EDSs for blocksync over the ShrEx/EDS protocol.
 type Client struct {
@@ -45,72 +48,89 @@ func (c *Client) RequestEDS(
 	dataHash share.DataHash,
 	peer peer.ID,
 ) (*rsmt2d.ExtendedDataSquare, error) {
-	resultChan := make(chan *rsmt2d.ExtendedDataSquare, 1)
-	errChan := make(chan error, 1)
-
-	// this is a hotfix for something inside of doRequest not respecting context.
-	// should be reverted when closing issue #2109
-	go func() {
-		eds, err := c.doRequest(ctx, dataHash, peer)
-		if err != nil {
-			errChan <- err
-			return
-		}
-		resultChan <- eds
-	}()
-
-	select {
-	case eds := <-resultChan:
+	eds, err := c.doSafeRequest(ctx, dataHash, peer)
+	if err == nil {
 		return eds, nil
-	case err := <-errChan:
-		if errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) {
-			return nil, ctx.Err()
-		}
-
-		var ne net.Error
-		if errors.As(err, &ne) && ne.Timeout() {
-			if deadline, _ := ctx.Deadline(); deadline.Before(time.Now()) {
-				return nil, context.DeadlineExceeded
-			}
-		}
-
-		if err != p2p.ErrNotFound {
-			log.Warnw("client: eds request to peer failed",
-				"peer", peer,
-				"hash", dataHash.String(),
-				"err", err)
-		}
-
-		return nil, err
-	case <-ctx.Done():
+	}
+	if errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) {
 		return nil, ctx.Err()
 	}
+	// some net.Errors also mean the context deadline was exceeded, but yamux/mocknet do not
+	// unwrap to a ctx err
+	var ne net.Error
+	if errors.As(err, &ne) && ne.Timeout() {
+		if deadline, _ := ctx.Deadline(); deadline.Before(time.Now()) {
+			return nil, context.DeadlineExceeded
+		}
+	}
+	if err != p2p.ErrNotFound {
+		log.Warnw("client: eds request to peer failed",
+			"peer", peer,
+			"hash", dataHash.String(),
+			"err", err)
+	}
+
+	return nil, err
 }
 
-func (c *Client) doRequest(
+type result struct {
+	eds *rsmt2d.ExtendedDataSquare
+	err error
+}
+
+func (c *Client) doSafeRequest(
 	ctx context.Context,
 	dataHash share.DataHash,
 	to peer.ID,
 ) (*rsmt2d.ExtendedDataSquare, error) {
+	resultChan := make(chan result)
 	stream, err := c.host.NewStream(ctx, to, c.protocolID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open stream: %w", err)
 	}
 
+	// if there is a deadline set, safetyContext will give the request 500 milliseconds to recognize the context
+	// has deadlined before cancelling the operation itself.
+	// this is a hotfix until we solve doRequests disrepect of context. Related: issue #2109
+	safetyContext, cancel := context.WithCancel(ctx)
 	if dl, ok := ctx.Deadline(); ok {
+		safetyContext, cancel = context.WithDeadline(context.Background(), dl.Add(safetyTimeout))
 		if err = stream.SetDeadline(dl); err != nil {
 			log.Debugw("client: error setting deadline: %s", "err", err)
 		}
 	}
+	defer cancel()
 
+	go doRequest(ctx, stream, dataHash, to, resultChan)
+	select {
+	case res := <-resultChan:
+		if errors.Is(res.err, context.DeadlineExceeded) || errors.Is(res.err, context.Canceled) {
+			log.Debugw("client: doRequest successfully respected context deadline",
+				"datahash", dataHash.String(),
+				"peer", to,
+			)
+		}
+		return res.eds, res.err
+	case <-safetyContext.Done():
+		stream.Close() //nolint:errcheck
+		log.Errorw("client: doRequest failed to respect context after safety timeout",
+			"datahash", dataHash.String(),
+			"peer", to,
+		)
+		return nil, safetyContext.Err()
+	}
+}
+
+func doRequest(ctx context.Context, stream network.Stream, dataHash share.DataHash, to peer.ID, resultChan chan result) {
 	req := &pb.EDSRequest{Hash: dataHash}
 
 	// request ODS
 	log.Debugf("client: requesting ods %s from peer %s", dataHash.String(), to)
-	_, err = serde.Write(stream, req)
+	_, err := serde.Write(stream, req)
 	if err != nil {
 		stream.Reset() //nolint:errcheck
-		return nil, fmt.Errorf("failed to write request to stream: %w", err)
+		resultChan <- result{nil, fmt.Errorf("failed to write request to stream: %w", err)}
+		return
 	}
 	err = stream.CloseWrite()
 	if err != nil {
@@ -123,28 +143,32 @@ func (c *Client) doRequest(
 	if err != nil {
 		// server is overloaded and closed the stream
 		if errors.Is(err, io.EOF) {
-			return nil, p2p.ErrNotFound
+			resultChan <- result{nil, p2p.ErrNotFound}
+			return
 		}
 		stream.Reset() //nolint:errcheck
-		return nil, fmt.Errorf("failed to read status from stream: %w", err)
+		resultChan <- result{nil, fmt.Errorf("failed to read status from stream: %w", err)}
+		return
 	}
 
+	var res result
 	switch resp.Status {
 	case pb.Status_OK:
 		// use header and ODS bytes to construct EDS and verify it against dataHash
-		eds, err := eds.ReadEDS(ctx, stream, dataHash)
-		if err != nil {
-			return nil, fmt.Errorf("failed to read eds from ods bytes: %w", err)
+		res.eds, res.err = eds.ReadEDS(ctx, stream, dataHash)
+		if res.err != nil {
+			res.err = fmt.Errorf("failed to read eds from ods bytes: %w", res.err)
 		}
-		return eds, nil
 	case pb.Status_NOT_FOUND:
-		return nil, p2p.ErrNotFound
+		res.err = p2p.ErrNotFound
 	case pb.Status_INVALID:
 		log.Debug("client: invalid request")
 		fallthrough
 	case pb.Status_INTERNAL:
 		fallthrough
 	default:
-		return nil, p2p.ErrInvalidResponse
+		res.err = p2p.ErrInvalidResponse
 	}
+
+	resultChan <- res
 }
