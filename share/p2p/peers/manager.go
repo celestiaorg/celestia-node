@@ -36,6 +36,8 @@ const (
 	ResultBlacklistPeer = "result_blacklist_peer"
 )
 
+type result string
+
 var log = logging.Logger("shrex/peer-manager")
 
 // Manager keeps track of peers coming from shrex.Sub and from discovery
@@ -62,15 +64,14 @@ type Manager struct {
 	blacklistedHashes map[string]bool
 
 	metrics *metrics
-	cancel  context.CancelFunc
-	done    chan struct{}
+
+	cancel context.CancelFunc
+	done   chan struct{}
 }
 
 // DoneFunc updates internal state depending on call results. Should be called once per returned
 // peer from Peer method
 type DoneFunc func(result)
-
-type result string
 
 type syncPool struct {
 	*pool
@@ -135,11 +136,7 @@ func (m *Manager) Start(startCtx context.Context) error {
 	ctx, cancel := context.WithCancel(context.Background())
 	m.cancel = cancel
 
-	validatorFn := m.Validate
-	if m.metrics != nil {
-		// wrap validator with metrics observer
-		validatorFn = m.metrics.validationObserver(validatorFn)
-	}
+	validatorFn := m.metrics.validationObserver(m.Validate)
 	err := m.shrexSub.AddValidator(validatorFn)
 	if err != nil {
 		return fmt.Errorf("registering validator: %w", err)

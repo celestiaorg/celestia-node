@@ -166,7 +166,7 @@ func initMetrics(manager *Manager) (*metrics, error) {
 	)
 
 	if err != nil {
-		return nil, fmt.Errorf("regestering metrics callback: %w", err)
+		return nil, fmt.Errorf("registering metrics callback: %w", err)
 	}
 	return metrics, nil
 }
