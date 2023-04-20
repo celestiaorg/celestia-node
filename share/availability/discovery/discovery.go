@@ -16,7 +16,6 @@ import (
 var log = logging.Logger("share/discovery")
 
 const (
-	// peerWeight is a weight of discovered peers.
 	// peerWeight is a number that will be assigned to all discovered full nodes,
 	// so ConnManager will not break a connection with them.
 	peerWeight = 1000
@@ -40,6 +39,10 @@ type Discovery struct {
 	connector *backoffConnector
 	// peersLimit is max amount of peers that will be discovered during a discovery session.
 	peersLimit uint
+	// dialTimeout is the timeout used for dialing peers.
+	// network.WithDialPeerTimeout is not sufficient here,
+	// as RoutedHost only uses it for the underlying dial.
+	dialTimeout time.Duration
 	// discInterval is an interval between discovery sessions.
 	discoveryInterval time.Duration
 	// advertiseInterval is an interval between advertising sessions.
@@ -57,6 +60,7 @@ func NewDiscovery(
 	h host.Host,
 	d discovery.Discovery,
 	peersLimit uint,
+	dialTimeout,
 	discInterval,
 	advertiseInterval time.Duration,
 ) *Discovery {
@@ -66,6 +70,7 @@ func NewDiscovery(
 		disc:              d,
 		connector:         newBackoffConnector(h, defaultBackoffFactory),
 		peersLimit:        peersLimit,
+		dialTimeout:       dialTimeout,
 		discoveryInterval: discInterval,
 		advertiseInterval: advertiseInterval,
 		onUpdatedPeers:    func(peer.ID, bool) {},
@@ -102,13 +107,15 @@ func (d *Discovery) handlePeerFound(ctx context.Context, topic string, peer peer
 	}
 	err := d.set.TryAdd(peer.ID)
 	if err != nil {
-		log.Debug(err)
+		log.Debugw("failed to add peer to set", "peer", peer.ID, "error", err)
 		return
 	}
 
+	ctx, cancel := context.WithTimeout(ctx, d.dialTimeout)
+	defer cancel()
 	err = d.connector.Connect(ctx, peer)
 	if err != nil {
-		log.Debug(err)
+		log.Debugw("couldn't connect to peer, removing from set", "peer", peer.ID, "error", err)
 		d.set.Remove(peer.ID)
 		return
 	}

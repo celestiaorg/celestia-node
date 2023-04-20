@@ -17,6 +17,8 @@ var (
 type Config struct {
 	// PeersLimit defines how many peers will be added during discovery.
 	PeersLimit uint
+	// DialTimeout is the timeout for connecting to peers found via discovery.
+	DialTimeout time.Duration
 	// DiscoveryInterval is an interval between discovery sessions.
 	DiscoveryInterval time.Duration
 	// AdvertiseInterval is a interval between advertising sessions.
@@ -36,6 +38,7 @@ type Config struct {
 func DefaultConfig() Config {
 	return Config{
 		PeersLimit:        5,
+		DialTimeout:       time.Second * 15,
 		DiscoveryInterval: time.Second * 30,
 		AdvertiseInterval: time.Second * 30,
 		UseShareExchange:  true,

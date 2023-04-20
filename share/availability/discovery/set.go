@@ -53,17 +53,15 @@ func (ps *limitedSet) TryAdd(p peer.ID) error {
 	}
 
 	ps.ps[p] = struct{}{}
-LOOP:
 	for {
 		// peer will be pushed to the channel only when somebody is reading from it.
 		// this is done to handle case when Peers() was called on empty set.
 		select {
 		case ps.waitPeer <- p:
 		default:
-			break LOOP
+			return nil
 		}
 	}
-	return nil
 }
 
 func (ps *limitedSet) Remove(id peer.ID) {
