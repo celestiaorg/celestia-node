@@ -70,6 +70,7 @@ func (h *Handler) performGetHeaderRequest(
 		writeError(w, http.StatusBadRequest, endpoint, err)
 		return nil, err
 	}
+	//TODO: change this to NetworkHead once the adjacency in the store is fixed.
 	head, err := h.header.LocalHead(r.Context())
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, heightAvailabilityEndpoint, err)
@@ -77,7 +78,8 @@ func (h *Handler) performGetHeaderRequest(
 	}
 	if headHeight := int(head.Height()); headHeight < height {
 		err = fmt.Errorf(
-			"current head store head height: %v is lower then requested height: %v", headHeight, height)
+			"current head store head height: %v is lower then requested height: %v"+
+				" give header sync some time and retry later", headHeight, height)
 		writeError(w, http.StatusServiceUnavailable, endpoint, err)
 		return nil, err
 	}

@@ -100,6 +100,7 @@ func (h *Handler) getShares(ctx context.Context, height uint64, nID namespace.ID
 		header *header.ExtendedHeader
 	)
 
+	//TODO: change this to NetworkHead once the adjacency in the store is fixed.
 	header, err = h.header.LocalHead(ctx)
 	if err != nil {
 		return nil, 0, err
@@ -108,9 +109,8 @@ func (h *Handler) getShares(ctx context.Context, height uint64, nID namespace.ID
 	if height > 0 {
 		if storeHeight := uint64(header.Height()); storeHeight < height {
 			return nil, 0, fmt.Errorf(
-				"current header store head height: %v is lower then requested height: %v",
-				storeHeight, height,
-			)
+				"current head store head height: %v is lower then requested height: %v"+
+					" give header sync some time and retry later", storeHeight, height)
 		}
 		header, err = h.header.GetByHeight(ctx, height)
 	}
