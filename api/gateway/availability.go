@@ -36,7 +36,7 @@ func (h *Handler) handleHeightAvailabilityRequest(w http.ResponseWriter, r *http
 	}
 	if headHeight := int(head.Height()); headHeight < height {
 		err = fmt.Errorf(
-			"current head store head height: %v is lower then requested height: %v"+
+			"current head local chain head: %d is lower than requested height: %d"+
 				" give header sync some time and retry later", headHeight, height)
 		writeError(w, http.StatusServiceUnavailable, heightAvailabilityEndpoint, err)
 		return
