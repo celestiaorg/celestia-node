@@ -92,7 +92,11 @@ func parseParams(method string, params []string) []interface{} {
 	switch method {
 	case "GetSharesByNamespace":
 		// 1. Share Root
-		parsedParams[0] = params[0]
+		root, err := parseJson(params[0])
+		if err != nil {
+			panic(fmt.Errorf("couldn't parse share root as json: %v", err))
+		}
+		parsedParams[0] = root
 		// 2. NamespaceID
 		if strings.HasPrefix(params[1], "0x") {
 			decoded, err := hex.DecodeString(params[1][2:])
@@ -219,11 +223,11 @@ func parseParams(method string, params []string) []interface{} {
 
 	for i, param := range params {
 		if param[0] == '{' || param[0] == '[' {
-			var raw json.RawMessage
-			if err := json.Unmarshal([]byte(param), &raw); err == nil {
-				parsedParams[i] = raw
-			} else {
+			rawJSON, err := parseJson(param)
+			if err != nil {
 				parsedParams[i] = param
+			} else {
+				parsedParams[i] = rawJSON
 			}
 		} else {
 			// try to parse arguments as numbers before adding them as strings
@@ -316,4 +320,10 @@ func parseSignatureForHelpstring(methodSig reflect.StructField) string {
 	}
 	simplifiedSignature += ")"
 	return simplifiedSignature
+}
+
+func parseJson(param string) (json.RawMessage, error) {
+	var raw json.RawMessage
+	err := json.Unmarshal([]byte(param), &raw)
+	return raw, err
 }
