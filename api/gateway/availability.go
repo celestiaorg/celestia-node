@@ -2,6 +2,7 @@ package gateway
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"strconv"
 
@@ -24,6 +25,18 @@ func (h *Handler) handleHeightAvailabilityRequest(w http.ResponseWriter, r *http
 	height, err := strconv.Atoi(heightStr)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, heightAvailabilityEndpoint, err)
+		return
+	}
+
+	head, err := h.header.LocalHead(r.Context())
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, heightAvailabilityEndpoint, err)
+		return
+	}
+	if headHeight := int(head.Height()); headHeight < height {
+		err = fmt.Errorf(
+			"current header store head height: %v is lower then requested height: %v", headHeight, height)
+		writeError(w, http.StatusServiceUnavailable, heightAvailabilityEndpoint, err)
 		return
 	}
 

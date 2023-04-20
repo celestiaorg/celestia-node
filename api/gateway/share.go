@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"strconv"
 
@@ -98,10 +99,19 @@ func (h *Handler) getShares(ctx context.Context, height uint64, nID namespace.ID
 		err    error
 		header *header.ExtendedHeader
 	)
-	switch height {
-	case 0:
-		header, err = h.header.LocalHead(ctx)
-	default:
+
+	header, err = h.header.LocalHead(ctx)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	if height > 0 {
+		if storeHeight := uint64(header.Height()); storeHeight < height {
+			return nil, 0, fmt.Errorf(
+				"current header store head height: %v is lower then requested height: %v",
+				storeHeight, height,
+			)
+		}
 		header, err = h.header.GetByHeight(ctx, height)
 	}
 	if err != nil {
