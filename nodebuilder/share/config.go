@@ -15,7 +15,7 @@ var (
 )
 
 type Config struct {
-	// PeersLimit defines how many peers will be added during discovery.
+	// PeersLimit defines the soft limit of FNs to connect to via discovery.
 	PeersLimit uint
 	// DialTimeout is the timeout for connecting to peers found via discovery.
 	DialTimeout time.Duration
@@ -38,7 +38,7 @@ type Config struct {
 func DefaultConfig() Config {
 	return Config{
 		PeersLimit:        5,
-		DialTimeout:       time.Second * 15,
+		DialTimeout:       time.Second * 60,
 		DiscoveryInterval: time.Second * 30,
 		AdvertiseInterval: time.Second * 30,
 		UseShareExchange:  true,
@@ -50,7 +50,7 @@ func DefaultConfig() Config {
 
 // Validate performs basic validation of the config.
 func (cfg *Config) Validate() error {
-	if cfg.DiscoveryInterval <= 0 || cfg.AdvertiseInterval <= 0 {
+	if cfg.DiscoveryInterval <= 0 || cfg.AdvertiseInterval <= 0 || cfg.DialTimeout <= 0 {
 		return fmt.Errorf("nodebuilder/share: %s", ErrNegativeInterval)
 	}
 	if err := cfg.ShrExNDParams.Validate(); err != nil {

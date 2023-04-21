@@ -2,7 +2,7 @@ package discovery
 
 import (
 	"context"
-	"fmt"
+	"errors"
 	"sync"
 	"time"
 
@@ -14,7 +14,10 @@ import (
 // gcInterval is a default period after which disconnected peers will be removed from cache
 const gcInterval = time.Hour
 
-var defaultBackoffFactory = backoff.NewFixedBackoff(time.Hour)
+var (
+	defaultBackoffFactory = backoff.NewFixedBackoff(time.Hour)
+	errBackoffNotEnded    = errors.New("share/discovery: backoff period has not ended")
+)
 
 // backoffConnector wraps a libp2p.Host to establish a connection with peers
 // with adding a delay for the next connection attempt.
@@ -48,7 +51,7 @@ func (b *backoffConnector) Connect(ctx context.Context, p peer.AddrInfo) error {
 	cache := b.connectionData(p.ID)
 	if time.Now().Before(cache.nexttry) {
 		b.cacheLk.Unlock()
-		return fmt.Errorf("share/discovery: backoff period has not ended for peer=%s", p.ID.String())
+		return errBackoffNotEnded
 	}
 	cache.nexttry = time.Now().Add(cache.backoff.Delay())
 	b.cacheLk.Unlock()
@@ -65,6 +68,14 @@ func (b *backoffConnector) connectionData(p peer.ID) *backoffData {
 		b.cacheData[p] = cache
 	}
 	return cache
+}
+
+// RemoveBackoff removes peer from the backoffCache. It is called when we cancel the attempt to
+// connect to a peer after calling Connect.
+func (b *backoffConnector) RemoveBackoff(p peer.ID) {
+	b.cacheLk.Lock()
+	defer b.cacheLk.Unlock()
+	delete(b.cacheData, p)
 }
 
 // RestartBackoff resets delay time between attempts and adds a delay for the next connection

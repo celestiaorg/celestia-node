@@ -44,15 +44,12 @@ func (ps *limitedSet) Size() int {
 // This operation will fail if the number of peers in the set is equal to size.
 func (ps *limitedSet) TryAdd(p peer.ID) error {
 	ps.lk.Lock()
-	defer ps.lk.Unlock()
 	if _, ok := ps.ps[p]; ok {
 		return errors.New("share: discovery: peer already added")
 	}
-	if len(ps.ps) >= int(ps.limit) {
-		return errors.New("share: discovery: peers limit reached")
-	}
-
 	ps.ps[p] = struct{}{}
+	ps.lk.Unlock()
+
 	for {
 		// peer will be pushed to the channel only when somebody is reading from it.
 		// this is done to handle case when Peers() was called on empty set.
