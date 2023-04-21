@@ -20,7 +20,7 @@ func RateLimitMiddleware(inner network.StreamHandler, concurrencyLimit int) netw
 			log.Debug("concurrency limit reached")
 			err := stream.Close()
 			if err != nil {
-				log.Errorw("server: closing stream", "err", err)
+				log.Debugw("server: closing stream", "err", err)
 			}
 			return
 		}
