@@ -3,7 +3,6 @@ package discovery
 import (
 	"context"
 	"errors"
-	"sync"
 	"time"
 
 	logging "github.com/ipfs/go-log/v2"
@@ -14,6 +13,7 @@ import (
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/libp2p/go-libp2p/core/routing"
 	"github.com/libp2p/go-libp2p/p2p/host/eventbus"
+	"golang.org/x/sync/errgroup"
 )
 
 var log = logging.Logger("share/discovery")
@@ -104,36 +104,46 @@ func (d *Discovery) WithOnPeersUpdate(f OnUpdatedPeers) {
 
 // handlePeersFound receives peers and tries to establish a connection with them.
 // Peer will be added to PeerCache if connection succeeds.
-func (d *Discovery) handlePeerFound(ctx context.Context, peer peer.AddrInfo, cancelOngoing context.CancelFunc) {
+func (d *Discovery) handlePeerFound(ctx context.Context, peer peer.AddrInfo, cancelFind context.CancelFunc) {
 	if peer.ID == d.host.ID() || len(peer.Addrs) == 0 || d.set.Contains(peer.ID) {
 		return
 	}
 
 	ctx, cancel := context.WithTimeout(ctx, d.dialTimeout)
 	defer cancel()
+
 	err := d.connector.Connect(ctx, peer)
-	// we don't want to add backoff when the context is canceled.
 	if err != nil {
+		// we don't want to add backoff when the context is canceled.
 		if errors.Is(err, context.Canceled) || errors.Is(err, routing.ErrNotFound) {
 			d.connector.RemoveBackoff(peer.ID)
 		}
 		return
 	}
 
-	if uint(d.set.Size()) >= d.peersLimit {
-		log.Debugw("peer limit reached", "count", d.set.Size(), "peer", peer.ID)
-		cancelOngoing()
-	}
-	err = d.set.TryAdd(peer.ID)
+	err = d.set.Add(peer.ID)
 	if err != nil {
 		log.Debugw("failed to add peer to set", "peer", peer.ID, "error", err)
 		return
 	}
-
-	d.onUpdatedPeers(peer.ID, true)
 	log.Debugw("added peer to set", "id", peer.ID)
-	// add tag to protect peer from being killed by ConnManager
+
+	// check the size only after we add
+	// so that peer set represents the actual number of connections we made
+	// which can go slightly over peersLimit
+	if uint(d.set.Size()) >= d.peersLimit {
+		log.Infow("soft peer limit reached", "count", d.set.Size(), "peer", peer.ID)
+		cancelFind()
+	}
+
+	// tag to protect peer from being killed by ConnManager
+	// NOTE: This is does not protect from remote killing the connection.
+	//  In the future, we should design a protocol that keeps bidirectional agreement on whether
+	//  connection should be kept or not, similar to mesh link in GossipSub.
 	d.host.ConnManager().TagPeer(peer.ID, topic, peerWeight)
+
+	// and notify our subscribers
+	d.onUpdatedPeers(peer.ID, true)
 }
 
 // ensurePeers ensures we always have 'peerLimit' connected peers.
@@ -210,32 +220,31 @@ func (d *Discovery) findPeers(ctx context.Context) {
 		return
 	}
 
-	peers, err := d.disc.FindPeers(ctx, topic)
+	findCtx, findCancel := context.WithCancel(ctx)
+	defer findCancel()
+
+	peers, err := d.disc.FindPeers(findCtx, topic)
 	if err != nil {
-		log.Error(err)
+		log.Warn(err)
 		return
 	}
 
-	// we use a wait group to avoid a context leak
-	var wg sync.WaitGroup
-	ctx, cancel := context.WithCancel(ctx)
-
+	// we use errgroup as it obeys the context
+	wg, findCtx := errgroup.WithContext(ctx)
 	for p := range peers {
-		wg.Add(1)
-		go func(peer peer.AddrInfo) {
-			defer wg.Done()
-			d.handlePeerFound(ctx, peer, cancel)
-		}(p)
+		peer := p
+		wg.Go(func() error {
+			// pass the cancel so that we cancel FindPeers when we connected to enough peers
+			d.handlePeerFound(findCtx, peer, findCancel)
+			return nil
+		})
 	}
-
-	// Wait for all goroutines to finish, then cancel the context
-	go func() {
-		wg.Wait()
-		cancel()
-	}()
+	// we expect no errors
+	_ = wg.Wait()
 }
 
 // Advertise is a utility function that persistently advertises a service through an Advertiser.
+// TODO: Start advertising only after the reachability is confirmed by AutoNAT
 func (d *Discovery) Advertise(ctx context.Context) {
 	timer := time.NewTimer(d.advertiseInterval)
 	defer timer.Stop()

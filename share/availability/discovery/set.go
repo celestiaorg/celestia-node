@@ -40,9 +40,9 @@ func (ps *limitedSet) Size() int {
 	return len(ps.ps)
 }
 
-// TryAdd attempts to add the given peer into the set.
+// Add attempts to add the given peer into the set.
 // This operation will fail if the number of peers in the set is equal to size.
-func (ps *limitedSet) TryAdd(p peer.ID) error {
+func (ps *limitedSet) Add(p peer.ID) error {
 	ps.lk.Lock()
 	if _, ok := ps.ps[p]; ok {
 		return errors.New("share: discovery: peer already added")
