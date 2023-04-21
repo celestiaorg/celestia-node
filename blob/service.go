@@ -22,7 +22,7 @@ import (
 var (
 	log = logging.Logger("blob")
 
-	errBlobNotFound = errors.New("blob: blob not found")
+	ErrBlobNotFound = errors.New("blob: not found")
 )
 
 type Service struct {
@@ -50,8 +50,11 @@ func NewService(
 	}
 }
 
+// Submit sends PFB transaction and reports the height it landed on.
+// Allows sending multiple Blobs atomically synchronously.
+// Uses default wallet registered on the Node.
 func (s *Service) Submit(ctx context.Context, f int64, gasLimit uint64, blobs ...*Blob) (uint64, error) {
-	log.Debugw("submitting blobs.", "amount", len(blobs))
+	log.Debugw("submitting blobs", "amount", len(blobs))
 
 	var (
 		fee = types.NewInt(f)
@@ -82,8 +85,8 @@ func (s *Service) Get(ctx context.Context, height uint64, nID namespace.ID, comm
 	return blob, nil
 }
 
-// GetProof retrieves all the blobs for given namespaces at the given height by commitment
-// and return its Proof.
+// GetProof retrieves all blobs in the given namespaces at the given height by commitment
+// and returns their Proof.
 func (s *Service) GetProof(
 	ctx context.Context,
 	height uint64,
@@ -97,7 +100,7 @@ func (s *Service) GetProof(
 	return proof, nil
 }
 
-// GetAll returns all found blobs for the given namespaces at the given height.
+// GetAll returns all blobs under the given namespaces at the given height.
 func (s *Service) GetAll(ctx context.Context, height uint64, nIDs ...namespace.ID) ([]*Blob, error) {
 	header, err := s.getByHeight(ctx, height)
 	if err != nil {
@@ -134,7 +137,7 @@ func (s *Service) GetAll(ctx context.Context, height uint64, nIDs ...namespace.I
 	}
 
 	if len(blobs) == 0 {
-		return nil, errBlobNotFound
+		return nil, ErrBlobNotFound
 	}
 	return blobs, nil
 }
@@ -167,8 +170,8 @@ func (s *Service) Included(
 	return true, nil
 }
 
-// getByCommitment retrieving DAH row by row, fetching shares and constructing blobs in order to
-// compare Commitments. Retrieving will be stopped once requested blob/proof will be found.
+// getByCommitment retrieves the DAH row by row, fetching shares and constructing blobs in order to
+// compare Commitments. Retrieving is stopped once the requested blob/proof is found.
 func (s *Service) getByCommitment(
 	ctx context.Context,
 	height uint64,
@@ -177,8 +180,7 @@ func (s *Service) getByCommitment(
 ) (*Blob, *Proof, error) {
 	log.Infow("requesting blob",
 		"height", height,
-		"nID", nID.String(),
-		"commitment", commitment.String())
+		"nID", nID.String())
 
 	header, err := s.getByHeight(ctx, height)
 	if err != nil {
@@ -240,7 +242,7 @@ func (s *Service) getByCommitment(
 		rawShares = rawShares[amount:]
 		blobShare = nil
 	}
-	return nil, nil, errBlobNotFound
+	return nil, nil, ErrBlobNotFound
 }
 
 // getBlobs retrieves the DAH and fetches all shares from the requested namespace.ID and converts
@@ -262,7 +264,8 @@ func (s *Service) getByHeight(ctx context.Context, height uint64) (*header.Exten
 	}
 
 	if uint64(head.Height()) < height {
-		return nil, fmt.Errorf("blob: unknown height. networkHeight:%d, requestedHeight:%d", head.Height(), height)
+		return nil, fmt.Errorf("blob: given height exceeds network head."+
+			"networkHeight:%d, requestedHeight:%d", head.Height(), height)
 	}
 
 	var header *header.ExtendedHeader

@@ -7,7 +7,7 @@ import (
 // sharesToBlobs takes raw shares and converts them to blobs.
 func sharesToBlobs(rawShares [][]byte) ([]*Blob, error) {
 	if len(rawShares) == 0 {
-		return nil, errBlobNotFound
+		return nil, ErrBlobNotFound
 	}
 
 	shareSequences, err := shares.ParseShares(rawShares)
