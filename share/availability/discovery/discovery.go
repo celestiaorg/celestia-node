@@ -3,6 +3,7 @@ package discovery
 import (
 	"context"
 	"errors"
+	"sync"
 	"time"
 
 	logging "github.com/ipfs/go-log/v2"
@@ -53,6 +54,10 @@ type Discovery struct {
 	// onUpdatedPeers will be called on peer set changes
 	onUpdatedPeers OnUpdatedPeers
 
+	connectingLk sync.Mutex
+	connecting   map[peer.ID]context.CancelFunc
+
+	ctx    context.Context
 	cancel context.CancelFunc
 }
 
@@ -77,14 +82,13 @@ func NewDiscovery(
 		discoveryInterval: discInterval,
 		advertiseInterval: advertiseInterval,
 		onUpdatedPeers:    func(peer.ID, bool) {},
+		connecting:        make(map[peer.ID]context.CancelFunc),
 	}
 }
 
 func (d *Discovery) Start(context.Context) error {
-	ctx, cancel := context.WithCancel(context.Background())
-	d.cancel = cancel
-
-	go d.ensurePeers(ctx)
+	d.ctx, d.cancel = context.WithCancel(context.Background())
+	go d.ensurePeers(d.ctx)
 	return nil
 }
 
@@ -112,28 +116,21 @@ func (d *Discovery) handlePeerFound(ctx context.Context, peer peer.AddrInfo, can
 	ctx, cancel := context.WithTimeout(ctx, d.dialTimeout)
 	defer cancel()
 
+	d.connectingLk.Lock()
+	d.connecting[peer.ID] = cancelFind
+	d.connectingLk.Unlock()
+
 	err := d.connector.Connect(ctx, peer)
 	if err != nil {
 		// we don't want to add backoff when the context is canceled.
 		if errors.Is(err, context.Canceled) || errors.Is(err, routing.ErrNotFound) {
 			d.connector.RemoveBackoff(peer.ID)
 		}
-		return
-	}
 
-	err = d.set.Add(peer.ID)
-	if err != nil {
-		log.Debugw("failed to add peer to set", "peer", peer.ID, "error", err)
+		d.connectingLk.Lock()
+		delete(d.connecting, peer.ID)
+		d.connectingLk.Unlock()
 		return
-	}
-	log.Debugw("added peer to set", "id", peer.ID)
-
-	// check the size only after we add
-	// so that peer set represents the actual number of connections we made
-	// which can go slightly over peersLimit
-	if uint(d.set.Size()) >= d.peersLimit {
-		log.Infow("soft peer limit reached", "count", d.set.Size(), "peer", peer.ID)
-		cancelFind()
 	}
 
 	// tag to protect peer from being killed by ConnManager
@@ -141,9 +138,6 @@ func (d *Discovery) handlePeerFound(ctx context.Context, peer peer.AddrInfo, can
 	//  In the future, we should design a protocol that keeps bidirectional agreement on whether
 	//  connection should be kept or not, similar to mesh link in GossipSub.
 	d.host.ConnManager().TagPeer(peer.ID, topic, peerWeight)
-
-	// and notify our subscribers
-	d.onUpdatedPeers(peer.ID, true)
 }
 
 // ensurePeers ensures we always have 'peerLimit' connected peers.
@@ -188,16 +182,45 @@ func (d *Discovery) ensurePeers(ctx context.Context) {
 				}
 				// listen to disconnect event to remove peer from set and reset backoff time
 				// reset timer in order to restart the discovery, once stored peer is disconnected
-				connStatus := e.(event.EvtPeerConnectednessChanged)
-				if connStatus.Connectedness == network.NotConnected {
-					if d.set.Contains(connStatus.Peer) {
-						log.Debugw("removing peer from the peer set",
-							"peer", connStatus.Peer, "status", connStatus.Connectedness.String())
-						d.connector.RestartBackoff(connStatus.Peer)
-						d.set.Remove(connStatus.Peer)
-						d.onUpdatedPeers(connStatus.Peer, false)
-						d.host.ConnManager().UntagPeer(connStatus.Peer, topic)
+				evnt := e.(event.EvtPeerConnectednessChanged)
+				switch evnt.Connectedness {
+				case network.NotConnected:
+					if !d.set.Contains(evnt.Peer) {
+						continue
 					}
+
+					d.host.ConnManager().UntagPeer(evnt.Peer, topic)
+					d.connector.RestartBackoff(evnt.Peer)
+					d.set.Remove(evnt.Peer)
+					d.onUpdatedPeers(evnt.Peer, false)
+					log.Debugw("removed peer from the peer set",
+						"peer", evnt.Peer, "status", evnt.Connectedness.String())
+				case network.Connected:
+					peerID := evnt.Peer
+					d.connectingLk.Lock()
+					cancelFind, ok := d.connecting[peerID]
+					d.connectingLk.Unlock()
+					if !ok {
+						continue
+					}
+
+					err = d.set.Add(peerID)
+					if err != nil {
+						log.Debugw("failed to add peer to set", "peer", peerID, "error", err)
+						return
+					}
+					log.Debugw("added peer to set", "id", peerID)
+
+					// first do Add and only after check the limit
+					// so that peer set represents the actual number of connections we made
+					// which can go slightly over peersLimit
+					if uint(d.set.Size()) >= d.peersLimit {
+						log.Infow("soft peer limit reached", "count", d.set.Size(), "peer", peerID)
+						cancelFind()
+					}
+
+					// and notify our subscribers
+					d.onUpdatedPeers(peerID, true)
 				}
 			}
 		}
