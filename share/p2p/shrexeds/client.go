@@ -135,9 +135,11 @@ func (c *Client) doRequest(
 func (c *Client) setStreamDeadlines(ctx context.Context, stream network.Stream) {
 	// set read/write deadline to use context deadline if it exists
 	if dl, ok := ctx.Deadline(); ok {
-		if err := stream.SetDeadline(dl); err != nil {
-			log.Debugw("client: setting deadline: %s", "err", err)
+		err := stream.SetDeadline(dl)
+		if err == nil {
+			return
 		}
+		log.Debugw("client: setting deadline: %s", "err", err)
 	}
 
 	// if deadline not set, client read deadline defaults to server write deadline
