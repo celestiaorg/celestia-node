@@ -180,8 +180,10 @@ func (m *metrics) observeGetPeer(source peerSource, poolSize int, waitTime time.
 	m.getPeer.Add(ctx, 1,
 		attribute.String(sourceKey, string(source)),
 		attribute.Bool(isInstantKey, waitTime == 0))
-	m.getPeerPoolSizeHistogram.Record(ctx, int64(poolSize),
-		attribute.String(sourceKey, string(source)))
+	if source == sourceShrexSub {
+		m.getPeerPoolSizeHistogram.Record(ctx, int64(poolSize),
+			attribute.String(sourceKey, string(source)))
+	}
 
 	// record wait time only for async gets
 	if waitTime > 0 {
