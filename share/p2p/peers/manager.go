@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"go.uber.org/zap"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -195,14 +196,19 @@ func (m *Manager) Stop(ctx context.Context) error {
 func (m *Manager) Peer(
 	ctx context.Context, datahash share.DataHash,
 ) (peer.ID, DoneFunc, error) {
+	logger := log.With("hash", datahash.String())
 	p := m.validatedPool(datahash.String())
 
 	// first, check if a peer is available for the given datahash
 	peerID, ok := p.tryGet()
 	if ok {
-		if m.removeUnreachable(p, peerID) {
+		logger = logger.With("peer", peerID.String())
+		if m.removeUnreachable(logger, p, peerID) {
 			return m.Peer(ctx, datahash)
 		}
+		logger.Debugw("get peer from shrexsub pool",
+			"peer", peerID.String(),
+			"pool_size", p.size())
 		return m.newPeer(ctx, datahash, peerID, sourceShrexSub, p.len(), 0)
 	}
 
@@ -217,11 +223,13 @@ func (m *Manager) Peer(
 	start := time.Now()
 	select {
 	case peerID = <-p.next(ctx):
-		if m.removeUnreachable(p, peerID) {
+		logger = logger.With("peer", peerID.String())
+		if m.removeUnreachable(logger, p, peerID) {
 			return m.Peer(ctx, datahash)
 		}
-		log.Debugw("got peer from shrexSub pool after wait", "peer", peerID, "datahash", datahash.String())
-		log.Debugw("got peer from shrexSub pool after wait", "peer", peerID, "datahash", datahash.String())
+		logger.Debugw("got peer from shrexSub pool after wait",
+			"pool_size", p.size(),
+			"after (s)", time.Since(start))
 		return m.newPeer(ctx, datahash, peerID, sourceShrexSub, p.len(), time.Since(start))
 	case peerID = <-m.fullNodes.next(ctx):
 		return m.newPeer(ctx, datahash, peerID, sourceFullNodes, m.fullNodes.len(), time.Since(start))
@@ -429,9 +437,9 @@ func (m *Manager) validatedPool(hashStr string) *syncPool {
 }
 
 // removeUnreachable removes peer from some pool if it is blacklisted or disconnected
-func (m *Manager) removeUnreachable(pool *syncPool, peerID peer.ID) bool {
+func (m *Manager) removeUnreachable(logger *zap.SugaredLogger, pool *syncPool, peerID peer.ID) bool {
 	if m.isBlacklistedPeer(peerID) || !m.fullNodes.has(peerID) {
-		log.Debugw("removing outdated peer from pool", "peer", peerID.String())
+		logger.Debug("removing outdated peer from pool")
 		pool.remove(peerID)
 		return true
 	}
