@@ -110,7 +110,10 @@ func (d *Discovery) WithOnPeersUpdate(f OnUpdatedPeers) {
 // handlePeersFound receives peers and tries to establish a connection with them.
 // Peer will be added to PeerCache if connection succeeds.
 func (d *Discovery) handlePeerFound(ctx context.Context, peer peer.AddrInfo, cancelFind context.CancelFunc) {
-	if peer.ID == d.host.ID() || len(peer.Addrs) == 0 || d.set.Contains(peer.ID) {
+	if peer.ID == d.host.ID() ||
+		len(peer.Addrs) == 0 ||
+		d.set.Contains(peer.ID) ||
+		uint(d.set.Size()) >= d.peersLimit {
 		return
 	}
 
@@ -263,6 +266,8 @@ func (d *Discovery) findPeers(ctx context.Context) {
 
 	// we use errgroup as it obeys the context
 	wg, findCtx := errgroup.WithContext(ctx)
+	// limit to minimize chances of overreaching the limit
+	wg.SetLimit(int(d.peersLimit))
 	for p := range peers {
 		peer := p
 		wg.Go(func() error {
