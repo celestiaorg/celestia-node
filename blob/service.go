@@ -30,8 +30,8 @@ type Service struct {
 	accessor *state.CoreAccessor
 	// sGetter retrieves the EDS to fetch all shares from the requested header.
 	sGetter share.Getter
-	// hGetter allows to get the requested header.
-	hGetter libhead.Getter[*header.ExtendedHeader]
+	// hStore allows to get the requested header from the local storage.
+	hStore libhead.Store[*header.ExtendedHeader]
 	// headGetter gets current network head.
 	headGetter libhead.Head[*header.ExtendedHeader]
 }
@@ -39,13 +39,13 @@ type Service struct {
 func NewService(
 	state *state.CoreAccessor,
 	getter share.Getter,
-	hGetter libhead.Getter[*header.ExtendedHeader],
+	hStore libhead.Store[*header.ExtendedHeader],
 	headGetter libhead.Head[*header.ExtendedHeader],
 ) *Service {
 	return &Service{
 		accessor:   state,
 		sGetter:    getter,
-		hGetter:    hGetter,
+		hStore:     hStore,
 		headGetter: headGetter,
 	}
 }
@@ -268,14 +268,13 @@ func (s *Service) getByHeight(ctx context.Context, height uint64) (*header.Exten
 			"networkHeight:%d, requestedHeight:%d", head.Height(), height)
 	}
 
-	var header *header.ExtendedHeader
 	if uint64(head.Height()) == height {
-		header = head
-	} else {
-		header, err = s.hGetter.GetByHeight(ctx, height)
-		if err != nil {
-			return nil, err
-		}
+		return head, nil
 	}
-	return header, nil
+
+	if !s.hStore.HasAt(ctx, height) {
+		return nil, fmt.Errorf("blob: given height exceeds local head. requestedHeight:%d", height)
+	}
+
+	return s.hStore.GetByHeight(ctx, height)
 }
