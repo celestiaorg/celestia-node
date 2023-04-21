@@ -158,11 +158,12 @@ func (sg *ShrexGetter) GetEDS(ctx context.Context, root *share.Root) (*rsmt2d.Ex
 			return eds, nil
 		case errors.Is(getErr, context.DeadlineExceeded),
 			errors.Is(getErr, context.Canceled):
-			setStatus(peers.ResultCooldownPeer)
+			setStatus(peers.ResultRemovePeer)
 		case errors.Is(getErr, p2p.ErrNotFound):
 			getErr = share.ErrNotFound
-			setStatus(peers.ResultRemovePeer)
-		case errors.Is(err, routing.ErrNotFound):
+			setStatus(peers.ResultCooldownPeer)
+		case errors.Is(getErr, routing.ErrNotFound):
+			// peer is no longer reachable, remove it from all pools
 			setStatus(peers.ResultRemovePeer)
 		case errors.Is(getErr, p2p.ErrInvalidResponse):
 			setStatus(peers.ResultBlacklistPeer)
@@ -224,7 +225,8 @@ func (sg *ShrexGetter) GetSharesByNamespace(
 		case errors.Is(getErr, p2p.ErrNotFound):
 			getErr = share.ErrNotFound
 			setStatus(peers.ResultCooldownPeer)
-		case errors.Is(err, routing.ErrNotFound):
+		case errors.Is(getErr, routing.ErrNotFound):
+			// peer is no longer reachable, remove it from all pools
 			setStatus(peers.ResultRemovePeer)
 		case errors.Is(getErr, p2p.ErrInvalidResponse):
 			setStatus(peers.ResultBlacklistPeer)

@@ -200,11 +200,7 @@ func (m *Manager) Peer(
 	// first, check if a peer is available for the given datahash
 	peerID, ok := p.tryGet()
 	if ok {
-		// some pools could still have blacklisted or disconnected peers in storage
-		if m.isBlacklistedPeer(peerID) || !m.fullNodes.has(peerID) {
-			log.Debugw("removing outdated peer from pool", "hash", datahash.String(),
-				"peer", peerID.String())
-			p.remove(peerID)
+		if m.removeUnreachable(p, peerID) {
 			return m.Peer(ctx, datahash)
 		}
 		return m.newPeer(ctx, datahash, peerID, sourceShrexSub, p.len(), 0)
@@ -221,11 +217,7 @@ func (m *Manager) Peer(
 	start := time.Now()
 	select {
 	case peerID = <-p.next(ctx):
-		// some pools could still have blacklisted or disconnected peers in storage
-		if m.isBlacklistedPeer(peerID) || !m.fullNodes.has(peerID) {
-			log.Debugw("removing outdated peer from pool", "hash", datahash.String(),
-				"peer", peerID.String())
-			p.remove(peerID)
+		if m.removeUnreachable(p, peerID) {
 			return m.Peer(ctx, datahash)
 		}
 		log.Debugw("got peer from shrexSub pool after wait", "peer", peerID, "datahash", datahash.String())
@@ -376,18 +368,6 @@ func (m *Manager) Validate(_ context.Context, peerID peer.ID, msg shrexsub.Notif
 	return pubsub.ValidationIgnore
 }
 
-func (m *Manager) validatedPool(datahash string) *syncPool {
-	p := m.getOrCreatePool(datahash)
-	if p.isValidatedDataHash.CompareAndSwap(false, true) {
-		log.Debugw("pool marked validated",
-			"hash", datahash,
-			"after (s)", time.Since(p.createdAt))
-		// if pool is proven to be valid, add all collected peers to full nodes
-		m.fullNodes.add(p.peers()...)
-	}
-	return p
-}
-
 func (m *Manager) getOrCreatePool(datahash string) *syncPool {
 	m.lock.Lock()
 	defer m.lock.Unlock()
@@ -436,6 +416,26 @@ func (m *Manager) isBlacklistedHash(hash share.DataHash) bool {
 	m.lock.Lock()
 	defer m.lock.Unlock()
 	return m.blacklistedHashes[hash.String()]
+}
+
+func (m *Manager) validatedPool(hashStr string) *syncPool {
+	p := m.getOrCreatePool(hashStr)
+	if p.isValidatedDataHash.CompareAndSwap(false, true) {
+		log.Debugw("pool marked validated", "datahash", hashStr)
+		// if pool is proven to be valid, add all collected peers to full nodes
+		m.fullNodes.add(p.peers()...)
+	}
+	return p
+}
+
+// removeUnreachable removes peer from some pool if it is blacklisted or disconnected
+func (m *Manager) removeUnreachable(pool *syncPool, peerID peer.ID) bool {
+	if m.isBlacklistedPeer(peerID) || !m.fullNodes.has(peerID) {
+		log.Debugw("removing outdated peer from pool", "peer", peerID.String())
+		pool.remove(peerID)
+		return true
+	}
+	return false
 }
 
 func (m *Manager) GC(ctx context.Context) {
