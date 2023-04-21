@@ -72,8 +72,8 @@ func (sg *ShrexGetter) GetEDS(ctx context.Context, root *share.Root) (*rsmt2d.Ex
 		peer, setStatus, getErr := sg.peerManager.Peer(ctx, root.Hash())
 		if getErr != nil {
 			err = errors.Join(err, getErr)
-			log.Debugw("couldn't find peer",
-				"datahash", root.String(),
+			log.Debugw("eds: couldn't find peer",
+				"hash", root.String(),
 				"err", getErr,
 				"finished (s)", time.Since(start))
 			return nil, fmt.Errorf("getter/shrex: %w", err)
@@ -101,8 +101,8 @@ func (sg *ShrexGetter) GetEDS(ctx context.Context, root *share.Root) (*rsmt2d.Ex
 		if !ErrorContains(err, getErr) {
 			err = errors.Join(err, getErr)
 		}
-		log.Debugw("request failed",
-			"datahash", root.String(),
+		log.Debugw("eds: request failed",
+			"hash", root.String(),
 			"peer", peer.String(),
 			"attempt", attempt,
 			"err", getErr,
@@ -125,8 +125,8 @@ func (sg *ShrexGetter) GetSharesByNamespace(
 		peer, setStatus, getErr := sg.peerManager.Peer(ctx, root.Hash())
 		if getErr != nil {
 			err = errors.Join(err, getErr)
-			log.Debugw("couldn't find peer",
-				"datahash", root.String(),
+			log.Debugw("nd: couldn't find peer",
+				"hash", root.String(),
 				"err", getErr,
 				"finished (s)", time.Since(start))
 			return nil, fmt.Errorf("getter/shrex: %w", err)
@@ -154,8 +154,8 @@ func (sg *ShrexGetter) GetSharesByNamespace(
 		if !ErrorContains(err, getErr) {
 			err = errors.Join(err, getErr)
 		}
-		log.Debugw("request failed",
-			"datahash", root.String(),
+		log.Debugw("nd: request failed",
+			"hash", root.String(),
 			"peer", peer.String(),
 			"attempt", attempt,
 			"err", getErr,
