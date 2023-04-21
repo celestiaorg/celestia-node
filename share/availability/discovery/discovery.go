@@ -36,6 +36,7 @@ var waitF = func(ttl time.Duration) time.Duration {
 }
 
 // Discovery combines advertise and discover services and allows to store discovered nodes.
+// TODO: The code here gets horribly hairy, so we should refactor this at some point
 type Discovery struct {
 	set       *limitedSet
 	host      host.Host
@@ -113,12 +114,16 @@ func (d *Discovery) handlePeerFound(ctx context.Context, peer peer.AddrInfo, can
 		return
 	}
 
-	ctx, cancel := context.WithTimeout(ctx, d.dialTimeout)
-	defer cancel()
-
 	d.connectingLk.Lock()
+	if _, ok := d.connecting[peer.ID]; ok {
+		d.connectingLk.Unlock()
+		return
+	}
 	d.connecting[peer.ID] = cancelFind
 	d.connectingLk.Unlock()
+
+	ctx, cancel := context.WithTimeout(ctx, d.dialTimeout)
+	defer cancel()
 
 	err := d.connector.Connect(ctx, peer)
 	if err != nil {
@@ -215,9 +220,13 @@ func (d *Discovery) ensurePeers(ctx context.Context) {
 					// so that peer set represents the actual number of connections we made
 					// which can go slightly over peersLimit
 					if uint(d.set.Size()) >= d.peersLimit {
-						log.Infow("soft peer limit reached", "count", d.set.Size(), "peer", peerID)
+						log.Infow("soft peer limit reached", "count", d.set.Size())
 						cancelFind()
 					}
+
+					d.connectingLk.Lock()
+					delete(d.connecting, peerID)
+					d.connectingLk.Unlock()
 
 					// and notify our subscribers
 					d.onUpdatedPeers(peerID, true)
