@@ -45,6 +45,7 @@ func (ps *limitedSet) Size() int {
 func (ps *limitedSet) Add(p peer.ID) error {
 	ps.lk.Lock()
 	if _, ok := ps.ps[p]; ok {
+		ps.lk.Unlock()
 		return errors.New("share: discovery: peer already added")
 	}
 	ps.ps[p] = struct{}{}
