@@ -108,6 +108,7 @@ func (s *Service) GetProof(
 }
 
 // GetAll returns all blobs under the given namespaces at the given height.
+// GetAll can return blobs and an error in case if some requests failed.
 func (s *Service) GetAll(ctx context.Context, height uint64, nIDs ...namespace.ID) ([]*Blob, error) {
 	header, err := s.getByHeight(ctx, height)
 	if err != nil {
@@ -115,20 +116,24 @@ func (s *Service) GetAll(ctx context.Context, height uint64, nIDs ...namespace.I
 	}
 
 	var (
-		blobs = make([]*Blob, 0)
-		ch    = make(chan []*Blob)
+		blobs     = make([]*Blob, 0)
+		ch        = make(chan []*Blob)
+		resultErr = make([]error, 0)
 	)
 
-	for _, nID := range nIDs {
-		log.Infow("requesting blobs", "height", height, "nID", nID.String())
-		go func(nID namespace.ID) {
+	for i, nID := range nIDs {
+		i := i
+		nID := nID
+		go func() {
+			log.Infow("requesting blobs", "height", height, "nID", nID.String())
 			blobs, err := s.getBlobs(ctx, nID, header.DAH)
 			if err != nil {
+				resultErr[i] = fmt.Errorf("could not get the blob for the nID:%s. %s", nID.String(), err)
 				ch <- nil
 				return
 			}
 			ch <- blobs
-		}(nID)
+		}()
 	}
 
 	for range nIDs {
@@ -143,10 +148,15 @@ func (s *Service) GetAll(ctx context.Context, height uint64, nIDs ...namespace.I
 		}
 	}
 
-	if len(blobs) == 0 {
+	if len(blobs) == 0 && len(resultErr) == 0 {
 		return nil, ErrBlobNotFound
 	}
-	return blobs, nil
+
+	err = errors.Join(resultErr...)
+	if err != nil {
+		err = fmt.Errorf("blob: %s", err)
+	}
+	return blobs, err
 }
 
 // Included verifies that the blob was included in a specific height.
