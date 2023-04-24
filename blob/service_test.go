@@ -14,6 +14,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/celestiaorg/celestia-app/pkg/shares"
 	"github.com/celestiaorg/go-header/store"
 	"github.com/celestiaorg/nmt/namespace"
 
@@ -49,6 +50,79 @@ func TestService_GetSingleBlobInHeaderWithSingleNID(t *testing.T) {
 	blobs, err = service.GetAll(ctx, 1, blobs[0].NamespaceID())
 	require.NoError(t, err)
 	assert.Len(t, blobs, 2)
+}
+
+func TestService_GetSingleBlobWithoutPadding(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Minute*5)
+	t.Cleanup(cancel)
+
+	blobs := generateBlob(t, []int{9, 5}, true)
+
+	padding0 := shares.NamespacePaddingShare(blobs[0].NamespaceID())
+	padding1 := shares.NamespacePaddingShare(blobs[1].NamespaceID())
+	rawShares0 := splitBlob(t, blobs[0])
+	rawShares1 := splitBlob(t, blobs[1])
+
+	rawShares := make([][]byte, 0)
+	rawShares = append(rawShares, append(rawShares0, padding0)...)
+	rawShares = append(rawShares, append(rawShares1, padding1)...)
+
+	bs := mdutils.Bserv()
+	batching := ds_sync.MutexWrap(ds.NewMapDatastore())
+	hstore, err := store.NewStore[*header.ExtendedHeader](batching)
+	require.NoError(t, err)
+	eds, err := share.AddShares(ctx, rawShares, bs)
+	require.NoError(t, err)
+
+	h := headertest.ExtendedHeaderFromEDS(t, 1, eds)
+	err = hstore.Init(ctx, h)
+	require.NoError(t, err)
+
+	service := NewService(nil, getters.NewIPLDGetter(bs), hstore, hstore)
+
+	newBlob, err := service.Get(ctx, 1, blobs[1].NamespaceID(), blobs[1].Commitment())
+	require.NoError(t, err)
+	assert.Equal(t, newBlob.Commitment(), blobs[1].Commitment())
+}
+
+func TestService_GetAllWithoutPadding(t *testing.T) {
+	// TODO(@vgonkivs): remove skip once ParseShares will skip padding shares
+	t.Skip()
+	ctx, cancel := context.WithTimeout(context.Background(), time.Minute*5)
+	t.Cleanup(cancel)
+
+	blobs := generateBlob(t, []int{9, 5}, true)
+
+	padding0 := shares.NamespacePaddingShare(blobs[0].NamespaceID())
+	padding1 := shares.NamespacePaddingShare(blobs[1].NamespaceID())
+	rawShares0 := splitBlob(t, blobs[0])
+	rawShares1 := splitBlob(t, blobs[1])
+	rawShares := make([][]byte, 0)
+
+	// create shares in correct order with padding shares
+	if bytes.Compare(blobs[0].NamespaceID(), blobs[1].NamespaceID()) <= 0 {
+		rawShares = append(rawShares, append(rawShares0, padding0)...)
+		rawShares = append(rawShares, append(rawShares1, padding1)...)
+	} else {
+		rawShares = append(rawShares, append(rawShares1, padding1)...)
+		rawShares = append(rawShares, append(rawShares0, padding0)...)
+	}
+
+	bs := mdutils.Bserv()
+	batching := ds_sync.MutexWrap(ds.NewMapDatastore())
+	hstore, err := store.NewStore[*header.ExtendedHeader](batching)
+	require.NoError(t, err)
+	eds, err := share.AddShares(ctx, rawShares, bs)
+	require.NoError(t, err)
+
+	h := headertest.ExtendedHeaderFromEDS(t, 1, eds)
+	err = hstore.Init(ctx, h)
+	require.NoError(t, err)
+
+	service := NewService(nil, getters.NewIPLDGetter(bs), hstore, hstore)
+
+	_, err = service.GetAll(ctx, 1, blobs[0].NamespaceID(), blobs[1].NamespaceID())
+	require.NoError(t, err)
 }
 
 func TestService_GetFailed(t *testing.T) {

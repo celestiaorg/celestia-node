@@ -20,9 +20,7 @@ import (
 )
 
 // TODO(@vgonkivs): remove after bumping celestia-app
-// defaultMinGasPrice is the default min gas price that gets set in the app.toml file.
-// The min gas price acts as a filter. Transactions below that limit will not pass
-// a nodes `CheckTx` and thus not be proposed by that node.
+// defaultMinGasPrice is the default min gas price.
 const defaultMinGasPrice = 0.001
 
 var (
@@ -118,7 +116,7 @@ func (s *Service) GetAll(ctx context.Context, height uint64, nIDs ...namespace.I
 	var (
 		blobs     = make([]*Blob, 0)
 		ch        = make(chan []*Blob)
-		resultErr = make([]error, 0)
+		resultErr = make([]error, len(nIDs))
 	)
 
 	for i, nID := range nIDs {
@@ -226,17 +224,34 @@ func (s *Service) getByCommitment(
 		// reconstruct the `blobShare` from the first rawShare in range
 		// in order to get blob's length(first share will contain this info)
 		if blobShare == nil {
-			bShare, err := shares.NewShare(rawShares[0])
-			if err != nil {
-				return nil, nil, err
+			for i, sh := range rawShares {
+				bShare, err := shares.NewShare(sh)
+				if err != nil {
+					return nil, nil, err
+				}
+
+				// ensure that the first share is not a NamespacePaddingShare
+				// these shares are used to satisfy the non-interactive default rules
+				// and are not the part of the blob, so should be removed.
+				isPadding, err := bShare.IsPadding()
+				if err != nil {
+					return nil, nil, err
+				}
+
+				if isPadding {
+					continue
+				}
+
+				blobShare = &bShare
+				// save the length.
+				length, err := blobShare.SequenceLen()
+				if err != nil {
+					return nil, nil, err
+				}
+				amount = shares.SparseSharesNeeded(length)
+				rawShares = rawShares[i:]
+				break
 			}
-			blobShare = &bShare
-			// save the length.
-			length, err := blobShare.SequenceLen()
-			if err != nil {
-				return nil, nil, err
-			}
-			amount = shares.SparseSharesNeeded(length)
 		}
 
 		// move to the next row if the blob is incomplete.
