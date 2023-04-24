@@ -19,6 +19,12 @@ import (
 	"github.com/celestiaorg/celestia-node/state"
 )
 
+// TODO(@vgonkivs): remove after bumping celestia-app
+// defaultMinGasPrice is the default min gas price that gets set in the app.toml file.
+// The min gas price acts as a filter. Transactions below that limit will not pass
+// a nodes `CheckTx` and thus not be proposed by that node.
+const defaultMinGasPrice = 0.001
+
 var (
 	log = logging.Logger("blob")
 
@@ -53,13 +59,14 @@ func NewService(
 // Submit sends PFB transaction and reports the height it landed on.
 // Allows sending multiple Blobs atomically synchronously.
 // Uses default wallet registered on the Node.
-func (s *Service) Submit(ctx context.Context, f int64, gasLimit uint64, blobs ...*Blob) (uint64, error) {
+func (s *Service) Submit(ctx context.Context, blobs ...*Blob) (uint64, error) {
 	log.Debugw("submitting blobs", "amount", len(blobs))
 
 	var (
-		fee = types.NewInt(f)
-		b   = make([]*apptypes.Blob, len(blobs))
-		err error
+		gasLimit = estimateGas(blobs...)
+		fee      = int64(defaultMinGasPrice * float64(gasLimit))
+		b        = make([]*apptypes.Blob, len(blobs))
+		err      error
 	)
 
 	for i, blob := range blobs {
@@ -69,7 +76,7 @@ func (s *Service) Submit(ctx context.Context, f int64, gasLimit uint64, blobs ..
 		}
 	}
 
-	resp, err := s.accessor.SubmitPayForBlob(ctx, fee, gasLimit, b...)
+	resp, err := s.accessor.SubmitPayForBlob(ctx, types.NewInt(fee), gasLimit, b...)
 	if err != nil {
 		return 0, err
 	}
