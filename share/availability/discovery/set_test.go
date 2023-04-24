@@ -23,12 +23,10 @@ func TestSet_TryAddFails(t *testing.T) {
 	m := mocknet.New()
 	h1, err := m.GenPeer()
 	require.NoError(t, err)
-	h2, err := m.GenPeer()
-	require.NoError(t, err)
 
 	set := newLimitedSet(1)
 	require.NoError(t, set.Add(h1.ID()))
-	require.Error(t, set.Add(h2.ID()))
+	require.Error(t, set.Add(h1.ID()))
 }
 
 func TestSet_Remove(t *testing.T) {

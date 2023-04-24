@@ -44,8 +44,6 @@ type Discovery struct {
 	connector *backoffConnector
 	// peersLimit is the soft limit of peers to add to the set.
 	peersLimit uint
-	// connectTimeout is the timeout used for dialing peers and discovering peer addresses.
-	connectTimeout time.Duration
 	// discInterval is an interval between discovery sessions.
 	discoveryInterval time.Duration
 	// advertiseInterval is an interval between advertising sessions.
@@ -67,7 +65,6 @@ func NewDiscovery(
 	h host.Host,
 	d discovery.Discovery,
 	peersLimit uint,
-	connectTimeout,
 	discInterval,
 	advertiseInterval time.Duration,
 ) *Discovery {
@@ -77,7 +74,6 @@ func NewDiscovery(
 		disc:              d,
 		connector:         newBackoffConnector(h, defaultBackoffFactory),
 		peersLimit:        peersLimit,
-		connectTimeout:    connectTimeout,
 		discoveryInterval: discInterval,
 		advertiseInterval: advertiseInterval,
 		onUpdatedPeers:    func(peer.ID, bool) {},
@@ -122,9 +118,6 @@ func (d *Discovery) handlePeerFound(ctx context.Context, peer peer.AddrInfo, can
 	}
 	d.connecting[peer.ID] = cancelFind
 	d.connectingLk.Unlock()
-
-	ctx, cancel := context.WithTimeout(ctx, d.connectTimeout)
-	defer cancel()
 
 	err := d.connector.Connect(ctx, peer)
 	if err != nil {

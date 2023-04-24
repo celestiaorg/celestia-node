@@ -12,7 +12,11 @@ import (
 )
 
 // gcInterval is a default period after which disconnected peers will be removed from cache
-const gcInterval = time.Hour
+const (
+	gcInterval = time.Hour
+	// connectTimeout is the timeout used for dialing peers and discovering peer addresses.
+	connectTimeout = time.Minute * 2
+)
 
 var (
 	defaultBackoffFactory = backoff.NewFixedBackoff(time.Hour)
@@ -55,6 +59,10 @@ func (b *backoffConnector) Connect(ctx context.Context, p peer.AddrInfo) error {
 	}
 	cache.nexttry = time.Now().Add(cache.backoff.Delay())
 	b.cacheLk.Unlock()
+
+	ctx, cancel := context.WithTimeout(ctx, connectTimeout)
+	defer cancel()
+
 	return b.h.Connect(ctx, p)
 }
 

@@ -38,7 +38,7 @@ func Node(dn *availability_test.TestDagNet) *availability_test.TestNode {
 
 func TestAvailability(getter share.Getter) *ShareAvailability {
 	disc := discovery.NewDiscovery(nil, routing.NewRoutingDiscovery(
-		routinghelpers.Null{}), 0, time.Second, time.Second, time.Second,
+		routinghelpers.Null{}), 0, time.Second, time.Second,
 	)
 	return NewShareAvailability(nil, getter, disc)
 }
