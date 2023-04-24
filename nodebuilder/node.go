@@ -27,7 +27,7 @@ import (
 	"github.com/celestiaorg/celestia-node/nodebuilder/state"
 )
 
-const Timeout = time.Second * 15
+const Timeout = time.Minute
 
 var log = logging.Logger("node")
 
