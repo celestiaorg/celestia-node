@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"go.uber.org/zap"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -18,6 +17,7 @@ import (
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/libp2p/go-libp2p/p2p/host/eventbus"
 	"github.com/libp2p/go-libp2p/p2p/net/conngater"
+	"go.uber.org/zap"
 
 	libhead "github.com/celestiaorg/go-header"
 
@@ -114,14 +114,15 @@ func NewManager(
 	}
 
 	s := &Manager{
-		params:            params,
-		headerSub:         headerSub,
-		shrexSub:          shrexSub,
-		connGater:         connGater,
-		host:              host,
-		pools:             make(map[string]*syncPool),
-		blacklistedHashes: make(map[string]bool),
-		headerSubDone:     make(chan struct{}),
+		params:                params,
+		headerSub:             headerSub,
+		shrexSub:              shrexSub,
+		connGater:             connGater,
+		host:                  host,
+		pools:                 make(map[string]*syncPool),
+		blacklistedHashes:     make(map[string]bool),
+		headerSubDone:         make(chan struct{}),
+		disconnectedPeersDone: make(chan struct{}),
 	}
 
 	s.fullNodes = newPool(s.params.PeerCooldown)
