@@ -87,6 +87,7 @@ func TestService_GetSingleBlobWithoutPadding(t *testing.T) {
 
 func TestService_GetAllWithoutPadding(t *testing.T) {
 	// TODO(@vgonkivs): remove skip once ParseShares will skip padding shares
+	// https://github.com/celestiaorg/celestia-app/issues/1649
 	t.Skip()
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute*5)
 	t.Cleanup(cancel)
