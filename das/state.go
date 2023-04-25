@@ -8,6 +8,16 @@ import (
 	"github.com/celestiaorg/celestia-node/header"
 )
 
+var (
+	// first retry should happen after defaultBackoffInitialInterval
+	defaultBackoffInitialInterval = time.Minute
+	// next retry will happen with delay defaultBackoffMultiplier to previous one
+	defaultBackoffMultiplier = 4
+	// after defaultBackoffMaxRetryCount amount of attempts retry backoff interval will stop growing
+	// and each retry attempt will produce WARN log
+	defaultBackoffMaxRetryCount = 4
+)
+
 // coordinatorState represents the current state of sampling process
 type coordinatorState struct {
 	// sampleFrom is the height from which the DASer will start sampling
@@ -18,8 +28,8 @@ type coordinatorState struct {
 	// keeps track of running workers
 	inProgress map[int]func() workerState
 
-	// retryStrategy implements retry backoff backoff
-	retryStrategy retryBackoff
+	// retryStrategy implements retry backoff
+	retryStrategy retryStrategy
 	// stores heights of failed headers with amount of retry attempt as value
 	failed map[uint64]retry
 	// inRetry stores (height -> attempt count) of failed headers that are currently being retried by
@@ -39,13 +49,24 @@ type coordinatorState struct {
 	catchUpDoneCh chan struct{}
 }
 
+// retry represents a retry attempt with a backoff delay.
+type retry struct {
+	// count specifies the number of retry attempts made so far.
+	count int
+	// after specifies the time for the next retry attempt.
+	after time.Time
+}
+
 // newCoordinatorState initiates state for samplingCoordinator
 func newCoordinatorState(params Parameters) coordinatorState {
 	return coordinatorState{
 		sampleFrom:    params.SampleFrom,
 		samplingRange: params.SamplingRange,
 		inProgress:    make(map[int]func() workerState),
-		retryStrategy: newRetryBackOff(exponentialBackoff(time.Minute, 4, 4)),
+		retryStrategy: newRetryStrategy(exponentialBackoff(
+			defaultBackoffInitialInterval,
+			defaultBackoffMultiplier,
+			defaultBackoffMaxRetryCount)),
 		failed:        make(map[uint64]retry),
 		inRetry:       make(map[uint64]retry),
 		nextJobID:     0,

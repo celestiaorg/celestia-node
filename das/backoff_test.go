@@ -49,14 +49,14 @@ func Test_retryStrategy_nextRetry(t *testing.T) {
 	}
 	tests := []struct {
 		name                string
-		backoff             retryBackoff
+		backoff             retryStrategy
 		args                args
 		wantRetry           retry
 		wantRetriesExceeded bool
 	}{
 		{
 			name:    "empty_strategy",
-			backoff: newRetryBackOff(nil),
+			backoff: newRetryStrategy(nil),
 			args: args{
 				retry:       retry{count: 1},
 				lastAttempt: tNow,
@@ -68,7 +68,7 @@ func Test_retryStrategy_nextRetry(t *testing.T) {
 		},
 		{
 			name:    "before_limit",
-			backoff: newRetryBackOff([]time.Duration{time.Second, time.Minute}),
+			backoff: newRetryStrategy([]time.Duration{time.Second, time.Minute}),
 			args: args{
 				retry:       retry{count: 2},
 				lastAttempt: tNow,
@@ -81,7 +81,7 @@ func Test_retryStrategy_nextRetry(t *testing.T) {
 		},
 		{
 			name:    "after_limit",
-			backoff: newRetryBackOff([]time.Duration{time.Second, time.Minute}),
+			backoff: newRetryStrategy([]time.Duration{time.Second, time.Minute}),
 			args: args{
 				retry:       retry{count: 3},
 				lastAttempt: tNow,
@@ -95,8 +95,8 @@ func Test_retryStrategy_nextRetry(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			s := retryBackoff{
-				backoffStrategy: tt.backoff.backoffStrategy,
+			s := retryStrategy{
+				retryIntervals: tt.backoff.retryIntervals,
 			}
 			gotRetry, gotRetriesExceeded := s.nextRetry(tt.args.retry, tt.args.lastAttempt)
 			assert.Equalf(t, tt.wantRetry, gotRetry,
