@@ -7,6 +7,7 @@
 * 2023-10-04: propose a second approach
 * 2023-11-04: propose a third approach
 * 2023-14-04: document decision
+* 2023-25-04: update approach A to resolve security concerns
 
 ## Context
 
@@ -20,7 +21,7 @@ Currently, when a node joins/comes up on the network, it relies, by default, on 
 
 This is a centralization bottleneck as it happens both during initial start-up and for any re-starts.
 
-In this ADR, we wish to aleviate this problem by allowing nodes to bootstrap from previously seen peers. This is a simple solution that allows the network alleviate the start-up centralisation bottleneck such that nodes can join the network without the need for hardcoded bootstrappers up re-start
+In this ADR, we wish to aleviate this problem by allowing nodes to bootstrap from previously seen peers. This is a simple solution that allows the network alleviate the start-up centralisation bottleneck such that nodes can join the network without the need for hardcoded bootstrappers being up on re-start
 
 (_Original issue available in references_)
 
@@ -30,15 +31,13 @@ Periodically store the addresses of previously seen peers in a key-value databas
 
 * Approach A.
 
-Caveats: In regards to the storage section of approach A, we decided to factorize the store implementation under `das/store.go` to be used by both approach A and the checkpoint store in `daser`.
-
 ## Design
 
 ## Approach A: Hook into `peerTracker` from `libhead.Exchange` and react to its internal events
 
 </br>
 
-In this approach, we will rely on `peerTracker`'s scoring mechanism that tracks the fastest connected nodes, and blocks malicious ones. To make use of this functionality, we track two important internal events from `peerTracker` in `libhead.Exchange` for peers selection and persistence purposes, and that is by proposing a design that allows access to `peerTracker`'s list of good peers and bad peers, and opening the design space to integrate peer selection and storage logic.
+In this approach, we will rely on `peerTracker`'s scoring mechanism that tracks the fastest connected nodes, and blocks malicious ones. To make use of this functionality, we rely on the internal mechanisms of `peerTracker` for peers selection and persistence, and that is by proposing a design that allows storing `peerTracker`'s list of good peers, and opening the design space to integrate peer selection and storage logic.
 
 ## Implementation
 
@@ -51,7 +50,7 @@ In this approach, we will rely on `peerTracker`'s scoring mechanism that tracks 
 
 ### Storage
 
-We will use a badgerDB datastore to store the addresses of previously seen good peers. The database will be stored in the `data` directory, and will have a store prefix `good_peers`. The database will have a single key-value pair, where the key is `peers` and the value is a `[]PeerInfo`
+We will use a badgerDB datastore to store the addresses of previously seen good peers. The database will be stored in the `data` directory, and will have a store prefix `good_peers`. The database will have a single key-value pair, where the key is `peers` and the value is a `[]AddrInfo`
 
 The peer store will implement the following interface:
 
@@ -72,22 +71,27 @@ type peerStore struct {
 }
 ```
 
+Ultimately, we will use the same pattern that is used in the store implementation under `das/store.go` for the peer store.
+
 ### Peer Selection & Persistence
 
-To periodically select the _"good peers"_ that we're connected to and store them in the peer store, we will rely on the internals of `go-header`, specifically the `peerTracker` and `libhead.Exchange` structs.
+To periodically select the _"good peers"_ that we're connected to and store them a in "peer store", we will rely on the internals of `go-header`, specifically the `peerTracker` and `libhead.Exchange` structs.
 
-`peerTracker` has internal logic that continuiously tracks and garbage collects peers based on whether they connected to the node, disconnected from the node, or responded to the node while taking into consideration response speed. All connected peers are kept track of in a list, and disconnected peers are marked for removal, all as a part of a garbage collection routine. `peerTracker` also blocks peers that behave maliciously, but not in a routine, instead, it does so on `blockPeer` call.
+`peerTracker` has internal logic that continuously tracks and garbage collects peers based on whether they've connected to the node, disconnected from the node, or responded to the node while taking into consideration response speed. All connected peers are kept track of in a list, and disconnected peers are marked for removal, all as a part of a garbage collection routine. `peerTracker` also blocks peers that behave maliciously, but not in a routine, instead, it does so on `blockPeer` call. Ultimately, the blocked peers will be first disconnected from before the block happens, thus the garbage collection routine will take care of cleaning them up.
 
-We intend to use this internal logic to periodically select peers that are "good" and store them in the peer store mentioned in the storage section. To do this, we will "hook" into the internals of `peerTracker` and `libhead.Exchange` by defining new "event handlers" intended to handle the following events from `peerTracker`:
+We intend to use this internal logic to periodically select peers that are "good" and store them in the peer store mentioned in the storage section. To do this, we will perform the storing of the "good peers" every time `peerTracker` performs its internal garbage collection, since that's when `peerTracker` updates its peer list by removing peers marked for removal and cleans peers with low scores. (_i.e: the "bad peers" are filtered_)
 
-1. `OnPeersGC`: _This event is triggered on every garbage collection cycle from `peerTracker`. The list will have undergone changes from the other routines before this event is triggered._
+To enable this, we suggest that:
+
+1.`peerTracker` to have a reference of the `Peerstore`
+2.`peerTracker` to directly call the `Peerstore`'s methods for storage
 
 ```diff
 type peerTracker struct {
         // online until pruneDeadline, it will be removed and its score will be lost.
         disconnectedPeers map[peer.ID]*peerStat
- 
-+       onPeersGC func([]peer.AddrInfo)
+
++       peerstore Peerstore
 +
         ctx    context.Context
         cancel context.CancelFunc
@@ -96,7 +100,7 @@ type peerTracker struct {
 
 (_Code Snippet 1.a: Example of required changes to: go-header/p2p/peer_tracker.go_)
 
-as explained above, `OnPeersGC` will be called whenever `peerTracker` updates its internal list of peers on its `gc` routine, which updates every 30 minutes (_value is configurable_):
+as explained above, we will store the new updated list on every new garbage collection cycle (_the gc interval value is configurable_):
 
 ```diff
 func (p *peerTracker) gc() {
@@ -116,9 +120,8 @@ func (p *peerTracker) gc() {
 +           updatedPeerList = append(updatedPeerList, PIDtoAddrInfo(peer.peerID))
 +       }
 +
++       p.peerstore.Put(updatedPeerList)
         p.peerLk.Unlock()
-+
-+       p.onPeersGC(updatedPeerList)
                 }
         }
  }
@@ -126,15 +129,13 @@ func (p *peerTracker) gc() {
 
 (_Code Snippet 1.b: Example of required changes to: go-header/p2p/peer_tracker.go_)
 
-In _Code Snippet 1.b_, we can choose to order the slice by `peer.peerScore` to allow the event handler to pick the top 10 peers (_for example_) in connectivity, without leaking the `peerStat` type into the event handler callbacks.
-
-The `peerTracker`'s constructor should be updated to accept these new event handlers:
+The `peerTracker`'s constructor should be updated to accept the peer store:
 
 ```diff
 func newPeerTracker(
         h host.Host,
         connGater *conngater.BasicConnectionGater,
-+       onPeersGC func([]peer.ID),
++       peerstore Peerstore,
  ) *peerTracker {
 ```
 
@@ -156,7 +157,7 @@ as well as the `libhead.Exchange`'s options and construction:
         // chainID is an identifier of the chain.
         chainID string
 +
-+       OnPeersGC func([]peer.AddrInfo)
++       peerstore Peerstore
 }
  ```
 
@@ -184,9 +185,9 @@ as well as the `libhead.Exchange`'s options and construction:
                 peerTracker: newPeerTracker(
                         host,
                         connGater,
-+                       params.OnPeersGC
-                ),
-                Params: params,
++                      params.peerstore
+                     ),
+                     Params:  params,
         }
  
         ex.trustedPeers = func() peer.IDSlice {
@@ -198,12 +199,7 @@ as well as the `libhead.Exchange`'s options and construction:
 
 (_Code Snippet 2.b: Example of required changes to: go-header/p2p/exchange.go_)
 
-The event handlers to be supplied are callbacks that either:
-
-1. Put the new peer list into the peer store
-2. Remove a blocked peer from the peer store
-
-Such callbacks are easily passable as options at header module construction time, example:
+To pass the peer store to the `Exchange` (_and subsequently to the `peerTracker`_), we can rely on `WithPeerPersistence` option as follows:
 
 ```diff
 +   fx.Provide(newPeerStore),
@@ -214,67 +210,67 @@ Such callbacks are easily passable as options at header module construction time
         return []p2p.Option[p2p.ClientParameters]{
             ...
             p2p.WithChainID(network.String()),
-+           p2p.WithOnPeersGC(func(peers []peer.ID) {
-+               var topTen []peer.ID
-+               if len(peers) >= 10 {
-+                  topTen = peers[:9]
-+               } else {
-+                   topTen = peers
-+               }
-+               peerStore.Put(topTen)
-+           }),
++           p2p.WithPeerPersistence(peerStore),
         }
     },
 ),
-                        fx.Provide(newP2PExchange(*cfg)),
+     fx.Provide(newP2PExchange(*cfg)),
 ```
 
 (_Code Snippet 3.b: Example of required changes to celestia-node/nodebuilder/header/module.go_)
 
-As explained for _Code Snippet 1.b_ the event handler can handle how to deal with the ordered peer list, in this, we are portraying an example of situation where we are always interested in the top 10 peers if 10 or more peers are available.
+### Security Concerns: Long Range Attack
 
-### Node Startup
-
-When the node starts up, it will first check if the `peers` database exists. If it does not, the node will bootstrap from the hardcoded bootstrappers. If it does, the node will bootstrap from the peers in the database.
+With the ability to retrieve previously seen good peers, we should distinguish between those and the trusted peers for cases when we have expired local sync target (_i.e: subjective head_). On such cases, we would like to strictly sync and retrieve the subjective head from our trusted peers and no other, and for other syncing tasks, include the other stored good peers. To achieve this, we need to first include information about the expiry of the local sync target:
 
 ```diff
+
  // newP2PExchange constructs a new Exchange for headers.
- func newP2PExchange(cfg Config) func(
-        fx.Lifecycle,
+ func newP2PExchange(
+        lc fx.Lifecycle,
++        storeChainHead *header.ExtendedHeader,
+        bpeers modp2p.Bootstrappers,
+        network modp2p.Network,
+        host host.Host,
         ...
-        ...
-        []p2p.Option[p2p.ClientParameters],
-+       pstore peerstore.Peerstore,
- ) (libhead.Exchange[*header.ExtendedHeader], error) {
-        return func(
-                lc fx.Lifecycle,
-                ...
-                ...,
-                opts []p2p.Option[p2p.ClientParameters],
-        ) (libhead.Exchange[*header.ExtendedHeader], error) {
-                peers, err := cfg.trustedPeers(bpeers)
-                if err != nil {
-                        return nil, err
-                }
-+              list, err := pstore.Load()
-+               if err != nil {
-+                       return nil, err
-+               }
-+               peers := append(peers, list...)
-                ids := make([]peer.ID, len(peers))
-                for index, peer := range peers {
-                        ids[index] = peer.ID
-                        host.Peerstore().AddAddrs(peer.ID, peer.Addrs, peerstore.PermanentAddrTTL)
-                }
-                exchange, err := p2p.NewExchange[*header.ExtendedHeader](host, ids, conngater, opts...)
-                ...
-                return exchange, nil
-        }
- }
+        exchange, err := p2p.NewExchange(...,
+                p2p.WithParams(cfg.Client),
+                p2p.WithNetworkID[p2p.ClientParameters](network.String()),
+                p2p.WithChainID(network.String()),
++               p2p.WithSubjectiveInitialization(storeChainHead.IsExpired),
+        )
+        if err != nil {
+                return nil, err
 ```
 
-(_Code Snippet 4.a: Example of required changes to: celestia-node/nodebuilder/header/constructors.go_)
+(_Code Snippet 3.c: Example of required changes to celestia-node/nodebuilder/header/constructors.go_)
 
+This piece information will allow the `Exchange` to distinguish between the two cases and use the correct peer set for each case:
+
+```diff
+ func (ex *Exchange[H]) Head(ctx context.Context) (H, error) {
+        log.Debug("requesting head")
++       // pool of peers to request from is determined by whether the head of the store is expired or not
++       if ex.Params.subjectiveInitialisation {
++              // if the local chain head is outside the unbonding period, only use TRUSTED PEERS for determining the head
++              peerset = ex.trustedPeers
++        } else {
++              // otherwise, node has a chain head that is NOT outdated so we can actually request random peers in addition to trusted
++              peerset = append(ex.trustedPeers, ex.params.peerstore.Get())
++        }
++
+        reqCtx := ctx
+        if deadline, ok := ctx.Deadline(); ok {
+                // allocate 90% of caller's set deadline for requests
+    ...
+-   for _, from := range trustedPeers {
++         for _, from := range peerset {
+                go func(from peer.ID) {
+                        headers, err := ex.request(reqCtx, from, headerReq)
+                        if err != nil {
+```
+
+Other side-effect changes will have to be done to methods that use `trustedPeers` restrictively for requests (_such as `performRequest`_) to allow requesting to previously seen good peers as well (_Reference: [Issue #25](https://github.com/celestiaorg/go-header/issues/25)_)
 </br>
 
 ## Approach B: Periodic sampling of peers from the peerstore for "good peers" selection using liveness buckets
