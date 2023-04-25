@@ -64,14 +64,10 @@ func (s *Service) Submit(ctx context.Context, blobs ...*Blob) (uint64, error) {
 		gasLimit = estimateGas(blobs...)
 		fee      = int64(defaultMinGasPrice * float64(gasLimit))
 		b        = make([]*apptypes.Blob, len(blobs))
-		err      error
 	)
 
 	for i, blob := range blobs {
-		b[i], err = apptypes.NewBlob(blob.NamespaceId, blob.Data())
-		if err != nil {
-			return 0, err
-		}
+		b[i] = &blob.Blob
 	}
 
 	resp, err := s.accessor.SubmitPayForBlob(ctx, types.NewInt(fee), gasLimit, b...)
