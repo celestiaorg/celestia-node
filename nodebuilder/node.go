@@ -16,6 +16,8 @@ import (
 	"github.com/libp2p/go-libp2p/core/routing"
 	"github.com/libp2p/go-libp2p/p2p/net/conngater"
 	"go.uber.org/fx"
+	"go.uber.org/fx/fxevent"
+	"go.uber.org/zap/zapcore"
 
 	"github.com/celestiaorg/celestia-node/api/gateway"
 	"github.com/celestiaorg/celestia-node/api/rpc"
@@ -28,9 +30,12 @@ import (
 	"github.com/celestiaorg/celestia-node/nodebuilder/state"
 )
 
-const Timeout = time.Second * 30
+var Timeout = time.Second * 30
 
-var log = logging.Logger("node")
+var (
+	log   = logging.Logger("node")
+	fxLog = logging.Logger("fx")
+)
 
 // Node represents the core structure of a Celestia node. It keeps references to all
 // Celestia-specific components and services in one place and provides flexibility to run a
@@ -156,7 +161,11 @@ func (n *Node) Stop(ctx context.Context) error {
 func newNode(opts ...fx.Option) (*Node, error) {
 	node := new(Node)
 	app := fx.New(
-		fx.NopLogger,
+		fx.WithLogger(func() fxevent.Logger {
+			zl := &fxevent.ZapLogger{Logger: fxLog.Desugar()}
+			zl.UseLogLevel(zapcore.DebugLevel)
+			return zl
+		}),
 		fx.Populate(node),
 		fx.Options(opts...),
 	)
