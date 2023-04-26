@@ -4,12 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/libp2p/go-libp2p/core/network"
 	"io"
 	"net"
 	"time"
 
 	"github.com/libp2p/go-libp2p/core/host"
+	"github.com/libp2p/go-libp2p/core/network"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/libp2p/go-libp2p/core/protocol"
 
@@ -90,8 +90,8 @@ func (c *Client) doSafeRequest(
 	}
 
 	// if there is a deadline set, safetyContext will give the request 500 milliseconds to recognize the context
-	// has deadlined before cancelling the operation itself.
-	// this is a hotfix until we solve doRequests disrepect of context. Related: issue #2109
+	// has deadlined before canceling the operation itself.
+	// this is a hotfix until we solve why doRequest does not respect context. Related: issue #2109
 	safetyContext, cancel := context.WithCancel(ctx)
 	if dl, ok := ctx.Deadline(); ok {
 		safetyContext, cancel = context.WithDeadline(context.Background(), dl.Add(safetyTimeout))
@@ -102,6 +102,7 @@ func (c *Client) doSafeRequest(
 	defer cancel()
 
 	go doRequest(ctx, stream, dataHash, to, resultChan)
+
 	select {
 	case res := <-resultChan:
 		if errors.Is(res.err, context.DeadlineExceeded) || errors.Is(res.err, context.Canceled) {
@@ -112,7 +113,7 @@ func (c *Client) doSafeRequest(
 		}
 		return res.eds, res.err
 	case <-safetyContext.Done():
-		stream.Close() //nolint:errcheck
+		stream.Reset() //nolint:errcheck
 		log.Errorw("client: doRequest failed to respect context after safety timeout",
 			"datahash", dataHash.String(),
 			"peer", to,
@@ -121,7 +122,13 @@ func (c *Client) doSafeRequest(
 	}
 }
 
-func doRequest(ctx context.Context, stream network.Stream, dataHash share.DataHash, to peer.ID, resultChan chan result) {
+func doRequest(
+	ctx context.Context,
+	stream network.Stream,
+	dataHash share.DataHash,
+	to peer.ID,
+	resultChan chan result,
+) {
 	req := &pb.EDSRequest{Hash: dataHash}
 
 	// request ODS
