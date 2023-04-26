@@ -8,6 +8,8 @@ import (
 
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	"github.com/tendermint/tendermint/types"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
 
 	libhead "github.com/celestiaorg/go-header"
 
@@ -15,6 +17,8 @@ import (
 	"github.com/celestiaorg/celestia-node/share/eds"
 	"github.com/celestiaorg/celestia-node/share/p2p/shrexsub"
 )
+
+var tracer = otel.Tracer("core/listener")
 
 // Listener is responsible for listening to Core for
 // new block events and converting new Core blocks into
@@ -140,6 +144,11 @@ func (cl *Listener) listen(ctx context.Context, sub <-chan types.EventDataSigned
 }
 
 func (cl *Listener) handleNewSignedBlock(ctx context.Context, b types.EventDataSignedBlock) error {
+	ctx, span := tracer.Start(ctx, "handle-new-signed-block")
+	defer span.End()
+	span.SetAttributes(
+		attribute.Int64("height", b.Header.Height),
+	)
 	// extend block data
 	eds, err := extendBlock(b.Data)
 	if err != nil {
