@@ -61,7 +61,10 @@ func (c *Client) RequestEDS(
 		}
 	}
 	if err != p2p.ErrNotFound {
-		log.Warnw("client: eds request to peer failed", "peer", peer, "hash", dataHash.String())
+		log.Warnw("client: eds request to peer failed",
+			"peer", peer,
+			"hash", dataHash.String(),
+			"err", err)
 	}
 
 	return nil, err
@@ -79,7 +82,7 @@ func (c *Client) doRequest(
 
 	if dl, ok := ctx.Deadline(); ok {
 		if err = stream.SetDeadline(dl); err != nil {
-			log.Debugw("error setting deadline: %s", "err", err)
+			log.Debugw("client: error setting deadline: %s", "err", err)
 		}
 	}
 
@@ -94,7 +97,7 @@ func (c *Client) doRequest(
 	}
 	err = stream.CloseWrite()
 	if err != nil {
-		log.Debugw("error closing write", "err", err)
+		log.Debugw("client: error closing write", "err", err)
 	}
 
 	// read and parse status from peer

@@ -22,9 +22,10 @@ type SamplingStats struct {
 }
 
 type WorkerStats struct {
-	Curr uint64 `json:"current"`
-	From uint64 `json:"from"`
-	To   uint64 `json:"to"`
+	JobType jobType `json:"job_type"`
+	Curr    uint64  `json:"current"`
+	From    uint64  `json:"from"`
+	To      uint64  `json:"to"`
 
 	ErrMsg string `json:"error,omitempty"`
 }
@@ -36,4 +37,13 @@ func (s SamplingStats) totalSampled() uint64 {
 		inProgress += w.To - w.Curr + 1
 	}
 	return s.CatchupHead - inProgress - uint64(len(s.Failed))
+}
+
+// workersByJobType returns a map of job types to the number of workers assigned to those types.
+func (s SamplingStats) workersByJobType() map[jobType]int64 {
+	workers := make(map[jobType]int64)
+	for _, w := range s.Workers {
+		workers[w.JobType]++
+	}
+	return workers
 }

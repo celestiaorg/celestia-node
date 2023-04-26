@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"strconv"
 
@@ -98,10 +99,19 @@ func (h *Handler) getShares(ctx context.Context, height uint64, nID namespace.ID
 		err    error
 		header *header.ExtendedHeader
 	)
-	switch height {
-	case 0:
-		header, err = h.header.LocalHead(ctx)
-	default:
+
+	//TODO: change this to NetworkHead once the adjacency in the store is fixed.
+	header, err = h.header.LocalHead(ctx)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	if height > 0 {
+		if storeHeight := uint64(header.Height()); storeHeight < height {
+			return nil, 0, fmt.Errorf(
+				"current head local chain head: %d is lower than requested height: %d"+
+					" give header sync some time and retry later", storeHeight, height)
+		}
 		header, err = h.header.GetByHeight(ctx, height)
 	}
 	if err != nil {
