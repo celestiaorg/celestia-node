@@ -138,7 +138,7 @@ func (sg *ShrexGetter) GetSharesByNamespace(
 		cancel()
 		switch {
 		case getErr == nil:
-			setStatus(peers.ResultSuccess)
+			setStatus(peers.ResultNoop)
 			return nd, nil
 		case errors.Is(getErr, context.DeadlineExceeded),
 			errors.Is(getErr, context.Canceled):
