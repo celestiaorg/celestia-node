@@ -131,7 +131,7 @@ func (d *DASer) InitMetrics() error {
 	)
 
 	if err != nil {
-		return fmt.Errorf("regestering metrics callback: %w", err)
+		return fmt.Errorf("registering metrics callback: %w", err)
 	}
 
 	return nil
