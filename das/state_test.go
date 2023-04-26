@@ -47,7 +47,7 @@ func Test_coordinatorStats(t *testing.T) {
 						}
 					},
 				},
-				failed: map[uint64]retry{
+				failed: map[uint64]retryAttempt{
 					22: {count: 1},
 					23: {count: 1},
 					24: {count: 2},

@@ -44,24 +44,24 @@ func Test_exponentialBackoff(t *testing.T) {
 func Test_retryStrategy_nextRetry(t *testing.T) {
 	tNow := time.Now()
 	type args struct {
-		retry       retry
+		retry       retryAttempt
 		lastAttempt time.Time
 	}
 	tests := []struct {
 		name                string
 		backoff             retryStrategy
 		args                args
-		wantRetry           retry
+		wantRetry           retryAttempt
 		wantRetriesExceeded bool
 	}{
 		{
 			name:    "empty_strategy",
 			backoff: newRetryStrategy(nil),
 			args: args{
-				retry:       retry{count: 1},
+				retry:       retryAttempt{count: 1},
 				lastAttempt: tNow,
 			},
-			wantRetry: retry{
+			wantRetry: retryAttempt{
 				count: 2,
 			},
 			wantRetriesExceeded: false,
@@ -70,10 +70,10 @@ func Test_retryStrategy_nextRetry(t *testing.T) {
 			name:    "before_limit",
 			backoff: newRetryStrategy([]time.Duration{time.Second, time.Minute}),
 			args: args{
-				retry:       retry{count: 2},
+				retry:       retryAttempt{count: 2},
 				lastAttempt: tNow,
 			},
-			wantRetry: retry{
+			wantRetry: retryAttempt{
 				count: 3,
 				after: tNow.Add(time.Minute),
 			},
@@ -83,10 +83,10 @@ func Test_retryStrategy_nextRetry(t *testing.T) {
 			name:    "after_limit",
 			backoff: newRetryStrategy([]time.Duration{time.Second, time.Minute}),
 			args: args{
-				retry:       retry{count: 3},
+				retry:       retryAttempt{count: 3},
 				lastAttempt: tNow,
 			},
-			wantRetry: retry{
+			wantRetry: retryAttempt{
 				count: 4,
 				after: tNow.Add(time.Minute),
 			},

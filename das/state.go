@@ -8,16 +8,6 @@ import (
 	"github.com/celestiaorg/celestia-node/header"
 )
 
-var (
-	// first retry should happen after defaultBackoffInitialInterval
-	defaultBackoffInitialInterval = time.Minute
-	// next retry will happen with delay defaultBackoffMultiplier to previous one
-	defaultBackoffMultiplier = 4
-	// after defaultBackoffMaxRetryCount amount of attempts retry backoff interval will stop growing
-	// and each retry attempt will produce WARN log
-	defaultBackoffMaxRetryCount = 4
-)
-
 // coordinatorState represents the current state of sampling process
 type coordinatorState struct {
 	// sampleFrom is the height from which the DASer will start sampling
@@ -31,10 +21,10 @@ type coordinatorState struct {
 	// retryStrategy implements retry backoff
 	retryStrategy retryStrategy
 	// stores heights of failed headers with amount of retry attempt as value
-	failed map[uint64]retry
+	failed map[uint64]retryAttempt
 	// inRetry stores (height -> attempt count) of failed headers that are currently being retried by
 	// workers
-	inRetry map[uint64]retry
+	inRetry map[uint64]retryAttempt
 
 	// nextJobID is a unique identifier that will be used for creation of next job
 	nextJobID int
@@ -49,8 +39,8 @@ type coordinatorState struct {
 	catchUpDoneCh chan struct{}
 }
 
-// retry represents a retry attempt with a backoff delay.
-type retry struct {
+// retryAttempt represents a retry attempt with a backoff delay.
+type retryAttempt struct {
 	// count specifies the number of retry attempts made so far.
 	count int
 	// after specifies the time for the next retry attempt.
@@ -67,8 +57,8 @@ func newCoordinatorState(params Parameters) coordinatorState {
 			defaultBackoffInitialInterval,
 			defaultBackoffMultiplier,
 			defaultBackoffMaxRetryCount)),
-		failed:        make(map[uint64]retry),
-		inRetry:       make(map[uint64]retry),
+		failed:        make(map[uint64]retryAttempt),
+		inRetry:       make(map[uint64]retryAttempt),
 		nextJobID:     0,
 		next:          params.SampleFrom,
 		networkHead:   params.SampleFrom,
@@ -81,7 +71,7 @@ func (s *coordinatorState) resumeFromCheckpoint(c checkpoint) {
 	s.networkHead = c.NetworkHead
 
 	for h, count := range c.Failed {
-		s.failed[h] = retry{
+		s.failed[h] = retryAttempt{
 			count: count,
 		}
 	}
@@ -103,7 +93,7 @@ func (s *coordinatorState) handleResult(res result) {
 
 	// update failed heights
 	for h := range res.failed {
-		// if job was already in retry and failed again, persist attempt count
+		// if job was already in retry and failed again, carry over attempt count
 		lastRetry, ok := s.inRetry[h]
 		if ok {
 			delete(s.inRetry, h)
@@ -158,12 +148,12 @@ func (s *coordinatorState) recentJob(header *header.ExtendedHeader) job {
 
 // nextJob will return next catchup or retry job according to priority (retry -> catchup)
 func (s *coordinatorState) nextJob() (next job, found bool) {
-	// check for catchup job
+	// check for if any retry jobs are available
 	if job, found := s.retryJob(); found {
 		return job, found
 	}
 
-	// if caught up already, make a retry job
+	// if no retry jobs, make a catchup job
 	return s.catchupJob()
 }
 
@@ -184,15 +174,15 @@ func (s *coordinatorState) catchupJob() (next job, found bool) {
 
 // retryJob creates a job to retry previously failed header
 func (s *coordinatorState) retryJob() (next job, found bool) {
-	for h, retry := range s.failed {
-		if retry.after.After(time.Now()) {
+	for h, attempt := range s.failed {
+		if !attempt.canRetry() {
 			// height will be retried later
 			continue
 		}
 
 		// move header from failed into retry
 		delete(s.failed, h)
-		s.inRetry[h] = retry
+		s.inRetry[h] = attempt
 		j := s.newJob(retryJob, h, h)
 		return j, true
 	}
@@ -293,4 +283,9 @@ func (s *coordinatorState) waitCatchUp(ctx context.Context) error {
 		return ctx.Err()
 	}
 	return nil
+}
+
+// canRetry returns true if the time stored in the "after" has passed.
+func (r retryAttempt) canRetry() bool {
+	return r.after.Before(time.Now())
 }
