@@ -34,6 +34,10 @@ func (ps *limitedSet) Contains(p peer.ID) bool {
 	return ok
 }
 
+func (ps *limitedSet) Limit() uint {
+	return ps.limit
+}
+
 func (ps *limitedSet) Size() int {
 	ps.lk.RLock()
 	defer ps.lk.RUnlock()
