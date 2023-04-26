@@ -19,23 +19,23 @@ import (
 	"github.com/celestiaorg/celestia-node/state"
 )
 
+var (
+	ErrBlobNotFound = errors.New("blob: not found")
+
+	log = logging.Logger("blob")
+)
+
 // TODO(@vgonkivs): remove after bumping celestia-app
 // defaultMinGasPrice is the default min gas price.
 const defaultMinGasPrice = 0.001
 
-var (
-	log = logging.Logger("blob")
-
-	ErrBlobNotFound = errors.New("blob: not found")
-)
-
 type Service struct {
 	// accessor dials the given celestia-core endpoint to submit blobs.
 	accessor *state.CoreAccessor
-	// sGetter retrieves the EDS to fetch all shares from the requested header.
-	sGetter share.Getter
-	// hStore allows to get the requested header from the local storage.
-	hStore libhead.Store[*header.ExtendedHeader]
+	// shareGetter retrieves the EDS to fetch all shares from the requested header.
+	shareGetter share.Getter
+	// headerStore allows to get the requested header from the local storage.
+	headerStore libhead.Store[*header.ExtendedHeader]
 	// headGetter gets current network head.
 	headGetter libhead.Head[*header.ExtendedHeader]
 }
@@ -43,14 +43,14 @@ type Service struct {
 func NewService(
 	state *state.CoreAccessor,
 	getter share.Getter,
-	hStore libhead.Store[*header.ExtendedHeader],
+	headerStore libhead.Store[*header.ExtendedHeader],
 	headGetter libhead.Head[*header.ExtendedHeader],
 ) *Service {
 	return &Service{
-		accessor:   state,
-		sGetter:    getter,
-		hStore:     hStore,
-		headGetter: headGetter,
+		accessor:    state,
+		shareGetter: getter,
+		headerStore: headerStore,
+		headGetter:  headGetter,
 	}
 }
 
@@ -142,15 +142,10 @@ func (s *Service) GetAll(ctx context.Context, height uint64, nIDs ...namespace.I
 		}
 	}
 
-	if len(blobs) == 0 && len(resultErr) == 0 {
-		return nil, ErrBlobNotFound
+	if len(blobs) == 0 {
+		resultErr = append(resultErr, ErrBlobNotFound)
 	}
-
-	err = errors.Join(resultErr...)
-	if err != nil {
-		err = fmt.Errorf("blob: %s", err)
-	}
-	return blobs, err
+	return blobs, errors.Join(resultErr...)
 }
 
 // Included verifies that the blob was included in a specific height.
@@ -205,17 +200,17 @@ func (s *Service) getByCommitment(
 		blobShare *shares.Share
 	)
 
-	namespacedShares, err := s.sGetter.GetSharesByNamespace(ctx, header.DAH, nID)
+	namespacedShares, err := s.shareGetter.GetSharesByNamespace(ctx, header.DAH, nID)
 	if err != nil {
 		return nil, nil, err
 	}
-	for _, rowShares := range namespacedShares {
-		if len(rowShares.Shares) == 0 {
-			continue
+	for _, row := range namespacedShares {
+		if len(row.Shares) == 0 {
+			break
 		}
 
-		rawShares = append(rawShares, rowShares.Shares...)
-		proofs = append(proofs, rowShares.Proof)
+		rawShares = append(rawShares, row.Shares...)
+		proofs = append(proofs, row.Proof)
 
 		// reconstruct the `blobShare` from the first rawShare in range
 		// in order to get blob's length(first share will contain this info)
@@ -233,7 +228,6 @@ func (s *Service) getByCommitment(
 				if err != nil {
 					return nil, nil, err
 				}
-
 				if isPadding {
 					continue
 				}
@@ -276,7 +270,7 @@ func (s *Service) getByCommitment(
 // getBlobs retrieves the DAH and fetches all shares from the requested namespace.ID and converts
 // them to Blobs.
 func (s *Service) getBlobs(ctx context.Context, nID namespace.ID, root *share.Root) ([]*Blob, error) {
-	namespacedShares, err := s.sGetter.GetSharesByNamespace(ctx, root, nID)
+	namespacedShares, err := s.shareGetter.GetSharesByNamespace(ctx, root, nID)
 	if err != nil {
 		return nil, err
 	}
@@ -300,9 +294,9 @@ func (s *Service) getByHeight(ctx context.Context, height uint64) (*header.Exten
 		return head, nil
 	}
 
-	if !s.hStore.HasAt(ctx, height) {
+	if !s.headerStore.HasAt(ctx, height) {
 		return nil, fmt.Errorf("blob: given height exceeds local head. requestedHeight:%d", height)
 	}
 
-	return s.hStore.GetByHeight(ctx, height)
+	return s.headerStore.GetByHeight(ctx, height)
 }

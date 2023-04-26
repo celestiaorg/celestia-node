@@ -36,6 +36,8 @@ func TestService_GetSingleBlob(t *testing.T) {
 	require.Equal(t, blobs[1].Commitment(), newBlob.Commitment())
 }
 
+// TestService_GetSingleBlobInHeaderWithSingleNID creates two blobs with the same nID
+// and ensures that blob service could return the correct blob by its commitment.
 func TestService_GetSingleBlobInHeaderWithSingleNID(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	t.Cleanup(cancel)
@@ -52,8 +54,11 @@ func TestService_GetSingleBlobInHeaderWithSingleNID(t *testing.T) {
 	assert.Len(t, blobs, 2)
 }
 
+// TestService_GetSingleBlobWithoutPadding creates two blobs with the same nID
+// But to satisfy the rule of eds creating, padding namespace share is placed between
+// blobs. Test ensures that blob service will skip padding share and return the correct blob.
 func TestService_GetSingleBlobWithoutPadding(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Minute*5)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	t.Cleanup(cancel)
 
 	blobs := generateBlob(t, []int{9, 5}, true)
@@ -69,16 +74,16 @@ func TestService_GetSingleBlobWithoutPadding(t *testing.T) {
 
 	bs := mdutils.Bserv()
 	batching := ds_sync.MutexWrap(ds.NewMapDatastore())
-	hstore, err := store.NewStore[*header.ExtendedHeader](batching)
+	headerStore, err := store.NewStore[*header.ExtendedHeader](batching)
 	require.NoError(t, err)
 	eds, err := share.AddShares(ctx, rawShares, bs)
 	require.NoError(t, err)
 
 	h := headertest.ExtendedHeaderFromEDS(t, 1, eds)
-	err = hstore.Init(ctx, h)
+	err = headerStore.Init(ctx, h)
 	require.NoError(t, err)
 
-	service := NewService(nil, getters.NewIPLDGetter(bs), hstore, hstore)
+	service := NewService(nil, getters.NewIPLDGetter(bs), headerStore, headerStore)
 
 	newBlob, err := service.Get(ctx, 1, blobs[1].NamespaceID(), blobs[1].Commitment())
 	require.NoError(t, err)
@@ -111,16 +116,16 @@ func TestService_GetAllWithoutPadding(t *testing.T) {
 
 	bs := mdutils.Bserv()
 	batching := ds_sync.MutexWrap(ds.NewMapDatastore())
-	hstore, err := store.NewStore[*header.ExtendedHeader](batching)
+	headerStore, err := store.NewStore[*header.ExtendedHeader](batching)
 	require.NoError(t, err)
 	eds, err := share.AddShares(ctx, rawShares, bs)
 	require.NoError(t, err)
 
 	h := headertest.ExtendedHeaderFromEDS(t, 1, eds)
-	err = hstore.Init(ctx, h)
+	err = headerStore.Init(ctx, h)
 	require.NoError(t, err)
 
-	service := NewService(nil, getters.NewIPLDGetter(bs), hstore, hstore)
+	service := NewService(nil, getters.NewIPLDGetter(bs), headerStore, headerStore)
 
 	_, err = service.GetAll(ctx, 1, blobs[0].NamespaceID(), blobs[1].NamespaceID())
 	require.NoError(t, err)
@@ -149,7 +154,7 @@ func TestService_GetFailedWithInvalidCommitment(t *testing.T) {
 }
 
 func TestService_GetAll(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Minute*5)
 	t.Cleanup(cancel)
 
 	blobs := generateBlob(t, []int{10, 6}, false)
@@ -216,14 +221,14 @@ func TestService_GetProof(t *testing.T) {
 func createService(ctx context.Context, t *testing.T, blobs []*Blob) *Service {
 	bs := mdutils.Bserv()
 	batching := ds_sync.MutexWrap(ds.NewMapDatastore())
-	hstore, err := store.NewStore[*header.ExtendedHeader](batching)
+	headerStore, err := store.NewStore[*header.ExtendedHeader](batching)
 	require.NoError(t, err)
 	rawShares := splitBlob(t, blobs...)
 	eds, err := share.AddShares(ctx, rawShares, bs)
 	require.NoError(t, err)
 
 	h := headertest.ExtendedHeaderFromEDS(t, 1, eds)
-	err = hstore.Init(ctx, h)
+	err = headerStore.Init(ctx, h)
 	require.NoError(t, err)
-	return NewService(nil, getters.NewIPLDGetter(bs), hstore, hstore)
+	return NewService(nil, getters.NewIPLDGetter(bs), headerStore, headerStore)
 }
