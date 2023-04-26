@@ -37,12 +37,27 @@ var waitF = func(ttl time.Duration) time.Duration {
 
 type Parameters struct {
 	// PeersLimit defines the soft limit of FNs to connect to via discovery.
-	PeersLimit uint
+	// Set -1 to disable.
+	PeersLimit int
 	// DiscoveryInterval is an interval between discovery sessions.
+	// Set -1 to disable.
 	DiscoveryInterval time.Duration
 	// AdvertiseInterval is a interval between advertising sessions.
+	// Set -1 to disable.
 	// NOTE: only full and bridge can advertise themselves.
 	AdvertiseInterval time.Duration
+}
+
+func DefaultParameters() Parameters {
+	return Parameters{
+		PeersLimit:        5,
+		DiscoveryInterval: time.Minute,
+		AdvertiseInterval: time.Hour * 8,
+	}
+}
+
+func (p *Parameters) Validate() error {
+	return nil
 }
 
 // Discovery combines advertise and discover services and allows to store discovered nodes.
@@ -108,7 +123,7 @@ func (d *Discovery) handlePeerFound(ctx context.Context, peer peer.AddrInfo, can
 	if peer.ID == d.host.ID() ||
 		len(peer.Addrs) == 0 ||
 		d.set.Contains(peer.ID) ||
-		uint(d.set.Size()) >= d.set.Limit() {
+		d.set.Size() >= d.set.Limit() {
 		return
 	}
 
@@ -144,7 +159,7 @@ func (d *Discovery) handlePeerFound(ctx context.Context, peer peer.AddrInfo, can
 // It starts peer discovery every 30 seconds until peer cache reaches peersLimit.
 // Discovery is restarted if any previously connected peers disconnect.
 func (d *Discovery) ensurePeers(ctx context.Context) {
-	if d.params.PeersLimit == 0 {
+	if d.params.PeersLimit == 0 || d.params.DiscoveryInterval == -1 {
 		log.Warn("peers limit is set to 0. Skipping discovery...")
 		return
 	}
@@ -214,7 +229,7 @@ func (d *Discovery) ensurePeers(ctx context.Context) {
 					// first do Add and only after check the limit
 					// so that peer set represents the actual number of connections we made
 					// which can go slightly over peersLimit
-					if uint(d.set.Size()) >= d.set.Limit() {
+					if d.set.Size() >= d.set.Limit() {
 						log.Infow("soft peer limit reached", "count", d.set.Size())
 						cancelFind()
 					}
@@ -242,7 +257,7 @@ func (d *Discovery) ensurePeers(ctx context.Context) {
 }
 
 func (d *Discovery) findPeers(ctx context.Context) {
-	if uint(d.set.Size()) >= d.set.Limit() {
+	if d.set.Size() >= d.set.Limit() {
 		log.Debugw("at peer limit, skipping FindPeers", "size", d.set.Size())
 		return
 	}
@@ -259,7 +274,7 @@ func (d *Discovery) findPeers(ctx context.Context) {
 	// we use errgroup as it obeys the context
 	wg, findCtx := errgroup.WithContext(ctx)
 	// limit to minimize chances of overreaching the limit
-	wg.SetLimit(int(d.set.Limit()))
+	wg.SetLimit(d.set.Limit())
 	for p := range peers {
 		peer := p
 		wg.Go(func() error {
@@ -275,6 +290,10 @@ func (d *Discovery) findPeers(ctx context.Context) {
 // Advertise is a utility function that persistently advertises a service through an Advertiser.
 // TODO: Start advertising only after the reachability is confirmed by AutoNAT
 func (d *Discovery) Advertise(ctx context.Context) {
+	if d.params.AdvertiseInterval == -1 {
+		return
+	}
+
 	timer := time.NewTimer(d.params.AdvertiseInterval)
 	defer timer.Stop()
 	for {

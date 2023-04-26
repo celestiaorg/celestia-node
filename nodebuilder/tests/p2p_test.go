@@ -171,7 +171,7 @@ func TestRestartNodeDiscovery(t *testing.T) {
 	const fullNodes = 2
 
 	setTimeInterval(cfg, defaultTimeInterval)
-	cfg.Share.PeersLimit = fullNodes
+	cfg.Share.Discovery.PeersLimit = fullNodes
 	bridge := sw.NewNodeWithConfig(node.Bridge, cfg)
 
 	ctx, cancel := context.WithTimeout(context.Background(), swamp.DefaultTestTimeout)
@@ -184,7 +184,7 @@ func TestRestartNodeDiscovery(t *testing.T) {
 	nodes := make([]*nodebuilder.Node, fullNodes)
 	cfg = nodebuilder.DefaultConfig(node.Full)
 	setTimeInterval(cfg, defaultTimeInterval)
-	cfg.Share.PeersLimit = fullNodes
+	cfg.Share.Discovery.PeersLimit = fullNodes
 	nodesConfig := nodebuilder.WithBootstrappers([]peer.AddrInfo{*bridgeAddr})
 	for index := 0; index < fullNodes; index++ {
 		nodes[index] = sw.NewNodeWithConfig(node.Full, cfg, nodesConfig)
@@ -201,7 +201,7 @@ func TestRestartNodeDiscovery(t *testing.T) {
 	// create one more node with disabled discovery
 	cfg = nodebuilder.DefaultConfig(node.Full)
 	setTimeInterval(cfg, defaultTimeInterval)
-	cfg.Share.PeersLimit = 0
+	cfg.Share.Discovery.PeersLimit = 0
 	node := sw.NewNodeWithConfig(node.Full, cfg, nodesConfig)
 	connectSub, err := nodes[0].Host.EventBus().Subscribe(&event.EvtPeerConnectednessChanged{})
 	require.NoError(t, err)
@@ -215,6 +215,6 @@ func TestRestartNodeDiscovery(t *testing.T) {
 
 func setTimeInterval(cfg *nodebuilder.Config, interval time.Duration) {
 	cfg.P2P.RoutingTableRefreshPeriod = interval
-	cfg.Share.DiscoveryInterval = interval
-	cfg.Share.AdvertiseInterval = interval
+	cfg.Share.Discovery.DiscoveryInterval = interval
+	cfg.Share.Discovery.AdvertiseInterval = interval
 }
