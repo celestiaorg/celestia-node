@@ -1,6 +1,8 @@
 package das
 
-import "time"
+import (
+	"time"
+)
 
 var (
 	// first retry attempt should happen after defaultBackoffInitialInterval
@@ -36,7 +38,7 @@ func (s retryStrategy) nextRetry(lastRetry retryAttempt, lastAttempt time.Time,
 
 	if lastRetry.count > len(s.retryIntervals) {
 		// try count exceeded backoff try limit
-		retry.after = lastAttempt.Add(s.retryIntervals[len(s.retryIntervals)-1])
+		lastRetry.after = lastAttempt.Add(s.retryIntervals[len(s.retryIntervals)-1])
 		return lastRetry, true
 	}
 
