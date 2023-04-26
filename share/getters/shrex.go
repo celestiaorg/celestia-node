@@ -123,6 +123,9 @@ func (sg *ShrexGetter) GetSharesByNamespace(
 		err     error
 	)
 	for {
+		if ctx.Err() != nil {
+			return nil, ctx.Err()
+		}
 		attempt++
 		start := time.Now()
 		peer, setStatus, getErr := sg.peerManager.Peer(ctx, root.Hash())
