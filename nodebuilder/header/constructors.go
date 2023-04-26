@@ -5,13 +5,13 @@ import (
 
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/peer"
-	"github.com/libp2p/go-libp2p/core/peerstore"
 	"github.com/libp2p/go-libp2p/p2p/net/conngater"
 	"go.uber.org/fx"
 
 	libfraud "github.com/celestiaorg/go-fraud"
 	libhead "github.com/celestiaorg/go-header"
 	"github.com/celestiaorg/go-header/p2p"
+	"github.com/celestiaorg/go-header/p2p/peerstore"
 	"github.com/celestiaorg/go-header/store"
 	"github.com/celestiaorg/go-header/sync"
 
@@ -19,6 +19,8 @@ import (
 	modfraud "github.com/celestiaorg/celestia-node/nodebuilder/fraud"
 	modp2p "github.com/celestiaorg/celestia-node/nodebuilder/p2p"
 	"github.com/celestiaorg/celestia-node/share/eds/byzantine"
+
+	p2p_peerstore "github.com/libp2p/go-libp2p/core/peerstore"
 )
 
 // newP2PExchange constructs a new Exchange for headers.
@@ -29,6 +31,7 @@ func newP2PExchange(
 	host host.Host,
 	conngater *conngater.BasicConnectionGater,
 	cfg Config,
+	peerstore peerstore.Peerstore,
 ) (libhead.Exchange[*header.ExtendedHeader], error) {
 	peers, err := cfg.trustedPeers(bpeers)
 	if err != nil {
@@ -37,12 +40,20 @@ func newP2PExchange(
 	ids := make([]peer.ID, len(peers))
 	for index, peer := range peers {
 		ids[index] = peer.ID
-		host.Peerstore().AddAddrs(peer.ID, peer.Addrs, peerstore.PermanentAddrTTL)
+		host.Peerstore().AddAddrs(peer.ID, peer.Addrs, p2p_peerstore.PermanentAddrTTL)
 	}
+	peerlist, err := peerstore.Load(context.Background())
+	if err != nil {
+		log.Info("Error loading peerlist from disk", "err", err)
+	} else {
+		log.Info("Loaded peerlist from disk", peerlist)
+	}
+
 	exchange, err := p2p.NewExchange[*header.ExtendedHeader](host, ids, conngater,
 		p2p.WithParams(cfg.Client),
 		p2p.WithNetworkID[p2p.ClientParameters](network.String()),
 		p2p.WithChainID(network.String()),
+		p2p.WithPeerPersistence[p2p.ClientParameters](peerstore),
 	)
 	if err != nil {
 		return nil, err
