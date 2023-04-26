@@ -160,10 +160,10 @@ func (c *Client) setStreamDeadlines(ctx context.Context, stream network.Stream) 
 	deadline, ok := ctx.Deadline()
 	if ok {
 		err := stream.SetDeadline(deadline)
-		if err != nil {
-			log.Debugw("client-nd: set write deadline", "err", err)
+		if err == nil {
+			return
 		}
-		return
+		log.Debugw("client-nd: set stream deadline", "err", err)
 	}
 
 	// if deadline not set, client read deadline defaults to server write deadline
