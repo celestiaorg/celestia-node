@@ -172,15 +172,7 @@ func (d *Discovery) ensurePeers(ctx context.Context) {
 		log.Error(err)
 		return
 	}
-	go d.connector.GC(ctx)
-
-	t := time.NewTicker(d.params.DiscoveryInterval)
-	defer func() {
-		t.Stop()
-		if err = sub.Close(); err != nil {
-			log.Error(err)
-		}
-	}()
+	defer sub.Close()
 
 	// starting to listen to subscriptions async will help us to avoid any blocking
 	// in the case when we will not have the needed amount of FNs and will be blocked in `FindPeers`.
@@ -243,23 +235,28 @@ func (d *Discovery) ensurePeers(ctx context.Context) {
 			}
 		}
 	}()
+	go d.connector.GC(ctx)
 
+	t := time.NewTicker(d.params.DiscoveryInterval)
+	defer t.Stop()
 	for {
+		d.findPeers(ctx)
+
+		t.Reset(d.params.DiscoveryInterval)
 		select {
-		case <-ctx.Done():
-			log.Info("Context canceled. Finishing peer discovery")
-			return
 		case <-t.C:
-			d.findPeers(ctx)
+		case <-ctx.Done():
+			return
 		}
 	}
 }
 
 func (d *Discovery) findPeers(ctx context.Context) {
 	if d.set.Size() >= d.set.Limit() {
-		log.Debugw("at peer limit, skipping FindPeers", "size", d.set.Size())
+		log.Debugw("reached soft peer limit, skipping discovery", "size", d.set.Size())
 		return
 	}
+	log.Infow("below soft peer limit, discovering peers", "amount", d.set.Limit())
 
 	// we use errgroup as it obeys the context
 	wg, wgCtx := errgroup.WithContext(ctx)
