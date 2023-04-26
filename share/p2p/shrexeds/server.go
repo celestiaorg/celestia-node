@@ -10,6 +10,7 @@ import (
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/network"
 	"github.com/libp2p/go-libp2p/core/protocol"
+	"go.uber.org/zap"
 
 	"github.com/celestiaorg/go-libp2p-messenger/serde"
 
@@ -59,12 +60,13 @@ func (s *Server) Stop(context.Context) error {
 }
 
 func (s *Server) handleStream(stream network.Stream) {
-	log.Debug("server: handling eds request")
+	logger := log.With("peer", stream.Conn().RemotePeer())
+	logger.Debug("server: handling eds request")
 
 	// read request from stream to get the dataHash for store lookup
-	req, err := s.readRequest(stream)
+	req, err := s.readRequest(logger, stream)
 	if err != nil {
-		log.Warnw("server: reading request from stream", "err", err)
+		logger.Warnw("server: reading request from stream", "err", err)
 		stream.Reset() //nolint:errcheck
 		return
 	}
@@ -73,10 +75,11 @@ func (s *Server) handleStream(stream network.Stream) {
 	hash := share.DataHash(req.Hash)
 	err = hash.Validate()
 	if err != nil {
-		log.Debugw("server: invalid request", "err", err)
+		logger.Debugw("server: invalid request", "err", err)
 		stream.Reset() //nolint:errcheck
 		return
 	}
+	logger = logger.With("hash", hash)
 
 	ctx, cancel := context.WithTimeout(s.ctx, s.params.HandleRequestTimeout)
 	defer cancel()
@@ -90,14 +93,14 @@ func (s *Server) handleStream(stream network.Stream) {
 	case errors.Is(err, eds.ErrNotFound):
 		status = p2p_pb.Status_NOT_FOUND
 	case err != nil:
-		log.Errorw("server: get car", "err", err)
+		logger.Errorw("server: get CAR", "err", err)
 		status = p2p_pb.Status_INTERNAL
 	}
 
 	// inform the client of our status
-	err = s.writeStatus(status, stream)
+	err = s.writeStatus(logger, status, stream)
 	if err != nil {
-		log.Warnw("server: writing status to stream", "err", err)
+		logger.Warnw("server: writing status to stream", "err", err)
 		stream.Reset() //nolint:errcheck
 		return
 	}
@@ -105,29 +108,29 @@ func (s *Server) handleStream(stream network.Stream) {
 	if status != p2p_pb.Status_OK {
 		err = stream.Close()
 		if err != nil {
-			log.Debugw("server: closing stream", "err", err)
+			logger.Debugw("server: closing stream", "err", err)
 		}
 		return
 	}
 
 	// start streaming the ODS to the client
-	err = s.writeODS(edsReader, stream)
+	err = s.writeODS(logger, edsReader, stream)
 	if err != nil {
-		log.Warnw("server: writing ods to stream", "hash", hash.String(), "err", err)
+		logger.Warnw("server: writing ods to stream", "err", err)
 		stream.Reset() //nolint:errcheck
 		return
 	}
 
 	err = stream.Close()
 	if err != nil {
-		log.Debugw("server: closing stream", "err", err)
+		logger.Debugw("server: closing stream", "err", err)
 	}
 }
 
-func (s *Server) readRequest(stream network.Stream) (*p2p_pb.EDSRequest, error) {
+func (s *Server) readRequest(logger *zap.SugaredLogger, stream network.Stream) (*p2p_pb.EDSRequest, error) {
 	err := stream.SetReadDeadline(time.Now().Add(s.params.ServerReadTimeout))
 	if err != nil {
-		log.Debugw("server: set read deadline", "err", err)
+		logger.Debugw("server: set read deadline", "err", err)
 	}
 
 	req := new(p2p_pb.EDSRequest)
@@ -137,16 +140,16 @@ func (s *Server) readRequest(stream network.Stream) (*p2p_pb.EDSRequest, error) 
 	}
 	err = stream.CloseRead()
 	if err != nil {
-		log.Debugw("server: closing read", "err", err)
+		logger.Debugw("server: closing read", "err", err)
 	}
 
 	return req, nil
 }
 
-func (s *Server) writeStatus(status p2p_pb.Status, stream network.Stream) error {
+func (s *Server) writeStatus(logger *zap.SugaredLogger, status p2p_pb.Status, stream network.Stream) error {
 	err := stream.SetWriteDeadline(time.Now().Add(s.params.ServerWriteTimeout))
 	if err != nil {
-		log.Debugw("server: set write deadline", "err", err)
+		logger.Debugw("server: set write deadline", "err", err)
 	}
 
 	resp := &p2p_pb.EDSResponse{Status: status}
@@ -154,10 +157,10 @@ func (s *Server) writeStatus(status p2p_pb.Status, stream network.Stream) error 
 	return err
 }
 
-func (s *Server) writeODS(edsReader io.Reader, stream network.Stream) error {
+func (s *Server) writeODS(logger *zap.SugaredLogger, edsReader io.Reader, stream network.Stream) error {
 	err := stream.SetWriteDeadline(time.Now().Add(s.params.ServerWriteTimeout))
 	if err != nil {
-		log.Debugw("server: set read deadline", "err", err)
+		logger.Debugw("server: set read deadline", "err", err)
 	}
 
 	odsReader, err := eds.ODSReader(edsReader)

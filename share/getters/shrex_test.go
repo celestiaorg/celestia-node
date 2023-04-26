@@ -104,6 +104,21 @@ func TestShrexGetter(t *testing.T) {
 		require.Equal(t, eds.Flattened(), got.Flattened())
 	})
 
+	t.Run("EDS_ctx_deadline", func(t *testing.T) {
+		ctx, cancel := context.WithTimeout(ctx, time.Second)
+
+		// generate test data
+		_, dah, _ := generateTestEDS(t)
+		peerManager.Validate(ctx, srvHost.ID(), shrexsub.Notification{
+			DataHash: dah.Hash(),
+			Height:   1,
+		})
+
+		cancel()
+		_, err := getter.GetEDS(ctx, &dah)
+		require.ErrorIs(t, err, context.Canceled)
+	})
+
 	t.Run("EDS_err_not_found", func(t *testing.T) {
 		ctx, cancel := context.WithTimeout(ctx, time.Second)
 		t.Cleanup(cancel)

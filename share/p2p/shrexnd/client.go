@@ -58,7 +58,7 @@ func (c *Client) RequestND(
 		return shares, err
 	}
 	if errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) {
-		return nil, ctx.Err()
+		return nil, err
 	}
 	// some net.Errors also mean the context deadline was exceeded, but yamux/mocknet do not
 	// unwrap to a ctx err
@@ -69,7 +69,7 @@ func (c *Client) RequestND(
 		}
 	}
 	if err != p2p.ErrNotFound {
-		log.Warnw("client-nd: peer returned err", "peer", peer, "err", err)
+		log.Warnw("client-nd: peer returned err", "err", err)
 	}
 	return nil, err
 }
@@ -160,10 +160,10 @@ func (c *Client) setStreamDeadlines(ctx context.Context, stream network.Stream) 
 	deadline, ok := ctx.Deadline()
 	if ok {
 		err := stream.SetDeadline(deadline)
-		if err != nil {
-			log.Debugw("client-nd: set write deadline", "err", err)
+		if err == nil {
+			return
 		}
-		return
+		log.Debugw("client-nd: set stream deadline", "err", err)
 	}
 
 	// if deadline not set, client read deadline defaults to server write deadline
