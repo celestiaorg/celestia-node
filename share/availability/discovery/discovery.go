@@ -261,27 +261,37 @@ func (d *Discovery) findPeers(ctx context.Context) {
 		return
 	}
 
-	findCtx, findCancel := context.WithCancel(ctx)
-	defer findCancel()
-
-	peers, err := d.disc.FindPeers(findCtx, topic)
-	if err != nil {
-		log.Warn(err)
-		return
-	}
-
 	// we use errgroup as it obeys the context
-	wg, findCtx := errgroup.WithContext(ctx)
+	wg, wgCtx := errgroup.WithContext(ctx)
 	// limit to minimize chances of overreaching the limit
 	wg.SetLimit(d.set.Limit())
-	for p := range peers {
-		peer := p
-		wg.Go(func() error {
-			// pass the cancel so that we cancel FindPeers when we connected to enough peers
-			d.handlePeerFound(findCtx, peer, findCancel)
-			return nil
-		})
+
+	for d.set.Size() < d.set.Limit() {
+		log.Debugw("finding peers", "remaining", d.set.Limit()-d.set.Size())
+		findCtx, findCancel := context.WithCancel(wgCtx)
+		defer findCancel()
+
+		peers, err := d.disc.FindPeers(findCtx, topic)
+		if err != nil {
+			log.Warn(err)
+			return
+		}
+
+		for p := range peers {
+			peer := p
+			wg.Go(func() error {
+				// pass the cancel so that we cancel FindPeers when we connected to enough peers
+				d.handlePeerFound(findCtx, peer, findCancel)
+				return nil
+			})
+
+			// break the loop if we have found enough peers
+			if d.set.Size() >= d.set.Limit() {
+				break
+			}
+		}
 	}
+
 	// we expect no errors
 	_ = wg.Wait()
 }
