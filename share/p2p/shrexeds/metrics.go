@@ -2,6 +2,7 @@ package shrexeds
 
 import (
 	"context"
+
 	"github.com/libp2p/go-libp2p/core/peer"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric/global"

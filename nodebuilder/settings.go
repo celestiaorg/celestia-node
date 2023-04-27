@@ -3,7 +3,6 @@ package nodebuilder
 import (
 	"context"
 	"fmt"
-	"github.com/celestiaorg/celestia-node/nodebuilder/share"
 	"time"
 
 	"github.com/libp2p/go-libp2p/core/peer"
