@@ -35,6 +35,7 @@ func TestNode(t *testing.T, tp node.Type, opts ...fx.Option) *Node {
 func TestNodeWithConfig(t *testing.T, tp node.Type, cfg *Config, opts ...fx.Option) *Node {
 	// avoids port conflicts
 	cfg.RPC.Port = "0"
+	cfg.Header.TrustedPeers = []string{"/ip4/1.2.3.4/tcp/12345/p2p/12D3KooWNaJ1y1Yio3fFJEXCZyd1Cat3jmrPdgkYCrHfKD3Ce21p"}
 
 	store := MockStore(t, cfg)
 	ks, err := store.Keystore()
