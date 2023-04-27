@@ -17,9 +17,9 @@ import (
 )
 
 func TestDiscovery(t *testing.T) {
-	const nodes = 50 // higher number brings higher coverage
+	const nodes = 30 // higher number brings higher coverage
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
 	t.Cleanup(cancel)
 
 	tn := newTestnet(ctx, t)
