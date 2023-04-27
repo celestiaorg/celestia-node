@@ -225,6 +225,8 @@ func (d *Discovery) ensurePeers(ctx context.Context) {
 						return
 					}
 					log.Debugw("added peer to set", "id", peerID)
+					// and notify our subscribers
+					d.onUpdatedPeers(peerID, true)
 
 					// first do Add and only after check the limit
 					// so that peer set represents the actual number of connections we made
@@ -237,9 +239,6 @@ func (d *Discovery) ensurePeers(ctx context.Context) {
 					d.connectingLk.Lock()
 					delete(d.connecting, peerID)
 					d.connectingLk.Unlock()
-
-					// and notify our subscribers
-					d.onUpdatedPeers(peerID, true)
 				}
 			}
 		}
