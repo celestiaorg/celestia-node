@@ -74,7 +74,6 @@ type Discovery struct {
 	connectingLk sync.Mutex
 	connecting   map[peer.ID]context.CancelFunc
 
-	ctx    context.Context
 	cancel context.CancelFunc
 }
 
@@ -98,8 +97,9 @@ func NewDiscovery(
 }
 
 func (d *Discovery) Start(context.Context) error {
-	d.ctx, d.cancel = context.WithCancel(context.Background())
-	go d.ensurePeers(d.ctx)
+	ctx, cancel := context.WithCancel(context.Background())
+	d.cancel = cancel
+	go d.ensurePeers(ctx)
 	return nil
 }
 
