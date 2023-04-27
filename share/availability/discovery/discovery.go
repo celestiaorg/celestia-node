@@ -266,7 +266,7 @@ func (d *Discovery) findPeers(ctx context.Context) {
 	// limit to minimize chances of overreaching the limit
 	wg.SetLimit(d.set.Limit())
 
-	for d.set.Size() < d.set.Limit() {
+	for d.set.Size() < d.set.Limit() && wgCtx.Err() == nil {
 		log.Debugw("finding peers", "remaining", d.set.Limit()-d.set.Size())
 		findCtx, findCancel := context.WithCancel(wgCtx)
 		defer findCancel()
