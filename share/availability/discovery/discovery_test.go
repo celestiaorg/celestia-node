@@ -5,26 +5,18 @@ import (
 	"testing"
 	"time"
 
-	"github.com/celestiaorg/celestia-node/logs"
-	logging "github.com/ipfs/go-log/v2"
 	dht "github.com/libp2p/go-libp2p-kad-dht"
 	"github.com/libp2p/go-libp2p/core/discovery"
-	"github.com/libp2p/go-libp2p/core/event"
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/libp2p/go-libp2p/p2p/discovery/routing"
-	basic "github.com/libp2p/go-libp2p/p2p/host/basic"
-	"github.com/libp2p/go-libp2p/p2p/net/connmgr"
-	swarm "github.com/libp2p/go-libp2p/p2p/net/swarm/testing"
+	mocknet "github.com/libp2p/go-libp2p/p2p/net/mock"
 	"github.com/stretchr/testify/require"
 )
 
 func TestDiscovery(t *testing.T) {
-	logging.SetLogLevel("share/discovery", "debug")
-	// logging.SetDebugLogging()
-	logs.SetDebugLogging()
+	const fulls = 10
 
-	const fulls = 120
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
 	t.Cleanup(cancel)
 
@@ -32,7 +24,7 @@ func TestDiscovery(t *testing.T) {
 
 	peerA := tn.discovery(Parameters{
 		PeersLimit:        fulls,
-		DiscoveryInterval: time.Millisecond*100,
+		DiscoveryInterval: time.Millisecond * 100,
 		AdvertiseInterval: -1,
 	})
 
@@ -40,17 +32,9 @@ func TestDiscovery(t *testing.T) {
 		tn.discovery(Parameters{
 			PeersLimit:        0,
 			DiscoveryInterval: time.Hour,
-			AdvertiseInterval: time.Millisecond*100, // should only happen once
+			AdvertiseInterval: time.Millisecond * 100, // should only happen once
 		})
 	}
-
-
-	// go func() {
-	// 	for {
-	// 		time.Sleep(time.Second)
-	// 		t.Log(len(peerA.host.Network().Peers()))
-	// 	}
-	// }()
 
 	var peers []peer.ID
 	for len(peers) != fulls {
@@ -64,34 +48,34 @@ func TestDiscovery(t *testing.T) {
 type testnet struct {
 	ctx context.Context
 	T   *testing.T
+	net mocknet.Mocknet
 
-	bootstrapper host.Host
+	bootstrapper peer.ID
 }
 
 func newTestnet(ctx context.Context, t *testing.T) *testnet {
-	swrm := swarm.GenSwarm(t, swarm.OptDisableTCP)
-	hst, err := basic.NewHost(swrm, &basic.HostOpts{})
+	net := mocknet.New()
+	t.Cleanup(func() {
+		err := net.Close()
+		require.NoError(t, err)
+	})
+
+	hst, err := net.GenPeer()
 	require.NoError(t, err)
-	hst.Start()
 
-	sub, err := hst.EventBus().Subscribe(&event.EvtPeerConnectednessChanged{})
-	require.NoError(t, err)
-
-	go func() {
-		for {
-			evt := (<-sub.Out()).(event.EvtPeerConnectednessChanged)
-			log.Debugw("evt", "peer", evt.Peer)
-		}
-	}()
-
-	dht, err := dht.New(ctx, hst, dht.DisableAutoRefresh(), dht.ProtocolPrefix("/test"), dht.Mode(dht.ModeServer), dht.BootstrapPeers(), dht.BucketSize(3))
+	dht, err := dht.New(ctx, hst,
+		dht.Mode(dht.ModeServer),
+		dht.BootstrapPeers(),
+		dht.ProtocolPrefix("/test"),
+		dht.BucketSize(1),
+	)
 	require.NoError(t, err)
 	t.Cleanup(func() {
 		err := dht.Close()
 		require.NoError(t, err)
 	})
 
-	return &testnet{ctx: ctx, T: t, bootstrapper: hst}
+	return &testnet{ctx: ctx, T: t, net: net, bootstrapper: hst.ID()}
 }
 
 func (t *testnet) discovery(params Parameters) *Discovery {
@@ -109,32 +93,26 @@ func (t *testnet) discovery(params Parameters) *Discovery {
 }
 
 func (t *testnet) peer() (host.Host, discovery.Discovery) {
-	swrm := swarm.GenSwarm(t.T, swarm.OptDisableTCP)
-	cm, err := connmgr.NewConnManager(0, 1, connmgr.WithGracePeriod(time.Millisecond*10))
+	hst, err := t.net.GenPeer()
 	require.NoError(t.T, err)
 
-	newHost, err := basic.NewHost(swrm, &basic.HostOpts{
-		ConnManager: cm,
-	})
-	require.NoError(t.T, err)
-	newHost.Start()
-
-	err = newHost.Connect(t.ctx, peer.AddrInfo{
-		ID: t.bootstrapper.ID(),
-		Addrs: t.bootstrapper.Addrs(),
-	})
+	err = t.net.LinkAll()
 	require.NoError(t.T, err)
 
-	dht, err := dht.New(t.ctx, newHost, dht.DisableAutoRefresh(), dht.ProtocolPrefix("/test"), dht.Mode(dht.ModeServer), dht.BucketSize(3))
+	dht, err := dht.New(t.ctx, hst,
+		dht.Mode(dht.ModeServer),
+		dht.BootstrapPeers(peer.AddrInfo{ID: t.bootstrapper}),
+		dht.ProtocolPrefix("/test"),
+		dht.BucketSize(1),
+	)
 	require.NoError(t.T, err)
 	t.T.Cleanup(func() {
 		err := dht.Close()
 		require.NoError(t.T, err)
 	})
 
-	<-dht.RefreshRoutingTable()
+	err = dht.Bootstrap(t.ctx)
+	require.NoError(t.T, err)
 
-	t.T.Log(len(newHost.Network().Peers()))
-
-	return newHost, routing.NewRoutingDiscovery(dht)
+	return hst, routing.NewRoutingDiscovery(dht)
 }
