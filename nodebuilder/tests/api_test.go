@@ -42,10 +42,11 @@ func TestHeaderSubscription(t *testing.T) {
 	require.NoError(t, err)
 	// listen for 5 headers
 	for i := 0; i < 5; i++ {
-		if ctx.Err() != nil {
+		select {
+		case <-ctx.Done():
 			t.Fatal(ctx.Err())
+		case <-sub:
 		}
-		<-sub
 	}
 	// cancel subscription via context
 	subcancel()
