@@ -37,7 +37,7 @@ var waitF = func(ttl time.Duration) time.Duration {
 
 type Parameters struct {
 	// PeersLimit defines the soft limit of FNs to connect to via discovery.
-	// Set -1 to disable.
+	// Set 0 to disable.
 	PeersLimit int
 	// DiscoveryInterval is an interval between discovery sessions.
 	// Set -1 to disable.
@@ -160,7 +160,7 @@ func (d *Discovery) handlePeerFound(ctx context.Context, peer peer.AddrInfo, can
 // Discovery is restarted if any previously connected peers disconnect.
 func (d *Discovery) ensurePeers(ctx context.Context) {
 	if d.params.PeersLimit == 0 || d.params.DiscoveryInterval == -1 {
-		log.Warn("peers limit is set to 0. Skipping discovery...")
+		log.Warn("peers limit is set to 0 and/or discovery interval is set to -1. Skipping discovery...")
 		return
 	}
 	// subscribe on EventBus in order to catch disconnected peers and restart
