@@ -20,10 +20,7 @@ import (
 var log = logging.Logger("share/discovery")
 
 const (
-	// peerWeight is a number that will be assigned to all discovered full nodes,
-	// so ConnManager will not break a connection with them.
-	peerWeight = 1000
-	topic      = "full"
+	topic = "full"
 
 	// eventbusBufSize is the size of the buffered channel to handle
 	// events in libp2p
@@ -137,7 +134,7 @@ func (d *Discovery) handlePeerFound(ctx context.Context, peer peer.AddrInfo, can
 			log.Infow("soft peer limit reached", "count", d.set.Size())
 			cancelFind()
 		}
-		d.host.ConnManager().TagPeer(peer.ID, topic, peerWeight)
+		d.host.ConnManager().Protect(peer.ID, topic)
 
 		// and notify our subscribers
 		d.onUpdatedPeers(peer.ID, true)
@@ -169,7 +166,7 @@ func (d *Discovery) handlePeerFound(ctx context.Context, peer peer.AddrInfo, can
 	// NOTE: This is does not protect from remote killing the connection.
 	//  In the future, we should design a protocol that keeps bidirectional agreement on whether
 	//  connection should be kept or not, similar to mesh link in GossipSub.
-	d.host.ConnManager().TagPeer(peer.ID, topic, peerWeight)
+	d.host.ConnManager().Protect(peer.ID, topic)
 }
 
 // ensurePeers ensures we always have 'peerLimit' connected peers.
@@ -229,7 +226,7 @@ func (d *Discovery) ensurePeers(ctx context.Context) {
 					err = d.set.Add(peerID)
 					if err != nil {
 						log.Debugw("failed to add peer to set", "peer", peerID, "error", err)
-						return
+						continue
 					}
 					log.Debugw("added peer to set", "id", peerID)
 					// and notify our subscribers
@@ -258,6 +255,7 @@ func (d *Discovery) ensurePeers(ctx context.Context) {
 		d.findPeers(ctx)
 
 		t.Reset(d.params.DiscoveryInterval)
+		log.Debugw("restarted")
 		select {
 		case <-t.C:
 		case <-ctx.Done():
