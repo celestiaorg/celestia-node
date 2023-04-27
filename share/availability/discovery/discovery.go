@@ -127,6 +127,23 @@ func (d *Discovery) handlePeerFound(ctx context.Context, peer peer.AddrInfo, can
 		return
 	}
 
+	if d.host.Network().Connectedness(peer.ID) == network.Connected {
+		err := d.set.Add(peer.ID)
+		if err != nil {
+			return
+		}
+		log.Debugw("added peer to set", "id", peer.ID)
+		if d.set.Size() >= d.set.Limit() {
+			log.Infow("soft peer limit reached", "count", d.set.Size())
+			cancelFind()
+		}
+		d.host.ConnManager().TagPeer(peer.ID, topic, peerWeight)
+
+		// and notify our subscribers
+		d.onUpdatedPeers(peer.ID, true)
+		return
+	}
+
 	d.connectingLk.Lock()
 	if _, ok := d.connecting[peer.ID]; ok {
 		d.connectingLk.Unlock()
@@ -180,11 +197,9 @@ func (d *Discovery) ensurePeers(ctx context.Context) {
 		for {
 			select {
 			case <-ctx.Done():
-				log.Debug("Context canceled. Finish listening for connectedness events.")
 				return
 			case e, ok := <-sub.Out():
 				if !ok {
-					log.Debug("Subscription for connectedness events is closed.")
 					return
 				}
 				// listen to disconnect event to remove peer from set and reset backoff time
@@ -319,6 +334,7 @@ func (d *Discovery) Advertise(ctx context.Context) {
 			}
 		}
 
+		log.Debugf("advertised")
 		select {
 		case <-timer.C:
 			timer.Reset(waitF(ttl))
