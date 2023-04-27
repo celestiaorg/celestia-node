@@ -94,6 +94,8 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 		fx.Provide(func(ds datastore.Batching) peerstore.Peerstore {
 			return pstore.NewPeerStore(ds)
 		}),
+		fx.Provide(store.NewStore[*header.ExtendedHeader]),
+		fx.Provide(localChainHead),
 	)
 
 	switch tp {

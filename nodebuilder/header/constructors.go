@@ -26,6 +26,7 @@ import (
 // newP2PExchange constructs a new Exchange for headers.
 func newP2PExchange(
 	lc fx.Lifecycle,
+	storeChainHead *header.ExtendedHeader,
 	bpeers modp2p.Bootstrappers,
 	network modp2p.Network,
 	host host.Host,
@@ -54,6 +55,7 @@ func newP2PExchange(
 		p2p.WithNetworkID[p2p.ClientParameters](network.String()),
 		p2p.WithChainID(network.String()),
 		p2p.WithPeerPersistence[p2p.ClientParameters](peerstore),
+		p2p.WithSubjectiveInitialization[p2p.ClientParameters](sync.IsExpired(storeChainHead, cfg.Syncer.TrustingPeriod)),
 	)
 	if err != nil {
 		return nil, err
@@ -117,4 +119,8 @@ func newInitStore(
 	})
 
 	return s, nil
+}
+
+func localChainHead(ctx context.Context, s *store.Store[*header.ExtendedHeader]) (*header.ExtendedHeader, error) {
+	return s.Head(ctx)
 }
