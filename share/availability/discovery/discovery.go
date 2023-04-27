@@ -2,7 +2,6 @@ package discovery
 
 import (
 	"context"
-	"errors"
 	"sync"
 	"time"
 
@@ -12,7 +11,6 @@ import (
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/network"
 	"github.com/libp2p/go-libp2p/core/peer"
-	"github.com/libp2p/go-libp2p/core/routing"
 	"github.com/libp2p/go-libp2p/p2p/host/eventbus"
 	"golang.org/x/sync/errgroup"
 )
@@ -125,16 +123,14 @@ func (d *Discovery) handlePeerFound(ctx context.Context, peer peer.AddrInfo, can
 	}
 
 	if d.host.Network().Connectedness(peer.ID) == network.Connected {
-		err := d.set.Add(peer.ID)
-		if err != nil {
-			return
-		}
+		d.set.Add(peer.ID)
 		log.Debugw("added peer to set", "id", peer.ID)
 		if d.set.Size() >= d.set.Limit() {
 			log.Infow("soft peer limit reached", "count", d.set.Size())
 			cancelFind()
 		}
 		d.host.ConnManager().Protect(peer.ID, topic)
+		d.connector.Backoff(peer.ID)
 
 		// and notify our subscribers
 		d.onUpdatedPeers(peer.ID, true)
@@ -151,11 +147,6 @@ func (d *Discovery) handlePeerFound(ctx context.Context, peer peer.AddrInfo, can
 
 	err := d.connector.Connect(ctx, peer)
 	if err != nil {
-		// we don't want to add backoff when the context is canceled.
-		if errors.Is(err, context.Canceled) || errors.Is(err, routing.ErrNotFound) {
-			d.connector.RemoveBackoff(peer.ID)
-		}
-
 		d.connectingLk.Lock()
 		delete(d.connecting, peer.ID)
 		d.connectingLk.Unlock()
@@ -209,7 +200,7 @@ func (d *Discovery) ensurePeers(ctx context.Context) {
 					}
 
 					d.host.ConnManager().UntagPeer(evnt.Peer, topic)
-					d.connector.RestartBackoff(evnt.Peer)
+					d.connector.ResetBackoff(evnt.Peer)
 					d.set.Remove(evnt.Peer)
 					d.onUpdatedPeers(evnt.Peer, false)
 					log.Debugw("removed peer from the peer set",
@@ -223,12 +214,8 @@ func (d *Discovery) ensurePeers(ctx context.Context) {
 						continue
 					}
 
-					err = d.set.Add(peerID)
-					if err != nil {
-						log.Debugw("failed to add peer to set", "peer", peerID, "error", err)
-						continue
-					}
 					log.Debugw("added peer to set", "id", peerID)
+					d.set.Add(peerID)
 					// and notify our subscribers
 					d.onUpdatedPeers(peerID, true)
 
@@ -255,7 +242,6 @@ func (d *Discovery) ensurePeers(ctx context.Context) {
 		d.findPeers(ctx)
 
 		t.Reset(d.params.DiscoveryInterval)
-		log.Debugw("restarted")
 		select {
 		case <-t.C:
 		case <-ctx.Done():
@@ -276,30 +262,23 @@ func (d *Discovery) findPeers(ctx context.Context) {
 	// limit to minimize chances of overreaching the limit
 	wg.SetLimit(d.set.Limit())
 
-	for d.set.Size() < d.set.Limit() && wgCtx.Err() == nil {
-		log.Debugw("finding peers", "remaining", d.set.Limit()-d.set.Size())
-		findCtx, findCancel := context.WithCancel(wgCtx)
-		defer findCancel()
+	log.Debugw("finding peers", "remaining", d.set.Limit()-d.set.Size())
+	findCtx, findCancel := context.WithCancel(wgCtx)
+	defer findCancel()
 
-		peers, err := d.disc.FindPeers(findCtx, topic)
-		if err != nil {
-			log.Warn(err)
-			return
-		}
+	peers, err := d.disc.FindPeers(findCtx, topic)
+	if err != nil {
+		log.Warn(err)
+		return
+	}
 
-		for p := range peers {
-			peer := p
-			wg.Go(func() error {
-				// pass the cancel so that we cancel FindPeers when we connected to enough peers
-				d.handlePeerFound(findCtx, peer, findCancel)
-				return nil
-			})
-
-			// break the loop if we have found enough peers
-			if d.set.Size() >= d.set.Limit() {
-				break
-			}
-		}
+	for p := range peers {
+		peer := p
+		wg.Go(func() error {
+			// pass the cancel so that we cancel FindPeers when we connected to enough peers
+			d.handlePeerFound(findCtx, peer, findCancel)
+			return nil
+		})
 	}
 
 	// we expect no errors

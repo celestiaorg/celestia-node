@@ -2,7 +2,6 @@ package discovery
 
 import (
 	"context"
-	"errors"
 	"sync"
 
 	"github.com/libp2p/go-libp2p/core/peer"
@@ -45,13 +44,8 @@ func (ps *limitedSet) Size() int {
 }
 
 // Add attempts to add the given peer into the set.
-// This operation will fail if the number of peers in the set is equal to size.
-func (ps *limitedSet) Add(p peer.ID) error {
+func (ps *limitedSet) Add(p peer.ID) {
 	ps.lk.Lock()
-	if _, ok := ps.ps[p]; ok {
-		ps.lk.Unlock()
-		return errors.New("share: discovery: peer already added")
-	}
 	ps.ps[p] = struct{}{}
 	ps.lk.Unlock()
 
@@ -61,7 +55,7 @@ func (ps *limitedSet) Add(p peer.ID) error {
 		select {
 		case ps.waitPeer <- p:
 		default:
-			return nil
+			return
 		}
 	}
 }
@@ -76,16 +70,16 @@ func (ps *limitedSet) Remove(id peer.ID) {
 
 // Peers returns all discovered peers from the set.
 func (ps *limitedSet) Peers(ctx context.Context) ([]peer.ID, error) {
-	ps.lk.Lock()
+	ps.lk.RLock()
 	if len(ps.ps) > 0 {
 		out := make([]peer.ID, 0, len(ps.ps))
 		for p := range ps.ps {
 			out = append(out, p)
 		}
-		ps.lk.Unlock()
+		ps.lk.RUnlock()
 		return out, nil
 	}
-	ps.lk.Unlock()
+	ps.lk.RUnlock()
 
 	// block until a new peer will be discovered
 	select {

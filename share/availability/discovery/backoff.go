@@ -13,7 +13,7 @@ import (
 
 // gcInterval is a default period after which disconnected peers will be removed from cache
 const (
-	gcInterval = time.Hour
+	gcInterval = time.Minute
 	// connectTimeout is the timeout used for dialing peers and discovering peer addresses.
 	connectTimeout = time.Minute * 2
 )
@@ -30,7 +30,7 @@ type backoffConnector struct {
 	backoff backoff.BackoffFactory
 
 	cacheLk   sync.Mutex
-	cacheData map[peer.ID]*backoffData
+	cacheData map[peer.ID]backoffData
 }
 
 // backoffData stores time when next connection attempt with the remote peer.
@@ -43,35 +43,48 @@ func newBackoffConnector(h host.Host, factory backoff.BackoffFactory) *backoffCo
 	return &backoffConnector{
 		h:         h,
 		backoff:   factory,
-		cacheData: make(map[peer.ID]*backoffData),
+		cacheData: make(map[peer.ID]backoffData),
 	}
 }
 
 // Connect puts peer to the backoffCache and tries to establish a connection with it.
 func (b *backoffConnector) Connect(ctx context.Context, p peer.AddrInfo) error {
-	// we should lock the mutex before calling connectionData and not inside because otherwise it could
+	// we should lock the mutex before calling backoffData and not inside because otherwise it could
 	// be modified from another goroutine as it returns a pointer
-	b.cacheLk.Lock()
-	cache := b.connectionData(p.ID)
+	cache := b.backoffData(p.ID)
 	if time.Now().Before(cache.nexttry) {
-		b.cacheLk.Unlock()
 		return errBackoffNotEnded
 	}
-	cache.nexttry = time.Now().Add(cache.backoff.Delay())
-	b.cacheLk.Unlock()
 
 	ctx, cancel := context.WithTimeout(ctx, connectTimeout)
 	defer cancel()
 
-	return b.h.Connect(ctx, p)
+	err := b.h.Connect(ctx, p)
+	// we don't want to add backoff when the context is canceled.
+	if !errors.Is(err, context.Canceled) {
+		b.Backoff(p.ID)
+	}
+	return err
 }
 
-// connectionData returns backoffData from the map if it was stored, otherwise it will instantiate
+func (b *backoffConnector) Backoff(p peer.ID) {
+	data := b.backoffData(p)
+	data.nexttry = time.Now().Add(data.backoff.Delay())
+
+	b.cacheLk.Lock()
+	b.cacheData[p] = data
+	b.cacheLk.Unlock()
+}
+
+// backoffData returns backoffData from the map if it was stored, otherwise it will instantiate
 // a new one.
-func (b *backoffConnector) connectionData(p peer.ID) *backoffData {
+func (b *backoffConnector) backoffData(p peer.ID) backoffData {
+	b.cacheLk.Lock()
+	defer b.cacheLk.Unlock()
+
 	cache, ok := b.cacheData[p]
 	if !ok {
-		cache = &backoffData{}
+		cache = backoffData{}
 		cache.backoff = b.backoff()
 		b.cacheData[p] = cache
 	}
@@ -86,15 +99,13 @@ func (b *backoffConnector) RemoveBackoff(p peer.ID) {
 	delete(b.cacheData, p)
 }
 
-// RestartBackoff resets delay time between attempts and adds a delay for the next connection
+// ResetBackoff resets delay time between attempts and adds a delay for the next connection
 // attempt to remote peer. It will mostly be called when host receives a notification that remote
 // peer was disconnected.
-func (b *backoffConnector) RestartBackoff(p peer.ID) {
-	b.cacheLk.Lock()
-	defer b.cacheLk.Unlock()
-	cache := b.connectionData(p)
+func (b *backoffConnector) ResetBackoff(p peer.ID) {
+	cache := b.backoffData(p)
 	cache.backoff.Reset()
-	cache.nexttry = time.Now().Add(cache.backoff.Delay())
+	b.Backoff(p)
 }
 
 func (b *backoffConnector) GC(ctx context.Context) {
