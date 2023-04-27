@@ -56,7 +56,7 @@ func DefaultConfig(tp node.Type) Config {
 		},
 		MutualPeers:               []string{},
 		PeerExchange:              tp == node.Bridge || tp == node.Full,
-		ConnManager:               defaultConnManagerConfig(),
+		ConnManager:               defaultConnManagerConfig(tp),
 		RoutingTableRefreshPeriod: defaultRoutingRefreshPeriod,
 	}
 }

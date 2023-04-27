@@ -9,6 +9,8 @@ import (
 	"github.com/libp2p/go-libp2p/p2p/host/peerstore/pstoremem"
 	"github.com/libp2p/go-libp2p/p2p/net/conngater"
 	"github.com/libp2p/go-libp2p/p2p/net/connmgr"
+
+	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 )
 
 // connManagerConfig configures connection manager.
@@ -21,11 +23,22 @@ type connManagerConfig struct {
 }
 
 // defaultConnManagerConfig returns defaults for ConnManagerConfig.
-func defaultConnManagerConfig() connManagerConfig {
-	return connManagerConfig{
-		Low:         50,
-		High:        100,
-		GracePeriod: time.Minute,
+func defaultConnManagerConfig(tp node.Type) connManagerConfig {
+	switch tp {
+	case node.Light:
+		return connManagerConfig{
+			Low:         50,
+			High:        100,
+			GracePeriod: time.Minute,
+		}
+	case node.Bridge, node.Full:
+		return connManagerConfig{
+			Low:         800,
+			High:        1000,
+			GracePeriod: time.Minute,
+		}
+	default:
+		panic("unknown node type")
 	}
 }
 
