@@ -47,7 +47,11 @@ func Test_coordinatorStats(t *testing.T) {
 						}
 					},
 				},
-				failed:      map[uint64]int{22: 1, 23: 1, 24: 2},
+				failed: map[uint64]retryAttempt{
+					22: {count: 1},
+					23: {count: 1},
+					24: {count: 2},
+				},
 				nextJobID:   0,
 				next:        31,
 				networkHead: 100,
