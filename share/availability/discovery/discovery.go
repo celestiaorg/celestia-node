@@ -117,10 +117,19 @@ func (d *Discovery) WithOnPeersUpdate(f OnUpdatedPeers) {
 // handlePeersFound receives peers and tries to establish a connection with them.
 // Peer will be added to PeerCache if connection succeeds.
 func (d *Discovery) handlePeerFound(ctx context.Context, peer peer.AddrInfo, cancelFind context.CancelFunc) {
-	if peer.ID == d.host.ID() ||
-		len(peer.Addrs) == 0 ||
-		d.set.Contains(peer.ID) ||
-		d.set.Size() >= d.set.Limit() {
+	log := log.With("peer", peer.ID)
+	switch {
+	case peer.ID == d.host.ID():
+		log.Debug("skip handle: self discovery")
+		return
+	case d.set.Contains(peer.ID):
+		log.Debug("skip handle: peer is already in discovery set")
+		return
+	case len(peer.Addrs) == 0:
+		log.Debug("skip handle: empty address list")
+		return
+	case d.set.Size() >= d.set.Limit():
+		log.Debug("skip handle: enough peers found")
 		return
 	}
 
@@ -139,15 +148,13 @@ func (d *Discovery) handlePeerFound(ctx context.Context, peer peer.AddrInfo, can
 		}
 		d.host.ConnManager().Protect(peer.ID, topic)
 		d.connector.Backoff(peer.ID)
-
-		// and notify our subscribers
-		d.onUpdatedPeers(peer.ID, true)
 		return
 	}
 
 	d.connectingLk.Lock()
 	if _, ok := d.connecting[peer.ID]; ok {
 		d.connectingLk.Unlock()
+		log.Debug("skip handle: connecting to the peer in another routine")
 		return
 	}
 	d.connecting[peer.ID] = cancelFind
@@ -158,6 +165,7 @@ func (d *Discovery) handlePeerFound(ctx context.Context, peer peer.AddrInfo, can
 		d.connectingLk.Lock()
 		delete(d.connecting, peer.ID)
 		d.connectingLk.Unlock()
+		log.Debugw("unable to connect", "err", err)
 		return
 	}
 
@@ -166,6 +174,7 @@ func (d *Discovery) handlePeerFound(ctx context.Context, peer peer.AddrInfo, can
 	//  In the future, we should design a protocol that keeps bidirectional agreement on whether
 	//  connection should be kept or not, similar to mesh link in GossipSub.
 	d.host.ConnManager().Protect(peer.ID, topic)
+	log.Debug("started connecting to the peer")
 }
 
 // ensurePeers ensures we always have 'peerLimit' connected peers.
@@ -226,7 +235,6 @@ func (d *Discovery) ensurePeers(ctx context.Context) {
 						continue
 					}
 					log.Debugw("added peer to set", "id", peerID)
-					d.set.Add(peerID)
 					// and notify our subscribers
 					d.onUpdatedPeers(peerID, true)
 
@@ -256,6 +264,7 @@ func (d *Discovery) ensurePeers(ctx context.Context) {
 			continue
 		}
 
+		//TODO: drain the channel, because it could be filled already or use timer with proper drain
 		t.Reset(d.params.DiscoveryInterval)
 		select {
 		case <-t.C:
@@ -270,7 +279,7 @@ func (d *Discovery) findPeers(ctx context.Context) {
 		log.Debugw("reached soft peer limit, skipping discovery", "size", d.set.Size())
 		return
 	}
-	log.Infow("below soft peer limit, discovering peers", "amount", d.set.Limit())
+	log.Infow("below soft peer limit, discovering peers", "remaining", d.set.Limit()-d.set.Size())
 
 	// we use errgroup as it obeys the context
 	wg := errgroup.Group{}
@@ -284,7 +293,7 @@ func (d *Discovery) findPeers(ctx context.Context) {
 
 	peers, err := d.disc.FindPeers(findCtx, topic)
 	if err != nil {
-		log.Warn(err)
+		log.Error("unable to start discovery", "err", err)
 		return
 	}
 
@@ -298,7 +307,7 @@ func (d *Discovery) findPeers(ctx context.Context) {
 			log.Debugw("found enough peers", "amount", d.set.Size())
 			return
 		case <-ticker.C:
-			log.Error("wasn't able to find new peers for long time")
+			log.Warn("wasn't able to find new peers for long time")
 			continue
 		case p, ok := <-peers:
 			if !ok {
