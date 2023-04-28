@@ -28,7 +28,7 @@ type Client struct {
 	protocolID protocol.ID
 	host       host.Host
 
-	metrics *metrics
+	metrics *p2p.Metrics
 }
 
 // NewClient creates a new ShrEx/EDS client.
@@ -54,9 +54,7 @@ func (c *Client) RequestEDS(
 	if err == nil {
 		return eds, nil
 	}
-	if err != nil {
-		log.Debugw("client: eds request to peer failed", "peer", peer, "hash", dataHash.String(), "error", err)
-	}
+	log.Debugw("client: eds request to peer failed", "peer", peer, "hash", dataHash.String(), "error", err)
 	if errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) {
 		return nil, ctx.Err()
 	}
@@ -110,7 +108,7 @@ func (c *Client) doRequest(
 	if err != nil {
 		// server is overloaded and closed the stream
 		if errors.Is(err, io.EOF) {
-			c.metrics.observeRequest(ctx, statusRateLimited)
+			c.metrics.ObserveRequests(ctx, 1, p2p.StatusRateLimited)
 			return nil, p2p.ErrNotFound
 		}
 		stream.Reset() //nolint:errcheck
@@ -124,10 +122,10 @@ func (c *Client) doRequest(
 		if err != nil {
 			return nil, fmt.Errorf("failed to read eds from ods bytes: %w", err)
 		}
-		c.metrics.observeRequest(ctx, statusSuccess)
+		c.metrics.ObserveRequests(ctx, 1, p2p.StatusSuccess)
 		return eds, nil
 	case pb.Status_NOT_FOUND:
-		c.metrics.observeRequest(ctx, statusNotFound)
+		c.metrics.ObserveRequests(ctx, 1, p2p.StatusNotFound)
 		return nil, p2p.ErrNotFound
 	case pb.Status_INVALID:
 		log.Debug("client: invalid request")
@@ -135,6 +133,7 @@ func (c *Client) doRequest(
 	case pb.Status_INTERNAL:
 		fallthrough
 	default:
+		c.metrics.ObserveRequests(ctx, 1, p2p.StatusInternalErr)
 		return nil, p2p.ErrInvalidResponse
 	}
 }

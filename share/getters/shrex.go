@@ -34,11 +34,28 @@ const (
 var meter = global.MeterProvider().Meter("shrex/getter")
 
 type metrics struct {
-	attempts syncint64.Histogram
+	edsAttempts syncint64.Histogram
+	ndAttempts  syncint64.Histogram
+}
+
+func (m *metrics) recordEDSAttempt(ctx context.Context, attemptCount int, success bool) {
+	if m == nil {
+		return
+	}
+
+	m.edsAttempts.Record(ctx, int64(attemptCount), attribute.Bool("success", success))
+}
+
+func (m *metrics) recordNDAttempt(ctx context.Context, attemptCount int, success bool) {
+	if m == nil {
+		return
+	}
+
+	m.ndAttempts.Record(ctx, int64(attemptCount), attribute.Bool("success", success))
 }
 
 func (sg *ShrexGetter) WithMetrics() error {
-	attemptHistogram, err := meter.SyncInt64().Histogram(
+	edsAttemptHistogram, err := meter.SyncInt64().Histogram(
 		"attempts_per_eds_request",
 		instrument.WithUnit(unit.Dimensionless),
 		instrument.WithDescription("Number of attempts per shrex/eds request"),
@@ -46,8 +63,19 @@ func (sg *ShrexGetter) WithMetrics() error {
 	if err != nil {
 		return err
 	}
+
+	ndAttemptHistogram, err := meter.SyncInt64().Histogram(
+		"attempts_per_nd_request",
+		instrument.WithUnit(unit.Dimensionless),
+		instrument.WithDescription("Number of attempts per shrex/nd request"),
+	)
+	if err != nil {
+		return err
+	}
+
 	sg.metrics = &metrics{
-		attempts: attemptHistogram,
+		edsAttempts: edsAttemptHistogram,
+		ndAttempts:  ndAttemptHistogram,
 	}
 	return nil
 }
@@ -108,7 +136,7 @@ func (sg *ShrexGetter) GetEDS(ctx context.Context, root *share.Root) (*rsmt2d.Ex
 				"hash", root.String(),
 				"err", getErr,
 				"finished (s)", time.Since(start))
-			sg.metrics.attempts.Record(ctx, int64(attempt), attribute.Bool("success", false))
+			sg.metrics.recordEDSAttempt(ctx, attempt, false)
 			return nil, fmt.Errorf("getter/shrex: %w", err)
 		}
 
@@ -119,7 +147,7 @@ func (sg *ShrexGetter) GetEDS(ctx context.Context, root *share.Root) (*rsmt2d.Ex
 		switch {
 		case getErr == nil:
 			setStatus(peers.ResultSynced)
-			sg.metrics.attempts.Record(ctx, int64(attempt), attribute.Bool("success", true))
+			sg.metrics.recordEDSAttempt(ctx, attempt, true)
 			return eds, nil
 		case errors.Is(getErr, context.DeadlineExceeded),
 			errors.Is(getErr, context.Canceled):
@@ -166,6 +194,7 @@ func (sg *ShrexGetter) GetSharesByNamespace(
 				"hash", root.String(),
 				"err", getErr,
 				"finished (s)", time.Since(start))
+			sg.metrics.recordNDAttempt(ctx, attempt, false)
 			return nil, fmt.Errorf("getter/shrex: %w", err)
 		}
 
@@ -176,6 +205,7 @@ func (sg *ShrexGetter) GetSharesByNamespace(
 		switch {
 		case getErr == nil:
 			setStatus(peers.ResultNoop)
+			sg.metrics.recordNDAttempt(ctx, attempt, true)
 			return nd, nil
 		case errors.Is(getErr, context.DeadlineExceeded),
 			errors.Is(getErr, context.Canceled):

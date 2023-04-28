@@ -69,9 +69,7 @@ func WithMetrics(metricOpts []otlpmetrichttp.Option, nodeType node.Type) fx.Opti
 		fx.Invoke(state.WithMetrics),
 		fx.Invoke(fraud.WithMetrics),
 		fx.Invoke(node.WithMetrics),
-		fx.Invoke(share.WithShrexClientMetrics),
 		fx.Invoke(modheader.WithMetrics),
-		fx.Invoke(share.WithShrexGetterMetrics),
 	)
 
 	var opts fx.Option
@@ -81,6 +79,8 @@ func WithMetrics(metricOpts []otlpmetrichttp.Option, nodeType node.Type) fx.Opti
 			baseComponents,
 			fx.Invoke(das.WithMetrics),
 			fx.Invoke(share.WithShrexServerMetrics),
+			fx.Invoke(share.WithShrexClientMetrics),
+			fx.Invoke(share.WithShrexGetterMetrics),
 			// add more monitoring here
 		)
 	case node.Light:
@@ -88,6 +88,8 @@ func WithMetrics(metricOpts []otlpmetrichttp.Option, nodeType node.Type) fx.Opti
 			baseComponents,
 			fx.Invoke(das.WithMetrics),
 			fx.Invoke(share.WithPeerManagerMetrics),
+			fx.Invoke(share.WithShrexClientMetrics),
+			fx.Invoke(share.WithShrexGetterMetrics),
 			// add more monitoring here
 		)
 	case node.Bridge:

@@ -29,7 +29,8 @@ type Client struct {
 	params     *Parameters
 	protocolID protocol.ID
 
-	host host.Host
+	host    host.Host
+	metrics *p2p.Metrics
 }
 
 // NewClient creates a new shrEx/nd client
@@ -109,13 +110,14 @@ func (c *Client) doRequest(
 	if err != nil {
 		// server is overloaded and closed the stream
 		if errors.Is(err, io.EOF) {
+			c.metrics.ObserveRequests(ctx, 1, p2p.StatusRateLimited)
 			return nil, p2p.ErrNotFound
 		}
 		stream.Reset() //nolint:errcheck
 		return nil, fmt.Errorf("client-nd: reading response: %w", err)
 	}
 
-	if err = statusToErr(resp.Status); err != nil {
+	if err = c.statusToErr(ctx, resp.Status); err != nil {
 		return nil, fmt.Errorf("client-nd: response code is not OK: %w", err)
 	}
 
@@ -183,11 +185,13 @@ func (c *Client) setStreamDeadlines(ctx context.Context, stream network.Stream) 
 	}
 }
 
-func statusToErr(code pb.StatusCode) error {
+func (c *Client) statusToErr(ctx context.Context, code pb.StatusCode) error {
 	switch code {
 	case pb.StatusCode_OK:
+		c.metrics.ObserveRequests(ctx, 1, p2p.StatusSuccess)
 		return nil
 	case pb.StatusCode_NOT_FOUND:
+		c.metrics.ObserveRequests(ctx, 1, p2p.StatusNotFound)
 		return p2p.ErrNotFound
 	case pb.StatusCode_INVALID:
 		log.Debug("client-nd: invalid request")

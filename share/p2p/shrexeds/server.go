@@ -5,13 +5,11 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"sync/atomic"
 	"time"
 
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/network"
 	"github.com/libp2p/go-libp2p/core/protocol"
-	"go.opentelemetry.io/otel/attribute"
 	"go.uber.org/zap"
 
 	"github.com/celestiaorg/go-libp2p-messenger/serde"
@@ -34,7 +32,7 @@ type Server struct {
 
 	params     *Parameters
 	middleware *p2p.Middleware
-	metrics    *metrics
+	metrics    *p2p.Metrics
 }
 
 // NewServer creates a new ShrEx/EDS server.
@@ -64,21 +62,20 @@ func (s *Server) Stop(context.Context) error {
 	return nil
 }
 
-func (s *Server) observeRateLimitedRequests() {
+func (s *Server) observeRateLimitedRequests(ctx context.Context) {
 	var numRateLimited int64
 	if s.metrics != nil {
-		numRateLimited = atomic.SwapInt64(&s.middleware.NumRateLimited, 0)
+		numRateLimited = s.middleware.NumRateLimited.Swap(0)
 	}
 
 	if numRateLimited > 0 {
-		s.metrics.totalRequestCounter.Add(s.ctx, numRateLimited, attribute.String("status", string(statusRateLimited)))
+		s.metrics.ObserveRequests(ctx, numRateLimited, p2p.StatusRateLimited)
 	}
 }
 
 func (s *Server) handleStream(stream network.Stream) {
 	logger := log.With("peer", stream.Conn().RemotePeer())
 	log.Debug("server: handling eds request")
-	s.observeRateLimitedRequests()
 
 	// read request from stream to get the dataHash for store lookup
 	req, err := s.readRequest(logger, stream)
@@ -101,6 +98,7 @@ func (s *Server) handleStream(stream network.Stream) {
 	ctx, cancel := context.WithTimeout(s.ctx, s.params.HandleRequestTimeout)
 	defer cancel()
 
+	s.observeRateLimitedRequests(ctx)
 	// determine whether the EDS is available in our store
 	// we do not close the reader, so that other requests will not need to re-open the file.
 	// closing is handled by the LRU cache.
@@ -108,7 +106,7 @@ func (s *Server) handleStream(stream network.Stream) {
 	status := p2p_pb.Status_OK
 	switch {
 	case errors.Is(err, eds.ErrNotFound):
-		s.metrics.observeRequest(s.ctx, statusNotFound)
+		s.metrics.ObserveRequests(s.ctx, 1, p2p.StatusNotFound)
 		status = p2p_pb.Status_NOT_FOUND
 	case err != nil:
 		logger.Errorw("server: get CAR", "err", err)
@@ -139,7 +137,7 @@ func (s *Server) handleStream(stream network.Stream) {
 		return
 	}
 
-	s.metrics.observeRequest(s.ctx, statusSuccess)
+	s.metrics.ObserveRequests(s.ctx, 1, p2p.StatusSuccess)
 	err = stream.Close()
 	if err != nil {
 		logger.Debugw("server: closing stream", "err", err)
