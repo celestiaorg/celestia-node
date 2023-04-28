@@ -19,7 +19,7 @@ const (
 )
 
 var (
-	defaultBackoffFactory = backoff.NewFixedBackoff(time.Hour)
+	defaultBackoffFactory = backoff.NewFixedBackoff(time.Minute * 10)
 	errBackoffNotEnded    = errors.New("share/discovery: backoff period has not ended")
 )
 
