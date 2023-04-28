@@ -122,9 +122,6 @@ func (d *Discovery) handlePeerFound(ctx context.Context, cancelFind context.Canc
 	case peer.ID == d.host.ID():
 		log.Debug("skip handle: self discovery")
 		return
-	case d.set.Contains(peer.ID):
-		log.Debug("skip handle: peer is already in discovery set")
-		return
 	case len(peer.Addrs) == 0:
 		log.Debug("skip handle: empty address list")
 		return
@@ -136,40 +133,41 @@ func (d *Discovery) handlePeerFound(ctx context.Context, cancelFind context.Canc
 		return
 	}
 
-	if d.host.Network().Connectedness(peer.ID) == network.Connected {
+	switch d.host.Network().Connectedness(peer.ID) {
+	case network.Connected:
 		if !d.set.Add(peer.ID) {
 			log.Debug("skip handle: peer is already in discovery set")
 			return
 		}
-
-		// and notify our subscribers
+		// notify our subscribers
 		d.onUpdatedPeers(peer.ID, true)
 		log.Debug("added peer to set")
+		// check if we should cancel discovery
 		if d.set.Size() >= d.set.Limit() {
 			log.Infow("soft peer limit reached", "count", d.set.Size())
 			cancelFind()
 		}
-		d.host.ConnManager().Protect(peer.ID, topic)
+		// we still have to backoff the connected peer
 		d.connector.Backoff(peer.ID)
-		return
-	}
-
-	d.connectingLk.Lock()
-	if _, ok := d.connecting[peer.ID]; ok {
-		d.connectingLk.Unlock()
-		log.Debug("skip handle: connecting to the peer in another routine")
-		return
-	}
-	d.connecting[peer.ID] = cancelFind
-	d.connectingLk.Unlock()
-
-	err := d.connector.Connect(ctx, peer)
-	if err != nil {
+	case network.NotConnected:
 		d.connectingLk.Lock()
-		delete(d.connecting, peer.ID)
+		if _, ok := d.connecting[peer.ID]; ok {
+			d.connectingLk.Unlock()
+			log.Debug("skip handle: connecting to the peer in another routine")
+			return
+		}
+		d.connecting[peer.ID] = cancelFind
 		d.connectingLk.Unlock()
-		log.Debugw("unable to connect", "err", err)
-		return
+
+		err := d.connector.Connect(ctx, peer)
+		if err != nil {
+			d.connectingLk.Lock()
+			delete(d.connecting, peer.ID)
+			d.connectingLk.Unlock()
+			log.Debugw("unable to connect", "err", err)
+			return
+		}
+		log.Debug("started connecting to the peer")
 	}
 
 	// tag to protect peer from being killed by ConnManager
@@ -177,7 +175,6 @@ func (d *Discovery) handlePeerFound(ctx context.Context, cancelFind context.Canc
 	//  In the future, we should design a protocol that keeps bidirectional agreement on whether
 	//  connection should be kept or not, similar to mesh link in GossipSub.
 	d.host.ConnManager().Protect(peer.ID, topic)
-	log.Debug("started connecting to the peer")
 }
 
 // ensurePeers ensures we always have 'peerLimit' connected peers.
@@ -210,8 +207,6 @@ func (d *Discovery) ensurePeers(ctx context.Context) {
 				if !ok {
 					return
 				}
-				// listen to disconnect event to remove peer from set and reset backoff time
-				// reset timer in order to restart the discovery, once stored peer is disconnected
 				evnt := e.(event.EvtPeerConnectednessChanged)
 				switch evnt.Connectedness {
 				case network.NotConnected:
@@ -219,7 +214,7 @@ func (d *Discovery) ensurePeers(ctx context.Context) {
 						continue
 					}
 
-					d.host.ConnManager().UntagPeer(evnt.Peer, topic)
+					d.host.ConnManager().Unprotect(evnt.Peer, topic)
 					d.connector.ResetBackoff(evnt.Peer)
 					d.set.Remove(evnt.Peer)
 					d.onUpdatedPeers(evnt.Peer, false)

@@ -67,11 +67,11 @@ func TestDiscovery(t *testing.T) {
 			require.Equal(t, peerID, res.peerID)
 			require.False(t, res.isAdded)
 		case <-ctx.Done():
-			t.Fatal("did not discover peer in time")
+			t.Fatal("did not disconnect from peer in time")
 		}
 	}
 
-	assert.Less(t, peerA.set.Size(), nodes)
+	assert.Equal(t, 0, peerA.set.Size())
 }
 
 type testnet struct {
