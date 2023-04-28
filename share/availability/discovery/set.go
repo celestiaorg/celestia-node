@@ -44,8 +44,11 @@ func (ps *limitedSet) Size() int {
 }
 
 // Add attempts to add the given peer into the set.
-func (ps *limitedSet) Add(p peer.ID) {
+func (ps *limitedSet) Add(p peer.ID) (added bool) {
 	ps.lk.Lock()
+	if _, ok := ps.ps[p]; ok {
+		return false
+	}
 	ps.ps[p] = struct{}{}
 	ps.lk.Unlock()
 
@@ -55,7 +58,7 @@ func (ps *limitedSet) Add(p peer.ID) {
 		select {
 		case ps.waitPeer <- p:
 		default:
-			return
+			return true
 		}
 	}
 }

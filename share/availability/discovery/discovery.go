@@ -125,8 +125,14 @@ func (d *Discovery) handlePeerFound(ctx context.Context, peer peer.AddrInfo, can
 	}
 
 	if d.host.Network().Connectedness(peer.ID) == network.Connected {
-		d.set.Add(peer.ID)
-		log.Debugw("added peer to set", "id", peer.ID)
+		if !d.set.Add(peer.ID) {
+			log.Debug("skip handle: peer is already in discovery set")
+			return
+		}
+
+		// and notify our subscribers
+		d.onUpdatedPeers(peer.ID, true)
+		log.Debug("added peer to set")
 		if d.set.Size() >= d.set.Limit() {
 			log.Infow("soft peer limit reached", "count", d.set.Size())
 			cancelFind()
@@ -216,6 +222,9 @@ func (d *Discovery) ensurePeers(ctx context.Context) {
 						continue
 					}
 
+					if !d.set.Add(peerID) {
+						continue
+					}
 					log.Debugw("added peer to set", "id", peerID)
 					d.set.Add(peerID)
 					// and notify our subscribers
