@@ -131,6 +131,9 @@ func (d *Discovery) handlePeerFound(ctx context.Context, cancelFind context.Canc
 	case d.set.Size() >= d.set.Limit():
 		log.Debug("skip handle: enough peers found")
 		return
+	case d.connector.HasBackoff(peer.ID):
+		log.Debug("skip handle: backoff")
+		return
 	}
 
 	if d.host.Network().Connectedness(peer.ID) == network.Connected {

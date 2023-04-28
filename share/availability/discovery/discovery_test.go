@@ -57,13 +57,8 @@ func TestDiscovery(t *testing.T) {
 
 	assert.Equal(t, nodes, peerA.set.Size())
 
-	// immediately cut peer from bootstrapper sp it cannot rediscover peers
-	// helps with flakes
-	// TODO: Check why backoff does not help
-	err := peerA.host.Network().ClosePeer(tn.bootstrapper)
-	require.NoError(t, err)
-
-	for _, peerID := range peerA.host.Network().Peers() {
+	for _, disc := range discs {
+		peerID := disc.host.ID()
 		err := peerA.host.Network().ClosePeer(peerID)
 		require.NoError(t, err)
 

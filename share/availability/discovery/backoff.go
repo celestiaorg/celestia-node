@@ -49,10 +49,7 @@ func newBackoffConnector(h host.Host, factory backoff.BackoffFactory) *backoffCo
 
 // Connect puts peer to the backoffCache and tries to establish a connection with it.
 func (b *backoffConnector) Connect(ctx context.Context, p peer.AddrInfo) error {
-	// we should lock the mutex before calling backoffData and not inside because otherwise it could
-	// be modified from another goroutine as it returns a pointer
-	cache := b.backoffData(p.ID)
-	if time.Now().Before(cache.nexttry) {
+	if b.HasBackoff(p.ID) {
 		return errBackoffNotEnded
 	}
 
@@ -74,6 +71,16 @@ func (b *backoffConnector) Backoff(p peer.ID) {
 	b.cacheLk.Lock()
 	b.cacheData[p] = data
 	b.cacheLk.Unlock()
+}
+
+func (b *backoffConnector) HasBackoff(p peer.ID) bool {
+	b.cacheLk.Lock()
+	cache, ok := b.cacheData[p]
+	b.cacheLk.Unlock()
+	if ok && time.Now().Before(cache.nexttry) {
+		return true
+	}
+	return false
 }
 
 // backoffData returns backoffData from the map if it was stored, otherwise it will instantiate
