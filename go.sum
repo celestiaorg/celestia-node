@@ -350,8 +350,6 @@ github.com/celestiaorg/dagstore v0.0.0-20230413141458-735ab09a15d6 h1:/yCwMCoOPc
 github.com/celestiaorg/dagstore v0.0.0-20230413141458-735ab09a15d6/go.mod h1:ta/DlqIH10bvhwqJIw51Nq3QU4XVMp6pz3f0Deve9fM=
 github.com/celestiaorg/go-fraud v0.1.0 h1:v6mZvlmf2J5ELZfPnrtmmOvKbaYIUs/erDWPO8NbZyY=
 github.com/celestiaorg/go-fraud v0.1.0/go.mod h1:yoNM35cKMAkt5Mi/Qx3Wi9bnPilLi8n6RpHZVglTUDs=
-github.com/celestiaorg/go-header v0.2.6 h1:f1Mlyu+EfDpkuzO3SWU5dow+ga2vLQ7hNuvsOe//z64=
-github.com/celestiaorg/go-header v0.2.6/go.mod h1:i9OpY70+PJ1xPw1IgMfF0Pk6vBD6VWPmjY3bgubJBcU=
 github.com/celestiaorg/go-libp2p-messenger v0.2.0 h1:/0MuPDcFamQMbw9xTZ73yImqgTO3jHV7wKHvWD/Irao=
 github.com/celestiaorg/go-libp2p-messenger v0.2.0/go.mod h1:s9PIhMi7ApOauIsfBcQwbr7m+HBzmVfDIS+QLdgzDSo=
 github.com/celestiaorg/go-verifcid v0.0.1-lazypatch h1:9TSe3w1cmJmbWlweCwCTIZkan7jV8M+KwglXpdD+UG8=
@@ -492,6 +490,8 @@ github.com/decred/dcrd/dcrec/secp256k1/v4 v4.1.0/go.mod h1:DZGJHZMqrU4JJqFAWUS2U
 github.com/decred/dcrd/lru v1.0.0/go.mod h1:mxKOwFd7lFjN2GZYsiz/ecgqR6kkYAl+0pz0tEMk218=
 github.com/deepmap/oapi-codegen v1.6.0/go.mod h1:ryDa9AgbELGeB+YEXE1dR53yAjHwFvE9iAUlWl9Al3M=
 github.com/deepmap/oapi-codegen v1.8.2/go.mod h1:YLgSKSDv/bZQB7N4ws6luhozi3cEdRktEqrX88CvjIw=
+github.com/derrandz/go-header v0.0.0-20230428151923-2da10fd92f76 h1:R35DAv5yMA8gk3Nplb/FwrIUycTL/uP782u8njbJXiQ=
+github.com/derrandz/go-header v0.0.0-20230428151923-2da10fd92f76/go.mod h1:i9OpY70+PJ1xPw1IgMfF0Pk6vBD6VWPmjY3bgubJBcU=
 github.com/desertbit/timer v0.0.0-20180107155436-c41aec40b27f h1:U5y3Y5UE0w7amNe7Z5G/twsBW0KEalRQXZzf8ufSh9I=
 github.com/desertbit/timer v0.0.0-20180107155436-c41aec40b27f/go.mod h1:xH/i4TFMt8koVQZ6WFms69WAsDWr2XsYL3Hkl7jkoLE=
 github.com/dgraph-io/badger v1.5.5-0.20190226225317-8115aed38f8f/go.mod h1:VZxzAIRPHRVNRKRo6AXrX9BJegn6il06VMTZVJYCIjQ=

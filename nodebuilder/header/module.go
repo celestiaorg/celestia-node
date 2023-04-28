@@ -11,6 +11,7 @@ import (
 
 	libhead "github.com/celestiaorg/go-header"
 	"github.com/celestiaorg/go-header/p2p"
+	"github.com/celestiaorg/go-header/p2p/peerstore"
 	"github.com/celestiaorg/go-header/store"
 	"github.com/celestiaorg/go-header/sync"
 
@@ -89,6 +90,9 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 				return server.Stop(ctx)
 			}),
 		)),
+		fx.Provide(func(ds datastore.Batching) peerstore.Peerstore {
+			return peerstore.NewPeerStore(ds)
+		}),
 	)
 
 	switch tp {

@@ -4,6 +4,8 @@ go 1.20
 
 replace github.com/ipfs/go-verifcid => github.com/celestiaorg/go-verifcid v0.0.1-lazypatch
 
+replace github.com/celestiaorg/go-header => github.com/derrandz/go-header v0.0.0-20230428151923-2da10fd92f76
+
 require (
 	cosmossdk.io/math v1.0.0-beta.3
 	github.com/BurntSushi/toml v1.2.1
