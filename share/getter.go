@@ -12,8 +12,12 @@ import (
 	"github.com/celestiaorg/rsmt2d"
 )
 
-// ErrNotFound is used to indicated that requested data could not be found.
-var ErrNotFound = errors.New("data not found")
+var (
+	// ErrNotFound is used to indicate that requested data could not be found.
+	ErrNotFound = errors.New("data not found")
+	// ErrNamespaceNotFound is used to indicate that the data does not include any shares from the requested namespace
+	ErrNamespaceNotFound = errors.New("namespace not found in data")
+)
 
 // Getter interface provides a set of accessors for shares by the Root.
 // Automatically verifies integrity of shares(exceptions possible depending on the implementation).

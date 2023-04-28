@@ -17,6 +17,7 @@ enum StatusCode {
   OK = 1;
   NOT_FOUND = 2;
   INTERNAL = 3;
+  NAMESPACE_NOT_FOUND = 4;
 };
 
 message Row {
