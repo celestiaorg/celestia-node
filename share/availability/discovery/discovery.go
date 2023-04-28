@@ -242,6 +242,10 @@ func (d *Discovery) ensurePeers(ctx context.Context) {
 	defer t.Stop()
 	for {
 		d.findPeers(ctx)
+		if d.set.Size() < d.set.Limit() {
+			// rerun discovery is amount of peers didn't reach the limit
+			continue
+		}
 
 		t.Reset(d.params.DiscoveryInterval)
 		select {
