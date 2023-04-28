@@ -110,7 +110,7 @@ func (c *Client) doRequest(
 	if err != nil {
 		// server is overloaded and closed the stream
 		if errors.Is(err, io.EOF) {
-			c.metrics.observeRequestForPeer(ctx, statusRateLimited, to)
+			c.metrics.observeRequest(ctx, statusRateLimited)
 			return nil, p2p.ErrNotFound
 		}
 		stream.Reset() //nolint:errcheck
@@ -124,10 +124,10 @@ func (c *Client) doRequest(
 		if err != nil {
 			return nil, fmt.Errorf("failed to read eds from ods bytes: %w", err)
 		}
-		c.metrics.observeRequestForPeer(ctx, statusSuccess, to)
+		c.metrics.observeRequest(ctx, statusSuccess)
 		return eds, nil
 	case pb.Status_NOT_FOUND:
-		c.metrics.observeRequestForPeer(ctx, statusNotFound, to)
+		c.metrics.observeRequest(ctx, statusNotFound)
 		return nil, p2p.ErrNotFound
 	case pb.Status_INVALID:
 		log.Debug("client: invalid request")

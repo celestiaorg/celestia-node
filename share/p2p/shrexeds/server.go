@@ -108,7 +108,7 @@ func (s *Server) handleStream(stream network.Stream) {
 	status := p2p_pb.Status_OK
 	switch {
 	case errors.Is(err, eds.ErrNotFound):
-		s.metrics.observeRequestForPeer(s.ctx, statusNotFound, stream.Conn().RemotePeer())
+		s.metrics.observeRequest(s.ctx, statusNotFound)
 		status = p2p_pb.Status_NOT_FOUND
 	case err != nil:
 		logger.Errorw("server: get CAR", "err", err)

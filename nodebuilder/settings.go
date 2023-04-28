@@ -69,7 +69,6 @@ func WithMetrics(metricOpts []otlpmetrichttp.Option, nodeType node.Type) fx.Opti
 		fx.Invoke(state.WithMetrics),
 		fx.Invoke(fraud.WithMetrics),
 		fx.Invoke(node.WithMetrics),
-		// TODO(distractedm1nd): shrex can be disabled, which would make DI fail here
 		fx.Invoke(share.WithShrexClientMetrics),
 		fx.Invoke(modheader.WithMetrics),
 		fx.Invoke(share.WithShrexGetterMetrics),

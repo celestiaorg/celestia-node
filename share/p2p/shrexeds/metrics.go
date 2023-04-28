@@ -3,7 +3,6 @@ package shrexeds
 import (
 	"context"
 
-	"github.com/libp2p/go-libp2p/core/peer"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric/global"
 	"go.opentelemetry.io/otel/metric/instrument"
@@ -31,17 +30,6 @@ func (m *metrics) observeRequest(ctx context.Context, status status) {
 	}
 
 	m.totalRequestCounter.Add(ctx, 1, attribute.String("status", string(status)))
-}
-
-func (m *metrics) observeRequestForPeer(ctx context.Context, status status, peer peer.ID) {
-	if m == nil {
-		return
-	}
-
-	m.totalRequestCounter.Add(ctx, 1,
-		attribute.String("status", string(status)),
-		attribute.String("peer", peer.String()),
-	)
 }
 
 func initClientMetrics() (*metrics, error) {

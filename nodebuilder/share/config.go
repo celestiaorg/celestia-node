@@ -9,7 +9,6 @@ import (
 
 type Config struct {
 	// UseShareExchange is a flag toggling the usage of shrex protocols for blocksync.
-	// NOTE: This config variable only has an effect on full and bridge nodes.
 	UseShareExchange bool
 	// ShrExEDSParams sets shrexeds client and server configuration parameters
 	ShrExEDSParams *shrexeds.Parameters
