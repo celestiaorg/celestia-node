@@ -23,6 +23,8 @@ const (
 	// eventbusBufSize is the size of the buffered channel to handle
 	// events in libp2p
 	eventbusBufSize = 32
+
+	findPeersStuckWarnDelay = time.Minute
 )
 
 // waitF calculates time to restart announcing.
@@ -273,12 +275,18 @@ func (d *Discovery) findPeers(ctx context.Context) {
 		return
 	}
 
+	ticker := time.NewTicker(findPeersStuckWarnDelay)
+	defer ticker.Stop()
 	var amount int
 	for {
+		ticker.Reset(findPeersStuckWarnDelay)
 		select {
 		case <-findCtx.Done():
 			log.Debugw("found enough peers", "amount", d.set.Size())
 			return
+		case <-ticker.C:
+			log.Error("wasn't able to find new peers for long time")
+			continue
 		case p, ok := <-peers:
 			if !ok {
 				log.Debugw("discovery channel closed", "find_is_canceled", findCtx.Err() != nil)
