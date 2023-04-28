@@ -263,6 +263,8 @@ func (d *Discovery) ensurePeers(ctx context.Context) {
 		}
 
 		t.Reset(d.params.DiscoveryInterval)
+		// drain all previous ticks from channel
+		drainChannel(t.C)
 		select {
 		case <-t.C:
 		case <-ctx.Done():
@@ -299,6 +301,8 @@ func (d *Discovery) findPeers(ctx context.Context) {
 	var amount int
 	for {
 		ticker.Reset(findPeersStuckWarnDelay)
+		// drain all previous ticks from channel
+		drainChannel(ticker.C)
 		select {
 		case <-findCtx.Done():
 			log.Debugw("found enough peers", "amount", d.set.Size())
@@ -348,6 +352,9 @@ func (d *Discovery) Advertise(ctx context.Context) {
 
 			select {
 			case <-timer.C:
+				if !timer.Stop() {
+					<-timer.C
+				}
 				timer.Reset(d.params.AdvertiseInterval)
 				continue
 			case <-ctx.Done():
@@ -358,6 +365,9 @@ func (d *Discovery) Advertise(ctx context.Context) {
 		log.Debugf("advertised")
 		select {
 		case <-timer.C:
+			if !timer.Stop() {
+				<-timer.C
+			}
 			timer.Reset(waitF(ttl))
 		case <-ctx.Done():
 			return
@@ -369,4 +379,14 @@ func (d *Discovery) Advertise(ctx context.Context) {
 // If Discovery hasn't found any peers, it blocks until at least one peer is found.
 func (d *Discovery) Peers(ctx context.Context) ([]peer.ID, error) {
 	return d.set.Peers(ctx)
+}
+
+func drainChannel(c <-chan time.Time) {
+	for {
+		select {
+		case <-c:
+		default:
+			return
+		}
+	}
 }
