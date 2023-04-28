@@ -129,11 +129,14 @@ func (srv *Server) handleNamespacedData(ctx context.Context, stream network.Stre
 	}
 
 	shares, err := srv.getter.GetSharesByNamespace(ctx, dah, req.NamespaceId)
-	if errors.Is(err, share.ErrNotFound) {
+	switch {
+	case errors.Is(err, share.ErrNotFound):
 		srv.respondNotFoundError(logger, stream)
 		return
-	}
-	if err != nil {
+	case errors.Is(err, share.ErrNamespaceNotFound):
+		srv.respondNamespaceNotFoundError(logger, stream)
+		return
+	case err != nil:
 		logger.Errorw("server: retrieving shares", "err", err)
 		srv.respondInternalError(logger, stream)
 		return
@@ -155,10 +158,18 @@ func validateRequest(req pb.GetSharesByNamespaceRequest) error {
 	return nil
 }
 
-// respondNotFoundError sends internal error response to client
+// respondNotFoundError sends a not found response to client
 func (srv *Server) respondNotFoundError(logger *zap.SugaredLogger, stream network.Stream) {
 	resp := &pb.GetSharesByNamespaceResponse{
 		Status: pb.StatusCode_NOT_FOUND,
+	}
+	srv.respond(logger, stream, resp)
+}
+
+// respondNamespaceNotFoundError sends a namespace not found response to client
+func (srv *Server) respondNamespaceNotFoundError(logger *zap.SugaredLogger, stream network.Stream) {
+	resp := &pb.GetSharesByNamespaceResponse{
+		Status: pb.StatusCode_NAMESPACE_NOT_FOUND,
 	}
 	srv.respond(logger, stream, resp)
 }

@@ -118,7 +118,7 @@ func (m notFoundGetter) GetEDS(
 func (m notFoundGetter) GetSharesByNamespace(
 	_ context.Context, _ *share.Root, _ namespace.ID,
 ) (share.NamespacedShares, error) {
-	return nil, share.ErrNotFound
+	return nil, share.ErrNamespaceNotFound
 }
 
 func newStore(t *testing.T) *eds.Store {
