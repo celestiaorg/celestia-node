@@ -116,7 +116,7 @@ func (d *Discovery) WithOnPeersUpdate(f OnUpdatedPeers) {
 
 // handlePeersFound receives peers and tries to establish a connection with them.
 // Peer will be added to PeerCache if connection succeeds.
-func (d *Discovery) handlePeerFound(ctx context.Context, peer peer.AddrInfo, cancelFind context.CancelFunc) {
+func (d *Discovery) handlePeerFound(ctx context.Context, cancelFind context.CancelFunc, peer peer.AddrInfo) {
 	log := log.With("peer", peer.ID)
 	switch {
 	case peer.ID == d.host.ID():
@@ -264,7 +264,6 @@ func (d *Discovery) ensurePeers(ctx context.Context) {
 			continue
 		}
 
-		//TODO: drain the channel, because it could be filled already or use timer with proper drain
 		t.Reset(d.params.DiscoveryInterval)
 		select {
 		case <-t.C:
@@ -282,7 +281,7 @@ func (d *Discovery) findPeers(ctx context.Context) {
 	log.Infow("below soft peer limit, discovering peers", "remaining", d.set.Limit()-d.set.Size())
 
 	// we use errgroup as it obeys the context
-	wg := errgroup.Group{}
+	var wg errgroup.Group
 	// limit to minimize chances of overreaching the limit
 	wg.SetLimit(d.set.Limit())
 	defer wg.Wait() //nolint:errcheck
@@ -324,7 +323,8 @@ func (d *Discovery) findPeers(ctx context.Context) {
 					return nil
 				}
 				// pass the cancel so that we cancel FindPeers when we connected to enough peers
-				d.handlePeerFound(ctx, peer, findCancel)
+				// we don't pass findCtx so that we don't cancel outgoing connections
+				d.handlePeerFound(ctx, findCancel, peer)
 				return nil
 			})
 		}
