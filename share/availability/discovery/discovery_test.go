@@ -7,7 +7,6 @@ import (
 
 	dht "github.com/libp2p/go-libp2p-kad-dht"
 	"github.com/libp2p/go-libp2p/core/discovery"
-	"github.com/libp2p/go-libp2p/core/event"
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/libp2p/go-libp2p/p2p/discovery/routing"
@@ -29,26 +28,34 @@ func TestDiscovery(t *testing.T) {
 		DiscoveryInterval: time.Millisecond * 100,
 		AdvertiseInterval: -1,
 	})
-	sub, _ := peerA.host.EventBus().Subscribe(&event.EvtPeerConnectednessChanged{})
+
+	type peerUpdate struct {
+		peerID  peer.ID
+		isAdded bool
+	}
+	updateCh := make(chan peerUpdate)
+	peerA.WithOnPeersUpdate(func(peerID peer.ID, isAdded bool) {
+		updateCh <- peerUpdate{peerID: peerID, isAdded: isAdded}
+	})
 
 	discs := make([]*Discovery, nodes)
 	for i := range discs {
-		// start new node
 		discs[i] = tn.discovery(Parameters{
 			PeersLimit:        0,
 			DiscoveryInterval: -1,
 			AdvertiseInterval: time.Millisecond * 100,
 		})
 
-		// and check that we discover/connect to it
 		select {
-		case <-sub.Out():
+		case res := <-updateCh:
+			require.Equal(t, discs[i].host.ID(), res.peerID)
+			require.True(t, res.isAdded)
 		case <-ctx.Done():
 			t.Fatal("did not discover peer in time")
 		}
 	}
 
-	assert.Equal(t, peerA.set.Size(), nodes)
+	assert.Equal(t, nodes, peerA.set.Size())
 
 	// immediately cut peer from bootstrapper sp it cannot rediscover peers
 	// helps with flakes
@@ -56,14 +63,16 @@ func TestDiscovery(t *testing.T) {
 	err := peerA.host.Network().ClosePeer(tn.bootstrapper)
 	require.NoError(t, err)
 
-	for _, disc := range peerA.host.Network().Peers() {
-		err := peerA.host.Network().ClosePeer(disc)
+	for _, peerID := range peerA.host.Network().Peers() {
+		err := peerA.host.Network().ClosePeer(peerID)
 		require.NoError(t, err)
 
 		select {
-		case <-sub.Out():
+		case res := <-updateCh:
+			require.Equal(t, peerID, res.peerID)
+			require.False(t, res.isAdded)
 		case <-ctx.Done():
-			t.Fatal("did not disconnected peer in time")
+			t.Fatal("did not discover peer in time")
 		}
 	}
 
