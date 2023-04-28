@@ -258,12 +258,13 @@ func (d *Discovery) findPeers(ctx context.Context) {
 	log.Infow("below soft peer limit, discovering peers", "amount", d.set.Limit())
 
 	// we use errgroup as it obeys the context
-	wg, wgCtx := errgroup.WithContext(ctx)
+	wg := errgroup.Group{}
 	// limit to minimize chances of overreaching the limit
 	wg.SetLimit(d.set.Limit())
+	defer wg.Wait() //nolint:errcheck
 
-	log.Debugw("finding peers", "remaining", d.set.Limit()-d.set.Size())
-	findCtx, findCancel := context.WithCancel(wgCtx)
+	// stop discovery when we are done
+	findCtx, findCancel := context.WithCancel(ctx)
 	defer findCancel()
 
 	peers, err := d.disc.FindPeers(findCtx, topic)
@@ -272,17 +273,32 @@ func (d *Discovery) findPeers(ctx context.Context) {
 		return
 	}
 
-	for p := range peers {
-		peer := p
-		wg.Go(func() error {
-			// pass the cancel so that we cancel FindPeers when we connected to enough peers
-			d.handlePeerFound(findCtx, peer, findCancel)
-			return nil
-		})
-	}
+	var amount int
+	for {
+		select {
+		case <-findCtx.Done():
+			log.Debugw("found enough peers", "amount", d.set.Size())
+			return
+		case p, ok := <-peers:
+			if !ok {
+				log.Debugw("discovery channel closed", "find_is_canceled", findCtx.Err() != nil)
+				return
+			}
 
-	// we expect no errors
-	_ = wg.Wait()
+			amount++
+			peer := p
+			log.Debugw("found peer", "found_amount", amount)
+			wg.Go(func() error {
+				if findCtx.Err() != nil {
+					log.Debug("find has been canceled, skip peer")
+					return nil
+				}
+				// pass the cancel so that we cancel FindPeers when we connected to enough peers
+				d.handlePeerFound(ctx, peer, findCancel)
+				return nil
+			})
+		}
+	}
 }
 
 // Advertise is a utility function that persistently advertises a service through an Advertiser.
