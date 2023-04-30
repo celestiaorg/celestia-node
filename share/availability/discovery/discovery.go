@@ -352,9 +352,6 @@ func (d *Discovery) Advertise(ctx context.Context) {
 
 			select {
 			case <-timer.C:
-				if !timer.Stop() {
-					<-timer.C
-				}
 				timer.Reset(d.params.AdvertiseInterval)
 				continue
 			case <-ctx.Done():
@@ -365,9 +362,6 @@ func (d *Discovery) Advertise(ctx context.Context) {
 		log.Debugf("advertised")
 		select {
 		case <-timer.C:
-			if !timer.Stop() {
-				<-timer.C
-			}
 			timer.Reset(waitF(ttl))
 		case <-ctx.Done():
 			return
