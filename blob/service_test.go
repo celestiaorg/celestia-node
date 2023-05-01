@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"crypto/sha256"
-	"sort"
 	"testing"
 	"time"
 
@@ -24,34 +23,142 @@ import (
 	"github.com/celestiaorg/celestia-node/share/getters"
 )
 
-func TestService_GetSingleBlob(t *testing.T) {
+func TestBlobService_Get(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	t.Cleanup(cancel)
+	blobs0 := generateBlob(t, []int{18, 14}, false)
+	blobs1 := generateBlob(t, []int{20, 12}, true)
+	service := createService(ctx, t, append(blobs0, blobs1...))
 
-	blobs := generateBlob(t, []int{10, 6}, false)
-	service := createService(ctx, t, blobs)
+	var test = []struct {
+		name           string
+		doFn           func() (interface{}, error)
+		expectedResult func(interface{}, error)
+	}{
+		{
+			name: "get single blob",
+			doFn: func() (interface{}, error) {
+				b, err := service.Get(ctx, 1, blobs0[0].NamespaceID(), blobs0[0].Commitment())
+				return []*Blob{b}, err
+			},
+			expectedResult: func(res interface{}, err error) {
+				require.NoError(t, err)
+				assert.NotEmpty(t, res)
 
-	newBlob, err := service.Get(ctx, 1, blobs[1].NamespaceID(), blobs[1].Commitment())
-	require.NoError(t, err)
-	require.Equal(t, blobs[1].Commitment(), newBlob.Commitment())
-}
+				blobs, ok := res.([]*Blob)
+				assert.True(t, ok)
+				assert.Len(t, blobs, 1)
 
-// TestService_GetSingleBlobInHeaderWithSingleNID creates two blobs with the same nID
-// and ensures that blob service could return the correct blob by its commitment.
-func TestService_GetSingleBlobInHeaderWithSingleNID(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
-	t.Cleanup(cancel)
+				assert.Equal(t, blobs0[0].Commitment(), blobs[0].Commitment())
+			},
+		},
+		{
+			name: "get all with the same nID",
+			doFn: func() (interface{}, error) {
+				b, err := service.GetAll(ctx, 1, blobs1[0].NamespaceID())
+				return b, err
+			},
+			expectedResult: func(res interface{}, err error) {
+				require.NoError(t, err)
 
-	blobs := generateBlob(t, []int{12, 4}, true)
-	service := createService(ctx, t, blobs)
+				blobs, ok := res.([]*Blob)
+				assert.True(t, ok)
+				assert.NotEmpty(t, blobs)
 
-	newBlob, err := service.Get(ctx, 1, blobs[1].NamespaceID(), blobs[1].Commitment())
-	require.NoError(t, err)
-	require.Equal(t, blobs[1].Commitment(), newBlob.Commitment())
+				assert.Len(t, blobs, 2)
 
-	blobs, err = service.GetAll(ctx, 1, blobs[0].NamespaceID())
-	require.NoError(t, err)
-	assert.Len(t, blobs, 2)
+				for i := range blobs1 {
+					bytes.Equal(blobs[i].Commitment(), blobs[i].Commitment())
+				}
+			},
+		},
+		{
+			name: "get all with different nIDs",
+			doFn: func() (interface{}, error) {
+				b, err := service.GetAll(ctx, 1, blobs0[0].NamespaceID(), blobs0[1].NamespaceID())
+				return b, err
+			},
+			expectedResult: func(res interface{}, err error) {
+				require.NoError(t, err)
+
+				blobs, ok := res.([]*Blob)
+				assert.True(t, ok)
+				assert.NotEmpty(t, blobs)
+
+				assert.Len(t, blobs, 2)
+			},
+		},
+		{
+			name: "get blob with incorrect commitment",
+			doFn: func() (interface{}, error) {
+				b, err := service.Get(ctx, 1, blobs0[0].NamespaceID(), blobs0[1].Commitment())
+				return []*Blob{b}, err
+			},
+			expectedResult: func(res interface{}, err error) {
+				require.Error(t, err)
+
+				blobs, ok := res.([]*Blob)
+				assert.True(t, ok)
+				assert.Empty(t, blobs[0])
+			},
+		},
+		{
+			name: "get invalid blob",
+			doFn: func() (interface{}, error) {
+				blob := generateBlob(t, []int{10}, false)
+				b, err := service.Get(ctx, 1, blob[0].NamespaceID(), blob[0].Commitment())
+				return []*Blob{b}, err
+			},
+			expectedResult: func(res interface{}, err error) {
+				require.Error(t, err)
+
+				blobs, ok := res.([]*Blob)
+				assert.True(t, ok)
+				assert.Empty(t, blobs[0])
+			},
+		},
+		{
+			name: "get proof",
+			doFn: func() (interface{}, error) {
+				proof, err := service.GetProof(ctx, 1, blobs0[1].NamespaceID(), blobs0[1].Commitment())
+				return proof, err
+			},
+			expectedResult: func(res interface{}, err error) {
+				require.NoError(t, err)
+
+				header, err := service.getByHeight(ctx, 1)
+				require.NoError(t, err)
+
+				proof, ok := res.(*Proof)
+				assert.True(t, ok)
+
+				verifyFn := func(t *testing.T, rawShares [][]byte, proof *Proof, nID namespace.ID) {
+					for _, row := range header.DAH.RowsRoots {
+						to := 0
+						for _, p := range *proof {
+							from := to
+							to = p.End() - p.Start() + from
+							eq := p.VerifyInclusion(sha256.New(), nID, rawShares[from:to], row)
+							if eq == true {
+								return
+							}
+						}
+					}
+					t.Fatal("could not prove the shares")
+				}
+
+				rawShares := splitBlob(t, blobs0[1])
+				verifyFn(t, rawShares, proof, blobs0[1].NamespaceID())
+			},
+		},
+	}
+
+	for _, tt := range test {
+		t.Run(tt.name, func(t *testing.T) {
+			blobs, err := tt.doFn()
+			tt.expectedResult(blobs, err)
+		})
+	}
 }
 
 // TestService_GetSingleBlobWithoutPadding creates two blobs with the same nID
@@ -129,93 +236,6 @@ func TestService_GetAllWithoutPadding(t *testing.T) {
 
 	_, err = service.GetAll(ctx, 1, blobs[0].NamespaceID(), blobs[1].NamespaceID())
 	require.NoError(t, err)
-}
-
-func TestService_GetFailed(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
-	t.Cleanup(cancel)
-
-	blobs := generateBlob(t, []int{16, 6}, false)
-
-	service := createService(ctx, t, []*Blob{blobs[0]})
-	_, err := service.Get(ctx, 1, blobs[1].NamespaceID(), blobs[1].Commitment())
-	require.Error(t, err)
-}
-
-func TestService_GetFailedWithInvalidCommitment(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
-	t.Cleanup(cancel)
-
-	blobs := generateBlob(t, []int{10, 6}, false)
-
-	service := createService(ctx, t, blobs)
-	_, err := service.Get(ctx, 1, blobs[0].NamespaceID(), blobs[1].Commitment())
-	require.Error(t, err)
-}
-
-func TestService_GetAll(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Minute*5)
-	t.Cleanup(cancel)
-
-	blobs := generateBlob(t, []int{10, 6}, false)
-
-	service := createService(ctx, t, blobs)
-
-	newBlobs, err := service.GetAll(ctx, 1, blobs[0].NamespaceID(), blobs[1].NamespaceID())
-	require.NoError(t, err)
-	assert.Len(t, newBlobs, 2)
-
-	sort.Slice(blobs, func(i, j int) bool {
-		val := bytes.Compare(blobs[i].NamespaceID(), blobs[j].NamespaceID())
-		return val <= 0
-	})
-
-	sort.Slice(newBlobs, func(i, j int) bool {
-		val := bytes.Compare(blobs[i].NamespaceID(), blobs[j].NamespaceID())
-		return val <= 0
-	})
-
-	for i := range blobs {
-		bytes.Equal(blobs[i].Commitment(), newBlobs[i].Commitment())
-	}
-}
-
-func TestService_GetProof(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
-	t.Cleanup(cancel)
-
-	blobs := generateBlob(t, []int{10, 6}, false)
-	service := createService(ctx, t, blobs)
-
-	proof, err := service.GetProof(ctx, 1, blobs[0].NamespaceID(), blobs[0].Commitment())
-	require.NoError(t, err)
-
-	header, err := service.getByHeight(ctx, 1)
-	require.NoError(t, err)
-
-	verifyFn := func(t *testing.T, rawShares [][]byte, proof *Proof, nID namespace.ID) {
-		for _, row := range header.DAH.RowsRoots {
-			to := 0
-			for _, p := range *proof {
-				from := to
-				to = p.End() - p.Start() + from
-				eq := p.VerifyInclusion(sha256.New(), nID, rawShares[from:to], row)
-				if eq == true {
-					return
-				}
-			}
-		}
-		t.Fatal("could not prove the shares")
-	}
-
-	rawShares := splitBlob(t, blobs[0])
-	verifyFn(t, rawShares, proof, blobs[0].NamespaceID())
-
-	proof, err = service.GetProof(ctx, 1, blobs[1].NamespaceID(), blobs[1].Commitment())
-	require.NoError(t, err)
-
-	rawShares = splitBlob(t, blobs[1])
-	verifyFn(t, rawShares, proof, blobs[1].NamespaceID())
 }
 
 func createService(ctx context.Context, t *testing.T, blobs []*Blob) *Service {
