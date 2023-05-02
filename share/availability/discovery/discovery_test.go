@@ -24,9 +24,9 @@ func TestDiscovery(t *testing.T) {
 	tn := newTestnet(ctx, t)
 
 	peerA := tn.discovery(Parameters{
-		PeersLimit:        nodes,
-		DiscoveryInterval: time.Millisecond * 100,
-		AdvertiseInterval: -1,
+		PeersLimit:            nodes,
+		DiscoveryRetryTimeout: time.Millisecond * 100,
+		AdvertiseInterval:     -1,
 	})
 
 	type peerUpdate struct {
@@ -41,9 +41,9 @@ func TestDiscovery(t *testing.T) {
 	discs := make([]*Discovery, nodes)
 	for i := range discs {
 		discs[i] = tn.discovery(Parameters{
-			PeersLimit:        0,
-			DiscoveryInterval: -1,
-			AdvertiseInterval: time.Millisecond * 100,
+			PeersLimit:            0,
+			DiscoveryRetryTimeout: -1,
+			AdvertiseInterval:     time.Millisecond * 100,
 		})
 
 		select {

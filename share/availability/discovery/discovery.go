@@ -18,10 +18,6 @@ import (
 
 var log = logging.Logger("share/discovery")
 
-// if findPeers don't find enough peers, it will retry after findPeersFastRetryDelay
-// delay
-var findPeersFastRetryDelay = time.Second
-
 const (
 	topic = "full"
 
@@ -41,9 +37,10 @@ type Parameters struct {
 	// PeersLimit defines the soft limit of FNs to connect to via discovery.
 	// Set 0 to disable.
 	PeersLimit int
-	// DiscoveryInterval is an interval between discovery sessions.
+	// DiscoveryRetryTimeout is an interval between discovery attempts
+	// when we discovered lower than PeersLimit peers.
 	// Set -1 to disable.
-	DiscoveryInterval time.Duration
+	DiscoveryRetryTimeout time.Duration
 	// AdvertiseInterval is a interval between advertising sessions.
 	// Set -1 to disable.
 	// NOTE: only full and bridge can advertise themselves.
@@ -52,9 +49,9 @@ type Parameters struct {
 
 func DefaultParameters() Parameters {
 	return Parameters{
-		PeersLimit:        5,
-		DiscoveryInterval: time.Minute,
-		AdvertiseInterval: time.Hour * 8,
+		PeersLimit:            5,
+		DiscoveryRetryTimeout: time.Second * 1,
+		AdvertiseInterval:     time.Hour * 8,
 	}
 }
 
@@ -76,6 +73,8 @@ type Discovery struct {
 	connectingLk sync.Mutex
 	connecting   map[peer.ID]context.CancelFunc
 
+	triggerDisq chan struct{}
+
 	cancel context.CancelFunc
 }
 
@@ -95,6 +94,7 @@ func NewDiscovery(
 		connector:      newBackoffConnector(h, defaultBackoffFactory),
 		onUpdatedPeers: func(peer.ID, bool) {},
 		connecting:     make(map[peer.ID]context.CancelFunc),
+		triggerDisq:    make(chan struct{}, 1),
 	}
 }
 
@@ -116,6 +116,13 @@ func (d *Discovery) WithOnPeersUpdate(f OnUpdatedPeers) {
 	d.onUpdatedPeers = func(peerID peer.ID, isAdded bool) {
 		prev(peerID, isAdded)
 		f(peerID, isAdded)
+	}
+}
+
+func (d *Discovery) triggerDiscovery() {
+	select {
+	case d.triggerDisq <- struct{}{}:
+	default:
 	}
 }
 
@@ -178,8 +185,8 @@ func (d *Discovery) handlePeerFound(ctx context.Context, cancelFind context.Canc
 // It starts peer discovery every 30 seconds until peer cache reaches peersLimit.
 // Discovery is restarted if any previously connected peers disconnect.
 func (d *Discovery) ensurePeers(ctx context.Context) {
-	if d.params.PeersLimit == 0 || d.params.DiscoveryInterval == -1 {
-		log.Warn("peers limit is set to 0 and/or discovery interval is set to -1. Skipping discovery...")
+	if d.params.PeersLimit == 0 {
+		log.Warn("peers limit is set to 0. Skipping discovery...")
 		return
 	}
 	// subscribe on EventBus in order to catch disconnected peers and restart
@@ -217,6 +224,10 @@ func (d *Discovery) ensurePeers(ctx context.Context) {
 					d.onUpdatedPeers(evnt.Peer, false)
 					log.Debugw("removed peer from the peer set",
 						"peer", evnt.Peer, "status", evnt.Connectedness.String())
+
+					if d.set.Size() < d.set.Limit() {
+						d.triggerDiscovery()
+					}
 				case network.Connected:
 					d.addPeerToSet(evnt.Peer)
 				}
@@ -225,21 +236,24 @@ func (d *Discovery) ensurePeers(ctx context.Context) {
 	}()
 	go d.connector.GC(ctx)
 
-	t := time.NewTicker(d.params.DiscoveryInterval)
+	t := time.NewTicker(d.params.DiscoveryRetryTimeout)
 	defer t.Stop()
 	for {
-		d.findPeers(ctx)
-		if d.set.Size() < d.set.Limit() {
-			// rerun discovery is amount of peers didn't reach the limit
-			t.Reset(findPeersFastRetryDelay)
-		} else {
-			t.Reset(d.params.DiscoveryInterval)
-		}
-
 		// drain all previous ticks from channel
 		drainChannel(t.C)
 		select {
 		case <-t.C:
+			found := d.findPeers(ctx)
+			if !found {
+				// rerun discovery if amount of peers didn't reach the limit
+				continue
+			}
+		case <-ctx.Done():
+			return
+		}
+
+		select {
+		case <-d.triggerDisq:
 		case <-ctx.Done():
 			return
 		}
@@ -279,12 +293,14 @@ func (d *Discovery) addPeerToSet(peerID peer.ID) bool {
 	return true
 }
 
-func (d *Discovery) findPeers(ctx context.Context) {
-	if d.set.Size() >= d.set.Limit() {
-		log.Debugw("reached soft peer limit, skipping discovery", "size", d.set.Size())
-		return
+func (d *Discovery) findPeers(ctx context.Context) bool {
+	size := d.set.Size()
+	want := d.set.Limit() - size
+	if want == 0 {
+		log.Debugw("reached soft peer limit, skipping discovery", "size", size)
+		return true
 	}
-	log.Infow("below soft peer limit, discovering peers", "remaining", d.set.Limit()-d.set.Size())
+	log.Infow("below soft peer limit, discovering peers", "remaining", want)
 
 	// we use errgroup as it provide limits
 	var wg errgroup.Group
@@ -299,7 +315,7 @@ func (d *Discovery) findPeers(ctx context.Context) {
 	peers, err := d.disc.FindPeers(findCtx, topic)
 	if err != nil {
 		log.Error("unable to start discovery", "err", err)
-		return
+		return false
 	}
 
 	ticker := time.NewTicker(findPeersStuckWarnDelay)
@@ -311,15 +327,15 @@ func (d *Discovery) findPeers(ctx context.Context) {
 		drainChannel(ticker.C)
 		select {
 		case <-findCtx.Done():
-			log.Debugw("found enough peers", "amount", d.set.Size())
-			return
+			log.Debugw("found wanted peers", "wanted", want)
+			return int(amount.Load()) == want
 		case <-ticker.C:
 			log.Warn("wasn't able to find new peers for long time")
 			continue
 		case p, ok := <-peers:
 			if !ok {
 				log.Debugw("discovery channel closed", "find_is_canceled", findCtx.Err() != nil)
-				return
+				return int(amount.Load()) == want
 			}
 
 			peer := p
