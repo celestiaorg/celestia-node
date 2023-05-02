@@ -6,7 +6,7 @@ import (
 )
 
 func writeError(w http.ResponseWriter, statusCode int, endpoint string, err error) {
-	log.Errorw("serving request", "endpoint", endpoint, "err", err)
+	log.Debugw("serving request", "endpoint", endpoint, "err", err)
 
 	w.WriteHeader(statusCode)
 	errBody, jerr := json.Marshal(err.Error())
