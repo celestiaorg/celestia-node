@@ -56,7 +56,7 @@ func TestDiscovery(t *testing.T) {
 		}
 	}
 
-	assert.Equal(t, nodes, peerA.set.Size())
+	assert.EqualValues(t, nodes, peerA.set.Size())
 
 	for _, disc := range discs {
 		peerID := disc.host.ID()
@@ -72,7 +72,7 @@ func TestDiscovery(t *testing.T) {
 		}
 	}
 
-	assert.Equal(t, 0, peerA.set.Size())
+	assert.EqualValues(t, 0, peerA.set.Size())
 }
 
 type testnet struct {

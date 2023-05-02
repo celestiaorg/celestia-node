@@ -34,7 +34,7 @@ var waitF = func(ttl time.Duration) time.Duration {
 type Parameters struct {
 	// PeersLimit defines the soft limit of FNs to connect to via discovery.
 	// Set 0 to disable.
-	PeersLimit int
+	PeersLimit uint
 	// DiscoveryRetryTimeout is an interval between discovery attempts
 	// when we discovered lower than PeersLimit peers.
 	// Set -1 to disable.
@@ -256,7 +256,7 @@ func (d *Discovery) findPeers(ctx context.Context) bool {
 	// we use errgroup as it provide limits
 	var wg errgroup.Group
 	// limit to minimize chances of overreaching the limit
-	wg.SetLimit(d.set.Limit())
+	wg.SetLimit(int(d.set.Limit()))
 	defer wg.Wait() //nolint:errcheck
 
 	// stop discovery when we are done
@@ -284,7 +284,7 @@ func (d *Discovery) findPeers(ctx context.Context) bool {
 		case p, ok := <-peers:
 			if !ok {
 				log.Debugw("discovery channel closed", "find_is_canceled", findCtx.Err() != nil)
-				return d.set.Size() == d.set.Limit()
+				return d.set.Size() >= d.set.Limit()
 			}
 
 			peer := p
