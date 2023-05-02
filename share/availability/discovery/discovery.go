@@ -248,15 +248,20 @@ func (d *Discovery) addPeerToSet(peerID peer.ID) bool {
 	if !ok {
 		return false
 	}
+	defer func() {
+		d.connectingLk.Lock()
+		delete(d.connecting, peerID)
+		d.connectingLk.Unlock()
+	}()
 
 	if !d.set.Add(peerID) {
-		log.Debug("skip: peer is already in discovery set")
+		log.Debugw("peer is already in discovery set", "peer", peerID)
 		return false
 	}
 
 	// and notify our subscribers
 	d.onUpdatedPeers(peerID, true)
-	log.Debugw("added peer to set", "id", peerID)
+	log.Debugw("added peer to set", "peer", peerID)
 
 	// first do Add and only after check the limit
 	// so that peer set represents the actual number of connections we made
@@ -266,9 +271,6 @@ func (d *Discovery) addPeerToSet(peerID peer.ID) bool {
 		cancelFind()
 	}
 
-	d.connectingLk.Lock()
-	delete(d.connecting, peerID)
-	d.connectingLk.Unlock()
 	return true
 }
 
