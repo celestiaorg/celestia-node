@@ -2,7 +2,6 @@ package discovery
 
 import (
 	"context"
-	"sync/atomic"
 	"time"
 
 	logging "github.com/ipfs/go-log/v2"
@@ -272,7 +271,6 @@ func (d *Discovery) findPeers(ctx context.Context) bool {
 
 	ticker := time.NewTicker(findPeersStuckWarnDelay)
 	defer ticker.Stop()
-	var amount atomic.Int32
 	for {
 		ticker.Reset(findPeersStuckWarnDelay)
 		// drain all previous ticks from channel
@@ -286,7 +284,7 @@ func (d *Discovery) findPeers(ctx context.Context) bool {
 		case p, ok := <-peers:
 			if !ok {
 				log.Debugw("discovery channel closed", "find_is_canceled", findCtx.Err() != nil)
-				return int(amount.Load()) == want
+				return d.set.Size() == d.set.Limit()
 			}
 
 			peer := p
@@ -302,13 +300,13 @@ func (d *Discovery) findPeers(ctx context.Context) bool {
 					return nil
 				}
 
-				amount := amount.Add(1)
-				log.Debugw("found peer", "peer", peer.ID, "found_amount", amount)
-				if int(amount) < want {
+				size := d.set.Size()
+				log.Debugw("found peer", "peer", peer.ID, "found_amount", size)
+				if size < d.set.Limit() {
 					return nil
 				}
 
-				log.Infow("discovered wanted peers", "amount", amount)
+				log.Infow("discovered wanted peers", "amount", size)
 				findCancel()
 				return nil
 			})
