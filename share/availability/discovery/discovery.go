@@ -227,10 +227,11 @@ func (d *Discovery) ensurePeers(ctx context.Context) {
 		d.findPeers(ctx)
 		if d.set.Size() < d.set.Limit() {
 			// rerun discovery is amount of peers didn't reach the limit
-			continue
+			t.Reset(time.Second)
+		} else {
+			t.Reset(d.params.DiscoveryInterval)
 		}
 
-		t.Reset(d.params.DiscoveryInterval)
 		// drain all previous ticks from channel
 		drainChannel(t.C)
 		select {
