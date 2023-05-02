@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/libp2p/go-libp2p/core/host"
+	"github.com/libp2p/go-libp2p/core/network"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/libp2p/go-libp2p/core/protocol"
 
@@ -23,8 +24,10 @@ import (
 
 // Client is responsible for requesting EDSs for blocksync over the ShrEx/EDS protocol.
 type Client struct {
+	params     *Parameters
 	protocolID protocol.ID
-	host       host.Host
+
+	host host.Host
 }
 
 // NewClient creates a new ShrEx/EDS client.
@@ -34,6 +37,7 @@ func NewClient(params *Parameters, host host.Host) (*Client, error) {
 	}
 
 	return &Client{
+		params:     params,
 		host:       host,
 		protocolID: p2p.ProtocolID(params.NetworkID(), protocolString),
 	}, nil
@@ -80,11 +84,7 @@ func (c *Client) doRequest(
 		return nil, fmt.Errorf("failed to open stream: %w", err)
 	}
 
-	if dl, ok := ctx.Deadline(); ok {
-		if err = stream.SetDeadline(dl); err != nil {
-			log.Debugw("client: error setting deadline: %s", "err", err)
-		}
-	}
+	c.setStreamDeadlines(ctx, stream)
 
 	req := &pb.EDSRequest{Hash: dataHash}
 
@@ -129,5 +129,32 @@ func (c *Client) doRequest(
 		fallthrough
 	default:
 		return nil, p2p.ErrInvalidResponse
+	}
+}
+
+func (c *Client) setStreamDeadlines(ctx context.Context, stream network.Stream) {
+	// set read/write deadline to use context deadline if it exists
+	if dl, ok := ctx.Deadline(); ok {
+		err := stream.SetDeadline(dl)
+		if err == nil {
+			return
+		}
+		log.Debugw("client: setting deadline: %s", "err", err)
+	}
+
+	// if deadline not set, client read deadline defaults to server write deadline
+	if c.params.ServerWriteTimeout != 0 {
+		err := stream.SetReadDeadline(time.Now().Add(c.params.ServerWriteTimeout))
+		if err != nil {
+			log.Debugw("client: setting read deadline", "err", err)
+		}
+	}
+
+	// if deadline not set, client write deadline defaults to server read deadline
+	if c.params.ServerReadTimeout != 0 {
+		err := stream.SetWriteDeadline(time.Now().Add(c.params.ServerReadTimeout))
+		if err != nil {
+			log.Debugw("client: setting write deadline", "err", err)
+		}
 	}
 }

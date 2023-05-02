@@ -195,7 +195,7 @@ func (p *pool) checkHasPeers() {
 	}
 }
 
-func (p *pool) size() int {
+func (p *pool) len() int {
 	p.m.RLock()
 	defer p.m.RUnlock()
 	return p.activeCount

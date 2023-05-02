@@ -67,6 +67,9 @@ func (sg *ShrexGetter) GetEDS(ctx context.Context, root *share.Root) (*rsmt2d.Ex
 		err     error
 	)
 	for {
+		if ctx.Err() != nil {
+			return nil, ctx.Err()
+		}
 		attempt++
 		start := time.Now()
 		peer, setStatus, getErr := sg.peerManager.Peer(ctx, root.Hash())
@@ -120,6 +123,9 @@ func (sg *ShrexGetter) GetSharesByNamespace(
 		err     error
 	)
 	for {
+		if ctx.Err() != nil {
+			return nil, ctx.Err()
+		}
 		attempt++
 		start := time.Now()
 		peer, setStatus, getErr := sg.peerManager.Peer(ctx, root.Hash())
@@ -138,7 +144,7 @@ func (sg *ShrexGetter) GetSharesByNamespace(
 		cancel()
 		switch {
 		case getErr == nil:
-			setStatus(peers.ResultSuccess)
+			setStatus(peers.ResultNoop)
 			return nd, nil
 		case errors.Is(getErr, context.DeadlineExceeded),
 			errors.Is(getErr, context.Canceled):

@@ -2,6 +2,7 @@ package gateway
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"strconv"
 
@@ -67,6 +68,19 @@ func (h *Handler) performGetHeaderRequest(
 	height, err := strconv.Atoi(heightStr)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, endpoint, err)
+		return nil, err
+	}
+	//TODO: change this to NetworkHead once the adjacency in the store is fixed.
+	head, err := h.header.LocalHead(r.Context())
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, heightAvailabilityEndpoint, err)
+		return nil, err
+	}
+	if headHeight := int(head.Height()); headHeight < height {
+		err = fmt.Errorf(
+			"current head local chain head: %d is lower than requested height: %d"+
+				" give header sync some time and retry later", headHeight, height)
+		writeError(w, http.StatusServiceUnavailable, endpoint, err)
 		return nil, err
 	}
 	// perform request
