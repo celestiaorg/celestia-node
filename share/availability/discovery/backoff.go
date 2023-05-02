@@ -11,8 +11,8 @@ import (
 	"github.com/libp2p/go-libp2p/p2p/discovery/backoff"
 )
 
-// gcInterval is a default period after which disconnected peers will be removed from cache
 const (
+	// gcInterval is a default period after which disconnected peers will be removed from cache
 	gcInterval = time.Minute
 	// connectTimeout is the timeout used for dialing peers and discovering peer addresses.
 	connectTimeout = time.Minute * 2
