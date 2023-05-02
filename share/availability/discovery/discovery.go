@@ -18,6 +18,10 @@ import (
 
 var log = logging.Logger("share/discovery")
 
+// if findPeers don't find enough peers, it will retry after findPeersFastRetryDelay
+// delay
+var findPeersFastRetryDelay = time.Second
+
 const (
 	topic = "full"
 
@@ -227,7 +231,7 @@ func (d *Discovery) ensurePeers(ctx context.Context) {
 		d.findPeers(ctx)
 		if d.set.Size() < d.set.Limit() {
 			// rerun discovery is amount of peers didn't reach the limit
-			t.Reset(time.Second)
+			t.Reset(findPeersFastRetryDelay)
 		} else {
 			t.Reset(d.params.DiscoveryInterval)
 		}
