@@ -3,6 +3,7 @@ package discovery
 import (
 	"context"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	logging "github.com/ipfs/go-log/v2"
@@ -116,28 +117,28 @@ func (d *Discovery) WithOnPeersUpdate(f OnUpdatedPeers) {
 
 // handlePeersFound receives peers and tries to establish a connection with them.
 // Peer will be added to PeerCache if connection succeeds.
-func (d *Discovery) handlePeerFound(ctx context.Context, cancelFind context.CancelFunc, peer peer.AddrInfo) {
+func (d *Discovery) handlePeerFound(ctx context.Context, cancelFind context.CancelFunc, peer peer.AddrInfo) bool {
 	log := log.With("peer", peer.ID)
 	switch {
 	case peer.ID == d.host.ID():
 		log.Debug("skip handle: self discovery")
-		return
+		return false
 	case len(peer.Addrs) == 0:
 		log.Debug("skip handle: empty address list")
-		return
+		return false
 	case d.set.Size() >= d.set.Limit():
 		log.Debug("skip handle: enough peers found")
-		return
+		return false
 	case d.connector.HasBackoff(peer.ID):
 		log.Debug("skip handle: backoff")
-		return
+		return false
 	}
 
 	switch d.host.Network().Connectedness(peer.ID) {
 	case network.Connected:
 		if !d.set.Add(peer.ID) {
 			log.Debug("skip handle: peer is already in discovery set")
-			return
+			return false
 		}
 		// notify our subscribers
 		d.onUpdatedPeers(peer.ID, true)
@@ -154,7 +155,7 @@ func (d *Discovery) handlePeerFound(ctx context.Context, cancelFind context.Canc
 		if _, ok := d.connecting[peer.ID]; ok {
 			d.connectingLk.Unlock()
 			log.Debug("skip handle: connecting to the peer in another routine")
-			return
+			return false
 		}
 		d.connecting[peer.ID] = cancelFind
 		d.connectingLk.Unlock()
@@ -165,7 +166,7 @@ func (d *Discovery) handlePeerFound(ctx context.Context, cancelFind context.Canc
 			delete(d.connecting, peer.ID)
 			d.connectingLk.Unlock()
 			log.Debugw("unable to connect", "err", err)
-			return
+			return false
 		}
 		log.Debug("started connecting to the peer")
 	}
@@ -175,6 +176,7 @@ func (d *Discovery) handlePeerFound(ctx context.Context, cancelFind context.Canc
 	//  In the future, we should design a protocol that keeps bidirectional agreement on whether
 	//  connection should be kept or not, similar to mesh link in GossipSub.
 	d.host.ConnManager().Protect(peer.ID, topic)
+	return true
 }
 
 // ensurePeers ensures we always have 'peerLimit' connected peers.
@@ -298,7 +300,7 @@ func (d *Discovery) findPeers(ctx context.Context) {
 
 	ticker := time.NewTicker(findPeersStuckWarnDelay)
 	defer ticker.Stop()
-	var amount int
+	var amount atomic.Int32
 	for {
 		ticker.Reset(findPeersStuckWarnDelay)
 		// drain all previous ticks from channel
@@ -316,9 +318,7 @@ func (d *Discovery) findPeers(ctx context.Context) {
 				return
 			}
 
-			amount++
 			peer := p
-			log.Debugw("found peer", "found_amount", amount)
 			wg.Go(func() error {
 				if findCtx.Err() != nil {
 					log.Debug("find has been canceled, skip peer")
@@ -326,7 +326,10 @@ func (d *Discovery) findPeers(ctx context.Context) {
 				}
 				// pass the cancel so that we cancel FindPeers when we connected to enough peers
 				// we don't pass findCtx so that we don't cancel outgoing connections
-				d.handlePeerFound(ctx, findCancel, peer)
+				if d.handlePeerFound(ctx, findCancel, peer) {
+					amount.Add(1)
+					log.Debugw("found peer", "peer", peer.ID, "found_amount", amount.Load())
+				}
 				return nil
 			})
 		}
