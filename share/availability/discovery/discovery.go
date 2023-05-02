@@ -157,7 +157,6 @@ func (d *Discovery) handlePeerFound(ctx context.Context, peer peer.AddrInfo) boo
 		log.Debugw("peer is already in discovery set", "peer", peer.ID)
 		return false
 	}
-
 	d.onUpdatedPeers(peer.ID, true)
 	log.Debugw("added peer to set", "peer", peer.ID)
 
@@ -197,6 +196,7 @@ func (d *Discovery) ensurePeers(ctx context.Context) {
 				return
 			case e, ok := <-sub.Out():
 				if !ok {
+					log.Error("connection subscription was closed unexpectedly")
 					return
 				}
 

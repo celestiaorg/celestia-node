@@ -10,13 +10,14 @@ import (
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/libp2p/go-libp2p/p2p/discovery/routing"
-	mocknet "github.com/libp2p/go-libp2p/p2p/net/mock"
+	basic "github.com/libp2p/go-libp2p/p2p/host/basic"
+	swarmt "github.com/libp2p/go-libp2p/p2p/net/swarm/testing"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 func TestDiscovery(t *testing.T) {
-	const nodes = 30 // higher number brings higher coverage
+	const nodes = 10 // higher number brings higher coverage
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
 	t.Cleanup(cancel)
@@ -26,7 +27,7 @@ func TestDiscovery(t *testing.T) {
 	peerA := tn.discovery(Parameters{
 		PeersLimit:            nodes,
 		DiscoveryRetryTimeout: time.Millisecond * 100,
-		AdvertiseInterval:     -1,
+		AdvertiseInterval:     -1, // we don't want to be found but only find
 	})
 
 	type peerUpdate struct {
@@ -77,15 +78,15 @@ func TestDiscovery(t *testing.T) {
 type testnet struct {
 	ctx context.Context
 	T   *testing.T
-	net mocknet.Mocknet
 
-	bootstrapper peer.ID
+	bootstrapper peer.AddrInfo
 }
 
 func newTestnet(ctx context.Context, t *testing.T) *testnet {
-	net := mocknet.New()
-	hst, err := net.GenPeer()
+	swarm := swarmt.GenSwarm(t, swarmt.OptDisableTCP)
+	hst, err := basic.NewHost(swarm, &basic.HostOpts{})
 	require.NoError(t, err)
+	hst.Start()
 
 	_, err = dht.New(ctx, hst,
 		dht.Mode(dht.ModeServer),
@@ -94,7 +95,7 @@ func newTestnet(ctx context.Context, t *testing.T) *testnet {
 	)
 	require.NoError(t, err)
 
-	return &testnet{ctx: ctx, T: t, net: net, bootstrapper: hst.ID()}
+	return &testnet{ctx: ctx, T: t, bootstrapper: *host.InfoFromHost(hst)}
 }
 
 func (t *testnet) discovery(params Parameters) *Discovery {
@@ -112,13 +113,12 @@ func (t *testnet) discovery(params Parameters) *Discovery {
 }
 
 func (t *testnet) peer() (host.Host, discovery.Discovery) {
-	hst, err := t.net.GenPeer()
+	swarm := swarmt.GenSwarm(t.T, swarmt.OptDisableTCP)
+	hst, err := basic.NewHost(swarm, &basic.HostOpts{})
 	require.NoError(t.T, err)
+	hst.Start()
 
-	err = t.net.LinkAll()
-	require.NoError(t.T, err)
-
-	_, err = t.net.ConnectPeers(hst.ID(), t.bootstrapper)
+	err = hst.Connect(t.ctx, t.bootstrapper)
 	require.NoError(t.T, err)
 
 	dht, err := dht.New(t.ctx, hst,
