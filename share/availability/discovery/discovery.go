@@ -208,7 +208,7 @@ func (d *Discovery) ensurePeers(ctx context.Context) {
 					}
 
 					d.host.ConnManager().Unprotect(evnt.Peer, topic)
-					d.connector.ResetBackoff(evnt.Peer)
+					d.connector.Backoff(evnt.Peer)
 					d.set.Remove(evnt.Peer)
 					d.onUpdatedPeers(evnt.Peer, false)
 					log.Debugw("removed peer from the peer set",
