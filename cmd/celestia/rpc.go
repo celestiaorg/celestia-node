@@ -92,7 +92,7 @@ func parseParams(method string, params []string) []interface{} {
 	switch method {
 	case "GetSharesByNamespace":
 		// 1. Share Root
-		root, err := parseJson(params[0])
+		root, err := parseJSON(params[0])
 		if err != nil {
 			panic(fmt.Errorf("couldn't parse share root as json: %v", err))
 		}
@@ -223,7 +223,7 @@ func parseParams(method string, params []string) []interface{} {
 
 	for i, param := range params {
 		if param[0] == '{' || param[0] == '[' {
-			rawJSON, err := parseJson(param)
+			rawJSON, err := parseJSON(param)
 			if err != nil {
 				parsedParams[i] = param
 			} else {
@@ -322,7 +322,7 @@ func parseSignatureForHelpstring(methodSig reflect.StructField) string {
 	return simplifiedSignature
 }
 
-func parseJson(param string) (json.RawMessage, error) {
+func parseJSON(param string) (json.RawMessage, error) {
 	var raw json.RawMessage
 	err := json.Unmarshal([]byte(param), &raw)
 	return raw, err
