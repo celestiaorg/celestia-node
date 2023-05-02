@@ -34,7 +34,8 @@ const (
 	indexPath      = "/index/"
 	transientsPath = "/transients/"
 
-	defaultGCInterval = time.Hour
+	defaultGCInterval  = time.Hour
+	maxRecoverAttempts = 1
 )
 
 var ErrNotFound = errors.New("eds not found in store")
@@ -46,8 +47,9 @@ var ErrNotFound = errors.New("eds not found in store")
 type Store struct {
 	cancel context.CancelFunc
 
-	dgstr  *dagstore.DAGStore
-	mounts *mount.Registry
+	dgstr          *dagstore.DAGStore
+	mounts         *mount.Registry
+	dgstrFailureCh chan dagstore.ShardResult
 
 	cache *blockstoreCache
 	bs    bstore.Blockstore
@@ -79,6 +81,7 @@ func NewStore(basepath string, ds datastore.Batching) (*Store, error) {
 		return nil, fmt.Errorf("failed to create index repository: %w", err)
 	}
 
+	failureCh := make(chan dagstore.ShardResult, 1)
 	invertedRepo := newSimpleInvertedIndex(ds)
 	dagStore, err := dagstore.NewDAGStore(
 		dagstore.Config{
@@ -87,6 +90,7 @@ func NewStore(basepath string, ds datastore.Batching) (*Store, error) {
 			Datastore:     ds,
 			MountRegistry: r,
 			TopLevelIndex: invertedRepo,
+			FailureCh:     failureCh,
 		},
 	)
 	if err != nil {
@@ -116,10 +120,12 @@ func (s *Store) Start(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+
 	// start Store only if DagStore succeeds
 	ctx, cancel := context.WithCancel(context.Background())
 	s.cancel = cancel
 	go s.gc(ctx)
+	go dagstore.RecoverImmediately(ctx, s.dgstr, s.dgstrFailureCh, 1, nil)
 	return nil
 }
 
