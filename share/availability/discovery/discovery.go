@@ -2,7 +2,6 @@ package discovery
 
 import (
 	"context"
-	"sync"
 	"sync/atomic"
 	"time"
 
@@ -70,9 +69,6 @@ type Discovery struct {
 	connector      *backoffConnector
 	onUpdatedPeers OnUpdatedPeers
 
-	connectingLk sync.Mutex
-	connecting   map[peer.ID]context.CancelFunc
-
 	triggerDisq chan struct{}
 
 	cancel context.CancelFunc
@@ -93,8 +89,7 @@ func NewDiscovery(
 		disc:           d,
 		connector:      newBackoffConnector(h, defaultBackoffFactory),
 		onUpdatedPeers: func(peer.ID, bool) {},
-		connecting:     make(map[peer.ID]context.CancelFunc),
-		triggerDisq:    make(chan struct{}, 1),
+		triggerDisq:    make(chan struct{}),
 	}
 }
 
@@ -128,7 +123,7 @@ func (d *Discovery) triggerDiscovery() {
 
 // handlePeersFound receives peers and tries to establish a connection with them.
 // Peer will be added to PeerCache if connection succeeds.
-func (d *Discovery) handlePeerFound(ctx context.Context, cancelFind context.CancelFunc, peer peer.AddrInfo) bool {
+func (d *Discovery) handlePeerFound(ctx context.Context, peer peer.AddrInfo) bool {
 	log := log.With("peer", peer.ID)
 	switch {
 	case peer.ID == d.host.ID():
@@ -145,33 +140,26 @@ func (d *Discovery) handlePeerFound(ctx context.Context, cancelFind context.Canc
 		return false
 	}
 
-	d.connectingLk.Lock()
-	if _, ok := d.connecting[peer.ID]; ok {
-		d.connectingLk.Unlock()
-		log.Debug("skip handle: connecting to the peer in another routine")
-		return false
-	}
-	d.connecting[peer.ID] = cancelFind
-	d.connectingLk.Unlock()
-
 	switch d.host.Network().Connectedness(peer.ID) {
 	case network.Connected:
-		if added := d.addPeerToSet(peer.ID); !added {
-			return added
-		}
-		// we still have to backoff the connected peer
-		d.connector.Backoff(peer.ID)
+		d.connector.Backoff(peer.ID) // we still have to backoff the connected peer
 	case network.NotConnected:
 		err := d.connector.Connect(ctx, peer)
 		if err != nil {
-			d.connectingLk.Lock()
-			delete(d.connecting, peer.ID)
-			d.connectingLk.Unlock()
 			log.Debugw("unable to connect", "err", err)
 			return false
 		}
-		log.Debug("started connecting to the peer")
+	default:
+		panic("unknown connectedness")
 	}
+
+	if !d.set.Add(peer.ID) {
+		log.Debugw("peer is already in discovery set", "peer", peer.ID)
+		return false
+	}
+
+	d.onUpdatedPeers(peer.ID, true)
+	log.Debugw("added peer to set", "peer", peer.ID)
 
 	// tag to protect peer from being killed by ConnManager
 	// NOTE: This is does not protect from remote killing the connection.
@@ -211,9 +199,8 @@ func (d *Discovery) ensurePeers(ctx context.Context) {
 				if !ok {
 					return
 				}
-				evnt := e.(event.EvtPeerConnectednessChanged)
-				switch evnt.Connectedness {
-				case network.NotConnected:
+
+				if evnt := e.(event.EvtPeerConnectednessChanged); evnt.Connectedness == network.NotConnected {
 					if !d.set.Contains(evnt.Peer) {
 						continue
 					}
@@ -228,8 +215,6 @@ func (d *Discovery) ensurePeers(ctx context.Context) {
 					if d.set.Size() < d.set.Limit() {
 						d.triggerDiscovery()
 					}
-				case network.Connected:
-					d.addPeerToSet(evnt.Peer)
 				}
 			}
 		}
@@ -260,39 +245,6 @@ func (d *Discovery) ensurePeers(ctx context.Context) {
 	}
 }
 
-func (d *Discovery) addPeerToSet(peerID peer.ID) bool {
-	d.connectingLk.Lock()
-	cancelFind, ok := d.connecting[peerID]
-	d.connectingLk.Unlock()
-	if !ok {
-		return false
-	}
-	defer func() {
-		d.connectingLk.Lock()
-		delete(d.connecting, peerID)
-		d.connectingLk.Unlock()
-	}()
-
-	if !d.set.Add(peerID) {
-		log.Debugw("peer is already in discovery set", "peer", peerID)
-		return false
-	}
-
-	// and notify our subscribers
-	d.onUpdatedPeers(peerID, true)
-	log.Debugw("added peer to set", "peer", peerID)
-
-	// first do Add and only after check the limit
-	// so that peer set represents the actual number of connections we made
-	// which can go slightly over peersLimit
-	if d.set.Size() >= d.set.Limit() {
-		log.Infow("soft peer limit reached", "count", d.set.Size())
-		cancelFind()
-	}
-
-	return true
-}
-
 func (d *Discovery) findPeers(ctx context.Context) bool {
 	size := d.set.Size()
 	want := d.set.Limit() - size
@@ -300,7 +252,7 @@ func (d *Discovery) findPeers(ctx context.Context) bool {
 		log.Debugw("reached soft peer limit, skipping discovery", "size", size)
 		return true
 	}
-	log.Infow("below soft peer limit, discovering peers", "remaining", want)
+	log.Infow("discovering peers", "want", want)
 
 	// we use errgroup as it provide limits
 	var wg errgroup.Group
@@ -327,8 +279,7 @@ func (d *Discovery) findPeers(ctx context.Context) bool {
 		drainChannel(ticker.C)
 		select {
 		case <-findCtx.Done():
-			log.Debugw("found wanted peers", "wanted", want)
-			return int(amount.Load()) == want
+			return true
 		case <-ticker.C:
 			log.Warn("wasn't able to find new peers for long time")
 			continue
@@ -344,12 +295,21 @@ func (d *Discovery) findPeers(ctx context.Context) bool {
 					log.Debug("find has been canceled, skip peer")
 					return nil
 				}
-				// pass the cancel so that we cancel FindPeers when we connected to enough peers
-				// we don't pass findCtx so that we don't cancel outgoing connections
-				if d.handlePeerFound(ctx, findCancel, peer) {
-					amount.Add(1)
-					log.Debugw("found peer", "peer", peer.ID, "found_amount", amount.Load())
+
+				// we don't pass findCtx so that we don't cancel in progress connections
+				// that are likely to be valuable
+				if !d.handlePeerFound(ctx, peer) {
+					return nil
 				}
+
+				amount := amount.Add(1)
+				log.Debugw("found peer", "peer", peer.ID, "found_amount", amount)
+				if int(amount) < want {
+					return nil
+				}
+
+				log.Infow("discovered wanted peers", "amount", amount)
+				findCancel()
 				return nil
 			})
 		}

@@ -91,6 +91,7 @@ func (b *backoffConnector) HasBackoff(p peer.ID) bool {
 	return false
 }
 
+// GC is a perpetual GCing loop.
 func (b *backoffConnector) GC(ctx context.Context) {
 	ticker := time.NewTicker(gcInterval)
 	for {
