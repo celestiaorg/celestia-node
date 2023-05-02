@@ -286,7 +286,7 @@ func (d *Discovery) findPeers(ctx context.Context) {
 	}
 	log.Infow("below soft peer limit, discovering peers", "remaining", d.set.Limit()-d.set.Size())
 
-	// we use errgroup as it obeys the context
+	// we use errgroup as it provide limits
 	var wg errgroup.Group
 	// limit to minimize chances of overreaching the limit
 	wg.SetLimit(d.set.Limit())
