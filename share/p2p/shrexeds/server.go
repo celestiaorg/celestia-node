@@ -63,11 +63,7 @@ func (s *Server) Stop(context.Context) error {
 }
 
 func (s *Server) observeRateLimitedRequests(ctx context.Context) {
-	var numRateLimited int64
-	if s.metrics != nil {
-		numRateLimited = s.middleware.NumRateLimited.Swap(0)
-	}
-
+	numRateLimited := s.middleware.DrainCounter()
 	if numRateLimited > 0 {
 		s.metrics.ObserveRequests(ctx, numRateLimited, p2p.StatusRateLimited)
 	}
