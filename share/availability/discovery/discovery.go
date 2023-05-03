@@ -126,19 +126,19 @@ func (d *Discovery) triggerDiscovery() {
 // handlePeersFound receives peers and tries to establish a connection with them.
 // Peer will be added to PeerCache if connection succeeds.
 func (d *Discovery) handlePeerFound(ctx context.Context, peer peer.AddrInfo) bool {
-	log := log.With("peer", peer.ID)
+	logger := log.With("peer", peer.ID)
 	switch {
 	case peer.ID == d.host.ID():
-		log.Debug("skip handle: self discovery")
+		logger.Debug("skip handle: self discovery")
 		return false
 	case len(peer.Addrs) == 0:
-		log.Debug("skip handle: empty address list")
+		logger.Debug("skip handle: empty address list")
 		return false
 	case d.set.Size() >= d.set.Limit():
-		log.Debug("skip handle: enough peers found")
+		logger.Debug("skip handle: enough peers found")
 		return false
 	case d.connector.HasBackoff(peer.ID):
-		log.Debug("skip handle: backoff")
+		logger.Debug("skip handle: backoff")
 		return false
 	}
 
@@ -148,7 +148,7 @@ func (d *Discovery) handlePeerFound(ctx context.Context, peer peer.AddrInfo) boo
 	case network.NotConnected:
 		err := d.connector.Connect(ctx, peer)
 		if err != nil {
-			log.Debugw("unable to connect", "err", err)
+			logger.Debugw("unable to connect", "err", err)
 			return false
 		}
 	default:
@@ -156,11 +156,11 @@ func (d *Discovery) handlePeerFound(ctx context.Context, peer peer.AddrInfo) boo
 	}
 
 	if !d.set.Add(peer.ID) {
-		log.Debug("peer is already in discovery set")
+		logger.Debug("peer is already in discovery set")
 		return false
 	}
 	d.onUpdatedPeers(peer.ID, true)
-	log.Debug("added peer to set")
+	logger.Debug("added peer to set")
 
 	// tag to protect peer from being killed by ConnManager
 	// NOTE: This is does not protect from remote killing the connection.
