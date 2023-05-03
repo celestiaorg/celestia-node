@@ -49,9 +49,8 @@ type Parameters struct {
 
 func DefaultParameters() Parameters {
 	return Parameters{
-		PeersLimit:            5,
-		discoveryRetryTimeout: time.Second,
-		AdvertiseInterval:     time.Hour * 8,
+		PeersLimit:        5,
+		AdvertiseInterval: time.Hour * 8,
 	}
 }
 
@@ -84,7 +83,7 @@ func NewDiscovery(
 	params Parameters,
 ) *Discovery {
 	return &Discovery{
-		params:         params,
+		params:         params.withDefaults(),
 		set:            newLimitedSet(params.PeersLimit),
 		host:           h,
 		disc:           d,
@@ -356,6 +355,20 @@ func (d *Discovery) Advertise(ctx context.Context) {
 // If Discovery hasn't found any peers, it blocks until at least one peer is found.
 func (d *Discovery) Peers(ctx context.Context) ([]peer.ID, error) {
 	return d.set.Peers(ctx)
+}
+
+func (p Parameters) withDefaults() Parameters {
+	def := DefaultParameters()
+	if p.PeersLimit == 0 {
+		p.PeersLimit = def.PeersLimit
+	}
+	if p.AdvertiseInterval == 0 {
+		p.AdvertiseInterval = def.AdvertiseInterval
+	}
+	if p.discoveryRetryTimeout == 0 {
+		p.discoveryRetryTimeout = def.discoveryRetryTimeout
+	}
+	return p
 }
 
 func drainChannel(c <-chan time.Time) {
