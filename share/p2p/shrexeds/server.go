@@ -62,16 +62,18 @@ func (s *Server) Stop(context.Context) error {
 	return nil
 }
 
-func (s *Server) observeRateLimitedRequests(ctx context.Context) {
+func (s *Server) observeRateLimitedRequests() {
 	numRateLimited := s.middleware.DrainCounter()
 	if numRateLimited > 0 {
-		s.metrics.ObserveRequests(ctx, numRateLimited, p2p.StatusRateLimited)
+		s.metrics.ObserveRequests(numRateLimited, p2p.StatusRateLimited)
 	}
 }
 
 func (s *Server) handleStream(stream network.Stream) {
 	logger := log.With("peer", stream.Conn().RemotePeer())
-	log.Debug("server: handling eds request")
+	logger.Debug("server: handling eds request")
+
+	s.observeRateLimitedRequests()
 
 	// read request from stream to get the dataHash for store lookup
 	req, err := s.readRequest(logger, stream)
@@ -94,7 +96,6 @@ func (s *Server) handleStream(stream network.Stream) {
 	ctx, cancel := context.WithTimeout(s.ctx, s.params.HandleRequestTimeout)
 	defer cancel()
 
-	s.observeRateLimitedRequests(ctx)
 	// determine whether the EDS is available in our store
 	// we do not close the reader, so that other requests will not need to re-open the file.
 	// closing is handled by the LRU cache.
@@ -102,7 +103,7 @@ func (s *Server) handleStream(stream network.Stream) {
 	status := p2p_pb.Status_OK
 	switch {
 	case errors.Is(err, eds.ErrNotFound):
-		s.metrics.ObserveRequests(s.ctx, 1, p2p.StatusNotFound)
+		s.metrics.ObserveRequests(1, p2p.StatusNotFound)
 		status = p2p_pb.Status_NOT_FOUND
 	case err != nil:
 		logger.Errorw("server: get CAR", "err", err)
@@ -133,7 +134,7 @@ func (s *Server) handleStream(stream network.Stream) {
 		return
 	}
 
-	s.metrics.ObserveRequests(s.ctx, 1, p2p.StatusSuccess)
+	s.metrics.ObserveRequests(1, p2p.StatusSuccess)
 	err = stream.Close()
 	if err != nil {
 		logger.Debugw("server: closing stream", "err", err)
