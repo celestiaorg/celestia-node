@@ -395,7 +395,6 @@ func TestIntegration(t *testing.T) {
 			routingdisc.NewRoutingDiscovery(router1),
 			discovery.Parameters{
 				PeersLimit:        0,
-				DiscoveryInterval: time.Second,
 				AdvertiseInterval: time.Second,
 			},
 		)
@@ -409,7 +408,6 @@ func TestIntegration(t *testing.T) {
 			routingdisc.NewRoutingDiscovery(router2),
 			discovery.Parameters{
 				PeersLimit:        10,
-				DiscoveryInterval: time.Second,
 				AdvertiseInterval: time.Second,
 			},
 		)
@@ -467,7 +465,6 @@ func testManager(ctx context.Context, headerSub libhead.Subscriber[*header.Exten
 	disc := discovery.NewDiscovery(nil,
 		routingdisc.NewRoutingDiscovery(routinghelpers.Null{}), discovery.Parameters{
 			PeersLimit:        0,
-			DiscoveryInterval: time.Second,
 			AdvertiseInterval: time.Second,
 		})
 	connGater, err := conngater.NewBasicConnectionGater(sync.MutexWrap(datastore.NewMapDatastore()))

@@ -13,12 +13,12 @@ type limitedSet struct {
 	lk sync.RWMutex
 	ps map[peer.ID]struct{}
 
-	limit    int
+	limit    uint
 	waitPeer chan peer.ID
 }
 
 // newLimitedSet constructs a set with the maximum peers amount.
-func newLimitedSet(limit int) *limitedSet {
+func newLimitedSet(limit uint) *limitedSet {
 	ps := new(limitedSet)
 	ps.ps = make(map[peer.ID]struct{})
 	ps.limit = limit
@@ -33,14 +33,14 @@ func (ps *limitedSet) Contains(p peer.ID) bool {
 	return ok
 }
 
-func (ps *limitedSet) Limit() int {
+func (ps *limitedSet) Limit() uint {
 	return ps.limit
 }
 
-func (ps *limitedSet) Size() int {
+func (ps *limitedSet) Size() uint {
 	ps.lk.RLock()
 	defer ps.lk.RUnlock()
-	return len(ps.ps)
+	return uint(len(ps.ps))
 }
 
 // Add attempts to add the given peer into the set.

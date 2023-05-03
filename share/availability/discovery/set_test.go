@@ -81,7 +81,7 @@ func TestSet_Size(t *testing.T) {
 	set := newLimitedSet(2)
 	set.Add(h1.ID())
 	set.Add(h2.ID())
-	require.Equal(t, 2, set.Size())
+	require.EqualValues(t, 2, set.Size())
 	set.Remove(h2.ID())
-	require.Equal(t, 1, set.Size())
+	require.EqualValues(t, 1, set.Size())
 }
