@@ -22,12 +22,14 @@ func TestCheckpointStore(t *testing.T) {
 		Failed:      failed,
 		Workers: []workerCheckpoint{
 			{
-				From: 1,
-				To:   2,
+				From:    1,
+				To:      2,
+				JobType: retryJob,
 			},
 			{
-				From: 5,
-				To:   10,
+				From:    5,
+				To:      10,
+				JobType: recentJob,
 			},
 		},
 	}

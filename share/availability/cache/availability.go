@@ -20,6 +20,7 @@ var (
 	minRoot = da.MinDataAvailabilityHeader()
 
 	cacheAvailabilityPrefix = datastore.NewKey("sampling_result")
+	writeBatchSize          = 2048
 )
 
 // ShareAvailability wraps a given share.Availability (whether it's light or full)
@@ -32,8 +33,6 @@ type ShareAvailability struct {
 	//  Related to #483
 	dsLk sync.RWMutex
 	ds   *autobatch.Datastore
-
-	params Parameters
 }
 
 // NewShareAvailability wraps the given share.Availability with an additional datastore
@@ -41,21 +40,13 @@ type ShareAvailability struct {
 func NewShareAvailability(
 	avail share.Availability,
 	ds datastore.Batching,
-	opts ...Option,
 ) *ShareAvailability {
-	params := DefaultParameters()
-
-	for _, opt := range opts {
-		opt(&params)
-	}
-
 	ds = namespace.Wrap(ds, cacheAvailabilityPrefix)
-	autoDS := autobatch.NewAutoBatching(ds, int(params.WriteBatchSize))
+	autoDS := autobatch.NewAutoBatching(ds, int(writeBatchSize))
 
 	return &ShareAvailability{
-		avail:  avail,
-		ds:     autoDS,
-		params: params,
+		avail: avail,
+		ds:    autoDS,
 	}
 }
 

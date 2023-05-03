@@ -30,7 +30,6 @@ func newDiscovery(cfg Config) func(routing.ContentRouting, host.Host) *disc.Disc
 			h,
 			routingdisc.NewRoutingDiscovery(r),
 			disc.WithPeersLimit(cfg.Discovery.PeersLimit),
-			disc.WithDiscoveryInterval(cfg.Discovery.DiscoveryInterval),
 			disc.WithAdvertiseInterval(cfg.Discovery.AdvertiseInterval),
 		)
 	}

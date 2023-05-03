@@ -10,7 +10,7 @@ import (
 
 const protocolString = "/shrex/eds/v0.0.1"
 
-var log = logging.Logger("shrex-eds")
+var log = logging.Logger("shrex/eds")
 
 // Parameters is the set of parameters that must be configured for the shrex/eds protocol.
 type Parameters struct {
@@ -33,4 +33,22 @@ func (p *Parameters) Validate() error {
 	}
 
 	return p.Parameters.Validate()
+}
+
+func (c *Client) WithMetrics() error {
+	metrics, err := p2p.InitClientMetrics("eds")
+	if err != nil {
+		return fmt.Errorf("shrex/eds: init Metrics: %w", err)
+	}
+	c.metrics = metrics
+	return nil
+}
+
+func (s *Server) WithMetrics() error {
+	metrics, err := p2p.InitServerMetrics("eds")
+	if err != nil {
+		return fmt.Errorf("shrex/eds: init Metrics: %w", err)
+	}
+	s.metrics = metrics
+	return nil
 }

@@ -165,3 +165,8 @@ lint-imports:
 sort-imports:
 	@goimports-reviser -company-prefixes "github.com/celestiaorg"  -project-name "github.com/celestiaorg/celestia-node" -output stdout ./...
 .PHONY: sort-imports
+
+adr-gen:
+	@echo "--> Generating ADRs"
+	@curl -sSL https://raw.githubusercontent.com/celestiaorg/.github/main/adr-template.md > docs/architecture/adr-$(NUM)-$(TITLE).md
+.PHONY: adr-gen

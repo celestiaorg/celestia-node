@@ -29,7 +29,8 @@ type Client struct {
 	params     *Parameters
 	protocolID protocol.ID
 
-	host host.Host
+	host    host.Host
+	metrics *p2p.Metrics
 }
 
 // NewClient creates a new shrEx/nd client
@@ -58,18 +59,20 @@ func (c *Client) RequestND(
 		return shares, err
 	}
 	if errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) {
-		return nil, ctx.Err()
+		c.metrics.ObserveRequests(1, p2p.StatusTimeout)
+		return nil, err
 	}
 	// some net.Errors also mean the context deadline was exceeded, but yamux/mocknet do not
 	// unwrap to a ctx err
 	var ne net.Error
 	if errors.As(err, &ne) && ne.Timeout() {
 		if deadline, _ := ctx.Deadline(); deadline.Before(time.Now()) {
+			c.metrics.ObserveRequests(1, p2p.StatusTimeout)
 			return nil, context.DeadlineExceeded
 		}
 	}
-	if err != p2p.ErrUnavailable {
-		log.Debugw("client-nd: peer returned err", "peer", peer, "err", err)
+	if err != p2p.ErrNotFound {
+		log.Warnw("client-nd: peer returned err", "err", err)
 	}
 	return nil, err
 }
@@ -101,7 +104,7 @@ func (c *Client) doRequest(
 
 	err = stream.CloseWrite()
 	if err != nil {
-		log.Debugf("client-nd: closing write side of the stream: %s", err)
+		log.Debugw("client-nd: closing write side of the stream", "err", err)
 	}
 
 	var resp pb.GetSharesByNamespaceResponse
@@ -109,13 +112,14 @@ func (c *Client) doRequest(
 	if err != nil {
 		// server is overloaded and closed the stream
 		if errors.Is(err, io.EOF) {
-			return nil, p2p.ErrUnavailable
+			c.metrics.ObserveRequests(1, p2p.StatusRateLimited)
+			return nil, p2p.ErrNotFound
 		}
 		stream.Reset() //nolint:errcheck
 		return nil, fmt.Errorf("client-nd: reading response: %w", err)
 	}
 
-	if err = statusToErr(resp.Status); err != nil {
+	if err = c.statusToErr(resp.Status); err != nil {
 		return nil, fmt.Errorf("client-nd: response code is not OK: %w", err)
 	}
 
@@ -160,17 +164,17 @@ func (c *Client) setStreamDeadlines(ctx context.Context, stream network.Stream) 
 	deadline, ok := ctx.Deadline()
 	if ok {
 		err := stream.SetDeadline(deadline)
-		if err != nil {
-			log.Debugf("client-nd: set write deadline: %s", err)
+		if err == nil {
+			return
 		}
-		return
+		log.Debugw("client-nd: set stream deadline", "err", err)
 	}
 
 	// if deadline not set, client read deadline defaults to server write deadline
 	if c.params.ServerWriteTimeout != 0 {
 		err := stream.SetReadDeadline(time.Now().Add(c.params.ServerWriteTimeout))
 		if err != nil {
-			log.Debugf("client-nd: set read deadline: %s", err)
+			log.Debugw("client-nd: set read deadline", "err", err)
 		}
 	}
 
@@ -178,21 +182,25 @@ func (c *Client) setStreamDeadlines(ctx context.Context, stream network.Stream) 
 	if c.params.ServerReadTimeout != 0 {
 		err := stream.SetWriteDeadline(time.Now().Add(c.params.ServerReadTimeout))
 		if err != nil {
-			log.Debugf("client-nd: set write deadline: %s", err)
+			log.Debugw("client-nd: set write deadline", "err", err)
 		}
 	}
 }
 
-func statusToErr(code pb.StatusCode) error {
+func (c *Client) statusToErr(code pb.StatusCode) error {
 	switch code {
 	case pb.StatusCode_OK:
+		c.metrics.ObserveRequests(1, p2p.StatusSuccess)
 		return nil
 	case pb.StatusCode_NOT_FOUND:
-		return p2p.ErrUnavailable
-	case pb.StatusCode_INTERNAL, pb.StatusCode_INVALID:
+		c.metrics.ObserveRequests(1, p2p.StatusNotFound)
+		return p2p.ErrNotFound
+	case pb.StatusCode_INVALID:
+		log.Debug("client-nd: invalid request")
+		fallthrough
+	case pb.StatusCode_INTERNAL:
 		fallthrough
 	default:
-		log.Errorf("client-nd: request status %s returned", code.String())
 		return p2p.ErrInvalidResponse
 	}
 }

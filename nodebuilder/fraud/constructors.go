@@ -8,11 +8,11 @@ import (
 	"github.com/libp2p/go-libp2p/core/host"
 	"go.uber.org/fx"
 
+	"github.com/celestiaorg/go-fraud"
+	"github.com/celestiaorg/go-fraud/fraudserv"
 	libhead "github.com/celestiaorg/go-header"
 
 	"github.com/celestiaorg/celestia-node/header"
-	"github.com/celestiaorg/celestia-node/libs/fraud"
-	"github.com/celestiaorg/celestia-node/libs/fraud/fraudserv"
 	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
 )
 

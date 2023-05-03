@@ -2,6 +2,7 @@ package full
 
 import (
 	"testing"
+	"time"
 
 	mdutils "github.com/ipfs/go-merkledag/test"
 	routinghelpers "github.com/libp2p/go-libp2p-routing-helpers"
@@ -39,6 +40,8 @@ func TestAvailability(getter share.Getter) *ShareAvailability {
 	disc := discovery.NewDiscovery(
 		nil,
 		routing.NewRoutingDiscovery(routinghelpers.Null{}),
+		discovery.WithAdvertiseInterval(time.Second),
+		discovery.WithPeersLimit(10),
 	)
 	return NewShareAvailability(nil, getter, disc)
 }

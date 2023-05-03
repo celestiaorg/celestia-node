@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/celestiaorg/celestia-node/share/availability/cache"
 	"github.com/celestiaorg/celestia-node/share/availability/discovery"
 	"github.com/celestiaorg/celestia-node/share/availability/light"
 	"github.com/celestiaorg/celestia-node/share/p2p/peers"
@@ -16,15 +15,10 @@ var (
 	ErrNegativeInterval = errors.New("interval must be positive")
 )
 
-// Parameters is the aggregation of all configuration parameters of the the share module
-type Parameters struct {
-	Light     light.Parameters
-	Cache     cache.Parameters
-	Discovery discovery.Parameters
-}
-
 type Config struct {
-	Parameters
+	Light     light.Parameters
+	Discovery discovery.Parameters
+
 	UseShareExchange bool
 	// ShrExEDSParams sets shrexeds client and server configuration parameters
 	ShrExEDSParams *shrexeds.Parameters
@@ -37,11 +31,8 @@ type Config struct {
 // TODO: Remove share/availability/options.go and reorg configs here
 func DefaultConfig() Config {
 	return Config{
-		Parameters: Parameters{
-			Light:     light.DefaultParameters(),
-			Cache:     cache.DefaultParameters(),
-			Discovery: discovery.DefaultParameters(),
-		},
+		Light:             light.DefaultParameters(),
+		Discovery:         discovery.DefaultParameters(),
 		ShrExEDSParams:    shrexeds.DefaultParameters(),
 		ShrExNDParams:     shrexnd.DefaultParameters(),
 		UseShareExchange:  true,
@@ -49,24 +40,14 @@ func DefaultConfig() Config {
 	}
 }
 
-// Validate performs basic validation of the share Parameters
-func (p *Parameters) Validate() error {
-	err := p.Light.Validate()
-	if err != nil {
-		return err
-	}
-
-	err = p.Cache.Validate()
-	if err != nil {
-		return err
-	}
-
-	return p.Discovery.Validate()
-}
-
 // Validate performs basic validation of the config.
 func (cfg *Config) Validate() error {
-	if err := cfg.Parameters.Validate(); err != nil {
+	err := cfg.Light.Validate()
+	if err != nil {
+		return fmt.Errorf("nodebuilder/share: %w", err)
+	}
+
+	if err := cfg.Discovery.Validate(); err != nil {
 		return fmt.Errorf("nodebuilder/share: %w", err)
 	}
 

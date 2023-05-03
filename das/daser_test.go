@@ -16,13 +16,13 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/tendermint/tendermint/types"
 
+	"github.com/celestiaorg/go-fraud"
+	"github.com/celestiaorg/go-fraud/fraudserv"
+	"github.com/celestiaorg/go-fraud/fraudtest"
 	libhead "github.com/celestiaorg/go-header"
 
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/header/headertest"
-	"github.com/celestiaorg/celestia-node/libs/fraud"
-	"github.com/celestiaorg/celestia-node/libs/fraud/fraudserv"
-	"github.com/celestiaorg/celestia-node/libs/fraud/fraudtest"
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/availability/full"
 	"github.com/celestiaorg/celestia-node/share/availability/light"
@@ -195,11 +195,13 @@ func TestDASerSampleTimeout(t *testing.T) {
 
 	getter := getterStub{}
 	avail := mocks.NewMockAvailability(gomock.NewController(t))
+	doneCh := make(chan struct{})
 	avail.EXPECT().SharesAvailable(gomock.Any(), gomock.Any()).DoAndReturn(
 		func(sampleCtx context.Context, h *share.Root) error {
 			select {
 			case <-sampleCtx.Done():
-				return sampleCtx.Err()
+				close(doneCh)
+				return nil
 			case <-ctx.Done():
 				t.Fatal("call context didn't timeout in time")
 				return ctx.Err()
@@ -217,11 +219,11 @@ func TestDASerSampleTimeout(t *testing.T) {
 	require.NoError(t, daser.Start(ctx))
 	require.NoError(t, daser.sampler.state.waitCatchUp(ctx))
 
-	stats, err := daser.SamplingStats(ctx)
-	require.NoError(t, err)
-
-	// failed map should contain first header as failed
-	require.Equal(t, stats.Failed[1], 1)
+	select {
+	case <-doneCh:
+	case <-ctx.Done():
+		t.Fatal("call context didn't timeout in time")
+	}
 }
 
 // createDASerSubcomponents takes numGetter (number of headers

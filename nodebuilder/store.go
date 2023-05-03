@@ -186,6 +186,20 @@ func keysPath(base string) string {
 	return filepath.Join(base, "keys")
 }
 
+func blocksPath(base string) string {
+	return filepath.Join(base, "blocks")
+}
+
+func transientsPath(base string) string {
+	// we don't actually use the transients directory anymore, but it could be populated from previous
+	// versions.
+	return filepath.Join(base, "transients")
+}
+
+func indexPath(base string) string {
+	return filepath.Join(base, "index")
+}
+
 func dataPath(base string) string {
 	return filepath.Join(base, "data")
 }

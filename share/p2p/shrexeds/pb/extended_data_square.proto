@@ -8,6 +8,7 @@ enum Status {
   INVALID = 0;
   OK = 1; // data found
   NOT_FOUND = 2; // data not found
+  INTERNAL = 3; // internal server error
 }
 
 message EDSResponse {

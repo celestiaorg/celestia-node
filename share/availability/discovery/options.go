@@ -7,14 +7,17 @@ import (
 
 // Parameters is the set of Parameters that must be configured for the Discovery module
 type Parameters struct {
-	// PeersLimit is max amount of peers that will be Discovered during a Discovery session.
-	PeersLimit int
-
-	// DiscInterval is an interval between Discovery sessions.
-	DiscoveryInterval time.Duration
-
-	// AdvertiseInterval is an interval between Advertising sessions.
+	// PeersLimit defines the soft limit of FNs to connect to via discovery.
+	// Set 0 to disable.
+	PeersLimit uint
+	// AdvertiseInterval is a interval between advertising sessions.
+	// Set -1 to disable.
+	// NOTE: only full and bridge can advertise themselves.
 	AdvertiseInterval time.Duration
+	// discoveryRetryTimeout is an interval between discovery attempts
+	// when we discovered lower than PeersLimit peers.
+	// Set -1 to disable.
+	discoveryRetryTimeout time.Duration
 }
 
 // Option is a function that configures Discovery Parameters
@@ -24,9 +27,8 @@ type Option func(*Parameters)
 // for the Discovery module
 func DefaultParameters() Parameters {
 	return Parameters{
-		PeersLimit:        3,
-		DiscoveryInterval: time.Second * 30,
-		AdvertiseInterval: time.Second * 30,
+		PeersLimit:        5,
+		AdvertiseInterval: time.Hour * 8,
 	}
 }
 
@@ -37,14 +39,6 @@ func (p *Parameters) Validate() error {
 			"discovery: invalid option: value PeersLimit %s, %s",
 			"is negative.",
 			"value must be 0 or positive",
-		)
-	}
-
-	if p.DiscoveryInterval <= 0 {
-		return fmt.Errorf(
-			"discovery: invalid option: value DicoveryInterval %s, %s",
-			"is 0 or negative.",
-			"value must be positive",
 		)
 	}
 
@@ -61,17 +55,9 @@ func (p *Parameters) Validate() error {
 
 // WithPeersLimit is a functional option that Discovery
 // uses to set the PeersLimit configuration param
-func WithPeersLimit(peersLimit int) Option {
+func WithPeersLimit(peersLimit uint) Option {
 	return func(p *Parameters) {
 		p.PeersLimit = peersLimit
-	}
-}
-
-// WithDiscoveryInterval is a functional option that Discovery
-// uses to set the DiscoveryInterval configuration param
-func WithDiscoveryInterval(discInterval time.Duration) Option {
-	return func(p *Parameters) {
-		p.DiscoveryInterval = discInterval
 	}
 }
 
