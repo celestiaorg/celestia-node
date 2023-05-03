@@ -15,8 +15,8 @@ import (
 var (
 	// ErrNotFound is used to indicate that requested data could not be found.
 	ErrNotFound = errors.New("data not found")
-	// ErrNamespaceNotFound is used to indicate that the data does not include any shares from the
-	// requested namespace
+	// ErrNamespaceNotFound is returned by GetSharesByNamespace when data for requested root does
+	// not include any shares from the given namespace
 	ErrNamespaceNotFound = errors.New("namespace not found in data")
 )
 
