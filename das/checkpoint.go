@@ -7,7 +7,7 @@ import (
 type checkpoint struct {
 	SampleFrom  uint64 `json:"sample_from"`
 	NetworkHead uint64 `json:"network_head"`
-	// Failed will be prioritized on restart
+	// Failed heights will be retried
 	Failed map[uint64]int `json:"failed,omitempty"`
 	// Workers will resume on restart from previous state
 	Workers []workerCheckpoint `json:"workers,omitempty"`
@@ -15,16 +15,18 @@ type checkpoint struct {
 
 // workerCheckpoint will be used to resume worker on restart
 type workerCheckpoint struct {
-	From uint64 `json:"from"`
-	To   uint64 `json:"to"`
+	From    uint64  `json:"from"`
+	To      uint64  `json:"to"`
+	JobType jobType `json:"job_type"`
 }
 
 func newCheckpoint(stats SamplingStats) checkpoint {
 	workers := make([]workerCheckpoint, 0, len(stats.Workers))
 	for _, w := range stats.Workers {
 		workers = append(workers, workerCheckpoint{
-			From: w.Curr,
-			To:   w.To,
+			From:    w.Curr,
+			To:      w.To,
+			JobType: w.JobType,
 		})
 	}
 	return checkpoint{

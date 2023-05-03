@@ -111,12 +111,16 @@ func NewStore(basepath string, ds datastore.Batching) (*Store, error) {
 	return store, nil
 }
 
-func (s *Store) Start(context.Context) error {
+func (s *Store) Start(ctx context.Context) error {
+	err := s.dgstr.Start(ctx)
+	if err != nil {
+		return err
+	}
+	// start Store only if DagStore succeeds
 	ctx, cancel := context.WithCancel(context.Background())
 	s.cancel = cancel
-
 	go s.gc(ctx)
-	return s.dgstr.Start(ctx)
+	return nil
 }
 
 // Stop stops the underlying DAGStore.

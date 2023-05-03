@@ -10,6 +10,7 @@ import (
 	"github.com/libp2p/go-libp2p/core/network"
 	"github.com/libp2p/go-libp2p/core/protocol"
 	"github.com/minio/sha256-simd"
+	"go.uber.org/zap"
 
 	"github.com/celestiaorg/go-libp2p-messenger/serde"
 
@@ -23,14 +24,17 @@ import (
 // Server implements server side of shrex/nd protocol to serve namespaced share to remote
 // peers.
 type Server struct {
-	params     *Parameters
+	cancel context.CancelFunc
+
+	host       host.Host
 	protocolID protocol.ID
 
 	getter share.Getter
 	store  *eds.Store
-	host   host.Host
 
-	cancel context.CancelFunc
+	params     *Parameters
+	middleware *p2p.Middleware
+	metrics    *p2p.Metrics
 }
 
 // NewServer creates new Server
@@ -45,6 +49,7 @@ func NewServer(params *Parameters, host host.Host, store *eds.Store, getter shar
 		host:       host,
 		params:     params,
 		protocolID: p2p.ProtocolID(params.NetworkID(), protocolString),
+		middleware: p2p.NewMiddleware(params.ConcurrencyLimit),
 	}
 
 	return srv, nil
@@ -58,7 +63,7 @@ func (srv *Server) Start(context.Context) error {
 	handler := func(s network.Stream) {
 		srv.handleNamespacedData(ctx, s)
 	}
-	srv.host.SetStreamHandler(srv.protocolID, p2p.RateLimitMiddleware(handler, srv.params.ConcurrencyLimit))
+	srv.host.SetStreamHandler(srv.protocolID, srv.middleware.RateLimitHandler(handler))
 	return nil
 }
 
@@ -69,31 +74,42 @@ func (srv *Server) Stop(context.Context) error {
 	return nil
 }
 
+func (srv *Server) observeRateLimitedRequests() {
+	numRateLimited := srv.middleware.DrainCounter()
+	if numRateLimited > 0 {
+		srv.metrics.ObserveRequests(numRateLimited, p2p.StatusRateLimited)
+	}
+}
+
 func (srv *Server) handleNamespacedData(ctx context.Context, stream network.Stream) {
-	log.Debug("server: handling nd request")
+	logger := log.With("peer", stream.Conn().RemotePeer())
+	logger.Debug("server: handling nd request")
+
+	srv.observeRateLimitedRequests()
 
 	err := stream.SetReadDeadline(time.Now().Add(srv.params.ServerReadTimeout))
 	if err != nil {
-		log.Debugw("server: setting read deadline", "err", err)
+		logger.Debugw("server: setting read deadline", "err", err)
 	}
 
 	var req pb.GetSharesByNamespaceRequest
 	_, err = serde.Read(stream, &req)
 	if err != nil {
-		log.Warnw("server: reading request", "err", err)
+		logger.Warnw("server: reading request", "err", err)
 		stream.Reset() //nolint:errcheck
 		return
 	}
-	log.Debugw("server: new request", "namespaceId", string(req.NamespaceId), "roothash", string(req.RootHash))
+	logger = logger.With("namespaceId", string(req.NamespaceId), "hash", string(req.RootHash))
+	logger.Debugw("server: new request")
 
 	err = stream.CloseRead()
 	if err != nil {
-		log.Debugw("server: closing read side of the stream", "err", err)
+		logger.Debugw("server: closing read side of the stream", "err", err)
 	}
 
 	err = validateRequest(req)
 	if err != nil {
-		log.Debugw("server: invalid request", "err", err)
+		logger.Debugw("server: invalid request", "err", err)
 		stream.Reset() //nolint:errcheck
 		return
 	}
@@ -104,27 +120,27 @@ func (srv *Server) handleNamespacedData(ctx context.Context, stream network.Stre
 	dah, err := srv.store.GetDAH(ctx, req.RootHash)
 	if err != nil {
 		if errors.Is(err, eds.ErrNotFound) {
-			srv.respondNotFoundError(stream)
+			srv.respondNotFoundError(logger, stream)
 			return
 		}
-		log.Errorw("server: retrieving DAH for datahash", "err", err)
-		srv.respondInternalError(stream)
+		logger.Errorw("server: retrieving DAH", "err", err)
+		srv.respondInternalError(logger, stream)
 		return
 	}
 
 	shares, err := srv.getter.GetSharesByNamespace(ctx, dah, req.NamespaceId)
 	if errors.Is(err, share.ErrNotFound) {
-		srv.respondNotFoundError(stream)
+		srv.respondNotFoundError(logger, stream)
 		return
 	}
 	if err != nil {
-		log.Errorw("server: retrieving shares", "err", err)
-		srv.respondInternalError(stream)
+		logger.Errorw("server: retrieving shares", "err", err)
+		srv.respondInternalError(logger, stream)
 		return
 	}
 
 	resp := namespacedSharesToResponse(shares)
-	srv.respond(stream, resp)
+	srv.respond(logger, stream, resp)
 }
 
 // validateRequest checks correctness of the request
@@ -140,19 +156,19 @@ func validateRequest(req pb.GetSharesByNamespaceRequest) error {
 }
 
 // respondNotFoundError sends internal error response to client
-func (srv *Server) respondNotFoundError(stream network.Stream) {
+func (srv *Server) respondNotFoundError(logger *zap.SugaredLogger, stream network.Stream) {
 	resp := &pb.GetSharesByNamespaceResponse{
 		Status: pb.StatusCode_NOT_FOUND,
 	}
-	srv.respond(stream, resp)
+	srv.respond(logger, stream, resp)
 }
 
 // respondInternalError sends internal error response to client
-func (srv *Server) respondInternalError(stream network.Stream) {
+func (srv *Server) respondInternalError(logger *zap.SugaredLogger, stream network.Stream) {
 	resp := &pb.GetSharesByNamespaceResponse{
 		Status: pb.StatusCode_INTERNAL,
 	}
-	srv.respond(stream, resp)
+	srv.respond(logger, stream, resp)
 }
 
 // namespacedSharesToResponse encodes shares into proto and sends it to client with OK status code
@@ -179,20 +195,28 @@ func namespacedSharesToResponse(shares share.NamespacedShares) *pb.GetSharesByNa
 	}
 }
 
-func (srv *Server) respond(stream network.Stream, resp *pb.GetSharesByNamespaceResponse) {
+func (srv *Server) respond(logger *zap.SugaredLogger, stream network.Stream, resp *pb.GetSharesByNamespaceResponse) {
 	err := stream.SetWriteDeadline(time.Now().Add(srv.params.ServerWriteTimeout))
 	if err != nil {
-		log.Debugw("server: seting write deadline", "err", err)
+		logger.Debugw("server: setting write deadline", "err", err)
 	}
 
 	_, err = serde.Write(stream, resp)
 	if err != nil {
-		log.Warnw("server: writing response", "err", err)
+		logger.Warnw("server: writing response", "err", err)
 		stream.Reset() //nolint:errcheck
 		return
 	}
 
+	switch {
+	case resp.Status == pb.StatusCode_OK:
+		srv.metrics.ObserveRequests(1, p2p.StatusSuccess)
+	case resp.Status == pb.StatusCode_NOT_FOUND:
+		srv.metrics.ObserveRequests(1, p2p.StatusNotFound)
+	case resp.Status == pb.StatusCode_INTERNAL:
+		srv.metrics.ObserveRequests(1, p2p.StatusInternalErr)
+	}
 	if err = stream.Close(); err != nil {
-		log.Debugw("server: closing stream", "err", err)
+		logger.Debugw("server: closing stream", "err", err)
 	}
 }

@@ -188,6 +188,9 @@ func (s *Swamp) NewBridgeNode(options ...fx.Option) *nodebuilder.Node {
 // and a mockstore to the NewNodeWithStore method
 func (s *Swamp) NewFullNode(options ...fx.Option) *nodebuilder.Node {
 	cfg := nodebuilder.DefaultConfig(node.Full)
+	cfg.Header.TrustedPeers = []string{
+		"/ip4/1.2.3.4/tcp/12345/p2p/12D3KooWNaJ1y1Yio3fFJEXCZyd1Cat3jmrPdgkYCrHfKD3Ce21p",
+	}
 	store := nodebuilder.MockStore(s.t, cfg)
 
 	return s.NewNodeWithStore(node.Full, store, options...)
@@ -197,6 +200,10 @@ func (s *Swamp) NewFullNode(options ...fx.Option) *nodebuilder.Node {
 // and a mockstore to the NewNodeWithStore method
 func (s *Swamp) NewLightNode(options ...fx.Option) *nodebuilder.Node {
 	cfg := nodebuilder.DefaultConfig(node.Light)
+	cfg.Header.TrustedPeers = []string{
+		"/ip4/1.2.3.4/tcp/12345/p2p/12D3KooWNaJ1y1Yio3fFJEXCZyd1Cat3jmrPdgkYCrHfKD3Ce21p",
+	}
+
 	store := nodebuilder.MockStore(s.t, cfg)
 
 	return s.NewNodeWithStore(node.Light, store, options...)

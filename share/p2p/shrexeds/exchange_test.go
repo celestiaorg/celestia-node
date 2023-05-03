@@ -107,8 +107,9 @@ func TestExchange_RequestEDS(t *testing.T) {
 				t.Fatal("timeout")
 			}
 		}
+		middleware := p2p.NewMiddleware(rateLimit)
 		server.host.SetStreamHandler(server.protocolID,
-			p2p.RateLimitMiddleware(mockHandler, rateLimit))
+			middleware.RateLimitHandler(mockHandler))
 
 		// take server concurrency slots with blocked requests
 		for i := 0; i < rateLimit; i++ {
