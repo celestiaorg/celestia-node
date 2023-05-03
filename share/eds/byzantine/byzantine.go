@@ -36,7 +36,7 @@ func NewErrByzantine(
 	errByz *rsmt2d.ErrByzantineData,
 ) *ErrByzantine {
 	root := [][][]byte{
-		dah.RowsRoots,
+		dah.RowRoots,
 		dah.ColumnRoots,
 	}[errByz.Axis][errByz.Index]
 	sharesWithProof, err := GetProofsForShares(

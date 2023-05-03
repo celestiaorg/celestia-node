@@ -34,7 +34,7 @@ func TestNamespaceFromCID(t *testing.T) {
 			require.NoError(t, err)
 			dah := da.NewDataAvailabilityHeader(eds)
 			// check to make sure NamespacedHash is correctly derived from CID
-			for _, row := range dah.RowsRoots {
+			for _, row := range dah.RowRoots {
 				c, err := CidFromNamespacedSha256(row)
 				require.NoError(t, err)
 

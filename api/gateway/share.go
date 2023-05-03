@@ -117,7 +117,7 @@ func dataFromShares(input []share.Share) (data [][]byte, err error) {
 	if err != nil {
 		return nil, err
 	}
-	sequences, err := shares.ParseShares(appShares)
+	sequences, err := shares.ParseShares(appShares, false)
 	if err != nil {
 		return nil, err
 	}

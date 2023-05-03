@@ -118,7 +118,7 @@ func (p *BadEncodingProof) Validate(hdr libhead.Header) error {
 	if header.Height() != int64(p.BlockHeight) {
 		return errors.New("fraud: incorrect block height")
 	}
-	merkleRowRoots := header.DAH.RowsRoots
+	merkleRowRoots := header.DAH.RowRoots
 	merkleColRoots := header.DAH.ColumnRoots
 	if len(merkleRowRoots) != len(merkleColRoots) {
 		// NOTE: This should never happen as callers of this method should not feed it with a

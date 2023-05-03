@@ -382,7 +382,7 @@ func (m *mockSampler) discover(ctx context.Context, newHeight uint64, emit liste
 	emit(ctx, &header.ExtendedHeader{
 		Commit:    &types.Commit{},
 		RawHeader: header.RawHeader{Height: int64(newHeight)},
-		DAH:       &header.DataAvailabilityHeader{RowsRoots: make([][]byte, 0)},
+		DAH:       &header.DataAvailabilityHeader{RowRoots: make([][]byte, 0)},
 	})
 }
 

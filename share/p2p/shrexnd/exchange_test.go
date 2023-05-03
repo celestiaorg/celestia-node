@@ -48,7 +48,7 @@ func TestExchange_RequestND_NotFound(t *testing.T) {
 		dah := da.NewDataAvailabilityHeader(eds)
 		require.NoError(t, edsStore.Put(ctx, dah.Hash(), eds))
 
-		randNID := dah.RowsRoots[(len(dah.RowsRoots)-1)/2][:namespace.NamespaceSize]
+		randNID := dah.RowRoots[(len(dah.RowRoots)-1)/2][:namespace.NamespaceSize]
 		_, err := client.RequestND(ctx, &dah, randNID, server.host.ID())
 		require.ErrorIs(t, err, p2p.ErrNotFound)
 	})

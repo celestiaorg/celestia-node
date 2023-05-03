@@ -111,7 +111,7 @@ func (w *worker) sample(ctx context.Context, timeout time.Duration, height uint6
 				"failed to sample header",
 				"height", h.Height(),
 				"hash", h.Hash(),
-				"square width", len(h.DAH.RowsRoots),
+				"square width", len(h.DAH.RowRoots),
 				"data root", h.DAH.String(),
 				"err", err,
 				"finished (s)", time.Since(start),
@@ -124,7 +124,7 @@ func (w *worker) sample(ctx context.Context, timeout time.Duration, height uint6
 		"sampled header",
 		"height", h.Height(),
 		"hash", h.Hash(),
-		"square width", len(h.DAH.RowsRoots),
+		"square width", len(h.DAH.RowRoots),
 		"data root", h.DAH.String(),
 		"finished (s)", time.Since(start),
 	)
@@ -165,7 +165,7 @@ func (w *worker) getHeader(ctx context.Context, height uint64) (*header.Extended
 		"got header from header store",
 		"height", h.Height(),
 		"hash", h.Hash(),
-		"square width", len(h.DAH.RowsRoots),
+		"square width", len(h.DAH.RowRoots),
 		"data root", h.DAH.String(),
 		"finished (s)", time.Since(start),
 	)

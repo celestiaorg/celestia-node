@@ -132,7 +132,7 @@ func newStore(t *testing.T) (*eds.Store, error) {
 func generateTestEDS(t *testing.T) (*rsmt2d.ExtendedDataSquare, da.DataAvailabilityHeader, nmtnamespace.ID) {
 	eds := share.RandEDS(t, 4)
 	dah := da.NewDataAvailabilityHeader(eds)
-	randNID := dah.RowsRoots[(len(dah.RowsRoots)-1)/2][:namespace.NamespaceSize]
+	randNID := dah.RowRoots[(len(dah.RowRoots)-1)/2][:namespace.NamespaceSize]
 	return eds, dah, randNID
 }
 

@@ -172,7 +172,7 @@ func Translate(dah *da.DataAvailabilityHeader, row, col int) (cid.Cid, int) {
 		return MustCidFromNamespacedSha256(dah.ColumnRoots[col]), row
 	}
 
-	return MustCidFromNamespacedSha256(dah.RowsRoots[row]), col
+	return MustCidFromNamespacedSha256(dah.RowRoots[row]), col
 }
 
 // NamespacedSha256FromCID derives the Namespaced hash from the given CID.

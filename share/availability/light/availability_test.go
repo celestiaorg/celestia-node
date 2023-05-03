@@ -146,7 +146,7 @@ func TestGetShares(t *testing.T) {
 
 func TestService_GetSharesByNamespaceNotFound(t *testing.T) {
 	getter, root := GetterWithRandSquare(t, 1)
-	root.RowsRoots = nil
+	root.RowRoots = nil
 
 	_, err := getter.GetSharesByNamespace(context.Background(), root, namespace.RandomNamespace().Bytes())
 	assert.ErrorIs(t, err, share.ErrNotFound)
@@ -165,8 +165,8 @@ func BenchmarkService_GetSharesByNamespace(b *testing.B) {
 		b.Run(strconv.Itoa(tt.amountShares), func(b *testing.B) {
 			t := &testing.T{}
 			getter, root := GetterWithRandSquare(t, tt.amountShares)
-			randNID := root.RowsRoots[(len(root.RowsRoots)-1)/2][:8]
-			root.RowsRoots[(len(root.RowsRoots) / 2)] = root.RowsRoots[(len(root.RowsRoots)-1)/2]
+			randNID := root.RowRoots[(len(root.RowRoots)-1)/2][:8]
+			root.RowRoots[(len(root.RowRoots) / 2)] = root.RowRoots[(len(root.RowRoots)-1)/2]
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
 				_, err := getter.GetSharesByNamespace(context.Background(), root, randNID)

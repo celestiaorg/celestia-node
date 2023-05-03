@@ -38,7 +38,7 @@ func (la *ShareAvailability) SharesAvailable(ctx context.Context, dah *share.Roo
 			"err", err)
 		panic(err)
 	}
-	samples, err := SampleSquare(len(dah.RowsRoots), DefaultSampleAmount)
+	samples, err := SampleSquare(len(dah.RowRoots), DefaultSampleAmount)
 	if err != nil {
 		return err
 	}

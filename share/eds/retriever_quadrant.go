@@ -52,7 +52,7 @@ type quadrant struct {
 func newQuadrants(dah *da.DataAvailabilityHeader) []*quadrant {
 	// combine all the roots into one slice, so they can be easily accessible by index
 	daRoots := [][][]byte{
-		dah.RowsRoots,
+		dah.RowRoots,
 		dah.ColumnRoots,
 	}
 	// create a quadrant slice for each source(row;col)

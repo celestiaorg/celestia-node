@@ -174,7 +174,7 @@ func TestReadEDS(t *testing.T) {
 
 	loaded, err := ReadEDS(context.Background(), f, dah.Hash())
 	require.NoError(t, err, "error reading EDS from file")
-	require.Equal(t, dah.RowsRoots, loaded.RowRoots())
+	require.Equal(t, dah.RowRoots, loaded.RowRoots())
 	require.Equal(t, dah.ColumnRoots, loaded.ColRoots())
 }
 

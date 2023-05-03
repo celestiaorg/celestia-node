@@ -52,7 +52,7 @@ type NamespacedRow struct {
 // Verify validates NamespacedShares by checking every row with nmt inclusion proof.
 func (ns NamespacedShares) Verify(root *Root, nID namespace.ID) error {
 	originalRoots := make([][]byte, 0)
-	for _, row := range root.RowsRoots {
+	for _, row := range root.RowRoots {
 		if !nID.Less(nmt.MinNamespace(row, nID.Size())) && nID.LessOrEqual(nmt.MaxNamespace(row, nID.Size())) {
 			originalRoots = append(originalRoots, row)
 		}

@@ -62,10 +62,6 @@ func EmptyExtendedDataSquare() *rsmt2d.ExtendedDataSquare {
 
 // emptyDataSquare returns the minimum size data square filled with tail padding.
 func emptyDataSquare() [][]byte {
-	result, err := shares.TailPaddingShares(appconsts.MinShareCount)
-	if err != nil {
-		panic("failed to create empty data square: " + err.Error())
-	}
-
+	result := shares.TailPaddingShares(appconsts.MinShareCount)
 	return shares.ToBytes(result)
 }

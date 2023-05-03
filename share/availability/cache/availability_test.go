@@ -60,7 +60,7 @@ func TestCacheAvailability(t *testing.T) {
 }
 
 var invalidHeader = da.DataAvailabilityHeader{
-	RowsRoots: [][]byte{{1, 2}},
+	RowRoots: [][]byte{{1, 2}},
 }
 
 // TestCacheAvailability_Failed tests to make sure a failed
