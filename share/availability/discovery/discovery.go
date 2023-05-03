@@ -26,6 +26,8 @@ const (
 	// findPeersStuckWarnDelay is the duration after which findPeers will log an error message to
 	// notify that it is stuck.
 	findPeersStuckWarnDelay = time.Minute
+
+	defaultRetryTimeout = time.Second
 )
 
 // waitF calculates time to restart announcing.
@@ -363,7 +365,7 @@ func (p Parameters) withDefaults() Parameters {
 		p.AdvertiseInterval = def.AdvertiseInterval
 	}
 	if p.discoveryRetryTimeout == 0 {
-		p.discoveryRetryTimeout = def.discoveryRetryTimeout
+		p.discoveryRetryTimeout = defaultRetryTimeout
 	}
 	return p
 }
