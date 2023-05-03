@@ -16,10 +16,10 @@ import (
 const (
 	observeTimeout = 100 * time.Millisecond
 
-	findPeersCanceledReasonKey                                = "cancel_reason"
-	findPeersCanceledByEnoughPeers      findPeersCancelReason = "enough_peers"
-	findPeersCanceledByDiscoveryStopped findPeersCancelReason = "discovery_stopped"
-	findPeersCanceledByExternalCancel   findPeersCancelReason = "external_cancel"
+	discoveryStopReasonKey                                  = "stop_reason"
+	discoveryCanceledByEnoughPeers      discoveryStopReason = "enough_peers"
+	discoveryCanceledByNoAvailablePeers discoveryStopReason = "no_more_available_peers"
+	discoveryCanceledByExternalCancel   discoveryStopReason = "external_cancel"
 
 	handlePeerResultKey                    = "result"
 	handlePeerSkipSelf    handlePeerResult = "skip_self"
@@ -37,13 +37,13 @@ var (
 	meter = global.MeterProvider().Meter("share_discovery")
 )
 
-type findPeersCancelReason string
+type discoveryStopReason string
 
 type handlePeerResult string
 
 type metrics struct {
 	peersAmount      asyncint64.Gauge
-	findPeersResult  syncint64.Counter // attributes: stop_reason[enough_peers,discovery_stopped,external_cancel]
+	discoveryResult  syncint64.Counter // attributes: stop_reason[enough_peers,discovery_stopped,external_cancel]
 	handlePeerResult syncint64.Counter // attributes: result
 	advertise        syncint64.Counter //attributes: is_err[yes/no]
 	peerAdded        syncint64.Counter
@@ -74,7 +74,7 @@ func initMetrics(d *Discovery) (*metrics, error) {
 		return nil, err
 	}
 
-	handlePeerResult, err := meter.SyncInt64().Counter("discovery_handler_peer_result",
+	handlePeerResultCounter, err := meter.SyncInt64().Counter("discovery_handler_peer_result",
 		instrument.WithDescription("result handling found peer"))
 	if err != nil {
 		return nil, err
@@ -100,8 +100,8 @@ func initMetrics(d *Discovery) (*metrics, error) {
 
 	metrics := &metrics{
 		peersAmount:      peersAmount,
-		findPeersResult:  findPeersResult,
-		handlePeerResult: handlePeerResult,
+		discoveryResult:  findPeersResult,
+		handlePeerResult: handlePeerResultCounter,
 		advertise:        advertise,
 		peerAdded:        peerAdded,
 		peerRemoved:      peerRemoved,
@@ -128,15 +128,15 @@ func (m *metrics) observeFindPeers(isGlobalCancel, isEnoughPeers bool) {
 	ctx, cancel := context.WithTimeout(context.Background(), observeTimeout)
 	defer cancel()
 
-	reason := findPeersCanceledByDiscoveryStopped
+	reason := discoveryCanceledByNoAvailablePeers
 	switch {
 	case isGlobalCancel:
-		reason = findPeersCanceledByExternalCancel
+		reason = discoveryCanceledByExternalCancel
 	case isEnoughPeers:
-		reason = findPeersCanceledByEnoughPeers
+		reason = discoveryCanceledByEnoughPeers
 	}
-	m.findPeersResult.Add(ctx, 1,
-		attribute.String(findPeersCanceledReasonKey, string(reason)))
+	m.discoveryResult.Add(ctx, 1,
+		attribute.String(discoveryStopReasonKey, string(reason)))
 }
 
 func (m *metrics) observeHandlePeer(result handlePeerResult) {
