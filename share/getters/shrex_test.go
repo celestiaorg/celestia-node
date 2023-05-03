@@ -158,7 +158,11 @@ func testManager(ctx context.Context, host host.Host, headerSub libhead.Subscrib
 	}
 
 	disc := discovery.NewDiscovery(nil,
-		routingdisc.NewRoutingDiscovery(routinghelpers.Null{}), 0, time.Second, time.Second)
+		routingdisc.NewRoutingDiscovery(routinghelpers.Null{}), discovery.Parameters{
+			PeersLimit:        10,
+			AdvertiseInterval: time.Second,
+		},
+	)
 	connGater, err := conngater.NewBasicConnectionGater(ds_sync.MutexWrap(datastore.NewMapDatastore()))
 	if err != nil {
 		return nil, err
