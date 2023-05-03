@@ -40,6 +40,7 @@ type handlePeerResult string
 type metrics struct {
 	peersAmount      asyncint64.Gauge
 	discoveryResult  syncint64.Counter // attributes: enough_peers[bool],is_canceled[bool]
+	discoveryStuck   syncint64.Counter
 	handlePeerResult syncint64.Counter // attributes: result[string]
 	advertise        syncint64.Counter // attributes: failed[bool]
 	peerAdded        syncint64.Counter
@@ -64,8 +65,14 @@ func initMetrics(d *Discovery) (*metrics, error) {
 		return nil, err
 	}
 
-	findPeersResult, err := meter.SyncInt64().Counter("discovery_find_peers_result",
+	discoveryResult, err := meter.SyncInt64().Counter("discovery_find_peers_result",
 		instrument.WithDescription("result of find peers run"))
+	if err != nil {
+		return nil, err
+	}
+
+	discoveryStuck, err := meter.SyncInt64().Counter("discovery_lookup_is_stuck",
+		instrument.WithDescription("indicates discovery wasn't able to find peers for more than 1 min"))
 	if err != nil {
 		return nil, err
 	}
@@ -96,7 +103,8 @@ func initMetrics(d *Discovery) (*metrics, error) {
 
 	metrics := &metrics{
 		peersAmount:      peersAmount,
-		discoveryResult:  findPeersResult,
+		discoveryResult:  discoveryResult,
+		discoveryStuck:   discoveryStuck,
 		handlePeerResult: handlePeerResultCounter,
 		advertise:        advertise,
 		peerAdded:        peerAdded,
@@ -163,4 +171,14 @@ func (m *metrics) observeOnPeersUpdate(_ peer.ID, isAdded bool) {
 		return
 	}
 	m.peerRemoved.Add(ctx, 1)
+}
+
+func (m *metrics) observeDiscoveryStuck() {
+	if m == nil {
+		return
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), observeTimeout)
+	defer cancel()
+
+	m.discoveryStuck.Add(ctx, 1)
 }

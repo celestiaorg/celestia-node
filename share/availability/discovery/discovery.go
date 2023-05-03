@@ -286,9 +286,10 @@ func (d *Discovery) discover(ctx context.Context) bool {
 		drainChannel(ticker.C)
 		select {
 		case <-findCtx.Done():
-			d.metrics.observeFindPeers(true, d.set.Size() >= d.set.Limit())
+			d.metrics.observeFindPeers(true, true)
 			return true
 		case <-ticker.C:
+			d.metrics.observeDiscoveryStuck()
 			log.Warn("wasn't able to find new peers for long time")
 			continue
 		case p, ok := <-peers:
