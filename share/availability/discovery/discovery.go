@@ -166,7 +166,7 @@ func (d *Discovery) handlePeerFound(ctx context.Context, peer peer.AddrInfo) boo
 		return false
 	}
 	d.onUpdatedPeers(peer.ID, true)
-	d.metrics.observeHandlePeer(handlePeerConnect)
+	d.metrics.observeHandlePeer(handlePeerConnected)
 	log.Debug("added peer to set")
 
 	// tag to protect peer from being killed by ConnManager
