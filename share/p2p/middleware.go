@@ -10,12 +10,12 @@ import (
 var log = logging.Logger("shrex/middleware")
 
 type Middleware struct {
-	concurrencyLimit int64
-	parallelRequests atomic.Int64
-
 	// NumRateLimited is the number of requests that were rate limited. It is reset to 0 every time
 	// it is read and observed into metrics.
 	NumRateLimited atomic.Int64
+
+	concurrencyLimit int64
+	parallelRequests atomic.Int64
 }
 
 func NewMiddleware(concurrencyLimit int) *Middleware {
