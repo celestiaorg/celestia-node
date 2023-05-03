@@ -83,8 +83,9 @@ func TestExchange_RequestND(t *testing.T) {
 				t.Fatal("timeout")
 			}
 		}
+		middleware := p2p.NewMiddleware(rateLimit)
 		server.host.SetStreamHandler(server.protocolID,
-			p2p.RateLimitMiddleware(mockHandler, rateLimit))
+			middleware.RateLimitHandler(mockHandler))
 
 		// take server concurrency slots with blocked requests
 		for i := 0; i < rateLimit; i++ {
@@ -102,17 +103,20 @@ func TestExchange_RequestND(t *testing.T) {
 
 type notFoundGetter struct{}
 
-func (m notFoundGetter) GetShare(_ context.Context, _ *share.Root, _, _ int,
+func (m notFoundGetter) GetShare(
+	_ context.Context, _ *share.Root, _, _ int,
 ) (share.Share, error) {
 	return nil, share.ErrNotFound
 }
 
-func (m notFoundGetter) GetEDS(_ context.Context, _ *share.Root,
+func (m notFoundGetter) GetEDS(
+	_ context.Context, _ *share.Root,
 ) (*rsmt2d.ExtendedDataSquare, error) {
 	return nil, share.ErrNotFound
 }
 
-func (m notFoundGetter) GetSharesByNamespace(_ context.Context, _ *share.Root, _ namespace.ID,
+func (m notFoundGetter) GetSharesByNamespace(
+	_ context.Context, _ *share.Root, _ namespace.ID,
 ) (share.NamespacedShares, error) {
 	return nil, share.ErrNotFound
 }

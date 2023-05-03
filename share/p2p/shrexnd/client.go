@@ -29,7 +29,8 @@ type Client struct {
 	params     *Parameters
 	protocolID protocol.ID
 
-	host host.Host
+	host    host.Host
+	metrics *p2p.Metrics
 }
 
 // NewClient creates a new shrEx/nd client
@@ -58,6 +59,7 @@ func (c *Client) RequestND(
 		return shares, err
 	}
 	if errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) {
+		c.metrics.ObserveRequests(1, p2p.StatusTimeout)
 		return nil, err
 	}
 	// some net.Errors also mean the context deadline was exceeded, but yamux/mocknet do not
@@ -65,6 +67,7 @@ func (c *Client) RequestND(
 	var ne net.Error
 	if errors.As(err, &ne) && ne.Timeout() {
 		if deadline, _ := ctx.Deadline(); deadline.Before(time.Now()) {
+			c.metrics.ObserveRequests(1, p2p.StatusTimeout)
 			return nil, context.DeadlineExceeded
 		}
 	}
@@ -109,13 +112,14 @@ func (c *Client) doRequest(
 	if err != nil {
 		// server is overloaded and closed the stream
 		if errors.Is(err, io.EOF) {
+			c.metrics.ObserveRequests(1, p2p.StatusRateLimited)
 			return nil, p2p.ErrNotFound
 		}
 		stream.Reset() //nolint:errcheck
 		return nil, fmt.Errorf("client-nd: reading response: %w", err)
 	}
 
-	if err = statusToErr(resp.Status); err != nil {
+	if err = c.statusToErr(resp.Status); err != nil {
 		return nil, fmt.Errorf("client-nd: response code is not OK: %w", err)
 	}
 
@@ -183,11 +187,13 @@ func (c *Client) setStreamDeadlines(ctx context.Context, stream network.Stream) 
 	}
 }
 
-func statusToErr(code pb.StatusCode) error {
+func (c *Client) statusToErr(code pb.StatusCode) error {
 	switch code {
 	case pb.StatusCode_OK:
+		c.metrics.ObserveRequests(1, p2p.StatusSuccess)
 		return nil
 	case pb.StatusCode_NOT_FOUND:
+		c.metrics.ObserveRequests(1, p2p.StatusNotFound)
 		return p2p.ErrNotFound
 	case pb.StatusCode_INVALID:
 		log.Debug("client-nd: invalid request")

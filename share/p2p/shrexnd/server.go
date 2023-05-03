@@ -24,14 +24,17 @@ import (
 // Server implements server side of shrex/nd protocol to serve namespaced share to remote
 // peers.
 type Server struct {
-	params     *Parameters
+	cancel context.CancelFunc
+
+	host       host.Host
 	protocolID protocol.ID
 
 	getter share.Getter
 	store  *eds.Store
-	host   host.Host
 
-	cancel context.CancelFunc
+	params     *Parameters
+	middleware *p2p.Middleware
+	metrics    *p2p.Metrics
 }
 
 // NewServer creates new Server
@@ -46,6 +49,7 @@ func NewServer(params *Parameters, host host.Host, store *eds.Store, getter shar
 		host:       host,
 		params:     params,
 		protocolID: p2p.ProtocolID(params.NetworkID(), protocolString),
+		middleware: p2p.NewMiddleware(params.ConcurrencyLimit),
 	}
 
 	return srv, nil
@@ -59,7 +63,7 @@ func (srv *Server) Start(context.Context) error {
 	handler := func(s network.Stream) {
 		srv.handleNamespacedData(ctx, s)
 	}
-	srv.host.SetStreamHandler(srv.protocolID, p2p.RateLimitMiddleware(handler, srv.params.ConcurrencyLimit))
+	srv.host.SetStreamHandler(srv.protocolID, srv.middleware.RateLimitHandler(handler))
 	return nil
 }
 
@@ -70,9 +74,18 @@ func (srv *Server) Stop(context.Context) error {
 	return nil
 }
 
+func (srv *Server) observeRateLimitedRequests() {
+	numRateLimited := srv.middleware.DrainCounter()
+	if numRateLimited > 0 {
+		srv.metrics.ObserveRequests(numRateLimited, p2p.StatusRateLimited)
+	}
+}
+
 func (srv *Server) handleNamespacedData(ctx context.Context, stream network.Stream) {
 	logger := log.With("peer", stream.Conn().RemotePeer())
 	logger.Debug("server: handling nd request")
+
+	srv.observeRateLimitedRequests()
 
 	err := stream.SetReadDeadline(time.Now().Add(srv.params.ServerReadTimeout))
 	if err != nil {
@@ -195,6 +208,14 @@ func (srv *Server) respond(logger *zap.SugaredLogger, stream network.Stream, res
 		return
 	}
 
+	switch {
+	case resp.Status == pb.StatusCode_OK:
+		srv.metrics.ObserveRequests(1, p2p.StatusSuccess)
+	case resp.Status == pb.StatusCode_NOT_FOUND:
+		srv.metrics.ObserveRequests(1, p2p.StatusNotFound)
+	case resp.Status == pb.StatusCode_INTERNAL:
+		srv.metrics.ObserveRequests(1, p2p.StatusInternalErr)
+	}
 	if err = stream.Close(); err != nil {
 		logger.Debugw("server: closing stream", "err", err)
 	}

@@ -73,19 +73,30 @@ func WithMetrics(metricOpts []otlpmetrichttp.Option, nodeType node.Type) fx.Opti
 		fx.Invoke(share.WithDiscoveryMetrics),
 	)
 
+	samplingMetrics := fx.Options(
+		fx.Invoke(das.WithMetrics),
+		fx.Invoke(share.WithPeerManagerMetrics),
+		fx.Invoke(share.WithShrexClientMetrics),
+		fx.Invoke(share.WithShrexGetterMetrics),
+	)
+
 	var opts fx.Option
 	switch nodeType {
-	case node.Full, node.Light:
+	case node.Full:
 		opts = fx.Options(
 			baseComponents,
-			fx.Invoke(das.WithMetrics),
-			fx.Invoke(share.WithPeerManagerMetrics),
-			// add more monitoring here
+			fx.Invoke(share.WithShrexServerMetrics),
+			samplingMetrics,
+		)
+	case node.Light:
+		opts = fx.Options(
+			baseComponents,
+			samplingMetrics,
 		)
 	case node.Bridge:
 		opts = fx.Options(
 			baseComponents,
-			// add more monitoring here
+			fx.Invoke(share.WithShrexServerMetrics),
 		)
 	default:
 		panic("invalid node type")
