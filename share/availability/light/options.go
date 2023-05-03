@@ -34,7 +34,7 @@ func (p *Parameters) Validate() error {
 			"light availability: invalid option: value %s was %s, where it should be %s",
 			"SampleAmount",
 			"<= 0", // current value
-			">= 0", // what the valueshould be
+			">= 0", // what the value should be
 		)
 	}
 

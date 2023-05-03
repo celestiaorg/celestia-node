@@ -59,39 +59,24 @@ func (p *Parameters) Validate() error {
 	return nil
 }
 
-// WithPeersLimit is a functional option that the Discoverable interface
-// implementers use to set the PeersLimit configuration param
-//
-// To be used with the construction
-// example:
-//
-// NewDiscovery(
-//
-//	bServ,
-//	disc,
-//	WithPeersLimit(3),
-//
-// )
+// WithPeersLimit is a functional option that Discovery
+// uses to set the PeersLimit configuration param
 func WithPeersLimit(peersLimit int) Option {
 	return func(p *Parameters) {
 		p.PeersLimit = peersLimit
 	}
 }
 
-// WithDiscoveryInterval is a functional option that the Discoverable interface
-// implementers use to set the DiscoveryInterval configuration param
-//
-// To be used with the construction, see example in WithPeersLimit documentation
+// WithDiscoveryInterval is a functional option that Discovery
+// uses to set the DiscoveryInterval configuration param
 func WithDiscoveryInterval(discInterval time.Duration) Option {
 	return func(p *Parameters) {
 		p.DiscoveryInterval = discInterval
 	}
 }
 
-// WithAdvertiseInterval is a functional option that the Discoverable interface
-// implementers use to set the AdvertiseInterval configuration param
-//
-// To be used with the construction, see example in WithPeersLimit documentation
+// WithAdvertiseInterval is a functional option that Discovery
+// uses to set the AdvertiseInterval configuration param
 func WithAdvertiseInterval(advInterval time.Duration) Option {
 	return func(p *Parameters) {
 		p.AdvertiseInterval = advInterval

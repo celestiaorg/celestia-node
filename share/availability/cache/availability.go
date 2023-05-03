@@ -18,6 +18,8 @@ import (
 var (
 	log     = logging.Logger("share/cache")
 	minRoot = da.MinDataAvailabilityHeader()
+
+	cacheAvailabilityPrefix = datastore.NewKey("sampling_result")
 )
 
 // ShareAvailability wraps a given share.Availability (whether it's light or full)
@@ -47,7 +49,7 @@ func NewShareAvailability(
 		opt(&params)
 	}
 
-	ds = namespace.Wrap(ds, datastore.NewKey(params.CacheAvailabilityPrefix))
+	ds = namespace.Wrap(ds, cacheAvailabilityPrefix)
 	autoDS := autobatch.NewAutoBatching(ds, int(params.WriteBatchSize))
 
 	return &ShareAvailability{

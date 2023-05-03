@@ -7,8 +7,7 @@ import (
 const (
 	// DefaultWriteBatchSize defines the size of the batched header write.
 	// Headers are written in batches not to thrash the underlying Datastore with writes.
-	// TODO(@Wondertan, @renaynay): Those values must be configurable
-	// and proper defaults should be set for specific node type. (#709)
+	// TODO(@Wondertan, @renaynay): proper defaults should be set for specific node type. (#709)
 	DefaultWriteBatchSize          = 2048
 	DefaultCacheAvailabilityPrefix = "sampling_result"
 )
@@ -18,8 +17,6 @@ const (
 type Parameters struct {
 	// WriteBatchSize defines the size of the batched header write.
 	WriteBatchSize uint
-	// CacheAvailabilityPrefix is the string prefix to use as a key for the datastore
-	CacheAvailabilityPrefix string
 }
 
 // Option is a function that configures cache availability Parameters
@@ -29,8 +26,7 @@ type Option func(*Parameters)
 // for the light availability implementation
 func DefaultParameters() Parameters {
 	return Parameters{
-		WriteBatchSize:          DefaultWriteBatchSize,
-		CacheAvailabilityPrefix: DefaultCacheAvailabilityPrefix,
+		WriteBatchSize: DefaultWriteBatchSize,
 	}
 }
 
@@ -44,42 +40,13 @@ func (ca *Parameters) Validate() error {
 		)
 	}
 
-	if ca.CacheAvailabilityPrefix == "" {
-		return fmt.Errorf(
-			"cache availability: invalid option: value for CacheAvailabilityPrefix %s, %s",
-			"is empty",                // current value
-			"value must be non empty", // what the should be
-		)
-	}
-
 	return nil
 }
 
 // WithWriteBatchSize is a functional option that the Availability interface
 // implementers use to set the WriteBatchSize configuration param
-//
-// To be used with the construction
-// example:
-//
-// NewShareAvailability(
-//
-//	bServ,
-//	disc,
-//	WithWriteBatchSize(uint),
-//
-// )
 func WithWriteBatchSize(writeBatchSize uint) Option {
 	return func(p *Parameters) {
 		p.WriteBatchSize = writeBatchSize
-	}
-}
-
-// WithCacheAvailabilityPrefix is a functional option that the Availability interface
-// implementers use to set the CacheAvailabilityPrefix configuration param
-//
-// To be used with the construction, see example in WithWriteBatchSize documentation
-func WithCacheAvailabilityPrefix(prefix string) Option {
-	return func(p *Parameters) {
-		p.CacheAvailabilityPrefix = prefix
 	}
 }
