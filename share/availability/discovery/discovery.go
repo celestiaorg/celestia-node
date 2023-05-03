@@ -2,6 +2,7 @@ package discovery
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	logging "github.com/ipfs/go-log/v2"
@@ -20,13 +21,16 @@ const (
 	topic = "full"
 
 	// eventbusBufSize is the size of the buffered channel to handle
-	// events in libp2p
-	eventbusBufSize = 32
+	// events in libp2p. We specify a larger buffer size for the channel
+	// to avoid overflowing and blocking subscription during disconnection bursts.
+	// (by default it is 16)
+	eventbusBufSize = 64
 
 	// findPeersStuckWarnDelay is the duration after which discover will log an error message to
 	// notify that it is stuck.
 	findPeersStuckWarnDelay = time.Minute
 
+	// defaultRetryTimeout defines time interval between discovery attempts.
 	defaultRetryTimeout = time.Second
 )
 
@@ -47,6 +51,17 @@ type Parameters struct {
 	// when we discovered lower than PeersLimit peers.
 	// Set -1 to disable.
 	discoveryRetryTimeout time.Duration
+}
+
+func (p Parameters) withDefaults() Parameters {
+	def := DefaultParameters()
+	if p.AdvertiseInterval == 0 {
+		p.AdvertiseInterval = def.AdvertiseInterval
+	}
+	if p.discoveryRetryTimeout == 0 {
+		p.discoveryRetryTimeout = defaultRetryTimeout
+	}
+	return p
 }
 
 func DefaultParameters() Parameters {
@@ -100,8 +115,13 @@ func (d *Discovery) Start(context.Context) error {
 		return nil
 	}
 
+	sub, err := d.host.EventBus().Subscribe(&event.EvtPeerConnectednessChanged{}, eventbus.BufSize(eventbusBufSize))
+	if err != nil {
+		return fmt.Errorf("subscribing for connection events: %w", err)
+	}
+
 	go d.discoveryLoop(ctx)
-	go d.disconnectsLoop(ctx)
+	go d.disconnectsLoop(ctx, sub)
 	go d.connector.GC(ctx)
 	return nil
 }
@@ -191,16 +211,7 @@ func (d *Discovery) discoveryLoop(ctx context.Context) {
 
 // disconnectsLoop listen for disconnect events and ensures Discovery state
 // is updated.
-func (d *Discovery) disconnectsLoop(ctx context.Context) {
-	// subscribe on EventBus in order to catch disconnected peers and restart
-	// the discovery. We specify a larger buffer size for the channel where
-	// EvtPeerConnectednessChanged events are sent (by default it is 16, we
-	// specify 32) to avoid any blocks on writing to the full channel.
-	sub, err := d.host.EventBus().Subscribe(&event.EvtPeerConnectednessChanged{}, eventbus.BufSize(eventbusBufSize))
-	if err != nil {
-		log.Error(err)
-		return
-	}
+func (d *Discovery) disconnectsLoop(ctx context.Context, sub event.Subscription) {
 	defer sub.Close()
 
 	for {
@@ -353,17 +364,6 @@ func (d *Discovery) handleDiscoveredPeer(ctx context.Context, peer peer.AddrInfo
 	//  connection should be kept or not, similar to mesh link in GossipSub.
 	d.host.ConnManager().Protect(peer.ID, topic)
 	return true
-}
-
-func (p Parameters) withDefaults() Parameters {
-	def := DefaultParameters()
-	if p.AdvertiseInterval == 0 {
-		p.AdvertiseInterval = def.AdvertiseInterval
-	}
-	if p.discoveryRetryTimeout == 0 {
-		p.discoveryRetryTimeout = defaultRetryTimeout
-	}
-	return p
 }
 
 func drainChannel(c <-chan time.Time) {
