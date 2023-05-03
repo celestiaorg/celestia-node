@@ -39,7 +39,7 @@ func TestExchange_RequestND_NotFound(t *testing.T) {
 		require.ErrorIs(t, err, p2p.ErrNotFound)
 	})
 
-	t.Run("Getter_err_not_found", func(t *testing.T) {
+	t.Run("ErrNamespaceNotFound", func(t *testing.T) {
 		ctx, cancel := context.WithTimeout(ctx, time.Second)
 		t.Cleanup(cancel)
 
@@ -49,7 +49,7 @@ func TestExchange_RequestND_NotFound(t *testing.T) {
 
 		randNID := dah.RowsRoots[(len(dah.RowsRoots)-1)/2][:8]
 		_, err := client.RequestND(ctx, &dah, randNID, server.host.ID())
-		require.ErrorIs(t, err, p2p.ErrNotFound)
+		require.ErrorIs(t, err, share.ErrNamespaceNotFound)
 	})
 }
 
