@@ -16,7 +16,6 @@ type Parameters struct {
 	AdvertiseInterval time.Duration
 	// discoveryRetryTimeout is an interval between discovery attempts
 	// when we discovered lower than PeersLimit peers.
-	// Set -1 to disable.
 	discoveryRetryTimeout time.Duration
 }
 

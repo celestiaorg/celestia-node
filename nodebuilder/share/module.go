@@ -172,7 +172,7 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 			baseComponents,
 			fx.Provide(func() []light.Option {
 				return []light.Option{
-					light.WithSampleAmount(cfg.Light.SampleAmount),
+					light.WithSampleAmount(cfg.Availability.SampleAmount),
 				}
 			}),
 			shrexGetterComponents,

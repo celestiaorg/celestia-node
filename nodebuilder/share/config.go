@@ -1,7 +1,6 @@
 package share
 
 import (
-	"errors"
 	"fmt"
 
 	"github.com/celestiaorg/celestia-node/share/availability/discovery"
@@ -11,13 +10,9 @@ import (
 	"github.com/celestiaorg/celestia-node/share/p2p/shrexnd"
 )
 
-var (
-	ErrNegativeInterval = errors.New("interval must be positive")
-)
-
 type Config struct {
-	Light     light.Parameters
-	Discovery discovery.Parameters
+	Availability light.Parameters
+	Discovery    discovery.Parameters
 
 	UseShareExchange bool
 	// ShrExEDSParams sets shrexeds client and server configuration parameters
@@ -31,7 +26,7 @@ type Config struct {
 // TODO: Remove share/availability/options.go and reorg configs here
 func DefaultConfig() Config {
 	return Config{
-		Light:             light.DefaultParameters(),
+		Availability:      light.DefaultParameters(),
 		Discovery:         discovery.DefaultParameters(),
 		ShrExEDSParams:    shrexeds.DefaultParameters(),
 		ShrExNDParams:     shrexnd.DefaultParameters(),
@@ -42,7 +37,7 @@ func DefaultConfig() Config {
 
 // Validate performs basic validation of the config.
 func (cfg *Config) Validate() error {
-	err := cfg.Light.Validate()
+	err := cfg.Availability.Validate()
 	if err != nil {
 		return fmt.Errorf("nodebuilder/share: %w", err)
 	}
