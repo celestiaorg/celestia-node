@@ -18,7 +18,8 @@ import (
 var log = logging.Logger("share/discovery")
 
 const (
-	topic = "full"
+	// rendezvousPoint is the namespace where peers advertise and discover each other.
+	rendezvousPoint = "full"
 
 	// eventbusBufSize is the size of the buffered channel to handle
 	// events in libp2p. We specify a larger buffer size for the channel
@@ -156,9 +157,9 @@ func (d *Discovery) Advertise(ctx context.Context) {
 	timer := time.NewTimer(d.params.AdvertiseInterval)
 	defer timer.Stop()
 	for {
-		ttl, err := d.disc.Advertise(ctx, topic)
+		ttl, err := d.disc.Advertise(ctx, rendezvousPoint)
 		if err != nil {
-			log.Debugf("Error advertising %s: %s", topic, err.Error())
+			log.Debugf("Error advertising %s: %s", rendezvousPoint, err.Error())
 			if ctx.Err() != nil {
 				return
 			}
@@ -229,7 +230,7 @@ func (d *Discovery) disconnectsLoop(ctx context.Context, sub event.Subscription)
 					continue
 				}
 
-				d.host.ConnManager().Unprotect(evnt.Peer, topic)
+				d.host.ConnManager().Unprotect(evnt.Peer, rendezvousPoint)
 				d.connector.Backoff(evnt.Peer)
 				d.set.Remove(evnt.Peer)
 				d.onUpdatedPeers(evnt.Peer, false)
@@ -268,7 +269,7 @@ func (d *Discovery) discover(ctx context.Context) bool {
 	findCtx, findCancel := context.WithCancel(ctx)
 	defer findCancel()
 
-	peers, err := d.disc.FindPeers(findCtx, topic)
+	peers, err := d.disc.FindPeers(findCtx, rendezvousPoint)
 	if err != nil {
 		log.Error("unable to start discovery", "err", err)
 		return false
@@ -362,7 +363,7 @@ func (d *Discovery) handleDiscoveredPeer(ctx context.Context, peer peer.AddrInfo
 	// NOTE: This is does not protect from remote killing the connection.
 	//  In the future, we should design a protocol that keeps bidirectional agreement on whether
 	//  connection should be kept or not, similar to mesh link in GossipSub.
-	d.host.ConnManager().Protect(peer.ID, topic)
+	d.host.ConnManager().Protect(peer.ID, rendezvousPoint)
 	return true
 }
 
