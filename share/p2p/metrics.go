@@ -16,10 +16,10 @@ var meter = global.MeterProvider().Meter("shrex/eds")
 type status string
 
 const (
-	StatusInternalErr status = "InternalError"
-	StatusNotFound    status = "NotFound"
-	StatusSuccess     status = "Success"
-	StatusRateLimited status = "RateLimited"
+	StatusInternalErr status = "internal_err"
+	StatusNotFound    status = "not_found"
+	StatusSuccess     status = "success"
+	StatusRateLimited status = "rate_limited"
 )
 
 type Metrics struct {
@@ -37,7 +37,7 @@ func (m *Metrics) ObserveRequests(ctx context.Context, count int64, status statu
 
 func InitClientMetrics(protocol string) (*Metrics, error) {
 	totalRequestCounter, err := meter.SyncInt64().Counter(
-		fmt.Sprintf("total_shrex_%s_requests", protocol),
+		fmt.Sprintf("shrex_%s_client_total_requests", protocol),
 		instrument.WithUnit(unit.Dimensionless),
 		instrument.WithDescription(fmt.Sprintf("Total count of sent shrex/%s requests", protocol)),
 	)
@@ -52,7 +52,7 @@ func InitClientMetrics(protocol string) (*Metrics, error) {
 
 func InitServerMetrics(protocol string) (*Metrics, error) {
 	totalRequestCounter, err := meter.SyncInt64().Counter(
-		fmt.Sprintf("total_shrex_%s_responses", protocol),
+		fmt.Sprintf("shrex_%s_server_total_responses", protocol),
 		instrument.WithUnit(unit.Dimensionless),
 		instrument.WithDescription(fmt.Sprintf("Total count of sent shrex/%s responses", protocol)),
 	)

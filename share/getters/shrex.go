@@ -56,7 +56,7 @@ func (m *metrics) recordNDAttempt(ctx context.Context, attemptCount int, success
 
 func (sg *ShrexGetter) WithMetrics() error {
 	edsAttemptHistogram, err := meter.SyncInt64().Histogram(
-		"attempts_per_eds_request",
+		"getters_shrex_eds_attempts_per_request",
 		instrument.WithUnit(unit.Dimensionless),
 		instrument.WithDescription("Number of attempts per shrex/eds request"),
 	)
@@ -65,7 +65,7 @@ func (sg *ShrexGetter) WithMetrics() error {
 	}
 
 	ndAttemptHistogram, err := meter.SyncInt64().Histogram(
-		"attempts_per_nd_request",
+		"getters_shrex_nd_attempts_per_request",
 		instrument.WithUnit(unit.Dimensionless),
 		instrument.WithDescription("Number of attempts per shrex/nd request"),
 	)
