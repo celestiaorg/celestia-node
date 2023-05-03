@@ -2,6 +2,7 @@ package discovery
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	logging "github.com/ipfs/go-log/v2"
@@ -17,15 +18,21 @@ import (
 var log = logging.Logger("share/discovery")
 
 const (
-	topic = "full"
+	// rendezvousPoint is the namespace where peers advertise and discover each other.
+	rendezvousPoint = "full"
 
 	// eventbusBufSize is the size of the buffered channel to handle
-	// events in libp2p
-	eventbusBufSize = 32
+	// events in libp2p. We specify a larger buffer size for the channel
+	// to avoid overflowing and blocking subscription during disconnection bursts.
+	// (by default it is 16)
+	eventbusBufSize = 64
 
-	// findPeersStuckWarnDelay is the duration after which findPeers will log an error message to
+	// findPeersStuckWarnDelay is the duration after which discover will log an error message to
 	// notify that it is stuck.
 	findPeersStuckWarnDelay = time.Minute
+
+	// defaultRetryTimeout defines time interval between discovery attempts.
+	defaultRetryTimeout = time.Second
 )
 
 // waitF calculates time to restart announcing.
@@ -47,16 +54,22 @@ type Parameters struct {
 	discoveryRetryTimeout time.Duration
 }
 
-func DefaultParameters() Parameters {
-	return Parameters{
-		PeersLimit:            5,
-		discoveryRetryTimeout: time.Second,
-		AdvertiseInterval:     time.Hour * 8,
+func (p Parameters) withDefaults() Parameters {
+	def := DefaultParameters()
+	if p.AdvertiseInterval == 0 {
+		p.AdvertiseInterval = def.AdvertiseInterval
 	}
+	if p.discoveryRetryTimeout == 0 {
+		p.discoveryRetryTimeout = defaultRetryTimeout
+	}
+	return p
 }
 
-func (p *Parameters) Validate() error {
-	return nil
+func DefaultParameters() Parameters {
+	return Parameters{
+		PeersLimit:        5,
+		AdvertiseInterval: time.Hour * 8,
+	}
 }
 
 // Discovery combines advertise and discover services and allows to store discovered nodes.
@@ -72,8 +85,7 @@ type Discovery struct {
 
 	triggerDisc chan struct{}
 
-	metrics *metrics
-	cancel  context.CancelFunc
+	cancel context.CancelFunc
 }
 
 type OnUpdatedPeers func(peerID peer.ID, isAdded bool)
@@ -85,7 +97,7 @@ func NewDiscovery(
 	params Parameters,
 ) *Discovery {
 	return &Discovery{
-		params:         params,
+		params:         params.withDefaults(),
 		set:            newLimitedSet(params.PeersLimit),
 		host:           h,
 		disc:           d,
@@ -98,7 +110,20 @@ func NewDiscovery(
 func (d *Discovery) Start(context.Context) error {
 	ctx, cancel := context.WithCancel(context.Background())
 	d.cancel = cancel
-	go d.ensurePeers(ctx)
+
+	if d.params.PeersLimit == 0 {
+		log.Warn("peers limit is set to 0. Skipping discovery...")
+		return nil
+	}
+
+	sub, err := d.host.EventBus().Subscribe(&event.EvtPeerConnectednessChanged{}, eventbus.BufSize(eventbusBufSize))
+	if err != nil {
+		return fmt.Errorf("subscribing for connection events: %w", err)
+	}
+
+	go d.discoveryLoop(ctx)
+	go d.disconnectsLoop(ctx, sub)
+	go d.connector.GC(ctx)
 	return nil
 }
 
@@ -116,215 +141,10 @@ func (d *Discovery) WithOnPeersUpdate(f OnUpdatedPeers) {
 	}
 }
 
-func (d *Discovery) triggerDiscovery() {
-	select {
-	case d.triggerDisc <- struct{}{}:
-	default:
-	}
-}
-
-// handlePeersFound receives peers and tries to establish a connection with them.
-// Peer will be added to PeerCache if connection succeeds.
-func (d *Discovery) handlePeerFound(ctx context.Context, peer peer.AddrInfo) bool {
-	log := log.With("peer", peer.ID)
-	switch {
-	case peer.ID == d.host.ID():
-		d.metrics.observeHandlePeer(handlePeerSkipSelf)
-		log.Debug("skip handle: self discovery")
-		return false
-	case len(peer.Addrs) == 0:
-		d.metrics.observeHandlePeer(handlePeerEmptyAddrs)
-		log.Debug("skip handle: empty address list")
-		return false
-	case d.set.Size() >= d.set.Limit():
-		d.metrics.observeHandlePeer(handlePeerEnoughPeers)
-		log.Debug("skip handle: enough peers found")
-		return false
-	case d.connector.HasBackoff(peer.ID):
-		d.metrics.observeHandlePeer(handlePeerBackoff)
-		log.Debug("skip handle: backoff")
-		return false
-	}
-
-	switch d.host.Network().Connectedness(peer.ID) {
-	case network.Connected:
-		d.connector.Backoff(peer.ID) // we still have to backoff the connected peer
-	case network.NotConnected:
-		err := d.connector.Connect(ctx, peer)
-		if err != nil {
-			d.metrics.observeHandlePeer(handlePeerConnErr)
-			log.Debugw("unable to connect", "err", err)
-			return false
-		}
-	default:
-		panic("unknown connectedness")
-	}
-
-	if !d.set.Add(peer.ID) {
-		d.metrics.observeHandlePeer(handlePeerInSet)
-		log.Debug("peer is already in discovery set")
-		return false
-	}
-	d.onUpdatedPeers(peer.ID, true)
-	d.metrics.observeHandlePeer(handlePeerConnected)
-	log.Debug("added peer to set")
-
-	// tag to protect peer from being killed by ConnManager
-	// NOTE: This is does not protect from remote killing the connection.
-	//  In the future, we should design a protocol that keeps bidirectional agreement on whether
-	//  connection should be kept or not, similar to mesh link in GossipSub.
-	d.host.ConnManager().Protect(peer.ID, topic)
-	return true
-}
-
-// ensurePeers ensures we always have 'peerLimit' connected peers.
-// It starts peer discovery every 30 seconds until peer cache reaches peersLimit.
-// Discovery is restarted if any previously connected peers disconnect.
-func (d *Discovery) ensurePeers(ctx context.Context) {
-	if d.params.PeersLimit == 0 {
-		log.Warn("peers limit is set to 0. Skipping discovery...")
-		return
-	}
-	// subscribe on EventBus in order to catch disconnected peers and restart
-	// the discovery. We specify a larger buffer size for the channel where
-	// EvtPeerConnectednessChanged events are sent (by default it is 16, we
-	// specify 32) to avoid any blocks on writing to the full channel.
-	sub, err := d.host.EventBus().Subscribe(&event.EvtPeerConnectednessChanged{}, eventbus.BufSize(eventbusBufSize))
-	if err != nil {
-		log.Error(err)
-		return
-	}
-	defer sub.Close()
-
-	// starting to listen to subscriptions async will help us to avoid any blocking
-	// in the case when we will not have the needed amount of FNs and will be blocked in `FindPeers`.
-	go func() {
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			case e, ok := <-sub.Out():
-				if !ok {
-					log.Error("connection subscription was closed unexpectedly")
-					return
-				}
-
-				if evnt := e.(event.EvtPeerConnectednessChanged); evnt.Connectedness == network.NotConnected {
-					if !d.set.Contains(evnt.Peer) {
-						continue
-					}
-
-					d.host.ConnManager().Unprotect(evnt.Peer, topic)
-					d.connector.Backoff(evnt.Peer)
-					d.set.Remove(evnt.Peer)
-					d.onUpdatedPeers(evnt.Peer, false)
-					log.Debugw("removed peer from the peer set",
-						"peer", evnt.Peer, "status", evnt.Connectedness.String())
-
-					if d.set.Size() < d.set.Limit() {
-						d.triggerDiscovery()
-					}
-				}
-			}
-		}
-	}()
-	go d.connector.GC(ctx)
-
-	t := time.NewTicker(d.params.discoveryRetryTimeout)
-	defer t.Stop()
-	for {
-		// drain all previous ticks from channel
-		drainChannel(t.C)
-		select {
-		case <-t.C:
-			found := d.findPeers(ctx)
-			if !found {
-				// rerun discovery if amount of peers didn't reach the limit
-				continue
-			}
-		case <-ctx.Done():
-			return
-		}
-
-		select {
-		case <-d.triggerDisc:
-		case <-ctx.Done():
-			return
-		}
-	}
-}
-
-func (d *Discovery) findPeers(ctx context.Context) bool {
-	size := d.set.Size()
-	want := d.set.Limit() - size
-	if want == 0 {
-		log.Debugw("reached soft peer limit, skipping discovery", "size", size)
-		return true
-	}
-	log.Infow("discovering peers", "want", want)
-
-	// we use errgroup as it provide limits
-	var wg errgroup.Group
-	// limit to minimize chances of overreaching the limit
-	wg.SetLimit(int(d.set.Limit()))
-	defer wg.Wait() //nolint:errcheck
-
-	// stop discovery when we are done
-	findCtx, findCancel := context.WithCancel(ctx)
-	defer findCancel()
-
-	peers, err := d.disc.FindPeers(findCtx, topic)
-	if err != nil {
-		log.Error("unable to start discovery", "err", err)
-		return false
-	}
-
-	ticker := time.NewTicker(findPeersStuckWarnDelay)
-	defer ticker.Stop()
-	for {
-		ticker.Reset(findPeersStuckWarnDelay)
-		// drain all previous ticks from channel
-		drainChannel(ticker.C)
-		select {
-		case <-findCtx.Done():
-			d.metrics.observeFindPeers(ctx.Err() != nil, findCtx != nil)
-			log.Debugw("found enough peers", "amount", d.set.Size())
-			return true
-		case <-ticker.C:
-			log.Warn("wasn't able to find new peers for long time")
-			continue
-		case p, ok := <-peers:
-			if !ok {
-				d.metrics.observeFindPeers(ctx.Err() != nil, findCtx != nil)
-				log.Debugw("discovery channel closed", "find_is_canceled", findCtx.Err() != nil)
-				return d.set.Size() >= d.set.Limit()
-			}
-
-			peer := p
-			wg.Go(func() error {
-				if findCtx.Err() != nil {
-					log.Debug("find has been canceled, skip peer")
-					return nil
-				}
-
-				// we don't pass findCtx so that we don't cancel in progress connections
-				// that are likely to be valuable
-				if !d.handlePeerFound(ctx, peer) {
-					return nil
-				}
-
-				size := d.set.Size()
-				log.Debugw("found peer", "peer", peer.ID, "found_amount", size)
-				if size < d.set.Limit() {
-					return nil
-				}
-
-				log.Infow("discovered wanted peers", "amount", size)
-				findCancel()
-				return nil
-			})
-		}
-	}
+// Peers provides a list of discovered peers in the "full" topic.
+// If Discovery hasn't found any peers, it blocks until at least one peer is found.
+func (d *Discovery) Peers(ctx context.Context) ([]peer.ID, error) {
+	return d.set.Peers(ctx)
 }
 
 // Advertise is a utility function that persistently advertises a service through an Advertiser.
@@ -337,10 +157,9 @@ func (d *Discovery) Advertise(ctx context.Context) {
 	timer := time.NewTimer(d.params.AdvertiseInterval)
 	defer timer.Stop()
 	for {
-		ttl, err := d.disc.Advertise(ctx, topic)
-		d.metrics.observeAdvertise(err)
+		ttl, err := d.disc.Advertise(ctx, rendezvousPoint)
 		if err != nil {
-			log.Debugf("Error advertising %s: %s", topic, err.Error())
+			log.Debugf("Error advertising %s: %s", rendezvousPoint, err.Error())
 			if ctx.Err() != nil {
 				return
 			}
@@ -364,10 +183,188 @@ func (d *Discovery) Advertise(ctx context.Context) {
 	}
 }
 
-// Peers provides a list of discovered peers in the "full" topic.
-// If Discovery hasn't found any peers, it blocks until at least one peer is found.
-func (d *Discovery) Peers(ctx context.Context) ([]peer.ID, error) {
-	return d.set.Peers(ctx)
+// discoveryLoop ensures we always have '~peerLimit' connected peers.
+// It starts peer discovery per request and restarts the process until the soft limit reached.
+func (d *Discovery) discoveryLoop(ctx context.Context) {
+	t := time.NewTicker(d.params.discoveryRetryTimeout)
+	defer t.Stop()
+	for {
+		// drain all previous ticks from channel
+		drainChannel(t.C)
+		select {
+		case <-t.C:
+			found := d.discover(ctx)
+			if !found {
+				// rerun discovery if amount of peers didn't reach the limit
+				continue
+			}
+		case <-ctx.Done():
+			return
+		}
+
+		select {
+		case <-d.triggerDisc:
+		case <-ctx.Done():
+			return
+		}
+	}
+}
+
+// disconnectsLoop listen for disconnect events and ensures Discovery state
+// is updated.
+func (d *Discovery) disconnectsLoop(ctx context.Context, sub event.Subscription) {
+	defer sub.Close()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case e, ok := <-sub.Out():
+			if !ok {
+				log.Error("connection subscription was closed unexpectedly")
+				return
+			}
+
+			if evnt := e.(event.EvtPeerConnectednessChanged); evnt.Connectedness == network.NotConnected {
+				if !d.set.Contains(evnt.Peer) {
+					continue
+				}
+
+				d.host.ConnManager().Unprotect(evnt.Peer, rendezvousPoint)
+				d.connector.Backoff(evnt.Peer)
+				d.set.Remove(evnt.Peer)
+				d.onUpdatedPeers(evnt.Peer, false)
+				log.Debugw("removed peer from the peer set",
+					"peer", evnt.Peer, "status", evnt.Connectedness.String())
+
+				if d.set.Size() < d.set.Limit() {
+					// trigger discovery
+					select {
+					case d.triggerDisc <- struct{}{}:
+					default:
+					}
+				}
+			}
+		}
+	}
+}
+
+// discover finds new peers and reports whether it succeeded.
+func (d *Discovery) discover(ctx context.Context) bool {
+	size := d.set.Size()
+	want := d.set.Limit() - size
+	if want == 0 {
+		log.Debugw("reached soft peer limit, skipping discovery", "size", size)
+		return true
+	}
+	log.Infow("discovering peers", "want", want)
+
+	// we use errgroup as it provide limits
+	var wg errgroup.Group
+	// limit to minimize chances of overreaching the limit
+	wg.SetLimit(int(d.set.Limit()))
+	defer wg.Wait() //nolint:errcheck
+
+	// stop discovery when we are done
+	findCtx, findCancel := context.WithCancel(ctx)
+	defer findCancel()
+
+	peers, err := d.disc.FindPeers(findCtx, rendezvousPoint)
+	if err != nil {
+		log.Error("unable to start discovery", "err", err)
+		return false
+	}
+
+	ticker := time.NewTicker(findPeersStuckWarnDelay)
+	defer ticker.Stop()
+	for {
+		ticker.Reset(findPeersStuckWarnDelay)
+		// drain all previous ticks from channel
+		drainChannel(ticker.C)
+		select {
+		case <-findCtx.Done():
+			return true
+		case <-ticker.C:
+			log.Warn("wasn't able to find new peers for long time")
+			continue
+		case p, ok := <-peers:
+			if !ok {
+				log.Debugw("discovery channel closed", "find_is_canceled", findCtx.Err() != nil)
+				return d.set.Size() >= d.set.Limit()
+			}
+
+			peer := p
+			wg.Go(func() error {
+				if findCtx.Err() != nil {
+					log.Debug("find has been canceled, skip peer")
+					return nil
+				}
+
+				// we don't pass findCtx so that we don't cancel in progress connections
+				// that are likely to be valuable
+				if !d.handleDiscoveredPeer(ctx, peer) {
+					return nil
+				}
+
+				size := d.set.Size()
+				log.Debugw("found peer", "peer", peer.ID, "found_amount", size)
+				if size < d.set.Limit() {
+					return nil
+				}
+
+				log.Infow("discovered wanted peers", "amount", size)
+				findCancel()
+				return nil
+			})
+		}
+	}
+}
+
+// handleDiscoveredPeer adds peer to the internal if can connect or is connected.
+// Report whether it succeeded.
+func (d *Discovery) handleDiscoveredPeer(ctx context.Context, peer peer.AddrInfo) bool {
+	logger := log.With("peer", peer.ID)
+	switch {
+	case peer.ID == d.host.ID():
+		logger.Debug("skip handle: self discovery")
+		return false
+	case len(peer.Addrs) == 0:
+		logger.Debug("skip handle: empty address list")
+		return false
+	case d.set.Size() >= d.set.Limit():
+		logger.Debug("skip handle: enough peers found")
+		return false
+	case d.connector.HasBackoff(peer.ID):
+		logger.Debug("skip handle: backoff")
+		return false
+	}
+
+	switch d.host.Network().Connectedness(peer.ID) {
+	case network.Connected:
+		d.connector.Backoff(peer.ID) // we still have to backoff the connected peer
+	case network.NotConnected:
+		err := d.connector.Connect(ctx, peer)
+		if err != nil {
+			logger.Debugw("unable to connect", "err", err)
+			return false
+		}
+	default:
+		panic("unknown connectedness")
+	}
+
+	if !d.set.Add(peer.ID) {
+		logger.Debug("peer is already in discovery set")
+		return false
+	}
+	d.onUpdatedPeers(peer.ID, true)
+	logger.Debug("added peer to set")
+
+	// tag to protect peer from being killed by ConnManager
+	// NOTE: This is does not protect from remote killing the connection.
+	//  In the future, we should design a protocol that keeps bidirectional agreement on whether
+	//  connection should be kept or not, similar to mesh link in GossipSub.
+	d.host.ConnManager().Protect(peer.ID, rendezvousPoint)
+	return true
 }
 
 func drainChannel(c <-chan time.Time) {
