@@ -359,9 +359,6 @@ func (d *Discovery) Peers(ctx context.Context) ([]peer.ID, error) {
 
 func (p Parameters) withDefaults() Parameters {
 	def := DefaultParameters()
-	if p.PeersLimit == 0 {
-		p.PeersLimit = def.PeersLimit
-	}
 	if p.AdvertiseInterval == 0 {
 		p.AdvertiseInterval = def.AdvertiseInterval
 	}
