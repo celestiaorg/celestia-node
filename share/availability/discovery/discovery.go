@@ -286,16 +286,17 @@ func (d *Discovery) discover(ctx context.Context) bool {
 		drainChannel(ticker.C)
 		select {
 		case <-findCtx.Done():
-			d.metrics.observeFindPeers(ctx.Err() != nil, findCtx.Err() != nil)
+			d.metrics.observeFindPeers(true, d.set.Size() >= d.set.Limit())
 			return true
 		case <-ticker.C:
 			log.Warn("wasn't able to find new peers for long time")
 			continue
 		case p, ok := <-peers:
 			if !ok {
-				d.metrics.observeFindPeers(ctx.Err() != nil, findCtx.Err() != nil)
+				isEnoughPeers := d.set.Size() >= d.set.Limit()
+				d.metrics.observeFindPeers(ctx.Err() != nil, isEnoughPeers)
 				log.Debugw("discovery channel closed", "find_is_canceled", findCtx.Err() != nil)
-				return d.set.Size() >= d.set.Limit()
+				return isEnoughPeers
 			}
 
 			peer := p
