@@ -3,6 +3,7 @@ package share
 import (
 	"fmt"
 
+	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	"github.com/celestiaorg/celestia-node/share/availability/discovery"
 	"github.com/celestiaorg/celestia-node/share/availability/light"
 	"github.com/celestiaorg/celestia-node/share/p2p/peers"
@@ -11,7 +12,7 @@ import (
 )
 
 type Config struct {
-	Availability light.Parameters
+	Availability light.Parameters `toml:",omitempty"`
 	Discovery    discovery.Parameters
 
 	UseShareExchange bool
@@ -24,15 +25,20 @@ type Config struct {
 }
 
 // TODO: Remove share/availability/options.go and reorg configs here
-func DefaultConfig() Config {
-	return Config{
-		Availability:      light.DefaultParameters(),
+func DefaultConfig(tp node.Type) Config {
+	cfg := Config{
 		Discovery:         discovery.DefaultParameters(),
 		ShrExEDSParams:    shrexeds.DefaultParameters(),
 		ShrExNDParams:     shrexnd.DefaultParameters(),
 		UseShareExchange:  true,
 		PeerManagerParams: peers.DefaultParameters(),
 	}
+
+	if tp == node.Light {
+		cfg.Availability = light.DefaultParameters()
+	}
+
+	return cfg
 }
 
 // Validate performs basic validation of the config.
