@@ -23,6 +23,8 @@ const (
 	// events in libp2p
 	eventbusBufSize = 32
 
+	// findPeersStuckWarnDelay is the duration after which findPeers will log an error message to
+	// notify that it is stuck.
 	findPeersStuckWarnDelay = time.Minute
 )
 
@@ -35,20 +37,20 @@ type Parameters struct {
 	// PeersLimit defines the soft limit of FNs to connect to via discovery.
 	// Set 0 to disable.
 	PeersLimit uint
-	// DiscoveryRetryTimeout is an interval between discovery attempts
-	// when we discovered lower than PeersLimit peers.
-	// Set -1 to disable.
-	DiscoveryRetryTimeout time.Duration
 	// AdvertiseInterval is a interval between advertising sessions.
 	// Set -1 to disable.
 	// NOTE: only full and bridge can advertise themselves.
 	AdvertiseInterval time.Duration
+	// discoveryRetryTimeout is an interval between discovery attempts
+	// when we discovered lower than PeersLimit peers.
+	// Set -1 to disable.
+	discoveryRetryTimeout time.Duration
 }
 
 func DefaultParameters() Parameters {
 	return Parameters{
 		PeersLimit:            5,
-		DiscoveryRetryTimeout: time.Second * 1,
+		discoveryRetryTimeout: time.Second,
 		AdvertiseInterval:     time.Hour * 8,
 	}
 }
@@ -68,7 +70,7 @@ type Discovery struct {
 	connector      *backoffConnector
 	onUpdatedPeers OnUpdatedPeers
 
-	triggerDisq chan struct{}
+	triggerDisc chan struct{}
 
 	cancel context.CancelFunc
 }
@@ -88,7 +90,7 @@ func NewDiscovery(
 		disc:           d,
 		connector:      newBackoffConnector(h, defaultBackoffFactory),
 		onUpdatedPeers: func(peer.ID, bool) {},
-		triggerDisq:    make(chan struct{}),
+		triggerDisc:    make(chan struct{}),
 	}
 }
 
@@ -115,7 +117,7 @@ func (d *Discovery) WithOnPeersUpdate(f OnUpdatedPeers) {
 
 func (d *Discovery) triggerDiscovery() {
 	select {
-	case d.triggerDisq <- struct{}{}:
+	case d.triggerDisc <- struct{}{}:
 	default:
 	}
 }
@@ -153,11 +155,11 @@ func (d *Discovery) handlePeerFound(ctx context.Context, peer peer.AddrInfo) boo
 	}
 
 	if !d.set.Add(peer.ID) {
-		log.Debugw("peer is already in discovery set", "peer", peer.ID)
+		log.Debug("peer is already in discovery set")
 		return false
 	}
 	d.onUpdatedPeers(peer.ID, true)
-	log.Debugw("added peer to set", "peer", peer.ID)
+	log.Debug("added peer to set")
 
 	// tag to protect peer from being killed by ConnManager
 	// NOTE: This is does not protect from remote killing the connection.
@@ -220,7 +222,7 @@ func (d *Discovery) ensurePeers(ctx context.Context) {
 	}()
 	go d.connector.GC(ctx)
 
-	t := time.NewTicker(d.params.DiscoveryRetryTimeout)
+	t := time.NewTicker(d.params.discoveryRetryTimeout)
 	defer t.Stop()
 	for {
 		// drain all previous ticks from channel
@@ -237,7 +239,7 @@ func (d *Discovery) ensurePeers(ctx context.Context) {
 		}
 
 		select {
-		case <-d.triggerDisq:
+		case <-d.triggerDisc:
 		case <-ctx.Done():
 			return
 		}

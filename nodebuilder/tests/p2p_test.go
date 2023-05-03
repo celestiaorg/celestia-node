@@ -215,6 +215,5 @@ func TestRestartNodeDiscovery(t *testing.T) {
 
 func setTimeInterval(cfg *nodebuilder.Config, interval time.Duration) {
 	cfg.P2P.RoutingTableRefreshPeriod = interval
-	cfg.Share.Discovery.DiscoveryRetryTimeout = interval
 	cfg.Share.Discovery.AdvertiseInterval = interval
 }

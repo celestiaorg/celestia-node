@@ -85,10 +85,7 @@ func (b *backoffConnector) HasBackoff(p peer.ID) bool {
 	b.cacheLk.Lock()
 	cache, ok := b.cacheData[p]
 	b.cacheLk.Unlock()
-	if ok && time.Now().Before(cache.nexttry) {
-		return true
-	}
-	return false
+	return ok && time.Now().Before(cache.nexttry)
 }
 
 // GC is a perpetual GCing loop.

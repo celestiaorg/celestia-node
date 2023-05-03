@@ -26,7 +26,7 @@ func TestDiscovery(t *testing.T) {
 
 	peerA := tn.discovery(Parameters{
 		PeersLimit:            nodes,
-		DiscoveryRetryTimeout: time.Millisecond * 100,
+		discoveryRetryTimeout: time.Millisecond * 100,
 		AdvertiseInterval:     -1, // we don't want to be found but only find
 	})
 
@@ -43,7 +43,7 @@ func TestDiscovery(t *testing.T) {
 	for i := range discs {
 		discs[i] = tn.discovery(Parameters{
 			PeersLimit:            0,
-			DiscoveryRetryTimeout: -1,
+			discoveryRetryTimeout: -1,
 			AdvertiseInterval:     time.Millisecond * 100,
 		})
 
