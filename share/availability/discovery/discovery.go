@@ -35,11 +35,6 @@ const (
 	defaultRetryTimeout = time.Second
 )
 
-// waitF calculates time to restart announcing.
-var waitF = func(ttl time.Duration) time.Duration {
-	return 7 * ttl / 8
-}
-
 // Discovery combines advertise and discover services and allows to store discovered nodes.
 // TODO: The code here gets horribly hairy, so we should refactor this at some point
 type Discovery struct {
@@ -126,32 +121,41 @@ func (d *Discovery) Peers(ctx context.Context) ([]peer.ID, error) {
 // TODO: Start advertising only after the reachability is confirmed by AutoNAT
 func (d *Discovery) Advertise(ctx context.Context) {
 	if d.params.AdvertiseInterval == -1 {
+		log.Warn("AdvertiseInterval is set to -1. Skipping advertising...")
 		return
 	}
 
 	timer := time.NewTimer(d.params.AdvertiseInterval)
 	defer timer.Stop()
 	for {
-		ttl, err := d.disc.Advertise(ctx, rendezvousPoint)
+		_, err := d.disc.Advertise(ctx, rendezvousPoint)
 		if err != nil {
-			log.Debugf("Error advertising %s: %s", rendezvousPoint, err.Error())
 			if ctx.Err() != nil {
 				return
 			}
+			log.Warn("error advertising %s: %s", rendezvousPoint, err.Error())
 
+			errTimer := time.NewTimer(time.Minute)
 			select {
-			case <-timer.C:
-				timer.Reset(d.params.AdvertiseInterval)
+			case <-errTimer.C:
+				errTimer.Stop()
+				if !timer.Stop() {
+					<-timer.C
+				}
 				continue
 			case <-ctx.Done():
+				errTimer.Stop()
 				return
 			}
 		}
 
 		log.Debugf("advertised")
+		if !timer.Stop() {
+			<-timer.C
+		}
+		timer.Reset(d.params.AdvertiseInterval)
 		select {
 		case <-timer.C:
-			timer.Reset(waitF(ttl))
 		case <-ctx.Done():
 			return
 		}

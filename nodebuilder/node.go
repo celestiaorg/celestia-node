@@ -30,7 +30,7 @@ import (
 	"github.com/celestiaorg/celestia-node/nodebuilder/state"
 )
 
-var Timeout = time.Second * 30
+var Timeout = time.Minute * 2
 
 var (
 	log   = logging.Logger("node")
@@ -100,7 +100,7 @@ func (n *Node) Start(ctx context.Context) error {
 	if err != nil {
 		log.Debugf("error starting %s Node: %s", n.Type, err)
 		if errors.Is(err, context.DeadlineExceeded) {
-			return fmt.Errorf("node: failed to start within timeout(%s): %w", Timeout, errors.Unwrap(err))
+			return fmt.Errorf("node: failed to start within timeout(%s): %w", Timeout, err)
 		}
 		return fmt.Errorf("node: failed to start: %w", err)
 	}
@@ -145,7 +145,7 @@ func (n *Node) Stop(ctx context.Context) error {
 	if err != nil {
 		log.Debugf("error stopping %s Node: %s", n.Type, err)
 		if errors.Is(err, context.DeadlineExceeded) {
-			return fmt.Errorf("node: failed to stop within timeout(%s): %w", Timeout, errors.Unwrap(err))
+			return fmt.Errorf("node: failed to stop within timeout(%s): %w", Timeout, err)
 		}
 		return fmt.Errorf("node: failed to stop: %w", err)
 	}
