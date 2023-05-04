@@ -35,11 +35,6 @@ const (
 	defaultRetryTimeout = time.Second
 )
 
-// waitF calculates time to restart announcing.
-var waitF = func(ttl time.Duration) time.Duration {
-	return 7 * ttl / 8
-}
-
 type Parameters struct {
 	// PeersLimit defines the soft limit of FNs to connect to via discovery.
 	// Set 0 to disable.
@@ -67,8 +62,9 @@ func (p Parameters) withDefaults() Parameters {
 
 func DefaultParameters() Parameters {
 	return Parameters{
-		PeersLimit:        5,
-		AdvertiseInterval: time.Hour * 8,
+		PeersLimit: 5,
+		// based on https://github.com/libp2p/go-libp2p-kad-dht/pull/793
+		AdvertiseInterval: time.Hour * 22,
 	}
 }
 
@@ -151,24 +147,31 @@ func (d *Discovery) Peers(ctx context.Context) ([]peer.ID, error) {
 // TODO: Start advertising only after the reachability is confirmed by AutoNAT
 func (d *Discovery) Advertise(ctx context.Context) {
 	if d.params.AdvertiseInterval == -1 {
+		log.Warn("AdvertiseInterval is set to -1. Skipping advertising...")
 		return
 	}
 
 	timer := time.NewTimer(d.params.AdvertiseInterval)
 	defer timer.Stop()
 	for {
-		ttl, err := d.disc.Advertise(ctx, rendezvousPoint)
+		_, err := d.disc.Advertise(ctx, rendezvousPoint)
 		if err != nil {
-			log.Debugf("Error advertising %s: %s", rendezvousPoint, err.Error())
 			if ctx.Err() != nil {
 				return
 			}
+			log.Debugf("error advertising %s: %s", rendezvousPoint, err.Error())
 
+			errTimer := time.NewTimer(time.Minute)
 			select {
-			case <-timer.C:
+			case <-errTimer.C:
+				errTimer.Stop()
+				if !timer.Stop() {
+					<-timer.C
+				}
 				timer.Reset(d.params.AdvertiseInterval)
 				continue
 			case <-ctx.Done():
+				errTimer.Stop()
 				return
 			}
 		}
@@ -176,7 +179,6 @@ func (d *Discovery) Advertise(ctx context.Context) {
 		log.Debugf("advertised")
 		select {
 		case <-timer.C:
-			timer.Reset(waitF(ttl))
 		case <-ctx.Done():
 			return
 		}
