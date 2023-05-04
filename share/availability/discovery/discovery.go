@@ -61,6 +61,10 @@ func NewDiscovery(
 	opts ...Option,
 ) *Discovery {
 	params := DefaultParameters()
+	// TODO: DefaultParameters was changed to not include `discoveryRetryTimeout`
+	// since it's a private field and it breaks nodebuilder/config_test.go
+	// so this is gonna be where we set the default value for it for now.
+	params.discoveryRetryTimeout = defaultRetryTimeout
 
 	for _, opt := range opts {
 		opt(&params)

@@ -28,8 +28,7 @@ func DefaultParameters() Parameters {
 	return Parameters{
 		PeersLimit: 5,
 		// based on https://github.com/libp2p/go-libp2p-kad-dht/pull/793
-		AdvertiseInterval:     time.Hour * 22,
-		discoveryRetryTimeout: defaultRetryTimeout,
+		AdvertiseInterval: time.Hour * 22,
 	}
 }
 
