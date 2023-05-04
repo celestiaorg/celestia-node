@@ -79,6 +79,7 @@ func StartTestNodeWithConfig(t *testing.T, cfg *TestConfig) testnode.Context {
 		state,
 		kr,
 		"private",
+		nil,
 	)
 	require.NoError(t, err)
 
