@@ -72,7 +72,7 @@ func NewDiscovery(
 	}
 
 	return &Discovery{
-		set:            newLimitedSet(uint(params.PeersLimit)),
+		set:            newLimitedSet(params.PeersLimit),
 		host:           h,
 		disc:           d,
 		connector:      newBackoffConnector(h, defaultBackoffFactory),

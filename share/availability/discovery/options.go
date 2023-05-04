@@ -26,21 +26,14 @@ type Option func(*Parameters)
 // for the Discovery module
 func DefaultParameters() Parameters {
 	return Parameters{
-		PeersLimit:        5,
-		AdvertiseInterval: time.Hour * 8,
+		PeersLimit:            5,
+		AdvertiseInterval:     time.Hour * 8,
+		discoveryRetryTimeout: defaultRetryTimeout,
 	}
 }
 
 // Validate validates the values in Parameters
 func (p *Parameters) Validate() error {
-	if p.PeersLimit < 0 {
-		return fmt.Errorf(
-			"discovery: invalid option: value PeersLimit %s, %s",
-			"is negative.",
-			"value must be 0 or positive",
-		)
-	}
-
 	if p.AdvertiseInterval <= 0 {
 		return fmt.Errorf(
 			"discovery: invalid option: value AdvertiseInterval %s, %s",

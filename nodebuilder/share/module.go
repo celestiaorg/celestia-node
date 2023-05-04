@@ -24,7 +24,7 @@ import (
 
 func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option {
 	// sanitize config values before constructing module
-	cfgErr := cfg.Validate()
+	cfgErr := cfg.Validate(tp)
 
 	baseComponents := fx.Options(
 		fx.Supply(*cfg),
@@ -172,7 +172,7 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 			baseComponents,
 			fx.Provide(func() []light.Option {
 				return []light.Option{
-					light.WithSampleAmount(cfg.Availability.SampleAmount),
+					light.WithSampleAmount(cfg.LightAvailability.SampleAmount),
 				}
 			}),
 			shrexGetterComponents,

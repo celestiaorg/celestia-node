@@ -43,8 +43,6 @@ func (p *Parameters) Validate() error {
 
 // WithSampleAmount is a functional option that the Availability interface
 // implementers use to set the SampleAmount configuration param
-//
-// To be used with the construction, see example in WithAvailabilityTimeout documentation
 func WithSampleAmount(sampleAmount uint) Option {
 	return func(p *Parameters) {
 		p.SampleAmount = sampleAmount

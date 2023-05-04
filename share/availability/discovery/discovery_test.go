@@ -24,11 +24,11 @@ func TestDiscovery(t *testing.T) {
 
 	tn := newTestnet(ctx, t)
 
-	peerA := tn.discovery(Parameters{
-		PeersLimit:            nodes,
-		discoveryRetryTimeout: time.Millisecond * 100,
-		AdvertiseInterval:     -1, // we don't want to be found but only find
-	})
+	peerA := tn.discovery(
+		WithPeersLimit(nodes),
+		WithAdvertiseInterval(-1),
+	)
+	peerA.params.discoveryRetryTimeout = time.Millisecond * 100
 
 	type peerUpdate struct {
 		peerID  peer.ID
@@ -41,11 +41,8 @@ func TestDiscovery(t *testing.T) {
 
 	discs := make([]*Discovery, nodes)
 	for i := range discs {
-		discs[i] = tn.discovery(Parameters{
-			PeersLimit:            0,
-			discoveryRetryTimeout: -1,
-			AdvertiseInterval:     time.Millisecond * 100,
-		})
+		discs[i] = tn.discovery(WithPeersLimit(0), WithAdvertiseInterval(time.Millisecond*100))
+		discs[i].params.discoveryRetryTimeout = -1
 
 		select {
 		case res := <-updateCh:
@@ -98,9 +95,9 @@ func newTestnet(ctx context.Context, t *testing.T) *testnet {
 	return &testnet{ctx: ctx, T: t, bootstrapper: *host.InfoFromHost(hst)}
 }
 
-func (t *testnet) discovery(params Parameters) *Discovery {
+func (t *testnet) discovery(opts ...Option) *Discovery {
 	hst, routingDisc := t.peer()
-	disc := NewDiscovery(hst, routingDisc, params)
+	disc := NewDiscovery(hst, routingDisc, opts...)
 	err := disc.Start(t.ctx)
 	require.NoError(t.T, err)
 	t.T.Cleanup(func() {
