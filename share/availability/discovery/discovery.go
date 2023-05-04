@@ -159,7 +159,7 @@ func (d *Discovery) Advertise(ctx context.Context) {
 			if ctx.Err() != nil {
 				return
 			}
-			log.Debugf("error advertising %s: %s", rendezvousPoint, err.Error())
+			log.Warn("error advertising %s: %s", rendezvousPoint, err.Error())
 
 			errTimer := time.NewTimer(time.Minute)
 			select {
@@ -168,7 +168,6 @@ func (d *Discovery) Advertise(ctx context.Context) {
 				if !timer.Stop() {
 					<-timer.C
 				}
-				timer.Reset(d.params.AdvertiseInterval)
 				continue
 			case <-ctx.Done():
 				errTimer.Stop()
@@ -177,6 +176,10 @@ func (d *Discovery) Advertise(ctx context.Context) {
 		}
 
 		log.Debugf("advertised")
+		if !timer.Stop() {
+			<-timer.C
+		}
+		timer.Reset(d.params.AdvertiseInterval)
 		select {
 		case <-timer.C:
 		case <-ctx.Done():
