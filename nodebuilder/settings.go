@@ -7,6 +7,7 @@ import (
 
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/pyroscope-io/client/pyroscope"
+	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetrichttp"
 	"go.opentelemetry.io/otel/metric/global"
 	"go.opentelemetry.io/otel/sdk/metric"
@@ -62,9 +63,10 @@ func WithPyroscope(endpoint string, nodeType node.Type) fx.Option {
 }
 
 // WithMetrics enables metrics exporting for the node.
-func WithMetrics(metricOpts []otlpmetrichttp.Option, nodeType node.Type) fx.Option {
+func WithMetrics(metricOpts []otlpmetrichttp.Option, nodeType node.Type, buildInfo BuildInfo) fx.Option {
 	baseComponents := fx.Options(
 		fx.Supply(metricOpts),
+		fx.Supply(buildInfo),
 		fx.Invoke(initializeMetrics),
 		fx.Invoke(state.WithMetrics),
 		fx.Invoke(fraud.WithMetrics),
@@ -109,6 +111,7 @@ func initializeMetrics(
 	lc fx.Lifecycle,
 	peerID peer.ID,
 	nodeType node.Type,
+	buildInfo BuildInfo,
 	opts []otlpmetrichttp.Option,
 ) error {
 	exp, err := otlpmetrichttp.New(ctx, opts...)
@@ -121,16 +124,19 @@ func initializeMetrics(
 		metric.WithResource(resource.NewWithAttributes(
 			semconv.SchemaURL,
 			semconv.ServiceNameKey.String(fmt.Sprintf("Celestia-%s", nodeType.String())),
-			// TODO(@Wondertan): Versioning: semconv.ServiceVersionKey
 			semconv.ServiceInstanceIDKey.String(peerID.String()),
+			// custom key-val pairs
+			attribute.String("service.buildTime", buildInfo.BuildTime),
+			attribute.String("service.lastCommit", buildInfo.LastCommit),
+			attribute.String("service.semanticVersion", buildInfo.SemanticVersion),
+			attribute.String("service.systemVersion", buildInfo.SystemVersion),
+			attribute.String("service.goVersion", buildInfo.GolangVersion),
 		)))
-
 	lc.Append(fx.Hook{
 		OnStop: func(ctx context.Context) error {
 			return provider.Shutdown(ctx)
 		},
 	})
 	global.SetMeterProvider(provider)
-
 	return nil
 }
