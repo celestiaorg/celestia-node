@@ -80,7 +80,7 @@ func TestLifecycle_WithMetrics(t *testing.T) {
 						otlpmetrichttp.WithInsecure(),
 					},
 					tt.tp,
-					BuildInfo{},
+					node.BuildInfo{},
 				),
 			)
 			require.NotNil(t, node)

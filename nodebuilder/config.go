@@ -167,11 +167,3 @@ func (cfg *Config) Decode(r io.Reader) error {
 	_, err := toml.NewDecoder(r).Decode(cfg)
 	return err
 }
-
-// BuildInfo stores all necessary information for the current build.
-type BuildInfo struct {
-	LastCommit      string
-	SemanticVersion string
-	SystemVersion   string
-	GolangVersion   string
-}

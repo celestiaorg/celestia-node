@@ -39,8 +39,8 @@ func NodeConfig(ctx context.Context) nodebuilder.Config {
 }
 
 // NodeInfo reads the node build inforamtion from the context.
-func NodeInfo(ctx context.Context) nodebuilder.BuildInfo {
-	return ctx.Value(buildInfo{}).(nodebuilder.BuildInfo)
+func NodeInfo(ctx context.Context) node.BuildInfo {
+	return ctx.Value(buildInfo{}).(node.BuildInfo)
 }
 
 // WithNodeType sets the node type in the given context.
@@ -79,7 +79,7 @@ func WithNodeConfig(ctx context.Context, config *nodebuilder.Config) context.Con
 }
 
 // WithNodeConfig sets the node config build information.
-func WithNodeBuildInfo(ctx context.Context, info *nodebuilder.BuildInfo) context.Context {
+func WithNodeBuildInfo(ctx context.Context, info *node.BuildInfo) context.Context {
 	return context.WithValue(ctx, buildInfo{}, *info)
 }
 
