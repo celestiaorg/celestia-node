@@ -7,7 +7,6 @@ import (
 
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/pyroscope-io/client/pyroscope"
-	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetrichttp"
 	"go.opentelemetry.io/otel/metric/global"
 	"go.opentelemetry.io/otel/sdk/metric"
@@ -123,13 +122,9 @@ func initializeMetrics(
 		metric.WithReader(metric.NewPeriodicReader(exp, metric.WithTimeout(2*time.Second))),
 		metric.WithResource(resource.NewWithAttributes(
 			semconv.SchemaURL,
-			semconv.ServiceNameKey.String(fmt.Sprintf("Celestia-%s", nodeType.String())),
+			semconv.ServiceNamespaceKey.String(fmt.Sprintf("Celestia-%s", nodeType.String())),
+			semconv.ServiceNameKey.String(fmt.Sprintf("semver-%s", buildInfo.SemanticVersion)),
 			semconv.ServiceInstanceIDKey.String(peerID.String()),
-			// custom key-val pairs
-			attribute.String("service.lastCommit", buildInfo.LastCommit),
-			attribute.String("service.semanticVersion", buildInfo.SemanticVersion),
-			attribute.String("service.systemVersion", buildInfo.SystemVersion),
-			attribute.String("service.goVersion", buildInfo.GolangVersion),
 		)))
 	lc.Append(fx.Hook{
 		OnStop: func(ctx context.Context) error {
