@@ -17,8 +17,9 @@ install-hooks:
 .PHONY: init-hooks
 
 ## build: Build celestia-node binary.
-build: fetch-tags
+build:
 	@echo "--> Building Celestia"
+	@git fetch --tags
 	@go build -o build/ ${LDFLAGS} ./cmd/celestia
 .PHONY: build
 
@@ -41,13 +42,13 @@ deps:
 .PHONY: deps
 
 ## install: Install all build binaries into the $PREFIX (/usr/local/ by default) directory.
-install: fetch-tags
+install:
 	@echo "--> Installing Celestia"
 	@install -v ./build/* -t ${PREFIX}/bin/
 .PHONY: install
 
 ## go-install: Build and install the celestia-node binary into the GOBIN directory.
-go-install: fetch-tags
+go-install:
 	@echo "--> Installing Celestia"
 	@go install ${LDFLAGS} ./cmd/celestia
 .PHONY: go-install
@@ -92,12 +93,6 @@ lint: lint-imports
 	@markdownlint --config .markdownlint.yaml '**/*.md'
 	@cfmt -m=100 ./...
 .PHONY: lint
-
-## fetch-tags: Fetching all tags
-fetch-tags:
-	@echo "--> Fetching all tags"
-	@git fetch --tags
-.PHONY: fetch-tags
 
 ## test-unit: Running unit tests
 test-unit:
