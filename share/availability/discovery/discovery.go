@@ -35,6 +35,8 @@ const (
 	defaultRetryTimeout = time.Second
 )
 
+var discoveryRetryTimeout = defaultRetryTimeout
+
 // Discovery combines advertise and discover services and allows to store discovered nodes.
 // TODO: The code here gets horribly hairy, so we should refactor this at some point
 type Discovery struct {
@@ -61,10 +63,6 @@ func NewDiscovery(
 	opts ...Option,
 ) *Discovery {
 	params := DefaultParameters()
-	// TODO: DefaultParameters was changed to not include `discoveryRetryTimeout`
-	// since it's a private field and it breaks nodebuilder/config_test.go
-	// so this is gonna be where we set the default value for it for now.
-	params.discoveryRetryTimeout = defaultRetryTimeout
 
 	for _, opt := range opts {
 		opt(&params)
@@ -169,7 +167,7 @@ func (d *Discovery) Advertise(ctx context.Context) {
 // discoveryLoop ensures we always have '~peerLimit' connected peers.
 // It starts peer discovery per request and restarts the process until the soft limit reached.
 func (d *Discovery) discoveryLoop(ctx context.Context) {
-	t := time.NewTicker(d.params.discoveryRetryTimeout)
+	t := time.NewTicker(discoveryRetryTimeout)
 	defer t.Stop()
 	for {
 		// drain all previous ticks from channel

@@ -14,9 +14,6 @@ type Parameters struct {
 	// Set -1 to disable.
 	// NOTE: only full and bridge can advertise themselves.
 	AdvertiseInterval time.Duration
-	// discoveryRetryTimeout is an interval between discovery attempts
-	// when we discovered lower than PeersLimit peers.
-	discoveryRetryTimeout time.Duration
 }
 
 // Option is a function that configures Discovery Parameters

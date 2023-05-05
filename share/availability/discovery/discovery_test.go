@@ -28,7 +28,7 @@ func TestDiscovery(t *testing.T) {
 		WithPeersLimit(nodes),
 		WithAdvertiseInterval(-1),
 	)
-	peerA.params.discoveryRetryTimeout = time.Millisecond * 100
+	discoveryRetryTimeout = time.Millisecond * 100 // defined in discovery.go
 
 	type peerUpdate struct {
 		peerID  peer.ID
@@ -42,7 +42,7 @@ func TestDiscovery(t *testing.T) {
 	discs := make([]*Discovery, nodes)
 	for i := range discs {
 		discs[i] = tn.discovery(WithPeersLimit(0), WithAdvertiseInterval(time.Millisecond*100))
-		discs[i].params.discoveryRetryTimeout = -1
+		discoveryRetryTimeout = -1 // defined in discovery.go
 
 		select {
 		case res := <-updateCh:
