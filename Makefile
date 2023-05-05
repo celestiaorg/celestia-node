@@ -96,7 +96,7 @@ lint: lint-imports
 ## fetch-tags: Fetching all tags
 fetch-tags:
 	@echo "--> Fetching all tags"
-	@git fetch --all --tags
+	@git fetch --tags
 .PHONY: fetch-tags
 
 ## test-unit: Running unit tests
