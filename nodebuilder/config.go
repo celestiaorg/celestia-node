@@ -170,7 +170,6 @@ func (cfg *Config) Decode(r io.Reader) error {
 
 // BuildInfo stores all necessary information for the current build.
 type BuildInfo struct {
-	BuildTime       string
 	LastCommit      string
 	SemanticVersion string
 	SystemVersion   string

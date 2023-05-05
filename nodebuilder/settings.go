@@ -126,7 +126,6 @@ func initializeMetrics(
 			semconv.ServiceNameKey.String(fmt.Sprintf("Celestia-%s", nodeType.String())),
 			semconv.ServiceInstanceIDKey.String(peerID.String()),
 			// custom key-val pairs
-			attribute.String("service.buildTime", buildInfo.BuildTime),
 			attribute.String("service.lastCommit", buildInfo.LastCommit),
 			attribute.String("service.semanticVersion", buildInfo.SemanticVersion),
 			attribute.String("service.systemVersion", buildInfo.SystemVersion),

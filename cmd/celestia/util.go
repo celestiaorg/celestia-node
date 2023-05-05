@@ -28,7 +28,6 @@ func persistentPreRunEnv(cmd *cobra.Command, nodeType node.Type, _ []string) err
 	}
 	ctx = cmdnode.WithNetwork(ctx, parsedNetwork)
 	ctx = cmdnode.WithNodeBuildInfo(ctx, &nodebuilder.BuildInfo{
-		BuildTime:       buildTime,
 		LastCommit:      lastCommit,
 		SemanticVersion: semanticVersion,
 		SystemVersion:   systemVersion,
