@@ -2,6 +2,7 @@ package header
 
 import (
 	"context"
+	"fmt"
 
 	libhead "github.com/celestiaorg/go-header"
 	"github.com/celestiaorg/go-header/p2p"
@@ -51,6 +52,22 @@ func (s *Service) GetVerifiedRangeByHeight(
 }
 
 func (s *Service) GetByHeight(ctx context.Context, height uint64) (*header.ExtendedHeader, error) {
+	head, err := s.syncer.Head(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	if uint64(head.Height()) < height {
+		return nil, fmt.Errorf("header/service: given height exceeds network head."+
+			"networkHeight:%d, requestedHeight:%d", head.Height(), height)
+	}
+	if uint64(head.Height()) == height {
+		return head, nil
+	}
+
+	if !s.store.HasAt(ctx, height) {
+		return nil, fmt.Errorf("header/service: given height exceeds local head. requestedHeight:%d", height)
+	}
 	return s.store.GetByHeight(ctx, height)
 }
 
