@@ -1,14 +1,18 @@
 package share
 
 import (
-	disc "github.com/celestiaorg/celestia-node/share/availability/discovery"
+	"fmt"
+
+	"github.com/celestiaorg/celestia-node/nodebuilder/node"
+	"github.com/celestiaorg/celestia-node/share/availability/discovery"
+	"github.com/celestiaorg/celestia-node/share/availability/light"
 	"github.com/celestiaorg/celestia-node/share/p2p/peers"
 	"github.com/celestiaorg/celestia-node/share/p2p/shrexeds"
 	"github.com/celestiaorg/celestia-node/share/p2p/shrexnd"
 )
 
+// TODO: some params are pointers and other are not, Let's fix this.
 type Config struct {
-	// UseShareExchange is a flag toggling the usage of shrex protocols for blocksync.
 	UseShareExchange bool
 	// ShrExEDSParams sets shrexeds client and server configuration parameters
 	ShrExEDSParams *shrexeds.Parameters
@@ -16,27 +20,50 @@ type Config struct {
 	ShrExNDParams *shrexnd.Parameters
 	// PeerManagerParams sets peer-manager configuration parameters
 	PeerManagerParams peers.Parameters
-	// Discovery sets peer discovery configuration parameters.
-	Discovery disc.Parameters
+
+	LightAvailability light.Parameters `toml:",omitempty"`
+	Discovery         discovery.Parameters
 }
 
-func DefaultConfig() Config {
-	return Config{
-		UseShareExchange:  true,
+func DefaultConfig(tp node.Type) Config {
+	cfg := Config{
+		Discovery:         discovery.DefaultParameters(),
 		ShrExEDSParams:    shrexeds.DefaultParameters(),
 		ShrExNDParams:     shrexnd.DefaultParameters(),
+		UseShareExchange:  true,
 		PeerManagerParams: peers.DefaultParameters(),
-		Discovery:         disc.DefaultParameters(),
 	}
+
+	if tp == node.Light {
+		cfg.LightAvailability = light.DefaultParameters()
+	}
+
+	return cfg
 }
 
 // Validate performs basic validation of the config.
-func (cfg *Config) Validate() error {
+func (cfg *Config) Validate(tp node.Type) error {
+	if tp == node.Light {
+		if err := cfg.LightAvailability.Validate(); err != nil {
+			return fmt.Errorf("nodebuilder/share: %w", err)
+		}
+	}
+
+	if err := cfg.Discovery.Validate(); err != nil {
+		return fmt.Errorf("nodebuilder/share: %w", err)
+	}
+
 	if err := cfg.ShrExNDParams.Validate(); err != nil {
-		return err
+		return fmt.Errorf("nodebuilder/share: %w", err)
 	}
+
 	if err := cfg.ShrExEDSParams.Validate(); err != nil {
-		return err
+		return fmt.Errorf("nodebuilder/share: %w", err)
 	}
-	return cfg.PeerManagerParams.Validate()
+
+	if err := cfg.PeerManagerParams.Validate(); err != nil {
+		return fmt.Errorf("nodebuilder/share: %w", err)
+	}
+
+	return nil
 }

@@ -37,10 +37,11 @@ func Node(dn *availability_test.TestDagNet) *availability_test.TestNode {
 }
 
 func TestAvailability(getter share.Getter) *ShareAvailability {
-	params := discovery.DefaultParameters()
-	params.AdvertiseInterval = time.Second
-	params.PeersLimit = 10
-	disc := discovery.NewDiscovery(nil,
-		routing.NewRoutingDiscovery(routinghelpers.Null{}), params)
+	disc := discovery.NewDiscovery(
+		nil,
+		routing.NewRoutingDiscovery(routinghelpers.Null{}),
+		discovery.WithAdvertiseInterval(time.Second),
+		discovery.WithPeersLimit(10),
+	)
 	return NewShareAvailability(nil, getter, disc)
 }

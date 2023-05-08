@@ -21,7 +21,7 @@ import (
 	"github.com/celestiaorg/celestia-node/share/getters"
 )
 
-func discovery(cfg Config) func(routing.ContentRouting, host.Host) *disc.Discovery {
+func newDiscovery(cfg Config) func(routing.ContentRouting, host.Host) *disc.Discovery {
 	return func(
 		r routing.ContentRouting,
 		h host.Host,
@@ -29,7 +29,8 @@ func discovery(cfg Config) func(routing.ContentRouting, host.Host) *disc.Discove
 		return disc.NewDiscovery(
 			h,
 			routingdisc.NewRoutingDiscovery(r),
-			cfg.Discovery,
+			disc.WithPeersLimit(cfg.Discovery.PeersLimit),
+			disc.WithAdvertiseInterval(cfg.Discovery.AdvertiseInterval),
 		)
 	}
 }
