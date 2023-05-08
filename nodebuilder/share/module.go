@@ -24,7 +24,7 @@ import (
 
 func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option {
 	// sanitize config values before constructing module
-	cfgErr := cfg.Validate()
+	cfgErr := cfg.Validate(tp)
 
 	baseComponents := fx.Options(
 		fx.Supply(*cfg),
@@ -33,7 +33,7 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 		fx.Provide(newModule),
 		fx.Invoke(func(disc *disc.Discovery) {}),
 		fx.Provide(fx.Annotate(
-			discovery(*cfg),
+			newDiscovery(*cfg),
 			fx.OnStart(func(ctx context.Context, d *disc.Discovery) error {
 				return d.Start(ctx)
 			}),
@@ -170,6 +170,11 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 		return fx.Module(
 			"share",
 			baseComponents,
+			fx.Provide(func() []light.Option {
+				return []light.Option{
+					light.WithSampleAmount(cfg.LightAvailability.SampleAmount),
+				}
+			}),
 			shrexGetterComponents,
 			fx.Invoke(share.EnsureEmptySquareExists),
 			fx.Provide(getters.NewIPLDGetter),
