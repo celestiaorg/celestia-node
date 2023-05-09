@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 
-	"github.com/celestiaorg/celestia-app/pkg/da"
+	da "github.com/celestiaorg/celestia-app/pkg/da"
 )
 
 // ErrNotAvailable is returned whenever DA sampling fails.
@@ -15,11 +15,9 @@ var ErrNotAvailable = errors.New("share: data not available")
 type Root = da.DataAvailabilityHeader
 
 // Availability defines interface for validation of Shares' availability.
-//
-//go:generate mockgen -destination=availability/mocks/availability.go -package=mocks . Availability
 type Availability interface {
 	// SharesAvailable subjectively validates if Shares committed to the given Root are available on
-	// the Network by requesting the EDS from the provided peers.
+	// the Network.
 	SharesAvailable(context.Context, *Root) error
 	// ProbabilityOfAvailability calculates the probability of the data square
 	// being available based on the number of samples collected.

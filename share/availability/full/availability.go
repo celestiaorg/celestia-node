@@ -27,7 +27,11 @@ type ShareAvailability struct {
 }
 
 // NewShareAvailability creates a new full ShareAvailability.
-func NewShareAvailability(store *eds.Store, getter share.Getter, disc *discovery.Discovery) *ShareAvailability {
+func NewShareAvailability(
+	store *eds.Store,
+	getter share.Getter,
+	disc *discovery.Discovery,
+) *ShareAvailability {
 	return &ShareAvailability{
 		store:  store,
 		getter: getter,

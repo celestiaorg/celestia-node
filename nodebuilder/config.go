@@ -44,7 +44,7 @@ func DefaultConfig(tp node.Type) *Config {
 		P2P:     p2p.DefaultConfig(tp),
 		RPC:     rpc.DefaultConfig(),
 		Gateway: gateway.DefaultConfig(),
-		Share:   share.DefaultConfig(),
+		Share:   share.DefaultConfig(tp),
 		Header:  header.DefaultConfig(tp),
 	}
 

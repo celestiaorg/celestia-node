@@ -262,7 +262,7 @@ func ParseMiscFlags(ctx context.Context, cmd *cobra.Command) (context.Context, e
 			opts = append(opts, otlpmetrichttp.WithInsecure())
 		}
 
-		ctx = WithNodeOptions(ctx, nodebuilder.WithMetrics(opts, NodeType(ctx)))
+		ctx = WithNodeOptions(ctx, nodebuilder.WithMetrics(opts, NodeType(ctx), NodeInfo(ctx)))
 	}
 
 	ok, err = cmd.Flags().GetBool(p2pMetrics)

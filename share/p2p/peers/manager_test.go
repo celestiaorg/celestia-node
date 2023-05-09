@@ -393,10 +393,8 @@ func TestIntegration(t *testing.T) {
 		bnDisc := discovery.NewDiscovery(
 			nw.Hosts()[0],
 			routingdisc.NewRoutingDiscovery(router1),
-			discovery.Parameters{
-				PeersLimit:        0,
-				AdvertiseInterval: time.Second,
-			},
+			discovery.WithPeersLimit(0),
+			discovery.WithAdvertiseInterval(time.Second),
 		)
 
 		// set up full node / receiver node
@@ -406,10 +404,8 @@ func TestIntegration(t *testing.T) {
 		fnDisc := discovery.NewDiscovery(
 			nw.Hosts()[1],
 			routingdisc.NewRoutingDiscovery(router2),
-			discovery.Parameters{
-				PeersLimit:        10,
-				AdvertiseInterval: time.Second,
-			},
+			discovery.WithPeersLimit(10),
+			discovery.WithAdvertiseInterval(time.Second),
 		)
 		err = fnDisc.Start(ctx)
 		require.NoError(t, err)
@@ -463,10 +459,10 @@ func testManager(ctx context.Context, headerSub libhead.Subscriber[*header.Exten
 	}
 
 	disc := discovery.NewDiscovery(nil,
-		routingdisc.NewRoutingDiscovery(routinghelpers.Null{}), discovery.Parameters{
-			PeersLimit:        0,
-			AdvertiseInterval: time.Second,
-		})
+		routingdisc.NewRoutingDiscovery(routinghelpers.Null{}),
+		discovery.WithPeersLimit(0),
+		discovery.WithAdvertiseInterval(time.Second),
+	)
 	connGater, err := conngater.NewBasicConnectionGater(sync.MutexWrap(datastore.NewMapDatastore()))
 	if err != nil {
 		return nil, err

@@ -35,52 +35,17 @@ const (
 	defaultRetryTimeout = time.Second
 )
 
-// waitF calculates time to restart announcing.
-var waitF = func(ttl time.Duration) time.Duration {
-	return 7 * ttl / 8
-}
-
-type Parameters struct {
-	// PeersLimit defines the soft limit of FNs to connect to via discovery.
-	// Set 0 to disable.
-	PeersLimit uint
-	// AdvertiseInterval is a interval between advertising sessions.
-	// Set -1 to disable.
-	// NOTE: only full and bridge can advertise themselves.
-	AdvertiseInterval time.Duration
-	// discoveryRetryTimeout is an interval between discovery attempts
-	// when we discovered lower than PeersLimit peers.
-	// Set -1 to disable.
-	discoveryRetryTimeout time.Duration
-}
-
-func (p Parameters) withDefaults() Parameters {
-	def := DefaultParameters()
-	if p.AdvertiseInterval == 0 {
-		p.AdvertiseInterval = def.AdvertiseInterval
-	}
-	if p.discoveryRetryTimeout == 0 {
-		p.discoveryRetryTimeout = defaultRetryTimeout
-	}
-	return p
-}
-
-func DefaultParameters() Parameters {
-	return Parameters{
-		PeersLimit:        5,
-		AdvertiseInterval: time.Hour * 8,
-	}
-}
+// defaultRetryTimeout defines time interval between discovery attempts.
+var discoveryRetryTimeout = defaultRetryTimeout
 
 // Discovery combines advertise and discover services and allows to store discovered nodes.
 // TODO: The code here gets horribly hairy, so we should refactor this at some point
 type Discovery struct {
-	params Parameters
-
-	set            *limitedSet
-	host           host.Host
-	disc           discovery.Discovery
-	connector      *backoffConnector
+	set       *limitedSet
+	host      host.Host
+	disc      discovery.Discovery
+	connector *backoffConnector
+	// onUpdatedPeers will be called on peer set changes
 	onUpdatedPeers OnUpdatedPeers
 
 	triggerDisc chan struct{}
@@ -88,6 +53,8 @@ type Discovery struct {
 	metrics *metrics
 
 	cancel context.CancelFunc
+
+	params Parameters
 }
 
 type OnUpdatedPeers func(peerID peer.ID, isAdded bool)
@@ -96,15 +63,21 @@ type OnUpdatedPeers func(peerID peer.ID, isAdded bool)
 func NewDiscovery(
 	h host.Host,
 	d discovery.Discovery,
-	params Parameters,
+	opts ...Option,
 ) *Discovery {
+	params := DefaultParameters()
+
+	for _, opt := range opts {
+		opt(&params)
+	}
+
 	return &Discovery{
-		params:         params.withDefaults(),
 		set:            newLimitedSet(params.PeersLimit),
 		host:           h,
 		disc:           d,
 		connector:      newBackoffConnector(h, defaultBackoffFactory),
 		onUpdatedPeers: func(peer.ID, bool) {},
+		params:         params,
 		triggerDisc:    make(chan struct{}),
 	}
 }
@@ -153,33 +126,42 @@ func (d *Discovery) Peers(ctx context.Context) ([]peer.ID, error) {
 // TODO: Start advertising only after the reachability is confirmed by AutoNAT
 func (d *Discovery) Advertise(ctx context.Context) {
 	if d.params.AdvertiseInterval == -1 {
+		log.Warn("AdvertiseInterval is set to -1. Skipping advertising...")
 		return
 	}
 
 	timer := time.NewTimer(d.params.AdvertiseInterval)
 	defer timer.Stop()
 	for {
-		ttl, err := d.disc.Advertise(ctx, rendezvousPoint)
+		_, err := d.disc.Advertise(ctx, rendezvousPoint)
 		d.metrics.observeAdvertise(ctx, err)
 		if err != nil {
-			log.Debugf("Error advertising %s: %s", rendezvousPoint, err.Error())
 			if ctx.Err() != nil {
 				return
 			}
+			log.Warn("error advertising %s: %s", rendezvousPoint, err.Error())
 
+			errTimer := time.NewTimer(time.Minute)
 			select {
-			case <-timer.C:
-				timer.Reset(d.params.AdvertiseInterval)
+			case <-errTimer.C:
+				errTimer.Stop()
+				if !timer.Stop() {
+					<-timer.C
+				}
 				continue
 			case <-ctx.Done():
+				errTimer.Stop()
 				return
 			}
 		}
 
 		log.Debugf("advertised")
+		if !timer.Stop() {
+			<-timer.C
+		}
+		timer.Reset(d.params.AdvertiseInterval)
 		select {
 		case <-timer.C:
-			timer.Reset(waitF(ttl))
 		case <-ctx.Done():
 			return
 		}
@@ -189,7 +171,7 @@ func (d *Discovery) Advertise(ctx context.Context) {
 // discoveryLoop ensures we always have '~peerLimit' connected peers.
 // It starts peer discovery per request and restarts the process until the soft limit reached.
 func (d *Discovery) discoveryLoop(ctx context.Context) {
-	t := time.NewTicker(d.params.discoveryRetryTimeout)
+	t := time.NewTicker(discoveryRetryTimeout)
 	defer t.Stop()
 	for {
 		// drain all previous ticks from channel
