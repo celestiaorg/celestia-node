@@ -241,15 +241,15 @@ func (d *Discovery) discover(ctx context.Context) bool {
 	}
 	log.Infow("discovering peers", "want", want)
 
+	// stop discovery when we are done
+	findCtx, findCancel := context.WithCancel(ctx)
+	defer findCancel()
+
 	// we use errgroup as it provide limits
 	var wg errgroup.Group
 	// limit to minimize chances of overreaching the limit
 	wg.SetLimit(int(d.set.Limit()))
 	defer wg.Wait() //nolint:errcheck
-
-	// stop discovery when we are done
-	findCtx, findCancel := context.WithCancel(ctx)
-	defer findCancel()
 
 	peers, err := d.disc.FindPeers(findCtx, rendezvousPoint)
 	if err != nil {
