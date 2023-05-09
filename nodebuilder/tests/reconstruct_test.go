@@ -117,6 +117,9 @@ func TestFullReconstructFromLights(t *testing.T) {
 	require.NoError(t, err)
 
 	os.Setenv(p2p.EnvKeyCelestiaBootstrapper, "true")
+	cfg.Header.TrustedPeers = []string{
+		"/ip4/1.2.3.4/tcp/12345/p2p/12D3KooWNaJ1y1Yio3fFJEXCZyd1Cat3jmrPdgkYCrHfKD3Ce21p",
+	}
 	bootstrapper := sw.NewNodeWithConfig(node.Full, cfg)
 	require.NoError(t, bootstrapper.Start(ctx))
 	require.NoError(t, bridge.Start(ctx))

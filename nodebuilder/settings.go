@@ -62,9 +62,10 @@ func WithPyroscope(endpoint string, nodeType node.Type) fx.Option {
 }
 
 // WithMetrics enables metrics exporting for the node.
-func WithMetrics(metricOpts []otlpmetrichttp.Option, nodeType node.Type) fx.Option {
+func WithMetrics(metricOpts []otlpmetrichttp.Option, nodeType node.Type, buildInfo node.BuildInfo) fx.Option {
 	baseComponents := fx.Options(
 		fx.Supply(metricOpts),
+		fx.Supply(buildInfo),
 		fx.Invoke(initializeMetrics),
 		fx.Invoke(state.WithMetrics),
 		fx.Invoke(fraud.WithMetrics),
@@ -72,19 +73,30 @@ func WithMetrics(metricOpts []otlpmetrichttp.Option, nodeType node.Type) fx.Opti
 		fx.Invoke(modheader.WithMetrics),
 	)
 
+	samplingMetrics := fx.Options(
+		fx.Invoke(das.WithMetrics),
+		fx.Invoke(share.WithPeerManagerMetrics),
+		fx.Invoke(share.WithShrexClientMetrics),
+		fx.Invoke(share.WithShrexGetterMetrics),
+	)
+
 	var opts fx.Option
 	switch nodeType {
-	case node.Full, node.Light:
+	case node.Full:
 		opts = fx.Options(
 			baseComponents,
-			fx.Invoke(das.WithMetrics),
-			fx.Invoke(share.WithPeerManagerMetrics),
-			// add more monitoring here
+			fx.Invoke(share.WithShrexServerMetrics),
+			samplingMetrics,
+		)
+	case node.Light:
+		opts = fx.Options(
+			baseComponents,
+			samplingMetrics,
 		)
 	case node.Bridge:
 		opts = fx.Options(
 			baseComponents,
-			// add more monitoring here
+			fx.Invoke(share.WithShrexServerMetrics),
 		)
 	default:
 		panic("invalid node type")
@@ -98,6 +110,7 @@ func initializeMetrics(
 	lc fx.Lifecycle,
 	peerID peer.ID,
 	nodeType node.Type,
+	buildInfo node.BuildInfo,
 	opts []otlpmetrichttp.Option,
 ) error {
 	exp, err := otlpmetrichttp.New(ctx, opts...)
@@ -109,17 +122,15 @@ func initializeMetrics(
 		metric.WithReader(metric.NewPeriodicReader(exp, metric.WithTimeout(2*time.Second))),
 		metric.WithResource(resource.NewWithAttributes(
 			semconv.SchemaURL,
-			semconv.ServiceNameKey.String(fmt.Sprintf("Celestia-%s", nodeType.String())),
-			// TODO(@Wondertan): Versioning: semconv.ServiceVersionKey
+			semconv.ServiceNamespaceKey.String(fmt.Sprintf("Celestia-%s", nodeType.String())),
+			semconv.ServiceNameKey.String(fmt.Sprintf("semver-%s", buildInfo.SemanticVersion)),
 			semconv.ServiceInstanceIDKey.String(peerID.String()),
 		)))
-
 	lc.Append(fx.Hook{
 		OnStop: func(ctx context.Context) error {
 			return provider.Shutdown(ctx)
 		},
 	})
 	global.SetMeterProvider(provider)
-
 	return nil
 }

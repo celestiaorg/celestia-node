@@ -11,6 +11,9 @@ var (
 	buildTime       string
 	lastCommit      string
 	semanticVersion string
+
+	systemVersion = fmt.Sprintf("%s/%s", runtime.GOARCH, runtime.GOOS)
+	golangVersion = runtime.Version()
 )
 
 var versionCmd = &cobra.Command{
@@ -24,6 +27,6 @@ func printBuildInfo(_ *cobra.Command, _ []string) {
 	fmt.Printf("Semantic version: %s\n", semanticVersion)
 	fmt.Printf("Commit: %s\n", lastCommit)
 	fmt.Printf("Build Date: %s\n", buildTime)
-	fmt.Printf("System version: %s/%s\n", runtime.GOARCH, runtime.GOOS)
-	fmt.Printf("Golang version: %s\n", runtime.Version())
+	fmt.Printf("System version: %s\n", systemVersion)
+	fmt.Printf("Golang version: %s\n", golangVersion)
 }
