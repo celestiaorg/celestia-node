@@ -3,7 +3,6 @@ package discovery
 import (
 	"context"
 	"fmt"
-	"time"
 
 	"github.com/libp2p/go-libp2p/core/peer"
 	"go.opentelemetry.io/otel/attribute"
@@ -14,8 +13,6 @@ import (
 )
 
 const (
-	observeTimeout = 100 * time.Millisecond
-
 	discoveryEnougPeersKey  = "enough_peers"
 	discoveryFindCancledKey = "is_canceled"
 
@@ -125,35 +122,38 @@ func initMetrics(d *Discovery) (*metrics, error) {
 	return metrics, nil
 }
 
-func (m *metrics) observeFindPeers(canceled, isEnoughPeers bool) {
+func (m *metrics) observeFindPeers(ctx context.Context, canceled, isEnoughPeers bool) {
 	if m == nil {
 		return
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), observeTimeout)
-	defer cancel()
+	if ctx.Err() != nil {
+		ctx = context.Background()
+	}
 
 	m.discoveryResult.Add(ctx, 1,
 		attribute.Bool(discoveryFindCancledKey, canceled),
 		attribute.Bool(discoveryEnougPeersKey, isEnoughPeers))
 }
 
-func (m *metrics) observeHandlePeer(result handlePeerResult) {
+func (m *metrics) observeHandlePeer(ctx context.Context, result handlePeerResult) {
 	if m == nil {
 		return
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), observeTimeout)
-	defer cancel()
+	if ctx.Err() != nil {
+		ctx = context.Background()
+	}
 
 	m.handlePeerResult.Add(ctx, 1,
 		attribute.String(handlePeerResultKey, string(result)))
 }
 
-func (m *metrics) observeAdvertise(err error) {
+func (m *metrics) observeAdvertise(ctx context.Context, err error) {
 	if m == nil {
 		return
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), observeTimeout)
-	defer cancel()
+	if ctx.Err() != nil {
+		ctx = context.Background()
+	}
 
 	m.advertise.Add(ctx, 1,
 		attribute.Bool(advertiseFailedKey, err != nil))
@@ -163,8 +163,7 @@ func (m *metrics) observeOnPeersUpdate(_ peer.ID, isAdded bool) {
 	if m == nil {
 		return
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), observeTimeout)
-	defer cancel()
+	ctx := context.Background()
 
 	if isAdded {
 		m.peerAdded.Add(ctx, 1)
@@ -173,12 +172,13 @@ func (m *metrics) observeOnPeersUpdate(_ peer.ID, isAdded bool) {
 	m.peerRemoved.Add(ctx, 1)
 }
 
-func (m *metrics) observeDiscoveryStuck() {
+func (m *metrics) observeDiscoveryStuck(ctx context.Context) {
 	if m == nil {
 		return
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), observeTimeout)
-	defer cancel()
+	if ctx.Err() != nil {
+		ctx = context.Background()
+	}
 
 	m.discoveryStuck.Add(ctx, 1)
 }
