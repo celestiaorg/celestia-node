@@ -41,13 +41,6 @@ func newP2PExchange(
 		ids[index] = peer.ID
 		host.Peerstore().AddAddrs(peer.ID, peer.Addrs, p2p_peerstore.PermanentAddrTTL)
 	}
-	peerlist, err := peerstore.Load(context.Background())
-	if err != nil {
-		log.Info("Error loading peerlist from disk", "err", err)
-	} else {
-		log.Info("Loaded peerlist from disk", peerlist)
-	}
-
 	exchange, err := p2p.NewExchange[*header.ExtendedHeader](host, ids, conngater,
 		p2p.WithParams(cfg.Client),
 		p2p.WithNetworkID[p2p.ClientParameters](network.String()),
