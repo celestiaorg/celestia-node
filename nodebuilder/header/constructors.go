@@ -5,6 +5,7 @@ import (
 
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/peer"
+	p2p_peerstore "github.com/libp2p/go-libp2p/core/peerstore"
 	"github.com/libp2p/go-libp2p/p2p/net/conngater"
 	"go.uber.org/fx"
 
@@ -19,14 +20,11 @@ import (
 	modfraud "github.com/celestiaorg/celestia-node/nodebuilder/fraud"
 	modp2p "github.com/celestiaorg/celestia-node/nodebuilder/p2p"
 	"github.com/celestiaorg/celestia-node/share/eds/byzantine"
-
-	p2p_peerstore "github.com/libp2p/go-libp2p/core/peerstore"
 )
 
 // newP2PExchange constructs a new Exchange for headers.
 func newP2PExchange(
 	lc fx.Lifecycle,
-	storeChainHead *header.ExtendedHeader,
 	bpeers modp2p.Bootstrappers,
 	network modp2p.Network,
 	host host.Host,
@@ -55,7 +53,6 @@ func newP2PExchange(
 		p2p.WithNetworkID[p2p.ClientParameters](network.String()),
 		p2p.WithChainID(network.String()),
 		p2p.WithPeerPersistence[p2p.ClientParameters](peerstore),
-		p2p.WithSubjectiveInitialization[p2p.ClientParameters](sync.IsExpired(storeChainHead, cfg.Syncer.TrustingPeriod)),
 	)
 	if err != nil {
 		return nil, err
@@ -119,8 +116,4 @@ func newInitStore(
 	})
 
 	return s, nil
-}
-
-func localChainHead(ctx context.Context, s *store.Store[*header.ExtendedHeader]) (*header.ExtendedHeader, error) {
-	return s.Head(ctx)
 }

@@ -313,7 +313,7 @@ func (m *mockGetter) generateHeaders(t *testing.T, bServ blockservice.BlockServi
 	m.head = int64(startHeight + endHeight)
 }
 
-func (m *mockGetter) Head(context.Context) (*header.ExtendedHeader, error) {
+func (m *mockGetter) Head(context.Context, ...libhead.Option) (*header.ExtendedHeader, error) {
 	return m.headers[m.head], nil
 }
 
@@ -354,7 +354,7 @@ func (m benchGetterStub) GetByHeight(context.Context, uint64) (*header.ExtendedH
 
 type getterStub struct{}
 
-func (m getterStub) Head(context.Context) (*header.ExtendedHeader, error) {
+func (m getterStub) Head(context.Context, ...libhead.Option) (*header.ExtendedHeader, error) {
 	return &header.ExtendedHeader{RawHeader: header.RawHeader{Height: 1}}, nil
 }
 

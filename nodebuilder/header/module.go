@@ -3,7 +3,6 @@ package header
 import (
 	"context"
 
-	"github.com/celestiaorg/go-header/p2p/peerstore"
 	"github.com/ipfs/go-datastore"
 	logging "github.com/ipfs/go-log/v2"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
@@ -12,12 +11,12 @@ import (
 
 	libhead "github.com/celestiaorg/go-header"
 	"github.com/celestiaorg/go-header/p2p"
+	"github.com/celestiaorg/go-header/p2p/peerstore"
 	"github.com/celestiaorg/go-header/store"
 	"github.com/celestiaorg/go-header/sync"
 
 	"github.com/celestiaorg/celestia-node/header"
 	modfraud "github.com/celestiaorg/celestia-node/nodebuilder/fraud"
-	pstore "github.com/celestiaorg/celestia-node/nodebuilder/header/peerstore"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	modp2p "github.com/celestiaorg/celestia-node/nodebuilder/p2p"
 )
@@ -92,10 +91,8 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 			}),
 		)),
 		fx.Provide(func(ds datastore.Batching) peerstore.Peerstore {
-			return pstore.NewPeerStore(ds)
+			return peerstore.NewPeerStore(ds)
 		}),
-		fx.Provide(store.NewStore[*header.ExtendedHeader]),
-		fx.Provide(localChainHead),
 	)
 
 	switch tp {
