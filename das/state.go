@@ -96,6 +96,10 @@ func (s *coordinatorState) handleResult(res result) {
 		// if job was already in retry and failed again, carry over attempt count
 		lastRetry, ok := s.inRetry[h]
 		if ok {
+			if res.job.jobType != retryJob {
+				// retry job has been already created by another worker (recent or catchup)
+				continue
+			}
 			delete(s.inRetry, h)
 		}
 
