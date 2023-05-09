@@ -52,13 +52,15 @@ func (s *Service) GetVerifiedRangeByHeight(
 }
 
 func (s *Service) GetByHeight(ctx context.Context, height uint64) (*header.ExtendedHeader, error) {
+	// TODO(vgonkivs): remove after https://github.com/celestiaorg/go-header/issues/32 will be
+	// implemented
 	head, err := s.syncer.Head(ctx)
 	if err != nil {
 		return nil, err
 	}
 
 	if uint64(head.Height()) < height {
-		return nil, fmt.Errorf("header/service: given height exceeds network head."+
+		return nil, fmt.Errorf("header: given height exceeds network head."+
 			"networkHeight:%d, requestedHeight:%d", head.Height(), height)
 	}
 	if uint64(head.Height()) == height {
@@ -66,7 +68,7 @@ func (s *Service) GetByHeight(ctx context.Context, height uint64) (*header.Exten
 	}
 
 	if !s.store.HasAt(ctx, height) {
-		return nil, fmt.Errorf("header/service: given height exceeds local head. requestedHeight:%d", height)
+		return nil, fmt.Errorf("header: given height exceeds local head. requestedHeight:%d", height)
 	}
 	return s.store.GetByHeight(ctx, height)
 }
