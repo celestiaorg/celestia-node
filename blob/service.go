@@ -112,22 +112,19 @@ func (s *Service) GetAll(ctx context.Context, height uint64, nIDs ...namespace.I
 	var (
 		blobs     = make([]*Blob, 0)
 		ch        = make(chan []*Blob)
-		resultErr = make([]error, len(nIDs))
+		resultErr = make([]error, 0, len(nIDs))
+		errCh     = make(chan error)
 	)
 
-	for i, nID := range nIDs {
-		i := i
-		nID := nID
-		go func() {
+	for _, nID := range nIDs {
+		go func(nID namespace.ID) {
 			log.Infow("requesting blobs", "height", height, "nID", nID.String())
-			blobs, err := s.getBlobs(ctx, nID, header.DAH)
+			err := s.getBlobs(ctx, nID, header.DAH, ch)
 			if err != nil {
-				resultErr[i] = fmt.Errorf("could not get the blob for the nID:%s. %s", nID.String(), err)
-				ch <- nil
+				errCh <- fmt.Errorf("could not get the blob for the nID:%s. %s", nID.String(), err)
 				return
 			}
-			ch <- blobs
-		}()
+		}(nID)
 	}
 
 	for range nIDs {
@@ -139,6 +136,8 @@ func (s *Service) GetAll(ctx context.Context, height uint64, nIDs ...namespace.I
 				continue
 			}
 			blobs = append(blobs, b...)
+		case err = <-errCh:
+			resultErr = append(resultErr, err)
 		}
 	}
 
@@ -269,12 +268,18 @@ func (s *Service) getByCommitment(
 
 // getBlobs retrieves the DAH and fetches all shares from the requested namespace.ID and converts
 // them to Blobs.
-func (s *Service) getBlobs(ctx context.Context, nID namespace.ID, root *share.Root) ([]*Blob, error) {
+func (s *Service) getBlobs(ctx context.Context, nID namespace.ID, root *share.Root, blobsCh chan<- []*Blob) error {
 	namespacedShares, err := s.shareGetter.GetSharesByNamespace(ctx, root, nID)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	return sharesToBlobs(namespacedShares.Flatten())
+
+	sh, err := sharesToBlobs(namespacedShares.Flatten())
+	if err == nil {
+		blobsCh <- sh
+		return nil
+	}
+	return err
 }
 
 // getByHeight returns ExtendedHeader by its height.
@@ -293,10 +298,5 @@ func (s *Service) getByHeight(ctx context.Context, height uint64) (*header.Exten
 	if uint64(head.Height()) == height {
 		return head, nil
 	}
-
-	if !s.headerStore.HasAt(ctx, height) {
-		return nil, fmt.Errorf("blob: given height exceeds local head. requestedHeight:%d", height)
-	}
-
 	return s.headerStore.GetByHeight(ctx, height)
 }
