@@ -57,7 +57,7 @@ func (s *Service) GetByHeight(ctx context.Context, height uint64) (*header.Exten
 		return nil, err
 	}
 
-	if uint64(head.Height()+1) < height {
+	if uint64(head.Height()) < height {
 		return nil, fmt.Errorf("header: given height is from the future: "+
 			"networkHeight: %d, requestedHeight: %d", head.Height(), height)
 	}
