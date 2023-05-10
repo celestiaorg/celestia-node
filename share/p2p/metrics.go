@@ -30,7 +30,8 @@ type Metrics struct {
 	totalRequestCounter syncint64.Counter
 }
 
-// ObserveRequests increments the total number of requests sent with the given status as an attribute.
+// ObserveRequests increments the total number of requests sent with the given status as an
+// attribute.
 func (m *Metrics) ObserveRequests(count int64, status status) {
 	if m == nil {
 		return

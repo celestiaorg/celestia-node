@@ -77,14 +77,13 @@ func (w *worker) run(ctx context.Context, timeout time.Duration, resultCh chan<-
 
 	for curr := w.state.from; curr <= w.state.to; curr++ {
 		err := w.sample(ctx, timeout, curr)
-		w.setResult(curr, err)
 		if errors.Is(err, context.Canceled) {
 			// sampling worker will resume upon restart
-			break
+			return
 		}
+		w.setResult(curr, err)
 	}
 
-	log.With()
 	log.Infow(
 		"finished sampling headers",
 		"from", w.state.from,
