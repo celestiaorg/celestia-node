@@ -57,7 +57,7 @@ func (c *Client) RequestEDS(
 	log.Debugw("client: eds request to peer failed", "peer", peer, "hash", dataHash.String(), "error", err)
 	if errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) {
 		c.metrics.ObserveRequests(ctx, 1, p2p.StatusTimeout)
-		return nil, ctx.Err()
+		return nil, err
 	}
 	// some net.Errors also mean the context deadline was exceeded, but yamux/mocknet do not
 	// unwrap to a ctx err
