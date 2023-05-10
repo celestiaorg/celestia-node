@@ -52,29 +52,29 @@ func (s *Service) GetVerifiedRangeByHeight(
 }
 
 func (s *Service) GetByHeight(ctx context.Context, height uint64) (*header.ExtendedHeader, error) {
-	// TODO(vgonkivs): remove after https://github.com/celestiaorg/go-header/issues/32 will be
-	// implemented
-	head, err := s.store.Head(ctx)
+	head, err := s.syncer.Head(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	if uint64(head.Height()) < height {
-		return nil, fmt.Errorf("header: given height exceeds local head."+
-			"localHeadHeight:%d, requestedHeight:%d", head.Height(), height)
+	if uint64(head.Height()+1) < height {
+		return nil, fmt.Errorf("header: given height is from the future: "+
+			"networkHeight: %d, requestedHeight: %d", head.Height(), height)
 	}
 	if uint64(head.Height()) == height {
 		return head, nil
 	}
 
-	head, err = s.syncer.Head(ctx)
+	// TODO(vgonkivs): remove after https://github.com/celestiaorg/go-header/issues/32 will be
+	// implemented
+	head, err = s.store.Head(ctx)
 	if err != nil {
 		return nil, err
 	}
 
 	if uint64(head.Height()) < height {
-		return nil, fmt.Errorf("header: given height exceeds network head."+
-			"networkHeight:%d, requestedHeight:%d", head.Height(), height)
+		return nil, fmt.Errorf("header: syncing in progress: "+
+			"localHeadHeight: %d, requestedHeight: %d", head.Height(), height)
 	}
 	if uint64(head.Height()) == height {
 		return head, nil
