@@ -42,7 +42,7 @@ Full node:
 7. Wait until FN has synced block at height 20
 8. Wait for FN DASer to catch up to network head
 */
-func TestSyncAgainstBridge(t *testing.T) {
+func TestSyncAgainstBridge_NonEmptyChain(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), swamp.DefaultTestTimeout)
 	t.Cleanup(cancel)
 
@@ -111,6 +111,88 @@ func TestSyncAgainstBridge(t *testing.T) {
 	case err := <-fillDn:
 		require.NoError(t, err)
 	}
+}
+
+/*
+Test-Case: Header and block/sample sync against a Bridge Node of empty blocks.
+
+Steps:
+1. Create a Bridge Node(BN)
+2. Start a BN
+3. Check BN is synced to height 20
+
+Light node:
+4. Create a Light Node (LN) with bridge as a trusted peer
+5. Start a LN with a defined connection to the BN
+6. Check LN is header-synced to height 20
+7. Wait until LN has sampled height 20
+8. Wait for LN DASer to catch up to network head
+
+Full node:
+4. Create a Full Node (FN) with bridge as a trusted peer
+5. Start a FN with a defined connection to the BN
+6. Check FN is header-synced to height 20
+7. Wait until FN has synced block at height 20
+8. Wait for FN DASer to catch up to network head
+*/
+func TestSyncAgainstBridge_EmptyChain(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), swamp.DefaultTestTimeout)
+	t.Cleanup(cancel)
+
+	sw := swamp.NewSwamp(t, swamp.WithBlockTime(btime))
+	sw.WaitTillHeight(ctx, numBlocks)
+
+	// start a bridge and wait for it to sync to 20
+	bridge := sw.NewBridgeNode()
+	err := bridge.Start(ctx)
+	require.NoError(t, err)
+	h, err := bridge.HeaderServ.GetByHeight(ctx, numBlocks)
+	require.NoError(t, err)
+	require.EqualValues(t, h.Commit.BlockID.Hash, sw.GetCoreBlockHashByHeight(ctx, numBlocks))
+
+	t.Run("light sync against bridge", func(t *testing.T) {
+		// create a light node that is connected to the bridge node as
+		// a bootstrapper
+		cfg := nodebuilder.DefaultConfig(node.Light)
+		swamp.WithTrustedPeers(t, cfg, bridge)
+		light := sw.NewNodeWithConfig(node.Light, cfg)
+		// start light node and wait for it to sync 20 blocks
+		err = light.Start(ctx)
+		require.NoError(t, err)
+		h, err = light.HeaderServ.GetByHeight(ctx, numBlocks)
+		require.NoError(t, err)
+		assert.EqualValues(t, h.Commit.BlockID.Hash, sw.GetCoreBlockHashByHeight(ctx, numBlocks))
+
+		// check that the light node has also sampled over the block at height 20
+		err = light.ShareServ.SharesAvailable(ctx, h.DAH)
+		assert.NoError(t, err)
+
+		// wait until the entire chain (up to network head) has been sampled
+		err = light.DASer.WaitCatchUp(ctx)
+		require.NoError(t, err)
+	})
+
+	t.Run("full sync against bridge", func(t *testing.T) {
+		// create a full node with bridge node as its bootstrapper
+		cfg := nodebuilder.DefaultConfig(node.Full)
+		swamp.WithTrustedPeers(t, cfg, bridge)
+		full := sw.NewNodeWithConfig(node.Full, cfg)
+
+		// let full node sync 20 blocks
+		err = full.Start(ctx)
+		require.NoError(t, err)
+		h, err = full.HeaderServ.GetByHeight(ctx, numBlocks)
+		require.NoError(t, err)
+		assert.EqualValues(t, h.Commit.BlockID.Hash, sw.GetCoreBlockHashByHeight(ctx, numBlocks))
+
+		// check to ensure the full node can sync the 20th block's data
+		err = full.ShareServ.SharesAvailable(ctx, h.DAH)
+		assert.NoError(t, err)
+
+		// wait for full node to sync up the blocks from genesis -> network head.
+		err = full.DASer.WaitCatchUp(ctx)
+		require.NoError(t, err)
+	})
 }
 
 /*
