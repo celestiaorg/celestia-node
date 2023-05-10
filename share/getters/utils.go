@@ -84,7 +84,7 @@ func collectSharesByNamespace(
 		return nil, err
 	}
 
-	// return ErrNamesapceNotFound if no shares are found for namespaceID
+	// return ErrNamespaceNotFound if no shares are found for the namespace.ID
 	if len(rootCIDs) == 1 && len(shares[0].Shares) == 0 {
 		return nil, share.ErrNamespaceNotFound
 	}
