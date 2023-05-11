@@ -53,10 +53,6 @@ func (s *Service) GetVerifiedRangeByHeight(
 
 func (s *Service) GetByHeight(ctx context.Context, height uint64) (*header.ExtendedHeader, error) {
 	head, err := s.syncer.Head(ctx)
-	if err != nil {
-		return nil, err
-	}
-
 	switch {
 	case uint64(head.Height()) == height, err != nil:
 		return head, err
@@ -68,10 +64,6 @@ func (s *Service) GetByHeight(ctx context.Context, height uint64) (*header.Exten
 	// TODO(vgonkivs): remove after https://github.com/celestiaorg/go-header/issues/32 will be
 	// implemented
 	head, err = s.store.Head(ctx)
-	if err != nil {
-		return nil, err
-	}
-
 	switch {
 	case uint64(head.Height()) == height, err != nil:
 		return head, err
