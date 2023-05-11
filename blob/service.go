@@ -51,7 +51,7 @@ func NewService(
 	}
 }
 
-// Submit sends PFB transaction and reports the height it landed on.
+// Submit sends PFB transaction and reports the height in which it was included.
 // Allows sending multiple Blobs atomically synchronously.
 // Uses default wallet registered on the Node.
 func (s *Service) Submit(ctx context.Context, blobs ...*Blob) (uint64, error) {
@@ -168,7 +168,6 @@ func (s *Service) Included(
 	if err != nil {
 		return false, err
 	}
-
 	return true, nil
 }
 
