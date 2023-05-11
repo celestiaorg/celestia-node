@@ -19,6 +19,8 @@ import (
 func TestDiscovery(t *testing.T) {
 	const nodes = 10 // higher number brings higher coverage
 
+	discoveryRetryTimeout = time.Millisecond * 100 // defined in discovery.go
+
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
 	t.Cleanup(cancel)
 
@@ -28,7 +30,6 @@ func TestDiscovery(t *testing.T) {
 		WithPeersLimit(nodes),
 		WithAdvertiseInterval(-1),
 	)
-	discoveryRetryTimeout = time.Millisecond * 100 // defined in discovery.go
 
 	type peerUpdate struct {
 		peerID  peer.ID
@@ -42,7 +43,6 @@ func TestDiscovery(t *testing.T) {
 	discs := make([]*Discovery, nodes)
 	for i := range discs {
 		discs[i] = tn.discovery(WithPeersLimit(0), WithAdvertiseInterval(time.Millisecond*100))
-		discoveryRetryTimeout = -1 // defined in discovery.go
 
 		select {
 		case res := <-updateCh:
