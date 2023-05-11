@@ -2,6 +2,7 @@ package header
 
 import (
 	"context"
+	"fmt"
 
 	libhead "github.com/celestiaorg/go-header"
 	"github.com/celestiaorg/go-header/p2p"
@@ -51,7 +52,28 @@ func (s *Service) GetVerifiedRangeByHeight(
 }
 
 func (s *Service) GetByHeight(ctx context.Context, height uint64) (*header.ExtendedHeader, error) {
-	return s.store.GetByHeight(ctx, height)
+	head, err := s.syncer.Head(ctx)
+	switch {
+	case uint64(head.Height()) == height, err != nil:
+		return head, err
+	case uint64(head.Height()) < height:
+		return nil, fmt.Errorf("header: given height is from the future: "+
+			"networkHeight: %d, requestedHeight: %d", head.Height(), height)
+	}
+
+	// TODO(vgonkivs): remove after https://github.com/celestiaorg/go-header/issues/32 will be
+	// implemented
+	head, err = s.store.Head(ctx)
+	switch {
+	case uint64(head.Height()) == height, err != nil:
+		return head, err
+	// `+1` allows for one header network lag, e.g. user request header that is milliseconds away
+	case uint64(head.Height())+1 < height:
+		return nil, fmt.Errorf("header: syncing in progress: "+
+			"localHeadHeight: %d, requestedHeight: %d", head.Height(), height)
+	default:
+		return s.store.GetByHeight(ctx, height)
+	}
 }
 
 func (s *Service) LocalHead(ctx context.Context) (*header.ExtendedHeader, error) {
