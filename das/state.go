@@ -112,7 +112,8 @@ func (s *coordinatorState) handleRecentOrCatchupResult(res result) {
 }
 
 func (s *coordinatorState) handleRetryResult(res result) {
-	// handle heights that failed again
+	// move heights that has failed again to failed with keeping retry count, they will be picked up by
+	// retry workers later
 	for h := range res.failed {
 		lastRetry := s.inRetry[h]
 		// height will be retried after backoff
@@ -125,7 +126,7 @@ func (s *coordinatorState) handleRetryResult(res result) {
 		s.failed[h] = nextRetry
 	}
 
-	// cleanup retry from processed heights
+	// processed height are either already moved to failed map or succeeded, cleanup inRetry
 	for h := res.from; h <= res.to; h++ {
 		delete(s.inRetry, h)
 	}

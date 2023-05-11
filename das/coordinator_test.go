@@ -296,7 +296,6 @@ func TestCoordinator(t *testing.T) {
 		assert.NoError(t, coordinator.wait(stopCtx))
 
 		st := coordinator.state.unsafeStats()
-		fmt.Println(st)
 		require.Equal(t, ch, newCheckpoint(st))
 	})
 }
