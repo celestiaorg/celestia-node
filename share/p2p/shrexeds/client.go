@@ -56,7 +56,7 @@ func (c *Client) RequestEDS(
 	}
 	log.Debugw("client: eds request to peer failed", "peer", peer, "hash", dataHash.String(), "error", err)
 	if errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) {
-		c.metrics.ObserveRequests(1, p2p.StatusTimeout)
+		c.metrics.ObserveRequests(ctx, 1, p2p.StatusTimeout)
 		return nil, err
 	}
 	// some net.Errors also mean the context deadline was exceeded, but yamux/mocknet do not
@@ -64,7 +64,7 @@ func (c *Client) RequestEDS(
 	var ne net.Error
 	if errors.As(err, &ne) && ne.Timeout() {
 		if deadline, _ := ctx.Deadline(); deadline.Before(time.Now()) {
-			c.metrics.ObserveRequests(1, p2p.StatusTimeout)
+			c.metrics.ObserveRequests(ctx, 1, p2p.StatusTimeout)
 			return nil, context.DeadlineExceeded
 		}
 	}
@@ -110,7 +110,7 @@ func (c *Client) doRequest(
 	if err != nil {
 		// server is overloaded and closed the stream
 		if errors.Is(err, io.EOF) {
-			c.metrics.ObserveRequests(1, p2p.StatusRateLimited)
+			c.metrics.ObserveRequests(ctx, 1, p2p.StatusRateLimited)
 			return nil, p2p.ErrNotFound
 		}
 		stream.Reset() //nolint:errcheck
@@ -124,10 +124,10 @@ func (c *Client) doRequest(
 		if err != nil {
 			return nil, fmt.Errorf("failed to read eds from ods bytes: %w", err)
 		}
-		c.metrics.ObserveRequests(1, p2p.StatusSuccess)
+		c.metrics.ObserveRequests(ctx, 1, p2p.StatusSuccess)
 		return eds, nil
 	case pb.Status_NOT_FOUND:
-		c.metrics.ObserveRequests(1, p2p.StatusNotFound)
+		c.metrics.ObserveRequests(ctx, 1, p2p.StatusNotFound)
 		return nil, p2p.ErrNotFound
 	case pb.Status_INVALID:
 		log.Debug("client: invalid request")
@@ -135,7 +135,7 @@ func (c *Client) doRequest(
 	case pb.Status_INTERNAL:
 		fallthrough
 	default:
-		c.metrics.ObserveRequests(1, p2p.StatusInternalErr)
+		c.metrics.ObserveRequests(ctx, 1, p2p.StatusInternalErr)
 		return nil, p2p.ErrInvalidResponse
 	}
 }
