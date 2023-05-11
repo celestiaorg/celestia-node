@@ -71,8 +71,10 @@ func (s *coordinatorState) resumeFromCheckpoint(c checkpoint) {
 	s.networkHead = c.NetworkHead
 
 	for h, count := range c.Failed {
+		// resumed retries should start without backoff delay
 		s.failed[h] = retryAttempt{
 			count: count,
+			after: time.Now(),
 		}
 	}
 }
@@ -80,6 +82,17 @@ func (s *coordinatorState) resumeFromCheckpoint(c checkpoint) {
 func (s *coordinatorState) handleResult(res result) {
 	delete(s.inProgress, res.id)
 
+	switch res.jobType {
+	case recentJob, catchupJob:
+		s.handleRecentOrCatchupResult(res)
+	case retryJob:
+		s.handleRetryResult(res)
+	}
+
+	s.checkDone()
+}
+
+func (s *coordinatorState) handleRecentOrCatchupResult(res result) {
 	// check if the worker retried any of the previously failed heights
 	for h := range s.failed {
 		if h < res.from || h > res.to {
@@ -93,16 +106,17 @@ func (s *coordinatorState) handleResult(res result) {
 
 	// update failed heights
 	for h := range res.failed {
-		// if job was already in retry and failed again, carry over attempt count
-		lastRetry, ok := s.inRetry[h]
-		if ok {
-			if res.job.jobType != retryJob {
-				// retry job has been already created by another worker (recent or catchup)
-				continue
-			}
-			delete(s.inRetry, h)
-		}
+		nextRetry, _ := s.retryStrategy.nextRetry(retryAttempt{}, time.Now())
+		s.failed[h] = nextRetry
+	}
+}
 
+func (s *coordinatorState) handleRetryResult(res result) {
+	// move heights that has failed again to failed with keeping retry count, they will be picked up by
+	// retry workers later
+	for h := range res.failed {
+		lastRetry := s.inRetry[h]
+		// height will be retried after backoff
 		nextRetry, retryExceeded := s.retryStrategy.nextRetry(lastRetry, time.Now())
 		if retryExceeded {
 			log.Warnw("header exceeded maximum amount of sampling attempts",
@@ -111,7 +125,11 @@ func (s *coordinatorState) handleResult(res result) {
 		}
 		s.failed[h] = nextRetry
 	}
-	s.checkDone()
+
+	// processed height are either already moved to failed map or succeeded, cleanup inRetry
+	for h := res.from; h <= res.to; h++ {
+		delete(s.inRetry, h)
+	}
 }
 
 func (s *coordinatorState) isNewHead(newHead int64) bool {
@@ -247,6 +265,10 @@ func (s *coordinatorState) unsafeStats() SamplingStats {
 		if h < lowestFailedOrInProgress {
 			lowestFailedOrInProgress = h
 		}
+	}
+
+	for h, retry := range s.inRetry {
+		failed[h] += retry.count
 	}
 
 	return SamplingStats{
