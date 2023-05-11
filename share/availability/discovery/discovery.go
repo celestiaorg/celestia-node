@@ -50,6 +50,8 @@ type Discovery struct {
 
 	triggerDisc chan struct{}
 
+	metrics *metrics
+
 	cancel context.CancelFunc
 
 	params Parameters
@@ -132,6 +134,7 @@ func (d *Discovery) Advertise(ctx context.Context) {
 	defer timer.Stop()
 	for {
 		_, err := d.disc.Advertise(ctx, rendezvousPoint)
+		d.metrics.observeAdvertise(ctx, err)
 		if err != nil {
 			if ctx.Err() != nil {
 				return
@@ -245,11 +248,14 @@ func (d *Discovery) discover(ctx context.Context) bool {
 	var wg errgroup.Group
 	// limit to minimize chances of overreaching the limit
 	wg.SetLimit(int(d.set.Limit()))
-	defer wg.Wait() //nolint:errcheck
 
 	// stop discovery when we are done
 	findCtx, findCancel := context.WithCancel(ctx)
-	defer findCancel()
+	defer func() {
+		// some workers could still be running, wait them to finish before canceling findCtx
+		wg.Wait() //nolint:errcheck
+		findCancel()
+	}()
 
 	peers, err := d.disc.FindPeers(findCtx, rendezvousPoint)
 	if err != nil {
@@ -265,14 +271,18 @@ func (d *Discovery) discover(ctx context.Context) bool {
 		drainChannel(ticker.C)
 		select {
 		case <-findCtx.Done():
+			d.metrics.observeFindPeers(ctx, true, true)
 			return true
 		case <-ticker.C:
+			d.metrics.observeDiscoveryStuck(ctx)
 			log.Warn("wasn't able to find new peers for long time")
 			continue
 		case p, ok := <-peers:
 			if !ok {
+				isEnoughPeers := d.set.Size() >= d.set.Limit()
+				d.metrics.observeFindPeers(ctx, ctx.Err() != nil, isEnoughPeers)
 				log.Debugw("discovery channel closed", "find_is_canceled", findCtx.Err() != nil)
-				return d.set.Size() >= d.set.Limit()
+				return isEnoughPeers
 			}
 
 			peer := p
@@ -308,15 +318,19 @@ func (d *Discovery) handleDiscoveredPeer(ctx context.Context, peer peer.AddrInfo
 	logger := log.With("peer", peer.ID)
 	switch {
 	case peer.ID == d.host.ID():
+		d.metrics.observeHandlePeer(ctx, handlePeerSkipSelf)
 		logger.Debug("skip handle: self discovery")
 		return false
 	case len(peer.Addrs) == 0:
+		d.metrics.observeHandlePeer(ctx, handlePeerEmptyAddrs)
 		logger.Debug("skip handle: empty address list")
 		return false
 	case d.set.Size() >= d.set.Limit():
+		d.metrics.observeHandlePeer(ctx, handlePeerEnoughPeers)
 		logger.Debug("skip handle: enough peers found")
 		return false
 	case d.connector.HasBackoff(peer.ID):
+		d.metrics.observeHandlePeer(ctx, handlePeerBackoff)
 		logger.Debug("skip handle: backoff")
 		return false
 	}
@@ -327,6 +341,7 @@ func (d *Discovery) handleDiscoveredPeer(ctx context.Context, peer peer.AddrInfo
 	case network.NotConnected:
 		err := d.connector.Connect(ctx, peer)
 		if err != nil {
+			d.metrics.observeHandlePeer(ctx, handlePeerConnErr)
 			logger.Debugw("unable to connect", "err", err)
 			return false
 		}
@@ -335,10 +350,12 @@ func (d *Discovery) handleDiscoveredPeer(ctx context.Context, peer peer.AddrInfo
 	}
 
 	if !d.set.Add(peer.ID) {
+		d.metrics.observeHandlePeer(ctx, handlePeerInSet)
 		logger.Debug("peer is already in discovery set")
 		return false
 	}
 	d.onUpdatedPeers(peer.ID, true)
+	d.metrics.observeHandlePeer(ctx, handlePeerConnected)
 	logger.Debug("added peer to set")
 
 	// tag to protect peer from being killed by ConnManager

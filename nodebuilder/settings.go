@@ -71,6 +71,7 @@ func WithMetrics(metricOpts []otlpmetrichttp.Option, nodeType node.Type, buildIn
 		fx.Invoke(fraud.WithMetrics),
 		fx.Invoke(node.WithMetrics),
 		fx.Invoke(modheader.WithMetrics),
+		fx.Invoke(share.WithDiscoveryMetrics),
 	)
 
 	samplingMetrics := fx.Options(

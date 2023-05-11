@@ -3,7 +3,6 @@ package p2p
 import (
 	"context"
 	"fmt"
-	"time"
 
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric/global"
@@ -13,8 +12,6 @@ import (
 )
 
 var meter = global.MeterProvider().Meter("shrex/eds")
-
-var observationTimeout = 100 * time.Millisecond
 
 type status string
 
@@ -32,13 +29,13 @@ type Metrics struct {
 
 // ObserveRequests increments the total number of requests sent with the given status as an
 // attribute.
-func (m *Metrics) ObserveRequests(count int64, status status) {
+func (m *Metrics) ObserveRequests(ctx context.Context, count int64, status status) {
 	if m == nil {
 		return
 	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), observationTimeout)
-	defer cancel()
+	if ctx.Err() != nil {
+		ctx = context.Background()
+	}
 	m.totalRequestCounter.Add(ctx, count, attribute.String("status", string(status)))
 }
 
