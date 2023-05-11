@@ -223,7 +223,7 @@ func TestManager(t *testing.T) {
 		stopManager(t, manager)
 	})
 
-	t.Run("get peer from discovery", func(t *testing.T) {
+	t.Run("mark pool synced", func(t *testing.T) {
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 		t.Cleanup(cancel)
 
