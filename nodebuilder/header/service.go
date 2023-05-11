@@ -57,12 +57,12 @@ func (s *Service) GetByHeight(ctx context.Context, height uint64) (*header.Exten
 		return nil, err
 	}
 
-	if uint64(head.Height()) < height {
+	switch {
+	case uint64(head.Height()) == height, err != nil:
+		return head, err
+	case uint64(head.Height()) < height:
 		return nil, fmt.Errorf("header: given height is from the future: "+
 			"networkHeight: %d, requestedHeight: %d", head.Height(), height)
-	}
-	if uint64(head.Height()) == height {
-		return head, nil
 	}
 
 	// TODO(vgonkivs): remove after https://github.com/celestiaorg/go-header/issues/32 will be
@@ -72,15 +72,16 @@ func (s *Service) GetByHeight(ctx context.Context, height uint64) (*header.Exten
 		return nil, err
 	}
 
-	// `+1` prevents of getting an error `syncing in progress` for header that we have synced recently.
-	if uint64(head.Height()+1) < height {
+	switch {
+	case uint64(head.Height()) == height, err != nil:
+		return head, err
+	// `+1` allows for one header network lag, e.g. user request header that is milliseconds away
+	case uint64(head.Height())+1 < height:
 		return nil, fmt.Errorf("header: syncing in progress: "+
 			"localHeadHeight: %d, requestedHeight: %d", head.Height(), height)
+	default:
+		return s.store.GetByHeight(ctx, height)
 	}
-	if uint64(head.Height()) == height {
-		return head, nil
-	}
-	return s.store.GetByHeight(ctx, height)
 }
 
 func (s *Service) LocalHead(ctx context.Context) (*header.ExtendedHeader, error) {
