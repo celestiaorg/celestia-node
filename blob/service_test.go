@@ -126,7 +126,7 @@ func TestBlobService_Get(t *testing.T) {
 			expectedResult: func(res interface{}, err error) {
 				require.NoError(t, err)
 
-				header, err := service.getByHeight(ctx, 1)
+				header, err := service.headerGetter(ctx, 1)
 				require.NoError(t, err)
 
 				proof, ok := res.(*Proof)
@@ -190,7 +190,10 @@ func TestService_GetSingleBlobWithoutPadding(t *testing.T) {
 	err = headerStore.Init(ctx, h)
 	require.NoError(t, err)
 
-	service := NewService(nil, getters.NewIPLDGetter(bs), headerStore, headerStore)
+	fn := func(ctx context.Context, height uint64) (*header.ExtendedHeader, error) {
+		return headerStore.GetByHeight(ctx, height)
+	}
+	service := NewService(nil, getters.NewIPLDGetter(bs), fn)
 
 	newBlob, err := service.Get(ctx, 1, blobs[1].NamespaceID(), blobs[1].Commitment())
 	require.NoError(t, err)
@@ -232,7 +235,11 @@ func TestService_GetAllWithoutPadding(t *testing.T) {
 	err = headerStore.Init(ctx, h)
 	require.NoError(t, err)
 
-	service := NewService(nil, getters.NewIPLDGetter(bs), headerStore, headerStore)
+	fn := func(ctx context.Context, height uint64) (*header.ExtendedHeader, error) {
+		return headerStore.GetByHeight(ctx, height)
+	}
+
+	service := NewService(nil, getters.NewIPLDGetter(bs), fn)
 
 	_, err = service.GetAll(ctx, 1, blobs[0].NamespaceID(), blobs[1].NamespaceID())
 	require.NoError(t, err)
@@ -250,5 +257,9 @@ func createService(ctx context.Context, t *testing.T, blobs []*Blob) *Service {
 	h := headertest.ExtendedHeaderFromEDS(t, 1, eds)
 	err = headerStore.Init(ctx, h)
 	require.NoError(t, err)
-	return NewService(nil, getters.NewIPLDGetter(bs), headerStore, headerStore)
+
+	fn := func(ctx context.Context, height uint64) (*header.ExtendedHeader, error) {
+		return headerStore.GetByHeight(ctx, height)
+	}
+	return NewService(nil, getters.NewIPLDGetter(bs), fn)
 }

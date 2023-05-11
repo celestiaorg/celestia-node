@@ -11,7 +11,6 @@ import (
 
 	"github.com/celestiaorg/celestia-app/pkg/shares"
 	apptypes "github.com/celestiaorg/celestia-app/x/blob/types"
-	libhead "github.com/celestiaorg/go-header"
 	"github.com/celestiaorg/nmt/namespace"
 
 	"github.com/celestiaorg/celestia-node/header"
@@ -29,28 +28,26 @@ var (
 // defaultMinGasPrice is the default min gas price.
 const defaultMinGasPrice = 0.001
 
+// headerGetter fetches header by the provided height
+type headerGetter func(context.Context, uint64) (*header.ExtendedHeader, error)
+
 type Service struct {
 	// accessor dials the given celestia-core endpoint to submit blobs.
 	accessor *state.CoreAccessor
 	// shareGetter retrieves the EDS to fetch all shares from the requested header.
-	shareGetter share.Getter
-	// headerStore allows to get the requested header from the local storage.
-	headerStore libhead.Store[*header.ExtendedHeader]
-	// headGetter gets current network head.
-	headGetter libhead.Head[*header.ExtendedHeader]
+	shareGetter  share.Getter
+	headerGetter headerGetter
 }
 
 func NewService(
 	state *state.CoreAccessor,
 	getter share.Getter,
-	headerStore libhead.Store[*header.ExtendedHeader],
-	headGetter libhead.Head[*header.ExtendedHeader],
+	headGetter headerGetter,
 ) *Service {
 	return &Service{
-		accessor:    state,
-		shareGetter: getter,
-		headerStore: headerStore,
-		headGetter:  headGetter,
+		accessor:     state,
+		shareGetter:  getter,
+		headerGetter: headGetter,
 	}
 }
 
@@ -104,7 +101,7 @@ func (s *Service) GetProof(
 // GetAll returns all blobs under the given namespaces at the given height.
 // GetAll can return blobs and an error in case if some requests failed.
 func (s *Service) GetAll(ctx context.Context, height uint64, nIDs ...namespace.ID) ([]*Blob, error) {
-	header, err := s.getByHeight(ctx, height)
+	header, err := s.headerGetter(ctx, height)
 	if err != nil {
 		return nil, err
 	}
@@ -187,7 +184,7 @@ func (s *Service) getByCommitment(
 		"height", height,
 		"nID", nID.String())
 
-	header, err := s.getByHeight(ctx, height)
+	header, err := s.headerGetter(ctx, height)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -280,23 +277,4 @@ func (s *Service) getBlobs(ctx context.Context, nID namespace.ID, root *share.Ro
 		return nil
 	}
 	return err
-}
-
-// getByHeight returns ExtendedHeader by its height.
-// getByHeight ensures that the requested height is less or equal than the current network head.
-func (s *Service) getByHeight(ctx context.Context, height uint64) (*header.ExtendedHeader, error) {
-	head, err := s.headGetter.Head(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	if uint64(head.Height()) < height {
-		return nil, fmt.Errorf("blob: given height exceeds network head."+
-			"networkHeight:%d, requestedHeight:%d", head.Height(), height)
-	}
-
-	if uint64(head.Height()) == height {
-		return head, nil
-	}
-	return s.headerStore.GetByHeight(ctx, height)
 }
