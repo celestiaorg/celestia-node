@@ -221,37 +221,35 @@ To pass the peer store to the `Exchange` (_and subsequently to the `peerTracker`
 
 ### Security Concerns: Long Range Attack
 
-With the ability to retrieve previously seen good peers, we should distinguish between those and the trusted peers for cases when we have expired local sync target (_i.e: subjective head_). On such cases, we would like to strictly sync and retrieve the subjective head from our trusted peers and no other, and for other syncing tasks, include the other stored good peers. To achieve this, we need to first include information about the expiry of the local sync target:
+With the ability to retrieve previously seen good peers, we should distinguish between those and the trusted peers for cases when we have local chain head and have to perform subjective initialisation. (_i.e: subjective head_). On such cases, we would like to strictly sync and retrieve the subjective head from our trusted peers and no other, and for other syncing tasks, include the other stored good peers. We also need need to make sure that we have runtime detection for subjective initialization, so to achieve this, we suggest to extend `exchange.Head` with options that allow us to distinguish between the two cases:
 
 ```diff
+ -func (ex *Exchange[H]) Head(ctx context.Context) (H, error) { 
+ +func (ex *Exchange[H]) Head(ctx context.Context, opts ....header.RequestOptions) (H, error) {
 
- // newP2PExchange constructs a new Exchange for headers.
- func newP2PExchange(
-        lc fx.Lifecycle,
-+        storeChainHead *header.ExtendedHeader,
-        bpeers modp2p.Bootstrappers,
-        network modp2p.Network,
-        host host.Host,
-        ...
-        exchange, err := p2p.NewExchange(...,
-                p2p.WithParams(cfg.Client),
-                p2p.WithNetworkID[p2p.ClientParameters](network.String()),
-                p2p.WithChainID(network.String()),
-+               p2p.WithSubjectiveInitialization(storeChainHead.IsExpired),
-        )
-        if err != nil {
-                return nil, err
 ```
+
+And define a `RequestOptions` as follows:
+
+```diff
++ func WithSubjectiveInitilization(bool)
+```
+
+such that the `exchange.Head` method could perform subjective initialization against trusted peers when the option is set to `true`.
 
 (_Code Snippet 3.c: Example of required changes to celestia-node/nodebuilder/header/constructors.go_)
 
 This piece information will allow the `Exchange` to distinguish between the two cases and use the correct peer set for each case:
 
 ```diff
- func (ex *Exchange[H]) Head(ctx context.Context) (H, error) {
+ func (ex *Exchange[H]) Head(ctx context.Context, opts ...header.RequestOptions) (H, error) {
         log.Debug("requesting head")
++       var req reqOpts
++       for _, opt := range opts {
++              opt(&req)
++       }
 +       // pool of peers to request from is determined by whether the head of the store is expired or not
-+       if ex.Params.subjectiveInitialisation {
++       if req.subjectiveInitialisation {
 +              // if the local chain head is outside the unbonding period, only use TRUSTED PEERS for determining the head
 +              peerset = ex.trustedPeers
 +        } else {
@@ -270,7 +268,7 @@ This piece information will allow the `Exchange` to distinguish between the two 
                         if err != nil {
 ```
 
-Other side-effect changes will have to be done to methods that use `trustedPeers` restrictively for requests (_such as `performRequest`_) to allow requesting to previously seen good peers as well (_Reference: [Issue #25](https://github.com/celestiaorg/go-header/issues/25)_)
+Other side-effect changes will have to be done to methods that use `trustedPeers` restrictively for requests (_such as `performRequest`_) to allow requesting to use previously seen good peers as well (_Reference: [Issue #25](https://github.com/celestiaorg/go-header/issues/25)_)
 </br>
 
 ## Approach B: Periodic sampling of peers from the peerstore for "good peers" selection using liveness buckets
