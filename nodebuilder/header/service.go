@@ -72,7 +72,8 @@ func (s *Service) GetByHeight(ctx context.Context, height uint64) (*header.Exten
 		return nil, err
 	}
 
-	if uint64(head.Height()) < height {
+	// `+1` prevents of getting an error `syncing in progress` for header that we have synced recently.
+	if uint64(head.Height()+1) < height {
 		return nil, fmt.Errorf("header: syncing in progress: "+
 			"localHeadHeight: %d, requestedHeight: %d", head.Height(), height)
 	}
