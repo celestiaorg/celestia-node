@@ -108,33 +108,34 @@ func (s *Service) GetAll(ctx context.Context, height uint64, nIDs ...namespace.I
 
 	var (
 		blobs     = make([]*Blob, 0)
-		ch        = make(chan []*Blob)
+		blobCh    = make(chan []*Blob)
 		resultErr = make([]error, 0, len(nIDs))
-		errCh     = make(chan error)
 	)
 
-	for _, nID := range nIDs {
-		go func(nID namespace.ID) {
+	for i, nID := range nIDs {
+		i := i
+		nID := nID
+		go func() {
 			log.Infow("requesting blobs", "height", height, "nID", nID.String())
-			err := s.getBlobs(ctx, nID, header.DAH, ch)
+			blobs, err := s.getBlobs(ctx, nID, header.DAH)
 			if err != nil {
-				errCh <- fmt.Errorf("could not get the blob for the nID:%s. %s", nID.String(), err)
+				resultErr[i] = fmt.Errorf("could not get the blob for the nID:%s. %s", nID.String(), err)
+				blobCh <- nil
 				return
 			}
-		}(nID)
+			blobCh <- blobs
+		}()
 	}
 
 	for range nIDs {
 		select {
 		case <-ctx.Done():
 			return nil, ctx.Err()
-		case b := <-ch:
+		case b := <-blobCh:
 			if b == nil {
 				continue
 			}
 			blobs = append(blobs, b...)
-		case err = <-errCh:
-			resultErr = append(resultErr, err)
 		}
 	}
 
@@ -264,16 +265,10 @@ func (s *Service) getByCommitment(
 
 // getBlobs retrieves the DAH and fetches all shares from the requested namespace.ID and converts
 // them to Blobs.
-func (s *Service) getBlobs(ctx context.Context, nID namespace.ID, root *share.Root, blobsCh chan<- []*Blob) error {
+func (s *Service) getBlobs(ctx context.Context, nID namespace.ID, root *share.Root) ([]*Blob, error) {
 	namespacedShares, err := s.shareGetter.GetSharesByNamespace(ctx, root, nID)
 	if err != nil {
-		return err
+		return nil, err
 	}
-
-	sh, err := sharesToBlobs(namespacedShares.Flatten())
-	if err == nil {
-		blobsCh <- sh
-		return nil
-	}
-	return err
+	return sharesToBlobs(namespacedShares.Flatten())
 }
