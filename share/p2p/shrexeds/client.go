@@ -83,7 +83,11 @@ func (c *Client) doRequest(
 	dataHash share.DataHash,
 	to peer.ID,
 ) (*rsmt2d.ExtendedDataSquare, error) {
-	stream, err := c.host.NewStream(ctx, to, c.protocolID)
+	// TODO(@distractedm1nd): This context handling is part of a hotfix. We need to investigate and
+	// fix deadlines properly ASAP.
+	streamOpenCtx, cancel := context.WithTimeout(ctx, time.Second*5)
+	defer cancel()
+	stream, err := c.host.NewStream(streamOpenCtx, to, c.protocolID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open stream: %w", err)
 	}
@@ -143,11 +147,13 @@ func (c *Client) doRequest(
 func (c *Client) setStreamDeadlines(ctx context.Context, stream network.Stream) {
 	// set read/write deadline to use context deadline if it exists
 	if dl, ok := ctx.Deadline(); ok {
-		err := stream.SetDeadline(dl)
-		if err == nil {
-			return
-		}
-		log.Debugw("client: setting deadline: %s", "err", err)
+		stream.SetDeadline(dl) //nolint:errcheck
+		// TODO(@distractedm1nd): This is commented out as part of a hotfix until we find good defaults for deadlines.
+		// particularly, we can get stuck reading the status from the stream for 60s if we don't comment this out
+		// if err == nil {
+		//	return
+		// }
+		// log.Debugw("client: setting deadline: %s", "err", err)
 	}
 
 	// if deadline not set, client read deadline defaults to server write deadline
