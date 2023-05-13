@@ -47,6 +47,7 @@ func (ps *limitedSet) Size() uint {
 func (ps *limitedSet) Add(p peer.ID) (added bool) {
 	ps.lk.Lock()
 	if _, ok := ps.ps[p]; ok {
+		ps.lk.Unlock()
 		return false
 	}
 	ps.ps[p] = struct{}{}
@@ -65,10 +66,8 @@ func (ps *limitedSet) Add(p peer.ID) (added bool) {
 
 func (ps *limitedSet) Remove(id peer.ID) {
 	ps.lk.Lock()
-	defer ps.lk.Unlock()
-	if ps.limit > 0 {
-		delete(ps.ps, id)
-	}
+	delete(ps.ps, id)
+	ps.lk.Unlock()
 }
 
 // Peers returns all discovered peers from the set.

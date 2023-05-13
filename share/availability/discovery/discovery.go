@@ -210,11 +210,8 @@ func (d *Discovery) disconnectsLoop(ctx context.Context, sub event.Subscription)
 				return
 			}
 
-			if evnt := e.(event.EvtPeerConnectednessChanged); evnt.Connectedness == network.NotConnected {
-				if !d.set.Contains(evnt.Peer) {
-					continue
-				}
-
+			evnt := e.(event.EvtPeerConnectednessChanged)
+			if evnt.Connectedness == network.NotConnected && d.set.Contains(evnt.Peer) {
 				d.host.ConnManager().Unprotect(evnt.Peer, rendezvousPoint)
 				d.connector.Backoff(evnt.Peer)
 				d.set.Remove(evnt.Peer)
