@@ -75,11 +75,9 @@ type Manager struct {
 
 	metrics *metrics
 
-	cancel context.CancelFunc
-	done   chan struct{}
-
 	headerSubDone         chan struct{}
 	disconnectedPeersDone chan struct{}
+	cancel                context.CancelFunc
 }
 
 // DoneFunc updates internal state depending on call results. Should be called once per returned
@@ -207,9 +205,7 @@ func (m *Manager) Peer(
 		if m.removeUnreachable(logger, p, peerID) {
 			return m.Peer(ctx, datahash)
 		}
-		logger.Debugw("get peer from shrexsub pool",
-			"peer", peerID.String(),
-			"pool_size", p.size())
+		logger.Debugw("get peer from shrexsub pool", "peer", peerID.String())
 		return m.newPeer(ctx, datahash, peerID, sourceShrexSub, p.len(), 0)
 	}
 
@@ -229,7 +225,6 @@ func (m *Manager) Peer(
 			return m.Peer(ctx, datahash)
 		}
 		logger.Debugw("got peer from shrexSub pool after wait",
-			"pool_size", p.size(),
 			"after (s)", time.Since(start))
 		return m.newPeer(ctx, datahash, peerID, sourceShrexSub, p.len(), time.Since(start))
 	case peerID = <-m.fullNodes.next(ctx):
@@ -245,7 +240,8 @@ func (m *Manager) newPeer(
 	peerID peer.ID,
 	source peerSource,
 	poolSize int,
-	waitTime time.Duration) (peer.ID, DoneFunc, error) {
+	waitTime time.Duration,
+) (peer.ID, DoneFunc, error) {
 	log.Debugw("got peer",
 		"hash", datahash.String(),
 		"peer", peerID.String(),
