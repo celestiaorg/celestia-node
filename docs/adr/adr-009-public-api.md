@@ -95,10 +95,12 @@ type HeaderModule interface {
 LocalHead(ctx context.Context) (*header.ExtendedHeader, error)
 // GetByHash returns the header of the given hash from the node's header store.
 GetByHash(ctx context.Context, hash tmbytes.HexBytes) (*header.ExtendedHeader, error)
-// GetByHeight returns the header of the given height from the node's header store.
-// If the header of the given height is not yet available, the request will hang
-// until it becomes available in the node's header store.
+// GetByHeight returns the header of the given height if it is available as either
+// the syncer's head or as the chain head of the node's header store. 
 GetByHeight(ctx context.Context, height uint64) (*header.ExtendedHeader, error)
+// WaitForHeight blocks until the header at the given height has been processed
+// by the node's header store or until context deadline is exceeded.
+WaitForHeight(ctx context.Context, height uint64) (*header.ExtendedHeader, error)
 // GetVerifiedRangeByHeight returns the given range [from:to) of ExtendedHeaders
 // from the node's header store and verifies that the returned headers are 
 // adjacent to each other.
