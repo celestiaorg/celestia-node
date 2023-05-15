@@ -129,6 +129,7 @@ func (sg *ShrexGetter) GetEDS(ctx context.Context, root *share.Root) (*rsmt2d.Ex
 	)
 	for {
 		if ctx.Err() != nil {
+			sg.metrics.recordEDSAttempt(ctx, attempt, false)
 			return nil, ctx.Err()
 		}
 		attempt++
@@ -155,6 +156,7 @@ func (sg *ShrexGetter) GetEDS(ctx context.Context, root *share.Root) (*rsmt2d.Ex
 			return eds, nil
 		case errors.Is(getErr, context.DeadlineExceeded),
 			errors.Is(getErr, context.Canceled):
+			setStatus(peers.ResultCooldownPeer)
 		case errors.Is(getErr, p2p.ErrNotFound):
 			getErr = share.ErrNotFound
 			setStatus(peers.ResultCooldownPeer)
@@ -187,6 +189,7 @@ func (sg *ShrexGetter) GetSharesByNamespace(
 	)
 	for {
 		if ctx.Err() != nil {
+			sg.metrics.recordNDAttempt(ctx, attempt, false)
 			return nil, ctx.Err()
 		}
 		attempt++
@@ -213,6 +216,7 @@ func (sg *ShrexGetter) GetSharesByNamespace(
 			return nd, nil
 		case errors.Is(getErr, context.DeadlineExceeded),
 			errors.Is(getErr, context.Canceled):
+			setStatus(peers.ResultCooldownPeer)
 		case errors.Is(getErr, p2p.ErrNotFound):
 			getErr = share.ErrNotFound
 			setStatus(peers.ResultCooldownPeer)
