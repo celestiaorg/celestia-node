@@ -315,6 +315,7 @@ func (d *Discovery) discover(ctx context.Context) bool {
 	}
 }
 
+// loadPeers loads and connects to persisted peers from datastore if registered
 func (d *Discovery) loadPeers(ctx context.Context) {
 	if d.params.datastore == nil {
 		return
@@ -326,6 +327,7 @@ func (d *Discovery) loadPeers(ctx context.Context) {
 		return
 	}
 
+	// TODO(@Wondertan): To wait or not to wait?
 	var wg sync.WaitGroup
 	wg.Add(len(peerInfos))
 	defer wg.Wait()
@@ -337,6 +339,7 @@ func (d *Discovery) loadPeers(ctx context.Context) {
 	}
 }
 
+// dumpPeers dumps discovered peers to datastore if registered
 func (d *Discovery) dumpPeers(ctx context.Context) {
 	if d.params.datastore == nil {
 		return
@@ -432,11 +435,6 @@ func loadPeers(ctx context.Context, ds datastore.Batching) ([]peer.AddrInfo, err
 		return nil, err
 	}
 
-	infos := make([]peer.AddrInfo, 0)
-	err = json.Unmarshal(dump, &infos)
-	if err != nil {
-		return nil, err
-	}
-
-	return infos, nil
+	var infos []peer.AddrInfo
+	return infos, json.Unmarshal(dump, &infos)
 }
