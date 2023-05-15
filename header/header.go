@@ -103,8 +103,6 @@ func (eh *ExtendedHeader) LastHeader() libhead.Hash {
 	return libhead.Hash(eh.RawHeader.LastBlockID.Hash)
 }
 
-// IsBefore returns whether the given header is of a higher height.
-
 // Equals returns whether the hash and height of the given header match.
 func (eh *ExtendedHeader) Equals(header *ExtendedHeader) bool {
 	return eh.Height() == header.Height() && bytes.Equal(eh.Hash(), header.Hash())
