@@ -109,7 +109,7 @@ func (srv *Server) handleNamespacedData(ctx context.Context, stream network.Stre
 
 	err = validateRequest(req)
 	if err != nil {
-		logger.Debugw("server: invalid request", "err", err)
+		logger.Warnw("server: invalid request", "err", err)
 		stream.Reset() //nolint:errcheck
 		return
 	}
@@ -120,6 +120,7 @@ func (srv *Server) handleNamespacedData(ctx context.Context, stream network.Stre
 	dah, err := srv.store.GetDAH(ctx, req.RootHash)
 	if err != nil {
 		if errors.Is(err, eds.ErrNotFound) {
+			logger.Warn("server: DAH not found")
 			srv.respondNotFoundError(ctx, logger, stream)
 			return
 		}
@@ -130,6 +131,7 @@ func (srv *Server) handleNamespacedData(ctx context.Context, stream network.Stre
 
 	shares, err := srv.getter.GetSharesByNamespace(ctx, dah, req.NamespaceId)
 	if errors.Is(err, share.ErrNotFound) {
+		logger.Warn("server: nd not found")
 		srv.respondNotFoundError(ctx, logger, stream)
 		return
 	}
