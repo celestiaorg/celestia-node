@@ -83,9 +83,7 @@ func (c *Client) doRequest(
 	dataHash share.DataHash,
 	to peer.ID,
 ) (*rsmt2d.ExtendedDataSquare, error) {
-	// TODO(@distractedm1nd): This context handling is part of a hotfix. We need to investigate and
-	// fix deadlines properly ASAP.
-	streamOpenCtx, cancel := context.WithTimeout(ctx, time.Second*5)
+	streamOpenCtx, cancel := context.WithTimeout(ctx, c.params.ServerReadTimeout)
 	defer cancel()
 	stream, err := c.host.NewStream(streamOpenCtx, to, c.protocolID)
 	if err != nil {
@@ -110,11 +108,15 @@ func (c *Client) doRequest(
 
 	// read and parse status from peer
 	resp := new(pb.EDSResponse)
+	err = stream.SetReadDeadline(time.Now().Add(c.params.ServerReadTimeout))
+	if err != nil {
+		return nil, fmt.Errorf("failed to set read deadline for reading status: %w", err)
+	}
 	_, err = serde.Read(stream, resp)
 	if err != nil {
 		// server is overloaded and closed the stream
 		if errors.Is(err, io.EOF) {
-			c.metrics.ObserveRequests(ctx, 1, p2p.StatusRateLimited)
+			c.metrics.ObserveRequests(ctx, 1, p2p.StatusNotFound)
 			return nil, p2p.ErrNotFound
 		}
 		stream.Reset() //nolint:errcheck
@@ -123,6 +125,8 @@ func (c *Client) doRequest(
 
 	switch resp.Status {
 	case pb.Status_OK:
+		// reset stream deadlines to original values, since read deadline was changed during status read
+		c.setStreamDeadlines(ctx, stream)
 		// use header and ODS bytes to construct EDS and verify it against dataHash
 		eds, err := eds.ReadEDS(ctx, stream, dataHash)
 		if err != nil {
@@ -147,13 +151,11 @@ func (c *Client) doRequest(
 func (c *Client) setStreamDeadlines(ctx context.Context, stream network.Stream) {
 	// set read/write deadline to use context deadline if it exists
 	if dl, ok := ctx.Deadline(); ok {
-		stream.SetDeadline(dl) //nolint:errcheck
-		// TODO(@distractedm1nd): This is commented out as part of a hotfix until we find good defaults for deadlines.
-		// particularly, we can get stuck reading the status from the stream for 60s if we don't comment this out
-		// if err == nil {
-		//	return
-		// }
-		// log.Debugw("client: setting deadline: %s", "err", err)
+		err := stream.SetDeadline(dl)
+		if err == nil {
+			return
+		}
+		log.Debugw("client: setting deadline: %s", "err", err)
 	}
 
 	// if deadline not set, client read deadline defaults to server write deadline
