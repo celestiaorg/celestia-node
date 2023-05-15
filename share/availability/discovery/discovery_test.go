@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ipfs/go-datastore"
 	dht "github.com/libp2p/go-libp2p-kad-dht"
 	"github.com/libp2p/go-libp2p/core/discovery"
 	"github.com/libp2p/go-libp2p/core/host"
@@ -72,6 +73,58 @@ func TestDiscovery(t *testing.T) {
 	assert.EqualValues(t, 0, peerA.set.Size())
 }
 
+func TestDiscoveryPersistence(t *testing.T) {
+	const nodes = 2
+
+	discoveryRetryTimeout = time.Millisecond * 100 // defined in discovery.go
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
+	t.Cleanup(cancel)
+
+	tn := newTestnet(ctx, t)
+
+	ds := datastore.NewMapDatastore()
+	peerA := tn.discovery(
+		WithPeersLimit(nodes),
+		WithAdvertiseInterval(-1),
+		WithPersistence(ds),
+	)
+
+	evt := make(chan struct{})
+	peerA.WithOnPeersUpdate(func(peerID peer.ID, isAdded bool) {
+		evt <- struct{}{}
+	})
+
+	discs := make([]*Discovery, nodes)
+	for range discs {
+		tn.discovery(
+			WithPeersLimit(nodes),
+			WithAdvertiseInterval(time.Millisecond*100),
+		)
+
+		select {
+		case <-evt:
+		case <-ctx.Done():
+			t.Fatal("did not discover peer in time")
+		}
+	}
+
+	err := peerA.Stop(ctx)
+	require.NoError(t, err)
+
+	// make new borker discovery that won't discover anything
+	// over datastore with persisted peers
+	peerANew := tn.borkenDiscovery(
+		WithPeersLimit(nodes),
+		WithAdvertiseInterval(-1),
+		WithPersistence(ds),
+	)
+
+	peers, err := peerANew.Peers(ctx)
+	require.NoError(t, err)
+	assert.Len(t, peers, nodes)
+}
+
 type testnet struct {
 	ctx context.Context
 	T   *testing.T
@@ -109,6 +162,18 @@ func (t *testnet) discovery(opts ...Option) *Discovery {
 	return disc
 }
 
+func (t *testnet) borkenDiscovery(opts ...Option) *Discovery {
+	hst, _ := t.peer()
+	disc := NewDiscovery(hst, &dummyDiscovery{}, opts...)
+	err := disc.Start(t.ctx)
+	require.NoError(t.T, err)
+	t.T.Cleanup(func() {
+		err := disc.Stop(t.ctx)
+		require.NoError(t.T, err)
+	})
+	return disc
+}
+
 func (t *testnet) peer() (host.Host, discovery.Discovery) {
 	swarm := swarmt.GenSwarm(t.T, swarmt.OptDisableTCP)
 	hst, err := basic.NewHost(swarm, &basic.HostOpts{})
@@ -130,4 +195,19 @@ func (t *testnet) peer() (host.Host, discovery.Discovery) {
 	require.NoError(t.T, err)
 
 	return hst, routing.NewRoutingDiscovery(dht)
+}
+
+type dummyDiscovery struct{}
+
+func (d *dummyDiscovery) Advertise(context.Context, string, ...discovery.Option) (time.Duration, error) {
+	return time.Hour, nil
+}
+
+func (d *dummyDiscovery) FindPeers(context.Context, string, ...discovery.Option) (<-chan peer.AddrInfo, error) {
+	retCh := make(chan peer.AddrInfo)
+	go func() {
+		time.Sleep(time.Second)
+		close(retCh)
+	}()
+	return retCh, nil
 }

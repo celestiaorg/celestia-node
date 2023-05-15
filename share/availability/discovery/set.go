@@ -5,10 +5,10 @@ import (
 	"sync"
 
 	"github.com/libp2p/go-libp2p/core/peer"
+	"github.com/libp2p/go-libp2p/core/peerstore"
 )
 
 // limitedSet is a thread safe set of peers with given limit.
-// Inspired by libp2p peer.Set but extended with Remove method.
 type limitedSet struct {
 	lk sync.RWMutex
 	ps map[peer.ID]struct{}
@@ -90,4 +90,15 @@ func (ps *limitedSet) Peers(ctx context.Context) ([]peer.ID, error) {
 	case p := <-ps.waitPeer:
 		return []peer.ID{p}, nil
 	}
+}
+
+func (ps *limitedSet) peerInfos(pstore peerstore.Peerstore) []peer.AddrInfo {
+	infos := make([]peer.AddrInfo, 0, len(ps.ps))
+	for p := range ps.ps {
+		infos = append(infos, peer.AddrInfo{
+			ID:    p,
+			Addrs: pstore.Addrs(p),
+		})
+	}
+	return infos
 }

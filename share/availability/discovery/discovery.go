@@ -2,9 +2,12 @@ package discovery
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"sync"
 	"time"
 
+	"github.com/ipfs/go-datastore"
 	logging "github.com/ipfs/go-log/v2"
 	"github.com/libp2p/go-libp2p/core/discovery"
 	"github.com/libp2p/go-libp2p/core/event"
@@ -82,7 +85,9 @@ func NewDiscovery(
 	}
 }
 
-func (d *Discovery) Start(context.Context) error {
+func (d *Discovery) Start(ctx context.Context) error {
+	d.loadPeers(ctx)
+
 	ctx, cancel := context.WithCancel(context.Background())
 	d.cancel = cancel
 
@@ -102,7 +107,8 @@ func (d *Discovery) Start(context.Context) error {
 	return nil
 }
 
-func (d *Discovery) Stop(context.Context) error {
+func (d *Discovery) Stop(ctx context.Context) error {
+	d.dumpPeers(ctx)
 	d.cancel()
 	return nil
 }
@@ -309,6 +315,42 @@ func (d *Discovery) discover(ctx context.Context) bool {
 	}
 }
 
+func (d *Discovery) loadPeers(ctx context.Context) {
+	if d.params.datastore == nil {
+		return
+	}
+
+	peerInfos, err := loadPeers(ctx, d.params.datastore)
+	if err != nil {
+		log.Warnw("failed to load persisted peers", "error", err)
+		return
+	}
+
+	var wg sync.WaitGroup
+	wg.Add(len(peerInfos))
+	defer wg.Wait()
+	for _, pi := range peerInfos {
+		go func(pi peer.AddrInfo) {
+			d.handleDiscoveredPeer(ctx, pi)
+			wg.Done()
+		}(pi)
+	}
+}
+
+func (d *Discovery) dumpPeers(ctx context.Context) {
+	if d.params.datastore == nil {
+		return
+	}
+
+	// TODO(@Wondertan): We should be using persistent peerstore instead
+	//  and store here only peer ID pointers
+	peerInfos := d.set.peerInfos(d.host.Peerstore())
+	err := dumpPeers(ctx, d.params.datastore, peerInfos)
+	if err != nil {
+		log.Warnw("failed to persist peers", "error", err)
+	}
+}
+
 // handleDiscoveredPeer adds peer to the internal if can connect or is connected.
 // Report whether it succeeded.
 func (d *Discovery) handleDiscoveredPeer(ctx context.Context, peer peer.AddrInfo) bool {
@@ -371,4 +413,30 @@ func drainChannel(c <-chan time.Time) {
 			return
 		}
 	}
+}
+
+var dsKey = datastore.RawKey("/discovery/dump")
+
+func dumpPeers(ctx context.Context, ds datastore.Batching, infos []peer.AddrInfo) error {
+	dump, err := json.Marshal(infos)
+	if err != nil {
+		return err
+	}
+
+	return ds.Put(ctx, dsKey, dump)
+}
+
+func loadPeers(ctx context.Context, ds datastore.Batching) ([]peer.AddrInfo, error) {
+	dump, err := ds.Get(ctx, dsKey)
+	if err != nil {
+		return nil, err
+	}
+
+	infos := make([]peer.AddrInfo, 0)
+	err = json.Unmarshal(dump, &infos)
+	if err != nil {
+		return nil, err
+	}
+
+	return infos, nil
 }

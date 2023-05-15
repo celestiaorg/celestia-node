@@ -3,6 +3,8 @@ package discovery
 import (
 	"fmt"
 	"time"
+
+	"github.com/ipfs/go-datastore"
 )
 
 // Parameters is the set of Parameters that must be configured for the Discovery module
@@ -14,6 +16,8 @@ type Parameters struct {
 	// Set -1 to disable.
 	// NOTE: only full and bridge can advertise themselves.
 	AdvertiseInterval time.Duration
+
+	datastore datastore.Batching
 }
 
 // Option is a function that configures Discovery Parameters
@@ -55,5 +59,11 @@ func WithPeersLimit(peersLimit uint) Option {
 func WithAdvertiseInterval(advInterval time.Duration) Option {
 	return func(p *Parameters) {
 		p.AdvertiseInterval = advInterval
+	}
+}
+
+func WithPersistence(ds datastore.Batching) Option {
+	return func(p *Parameters) {
+		p.datastore = ds
 	}
 }
