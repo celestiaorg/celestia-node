@@ -95,8 +95,7 @@ type HeaderModule interface {
 LocalHead(ctx context.Context) (*header.ExtendedHeader, error)
 // GetByHash returns the header of the given hash from the node's header store.
 GetByHash(ctx context.Context, hash tmbytes.HexBytes) (*header.ExtendedHeader, error)
-// GetByHeight returns the header of the given height if it is available as either
-// the syncer's head or as the chain head of the node's header store. 
+// GetByHeight returns the header of the given height if it is available.
 GetByHeight(ctx context.Context, height uint64) (*header.ExtendedHeader, error)
 // WaitForHeight blocks until the header at the given height has been processed
 // by the node's header store or until context deadline is exceeded.
@@ -115,6 +114,7 @@ SyncWait(ctx context.Context) error
 // NetworkHead provides the Syncer's view of the current network head.
 NetworkHead(ctx context.Context) (*header.ExtendedHeader, error)
 }
+
 ```
 
 ##### Shares
