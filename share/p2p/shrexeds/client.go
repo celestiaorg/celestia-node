@@ -114,7 +114,7 @@ func (c *Client) doRequest(
 	}
 	_, err = serde.Read(stream, resp)
 	if err != nil {
-		// server is overloaded and closed the stream
+		// server closes the stream after returning a non-successful status
 		if errors.Is(err, io.EOF) {
 			c.metrics.ObserveRequests(ctx, 1, p2p.StatusNotFound)
 			return nil, p2p.ErrNotFound

@@ -189,6 +189,7 @@ func (sg *ShrexGetter) GetSharesByNamespace(
 	)
 	for {
 		if ctx.Err() != nil {
+			sg.metrics.recordNDAttempt(ctx, attempt, false)
 			return nil, ctx.Err()
 		}
 		attempt++
@@ -215,6 +216,7 @@ func (sg *ShrexGetter) GetSharesByNamespace(
 			return nd, nil
 		case errors.Is(getErr, context.DeadlineExceeded),
 			errors.Is(getErr, context.Canceled):
+			setStatus(peers.ResultCooldownPeer)
 		case errors.Is(getErr, p2p.ErrNotFound):
 			getErr = share.ErrNotFound
 			setStatus(peers.ResultCooldownPeer)
