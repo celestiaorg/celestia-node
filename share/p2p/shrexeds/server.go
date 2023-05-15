@@ -87,7 +87,7 @@ func (s *Server) handleStream(stream network.Stream) {
 	hash := share.DataHash(req.Hash)
 	err = hash.Validate()
 	if err != nil {
-		logger.Debugw("server: invalid request", "err", err)
+		logger.Warnw("server: invalid request", "err", err)
 		stream.Reset() //nolint:errcheck
 		return
 	}
@@ -103,6 +103,7 @@ func (s *Server) handleStream(stream network.Stream) {
 	status := p2p_pb.Status_OK
 	switch {
 	case errors.Is(err, eds.ErrNotFound):
+		logger.Warnw("server: request hash not found")
 		s.metrics.ObserveRequests(ctx, 1, p2p.StatusNotFound)
 		status = p2p_pb.Status_NOT_FOUND
 	case err != nil:

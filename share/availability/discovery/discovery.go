@@ -139,7 +139,7 @@ func (d *Discovery) Advertise(ctx context.Context) {
 			if ctx.Err() != nil {
 				return
 			}
-			log.Warn("error advertising %s: %s", rendezvousPoint, err.Error())
+			log.Warnw("error advertising", "rendezvous", rendezvousPoint, "err", err)
 
 			errTimer := time.NewTimer(time.Minute)
 			select {
