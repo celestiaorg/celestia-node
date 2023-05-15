@@ -110,7 +110,7 @@ func (c *Client) doRequest(
 	resp := new(pb.EDSResponse)
 	err = stream.SetReadDeadline(time.Now().Add(c.params.ServerReadTimeout))
 	if err != nil {
-		return nil, fmt.Errorf("failed to set read deadline for reading status: %w", err)
+		log.Debugw("client: failed to set read deadline for reading status", "err", err)
 	}
 	_, err = serde.Read(stream, resp)
 	if err != nil {
