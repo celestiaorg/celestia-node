@@ -29,21 +29,19 @@ var (
 // defaultMinGasPrice is the default min gas price.
 const defaultMinGasPrice = 0.001
 
-// headerGetter fetches header by the provided height
-type headerGetter func(context.Context, uint64) (*header.ExtendedHeader, error)
-
 type Service struct {
 	// accessor dials the given celestia-core endpoint to submit blobs.
 	accessor *state.CoreAccessor
 	// shareGetter retrieves the EDS to fetch all shares from the requested header.
-	shareGetter  share.Getter
-	headerGetter headerGetter
+	shareGetter share.Getter
+	//  headerGetter fetches header by the provided height
+	headerGetter func(context.Context, uint64) (*header.ExtendedHeader, error)
 }
 
 func NewService(
 	state *state.CoreAccessor,
 	getter share.Getter,
-	headGetter headerGetter,
+	headGetter func(context.Context, uint64) (*header.ExtendedHeader, error),
 ) *Service {
 	return &Service{
 		accessor:     state,
