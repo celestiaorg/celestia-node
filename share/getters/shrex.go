@@ -129,6 +129,7 @@ func (sg *ShrexGetter) GetEDS(ctx context.Context, root *share.Root) (*rsmt2d.Ex
 	)
 	for {
 		if ctx.Err() != nil {
+			sg.metrics.recordEDSAttempt(ctx, attempt, false)
 			return nil, ctx.Err()
 		}
 		attempt++
