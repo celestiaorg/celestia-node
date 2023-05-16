@@ -180,10 +180,10 @@ func (s *Service) Included(
 		return false, err
 	}
 
-	if reflect.DeepEqual(proof, resProof) {
-		return true, nil
+	if !reflect.DeepEqual(proof, resProof) {
+		err = ErrInvalidProof
 	}
-	return false, ErrInvalidProof
+	return true, err
 }
 
 // getByCommitment retrieves the DAH row by row, fetching shares and constructing blobs in order to
