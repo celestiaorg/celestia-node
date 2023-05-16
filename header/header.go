@@ -103,8 +103,6 @@ func (eh *ExtendedHeader) LastHeader() libhead.Hash {
 	return libhead.Hash(eh.RawHeader.LastBlockID.Hash)
 }
 
-// IsBefore returns whether the given header is of a higher height.
-
 // Equals returns whether the hash and height of the given header match.
 func (eh *ExtendedHeader) Equals(header *ExtendedHeader) bool {
 	return eh.Height() == header.Height() && bytes.Equal(eh.Hash(), header.Hash())
@@ -120,7 +118,6 @@ func (eh *ExtendedHeader) Validate() error {
 	err = eh.Commit.ValidateBasic()
 	if err != nil {
 		return fmt.Errorf("ValidateBasic error on Commit at height %d: %w", eh.Height(), err)
-
 	}
 
 	err = eh.ValidatorSet.ValidateBasic()
@@ -133,6 +130,14 @@ func (eh *ExtendedHeader) Validate() error {
 		return fmt.Errorf("expected validator hash of header to match validator set hash (%X != %X) at height %d",
 			eh.ValidatorsHash, valSetHash, eh.Height(),
 		)
+	}
+
+	// Make sure the header is consistent with the commit.
+	if eh.Commit.Height != eh.RawHeader.Height {
+		return fmt.Errorf("header and commit height mismatch: %d vs %d", eh.RawHeader.Height, eh.Commit.Height)
+	}
+	if hhash, chash := eh.RawHeader.Hash(), eh.Commit.BlockID.Hash; !bytes.Equal(hhash, chash) {
+		return fmt.Errorf("commit signs block %X, header is block %X", chash, hhash)
 	}
 
 	if err := eh.ValidatorSet.VerifyCommitLight(eh.ChainID(), eh.Commit.BlockID, eh.Height(), eh.Commit); err != nil {

@@ -189,29 +189,30 @@ func (m *Manager) Peer(
 			p.remove(peerID)
 			return m.Peer(ctx, datahash)
 		}
-		return m.newPeer(datahash, peerID, sourceShrexSub, p.len(), 0)
+		return m.newPeer(ctx, datahash, peerID, sourceShrexSub, p.len(), 0)
 	}
 
 	// if no peer for datahash is currently available, try to use full node
 	// obtained from discovery
 	peerID, ok = m.fullNodes.tryGet()
 	if ok {
-		return m.newPeer(datahash, peerID, sourceFullNodes, m.fullNodes.len(), 0)
+		return m.newPeer(ctx, datahash, peerID, sourceFullNodes, m.fullNodes.len(), 0)
 	}
 
 	// no peers are available right now, wait for the first one
 	start := time.Now()
 	select {
 	case peerID = <-p.next(ctx):
-		return m.newPeer(datahash, peerID, sourceShrexSub, p.len(), time.Since(start))
+		return m.newPeer(ctx, datahash, peerID, sourceShrexSub, p.len(), time.Since(start))
 	case peerID = <-m.fullNodes.next(ctx):
-		return m.newPeer(datahash, peerID, sourceFullNodes, m.fullNodes.len(), time.Since(start))
+		return m.newPeer(ctx, datahash, peerID, sourceFullNodes, m.fullNodes.len(), time.Since(start))
 	case <-ctx.Done():
 		return "", nil, ctx.Err()
 	}
 }
 
 func (m *Manager) newPeer(
+	ctx context.Context,
 	datahash share.DataHash,
 	peerID peer.ID,
 	source peerSource,
@@ -223,7 +224,7 @@ func (m *Manager) newPeer(
 		"source", source,
 		"pool_size", poolSize,
 		"wait (s)", waitTime)
-	m.metrics.observeGetPeer(source, poolSize, waitTime)
+	m.metrics.observeGetPeer(ctx, source, poolSize, waitTime)
 	return peerID, m.doneFunc(datahash, peerID, source), nil
 }
 

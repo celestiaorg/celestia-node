@@ -65,7 +65,7 @@ func (s *Server) Stop(context.Context) error {
 func (s *Server) observeRateLimitedRequests() {
 	numRateLimited := s.middleware.DrainCounter()
 	if numRateLimited > 0 {
-		s.metrics.ObserveRequests(numRateLimited, p2p.StatusRateLimited)
+		s.metrics.ObserveRequests(context.Background(), numRateLimited, p2p.StatusRateLimited)
 	}
 }
 
@@ -87,7 +87,7 @@ func (s *Server) handleStream(stream network.Stream) {
 	hash := share.DataHash(req.Hash)
 	err = hash.Validate()
 	if err != nil {
-		logger.Debugw("server: invalid request", "err", err)
+		logger.Warnw("server: invalid request", "err", err)
 		stream.Reset() //nolint:errcheck
 		return
 	}
@@ -103,7 +103,8 @@ func (s *Server) handleStream(stream network.Stream) {
 	status := p2p_pb.Status_OK
 	switch {
 	case errors.Is(err, eds.ErrNotFound):
-		s.metrics.ObserveRequests(1, p2p.StatusNotFound)
+		logger.Warnw("server: request hash not found")
+		s.metrics.ObserveRequests(ctx, 1, p2p.StatusNotFound)
 		status = p2p_pb.Status_NOT_FOUND
 	case err != nil:
 		logger.Errorw("server: get CAR", "err", err)
@@ -134,7 +135,7 @@ func (s *Server) handleStream(stream network.Stream) {
 		return
 	}
 
-	s.metrics.ObserveRequests(1, p2p.StatusSuccess)
+	s.metrics.ObserveRequests(ctx, 1, p2p.StatusSuccess)
 	err = stream.Close()
 	if err != nil {
 		logger.Debugw("server: closing stream", "err", err)

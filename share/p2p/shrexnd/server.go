@@ -77,7 +77,7 @@ func (srv *Server) Stop(context.Context) error {
 func (srv *Server) observeRateLimitedRequests() {
 	numRateLimited := srv.middleware.DrainCounter()
 	if numRateLimited > 0 {
-		srv.metrics.ObserveRequests(numRateLimited, p2p.StatusRateLimited)
+		srv.metrics.ObserveRequests(context.Background(), numRateLimited, p2p.StatusRateLimited)
 	}
 }
 
@@ -109,7 +109,7 @@ func (srv *Server) handleNamespacedData(ctx context.Context, stream network.Stre
 
 	err = validateRequest(req)
 	if err != nil {
-		logger.Debugw("server: invalid request", "err", err)
+		logger.Warnw("server: invalid request", "err", err)
 		stream.Reset() //nolint:errcheck
 		return
 	}
@@ -120,27 +120,29 @@ func (srv *Server) handleNamespacedData(ctx context.Context, stream network.Stre
 	dah, err := srv.store.GetDAH(ctx, req.RootHash)
 	if err != nil {
 		if errors.Is(err, eds.ErrNotFound) {
-			srv.respondNotFoundError(logger, stream)
+			logger.Warn("server: DAH not found")
+			srv.respondNotFoundError(ctx, logger, stream)
 			return
 		}
 		logger.Errorw("server: retrieving DAH", "err", err)
-		srv.respondInternalError(logger, stream)
+		srv.respondInternalError(ctx, logger, stream)
 		return
 	}
 
 	shares, err := srv.getter.GetSharesByNamespace(ctx, dah, req.NamespaceId)
 	if errors.Is(err, share.ErrNotFound) {
-		srv.respondNotFoundError(logger, stream)
+		logger.Warn("server: nd not found")
+		srv.respondNotFoundError(ctx, logger, stream)
 		return
 	}
 	if err != nil {
 		logger.Errorw("server: retrieving shares", "err", err)
-		srv.respondInternalError(logger, stream)
+		srv.respondInternalError(ctx, logger, stream)
 		return
 	}
 
 	resp := namespacedSharesToResponse(shares)
-	srv.respond(logger, stream, resp)
+	srv.respond(ctx, logger, stream, resp)
 }
 
 // validateRequest checks correctness of the request
@@ -156,19 +158,21 @@ func validateRequest(req pb.GetSharesByNamespaceRequest) error {
 }
 
 // respondNotFoundError sends internal error response to client
-func (srv *Server) respondNotFoundError(logger *zap.SugaredLogger, stream network.Stream) {
+func (srv *Server) respondNotFoundError(ctx context.Context,
+	logger *zap.SugaredLogger, stream network.Stream) {
 	resp := &pb.GetSharesByNamespaceResponse{
 		Status: pb.StatusCode_NOT_FOUND,
 	}
-	srv.respond(logger, stream, resp)
+	srv.respond(ctx, logger, stream, resp)
 }
 
 // respondInternalError sends internal error response to client
-func (srv *Server) respondInternalError(logger *zap.SugaredLogger, stream network.Stream) {
+func (srv *Server) respondInternalError(ctx context.Context,
+	logger *zap.SugaredLogger, stream network.Stream) {
 	resp := &pb.GetSharesByNamespaceResponse{
 		Status: pb.StatusCode_INTERNAL,
 	}
-	srv.respond(logger, stream, resp)
+	srv.respond(ctx, logger, stream, resp)
 }
 
 // namespacedSharesToResponse encodes shares into proto and sends it to client with OK status code
@@ -195,7 +199,8 @@ func namespacedSharesToResponse(shares share.NamespacedShares) *pb.GetSharesByNa
 	}
 }
 
-func (srv *Server) respond(logger *zap.SugaredLogger, stream network.Stream, resp *pb.GetSharesByNamespaceResponse) {
+func (srv *Server) respond(ctx context.Context,
+	logger *zap.SugaredLogger, stream network.Stream, resp *pb.GetSharesByNamespaceResponse) {
 	err := stream.SetWriteDeadline(time.Now().Add(srv.params.ServerWriteTimeout))
 	if err != nil {
 		logger.Debugw("server: setting write deadline", "err", err)
@@ -210,11 +215,11 @@ func (srv *Server) respond(logger *zap.SugaredLogger, stream network.Stream, res
 
 	switch {
 	case resp.Status == pb.StatusCode_OK:
-		srv.metrics.ObserveRequests(1, p2p.StatusSuccess)
+		srv.metrics.ObserveRequests(ctx, 1, p2p.StatusSuccess)
 	case resp.Status == pb.StatusCode_NOT_FOUND:
-		srv.metrics.ObserveRequests(1, p2p.StatusNotFound)
+		srv.metrics.ObserveRequests(ctx, 1, p2p.StatusNotFound)
 	case resp.Status == pb.StatusCode_INTERNAL:
-		srv.metrics.ObserveRequests(1, p2p.StatusInternalErr)
+		srv.metrics.ObserveRequests(ctx, 1, p2p.StatusInternalErr)
 	}
 	if err = stream.Close(); err != nil {
 		logger.Debugw("server: closing stream", "err", err)

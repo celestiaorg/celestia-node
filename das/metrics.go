@@ -149,6 +149,9 @@ func (m *metrics) observeSample(
 	if m == nil {
 		return
 	}
+	if ctx.Err() != nil {
+		ctx = context.Background()
+	}
 	m.sampleTime.Record(ctx, sampleTime.Seconds(),
 		attribute.Bool(failedLabel, err != nil),
 		attribute.Int(headerWidthLabel, len(h.DAH.RowRoots)),
@@ -169,6 +172,9 @@ func (m *metrics) observeGetHeader(ctx context.Context, d time.Duration) {
 	if m == nil {
 		return
 	}
+	if ctx.Err() != nil {
+		ctx = context.Background()
+	}
 	m.getHeaderTime.Record(ctx, d.Seconds())
 }
 
@@ -176,6 +182,9 @@ func (m *metrics) observeGetHeader(ctx context.Context, d time.Duration) {
 func (m *metrics) observeNewHead(ctx context.Context) {
 	if m == nil {
 		return
+	}
+	if ctx.Err() != nil {
+		ctx = context.Background()
 	}
 	m.newHead.Add(ctx, 1)
 }

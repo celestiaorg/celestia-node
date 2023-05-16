@@ -29,7 +29,6 @@ const (
 	// serve getEDS request for block size 256
 	defaultMinRequestTimeout = time.Minute // should be >= shrexeds server write timeout
 	defaultMinAttemptsCount  = 3
-	metricObservationTimeout = 100 * time.Millisecond
 )
 
 var meter = global.MeterProvider().Meter("shrex/getter")
@@ -39,22 +38,23 @@ type metrics struct {
 	ndAttempts  syncint64.Histogram
 }
 
-func (m *metrics) recordEDSAttempt(attemptCount int, success bool) {
+func (m *metrics) recordEDSAttempt(ctx context.Context, attemptCount int, success bool) {
 	if m == nil {
 		return
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), metricObservationTimeout)
-	defer cancel()
+	if ctx.Err() != nil {
+		ctx = context.Background()
+	}
 	m.edsAttempts.Record(ctx, int64(attemptCount), attribute.Bool("success", success))
 }
 
-func (m *metrics) recordNDAttempt(attemptCount int, success bool) {
+func (m *metrics) recordNDAttempt(ctx context.Context, attemptCount int, success bool) {
 	if m == nil {
 		return
 	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), metricObservationTimeout)
-	defer cancel()
+	if ctx.Err() != nil {
+		ctx = context.Background()
+	}
 	m.ndAttempts.Record(ctx, int64(attemptCount), attribute.Bool("success", success))
 }
 
@@ -129,6 +129,7 @@ func (sg *ShrexGetter) GetEDS(ctx context.Context, root *share.Root) (*rsmt2d.Ex
 	)
 	for {
 		if ctx.Err() != nil {
+			sg.metrics.recordEDSAttempt(ctx, attempt, false)
 			return nil, ctx.Err()
 		}
 		attempt++
@@ -140,7 +141,7 @@ func (sg *ShrexGetter) GetEDS(ctx context.Context, root *share.Root) (*rsmt2d.Ex
 				"hash", root.String(),
 				"err", getErr,
 				"finished (s)", time.Since(start))
-			sg.metrics.recordEDSAttempt(attempt, false)
+			sg.metrics.recordEDSAttempt(ctx, attempt, false)
 			return nil, fmt.Errorf("getter/shrex: %w", err)
 		}
 
@@ -151,10 +152,11 @@ func (sg *ShrexGetter) GetEDS(ctx context.Context, root *share.Root) (*rsmt2d.Ex
 		switch {
 		case getErr == nil:
 			setStatus(peers.ResultSynced)
-			sg.metrics.recordEDSAttempt(attempt, true)
+			sg.metrics.recordEDSAttempt(ctx, attempt, true)
 			return eds, nil
 		case errors.Is(getErr, context.DeadlineExceeded),
 			errors.Is(getErr, context.Canceled):
+			setStatus(peers.ResultCooldownPeer)
 		case errors.Is(getErr, p2p.ErrNotFound):
 			getErr = share.ErrNotFound
 			setStatus(peers.ResultCooldownPeer)
@@ -187,6 +189,7 @@ func (sg *ShrexGetter) GetSharesByNamespace(
 	)
 	for {
 		if ctx.Err() != nil {
+			sg.metrics.recordNDAttempt(ctx, attempt, false)
 			return nil, ctx.Err()
 		}
 		attempt++
@@ -198,7 +201,7 @@ func (sg *ShrexGetter) GetSharesByNamespace(
 				"hash", root.String(),
 				"err", getErr,
 				"finished (s)", time.Since(start))
-			sg.metrics.recordNDAttempt(attempt, false)
+			sg.metrics.recordNDAttempt(ctx, attempt, false)
 			return nil, fmt.Errorf("getter/shrex: %w", err)
 		}
 
@@ -209,10 +212,11 @@ func (sg *ShrexGetter) GetSharesByNamespace(
 		switch {
 		case getErr == nil:
 			setStatus(peers.ResultNoop)
-			sg.metrics.recordNDAttempt(attempt, true)
+			sg.metrics.recordNDAttempt(ctx, attempt, true)
 			return nd, nil
 		case errors.Is(getErr, context.DeadlineExceeded),
 			errors.Is(getErr, context.Canceled):
+			setStatus(peers.ResultCooldownPeer)
 		case errors.Is(getErr, p2p.ErrNotFound):
 			getErr = share.ErrNotFound
 			setStatus(peers.ResultCooldownPeer)

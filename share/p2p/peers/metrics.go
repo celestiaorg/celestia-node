@@ -18,8 +18,6 @@ import (
 )
 
 const (
-	observeTimeout = 100 * time.Millisecond
-
 	isInstantKey  = "is_instant"
 	doneResultKey = "done_result"
 
@@ -171,12 +169,14 @@ func initMetrics(manager *Manager) (*metrics, error) {
 	return metrics, nil
 }
 
-func (m *metrics) observeGetPeer(source peerSource, poolSize int, waitTime time.Duration) {
+func (m *metrics) observeGetPeer(ctx context.Context,
+	source peerSource, poolSize int, waitTime time.Duration) {
 	if m == nil {
 		return
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), observeTimeout)
-	defer cancel()
+	if ctx.Err() != nil {
+		ctx = context.Background()
+	}
 	m.getPeer.Add(ctx, 1,
 		attribute.String(sourceKey, string(source)),
 		attribute.Bool(isInstantKey, waitTime == 0))
@@ -196,9 +196,8 @@ func (m *metrics) observeDoneResult(source peerSource, result result) {
 	if m == nil {
 		return
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), observeTimeout)
-	defer cancel()
 
+	ctx := context.Background()
 	m.doneResult.Add(ctx, 1,
 		attribute.String(sourceKey, string(source)),
 		attribute.String(doneResultKey, string(result)))
@@ -224,10 +223,11 @@ func (m *metrics) validationObserver(validator shrexsub.ValidatorFn) shrexsub.Va
 			resStr = "unknown"
 		}
 
-		observeCtx, cancel := context.WithTimeout(context.Background(), observeTimeout)
-		defer cancel()
+		if ctx.Err() != nil {
+			ctx = context.Background()
+		}
 
-		m.validationResult.Add(observeCtx, 1,
+		m.validationResult.Add(ctx, 1,
 			attribute.String(validationResultKey, resStr))
 		return res
 	}
