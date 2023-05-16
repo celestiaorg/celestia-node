@@ -2,6 +2,7 @@ package discovery
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -326,10 +327,6 @@ func (d *Discovery) handleDiscoveredPeer(ctx context.Context, peer peer.AddrInfo
 		d.metrics.observeHandlePeer(ctx, handlePeerEnoughPeers)
 		logger.Debug("skip handle: enough peers found")
 		return false
-	case d.connector.HasBackoff(peer.ID):
-		d.metrics.observeHandlePeer(ctx, handlePeerBackoff)
-		logger.Debug("skip handle: backoff")
-		return false
 	}
 
 	switch d.host.Network().Connectedness(peer.ID) {
@@ -337,6 +334,11 @@ func (d *Discovery) handleDiscoveredPeer(ctx context.Context, peer peer.AddrInfo
 		d.connector.Backoff(peer.ID) // we still have to backoff the connected peer
 	case network.NotConnected:
 		err := d.connector.Connect(ctx, peer)
+		if errors.Is(err, errBackoffNotEnded) {
+			d.metrics.observeHandlePeer(ctx, handlePeerBackoff)
+			logger.Debug("skip handle: backoff")
+			return false
+		}
 		if err != nil {
 			d.metrics.observeHandlePeer(ctx, handlePeerConnErr)
 			logger.Debugw("unable to connect", "err", err)
