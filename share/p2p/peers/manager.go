@@ -17,7 +17,6 @@ import (
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/libp2p/go-libp2p/p2p/host/eventbus"
 	"github.com/libp2p/go-libp2p/p2p/net/conngater"
-	"go.uber.org/zap"
 
 	libhead "github.com/celestiaorg/go-header"
 
@@ -58,6 +57,7 @@ type Manager struct {
 	// header subscription is necessary in order to Validate the inbound eds hash
 	headerSub libhead.Subscriber[*header.ExtendedHeader]
 	shrexSub  *shrexsub.PubSub
+	disc      *discovery.Discovery
 	host      host.Host
 	connGater *conngater.BasicConnectionGater
 
@@ -119,6 +119,7 @@ func NewManager(
 		headerSub:             headerSub,
 		shrexSub:              shrexSub,
 		connGater:             connGater,
+		disc:                  discovery,
 		host:                  host,
 		pools:                 make(map[string]*syncPool),
 		blacklistedHashes:     make(map[string]bool),
@@ -189,6 +190,8 @@ func (m *Manager) Stop(ctx context.Context) error {
 	select {
 	case <-m.headerSubDone:
 		return nil
+	case <-m.disconnectedPeersDone:
+		return nil
 	case <-ctx.Done():
 		return ctx.Err()
 	}
@@ -202,17 +205,16 @@ func (m *Manager) Stop(ctx context.Context) error {
 func (m *Manager) Peer(
 	ctx context.Context, datahash share.DataHash,
 ) (peer.ID, DoneFunc, error) {
-	logger := log.With("hash", datahash.String())
 	p := m.validatedPool(datahash.String())
 
 	// first, check if a peer is available for the given datahash
 	peerID, ok := p.tryGet()
 	if ok {
-		logger = logger.With("peer", peerID.String())
-		if m.removeUnreachable(logger, p, peerID) {
+		if m.removeUnreachable(p, peerID) {
 			return m.Peer(ctx, datahash)
 		}
-		logger.Debugw("get peer from shrexsub pool", "peer", peerID.String())
+		log.Debugw("get peer from shrexsub pool",
+			"peer", peerID.String(), "hash", datahash.String())
 		return m.newPeer(ctx, datahash, peerID, sourceShrexSub, p.len(), 0)
 	}
 
@@ -227,12 +229,11 @@ func (m *Manager) Peer(
 	start := time.Now()
 	select {
 	case peerID = <-p.next(ctx):
-		logger = logger.With("peer", peerID.String())
-		if m.removeUnreachable(logger, p, peerID) {
+		if m.removeUnreachable(p, peerID) {
 			return m.Peer(ctx, datahash)
 		}
-		logger.Debugw("got peer from shrexSub pool after wait",
-			"after (s)", time.Since(start))
+		log.Debugw("got peer from shrexSub pool after wait",
+			"after (s)", time.Since(start), "peer", peerID.String(), "hash", datahash.String())
 		return m.newPeer(ctx, datahash, peerID, sourceShrexSub, p.len(), time.Since(start))
 	case peerID = <-m.fullNodes.next(ctx):
 		return m.newPeer(ctx, datahash, peerID, sourceFullNodes, m.fullNodes.len(), time.Since(start))
@@ -277,7 +278,9 @@ func (m *Manager) doneFunc(datahash share.DataHash, peerID peer.ID, source peerS
 				m.fullNodes.putOnCooldown(peerID)
 			}
 		case ResultRemovePeer:
-			m.fullNodes.remove(peerID)
+			if !m.disc.Discard(peerID) {
+				m.fullNodes.remove(peerID)
+			}
 		case ResultBlacklistPeer:
 			m.blacklistPeers(reasonMisbehave, peerID)
 		}
@@ -327,6 +330,7 @@ func (m *Manager) subscribeDisconnectedPeers(ctx context.Context, sub event.Subs
 				peer := connStatus.Peer
 				if m.fullNodes.has(peer) {
 					log.Debugw("peer disconnected, removing from full nodes", "peer", peer)
+					// we do not call discovery.Discard here because discovery handles disconnections from its own peers itself
 					m.fullNodes.remove(peer)
 				}
 			}
@@ -381,7 +385,7 @@ func (m *Manager) Validate(_ context.Context, peerID peer.ID, msg shrexsub.Notif
 
 	p.add(peerID)
 	if p.isValidatedDataHash.Load() {
-		// add peer to full nodes pool only of datahash has been already validated
+		// add peer to full nodes pool only if datahash has been already validated
 		m.fullNodes.add(peerID)
 	}
 	return pubsub.ValidationIgnore
@@ -413,7 +417,9 @@ func (m *Manager) blacklistPeers(reason blacklistPeerReason, peerIDs ...peer.ID)
 		return
 	}
 	for _, peerID := range peerIDs {
-		m.fullNodes.remove(peerID)
+		if !m.disc.Discard(peerID) {
+			m.fullNodes.remove(peerID)
+		}
 		// add peer to the blacklist, so we can't connect to it in the future.
 		err := m.connGater.BlockPeer(peerID)
 		if err != nil {
@@ -458,10 +464,12 @@ func (m *Manager) validatedPool(hashStr string) *syncPool {
 }
 
 // removeUnreachable removes peer from some pool if it is blacklisted or disconnected
-func (m *Manager) removeUnreachable(logger *zap.SugaredLogger, pool *syncPool, peerID peer.ID) bool {
+func (m *Manager) removeUnreachable(pool *syncPool, peerID peer.ID) bool {
 	if m.isBlacklistedPeer(peerID) || !m.fullNodes.has(peerID) {
-		logger.Debug("removing outdated peer from pool")
-		pool.remove(peerID)
+		log.Debugw("removing outdated peer from pool", "peer", peerID.String())
+		if !m.disc.Discard(peerID) {
+			pool.remove(peerID)
+		}
 		return true
 	}
 	return false

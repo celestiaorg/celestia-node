@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/libp2p/go-libp2p/core/routing"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric/global"
 	"go.opentelemetry.io/otel/metric/instrument"
@@ -161,13 +160,10 @@ func (sg *ShrexGetter) GetEDS(ctx context.Context, root *share.Root) (*rsmt2d.Ex
 		case errors.Is(getErr, p2p.ErrNotFound):
 			getErr = share.ErrNotFound
 			setStatus(peers.ResultCooldownPeer)
-		case errors.Is(getErr, routing.ErrNotFound):
-			// peer is no longer reachable, remove it from all pools
-			setStatus(peers.ResultRemovePeer)
 		case errors.Is(getErr, p2p.ErrInvalidResponse):
 			setStatus(peers.ResultBlacklistPeer)
 		default:
-			setStatus(peers.ResultCooldownPeer)
+			setStatus(peers.ResultRemovePeer)
 		}
 
 		if !ErrorContains(err, getErr) {
@@ -224,13 +220,10 @@ func (sg *ShrexGetter) GetSharesByNamespace(
 		case errors.Is(getErr, p2p.ErrNotFound):
 			getErr = share.ErrNotFound
 			setStatus(peers.ResultCooldownPeer)
-		case errors.Is(getErr, routing.ErrNotFound):
-			// peer is no longer reachable, remove it from all pools
-			setStatus(peers.ResultRemovePeer)
 		case errors.Is(getErr, p2p.ErrInvalidResponse):
 			setStatus(peers.ResultBlacklistPeer)
 		default:
-			setStatus(peers.ResultCooldownPeer)
+			setStatus(peers.ResultRemovePeer)
 		}
 
 		if !ErrorContains(err, getErr) {

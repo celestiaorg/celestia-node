@@ -143,8 +143,8 @@ func (p *pool) has(peer peer.ID) bool {
 	p.m.RLock()
 	defer p.m.RUnlock()
 
-	status := p.statuses[peer]
-	return status != removed
+	status, ok := p.statuses[peer]
+	return ok && status != removed
 }
 
 func (p *pool) peers() []peer.ID {
