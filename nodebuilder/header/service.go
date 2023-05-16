@@ -76,6 +76,10 @@ func (s *Service) GetByHeight(ctx context.Context, height uint64) (*header.Exten
 	}
 }
 
+func (s *Service) WaitForHeight(ctx context.Context, height uint64) (*header.ExtendedHeader, error) {
+	return s.store.GetByHeight(ctx, height)
+}
+
 func (s *Service) LocalHead(ctx context.Context) (*header.ExtendedHeader, error) {
 	return s.store.Head(ctx)
 }
