@@ -150,7 +150,7 @@ func (w *worker) sample(ctx context.Context, timeout time.Duration, height uint6
 		"type", w.state.jobType,
 		"height", h.Height(),
 		"hash", h.Hash(),
-		"square width", len(h.DAH.RowsRoots),
+		"square width", len(h.DAH.RowRoots),
 		"data root", h.DAH.String(),
 		"finished (s)", time.Since(start),
 	)
