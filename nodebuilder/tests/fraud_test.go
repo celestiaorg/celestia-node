@@ -78,7 +78,7 @@ func TestFraudProofBroadcasting(t *testing.T) {
 	// FIXME: Eventually, this should be a check on service registry managing and keeping
 	//  lifecycles of each Module.
 	syncCtx, syncCancel := context.WithTimeout(context.Background(), btime)
-	_, err = full.HeaderServ.GetByHeight(syncCtx, 100)
+	_, err = full.HeaderServ.WaitForHeight(syncCtx, 100)
 	require.ErrorIs(t, err, context.DeadlineExceeded)
 	syncCancel()
 
