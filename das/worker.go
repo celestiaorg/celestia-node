@@ -116,6 +116,7 @@ func (w *worker) sample(ctx context.Context, timeout time.Duration, height uint6
 		if !errors.Is(err, context.Canceled) {
 			log.Debugw(
 				"failed to sample header",
+				"type", w.state.job.jobType,
 				"height", h.Height(),
 				"hash", h.Hash(),
 				"square width", len(h.DAH.RowsRoots),
