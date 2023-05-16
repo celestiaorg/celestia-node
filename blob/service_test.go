@@ -183,7 +183,7 @@ func TestBlobService_Get(t *testing.T) {
 				require.ErrorIs(t, err, ErrInvalidProof)
 				included, ok := res.(bool)
 				require.True(t, ok)
-				require.False(t, included)
+				require.True(t, included)
 			},
 		},
 		{
