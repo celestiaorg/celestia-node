@@ -125,35 +125,36 @@ func (eh *ExtendedHeader) Validate() error {
 		return fmt.Errorf("ValidateBasic error on ValidatorSet at height %d: %w", eh.Height(), err)
 	}
 
-	// make sure the validator set is consistent with the header
-	if valSetHash := eh.ValidatorSet.Hash(); !bytes.Equal(eh.ValidatorsHash, valSetHash) {
-		return fmt.Errorf("expected validator hash of header to match validator set hash (%X != %X) at height %d",
-			eh.ValidatorsHash, valSetHash, eh.Height(),
-		)
-	}
-
-	// ensure data root from raw header matches computed root
-	if !bytes.Equal(eh.DAH.Hash(), eh.DataHash) {
-		panic(fmt.Sprintf("mismatch between data hash commitment from core header and computed data root "+
-			"at height %d: data hash: %X, computed root: %X", eh.Height(), eh.DataHash, eh.DAH.Hash()))
-	}
-
-	// Make sure the header is consistent with the commit.
-	if eh.Commit.Height != eh.RawHeader.Height {
-		return fmt.Errorf("header and commit height mismatch: %d vs %d", eh.RawHeader.Height, eh.Commit.Height)
-	}
-	if hhash, chash := eh.RawHeader.Hash(), eh.Commit.BlockID.Hash; !bytes.Equal(hhash, chash) {
-		return fmt.Errorf("commit signs block %X, header is block %X", chash, hhash)
-	}
-
-	if err := eh.ValidatorSet.VerifyCommitLight(eh.ChainID(), eh.Commit.BlockID, eh.Height(), eh.Commit); err != nil {
-		return fmt.Errorf("VerifyCommitLight error at height %d: %w", eh.Height(), err)
-	}
-
 	err = eh.DAH.ValidateBasic()
 	if err != nil {
 		return fmt.Errorf("ValidateBasic error on DAH at height %d: %w", eh.RawHeader.Height, err)
 	}
+
+	// ensure the DAH is consistent with the raw header
+	if dahHash := eh.DAH.Hash(); !bytes.Equal(eh.DataHash, dahHash) {
+		return fmt.Errorf("raw header and DAH hash mismatch at height %d: (%X != %X)", eh.Height(), eh.DataHash, dahHash)
+	}
+
+	// ensure the validator set is consistent with the raw header
+	if valSetHash := eh.ValidatorSet.Hash(); !bytes.Equal(eh.ValidatorsHash, valSetHash) {
+		return fmt.Errorf("raw header and validator set hash mismatch at height %d: (%X != %X)",
+			eh.Height(), eh.ValidatorsHash, valSetHash,
+		)
+	}
+
+	// ensure the commit is consistent with the raw header
+	if eh.RawHeader.Height != eh.Commit.Height {
+		return fmt.Errorf("raw header and commit height mismatch: (%d != %d)", eh.RawHeader.Height, eh.Commit.Height)
+	}
+	if hhash, chash := eh.RawHeader.Hash(), eh.Commit.BlockID.Hash; !bytes.Equal(hhash, chash) {
+		return fmt.Errorf("raw header and commit hash mismatch at height %d: (%X != %X)", eh.Height(), hhash, chash)
+	}
+
+	// make sure the validator set is consistent with the commit.
+	if err := eh.ValidatorSet.VerifyCommitLight(eh.ChainID(), eh.Commit.BlockID, eh.Height(), eh.Commit); err != nil {
+		return fmt.Errorf("commit verification failed at height %d: %w", eh.Height(), err)
+	}
+
 	return nil
 }
 
