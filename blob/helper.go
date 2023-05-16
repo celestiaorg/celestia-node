@@ -1,12 +1,19 @@
 package blob
 
 import (
+	"bytes"
+	"sort"
+
+	"github.com/tendermint/tendermint/types"
+
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/pkg/shares"
+
+	"github.com/celestiaorg/celestia-node/share"
 )
 
-// sharesToBlobs takes raw shares and converts them to blobs.
-func sharesToBlobs(rawShares [][]byte) ([]*Blob, error) {
+// SharesToBlobs takes raw shares and converts them to the blobs.
+func SharesToBlobs(rawShares []share.Share) ([]*Blob, error) {
 	if len(rawShares) == 0 {
 		return nil, ErrBlobNotFound
 	}
@@ -33,6 +40,29 @@ func sharesToBlobs(rawShares [][]byte) ([]*Blob, error) {
 		blobs[i] = blob
 	}
 	return blobs, nil
+}
+
+// BlobsToShares accepts blobs and convert them to the Shares.
+func BlobsToShares(blobs ...*Blob) ([]share.Share, error) {
+	b := make([]types.Blob, 0)
+	for _, blob := range blobs {
+		b = append(b, types.Blob{
+			NamespaceID:  blob.NamespaceID(),
+			Data:         blob.Data(),
+			ShareVersion: uint8(blob.Version()),
+		})
+	}
+
+	sort.Slice(b, func(i, j int) bool {
+		val := bytes.Compare(b[i].NamespaceID, b[j].NamespaceID)
+		return val <= 0
+	})
+
+	rawShares, err := shares.SplitBlobs(0, nil, b, false)
+	if err != nil {
+		return nil, err
+	}
+	return shares.ToBytes(rawShares), nil
 }
 
 const (
