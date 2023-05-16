@@ -109,6 +109,6 @@ func (b *backoffConnector) GC(ctx context.Context) {
 
 func (b *backoffConnector) Size() int {
 	b.cacheLk.Lock()
-	b.cacheLk.Unlock()
+	defer b.cacheLk.Unlock()
 	return len(b.cacheData)
 }
