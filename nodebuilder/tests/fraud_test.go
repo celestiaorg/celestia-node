@@ -33,6 +33,8 @@ Note: 15 is not available because DASer will be stopped before reaching this hei
 Another note: this test disables share exchange to speed up test results.
 */
 func TestFraudProofBroadcasting(t *testing.T) {
+	t.Skip("requires BEFP generation on app side to work")
+
 	const (
 		blocks = 15
 		bsize  = 2
@@ -109,6 +111,8 @@ Steps:
 Note: this test disables share exchange to speed up test results.
 */
 func TestFraudProofSyncing(t *testing.T) {
+	t.Skip("requires BEFP generation on app side to work")
+
 	const (
 		blocks = 15
 		bsize  = 2
