@@ -5,6 +5,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"reflect"
+	"strings"
 
 	"github.com/cosmos/cosmos-sdk/types"
 	logging "github.com/ipfs/go-log/v2"
@@ -20,6 +22,7 @@ import (
 
 var (
 	ErrBlobNotFound = errors.New("blob: not found")
+	ErrInvalidProof = errors.New("blob: invalid proof")
 
 	log = logging.Logger("blob")
 )
@@ -156,7 +159,7 @@ func (s *Service) Included(
 	ctx context.Context,
 	height uint64,
 	nID namespace.ID,
-	_ *Proof,
+	proof *Proof,
 	com Commitment,
 ) (bool, error) {
 	// In the current implementation, LNs will have to download all shares to recompute the commitment.
@@ -168,11 +171,19 @@ func (s *Service) Included(
 	// but we have to guarantee that all our stored subtree roots will be on the same height(e.g. one
 	// level above shares).
 	// TODO(@vgonkivs): rework the implementation to perform all verification without network requests.
-	_, _, err := s.getByCommitment(ctx, height, nID, com)
-	if err != nil {
+	_, resProof, err := s.getByCommitment(ctx, height, nID, com)
+	switch err {
+	case nil:
+	case ErrBlobNotFound:
+		return false, nil
+	default:
 		return false, err
 	}
-	return true, nil
+
+	if reflect.DeepEqual(proof, resProof) {
+		return true, nil
+	}
+	return false, ErrInvalidProof
 }
 
 // getByCommitment retrieves the DAH row by row, fetching shares and constructing blobs in order to
@@ -201,8 +212,12 @@ func (s *Service) getByCommitment(
 
 	namespacedShares, err := s.shareGetter.GetSharesByNamespace(ctx, header.DAH, nID)
 	if err != nil {
-		return nil, nil, err
+		if strings.Contains(err.Error(), share.ErrNotFound.Error()) {
+			err = ErrBlobNotFound
+		}
+		return nil, nil, ErrBlobNotFound
 	}
+
 	for _, row := range namespacedShares {
 		if len(row.Shares) == 0 {
 			break

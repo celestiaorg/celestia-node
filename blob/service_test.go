@@ -158,6 +158,50 @@ func TestBlobService_Get(t *testing.T) {
 			},
 		},
 		{
+			name: "verify inclusion",
+			doFn: func() (interface{}, error) {
+				proof, err := service.GetProof(ctx, 1, blobs0[0].NamespaceID(), blobs0[0].Commitment())
+				require.NoError(t, err)
+				return service.Included(ctx, 1, blobs0[0].NamespaceID(), proof, blobs0[0].Commitment())
+			},
+			expectedResult: func(res interface{}, err error) {
+				require.NoError(t, err)
+				included, ok := res.(bool)
+				require.True(t, ok)
+				require.True(t, included)
+			},
+		},
+		{
+			name: "verify inclusion fails with different proof",
+			doFn: func() (interface{}, error) {
+				proof, err := service.GetProof(ctx, 1, blobs0[1].NamespaceID(), blobs0[1].Commitment())
+				require.NoError(t, err)
+				return service.Included(ctx, 1, blobs0[0].NamespaceID(), proof, blobs0[0].Commitment())
+			},
+			expectedResult: func(res interface{}, err error) {
+				require.Error(t, err)
+				require.ErrorIs(t, err, ErrInvalidProof)
+				included, ok := res.(bool)
+				require.True(t, ok)
+				require.False(t, included)
+			},
+		},
+		{
+			name: "not included",
+			doFn: func() (interface{}, error) {
+				blob := generateBlob(t, []int{10}, false)
+				proof, err := service.GetProof(ctx, 1, blobs0[1].NamespaceID(), blobs0[1].Commitment())
+				require.NoError(t, err)
+				return service.Included(ctx, 1, blob[0].NamespaceID(), proof, blob[0].Commitment())
+			},
+			expectedResult: func(res interface{}, err error) {
+				require.NoError(t, err)
+				included, ok := res.(bool)
+				require.True(t, ok)
+				require.False(t, included)
+			},
+		},
+		{
 			name: "count proofs for the blob",
 			doFn: func() (interface{}, error) {
 				proof0, err := service.GetProof(ctx, 1, blobs0[0].NamespaceID(), blobs0[0].Commitment())
