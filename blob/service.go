@@ -107,24 +107,20 @@ func (s *Service) GetAll(ctx context.Context, height uint64, nIDs ...namespace.I
 	}
 
 	var (
-		blobs     = make([]*Blob, 0)
+		results   = make(map[string][]*Blob)
 		blobCh    = make(chan []*Blob)
 		resultErr = make([]error, 0, len(nIDs))
 	)
 
 	for i, nID := range nIDs {
-		i := i
-		nID := nID
-		go func() {
+		go func(i int, nID namespace.ID) {
 			log.Infow("requesting blobs", "height", height, "nID", nID.String())
 			blobs, err := s.getBlobs(ctx, nID, header.DAH)
 			if err != nil {
-				resultErr[i] = fmt.Errorf("could not get the blob for the nID:%s. %s", nID.String(), err)
-				blobCh <- nil
-				return
+				resultErr[i] = fmt.Errorf("could not get the blob for the nID: %s: %s", nID.String(), err)
 			}
 			blobCh <- blobs
-		}()
+		}(i, nID)
 	}
 
 	for range nIDs {
@@ -132,10 +128,17 @@ func (s *Service) GetAll(ctx context.Context, height uint64, nIDs ...namespace.I
 		case <-ctx.Done():
 			return nil, ctx.Err()
 		case b := <-blobCh:
-			if b == nil {
+			if len(b) == 0 {
 				continue
 			}
-			blobs = append(blobs, b...)
+			results[string(b[0].NamespaceID())] = b
+		}
+	}
+
+	blobs := make([]*Blob, 0)
+	for _, nid := range nIDs {
+		if result, ok := results[string(nid)]; ok {
+			blobs = append(blobs, result...)
 		}
 	}
 
@@ -246,7 +249,7 @@ func (s *Service) getByCommitment(
 		}
 
 		// reconstruct the Blob.
-		blob, err := sharesToBlobs(rawShares[:amount])
+		blob, err := SharesToBlobs(rawShares[:amount])
 		if err != nil {
 			return nil, nil, err
 		}
@@ -258,6 +261,13 @@ func (s *Service) getByCommitment(
 
 		// drop info of the checked blob
 		rawShares = rawShares[amount:]
+		if len(rawShares) > 0 {
+			// save proof for the last row in case if we have rawShares
+			proofs = proofs[len(proofs)-1:]
+		} else {
+			// otherwise slash proofs
+			proofs = nil
+		}
 		blobShare = nil
 	}
 	return nil, nil, ErrBlobNotFound
@@ -270,5 +280,5 @@ func (s *Service) getBlobs(ctx context.Context, nID namespace.ID, root *share.Ro
 	if err != nil {
 		return nil, err
 	}
-	return sharesToBlobs(namespacedShares.Flatten())
+	return SharesToBlobs(namespacedShares.Flatten())
 }
