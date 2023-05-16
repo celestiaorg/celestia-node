@@ -46,7 +46,7 @@ func TestSyncLightWithBridge(t *testing.T) {
 	err := bridge.Start(ctx)
 	require.NoError(t, err)
 
-	h, err := bridge.HeaderServ.GetByHeight(ctx, 20)
+	h, err := bridge.HeaderServ.WaitForHeight(ctx, 20)
 	require.NoError(t, err)
 
 	require.EqualValues(t, h.Commit.BlockID.Hash, sw.GetCoreBlockHashByHeight(ctx, 20))
@@ -61,7 +61,7 @@ func TestSyncLightWithBridge(t *testing.T) {
 	err = light.Start(ctx)
 	require.NoError(t, err)
 
-	h, err = light.HeaderServ.GetByHeight(ctx, 30)
+	h, err = light.HeaderServ.WaitForHeight(ctx, 30)
 	require.NoError(t, err)
 
 	err = light.ShareServ.SharesAvailable(ctx, h.DAH)
@@ -103,7 +103,7 @@ func TestSyncStartStopLightWithBridge(t *testing.T) {
 	err := bridge.Start(ctx)
 	require.NoError(t, err)
 
-	h, err := bridge.HeaderServ.GetByHeight(ctx, 20)
+	h, err := bridge.HeaderServ.WaitForHeight(ctx, 20)
 	require.NoError(t, err)
 
 	require.EqualValues(t, h.Commit.BlockID.Hash, sw.GetCoreBlockHashByHeight(ctx, 20))
@@ -116,7 +116,7 @@ func TestSyncStartStopLightWithBridge(t *testing.T) {
 	light := sw.NewNodeWithConfig(node.Light, cfg)
 	require.NoError(t, light.Start(ctx))
 
-	h, err = light.HeaderServ.GetByHeight(ctx, 30)
+	h, err = light.HeaderServ.WaitForHeight(ctx, 30)
 	require.NoError(t, err)
 
 	require.EqualValues(t, h.Commit.BlockID.Hash, sw.GetCoreBlockHashByHeight(ctx, 30))
@@ -129,7 +129,7 @@ func TestSyncStartStopLightWithBridge(t *testing.T) {
 	light = sw.NewNodeWithConfig(node.Light, cfg)
 	require.NoError(t, light.Start(ctx))
 
-	h, err = light.HeaderServ.GetByHeight(ctx, 40)
+	h, err = light.HeaderServ.WaitForHeight(ctx, 40)
 	require.NoError(t, err)
 
 	assert.EqualValues(t, h.Commit.BlockID.Hash, sw.GetCoreBlockHashByHeight(ctx, 40))
@@ -159,7 +159,7 @@ func TestSyncFullWithBridge(t *testing.T) {
 	err := bridge.Start(ctx)
 	require.NoError(t, err)
 
-	h, err := bridge.HeaderServ.GetByHeight(ctx, 20)
+	h, err := bridge.HeaderServ.WaitForHeight(ctx, 20)
 	require.NoError(t, err)
 
 	assert.EqualValues(t, h.Commit.BlockID.Hash, sw.GetCoreBlockHashByHeight(ctx, 20))
@@ -173,7 +173,7 @@ func TestSyncFullWithBridge(t *testing.T) {
 	full := sw.NewNodeWithConfig(node.Full, cfg)
 	require.NoError(t, full.Start(ctx))
 
-	h, err = full.HeaderServ.GetByHeight(ctx, 30)
+	h, err = full.HeaderServ.WaitForHeight(ctx, 30)
 	require.NoError(t, err)
 
 	assert.EqualValues(t, h.Commit.BlockID.Hash, sw.GetCoreBlockHashByHeight(ctx, 30))
@@ -217,7 +217,7 @@ func TestSyncLightWithFull(t *testing.T) {
 	err := bridge.Start(ctx)
 	require.NoError(t, err)
 
-	h, err := bridge.HeaderServ.GetByHeight(ctx, 20)
+	h, err := bridge.HeaderServ.WaitForHeight(ctx, 20)
 	require.NoError(t, err)
 
 	assert.EqualValues(t, h.Commit.BlockID.Hash, sw.GetCoreBlockHashByHeight(ctx, 20))
@@ -230,7 +230,7 @@ func TestSyncLightWithFull(t *testing.T) {
 	full := sw.NewNodeWithConfig(node.Full, cfg)
 	require.NoError(t, full.Start(ctx))
 
-	h, err = full.HeaderServ.GetByHeight(ctx, 30)
+	h, err = full.HeaderServ.WaitForHeight(ctx, 30)
 	require.NoError(t, err)
 
 	assert.EqualValues(t, h.Commit.BlockID.Hash, sw.GetCoreBlockHashByHeight(ctx, 30))
@@ -248,7 +248,7 @@ func TestSyncLightWithFull(t *testing.T) {
 	err = light.Start(ctx)
 	require.NoError(t, err)
 
-	h, err = light.HeaderServ.GetByHeight(ctx, 50)
+	h, err = light.HeaderServ.WaitForHeight(ctx, 50)
 	require.NoError(t, err)
 
 	assert.EqualValues(t, h.Commit.BlockID.Hash, sw.GetCoreBlockHashByHeight(ctx, 50))
@@ -283,7 +283,7 @@ func TestSyncLightWithTrustedPeers(t *testing.T) {
 	err := bridge.Start(ctx)
 	require.NoError(t, err)
 
-	h, err := bridge.HeaderServ.GetByHeight(ctx, 20)
+	h, err := bridge.HeaderServ.WaitForHeight(ctx, 20)
 	require.NoError(t, err)
 
 	assert.EqualValues(t, h.Commit.BlockID.Hash, sw.GetCoreBlockHashByHeight(ctx, 20))
@@ -296,7 +296,7 @@ func TestSyncLightWithTrustedPeers(t *testing.T) {
 	full := sw.NewNodeWithConfig(node.Full, cfg)
 	require.NoError(t, full.Start(ctx))
 
-	h, err = full.HeaderServ.GetByHeight(ctx, 30)
+	h, err = full.HeaderServ.WaitForHeight(ctx, 30)
 	require.NoError(t, err)
 
 	assert.EqualValues(t, h.Commit.BlockID.Hash, sw.GetCoreBlockHashByHeight(ctx, 30))
@@ -311,7 +311,7 @@ func TestSyncLightWithTrustedPeers(t *testing.T) {
 	err = light.Start(ctx)
 	require.NoError(t, err)
 
-	h, err = light.HeaderServ.GetByHeight(ctx, 50)
+	h, err = light.HeaderServ.WaitForHeight(ctx, 50)
 	require.NoError(t, err)
 
 	assert.EqualValues(t, h.Commit.BlockID.Hash, sw.GetCoreBlockHashByHeight(ctx, 50))
