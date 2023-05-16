@@ -84,9 +84,10 @@ func (w *worker) run(ctx context.Context, timeout time.Duration, resultCh chan<-
 		w.setResult(curr, err)
 	}
 
-	if w.state.job.jobType != recentJob {
+	if w.state.jobType != recentJob {
 		log.Infow(
 			"finished sampling headers",
+			"type", w.state.jobType,
 			"from", w.state.from,
 			"to", w.state.curr,
 			"errors", len(w.state.failed),
@@ -116,7 +117,7 @@ func (w *worker) sample(ctx context.Context, timeout time.Duration, height uint6
 		if !errors.Is(err, context.Canceled) {
 			log.Debugw(
 				"failed to sample header",
-				"type", w.state.job.jobType,
+				"type", w.state.jobType,
 				"height", h.Height(),
 				"hash", h.Hash(),
 				"square width", len(h.DAH.RowsRoots),
@@ -146,7 +147,7 @@ func (w *worker) sample(ctx context.Context, timeout time.Duration, height uint6
 
 	logout(
 		"sampled header",
-		"type", w.state.job.jobType,
+		"type", w.state.jobType,
 		"height", h.Height(),
 		"hash", h.Hash(),
 		"square width", len(h.DAH.RowsRoots),
