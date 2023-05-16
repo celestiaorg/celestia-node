@@ -123,10 +123,10 @@ func (d *Discovery) Peers(ctx context.Context) ([]peer.ID, error) {
 }
 
 // Discard removes the peer from the peer set and rediscovers more if soft peer limit is not
-// reached.
-func (d *Discovery) Discard(id peer.ID) {
+// reached. Reports whether peer was removed with bool.
+func (d *Discovery) Discard(id peer.ID) bool {
 	if !d.set.Contains(id) {
-		return
+		return false
 	}
 
 	d.host.ConnManager().Unprotect(id, rendezvousPoint)
@@ -142,6 +142,8 @@ func (d *Discovery) Discard(id peer.ID) {
 		default:
 		}
 	}
+
+	return true
 }
 
 // Advertise is a utility function that persistently advertises a service through an Advertiser.
