@@ -73,6 +73,9 @@ type Manager struct {
 	// hashes that are not in the chain
 	blacklistedHashes map[string]bool
 
+	// peers that have previously been removed
+	removedPeers map[peer.ID]bool
+
 	metrics *metrics
 
 	headerSubDone         chan struct{}
@@ -130,6 +133,10 @@ func NewManager(
 			if isAdded {
 				if s.isBlacklistedPeer(peerID) {
 					log.Debugw("got blacklisted peer from discovery", "peer", peerID)
+					return
+				}
+				if s.isRemovedPeer(peerID) {
+					log.Debugw("got previously removed peer from discovery", "peer", peerID)
 					return
 				}
 				log.Debugw("added to full nodes", "peer", peerID)
@@ -364,12 +371,19 @@ func (m *Manager) Validate(_ context.Context, peerID peer.ID, msg shrexsub.Notif
 
 	p := m.getOrCreatePool(msg.DataHash.String())
 	p.headerHeight.Store(msg.Height)
+	logger.Debugw("got hash from shrex-sub")
+
+	// we want to skip adding peers to pools that have already been removed once
+	if m.isRemovedPeer(peerID) {
+		logger.Debugw("got previously removed peer from shrex-sub")
+		return pubsub.ValidationIgnore
+	}
+
 	p.add(peerID)
 	if p.isValidatedDataHash.Load() {
 		// add peer to full nodes pool only of datahash has been already validated
 		m.fullNodes.add(peerID)
 	}
-	log.Debugw("got hash from shrex-sub", "peer", peerID, "datahash", msg.DataHash.String())
 	return pubsub.ValidationIgnore
 }
 
@@ -423,12 +437,22 @@ func (m *Manager) isBlacklistedHash(hash share.DataHash) bool {
 	return m.blacklistedHashes[hash.String()]
 }
 
+func (m *Manager) isRemovedPeer(peerID peer.ID) bool {
+	m.lock.Lock()
+	defer m.lock.Unlock()
+	return m.removedPeers[peerID]
+}
+
 func (m *Manager) validatedPool(hashStr string) *syncPool {
 	p := m.getOrCreatePool(hashStr)
 	if p.isValidatedDataHash.CompareAndSwap(false, true) {
 		log.Debugw("pool marked validated", "datahash", hashStr)
 		// if pool is proven to be valid, add all collected peers to full nodes
-		m.fullNodes.add(p.peers()...)
+		for _, peer := range p.peers() {
+			if !m.isRemovedPeer(peer) {
+				m.fullNodes.add(peer)
+			}
+		}
 	}
 	return p
 }
