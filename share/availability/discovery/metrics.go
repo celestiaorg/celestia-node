@@ -98,6 +98,12 @@ func initMetrics(d *Discovery) (*metrics, error) {
 		return nil, err
 	}
 
+	backOffSize, err := meter.AsyncInt64().Gauge("discovery_backoff_amount",
+		instrument.WithDescription("amount of peers in backoff"))
+	if err != nil {
+		return nil, err
+	}
+
 	metrics := &metrics{
 		peersAmount:      peersAmount,
 		discoveryResult:  discoveryResult,
@@ -111,9 +117,11 @@ func initMetrics(d *Discovery) (*metrics, error) {
 	err = meter.RegisterCallback(
 		[]instrument.Asynchronous{
 			peersAmount,
+			backOffSize,
 		},
 		func(ctx context.Context) {
 			peersAmount.Observe(ctx, int64(d.set.Size()))
+			backOffSize.Observe(ctx, int64(d.connector.Size()))
 		},
 	)
 	if err != nil {
