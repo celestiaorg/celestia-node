@@ -37,8 +37,6 @@ const (
 	// ResultBlacklistPeer will blacklist peer. Blacklisted peers will be disconnected and blocked from
 	// any p2p communication in future by libp2p Gater
 	ResultBlacklistPeer = "result_blacklist_peer"
-	// ResultRemovePeer will remove peer from peer manager pool
-	ResultRemovePeer = "result_remove_peer"
 
 	// eventbusBufSize is the size of the buffered channel to handle
 	// events in libp2p
@@ -280,8 +278,6 @@ func (m *Manager) doneFunc(datahash share.DataHash, peerID peer.ID, source peerS
 				return
 			}
 			m.getOrCreatePool(datahash.String()).putOnCooldown(peerID)
-		case ResultRemovePeer:
-			m.removeFromPool(m.fullNodes, peerID)
 		case ResultBlacklistPeer:
 			m.blacklistPeers(reasonMisbehave, peerID)
 		}
@@ -548,6 +544,7 @@ func (m *Manager) markPoolAsSynced(datahash string) {
 		atomic.StorePointer(old, unsafe.Pointer(newPool(time.Second)))
 	}
 }
+
 func (p *syncPool) add(peers ...peer.ID) {
 	if !p.isSynced.Load() {
 		p.pool.add(peers...)

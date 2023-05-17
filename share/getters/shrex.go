@@ -156,14 +156,14 @@ func (sg *ShrexGetter) GetEDS(ctx context.Context, root *share.Root) (*rsmt2d.Ex
 			return eds, nil
 		case errors.Is(getErr, context.DeadlineExceeded),
 			errors.Is(getErr, context.Canceled):
-			setStatus(peers.ResultRemovePeer)
+			setStatus(peers.ResultCooldownPeer)
 		case errors.Is(getErr, p2p.ErrNotFound):
 			getErr = share.ErrNotFound
 			setStatus(peers.ResultCooldownPeer)
 		case errors.Is(getErr, p2p.ErrInvalidResponse):
 			setStatus(peers.ResultBlacklistPeer)
 		default:
-			setStatus(peers.ResultRemovePeer)
+			setStatus(peers.ResultCooldownPeer)
 		}
 
 		if !ErrorContains(err, getErr) {
@@ -216,14 +216,14 @@ func (sg *ShrexGetter) GetSharesByNamespace(
 			return nd, nil
 		case errors.Is(getErr, context.DeadlineExceeded),
 			errors.Is(getErr, context.Canceled):
-			setStatus(peers.ResultRemovePeer)
+			setStatus(peers.ResultCooldownPeer)
 		case errors.Is(getErr, p2p.ErrNotFound):
 			getErr = share.ErrNotFound
 			setStatus(peers.ResultCooldownPeer)
 		case errors.Is(getErr, p2p.ErrInvalidResponse):
 			setStatus(peers.ResultBlacklistPeer)
 		default:
-			setStatus(peers.ResultRemovePeer)
+			setStatus(peers.ResultCooldownPeer)
 		}
 
 		if !ErrorContains(err, getErr) {
