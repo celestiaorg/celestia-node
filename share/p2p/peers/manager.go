@@ -277,9 +277,9 @@ func (m *Manager) doneFunc(datahash share.DataHash, peerID peer.ID, source peerS
 		case ResultCooldownPeer:
 			if source == sourceFullNodes {
 				m.fullNodes.putOnCooldown(peerID)
-			} else {
-				m.getOrCreatePool(datahash.String()).putOnCooldown(peerID)
+				return
 			}
+			m.getOrCreatePool(datahash.String()).putOnCooldown(peerID)
 		case ResultRemovePeer:
 			m.removeFromPool(m.fullNodes, peerID)
 		case ResultBlacklistPeer:
@@ -381,15 +381,13 @@ func (m *Manager) Validate(_ context.Context, peerID peer.ID, msg shrexsub.Notif
 	p.headerHeight.Store(msg.Height)
 	logger.Debugw("got hash from shrex-sub")
 
-	// we want to skip adding peers to pools that have already been removed once
-	if m.isRemovedPeer(peerID) {
-		logger.Debugw("got previously removed peer from shrex-sub")
-		return pubsub.ValidationIgnore
-	}
-
 	p.add(peerID)
 	if p.isValidatedDataHash.Load() {
 		// add peer to full nodes pool only if datahash has been already validated
+		// if they were previously removed, give them another chance
+		m.lock.Lock()
+		delete(m.removedPeers, peerID)
+		m.lock.Unlock()
 		m.fullNodes.add(peerID)
 	}
 	return pubsub.ValidationIgnore
@@ -425,7 +423,7 @@ func (m *Manager) blacklistPeers(reason blacklistPeerReason, peerIDs ...peer.ID)
 		// add peer to the blacklist, so we can't connect to it in the future.
 		err := m.connGater.BlockPeer(peerID)
 		if err != nil {
-			log.Warnw("failed tp block peer", "peer", peerID, "err", err)
+			log.Warnw("failed to block peer", "peer", peerID, "err", err)
 		}
 		// close connections to peer.
 		err = m.host.Network().ClosePeer(peerID)

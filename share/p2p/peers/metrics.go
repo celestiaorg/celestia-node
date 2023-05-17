@@ -37,7 +37,6 @@ const (
 	peerStatusKey                 = "peer_status"
 	peerStatusActive   peerStatus = "active"
 	peerStatusCooldown peerStatus = "cooldown"
-	peerStatusRemoved  peerStatus = "removed"
 
 	poolStatusKey                    = "pool_status"
 	poolStatusCreated     poolStatus = "created"
