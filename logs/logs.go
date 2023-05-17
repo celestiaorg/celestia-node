@@ -22,6 +22,7 @@ func SetAllLoggers(level logging.LogLevel) {
 	_ = logging.SetLogLevel("shrex/nd", "WARN")
 	_ = logging.SetLogLevel("shrex/eds", "WARN")
 	_ = logging.SetLogLevel("fx", "FATAL")
+	_ = logging.SetLogLevel("core-client", "FATAL")
 }
 
 func SetDebugLogging() {
