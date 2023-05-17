@@ -275,9 +275,10 @@ func (m *Manager) doneFunc(datahash share.DataHash, peerID peer.ID, source peerS
 		case ResultSynced:
 			m.markPoolAsSynced(datahash.String())
 		case ResultCooldownPeer:
-			m.getOrCreatePool(datahash.String()).putOnCooldown(peerID)
 			if source == sourceFullNodes {
 				m.fullNodes.putOnCooldown(peerID)
+			} else {
+				m.getOrCreatePool(datahash.String()).putOnCooldown(peerID)
 			}
 		case ResultRemovePeer:
 			m.removeFromPool(m.fullNodes, peerID)

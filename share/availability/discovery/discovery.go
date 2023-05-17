@@ -134,6 +134,7 @@ func (d *Discovery) Discard(id peer.ID) bool {
 	d.set.Remove(id)
 	d.onUpdatedPeers(id, false)
 	log.Debugw("removed peer from the peer set", "peer", id)
+	d.host.Network().ClosePeer(id) //nolint:errcheck
 
 	if d.set.Size() < d.set.Limit() {
 		// trigger discovery

@@ -37,6 +37,7 @@ const (
 	peerStatusKey                 = "peer_status"
 	peerStatusActive   peerStatus = "active"
 	peerStatusCooldown peerStatus = "cooldown"
+	peerStatusRemoved  peerStatus = "removed"
 
 	poolStatusKey                    = "pool_status"
 	poolStatusCreated     poolStatus = "created"
@@ -73,6 +74,7 @@ type metrics struct {
 	shrexPools               asyncint64.Gauge // attributes: pool_status
 	fullNodesPool            asyncint64.Gauge // attributes: pool_status
 	blacklistedPeersByReason sync.Map
+	removedPeers             asyncint64.Gauge
 	blacklistedPeers         asyncint64.Gauge // attributes: blacklist_reason
 }
 
@@ -113,6 +115,12 @@ func initMetrics(manager *Manager) (*metrics, error) {
 		return nil, err
 	}
 
+	removedPeers, err := meter.AsyncInt64().Gauge("peer_manager_removed_peers_gauge",
+		instrument.WithDescription("removed peers amount"))
+	if err != nil {
+		return nil, err
+	}
+
 	fullNodesPool, err := meter.AsyncInt64().Gauge("peer_manager_full_nodes_gauge",
 		instrument.WithDescription("full nodes pool peers amount"))
 	if err != nil {
@@ -131,6 +139,7 @@ func initMetrics(manager *Manager) (*metrics, error) {
 		doneResult:               doneResult,
 		validationResult:         validationResult,
 		shrexPools:               shrexPools,
+		removedPeers:             removedPeers,
 		fullNodesPool:            fullNodesPool,
 		getPeerPoolSizeHistogram: getPeerPoolSizeHistogram,
 		blacklistedPeers:         blacklisted,
@@ -153,6 +162,8 @@ func initMetrics(manager *Manager) (*metrics, error) {
 			fullNodesPool.Observe(ctx, int64(manager.fullNodes.cooldown.len()),
 				attribute.String(peerStatusKey, string(peerStatusCooldown)))
 
+			removedPeers.Observe(ctx, int64(len(manager.removedPeers)))
+
 			metrics.blacklistedPeersByReason.Range(func(key, value any) bool {
 				reason := key.(blacklistPeerReason)
 				amount := value.(int)
@@ -169,8 +180,10 @@ func initMetrics(manager *Manager) (*metrics, error) {
 	return metrics, nil
 }
 
-func (m *metrics) observeGetPeer(ctx context.Context,
-	source peerSource, poolSize int, waitTime time.Duration) {
+func (m *metrics) observeGetPeer(
+	ctx context.Context,
+	source peerSource, poolSize int, waitTime time.Duration,
+) {
 	if m == nil {
 		return
 	}
