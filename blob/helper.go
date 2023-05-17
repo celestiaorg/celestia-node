@@ -80,3 +80,16 @@ func estimateGas(blobs ...*Blob) uint64 {
 
 	return uint64(variableGasAmount + pfbGasFixedCost)
 }
+
+// constructAndVerifyBlob reconstruct the Blob from the passed shares and compares commitments.
+func constructAndVerifyBlob(sh []share.Share, commitment Commitment) (*Blob, bool, error) {
+	blob, err := SharesToBlobs(sh)
+	if err != nil {
+		return nil, false, err
+	}
+
+	if blob[0].Commitment().Verify(commitment) {
+		return blob[0], true, nil
+	}
+	return blob[0], false, nil
+}

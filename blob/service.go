@@ -1,12 +1,10 @@
 package blob
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"fmt"
 	"reflect"
-	"strings"
 
 	"github.com/cosmos/cosmos-sdk/types"
 	logging "github.com/ipfs/go-log/v2"
@@ -212,10 +210,10 @@ func (s *Service) getByCommitment(
 
 	namespacedShares, err := s.shareGetter.GetSharesByNamespace(ctx, header.DAH, nID)
 	if err != nil {
-		if strings.Contains(err.Error(), share.ErrNotFound.Error()) {
+		if errors.Is(err, share.ErrNotFound) {
 			err = ErrBlobNotFound
 		}
-		return nil, nil, ErrBlobNotFound
+		return nil, nil, err
 	}
 
 	for _, row := range namespacedShares {
@@ -263,21 +261,18 @@ func (s *Service) getByCommitment(
 			continue
 		}
 
-		// reconstruct the Blob.
-		blob, err := SharesToBlobs(rawShares[:amount])
+		blob, same, err := constructAndVerifyBlob(rawShares[:amount], commitment)
 		if err != nil {
 			return nil, nil, err
 		}
-
-		// compare commitments.
-		if bytes.Equal(blob[0].Commitment(), commitment) {
-			return blob[0], &proofs, nil
+		if same {
+			return blob, &proofs, nil
 		}
 
 		// drop info of the checked blob
 		rawShares = rawShares[amount:]
 		if len(rawShares) > 0 {
-			// save proof for the last row in case if we have rawShares
+			// save proof for the last row in case we have rawShares
 			proofs = proofs[len(proofs)-1:]
 		} else {
 			// otherwise slash proofs
@@ -285,6 +280,19 @@ func (s *Service) getByCommitment(
 		}
 		blobShare = nil
 	}
+
+	if len(rawShares) == 0 {
+		return nil, nil, ErrBlobNotFound
+	}
+
+	blob, same, err := constructAndVerifyBlob(rawShares, commitment)
+	if err != nil {
+		return nil, nil, err
+	}
+	if same {
+		return blob, &proofs, nil
+	}
+
 	return nil, nil, ErrBlobNotFound
 }
 
