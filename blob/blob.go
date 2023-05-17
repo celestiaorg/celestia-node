@@ -1,6 +1,8 @@
 package blob
 
 import (
+	"bytes"
+
 	"github.com/celestiaorg/celestia-app/x/blob/types"
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/nmt/namespace"
@@ -13,6 +15,11 @@ type Commitment []byte
 
 func (com Commitment) String() string {
 	return string(com)
+}
+
+// Verify ensures that commitments are the same
+func (com Commitment) Verify(c Commitment) bool {
+	return bytes.Equal(com, c)
 }
 
 // Proof is a collection of nmt.Proofs that verifies the inclusion of the data.
