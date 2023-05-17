@@ -71,7 +71,8 @@ type Manager struct {
 	// hashes that are not in the chain
 	blacklistedHashes map[string]bool
 
-	// peers that have previously been removed
+	// peers that have previously been removed. It is only used for metrics and is not used to
+	// prevent previously removed peers from being added again
 	removedPeers map[peer.ID]bool
 
 	metrics *metrics
@@ -451,9 +452,14 @@ func (m *Manager) validatedPool(hashStr string) *syncPool {
 		log.Debugw("pool marked validated", "datahash", hashStr)
 		// if pool is proven to be valid, add all collected peers to full nodes
 		for _, peer := range p.peers() {
-			if !m.isRemovedPeer(peer) {
-				m.fullNodes.add(peer)
+			// if peer was previously removed, give it another chance
+			if m.isRemovedPeer(peer) {
+				m.lock.Lock()
+				m.removedPeers[peer] = false
+				m.lock.Unlock()
 			}
+
+			m.fullNodes.add(peer)
 		}
 	}
 	return p
