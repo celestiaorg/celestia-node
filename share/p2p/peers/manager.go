@@ -136,13 +136,11 @@ func NewManager(
 					log.Debugw("got blacklisted peer from discovery", "peer", peerID)
 					return
 				}
-				if s.isRemovedPeer(peerID) {
-					s.lock.Lock()
-					delete(s.removedPeers, peerID)
-					s.lock.Unlock()
-				}
-				log.Debugw("added to full nodes", "peer", peerID)
+				s.lock.Lock()
+				delete(s.removedPeers, peerID)
+				s.lock.Unlock()
 				s.fullNodes.add(peerID)
+				log.Debugw("added to full nodes", "peer", peerID)
 				return
 			}
 
@@ -328,11 +326,7 @@ func (m *Manager) subscribeDisconnectedPeers(ctx context.Context, sub event.Subs
 				peer := connStatus.Peer
 				if m.fullNodes.has(peer) {
 					log.Debugw("peer disconnected, removing from full nodes", "peer", peer)
-					// we do not call discovery.Discard here because discovery handles disconnections from its own peers itself
-					m.fullNodes.remove(peer)
-					m.lock.Lock()
-					m.removedPeers[peer] = true
-					m.lock.Unlock()
+					m.removeFromPool(m.fullNodes, peer)
 				}
 			}
 		}
@@ -378,13 +372,12 @@ func (m *Manager) Validate(_ context.Context, peerID peer.ID, msg shrexsub.Notif
 	p.headerHeight.Store(msg.Height)
 	logger.Debugw("got hash from shrex-sub")
 
+	m.lock.Lock()
+	delete(m.removedPeers, peerID)
+	m.lock.Unlock()
 	p.add(peerID)
 	if p.isValidatedDataHash.Load() {
 		// add peer to full nodes pool only if datahash has been already validated
-		// if they were previously removed, give them another chance
-		m.lock.Lock()
-		delete(m.removedPeers, peerID)
-		m.lock.Unlock()
 		m.fullNodes.add(peerID)
 	}
 	return pubsub.ValidationIgnore
@@ -440,12 +433,6 @@ func (m *Manager) isBlacklistedHash(hash share.DataHash) bool {
 	return m.blacklistedHashes[hash.String()]
 }
 
-func (m *Manager) isRemovedPeer(peerID peer.ID) bool {
-	m.lock.Lock()
-	defer m.lock.Unlock()
-	return m.removedPeers[peerID]
-}
-
 func (m *Manager) validatedPool(hashStr string) *syncPool {
 	p := m.getOrCreatePool(hashStr)
 	if p.isValidatedDataHash.CompareAndSwap(false, true) {
@@ -453,12 +440,9 @@ func (m *Manager) validatedPool(hashStr string) *syncPool {
 		// if pool is proven to be valid, add all collected peers to full nodes
 		for _, peer := range p.peers() {
 			// if peer was previously removed, give it another chance
-			if m.isRemovedPeer(peer) {
-				m.lock.Lock()
-				m.removedPeers[peer] = false
-				m.lock.Unlock()
-			}
-
+			m.lock.Lock()
+			delete(m.removedPeers, peer)
+			m.lock.Unlock()
 			m.fullNodes.add(peer)
 		}
 	}
@@ -536,9 +520,7 @@ func (m *Manager) removeFromPool(pool *pool, peerID peer.ID) {
 	m.removedPeers[peerID] = true
 	m.lock.Unlock()
 
-	if !m.disc.Discard(peerID) {
-		pool.remove(peerID)
-	}
+	pool.remove(peerID)
 }
 
 func (m *Manager) markPoolAsSynced(datahash string) {
