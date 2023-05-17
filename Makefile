@@ -65,7 +65,7 @@ install-shed:
 	@go install ./cmd/cel-shed
 .PHONY: install-shed
 
-## key: Build cel-key binary.
+## cel-key: Build cel-key binary.
 cel-key:
 	@echo "--> Building cel-key"
 	@go build ./cmd/cel-key
