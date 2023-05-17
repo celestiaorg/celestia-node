@@ -75,6 +75,7 @@ type Manager struct {
 
 	// peers that have previously been removed
 	removedPeers map[peer.ID]bool
+	errorBudget  map[peer.ID]int
 
 	metrics *metrics
 
@@ -122,6 +123,7 @@ func NewManager(
 		disc:                  discovery,
 		host:                  host,
 		removedPeers:          make(map[peer.ID]bool),
+		errorBudget:           make(map[peer.ID]int),
 		pools:                 make(map[string]*syncPool),
 		blacklistedHashes:     make(map[string]bool),
 		headerSubDone:         make(chan struct{}),
@@ -273,6 +275,9 @@ func (m *Manager) doneFunc(datahash share.DataHash, peerID peer.ID, source peerS
 		switch result {
 		case ResultNoop:
 		case ResultSynced:
+			m.lock.Lock()
+			m.errorBudget[peerID] = 0
+			m.lock.Unlock()
 			m.markPoolAsSynced(datahash.String())
 		case ResultCooldownPeer:
 			if source == sourceFullNodes {
@@ -381,13 +386,13 @@ func (m *Manager) Validate(_ context.Context, peerID peer.ID, msg shrexsub.Notif
 	p.headerHeight.Store(msg.Height)
 	logger.Debugw("got hash from shrex-sub")
 
+	if m.isRemovedPeer(peerID) {
+		return pubsub.ValidationIgnore
+	}
+
 	p.add(peerID)
 	if p.isValidatedDataHash.Load() {
 		// add peer to full nodes pool only if datahash has been already validated
-		// if they were previously removed, give them another chance
-		m.lock.Lock()
-		delete(m.removedPeers, peerID)
-		m.lock.Unlock()
 		m.fullNodes.add(peerID)
 	}
 	return pubsub.ValidationIgnore
@@ -530,8 +535,15 @@ func (m *Manager) cleanUp() []peer.ID {
 }
 
 func (m *Manager) removeFromPool(pool *pool, peerID peer.ID) {
+	//var removed bool
 	m.lock.Lock()
+	//m.errorBudget[peerID]++
+	//if m.errorBudget[peerID] >= 3 {
+	//	log.Warnw("peer removed from pool due to too many errors", "peer", peerID)
 	m.removedPeers[peerID] = true
+	//	removed = true
+	//}
+	////m.removedPeers[peerID] = true
 	m.lock.Unlock()
 
 	if !m.disc.Discard(peerID) {
