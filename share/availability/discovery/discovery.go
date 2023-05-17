@@ -123,6 +123,30 @@ func (d *Discovery) Peers(ctx context.Context) ([]peer.ID, error) {
 	return d.set.Peers(ctx)
 }
 
+// Discard removes the peer from the peer set and rediscovers more if soft peer limit is not
+// reached. Reports whether peer was removed with bool.
+func (d *Discovery) Discard(id peer.ID) bool {
+	if !d.set.Contains(id) {
+		return false
+	}
+
+	d.host.ConnManager().Unprotect(id, rendezvousPoint)
+	d.connector.Backoff(id)
+	d.set.Remove(id)
+	d.onUpdatedPeers(id, false)
+	log.Debugw("removed peer from the peer set", "peer", id)
+
+	if d.set.Size() < d.set.Limit() {
+		// trigger discovery
+		select {
+		case d.triggerDisc <- struct{}{}:
+		default:
+		}
+	}
+
+	return true
+}
+
 // Advertise is a utility function that persistently advertises a service through an Advertiser.
 // TODO: Start advertising only after the reachability is confirmed by AutoNAT
 func (d *Discovery) Advertise(ctx context.Context) {
@@ -211,22 +235,8 @@ func (d *Discovery) disconnectsLoop(ctx context.Context, sub event.Subscription)
 				return
 			}
 
-			evnt := e.(event.EvtPeerConnectednessChanged)
-			if evnt.Connectedness == network.NotConnected && d.set.Contains(evnt.Peer) {
-				d.host.ConnManager().Unprotect(evnt.Peer, rendezvousPoint)
-				d.connector.Backoff(evnt.Peer)
-				d.set.Remove(evnt.Peer)
-				d.onUpdatedPeers(evnt.Peer, false)
-				log.Debugw("removed peer from the peer set",
-					"peer", evnt.Peer, "status", evnt.Connectedness.String())
-
-				if d.set.Size() < d.set.Limit() {
-					// trigger discovery
-					select {
-					case d.triggerDisc <- struct{}{}:
-					default:
-					}
-				}
+			if evnt := e.(event.EvtPeerConnectednessChanged); evnt.Connectedness == network.NotConnected {
+				d.Discard(evnt.Peer)
 			}
 		}
 	}
