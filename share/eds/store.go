@@ -82,11 +82,12 @@ func NewStore(basepath string, ds datastore.Batching) (*Store, error) {
 	invertedRepo := newSimpleInvertedIndex(ds)
 	dagStore, err := dagstore.NewDAGStore(
 		dagstore.Config{
-			TransientsDir: basepath + transientsPath,
-			IndexRepo:     fsRepo,
-			Datastore:     ds,
-			MountRegistry: r,
-			TopLevelIndex: invertedRepo,
+			TransientsDir:  basepath + transientsPath,
+			IndexRepo:      fsRepo,
+			Datastore:      ds,
+			MountRegistry:  r,
+			TopLevelIndex:  invertedRepo,
+			RecoverOnStart: dagstore.RecoverOnAcquire,
 		},
 	)
 	if err != nil {
