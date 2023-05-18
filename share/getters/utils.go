@@ -115,11 +115,16 @@ func ctxWithSplitTimeout(
 		return context.WithTimeout(ctx, minTimeout)
 	}
 
-	timeout := time.Until(deadline) / time.Duration(splitFactor)
-	if minTimeout == 0 || timeout > minTimeout {
-		return context.WithTimeout(ctx, timeout)
+	timeout := time.Until(deadline)
+	if timeout < minTimeout {
+		return context.WithCancel(ctx)
 	}
-	return context.WithTimeout(ctx, minTimeout)
+
+	splitTimeout := timeout / time.Duration(splitFactor)
+	if splitTimeout < minTimeout {
+		return context.WithTimeout(ctx, minTimeout)
+	}
+	return context.WithTimeout(ctx, splitTimeout)
 }
 
 // ErrorContains reports whether any error in err's tree matches any error in targets tree.
