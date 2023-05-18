@@ -29,8 +29,9 @@ type Server struct {
 	host       host.Host
 	protocolID protocol.ID
 
-	getter share.Getter
-	store  *eds.Store
+	handler network.StreamHandler
+	getter  share.Getter
+	store   *eds.Store
 
 	params     *Parameters
 	middleware *p2p.Middleware
@@ -52,18 +53,18 @@ func NewServer(params *Parameters, host host.Host, store *eds.Store, getter shar
 		middleware: p2p.NewMiddleware(params.ConcurrencyLimit),
 	}
 
+	ctx, cancel := context.WithCancel(context.Background())
+	srv.cancel = cancel
+	srv.handler = func(s network.Stream) {
+		srv.handleNamespacedData(ctx, s)
+	}
+
 	return srv, nil
 }
 
 // Start starts the server
 func (srv *Server) Start(context.Context) error {
-	ctx, cancel := context.WithCancel(context.Background())
-	srv.cancel = cancel
-
-	handler := func(s network.Stream) {
-		srv.handleNamespacedData(ctx, s)
-	}
-	srv.host.SetStreamHandler(srv.protocolID, srv.middleware.RateLimitHandler(handler))
+	srv.host.SetStreamHandler(srv.protocolID, srv.handler)
 	return nil
 }
 
@@ -72,6 +73,11 @@ func (srv *Server) Stop(context.Context) error {
 	srv.cancel()
 	srv.host.RemoveStreamHandler(srv.protocolID)
 	return nil
+}
+
+// SetHandler sets server handler
+func (srv *Server) SetHandler(handler network.StreamHandler) {
+	srv.handler = handler
 }
 
 func (srv *Server) observeRateLimitedRequests() {
