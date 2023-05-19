@@ -71,10 +71,6 @@ type Manager struct {
 	// hashes that are not in the chain
 	blacklistedHashes map[string]bool
 
-	// peers that have previously been removed. It is only used for metrics and is not used to
-	// prevent previously removed peers from being added again
-	removedPeers map[peer.ID]bool
-
 	metrics *metrics
 
 	headerSubDone         chan struct{}
@@ -120,7 +116,6 @@ func NewManager(
 		connGater:             connGater,
 		disc:                  discovery,
 		host:                  host,
-		removedPeers:          make(map[peer.ID]bool),
 		pools:                 make(map[string]*syncPool),
 		blacklistedHashes:     make(map[string]bool),
 		headerSubDone:         make(chan struct{}),
@@ -136,16 +131,13 @@ func NewManager(
 					log.Debugw("got blacklisted peer from discovery", "peer", peerID)
 					return
 				}
-				s.lock.Lock()
-				delete(s.removedPeers, peerID)
-				s.lock.Unlock()
 				s.fullNodes.add(peerID)
 				log.Debugw("added to full nodes", "peer", peerID)
 				return
 			}
 
 			log.Debugw("removing peer from discovered full nodes", "peer", peerID)
-			s.removeFromPool(s.fullNodes, peerID)
+			s.fullNodes.remove(peerID)
 		})
 
 	return s, nil
@@ -326,7 +318,7 @@ func (m *Manager) subscribeDisconnectedPeers(ctx context.Context, sub event.Subs
 				peer := connStatus.Peer
 				if m.fullNodes.has(peer) {
 					log.Debugw("peer disconnected, removing from full nodes", "peer", peer)
-					m.removeFromPool(m.fullNodes, peer)
+					m.fullNodes.remove(peer)
 				}
 			}
 		}
@@ -372,9 +364,6 @@ func (m *Manager) Validate(_ context.Context, peerID peer.ID, msg shrexsub.Notif
 	p.headerHeight.Store(msg.Height)
 	logger.Debugw("got hash from shrex-sub")
 
-	m.lock.Lock()
-	delete(m.removedPeers, peerID)
-	m.lock.Unlock()
 	p.add(peerID)
 	if p.isValidatedDataHash.Load() {
 		// add peer to full nodes pool only if datahash has been already validated
@@ -409,7 +398,7 @@ func (m *Manager) blacklistPeers(reason blacklistPeerReason, peerIDs ...peer.ID)
 		return
 	}
 	for _, peerID := range peerIDs {
-		m.removeFromPool(m.fullNodes, peerID)
+		m.fullNodes.remove(peerID)
 		// add peer to the blacklist, so we can't connect to it in the future.
 		err := m.connGater.BlockPeer(peerID)
 		if err != nil {
@@ -438,13 +427,7 @@ func (m *Manager) validatedPool(hashStr string) *syncPool {
 	if p.isValidatedDataHash.CompareAndSwap(false, true) {
 		log.Debugw("pool marked validated", "datahash", hashStr)
 		// if pool is proven to be valid, add all collected peers to full nodes
-		for _, peer := range p.peers() {
-			// if peer was previously removed, give it another chance
-			m.lock.Lock()
-			delete(m.removedPeers, peer)
-			m.lock.Unlock()
-			m.fullNodes.add(peer)
-		}
+		m.fullNodes.add(p.peers()...)
 	}
 	return p
 }
@@ -453,7 +436,7 @@ func (m *Manager) validatedPool(hashStr string) *syncPool {
 func (m *Manager) removeUnreachable(pool *syncPool, peerID peer.ID) bool {
 	if m.isBlacklistedPeer(peerID) || !m.fullNodes.has(peerID) {
 		log.Debugw("removing outdated peer from pool", "peer", peerID.String())
-		m.removeFromPool(pool.pool, peerID)
+		pool.remove(peerID)
 		return true
 	}
 	return false
@@ -513,14 +496,6 @@ func (m *Manager) cleanUp() []peer.ID {
 		blacklist = append(blacklist, peerID)
 	}
 	return blacklist
-}
-
-func (m *Manager) removeFromPool(pool *pool, peerID peer.ID) {
-	m.lock.Lock()
-	m.removedPeers[peerID] = true
-	m.lock.Unlock()
-
-	pool.remove(peerID)
 }
 
 func (m *Manager) markPoolAsSynced(datahash string) {
