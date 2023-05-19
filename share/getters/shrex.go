@@ -211,6 +211,10 @@ func (sg *ShrexGetter) GetSharesByNamespace(
 		cancel()
 		switch {
 		case getErr == nil:
+			if getErr = nd.Verify(root, id); getErr != nil {
+				setStatus(peers.ResultBlacklistPeer)
+				break
+			}
 			setStatus(peers.ResultNoop)
 			sg.metrics.recordNDAttempt(ctx, attempt, true)
 			return nd, nil
