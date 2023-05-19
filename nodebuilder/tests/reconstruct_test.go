@@ -64,7 +64,7 @@ func TestFullReconstructFromBridge(t *testing.T) {
 	for i := 1; i <= blocks+1; i++ {
 		i := i
 		errg.Go(func() error {
-			h, err := full.HeaderServ.GetByHeight(bctx, uint64(i))
+			h, err := full.HeaderServ.WaitForHeight(bctx, uint64(i))
 			if err != nil {
 				return err
 			}
@@ -167,7 +167,7 @@ func TestFullReconstructFromLights(t *testing.T) {
 	for i := 1; i <= blocks+1; i++ {
 		i := i
 		errg.Go(func() error {
-			h, err := full.HeaderServ.GetByHeight(bctx, uint64(i))
+			h, err := full.HeaderServ.WaitForHeight(bctx, uint64(i))
 			if err != nil {
 				return err
 			}

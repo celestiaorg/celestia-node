@@ -109,7 +109,7 @@ func (srv *Server) handleNamespacedData(ctx context.Context, stream network.Stre
 
 	err = validateRequest(req)
 	if err != nil {
-		logger.Debugw("server: invalid request", "err", err)
+		logger.Warnw("server: invalid request", "err", err)
 		stream.Reset() //nolint:errcheck
 		return
 	}
@@ -120,6 +120,7 @@ func (srv *Server) handleNamespacedData(ctx context.Context, stream network.Stre
 	dah, err := srv.store.GetDAH(ctx, req.RootHash)
 	if err != nil {
 		if errors.Is(err, eds.ErrNotFound) {
+			logger.Warn("server: DAH not found")
 			srv.respondNotFoundError(ctx, logger, stream)
 			return
 		}
@@ -129,11 +130,15 @@ func (srv *Server) handleNamespacedData(ctx context.Context, stream network.Stre
 	}
 
 	shares, err := srv.getter.GetSharesByNamespace(ctx, dah, req.NamespaceId)
-	if errors.Is(err, share.ErrNotFound) {
+	switch {
+	case errors.Is(err, share.ErrNotFound):
+		logger.Warn("server: nd not found")
 		srv.respondNotFoundError(ctx, logger, stream)
 		return
-	}
-	if err != nil {
+	case errors.Is(err, share.ErrNamespaceNotFound):
+		srv.respondNamespaceNotFoundError(ctx, logger, stream)
+		return
+	case err != nil:
 		logger.Errorw("server: retrieving shares", "err", err)
 		srv.respondInternalError(ctx, logger, stream)
 		return
@@ -155,11 +160,20 @@ func validateRequest(req pb.GetSharesByNamespaceRequest) error {
 	return nil
 }
 
-// respondNotFoundError sends internal error response to client
+// respondNotFoundError sends a not found response to client
 func (srv *Server) respondNotFoundError(ctx context.Context,
 	logger *zap.SugaredLogger, stream network.Stream) {
 	resp := &pb.GetSharesByNamespaceResponse{
 		Status: pb.StatusCode_NOT_FOUND,
+	}
+	srv.respond(ctx, logger, stream, resp)
+}
+
+// respondNamespaceNotFoundError sends a namespace not found response to client
+func (srv *Server) respondNamespaceNotFoundError(ctx context.Context,
+	logger *zap.SugaredLogger, stream network.Stream) {
+	resp := &pb.GetSharesByNamespaceResponse{
+		Status: pb.StatusCode_NAMESPACE_NOT_FOUND,
 	}
 	srv.respond(ctx, logger, stream, resp)
 }

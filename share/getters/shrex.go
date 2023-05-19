@@ -129,6 +129,7 @@ func (sg *ShrexGetter) GetEDS(ctx context.Context, root *share.Root) (*rsmt2d.Ex
 	)
 	for {
 		if ctx.Err() != nil {
+			sg.metrics.recordEDSAttempt(ctx, attempt, false)
 			return nil, ctx.Err()
 		}
 		attempt++
@@ -155,6 +156,7 @@ func (sg *ShrexGetter) GetEDS(ctx context.Context, root *share.Root) (*rsmt2d.Ex
 			return eds, nil
 		case errors.Is(getErr, context.DeadlineExceeded),
 			errors.Is(getErr, context.Canceled):
+			setStatus(peers.ResultCooldownPeer)
 		case errors.Is(getErr, p2p.ErrNotFound):
 			getErr = share.ErrNotFound
 			setStatus(peers.ResultCooldownPeer)
@@ -185,8 +187,16 @@ func (sg *ShrexGetter) GetSharesByNamespace(
 		attempt int
 		err     error
 	)
+
+	// verify that the namespace could exist inside the roots before starting network requests
+	roots := filterRootsByNamespace(root, id)
+	if len(roots) == 0 {
+		return nil, share.ErrNamespaceNotFound
+	}
+
 	for {
 		if ctx.Err() != nil {
+			sg.metrics.recordNDAttempt(ctx, attempt, false)
 			return nil, ctx.Err()
 		}
 		attempt++
@@ -207,12 +217,13 @@ func (sg *ShrexGetter) GetSharesByNamespace(
 		nd, getErr := sg.ndClient.RequestND(reqCtx, root, id, peer)
 		cancel()
 		switch {
-		case getErr == nil:
+		case getErr == nil, errors.Is(getErr, share.ErrNamespaceNotFound):
 			setStatus(peers.ResultNoop)
 			sg.metrics.recordNDAttempt(ctx, attempt, true)
-			return nd, nil
+			return nd, getErr
 		case errors.Is(getErr, context.DeadlineExceeded),
 			errors.Is(getErr, context.Canceled):
+			setStatus(peers.ResultCooldownPeer)
 		case errors.Is(getErr, p2p.ErrNotFound):
 			getErr = share.ErrNotFound
 			setStatus(peers.ResultCooldownPeer)
