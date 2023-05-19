@@ -67,7 +67,9 @@ func (s *TestSuite) genesis() *header.ExtendedHeader {
 	gen.NextValidatorsHash = s.valSet.Hash()
 	gen.Height = 1
 	voteSet := types.NewVoteSet(gen.ChainID, gen.Height, 0, tmproto.PrecommitType, s.valSet)
-	commit, err := MakeCommit(RandBlockID(s.t), gen.Height, 0, voteSet, s.vals, time.Now())
+	blockID := RandBlockID(s.t)
+	blockID.Hash = gen.Hash()
+	commit, err := MakeCommit(blockID, gen.Height, 0, voteSet, s.vals, time.Now())
 	require.NoError(s.t, err)
 
 	eh := &header.ExtendedHeader{
@@ -215,7 +217,9 @@ func RandExtendedHeader(t *testing.T) *header.ExtendedHeader {
 	valSet, vals := RandValidatorSet(3, 1)
 	rh.ValidatorsHash = valSet.Hash()
 	voteSet := types.NewVoteSet(rh.ChainID, rh.Height, 0, tmproto.PrecommitType, valSet)
-	commit, err := MakeCommit(RandBlockID(t), rh.Height, 0, voteSet, vals, time.Now())
+	blockID := RandBlockID(t)
+	blockID.Hash = rh.Hash()
+	commit, err := MakeCommit(blockID, rh.Height, 0, voteSet, vals, time.Now())
 	require.NoError(t, err)
 
 	return &header.ExtendedHeader{
