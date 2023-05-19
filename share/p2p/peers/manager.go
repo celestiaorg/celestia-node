@@ -178,14 +178,16 @@ func (m *Manager) Start(startCtx context.Context) error {
 func (m *Manager) Stop(ctx context.Context) error {
 	m.cancel()
 
-	select {
-	case <-m.headerSubDone:
-		return nil
-	case <-m.disconnectedPeersDone:
-		return nil
-	case <-ctx.Done():
-		return ctx.Err()
+	for i := 0; i < 2; i++ {
+		select {
+		case <-m.headerSubDone:
+		case <-m.disconnectedPeersDone:
+		case <-ctx.Done():
+			return ctx.Err()
+		}
 	}
+
+	return nil
 }
 
 // Peer returns peer collected from shrex.Sub for given datahash if any available.
@@ -201,7 +203,7 @@ func (m *Manager) Peer(
 	// first, check if a peer is available for the given datahash
 	peerID, ok := p.tryGet()
 	if ok {
-		if m.removeUnreachable(p, peerID) {
+		if m.removeIfUnreachable(p, peerID) {
 			return m.Peer(ctx, datahash)
 		}
 		log.Debugw("get peer from shrexsub pool",
@@ -220,7 +222,7 @@ func (m *Manager) Peer(
 	start := time.Now()
 	select {
 	case peerID = <-p.next(ctx):
-		if m.removeUnreachable(p, peerID) {
+		if m.removeIfUnreachable(p, peerID) {
 			return m.Peer(ctx, datahash)
 		}
 		log.Debugw("got peer from shrexSub pool after wait",
@@ -432,8 +434,8 @@ func (m *Manager) validatedPool(hashStr string) *syncPool {
 	return p
 }
 
-// removeUnreachable removes peer from some pool if it is blacklisted or disconnected
-func (m *Manager) removeUnreachable(pool *syncPool, peerID peer.ID) bool {
+// removeIfUnreachable removes peer from some pool if it is blacklisted or disconnected
+func (m *Manager) removeIfUnreachable(pool *syncPool, peerID peer.ID) bool {
 	if m.isBlacklistedPeer(peerID) || !m.fullNodes.has(peerID) {
 		log.Debugw("removing outdated peer from pool", "peer", peerID.String())
 		pool.remove(peerID)
