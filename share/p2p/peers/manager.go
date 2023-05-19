@@ -279,6 +279,9 @@ func (m *Manager) doneFunc(datahash share.DataHash, peerID peer.ID, source peerS
 
 // subscribeHeader takes datahash from received header and validates corresponding peer pool.
 func (m *Manager) subscribeHeader(ctx context.Context, headerSub libhead.Subscription[*header.ExtendedHeader]) {
+	defer func() {
+		m.headerSubDone <- struct{}{}
+	}()
 	defer close(m.headerSubDone)
 	defer headerSub.Cancel()
 
@@ -303,7 +306,9 @@ func (m *Manager) subscribeHeader(ctx context.Context, headerSub libhead.Subscri
 // subscribeDisconnectedPeers subscribes to libp2p connectivity events and removes disconnected
 // peers from full nodes pool
 func (m *Manager) subscribeDisconnectedPeers(ctx context.Context, sub event.Subscription) {
-	defer close(m.disconnectedPeersDone)
+	defer func() {
+		m.disconnectedPeersDone <- struct{}{}
+	}()
 	defer sub.Close()
 	for {
 		select {
