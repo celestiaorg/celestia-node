@@ -282,7 +282,6 @@ func (m *Manager) subscribeHeader(ctx context.Context, headerSub libhead.Subscri
 	defer func() {
 		m.headerSubDone <- struct{}{}
 	}()
-	defer close(m.headerSubDone)
 	defer headerSub.Cancel()
 
 	for {
