@@ -87,6 +87,25 @@ func TestShrexGetter(t *testing.T) {
 		require.ErrorIs(t, err, share.ErrNotFound)
 	})
 
+	t.Run("ND_namespace_not_found", func(t *testing.T) {
+		ctx, cancel := context.WithTimeout(ctx, time.Second)
+		t.Cleanup(cancel)
+
+		// generate test data
+		eds, dah, nID := generateTestEDS(t)
+		require.NoError(t, edsStore.Put(ctx, dah.Hash(), eds))
+		peerManager.Validate(ctx, srvHost.ID(), shrexsub.Notification{
+			DataHash: dah.Hash(),
+			Height:   1,
+		})
+
+		// corrupt NID
+		nID[4]++
+
+		_, err := getter.GetSharesByNamespace(ctx, &dah, nID)
+		require.ErrorIs(t, err, share.ErrNamespaceNotFound)
+	})
+
 	t.Run("EDS_Available", func(t *testing.T) {
 		ctx, cancel := context.WithTimeout(ctx, time.Second)
 		t.Cleanup(cancel)
@@ -150,7 +169,8 @@ func generateTestEDS(t *testing.T) (*rsmt2d.ExtendedDataSquare, da.DataAvailabil
 	return eds, dah, randNID
 }
 
-func testManager(ctx context.Context, host host.Host, headerSub libhead.Subscriber[*header.ExtendedHeader],
+func testManager(
+	ctx context.Context, host host.Host, headerSub libhead.Subscriber[*header.ExtendedHeader],
 ) (*peers.Manager, error) {
 	shrexSub, err := shrexsub.NewPubSub(ctx, host, "test")
 	if err != nil {
@@ -177,7 +197,8 @@ func testManager(ctx context.Context, host host.Host, headerSub libhead.Subscrib
 	return manager, err
 }
 
-func newNDClientServer(ctx context.Context, t *testing.T, edsStore *eds.Store, srvHost, clHost host.Host,
+func newNDClientServer(
+	ctx context.Context, t *testing.T, edsStore *eds.Store, srvHost, clHost host.Host,
 ) (*shrexnd.Client, *shrexnd.Server) {
 	params := shrexnd.DefaultParameters()
 
@@ -196,7 +217,8 @@ func newNDClientServer(ctx context.Context, t *testing.T, edsStore *eds.Store, s
 	return client, server
 }
 
-func newEDSClientServer(ctx context.Context, t *testing.T, edsStore *eds.Store, srvHost, clHost host.Host,
+func newEDSClientServer(
+	ctx context.Context, t *testing.T, edsStore *eds.Store, srvHost, clHost host.Host,
 ) (*shrexeds.Client, *shrexeds.Server) {
 	params := shrexeds.DefaultParameters()
 
