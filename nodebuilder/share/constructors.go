@@ -83,12 +83,8 @@ func fullGetter(
 	var cascade []share.Getter
 	cascade = append(cascade, storeGetter)
 	if cfg.UseShareExchange {
-		cascade = append(cascade, shrexGetter)
+		cascade = append(cascade, getters.NewTeeGetter(shrexGetter, store))
 	}
-	cascade = append(cascade, ipldGetter)
-
-	return getters.NewTeeGetter(
-		getters.NewCascadeGetter(cascade),
-		store,
-	)
+	cascade = append(cascade, getters.NewTeeGetter(ipldGetter, store))
+	return getters.NewCascadeGetter(cascade)
 }
