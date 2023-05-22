@@ -18,6 +18,7 @@ import (
 	"go.uber.org/fx"
 
 	"github.com/celestiaorg/celestia-app/testutil/testnode"
+	apptypes "github.com/celestiaorg/celestia-app/x/blob/types"
 	libhead "github.com/celestiaorg/go-header"
 
 	"github.com/celestiaorg/celestia-node/core"
@@ -175,10 +176,22 @@ func (s *Swamp) setupGenesis(ctx context.Context) {
 	s.genesis = h
 }
 
+// DefaultTestConfig creates a test config with the access to the core node for the tp
+func (s *Swamp) DefaultTestConfig(tp node.Type) *nodebuilder.Config {
+	cfg := nodebuilder.DefaultConfig(tp)
+
+	ip, port, err := net.SplitHostPort(s.comps.App.GRPC.Address)
+	require.NoError(s.t, err)
+
+	cfg.Core.IP = ip
+	cfg.Core.GRPCPort = port
+	return cfg
+}
+
 // NewBridgeNode creates a new instance of a BridgeNode providing a default config
 // and a mockstore to the NewNodeWithStore method
 func (s *Swamp) NewBridgeNode(options ...fx.Option) *nodebuilder.Node {
-	cfg := nodebuilder.DefaultConfig(node.Bridge)
+	cfg := s.DefaultTestConfig(node.Bridge)
 	store := nodebuilder.MockStore(s.t, cfg)
 
 	return s.NewNodeWithStore(node.Bridge, store, options...)
@@ -187,7 +200,7 @@ func (s *Swamp) NewBridgeNode(options ...fx.Option) *nodebuilder.Node {
 // NewFullNode creates a new instance of a FullNode providing a default config
 // and a mockstore to the NewNodeWithStore method
 func (s *Swamp) NewFullNode(options ...fx.Option) *nodebuilder.Node {
-	cfg := nodebuilder.DefaultConfig(node.Full)
+	cfg := s.DefaultTestConfig(node.Full)
 	cfg.Header.TrustedPeers = []string{
 		"/ip4/1.2.3.4/tcp/12345/p2p/12D3KooWNaJ1y1Yio3fFJEXCZyd1Cat3jmrPdgkYCrHfKD3Ce21p",
 	}
@@ -199,7 +212,7 @@ func (s *Swamp) NewFullNode(options ...fx.Option) *nodebuilder.Node {
 // NewLightNode creates a new instance of a LightNode providing a default config
 // and a mockstore to the NewNodeWithStore method
 func (s *Swamp) NewLightNode(options ...fx.Option) *nodebuilder.Node {
-	cfg := nodebuilder.DefaultConfig(node.Light)
+	cfg := s.DefaultTestConfig(node.Light)
 	cfg.Header.TrustedPeers = []string{
 		"/ip4/1.2.3.4/tcp/12345/p2p/12D3KooWNaJ1y1Yio3fFJEXCZyd1Cat3jmrPdgkYCrHfKD3Ce21p",
 	}
@@ -224,11 +237,9 @@ func (s *Swamp) NewNodeWithStore(
 ) *nodebuilder.Node {
 	var n *nodebuilder.Node
 
-	ks, err := store.Keystore()
-	require.NoError(s.t, err)
-
+	signer := apptypes.NewKeyringSigner(s.ClientContext.Keyring, s.Accounts[0], s.ClientContext.ChainID)
 	options = append(options,
-		state.WithKeyringSigner(nodebuilder.TestKeyringSigner(s.t, ks.Keyring())),
+		state.WithKeyringSigner(signer),
 	)
 
 	switch t {
