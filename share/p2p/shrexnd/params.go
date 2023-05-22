@@ -8,7 +8,7 @@ import (
 	"github.com/celestiaorg/celestia-node/share/p2p"
 )
 
-const protocolString = "/shrex/nd/0.0.1"
+const protocolString = "/shrex/nd/v0.0.2"
 
 var log = logging.Logger("shrex/nd")
 

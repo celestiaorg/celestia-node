@@ -134,7 +134,7 @@ func TestService_GetSharesByNamespaceNotFound(t *testing.T) {
 	root.RowsRoots = nil
 
 	_, err := getter.GetSharesByNamespace(context.Background(), root, []byte{1, 1, 1, 1, 1, 1, 1, 1})
-	assert.ErrorIs(t, err, share.ErrNotFound)
+	assert.ErrorIs(t, err, share.ErrNamespaceNotFound)
 }
 
 func BenchmarkService_GetSharesByNamespace(b *testing.B) {

@@ -124,6 +124,9 @@ func cascadeGetters[V any](
 		if getErr == nil {
 			return val, nil
 		}
+		if errors.Is(share.ErrNamespaceNotFound, getErr) {
+			return zero, getErr
+		}
 
 		if !errors.Is(getErr, errOperationNotSupported) {
 			err = errors.Join(err, getErr)

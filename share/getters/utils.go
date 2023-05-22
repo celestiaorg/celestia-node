@@ -59,7 +59,7 @@ func collectSharesByNamespace(
 
 	rootCIDs := filterRootsByNamespace(root, nID)
 	if len(rootCIDs) == 0 {
-		return nil, share.ErrNotFound
+		return nil, share.ErrNamespaceNotFound
 	}
 
 	errGroup, ctx := errgroup.WithContext(ctx)
@@ -84,9 +84,9 @@ func collectSharesByNamespace(
 		return nil, err
 	}
 
-	// return ErrNotFound if no shares are found for namespaceID
+	// return ErrNamespaceNotFound if no shares are found for the namespace.ID
 	if len(rootCIDs) == 1 && len(shares[0].Shares) == 0 {
-		return nil, share.ErrNotFound
+		return nil, share.ErrNamespaceNotFound
 	}
 
 	return shares, nil

@@ -71,7 +71,7 @@ func (c *Client) RequestND(
 			return nil, context.DeadlineExceeded
 		}
 	}
-	if err != p2p.ErrNotFound {
+	if err != p2p.ErrNotFound && err != share.ErrNamespaceNotFound {
 		log.Warnw("client-nd: peer returned err", "err", err)
 	}
 	return nil, err
@@ -195,6 +195,8 @@ func (c *Client) statusToErr(ctx context.Context, code pb.StatusCode) error {
 	case pb.StatusCode_NOT_FOUND:
 		c.metrics.ObserveRequests(ctx, 1, p2p.StatusNotFound)
 		return p2p.ErrNotFound
+	case pb.StatusCode_NAMESPACE_NOT_FOUND:
+		return share.ErrNamespaceNotFound
 	case pb.StatusCode_INVALID:
 		log.Debug("client-nd: invalid request")
 		fallthrough
