@@ -17,8 +17,8 @@ func (com Commitment) String() string {
 	return string(com)
 }
 
-// Verify ensures that commitments are the same
-func (com Commitment) Verify(c Commitment) bool {
+// Equal ensures that commitments are the same
+func (com Commitment) Equal(c Commitment) bool {
 	return bytes.Equal(com, c)
 }
 
@@ -26,6 +26,25 @@ func (com Commitment) Verify(c Commitment) bool {
 type Proof []*nmt.Proof
 
 func (p Proof) Len() int { return len(p) }
+
+// equal is a temporary method that compares two proofs.
+// should be removed in BlobService V1.
+func (p Proof) equal(input Proof) error {
+	if p.Len() != input.Len() {
+		return ErrInvalidProof
+	}
+
+	for i, proof := range p {
+		pNodes := proof.Nodes()
+		inputNodes := input[i].Nodes()
+		for i, node := range pNodes {
+			if !bytes.Equal(node, inputNodes[i]) {
+				return ErrInvalidProof
+			}
+		}
+	}
+	return nil
+}
 
 // Blob represents any application-specific binary data that anyone can submit to Celestia.
 type Blob struct {

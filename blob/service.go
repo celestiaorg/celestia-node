@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"reflect"
+	"sync"
 
 	"github.com/cosmos/cosmos-sdk/types"
 	logging "github.com/ipfs/go-log/v2"
@@ -108,38 +108,29 @@ func (s *Service) GetAll(ctx context.Context, height uint64, nIDs ...namespace.I
 	}
 
 	var (
-		results   = make(map[string][]*Blob)
-		blobCh    = make(chan []*Blob)
-		resultErr = make([]error, 0, len(nIDs))
+		resultBlobs = make([][]*Blob, len(nIDs))
+		resultErr   = make([]error, len(nIDs))
 	)
 
+	wg := sync.WaitGroup{}
 	for i, nID := range nIDs {
+		wg.Add(1)
 		go func(i int, nID namespace.ID) {
-			log.Infow("requesting blobs", "height", height, "nID", nID.String())
+			defer wg.Done()
 			blobs, err := s.getBlobs(ctx, nID, header.DAH)
 			if err != nil {
 				resultErr[i] = fmt.Errorf("could not get the blob for the nID: %s: %s", nID.String(), err)
+				return
 			}
-			blobCh <- blobs
+			resultBlobs[i] = blobs
 		}(i, nID)
 	}
-
-	for range nIDs {
-		select {
-		case <-ctx.Done():
-			return nil, ctx.Err()
-		case b := <-blobCh:
-			if len(b) == 0 {
-				continue
-			}
-			results[string(b[0].NamespaceID())] = b
-		}
-	}
+	wg.Wait()
 
 	blobs := make([]*Blob, 0)
-	for _, nid := range nIDs {
-		if result, ok := results[string(nid)]; ok {
-			blobs = append(blobs, result...)
+	for _, resBlobs := range resultBlobs {
+		if len(resBlobs) > 0 {
+			blobs = append(blobs, resBlobs...)
 		}
 	}
 
@@ -177,11 +168,7 @@ func (s *Service) Included(
 	default:
 		return false, err
 	}
-
-	if !reflect.DeepEqual(proof, resProof) {
-		err = ErrInvalidProof
-	}
-	return true, err
+	return true, resProof.equal(*proof)
 }
 
 // getByCommitment retrieves the DAH row by row, fetching shares and constructing blobs in order to

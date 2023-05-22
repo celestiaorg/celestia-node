@@ -17,6 +17,10 @@ func SharesToBlobs(rawShares []share.Share) ([]*Blob, error) {
 	if len(rawShares) == 0 {
 		return nil, ErrBlobNotFound
 	}
+	rawShares, err := removePadding(rawShares)
+	if err != nil {
+		return nil, err
+	}
 
 	shareSequences, err := shares.ParseShares(rawShares)
 	if err != nil {
@@ -88,8 +92,29 @@ func constructAndVerifyBlob(sh []share.Share, commitment Commitment) (*Blob, boo
 		return nil, false, err
 	}
 
-	if blob[0].Commitment().Verify(commitment) {
-		return blob[0], true, nil
+	equal := blob[0].Commitment().Equal(commitment)
+	return blob[0], equal, nil
+}
+
+// removePadding ensures that namespace padding shares will not be included in the blob creation
+// as they are not the part of the blob
+// TODO(@vgonkivs): remove after https://github.com/celestiaorg/celestia-node/pull/1999 will be
+// merged
+func removePadding(rawShares [][]byte) ([][]byte, error) {
+	newShares := make([][]byte, 0)
+	for _, sh := range rawShares {
+		bShare, err := shares.NewShare(sh)
+		if err != nil {
+			return nil, err
+		}
+
+		isPadding, err := bShare.IsPadding()
+		if err != nil {
+			return nil, err
+		}
+		if !isPadding {
+			newShares = append(newShares, sh)
+		}
 	}
-	return blob[0], false, nil
+	return newShares, nil
 }
