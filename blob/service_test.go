@@ -32,8 +32,8 @@ func TestBlobService_Get(t *testing.T) {
 		blobSize2 = 20
 		blobSize3 = 12
 	)
-	blobs0 := generateBlob(t, []int{blobSize0, blobSize1}, false)
-	blobs1 := generateBlob(t, []int{blobSize2, blobSize3}, true)
+	blobs0 := GenerateBlobs(t, []int{blobSize0, blobSize1}, false)
+	blobs1 := GenerateBlobs(t, []int{blobSize2, blobSize3}, true)
 	service := createService(ctx, t, append(blobs0, blobs1...))
 	var test = []struct {
 		name           string
@@ -113,7 +113,7 @@ func TestBlobService_Get(t *testing.T) {
 		{
 			name: "get invalid blob",
 			doFn: func() (interface{}, error) {
-				blob := generateBlob(t, []int{10}, false)
+				blob := GenerateBlobs(t, []int{10}, false)
 				b, err := service.Get(ctx, 1, blob[0].NamespaceID(), blob[0].Commitment())
 				return []*Blob{b}, err
 			},
@@ -192,7 +192,7 @@ func TestBlobService_Get(t *testing.T) {
 		{
 			name: "not included",
 			doFn: func() (interface{}, error) {
-				blob := generateBlob(t, []int{10}, false)
+				blob := GenerateBlobs(t, []int{10}, false)
 				proof, err := service.GetProof(ctx, 1, blobs0[1].NamespaceID(), blobs0[1].Commitment())
 				require.NoError(t, err)
 				return service.Included(ctx, 1, blob[0].NamespaceID(), proof, blob[0].Commitment())
@@ -249,7 +249,7 @@ func TestService_GetSingleBlobWithoutPadding(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	t.Cleanup(cancel)
 
-	blobs := generateBlob(t, []int{9, 5}, true)
+	blobs := GenerateBlobs(t, []int{9, 5}, true)
 
 	padding0 := shares.NamespacePaddingShare(blobs[0].NamespaceID())
 	padding1 := shares.NamespacePaddingShare(blobs[1].NamespaceID())
@@ -287,7 +287,7 @@ func TestService_GetAllWithoutPadding(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute*5)
 	t.Cleanup(cancel)
 
-	blobs := generateBlob(t, []int{9, 5}, true)
+	blobs := GenerateBlobs(t, []int{9, 5}, true)
 
 	padding0 := shares.NamespacePaddingShare(blobs[0].NamespaceID())
 	padding1 := shares.NamespacePaddingShare(blobs[1].NamespaceID())

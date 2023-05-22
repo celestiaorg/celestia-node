@@ -200,7 +200,6 @@ func (s *Service) getByCommitment(
 		}
 		return nil, nil, err
 	}
-
 	for _, row := range namespacedShares {
 		if len(row.Shares) == 0 {
 			break
