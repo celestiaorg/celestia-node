@@ -24,7 +24,7 @@ import (
 )
 
 func TestBlobService_Get(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Minute*5)
 	t.Cleanup(cancel)
 	var (
 		blobSize0 = 18
@@ -91,6 +91,9 @@ func TestBlobService_Get(t *testing.T) {
 				assert.NotEmpty(t, blobs)
 
 				assert.Len(t, blobs, 2)
+				// check the order
+				require.True(t, bytes.Equal(blobs[0].NamespaceID(), blobs0[0].NamespaceID()))
+				require.True(t, bytes.Equal(blobs[1].NamespaceID(), blobs0[1].NamespaceID()))
 			},
 		},
 		{
@@ -281,9 +284,6 @@ func TestService_GetSingleBlobWithoutPadding(t *testing.T) {
 }
 
 func TestService_GetAllWithoutPadding(t *testing.T) {
-	// TODO(@vgonkivs): remove skip once ParseShares will skip padding shares
-	// https://github.com/celestiaorg/celestia-app/issues/1649
-	t.Skip()
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute*5)
 	t.Cleanup(cancel)
 
