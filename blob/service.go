@@ -1,10 +1,10 @@
 package blob
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"fmt"
+	"sync"
 
 	"github.com/cosmos/cosmos-sdk/types"
 	logging "github.com/ipfs/go-log/v2"
@@ -20,6 +20,7 @@ import (
 
 var (
 	ErrBlobNotFound = errors.New("blob: not found")
+	ErrInvalidProof = errors.New("blob: invalid proof")
 
 	log = logging.Logger("blob")
 )
@@ -107,35 +108,29 @@ func (s *Service) GetAll(ctx context.Context, height uint64, nIDs ...namespace.I
 	}
 
 	var (
-		blobs     = make([]*Blob, 0)
-		blobCh    = make(chan []*Blob)
-		resultErr = make([]error, 0, len(nIDs))
+		resultBlobs = make([][]*Blob, len(nIDs))
+		resultErr   = make([]error, len(nIDs))
 	)
 
+	wg := sync.WaitGroup{}
 	for i, nID := range nIDs {
-		i := i
-		nID := nID
-		go func() {
-			log.Infow("requesting blobs", "height", height, "nID", nID.String())
+		wg.Add(1)
+		go func(i int, nID namespace.ID) {
+			defer wg.Done()
 			blobs, err := s.getBlobs(ctx, nID, header.DAH)
 			if err != nil {
-				resultErr[i] = fmt.Errorf("could not get the blob for the nID:%s. %s", nID.String(), err)
-				blobCh <- nil
+				resultErr[i] = fmt.Errorf("getting blobs for nID(%s): %s", nID.String(), err)
 				return
 			}
-			blobCh <- blobs
-		}()
+			resultBlobs[i] = blobs
+		}(i, nID)
 	}
+	wg.Wait()
 
-	for range nIDs {
-		select {
-		case <-ctx.Done():
-			return nil, ctx.Err()
-		case b := <-blobCh:
-			if b == nil {
-				continue
-			}
-			blobs = append(blobs, b...)
+	blobs := make([]*Blob, 0)
+	for _, resBlobs := range resultBlobs {
+		if len(resBlobs) > 0 {
+			blobs = append(blobs, resBlobs...)
 		}
 	}
 
@@ -153,7 +148,7 @@ func (s *Service) Included(
 	ctx context.Context,
 	height uint64,
 	nID namespace.ID,
-	_ *Proof,
+	proof *Proof,
 	com Commitment,
 ) (bool, error) {
 	// In the current implementation, LNs will have to download all shares to recompute the commitment.
@@ -165,11 +160,15 @@ func (s *Service) Included(
 	// but we have to guarantee that all our stored subtree roots will be on the same height(e.g. one
 	// level above shares).
 	// TODO(@vgonkivs): rework the implementation to perform all verification without network requests.
-	_, _, err := s.getByCommitment(ctx, height, nID, com)
-	if err != nil {
+	_, resProof, err := s.getByCommitment(ctx, height, nID, com)
+	switch err {
+	case nil:
+	case ErrBlobNotFound:
+		return false, nil
+	default:
 		return false, err
 	}
-	return true, nil
+	return true, resProof.equal(*proof)
 }
 
 // getByCommitment retrieves the DAH row by row, fetching shares and constructing blobs in order to
@@ -198,8 +197,12 @@ func (s *Service) getByCommitment(
 
 	namespacedShares, err := s.shareGetter.GetSharesByNamespace(ctx, header.DAH, nID)
 	if err != nil {
+		if errors.Is(err, share.ErrNotFound) {
+			err = ErrBlobNotFound
+		}
 		return nil, nil, err
 	}
+
 	for _, row := range namespacedShares {
 		if len(row.Shares) == 0 {
 			break
@@ -245,21 +248,38 @@ func (s *Service) getByCommitment(
 			continue
 		}
 
-		// reconstruct the Blob.
-		blob, err := sharesToBlobs(rawShares[:amount])
+		blob, same, err := constructAndVerifyBlob(rawShares[:amount], commitment)
 		if err != nil {
 			return nil, nil, err
 		}
-
-		// compare commitments.
-		if bytes.Equal(blob[0].Commitment(), commitment) {
-			return blob[0], &proofs, nil
+		if same {
+			return blob, &proofs, nil
 		}
 
 		// drop info of the checked blob
 		rawShares = rawShares[amount:]
+		if len(rawShares) > 0 {
+			// save proof for the last row in case we have rawShares
+			proofs = proofs[len(proofs)-1:]
+		} else {
+			// otherwise clear proofs
+			proofs = nil
+		}
 		blobShare = nil
 	}
+
+	if len(rawShares) == 0 {
+		return nil, nil, ErrBlobNotFound
+	}
+
+	blob, same, err := constructAndVerifyBlob(rawShares, commitment)
+	if err != nil {
+		return nil, nil, err
+	}
+	if same {
+		return blob, &proofs, nil
+	}
+
 	return nil, nil, ErrBlobNotFound
 }
 
@@ -270,5 +290,5 @@ func (s *Service) getBlobs(ctx context.Context, nID namespace.ID, root *share.Ro
 	if err != nil {
 		return nil, err
 	}
-	return sharesToBlobs(namespacedShares.Flatten())
+	return SharesToBlobs(namespacedShares.Flatten())
 }
