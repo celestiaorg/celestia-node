@@ -128,5 +128,6 @@ func (sg *StoreGetter) GetSharesByNamespace(
 	if err != nil {
 		return nil, fmt.Errorf("getter/store: failed to retrieve shares by namespace: %w", err)
 	}
+
 	return shares, nil
 }
