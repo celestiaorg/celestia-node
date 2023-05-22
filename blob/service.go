@@ -119,7 +119,7 @@ func (s *Service) GetAll(ctx context.Context, height uint64, nIDs ...namespace.I
 			defer wg.Done()
 			blobs, err := s.getBlobs(ctx, nID, header.DAH)
 			if err != nil {
-				resultErr[i] = fmt.Errorf("could not get the blob for the nID: %s: %s", nID.String(), err)
+				resultErr[i] = fmt.Errorf("getting blobs for nID(%s): %s", nID.String(), err)
 				return
 			}
 			resultBlobs[i] = blobs
@@ -262,7 +262,7 @@ func (s *Service) getByCommitment(
 			// save proof for the last row in case we have rawShares
 			proofs = proofs[len(proofs)-1:]
 		} else {
-			// otherwise slash proofs
+			// otherwise clear proofs
 			proofs = nil
 		}
 		blobShare = nil

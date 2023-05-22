@@ -48,13 +48,13 @@ func SharesToBlobs(rawShares []share.Share) ([]*Blob, error) {
 
 // BlobsToShares accepts blobs and convert them to the Shares.
 func BlobsToShares(blobs ...*Blob) ([]share.Share, error) {
-	b := make([]types.Blob, 0)
-	for _, blob := range blobs {
-		b = append(b, types.Blob{
+	b := make([]types.Blob, len(blobs))
+	for i, blob := range blobs {
+		b[i] = types.Blob{
 			NamespaceID:  blob.NamespaceID(),
 			Data:         blob.Data(),
 			ShareVersion: uint8(blob.Version()),
-		})
+		}
 	}
 
 	sort.Slice(b, func(i, j int) bool {
@@ -85,7 +85,7 @@ func estimateGas(blobs ...*Blob) uint64 {
 	return uint64(variableGasAmount + pfbGasFixedCost)
 }
 
-// constructAndVerifyBlob reconstruct the Blob from the passed shares and compares commitments.
+// constructAndVerifyBlob reconstruct a Blob from the passed shares and compares commitments.
 func constructAndVerifyBlob(sh []share.Share, commitment Commitment) (*Blob, bool, error) {
 	blob, err := SharesToBlobs(sh)
 	if err != nil {
