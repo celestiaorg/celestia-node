@@ -42,6 +42,15 @@ func (p Proof) equal(input Proof) error {
 				return ErrInvalidProof
 			}
 		}
+
+		if proof.Start() != input[i].Start() || proof.End() != input[i].End() {
+			return ErrInvalidProof
+		}
+
+		if !bytes.Equal(proof.LeafHash(), input[i].LeafHash()) {
+			return ErrInvalidProof
+		}
+
 	}
 	return nil
 }
