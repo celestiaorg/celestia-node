@@ -114,9 +114,9 @@ func (c *Client) doRequest(
 	}
 	_, err = serde.Read(stream, resp)
 	if err != nil {
-		// server closes the stream after returning a non-successful status
+		// server closes the stream here if we are rate limited
 		if errors.Is(err, io.EOF) {
-			c.metrics.ObserveRequests(ctx, 1, p2p.StatusNotFound)
+			c.metrics.ObserveRequests(ctx, 1, p2p.StatusRateLimited)
 			return nil, p2p.ErrNotFound
 		}
 		stream.Reset() //nolint:errcheck

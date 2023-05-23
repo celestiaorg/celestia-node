@@ -15,10 +15,10 @@ import (
 
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/availability/cache"
-	disc "github.com/celestiaorg/celestia-node/share/availability/discovery"
 	"github.com/celestiaorg/celestia-node/share/availability/light"
 	"github.com/celestiaorg/celestia-node/share/eds"
 	"github.com/celestiaorg/celestia-node/share/getters"
+	disc "github.com/celestiaorg/celestia-node/share/p2p/discovery"
 )
 
 func newDiscovery(cfg Config) func(routing.ContentRouting, host.Host) *disc.Discovery {
@@ -85,15 +85,11 @@ func fullGetter(
 	var cascade []share.Getter
 	cascade = append(cascade, storeGetter)
 	if cfg.UseShareExchange {
-		cascade = append(cascade, shrexGetter)
+		cascade = append(cascade, getters.NewTeeGetter(shrexGetter, store))
 	}
 	if cfg.UseIPLD {
 		cascade = append(cascade, ipldGetter)
 	}
-	cascade = append(cascade, ipldGetter)
-
-	return getters.NewTeeGetter(
-		getters.NewCascadeGetter(cascade),
-		store,
-	)
+	cascade = append(cascade, getters.NewTeeGetter(ipldGetter, store))
+	return getters.NewCascadeGetter(cascade)
 }
