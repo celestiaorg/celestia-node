@@ -3,9 +3,10 @@ package blob
 import (
 	"testing"
 
-	apptypes "github.com/celestiaorg/celestia-app/x/blob/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	apptypes "github.com/celestiaorg/celestia-app/x/blob/types"
 )
 
 func TestBlob(t *testing.T) {

@@ -69,7 +69,7 @@ func TestBlobModuleIncluded(t *testing.T) {
 	require.NoError(t, err)
 
 	lightCfg := sw.DefaultTestConfig(node.Light)
-	lightCfg.Header.TrustedPeers = append(fullCfg.Header.TrustedPeers, addrsFull[0].String())
+	lightCfg.Header.TrustedPeers = append(lightCfg.Header.TrustedPeers, addrsFull[0].String())
 	lightNode := sw.NewNodeWithConfig(node.Light, lightCfg)
 	require.NoError(t, lightNode.Start(ctx))
 
@@ -112,7 +112,7 @@ func TestBlobModuleGetAll(t *testing.T) {
 	require.NoError(t, err)
 
 	lightCfg := sw.DefaultTestConfig(node.Light)
-	lightCfg.Header.TrustedPeers = append(fullCfg.Header.TrustedPeers, addrsFull[0].String())
+	lightCfg.Header.TrustedPeers = append(lightCfg.Header.TrustedPeers, addrsFull[0].String())
 	lightNode := sw.NewNodeWithConfig(node.Light, lightCfg)
 	require.NoError(t, lightNode.Start(ctx))
 
@@ -154,7 +154,7 @@ func TestBlobModuleNotFound(t *testing.T) {
 	require.NoError(t, err)
 
 	lightCfg := sw.DefaultTestConfig(node.Light)
-	lightCfg.Header.TrustedPeers = append(fullCfg.Header.TrustedPeers, addrsFull[0].String())
+	lightCfg.Header.TrustedPeers = append(lightCfg.Header.TrustedPeers, addrsFull[0].String())
 	lightNode := sw.NewNodeWithConfig(node.Light, lightCfg)
 	require.NoError(t, lightNode.Start(ctx))
 
