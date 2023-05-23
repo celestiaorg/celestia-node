@@ -330,9 +330,10 @@ func ExtendedHeaderFromEDS(t *testing.T, height uint64, eds *rsmt2d.ExtendedData
 	gen.ValidatorsHash = valSet.Hash()
 	gen.NextValidatorsHash = valSet.Hash()
 	gen.Height = int64(height)
-
+	blockID := RandBlockID(t)
+	blockID.Hash = gen.Hash()
 	voteSet := types.NewVoteSet(gen.ChainID, gen.Height, 0, tmproto.PrecommitType, valSet)
-	commit, err := MakeCommit(RandBlockID(t), gen.Height, 0, voteSet, vals, time.Now())
+	commit, err := MakeCommit(blockID, gen.Height, 0, voteSet, vals, time.Now())
 	require.NoError(t, err)
 
 	eh := &header.ExtendedHeader{

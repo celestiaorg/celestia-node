@@ -24,7 +24,7 @@ import (
 )
 
 func TestBlobService_Get(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Minute*5)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	t.Cleanup(cancel)
 	var (
 		blobSize0 = 18
@@ -284,7 +284,7 @@ func TestService_GetSingleBlobWithoutPadding(t *testing.T) {
 }
 
 func TestService_GetAllWithoutPadding(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Minute*5)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	t.Cleanup(cancel)
 
 	blobs := GenerateBlobs(t, []int{9, 5}, true)
