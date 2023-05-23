@@ -130,6 +130,10 @@ func (sg *ShrexGetter) GetEDS(ctx context.Context, root *share.Root) (*rsmt2d.Ex
 	for {
 		if ctx.Err() != nil {
 			sg.metrics.recordEDSAttempt(ctx, attempt, false)
+			if err != nil {
+				// return aggregated error
+				return nil, err
+			}
 			return nil, ctx.Err()
 		}
 		attempt++
@@ -197,6 +201,10 @@ func (sg *ShrexGetter) GetSharesByNamespace(
 	for {
 		if ctx.Err() != nil {
 			sg.metrics.recordNDAttempt(ctx, attempt, false)
+			if err != nil {
+				// return aggregated error
+				return nil, err
+			}
 			return nil, ctx.Err()
 		}
 		attempt++
