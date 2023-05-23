@@ -2,7 +2,6 @@ package tests
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"testing"
 	"time"
@@ -168,10 +167,7 @@ func newFullNodeWithNDHandler(
 }
 
 func startFullNodes(ctx context.Context, fulls ...*nodebuilder.Node) error {
-	for i, full := range fulls {
-		if full == nil {
-			panic("asdads" + fmt.Sprintf("%v", i))
-		}
+	for _, full := range fulls {
 		err := full.Start(ctx)
 		if err != nil {
 			return err

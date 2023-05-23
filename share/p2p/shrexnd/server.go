@@ -55,9 +55,11 @@ func NewServer(params *Parameters, host host.Host, store *eds.Store, getter shar
 
 	ctx, cancel := context.WithCancel(context.Background())
 	srv.cancel = cancel
-	srv.handler = func(s network.Stream) {
+
+	handler := func(s network.Stream) {
 		srv.handleNamespacedData(ctx, s)
 	}
+	srv.handler = srv.middleware.RateLimitHandler(handler)
 
 	return srv, nil
 }
