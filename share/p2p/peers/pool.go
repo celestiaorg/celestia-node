@@ -139,6 +139,27 @@ func (p *pool) remove(peers ...peer.ID) {
 	p.checkHasPeers()
 }
 
+func (p *pool) has(peer peer.ID) bool {
+	p.m.RLock()
+	defer p.m.RUnlock()
+
+	status, ok := p.statuses[peer]
+	return ok && status != removed
+}
+
+func (p *pool) peers() []peer.ID {
+	p.m.RLock()
+	defer p.m.RUnlock()
+
+	peers := make([]peer.ID, 0, len(p.peersList))
+	for peer, status := range p.statuses {
+		if status != removed {
+			peers = append(peers, peer)
+		}
+	}
+	return peers
+}
+
 // cleanup will reduce memory footprint of pool.
 func (p *pool) cleanup() {
 	newList := make([]peer.ID, 0, p.activeCount)
