@@ -103,7 +103,7 @@ func GetLeaves(ctx context.Context,
 
 	// this buffer ensures writes to 'jobs' are never blocking (bin-tree-feat)
 	jobs := make(chan *job, (maxShares+1)/2) // +1 for the case where 'maxShares' is 1
-	jobs <- &job{id: root, ctx: ctx}
+	jobs <- &job{cid: root, ctx: ctx}
 	// total is an amount of routines spawned and total amount of nodes we process (bin-tree-feat)
 	// so we can specify exact amount of loops we do, and wait for this amount
 	// of routines to finish processing
@@ -123,11 +123,11 @@ func GetLeaves(ctx context.Context,
 				defer wg.Done()
 
 				span.SetAttributes(
-					attribute.String("cid", j.id.String()),
+					attribute.String("cid", j.cid.String()),
 					attribute.Int("pos", j.sharePos),
 				)
 
-				nd, err := GetNode(ctx, bGetter, j.id)
+				nd, err := GetNode(ctx, bGetter, j.cid)
 				if err != nil {
 					// we don't really care about errors here
 					// just fetch as much as possible
@@ -149,7 +149,7 @@ func GetLeaves(ctx context.Context,
 					// send those to be processed
 					select {
 					case jobs <- &job{
-						id: lnk.Cid,
+						cid: lnk.Cid,
 						// calc position for children nodes (bin-tree-feat),
 						// s.t. 'if' above knows where to put a share
 						sharePos: j.sharePos*2 + i,
@@ -213,7 +213,7 @@ func GetProof(
 // chanGroup implements an atomic wait group, closing a jobs chan
 // when fully done.
 type chanGroup struct {
-	jobs    chan *job
+	jobs    chan job
 	counter int64
 }
 
@@ -233,8 +233,29 @@ func (w *chanGroup) done() {
 // job represents an encountered node to investigate during the `GetLeaves`
 // and `CollectLeavesByNamespace` routines.
 type job struct {
-	id       cid.Cid
+	// we pass the context to job so that spans are tracked in a tree
+	// structure
+	ctx context.Context
+	// cid of the node that will be handled
+	cid cid.Cid
+	// sharePos represents potential share position in share slice
 	sharePos int
-	depth    int
-	ctx      context.Context
+	// depth represents the number of edges present in path from the root node of a tree to that node
+	depth int
+	// isAbsent indicates if target namespaceID is not included, only collect absence proofs
+	isAbsent bool
+}
+
+func (j job) next(cid cid.Cid, isRight, isAbsent bool) job {
+	var i int
+	if isRight {
+		i++
+	}
+	return job{
+		ctx:      j.ctx,
+		cid:      cid,
+		sharePos: j.sharePos*2 + i,
+		depth:    j.depth + 1,
+		isAbsent: isAbsent,
+	}
 }

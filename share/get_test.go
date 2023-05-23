@@ -1,8 +1,11 @@
 package share
 
 import (
+	"bytes"
 	"context"
+	"crypto/rand"
 	mrand "math/rand"
+	"sort"
 	"strconv"
 	"testing"
 	"time"
@@ -19,6 +22,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/celestiaorg/celestia-app/pkg/wrapper"
+	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/nmt/namespace"
 	"github.com/celestiaorg/rsmt2d"
 
@@ -191,11 +195,7 @@ func TestCollectLeavesByNamespace_IncompleteData(t *testing.T) {
 	// set all shares to the same namespace id
 	nid := shares[0][:NamespaceSize]
 
-	for i, nspace := range shares {
-		if i == len(shares) {
-			break
-		}
-
+	for _, nspace := range shares {
 		copy(nspace[:NamespaceSize], nid)
 	}
 
@@ -234,48 +234,42 @@ func TestCollectLeavesByNamespace_AbsentNamespaceId(t *testing.T) {
 	defer cancel()
 	bServ := mdutils.Bserv()
 
-	shares := RandShares(t, 16)
+	shares := RandShares(t, 1024)
 
-	minNid := make([]byte, NamespaceSize)
-	midNid := make([]byte, NamespaceSize)
-	maxNid := make([]byte, NamespaceSize)
+	// set all shares to the same namespace id
+	nids, err := randomNids(5)
+	require.NoError(t, err)
+	minNid := nids[0]
+	minIncluded := nids[1]
+	midNid := nids[2]
+	maxIncluded := nids[3]
+	maxNid := nids[4]
 
-	numberOfShares := len(shares)
-
-	copy(minNid, shares[0][:NamespaceSize])
-	copy(maxNid, shares[numberOfShares-1][:NamespaceSize])
-	copy(midNid, shares[numberOfShares/2][:NamespaceSize])
-
-	// create min nid missing data by replacing first namespace id with second
-	minNidMissingData := make([]Share, len(shares))
-	copy(minNidMissingData, shares)
-	copy(minNidMissingData[0][:NamespaceSize], shares[1][:NamespaceSize])
-
-	// create max nid missing data by replacing last namespace id with second last
-	maxNidMissingData := make([]Share, len(shares))
-	copy(maxNidMissingData, shares)
-	copy(maxNidMissingData[numberOfShares-1][:NamespaceSize], shares[numberOfShares-2][:NamespaceSize])
-
-	// create mid nid missing data by replacing middle namespace id with the one after
-	midNidMissingData := make([]Share, len(shares))
-	copy(midNidMissingData, shares)
-	copy(midNidMissingData[numberOfShares/2][:NamespaceSize], shares[(numberOfShares/2)+1][:NamespaceSize])
+	secondNamespaceFrom := mrand.Intn(len(shares)-2) + 1
+	for i, nspace := range shares {
+		if i < secondNamespaceFrom {
+			copy(nspace[:NamespaceSize], minIncluded)
+			continue
+		}
+		copy(nspace[:NamespaceSize], maxIncluded)
+	}
 
 	var tests = []struct {
 		name       string
 		data       []Share
 		missingNid []byte
+		isAbsence  bool
 	}{
-		{name: "Namespace id less than the minimum namespace in data", data: minNidMissingData, missingNid: minNid},
-		{name: "Namespace id greater than the maximum namespace in data", data: maxNidMissingData, missingNid: maxNid},
-		{name: "Namespace id in range but still missing", data: midNidMissingData, missingNid: midNid},
+		{name: "Namespace id less than the minimum namespace in data", data: shares, missingNid: minNid},
+		{name: "Namespace id greater than the maximum namespace in data", data: shares, missingNid: maxNid},
+		{name: "Namespace id in range but still missing", data: shares, missingNid: midNid, isAbsence: true},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			eds, err := AddShares(ctx, shares, bServ)
 			require.NoError(t, err)
-			assertNoRowContainsNID(t, bServ, eds, tt.missingNid)
+			assertNoRowContainsNID(t, bServ, eds, tt.missingNid, tt.isAbsence)
 		})
 	}
 }
@@ -341,7 +335,7 @@ func TestGetSharesWithProofsByNamespace(t *testing.T) {
 			}
 
 			expected := tt.rawData[from]
-			nID := expected[:NamespaceSize]
+			nID := namespace.ID(expected[:NamespaceSize])
 
 			// change rawData to contain several shares with same nID
 			for i := from; i <= to; i++ {
@@ -356,6 +350,10 @@ func TestGetSharesWithProofsByNamespace(t *testing.T) {
 			for _, row := range eds.RowRoots() {
 				rcid := ipld.MustCidFromNamespacedSha256(row)
 				rowShares, proof, err := GetSharesByNamespace(ctx, bServ, rcid, nID, len(eds.RowRoots()))
+				if nID.Less(nmt.MinNamespace(row, nID.Size())) || !nID.LessOrEqual(nmt.MaxNamespace(row, nID.Size())) {
+					require.ErrorIs(t, err, ipld.ErrNamespaceOutsideRange)
+					continue
+				}
 				require.NoError(t, err)
 				if len(rowShares) > 0 {
 					require.NotNil(t, proof)
@@ -436,6 +434,7 @@ func assertNoRowContainsNID(
 	bServ blockservice.BlockService,
 	eds *rsmt2d.ExtendedDataSquare,
 	nID namespace.ID,
+	isAbsent bool,
 ) {
 	rowRootCount := len(eds.RowRoots())
 	// get all row root cids
@@ -445,11 +444,46 @@ func assertNoRowContainsNID(
 	}
 
 	// for each row root cid check if the minNID exists
-	for _, rowCID := range rowRootCIDs {
+	var abscentCount, foundAbsenceRows int
+	for _, rowRoot := range eds.RowRoots() {
+		if !nID.Less(nmt.MinNamespace(rowRoot, nID.Size())) && nID.LessOrEqual(nmt.MaxNamespace(rowRoot, nID.Size())) {
+			abscentCount++
+		}
 		data := ipld.NewNamespaceData(rowRootCount, nID, ipld.WithProofs())
-		err := data.CollectLeavesByNamespace(context.Background(), bServ, rowCID)
-		leaves := data.Leaves()
-		assert.Nil(t, leaves)
-		assert.Nil(t, err)
+		rootCID := ipld.MustCidFromNamespacedSha256(rowRoot)
+		err := data.CollectLeavesByNamespace(context.Background(), bServ, rootCID)
+		if !nID.Less(nmt.MinNamespace(rowRoot, nID.Size())) && nID.LessOrEqual(nmt.MaxNamespace(rowRoot, nID.Size())) {
+			require.NoError(t, err)
+		}
+		if err != nil {
+			require.ErrorIs(t, err, ipld.ErrNamespaceOutsideRange)
+			continue
+		}
+
+		// if no error returned, check absence proof
+		foundAbsenceRows++
+		proof := data.Proof()
+		verified := proof.VerifyNamespace(sha256.New(), nID, nil, rowRoot)
+		require.True(t, verified)
 	}
+
+	if isAbsent {
+		require.Equal(t, foundAbsenceRows, abscentCount)
+		// target could fit between the rows resulting in no absence rows
+		require.LessOrEqual(t, abscentCount, 1)
+	}
+}
+
+func randomNids(total int) ([]namespace.ID, error) {
+	namespaces := make([]namespace.ID, total)
+	for i := range namespaces {
+		nid := make([]byte, NamespaceSize)
+		_, err := rand.Read(nid)
+		if err != nil {
+			return nil, err
+		}
+		namespaces[i] = nid
+	}
+	sort.Slice(namespaces, func(i, j int) bool { return bytes.Compare(namespaces[i], namespaces[j]) < 0 })
+	return namespaces, nil
 }
