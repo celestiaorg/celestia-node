@@ -54,7 +54,7 @@ func (s *Service) GetVerifiedRangeByHeight(
 func (s *Service) GetByHeight(ctx context.Context, height uint64) (*header.ExtendedHeader, error) {
 	head, err := s.syncer.Head(ctx)
 	switch {
-	case uint64(head.Height()) == height, err != nil:
+	case err != nil, uint64(head.Height()) == height:
 		return head, err
 	case uint64(head.Height()) < height:
 		return nil, fmt.Errorf("header: given height is from the future: "+
@@ -65,7 +65,7 @@ func (s *Service) GetByHeight(ctx context.Context, height uint64) (*header.Exten
 	// implemented
 	head, err = s.store.Head(ctx)
 	switch {
-	case uint64(head.Height()) == height, err != nil:
+	case err != nil, uint64(head.Height()) == height:
 		return head, err
 	// `+1` allows for one header network lag, e.g. user request header that is milliseconds away
 	case uint64(head.Height())+1 < height:
