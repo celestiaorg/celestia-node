@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/rand"
+	"errors"
 	mrand "math/rand"
 	"sort"
 	"strconv"
@@ -172,6 +173,9 @@ func TestGetSharesByNamespace(t *testing.T) {
 			for _, row := range eds.RowRoots() {
 				rcid := ipld.MustCidFromNamespacedSha256(row)
 				rowShares, _, err := GetSharesByNamespace(ctx, bServ, rcid, nID, len(eds.RowRoots()))
+				if errors.Is(err, ipld.ErrNamespaceOutsideRange) {
+					continue
+				}
 				require.NoError(t, err)
 
 				shares = append(shares, rowShares...)
@@ -300,6 +304,9 @@ func TestCollectLeavesByNamespace_MultipleRowsContainingSameNamespaceId(t *testi
 		rcid := ipld.MustCidFromNamespacedSha256(row)
 		data := ipld.NewNamespaceData(len(shares), nid, ipld.WithLeaves())
 		err := data.CollectLeavesByNamespace(ctx, bServ, rcid)
+		if errors.Is(err, ipld.ErrNamespaceOutsideRange) {
+			continue
+		}
 		assert.Nil(t, err)
 		leaves := data.Leaves()
 		for _, node := range leaves {
@@ -446,30 +453,31 @@ func assertNoRowContainsNID(
 	// for each row root cid check if the minNID exists
 	var abscentCount, foundAbsenceRows int
 	for _, rowRoot := range eds.RowRoots() {
+		var outsideRange bool
 		if !nID.Less(nmt.MinNamespace(rowRoot, nID.Size())) && nID.LessOrEqual(nmt.MaxNamespace(rowRoot, nID.Size())) {
+			// nID does belong to namespace range of the row
 			abscentCount++
+		} else {
+			outsideRange = true
 		}
 		data := ipld.NewNamespaceData(rowRootCount, nID, ipld.WithProofs())
 		rootCID := ipld.MustCidFromNamespacedSha256(rowRoot)
 		err := data.CollectLeavesByNamespace(context.Background(), bServ, rootCID)
-		if !nID.Less(nmt.MinNamespace(rowRoot, nID.Size())) && nID.LessOrEqual(nmt.MaxNamespace(rowRoot, nID.Size())) {
-			require.NoError(t, err)
-		}
-		if err != nil {
+		if outsideRange {
 			require.ErrorIs(t, err, ipld.ErrNamespaceOutsideRange)
 			continue
 		}
+		require.NoError(t, err)
 
 		// if no error returned, check absence proof
 		foundAbsenceRows++
-		proof := data.Proof()
-		verified := proof.VerifyNamespace(sha256.New(), nID, nil, rowRoot)
+		verified := data.Proof().VerifyNamespace(sha256.New(), nID, nil, rowRoot)
 		require.True(t, verified)
 	}
 
 	if isAbsent {
 		require.Equal(t, foundAbsenceRows, abscentCount)
-		// target could fit between the rows resulting in no absence rows
+		// there should be max 1 row that has namespace range containing nID
 		require.LessOrEqual(t, abscentCount, 1)
 	}
 }
