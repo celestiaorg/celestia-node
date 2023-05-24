@@ -14,20 +14,19 @@ var _ Module = (*API)(nil)
 //
 //go:generate mockgen -destination=mocks/api.go -package=mocks . Module
 type Module interface {
-	// Submit sends PFB transaction and reports the height in which it was included.
+	// Submit sends Blobs and reports the height in which they were included.
 	// Allows sending multiple Blobs atomically synchronously.
 	// Uses default wallet registered on the Node.
 	Submit(_ context.Context, _ ...*blob.Blob) (height uint64, _ error)
-	// Get retrieves all the blobs for given namespaces at the given height by commitment.
+	// Get retrieves the blob by commitment under the given namespace and height.
 	Get(_ context.Context, height uint64, _ namespace.ID, _ blob.Commitment) (*blob.Blob, error)
-	// GetAll returns all blobs under the given namespaces at the given height.
+	// GetAll returns all blobs under the given namespaces and height.
 	GetAll(_ context.Context, height uint64, _ ...namespace.ID) ([]*blob.Blob, error)
 	// GetProof retrieves all blobs in the given namespaces at the given height by commitment
 	// and returns their Proof.
 	GetProof(_ context.Context, height uint64, _ namespace.ID, _ blob.Commitment) (*blob.Proof, error)
-	// Included checks whether a blob's given commitment(Merkle subtree root) is included at the
-	// given height under a particular namespace(Useful for light clients wishing to check the
-	// inclusion of the data).
+	// Included checks whether a blob's given commitment(Merkle subtree root) is included at
+	// given height and under the namespace.
 	Included(_ context.Context, height uint64, _ namespace.ID, _ *blob.Proof, _ blob.Commitment) (bool, error)
 }
 
