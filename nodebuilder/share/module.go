@@ -32,6 +32,7 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 		fx.Options(options...),
 		fx.Provide(newModule),
 		fx.Invoke(func(disc *disc.Discovery) {}),
+		fx.Invoke(share.EnsureEmptySquareExists),
 		fx.Provide(fx.Annotate(
 			newDiscovery(*cfg),
 			fx.OnStart(func(ctx context.Context, d *disc.Discovery) error {
