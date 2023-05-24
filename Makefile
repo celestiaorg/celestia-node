@@ -65,7 +65,7 @@ install-shed:
 	@go install ./cmd/cel-shed
 .PHONY: install-shed
 
-## key: Build cel-key binary.
+## cel-key: Build cel-key binary.
 cel-key:
 	@echo "--> Building cel-key"
 	@go build ./cmd/cel-key
@@ -97,7 +97,7 @@ lint: lint-imports
 ## test-unit: Running unit tests
 test-unit:
 	@echo "--> Running unit tests"
-	@go test `go list ./... | grep -v nodebuilder/tests` -covermode=atomic -coverprofile=coverage.out
+	@go test -covermode=atomic -coverprofile=coverage.txt `go list ./... | grep -v nodebuilder/tests`
 .PHONY: test-unit
 
 ## test-unit-race: Running unit tests with data race detector
