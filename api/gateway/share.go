@@ -127,15 +127,18 @@ func dataFromShares(input []share.Share) (data [][]byte, err error) {
 	if err != nil {
 		return nil, err
 	}
+	fmt.Println("len sharse", len(appShares))
 	sequences, err := shares.ParseShares(appShares, false)
 	if err != nil {
 		return nil, err
 	}
+	fmt.Println("len sequences", len(sequences))
 	for _, sequence := range sequences {
 		raw, err := sequence.RawData()
 		if err != nil {
 			return nil, err
 		}
+		fmt.Println("len raw", len(raw), "raw", string(raw))
 		data = append(data, raw)
 	}
 	return data, nil
