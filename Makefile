@@ -97,7 +97,7 @@ lint: lint-imports
 ## test-unit: Running unit tests
 test-unit:
 	@echo "--> Running unit tests"
-	@go test `go list ./... | grep -v nodebuilder/tests` -covermode=atomic -coverprofile=coverage.out
+	@go test -covermode=atomic -coverprofile=coverage.txt `go list ./... | grep -v nodebuilder/tests`
 .PHONY: test-unit
 
 ## test-unit-race: Running unit tests with data race detector

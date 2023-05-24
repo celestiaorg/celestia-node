@@ -55,10 +55,13 @@ jobs:
         with:
           go-version: ${{ env.GO_VERSION }}
 
-      - name: Test & Coverage
-        run: make cover
-      - uses: codecov/codecov-action@v3.1.3
+      - name: run unit tests
+        run: make test-unit
+
+      - name: upload coverage
+        uses: codecov/codecov-action@v3.1.3
         with:
+          token: ${{ secrets.CODECOV_TOKEN }}
           file: ./coverage.txt
 
   unit_race_test:
