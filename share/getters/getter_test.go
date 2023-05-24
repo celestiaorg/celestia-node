@@ -138,7 +138,7 @@ func TestStoreGetter(t *testing.T) {
 		// nid not found
 		nID = make([]byte, 8)
 		_, err = sg.GetSharesByNamespace(ctx, &dah, nID)
-		require.ErrorIs(t, err, share.ErrNotFound)
+		require.ErrorIs(t, err, share.ErrNamespaceNotFound)
 
 		// root not found
 		root := share.Root{}
@@ -206,6 +206,7 @@ func TestIPLDGetter(t *testing.T) {
 		err = edsStore.Put(ctx, dah.Hash(), eds)
 		require.NoError(t, err)
 
+		// first check that shares are returned correctly if they exist
 		shares, err := sg.GetSharesByNamespace(ctx, &dah, nID)
 		require.NoError(t, err)
 		require.NoError(t, shares.Verify(&dah, nID))
@@ -213,13 +214,14 @@ func TestIPLDGetter(t *testing.T) {
 
 		// nid not found
 		nID = make([]byte, 8)
-		_, err = sg.GetSharesByNamespace(ctx, &dah, nID)
-		require.ErrorIs(t, err, share.ErrNotFound)
+		emptyShares, err := sg.GetSharesByNamespace(ctx, &dah, nID)
+		require.ErrorIs(t, err, share.ErrNamespaceNotFound)
+		require.Nil(t, emptyShares)
 
-		// root not found
+		// nid doesnt exist in root
 		root := share.Root{}
 		_, err = sg.GetSharesByNamespace(ctx, &root, nID)
-		require.ErrorIs(t, err, share.ErrNotFound)
+		require.ErrorIs(t, err, share.ErrNamespaceNotFound)
 	})
 }
 
