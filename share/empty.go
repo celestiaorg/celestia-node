@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"math"
 
 	"github.com/ipfs/go-blockservice"
 
@@ -22,8 +21,7 @@ var (
 func init() {
 	// compute empty block EDS and DAH for it
 	shares := emptyDataSquare()
-	squareSize := uint64(math.Sqrt(float64(appconsts.DefaultMinSquareSize)))
-	eds, err := da.ExtendShares(squareSize, shares)
+	eds, err := da.ExtendShares(shares)
 	if err != nil {
 		panic(fmt.Errorf("failed to create empty EDS: %w", err))
 	}

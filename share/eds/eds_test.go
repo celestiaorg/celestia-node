@@ -14,7 +14,9 @@ import (
 	carv1 "github.com/ipld/go-car"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/tendermint/tendermint/libs/rand"
 
+	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/pkg/da"
 	"github.com/celestiaorg/celestia-app/pkg/namespace"
 	"github.com/celestiaorg/rsmt2d"
@@ -30,36 +32,47 @@ var exampleRoot string
 var f embed.FS
 
 func TestQuadrantOrder(t *testing.T) {
-	// TODO: add more test cases
-	nID := bytes.Repeat([]byte{0}, namespace.NamespaceSize)
-	result, _ := rsmt2d.ComputeExtendedDataSquare([][]byte{
-		append(nID, 1), append(nID, 2),
-		append(nID, 3), append(nID, 4),
-	}, rsmt2d.NewRSGF8Codec(), rsmt2d.NewDefaultTree)
-	//  {{1}, {2}, {7}, {13}},
-	//  {{3}, {4}, {13}, {31}},
-	//  {{5}, {14}, {19}, {41}},
-	//  {{9}, {26}, {47}, {69}},
-	require.Equal(t,
-		[][]byte{
-			append(append(nID, nID...), 1),
-			append(append(nID, nID...), 2),
-			append(append(nID, nID...), 3),
-			append(append(nID, nID...), 4),
-			append(append(namespace.ParitySharesNamespace.Bytes(), nID...), 7),
-			append(append(namespace.ParitySharesNamespace.Bytes(), nID...), 13),
-			append(append(namespace.ParitySharesNamespace.Bytes(), nID...), 13),
-			append(append(namespace.ParitySharesNamespace.Bytes(), nID...), 31),
-			append(append(namespace.ParitySharesNamespace.Bytes(), nID...), 5),
-			append(append(namespace.ParitySharesNamespace.Bytes(), nID...), 14),
-			append(append(namespace.ParitySharesNamespace.Bytes(), nID...), 9),
-			append(append(namespace.ParitySharesNamespace.Bytes(), nID...), 26),
-			append(append(namespace.ParitySharesNamespace.Bytes(), nID...), 19),
-			append(append(namespace.ParitySharesNamespace.Bytes(), nID...), 41),
-			append(append(namespace.ParitySharesNamespace.Bytes(), nID...), 47),
-			append(append(namespace.ParitySharesNamespace.Bytes(), nID...), 69),
-		}, quadrantOrder(result),
-	)
+	testCases := []struct {
+		name       string
+		squareSize int
+	}{
+		{"smol", 2},
+		{"still smol", 8},
+		{"default mainnet", appconsts.DefaultGovMaxSquareSize},
+		{"max", appconsts.MaxSquareSize},
+	}
+
+	testShareSize := 64
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			shares := make([][]byte, tc.squareSize*tc.squareSize)
+
+			for i := 0; i < tc.squareSize*tc.squareSize; i++ {
+				shares[i] = append(make([]byte, 0, testShareSize), rand.Bytes(testShareSize)...)
+			}
+
+			eds, err := rsmt2d.ComputeExtendedDataSquare(shares, appconsts.DefaultCodec(), rsmt2d.NewDefaultTree)
+			require.NoError(t, err)
+
+			res := quadrantOrder(eds)
+			for _, s := range res {
+				require.Len(t, s, testShareSize+namespace.NamespaceSize)
+			}
+
+			for q := 0; q < 4; q++ {
+				for i := 0; i < tc.squareSize; i++ {
+					for j := 0; j < tc.squareSize; j++ {
+						resIndex := q*tc.squareSize*tc.squareSize + i*tc.squareSize + j
+						edsRow := q/2*tc.squareSize + i
+						edsCol := (q%2)*tc.squareSize + j
+
+						assert.Equal(t, res[resIndex], prependNamespace(q, eds.Row(uint(edsRow))[edsCol]))
+					}
+				}
+			}
+		})
+	}
 }
 
 func TestWriteEDS(t *testing.T) {

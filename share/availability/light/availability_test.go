@@ -1,23 +1,16 @@
 package light
 
 import (
-	"bytes"
 	"context"
-	"crypto/rand"
 	_ "embed"
-	"encoding/json"
-	mrand "math/rand"
 	"strconv"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
-	core "github.com/tendermint/tendermint/types"
 
 	"github.com/celestiaorg/celestia-app/pkg/da"
 	"github.com/celestiaorg/celestia-app/pkg/namespace"
-	appshares "github.com/celestiaorg/celestia-app/pkg/shares"
 
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/share"
@@ -175,176 +168,3 @@ func BenchmarkService_GetSharesByNamespace(b *testing.B) {
 		})
 	}
 }
-
-func TestSharesRoundTrip(t *testing.T) {
-	getter, store := EmptyGetter()
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	var pb tmproto.Block
-	err := json.Unmarshal([]byte(sampleBlock), &pb)
-	require.NoError(t, err)
-
-	b, err := core.BlockFromProto(&pb)
-	require.NoError(t, err)
-
-	namespaceA := namespace.MustNewV0(bytes.Repeat([]byte{0xa}, namespace.NamespaceVersionZeroIDSize))
-	namespaceB := namespace.MustNewV0(bytes.Repeat([]byte{0xb}, namespace.NamespaceVersionZeroIDSize))
-	namespaceC := namespace.MustNewV0(bytes.Repeat([]byte{0xc}, namespace.NamespaceVersionZeroIDSize))
-
-	type testCase struct {
-		name       string
-		messages   [][]byte
-		namespaces []namespace.Namespace
-	}
-
-	cases := []testCase{
-		{
-			"original test case",
-			[][]byte{b.Data.Blobs[0].Data},
-			[]namespace.Namespace{namespaceB}},
-		{
-			"one short message",
-			[][]byte{{1, 2, 3, 4}},
-			[]namespace.Namespace{namespaceB}},
-		{
-			"one short before other namespace",
-			[][]byte{{1, 2, 3, 4}, {4, 5, 6, 7}},
-			[]namespace.Namespace{namespaceB, namespaceC},
-		},
-		{
-			"one short after other namespace",
-			[][]byte{{1, 2, 3, 4}, {4, 5, 6, 7}},
-			[]namespace.Namespace{namespaceA, namespaceB},
-		},
-		{
-			"two short messages",
-			[][]byte{{1, 2, 3, 4}, {4, 5, 6, 7}},
-			[]namespace.Namespace{namespaceB, namespaceB},
-		},
-		{
-			"two short messages before other namespace",
-			[][]byte{{1, 2, 3, 4}, {4, 5, 6, 7}, {7, 8, 9}},
-			[]namespace.Namespace{namespaceB, namespaceB, namespaceC},
-		},
-		{
-			"two short messages after other namespace",
-			[][]byte{{1, 2, 3, 4}, {4, 5, 6, 7}, {7, 8, 9}},
-			[]namespace.Namespace{namespaceA, namespaceB, namespaceB},
-		},
-	}
-	randBytes := func(n int) []byte {
-		bs := make([]byte, n)
-		_, _ = rand.Read(bs)
-		return bs
-	}
-	for i := 128; i < 4192; i += mrand.Intn(256) {
-		l := strconv.Itoa(i)
-		cases = append(cases, testCase{
-			"one " + l + " bytes message",
-			[][]byte{randBytes(i)},
-			[]namespace.Namespace{namespaceB},
-		})
-		cases = append(cases, testCase{
-			"one " + l + " bytes before other namespace",
-			[][]byte{randBytes(i), randBytes(1 + mrand.Intn(i))},
-			[]namespace.Namespace{namespaceB, namespaceC},
-		})
-		cases = append(cases, testCase{
-			"one " + l + " bytes after other namespace",
-			[][]byte{randBytes(1 + mrand.Intn(i)), randBytes(i)},
-			[]namespace.Namespace{namespaceA, namespaceB},
-		})
-		cases = append(cases, testCase{
-			"two " + l + " bytes messages",
-			[][]byte{randBytes(i), randBytes(i)},
-			[]namespace.Namespace{namespaceB, namespaceB},
-		})
-		cases = append(cases, testCase{
-			"two " + l + " bytes messages before other namespace",
-			[][]byte{randBytes(i), randBytes(i), randBytes(1 + mrand.Intn(i))},
-			[]namespace.Namespace{namespaceB, namespaceB, namespaceC},
-		})
-		cases = append(cases, testCase{
-			"two " + l + " bytes messages after other namespace",
-			[][]byte{randBytes(1 + mrand.Intn(i)), randBytes(i), randBytes(i)},
-			[]namespace.Namespace{namespaceA, namespaceB, namespaceB},
-		})
-	}
-
-	for _, tc := range cases {
-		tc := tc
-		t.Run(tc.name, func(t *testing.T) {
-			// prepare data
-			b.Data.Blobs = make([]core.Blob, len(tc.messages))
-			b.SquareSize = 16
-			var msgsInNamespace [][]byte
-			require.Equal(t, len(tc.namespaces), len(tc.messages))
-			for i := range tc.messages {
-				b.Data.Blobs[i] = core.Blob{
-					NamespaceID:      tc.namespaces[i].ID,
-					Data:             tc.messages[i],
-					NamespaceVersion: tc.namespaces[i].Version,
-				}
-				if bytes.Equal(tc.namespaces[i].Bytes(), namespaceB.Bytes()) {
-					msgsInNamespace = append(msgsInNamespace, tc.messages[i])
-				}
-			}
-
-			// TODO: set useShareIndexes to true. This requires updating the
-			// transaction data in this test to include share indexes.
-			shares, err := appshares.Split(b.Data, false)
-			if err != nil {
-				t.Fatal(err)
-			}
-
-			// test round trip using only encoding, without IPLD
-			{
-				myShares := make([][]byte, 0)
-				for _, sh := range shares {
-					ns, err := sh.Namespace()
-					require.NoError(t, err)
-					if bytes.Equal(namespaceB.Bytes(), ns.Bytes()) {
-						myShares = append(myShares, sh.ToBytes())
-					}
-				}
-				appShares, err := appshares.FromBytes(myShares)
-				assert.NoError(t, err)
-				blobs, err := appshares.ParseBlobs(appShares)
-				require.NoError(t, err)
-				assert.Len(t, blobs, len(msgsInNamespace))
-				for i := range blobs {
-					assert.Equal(t, msgsInNamespace[i], blobs[i].Data)
-				}
-			}
-
-			// test full round trip - with IPLD + decoding shares
-			{
-				extSquare, err := share.AddShares(ctx, appshares.ToBytes(shares), store)
-				require.NoError(t, err)
-
-				dah := da.NewDataAvailabilityHeader(extSquare)
-				shares, err := getter.GetSharesByNamespace(ctx, &dah, namespaceB.Bytes())
-				require.NoError(t, err)
-				require.NoError(t, shares.Verify(&dah, namespaceB.Bytes()))
-				require.NotEmpty(t, shares)
-
-				appShares, err := appshares.FromBytes(shares.Flatten())
-				assert.NoError(t, err)
-				blobs, err := appshares.ParseBlobs(appShares)
-				require.NoError(t, err)
-				assert.Len(t, blobs, len(msgsInNamespace))
-				for i := range blobs {
-					assert.Equal(t, namespaceB.ID, blobs[i].NamespaceID)
-					assert.Equal(t, namespaceB.Version, blobs[i].NamespaceVersion)
-					assert.Equal(t, msgsInNamespace[i], blobs[i].Data)
-				}
-			}
-		})
-	}
-}
-
-// this is a sample block
-//
-//go:embed "testdata/sample-block.json"
-var sampleBlock string

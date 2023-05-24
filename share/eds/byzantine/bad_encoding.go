@@ -175,8 +175,13 @@ func (p *BadEncodingProof) Validate(hdr libhead.Header) error {
 		tree.Push(share)
 	}
 
+	expectedRoot, err := tree.Root()
+	if err != nil {
+		return err
+	}
+
 	// comparing rebuilt Merkle Root of bad row/col with respective Merkle Root of row/col from block.
-	if bytes.Equal(tree.Root(), root) {
+	if bytes.Equal(expectedRoot, root) {
 		return errors.New("fraud: invalid proof: recomputed Merkle root matches the DAH's row/column root")
 	}
 
