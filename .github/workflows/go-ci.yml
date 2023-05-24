@@ -60,7 +60,7 @@ jobs:
       - uses: codecov/codecov-action@v3.1.3
         with:
           file: ./coverage.txt
-          verbose: false # this is technically the default, but the output is currently too verbose, so trying this way
+          verbose: false
 
   unit_race_test:
     name: Run Unit Tests with Race Detector
