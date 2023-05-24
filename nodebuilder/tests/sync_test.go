@@ -146,7 +146,7 @@ func TestSyncAgainstBridge_EmptyChain(t *testing.T) {
 	bridge := sw.NewBridgeNode()
 	err := bridge.Start(ctx)
 	require.NoError(t, err)
-	h, err := bridge.HeaderServ.GetByHeight(ctx, numBlocks)
+	h, err := bridge.HeaderServ.WaitForHeight(ctx, numBlocks)
 	require.NoError(t, err)
 	require.EqualValues(t, h.Commit.BlockID.Hash, sw.GetCoreBlockHashByHeight(ctx, numBlocks))
 
@@ -159,7 +159,7 @@ func TestSyncAgainstBridge_EmptyChain(t *testing.T) {
 		// start light node and wait for it to sync 20 blocks
 		err = light.Start(ctx)
 		require.NoError(t, err)
-		h, err = light.HeaderServ.GetByHeight(ctx, numBlocks)
+		h, err = light.HeaderServ.WaitForHeight(ctx, numBlocks)
 		require.NoError(t, err)
 		assert.EqualValues(t, h.Commit.BlockID.Hash, sw.GetCoreBlockHashByHeight(ctx, numBlocks))
 
@@ -181,7 +181,7 @@ func TestSyncAgainstBridge_EmptyChain(t *testing.T) {
 		// let full node sync 20 blocks
 		err = full.Start(ctx)
 		require.NoError(t, err)
-		h, err = full.HeaderServ.GetByHeight(ctx, numBlocks)
+		h, err = full.HeaderServ.WaitForHeight(ctx, numBlocks)
 		require.NoError(t, err)
 		assert.EqualValues(t, h.Commit.BlockID.Hash, sw.GetCoreBlockHashByHeight(ctx, numBlocks))
 
