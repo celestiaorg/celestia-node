@@ -216,7 +216,7 @@ func TestIPLDGetter(t *testing.T) {
 		// nid not found
 		nID = make([]byte, namespace.NamespaceSize)
 		emptyShares, err := sg.GetSharesByNamespace(ctx, &dah, nID)
-		require.ErrorIs(t, err, share.ErrNotFound)
+		require.ErrorIs(t, err, share.ErrNamespaceNotFound)
 		require.Nil(t, emptyShares)
 
 		// nid doesnt exist in root
