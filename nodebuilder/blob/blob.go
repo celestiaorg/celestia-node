@@ -22,8 +22,7 @@ type Module interface {
 	Get(_ context.Context, height uint64, _ namespace.ID, _ blob.Commitment) (*blob.Blob, error)
 	// GetAll returns all blobs under the given namespaces and height.
 	GetAll(_ context.Context, height uint64, _ ...namespace.ID) ([]*blob.Blob, error)
-	// GetProof retrieves all blobs in the given namespaces at the given height by commitment
-	// and returns their Proof.
+	// GetProof retrieves proofs in the given namespaces at the given height by commitment.
 	GetProof(_ context.Context, height uint64, _ namespace.ID, _ blob.Commitment) (*blob.Proof, error)
 	// Included checks whether a blob's given commitment(Merkle subtree root) is included at
 	// given height and under the namespace.
