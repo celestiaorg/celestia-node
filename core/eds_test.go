@@ -30,7 +30,7 @@ func TestTrulyEmptySquare(t *testing.T) {
 // transactions or blobs computes the correct data root the minimum DAH.
 // Technically, this block data is invalid because the construction of the
 // square is deterministic, and the rules which dictate the square size do not
-// allow for empty block data. However, should that ever occur, we need to to
+// allow for empty block data. However, should that ever occur, we need to
 // ensure that the correct data root is generated.
 func TestNonEmptySquareWithZeroTxs(t *testing.T) {
 	data := types.Data{
