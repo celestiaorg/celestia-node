@@ -1,7 +1,6 @@
 package gateway
 
 import (
-	"bytes"
 	"fmt"
 	"testing"
 
@@ -46,15 +45,4 @@ func Test_dataFromShares(t *testing.T) {
 	require.NoError(t, err)
 
 	require.Equal(t, input, parsedSSSShares)
-}
-
-// padShare returns a share padded with trailing zeros.
-func padShare(share []byte) (paddedShare []byte) {
-	return fillShare(share, 0)
-}
-
-// fillShare returns a share filled with filler so that the share length
-// is equal to appconsts.ShareSize.
-func fillShare(share []byte, filler byte) (paddedShare []byte) {
-	return append(share, bytes.Repeat([]byte{filler}, appconsts.ShareSize-len(share))...)
 }
