@@ -172,7 +172,10 @@ func (p *BadEncodingProof) Validate(hdr libhead.Header) error {
 
 	tree := wrapper.NewErasuredNamespacedMerkleTree(odsWidth, uint(p.Index))
 	for _, share := range rebuiltShares {
-		tree.Push(share)
+		err = tree.Push(share)
+		if err != nil {
+			return err
+		}
 	}
 
 	expectedRoot, err := tree.Root()
