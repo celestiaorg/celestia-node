@@ -1,7 +1,6 @@
 package gateway
 
 import (
-	"fmt"
 	"testing"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
@@ -32,8 +31,6 @@ func Test_dataFromShares(t *testing.T) {
 	}
 
 	sssShares := sss.Export()
-
-	fmt.Println("exported shares: ", sssShares)
 
 	rawSSSShares := make([][]byte, len(sssShares))
 	for i := 0; i < len(sssShares); i++ {
