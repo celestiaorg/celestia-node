@@ -49,7 +49,7 @@ func TestQuadrantOrder(t *testing.T) {
 			shares := make([][]byte, tc.squareSize*tc.squareSize)
 
 			for i := 0; i < tc.squareSize*tc.squareSize; i++ {
-				shares[i] = append(make([]byte, 0, testShareSize), rand.Bytes(testShareSize)...)
+				shares[i] = rand.Bytes(testShareSize)
 			}
 
 			eds, err := rsmt2d.ComputeExtendedDataSquare(shares, appconsts.DefaultCodec(), rsmt2d.NewDefaultTree)
