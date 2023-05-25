@@ -33,7 +33,7 @@ func init() {
 	minDAH := da.MinDataAvailabilityHeader()
 	if !bytes.Equal(minDAH.Hash(), dah.Hash()) {
 		panic(fmt.Sprintf("mismatch in calculated minimum DAH and minimum DAH from celestia-app, "+
-			"expected %X, got %X", minDAH.Hash(), dah.Hash()))
+			"expected %s, got %s", minDAH.String(), dah.String()))
 	}
 	emptyRoot = &dah
 
