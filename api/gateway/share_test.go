@@ -22,8 +22,8 @@ func Test_dataFromShares(t *testing.T) {
 	for _, i := range input {
 		b := coretypes.Blob{
 			Data:             i,
-			NamespaceID:      ns.Bytes()[1:],
-			NamespaceVersion: namespace.NamespaceVersionZero,
+			NamespaceID:      ns.ID,
+			NamespaceVersion: ns.Version,
 			ShareVersion:     appconsts.ShareVersionZero,
 		}
 		err := sss.Write(b)
