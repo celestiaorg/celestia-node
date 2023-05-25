@@ -130,19 +130,18 @@ func (sg *ShrexGetter) GetEDS(ctx context.Context, root *share.Root) (*rsmt2d.Ex
 	for {
 		if ctx.Err() != nil {
 			sg.metrics.recordEDSAttempt(ctx, attempt, false)
-			return nil, ctx.Err()
+			return nil, errors.Join(err, ctx.Err())
 		}
 		attempt++
 		start := time.Now()
 		peer, setStatus, getErr := sg.peerManager.Peer(ctx, root.Hash())
 		if getErr != nil {
-			err = errors.Join(err, getErr)
 			log.Debugw("eds: couldn't find peer",
 				"hash", root.String(),
 				"err", getErr,
 				"finished (s)", time.Since(start))
 			sg.metrics.recordEDSAttempt(ctx, attempt, false)
-			return nil, fmt.Errorf("getter/shrex: %w", err)
+			return nil, errors.Join(err, getErr)
 		}
 
 		reqStart := time.Now()
@@ -197,19 +196,18 @@ func (sg *ShrexGetter) GetSharesByNamespace(
 	for {
 		if ctx.Err() != nil {
 			sg.metrics.recordNDAttempt(ctx, attempt, false)
-			return nil, ctx.Err()
+			return nil, errors.Join(err, ctx.Err())
 		}
 		attempt++
 		start := time.Now()
 		peer, setStatus, getErr := sg.peerManager.Peer(ctx, root.Hash())
 		if getErr != nil {
-			err = errors.Join(err, getErr)
 			log.Debugw("nd: couldn't find peer",
 				"hash", root.String(),
 				"err", getErr,
 				"finished (s)", time.Since(start))
 			sg.metrics.recordNDAttempt(ctx, attempt, false)
-			return nil, fmt.Errorf("getter/shrex: %w", err)
+			return nil, errors.Join(err, getErr)
 		}
 
 		reqStart := time.Now()
@@ -217,7 +215,16 @@ func (sg *ShrexGetter) GetSharesByNamespace(
 		nd, getErr := sg.ndClient.RequestND(reqCtx, root, id, peer)
 		cancel()
 		switch {
-		case getErr == nil, errors.Is(getErr, share.ErrNamespaceNotFound):
+		case getErr == nil:
+			if getErr = nd.Verify(root, id); getErr != nil {
+				setStatus(peers.ResultBlacklistPeer)
+				break
+			}
+			setStatus(peers.ResultNoop)
+			sg.metrics.recordNDAttempt(ctx, attempt, true)
+			return nd, getErr
+		case errors.Is(getErr, share.ErrNamespaceNotFound):
+			// TODO: will be merged with first case once non-inclusion proofs are ready
 			setStatus(peers.ResultNoop)
 			sg.metrics.recordNDAttempt(ctx, attempt, true)
 			return nd, getErr
