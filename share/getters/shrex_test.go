@@ -100,9 +100,11 @@ func TestShrexGetter(t *testing.T) {
 		})
 
 		// corrupt NID
-		nID[4]++
+		newNID := make([]byte, 8)
+		copy(newNID, nID)
+		newNID[4]++
 
-		_, err := getter.GetSharesByNamespace(ctx, &dah, nID)
+		_, err := getter.GetSharesByNamespace(ctx, &dah, newNID)
 		require.ErrorIs(t, err, share.ErrNamespaceNotFound)
 	})
 

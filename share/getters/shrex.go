@@ -215,16 +215,12 @@ func (sg *ShrexGetter) GetSharesByNamespace(
 		nd, getErr := sg.ndClient.RequestND(reqCtx, root, id, peer)
 		cancel()
 		switch {
-		case getErr == nil:
-			if getErr = nd.Verify(root, id); getErr != nil {
+		case getErr == nil, errors.Is(getErr, share.ErrNamespaceNotFound):
+			// both inclusion and non-inclusion cases needs verification
+			if verErr := nd.Verify(root, id); verErr != nil {
 				setStatus(peers.ResultBlacklistPeer)
 				break
 			}
-			setStatus(peers.ResultNoop)
-			sg.metrics.recordNDAttempt(ctx, attempt, true)
-			return nd, getErr
-		case errors.Is(getErr, share.ErrNamespaceNotFound):
-			// TODO: will be merged with first case once non-inclusion proofs are ready
 			setStatus(peers.ResultNoop)
 			sg.metrics.recordNDAttempt(ctx, attempt, true)
 			return nd, getErr

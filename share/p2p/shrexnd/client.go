@@ -55,7 +55,7 @@ func (c *Client) RequestND(
 	peer peer.ID,
 ) (share.NamespacedShares, error) {
 	shares, err := c.doRequest(ctx, root, nID, peer)
-	if err == nil {
+	if err == nil || errors.Is(err, share.ErrNamespaceNotFound) {
 		return shares, err
 	}
 	if errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) {
@@ -71,7 +71,7 @@ func (c *Client) RequestND(
 			return nil, context.DeadlineExceeded
 		}
 	}
-	if err != p2p.ErrNotFound && err != share.ErrNamespaceNotFound {
+	if err != p2p.ErrNotFound {
 		log.Warnw("client-nd: peer returned err", "err", err)
 	}
 	return nil, err
@@ -119,7 +119,12 @@ func (c *Client) doRequest(
 		return nil, fmt.Errorf("client-nd: reading response: %w", err)
 	}
 
-	if err = c.statusToErr(ctx, resp.Status); err != nil {
+	err = c.statusToErr(ctx, resp.Status)
+	if errors.Is(err, share.ErrNamespaceNotFound) {
+		shares := convertToNonInclusionProofs(resp.Rows)
+		return shares, err
+	}
+	if err != nil {
 		return nil, fmt.Errorf("client-nd: response code is not OK: %w", err)
 	}
 
@@ -151,6 +156,23 @@ func convertToNamespacedShares(rows []*pb.Row) (share.NamespacedShares, error) {
 		})
 	}
 	return shares, nil
+}
+
+func convertToNonInclusionProofs(rows []*pb.Row) share.NamespacedShares {
+	shares := make([]share.NamespacedRow, 0, len(rows))
+	for _, row := range rows {
+		proof := nmt.NewAbsenceProof(
+			int(row.Proof.Start),
+			int(row.Proof.End),
+			row.Proof.Nodes,
+			row.Proof.Hashleaf,
+			ipld.NMTIgnoreMaxNamespace,
+		)
+		shares = append(shares, share.NamespacedRow{
+			Proof: &proof,
+		})
+	}
+	return shares
 }
 
 func (c *Client) setStreamDeadlines(ctx context.Context, stream network.Stream) {
