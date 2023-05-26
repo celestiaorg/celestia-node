@@ -127,12 +127,6 @@ func (c *Client) doRequest(
 	if err != nil {
 		return nil, fmt.Errorf("client-nd: converting response to shares: %w", err)
 	}
-
-	err = shares.Verify(root, nID)
-	if err != nil {
-		return nil, fmt.Errorf("client-nd: verifying response: %w", err)
-	}
-
 	return shares, nil
 }
 

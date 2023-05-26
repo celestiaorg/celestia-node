@@ -15,10 +15,10 @@ import (
 
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/availability/cache"
-	disc "github.com/celestiaorg/celestia-node/share/availability/discovery"
 	"github.com/celestiaorg/celestia-node/share/availability/light"
 	"github.com/celestiaorg/celestia-node/share/eds"
 	"github.com/celestiaorg/celestia-node/share/getters"
+	disc "github.com/celestiaorg/celestia-node/share/p2p/discovery"
 )
 
 func newDiscovery(cfg Config) func(routing.ContentRouting, host.Host) *disc.Discovery {
