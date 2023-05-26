@@ -307,8 +307,8 @@ func (d *Discovery) discover(ctx context.Context) bool {
 		}
 
 		isEnoughPeers := d.set.Size() >= d.set.Limit()
-		d.metrics.observeFindPeers(ctx, ctx.Err() != nil, isEnoughPeers)
-		log.Debugw("discovery finished", "find_is_canceled", findCtx.Err() != nil)
+		d.metrics.observeFindPeers(ctx, isEnoughPeers)
+		log.Debugw("discovery finished", "discovered_wanted", isEnoughPeers)
 		return isEnoughPeers
 	}
 }

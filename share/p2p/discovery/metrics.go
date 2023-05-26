@@ -13,8 +13,7 @@ import (
 )
 
 const (
-	discoveryEnougPeersKey  = "enough_peers"
-	discoveryFindCancledKey = "is_canceled"
+	discoveryEnougPeersKey = "enough_peers"
 
 	handlePeerResultKey                    = "result"
 	handlePeerSkipSelf    handlePeerResult = "skip_self"
@@ -122,7 +121,7 @@ func initMetrics(d *Discovery) (*metrics, error) {
 	return metrics, nil
 }
 
-func (m *metrics) observeFindPeers(ctx context.Context, canceled, isEnoughPeers bool) {
+func (m *metrics) observeFindPeers(ctx context.Context, isEnoughPeers bool) {
 	if m == nil {
 		return
 	}
@@ -131,7 +130,6 @@ func (m *metrics) observeFindPeers(ctx context.Context, canceled, isEnoughPeers 
 	}
 
 	m.discoveryResult.Add(ctx, 1,
-		attribute.Bool(discoveryFindCancledKey, canceled),
 		attribute.Bool(discoveryEnougPeersKey, isEnoughPeers))
 }
 
