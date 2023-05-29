@@ -13,7 +13,7 @@ import (
 )
 
 const (
-	discoveryEnougPeersKey = "enough_peers"
+	discoveryEnoughPeersKey = "enough_peers"
 
 	handlePeerResultKey                    = "result"
 	handlePeerSkipSelf    handlePeerResult = "skip_self"
@@ -130,7 +130,7 @@ func (m *metrics) observeFindPeers(ctx context.Context, isEnoughPeers bool) {
 	}
 
 	m.discoveryResult.Add(ctx, 1,
-		attribute.Bool(discoveryEnougPeersKey, isEnoughPeers))
+		attribute.Bool(discoveryEnoughPeersKey, isEnoughPeers))
 }
 
 func (m *metrics) observeHandlePeer(ctx context.Context, result handlePeerResult) {

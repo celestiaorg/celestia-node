@@ -31,12 +31,12 @@ const (
 	// findPeersTimeout limits the FindPeers operation in time
 	findPeersTimeout = time.Minute
 
-	// defaultRetryTimeout defines time interval between discovery and advertise attempts.
-	defaultRetryTimeout = time.Second
+	// retryTimeout defines time interval between discovery and advertise attempts.
+	retryTimeout = time.Second
 )
 
-// defaultRetryTimeout defines time interval between discovery attempts.
-var discoveryRetryTimeout = defaultRetryTimeout
+// retryTimeout defines time interval between discovery attempts, needed for tests
+var discoveryRetryTimeout = retryTimeout
 
 // Discovery combines advertise and discover services and allows to store discovered nodes.
 // TODO: The code here gets horribly hairy, so we should refactor this at some point
@@ -167,7 +167,7 @@ func (d *Discovery) Advertise(ctx context.Context) {
 
 			// we don't want retry indefinitely in busy loop
 			// internal discovery mechanism may need some time before attempts
-			errTimer := time.NewTimer(defaultRetryTimeout)
+			errTimer := time.NewTimer(retryTimeout)
 			select {
 			case <-errTimer.C:
 				errTimer.Stop()
