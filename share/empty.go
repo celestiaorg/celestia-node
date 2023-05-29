@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"math"
 
 	"github.com/ipfs/go-blockservice"
 
@@ -22,8 +21,7 @@ var (
 func init() {
 	// compute empty block EDS and DAH for it
 	shares := emptyDataSquare()
-	squareSize := uint64(math.Sqrt(float64(appconsts.DefaultMinSquareSize)))
-	eds, err := da.ExtendShares(squareSize, shares)
+	eds, err := da.ExtendShares(shares)
 	if err != nil {
 		panic(fmt.Errorf("failed to create empty EDS: %w", err))
 	}
@@ -51,7 +49,8 @@ func EmptyRoot() *Root {
 // redundant storing of empty block data so that it is only stored once and returned
 // upon request for a block with an empty data square. Ref: header/constructors.go#L56
 func EnsureEmptySquareExists(ctx context.Context, bServ blockservice.BlockService) (*rsmt2d.ExtendedDataSquare, error) {
-	return AddShares(ctx, emptyDataSquare(), bServ)
+	shares := emptyDataSquare()
+	return AddShares(ctx, shares, bServ)
 }
 
 // EmptyExtendedDataSquare returns the EDS of the empty block data square.
@@ -61,5 +60,6 @@ func EmptyExtendedDataSquare() *rsmt2d.ExtendedDataSquare {
 
 // emptyDataSquare returns the minimum size data square filled with tail padding.
 func emptyDataSquare() [][]byte {
-	return shares.ToBytes(shares.TailPaddingShares(appconsts.MinShareCount))
+	result := shares.TailPaddingShares(appconsts.MinShareCount)
+	return shares.ToBytes(result)
 }

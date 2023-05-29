@@ -63,11 +63,11 @@ func (r *Retriever) Retrieve(ctx context.Context, dah *da.DataAvailabilityHeader
 	ctx, span := tracer.Start(ctx, "retrieve-square")
 	defer span.End()
 	span.SetAttributes(
-		attribute.Int("size", len(dah.RowsRoots)),
+		attribute.Int("size", len(dah.RowRoots)),
 		attribute.String("data_hash", dah.String()),
 	)
 
-	log.Debugw("retrieving data square", "data_hash", dah.String(), "size", len(dah.RowsRoots))
+	log.Debugw("retrieving data square", "data_hash", dah.String(), "size", len(dah.RowRoots))
 	ses, err := r.newSession(ctx, dah)
 	if err != nil {
 		return nil, err
@@ -121,7 +121,7 @@ type retrievalSession struct {
 
 // newSession creates a new retrieval session and kicks off requesting process.
 func (r *Retriever) newSession(ctx context.Context, dah *da.DataAvailabilityHeader) (*retrievalSession, error) {
-	size := len(dah.RowsRoots)
+	size := len(dah.RowRoots)
 	treeFn := func(_ rsmt2d.Axis, index uint) rsmt2d.Tree {
 		tree := wrapper.NewErasuredNamespacedMerkleTree(uint64(size)/2, index)
 		return &tree
@@ -169,12 +169,12 @@ func (rs *retrievalSession) Reconstruct(ctx context.Context) (*rsmt2d.ExtendedDa
 	defer span.End()
 
 	// and try to repair with what we have
-	err := rs.square.Repair(rs.dah.RowsRoots, rs.dah.ColumnRoots)
+	err := rs.square.Repair(rs.dah.RowRoots, rs.dah.ColumnRoots)
 	if err != nil {
 		span.RecordError(err)
 		return nil, err
 	}
-	log.Infow("data square reconstructed", "data_hash", rs.dah.String(), "size", len(rs.dah.RowsRoots))
+	log.Infow("data square reconstructed", "data_hash", rs.dah.String(), "size", len(rs.dah.RowRoots))
 	close(rs.squareDn)
 	return rs.square, nil
 }
