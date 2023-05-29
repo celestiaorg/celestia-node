@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/stretchr/testify/assert"
@@ -29,7 +30,7 @@ func TestBlobModule(t *testing.T) {
 	blobs := make([]*blob.Blob, 0, len(appBlobs0)+len(appBlobs1))
 
 	for _, b := range append(appBlobs0, appBlobs1...) {
-		blob, err := blob.NewBlob(b.ShareVersion, b.NamespaceID, b.Data)
+		blob, err := blob.NewBlob(appns.NamespaceVersionZero, b.ShareVersion, b.NamespaceID, b.Data)
 		require.NoError(t, err)
 		blobs = append(blobs, blob)
 	}
@@ -69,7 +70,7 @@ func TestBlobModule(t *testing.T) {
 		{
 			name: "Get",
 			doFn: func(t *testing.T) {
-				blob1, err := fullNode.BlobServ.Get(ctx, height, blobs[0].NamespaceID(), blobs[0].Commitment())
+				blob1, err := fullNode.BlobServ.Get(ctx, height, blobs[0].Namespace().ID, blobs[0].Commitment())
 				require.NoError(t, err)
 				require.Equal(t, blobs[0], blob1)
 			},
@@ -77,7 +78,7 @@ func TestBlobModule(t *testing.T) {
 		{
 			name: "GetAll",
 			doFn: func(t *testing.T) {
-				newBlobs, err := fullNode.BlobServ.GetAll(ctx, height, blobs[0].NamespaceID())
+				newBlobs, err := fullNode.BlobServ.GetAll(ctx, height, blobs[0].Namespace().ID)
 				require.NoError(t, err)
 				require.Len(t, newBlobs, len(appBlobs0))
 				require.True(t, bytes.Equal(blobs[0].Commitment(), newBlobs[0].Commitment()))
@@ -87,10 +88,10 @@ func TestBlobModule(t *testing.T) {
 		{
 			name: "Included",
 			doFn: func(t *testing.T) {
-				proof, err := fullNode.BlobServ.GetProof(ctx, height, blobs[0].NamespaceID(), blobs[0].Commitment())
+				proof, err := fullNode.BlobServ.GetProof(ctx, height, blobs[0].Namespace().ID, blobs[0].Commitment())
 				require.NoError(t, err)
 
-				included, err := lightNode.BlobServ.Included(ctx, height, blobs[0].NamespaceID(), proof, blobs[0].Commitment())
+				included, err := lightNode.BlobServ.Included(ctx, height, blobs[0].Namespace().ID, proof, blobs[0].Commitment())
 				require.NoError(t, err)
 				require.True(t, included)
 			},
@@ -100,10 +101,10 @@ func TestBlobModule(t *testing.T) {
 			doFn: func(t *testing.T) {
 				appBlob, err := blobtest.GenerateBlobs([]int{4}, false)
 				require.NoError(t, err)
-				newBlob, err := blob.NewBlob(appBlob[0].ShareVersion, appBlob[0].NamespaceID, appBlob[0].Data)
+				newBlob, err := blob.NewBlob(appns.NamespaceVersionZero, appBlob[0].ShareVersion, appBlob[0].NamespaceID, appBlob[0].Data)
 				require.NoError(t, err)
 
-				b, err := fullNode.BlobServ.Get(ctx, height, newBlob.NamespaceID(), newBlob.Commitment())
+				b, err := fullNode.BlobServ.Get(ctx, height, newBlob.Namespace().ID, newBlob.Commitment())
 				assert.Nil(t, b)
 				require.Error(t, err)
 				require.ErrorIs(t, err, blob.ErrBlobNotFound)

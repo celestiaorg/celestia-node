@@ -3,6 +3,7 @@ package blob
 import (
 	"bytes"
 
+	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
 	"github.com/celestiaorg/celestia-app/x/blob/types"
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/nmt/namespace"
@@ -63,8 +64,13 @@ type Blob struct {
 }
 
 // NewBlob constructs a new blob from the provided namespace.ID and data.
-func NewBlob(_ uint8, nID namespace.ID, data []byte) (*Blob, error) {
-	blob, err := types.NewBlob(nID, data)
+func NewBlob(shareVersion, nIDVersion uint8, nID namespace.ID, data []byte) (*Blob, error) {
+	ns, err := appns.New(nIDVersion, nID)
+	if err != nil {
+		return nil, err
+	}
+
+	blob, err := types.NewBlob(ns, data, shareVersion)
 	if err != nil {
 		return nil, err
 	}
@@ -77,8 +83,11 @@ func NewBlob(_ uint8, nID namespace.ID, data []byte) (*Blob, error) {
 }
 
 // NamespaceID returns blobs namespaceId.
-func (b *Blob) NamespaceID() []byte {
-	return b.Blob.NamespaceId
+func (b *Blob) Namespace() appns.Namespace {
+	return appns.Namespace{
+		ID:      b.Blob.GetNamespaceId(),
+		Version: uint8(b.Blob.GetNamespaceVersion()),
+	}
 }
 
 // Data returns blobs raw data.

@@ -1,16 +1,18 @@
 package blobtest
 
 import (
-	tmrand "github.com/tendermint/tendermint/libs/rand"
+	"bytes"
+
+	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
 	"github.com/tendermint/tendermint/types"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/pkg/shares"
-	"github.com/celestiaorg/celestia-app/testutil/testfactory"
+	"github.com/celestiaorg/celestia-app/test/util/testfactory"
 )
 
 func GenerateBlobs(sizes []int, sameNID bool) ([]types.Blob, error) {
-	nID := tmrand.Bytes(appconsts.NamespaceSize)
+	nID := append(appns.NamespaceVersionZeroPrefix, bytes.Repeat([]byte{0x1}, appns.NamespaceVersionZeroIDSize)...)
 	blobs := make([]types.Blob, 0, len(sizes))
 
 	for _, size := range sizes {

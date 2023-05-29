@@ -26,7 +26,7 @@ func TestBlob(t *testing.T) {
 			name: "new blob",
 			expectedRes: func(t *testing.T) {
 				require.NotEmpty(t, blob)
-				require.NotEmpty(t, blob[0].NamespaceID())
+				require.NotEmpty(t, blob[0].Namespace().ID)
 				require.NotEmpty(t, blob[0].Data())
 				require.NotEmpty(t, blob[0].Commitment())
 			},
@@ -42,7 +42,7 @@ func TestBlob(t *testing.T) {
 		{
 			name: "verify nID",
 			expectedRes: func(t *testing.T) {
-				require.NoError(t, apptypes.ValidateBlobNamespaceID(blob[0].NamespaceID()))
+				require.NoError(t, apptypes.ValidateBlobNamespaceID(blob[0].Namespace()))
 			},
 		},
 		{
@@ -66,7 +66,7 @@ func TestBlob(t *testing.T) {
 func convertBlobs(appBlobs ...types.Blob) ([]*Blob, error) {
 	blobs := make([]*Blob, 0, len(appBlobs))
 	for _, b := range appBlobs {
-		blob, err := NewBlob(b.ShareVersion, b.NamespaceID, b.Data)
+		blob, err := NewBlob(b.ShareVersion, b.NamespaceVersion, b.NamespaceID, b.Data)
 		if err != nil {
 			return nil, err
 		}

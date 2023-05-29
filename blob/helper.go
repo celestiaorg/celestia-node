@@ -17,12 +17,17 @@ func SharesToBlobs(rawShares []share.Share) ([]*Blob, error) {
 	if len(rawShares) == 0 {
 		return nil, ErrBlobNotFound
 	}
-	rawShares, err := removePadding(rawShares)
-	if err != nil {
-		return nil, err
+
+	appShares := make([]shares.Share, 0, len(rawShares))
+	for _, sh := range rawShares {
+		bShare, err := shares.NewShare(sh)
+		if err != nil {
+			return nil, err
+		}
+		appShares = append(appShares, *bShare)
 	}
 
-	shareSequences, err := shares.ParseShares(rawShares)
+	shareSequences, err := shares.ParseShares(appShares, true)
 	if err != nil {
 		return nil, err
 	}
@@ -37,7 +42,12 @@ func SharesToBlobs(rawShares []share.Share) ([]*Blob, error) {
 			continue
 		}
 
-		blob, err := NewBlob(data[0], sequence.NamespaceID, data)
+		shareVersion, err := sequence.Shares[0].Version()
+		if err != nil {
+			return nil, err
+		}
+
+		blob, err := NewBlob(shareVersion, sequence.Namespace.Version, sequence.Namespace.ID, data)
 		if err != nil {
 			return nil, err
 		}
@@ -51,9 +61,10 @@ func BlobsToShares(blobs ...*Blob) ([]share.Share, error) {
 	b := make([]types.Blob, len(blobs))
 	for i, blob := range blobs {
 		b[i] = types.Blob{
-			NamespaceID:  blob.NamespaceID(),
-			Data:         blob.Data(),
-			ShareVersion: uint8(blob.Version()),
+			NamespaceID:      blob.Namespace().ID,
+			NamespaceVersion: blob.Namespace().Version,
+			Data:             blob.Data(),
+			ShareVersion:     uint8(blob.Version()),
 		}
 	}
 
@@ -94,27 +105,4 @@ func constructAndVerifyBlob(sh []share.Share, commitment Commitment) (*Blob, boo
 
 	equal := blob[0].Commitment().Equal(commitment)
 	return blob[0], equal, nil
-}
-
-// removePadding ensures that namespace padding shares will not be included in the blob creation
-// as they are not the part of the blob
-// TODO(@vgonkivs): remove after https://github.com/celestiaorg/celestia-node/pull/1999 will be
-// merged
-func removePadding(rawShares [][]byte) ([][]byte, error) {
-	newShares := make([][]byte, 0)
-	for _, sh := range rawShares {
-		bShare, err := shares.NewShare(sh)
-		if err != nil {
-			return nil, err
-		}
-
-		isPadding, err := bShare.IsPadding()
-		if err != nil {
-			return nil, err
-		}
-		if !isPadding {
-			newShares = append(newShares, sh)
-		}
-	}
-	return newShares, nil
 }

@@ -229,7 +229,7 @@ func (s *Service) getByCommitment(
 					continue
 				}
 
-				blobShare = &bShare
+				blobShare = bShare
 				// save the length.
 				length, err := blobShare.SequenceLen()
 				if err != nil {
