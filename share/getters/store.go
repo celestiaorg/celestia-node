@@ -2,6 +2,7 @@ package getters
 
 import (
 	"context"
+	"encoding/hex"
 	"errors"
 	"fmt"
 
@@ -98,7 +99,7 @@ func (sg *StoreGetter) GetSharesByNamespace(
 ) (shares share.NamespacedShares, err error) {
 	ctx, span := tracer.Start(ctx, "store/get-shares-by-namespace", trace.WithAttributes(
 		attribute.String("root", root.String()),
-		attribute.String("nID", nID.String()),
+		attribute.String("nid", hex.EncodeToString(nID)),
 	))
 	defer func() {
 		utils.SetStatusAndEnd(span, err)
