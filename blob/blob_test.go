@@ -5,16 +5,18 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	tmrand "github.com/tendermint/tendermint/libs/rand"
+	"github.com/tendermint/tendermint/types"
 
-	"github.com/celestiaorg/celestia-app/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/pkg/shares"
-	"github.com/celestiaorg/celestia-app/testutil/testfactory"
 	apptypes "github.com/celestiaorg/celestia-app/x/blob/types"
+
+	"github.com/celestiaorg/celestia-node/blob/blobtest"
 )
 
 func TestBlob(t *testing.T) {
-	blob := generateBlob(t, []int{1}, false)
+	appBlobs, err := blobtest.GenerateBlobs([]int{1}, false)
+	require.NoError(t, err)
+	blob, err := convertBlobs(appBlobs...)
+	require.NoError(t, err)
 
 	var test = []struct {
 		name        string
@@ -61,24 +63,14 @@ func TestBlob(t *testing.T) {
 	}
 }
 
-func generateBlob(t *testing.T, sizes []int, sameNID bool) []*Blob {
-	nID := tmrand.Bytes(appconsts.NamespaceSize)
-	blobs := make([]*Blob, 0, len(sizes))
-
-	for _, size := range sizes {
-		size := rawBlobSize(appconsts.FirstSparseShareContentSize * size)
-		appBlob := testfactory.GenerateRandomBlob(size)
-		if sameNID {
-			appBlob.NamespaceID = nID
+func convertBlobs(appBlobs ...types.Blob) ([]*Blob, error) {
+	blobs := make([]*Blob, 0, len(appBlobs))
+	for _, b := range appBlobs {
+		blob, err := NewBlob(b.ShareVersion, b.NamespaceID, b.Data)
+		if err != nil {
+			return nil, err
 		}
-
-		blob, err := NewBlob(appBlob.ShareVersion, appBlob.NamespaceID, appBlob.Data)
-		require.NoError(t, err)
 		blobs = append(blobs, blob)
 	}
-	return blobs
-}
-
-func rawBlobSize(totalSize int) int {
-	return totalSize - shares.DelimLen(uint64(totalSize))
+	return blobs, nil
 }

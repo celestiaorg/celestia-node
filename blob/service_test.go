@@ -12,11 +12,14 @@ import (
 	mdutils "github.com/ipfs/go-merkledag/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	tmrand "github.com/tendermint/tendermint/libs/rand"
 
+	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/pkg/shares"
 	"github.com/celestiaorg/go-header/store"
 	"github.com/celestiaorg/nmt/namespace"
 
+	"github.com/celestiaorg/celestia-node/blob/blobtest"
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/header/headertest"
 	"github.com/celestiaorg/celestia-node/share"
@@ -24,7 +27,7 @@ import (
 )
 
 func TestBlobService_Get(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Minute*5)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	t.Cleanup(cancel)
 	var (
 		blobSize0 = 18
@@ -32,8 +35,17 @@ func TestBlobService_Get(t *testing.T) {
 		blobSize2 = 20
 		blobSize3 = 12
 	)
-	blobs0 := generateBlob(t, []int{blobSize0, blobSize1}, false)
-	blobs1 := generateBlob(t, []int{blobSize2, blobSize3}, true)
+
+	appBlobs, err := blobtest.GenerateBlobs([]int{blobSize0, blobSize1}, false)
+	require.NoError(t, err)
+	blobs0, err := convertBlobs(appBlobs...)
+	require.NoError(t, err)
+
+	appBlobs, err = blobtest.GenerateBlobs([]int{blobSize2, blobSize3}, true)
+	require.NoError(t, err)
+	blobs1, err := convertBlobs(appBlobs...)
+	require.NoError(t, err)
+
 	service := createService(ctx, t, append(blobs0, blobs1...))
 	var test = []struct {
 		name           string
@@ -113,7 +125,11 @@ func TestBlobService_Get(t *testing.T) {
 		{
 			name: "get invalid blob",
 			doFn: func() (interface{}, error) {
-				blob := generateBlob(t, []int{10}, false)
+				appBlob, err := blobtest.GenerateBlobs([]int{10}, false)
+				require.NoError(t, err)
+				blob, err := convertBlobs(appBlob...)
+				require.NoError(t, err)
+
 				b, err := service.Get(ctx, 1, blob[0].NamespaceID(), blob[0].Commitment())
 				return []*Blob{b}, err
 			},
@@ -192,7 +208,11 @@ func TestBlobService_Get(t *testing.T) {
 		{
 			name: "not included",
 			doFn: func() (interface{}, error) {
-				blob := generateBlob(t, []int{10}, false)
+				appBlob, err := blobtest.GenerateBlobs([]int{10}, false)
+				require.NoError(t, err)
+				blob, err := convertBlobs(appBlob...)
+				require.NoError(t, err)
+
 				proof, err := service.GetProof(ctx, 1, blobs0[1].NamespaceID(), blobs0[1].Commitment())
 				require.NoError(t, err)
 				return service.Included(ctx, 1, blob[0].NamespaceID(), proof, blob[0].Commitment())
@@ -232,6 +252,21 @@ func TestBlobService_Get(t *testing.T) {
 				}
 			},
 		},
+		{
+			name: "get all not found",
+			doFn: func() (interface{}, error) {
+				nID := tmrand.Bytes(appconsts.NamespaceSize)
+				return service.GetAll(ctx, 1, nID)
+			},
+			expectedResult: func(i interface{}, err error) {
+				blobs, ok := i.([]*Blob)
+				require.True(t, ok)
+				assert.Empty(t, blobs)
+				require.Error(t, err)
+				require.ErrorIs(t, err, ErrBlobNotFound)
+
+			},
+		},
 	}
 
 	for _, tt := range test {
@@ -249,7 +284,10 @@ func TestService_GetSingleBlobWithoutPadding(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	t.Cleanup(cancel)
 
-	blobs := generateBlob(t, []int{9, 5}, true)
+	appBlob, err := blobtest.GenerateBlobs([]int{9, 5}, true)
+	require.NoError(t, err)
+	blobs, err := convertBlobs(appBlob...)
+	require.NoError(t, err)
 
 	padding0 := shares.NamespacePaddingShare(blobs[0].NamespaceID())
 	padding1 := shares.NamespacePaddingShare(blobs[1].NamespaceID())
@@ -284,10 +322,13 @@ func TestService_GetSingleBlobWithoutPadding(t *testing.T) {
 }
 
 func TestService_GetAllWithoutPadding(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Minute*5)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	t.Cleanup(cancel)
 
-	blobs := generateBlob(t, []int{9, 5}, true)
+	appBlob, err := blobtest.GenerateBlobs([]int{9, 5}, true)
+	require.NoError(t, err)
+	blobs, err := convertBlobs(appBlob...)
+	require.NoError(t, err)
 
 	padding0 := shares.NamespacePaddingShare(blobs[0].NamespaceID())
 	padding1 := shares.NamespacePaddingShare(blobs[1].NamespaceID())

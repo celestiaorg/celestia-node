@@ -29,26 +29,24 @@ var (
 // defaultMinGasPrice is the default min gas price.
 const defaultMinGasPrice = 0.001
 
-// headerGetter fetches header by the provided height
-type headerGetter func(context.Context, uint64) (*header.ExtendedHeader, error)
-
 type Service struct {
 	// accessor dials the given celestia-core endpoint to submit blobs.
 	accessor *state.CoreAccessor
 	// shareGetter retrieves the EDS to fetch all shares from the requested header.
-	shareGetter  share.Getter
-	headerGetter headerGetter
+	shareGetter share.Getter
+	//  headerGetter fetches header by the provided height
+	headerGetter func(context.Context, uint64) (*header.ExtendedHeader, error)
 }
 
 func NewService(
 	state *state.CoreAccessor,
 	getter share.Getter,
-	headGetter headerGetter,
+	headerGetter func(context.Context, uint64) (*header.ExtendedHeader, error),
 ) *Service {
 	return &Service{
 		accessor:     state,
 		shareGetter:  getter,
-		headerGetter: headGetter,
+		headerGetter: headerGetter,
 	}
 }
 
@@ -197,12 +195,12 @@ func (s *Service) getByCommitment(
 
 	namespacedShares, err := s.shareGetter.GetSharesByNamespace(ctx, header.DAH, nID)
 	if err != nil {
-		if errors.Is(err, share.ErrNotFound) {
+		if errors.Is(err, share.ErrNamespaceNotFound) ||
+			errors.Is(err, share.ErrNotFound) {
 			err = ErrBlobNotFound
 		}
 		return nil, nil, err
 	}
-
 	for _, row := range namespacedShares {
 		if len(row.Shares) == 0 {
 			break
