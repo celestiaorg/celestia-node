@@ -60,11 +60,12 @@ func SharesToBlobs(rawShares []share.Share) ([]*Blob, error) {
 func BlobsToShares(blobs ...*Blob) ([]share.Share, error) {
 	b := make([]types.Blob, len(blobs))
 	for i, blob := range blobs {
+		namespace := blob.Namespace()
 		b[i] = types.Blob{
-			NamespaceID:      blob.Namespace().ID,
-			NamespaceVersion: blob.Namespace().Version,
-			Data:             blob.Data(),
-			ShareVersion:     uint8(blob.Version()),
+			NamespaceVersion: namespace[0],
+			NamespaceID:      namespace[1:],
+			Data:             blob.Data,
+			ShareVersion:     uint8(blob.ShareVersion),
 		}
 	}
 
@@ -89,7 +90,7 @@ const (
 func estimateGas(blobs ...*Blob) uint64 {
 	totalByteCount := 0
 	for _, blob := range blobs {
-		totalByteCount += len(blob.Data()) + appconsts.NamespaceSize
+		totalByteCount += len(blob.Data) + appconsts.NamespaceSize
 	}
 	variableGasAmount := (appconsts.DefaultGasPerBlobByte + perByteGasTolerance) * totalByteCount
 

@@ -15,6 +15,7 @@ import (
 	tmrand "github.com/tendermint/tendermint/libs/rand"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
+	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
 	"github.com/celestiaorg/celestia-app/pkg/shares"
 	"github.com/celestiaorg/go-header/store"
 	"github.com/celestiaorg/nmt/namespace"
@@ -55,7 +56,7 @@ func TestBlobService_Get(t *testing.T) {
 		{
 			name: "get single blob",
 			doFn: func() (interface{}, error) {
-				b, err := service.Get(ctx, 1, blobs0[0].Namespace().Bytes(), blobs0[0].Commitment())
+				b, err := service.Get(ctx, 1, blobs0[0].Namespace(), blobs0[0].Commitment())
 				return []*Blob{b}, err
 			},
 			expectedResult: func(res interface{}, err error) {
@@ -72,7 +73,7 @@ func TestBlobService_Get(t *testing.T) {
 		{
 			name: "get all with the same nID",
 			doFn: func() (interface{}, error) {
-				b, err := service.GetAll(ctx, 1, blobs1[0].Namespace().Bytes())
+				b, err := service.GetAll(ctx, 1, blobs1[0].Namespace())
 				return b, err
 			},
 			expectedResult: func(res interface{}, err error) {
@@ -92,7 +93,7 @@ func TestBlobService_Get(t *testing.T) {
 		{
 			name: "get all with different nIDs",
 			doFn: func() (interface{}, error) {
-				b, err := service.GetAll(ctx, 1, blobs0[0].Namespace().Bytes(), blobs0[1].Namespace().Bytes())
+				b, err := service.GetAll(ctx, 1, blobs0[0].Namespace(), blobs0[1].Namespace())
 				return b, err
 			},
 			expectedResult: func(res interface{}, err error) {
@@ -104,14 +105,14 @@ func TestBlobService_Get(t *testing.T) {
 
 				assert.Len(t, blobs, 2)
 				// check the order
-				require.True(t, bytes.Equal(blobs[0].Namespace().Bytes(), blobs0[0].Namespace().Bytes()))
-				require.True(t, bytes.Equal(blobs[1].Namespace().Bytes(), blobs0[1].Namespace().Bytes()))
+				require.True(t, bytes.Equal(blobs[0].Namespace(), blobs0[0].Namespace()))
+				require.True(t, bytes.Equal(blobs[1].Namespace(), blobs0[1].Namespace()))
 			},
 		},
 		{
 			name: "get blob with incorrect commitment",
 			doFn: func() (interface{}, error) {
-				b, err := service.Get(ctx, 1, blobs0[0].Namespace().Bytes(), blobs0[1].Commitment())
+				b, err := service.Get(ctx, 1, blobs0[0].Namespace(), blobs0[1].Commitment())
 				return []*Blob{b}, err
 			},
 			expectedResult: func(res interface{}, err error) {
@@ -130,7 +131,7 @@ func TestBlobService_Get(t *testing.T) {
 				blob, err := convertBlobs(appBlob...)
 				require.NoError(t, err)
 
-				b, err := service.Get(ctx, 1, blob[0].Namespace().Bytes(), blob[0].Commitment())
+				b, err := service.Get(ctx, 1, blob[0].Namespace(), blob[0].Commitment())
 				return []*Blob{b}, err
 			},
 			expectedResult: func(res interface{}, err error) {
@@ -144,7 +145,7 @@ func TestBlobService_Get(t *testing.T) {
 		{
 			name: "get proof",
 			doFn: func() (interface{}, error) {
-				proof, err := service.GetProof(ctx, 1, blobs0[1].Namespace().Bytes(), blobs0[1].Commitment())
+				proof, err := service.GetProof(ctx, 1, blobs0[1].Namespace(), blobs0[1].Commitment())
 				return proof, err
 			},
 			expectedResult: func(res interface{}, err error) {
@@ -173,15 +174,15 @@ func TestBlobService_Get(t *testing.T) {
 
 				rawShares, err := BlobsToShares(blobs0[1])
 				require.NoError(t, err)
-				verifyFn(t, rawShares, proof, blobs0[1].Namespace().Bytes())
+				verifyFn(t, rawShares, proof, blobs0[1].Namespace())
 			},
 		},
 		{
 			name: "verify inclusion",
 			doFn: func() (interface{}, error) {
-				proof, err := service.GetProof(ctx, 1, blobs0[0].Namespace().Bytes(), blobs0[0].Commitment())
+				proof, err := service.GetProof(ctx, 1, blobs0[0].Namespace(), blobs0[0].Commitment())
 				require.NoError(t, err)
-				return service.Included(ctx, 1, blobs0[0].Namespace().Bytes(), proof, blobs0[0].Commitment())
+				return service.Included(ctx, 1, blobs0[0].Namespace(), proof, blobs0[0].Commitment())
 			},
 			expectedResult: func(res interface{}, err error) {
 				require.NoError(t, err)
@@ -193,9 +194,9 @@ func TestBlobService_Get(t *testing.T) {
 		{
 			name: "verify inclusion fails with different proof",
 			doFn: func() (interface{}, error) {
-				proof, err := service.GetProof(ctx, 1, blobs0[1].Namespace().Bytes(), blobs0[1].Commitment())
+				proof, err := service.GetProof(ctx, 1, blobs0[1].Namespace(), blobs0[1].Commitment())
 				require.NoError(t, err)
-				return service.Included(ctx, 1, blobs0[0].Namespace().Bytes(), proof, blobs0[0].Commitment())
+				return service.Included(ctx, 1, blobs0[0].Namespace(), proof, blobs0[0].Commitment())
 			},
 			expectedResult: func(res interface{}, err error) {
 				require.Error(t, err)
@@ -213,9 +214,9 @@ func TestBlobService_Get(t *testing.T) {
 				blob, err := convertBlobs(appBlob...)
 				require.NoError(t, err)
 
-				proof, err := service.GetProof(ctx, 1, blobs0[1].Namespace().Bytes(), blobs0[1].Commitment())
+				proof, err := service.GetProof(ctx, 1, blobs0[1].Namespace(), blobs0[1].Commitment())
 				require.NoError(t, err)
-				return service.Included(ctx, 1, blob[0].Namespace().Bytes(), proof, blob[0].Commitment())
+				return service.Included(ctx, 1, blob[0].Namespace(), proof, blob[0].Commitment())
 			},
 			expectedResult: func(res interface{}, err error) {
 				require.NoError(t, err)
@@ -227,11 +228,11 @@ func TestBlobService_Get(t *testing.T) {
 		{
 			name: "count proofs for the blob",
 			doFn: func() (interface{}, error) {
-				proof0, err := service.GetProof(ctx, 1, blobs0[0].Namespace().Bytes(), blobs0[0].Commitment())
+				proof0, err := service.GetProof(ctx, 1, blobs0[0].Namespace(), blobs0[0].Commitment())
 				if err != nil {
 					return nil, err
 				}
-				proof1, err := service.GetProof(ctx, 1, blobs0[1].Namespace().Bytes(), blobs0[1].Commitment())
+				proof1, err := service.GetProof(ctx, 1, blobs0[1].Namespace(), blobs0[1].Commitment())
 				if err != nil {
 					return nil, err
 				}
@@ -289,9 +290,15 @@ func TestService_GetSingleBlobWithoutPadding(t *testing.T) {
 	blobs, err := convertBlobs(appBlob...)
 	require.NoError(t, err)
 
-	padding0, err := shares.NamespacePaddingShare(blobs[0].Namespace())
+	ns1, err := appns.New(blobs[0].Namespace()[0], blobs[0].Namespace()[versionIndex+1:])
 	require.NoError(t, err)
-	padding1, err := shares.NamespacePaddingShare(blobs[1].Namespace())
+
+	ns2, err := appns.New(blobs[1].Namespace()[0], blobs[1].Namespace()[versionIndex+1:])
+	require.NoError(t, err)
+
+	padding0, err := shares.NamespacePaddingShare(ns1)
+	require.NoError(t, err)
+	padding1, err := shares.NamespacePaddingShare(ns2)
 	require.NoError(t, err)
 	rawShares0, err := BlobsToShares(blobs[0])
 	require.NoError(t, err)
@@ -318,13 +325,13 @@ func TestService_GetSingleBlobWithoutPadding(t *testing.T) {
 	}
 	service := NewService(nil, getters.NewIPLDGetter(bs), fn)
 
-	newBlob, err := service.Get(ctx, 1, blobs[1].Namespace().Bytes(), blobs[1].Commitment())
+	newBlob, err := service.Get(ctx, 1, blobs[1].Namespace(), blobs[1].Commitment())
 	require.NoError(t, err)
 	assert.Equal(t, newBlob.Commitment(), blobs[1].Commitment())
 }
 
 func TestService_GetAllWithoutPadding(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Minute*5)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	t.Cleanup(cancel)
 
 	appBlob, err := blobtest.GenerateBlobs([]int{9, 5}, true)
@@ -332,9 +339,15 @@ func TestService_GetAllWithoutPadding(t *testing.T) {
 	blobs, err := convertBlobs(appBlob...)
 	require.NoError(t, err)
 
-	padding0, err := shares.NamespacePaddingShare(blobs[0].Namespace())
+	ns1, err := appns.New(blobs[0].Namespace()[versionIndex], blobs[0].Namespace()[versionIndex+1:])
 	require.NoError(t, err)
-	padding1, err := shares.NamespacePaddingShare(blobs[1].Namespace())
+
+	ns2, err := appns.New(blobs[1].Namespace()[versionIndex], blobs[1].Namespace()[versionIndex+1:])
+	require.NoError(t, err)
+
+	padding0, err := shares.NamespacePaddingShare(ns1)
+	require.NoError(t, err)
+	padding1, err := shares.NamespacePaddingShare(ns2)
 	require.NoError(t, err)
 	rawShares0, err := BlobsToShares(blobs[0])
 	require.NoError(t, err)
@@ -343,7 +356,7 @@ func TestService_GetAllWithoutPadding(t *testing.T) {
 	rawShares := make([][]byte, 0)
 
 	// create shares in correct order with padding shares
-	if bytes.Compare(blobs[0].Namespace().Bytes(), blobs[1].Namespace().Bytes()) <= 0 {
+	if bytes.Compare(blobs[0].Namespace(), blobs[1].Namespace()) <= 0 {
 		rawShares = append(rawShares, append(rawShares0, padding0.ToBytes())...)
 		rawShares = append(rawShares, append(rawShares1, padding1.ToBytes())...)
 	} else {
@@ -368,7 +381,7 @@ func TestService_GetAllWithoutPadding(t *testing.T) {
 
 	service := NewService(nil, getters.NewIPLDGetter(bs), fn)
 
-	_, err = service.GetAll(ctx, 1, blobs[0].Namespace().Bytes(), blobs[1].Namespace().Bytes())
+	_, err = service.GetAll(ctx, 1, blobs[0].Namespace(), blobs[1].Namespace())
 	require.NoError(t, err)
 }
 

@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/tendermint/tendermint/types"
 
+	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
 	apptypes "github.com/celestiaorg/celestia-app/x/blob/types"
 
 	"github.com/celestiaorg/celestia-node/blob/blobtest"
@@ -26,8 +27,8 @@ func TestBlob(t *testing.T) {
 			name: "new blob",
 			expectedRes: func(t *testing.T) {
 				require.NotEmpty(t, blob)
-				require.NotEmpty(t, blob[0].Namespace().ID)
-				require.NotEmpty(t, blob[0].Data())
+				require.NotEmpty(t, blob[0].Namespace())
+				require.NotEmpty(t, blob[0].Data)
 				require.NotEmpty(t, blob[0].Commitment())
 			},
 		},
@@ -42,7 +43,9 @@ func TestBlob(t *testing.T) {
 		{
 			name: "verify nID",
 			expectedRes: func(t *testing.T) {
-				require.NoError(t, apptypes.ValidateBlobNamespaceID(blob[0].Namespace()))
+				ns, err := appns.New(blob[0].Namespace()[0], blob[0].Namespace()[1:])
+				require.NoError(t, err)
+				require.NoError(t, apptypes.ValidateBlobNamespaceID(ns))
 			},
 		},
 		{
