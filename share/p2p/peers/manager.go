@@ -393,6 +393,8 @@ func (m *Manager) blacklistPeers(reason blacklistPeerReason, peerIDs ...peer.ID)
 	m.metrics.observeBlacklistPeers(reason, len(peerIDs))
 
 	for _, peerID := range peerIDs {
+		// blacklisted peers will be logged regardless of EnableBlackListing whether option being is
+		// enabled, until blacklisting is not properly tested and enabled by default.
 		log.Debugw("blacklisting peer", "peer", peerID.String(), "reason", reason)
 		if !m.params.EnableBlackListing {
 			continue
