@@ -154,13 +154,13 @@ func (m *metrics) observeSample(
 	}
 	m.sampleTime.Record(ctx, sampleTime.Seconds(),
 		attribute.Bool(failedLabel, err != nil),
-		attribute.Int(headerWidthLabel, len(h.DAH.RowsRoots)),
+		attribute.Int(headerWidthLabel, len(h.DAH.RowRoots)),
 		attribute.String(jobTypeLabel, string(jobType)),
 	)
 
 	m.sampled.Add(ctx, 1,
 		attribute.Bool(failedLabel, err != nil),
-		attribute.Int(headerWidthLabel, len(h.DAH.RowsRoots)),
+		attribute.Int(headerWidthLabel, len(h.DAH.RowRoots)),
 		attribute.String(jobTypeLabel, string(jobType)),
 	)
 

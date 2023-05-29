@@ -18,7 +18,6 @@ import (
 func TestTrulyEmptySquare(t *testing.T) {
 	data := types.Data{
 		Txs:        []types.Tx{},
-		Blobs:      []types.Blob{},
 		SquareSize: 1,
 	}
 
@@ -27,17 +26,20 @@ func TestTrulyEmptySquare(t *testing.T) {
 	assert.Nil(t, eds)
 }
 
-// TestNonEmptySquareWithZeroTxs tests that a non-empty square with no
-// transactions or blobs computes the correct data root (not the minimum DAH).
+// TestNonZeroSquareSize tests that the DAH hash of a block with no transactions
+// is equal to the DAH hash for an empty root even if SquareSize is set to
+// something non-zero. Technically, this block data is invalid because the
+// construction of the square is deterministic, and the rules which dictate the
+// square size do not allow for empty block data. However, should that ever
+// occur, we need to ensure that the correct data root is generated.
 func TestNonEmptySquareWithZeroTxs(t *testing.T) {
 	data := types.Data{
 		Txs:        []types.Tx{},
-		Blobs:      []types.Blob{},
 		SquareSize: 16,
 	}
 
 	eds, err := extendBlock(data)
 	require.NoError(t, err)
 	dah := da.NewDataAvailabilityHeader(eds)
-	assert.NotEqual(t, share.EmptyRoot().Hash(), dah.Hash())
+	assert.Equal(t, share.EmptyRoot().Hash(), dah.Hash())
 }

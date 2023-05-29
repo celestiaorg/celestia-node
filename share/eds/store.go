@@ -280,7 +280,7 @@ func dahFromCARHeader(carHeader *carv1.CarHeader) *header.DataAvailabilityHeader
 		rootBytes = append(rootBytes, ipld.NamespacedSha256FromCID(root))
 	}
 	return &header.DataAvailabilityHeader{
-		RowsRoots:   rootBytes[:rootCount/2],
+		RowRoots:    rootBytes[:rootCount/2],
 		ColumnRoots: rootBytes[rootCount/2:],
 	}
 }

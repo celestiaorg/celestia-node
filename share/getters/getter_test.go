@@ -14,6 +14,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/celestiaorg/celestia-app/pkg/da"
+	"github.com/celestiaorg/celestia-app/pkg/namespace"
 	"github.com/celestiaorg/celestia-app/pkg/wrapper"
 	"github.com/celestiaorg/rsmt2d"
 
@@ -136,7 +137,7 @@ func TestStoreGetter(t *testing.T) {
 		assert.Len(t, shares.Flatten(), 2)
 
 		// nid not found
-		nID = make([]byte, 8)
+		nID = make([]byte, namespace.NamespaceSize)
 		_, err = sg.GetSharesByNamespace(ctx, &dah, nID)
 		require.ErrorIs(t, err, share.ErrNamespaceNotFound)
 
@@ -213,7 +214,7 @@ func TestIPLDGetter(t *testing.T) {
 		assert.Len(t, shares.Flatten(), 2)
 
 		// nid not found
-		nID = make([]byte, 8)
+		nID = make([]byte, namespace.NamespaceSize)
 		emptyShares, err := sg.GetSharesByNamespace(ctx, &dah, nID)
 		require.ErrorIs(t, err, share.ErrNamespaceNotFound)
 		require.Nil(t, emptyShares)
@@ -239,8 +240,16 @@ func randomEDSWithDoubledNamespace(t *testing.T, size int) (*rsmt2d.ExtendedData
 	randShares := share.RandShares(t, n)
 	idx1 := (n - 1) / 2
 	idx2 := n / 2
-	// make it so that two rows have the same namespace ID
-	copy(randShares[idx2][:8], randShares[idx1][:8])
+
+	// Make it so that the two shares in two different rows have a common
+	// namespace. For example if size=4, the original data square looks like
+	// this:
+	// _ _ _ _
+	// _ _ _ D
+	// D _ _ _
+	// _ _ _ _
+	// where the D shares have a common namespace.
+	copy(randShares[idx2][:share.NamespaceSize], randShares[idx1][:share.NamespaceSize])
 
 	eds, err := rsmt2d.ComputeExtendedDataSquare(
 		randShares,
@@ -250,5 +259,5 @@ func randomEDSWithDoubledNamespace(t *testing.T, size int) (*rsmt2d.ExtendedData
 	require.NoError(t, err, "failure to recompute the extended data square")
 	dah := da.NewDataAvailabilityHeader(eds)
 
-	return eds, randShares[idx1][:8], dah
+	return eds, randShares[idx1][:share.NamespaceSize], dah
 }

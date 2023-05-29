@@ -14,9 +14,11 @@ import (
 	carv1 "github.com/ipld/go-car"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/tendermint/tendermint/libs/rand"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/pkg/da"
+	"github.com/celestiaorg/celestia-app/pkg/namespace"
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/share"
@@ -30,26 +32,47 @@ var exampleRoot string
 var f embed.FS
 
 func TestQuadrantOrder(t *testing.T) {
-	// TODO: add more test cases
-	nID := []byte{0, 0, 0, 0, 0, 0, 0, 0}
-	parity := append(appconsts.ParitySharesNamespaceID, nID...) //nolint
-	doubleNID := append(nID, nID...)                            //nolint
-	result, _ := rsmt2d.ComputeExtendedDataSquare([][]byte{
-		append(nID, 1), append(nID, 2),
-		append(nID, 3), append(nID, 4),
-	}, rsmt2d.NewRSGF8Codec(), rsmt2d.NewDefaultTree)
-	//  {{1}, {2}, {7}, {13}},
-	//  {{3}, {4}, {13}, {31}},
-	//  {{5}, {14}, {19}, {41}},
-	//  {{9}, {26}, {47}, {69}},
-	require.Equal(t,
-		[][]byte{
-			append(doubleNID, 1), append(doubleNID, 2), append(doubleNID, 3), append(doubleNID, 4),
-			append(parity, 7), append(parity, 13), append(parity, 13), append(parity, 31),
-			append(parity, 5), append(parity, 14), append(parity, 9), append(parity, 26),
-			append(parity, 19), append(parity, 41), append(parity, 47), append(parity, 69),
-		}, quadrantOrder(result),
-	)
+	testCases := []struct {
+		name       string
+		squareSize int
+	}{
+		{"smol", 2},
+		{"still smol", 8},
+		{"default mainnet", appconsts.DefaultGovMaxSquareSize},
+		{"max", appconsts.MaxSquareSize},
+	}
+
+	testShareSize := 64
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			shares := make([][]byte, tc.squareSize*tc.squareSize)
+
+			for i := 0; i < tc.squareSize*tc.squareSize; i++ {
+				shares[i] = rand.Bytes(testShareSize)
+			}
+
+			eds, err := rsmt2d.ComputeExtendedDataSquare(shares, share.DefaultRSMT2DCodec(), rsmt2d.NewDefaultTree)
+			require.NoError(t, err)
+
+			res := quadrantOrder(eds)
+			for _, s := range res {
+				require.Len(t, s, testShareSize+namespace.NamespaceSize)
+			}
+
+			for q := 0; q < 4; q++ {
+				for i := 0; i < tc.squareSize; i++ {
+					for j := 0; j < tc.squareSize; j++ {
+						resIndex := q*tc.squareSize*tc.squareSize + i*tc.squareSize + j
+						edsRow := q/2*tc.squareSize + i
+						edsCol := (q%2)*tc.squareSize + j
+
+						assert.Equal(t, res[resIndex], prependNamespace(q, eds.Row(uint(edsRow))[edsCol]))
+					}
+				}
+			}
+		})
+	}
 }
 
 func TestWriteEDS(t *testing.T) {
@@ -164,7 +187,7 @@ func TestReadEDS(t *testing.T) {
 
 	loaded, err := ReadEDS(context.Background(), f, dah.Hash())
 	require.NoError(t, err, "error reading EDS from file")
-	require.Equal(t, dah.RowsRoots, loaded.RowRoots())
+	require.Equal(t, dah.RowRoots, loaded.RowRoots())
 	require.Equal(t, dah.ColumnRoots, loaded.ColRoots())
 }
 
