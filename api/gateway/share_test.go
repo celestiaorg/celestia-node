@@ -3,15 +3,16 @@ package gateway
 import (
 	"testing"
 
+	"github.com/stretchr/testify/require"
+	coretypes "github.com/tendermint/tendermint/types"
+
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/pkg/namespace"
 	"github.com/celestiaorg/celestia-app/pkg/shares"
-	"github.com/stretchr/testify/require"
-	coretypes "github.com/tendermint/tendermint/types"
 )
 
 func Test_dataFromShares(t *testing.T) {
-	input := [][]byte{
+	testData := [][]byte{
 		[]byte("beep"),
 		[]byte("beeap"),
 		[]byte("BEEEEAHP"),
@@ -19,9 +20,9 @@ func Test_dataFromShares(t *testing.T) {
 
 	ns := namespace.RandomBlobNamespace()
 	sss := shares.NewSparseShareSplitter()
-	for _, i := range input {
+	for _, data := range testData {
 		b := coretypes.Blob{
-			Data:             i,
+			Data:             data,
 			NamespaceID:      ns.ID,
 			NamespaceVersion: ns.Version,
 			ShareVersion:     appconsts.ShareVersionZero,
@@ -41,5 +42,5 @@ func Test_dataFromShares(t *testing.T) {
 	parsedSSSShares, err := dataFromShares(rawSSSShares)
 	require.NoError(t, err)
 
-	require.Equal(t, input, parsedSSSShares)
+	require.Equal(t, testData, parsedSSSShares)
 }

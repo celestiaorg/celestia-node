@@ -5,13 +5,13 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/pkg/wrapper"
 	"github.com/celestiaorg/go-fraud"
 	libhead "github.com/celestiaorg/go-header"
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/header"
+	"github.com/celestiaorg/celestia-node/share"
 	pb "github.com/celestiaorg/celestia-node/share/eds/byzantine/pb"
 	"github.com/celestiaorg/celestia-node/share/ipld"
 )
@@ -157,7 +157,7 @@ func (p *BadEncodingProof) Validate(hdr libhead.Header) error {
 	}
 
 	odsWidth := uint64(len(merkleRowRoots) / 2)
-	codec := appconsts.DefaultCodec()
+	codec := share.DefaultRSMT2DCodec()
 
 	// rebuild a row or col.
 	rebuiltShares, err := codec.Decode(shares)

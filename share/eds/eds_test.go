@@ -52,7 +52,7 @@ func TestQuadrantOrder(t *testing.T) {
 				shares[i] = rand.Bytes(testShareSize)
 			}
 
-			eds, err := rsmt2d.ComputeExtendedDataSquare(shares, appconsts.DefaultCodec(), rsmt2d.NewDefaultTree)
+			eds, err := rsmt2d.ComputeExtendedDataSquare(shares, share.DefaultRSMT2DCodec(), rsmt2d.NewDefaultTree)
 			require.NoError(t, err)
 
 			res := quadrantOrder(eds)
