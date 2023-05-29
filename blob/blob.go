@@ -65,12 +65,12 @@ type Blob struct {
 }
 
 // NewBlob constructs a new blob from the provided namespace.ID and data.
-func NewBlob(shareVersion uint8, nID namespace.ID, data []byte) (*Blob, error) {
-	if len(nID) != appns.NamespaceSize {
+func NewBlob(shareVersion uint8, namespace namespace.ID, data []byte) (*Blob, error) {
+	if len(namespace) != appns.NamespaceSize {
 		return nil, fmt.Errorf("invalid size of the namespace id. got:%d, want:%d", len(nID), appns.NamespaceSize)
 	}
 
-	ns, err := appns.New(nID[0], nID[1:])
+	ns, err := appns.New(namespace[0], namespace[1:])
 	if err != nil {
 		return nil, err
 	}
@@ -87,7 +87,7 @@ func NewBlob(shareVersion uint8, nID namespace.ID, data []byte) (*Blob, error) {
 	return &Blob{Blob: *blob, commitment: com}, nil
 }
 
-// NamespaceID returns blobs namespaceId.
+// Namespace returns blob's namespace.
 func (b *Blob) Namespace() appns.Namespace {
 	return appns.Namespace{
 		ID:      b.Blob.GetNamespaceId(),
