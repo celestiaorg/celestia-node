@@ -41,12 +41,12 @@ type Service struct {
 func NewService(
 	state *state.CoreAccessor,
 	getter share.Getter,
-	headGetter func(context.Context, uint64) (*header.ExtendedHeader, error),
+	headerGetter func(context.Context, uint64) (*header.ExtendedHeader, error),
 ) *Service {
 	return &Service{
 		accessor:     state,
 		shareGetter:  getter,
-		headerGetter: headGetter,
+		headerGetter: headerGetter,
 	}
 }
 
