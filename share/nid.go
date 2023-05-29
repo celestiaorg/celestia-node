@@ -14,7 +14,7 @@ func NewNamespaceV0(subNId []byte) (namespace.ID, error) {
 		return nil, fmt.Errorf("namespace id must be <= %v, but it was %v bytes", appns.NamespaceVersionZeroIDSize, lnid)
 	}
 
-	id := make([]byte, appns.NamespaceIDSize)
+	id := make([]byte, 0, appns.NamespaceIDSize)
 	id = append(id, appns.NamespaceVersionZeroPrefix...)
 	id = append(id, subNId...)
 	appID, err := appns.New(appns.NamespaceVersionZero, id)
