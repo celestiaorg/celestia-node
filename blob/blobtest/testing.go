@@ -1,35 +1,30 @@
-package blob
+package blobtest
 
 import (
-	"testing"
-
-	"github.com/stretchr/testify/require"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
+	"github.com/tendermint/tendermint/types"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/pkg/shares"
 	"github.com/celestiaorg/celestia-app/testutil/testfactory"
 )
 
-func GenerateBlobs(t *testing.T, sizes []int, sameNID bool) []*Blob {
+func GenerateBlobs(sizes []int, sameNID bool) ([]types.Blob, error) {
 	nID := tmrand.Bytes(appconsts.NamespaceSize)
-	blobs := make([]*Blob, 0, len(sizes))
+	blobs := make([]types.Blob, 0, len(sizes))
 
 	for _, size := range sizes {
-		size := rawBlobSize(t, appconsts.FirstSparseShareContentSize*size)
+		size := rawBlobSize(appconsts.FirstSparseShareContentSize * size)
 		appBlob := testfactory.GenerateRandomBlob(size)
 		if sameNID {
 			appBlob.NamespaceID = nID
 		}
 
-		blob, err := NewBlob(appBlob.ShareVersion, appBlob.NamespaceID, appBlob.Data)
-		require.NoError(t, err)
-		blobs = append(blobs, blob)
+		blobs = append(blobs, appBlob)
 	}
-	return blobs
+	return blobs, nil
 }
 
-func rawBlobSize(t *testing.T, totalSize int) int {
-	t.Helper()
+func rawBlobSize(totalSize int) int {
 	return totalSize - shares.DelimLen(uint64(totalSize))
 }
