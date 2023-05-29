@@ -134,7 +134,7 @@ func (d *Discovery) Discard(id peer.ID) bool {
 	d.connector.Backoff(id)
 	d.set.Remove(id)
 	d.onUpdatedPeers(id, false)
-	log.Debugw("removed peer from the peer set", "peer", id)
+	log.Debugw("removed peer from the peer set", "peer", id.String())
 
 	if d.set.Size() < d.set.Limit() {
 		// trigger discovery
@@ -307,7 +307,7 @@ func (d *Discovery) discover(ctx context.Context) bool {
 				}
 
 				size := d.set.Size()
-				log.Debugw("found peer", "peer", peer.ID, "found_amount", size)
+				log.Debugw("found peer", "peer", peer.ID.String(), "found_amount", size)
 				if size < d.set.Limit() {
 					return nil
 				}
@@ -323,7 +323,7 @@ func (d *Discovery) discover(ctx context.Context) bool {
 // handleDiscoveredPeer adds peer to the internal if can connect or is connected.
 // Report whether it succeeded.
 func (d *Discovery) handleDiscoveredPeer(ctx context.Context, peer peer.AddrInfo) bool {
-	logger := log.With("peer", peer.ID)
+	logger := log.With("peer", peer.ID.String())
 	switch {
 	case peer.ID == d.host.ID():
 		d.metrics.observeHandlePeer(ctx, handlePeerSkipSelf)

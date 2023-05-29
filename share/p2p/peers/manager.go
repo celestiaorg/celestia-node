@@ -128,7 +128,7 @@ func NewManager(
 		func(peerID peer.ID, isAdded bool) {
 			if isAdded {
 				if s.isBlacklistedPeer(peerID) {
-					log.Debugw("got blacklisted peer from discovery", "peer", peerID)
+					log.Debugw("got blacklisted peer from discovery", "peer", peerID.String())
 					return
 				}
 				s.fullNodes.add(peerID)
@@ -136,7 +136,7 @@ func NewManager(
 				return
 			}
 
-			log.Debugw("removing peer from discovered full nodes", "peer", peerID)
+			log.Debugw("removing peer from discovered full nodes", "peer", peerID.String())
 			s.fullNodes.remove(peerID)
 		})
 
@@ -256,7 +256,7 @@ func (m *Manager) doneFunc(datahash share.DataHash, peerID peer.ID, source peerS
 	return func(result result) {
 		log.Debugw("set peer result",
 			"hash", datahash.String(),
-			"peer", peerID,
+			"peer", peerID.String(),
 			"source", source,
 			"result", result)
 		m.metrics.observeDoneResult(source, result)
@@ -318,7 +318,7 @@ func (m *Manager) subscribeDisconnectedPeers(ctx context.Context, sub event.Subs
 			if connStatus.Connectedness == network.NotConnected {
 				peer := connStatus.Peer
 				if m.fullNodes.has(peer) {
-					log.Debugw("peer disconnected, removing from full nodes", "peer", peer)
+					log.Debugw("peer disconnected, removing from full nodes", "peer", peer.String())
 					m.fullNodes.remove(peer)
 				}
 			}
@@ -328,7 +328,7 @@ func (m *Manager) subscribeDisconnectedPeers(ctx context.Context, sub event.Subs
 
 // Validate will collect peer.ID into corresponding peer pool
 func (m *Manager) Validate(_ context.Context, peerID peer.ID, msg shrexsub.Notification) pubsub.ValidationResult {
-	logger := log.With("peer", peerID, "hash", msg.DataHash.String())
+	logger := log.With("peer", peerID.String(), "hash", msg.DataHash.String())
 
 	// messages broadcast from self should bypass the validation with Accept
 	if peerID == m.host.ID() {
@@ -390,15 +390,16 @@ func (m *Manager) getOrCreatePool(datahash string) *syncPool {
 }
 
 func (m *Manager) blacklistPeers(reason blacklistPeerReason, peerIDs ...peer.ID) {
-	log.Debugw("blacklisting peers",
-		"peers", peerIDs,
-		"reason", reason)
 	m.metrics.observeBlacklistPeers(reason, len(peerIDs))
 
-	if !m.params.EnableBlackListing {
-		return
-	}
 	for _, peerID := range peerIDs {
+		// blacklisted peers will be logged regardless of EnableBlackListing whether option being is
+		// enabled, until blacklisting is not properly tested and enabled by default.
+		log.Debugw("blacklisting peer", "peer", peerID.String(), "reason", reason)
+		if !m.params.EnableBlackListing {
+			continue
+		}
+
 		m.fullNodes.remove(peerID)
 		// add peer to the blacklist, so we can't connect to it in the future.
 		err := m.connGater.BlockPeer(peerID)
