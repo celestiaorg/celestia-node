@@ -47,7 +47,7 @@ func SharesToBlobs(rawShares []share.Share) ([]*Blob, error) {
 			return nil, err
 		}
 
-		blob, err := NewBlob(shareVersion, sequence.Namespace.Version, sequence.Namespace.ID, data)
+		blob, err := NewBlob(shareVersion, sequence.Namespace.Bytes(), data)
 		if err != nil {
 			return nil, err
 		}

@@ -2,6 +2,7 @@ package blob
 
 import (
 	"bytes"
+	"fmt"
 
 	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
 	"github.com/celestiaorg/celestia-app/x/blob/types"
@@ -64,8 +65,12 @@ type Blob struct {
 }
 
 // NewBlob constructs a new blob from the provided namespace.ID and data.
-func NewBlob(shareVersion, nIDVersion uint8, nID namespace.ID, data []byte) (*Blob, error) {
-	ns, err := appns.New(nIDVersion, nID)
+func NewBlob(shareVersion uint8, nID namespace.ID, data []byte) (*Blob, error) {
+	if len(nID) != appns.NamespaceSize {
+		return nil, fmt.Errorf("invalid size of the namespace id. got:%d, want:%d", len(nID), appns.NamespaceSize)
+	}
+
+	ns, err := appns.New(nID[0], nID[1:])
 	if err != nil {
 		return nil, err
 	}

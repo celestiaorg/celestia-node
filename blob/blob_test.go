@@ -66,7 +66,7 @@ func TestBlob(t *testing.T) {
 func convertBlobs(appBlobs ...types.Blob) ([]*Blob, error) {
 	blobs := make([]*Blob, 0, len(appBlobs))
 	for _, b := range appBlobs {
-		blob, err := NewBlob(b.ShareVersion, b.NamespaceVersion, b.NamespaceID, b.Data)
+		blob, err := NewBlob(b.ShareVersion, append([]byte{b.NamespaceVersion}, b.NamespaceID...), b.Data)
 		if err != nil {
 			return nil, err
 		}
